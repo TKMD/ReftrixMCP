@@ -1,0 +1,35 @@
+# Dependabot 設定 / Dependabot Configuration
+# https://docs.github.com/en/code-security/dependabot/dependabot-version-updates/configuration-options-for-the-dependabot.yml-file
+
+version: 2
+updates:
+  # npm (pnpm) 依存関係の更新 / npm (pnpm) dependency updates
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      timezone: "Asia/Tokyo"
+    # PR数の制限 / Limit number of open PRs
+    open-pull-requests-limit: 10
+    # コミットメッセージ形式 / Commit message format
+    commit-message:
+      prefix: "chore(deps)"
+      prefix-development: "chore(deps-dev)"
+    # セキュリティアップデートのみ自動マージ対象 / Only security updates are auto-merge candidates
+    labels:
+      - "dependencies"
+
+  # GitHub Actions の更新 / GitHub Actions updates
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      timezone: "Asia/Tokyo"
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "chore(ci)"
+    labels:
+      - "ci"
+      - "dependencies"
