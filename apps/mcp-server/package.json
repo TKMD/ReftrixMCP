@@ -75,7 +75,7 @@
     "@reftrix/ml": "workspace:*",
     "@reftrix/webdesign-core": "workspace:*",
     "axe-core": "^4.10.2",
-    "bullmq": "^5.66.5",
+    "bullmq": "^5.70.1",
     "culori": "^4.0.2",
     "dompurify": "^3.3.1",
     "ioredis": "^5.9.2",
