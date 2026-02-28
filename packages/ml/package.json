@@ -43,7 +43,7 @@
     "@reftrix/config": "workspace:*",
     "@vitest/coverage-v8": "^4.0.14",
     "typescript": "^5.9.0",
-    "vitest": "^4.0.14"
+    "vitest": "^4.0.18"
   },
   "repository": {
     "type": "git",
