@@ -1,0 +1,57 @@
+{
+  "name": "@reftrix/ml",
+  "version": "0.1.0",
+  "private": true,
+  "license": "AGPL-3.0-only",
+  "type": "module",
+  "description": "ML/Embedding services for Reftrix",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./embeddings": {
+      "types": "./dist/embeddings/index.d.ts",
+      "default": "./dist/embeddings/index.js"
+    },
+    "./search": {
+      "types": "./dist/search/index.d.ts",
+      "default": "./dist/search/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "lint": "eslint src --ext .ts",
+    "lint:fix": "eslint src --ext .ts --fix",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "clean": "rm -rf dist node_modules .turbo"
+  },
+  "dependencies": {
+    "@huggingface/transformers": "^3.8.1",
+    "onnxruntime-node": "^1.21.0",
+    "p-limit": "^3.1.0",
+    "zod": "^3.24.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@reftrix/config": "workspace:*",
+    "@vitest/coverage-v8": "^4.0.14",
+    "typescript": "^5.9.0",
+    "vitest": "^4.0.14"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/TKMD/ReftrixMCP.git",
+    "directory": "packages/ml"
+  },
+  "homepage": "https://github.com/TKMD/ReftrixMCP#readme",
+  "bugs": {
+    "url": "https://github.com/TKMD/ReftrixMCP/issues"
+  }
+}

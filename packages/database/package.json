@@ -1,0 +1,65 @@
+{
+  "name": "@reftrix/database",
+  "version": "0.1.0",
+  "private": true,
+  "license": "AGPL-3.0-only",
+  "description": "Database schema and migrations for Reftrix",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./client": {
+      "types": "./dist/client.d.ts",
+      "import": "./dist/client.js",
+      "require": "./dist/client.js",
+      "default": "./dist/client.js"
+    }
+  },
+  "scripts": {
+    "postinstall": "prisma generate",
+    "build": "tsc",
+    "db:generate": "prisma generate",
+    "db:migrate": "prisma migrate deploy",
+    "db:migrate:dev": "prisma migrate dev",
+    "db:seed": "prisma db seed",
+    "seed:benchmarks": "tsx prisma/seed-benchmarks.ts",
+    "db:studio": "prisma studio --port 26555",
+    "db:push": "prisma db push",
+    "db:reset": "prisma migrate reset",
+    "lint": "eslint src tests --ext .ts",
+    "lint:fix": "eslint src tests --ext .ts --fix",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "clean": "rm -rf node_modules .turbo dist"
+  },
+  "prisma": {
+    "seed": "tsx src/seed.ts"
+  },
+  "dependencies": {
+    "@prisma/client": "^6.0.0"
+  },
+  "devDependencies": {
+    "@reftrix/config": "workspace:*",
+    "@vitest/coverage-v8": "^3.2.0",
+    "prisma": "^6.0.0",
+    "tsx": "^4.0.0",
+    "typescript": "^5.9.0",
+    "vitest": "^3.2.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/TKMD/ReftrixMCP.git",
+    "directory": "packages/database"
+  },
+  "homepage": "https://github.com/TKMD/ReftrixMCP#readme",
+  "bugs": {
+    "url": "https://github.com/TKMD/ReftrixMCP/issues"
+  }
+}

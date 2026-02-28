@@ -1,0 +1,53 @@
+# CODEOWNERS - Reftrix
+# https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+
+# デフォルトオーナー（すべてのファイル）
+* @TKMD
+
+# ============================================
+# Critical Directories（変更に注意が必要）
+# ============================================
+
+# データベーススキーマ・マイグレーション
+packages/database/prisma/                    @TKMD
+packages/database/prisma/schema.prisma       @TKMD
+packages/database/prisma/migrations/         @TKMD
+
+# MCP Server（コア機能）
+apps/mcp-server/                             @TKMD
+apps/mcp-server/src/tools/                   @TKMD
+apps/mcp-server/src/services/                @TKMD
+
+# セキュリティ関連
+apps/*/src/**/*sanitiz*.ts                    @TKMD
+apps/*/tests/**/*sanitiz*.ts                 @TKMD
+apps/*/src/**/auth*.ts                       @TKMD
+apps/*/tests/**/auth*.ts                     @TKMD
+
+# CI/CD設定
+.github/                                     @TKMD
+.github/workflows/                           @TKMD
+
+# ============================================
+# Documentation
+# ============================================
+
+docs/                                        @TKMD
+*.md                                         @TKMD
+CONTRIBUTING.md                              @TKMD
+
+# ============================================
+# Configuration Files
+# ============================================
+
+# パッケージ管理
+package.json                                 @TKMD
+pnpm-lock.yaml                               @TKMD
+pnpm-workspace.yaml                          @TKMD
+
+# TypeScript設定
+tsconfig*.json                               @TKMD
+
+# 環境設定
+.env.example                                 @TKMD
+

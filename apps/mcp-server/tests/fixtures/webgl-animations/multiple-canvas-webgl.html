@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Multiple WebGL Canvas Test</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 20px;
+      background: #1a1a2e;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 20px;
+    }
+    .canvas-container {
+      border: 1px solid #333;
+    }
+    canvas {
+      display: block;
+    }
+  </style>
+</head>
+<body>
+  <div class="canvas-container">
+    <canvas id="canvas1" width="200" height="200"></canvas>
+  </div>
+  <div class="canvas-container">
+    <canvas id="canvas2" width="200" height="200"></canvas>
+  </div>
+  <div class="canvas-container">
+    <canvas id="canvas3" width="200" height="200"></canvas>
+  </div>
+  <script>
+    /**
+     * 複数のWebGLキャンバステスト
+     * - 複数のcanvas要素でそれぞれ異なるアニメーション
+     * - カテゴリ: pulse, rotation, fade
+     */
+
+    // Canvas 1: パルスアニメーション
+    const canvas1 = document.getElementById('canvas1');
+    const gl1 = canvas1.getContext('webgl');
+    if (gl1) {
+      let startTime1 = Date.now();
+      function render1() {
+        const t = (Date.now() - startTime1) / 1000;
+        const pulse = Math.sin(t * 3) * 0.3 + 0.5;
+        gl1.clearColor(pulse, 0.2, 0.3, 1.0);
+        gl1.clear(gl1.COLOR_BUFFER_BIT);
+        requestAnimationFrame(render1);
+      }
+      render1();
+    }
+
+    // Canvas 2: 色相回転アニメーション
+    const canvas2 = document.getElementById('canvas2');
+    const gl2 = canvas2.getContext('webgl');
+    if (gl2) {
+      let startTime2 = Date.now();
+      function render2() {
+        const t = (Date.now() - startTime2) / 1000;
+        const r = Math.sin(t * 0.7) * 0.5 + 0.5;
+        const g = Math.sin(t * 0.7 + 2.094) * 0.5 + 0.5;
+        const b = Math.sin(t * 0.7 + 4.188) * 0.5 + 0.5;
+        gl2.clearColor(r, g, b, 1.0);
+        gl2.clear(gl2.COLOR_BUFFER_BIT);
+        requestAnimationFrame(render2);
+      }
+      render2();
+    }
+
+    // Canvas 3: フェードイン/アウトアニメーション
+    const canvas3 = document.getElementById('canvas3');
+    const gl3 = canvas3.getContext('webgl');
+    if (gl3) {
+      let startTime3 = Date.now();
+      function render3() {
+        const t = (Date.now() - startTime3) / 1000;
+        const alpha = Math.sin(t * 2) * 0.5 + 0.5;
+        gl3.clearColor(0.2 * alpha, 0.4 * alpha, 0.6 * alpha, 1.0);
+        gl3.clear(gl3.COLOR_BUFFER_BIT);
+        requestAnimationFrame(render3);
+      }
+      render3();
+    }
+  </script>
+</body>
+</html>

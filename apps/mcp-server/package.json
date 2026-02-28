@@ -1,0 +1,113 @@
+{
+  "name": "@reftrix/mcp-server",
+  "version": "0.1.0",
+  "private": true,
+  "license": "AGPL-3.0-only",
+  "description": "MCP Server for Reftrix - AI agent integration",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.js"
+    },
+    "./services": {
+      "types": "./dist/services/index.d.ts",
+      "import": "./dist/services/index.js",
+      "require": "./dist/services/index.js"
+    },
+    "./tools/brief": {
+      "types": "./dist/tools/brief/index.d.ts",
+      "import": "./dist/tools/brief/index.js",
+      "require": "./dist/tools/brief/index.js"
+    },
+    "./config/redis": {
+      "types": "./dist/config/redis.d.ts",
+      "import": "./dist/config/redis.js",
+      "require": "./dist/config/redis.js"
+    },
+    "./queues/page-analyze-queue": {
+      "types": "./dist/queues/page-analyze-queue.d.ts",
+      "import": "./dist/queues/page-analyze-queue.js",
+      "require": "./dist/queues/page-analyze-queue.js"
+    }
+  },
+  "bin": {
+    "reftrix-mcp": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "NODE_ENV=development tsx watch src/index.ts",
+    "start": "node dist/index.js",
+    "lint": "eslint src --ext .ts",
+    "lint:fix": "eslint src --ext .ts --fix",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "test:smoke": "vitest run --config vitest.smoke.config.ts",
+    "test:unit": "vitest run --exclude 'tests/smoke/**/*.test.ts' --exclude 'tests/integration/**/*.test.ts' --exclude 'tests/e2e/**/*.test.ts' --exclude 'tests/benchmark*/**/*.test.ts'",
+    "test:integration": "vitest run tests/integration",
+    "test:e2e": "playwright test",
+    "test:e2e:playwright": "playwright test",
+    "test:e2e:playwright:ui": "playwright test --ui",
+    "test:e2e:playwright:debug": "playwright test --debug",
+    "test:e2e:playwright:headed": "playwright test --headed",
+    "bench": "vitest bench --config vitest.benchmark.config.ts",
+    "bench:json": "vitest bench --config vitest.benchmark.config.ts --reporter=json --outputFile=./benchmark-results/results.json",
+    "generate:tools": "tsx scripts/generate-tool-list.ts",
+    "validate:tools": "tsx scripts/validate-tool-list.ts --ci",
+    "validate:docs": "tsx scripts/validate-tool-list.ts --check-docs",
+    "validate:all": "tsx scripts/validate-tool-list.ts --ci --check-docs",
+    "worker:start": "NODE_ENV=development NODE_OPTIONS='--max-old-space-size=4096' tsx src/scripts/start-workers.ts",
+    "worker:start:page": "NODE_ENV=development NODE_OPTIONS='--max-old-space-size=4096' tsx src/scripts/start-workers.ts --page",
+    "worker:start:quality": "NODE_ENV=development NODE_OPTIONS='--max-old-space-size=4096' tsx src/scripts/start-workers.ts --quality",
+    "check:embeddings": "tsx src/scripts/check-embedding-coverage.ts",
+    "backfill:embeddings": "NODE_OPTIONS='--max-old-space-size=8192 --expose-gc' tsx src/scripts/backfill-embeddings.ts",
+    "clean": "rm -rf dist node_modules .turbo"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.26.0",
+    "@prisma/client": "^6.19.2",
+    "@reftrix/core": "workspace:*",
+    "@reftrix/database": "workspace:*",
+    "@reftrix/ml": "workspace:*",
+    "@reftrix/webdesign-core": "workspace:*",
+    "axe-core": "^4.10.2",
+    "bullmq": "^5.66.5",
+    "culori": "^4.0.2",
+    "dompurify": "^3.3.1",
+    "ioredis": "^5.9.2",
+    "jsdom": "^27.2.0",
+    "pixelmatch": "^6.0.0",
+    "pngjs": "^7.0.0",
+    "sharp": "^0.34.5",
+    "ws": "^8.18.0",
+    "zod": "^3.24.0"
+  },
+  "devDependencies": {
+    "@axe-core/playwright": "^4.11.0",
+    "@reftrix/config": "workspace:*",
+    "@types/culori": "^4.0.1",
+    "@types/dompurify": "^3.2.0",
+    "@types/jsdom": "^27.0.0",
+    "@types/node": "^22.0.0",
+    "@types/pixelmatch": "^5.2.6",
+    "@types/sharp": "^0.32.0",
+    "jscpd": "^4.0.5",
+    "playwright": "^1.57.0",
+    "tsx": "^4.0.0",
+    "typescript": "^5.9.0",
+    "vitest": "^4.0.14"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/TKMD/ReftrixMCP.git",
+    "directory": "apps/mcp-server"
+  },
+  "homepage": "https://github.com/TKMD/ReftrixMCP#readme",
+  "bugs": {
+    "url": "https://github.com/TKMD/ReftrixMCP/issues"
+  }
+}

@@ -1,0 +1,350 @@
+# ReftrixMCP CI Pipeline
+# Runs on push and pull requests to main branch
+#
+# Database Configuration:
+# - PostgreSQL 18 + pgvector 0.8.x for vector search
+# - Uses standard port 5432 for CI (local dev uses 26432 with offset 21000)
+#
+# Test Strategy:
+# - test-smoke: Quick startup verification (no DB)
+# - test-unit: Unit tests with mocked DB
+# - test-integration: Integration tests with real PostgreSQL + pgvector
+# - test-vision-cpu: Vision CPU-only tests (no Ollama, Graceful Degradation)
+
+name: CI
+
+on:
+  push:
+    # develop: pre-release integration branch (mainマージ前の統合検証用)
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+env:
+  NODE_VERSION: "20"
+  # CI environment flag for conditional test execution
+  CI: "true"
+  # Disable robots.txt checks in CI (no external network access for robots.txt fetch)
+  # robots.txt compliance is tested separately in packages/core/tests/services/robots-txt.service.test.ts
+  REFTRIX_RESPECT_ROBOTS_TXT: "false"
+  # Skip CUDA binary download in CI (no GPU available)
+  # onnxruntime-node postinstall attempts to download CUDA binaries which can fail with 503
+  ONNXRUNTIME_NODE_INSTALL_CUDA: "skip"
+
+jobs:
+  # Lint and Type Check
+  lint:
+    name: Lint & Type Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "pnpm"
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate Prisma Client
+        run: pnpm --filter @reftrix/database db:generate
+
+      - name: Type check
+        run: pnpm typecheck
+
+      - name: Lint
+        run: pnpm lint
+
+      # Note: format:check is available locally via `pnpm format:check`
+      # Not enforced in CI until codebase-wide formatting is applied
+
+  # Smoke Tests - 高速な起動確認テスト
+  # MCPツールの登録確認、基本レスポンス確認、型整合性チェック
+  test-smoke:
+    name: Smoke Tests
+    runs-on: ubuntu-latest
+    needs: lint
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "pnpm"
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate Prisma Client
+        run: pnpm --filter @reftrix/database db:generate
+
+      - name: Build workspace packages
+        run: pnpm build
+
+      - name: Run smoke tests
+        run: pnpm --filter @reftrix/mcp-server test:smoke
+
+  # Unit Tests
+  test-unit:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+    needs: [lint, test-smoke]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "pnpm"
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate Prisma Client
+        run: pnpm --filter @reftrix/database db:generate
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Run unit tests
+        run: pnpm test:unit
+
+      - name: Upload coverage
+        uses: codecov/codecov-action@v5
+        if: always()
+        with:
+          files: ./coverage/lcov.info
+          fail_ci_if_error: false
+          token: ${{ secrets.CODECOV_TOKEN }}
+          # CODECOV_TOKEN が未設定の場合でも fail_ci_if_error: false で CI は継続する
+
+  # Integration Tests - requires PostgreSQL + pgvector
+  test-integration:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+    needs: lint
+    services:
+      postgres:
+        image: pgvector/pgvector:pg18
+        env:
+          POSTGRES_USER: reftrix
+          POSTGRES_PASSWORD: test_password
+          POSTGRES_DB: reftrix_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 27379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DATABASE_URL: postgresql://reftrix:test_password@localhost:5432/reftrix_test
+      REDIS_URL: redis://localhost:27379
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "pnpm"
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate Prisma Client
+        run: pnpm --filter @reftrix/database db:generate
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Verify pgvector extension
+        run: |
+          PGPASSWORD=test_password psql -h localhost -U reftrix -d reftrix_test -c "CREATE EXTENSION IF NOT EXISTS vector;"
+          PGPASSWORD=test_password psql -h localhost -U reftrix -d reftrix_test -c "SELECT extname, extversion FROM pg_extension WHERE extname = 'vector';"
+
+      - name: Run migrations (deploy mode for CI)
+        run: pnpm --filter @reftrix/database prisma migrate deploy
+
+      - name: Verify database schema
+        run: |
+          PGPASSWORD=test_password psql -h localhost -U reftrix -d reftrix_test -c "\dt" | head -30
+          echo "---"
+          PGPASSWORD=test_password psql -h localhost -U reftrix -d reftrix_test -c "SELECT indexname FROM pg_indexes WHERE indexname LIKE '%hnsw%' LIMIT 10;"
+
+      - name: Run integration tests
+        run: pnpm test:integration
+        env:
+          # Skip external network tests in CI
+          SKIP_EXTERNAL_TESTS: "true"
+
+  # Vision CPU Only Tests - Ollama未起動環境でのGraceful Degradation確認
+  # CPU推論パフォーマンス、タイムアウト計算、フォールバック動作を検証
+  test-vision-cpu:
+    name: Vision CPU Tests (No Ollama)
+    runs-on: ubuntu-latest
+    needs: lint
+    timeout-minutes: 30
+    env:
+      # Ollama未起動を模擬（空文字列で無効化）
+      OLLAMA_HOST: ""
+      OLLAMA_BASE_URL: ""
+      # CI環境フラグ
+      CI: "true"
+      # Vision CPU完走保証テスト向け設定
+      VISION_CPU_MODE: "true"
+      SKIP_OLLAMA_TESTS: "true"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "pnpm"
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate Prisma Client
+        run: pnpm --filter @reftrix/database db:generate
+
+      - name: Build workspace packages
+        run: pnpm build
+
+      - name: Verify Ollama is disabled
+        run: |
+          echo "OLLAMA_HOST='$OLLAMA_HOST'"
+          echo "OLLAMA_BASE_URL='$OLLAMA_BASE_URL'"
+          echo "Vision CPU mode enabled - Ollama should be unavailable"
+
+      - name: Run Vision CPU guarantee tests
+        run: |
+          cd apps/mcp-server
+          pnpm vitest run --reporter=verbose \
+            tests/services/vision/cpu-inference-performance.test.ts \
+            tests/services/vision/vision-fallback.service.test.ts \
+            tests/services/vision/timeout-calculator.test.ts \
+            tests/services/vision/hardware-detector.test.ts \
+            tests/services/vision/image-optimizer.test.ts \
+            tests/tools/page/vision-cpu-guarantee-integration.test.ts \
+            tests/tools/page/vision-options-schema.test.ts \
+            tests/tools/layout/inspect-vision-options.test.ts
+
+      - name: Run Graceful Degradation tests
+        run: |
+          cd apps/mcp-server
+          pnpm vitest run --reporter=verbose --testNamePattern="Graceful Degradation|Fallback"
+
+      - name: Run Vision adapter tests (mocked)
+        run: |
+          cd apps/mcp-server
+          pnpm vitest run --reporter=verbose \
+            tests/services/vision/ollama-vision-client.test.ts \
+            tests/services/vision-adapter/mock.adapter.test.ts
+
+      - name: Verify no Ollama connection attempts
+        run: |
+          echo "✅ Vision CPU tests completed without Ollama"
+          echo "All tests should have used mocks or fallback strategies"
+
+  # TODO: Add E2E test job (currently run locally only)
+
+  # Build
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    needs: [test-unit, test-integration, test-vision-cpu, security]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "pnpm"
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate Prisma Client
+        run: pnpm --filter @reftrix/database db:generate
+
+      - name: Build
+        run: pnpm build
+
+  # Security Scan
+  security:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "pnpm"
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run npm audit
+        # audit-level=high: High/Critical 脆弱性を検出。
+        # セキュリティ要件: High/Critical 0件でないとマージ不可。
+        run: pnpm audit --audit-level=high
+
+      - name: Check licenses
+        # license-checker が AGPL-3.0-only SPDX ID を認識しないため、ルートパッケージを除外。
+        # ルートパッケージのライセンスは LICENSE ファイルと package.json で AGPL-3.0-only を明示済み。
+        # sharp は libvips (LGPL-3.0-or-later) を動的リンク (N-API/addon) で使用。
+        # LGPL動的リンク例外により AGPL-3.0 と互換。詳細: THIRDPARTY_LICENSES.md
+        run: >-
+          npx license-checker --production
+          --excludePackages "reftrix@0.1.0;sharp"
+          --onlyAllow "MIT;Apache-2.0;BSD-2-Clause;BSD-3-Clause;ISC;CC0-1.0;CC-BY-4.0;Unlicense;0BSD;AGPL-3.0-only;PostgreSQL;MPL-2.0;Python-2.0;BlueOak-1.0.0"

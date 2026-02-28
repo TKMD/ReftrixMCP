@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Rotating Cube WebGL Test</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 20px;
+      background: #0f0f23;
+    }
+    #webgl-canvas {
+      width: 400px;
+      height: 400px;
+      border: 1px solid #444;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="webgl-canvas" width="400" height="400"></canvas>
+  <script>
+    /**
+     * 回転するキューブのWebGLアニメーション
+     * - カテゴリ: rotation
+     * - 複数の軸で回転する3Dキューブ
+     */
+    const canvas = document.getElementById('webgl-canvas');
+    const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+
+    if (!gl) {
+      console.error('WebGL not supported');
+    } else {
+      // シェーダープログラム
+      const vertexShaderSource = `
+        attribute vec4 aVertexPosition;
+        attribute vec4 aVertexColor;
+        uniform mat4 uModelViewMatrix;
+        uniform mat4 uProjectionMatrix;
+        varying lowp vec4 vColor;
+        void main() {
+          gl_Position = uProjectionMatrix * uModelViewMatrix * aVertexPosition;
+          vColor = aVertexColor;
+        }
+      `;
+
+      const fragmentShaderSource = `
+        varying lowp vec4 vColor;
+        void main() {
+          gl_FragColor = vColor;
+        }
+      `;
+
+      function createShader(gl, type, source) {
+        const shader = gl.createShader(type);
+        gl.shaderSource(shader, source);
+        gl.compileShader(shader);
+        return shader;
+      }
+
+      const vertexShader = createShader(gl, gl.VERTEX_SHADER, vertexShaderSource);
+      const fragmentShader = createShader(gl, gl.FRAGMENT_SHADER, fragmentShaderSource);
+
+      const program = gl.createProgram();
+      gl.attachShader(program, vertexShader);
+      gl.attachShader(program, fragmentShader);
+      gl.linkProgram(program);
+      gl.useProgram(program);
+
+      // 頂点データ（キューブ）
+      const vertices = new Float32Array([
+        -0.5, -0.5, -0.5,  0.5, -0.5, -0.5,  0.5,  0.5, -0.5, -0.5,  0.5, -0.5,
+        -0.5, -0.5,  0.5,  0.5, -0.5,  0.5,  0.5,  0.5,  0.5, -0.5,  0.5,  0.5,
+      ]);
+
+      const colors = new Float32Array([
+        1, 0, 0, 1,  0, 1, 0, 1,  0, 0, 1, 1,  1, 1, 0, 1,
+        1, 0, 1, 1,  0, 1, 1, 1,  1, 1, 1, 1,  0.5, 0.5, 0.5, 1,
+      ]);
+
+      const indices = new Uint16Array([
+        0, 1, 2,  0, 2, 3,  // front
+        4, 5, 6,  4, 6, 7,  // back
+        0, 4, 7,  0, 7, 3,  // left
+        1, 5, 6,  1, 6, 2,  // right
+        3, 2, 6,  3, 6, 7,  // top
+        0, 1, 5,  0, 5, 4,  // bottom
+      ]);
+
+      // バッファ設定
+      const positionBuffer = gl.createBuffer();
+      gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+      gl.bufferData(gl.ARRAY_BUFFER, vertices, gl.STATIC_DRAW);
+
+      const positionLocation = gl.getAttribLocation(program, 'aVertexPosition');
+      gl.enableVertexAttribArray(positionLocation);
+      gl.vertexAttribPointer(positionLocation, 3, gl.FLOAT, false, 0, 0);
+
+      const colorBuffer = gl.createBuffer();
+      gl.bindBuffer(gl.ARRAY_BUFFER, colorBuffer);
+      gl.bufferData(gl.ARRAY_BUFFER, colors, gl.STATIC_DRAW);
+
+      const colorLocation = gl.getAttribLocation(program, 'aVertexColor');
+      gl.enableVertexAttribArray(colorLocation);
+      gl.vertexAttribPointer(colorLocation, 4, gl.FLOAT, false, 0, 0);
+
+      const indexBuffer = gl.createBuffer();
+      gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer);
+      gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, indices, gl.STATIC_DRAW);
+
+      gl.enable(gl.DEPTH_TEST);
+
+      let startTime = Date.now();
+
+      function render() {
+        const elapsed = (Date.now() - startTime) / 1000;
+        const rotationX = elapsed * 0.5;
+        const rotationY = elapsed * 0.7;
+
+        gl.clearColor(0.1, 0.1, 0.15, 1.0);
+        gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+
+        // 簡易的な回転行列（実際のプロジェクトではglMatrixを使用）
+        const cx = Math.cos(rotationX), sx = Math.sin(rotationX);
+        const cy = Math.cos(rotationY), sy = Math.sin(rotationY);
+
+        const modelViewMatrix = new Float32Array([
+          cy, sx*sy, -cx*sy, 0,
+          0, cx, sx, 0,
+          sy, -sx*cy, cx*cy, 0,
+          0, 0, -3, 1
+        ]);
+
+        const projectionMatrix = new Float32Array([
+          1, 0, 0, 0,
+          0, 1, 0, 0,
+          0, 0, -1.002, -1,
+          0, 0, -0.2002, 0
+        ]);
+
+        const mvLocation = gl.getUniformLocation(program, 'uModelViewMatrix');
+        const pLocation = gl.getUniformLocation(program, 'uProjectionMatrix');
+        gl.uniformMatrix4fv(mvLocation, false, modelViewMatrix);
+        gl.uniformMatrix4fv(pLocation, false, projectionMatrix);
+
+        gl.drawElements(gl.TRIANGLES, indices.length, gl.UNSIGNED_SHORT, 0);
+
+        requestAnimationFrame(render);
+      }
+
+      render();
+    }
+  </script>
+</body>
+</html>

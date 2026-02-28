@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>anime.js Animation Test</title>
+  <style>
+    .anime-target {
+      width: 100px;
+      height: 100px;
+      background: orange;
+      margin: 20px;
+    }
+  </style>
+</head>
+<body>
+  <div id="animeTarget" class="anime-target"></div>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js"></script>
+  <script>
+    // anime.js animation
+    anime({
+      targets: '#animeTarget',
+      translateX: 250,
+      rotate: '1turn',
+      backgroundColor: '#FFF',
+      duration: 2000,
+      easing: 'easeInOutQuad',
+      loop: true,
+      direction: 'alternate'
+    });
+  </script>
+</body>
+</html>
