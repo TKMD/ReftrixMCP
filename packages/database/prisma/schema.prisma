@@ -1,0 +1,1473 @@
+// Reftrix Database Schema
+// PostgreSQL 18 + pgvector 0.8
+// WebDesign Analysis Platform (MCP-only, no WebUI)
+
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions"]
+}
+
+datasource db {
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
+  extensions = [uuid_ossp(map: "uuid-ossp"), vector, pg_trgm, pgcrypto]
+}
+
+// [DELETED] User Model — MCPツール未使用（seed スクリプトのみ）。OSS公開時に削除。
+// [DELETED] Auth.js v5 Models removed: Account, Session, VerificationToken
+// [DELETED] RBAC Models removed: Role, Permission, UserRole, RolePermission
+
+// [DELETED] ApiKey Model — MCPツール未使用（認証は環境変数ベース）。OSS公開時に削除。
+
+// ============================================================================
+// [DELETED Sprint 4] SVG Asset Models - Removed for WebDesign-only Reftrix
+// Removed models: SvgAsset, License, Tag, SvgTag, Category, SvgVersion,
+//                 UsageHistory, IngestJob
+// ============================================================================
+
+// ============================================================================
+// [DELETED Sprint 4] Crawler System Models - Removed for WebDesign-only Reftrix
+// Removed models: CrawlSource, CrawlJob, CrawlJobItem, CrawlSourceStats,
+//                 SvgCrawlHistory
+// ============================================================================
+
+// ============================================================================
+// MCP Creative Tools - Brand Palette Models
+// Reference: MCP Creative Tools Phase 1 (style.get_palette, style.apply)
+// ============================================================================
+
+/// パレットモード（ライト/ダーク/システム）
+enum PaletteMode {
+  light
+  dark
+  system
+}
+
+/// カラートークンのロール（役割）
+enum ColorRole {
+  primary
+  secondary
+  accent
+  neutral
+  semantic
+}
+
+/// ブランドパレット - ブランドカラーセットを管理
+/// MCPツール: style.get_palette, style.apply で使用
+model BrandPalette {
+  id          String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name        String      @db.VarChar(200)
+  slug        String      @unique @db.VarChar(100)
+  description String?     @db.Text
+  mode        PaletteMode @default(light)
+  isDefault   Boolean     @default(false) @map("is_default")
+
+  // Relations
+  tokens         ColorToken[]
+
+  // WebDesign WebUI Relations
+  projectBrandSettings ProjectBrandSetting[]
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  @@index([mode])
+  @@index([isDefault])
+  @@map("brand_palettes")
+}
+
+/// カラートークン - パレット内の個別カラー定義
+/// OKLCHカラースペースでの色値を保持（モダンCSS対応）
+model ColorToken {
+  id              String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  paletteId       String    @map("palette_id") @db.Uuid
+  name            String    @db.VarChar(100)
+  hex             String    @db.VarChar(7) // #RRGGBB format
+  oklchL          Float     @map("oklch_l") // Lightness: 0-1
+  oklchC          Float     @map("oklch_c") // Chroma: 0-0.4
+  oklchH          Float     @map("oklch_h") // Hue: 0-360
+  role            ColorRole
+  semanticMeaning String?   @map("semantic_meaning") @db.VarChar(200)
+  sortOrder       Int       @default(0) @map("sort_order")
+
+  // Relations
+  palette BrandPalette @relation(fields: [paletteId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  @@unique([paletteId, name])
+  @@index([paletteId])
+  @@index([role])
+  @@map("color_tokens")
+}
+
+// ============================================================================
+// Webdesign Analysis Models
+// Reference: docs/plans/webdesign/07-database-schema.md
+// ============================================================================
+
+/// 段階的分析ステータス（Phase2-2: 部分結果即時DB保存）
+/// 各フェーズ完了時にステータスを更新し、タイムアウト時も部分結果を保持
+enum AnalysisPhaseStatus {
+  pending // 未開始
+  layout_done // Layoutフェーズ完了
+  motion_done // Layout + Motionフェーズ完了
+  quality_done // 全フェーズ完了（completedと同義）
+  completed // 完全完了（quality_doneのエイリアス）
+  failed // 失敗（エラー発生）
+}
+
+/// WebPage - 解析対象のWebページ基本情報
+/// sourceType: 'award_gallery' | 'user_provided'
+/// usageScope: 'inspiration_only' | 'owned_asset' | 'commercial_reuse_allowed'
+/// analysisStatus: 'pending' | 'processing' | 'completed' | 'failed'（後方互換性維持）
+/// analysisPhaseStatus: AnalysisPhaseStatus（段階的分析用）
+model WebPage {
+  id          String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  projectId   String? @map("project_id") @db.Uuid // Optional: WebPages created before this migration
+  url         String  @unique
+  title       String?
+  description String? @db.Text
+
+  // ソース情報
+  sourceType     String  @map("source_type") // 'award_gallery' | 'user_provided'
+  sourcePlatform String? @map("source_platform") // 'cssda' | 'fwa' | 'awwwards' | 'custom'
+  awardInfo      Json?   @map("award_info")
+
+  // 利用範囲
+  usageScope  String  @map("usage_scope") // 'inspiration_only' | 'owned_asset' | 'commercial_reuse_allowed'
+  licenseNote String? @map("license_note") @db.Text
+
+  // コンテンツ
+  htmlContent String? @map("html_content") @db.Text // 圧縮HTML
+  htmlHash    String? @map("html_hash") @db.VarChar(64) // 変更検知用ハッシュ
+
+  // スクリーンショット
+  screenshotDesktopUrl String? @map("screenshot_desktop_url") @db.Text
+  screenshotMobileUrl  String? @map("screenshot_mobile_url") @db.Text
+  screenshotFullUrl    String? @map("screenshot_full_url") @db.Text
+
+  // 解析ステータス（後方互換性維持）
+  analysisStatus  String    @default("pending") @map("analysis_status") // 'pending' | 'processing' | 'completed' | 'failed'
+  analyzedAt      DateTime? @map("analyzed_at") @db.Timestamptz
+  analysisVersion String?   @map("analysis_version") // 解析アルゴリズムバージョン
+
+  // 段階的分析ステータス（Phase2-2: 部分結果即時DB保存）
+  // 各フェーズ完了時にステータスを更新し、タイムアウト時も部分結果を保持
+  analysisPhaseStatus AnalysisPhaseStatus @default(pending) @map("analysis_phase_status")
+  lastAnalyzedPhase   String?             @map("last_analyzed_phase") // 最後に完了したフェーズ: 'layout' | 'motion' | 'quality'
+  analysisError       String?             @map("analysis_error") @db.Text // エラーメッセージ
+  analysisStartedAt   DateTime?           @map("analysis_started_at") @db.Timestamptz // 分析開始時刻
+  analysisCompletedAt DateTime?           @map("analysis_completed_at") @db.Timestamptz // 分析完了時刻
+
+  // メタデータ
+  metadata Json @default("{}")
+
+  // Pre-flight Probe結果（ページ複雑度メトリクス）
+  // layout.ingest/page.analyze実行前の軽量プローブで取得
+  // タイムアウト値の動的計算に使用
+  complexityMetrics Json? @map("complexity_metrics")
+  /**
+   * {
+   *   "responseTimeMs": number,         // HEAD/初期レスポンス時間
+   *   "htmlSizeBytes": number,          // HTMLサイズ
+   *   "scriptCount": number,            // <script>タグ数
+   *   "externalResourceCount": number,  // 外部リソース数
+   *   "hasWebGL": boolean,              // WebGL使用検出
+   *   "hasSPA": boolean,                // SPA検出（React/Vue/Angular等）
+   *   "hasHeavyFramework": boolean,     // Three.js等の重いフレームワーク
+   *   "calculatedTimeoutMs": number,    // 計算されたタイムアウト値
+   *   "complexityScore": number,        // 複雑度スコア (0-100)
+   *   "probedAt": string,               // ISO 8601
+   *   "probeVersion": string            // "0.1.0"
+   * }
+   */
+
+  // タイムスタンプ
+  crawledAt DateTime @default(now()) @map("crawled_at") @db.Timestamptz
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  // リレーション
+  project                Project?                @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  sectionPatterns        SectionPattern[]
+  motionPatterns         MotionPattern[]
+  jsAnimationPatterns    JSAnimationPattern[]
+  webglAnimationPatterns WebGLAnimationPattern[]
+  motionAnalysisResults  MotionAnalysisResult[]
+  qualityBenchmarks      QualityBenchmark[]
+  designNarrative        DesignNarrative? // 1:1 relationship
+  backgroundDesigns      BackgroundDesign[]
+
+  @@index([projectId])
+  @@index([projectId, analysisStatus])
+  @@index([sourceType])
+  @@index([sourcePlatform])
+  @@index([analysisStatus])
+  @@index([analysisPhaseStatus])
+  @@index([projectId, analysisPhaseStatus])
+  @@index([crawledAt(sort: Desc)])
+  @@index([createdAt(sort: Desc)])
+  @@map("web_pages")
+}
+
+/// SectionPattern - セクションパターン（ヒーロー、フィーチャー、CTA等）
+/// sectionType: 'hero' | 'features' | 'cta' | 'testimonial' | 'pricing' | 'footer' | etc.
+model SectionPattern {
+  id            String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  webPageId     String  @map("web_page_id") @db.Uuid
+  sectionType   String  @map("section_type")
+  sectionName   String? @map("section_name")
+  positionIndex Int     @map("position_index") // ページ内の順序
+
+  // レイアウト情報（JSON構造体）
+  layoutInfo Json @map("layout_info")
+  /**
+   * {
+   * "type": "hero",
+   * "grid": { "columns": 2, "gap": "32px" },
+   * "alignment": "left",
+   * "content_blocks": [...],
+   * "responsive": {...}
+   * }
+   */
+
+  // コンポーネント情報
+  components Json @default("[]")
+  /**
+   * [
+   * { "type": "heading", "level": 1, "text": "..." },
+   * { "type": "button", "variant": "primary", "text": "..." }
+   * ]
+   */
+
+  // 視覚特徴
+  visualFeatures Json @default("{}") @map("visual_features")
+  /**
+   * {
+   * "color_scheme": { "dominant": "#...", "accent": "#..." },
+   * "density": 0.65,
+   * "whitespace_ratio": 0.35,
+   * "image_ratio": 0.4
+   * }
+   */
+
+  // HTML/CSS（参照用）
+  htmlSnippet String? @map("html_snippet") @db.Text
+  cssSnippet  String? @map("css_snippet") @db.Text
+
+  // 外部CSSコンテンツ（motion.detect/layout.ingestで取得した外部CSSファイルの実コンテンツ）
+  // cssSnippetはページ内CSS（インライン、<style>タグ、@import参照）を保持
+  // externalCssContentは外部ファイル（<link rel="stylesheet">）の実際の内容を保持
+  externalCssContent String? @map("external_css_content") @db.Text
+  externalCssMeta    Json?   @map("external_css_meta")
+  /**
+   * {
+   * "fetchedCount": 3,
+   * "failedCount": 1,
+   * "totalSize": 245678,
+   * "urls": [
+   * { "url": "https://cdn.example.com/styles.css", "size": 120000, "success": true },
+   * { "url": "https://cdn.example.com/theme.css", "size": 125678, "success": true }
+   * ],
+   * "fetchedAt": "2026-01-05T10:30:00Z"
+   * }
+   */
+
+  // CSSフレームワーク検出結果
+  // 値: tailwind, bootstrap, css_modules, styled_components, vanilla, unknown
+  cssFramework     String? @map("css_framework") @db.VarChar(50)
+  cssFrameworkMeta Json?   @default("{}") @map("css_framework_meta")
+  /**
+   * {
+   * "confidence": 0.95,
+   * "evidence": ["Tailwind CDN detected", "utility classes found: flex, items-center"]
+   * }
+   */
+
+  // 品質スコア
+  qualityScore Json? @map("quality_score")
+  /**
+   * {
+   * "anti_ai_cliche": { "overall": 85, "axes": {...} },
+   * "visual_hierarchy": 90,
+   * "accessibility": 82
+   * }
+   */
+
+  // メタデータ
+  tags     String[] @default([])
+  metadata Json     @default("{}")
+
+  // タイムスタンプ
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  // リレーション
+  webPage            WebPage            @relation(fields: [webPageId], references: [id], onDelete: Cascade)
+  embedding          SectionEmbedding?
+  qualityBenchmarks  QualityBenchmark[]
+  backgroundDesigns  BackgroundDesign[]
+
+  @@index([webPageId])
+  @@index([sectionType])
+  @@index([cssFramework])
+  @@index([webPageId, positionIndex])
+  @@map("section_patterns")
+}
+
+/// SectionEmbedding - セクションパターンのベクトル埋め込み
+/// HNSW Indexes (m=16, ef_construction=64, vector_cosine_ops):
+///   - idx_section_embeddings_text_hnsw
+///   - idx_section_embeddings_vision_hnsw
+///   - idx_section_embeddings_combined_hnsw
+///   - idx_section_embeddings_mood_hnsw (Phase 5-4)
+///   - idx_section_embeddings_brand_tone_hnsw (Phase 5-4)
+/// Performance Target: Vector Search P95 < 100ms
+model SectionEmbedding {
+  id               String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  sectionPatternId String @unique @map("section_pattern_id") @db.Uuid
+
+  // テキストベースEmbedding（v1, 768D, multilingual-e5-base）
+  // HNSW indexed for semantic search
+  textEmbedding Unsupported("vector(768)")? @map("text_embedding")
+
+  // ビジョンベースEmbedding（v2予定, 768D）
+  // HNSW indexed for semantic search
+  visionEmbedding Unsupported("vector(768)")? @map("vision_embedding")
+
+  // 統合Embedding（v2予定, 768D）
+  // HNSW indexed for semantic search
+  combinedEmbedding Unsupported("vector(768)")? @map("combined_embedding")
+
+  // ムードEmbedding（Phase 5-4, 768D, multilingual-e5-base）
+  // HNSW indexed for semantic search
+  // Vision AI検出のmood情報からEmbedding生成
+  moodEmbedding Unsupported("vector(768)")? @map("mood_embedding")
+
+  // ブランドトーンEmbedding（Phase 5-4, 768D, multilingual-e5-base）
+  // HNSW indexed for semantic search
+  // Vision AI検出のbrandTone情報からEmbedding生成
+  brandToneEmbedding Unsupported("vector(768)")? @map("brand_tone_embedding")
+
+  // テキスト表現（Embedding生成元）
+  textRepresentation String? @map("text_representation") @db.Text
+
+  // 全文検索用tsvectorカラム（GENERATED ALWAYS AS）
+  // PostgreSQL側でtext_representationから自動生成、GINインデックス付き
+  searchVector Unsupported("tsvector")? @map("search_vector")
+
+  // ムードテキスト表現（Embedding生成元, Phase 5-4）
+  // 例: "primary: professional, secondary: minimal, confidence: 0.75"
+  moodTextRepresentation String? @map("mood_text_representation") @db.Text
+
+  // ブランドトーンテキスト表現（Embedding生成元, Phase 5-4）
+  // 例: "primary: corporate, secondary: innovative, confidence: 0.80"
+  brandToneTextRepresentation String? @map("brand_tone_text_representation") @db.Text
+
+  // Embeddingメタデータ
+  // 'e5-base-v1', 'llama-vision-v1', 'e5-base-v1-mood', 'e5-base-v1-brandtone'
+  modelVersion       String   @map("model_version")
+  embeddingTimestamp DateTime @default(now()) @map("embedding_timestamp") @db.Timestamptz
+
+  // タイムスタンプ
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  // リレーション
+  sectionPattern SectionPattern @relation(fields: [sectionPatternId], references: [id], onDelete: Cascade)
+
+  @@map("section_embeddings")
+}
+
+/// MotionPattern - モーションパターン（scroll_trigger, hover_effect等）
+/// category: 'scroll_trigger' | 'hover_effect' | 'page_transition' | 'loading' | etc.
+/// triggerType: 'scroll' | 'hover' | 'click' | 'load' | etc.
+model MotionPattern {
+  id        String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  webPageId String? @map("web_page_id") @db.Uuid // nullableでライブラリ直接登録も可
+
+  // パターン基本情報
+  name     String
+  // モーションタイプ（css_animation, css_transition, keyframes, library_animation, video_motion）
+  type     String?
+  // v5.6.0: 新カテゴリ追加 (marquee, video_overlay, parallax, reveal, morphing, background_animation, typing_animation)
+  category String // 'scroll_trigger' | 'hover_effect' | 'page_transition' | 'loading_state' | 'micro_interaction' | 'attention_grabber' | 'navigation' | 'feedback' | 'entrance' | 'exit' | 'marquee' | 'video_overlay' | 'parallax' | 'reveal' | 'morphing' | 'background_animation' | 'typing_animation' | 'unknown'
+
+  // トリガー設定
+  triggerType   String @map("trigger_type") // 'scroll' | 'hover' | 'click' | 'load'
+  triggerConfig Json   @default("{}") @map("trigger_config")
+
+  // アニメーション設定
+  animation Json
+  /**
+   * {
+   * "duration": 600,
+   * "delay": 0,
+   * "easing": { "type": "ease-out" },
+   * "iterations": 1,
+   * "direction": "normal",
+   * "fill_mode": "forwards"
+   * }
+   */
+
+  // 変化プロパティ
+  properties Json @default("[]")
+  /**
+   * [
+   * { "property": "opacity", "from": 0, "to": 1 },
+   * { "property": "transform", "from": "translateY(30px)", "to": "translateY(0)" }
+   * ]
+   */
+
+  // 実装コード
+  implementation Json
+  /**
+   * {
+   * "css": "...",
+   * "tailwind": "...",
+   * "framer_motion": "...",
+   * "gsap": "..."
+   * }
+   */
+
+  // アクセシビリティ
+  accessibility Json @default("{}")
+  /**
+   * {
+   * "respects_reduced_motion": true,
+   * "alternative_for_reduced": "...",
+   * "focus_visible_fallback": "..."
+   * }
+   */
+
+  // パフォーマンス情報
+  performance Json @default("{}")
+  /**
+   * {
+   * "uses_transform": true,
+   * "uses_opacity": true,
+   * "triggers_layout": false,
+   * "triggers_paint": false,
+   * "estimated_fps": 60
+   * }
+   */
+
+  // ソース情報
+  sourceUrl  String? @map("source_url") @db.Text
+  usageScope String  @default("inspiration_only") @map("usage_scope")
+
+  // メタデータ
+  tags     String[] @default([])
+  metadata Json     @default("{}")
+
+  // Phase3: 視覚的カテゴリ分類（フレーム差分解析から算出）
+  visualCategory   String? @map("visual_category") // 'fade' | 'slide' | 'scale' | 'rotate' | 'parallax' | 'reveal' | 'morph' | 'complex'
+  visualConfidence Float?  @map("visual_confidence") // 分類信頼度 (0.0-1.0)
+  visualMetrics    Json?   @map("visual_metrics")
+  /**
+   * {
+   * "dominant_direction": "horizontal" | "vertical" | "diagonal" | "radial",
+   * "movement_intensity": 0.0-1.0,
+   * "change_rate": number,
+   * "affected_area_ratio": 0.0-1.0,
+   * "frame_diff_stats": {
+   * "avg_diff_percentage": number,
+   * "max_diff_percentage": number,
+   * "motion_consistency": number
+   * }
+   * }
+   */
+
+  // タイムスタンプ
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  // リレーション
+  webPage   WebPage?         @relation(fields: [webPageId], references: [id], onDelete: SetNull)
+  embedding MotionEmbedding?
+
+  @@index([webPageId])
+  @@index([category])
+  @@index([type])
+  @@index([triggerType])
+  @@index([visualCategory])
+  @@map("motion_patterns")
+}
+
+/// MotionEmbedding - モーションパターンのベクトル埋め込み
+/// HNSW Index: idx_motion_embeddings_hnsw (m=16, ef_construction=64, vector_cosine_ops)
+/// Performance Target: Vector Search P95 < 100ms
+model MotionEmbedding {
+  id              String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  motionPatternId String @unique @map("motion_pattern_id") @db.Uuid
+
+  // テキストベースEmbedding (768D, multilingual-e5-base)
+  // HNSW indexed for semantic search
+  embedding Unsupported("vector(768)")? @map("embedding")
+
+  // ビジョンベースEmbedding (768D, multilingual-e5-base)
+  // HNSW indexed for semantic search
+  // Vision AI検出のモーション視覚特徴からEmbedding生成
+  visionEmbedding Unsupported("vector(768)")? @map("vision_embedding")
+
+  // テキスト表現（Embedding生成元）
+  textRepresentation String? @map("text_representation") @db.Text
+
+  // 全文検索用tsvectorカラム（GENERATED ALWAYS AS）
+  // PostgreSQL側でtext_representationから自動生成、GINインデックス付き
+  searchVector Unsupported("tsvector")? @map("search_vector")
+
+  // ビジョンテキスト表現（Embedding生成元）
+  // 例: "visual_category: pulse, intensity: medium, regions: center"
+  visionTextRepresentation String? @map("vision_text_representation") @db.Text
+
+  // メタデータ
+  modelVersion       String   @map("model_version")
+  embeddingTimestamp DateTime @default(now()) @map("embedding_timestamp") @db.Timestamptz
+
+  // タイムスタンプ
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  // リレーション
+  motionPattern MotionPattern @relation(fields: [motionPatternId], references: [id], onDelete: Cascade)
+
+  @@map("motion_embeddings")
+}
+
+// ============================================================================
+// JS Animation Pattern Models
+// JSライブラリ（GSAP, Framer Motion, anime.js, Three.js, Lottie）のアニメーション検出結果
+// Web Animations API + CDP からのデータを保存
+// ============================================================================
+
+/// JSアニメーションライブラリの種別
+enum JSAnimationLibrary {
+  gsap
+  framer_motion
+  anime_js
+  three_js
+  lottie
+  web_animations_api
+  unknown
+}
+
+/// JSアニメーションの種別
+enum JSAnimationType {
+  tween // 単純なトゥイーンアニメーション
+  timeline // タイムラインベースの複合アニメーション
+  spring // バネ物理ベースのアニメーション
+  physics // 物理シミュレーション（重力、摩擦等）
+  keyframe // キーフレームアニメーション
+  morphing // 形状変形アニメーション
+  path // パスに沿ったアニメーション
+  scroll_driven // スクロール連動アニメーション
+  gesture // ジェスチャー連動アニメーション
+}
+
+/// JSAnimationPattern - JSライブラリによるアニメーションパターン
+/// 既存MotionPattern（CSS静的解析）とは独立したテーブルとして設計
+/// GSAP, Framer Motion, anime.js, Three.js, Lottie の検出結果を保存
+model JSAnimationPattern {
+  id        String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  webPageId String? @map("web_page_id") @db.Uuid
+
+  // ライブラリ情報
+  libraryType    JSAnimationLibrary @map("library_type")
+  libraryVersion String?            @map("library_version") @db.VarChar(50)
+
+  // アニメーション基本情報
+  name          String          @db.VarChar(200)
+  animationType JSAnimationType @map("animation_type")
+  description   String?         @db.Text
+
+  // ターゲット要素
+  targetSelector String?  @map("target_selector") @db.VarChar(500) // CSSセレクタ
+  targetCount    Int?     @map("target_count") // 対象要素数
+  targetTagNames String[] @default([]) @map("target_tag_names") // div, span, svg等
+
+  // タイミング情報
+  durationMs Int?    @map("duration_ms") // アニメーション時間（ミリ秒）
+  delayMs    Int?    @map("delay_ms") // 開始遅延（ミリ秒）
+  easing     String? @db.VarChar(100) // ease, linear, cubic-bezier(), spring()等
+  iterations Int? // 繰り返し回数（-1 = infinite）
+  direction  String? @db.VarChar(20) // normal, reverse, alternate, alternate-reverse
+  fillMode   String? @map("fill_mode") @db.VarChar(20) // none, forwards, backwards, both
+
+  // キーフレーム情報（Web Animations API から取得）
+  // 例: [{ offset: 0, transform: "translateX(0)" }, { offset: 1, transform: "translateX(100px)" }]
+  keyframes Json? @default("[]")
+
+  // プロパティ変化情報
+  // 例: [{ property: "opacity", from: 0, to: 1 }, { property: "transform", type: "translateX", from: "0px", to: "100px" }]
+  properties Json @default("[]")
+
+  // トリガー情報
+  triggerType   String? @map("trigger_type") @db.VarChar(50) // scroll, hover, click, load, intersection, gesture
+  triggerConfig Json?   @default("{}") @map("trigger_config") // IntersectionObserver設定等
+
+  // CDP（Chrome DevTools Protocol）固有データ
+  cdpAnimationId String? @map("cdp_animation_id") @db.VarChar(100) // Chrome Animation ID
+  cdpSourceType  String? @map("cdp_source_type") @db.VarChar(50) // CSSAnimation, CSSTransition, WebAnimation
+  cdpPlayState   String? @map("cdp_play_state") @db.VarChar(20) // idle, running, paused, finished
+  cdpCurrentTime Float?  @map("cdp_current_time") // 現在時刻（秒）
+  cdpStartTime   Float?  @map("cdp_start_time") // 開始時刻（秒）
+  cdpRawData     Json?   @map("cdp_raw_data") // CDP Animation.animationCreatedイベントの生データ
+
+  // ライブラリ固有データ
+  // GSAP: { timeline: { ... }, stagger: 0.1, repeat: 2 }
+  // Framer Motion: { variants: { ... }, transition: { ... } }
+  // Lottie: { bodymovinVersion: "5.x", totalFrames: 60, frameRate: 30 }
+  librarySpecificData Json? @default("{}") @map("library_specific_data")
+
+  // パフォーマンス情報
+  performance Json @default("{}")
+  /**
+   * {
+   * "usesTransform": true,
+   * "usesOpacity": true,
+   * "triggersLayout": false,
+   * "triggersPaint": false,
+   * "estimatedFps": 60,
+   * "gpuAccelerated": true,
+   * "willChange": ["transform", "opacity"]
+   * }
+   */
+
+  // アクセシビリティ
+  accessibility Json @default("{}")
+  /**
+   * {
+   * "respectsReducedMotion": true,
+   * "reducedMotionAlternative": "fade-only",
+   * "prefersReducedMotionQuery": true
+   * }
+   */
+
+  // ソース情報
+  sourceUrl  String? @map("source_url") @db.Text
+  usageScope String  @default("inspiration_only") @map("usage_scope")
+
+  // メタデータ
+  tags       String[] @default([])
+  metadata   Json     @default("{}")
+  confidence Float? // 検出信頼度（0-1）
+
+  // タイムスタンプ
+  detectedAt DateTime @default(now()) @map("detected_at") @db.Timestamptz
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt  DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  // リレーション
+  webPage   WebPage?              @relation(fields: [webPageId], references: [id], onDelete: SetNull)
+  embedding JSAnimationEmbedding?
+
+  @@index([webPageId])
+  @@index([libraryType])
+  @@index([animationType])
+  @@index([triggerType])
+  @@index([libraryType, animationType])
+  @@index([detectedAt(sort: Desc)])
+  @@map("js_animation_patterns")
+}
+
+/// JSAnimationEmbedding - JSアニメーションパターンのベクトル埋め込み
+/// HNSW Index: idx_js_animation_embeddings_hnsw (m=16, ef_construction=64, vector_cosine_ops)
+/// Performance Target: Vector Search P95 < 100ms
+model JSAnimationEmbedding {
+  id                   String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  jsAnimationPatternId String @unique @map("js_animation_pattern_id") @db.Uuid
+
+  // Embedding (768D, multilingual-e5-base)
+  // HNSW indexed for semantic search
+  embedding Unsupported("vector(768)")? @map("embedding")
+
+  // テキスト表現（Embedding生成元）
+  // 例: "GSAP timeline animation with staggered fade-in and slide-up effects, scroll-triggered"
+  textRepresentation String? @map("text_representation") @db.Text
+
+  // Full-text search (tsvector, GENERATED ALWAYS AS STORED)
+  searchVector Unsupported("tsvector")? @map("search_vector")
+
+  // メタデータ
+  modelVersion       String   @map("model_version") // 'multilingual-e5-base'
+  embeddingTimestamp DateTime @default(now()) @map("embedding_timestamp") @db.Timestamptz
+
+  // タイムスタンプ
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  // リレーション
+  jsAnimationPattern JSAnimationPattern @relation(fields: [jsAnimationPatternId], references: [id], onDelete: Cascade)
+
+  @@map("js_animation_embeddings")
+}
+
+// ============================================================================
+// Frame Image Analysis Models
+// ピクセルベースの動画解析結果（motion.detect video mode）
+// ============================================================================
+
+// ============================================================================
+// WebGL Animation Pattern Models
+// Shader-based WebGL/Canvas animations detected via visual frame analysis
+// Supports WebGL 1.0/2.0, Three.js, Custom shaders
+// ============================================================================
+
+/// WebGLアニメーションのカテゴリ分類
+enum WebGLAnimationCategory {
+  fade // フェードイン/アウト
+  pulse // 脈動・点滅
+  wave // 波状アニメーション
+  particle // パーティクルシステム
+  morph // 形状変形
+  rotation // 回転アニメーション
+  parallax // パララックス効果
+  noise // ノイズベースアニメーション（Perlin等）
+  complex // 複合・分類不能
+}
+
+/// WebGLAnimationPattern - WebGL/Canvas シェーダーアニメーションパターン
+/// フレーム差分解析によるビジュアル検出結果を保存
+/// Three.js, Custom Shader, WebGL 1.0/2.0 の検出結果を統合管理
+model WebGLAnimationPattern {
+  id        String  @id @default(dbgenerated("gen_uuidv7()")) @db.Uuid
+  webPageId String? @map("web_page_id") @db.Uuid
+
+  // パターン基本情報
+  name        String                 @db.VarChar(200)
+  category    WebGLAnimationCategory
+  description String?                @db.Text
+
+  // Canvas要素情報
+  canvasSelector String? @map("canvas_selector") @db.VarChar(500) // CSSセレクタ
+  canvasWidth    Int?    @map("canvas_width") // Canvas幅（ピクセル）
+  canvasHeight   Int?    @map("canvas_height") // Canvas高さ（ピクセル）
+  webglVersion   Int?    @map("webgl_version") // 1 = WebGL 1.0, 2 = WebGL 2.0
+
+  // 検出ライブラリ情報
+  detectedLibraries String[] @default([]) @map("detected_libraries") // "three.js", "pixi.js", "custom"等
+
+  // フレーム解析結果
+  frameAnalysis Json @map("frame_analysis")
+  /**
+   * {
+   * "totalFrames": 120,
+   * "analyzedFrames": 60,
+   * "fps": 30,
+   * "duration_ms": 4000,
+   * "avgDiffPercentage": 0.15,
+   * "maxDiffPercentage": 0.45,
+   * "animationIntensity": 0.65
+   * }
+   */
+
+  // 変化領域（BoundingBox[]）
+  changeRegions Json @default("[]") @map("change_regions")
+  /**
+   * [
+   * { "x": 100, "y": 50, "width": 400, "height": 300, "changeRatio": 0.85 },
+   * { "x": 500, "y": 200, "width": 200, "height": 150, "changeRatio": 0.42 }
+   * ]
+   */
+
+  // 視覚特徴
+  visualFeatures Json @default("{}") @map("visual_features")
+  /**
+   * {
+   * "dominantColors": ["#1a1a2e", "#16213e", "#0f3460"],
+   * "motionDirection": "radial" | "horizontal" | "vertical" | "random",
+   * "periodicPattern": true,
+   * "estimatedPeriodMs": 2000,
+   * "hasParticles": true,
+   * "hasGradients": true,
+   * "usesBlending": true
+   * }
+   */
+
+  // パフォーマンス情報
+  performance Json @default("{}")
+  /**
+   * {
+   * "estimatedFps": 60,
+   * "gpuIntensive": true,
+   * "memoryUsage": "high",
+   * "drawCalls": 150,
+   * "triangleCount": 10000
+   * }
+   */
+
+  // アクセシビリティ
+  accessibility Json @default("{}")
+  /**
+   * {
+   * "respectsReducedMotion": false,
+   * "hasStaticFallback": false,
+   * "seizureRisk": "low" | "medium" | "high"
+   * }
+   */
+
+  // 検出信頼度（0-1）
+  confidence Float?
+
+  // ソース情報
+  sourceUrl  String? @map("source_url") @db.Text
+  usageScope String  @default("inspiration_only") @map("usage_scope")
+
+  // メタデータ
+  tags     String[] @default([])
+  metadata Json     @default("{}")
+
+  // タイムスタンプ
+  detectedAt DateTime @default(now()) @map("detected_at") @db.Timestamptz
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt  DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  // リレーション
+  webPage   WebPage?                 @relation(fields: [webPageId], references: [id], onDelete: SetNull)
+  embedding WebGLAnimationEmbedding?
+
+  @@index([webPageId])
+  @@index([category])
+  @@index([detectedAt(sort: Desc)])
+  @@map("webgl_animation_patterns")
+}
+
+/// WebGLAnimationEmbedding - WebGLアニメーションパターンのベクトル埋め込み
+/// HNSW Index: idx_webgl_animation_embeddings_hnsw (m=16, ef_construction=64, vector_cosine_ops)
+/// Performance Target: Vector Search P95 < 100ms
+model WebGLAnimationEmbedding {
+  id                      String @id @default(dbgenerated("gen_uuidv7()")) @db.Uuid
+  webglAnimationPatternId String @unique @map("webgl_animation_pattern_id") @db.Uuid
+
+  // Embedding (768D, multilingual-e5-base)
+  // HNSW indexed for semantic search
+  embedding Unsupported("vector(768)")? @map("embedding")
+
+  // テキスト表現（Embedding生成元）
+  // 例: "WebGL particle system animation with noise-based movement, radial burst effect"
+  textRepresentation String? @map("text_representation") @db.Text
+
+  // Full-text search (tsvector, GENERATED ALWAYS AS STORED)
+  searchVector Unsupported("tsvector")? @map("search_vector")
+
+  // メタデータ
+  modelVersion       String   @map("model_version") // 'multilingual-e5-base'
+  embeddingTimestamp DateTime @default(now()) @map("embedding_timestamp") @db.Timestamptz
+
+  // タイムスタンプ
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  // リレーション
+  webglAnimationPattern WebGLAnimationPattern @relation(fields: [webglAnimationPatternId], references: [id], onDelete: Cascade)
+
+  @@map("webgl_animation_embeddings")
+}
+
+// ============================================================================
+// Frame Image Analysis Models
+// ピクセルベースの動画解析結果（motion.detect video mode）
+// ============================================================================
+
+/// MotionAnalysisResult - フレーム画像解析結果
+/// resultType: 'animation_zone' | 'layout_shift' | 'motion_vector'
+/// AnimationZone, LayoutShift, MotionVector の3種類の解析結果を統合保存
+model MotionAnalysisResult {
+  id        String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  webPageId String? @map("web_page_id") @db.Uuid
+
+  // 解析結果タイプ
+  resultType String @map("result_type") // 'animation_zone' | 'layout_shift' | 'motion_vector'
+
+  // フレーム情報
+  frameIndex Int @map("frame_index") // 対象フレームインデックス
+  fps        Int @default(30) // フレームレート
+
+  // === AnimationZone (resultType = 'animation_zone') ===
+  // 差分分析結果: 変化したピクセル数、変化率、変化領域
+  /**
+   * /**
+   * /**
+   * /**
+   * /**
+   * /**
+   * /**
+   * /*
+   * {
+   * "changedPixels": 12500,
+   * "totalPixels": 2073600,
+   * "changeRatio": 0.006,
+   * "hasChange": true,
+   * "regions": [{ "x": 100, "y": 200, "width": 300, "height": 150 }]
+   * }
+   */
+
+  // === LayoutShift (resultType = 'layout_shift') ===
+  // CLS影響スコア、影響領域、推定原因
+  /**
+   * /**
+   * /**
+   * /**
+   * /**
+   * /**
+   * /**
+   * /*
+   * {
+   * "shiftStartMs": 500,
+   * "impactScore": 0.15,
+   * "affectedRegions": [{ "x": 0, "y": 100, "width": 1920, "height": 200 }],
+   * "estimatedCause": "image_load",
+   * "shiftDirection": 90,
+   * "shiftDistance": 50
+   * }
+   */
+
+  // === MotionVector (resultType = 'motion_vector') ===
+  // 方向、速度、モーションタイプ
+  /**
+   * /**
+   * /**
+   * /**
+   * /**
+   * /**
+   * /**
+   * /*
+   * {
+   * "dominantDirection": 270,
+   * "avgSpeed": 15.5,
+   * "maxSpeed": 30.2,
+   * "confidence": 0.85,
+   * "motionType": "slide_left"
+   * }
+   */
+
+  // 解析結果データ（上記3タイプに共通のJSON構造）
+  resultData Json @map("result_data")
+
+  // 影響領域（BoundingBox[]のJSON）
+  // AnimationZone.regions, LayoutShift.affectedRegions を格納
+  affectedRegions Json @default("[]") @map("affected_regions")
+
+  // メタデータ
+  metadata Json @default("{}")
+
+  // ソース情報
+  sourceUrl  String? @map("source_url") @db.Text
+  usageScope String  @default("inspiration_only") @map("usage_scope")
+
+  // タイムスタンプ
+  analyzedAt DateTime @default(now()) @map("analyzed_at") @db.Timestamptz
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt  DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  // リレーション
+  webPage   WebPage?                 @relation(fields: [webPageId], references: [id], onDelete: SetNull)
+  embedding MotionAnalysisEmbedding?
+
+  @@index([webPageId])
+  @@index([resultType])
+  @@index([frameIndex])
+  @@index([webPageId, resultType])
+  @@index([analyzedAt(sort: Desc)])
+  @@map("motion_analysis_results")
+}
+
+/// MotionAnalysisEmbedding - フレーム画像解析結果のベクトル埋め込み
+/// セマンティック検索用（例: "フェードインアニメーション" "CLS問題のあるレイアウト"）
+/// HNSW Index: idx_motion_analysis_embeddings_hnsw (m=16, ef_construction=64, vector_cosine_ops)
+/// Performance Target: Vector Search P95 < 100ms
+model MotionAnalysisEmbedding {
+  id                     String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  motionAnalysisResultId String @unique @map("motion_analysis_result_id") @db.Uuid
+
+  // Embedding (768D, multilingual-e5-base)
+  // HNSW indexed for semantic search
+  embedding Unsupported("vector(768)")? @map("embedding")
+
+  // テキスト表現（Embedding生成元）
+  textRepresentation String? @map("text_representation") @db.Text
+
+  // メタデータ
+  modelVersion       String   @map("model_version") // 'multilingual-e5-base'
+  embeddingTimestamp DateTime @default(now()) @map("embedding_timestamp") @db.Timestamptz
+
+  // タイムスタンプ
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  // リレーション
+  motionAnalysisResult MotionAnalysisResult @relation(fields: [motionAnalysisResultId], references: [id], onDelete: Cascade)
+
+  @@map("motion_analysis_embeddings")
+}
+
+/// QualityEvaluation - 品質評価履歴
+/// targetType: 'web_page' | 'section_pattern' | 'generated_code'
+/// grade: 'A' | 'B' | 'C' | 'D' | 'F'
+/// evaluationMode: 'standard' | 'strict'
+model QualityEvaluation {
+  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+
+  // 評価対象
+  targetType String @map("target_type") // 'web_page' | 'section_pattern' | 'generated_code'
+  targetId   String @map("target_id") @db.Uuid
+
+  // 評価結果
+  overallScore Int    @map("overall_score") // 0-100
+  grade        String // 'A' | 'B' | 'C' | 'D' | 'F'
+
+  // anti_ai_cliche詳細
+  antiAiCliche Json @map("anti_ai_cliche")
+  /**
+   * {
+   * "overall_score": 75,
+   * "axes": {
+   * "visual_motifs": { "score": 70, ... },
+   * "composition": { "score": 80, ... },
+   * "context": { "score": 75, ... }
+   * },
+   * "patterns_detected": [...],
+   * "human_crafted_evidence": [...]
+   * }
+   */
+
+  // デザイン品質
+  designQuality Json? @map("design_quality")
+
+  // 技術品質
+  technicalQuality Json? @map("technical_quality")
+
+  // 改善提案
+  recommendations String[] @default([])
+
+  // 評価メタデータ
+  evaluatorVersion String @map("evaluator_version")
+  evaluationMode   String @default("standard") @map("evaluation_mode") // 'standard' | 'strict'
+
+  // 評価時に参照したパターン
+  referencedPatterns Json? @map("referenced_patterns")
+  /**
+   * {
+   * "similar_sections": ["uuid1", "uuid2", "uuid3"],
+   * "similar_motions": ["uuid4", "uuid5"],
+   * "benchmarks_used": ["uuid6", "uuid7"]
+   * }
+   */
+
+  // パターン類似度スコア
+  patternSimilarity Json? @map("pattern_similarity")
+  /**
+   * {
+   * "avg_section_similarity": 0.78,
+   * "avg_motion_similarity": 0.82,
+   * "closest_benchmark_similarity": 0.91,
+   * "highest_quality_match_id": "uuid",
+   * "uniqueness_score": 0.65
+   * }
+   */
+
+  // コンテキスト情報
+  evaluationContext Json? @map("evaluation_context")
+  /**
+   * {
+   * "project_id": "uuid",
+   * "brand_palette_id": "uuid",
+   * "design_system_id": "uuid",
+   * "target_industry": "technology",
+   * "target_audience": "enterprise"
+   * }
+   */
+
+  // タイムスタンプ
+  evaluatedAt DateTime @default(now()) @map("evaluated_at") @db.Timestamptz
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  @@index([targetType, targetId])
+  @@index([overallScore])
+  @@index([grade])
+  @@index([evaluatedAt(sort: Desc)])
+  @@map("quality_evaluations")
+}
+
+/// QualityBenchmark - 高品質パターンのベンチマーク
+/// 品質評価の基準となる高スコアパターン（Overall Score >= 85）を集約
+/// HNSW Index: idx_quality_benchmarks_embedding_hnsw (m=16, ef_construction=64, vector_cosine_ops)
+model QualityBenchmark {
+  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+
+  // 参照元（どちらかがnull可能）
+  sectionPatternId String? @map("section_pattern_id") @db.Uuid
+  webPageId        String? @map("web_page_id") @db.Uuid
+
+  // ベンチマーク基本情報
+  sectionType  String @map("section_type") // hero, feature, cta, etc.
+  overallScore Int    @map("overall_score") // 85-100
+  grade        String // 'A' | 'B'
+
+  // 特徴量（検索・分類用）
+  characteristics String[] @default([])
+  // 例: ["gradient-background", "asymmetric-layout", "bold-typography"]
+
+  // ベクトル埋め込み（HNSW indexed, 768D）
+  embedding Unsupported("vector(768)")? @map("embedding")
+
+  // 評価詳細（JSON）
+  axisScores Json @map("axis_scores")
+  /**
+   * {
+   * "originality": 90,
+   * "craftsmanship": 88,
+   * "contextuality": 85
+   * }
+   */
+
+  // コンテキスト情報
+  industry String? // healthcare, finance, technology, etc.
+  audience String? // enterprise, consumer, professionals
+
+  // ソース情報
+  sourceUrl  String @map("source_url") @db.Text
+  sourceType String @default("award_gallery") @map("source_type")
+  // award_gallery | user_provided | curated
+
+  // HTMLスニペット（参照用）
+  htmlSnippet String? @map("html_snippet") @db.Text
+
+  // プレビュー画像URL
+  previewUrl String? @map("preview_url") @db.Text
+
+  // タイムスタンプ
+  extractedAt DateTime @default(now()) @map("extracted_at") @db.Timestamptz
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  // リレーション
+  sectionPattern SectionPattern? @relation(fields: [sectionPatternId], references: [id], onDelete: SetNull)
+  webPage        WebPage?        @relation(fields: [webPageId], references: [id], onDelete: SetNull)
+
+  @@index([sectionType])
+  @@index([overallScore(sort: Desc)])
+  @@index([grade])
+  @@index([industry])
+  @@index([sourceType])
+  @@index([extractedAt(sort: Desc)])
+  @@map("quality_benchmarks")
+}
+
+// ============================================================================
+// WebDesign Project Models (Phase 2 保留)
+// ============================================================================
+
+/// プロジェクトステータス
+enum ProjectStatus {
+  draft
+  in_progress
+  published
+  archived
+}
+
+/// Project - Webデザインプロジェクト
+model Project {
+  id          String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name        String        @db.VarChar(200)
+  slug        String        @unique @db.VarChar(250)
+  description String?       @db.Text
+  status      ProjectStatus @default(draft)
+  createdAt   DateTime      @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt   DateTime      @updatedAt @map("updated_at") @db.Timestamptz
+
+  // Relations
+  webPages     WebPage[] // Analyzed web pages for this project
+  brandSetting ProjectBrandSetting?
+
+  @@index([status])
+  @@index([updatedAt(sort: Desc)])
+  @@map("projects")
+}
+
+// [DELETED Phase 1] ProjectPage, ProjectBrief, ProjectLayoutVersion,
+//                    ProjectLayoutScore, ProjectCodeExport removed
+// [DELETED Phase 1] Enums removed: ProjectPageType, BriefScope, LayoutSourceType
+
+/// ProjectBrandSetting - ブランド設定 (Phase 2 保留)
+model ProjectBrandSetting {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  projectId String   @unique @map("project_id") @db.Uuid
+  brandId   String?  @map("brand_id") @db.VarChar(100)
+  paletteId String?  @map("palette_id") @db.Uuid
+  tokens    Json?
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  // Relations
+  project Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  palette BrandPalette? @relation(fields: [paletteId], references: [id], onDelete: SetNull)
+
+  @@index([paletteId])
+  @@map("project_brand_settings")
+}
+
+// [DELETED] DesignSystem Model — MCPツール未使用（テストのみ）。OSS公開時に削除。
+
+// ============================================================================
+// Design Narrative Models
+// Reference: デザインの「ナラティブ」（物語性・世界観）を構造化データとして管理
+// Vision AI分析結果から抽出したムード、トーン、視覚的特徴を保存
+// ============================================================================
+
+/// ムードカテゴリ分類（16種類）
+/// Vision AIやCSS解析から判定されるデザインの雰囲気・印象
+enum MoodCategory {
+  professional // プロフェッショナル・ビジネス向け
+  playful // 遊び心のある・カジュアル
+  premium // 高級感・ラグジュアリー
+  tech // テクノロジー・先進的
+  organic // 自然・オーガニック
+  minimalist // ミニマル・シンプル
+  bold // 大胆・インパクト
+  elegant // エレガント・上品
+  artistic // アーティスティック・創造的
+  trustworthy // 信頼感・安心感
+  innovative // 革新的・先駆的
+  warm // 温かみのある・親しみやすい
+  mysterious // 神秘的・ミステリアス
+  energetic // 活発・エネルギッシュ
+  serene // 静謐・穏やか
+  other // その他
+}
+
+/// DesignNarrative - デザインの物語性・世界観を構造化データとして管理
+/// Vision AI分析結果から抽出したムード、トーン、視覚的特徴を保存
+/// 1 WebPage : 1 DesignNarrative（1対1関係）
+model DesignNarrative {
+  id        String @id @default(dbgenerated("gen_uuidv7()")) @db.Uuid
+  webPageId String @unique @map("web_page_id") @db.Uuid
+
+  // ムード分類（主要な雰囲気・印象）
+  moodCategory    MoodCategory @map("mood_category")
+  moodDescription String?      @map("mood_description") @db.Text
+
+  // 色彩印象（Vision AIからの色彩分析結果）
+  // 例: "暖色系の落ち着いた色調で信頼感を演出"
+  colorImpression String? @map("color_impression") @db.Text
+
+  // タイポグラフィの性格
+  // 例: "モダンなサンセリフで親しみやすさを表現"
+  typographyPersonality String? @map("typography_personality") @db.Text
+
+  // モーションの感情表現
+  // 例: "滑らかな遷移で洗練された印象を与える"
+  motionEmotion String? @map("motion_emotion") @db.Text
+
+  // 全体的なトーン・雰囲気
+  // 例: "プロフェッショナルでありながら親しみやすい"
+  overallTone String? @map("overall_tone") @db.Text
+
+  // レイアウト構造（JSONB）
+  // { "type": "asymmetric", "grid": "12-column", "whitespace": "generous" }
+  layoutStructure Json @default("{}") @map("layout_structure")
+
+  // 視覚的階層（JSONB）
+  // { "levels": 4, "primaryFocus": "hero", "secondaryFocus": "features" }
+  visualHierarchy Json @default("{}") @map("visual_hierarchy")
+
+  // 余白のリズム（JSONB）
+  // { "pattern": "consistent", "baseUnit": 8, "scale": [4, 8, 16, 32, 64] }
+  spacingRhythm Json @default("{}") @map("spacing_rhythm")
+
+  // セクション間の関係性（JSONB）
+  // { "flow": "narrative", "connections": ["hero->features", "features->cta"] }
+  sectionRelationships Json @default("{}") @map("section_relationships")
+
+  // グラフィック要素（JSONB）
+  // { "illustrations": true, "icons": "outline", "patterns": "geometric" }
+  graphicElements Json @default("{}") @map("graphic_elements")
+
+  // ソースURL（重複保持、検索効率のため）
+  sourceUrl String? @map("source_url") @db.Text
+
+  // 分析信頼度（0-1）
+  confidence Float? @default(0.0)
+
+  // 分析日時
+  analyzedAt DateTime @default(now()) @map("analyzed_at") @db.Timestamptz
+
+  // 分析アルゴリズムバージョン
+  analyzerVersion String @default("0.1.0") @map("analyzer_version") @db.VarChar(50)
+
+  // タイムスタンプ
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  // リレーション
+  webPage   WebPage                   @relation(fields: [webPageId], references: [id], onDelete: Cascade)
+  embedding DesignNarrativeEmbedding?
+
+  @@index([webPageId])
+  @@index([moodCategory])
+  @@index([analyzedAt(sort: Desc)])
+  @@index([confidence(sort: Desc)])
+  @@map("design_narratives")
+}
+
+/// DesignNarrativeEmbedding - デザインナラティブのベクトル埋め込み
+/// セマンティック検索用（例: "温かみのあるプロフェッショナルなデザイン"）
+/// HNSW Index: idx_design_narrative_embeddings_hnsw (m=16, ef_construction=64, vector_cosine_ops)
+/// Performance Target: Vector Search P95 < 100ms
+model DesignNarrativeEmbedding {
+  id                String @id @default(dbgenerated("gen_uuidv7()")) @db.Uuid
+  designNarrativeId String @unique @map("design_narrative_id") @db.Uuid
+
+  // Embedding (768D, multilingual-e5-base)
+  // HNSW indexed for semantic search
+  embedding Unsupported("vector(768)")? @map("embedding")
+
+  // テキスト表現（Embedding生成元）
+  // 例: "professional mood with warm color palette, modern typography, smooth transitions"
+  textRepresentation String? @map("text_representation") @db.Text
+
+  // 全文検索用tsvectorカラム（GENERATED ALWAYS AS）
+  // PostgreSQL側でtext_representationから自動生成、GINインデックス付き
+  searchVector Unsupported("tsvector")? @map("search_vector")
+
+  // メタデータ
+  modelVersion       String   @map("model_version") // 'multilingual-e5-base'
+  embeddingTimestamp DateTime @default(now()) @map("embedding_timestamp") @db.Timestamptz
+
+  // タイムスタンプ
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  // リレーション
+  designNarrative DesignNarrative @relation(fields: [designNarrativeId], references: [id], onDelete: Cascade)
+
+  @@map("design_narrative_embeddings")
+}
+
+// ============================================================================
+// Background Design Models
+// Reference: 背景デザインパターンの検出・分類・セマンティック検索
+// solid_color, gradient, glassmorphism, noise_texture, SVG pattern 等を管理
+// ============================================================================
+
+/// 背景デザインタイプ分類（14種類）
+/// CSS静的解析およびVision AI解析から判定される背景デザインの種類
+enum BackgroundDesignType {
+  solid_color // 単色背景
+  linear_gradient // 線形グラデーション
+  radial_gradient // 放射状グラデーション
+  conic_gradient // 円錐グラデーション
+  mesh_gradient // メッシュグラデーション
+  image_background // 画像背景
+  pattern_background // パターン背景（繰り返し画像）
+  video_background // 動画背景
+  animated_gradient // アニメーショングラデーション
+  glassmorphism // ガラスモーフィズム（blur + transparency）
+  noise_texture // ノイズテクスチャ
+  svg_background // SVGパターン背景
+  multi_layer // 複合レイヤー（複数背景の組み合わせ）
+  unknown // 分類不能
+}
+
+/// BackgroundDesign - 背景デザインパターン
+/// Webページから検出された背景デザインの分類・色彩情報・グラデーション情報等を保存
+/// SectionPatternとの関連により、特定セクションの背景情報を紐付け可能
+model BackgroundDesign {
+  id               String  @id @default(dbgenerated("gen_uuidv7()")) @db.Uuid
+  webPageId        String? @map("web_page_id") @db.Uuid
+  sectionPatternId String? @map("section_pattern_id") @db.Uuid
+
+  // 基本情報
+  name          String              @db.VarChar(200)
+  designType    BackgroundDesignType @map("design_type")
+  cssValue      String              @map("css_value") @db.Text
+  selector      String?             @db.VarChar(500)
+  positionIndex Int                 @default(0) @map("position_index")
+
+  // 色彩情報（JSONB）
+  // { "dominantColors": ["#1a1a2e", "#16213e"], "colorCount": 3, "hasAlpha": true, "colorSpace": "srgb" }
+  colorInfo Json @default("{}") @map("color_info")
+
+  // グラデーション情報（JSONB, nullable）
+  // { "type": "linear", "angle": 135, "stops": [{"color":"#1a1a2e","position":0}], "repeating": false }
+  gradientInfo Json? @map("gradient_info")
+
+  // 視覚プロパティ（JSONB）
+  // { "blurRadius": 0, "opacity": 1.0, "blendMode": "normal", "hasOverlay": false, "layers": 1 }
+  visualProperties Json @default("{}") @map("visual_properties")
+
+  // アニメーション情報（JSONB, nullable）
+  // { "isAnimated": true, "animationName": "gradient-shift", "duration": "3s", "easing": "ease-in-out" }
+  animationInfo Json? @map("animation_info")
+
+  // CSS実装コード
+  cssImplementation String? @map("css_implementation") @db.Text
+
+  // パフォーマンス情報（JSONB）
+  // { "gpuAccelerated": true, "triggersPaint": true, "estimatedImpact": "low" }
+  performance Json @default("{}") @map("performance")
+
+  // メタデータ
+  tags     String[] @default([])
+  metadata Json     @default("{}")
+
+  // 検出信頼度（0-1）
+  confidence Float?
+
+  // ソース情報
+  sourceUrl  String? @map("source_url") @db.Text
+  usageScope String  @default("inspiration_only") @map("usage_scope")
+
+  // タイムスタンプ
+  detectedAt DateTime @default(now()) @map("detected_at") @db.Timestamptz
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt  DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  // リレーション
+  webPage        WebPage?                   @relation(fields: [webPageId], references: [id], onDelete: SetNull)
+  sectionPattern SectionPattern?            @relation(fields: [sectionPatternId], references: [id], onDelete: SetNull)
+  embedding      BackgroundDesignEmbedding?
+
+  @@index([webPageId])
+  @@index([designType])
+  @@index([sectionPatternId])
+  @@index([detectedAt(sort: Desc)])
+  @@map("background_designs")
+}
+
+/// BackgroundDesignEmbedding - 背景デザインパターンのベクトル埋め込み
+/// セマンティック検索用（例: "ダークなグラデーション背景" "ガラスモーフィズム効果"）
+/// HNSW Index: idx_background_design_embeddings_hnsw (m=16, ef_construction=64, vector_cosine_ops)
+/// Performance Target: Vector Search P95 < 100ms
+model BackgroundDesignEmbedding {
+  id                 String @id @default(dbgenerated("gen_uuidv7()")) @db.Uuid
+  backgroundDesignId String @unique @map("background_design_id") @db.Uuid
+
+  // Embedding (768D, multilingual-e5-base)
+  // HNSW indexed for semantic search
+  embedding Unsupported("vector(768)")? @map("embedding")
+
+  // テキスト表現（Embedding生成元）
+  // 例: "dark linear gradient background with glassmorphism overlay, animated color shift"
+  textRepresentation String? @map("text_representation") @db.Text
+
+  // 全文検索用tsvectorカラム（GENERATED ALWAYS AS）
+  // PostgreSQL側でtext_representationから自動生成、GINインデックス付き
+  searchVector Unsupported("tsvector")? @map("search_vector")
+
+  // メタデータ
+  modelVersion       String   @map("model_version") // 'multilingual-e5-base'
+  embeddingTimestamp DateTime @default(now()) @map("embedding_timestamp") @db.Timestamptz
+
+  // タイムスタンプ
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  // リレーション
+  backgroundDesign BackgroundDesign @relation(fields: [backgroundDesignId], references: [id], onDelete: Cascade)
+
+  @@map("background_design_embeddings")
+}

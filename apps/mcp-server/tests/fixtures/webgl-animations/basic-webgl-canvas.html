@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Basic WebGL Canvas Test</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 20px;
+      background: #1a1a2e;
+    }
+    #webgl-canvas {
+      width: 400px;
+      height: 300px;
+      border: 1px solid #333;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="webgl-canvas" width="400" height="300"></canvas>
+  <script>
+    /**
+     * 基本的なWebGLアニメーションテスト
+     * - 色が時間とともに変化するシンプルなアニメーション
+     * - カテゴリ: fade（色の変化）
+     */
+    const canvas = document.getElementById('webgl-canvas');
+    const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+
+    if (!gl) {
+      console.error('WebGL not supported');
+    } else {
+      let startTime = Date.now();
+
+      function render() {
+        const elapsed = (Date.now() - startTime) / 1000;
+
+        // 色が徐々に変化するフェードアニメーション
+        const r = Math.sin(elapsed * 0.5) * 0.5 + 0.5;
+        const g = Math.sin(elapsed * 0.7) * 0.5 + 0.5;
+        const b = Math.sin(elapsed * 1.0) * 0.5 + 0.5;
+
+        gl.clearColor(r, g, b, 1.0);
+        gl.clear(gl.COLOR_BUFFER_BIT);
+
+        requestAnimationFrame(render);
+      }
+
+      render();
+    }
+  </script>
+</body>
+</html>

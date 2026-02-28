@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Framer Motion Detection Test</title>
+  <style>
+    [data-framer-component-type] {
+      width: 100px;
+      height: 100px;
+      background: coral;
+      margin: 20px;
+    }
+    [data-framer-appear-id] {
+      width: 80px;
+      height: 80px;
+      background: teal;
+      margin: 20px;
+    }
+  </style>
+</head>
+<body>
+  <!-- Framer Motion detection markers -->
+  <div
+    data-framer-component-type="Frame"
+    data-framer-name="AnimatedBox"
+    style="transform: translateX(0px);"
+  >
+    Framer Frame
+  </div>
+  <div
+    data-framer-appear-id="appear-1"
+    data-framer-component-type="motion"
+  >
+    Framer Appear
+  </div>
+
+  <!-- Simulated Framer Motion globals -->
+  <script>
+    // Simulate Framer Motion detection markers
+    window.__FRAMER_MOTION__ = { version: '10.0.0' };
+
+    // Motion values simulation
+    window.MotionValue = class MotionValue {
+      constructor(initialValue) {
+        this.current = initialValue;
+      }
+    };
+  </script>
+</body>
+</html>

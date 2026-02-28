@@ -1,0 +1,22 @@
+# Build outputs
+dist/
+*.tsbuildinfo
+
+# Dependencies
+node_modules/
+
+# Benchmark results (generated)
+benchmark-results/*.json
+!benchmark-results/.gitkeep
+
+# IDE
+.idea/
+.vscode/
+
+# Logs
+*.log
+debug.log
+
+# OS
+.DS_Store
+Thumbs.db

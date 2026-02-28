@@ -1,0 +1,82 @@
+# Dependencies
+node_modules
+.pnpm-store
+
+# Build outputs
+dist
+.next
+out
+build
+
+# Turbo
+.turbo
+
+# Testing
+coverage
+*.lcov
+.nyc_output
+
+# IDE
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+.idea
+
+# Environment variables
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+*.env.local
+
+# Logs
+logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Debug
+*.pem
+*.p12
+
+# Prisma
+prisma/migrations/*_migration_lock.toml
+
+# Generated files
+*.generated.ts
+*.generated.tsx
+
+# ML Models (downloaded separately)
+models/
+*.onnx
+
+# Docker volumes
+docker/data/
+
+# Temporary files
+tmp
+temp
+*.tmp
+*.temp
+
+# Backup files
+*.bak
+*.backup
+*.auto-trigger.json.backup.*
+backup/
+backups/
+
+# OSS generation output
+
+# Playwright
+test-results/
+playwright-report/
+playwright/.cache/
+.auto-trigger-state.json

@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lottie Animation Test</title>
+  <style>
+    #lottie-container {
+      width: 300px;
+      height: 300px;
+      background: #f0f0f0;
+    }
+    .lottie-animation {
+      width: 200px;
+      height: 200px;
+    }
+  </style>
+</head>
+<body>
+  <div id="lottie-container" class="lottie-animation"></div>
+  <script>
+    // Simulate Lottie detection
+    window.lottie = {
+      loadAnimation: function(params) {
+        console.log('Lottie animation loaded:', params);
+        return {
+          play: () => {},
+          pause: () => {},
+          stop: () => {},
+          destroy: () => {},
+          goToAndStop: () => {},
+          goToAndPlay: () => {},
+          setDirection: () => {},
+          setSpeed: () => {},
+          addEventListener: () => {},
+          removeEventListener: () => {}
+        };
+      },
+      setQuality: () => {},
+      setSpeed: () => {},
+      destroy: () => {}
+    };
+
+    // Bodymovin alias (older name)
+    window.bodymovin = window.lottie;
+
+    // Example usage
+    window.lottie.loadAnimation({
+      container: document.getElementById('lottie-container'),
+      renderer: 'svg',
+      loop: true,
+      autoplay: true,
+      path: 'animation.json'
+    });
+  </script>
+</body>
+</html>

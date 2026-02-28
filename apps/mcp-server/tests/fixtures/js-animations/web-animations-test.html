@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Web Animations API Test</title>
+  <style>
+    .target {
+      width: 100px;
+      height: 100px;
+      background: green;
+      margin: 20px;
+    }
+    .fade-box {
+      width: 80px;
+      height: 80px;
+      background: purple;
+      margin: 20px;
+    }
+  </style>
+</head>
+<body>
+  <div id="target" class="target"></div>
+  <div id="fadeBox" class="fade-box"></div>
+  <script>
+    // Web Animations API - Element.animate()
+    document.getElementById('target').animate(
+      [
+        { transform: 'translateX(0)', opacity: 1 },
+        { transform: 'translateX(200px)', opacity: 0.5 },
+        { transform: 'translateX(0)', opacity: 1 }
+      ],
+      {
+        duration: 2000,
+        iterations: Infinity,
+        easing: 'ease-in-out',
+        direction: 'normal'
+      }
+    );
+
+    // Fade animation with keyframes
+    document.getElementById('fadeBox').animate(
+      [
+        { opacity: 0 },
+        { opacity: 1 }
+      ],
+      {
+        duration: 1000,
+        iterations: 3,
+        easing: 'ease',
+        fill: 'forwards'
+      }
+    );
+  </script>
+</body>
+</html>

@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Static WebGL Canvas Test</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 20px;
+      background: #222;
+    }
+    #webgl-canvas {
+      width: 400px;
+      height: 300px;
+      border: 1px solid #444;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="webgl-canvas" width="400" height="300"></canvas>
+  <script>
+    /**
+     * 静的なWebGLキャンバステスト（アニメーションなし）
+     * - カテゴリ: unknown / static
+     * - アニメーションパターンが検出されないことを確認するためのテスト
+     */
+    const canvas = document.getElementById('webgl-canvas');
+    const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+
+    if (!gl) {
+      console.error('WebGL not supported');
+    } else {
+      // 一度だけ描画（アニメーションループなし）
+      gl.clearColor(0.2, 0.3, 0.4, 1.0);
+      gl.clear(gl.COLOR_BUFFER_BIT);
+    }
+  </script>
+</body>
+</html>

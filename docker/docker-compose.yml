@@ -1,0 +1,121 @@
+# Reftrix Development Docker Compose
+# Port offset: 21000 (e.g., PostgreSQL: 26432, Prisma Studio: 26555)
+
+services:
+  # PostgreSQL with pgvector extension
+  postgres:
+    image: pgvector/pgvector:pg18
+    container_name: reftrix-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-reftrix}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change_me}
+      POSTGRES_DB: ${POSTGRES_DB:-reftrix}
+    ports:
+      - "26432:5432"
+    volumes:
+      # PostgreSQL 18+ requires mounting at /var/lib/postgresql (not /data subdirectory)
+      - reftrix_postgres_data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U reftrix -d reftrix"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - reftrix-network
+
+  # Redis for BullMQ job queue (required for page.analyze async mode)
+  redis:
+    image: redis:7-alpine
+    container_name: reftrix-redis
+    restart: unless-stopped
+    ports:
+      - "27379:6379"
+    volumes:
+      - reftrix_redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - reftrix-network
+
+  # PostgreSQL 自動日次バックアップ (毎日 3:00 AM JST)
+  # scripts/db-backup.sh を共有マウントし、7世代ローテーション
+  backup:
+    image: pgvector/pgvector:pg18
+    container_name: reftrix-backup
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      PGPASSWORD: ${POSTGRES_PASSWORD:-change_me}
+      TZ: Asia/Tokyo
+    volumes:
+      - ../backups:/backups
+      - ../scripts/db-backup.sh:/usr/local/bin/reftrix-backup.sh:ro
+    networks:
+      - reftrix-network
+    entrypoint: ["/bin/bash", "-c"]
+    command:
+      - |
+        export REFTRIX_BACKUP_INSIDE_CONTAINER=true
+        export BACKUP_DIR=/backups
+        echo "バックアップスケジューラ起動 (毎日 3:00 AM JST)"
+        # sleepループで毎日 3:00 AM JST にバックアップ実行
+        while true; do
+          # 次の 3:00 AM までの秒数を計算
+          now=$$(date +%s)
+          target=$$(date -d "today 03:00" +%s 2>/dev/null || date -d "03:00" +%s)
+          if [ "$$target" -le "$$now" ]; then
+            target=$$(date -d "tomorrow 03:00" +%s 2>/dev/null || echo $$((now + 86400)))
+          fi
+          wait_sec=$$((target - now))
+          echo "$$(date): 次回バックアップまで $${wait_sec}秒 ($$(date -d @$$target '+%Y-%m-%d %H:%M %Z' 2>/dev/null))"
+          sleep "$$wait_sec"
+          echo "$$(date): 自動バックアップ開始"
+          /usr/local/bin/reftrix-backup.sh 2>&1 | tee -a /var/log/reftrix-backup.log
+          echo "$$(date): 自動バックアップ完了"
+        done
+
+  # ===== GPU Inference (Optional) =====
+  # Uncomment the following to enable NVIDIA GPU acceleration for ONNX embedding inference.
+  # Requires: NVIDIA Container Toolkit (nvidia-container-toolkit) installed on the host.
+  # See: https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html
+  #
+  # mcp-server-gpu:
+  #   build:
+  #     context: ..
+  #     dockerfile: docker/Dockerfile
+  #   container_name: reftrix-mcp-gpu
+  #   restart: unless-stopped
+  #   environment:
+  #     ONNX_EXECUTION_PROVIDER: cuda
+  #     DATABASE_URL: postgresql://reftrix:change_me@postgres:5432/reftrix?schema=public
+  #     REDIS_URL: redis://redis:6379
+  #   deploy:
+  #     resources:
+  #       reservations:
+  #         devices:
+  #           - driver: nvidia
+  #             count: 1
+  #             capabilities: [gpu]
+  #   depends_on:
+  #     postgres:
+  #       condition: service_healthy
+  #     redis:
+  #       condition: service_healthy
+  #   networks:
+  #     - reftrix-network
+
+volumes:
+  reftrix_postgres_data:
+    driver: local
+  reftrix_redis_data:
+    driver: local
+
+networks:
+  reftrix-network:
+    driver: bridge
