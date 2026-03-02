@@ -10,8 +10,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 形式は [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) に基づき、
 [セマンティックバージョニング](https://semver.org/spec/v2.0.0.html) に準拠しています。
 
-## [Unreleased]
-
 ## [0.1.1] - 2026-03-03
 
 ### Added / 追加
