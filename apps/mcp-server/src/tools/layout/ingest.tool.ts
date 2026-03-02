@@ -45,6 +45,7 @@ import {
 } from '../../services/page/layout-analyzer.service';
 import {
   responsiveAnalysisService,
+  responsivePersistenceService,
   type ResponsiveAnalysisResult,
 } from '../../services/responsive';
 
@@ -840,6 +841,8 @@ export async function layoutIngestHandler(
           enabled: boolean;
           viewports?: Array<{ name: string; width: number; height: number }>;
           include_screenshots?: boolean;
+          include_diff_images?: boolean;
+          diff_threshold?: number;
           detect_navigation?: boolean;
           detect_visibility?: boolean;
           detect_layout?: boolean;
@@ -853,6 +856,12 @@ export async function layoutIngestHandler(
         }
         if (validated.options.responsive.include_screenshots !== undefined) {
           responsiveOptions.include_screenshots = validated.options.responsive.include_screenshots;
+        }
+        if (validated.options.responsive.include_diff_images !== undefined) {
+          responsiveOptions.include_diff_images = validated.options.responsive.include_diff_images;
+        }
+        if (validated.options.responsive.diff_threshold !== undefined) {
+          responsiveOptions.diff_threshold = validated.options.responsive.diff_threshold;
         }
         if (validated.options.responsive.detect_navigation !== undefined) {
           responsiveOptions.detect_navigation = validated.options.responsive.detect_navigation;
@@ -885,6 +894,38 @@ export async function layoutIngestHandler(
           logger.warn('[MCP Tool] layout.ingest responsive analysis failed', {
             url: validated.url,
             error: responsiveError instanceof Error ? responsiveError.message : String(responsiveError),
+          });
+        }
+      }
+    }
+
+    // レスポンシブ解析結果のDB保存（save_to_db かつ responsive.save_to_db が true の場合）
+    let responsiveAnalysisId: string | undefined;
+
+    if (
+      responsiveAnalysisResult &&
+      persistedId &&
+      saveToDb &&
+      (validated.options?.responsive?.save_to_db ?? true)
+    ) {
+      try {
+        responsiveAnalysisId = await responsivePersistenceService.save(
+          persistedId,
+          responsiveAnalysisResult
+        );
+
+        if (isDevelopment()) {
+          logger.info('[MCP Tool] layout.ingest responsive analysis saved to DB', {
+            responsiveAnalysisId,
+            webPageId: persistedId,
+          });
+        }
+      } catch (dbError) {
+        // DB保存失敗はエラーとして返さず、警告ログを出力して続行
+        if (isDevelopment()) {
+          logger.warn('[MCP Tool] layout.ingest responsive DB save failed', {
+            webPageId: persistedId,
+            error: dbError instanceof Error ? dbError.message : String(dbError),
           });
         }
       }
@@ -1066,11 +1107,12 @@ export async function layoutIngestHandler(
       // レスポンシブ解析結果（responsive.enabled: true 時のみ）
       responsiveAnalysis: responsiveAnalysisResult
         ? {
-            viewportsAnalyzed: responsiveAnalysisResult.viewportsAnalyzed,
+            viewportsAnalyzed: responsiveAnalysisResult.viewportsAnalyzed.map((v) => v.name),
             differences: responsiveAnalysisResult.differences,
             breakpoints: responsiveAnalysisResult.breakpoints,
             screenshots: responsiveAnalysisResult.screenshots,
             analysisTimeMs: responsiveAnalysisResult.analysisTimeMs,
+            responsiveAnalysisId,
           }
         : undefined,
     };
@@ -1443,6 +1485,23 @@ export const layoutIngestToolDefinition = {
               include_screenshots: {
                 type: 'boolean',
                 description: 'Include screenshots for each viewport (default: true)',
+                default: true,
+              },
+              include_diff_images: {
+                type: 'boolean',
+                description: 'Include diff images in viewport comparison results (default: false)',
+                default: false,
+              },
+              diff_threshold: {
+                type: 'number',
+                description: 'Pixel diff threshold for viewport comparison (0-1, default: 0.1)',
+                minimum: 0,
+                maximum: 1,
+                default: 0.1,
+              },
+              save_to_db: {
+                type: 'boolean',
+                description: 'Save responsive analysis results to DB (default: true, requires save_to_db at top level)',
                 default: true,
               },
               detect_navigation: {

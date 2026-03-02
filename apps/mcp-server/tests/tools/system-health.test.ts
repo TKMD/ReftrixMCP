@@ -275,8 +275,8 @@ describe('system.health MCPツール', () => {
         expect(result.data.services.initialization?.initializedCategories).toEqual(['motion', 'layout', 'quality', 'page']);
         expect(result.data.services.initialization?.skippedCategories).toEqual([]);
         expect(result.data.services.initialization?.errors).toEqual([]);
-        // v0.1.0: 19 tools (WebDesign専用) - narrative.search, background.search追加
-        expect(result.data.services.initialization?.registeredToolCount).toBe(19);
+        // v0.1.1: 20 tools (WebDesign専用) - responsive.search追加
+        expect(result.data.services.initialization?.registeredToolCount).toBe(20);
       }
     });
 

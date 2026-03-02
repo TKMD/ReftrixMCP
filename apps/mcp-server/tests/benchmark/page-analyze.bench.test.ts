@@ -872,6 +872,7 @@ describe('page.analyze Performance Benchmark', () => {
         auto_timeout: false, // pre-flight probeオーバーヘッド回避
         layoutOptions: { useVision: false }, // Vision処理をスキップ
         narrativeOptions: { enabled: false }, // Narrative処理をスキップ
+        responsiveOptions: { enabled: false }, // Responsive処理をスキップ
         motionOptions: {
           enable_frame_capture: false, // Video modeを無効化
           analyze_frames: false,
@@ -908,6 +909,7 @@ describe('page.analyze Performance Benchmark', () => {
         auto_timeout: false, // pre-flight probeオーバーヘッド回避
         layoutOptions: { useVision: false }, // Vision処理をスキップ
         narrativeOptions: { enabled: false }, // Narrative処理をスキップ
+        responsiveOptions: { enabled: false }, // Responsive処理をスキップ
         motionOptions: {
           enable_frame_capture: false,
           analyze_frames: false,

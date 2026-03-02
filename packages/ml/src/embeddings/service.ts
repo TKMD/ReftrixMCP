@@ -303,14 +303,12 @@ export class EmbeddingService {
         console.log('[ML] Spawning ONNX Worker Thread:', scriptPath);
       }
 
-      // Pass allowed V8 flags to worker thread.
-      // NOTE: --expose-gc is NOT allowed in Worker threads (Node.js rejects it).
-      // Workers can still use global.gc if the MAIN thread was started with --expose-gc.
-      const execArgv = process.execArgv.filter(
-        arg => arg.startsWith('--max-old-space-size')
-      );
-
-      this.worker = new Worker(scriptPath, { execArgv: execArgv.length > 0 ? execArgv : undefined });
+      // Worker threads inherit the parent's execArgv by default.
+      // Node.js >=20.x rejects --max-old-space-size and --expose-gc in
+      // worker_threads Workers, so we must explicitly pass an empty array
+      // to prevent the parent's flags (set by WorkerSupervisor fork())
+      // from propagating.
+      this.worker = new Worker(scriptPath, { execArgv: [] });
 
       // Handle worker messages
       this.worker.on('message', (response: WorkerResponse) => {

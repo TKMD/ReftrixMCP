@@ -199,6 +199,7 @@ model WebPage {
   qualityBenchmarks      QualityBenchmark[]
   designNarrative        DesignNarrative? // 1:1 relationship
   backgroundDesigns      BackgroundDesign[]
+  responsiveAnalyses     ResponsiveAnalysis[]
 
   @@index([projectId])
   @@index([projectId, analysisStatus])
@@ -1470,4 +1471,84 @@ model BackgroundDesignEmbedding {
   backgroundDesign BackgroundDesign @relation(fields: [backgroundDesignId], references: [id], onDelete: Cascade)
 
   @@map("background_design_embeddings")
+}
+
+// ============================================================================
+// Responsive Analysis Models
+// Reference: レスポンシブデザイン分析（マルチビューポート比較、ブレークポイント検出）
+// ============================================================================
+
+/// ResponsiveAnalysis - レスポンシブデザイン分析結果
+/// 複数ビューポートでの表示差分、ブレークポイント、スクリーンショット比較を保持
+model ResponsiveAnalysis {
+  id        String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  webPageId String @map("web_page_id") @db.Uuid
+
+  // 分析対象ビューポート（JSONB）
+  /// [{name: "desktop", width: 1440, height: 900}, {name: "mobile", width: 375, height: 812}]
+  viewportsAnalyzed Json @map("viewports_analyzed")
+
+  // ビューポート間の差異（JSONB）
+  /// [{category: "layout", description: "Grid changes from 3 columns to 1", viewports: ["desktop", "mobile"]}]
+  differences Json @map("differences")
+
+  // 検出されたブレークポイント（JSONB, nullable）
+  /// [{name: "tablet", minWidth: 768}, {name: "desktop", minWidth: 1024}]
+  breakpoints Json? @map("breakpoints")
+
+  // スクリーンショット差分（JSONB, nullable）
+  /// [{viewport1: "desktop", viewport2: "mobile", diffPercentage: 45.2}]
+  screenshotDiffs Json? @map("screenshot_diffs")
+
+  // 品質メトリクス（JSONB, nullable — Phase 2で拡張）
+  qualityMetrics Json? @map("quality_metrics")
+
+  // 分析所要時間（ミリ秒）
+  analysisTimeMs Int @map("analysis_time_ms")
+
+  // タイムスタンプ
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  // リレーション
+  webPage WebPage @relation(fields: [webPageId], references: [id], onDelete: Cascade)
+
+  // リレーション: Embedding
+  embedding ResponsiveAnalysisEmbedding?
+
+  @@index([webPageId])
+  @@map("responsive_analyses")
+}
+
+/// ResponsiveAnalysisEmbedding - レスポンシブ分析結果のベクトル埋め込み
+/// セマンティック検索用（例: "モバイルでナビゲーションが変化するサイト" "3カラムが1カラムに変わるレイアウト"）
+/// HNSW Index: idx_responsive_analysis_embeddings_hnsw (m=16, ef_construction=64, vector_cosine_ops)
+/// Performance Target: Vector Search P95 < 100ms
+model ResponsiveAnalysisEmbedding {
+  id                   String @id @default(dbgenerated("gen_uuidv7()")) @db.Uuid
+  responsiveAnalysisId String @unique @map("responsive_analysis_id") @db.Uuid
+
+  // Embedding (768D, multilingual-e5-base)
+  // HNSW indexed for semantic search
+  embedding Unsupported("vector(768)")? @map("embedding")
+
+  // テキスト表現（Embedding生成元）
+  // 例: "Responsive analysis: https://example.com\nViewports: desktop(1920x1080), tablet(768x1024), mobile(375x667)\nDifferences:\n- [layout] .grid: グリッドカラム数が4列から2列に変化"
+  textRepresentation String? @map("text_representation") @db.Text
+
+  // 全文検索用tsvectorカラム（GENERATED ALWAYS AS）
+  // PostgreSQL側でtext_representationから自動生成、GINインデックス付き
+  searchVector Unsupported("tsvector")? @map("search_vector")
+
+  // メタデータ
+  modelVersion       String   @map("model_version") // 'multilingual-e5-base'
+  embeddingTimestamp DateTime @default(now()) @map("embedding_timestamp") @db.Timestamptz
+
+  // タイムスタンプ
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  // リレーション
+  responsiveAnalysis ResponsiveAnalysis @relation(fields: [responsiveAnalysisId], references: [id], onDelete: Cascade)
+
+  @@map("responsive_analysis_embeddings")
 }

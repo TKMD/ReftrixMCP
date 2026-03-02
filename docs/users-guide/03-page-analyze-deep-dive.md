@@ -610,7 +610,8 @@ const calculateScore = (staticScore, patternAnalysis) => {
 2. **Motion Embedding** -- motion_patterns → motion_embeddings
 3. **Background Design Embedding** -- background_designs → background_design_embeddings
 4. **JSAnimation Embedding** -- js_animations → js_animation_embeddings
-5. **ScrollVision Embedding** -- scroll_visionキャプチャ分析結果
+5. **Responsive Embedding** -- responsive_analyses → responsive_analysis_embeddings
+6. **ScrollVision Embedding** -- scroll_visionキャプチャ分析結果
 
 ### 9.2 チャンク化処理
 
@@ -636,6 +637,7 @@ const calculateScore = (staticScore, patternAnalysis) => {
 | motion_patterns | motion_embeddings | HNSW |
 | background_designs | background_design_embeddings | HNSW |
 | js_animations | js_animation_embeddings | HNSW |
+| responsive_analyses | responsive_analysis_embeddings | HNSW |
 
 > **Note**: progress >= 90% のジョブはDB保存済みとみなされます（`DB_SAVED_PROGRESS_THRESHOLD = 90`）。Stall Recovery時、progress >= 90のジョブは`moveToCompleted`で回復されます。
 

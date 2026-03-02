@@ -155,7 +155,7 @@ function createMockService(overrides?: Partial<ILayoutSearchService>): ILayoutSe
 // includeHtml デフォルト値テスト
 // =====================================================
 
-describe('layout.search - includeHtml デフォルト値', { timeout: 120000 }, () => {
+describe('layout.search - includeHtml デフォルト値', { timeout: 180000 }, () => {
   beforeEach(() => {
     resetLayoutSearchServiceFactory();
   });

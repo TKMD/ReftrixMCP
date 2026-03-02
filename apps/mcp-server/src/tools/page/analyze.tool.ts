@@ -18,6 +18,13 @@ import { pageIngestAdapter, type IngestResult, type ComputedStyleInfo } from '..
 import { extractCssUrls } from '../../services/external-css-fetcher';
 import { assertNonProductionFactory } from '../../services/production-guard';
 
+// Responsive Analysis Services
+import {
+  responsiveAnalysisService,
+  responsivePersistenceService,
+  type ResponsiveAnalysisResult,
+} from '../../services/responsive';
+
 // Embedding統合用インポート（ハンドラーから再エクスポート）
 import {
   generateSectionEmbeddings,
@@ -684,6 +691,27 @@ export async function pageAnalyzeHandler(
           visionTimeoutMs: validated.narrativeOptions.visionTimeoutMs ?? 300000,
           generateEmbedding: validated.narrativeOptions.generateEmbedding ?? true,
         };
+      }
+
+      // responsiveOptions（デフォルト有効）
+      if (validated.responsiveOptions) {
+        const rOpts = validated.responsiveOptions;
+        jobOptions.responsiveOptions = {
+          enabled: rOpts.enabled ?? true,
+          ...(rOpts.viewports !== undefined ? { viewports: rOpts.viewports } : {}),
+          ...(rOpts.include_screenshots !== undefined ? { include_screenshots: rOpts.include_screenshots } : {}),
+          ...(rOpts.include_diff_images !== undefined ? { include_diff_images: rOpts.include_diff_images } : {}),
+          ...(rOpts.diff_threshold !== undefined ? { diff_threshold: rOpts.diff_threshold } : {}),
+          ...(rOpts.save_to_db !== undefined ? { save_to_db: rOpts.save_to_db } : {}),
+          ...(rOpts.detect_navigation !== undefined ? { detect_navigation: rOpts.detect_navigation } : {}),
+          ...(rOpts.detect_visibility !== undefined ? { detect_visibility: rOpts.detect_visibility } : {}),
+          ...(rOpts.detect_layout !== undefined ? { detect_layout: rOpts.detect_layout } : {}),
+        };
+      }
+
+      // respectRobotsTxt（Workerパスでもrobots.txtチェックに渡す）
+      if (validated.respect_robots_txt !== undefined) {
+        jobOptions.respectRobotsTxt = validated.respect_robots_txt;
       }
 
       const job = await addPageAnalyzeJob(queue, {
@@ -2398,6 +2426,156 @@ async function executeSyncProcessing(
   // markCompleted/markFailedがPromise完了/失敗時に呼び出される
   // =====================================================
 
+  // =====================================================
+  // レスポンシブ分析（responsiveOptions.enabled=true の場合）
+  // =====================================================
+  let responsiveAnalysisResult: ResponsiveAnalysisResult | undefined;
+  let responsiveAnalysisId: string | undefined;
+
+  if (validated.responsiveOptions?.enabled === true) {
+    const responsiveRemaining = Math.max(0, 570000 - (Date.now() - overallStartTime));
+    if (responsiveRemaining < 15000) {
+      warnings.push({
+        feature: 'layout',
+        code: 'RESPONSIVE_SKIPPED',
+        message: `Responsive analysis skipped: insufficient time remaining (${responsiveRemaining}ms)`,
+      });
+    } else {
+      try {
+        // SSRF対策: URLを検証
+        const urlValidation = validateExternalUrl(validated.url);
+        if (!urlValidation.valid) {
+          warnings.push({
+            feature: 'layout',
+            code: 'RESPONSIVE_SSRF_BLOCKED',
+            message: `レスポンシブ分析スキップ: ${urlValidation.error}`,
+          });
+        } else {
+          // robots.txt チェック
+          const robotsResult = await isUrlAllowedByRobotsTxt(validated.url, validated.respect_robots_txt);
+          if (!robotsResult.allowed) {
+            warnings.push({
+              feature: 'layout',
+              code: 'RESPONSIVE_ROBOTS_BLOCKED',
+              message: `レスポンシブ分析スキップ: robots.txtによりブロック (${robotsResult.reason})`,
+            });
+          } else {
+            if (isDevelopment()) {
+              logger.info('[page.analyze] Starting responsive analysis', {
+                url: validated.url,
+                viewports: validated.responsiveOptions.viewports?.map((v) => v.name) ?? ['desktop', 'tablet', 'mobile'],
+              });
+            }
+
+            // crawl-delay を取得（秒→ミリ秒変換、上限30秒）
+            const MAX_CRAWL_DELAY_MS = 30000;
+            const crawlDelayMs = robotsResult.crawlDelay !== undefined
+              ? Math.min(robotsResult.crawlDelay * 1000, MAX_CRAWL_DELAY_MS)
+              : undefined;
+
+            // レスポンシブ分析オプションを構築
+            const responsiveOpts: {
+              enabled: boolean;
+              viewports?: Array<{ name: string; width: number; height: number }>;
+              include_screenshots?: boolean;
+              include_diff_images?: boolean;
+              diff_threshold?: number;
+              detect_navigation?: boolean;
+              detect_visibility?: boolean;
+              detect_layout?: boolean;
+              crawlDelayMs?: number;
+            } = { enabled: true };
+
+            if (validated.responsiveOptions.viewports !== undefined) {
+              responsiveOpts.viewports = validated.responsiveOptions.viewports;
+            }
+            if (validated.responsiveOptions.include_screenshots !== undefined) {
+              responsiveOpts.include_screenshots = validated.responsiveOptions.include_screenshots;
+            }
+            if (validated.responsiveOptions.include_diff_images !== undefined) {
+              responsiveOpts.include_diff_images = validated.responsiveOptions.include_diff_images;
+            }
+            if (validated.responsiveOptions.diff_threshold !== undefined) {
+              responsiveOpts.diff_threshold = validated.responsiveOptions.diff_threshold;
+            }
+            if (validated.responsiveOptions.detect_navigation !== undefined) {
+              responsiveOpts.detect_navigation = validated.responsiveOptions.detect_navigation;
+            }
+            if (validated.responsiveOptions.detect_visibility !== undefined) {
+              responsiveOpts.detect_visibility = validated.responsiveOptions.detect_visibility;
+            }
+            if (validated.responsiveOptions.detect_layout !== undefined) {
+              responsiveOpts.detect_layout = validated.responsiveOptions.detect_layout;
+            }
+            if (crawlDelayMs !== undefined) {
+              responsiveOpts.crawlDelayMs = crawlDelayMs;
+            }
+
+            responsiveAnalysisResult = await withTimeout(
+              responsiveAnalysisService.analyze(validated.url, responsiveOpts),
+              Math.min(responsiveRemaining, 120000), // 最大2分
+              'responsive-analysis'
+            );
+
+            if (isDevelopment()) {
+              logger.info('[page.analyze] Responsive analysis completed', {
+                viewportsAnalyzed: responsiveAnalysisResult.viewportsAnalyzed.length,
+                differencesFound: responsiveAnalysisResult.differences.length,
+                breakpointsDetected: responsiveAnalysisResult.breakpoints.length,
+                analysisTimeMs: responsiveAnalysisResult.analysisTimeMs,
+              });
+            }
+
+            // DB保存（save_to_db=true かつ webPageIdがある場合）
+            const responsiveSaveToDb = validated.responsiveOptions.save_to_db ?? true;
+            if (responsiveSaveToDb && savedWebPageId) {
+              try {
+                responsiveAnalysisId = await responsivePersistenceService.save(
+                  savedWebPageId,
+                  responsiveAnalysisResult
+                );
+
+                if (isDevelopment()) {
+                  logger.info('[page.analyze] Responsive analysis saved to DB', {
+                    responsiveAnalysisId,
+                    webPageId: savedWebPageId,
+                  });
+                }
+              } catch (responsiveDbError) {
+                if (isDevelopment()) {
+                  logger.warn('[page.analyze] Responsive DB save failed (graceful degradation)', {
+                    error: responsiveDbError instanceof Error ? responsiveDbError.message : 'Unknown error',
+                  });
+                }
+                warnings.push({
+                  feature: 'layout',
+                  code: 'RESPONSIVE_DB_SAVE_FAILED',
+                  message: responsiveDbError instanceof Error ? responsiveDbError.message : 'Responsive DB save failed',
+                });
+              }
+            }
+          }
+        }
+      } catch (responsiveError) {
+        const isTimeout = responsiveError instanceof PhaseTimeoutError;
+        const errorMessage = responsiveError instanceof Error ? responsiveError.message : String(responsiveError);
+        warnings.push({
+          feature: 'layout',
+          code: isTimeout ? 'RESPONSIVE_TIMEOUT' : 'RESPONSIVE_ERROR',
+          message: isTimeout
+            ? `Responsive analysis timed out: ${errorMessage}`
+            : `Responsive analysis failed: ${errorMessage}`,
+        });
+
+        if (isDevelopment()) {
+          logger.warn('[page.analyze] Responsive analysis failed (graceful degradation)', {
+            error: errorMessage,
+          });
+        }
+      }
+    }
+  }
+
   // レスポンス構築
   const data: PageAnalyzeData = {
     id: uuidv7(),
@@ -2440,6 +2618,30 @@ async function executeSyncProcessing(
     data.backgroundDesigns = backgroundDesignsSummary;
   }
 
+  // レスポンシブ分析結果を追加（responsiveOptions.enabled=true時のみ）
+  if (responsiveAnalysisResult) {
+    // ResponsiveDifference[] → Zodスキーマ互換の型に変換（passthrough index signature対応）
+    const differences = responsiveAnalysisResult.differences.map((d) => ({
+      element: d.element,
+      description: d.description,
+      category: d.category,
+      ...(d.desktop !== undefined ? { desktop: d.desktop } : {}),
+      ...(d.tablet !== undefined ? { tablet: d.tablet } : {}),
+      ...(d.mobile !== undefined ? { mobile: d.mobile } : {}),
+    }));
+
+    const responsiveData: NonNullable<PageAnalyzeData['responsiveAnalysis']> = {
+      viewportsAnalyzed: responsiveAnalysisResult.viewportsAnalyzed.map((v) => v.name),
+      differences,
+      breakpoints: responsiveAnalysisResult.breakpoints,
+      analysisTimeMs: responsiveAnalysisResult.analysisTimeMs,
+    };
+    if (responsiveAnalysisId) {
+      responsiveData.responsiveAnalysisId = responsiveAnalysisId;
+    }
+    data.responsiveAnalysis = responsiveData;
+  }
+
   if (warnings.length > 0) {
     data.warnings = warnings;
   }
@@ -2468,6 +2670,7 @@ async function executeSyncProcessing(
       hasMotion: !!motionResult,
       hasQuality: !!qualityResult,
       hasNarrative: !!narrativeResult,
+      hasResponsive: !!responsiveAnalysisResult,
       backgroundDesignCount: backgroundDesignsSummary?.count ?? 0,
       warningCount: warnings.length,
       totalProcessingTimeMs: data.totalProcessingTimeMs,
@@ -2593,8 +2796,8 @@ export const pageAnalyzeToolDefinition = {
           },
           useVision: {
             type: 'boolean',
-            default: false,
-            description: 'Use Vision API (Ollama + llama3.2-vision) to analyze screenshot for section detection. Delegates to layout.inspect screenshot mode. (default: false)',
+            default: true,
+            description: 'Use Vision API (Ollama + llama3.2-vision) to analyze screenshot for section detection. Delegates to layout.inspect screenshot mode. (default: true)',
           },
         },
       },
@@ -2848,6 +3051,69 @@ export const pageAnalyzeToolDefinition = {
         type: 'boolean',
         default: false,
         description: 'Enable Pre-flight Probe for dynamic timeout calculation (v0.1.0). Analyzes page complexity (WebGL, SPA, heavy frameworks) before analysis and calculates optimal timeout. Results are included in preflightProbe response field.',
+      },
+      responsiveOptions: {
+        type: 'object',
+        description:
+          'Responsive layout analysis options. Captures layouts at multiple viewport sizes (desktop/tablet/mobile) and detects differences in typography, spacing, navigation, and layout structure.',
+        properties: {
+          enabled: {
+            type: 'boolean',
+            default: true,
+            description: 'Enable responsive analysis (default: true)',
+          },
+          viewports: {
+            type: 'array',
+            description:
+              'Custom viewport configurations. Default: desktop (1920x1080), tablet (768x1024), mobile (375x667)',
+            items: {
+              type: 'object',
+              required: ['name', 'width', 'height'],
+              properties: {
+                name: { type: 'string', description: 'Viewport name (e.g., desktop, tablet, mobile)' },
+                width: { type: 'number', minimum: 320, maximum: 4096, description: 'Width in pixels' },
+                height: { type: 'number', minimum: 240, maximum: 16384, description: 'Height in pixels' },
+              },
+            },
+          },
+          include_screenshots: {
+            type: 'boolean',
+            default: false,
+            description: 'Include screenshots for each viewport in response (default: false, DB-first workflow)',
+          },
+          include_diff_images: {
+            type: 'boolean',
+            default: false,
+            description: 'Include diff images in viewport comparison results (default: false)',
+          },
+          diff_threshold: {
+            type: 'number',
+            minimum: 0,
+            maximum: 1,
+            default: 0.1,
+            description: 'Pixel diff threshold for viewport comparison (0-1, default: 0.1)',
+          },
+          save_to_db: {
+            type: 'boolean',
+            default: true,
+            description: 'Save responsive analysis results to DB (default: true)',
+          },
+          detect_navigation: {
+            type: 'boolean',
+            default: true,
+            description: 'Detect navigation pattern changes (horizontal-menu to hamburger-menu, etc.) (default: true)',
+          },
+          detect_visibility: {
+            type: 'boolean',
+            default: true,
+            description: 'Detect element visibility changes between viewports (default: true)',
+          },
+          detect_layout: {
+            type: 'boolean',
+            default: true,
+            description: 'Detect layout structure changes (grid columns, flex direction, etc.) (default: true)',
+          },
+        },
       },
     },
   },

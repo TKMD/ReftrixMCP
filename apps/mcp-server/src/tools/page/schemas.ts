@@ -963,6 +963,49 @@ export const pageAnalyzeInputSchema = z.object({
 
   /** robots.txtを尊重するかどうか（RFC 9309）。falseで無視 */
   respect_robots_txt: z.boolean().optional(),
+
+  /**
+   * レスポンシブ分析オプション
+   *
+   * 複数ビューポート（desktop/tablet/mobile）でページをキャプチャし、
+   * レイアウト差分・ブレークポイント・ナビゲーション変化を検出する。
+   * enabled=trueで有効化。結果はresponsive_analysesテーブルに保存される。
+   */
+  responsiveOptions: z
+    .object({
+      /** レスポンシブ分析を有効化（デフォルト: true） */
+      enabled: z.boolean().optional().default(true),
+      /** カスタムビューポート設定（デフォルト: desktop/tablet/mobile） */
+      viewports: z
+        .array(
+          z.object({
+            name: z.string().min(1).max(50),
+            width: z.number().int().min(320).max(4096),
+            height: z.number().int().min(240).max(16384),
+          })
+        )
+        .min(1)
+        .max(10)
+        .optional(),
+      /** スクリーンショットをレスポンスに含めるか（デフォルト: false、DB-first） */
+      include_screenshots: z.boolean().optional().default(false),
+      /** ビューポート差分画像を含めるか（デフォルト: false） */
+      include_diff_images: z.boolean().optional().default(false),
+      /** ビューポート差分の閾値（0-1、デフォルト: 0.1） */
+      diff_threshold: z.number().min(0).max(1).optional().default(0.1),
+      /** DB保存するか（デフォルト: true） */
+      save_to_db: z.boolean().optional().default(true),
+      /** ナビゲーションパターン変化を検出するか（デフォルト: true） */
+      detect_navigation: z.boolean().optional().default(true),
+      /** 要素の表示/非表示変化を検出するか（デフォルト: true） */
+      detect_visibility: z.boolean().optional().default(true),
+      /** レイアウト構造変化を検出するか（デフォルト: true） */
+      detect_layout: z.boolean().optional().default(true),
+      /** ブレークポイント解像度（'range': CSSメディアクエリ+VP差分推定, 'precise': 二分探索で±8px精度）。preciseは処理時間3-5倍 */
+      breakpoint_resolution: z.enum(['range', 'precise']).optional().default('range'),
+    })
+    .optional()
+    .default({ enabled: true }),
 });
 
 export type PageAnalyzeInput = z.infer<typeof pageAnalyzeInputSchema>;
@@ -1909,7 +1952,7 @@ export type SourceInfo = z.infer<typeof sourceInfoSchema>;
 
 /** 旧形式の警告（後方互換性用） */
 export const analysisWarningSchema = z.object({
-  feature: z.enum(['layout', 'motion', 'quality']),
+  feature: z.enum(['layout', 'motion', 'quality', 'responsive']),
   code: z.string(),
   message: z.string(),
 });
@@ -2267,6 +2310,27 @@ export const pageAnalyzeDataSchema = z.object({
     /** DBに保存された件数（saveToDb=true時のみ > 0） */
     savedToDb: z.number().nonnegative(),
   }).optional(),
+  /**
+   * レスポンシブ分析結果
+   * responsiveOptions.enabled=true時のみ含まれる。
+   * 複数ビューポートでのレイアウト差分とブレークポイント検出結果。
+   */
+  responsiveAnalysis: z.object({
+    /** 分析されたビューポート名の配列 */
+    viewportsAnalyzed: z.array(z.string()),
+    /** 検出されたレイアウト差分 */
+    differences: z.array(z.object({
+      element: z.string(),
+      description: z.string().optional(),
+      category: z.string(),
+    }).passthrough()),
+    /** 検出されたブレークポイント */
+    breakpoints: z.array(z.string()),
+    /** 分析時間（ms） */
+    analysisTimeMs: z.number().nonnegative(),
+    /** DB保存されたレコードのID */
+    responsiveAnalysisId: z.string().uuid().optional(),
+  }).optional(),
 });
 export type PageAnalyzeData = z.infer<typeof pageAnalyzeDataSchema>;
 
@@ -2380,9 +2444,9 @@ export const jobResultSummarySchema = z.object({
   /** 部分成功フラグ（一部フェーズのみ完了） */
   partialSuccess: z.boolean(),
   /** 完了したフェーズ */
-  completedPhases: z.array(z.enum(['ingest', 'layout', 'motion', 'quality', 'narrative', 'embedding'])),
+  completedPhases: z.array(z.enum(['ingest', 'layout', 'motion', 'quality', 'narrative', 'responsive', 'embedding'])),
   /** 失敗したフェーズ */
-  failedPhases: z.array(z.enum(['ingest', 'layout', 'motion', 'quality', 'narrative', 'embedding'])),
+  failedPhases: z.array(z.enum(['ingest', 'layout', 'motion', 'quality', 'narrative', 'responsive', 'embedding'])),
   /** フェーズ別結果サマリー */
   results: z.object({
     layout: z.object({
@@ -2426,7 +2490,7 @@ export const pageGetJobStatusDataSchema = z.object({
   /** 進捗（0-100） */
   progress: z.number().min(0).max(100),
   /** 現在処理中のフェーズ（active時のみ） */
-  currentPhase: z.enum(['ingest', 'layout', 'motion', 'quality', 'narrative', 'embedding']).optional(),
+  currentPhase: z.enum(['ingest', 'layout', 'motion', 'quality', 'narrative', 'responsive', 'embedding']).optional(),
   /** 結果（completed時のみ） */
   result: jobResultSummarySchema.optional(),
   /** エラー理由（failed時のみ） */

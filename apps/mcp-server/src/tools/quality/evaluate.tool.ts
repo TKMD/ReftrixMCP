@@ -31,6 +31,8 @@
 
 import { ZodError } from 'zod';
 import { logger, isDevelopment } from '../../utils/logger';
+import { validateExternalUrl } from '../../utils/url-validator';
+import { isUrlAllowedByRobotsTxt } from '@reftrix/core';
 import {
   formatZodError,
   createValidationErrorWithHints,
@@ -43,6 +45,15 @@ import {
   AxeAccessibilityService,
   type AxeAccessibilityResult,
 } from '../../services/quality/axe-accessibility.service';
+
+import {
+  ResponsiveQualityEvaluatorService,
+} from '../../services/responsive/responsive-quality-evaluator.service';
+import type {
+  ResponsiveQualityResult,
+  ResponsiveQualityEvaluationOptions,
+  ViewportQualityResult,
+} from '../../services/responsive/types';
 
 import {
   qualityEvaluateInputSchema,
@@ -62,8 +73,15 @@ import {
   type PatternAnalysis,
   type ContextualRecommendation,
   type PatternComparison,
+  type ResponsiveEvaluation,
   QUALITY_MCP_ERROR_CODES,
 } from './schemas';
+
+/**
+ * レスポンシブ評価オプション出力型
+ * Zodスキーマのdefault値適用後の型
+ */
+type ResponsiveEvaluationOutput = ResponsiveEvaluation;
 
 import type {
   IPatternMatcherService,
@@ -490,6 +508,8 @@ interface CraftsmanshipResult extends AxisScore {
   axeResult: AxeAccessibilityResult | undefined;
   /** Playwrightを使用したか */
   usedPlaywright?: boolean;
+  /** レスポンシブ品質評価結果（responsive_evaluation有効時） */
+  responsiveResult?: ResponsiveQualityResult;
 }
 
 /**
@@ -498,6 +518,8 @@ interface CraftsmanshipResult extends AxisScore {
 interface CraftsmanshipOptions {
   /** Playwrightを使用したランタイム検証を有効化 */
   use_playwright?: boolean;
+  /** レスポンシブ評価オプション（Zodスキーマ出力型と一致） */
+  responsive_evaluation?: ResponsiveEvaluationOutput;
 }
 
 /**
@@ -750,16 +772,101 @@ async function evaluateCraftsmanshipWithAxe(
     details.push('divの過剰使用');
   }
 
+  // =====================================================
+  // レスポンシブ品質評価（Playwright実測定）
+  // =====================================================
+  let responsiveResult: ResponsiveQualityResult | undefined;
+
+  if (options.responsive_evaluation?.enabled && options.responsive_evaluation.url) {
+    const urlValidation = validateExternalUrl(options.responsive_evaluation.url);
+    if (!urlValidation.valid) {
+      details.push(`レスポンシブ評価スキップ: ${urlValidation.error}`);
+      if (isDevelopment()) {
+        logger.warn('[Craftsmanship] Responsive evaluation skipped (SSRF)', {
+          url: options.responsive_evaluation.url,
+          error: urlValidation.error,
+        });
+      }
+    } else {
+      // robots.txt チェック（RFC 9309準拠）
+      const robotsResult = await isUrlAllowedByRobotsTxt(options.responsive_evaluation.url);
+      if (!robotsResult.allowed) {
+        details.push(`レスポンシブ評価スキップ: robots.txtによりブロック (${robotsResult.reason})`);
+        if (isDevelopment()) {
+          logger.warn('[Craftsmanship] Responsive evaluation blocked by robots.txt', {
+            url: options.responsive_evaluation.url,
+            domain: robotsResult.domain,
+            reason: robotsResult.reason,
+          });
+        }
+      } else {
+        try {
+          const evaluator = new ResponsiveQualityEvaluatorService();
+          try {
+            const responsiveOpts: ResponsiveQualityEvaluationOptions = {};
+            if (options.responsive_evaluation.viewports) {
+              responsiveOpts.viewports = options.responsive_evaluation.viewports;
+            }
+            if (options.responsive_evaluation.checks) {
+              responsiveOpts.checks = options.responsive_evaluation.checks;
+            }
+            if (options.responsive_evaluation.timeout !== undefined) {
+              responsiveOpts.timeout = options.responsive_evaluation.timeout;
+            }
+            responsiveResult = await evaluator.evaluate(
+              options.responsive_evaluation.url,
+              responsiveOpts
+            );
+
+            // レスポンシブスコアをcraftsmanshipに反映
+            // 静的分析の「レスポンシブデザイン対応」ボーナスを実測値で置換
+            // responsiveScore (0-100) を -10 ~ +15 の範囲でスコアに反映
+            const responsiveBonus = Math.round((responsiveResult.overallScore - 50) * 0.3);
+            score += responsiveBonus;
+            details.push(
+              `レスポンシブ品質実測: ${responsiveResult.overallScore}点（${responsiveBonus >= 0 ? '+' : ''}${responsiveBonus}）`
+            );
+
+            if (isDevelopment()) {
+              logger.info('[Craftsmanship] Responsive evaluation completed', {
+                url: options.responsive_evaluation.url,
+                overallScore: responsiveResult.overallScore,
+                responsiveBonus,
+                evaluationTimeMs: responsiveResult.evaluationTimeMs,
+              });
+            }
+          } finally {
+            await evaluator.close();
+          }
+        } catch (error) {
+          if (isDevelopment()) {
+            logger.warn('[Craftsmanship] Responsive evaluation failed', {
+              url: options.responsive_evaluation.url,
+              error: error instanceof Error ? error.message : String(error),
+            });
+          }
+          details.push('レスポンシブ品質評価スキップ（エラー）');
+        }
+      }
+    }
+  }
+
   // スコアの範囲を0-100に制限
   score = Math.max(0, Math.min(100, score));
 
-  return {
+  const result: CraftsmanshipResult = {
     score,
     grade: scoreToGrade(score),
     details: details.length > 0 ? details : undefined,
     axeResult,
     usedPlaywright,
   };
+
+  if (responsiveResult) {
+    result.responsiveResult = responsiveResult;
+  }
+
+  return result;
 }
 
 /**
@@ -1596,9 +1703,13 @@ export async function qualityEvaluateHandler(
 
     // 3軸評価（aXe統合版を使用）
     const originality = evaluateOriginality(html, clicheDetection, validated.strict);
-    const craftsmanshipResult = await evaluateCraftsmanshipWithAxe(html, {
+    const craftsmanshipOpts: CraftsmanshipOptions = {
       use_playwright: validated.use_playwright,
-    });
+    };
+    if (validated.responsive_evaluation) {
+      craftsmanshipOpts.responsive_evaluation = validated.responsive_evaluation;
+    }
+    const craftsmanshipResult = await evaluateCraftsmanshipWithAxe(html, craftsmanshipOpts);
     const craftsmanship: AxisScore = {
       score: craftsmanshipResult.score,
       grade: craftsmanshipResult.grade,
@@ -1849,6 +1960,43 @@ export async function qualityEvaluateHandler(
       data.axeAccessibility = truncatedAxeResult;
     }
 
+    // レスポンシブデザイン品質評価結果（v0.1.0新規）
+    if (craftsmanshipResult.responsiveResult) {
+      data.responsiveDesign = {
+        overallScore: craftsmanshipResult.responsiveResult.overallScore,
+        evaluationTimeMs: craftsmanshipResult.responsiveResult.evaluationTimeMs,
+        viewportSummaries: craftsmanshipResult.responsiveResult.viewportResults.map(
+          (vr: ViewportQualityResult) => {
+            const totalTargets = vr.touchTargets.passed + vr.touchTargets.failed;
+            const touchTargetScore = totalTargets > 0
+              ? Math.round((vr.touchTargets.passed / totalTargets) * 100)
+              : 100;
+            const readabilityScore =
+              (vr.readability.fontSizeOk ? 33 : 0) +
+              (vr.readability.lineLengthOk ? 33 : 0) +
+              (vr.readability.lineHeightOk ? 34 : 0);
+            const totalImages = vr.images.srcsetCount + vr.images.missingResponsive;
+            const responsiveImageScore = totalImages > 0
+              ? Math.round(
+                  Math.min(
+                    ((vr.images.srcsetCount + vr.images.pictureCount) / totalImages) * 100,
+                    100
+                  )
+                )
+              : 100;
+
+            return {
+              viewport: vr.viewport.name,
+              touchTargetScore,
+              readabilityScore,
+              overflowOk: !vr.overflow.horizontalScroll && vr.overflow.overflowElements.length === 0,
+              responsiveImageScore,
+            };
+          }
+        ),
+      };
+    }
+
     if (validated.weights) {
       data.weights = weights;
     }
@@ -2054,6 +2202,53 @@ export const qualityEvaluateToolDefinition = {
         type: 'boolean',
         default: false,
         description: 'Use Playwright for runtime aXe accessibility testing (default: false, uses JSDOM)',
+      },
+      responsive_evaluation: {
+        type: 'object',
+        description:
+          'Responsive quality evaluation using Playwright (v0.1.0). ' +
+          'Measures touch targets, readability, overflow, and responsive images across viewports.',
+        properties: {
+          enabled: {
+            type: 'boolean',
+            default: false,
+            description: 'Enable responsive evaluation (default: false)',
+          },
+          url: {
+            type: 'string',
+            format: 'uri',
+            description: 'URL to evaluate (required when enabled)',
+          },
+          viewports: {
+            type: 'array',
+            description: 'Viewports to evaluate (default: desktop/tablet/mobile)',
+            items: {
+              type: 'object',
+              properties: {
+                name: { type: 'string' },
+                width: { type: 'number', minimum: 320, maximum: 3840 },
+                height: { type: 'number', minimum: 480, maximum: 2160 },
+              },
+            },
+          },
+          checks: {
+            type: 'object',
+            description: 'Quality checks to run',
+            properties: {
+              touchTargets: { type: 'boolean', default: true },
+              readability: { type: 'boolean', default: true },
+              overflow: { type: 'boolean', default: true },
+              images: { type: 'boolean', default: true },
+            },
+          },
+          timeout: {
+            type: 'number',
+            minimum: 5000,
+            maximum: 120000,
+            default: 30000,
+            description: 'Timeout in ms (default: 30000)',
+          },
+        },
       },
       summary: {
         type: 'boolean',

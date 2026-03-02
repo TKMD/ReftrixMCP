@@ -351,7 +351,11 @@ describe('Universal Embedding Chunking', () => {
     });
 
     it('should dispose after JSAnimation embedding phase', () => {
-      expect(embeddingPhaseBody).toContain('// ONNX session dispose: JSAnimation embedding後の最終メモリ回復');
+      expect(embeddingPhaseBody).toContain('// ONNX session dispose: JSAnimation embedding後のメモリ回復');
+    });
+
+    it('should dispose after Responsive embedding phase', () => {
+      expect(embeddingPhaseBody).toContain('// ONNX session dispose: Responsive embedding後の最終メモリ回復');
     });
   });
 

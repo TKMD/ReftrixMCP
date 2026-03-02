@@ -59,6 +59,13 @@ import { saveScrollVisionResults, type ScrollVisionPrismaClient, type SaveScroll
 import { OllamaReadinessProbe } from '../services/vision/ollama-readiness-probe';
 // GPU Resource Manager: Vision/Embedding間のGPU動的切り替え
 import { GpuResourceManager, gpuModeSignal } from '../services/gpu-resource-manager';
+// Responsive Analysis
+import {
+  responsiveAnalysisService,
+  responsivePersistenceService,
+} from '../services/responsive';
+import { validateExternalUrl } from '../utils/url-validator';
+import { isUrlAllowedByRobotsTxt } from '@reftrix/core';
 // EmbeddingService singleton for GPU provider switching (switchProvider/releaseGpu)
 import { embeddingService as mlEmbeddingService } from '@reftrix/ml';
 // DB保存ロジック（SectionPattern, MotionPattern, QualityEvaluation, JSAnimationPattern）
@@ -87,7 +94,8 @@ import {
   type SectionDataForEmbedding,
   type BackgroundDesignForText,
 } from '../tools/page/handlers/embedding-handler';
-import { LayoutEmbeddingService } from '../services/layout-embedding.service';
+import { LayoutEmbeddingService, setEmbeddingServiceFactory, setPrismaClientFactory as setLayoutPrismaClientFactory } from '../services/layout-embedding.service';
+import { setFramePrismaClientFactory } from '../services/motion/frame-embedding.service';
 import type { MotionPatternForEmbedding, JSAnimationFullResult } from '../tools/page/handlers/types';
 
 // Worker Memory Self-Monitoring（OOM防止用）
@@ -109,15 +117,20 @@ import { createPageAnalyzeQueue } from '../queues/page-analyze-queue';
 import { safeParseInt } from '../utils/safe-parse-int';
 // Post-embedding backfill: DB-driven embedding gap detection and repair
 import { backfillWebPageEmbeddings, checkWebPageEmbeddingCoverage } from '../services/embedding-backfill.service';
+// Responsive Analysis Embedding generation
+import { generateResponsiveAnalysisEmbeddings } from '../services/responsive/responsive-analysis-embedding.service';
 
 // Embedding DI factories initialization
 // Worker runs in a separate process; factories must be set before use
 // Single shared ONNX session to prevent memory leak from repeated LayoutEmbeddingService creation
 // P0-1: All embedding sub-phases (Section, Motion, Background, JSAnimation) share this singleton
 const sharedLayoutEmbeddingService = new LayoutEmbeddingService();
+setEmbeddingServiceFactory(() => mlEmbeddingService);
+setLayoutPrismaClientFactory(() => prisma as never);
 setBackgroundEmbeddingServiceFactory(() => sharedLayoutEmbeddingService);
 setMotionLayoutEmbeddingServiceFactory(() => sharedLayoutEmbeddingService);
 setBackgroundPrismaClientFactory(() => prisma as never);
+setFramePrismaClientFactory(() => prisma as never);
 
 // GPU Resource Manager: Vision/Embedding間のGPU動的切り替え (singleton)
 const gpuResourceManager = GpuResourceManager.getInstance();
@@ -258,6 +271,8 @@ export interface EmbeddingPhaseParams {
   jsAnimationsForEmbedding: JSAnimationFullResult | null;
   /** ScrollVision解析結果（vision-detected motion embedding生成用） */
   scrollVisionResultForEmbedding: ScrollVisionResult | null;
+  /** Responsive Analysis ID（Phase 4.5でDB保存済み、embedding生成用） */
+  responsiveAnalysisId?: string | undefined;
   /** Granular progress callback for embedding sub-phases */
   onProgress?: ((completed: number, total: number) => void) | undefined;
 }
@@ -274,6 +289,8 @@ export interface EmbeddingPhaseResult {
   bgEmbeddingsGenerated: number;
   /** JSAnimation embedding 生成数 */
   jsAnimationEmbeddingsGenerated: number;
+  /** Responsive Analysis embedding 生成数 */
+  responsiveEmbeddingsGenerated: number;
   /** Embedding phase が完了したか */
   completed: boolean;
 }
@@ -669,11 +686,13 @@ const PHASE_PROGRESS = {
   SCROLL_VISION_START: 35,
   SCROLL_VISION_COMPLETE: 45,
   MOTION_START: 45,
-  MOTION_COMPLETE: 65,
-  QUALITY_START: 65,
-  QUALITY_COMPLETE: 80,
-  NARRATIVE_START: 80,
-  NARRATIVE_COMPLETE: DB_SAVED_PROGRESS_THRESHOLD,
+  MOTION_COMPLETE: 60,
+  QUALITY_START: 60,
+  QUALITY_COMPLETE: 75,
+  NARRATIVE_START: 75,
+  NARRATIVE_COMPLETE: 85,
+  RESPONSIVE_START: 85,
+  RESPONSIVE_COMPLETE: DB_SAVED_PROGRESS_THRESHOLD,
   EMBEDDING_START: DB_SAVED_PROGRESS_THRESHOLD,
   EMBEDDING_COMPLETE: 100,
 } as const;
@@ -744,6 +763,7 @@ export async function processEmbeddingPhase(
     motionResultForEmbedding,
     jsAnimationsForEmbedding,
     scrollVisionResultForEmbedding,
+    responsiveAnalysisId,
     onProgress,
   } = params;
 
@@ -752,6 +772,7 @@ export async function processEmbeddingPhase(
     motionEmbeddingsGenerated: 0,
     bgEmbeddingsGenerated: 0,
     jsAnimationEmbeddingsGenerated: 0,
+    responsiveEmbeddingsGenerated: 0,
     completed: false,
   };
 
@@ -1217,9 +1238,45 @@ export async function processEmbeddingPhase(
       }
     }
 
-    // ONNX session dispose: JSAnimation embedding後の最終メモリ回復
+    // ONNX session dispose: JSAnimation embedding後のメモリ回復
     await sharedLayoutEmbeddingService.disposeEmbeddingPipeline();
     tryGarbageCollect();
+
+    // 5. ResponsiveAnalysisEmbedding生成（Phase 4.5でDB保存済みの分析結果にEmbeddingを付与）
+    if (responsiveAnalysisId) {
+      await extendJobLock(job, effectiveToken, effectiveLockDuration, 'embedding-responsive');
+      try {
+        const memCheck = checkMemoryPressure();
+        if (!memCheck.shouldAbort) {
+          const responsiveEmbResult = await generateResponsiveAnalysisEmbeddings(
+            [responsiveAnalysisId],
+            sharedLayoutEmbeddingService,
+            prisma,
+          );
+          result.responsiveEmbeddingsGenerated = responsiveEmbResult.generatedCount;
+
+          if (isDevelopment()) {
+            logger.info('[PageAnalyzeWorker] ResponsiveAnalysisEmbeddings generated', {
+              generatedCount: responsiveEmbResult.generatedCount,
+              responsiveAnalysisId,
+            });
+          }
+        } else {
+          logger.warn('[PageAnalyzeWorker] Critical memory, skipping responsive embedding', { rssMb: memCheck.rssMb });
+        }
+      } catch (respEmbError) {
+        // Graceful Degradation: responsive embedding失敗はジョブを中断しない
+        if (isDevelopment()) {
+          logger.warn('[PageAnalyzeWorker] ResponsiveAnalysisEmbedding generation failed (non-fatal)', {
+            error: respEmbError instanceof Error ? respEmbError.message : String(respEmbError),
+          });
+        }
+      }
+
+      // ONNX session dispose: Responsive embedding後の最終メモリ回復
+      await sharedLayoutEmbeddingService.disposeEmbeddingPipeline();
+      tryGarbageCollect();
+    }
 
     result.completed = true;
   } catch (embeddingError) {
@@ -2362,6 +2419,124 @@ async function processPageAnalyzeJob(
     }
 
     // =====================================================
+    // Phase 4.5: Responsive Analysis
+    // =====================================================
+    const responsiveEnabled = options.responsiveOptions?.enabled !== false;
+    if (responsiveEnabled && actualWebPageId && !memoryAborted) {
+      statusTracker.startPhase('responsive');
+      await job.updateProgress(PHASE_PROGRESS.RESPONSIVE_START);
+      await extendJobLock(job, effectiveToken, effectiveLockDuration, 'responsive');
+
+      try {
+        // SSRF対策: URLを検証
+        const urlValidation = validateExternalUrl(url);
+        if (!urlValidation.valid) {
+          if (isDevelopment()) {
+            logger.warn('[PageAnalyzeWorker] Responsive SSRF blocked', { url, error: urlValidation.error });
+          }
+          statusTracker.skipPhase('responsive', `SSRF blocked: ${urlValidation.error}`);
+        } else {
+          // robots.txt チェック（respect_robots_txt パラメータを伝搬）
+          const robotsResult = await isUrlAllowedByRobotsTxt(url, options.respectRobotsTxt);
+          if (!robotsResult.allowed) {
+            if (isDevelopment()) {
+              logger.warn('[PageAnalyzeWorker] Responsive blocked by robots.txt', { url, reason: robotsResult.reason });
+            }
+            statusTracker.skipPhase('responsive',
+              `Robots.txt blocked: ${robotsResult.reason}. ` +
+              `Use respect_robots_txt: false to override. ` +
+              `Note: Overriding may have legal implications (e.g., EU DSM Directive Article 4).`);
+          } else {
+            // crawl-delay を取得（秒→ミリ秒変換、上限30秒）
+            const MAX_CRAWL_DELAY_MS = 30000;
+            const crawlDelayMs = robotsResult.crawlDelay !== undefined
+              ? Math.min(robotsResult.crawlDelay * 1000, MAX_CRAWL_DELAY_MS)
+              : undefined;
+
+            const responsiveOpts: {
+              enabled: boolean;
+              viewports?: Array<{ name: string; width: number; height: number }>;
+              include_screenshots?: boolean;
+              include_diff_images?: boolean;
+              diff_threshold?: number;
+              detect_navigation?: boolean;
+              detect_visibility?: boolean;
+              detect_layout?: boolean;
+              crawlDelayMs?: number;
+            } = { enabled: true };
+
+            const rOpts = options.responsiveOptions;
+            if (rOpts?.viewports !== undefined) responsiveOpts.viewports = rOpts.viewports;
+            if (rOpts?.include_screenshots !== undefined) responsiveOpts.include_screenshots = rOpts.include_screenshots;
+            if (rOpts?.include_diff_images !== undefined) responsiveOpts.include_diff_images = rOpts.include_diff_images;
+            if (rOpts?.diff_threshold !== undefined) responsiveOpts.diff_threshold = rOpts.diff_threshold;
+            if (rOpts?.detect_navigation !== undefined) responsiveOpts.detect_navigation = rOpts.detect_navigation;
+            if (rOpts?.detect_visibility !== undefined) responsiveOpts.detect_visibility = rOpts.detect_visibility;
+            if (rOpts?.detect_layout !== undefined) responsiveOpts.detect_layout = rOpts.detect_layout;
+            if (crawlDelayMs !== undefined) responsiveOpts.crawlDelayMs = crawlDelayMs;
+
+            // 最大2分のタイムアウト（clearTimeout でタイマーリーク防止）
+            const responsiveTimeout = 120000;
+            let responsiveTimerId: ReturnType<typeof setTimeout> | undefined;
+            const responsiveResult = await Promise.race([
+              responsiveAnalysisService.analyze(url, responsiveOpts),
+              new Promise<never>((_, reject) => {
+                responsiveTimerId = setTimeout(() => reject(new Error('Responsive analysis timeout')), responsiveTimeout);
+              }),
+            ]).finally(() => {
+              if (responsiveTimerId) clearTimeout(responsiveTimerId);
+            });
+
+            // DB保存
+            const saveToDb = options.responsiveOptions?.save_to_db !== false;
+            let responsiveAnalysisId: string | undefined;
+            if (saveToDb && responsiveResult) {
+              try {
+                responsiveAnalysisId = await responsivePersistenceService.save(
+                  actualWebPageId,
+                  responsiveResult,
+                );
+              } catch (saveError) {
+                if (isDevelopment()) {
+                  logger.warn('[PageAnalyzeWorker] Responsive DB save failed', {
+                    error: saveError instanceof Error ? saveError.message : String(saveError),
+                  });
+                }
+              }
+            }
+
+            results.responsive = {
+              differencesDetected: responsiveResult.differences.length,
+              breakpointsDetected: responsiveResult.breakpoints.length,
+              viewportsAnalyzed: responsiveResult.viewportsAnalyzed.map((v) => ({
+                name: v.name,
+                width: v.width,
+                height: v.height,
+              })),
+              analysisTimeMs: responsiveResult.analysisTimeMs,
+              ...(responsiveAnalysisId ? { responsiveAnalysisId } : {}),
+            };
+
+            statusTracker.completePhase('responsive');
+            completedPhases.push('responsive');
+          }
+        }
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        statusTracker.failPhase('responsive', errorMessage);
+        if (isDevelopment()) {
+          logger.warn('[PageAnalyzeWorker] Responsive analysis failed (graceful degradation)', { error: errorMessage });
+        }
+        // Graceful degradation: メイン結果に影響しない
+      }
+      await job.updateProgress(PHASE_PROGRESS.RESPONSIVE_COMPLETE);
+    } else if (!responsiveEnabled) {
+      statusTracker.skipPhase('responsive', 'Disabled by options');
+    } else if (memoryAborted) {
+      statusTracker.skipPhase('responsive', 'Skipped due to memory pressure');
+    }
+
+    // =====================================================
     // Memory Check 3: Before Phase 5 (Embedding)
     // =====================================================
     // Even under memory pressure, we want to attempt embedding generation
@@ -2384,8 +2559,10 @@ async function processPageAnalyzeJob(
     // Extend lock before Embedding phase
     await extendJobLock(job, effectiveToken, effectiveLockDuration, 'embedding');
 
+    const responsiveAnalysisIdForEmbedding = results.responsive?.responsiveAnalysisId;
     const embeddingEnabled = actualWebPageId &&
-      (sectionSaveResult?.idMapping?.size ?? 0) + (motionSaveResult?.idMapping?.size ?? 0) + (jsSaveResult?.idMapping?.size ?? 0) + (bgSaveResult?.idMapping?.size ?? 0) + (scrollVisionSaveResult?.idMapping?.size ?? 0) > 0;
+      ((sectionSaveResult?.idMapping?.size ?? 0) + (motionSaveResult?.idMapping?.size ?? 0) + (jsSaveResult?.idMapping?.size ?? 0) + (bgSaveResult?.idMapping?.size ?? 0) + (scrollVisionSaveResult?.idMapping?.size ?? 0) > 0
+       || !!responsiveAnalysisIdForEmbedding);
 
     if (embeddingEnabled) {
       // GPU Resource Manager: Acquire GPU for Embedding (unloads Ollama, switches ONNX to CUDA)
@@ -2419,6 +2596,7 @@ async function processPageAnalyzeJob(
         motionResultForEmbedding,
         jsAnimationsForEmbedding,
         scrollVisionResultForEmbedding,
+        responsiveAnalysisId: responsiveAnalysisIdForEmbedding,
         onProgress: createPhaseProgressInterpolator(job, PHASE_PROGRESS.EMBEDDING_START, PHASE_PROGRESS.EMBEDDING_COMPLETE),
       });
 
@@ -2426,7 +2604,8 @@ async function processPageAnalyzeJob(
       if (embeddingPhaseResult.sectionEmbeddingsGenerated > 0 ||
           embeddingPhaseResult.motionEmbeddingsGenerated > 0 ||
           embeddingPhaseResult.bgEmbeddingsGenerated > 0 ||
-          embeddingPhaseResult.jsAnimationEmbeddingsGenerated > 0) {
+          embeddingPhaseResult.jsAnimationEmbeddingsGenerated > 0 ||
+          embeddingPhaseResult.responsiveEmbeddingsGenerated > 0) {
         const embeddingResult: NonNullable<PageAnalyzeJobResult['results']>['embedding'] = {};
         if (embeddingPhaseResult.sectionEmbeddingsGenerated > 0) {
           embeddingResult!.sectionEmbeddingsGenerated = embeddingPhaseResult.sectionEmbeddingsGenerated;
@@ -2439,6 +2618,9 @@ async function processPageAnalyzeJob(
         }
         if (embeddingPhaseResult.jsAnimationEmbeddingsGenerated > 0) {
           embeddingResult!.jsAnimationEmbeddingsGenerated = embeddingPhaseResult.jsAnimationEmbeddingsGenerated;
+        }
+        if (embeddingPhaseResult.responsiveEmbeddingsGenerated > 0) {
+          embeddingResult!.responsiveEmbeddingsGenerated = embeddingPhaseResult.responsiveEmbeddingsGenerated;
         }
         results.embedding = embeddingResult;
       }
@@ -2492,6 +2674,7 @@ async function processPageAnalyzeJob(
             motionBackfilled: backfillResult.motionBackfilled,
             backgroundBackfilled: backfillResult.backgroundBackfilled,
             jsAnimationBackfilled: backfillResult.jsAnimationBackfilled,
+            responsiveBackfilled: backfillResult.responsiveBackfilled,
             errors: backfillResult.errors.length,
           });
 
@@ -2501,6 +2684,7 @@ async function processPageAnalyzeJob(
             embeddingPhaseResult.motionEmbeddingsGenerated += backfillResult.motionBackfilled;
             embeddingPhaseResult.bgEmbeddingsGenerated += backfillResult.backgroundBackfilled;
             embeddingPhaseResult.jsAnimationEmbeddingsGenerated += backfillResult.jsAnimationBackfilled;
+            embeddingPhaseResult.responsiveEmbeddingsGenerated += backfillResult.responsiveBackfilled;
 
             // Update results object with new totals
             if (backfillResult.totalBackfilled > 0) {
@@ -2511,6 +2695,7 @@ async function processPageAnalyzeJob(
               results.embedding.motionEmbeddingsGenerated = embeddingPhaseResult.motionEmbeddingsGenerated;
               results.embedding.backgroundDesignEmbeddingsGenerated = embeddingPhaseResult.bgEmbeddingsGenerated;
               results.embedding.jsAnimationEmbeddingsGenerated = embeddingPhaseResult.jsAnimationEmbeddingsGenerated;
+              results.embedding.responsiveEmbeddingsGenerated = embeddingPhaseResult.responsiveEmbeddingsGenerated;
             }
           }
         } else {

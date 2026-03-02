@@ -35,6 +35,10 @@ import {
   type SectionPatternInput,
 } from '../tools/page/handlers/embedding-handler';
 import type { MotionPatternForEmbedding } from '../tools/page/handlers/types';
+import {
+  generateResponsiveAnalysisTextRepresentation,
+  type ResponsiveAnalysisForText,
+} from './responsive/responsive-analysis-embedding.service';
 
 // =====================================================
 // Constants
@@ -64,6 +68,7 @@ export interface BackfillResult {
   motionBackfilled: number;
   backgroundBackfilled: number;
   jsAnimationBackfilled: number;
+  responsiveBackfilled: number;
   totalBackfilled: number;
   errors: string[];
   memorySkips: number;
@@ -142,6 +147,16 @@ interface MissingJsAnimationRow {
   properties: unknown;
   cdp_source_type: string | null;
   cdp_play_state: string | null;
+}
+
+interface MissingResponsiveRow {
+  id: string;
+  web_page_id: string;
+  url: string | null;
+  viewports_analyzed: unknown;
+  differences: unknown;
+  breakpoints: unknown;
+  screenshot_diffs: unknown;
 }
 
 interface MissingWebPageRow {
@@ -455,6 +470,17 @@ export async function checkWebPageEmbeddingCoverage(
     missing: jsTotal - jsEmbedded,
   });
 
+  const responsiveTotal = await prisma.responsiveAnalysis.count({ where: { webPageId } });
+  const responsiveEmbedded = await prisma.responsiveAnalysisEmbedding.count({
+    where: { responsiveAnalysis: { webPageId } },
+  });
+  results.push({
+    type: 'responsive',
+    total: responsiveTotal,
+    embedded: responsiveEmbedded,
+    missing: responsiveTotal - responsiveEmbedded,
+  });
+
   return results;
 }
 
@@ -483,6 +509,11 @@ export async function findWebPagesWithMissingEmbeddings(): Promise<WebPageWithMi
       FROM js_animation_patterns jap
       LEFT JOIN js_animation_embeddings jae ON jap.id = jae.js_animation_pattern_id
       WHERE jae.id IS NULL AND jap.web_page_id IS NOT NULL
+      UNION ALL
+      SELECT ra.web_page_id
+      FROM responsive_analyses ra
+      LEFT JOIN responsive_analysis_embeddings rae ON ra.id = rae.responsive_analysis_id
+      WHERE rae.id IS NULL
     ) AS missing
     JOIN web_pages wp ON wp.id = missing.web_page_id
     GROUP BY wp.id, wp.url
@@ -518,6 +549,7 @@ export async function backfillWebPageEmbeddings(
     motionBackfilled: 0,
     backgroundBackfilled: 0,
     jsAnimationBackfilled: 0,
+    responsiveBackfilled: 0,
     totalBackfilled: 0,
     errors: [],
     memorySkips: 0,
@@ -554,11 +586,19 @@ export async function backfillWebPageEmbeddings(
       result.memorySkips += r.memorySkips;
     }
 
+    const missingResponsive = await getMissingResponsiveEmbeddings(webPageId);
+    if (missingResponsive.length > 0) {
+      const r = await backfillResponsive(missingResponsive, embeddingService, chunkSize, rssThreshold, result.errors, onProgress, onMemoryPressure);
+      result.responsiveBackfilled = r.backfilled;
+      result.memorySkips += r.memorySkips;
+    }
+
     result.totalBackfilled =
       result.sectionBackfilled +
       result.motionBackfilled +
       result.backgroundBackfilled +
-      result.jsAnimationBackfilled;
+      result.jsAnimationBackfilled +
+      result.responsiveBackfilled;
   } finally {
     await embeddingService.disposeEmbeddingPipeline();
     tryGarbageCollect();
@@ -784,6 +824,116 @@ async function backfillJsAnimations(
     }
 
     onProgress?.('jsAnimation', Math.min(offset + chunkSize, rows.length), rows.length);
+    await new Promise<void>((resolve) => setImmediate(resolve));
+  }
+
+  return { backfilled, memorySkips };
+}
+
+// =====================================================
+// Responsive Analysis Backfill
+// =====================================================
+
+async function getMissingResponsiveEmbeddings(webPageId: string): Promise<MissingResponsiveRow[]> {
+  return prisma.$queryRawUnsafe<MissingResponsiveRow[]>(`
+    SELECT ra.id, ra.web_page_id, wp.url,
+           ra.viewports_analyzed, ra.differences, ra.breakpoints, ra.screenshot_diffs
+    FROM responsive_analyses ra
+    LEFT JOIN responsive_analysis_embeddings rae ON ra.id = rae.responsive_analysis_id
+    JOIN web_pages wp ON ra.web_page_id = wp.id
+    WHERE rae.id IS NULL AND ra.web_page_id = $1::uuid
+  `, webPageId);
+}
+
+function convertResponsiveRowToTextInput(row: MissingResponsiveRow): ResponsiveAnalysisForText {
+  const viewportsAnalyzed = Array.isArray(row.viewports_analyzed)
+    ? (row.viewports_analyzed as Array<{ name: string; width: number; height: number }>)
+    : [];
+  const differences = Array.isArray(row.differences)
+    ? (row.differences as Array<{ category: string; selector?: string; description: string; viewports?: string[] }>)
+    : [];
+  const breakpoints = Array.isArray(row.breakpoints)
+    ? (row.breakpoints as Array<{ width: number; type?: string }>)
+    : undefined;
+  const screenshotDiffs = Array.isArray(row.screenshot_diffs)
+    ? (row.screenshot_diffs as Array<{ viewport1: string; viewport2: string; diffPercentage: number }>)
+    : undefined;
+
+  return {
+    id: row.id,
+    url: row.url ?? undefined,
+    viewportsAnalyzed,
+    differences,
+    breakpoints,
+    screenshotDiffs,
+  };
+}
+
+async function backfillResponsive(
+  rows: MissingResponsiveRow[],
+  embeddingService: LayoutEmbeddingService,
+  chunkSize: number,
+  rssThreshold: number,
+  errors: string[],
+  onProgress?: BackfillOptions['onProgress'],
+  onMemoryPressure?: BackfillOptions['onMemoryPressure']
+): Promise<ChunkResult> {
+  let backfilled = 0;
+  let memorySkips = 0;
+
+  for (let offset = 0; offset < rows.length; offset += chunkSize) {
+    const memStatus = await checkMemoryPressure(rssThreshold, embeddingService, 'responsive', onMemoryPressure);
+    if (memStatus === 'exceeded') { memorySkips++; break; }
+
+    const chunk = rows.slice(offset, offset + chunkSize);
+    const embeddingItems: Array<{ dbId: string; textRepresentation: string; embedding: number[] }> = [];
+
+    for (const row of chunk) {
+      try {
+        const textInput = convertResponsiveRowToTextInput(row);
+        const textRepresentation = generateResponsiveAnalysisTextRepresentation(textInput);
+        const { embedding } = await embeddingService.generateFromText(textRepresentation);
+        embeddingItems.push({ dbId: row.id, textRepresentation, embedding });
+      } catch (error) {
+        errors.push(`responsive-${row.id}: ${error instanceof Error ? error.message : String(error)}`);
+      }
+    }
+
+    if (embeddingItems.length > 0) {
+      try {
+        await prisma.responsiveAnalysisEmbedding.createMany({
+          data: embeddingItems.map((item) => ({
+            responsiveAnalysisId: item.dbId,
+            textRepresentation: item.textRepresentation,
+            modelVersion: MODEL_NAME,
+          })),
+        });
+
+        const vectorUpdates = embeddingItems.filter((item) => item.embedding.length > 0);
+        if (vectorUpdates.length > 0) {
+          const valuesClause = vectorUpdates
+            .map((_, idx) => `($${idx * 2 + 1}::vector, $${idx * 2 + 2}::uuid)`)
+            .join(', ');
+
+          const params: unknown[] = [];
+          for (const item of vectorUpdates) {
+            params.push(`[${item.embedding.join(',')}]`);
+            params.push(item.dbId);
+          }
+
+          await prisma.$executeRawUnsafe(
+            `UPDATE responsive_analysis_embeddings AS e SET embedding = v.vec FROM (VALUES ${valuesClause}) AS v(vec, analysis_id) WHERE e.responsive_analysis_id = v.analysis_id`,
+            ...params
+          );
+        }
+
+        backfilled += embeddingItems.length;
+      } catch (error) {
+        errors.push(`responsive-batch: ${error instanceof Error ? error.message : String(error)}`);
+      }
+    }
+
+    onProgress?.('responsive', Math.min(offset + chunkSize, rows.length), rows.length);
     await new Promise<void>((resolve) => setImmediate(resolve));
   }
 

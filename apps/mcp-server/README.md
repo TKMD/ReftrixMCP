@@ -76,7 +76,7 @@ pnpm start
 }
 ```
 
-## MCPツール一覧（19ツール） / MCP Tool List (19 Tools)
+## MCPツール一覧（20ツール） / MCP Tool List (20 Tools)
 
 ### Layoutツール（5ツール） / Layout Tools (5 Tools)
 
@@ -464,6 +464,33 @@ BackgroundDesignをセマンティック検索します。 / Performs semantic s
 
 ---
 
+### Responsiveツール（1ツール） / Responsive Tools (1 Tool)
+
+#### `responsive.search` - レスポンシブ分析検索 / Responsive Analysis Search
+
+レスポンシブ分析結果（ビューポート差異、ブレークポイント、スクリーンショット差分）をセマンティック検索します。pgvector HNSW cosine similarity + JSONBフィルタ。
+
+Semantic search over responsive analysis results (viewport differences, breakpoints, screenshot diffs). Uses pgvector HNSW cosine similarity + JSONB filters.
+
+**入力スキーマ / Input Schema**:
+
+```typescript
+{
+  query: string;              // 検索クエリ（自然言語、1-500文字） / Search query (natural language, 1-500 chars)
+  filters?: {
+    diffCategory?: string;    // 差異カテゴリ / Diff category: layout, typography, spacing, visibility, navigation, image, interaction, animation
+    viewportPair?: string;    // ビューポートペア / Viewport pair: desktop-tablet, desktop-mobile, tablet-mobile
+    breakpointRange?: { min?: number; max?: number }; // ブレークポイント範囲(px) / Breakpoint range (px)
+    minDiffPercentage?: number; // 最小スクリーンショット差分率(0-100) / Min screenshot diff percentage
+    webPageId?: string;       // WebページIDでフィルタ / Filter by web page UUID
+  };
+  limit?: number;             // 取得件数（1-50、デフォルト10） / Result limit (default: 10)
+  offset?: number;            // オフセット / Pagination offset
+}
+```
+
+---
+
 ### Systemツール（1ツール） / System Tools (1 Tool)
 
 #### `system.health` - システムヘルスチェック / System Health Check
@@ -827,6 +854,7 @@ apps/mcp-server/
 │   │   ├── brief/            # ブリーフツール
 │   │   ├── narrative/        # ナラティブツール
 │   │   ├── background/       # バックグラウンドツール
+│   │   ├── responsive/       # レスポンシブツール
 │   │   ├── page/             # page.analyze ツール
 │   │   └── schemas/          # 共有Zodスキーマ
 │   ├── workers/              # BullMQワーカー

@@ -657,7 +657,7 @@ describe('認証ミドルウェア (Auth Middleware)', () => {
 
       // v6.x: narrative.search, background.search は TOOL_PERMISSIONS への登録が未完了
       // これらのツールはセマンティック検索系で、パーミッション定義は別途追加予定
-      const pendingPermissionTools = ['narrative.search', 'background.search'];
+      const pendingPermissionTools = ['narrative.search', 'background.search', 'responsive.search'];
 
       // Assert: 全ての登録ツールがパーミッション定義に存在すること（未登録予定ツールを除外）
       const missingTools = registeredToolNames.filter(

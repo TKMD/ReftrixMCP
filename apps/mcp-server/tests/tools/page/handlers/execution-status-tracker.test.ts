@@ -516,10 +516,11 @@ describe('ExecutionStatusTrackerV2', () => {
   describe('overallProgress計算（重み付き）', () => {
     it('PHASE_WEIGHTSが正しく定義されている', () => {
       expect(PHASE_WEIGHTS.initializing).toBe(5);
-      expect(PHASE_WEIGHTS.layout).toBe(35);
-      expect(PHASE_WEIGHTS.motion).toBe(25);
+      expect(PHASE_WEIGHTS.layout).toBe(30);
+      expect(PHASE_WEIGHTS.motion).toBe(20);
       expect(PHASE_WEIGHTS.quality).toBe(15);
-      expect(PHASE_WEIGHTS.narrative).toBe(15);
+      expect(PHASE_WEIGHTS.narrative).toBe(10);
+      expect(PHASE_WEIGHTS.responsive).toBe(15);
       expect(PHASE_WEIGHTS.finalizing).toBe(5);
 
       // 合計が100%になること
@@ -547,7 +548,7 @@ describe('ExecutionStatusTrackerV2', () => {
       tracker.completePhase('layout');
 
       const status = tracker.getStatus();
-      expect(status.overallProgress).toBe(40); // 5 + 35 = 40%
+      expect(status.overallProgress).toBe(35); // 5 + 30 = 35%
     });
 
     it('全フェーズ完了時のoverallProgressが100', () => {
@@ -555,7 +556,7 @@ describe('ExecutionStatusTrackerV2', () => {
       tracker.initialize();
 
       // 全フェーズを完了
-      const phases: AnalysisPhaseV2[] = ['initializing', 'layout', 'motion', 'quality', 'narrative', 'finalizing'];
+      const phases: AnalysisPhaseV2[] = ['initializing', 'layout', 'motion', 'quality', 'narrative', 'responsive', 'finalizing'];
       for (const phase of phases) {
         tracker.startPhase(phase);
         tracker.completePhase(phase);
@@ -578,6 +579,8 @@ describe('ExecutionStatusTrackerV2', () => {
       tracker.completePhase('quality');
       tracker.startPhase('narrative');
       tracker.completePhase('narrative');
+      tracker.startPhase('responsive');
+      tracker.completePhase('responsive');
       tracker.startPhase('finalizing');
       tracker.completePhase('finalizing');
 
@@ -592,10 +595,10 @@ describe('ExecutionStatusTrackerV2', () => {
       tracker.startPhase('initializing');
       tracker.completePhase('initializing'); // +5%
       tracker.startPhase('layout');
-      tracker.updatePhaseProgress('layout', 50); // +35% * 50% = +17.5%
+      tracker.updatePhaseProgress('layout', 50); // +30% * 50% = +15%
 
       const status = tracker.getStatus();
-      expect(status.overallProgress).toBe(23); // 5 + 17.5 = 22.5 → Math.round = 23
+      expect(status.overallProgress).toBe(20); // 5 + 15 = 20
     });
   });
 
@@ -811,6 +814,11 @@ describe('ExecutionStatusTrackerV2', () => {
       advanceTime(1000);
       tracker.completePhase('narrative');
 
+      // Responsive
+      tracker.startPhase('responsive');
+      advanceTime(800);
+      tracker.completePhase('responsive');
+
       // Finalizing
       tracker.startPhase('finalizing');
       advanceTime(300);
@@ -825,6 +833,7 @@ describe('ExecutionStatusTrackerV2', () => {
       expect(status.phases.motion.status).toBe('completed');
       expect(status.phases.quality.status).toBe('completed');
       expect(status.phases.narrative.status).toBe('completed');
+      expect(status.phases.responsive.status).toBe('completed');
       expect(status.phases.finalizing.status).toBe('completed');
     });
 
@@ -853,6 +862,10 @@ describe('ExecutionStatusTrackerV2', () => {
       tracker.startPhase('narrative');
       tracker.completePhase('narrative');
 
+      // Responsive成功
+      tracker.startPhase('responsive');
+      tracker.completePhase('responsive');
+
       // Finalizing成功
       tracker.startPhase('finalizing');
       tracker.completePhase('finalizing');
@@ -865,11 +878,12 @@ describe('ExecutionStatusTrackerV2', () => {
       expect(status.phases.motion.error).toBe('WebGL detection timeout');
       expect(status.phases.quality.status).toBe('completed');
       expect(status.phases.narrative.status).toBe('completed');
+      expect(status.phases.responsive.status).toBe('completed');
       expect(status.phases.finalizing.status).toBe('completed');
 
       // 失敗したフェーズがあっても完了した分は計算される
-      // initializing(5) + layout(35) + motion(0, failed) + quality(15) + narrative(15) + finalizing(5) = 75%
-      expect(status.overallProgress).toBe(75);
+      // initializing(5) + layout(30) + motion(0, failed) + quality(15) + narrative(10) + responsive(15) + finalizing(5) = 80%
+      expect(status.overallProgress).toBe(80);
     });
 
     it('スキップフロー：Motion無効化', () => {
@@ -890,6 +904,9 @@ describe('ExecutionStatusTrackerV2', () => {
 
       tracker.startPhase('narrative');
       tracker.completePhase('narrative');
+
+      tracker.startPhase('responsive');
+      tracker.completePhase('responsive');
 
       tracker.startPhase('finalizing');
       tracker.completePhase('finalizing');

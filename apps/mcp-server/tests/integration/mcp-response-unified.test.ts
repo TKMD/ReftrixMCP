@@ -4,10 +4,10 @@
 /**
  * MCP-RESP-08: McpResponse統一形式 統合テスト
  *
- * 目的: McpResponse統一後の全19ツールレスポンス形式検証
+ * 目的: McpResponse統一後の全20ツールレスポンス形式検証
  *
  * テスト対象:
- * 1. 全19ツールがMcpResponse形式で返却
+ * 1. 全20ツールがMcpResponse形式で返却
  * 2. metadata.request_idが含まれている
  * 3. success/error構造が正しい
  * 4. handleToolCall経由でのLightResponse適用
@@ -27,10 +27,10 @@ import { isSuccessResponse, isErrorResponse } from '../../src/utils/mcp-response
 import { toolHandlers, allToolDefinitions } from '../../src/tools/index';
 
 // =============================================================================
-// テスト用の19ツールリスト
+// テスト用の20ツールリスト
 // =============================================================================
 
-const ALL_19_TOOLS = [
+const ALL_20_TOOLS = [
   'style.get_palette',
   'system.health',
   'layout.inspect',
@@ -50,6 +50,7 @@ const ALL_19_TOOLS = [
   'page.getJobStatus',
   'narrative.search',
   'background.search',
+  'responsive.search',
 ] as const;
 
 // =============================================================================
@@ -112,7 +113,7 @@ function hasRequestId(response: unknown): boolean {
 // 全17ツールのMcpResponse形式検証テスト
 // =============================================================================
 
-describe('MCP-RESP-08: All 19 Tools McpResponse Format Verification', () => {
+describe('MCP-RESP-08: All 20 Tools McpResponse Format Verification', () => {
   beforeEach(() => {
     clearToolHandlers();
     resetToolMetrics();
@@ -123,23 +124,23 @@ describe('MCP-RESP-08: All 19 Tools McpResponse Format Verification', () => {
     resetToolMetrics();
   });
 
-  describe('19 tools registered correctly', () => {
-    it('should have exactly 19 tools defined in allToolDefinitions', () => {
-      expect(allToolDefinitions.length).toBe(19);
+  describe('20 tools registered correctly', () => {
+    it('should have exactly 20 tools defined in allToolDefinitions', () => {
+      expect(allToolDefinitions.length).toBe(20);
     });
 
-    it('should have exactly 19 tools in toolHandlers', () => {
-      expect(Object.keys(toolHandlers).length).toBe(19);
+    it('should have exactly 20 tools in toolHandlers', () => {
+      expect(Object.keys(toolHandlers).length).toBe(20);
     });
 
-    it.each(ALL_19_TOOLS)('%s is registered in toolHandlers', (toolName) => {
+    it.each(ALL_20_TOOLS)('%s is registered in toolHandlers', (toolName) => {
       expect(toolHandlers[toolName]).toBeDefined();
       expect(typeof toolHandlers[toolName]).toBe('function');
     });
   });
 
   describe('McpResponse success structure for mock handlers', () => {
-    it.each(ALL_19_TOOLS)(
+    it.each(ALL_20_TOOLS)(
       '%s returns valid McpResponse structure on success',
       async (toolName) => {
         // モックハンドラーを登録（成功レスポンス）
@@ -157,7 +158,7 @@ describe('MCP-RESP-08: All 19 Tools McpResponse Format Verification', () => {
       }
     );
 
-    it.each(ALL_19_TOOLS)(
+    it.each(ALL_20_TOOLS)(
       '%s returns valid McpResponse structure on error',
       async (toolName) => {
         // モックハンドラーを登録（エラーレスポンス）
@@ -488,7 +489,7 @@ describe('MCP-RESP-08: Category-based Tool Verification', () => {
         data: {
           status: 'healthy',
           database: { connected: true },
-          mcp_tools: { count: 19 },
+          mcp_tools: { count: 20 },
         },
       }));
 

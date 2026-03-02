@@ -51,7 +51,7 @@ export interface ActionableWarning {
 
 /** 旧形式の警告（後方互換性用） */
 export interface LegacyWarning {
-  feature: 'layout' | 'motion' | 'quality';
+  feature: 'layout' | 'motion' | 'quality' | 'responsive';
   code: string;
   message: string;
 }

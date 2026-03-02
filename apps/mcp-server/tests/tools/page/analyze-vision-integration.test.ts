@@ -726,7 +726,7 @@ describe('pageAnalyzeToolDefinition - useVisionオプション', () => {
 
       const useVisionProp = properties.useVision as { type?: string; default?: boolean; description?: string };
       expect(useVisionProp.type).toBe('boolean');
-      expect(useVisionProp.default).toBe(false);
+      expect(useVisionProp.default).toBe(true);
       expect(useVisionProp.description).toBeDefined();
     }
   });

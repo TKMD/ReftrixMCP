@@ -8,9 +8,9 @@
 
 ## はじめに / Introduction
 
-Reftrixは **WebDesign専用プラットフォーム** です。このガイドでは、**19のWebDesign専用MCPツール**を活用して、Webページの解析・品質評価・コード生成を行う方法を解説します。
+Reftrixは **WebDesign専用プラットフォーム** です。このガイドでは、**20のWebDesign専用MCPツール**を活用して、Webページの解析・品質評価・コード生成を行う方法を解説します。
 
-Reftrix is a **WebDesign-specialized platform**. This guide explains how to use **19 WebDesign-focused MCP tools** to analyze web pages, evaluate design quality, and generate code.
+Reftrix is a **WebDesign-specialized platform**. This guide explains how to use **20 WebDesign-focused MCP tools** to analyze web pages, evaluate design quality, and generate code.
 
 > **重要 / Important**: v0.1.0でSVG機能は削除されました。本ガイドはWebDesign専用ツールのみを扱います。
 > All SVG features were removed in v0.1.0. This guide covers WebDesign-only tools.
@@ -39,9 +39,10 @@ Reftrix is a **WebDesign-specialized platform**. This guide explains how to use 
 10. [System（システム）ツール](#10-systemシステムツール)
 11. [Narrative（ナラティブ）ツール](#11-narrativeナラティブツール)
 12. [Background（背景）ツール](#12-background背景ツール)
-13. [実践ワークフロー](#13-実践ワークフロー)
-14. [パフォーマンス最適化](#14-パフォーマンス最適化)
-15. [トラブルシューティング](#15-トラブルシューティング)
+13. [Responsive（レスポンシブ）ツール](#13-responsiveレスポンシブツール)
+14. [実践ワークフロー](#14-実践ワークフロー)
+15. [パフォーマンス最適化](#15-パフォーマンス最適化)
+16. [トラブルシューティング](#16-トラブルシューティング)
 
 ---
 
@@ -94,7 +95,7 @@ const result = await page.analyze({
 
 ## 2. ツールカテゴリ概要 / Tool Category Overview
 
-### WebDesign MCPツール（19ツール） / WebDesign MCP Tools (19 Tools)
+### WebDesign MCPツール（20ツール） / WebDesign MCP Tools (20 Tools)
 
 | カテゴリ / Category | ツール数 / Count | 主な用途 / Primary Purpose |
 |---------|---------|---------|
@@ -108,6 +109,7 @@ const result = await page.analyze({
 | **Page** | 2 | 統合ページ解析・非同期ジョブステータス / Unified page analysis and async job status |
 | **Narrative** | 1 | 世界観・レイアウト構成セマンティック検索 / Worldview and layout semantic search |
 | **Background** | 1 | バックグラウンドデザインパターン検索 / Background design pattern search |
+| **Responsive** | 1 | レスポンシブ分析結果のセマンティック検索 / Responsive analysis semantic search |
 
 ### ツール選択のフローチャート / Tool Selection Flowchart
 
@@ -125,7 +127,8 @@ const result = await page.analyze({
 │  ├─ レイアウトパターン → layout.search
 │  ├─ モーションパターン → motion.search
 │  ├─ 世界観・構成 → narrative.search
-│  └─ 背景パターン → background.search
+│  ├─ 背景パターン → background.search
+│  └─ レスポンシブ差異 → responsive.search
 │
 ├─ コードを生成したい
 │  └─ layout.generate_code（React/Vue/HTML）
@@ -1153,7 +1156,7 @@ const result = await system.health({
 // レスポンス:
 // - status: 'HEALTHY' | 'DEGRADED' | 'UNHEALTHY'
 // - database: { status: 'HEALTHY', latency_ms: 5 }
-// - mcp_tools: { total_tools: 19, available: 19 }
+// - mcp_tools: { total_tools: 20, available: 20 }
 // - system_resources: { cpu_usage: 0.25, memory_usage: 0.45 }
 ```
 
@@ -1431,7 +1434,78 @@ const results = await background.search({
 
 ---
 
-## 13. 実践ワークフロー / Practical Workflows
+## 13. Responsive（レスポンシブ）ツール / Responsive Tools
+
+レスポンシブツールは、レスポンシブ分析結果（ビューポート差異、ブレークポイント、スクリーンショット差分）をセマンティック検索します。pgvector HNSW cosine similarity + JSONBフィルタを使用します。
+
+Responsive tools provide semantic search over responsive analysis results (viewport differences, breakpoints, screenshot diffs). Uses pgvector HNSW cosine similarity + JSONB filters.
+
+### 13.1 responsive.search - レスポンシブ分析検索 / Responsive Analysis Search
+
+**用途 / Purpose**: 自然言語クエリでレスポンシブ分析結果をベクトル検索 / Vector search for responsive analysis results using natural language queries
+
+**基本的な使い方 / Basic Usage**
+
+```typescript
+const results = await responsive.search({
+  query: 'navigation layout changes between mobile and desktop',
+  limit: 10
+});
+
+// レスポンス / Response:
+// - results: [{
+//     id: '...',
+//     similarity: 0.85,
+//     webPageId: '...',
+//     viewportDifferences: [...],
+//     breakpoints: [...],
+//     screenshotDiffs: [...]
+//   }]
+// - total: 5
+// - searchTimeMs: 12
+```
+
+**フィルター機能 / Filtering**
+
+```typescript
+const results = await responsive.search({
+  query: 'typography size differences',
+  filters: {
+    diffCategory: 'typography',           // 差異カテゴリ / Diff category
+    viewportPair: 'desktop-mobile',       // ビューポートペア / Viewport pair
+    breakpointRange: { min: 768, max: 1440 }, // ブレークポイント範囲(px) / Breakpoint range
+    minDiffPercentage: 5,                 // 最小差分率(%) / Min diff percentage
+    webPageId: 'page-uuid'                // WebページIDでフィルタ / Filter by web page
+  },
+  limit: 20,
+  offset: 0
+});
+```
+
+**主要パラメータ / Key Parameters**
+
+| パラメータ / Parameter | 型 / Type | デフォルト / Default | 説明 / Description |
+|-----------|---|-----------|------|
+| `query` | string | （必須 / required） | 検索クエリ（1-500文字） / Search query (1-500 chars) |
+| `limit` | number | 10 | 取得件数（1-50） / Result limit |
+| `offset` | number | 0 | オフセット / Pagination offset |
+| `filters.diffCategory` | string | - | 差異カテゴリ / Diff category: layout, typography, spacing, visibility, navigation, image, interaction, animation |
+| `filters.viewportPair` | string | - | ビューポートペア / Viewport pair: desktop-tablet, desktop-mobile, tablet-mobile |
+| `filters.breakpointRange` | object | - | ブレークポイント範囲 `{min, max}` (px) / Breakpoint range |
+| `filters.minDiffPercentage` | number | - | 最小スクリーンショット差分率(0-100) / Min screenshot diff percentage |
+| `filters.webPageId` | string | - | WebページIDでフィルタ / Filter by web page UUID |
+
+**データライフサイクル / Data Lifecycle**: 同一URLの再分析時は clean-slate（`deleteMany` → `create`）で旧データを上書きします。 / On re-analysis of the same URL, old data is overwritten via clean-slate (`deleteMany` → `create`).
+
+**ベストプラクティス / Best Practices**
+
+- 検索前に `page.analyze` でページを収集・解析しておく（レスポンシブ分析はpage.analyzeで自動実行） / Collect and analyze pages with `page.analyze` first (responsive analysis runs automatically)
+- `diffCategory` フィルターで特定の差異タイプに絞り込み可能 / Use `diffCategory` filter to narrow down specific difference types
+- 日本語・英語のクエリに対応（multilingual-e5-baseモデル使用） / Supports Japanese and English queries (multilingual-e5-base model)
+
+---
+
+## 14. 実践ワークフロー / Practical Workflows
 
 ### ワークフロー1: アワードサイトを参考にデザインを作成 / Workflow 1: Create Design Based on Award Sites
 
@@ -1531,7 +1605,7 @@ const code = await layout.generate_code({
 
 ---
 
-## 14. パフォーマンス最適化 / Performance Optimization
+## 15. パフォーマンス最適化 / Performance Optimization
 
 ### summary=true の活用 / Leveraging summary=true
 
@@ -1601,7 +1675,7 @@ await layout.search({
 
 ---
 
-## 15. トラブルシューティング / Troubleshooting
+## 16. トラブルシューティング / Troubleshooting
 
 ### よくある問題と解決策 / Common Issues and Solutions
 
@@ -1707,9 +1781,9 @@ await page.analyze({
 
 ## まとめ / Summary
 
-このガイドでは、Reftrixの19 WebDesign MCPツールを活用してWebページの解析・品質評価・コード生成を行う方法を解説しました。
+このガイドでは、Reftrixの20 WebDesign MCPツールを活用してWebページの解析・品質評価・コード生成を行う方法を解説しました。
 
-This guide explained how to use Reftrix's 19 WebDesign MCP tools for web page analysis, quality evaluation, and code generation.
+This guide explained how to use Reftrix's 20 WebDesign MCP tools for web page analysis, quality evaluation, and code generation.
 
 ### 次のステップ / Next Steps
 

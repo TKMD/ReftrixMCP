@@ -2065,7 +2065,7 @@ describe('パフォーマンス（基本）', () => {
   });
 
   it('totalProcessingTimeMs が各分析の合計より小さい（並列効果）', async () => {
-    const input = { url: validUrl };
+    const input = { url: validUrl, responsiveOptions: { enabled: false } };
     const result = await pageAnalyzeHandler(input);
     expect(result.success).toBe(true);
     if (result.success) {

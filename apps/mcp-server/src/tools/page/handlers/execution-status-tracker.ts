@@ -25,7 +25,7 @@ import { logger, isDevelopment } from '../../../utils/logger';
 /**
  * 分析フェーズの種類（V2）
  */
-export type AnalysisPhaseV2 = 'initializing' | 'layout' | 'motion' | 'quality' | 'narrative' | 'finalizing';
+export type AnalysisPhaseV2 = 'initializing' | 'layout' | 'motion' | 'quality' | 'narrative' | 'responsive' | 'finalizing';
 
 /**
  * フェーズのステータス
@@ -94,10 +94,11 @@ export interface ExecutionStatusTrackerV2Options {
  */
 export const PHASE_WEIGHTS: Record<AnalysisPhaseV2, number> = {
   initializing: 5,   // 5%
-  layout: 35,        // 35%
-  motion: 25,        // 25%
+  layout: 30,        // 30%
+  motion: 20,        // 20%
   quality: 15,       // 15%
-  narrative: 15,     // 15%
+  narrative: 10,     // 10%
+  responsive: 15,    // 15%
   finalizing: 5,     // 5%
 };
 
@@ -110,6 +111,7 @@ const PHASE_ORDER: AnalysisPhaseV2[] = [
   'motion',
   'quality',
   'narrative',
+  'responsive',
   'finalizing',
 ];
 
@@ -149,6 +151,7 @@ export class ExecutionStatusTrackerV2 {
       motion: { phase: 'motion', status: 'pending' },
       quality: { phase: 'quality', status: 'pending' },
       narrative: { phase: 'narrative', status: 'pending' },
+      responsive: { phase: 'responsive', status: 'pending' },
       finalizing: { phase: 'finalizing', status: 'pending' },
     };
   }

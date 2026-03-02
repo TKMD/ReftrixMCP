@@ -16,6 +16,7 @@
  * - Page: page.analyze, page.getJobStatus
  * - Narrative: narrative.search
  * - Background: background.search
+ * - Responsive: responsive.search
  */
 
 // style系スキーマのエクスポート（style.get_palette用）
@@ -350,6 +351,29 @@ export {
   type BackgroundMcpErrorCode,
 } from './background/schemas';
 
+// responsive.search ツール（レスポンシブ分析セマンティック検索）
+export {
+  responsiveSearchHandler,
+  responsiveSearchToolDefinition,
+  setResponsiveSearchServiceFactory,
+  resetResponsiveSearchServiceFactory,
+  type IResponsiveSearchService,
+  type ResponsiveSearchInput,
+  type ResponsiveSearchOutput,
+  type ResponsiveSearchResultItem,
+} from './responsive/search.tool';
+
+// responsive.* スキーマのエクスポート
+export {
+  responsiveSearchInputSchema,
+  responsiveDiffCategorySchema,
+  viewportPairSchema,
+  RESPONSIVE_MCP_ERROR_CODES,
+  type ResponsiveDiffCategory,
+  type ViewportPair,
+  type ResponsiveMcpErrorCode,
+} from './responsive/schemas';
+
 // project.* スキーマのエクスポート
 export {
   // project.get スキーマ
@@ -402,6 +426,7 @@ import { projectListToolDefinition } from './project-list';
 import { pageAnalyzeToolDefinition, pageGetJobStatusToolDefinition } from './page';
 import { narrativeSearchToolDefinition } from './narrative/search.tool';
 import { backgroundSearchToolDefinition } from './background/search.tool';
+import { responsiveSearchToolDefinition } from './responsive/search.tool';
 
 export const allToolDefinitions = [
   // style.get_palette（ブランドパレット取得）
@@ -443,6 +468,8 @@ export const allToolDefinitions = [
   narrativeSearchToolDefinition,
   // background.search（BackgroundDesignセマンティック検索）
   backgroundSearchToolDefinition,
+  // responsive.search（レスポンシブ分析セマンティック検索）
+  responsiveSearchToolDefinition,
 ];
 
 /**
@@ -466,6 +493,7 @@ import { projectListHandler } from './project-list';
 import { pageAnalyzeHandler, pageGetJobStatusHandler } from './page';
 import { narrativeSearchHandler } from './narrative/search.tool';
 import { backgroundSearchHandler } from './background/search.tool';
+import { responsiveSearchHandler } from './responsive/search.tool';
 
 export const toolHandlers: Record<
   string,
@@ -510,6 +538,8 @@ export const toolHandlers: Record<
   'narrative.search': narrativeSearchHandler,
   // background.search（BackgroundDesignセマンティック検索）
   'background.search': backgroundSearchHandler,
+  // responsive.search（レスポンシブ分析セマンティック検索）
+  'responsive.search': responsiveSearchHandler,
 };
 
 /**

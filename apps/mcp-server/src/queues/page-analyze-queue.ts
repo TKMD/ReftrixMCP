@@ -101,6 +101,20 @@ export interface PageAnalyzeJobOptions {
     visionTimeoutMs?: number;
     generateEmbedding?: boolean;
   };
+  /** Responsive analysis options */
+  responsiveOptions?: {
+    enabled?: boolean;
+    viewports?: Array<{ name: string; width: number; height: number }>;
+    include_screenshots?: boolean;
+    include_diff_images?: boolean;
+    diff_threshold?: number;
+    save_to_db?: boolean;
+    detect_navigation?: boolean;
+    detect_visibility?: boolean;
+    detect_layout?: boolean;
+  };
+  /** Whether to respect robots.txt (default: true) */
+  respectRobotsTxt?: boolean;
 }
 
 /**
@@ -146,6 +160,14 @@ export interface PageAnalyzeJobResult {
       motionEmbeddingsGenerated?: number | undefined;
       backgroundDesignEmbeddingsGenerated?: number | undefined;
       jsAnimationEmbeddingsGenerated?: number | undefined;
+      responsiveEmbeddingsGenerated?: number | undefined;
+    };
+    responsive?: {
+      differencesDetected: number;
+      breakpointsDetected: number;
+      viewportsAnalyzed: Array<{ name: string; width: number; height: number }>;
+      analysisTimeMs: number;
+      responsiveAnalysisId?: string;
     };
   };
   /** Error message if failed */
@@ -159,7 +181,7 @@ export interface PageAnalyzeJobResult {
 /**
  * Analysis phases
  */
-export type AnalysisPhase = 'ingest' | 'layout' | 'motion' | 'quality' | 'narrative' | 'embedding';
+export type AnalysisPhase = 'ingest' | 'layout' | 'motion' | 'quality' | 'narrative' | 'responsive' | 'embedding';
 
 /**
  * Job status for polling

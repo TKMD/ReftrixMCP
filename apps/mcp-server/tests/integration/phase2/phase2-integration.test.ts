@@ -764,7 +764,7 @@ describe('Phase2-3: ExecutionStatusTrackerV2（進捗追跡・重み付き進捗
     it('全フェーズ完了で100%進捗', () => {
       tracker.initialize();
 
-      const phases: AnalysisPhaseV2[] = ['initializing', 'layout', 'motion', 'quality', 'narrative', 'finalizing'];
+      const phases: AnalysisPhaseV2[] = ['initializing', 'layout', 'motion', 'quality', 'narrative', 'responsive', 'finalizing'];
       for (const phase of phases) {
         tracker.startPhase(phase);
         tracker.completePhase(phase);
@@ -785,6 +785,8 @@ describe('Phase2-3: ExecutionStatusTrackerV2（進捗追跡・重み付き進捗
       tracker.completePhase('quality');
       tracker.startPhase('narrative');
       tracker.completePhase('narrative');
+      tracker.startPhase('responsive');
+      tracker.completePhase('responsive');
       tracker.startPhase('finalizing');
       tracker.completePhase('finalizing');
 
@@ -808,7 +810,7 @@ describe('Phase2-3: ExecutionStatusTrackerV2（進捗追跡・重み付き進捗
       tracker.startPhase('initializing');
       tracker.completePhase('initializing'); // 5%
       tracker.startPhase('layout');
-      tracker.updatePhaseProgress('layout', 50); // Layout 50% = 35 * 0.5 = 17.5%
+      tracker.updatePhaseProgress('layout', 50); // Layout 50% = 30 * 0.5 = 15%
 
       const status = tracker.getStatus();
       const expectedProgress = PHASE_WEIGHTS.initializing + (PHASE_WEIGHTS.layout * 50 / 100);
@@ -1294,10 +1296,11 @@ describe('Phase2 統合シナリオ', () => {
 
       // 各重みの検証
       expect(PHASE_WEIGHTS.initializing).toBe(5);   // 5%
-      expect(PHASE_WEIGHTS.layout).toBe(35);        // 35%
-      expect(PHASE_WEIGHTS.motion).toBe(25);        // 25%
+      expect(PHASE_WEIGHTS.layout).toBe(30);        // 30%
+      expect(PHASE_WEIGHTS.motion).toBe(20);        // 20%
       expect(PHASE_WEIGHTS.quality).toBe(15);       // 15%
-      expect(PHASE_WEIGHTS.narrative).toBe(15);     // 15%
+      expect(PHASE_WEIGHTS.narrative).toBe(10);     // 10%
+      expect(PHASE_WEIGHTS.responsive).toBe(15);    // 15%
       expect(PHASE_WEIGHTS.finalizing).toBe(5);     // 5%
     });
   });

@@ -258,6 +258,8 @@ export const responsiveAnalysisSchema = z.object({
   breakpoints: z.array(z.string()),
   screenshots: z.array(viewportScreenshotSchema).optional(),
   analysisTimeMs: z.number().nonnegative().optional(),
+  /** DB保存時のレコードID（save_to_db: true 時のみ） */
+  responsiveAnalysisId: z.string().uuid().optional(),
 });
 export type ResponsiveAnalysis = z.infer<typeof responsiveAnalysisSchema>;
 
@@ -279,6 +281,12 @@ export const responsiveAnalysisOptionsSchema = z.object({
     .max(10, { message: 'viewportsは10個以下にしてください' })
     .optional(),
   include_screenshots: z.boolean().optional().default(true),
+  /** ビューポート差分画像を結果に含めるか（デフォルトfalse） */
+  include_diff_images: z.boolean().optional().default(false),
+  /** ビューポート差分の閾値（0-1、デフォルト0.1） */
+  diff_threshold: z.number().min(0).max(1).optional().default(0.1),
+  /** DB保存するか（デフォルトtrue、save_to_db連動） */
+  save_to_db: z.boolean().optional().default(true),
   detect_navigation: z.boolean().optional().default(true),
   detect_visibility: z.boolean().optional().default(true),
   detect_layout: z.boolean().optional().default(true),

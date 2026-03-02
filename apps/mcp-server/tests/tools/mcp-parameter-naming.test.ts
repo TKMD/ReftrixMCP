@@ -146,6 +146,7 @@ const DEPRECATED_CAMEL_CASE_PARAMS: Record<string, string[]> = {
     'layoutOptions',
     'motionOptions',
     'qualityOptions',
+    'responsiveOptions',
     'waitUntil',
   ],
 
@@ -484,8 +485,8 @@ describe('MCP Parameter Naming Convention', () => {
   // narrative.search, background.search ツール追加
   // =========================================================================
   describe('ツール数', () => {
-    it('allToolDefinitionsが19ツール（WebDesign専用）を含むこと', () => {
-      expect(allToolDefinitions).toHaveLength(19);
+    it('allToolDefinitionsが20ツール（WebDesign専用）を含むこと', () => {
+      expect(allToolDefinitions).toHaveLength(20);
     });
   });
 

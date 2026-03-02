@@ -1,6 +1,6 @@
 {
   "name": "reftrix",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "type": "module",
   "description": "WebDesign Knowledge Base Platform - Layout Analysis, Motion Detection, and Quality Evaluation with AI",

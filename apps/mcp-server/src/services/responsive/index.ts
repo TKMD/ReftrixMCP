@@ -11,6 +11,12 @@
 // Types
 export * from './types';
 
+// Shared utilities
+export {
+  SharedBrowserManager,
+  USER_AGENTS,
+} from './shared-browser-manager';
+
 // Services
 export {
   ResponsiveAnalysisService,
@@ -29,3 +35,33 @@ export {
   type DifferenceDetectionResult,
   type DifferenceSummary,
 } from './difference-detector.service';
+
+export {
+  ViewportDiffService,
+  viewportDiffService,
+  type ViewportDiffOptions,
+} from './viewport-diff.service';
+
+export {
+  ResponsivePersistenceService,
+  responsivePersistenceService,
+  type ResponsivePersistenceInput,
+  type ResponsiveAnalysisRecord,
+} from './responsive-persistence.service';
+
+export {
+  ResponsiveQualityEvaluatorService,
+  responsiveQualityEvaluatorService,
+} from './responsive-quality-evaluator.service';
+
+// Embedding
+export {
+  generateResponsiveAnalysisTextRepresentation,
+  generateResponsiveAnalysisEmbeddings,
+  setResponsiveEmbeddingServiceFactory,
+  resetResponsiveEmbeddingServiceFactory,
+  setResponsivePrismaClientFactory,
+  resetResponsivePrismaClientFactory,
+  type ResponsiveAnalysisForText,
+  type ResponsiveAnalysisEmbeddingResult,
+} from './responsive-analysis-embedding.service';

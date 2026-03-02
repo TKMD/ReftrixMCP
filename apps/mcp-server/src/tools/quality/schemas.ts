@@ -148,6 +148,45 @@ export const evaluationContextSchema = z.object({
 export type EvaluationContext = z.infer<typeof evaluationContextSchema>;
 
 /**
+ * レスポンシブ評価オプションスキーマ
+ * Playwright実測定によるレスポンシブ品質評価
+ */
+export const responsiveEvaluationSchema = z.object({
+  /** レスポンシブ評価を有効にするか (default: false) */
+  enabled: z.boolean().default(false),
+  /** 評価対象URL（pageId使用時は必須） */
+  url: z
+    .string()
+    .url({ message: '有効なURLを指定してください' })
+    .optional(),
+  /** 評価対象のビューポート */
+  viewports: z.array(z.object({
+    name: z.string(),
+    width: z.number().int().min(320).max(3840),
+    height: z.number().int().min(480).max(2160),
+  })).optional(),
+  /** 実行するチェック項目 */
+  checks: z.object({
+    /** タッチターゲットサイズ検証 (WCAG 2.5.5: 44x44px) */
+    touchTargets: z.boolean().default(true),
+    /** モバイル読みやすさ評価 */
+    readability: z.boolean().default(true),
+    /** コンテンツオーバーフロー検出 */
+    overflow: z.boolean().default(true),
+    /** レスポンシブ画像チェック */
+    images: z.boolean().default(true),
+  }).optional(),
+  /** タイムアウト (ms, default: 30000) */
+  timeout: z
+    .number()
+    .int()
+    .min(5000, { message: 'timeoutは5000ms以上にしてください' })
+    .max(120000, { message: 'timeoutは120000ms以下にしてください' })
+    .default(30000),
+});
+export type ResponsiveEvaluation = z.infer<typeof responsiveEvaluationSchema>;
+
+/**
  * quality.evaluate 入力スキーマ（統合）
  *
  * actionパラメータに応じて異なるオプションを受け付ける:
@@ -159,6 +198,7 @@ export type EvaluationContext = z.infer<typeof evaluationContextSchema>;
  * v0.1.0: パターン駆動評価サポート追加
  * - patternComparison: DBパターンとの比較オプション
  * - context: プロジェクト/ブランド/デザインシステムコンテキスト
+ * - responsive_evaluation: Playwright実測定によるレスポンシブ品質評価
  */
 export const qualityEvaluateInputSchema = z
   .object({
@@ -211,6 +251,18 @@ export const qualityEvaluateInputSchema = z
      * 詳細情報が必要な場合は summary: false を明示的に指定してください。
      */
     summary: z.boolean().default(true),
+
+    // レスポンシブ品質評価オプション (v0.1.0新規)
+    /**
+     * Playwright実測定によるレスポンシブ品質評価
+     *
+     * responsive_evaluation.enabled: true の場合:
+     * - Playwrightで複数ビューポートを実際に開いて計測
+     * - タッチターゲット、読みやすさ、オーバーフロー、画像の4チェック
+     * - craftsmanship スコアにレスポンシブデザイン品質を反映
+     * - urlまたはpageId（+url）が必要
+     */
+    responsive_evaluation: responsiveEvaluationSchema.optional(),
 
     // DB永続化オプション (v0.1.0新規 MCP-QUALITY-02)
     /**
@@ -456,6 +508,21 @@ export const qualityEvaluateDataSchema = z.object({
   patternAnalysis: patternAnalysisSchema.optional(),
   /** aXeアクセシビリティ結果（v0.1.0新規、WCAG 2.1 AA準拠チェック） */
   axeAccessibility: axeAccessibilityResultSchema.optional(),
+  /** レスポンシブデザイン品質評価結果（v0.1.0新規、Playwright実測定） */
+  responsiveDesign: z.object({
+    /** 総合レスポンシブスコア (0-100) */
+    overallScore: z.number().min(0).max(100),
+    /** 評価時間 (ms) */
+    evaluationTimeMs: z.number().nonnegative(),
+    /** ビューポート別結果サマリー */
+    viewportSummaries: z.array(z.object({
+      viewport: z.string(),
+      touchTargetScore: z.number().min(0).max(100),
+      readabilityScore: z.number().min(0).max(100),
+      overflowOk: z.boolean(),
+      responsiveImageScore: z.number().min(0).max(100),
+    })),
+  }).optional(),
   evaluatedAt: z.string().datetime(),
   weights: weightsSchema.optional(),
   targetIndustry: z.string().optional(),

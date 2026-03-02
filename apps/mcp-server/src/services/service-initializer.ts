@@ -114,6 +114,12 @@ import {
   setBackgroundEmbeddingServiceFactory,
 } from './background/background-design-embedding.service';
 
+// Responsive関連インポート
+import {
+  setResponsiveSearchServiceFactory,
+} from '../tools/responsive/search.tool';
+import { createResponsiveSearchService } from './responsive-search.service';
+
 // Embedding Handler関連インポート（backfill DI用）
 import {
   setMotionLayoutEmbeddingServiceFactory,
@@ -982,6 +988,28 @@ export function initializeAllServices(
     allSkipped.push('backgroundSearch');
     skippedCategoriesInfo.push({
       category: 'Background.backgroundSearch',
+      reason: errorMessage,
+    });
+  }
+
+  // Responsive サービス初期化（responsive.search用）
+  try {
+    setResponsiveSearchServiceFactory(() =>
+      createResponsiveSearchService({
+        prisma: config.prisma,
+        embeddingService: config.embeddingService,
+      })
+    );
+    allRegistered.push('responsiveSearch');
+    allCategories.push('responsive');
+    logger.info('[ServiceInitializer] responsiveSearch factory registered');
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    errors.push(`Responsive: ${errorMessage}`);
+    errorsInfo.push({ category: 'Responsive', error: errorMessage });
+    allSkipped.push('responsiveSearch');
+    skippedCategoriesInfo.push({
+      category: 'Responsive.responsiveSearch',
       reason: errorMessage,
     });
   }

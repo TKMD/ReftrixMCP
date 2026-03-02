@@ -346,5 +346,5 @@ jobs:
         # LGPL動的リンク例外により AGPL-3.0 と互換。詳細: THIRDPARTY_LICENSES.md
         run: >-
           npx license-checker --production
-          --excludePackages "reftrix@0.1.0;sharp"
+          --excludePackages "reftrix@$(node -p "require('./package.json').version");sharp"
           --onlyAllow "MIT;Apache-2.0;BSD-2-Clause;BSD-3-Clause;ISC;CC0-1.0;CC-BY-4.0;Unlicense;0BSD;AGPL-3.0-only;PostgreSQL;MPL-2.0;Python-2.0;BlueOak-1.0.0"

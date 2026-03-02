@@ -75,7 +75,7 @@ pnpm audit --audit-level=high
 
 # ライセンスチェック / License check
 npx license-checker --production \
-  --excludePackages "reftrix@0.1.0;sharp" \
+  --excludePackages "reftrix@<version>;sharp" \
   --onlyAllow "MIT;Apache-2.0;BSD-2-Clause;BSD-3-Clause;ISC;CC0-1.0;CC-BY-4.0;Unlicense;0BSD;AGPL-3.0-only;PostgreSQL;MPL-2.0;Python-2.0;BlueOak-1.0.0"
 # Note: sharp is excluded because its native binding (libvips) is LGPL-3.0-or-later; reviewed individually
 ```
@@ -113,10 +113,10 @@ if [ $? -ne 0 ]; then
 fi
 
 # ライセンスチェック / License check
-# ルートパッケージ(reftrix@0.1.0)はAGPL-3.0-onlyだがlicense-checkerが認識しないため除外
+# ルートパッケージ(reftrix@<version>)はAGPL-3.0-onlyだがlicense-checkerが認識しないため除外
 # Root package excluded because license-checker cannot parse its AGPL-3.0-only SPDX ID
 npx license-checker --production \
-  --excludePackages "reftrix@0.1.0;sharp" \
+  --excludePackages "reftrix@<version>;sharp" \
   --onlyAllow 'MIT;Apache-2.0;BSD-2-Clause;BSD-3-Clause;ISC;CC0-1.0;CC-BY-4.0;Unlicense;0BSD;AGPL-3.0-only;PostgreSQL;MPL-2.0;Python-2.0;BlueOak-1.0.0'
 if [ $? -ne 0 ]; then
   echo "❌ 許可されていないライセンス検出"
