@@ -29,7 +29,7 @@ AIエージェントと統合するプラットフォームです。
 - **Motion detection** -- discover CSS/JS animations with frame capture (15 px/frame video mode), CLS detection via Pixelmatch
 - **Quality evaluation** -- score designs on three axes (originality, craftsmanship, contextuality) with anti-AI-cliche detection
 - **Semantic search** -- find layout, motion, narrative, background, and responsive patterns via pgvector HNSW hybrid search
-- **Vision integration** -- optional Ollama llama3.2-vision for richer layout understanding (graceful degradation when unavailable)
+- **Vision integration** -- Ollama llama3.2-vision for richer layout, motion, and narrative understanding
 - **Code generation** -- convert analyzed sections to React, Vue, or plain HTML with matched motion patterns
 
 ## Why ReftrixMCP
@@ -46,52 +46,53 @@ AIエージェントと統合するプラットフォームです。
 
 ### Prerequisites
 
-Node.js 20+, pnpm 10+, Docker & Docker Compose, Ollama (optional, for vision analysis)
+Node.js 20+, pnpm 10+, Docker & Docker Compose, [Ollama](https://ollama.com/)
 
 ### Setup
 
 ```bash
 git clone https://github.com/TKMD/ReftrixMCP.git && cd ReftrixMCP
 pnpm install
-cp .env.example .env.local     # edit DATABASE_URL / REDIS_URL as needed
-cp .env.local packages/database/.env  # Prisma CLI requires this copy
-pnpm docker:up                 # PostgreSQL 18 + pgvector + Redis
+cp .env.example .env.local                       # edit DATABASE_URL / REDIS_URL as needed
+cp .env.local packages/database/.env             # Prisma CLI requires this copy
+pnpm docker:up                                   # PostgreSQL 18 + pgvector + Redis
 pnpm db:migrate && pnpm db:seed
 pnpm build
+pnpm exec playwright install chromium            # browser for page crawling
+curl -fsSL https://ollama.com/install.sh | sh    # install Ollama
+ollama pull llama3.2-vision                      # vision model (~2 GB)
+ollama serve                                     # keep running in a separate terminal
 ```
 
 > **Note**: If you change `.env.local`, also update `packages/database/.env`.
-> See [Getting Started](docs/users-guide/01-getting-started.md) for detailed setup including Ollama and GPU configuration.
+> `page.analyze` workers start automatically -- no manual worker launch needed.
+> See [Getting Started](docs/users-guide/01-getting-started.md) for GPU configuration and details.
 
 ### Connect to Claude
 
-**Claude Desktop** -- add to your MCP config (`~/Library/Application Support/Claude/claude_desktop_config.json` on macOS):
+Add to your MCP config:
+
+- **Claude Desktop**: `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS)
+- **MCP Client CLI**: `.mcp.json` in the project root or `~/.claude/.mcp.json`
 
 ```json
 {
   "mcpServers": {
     "reftrix": {
       "command": "node",
-      "args": ["/path/to/ReftrixMCP/apps/mcp-server/dist/index.js"],
+      "args": ["/absolute/path/to/ReftrixMCP/apps/mcp-server/dist/index.js"],
       "env": {
+        "NODE_ENV": "development",
         "DATABASE_URL": "postgresql://reftrix:change_me@localhost:26432/reftrix?schema=public",
-        "REDIS_URL": "redis://localhost:27379"
+        "REDIS_URL": "redis://localhost:27379",
+        "OLLAMA_BASE_URL": "http://localhost:11434"
       }
     }
   }
 }
 ```
 
-**MCP Client CLI** -- add to `.mcp.json` in the project root or `~/.claude/.mcp.json` with the same config above.
-
 > Replace `change_me` with a secure password. Port 26432 = standard 5432 + 21000 offset.
-
-### Start worker (optional)
-
-```bash
-pnpm --filter @reftrix/mcp-server worker:start:page     # page.analyze worker
-pnpm --filter @reftrix/mcp-server worker:start:quality   # quality.evaluate worker
-```
 
 ## Example tools
 
@@ -130,8 +131,8 @@ MCP Client (Claude Desktop / Code)  --stdio-->  MCP Server (20 tools, Zod)
 - CPU-mode embedding takes ~2-5 s per text; GPU recommended for batch workloads
 - Minimum 8 GB RAM; 16 GB recommended for concurrent analysis
 - First embedding call downloads ~400 MB model (multilingual-e5-base)
-- `page.analyze` requires a separate worker process (`worker:start:page`)
-- Narrative analysis needs Ollama running locally (optional feature)
+- `page.analyze` workers auto-start via WorkerSupervisor; manual launch is not required
+- Vision analysis (layout, motion, narrative) requires Ollama + `llama3.2-vision` running locally
 
 ## License
 
