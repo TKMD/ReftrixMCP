@@ -74,8 +74,6 @@
     "docker:up": "docker compose -f docker/docker-compose.yml up -d",
     "docker:down": "docker compose -f docker/docker-compose.yml down",
     "docker:logs": "docker compose -f docker/docker-compose.yml logs -f",
-    "db:backup": "bash scripts/db-backup.sh",
-    "db:restore": "bash scripts/db-restore.sh",
     "prepare": "husky"
   },
   "devDependencies": {

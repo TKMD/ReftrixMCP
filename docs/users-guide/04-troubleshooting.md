@@ -201,12 +201,10 @@ pnpm db:migrate
 
 ---
 
-### 2.6 pnpm approve-builds エラー / pnpm approve-builds Error
+### 2.6 ネイティブビルドスクリプトのエラー / Native Build Script Errors
 
 **症状 / Symptoms:**
 ```
- WARN  2 deprecated subdependencies found: ...
-Packages: +XXX
  WARN  The following packages have build scripts that are not authorized...
 ```
 
@@ -214,17 +212,11 @@ Packages: +XXX
 
 | 原因 / Cause | 解決策 / Solution |
 |------|--------|
-| pnpm 10.x がpostinstallスクリプトをブロック / pnpm 10.x blocks postinstall scripts | `pnpm approve-builds` を実行後、再度 `pnpm install` / Run `pnpm approve-builds`, then `pnpm install` again |
+| `.npmrc` が存在しない、または `onlyBuiltDependencies` が未設定 / `.npmrc` is missing or `onlyBuiltDependencies` is not configured | `.npmrc` に `onlyBuiltDependencies` が設定されていることを確認 / Verify `.npmrc` has `onlyBuiltDependencies` configured |
 
-**解決手順 / Resolution Steps:**
-```bash
-pnpm approve-builds
-pnpm install
-```
-
-> **説明 / Explanation**: pnpm 10.x ではセキュリティ強化のため、`@prisma/client`、`sharp`、`esbuild` 等のネイティブビルドスクリプトがデフォルトでブロックされます。`pnpm approve-builds` でこれらのスクリプトを許可する必要があります。
+> **説明 / Explanation**: ReftrixMCPでは `.npmrc` に `onlyBuiltDependencies` を設定しており、`@prisma/client`、`prisma`、`sharp`、`esbuild` のビルドスクリプトが自動的に許可されます。`pnpm approve-builds` は不要です。この設定が正しくない場合は、リポジトリの `.npmrc` ファイルを確認してください。
 >
-> In pnpm 10.x, native build scripts for `@prisma/client`, `sharp`, `esbuild`, etc. are blocked by default for security. You need to run `pnpm approve-builds` to approve these scripts.
+> ReftrixMCP configures `onlyBuiltDependencies` in `.npmrc`, which automatically allows build scripts for `@prisma/client`, `prisma`, `sharp`, and `esbuild`. `pnpm approve-builds` is not needed. If this setting is incorrect, check the `.npmrc` file in the repository.
 
 ---
 

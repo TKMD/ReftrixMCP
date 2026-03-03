@@ -53,11 +53,15 @@ Node.js 20+, pnpm 10+, Docker & Docker Compose, Ollama (optional, for vision ana
 ```bash
 git clone https://github.com/TKMD/ReftrixMCP.git && cd ReftrixMCP
 pnpm install
-cp .env.example .env          # edit DATABASE_URL / REDIS_URL as needed
-docker compose up -d           # PostgreSQL 18 + pgvector + Redis
+cp .env.example .env.local     # edit DATABASE_URL / REDIS_URL as needed
+cp .env.local packages/database/.env  # Prisma CLI requires this copy
+pnpm docker:up                 # PostgreSQL 18 + pgvector + Redis
 pnpm db:migrate && pnpm db:seed
 pnpm build
 ```
+
+> **Note**: If you change `.env.local`, also update `packages/database/.env`.
+> See [Getting Started](docs/users-guide/01-getting-started.md) for detailed setup including Ollama and GPU configuration.
 
 ### Connect to Claude
 

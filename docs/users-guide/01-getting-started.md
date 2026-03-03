@@ -123,16 +123,11 @@ cd ReftrixMCP
 
 ```bash
 pnpm install
-
-# pnpm 10.x: ネイティブビルドスクリプトの承認（Prisma, Sharp等）
-# pnpm 10.x: Approve native build scripts (Prisma, Sharp, etc.)
-pnpm approve-builds
-pnpm install
 ```
 
-> **注意 / Note**: pnpm 10.x ではセキュリティ上の理由から、パッケージの postinstall スクリプトがデフォルトでブロックされます。`pnpm approve-builds` で `@prisma/client`, `prisma`, `sharp`, `esbuild` 等のビルドスクリプトを許可してから、再度 `pnpm install` を実行してください。
+> **注意 / Note**: `.npmrc` で `onlyBuiltDependencies` が設定済みのため、`@prisma/client`, `prisma`, `sharp`, `esbuild` のビルドスクリプトは自動的に許可されます。`pnpm approve-builds` は不要です。
 >
-> In pnpm 10.x, package postinstall scripts are blocked by default for security. Run `pnpm approve-builds` to allow build scripts for `@prisma/client`, `prisma`, `sharp`, `esbuild`, etc., then run `pnpm install` again.
+> `.npmrc` has `onlyBuiltDependencies` pre-configured, so build scripts for `@prisma/client`, `prisma`, `sharp`, `esbuild` are automatically allowed. `pnpm approve-builds` is not needed.
 
 #### Playwrightブラウザのインストール / Install Playwright Browser
 

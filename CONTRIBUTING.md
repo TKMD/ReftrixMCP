@@ -121,6 +121,8 @@ ReftrixMCPはデュアルライセンスモデルであるAGPL-3.0-only + 商用
 
    ```bash
    cp .env.example .env.local
+   # Prisma CLIは .env.local を読めないため、packages/database/.env が必要です
+   cp .env.local packages/database/.env
    ```
 
 4. **データベースの起動**
@@ -725,6 +727,8 @@ Ensure you have the following tools installed:
 
    ```bash
    cp .env.example .env.local
+   # Prisma CLI cannot read .env.local — packages/database/.env is required
+   cp .env.local packages/database/.env
    ```
 
 4. **Start Database**
