@@ -20,12 +20,14 @@ flowchart TD
     B -->|MCP| F[MCPの問題 / MCP Issues]
     B -->|Narrative検索| D2[Narrative検索の問題 / Narrative Search Issues]
     B -->|フレーム分析 / Frame Analysis| D3[フレーム画像分析の問題 / Frame Analysis Issues]
+    B -->|バックアップ / Backup| D4[バックアップの問題 / Backup Issues]
     B -->|その他 / Other| G[その他の問題 / Other Issues]
 
     C --> H[解決策を試す / Try Solution]
     D --> H
     D2 --> H
     D3 --> H
+    D4 --> H
     E --> H
     F --> H
     G --> H
@@ -201,7 +203,56 @@ pnpm db:migrate
 
 ---
 
-### 2.6 ネイティブビルドスクリプトのエラー / Native Build Script Errors
+### 2.6 バックアップ・リストアの認証失敗 / Backup/Restore Authentication Failure
+
+**症状 / Symptoms:**
+```
+pg_dump: error: connection to server at "postgres" (172.x.x.x), port 5432 failed:
+  FATAL: password authentication failed for user "reftrix"
+```
+または / or
+```
+エラー: PostgreSQL 認証に失敗しました (ホスト: postgres, ユーザー: reftrix)
+Error: PostgreSQL authentication failed (host: postgres, user: reftrix)
+```
+
+**原因と解決策 / Causes and Solutions:**
+
+| 原因 / Cause | 解決策 / Solution |
+|------|--------|
+| `.env.local` の `POSTGRES_PASSWORD` が Docker Compose に読み込まれていない / `POSTGRES_PASSWORD` in `.env.local` not loaded by Docker Compose | `docker-compose.yml` が `env_file` 2段階読み込みを使用しているか確認 / Verify `docker-compose.yml` uses `env_file` two-stage loading |
+| `environment` ブロックで `POSTGRES_PASSWORD` を定義してしまい `env_file` の値を上書き / `POSTGRES_PASSWORD` defined in `environment` block overrides `env_file` value | `environment` ブロックから `POSTGRES_PASSWORD` を削除し、`env_file` からの読み込みに任せる / Remove `POSTGRES_PASSWORD` from `environment` block, let `env_file` handle it |
+| `.env.local` が存在しないため `.env.example` のデフォルト値が使われている / `.env.local` doesn't exist so `.env.example` default value is used | `.env.local` を作成して正しい `POSTGRES_PASSWORD` を設定 / Create `.env.local` and set the correct `POSTGRES_PASSWORD` |
+| Dockerボリュームが別のパスワードで初期化済み / Docker volume initialized with a different password | ボリュームを削除して再作成（セクション2.5参照）/ Delete and recreate volume (see section 2.5) |
+
+> **仕組み / How it works**: Docker Composeは `.env` ファイルのみデフォルトで読み込み、`.env.local` は読みません。Reftrixでは `env_file` ディレクティブで `.env.example`（デフォルト値）→ `.env.local`（ユーザー設定）の2段階読み込みを実現しています。
+>
+> Docker Compose only reads `.env` by default and does NOT read `.env.local`. Reftrix uses the `env_file` directive to implement two-stage loading: `.env.example` (defaults) → `.env.local` (user overrides).
+
+**確認手順 / Verification Steps:**
+```bash
+# 1. docker-compose.yml の env_file 設定を確認 / Check env_file config in docker-compose.yml
+grep -A 5 "env_file" docker/docker-compose.yml
+
+# 2. .env.local に POSTGRES_PASSWORD が設定されているか確認 / Check POSTGRES_PASSWORD in .env.local
+grep POSTGRES_PASSWORD .env.local
+
+# 3. コンテナを再起動して認証テスト / Restart containers and test auth
+docker compose -f docker/docker-compose.yml down
+docker compose -f docker/docker-compose.yml up -d
+docker compose -f docker/docker-compose.yml exec postgres pg_isready -U reftrix -d reftrix
+
+# 4. 認証テスト（実際にクエリを実行）/ Auth test (run an actual query)
+PGPASSWORD=<your_password> psql -h localhost -p 26432 -U reftrix -d reftrix -c "SELECT 1"
+```
+
+> **補足 / Note**: `pg_isready` は接続性のみ検証し、認証は検証しません。認証の確認には `psql -c "SELECT 1"` を実行してください。バックアップ/リストアスクリプトはこの両方の事前チェックを自動的に行います。
+>
+> `pg_isready` only checks connectivity, not authentication. Use `psql -c "SELECT 1"` to verify auth. The backup/restore scripts automatically perform both pre-flight checks.
+
+---
+
+### 2.7 ネイティブビルドスクリプトのエラー / Native Build Script Errors
 
 **症状 / Symptoms:**
 ```
@@ -220,7 +271,7 @@ pnpm db:migrate
 
 ---
 
-### 2.7 タイムアウトエラー / Timeout Errors
+### 2.8 タイムアウトエラー / Timeout Errors
 
 **症状 / Symptoms:**
 ```
@@ -898,11 +949,12 @@ Verify the config file path is correct and the MCP server is built. Then fully r
 
 ### Q8: データをバックアップするには？ / How do I back up data?
 
-**A:** PostgreSQLの標準的なバックアップ方法（pg_dump）を使用してください：
+**A:** `pnpm db:backup` コマンドを使用してください。自動日次バックアップも Docker Compose で有効です（毎日 3:00 AM JST）。
 
-Use the standard PostgreSQL backup method (pg_dump):
+Use the `pnpm db:backup` command. Automatic daily backups are also enabled via Docker Compose (daily at 3:00 AM JST).
 ```bash
-pg_dump -h localhost -p 26432 -U reftrix reftrix > backup.sql
+pnpm db:backup                    # 手動バックアップ / Manual backup
+pnpm db:restore                   # 最新バックアップからリストア / Restore from latest
 ```
 
 ---

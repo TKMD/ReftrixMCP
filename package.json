@@ -1,6 +1,6 @@
 {
   "name": "reftrix",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "private": true,
   "type": "module",
   "description": "WebDesign Knowledge Base Platform - Layout Analysis, Motion Detection, and Quality Evaluation with AI",
@@ -74,6 +74,8 @@
     "docker:up": "docker compose -f docker/docker-compose.yml up -d",
     "docker:down": "docker compose -f docker/docker-compose.yml down",
     "docker:logs": "docker compose -f docker/docker-compose.yml logs -f",
+    "db:backup": "bash scripts/db-backup.sh",
+    "db:restore": "bash scripts/db-restore.sh",
     "prepare": "husky"
   },
   "devDependencies": {

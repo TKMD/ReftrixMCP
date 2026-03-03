@@ -1,5 +1,11 @@
 # Reftrix Development Docker Compose
 # Port offset: 21000 (e.g., PostgreSQL: 26432, Prisma Studio: 26555)
+#
+# 環境変数の読み込み / Environment variable loading:
+#   env_file で .env.example (デフォルト値) → .env.local (ユーザー設定) の順に読み込み
+#   .env.local が .env.example を上書き。POSTGRES_PASSWORD の設定は .env.local で行うこと
+#   env_file loads .env.example (defaults) → .env.local (user overrides) in order.
+#   .env.local overrides .env.example. Set POSTGRES_PASSWORD in .env.local.
 
 services:
   # PostgreSQL with pgvector extension
@@ -7,10 +13,20 @@ services:
     image: pgvector/pgvector:pg18
     container_name: reftrix-postgres
     restart: unless-stopped
+    env_file:
+      # 1. デフォルト値 (.env.example) / Default values
+      - path: ../.env.example
+        required: true
+      # 2. ユーザー設定で上書き (.env.local) / User overrides
+      - path: ../.env.local
+        required: false
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-reftrix}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change_me}
       POSTGRES_DB: ${POSTGRES_DB:-reftrix}
+      # POSTGRES_PASSWORD は env_file (.env.local → .env.example) から読み込み
+      # environment ブロックに書くと env_file の値を上書きしてしまうため、ここには書かない
+      # POSTGRES_PASSWORD is loaded from env_file (.env.local → .env.example).
+      # Do NOT set it here — environment block overrides env_file values.
     ports:
       - "26432:5432"
     volumes:
@@ -41,9 +57,82 @@ services:
     networks:
       - reftrix-network
 
-  # ===== Manual Backup (pg_dump / pg_restore) =====
-  # pg_dump -h localhost -p 26432 -U reftrix -Fc reftrix > backup.dump
-  # pg_restore -h localhost -p 26432 -U reftrix -d reftrix --clean backup.dump
+  # PostgreSQL 自動日次バックアップ (毎日 3:00 AM JST)
+  # Automatic daily backup at 3:00 AM JST
+  # scripts/db-backup.sh を共有マウントし、7世代ローテーション
+  backup:
+    image: pgvector/pgvector:pg18
+    container_name: reftrix-backup
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    env_file:
+      # POSTGRES_PASSWORD を env_file から取得（environment ブロックでは PGPASSWORD に上書きされるため）
+      # Load POSTGRES_PASSWORD from env_file (not environment block, to avoid override issues)
+      - path: ../.env.example
+        required: true
+      - path: ../.env.local
+        required: false
+    environment:
+      TZ: Asia/Tokyo
+    volumes:
+      - ../backups:/backups
+      - ../scripts/db-backup.sh:/usr/local/bin/reftrix-backup.sh:ro
+    networks:
+      - reftrix-network
+    entrypoint: ["/bin/bash", "-c"]
+    command:
+      - |
+        # POSTGRES_PASSWORD → PGPASSWORD マッピング
+        # env_file から読み込まれた POSTGRES_PASSWORD を pg_dump 用の PGPASSWORD に設定
+        # Map POSTGRES_PASSWORD (from env_file) to PGPASSWORD (used by pg_dump)
+        if [ -z "$${POSTGRES_PASSWORD}" ]; then
+          echo "エラー: POSTGRES_PASSWORD が未設定です。.env.local に POSTGRES_PASSWORD を設定してください" >&2
+          echo "Error: POSTGRES_PASSWORD is not set. Set it in .env.local" >&2
+          exit 1
+        fi
+        export PGPASSWORD="$${POSTGRES_PASSWORD}"
+        export REFTRIX_BACKUP_INSIDE_CONTAINER=true
+        export BACKUP_DIR=/backups
+
+        # 起動時の接続事前チェック / Pre-flight connection check
+        echo "PostgreSQL 接続確認中... / Checking PostgreSQL connection..."
+        for i in 1 2 3 4 5; do
+          if pg_isready -h postgres -U reftrix -d reftrix -q 2>/dev/null; then
+            break
+          fi
+          echo "  接続待機中... ($$i/5) / Waiting for connection... ($$i/5)"
+          sleep 5
+        done
+
+        # 認証テスト（pg_isready は認証を検証しないため、実際にクエリを実行）
+        # Auth test (pg_isready doesn't verify auth, so run an actual query)
+        if ! psql -h postgres -U reftrix -d reftrix -c "SELECT 1" > /dev/null 2>&1; then
+          echo "エラー: PostgreSQL 認証に失敗しました" >&2
+          echo "  PGPASSWORD の値が postgres サービスの POSTGRES_PASSWORD と一致しているか確認してください" >&2
+          echo "Error: PostgreSQL authentication failed" >&2
+          echo "  Verify PGPASSWORD matches the postgres service's POSTGRES_PASSWORD" >&2
+          exit 1
+        fi
+        echo "PostgreSQL 接続確認完了 / PostgreSQL connection verified"
+
+        echo "バックアップスケジューラ起動 (毎日 3:00 AM JST)"
+        # sleepループで毎日 3:00 AM JST にバックアップ実行
+        while true; do
+          # 次の 3:00 AM までの秒数を計算
+          now=$$(date +%s)
+          target=$$(date -d "today 03:00" +%s 2>/dev/null || date -d "03:00" +%s)
+          if [ "$$target" -le "$$now" ]; then
+            target=$$(date -d "tomorrow 03:00" +%s 2>/dev/null || echo $$((now + 86400)))
+          fi
+          wait_sec=$$((target - now))
+          echo "$$(date): 次回バックアップまで $${wait_sec}秒 ($$(date -d @$$target '+%Y-%m-%d %H:%M %Z' 2>/dev/null))"
+          sleep "$$wait_sec"
+          echo "$$(date): 自動バックアップ開始"
+          /usr/local/bin/reftrix-backup.sh 2>&1 | tee -a /var/log/reftrix-backup.log
+          echo "$$(date): 自動バックアップ完了"
+        done
 
   # ===== GPU Inference (Optional) =====
   # Uncomment the following to enable NVIDIA GPU acceleration for ONNX embedding inference.
