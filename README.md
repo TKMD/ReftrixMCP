@@ -2,6 +2,8 @@
 
 **Web design knowledge base platform -- layout analysis, motion detection, and quality evaluation via MCP tools.**
 
+> For frontend engineers, designers, and AI-agent builders who want to analyze real websites and retrieve reusable UI patterns via Claude or any MCP client.
+
 [![License: AGPL-3.0-only](https://img.shields.io/badge/License-AGPL--3.0--only-blue.svg)](LICENSE)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.9-blue)](https://www.typescriptlang.org/)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-18-336791)](https://www.postgresql.org/)
@@ -43,6 +45,8 @@ AIエージェントと統合するプラットフォームです。
 | **MCP-native** | 20 tools purpose-built for Claude Desktop and MCP Client CLI |
 
 ## Quickstart
+
+> Run `page.analyze` on any URL in under 5 minutes.
 
 ### Prerequisites
 
