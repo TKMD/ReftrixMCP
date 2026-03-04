@@ -21,6 +21,7 @@ flowchart TD
     B -->|Narrative検索| D2[Narrative検索の問題 / Narrative Search Issues]
     B -->|フレーム分析 / Frame Analysis| D3[フレーム画像分析の問題 / Frame Analysis Issues]
     B -->|バックアップ / Backup| D4[バックアップの問題 / Backup Issues]
+    B -->|OOM / メモリ| D5[Ollama Vision OOM / Apple Silicon]
     B -->|その他 / Other| G[その他の問題 / Other Issues]
 
     C --> H[解決策を試す / Try Solution]
@@ -28,6 +29,7 @@ flowchart TD
     D2 --> H
     D3 --> H
     D4 --> H
+    D5 --> H
     E --> H
     F --> H
     G --> H
@@ -287,6 +289,7 @@ Error: ETIMEDOUT
 | サーバー負荷が高い / Server load is high | しばらく待ってから再試行 / Wait and retry |
 | 大量データ処理中 / Processing large data | limitを減らして再試行 / Reduce limit and retry |
 | ネットワーク問題 / Network issues | ネットワーク接続を確認 / Check network connection |
+| CPU-only環境でスクロールVision分析がタイムアウト / Scroll Vision analysis times out on CPU-only | v0.1.2で修正済み。CPU環境では自動的にタイムアウトが延長されます / Fixed in v0.1.2. Timeout is automatically extended on CPU environments |
 
 ---
 
@@ -742,6 +745,47 @@ grep OLLAMA_BASE_URL .env.local
 > **Note / 注意**: ナラティブ分析はオプション機能です。Ollamaが利用できない場合でも、レイアウト分析・モーション検出・品質評価は正常に動作します。
 >
 > Narrative analysis is an optional feature. Even without Ollama, layout analysis, motion detection, and quality evaluation work normally.
+
+---
+
+### 6.6 Ollama Vision OOM対策 / Ollama Vision OOM Prevention
+
+**症状 / Symptoms:**
+```
+Embedding生成やPhase後半でメモリ不足（OOM）が発生する
+OOM occurs during embedding generation or later phases
+```
+
+**原因と解決策 / Causes and Solutions:**
+
+| 原因 / Cause | 解決策 / Solution |
+|------|--------|
+| Visionモデルがメモリを占有し続ける / Vision model keeps occupying memory | v0.1.2で修正済み。Phase 1/2.5/4完了後にVisionモデルを自動アンロード / Fixed in v0.1.2. Vision model auto-unloads after Phase 1/2.5/4 |
+| 16GB RAM環境でVisionが~10.6GBを占有 / Vision occupies ~10.6GB on 16GB RAM | v0.1.2で `keep_alive: "0"` により各Phase完了後に自動解放。冪等（Vision未ロード時はno-op）/ v0.1.2 auto-frees via `keep_alive: "0"` after each phase. Idempotent (no-op when Vision not loaded) |
+
+> **Note / 注意**: v0.1.2以降、Visionモデルは3箇所で自動アンロードされます: (1) Phase 1 (Layout Analysis) 完了後、(2) Phase 2.5 (Scroll Vision Analysis) 完了後、(3) Phase 4 (Narrative) 完了後。手動操作は不要です。
+>
+> Since v0.1.2, the Vision model is auto-unloaded at 3 points: (1) after Phase 1 (Layout Analysis), (2) after Phase 2.5 (Scroll Vision Analysis), (3) after Phase 4 (Narrative). No manual action required.
+
+---
+
+### 6.7 Apple Siliconでnvidia-smiが見つからない / nvidia-smi Not Found on Apple Silicon
+
+**症状 / Symptoms:**
+```
+nvidia-smi: command not found
+GPU検出ログに警告が表示される / Warning shown in GPU detection logs
+```
+
+**原因と解決策 / Causes and Solutions:**
+
+| 原因 / Cause | 解決策 / Solution |
+|------|--------|
+| Apple Siliconでは `nvidia-smi` が存在しない / `nvidia-smi` does not exist on Apple Silicon | 正常動作です。Apple SiliconではMetal GPUがメモリをネイティブ管理するため、`nvidia-smi` は不要です / This is normal. Apple Silicon uses Metal GPU for native memory management; `nvidia-smi` is not needed |
+
+> **Note / 注意**: ReftrixはApple Silicon (M1/M2/M3+) のMetal GPUを自動検出します。NVIDIA GPUツールがなくても正常に動作し、追加設定は不要です。
+>
+> Reftrix auto-detects Apple Silicon (M1/M2/M3+) Metal GPU. It works normally without NVIDIA GPU tools, and no additional configuration is needed.
 
 ---
 

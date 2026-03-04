@@ -71,6 +71,8 @@ export interface PageAnalyzeJobOptions {
     detectJsAnimations?: boolean;
     detectWebglAnimations?: boolean;
     enableFrameCapture?: boolean;
+    /** Enable frame image analysis (pixelmatch diff). Only effective when enableFrameCapture=true. @default false */
+    analyzeFrames?: boolean;
     saveToDb?: boolean;
     maxPatterns?: number;
     /**

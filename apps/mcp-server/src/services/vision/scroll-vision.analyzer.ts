@@ -18,7 +18,7 @@
  */
 
 import { z } from 'zod';
-import { OllamaVisionClient } from './ollama-vision-client.js';
+import { LlamaVisionAdapter } from './llama-vision-adapter.js';
 import type { ScrollCapture } from './scroll-vision-capture.service.js';
 import { createLogger } from '../../utils/logger.js';
 
@@ -27,11 +27,6 @@ import { createLogger } from '../../utils/logger.js';
 // =============================================================================
 
 const LOG_PREFIX = 'ScrollVisionAnalyzer';
-
-/**
- * Vision分析のデフォルトタイムアウト（1キャプチャあたり）
- */
-const DEFAULT_VISION_TIMEOUT_MS = 120000;
 
 /**
  * デフォルトOllama URL
@@ -120,11 +115,11 @@ export interface ScrollVisionResult {
 export interface ScrollVisionAnalyzerConfig {
   /** Ollama API URL */
   ollamaUrl?: string | undefined;
-  /** 1キャプチャあたりのVisionタイムアウト（ミリ秒） */
+  /** @deprecated LlamaVisionAdapter経由で動的タイムアウトが適用されるため不要。後方互換のため保持。 */
   visionTimeoutMs?: number | undefined;
   /** Visionモデル名 */
   model?: string | undefined;
-  /** リトライ有効化 */
+  /** @deprecated LlamaVisionAdapter内部でリトライが管理されるため不要。後方互換のため保持。 */
   enableRetry?: boolean | undefined;
   /** Granular progress callback: called after each capture is analyzed */
   onProgress?: ((completed: number, total: number) => void) | undefined;
@@ -274,16 +269,16 @@ export async function analyzeScrollCaptures(
     model,
   });
 
-  // Visionクライアント初期化
-  const client = new OllamaVisionClient({
+  // LlamaVisionAdapter経由でVisionクライアント初期化
+  // Bug fix: OllamaVisionClient直接使用（固定120秒タイムアウト）から
+  // LlamaVisionAdapter経由（動的タイムアウト: GPU 180秒, CPU 180-1200秒）に変更。
+  // CPU環境でVision推論が2-5分/キャプチャかかるため、固定タイムアウトでは全キャプチャが失敗していた。
+  const adapter = new LlamaVisionAdapter({
     ollamaUrl: config?.ollamaUrl ?? DEFAULT_OLLAMA_URL,
-    timeout: config?.visionTimeoutMs ?? DEFAULT_VISION_TIMEOUT_MS,
-    model,
-    enableRetry: config?.enableRetry ?? true,
   });
 
   // Ollama接続チェック
-  const isAvailable = await client.isAvailable();
+  const isAvailable = await adapter.isAvailable();
   if (!isAvailable) {
     logger.warn('Ollama Vision is not available, returning empty result');
     return {
@@ -304,7 +299,7 @@ export async function analyzeScrollCaptures(
     const captureStartTime = Date.now();
 
     try {
-      const analysis = await analyzeSingleCapture(client, capture);
+      const analysis = await analyzeSingleCapture(adapter, capture);
       if (analysis !== null) {
         analyses.push(analysis);
       }
@@ -348,18 +343,18 @@ export async function analyzeScrollCaptures(
 /**
  * 単一キャプチャのVision分析
  *
- * @param client - OllamaVisionClient
+ * LlamaVisionAdapter経由でVision APIを呼び出す。
+ * 動的タイムアウト（GPU: 180秒, CPU: 180-1200秒）によりCPU環境でも完走する。
+ *
+ * @param adapter - LlamaVisionAdapter
  * @param capture - ScrollCapture
  * @returns 分析結果、またはnull（バリデーション失敗時）
  */
 async function analyzeSingleCapture(
-  client: OllamaVisionClient,
+  adapter: LlamaVisionAdapter,
   capture: ScrollCapture
 ): Promise<ScrollVisionAnalysis | null> {
   const captureStartTime = Date.now();
-
-  // スクリーンショットをBase64に変換
-  const base64Image = capture.screenshot.toString('base64');
 
   // プロンプト生成
   const prompt = buildAnalysisPrompt(capture.scrollY);
@@ -367,11 +362,19 @@ async function analyzeSingleCapture(
   logger.debug('Analyzing capture', {
     scrollY: capture.scrollY,
     sectionIndex: capture.sectionIndex,
-    imageSize: base64Image.length,
+    imageSize: capture.screenshot.length,
   });
 
-  // Vision API呼び出し
-  const rawResult = await client.generateJSON<unknown>(base64Image, prompt);
+  // LlamaVisionAdapter経由でVision API呼び出し（動的タイムアウト + CPU画像最適化）
+  const result = await adapter.analyzeJSON<unknown>(capture.screenshot, prompt);
+  const rawResult = result.response;
+
+  logger.debug('Vision API response received', {
+    scrollY: capture.scrollY,
+    hardwareType: result.metrics.hardwareType,
+    optimizationApplied: result.metrics.optimizationApplied,
+    totalProcessingTimeMs: result.metrics.totalProcessingTimeMs,
+  });
 
   // バリデーション
   const validated = validateVisionResponse(rawResult);
@@ -397,6 +400,7 @@ async function analyzeSingleCapture(
     scrollY: capture.scrollY,
     elementCount: sanitizedElements.length,
     processingTimeMs,
+    hardwareType: result.metrics.hardwareType,
   });
 
   return {

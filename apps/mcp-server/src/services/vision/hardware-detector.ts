@@ -61,6 +61,15 @@ export enum HardwareType {
 }
 
 /**
+ * GPUベンダー列挙型
+ */
+export enum GpuVendor {
+  NVIDIA = 'NVIDIA',
+  APPLE_METAL = 'APPLE_METAL',
+  UNKNOWN = 'UNKNOWN',
+}
+
+/**
  * ハードウェア情報
  */
 export interface HardwareInfo {
@@ -70,6 +79,8 @@ export interface HardwareInfo {
   vramBytes: number;
   /** GPUが利用可能かどうか */
   isGpuAvailable: boolean;
+  /** GPUベンダー（GPU検出時のみ設定） */
+  gpuVendor?: GpuVendor;
   /** エラーメッセージ（Ollama未起動時等） */
   error?: string;
 }
@@ -132,6 +143,17 @@ interface CacheEntry {
  * ```
  */
 export class HardwareDetector {
+  /**
+   * Apple Silicon（macOS arm64）かどうかを判定
+   *
+   * process.platform/process.archのみ使用（外部コマンド実行なし）
+   *
+   * @returns Apple Silicon環境の場合true
+   */
+  static isAppleSilicon(): boolean {
+    return process.platform === 'darwin' && process.arch === 'arm64';
+  }
+
   private readonly ollamaUrl: string;
   private readonly forceCpuMode: boolean;
   private cache: CacheEntry | null = null;
@@ -301,6 +323,9 @@ export class HardwareDetector {
         type: HardwareType.GPU,
         vramBytes: maxVram,
         isGpuAvailable: true,
+        gpuVendor: HardwareDetector.isAppleSilicon()
+          ? GpuVendor.APPLE_METAL
+          : GpuVendor.NVIDIA,
       };
     }
 

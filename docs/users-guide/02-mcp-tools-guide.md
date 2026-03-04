@@ -1,7 +1,7 @@
 # Reftrix MCPツール完全ガイド / Reftrix MCP Tools Complete Guide
 
-**Last Updated**: 2026-03-01
-**Version**: 0.1.0
+**Last Updated**: 2026-03-05
+**Version**: 0.1.2
 **対象読者 / Target Audience**: Reftrixプラットフォームのエンドユーザー、デザイナー、開発者 / End users, designers, and developers of the Reftrix platform
 
 ---
@@ -1084,11 +1084,47 @@ const result = await page.analyze({
 });
 ```
 
+**パラメータ: `layoutOptions.useVision`（v0.1.0+）**
+
+| パラメータ / Parameter | 型 / Type | デフォルト / Default | 説明 / Description |
+|-----------|---|------|------|
+| `layoutOptions.useVision` | boolean | `true` | Ollama Vision（llama3.2-vision）を使用したリッチなレイアウト解析を有効化。`false` の場合はHTML静的解析のみ。 / Enable rich layout analysis using Ollama Vision (llama3.2-vision). When `false`, only HTML static analysis is performed. |
+
+```typescript
+const result = await page.analyze({
+  url: 'https://example.com',
+  layoutOptions: {
+    useVision: true   // デフォルト: true（Ollama Vision使用）
+  }
+});
+```
+
+**レスポンスフィールド: `visionUsed`（v0.1.2+）**
+
+レスポンスに `visionUsed: boolean` フィールドが含まれ、実際にOllama Visionが使用されたかを正確に返します。Ollamaが未起動の場合やVision分析がスキップされた場合は `false` になります。
+
+The response includes a `visionUsed: boolean` field that accurately indicates whether Ollama Vision was actually used. Returns `false` when Ollama is not running or Vision analysis was skipped.
+
+```typescript
+// レスポンス例:
+{
+  layout: { section_count: 7, ... },
+  visionUsed: true  // Ollama Visionが実際に使用された / Ollama Vision was actually used
+}
+```
+
+**環境別タイムアウト動作（v0.1.2+） / Environment-specific Timeout Behavior (v0.1.2+)**
+
+- **Apple Silicon（Metal GPU）**: Metal GPUが自動検出され、GPU用タイムアウト（60秒）が適用されます。手動設定は不要です。 / Metal GPU is auto-detected and GPU timeout (60s) is applied. No manual configuration needed.
+- **CPU-only環境**: タイムアウトが `calculateEffectiveTimeout()` により自動延長されます（最大25分）。 / Timeout is automatically extended via `calculateEffectiveTimeout()` (up to 25 minutes).
+- **NVIDIA GPU**: VRAM容量に基づいてGPU用タイムアウトが適用されます。 / GPU timeout is applied based on VRAM capacity.
+
 **ベストプラクティス**
 
 - 初回は `summary: true` で概要を確認
 - 詳細が必要な場合のみ `summary: false`
 - video modeを有効にする場合は明示的に指定
+- `visionUsed` フィールドでVision分析の実行有無を確認 / Check `visionUsed` field to verify Vision analysis execution
 
 ---
 
@@ -1797,8 +1833,8 @@ This guide explained how to use Reftrix's 20 WebDesign MCP tools for web page an
 
 ---
 
-**Last Updated**: 2026-03-01
-**Version**: 0.1.0
+**Last Updated**: 2026-03-05
+**Version**: 0.1.2
 
 ---
 

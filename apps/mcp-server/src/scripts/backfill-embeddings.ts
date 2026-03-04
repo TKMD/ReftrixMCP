@@ -205,8 +205,8 @@ function parseArgs(): CliOptions {
     ? args[args.indexOf('--url') + 1]
     : undefined;
   const chunkSize = args.includes('--chunk-size')
-    ? parseInt(args[args.indexOf('--chunk-size') + 1] || '15', 10)
-    : 15;
+    ? parseInt(args[args.indexOf('--chunk-size') + 1] || '5', 10)
+    : 5;
 
   return { dryRun, limit, urlFilter, chunkSize };
 }

@@ -10,7 +10,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 形式は [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) に基づき、
 [セマンティックバージョニング](https://semver.org/spec/v2.0.0.html) に準拠しています。
 
-## [0.1.2] - 2026-03-04
+## [0.1.2] - 2026-03-05
+
+### Added / 追加
+
+- **Apple Silicon Metal GPU detection** / **Apple Silicon Metal GPU検出**
+  - `GpuVendor` enum (`NVIDIA | APPLE_METAL | UNKNOWN`) for GPU vendor identification / GPUベンダー識別用の`GpuVendor`列挙型
+  - `HardwareDetector.isAppleSilicon()` static method (`process.platform + process.arch`, no external commands) / 外部コマンド不使用の静的メソッド
+  - Ollama `/api/ps` reports Apple Silicon Unified Memory as `size_vram > 0`, so existing GPU detection works correctly / Ollama `/api/ps`がUnified Memoryを`size_vram > 0`として報告するため既存GPU判定で正しく動作
+  - OllamaReadinessProbe log improved: "Apple Silicon detected: Metal GPU manages memory natively" (was "assuming CPU mode") / ReadinessProbeログ改善
+  - 10 new tests (8 hardware-detector + 2 readiness-probe) / テスト10件追加
+  - SEC/TDA/LCC 3-agent audit passed / SEC/TDA/LCC 3エージェント監査通過
+- **NOTICE file** with Apple trademark attribution (per LCC audit recommendation) / Apple商標帰属表示のNOTICEファイル（LCC監査推奨）
 
 ### Fixed / 修正
 
@@ -25,6 +36,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Integrated Ollama setup into main Setup section (was optional, now required) / Ollamaセットアップをメインセットアップセクションに統合（オプション→必須）
   - Added `NODE_ENV` and `OLLAMA_BASE_URL` to MCP config example / MCP設定例に`NODE_ENV`と`OLLAMA_BASE_URL`追加
   - Corrected worker auto-start documentation (WorkerSupervisor auto-starts, no manual launch needed) / Worker自動起動ドキュメントの修正（WorkerSupervisorが自動起動、手動起動不要）
+- **Ollama Vision OOM prevention (3-point unload)** / **Ollama Vision OOM防止（3箇所アンロード）**
+  - Unloads Vision model via `keep_alive: "0"` at 3 points: (1) after Phase 1 Layout Analysis, (2) after Phase 2.5 Scroll Vision, (3) after Phase 4 Narrative / 3箇所でVisionモデルをアンロード
+  - Frees ~10.6 GB on CPU-only (16 GB RAM) to prevent embedding OOM / CPU-only環境で~10.6GB解放しembedding OOM防止
+  - Phase 1 unload also fixes Phase 2.5 skip on GPU environments (VRAM threshold was not cleared) / Phase 1アンロードでGPU環境のPhase 2.5スキップも解消
+  - Idempotent (no-op when Vision not loaded); SSRF-safe via `validateOllamaLocalhostUrl()` / 冪等; SSRF対策済み
+- **Default mode `visionUsed: false`** -- was incorrectly set even when Vision was used / デフォルトモードでVision使用時もfalseになっていた
+- **CPU-only scroll vision timeout** -- scroll vision analysis timed out prematurely on CPU environments / CPU環境でスクロールVision分析が早期タイムアウト
 
 ### Changed / 変更
 
@@ -33,10 +51,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Documentation / ドキュメント
 
+- Updated `current-architecture.md` HardwareDetector section with GpuVendor enum, `isAppleSilicon()`, Apple Silicon Unified Memory explanation / `current-architecture.md`のHardwareDetectorセクションにGpuVendor enum・isAppleSilicon()・Unified Memory説明を追加
 - Updated `current-architecture.md` Database Backup & Restore section (bilingual, env_file two-stage loading, auth pre-flight check) / `current-architecture.md`のDatabase Backup & Restoreセクション更新（日英バイリンガル、env_file 2段階読み込み、認証事前チェック）
 - Added troubleshooting section 2.6: Backup/Restore Authentication Failure / トラブルシューティングセクション2.6追加: バックアップ/リストア認証失敗
 - Updated FAQ Q8 to use `pnpm db:backup` / FAQ Q8を`pnpm db:backup`に更新
-- Updated ` database operations section / `
+- Updated ` with Ollama Vision Unload + Apple Metal Support info / ` Vision Unload＋Apple Metal Support情報を追加
 
 ## [0.1.1] - 2026-03-03
 

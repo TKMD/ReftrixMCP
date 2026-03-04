@@ -29,7 +29,7 @@ Reftrix is a platform that aggregates web design as a "searchable knowledge base
 | **PostgreSQL** | 18.x（pgvector 0.8.x） |
 | **Redis** | 7.x 以上（BullMQジョブキュー用）/ 7.x or higher (for BullMQ job queue) |
 | **Ollama** | llama3.2-vision モデル（ナラティブ分析・Vision分析用）/ llama3.2-vision model (for narrative & vision analysis) |
-| **メモリ / Memory** | 16GB RAM 以上（Ollama Vision推論 + Embedding生成に必要）/ 16GB RAM minimum (required for Ollama Vision inference + embedding generation) |
+| **メモリ / Memory** | 16GB RAM 以上推奨（Ollama Vision推論で~10.6GBを一時使用 + Embedding生成に必要。v0.1.2でPhase完了ごとに自動アンロードしメモリを解放）/ 16GB RAM recommended (Ollama Vision temporarily uses ~10.6GB + embedding generation required. v0.1.2 auto-unloads after each phase to free memory) |
 | **ディスク / Disk** | 30GB 以上の空き容量（llama3.2-vision: ~7.9GB + ONNXモデル: ~400MB）/ 30GB+ free space (llama3.2-vision: ~7.9GB + ONNX model: ~400MB) |
 
 ### 2.2 推奨環境 / Recommended
@@ -40,6 +40,7 @@ Reftrix is a platform that aggregates web design as a "searchable knowledge base
 | **CPU** | 8コア以上 / 8 cores or more |
 | **SSD** | 必須（データベースパフォーマンス向上）/ Required (improves database performance) |
 | **GPU** | NVIDIA GPU (CUDA 12対応) - Embedding/Vision高速化 / NVIDIA GPU (CUDA 12 compatible) - Embedding/Vision acceleration |
+| **Apple Silicon** | M1/M2/M3+ は自動検出。Metal GPUがネイティブで利用され、追加設定不要 / M1/M2/M3+ auto-detected. Metal GPU used natively, no additional configuration needed |
 
 ---
 
@@ -82,6 +83,10 @@ brew install ollama
 > **Note / 注意**: Linuxでは公式インストールスクリプトがsystemdサービスを自動登録するため、インストール後にOllamaが自動起動します。
 >
 > On Linux, the official install script registers a systemd service, so Ollama starts automatically after installation.
+
+> **Apple Silicon (M1/M2/M3+)**: OllamaはApple SiliconのMetal GPUを自動で利用します。追加設定は不要です。
+>
+> Ollama automatically uses Metal GPU on Apple Silicon. No additional configuration is needed.
 
 ```bash
 # llama3.2-vision モデルをダウンロード（約7.9GB）

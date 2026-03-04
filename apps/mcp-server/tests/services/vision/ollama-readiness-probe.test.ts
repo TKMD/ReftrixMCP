@@ -29,6 +29,9 @@ vi.mock('util', async (importOriginal) => {
 const mockFetch = vi.fn();
 vi.stubGlobal('fetch', mockFetch);
 
+// HardwareDetector (Apple Silicon判定用)
+import { HardwareDetector } from '../../../src/services/vision/hardware-detector.js';
+
 describe('OllamaReadinessProbe', () => {
   let OllamaReadinessProbe: typeof import('../../../src/services/vision/ollama-readiness-probe').OllamaReadinessProbe;
 
@@ -119,6 +122,38 @@ describe('OllamaReadinessProbe', () => {
       // execFileAsync がモックされているため、デフォルトで例外が発生しnullが返る
       const info = await probe.getVramInfo();
       expect(info).toBeNull();
+    });
+  });
+
+  describe('Apple Silicon log message', () => {
+    it('Apple Silicon環境: reason に "Apple Silicon detected" が含まれる', async () => {
+      // Arrange: Ollama available, queryVram returns null (default mock behavior)
+      mockFetch.mockResolvedValueOnce({ ok: true });
+      vi.spyOn(HardwareDetector, 'isAppleSilicon').mockReturnValue(true);
+
+      const probe = new OllamaReadinessProbe();
+      const result = await probe.check();
+
+      // Assert: ready=true (nvidia-smi not available is not a failure), reason reflects Apple Silicon
+      expect(result.ready).toBe(true);
+      expect(result.ollamaAvailable).toBe(true);
+      expect(result.reason).toContain('Apple Silicon detected');
+      expect(result.reason).toContain('Metal GPU');
+    });
+
+    it('Linux CPU環境: reason に "assuming CPU mode" が含まれる', async () => {
+      // Arrange: Ollama available, queryVram returns null (default mock behavior)
+      mockFetch.mockResolvedValueOnce({ ok: true });
+      vi.spyOn(HardwareDetector, 'isAppleSilicon').mockReturnValue(false);
+
+      const probe = new OllamaReadinessProbe();
+      const result = await probe.check();
+
+      // Assert: Fallback message for non-Apple Silicon environments
+      expect(result.ready).toBe(true);
+      expect(result.ollamaAvailable).toBe(true);
+      expect(result.reason).toContain('assuming CPU mode');
+      expect(result.reason).not.toContain('Apple Silicon');
     });
   });
 

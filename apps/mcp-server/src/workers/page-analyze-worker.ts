@@ -119,6 +119,8 @@ import { safeParseInt } from '../utils/safe-parse-int';
 import { backfillWebPageEmbeddings, checkWebPageEmbeddingCoverage } from '../services/embedding-backfill.service';
 // Responsive Analysis Embedding generation
 import { generateResponsiveAnalysisEmbeddings } from '../services/responsive/responsive-analysis-embedding.service';
+// Frame Analysis DB保存ヘルパー（同期/非同期モード共有）
+import { saveFrameAnalysisToDb } from '../services/motion/frame-analysis-save.helper';
 
 // Embedding DI factories initialization
 // Worker runs in a separate process; factories must be set before use
@@ -166,6 +168,98 @@ let _workerInstanceRef: Worker<PageAnalyzeJobData, PageAnalyzeJobResult> | null 
  * When 0, pre-return pause is disabled (unlimited jobs per process).
  */
 const _preReturnPauseEnabled = safeParseInt(process.env.WORKER_MAX_JOBS_BEFORE_RESTART, 1) > 0;
+
+// ============================================================================
+// Ollama Vision Model Unload (RAM recovery for CPU-only environments)
+// ============================================================================
+//
+// CPU-only環境（16GB RAM）では Ollama Vision (llama3.2-vision: ~10.6GB RAM) が
+// embedding フェーズのメモリを圧迫し ONNX Runtime OOM を引き起こす。
+// GpuResourceManager.acquireForEmbedding() は GPU がない環境では
+// unloadOllamaModel() をスキップするため、別途 RAM 解放用の関数を用意する。
+//
+// ============================================================================
+
+/** Default Ollama URL */
+const OLLAMA_DEFAULT_URL = 'http://localhost:11434';
+
+/** Ollama Vision model name (same as GpuResourceManager) */
+const OLLAMA_VISION_MODEL_NAME = process.env.OLLAMA_VISION_MODEL ?? 'llama3.2-vision';
+
+/** Ollama API timeout for unload request (ms) */
+const OLLAMA_UNLOAD_TIMEOUT_MS = 10_000;
+
+/** Allowed hostnames for Ollama API (SSRF prevention) */
+const OLLAMA_ALLOWED_HOSTS = ['localhost', '127.0.0.1', '::1'];
+
+/**
+ * SEC: Ollama URL のローカルホストバリデーション（SSRF 対策）
+ *
+ * GpuResourceManager.validateOllamaUrl() と同等の防御を提供する。
+ * 外部 URL が指定された場合はデフォルト URL にフォールバックする。
+ */
+function validateOllamaLocalhostUrl(url: string): string {
+  try {
+    const parsed = new URL(url);
+    if (!OLLAMA_ALLOWED_HOSTS.includes(parsed.hostname)) {
+      logger.warn('[PageAnalyzeWorker] Ollama URL rejected: must point to localhost', {
+        hostname: parsed.hostname,
+      });
+      return OLLAMA_DEFAULT_URL;
+    }
+    return url;
+  } catch {
+    logger.warn('[PageAnalyzeWorker] Invalid Ollama URL, falling back to default', { url });
+    return OLLAMA_DEFAULT_URL;
+  }
+}
+
+/**
+ * Ollama Vision モデルを RAM/VRAM からアンロードしてメモリを解放する
+ *
+ * CPU-only 環境では GpuResourceManager がアンロードをスキップするため、
+ * Vision使用フェーズ完了後に明示的に呼び出す。
+ * 呼び出し箇所: (1) Phase 2.5完了後、(2) Phase 4 (Narrative) 完了後。
+ * 冪等: Ollama が起動していない環境や Vision 未ロード時は何もせず正常終了する (non-fatal)。
+ *
+ * @returns アンロード成功時 true、失敗/スキップ時 false
+ */
+async function unloadOllamaVisionModel(): Promise<boolean> {
+  const ollamaUrl = validateOllamaLocalhostUrl(process.env.OLLAMA_HOST ?? OLLAMA_DEFAULT_URL);
+  try {
+    const response = await fetch(`${ollamaUrl}/api/generate`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: OLLAMA_VISION_MODEL_NAME,
+        keep_alive: '0',
+        prompt: '',
+      }),
+      signal: AbortSignal.timeout(OLLAMA_UNLOAD_TIMEOUT_MS),
+    });
+
+    if (!response.ok) {
+      logger.warn('[PageAnalyzeWorker] Ollama vision model unload request failed', {
+        status: response.status,
+        statusText: response.statusText,
+      });
+      return false;
+    }
+
+    const rssMb = Math.round(process.memoryUsage().rss / 1024 / 1024);
+    logger.info('[PageAnalyzeWorker] Ollama vision model unloaded to free memory for embedding phase', {
+      model: OLLAMA_VISION_MODEL_NAME,
+      currentRssMb: rssMb,
+    });
+    return true;
+  } catch (error) {
+    // Ollama未起動やネットワークエラー: 警告のみ (non-fatal)
+    logger.warn('[PageAnalyzeWorker] Failed to unload Ollama vision model (service may be unavailable)', {
+      error: error instanceof Error ? error.message : String(error),
+    });
+    return false;
+  }
+}
 
 // Connect gpuModeSignal to the @reftrix/ml EmbeddingService singleton.
 // When GpuResourceManager requests a provider switch, the ONNX pipeline is
@@ -291,6 +385,8 @@ export interface EmbeddingPhaseResult {
   jsAnimationEmbeddingsGenerated: number;
   /** Responsive Analysis embedding 生成数 */
   responsiveEmbeddingsGenerated: number;
+  /** Embedding生成に失敗したチャンク数 */
+  embeddingFailedChunks: number;
   /** Embedding phase が完了したか */
   completed: boolean;
 }
@@ -773,6 +869,7 @@ export async function processEmbeddingPhase(
     bgEmbeddingsGenerated: 0,
     jsAnimationEmbeddingsGenerated: 0,
     responsiveEmbeddingsGenerated: 0,
+    embeddingFailedChunks: 0,
     completed: false,
   };
 
@@ -861,12 +958,11 @@ export async function processEmbeddingPhase(
             });
           }
         } catch (sectionEmbError) {
-          if (isDevelopment()) {
-            logger.warn('[PageAnalyzeWorker] SectionEmbedding chunk failed (non-fatal)', {
-              chunkOffset: offset,
-              error: sectionEmbError instanceof Error ? sectionEmbError.message : String(sectionEmbError),
-            });
-          }
+          result.embeddingFailedChunks++;
+          logger.warn('[PageAnalyzeWorker] SectionEmbedding chunk failed (non-fatal)', {
+            chunkOffset: offset,
+            error: sectionEmbError instanceof Error ? sectionEmbError.message : String(sectionEmbError),
+          });
         }
 
         // チャンク間メモリ回復（最終チャンク以外）
@@ -938,12 +1034,11 @@ export async function processEmbeddingPhase(
             });
           }
         } catch (motionEmbError) {
-          if (isDevelopment()) {
-            logger.warn('[PageAnalyzeWorker] MotionEmbedding chunk failed (non-fatal)', {
-              chunkOffset: offset,
-              error: motionEmbError instanceof Error ? motionEmbError.message : String(motionEmbError),
-            });
-          }
+          result.embeddingFailedChunks++;
+          logger.warn('[PageAnalyzeWorker] MotionEmbedding chunk failed (non-fatal)', {
+            chunkOffset: offset,
+            error: motionEmbError instanceof Error ? motionEmbError.message : String(motionEmbError),
+          });
         }
 
         // チャンク間メモリ回復（最終チャンク以外）
@@ -1029,12 +1124,11 @@ export async function processEmbeddingPhase(
             });
           }
         } catch (visionEmbError) {
-          if (isDevelopment()) {
-            logger.warn('[PageAnalyzeWorker] Vision-detected MotionEmbedding chunk failed (non-fatal)', {
-              chunkOffset: offset,
-              error: visionEmbError instanceof Error ? visionEmbError.message : String(visionEmbError),
-            });
-          }
+          result.embeddingFailedChunks++;
+          logger.warn('[PageAnalyzeWorker] Vision-detected MotionEmbedding chunk failed (non-fatal)', {
+            chunkOffset: offset,
+            error: visionEmbError instanceof Error ? visionEmbError.message : String(visionEmbError),
+          });
         }
 
         // チャンク間メモリ回復（最終チャンク以外）
@@ -1118,12 +1212,11 @@ export async function processEmbeddingPhase(
             });
           }
         } catch (bgEmbError) {
-          if (isDevelopment()) {
-            logger.warn('[PageAnalyzeWorker] BackgroundDesignEmbedding chunk failed (non-fatal)', {
-              chunkOffset: offset,
-              error: bgEmbError instanceof Error ? bgEmbError.message : String(bgEmbError),
-            });
-          }
+          result.embeddingFailedChunks++;
+          logger.warn('[PageAnalyzeWorker] BackgroundDesignEmbedding chunk failed (non-fatal)', {
+            chunkOffset: offset,
+            error: bgEmbError instanceof Error ? bgEmbError.message : String(bgEmbError),
+          });
         }
 
         // チャンク間メモリ回復（最終チャンク以外）
@@ -1207,13 +1300,12 @@ export async function processEmbeddingPhase(
             // Granular progress: report failed item too
             try { reportEmbeddingSubProgress(0, 0); } catch { /* fire-and-forget */ }
             // Graceful Degradation: 個別パターンの失敗はジョブを止めない
-            if (isDevelopment()) {
-              logger.warn('[PageAnalyzeWorker] JSAnimationEmbedding item generation failed (non-fatal)', {
-                originalId,
-                dbId,
-                error: jsEmbItemError instanceof Error ? jsEmbItemError.message : String(jsEmbItemError),
-              });
-            }
+            result.embeddingFailedChunks++;
+            logger.warn('[PageAnalyzeWorker] JSAnimationEmbedding item generation failed (non-fatal)', {
+              originalId,
+              dbId,
+              error: jsEmbItemError instanceof Error ? jsEmbItemError.message : String(jsEmbItemError),
+            });
           }
         }
 
@@ -1230,11 +1322,10 @@ export async function processEmbeddingPhase(
           });
         }
       } catch (jsEmbError) {
-        if (isDevelopment()) {
-          logger.warn('[PageAnalyzeWorker] JSAnimationEmbedding generation failed (non-fatal)', {
-            error: jsEmbError instanceof Error ? jsEmbError.message : String(jsEmbError),
-          });
-        }
+        result.embeddingFailedChunks++;
+        logger.warn('[PageAnalyzeWorker] JSAnimationEmbedding generation failed (non-fatal)', {
+          error: jsEmbError instanceof Error ? jsEmbError.message : String(jsEmbError),
+        });
       }
     }
 
@@ -1266,11 +1357,10 @@ export async function processEmbeddingPhase(
         }
       } catch (respEmbError) {
         // Graceful Degradation: responsive embedding失敗はジョブを中断しない
-        if (isDevelopment()) {
-          logger.warn('[PageAnalyzeWorker] ResponsiveAnalysisEmbedding generation failed (non-fatal)', {
-            error: respEmbError instanceof Error ? respEmbError.message : String(respEmbError),
-          });
-        }
+        result.embeddingFailedChunks++;
+        logger.warn('[PageAnalyzeWorker] ResponsiveAnalysisEmbedding generation failed (non-fatal)', {
+          error: respEmbError instanceof Error ? respEmbError.message : String(respEmbError),
+        });
       }
 
       // ONNX session dispose: Responsive embedding後の最終メモリ回復
@@ -1281,11 +1371,21 @@ export async function processEmbeddingPhase(
     result.completed = true;
   } catch (embeddingError) {
     // Graceful Degradation: Embedding失敗はジョブを中断しない
-    if (isDevelopment()) {
-      logger.warn('[PageAnalyzeWorker] Embedding generation failed (non-fatal)', {
-        error: embeddingError instanceof Error ? embeddingError.message : String(embeddingError),
-      });
-    }
+    result.embeddingFailedChunks++;
+    logger.warn('[PageAnalyzeWorker] Embedding generation failed (non-fatal)', {
+      error: embeddingError instanceof Error ? embeddingError.message : String(embeddingError),
+    });
+  }
+
+  if (result.embeddingFailedChunks > 0) {
+    logger.warn('[PageAnalyzeWorker] Embedding phase completed with failures', {
+      embeddingFailedChunks: result.embeddingFailedChunks,
+      sectionEmbeddingsGenerated: result.sectionEmbeddingsGenerated,
+      motionEmbeddingsGenerated: result.motionEmbeddingsGenerated,
+      bgEmbeddingsGenerated: result.bgEmbeddingsGenerated,
+      jsAnimationEmbeddingsGenerated: result.jsAnimationEmbeddingsGenerated,
+      responsiveEmbeddingsGenerated: result.responsiveEmbeddingsGenerated,
+    });
   }
 
   return result;
@@ -1567,7 +1667,7 @@ async function processPageAnalyzeJob(
         const layoutResult = await defaultAnalyzeLayout(
           html,
           {
-            useVision: options.layoutOptions?.useVision ?? false,
+            useVision: options.layoutOptions?.useVision ?? true,
             fullPage: options.layoutOptions?.fullPage ?? true,
             // MCP-RESP-03: 両形式をサポート（snake_case優先）
             include_html: false,
@@ -1600,7 +1700,7 @@ async function processPageAnalyzeJob(
         layoutResultForNarrative = layoutResult; // Narrative分析用に保持
         results.layout = {
           sectionsDetected: layoutResult.sectionCount ?? 0,
-          visionUsed: options.layoutOptions?.useVision ?? false,
+          visionUsed: options.layoutOptions?.useVision ?? true,
         };
 
         if (isDevelopment()) {
@@ -1685,6 +1785,17 @@ async function processPageAnalyzeJob(
     } else {
       statusTracker.skipPhase('layout', 'Disabled by options');
     }
+
+    // =====================================================
+    // Ollama Vision Unload (1st point): Free VRAM after Phase 1 (Layout Analysis)
+    // Phase 1でuseVision=true（page.analyzeのデフォルト）の場合、
+    // Ollama VisionがVRAMにロードされたまま残る。
+    // Phase 1.5 (Scroll Capture) のChromium VRAM確保 + Phase 2.5 (Scroll Vision Analysis) の
+    // OllamaReadinessProbe VRAM閾値(8192MB)クリアのため、ここで解放する。
+    // Phase 2.5でVisionが必要な場合はOllamaが自動再ロードする。
+    // 冪等: useVision=falseでVision未ロード時もno-opで安全。
+    // =====================================================
+    await unloadOllamaVisionModel();
 
     // =====================================================
     // Phase 1.5: Scroll Vision Smart Capture
@@ -1815,7 +1926,7 @@ async function processPageAnalyzeJob(
           minDuration: 0,
           includeWarnings: true,
           enable_frame_capture: options.motionOptions?.enableFrameCapture ?? false,
-          analyze_frames: false, // Worker内ではフレーム分析は無効
+          analyze_frames: (options.motionOptions?.enableFrameCapture ?? false) && (options.motionOptions?.analyzeFrames ?? false),
           // v0.1.0: JSアニメーション検出を有効化
           detect_js_animations: options.motionOptions?.detectJsAnimations ?? true,
           // v0.1.0: WebGLアニメーション検出を有効化
@@ -1933,6 +2044,24 @@ async function processPageAnalyzeJob(
                 });
               }
             }
+          }
+        }
+
+        // Frame Analysis DB保存（analyze_frames=true かつ frame_analysis結果がある場合）
+        if (actualWebPageId && motionResult.frame_analysis) {
+          const frameAnalysisSaveResult = await saveFrameAnalysisToDb({
+            frameAnalysis: motionResult.frame_analysis,
+            frameCapture: motionResult.frame_capture,
+            webPageId: actualWebPageId,
+            sourceUrl: url,
+          });
+
+          if (isDevelopment()) {
+            logger.info('[PageAnalyzeWorker] Frame analysis DB save result', {
+              saved: frameAnalysisSaveResult.saved,
+              error: frameAnalysisSaveResult.error,
+              skipped: frameAnalysisSaveResult.skipped,
+            });
           }
         }
 
@@ -2085,6 +2214,18 @@ async function processPageAnalyzeJob(
       scrollVisionCapturesForDeferred = null;
       tryGarbageCollect();
     }
+
+    // =====================================================
+    // Ollama Vision Unload (2nd point): Free RAM after Phase 2.5 (Scroll Vision Analysis)
+    // Phase 2.5でOllama Visionを使用した場合、Phase 3 (Quality) に向けてメモリを解放。
+    // CPU-only環境(16GB RAM)ではPhase 3実行時のOOM回避に寄与する。
+    // Phase 4 (Narrative) でVisionが必要な場合はOllamaが自動再ロードする。
+    // 冪等: Phase 2.5でVisionを使わなかった場合もno-opで安全。
+    // Note: GpuResourceManager.currentOwnerは'vision'のまま残るが、
+    // Phase 5のacquireForEmbedding()で再度unloadが呼ばれても冪等のため実害なし。
+    // 3箇所戦略: 1st=Phase 1完了後, 2nd=ここ(Phase 2.5完了後), 3rd=Phase 4完了後
+    // =====================================================
+    await unloadOllamaVisionModel();
 
     // =====================================================
     // Memory Check 1: Before Phase 3 (Quality)
@@ -2379,6 +2520,17 @@ async function processPageAnalyzeJob(
     }
 
     // =====================================================
+    // Ollama Vision Unload (3rd point): Free RAM before Embedding phase
+    // CPU-only環境(16GB RAM)でOllama Vision(~10.6GB)がembeddingメモリを圧迫するのを防止。
+    // GpuResourceManager.acquireForEmbedding()はGPU無し環境でunloadをスキップするため、
+    // ここで明示的にアンロードする。失敗してもnon-fatalで続行。
+    // Phase 4 (Narrative) でVisionが再ロードされるため、Embedding前に再度アンロードが必要。
+    // 冪等なので多重呼び出しも安全。
+    // 3箇所戦略: 1st=Phase 1完了後, 2nd=Phase 2.5完了後, 3rd=ここ(Phase 4完了後)
+    // =====================================================
+    await unloadOllamaVisionModel();
+
+    // =====================================================
     // Memory Cleanup: Release large buffers before Phase 5 (Embedding)
     // html (15-50MB per large site) and screenshotBase64 (5-15MB)
     // are no longer needed after Phase 4 (Narrative).
@@ -2660,7 +2812,7 @@ async function processPageAnalyzeJob(
           });
 
           const backfillResult = await backfillWebPageEmbeddings(actualWebPageId, {
-            chunkSize: 15,
+            chunkSize: 5,
             onProgress: (_type, _done, _total) => {
               // Extend lock on each progress update to prevent stall during backfill
               extendJobLock(job, effectiveToken, effectiveLockDuration, 'backfill-progress').catch(() => {});

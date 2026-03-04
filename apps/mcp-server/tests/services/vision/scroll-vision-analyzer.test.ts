@@ -7,7 +7,7 @@
  * スクロール位置スクリーンショットのVision分析サービスのユニットテスト
  *
  * テスト対象:
- * - 正常系: Visionで各キャプチャを分析
+ * - 正常系: LlamaVisionAdapter経由で各キャプチャを分析
  * - Ollama未接続時のgraceful degradation
  * - 無効なVisionレスポンスのハンドリング
  * - scrollTriggeredAnimationsの集約
@@ -18,15 +18,15 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-// OllamaVisionClient モック
+// LlamaVisionAdapter モック
 const mockIsAvailable = vi.fn().mockResolvedValue(true);
-const mockGenerateJSON = vi.fn();
+const mockAnalyzeJSON = vi.fn();
 
-vi.mock('../../../src/services/vision/ollama-vision-client.js', () => {
+vi.mock('../../../src/services/vision/llama-vision-adapter.js', () => {
   return {
-    OllamaVisionClient: vi.fn().mockImplementation(function (this: Record<string, unknown>) {
+    LlamaVisionAdapter: vi.fn().mockImplementation(function (this: Record<string, unknown>) {
       this.isAvailable = mockIsAvailable;
-      this.generateJSON = mockGenerateJSON;
+      this.analyzeJSON = mockAnalyzeJSON;
       return this;
     }),
   };
@@ -84,6 +84,29 @@ function createValidVisionResponse(overrides?: Record<string, unknown>): Record<
   };
 }
 
+/**
+ * LlamaVisionAdapter.analyzeJSON の戻り値を生成
+ */
+function createAdapterResult(responseOverrides?: Record<string, unknown>): {
+  response: Record<string, unknown>;
+  metrics: {
+    hardwareType: string;
+    originalSizeBytes: number;
+    optimizationApplied: boolean;
+    totalProcessingTimeMs: number;
+  };
+} {
+  return {
+    response: createValidVisionResponse(responseOverrides),
+    metrics: {
+      hardwareType: 'GPU',
+      originalSizeBytes: 1024,
+      optimizationApplied: false,
+      totalProcessingTimeMs: 100,
+    },
+  };
+}
+
 // =============================================================================
 // analyzeScrollCaptures テスト
 // =============================================================================
@@ -92,7 +115,7 @@ describe('analyzeScrollCaptures', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockIsAvailable.mockResolvedValue(true);
-    mockGenerateJSON.mockResolvedValue(createValidVisionResponse());
+    mockAnalyzeJSON.mockResolvedValue(createAdapterResult());
   });
 
   // ---------------------------------------------------------------------------
@@ -109,7 +132,7 @@ describe('analyzeScrollCaptures', () => {
 
       const result = await analyzeScrollCaptures(captures);
 
-      expect(mockGenerateJSON).toHaveBeenCalledTimes(3);
+      expect(mockAnalyzeJSON).toHaveBeenCalledTimes(3);
       expect(result.analyzedCount).toBe(3);
       expect(result.captureCount).toBe(3);
     });
@@ -183,7 +206,7 @@ describe('analyzeScrollCaptures', () => {
       expect(result.analyses[0]?.processingTimeMs).toBeGreaterThanOrEqual(0);
     });
 
-    it('Base64エンコードされたスクリーンショットがVisionに渡される', async () => {
+    it('BufferスクリーンショットがLlamaVisionAdapterに渡される', async () => {
       const screenshotData = Buffer.from('test-image-data');
       const captures: ScrollCapture[] = [
         createTestCapture({ screenshot: screenshotData }),
@@ -191,8 +214,9 @@ describe('analyzeScrollCaptures', () => {
 
       await analyzeScrollCaptures(captures);
 
-      expect(mockGenerateJSON).toHaveBeenCalledWith(
-        screenshotData.toString('base64'),
+      // LlamaVisionAdapter.analyzeJSON は Buffer を直接受け取る
+      expect(mockAnalyzeJSON).toHaveBeenCalledWith(
+        screenshotData,
         expect.stringContaining('scroll position')
       );
     });
@@ -204,8 +228,8 @@ describe('analyzeScrollCaptures', () => {
 
       await analyzeScrollCaptures(captures);
 
-      expect(mockGenerateJSON).toHaveBeenCalledWith(
-        expect.any(String),
+      expect(mockAnalyzeJSON).toHaveBeenCalledWith(
+        expect.any(Buffer),
         expect.stringContaining('1234px')
       );
     });
@@ -241,7 +265,7 @@ describe('analyzeScrollCaptures', () => {
 
       await analyzeScrollCaptures(captures);
 
-      expect(mockGenerateJSON).not.toHaveBeenCalled();
+      expect(mockAnalyzeJSON).not.toHaveBeenCalled();
     });
   });
 
@@ -251,10 +275,10 @@ describe('analyzeScrollCaptures', () => {
 
   describe('エラーハンドリング', () => {
     it('個別キャプチャのVisionエラーは全体を中断しない', async () => {
-      mockGenerateJSON
-        .mockResolvedValueOnce(createValidVisionResponse())
+      mockAnalyzeJSON
+        .mockResolvedValueOnce(createAdapterResult())
         .mockRejectedValueOnce(new Error('Vision timeout'))
-        .mockResolvedValueOnce(createValidVisionResponse());
+        .mockResolvedValueOnce(createAdapterResult());
 
       const captures: ScrollCapture[] = [
         createTestCapture({ scrollY: 0, sectionIndex: 0 }),
@@ -270,7 +294,10 @@ describe('analyzeScrollCaptures', () => {
     });
 
     it('無効なJSONレスポンスはスキップされる', async () => {
-      mockGenerateJSON.mockResolvedValue('not-an-object');
+      mockAnalyzeJSON.mockResolvedValue({
+        response: 'not-an-object',
+        metrics: { hardwareType: 'GPU', originalSizeBytes: 0, optimizationApplied: false, totalProcessingTimeMs: 0 },
+      });
 
       const captures: ScrollCapture[] = [
         createTestCapture(),
@@ -284,9 +311,12 @@ describe('analyzeScrollCaptures', () => {
 
     it('不完全なJSONレスポンスはデフォルト値で補完される', async () => {
       // scrollTriggeredElementsが空、他フィールドのみ
-      mockGenerateJSON.mockResolvedValue({
-        visualImpression: 'A simple page',
-        confidence: 0.7,
+      mockAnalyzeJSON.mockResolvedValue({
+        response: {
+          visualImpression: 'A simple page',
+          confidence: 0.7,
+        },
+        metrics: { hardwareType: 'GPU', originalSizeBytes: 0, optimizationApplied: false, totalProcessingTimeMs: 0 },
       });
 
       const captures: ScrollCapture[] = [
@@ -300,13 +330,16 @@ describe('analyzeScrollCaptures', () => {
     });
 
     it('confidence < 0.3の要素はフィルタリングされる', async () => {
-      mockGenerateJSON.mockResolvedValue({
-        scrollTriggeredElements: [
-          { element: 'High confidence', changeType: 'appear', confidence: 0.9 },
-          { element: 'Low confidence', changeType: 'animate', confidence: 0.1 },
-        ],
-        visualImpression: 'Test page',
-        confidence: 0.8,
+      mockAnalyzeJSON.mockResolvedValue({
+        response: {
+          scrollTriggeredElements: [
+            { element: 'High confidence', changeType: 'appear', confidence: 0.9 },
+            { element: 'Low confidence', changeType: 'animate', confidence: 0.1 },
+          ],
+          visualImpression: 'Test page',
+          confidence: 0.8,
+        },
+        metrics: { hardwareType: 'GPU', originalSizeBytes: 0, optimizationApplied: false, totalProcessingTimeMs: 0 },
       });
 
       const captures: ScrollCapture[] = [
@@ -320,7 +353,7 @@ describe('analyzeScrollCaptures', () => {
     });
 
     it('全キャプチャがエラーでも結果構造は正常', async () => {
-      mockGenerateJSON.mockRejectedValue(new Error('Ollama crashed'));
+      mockAnalyzeJSON.mockRejectedValue(new Error('Ollama crashed'));
 
       const captures: ScrollCapture[] = [
         createTestCapture({ scrollY: 0 }),
@@ -343,21 +376,27 @@ describe('analyzeScrollCaptures', () => {
 
   describe('scrollTriggeredAnimationsの集約', () => {
     it('全分析結果からスクロールトリガーアニメーションを集約する', async () => {
-      mockGenerateJSON
+      mockAnalyzeJSON
         .mockResolvedValueOnce({
-          scrollTriggeredElements: [
-            { element: 'Hero fade-in', changeType: 'appear', confidence: 0.9 },
-          ],
-          visualImpression: 'Hero section',
-          confidence: 0.85,
+          response: {
+            scrollTriggeredElements: [
+              { element: 'Hero fade-in', changeType: 'appear', confidence: 0.9 },
+            ],
+            visualImpression: 'Hero section',
+            confidence: 0.85,
+          },
+          metrics: { hardwareType: 'GPU', originalSizeBytes: 0, optimizationApplied: false, totalProcessingTimeMs: 0 },
         })
         .mockResolvedValueOnce({
-          scrollTriggeredElements: [
-            { element: 'Feature slide-in', changeType: 'animate', confidence: 0.8 },
-            { element: 'Parallax background', changeType: 'parallax', confidence: 0.7 },
-          ],
-          visualImpression: 'Feature section',
-          confidence: 0.8,
+          response: {
+            scrollTriggeredElements: [
+              { element: 'Feature slide-in', changeType: 'animate', confidence: 0.8 },
+              { element: 'Parallax background', changeType: 'parallax', confidence: 0.7 },
+            ],
+            visualImpression: 'Feature section',
+            confidence: 0.8,
+          },
+          metrics: { hardwareType: 'GPU', originalSizeBytes: 0, optimizationApplied: false, totalProcessingTimeMs: 0 },
         });
 
       const captures: ScrollCapture[] = [
@@ -371,20 +410,26 @@ describe('analyzeScrollCaptures', () => {
     });
 
     it('集約結果はconfidenceで降順ソートされる', async () => {
-      mockGenerateJSON
+      mockAnalyzeJSON
         .mockResolvedValueOnce({
-          scrollTriggeredElements: [
-            { element: 'Low conf', changeType: 'appear', confidence: 0.5 },
-          ],
-          visualImpression: 'Section 1',
-          confidence: 0.7,
+          response: {
+            scrollTriggeredElements: [
+              { element: 'Low conf', changeType: 'appear', confidence: 0.5 },
+            ],
+            visualImpression: 'Section 1',
+            confidence: 0.7,
+          },
+          metrics: { hardwareType: 'GPU', originalSizeBytes: 0, optimizationApplied: false, totalProcessingTimeMs: 0 },
         })
         .mockResolvedValueOnce({
-          scrollTriggeredElements: [
-            { element: 'High conf', changeType: 'animate', confidence: 0.95 },
-          ],
-          visualImpression: 'Section 2',
-          confidence: 0.9,
+          response: {
+            scrollTriggeredElements: [
+              { element: 'High conf', changeType: 'animate', confidence: 0.95 },
+            ],
+            visualImpression: 'Section 2',
+            confidence: 0.9,
+          },
+          metrics: { hardwareType: 'GPU', originalSizeBytes: 0, optimizationApplied: false, totalProcessingTimeMs: 0 },
         });
 
       const captures: ScrollCapture[] = [
@@ -399,12 +444,15 @@ describe('analyzeScrollCaptures', () => {
     });
 
     it('集約結果にtriggerScrollYが含まれる', async () => {
-      mockGenerateJSON.mockResolvedValue({
-        scrollTriggeredElements: [
-          { element: 'Test element', changeType: 'appear', confidence: 0.8 },
-        ],
-        visualImpression: 'Test',
-        confidence: 0.8,
+      mockAnalyzeJSON.mockResolvedValue({
+        response: {
+          scrollTriggeredElements: [
+            { element: 'Test element', changeType: 'appear', confidence: 0.8 },
+          ],
+          visualImpression: 'Test',
+          confidence: 0.8,
+        },
+        metrics: { hardwareType: 'GPU', originalSizeBytes: 0, optimizationApplied: false, totalProcessingTimeMs: 0 },
       });
 
       const captures: ScrollCapture[] = [
@@ -418,12 +466,15 @@ describe('analyzeScrollCaptures', () => {
     });
 
     it('低信頼度の要素は集約からも除外される', async () => {
-      mockGenerateJSON.mockResolvedValue({
-        scrollTriggeredElements: [
-          { element: 'Maybe parallax', changeType: 'parallax', confidence: 0.1 },
-        ],
-        visualImpression: 'Test',
-        confidence: 0.5,
+      mockAnalyzeJSON.mockResolvedValue({
+        response: {
+          scrollTriggeredElements: [
+            { element: 'Maybe parallax', changeType: 'parallax', confidence: 0.1 },
+          ],
+          visualImpression: 'Test',
+          confidence: 0.5,
+        },
+        metrics: { hardwareType: 'GPU', originalSizeBytes: 0, optimizationApplied: false, totalProcessingTimeMs: 0 },
       });
 
       const captures: ScrollCapture[] = [
@@ -444,12 +495,12 @@ describe('analyzeScrollCaptures', () => {
     it('キャプチャは順次処理される（並列ではない）', async () => {
       const callOrder: number[] = [];
 
-      mockGenerateJSON.mockImplementation(async () => {
+      mockAnalyzeJSON.mockImplementation(async () => {
         const index = callOrder.length;
         callOrder.push(index);
         // 短い遅延を入れて順序を確認
         await new Promise<void>((resolve) => setTimeout(resolve, 10));
-        return createValidVisionResponse();
+        return createAdapterResult();
       });
 
       const captures: ScrollCapture[] = [
@@ -471,16 +522,19 @@ describe('analyzeScrollCaptures', () => {
 
   describe('XSSサニタイズ', () => {
     it('Vision結果のHTML要素はサニタイズされる', async () => {
-      mockGenerateJSON.mockResolvedValue({
-        scrollTriggeredElements: [
-          {
-            element: '<script>alert("xss")</script>Hero section',
-            changeType: 'appear',
-            confidence: 0.8,
-          },
-        ],
-        visualImpression: '<img onerror="alert(1)">Landing page',
-        confidence: 0.8,
+      mockAnalyzeJSON.mockResolvedValue({
+        response: {
+          scrollTriggeredElements: [
+            {
+              element: '<script>alert("xss")</script>Hero section',
+              changeType: 'appear',
+              confidence: 0.8,
+            },
+          ],
+          visualImpression: '<img onerror="alert(1)">Landing page',
+          confidence: 0.8,
+        },
+        metrics: { hardwareType: 'GPU', originalSizeBytes: 0, optimizationApplied: false, totalProcessingTimeMs: 0 },
       });
 
       const captures: ScrollCapture[] = [
@@ -507,8 +561,8 @@ describe('analyzeScrollCaptures', () => {
       expect(result.captureCount).toBe(0);
       expect(result.analyses).toEqual([]);
       expect(result.scrollTriggeredAnimations).toEqual([]);
-      // isAvailableは呼ばれるが、generateJSONは呼ばれない
-      expect(mockGenerateJSON).not.toHaveBeenCalled();
+      // isAvailableは呼ばれるが、analyzeJSONは呼ばれない
+      expect(mockAnalyzeJSON).not.toHaveBeenCalled();
     });
   });
 });

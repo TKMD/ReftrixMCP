@@ -1,6 +1,6 @@
 # page.analyze 詳細ガイド / page.analyze Deep Dive - Web分析フローとデータ構造 / Web Analysis Flow and Data Structure
 
-**Version**: 0.1.0 | **Last Updated**: 2026-03-01
+**Version**: 0.1.2 | **Last Updated**: 2026-03-05
 
 このドキュメントでは、`page.analyze` MCPツールがWebページを分析する際の詳細なフロー、分析内容、およびデータベースに保存されるデータ構造を、実際の分析例（https://www.spaceandtime.io/）を用いて解説します。
 
@@ -130,6 +130,7 @@ This document explains the detailed flow, analysis content, and database data st
 │  - layout: セクション数、タイプ別内訳、CSS Framework            │
 │  - motion: パターン数、カテゴリ別内訳、JSライブラリ検出         │
 │  - quality: Overall Score、Grade、軸別スコア、推奨事項          │
+│  - visionUsed: boolean（Vision実際使用有無、v0.1.2+）          │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
@@ -335,6 +336,10 @@ CREATE INDEX idx_section_embeddings_text_hnsw
   WITH (m=16, ef_construction=64);
 ```
 
+> **Ollama Vision アンロード（v0.1.2）**: Phase 2（Layout Analysis）完了後、Visionモデルが `keep_alive: "0"` でアンロードされます。これにより Phase 3（SCROLL_VISION）の Readiness Probe で VRAM 閾値（8192MB）をクリアし、Phase 2.5 がスキップされる問題を解消します。CPU-only 環境では約10.6GBのメモリを解放します。冪等（Vision未ロード時は no-op）。
+>
+> **Ollama Vision Unload (v0.1.2)**: After Phase 2 (Layout Analysis), the Vision model is unloaded via `keep_alive: "0"`. This clears the VRAM threshold (8192MB) for the Phase 3 (SCROLL_VISION) Readiness Probe, fixing the issue where Phase 2.5 was skipped. Frees ~10.6GB on CPU-only environments. Idempotent (no-op when Vision not loaded).
+
 ---
 
 ## 5. Phase 3: SCROLL_VISION -- スクロールキャプチャ / Scroll Capture
@@ -367,6 +372,12 @@ CREATE INDEX idx_section_embeddings_text_hnsw
 - フレーム画像（`/tmp/reftrix-frames/frame-{0000}.png`）
 - キャプチャメタデータ（フレーム数、スクロール量等）
 - フレーム差分分析結果（CLS計算結果、色変化検出結果）
+
+### 5.3 環境別タイムアウト（v0.1.2修正） / Environment-specific Timeout (v0.1.2 Fix)
+
+- **Apple Silicon（Metal GPU）**: Metal GPUが自動検出され、GPU用タイムアウト（60秒）が適用されます。 / Metal GPU is auto-detected and GPU timeout (60s) is applied.
+- **CPU-only環境**: v0.1.2でスクロールVisionのタイムアウトが修正され、`calculateEffectiveTimeout()` により自動延長されます（最大25分）。v0.1.1以前ではCPU環境でタイムアウトが短すぎる問題がありました。 / In v0.1.2, scroll Vision timeout was fixed with auto-extension via `calculateEffectiveTimeout()` (up to 25 min). Prior to v0.1.2, timeout was too short for CPU environments.
+- **NVIDIA GPU**: VRAM容量に基づいてGPU用タイムアウトが適用されます。 / GPU timeout is applied based on VRAM capacity.
 
 ---
 
@@ -597,6 +608,18 @@ const calculateScore = (staticScore, patternAnalysis) => {
    After Embedding generation in Phase 7, searchable via `narrative.search` tool. Vector search (768-dim embedding), hybrid search (RRF: 60% vector + 40% full-text). MoodCategory filter and direct embedding search also supported.
 
 > **VRAM競合回避**: ブラウザクローズ後に実行するため、ChromiumとOllamaのVRAM競合が発生しません（RTX 3060 12GB環境）。GPU Resource Managerが`acquireForVision()`でVRAM確保を管理します。
+
+> **Ollama Vision アンロード（v0.1.2）**: Phase 6 内で2箇所のアンロードが実行されます:
+> 1. **ScrollVision分析（Phase 2.5）完了後**: スクロールVision分析が終わった直後にVisionモデルをアンロード。後続のナラティブ分析でのメモリ圧迫を防止。
+> 2. **ナラティブ分析（Phase 4相当の処理）完了後**: Phase 6 全体の完了時にVisionモデルをアンロード。Phase 7（Embedding生成）でのOOMを防止。
+>
+> いずれも `keep_alive: "0"` でアンロード。CPU-only 環境で約10.6GBを解放。冪等（Vision未ロード時は no-op）。SSRF対策として `validateOllamaLocalhostUrl()` で localhost 限定。
+>
+> **Ollama Vision Unload (v0.1.2)**: Two unload points within Phase 6:
+> 1. **After ScrollVision analysis (Phase 2.5)**: Unloads Vision model immediately after scroll Vision analysis to prevent memory pressure in subsequent narrative analysis.
+> 2. **After narrative analysis completion**: Unloads Vision model at Phase 6 completion to prevent OOM in Phase 7 (Embedding generation).
+>
+> Both use `keep_alive: "0"`. Frees ~10.6GB on CPU-only environments. Idempotent (no-op when not loaded). SSRF-safe via `validateOllamaLocalhostUrl()` (localhost only).
 
 ---
 
@@ -1234,6 +1257,42 @@ AIクリシェ検出: 0件（クリーン）
 }
 ```
 
+### レスポンスフィールド: `visionUsed`（v0.1.2+） / Response Field: `visionUsed` (v0.1.2+)
+
+レスポンスに `visionUsed: boolean` フィールドが含まれ、実際にOllama Visionが使用されたかを正確に返します。v0.1.1以前では `layoutOptions.useVision` の設定値をそのまま返していましたが、v0.1.2で実際の使用有無に基づく正確な値に修正されました。
+
+The response includes a `visionUsed: boolean` field that accurately indicates whether Ollama Vision was actually used. Prior to v0.1.2, this returned the `layoutOptions.useVision` config value as-is; v0.1.2 fixed it to reflect actual usage.
+
+| 状況 / Scenario | `visionUsed` |
+|------|------|
+| Ollama起動中、Vision分析成功 / Ollama running, Vision analysis succeeded | `true` |
+| Ollama未起動（Graceful Degradation） / Ollama not running (Graceful Degradation) | `false` |
+| `layoutOptions.useVision: false` 指定時 / When `useVision: false` specified | `false` |
+
+### 環境別タイムアウト動作（v0.1.2+） / Environment-specific Timeout Behavior (v0.1.2+)
+
+| 環境 / Environment | GPU検出 / GPU Detection | タイムアウト / Timeout |
+|------|------|------|
+| Apple Silicon（Metal GPU） | 自動検出 / Auto-detected | 60秒（GPU用） / 60s (GPU) |
+| NVIDIA GPU | VRAM容量ベース / VRAM-based | 60秒（GPU用） / 60s (GPU) |
+| CPU-only | N/A | `calculateEffectiveTimeout()` で自動延長（最大25分） / Auto-extended (up to 25 min) |
+
+> **Apple Silicon Metal GPU検出（v0.1.2）**: macOS環境では `system_profiler SPDisplaysDataType` を使用してMetal GPUを自動検出します。検出された場合、GPU用タイムアウト（60秒）が適用されます。手動設定は不要です。
+>
+> **Apple Silicon Metal GPU Detection (v0.1.2)**: On macOS, Metal GPU is auto-detected using `system_profiler SPDisplaysDataType`. When detected, GPU timeout (60s) is applied. No manual configuration needed.
+
+### Ollama Vision アンロードポイント（v0.1.2） / Ollama Vision Unload Points (v0.1.2)
+
+OOM防止のため、Visionモデルは以下の3箇所で `keep_alive: "0"` によりアンロードされます。CPU-only環境（16GB RAM）で約10.6GBを解放します。冪等（Vision未ロード時は no-op）。
+
+To prevent OOM, the Vision model is unloaded at 3 points via `keep_alive: "0"`. Frees ~10.6GB on CPU-only (16GB RAM). Idempotent (no-op when not loaded).
+
+| アンロードポイント / Unload Point | 目的 / Purpose |
+|------|------|
+| Phase 2（Layout Analysis）完了後 / After Phase 2 | Phase 3 Readiness Probe の VRAM 閾値クリア / Clear Phase 3 Readiness Probe VRAM threshold |
+| Phase 2.5（ScrollVision分析）完了後 / After Phase 2.5 | ナラティブ分析でのメモリ圧迫防止 / Prevent memory pressure in narrative analysis |
+| Phase 4（Narrative）完了後 / After Phase 4 | Phase 7（Embedding生成）での OOM 防止 / Prevent OOM in Phase 7 (Embedding generation) |
+
 ---
 
 ## 関連ドキュメント
@@ -1242,7 +1301,7 @@ AIクリシェ検出: 0件（クリーン）
 
 ---
 
-**Last Updated**: 2026-03-01 | **Author**: Reftrix Team
+**Last Updated**: 2026-03-05 | **Author**: Reftrix Team
 
 ---
 

@@ -19,6 +19,7 @@
 
 import { queryVram } from './vram-utils.js';
 import type { VramInfo } from './vram-utils.js';
+import { HardwareDetector } from './hardware-detector.js';
 
 // =============================================================================
 // 定数
@@ -180,7 +181,9 @@ export class OllamaReadinessProbe {
           ollamaAvailable: true,
           waitRetries: 0,
           totalWaitMs: Date.now() - startTime,
-          reason: 'nvidia-smi not available, assuming CPU mode (no VRAM check)',
+          reason: HardwareDetector.isAppleSilicon()
+            ? 'Apple Silicon detected: Metal GPU manages memory natively (nvidia-smi not applicable)'
+            : 'nvidia-smi not available, assuming CPU mode (no VRAM check)',
         };
       }
 

@@ -18,6 +18,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import {
   HardwareDetector,
   HardwareType,
+  GpuVendor,
   HardwareInfo,
   HARDWARE_CACHE_TTL_MS,
 } from '../../../src/services/vision/hardware-detector.js';
@@ -541,6 +542,110 @@ describe('HardwareDetector', () => {
       expect(result2.type).toBe(HardwareType.CPU);
       expect(result3.type).toBe(HardwareType.CPU);
       expect(mockFetch).not.toHaveBeenCalled();
+    });
+  });
+
+  // ==========================================================================
+  // Apple Silicon Detection Tests
+  // ==========================================================================
+
+  describe('Apple Silicon Detection', () => {
+    let originalPlatform: PropertyDescriptor;
+    let originalArch: PropertyDescriptor;
+
+    beforeEach(() => {
+      originalPlatform = Object.getOwnPropertyDescriptor(process, 'platform')!;
+      originalArch = Object.getOwnPropertyDescriptor(process, 'arch')!;
+    });
+
+    afterEach(() => {
+      Object.defineProperty(process, 'platform', originalPlatform);
+      Object.defineProperty(process, 'arch', originalArch);
+    });
+
+    it('isAppleSilicon() should return true on macOS arm64', () => {
+      Object.defineProperty(process, 'platform', { value: 'darwin', configurable: true });
+      Object.defineProperty(process, 'arch', { value: 'arm64', configurable: true });
+
+      expect(HardwareDetector.isAppleSilicon()).toBe(true);
+    });
+
+    it('isAppleSilicon() should return false on Linux x64', () => {
+      Object.defineProperty(process, 'platform', { value: 'linux', configurable: true });
+      Object.defineProperty(process, 'arch', { value: 'x64', configurable: true });
+
+      expect(HardwareDetector.isAppleSilicon()).toBe(false);
+    });
+
+    it('isAppleSilicon() should return false on macOS x64 (Intel Mac)', () => {
+      Object.defineProperty(process, 'platform', { value: 'darwin', configurable: true });
+      Object.defineProperty(process, 'arch', { value: 'x64', configurable: true });
+
+      expect(HardwareDetector.isAppleSilicon()).toBe(false);
+    });
+
+    it('isAppleSilicon() should return false on Windows arm64', () => {
+      Object.defineProperty(process, 'platform', { value: 'win32', configurable: true });
+      Object.defineProperty(process, 'arch', { value: 'arm64', configurable: true });
+
+      expect(HardwareDetector.isAppleSilicon()).toBe(false);
+    });
+
+    it('should set gpuVendor to APPLE_METAL when GPU detected on Apple Silicon', async () => {
+      Object.defineProperty(process, 'platform', { value: 'darwin', configurable: true });
+      Object.defineProperty(process, 'arch', { value: 'arm64', configurable: true });
+
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          models: [{ name: 'llama3.2-vision', size: 4000, size_vram: 3500 }],
+        }),
+      });
+
+      const result = await detector.detect();
+
+      expect(result.type).toBe(HardwareType.GPU);
+      expect(result.gpuVendor).toBe(GpuVendor.APPLE_METAL);
+    });
+
+    it('should set gpuVendor to NVIDIA when GPU detected on Linux', async () => {
+      Object.defineProperty(process, 'platform', { value: 'linux', configurable: true });
+      Object.defineProperty(process, 'arch', { value: 'x64', configurable: true });
+
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          models: [{ name: 'llama3.2-vision', size: 4000, size_vram: 3500 }],
+        }),
+      });
+
+      const result = await detector.detect();
+
+      expect(result.type).toBe(HardwareType.GPU);
+      expect(result.gpuVendor).toBe(GpuVendor.NVIDIA);
+    });
+
+    it('should not set gpuVendor on CPU fallback', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          models: [{ name: 'model', size: 1000, size_vram: 0 }],
+        }),
+      });
+
+      const result = await detector.detect();
+
+      expect(result.type).toBe(HardwareType.CPU);
+      expect(result.gpuVendor).toBeUndefined();
+    });
+
+    it('should not set gpuVendor on Ollama connection failure', async () => {
+      mockFetch.mockRejectedValueOnce(new Error('ECONNREFUSED'));
+
+      const result = await detector.detect();
+
+      expect(result.type).toBe(HardwareType.CPU);
+      expect(result.gpuVendor).toBeUndefined();
     });
   });
 

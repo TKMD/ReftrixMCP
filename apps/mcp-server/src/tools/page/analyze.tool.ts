@@ -82,11 +82,8 @@ import {
   type MotionPatternInput,
 } from './handlers/types';
 
-// VideoMode DB保存用インポート
-import {
-  getMotionDbService,
-  type BatchSaveResult as MotionDbBatchSaveResult,
-} from '../../services/motion/motion-db.service';
+// VideoMode DB保存用ヘルパー（同期/非同期モード共有）
+import { saveFrameAnalysisToDb } from '../../services/motion/frame-analysis-save.helper';
 
 import {
   pageAnalyzeInputSchema,
@@ -632,18 +629,20 @@ export async function pageAnalyzeHandler(
         },
       };
 
-      // layoutOptions（undefinedを明示的に除外）
-      if (validated.layoutOptions) {
+      // layoutOptions（デフォルト値を常に設定 — undefinedの場合もデフォルトで構築）
+      // Bug fix: デフォルトモード（layoutOptions未指定）でも useVision: true 等が適用されるように
+      {
+        const src = validated.layoutOptions;
         const layoutOpts: NonNullable<PageAnalyzeJobOptions['layoutOptions']> = {
-          useVision: validated.layoutOptions.useVision ?? true,
-          saveToDb: validated.layoutOptions.saveToDb ?? true,
-          autoAnalyze: validated.layoutOptions.autoAnalyze ?? true,
-          fullPage: validated.layoutOptions.fullPage ?? true,
-          scrollVision: validated.layoutOptions.scrollVision ?? true,
-          scrollVisionMaxCaptures: validated.layoutOptions.scrollVisionMaxCaptures ?? 10,
+          useVision: src?.useVision ?? true,
+          saveToDb: src?.saveToDb ?? true,
+          autoAnalyze: src?.autoAnalyze ?? true,
+          fullPage: src?.fullPage ?? true,
+          scrollVision: src?.scrollVision ?? true,
+          scrollVisionMaxCaptures: src?.scrollVisionMaxCaptures ?? 10,
         };
-        if (validated.layoutOptions.viewport) {
-          layoutOpts.viewport = validated.layoutOptions.viewport;
+        if (src?.viewport) {
+          layoutOpts.viewport = src.viewport;
         }
         jobOptions.layoutOptions = layoutOpts;
       }
@@ -653,7 +652,8 @@ export async function pageAnalyzeHandler(
         jobOptions.motionOptions = {
           detectJsAnimations: validated.motionOptions.detect_js_animations ?? true,
           detectWebglAnimations: validated.motionOptions.detect_webgl_animations ?? true,
-          enableFrameCapture: validated.motionOptions.enable_frame_capture ?? true,
+          enableFrameCapture: validated.motionOptions.enable_frame_capture ?? false,
+          analyzeFrames: validated.motionOptions.analyze_frames ?? false,
           saveToDb: validated.motionOptions.saveToDb ?? true,
           maxPatterns: validated.motionOptions.maxPatterns ?? 500,
           // v0.1.0: Motion検出タイムアウト（asyncモードでは長時間検出可能）
@@ -1996,230 +1996,39 @@ async function executeSyncProcessing(
   // =====================================================
   // VideoMode DB保存処理（motionOptions.saveToDb=true かつ frame_analysis あり）
   // =====================================================
-  // MotionDbServiceを使用してフレーム画像分析結果（AnimationZone, LayoutShift, MotionVector）を保存
+  // 共有ヘルパー関数でフレーム画像分析結果（AnimationZone, LayoutShift, MotionVector）を保存
   // MotionDbService は Embedding を自動生成するため、明示的な生成は不要
   if (motionSaveToDb && motionServiceResultForSave?.success) {
-    // motionServiceResultForSave から生のframeAnalysis結果を取得する必要がある
-    // frame_analysisがある場合は、FrameImageAnalysisOutput形式に変換してMotionDbServiceで保存
-    // 注: motionServiceResultForSave.frame_analysisはMotionServiceResult形式（timeline/summary）
-    // MotionDbService.saveFrameAnalysis()はFrameImageAnalysisOutput形式を期待
-    // → 保存対象: animationZones, layoutShifts, motionVectors を推定して保存
-
-    // frame_analysisのtimeline/summaryから推定してFrameImageAnalysisOutput形式を構築
     const frameAnalysis = motionServiceResultForSave.frame_analysis;
-    if (frameAnalysis) {
-      if (isDevelopment()) {
-        logger.info('[page.analyze] Starting VideoMode frame analysis DB save', {
-          webPageId: savedWebPageId,
-          timelineLength: frameAnalysis.timeline?.length ?? 0,
-          totalLayoutShifts: frameAnalysis.summary?.total_layout_shifts ?? 0,
-        });
-      }
+    if (frameAnalysis && savedWebPageId) {
+      const frameAnalysisSaveResult = await saveFrameAnalysisToDb({
+        frameAnalysis,
+        frameCapture: motionServiceResultForSave.frame_capture,
+        webPageId: savedWebPageId,
+        sourceUrl: validated.url,
+      });
 
-      try {
-        const motionDbService = getMotionDbService();
-
-        if (motionDbService.isAvailable()) {
-          // FrameImageAnalysisOutput形式を構築
-          // timeline から animationZones を推定
-          const animationZones: Array<{
-            frameStart: string;
-            frameEnd: string;
-            scrollStart: number;
-            scrollEnd: number;
-            duration: number;
-            avgDiff: string;
-            peakDiff: string;
-            animationType: 'micro-interaction' | 'fade/slide transition' | 'scroll-linked animation' | 'long-form reveal';
-          }> = [];
-
-          // timeline から layoutShifts を推定（layout_shift_score > 0.05 の場合）
-          const layoutShifts: Array<{
-            frameRange: string;
-            scrollRange: string;
-            impactFraction: string;
-            boundingBox: { x: number; y: number; width: number; height: number };
-          }> = [];
-
-          // timeline から motionVectors を推定
-          const motionVectors: Array<{
-            frameRange: string;
-            dx: number;
-            dy: number;
-            magnitude: string;
-            direction: 'up' | 'down' | 'left' | 'right' | 'stationary';
-            angle: string;
-          }> = [];
-
-          // timeline の significant_change_frames から AnimationZones を構築
-          const significantFrames = frameAnalysis.summary?.significant_change_frames ?? [];
-          const scrollPxPerFrame = 15; // Reftrix default
-
-          if (significantFrames.length > 0) {
-            // 連続したフレームをグループ化してAnimationZoneを作成
-            let zoneStart = significantFrames[0] ?? 0;
-            let zoneEnd = zoneStart;
-            const diffs: number[] = [];
-
-            for (let i = 0; i < significantFrames.length; i++) {
-              const currentFrame = significantFrames[i] ?? 0;
-              const nextFrame = significantFrames[i + 1];
-
-              // 対応するtimelineエントリからdiffを取得
-              const timelineEntry = frameAnalysis.timeline.find(t => t.frame_index === currentFrame);
-              if (timelineEntry) {
-                diffs.push(timelineEntry.diff_percentage * 100);
-              }
-
-              // 連続フレーム判定（5フレーム以内なら連続とみなす）
-              if (nextFrame !== undefined && nextFrame - currentFrame <= 5) {
-                zoneEnd = nextFrame;
-              } else {
-                // ゾーン確定
-                if (diffs.length > 0) {
-                  const avgDiff = diffs.reduce((a, b) => a + b, 0) / diffs.length;
-                  const peakDiff = Math.max(...diffs);
-                  const duration = (zoneEnd - zoneStart) * scrollPxPerFrame;
-
-                  // アニメーションタイプを分類
-                  let animationType: 'micro-interaction' | 'fade/slide transition' | 'scroll-linked animation' | 'long-form reveal';
-                  if (duration < 500) animationType = 'micro-interaction';
-                  else if (duration < 1500) animationType = 'fade/slide transition';
-                  else if (duration < 3000) animationType = 'scroll-linked animation';
-                  else animationType = 'long-form reveal';
-
-                  animationZones.push({
-                    frameStart: `frame-${String(zoneStart).padStart(4, '0')}.png`,
-                    frameEnd: `frame-${String(zoneEnd).padStart(4, '0')}.png`,
-                    scrollStart: zoneStart * scrollPxPerFrame,
-                    scrollEnd: zoneEnd * scrollPxPerFrame,
-                    duration,
-                    avgDiff: avgDiff.toFixed(2),
-                    peakDiff: peakDiff.toFixed(2),
-                    animationType,
-                  });
-                }
-
-                // 次のゾーン開始
-                if (nextFrame !== undefined) {
-                  zoneStart = nextFrame;
-                  zoneEnd = nextFrame;
-                  diffs.length = 0;
-                }
-              }
-            }
-          }
-
-          // timeline から layoutShifts を推定
-          for (const timelineEntry of frameAnalysis.timeline) {
-            const shiftScore = timelineEntry.layout_shift_score;
-            if (shiftScore !== undefined && shiftScore > 0.05) {
-              layoutShifts.push({
-                frameRange: `frame-${String(timelineEntry.frame_index).padStart(4, '0')}.png`,
-                scrollRange: `${timelineEntry.frame_index * scrollPxPerFrame}px`,
-                impactFraction: shiftScore.toFixed(4),
-                boundingBox: { x: 0, y: 0, width: 1920, height: 1080 }, // デフォルト
-              });
-            }
-          }
-
-          // timeline の motion_vectors から MotionVectors を構築
-          for (const timelineEntry of frameAnalysis.timeline) {
-            const vectors = timelineEntry.motion_vectors;
-            if (vectors && vectors.length > 0) {
-              for (const vector of vectors) {
-                // 方向を判定
-                const angle = Math.atan2(vector.y, vector.x) * (180 / Math.PI);
-                let direction: 'up' | 'down' | 'left' | 'right' | 'stationary' = 'stationary';
-                if (vector.magnitude >= 5) {
-                  if (angle >= -45 && angle < 45) direction = 'right';
-                  else if (angle >= 45 && angle < 135) direction = 'down';
-                  else if (angle >= -135 && angle < -45) direction = 'up';
-                  else direction = 'left';
-                }
-
-                motionVectors.push({
-                  frameRange: `frame-${String(timelineEntry.frame_index).padStart(4, '0')}.png`,
-                  dx: vector.x,
-                  dy: vector.y,
-                  magnitude: vector.magnitude.toFixed(2),
-                  direction,
-                  angle: angle.toFixed(2),
-                });
-              }
-            }
-          }
-
-          // FrameImageAnalysisOutput形式を構築
-          const frameAnalysisOutput = {
-            metadata: {
-              framesDir: motionServiceResultForSave.frame_capture?.output_dir ?? '/tmp/reftrix-frames/',
-              totalFrames: motionServiceResultForSave.frame_capture?.total_frames ?? 0,
-              analyzedPairs: frameAnalysis.timeline.length,
-              sampleInterval: 1,
-              scrollPxPerFrame,
-              analysisTime: `${(frameAnalysis.summary?.processing_time_ms ?? 0) / 1000}s`,
-              analyzedAt: new Date().toISOString(),
-            },
-            statistics: {
-              averageDiffPercentage: ((frameAnalysis.summary?.avg_diff ?? 0) * 100).toFixed(2),
-              significantChangeCount: significantFrames.length,
-              significantChangePercentage: frameAnalysis.timeline.length > 0
-                ? ((significantFrames.length / frameAnalysis.timeline.length) * 100).toFixed(2)
-                : '0.00',
-              layoutShiftCount: frameAnalysis.summary?.total_layout_shifts ?? 0,
-              motionVectorCount: motionVectors.length,
-            },
-            animationZones,
-            layoutShifts,
-            motionVectors,
-          };
-
-          // MotionDbServiceで保存
-          const motionDbSaveResult: MotionDbBatchSaveResult = await motionDbService.saveFrameAnalysis(
-            frameAnalysisOutput,
-            {
-              webPageId: savedWebPageId,
-              sourceUrl: validated.url,
-              continueOnError: true,
-            }
-          );
-
+      // 保存失敗時はwarningsに記録（Graceful Degradation）
+      if (!frameAnalysisSaveResult.saved) {
+        if (frameAnalysisSaveResult.error) {
+          warnings.push({
+            feature: 'motion',
+            code: 'FRAME_ANALYSIS_DB_SAVE_ERROR',
+            message: frameAnalysisSaveResult.error,
+          });
+        } else if (frameAnalysisSaveResult.skipped) {
           if (isDevelopment()) {
-            logger.info('[page.analyze] VideoMode frame analysis DB save completed', {
-              saved: motionDbSaveResult.saved,
-              savedCount: motionDbSaveResult.savedCount,
-              byCategory: motionDbSaveResult.byCategory,
-              reason: motionDbSaveResult.reason,
+            logger.warn('[page.analyze] Frame analysis DB save skipped', {
+              reason: frameAnalysisSaveResult.skipped,
             });
           }
-
-          // 保存失敗時はwarningsに記録（Graceful Degradation）
-          if (!motionDbSaveResult.saved && motionDbSaveResult.reason) {
-            warnings.push({
-              feature: 'motion',
-              code: 'FRAME_ANALYSIS_DB_SAVE_FAILED',
-              message: motionDbSaveResult.reason,
-            });
-          }
-        } else {
-          if (isDevelopment()) {
-            logger.warn('[page.analyze] MotionDbService not available, skipping frame analysis DB save');
-          }
-        }
-      } catch (frameDbError) {
-        // VideoMode DB保存失敗（Graceful Degradation）
-        if (isDevelopment()) {
-          logger.warn('[page.analyze] VideoMode frame analysis DB save failed (graceful degradation)', {
-            error: frameDbError instanceof Error ? frameDbError.message : 'Unknown error',
+        } else if (frameAnalysisSaveResult.batchResult?.reason) {
+          warnings.push({
+            feature: 'motion',
+            code: 'FRAME_ANALYSIS_DB_SAVE_FAILED',
+            message: frameAnalysisSaveResult.batchResult.reason,
           });
         }
-
-        warnings.push({
-          feature: 'motion',
-          code: 'FRAME_ANALYSIS_DB_SAVE_ERROR',
-          message: frameDbError instanceof Error ? frameDbError.message : 'Frame analysis DB save failed',
-        });
       }
     }
 
