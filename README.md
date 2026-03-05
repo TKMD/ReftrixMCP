@@ -10,10 +10,6 @@
 [![MCP](https://img.shields.io/badge/MCP-Protocol-green)](https://modelcontextprotocol.io/)
 [![pnpm](https://img.shields.io/badge/pnpm-10-f69220)](https://pnpm.io/)
 
-<a href="https://glama.ai/mcp/servers/@TKMD/reftrix-mcp">
-  <img width="380" height="200" src="https://glama.ai/mcp/servers/@TKMD/reftrix-mcp/badge" alt="ReftrixMCP MCP server" />
-</a>
-
 <details>
 <summary>Japanese / 日本語の概要</summary>
 
