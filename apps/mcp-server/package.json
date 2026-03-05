@@ -76,7 +76,7 @@
     "axe-core": "^4.10.2",
     "bullmq": "^5.66.5",
     "culori": "^4.0.2",
-    "dompurify": "^3.3.1",
+    "dompurify": "^3.3.2",
     "ioredis": "^5.9.2",
     "jsdom": "^27.2.0",
     "pixelmatch": "^6.0.0",
