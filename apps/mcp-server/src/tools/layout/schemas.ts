@@ -1108,6 +1108,11 @@ export const layoutSearchInputSchema = z.object({
    * search_mode='combined'時のRRF統合パラメータ
    */
   multimodal_options: multimodalOptionsSchema.optional(),
+  /**
+   * 嗜好プロファイルID（検索結果のリランキングに使用）
+   * Preference profile ID (used for search result reranking)
+   */
+  profile_id: z.string().uuid().optional(),
 });
 export type LayoutSearchInput = z.infer<typeof layoutSearchInputSchema>;
 

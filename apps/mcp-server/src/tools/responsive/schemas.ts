@@ -93,6 +93,11 @@ export const responsiveSearchInputSchema = z.object({
   offset: z.number().int().min(0).default(0),
   /** 検索フィルター */
   filters: responsiveSearchFiltersSchema,
+  /**
+   * 嗜好プロファイルID（検索結果のリランキングに使用）
+   * Preference profile ID (used for search result reranking)
+   */
+  profile_id: z.string().uuid().optional(),
 });
 
 export type ResponsiveSearchInput = z.infer<typeof responsiveSearchInputSchema>;

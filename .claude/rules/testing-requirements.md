@@ -171,6 +171,17 @@ pnpm test:coverage                 # カバレッジ
 pnpm --filter @reftrix/mcp-server test:e2e:playwright  # E2Eテスト（Playwright）
 ```
 
+## Preference Profiling テスト / Preference Profiling Tests
+
+Phase 3（セキュリティ監査修復）で追加されたテストスイート:
+
+Test suites added during Phase 3 (security audit remediation):
+
+| テストファイル / Test File | テスト数 / Tests | 対象 / Coverage |
+|--------------------------|-----------------|----------------|
+| `tests/services/preference-profile.service.test.ts` | 29 | サービス層ユニットテスト: getSamples, processFeedback, getProfile, resetProfile, deleteProfile, getSignals, confidence計算, DI/ファクトリー / Service layer unit tests: getSamples, processFeedback, getProfile, resetProfile, deleteProfile, getSignals, confidence calculation, DI/factory |
+| `tests/tools/preference/security.test.ts` | 13 | セキュリティテスト: SQLインジェクション防御, 不正UUID, 超長文字列, エラーメッセージサニタイズ / Security tests: SQL injection defense, invalid UUID, oversized strings, error message sanitization |
+
 ## 品質ゲート（CI必須） / Quality Gates (CI Required)
 
 - テストカバレッジ 80%以上 / Test coverage above 80%

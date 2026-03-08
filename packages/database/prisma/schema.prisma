@@ -1552,3 +1552,86 @@ model ResponsiveAnalysisEmbedding {
 
   @@map("responsive_analysis_embeddings")
 }
+
+// ============================================================================
+// Preference Profiling Models
+// ユーザー嗜好プロファイリング（preference.hear / preference.get / preference.reset）
+// User Preference Profiling (preference.hear / preference.get / preference.reset)
+// ============================================================================
+
+/// PreferenceProfile - ユーザー嗜好プロファイル
+/// デザイン嗜好をベクトル空間で表現し、セマンティック検索で類似デザインを推薦
+/// User preference profile: represents design preferences in vector space
+/// for semantic search-based design recommendations
+/// HNSW Index: idx_preference_profiles_embedding_hnsw (m=16, ef_construction=64, vector_cosine_ops)
+model PreferenceProfile {
+  id   String @id @default(dbgenerated("gen_uuidv7()")) @db.Uuid
+  name String @default("default") @db.VarChar(100)
+
+  // 嗜好ベクトル（768D, multilingual-e5-base）
+  // Preference embedding (768D, multilingual-e5-base)
+  // HNSW indexed for semantic similarity search
+  preferenceEmbedding Unsupported("vector(768)")? @map("preference_embedding")
+
+  // 嗜好テキスト（Embedding生成元）
+  // Preference text (source for embedding generation)
+  // 例: "ミニマルでダークなデザイン、大胆なタイポグラフィ、滑らかなアニメーション"
+  preferenceText String? @map("preference_text") @db.Text
+
+  // インタラクション回数（嗜好シグナルの累積数）
+  // Interaction count (cumulative number of preference signals)
+  interactionCount Int @default(0) @map("interaction_count")
+
+  // メタデータ（JSONB）
+  // Metadata (JSONB)
+  // 例: { "lastHearAt": "2026-03-07T...", "dominantMoods": ["minimalist", "bold"] }
+  metadata Json @default("{}") @map("metadata")
+
+  // タイムスタンプ / Timestamps
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  // リレーション / Relations
+  signals PreferenceSignal[]
+
+  @@map("preference_profiles")
+}
+
+/// PreferenceSignal - 嗜好シグナル（個別のフィードバック記録）
+/// preference.hear で記録される個別のデザイン評価・反応
+/// Individual feedback records captured by preference.hear
+/// signal_type: hearing_positive / hearing_negative / hearing_neutral / code_generate / search_click
+/// target_type: web_page / section_pattern / motion_pattern / background_design
+model PreferenceSignal {
+  id        String @id @default(dbgenerated("gen_uuidv7()")) @db.Uuid
+  profileId String @map("profile_id") @db.Uuid
+
+  // シグナル情報 / Signal info
+  signalType   String @map("signal_type") @db.VarChar(50) // hearing_positive / hearing_negative / hearing_neutral / code_generate / search_click
+  signalWeight Float  @map("signal_weight") @db.DoublePrecision // シグナルの重み（正: 好意、負: 嫌悪） / Signal weight (positive: like, negative: dislike)
+
+  // 対象情報（ポリモーフィック参照） / Target info (polymorphic reference)
+  targetType String @map("target_type") @db.VarChar(50) // web_page / section_pattern / motion_pattern / background_design
+  targetId   String @map("target_id") @db.Uuid
+
+  // フィードバックテキスト（LLM要約後、原文ではない）
+  // Feedback text (LLM-summarized, not raw input)
+  // 例: "ヒーローセクションのグラデーション背景と大きなタイポグラフィを高評価"
+  feedbackText String? @map("feedback_text") @db.Text
+
+  // シグナルベクトル（768D, multilingual-e5-base）
+  // Signal embedding (768D, multilingual-e5-base)
+  embedding Unsupported("vector(768)")? @map("embedding")
+
+  // タイムスタンプ / Timestamps
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  // リレーション / Relations
+  profile PreferenceProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@index([profileId])
+  @@index([signalType])
+  @@index([targetType, targetId])
+  @@index([createdAt(sort: Desc)])
+  @@map("preference_signals")
+}

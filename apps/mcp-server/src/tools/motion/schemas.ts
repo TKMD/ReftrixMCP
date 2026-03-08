@@ -2875,6 +2875,12 @@ export const motionSearchInputSchema = z
     // v0.1.0: 重複検出オプション（action: 'generate' 時に使用）
     /** 生成オプション（重複検出設定を含む） */
     generation_options: generationOptionsSchema.optional(),
+
+    /**
+     * 嗜好プロファイルID（検索結果のリランキングに使用）
+     * Preference profile ID (used for search result reranking)
+     */
+    profile_id: z.string().uuid().optional(),
   })
   .refine(
     (data) => {

@@ -1004,6 +1004,7 @@ export class MotionSearchService implements IMotionSearchService {
 
           results = hybridResults.slice(0, params.limit).map((hr) => {
             const data = hr.data as unknown as VectorSearchResult;
+            data.id = hr.id; // mergeWithRRFがdataからidを除去するため復元 / restore id stripped by mergeWithRRF
             return {
               pattern: recordToMotionPattern(data),
               similarity: hr.similarity,

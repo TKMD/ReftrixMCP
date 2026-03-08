@@ -10,6 +10,56 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 形式は [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) に基づき、
 [セマンティックバージョニング](https://semver.org/spec/v2.0.0.html) に準拠しています。
 
+## [0.1.3] - 2026-03-08
+
+### Added / 追加
+
+- **User preference profiling system** (3 new MCP tools: `preference.hear`, `preference.get`, `preference.reset`) / **ユーザー嗜好プロファイリングシステム**（3つの新規MCPツール: `preference.hear`, `preference.get`, `preference.reset`）
+  - `preference.hear`: Stateless hearing session (Mode A: sample presentation with progress tracking, Mode B: feedback recording with profile update) / ステートレスヒアリングセッション（Mode A: サンプル提示＋進捗トラッキング、Mode B: フィードバック記録＋プロファイル更新）
+  - `preference.get`: Profile retrieval with GDPR data portability (Art. 20) via `include_signals` / プロファイル取得（GDPRデータポータビリティ Art. 20 対応、`include_signals`オプション）
+  - `preference.reset`: Soft reset and hard delete (GDPR Art. 17 Right to Erasure) / ソフトリセット＋完全削除（GDPR Art. 17 忘れられる権利）
+  - 2-factor confidence model (MoodCategory coverage 0.6 + interaction sufficiency 0.4, threshold 0.8, max 15 hearings) / 2因子信頼度モデル（MoodCategoryカバレッジ 0.6 + インタラクション充足度 0.4、閾値 0.8、最大15回ヒアリング）
+  - GDPR Art. 13/14 compliant `profiling_notice` on new profile creation / 新規プロファイル作成時にGDPR Art. 13/14準拠の`profiling_notice`を返却
+- **Preference-aware search reranking** across all 5 search tools (layout, motion, background, narrative, responsive) / **全5検索ツールにpreference rerankingを統合**（layout, motion, background, narrative, responsive）
+  - Cosine similarity reranking with configurable `rerank_weight` (default 0.3) / コサイン類似度リランキング（設定可能な`rerank_weight`、デフォルト0.3）
+  - `applyPreferenceReranking()` shared helper replacing ~35-line inline code per tool / 共通ヘルパー`applyPreferenceReranking()`で各ツール~35行のインラインコードを1行に集約
+- **Database schema**: `preference_profiles`, `preference_signals` tables with Prisma migration / **データベーススキーマ追加**: `preference_profiles`, `preference_signals`テーブル（Prismaマイグレーション）
+- **PRIVACY.md**: Profiling privacy policy (GDPR Art. 6/13/14/22, 8 sections, bilingual) / **PRIVACY.md**: プロファイリングプライバシーポリシー（GDPR Art. 6/13/14/22、8セクション、日英バイリンガル）
+- **DATA_RETENTION.md**: Data retention policy (soft reset, hard delete, data export specifications) / **DATA_RETENTION.md**: データ保持ポリシー（ソフトリセット、完全削除、データエクスポート仕様）
+- 138 new tests (29 service + 13 security + 96 tool/schema tests) / テスト138件追加（サービス29 + セキュリティ13 + ツール/スキーマ96）
+- SEC/TDA/LCC 3-agent audit passed (12 audits across 4 phases, all PASS) / SEC/TDA/LCC 3エージェント監査全4Phase全PASS（12監査すべて合格）
+- **Embedding Idle Timer**: MCPサーバー本体のEmbeddingService ONNX Worker ThreadがCUDA VRAMを30秒アイドル後に自動解放。後続のOllama Vision解析（page.analyze）がGPUで実行可能に / Auto-release CUDA VRAM from MCP server's EmbeddingService ONNX Worker Thread after 30s idle, enabling GPU acceleration for subsequent Ollama Vision analysis (page.analyze)
+  - 環境変数 `EMBEDDING_IDLE_TIMEOUT_MS` で設定可能（デフォルト30秒、0で無効化） / Configurable via `EMBEDDING_IDLE_TIMEOUT_MS` env var (default 30s, 0 to disable)
+- **Ollama GPU不整合検出** (`system.health`): nvidia-smiでGPU検出 + Ollama `size_vram=0` の不整合をクロスチェックし、actionable warningを表示。不整合時はステータスを `degraded` に降格 / **Ollama GPU mismatch detection** (`system.health`): Cross-checks nvidia-smi GPU detection against Ollama `size_vram=0`, shows actionable warning with fix steps. Downgrades status to `degraded` on mismatch (REFTRIX-GPU-MISMATCH-01)
+
+### Fixed / 修正
+
+- **RRF hybrid search missing `id`** -- search results lacked `id` field required for preference reranking / **RRFハイブリッド検索の`id`欠落** -- 検索結果にリランキングに必要な`id`フィールドが欠落していた
+- **Responsive search reranking ID mismatch** -- `responsive_analysis_id` vs top-level `id` inconsistency / **レスポンシブ検索のリランキングID不一致** -- `responsive_analysis_id`とトップレベル`id`の不整合
+- **DI factory registration** -- `PrismaClient` and `EmbeddingService` factories were missing at MCP server startup / **DIファクトリ登録欠落** -- MCPサーバー起動時に`PrismaClient`と`EmbeddingService`のファクトリが未登録
+- **GPU VRAM競合修正**: 検索ツール（layout.search等）実行後にMCPサーバー本体のONNX Embeddingが~1,406MiB VRAMを占有し続け、Ollama Vision (11.7GB)がCPUフォールバックする問題を修正 / Fix GPU VRAM contention where MCP server's ONNX Embedding held ~1,406MiB VRAM after search tool execution, causing Ollama Vision (11.7GB) to fall back to CPU
+
+### Security / セキュリティ
+
+- **SEC-M-2**: `truncateId()` PII-safe ID truncation utility (5 files, 21 locations) / `truncateId()` PII安全なID切り詰めユーティリティ（5ファイル、21箇所）
+- **SEC-L-1**: `parseVectorString()` NaN/Infinity defense with `Number.isFinite()` validation / `parseVectorString()`のNaN/Infinity防御（`Number.isFinite()`バリデーション）
+- **SEC-L-2**: Embedding vector pre-generation NaN/Infinity validation / Embeddingベクトル生成前のNaN/Infinityバリデーション
+- **LCC-5**: `sanitizeErrorMessage()` preventing internal DB structure leakage / `sanitizeErrorMessage()`で内部DB構造の漏洩を防止
+
+### Changed / 変更
+
+- MCP tool count: 20 → **23** (added `preference.hear`, `preference.get`, `preference.reset`) / MCPツール数: 20 → **23**（`preference.hear`, `preference.get`, `preference.reset`追加）
+- All 5 search tool schemas now include optional `profile_id` parameter / 全5検索ツールスキーマにオプションの`profile_id`パラメータを追加
+
+### Documentation / ドキュメント
+
+- Updated `README.md`, `apps/mcp-server/README.md` with preference profiling info / `README.md`、`apps/mcp-server/README.md`にpreference profiling情報を追加
+- Updated `docs/users-guide/02-mcp-tools-guide.md` with Preference tools section (Chapter 14) / `docs/users-guide/02-mcp-tools-guide.md`にPreferenceツールセクション（第14章）を追加
+- Updated `docs/legal/PRIVACY_POLICY.md` v0.1.0 → v0.1.1 (profiling contradiction fix, Art. 22 explanation) / `docs/legal/PRIVACY_POLICY.md` v0.1.0 → v0.1.1（プロファイリング矛盾修正、Art. 22説明追加）
+- Updated `docs/legal/TERMS_OF_SERVICE.md` with preference profiling in feature list / `docs/legal/TERMS_OF_SERVICE.md`の機能リストにpreference profilingを追加
+- Updated ` (api-endpoints, database-schema, mcp-tools-reference) / ` database-schema, mcp-tools-reference）
+- Updated ` with truncateId and NaN/Infinity defense patterns / `
+
 ## [0.1.2] - 2026-03-05
 
 ### Added / 追加

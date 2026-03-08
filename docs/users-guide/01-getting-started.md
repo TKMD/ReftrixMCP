@@ -402,7 +402,7 @@ await mcp__reftrix__system_health({ detailed: true });
 
 Once setup is complete, refer to the following guides to utilize the features:
 
-- [MCPツール使用ガイド / MCP Tools Usage Guide](./02-mcp-tools-guide.md) - 19のMCPツールの使用方法 / How to use the 19 MCP tools
+- [MCPツール使用ガイド / MCP Tools Usage Guide](./02-mcp-tools-guide.md) - 23のMCPツールの使用方法 / How to use the 23 MCP tools
 - [page.analyze詳細ガイド / page.analyze Deep Dive](./03-page-analyze-deep-dive.md) - 統合分析の詳細 / Detailed unified analysis
 - [トラブルシューティングガイド / Troubleshooting Guide](./04-troubleshooting.md) - 問題解決 / Problem solving
 
@@ -473,7 +473,7 @@ pnpm build
 ```
 reftrix/
 ├── apps/
-│   └── mcp-server/         # MCPサーバー（19ツール）/ MCP server (19 tools)
+│   └── mcp-server/         # MCPサーバー（23ツール）/ MCP server (23 tools)
 ├── packages/
 │   ├── database/           # Prismaスキーマ・マイグレーション / Prisma schema & migrations
 │   ├── core/               # コアドメインロジック / Core domain logic

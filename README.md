@@ -21,9 +21,9 @@ ReftrixMCPは、Webデザインパターンをベクトル検索(pgvector HNSW)�
 RAGで検索可能なナレッジベースに集約し、MCPツール経由でClaude等の
 AIエージェントと統合するプラットフォームです。
 
-**主要機能**: レイアウト分析 / モーション検出 / 品質評価 / セマンティック検索 / レスポンシブ解析
+**主要機能**: レイアウト分析 / モーション検出 / 品質評価 / セマンティック検索 / レスポンシブ解析 / 嗜好プロファイリング
 
-**20のMCPツール**を提供: Layout(5) / Motion(2) / Quality(3) / Page(2) / Narrative(1) / Background(1) / Responsive(1) / Style(1) / Brief(1) / Project(2) / System(1)
+**23のMCPツール**を提供: Layout(5) / Motion(2) / Quality(3) / Page(2) / Narrative(1) / Background(1) / Responsive(1) / Preference(3) / Style(1) / Brief(1) / Project(2) / System(1)
 
 詳細な日本語ドキュメント: [docs/README.ja.md](docs/README.ja.md)
 
@@ -35,6 +35,7 @@ AIエージェントと統合するプラットフォームです。
 - **Motion detection** -- discover CSS/JS animations with frame capture (15 px/frame video mode), CLS detection via Pixelmatch
 - **Quality evaluation** -- score designs on three axes (originality, craftsmanship, contextuality) with anti-AI-cliche detection
 - **Semantic search** -- find layout, motion, narrative, background, and responsive patterns via pgvector HNSW hybrid search
+- **Preference profiling** -- learn user design preferences through feedback sessions and personalize search results via reranking (GDPR-compliant)
 - **Vision integration** -- Ollama llama3.2-vision for richer layout, motion, and narrative understanding
 - **Code generation** -- convert analyzed sections to React, Vue, or plain HTML with matched motion patterns
 
@@ -46,7 +47,8 @@ AIエージェントと統合するプラットフォームです。
 | **Motion-aware** | CSS static analysis + frame-by-frame video capture for real animation behavior |
 | **Quality-aware** | Three-axis scoring with actionable improvement suggestions |
 | **Searchable** | 768-dim multilingual embeddings (e5-base) with HNSW index and hybrid RRF ranking |
-| **MCP-native** | 20 tools purpose-built for Claude Desktop and MCP Client CLI |
+| **Preference-aware** | User preference profiling with feedback-driven reranking across all search tools |
+| **MCP-native** | 23 tools purpose-built for Claude Desktop and MCP Client CLI |
 
 ## Quickstart
 
@@ -104,7 +106,7 @@ Add to your MCP config:
 
 ## Example tools
 
-ReftrixMCP provides **20 MCP tools**. Key examples:
+ReftrixMCP provides **23 MCP tools**. Key examples:
 
 - `layout.ingest` -- fetch a web page, take a screenshot, and extract section patterns
 - `layout.search` -- semantic search over layout sections by natural-language query
@@ -112,13 +114,16 @@ ReftrixMCP provides **20 MCP tools**. Key examples:
 - `quality.evaluate` -- score design quality on originality, craftsmanship, and contextuality
 - `page.analyze` -- unified analysis: layout + motion + quality in one call (async via BullMQ)
 - `responsive.search` -- search responsive analysis results by viewport and breakpoint
+- `preference.hear` -- interactive preference hearing sessions with sample presentation and feedback collection
+- `preference.get` -- retrieve preference profiles (with GDPR data portability support)
+- `preference.reset` -- reset or permanently delete preference profiles (GDPR Right to Erasure)
 
 Full tool reference: [MCP Tools Guide](docs/users-guide/02-mcp-tools-guide.md)
 
 ## Architecture
 
 ```
-MCP Client (Claude Desktop / Code)  --stdio-->  MCP Server (20 tools, Zod)
+MCP Client (Claude Desktop / Code)  --stdio-->  MCP Server (23 tools, Zod)
   +-- Service Layer: Playwright, Sharp+Pixelmatch, DOMPurify
   +-- ML Layer: ONNX Runtime (multilingual-e5-base, 768-dim)
   +-- BullMQ Workers: page.analyze, quality.evaluate
@@ -130,7 +135,7 @@ MCP Client (Claude Desktop / Code)  --stdio-->  MCP Server (20 tools, Zod)
 | Guide | Description |
 |-------|-------------|
 | [Getting Started](docs/users-guide/01-getting-started.md) | Installation, setup, and first analysis |
-| [MCP Tools Guide](docs/users-guide/02-mcp-tools-guide.md) | All 20 tools with usage examples |
+| [MCP Tools Guide](docs/users-guide/02-mcp-tools-guide.md) | All 23 tools with usage examples |
 | [page.analyze Deep Dive](docs/users-guide/03-page-analyze-deep-dive.md) | Async analysis flow and data structures |
 | [Troubleshooting](docs/users-guide/04-troubleshooting.md) | Common issues and solutions |
 
@@ -157,4 +162,4 @@ See [CONTRIBUTING.md](CONTRIBUTING.md).
 ## Security
 
 Report vulnerabilities per [SECURITY.md](SECURITY.md).
-Privacy: [docs/legal/PRIVACY_POLICY.md](docs/legal/PRIVACY_POLICY.md) | Third-party licenses: [THIRDPARTY_LICENSES.md](THIRDPARTY_LICENSES.md)
+Privacy: [docs/legal/PRIVACY_POLICY.md](docs/legal/PRIVACY_POLICY.md) | Profiling privacy: [apps/mcp-server/PRIVACY.md](apps/mcp-server/PRIVACY.md) | Data retention: [apps/mcp-server/DATA_RETENTION.md](apps/mcp-server/DATA_RETENTION.md) | Third-party licenses: [THIRDPARTY_LICENSES.md](THIRDPARTY_LICENSES.md)

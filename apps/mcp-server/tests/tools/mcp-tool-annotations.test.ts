@@ -278,15 +278,16 @@ describe('MCP Tool Annotations', () => {
   });
 
   // =========================================================================
-  // ツール数検証 (19 WebDesign tools)
+  // ツール数検証 (22 WebDesign tools)
   // Phase3-2: page.getJobStatus ツール追加
   // MCP-TOOL-01: layout.batch_ingest ツール追加
   // Phase4: quality.getJobStatus ツール追加
   // narrative.search, background.search ツール追加
+  // preference.hear, preference.get, preference.reset ツール追加
   // =========================================================================
   describe('ツール数', () => {
-    it('allToolDefinitionsが20ツール（WebDesign専用）を含むこと', () => {
-      expect(allToolDefinitions).toHaveLength(20);
+    it('allToolDefinitionsが23ツール（WebDesign専用）を含むこと', () => {
+      expect(allToolDefinitions).toHaveLength(23);
     });
   });
 });

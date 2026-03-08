@@ -408,7 +408,7 @@ describe('P2-G: ONNX Worker Thread化', () => {
     it('terminate()が残存pending requestsをリジェクトすること', () => {
       const terminateMethod = serviceSource.slice(
         serviceSource.indexOf('async terminate()'),
-        serviceSource.indexOf('async terminate()') + 800
+        serviceSource.indexOf('async terminate()') + 1200
       );
       expect(terminateMethod).toContain("'Service terminated'");
       expect(terminateMethod).toContain('pending.reject(');

@@ -132,6 +132,135 @@ No merge allowed with any High/Critical vulnerabilities.
 License verification is mandatory when adding new dependencies.
 LGPL-3.0-or-later dependencies must be excluded via `--excludePackages` and reviewed individually.
 
+## エラーメッセージサニタイズ / Error Message Sanitization
+
+### sanitizeErrorMessage パターン / sanitizeErrorMessage Pattern
+
+エラーコードから汎用メッセージへ変換するヘルパー関数を使用し、内部構造の漏洩を防止する。
+
+Use a helper function that maps error codes to generic messages, preventing internal structure leakage.
+
+**✅ PASS基準 / PASS Criteria**:
+- ✅ Prisma/SQLの内部構造（テーブル名、カラム名、SQL構文）をクライアントレスポンスに含めない / Do not include Prisma/SQL internals (table names, column names, SQL syntax) in client responses
+- ✅ サーバーサイドログには `errorInstance.message` を記録（デバッグ用） / Log `errorInstance.message` on server side (for debugging)
+- ✅ クライアントレスポンスには固定メッセージのみ返却 / Return only fixed messages in client responses
+
+**❌ FAIL基準 / FAIL Criteria**:
+- ❌ `error.message` をそのままクライアントに返却 / Returning raw `error.message` to client
+- ❌ スタックトレースやDB構造がレスポンスに含まれる / Stack traces or DB structure included in response
+
+```typescript
+// ✅ 良い例 / Good example
+function sanitizeErrorMessage(error: unknown): string {
+  if (error instanceof Prisma.PrismaClientKnownRequestError) {
+    switch (error.code) {
+      case 'P2002': return 'A record with this value already exists';
+      case 'P2025': return 'Record not found';
+      default: return 'Database operation failed';
+    }
+  }
+  return 'An internal error occurred';
+}
+
+// サーバーログ / Server log
+logger.error('Operation failed', { error: errorInstance.message });
+// クライアント / Client
+return { error: sanitizeErrorMessage(error) };
+```
+
+## isDevelopment() ガード原則 / isDevelopment() Guard Principle
+
+### エラーハンドリングでの使用禁止 / Prohibited in Error Handling
+
+エラーハンドリングパス（catchブロック）で `isDevelopment()` ガードを使用しない。本番環境でエラーがサイレント吸収されるリスクを排除する。
+
+Do not use `isDevelopment()` guards in error handling paths (catch blocks). Eliminate the risk of errors being silently absorbed in production.
+
+**✅ PASS基準 / PASS Criteria**:
+- ✅ catchブロック内のログは全環境で `logger.warn` / `logger.error` を出力 / Log `logger.warn` / `logger.error` in all environments within catch blocks
+- ✅ 正常系のデバッグログ（verbose情報）は `isDevelopment()` ガード内で可 / Debug logs for normal flow (verbose info) may use `isDevelopment()` guard
+
+**❌ FAIL基準 / FAIL Criteria**:
+- ❌ catchブロック内で `if (isDevelopment())` によりログ出力を制限 / Restricting log output with `if (isDevelopment())` inside catch blocks
+- ❌ 本番環境でエラーが無視される構造 / Structure where errors are ignored in production
+
+```typescript
+// ❌ 悪い例 / Bad example
+catch (error) {
+  if (isDevelopment()) {
+    console.error('Failed:', error); // 本番で吸収される / Absorbed in production
+  }
+}
+
+// ✅ 良い例 / Good example
+catch (error) {
+  logger.warn('Failed:', { error: (error as Error).message }); // 全環境で出力 / Output in all environments
+}
+```
+
+## PII配慮ログ出力 / PII-Aware Logging
+
+個人識別可能情報（PII）をログ出力する際は、truncateして漏洩リスクを最小化する。
+
+When logging personally identifiable information (PII), truncate to minimize leakage risk.
+
+**✅ PASS基準 / PASS Criteria**:
+- ✅ profileId等のPIIはログ出力時に `truncateId()` または `id.slice(0, 8) + '...'` でtruncate / Truncate PII such as profileId with `truncateId()` or `id.slice(0, 8) + '...'` when logging
+- ✅ 開発環境限定のログ（`isDevelopment()` ガード下）ではフル出力可 / Full output allowed in development-only logs (under `isDevelopment()` guard)
+
+**❌ FAIL基準 / FAIL Criteria**:
+- ❌ 本番ログにPII（profileId, userId等）をフル出力 / Full PII (profileId, userId, etc.) in production logs
+
+### truncateId() ユーティリティ / truncateId() Utility
+
+PII truncateを一箇所に集約するユーティリティ関数。Zodスキーマ定義ファイル（例: `schemas.ts`）から提供する。
+
+A utility function that centralizes PII truncation. Provided from Zod schema definition files (e.g., `schemas.ts`).
+
+```typescript
+// schemas.ts から提供 / Provided by schemas.ts
+export function truncateId(id: string, length: number = 8): string {
+  return `${id.slice(0, length)}...`;
+}
+
+// ✅ 良い例: truncateId()を使用 / Good example: using truncateId()
+import { truncateId } from './schemas';
+logger.info(`Profile updated: ${truncateId(profileId)}`);
+logger.warn('Reranking failed', { profileId: truncateId(profileId) });
+
+// ✅ 開発環境のみフル出力 / Full output in development only
+if (isDevelopment()) {
+  logger.debug(`Profile details: ${profileId}`, { signals });
+}
+```
+
+## ベクトルデータ検証 / Vector Data Validation
+
+### NaN/Infinity防御 / NaN/Infinity Defense
+
+ベクトルデータ（embedding等）の入出力時に `NaN` や `Infinity` が混入すると、pgvectorクエリ失敗やサイレントな検索精度低下を引き起こす。数値配列を扱う箇所では検証を行うこと。
+
+`NaN` or `Infinity` in vector data (embeddings, etc.) causes pgvector query failures or silent search quality degradation. Validate numeric arrays at input/output boundaries.
+
+**✅ PASS基準 / PASS Criteria**:
+- ✅ Embedding生成結果に `NaN`/`Infinity` が含まれないことを検証 / Verify embedding results contain no `NaN`/`Infinity`
+- ✅ confidence等のスカラー値計算で `NaN`/`Infinity` を防御（`Math.min`/`Math.max`クランプ、除算前のゼロチェック等） / Defend against `NaN`/`Infinity` in scalar calculations (clamp with `Math.min`/`Math.max`, zero-division checks, etc.)
+
+**❌ FAIL基準 / FAIL Criteria**:
+- ❌ `NaN`/`Infinity` を含むベクトルをDBに保存 / Saving vectors containing `NaN`/`Infinity` to DB
+- ❌ 除算結果を検証せずにそのまま使用 / Using division results without validation
+
+```typescript
+// ✅ 良い例 / Good example
+const confidence = totalWeight > 0 ? weightedSum / totalWeight : 0;
+const clampedScore = Math.max(0, Math.min(1, score));
+
+// ✅ Embedding検証 / Embedding validation
+if (embedding.some(v => !Number.isFinite(v))) {
+  throw new Error('Invalid embedding: contains NaN or Infinity');
+}
+```
+
 ## データセキュリティ / Data Security
 
 - 環境変数で機密情報管理（.envファイル） / Manage secrets via environment variables (.env files)

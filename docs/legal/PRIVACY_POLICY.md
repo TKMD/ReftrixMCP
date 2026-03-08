@@ -8,9 +8,9 @@
 
 ### Reftrix プライバシーポリシー
 
-**バージョン**: 0.1.0
+**バージョン**: 0.1.1
 **施行日**: 2026年3月1日
-**最終更新**: 2026年2月23日
+**最終更新**: 2026年3月8日
 
 ---
 
@@ -78,6 +78,19 @@ Ollama（llama3.2-vision）を使用したスクリーンショットの視覚�
 
 **Cookieについて**: Reftrix自身はトラッキング目的のCookieを使用しませんが、クローリング時にクロール対象サイトからCookieを受領する場合があります（第7条2項参照）。
 
+#### 1.7 嗜好プロファイルデータ（v0.1.1追加）
+
+本ソフトウェアのPreference Profiling機能（`preference.hear` / `preference.get` / `preference.reset`）を使用した場合、以下のデータが処理されます。この機能はオプトインであり、ユーザーが明示的に`preference.hear`を呼び出さない限り、嗜好データは収集されません。
+
+| データ種別 | 内容 | 保存形式 |
+|-----------|------|---------|
+| 嗜好テキスト | ユーザーのデザインフィードバックから生成された嗜好サマリ | テキスト（10-1000文字） |
+| 嗜好ベクトル | 嗜好テキストから生成された768次元Embeddingベクトル | float配列（pgvector） |
+| フィードバック記録 | 個別のデザイン評価（positive/negative/neutral）、コメント | JSONB |
+| フィードバック回数 | 累積フィードバック回数 | 整数 |
+
+詳細は [`apps/mcp-server/PRIVACY.md`](../../apps/mcp-server/PRIVACY.md)（プロファイリングプライバシーポリシー）および [`apps/mcp-server/DATA_RETENTION.md`](../../apps/mcp-server/DATA_RETENTION.md)（データ保持ポリシー）を参照してください。
+
 ---
 
 ### 第2条: 情報の利用目的
@@ -88,8 +101,9 @@ Ollama（llama3.2-vision）を使用したスクリーンショットの視覚�
 2. **類似デザイン検索**: Embeddingベクトルを用いたセマンティック検索により、類似するデザインパターンを発見すること（ハイブリッド検索: ベクトル検索60% + 全文検索40%）
 3. **デザイン品質評価**: 独自の評価基準に基づくデザイン品質の定量的評価を行うこと
 4. **デザインナレッジの蓄積**: Webデザインのトレンド・パターンをRAG（Retrieval-Augmented Generation）可能な形式でナレッジベースに蓄積すること
+5. **検索結果のパーソナライズ**（オプトイン）: ユーザーが`preference.hear`を通じて提供したデザインフィードバックに基づき、検索結果の表示順序をユーザーの嗜好に合わせて調整すること（Preference Profiling。詳細は[`apps/mcp-server/PRIVACY.md`](../../apps/mcp-server/PRIVACY.md)参照）
 
-本ソフトウェアは、上記以外の目的（広告、マーケティング、プロファイリング、ユーザー追跡等）のためにデータを利用することはありません。
+本ソフトウェアは、上記以外の目的（広告、マーケティング、ユーザー追跡等）のためにデータを利用することはありません。上記5のPreference Profilingは検索結果の表示順序調整のみを目的としており、法的効果やそれに類する重大な影響をデータ主体に対して生じさせるものではありません（GDPR Art. 22(1)の適用範囲外）。
 
 ---
 
@@ -191,6 +205,17 @@ EDPB（欧州データ保護委員会）は2024年12月17日にOpinion 28/2024�
 - 特定ドメインに関連する全データの削除
 - 特定期間に取得されたデータの一括削除
 - Embeddingベクトルデータのみの削除
+
+#### 5.4 嗜好プロファイルデータの削除（v0.1.1追加）
+
+Preference Profiling機能で収集されたデータは、以下のMCPツールにより削除できます。
+
+| 方法 | MCPツール | 動作 |
+|------|----------|------|
+| ソフトリセット | `preference.reset(profile_id, confirm: true)` | 嗜好テキスト・ベクトルをクリアし、フィードバック記録をCASCADE削除。プロファイル枠は残存 |
+| 完全削除（GDPR Art. 17対応） | `preference.reset(profile_id, confirm: true, hard_delete: true)` | プロファイルおよび全関連データを完全に物理削除。不可逆 |
+
+詳細は [`apps/mcp-server/DATA_RETENTION.md`](../../apps/mcp-server/DATA_RETENTION.md) を参照してください。
 
 ---
 
@@ -425,9 +450,9 @@ CCPA/CPRA（カリフォルニア州民法典第1798.100条以下）に基づき
 
 ### Reftrix Privacy Policy
 
-**Version**: 0.1.0
+**Version**: 0.1.1
 **Effective Date**: March 1, 2026
-**Last Updated**: February 23, 2026
+**Last Updated**: March 8, 2026
 
 ---
 
@@ -495,6 +520,19 @@ The Reftrix project does not centrally collect the following information from th
 
 **Regarding cookies**: Reftrix itself does not use cookies for tracking purposes. However, during crawling, cookies may be received from crawled target sites (see Section 7.2).
 
+#### 1.7 Preference Profile Data (Added in v0.1.1)
+
+When the Software's Preference Profiling feature (`preference.hear` / `preference.get` / `preference.reset`) is used, the following data is processed. This feature is opt-in; preference data is not collected unless the user explicitly invokes `preference.hear`.
+
+| Data Type | Description | Storage Format |
+|-----------|-------------|----------------|
+| Preference text | Preference summary generated from user's design feedback | Text (10-1000 chars) |
+| Preference embedding | 768-dimensional embedding vector generated from preference text | float array (pgvector) |
+| Feedback records | Individual design ratings (positive/negative/neutral), comments | JSONB |
+| Interaction count | Cumulative feedback count | Integer |
+
+For details, see [`apps/mcp-server/PRIVACY.md`](../../apps/mcp-server/PRIVACY.md) (Profiling Privacy Policy) and [`apps/mcp-server/DATA_RETENTION.md`](../../apps/mcp-server/DATA_RETENTION.md) (Data Retention Policy).
+
 ---
 
 ### Section 2: Purpose of Use
@@ -505,8 +543,9 @@ Information processed by the Software is used solely for the following purposes:
 2. **Similar design search**: Discovering similar design patterns through semantic search using embedding vectors (hybrid search: 60% vector search + 40% full-text search)
 3. **Design quality evaluation**: Performing quantitative evaluation of design quality based on proprietary evaluation criteria
 4. **Design knowledge accumulation**: Accumulating web design trends and patterns in a knowledge base in a RAG (Retrieval-Augmented Generation)-capable format
+5. **Search result personalization** (opt-in): Adjusting the display order of search results based on design feedback provided by the user through `preference.hear` to match user preferences (Preference Profiling; see [`apps/mcp-server/PRIVACY.md`](../../apps/mcp-server/PRIVACY.md) for details)
 
-The Software does not use data for any other purposes (including advertising, marketing, profiling, or user tracking).
+The Software does not use data for any other purposes (including advertising, marketing, or user tracking). The Preference Profiling described in item 5 above is solely for adjusting the display order of search results and does not produce legal effects or similarly significantly affect the data subject (outside the scope of GDPR Art. 22(1)).
 
 ---
 
@@ -608,6 +647,17 @@ Data can be deleted through direct operations on the PostgreSQL database. Deleti
 - All data related to a specific domain
 - Bulk deletion of data retrieved within a specific time period
 - Deletion of embedding vector data only
+
+#### 5.4 Preference Profile Data Deletion (Added in v0.1.1)
+
+Data collected through the Preference Profiling feature can be deleted using the following MCP tools:
+
+| Method | MCP Tool | Behavior |
+|--------|----------|----------|
+| Soft reset | `preference.reset(profile_id, confirm: true)` | Clears preference text and embedding, CASCADE deletes feedback records. Profile shell remains |
+| Hard delete (GDPR Art. 17) | `preference.reset(profile_id, confirm: true, hard_delete: true)` | Permanently deletes profile and all associated data. Irreversible |
+
+For details, see [`apps/mcp-server/DATA_RETENTION.md`](../../apps/mcp-server/DATA_RETENTION.md).
 
 ---
 

@@ -21,6 +21,8 @@ import {
   BACKGROUND_MCP_ERROR_CODES,
   type BackgroundSearchInput as BackgroundSearchInputType,
 } from './schemas';
+import { applyPreferenceReranking } from '../../services/preference-rerank.helper';
+import type { IPrismaClient } from '../../services/preference-profile.service';
 
 // =====================================================
 // 型定義
@@ -153,6 +155,30 @@ export function setBackgroundSearchServiceFactory(
  */
 export function resetBackgroundSearchServiceFactory(): void {
   backgroundSearchServiceFactory = null;
+}
+
+/**
+ * PrismaClientファクトリー（嗜好リランキング用DI）
+ * PrismaClient factory (DI for preference reranking)
+ */
+let prismaClientFactory: (() => IPrismaClient) | null = null;
+
+/**
+ * PrismaClientファクトリーを設定（嗜好リランキング用）
+ * Set PrismaClient factory (for preference reranking)
+ */
+export function setBackgroundSearchPrismaClientFactory(
+  factory: () => IPrismaClient
+): void {
+  prismaClientFactory = factory;
+}
+
+/**
+ * PrismaClientファクトリーをリセット（テスト用）
+ * Reset PrismaClient factory (for testing)
+ */
+export function resetBackgroundSearchPrismaClientFactory(): void {
+  prismaClientFactory = null;
 }
 
 // =====================================================
@@ -313,7 +339,7 @@ export async function backgroundSearchHandler(
         );
 
     // 結果マッピング
-    const mappedResults: BackgroundSearchResultItem[] = searchResult.results.map(
+    let mappedResults: BackgroundSearchResultItem[] = searchResult.results.map(
       (r) => ({
         id: r.id,
         designType: r.designType,
@@ -339,6 +365,9 @@ export async function backgroundSearchHandler(
         searchTimeMs,
       });
     }
+
+    // 嗜好プロファイルによるリランキング / Preference profile reranking
+    mappedResults = await applyPreferenceReranking(mappedResults, validated.profile_id, prismaClientFactory, 'background', 'background.search');
 
     return {
       success: true,
@@ -442,6 +471,12 @@ export const backgroundSearchToolDefinition = {
             description: 'WebページIDでフィルター',
           },
         },
+      },
+      // Preference reranking
+      profile_id: {
+        type: 'string',
+        format: 'uuid',
+        description: '嗜好プロファイルID（検索結果のリランキングに使用） / Preference profile ID (used for search result reranking)',
       },
     },
     required: ['query'],

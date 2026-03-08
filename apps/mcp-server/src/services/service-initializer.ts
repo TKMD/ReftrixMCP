@@ -53,7 +53,10 @@ import {
   setJSAnimationPersistencePrismaClientFactory,
   type IJSAnimationPersistencePrismaClient,
 } from '../tools/motion/di-factories';
-import { setMotionSearchServiceFactory } from '../tools/motion/search.tool';
+import {
+  setMotionSearchServiceFactory,
+  setMotionSearchPrismaClientFactory as setMotionSearchRerankPrismaClientFactory,
+} from '../tools/motion/search.tool';
 import {
   setMotionPersistenceEmbeddingServiceFactory,
   setMotionPersistencePrismaClientFactory,
@@ -88,7 +91,10 @@ import {
 
 // Layout関連インポート
 // 循環依存解消: tools/layout/index.ts ではなく個別ファイルからインポート
-import { setLayoutSearchServiceFactory } from '../tools/layout/search.tool';
+import {
+  setLayoutSearchServiceFactory,
+  setLayoutSearchPrismaClientFactory as setLayoutSearchRerankPrismaClientFactory,
+} from '../tools/layout/search.tool';
 import { setLayoutToCodeServiceFactory } from '../tools/layout/to-code.tool';
 import { setLayoutInspectServiceFactory } from '../tools/layout/inspect';
 import { setLayoutIngestServiceFactory } from '../tools/layout/ingest.tool';
@@ -101,12 +107,16 @@ import {
 } from '../tools/page/analyze.tool';
 
 // Narrative関連インポート
-import { setNarrativeSearchServiceFactory } from '../tools/narrative/search.tool';
+import {
+  setNarrativeSearchServiceFactory,
+  setNarrativeSearchPrismaClientFactory as setNarrativeSearchRerankPrismaClientFactory,
+} from '../tools/narrative/search.tool';
 import { createNarrativeSearchService } from './narrative-search.service';
 
 // Background関連インポート
 import {
   setBackgroundSearchServiceFactory,
+  setBackgroundSearchPrismaClientFactory as setBackgroundSearchRerankPrismaClientFactory,
 } from '../tools/background/search.tool';
 import { createBackgroundSearchService } from './background-search.service';
 import {
@@ -117,8 +127,22 @@ import {
 // Responsive関連インポート
 import {
   setResponsiveSearchServiceFactory,
+  setResponsiveSearchPrismaClientFactory as setResponsiveSearchRerankPrismaClientFactory,
 } from '../tools/responsive/search.tool';
 import { createResponsiveSearchService } from './responsive-search.service';
+
+// Preference関連インポート
+import {
+  setPreferenceHearServiceFactory,
+  setPreferenceGetServiceFactory,
+  setPreferenceResetServiceFactory,
+} from '../tools/preference';
+import {
+  createPreferenceProfileServiceFactory,
+  setPreferencePrismaClientFactory,
+  setPreferenceEmbeddingServiceFactory,
+  type IPrismaClient as IPreferencePrismaClient,
+} from './preference-profile.service';
 
 // Embedding Handler関連インポート（backfill DI用）
 import {
@@ -183,6 +207,8 @@ import type {
  */
 export interface IEmbeddingService {
   generateEmbedding(text: string, type?: 'query' | 'passage'): Promise<number[]>;
+  /** GPU VRAMアイドルタイムアウト設定 / Set idle timeout for GPU VRAM auto-release */
+  setIdleTimeout?(ms: number): void;
 }
 
 /**
@@ -413,6 +439,9 @@ export function initializeMotionServices(
         }) as unknown as IMotionSearchPrismaClient
     );
     setMotionSearchServiceFactory(createMotionSearchServiceFactory());
+    // 嗜好リランキング用PrismaClientFactory登録（$queryRawUnsafeのみ使用）
+    // Register PrismaClientFactory for preference reranking (uses $queryRawUnsafe only)
+    setMotionSearchRerankPrismaClientFactory(() => config.prisma as unknown as IPreferencePrismaClient);
     registeredFactories.push('motionSearch');
     logger.info('[ServiceInitializer] motionSearch factory registered');
 
@@ -573,6 +602,9 @@ export function initializeLayoutServices(
         }) as unknown as ILayoutSearchPrismaClient
     );
     setLayoutSearchServiceFactory(createLayoutSearchServiceFactory());
+    // 嗜好リランキング用PrismaClientFactory登録（$queryRawUnsafeのみ使用）
+    // Register PrismaClientFactory for preference reranking (uses $queryRawUnsafe only)
+    setLayoutSearchRerankPrismaClientFactory(() => config.prisma as unknown as IPreferencePrismaClient);
     registeredFactories.push('layoutSearch');
     logger.info('[ServiceInitializer] layoutSearch factory registered (with EmbeddingService + PrismaClient)');
 
@@ -955,6 +987,9 @@ export function initializeAllServices(
         embeddingService: config.embeddingService,
       })
     );
+    // 嗜好リランキング用PrismaClientFactory登録（$queryRawUnsafeのみ使用）
+    // Register PrismaClientFactory for preference reranking (uses $queryRawUnsafe only)
+    setNarrativeSearchRerankPrismaClientFactory(() => config.prisma as unknown as IPreferencePrismaClient);
     allRegistered.push('narrativeSearch');
     allCategories.push('narrative');
     logger.info('[ServiceInitializer] narrativeSearch factory registered');
@@ -978,6 +1013,9 @@ export function initializeAllServices(
         embeddingService: config.embeddingService,
       })
     );
+    // 嗜好リランキング用PrismaClientFactory登録（$queryRawUnsafeのみ使用）
+    // Register PrismaClientFactory for preference reranking (uses $queryRawUnsafe only)
+    setBackgroundSearchRerankPrismaClientFactory(() => config.prisma as unknown as IPreferencePrismaClient);
     allRegistered.push('backgroundSearch');
     allCategories.push('background');
     logger.info('[ServiceInitializer] backgroundSearch factory registered');
@@ -1000,6 +1038,9 @@ export function initializeAllServices(
         embeddingService: config.embeddingService,
       })
     );
+    // 嗜好リランキング用PrismaClientFactory登録（$queryRawUnsafeのみ使用）
+    // Register PrismaClientFactory for preference reranking (uses $queryRawUnsafe only)
+    setResponsiveSearchRerankPrismaClientFactory(() => config.prisma as unknown as IPreferencePrismaClient);
     allRegistered.push('responsiveSearch');
     allCategories.push('responsive');
     logger.info('[ServiceInitializer] responsiveSearch factory registered');
@@ -1010,6 +1051,30 @@ export function initializeAllServices(
     allSkipped.push('responsiveSearch');
     skippedCategoriesInfo.push({
       category: 'Responsive.responsiveSearch',
+      reason: errorMessage,
+    });
+  }
+
+  // Preference サービス初期化（preference.hear/get/reset用）
+  try {
+    // PrismaClient と EmbeddingService の DI ファクトリを先に登録
+    setPreferencePrismaClientFactory(() => config.prisma as unknown as IPreferencePrismaClient);
+    setPreferenceEmbeddingServiceFactory(() => config.embeddingService);
+
+    const preferenceFactory = createPreferenceProfileServiceFactory();
+    setPreferenceHearServiceFactory(preferenceFactory);
+    setPreferenceGetServiceFactory(preferenceFactory);
+    setPreferenceResetServiceFactory(preferenceFactory);
+    allRegistered.push('preferenceHear', 'preferenceGet', 'preferenceReset');
+    allCategories.push('preference');
+    logger.info('[ServiceInitializer] preference factories registered (hear, get, reset)');
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    errors.push(`Preference: ${errorMessage}`);
+    errorsInfo.push({ category: 'Preference', error: errorMessage });
+    allSkipped.push('preferenceHear', 'preferenceGet', 'preferenceReset');
+    skippedCategoriesInfo.push({
+      category: 'Preference.preference',
       reason: errorMessage,
     });
   }
@@ -1178,6 +1243,13 @@ export function initializeAllServices(
   assertProductionRequiredCategoriesInitialized(uniqueCategories);
 
   // =====================================================
+  // GPU VRAM自動解放: EmbeddingServiceアイドルタイムアウト設定
+  // 検索ツール実行後にCUDA VRAMを自動解放し、
+  // 後続のOllama Vision解析がGPUを使用できるようにする
+  // =====================================================
+  configureEmbeddingIdleTimeout(config.embeddingService);
+
+  // =====================================================
   // MCP-INIT-02: 詳細結果をグローバルに保存（system.healthで参照）
   // =====================================================
   lastInitializationResult = {
@@ -1201,4 +1273,59 @@ export function initializeAllServices(
   }
 
   return result;
+}
+
+// =====================================================
+// EmbeddingService GPU VRAM自動解放
+// Embedding idle timeout for automatic GPU VRAM release
+// =====================================================
+
+/** デフォルトのアイドルタイムアウト（30秒） / Default idle timeout (30 seconds) */
+const DEFAULT_EMBEDDING_IDLE_TIMEOUT_MS = 30_000;
+
+/**
+ * EmbeddingServiceにアイドルタイムアウトを設定する。
+ * 最後のembedding生成からN秒後に自動的にdispose()を呼び、
+ * CUDA VRAMを解放する。これにより後続のOllama Vision解析が
+ * GPUを使用できるようになる。
+ *
+ * Configure idle timeout on EmbeddingService.
+ * Automatically calls dispose() N seconds after the last embedding generation
+ * to release CUDA VRAM, allowing subsequent Ollama Vision analysis to use GPU.
+ *
+ * @param embeddingService EmbeddingServiceインスタンス
+ */
+function configureEmbeddingIdleTimeout(embeddingService: IEmbeddingService): void {
+  // setIdleTimeoutメソッドの存在チェック（オプショナルメソッド）
+  // Runtime check for setIdleTimeout method (optional on IEmbeddingService)
+  if (typeof embeddingService.setIdleTimeout !== 'function') {
+    logger.debug(
+      '[ServiceInitializer] EmbeddingService.setIdleTimeout() not available, skipping GPU VRAM idle timeout configuration'
+    );
+    return;
+  }
+
+  // 環境変数でタイムアウト値を設定可能にする（デフォルト30秒）
+  // Allow timeout configuration via environment variable (default 30s)
+  const envTimeout = process.env['EMBEDDING_IDLE_TIMEOUT_MS'];
+  let timeoutMs = DEFAULT_EMBEDDING_IDLE_TIMEOUT_MS;
+
+  if (envTimeout !== undefined) {
+    const parsed = parseInt(envTimeout, 10);
+    if (!Number.isNaN(parsed) && parsed > 0) {
+      timeoutMs = parsed;
+    } else {
+      logger.warn(
+        `[ServiceInitializer] Invalid EMBEDDING_IDLE_TIMEOUT_MS value: "${envTimeout}", using default ${DEFAULT_EMBEDDING_IDLE_TIMEOUT_MS}ms`
+      );
+    }
+  }
+
+  // setIdleTimeoutを呼び出す
+  // Call setIdleTimeout on the embedding service
+  embeddingService.setIdleTimeout(timeoutMs);
+
+  logger.info(
+    `[ServiceInitializer] EmbeddingService GPU VRAM idle timeout configured: ${timeoutMs}ms`
+  );
 }

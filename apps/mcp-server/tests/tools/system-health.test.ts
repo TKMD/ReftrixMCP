@@ -73,10 +73,12 @@ const {
   mockDetect,
   mockIsForceCpuModeEnabled,
   mockClearCache,
+  mockDetectGpuMismatch,
 } = vi.hoisted(() => ({
   mockDetect: vi.fn(),
   mockIsForceCpuModeEnabled: vi.fn(),
   mockClearCache: vi.fn(),
+  mockDetectGpuMismatch: vi.fn(),
 }));
 
 vi.mock('../../src/services/vision/hardware-detector', async () => {
@@ -89,6 +91,7 @@ vi.mock('../../src/services/vision/hardware-detector', async () => {
     detect = mockDetect;
     isForceCpuModeEnabled = mockIsForceCpuModeEnabled;
     clearCache = mockClearCache;
+    detectGpuMismatch = mockDetectGpuMismatch;
   }
 
   return {
@@ -120,6 +123,7 @@ describe('system.health MCPツール', () => {
     });
     mockIsForceCpuModeEnabled.mockReturnValue(true);
     mockClearCache.mockReturnValue(undefined);
+    mockDetectGpuMismatch.mockResolvedValue(null);
   });
 
   afterEach(() => {
@@ -275,8 +279,8 @@ describe('system.health MCPツール', () => {
         expect(result.data.services.initialization?.initializedCategories).toEqual(['motion', 'layout', 'quality', 'page']);
         expect(result.data.services.initialization?.skippedCategories).toEqual([]);
         expect(result.data.services.initialization?.errors).toEqual([]);
-        // v0.1.1: 20 tools (WebDesign専用) - responsive.search追加
-        expect(result.data.services.initialization?.registeredToolCount).toBe(20);
+        // v0.1.3: 23 tools (WebDesign専用) - preference.hear/get/reset追加
+        expect(result.data.services.initialization?.registeredToolCount).toBe(23);
       }
     });
 

@@ -5,7 +5,7 @@
  * MCP Tools Export
  * WebDesign専用ツールハンドラーとツール定義のエクスポート
  *
- * Total: 19 tools
+ * Total: 22 tools
  * - Style: style.get_palette
  * - System: system.health
  * - Layout: layout.inspect, layout.ingest, layout.search, layout.generate_code, layout.batch_ingest
@@ -17,6 +17,7 @@
  * - Narrative: narrative.search
  * - Background: background.search
  * - Responsive: responsive.search
+ * - Preference: preference.hear, preference.get, preference.reset
  */
 
 // style系スキーマのエクスポート（style.get_palette用）
@@ -336,6 +337,8 @@ export {
   backgroundSearchToolDefinition,
   setBackgroundSearchServiceFactory,
   resetBackgroundSearchServiceFactory,
+  setBackgroundSearchPrismaClientFactory,
+  resetBackgroundSearchPrismaClientFactory,
   type IBackgroundSearchService,
   type BackgroundSearchInput,
   type BackgroundSearchOutput,
@@ -357,6 +360,8 @@ export {
   responsiveSearchToolDefinition,
   setResponsiveSearchServiceFactory,
   resetResponsiveSearchServiceFactory,
+  setResponsiveSearchPrismaClientFactory,
+  resetResponsiveSearchPrismaClientFactory,
   type IResponsiveSearchService,
   type ResponsiveSearchInput,
   type ResponsiveSearchOutput,
@@ -373,6 +378,55 @@ export {
   type ViewportPair,
   type ResponsiveMcpErrorCode,
 } from './responsive/schemas';
+
+// preference.hear ツール（ユーザー嗜好ヒアリングセッション）
+export {
+  preferenceHearHandler,
+  preferenceHearToolDefinition,
+  setPreferenceHearServiceFactory,
+  resetPreferenceHearServiceFactory,
+  type IPreferenceService,
+  type PreferenceSample,
+  type SamplesResult,
+  type FeedbackResult,
+  type ProfileData,
+  type ResetResult,
+  type PreferenceHearOutput,
+} from './preference';
+
+// preference.get ツール（プロファイル取得）
+export {
+  preferenceGetHandler,
+  preferenceGetToolDefinition,
+  setPreferenceGetServiceFactory,
+  resetPreferenceGetServiceFactory,
+  type PreferenceGetOutput,
+} from './preference';
+
+// preference.reset ツール（プロファイルリセット）
+export {
+  preferenceResetHandler,
+  preferenceResetToolDefinition,
+  setPreferenceResetServiceFactory,
+  resetPreferenceResetServiceFactory,
+  type PreferenceResetOutput,
+} from './preference';
+
+// preference.* スキーマのエクスポート
+export {
+  preferenceHearInputSchema,
+  preferenceGetInputSchema,
+  preferenceResetInputSchema,
+  feedbackRatingSchema,
+  feedbackItemSchema,
+  PREFERENCE_MCP_ERROR_CODES,
+  type PreferenceHearInput,
+  type PreferenceGetInput,
+  type PreferenceResetInput,
+  type FeedbackRating,
+  type FeedbackItem,
+  type PreferenceMcpErrorCode,
+} from './preference';
 
 // project.* スキーマのエクスポート
 export {
@@ -427,6 +481,7 @@ import { pageAnalyzeToolDefinition, pageGetJobStatusToolDefinition } from './pag
 import { narrativeSearchToolDefinition } from './narrative/search.tool';
 import { backgroundSearchToolDefinition } from './background/search.tool';
 import { responsiveSearchToolDefinition } from './responsive/search.tool';
+import { preferenceHearToolDefinition, preferenceGetToolDefinition, preferenceResetToolDefinition } from './preference';
 
 export const allToolDefinitions = [
   // style.get_palette（ブランドパレット取得）
@@ -470,6 +525,12 @@ export const allToolDefinitions = [
   backgroundSearchToolDefinition,
   // responsive.search（レスポンシブ分析セマンティック検索）
   responsiveSearchToolDefinition,
+  // preference.hear（ユーザー嗜好ヒアリングセッション）
+  preferenceHearToolDefinition,
+  // preference.get（プロファイル取得）
+  preferenceGetToolDefinition,
+  // preference.reset（プロファイルリセット）
+  preferenceResetToolDefinition,
 ];
 
 /**
@@ -494,6 +555,7 @@ import { pageAnalyzeHandler, pageGetJobStatusHandler } from './page';
 import { narrativeSearchHandler } from './narrative/search.tool';
 import { backgroundSearchHandler } from './background/search.tool';
 import { responsiveSearchHandler } from './responsive/search.tool';
+import { preferenceHearHandler, preferenceGetHandler, preferenceResetHandler } from './preference';
 
 export const toolHandlers: Record<
   string,
@@ -540,6 +602,12 @@ export const toolHandlers: Record<
   'background.search': backgroundSearchHandler,
   // responsive.search（レスポンシブ分析セマンティック検索）
   'responsive.search': responsiveSearchHandler,
+  // preference.hear（ユーザー嗜好ヒアリングセッション）
+  'preference.hear': preferenceHearHandler,
+  // preference.get（プロファイル取得）
+  'preference.get': preferenceGetHandler,
+  // preference.reset（プロファイルリセット）
+  'preference.reset': preferenceResetHandler,
 };
 
 /**

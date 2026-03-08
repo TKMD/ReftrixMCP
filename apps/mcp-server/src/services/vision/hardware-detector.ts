@@ -17,6 +17,8 @@
  * @see apps/mcp-server/tests/services/vision/hardware-detector.test.ts
  */
 
+import { execSync } from 'node:child_process';
+
 // =============================================================================
 // 定数
 // =============================================================================
@@ -113,6 +115,23 @@ interface OllamaPsResponse {
     size?: number;
     size_vram?: number;
   }> | null;
+}
+
+/**
+ * GPU不整合情報 / GPU mismatch information
+ *
+ * nvidia-smiでGPU検出 + Ollama size_vram=0 の不整合を報告する。
+ * Detects mismatch between nvidia-smi GPU detection and Ollama VRAM usage.
+ */
+export interface GpuMismatchInfo {
+  /** 不整合が検出されたか / Whether mismatch was detected */
+  mismatch: boolean;
+  /** nvidia-smiで検出されたGPU名 / GPU name detected by nvidia-smi */
+  nvidia_gpu: string;
+  /** Ollamaが報告したVRAM使用量（バイト） / VRAM bytes reported by Ollama */
+  ollama_vram_bytes: number;
+  /** 是正アクション / Recommended action to resolve */
+  action: string;
 }
 
 /**
@@ -231,6 +250,82 @@ export class HardwareDetector {
    */
   isForceCpuModeEnabled(): boolean {
     return this.forceCpuMode;
+  }
+
+  /**
+   * nvidia-smiでGPUの物理的存在を確認 / Check physical GPU via nvidia-smi
+   *
+   * nvidia-smiが利用不可（未インストール or GPU未搭載）の場合はnullを返す。
+   * Returns null if nvidia-smi is unavailable or no GPU detected.
+   *
+   * @returns GPU名（未検出時はnull） / GPU name (null if not detected)
+   */
+  static queryNvidiaGpu(): string | null {
+    try {
+      const result = execSync(
+        'nvidia-smi --query-gpu=name --format=csv,noheader',
+        { timeout: 3000, encoding: 'utf-8' }
+      );
+      const gpuName = result.trim().split('\n')[0]?.trim();
+      return gpuName || null;
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * nvidia-smiとOllama /api/psのGPU状態をクロスチェック / Cross-check nvidia-smi and Ollama GPU state
+   *
+   * 検出パターン / Detection patterns:
+   * - nvidia-smi: GPU検出 + Ollama: モデルロード済み + size_vram=0 → mismatch
+   * - nvidia-smi: GPU未検出 → null（チェック不要）
+   * - Ollama: モデル未ロード → null（判定不可）
+   * - Ollama: size_vram > 0 → null（正常）
+   *
+   * @returns 不整合情報（問題なしの場合はnull） / Mismatch info (null if OK)
+   */
+  async detectGpuMismatch(): Promise<GpuMismatchInfo | null> {
+    const nvidiaGpu = HardwareDetector.queryNvidiaGpu();
+    if (!nvidiaGpu) return null;
+
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), API_TIMEOUT_MS);
+
+      try {
+        const response = await fetch(`${this.ollamaUrl}/api/ps`, {
+          method: 'GET',
+          signal: controller.signal,
+        });
+
+        if (!response.ok) return null;
+
+        const data = (await response.json()) as OllamaPsResponse;
+        const models = data.models;
+
+        if (!models || !Array.isArray(models) || models.length === 0) {
+          return null;
+        }
+
+        const hasVram = models.some(m => (m.size_vram ?? 0) > 0);
+        if (hasVram) return null;
+
+        return {
+          mismatch: true,
+          nvidia_gpu: nvidiaGpu,
+          ollama_vram_bytes: 0,
+          action:
+            'Ollama is running models on CPU despite GPU being available. ' +
+            'Likely cause: a rogue ollama process started with CUDA_VISIBLE_DEVICES="" is occupying port 11434. ' +
+            'Fix: (1) pkill ollama (2) sudo systemctl restart ollama ' +
+            '(3) Verify: curl http://localhost:11434/api/ps | jq ".models[].size_vram"',
+        };
+      } finally {
+        clearTimeout(timeoutId);
+      }
+    } catch {
+      return null;
+    }
   }
 
   // ===========================================================================

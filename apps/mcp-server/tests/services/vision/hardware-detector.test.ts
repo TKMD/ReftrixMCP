@@ -20,6 +20,7 @@ import {
   HardwareType,
   GpuVendor,
   HardwareInfo,
+  GpuMismatchInfo,
   HARDWARE_CACHE_TTL_MS,
 } from '../../../src/services/vision/hardware-detector.js';
 
@@ -646,6 +647,132 @@ describe('HardwareDetector', () => {
 
       expect(result.type).toBe(HardwareType.CPU);
       expect(result.gpuVendor).toBeUndefined();
+    });
+  });
+
+  // ==========================================================================
+  // GPU Mismatch Detection Tests (REFTRIX-GPU-MISMATCH-01)
+  // ==========================================================================
+
+  describe('GPU Mismatch Detection', () => {
+    let originalQueryNvidiaGpu: typeof HardwareDetector.queryNvidiaGpu;
+
+    beforeEach(() => {
+      originalQueryNvidiaGpu = HardwareDetector.queryNvidiaGpu;
+    });
+
+    afterEach(() => {
+      HardwareDetector.queryNvidiaGpu = originalQueryNvidiaGpu;
+    });
+
+    it('should detect mismatch when nvidia-smi finds GPU but Ollama uses CPU', async () => {
+      // Arrange: nvidia-smi finds GPU
+      HardwareDetector.queryNvidiaGpu = vi.fn().mockReturnValue('NVIDIA GeForce RTX 3060');
+
+      // Ollama has model loaded but with size_vram=0 (CPU mode)
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          models: [{ name: 'llama3.2-vision:latest', size: 11700000000, size_vram: 0 }],
+        }),
+      });
+
+      // Act
+      const result = await detector.detectGpuMismatch();
+
+      // Assert
+      expect(result).not.toBeNull();
+      expect(result!.mismatch).toBe(true);
+      expect(result!.nvidia_gpu).toBe('NVIDIA GeForce RTX 3060');
+      expect(result!.ollama_vram_bytes).toBe(0);
+      expect(result!.action).toContain('pkill ollama');
+      expect(result!.action).toContain('systemctl restart ollama');
+    });
+
+    it('should return null when Ollama uses GPU (no mismatch)', async () => {
+      // Arrange: nvidia-smi finds GPU, Ollama uses VRAM
+      HardwareDetector.queryNvidiaGpu = vi.fn().mockReturnValue('NVIDIA GeForce RTX 3060');
+
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          models: [{ name: 'llama3.2-vision:latest', size: 11700000000, size_vram: 9300000000 }],
+        }),
+      });
+
+      // Act
+      const result = await detector.detectGpuMismatch();
+
+      // Assert
+      expect(result).toBeNull();
+    });
+
+    it('should return null when no physical GPU detected', async () => {
+      // Arrange: nvidia-smi not available or no GPU
+      HardwareDetector.queryNvidiaGpu = vi.fn().mockReturnValue(null);
+
+      // Act
+      const result = await detector.detectGpuMismatch();
+
+      // Assert
+      expect(result).toBeNull();
+      expect(mockFetch).not.toHaveBeenCalled(); // No Ollama call needed
+    });
+
+    it('should return null when no models loaded in Ollama', async () => {
+      // Arrange: GPU present but no Ollama models loaded
+      HardwareDetector.queryNvidiaGpu = vi.fn().mockReturnValue('NVIDIA GeForce RTX 3060');
+
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ models: [] }),
+      });
+
+      // Act
+      const result = await detector.detectGpuMismatch();
+
+      // Assert: Can't determine mismatch without loaded models
+      expect(result).toBeNull();
+    });
+
+    it('should return null when Ollama is unreachable', async () => {
+      // Arrange: GPU present but Ollama down
+      HardwareDetector.queryNvidiaGpu = vi.fn().mockReturnValue('NVIDIA GeForce RTX 3060');
+
+      mockFetch.mockRejectedValueOnce(new Error('ECONNREFUSED'));
+
+      // Act
+      const result = await detector.detectGpuMismatch();
+
+      // Assert
+      expect(result).toBeNull();
+    });
+
+    it('should return null when Ollama returns HTTP error', async () => {
+      // Arrange
+      HardwareDetector.queryNvidiaGpu = vi.fn().mockReturnValue('NVIDIA GeForce RTX 3060');
+
+      mockFetch.mockResolvedValueOnce({
+        ok: false,
+        status: 500,
+        statusText: 'Internal Server Error',
+      });
+
+      // Act
+      const result = await detector.detectGpuMismatch();
+
+      // Assert
+      expect(result).toBeNull();
+    });
+  });
+
+  // ==========================================================================
+  // queryNvidiaGpu Tests
+  // ==========================================================================
+
+  describe('queryNvidiaGpu', () => {
+    it('should be a static method', () => {
+      expect(typeof HardwareDetector.queryNvidiaGpu).toBe('function');
     });
   });
 

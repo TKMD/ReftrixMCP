@@ -8,9 +8,9 @@
 
 ## はじめに / Introduction
 
-Reftrixは **WebDesign専用プラットフォーム** です。このガイドでは、**20のWebDesign専用MCPツール**を活用して、Webページの解析・品質評価・コード生成を行う方法を解説します。
+Reftrixは **WebDesign専用プラットフォーム** です。このガイドでは、**23のWebDesign専用MCPツール**を活用して、Webページの解析・品質評価・コード生成・嗜好プロファイリングを行う方法を解説します。
 
-Reftrix is a **WebDesign-specialized platform**. This guide explains how to use **20 WebDesign-focused MCP tools** to analyze web pages, evaluate design quality, and generate code.
+Reftrix is a **WebDesign-specialized platform**. This guide explains how to use **23 WebDesign-focused MCP tools** to analyze web pages, evaluate design quality, generate code, and personalize search results through preference profiling.
 
 > **重要 / Important**: v0.1.0でSVG機能は削除されました。本ガイドはWebDesign専用ツールのみを扱います。
 > All SVG features were removed in v0.1.0. This guide covers WebDesign-only tools.
@@ -40,9 +40,10 @@ Reftrix is a **WebDesign-specialized platform**. This guide explains how to use 
 11. [Narrative（ナラティブ）ツール](#11-narrativeナラティブツール)
 12. [Background（背景）ツール](#12-background背景ツール)
 13. [Responsive（レスポンシブ）ツール](#13-responsiveレスポンシブツール)
-14. [実践ワークフロー](#14-実践ワークフロー)
-15. [パフォーマンス最適化](#15-パフォーマンス最適化)
-16. [トラブルシューティング](#16-トラブルシューティング)
+14. [Preference（嗜好プロファイリング）ツール](#14-preference嗜好プロファイリングツール)
+15. [実践ワークフロー](#15-実践ワークフロー)
+16. [パフォーマンス最適化](#16-パフォーマンス最適化)
+17. [トラブルシューティング](#17-トラブルシューティング)
 
 ---
 
@@ -95,7 +96,7 @@ const result = await page.analyze({
 
 ## 2. ツールカテゴリ概要 / Tool Category Overview
 
-### WebDesign MCPツール（20ツール） / WebDesign MCP Tools (20 Tools)
+### WebDesign MCPツール（23ツール） / WebDesign MCP Tools (23 Tools)
 
 | カテゴリ / Category | ツール数 / Count | 主な用途 / Primary Purpose |
 |---------|---------|---------|
@@ -110,6 +111,7 @@ const result = await page.analyze({
 | **Narrative** | 1 | 世界観・レイアウト構成セマンティック検索 / Worldview and layout semantic search |
 | **Background** | 1 | バックグラウンドデザインパターン検索 / Background design pattern search |
 | **Responsive** | 1 | レスポンシブ分析結果のセマンティック検索 / Responsive analysis semantic search |
+| **Preference** | 3 | 嗜好プロファイリング・検索パーソナライズ / Preference profiling and search personalization |
 
 ### ツール選択のフローチャート / Tool Selection Flowchart
 
@@ -135,6 +137,11 @@ const result = await page.analyze({
 │
 ├─ デザインを改善したい
 │  └─ 品質評価 → quality.evaluate
+│
+├─ 検索結果を自分好みにしたい
+│  ├─ 嗜好ヒアリング → preference.hear
+│  ├─ プロファイル確認 → preference.get
+│  └─ リセット/削除 → preference.reset
 │
 └─ プロジェクト管理
    ├─ ブランドパレット → style.get_palette
@@ -1192,7 +1199,7 @@ const result = await system.health({
 // レスポンス:
 // - status: 'HEALTHY' | 'DEGRADED' | 'UNHEALTHY'
 // - database: { status: 'HEALTHY', latency_ms: 5 }
-// - mcp_tools: { total_tools: 20, available: 20 }
+// - mcp_tools: { total_tools: 23, available: 23 }
 // - system_resources: { cpu_usage: 0.25, memory_usage: 0.45 }
 ```
 
@@ -1541,7 +1548,115 @@ const results = await responsive.search({
 
 ---
 
-## 14. 実践ワークフロー / Practical Workflows
+## 14. Preference（嗜好プロファイリング）ツール / Preference (Profiling) Tools
+
+嗜好プロファイリングツールは、ユーザーのデザイン嗜好をインタラクティブに学習し、検索結果をパーソナライズします。フィードバックセッションを通じて嗜好プロファイルを構築し、全検索ツール（layout/motion/background/narrative/responsive search）にpreference rerankingを適用します。
+
+Preference profiling tools interactively learn user design preferences and personalize search results. They build preference profiles through feedback sessions and apply preference reranking across all search tools (layout/motion/background/narrative/responsive search).
+
+> **プライバシー / Privacy**: 嗜好プロファイリングはGDPR準拠で設計されています。新規プロファイル作成時にはArt.13/14に基づく通知が返却されます。詳細は [PRIVACY.md](../../apps/mcp-server/PRIVACY.md) および [DATA_RETENTION.md](../../apps/mcp-server/DATA_RETENTION.md) を参照してください。
+>
+> Preference profiling is designed with GDPR compliance. A notification based on Art.13/14 is returned when a new profile is created. See [PRIVACY.md](../../apps/mcp-server/PRIVACY.md) and [DATA_RETENTION.md](../../apps/mcp-server/DATA_RETENTION.md) for details.
+
+### 14.1 preference.hear - 嗜好ヒアリング / Preference Hearing
+
+**用途 / Purpose**: ユーザーのデザイン嗜好をインタラクティブにヒアリング / Interactively learn user design preferences
+
+**動作モード / Operation Modes**:
+
+| モード / Mode | トリガー / Trigger | 動作 / Behavior |
+|---|---|---|
+| Mode A（サンプル提示） | フィードバックなし | DBからサンプルデザインを提示し、2因子confidence進捗をトラッキング / Present sample designs from DB with 2-factor confidence tracking |
+| Mode B（フィードバック記録） | フィードバックあり | フィードバックを記録し、嗜好プロファイルを更新 / Record feedback and update preference profile |
+
+**基本的な使い方 / Basic Usage**
+
+```typescript
+// ステップ1: ヒアリング開始（サンプル取得） / Step 1: Start hearing (get samples)
+const result = await preference.hear({});
+// → Mode A: サンプルデザインと新規profile_idが返却
+// → 初回はprofiling_noticeも含まれる（GDPR Art.13/14）
+
+// ステップ2: フィードバック送信 / Step 2: Send feedback
+const result2 = await preference.hear({
+  profile_id: result.data.profile_id,
+  feedback: {
+    sample_id: result.data.samples[0].id,
+    rating: 'positive',
+    comment: 'このグラデーション背景が好き'
+  },
+  exclude_ids: [result.data.samples[0].id]
+});
+
+// ステップ3: confidence閾値（0.8）に達するまで繰り返し（最大15回）
+// Step 3: Repeat until confidence threshold (0.8) reached (max 15 hearings)
+```
+
+**confidenceモデル / Confidence Model**
+
+| 因子 / Factor | 重み / Weight | 説明 / Description |
+|---|---|---|
+| MoodCategory Coverage | 0.6 | 多様なデザインカテゴリへのフィードバック網羅率 / Feedback coverage across diverse design categories |
+| Interaction Sufficiency | 0.4 | フィードバック回数の十分性 / Sufficiency of feedback count |
+| 閾値 / Threshold | 0.8 | プロファイル完成判定 / Profile completion threshold |
+
+---
+
+### 14.2 preference.get - プロファイル取得 / Get Profile
+
+**用途 / Purpose**: 嗜好プロファイルの詳細取得・データエクスポート / Retrieve profile details and export data
+
+**基本的な使い方 / Basic Usage**
+
+```typescript
+// プロファイル概要取得 / Get profile summary
+const profile = await preference.get({
+  profile_id: '<uuid>'
+});
+
+// 全シグナルデータ含むエクスポート（GDPR Art. 20 データポータビリティ）
+// Export with all signal data (GDPR Art. 20 Data Portability)
+const exportData = await preference.get({
+  profile_id: '<uuid>',
+  include_signals: true
+});
+```
+
+---
+
+### 14.3 preference.reset - プロファイルリセット / Reset Profile
+
+**用途 / Purpose**: 嗜好プロファイルのリセットまたは完全削除 / Reset or permanently delete preference profile
+
+**基本的な使い方 / Basic Usage**
+
+```typescript
+// ソフトリセット（嗜好データクリア、プロファイル枠は維持）
+// Soft reset (clear preference data, keep profile shell)
+await preference.reset({
+  profile_id: '<uuid>',
+  confirm: true
+});
+
+// 完全削除（GDPR Art. 17 忘れられる権利）
+// Hard delete (GDPR Art. 17 Right to Erasure)
+await preference.reset({
+  profile_id: '<uuid>',
+  confirm: true,
+  hard_delete: true
+});
+```
+
+**ベストプラクティス / Best Practices**
+
+- ヒアリングは5-10回のフィードバックで十分なconfidenceに到達可能 / 5-10 feedback rounds typically reach sufficient confidence
+- `exclude_ids` で既に表示したサンプルを除外し、重複を防止 / Use `exclude_ids` to exclude already-shown samples and prevent duplicates
+- プロファイル完成後は全検索ツール（layout/motion/background/narrative/responsive search）で自動的にリランキングが適用 / After profile completion, reranking is automatically applied across all search tools
+- ユーザーのデータ権利（アクセス・エクスポート・削除）はすべてMCPツール経由で行使可能 / All user data rights (access, export, deletion) can be exercised via MCP tools
+
+---
+
+## 15. 実践ワークフロー / Practical Workflows
 
 ### ワークフロー1: アワードサイトを参考にデザインを作成 / Workflow 1: Create Design Based on Award Sites
 
@@ -1641,7 +1756,7 @@ const code = await layout.generate_code({
 
 ---
 
-## 15. パフォーマンス最適化 / Performance Optimization
+## 16. パフォーマンス最適化 / Performance Optimization
 
 ### summary=true の活用 / Leveraging summary=true
 
@@ -1711,7 +1826,7 @@ await layout.search({
 
 ---
 
-## 16. トラブルシューティング / Troubleshooting
+## 17. トラブルシューティング / Troubleshooting
 
 ### よくある問題と解決策 / Common Issues and Solutions
 
@@ -1817,9 +1932,9 @@ await page.analyze({
 
 ## まとめ / Summary
 
-このガイドでは、Reftrixの20 WebDesign MCPツールを活用してWebページの解析・品質評価・コード生成を行う方法を解説しました。
+このガイドでは、Reftrixの23 WebDesign MCPツールを活用してWebページの解析・品質評価・コード生成・嗜好プロファイリングを行う方法を解説しました。
 
-This guide explained how to use Reftrix's 20 WebDesign MCP tools for web page analysis, quality evaluation, and code generation.
+This guide explained how to use Reftrix's 23 WebDesign MCP tools for web page analysis, quality evaluation, code generation, and preference profiling.
 
 ### 次のステップ / Next Steps
 

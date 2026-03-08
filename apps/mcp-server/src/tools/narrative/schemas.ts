@@ -661,6 +661,12 @@ export const narrativeSearchInputSchema = z
 
     /** オプション */
     options: narrativeSearchOptionsSchema.optional(),
+
+    /**
+     * 嗜好プロファイルID（検索結果のリランキングに使用）
+     * Preference profile ID (used for search result reranking)
+     */
+    profile_id: z.string().uuid().optional(),
   })
   .refine(
     (data) => {

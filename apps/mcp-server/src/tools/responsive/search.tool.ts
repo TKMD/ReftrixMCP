@@ -26,6 +26,8 @@ import type {
   ResponsiveSearchResult,
   ResponsiveSearchOptions,
 } from '../../services/responsive-search.service';
+import { applyPreferenceReranking } from '../../services/preference-rerank.helper';
+import type { IPrismaClient } from '../../services/preference-profile.service';
 
 // =====================================================
 // 型定義
@@ -84,6 +86,30 @@ export function resetResponsiveSearchServiceFactory(): void {
 }
 
 export { IResponsiveSearchService };
+
+/**
+ * PrismaClientファクトリー（嗜好リランキング用DI）
+ * PrismaClient factory (DI for preference reranking)
+ */
+let prismaClientFactory: (() => IPrismaClient) | null = null;
+
+/**
+ * PrismaClientファクトリーを設定（嗜好リランキング用）
+ * Set PrismaClient factory (for preference reranking)
+ */
+export function setResponsiveSearchPrismaClientFactory(
+  factory: () => IPrismaClient
+): void {
+  prismaClientFactory = factory;
+}
+
+/**
+ * PrismaClientファクトリーをリセット（テスト用）
+ * Reset PrismaClient factory (for testing)
+ */
+export function resetResponsiveSearchPrismaClientFactory(): void {
+  prismaClientFactory = null;
+}
 
 // =====================================================
 // エラーコード判定
@@ -231,7 +257,7 @@ export async function responsiveSearchHandler(
     );
 
     // 結果マッピング
-    const mappedResults: ResponsiveSearchResultItem[] = searchResult.results.map(
+    let mappedResults: ResponsiveSearchResultItem[] = searchResult.results.map(
       (r: ResponsiveSearchResult) => ({
         id: r.id,
         similarity: r.similarity,
@@ -259,6 +285,9 @@ export async function responsiveSearchHandler(
         searchTimeMs,
       });
     }
+
+    // 嗜好プロファイルによるリランキング / Preference profile reranking
+    mappedResults = await applyPreferenceReranking(mappedResults, validated.profile_id, prismaClientFactory, 'responsive', 'responsive.search');
 
     return {
       success: true,
@@ -363,6 +392,12 @@ export const responsiveSearchToolDefinition = {
             description: 'WebページIDでフィルター',
           },
         },
+      },
+      // Preference reranking
+      profile_id: {
+        type: 'string',
+        format: 'uuid',
+        description: '嗜好プロファイルID（検索結果のリランキングに使用） / Preference profile ID (used for search result reranking)',
       },
     },
     required: ['query'],

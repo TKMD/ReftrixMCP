@@ -175,6 +175,12 @@ export interface VisionHardwareStatus {
   detection_error?: string;
   /** Ollama接続URL */
   ollama_url: string;
+  /** Ollama GPU不整合が検出されたか / Whether Ollama GPU mismatch was detected (REFTRIX-GPU-MISMATCH-01) */
+  ollama_gpu_mismatch?: boolean;
+  /** nvidia-smiで検出されたGPU名 / GPU name detected by nvidia-smi */
+  nvidia_gpu_name?: string;
+  /** 不整合解消のためのアクション / Recommended action to resolve mismatch */
+  gpu_mismatch_action?: string;
 }
 
 /**
@@ -555,6 +561,25 @@ export async function systemHealthHandler(
           ollama_url: 'http://localhost:11434', // デフォルトOllama URL
         };
 
+        // Ollama GPU不整合検出（REFTRIX-GPU-MISMATCH-01）
+        const gpuMismatch = await hardwareDetector.detectGpuMismatch();
+        if (gpuMismatch) {
+          healthData.vision_hardware!.ollama_gpu_mismatch = true;
+          healthData.vision_hardware!.nvidia_gpu_name = gpuMismatch.nvidia_gpu;
+          healthData.vision_hardware!.gpu_mismatch_action = gpuMismatch.action;
+
+          if (healthData.status === 'healthy') {
+            healthData.status = 'degraded';
+          }
+
+          logger.warn('[MCP Tool] Ollama GPU mismatch detected', {
+            nvidia_gpu: gpuMismatch.nvidia_gpu,
+            ollama_vram_bytes: gpuMismatch.ollama_vram_bytes,
+            action: gpuMismatch.action,
+            requestId,
+          });
+        }
+
         if (isDevelopment()) {
           logger.info('[MCP Tool] Vision hardware status', {
             forceCpuMode: hardwareDetector.isForceCpuModeEnabled(),
@@ -563,6 +588,7 @@ export async function systemHealthHandler(
             vramBytes: hardwareInfo.vramBytes,
             isGpuAvailable: hardwareInfo.isGpuAvailable,
             error: hardwareInfo.error,
+            gpuMismatch: gpuMismatch?.mismatch ?? false,
             requestId,
           });
         }

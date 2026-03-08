@@ -81,6 +81,11 @@ export const backgroundSearchInputSchema = z.object({
   offset: z.number().min(0).default(0),
   /** 検索フィルター */
   filters: backgroundSearchFiltersSchema,
+  /**
+   * 嗜好プロファイルID（検索結果のリランキングに使用）
+   * Preference profile ID (used for search result reranking)
+   */
+  profile_id: z.string().uuid().optional(),
 });
 
 export type BackgroundSearchInput = z.infer<typeof backgroundSearchInputSchema>;

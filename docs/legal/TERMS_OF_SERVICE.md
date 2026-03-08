@@ -24,6 +24,7 @@ Reftrix（以下「本ソフトウェア」）は、Webデザインの構造化�
 - **モーション検出（Motion Detection）**: CSS/JSアニメーションの検出・分類
 - **品質評価（Quality Evaluation）**: Vision LLMを活用したデザイン品質スコアリング
 - **Embedding生成・類似検索**: multilingual-e5-baseモデルによるベクトル化とpgvectorによる類似検索
+- **嗜好プロファイリング（Preference Profiling）**: ユーザーのデザインフィードバックに基づく検索結果のパーソナライズ（オプトイン。詳細は[プライバシーポリシー](./PRIVACY_POLICY.md)第1条7項参照）
 - **Webページ取込（Page Ingestion）**: URL指定によるHTML/CSS/JS/スクリーンショットの取得
 
 #### 1.2 提供形態
@@ -325,6 +326,7 @@ Reftrix (the "Software") is an open-source software platform for structural anal
 - **Motion Detection**: CSS/JS animation detection and classification
 - **Quality Evaluation**: Design quality scoring using Vision LLM
 - **Embedding Generation and Similarity Search**: Vectorization with multilingual-e5-base model and similarity search via pgvector
+- **Preference Profiling**: Search result personalization based on user design feedback (opt-in; see [Privacy Policy](./PRIVACY_POLICY.md) Section 1.7 for details)
 - **Page Ingestion**: HTML/CSS/JS/screenshot retrieval from specified URLs
 
 #### 1.2 Delivery Model

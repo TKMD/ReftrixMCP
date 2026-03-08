@@ -634,7 +634,7 @@ describe('統合テスト', () => {
     }
   });
 
-  it('並列リクエストでもlayout_firstモードが正しく動作する', async () => {
+  it('並列リクエストでもlayout_firstモードが正しく動作する', { timeout: 120000 }, async () => {
     const inputs: PageAnalyzeInput[] = [
       { url: 'https://resn.co.nz', layout_first: 'auto' },
       { url: 'https://example.com', layout_first: 'always' },

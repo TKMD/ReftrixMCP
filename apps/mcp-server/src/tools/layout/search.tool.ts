@@ -34,6 +34,8 @@ import {
   calculateContextBoost,
   type InferredContext,
 } from '../../services/query-context-analyzer';
+import { applyPreferenceReranking } from '../../services/preference-rerank.helper';
+import type { IPrismaClient } from '../../services/preference-profile.service';
 import {
   ProjectContextAnalyzer,
   type ProjectPatterns,
@@ -324,6 +326,30 @@ export function setMoodBrandToneSearchServiceFactory(
  */
 export function resetMoodBrandToneSearchServiceFactory(): void {
   moodBrandToneSearchServiceFactory = null;
+}
+
+/**
+ * PrismaClientファクトリー（嗜好リランキング用DI）
+ * PrismaClient factory (DI for preference reranking)
+ */
+let prismaClientFactory: (() => IPrismaClient) | null = null;
+
+/**
+ * PrismaClientファクトリーを設定（嗜好リランキング用）
+ * Set PrismaClient factory (for preference reranking)
+ */
+export function setLayoutSearchPrismaClientFactory(
+  factory: () => IPrismaClient
+): void {
+  prismaClientFactory = factory;
+}
+
+/**
+ * PrismaClientファクトリーをリセット（テスト用）
+ * Reset PrismaClient factory (for testing)
+ */
+export function resetLayoutSearchPrismaClientFactory(): void {
+  prismaClientFactory = null;
 }
 
 // =====================================================
@@ -1698,7 +1724,7 @@ export async function layoutSearchHandler(
     }
 
     // 結果をマップ（ProjectContext解析が成功した場合はadaptabilityを計算、セマンティックメタデータを含める）
-    const mappedResults = searchResult.results.map((r) => {
+    let mappedResults = searchResult.results.map((r) => {
       let adaptabilityInfo: AdaptabilityInfo | undefined;
 
       if (projectPatterns && r.htmlSnippet) {
@@ -1794,6 +1820,9 @@ export async function layoutSearchHandler(
         contextBoostApplied,
       });
     }
+
+    // 嗜好プロファイルによるリランキング / Preference profile reranking
+    mappedResults = await applyPreferenceReranking(mappedResults, validated.profile_id, prismaClientFactory, 'layout', 'layout.search');
 
     // REFTRIX-LAYOUT-02: Build inferred_context output
     let inferredContextOutput: InferredContextOutput | undefined;
@@ -2062,6 +2091,12 @@ export const layoutSearchToolDefinition = {
             description: 'RRFのkパラメータ（1-100、デフォルト: 60）',
           },
         },
+      },
+      // Preference reranking
+      profile_id: {
+        type: 'string',
+        format: 'uuid',
+        description: '嗜好プロファイルID（検索結果のリランキングに使用） / Preference profile ID (used for search result reranking)',
       },
     },
     required: ['query'],

@@ -218,6 +218,10 @@ export class EmbeddingService {
   // --- Provider tracking ---
   private currentProvider: 'cpu' | 'cuda' = 'cpu';
 
+  // --- Idle timer for automatic VRAM release ---
+  private idleTimer: ReturnType<typeof setTimeout> | null = null;
+  private idleTimeoutMs: number = 0;
+
   // --- In-process fallback state (legacy) ---
   private pipeline: DisposablePipeline | null = null;
   private initPromise: Promise<void> | null = null;
@@ -620,6 +624,66 @@ export class EmbeddingService {
   }
 
   // =====================================================
+  // Idle timer for automatic VRAM release
+  // =====================================================
+
+  /**
+   * Set the idle timeout for automatic VRAM release.
+   *
+   * When set to a positive value (ms), the service will automatically call
+   * dispose() after no embedding generation activity for the specified duration.
+   * This frees GPU VRAM (e.g. 1,406 MiB for multilingual-e5-base on CUDA)
+   * so that other GPU consumers (e.g. Ollama Vision at 11.7 GB) can use it.
+   *
+   * dispose() preserves the CUDA provider setting, so the next inference call
+   * will re-initialize with CUDA automatically (unlike releaseGpu() which
+   * forces CPU).
+   *
+   * @param ms - Timeout in milliseconds. 0 disables the idle timer.
+   */
+  setIdleTimeout(ms: number): void {
+    this.idleTimeoutMs = ms;
+    // Clear any existing timer when reconfiguring
+    if (this.idleTimer !== null) {
+      clearTimeout(this.idleTimer);
+      this.idleTimer = null;
+    }
+    if (process.env.NODE_ENV === 'development') {
+      // eslint-disable-next-line no-console
+      console.log('[ML] Idle timeout set to %dms (0 = disabled)', ms);
+    }
+  }
+
+  /**
+   * Reset the idle timer after an embedding generation completes.
+   * Called in finally blocks of generateEmbedding() and generateBatchEmbeddings().
+   */
+  private resetIdleTimer(): void {
+    if (this.idleTimeoutMs <= 0) return;
+
+    if (this.idleTimer !== null) {
+      clearTimeout(this.idleTimer);
+    }
+
+    this.idleTimer = setTimeout(() => {
+      this.idleTimer = null;
+      if (process.env.NODE_ENV === 'development') {
+        // eslint-disable-next-line no-console
+        console.log('[ML] Idle timeout reached (%dms), disposing ONNX pipeline to free VRAM', this.idleTimeoutMs);
+      }
+      // Fire-and-forget: dispose() is safe to call and errors are caught internally
+      void this.dispose().catch((err) => {
+        console.warn('[ML] Idle timer dispose failed:', err instanceof Error ? err.message : String(err));
+      });
+    }, this.idleTimeoutMs);
+
+    // Ensure the timer does not prevent Node.js process from exiting
+    if (this.idleTimer && typeof this.idleTimer === 'object' && 'unref' in this.idleTimer) {
+      this.idleTimer.unref();
+    }
+  }
+
+  // =====================================================
   // Public API
   // =====================================================
 
@@ -704,6 +768,8 @@ export class EmbeddingService {
         // eslint-disable-next-line no-console
         console.log('[ML] Cache hit for:', text.substring(0, 30));
       }
+      // Cache hits also reset the idle timer (service is still "active")
+      this.resetIdleTimer();
       return cached;
     }
 
@@ -717,29 +783,33 @@ export class EmbeddingService {
       console.log('[ML] Generating embedding for:', prefixedText.substring(0, 50));
     }
 
-    let embedding: number[];
+    try {
+      let embedding: number[];
 
-    if (this.useWorkerThread) {
-      embedding = await this.generateViaWorker(prefixedText);
-    } else {
-      embedding = await this.generateInProcess(prefixedText);
+      if (this.useWorkerThread) {
+        embedding = await this.generateViaWorker(prefixedText);
+      } else {
+        embedding = await this.generateInProcess(prefixedText);
+      }
+
+      // Ensure proper dimension
+      if (embedding.length !== EMBEDDING_DIMENSION) {
+        console.warn(`[ML] Warning: Expected ${EMBEDDING_DIMENSION} dimensions, got ${embedding.length}`);
+      }
+
+      // Cache the result
+      this.setCacheEntry(cacheKey, embedding);
+
+      const elapsedMs = Date.now() - startTime;
+      if (process.env.NODE_ENV === 'development') {
+        // eslint-disable-next-line no-console
+        console.log('[ML] Embedding generated in', elapsedMs, 'ms');
+      }
+
+      return embedding;
+    } finally {
+      this.resetIdleTimer();
     }
-
-    // Ensure proper dimension
-    if (embedding.length !== EMBEDDING_DIMENSION) {
-      console.warn(`[ML] Warning: Expected ${EMBEDDING_DIMENSION} dimensions, got ${embedding.length}`);
-    }
-
-    // Cache the result
-    this.setCacheEntry(cacheKey, embedding);
-
-    const elapsedMs = Date.now() - startTime;
-    if (process.env.NODE_ENV === 'development') {
-      // eslint-disable-next-line no-console
-      console.log('[ML] Embedding generated in', elapsedMs, 'ms');
-    }
-
-    return embedding;
   }
 
   /**
@@ -821,65 +891,69 @@ export class EmbeddingService {
       console.log('[ML] Generating batch embeddings for', texts.length, 'texts');
     }
 
-    // Check cache for each text
-    const results: (number[] | undefined)[] = new Array(texts.length);
-    const uncachedIndices: number[] = [];
-    const uncachedTexts: string[] = [];
+    try {
+      // Check cache for each text
+      const results: (number[] | undefined)[] = new Array(texts.length);
+      const uncachedIndices: number[] = [];
+      const uncachedTexts: string[] = [];
 
-    for (let i = 0; i < texts.length; i++) {
-      const text = texts[i];
-      if (text === undefined) continue;
+      for (let i = 0; i < texts.length; i++) {
+        const text = texts[i];
+        if (text === undefined) continue;
 
-      const cacheKey = this.getCacheKey(text, type);
-      const cached = this.getCacheEntry(cacheKey);
-      if (cached) {
-        this.cacheHits++;
-        results[i] = cached;
-      } else {
-        this.cacheMisses++;
-        uncachedIndices.push(i);
-        uncachedTexts.push(text);
-      }
-    }
-
-    // Generate embeddings for uncached texts
-    if (uncachedTexts.length > 0) {
-      const prefixedTexts = uncachedTexts.map((text) => E5_PREFIX[type] + text);
-
-      let generatedEmbeddings: number[][];
-
-      if (this.useWorkerThread) {
-        generatedEmbeddings = await this.generateBatchViaWorker(prefixedTexts);
-      } else {
-        generatedEmbeddings = await this.generateBatchInProcess(prefixedTexts);
-      }
-
-      // Store results and cache
-      for (let j = 0; j < generatedEmbeddings.length; j++) {
-        const originalIndex = uncachedIndices[j];
-        const embedding = generatedEmbeddings[j];
-
-        if (originalIndex === undefined || embedding === undefined) continue;
-
-        results[originalIndex] = embedding;
-
-        // Cache the result
-        const originalText = texts[originalIndex];
-        if (originalText !== undefined) {
-          const cacheKey = this.getCacheKey(originalText, type);
-          this.setCacheEntry(cacheKey, embedding);
+        const cacheKey = this.getCacheKey(text, type);
+        const cached = this.getCacheEntry(cacheKey);
+        if (cached) {
+          this.cacheHits++;
+          results[i] = cached;
+        } else {
+          this.cacheMisses++;
+          uncachedIndices.push(i);
+          uncachedTexts.push(text);
         }
       }
+
+      // Generate embeddings for uncached texts
+      if (uncachedTexts.length > 0) {
+        const prefixedTexts = uncachedTexts.map((text) => E5_PREFIX[type] + text);
+
+        let generatedEmbeddings: number[][];
+
+        if (this.useWorkerThread) {
+          generatedEmbeddings = await this.generateBatchViaWorker(prefixedTexts);
+        } else {
+          generatedEmbeddings = await this.generateBatchInProcess(prefixedTexts);
+        }
+
+        // Store results and cache
+        for (let j = 0; j < generatedEmbeddings.length; j++) {
+          const originalIndex = uncachedIndices[j];
+          const embedding = generatedEmbeddings[j];
+
+          if (originalIndex === undefined || embedding === undefined) continue;
+
+          results[originalIndex] = embedding;
+
+          // Cache the result
+          const originalText = texts[originalIndex];
+          if (originalText !== undefined) {
+            const cacheKey = this.getCacheKey(originalText, type);
+            this.setCacheEntry(cacheKey, embedding);
+          }
+        }
+      }
+
+      const elapsedMs = Date.now() - startTime;
+
+      if (process.env.NODE_ENV === 'development') {
+        // eslint-disable-next-line no-console
+        console.log('[ML] Batch embeddings generated in', elapsedMs, 'ms');
+      }
+
+      return results.filter((r): r is number[] => r !== undefined);
+    } finally {
+      this.resetIdleTimer();
     }
-
-    const elapsedMs = Date.now() - startTime;
-
-    if (process.env.NODE_ENV === 'development') {
-      // eslint-disable-next-line no-console
-      console.log('[ML] Batch embeddings generated in', elapsedMs, 'ms');
-    }
-
-    return results.filter((r): r is number[] => r !== undefined);
   }
 
   /**
@@ -891,6 +965,12 @@ export class EmbeddingService {
    * After disposal, the next inference call will re-initialize automatically.
    */
   async dispose(): Promise<void> {
+    // Clear idle timer to prevent re-entrant dispose calls
+    if (this.idleTimer !== null) {
+      clearTimeout(this.idleTimer);
+      this.idleTimer = null;
+    }
+
     if (process.env.NODE_ENV === 'development') {
       // eslint-disable-next-line no-console
       console.log('[ML] Disposing ONNX pipeline', {
@@ -923,6 +1003,12 @@ export class EmbeddingService {
    * After this, the service cannot be used until a new instance is created.
    */
   async terminate(): Promise<void> {
+    // Clear idle timer
+    if (this.idleTimer !== null) {
+      clearTimeout(this.idleTimer);
+      this.idleTimer = null;
+    }
+
     if (this.worker) {
       try {
         await this.sendWorkerMessage({

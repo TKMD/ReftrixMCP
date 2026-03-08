@@ -1,6 +1,35 @@
 # 法務ドキュメント変更履歴 / Legal Document Changelog
 
-**法的調査日 / Legal Research Date**: 2026-02-23
+**法的調査日 / Legal Research Date**: 2026-03-08
+
+---
+
+## [0.1.1] - 2026-03-08 (Preference Profiling GDPR Compliance)
+
+> ソフトウェアバージョン v0.1.3 に対応 / Corresponds to software version v0.1.3
+
+### Preference Profiling機能に伴う法務ドキュメント更新 / Legal Document Updates for Preference Profiling Feature
+
+#### PRIVACY_POLICY.md (更新 / Updated: v0.1.0 → v0.1.1)
+- **第1条7項追加 / Section 1.7 added**: 嗜好プロファイルデータの収集項目を追加（嗜好テキスト、嗜好ベクトル、フィードバック記録、フィードバック回数） / Added preference profile data collection items (preference text, preference embedding, feedback records, interaction count)
+- **第2条更新 / Section 2 updated**: 「検索結果のパーソナライズ」を利用目的に追加。「プロファイリング」を禁止目的リストから除外し、GDPR Art. 22(1)適用範囲外の説明を追加 / Added "search result personalization" to purposes of use. Removed "profiling" from prohibited purposes list and added GDPR Art. 22(1) out-of-scope explanation
+- **第5条4項追加 / Section 5.4 added**: `preference.reset` による嗜好データ削除方法（ソフトリセット / ハードデリート）を追加 / Added preference data deletion methods via `preference.reset` (soft reset / hard delete)
+- **参照リンク追加 / Reference links added**: `apps/mcp-server/PRIVACY.md` および `apps/mcp-server/DATA_RETENTION.md` への参照を追加 / Added references to `apps/mcp-server/PRIVACY.md` and `apps/mcp-server/DATA_RETENTION.md`
+
+#### TERMS_OF_SERVICE.md (軽微な更新 / Minor Update)
+- **第1条1項更新 / Section 1.1 updated**: 機能リストに「嗜好プロファイリング（Preference Profiling）」を追加（日本語版・英語版） / Added "Preference Profiling" to feature list (both Japanese and English versions)
+
+#### 新規ドキュメント（`apps/mcp-server/` 配下） / New Documents (under `apps/mcp-server/`)
+- **`PRIVACY.md`**: プロファイリングプライバシーポリシー（GDPR Art. 6/13/14/22対応、8セクション、日英バイリンガル） / Profiling Privacy Policy (GDPR Art. 6/13/14/22 compliant, 8 sections, bilingual)
+- **`DATA_RETENTION.md`**: データ保持ポリシー（GDPR Art. 5/6/13/14/17/20対応、ソフトリセット・ハードデリート・データエクスポート仕様） / Data Retention Policy (GDPR Art. 5/6/13/14/17/20 compliant, soft reset, hard delete, data export specifications)
+
+### 確認済み事項 / Verified Items
+
+#### CONTRIBUTING.md
+- **確認結果 / Result**: プロファイリング/GDPR関連の貢献ガイドライン追加は不要。既存のコーディング規約（`sanitizeErrorMessage()`, `truncateId()`, Zodバリデーション）が十分にカバー / No profiling/GDPR-specific contributing guidelines needed. Existing coding standards cover the necessary patterns
+
+#### `apps/mcp-server/PRIVACY.md` / `DATA_RETENTION.md` — OSS同期確認 / OSS Sync Verification
+- **確認結果 / Result**: `.ossfilter` で除外されていないため、OSS同期時に `oss/apps/mcp-server/` に含まれる。`PRIVACY_POLICY.md` から相互参照リンクを追加済み / Not excluded by `.ossfilter`, so included in OSS sync. Cross-reference links added from `PRIVACY_POLICY.md`
 
 ---
 
@@ -76,8 +105,10 @@
 |-------------|------|---------|------|
 | THIRDPARTY_LICENSES.md | `/THIRDPARTY_LICENSES.md` | 2026-02-18 | 最新 |
 | AI_MODEL_LICENSES.md | `/docs/legal/AI_MODEL_LICENSES.md` | 2026-02-23 | 更新済み |
-| PRIVACY_POLICY.md | `/docs/legal/PRIVACY_POLICY.md` | 2026-02-23 | 最新 |
-| TERMS_OF_SERVICE.md | `/docs/legal/TERMS_OF_SERVICE.md` | -- | 確認済み |
+| PRIVACY_POLICY.md | `/docs/legal/PRIVACY_POLICY.md` | 2026-03-08 | 更新済み（v0.1.1: Preference Profiling対応） |
+| TERMS_OF_SERVICE.md | `/docs/legal/TERMS_OF_SERVICE.md` | 2026-03-08 | 更新済み（Preference Profiling追加） |
+| PRIVACY.md (Profiling) | `/apps/mcp-server/PRIVACY.md` | 2026-03-08 | 新規作成 |
+| DATA_RETENTION.md | `/apps/mcp-server/DATA_RETENTION.md` | 2026-03-08 | 新規作成 |
 | LICENSE_FAQ.md | `/docs/legal/LICENSE_FAQ.md` | -- | 確認済み |
 | LEGAL_RISK_ASSESSMENT.md | `/docs/legal/LEGAL_RISK_ASSESSMENT.md` | 2026-02-22 | 最新 |
 | ROBOTS_TXT_COMPLIANCE.md | `/docs/legal/ROBOTS_TXT_COMPLIANCE.md` | -- | 確認済み |

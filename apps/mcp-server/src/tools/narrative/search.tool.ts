@@ -33,6 +33,8 @@ import type {
   NarrativeSearchOptions as ServiceSearchOptions,
   NarrativeSearchResult,
 } from '../../services/narrative/types/narrative.types';
+import { applyPreferenceReranking } from '../../services/preference-rerank.helper';
+import type { IPrismaClient } from '../../services/preference-profile.service';
 
 // ============================================================================
 // Types
@@ -116,6 +118,30 @@ export function setEmbeddingServiceFactory(
  */
 export function resetEmbeddingServiceFactory(): void {
   embeddingServiceFactory = null;
+}
+
+/**
+ * PrismaClientファクトリー（嗜好リランキング用DI）
+ * PrismaClient factory (DI for preference reranking)
+ */
+let prismaClientFactory: (() => IPrismaClient) | null = null;
+
+/**
+ * PrismaClientファクトリーを設定（嗜好リランキング用）
+ * Set PrismaClient factory (for preference reranking)
+ */
+export function setNarrativeSearchPrismaClientFactory(
+  factory: () => IPrismaClient
+): void {
+  prismaClientFactory = factory;
+}
+
+/**
+ * PrismaClientファクトリーをリセット（テスト用）
+ * Reset PrismaClient factory (for testing)
+ */
+export function resetNarrativeSearchPrismaClientFactory(): void {
+  prismaClientFactory = null;
 }
 
 /**
@@ -295,7 +321,13 @@ export async function narrativeSearchHandler(
 
     // 6. 最小類似度フィルター適用
     const minSimilarity = validatedInput.options?.minSimilarity ?? 0.6;
-    const filteredResults = results.filter((r) => r.score >= minSimilarity);
+    let filteredResults = results.filter((r) => r.score >= minSimilarity);
+
+    // 6.5. 嗜好プロファイルによるリランキング / Preference profile reranking
+    // narrative結果はscoreフィールドを使用するため、similarity にマッピングして戻す
+    // Narrative results use 'score' field, so map to 'similarity' and back
+    const narrativeItems = filteredResults.map((r) => ({ ...r, similarity: r.score }));
+    filteredResults = (await applyPreferenceReranking(narrativeItems, validatedInput.profile_id, prismaClientFactory, 'narrative', 'narrative.search')).map((r) => ({ ...r, score: r.similarity })) as NarrativeSearchResult[];
 
     const searchTimeMs = Date.now() - startTime;
 
@@ -482,6 +514,12 @@ export const narrativeSearchToolDefinition = {
             description: 'Full-text検索の重み（hybridモード時）',
           },
         },
+      },
+      // Preference reranking
+      profile_id: {
+        type: 'string',
+        format: 'uuid',
+        description: '嗜好プロファイルID（検索結果のリランキングに使用） / Preference profile ID (used for search result reranking)',
       },
     },
   },

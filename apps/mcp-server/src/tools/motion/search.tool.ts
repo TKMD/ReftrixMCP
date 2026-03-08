@@ -46,6 +46,8 @@ import {
   ExistingAnimationDetectorService,
   type NewAnimationPattern,
 } from '../../services/motion/existing-animation-detector.service';
+import { applyPreferenceReranking } from '../../services/preference-rerank.helper';
+import type { IPrismaClient } from '../../services/preference-profile.service';
 
 // =====================================================
 // 型定義
@@ -193,6 +195,30 @@ export function setMotionImplementationServiceFactory(
  */
 export function resetMotionImplementationServiceFactory(): void {
   implementationServiceFactory = null;
+}
+
+/**
+ * PrismaClientファクトリー（嗜好リランキング用DI）
+ * PrismaClient factory (DI for preference reranking)
+ */
+let prismaClientFactory: (() => IPrismaClient) | null = null;
+
+/**
+ * PrismaClientファクトリーを設定（嗜好リランキング用）
+ * Set PrismaClient factory (for preference reranking)
+ */
+export function setMotionSearchPrismaClientFactory(
+  factory: () => IPrismaClient
+): void {
+  prismaClientFactory = factory;
+}
+
+/**
+ * PrismaClientファクトリーをリセット（テスト用）
+ * Reset PrismaClient factory (for testing)
+ */
+export function resetMotionSearchPrismaClientFactory(): void {
+  prismaClientFactory = null;
 }
 
 // =====================================================
@@ -1901,9 +1927,15 @@ async function handleSearchAction(
     );
 
     // v0.1.0: include_implementation が true の場合、実装コードを付与
-    const results = validated.include_implementation
+    let results = validated.include_implementation
       ? enrichResultsWithImplementation(diverseResults)
       : diverseResults;
+
+    // 嗜好プロファイルによるリランキング / Preference profile reranking
+    // motion結果はpattern.idにIDがあるため、top-levelにidをマッピング
+    // Motion results have ID in pattern.id, so map id to top-level
+    const resultsWithId = results.map((r) => ({ ...r, id: r.pattern.id }));
+    results = await applyPreferenceReranking(resultsWithId, validated.profile_id, prismaClientFactory, 'motion', 'motion.search') as typeof results;
 
     if (isDevelopment()) {
       logger.info('[MCP Tool] motion.search completed', {
@@ -2436,6 +2468,12 @@ export const motionSearchToolDefinition = {
             description: 'ベンダープレフィックスを含める（デフォルト: false）',
           },
         },
+      },
+      // Preference reranking
+      profile_id: {
+        type: 'string',
+        format: 'uuid',
+        description: '嗜好プロファイルID（検索結果のリランキングに使用） / Preference profile ID (used for search result reranking)',
       },
     },
   },

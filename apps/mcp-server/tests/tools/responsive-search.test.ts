@@ -22,6 +22,8 @@ import {
   responsiveSearchHandler,
   setResponsiveSearchServiceFactory,
   resetResponsiveSearchServiceFactory,
+  setResponsiveSearchPrismaClientFactory,
+  resetResponsiveSearchPrismaClientFactory,
   responsiveSearchToolDefinition,
   type ResponsiveSearchInput,
   type ResponsiveSearchOutput,
@@ -533,6 +535,219 @@ describe('responsive.search MCPツール', () => {
       if (!result.success) {
         expect(result.error.code).toBe(RESPONSIVE_MCP_ERROR_CODES.INTERNAL_ERROR);
       }
+    });
+  });
+
+  // ===================================================
+  // 嗜好プロファイルリランキング
+  // ===================================================
+
+  describe('嗜好プロファイルリランキング', () => {
+    const PROFILE_ID = '11111111-2222-3333-4444-555555555555';
+
+    /**
+     * モックPrismaClientを作成
+     * Create mock PrismaClient for preference reranking
+     */
+    function createMockPrisma(options?: {
+      embedding?: number[] | null;
+      interactionCount?: number;
+    }): { $queryRawUnsafe: ReturnType<typeof vi.fn> } {
+      const embedding = options?.embedding ?? new Array(768).fill(0.5);
+      const interactionCount = options?.interactionCount ?? 10;
+
+      return {
+        $queryRawUnsafe: vi.fn().mockResolvedValue(
+          embedding
+            ? [
+                {
+                  preference_embedding: `[${embedding.join(',')}]`,
+                  interaction_count: interactionCount,
+                },
+              ]
+            : []
+        ),
+      };
+    }
+
+    beforeEach(() => {
+      resetResponsiveSearchServiceFactory();
+      resetResponsiveSearchPrismaClientFactory();
+    });
+
+    afterEach(() => {
+      resetResponsiveSearchServiceFactory();
+      resetResponsiveSearchPrismaClientFactory();
+    });
+
+    it('profile_idが指定されていない場合はリランキングされない', async () => {
+      const mockService = createMockService();
+      setResponsiveSearchServiceFactory(() => mockService);
+
+      const result = (await responsiveSearchHandler({
+        query: 'hamburger menu',
+      })) as ResponsiveSearchOutput;
+
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.results).toHaveLength(3);
+        expect(result.data.results[0]!.similarity).toBe(0.92);
+      }
+    });
+
+    it('PrismaClientFactoryが未設定の場合はリランキングされない', async () => {
+      const mockService = createMockService();
+      setResponsiveSearchServiceFactory(() => mockService);
+      // PrismaClientFactoryは設定しない
+
+      const result = (await responsiveSearchHandler({
+        query: 'hamburger menu',
+        profile_id: PROFILE_ID,
+      })) as ResponsiveSearchOutput;
+
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.results).toHaveLength(3);
+        expect(result.data.results[0]!.similarity).toBe(0.92);
+      }
+    });
+
+    it('profile_idとPrismaClientFactoryが設定されている場合にリランキングが試行される', async () => {
+      const mockService = createMockService();
+      setResponsiveSearchServiceFactory(() => mockService);
+      const mockPrisma = createMockPrisma();
+      setResponsiveSearchPrismaClientFactory(() => mockPrisma as never);
+
+      const result = (await responsiveSearchHandler({
+        query: 'hamburger menu',
+        profile_id: PROFILE_ID,
+      })) as ResponsiveSearchOutput;
+
+      expect(result.success).toBe(true);
+      // PrismaClientが使用された（プロファイル取得）
+      expect(mockPrisma.$queryRawUnsafe).toHaveBeenCalled();
+    });
+
+    it('インタラクション数不足時はリランキングされない（graceful degradation）', async () => {
+      const mockService = createMockService();
+      setResponsiveSearchServiceFactory(() => mockService);
+      const mockPrisma = createMockPrisma({ interactionCount: 2 }); // 閾値5未満
+      setResponsiveSearchPrismaClientFactory(() => mockPrisma as never);
+
+      const result = (await responsiveSearchHandler({
+        query: 'hamburger menu',
+        profile_id: PROFILE_ID,
+      })) as ResponsiveSearchOutput;
+
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.results).toHaveLength(3);
+        expect(result.data.results[0]!.similarity).toBe(0.92);
+      }
+    });
+
+    it('プロファイルが存在しない場合はリランキングされない（graceful degradation）', async () => {
+      const mockService = createMockService();
+      setResponsiveSearchServiceFactory(() => mockService);
+      const mockPrisma = createMockPrisma({ embedding: null });
+      mockPrisma.$queryRawUnsafe = vi.fn().mockResolvedValue([]);
+      setResponsiveSearchPrismaClientFactory(() => mockPrisma as never);
+
+      const result = (await responsiveSearchHandler({
+        query: 'hamburger menu',
+        profile_id: PROFILE_ID,
+      })) as ResponsiveSearchOutput;
+
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.results).toHaveLength(3);
+      }
+    });
+
+    it('PrismaClient呼び出しでエラーが発生してもgraceful degradationで元の結果が返る', async () => {
+      const mockService = createMockService();
+      setResponsiveSearchServiceFactory(() => mockService);
+      const mockPrisma = {
+        $queryRawUnsafe: vi.fn().mockRejectedValue(new Error('DB connection failed')),
+      };
+      setResponsiveSearchPrismaClientFactory(() => mockPrisma as never);
+
+      const result = (await responsiveSearchHandler({
+        query: 'hamburger menu',
+        profile_id: PROFILE_ID,
+      })) as ResponsiveSearchOutput;
+
+      // エラーでも成功レスポンスが返る（元の検索結果）
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.results).toHaveLength(3);
+      }
+    });
+
+    it('検索結果が空の場合はリランキングをスキップする', async () => {
+      const mockService = createMockService({
+        searchResponsiveAnalyses: vi.fn().mockResolvedValue({
+          results: [],
+          total: 0,
+        }),
+      });
+      setResponsiveSearchServiceFactory(() => mockService);
+      const mockPrisma = createMockPrisma();
+      setResponsiveSearchPrismaClientFactory(() => mockPrisma as never);
+
+      const result = (await responsiveSearchHandler({
+        query: 'nonexistent pattern',
+        profile_id: PROFILE_ID,
+      })) as ResponsiveSearchOutput;
+
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.results).toHaveLength(0);
+      }
+      // 空結果ではPrismaClientは呼ばれない
+      expect(mockPrisma.$queryRawUnsafe).not.toHaveBeenCalled();
+    });
+
+    it('profile_idスキーマバリデーション: 有効なUUIDを受け付ける', () => {
+      const input = {
+        query: 'hamburger menu',
+        profile_id: '11111111-2222-3333-4444-555555555555',
+      };
+      const result = responsiveSearchInputSchema.safeParse(input);
+      expect(result.success).toBe(true);
+    });
+
+    it('profile_idスキーマバリデーション: 無効なUUIDを拒否する', () => {
+      const input = {
+        query: 'hamburger menu',
+        profile_id: 'not-a-uuid',
+      };
+      const result = responsiveSearchInputSchema.safeParse(input);
+      expect(result.success).toBe(false);
+    });
+
+    it('profile_idスキーマバリデーション: undefinedを許容する', () => {
+      const input = {
+        query: 'hamburger menu',
+      };
+      const result = responsiveSearchInputSchema.safeParse(input);
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.profile_id).toBeUndefined();
+      }
+    });
+  });
+
+  // ===================================================
+  // ツール定義 profile_id
+  // ===================================================
+
+  describe('ツール定義 profile_id', () => {
+    it('inputSchemaにprofile_idプロパティが定義されている', () => {
+      const properties = responsiveSearchToolDefinition.inputSchema.properties as Record<string, unknown>;
+      expect(properties.profile_id).toBeDefined();
+      expect((properties.profile_id as Record<string, unknown>).type).toBe('string');
+      expect((properties.profile_id as Record<string, unknown>).format).toBe('uuid');
     });
   });
 });

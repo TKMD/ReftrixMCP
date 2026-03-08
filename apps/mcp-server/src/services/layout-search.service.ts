@@ -857,8 +857,11 @@ export class LayoutSearchService implements ILayoutSearchService {
       );
 
       // HybridSearchResult を SearchResult に変換
+      // mergeWithRRF が data から id を除去するため、hr.id で復元する
+      // mergeWithRRF strips id from data, so restore it from hr.id
       const results: SearchResult[] = paginatedResults.map((hr) => {
         const data = hr.data as unknown as VectorSearchResult;
+        data.id = hr.id;
         const converted = vectorResultToSearchResult(data);
         converted.similarity = hr.similarity;
         return converted;

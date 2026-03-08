@@ -25,6 +25,8 @@ import {
   backgroundSearchHandler,
   setBackgroundSearchServiceFactory,
   resetBackgroundSearchServiceFactory,
+  setBackgroundSearchPrismaClientFactory,
+  resetBackgroundSearchPrismaClientFactory,
   backgroundSearchToolDefinition,
   type BackgroundSearchInput,
   type BackgroundSearchOutput,
@@ -766,6 +768,222 @@ describe('background.search MCPツール', () => {
         })
       );
     });
+  });
+});
+
+// =====================================================
+// 嗜好プロファイルリランキング テスト
+// =====================================================
+
+describe('background.search 嗜好プロファイルリランキング', () => {
+  const PROFILE_ID = '11111111-2222-3333-4444-555555555555';
+
+  /**
+   * モックPrismaClientを作成
+   * Create mock PrismaClient for preference reranking
+   */
+  function createMockPrisma(options?: {
+    embedding?: number[] | null;
+    interactionCount?: number;
+  }): { $queryRawUnsafe: ReturnType<typeof vi.fn> } {
+    const embedding = options?.embedding ?? new Array(768).fill(0.5);
+    const interactionCount = options?.interactionCount ?? 10;
+
+    return {
+      $queryRawUnsafe: vi.fn().mockResolvedValue(
+        embedding
+          ? [
+              {
+                preference_embedding: `[${embedding.join(',')}]`,
+                interaction_count: interactionCount,
+              },
+            ]
+          : []
+      ),
+    };
+  }
+
+  beforeEach(() => {
+    resetBackgroundSearchServiceFactory();
+    resetBackgroundSearchPrismaClientFactory();
+  });
+
+  afterEach(() => {
+    resetBackgroundSearchServiceFactory();
+    resetBackgroundSearchPrismaClientFactory();
+  });
+
+  it('profile_idが指定されていない場合はリランキングされない', async () => {
+    const mockService = createMockService();
+    setBackgroundSearchServiceFactory(() => mockService);
+
+    const result = await backgroundSearchHandler({
+      query: 'gradient background',
+    });
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      // 元の順序が維持される
+      expect(result.data.results).toHaveLength(3);
+      expect(result.data.results[0]!.similarity).toBe(0.92);
+    }
+  });
+
+  it('PrismaClientFactoryが未設定の場合はリランキングされない', async () => {
+    const mockService = createMockService();
+    setBackgroundSearchServiceFactory(() => mockService);
+    // PrismaClientFactoryは設定しない
+
+    const result = await backgroundSearchHandler({
+      query: 'gradient background',
+      profile_id: PROFILE_ID,
+    });
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      // 元の順序が維持される
+      expect(result.data.results).toHaveLength(3);
+      expect(result.data.results[0]!.similarity).toBe(0.92);
+    }
+  });
+
+  it('profile_idとPrismaClientFactoryが設定されている場合にリランキングが試行される', async () => {
+    const mockService = createMockService();
+    setBackgroundSearchServiceFactory(() => mockService);
+    const mockPrisma = createMockPrisma();
+    setBackgroundSearchPrismaClientFactory(() => mockPrisma as never);
+
+    const result = await backgroundSearchHandler({
+      query: 'gradient background',
+      profile_id: PROFILE_ID,
+    });
+
+    expect(result.success).toBe(true);
+    // PrismaClientが使用された（プロファイル取得）
+    expect(mockPrisma.$queryRawUnsafe).toHaveBeenCalled();
+  });
+
+  it('インタラクション数不足時はリランキングされない（graceful degradation）', async () => {
+    const mockService = createMockService();
+    setBackgroundSearchServiceFactory(() => mockService);
+    const mockPrisma = createMockPrisma({ interactionCount: 2 }); // 閾値5未満
+    setBackgroundSearchPrismaClientFactory(() => mockPrisma as never);
+
+    const result = await backgroundSearchHandler({
+      query: 'gradient background',
+      profile_id: PROFILE_ID,
+    });
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      // 元の順序が維持される
+      expect(result.data.results).toHaveLength(3);
+      expect(result.data.results[0]!.similarity).toBe(0.92);
+    }
+  });
+
+  it('プロファイルが存在しない場合はリランキングされない（graceful degradation）', async () => {
+    const mockService = createMockService();
+    setBackgroundSearchServiceFactory(() => mockService);
+    const mockPrisma = createMockPrisma({ embedding: null });
+    // プロファイル未存在 = 空の結果
+    mockPrisma.$queryRawUnsafe = vi.fn().mockResolvedValue([]);
+    setBackgroundSearchPrismaClientFactory(() => mockPrisma as never);
+
+    const result = await backgroundSearchHandler({
+      query: 'gradient background',
+      profile_id: PROFILE_ID,
+    });
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.results).toHaveLength(3);
+    }
+  });
+
+  it('PrismaClient呼び出しでエラーが発生してもgraceful degradationで元の結果が返る', async () => {
+    const mockService = createMockService();
+    setBackgroundSearchServiceFactory(() => mockService);
+    const mockPrisma = {
+      $queryRawUnsafe: vi.fn().mockRejectedValue(new Error('DB connection failed')),
+    };
+    setBackgroundSearchPrismaClientFactory(() => mockPrisma as never);
+
+    const result = await backgroundSearchHandler({
+      query: 'gradient background',
+      profile_id: PROFILE_ID,
+    });
+
+    // エラーでも成功レスポンスが返る（元の検索結果）
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.results).toHaveLength(3);
+    }
+  });
+
+  it('検索結果が空の場合はリランキングをスキップする', async () => {
+    const mockService = createMockService({
+      searchBackgroundDesigns: vi.fn().mockResolvedValue({
+        results: [],
+        total: 0,
+      }),
+    });
+    setBackgroundSearchServiceFactory(() => mockService);
+    const mockPrisma = createMockPrisma();
+    setBackgroundSearchPrismaClientFactory(() => mockPrisma as never);
+
+    const result = await backgroundSearchHandler({
+      query: 'nonexistent pattern',
+      profile_id: PROFILE_ID,
+    });
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.results).toHaveLength(0);
+    }
+    // 空結果ではPrismaClientは呼ばれない
+    expect(mockPrisma.$queryRawUnsafe).not.toHaveBeenCalled();
+  });
+
+  it('profile_idスキーマバリデーション: 有効なUUIDを受け付ける', () => {
+    const input = {
+      query: 'gradient',
+      profile_id: '11111111-2222-3333-4444-555555555555',
+    };
+    const result = backgroundSearchInputSchema.safeParse(input);
+    expect(result.success).toBe(true);
+  });
+
+  it('profile_idスキーマバリデーション: 無効なUUIDを拒否する', () => {
+    const input = {
+      query: 'gradient',
+      profile_id: 'not-a-uuid',
+    };
+    const result = backgroundSearchInputSchema.safeParse(input);
+    expect(result.success).toBe(false);
+  });
+
+  it('profile_idスキーマバリデーション: undefinedを許容する', () => {
+    const input = {
+      query: 'gradient',
+    };
+    const result = backgroundSearchInputSchema.safeParse(input);
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.profile_id).toBeUndefined();
+    }
+  });
+});
+
+// =====================================================
+// ツール定義 profile_id テスト
+// =====================================================
+
+describe('background.search ツール定義 profile_id', () => {
+  it('inputSchemaにprofile_idプロパティが定義されている', () => {
+    expect(backgroundSearchToolDefinition.inputSchema.properties.profile_id).toBeDefined();
+    expect(backgroundSearchToolDefinition.inputSchema.properties.profile_id.type).toBe('string');
+    expect(backgroundSearchToolDefinition.inputSchema.properties.profile_id.format).toBe('uuid');
   });
 });
 

@@ -76,7 +76,7 @@ pnpm start
 }
 ```
 
-## MCPツール一覧（20ツール） / MCP Tool List (20 Tools)
+## MCPツール一覧（23ツール） / MCP Tool List (23 Tools)
 
 ### Layoutツール（5ツール） / Layout Tools (5 Tools)
 
@@ -491,6 +491,63 @@ Semantic search over responsive analysis results (viewport differences, breakpoi
 
 ---
 
+### Preferenceツール（3ツール） / Preference Tools (3 Tools)
+
+#### `preference.hear` - 嗜好ヒアリング / Preference Hearing
+
+ユーザーのデザイン嗜好をインタラクティブにヒアリングします。ステートレス設計：フィードバックなし → Mode A（サンプル提示 + 進捗トラッキング）、フィードバックあり → Mode B（フィードバック記録 + プロファイル更新）。新規プロファイル作成時は `profiling_notice` を返却（GDPR Art.13/14対応）。
+
+Interactively learns user design preferences. Stateless design: no feedback → Mode A (present samples with progress tracking), feedback present → Mode B (record feedback and update profile). Returns `profiling_notice` on new profile creation (GDPR Art.13/14 compliance).
+
+**入力スキーマ / Input Schema**:
+
+```typescript
+{
+  profile_id?: string;        // プロファイルID（省略時は新規作成） / Profile ID (creates new if omitted)
+  feedback?: {
+    sample_id: string;        // フィードバック対象のサンプルID / Target sample ID
+    rating: 'positive' | 'negative' | 'neutral';
+    comment?: string;         // 任意のコメント / Optional comment
+  };
+  exclude_ids?: string[];     // 除外するサンプルID（クライアント管理） / Sample IDs to exclude (client-managed)
+}
+```
+
+#### `preference.get` - プロファイル取得 / Get Profile
+
+嗜好プロファイルの詳細を取得します。GDPRデータポータビリティ（Art. 20）に対応し、`include_signals: true` で全フィードバックシグナルを含む構造化JSONをエクスポートできます。
+
+Retrieves preference profile details. Supports GDPR data portability (Art. 20) — use `include_signals: true` to export structured JSON including all feedback signals.
+
+**入力スキーマ / Input Schema**:
+
+```typescript
+{
+  profile_id: string;         // プロファイルID（UUID形式、必須） / Profile ID (UUID, required)
+  include_signals?: boolean;  // 全シグナルデータを含める（デフォルト: false） / Include all signal data (default: false)
+}
+```
+
+#### `preference.reset` - プロファイルリセット / Reset Profile
+
+嗜好プロファイルをリセットまたは完全削除します。ソフトリセット（デフォルト）は嗜好データをクリアしプロファイル枠を維持。`hard_delete: true` で完全に物理削除（GDPR Art. 17 忘れられる権利）。
+
+Resets or permanently deletes a preference profile. Soft reset (default) clears preference data while keeping the profile shell. `hard_delete: true` permanently deletes all data (GDPR Art. 17 Right to Erasure).
+
+**入力スキーマ / Input Schema**:
+
+```typescript
+{
+  profile_id: string;         // プロファイルID（UUID形式、必須） / Profile ID (UUID, required)
+  confirm: boolean;           // 確認フラグ（必須、trueで実行） / Confirmation flag (required, true to execute)
+  hard_delete?: boolean;      // 完全削除（デフォルト: false） / Permanent deletion (default: false)
+}
+```
+
+> **プライバシー / Privacy**: 嗜好プロファイリングの詳細は [PRIVACY.md](./PRIVACY.md) および [DATA_RETENTION.md](./DATA_RETENTION.md) を参照してください。 / See [PRIVACY.md](./PRIVACY.md) and [DATA_RETENTION.md](./DATA_RETENTION.md) for details on preference profiling.
+
+---
+
 ### Systemツール（1ツール） / System Tools (1 Tool)
 
 #### `system.health` - システムヘルスチェック / System Health Check
@@ -855,6 +912,7 @@ apps/mcp-server/
 │   │   ├── narrative/        # ナラティブツール
 │   │   ├── background/       # バックグラウンドツール
 │   │   ├── responsive/       # レスポンシブツール
+│   │   ├── preference/       # 嗜好プロファイリングツール
 │   │   ├── page/             # page.analyze ツール
 │   │   └── schemas/          # 共有Zodスキーマ
 │   ├── workers/              # BullMQワーカー
