@@ -486,8 +486,8 @@ describe('MCP Parameter Naming Convention', () => {
   // preference.hear, preference.get, preference.reset ツール追加
   // =========================================================================
   describe('ツール数', () => {
-    it('allToolDefinitionsが23ツール（WebDesign専用）を含むこと', () => {
-      expect(allToolDefinitions).toHaveLength(23);
+    it('allToolDefinitionsが26ツール（WebDesign専用）を含むこと', () => {
+      expect(allToolDefinitions).toHaveLength(26);
     });
   });
 

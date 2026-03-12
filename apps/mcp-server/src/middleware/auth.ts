@@ -128,6 +128,15 @@ export const PERMISSIONS = {
   DESIGN_WRITE: 'design:write',
   // スタイル系
   STYLE_READ: 'style:read',
+  // ナラティブ系
+  NARRATIVE_READ: 'narrative:read',
+  // バックグラウンド系
+  BACKGROUND_READ: 'background:read',
+  // レスポンシブ系
+  RESPONSIVE_READ: 'responsive:read',
+  // 嗜好プロファイリング系
+  PREFERENCE_READ: 'preference:read',
+  PREFERENCE_WRITE: 'preference:write',
 } as const;
 
 export type Permission = (typeof PERMISSIONS)[keyof typeof PERMISSIONS];
@@ -144,6 +153,10 @@ export const ROLES: Record<Role, string[]> = {
     PERMISSIONS.QUALITY_READ,
     PERMISSIONS.PROJECT_READ,
     PERMISSIONS.STYLE_READ,
+    PERMISSIONS.NARRATIVE_READ,
+    PERMISSIONS.BACKGROUND_READ,
+    PERMISSIONS.RESPONSIVE_READ,
+    PERMISSIONS.PREFERENCE_READ,
   ],
   USER: [
     PERMISSIONS.SYSTEM_READ,
@@ -157,6 +170,11 @@ export const ROLES: Record<Role, string[]> = {
     PERMISSIONS.PROJECT_READ,
     PERMISSIONS.DESIGN_REVIEW,
     PERMISSIONS.STYLE_READ,
+    PERMISSIONS.NARRATIVE_READ,
+    PERMISSIONS.BACKGROUND_READ,
+    PERMISSIONS.RESPONSIVE_READ,
+    PERMISSIONS.PREFERENCE_READ,
+    PERMISSIONS.PREFERENCE_WRITE,
   ],
   ADMIN: [
     PERMISSIONS.SYSTEM_READ,
@@ -173,6 +191,11 @@ export const ROLES: Record<Role, string[]> = {
     PERMISSIONS.DESIGN_REVIEW,
     PERMISSIONS.DESIGN_WRITE,
     PERMISSIONS.STYLE_READ,
+    PERMISSIONS.NARRATIVE_READ,
+    PERMISSIONS.BACKGROUND_READ,
+    PERMISSIONS.RESPONSIVE_READ,
+    PERMISSIONS.PREFERENCE_READ,
+    PERMISSIONS.PREFERENCE_WRITE,
   ],
 };
 
@@ -199,12 +222,31 @@ export const TOOL_PERMISSIONS: Record<string, string[]> = {
   'motion.detect': [PERMISSIONS.MOTION_READ],
   'motion.search': [PERMISSIONS.MOTION_READ],
 
+  // ナラティブ系（セマンティック検索）
+  'narrative.search': [PERMISSIONS.NARRATIVE_READ],
+
+  // バックグラウンド系（セマンティック検索）
+  'background.search': [PERMISSIONS.BACKGROUND_READ],
+
+  // レスポンシブ系（セマンティック検索）
+  'responsive.search': [PERMISSIONS.RESPONSIVE_READ],
+
+  // 嗜好プロファイリング系
+  'preference.hear': [PERMISSIONS.PREFERENCE_WRITE],
+  'preference.get': [PERMISSIONS.PREFERENCE_READ],
+  'preference.reset': [PERMISSIONS.PREFERENCE_WRITE],
+
   // ブリーフ系（デザインレビュー）
   'brief.validate': [PERMISSIONS.DESIGN_REVIEW],
 
   // プロジェクト系
   'project.get': [PERMISSIONS.PROJECT_READ],
   'project.list': [PERMISSIONS.PROJECT_READ],
+
+  // パーツ系（Part-Level Analysis）
+  'part.search': [PERMISSIONS.LAYOUT_READ],
+  'part.inspect': [PERMISSIONS.LAYOUT_READ],
+  'part.compare': [PERMISSIONS.LAYOUT_READ],
 
   // ページ系（統合Web分析）
   'page.analyze': [PERMISSIONS.LAYOUT_READ, PERMISSIONS.MOTION_READ, PERMISSIONS.QUALITY_READ],

@@ -10,6 +10,62 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 形式は [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) に基づき、
 [セマンティックバージョニング](https://semver.org/spec/v2.0.0.html) に準拠しています。
 
+## [0.1.5] - 2026-03-12
+
+### Added / 追加
+
+- **Part-Level Analysis機能**（3つの新規MCPツール: `part.search`, `part.inspect`, `part.compare`） / **Part-Level Analysis** (3 new MCP tools: `part.search`, `part.inspect`, `part.compare`)
+  - `part.search`: セマンティックUIパーツ検索（ハイブリッド: ベクトル + 全文検索 RRF）。16パーツタイプ対応、searchMode（visual/text/hybrid）、partType/webPageIdフィルタ / Semantic UI part search (hybrid: vector + fulltext RRF). 16 part types, searchMode (visual/text/hybrid), partType/webPageId filters
+  - `part.inspect`: パーツ詳細取得（computedStyles, boundingBox, interactionInfo, cssClasses, attributes, piiRiskLevel）。オプション: includeHtml, includeEmbedding / Get detailed part info by ID with computed styles, bounding box, interaction info. Opt-in: includeHtml, includeEmbedding
+  - `part.compare`: 2-5パーツの比較（スタイル、レイアウト、インタラクション、アクセシビリティ） / Compare 2-5 parts side by side on styles, layout, interaction, and accessibility
+  - 16パーツタイプ: heading, button, link, image, icon, input, form, card, navigation, footer, badge, avatar, divider, modal, toast, tooltip / 16 part types
+  - PII検出（piiRiskLevel: low/medium/high）で個人情報を含むパーツの自動分類 / PII detection with automatic classification of parts containing personal information
+- **DINOv2 ViT-B/14 visual embedding**: パーツの視覚的特徴を768次元L2正規化ベクトルで表現。`part.search` のsearchMode `visual` / `hybrid` で利用可能 / DINOv2 ViT-B/14 visual embedding: 768-dim L2-normalized vectors representing visual features of parts. Available via `part.search` searchMode `visual` / `hybrid`
+  - Phase 5 Embedding末尾で自動生成（e5-base dispose後にDINOv2ロード ~800MB、完了後dispose） / Auto-generated at end of Phase 5 Embedding (loads DINOv2 ~800MB after e5-base disposal, disposes after completion)
+  - Graceful Degradation: screenshot無し/DINOv2失敗/bbox未解決時はtext_embeddingのみ / Graceful Degradation: text_embedding only when screenshot unavailable, DINOv2 fails, or bbox unresolved
+  - piiRiskLevel='high'パーツはvisual embeddingスキップ / Skips visual embedding for piiRiskLevel='high' parts
+  - 環境変数 `DINOV2_MODEL_PATH` でモデルパス指定可能 / Model path configurable via `DINOV2_MODEL_PATH` env var
+
+### Fixed / 修正
+
+- **JSDOM bounding box常時ゼロ問題を修正**: Part ExtractionがJSDOMベースのため`getBoundingClientRect()`が常に`{0,0,0,0}`を返す問題を、Phase 5冒頭でPlaywright（`PartBboxPlaywrightService`）により実bounding boxを後付け取得することで解決 / Fix JSDOM bounding box always zero: Part Extraction uses JSDOM where `getBoundingClientRect()` always returns `{0,0,0,0}`. Resolved by retroactively obtaining real bounding boxes via Playwright (`PartBboxPlaywrightService`) at the start of Phase 5
+  - sharedBrowserの`isConnected()`チェック + 切断時はフォールバックとして独自Chromiumインスタンスを起動 / Checks sharedBrowser `isConnected()` and falls back to launching standalone Chromium if disconnected
+  - SSRF対策（`validateExternalUrl()`）+ CSSインジェクション防御（`escapeCssIdentifier()`） / SSRF prevention (`validateExternalUrl()`) + CSS injection defense (`escapeCssIdentifier()`)
+  - 39テスト追加（正常系、早期リターン、Graceful Degradation、リソースクリーンアップ、SSRF、CSSセレクタ） / 39 tests added (normal flow, early return, graceful degradation, resource cleanup, SSRF, CSS selectors)
+
+### Changed / 変更
+
+- MCPツール数: 23 → **26**（`part.search`, `part.inspect`, `part.compare`追加） / MCP tool count: 23 → **26** (added `part.search`, `part.inspect`, `part.compare`)
+- Worker Pipeline Phase 5にStep 0（Playwright Bounding Box Resolution）を追加 / Added Step 0 (Playwright Bounding Box Resolution) to Worker Pipeline Phase 5
+
+### Documentation / ドキュメント
+
+- Part-Level Analysisのアーキテクチャ・ツール仕様ドキュメントを追加（` / Added Part-Level Analysis architecture and tool specification docs (` updated)
+
+## [0.1.4] - 2026-03-11
+
+### Fixed / 修正
+
+- **WorkerパスでCSSスニペットがDB保存されない問題を修正**: worker-db-save → section_patternsに5 CSSフィールド（cssSnippet, externalCssContent, externalCssMeta, cssFramework, cssFrameworkMeta）を追加。page-analyze-workerでページレベルCSSをセクション単位に配布 / Fix CSS snippet data not saved in Worker path: added 5 CSS fields to section_patterns via worker-db-save, distributing page-level CSS to sections in page-analyze-worker
+- **BullMQ obliterateを完全除去しwaiting/completedジョブを保護**: obliterate()がwaiting/completedジョブを破壊していた問題を修正 / Remove BullMQ obliterate entirely to protect waiting/completed jobs
+- **コードレビュー指摘5件を修正**: 認証チェック、キュー管理、ポーリング間隔、ドキュメント整合性 / Fix 5 code review findings (auth checks, queue management, polling interval, docs consistency)
+- **テスト修正3件**: layout-first-mode並列テストタイムアウト延長(120s)、system-health detectGpuMismatchモック追加、パフォーマンステスト閾値緩和 / Fix 3 test issues: extend parallel test timeout, add GPU mismatch mock, relax perf test threshold
+
+### Security / セキュリティ
+
+- **CVE-2026-0540**: DOMPurify 3.3.2に更新しXSS脆弱性を修正 / Update DOMPurify to 3.3.2 to fix XSS vulnerability
+- **GHSA-qffp-2rhf-9h96**: tar overrideを>=7.5.10に更新しhardlinkパストラバーサルを修正 / Update tar override to fix hardlink path traversal
+- **hono/node-server脆弱性4件を解消** / Fix 4 Dependabot vulnerabilities in hono/node-server
+
+### Changed / 変更
+
+- Glama MCPサーバーディレクトリ登録（`glama.json`追加、READMEにバッジ追加） / Register on Glama MCP server directory (add `glama.json` and badge to README)
+- OSS版mcp-serverパッケージから`private:true`を自動除去 / Auto-remove `private:true` from OSS mcp-server package.json
+
+### Documentation / ドキュメント
+
+- README冒頭にペルソナ文とQuickstart誘導文を追加 / Add persona line and quickstart hook to README
+
 ## [0.1.3] - 2026-03-08
 
 ### Added / 追加

@@ -1,8 +1,8 @@
 # データ保持ポリシー / Data Retention Policy
 
-**対象 / Scope**: Reftrix Preference Profiling (`preference.hear` / `preference.get` / `preference.reset`)
-**最終更新 / Last Updated**: 2026-03-08
-**バージョン / Version**: 1.0.0
+**対象 / Scope**: Reftrix Preference Profiling & Part-Level Analysis
+**最終更新 / Last Updated**: 2026-03-13
+**バージョン / Version**: 1.2.0
 
 ---
 
@@ -14,6 +14,7 @@
 |---|---|---|
 | `preference_profiles` | ユーザー嗜好プロファイル / User preference profiles | `id`, `name`, `preference_text`, `preference_embedding` (768-dim vector), `interaction_count`, `created_at`, `updated_at` |
 | `preference_signals` | 個別フィードバック記録 / Individual feedback records | `id`, `profile_id` (FK), `signal_type`, `signal_weight`, `target_type`, `target_id`, `feedback_text`, `created_at` |
+| `component_parts` / `component_part_embeddings` | UIパーツ分析データ / UI part analysis data | `id`, `web_page_id` (FK, CASCADE), `partType`, `text_embedding` (768-dim vector), `visual_embedding` (768-dim vector, nullable), `boundingBox`, `computedStyles`, `textContent`, `innerHTML`, `piiRiskLevel`, `cssClasses`, `attributes`, `created_at`, `updated_at` |
 
 ### データの性質 / Nature of Data
 
@@ -182,7 +183,65 @@ For questions about data protection or data deletion requests, please refer to t
 This document is intended to provide general legal information and does not constitute legal advice for any specific case.
 If specific legal judgment is needed, please consult a qualified attorney.
 
-法的調査日 / Legal Research Date: 2026-03-08
+法的調査日 / Legal Research Date: 2026-03-13
+
+---
+
+## 8. Part-Level Analysis データ保持 / Part-Level Analysis Data Retention
+
+### 対象データ / Data in Scope
+
+| テーブル / Table | カラム / Columns | 内容 / Description |
+|---|---|---|
+| `component_parts` / `component_part_embeddings` | `partType`, `text_embedding`, `visual_embedding`, `boundingBox`, `computedStyles` | UIパーツの構造・スタイル・ベクトルデータ（16種類: button, link, image, video, form, input, heading, card, navigation, footer, cta, hero_image, icon, badge, tag, avatar） / UI part structure, style, and vector data (16 types) |
+| `component_parts` / `component_part_embeddings` | `textContent`, `innerHTML` | パーツのテキスト内容・HTML構造（`part.inspect` でopt-in取得） / Part text content and HTML structure (opt-in retrieval via `part.inspect`) |
+| `component_parts` / `component_part_embeddings` | `piiRiskLevel`, `cssClasses`, `attributes` | PIIリスク判定結果、CSSクラス名、HTML属性 / PII risk assessment result, CSS class names, HTML attributes |
+
+### 保持方針 / Retention Policy
+
+`component_parts` / `component_part_embeddings` は `web_pages` テーブルに CASCADE 外部キーで紐づいています。保持期間は親レコード（`web_pages`）と同一です。
+
+`component_parts` / `component_part_embeddings` is linked to the `web_pages` table via CASCADE foreign key. The retention period is the same as the parent record (`web_pages`).
+
+- **自動期限切れ / Auto-expiry**: なし / None
+- **再分析時の動作 / Behavior on re-analysis**: `page.analyze` 再実行時に clean-slate パターン（`deleteMany` + `create`）で上書き / Overwritten using the clean-slate pattern (`deleteMany` + `create`) on `page.analyze` re-execution
+- **手動削除 / Manual deletion**: WebPageレコードの削除により CASCADE で自動実行 / Automatically executed via CASCADE when a WebPage record is deleted
+
+### PII保護 / PII Protection
+
+`piiRiskLevel='high'` と判定されたパーツ（フォーム入力、パスワードフィールド等）では、`visual_embedding` の生成がスキップされます（カラム値は `null`）。これにより、PII を含む可能性のあるパーツのスクリーンショットからベクトルが生成されることを防止します。
+
+Parts assessed as `piiRiskLevel='high'` (form inputs, password fields, etc.) have their `visual_embedding` generation skipped (column value is `null`). This prevents vector generation from screenshots of parts that may contain PII.
+
+### GDPR対応 / GDPR Compliance
+
+| 条項 / Article | 内容 / Subject | 対応 / Implementation |
+|---|---|---|
+| **Art. 17** | 忘れられる権利 / Right to erasure | WebPage削除時に全関連 `component_parts` / `component_part_embeddings` がCASCADE削除。テキスト内容、ベクトル、バウンディングボックス、スタイル情報を含むすべてのデータが物理削除される。 / All associated `component_parts` / `component_part_embeddings` are CASCADE deleted when WebPage is deleted. All data including text content, vectors, bounding boxes, and style information is permanently removed. |
+| **Art. 5(1)(c)** | データ最小化の原則 / Data minimisation | `piiRiskLevel='high'` パーツの visual embedding スキップにより、PII関連データの収集を最小化。 / Minimises PII-related data collection by skipping visual embedding for `piiRiskLevel='high'` parts. |
+
+---
+
+## 9. クロールデータ保持（HTML/CSS） / Crawl Data Retention (HTML/CSS)
+
+### 対象データ / Data in Scope
+
+| テーブル / Table | カラム / Columns | 内容 / Description |
+|---|---|---|
+| `web_pages` | `html`, `screenshot` | クロール時に取得したHTML（DOMPurifyサニタイズ済み）、スクリーンショット画像 / Crawled HTML (DOMPurify-sanitized), screenshot images |
+| `section_patterns` | `htmlSnippet`, `cssSnippet`, `externalCssContent`, `externalCssMeta` | セクション単位のHTMLスニペット、ページレベルCSS（インライン+styleタグ+外部CSS実内容）、外部CSSメタデータ / Per-section HTML snippets, page-level CSS (inline + style tags + external CSS content), external CSS metadata |
+
+### 保持方針 / Retention Policy
+
+クロールデータは再分析時に clean-slate パターン（`deleteMany` + `create`）で上書きされます。手動削除はWebPageレコードの削除により CASCADE で自動実行されます。自動的な期限切れはありません。
+
+Crawl data is overwritten on re-analysis using the clean-slate pattern (`deleteMany` + `create`). Manual deletion is performed automatically via CASCADE when a WebPage record is deleted. There is no automatic expiration.
+
+### セキュリティ措置 / Security Measures
+
+- **HTMLサニタイズ / HTML Sanitization**: すべてのクロール済みHTMLはDOMPurify 3.3.xでサニタイズ済み（`<script>`, `javascript:` URL, イベントハンドラ除去） / All crawled HTML is sanitized with DOMPurify 3.3.x (removes `<script>`, `javascript:` URLs, event handlers)
+- **CSSデータ / CSS Data**: ページレベルCSS（`cssSnippet`, `externalCssContent`）はセクション単位に配布して`section_patterns`に保存。デザイン分析（レイアウト検索、コード生成）用途で保持 / Page-level CSS is distributed to sections and stored in `section_patterns`. Retained for design analysis (layout search, code generation)
+- **SSRF対策 / SSRF Prevention**: 外部CSSフェッチ時はSSRFバリデーション適用済み / SSRF validation applied during external CSS fetching
 
 ---
 
@@ -190,4 +249,6 @@ If specific legal judgment is needed, please consult a qualified attorney.
 
 | 日付 / Date | バージョン / Version | 内容 / Description |
 |---|---|---|
+| 2026-03-13 | 1.2.0 | Part-Level Analysis データ保持セクション追加（component_parts / component_part_embeddings テーブル、PII保護、CASCADE削除） / Added Part-Level Analysis data retention section (component_parts / component_part_embeddings tables, PII protection, CASCADE deletion) |
+| 2026-03-11 | 1.1.0 | クロールデータ保持セクション追加 / Added crawl data retention section |
 | 2026-03-08 | 1.0.0 | 初版作成 / Initial version |

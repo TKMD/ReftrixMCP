@@ -45,7 +45,7 @@ export type ToolHandler = (
 
 /**
  * ツールハンドラーのマップ
- * 19のMCPツールを管理（allToolDefinitions SSoTから自動同期）
+ * 23のMCPツールを管理（allToolDefinitions SSoTから自動同期）
  */
 export const toolHandlers: Map<string, ToolHandler> = new Map();
 
@@ -298,9 +298,9 @@ export function exportMetricsPrometheus(): string {
 }
 
 /**
- * MCPツール名の定数（WebDesign専用 - 19ツール）
+ * MCPツール名の定数（WebDesign専用 - 26ツール）
  *
- * 実装: apps/mcp-server/src/tools/index.ts (allToolDefinitions = 19ツール)
+ * 実装: apps/mcp-server/src/tools/index.ts (allToolDefinitions = 26ツール)
  */
 export const TOOL_NAMES = {
   // Style ツール (1)
@@ -332,6 +332,16 @@ export const TOOL_NAMES = {
   NARRATIVE_SEARCH: 'narrative.search',
   // Background ツール (1)
   BACKGROUND_SEARCH: 'background.search',
+  // Responsive ツール (1)
+  RESPONSIVE_SEARCH: 'responsive.search',
+  // Preference ツール (3)
+  PREFERENCE_HEAR: 'preference.hear',
+  PREFERENCE_GET: 'preference.get',
+  PREFERENCE_RESET: 'preference.reset',
+  // Part ツール (3)
+  PART_SEARCH: 'part.search',
+  PART_INSPECT: 'part.inspect',
+  PART_COMPARE: 'part.compare',
 } as const;
 
 /**

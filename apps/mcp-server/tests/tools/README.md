@@ -2,9 +2,9 @@
 
 ## 概要 / Overview
 
-MCPツールハンドラーの包括的なテストスイート。現行19ツールのツールハンドラーテストを収録しています。
+MCPツールハンドラーの包括的なテストスイート。現行26ツールのツールハンドラーテストを収録しています。
 
-Comprehensive test suite for MCP tool handlers. Contains handler tests for the current 19 tools.
+Comprehensive test suite for MCP tool handlers. Contains handler tests for the current 26 tools.
 
 ## テストファイル構成 / Test File Structure
 
@@ -31,6 +31,13 @@ Comprehensive test suite for MCP tool handlers. Contains handler tests for the c
 | Project | `project-list.test.ts` | project.list ハンドラーテスト / project.list handler test |
 | Narrative | `narrative-search.test.ts` | narrative.search ハンドラーテスト / narrative.search handler test |
 | Background | `background-search.test.ts` | background.search ハンドラーテスト / background.search handler test |
+| Responsive | `responsive/search.tool.test.ts` | responsive.search ハンドラーテスト / responsive.search handler test |
+| Preference | `preference/hear.tool.test.ts` | preference.hear ハンドラーテスト / preference.hear handler test |
+| Preference | `preference/get.tool.test.ts` | preference.get ハンドラーテスト / preference.get handler test |
+| Preference | `preference/reset.tool.test.ts` | preference.reset ハンドラーテスト / preference.reset handler test |
+| Part | `part/search.tool.test.ts` | part.search ハンドラーテスト / part.search handler test |
+| Part | `part/inspect.tool.test.ts` | part.inspect ハンドラーテスト / part.inspect handler test |
+| Part | `part/compare.tool.test.ts` | part.compare ハンドラーテスト / part.compare handler test |
 
 ### スキーマテスト / Schema Tests
 

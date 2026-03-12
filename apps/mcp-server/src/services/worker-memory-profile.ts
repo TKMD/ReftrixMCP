@@ -41,6 +41,12 @@ export interface MemoryProfile {
   embeddingChunkSize: number;
   /** JS Animation Embedding チャンクサイズ（5-50） */
   jsAnimationEmbeddingChunkSize: number;
+  /** DINOv2 推論バッチサイズ（0=無効, 5-30） */
+  dinov2ChunkSize: number;
+  /** パーツ抽出がデフォルトで有効か */
+  partExtractionEnabled: boolean;
+  /** Phase 1.1 スキップ用 RSS 上限（バイト） [C-1] */
+  partExtractionRssLimit: number;
   /** マシン分類 */
   tier: '8gb' | '16gb' | '32gb' | '64gb+';
 }
@@ -75,6 +81,44 @@ const EMBED_CHUNK_MAX = 30;
 const JS_CHUNK_BASE_SIZE = 50;
 const JS_CHUNK_MIN = 5;
 const JS_CHUNK_MAX = 50;
+
+// =====================================================
+// DINOv2 / Part Extraction Tier Configuration
+// =====================================================
+
+/**
+ * Tier ごとの DINOv2 / パーツ抽出設定
+ *
+ * - 8GB: DINOv2 無効（VRAM/RAM 不足）、パーツ抽出 opt-in のみ
+ * - 16GB: DINOv2 チャンク 5、パーツ抽出デフォルト有効、RSS 上限 8GB
+ * - 32GB: DINOv2 チャンク 15、パーツ抽出デフォルト有効、RSS 上限 16GB
+ * - 64GB+: DINOv2 チャンク 30、パーツ抽出デフォルト有効、RSS 上限 32GB
+ */
+const PART_EXTRACTION_TIER_CONFIG: Record<
+  MemoryProfile['tier'],
+  { dinov2ChunkSize: number; partExtractionEnabled: boolean; partExtractionRssLimit: number }
+> = {
+  '8gb': {
+    dinov2ChunkSize: 0,
+    partExtractionEnabled: false,
+    partExtractionRssLimit: 6 * 1024 * 1024 * 1024, // 6GB
+  },
+  '16gb': {
+    dinov2ChunkSize: 5,
+    partExtractionEnabled: true,
+    partExtractionRssLimit: 8 * 1024 * 1024 * 1024, // 8GB
+  },
+  '32gb': {
+    dinov2ChunkSize: 15,
+    partExtractionEnabled: true,
+    partExtractionRssLimit: 16 * 1024 * 1024 * 1024, // 16GB
+  },
+  '64gb+': {
+    dinov2ChunkSize: 30,
+    partExtractionEnabled: true,
+    partExtractionRssLimit: 32 * 1024 * 1024 * 1024, // 32GB
+  },
+};
 
 // =====================================================
 // Tier Classification
@@ -161,6 +205,7 @@ export function computeMemoryProfile(totalMemoryBytes?: number): MemoryProfile {
   );
 
   const tier = classifyTier(totalMb);
+  const partConfig = PART_EXTRACTION_TIER_CONFIG[tier];
 
   return {
     totalMemoryMb: totalMb,
@@ -170,6 +215,9 @@ export function computeMemoryProfile(totalMemoryBytes?: number): MemoryProfile {
     maxOldSpaceSizeMb,
     embeddingChunkSize,
     jsAnimationEmbeddingChunkSize,
+    dinov2ChunkSize: partConfig.dinov2ChunkSize,
+    partExtractionEnabled: partConfig.partExtractionEnabled,
+    partExtractionRssLimit: partConfig.partExtractionRssLimit,
     tier,
   };
 }
@@ -188,6 +236,8 @@ export function computeMemoryProfile(totalMemoryBytes?: number): MemoryProfile {
  * - WORKER_MAX_OLD_SPACE_MB
  * - WORKER_EMBEDDING_CHUNK_SIZE
  * - WORKER_JS_ANIMATION_CHUNK_SIZE
+ * - WORKER_DINOV2_CHUNK_SIZE
+ * - WORKER_PART_EXTRACTION_RSS_LIMIT
  *
  * @returns MemoryProfile（環境変数オーバーライド適用済み）
  */
@@ -230,6 +280,18 @@ export function resolveMemoryConfig(): MemoryProfile {
     { min: 1 },
   );
 
+  const dinov2ChunkSize = safeParseInt(
+    process.env.WORKER_DINOV2_CHUNK_SIZE,
+    baseline.dinov2ChunkSize,
+    { min: 0 },
+  );
+
+  const partExtractionRssLimit = safeParseInt(
+    process.env.WORKER_PART_EXTRACTION_RSS_LIMIT,
+    baseline.partExtractionRssLimit,
+    { min: 1 },
+  );
+
   return {
     totalMemoryMb: baseline.totalMemoryMb,
     degradationThresholdMb,
@@ -238,6 +300,9 @@ export function resolveMemoryConfig(): MemoryProfile {
     maxOldSpaceSizeMb,
     embeddingChunkSize,
     jsAnimationEmbeddingChunkSize,
+    dinov2ChunkSize,
+    partExtractionEnabled: baseline.partExtractionEnabled,
+    partExtractionRssLimit,
     tier: baseline.tier,
   };
 }
@@ -267,6 +332,9 @@ export function logMemoryProfile(profile: MemoryProfile): void {
       maxOldSpaceSizeMb: profile.maxOldSpaceSizeMb,
       embeddingChunkSize: profile.embeddingChunkSize,
       jsAnimationEmbeddingChunkSize: profile.jsAnimationEmbeddingChunkSize,
+      dinov2ChunkSize: profile.dinov2ChunkSize,
+      partExtractionEnabled: profile.partExtractionEnabled,
+      partExtractionRssLimit: profile.partExtractionRssLimit,
     });
   } else {
     logger.info(`[WorkerMemoryProfile] tier=${profile.tier} totalMb=${profile.totalMemoryMb}`);

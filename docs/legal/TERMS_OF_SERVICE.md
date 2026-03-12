@@ -1,8 +1,8 @@
 # Reftrix 利用規約 / Terms of Service
 
-**バージョン / Version**: 0.1.0
+**バージョン / Version**: 0.1.1
 **施行日 / Effective Date**: 2026年3月1日 / March 1, 2026
-**最終更新 / Last Updated**: 2026年3月1日 / March 1, 2026
+**最終更新 / Last Updated**: 2026年3月13日 / March 13, 2026
 
 ---
 
@@ -24,6 +24,7 @@ Reftrix（以下「本ソフトウェア」）は、Webデザインの構造化�
 - **モーション検出（Motion Detection）**: CSS/JSアニメーションの検出・分類
 - **品質評価（Quality Evaluation）**: Vision LLMを活用したデザイン品質スコアリング
 - **Embedding生成・類似検索**: multilingual-e5-baseモデルによるベクトル化とpgvectorによる類似検索
+- **パーツレベル分析（Part-Level Analysis）**: WebページからUIコンポーネント（ボタン、ナビゲーション、カード等16種類）を自動抽出し、テキスト・ビジュアル類似検索を提供する機能。DINOv2 ViT-B/14（Apache License 2.0）によるVisual Embedding生成（オプション）を含む。個人情報保護のため、piiRiskLevelが'high'と判定されたパーツのVisual Embedding生成はスキップされます。MCPツール: `part.search`、`part.inspect`、`part.compare`
 - **嗜好プロファイリング（Preference Profiling）**: ユーザーのデザインフィードバックに基づく検索結果のパーソナライズ（オプトイン。詳細は[プライバシーポリシー](./PRIVACY_POLICY.md)第1条7項参照）
 - **Webページ取込（Page Ingestion）**: URL指定によるHTML/CSS/JS/スクリーンショットの取得
 
@@ -326,6 +327,7 @@ Reftrix (the "Software") is an open-source software platform for structural anal
 - **Motion Detection**: CSS/JS animation detection and classification
 - **Quality Evaluation**: Design quality scoring using Vision LLM
 - **Embedding Generation and Similarity Search**: Vectorization with multilingual-e5-base model and similarity search via pgvector
+- **Part-Level Analysis**: Automatic extraction of UI components (buttons, navigation, cards, etc. -- 16 types) from web pages, providing text and visual similarity search. Includes optional visual embedding generation via DINOv2 ViT-B/14 (Apache License 2.0). For privacy protection, visual embedding generation is skipped for parts classified as piiRiskLevel 'high'. MCP tools: `part.search`, `part.inspect`, `part.compare`
 - **Preference Profiling**: Search result personalization based on user design feedback (opt-in; see [Privacy Policy](./PRIVACY_POLICY.md) Section 1.7 for details)
 - **Page Ingestion**: HTML/CSS/JS/screenshot retrieval from specified URLs
 
@@ -650,6 +652,8 @@ for any specific situation. Please consult a qualified attorney for specific leg
 | GDPR手続規則（2026年1月1日発効） | 2026-02-18 | Gibson Dunn、Morrison Foerster |
 | AGPL-3.0デュアルライセンスプロジェクト事例（Nextcloud、GitLab、Mattermost） | 2026-02-18 | 各プロジェクト公式サイト |
 | OSSライセンスコンプライアンスベストプラクティス | 2026-02-18 | FOSSA、Vaultinum |
+| DINOv2 ViT-B/14 ライセンス確認（Apache License 2.0） | 2026-03-13 | GitHub facebookresearch/dinov2、HuggingFace |
+| Apache License 2.0 と AGPL-3.0 の互換性確認 | 2026-03-13 | FSF、GNU.org |
 
 ### 参照した法令
 

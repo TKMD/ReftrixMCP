@@ -87,6 +87,18 @@ describe('computeMemoryProfile', () => {
     it('tier が "8gb" である', () => {
       expect(profile.tier).toBe('8gb');
     });
+
+    it('dinov2ChunkSize = 0（8GBでは無効）', () => {
+      expect(profile.dinov2ChunkSize).toBe(0);
+    });
+
+    it('partExtractionEnabled = false（8GBではopt-inのみ）', () => {
+      expect(profile.partExtractionEnabled).toBe(false);
+    });
+
+    it('partExtractionRssLimit = 6GB', () => {
+      expect(profile.partExtractionRssLimit).toBe(6 * 1024 * 1024 * 1024);
+    });
   });
 
   describe('16GB (16384MB) マシン', () => {
@@ -132,6 +144,18 @@ describe('computeMemoryProfile', () => {
     it('tier が "16gb" である', () => {
       expect(profile.tier).toBe('16gb');
     });
+
+    it('dinov2ChunkSize = 5', () => {
+      expect(profile.dinov2ChunkSize).toBe(5);
+    });
+
+    it('partExtractionEnabled = true', () => {
+      expect(profile.partExtractionEnabled).toBe(true);
+    });
+
+    it('partExtractionRssLimit = 8GB', () => {
+      expect(profile.partExtractionRssLimit).toBe(8 * 1024 * 1024 * 1024);
+    });
   });
 
   describe('32GB (32768MB) マシン - 現行値とのキャップ一致', () => {
@@ -176,6 +200,18 @@ describe('computeMemoryProfile', () => {
 
     it('tier が "32gb" である', () => {
       expect(profile.tier).toBe('32gb');
+    });
+
+    it('dinov2ChunkSize = 15', () => {
+      expect(profile.dinov2ChunkSize).toBe(15);
+    });
+
+    it('partExtractionEnabled = true', () => {
+      expect(profile.partExtractionEnabled).toBe(true);
+    });
+
+    it('partExtractionRssLimit = 16GB', () => {
+      expect(profile.partExtractionRssLimit).toBe(16 * 1024 * 1024 * 1024);
     });
   });
 
@@ -224,6 +260,18 @@ describe('computeMemoryProfile', () => {
     it('tier が "64gb+" である', () => {
       expect(profile.tier).toBe('64gb+');
     });
+
+    it('dinov2ChunkSize = 30', () => {
+      expect(profile.dinov2ChunkSize).toBe(30);
+    });
+
+    it('partExtractionEnabled = true', () => {
+      expect(profile.partExtractionEnabled).toBe(true);
+    });
+
+    it('partExtractionRssLimit = 32GB', () => {
+      expect(profile.partExtractionRssLimit).toBe(32 * 1024 * 1024 * 1024);
+    });
   });
 
   describe('2GB (2048MB) マシン - 最小チャンクサイズ', () => {
@@ -266,6 +314,14 @@ describe('computeMemoryProfile', () => {
 
     it('tier が "8gb" である（12288MB未満）', () => {
       expect(profile.tier).toBe('8gb');
+    });
+
+    it('dinov2ChunkSize = 0（8gb tierのため無効）', () => {
+      expect(profile.dinov2ChunkSize).toBe(0);
+    });
+
+    it('partExtractionEnabled = false', () => {
+      expect(profile.partExtractionEnabled).toBe(false);
     });
   });
 
@@ -341,6 +397,9 @@ describe('computeMemoryProfile', () => {
       expect(profile.maxOldSpaceSizeMb).toBeGreaterThan(0);
       expect(profile.embeddingChunkSize).toBeGreaterThanOrEqual(5);
       expect(profile.jsAnimationEmbeddingChunkSize).toBeGreaterThanOrEqual(5);
+      expect(profile.dinov2ChunkSize).toBeGreaterThanOrEqual(0);
+      expect(profile.partExtractionRssLimit).toBeGreaterThan(0);
+      expect(typeof profile.partExtractionEnabled).toBe('boolean');
     });
   });
 });
@@ -358,6 +417,8 @@ describe('resolveMemoryConfig', () => {
     'WORKER_MAX_OLD_SPACE_MB',
     'WORKER_EMBEDDING_CHUNK_SIZE',
     'WORKER_JS_ANIMATION_CHUNK_SIZE',
+    'WORKER_DINOV2_CHUNK_SIZE',
+    'WORKER_PART_EXTRACTION_RSS_LIMIT',
   ] as const;
 
   const savedEnvValues: Record<string, string | undefined> = {};
@@ -418,6 +479,24 @@ describe('resolveMemoryConfig', () => {
       expect(config.jsAnimationEmbeddingChunkSize).toBe(25);
     });
 
+    it('WORKER_DINOV2_CHUNK_SIZE が設定されていれば優先される', () => {
+      process.env.WORKER_DINOV2_CHUNK_SIZE = '10';
+      const config = resolveMemoryConfig();
+      expect(config.dinov2ChunkSize).toBe(10);
+    });
+
+    it('WORKER_PART_EXTRACTION_RSS_LIMIT が設定されていれば優先される', () => {
+      process.env.WORKER_PART_EXTRACTION_RSS_LIMIT = '12345678';
+      const config = resolveMemoryConfig();
+      expect(config.partExtractionRssLimit).toBe(12345678);
+    });
+
+    it('WORKER_DINOV2_CHUNK_SIZE=0 は有効（DINOv2無効化）', () => {
+      process.env.WORKER_DINOV2_CHUNK_SIZE = '0';
+      const config = resolveMemoryConfig();
+      expect(config.dinov2ChunkSize).toBe(0);
+    });
+
     it('全環境変数を同時にオーバーライドできる', () => {
       process.env.WORKER_MEMORY_DEGRADATION_MB = '5000';
       process.env.WORKER_MEMORY_CRITICAL_MB = '7000';
@@ -425,6 +504,8 @@ describe('resolveMemoryConfig', () => {
       process.env.WORKER_MAX_OLD_SPACE_MB = '4000';
       process.env.WORKER_EMBEDDING_CHUNK_SIZE = '10';
       process.env.WORKER_JS_ANIMATION_CHUNK_SIZE = '20';
+      process.env.WORKER_DINOV2_CHUNK_SIZE = '8';
+      process.env.WORKER_PART_EXTRACTION_RSS_LIMIT = '9999999';
 
       const config = resolveMemoryConfig();
       expect(config.degradationThresholdMb).toBe(5000);
@@ -433,6 +514,8 @@ describe('resolveMemoryConfig', () => {
       expect(config.maxOldSpaceSizeMb).toBe(4000);
       expect(config.embeddingChunkSize).toBe(10);
       expect(config.jsAnimationEmbeddingChunkSize).toBe(20);
+      expect(config.dinov2ChunkSize).toBe(8);
+      expect(config.partExtractionRssLimit).toBe(9999999);
     });
 
     it('未設定の環境変数は computeMemoryProfile の値にフォールバックする', () => {
@@ -446,6 +529,9 @@ describe('resolveMemoryConfig', () => {
       expect(config.maxOldSpaceSizeMb).toBe(baseline.maxOldSpaceSizeMb);
       expect(config.embeddingChunkSize).toBe(baseline.embeddingChunkSize);
       expect(config.jsAnimationEmbeddingChunkSize).toBe(baseline.jsAnimationEmbeddingChunkSize);
+      expect(config.dinov2ChunkSize).toBe(baseline.dinov2ChunkSize);
+      expect(config.partExtractionEnabled).toBe(baseline.partExtractionEnabled);
+      expect(config.partExtractionRssLimit).toBe(baseline.partExtractionRssLimit);
     });
 
     it('一部のみオーバーライドした場合、残りはフォールバックする', () => {
@@ -514,6 +600,13 @@ describe('resolveMemoryConfig', () => {
       const baseline = computeMemoryProfile();
       expect(config.tier).toBe(baseline.tier);
       expect(config.totalMemoryMb).toBe(baseline.totalMemoryMb);
+    });
+
+    it('環境変数オーバーライドしても partExtractionEnabled は変わらない', () => {
+      process.env.WORKER_DINOV2_CHUNK_SIZE = '99';
+      const config = resolveMemoryConfig();
+      const baseline = computeMemoryProfile();
+      expect(config.partExtractionEnabled).toBe(baseline.partExtractionEnabled);
     });
   });
 });

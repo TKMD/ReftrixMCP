@@ -6,9 +6,9 @@
 
 ## テスト概要 / Test Overview
 
-Reftrix MCPサーバーのテストスイート。WebDesign専用の19ツールをカバーしています。
+Reftrix MCPサーバーのテストスイート。WebDesign専用の26ツールをカバーしています。
 
-Test suite for the Reftrix MCP server. Covers all 19 WebDesign-dedicated tools.
+Test suite for the Reftrix MCP server. Covers all 26 WebDesign-dedicated tools.
 
 ### 現行テストファイル構成 / Current Test File Structure
 
@@ -24,7 +24,7 @@ Test suite for the Reftrix MCP server. Covers all 19 WebDesign-dedicated tools.
 
 **合計 / Total**: 約11,500テスト / Approximately 11,500 tests
 
-### 現行19ツール / Current 19 Tools
+### 現行26ツール / Current 26 Tools
 
 SVG機能は削除され、WebDesign専用ツールに移行しました。
 
@@ -51,6 +51,13 @@ SVG features have been removed; migrated to WebDesign-dedicated tools.
 | Page | `page.getJobStatus` | `tools/page/get-job-status.tool.test.ts` |
 | Narrative | `narrative.search` | `tools/narrative/search.tool.test.ts` |
 | Background | `background.search` | `tools/background/search.tool.test.ts` |
+| Responsive | `responsive.search` | `tools/responsive/search.tool.test.ts` |
+| Preference | `preference.hear` | `tools/preference/hear.tool.test.ts` |
+| Preference | `preference.get` | `tools/preference/get.tool.test.ts` |
+| Preference | `preference.reset` | `tools/preference/reset.tool.test.ts` |
+| Part | `part.search` | `tools/part/search.tool.test.ts` |
+| Part | `part.inspect` | `tools/part/inspect.tool.test.ts` |
+| Part | `part.compare` | `tools/part/compare.tool.test.ts` |
 
 ## テスト実行方法 / Test Execution
 
@@ -89,12 +96,12 @@ pnpm test tests/smoke/
 
 ### 1. ツール登録テスト / Tool Registration Test (smoke/tool-registration.test.ts)
 
-**目的 / Purpose**: 全19ツールが正しく登録されていることを確認 / Verify all 19 tools are correctly registered
+**目的 / Purpose**: 全26ツールが正しく登録されていることを確認 / Verify all 26 tools are correctly registered
 
 ```typescript
 describe('MCP Tool Registration', () => {
-  it('toolHandlers に19ツールが登録されている');
-  it('allToolDefinitions に19ツール定義がある');
+  it('toolHandlers に26ツールが登録されている');
+  it('allToolDefinitions に26ツール定義がある');
   it('各ツールに対応するハンドラーが存在する');
 });
 ```

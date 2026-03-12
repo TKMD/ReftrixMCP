@@ -9,9 +9,14 @@
  * 新バッチが正常に処理されない問題を解決する。
  *
  * クリーンアップロジック:
- * 1. active job が 0件の場合: queue.obliterate({ force: true }) で全クリア
- * 2. active job が残っている場合: waiting/failed/delayed/completed のみクリア
- * 3. 全ステータスが0件の場合: スキップ
+ * 1. 全ステータスが0件の場合: スキップ
+ * 2. orphaned active job の検出・個別クリーンアップ
+ * 3. failed/delayed ジョブのみクリア
+ *    - waiting: 他リクエストのジョブを消すリスクがあるため削除しない
+ *    - completed: BullMQ の removeOnComplete 設定に委譲
+ *
+ * Note: obliterate は使用しない。waiting/completed を巻き込み
+ * page.getJobStatus との不整合を引き起こすため。
  *
  * Dependency Injection:
  * BullMQ Queue への直接依存を避けるため、QueueAdapter インターフェースを使用。
@@ -72,12 +77,8 @@ export interface CleanupOptions {
 export interface QueueAdapter {
   /** 各ステータスのジョブ数を取得 */
   getJobCounts: () => Promise<Record<string, number>>;
-  /** キュー内の全ジョブを強制削除 */
-  obliterate: (opts: { force: boolean }) => Promise<void>;
   /** 指定ステータスのジョブをクリーンアップ。grace=0で即時、limit=0で全件 */
   clean: (grace: number, limit: number, status: string) => Promise<string[]>;
-  /** waiting ジョブを全て削除 */
-  drain: () => Promise<void>;
   /** 指定ステータスのジョブを取得（orphaned active job 検出用） */
   getJobs: (status: string, start: number, end: number) => Promise<JobInfo[]>;
 }
@@ -85,12 +86,11 @@ export interface QueueAdapter {
 /**
  * クリーンアップ戦略
  *
- * - obliterate: active=0で全クリア
- * - selective: active>0でwaiting/failed/delayed/completedのみクリア
+ * - selective: failed/delayedのみクリア + orphaned active検出
  * - skipped: 全ステータスが0件
  * - none: エラー発生時
  */
-export type CleanupStrategy = 'obliterate' | 'selective' | 'skipped' | 'none';
+export type CleanupStrategy = 'selective' | 'skipped' | 'none';
 
 /**
  * クリーンアップ実行前のジョブ数
@@ -243,32 +243,10 @@ export async function cleanupQueue(
       return result;
     }
 
-    // Step 3: active job が 0件の場合 → obliterate で全クリア
-    if (beforeCounts.active === 0) {
-      await adapter.obliterate({ force: true });
-
-      const result: CleanupResult = {
-        success: true,
-        strategy: 'obliterate',
-        beforeCounts,
-        totalCleaned: totalNonActive,
-        orphanedActivesCleaned: 0,
-        durationMs: Date.now() - startTime,
-      };
-
-      logger.info('[QueueCleanup] Obliterated all jobs', {
-        strategy: result.strategy,
-        beforeCounts,
-        totalCleaned: result.totalCleaned,
-        durationMs: result.durationMs,
-      });
-
-      return result;
-    }
-
-    // Step 4: active job が残っている場合 → orphaned 検出 + 選択的クリア
-
-    // Step 4a: orphaned active job の検出・クリーンアップ
+    // Step 3: orphaned active job の検出・クリーンアップ
+    // Note: obliterate は使用しない。waiting/completed ジョブを巻き込み、
+    // page.getJobStatus との不整合を引き起こすため。
+    // BullMQ の removeOnComplete/removeOnFail 設定でライフサイクル管理する。
     let orphanedActivesCleaned = 0;
     let remainingActiveCount = beforeCounts.active;
 
@@ -292,38 +270,12 @@ export async function cleanupQueue(
       });
     }
 
-    // Step 4b: 全 active が orphaned だった場合は obliterate に切り替え
-    if (remainingActiveCount <= 0) {
-      await adapter.obliterate({ force: true });
-
-      const result: CleanupResult = {
-        success: true,
-        strategy: 'obliterate',
-        beforeCounts,
-        totalCleaned: totalNonActive + orphanedActivesCleaned,
-        orphanedActivesCleaned,
-        durationMs: Date.now() - startTime,
-      };
-
-      logger.info('[QueueCleanup] All active jobs were orphaned, obliterated queue', {
-        strategy: result.strategy,
-        beforeCounts,
-        orphanedActivesCleaned,
-        totalCleaned: result.totalCleaned,
-        durationMs: result.durationMs,
-      });
-
-      return result;
-    }
-
-    // Step 4c: 通常の選択的クリア
+    // Step 4: 選択的クリア（failed/delayed のみ）
+    // Note: waiting jobs (drain) と completed jobs は削除しない。
+    // - waiting: 他リクエストの投入済みジョブを消すリスクがあるため
+    // - completed: BullMQ の removeOnComplete 設定に任せる
+    // stalled/failed/delayed のみクリーンアップする。
     let cleanedCount = 0;
-
-    // waiting ジョブをクリア
-    if (beforeCounts.waiting > 0) {
-      await adapter.drain();
-      cleanedCount += beforeCounts.waiting;
-    }
 
     // failed ジョブをクリア
     if (beforeCounts.failed > 0) {
@@ -334,12 +286,6 @@ export async function cleanupQueue(
     // delayed ジョブをクリア
     if (beforeCounts.delayed > 0) {
       const cleaned = await adapter.clean(0, 0, 'delayed');
-      cleanedCount += cleaned.length;
-    }
-
-    // completed ジョブをクリア
-    if (beforeCounts.completed > 0) {
-      const cleaned = await adapter.clean(0, 0, 'completed');
       cleanedCount += cleaned.length;
     }
 
@@ -393,10 +339,8 @@ export async function cleanupQueue(
 export function createQueueAdapter(queue: Queue): QueueAdapter {
   return {
     getJobCounts: (): Promise<Record<string, number>> => queue.getJobCounts(),
-    obliterate: (opts: { force: boolean }): Promise<void> => queue.obliterate(opts),
     clean: (grace: number, limit: number, status: string): Promise<string[]> =>
       queue.clean(grace, limit, status as 'completed' | 'wait' | 'active' | 'paused' | 'delayed' | 'failed'),
-    drain: (): Promise<void> => queue.drain(),
     getJobs: async (status: string, start: number, end: number): Promise<JobInfo[]> => {
       const jobs = await queue.getJobs(
         [status as 'completed' | 'wait' | 'active' | 'paused' | 'delayed' | 'failed'],

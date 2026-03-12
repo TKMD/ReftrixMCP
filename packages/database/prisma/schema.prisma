@@ -200,6 +200,7 @@ model WebPage {
   designNarrative        DesignNarrative? // 1:1 relationship
   backgroundDesigns      BackgroundDesign[]
   responsiveAnalyses     ResponsiveAnalysis[]
+  componentParts         ComponentPart[]
 
   @@index([projectId])
   @@index([projectId, analysisStatus])
@@ -310,6 +311,7 @@ model SectionPattern {
   embedding          SectionEmbedding?
   qualityBenchmarks  QualityBenchmark[]
   backgroundDesigns  BackgroundDesign[]
+  componentParts     ComponentPart[]
 
   @@index([webPageId])
   @@index([sectionType])
@@ -1634,4 +1636,75 @@ model PreferenceSignal {
   @@index([targetType, targetId])
   @@index([createdAt(sort: Desc)])
   @@map("preference_signals")
+}
+
+// ============================================================================
+// Part-Level Analysis Models
+// Reference: part-level-analysis.md v0.2.1
+// ============================================================================
+
+/// ComponentPart - セクション内の構成パーツ（ボタン、カード、ナビゲーション等）
+/// Part-level granularity for design component analysis
+/// partType: 'button' | 'card' | 'navigation' | 'form' | 'hero-image' | etc.
+model ComponentPart {
+  id               String   @id @default(dbgenerated("gen_uuidv7()")) @db.Uuid
+  webPageId        String   @map("web_page_id") @db.Uuid
+  sectionPatternId String   @map("section_pattern_id") @db.Uuid
+  partType         String   @map("part_type") @db.VarChar(50)
+  partSubtype      String?  @map("part_subtype") @db.VarChar(100)
+  htmlSnippet      String?  @map("html_snippet")
+  computedStyles   Json     @default("{}") @map("computed_styles")
+  boundingBox      Json     @default("{}") @map("bounding_box")
+  cssClasses       String[] @default([]) @map("css_classes")
+  attributes       Json     @default("{}") @map("attributes")
+  interactionInfo  Json     @default("{}") @map("interaction_info")
+  visualSignature  String?  @map("visual_signature") @db.VarChar(64)
+  sampleIndex      Int      @default(0) @map("sample_index")
+  piiRiskLevel     String   @default("none") @map("pii_risk_level") @db.VarChar(10)
+  tags             String[] @default([])
+  metadata         Json     @default("{}")
+  sourceUrl        String?  @map("source_url")
+  usageScope       String   @default("inspiration_only") @map("usage_scope") @db.VarChar(20)
+  extractedAt      DateTime @map("extracted_at") @db.Timestamptz()
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt        DateTime @updatedAt @map("updated_at") @db.Timestamptz()
+
+  // リレーション / Relations
+  webPage        WebPage         @relation(fields: [webPageId], references: [id], onDelete: Cascade)
+  sectionPattern SectionPattern  @relation(fields: [sectionPatternId], references: [id], onDelete: Cascade)
+  embedding      ComponentPartEmbedding?
+
+  @@index([webPageId])
+  @@index([sectionPatternId])
+  @@index([partType])
+  @@index([webPageId, partType])
+  @@unique([sectionPatternId, visualSignature])
+  @@index([piiRiskLevel])
+  @@map("component_parts")
+}
+
+/// ComponentPartEmbedding - コンポーネントパーツのベクトル埋め込み
+/// HNSW Indexes (m=16, ef_construction=64, vector_cosine_ops):
+///   - idx_component_part_embeddings_visual_hnsw
+///   - idx_component_part_embeddings_text_hnsw
+/// GIN Index: idx_component_part_embeddings_search_vector
+/// Performance Target: Vector Search P95 < 100ms
+model ComponentPartEmbedding {
+  id                 String                    @id @default(dbgenerated("gen_uuidv7()")) @db.Uuid
+  componentPartId    String                    @unique @map("component_part_id") @db.Uuid
+  visualEmbedding    Unsupported("vector(768)")? @map("visual_embedding")
+  textEmbedding      Unsupported("vector(768)")? @map("text_embedding")
+  textRepresentation String?                   @map("text_representation")
+  searchVector       Unsupported("tsvector")?  @map("search_vector")
+  visualModelVersion String                    @map("visual_model_version") @db.VarChar(50)
+  textModelVersion   String                    @map("text_model_version") @db.VarChar(50)
+  embeddingTimestamp  DateTime                  @map("embedding_timestamp") @db.Timestamptz()
+  createdAt          DateTime                  @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt          DateTime                  @updatedAt @map("updated_at") @db.Timestamptz()
+
+  // リレーション / Relations
+  componentPart ComponentPart @relation(fields: [componentPartId], references: [id], onDelete: Cascade)
+
+  @@index([componentPartId])
+  @@map("component_part_embeddings")
 }

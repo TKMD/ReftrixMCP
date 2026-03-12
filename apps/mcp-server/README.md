@@ -76,7 +76,7 @@ pnpm start
 }
 ```
 
-## MCPツール一覧（23ツール） / MCP Tool List (23 Tools)
+## MCPツール一覧（26ツール） / MCP Tool List (26 Tools)
 
 ### Layoutツール（5ツール） / Layout Tools (5 Tools)
 
@@ -548,6 +548,55 @@ Resets or permanently deletes a preference profile. Soft reset (default) clears 
 
 ---
 
+### Partツール（3ツール） / Part Tools (3 Tools)
+
+#### `part.search` - UIパーツ検索 / UI Part Search
+
+UIパーツをセマンティック検索します（ハイブリッド: ベクトル + 全文 RRF）。16パーツタイプ対応、searchMode（visual/text/hybrid）切替可能。 / Performs semantic search on UI parts (hybrid: vector + fulltext RRF). Supports 16 part types, switchable searchMode (visual/text/hybrid).
+
+**入力スキーマ / Input Schema**:
+
+```typescript
+{
+  query: string;              // 検索クエリ（1-500文字、必須） / Search query (1-500 chars, required)
+  searchMode?: 'visual' | 'text' | 'hybrid'; // 検索モード（デフォルト: 'hybrid'） / Search mode (default: 'hybrid')
+  filters?: {
+    partType?: string;        // パーツタイプフィルタ / Part type filter
+    webPageId?: string;       // WebページIDフィルタ / Web page ID filter
+  };
+  limit?: number;             // 取得件数（1-50、デフォルト10） / Result limit (default: 10)
+}
+```
+
+#### `part.inspect` - パーツ詳細取得 / Part Detail Inspection
+
+IDを指定してパーツの詳細情報（computedStyles、boundingBox、interactionInfo、cssClasses、attributes、piiRiskLevel）を取得します。 / Retrieves detailed part information by ID (computedStyles, boundingBox, interactionInfo, cssClasses, attributes, piiRiskLevel).
+
+**入力スキーマ / Input Schema**:
+
+```typescript
+{
+  id: string;                 // パーツID（UUID形式、必須） / Part ID (UUID, required)
+  includeHtml?: boolean;      // HTMLを含めるか（デフォルト: false） / Include HTML (default: false)
+  includeEmbedding?: boolean; // Embeddingを含めるか（デフォルト: false） / Include embedding (default: false)
+}
+```
+
+#### `part.compare` - パーツ比較 / Part Comparison
+
+2〜5個のパーツをスタイル・レイアウト・インタラクション・アクセシビリティの観点で並列比較します。 / Compares 2-5 parts side by side on styles, layout, interaction, and accessibility aspects.
+
+**入力スキーマ / Input Schema**:
+
+```typescript
+{
+  partIds: string[];          // 比較対象パーツID配列（2-5件、UUID形式） / Part IDs to compare (2-5, UUID format)
+  aspects?: ('styles' | 'layout' | 'interaction' | 'accessibility')[]; // 比較観点 / Comparison aspects
+}
+```
+
+---
+
 ### Systemツール（1ツール） / System Tools (1 Tool)
 
 #### `system.health` - システムヘルスチェック / System Health Check
@@ -960,7 +1009,7 @@ apps/mcp-server/
 | `NODE_ENV` | 環境（development/test/production） | - | Yes |
 | `DATABASE_URL` | PostgreSQL接続URL（ポート: 26432） | - | Yes |
 | `MCP_AUTH_ENABLED` | API認証有効化（本番ではtrueを強く推奨） | `false` | No |
-| `MCP_API_KEYS` | APIキー（`MCP_AUTH_ENABLED=true`時に必須、カンマ区切りで複数指定可）。レガシー互換: `MCP_API_KEY`（単一キー）も使用可 | - | Conditional |
+| `MCP_API_KEYS` | APIキー（`MCP_AUTH_ENABLED=true`時に必須、JSON配列形式）。例: `'[{"key":"reftrix_...","role":"ADMIN","userId":"user-1"}]'`。各キーに `role`（ADMIN/USER/VIEWER）、`userId`、オプションで `expiresAt`（ISO 8601）を指定。レガシー互換: `MCP_API_KEY`（単一キー文字列、環境変数フォールバック）も使用可 / API keys (required when `MCP_AUTH_ENABLED=true`, JSON array format). Example: `'[{"key":"reftrix_...","role":"ADMIN","userId":"user-1"}]'`. Each key specifies `role` (ADMIN/USER/VIEWER), `userId`, and optional `expiresAt` (ISO 8601). Legacy compat: `MCP_API_KEY` (single key string, env var fallback) also supported | - | Conditional |
 | `REDIS_URL` | Redis接続URL | - | Conditional |
 | `REDIS_HOST` | Redisホスト | `localhost` | No |
 | `REDIS_PORT` | Redisポート（ポートオフセット: 21000） | `27379` | No |
@@ -1006,13 +1055,22 @@ apps/mcp-server/
 **本番環境では以下の設定を強く推奨します**:
 
 ```bash
-# 本番環境推奨設定
+# 本番環境推奨設定 / Production recommended settings
 NODE_ENV=production
 MCP_AUTH_ENABLED=true
-MCP_API_KEYS=<64文字以上の強力なランダム文字列（カンマ区切りで複数指定可）>
+
+# MCP_API_KEYS: JSON配列形式（各キーは64文字以上を推奨）
+# MCP_API_KEYS: JSON array format (each key should be 64+ characters)
+MCP_API_KEYS='[{"key":"reftrix_your_64char_random_string_here...","role":"ADMIN","userId":"admin-1"},{"key":"reftrix_another_key...","role":"VIEWER","userId":"viewer-1","expiresAt":"2027-01-01T00:00:00Z"}]'
+
+# レガシー互換: MCP_API_KEY（単一キー文字列）も使用可（リクエスト _meta にキーがない場合のフォールバック）
+# Legacy compat: MCP_API_KEY (single key string) also supported (fallback when no key in request _meta)
+# MCP_API_KEY=reftrix_single_key_fallback_string
 ```
 
 `MCP_AUTH_ENABLED=false`かつ`NODE_ENV=production`の場合、サーバー起動時に警告ログが出力されます。
+
+When `MCP_AUTH_ENABLED=false` and `NODE_ENV=production`, a warning log is output at server startup.
 
 ### page.analyze非同期モード / page.analyze Async Mode
 

@@ -402,6 +402,115 @@ describe('Page Analyze Queue', () => {
     });
   });
 
+  describe('getJobStatus currentPhase logic', () => {
+    it('should extract currentPhase from object progress data', async () => {
+      // getJobStatus requires a real queue, but we can verify the logic
+      // by testing with a mock queue that returns a job with object progress
+      const redisAvailable = await isRedisAvailable();
+      if (!redisAvailable) {
+        console.log('Skipping test: Redis not available');
+        return;
+      }
+
+      const queue = createPageAnalyzeQueue();
+      try {
+        const webPageId = '019bc999-0001-7000-a000-000000000001';
+        const job = await addPageAnalyzeJob(queue, {
+          webPageId,
+          url: 'https://example.com/phase-test',
+          options: { features: { layout: true } },
+        });
+
+        // Simulate Worker updating progress with object data (as ExecutionStatusTrackerV2 does)
+        await job.updateProgress({
+          overallProgress: 35,
+          currentPhase: 'motion',
+          phases: {},
+          webPageId,
+          url: 'https://example.com/phase-test',
+          startedAt: new Date().toISOString(),
+          lastUpdatedAt: new Date().toISOString(),
+        });
+
+        const status = await getJobStatus(queue, webPageId);
+
+        expect(status).not.toBeNull();
+        expect(status?.currentPhase).toBe('motion');
+        expect(status?.progress).toBe(35);
+      } finally {
+        await queue.obliterate({ force: true });
+        await closeQueue(queue);
+      }
+    });
+
+    it('should not set currentPhase when progress is numeric (no phase info)', async () => {
+      const redisAvailable = await isRedisAvailable();
+      if (!redisAvailable) {
+        console.log('Skipping test: Redis not available');
+        return;
+      }
+
+      const queue = createPageAnalyzeQueue();
+      try {
+        const webPageId = '019bc999-0002-7000-a000-000000000002';
+        const job = await addPageAnalyzeJob(queue, {
+          webPageId,
+          url: 'https://example.com/numeric-progress',
+          options: { features: { layout: true } },
+        });
+
+        // Simulate numeric-only progress (legacy behavior)
+        await job.updateProgress(50);
+
+        const status = await getJobStatus(queue, webPageId);
+
+        expect(status).not.toBeNull();
+        expect(status?.progress).toBe(50);
+        expect(status?.currentPhase).toBeUndefined();
+      } finally {
+        await queue.obliterate({ force: true });
+        await closeQueue(queue);
+      }
+    });
+
+    it('should ignore invalid currentPhase values from progress data', async () => {
+      const redisAvailable = await isRedisAvailable();
+      if (!redisAvailable) {
+        console.log('Skipping test: Redis not available');
+        return;
+      }
+
+      const queue = createPageAnalyzeQueue();
+      try {
+        const webPageId = '019bc999-0003-7000-a000-000000000003';
+        const job = await addPageAnalyzeJob(queue, {
+          webPageId,
+          url: 'https://example.com/invalid-phase',
+          options: {},
+        });
+
+        // Simulate progress with an invalid phase name
+        await job.updateProgress({
+          overallProgress: 20,
+          currentPhase: 'nonexistent_phase',
+          phases: {},
+          webPageId,
+          url: 'https://example.com/invalid-phase',
+          startedAt: new Date().toISOString(),
+          lastUpdatedAt: new Date().toISOString(),
+        });
+
+        const status = await getJobStatus(queue, webPageId);
+
+        expect(status).not.toBeNull();
+        expect(status?.currentPhase).toBeUndefined();
+      } finally {
+        await queue.obliterate({ force: true });
+        await closeQueue(queue);
+      }
+    });
+  });
+
   describe('Graceful Degradation', () => {
     it('should handle queue creation when Redis is unavailable', () => {
       // This should not throw - queue creation is lazy

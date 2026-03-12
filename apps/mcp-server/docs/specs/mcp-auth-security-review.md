@@ -400,12 +400,16 @@ export const toolPermissions: Record<string, Role[]> = {
 | 開発環境バイパスオプション / Dev env bypass option | Security | NODE_ENV=development |
 
 **環境変数設計 / Environment Variable Design**:
-<!-- NOTE: Phase 1実装では MCP_API_KEYS（複数形、カンマ区切り）に変更済み。以下は設計時の記載。 -->
+<!-- NOTE: Phase 1実装では MCP_API_KEYS（複数形、JSON配列形式）に変更済み。以下は設計時の記載 + 実装後の正しい形式。 -->
+<!-- NOTE: Phase 1 implementation changed to MCP_API_KEYS (plural, JSON array format). Below shows both the original design and the correct implemented format. -->
 ```bash
 # .env.example
 MCP_AUTH_ENABLED=true
-MCP_API_KEY=your-secret-api-key-here
-MCP_AUTH_BYPASS_DEV=false  # 開発環境でも認証必須にする場合
+# JSON配列形式 / JSON array format
+MCP_API_KEYS='[{"key":"reftrix_...","role":"ADMIN","userId":"admin-1"}]'
+# レガシー互換（単一キー文字列フォールバック） / Legacy compat (single key string fallback)
+# MCP_API_KEY=your-secret-api-key-here
+MCP_AUTH_BYPASS_DEV=false  # 開発環境でも認証必須にする場合 / Require auth even in dev
 ```
 
 ### Phase 2: レート制限（14日以内） / Phase 2: Rate Limiting (Within 14 Days)
@@ -504,7 +508,8 @@ HTTP header-based authentication is not possible with StdIO transport. Alternati
 
 **オプション1 / Option 1**: 環境変数による認証 / Authentication via environment variables
 
-<!-- NOTE: Phase 1実装では MCP_API_KEYS（複数形、カンマ区切り）に変更済み。以下は設計時の記載。 -->
+<!-- NOTE: Phase 1実装では MCP_API_KEYS（複数形、JSON配列形式）に変更済み。MCP_API_KEY（単一キー）はリクエスト _meta にキーがない場合のフォールバック。 -->
+<!-- NOTE: Phase 1 implementation changed to MCP_API_KEYS (plural, JSON array format). MCP_API_KEY (singular) is a fallback when no key in request _meta. -->
 ```json
 // .mcp.json
 {
@@ -513,7 +518,8 @@ HTTP header-based authentication is not possible with StdIO transport. Alternati
       "command": "node",
       "args": ["apps/mcp-server/dist/index.js"],
       "env": {
-        "MCP_API_KEY": "${REFTRIX_MCP_API_KEY}"
+        "MCP_API_KEYS": "[{\"key\":\"${REFTRIX_MCP_API_KEY}\",\"role\":\"ADMIN\",\"userId\":\"admin-1\"}]",
+        "MCP_AUTH_ENABLED": "true"
       }
     }
   }

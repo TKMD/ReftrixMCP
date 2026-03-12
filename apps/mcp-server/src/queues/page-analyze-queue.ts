@@ -115,6 +115,15 @@ export interface PageAnalyzeJobOptions {
     detect_visibility?: boolean;
     detect_layout?: boolean;
   };
+  /** Part extraction options (Phase 1.1) */
+  partExtractionOptions?: {
+    /** Enable part extraction (default: true) */
+    enabled?: boolean;
+    /** RSS memory limit in bytes. Skip if exceeded (default: 8GB) */
+    rssLimitBytes?: number;
+    /** Independent timeout in ms (default: 30000) */
+    timeoutMs?: number;
+  };
   /** Whether to respect robots.txt (default: true) */
   respectRobotsTxt?: boolean;
 }
@@ -163,6 +172,15 @@ export interface PageAnalyzeJobResult {
       backgroundDesignEmbeddingsGenerated?: number | undefined;
       jsAnimationEmbeddingsGenerated?: number | undefined;
       responsiveEmbeddingsGenerated?: number | undefined;
+      partEmbeddingsGenerated?: number | undefined;
+      /** DINOv2 visual embedding生成数 / DINOv2 visual embeddings generated */
+      partVisualEmbeddingsGenerated?: number | undefined;
+    };
+    partExtraction?: {
+      sectionsProcessed: number;
+      totalPartsExtracted: number;
+      totalPartsSaved: number;
+      durationMs: number;
     };
     responsive?: {
       differencesDetected: number;
@@ -351,9 +369,15 @@ export async function getJobStatus(
     timestamps,
   };
 
-  // Add optional properties only if they have values
-  if (job.data.options?.features?.layout) {
-    status.currentPhase = 'layout';
+  // Determine currentPhase from job progress data (set by Worker via job.updateProgress)
+  // The Worker sends an object with { overallProgress, currentPhase, phases, ... }
+  if (typeof job.progress === 'object' && job.progress !== null && 'currentPhase' in job.progress) {
+    const phaseFromProgress = (job.progress as { currentPhase: string }).currentPhase;
+    // Validate that it's a known AnalysisPhase
+    const validPhases: readonly string[] = ['ingest', 'layout', 'motion', 'quality', 'narrative', 'responsive', 'embedding'];
+    if (validPhases.includes(phaseFromProgress)) {
+      status.currentPhase = phaseFromProgress as AnalysisPhase;
+    }
   }
   if (state === 'completed' && job.returnvalue) {
     status.result = job.returnvalue;

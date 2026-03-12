@@ -21,9 +21,9 @@ ReftrixMCPは、Webデザインパターンをベクトル検索(pgvector HNSW)�
 RAGで検索可能なナレッジベースに集約し、MCPツール経由でClaude等の
 AIエージェントと統合するプラットフォームです。
 
-**主要機能**: レイアウト分析 / モーション検出 / 品質評価 / セマンティック検索 / レスポンシブ解析 / 嗜好プロファイリング
+**主要機能**: レイアウト分析 / モーション検出 / 品質評価 / セマンティック検索 / レスポンシブ解析 / 嗜好プロファイリング / パーツ分析
 
-**23のMCPツール**を提供: Layout(5) / Motion(2) / Quality(3) / Page(2) / Narrative(1) / Background(1) / Responsive(1) / Preference(3) / Style(1) / Brief(1) / Project(2) / System(1)
+**26のMCPツール**を提供: Layout(5) / Motion(2) / Quality(3) / Page(2) / Narrative(1) / Background(1) / Responsive(1) / Preference(3) / Part(3) / Style(1) / Brief(1) / Project(2) / System(1)
 
 詳細な日本語ドキュメント: [docs/README.ja.md](docs/README.ja.md)
 
@@ -36,6 +36,7 @@ AIエージェントと統合するプラットフォームです。
 - **Quality evaluation** -- score designs on three axes (originality, craftsmanship, contextuality) with anti-AI-cliche detection
 - **Semantic search** -- find layout, motion, narrative, background, and responsive patterns via pgvector HNSW hybrid search
 - **Preference profiling** -- learn user design preferences through feedback sessions and personalize search results via reranking (GDPR-compliant)
+- **Part-level analysis** -- extract 16 UI part types (button, icon, heading, etc.) with DINOv2 visual embeddings for visual similarity search
 - **Vision integration** -- Ollama llama3.2-vision for richer layout, motion, and narrative understanding
 - **Code generation** -- convert analyzed sections to React, Vue, or plain HTML with matched motion patterns
 
@@ -48,7 +49,8 @@ AIエージェントと統合するプラットフォームです。
 | **Quality-aware** | Three-axis scoring with actionable improvement suggestions |
 | **Searchable** | 768-dim multilingual embeddings (e5-base) with HNSW index and hybrid RRF ranking |
 | **Preference-aware** | User preference profiling with feedback-driven reranking across all search tools |
-| **MCP-native** | 23 tools purpose-built for Claude Desktop and MCP Client CLI |
+| **Part-aware** | 16 UI part types extracted with DINOv2 visual embeddings for cross-site component comparison |
+| **MCP-native** | 26 tools purpose-built for Claude Desktop and MCP Client CLI |
 
 ## Quickstart
 
@@ -69,6 +71,7 @@ pnpm docker:up                                   # PostgreSQL 18 + pgvector + Re
 pnpm db:migrate && pnpm db:seed
 pnpm build
 pnpm exec playwright install chromium            # browser for page crawling
+pnpm --filter @reftrix/ml download:dinov2        # DINOv2 visual embedding model (~800 MB)
 curl -fsSL https://ollama.com/install.sh | sh    # install Ollama
 ollama pull llama3.2-vision                      # vision model (~2 GB)
 ollama serve                                     # keep running in a separate terminal
@@ -95,7 +98,8 @@ Add to your MCP config:
         "NODE_ENV": "development",
         "DATABASE_URL": "postgresql://reftrix:change_me@localhost:26432/reftrix?schema=public",
         "REDIS_URL": "redis://localhost:27379",
-        "OLLAMA_BASE_URL": "http://localhost:11434"
+        "OLLAMA_BASE_URL": "http://localhost:11434",
+        "OLLAMA_HOST": "http://localhost:11434"
       }
     }
   }
@@ -103,10 +107,12 @@ Add to your MCP config:
 ```
 
 > Replace `change_me` with a secure password. Port 26432 = standard 5432 + 21000 offset.
+>
+> `OLLAMA_BASE_URL` is used by the MCP server process; `OLLAMA_HOST` is used by the worker process. Both must match if Ollama runs on a non-default port.
 
 ## Example tools
 
-ReftrixMCP provides **23 MCP tools**. Key examples:
+ReftrixMCP provides **26 MCP tools**. Key examples:
 
 - `layout.ingest` -- fetch a web page, take a screenshot, and extract section patterns
 - `layout.search` -- semantic search over layout sections by natural-language query
@@ -117,15 +123,18 @@ ReftrixMCP provides **23 MCP tools**. Key examples:
 - `preference.hear` -- interactive preference hearing sessions with sample presentation and feedback collection
 - `preference.get` -- retrieve preference profiles (with GDPR data portability support)
 - `preference.reset` -- reset or permanently delete preference profiles (GDPR Right to Erasure)
+- `part.search` -- semantic search over UI parts with visual (DINOv2) or text embeddings
+- `part.inspect` -- get detailed part info including computed styles, bounding box, and accessibility
+- `part.compare` -- compare 2-5 parts side by side on styles, layout, and interaction
 
 Full tool reference: [MCP Tools Guide](docs/users-guide/02-mcp-tools-guide.md)
 
 ## Architecture
 
 ```
-MCP Client (Claude Desktop / Code)  --stdio-->  MCP Server (23 tools, Zod)
+MCP Client (Claude Desktop / Code)  --stdio-->  MCP Server (26 tools, Zod)
   +-- Service Layer: Playwright, Sharp+Pixelmatch, DOMPurify
-  +-- ML Layer: ONNX Runtime (multilingual-e5-base, 768-dim)
+  +-- ML Layer: ONNX Runtime (multilingual-e5-base + DINOv2 ViT-B/14, 768-dim)
   +-- BullMQ Workers: page.analyze, quality.evaluate
   +-- PostgreSQL 18 + pgvector 0.8 (HNSW, tsvector)  +  Redis 7
 ```
@@ -135,7 +144,7 @@ MCP Client (Claude Desktop / Code)  --stdio-->  MCP Server (23 tools, Zod)
 | Guide | Description |
 |-------|-------------|
 | [Getting Started](docs/users-guide/01-getting-started.md) | Installation, setup, and first analysis |
-| [MCP Tools Guide](docs/users-guide/02-mcp-tools-guide.md) | All 23 tools with usage examples |
+| [MCP Tools Guide](docs/users-guide/02-mcp-tools-guide.md) | All 26 tools with usage examples |
 | [page.analyze Deep Dive](docs/users-guide/03-page-analyze-deep-dive.md) | Async analysis flow and data structures |
 | [Troubleshooting](docs/users-guide/04-troubleshooting.md) | Common issues and solutions |
 
@@ -146,6 +155,7 @@ MCP Client (Claude Desktop / Code)  --stdio-->  MCP Server (23 tools, Zod)
 - First embedding call downloads ~400 MB model (multilingual-e5-base)
 - `page.analyze` workers auto-start via WorkerSupervisor; manual launch is not required
 - Vision analysis (layout, motion, narrative) requires Ollama + `llama3.2-vision` running locally
+- DINOv2 visual embedding model requires ~800 MB download (ViT-B/14 ONNX)
 
 ## License
 

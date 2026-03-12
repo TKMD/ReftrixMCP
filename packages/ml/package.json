@@ -19,6 +19,10 @@
     "./search": {
       "types": "./dist/search/index.d.ts",
       "default": "./dist/search/index.js"
+    },
+    "./dinov2": {
+      "types": "./dist/dinov2/index.d.ts",
+      "default": "./dist/dinov2/index.js"
     }
   },
   "scripts": {
@@ -30,6 +34,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
+    "download:dinov2": "tsx scripts/download-dinov2.ts",
     "clean": "rm -rf dist node_modules .turbo"
   },
   "dependencies": {

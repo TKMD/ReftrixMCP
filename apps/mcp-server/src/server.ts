@@ -84,7 +84,7 @@ function injectRequestIdIfMissing(result: unknown, requestId: string): unknown {
  */
 export const SERVER_CONFIG = {
   name: 'reftrix-mcp-server',
-  version: '0.1.0',
+  version: '0.1.3',
 } as const;
 
 /**

@@ -57,6 +57,9 @@ prisma/migrations/*_migration_lock.toml
 models/
 *.onnx
 
+# DINOv2 ONNX model (downloaded at runtime, not committed)
+packages/ml/models/
+
 # Docker volumes
 docker/data/
 

@@ -1,7 +1,7 @@
 # MCP Server 認証機構 要件定義書 / MCP Server Authentication Requirements
 
-**Version**: 2.0.0
-**Last Updated**: 2026-03-01
+**Version**: 2.1.0
+**Last Updated**: 2026-03-11
 **Status**: Released
 **Author**: Requirements Architect
 
@@ -81,6 +81,15 @@ export const PERMISSIONS = {
   DESIGN_WRITE: 'design:write',
   // スタイル系 / Style
   STYLE_READ: 'style:read',
+  // ナラティブ系 / Narrative
+  NARRATIVE_READ: 'narrative:read',
+  // バックグラウンド系 / Background
+  BACKGROUND_READ: 'background:read',
+  // レスポンシブ系 / Responsive
+  RESPONSIVE_READ: 'responsive:read',
+  // 嗜好プロファイリング系 / Preference Profiling
+  PREFERENCE_READ: 'preference:read',
+  PREFERENCE_WRITE: 'preference:write',
 } as const;
 ```
 
@@ -96,14 +105,30 @@ export const TOOL_PERMISSIONS: Record<string, Permission[]> = {
   'layout.search': [PERMISSIONS.LAYOUT_READ],
   'layout.ingest': [PERMISSIONS.LAYOUT_WRITE],
   'layout.generate_code': [PERMISSIONS.LAYOUT_TRANSFORM],
+  'layout.batch_ingest': [PERMISSIONS.LAYOUT_WRITE],
 
   // 品質系 / Quality
   'quality.evaluate': [PERMISSIONS.QUALITY_READ],
   'quality.batch_evaluate': [PERMISSIONS.QUALITY_READ],
+  'quality.getJobStatus': [PERMISSIONS.QUALITY_READ],
 
   // モーション系 / Motion
   'motion.detect': [PERMISSIONS.MOTION_READ],
   'motion.search': [PERMISSIONS.MOTION_READ],
+
+  // ナラティブ系（セマンティック検索） / Narrative (Semantic Search)
+  'narrative.search': [PERMISSIONS.NARRATIVE_READ],
+
+  // バックグラウンド系（セマンティック検索） / Background (Semantic Search)
+  'background.search': [PERMISSIONS.BACKGROUND_READ],
+
+  // レスポンシブ系（セマンティック検索） / Responsive (Semantic Search)
+  'responsive.search': [PERMISSIONS.RESPONSIVE_READ],
+
+  // 嗜好プロファイリング系 / Preference Profiling
+  'preference.hear': [PERMISSIONS.PREFERENCE_WRITE],
+  'preference.get': [PERMISSIONS.PREFERENCE_READ],
+  'preference.reset': [PERMISSIONS.PREFERENCE_WRITE],
 
   // ブリーフ系（デザインレビュー） / Brief (Design Review)
   'brief.validate': [PERMISSIONS.DESIGN_REVIEW],
@@ -134,6 +159,10 @@ export const ROLES = {
     PERMISSIONS.QUALITY_READ,
     PERMISSIONS.PROJECT_READ,
     PERMISSIONS.STYLE_READ,
+    PERMISSIONS.NARRATIVE_READ,
+    PERMISSIONS.BACKGROUND_READ,
+    PERMISSIONS.RESPONSIVE_READ,
+    PERMISSIONS.PREFERENCE_READ,
   ],
 
   // 標準ユーザー（読み取り + 変換） / Standard User (Read + Transform)
@@ -149,6 +178,11 @@ export const ROLES = {
     PERMISSIONS.PROJECT_READ,
     PERMISSIONS.DESIGN_REVIEW,
     PERMISSIONS.STYLE_READ,
+    PERMISSIONS.NARRATIVE_READ,
+    PERMISSIONS.BACKGROUND_READ,
+    PERMISSIONS.RESPONSIVE_READ,
+    PERMISSIONS.PREFERENCE_READ,
+    PERMISSIONS.PREFERENCE_WRITE,
   ],
 
   // 管理者（全権限） / Admin (All Permissions)
@@ -167,6 +201,11 @@ export const ROLES = {
     PERMISSIONS.DESIGN_REVIEW,
     PERMISSIONS.DESIGN_WRITE,
     PERMISSIONS.STYLE_READ,
+    PERMISSIONS.NARRATIVE_READ,
+    PERMISSIONS.BACKGROUND_READ,
+    PERMISSIONS.RESPONSIVE_READ,
+    PERMISSIONS.PREFERENCE_READ,
+    PERMISSIONS.PREFERENCE_WRITE,
   ],
 } as const;
 ```
@@ -182,8 +221,10 @@ MCP_AUTH_ENABLED=true
 # 認証方式（api_key | jwt） / Authentication method (api_key | jwt)
 MCP_AUTH_METHOD=api_key
 
-# APIキー設定（JSON形式） / API key configuration (JSON format)
-MCP_API_KEYS='[{"id":"default","keyHash":"$2b$10$...","role":"ADMIN"}]'
+# APIキー設定（JSON配列形式） / API key configuration (JSON array format)
+# 実装では key, role, userId, expiresAt?(optional) を使用
+# Implementation uses key, role, userId, expiresAt? (optional)
+MCP_API_KEYS='[{"key":"reftrix_64char_random_string...","role":"ADMIN","userId":"admin-1"}]'
 
 # 公開ツール（カンマ区切り） / Public tools (comma-separated)
 MCP_PUBLIC_TOOLS=system.health

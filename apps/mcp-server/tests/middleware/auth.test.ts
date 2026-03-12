@@ -392,6 +392,70 @@ describe('認証ミドルウェア (Auth Middleware)', () => {
       expect(checkPermission(authContext!, 'layout.generate_code')).toBe(true);
       expect(authContext!.permissions).toContain(PERMISSIONS.SYSTEM_ADMIN);
     });
+
+    /**
+     * テスト: ADMIN権限で新規登録6ツール全てにアクセス可能
+     * Finding 2修正: deny-by-defaultで拒否されていた6ツールの検証
+     */
+    it('ADMIN権限で新規登録6ツール（narrative/background/responsive/preference）にアクセス可能', async () => {
+      // Arrange
+      process.env.MCP_AUTH_ENABLED = 'true';
+      const authContext = await validateApiKey(TEST_API_KEYS.ADMIN_KEY);
+      expect(authContext).not.toBeNull();
+
+      // Act & Assert: 全6ツールにADMINはアクセス可能
+      expect(checkPermission(authContext!, 'narrative.search')).toBe(true);
+      expect(checkPermission(authContext!, 'background.search')).toBe(true);
+      expect(checkPermission(authContext!, 'responsive.search')).toBe(true);
+      expect(checkPermission(authContext!, 'preference.hear')).toBe(true);
+      expect(checkPermission(authContext!, 'preference.get')).toBe(true);
+      expect(checkPermission(authContext!, 'preference.reset')).toBe(true);
+    });
+
+    /**
+     * テスト: VIEWER権限でread系新規ツールにアクセス可能、write系にはアクセス不可
+     */
+    it('VIEWER権限でnarrative/background/responsive検索とpreference.getにアクセス可能', async () => {
+      // Arrange
+      process.env.MCP_AUTH_ENABLED = 'true';
+      const authContext = await validateApiKey(TEST_API_KEYS.VIEWER_KEY);
+      expect(authContext).not.toBeNull();
+
+      // Act & Assert: read系はアクセス可能
+      expect(checkPermission(authContext!, 'narrative.search')).toBe(true);
+      expect(checkPermission(authContext!, 'background.search')).toBe(true);
+      expect(checkPermission(authContext!, 'responsive.search')).toBe(true);
+      expect(checkPermission(authContext!, 'preference.get')).toBe(true);
+    });
+
+    /**
+     * テスト: VIEWER権限でpreference.hear/resetにアクセス不可（write権限が必要）
+     */
+    it('VIEWER権限でpreference.hear/resetにアクセス不可（write権限が必要）', async () => {
+      // Arrange
+      process.env.MCP_AUTH_ENABLED = 'true';
+      const authContext = await validateApiKey(TEST_API_KEYS.VIEWER_KEY);
+      expect(authContext).not.toBeNull();
+
+      // Act & Assert: write系はアクセス不可
+      expect(checkPermission(authContext!, 'preference.hear')).toBe(false);
+      expect(checkPermission(authContext!, 'preference.reset')).toBe(false);
+    });
+
+    /**
+     * テスト: USER権限でpreference全ツールにアクセス可能
+     */
+    it('USER権限でpreference全ツール（hear/get/reset）にアクセス可能', async () => {
+      // Arrange
+      process.env.MCP_AUTH_ENABLED = 'true';
+      const authContext = await validateApiKey(TEST_API_KEYS.USER_KEY);
+      expect(authContext).not.toBeNull();
+
+      // Act & Assert: USERはpreference:read + preference:writeを持つ
+      expect(checkPermission(authContext!, 'preference.hear')).toBe(true);
+      expect(checkPermission(authContext!, 'preference.get')).toBe(true);
+      expect(checkPermission(authContext!, 'preference.reset')).toBe(true);
+    });
   });
 
   describe('AuthContext生成テスト', () => {
@@ -498,6 +562,57 @@ describe('認証ミドルウェア (Auth Middleware)', () => {
       // Assert
       expect(requiredPermissions).toContain(PERMISSIONS.LAYOUT_TRANSFORM);
     });
+
+    /**
+     * テスト: narrative.searchにはnarrative:readパーミッションが必要
+     * Finding 2修正: deny-by-defaultで拒否されていた問題の対策
+     */
+    it('narrative.searchにはnarrative:readパーミッションが必要', () => {
+      const requiredPermissions = TOOL_PERMISSIONS['narrative.search'];
+      expect(requiredPermissions).toContain(PERMISSIONS.NARRATIVE_READ);
+    });
+
+    /**
+     * テスト: background.searchにはbackground:readパーミッションが必要
+     */
+    it('background.searchにはbackground:readパーミッションが必要', () => {
+      const requiredPermissions = TOOL_PERMISSIONS['background.search'];
+      expect(requiredPermissions).toContain(PERMISSIONS.BACKGROUND_READ);
+    });
+
+    /**
+     * テスト: responsive.searchにはresponsive:readパーミッションが必要
+     */
+    it('responsive.searchにはresponsive:readパーミッションが必要', () => {
+      const requiredPermissions = TOOL_PERMISSIONS['responsive.search'];
+      expect(requiredPermissions).toContain(PERMISSIONS.RESPONSIVE_READ);
+    });
+
+    /**
+     * テスト: preference.hearにはpreference:writeパーミッションが必要
+     * フィードバック記録を伴うためwrite権限
+     */
+    it('preference.hearにはpreference:writeパーミッションが必要', () => {
+      const requiredPermissions = TOOL_PERMISSIONS['preference.hear'];
+      expect(requiredPermissions).toContain(PERMISSIONS.PREFERENCE_WRITE);
+    });
+
+    /**
+     * テスト: preference.getにはpreference:readパーミッションが必要
+     */
+    it('preference.getにはpreference:readパーミッションが必要', () => {
+      const requiredPermissions = TOOL_PERMISSIONS['preference.get'];
+      expect(requiredPermissions).toContain(PERMISSIONS.PREFERENCE_READ);
+    });
+
+    /**
+     * テスト: preference.resetにはpreference:writeパーミッションが必要
+     * データ削除を伴うためwrite権限
+     */
+    it('preference.resetにはpreference:writeパーミッションが必要', () => {
+      const requiredPermissions = TOOL_PERMISSIONS['preference.reset'];
+      expect(requiredPermissions).toContain(PERMISSIONS.PREFERENCE_WRITE);
+    });
   });
 
   describe('セキュリティテスト', () => {
@@ -544,6 +659,12 @@ describe('認証ミドルウェア (Auth Middleware)', () => {
       expect(PERMISSIONS).toHaveProperty('QUALITY_READ');
       expect(PERMISSIONS).toHaveProperty('SYSTEM_HEALTH');
       expect(PERMISSIONS).toHaveProperty('SYSTEM_ADMIN');
+      // Finding 2修正で追加されたパーミッション
+      expect(PERMISSIONS).toHaveProperty('NARRATIVE_READ');
+      expect(PERMISSIONS).toHaveProperty('BACKGROUND_READ');
+      expect(PERMISSIONS).toHaveProperty('RESPONSIVE_READ');
+      expect(PERMISSIONS).toHaveProperty('PREFERENCE_READ');
+      expect(PERMISSIONS).toHaveProperty('PREFERENCE_WRITE');
     });
   });
 
@@ -655,13 +776,9 @@ describe('認証ミドルウェア (Auth Middleware)', () => {
       // Act: TOOL_PERMISSIONSに定義されているツールを取得
       const definedPermissionTools = Object.keys(TOOL_PERMISSIONS);
 
-      // v6.x: narrative.search, background.search は TOOL_PERMISSIONS への登録が未完了
-      // これらのツールはセマンティック検索系で、パーミッション定義は別途追加予定
-      const pendingPermissionTools = ['narrative.search', 'background.search', 'responsive.search', 'preference.hear', 'preference.get', 'preference.reset'];
-
-      // Assert: 全ての登録ツールがパーミッション定義に存在すること（未登録予定ツールを除外）
+      // Assert: 全ての登録ツールがパーミッション定義に存在すること（deny-by-default）
       const missingTools = registeredToolNames.filter(
-        (name: string) => !definedPermissionTools.includes(name) && !pendingPermissionTools.includes(name)
+        (name: string) => !definedPermissionTools.includes(name)
       );
 
       expect(missingTools).toEqual([]);

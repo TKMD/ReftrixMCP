@@ -5,7 +5,7 @@
  * MCP Tools Export
  * WebDesign専用ツールハンドラーとツール定義のエクスポート
  *
- * Total: 22 tools
+ * Total: 26 tools
  * - Style: style.get_palette
  * - System: system.health
  * - Layout: layout.inspect, layout.ingest, layout.search, layout.generate_code, layout.batch_ingest
@@ -18,6 +18,7 @@
  * - Background: background.search
  * - Responsive: responsive.search
  * - Preference: preference.hear, preference.get, preference.reset
+ * - Part: part.search, part.inspect, part.compare
  */
 
 // style系スキーマのエクスポート（style.get_palette用）
@@ -428,6 +429,35 @@ export {
   type PreferenceMcpErrorCode,
 } from './preference';
 
+// part.search ツール（パーツセマンティック検索）
+export {
+  partSearchHandler,
+  partSearchToolDefinition,
+  PART_SEARCH_ERROR_CODES,
+  type PartSearchOutput,
+  type PartSearchMcpResultItem,
+} from './part/search.tool';
+
+// part.inspect ツール（パーツ詳細情報取得）
+export {
+  partInspectHandler,
+  partInspectToolDefinition,
+  setPartInspectPrismaClientFactory,
+  resetPartInspectPrismaClientFactory,
+  PART_INSPECT_ERROR_CODES,
+  type PartInspectOutput,
+  type PartInspectDetail,
+  type PartInspectPrismaClient,
+} from './part/inspect.tool';
+
+// part.compare ツール（パーツ並列比較）
+export {
+  partCompareHandler,
+  partCompareToolDefinition,
+  PART_COMPARE_ERROR_CODES,
+  type PartCompareOutput,
+} from './part/compare.tool';
+
 // project.* スキーマのエクスポート
 export {
   // project.get スキーマ
@@ -482,6 +512,9 @@ import { narrativeSearchToolDefinition } from './narrative/search.tool';
 import { backgroundSearchToolDefinition } from './background/search.tool';
 import { responsiveSearchToolDefinition } from './responsive/search.tool';
 import { preferenceHearToolDefinition, preferenceGetToolDefinition, preferenceResetToolDefinition } from './preference';
+import { partSearchToolDefinition } from './part/search.tool';
+import { partInspectToolDefinition } from './part/inspect.tool';
+import { partCompareToolDefinition } from './part/compare.tool';
 
 export const allToolDefinitions = [
   // style.get_palette（ブランドパレット取得）
@@ -531,6 +564,12 @@ export const allToolDefinitions = [
   preferenceGetToolDefinition,
   // preference.reset（プロファイルリセット）
   preferenceResetToolDefinition,
+  // part.search（パーツセマンティック検索）
+  partSearchToolDefinition,
+  // part.inspect（パーツ詳細情報取得）
+  partInspectToolDefinition,
+  // part.compare（パーツ並列比較）
+  partCompareToolDefinition,
 ];
 
 /**
@@ -556,6 +595,9 @@ import { narrativeSearchHandler } from './narrative/search.tool';
 import { backgroundSearchHandler } from './background/search.tool';
 import { responsiveSearchHandler } from './responsive/search.tool';
 import { preferenceHearHandler, preferenceGetHandler, preferenceResetHandler } from './preference';
+import { partSearchHandler } from './part/search.tool';
+import { partInspectHandler } from './part/inspect.tool';
+import { partCompareHandler } from './part/compare.tool';
 
 export const toolHandlers: Record<
   string,
@@ -608,6 +650,12 @@ export const toolHandlers: Record<
   'preference.get': preferenceGetHandler,
   // preference.reset（プロファイルリセット）
   'preference.reset': preferenceResetHandler,
+  // part.search（パーツセマンティック検索）
+  'part.search': partSearchHandler,
+  // part.inspect（パーツ詳細情報取得）
+  'part.inspect': partInspectHandler,
+  // part.compare（パーツ並列比較）
+  'part.compare': partCompareHandler,
 };
 
 /**

@@ -1,0 +1,458 @@
+// SPDX-FileCopyrightText: 2026 TKMD and Reftrix Contributors
+// SPDX-License-Identifier: AGPL-3.0-only
+
+/**
+ * part.search MCPツール
+ * UIコンポーネントパーツをセマンティック検索します
+ *
+ * 機能:
+ * - テキストクエリによるベクトル検索（e5-base text_embedding）
+ * - 画像URLによるビジュアル類似検索（DINOv2 visual_embedding）
+ * - ハイブリッド検索（RRF: 60% vector + 40% fulltext）
+ * - パーツタイプ / WebページID フィルタリング
+ * - ページネーション対応
+ *
+ * Features:
+ * - Text query vector search (e5-base text_embedding)
+ * - Visual similarity search by image URL (DINOv2 visual_embedding)
+ * - Hybrid search (RRF: 60% vector + 40% fulltext)
+ * - Part type / web page ID filtering
+ * - Pagination support
+ *
+ * @module tools/part/search.tool
+ */
+
+import { ZodError } from 'zod';
+import { logger, isDevelopment } from '../../utils/logger';
+import { partSearchInputSchema, type PartSearchInput } from '../../services/part/schemas';
+import {
+  getPartSearchService,
+  type PartSearchResult,
+  type PartSearchResultItem,
+  type PartSearchOptions,
+} from '../../services/part/part-search.service';
+
+// =====================================================
+// 型定義
+// =====================================================
+
+/**
+ * MCP レスポンス用の検索結果アイテム
+ * MCP response search result item
+ */
+export interface PartSearchMcpResultItem {
+  id: string;
+  partType: string;
+  partSubtype: string | null;
+  sectionType: string;
+  webPageUrl: string;
+  similarity: number;
+  boundingBox: Record<string, unknown>;
+  visualSimilarity?: number;
+  textSimilarity?: number;
+  computedStyles?: Record<string, string>;
+  htmlSnippet?: string;
+}
+
+/**
+ * part.search 出力型
+ * part.search output type
+ */
+export type PartSearchOutput =
+  | {
+      success: true;
+      data: {
+        results: PartSearchMcpResultItem[];
+        total: number;
+        query: { text?: string; imageUrl?: string };
+        searchTimeMs: number;
+      };
+    }
+  | {
+      success: false;
+      error: {
+        code: string;
+        message: string;
+      };
+    };
+
+// =====================================================
+// エラーコード / Error codes
+// =====================================================
+
+export const PART_SEARCH_ERROR_CODES = {
+  VALIDATION_ERROR: 'VALIDATION_ERROR',
+  SEARCH_FAILED: 'SEARCH_FAILED',
+  EMBEDDING_FAILED: 'EMBEDDING_FAILED',
+  SERVICE_UNAVAILABLE: 'SERVICE_UNAVAILABLE',
+  INTERNAL_ERROR: 'INTERNAL_ERROR',
+} as const;
+
+// =====================================================
+// エラーハンドリング / Error handling
+// =====================================================
+
+/**
+ * エラーからエラーコードを判定
+ * Determine error code from error
+ */
+function mapErrorToCode(error: Error): string {
+  const message = error.message.toLowerCase();
+
+  if (message.includes('embedding') || message.includes('model')) {
+    return PART_SEARCH_ERROR_CODES.EMBEDDING_FAILED;
+  }
+
+  if (
+    message.includes('database') ||
+    message.includes('prisma') ||
+    message.includes('connection')
+  ) {
+    return PART_SEARCH_ERROR_CODES.SEARCH_FAILED;
+  }
+
+  if (message.includes('timeout')) {
+    return PART_SEARCH_ERROR_CODES.SEARCH_FAILED;
+  }
+
+  return PART_SEARCH_ERROR_CODES.INTERNAL_ERROR;
+}
+
+/**
+ * エラーメッセージをサニタイズ（内部構造の漏洩防止）
+ * Sanitize error message (prevent internal structure leakage)
+ */
+function sanitizePartSearchError(error: unknown): string {
+  if (error instanceof Error) {
+    const prismaError = error as { code?: string };
+    if (prismaError.code) {
+      switch (prismaError.code) {
+        case 'P2002': return 'A record with this value already exists';
+        case 'P2025': return 'Record not found';
+        default: return 'Database operation failed';
+      }
+    }
+  }
+  return 'An internal error occurred';
+}
+
+// =====================================================
+// 結果フォーマット / Result formatting
+// =====================================================
+
+/**
+ * PartSearchResult を MCP レスポンス用にフォーマット
+ * Format PartSearchResult for MCP response
+ */
+function formatSearchResult(
+  result: PartSearchResult,
+  includeStyles: boolean,
+  includeHtml: boolean,
+): PartSearchMcpResultItem[] {
+  return result.results.map((r: PartSearchResultItem) => {
+    const item: PartSearchMcpResultItem = {
+      id: r.id,
+      partType: r.partType,
+      partSubtype: r.partSubtype,
+      sectionType: r.sectionType,
+      webPageUrl: r.webPageUrl,
+      similarity: r.similarity,
+      boundingBox: r.boundingBox,
+    };
+
+    if (r.visualSimilarity !== undefined) {
+      item.visualSimilarity = r.visualSimilarity;
+    }
+    if (r.textSimilarity !== undefined) {
+      item.textSimilarity = r.textSimilarity;
+    }
+    if (includeStyles && r.computedStyles) {
+      item.computedStyles = r.computedStyles;
+    }
+    if (includeHtml && r.htmlSnippet) {
+      item.htmlSnippet = r.htmlSnippet;
+    }
+
+    return item;
+  });
+}
+
+// =====================================================
+// メインハンドラー
+// =====================================================
+
+/**
+ * part.search ツールハンドラー
+ * part.search tool handler
+ *
+ * @param input - 入力パラメータ / Input parameters
+ * @returns 検索結果 / Search results
+ */
+export async function partSearchHandler(
+  input: unknown
+): Promise<PartSearchOutput> {
+  const startTime = Date.now();
+
+  if (isDevelopment()) {
+    logger.info('[MCP Tool] part.search called', {
+      query: (input as Record<string, unknown>)?.query,
+      image_url: (input as Record<string, unknown>)?.image_url
+        ? '(provided)'
+        : undefined,
+    });
+  }
+
+  // 入力バリデーション / Input validation
+  let validated: PartSearchInput;
+  try {
+    validated = partSearchInputSchema.parse(input);
+  } catch (error) {
+    if (error instanceof ZodError) {
+      const errorMessage = error.errors
+        .map((e) => `${e.path.join('.')}: ${e.message}`)
+        .join(', ');
+
+      logger.warn('[MCP Tool] part.search validation error', {
+        errors: error.errors,
+      });
+
+      return {
+        success: false,
+        error: {
+          code: PART_SEARCH_ERROR_CODES.VALIDATION_ERROR,
+          message: `Validation error: ${errorMessage}`,
+        },
+      };
+    }
+    throw error;
+  }
+
+  // サービス取得 / Get service
+  let searchService: ReturnType<typeof getPartSearchService>;
+  try {
+    searchService = getPartSearchService();
+  } catch {
+    return {
+      success: false,
+      error: {
+        code: PART_SEARCH_ERROR_CODES.SERVICE_UNAVAILABLE,
+        message: 'Part search service is not available',
+      },
+    };
+  }
+
+  try {
+    // 検索オプション構築 / Build search options
+    // exactOptionalPropertyTypes: undefinedを明示的に渡さない
+    const options: PartSearchOptions = {
+      limit: validated.limit,
+      offset: validated.offset,
+      minSimilarity: validated.min_similarity,
+      searchMode: validated.search_mode,
+    };
+    if (validated.part_type) {
+      options.partType = validated.part_type;
+    }
+
+    // WebページIDフィルタはPartSearchOptionsにないため、
+    // 将来的な拡張ポイントとして保持
+    // webPageId filter is not in PartSearchOptions yet,
+    // kept as future extension point
+
+    let result: PartSearchResult;
+
+    if (validated.search_mode === 'visual' && validated.image_url) {
+      // ビジュアル検索: imageUrlをreferencePartIdとして使用できるか確認
+      // 現在の実装は referencePartId（既存パーツID）のみ対応
+      // Visual search: currently only supports referencePartId (existing part ID)
+      // imageUrl direct search is a future extension
+      return {
+        success: false,
+        error: {
+          code: PART_SEARCH_ERROR_CODES.VALIDATION_ERROR,
+          message: 'Visual search by imageUrl is not yet supported. Use text or hybrid mode, or provide an existing part ID via part.inspect + visual search.',
+        },
+      };
+    }
+
+    if (validated.query) {
+      // テキストまたはハイブリッド検索 / Text or hybrid search
+      const embedding = await searchService.generateQueryEmbedding(validated.query);
+
+      if (embedding && validated.search_mode !== 'text') {
+        // ハイブリッド検索: ベクトル + 全文検索 / Hybrid: vector + fulltext
+        result = await searchService.searchPartsHybrid(
+          validated.query,
+          embedding,
+          options
+        );
+      } else if (embedding) {
+        // テキストベクトル検索のみ / Text vector search only
+        result = await searchService.searchParts(embedding, options);
+      } else {
+        // Embedding生成失敗 / Embedding generation failed
+        if (isDevelopment()) {
+          logger.warn('[MCP Tool] part.search: embedding generation failed, returning empty results');
+        }
+
+        return {
+          success: true,
+          data: {
+            results: [],
+            total: 0,
+            query: { text: validated.query },
+            searchTimeMs: Date.now() - startTime,
+          },
+        };
+      }
+    } else {
+      // queryもimageUrlもない場合（Zodの.refineで防がれるはず）
+      // Neither query nor imageUrl (should be prevented by Zod .refine())
+      return {
+        success: true,
+        data: {
+          results: [],
+          total: 0,
+          query: {},
+          searchTimeMs: Date.now() - startTime,
+        },
+      };
+    }
+
+    // 結果フォーマット / Format results
+    // include_styles/include_html はスキーマに未定義のためデフォルトfalse
+    // Currently partSearchInputSchema doesn't have include_styles/include_html
+    // Part search results omit computedStyles and htmlSnippet by default
+    const mappedResults = formatSearchResult(result, false, false);
+
+    const searchTimeMs = Date.now() - startTime;
+
+    if (isDevelopment()) {
+      logger.info('[MCP Tool] part.search completed', {
+        query: validated.query,
+        searchMode: validated.search_mode,
+        resultCount: mappedResults.length,
+        total: result.total,
+        searchTimeMs,
+      });
+    }
+
+    return {
+      success: true,
+      data: {
+        results: mappedResults,
+        total: result.total,
+        query: {
+          ...(validated.query ? { text: validated.query } : {}),
+          ...(validated.image_url ? { imageUrl: validated.image_url } : {}),
+        },
+        searchTimeMs,
+      },
+    };
+  } catch (error) {
+    const errorInstance = error instanceof Error ? error : new Error(String(error));
+    const errorCode = mapErrorToCode(errorInstance);
+
+    logger.warn('[MCP Tool] part.search error', {
+      code: errorCode,
+      error: sanitizePartSearchError(error),
+    });
+
+    return {
+      success: false,
+      error: {
+        code: errorCode,
+        message: sanitizePartSearchError(error),
+      },
+    };
+  }
+}
+
+// =====================================================
+// ツール定義
+// =====================================================
+
+/**
+ * part.search MCPツール定義
+ * part.search MCP tool definition
+ */
+export const partSearchToolDefinition = {
+  name: 'part.search',
+  description:
+    'UIコンポーネントパーツ（ボタン、カード、リンク等）をセマンティック検索します。' +
+    'テキストクエリ（e5-base + full-text）によるハイブリッド検索を提供。' +
+    'partType（16種類）やsearchMode（visual/text/hybrid）でフィルタリング可能です。' +
+    ' / Search UI component parts (buttons, cards, links, etc.) by text query. ' +
+    'Provides hybrid search via e5-base + full-text. ' +
+    'Filterable by partType (16 types) and searchMode (visual/text/hybrid).',
+  annotations: {
+    title: 'Part Search',
+    readOnlyHint: true,
+    idempotentHint: true,
+    openWorldHint: false,
+  },
+  inputSchema: {
+    type: 'object' as const,
+    properties: {
+      query: {
+        type: 'string',
+        description: 'テキスト検索クエリ（1-500文字） / Text search query (1-500 chars)',
+        minLength: 1,
+        maxLength: 500,
+      },
+      image_url: {
+        type: 'string',
+        format: 'uri',
+        description: '画像URLによるビジュアル検索（将来対応予定） / Visual search by image URL (future support)',
+      },
+      part_type: {
+        type: 'string',
+        enum: [
+          'button', 'link', 'image', 'video', 'form', 'input',
+          'heading', 'card', 'navigation', 'footer', 'cta',
+          'hero_image', 'icon', 'badge', 'tag', 'avatar',
+        ],
+        description: 'パーツタイプでフィルター（16種類） / Filter by part type (16 types)',
+      },
+      web_page_id: {
+        type: 'string',
+        format: 'uuid',
+        description: 'WebページIDでフィルター / Filter by web page ID',
+      },
+      limit: {
+        type: 'number',
+        description: '取得件数（1-100、デフォルト: 20） / Result limit (1-100, default: 20)',
+        minimum: 1,
+        maximum: 100,
+        default: 20,
+      },
+      offset: {
+        type: 'number',
+        description: 'オフセット（0以上、デフォルト: 0） / Offset (0+, default: 0)',
+        minimum: 0,
+        default: 0,
+      },
+      search_mode: {
+        type: 'string',
+        enum: ['visual', 'text', 'hybrid'],
+        default: 'hybrid',
+        description: '検索モード（デフォルト: hybrid） / Search mode (default: hybrid)',
+      },
+      min_similarity: {
+        type: 'number',
+        description: '最小類似度閾値（0-1、デフォルト: 0.3） / Min similarity threshold (0-1, default: 0.3)',
+        minimum: 0,
+        maximum: 1,
+        default: 0.3,
+      },
+    },
+  },
+};
+
+// =====================================================
+// 開発環境ログ
+// =====================================================
+
+if (isDevelopment()) {
+  logger.debug('[part.search] Tool module loaded');
+}

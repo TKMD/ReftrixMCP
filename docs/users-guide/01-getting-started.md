@@ -281,7 +281,28 @@ Reftrix uses the multilingual-e5-base model (768 dimensions) for embedding gener
 >
 > The first embedding operation (`layout.ingest`, `page.analyze`, etc.) takes longer due to model download. Subsequent runs load from cache and are fast. An internet connection is required on first run.
 
-### 4.3 Claude Desktop設定 / Claude Desktop Configuration
+### 4.3 DINOv2モデル（visual embedding）/ DINOv2 Model (Visual Embedding)
+
+Part-Level AnalysisのVisual Similarity Search（`part.search` の `searchMode: "visual"`）にはDINOv2 ViT-B/14 ONNXモデルが必要です。以下のコマンドで手動ダウンロードしてください。
+
+Part-Level Analysis Visual Similarity Search (`part.search` with `searchMode: "visual"`) requires the DINOv2 ViT-B/14 ONNX model. Download it manually with the following command.
+
+```bash
+pnpm --filter @reftrix/ml download:dinov2
+```
+
+| 項目 / Item | 詳細 / Details |
+|------|------|
+| ダウンロードサイズ / Download size | 約800MB / ~800MB |
+| 保存先 / Save location | `packages/ml/models/dinov2-base/model.onnx` |
+| 検証 / Verification | SHA-256ハッシュ検証 + ソースホワイトリスト（huggingface.co） / SHA-256 hash verification + source whitelist (huggingface.co) |
+| カスタムパス / Custom path | 環境変数 `DINOV2_MODEL_PATH` で変更可能 / Configurable via `DINOV2_MODEL_PATH` env var |
+
+> **注意 / Note**: DINOv2モデルがない場合でも `page.analyze` は正常に動作します（Graceful Degradation）。text embeddingのみ生成され、visual embeddingはスキップされます。
+>
+> Without the DINOv2 model, `page.analyze` still works (Graceful Degradation). Only text embeddings are generated; visual embeddings are skipped.
+
+### 4.4 Claude Desktop設定 / Claude Desktop Configuration
 
 Claude DesktopでReftrixのMCPツールを使用するには、設定ファイルを編集します。
 
@@ -314,7 +335,8 @@ nano ~/.config/Claude/claude_desktop_config.json
         "NODE_ENV": "development",
         "DATABASE_URL": "postgresql://reftrix:change_me@localhost:26432/reftrix?schema=public",
         "REDIS_URL": "redis://localhost:27379",
-        "OLLAMA_BASE_URL": "http://localhost:11434"
+        "OLLAMA_BASE_URL": "http://localhost:11434",
+        "OLLAMA_HOST": "http://localhost:11434"
       }
     }
   }
@@ -326,6 +348,8 @@ nano ~/.config/Claude/claude_desktop_config.json
 > **重要 / Important**: `NODE_ENV` は必須です。設定しないとサーバーが起動しません。有効な値: `development`, `production`, `test` / `NODE_ENV` is required. The server will not start without it. Valid values: `development`, `production`, `test`
 
 > **Warning**: `change_me` はプレースホルダーです。必ず安全なパスワードに変更してください。/ `change_me` is a placeholder. Always use a secure password.
+
+> **Ollama環境変数 / Ollama env vars**: `OLLAMA_BASE_URL` はMCPサーバープロセスが、`OLLAMA_HOST` はワーカープロセスが使用します。Ollamaをデフォルト以外のポートで実行する場合、両方を同じ値に設定してください。/ `OLLAMA_BASE_URL` is used by the MCP server process; `OLLAMA_HOST` is used by the worker process. Both must match if Ollama runs on a non-default port.
 
 ---
 
@@ -402,7 +426,7 @@ await mcp__reftrix__system_health({ detailed: true });
 
 Once setup is complete, refer to the following guides to utilize the features:
 
-- [MCPツール使用ガイド / MCP Tools Usage Guide](./02-mcp-tools-guide.md) - 23のMCPツールの使用方法 / How to use the 23 MCP tools
+- [MCPツール使用ガイド / MCP Tools Usage Guide](./02-mcp-tools-guide.md) - 26のMCPツールの使用方法 / How to use the 26 MCP tools
 - [page.analyze詳細ガイド / page.analyze Deep Dive](./03-page-analyze-deep-dive.md) - 統合分析の詳細 / Detailed unified analysis
 - [トラブルシューティングガイド / Troubleshooting Guide](./04-troubleshooting.md) - 問題解決 / Problem solving
 
@@ -473,7 +497,7 @@ pnpm build
 ```
 reftrix/
 ├── apps/
-│   └── mcp-server/         # MCPサーバー（23ツール）/ MCP server (23 tools)
+│   └── mcp-server/         # MCPサーバー（26ツール）/ MCP server (26 tools)
 ├── packages/
 │   ├── database/           # Prismaスキーマ・マイグレーション / Prisma schema & migrations
 │   ├── core/               # コアドメインロジック / Core domain logic

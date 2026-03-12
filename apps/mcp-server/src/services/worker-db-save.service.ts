@@ -50,6 +50,22 @@ export interface LayoutSection {
   heading?: string;
   confidence: number;
   htmlSnippet?: string;
+  /** CSSスニペット（style/link/inline styles） / CSS snippet (style/link/inline styles) */
+  cssSnippet?: string;
+  /** 外部CSSコンテンツ / External CSS content */
+  externalCssContent?: string;
+  /** 外部CSSメタ情報 / External CSS metadata */
+  externalCssMeta?: {
+    fetchedCount: number;
+    failedCount: number;
+    totalSize: number;
+    urls: Array<{ url: string; size?: number; success?: boolean }>;
+    fetchedAt: string;
+  };
+  /** CSSフレームワーク / CSS framework (tailwind, bootstrap, etc.) */
+  cssFramework?: string;
+  /** CSSフレームワーク検出メタデータ / CSS framework detection metadata */
+  cssFrameworkMeta?: { confidence: number; evidence: string[] };
   position?: { startY: number; endY: number; height: number };
   visionFeatures?: unknown;
   visualFeatures?: unknown;
@@ -290,6 +306,13 @@ export async function saveSectionPatterns(
         sectionName: section.heading ?? null,
         positionIndex: section.positionIndex ?? index,
         htmlSnippet: section.htmlSnippet ?? null,
+        // CSS fields: ページレベルCSSを各セクションに配布済みの状態で受け取る
+        // CSS fields: received with page-level CSS already distributed to each section
+        cssSnippet: section.cssSnippet ?? null,
+        externalCssContent: section.externalCssContent ?? null,
+        externalCssMeta: section.externalCssMeta ?? null,
+        cssFramework: section.cssFramework ?? null,
+        cssFrameworkMeta: section.cssFrameworkMeta ?? {},
         layoutInfo,
         components,
         visualFeatures,
@@ -319,12 +342,10 @@ export async function saveSectionPatterns(
       ? error.message
       : 'Failed to save section patterns';
 
-    if (isDevelopment()) {
-      logger.error('[WorkerDBSave] Section pattern save failed', {
-        webPageId,
-        error: errorMessage,
-      });
-    }
+    logger.warn('[WorkerDBSave] Section pattern save failed', {
+      webPageId,
+      error: errorMessage,
+    });
 
     return {
       success: false,
@@ -473,12 +494,10 @@ export async function saveMotionPatterns(
       ? error.message
       : 'Failed to save motion patterns';
 
-    if (isDevelopment()) {
-      logger.error('[WorkerDBSave] Motion pattern save failed', {
-        webPageId,
-        error: errorMessage,
-      });
-    }
+    logger.warn('[WorkerDBSave] Motion pattern save failed', {
+      webPageId,
+      error: errorMessage,
+    });
 
     return {
       success: false,
@@ -597,12 +616,10 @@ export async function saveQualityEvaluation(
       ? error.message
       : 'Failed to save quality evaluation';
 
-    if (isDevelopment()) {
-      logger.error('[WorkerDBSave] Quality evaluation save failed', {
-        webPageId,
-        error: errorMessage,
-      });
-    }
+    logger.warn('[WorkerDBSave] Quality evaluation save failed', {
+      webPageId,
+      error: errorMessage,
+    });
 
     return {
       success: false,
@@ -768,12 +785,10 @@ export async function saveQualityBenchmarks(
       ? error.message
       : 'Failed to save quality benchmarks';
 
-    if (isDevelopment()) {
-      logger.error('[WorkerDBSave] Quality benchmark save failed', {
-        webPageId,
-        error: errorMessage,
-      });
-    }
+    logger.warn('[WorkerDBSave] Quality benchmark save failed', {
+      webPageId,
+      error: errorMessage,
+    });
 
     return {
       success: false,
@@ -1054,12 +1069,10 @@ export async function saveJsAnimationPatterns(
       ? error.message
       : 'Failed to save JS animation patterns';
 
-    if (isDevelopment()) {
-      logger.error('[WorkerDBSave] JS animation pattern save failed', {
-        webPageId,
-        error: errorMessage,
-      });
-    }
+    logger.warn('[WorkerDBSave] JS animation pattern save failed', {
+      webPageId,
+      error: errorMessage,
+    });
 
     return {
       success: false,

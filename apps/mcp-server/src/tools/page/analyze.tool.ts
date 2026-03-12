@@ -736,11 +736,11 @@ export async function pageAnalyzeHandler(
         async: true,
         jobId: webPageId,
         status: 'queued',
-        message: `Job queued successfully.${autoAsyncNote} Use page.getJobStatus(jobId="${webPageId}") to check progress.`,
+        message: `Job queued successfully.${autoAsyncNote} Use page.getJobStatus(job_id="${webPageId}") to check progress.`,
         polling: {
           intervalSeconds: 10, // Vision処理は長時間かかるため10秒間隔を推奨
           retentionHours: 24,
-          howToCheck: `Call page.getJobStatus with jobId="${webPageId}" to check job status and retrieve results.`,
+          howToCheck: `Call page.getJobStatus with job_id="${webPageId}" to check job status and retrieve results.`,
         },
       };
 

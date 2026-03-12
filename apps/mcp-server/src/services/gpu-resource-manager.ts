@@ -33,6 +33,9 @@ const VISION_MIN_VRAM_MB = 8192;
 /** ONNX Embedding CUDA に必要な最小 VRAM (MB) */
 const EMBEDDING_MIN_VRAM_MB = 2048;
 
+/** DINOv2 推論に必要な最小 VRAM (MB) — ~1-2GB */
+const DINOV2_MIN_VRAM_MB = 1536;
+
 /** VRAM ポーリング間隔 (ms) — 指数バックオフの初期値 */
 const VRAM_POLL_INITIAL_MS = 2000;
 
@@ -53,19 +56,27 @@ const OLLAMA_VISION_MODEL = process.env.OLLAMA_VISION_MODEL ?? 'llama3.2-vision'
 // =============================================================================
 
 /** GPU リソースの現在のオーナー */
-export type GpuOwner = 'vision' | 'embedding' | 'none';
+export type GpuOwner = 'vision' | 'embedding' | 'dinov2' | 'none';
 
 /** acquireForVision() の戻り値 */
 export interface VisionAcquireResult {
   acquired: boolean;
-  previousOwner: 'embedding' | 'none';
+  previousOwner: 'embedding' | 'dinov2' | 'none';
 }
 
 /** acquireForEmbedding() の戻り値 */
 export interface EmbeddingAcquireResult {
   acquired: boolean;
-  previousOwner: 'vision' | 'none';
+  previousOwner: 'vision' | 'dinov2' | 'none';
   fallbackToCpu: boolean;
+}
+
+/** acquireForDINOv2() の戻り値 */
+export interface DINOv2AcquireResult {
+  success: boolean;
+  mode: 'cuda' | 'cpu';
+  message: string;
+  previousOwner: GpuOwner;
 }
 
 /**
@@ -94,6 +105,8 @@ export interface GpuResourceManagerConfig {
   visionMinVramMb?: number | undefined;
   /** Embedding CUDA に必要な最小 VRAM (MB) */
   embeddingMinVramMb?: number | undefined;
+  /** DINOv2 推論に必要な最小 VRAM (MB) */
+  dinov2MinVramMb?: number | undefined;
   /** VRAM ポーリングタイムアウト (ms) */
   vramPollTimeoutMs?: number | undefined;
 }
@@ -137,6 +150,7 @@ export class GpuResourceManager {
   private readonly ollamaUrl: string;
   private readonly visionMinVramMb: number;
   private readonly embeddingMinVramMb: number;
+  private readonly dinov2MinVramMb: number;
   private readonly vramPollTimeoutMs: number;
   private readonly signal: GpuModeSignal;
 
@@ -147,6 +161,7 @@ export class GpuResourceManager {
     this.ollamaUrl = GpuResourceManager.validateOllamaUrl(config?.ollamaUrl ?? DEFAULT_OLLAMA_URL);
     this.visionMinVramMb = config?.visionMinVramMb ?? VISION_MIN_VRAM_MB;
     this.embeddingMinVramMb = config?.embeddingMinVramMb ?? EMBEDDING_MIN_VRAM_MB;
+    this.dinov2MinVramMb = config?.dinov2MinVramMb ?? DINOV2_MIN_VRAM_MB;
     this.vramPollTimeoutMs = config?.vramPollTimeoutMs ?? VRAM_POLL_TIMEOUT_MS;
     this.signal = signal ?? gpuModeSignal;
   }
@@ -213,14 +228,16 @@ export class GpuResourceManager {
       return { acquired: false, previousOwner: 'none' };
     }
 
-    const previousOwner = this.currentOwner === 'embedding' ? 'embedding' as const : 'none' as const;
+    const previousOwner: 'embedding' | 'dinov2' | 'none' =
+      this.currentOwner === 'embedding' ? 'embedding' :
+      this.currentOwner === 'dinov2' ? 'dinov2' : 'none';
 
-    // ONNX Embedding が GPU を使用中の場合: dispose して GPU を解放
-    if (this.currentOwner === 'embedding') {
-      logger.info('Switching GPU: embedding → vision');
+    // ONNX (Embedding / DINOv2) が GPU を使用中の場合: dispose して GPU を解放
+    if (this.currentOwner === 'embedding' || this.currentOwner === 'dinov2') {
+      logger.info(`Switching GPU: ${this.currentOwner} → vision`);
 
       // EmbeddingService にパイプライン dispose を要求
-      if (this.signal.onProviderSwitch) {
+      if (this.currentOwner === 'embedding' && this.signal.onProviderSwitch) {
         try {
           await this.signal.onProviderSwitch('cpu');
         } catch (error) {
@@ -261,7 +278,15 @@ export class GpuResourceManager {
       return { acquired: false, previousOwner: 'none', fallbackToCpu: true };
     }
 
-    const previousOwner = this.currentOwner === 'vision' ? 'vision' as const : 'none' as const;
+    const previousOwner: 'vision' | 'dinov2' | 'none' =
+      this.currentOwner === 'vision' ? 'vision' :
+      this.currentOwner === 'dinov2' ? 'dinov2' : 'none';
+
+    // DINOv2 が所有中の場合: DINOv2 は軽量 ONNX モデルなので直接解放
+    if (this.currentOwner === 'dinov2') {
+      logger.info('Switching GPU: dinov2 → embedding');
+      this.currentOwner = 'none';
+    }
 
     // Ollama Vision モデルを VRAM からアンロード
     if (this.currentOwner === 'vision' || this.currentOwner === 'none') {
@@ -301,6 +326,110 @@ export class GpuResourceManager {
   }
 
   /**
+   * DINOv2 推論用に GPU を確保
+   *
+   * DINOv2 は ~1-2GB VRAM を使用する軽量 ONNX モデル。
+   *
+   * ロジック:
+   * 1. current owner が 'dinov2' → 既に確保済み、成功を返す
+   * 2. current owner が 'embedding' → ONNX e5-base を dispose して解放
+   * 3. current owner が 'vision' → Vision は ~9.3GB 使用、共存不可。CPU フォールバック
+   * 4. current owner が 'none' → 直接確保
+   *
+   * CPU-only 環境では常に CPU モードを返す（GPU 競合なし）。
+   *
+   * @returns DINOv2 確保結果
+   */
+  async acquireForDINOv2(): Promise<DINOv2AcquireResult> {
+    const previousOwner = this.currentOwner;
+
+    // GPU 非搭載環境: CPU モードで実行
+    const hasGpu = await this.isGpuAvailable();
+    if (!hasGpu) {
+      logger.info('No GPU available, DINOv2 will use CPU mode');
+      return {
+        success: true,
+        mode: 'cpu',
+        message: 'CPU-only environment: DINOv2 running on CPU',
+        previousOwner,
+      };
+    }
+
+    // 既に DINOv2 が所有中: no-op
+    if (this.currentOwner === 'dinov2') {
+      logger.info('DINOv2 already owns GPU, no action needed');
+      return {
+        success: true,
+        mode: 'cuda',
+        message: 'DINOv2 already acquired',
+        previousOwner,
+      };
+    }
+
+    // Vision が所有中: ~9.3GB 使用中のため共存不可 → CPU フォールバック
+    if (this.currentOwner === 'vision') {
+      logger.info('Vision owns GPU (~9.3GB), DINOv2 falling back to CPU');
+      return {
+        success: true,
+        mode: 'cpu',
+        message: 'Vision occupies GPU, DINOv2 falling back to CPU',
+        previousOwner,
+      };
+    }
+
+    // Embedding が所有中: dispose して GPU を解放
+    if (this.currentOwner === 'embedding') {
+      logger.info('Switching GPU: embedding → dinov2');
+
+      if (this.signal.onProviderSwitch) {
+        try {
+          await this.signal.onProviderSwitch('cpu');
+        } catch (error) {
+          logger.warn('Failed to signal ONNX provider switch to CPU for DINOv2', error);
+        }
+      }
+      this.signal.requestedProvider = 'cpu';
+    }
+
+    // VRAM 空き容量を待機
+    const vramReady = await this.waitForVram(this.dinov2MinVramMb);
+
+    if (!vramReady) {
+      logger.warn('Failed to acquire sufficient VRAM for DINOv2, falling back to CPU', {
+        requiredMb: this.dinov2MinVramMb,
+      });
+      return {
+        success: true,
+        mode: 'cpu',
+        message: 'Insufficient VRAM for DINOv2, falling back to CPU',
+        previousOwner,
+      };
+    }
+
+    this.currentOwner = 'dinov2';
+    logger.info('GPU acquired for DINOv2', { previousOwner });
+    return {
+      success: true,
+      mode: 'cuda',
+      message: 'GPU acquired for DINOv2',
+      previousOwner,
+    };
+  }
+
+  /**
+   * DINOv2 から GPU を解放
+   *
+   * DINOv2 が現在のオーナーの場合のみオーナーを 'none' にリセットする。
+   * DINOv2 以外がオーナーの場合は no-op。
+   */
+  async releaseFromDINOv2(): Promise<void> {
+    if (this.currentOwner === 'dinov2') {
+      this.currentOwner = 'none';
+      logger.info('[GpuResourceManager] Released GPU from DINOv2');
+    }
+  }
+
+  /**
    * GPU リソースを解放
    *
    * ONNX パイプラインを dispose して GPU を解放する。
@@ -324,6 +453,9 @@ export class GpuResourceManager {
       }
       this.signal.requestedProvider = 'cpu';
     }
+
+    // DINOv2 は独立したモデル管理のため signal 操作不要
+    // Vision は Ollama 自身のライフサイクルで管理するためアンロードしない
 
     this.currentOwner = 'none';
     logger.info('GPU resources released');

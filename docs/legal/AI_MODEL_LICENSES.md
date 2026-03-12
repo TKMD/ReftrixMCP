@@ -1,7 +1,7 @@
 # Reftrix AI/MLモデル ライセンスガイド / AI/ML Model License Guide
 
-**バージョン / Version**: 0.1.0
-**法的調査日 / Legal Research Date**: 2026-02-23
+**バージョン / Version**: 0.1.1
+**法的調査日 / Legal Research Date**: 2026-03-13
 **対象プロジェクト / Project**: Reftrix (AGPL-3.0-only + Commercial Dual License)
 
 ---
@@ -12,9 +12,10 @@
 2. [モデル一覧 / Model Summary](#2-モデル一覧--model-summary)
 3. [Llama 3.2 Vision -- EU地域制限 / EU Regional Restriction](#3-llama-32-vision----eu地域制限--eu-regional-restriction)
 4. [multilingual-e5-base](#4-multilingual-e5-base)
-5. [ONNX Runtime](#5-onnx-runtime)
-6. [リスク軽減措置 / Risk Mitigation](#6-リスク軽減措置--risk-mitigation)
-7. [免責事項 / Disclaimer](#7-免責事項--disclaimer)
+5. [DINOv2 ViT-B/14](#5-dinov2-vitb14)
+6. [ONNX Runtime](#6-onnx-runtime)
+7. [リスク軽減措置 / Risk Mitigation](#7-リスク軽減措置--risk-mitigation)
+8. [免責事項 / Disclaimer](#8-免責事項--disclaimer)
 
 ---
 
@@ -40,6 +41,7 @@ Reftrix uses the following AI/ML models as optional features in its web design s
 |---|---|---|---|---|
 | **Llama 3.2 Vision** (11B) | Scroll Vision Analysis (Phase 2.5) | Llama 3.2 Community License | **EU域内制限あり / EU Restricted** | いいえ / No |
 | **multilingual-e5-base** | Embedding生成 (768次元) | MIT License | なし / None | はい / Yes |
+| **DINOv2 ViT-B/14** | Visual Embedding生成 (768次元) | Apache License 2.0 | なし / None | いいえ / No |
 | **ONNX Runtime** | ML推論エンジン | MIT License | なし / None | はい / Yes |
 
 ---
@@ -305,13 +307,87 @@ multilingual-e5-base (intfloat/multilingual-e5-base) is used in Reftrix's embedd
 
 ---
 
-## 5. ONNX Runtime
+## 5. DINOv2 ViT-B/14
 
 ### 5.1 使用箇所 / Usage in Reftrix
 
 #### 日本語
 
-ONNX Runtime（Microsoft）は、ReftrixのML推論エンジンとして使用されています。multilingual-e5-baseモデルの推論を実行し、Embedding生成を行います。
+DINOv2 ViT-B/14（Meta AI Research）は、ReftrixのPart-Level Analysis機能におけるVisual Embedding生成で使用されています。Webページから抽出されたUIコンポーネント（ボタン、ナビゲーション、カード等）のビジュアル特徴量を768次元のL2正規化ベクトルとして生成し、視覚的類似検索を可能にします。
+
+- **用途**: Part-Level AnalysisのVisual Embedding生成（768次元、L2正規化）
+- **適用箇所**: page.analyze Worker Phase 5（Embedding）でのUIパーツ視覚特徴量生成
+- **実行環境**: ONNX Runtime経由でローカル実行（ONNXフォーマット、約800MB）
+- **ダウンロード**: `pnpm --filter @reftrix/ml download:dinov2`（手動ダウンロード、SHA-256検証付き）
+- **環境変数**: `DINOV2_MODEL_PATH` でカスタムモデルパス指定可能
+- **Reftrixはモデルをバンドルしていません**: ユーザーが上記コマンドで自身でモデルをダウンロードする必要があります
+- **Graceful Degradation**: モデル未ダウンロード時はVisual Embeddingをスキップし、text_embeddingのみ生成します。基本機能への影響はありません
+- **PII保護**: `piiRiskLevel='high'` と判定されたパーツはVisual Embedding生成をスキップします
+
+#### English
+
+DINOv2 ViT-B/14 (Meta AI Research) is used for visual embedding generation in Reftrix's Part-Level Analysis feature. It generates 768-dimensional L2-normalized vectors representing the visual features of UI components (buttons, navigation, cards, etc.) extracted from web pages, enabling visual similarity search.
+
+- **Usage**: Visual embedding generation for Part-Level Analysis (768 dimensions, L2-normalized)
+- **Applied to**: UI part visual feature generation in page.analyze Worker Phase 5 (Embedding)
+- **Runtime**: Executed locally via ONNX Runtime (ONNX format, approximately 800MB)
+- **Download**: `pnpm --filter @reftrix/ml download:dinov2` (manual download with SHA-256 verification)
+- **Environment variable**: Custom model path configurable via `DINOV2_MODEL_PATH`
+- **Reftrix does NOT bundle the model**: Users must download the model themselves using the command above
+- **Graceful Degradation**: When the model is not downloaded, visual embedding is skipped and only text_embedding is generated. Core functionality is not affected
+- **PII Protection**: Parts classified as `piiRiskLevel='high'` are skipped for visual embedding generation
+
+### 5.2 ライセンス / License
+
+| 項目 / Item | 内容 / Details |
+|---|---|
+| ライセンス / License | **Apache License 2.0** |
+| 提供元 / Provider | Meta AI Research (FAIR) |
+| 商用利用 / Commercial use | 許可 / Permitted |
+| 改変・再配布 / Modification & redistribution | 許可（著作権表示・ライセンス表示の維持が必要） / Permitted (requires preservation of copyright and license notices) |
+| 特許付与 / Patent grant | あり（Apache-2.0 第3条に基づく明示的特許ライセンス） / Yes (explicit patent license under Section 3 of Apache-2.0) |
+| 地域制限 / Regional restriction | **なし / None** |
+| AGPL-3.0との互換性 / AGPL-3.0 compatibility | **互換 / Compatible**（FSFがApache-2.0はGPLv3互換と確認済み） / (FSF confirms Apache-2.0 is GPLv3-compatible) |
+
+**出典 / Source**: https://github.com/facebookresearch/dinov2
+
+**論文 / Paper**: "DINOv2: Learning Robust Visual Features without Supervision" (Oquab et al., 2023)
+
+### 5.3 Llama 3.2 Visionとのライセンス比較 / License Comparison with Llama 3.2 Vision
+
+#### 日本語
+
+同じMeta AI Researchから提供されているLlama 3.2 Visionとは異なり、DINOv2は**Apache License 2.0**で提供されています。これはOSI承認のオープンソースライセンスであり、以下の重要な違いがあります:
+
+| 比較項目 / Comparison | DINOv2 | Llama 3.2 Vision |
+|---|---|---|
+| ライセンス / License | Apache-2.0（OSI承認） | Llama 3.2 Community License（独自） |
+| EU地域制限 / EU restriction | **なし** | **あり（マルチモーダルモデル）** |
+| MAU制限 / MAU limit | **なし** | 7億MAU超で個別ライセンス必要 |
+| 帰属表示 / Attribution | 著作権表示の維持のみ | 「Built with Llama」の表示義務 |
+| 特許付与 / Patent grant | **明示的** | 限定的 |
+
+#### English
+
+Unlike Llama 3.2 Vision, which is also provided by Meta AI Research, DINOv2 is released under the **Apache License 2.0**. This is an OSI-approved open-source license with the following key differences:
+
+| Comparison | DINOv2 | Llama 3.2 Vision |
+|---|---|---|
+| License | Apache-2.0 (OSI-approved) | Llama 3.2 Community License (proprietary) |
+| EU restriction | **None** | **Yes (multimodal models)** |
+| MAU limit | **None** | Separate license required above 700M MAU |
+| Attribution | Copyright notice preservation only | "Built with Llama" display obligation |
+| Patent grant | **Explicit** | Limited |
+
+---
+
+## 6. ONNX Runtime
+
+### 6.1 使用箇所 / Usage in Reftrix
+
+#### 日本語
+
+ONNX Runtime（Microsoft）は、ReftrixのML推論エンジンとして使用されています。multilingual-e5-baseモデルおよびDINOv2 ViT-B/14モデルの推論を実行し、テキスト・ビジュアルEmbedding生成を行います。
 
 - **バージョン**: 1.21.x
 - **実行モード**: CPU（デフォルト）、CUDA/ROCm（オプション、`ONNX_EXECUTION_PROVIDER`環境変数で指定）
@@ -319,13 +395,13 @@ ONNX Runtime（Microsoft）は、ReftrixのML推論エンジンとして使用�
 
 #### English
 
-ONNX Runtime (Microsoft) is used as the ML inference engine in Reftrix. It runs inference on the multilingual-e5-base model for embedding generation.
+ONNX Runtime (Microsoft) is used as the ML inference engine in Reftrix. It runs inference on the multilingual-e5-base model and DINOv2 ViT-B/14 model for text and visual embedding generation.
 
 - **Version**: 1.21.x
 - **Execution mode**: CPU (default), CUDA/ROCm (optional, via `ONNX_EXECUTION_PROVIDER` environment variable)
 - **Worker Thread**: Runs in a separate thread via Node.js Worker Threads (protecting the main thread event loop)
 
-### 5.2 ライセンス / License
+### 6.2 ライセンス / License
 
 | 項目 / Item | 内容 / Details |
 |---|---|
@@ -338,9 +414,9 @@ ONNX Runtime (Microsoft) is used as the ML inference engine in Reftrix. It runs 
 
 ---
 
-## 6. リスク軽減措置 / Risk Mitigation
+## 7. リスク軽減措置 / Risk Mitigation
 
-### 6.1 Scroll Vision Analysisの無効化 / Disabling Scroll Vision Analysis
+### 7.1 Scroll Vision Analysisの無効化 / Disabling Scroll Vision Analysis
 
 #### 日本語
 
@@ -359,7 +435,7 @@ Vision分析なしでも、以下の機能は正常に動作します:
 - Layout Analysis（HTML/CSS構造解析）
 - Motion Detection（CSSアニメーション検出）
 - Quality Evaluation（デザイン品質評価）
-- Embedding Generation（multilingual-e5-baseによるベクトル生成）
+- Embedding Generation（multilingual-e5-baseによるテキストベクトル生成、DINOv2によるVisual Embedding生成）
 
 #### English
 
@@ -378,9 +454,9 @@ Without Vision analysis, the following features work normally:
 - Layout Analysis (HTML/CSS structure analysis)
 - Motion Detection (CSS animation detection)
 - Quality Evaluation (design quality evaluation)
-- Embedding Generation (vector generation via multilingual-e5-base)
+- Embedding Generation (text vector generation via multilingual-e5-base, visual embedding generation via DINOv2)
 
-### 6.2 代替Vision LLMへの切り替え / Switching to Alternative Vision LLMs
+### 7.2 代替Vision LLMへの切り替え / Switching to Alternative Vision LLMs
 
 #### 日本語
 
@@ -408,7 +484,7 @@ OLLAMA_BASE_URL=http://localhost:11434
 OLLAMA_VISION_MODEL=qwen2.5vl:7b
 ```
 
-### 6.3 EU域内ユーザー向け推奨設定 / Recommended Configuration for EU Users
+### 7.3 EU域内ユーザー向け推奨設定 / Recommended Configuration for EU Users
 
 #### 日本語
 
@@ -456,7 +532,7 @@ OLLAMA_VISION_MODEL=qwen2.5vl:7b    # Apache 2.0, No EU restriction
 
 ---
 
-## 7. 免責事項 / Disclaimer
+## 8. 免責事項 / Disclaimer
 
 ---
 
@@ -471,7 +547,7 @@ for any specific situation. License terms for each model may change over time. U
 the latest license terms directly with each model provider before use.
 Please consult a qualified attorney for specific legal decisions.
 
-法的調査日 / Legal Research Date: 2026-02-23
+法的調査日 / Legal Research Date: 2026-03-13
 
 ---
 
@@ -483,6 +559,7 @@ Please consult a qualified attorney for specific legal decisions.
 - Llama 3.2 Acceptable Use Policy: https://www.llama.com/llama3_2/use-policy/
 - Llama FAQ: https://www.llama.com/faq/
 - multilingual-e5-base (MIT License): https://huggingface.co/intfloat/multilingual-e5-base
+- DINOv2 (Apache License 2.0): https://github.com/facebookresearch/dinov2
 - ONNX Runtime (MIT License): https://github.com/microsoft/onnxruntime
 
 ### 分析・解説記事 / Analysis & Commentary
@@ -511,6 +588,6 @@ Please consult a qualified attorney for specific legal decisions.
 
 ---
 
-*Reftrix AI Model License Guide v0.1.0*
+*Reftrix AI Model License Guide v0.1.1*
 *Prepared by: Legal Compliance Counsel (AI-assisted analysis)*
-*法的調査日 / Legal Research Date: 2026-02-23*
+*法的調査日 / Legal Research Date: 2026-03-13*

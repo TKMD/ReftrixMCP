@@ -1,16 +1,16 @@
 # Reftrix MCPツール完全ガイド / Reftrix MCP Tools Complete Guide
 
 **Last Updated**: 2026-03-05
-**Version**: 0.1.2
+**Version**: 0.1.5
 **対象読者 / Target Audience**: Reftrixプラットフォームのエンドユーザー、デザイナー、開発者 / End users, designers, and developers of the Reftrix platform
 
 ---
 
 ## はじめに / Introduction
 
-Reftrixは **WebDesign専用プラットフォーム** です。このガイドでは、**23のWebDesign専用MCPツール**を活用して、Webページの解析・品質評価・コード生成・嗜好プロファイリングを行う方法を解説します。
+Reftrixは **WebDesign専用プラットフォーム** です。このガイドでは、**26のWebDesign専用MCPツール**を活用して、Webページの解析・品質評価・コード生成・嗜好プロファイリングを行う方法を解説します。
 
-Reftrix is a **WebDesign-specialized platform**. This guide explains how to use **23 WebDesign-focused MCP tools** to analyze web pages, evaluate design quality, generate code, and personalize search results through preference profiling.
+Reftrix is a **WebDesign-specialized platform**. This guide explains how to use **26 WebDesign-focused MCP tools** to analyze web pages, evaluate design quality, generate code, and personalize search results through preference profiling.
 
 > **重要 / Important**: v0.1.0でSVG機能は削除されました。本ガイドはWebDesign専用ツールのみを扱います。
 > All SVG features were removed in v0.1.0. This guide covers WebDesign-only tools.
@@ -96,7 +96,7 @@ const result = await page.analyze({
 
 ## 2. ツールカテゴリ概要 / Tool Category Overview
 
-### WebDesign MCPツール（23ツール） / WebDesign MCP Tools (23 Tools)
+### WebDesign MCPツール（26ツール） / WebDesign MCP Tools (26 Tools)
 
 | カテゴリ / Category | ツール数 / Count | 主な用途 / Primary Purpose |
 |---------|---------|---------|
@@ -112,6 +112,7 @@ const result = await page.analyze({
 | **Background** | 1 | バックグラウンドデザインパターン検索 / Background design pattern search |
 | **Responsive** | 1 | レスポンシブ分析結果のセマンティック検索 / Responsive analysis semantic search |
 | **Preference** | 3 | 嗜好プロファイリング・検索パーソナライズ / Preference profiling and search personalization |
+| **Part** | 3 | UIパーツ検索・詳細取得・比較 / UI part search, inspection, and comparison |
 
 ### ツール選択のフローチャート / Tool Selection Flowchart
 
@@ -1656,7 +1657,64 @@ await preference.reset({
 
 ---
 
-## 15. 実践ワークフロー / Practical Workflows
+## 15. Part（パーツ）ツール / Part Tools
+
+Part-Level Analysis（v0.1.5）で追加されたUIパーツ検索・詳細取得・比較ツールです。`page.analyze` で分析されたWebページのパーツ（ボタン、ナビゲーション、カード等）を16タイプに分類し、セマンティック検索や比較が可能です。
+
+Part tools added in Part-Level Analysis (v0.1.5) for UI part search, inspection, and comparison. Parts (buttons, navigation, cards, etc.) from web pages analyzed via `page.analyze` are classified into 16 types, enabling semantic search and comparison.
+
+### 15.1 part.search — パーツ検索 / Part Search
+
+UIパーツをセマンティック検索します。visual/text/hybridの3つの検索モードに対応しています。
+
+Semantic search for UI parts. Supports 3 search modes: visual, text, and hybrid.
+
+```typescript
+// テキスト検索 / Text search
+const results = await mcp__reftrix__part_search({
+  query: 'CTAボタン グラデーション背景',
+  searchMode: 'text',
+  limit: 10
+});
+
+// パーツタイプフィルター付き / With part type filter
+const buttons = await mcp__reftrix__part_search({
+  query: 'primary action button',
+  partType: 'button',
+  searchMode: 'hybrid',
+  limit: 5
+});
+```
+
+### 15.2 part.inspect — パーツ詳細取得 / Part Inspection
+
+パーツIDを指定して、スタイル・バウンディングボックス・インタラクション情報等の詳細を取得します。
+
+Retrieve detailed information for a part by ID, including computed styles, bounding box, and interaction info.
+
+```typescript
+const detail = await mcp__reftrix__part_inspect({
+  id: 'part-uuid-here',
+  includeHtml: true,
+  includeEmbedding: false
+});
+```
+
+### 15.3 part.compare — パーツ比較 / Part Comparison
+
+2-5個のパーツをスタイル・レイアウト・インタラクション・アクセシビリティの観点で並列比較します。
+
+Compare 2-5 parts side by side on styles, layout, interaction, and accessibility aspects.
+
+```typescript
+const comparison = await mcp__reftrix__part_compare({
+  partIds: ['part-uuid-1', 'part-uuid-2', 'part-uuid-3']
+});
+```
+
+---
+
+## 16. 実践ワークフロー / Practical Workflows
 
 ### ワークフロー1: アワードサイトを参考にデザインを作成 / Workflow 1: Create Design Based on Award Sites
 
@@ -1756,7 +1814,7 @@ const code = await layout.generate_code({
 
 ---
 
-## 16. パフォーマンス最適化 / Performance Optimization
+## 17. パフォーマンス最適化 / Performance Optimization
 
 ### summary=true の活用 / Leveraging summary=true
 
@@ -1826,7 +1884,7 @@ await layout.search({
 
 ---
 
-## 17. トラブルシューティング / Troubleshooting
+## 18. トラブルシューティング / Troubleshooting
 
 ### よくある問題と解決策 / Common Issues and Solutions
 
@@ -1949,7 +2007,7 @@ This guide explained how to use Reftrix's 23 WebDesign MCP tools for web page an
 ---
 
 **Last Updated**: 2026-03-05
-**Version**: 0.1.2
+**Version**: 0.1.5
 
 ---
 

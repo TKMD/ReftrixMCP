@@ -1352,6 +1352,275 @@ describe('GpuResourceManager', () => {
   });
 
   // ==========================================================================
+  // acquireForDINOv2()
+  // ==========================================================================
+
+  describe('acquireForDINOv2()', () => {
+    it('GPU利用可能で所有者なしの場合、mode="cuda"で成功する', async () => {
+      // Arrange: GPU搭載、十分なVRAM
+      mockNvidiaSmiSuccess(2000, 12288, 10288);
+      const manager = GpuResourceManager.getInstance();
+
+      // Act
+      const result = await manager.acquireForDINOv2();
+
+      // Assert
+      expect(result.success).toBe(true);
+      expect(result.mode).toBe('cuda');
+      expect(result.previousOwner).toBe('none');
+      expect(manager.getCurrentOwner()).toBe('dinov2');
+    });
+
+    it('既にDINOv2が所有中の場合、no-opで成功する', async () => {
+      // Arrange: DINOv2を先に取得
+      mockNvidiaSmiSuccess(2000, 12288, 10288);
+      const manager = GpuResourceManager.getInstance();
+      await manager.acquireForDINOv2();
+      expect(manager.getCurrentOwner()).toBe('dinov2');
+
+      // Act: 再度取得
+      const result = await manager.acquireForDINOv2();
+
+      // Assert: no-op
+      expect(result.success).toBe(true);
+      expect(result.mode).toBe('cuda');
+      expect(result.previousOwner).toBe('dinov2');
+      expect(result.message).toBe('DINOv2 already acquired');
+      expect(manager.getCurrentOwner()).toBe('dinov2');
+    });
+
+    it('Embeddingが所有中の場合、Embeddingを解放してからDINOv2を取得する', async () => {
+      // Arrange: Embeddingを先に取得
+      mockNvidiaSmiSuccess(2000, 12288, 10288);
+      const onProviderSwitch = vi.fn().mockResolvedValue(undefined);
+      gpuModeSignal.onProviderSwitch = onProviderSwitch;
+      mockFetch.mockResolvedValueOnce({ ok: true });
+      const manager = GpuResourceManager.getInstance();
+      await manager.acquireForEmbedding();
+      expect(manager.getCurrentOwner()).toBe('embedding');
+      onProviderSwitch.mockClear();
+
+      // VRAMチェック用
+      mockNvidiaSmiSuccess(2000, 12288, 10288);
+
+      // Act
+      const result = await manager.acquireForDINOv2();
+
+      // Assert
+      expect(result.success).toBe(true);
+      expect(result.mode).toBe('cuda');
+      expect(result.previousOwner).toBe('embedding');
+      expect(manager.getCurrentOwner()).toBe('dinov2');
+      // onProviderSwitchが呼ばれてembeddingのONNXが解放される
+      expect(onProviderSwitch).toHaveBeenCalledWith('cpu');
+      expect(gpuModeSignal.requestedProvider).toBe('cpu');
+    });
+
+    it('Visionが所有中の場合、CPUフォールバックを返す', async () => {
+      // Arrange: Visionを先に取得
+      mockNvidiaSmiSuccess(2000, 12288, 10288);
+      const manager = GpuResourceManager.getInstance();
+      await manager.acquireForVision();
+      expect(manager.getCurrentOwner()).toBe('vision');
+
+      // Act
+      const result = await manager.acquireForDINOv2();
+
+      // Assert: CPUフォールバック、Visionのオーナーシップは変更しない
+      expect(result.success).toBe(true);
+      expect(result.mode).toBe('cpu');
+      expect(result.previousOwner).toBe('vision');
+      expect(manager.getCurrentOwner()).toBe('vision'); // Visionのまま
+    });
+
+    it('CPU-only環境ではCPUモードを返す', async () => {
+      // Arrange: GPU非搭載
+      mockNvidiaSmiNotAvailable();
+      const manager = GpuResourceManager.getInstance();
+
+      // Act
+      const result = await manager.acquireForDINOv2();
+
+      // Assert
+      expect(result.success).toBe(true);
+      expect(result.mode).toBe('cpu');
+      expect(result.previousOwner).toBe('none');
+      expect(manager.getCurrentOwner()).toBe('none'); // GPU操作なし
+    });
+
+    it('VRAM不足の場合、CPUフォールバックを返す', async () => {
+      // Arrange: GPU搭載だがVRAM不足が続く
+      const manager = GpuResourceManager.getInstance();
+
+      // isGpuAvailable: GPU検出
+      mockExecFile.mockResolvedValueOnce({ stdout: '11000, 12288, 1288, 90\n' });
+      // waitForVram: 常にVRAM不足
+      mockExecFile.mockResolvedValue({ stdout: '11000, 12288, 1288, 90\n' });
+
+      // Act
+      const resultPromise = manager.acquireForDINOv2();
+      await vi.advanceTimersByTimeAsync(35000);
+      const result = await resultPromise;
+
+      // Assert: CPUフォールバック
+      expect(result.success).toBe(true);
+      expect(result.mode).toBe('cpu');
+      expect(manager.getCurrentOwner()).toBe('none'); // GPU確保失敗
+    });
+  });
+
+  // ==========================================================================
+  // releaseFromDINOv2()
+  // ==========================================================================
+
+  describe('releaseFromDINOv2()', () => {
+    it('DINOv2が所有中の場合、オーナーを"none"に設定する', async () => {
+      // Arrange
+      mockNvidiaSmiSuccess(2000, 12288, 10288);
+      const manager = GpuResourceManager.getInstance();
+      await manager.acquireForDINOv2();
+      expect(manager.getCurrentOwner()).toBe('dinov2');
+
+      // Act
+      await manager.releaseFromDINOv2();
+
+      // Assert
+      expect(manager.getCurrentOwner()).toBe('none');
+    });
+
+    it('DINOv2以外が所有中の場合、no-op', async () => {
+      // Arrange: Visionが所有中
+      mockNvidiaSmiSuccess(2000, 12288, 10288);
+      const manager = GpuResourceManager.getInstance();
+      await manager.acquireForVision();
+      expect(manager.getCurrentOwner()).toBe('vision');
+
+      // Act
+      await manager.releaseFromDINOv2();
+
+      // Assert: Visionのまま変更なし
+      expect(manager.getCurrentOwner()).toBe('vision');
+    });
+
+    it('所有者が"none"の場合もno-op', async () => {
+      // Arrange
+      const manager = GpuResourceManager.getInstance();
+      expect(manager.getCurrentOwner()).toBe('none');
+
+      // Act
+      await manager.releaseFromDINOv2();
+
+      // Assert
+      expect(manager.getCurrentOwner()).toBe('none');
+    });
+  });
+
+  // ==========================================================================
+  // 既存メソッドのDINOv2状態ハンドリング
+  // ==========================================================================
+
+  describe('既存メソッドのDINOv2状態ハンドリング', () => {
+    it('DINOv2からacquireForVision: GPUを取得し previousOwner="dinov2"', async () => {
+      // Arrange
+      mockNvidiaSmiSuccess(2000, 12288, 10288);
+      const manager = GpuResourceManager.getInstance();
+      await manager.acquireForDINOv2();
+      expect(manager.getCurrentOwner()).toBe('dinov2');
+
+      // Act
+      const result = await manager.acquireForVision();
+
+      // Assert
+      expect(result.acquired).toBe(true);
+      expect(result.previousOwner).toBe('dinov2');
+      expect(manager.getCurrentOwner()).toBe('vision');
+    });
+
+    it('DINOv2からacquireForEmbedding: GPUを取得し previousOwner="dinov2"', async () => {
+      // Arrange
+      mockNvidiaSmiSuccess(2000, 12288, 10288);
+      mockFetch.mockResolvedValue({ ok: true });
+      const manager = GpuResourceManager.getInstance();
+      await manager.acquireForDINOv2();
+      expect(manager.getCurrentOwner()).toBe('dinov2');
+
+      // Act
+      const result = await manager.acquireForEmbedding();
+
+      // Assert
+      expect(result.acquired).toBe(true);
+      expect(result.previousOwner).toBe('dinov2');
+      expect(result.fallbackToCpu).toBe(false);
+      expect(manager.getCurrentOwner()).toBe('embedding');
+    });
+
+    it('DINOv2からrelease: GPUを解放しオーナーを"none"に設定する', async () => {
+      // Arrange
+      mockNvidiaSmiSuccess(2000, 12288, 10288);
+      const manager = GpuResourceManager.getInstance();
+      await manager.acquireForDINOv2();
+
+      // Act
+      await manager.release();
+
+      // Assert
+      expect(manager.getCurrentOwner()).toBe('none');
+    });
+
+    it('Vision → DINOv2(CPU) → Embedding フルサイクル', async () => {
+      // Arrange
+      mockNvidiaSmiSuccess(2000, 12288, 10288);
+      mockFetch.mockResolvedValue({ ok: true });
+      const manager = GpuResourceManager.getInstance();
+
+      // Phase 1: Vision
+      const v1 = await manager.acquireForVision();
+      expect(v1.acquired).toBe(true);
+      expect(manager.getCurrentOwner()).toBe('vision');
+
+      // Phase 2: DINOv2 — Visionが大きいためCPUフォールバック
+      const d1 = await manager.acquireForDINOv2();
+      expect(d1.success).toBe(true);
+      expect(d1.mode).toBe('cpu');
+      expect(manager.getCurrentOwner()).toBe('vision'); // Visionのまま
+
+      // Phase 3: Embedding
+      const e1 = await manager.acquireForEmbedding();
+      expect(e1.acquired).toBe(true);
+      expect(e1.previousOwner).toBe('vision');
+      expect(manager.getCurrentOwner()).toBe('embedding');
+    });
+
+    it('DINOv2 → Embedding → DINOv2 連続切り替え', async () => {
+      // Arrange
+      mockNvidiaSmiSuccess(2000, 12288, 10288);
+      mockFetch.mockResolvedValue({ ok: true });
+      const onProviderSwitch = vi.fn().mockResolvedValue(undefined);
+      gpuModeSignal.onProviderSwitch = onProviderSwitch;
+      const manager = GpuResourceManager.getInstance();
+
+      // DINOv2 取得
+      const d1 = await manager.acquireForDINOv2();
+      expect(d1.mode).toBe('cuda');
+      expect(manager.getCurrentOwner()).toBe('dinov2');
+
+      // Embedding に切り替え
+      const e1 = await manager.acquireForEmbedding();
+      expect(e1.acquired).toBe(true);
+      expect(e1.previousOwner).toBe('dinov2');
+      expect(manager.getCurrentOwner()).toBe('embedding');
+
+      // DINOv2 に戻す
+      onProviderSwitch.mockClear();
+      const d2 = await manager.acquireForDINOv2();
+      expect(d2.mode).toBe('cuda');
+      expect(d2.previousOwner).toBe('embedding');
+      expect(manager.getCurrentOwner()).toBe('dinov2');
+      expect(onProviderSwitch).toHaveBeenCalledWith('cpu');
+    });
+  });
+
+  // ==========================================================================
   // gpuModeSignal コンストラクタインジェクション（Task 1b）
   // ==========================================================================
 

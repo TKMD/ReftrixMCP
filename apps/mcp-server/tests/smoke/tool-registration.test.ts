@@ -4,11 +4,11 @@
 /**
  * MCP Tool Registration Smoke Test
  *
- * 目的: 全23ツールが正しく登録されていることを確認
+ * 目的: 全26ツールが正しく登録されていることを確認
  *
  * このテストは以下を検証:
- * - toolHandlers に23ツールが登録されている
- * - allToolDefinitions に23ツール定義がある
+ * - toolHandlers に26ツールが登録されている
+ * - allToolDefinitions に26ツール定義がある
  * - 各ツールに対応するハンドラーが存在する
  * - ツール名の形式が正しい（{category}.{action}）
  *
@@ -24,12 +24,13 @@ import {
 } from '../../src/tools/index';
 
 /**
- * 現行23ツールの定義
+ * 現行26ツールの定義
  * v0.1.0: SVG機能削除、WebDesign専用
  * v0.1.0: quality.getJobStatus 追加
  * v0.1.0: narrative.search, background.search 追加
  * v0.1.1: responsive.search 追加
  * v0.1.3: preference.hear, preference.get, preference.reset 追加
+ * v0.2.0: part.search, part.inspect, part.compare 追加
  */
 const EXPECTED_TOOLS = [
   // Style (1)
@@ -67,9 +68,13 @@ const EXPECTED_TOOLS = [
   'preference.hear',
   'preference.get',
   'preference.reset',
+  // Part (3)
+  'part.search',
+  'part.inspect',
+  'part.compare',
 ] as const;
 
-const EXPECTED_TOOL_COUNT = 23;
+const EXPECTED_TOOL_COUNT = 26;
 
 describe('MCP Tool Registration Smoke Test', () => {
   describe('ツール数の検証', () => {

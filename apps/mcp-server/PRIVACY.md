@@ -1,8 +1,8 @@
-# プライバシーポリシー: プロファイリングセクション / Privacy Policy: Profiling Section
+# プライバシーポリシー / Privacy Policy
 
-**対象 / Scope**: Reftrix Preference Profiling (`preference.hear` / `preference.get` / `preference.reset`)
-**最終更新 / Last Updated**: 2026-03-08
-**バージョン / Version**: 1.0.0
+**対象 / Scope**: Reftrix Preference Profiling & Part-Level Analysis
+**最終更新 / Last Updated**: 2026-03-13
+**バージョン / Version**: 1.1.0
 
 ---
 
@@ -206,7 +206,69 @@ On subsequent `preference.hear` calls, `profiling_notice` is not included. Infor
 
 ---
 
-## 8. 関連ドキュメント / Related Documents
+## 8. Part-Level Analysis
+
+### 対象 / Scope
+
+Part-Level Analysis は、Webページ内のUIパーツ（ボタン、フォーム、ナビゲーション等）を個別に抽出・分析し、`component_parts` / `component_part_embeddings` テーブルに保存する機能です。
+
+Part-Level Analysis extracts and analyzes individual UI parts (buttons, forms, navigation, etc.) within web pages and stores them in the `component_parts` / `component_part_embeddings` table.
+
+### 収集データ / Data Collected
+
+| データ項目 / Data Item | カラム / Column | 説明 / Description |
+|---|---|---|
+| パーツ種別 / Part type | `partType` | 16種類（button, link, image, video, form, input, heading, card, navigation, footer, cta, hero_image, icon, badge, tag, avatar） / 16 types |
+| テキストベクトル / Text embedding | `text_embedding` | パーツのテキスト内容から生成された768次元ベクトル（multilingual-e5-base） / 768-dimensional vector generated from part text content (multilingual-e5-base) |
+| 視覚ベクトル / Visual embedding | `visual_embedding` | パーツのスクリーンショットから生成された768次元ベクトル（DINOv2 ViT-B/14）。`piiRiskLevel='high'` の場合はスキップ（null） / 768-dimensional vector generated from part screenshot (DINOv2 ViT-B/14). Skipped (null) when `piiRiskLevel='high'` |
+| バウンディングボックス / Bounding box | `boundingBox` | ページ上のパーツ位置とサイズ（x, y, width, height） / Part position and size on page (x, y, width, height) |
+| 計算済みスタイル / Computed styles | `computedStyles` | CSSプロパティのJSON（色、フォント、余白等） / JSON of CSS properties (color, font, margin, etc.) |
+| テキスト内容 / Text content | `textContent` | パーツ内のテキスト（`part.inspect` でopt-in取得） / Text within the part (opt-in retrieval via `part.inspect`) |
+| HTML内容 / HTML content | `innerHTML` | パーツのHTML構造（`part.inspect` でopt-in取得） / HTML structure of the part (opt-in retrieval via `part.inspect`) |
+| PII リスクレベル / PII risk level | `piiRiskLevel` | `none`, `low`, `medium`, `high` の4段階 / 4 levels: `none`, `low`, `medium`, `high` |
+| CSSクラス / CSS classes | `cssClasses` | パーツに適用されているCSSクラス名 / CSS class names applied to the part |
+| 属性 / Attributes | `attributes` | パーツのHTML属性（JSON） / HTML attributes of the part (JSON) |
+
+### データの性質 / Nature of Data
+
+- **アーキテクチャ / Architecture**: ローカルファースト・シングルユーザー構成（Preference Profilingと同一） / Local-first, single-user architecture (same as Preference Profiling)
+- **データ主体 / Data Subjects**: 分析対象Webページのコンテンツ所有者。ユーザー自身の個人データではなく、クロール対象サイトのUIコンポーネントに関するデータ / Content owners of analyzed web pages. Not the user's own personal data, but data about UI components of crawled sites
+- **データカテゴリ / Data Category**: UIデザインパターンデータ。ただし、フォーム入力フィールドやパスワードフィールド等のパーツには間接的にPIIが含まれる可能性がある / UI design pattern data. However, parts such as form input fields and password fields may indirectly contain PII
+
+### PII保護措置 / PII Protection Measures
+
+Part-Level Analysisでは、パーツの種類と属性に基づいてPIIリスクレベルを自動判定し、リスクレベルに応じた保護措置を適用します。
+
+In Part-Level Analysis, PII risk levels are automatically determined based on part type and attributes, and protective measures are applied according to the risk level.
+
+| piiRiskLevel | 判定基準 / Criteria | 保護措置 / Protection |
+|---|---|---|
+| `high` | フォーム入力（パスワード、メールアドレス等）、個人情報を含むと推定されるコンポーネント / Form inputs (password, email, etc.), components estimated to contain personal data | visual embedding 生成をスキップ（`visual_embedding = null`） / Visual embedding generation skipped (`visual_embedding = null`) |
+| `medium` | 一般的なフォームフィールド、ユーザー入力エリア / General form fields, user input areas | 通常処理（visual embedding 生成あり） / Normal processing (visual embedding generated) |
+| `low` | テキストブロック、メディア要素 / Text blocks, media elements | 通常処理 / Normal processing |
+| `none` | ボタン、アイコン、ナビゲーション等の静的UIパーツ / Static UI parts such as buttons, icons, navigation | 通常処理 / Normal processing |
+
+### データ処理の法的根拠 / Legal Basis for Processing
+
+Part-Level Analysisは、ユーザーが `page.analyze` MCPツールを明示的に実行することでデータ収集が開始されます。ユーザーの自発的な操作に基づく処理です。
+
+Part-Level Analysis data collection begins when the user explicitly executes the `page.analyze` MCP tool. Processing is based on the user's voluntary action.
+
+- **GDPR Art. 6(1)(f)** — 正当な利益: ユーザーが自発的にツールを使用し、UIデザインパターンの分析・検索を求めた場合。 / Legitimate interest: When the user voluntarily uses the tool and seeks UI design pattern analysis and search.
+
+### 削除方法 / Deletion Methods
+
+`component_parts` / `component_part_embeddings` は `web_pages` テーブルに CASCADE 外部キーで紐づいています。WebPageレコードを削除すると、関連するすべての `component_parts` / `component_part_embeddings` が自動的に削除されます。
+
+`component_parts` / `component_part_embeddings` is linked to the `web_pages` table via CASCADE foreign key. Deleting a WebPage record automatically deletes all associated `component_parts` / `component_part_embeddings`.
+
+- **GDPR Art. 17（忘れられる権利） / Right to Erasure**: WebPageの削除により、全関連 `component_parts` / `component_part_embeddings`（テキスト内容、ベクトル、バウンディングボックス、スタイル情報を含む）が完全に物理削除されます。 / Deleting a WebPage permanently removes all associated `component_parts` / `component_part_embeddings` (including text content, vectors, bounding boxes, and style information).
+
+詳細は `DATA_RETENTION.md` を参照してください。 / See `DATA_RETENTION.md` for details.
+
+---
+
+## 9. 関連ドキュメント / Related Documents
 
 | ドキュメント / Document | 内容 / Description |
 |---|---|
@@ -223,7 +285,7 @@ On subsequent `preference.hear` calls, `profiling_notice` is not included. Infor
 This document is intended to provide general legal information and does not constitute legal advice for any specific case.
 If specific legal judgment is needed, please consult a qualified attorney.
 
-法的調査日 / Legal Research Date: 2026-03-08
+法的調査日 / Legal Research Date: 2026-03-13
 
 ### 法的リサーチソース / Legal Research Sources
 
@@ -239,4 +301,5 @@ If specific legal judgment is needed, please consult a qualified attorney.
 
 | 日付 / Date | バージョン / Version | 内容 / Description |
 |---|---|---|
+| 2026-03-13 | 1.1.0 | Part-Level Analysis プライバシーセクション追加（PII保護措置、CASCADE削除） / Added Part-Level Analysis privacy section (PII protection measures, CASCADE deletion) |
 | 2026-03-08 | 1.0.0 | 初版作成（LCC-5: プロファイリングセクション） / Initial version (LCC-5: Profiling section) |
