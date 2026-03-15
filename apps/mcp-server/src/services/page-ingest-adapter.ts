@@ -410,6 +410,15 @@ const DEFAULT_VIEWPORT: IngestViewport = {
   height: 1080,
 };
 
+/** Lazy Loadingスクロール最小ステップ幅(px) / Min scroll step for lazy loading (px) */
+const LAZY_SCROLL_MIN_STEP_PX = 500;
+/** Lazy Loadingスクロール最大反復回数 / Max lazy loading scroll iterations */
+const LAZY_SCROLL_MAX_ITERATIONS = 50;
+/** スクロール後描画安定待ち(ms) / Paint stabilization wait after scroll (ms) */
+const LAZY_SCROLL_STABILIZE_MS = 500;
+/** rAFタイムアウト(ms) / requestAnimationFrame timeout (ms) */
+const RAF_TIMEOUT_MS = 2000;
+
 /**
  * WebGL関連定数
  */
@@ -1924,6 +1933,64 @@ class PageIngestAdapter {
               logger.debug('[PageIngestAdapter] Taking screenshot', {
                 timeout: screenshotTimeout,
                 fullPage: effectiveFullPage,
+              });
+            }
+          }
+
+          // Lazy Loading発火: fullPage screenshot前にページ全体をスクロール
+          // Trigger Lazy Loading: scroll through entire page before fullPage screenshot
+          // IntersectionObserverベースのLazy Loadingはビューポート外では発火しないため、
+          // スクロールで各セクションをビューポート内に入れてコンテンツを描画させる
+          if (effectiveFullPage) {
+            try {
+              const scrollHeight = await page.evaluate(() => document.documentElement.scrollHeight);
+              const viewportHeight = await page.evaluate(() => window.innerHeight);
+
+              // SEC: NaN/Infinity防御 — 無効値の場合はスクロールスキップ
+              // SEC: NaN/Infinity defense — skip scroll on invalid dimensions
+              if (!Number.isFinite(scrollHeight) || !Number.isFinite(viewportHeight) || scrollHeight <= 0) {
+                if (isDevelopment()) {
+                  logger.debug('[PageIngestAdapter] Skipping lazy loading scroll: invalid dimensions', {
+                    scrollHeight,
+                    viewportHeight,
+                  });
+                }
+              } else {
+                const scrollStep = Math.max(viewportHeight, LAZY_SCROLL_MIN_STEP_PX);
+                const maxScrollIterations = LAZY_SCROLL_MAX_ITERATIONS;
+                let iterations = 0;
+
+                for (let y = 0; y < scrollHeight && iterations < maxScrollIterations; y += scrollStep) {
+                  await page.evaluate((sy: number) => window.scrollTo(0, sy), y);
+                  // requestAnimationFrame 2フレーム完了待ち + 2秒タイムアウトガード
+                  // Wait for 2 rAF frames + 2s timeout guard (consistent with section-screenshot-fallback.service.ts)
+                  await Promise.race([
+                    page.evaluate(() => new Promise<void>(resolve => {
+                      requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+                    })),
+                    page.waitForTimeout(RAF_TIMEOUT_MS),
+                  ]).catch(() => { /* non-fatal */ });
+                  iterations++;
+                }
+
+                // 先頭に戻す / Scroll back to top
+                await page.evaluate(() => window.scrollTo(0, 0));
+                // 描画安定待ち / Wait for paint stabilization
+                await page.waitForTimeout(LAZY_SCROLL_STABILIZE_MS);
+
+                if (isDevelopment()) {
+                  logger.debug('[PageIngestAdapter] Lazy loading scroll completed', {
+                    scrollHeight,
+                    viewportHeight,
+                    iterations,
+                  });
+                }
+              }
+            } catch (scrollError) {
+              // Graceful Degradation: スクロール失敗時もスクリーンショットは続行
+              // Graceful Degradation: continue screenshot even if scroll fails
+              logger.warn('[PageIngestAdapter] Pre-screenshot scroll failed (non-fatal)', {
+                error: scrollError instanceof Error ? scrollError.message : String(scrollError),
               });
             }
           }

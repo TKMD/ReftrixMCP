@@ -547,6 +547,32 @@ describe('WorkerSupervisor', () => {
       expect(supervisor.getState()).toBe('crashed');
     });
 
+    it('計画的再起動では restartCount をリセットする', async () => {
+      const { WorkerSupervisor } = await import('../../src/services/worker-supervisor.service');
+
+      const supervisor = new WorkerSupervisor({
+        workerScript: './dist/scripts/start-workers.js',
+        maxJobsBeforeRestart: 1,
+        maxRestartAttempts: 5,
+        shutdownTimeoutMs: 10000,
+      });
+
+      supervisor.ensureWorkerRunning();
+
+      const child2 = createMockChildProcess(12346);
+      mockFork.mockReturnValue(child2);
+      mockChild.emit('exit', 134, null);
+      await vi.advanceTimersByTimeAsync(1000);
+      expect(supervisor.getRestartCount()).toBe(1);
+
+      supervisor.notifyJobCompleted();
+      child2.emit('exit', 0, null);
+      await vi.advanceTimersByTimeAsync(1000);
+
+      expect(supervisor.getRestartCount()).toBe(0);
+      expect(supervisor.getState()).toBe('running');
+    });
+
     it('SIGNALによるクラッシュ(SIGKILL)でも自動再起動する', async () => {
       // Arrange
       const { WorkerSupervisor } = await import('../../src/services/worker-supervisor.service');

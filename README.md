@@ -38,6 +38,9 @@ AIエージェントと統合するプラットフォームです。
 - **Preference profiling** -- learn user design preferences through feedback sessions and personalize search results via reranking (GDPR-compliant)
 - **Part-level analysis** -- extract 16 UI part types (button, icon, heading, etc.) with DINOv2 visual embeddings for visual similarity search
 - **Vision integration** -- Ollama llama3.2-vision for richer layout, motion, and narrative understanding
+- **Section post-processing** -- auto merge/split sections by type, heading, and height (Rule 1-4) for optimal structure
+- **Multi-tile capture** -- split large sections (>viewport height) into tiles for complete DINOv2 visual coverage
+- **Blank image detection** -- detect lazy-loading unrendered sections and re-capture via Playwright for full coverage
 - **Code generation** -- convert analyzed sections to React, Vue, or plain HTML with matched motion patterns
 
 ## Why ReftrixMCP
@@ -99,7 +102,8 @@ Add to your MCP config:
         "DATABASE_URL": "postgresql://reftrix:change_me@localhost:26432/reftrix?schema=public",
         "REDIS_URL": "redis://localhost:27379",
         "OLLAMA_BASE_URL": "http://localhost:11434",
-        "OLLAMA_HOST": "http://localhost:11434"
+        "OLLAMA_HOST": "http://localhost:11434",
+        "ENABLE_SECTION_SCREENSHOT_FALLBACK": "true"
       }
     }
   }
@@ -109,6 +113,15 @@ Add to your MCP config:
 > Replace `change_me` with a secure password. Port 26432 = standard 5432 + 21000 offset.
 >
 > `OLLAMA_BASE_URL` is used by the MCP server process; `OLLAMA_HOST` is used by the worker process. Both must match if Ollama runs on a non-default port.
+>
+> `ENABLE_SECTION_SCREENSHOT_FALLBACK` enables Playwright-based individual section screenshots for sections outside the initial screenshot range (WebGL/lazy-rendered pages). This significantly improves DINOv2 visual embedding coverage. Set to `"false"` to disable.
+>
+> **Optional environment variables** (defaults work out of the box):
+> `MAX_TILES_PER_SECTION` (default 20, max 100) -- max tiles per section for multi-tile capture.
+> `BLANK_IMAGE_STDDEV_THRESHOLD` (default 5.0) -- stddev threshold for blank image detection.
+> `DUPLICATE_VECTOR_THRESHOLD` (default 0.995) -- cosine similarity threshold for vision embedding dedup.
+> `EMBEDDING_IDLE_TIMEOUT_MS` (default 30000) -- ONNX Worker VRAM auto-release timer (0 to disable).
+> `DINOV2_MODEL_PATH` -- custom DINOv2 ViT-B/14 ONNX model path.
 
 ## Example tools
 

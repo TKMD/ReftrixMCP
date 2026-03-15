@@ -1,8 +1,8 @@
 # プライバシーポリシー / Privacy Policy
 
-**対象 / Scope**: Reftrix Preference Profiling & Part-Level Analysis
+**対象 / Scope**: Reftrix Preference Profiling, Part-Level Analysis & Section Visual Embedding
 **最終更新 / Last Updated**: 2026-03-13
-**バージョン / Version**: 1.1.0
+**バージョン / Version**: 1.2.0
 
 ---
 
@@ -266,6 +266,22 @@ Part-Level Analysis data collection begins when the user explicitly executes the
 
 詳細は `DATA_RETENTION.md` を参照してください。 / See `DATA_RETENTION.md` for details.
 
+### Section Visual Embedding
+
+Part-Level Analysisに加え、セクション単位でもDINOv2 ViT-B/14によるvisual embeddingを生成します。セクションのスクリーンショット領域（startY/height）をcropし、768次元のL2正規化ベクトルを`section_embeddings.vision_embedding`に保存します。
+
+In addition to Part-Level Analysis, visual embeddings are also generated at the section level using DINOv2 ViT-B/14. The section screenshot area (startY/height) is cropped and a 768-dimensional L2-normalized vector is stored in `section_embeddings.vision_embedding`.
+
+| 条件 / Condition | 動作 / Behavior |
+|---|---|
+| セクション高さ < 10px / Section height < 10px | visual embedding スキップ（null） / Visual embedding skipped (null) |
+| `piiRiskLevel='high'` パーツを含むセクション / Section containing `piiRiskLevel='high'` parts | visual embedding スキップ（null）— GDPR Art. 5(1)(c) データ最小化 / Visual embedding skipped (null) — GDPR Art. 5(1)(c) data minimisation |
+| スクリーンショット未取得 / Screenshot unavailable | text embedding のみ保持 / Only text embedding retained |
+
+削除方法はPart-Level Analysisと同様、WebPageレコードのCASCADE削除で自動実行されます。
+
+Deletion follows the same CASCADE pattern as Part-Level Analysis — automatically executed when a WebPage record is deleted.
+
 ---
 
 ## 9. 関連ドキュメント / Related Documents
@@ -301,5 +317,6 @@ If specific legal judgment is needed, please consult a qualified attorney.
 
 | 日付 / Date | バージョン / Version | 内容 / Description |
 |---|---|---|
+| 2026-03-13 | 1.2.0 | Section Visual Embedding プライバシー情報追加（PII保護、高さ制限、CASCADE削除） / Added Section Visual Embedding privacy information (PII protection, height limit, CASCADE deletion) |
 | 2026-03-13 | 1.1.0 | Part-Level Analysis プライバシーセクション追加（PII保護措置、CASCADE削除） / Added Part-Level Analysis privacy section (PII protection measures, CASCADE deletion) |
 | 2026-03-08 | 1.0.0 | 初版作成（LCC-5: プロファイリングセクション） / Initial version (LCC-5: Profiling section) |

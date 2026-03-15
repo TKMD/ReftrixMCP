@@ -19,6 +19,7 @@ import { SectionScreenshotService } from '../../../services/section-screenshot.s
 import { PAGE_ANALYZE_ERROR_CODES, type PageAnalyzeInput, type VisualFeatures } from '../schemas';
 import type { VisionAnalysisResult, SectionBoundariesData } from '../../../services/vision-adapter';
 import type { ComputedStyleInfo } from '../../../services/page-ingest-adapter';
+import { postProcessSections } from '../../../services/page/section-postprocessor.service';
 import {
   type LayoutServiceResult,
   type CssFrameworkType,
@@ -1236,7 +1237,19 @@ export async function defaultAnalyzeLayout(
     }
 
     // Phase 1: Vision検出セクション境界とHTML検出セクションをマージ
-    const mergedSections = mergeVisionDetectedSections(sections, visionAnalysisResult.sectionBoundaries);
+    const visionMergedSections = mergeVisionDetectedSections(sections, visionAnalysisResult.sectionBoundaries);
+
+    // Phase 1: Section Merge Post-Processor（過剰分割修正）
+    // JSDOM cannot interpret CSS layout (flexbox, grid, inline-block) → over-segmentation.
+    // Post-processor merges consecutive same-type sections and absorbs empty content.
+    const postProcessResult = postProcessSections(visionMergedSections);
+    const mergedSections = postProcessResult.sections;
+
+    if (postProcessResult.stats.mergedGroups > 0 || postProcessResult.stats.absorbedCount > 0 || postProcessResult.stats.splitCount > 0) {
+      if (isDevelopment()) {
+        logger.info('[layout-handler] Section post-processing applied', postProcessResult.stats);
+      }
+    }
 
     // マージ結果を更新（sectionCount, sectionTypesも更新）
     if (mergedSections.length !== sections.length) {

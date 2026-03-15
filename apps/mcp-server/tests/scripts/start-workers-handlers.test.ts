@@ -101,4 +101,11 @@ describe('start-workers.ts - Process Error Handlers', () => {
       expect(sourceCode).not.toContain("type Grade = 'A' | 'B' | 'C' | 'D' | 'F'");
     });
   });
+
+  describe('Explicit Worker Start', () => {
+    it('should explicitly start PageAnalyzeWorker main loop after createPageAnalyzeWorker', () => {
+      expect(sourceCode).toContain('worker.worker.run().catch');
+      expect(sourceCode).toContain("worker.worker.emit('error', error)");
+    });
+  });
 });

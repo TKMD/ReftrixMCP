@@ -10,6 +10,74 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 形式は [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) に基づき、
 [セマンティックバージョニング](https://semver.org/spec/v2.0.0.html) に準拠しています。
 
+## [0.1.6] - 2026-03-15
+
+### Added / 追加
+
+- **Section Visual Embedding (v0.1.5)**: Phase 5 (Embedding) でセクション単位のDINOv2 ViT-B/14 visual embedding生成を統合。screenshotBase64からセクションbounding boxでcrop→DINOv2で768D L2正規化ベクトルを生成し`section_embeddings.vision_embedding`に保存 / Section-level DINOv2 ViT-B/14 visual embedding generation integrated in Phase 5 (Embedding). Crops sections from screenshotBase64 using bounding boxes → generates 768D L2-normalized vectors via DINOv2, stored in `section_embeddings.vision_embedding`
+  - DINOv2 init/disposeはPart Visual Embedding（v0.1.4）と共有しメモリ効率を最適化 / DINOv2 init/dispose shared with Part Visual Embedding (v0.1.4) for memory efficiency
+  - PII保護: piiRiskLevel='high'パーツを含むセクションはスキップ / PII protection: skips sections containing piiRiskLevel='high' parts
+  - Graceful Degradation: screenshot無し/DINOv2失敗/セクション高さ<10px時はtext_embeddingのみ / Graceful Degradation: text_embedding only when screenshot unavailable, DINOv2 fails, or section height < 10px
+- **Section Screenshot Fallback (v0.1.6)**: Phase 5でscreenshotBase64範囲外のセクションに対し、`SectionScreenshotFallbackService`がPlaywrightで個別スクリーンショットを取得→DINOv2 visual embedding生成 / Section Screenshot Fallback captures individual section screenshots via Playwright for sections outside screenshotBase64 range in Phase 5 → DINOv2 visual embedding generation
+  - バッチ処理化: workerがフォールバック対象セクションを事前一括収集し、1回の`captureSectionScreenshots`呼び出しで全セクション処理（page.goto N回→1回に削減） / Batch processing: worker pre-collects fallback target sections, processes all in a single `captureSectionScreenshots` call (reduces page.goto from N to 1)
+  - Type-aware重複ベクトル検出: DINOv2生成後に同一sectionType内でのみコサイン類似度>0.995の重複をスキップ（スライディングウィンドウ10件、環境変数`DUPLICATE_VECTOR_THRESHOLD`で調整可能） / Type-aware duplicate vector detection: skips vision embeddings with cosine similarity > 0.995 within same sectionType (sliding window 10, configurable via `DUPLICATE_VECTOR_THRESHOLD` env var)
+  - CTA小セクション（height<=200px）はdedup対象外 / CTA small sections (height <= 200px) exempt from dedup
+  - scrollTo後にrequestAnimationFrame 2フレーム完了待ち（2秒タイムアウト付き）でLazy Rendering描画改善 / Post-scrollTo requestAnimationFrame 2-frame wait (2s timeout) improves lazy rendering paint
+  - Feature flag `ENABLE_SECTION_SCREENSHOT_FALLBACK`（デフォルト`true`、opt-out） / Feature flag `ENABLE_SECTION_SCREENSHOT_FALLBACK` (default `true`, opt-out)
+  - 安全装置: SSRF検証、NaN/Infinity防御、checkMemoryPressure毎セクション、累積300sタイムアウト、上限50セクション / Safety: SSRF validation, NaN/Infinity defense, checkMemoryPressure per section, 300s cumulative timeout, max 50 sections
+- **Section Merge Post-Processor (v0.1.7-v0.1.8)**: Phase 1 (Layout Analysis) 内でmergeVisionDetectedSections()後に実行されるポストプロセッサ / Post-processor executed after mergeVisionDetectedSections() within Phase 1 (Layout Analysis)
+  - Rule 1: 同一タイプ3+連続セクションをマージ（MERGEABLE_TYPES 11タイプ: unknown/feature/testimonial/gallery/partners/portfolio/team/stories/stats/faq/cta） / Rule 1: merge 3+ consecutive sections of same type (11 MERGEABLE_TYPES including cta)
+  - Rule 2: コンテンツ空unknownセクション吸収（HTMLタグ除去後textContent<20文字） / Rule 2: absorb content-empty unknown sections (textContent < 20 chars after HTML tag stripping)
+  - Rule 3: 同名隣接マージ（同一タイプ+同一heading+2件以上連続→1件にマージ） / Rule 3: same-heading adjacent merge (same type + same heading + 2+ consecutive → 1)
+  - Feature flag `ENABLE_SECTION_MERGE_POSTPROCESSOR`（デフォルト`true`、opt-out） / Feature flag `ENABLE_SECTION_MERGE_POSTPROCESSOR` (default `true`, opt-out)
+  - 安全装置: MAX_INPUT_SECTIONS=500、NaN/Infinity防御、Graceful Degradation / Safety: MAX_INPUT_SECTIONS=500, NaN/Infinity defense, Graceful Degradation
+- **Section Split Post-Processor Rule 4 (v0.1.9)**: height > MAX_SECTION_HEIGHT (10,000px)の巨大セクション再分割 / Rule 4: oversized section re-splitting for sections with height > 10,000px
+  - 3戦略: (A) HTML子セクション検出（`<section>`, `<article>`, `<h1>`-`<h3>`分割点）、(B) 等分割フォールバック、(C) 分割不可（MIN_SPLIT_SECTION_HEIGHT未満） / 3 strategies: (A) HTML child section detection, (B) equal-split fallback, (C) no-split (below MIN_SPLIT_SECTION_HEIGHT)
+  - 実行順序: Rule 4 → Rule 1 → Rule 3 → Rule 2（分割→マージの順） / Execution order: Rule 4 → Rule 1 → Rule 3 → Rule 2 (split before merge)
+  - Rule 4分割セクションはexcludeIdsでRule 1再マージ防止 / Rule 4 split sections use excludeIds to prevent Rule 1 re-merging
+  - Feature flag `ENABLE_SECTION_SPLIT_POSTPROCESSOR`（デフォルト`true`、opt-out） / Feature flag (default `true`, opt-out)
+- **Blank Image Detection + Dynamic Fallback (v0.1.9)**: Phase 5でfullPage screenshotのLazy Loading未描画セクション（白画像）を`isBlankImage()`で検出し、動的にFallback再取得→DINOv2 visual embedding生成 / Detects lazy-loading unrendered sections (blank images) in fullPage screenshots via `isBlankImage()`, dynamically re-captures via Section Screenshot Fallback → DINOv2 visual embedding
+  - `acquireSectionCropBuffer()`でcropパス・白画像検出・Fallback取得を一元管理 / `acquireSectionCropBuffer()` unifies crop path, blank image detection, and fallback acquisition
+  - 安全装置: MAX_DYNAMIC_FALLBACK_SECTIONS=20、位置ベース+動的合計50件上限、checkMemoryPressure / Safety: MAX_DYNAMIC_FALLBACK_SECTIONS=20, position-based + dynamic total capped at 50, checkMemoryPressure
+  - 環境変数`BLANK_IMAGE_STDDEV_THRESHOLD`（デフォルト5.0、0-255範囲） / Env var `BLANK_IMAGE_STDDEV_THRESHOLD` (default 5.0, range 0-255)
+- **Lazy Loading Scroll (v0.1.9)**: Phase 0でfullPage screenshot撮影前にページ全体をスクロールし、IntersectionObserverベースのLazy Loadingを発火。白画像問題を根本解決 / Scrolls entire page in Phase 0 before fullPage screenshot to trigger IntersectionObserver-based lazy loading, fundamentally resolving blank images
+  - WebGLサイト(fullPage=false)では自動スキップ / Auto-skipped for WebGL sites (fullPage=false)
+  - 安全装置: LAZY_SCROLL_MAX_ITERATIONS=50、rAF+2sタイムアウト、Graceful Degradation / Safety: MAX_ITERATIONS=50, rAF+2s timeout, Graceful Degradation
+- **Section Screenshot Fallback Multi-Tile Capture (v0.1.10)**: section.height > viewportHeightの場合、セクションを動的に複数タイルに分割してPlaywrightで個別キャプチャし、Sharp compositeで垂直結合して完全なセクション画像を生成 / Multi-tile capture: dynamically splits sections exceeding viewport height into tiles, captures each via Playwright, vertically composites with Sharp
+  - デフォルト上限20タイル（環境変数`MAX_TILES_PER_SECTION`でオーバーライド可能、絶対上限100） / Default cap 20 tiles (override via `MAX_TILES_PER_SECTION`, absolute limit 100)
+  - Viewport統一: Fallback viewportを1920x1080に変更（ingest viewportと統一） / Viewport unification: 1920x1080 (unified with ingest viewport)
+  - scrollY実測値によるclipY計算（sticky header対策、viewportHeight/2以上のズレ時は期待値にフォールバック） / scrollY actual measurement for clipY calculation (sticky header compensation)
+  - 診断ログ: セクション単位のpath追跡ログ（in_range/fallback/dynamic/dedup/skipped）とサマリー出力 / Diagnostic logging: per-section path tracking (in_range/fallback/dynamic/dedup/skipped) with summary
+  - SEC修正: viewport NaN/Infinity/0/負数防御+上限4096px、timeoutMs NaN防御、env var絶対上限100（SEC-TILES-01） / SEC fixes: viewport NaN defense + 4096px upper limit, absolute env var limit 100
+- **Type-aware dedupヘルパー関数抽出**: `shouldSkipDuplicateVision()`として共通ヘルパーに抽出し、テスト7件追加 / Extracted type-aware dedup logic into `shouldSkipDuplicateVision()` shared helper with 7 tests
+- **MAX_TILES_PER_SECTION動的化**: 環境変数によるランタイム設定でVision coverageボトルネックを解消 / Dynamic `MAX_TILES_PER_SECTION` via env var resolves Vision coverage bottleneck
+
+### Fixed / 修正
+
+- **onnxruntime-node ABIミスマッチ解消**: onnxruntime-nodeバージョン固定でNode.js ABIバージョン不整合によるクラッシュを修正 / Pin onnxruntime-node version to fix Node.js ABI version mismatch crash
+- **isBlankImage()ダークテーマ誤検出修正**: stddev単独判定からstddev + mean輝度の2条件判定に変更（avgStddev < 5.0 AND (avgMean > 245 OR avgMean < 10)）。ダークテーマサイトが白画像と誤検出される問題を解消 / Fix isBlankImage() dark theme false positive: changed from stddev-only to dual-condition check (stddev + mean brightness). Prevents dark theme sites from being incorrectly flagged as blank
+- **actualScrollY clipY計算フォールバック追加**: clip_height_zeroリグレッションを修正 / Add fallback to actualScrollY clipY calculation, fixing clip_height_zero regression
+- **Dynamic Fallbackバグ修正3件**: (1) acquireSectionCropBufferの構造的バグ修正（isBlank判定の論理反転: false→true）、(2) メモリ圧力回避のscreenshotBuffer明示的解放、(3) Rule 3にexcludeIds適用（Rule 4分割セクションの再マージ防止） / 3 Dynamic Fallback bug fixes: (1) isBlank logic inversion fix, (2) explicit screenshotBuffer release, (3) excludeIds applied to Rule 3
+- **Pre-Return Pauseレースコンディション解消**: Worker計画的再起動時のPre-Return Pauseのレースコンディションを修正。startup recoveryのfetchNext呼び出しも修正 / Fix Pre-Return Pause race condition during planned worker restart + fix startup recovery fetchNext call
+- **Worker path postProcessSections統合**: page.analyzeの非同期Worker処理にpostProcessSections(Rule 1-4)呼び出しを追加。saveSectionPatterns前に実行し、分割/マージされたセクションのtext_embeddingも正しく生成 / Added postProcessSections (Rule 1-4) to Worker path before saveSectionPatterns, ensuring correct text_embeddings for split/merged sections
+
+### Changed / 変更
+
+- **エージェント設計をv3.0に刷新**: 職種ベース（Backend Developer, ML Engineer等）から問題領域ベース（page-analyze-pipeline-engineer, playwright-capture-engineer等）に移行。全15エージェントをv3.0フォーマットに統一 / Agent architecture redesigned to v3.0: migrated from role-based (Backend Developer, ML Engineer, etc.) to problem-domain-based (page-analyze-pipeline-engineer, playwright-capture-engineer, etc.). All 15 agents unified to v3.0 format
+  - 5ドメインエージェント新設: page-analyze-pipeline-engineer, playwright-capture-engineer, embedding-retrieval-engineer, search-relevance-engineer, worker-observability-engineer / 5 new domain agents
+  - 症状→エージェントルーティング表を導入 / Symptom → Agent routing table introduced
+  - Evidence-First原則と明示的ハンドオフパターンを全エージェントに適用 / Evidence-First principle and explicit handoff patterns applied to all agents
+- Fallback viewport: 1280x800 → 1920x1080（ingest viewportと統一） / Fallback viewport unified to 1920x1080
+
+### Documentation / ドキュメント
+
+- Section Visual Embedding（v0.1.5）のドキュメント包括的アップデート / Comprehensive docs update for Section Visual Embedding (v0.1.5)
+- Section Merge Post-Processor（v0.1.7-v0.1.8）のドキュメント追記 / Section Merge Post-Processor (v0.1.7-v0.1.8) docs added
+- v0.1.9 Blank Image Detection + Dynamic Fallback / Section Split Rule 4のドキュメント追記 / v0.1.9 docs for Blank Image Detection, Dynamic Fallback, and Section Split Rule 4
+- v0.1.9 Lazy Loading Scroll + Worker postProcessSections統合 + Dynamic Fallbackバグ修正のドキュメント追記 / v0.1.9 docs for Lazy Loading Scroll, Worker postProcessSections integration, and Dynamic Fallback bug fixes
+- v0.1.10 Section Screenshot Fallback Multi-Tile + isBlankImage改善のドキュメント追記 / v0.1.10 docs for Multi-Tile Capture and isBlankImage improvement
+- sub-agents.md v3.0更新、TEAM_STRUCTURE.md更新 / sub-agents.md v3.0 update, TEAM_STRUCTURE.md update
+
 ## [0.1.5] - 2026-03-12
 
 ### Added / 追加

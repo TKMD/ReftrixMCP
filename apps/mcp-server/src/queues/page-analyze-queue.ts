@@ -168,12 +168,14 @@ export interface PageAnalyzeJobResult {
     };
     embedding?: {
       sectionEmbeddingsGenerated?: number | undefined;
+      /** DINOv2 section visual embedding生成数 / DINOv2 section visual embeddings generated */
+      sectionVisualEmbeddingsGenerated?: number | undefined;
       motionEmbeddingsGenerated?: number | undefined;
       backgroundDesignEmbeddingsGenerated?: number | undefined;
       jsAnimationEmbeddingsGenerated?: number | undefined;
       responsiveEmbeddingsGenerated?: number | undefined;
       partEmbeddingsGenerated?: number | undefined;
-      /** DINOv2 visual embedding生成数 / DINOv2 visual embeddings generated */
+      /** DINOv2 part visual embedding生成数 / DINOv2 part visual embeddings generated */
       partVisualEmbeddingsGenerated?: number | undefined;
     };
     partExtraction?: {

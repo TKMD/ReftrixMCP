@@ -58,6 +58,10 @@ function detectCudaLibPaths(): string | null {
   const foundPaths: string[] = [];
 
   // onnxruntime-node の CUDA provider ディレクトリ検出
+  // IMPORTANT: onnxruntime-node のバージョンが複数存在する場合（例: 直接依存と
+  // @huggingface/transformers 経由の間接依存）、LD_LIBRARY_PATH にバージョン不一致の
+  // shared library を含めると ABI エラー（VERS_x.y.z not found）が発生する。
+  // require.resolve で解決されたパッケージの bin/ ディレクトリのみを使用する。
   try {
     const ortNodePath = require.resolve('onnxruntime-node');
     let packageDir = path.dirname(ortNodePath);
@@ -65,12 +69,16 @@ function detectCudaLibPaths(): string | null {
       if (fs.existsSync(path.join(packageDir, 'package.json'))) break;
       packageDir = path.dirname(packageDir);
     }
+    // Verify the resolved package version matches by checking that
+    // libonnxruntime.so.1 exists alongside the CUDA provider
     const binDir = path.join(packageDir, 'bin');
     if (fs.existsSync(binDir)) {
       const napiDirs = fs.readdirSync(binDir).filter((d: string) => d.startsWith('napi-v'));
       for (const napiDir of napiDirs) {
         const cudaProviderDir = path.join(binDir, napiDir, 'linux', 'x64');
-        if (fs.existsSync(path.join(cudaProviderDir, 'libonnxruntime_providers_cuda.so'))) {
+        const hasCudaProvider = fs.existsSync(path.join(cudaProviderDir, 'libonnxruntime_providers_cuda.so'));
+        const hasBaseLib = fs.existsSync(path.join(cudaProviderDir, 'libonnxruntime.so.1'));
+        if (hasCudaProvider && hasBaseLib) {
           foundPaths.push(cudaProviderDir);
           break;
         }
@@ -508,6 +516,8 @@ export class WorkerSupervisor {
     // 計画的再起動（notifyJobCompletedトリガー）の場合
     if (this.pendingRestart) {
       this.pendingRestart = false;
+      // Planned restarts are healthy lifecycle churn, not crash accumulation.
+      this.restartCount = 0;
       this.scheduleRestart();
       return;
     }

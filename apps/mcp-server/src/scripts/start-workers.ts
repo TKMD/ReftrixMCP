@@ -207,6 +207,10 @@ function startPageAnalyzeWorker(): PageAnalyzeWorkerInstance {
     verbose: true,
   });
 
+  worker.worker.run().catch((error: Error) => {
+    worker.worker.emit('error', error);
+  });
+
   console.log('[WorkerStartup] PageAnalyzeWorker started successfully');
   return worker;
 }
@@ -291,7 +295,7 @@ async function recoverOrphanedPageAnalyzeJobs(): Promise<void> {
                 completedAt: new Date().toISOString(),
               },
               '0',
-              true
+              false
             );
             console.log(`[WorkerStartup]     -> completed (DB already saved)`);
             recoveredCount++;
@@ -306,7 +310,7 @@ async function recoverOrphanedPageAnalyzeJobs(): Promise<void> {
                 'Job orphaned at startup recovery.'
               ),
               '0',
-              true
+              false
             );
             console.log(`[WorkerStartup]     -> failed (processing interrupted)`);
             recoveredCount++;
@@ -321,7 +325,7 @@ async function recoverOrphanedPageAnalyzeJobs(): Promise<void> {
                 'Worker restarted before processing started. Job will be retried automatically.'
               ),
               '0',
-              true
+              false
             );
             try {
               await job.retry('failed');

@@ -1,8 +1,8 @@
 # データ保持ポリシー / Data Retention Policy
 
-**対象 / Scope**: Reftrix Preference Profiling & Part-Level Analysis
-**最終更新 / Last Updated**: 2026-03-13
-**バージョン / Version**: 1.2.0
+**対象 / Scope**: Reftrix Preference Profiling, Part-Level Analysis & Section Visual Embedding
+**最終更新 / Last Updated**: 2026-03-14
+**バージョン / Version**: 1.5.0
 
 ---
 
@@ -15,6 +15,7 @@
 | `preference_profiles` | ユーザー嗜好プロファイル / User preference profiles | `id`, `name`, `preference_text`, `preference_embedding` (768-dim vector), `interaction_count`, `created_at`, `updated_at` |
 | `preference_signals` | 個別フィードバック記録 / Individual feedback records | `id`, `profile_id` (FK), `signal_type`, `signal_weight`, `target_type`, `target_id`, `feedback_text`, `created_at` |
 | `component_parts` / `component_part_embeddings` | UIパーツ分析データ / UI part analysis data | `id`, `web_page_id` (FK, CASCADE), `partType`, `text_embedding` (768-dim vector), `visual_embedding` (768-dim vector, nullable), `boundingBox`, `computedStyles`, `textContent`, `innerHTML`, `piiRiskLevel`, `cssClasses`, `attributes`, `created_at`, `updated_at` |
+| `section_embeddings` | セクション視覚ベクトル / Section visual embedding | `section_pattern_id` (FK, CASCADE), `vision_embedding` (768-dim vector, nullable) |
 
 ### データの性質 / Nature of Data
 
@@ -222,7 +223,64 @@ Parts assessed as `piiRiskLevel='high'` (form inputs, password fields, etc.) hav
 
 ---
 
-## 9. クロールデータ保持（HTML/CSS） / Crawl Data Retention (HTML/CSS)
+## 9. Section Visual Embedding データ保持 / Section Visual Embedding Data Retention
+
+### 対象データ / Data in Scope
+
+| テーブル / Table | カラム / Columns | 内容 / Description |
+|---|---|---|
+| `section_embeddings` | `vision_embedding` | セクションのスクリーンショットから生成された768次元ベクトル（DINOv2 ViT-B/14、L2正規化済み）。セクション高さ < 10px の場合はスキップ（null）。 / 768-dimensional vector generated from section screenshot (DINOv2 ViT-B/14, L2-normalized). Skipped (null) when section height < 10px. |
+
+### 保持方針 / Retention Policy
+
+`section_embeddings` は `section_patterns` → `web_pages` テーブルに CASCADE 外部キーで紐づいています。保持期間は親レコード（`web_pages`）と同一です。
+
+`section_embeddings` is linked via CASCADE foreign key through `section_patterns` → `web_pages`. The retention period is the same as the parent record (`web_pages`).
+
+- **自動期限切れ / Auto-expiry**: なし / None
+- **再分析時の動作 / Behavior on re-analysis**: `page.analyze` 再実行時に clean-slate パターン（`deleteMany` + `create`）で上書き / Overwritten using the clean-slate pattern (`deleteMany` + `create`) on `page.analyze` re-execution
+- **手動削除 / Manual deletion**: WebPageレコードの削除により CASCADE で自動実行 / Automatically executed via CASCADE when a WebPage record is deleted
+
+### PII保護 / PII Protection
+
+`piiRiskLevel='high'` と判定されたパーツ（`component_parts`）を含むセクションでは、`vision_embedding` の生成がスキップされます（カラム値は `null`）。これにより、PII を含む可能性のあるセクション領域のスクリーンショットからベクトルが生成されることを防止します（GDPR Art. 5(1)(c) データ最小化の原則）。
+
+Sections containing parts (`component_parts`) assessed as `piiRiskLevel='high'` have their `vision_embedding` generation skipped (column value is `null`). This prevents vector generation from screenshots of section areas that may contain PII (GDPR Art. 5(1)(c) data minimisation principle).
+
+### フォールバック機構の透明性 / Fallback Mechanism Transparency
+
+screenshotBase64の高さ範囲外セクションに対しては、`SectionScreenshotFallbackService` によるPlaywright個別スクリーンショット取得（フォールバック）が実行される場合がある。取得されたスクリーンショットはメモリ上でのみ一時保持され、DBには保存されない。最終成果物（`vision_embedding`）は通常パスと同一のパイプラインで処理される。
+
+For sections outside the screenshotBase64 height range, `SectionScreenshotFallbackService` may capture individual screenshots via Playwright (fallback). Captured screenshots are held temporarily in memory only and are not persisted to the database. The final artifact (`vision_embedding`) is processed through the same pipeline as the normal path.
+
+重複ベクトル検出（コサイン類似度 > 0.995）時は、`vision_embedding` の保存をスキップする（カラム値は `null`）。これはデータ最小化原則（GDPR Art. 5(1)(c)）に沿った挙動であり、Hybrid Searchの品質向上に寄与する。
+
+Duplicate vector detection (cosine similarity > 0.995) skips `vision_embedding` storage (column value remains `null`). This aligns with the data minimisation principle (GDPR Art. 5(1)(c)) and improves Hybrid Search quality.
+
+#### Blank Image Detection + Dynamic Fallback (v0.1.9) / 白画像検出 + 動的フォールバック
+
+fullPage screenshotでLazy Loading未描画セクションが白画像として取得された場合、`isBlankImage()`（Sharp stats RGB stddev < 5.0）で検出し、Section Screenshot Fallback（Playwright個別キャプチャ）で再取得する。
+
+When fullPage screenshot captures lazy-loading unrendered sections as blank images, `isBlankImage()` (Sharp stats RGB stddev < 5.0) detects them, and Section Screenshot Fallback (Playwright individual capture) re-acquires the screenshots.
+
+**データフロー / Data Flow**: 白画像検出 → Playwrightキャプチャ（メモリ上一時保持）→ DINOv2推論 → `vision_embedding` DB保存。画像バッファはメモリ上でのみ一時保持され、DINOv2処理後に参照解除される（GDPR Art. 5(1)(c)(e) データ最小化・保存制限の原則）。
+
+Blank image detection → Playwright capture (held in memory only) → DINOv2 inference → `vision_embedding` saved to DB. Image buffers are held temporarily in memory only and dereferenced after DINOv2 processing (GDPR Art. 5(1)(c)(e) data minimisation and storage limitation principles).
+
+**動的Fallback対象セクション数上限 / Dynamic Fallback Section Cap**: `MAX_DYNAMIC_FALLBACK_SECTIONS = 20`。通常Fallbackとの合計で50件上限を維持。`highPiiSectionIds` フィルタにより `piiRiskLevel='high'` パーツを含むセクションは除外される。
+
+`MAX_DYNAMIC_FALLBACK_SECTIONS = 20`. Combined with normal fallback, the total cap of 50 sections is maintained. `highPiiSectionIds` filter excludes sections containing `piiRiskLevel='high'` parts.
+
+### GDPR対応 / GDPR Compliance
+
+| 条項 / Article | 内容 / Subject | 対応 / Implementation |
+|---|---|---|
+| **Art. 17** | 忘れられる権利 / Right to erasure | WebPage削除時に全関連 `section_embeddings` がCASCADE削除。ベクトルデータを含むすべてのデータが物理削除される。 / All associated `section_embeddings` are CASCADE deleted when WebPage is deleted. All data including vector data is permanently removed. |
+| **Art. 5(1)(c)** | データ最小化の原則 / Data minimisation | `piiRiskLevel='high'` パーツを含むセクションの visual embedding スキップにより、PII関連データの収集を最小化。 / Minimises PII-related data collection by skipping visual embedding for sections containing `piiRiskLevel='high'` parts. |
+
+---
+
+## 10. クロールデータ保持（HTML/CSS） / Crawl Data Retention (HTML/CSS)
 
 ### 対象データ / Data in Scope
 
@@ -249,6 +307,9 @@ Crawl data is overwritten on re-analysis using the clean-slate pattern (`deleteM
 
 | 日付 / Date | バージョン / Version | 内容 / Description |
 |---|---|---|
+| 2026-03-14 | 1.5.0 | Blank Image Detection + Dynamic Fallback (v0.1.9) のデータフロー・PII保護・上限記述を追加 / Added data flow, PII protection, and cap description for Blank Image Detection + Dynamic Fallback (v0.1.9) |
+| 2026-03-14 | 1.4.0 | Section Screenshot Fallback (v0.1.6) のフォールバック機構透明性記述を追加（メモリ上一時保持、DB非保存） / Added fallback mechanism transparency for Section Screenshot Fallback (v0.1.6) (in-memory only, not persisted to DB) |
+| 2026-03-13 | 1.3.0 | Section Visual Embedding データ保持セクション追加（section_embeddings.vision_embedding、PII保護、CASCADE削除） / Added Section Visual Embedding data retention section (section_embeddings.vision_embedding, PII protection, CASCADE deletion) |
 | 2026-03-13 | 1.2.0 | Part-Level Analysis データ保持セクション追加（component_parts / component_part_embeddings テーブル、PII保護、CASCADE削除） / Added Part-Level Analysis data retention section (component_parts / component_part_embeddings tables, PII protection, CASCADE deletion) |
 | 2026-03-11 | 1.1.0 | クロールデータ保持セクション追加 / Added crawl data retention section |
 | 2026-03-08 | 1.0.0 | 初版作成 / Initial version |

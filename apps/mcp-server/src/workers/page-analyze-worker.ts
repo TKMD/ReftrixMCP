@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2026 TKMD and Reftrix Contributors
+// SPDX-FileCopyrightText: 2025-2026 Reftrix Contributors
 // SPDX-License-Identifier: AGPL-3.0-only
 
 /**
@@ -85,6 +85,8 @@ import {
   type JsAnimationPatternPrismaClient,
   type SaveResult,
 } from '../services/worker-db-save.service';
+// Section Merge/Split Post-Processor（過剰分割修正 + 巨大セクション再分割）
+import { postProcessSections } from '../services/page/section-postprocessor.service';
 // Embedding generation (reuse from synchronous flow)
 import {
   generateSectionEmbeddings,
@@ -137,6 +139,10 @@ import { backfillWebPageEmbeddings, checkWebPageEmbeddingCoverage } from '../ser
 import { generateResponsiveAnalysisEmbeddings } from '../services/responsive/responsive-analysis-embedding.service';
 // Frame Analysis DB保存ヘルパー（同期/非同期モード共有）
 import { saveFrameAnalysisToDb } from '../services/motion/frame-analysis-save.helper';
+// Section Screenshot Fallback: screenshotBase64範囲外セクション用Playwrightキャプチャ
+import { captureSectionScreenshots } from '../services/part/section-screenshot-fallback.service';
+// Blank Image Detection: Lazy Loading未描画セクション白画像検出
+import { isBlankImage } from '../utils/blank-image-detector';
 
 // Embedding DI factories initialization
 // Worker runs in a separate process; factories must be set before use
@@ -411,6 +417,8 @@ export interface EmbeddingPhaseResult {
   partEmbeddingsGenerated: number;
   /** Part visual embedding 生成数（DINOv2） / Part visual embeddings generated (DINOv2) */
   partVisualEmbeddingsGenerated: number;
+  /** Section visual embedding 生成数（DINOv2） / Section visual embeddings generated (DINOv2) */
+  sectionVisualEmbeddingsGenerated: number;
   /** Embedding生成に失敗したチャンク数 */
   embeddingFailedChunks: number;
   /** Embedding phase が完了したか */
@@ -684,6 +692,195 @@ function checkMemoryPressure(): { shouldDegrade: boolean; shouldAbort: boolean; 
 
 
 // ============================================================================
+// Type-Aware Dedup Constants & Helper / Type-Aware 重複検出 定数・ヘルパー
+// ============================================================================
+
+/**
+ * CTA小セクション dedup 免除の高さ上限（ピクセル）
+ * Height threshold for CTA small section dedup exemption (pixels)
+ *
+ * 200px の根拠: 一般的なCTAバナー/ボタン領域は80-200px。
+ * 200px以下のCTAはサイト固有のデザイン要素（ブランドカラー、ボタンスタイル）を含むため、
+ * 同一type間でも視覚的に異なるembeddingを持つことが多い。
+ * 200pxを超えるCTAはコンテンツ領域を含む可能性が高く、通常のdedup対象とする。
+ *
+ * Rationale for 200px: Typical CTA banners/buttons are 80-200px tall.
+ * CTAs <= 200px contain site-specific design elements (brand colors, button styles),
+ * so they often produce visually distinct embeddings even within the same type.
+ * CTAs > 200px likely include content areas and should be subject to normal dedup.
+ */
+const DEDUP_EXEMPT_MAX_HEIGHT = 200;
+
+/**
+ * dedup 免除対象のセクションタイプ / Section types exempt from dedup
+ */
+const DEDUP_EXEMPT_TYPES = new Set(['cta']);
+
+/**
+ * Type-aware 重複ベクトル検出
+ * Type-aware duplicate vision embedding detection
+ *
+ * 同一sectionType内のみでコサイン類似度を比較し、異種セクション間の誤除外を防止する。
+ * CTA小セクション（height <= DEDUP_EXEMPT_MAX_HEIGHT）はdedup対象外。
+ *
+ * Compares cosine similarity only within same sectionType to prevent cross-type
+ * false exclusion. CTA small sections (height <= DEDUP_EXEMPT_MAX_HEIGHT) are exempt.
+ *
+ * @returns true if the embedding is a duplicate and should be skipped
+ */
+function isDuplicateVisionEmbedding(params: {
+  sectionType: string;
+  height: number;
+  embedding: number[];
+  recentEmbeddings: ReadonlyArray<{ embedding: number[]; sectionType: string }>;
+  threshold: number;
+}): boolean {
+  // CTA小セクション exemption / CTA small section exemption
+  if (DEDUP_EXEMPT_TYPES.has(params.sectionType) && params.height <= DEDUP_EXEMPT_MAX_HEIGHT) {
+    return false;
+  }
+
+  return params.recentEmbeddings.some(prev => {
+    if (prev.sectionType !== params.sectionType) return false;
+    let dot = 0;
+    for (let i = 0; i < prev.embedding.length; i++) {
+      dot += prev.embedding[i]! * params.embedding[i]!;
+    }
+    return Number.isFinite(dot) && dot > params.threshold;
+  });
+}
+
+// ============================================================================
+// Section Crop Buffer Acquisition (TDA HIGH-1)
+// ============================================================================
+
+/**
+ * セクションの crop バッファを取得する / Acquire crop buffer for a section
+ *
+ * TDA HIGH-1: cropパスを別関数に抽出し、以下の3パスを一元管理:
+ * 1. screenshotBase64 からの crop
+ * 2. isBlankImage() による白画像検出
+ * 3. fallbackScreenshots Map からの取得
+ *
+ * TDA HIGH-1: Extracted crop path to single function managing 3 paths:
+ * 1. Crop from screenshotBase64
+ * 2. Blank image detection via isBlankImage()
+ * 3. Retrieval from fallbackScreenshots Map
+ *
+ * @returns raw crop buffer for DINOv2, or null if section should be skipped
+ */
+interface AcquireSectionCropParams {
+  /** section_pattern_id */
+  sectionPatternId: string;
+  /** セクションの位置情報 / Section position info */
+  sectionPos: { startY: number; height: number };
+  /** スクリーンショットバッファ / Screenshot buffer */
+  screenshotBuffer: Buffer;
+  /** 画像の幅 / Image width */
+  imgWidth: number;
+  /** 画像の高さ / Image height */
+  imgHeight: number;
+  /** 事前バッチキャプチャ済み Map / Pre-batch-captured screenshot Map */
+  fallbackScreenshots: Map<string, Buffer>;
+  /** フォールバック有効フラグ / Fallback enabled flag */
+  fallbackEnabled: boolean;
+  /** DINOv2入力サイズ / DINOv2 input size */
+  dinov2InputSize: number;
+}
+
+interface AcquireSectionCropResult {
+  /** DINOv2用 raw crop バッファ（null の場合はスキップ） / Raw crop buffer for DINOv2 (null to skip) */
+  rawCropBuffer: Buffer | null;
+  /** 白画像として検出されたか / Whether detected as blank image */
+  isBlank: boolean;
+}
+
+async function acquireSectionCropBuffer(
+  params: AcquireSectionCropParams,
+): Promise<AcquireSectionCropResult> {
+  const {
+    sectionPatternId,
+    sectionPos,
+    screenshotBuffer,
+    imgWidth,
+    imgHeight,
+    fallbackScreenshots,
+    fallbackEnabled,
+    dinov2InputSize,
+  } = params;
+
+  const sectionTop = Math.max(0, Math.round(sectionPos.startY));
+  const sectionCropWidth = Math.max(1, imgWidth);
+  const sectionCropHeight = Math.min(
+    Math.round(sectionPos.height),
+    Math.max(1, imgHeight - sectionTop),
+  );
+
+  if (sectionCropWidth <= 0 || sectionCropHeight <= 0) {
+    return { rawCropBuffer: null, isBlank: false };
+  }
+
+  if (sectionTop >= imgHeight) {
+    // screenshotBase64範囲外 → バッチ事前キャプチャ済み Map から取得
+    // Outside screenshotBase64 range → retrieve from batch-captured Map
+    if (!fallbackEnabled) {
+      return { rawCropBuffer: null, isBlank: false };
+    }
+
+    const fb = fallbackScreenshots.get(sectionPatternId);
+    if (!fb) {
+      // 位置ベースFallbackで未取得 → 動的Fallback対象にする
+      // Position-based fallback missed → mark for dynamic fallback
+      return { rawCropBuffer: null, isBlank: true };
+    }
+
+    // Sharp resize to DINOv2 input
+    const rawCropBuffer = await sharp(fb)
+      .resize(dinov2InputSize, dinov2InputSize, { fit: 'cover', kernel: 'cubic' })
+      .removeAlpha()
+      .toColorspace('srgb')
+      .raw()
+      .toBuffer();
+
+    // バッファ即座解放（Map 参照を削除して GC 可能に）
+    // Immediate buffer release (delete Map entry to allow GC)
+    fallbackScreenshots.delete(sectionPatternId);
+
+    return { rawCropBuffer, isBlank: false };
+  }
+
+  // 既存パス: screenshotBase64 から Sharp crop
+  // Existing path: Sharp crop from screenshotBase64
+  const sectionLeft = 0;
+
+  // PNG バッファとして crop（isBlankImage 判定用）
+  // Crop as PNG buffer (for isBlankImage detection)
+  const croppedPngBuffer = await sharp(screenshotBuffer)
+    .extract({ left: sectionLeft, top: sectionTop, width: sectionCropWidth, height: sectionCropHeight })
+    .png()
+    .toBuffer();
+
+  // 白画像検出: Lazy Loading 未描画セクションの判定
+  // Blank image detection: detect lazy-loaded unrendered sections
+  const blank = await isBlankImage(croppedPngBuffer);
+  if (blank) {
+    return { rawCropBuffer: null, isBlank: true };
+  }
+
+  // DINOv2 入力サイズにリサイズ → raw バッファ
+  // Resize to DINOv2 input size → raw buffer
+  const rawCropBuffer = await sharp(croppedPngBuffer)
+    .resize(dinov2InputSize, dinov2InputSize, { fit: 'cover', kernel: 'cubic' })
+    .removeAlpha()
+    .toColorspace('srgb')
+    .raw()
+    .toBuffer();
+
+  return { rawCropBuffer, isBlank: false };
+}
+
+
+// ============================================================================
 // Lock Extension Utilities
 // ============================================================================
 
@@ -901,6 +1098,7 @@ export async function processEmbeddingPhase(
     responsiveEmbeddingsGenerated: 0,
     partEmbeddingsGenerated: 0,
     partVisualEmbeddingsGenerated: 0,
+    sectionVisualEmbeddingsGenerated: 0,
     embeddingFailedChunks: 0,
     completed: false,
   };
@@ -1550,14 +1748,18 @@ export async function processEmbeddingPhase(
       tryGarbageCollect();
     }
 
-    // 7. DINOv2 Visual Embedding生成（screenshotBase64が利用可能かつパーツが保存済みの場合のみ）
-    //    Phase 1.1で保存されたパーツにvisual embeddingを付与する。
-    //    text_embeddingはあるがvisual_embeddingがないパーツを対象とする。
-    //    7. DINOv2 Visual Embedding generation (only when screenshotBase64 available and parts saved)
-    //    Adds visual embeddings to parts saved in Phase 1.1.
-    //    Targets parts that have text_embedding but no visual_embedding.
-    if (screenshotBase64 && (partsSavedCount ?? 0) > 0) {
-      await extendJobLock(job, effectiveToken, effectiveLockDuration, 'embedding-parts-visual');
+    // 7. DINOv2 Visual Embedding生成（Section + Part）
+    //    screenshotBase64が利用可能な場合、DINOv2を1回初期化してSection・Partの両方でvisual embeddingを生成する。
+    //    text_embeddingはあるがvision_embeddingがないセクション、visual_embeddingがないパーツを対象とする。
+    //    7. DINOv2 Visual Embedding generation (Section + Part)
+    //    When screenshotBase64 is available, initialize DINOv2 once and generate visual embeddings
+    //    for both sections and parts. Targets sections with text_embedding but no vision_embedding,
+    //    and parts with text_embedding but no visual_embedding.
+    const hasSections = (sectionSaveResult?.idMapping?.size ?? 0) > 0;
+    const hasParts = (partsSavedCount ?? 0) > 0;
+
+    if (screenshotBase64 && (hasSections || hasParts)) {
+      await extendJobLock(job, effectiveToken, effectiveLockDuration, 'embedding-visual-dinov2');
 
       // 0. Playwright でパーツの bounding box を後付け取得（JSDOM は常に {0,0,0,0} を返すため）
       //    Phase 1.1 の Part Extraction で取得した bounding box は JSDOM の制約で常に 0。
@@ -1565,32 +1767,36 @@ export async function processEmbeddingPhase(
       //    0. Resolve bounding boxes via Playwright (JSDOM returns {0,0,0,0})
       //    Part Extraction in Phase 1.1 always gets zero bounding boxes due to JSDOM limitations.
       //    Resolve actual bounding boxes from Playwright rendering results.
-      try {
-        const bboxResult = await resolvePartBoundingBoxes({
-          webPageId,
-          url,
-          prisma,
-          sharedBrowser: params.sharedBrowser,
-          viewportWidth: job.data.options?.layoutOptions?.viewport?.width,
-          viewportHeight: job.data.options?.layoutOptions?.viewport?.height,
-        });
-        if (isDevelopment()) {
-          logger.info('[PageAnalyzeWorker] Resolved part bounding boxes via Playwright', {
-            resolved: bboxResult.resolvedCount,
-            skipped: bboxResult.skippedCount,
+      if (hasParts) {
+        try {
+          const bboxResult = await resolvePartBoundingBoxes({
+            webPageId,
+            url,
+            prisma,
+            sharedBrowser: params.sharedBrowser,
+            viewportWidth: job.data.options?.layoutOptions?.viewport?.width,
+            viewportHeight: job.data.options?.layoutOptions?.viewport?.height,
+          });
+          if (isDevelopment()) {
+            logger.info('[PageAnalyzeWorker] Resolved part bounding boxes via Playwright', {
+              resolved: bboxResult.resolvedCount,
+              skipped: bboxResult.skippedCount,
+            });
+          }
+        } catch (bboxError) {
+          // Graceful Degradation: bbox resolution failure is non-fatal
+          // bbox 取得失敗はジョブを中断しない（DINOv2 は bounding box なしのパーツをスキップする）
+          logger.warn('[PageAnalyzeWorker] Part bounding box resolution failed (non-fatal)', {
+            error: bboxError instanceof Error ? bboxError.message : String(bboxError),
           });
         }
-      } catch (bboxError) {
-        // Graceful Degradation: bbox resolution failure is non-fatal
-        // bbox 取得失敗はジョブを中断しない（DINOv2 は bounding box なしのパーツをスキップする）
-        logger.warn('[PageAnalyzeWorker] Part bounding box resolution failed (non-fatal)', {
-          error: bboxError instanceof Error ? bboxError.message : String(bboxError),
-        });
       }
 
       try {
         // 1. screenshotをBufferに変換 / Convert screenshot to Buffer
-        const screenshotBuffer = Buffer.from(screenshotBase64, 'base64');
+        // let: 動的Fallback前にメモリ解放のためnull代入が必要
+        // let: needs null assignment before dynamic fallback for memory release
+        let screenshotBuffer: Buffer | null = Buffer.from(screenshotBase64, 'base64');
 
         // 2. DINOv2 モデルパスを解決 / Resolve DINOv2 model path
         //    環境変数 DINOV2_MODEL_PATH またはデフォルトパス (@reftrix/ml パッケージルートからの相対パス)
@@ -1601,7 +1807,6 @@ export async function processEmbeddingPhase(
         if (process.env['DINOV2_MODEL_PATH']) {
           dinov2ModelPath = process.env['DINOV2_MODEL_PATH'];
         } else {
-          // eslint-disable-next-line @typescript-eslint/no-require-imports
           const mlMainPath = require.resolve('@reftrix/ml');
           const mlRoot = path.resolve(path.dirname(mlMainPath), '..');
           dinov2ModelPath = path.join(mlRoot, 'models', 'dinov2-base', 'model.onnx');
@@ -1622,211 +1827,732 @@ export async function processEmbeddingPhase(
           });
         }
 
-        // 4. DINOv2Serviceを初期化 / Initialize DINOv2Service
+        // 4. DINOv2Serviceを初期化（Section + Partで共用） / Initialize DINOv2Service (shared between Section + Part)
         const dinov2Service = new DINOv2Service({ modelPath: dinov2ModelPath });
         await dinov2Service.initialize();
 
+        // Get screenshot dimensions for crop bounds clamping（Section + Part共通）
+        // Get screenshot dimensions for crop bounds clamping (shared between Section + Part)
+        const screenshotMeta = await sharp(screenshotBuffer).metadata();
+        const imgWidth = screenshotMeta.width ?? 0;
+        const imgHeight = screenshotMeta.height ?? 0;
+
         try {
-          // 5. visual embeddingが未生成のパーツをDBから取得（bounding_box含む）
-          //    text_embeddingレコードが存在するがvisual_embeddingがnullのパーツを対象とする。
-          //    PII高リスクのパーツはスキップ。
-          //    5. Query parts from DB that lack visual_embedding (bounding_box included)
-          //    Targets parts with text_embedding record but null visual_embedding.
-          //    Skips high PII risk parts.
-          //
-          //    Note: Prisma does not support nested filter on Unsupported("vector") columns.
-          //    We use a 2-step approach: query parts with embeddings, then filter in-app.
-          const partsWithEmbeddings = await prisma.componentPart.findMany({
-            where: {
-              webPageId,
-              piiRiskLevel: { not: 'high' },
-              embedding: { isNot: null },
-            },
-            select: {
-              id: true,
-              boundingBox: true,
-              sectionPatternId: true,
-              embedding: { select: { id: true } },
-            },
-          });
+          // ====================================================================
+          // 5. Section Visual Embedding（DINOv2）
+          //    section_embeddingsテーブルでtext_embeddingはあるがvision_embeddingがないレコードを対象とする。
+          //    section_patternsのlayoutInfo.position (startY, height) からセクション領域をcropする。
+          //    5. Section Visual Embedding (DINOv2)
+          //    Targets section_embeddings records with text_embedding but null vision_embedding.
+          //    Crops section regions using layoutInfo.position (startY, height) from section_patterns.
+          // ====================================================================
+          if (hasSections) {
+            await extendJobLock(job, effectiveToken, effectiveLockDuration, 'embedding-sections-visual');
 
-          // 6. visual embeddingが既に生成済みかチェックするため、raw SQLで確認
-          //    Prisma cannot filter on Unsupported vector columns, so check via raw SQL.
-          //    6. Check which parts already have visual_embedding via raw SQL
-          let partsNeedingVisual: Array<{
-            id: string;
-            boundingBox: unknown;
-            sectionPatternId: string;
-            embeddingId: string;
-          }> = [];
-
-          if (partsWithEmbeddings.length > 0) {
-            const embeddingIds = partsWithEmbeddings
-              .filter((p): p is typeof p & { embedding: { id: string } } => p.embedding !== null)
-              .map(p => p.embedding.id);
-
-            if (embeddingIds.length > 0) {
-              // Query which embedding records have null visual_embedding
-              const nullVisualRows = await prisma.$queryRawUnsafe<Array<{ id: string }>>(
-                `SELECT id FROM component_part_embeddings
-                 WHERE id = ANY($1::uuid[]) AND visual_embedding IS NULL`,
-                embeddingIds,
+            try {
+              // 5a. vision_embeddingが未生成のsection_embeddingsをDBから取得
+              //     Prisma cannot filter on Unsupported vector columns, so use raw SQL.
+              //     5a. Query section_embeddings that lack vision_embedding via raw SQL
+              const sectionsNeedingVisual = await prisma.$queryRawUnsafe<Array<{
+                id: string;
+                section_pattern_id: string;
+              }>>(
+                `SELECT id, section_pattern_id
+                 FROM section_embeddings
+                 WHERE section_pattern_id IN (
+                   SELECT id FROM section_patterns WHERE web_page_id = $1::uuid
+                 )
+                 AND text_embedding IS NOT NULL
+                 AND vision_embedding IS NULL`,
+                webPageId,
               );
-              const nullVisualIds = new Set(nullVisualRows.map(r => r.id));
 
-              partsNeedingVisual = partsWithEmbeddings
-                .filter((p): p is typeof p & { embedding: { id: string } } =>
-                  p.embedding !== null && nullVisualIds.has(p.embedding.id))
-                .map(p => ({
-                  id: p.id,
-                  boundingBox: p.boundingBox,
-                  sectionPatternId: p.sectionPatternId,
-                  embeddingId: p.embedding.id,
-                }));
-            }
-          }
+              if (sectionsNeedingVisual.length > 0) {
+                if (isDevelopment()) {
+                  logger.info('[PageAnalyzeWorker] Starting Section DINOv2 visual embedding generation', {
+                    totalSections: sectionsNeedingVisual.length,
+                  });
+                }
 
-          if (partsNeedingVisual.length > 0) {
-            if (isDevelopment()) {
-              logger.info('[PageAnalyzeWorker] Starting DINOv2 visual embedding generation', {
-                totalParts: partsNeedingVisual.length,
+                // 5b. 対応するsection_patternsからlayoutInfo.position (startY, height) を取得
+                //     5b. Get layoutInfo.position (startY, height) from corresponding section_patterns
+                const sectionPatternIds = sectionsNeedingVisual.map(s => s.section_pattern_id);
+                const sectionPatterns = await prisma.sectionPattern.findMany({
+                  where: { id: { in: sectionPatternIds } },
+                  select: { id: true, layoutInfo: true, sectionType: true },
+                });
+                const sectionPositionMap = new Map<string, { startY: number; height: number; sectionType: string }>();
+                for (const sp of sectionPatterns) {
+                  const info = sp.layoutInfo as Record<string, unknown> | null;
+                  const position = info?.position as { startY?: number; height?: number } | undefined;
+                  sectionPositionMap.set(sp.id, {
+                    startY: position?.startY ?? 0,
+                    height: position?.height ?? 0,
+                    sectionType: sp.sectionType,
+                  });
+                }
+
+                // 5c. PII保護: piiRiskLevel='high' のパーツを含むセクションを除外
+                //     GDPR Art. 5(1)(c) データ最小化原則に基づき、PII高リスクパーツを含む
+                //     セクションの visual embedding 生成をスキップする。
+                //     5c. PII protection: exclude sections containing piiRiskLevel='high' parts
+                //     Per GDPR Art. 5(1)(c) data minimisation, skip visual embedding generation
+                //     for sections that contain high-PII-risk parts.
+                const highPiiSectionIds = await prisma.$queryRawUnsafe<Array<{ section_pattern_id: string }>>(
+                  `SELECT DISTINCT cp.section_pattern_id
+                   FROM component_parts cp
+                   WHERE cp.section_pattern_id IN (${sectionPatternIds.map((_, i) => `$${i + 1}::uuid`).join(', ')})
+                   AND cp.pii_risk_level = 'high'`,
+                  ...sectionPatternIds,
+                );
+                const highPiiSectionIdSet = new Set(highPiiSectionIds.map(r => r.section_pattern_id));
+
+                const sectionsFiltered = highPiiSectionIdSet.size > 0
+                  ? sectionsNeedingVisual.filter(s => !highPiiSectionIdSet.has(s.section_pattern_id))
+                  : sectionsNeedingVisual;
+
+                if (highPiiSectionIdSet.size > 0) {
+                  logger.warn('[PageAnalyzeWorker] Skipped sections with high PII risk for visual embedding (GDPR Art. 5(1)(c))', {
+                    skippedCount: highPiiSectionIdSet.size,
+                    remainingCount: sectionsFiltered.length,
+                  });
+                }
+
+                // 5d. チャンク処理でcrop→DINOv2→DB保存
+                //     5d. Process in chunks: crop → DINOv2 → DB save
+                //     Section screenshot fallback tracking variables
+                //     screenshotBase64範囲外セクションのフォールバックキャプチャ用追跡変数
+                const SECTION_FALLBACK_TIMEOUT_MS = 300_000; // 300s cumulative timeout
+                let sectionFallbackCapturedCount = 0;
+
+                // 5d-diag. 診断カウンター: セクションごとの処理パス追跡
+                //          Diagnostic counters: per-section processing path tracking
+                let diagInRangeCount = 0;
+                let diagFallbackCount = 0;
+                let diagDynamicCount = 0;
+                let diagDedupSkipCount = 0;
+                let diagSkippedCount = 0;
+
+                // 5d-pre. フォールバック対象セクションの事前バッチ収集
+                //         Pre-collect fallback sections for batch capture
+                const fallbackEnabled = (process.env['ENABLE_SECTION_SCREENSHOT_FALLBACK'] ?? 'true') === 'true';
+                const fallbackSections: Array<{ id: string; startY: number; height: number }> = [];
+                for (const section of sectionsFiltered) {
+                  const sectionPos = sectionPositionMap.get(section.section_pattern_id);
+                  if (!sectionPos || sectionPos.height < 10) continue;
+                  const sectionTop = Math.max(0, Math.round(sectionPos.startY));
+                  if (sectionTop >= imgHeight) {
+                    fallbackSections.push({
+                      id: section.section_pattern_id,
+                      startY: sectionPos.startY,
+                      height: sectionPos.height,
+                    });
+                  }
+                }
+
+                // 5d-batch. フォールバック対象を1回のバッチ呼び出しで一括キャプチャ
+                //           Batch capture all fallback sections in a single call
+                const fallbackScreenshots = new Map<string, Buffer>();
+                if (fallbackSections.length > 0 && fallbackEnabled) {
+                  if (isDevelopment()) {
+                    logger.info('[PageAnalyzeWorker] Batch capturing fallback section screenshots', {
+                      fallbackSectionCount: fallbackSections.length,
+                    });
+                  }
+
+                  try {
+                    const fallbackResult = await captureSectionScreenshots({
+                      url,
+                      sections: fallbackSections,
+                      viewportWidth: job.data.options?.layoutOptions?.viewport?.width ?? 1920,
+                      viewportHeight: job.data.options?.layoutOptions?.viewport?.height ?? 1080,
+                      maxSections: 50,
+                      timeoutMs: SECTION_FALLBACK_TIMEOUT_MS,
+                      sharedBrowser: params.sharedBrowser,
+                      checkMemoryPressure,
+                    });
+
+                    for (const fbResult of fallbackResult.results) {
+                      if (fbResult.screenshotBuffer && !fbResult.skipped) {
+                        fallbackScreenshots.set(fbResult.sectionId, fbResult.screenshotBuffer);
+                      }
+                    }
+                    sectionFallbackCapturedCount = fallbackResult.capturedCount;
+                  } catch (batchFallbackError) {
+                    // バッチフォールバック失敗: Graceful Degradation（text_embeddingのみで続行）
+                    // Batch fallback failure: Graceful Degradation (continue with text_embedding only)
+                    logger.warn('[PageAnalyzeWorker] Batch section screenshot fallback failed (non-fatal)', {
+                      error: batchFallbackError instanceof Error ? batchFallbackError.message : String(batchFallbackError),
+                    });
+                  }
+                }
+
+                // 5d-dedup. Type-aware 重複ベクトル検出用のスライディングウィンドウ
+                //           Type-aware sliding window for duplicate vector detection
+                //           同一sectionTypeのみをdedup対象とし、異種セクション間の誤除外を防止
+                //           Only dedup within same sectionType to prevent cross-type false exclusion
+                const parsedThreshold = parseFloat(process.env['DUPLICATE_VECTOR_THRESHOLD'] ?? '0.995');
+                const DUPLICATE_THRESHOLD = Number.isFinite(parsedThreshold) ? parsedThreshold : 0.995;
+                const MAX_RECENT_EMBEDDINGS = 10;
+                const recentSectionVisualEmbeddings: Array<{ embedding: number[]; sectionType: string }> = [];
+
+                // 5d-dynamic. 動的Fallbackキュー: 白画像検出セクションを蓄積
+                //             Dynamic fallback queue: accumulate blank-detected sections
+                // SEC-05: 動的Fallback対象セクション数上限
+                // SEC-05: Max dynamic fallback sections limit
+                const MAX_DYNAMIC_FALLBACK_SECTIONS = 20;
+                const dynamicFallbackSections: Array<{
+                  sectionEmbeddingId: string;
+                  sectionPatternId: string;
+                  startY: number;
+                  height: number;
+                }> = [];
+
+                let sectionVisualChunkSize = EMBEDDING_CHUNK_SIZE;
+
+                for (let offset = 0; offset < sectionsFiltered.length; offset += sectionVisualChunkSize) {
+                  // Memory pressure check
+                  const memCheck = checkMemoryPressure();
+                  if (memCheck.shouldAbort) {
+                    logger.warn('[PageAnalyzeWorker] Critical memory, stopping section visual embedding', { rssMb: memCheck.rssMb });
+                    break;
+                  }
+                  if (memCheck.shouldDegrade) {
+                    sectionVisualChunkSize = Math.max(3, Math.floor(sectionVisualChunkSize / 2));
+                    logger.warn('[PageAnalyzeWorker] Memory pressure, reducing section visual chunk size', {
+                      rssMb: memCheck.rssMb, newChunkSize: sectionVisualChunkSize,
+                    });
+                  }
+
+                  const chunk = sectionsFiltered.slice(offset, offset + sectionVisualChunkSize);
+
+                  // Lock extension per chunk
+                  await extendJobLock(job, effectiveToken, effectiveLockDuration, 'embedding-sections-visual');
+
+                  for (const section of chunk) {
+                    try {
+                      const sectionPos = sectionPositionMap.get(section.section_pattern_id);
+                      if (!sectionPos || sectionPos.height < 10) {
+                        // Skip sections with no position or height < 10px
+                        // 10px未満のセクションはスキップ（意味のあるvisual featureを持たないため）
+                        diagSkippedCount++;
+                        if (isDevelopment()) {
+                          logger.info('[PageAnalyzeWorker] Section visual path', {
+                            sectionId: section.section_pattern_id.slice(0, 8) + '...',
+                            path: 'skipped',
+                            skipReason: !sectionPos ? 'no_position' : 'height_too_small',
+                          });
+                        }
+                        continue;
+                      }
+
+                      // セクションの位置インデックスを取得（診断用）
+                      // Get section position index (for diagnostics)
+                      const sectionTop = Math.max(0, Math.round(sectionPos.startY));
+                      const isOutOfRange = sectionTop >= imgHeight;
+
+                      // TDA HIGH-1: acquireSectionCropBuffer でcropパスを一元管理
+                      // TDA HIGH-1: Unified crop path via acquireSectionCropBuffer
+                      const cropResult = await acquireSectionCropBuffer({
+                        sectionPatternId: section.section_pattern_id,
+                        sectionPos,
+                        screenshotBuffer,
+                        imgWidth,
+                        imgHeight,
+                        fallbackScreenshots,
+                        fallbackEnabled,
+                        dinov2InputSize: DINOV2_INPUT_SIZE,
+                      });
+
+                      if (cropResult.isBlank) {
+                        // 白画像検出: 動的Fallbackキューに蓄積
+                        // Blank image detected: add to dynamic fallback queue
+                        // LCC MUST-FIX-1: PIIフィルタ適用済み（sectionsFilteredは既にフィルタ済み）
+                        // LCC MUST-FIX-1: PII filter already applied (sectionsFiltered is pre-filtered)
+                        if (dynamicFallbackSections.length < MAX_DYNAMIC_FALLBACK_SECTIONS) {
+                          dynamicFallbackSections.push({
+                            sectionEmbeddingId: section.id,
+                            sectionPatternId: section.section_pattern_id,
+                            startY: sectionPos.startY,
+                            height: sectionPos.height,
+                          });
+                        }
+                        if (isDevelopment()) {
+                          logger.info('[PageAnalyzeWorker] Section visual path', {
+                            sectionId: section.section_pattern_id.slice(0, 8) + '...',
+                            startY: sectionPos.startY,
+                            height: sectionPos.height,
+                            imgHeight,
+                            path: 'dynamic',
+                          });
+                        }
+                        continue;
+                      }
+
+                      if (!cropResult.rawCropBuffer) {
+                        diagSkippedCount++;
+                        if (isDevelopment()) {
+                          logger.info('[PageAnalyzeWorker] Section visual path', {
+                            sectionId: section.section_pattern_id.slice(0, 8) + '...',
+                            startY: sectionPos.startY,
+                            height: sectionPos.height,
+                            imgHeight,
+                            path: 'skipped',
+                            skipReason: 'no_crop_buffer',
+                          });
+                        }
+                        continue;
+                      }
+
+                      // Generate visual embedding via DINOv2
+                      const visualEmbedding = await generateVisualEmbedding(dinov2Service, cropResult.rawCropBuffer);
+
+                      // Type-aware 重複ベクトル検出（ヘルパー関数使用: TDA HIGH-2 重複解消）
+                      // Type-aware duplicate detection (via helper: TDA HIGH-2 dedup elimination)
+                      const currentSectionType = sectionPos.sectionType;
+                      const isDuplicateVector = isDuplicateVisionEmbedding({
+                        sectionType: currentSectionType,
+                        height: sectionPos.height,
+                        embedding: visualEmbedding,
+                        recentEmbeddings: recentSectionVisualEmbeddings,
+                        threshold: DUPLICATE_THRESHOLD,
+                      });
+
+                      if (isDuplicateVector) {
+                        diagDedupSkipCount++;
+                        logger.warn('[PageAnalyzeWorker] Duplicate vision embedding detected, skipping DB save', {
+                          sectionId: section.section_pattern_id.slice(0, 8) + '...',
+                          sectionType: currentSectionType,
+                        });
+                        if (isDevelopment()) {
+                          logger.info('[PageAnalyzeWorker] Section visual path', {
+                            sectionId: section.section_pattern_id.slice(0, 8) + '...',
+                            startY: sectionPos.startY,
+                            height: sectionPos.height,
+                            imgHeight,
+                            path: 'dedup',
+                            sectionType: currentSectionType,
+                          });
+                        }
+                        continue;
+                      }
+
+                      // スライディングウィンドウに追加 / Add to sliding window
+                      recentSectionVisualEmbeddings.push({ embedding: visualEmbedding, sectionType: currentSectionType });
+                      if (recentSectionVisualEmbeddings.length > MAX_RECENT_EMBEDDINGS) {
+                        recentSectionVisualEmbeddings.shift();
+                      }
+
+                      // Update vision_embedding in DB via raw SQL
+                      const visualVectorString = `[${visualEmbedding.join(',')}]`;
+                      await prisma.$executeRawUnsafe(
+                        `UPDATE section_embeddings
+                         SET vision_embedding = $1::vector(768)
+                         WHERE id = $2::uuid`,
+                        visualVectorString,
+                        section.id,
+                      );
+
+                      // 処理パス判定: fallback Map由来か in-range crop か
+                      // Determine processing path: from fallback Map or in-range crop
+                      if (isOutOfRange) {
+                        diagFallbackCount++;
+                      } else {
+                        diagInRangeCount++;
+                      }
+
+                      if (isDevelopment()) {
+                        logger.info('[PageAnalyzeWorker] Section visual path', {
+                          sectionId: section.section_pattern_id.slice(0, 8) + '...',
+                          startY: sectionPos.startY,
+                          height: sectionPos.height,
+                          imgHeight,
+                          path: isOutOfRange ? 'fallback' : 'in_range',
+                        });
+                      }
+
+                      result.sectionVisualEmbeddingsGenerated++;
+                    } catch (sectionVisualError) {
+                      // Per-section failure: continue with others (Graceful Degradation)
+                      diagSkippedCount++;
+                      logger.warn('[PageAnalyzeWorker] DINOv2 visual embedding failed for section (non-fatal)', {
+                        sectionEmbeddingId: section.id.slice(0, 8) + '...',
+                        error: sectionVisualError instanceof Error ? sectionVisualError.message : String(sectionVisualError),
+                      });
+                    }
+                  }
+
+                  if (isDevelopment()) {
+                    logger.info('[PageAnalyzeWorker] Section visual embedding chunk completed', {
+                      chunkOffset: offset,
+                      chunkSize: chunk.length,
+                      totalVisualSoFar: result.sectionVisualEmbeddingsGenerated,
+                    });
+                  }
+
+                  // Inter-chunk memory recovery (except last chunk)
+                  if (offset + sectionVisualChunkSize < sectionsNeedingVisual.length) {
+                    tryGarbageCollect();
+                    await new Promise<void>(resolve => setImmediate(resolve));
+                  }
+                }
+
+                // 5d-dynamic-batch. 動的Fallback: 白画像検出セクションをバッチ再キャプチャ
+                //                   Dynamic fallback: batch re-capture blank-detected sections
+                // TDA HIGH-2: 事前バッチと動的バッチが同一ヘルパー(captureSectionScreenshots)を使用
+                // TDA HIGH-2: Both pre-batch and dynamic batch use the same helper
+                if (dynamicFallbackSections.length > 0 && fallbackEnabled) {
+                  // SEC-05: 位置ベース+動的の合計が50件上限を超えないよう制御
+                  // SEC-05: Total position-based + dynamic sections must not exceed 50
+                  const remainingCapacity = Math.max(0, 50 - sectionFallbackCapturedCount);
+                  const dynamicBatch = dynamicFallbackSections.slice(0, remainingCapacity);
+
+                  if (dynamicBatch.length > 0) {
+                    // 動的FallbackではscreenshotBase64不要 → メモリ解放して圧力軽減
+                    // screenshotBase64 not needed for dynamic fallback → release to reduce memory pressure
+                    screenshotBuffer = null;
+                    if (typeof global.gc === 'function') {
+                      global.gc();
+                    }
+
+                    // SEC-05: 動的Fallback前にメモリ圧力チェック（screenshotBuffer解放後）
+                    // SEC-05: Memory pressure check before dynamic fallback (after screenshotBuffer release)
+                    const memCheckDynamic = checkMemoryPressure();
+                    if (!memCheckDynamic.shouldAbort) {
+                      if (isDevelopment()) {
+                        logger.info('[PageAnalyzeWorker] Starting dynamic fallback for blank-detected sections', {
+                          dynamicFallbackCount: dynamicBatch.length,
+                          remainingCapacity,
+                        });
+                      }
+
+                      try {
+                        // LCC MUST-FIX-1: highPiiSectionIds フィルタは不要
+                        // sectionsFiltered は既に highPiiSectionIdSet でフィルタ済み
+                        // LCC MUST-FIX-1: highPiiSectionIds filter not needed here
+                        // sectionsFiltered is already filtered by highPiiSectionIdSet
+                        const dynamicFallbackResult = await captureSectionScreenshots({
+                          url,
+                          sections: dynamicBatch.map(s => ({
+                            id: s.sectionPatternId,
+                            startY: s.startY,
+                            height: s.height,
+                          })),
+                          viewportWidth: job.data.options?.layoutOptions?.viewport?.width ?? 1920,
+                          viewportHeight: job.data.options?.layoutOptions?.viewport?.height ?? 1080,
+                          maxSections: remainingCapacity,
+                          timeoutMs: SECTION_FALLBACK_TIMEOUT_MS,
+                          sharedBrowser: params.sharedBrowser,
+                          checkMemoryPressure,
+                        });
+
+                        sectionFallbackCapturedCount += dynamicFallbackResult.capturedCount;
+
+                        // 動的Fallbackで取得したスクリーンショットからDINOv2 visual embedding生成
+                        // Generate DINOv2 visual embeddings from dynamic fallback screenshots
+                        for (const fbResult of dynamicFallbackResult.results) {
+                          if (fbResult.skipped || !fbResult.screenshotBuffer) continue;
+
+                          const matchingSection = dynamicBatch.find(s => s.sectionPatternId === fbResult.sectionId);
+                          if (!matchingSection) continue;
+
+                          try {
+                            const rawCropBuffer = await sharp(fbResult.screenshotBuffer)
+                              .resize(DINOV2_INPUT_SIZE, DINOV2_INPUT_SIZE, { fit: 'cover', kernel: 'cubic' })
+                              .removeAlpha()
+                              .toColorspace('srgb')
+                              .raw()
+                              .toBuffer();
+
+                            // LCC MUST-FIX-3: 動的Fallbackスクリーンショットバッファの参照解除（GC可能に）
+                            // LCC MUST-FIX-3: Release dynamic fallback screenshot buffer reference (allow GC)
+                            fbResult.screenshotBuffer = null;
+
+                            const visualEmbedding = await generateVisualEmbedding(dinov2Service, rawCropBuffer);
+
+                            // Type-aware 重複ベクトル検出（ヘルパー関数使用: TDA HIGH-2 重複解消）
+                            // Type-aware duplicate detection (via helper: TDA HIGH-2 dedup elimination)
+                            const dynamicSectionPos = sectionPositionMap.get(matchingSection.sectionPatternId);
+                            const dynamicSectionType = dynamicSectionPos?.sectionType ?? 'unknown';
+                            const isDuplicateVector = isDuplicateVisionEmbedding({
+                              sectionType: dynamicSectionType,
+                              height: dynamicSectionPos?.height ?? 0,
+                              embedding: visualEmbedding,
+                              recentEmbeddings: recentSectionVisualEmbeddings,
+                              threshold: DUPLICATE_THRESHOLD,
+                            });
+
+                            if (isDuplicateVector) {
+                              logger.warn('[PageAnalyzeWorker] Duplicate vision embedding (dynamic fallback), skipping', {
+                                sectionId: fbResult.sectionId.slice(0, 8) + '...',
+                                sectionType: dynamicSectionType,
+                              });
+                              continue;
+                            }
+
+                            recentSectionVisualEmbeddings.push({ embedding: visualEmbedding, sectionType: dynamicSectionType });
+                            if (recentSectionVisualEmbeddings.length > MAX_RECENT_EMBEDDINGS) {
+                              recentSectionVisualEmbeddings.shift();
+                            }
+
+                            const visualVectorString = `[${visualEmbedding.join(',')}]`;
+                            await prisma.$executeRawUnsafe(
+                              `UPDATE section_embeddings
+                               SET vision_embedding = $1::vector(768)
+                               WHERE id = $2::uuid`,
+                              visualVectorString,
+                              matchingSection.sectionEmbeddingId,
+                            );
+
+                            diagDynamicCount++;
+                            result.sectionVisualEmbeddingsGenerated++;
+                          } catch (dynamicEmbeddingError) {
+                            logger.warn('[PageAnalyzeWorker] DINOv2 visual embedding failed for dynamic fallback section (non-fatal)', {
+                              sectionId: fbResult.sectionId.slice(0, 8) + '...',
+                              error: dynamicEmbeddingError instanceof Error ? dynamicEmbeddingError.message : String(dynamicEmbeddingError),
+                            });
+                          }
+                        }
+                      } catch (dynamicFallbackError) {
+                        // 動的Fallback全体の失敗: Graceful Degradation
+                        // Dynamic fallback overall failure: Graceful Degradation
+                        logger.warn('[PageAnalyzeWorker] Dynamic section screenshot fallback failed (non-fatal)', {
+                          error: dynamicFallbackError instanceof Error ? dynamicFallbackError.message : String(dynamicFallbackError),
+                        });
+                      }
+                    } else {
+                      logger.warn('[PageAnalyzeWorker] Skipping dynamic fallback due to memory pressure', {
+                        rssMb: memCheckDynamic.rssMb,
+                        dynamicFallbackCount: dynamicBatch.length,
+                      });
+                    }
+                  }
+                }
+
+                // 5d-diag-summary. セクション visual embedding 処理パスサマリーログ
+                //                  Section visual embedding processing path summary log
+                logger.info('[PageAnalyzeWorker] Section visual embedding path summary', {
+                  totalSections: sectionsNeedingVisual.length,
+                  inRangeCount: diagInRangeCount,
+                  fallbackCount: diagFallbackCount,
+                  dynamicCount: diagDynamicCount,
+                  dedupSkipCount: diagDedupSkipCount,
+                  skippedCount: diagSkippedCount,
+                  totalGenerated: result.sectionVisualEmbeddingsGenerated,
+                  fallbackCaptured: sectionFallbackCapturedCount,
+                });
+              }
+            } catch (sectionVisualError) {
+              // Graceful Degradation: section visual embedding失敗はジョブを止めない
+              // Graceful Degradation: section visual embedding failure does NOT block the job
+              result.embeddingFailedChunks++;
+              logger.warn('[PageAnalyzeWorker] Section DINOv2 visual embedding failed (non-fatal)', {
+                error: sectionVisualError instanceof Error ? sectionVisualError.message : String(sectionVisualError),
               });
             }
 
-            // Get screenshot dimensions for crop bounds clamping
-            const screenshotMeta = await sharp(screenshotBuffer).metadata();
-            const imgWidth = screenshotMeta.width ?? 0;
-            const imgHeight = screenshotMeta.height ?? 0;
+            // Memory recovery between section and part visual embedding
+            tryGarbageCollect();
+          }
 
-            // 7. セクションのstartY位置をDBから取得（bounding_boxは section-relative → absolute変換に必要）
-            //    startYはlayoutInfo JSON内のposition.startYに格納されている
-            //    7. Get section startY positions from DB (needed to convert section-relative bbox to absolute)
-            //    startY is stored in layoutInfo JSON field as position.startY
-            const uniqueSectionIds = [...new Set(partsNeedingVisual.map(p => p.sectionPatternId))];
-            const sectionPositions = await prisma.sectionPattern.findMany({
-              where: { id: { in: uniqueSectionIds } },
-              select: { id: true, layoutInfo: true },
+          // ====================================================================
+          // 6. Part Visual Embedding（DINOv2）
+          //    Phase 1.1で保存されたパーツにvisual embeddingを付与する。
+          //    text_embeddingはあるがvisual_embeddingがないパーツを対象とする。
+          //    PII高リスクのパーツはスキップ。
+          //    6. Part Visual Embedding (DINOv2)
+          //    Adds visual embeddings to parts saved in Phase 1.1.
+          //    Targets parts with text_embedding but no visual_embedding.
+          //    Skips high PII risk parts.
+          // ====================================================================
+          if (hasParts) {
+            //    Note: Prisma does not support nested filter on Unsupported("vector") columns.
+            //    We use a 2-step approach: query parts with embeddings, then filter in-app.
+            const partsWithEmbeddings = await prisma.componentPart.findMany({
+              where: {
+                webPageId,
+                piiRiskLevel: { not: 'high' },
+                embedding: { isNot: null },
+              },
+              select: {
+                id: true,
+                boundingBox: true,
+                sectionPatternId: true,
+                embedding: { select: { id: true } },
+              },
             });
-            const sectionStartYMap = new Map<string, number>();
-            for (const s of sectionPositions) {
-              const info = s.layoutInfo as Record<string, unknown> | null;
-              const position = info?.position as { startY?: number } | undefined;
-              sectionStartYMap.set(s.id, position?.startY ?? 0);
+
+            // Check which parts already have visual_embedding via raw SQL
+            // Prisma cannot filter on Unsupported vector columns, so check via raw SQL.
+            let partsNeedingVisual: Array<{
+              id: string;
+              boundingBox: unknown;
+              sectionPatternId: string;
+              embeddingId: string;
+            }> = [];
+
+            if (partsWithEmbeddings.length > 0) {
+              const embeddingIds = partsWithEmbeddings
+                .filter((p): p is typeof p & { embedding: { id: string } } => p.embedding !== null)
+                .map(p => p.embedding.id);
+
+              if (embeddingIds.length > 0) {
+                // Query which embedding records have null visual_embedding
+                const nullVisualRows = await prisma.$queryRawUnsafe<Array<{ id: string }>>(
+                  `SELECT id FROM component_part_embeddings
+                   WHERE id = ANY($1::uuid[]) AND visual_embedding IS NULL`,
+                  embeddingIds,
+                );
+                const nullVisualIds = new Set(nullVisualRows.map(r => r.id));
+
+                partsNeedingVisual = partsWithEmbeddings
+                  .filter((p): p is typeof p & { embedding: { id: string } } =>
+                    p.embedding !== null && nullVisualIds.has(p.embedding.id))
+                  .map(p => ({
+                    id: p.id,
+                    boundingBox: p.boundingBox,
+                    sectionPatternId: p.sectionPatternId,
+                    embeddingId: p.embedding.id,
+                  }));
+              }
             }
 
-            // 8. チャンク処理でcrop→DINOv2→DB保存
-            //    8. Process in chunks: crop → DINOv2 → DB save
-            let visualChunkSize = EMBEDDING_CHUNK_SIZE;
-
-            for (let offset = 0; offset < partsNeedingVisual.length; offset += visualChunkSize) {
-              // Memory pressure check
-              const memCheck = checkMemoryPressure();
-              if (memCheck.shouldAbort) {
-                logger.warn('[PageAnalyzeWorker] Critical memory, stopping visual embedding', { rssMb: memCheck.rssMb });
-                break;
-              }
-              if (memCheck.shouldDegrade) {
-                visualChunkSize = Math.max(3, Math.floor(visualChunkSize / 2));
-                logger.warn('[PageAnalyzeWorker] Memory pressure, reducing visual chunk size', {
-                  rssMb: memCheck.rssMb, newChunkSize: visualChunkSize,
+            if (partsNeedingVisual.length > 0 && screenshotBuffer) {
+              if (isDevelopment()) {
+                logger.info('[PageAnalyzeWorker] Starting DINOv2 part visual embedding generation', {
+                  totalParts: partsNeedingVisual.length,
                 });
               }
 
-              const chunk = partsNeedingVisual.slice(offset, offset + visualChunkSize);
+              // Get section startY positions from DB (needed to convert section-relative bbox to absolute)
+              // startY is stored in layoutInfo JSON field as position.startY
+              // セクションのstartY位置をDBから取得（bounding_boxは section-relative → absolute変換に必要）
+              const uniqueSectionIds = [...new Set(partsNeedingVisual.map(p => p.sectionPatternId))];
+              const sectionPositions = await prisma.sectionPattern.findMany({
+                where: { id: { in: uniqueSectionIds } },
+                select: { id: true, layoutInfo: true },
+              });
+              const sectionStartYMap = new Map<string, number>();
+              for (const s of sectionPositions) {
+                const info = s.layoutInfo as Record<string, unknown> | null;
+                const position = info?.position as { startY?: number } | undefined;
+                sectionStartYMap.set(s.id, position?.startY ?? 0);
+              }
 
-              // Lock extension per chunk
-              await extendJobLock(job, effectiveToken, effectiveLockDuration, 'embedding-parts-visual');
+              // Process in chunks: crop → DINOv2 → DB save
+              // チャンク処理でcrop→DINOv2→DB保存
+              let visualChunkSize = EMBEDDING_CHUNK_SIZE;
 
-              for (const part of chunk) {
-                try {
-                  // Parse bounding box from JSON
-                  const bbox = part.boundingBox as Record<string, number> | null;
-                  if (!bbox || typeof bbox.width !== 'number' || typeof bbox.height !== 'number'
-                    || bbox.width <= 0 || bbox.height <= 0) {
-                    // Skip parts with invalid or zero-size bounding box
-                    continue;
-                  }
-
-                  // Convert section-relative bbox to absolute coordinates
-                  const sectionStartY = sectionStartYMap.get(part.sectionPatternId) ?? 0;
-                  const absoluteBbox = {
-                    x: bbox.x ?? 0,
-                    y: (bbox.y ?? 0) + sectionStartY,
-                    width: bbox.width,
-                    height: bbox.height,
-                  };
-
-                  // Crop and resize to 224x224 raw RGB for DINOv2
-                  // DINOv2Service expects raw 224x224x3 RGB pixel data (150,528 bytes).
-                  // Clamp crop region to image bounds (same pattern as cropAndResizePart).
-                  const left = Math.max(0, Math.round(absoluteBbox.x));
-                  const top = Math.max(0, Math.round(absoluteBbox.y));
-                  const cropWidth = Math.min(
-                    Math.round(absoluteBbox.width),
-                    Math.max(1, imgWidth - left),
-                  );
-                  const cropHeight = Math.min(
-                    Math.round(absoluteBbox.height),
-                    Math.max(1, imgHeight - top),
-                  );
-
-                  if (cropWidth <= 0 || cropHeight <= 0) continue;
-
-                  const rawCropBuffer = await sharp(screenshotBuffer)
-                    .extract({ left, top, width: cropWidth, height: cropHeight })
-                    .resize(DINOV2_INPUT_SIZE, DINOV2_INPUT_SIZE, { fit: 'cover', kernel: 'cubic' })
-                    .removeAlpha()
-                    .toColorspace('srgb')
-                    .raw()
-                    .toBuffer();
-
-                  // Generate visual embedding via DINOv2
-                  const visualEmbedding = await generateVisualEmbedding(dinov2Service, rawCropBuffer);
-
-                  // Update visual_embedding in DB via raw SQL
-                  const visualVectorString = `[${visualEmbedding.join(',')}]`;
-                  await prisma.$executeRawUnsafe(
-                    `UPDATE component_part_embeddings
-                     SET visual_embedding = $1::vector(768)
-                     WHERE id = $2::uuid`,
-                    visualVectorString,
-                    part.embeddingId,
-                  );
-
-                  result.partVisualEmbeddingsGenerated++;
-                } catch (partVisualError) {
-                  // Per-part failure: continue with others (Graceful Degradation)
-                  logger.warn('[PageAnalyzeWorker] DINOv2 visual embedding failed for part (non-fatal)', {
-                    partId: part.id.slice(0, 8) + '...',
-                    error: partVisualError instanceof Error ? partVisualError.message : String(partVisualError),
+              for (let offset = 0; offset < partsNeedingVisual.length; offset += visualChunkSize) {
+                // Memory pressure check
+                const memCheck = checkMemoryPressure();
+                if (memCheck.shouldAbort) {
+                  logger.warn('[PageAnalyzeWorker] Critical memory, stopping part visual embedding', { rssMb: memCheck.rssMb });
+                  break;
+                }
+                if (memCheck.shouldDegrade) {
+                  visualChunkSize = Math.max(3, Math.floor(visualChunkSize / 2));
+                  logger.warn('[PageAnalyzeWorker] Memory pressure, reducing part visual chunk size', {
+                    rssMb: memCheck.rssMb, newChunkSize: visualChunkSize,
                   });
+                }
+
+                const chunk = partsNeedingVisual.slice(offset, offset + visualChunkSize);
+
+                // Lock extension per chunk
+                await extendJobLock(job, effectiveToken, effectiveLockDuration, 'embedding-parts-visual');
+
+                for (const part of chunk) {
+                  try {
+                    // Parse bounding box from JSON
+                    const bbox = part.boundingBox as Record<string, number> | null;
+                    if (!bbox || typeof bbox.width !== 'number' || typeof bbox.height !== 'number'
+                      || bbox.width <= 0 || bbox.height <= 0) {
+                      // Skip parts with invalid or zero-size bounding box
+                      continue;
+                    }
+
+                    // Convert section-relative bbox to absolute coordinates
+                    const sectionStartY = sectionStartYMap.get(part.sectionPatternId) ?? 0;
+                    const absoluteBbox = {
+                      x: bbox.x ?? 0,
+                      y: (bbox.y ?? 0) + sectionStartY,
+                      width: bbox.width,
+                      height: bbox.height,
+                    };
+
+                    // Crop and resize to 224x224 raw RGB for DINOv2
+                    // DINOv2Service expects raw 224x224x3 RGB pixel data (150,528 bytes).
+                    // Clamp crop region to image bounds (same pattern as cropAndResizePart).
+                    const left = Math.max(0, Math.round(absoluteBbox.x));
+                    const top = Math.max(0, Math.round(absoluteBbox.y));
+                    const cropWidth = Math.min(
+                      Math.round(absoluteBbox.width),
+                      Math.max(1, imgWidth - left),
+                    );
+                    const cropHeight = Math.min(
+                      Math.round(absoluteBbox.height),
+                      Math.max(1, imgHeight - top),
+                    );
+
+                    if (cropWidth <= 0 || cropHeight <= 0) continue;
+
+                    const rawCropBuffer = await sharp(screenshotBuffer)
+                      .extract({ left, top, width: cropWidth, height: cropHeight })
+                      .resize(DINOV2_INPUT_SIZE, DINOV2_INPUT_SIZE, { fit: 'cover', kernel: 'cubic' })
+                      .removeAlpha()
+                      .toColorspace('srgb')
+                      .raw()
+                      .toBuffer();
+
+                    // Generate visual embedding via DINOv2
+                    const visualEmbedding = await generateVisualEmbedding(dinov2Service, rawCropBuffer);
+
+                    // Update visual_embedding in DB via raw SQL
+                    const visualVectorString = `[${visualEmbedding.join(',')}]`;
+                    await prisma.$executeRawUnsafe(
+                      `UPDATE component_part_embeddings
+                       SET visual_embedding = $1::vector(768)
+                       WHERE id = $2::uuid`,
+                      visualVectorString,
+                      part.embeddingId,
+                    );
+
+                    result.partVisualEmbeddingsGenerated++;
+                  } catch (partVisualError) {
+                    // Per-part failure: continue with others (Graceful Degradation)
+                    logger.warn('[PageAnalyzeWorker] DINOv2 visual embedding failed for part (non-fatal)', {
+                      partId: part.id.slice(0, 8) + '...',
+                      error: partVisualError instanceof Error ? partVisualError.message : String(partVisualError),
+                    });
+                  }
+                }
+
+                if (isDevelopment()) {
+                  logger.info('[PageAnalyzeWorker] Part visual embedding chunk completed', {
+                    chunkOffset: offset,
+                    chunkSize: chunk.length,
+                    totalVisualSoFar: result.partVisualEmbeddingsGenerated,
+                  });
+                }
+
+                // Inter-chunk memory recovery (except last chunk)
+                if (offset + visualChunkSize < partsNeedingVisual.length) {
+                  tryGarbageCollect();
+                  await new Promise<void>(resolve => setImmediate(resolve));
                 }
               }
 
               if (isDevelopment()) {
-                logger.info('[PageAnalyzeWorker] Visual embedding chunk completed', {
-                  chunkOffset: offset,
-                  chunkSize: chunk.length,
-                  totalVisualSoFar: result.partVisualEmbeddingsGenerated,
+                logger.info('[PageAnalyzeWorker] DINOv2 part visual embedding generation complete', {
+                  generatedCount: result.partVisualEmbeddingsGenerated,
+                  totalParts: partsNeedingVisual.length,
                 });
               }
-
-              // Inter-chunk memory recovery (except last chunk)
-              if (offset + visualChunkSize < partsNeedingVisual.length) {
-                tryGarbageCollect();
-                await new Promise<void>(resolve => setImmediate(resolve));
-              }
-            }
-
-            if (isDevelopment()) {
-              logger.info('[PageAnalyzeWorker] DINOv2 visual embedding generation complete', {
-                generatedCount: result.partVisualEmbeddingsGenerated,
-                totalParts: partsNeedingVisual.length,
-              });
             }
           }
         } finally {
-          // 9. DINOv2 dispose（必ず実行） / DINOv2 dispose (always execute)
+          // 7. DINOv2 dispose（必ず実行、Section + Part完了後） / DINOv2 dispose (always execute, after both Section + Part)
           try {
             await dinov2Service.dispose();
           } catch {
@@ -1857,6 +2583,7 @@ export async function processEmbeddingPhase(
     logger.warn('[PageAnalyzeWorker] Embedding phase completed with failures', {
       embeddingFailedChunks: result.embeddingFailedChunks,
       sectionEmbeddingsGenerated: result.sectionEmbeddingsGenerated,
+      sectionVisualEmbeddingsGenerated: result.sectionVisualEmbeddingsGenerated,
       motionEmbeddingsGenerated: result.motionEmbeddingsGenerated,
       bgEmbeddingsGenerated: result.bgEmbeddingsGenerated,
       jsAnimationEmbeddingsGenerated: result.jsAnimationEmbeddingsGenerated,
@@ -1939,12 +2666,10 @@ async function processPageAnalyzeJob(
       };
 
       job.updateProgress(progressData).catch((err) => {
-        if (isDevelopment()) {
-          logger.warn('[PageAnalyzeWorker] Failed to update job progress', {
-            jobId: job.id,
-            error: err instanceof Error ? err.message : String(err),
-          });
-        }
+        logger.warn('[PageAnalyzeWorker] Failed to update job progress', {
+          jobId: job.id,
+          error: err instanceof Error ? err.message : String(err),
+        });
       });
     },
   });
@@ -2274,11 +2999,29 @@ async function processPageAnalyzeJob(
               });
             }
 
+            // Section Merge/Split Post-Processor（過剰分割修正 + 巨大セクション再分割）
+            // Section Merge/Split Post-Processor (fix over-segmentation + split oversized sections)
+            const postProcessResult = postProcessSections(sectionsWithCss);
+            const postProcessedSections = postProcessResult.sections as LayoutSection[];
+
+            if (postProcessResult.stats.mergedGroups > 0 || postProcessResult.stats.absorbedCount > 0 || postProcessResult.stats.splitCount > 0) {
+              logger.info('[PageAnalyzeWorker] Section post-processing applied', postProcessResult.stats);
+            }
+
             sectionSaveResult = await saveSectionPatterns(
               prisma as unknown as SectionPatternPrismaClient,
               actualWebPageId,
-              sectionsWithCss
+              postProcessedSections
             );
+
+            // postProcessSectionsの結果をembedding生成用のlayoutResultに反映
+            // Update layoutResult sections with post-processed sections for embedding generation
+            // Phase 5のtext embedding生成がpostProcessed後のセクション（分割/マージ含む）を使用するため
+            if (layoutResultForNarrative && postProcessedSections.length !== sectionsWithCss.length) {
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any -- LayoutSection.visionFeatures(unknown) vs SectionVisionFeatures型の互換性のためキャスト
+              layoutResultForNarrative.sections = postProcessedSections as any;
+              layoutResultForNarrative.sectionCount = postProcessedSections.length;
+            }
 
             if (isDevelopment()) {
               logger.info('[PageAnalyzeWorker] SectionPatterns saved', {
@@ -3462,6 +4205,7 @@ async function processPageAnalyzeJob(
 
       // Map embedding phase result back to job results
       if (embeddingPhaseResult.sectionEmbeddingsGenerated > 0 ||
+          embeddingPhaseResult.sectionVisualEmbeddingsGenerated > 0 ||
           embeddingPhaseResult.motionEmbeddingsGenerated > 0 ||
           embeddingPhaseResult.bgEmbeddingsGenerated > 0 ||
           embeddingPhaseResult.jsAnimationEmbeddingsGenerated > 0 ||
@@ -3471,6 +4215,9 @@ async function processPageAnalyzeJob(
         const embeddingResult: NonNullable<PageAnalyzeJobResult['results']>['embedding'] = {};
         if (embeddingPhaseResult.sectionEmbeddingsGenerated > 0) {
           embeddingResult!.sectionEmbeddingsGenerated = embeddingPhaseResult.sectionEmbeddingsGenerated;
+        }
+        if (embeddingPhaseResult.sectionVisualEmbeddingsGenerated > 0) {
+          embeddingResult!.sectionVisualEmbeddingsGenerated = embeddingPhaseResult.sectionVisualEmbeddingsGenerated;
         }
         if (embeddingPhaseResult.motionEmbeddingsGenerated > 0) {
           embeddingResult!.motionEmbeddingsGenerated = embeddingPhaseResult.motionEmbeddingsGenerated;
@@ -3690,6 +4437,10 @@ async function processPageAnalyzeJob(
       processingTimeMs,
     });
 
+    // Note: failure path では pause(true) を呼ばない。
+    // success path の pause は 'completed' → IPC 'job-completed' → 計画的再起動の
+    // フローで安全だが、failure path では 'failed' イベントが IPC を送信しないため、
+    // pause すると Worker が永久停止する。autorun: false で起動時レースは防止済み。
     // Re-throw to let BullMQ record the failure
     // Note: BullMQ will capture the error message from the thrown error
     throw error;
@@ -3742,6 +4493,8 @@ export function createPageAnalyzeWorker(
         port: config.port,
         maxRetriesPerRequest: config.maxRetriesPerRequest,
       },
+      // Explicit start from start-workers.ts after local initialization is complete.
+      autorun: false,
       concurrency,
       lockDuration,
       // Stalled job settings (detect stuck jobs)

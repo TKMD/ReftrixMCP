@@ -34,6 +34,10 @@ describe('PageAnalyzeWorker - Configuration', () => {
   });
 
   describe('page-analyze-worker stalledInterval', () => {
+    it('should disable BullMQ autorun and require explicit start', () => {
+      expect(workerSource).toMatch(/autorun:\s*false/);
+    });
+
     it('should use lockDuration/4 for stalledInterval instead of hardcoded 30000', () => {
       // Should NOT contain the old hardcoded value
       expect(workerSource).not.toMatch(/stalledInterval:\s*30000/);
