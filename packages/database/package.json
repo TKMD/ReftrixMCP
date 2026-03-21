@@ -5,6 +5,7 @@
   "description": "Database schema and migrations for Reftrix",
   "files": [
     "dist/",
+    "src/",
     "prisma/"
   ],
   "main": "./dist/index.js",

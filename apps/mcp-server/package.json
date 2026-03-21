@@ -4,8 +4,10 @@
   "license": "AGPL-3.0-only",
   "description": "MCP Server for Reftrix - AI agent integration for web design analysis, layout extraction, motion detection, and quality evaluation",
   "files": [
-    "dist/"
+    "dist/",
+    "src/"
   ],
+  "mcpName": "io.github.tkmd/reftrixmcp",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {

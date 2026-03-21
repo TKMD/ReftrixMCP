@@ -4,7 +4,8 @@
   "license": "AGPL-3.0-only",
   "description": "Core domain logic for Reftrix",
   "files": [
-    "dist/"
+    "dist/",
+    "src/"
   ],
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
