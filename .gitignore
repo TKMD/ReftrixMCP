@@ -83,3 +83,6 @@ test-results/
 playwright-report/
 playwright/.cache/
 .auto-trigger-state.json
+
+# MCP Registry tokens
+.mcpregistry_*

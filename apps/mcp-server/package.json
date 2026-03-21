@@ -1,13 +1,13 @@
 {
   "name": "@reftrixmcp/mcp-server",
-  "version": "0.1.7",
+  "version": "0.1.8",
   "license": "AGPL-3.0-only",
   "description": "MCP Server for Reftrix - AI agent integration for web design analysis, layout extraction, motion detection, and quality evaluation",
   "files": [
     "dist/",
     "src/"
   ],
-  "mcpName": "io.github.tkmd/reftrixmcp",
+  "mcpName": "io.github.TKMD/reftrixmcp",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
