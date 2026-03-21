@@ -13,7 +13,7 @@
  * 4. 警告生成テスト (10テスト) - パフォーマンス、アクセシビリティ、互換性警告
  * 5. 複雑度計算テスト (10テスト) - 複雑度スコア計算
  *
- * @module @reftrix/webdesign-core/tests/motion-detector
+ * @module @reftrixmcp/webdesign-core/tests/motion-detector
  */
 
 import { describe, it, expect, beforeEach } from "vitest";

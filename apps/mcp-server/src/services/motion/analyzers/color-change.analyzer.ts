@@ -6,7 +6,7 @@
  *
  * フレーム画像間の色変化を検出・分析するサービス
  *
- * @module @reftrix/mcp-server/services/motion/analyzers/color-change
+ * @module @reftrixmcp/mcp-server/services/motion/analyzers/color-change
  *
  * 主要機能:
  * 1. extractDominantColors - ドミナントカラー抽出

@@ -13,7 +13,7 @@
 import type { CSSVariableExtractionResult } from "../../visual/css-variable-extractor.service";
 import type { TypographyExtractionResult } from "../../visual/typography-extractor.service";
 import type { MotionDetectionResult } from "../../page/motion-detector.service";
-import type { DetectedSection } from "@reftrix/webdesign-core";
+import type { DetectedSection } from "@reftrixmcp/webdesign-core";
 import type { VisualFeatures } from "../../../tools/page/schemas";
 
 // =============================================================================

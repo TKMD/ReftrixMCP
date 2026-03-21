@@ -5,7 +5,7 @@
  * motion.* MCP Tools — Shared Zod Schema Definitions
  * detect / search 両方で共有される共通型定義
  *
- * @module @reftrix/mcp-server/tools/motion/shared.schemas
+ * @module @reftrixmcp/mcp-server/tools/motion/shared.schemas
  */
 import { z } from "zod";
 

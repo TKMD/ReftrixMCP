@@ -4,7 +4,7 @@
 /**
  * CSSAnimationParser テストスイート
  * TDD: Red Phase - 先にテストを記述し、実装で通す
- * @module @reftrix/webdesign-core/tests/motion-detector/css-animation-parser
+ * @module @reftrixmcp/webdesign-core/tests/motion-detector/css-animation-parser
  */
 
 import { describe, it, expect, beforeEach } from "vitest";

@@ -6,7 +6,7 @@
  *
  * セクション分類のためのルールと条件の型定義
  *
- * @module @reftrix/webdesign-core/section-classifier/rules
+ * @module @reftrixmcp/webdesign-core/section-classifier/rules
  */
 
 import type { SectionType, DetectedSection } from "../types/section.types";

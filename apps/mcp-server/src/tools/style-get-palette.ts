@@ -25,7 +25,7 @@ import {
 } from "../services/style/palette-service";
 import { createLogger, isDevelopment } from "../utils/logger";
 import { McpError, ErrorCode } from "../utils/errors";
-import { prisma } from "@reftrix/database";
+import { prisma } from "@reftrixmcp/database";
 
 // =============================================================================
 // サービスインターフェース（テスト用依存性注入）

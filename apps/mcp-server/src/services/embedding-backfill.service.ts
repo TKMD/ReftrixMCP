@@ -21,7 +21,7 @@
  * @module services/embedding-backfill
  */
 
-import { prisma } from "@reftrix/database";
+import { prisma } from "@reftrixmcp/database";
 import os from "node:os";
 import { LayoutEmbeddingService, saveSectionEmbedding } from "./layout-embedding.service";
 import { saveMotionEmbedding } from "./motion/frame-embedding.service";

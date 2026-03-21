@@ -26,8 +26,8 @@
  * @module scripts/backfill-embeddings
  */
 
-import { prisma } from "@reftrix/database";
-import { embeddingService } from "@reftrix/ml";
+import { prisma } from "@reftrixmcp/database";
+import { embeddingService } from "@reftrixmcp/ml";
 import {
   backfillWebPageEmbeddings,
   checkWebPageEmbeddingCoverage,

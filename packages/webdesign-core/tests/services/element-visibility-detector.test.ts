@@ -6,7 +6,7 @@
  *
  * スクロール時の要素出現/消失を輪郭検出ベースで検出するテスト
  *
- * @module @reftrix/webdesign-core/tests/services/element-visibility-detector
+ * @module @reftrixmcp/webdesign-core/tests/services/element-visibility-detector
  */
 
 import { describe, test, expect, beforeEach } from "vitest";

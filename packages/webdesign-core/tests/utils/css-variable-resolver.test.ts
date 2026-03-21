@@ -4,7 +4,7 @@
 /**
  * CSS Variable Resolver Tests
  *
- * @module @reftrix/webdesign-core/tests/utils/css-variable-resolver
+ * @module @reftrixmcp/webdesign-core/tests/utils/css-variable-resolver
  */
 
 import { describe, it, expect, beforeEach } from "vitest";

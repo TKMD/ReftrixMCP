@@ -21,7 +21,7 @@ import { chromium } from "playwright";
 import { validateExternalUrl } from "../../utils/url-validator";
 import { logger, isDevelopment } from "../../utils/logger";
 import { withTimeout } from "../../tools/page/handlers/timeout-utils";
-import { isUrlAllowedByRobotsTxt, ROBOTS_TXT } from "@reftrix/core";
+import { isUrlAllowedByRobotsTxt, ROBOTS_TXT } from "@reftrixmcp/core";
 
 // =====================================================
 // 型定義

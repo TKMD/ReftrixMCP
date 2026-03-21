@@ -6,7 +6,7 @@
  *
  * TDD: Red phase - Write failing tests first
  *
- * @module @reftrix/mcp-server/tests/unit/services/motion/cls-calculator.service.test
+ * @module @reftrixmcp/mcp-server/tests/unit/services/motion/cls-calculator.service.test
  */
 
 import { describe, it, expect, beforeEach } from "vitest";

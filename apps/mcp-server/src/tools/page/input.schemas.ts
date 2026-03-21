@@ -5,7 +5,7 @@
  * page.analyze MCPツールの入力スキーマ定義
  * Input schemas + all option types
  *
- * @module @reftrix/mcp-server/tools/page/input.schemas
+ * @module @reftrixmcp/mcp-server/tools/page/input.schemas
  */
 import { z } from "zod";
 import { sourceTypeSchema, usageScopeSchema, waitUntilSchema } from "./shared.schemas";

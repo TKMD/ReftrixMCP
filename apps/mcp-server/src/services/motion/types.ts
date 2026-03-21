@@ -6,7 +6,7 @@
  *
  * PNG/JPEGフレーム連番を分析するサービスの型定義
  *
- * @module @reftrix/mcp-server/services/motion/types
+ * @module @reftrixmcp/mcp-server/services/motion/types
  */
 
 // ============================================================================

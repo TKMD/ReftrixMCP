@@ -5,7 +5,7 @@
  * page.analyze MCPツールの共通スキーマ定義
  * Error Codes, Enum Schemas, Utility Functions
  *
- * @module @reftrix/mcp-server/tools/page/shared.schemas
+ * @module @reftrixmcp/mcp-server/tools/page/shared.schemas
  */
 import { z } from "zod";
 

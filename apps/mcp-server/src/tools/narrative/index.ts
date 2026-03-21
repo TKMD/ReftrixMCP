@@ -6,7 +6,7 @@
  *
  * Webデザインの世界観（WorldView）とレイアウト構成（LayoutStructure）分析ツール
  *
- * @module @reftrix/mcp-server/tools/narrative
+ * @module @reftrixmcp/mcp-server/tools/narrative
  *
  * 対応ツール:
  * - narrative.analyze: URLまたはHTMLから世界観・レイアウト構成を分析

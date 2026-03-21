@@ -40,7 +40,7 @@ import { calculateConfidence, type AnalysisMetadata } from "./generators/confide
 import { LayoutEmbeddingService } from "../layout-embedding.service";
 import { NarrativeSearchService } from "./narrative-search.service";
 import { isDevelopment, logger } from "../../utils/logger";
-import { prisma } from "@reftrix/database";
+import { prisma } from "@reftrixmcp/database";
 import type { MoodCategory as PrismaMoodCategory } from "@prisma/client";
 
 // =============================================================================

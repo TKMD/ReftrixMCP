@@ -12,7 +12,7 @@
  * - Tailwindサイトではユーティリティクラスのみ（flex, grid, p-4等）使用
  * - 結果: 検出率が約33%まで低下（Mevvy Network実測値）
  *
- * @module @reftrix/webdesign-core/tests/section-detector-tailwind
+ * @module @reftrixmcp/webdesign-core/tests/section-detector-tailwind
  */
 
 import { describe, it, expect, beforeEach } from "vitest";

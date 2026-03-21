@@ -7,7 +7,7 @@
  * TDD Red Phase: 60+テストケース
  * セクションからコード生成の包括的なテスト
  *
- * @module @reftrix/webdesign-core/tests/code-generator
+ * @module @reftrixmcp/webdesign-core/tests/code-generator
  */
 
 import { describe, it, expect, beforeEach } from "vitest";

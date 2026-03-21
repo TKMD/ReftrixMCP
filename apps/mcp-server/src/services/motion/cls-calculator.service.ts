@@ -17,7 +17,7 @@
  * - needs-improvement: >= 0.1 && < 0.25
  * - poor: >= 0.25
  *
- * @module @reftrix/mcp-server/services/motion/cls-calculator
+ * @module @reftrixmcp/mcp-server/services/motion/cls-calculator
  */
 
 import type { FrameDiffResult, BoundingBox, ViewportSize } from "./types";

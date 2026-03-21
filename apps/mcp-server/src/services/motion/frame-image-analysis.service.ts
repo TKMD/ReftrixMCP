@@ -6,7 +6,7 @@
  *
  * PNG/JPEGフレーム連番を入力として分析機能を提供するサービス
  *
- * @module @reftrix/mcp-server/services/motion/frame-image-analysis
+ * @module @reftrixmcp/mcp-server/services/motion/frame-image-analysis
  *
  * 主要機能:
  * 1. フレーム差分検出 (Pixelmatch)

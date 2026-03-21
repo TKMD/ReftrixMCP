@@ -5,7 +5,7 @@
  * Palette Service Export Layer
  * styleGetPaletteHandlerを外部モジュールから直接使用可能にするエクスポート層
  *
- * @module @reftrix/mcp-server/services/palette-service-export
+ * @module @reftrixmcp/mcp-server/services/palette-service-export
  */
 
 import { styleGetPaletteHandler } from "../tools/style-get-palette";

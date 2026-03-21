@@ -6,7 +6,7 @@
  *
  * TDD Red Phase: AIクリシェパターン検出のテストケース（70+件）
  *
- * @module @reftrix/webdesign-core/tests/quality-evaluator/anti-ai-cliche
+ * @module @reftrixmcp/webdesign-core/tests/quality-evaluator/anti-ai-cliche
  */
 
 import { describe, it, expect, beforeEach } from "vitest";

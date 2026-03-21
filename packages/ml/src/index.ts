@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 /**
- * @reftrix/ml
+ * @reftrixmcp/ml
  * ML/Embedding and Search services for Reftrix
  */
 

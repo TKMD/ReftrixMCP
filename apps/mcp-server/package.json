@@ -1,8 +1,11 @@
 {
-  "name": "@reftrix/mcp-server",
-  "version": "0.1.6",
+  "name": "@reftrixmcp/mcp-server",
+  "version": "0.1.7",
   "license": "AGPL-3.0-only",
-  "description": "MCP Server for Reftrix - AI agent integration",
+  "description": "MCP Server for Reftrix - AI agent integration for web design analysis, layout extraction, motion detection, and quality evaluation",
+  "files": [
+    "dist/"
+  ],
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
@@ -69,10 +72,10 @@
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.26.0",
     "@prisma/client": "^6.19.2",
-    "@reftrix/core": "workspace:*",
-    "@reftrix/database": "workspace:*",
-    "@reftrix/ml": "workspace:*",
-    "@reftrix/webdesign-core": "workspace:*",
+    "@reftrixmcp/core": "workspace:*",
+    "@reftrixmcp/database": "workspace:*",
+    "@reftrixmcp/ml": "workspace:*",
+    "@reftrixmcp/webdesign-core": "workspace:*",
     "axe-core": "^4.10.2",
     "bullmq": "^5.66.5",
     "culori": "^4.0.2",
@@ -87,7 +90,7 @@
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.11.0",
-    "@reftrix/config": "workspace:*",
+    "@reftrixmcp/config": "workspace:*",
     "@types/culori": "^4.0.1",
     "@types/dompurify": "^3.2.0",
     "@types/jsdom": "^27.0.0",

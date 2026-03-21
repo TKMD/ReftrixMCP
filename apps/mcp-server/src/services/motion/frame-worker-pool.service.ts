@@ -11,7 +11,7 @@
  * - タスクキューによる効率的な並列処理
  * - 100フレーム < 30秒のパフォーマンス目標
  *
- * @module @reftrix/mcp-server/services/motion/frame-worker-pool
+ * @module @reftrixmcp/mcp-server/services/motion/frame-worker-pool
  */
 
 import * as os from "node:os";

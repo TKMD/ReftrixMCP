@@ -1,9 +1,11 @@
 {
-  "name": "@reftrix/core",
-  "version": "0.1.2",
-  "private": true,
+  "name": "@reftrixmcp/core",
+  "version": "0.1.7",
   "license": "AGPL-3.0-only",
   "description": "Core domain logic for Reftrix",
+  "files": [
+    "dist/"
+  ],
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
@@ -28,7 +30,7 @@
     "zod": "^3.24.0"
   },
   "devDependencies": {
-    "@reftrix/config": "workspace:*",
+    "@reftrixmcp/config": "workspace:*",
     "@types/node": "^22.0.0",
     "@vitest/coverage-v8": "^4.0.14",
     "typescript": "^5.9.0",

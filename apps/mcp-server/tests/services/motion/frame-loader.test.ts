@@ -6,7 +6,7 @@
  *
  * Sharp を使用したフレーム画像読み込みモジュールのテスト
  *
- * @module @reftrix/mcp-server/tests/services/motion/frame-loader
+ * @module @reftrixmcp/mcp-server/tests/services/motion/frame-loader
  *
  * テスト対象:
  * 1. loadFrame(path): 単一フレーム読み込み

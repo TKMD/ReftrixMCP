@@ -6,7 +6,7 @@
  *
  * Webページのセクション検出に使用する型定義
  *
- * @module @reftrix/webdesign-core/types/section
+ * @module @reftrixmcp/webdesign-core/types/section
  */
 
 import { z } from "zod";

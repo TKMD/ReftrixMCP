@@ -1,10 +1,14 @@
 {
-  "name": "@reftrix/config",
-  "version": "0.1.2",
-  "private": true,
+  "name": "@reftrixmcp/config",
+  "version": "0.1.7",
   "license": "AGPL-3.0-only",
   "type": "module",
   "description": "Shared configuration for Reftrix monorepo",
+  "files": [
+    "eslint/",
+    "prettier/",
+    "typescript/"
+  ],
   "exports": {
     "./eslint": "./eslint/index.js",
     "./prettier": "./prettier/index.js",

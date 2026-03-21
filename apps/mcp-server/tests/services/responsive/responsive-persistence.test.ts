@@ -13,7 +13,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 // Prisma モック
-vi.mock("@reftrix/database", () => ({
+vi.mock("@reftrixmcp/database", () => ({
   prisma: {
     responsiveAnalysis: {
       create: vi.fn(),
@@ -37,7 +37,7 @@ vi.mock("../../../src/utils/logger", () => ({
   isDevelopment: () => true,
 }));
 
-import { prisma, Prisma } from "@reftrix/database";
+import { prisma, Prisma } from "@reftrixmcp/database";
 import { logger } from "../../../src/utils/logger";
 import { ResponsivePersistenceService } from "../../../src/services/responsive/responsive-persistence.service";
 import type { ResponsiveAnalysisResult } from "../../../src/services/responsive/types";

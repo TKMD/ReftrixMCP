@@ -6,7 +6,7 @@
  *
  * TDD Red Phase: 60テストケース以上
  *
- * @module @reftrix/webdesign-core/tests/section-detector
+ * @module @reftrixmcp/webdesign-core/tests/section-detector
  */
 
 import { describe, it, expect, beforeEach } from "vitest";

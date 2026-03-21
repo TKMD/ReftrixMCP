@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 /**
- * @reftrix/core
+ * @reftrixmcp/core
  * Core domain logic for Reftrix
  */
 

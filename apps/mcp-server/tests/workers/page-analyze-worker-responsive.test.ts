@@ -62,7 +62,7 @@ describe("PageAnalyzeWorker - Responsive Phase (Phase 4.5)", () => {
       );
     });
 
-    it("should import isUrlAllowedByRobotsTxt from @reftrix/core", () => {
+    it("should import isUrlAllowedByRobotsTxt from @reftrixmcp/core", () => {
       expect(workerSource).toMatch(
         /import\s+\{[^}]*isUrlAllowedByRobotsTxt[^}]*\}\s+from\s+['"]@reftrix\/core['"]/
       );

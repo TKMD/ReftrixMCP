@@ -16,7 +16,7 @@
  * - needs-improvement: >= 0.1 && < 0.25
  * - poor: >= 0.25
  *
- * @module @reftrix/mcp-server/services/motion/analyzers/layout-shift.detector
+ * @module @reftrixmcp/mcp-server/services/motion/analyzers/layout-shift.detector
  */
 
 // =============================================================================

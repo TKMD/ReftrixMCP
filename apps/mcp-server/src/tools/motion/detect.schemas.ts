@@ -5,7 +5,7 @@
  * motion.detect MCP Tool — Zod Schema Definitions
  * motion.detect 固有のスキーマ定義（入力/出力/エラーコード/ユーティリティ）
  *
- * @module @reftrix/mcp-server/tools/motion/detect.schemas
+ * @module @reftrixmcp/mcp-server/tools/motion/detect.schemas
  */
 import { z } from "zod";
 

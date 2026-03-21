@@ -41,7 +41,7 @@ const {
 }));
 
 // Prismaモック
-vi.mock("@reftrix/database", () => ({
+vi.mock("@reftrixmcp/database", () => ({
   prisma: {
     webPage: { upsert: mockWebPageUpsert },
     sectionPattern: { create: mockSectionPatternCreate, findMany: mockSectionPatternFindMany },

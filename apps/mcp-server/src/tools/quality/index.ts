@@ -5,7 +5,7 @@
  * quality.* MCP Tools
  * Webデザイン品質評価ツールのエントリポイント
  *
- * @module @reftrix/mcp-server/tools/quality
+ * @module @reftrixmcp/mcp-server/tools/quality
  */
 
 // スキーマ定義のエクスポート

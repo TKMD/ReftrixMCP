@@ -5,7 +5,7 @@
  * Layout Analyzer Service
  *
  * Cheerioを使用したレイアウト解析サービス
- * @reftrix/webdesign-core の SectionDetector を活用
+ * @reftrixmcp/webdesign-core の SectionDetector を活用
  *
  * 機能:
  * - セクション検出（セマンティック要素、class/id名ベース）
@@ -21,7 +21,7 @@ import {
   type DetectedSection as CoreDetectedSection,
   CssVariableResolver,
   isValidColorValue,
-} from "@reftrix/webdesign-core";
+} from "@reftrixmcp/webdesign-core";
 import * as cheerio from "cheerio";
 import type { Cheerio } from "cheerio";
 import type { AnyNode } from "domhandler";
@@ -2275,7 +2275,7 @@ function convertSection(
 /**
  * レイアウト解析サービス
  *
- * Cheerioと@reftrix/webdesign-coreを使用してHTMLを解析し、
+ * Cheerioと@reftrixmcp/webdesign-coreを使用してHTMLを解析し、
  * セクション、グリッド、タイポグラフィ、色情報を抽出する
  */
 export class LayoutAnalyzerService {
@@ -2327,7 +2327,7 @@ export class LayoutAnalyzerService {
       // Cheerioでパース
       const $ = cheerio.load(html);
 
-      // セクション検出（@reftrix/webdesign-core使用）
+      // セクション検出（@reftrixmcp/webdesign-core使用）
       let coreSections: CoreDetectedSection[];
       try {
         coreSections = await this.sectionDetector.detect(html);

@@ -87,13 +87,13 @@ vi.mock("../../src/middleware/auth", () => ({
   PUBLIC_TOOLS: [],
 }));
 
-vi.mock("@reftrix/ml", () => ({
+vi.mock("@reftrixmcp/ml", () => ({
   embeddingService: {
     generateEmbedding: vi.fn().mockResolvedValue(new Array(768).fill(0.1)),
   },
 }));
 
-vi.mock("@reftrix/database", () => ({
+vi.mock("@reftrixmcp/database", () => ({
   prisma: {
     webPage: { findUnique: vi.fn() },
     sectionPattern: { create: vi.fn() },

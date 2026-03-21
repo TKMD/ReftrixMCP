@@ -29,7 +29,7 @@ import {
   type ProgressEvent,
   type ProgressCallback,
 } from "../../src/services/vision/progress-reporter.js";
-import { SectionDetector, type DetectedSection } from "@reftrix/webdesign-core";
+import { SectionDetector, type DetectedSection } from "@reftrixmcp/webdesign-core";
 
 // =============================================================================
 // テスト定数
@@ -1297,7 +1297,7 @@ describe("Vision CPU完走保証 完全統合E2Eテスト", () => {
     it("Ollama未起動時でもHTML分析にフォールバックして成功を返す", async () => {
       const { VisionFallbackService } =
         await import("../../src/services/vision/vision-fallback.service.js");
-      const { SectionDetector } = await import("@reftrix/webdesign-core");
+      const { SectionDetector } = await import("@reftrixmcp/webdesign-core");
 
       // 実際のSectionDetectorを使用（HTML分析のみ）
       const sectionDetector = new SectionDetector();

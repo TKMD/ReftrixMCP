@@ -4,7 +4,7 @@
 /**
  * CSSアニメーション解析パーサー
  * @keyframes、animation、transitionプロパティを解析する
- * @module @reftrix/webdesign-core/motion-detector/css-animation-parser
+ * @module @reftrixmcp/webdesign-core/motion-detector/css-animation-parser
  */
 
 import postcss, { type AtRule, type Declaration } from "postcss";

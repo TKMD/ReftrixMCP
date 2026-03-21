@@ -7,7 +7,7 @@
  * モーションパターンの特徴量を抽出し、64次元のEmbeddingベクトルに変換します。
  * 生成されたEmbeddingはL2正規化され、コサイン類似度による類似検索が可能です。
  *
- * @module @reftrix/webdesign-core/motion-detector/motion-embedding
+ * @module @reftrixmcp/webdesign-core/motion-detector/motion-embedding
  */
 
 import type { MotionPattern, KeyframeStep } from "./types";

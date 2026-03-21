@@ -13,7 +13,7 @@
  * - ネストされた変数の解決 (var(--a) -> var(--b) -> #fff)
  * - 循環参照の検出と防止
  *
- * @module @reftrix/webdesign-core/utils/css-variable-resolver
+ * @module @reftrixmcp/webdesign-core/utils/css-variable-resolver
  */
 
 import * as cheerio from "cheerio";

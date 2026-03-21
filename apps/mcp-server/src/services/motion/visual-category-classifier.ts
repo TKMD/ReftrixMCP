@@ -18,7 +18,7 @@
  * - static: 静的（変化なし）
  * - unknown: 不明（分類不能）
  *
- * @module @reftrix/mcp-server/services/motion/visual-category-classifier
+ * @module @reftrixmcp/mcp-server/services/motion/visual-category-classifier
  */
 
 import { logger } from "../../utils/logger";

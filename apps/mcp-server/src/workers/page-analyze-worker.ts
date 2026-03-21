@@ -48,7 +48,7 @@ import {
 } from "../queues/page-analyze-queue";
 import { ExecutionStatusTrackerV2 } from "../tools/page/handlers/execution-status-tracker";
 import { logger, isDevelopment } from "../utils/logger";
-import { prisma } from "@reftrix/database";
+import { prisma } from "@reftrixmcp/database";
 
 // Service handlers (same as used in page.analyze synchronous mode)
 import { defaultAnalyzeLayout } from "../tools/page/handlers/layout-handler";
@@ -66,9 +66,9 @@ import { GpuResourceManager, gpuModeSignal } from "../services/gpu-resource-mana
 // Responsive Analysis
 import { responsiveAnalysisService, responsivePersistenceService } from "../services/responsive";
 import { validateExternalUrl } from "../utils/url-validator";
-import { isUrlAllowedByRobotsTxt } from "@reftrix/core";
+import { isUrlAllowedByRobotsTxt } from "@reftrixmcp/core";
 // EmbeddingService singleton for GPU provider switching (switchProvider/releaseGpu)
-import { embeddingService as mlEmbeddingService } from "@reftrix/ml";
+import { embeddingService as mlEmbeddingService } from "@reftrixmcp/ml";
 // DB保存ロジック（SectionPattern, MotionPattern, QualityEvaluation, JSAnimationPattern）
 import {
   saveSectionPatterns,
@@ -200,7 +200,7 @@ let _workerInstanceRef: Worker<PageAnalyzeJobData, PageAnalyzeJobResult> | null 
  */
 const _preReturnPauseEnabled = safeParseInt(process.env.WORKER_MAX_JOBS_BEFORE_RESTART, 1) > 0;
 
-// Connect gpuModeSignal to the @reftrix/ml EmbeddingService singleton.
+// Connect gpuModeSignal to the @reftrixmcp/ml EmbeddingService singleton.
 // When GpuResourceManager requests a provider switch, the ONNX pipeline is
 // disposed and re-initialized with the new execution provider (CPU/CUDA).
 // We use mlEmbeddingService directly because LayoutEmbeddingService wraps

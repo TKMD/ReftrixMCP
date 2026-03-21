@@ -6,7 +6,7 @@
  *
  * 検出されたセクションパターンからReact/HTML/CSSコードを生成する
  *
- * @module @reftrix/webdesign-core/code-generator
+ * @module @reftrixmcp/webdesign-core/code-generator
  */
 
 import type { DetectedSection, SectionType } from "../types/section.types";

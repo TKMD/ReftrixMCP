@@ -18,7 +18,7 @@
  * - morph: モーフィング（形状の変形）
  * - complex: 複合（複数カテゴリの組み合わせ）
  *
- * @module @reftrix/mcp-server/tests/unit/services/motion/visual-category-classifier.test
+ * @module @reftrixmcp/mcp-server/tests/unit/services/motion/visual-category-classifier.test
  */
 
 import { describe, it, expect, beforeEach } from "vitest";

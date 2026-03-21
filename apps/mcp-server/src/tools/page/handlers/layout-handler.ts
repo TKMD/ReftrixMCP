@@ -1026,7 +1026,7 @@ async function executePerSectionVisionAnalysis(
 /**
  * デフォルトのレイアウト分析
  *
- * @reftrix/webdesign-core の SectionDetector を使用した高精度なセクション検出
+ * @reftrixmcp/webdesign-core の SectionDetector を使用した高精度なセクション検出
  * - セマンティック要素（header, nav, main, section, article, aside, footer）の検出
  * - class/id名ベースのヒューリスティックによるセクションタイプ推定
  * - グリッド/フレックスレイアウトの検出

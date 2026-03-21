@@ -7,7 +7,7 @@
  * TDD Red Phase: 50+テストケース
  * セクション分類ロジックの包括的なテスト
  *
- * @module @reftrix/webdesign-core/tests/section-classifier
+ * @module @reftrixmcp/webdesign-core/tests/section-classifier
  */
 
 import { describe, it, expect, beforeEach } from "vitest";

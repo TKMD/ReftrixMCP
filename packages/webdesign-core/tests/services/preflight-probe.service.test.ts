@@ -6,7 +6,7 @@
  *
  * TDD: Red Phase - Write failing tests first
  *
- * @module @reftrix/webdesign-core/services/preflight-probe
+ * @module @reftrixmcp/webdesign-core/services/preflight-probe
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
@@ -25,8 +25,8 @@ import {
 // robots.txt チェックをモック（Probeテストの対象外）
 // fetchモックだけではrobots.txt用のfetchまで制御できないため、
 // isUrlAllowedByRobotsTxtをモックして常にallowedを返す
-vi.mock("@reftrix/core", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@reftrix/core")>();
+vi.mock("@reftrixmcp/core", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@reftrixmcp/core")>();
   return {
     ...actual,
     isUrlAllowedByRobotsTxt: vi.fn().mockResolvedValue({

@@ -9,7 +9,7 @@
  * 1. AntiAiClicheDetector: Detects AI-generated design cliches
  * 2. ScoringSystem: Evaluates designs on three axes (Originality, Craftsmanship, Contextuality)
  *
- * @module @reftrix/webdesign-core/quality-evaluator
+ * @module @reftrixmcp/webdesign-core/quality-evaluator
  */
 
 // Anti AI Cliche Detector

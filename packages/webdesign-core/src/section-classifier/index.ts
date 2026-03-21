@@ -7,7 +7,7 @@
  * 検出されたセクションを精度高く分類するクラス
  * ルールベースの分類とコンテキスト考慮分類をサポート
  *
- * @module @reftrix/webdesign-core/section-classifier
+ * @module @reftrixmcp/webdesign-core/section-classifier
  */
 
 import type {

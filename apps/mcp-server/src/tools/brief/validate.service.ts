@@ -5,7 +5,7 @@
  * brief.validate Service Implementation
  * Design brief validation service with completeness score calculation
  *
- * @module @reftrix/mcp-server/tools/brief/validate.service
+ * @module @reftrixmcp/mcp-server/tools/brief/validate.service
  */
 import type { Brief, BriefIssue, BriefValidationResult, IssueSeverity } from "./schemas";
 

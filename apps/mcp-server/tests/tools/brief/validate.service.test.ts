@@ -10,7 +10,7 @@
  * - validateBrief: Validate brief and return validation result
  * - IBriefValidateService: Service interface compliance
  *
- * @module @reftrix/mcp-server/tools/brief/validate.service.test
+ * @module @reftrixmcp/mcp-server/tools/brief/validate.service.test
  */
 import { describe, it, expect, beforeEach } from "vitest";
 import {

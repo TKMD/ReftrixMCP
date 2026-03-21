@@ -8,7 +8,7 @@
  * Target tool:
  * - brief.validate: Validate design brief and return completeness score
  *
- * @module @reftrix/mcp-server/tools/brief/schemas.test
+ * @module @reftrixmcp/mcp-server/tools/brief/schemas.test
  */
 import { describe, it, expect } from "vitest";
 

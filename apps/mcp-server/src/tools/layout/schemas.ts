@@ -5,7 +5,7 @@
  * layout.* MCP Tools Zod Schema Definitions
  * Webデザインレイアウト解析ツールの入力/出力バリデーションスキーマ
  *
- * @module @reftrix/mcp-server/tools/layout/schemas
+ * @module @reftrixmcp/mcp-server/tools/layout/schemas
  *
  * 対応ツール:
  * - layout.ingest: URLからWebページを取得しレイアウト解析用データを準備

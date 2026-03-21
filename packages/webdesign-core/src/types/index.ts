@@ -3,7 +3,7 @@
 
 /**
  * Types index
- * @module @reftrix/webdesign-core/types
+ * @module @reftrixmcp/webdesign-core/types
  */
 
 export * from "./section.types";

@@ -5,7 +5,7 @@
  * layout.* MCP Tools
  * Webデザインレイアウト解析ツールのエントリポイント
  *
- * @module @reftrix/mcp-server/tools/layout
+ * @module @reftrixmcp/mcp-server/tools/layout
  */
 
 // スキーマ定義のエクスポート

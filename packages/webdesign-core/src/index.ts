@@ -5,7 +5,7 @@
  * Webdesign Core
  * Web design analysis core library for Reftrix
  *
- * @module @reftrix/webdesign-core
+ * @module @reftrixmcp/webdesign-core
  */
 
 // Types

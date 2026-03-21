@@ -5,7 +5,7 @@
  * quality.* MCP Tools Zod Schema Definitions
  * Webデザイン品質評価ツールの入力/出力バリデーションスキーマ
  *
- * @module @reftrix/mcp-server/tools/quality/schemas
+ * @module @reftrixmcp/mcp-server/tools/quality/schemas
  *
  * 対応ツール:
  * - quality.evaluate: Webデザインの品質を3軸で評価

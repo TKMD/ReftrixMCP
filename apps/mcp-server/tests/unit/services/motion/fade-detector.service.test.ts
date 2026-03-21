@@ -8,7 +8,7 @@
  *
  * 透明度変化検出によるフェードイン/フェードアウト検出テスト
  *
- * @module @reftrix/mcp-server/tests/unit/services/motion/fade-detector.service.test
+ * @module @reftrixmcp/mcp-server/tests/unit/services/motion/fade-detector.service.test
  */
 
 import { describe, it, expect, beforeEach } from "vitest";

@@ -7,7 +7,7 @@
  * CSS Animation/Transition/Transform検出に使用する型定義
  * 循環依存を避けるため、共通の型定義をこのファイルに分離
  *
- * @module @reftrix/webdesign-core/motion-detector/types
+ * @module @reftrixmcp/webdesign-core/motion-detector/types
  */
 
 // =========================================

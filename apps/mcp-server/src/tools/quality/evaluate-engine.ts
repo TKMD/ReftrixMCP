@@ -21,7 +21,7 @@
 
 import { logger, isDevelopment } from "../../utils/logger";
 import { validateExternalUrl } from "../../utils/url-validator";
-import { isUrlAllowedByRobotsTxt } from "@reftrix/core";
+import { isUrlAllowedByRobotsTxt } from "@reftrixmcp/core";
 
 import type {
   AxeAccessibilityService,

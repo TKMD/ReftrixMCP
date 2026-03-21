@@ -7,10 +7,10 @@
  * Webサイトの複雑度を事前分析し、動的タイムアウトを計算するサービス。
  * page.analyze や layout.ingest で適切なタイムアウト値を決定するために使用。
  *
- * @module @reftrix/webdesign-core/services/preflight-probe
+ * @module @reftrixmcp/webdesign-core/services/preflight-probe
  */
 
-import { isUrlAllowedByRobotsTxt, ROBOTS_TXT } from "@reftrix/core";
+import { isUrlAllowedByRobotsTxt, ROBOTS_TXT } from "@reftrixmcp/core";
 
 // =============================================================================
 // Constants

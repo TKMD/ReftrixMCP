@@ -14,7 +14,7 @@
  * - Feature flag (`REFTRIX_RESPECT_ROBOTS_TXT`) による即時無効化
  * - SSRF安全なfetch（validateExternalUrl相当のホスト検証）
  *
- * @module @reftrix/core/services/robots-txt
+ * @module @reftrixmcp/core/services/robots-txt
  * @see oss/docs/legal/ROBOTS_TXT_COMPLIANCE.md
  */
 

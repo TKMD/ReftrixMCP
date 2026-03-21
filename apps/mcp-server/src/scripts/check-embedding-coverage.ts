@@ -15,7 +15,7 @@
  * @module scripts/check-embedding-coverage
  */
 
-import { prisma } from "@reftrix/database";
+import { prisma } from "@reftrixmcp/database";
 import {
   checkWebPageEmbeddingCoverage,
   findWebPagesWithMissingEmbeddings,

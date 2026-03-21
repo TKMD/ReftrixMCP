@@ -14,7 +14,7 @@
  * @module services/background/background-design-detector.service
  */
 
-import { CssVariableResolver } from "@reftrix/webdesign-core";
+import { CssVariableResolver } from "@reftrixmcp/webdesign-core";
 import { createLogger } from "../../utils/logger";
 
 const logger = createLogger("BackgroundDesignDetector");

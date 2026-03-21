@@ -10,7 +10,7 @@
  * - 許可ディレクトリ外アクセス拒否
  * - ファイルサイズ上限チェック（10MB）
  *
- * @module @reftrix/mcp-server/services/motion/infrastructure/frame-loader
+ * @module @reftrixmcp/mcp-server/services/motion/infrastructure/frame-loader
  */
 
 import * as fs from "node:fs";

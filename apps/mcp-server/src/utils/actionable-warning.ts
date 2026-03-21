@@ -16,7 +16,7 @@
  * - docs: ドキュメントやリソースへのリンク（オプション）
  * - context: 追加の詳細情報（オプション）
  *
- * @module @reftrix/mcp-server/utils/actionable-warning
+ * @module @reftrixmcp/mcp-server/utils/actionable-warning
  */
 
 // =============================================================================

@@ -14,7 +14,7 @@
 
 import { ZodError } from "zod";
 import { v7 as uuidv7 } from "uuid";
-import { prisma } from "@reftrix/database";
+import { prisma } from "@reftrixmcp/database";
 import { logger, isDevelopment } from "../../utils/logger";
 import { validateExternalUrl } from "../../utils/url-validator";
 import { normalizeUrlForStorage } from "../../utils/url-normalizer";

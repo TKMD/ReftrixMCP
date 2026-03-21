@@ -8,7 +8,7 @@
  *
  * Phase5: Motion Vector Estimator - フレーム間のモーションベクトル（方向・速度）を推定
  *
- * @module @reftrix/mcp-server/tests/services/motion/analyzers/motion-vector.estimator.test
+ * @module @reftrixmcp/mcp-server/tests/services/motion/analyzers/motion-vector.estimator.test
  */
 
 import { describe, it, expect, beforeAll, afterAll } from "vitest";

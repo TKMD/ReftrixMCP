@@ -24,7 +24,7 @@
  */
 
 import { ZodError } from "zod";
-import { prisma } from "@reftrix/database";
+import { prisma } from "@reftrixmcp/database";
 import { logger, isDevelopment } from "../../utils/logger";
 import {
   partCompareInputSchema,

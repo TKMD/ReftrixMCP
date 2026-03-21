@@ -12,7 +12,7 @@
  */
 
 import { chromium, type Browser } from "playwright";
-import { ROBOTS_TXT } from "@reftrix/core";
+import { ROBOTS_TXT } from "@reftrixmcp/core";
 import { logger, isDevelopment } from "../../utils/logger";
 
 /**

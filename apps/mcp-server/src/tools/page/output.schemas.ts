@@ -5,7 +5,7 @@
  * page.analyze MCPツールの出力スキーマ定義
  * Output/result schemas for layout, motion, quality, narrative, and job status
  *
- * @module @reftrix/mcp-server/tools/page/output.schemas
+ * @module @reftrixmcp/mcp-server/tools/page/output.schemas
  */
 import { z } from "zod";
 import { gradeSchema, sourceTypeSchema, usageScopeSchema } from "./shared.schemas";

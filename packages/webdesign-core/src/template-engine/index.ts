@@ -7,7 +7,7 @@
  * Mustache/Handlebars風の軽量テンプレートエンジン
  * 変数置換、条件分岐、ループをサポート
  *
- * @module @reftrix/webdesign-core/template-engine
+ * @module @reftrixmcp/webdesign-core/template-engine
  */
 
 import type { Template, TemplateContext } from "../types/template.types";

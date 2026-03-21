@@ -6,7 +6,7 @@
  *
  * Webページのアニメーション・トランジション・モーションパターンを検出するコアエンジン
  *
- * @module @reftrix/webdesign-core/motion-detector
+ * @module @reftrixmcp/webdesign-core/motion-detector
  */
 
 import { load as loadCheerio, type CheerioAPI } from "cheerio";

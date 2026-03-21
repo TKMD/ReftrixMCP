@@ -9,7 +9,7 @@
  * - Craftsmanship (40%): gridAlignment, typographyConsistency, colorHarmony, whitespaceRhythm, responsiveDesign
  * - Contextuality (25%): industryFit, audienceFit, brandConsistency, accessibilityCompliance
  *
- * @module @reftrix/webdesign-core/quality-evaluator/scoring-system
+ * @module @reftrixmcp/webdesign-core/quality-evaluator/scoring-system
  */
 
 import type { DetectedSection, SectionType } from "../types/section.types";

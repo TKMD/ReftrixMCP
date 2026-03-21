@@ -5,7 +5,7 @@
  * Motion Search Service Export Layer
  * motionSearchHandlerを外部モジュールから直接使用可能にするエクスポート層
  *
- * @module @reftrix/mcp-server/services/motion-search-service
+ * @module @reftrixmcp/mcp-server/services/motion-search-service
  */
 
 import { motionSearchHandler } from "../tools/motion/search.tool";

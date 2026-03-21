@@ -21,7 +21,7 @@ import {
   type VisionFallbackOptions,
 } from "../../../src/services/vision/vision-fallback.service.js";
 import type { VisionAnalysisResult } from "../../../src/services/vision/llama-vision-adapter.js";
-import type { DetectedSection } from "@reftrix/webdesign-core";
+import type { DetectedSection } from "@reftrixmcp/webdesign-core";
 
 // =============================================================================
 // Mock Types
@@ -149,7 +149,7 @@ describe("VisionFallbackService", () => {
       visionAdapter:
         mockVisionAdapter as unknown as import("../../../src/services/vision/llama-vision-adapter.js").LlamaVisionAdapter,
       sectionDetector:
-        mockSectionDetector as unknown as import("@reftrix/webdesign-core").SectionDetector,
+        mockSectionDetector as unknown as import("@reftrixmcp/webdesign-core").SectionDetector,
     });
   });
 

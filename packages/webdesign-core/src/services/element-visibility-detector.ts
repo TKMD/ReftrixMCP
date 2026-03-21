@@ -6,7 +6,7 @@
  *
  * スクロール時の要素出現/消失を輪郭検出（Sobel演算子）ベースで検出する
  *
- * @module @reftrix/webdesign-core/services/element-visibility-detector
+ * @module @reftrixmcp/webdesign-core/services/element-visibility-detector
  */
 
 // =============================================================================

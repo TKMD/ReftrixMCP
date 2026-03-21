@@ -26,7 +26,7 @@ import type {
   GraphicElements,
 } from "../types/narrative.types";
 import type { CSSVariableExtractionResult } from "../../visual/css-variable-extractor.service";
-import type { DetectedSection } from "@reftrix/webdesign-core";
+import type { DetectedSection } from "@reftrixmcp/webdesign-core";
 import { isDevelopment, logger } from "../../../utils/logger";
 
 // =============================================================================

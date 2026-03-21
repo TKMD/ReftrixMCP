@@ -41,8 +41,8 @@ import {
   type BatchQualityWorkerInstance,
 } from "../workers/batch-quality-worker";
 import { checkRedisConnection, getRedisConfig } from "../config/redis";
-import { embeddingService } from "@reftrix/ml";
-import { prisma } from "@reftrix/database";
+import { embeddingService } from "@reftrixmcp/ml";
+import { prisma } from "@reftrixmcp/database";
 import { webPageService } from "../services/web-page.service";
 import {
   initializeAllServices,

@@ -2,10 +2,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 /**
- * @reftrix/core/webdesign
+ * @reftrixmcp/core/webdesign
  * Webデザイン解析機能の型定義とZodスキーマ
  *
- * @module @reftrix/core/webdesign
+ * @module @reftrixmcp/core/webdesign
  */
 
 // Export all types and schemas from types.ts

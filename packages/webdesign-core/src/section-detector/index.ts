@@ -7,7 +7,7 @@
  * Webページのセクション検出ロジック
  * cheerioを使用してHTMLを解析し、セクションを検出・分類する
  *
- * @module @reftrix/webdesign-core/section-detector
+ * @module @reftrixmcp/webdesign-core/section-detector
  */
 
 import * as cheerio from "cheerio";

@@ -12,7 +12,7 @@
  * - 複数セクションの並列切り出し対応
  * - 境界外アクセスのエラーハンドリング
  *
- * @module @reftrix/mcp-server/services/section-screenshot.service
+ * @module @reftrixmcp/mcp-server/services/section-screenshot.service
  */
 
 import sharp from "sharp";

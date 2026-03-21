@@ -7,7 +7,7 @@
  * AI生成デザインの典型的なクリシェパターンを検出し、
  * より人間らしいデザインを促進するルールエンジン
  *
- * @module @reftrix/webdesign-core/quality-evaluator/anti-ai-cliche
+ * @module @reftrixmcp/webdesign-core/quality-evaluator/anti-ai-cliche
  */
 
 import type { DetectedSection } from "../types/section.types";

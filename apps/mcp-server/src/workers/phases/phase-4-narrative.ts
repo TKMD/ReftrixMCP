@@ -17,7 +17,7 @@ import type {
   NarrativeHandlerResult,
 } from "../../tools/page/handlers/types";
 import type { UrlValidationResult } from "../../utils/url-validator";
-import type { RobotsTxtCheckResult } from "@reftrix/core";
+import type { RobotsTxtCheckResult } from "@reftrixmcp/core";
 
 import type { ResponsiveAnalysisResult } from "../../services/responsive/types";
 

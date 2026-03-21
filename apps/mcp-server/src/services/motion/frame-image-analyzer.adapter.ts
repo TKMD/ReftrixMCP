@@ -11,7 +11,7 @@
  * - 内部でPixelmatch + Sharpを使用してフレーム差分を計算
  * - スタンドアロン版 frame-image-analysis.mjs のロジックをTypeScriptにポート
  *
- * @module @reftrix/mcp-server/services/motion/frame-image-analyzer.adapter
+ * @module @reftrixmcp/mcp-server/services/motion/frame-image-analyzer.adapter
  */
 
 import * as fs from "node:fs";

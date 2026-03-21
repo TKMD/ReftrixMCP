@@ -17,7 +17,7 @@ import type {
   PageMetadata,
   ViewportInfo,
   ScreenshotResult,
-} from "@reftrix/core/webdesign";
+} from "@reftrixmcp/core/webdesign";
 import { ZodError } from "zod";
 
 // モジュールモック

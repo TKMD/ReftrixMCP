@@ -34,7 +34,7 @@ import {
   type PartEmbeddingResult,
 } from "../../services/part/part-embedding.service";
 // DINOv2 visual embedding service
-import { DINOv2Service, DINOV2_INPUT_SIZE } from "@reftrix/ml";
+import { DINOv2Service, DINOV2_INPUT_SIZE } from "@reftrixmcp/ml";
 import {
   savePartEmbeddings,
   type PartEmbeddingPrismaClient,
@@ -961,7 +961,7 @@ export async function processEmbeddingPhase(
         if (process.env["DINOV2_MODEL_PATH"]) {
           dinov2ModelPath = process.env["DINOV2_MODEL_PATH"];
         } else {
-          const mlMainPath = require.resolve("@reftrix/ml");
+          const mlMainPath = require.resolve("@reftrixmcp/ml");
           const mlRoot = path.resolve(path.dirname(mlMainPath), "..");
           dinov2ModelPath = path.join(mlRoot, "models", "dinov2-base", "model.onnx");
         }

@@ -7,7 +7,7 @@
  *
  * Reference: /docs/plans/webdesign/07-database-schema.md
  *
- * @module @reftrix/core/webdesign
+ * @module @reftrixmcp/core/webdesign
  */
 
 import { z } from "zod";

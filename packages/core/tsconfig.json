@@ -1,5 +1,5 @@
 {
-  "extends": "@reftrix/config/typescript/node",
+  "extends": "@reftrixmcp/config/typescript/node",
   "compilerOptions": {
     "outDir": "./dist",
     "rootDir": "./src"

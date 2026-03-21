@@ -21,13 +21,13 @@
  */
 
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
-import { prisma, type PrismaClient } from "@reftrix/database";
+import { prisma, type PrismaClient } from "@reftrixmcp/database";
 
 // Skip all tests if DATABASE_URL is not set
 const isDatabaseAvailable = !!process.env.DATABASE_URL;
 
 describe.skipIf(!isDatabaseAvailable)("Vision Embedding Migration", () => {
-  // Use singleton prisma instance from @reftrix/database
+  // Use singleton prisma instance from @reftrixmcp/database
 
   beforeAll(async () => {
     // Ensure connection is established

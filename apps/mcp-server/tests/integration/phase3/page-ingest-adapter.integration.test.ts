@@ -29,7 +29,7 @@ import { LAYOUT_MCP_ERROR_CODES } from "../../../src/tools/layout/schemas";
 // =============================================
 
 // Prisma モックを設定（DB保存機能のテスト用）
-vi.mock("@reftrix/database", () => ({
+vi.mock("@reftrixmcp/database", () => ({
   prisma: {
     webPage: {
       upsert: vi.fn().mockResolvedValue({ id: "test-page-id-001" }),

@@ -15,7 +15,7 @@
  * @see apps/mcp-server/tests/services/vision/vision-fallback.service.test.ts
  */
 
-import type { DetectedSection, SectionDetector } from "@reftrix/webdesign-core";
+import type { DetectedSection, SectionDetector } from "@reftrixmcp/webdesign-core";
 import type { LlamaVisionAdapter, VisionAnalysisResult } from "./llama-vision-adapter.js";
 
 // =============================================================================

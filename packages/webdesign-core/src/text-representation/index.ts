@@ -7,7 +7,7 @@
  * Embedding用のテキスト表現を生成するサービス
  * セクション配列からセマンティック検索に適したテキストを生成する
  *
- * @module @reftrix/webdesign-core/text-representation
+ * @module @reftrixmcp/webdesign-core/text-representation
  */
 
 import type { DetectedSection, SectionType } from "../types/section.types";

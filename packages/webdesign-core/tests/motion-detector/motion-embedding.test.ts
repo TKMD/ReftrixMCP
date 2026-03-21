@@ -12,7 +12,7 @@
  * 3. 類似度計算テスト (10テスト) - コサイン類似度、同一・異なるパターン類似度
  * 4. 検索テスト (10テスト) - topK検索、しきい値フィルタリング、空候補リスト
  *
- * @module @reftrix/webdesign-core/tests/motion-detector/motion-embedding
+ * @module @reftrixmcp/webdesign-core/tests/motion-detector/motion-embedding
  */
 
 import { describe, it, expect, beforeEach } from "vitest";

@@ -14,7 +14,7 @@ import { chromium, type Browser, type Page, type BrowserContext } from "playwrig
 import { logger, isDevelopment } from "../utils/logger";
 import { GPU_BROWSER_BASE_ARGS } from "../utils/gpu-browser-args";
 import { BrowserProcessManager } from "./browser-process-manager";
-import { isUrlAllowedByRobotsTxt, ROBOTS_TXT } from "@reftrix/core";
+import { isUrlAllowedByRobotsTxt, ROBOTS_TXT } from "@reftrixmcp/core";
 import { McpError, ErrorCode } from "../utils/errors";
 
 // =============================================

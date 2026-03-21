@@ -5,7 +5,7 @@
  * page.analyze MCPツールのZodスキーマ定義
  * Re-export hub for backward compatibility
  *
- * @module @reftrix/mcp-server/tools/page/schemas
+ * @module @reftrixmcp/mcp-server/tools/page/schemas
  */
 export * from "./shared.schemas";
 export * from "./input.schemas";

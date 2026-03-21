@@ -5,7 +5,7 @@
  * motion.* MCP Tools エクスポート
  * モーション/アニメーションパターン検出・検索・実装生成ツール
  *
- * @module @reftrix/mcp-server/tools/motion
+ * @module @reftrixmcp/mcp-server/tools/motion
  */
 
 // motion.detect ツール

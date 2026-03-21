@@ -25,8 +25,8 @@
  * @module services/part/part-embedding
  */
 
-import type { DINOv2Service } from "@reftrix/ml";
-import { DINOV2_EMBEDDING_DIMENSION } from "@reftrix/ml";
+import type { DINOv2Service } from "@reftrixmcp/ml";
+import { DINOV2_EMBEDDING_DIMENSION } from "@reftrixmcp/ml";
 import { logger } from "../../utils/logger";
 import { truncateId } from "./schemas";
 

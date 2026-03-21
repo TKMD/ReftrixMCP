@@ -11,7 +11,7 @@
 import { v7 as uuidv7 } from "uuid";
 import { logger, isDevelopment } from "../../utils/logger";
 import { validateExternalUrl, normalizeUrlForValidation } from "../../utils/url-validator";
-import { isUrlAllowedByRobotsTxt } from "@reftrix/core";
+import { isUrlAllowedByRobotsTxt } from "@reftrixmcp/core";
 import { assertNonProductionFactory } from "../../services/production-guard";
 
 // Embedding統合用インポート（ハンドラーから再エクスポート）

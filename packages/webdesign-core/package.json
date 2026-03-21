@@ -1,9 +1,11 @@
 {
-  "name": "@reftrix/webdesign-core",
-  "version": "0.1.2",
-  "private": true,
+  "name": "@reftrixmcp/webdesign-core",
+  "version": "0.1.7",
   "license": "AGPL-3.0-only",
   "description": "Web design analysis core library for Reftrix",
+  "files": [
+    "dist/"
+  ],
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
@@ -25,7 +27,7 @@
     "clean": "rm -rf dist node_modules .turbo"
   },
   "dependencies": {
-    "@reftrix/core": "workspace:*",
+    "@reftrixmcp/core": "workspace:*",
     "cheerio": "^1.2.0",
     "css-tree": "^3.0.0",
     "postcss": "^8.5.6",
@@ -34,7 +36,7 @@
     "zod": "^3.24.0"
   },
   "devDependencies": {
-    "@reftrix/config": "workspace:*",
+    "@reftrixmcp/config": "workspace:*",
     "@types/css-tree": "^2.3.8",
     "@vitest/coverage-v8": "^4.0.14",
     "typescript": "^5.9.0",

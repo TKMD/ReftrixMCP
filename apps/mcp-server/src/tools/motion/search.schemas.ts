@@ -5,7 +5,7 @@
  * motion.search MCP Tool — Zod Schema Definitions
  * motion.search 固有のスキーマ定義（入力/出力/エラーコード）
  *
- * @module @reftrix/mcp-server/tools/motion/search.schemas
+ * @module @reftrixmcp/mcp-server/tools/motion/search.schemas
  */
 import { z } from "zod";
 

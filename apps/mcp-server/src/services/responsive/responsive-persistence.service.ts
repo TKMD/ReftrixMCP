@@ -8,7 +8,7 @@
  * @module services/responsive/responsive-persistence.service
  */
 
-import { prisma, Prisma } from "@reftrix/database";
+import { prisma, Prisma } from "@reftrixmcp/database";
 import { isDevelopment, logger } from "../../utils/logger";
 import type { ResponsiveAnalysisResult, ViewportDiffResult } from "./types";
 

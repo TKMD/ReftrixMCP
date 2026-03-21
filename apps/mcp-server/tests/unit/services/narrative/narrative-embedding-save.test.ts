@@ -23,7 +23,7 @@ const mockDesignNarrativeUpsert = vi.fn();
 const mockDesignNarrativeEmbeddingUpsert = vi.fn();
 const mockExecuteRawUnsafe = vi.fn();
 
-vi.mock("@reftrix/database", () => ({
+vi.mock("@reftrixmcp/database", () => ({
   prisma: {
     designNarrative: {
       upsert: (...args: unknown[]) => mockDesignNarrativeUpsert(...args),

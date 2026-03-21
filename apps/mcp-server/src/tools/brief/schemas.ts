@@ -5,7 +5,7 @@
  * brief.* MCP Tools Zod Schema Definitions
  * Design brief validation tool input/output validation schemas
  *
- * @module @reftrix/mcp-server/tools/brief/schemas
+ * @module @reftrixmcp/mcp-server/tools/brief/schemas
  *
  * Target tools:
  * - brief.validate: Validate design brief and return completeness score

@@ -19,8 +19,8 @@ vi.mock("../../../src/utils/url-validator", () => ({
   validateExternalUrl: vi.fn(),
 }));
 
-vi.mock("@reftrix/core", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@reftrix/core")>();
+vi.mock("@reftrixmcp/core", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@reftrixmcp/core")>();
   return {
     ...actual,
     isUrlAllowedByRobotsTxt: vi.fn(),

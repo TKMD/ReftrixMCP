@@ -5,7 +5,7 @@
  * narrative.* MCP Tools Zod Schema Definitions
  * Webデザインの世界観・レイアウト構成分析ツールの入力/出力バリデーションスキーマ
  *
- * @module @reftrix/mcp-server/tools/narrative/schemas
+ * @module @reftrixmcp/mcp-server/tools/narrative/schemas
  *
  * 対応ツール:
  * - narrative.analyze: URLまたはHTMLから世界観・レイアウト構成を分析

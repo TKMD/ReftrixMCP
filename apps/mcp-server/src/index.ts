@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 /**
- * @reftrix/mcp-server
+ * @reftrixmcp/mcp-server
  * MCP Server for Reftrix - AI agent integration
  *
  * エントリポイント
@@ -27,8 +27,8 @@ import {
   ProductionAuthRequiredError,
   isProductionEnvironment,
 } from "./services/production-guard";
-import { embeddingService } from "@reftrix/ml";
-import { prisma } from "@reftrix/database";
+import { embeddingService } from "@reftrixmcp/ml";
+import { prisma } from "@reftrixmcp/database";
 import { webPageService } from "./services/web-page.service";
 import {
   initializeAllServices,

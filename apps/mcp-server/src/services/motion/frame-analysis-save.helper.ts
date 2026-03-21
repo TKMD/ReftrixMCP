@@ -7,7 +7,7 @@
  * MotionDbServiceでDB保存するヘルパー関数。
  * 同期モード（analyze.tool.ts）と非同期モード（page-analyze-worker.ts）の両方から呼ばれる。
  *
- * @module @reftrix/mcp-server/services/motion/frame-analysis-save.helper
+ * @module @reftrixmcp/mcp-server/services/motion/frame-analysis-save.helper
  */
 
 import { logger, isDevelopment } from "../../utils/logger";

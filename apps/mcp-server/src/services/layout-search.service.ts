@@ -20,8 +20,8 @@ import {
   buildFulltextConditions,
   buildFulltextRankExpression,
   toRankedItems,
-} from "@reftrix/ml";
-import type { RankedItem } from "@reftrix/ml";
+} from "@reftrixmcp/ml";
+import type { RankedItem } from "@reftrixmcp/ml";
 import type {
   ILayoutSearchService,
   SearchOptions,

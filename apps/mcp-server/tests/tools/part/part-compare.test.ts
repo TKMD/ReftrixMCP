@@ -22,7 +22,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 // Prisma をモック / Mock Prisma
-vi.mock("@reftrix/database", () => ({
+vi.mock("@reftrixmcp/database", () => ({
   prisma: {
     componentPart: {
       findMany: vi.fn(),
@@ -30,7 +30,7 @@ vi.mock("@reftrix/database", () => ({
   },
 }));
 
-import { prisma } from "@reftrix/database";
+import { prisma } from "@reftrixmcp/database";
 import {
   partCompareHandler,
   partCompareToolDefinition,

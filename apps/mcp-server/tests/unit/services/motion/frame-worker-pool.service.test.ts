@@ -8,7 +8,7 @@
  *
  * Worker Threadsを使用したフレーム差分計算の並列処理テスト
  *
- * @module @reftrix/mcp-server/tests/unit/services/motion/frame-worker-pool.service.test
+ * @module @reftrixmcp/mcp-server/tests/unit/services/motion/frame-worker-pool.service.test
  */
 
 import * as os from "node:os";

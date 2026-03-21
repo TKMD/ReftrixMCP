@@ -463,7 +463,7 @@ export function initializeMotionServices(
     logger.info("[ServiceInitializer] motionPersistence factory registered");
 
     // 4. JS Animation Embedding ファクトリ
-    // NOTE: config.embeddingService (@reftrix/ml) は必要なメソッド全て持っているが、
+    // NOTE: config.embeddingService (@reftrixmcp/ml) は必要なメソッド全て持っているが、
     // 最小インターフェースで型定義されているため、キャストが必要
     setJSAnimationEmbeddingServiceFactory(
       () => config.embeddingService as unknown as IJSAnimationEmbeddingService

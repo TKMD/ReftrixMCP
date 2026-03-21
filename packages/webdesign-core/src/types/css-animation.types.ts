@@ -3,7 +3,7 @@
 
 /**
  * CSSアニメーション解析用型定義
- * @module @reftrix/webdesign-core/types/css-animation
+ * @module @reftrixmcp/webdesign-core/types/css-animation
  */
 
 /**

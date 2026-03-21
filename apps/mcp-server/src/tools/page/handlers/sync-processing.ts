@@ -16,7 +16,7 @@ import { logger, isDevelopment } from "../../../utils/logger";
 import { normalizeUrlForStorage } from "../../../utils/url-normalizer";
 import { validateExternalUrl } from "../../../utils/url-validator";
 import { sanitizeHtml } from "../../../utils/html-sanitizer";
-import { isUrlAllowedByRobotsTxt } from "@reftrix/core";
+import { isUrlAllowedByRobotsTxt } from "@reftrixmcp/core";
 import {
   pageIngestAdapter,
   type IngestResult,
@@ -129,7 +129,7 @@ import {
 import { preDetectWebGL, detectSiteTier } from "./webgl-pre-detector";
 
 // Pre-flight Probe Service
-import { preflightProbeService, type ProbeResult } from "@reftrix/webdesign-core";
+import { preflightProbeService, type ProbeResult } from "@reftrixmcp/webdesign-core";
 
 // リトライ戦略
 import {

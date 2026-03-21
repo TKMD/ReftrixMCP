@@ -7,7 +7,7 @@
  * MotionPatternとLighthouseメトリクスを分析し、
  * アニメーションがパフォーマンスに与える影響を定量化する
  *
- * @module @reftrix/mcp-server/services/motion/animation-metrics-collector
+ * @module @reftrixmcp/mcp-server/services/motion/animation-metrics-collector
  *
  * 主要機能:
  * 1. 各アニメーションのパフォーマンス影響度スコア計算

@@ -5,7 +5,7 @@
  * brief.* MCP Tools
  * Design brief validation tools exports
  *
- * @module @reftrix/mcp-server/tools/brief
+ * @module @reftrixmcp/mcp-server/tools/brief
  */
 
 // Schema exports

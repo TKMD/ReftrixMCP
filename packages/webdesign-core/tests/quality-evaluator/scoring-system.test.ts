@@ -9,7 +9,7 @@
  * - Craftsmanship (40%): gridAlignment, typographyConsistency, colorHarmony, whitespaceRhythm, responsiveDesign
  * - Contextuality (25%): industryFit, audienceFit, brandConsistency, accessibilityCompliance
  *
- * @module @reftrix/webdesign-core/tests/quality-evaluator/scoring-system
+ * @module @reftrixmcp/webdesign-core/tests/quality-evaluator/scoring-system
  */
 
 import { describe, it, expect, beforeEach } from "vitest";

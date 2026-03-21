@@ -4,7 +4,7 @@
 /**
  * Services
  *
- * @module @reftrix/webdesign-core/services
+ * @module @reftrixmcp/webdesign-core/services
  */
 
 export {

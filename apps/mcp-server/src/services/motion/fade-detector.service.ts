@@ -12,7 +12,7 @@
  * - 持続時間・変化量の計算
  * - MotionPattern記録用データ生成
  *
- * @module @reftrix/mcp-server/services/motion/fade-detector
+ * @module @reftrixmcp/mcp-server/services/motion/fade-detector
  */
 
 // =============================================================================

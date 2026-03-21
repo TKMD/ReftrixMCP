@@ -5,7 +5,7 @@
  * 共通MCPエラーコード定義
  * 全ツール共通で使用するエラーコードを定義
  *
- * @module @reftrix/mcp-server/tools/common/error-codes
+ * @module @reftrixmcp/mcp-server/tools/common/error-codes
  */
 
 // ============================================================================

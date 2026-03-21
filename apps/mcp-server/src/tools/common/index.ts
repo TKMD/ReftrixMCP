@@ -4,7 +4,7 @@
 /**
  * 共通MCPツールユーティリティ
  *
- * @module @reftrix/mcp-server/tools/common
+ * @module @reftrixmcp/mcp-server/tools/common
  */
 
 export {

@@ -7,7 +7,7 @@
  * TDD Red Phase: 40テストケース以上
  * Embedding用のテキスト表現を生成するサービスのテスト
  *
- * @module @reftrix/webdesign-core/tests/text-representation
+ * @module @reftrixmcp/webdesign-core/tests/text-representation
  */
 
 import { describe, it, expect, beforeEach } from "vitest";

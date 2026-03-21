@@ -17,7 +17,7 @@
  * - cubic-bezier easing曲線の解析に十分なサンプル数
  * - parallax微動（係数0.02〜0.05）の検出可能
  *
- * @module @reftrix/mcp-server/services/motion/frame-capture.service
+ * @module @reftrixmcp/mcp-server/services/motion/frame-capture.service
  */
 
 import type { Page, PageScreenshotOptions } from "playwright";

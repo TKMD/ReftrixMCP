@@ -5,7 +5,7 @@
  * motion.analyze_frames MCP Tool Zod Schema Definitions
  * フレーム画像解析用のMCPツールの入力/出力バリデーションスキーマ
  *
- * @module @reftrix/mcp-server/tools/motion/analyze-frames.schema
+ * @module @reftrixmcp/mcp-server/tools/motion/analyze-frames.schema
  *
  * 機能:
  * - フレーム差分検出 (frame_diff)

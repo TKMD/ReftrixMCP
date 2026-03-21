@@ -6,7 +6,7 @@
  *
  * テンプレートエンジン用の型定義
  *
- * @module @reftrix/webdesign-core/types/template
+ * @module @reftrixmcp/webdesign-core/types/template
  */
 
 import { z } from "zod";

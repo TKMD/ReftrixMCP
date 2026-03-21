@@ -10,7 +10,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 // Prismaモック
-vi.mock("@reftrix/database", () => ({
+vi.mock("@reftrixmcp/database", () => ({
   prisma: {
     webPage: {
       findUnique: vi.fn(),
@@ -29,7 +29,7 @@ vi.mock("../../src/utils/logger", () => ({
   isDevelopment: () => true,
 }));
 
-import { prisma } from "@reftrix/database";
+import { prisma } from "@reftrixmcp/database";
 import { webPageService, createWebPageService } from "../../src/services/web-page.service";
 
 describe("WebPageService", () => {

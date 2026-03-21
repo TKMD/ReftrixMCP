@@ -11,7 +11,7 @@
  * - 一貫したエラーコード体系
  * - フィールドパス情報の保持
  *
- * @module @reftrix/mcp-server/utils/error-messages
+ * @module @reftrixmcp/mcp-server/utils/error-messages
  */
 
 import { ZodError, type ZodIssue, ZodIssueCode } from "zod";

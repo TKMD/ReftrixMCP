@@ -14,7 +14,7 @@
  * - Calculates motion vectors for each block using pixel differences
  * - Aggregates vectors to determine dominant motion direction and speed
  *
- * @module @reftrix/mcp-server/services/motion/analyzers/motion-vector.estimator
+ * @module @reftrixmcp/mcp-server/services/motion/analyzers/motion-vector.estimator
  */
 
 import sharp from "sharp";

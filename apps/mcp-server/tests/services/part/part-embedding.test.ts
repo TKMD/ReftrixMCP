@@ -28,7 +28,7 @@ import {
   savePartEmbeddings,
   type PartEmbeddingPrismaClient,
 } from "../../../src/services/part/part-embedding-db.service";
-import type { DINOv2Service } from "@reftrix/ml";
+import type { DINOv2Service } from "@reftrixmcp/ml";
 
 // ============================================================================
 // Test Helpers / テストヘルパー
