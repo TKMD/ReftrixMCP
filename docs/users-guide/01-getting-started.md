@@ -21,26 +21,26 @@ Reftrix is a platform that aggregates web design as a "searchable knowledge base
 
 ### 2.1 必須要件 / Required
 
-| 項目 / Item | 要件 / Requirement |
-|------|------|
-| **OS** | Linux (Ubuntu 20.04+), macOS 12+, Windows 10/11 |
-| **Node.js** | 20.x LTS 以上（>=20.19.0）/ 20.x LTS or higher (>=20.19.0) |
-| **pnpm** | 10.x 以上 / 10.x or higher |
-| **PostgreSQL** | 18.x（pgvector 0.8.x） |
-| **Redis** | 7.x 以上（BullMQジョブキュー用）/ 7.x or higher (for BullMQ job queue) |
-| **Ollama** | llama3.2-vision モデル（ナラティブ分析・Vision分析用）/ llama3.2-vision model (for narrative & vision analysis) |
+| 項目 / Item         | 要件 / Requirement                                                                                                                                                                                                                                                                       |
+| ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **OS**              | Linux (Ubuntu 20.04+), macOS 12+, Windows 10/11                                                                                                                                                                                                                                          |
+| **Node.js**         | 20.x LTS 以上（>=20.19.0）/ 20.x LTS or higher (>=20.19.0)                                                                                                                                                                                                                               |
+| **pnpm**            | 10.x 以上 / 10.x or higher                                                                                                                                                                                                                                                               |
+| **PostgreSQL**      | 18.x（pgvector 0.8.x）                                                                                                                                                                                                                                                                   |
+| **Redis**           | 7.x 以上（BullMQジョブキュー用）/ 7.x or higher (for BullMQ job queue)                                                                                                                                                                                                                   |
+| **Ollama**          | llama3.2-vision モデル（ナラティブ分析・Vision分析用）/ llama3.2-vision model (for narrative & vision analysis)                                                                                                                                                                          |
 | **メモリ / Memory** | 16GB RAM 以上推奨（Ollama Vision推論で~10.6GBを一時使用 + Embedding生成に必要。v0.1.2でPhase完了ごとに自動アンロードしメモリを解放）/ 16GB RAM recommended (Ollama Vision temporarily uses ~10.6GB + embedding generation required. v0.1.2 auto-unloads after each phase to free memory) |
-| **ディスク / Disk** | 30GB 以上の空き容量（llama3.2-vision: ~7.9GB + ONNXモデル: ~400MB）/ 30GB+ free space (llama3.2-vision: ~7.9GB + ONNX model: ~400MB) |
+| **ディスク / Disk** | 30GB 以上の空き容量（llama3.2-vision: ~7.9GB + ONNXモデル: ~400MB）/ 30GB+ free space (llama3.2-vision: ~7.9GB + ONNX model: ~400MB)                                                                                                                                                     |
 
 ### 2.2 推奨環境 / Recommended
 
-| 項目 / Item | 推奨 / Recommended |
-|------|------|
-| **メモリ / Memory** | 32GB RAM 以上 / 32GB RAM or more |
-| **CPU** | 8コア以上 / 8 cores or more |
-| **SSD** | 必須（データベースパフォーマンス向上）/ Required (improves database performance) |
-| **GPU** | NVIDIA GPU (CUDA 12対応) - Embedding/Vision高速化 / NVIDIA GPU (CUDA 12 compatible) - Embedding/Vision acceleration |
-| **Apple Silicon** | M1/M2/M3+ は自動検出。Metal GPUがネイティブで利用され、追加設定不要 / M1/M2/M3+ auto-detected. Metal GPU used natively, no additional configuration needed |
+| 項目 / Item         | 推奨 / Recommended                                                                                                                                         |
+| ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **メモリ / Memory** | 32GB RAM 以上 / 32GB RAM or more                                                                                                                           |
+| **CPU**             | 8コア以上 / 8 cores or more                                                                                                                                |
+| **SSD**             | 必須（データベースパフォーマンス向上）/ Required (improves database performance)                                                                           |
+| **GPU**             | NVIDIA GPU (CUDA 12対応) - Embedding/Vision高速化 / NVIDIA GPU (CUDA 12 compatible) - Embedding/Vision acceleration                                        |
+| **Apple Silicon**   | M1/M2/M3+ は自動検出。Metal GPUがネイティブで利用され、追加設定不要 / M1/M2/M3+ auto-detected. Metal GPU used natively, no additional configuration needed |
 
 ---
 
@@ -182,6 +182,7 @@ cp .env.local packages/database/.env
 
 > **重要 / Important**: Reftrixは他プロジェクトとのポート競合を避けるため、21000オフセットを使用しています。
 > Reftrix uses a 21000 offset to avoid port conflicts with other projects.
+>
 > - PostgreSQL: `26432`（標準5432 + 21000 / standard 5432 + 21000）
 > - Redis: `27379`（標準6379 + 21000 / standard 6379 + 21000）
 > - Prisma Studio: `26555`（標準5555 + 21000 / standard 5555 + 21000）
@@ -271,11 +272,11 @@ ReftrixはEmbedding生成に multilingual-e5-base モデル（768次元）を使
 
 Reftrix uses the multilingual-e5-base model (768 dimensions) for embedding generation. The model is automatically downloaded on first use via `@huggingface/transformers`.
 
-| 項目 / Item | 詳細 / Details |
-|------|------|
-| ダウンロードサイズ / Download size | 約400MB / ~400MB |
-| キャッシュ先 / Cache location | `MODEL_CACHE_DIR`（デフォルト: `./.cache/models`）/ `MODEL_CACHE_DIR` (default: `./.cache/models`) |
-| 初回所要時間 / First-run time | 1-3分（ネットワーク速度による）/ 1-3 minutes (depends on network speed) |
+| 項目 / Item                        | 詳細 / Details                                                                                     |
+| ---------------------------------- | -------------------------------------------------------------------------------------------------- |
+| ダウンロードサイズ / Download size | 約400MB / ~400MB                                                                                   |
+| キャッシュ先 / Cache location      | `MODEL_CACHE_DIR`（デフォルト: `./.cache/models`）/ `MODEL_CACHE_DIR` (default: `./.cache/models`) |
+| 初回所要時間 / First-run time      | 1-3分（ネットワーク速度による）/ 1-3 minutes (depends on network speed)                            |
 
 > **注意 / Note**: 初回のEmbedding操作（`layout.ingest`、`page.analyze`等）はモデルダウンロードのため時間がかかります。2回目以降はキャッシュから読み込まれるため高速です。初回実行時にはインターネット接続が必要です。
 >
@@ -291,12 +292,12 @@ Part-Level Analysis Visual Similarity Search (`part.search` with `searchMode: "v
 pnpm --filter @reftrix/ml download:dinov2
 ```
 
-| 項目 / Item | 詳細 / Details |
-|------|------|
-| ダウンロードサイズ / Download size | 約800MB / ~800MB |
-| 保存先 / Save location | `packages/ml/models/dinov2-base/model.onnx` |
-| 検証 / Verification | SHA-256ハッシュ検証 + ソースホワイトリスト（huggingface.co） / SHA-256 hash verification + source whitelist (huggingface.co) |
-| カスタムパス / Custom path | 環境変数 `DINOV2_MODEL_PATH` で変更可能 / Configurable via `DINOV2_MODEL_PATH` env var |
+| 項目 / Item                        | 詳細 / Details                                                                                                               |
+| ---------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| ダウンロードサイズ / Download size | 約800MB / ~800MB                                                                                                             |
+| 保存先 / Save location             | `packages/ml/models/dinov2-base/model.onnx`                                                                                  |
+| 検証 / Verification                | SHA-256ハッシュ検証 + ソースホワイトリスト（huggingface.co） / SHA-256 hash verification + source whitelist (huggingface.co) |
+| カスタムパス / Custom path         | 環境変数 `DINOV2_MODEL_PATH` で変更可能 / Configurable via `DINOV2_MODEL_PATH` env var                                       |
 
 > **注意 / Note**: DINOv2モデルがない場合でも `page.analyze` は正常に動作します（Graceful Degradation）。text embeddingのみ生成され、visual embeddingはスキップされます。
 >
@@ -309,16 +310,19 @@ Claude DesktopでReftrixのMCPツールを使用するには、設定ファイ�
 To use Reftrix MCP tools in Claude Desktop, edit the configuration file.
 
 **macOS:**
+
 ```bash
 nano ~/Library/Application\ Support/Claude/claude_desktop_config.json
 ```
 
 **Linux:**
+
 ```bash
 nano ~/.config/Claude/claude_desktop_config.json
 ```
 
 **Windows:**
+
 ```
 %APPDATA%\Claude\claude_desktop_config.json
 ```
@@ -443,6 +447,7 @@ Error: P1001: Can't reach database server at `localhost:26432`
 ```
 
 **解決策 / Solution:**
+
 1. PostgreSQLが起動しているか確認 / Verify PostgreSQL is running
    ```bash
    pnpm docker:up  # または / or sudo systemctl start postgresql
@@ -457,6 +462,7 @@ Error: Cannot find module '/path/to/apps/mcp-server/dist/index.js'
 ```
 
 **解決策 / Solution:**
+
 ```bash
 pnpm build
 ```
@@ -469,24 +475,24 @@ pnpm build
 
 ### A. ポート一覧 / Port List
 
-| サービス / Service | ポート / Port | 説明 / Description |
-|---------|--------|------|
-| PostgreSQL | 26432 | データベース（pgvector）/ Database (pgvector) |
-| Redis | 27379 | BullMQジョブキューバックエンド / BullMQ job queue backend |
-| Prisma Studio | 26555 | データベース管理UI / Database management UI |
+| サービス / Service | ポート / Port | 説明 / Description                                        |
+| ------------------ | ------------- | --------------------------------------------------------- |
+| PostgreSQL         | 26432         | データベース（pgvector）/ Database (pgvector)             |
+| Redis              | 27379         | BullMQジョブキューバックエンド / BullMQ job queue backend |
+| Prisma Studio      | 26555         | データベース管理UI / Database management UI               |
 
 ### B. 環境変数一覧 / Environment Variables
 
-| 変数名 / Variable | 説明 / Description | デフォルト値 / Default |
-|--------|------|-------------|
-| `DATABASE_URL` | PostgreSQL接続URL（ポート: 26432）/ PostgreSQL connection URL (port: 26432) | - |
-| `REDIS_URL` | Redis接続URL / Redis connection URL | - |
-| `REDIS_HOST` | Redisホスト / Redis host | `localhost` |
-| `REDIS_PORT` | Redisポート / Redis port | `27379` |
-| `NODE_ENV` | 環境（development/production）/ Environment (development/production) | development |
-| `OLLAMA_BASE_URL` | Ollama接続URL / Ollama connection URL | `http://localhost:11434` |
-| `ONNX_EXECUTION_PROVIDER` | ONNX実行プロバイダ（cuda/rocm/未設定でCPU）/ ONNX execution provider (cuda/rocm/CPU if unset) | - |
-| `WORKER_MAX_JOBS_BEFORE_RESTART` | N件完了後にワーカーを再起動 / Restart worker after N jobs | `1` |
+| 変数名 / Variable                | 説明 / Description                                                                            | デフォルト値 / Default   |
+| -------------------------------- | --------------------------------------------------------------------------------------------- | ------------------------ |
+| `DATABASE_URL`                   | PostgreSQL接続URL（ポート: 26432）/ PostgreSQL connection URL (port: 26432)                   | -                        |
+| `REDIS_URL`                      | Redis接続URL / Redis connection URL                                                           | -                        |
+| `REDIS_HOST`                     | Redisホスト / Redis host                                                                      | `localhost`              |
+| `REDIS_PORT`                     | Redisポート / Redis port                                                                      | `27379`                  |
+| `NODE_ENV`                       | 環境（development/production）/ Environment (development/production)                          | development              |
+| `OLLAMA_BASE_URL`                | Ollama接続URL / Ollama connection URL                                                         | `http://localhost:11434` |
+| `ONNX_EXECUTION_PROVIDER`        | ONNX実行プロバイダ（cuda/rocm/未設定でCPU）/ ONNX execution provider (cuda/rocm/CPU if unset) | -                        |
+| `WORKER_MAX_JOBS_BEFORE_RESTART` | N件完了後にワーカーを再起動 / Restart worker after N jobs                                     | `1`                      |
 
 > **注記 / Note**: 上記は主要な環境変数のみです。完全な環境変数リストは `.env.example` を参照してください。
 >

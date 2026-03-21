@@ -13,7 +13,7 @@
  * @returns 開発環境の場合true
  */
 export function isDevelopment(): boolean {
-  return process.env.NODE_ENV === 'development';
+  return process.env.NODE_ENV === "development";
 }
 
 /**
@@ -22,7 +22,7 @@ export function isDevelopment(): boolean {
  * @returns 本番環境の場合true
  */
 export function isProduction(): boolean {
-  return process.env.NODE_ENV === 'production';
+  return process.env.NODE_ENV === "production";
 }
 
 /**
@@ -31,5 +31,5 @@ export function isProduction(): boolean {
  * @returns テスト環境の場合true
  */
 export function isTest(): boolean {
-  return process.env.NODE_ENV === 'test';
+  return process.env.NODE_ENV === "test";
 }

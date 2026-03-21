@@ -14,8 +14,8 @@
  * @module response-size-warning
  */
 
-import type { ILogger } from '../utils/logger';
-import { createLogger } from '../utils/logger';
+import type { ILogger } from "../utils/logger";
+import { createLogger } from "../utils/logger";
 
 /**
  * デフォルトの警告閾値（KB）
@@ -87,10 +87,13 @@ export function formatSize(bytes: number): string {
  * ツール別の最適化パラメータマッピング（WebDesign専用）
  */
 const OPTIMIZATION_RECOMMENDATIONS: Record<string, string> = {
-  'layout.search': 'レスポンスサイズを削減するには includeHtml: false を使用してください',
-  'layout.ingest': 'レスポンスサイズを削減するには include_html: false, include_screenshot: false を使用してください',
-  'quality.evaluate': 'レスポンスサイズを削減するには includeRecommendations: false を使用してください',
-  'motion.detect': 'レスポンスサイズを削減するには includeSummary: false, includeWarnings: false を使用してください',
+  "layout.search": "レスポンスサイズを削減するには includeHtml: false を使用してください",
+  "layout.ingest":
+    "レスポンスサイズを削減するには include_html: false, include_screenshot: false を使用してください",
+  "quality.evaluate":
+    "レスポンスサイズを削減するには includeRecommendations: false を使用してください",
+  "motion.detect":
+    "レスポンスサイズを削減するには includeSummary: false, includeWarnings: false を使用してください",
 };
 
 /**
@@ -107,11 +110,8 @@ export class ResponseSizeWarning {
    * @param logger - ロガーインスタンス（省略時はデフォルトロガー）
    * @param options - ミドルウェア設定
    */
-  constructor(
-    logger?: ILogger,
-    options: ResponseSizeWarningOptions = {}
-  ) {
-    this.logger = logger || createLogger('ResponseSize');
+  constructor(logger?: ILogger, options: ResponseSizeWarningOptions = {}) {
+    this.logger = logger || createLogger("ResponseSize");
     this.warningThresholdBytes =
       (options.warningThresholdKB ?? DEFAULT_WARNING_THRESHOLD_KB) * 1024;
     this.criticalThresholdBytes =
@@ -161,15 +161,12 @@ export class ResponseSizeWarning {
       const recommendation = this.getOptimizationRecommendation(toolName);
       result.recommendation = recommendation;
 
-      this.logger.warn(
-        `[Response Size Warning] ${toolName} レスポンスサイズが警告閾値を超過`,
-        {
-          sizeBytes,
-          sizeFormatted,
-          thresholdKB: DEFAULT_WARNING_THRESHOLD_KB,
-          recommendation,
-        }
-      );
+      this.logger.warn(`[Response Size Warning] ${toolName} レスポンスサイズが警告閾値を超過`, {
+        sizeBytes,
+        sizeFormatted,
+        thresholdKB: DEFAULT_WARNING_THRESHOLD_KB,
+        recommendation,
+      });
       return result;
     }
 
@@ -189,7 +186,7 @@ export class ResponseSizeWarning {
     }
 
     // 未知のツールに対する汎用推奨
-    return 'レスポンスサイズを削減するには limit パラメータや適切なフィルタリングを検討してください';
+    return "レスポンスサイズを削減するには limit パラメータや適切なフィルタリングを検討してください";
   }
 }
 

@@ -19,12 +19,12 @@
  * @module tests/services/worker-db-save-quality-benchmark-integration
  */
 
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect } from "vitest";
 import {
   buildQualityBenchmarkInputs,
   type QualityBenchmarkInput,
-} from '../../src/services/worker-db-save.service';
-import type { QualityServiceResult } from '../../src/tools/page/handlers/types';
+} from "../../src/services/worker-db-save.service";
+import type { QualityServiceResult } from "../../src/tools/page/handlers/types";
 
 // =====================================================
 // Test Helpers
@@ -33,14 +33,12 @@ import type { QualityServiceResult } from '../../src/tools/page/handlers/types';
 /**
  * テスト用のQualityServiceResultを生成
  */
-function createQualityResult(
-  overrides?: Partial<QualityServiceResult>
-): QualityServiceResult {
+function createQualityResult(overrides?: Partial<QualityServiceResult>): QualityServiceResult {
   return {
     success: true,
     // DB CHECK制約により overallScore >= 85 が必要
     overallScore: 92,
-    grade: 'A',
+    grade: "A",
     axisScores: {
       originality: 88,
       craftsmanship: 95,
@@ -56,35 +54,35 @@ function createQualityResult(
 // Tests
 // =====================================================
 
-describe('buildQualityBenchmarkInputs', () => {
-  const sourceUrl = 'https://example.com';
+describe("buildQualityBenchmarkInputs", () => {
+  const sourceUrl = "https://example.com";
 
   // -------------------------------------------------
   // 基本: ページ全体ベンチマーク生成
   // -------------------------------------------------
-  describe('ページ全体ベンチマーク生成', () => {
-    it('should create a single full_page benchmark from QualityServiceResult', () => {
+  describe("ページ全体ベンチマーク生成", () => {
+    it("should create a single full_page benchmark from QualityServiceResult", () => {
       const qualityResult = createQualityResult();
 
       const benchmarks = buildQualityBenchmarkInputs(qualityResult, sourceUrl);
 
       expect(benchmarks).toHaveLength(1);
-      expect(benchmarks[0].sectionType).toBe('full_page');
+      expect(benchmarks[0].sectionType).toBe("full_page");
     });
 
-    it('should map overallScore and grade correctly', () => {
+    it("should map overallScore and grade correctly", () => {
       const qualityResult = createQualityResult({
         overallScore: 91,
-        grade: 'A',
+        grade: "A",
       });
 
       const benchmarks = buildQualityBenchmarkInputs(qualityResult, sourceUrl);
 
       expect(benchmarks[0].overallScore).toBe(91);
-      expect(benchmarks[0].grade).toBe('A');
+      expect(benchmarks[0].grade).toBe("A");
     });
 
-    it('should map axisScores correctly', () => {
+    it("should map axisScores correctly", () => {
       const qualityResult = createQualityResult({
         axisScores: {
           originality: 90,
@@ -102,55 +100,51 @@ describe('buildQualityBenchmarkInputs', () => {
       });
     });
 
-    it('should set sourceUrl from parameter', () => {
+    it("should set sourceUrl from parameter", () => {
       const qualityResult = createQualityResult();
 
       const benchmarks = buildQualityBenchmarkInputs(
         qualityResult,
-        'https://awwwards.com/site/test'
+        "https://awwwards.com/site/test"
       );
 
-      expect(benchmarks[0].sourceUrl).toBe('https://awwwards.com/site/test');
+      expect(benchmarks[0].sourceUrl).toBe("https://awwwards.com/site/test");
     });
 
-    it('should set sourceType to page_analyze by default', () => {
+    it("should set sourceType to page_analyze by default", () => {
       const qualityResult = createQualityResult();
 
       const benchmarks = buildQualityBenchmarkInputs(qualityResult, sourceUrl);
 
-      expect(benchmarks[0].sourceType).toBe('page_analyze');
+      expect(benchmarks[0].sourceType).toBe("page_analyze");
     });
   });
 
   // -------------------------------------------------
   // industry/audience オプション
   // -------------------------------------------------
-  describe('industry/audience オプション', () => {
-    it('should set industry when provided in options', () => {
+  describe("industry/audience オプション", () => {
+    it("should set industry when provided in options", () => {
       const qualityResult = createQualityResult();
 
-      const benchmarks = buildQualityBenchmarkInputs(
-        qualityResult,
-        sourceUrl,
-        { targetIndustry: 'technology' }
-      );
+      const benchmarks = buildQualityBenchmarkInputs(qualityResult, sourceUrl, {
+        targetIndustry: "technology",
+      });
 
-      expect(benchmarks[0].industry).toBe('technology');
+      expect(benchmarks[0].industry).toBe("technology");
     });
 
-    it('should set audience when provided in options', () => {
+    it("should set audience when provided in options", () => {
       const qualityResult = createQualityResult();
 
-      const benchmarks = buildQualityBenchmarkInputs(
-        qualityResult,
-        sourceUrl,
-        { targetAudience: 'enterprise' }
-      );
+      const benchmarks = buildQualityBenchmarkInputs(qualityResult, sourceUrl, {
+        targetAudience: "enterprise",
+      });
 
-      expect(benchmarks[0].audience).toBe('enterprise');
+      expect(benchmarks[0].audience).toBe("enterprise");
     });
 
-    it('should leave industry undefined when not provided', () => {
+    it("should leave industry undefined when not provided", () => {
       const qualityResult = createQualityResult();
 
       const benchmarks = buildQualityBenchmarkInputs(qualityResult, sourceUrl);
@@ -158,7 +152,7 @@ describe('buildQualityBenchmarkInputs', () => {
       expect(benchmarks[0].industry).toBeUndefined();
     });
 
-    it('should leave audience undefined when not provided', () => {
+    it("should leave audience undefined when not provided", () => {
       const qualityResult = createQualityResult();
 
       const benchmarks = buildQualityBenchmarkInputs(qualityResult, sourceUrl);
@@ -170,13 +164,13 @@ describe('buildQualityBenchmarkInputs', () => {
   // -------------------------------------------------
   // characteristics 生成
   // -------------------------------------------------
-  describe('characteristics 生成', () => {
-    it('should generate characteristics from axisDetails when available', () => {
+  describe("characteristics 生成", () => {
+    it("should generate characteristics from axisDetails when available", () => {
       const qualityResult = createQualityResult({
         axisDetails: {
-          originality: ['unique-layout', 'custom-typography'],
-          craftsmanship: ['clean-code', 'responsive'],
-          contextuality: ['industry-appropriate'],
+          originality: ["unique-layout", "custom-typography"],
+          craftsmanship: ["clean-code", "responsive"],
+          contextuality: ["industry-appropriate"],
         },
       });
 
@@ -185,16 +179,16 @@ describe('buildQualityBenchmarkInputs', () => {
       // axisDetails の全値をフラットにしたもの
       expect(benchmarks[0].characteristics).toEqual(
         expect.arrayContaining([
-          'unique-layout',
-          'custom-typography',
-          'clean-code',
-          'responsive',
-          'industry-appropriate',
+          "unique-layout",
+          "custom-typography",
+          "clean-code",
+          "responsive",
+          "industry-appropriate",
         ])
       );
     });
 
-    it('should return empty characteristics when axisDetails is undefined', () => {
+    it("should return empty characteristics when axisDetails is undefined", () => {
       const qualityResult = createQualityResult();
       // axisDetails未設定
 
@@ -207,11 +201,11 @@ describe('buildQualityBenchmarkInputs', () => {
   // -------------------------------------------------
   // エラー/失敗結果のハンドリング
   // -------------------------------------------------
-  describe('エラー/失敗結果のハンドリング', () => {
-    it('should return empty array when qualityResult.success is false', () => {
+  describe("エラー/失敗結果のハンドリング", () => {
+    it("should return empty array when qualityResult.success is false", () => {
       const qualityResult = createQualityResult({
         success: false,
-        error: { code: 'ANALYSIS_FAILED', message: 'Quality analysis failed' },
+        error: { code: "ANALYSIS_FAILED", message: "Quality analysis failed" },
       });
 
       const benchmarks = buildQualityBenchmarkInputs(qualityResult, sourceUrl);
@@ -219,10 +213,10 @@ describe('buildQualityBenchmarkInputs', () => {
       expect(benchmarks).toHaveLength(0);
     });
 
-    it('should return empty array when overallScore is 0', () => {
+    it("should return empty array when overallScore is 0", () => {
       const qualityResult = createQualityResult({
         overallScore: 0,
-        grade: 'F',
+        grade: "F",
       });
 
       const benchmarks = buildQualityBenchmarkInputs(qualityResult, sourceUrl);
@@ -234,8 +228,8 @@ describe('buildQualityBenchmarkInputs', () => {
   // -------------------------------------------------
   // 型安全性の検証
   // -------------------------------------------------
-  describe('型安全性', () => {
-    it('should return QualityBenchmarkInput[] compatible type', () => {
+  describe("型安全性", () => {
+    it("should return QualityBenchmarkInput[] compatible type", () => {
       const qualityResult = createQualityResult();
 
       const benchmarks: QualityBenchmarkInput[] = buildQualityBenchmarkInputs(
@@ -245,14 +239,14 @@ describe('buildQualityBenchmarkInputs', () => {
 
       // 型チェック: QualityBenchmarkInputの必須フィールドが全て存在
       const benchmark = benchmarks[0];
-      expect(typeof benchmark.sectionType).toBe('string');
-      expect(typeof benchmark.overallScore).toBe('number');
-      expect(typeof benchmark.grade).toBe('string');
-      expect(typeof benchmark.axisScores.originality).toBe('number');
-      expect(typeof benchmark.axisScores.craftsmanship).toBe('number');
-      expect(typeof benchmark.axisScores.contextuality).toBe('number');
-      expect(typeof benchmark.sourceUrl).toBe('string');
-      expect(typeof benchmark.sourceType).toBe('string');
+      expect(typeof benchmark.sectionType).toBe("string");
+      expect(typeof benchmark.overallScore).toBe("number");
+      expect(typeof benchmark.grade).toBe("string");
+      expect(typeof benchmark.axisScores.originality).toBe("number");
+      expect(typeof benchmark.axisScores.craftsmanship).toBe("number");
+      expect(typeof benchmark.axisScores.contextuality).toBe("number");
+      expect(typeof benchmark.sourceUrl).toBe("string");
+      expect(typeof benchmark.sourceType).toBe("string");
     });
   });
 });

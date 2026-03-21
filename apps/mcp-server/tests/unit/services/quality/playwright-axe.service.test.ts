@@ -10,31 +10,33 @@
  * @module tests/unit/services/quality/playwright-axe.service.test
  */
 
-import { describe, it, expect, beforeAll, afterAll, beforeEach, vi } from 'vitest';
-import type { AxeAccessibilityResult } from '../../../../src/services/quality/axe-accessibility.service';
+import { describe, it, expect, beforeAll, afterAll, beforeEach, vi } from "vitest";
+import type { AxeAccessibilityResult } from "../../../../src/services/quality/axe-accessibility.service";
 
 // 遅延インポートのために型のみインポート
-type PlaywrightAxeService = import('../../../../src/services/quality/playwright-axe.service').PlaywrightAxeService;
-type PlaywrightAxeOptions = import('../../../../src/services/quality/playwright-axe.service').PlaywrightAxeOptions;
+type PlaywrightAxeService =
+  import("../../../../src/services/quality/playwright-axe.service").PlaywrightAxeService;
+type PlaywrightAxeOptions =
+  import("../../../../src/services/quality/playwright-axe.service").PlaywrightAxeOptions;
 
-describe('PlaywrightAxeService', () => {
-  let PlaywrightAxeServiceClass: typeof import('../../../../src/services/quality/playwright-axe.service').PlaywrightAxeService;
-  let createPlaywrightAxeService: typeof import('../../../../src/services/quality/playwright-axe.service').createPlaywrightAxeService;
-  let isPlaywrightAvailable: typeof import('../../../../src/services/quality/playwright-axe.service').isPlaywrightAvailable;
+describe("PlaywrightAxeService", () => {
+  let PlaywrightAxeServiceClass: typeof import("../../../../src/services/quality/playwright-axe.service").PlaywrightAxeService;
+  let createPlaywrightAxeService: typeof import("../../../../src/services/quality/playwright-axe.service").createPlaywrightAxeService;
+  let isPlaywrightAvailable: typeof import("../../../../src/services/quality/playwright-axe.service").isPlaywrightAvailable;
   let service: PlaywrightAxeService;
   let playwrightAvailable = true;
 
   beforeAll(async () => {
     // Playwright可用性チェックと動的インポート
     try {
-      const module = await import('../../../../src/services/quality/playwright-axe.service');
+      const module = await import("../../../../src/services/quality/playwright-axe.service");
       PlaywrightAxeServiceClass = module.PlaywrightAxeService;
       createPlaywrightAxeService = module.createPlaywrightAxeService;
       isPlaywrightAvailable = module.isPlaywrightAvailable;
       playwrightAvailable = await isPlaywrightAvailable();
     } catch (error) {
       playwrightAvailable = false;
-      console.warn('[Test] Playwright not available, skipping Playwright tests');
+      console.warn("[Test] Playwright not available, skipping Playwright tests");
     }
   });
 
@@ -55,29 +57,29 @@ describe('PlaywrightAxeService', () => {
   // 基本機能テスト
   // =====================================================
 
-  describe('Basic Functionality', () => {
-    it('should create service instance', () => {
+  describe("Basic Functionality", () => {
+    it("should create service instance", () => {
       if (!playwrightAvailable) {
-        console.warn('[Test] Skipping: Playwright not available');
+        console.warn("[Test] Skipping: Playwright not available");
         return;
       }
 
       expect(service).toBeInstanceOf(PlaywrightAxeServiceClass);
     });
 
-    it('should check if Playwright is available', async () => {
+    it("should check if Playwright is available", async () => {
       if (!playwrightAvailable) {
-        console.warn('[Test] Skipping: Playwright not available');
+        console.warn("[Test] Skipping: Playwright not available");
         return;
       }
 
       const available = await isPlaywrightAvailable();
-      expect(typeof available).toBe('boolean');
+      expect(typeof available).toBe("boolean");
     });
 
-    it('should analyze HTML content with valid result structure', async () => {
+    it("should analyze HTML content with valid result structure", async () => {
       if (!playwrightAvailable) {
-        console.warn('[Test] Skipping: Playwright not available');
+        console.warn("[Test] Skipping: Playwright not available");
         return;
       }
 
@@ -100,13 +102,13 @@ describe('PlaywrightAxeService', () => {
       const result = await service.analyzeHtml(html);
 
       expect(result).toBeDefined();
-      expect(result).toHaveProperty('violations');
-      expect(result).toHaveProperty('passes');
-      expect(result).toHaveProperty('score');
-      expect(result).toHaveProperty('wcagLevel');
+      expect(result).toHaveProperty("violations");
+      expect(result).toHaveProperty("passes");
+      expect(result).toHaveProperty("score");
+      expect(result).toHaveProperty("wcagLevel");
       expect(Array.isArray(result.violations)).toBe(true);
-      expect(typeof result.passes).toBe('number');
-      expect(typeof result.score).toBe('number');
+      expect(typeof result.passes).toBe("number");
+      expect(typeof result.score).toBe("number");
       expect(result.score).toBeGreaterThanOrEqual(0);
       expect(result.score).toBeLessThanOrEqual(100);
     }, 30000);
@@ -116,10 +118,10 @@ describe('PlaywrightAxeService', () => {
   // HTML分析テスト
   // =====================================================
 
-  describe('HTML Analysis', () => {
-    it('should detect accessibility violations in HTML', async () => {
+  describe("HTML Analysis", () => {
+    it("should detect accessibility violations in HTML", async () => {
       if (!playwrightAvailable) {
-        console.warn('[Test] Skipping: Playwright not available');
+        console.warn("[Test] Skipping: Playwright not available");
         return;
       }
 
@@ -137,9 +139,9 @@ describe('PlaywrightAxeService', () => {
       expect(result.violations.length).toBeGreaterThan(0);
     }, 30000);
 
-    it('should return high score for accessible HTML', async () => {
+    it("should return high score for accessible HTML", async () => {
       if (!playwrightAvailable) {
-        console.warn('[Test] Skipping: Playwright not available');
+        console.warn("[Test] Skipping: Playwright not available");
         return;
       }
 
@@ -174,9 +176,9 @@ describe('PlaywrightAxeService', () => {
       expect(result.score).toBeGreaterThanOrEqual(80);
     }, 30000);
 
-    it('should detect missing image alt attributes', async () => {
+    it("should detect missing image alt attributes", async () => {
       if (!playwrightAvailable) {
-        console.warn('[Test] Skipping: Playwright not available');
+        console.warn("[Test] Skipping: Playwright not available");
         return;
       }
 
@@ -189,15 +191,13 @@ describe('PlaywrightAxeService', () => {
       `;
 
       const result = await service.analyzeHtml(html);
-      const imageAltViolation = result.violations.find(
-        (v) => v.id === 'image-alt'
-      );
+      const imageAltViolation = result.violations.find((v) => v.id === "image-alt");
       expect(imageAltViolation).toBeDefined();
     }, 30000);
 
-    it('should detect missing form labels', async () => {
+    it("should detect missing form labels", async () => {
       if (!playwrightAvailable) {
-        console.warn('[Test] Skipping: Playwright not available');
+        console.warn("[Test] Skipping: Playwright not available");
         return;
       }
 
@@ -213,14 +213,14 @@ describe('PlaywrightAxeService', () => {
 
       const result = await service.analyzeHtml(html);
       const labelViolation = result.violations.find(
-        (v) => v.id === 'label' || v.description?.toLowerCase().includes('label')
+        (v) => v.id === "label" || v.description?.toLowerCase().includes("label")
       );
       expect(labelViolation).toBeDefined();
     }, 30000);
 
-    it('should detect empty buttons', async () => {
+    it("should detect empty buttons", async () => {
       if (!playwrightAvailable) {
-        console.warn('[Test] Skipping: Playwright not available');
+        console.warn("[Test] Skipping: Playwright not available");
         return;
       }
 
@@ -233,9 +233,7 @@ describe('PlaywrightAxeService', () => {
       `;
 
       const result = await service.analyzeHtml(html);
-      const buttonViolation = result.violations.find(
-        (v) => v.id === 'button-name'
-      );
+      const buttonViolation = result.violations.find((v) => v.id === "button-name");
       expect(buttonViolation).toBeDefined();
     }, 30000);
   });
@@ -244,10 +242,10 @@ describe('PlaywrightAxeService', () => {
   // オプション設定テスト
   // =====================================================
 
-  describe('Service Options', () => {
-    it('should support custom timeout', async () => {
+  describe("Service Options", () => {
+    it("should support custom timeout", async () => {
       if (!playwrightAvailable) {
-        console.warn('[Test] Skipping: Playwright not available');
+        console.warn("[Test] Skipping: Playwright not available");
         return;
       }
 
@@ -263,14 +261,14 @@ describe('PlaywrightAxeService', () => {
       await customService.cleanup();
     }, 30000);
 
-    it('should support custom WCAG level', async () => {
+    it("should support custom WCAG level", async () => {
       if (!playwrightAvailable) {
-        console.warn('[Test] Skipping: Playwright not available');
+        console.warn("[Test] Skipping: Playwright not available");
         return;
       }
 
       const options: PlaywrightAxeOptions = {
-        wcagLevel: 'AAA',
+        wcagLevel: "AAA",
       };
 
       const customService = createPlaywrightAxeService(options);
@@ -281,14 +279,14 @@ describe('PlaywrightAxeService', () => {
       await customService.cleanup();
     }, 30000);
 
-    it('should support waitForSelector option', async () => {
+    it("should support waitForSelector option", async () => {
       if (!playwrightAvailable) {
-        console.warn('[Test] Skipping: Playwright not available');
+        console.warn("[Test] Skipping: Playwright not available");
         return;
       }
 
       const options: PlaywrightAxeOptions = {
-        waitForSelector: 'body',
+        waitForSelector: "body",
       };
 
       const customService = createPlaywrightAxeService(options);
@@ -304,44 +302,44 @@ describe('PlaywrightAxeService', () => {
   // エッジケーステスト
   // =====================================================
 
-  describe('Edge Cases', () => {
-    it('should handle empty HTML', async () => {
+  describe("Edge Cases", () => {
+    it("should handle empty HTML", async () => {
       if (!playwrightAvailable) {
-        console.warn('[Test] Skipping: Playwright not available');
+        console.warn("[Test] Skipping: Playwright not available");
         return;
       }
 
-      const result = await service.analyzeHtml('');
+      const result = await service.analyzeHtml("");
       expect(result).toBeDefined();
       expect(result.score).toBeGreaterThanOrEqual(0);
     }, 30000);
 
-    it('should handle minimal HTML', async () => {
+    it("should handle minimal HTML", async () => {
       if (!playwrightAvailable) {
-        console.warn('[Test] Skipping: Playwright not available');
+        console.warn("[Test] Skipping: Playwright not available");
         return;
       }
 
-      const result = await service.analyzeHtml('<html></html>');
+      const result = await service.analyzeHtml("<html></html>");
       expect(result).toBeDefined();
     }, 30000);
 
-    it('should handle malformed HTML gracefully', async () => {
+    it("should handle malformed HTML gracefully", async () => {
       if (!playwrightAvailable) {
-        console.warn('[Test] Skipping: Playwright not available');
+        console.warn("[Test] Skipping: Playwright not available");
         return;
       }
 
-      const html = '<html><body><div><p>Unclosed tags';
+      const html = "<html><body><div><p>Unclosed tags";
       const result = await service.analyzeHtml(html);
 
       expect(result).toBeDefined();
       expect(result.score).toBeGreaterThanOrEqual(0);
     }, 30000);
 
-    it('should handle HTML with special characters', async () => {
+    it("should handle HTML with special characters", async () => {
       if (!playwrightAvailable) {
-        console.warn('[Test] Skipping: Playwright not available');
+        console.warn("[Test] Skipping: Playwright not available");
         return;
       }
 
@@ -358,13 +356,13 @@ describe('PlaywrightAxeService', () => {
       expect(result).toBeDefined();
     }, 30000);
 
-    it('should handle large HTML documents', async () => {
+    it("should handle large HTML documents", async () => {
       if (!playwrightAvailable) {
-        console.warn('[Test] Skipping: Playwright not available');
+        console.warn("[Test] Skipping: Playwright not available");
         return;
       }
 
-      const repeatedContent = '<p>Content</p>'.repeat(100);
+      const repeatedContent = "<p>Content</p>".repeat(100);
       const html = `<html lang="en"><body>${repeatedContent}</body></html>`;
 
       const result = await service.analyzeHtml(html);
@@ -376,10 +374,10 @@ describe('PlaywrightAxeService', () => {
   // 統合メソッドテスト
   // =====================================================
 
-  describe('Integration Methods', () => {
-    it('should provide score adjustment values for craftsmanship', async () => {
+  describe("Integration Methods", () => {
+    it("should provide score adjustment values for craftsmanship", async () => {
       if (!playwrightAvailable) {
-        console.warn('[Test] Skipping: Playwright not available');
+        console.warn("[Test] Skipping: Playwright not available");
         return;
       }
 
@@ -387,64 +385,64 @@ describe('PlaywrightAxeService', () => {
       const result = await service.analyzeHtml(html);
       const penalty = service.calculateScorePenalty(result);
 
-      expect(typeof penalty).toBe('number');
+      expect(typeof penalty).toBe("number");
       expect(penalty).toBeLessThanOrEqual(0);
     }, 30000);
 
-    it('should calculate correct penalty for critical violations', () => {
+    it("should calculate correct penalty for critical violations", () => {
       if (!playwrightAvailable) {
-        console.warn('[Test] Skipping: Playwright not available');
+        console.warn("[Test] Skipping: Playwright not available");
         return;
       }
 
       const mockResult: AxeAccessibilityResult = {
         violations: [
           {
-            id: 'test',
-            impact: 'critical',
-            description: 'Test',
-            help: 'Test',
-            helpUrl: 'https://test.com',
+            id: "test",
+            impact: "critical",
+            description: "Test",
+            help: "Test",
+            helpUrl: "https://test.com",
             nodes: 1,
           },
         ],
         passes: 0,
         score: 80,
-        wcagLevel: 'AA',
+        wcagLevel: "AA",
       };
 
       const penalty = service.calculateScorePenalty(mockResult);
       expect(penalty).toBe(-20);
     });
 
-    it('should calculate cumulative penalty for multiple violations', () => {
+    it("should calculate cumulative penalty for multiple violations", () => {
       if (!playwrightAvailable) {
-        console.warn('[Test] Skipping: Playwright not available');
+        console.warn("[Test] Skipping: Playwright not available");
         return;
       }
 
       const mockResult: AxeAccessibilityResult = {
         violations: [
           {
-            id: 'critical-test',
-            impact: 'critical',
-            description: 'Critical',
-            help: 'Help',
-            helpUrl: 'https://test.com',
+            id: "critical-test",
+            impact: "critical",
+            description: "Critical",
+            help: "Help",
+            helpUrl: "https://test.com",
             nodes: 1,
           },
           {
-            id: 'serious-test',
-            impact: 'serious',
-            description: 'Serious',
-            help: 'Help',
-            helpUrl: 'https://test.com',
+            id: "serious-test",
+            impact: "serious",
+            description: "Serious",
+            help: "Help",
+            helpUrl: "https://test.com",
             nodes: 1,
           },
         ],
         passes: 0,
         score: 70,
-        wcagLevel: 'AA',
+        wcagLevel: "AA",
       };
 
       const penalty = service.calculateScorePenalty(mockResult);
@@ -456,10 +454,10 @@ describe('PlaywrightAxeService', () => {
   // WCAG レベルテスト
   // =====================================================
 
-  describe('WCAG Level Determination', () => {
-    it('should return AA for good accessibility', async () => {
+  describe("WCAG Level Determination", () => {
+    it("should return AA for good accessibility", async () => {
       if (!playwrightAvailable) {
-        console.warn('[Test] Skipping: Playwright not available');
+        console.warn("[Test] Skipping: Playwright not available");
         return;
       }
 
@@ -484,12 +482,12 @@ describe('PlaywrightAxeService', () => {
       `;
 
       const result = await service.analyzeHtml(html);
-      expect(['A', 'AA', 'AAA']).toContain(result.wcagLevel);
+      expect(["A", "AA", "AAA"]).toContain(result.wcagLevel);
     }, 30000);
 
-    it('should downgrade level for critical violations', async () => {
+    it("should downgrade level for critical violations", async () => {
       if (!playwrightAvailable) {
-        console.warn('[Test] Skipping: Playwright not available');
+        console.warn("[Test] Skipping: Playwright not available");
         return;
       }
 
@@ -505,7 +503,7 @@ describe('PlaywrightAxeService', () => {
 
       const result = await service.analyzeHtml(html);
       // With multiple critical/serious violations, level should be A
-      expect(['A', 'AA']).toContain(result.wcagLevel);
+      expect(["A", "AA"]).toContain(result.wcagLevel);
     }, 30000);
   });
 
@@ -513,10 +511,10 @@ describe('PlaywrightAxeService', () => {
   // クリーンアップテスト
   // =====================================================
 
-  describe('Cleanup', () => {
-    it('should cleanup browser resources', async () => {
+  describe("Cleanup", () => {
+    it("should cleanup browser resources", async () => {
       if (!playwrightAvailable) {
-        console.warn('[Test] Skipping: Playwright not available');
+        console.warn("[Test] Skipping: Playwright not available");
         return;
       }
 
@@ -528,9 +526,9 @@ describe('PlaywrightAxeService', () => {
       await expect(tempService.cleanup()).resolves.not.toThrow();
     }, 30000);
 
-    it('should be safe to call cleanup multiple times', async () => {
+    it("should be safe to call cleanup multiple times", async () => {
       if (!playwrightAvailable) {
-        console.warn('[Test] Skipping: Playwright not available');
+        console.warn("[Test] Skipping: Playwright not available");
         return;
       }
 
@@ -544,18 +542,18 @@ describe('PlaywrightAxeService', () => {
   // Graceful Degradationテスト
   // =====================================================
 
-  describe('Graceful Degradation', () => {
-    it('should report Playwright availability correctly', async () => {
+  describe("Graceful Degradation", () => {
+    it("should report Playwright availability correctly", async () => {
       const available = await isPlaywrightAvailable();
-      expect(typeof available).toBe('boolean');
+      expect(typeof available).toBe("boolean");
     });
 
-    it('should return fallback result when service creation fails', async () => {
+    it("should return fallback result when service creation fails", async () => {
       // This test verifies the factory function handles errors gracefully
       // In real scenarios, if Playwright is not installed, isPlaywrightAvailable returns false
       const available = await isPlaywrightAvailable();
       if (!available) {
-        console.log('[Test] Playwright not available - fallback confirmed');
+        console.log("[Test] Playwright not available - fallback confirmed");
         expect(available).toBe(false);
       } else {
         expect(available).toBe(true);

@@ -14,18 +14,15 @@
  * @module services/motion/js-animation-search.service
  */
 
-import { isDevelopment, logger } from '../../utils/logger';
+import { isDevelopment, logger } from "../../utils/logger";
 import {
   executeHybridSearch,
   buildFulltextConditions,
   buildFulltextRankExpression,
   toRankedItems,
-} from '@reftrix/ml';
-import type { RankedItem } from '@reftrix/ml';
-import type {
-  JSAnimationLibraryType,
-  JSAnimationType,
-} from '../../tools/motion/schemas';
+} from "@reftrix/ml";
+import type { RankedItem } from "@reftrix/ml";
+import type { JSAnimationLibraryType, JSAnimationType } from "../../tools/motion/schemas";
 
 // =====================================================
 // UUIDv7 検証ユーティリティ
@@ -207,7 +204,7 @@ export class JSAnimationSearchService {
     } = params;
 
     if (isDevelopment()) {
-      logger.info('[JSAnimationSearch] Starting search', {
+      logger.info("[JSAnimationSearch] Starting search", {
         embeddingDimensions: queryEmbedding.length,
         minSimilarity,
         limit,
@@ -219,17 +216,15 @@ export class JSAnimationSearchService {
 
     // Embedding次元数の検証
     if (queryEmbedding.length !== 768) {
-      throw new Error(
-        `Invalid embedding dimensions: expected 768, got ${queryEmbedding.length}`
-      );
+      throw new Error(`Invalid embedding dimensions: expected 768, got ${queryEmbedding.length}`);
     }
 
     // SEC: limit/offset の安全な整数値検証（SQLインジェクション対策）
-    const validatedLimit = validateSafeInteger(limit, 1, 100, 'limit');
-    const validatedOffset = validateSafeInteger(offset, 0, 100000, 'offset');
+    const validatedLimit = validateSafeInteger(limit, 1, 100, "limit");
+    const validatedOffset = validateSafeInteger(offset, 0, 100000, "offset");
 
     // ベクトル文字列を構築
-    const vectorString = `[${queryEmbedding.join(',')}]`;
+    const vectorString = `[${queryEmbedding.join(",")}]`;
 
     // 動的フィルター条件を構築
     const filterConditions: string[] = [];
@@ -248,9 +243,7 @@ export class JSAnimationSearchService {
       paramIndex++;
     }
 
-    const whereClause = filterConditions.length > 0
-      ? `AND ${filterConditions.join(' AND ')}`
-      : '';
+    const whereClause = filterConditions.length > 0 ? `AND ${filterConditions.join(" AND ")}` : "";
 
     // メインクエリ（SEC: すべての値をパラメータバインドで渡す）
     const query = `
@@ -309,7 +302,7 @@ export class JSAnimationSearchService {
       const processingTimeMs = Date.now() - startTime;
 
       if (isDevelopment()) {
-        logger.info('[JSAnimationSearch] Search completed', {
+        logger.info("[JSAnimationSearch] Search completed", {
           resultsCount: results.length,
           total,
           processingTimeMs,
@@ -341,7 +334,7 @@ export class JSAnimationSearchService {
       };
     } catch (error) {
       if (isDevelopment()) {
-        logger.error('[JSAnimationSearch] Search failed', {
+        logger.error("[JSAnimationSearch] Search failed", {
           error: error instanceof Error ? error.message : String(error),
         });
       }
@@ -365,19 +358,22 @@ export class JSAnimationSearchService {
   ): Promise<JSAnimationSearchResultItem[]> {
     // SEC: UUIDv7形式の検証（SQLインジェクション対策）
     if (!isValidUUIDv7(patternId)) {
-      throw new Error(
-        `Invalid patternId: must be a valid UUIDv7 format, got: ${patternId}`
-      );
+      throw new Error(`Invalid patternId: must be a valid UUIDv7 format, got: ${patternId}`);
     }
 
     // SEC: limit/minSimilarityの検証
-    const validatedLimit = validateSafeInteger(limit, 1, 50, 'limit');
-    if (typeof minSimilarity !== 'number' || !Number.isFinite(minSimilarity) || minSimilarity < 0 || minSimilarity > 1) {
+    const validatedLimit = validateSafeInteger(limit, 1, 50, "limit");
+    if (
+      typeof minSimilarity !== "number" ||
+      !Number.isFinite(minSimilarity) ||
+      minSimilarity < 0 ||
+      minSimilarity > 1
+    ) {
       throw new Error(`minSimilarity must be between 0 and 1, got: ${minSimilarity}`);
     }
 
     if (isDevelopment()) {
-      logger.info('[JSAnimationSearch] Finding similar patterns', {
+      logger.info("[JSAnimationSearch] Finding similar patterns", {
         patternId,
         limit: validatedLimit,
         minSimilarity,
@@ -423,7 +419,7 @@ export class JSAnimationSearchService {
       );
 
       if (isDevelopment()) {
-        logger.info('[JSAnimationSearch] findSimilar completed', {
+        logger.info("[JSAnimationSearch] findSimilar completed", {
           resultsCount: results.length,
         });
       }
@@ -431,7 +427,7 @@ export class JSAnimationSearchService {
       return results;
     } catch (error) {
       if (isDevelopment()) {
-        logger.error('[JSAnimationSearch] findSimilar failed', {
+        logger.error("[JSAnimationSearch] findSimilar failed", {
           error: error instanceof Error ? error.message : String(error),
         });
       }
@@ -468,7 +464,7 @@ export class JSAnimationSearchService {
     }
 
     if (isDevelopment()) {
-      logger.info('[JSAnimationSearch] Starting hybrid search', {
+      logger.info("[JSAnimationSearch] Starting hybrid search", {
         embeddingDimensions: queryEmbedding.length,
         queryText: queryText.substring(0, 50),
         minSimilarity,
@@ -480,14 +476,12 @@ export class JSAnimationSearchService {
 
     // Embedding次元数の検証
     if (queryEmbedding.length !== 768) {
-      throw new Error(
-        `Invalid embedding dimensions: expected 768, got ${queryEmbedding.length}`
-      );
+      throw new Error(`Invalid embedding dimensions: expected 768, got ${queryEmbedding.length}`);
     }
 
-    const validatedLimit = validateSafeInteger(limit, 1, 100, 'limit');
-    const validatedOffset = validateSafeInteger(offset, 0, 100000, 'offset');
-    const vectorString = `[${queryEmbedding.join(',')}]`;
+    const validatedLimit = validateSafeInteger(limit, 1, 100, "limit");
+    const validatedOffset = validateSafeInteger(offset, 0, 100000, "offset");
+    const vectorString = `[${queryEmbedding.join(",")}]`;
     const fetchLimit = Math.min(validatedLimit * 3, 150);
 
     // 動的フィルター条件を構築（ベクトル検索・全文検索で共有）
@@ -507,13 +501,11 @@ export class JSAnimationSearchService {
       paramIndex++;
     }
 
-    const filterWhereClause = filterConditions.length > 0
-      ? `WHERE ${filterConditions.join(' AND ')}`
-      : '';
+    const filterWhereClause =
+      filterConditions.length > 0 ? `WHERE ${filterConditions.join(" AND ")}` : "";
 
-    const filterAndClause = filterConditions.length > 0
-      ? `AND ${filterConditions.join(' AND ')}`
-      : '';
+    const filterAndClause =
+      filterConditions.length > 0 ? `AND ${filterConditions.join(" AND ")}` : "";
 
     try {
       // ベクトル検索関数
@@ -553,19 +545,21 @@ export class JSAnimationSearchService {
           fetchLimit
         );
 
-        return toRankedItems(rows.map((r) => ({
-          id: r.id,
-          webPageId: r.webPageId,
-          libraryType: r.libraryType,
-          name: r.name,
-          animationType: r.animationType,
-          targetSelector: r.targetSelector,
-          durationMs: r.durationMs,
-          easing: r.easing,
-          keyframes: r.keyframes,
-          properties: r.properties,
-          similarity: r.similarity,
-        })));
+        return toRankedItems(
+          rows.map((r) => ({
+            id: r.id,
+            webPageId: r.webPageId,
+            libraryType: r.libraryType,
+            name: r.name,
+            animationType: r.animationType,
+            targetSelector: r.targetSelector,
+            durationMs: r.durationMs,
+            easing: r.easing,
+            keyframes: r.keyframes,
+            properties: r.properties,
+            similarity: r.similarity,
+          }))
+        );
       };
 
       // 全文検索関数
@@ -574,8 +568,8 @@ export class JSAnimationSearchService {
           const ftQueryIdx = paramIndex;
           const ftLimitIdx = paramIndex + 1;
 
-          const ftCond = buildFulltextConditions('jae.search_vector', ftQueryIdx);
-          const ftRank = buildFulltextRankExpression('jae.search_vector', ftQueryIdx);
+          const ftCond = buildFulltextConditions("jae.search_vector", ftQueryIdx);
+          const ftRank = buildFulltextRankExpression("jae.search_vector", ftQueryIdx);
 
           const ftWhereBase = filterWhereClause
             ? `${filterWhereClause} AND ${ftCond}`
@@ -610,23 +604,25 @@ export class JSAnimationSearchService {
             fetchLimit
           );
 
-          return toRankedItems(rows.map((r) => ({
-            id: r.id,
-            webPageId: r.webPageId,
-            libraryType: r.libraryType,
-            name: r.name,
-            animationType: r.animationType,
-            targetSelector: r.targetSelector,
-            durationMs: r.durationMs,
-            easing: r.easing,
-            keyframes: r.keyframes,
-            properties: r.properties,
-            similarity: r.similarity,
-          })));
+          return toRankedItems(
+            rows.map((r) => ({
+              id: r.id,
+              webPageId: r.webPageId,
+              libraryType: r.libraryType,
+              name: r.name,
+              animationType: r.animationType,
+              targetSelector: r.targetSelector,
+              durationMs: r.durationMs,
+              easing: r.easing,
+              keyframes: r.keyframes,
+              properties: r.properties,
+              similarity: r.similarity,
+            }))
+          );
         } catch (ftError) {
           if (isDevelopment()) {
-            logger.warn('[JSAnimationSearch] Full-text search failed, using vector only', {
-              error: ftError instanceof Error ? ftError.message : 'Unknown error',
+            logger.warn("[JSAnimationSearch] Full-text search failed, using vector only", {
+              error: ftError instanceof Error ? ftError.message : "Unknown error",
             });
           }
           return [];
@@ -643,9 +639,9 @@ export class JSAnimationSearchService {
           return {
             id: String(data.id ?? hr.id),
             webPageId: (data.webPageId as string | null) ?? null,
-            libraryType: String(data.libraryType ?? '') as JSAnimationLibraryType,
+            libraryType: String(data.libraryType ?? "") as JSAnimationLibraryType,
             libraryVersion: (data.libraryVersion as string | null) ?? null,
-            name: String(data.name ?? ''),
+            name: String(data.name ?? ""),
             animationType: (data.animationType as JSAnimationType | null) ?? null,
             targetSelector: (data.targetSelector as string | null) ?? null,
             durationMs: (data.durationMs as number | null) ?? null,
@@ -660,13 +656,13 @@ export class JSAnimationSearchService {
       const processingTimeMs = Date.now() - startTime;
 
       if (isDevelopment()) {
-        logger.info('[JSAnimationSearch] Hybrid search completed', {
+        logger.info("[JSAnimationSearch] Hybrid search completed", {
           resultsCount: results.length,
           processingTimeMs,
         });
       }
 
-      const searchInfo: JSAnimationSearchResult['searchInfo'] = {
+      const searchInfo: JSAnimationSearchResult["searchInfo"] = {
         minSimilarity,
         limit: validatedLimit,
         offset: validatedOffset,
@@ -685,7 +681,7 @@ export class JSAnimationSearchService {
       };
     } catch (error) {
       if (isDevelopment()) {
-        logger.error('[JSAnimationSearch] Hybrid search failed, falling back to vector search', {
+        logger.error("[JSAnimationSearch] Hybrid search failed, falling back to vector search", {
           error: error instanceof Error ? error.message : String(error),
         });
       }
@@ -704,9 +700,7 @@ let searchServiceInstance: JSAnimationSearchService | null = null;
 /**
  * JSAnimationSearchServiceのシングルトンインスタンスを取得
  */
-export function getJSAnimationSearchService(
-  prisma: IPrismaClient
-): JSAnimationSearchService {
+export function getJSAnimationSearchService(prisma: IPrismaClient): JSAnimationSearchService {
   if (!searchServiceInstance) {
     searchServiceInstance = new JSAnimationSearchService({ prisma });
   }

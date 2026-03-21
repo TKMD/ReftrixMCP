@@ -22,8 +22,8 @@
  * @module tests/tools/motion/detect-lighthouse.test
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import type { Mock } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import type { Mock } from "vitest";
 
 // =====================================================
 // インポート
@@ -36,7 +36,7 @@ import {
   type MotionDetectInput,
   type LighthouseOptions,
   type LighthouseMetrics,
-} from '../../../src/tools/motion/schemas';
+} from "../../../src/tools/motion/schemas";
 
 import {
   motionDetectHandler,
@@ -49,25 +49,28 @@ import {
   type ILighthouseDetectorService,
   type IVideoRecorderService,
   type IFrameAnalyzerService,
-} from '../../../src/tools/motion/detect.tool';
+} from "../../../src/tools/motion/detect.tool";
 
-import type { RecordResult } from '../../../src/services/page/video-recorder.service';
-import type { AnalyzeResult, ExtractResult } from '../../../src/services/page/frame-analyzer.service';
+import type { RecordResult } from "../../../src/services/page/video-recorder.service";
+import type {
+  AnalyzeResult,
+  ExtractResult,
+} from "../../../src/services/page/frame-analyzer.service";
 
 // =====================================================
 // テストデータ
 // =====================================================
 
-const sampleUrl = 'https://example.com/animated-page';
+const sampleUrl = "https://example.com/animated-page";
 
 /**
  * モック録画結果（Video Mode用）
  */
 const mockRecordResult: RecordResult = {
-  videoPath: '/tmp/video-recorder-test/video.webm',
+  videoPath: "/tmp/video-recorder-test/video.webm",
   durationMs: 5000,
   sizeBytes: 1024 * 100,
-  title: 'Test Page',
+  title: "Test Page",
   processingTimeMs: 3000,
 };
 
@@ -76,13 +79,13 @@ const mockRecordResult: RecordResult = {
  */
 const mockExtractResult: ExtractResult = {
   frames: [
-    { index: 0, path: '/tmp/frames/frame-0000.png', timestampMs: 0 },
-    { index: 1, path: '/tmp/frames/frame-0001.png', timestampMs: 100 },
+    { index: 0, path: "/tmp/frames/frame-0000.png", timestampMs: 0 },
+    { index: 1, path: "/tmp/frames/frame-0001.png", timestampMs: 100 },
   ],
   totalFrames: 50,
   fps: 10,
   durationMs: 5000,
-  outputDir: '/tmp/frames',
+  outputDir: "/tmp/frames",
   processingTimeMs: 200,
 };
 
@@ -99,11 +102,11 @@ const mockAnalyzeResultWithMotion: AnalyzeResult = {
       durationMs: 1000,
       avgChangeRatio: 0.08,
       maxChangeRatio: 0.15,
-      estimatedType: 'fade',
-      estimatedEasing: 'ease-out',
+      estimatedType: "fade",
+      estimatedEasing: "ease-out",
     },
   ],
-  motionCoverage: 0.20,
+  motionCoverage: 0.2,
   durationMs: 5000,
   processingTimeMs: 500,
 };
@@ -112,12 +115,12 @@ const mockAnalyzeResultWithMotion: AnalyzeResult = {
  * モックLighthouseメトリクス結果
  */
 const mockLighthouseMetrics: LighthouseMetrics = {
-  fcp: 1200,        // First Contentful Paint (ms)
-  lcp: 2500,        // Largest Contentful Paint (ms)
-  cls: 0.05,        // Cumulative Layout Shift (score)
-  tbt: 150,         // Total Blocking Time (ms)
-  si: 1800,         // Speed Index (ms)
-  tti: 3500,        // Time to Interactive (ms)
+  fcp: 1200, // First Contentful Paint (ms)
+  lcp: 2500, // Largest Contentful Paint (ms)
+  cls: 0.05, // Cumulative Layout Shift (score)
+  tbt: 150, // Total Blocking Time (ms)
+  si: 1800, // Speed Index (ms)
+  tti: 3500, // Time to Interactive (ms)
   performance_score: 85, // 0-100
   fetched_at: new Date().toISOString(),
 };
@@ -128,30 +131,30 @@ const mockLighthouseMetrics: LighthouseMetrics = {
 const mockLighthouseDetailedResult = {
   metrics: mockLighthouseMetrics,
   audits: {
-    'first-contentful-paint': {
+    "first-contentful-paint": {
       score: 0.9,
       numericValue: 1200,
-      displayValue: '1.2 s',
+      displayValue: "1.2 s",
     },
-    'largest-contentful-paint': {
+    "largest-contentful-paint": {
       score: 0.75,
       numericValue: 2500,
-      displayValue: '2.5 s',
+      displayValue: "2.5 s",
     },
-    'cumulative-layout-shift': {
+    "cumulative-layout-shift": {
       score: 0.95,
       numericValue: 0.05,
-      displayValue: '0.050',
+      displayValue: "0.050",
     },
-    'total-blocking-time': {
+    "total-blocking-time": {
       score: 0.85,
       numericValue: 150,
-      displayValue: '150 ms',
+      displayValue: "150 ms",
     },
-    'speed-index': {
+    "speed-index": {
       score: 0.88,
       numericValue: 1800,
-      displayValue: '1.8 s',
+      displayValue: "1.8 s",
     },
   },
   processingTimeMs: 35000,
@@ -177,7 +180,7 @@ const createMockLighthouseDetectorService = (
 // テストスイート
 // =====================================================
 
-describe('motion.detect Lighthouse統合', () => {
+describe("motion.detect Lighthouse統合", () => {
   let mockLighthouseService: ILighthouseDetectorService;
   let mockVideoRecorderService: {
     record: Mock;
@@ -212,8 +215,12 @@ describe('motion.detect Lighthouse統合', () => {
     };
 
     // DIでサービスを注入
-    setVideoRecorderServiceFactory(() => mockVideoRecorderService as unknown as IVideoRecorderService);
-    setFrameAnalyzerServiceFactory(() => mockFrameAnalyzerService as unknown as IFrameAnalyzerService);
+    setVideoRecorderServiceFactory(
+      () => mockVideoRecorderService as unknown as IVideoRecorderService
+    );
+    setFrameAnalyzerServiceFactory(
+      () => mockFrameAnalyzerService as unknown as IFrameAnalyzerService
+    );
   });
 
   afterEach(() => {
@@ -227,11 +234,11 @@ describe('motion.detect Lighthouse統合', () => {
   // 1. スキーマバリデーション
   // =========================================================
 
-  describe('lighthouseOptionsSchema バリデーション', () => {
-    it('有効なlighthouse_optionsを受け付ける', () => {
+  describe("lighthouseOptionsSchema バリデーション", () => {
+    it("有効なlighthouse_optionsを受け付ける", () => {
       const validOptions: LighthouseOptions = {
         enabled: true,
-        categories: ['performance'],
+        categories: ["performance"],
         throttling: false,
         save_to_db: false,
       };
@@ -240,7 +247,7 @@ describe('motion.detect Lighthouse統合', () => {
       expect(result.success).toBe(true);
     });
 
-    it('enabled=falseでLighthouse無効化', () => {
+    it("enabled=falseでLighthouse無効化", () => {
       const options: LighthouseOptions = {
         enabled: false,
       };
@@ -250,17 +257,17 @@ describe('motion.detect Lighthouse統合', () => {
       expect(result.data?.enabled).toBe(false);
     });
 
-    it('categoriesにperformance以外を指定可能', () => {
+    it("categoriesにperformance以外を指定可能", () => {
       const options: LighthouseOptions = {
         enabled: true,
-        categories: ['performance', 'accessibility'],
+        categories: ["performance", "accessibility"],
       };
 
       const result = lighthouseOptionsSchema.safeParse(options);
       expect(result.success).toBe(true);
     });
 
-    it('timeoutの範囲チェック (30000-120000ms)', () => {
+    it("timeoutの範囲チェック (30000-120000ms)", () => {
       // 最小値以下
       const tooShort = lighthouseOptionsSchema.safeParse({
         enabled: true,
@@ -284,13 +291,13 @@ describe('motion.detect Lighthouse統合', () => {
     });
   });
 
-  describe('lighthouseMetricsSchema バリデーション', () => {
-    it('有効なメトリクスを受け付ける', () => {
+  describe("lighthouseMetricsSchema バリデーション", () => {
+    it("有効なメトリクスを受け付ける", () => {
       const result = lighthouseMetricsSchema.safeParse(mockLighthouseMetrics);
       expect(result.success).toBe(true);
     });
 
-    it('performance_scoreは0-100の範囲', () => {
+    it("performance_scoreは0-100の範囲", () => {
       const invalidLow = lighthouseMetricsSchema.safeParse({
         ...mockLighthouseMetrics,
         performance_score: -1,
@@ -304,7 +311,7 @@ describe('motion.detect Lighthouse統合', () => {
       expect(invalidHigh.success).toBe(false);
     });
 
-    it('CLSは0-1の範囲', () => {
+    it("CLSは0-1の範囲", () => {
       const invalidCls = lighthouseMetricsSchema.safeParse({
         ...mockLighthouseMetrics,
         cls: 1.5,
@@ -313,14 +320,14 @@ describe('motion.detect Lighthouse統合', () => {
     });
   });
 
-  describe('motionDetectInputSchema - lighthouse_options統合', () => {
-    it('lighthouse_optionsを含む入力を受け付ける', () => {
+  describe("motionDetectInputSchema - lighthouse_options統合", () => {
+    it("lighthouse_optionsを含む入力を受け付ける", () => {
       const input: MotionDetectInput = {
         url: sampleUrl,
-        detection_mode: 'video',
+        detection_mode: "video",
         lighthouse_options: {
           enabled: true,
-          categories: ['performance'],
+          categories: ["performance"],
         },
       };
 
@@ -328,10 +335,10 @@ describe('motion.detect Lighthouse統合', () => {
       expect(result.success).toBe(true);
     });
 
-    it('lighthouse_optionsは任意パラメータ', () => {
+    it("lighthouse_optionsは任意パラメータ", () => {
       const input = {
-        html: '<html><body></body></html>',
-        detection_mode: 'css',
+        html: "<html><body></body></html>",
+        detection_mode: "css",
       };
 
       const result = motionDetectInputSchema.safeParse(input);
@@ -344,11 +351,11 @@ describe('motion.detect Lighthouse統合', () => {
   // 2. ハンドラー統合テスト
   // =========================================================
 
-  describe('motionDetectHandler - Lighthouse統合', () => {
-    it('lighthouse_options.enabled=trueでLighthouseを実行', async () => {
+  describe("motionDetectHandler - Lighthouse統合", () => {
+    it("lighthouse_options.enabled=trueでLighthouseを実行", async () => {
       const input: MotionDetectInput = {
         url: sampleUrl,
-        detection_mode: 'video',
+        detection_mode: "video",
         lighthouse_options: {
           enabled: true,
         },
@@ -361,14 +368,14 @@ describe('motion.detect Lighthouse統合', () => {
       expect(result.data?.lighthouse_metrics?.performance_score).toBe(85);
       expect(mockLighthouseService.analyze).toHaveBeenCalledWith(
         sampleUrl,
-        expect.objectContaining({ categories: ['performance'] })
+        expect.objectContaining({ categories: ["performance"] })
       );
     });
 
-    it('lighthouse_options未指定時はLighthouse実行しない', async () => {
+    it("lighthouse_options未指定時はLighthouse実行しない", async () => {
       const input: MotionDetectInput = {
         url: sampleUrl,
-        detection_mode: 'video',
+        detection_mode: "video",
       };
 
       const result = await motionDetectHandler(input);
@@ -379,10 +386,10 @@ describe('motion.detect Lighthouse統合', () => {
       expect(mockLighthouseService.analyze).not.toHaveBeenCalled();
     });
 
-    it('lighthouse_options.enabled=falseでLighthouse実行しない', async () => {
+    it("lighthouse_options.enabled=falseでLighthouse実行しない", async () => {
       const input: MotionDetectInput = {
         url: sampleUrl,
-        detection_mode: 'video',
+        detection_mode: "video",
         lighthouse_options: {
           enabled: false,
         },
@@ -396,10 +403,10 @@ describe('motion.detect Lighthouse統合', () => {
       expect(mockLighthouseService.analyze).not.toHaveBeenCalled();
     });
 
-    it('Lighthouseメトリクスが出力に含まれる', async () => {
+    it("Lighthouseメトリクスが出力に含まれる", async () => {
       const input: MotionDetectInput = {
         url: sampleUrl,
-        detection_mode: 'video',
+        detection_mode: "video",
         lighthouse_options: {
           enabled: true,
         },
@@ -419,13 +426,13 @@ describe('motion.detect Lighthouse統合', () => {
       expect(metrics?.performance_score).toBe(85);
     });
 
-    it('categoriesオプションがLighthouseに渡される', async () => {
+    it("categoriesオプションがLighthouseに渡される", async () => {
       const input: MotionDetectInput = {
         url: sampleUrl,
-        detection_mode: 'video',
+        detection_mode: "video",
         lighthouse_options: {
           enabled: true,
-          categories: ['performance', 'accessibility'],
+          categories: ["performance", "accessibility"],
         },
       };
 
@@ -434,15 +441,15 @@ describe('motion.detect Lighthouse統合', () => {
       expect(mockLighthouseService.analyze).toHaveBeenCalledWith(
         sampleUrl,
         expect.objectContaining({
-          categories: ['performance', 'accessibility'],
+          categories: ["performance", "accessibility"],
         })
       );
     });
 
-    it('throttling=falseがLighthouseに渡される', async () => {
+    it("throttling=falseがLighthouseに渡される", async () => {
       const input: MotionDetectInput = {
         url: sampleUrl,
-        detection_mode: 'video',
+        detection_mode: "video",
         lighthouse_options: {
           enabled: true,
           throttling: false,
@@ -464,18 +471,18 @@ describe('motion.detect Lighthouse統合', () => {
   // 3. エラーハンドリング
   // =========================================================
 
-  describe('Lighthouseエラーハンドリング', () => {
-    it('Lighthouse実行失敗時はlighthouse_metricsがnullで返る', async () => {
+  describe("Lighthouseエラーハンドリング", () => {
+    it("Lighthouse実行失敗時はlighthouse_metricsがnullで返る", async () => {
       // Note: エラーメッセージに 'timeout' を含むとLIGHTHOUSE_TIMEOUTになるため、
       // 一般的なエラーをテスト
       const mockFailingService = createMockLighthouseDetectorService({
-        analyze: vi.fn().mockRejectedValue(new Error('Lighthouse analysis failed: Network error')),
+        analyze: vi.fn().mockRejectedValue(new Error("Lighthouse analysis failed: Network error")),
       });
       setLighthouseDetectorServiceFactory(() => mockFailingService);
 
       const input: MotionDetectInput = {
         url: sampleUrl,
-        detection_mode: 'video',
+        detection_mode: "video",
         lighthouse_options: {
           enabled: true,
         },
@@ -487,10 +494,10 @@ describe('motion.detect Lighthouse統合', () => {
       expect(result.success).toBe(true);
       expect(result.data?.lighthouse_metrics).toBeNull();
       expect(result.data?.lighthouse_error).toBeDefined();
-      expect(result.data?.lighthouse_error?.code).toBe('LIGHTHOUSE_ERROR');
+      expect(result.data?.lighthouse_error?.code).toBe("LIGHTHOUSE_ERROR");
     });
 
-    it('Lighthouseが利用不可の場合はwarningを出力', async () => {
+    it("Lighthouseが利用不可の場合はwarningを出力", async () => {
       const mockUnavailableService = createMockLighthouseDetectorService({
         isAvailable: vi.fn().mockResolvedValue(false),
       });
@@ -498,7 +505,7 @@ describe('motion.detect Lighthouse統合', () => {
 
       const input: MotionDetectInput = {
         url: sampleUrl,
-        detection_mode: 'video',
+        detection_mode: "video",
         lighthouse_options: {
           enabled: true,
         },
@@ -510,15 +517,15 @@ describe('motion.detect Lighthouse統合', () => {
       expect(result.data?.lighthouse_metrics).toBeNull();
       expect(result.data?.warnings).toContainEqual(
         expect.objectContaining({
-          code: 'LIGHTHOUSE_UNAVAILABLE',
-          severity: 'warning',
+          code: "LIGHTHOUSE_UNAVAILABLE",
+          severity: "warning",
         })
       );
     });
 
-    it('タイムアウト時に適切なエラーコードを返す', async () => {
-      const timeoutError = new Error('Lighthouse timed out');
-      (timeoutError as any).code = 'TIMEOUT';
+    it("タイムアウト時に適切なエラーコードを返す", async () => {
+      const timeoutError = new Error("Lighthouse timed out");
+      (timeoutError as any).code = "TIMEOUT";
 
       const mockTimeoutService = createMockLighthouseDetectorService({
         analyze: vi.fn().mockRejectedValue(timeoutError),
@@ -527,7 +534,7 @@ describe('motion.detect Lighthouse統合', () => {
 
       const input: MotionDetectInput = {
         url: sampleUrl,
-        detection_mode: 'video',
+        detection_mode: "video",
         lighthouse_options: {
           enabled: true,
           timeout: 60000,
@@ -537,7 +544,7 @@ describe('motion.detect Lighthouse統合', () => {
       const result = await motionDetectHandler(input);
 
       expect(result.success).toBe(true);
-      expect(result.data?.lighthouse_error?.code).toBe('LIGHTHOUSE_TIMEOUT');
+      expect(result.data?.lighthouse_error?.code).toBe("LIGHTHOUSE_TIMEOUT");
     });
   });
 
@@ -545,11 +552,11 @@ describe('motion.detect Lighthouse統合', () => {
   // 4. Video Mode + Lighthouse 統合
   // =========================================================
 
-  describe('Video Mode + Lighthouse 統合', () => {
-    it('video modeとLighthouseを同時実行できる', async () => {
+  describe("Video Mode + Lighthouse 統合", () => {
+    it("video modeとLighthouseを同時実行できる", async () => {
       const input: MotionDetectInput = {
         url: sampleUrl,
-        detection_mode: 'video',
+        detection_mode: "video",
         video_options: {
           record_duration: 3000,
         },
@@ -568,18 +575,18 @@ describe('motion.detect Lighthouse統合', () => {
       expect(result.data?.lighthouse_metrics).toBeDefined();
     });
 
-    it('Lighthouseは video mode完了後に実行される', async () => {
+    it("Lighthouseは video mode完了後に実行される", async () => {
       const callOrder: string[] = [];
 
       // 実行順序を記録するモック
       mockLighthouseService.analyze = vi.fn().mockImplementation(async () => {
-        callOrder.push('lighthouse');
+        callOrder.push("lighthouse");
         return mockLighthouseDetailedResult;
       });
 
       const input: MotionDetectInput = {
         url: sampleUrl,
-        detection_mode: 'video',
+        detection_mode: "video",
         lighthouse_options: {
           enabled: true,
         },
@@ -588,7 +595,7 @@ describe('motion.detect Lighthouse統合', () => {
       await motionDetectHandler(input);
 
       // Lighthouseが呼ばれたことを確認
-      expect(callOrder).toContain('lighthouse');
+      expect(callOrder).toContain("lighthouse");
     });
   });
 
@@ -596,11 +603,11 @@ describe('motion.detect Lighthouse統合', () => {
   // 5. 処理時間・パフォーマンス
   // =========================================================
 
-  describe('処理時間・パフォーマンス', () => {
-    it('lighthouse_processing_time_msがメタデータに含まれる', async () => {
+  describe("処理時間・パフォーマンス", () => {
+    it("lighthouse_processing_time_msがメタデータに含まれる", async () => {
       const input: MotionDetectInput = {
         url: sampleUrl,
-        detection_mode: 'video',
+        detection_mode: "video",
         lighthouse_options: {
           enabled: true,
         },
@@ -611,11 +618,11 @@ describe('motion.detect Lighthouse統合', () => {
       expect(result.success).toBe(true);
       // 実装は実際の経過時間を測定するため、0以上であることを確認
       // （モックは即座に返すのでほぼ0ms）
-      expect(typeof result.data?.metadata?.lighthouse_processing_time_ms).toBe('number');
+      expect(typeof result.data?.metadata?.lighthouse_processing_time_ms).toBe("number");
       expect(result.data?.metadata?.lighthouse_processing_time_ms).toBeGreaterThanOrEqual(0);
     });
 
-    it('Lighthouseサービスからの処理時間が適切に記録される', async () => {
+    it("Lighthouseサービスからの処理時間が適切に記録される", async () => {
       // 遅延を持つモックを設定
       // 注意: setTimeoutの精度はOS/Node.jsにより±数msの誤差があるため、
       // 十分な遅延時間と余裕のある閾値を設定
@@ -632,7 +639,7 @@ describe('motion.detect Lighthouse統合', () => {
 
       const input: MotionDetectInput = {
         url: sampleUrl,
-        detection_mode: 'video',
+        detection_mode: "video",
         lighthouse_options: {
           enabled: true,
         },
@@ -642,7 +649,9 @@ describe('motion.detect Lighthouse統合', () => {
 
       expect(result.success).toBe(true);
       // 遅延があるため、処理時間は閾値以上になるはず（タイマー精度を考慮）
-      expect(result.data?.metadata?.lighthouse_processing_time_ms).toBeGreaterThanOrEqual(minExpectedMs);
+      expect(result.data?.metadata?.lighthouse_processing_time_ms).toBeGreaterThanOrEqual(
+        minExpectedMs
+      );
     });
   });
 
@@ -650,11 +659,11 @@ describe('motion.detect Lighthouse統合', () => {
   // 6. DB保存
   // =========================================================
 
-  describe('Lighthouse結果のDB保存', () => {
-    it('save_to_db=trueでLighthouseメトリクスをDBに保存', async () => {
+  describe("Lighthouse結果のDB保存", () => {
+    it("save_to_db=trueでLighthouseメトリクスをDBに保存", async () => {
       const input: MotionDetectInput = {
         url: sampleUrl,
-        detection_mode: 'video',
+        detection_mode: "video",
         save_to_db: true,
         lighthouse_options: {
           enabled: true,
@@ -669,10 +678,10 @@ describe('motion.detect Lighthouse統合', () => {
       expect(result.data?.lighthouse_save_result?.saved).toBe(true);
     });
 
-    it('lighthouse_options.save_to_db=falseの場合はLighthouseメトリクスを保存しない', async () => {
+    it("lighthouse_options.save_to_db=falseの場合はLighthouseメトリクスを保存しない", async () => {
       const input: MotionDetectInput = {
         url: sampleUrl,
-        detection_mode: 'video',
+        detection_mode: "video",
         save_to_db: true, // motionパターンは保存
         lighthouse_options: {
           enabled: true,
@@ -712,9 +721,9 @@ import {
   type AnimationMetricsResult,
   type AnimationImpactScore,
   type PerformanceRecommendation,
-} from '../../../src/services/motion/animation-metrics-collector.service';
+} from "../../../src/services/motion/animation-metrics-collector.service";
 
-import type { MotionPattern, LighthouseMetrics } from '../../../src/tools/motion/schemas';
+import type { MotionPattern, LighthouseMetrics } from "../../../src/tools/motion/schemas";
 
 // =====================================================
 // AnimationMetricsCollector テストデータ
@@ -725,25 +734,25 @@ import type { MotionPattern, LighthouseMetrics } from '../../../src/tools/motion
  */
 const createMockMotionPattern = (overrides: Partial<MotionPattern> = {}): MotionPattern => ({
   id: `pattern-${Math.random().toString(36).slice(2, 9)}`,
-  type: 'css_animation',
-  name: 'test-animation',
-  category: 'micro_interaction',
-  trigger: 'hover',
+  type: "css_animation",
+  name: "test-animation",
+  category: "micro_interaction",
+  trigger: "hover",
   animation: {
     duration: 300,
     delay: 0,
-    easing: 'ease-out',
+    easing: "ease-out",
     iterations: 1,
-    direction: 'normal',
-    fillMode: 'none',
+    direction: "normal",
+    fillMode: "none",
   },
-  properties: ['opacity', 'transform'],
+  properties: ["opacity", "transform"],
   performance: {
     usesTransform: true,
     usesOpacity: true,
     triggersLayout: false,
     triggersPaint: false,
-    level: 'good',
+    level: "good",
   },
   ...overrides,
 });
@@ -753,15 +762,15 @@ const createMockMotionPattern = (overrides: Partial<MotionPattern> = {}): Motion
  */
 const createLayoutTriggeringPattern = (): MotionPattern =>
   createMockMotionPattern({
-    id: 'pattern-layout-trigger',
-    name: 'bad-animation',
-    properties: ['width', 'height', 'top', 'left'],
+    id: "pattern-layout-trigger",
+    name: "bad-animation",
+    properties: ["width", "height", "top", "left"],
     performance: {
       usesTransform: false,
       usesOpacity: false,
       triggersLayout: true,
       triggersPaint: true,
-      level: 'poor',
+      level: "poor",
     },
   });
 
@@ -770,25 +779,25 @@ const createLayoutTriggeringPattern = (): MotionPattern =>
  */
 const createClsCausingPattern = (): MotionPattern =>
   createMockMotionPattern({
-    id: 'pattern-cls-risk',
-    name: 'cls-animation',
-    category: 'loading_state',
-    trigger: 'load',
-    properties: ['height', 'margin', 'padding'],
+    id: "pattern-cls-risk",
+    name: "cls-animation",
+    category: "loading_state",
+    trigger: "load",
+    properties: ["height", "margin", "padding"],
     animation: {
       duration: 500,
       delay: 200, // 遅延後のサイズ変更はCLSを引き起こす
-      easing: 'ease-in-out',
+      easing: "ease-in-out",
       iterations: 1,
-      direction: 'normal',
-      fillMode: 'forwards',
+      direction: "normal",
+      fillMode: "forwards",
     },
     performance: {
       usesTransform: false,
       usesOpacity: false,
       triggersLayout: true,
       triggersPaint: true,
-      level: 'poor',
+      level: "poor",
     },
   });
 
@@ -797,15 +806,15 @@ const createClsCausingPattern = (): MotionPattern =>
  */
 const createOptimalPattern = (): MotionPattern =>
   createMockMotionPattern({
-    id: 'pattern-optimal',
-    name: 'optimal-animation',
-    properties: ['transform', 'opacity'],
+    id: "pattern-optimal",
+    name: "optimal-animation",
+    properties: ["transform", "opacity"],
     performance: {
       usesTransform: true,
       usesOpacity: true,
       triggersLayout: false,
       triggersPaint: false,
-      level: 'excellent',
+      level: "excellent",
     },
   });
 
@@ -855,7 +864,7 @@ const badTbtLighthouseMetrics: LighthouseMetrics = {
 // AnimationMetricsCollector テストスイート
 // =====================================================
 
-describe('AnimationMetricsCollector', () => {
+describe("AnimationMetricsCollector", () => {
   let collector: AnimationMetricsCollector;
 
   beforeEach(() => {
@@ -866,21 +875,21 @@ describe('AnimationMetricsCollector', () => {
   // 1. 基本インスタンス化テスト
   // =========================================================
 
-  describe('インスタンス化', () => {
-    it('AnimationMetricsCollectorをインスタンス化できる', () => {
+  describe("インスタンス化", () => {
+    it("AnimationMetricsCollectorをインスタンス化できる", () => {
       expect(collector).toBeInstanceOf(AnimationMetricsCollector);
     });
 
-    it('analyzeメソッドを持つ', () => {
-      expect(typeof collector.analyze).toBe('function');
+    it("analyzeメソッドを持つ", () => {
+      expect(typeof collector.analyze).toBe("function");
     });
 
-    it('calculateImpactScoreメソッドを持つ', () => {
-      expect(typeof collector.calculateImpactScore).toBe('function');
+    it("calculateImpactScoreメソッドを持つ", () => {
+      expect(typeof collector.calculateImpactScore).toBe("function");
     });
 
-    it('getRecommendationsメソッドを持つ', () => {
-      expect(typeof collector.getRecommendations).toBe('function');
+    it("getRecommendationsメソッドを持つ", () => {
+      expect(typeof collector.getRecommendations).toBe("function");
     });
   });
 
@@ -888,12 +897,9 @@ describe('AnimationMetricsCollector', () => {
   // 2. アニメーション影響度分析
   // =========================================================
 
-  describe('アニメーション影響度分析', () => {
-    it('MotionPatternとLighthouseメトリクスを関連付ける', async () => {
-      const patterns: MotionPattern[] = [
-        createOptimalPattern(),
-        createLayoutTriggeringPattern(),
-      ];
+  describe("アニメーション影響度分析", () => {
+    it("MotionPatternとLighthouseメトリクスを関連付ける", async () => {
+      const patterns: MotionPattern[] = [createOptimalPattern(), createLayoutTriggeringPattern()];
 
       const input: AnimationMetricsInput = {
         patterns,
@@ -908,7 +914,7 @@ describe('AnimationMetricsCollector', () => {
       expect(result.overallScore).toBeLessThanOrEqual(100);
     });
 
-    it('パフォーマンス影響の大きいアニメーションを特定', async () => {
+    it("パフォーマンス影響の大きいアニメーションを特定", async () => {
       const patterns: MotionPattern[] = [
         createOptimalPattern(),
         createLayoutTriggeringPattern(),
@@ -923,20 +929,18 @@ describe('AnimationMetricsCollector', () => {
       const result = await collector.analyze(input);
 
       // レイアウトトリガーするパターンが高影響度として検出される
-      const highImpactPatterns = result.patternImpacts.filter(
-        (p) => p.impactLevel === 'high'
-      );
+      const highImpactPatterns = result.patternImpacts.filter((p) => p.impactLevel === "high");
       expect(highImpactPatterns.length).toBeGreaterThanOrEqual(1);
 
       // レイアウトトリガーパターンが含まれる
       const layoutPattern = result.patternImpacts.find(
-        (p) => p.patternId === 'pattern-layout-trigger'
+        (p) => p.patternId === "pattern-layout-trigger"
       );
       expect(layoutPattern).toBeDefined();
-      expect(layoutPattern?.impactLevel).toBe('high');
+      expect(layoutPattern?.impactLevel).toBe("high");
     });
 
-    it('各パターンの影響度スコアを0-100で計算', async () => {
+    it("各パターンの影響度スコアを0-100で計算", async () => {
       const patterns: MotionPattern[] = [createOptimalPattern()];
 
       const input: AnimationMetricsInput = {
@@ -957,12 +961,9 @@ describe('AnimationMetricsCollector', () => {
   // 3. CLS影響分析
   // =========================================================
 
-  describe('CLS影響分析', () => {
-    it('CLSに影響するアニメーションを特定', async () => {
-      const patterns: MotionPattern[] = [
-        createOptimalPattern(),
-        createClsCausingPattern(),
-      ];
+  describe("CLS影響分析", () => {
+    it("CLSに影響するアニメーションを特定", async () => {
+      const patterns: MotionPattern[] = [createOptimalPattern(), createClsCausingPattern()];
 
       const input: AnimationMetricsInput = {
         patterns,
@@ -976,17 +977,12 @@ describe('AnimationMetricsCollector', () => {
       expect(result.clsContributors.length).toBeGreaterThanOrEqual(1);
 
       // CLS関連パターンが含まれる
-      const clsPattern = result.clsContributors.find(
-        (c) => c.patternId === 'pattern-cls-risk'
-      );
+      const clsPattern = result.clsContributors.find((c) => c.patternId === "pattern-cls-risk");
       expect(clsPattern).toBeDefined();
     });
 
-    it('CLSが良好な場合はCLS貢献者が少ない', async () => {
-      const patterns: MotionPattern[] = [
-        createOptimalPattern(),
-        createOptimalPattern(),
-      ];
+    it("CLSが良好な場合はCLS貢献者が少ない", async () => {
+      const patterns: MotionPattern[] = [createOptimalPattern(), createOptimalPattern()];
 
       const input: AnimationMetricsInput = {
         patterns,
@@ -999,26 +995,26 @@ describe('AnimationMetricsCollector', () => {
       expect(result.clsContributors.length).toBeLessThanOrEqual(1);
     });
 
-    it('遅延を持つサイズ変更アニメーションをCLSリスクとして検出', async () => {
+    it("遅延を持つサイズ変更アニメーションをCLSリスクとして検出", async () => {
       const delayedSizeChangePattern = createMockMotionPattern({
-        id: 'pattern-delayed-size',
-        name: 'delayed-size-change',
-        trigger: 'load',
-        properties: ['height', 'width'],
+        id: "pattern-delayed-size",
+        name: "delayed-size-change",
+        trigger: "load",
+        properties: ["height", "width"],
         animation: {
           duration: 300,
           delay: 500, // 500ms遅延
-          easing: 'ease',
+          easing: "ease",
           iterations: 1,
-          direction: 'normal',
-          fillMode: 'forwards',
+          direction: "normal",
+          fillMode: "forwards",
         },
         performance: {
           usesTransform: false,
           usesOpacity: false,
           triggersLayout: true,
           triggersPaint: true,
-          level: 'poor',
+          level: "poor",
         },
       });
 
@@ -1030,7 +1026,7 @@ describe('AnimationMetricsCollector', () => {
       const result = await collector.analyze(input);
 
       expect(result.clsContributors).toHaveLength(1);
-      expect(result.clsContributors[0].reason).toContain('delay');
+      expect(result.clsContributors[0].reason).toContain("delay");
     });
   });
 
@@ -1038,8 +1034,8 @@ describe('AnimationMetricsCollector', () => {
   // 4. レイアウトプロパティ検出
   // =========================================================
 
-  describe('レイアウトプロパティ検出', () => {
-    it('レイアウトをトリガーするプロパティを検出', async () => {
+  describe("レイアウトプロパティ検出", () => {
+    it("レイアウトをトリガーするプロパティを検出", async () => {
       const patterns: MotionPattern[] = [createLayoutTriggeringPattern()];
 
       const input: AnimationMetricsInput = {
@@ -1051,11 +1047,11 @@ describe('AnimationMetricsCollector', () => {
 
       // レイアウトプロパティが検出される
       expect(result.layoutTriggeringProperties).toBeDefined();
-      expect(result.layoutTriggeringProperties).toContain('width');
-      expect(result.layoutTriggeringProperties).toContain('height');
+      expect(result.layoutTriggeringProperties).toContain("width");
+      expect(result.layoutTriggeringProperties).toContain("height");
     });
 
-    it('transform/opacityのみの場合はレイアウトトリガーなし', async () => {
+    it("transform/opacityのみの場合はレイアウトトリガーなし", async () => {
       const patterns: MotionPattern[] = [createOptimalPattern()];
 
       const input: AnimationMetricsInput = {
@@ -1074,8 +1070,8 @@ describe('AnimationMetricsCollector', () => {
   // 5. パフォーマンス改善提案
   // =========================================================
 
-  describe('パフォーマンス改善提案', () => {
-    it('問題のあるアニメーションに対して改善提案を生成', async () => {
+  describe("パフォーマンス改善提案", () => {
+    it("問題のあるアニメーションに対して改善提案を生成", async () => {
       const patterns: MotionPattern[] = [
         createLayoutTriggeringPattern(),
         createClsCausingPattern(),
@@ -1092,7 +1088,7 @@ describe('AnimationMetricsCollector', () => {
       expect(result.recommendations.length).toBeGreaterThanOrEqual(1);
     });
 
-    it('改善提案にpriority/category/descriptionが含まれる', async () => {
+    it("改善提案にpriority/category/descriptionが含まれる", async () => {
       const patterns: MotionPattern[] = [createLayoutTriggeringPattern()];
 
       const input: AnimationMetricsInput = {
@@ -1110,17 +1106,17 @@ describe('AnimationMetricsCollector', () => {
       }
     });
 
-    it('レイアウトプロパティに対してtransform使用を提案', async () => {
+    it("レイアウトプロパティに対してtransform使用を提案", async () => {
       const patterns: MotionPattern[] = [
         createMockMotionPattern({
-          id: 'pattern-left-top',
-          properties: ['left', 'top'],
+          id: "pattern-left-top",
+          properties: ["left", "top"],
           performance: {
             usesTransform: false,
             usesOpacity: false,
             triggersLayout: true,
             triggersPaint: true,
-            level: 'poor',
+            level: "poor",
           },
         }),
       ];
@@ -1132,18 +1128,13 @@ describe('AnimationMetricsCollector', () => {
 
       const result = await collector.analyze(input);
 
-      const transformRec = result.recommendations.find(
-        (r) => r.category === 'use-transform'
-      );
+      const transformRec = result.recommendations.find((r) => r.category === "use-transform");
       expect(transformRec).toBeDefined();
-      expect(transformRec?.description).toContain('transform');
+      expect(transformRec?.description).toContain("transform");
     });
 
-    it('良好なパターンのみの場合は改善提案が少ない', async () => {
-      const patterns: MotionPattern[] = [
-        createOptimalPattern(),
-        createOptimalPattern(),
-      ];
+    it("良好なパターンのみの場合は改善提案が少ない", async () => {
+      const patterns: MotionPattern[] = [createOptimalPattern(), createOptimalPattern()];
 
       const input: AnimationMetricsInput = {
         patterns,
@@ -1161,8 +1152,8 @@ describe('AnimationMetricsCollector', () => {
   // 6. 単体メソッドテスト
   // =========================================================
 
-  describe('calculateImpactScore', () => {
-    it('パターンの影響度スコアを計算', () => {
+  describe("calculateImpactScore", () => {
+    it("パターンの影響度スコアを計算", () => {
       const pattern = createLayoutTriggeringPattern();
       const score = collector.calculateImpactScore(pattern, badTbtLighthouseMetrics);
 
@@ -1170,7 +1161,7 @@ describe('AnimationMetricsCollector', () => {
       expect(score).toBeLessThanOrEqual(100);
     });
 
-    it('レイアウトトリガーパターンは高スコア（悪い）', () => {
+    it("レイアウトトリガーパターンは高スコア（悪い）", () => {
       const badPattern = createLayoutTriggeringPattern();
       const goodPattern = createOptimalPattern();
 
@@ -1182,13 +1173,10 @@ describe('AnimationMetricsCollector', () => {
     });
   });
 
-  describe('getRecommendations', () => {
-    it('パターンから改善提案を生成', () => {
+  describe("getRecommendations", () => {
+    it("パターンから改善提案を生成", () => {
       const patterns: MotionPattern[] = [createLayoutTriggeringPattern()];
-      const recommendations = collector.getRecommendations(
-        patterns,
-        badTbtLighthouseMetrics
-      );
+      const recommendations = collector.getRecommendations(patterns, badTbtLighthouseMetrics);
 
       expect(recommendations).toBeDefined();
       expect(Array.isArray(recommendations)).toBe(true);
@@ -1199,8 +1187,8 @@ describe('AnimationMetricsCollector', () => {
   // 7. エッジケース
   // =========================================================
 
-  describe('エッジケース', () => {
-    it('空のパターン配列でも動作', async () => {
+  describe("エッジケース", () => {
+    it("空のパターン配列でも動作", async () => {
       const input: AnimationMetricsInput = {
         patterns: [],
         lighthouseMetrics: goodLighthouseMetrics,
@@ -1213,7 +1201,7 @@ describe('AnimationMetricsCollector', () => {
       expect(result.overallScore).toBe(100); // 問題なしは100点
     });
 
-    it('Lighthouseメトリクスがnullでも動作（graceful degradation）', async () => {
+    it("Lighthouseメトリクスがnullでも動作（graceful degradation）", async () => {
       const patterns: MotionPattern[] = [createOptimalPattern()];
 
       const input: AnimationMetricsInput = {
@@ -1229,16 +1217,16 @@ describe('AnimationMetricsCollector', () => {
       expect(result.lighthouseAvailable).toBe(false);
     });
 
-    it('無限ループアニメーションを警告', async () => {
+    it("無限ループアニメーションを警告", async () => {
       const infinitePattern = createMockMotionPattern({
-        id: 'pattern-infinite',
+        id: "pattern-infinite",
         animation: {
           duration: 1000,
           delay: 0,
-          easing: 'linear',
+          easing: "linear",
           iterations: Infinity,
-          direction: 'normal',
-          fillMode: 'none',
+          direction: "normal",
+          fillMode: "none",
         },
       });
 
@@ -1250,9 +1238,7 @@ describe('AnimationMetricsCollector', () => {
       const result = await collector.analyze(input);
 
       // 無限ループ警告
-      const infiniteRec = result.recommendations.find(
-        (r) => r.category === 'infinite-animation'
-      );
+      const infiniteRec = result.recommendations.find((r) => r.category === "infinite-animation");
       expect(infiniteRec).toBeDefined();
     });
   });
@@ -1261,12 +1247,9 @@ describe('AnimationMetricsCollector', () => {
   // 8. 出力スキーマ検証
   // =========================================================
 
-  describe('出力スキーマ検証', () => {
-    it('AnimationMetricsResultの構造が正しい', async () => {
-      const patterns: MotionPattern[] = [
-        createOptimalPattern(),
-        createLayoutTriggeringPattern(),
-      ];
+  describe("出力スキーマ検証", () => {
+    it("AnimationMetricsResultの構造が正しい", async () => {
+      const patterns: MotionPattern[] = [createOptimalPattern(), createLayoutTriggeringPattern()];
 
       const input: AnimationMetricsInput = {
         patterns,
@@ -1276,24 +1259,24 @@ describe('AnimationMetricsCollector', () => {
       const result = await collector.analyze(input);
 
       // 必須フィールド検証
-      expect(result).toHaveProperty('patternImpacts');
-      expect(result).toHaveProperty('overallScore');
-      expect(result).toHaveProperty('clsContributors');
-      expect(result).toHaveProperty('layoutTriggeringProperties');
-      expect(result).toHaveProperty('recommendations');
-      expect(result).toHaveProperty('lighthouseAvailable');
-      expect(result).toHaveProperty('analyzedAt');
+      expect(result).toHaveProperty("patternImpacts");
+      expect(result).toHaveProperty("overallScore");
+      expect(result).toHaveProperty("clsContributors");
+      expect(result).toHaveProperty("layoutTriggeringProperties");
+      expect(result).toHaveProperty("recommendations");
+      expect(result).toHaveProperty("lighthouseAvailable");
+      expect(result).toHaveProperty("analyzedAt");
 
       // 型検証
-      expect(typeof result.overallScore).toBe('number');
-      expect(typeof result.lighthouseAvailable).toBe('boolean');
+      expect(typeof result.overallScore).toBe("number");
+      expect(typeof result.lighthouseAvailable).toBe("boolean");
       expect(Array.isArray(result.patternImpacts)).toBe(true);
       expect(Array.isArray(result.clsContributors)).toBe(true);
       expect(Array.isArray(result.layoutTriggeringProperties)).toBe(true);
       expect(Array.isArray(result.recommendations)).toBe(true);
     });
 
-    it('AnimationImpactScoreの構造が正しい', async () => {
+    it("AnimationImpactScoreの構造が正しい", async () => {
       const patterns: MotionPattern[] = [createLayoutTriggeringPattern()];
 
       const input: AnimationMetricsInput = {
@@ -1304,13 +1287,13 @@ describe('AnimationMetricsCollector', () => {
       const result = await collector.analyze(input);
       const impact = result.patternImpacts[0];
 
-      expect(impact).toHaveProperty('patternId');
-      expect(impact).toHaveProperty('patternName');
-      expect(impact).toHaveProperty('score');
-      expect(impact).toHaveProperty('impactLevel');
-      expect(impact).toHaveProperty('factors');
+      expect(impact).toHaveProperty("patternId");
+      expect(impact).toHaveProperty("patternName");
+      expect(impact).toHaveProperty("score");
+      expect(impact).toHaveProperty("impactLevel");
+      expect(impact).toHaveProperty("factors");
 
-      expect(['high', 'medium', 'low']).toContain(impact.impactLevel);
+      expect(["high", "medium", "low"]).toContain(impact.impactLevel);
       expect(Array.isArray(impact.factors)).toBe(true);
     });
   });

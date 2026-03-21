@@ -26,22 +26,22 @@
  * @module tests/benchmark/page-analyze.bench
  */
 
-import { describe, it, expect, beforeAll, afterAll, beforeEach, afterEach } from 'vitest';
-import { performance } from 'perf_hooks';
+import { describe, it, expect, beforeAll, afterAll, beforeEach, afterEach } from "vitest";
+import { performance } from "perf_hooks";
 
 // Service imports
 import {
   getLayoutAnalyzerService,
   type LayoutAnalysisResult,
-} from '../../src/services/page/layout-analyzer.service';
+} from "../../src/services/page/layout-analyzer.service";
 import {
   getMotionDetectorService,
   type MotionDetectionResult,
-} from '../../src/services/page/motion-detector.service';
+} from "../../src/services/page/motion-detector.service";
 import {
   getQualityEvaluatorService,
   type QualityEvaluationResult,
-} from '../../src/services/page/quality-evaluator.service';
+} from "../../src/services/page/quality-evaluator.service";
 
 // Handler import (for full integration test)
 import {
@@ -52,24 +52,24 @@ import {
   resetPageAnalyzePrismaClientFactory,
   type IPageAnalyzeService,
   type IPageAnalyzePrismaClient,
-} from '../../src/tools/page/analyze.tool';
+} from "../../src/tools/page/analyze.tool";
 
-import type { PageAnalyzeInput, PageAnalyzeOutput } from '../../src/tools/page/schemas';
+import type { PageAnalyzeInput, PageAnalyzeOutput } from "../../src/tools/page/schemas";
 
 // =====================================================
 // SLO定義（Service Level Objectives）
 // =====================================================
 
 export const PAGE_ANALYZE_SLO = {
-  'html.fetch': { p95: 5000, p99: 10000 },
-  'layout.analyze': { p95: 2000, p99: 4000 },
-  'motion.detect': { p95: 3000, p99: 6000 },
-  'quality.evaluate': { p95: 2000, p99: 4000 },
-  'db.save': { p95: 500, p99: 1000 },
-  'embedding.generate': { p95: 1000, p99: 2000 },
-  'total': { p95: 10000, p99: 20000 },
+  "html.fetch": { p95: 5000, p99: 10000 },
+  "layout.analyze": { p95: 2000, p99: 4000 },
+  "motion.detect": { p95: 3000, p99: 6000 },
+  "quality.evaluate": { p95: 2000, p99: 4000 },
+  "db.save": { p95: 500, p99: 1000 },
+  "embedding.generate": { p95: 1000, p99: 2000 },
+  total: { p95: 10000, p99: 20000 },
   // Video mode（フレームキャプチャ無効時）
-  'total_no_video': { p95: 8000, p99: 15000 },
+  total_no_video: { p95: 8000, p99: 15000 },
 } as const;
 
 export type BenchmarkTarget = keyof typeof PAGE_ANALYZE_SLO;
@@ -277,24 +277,30 @@ const COMPLEX_HTML = `
   <title>Enterprise Dashboard</title>
   <style>
     /* 多数のキーフレームアニメーション */
-    ${Array.from({ length: 20 }, (_, i) => `
+    ${Array.from(
+      { length: 20 },
+      (_, i) => `
     @keyframes animation${i} {
       0% { opacity: 0; transform: translateY(${10 + i * 2}px); }
       100% { opacity: 1; transform: translateY(0); }
     }
     .animate-${i} { animation: animation${i} ${0.3 + i * 0.05}s ease-out; }
-    `).join('\n')}
+    `
+    ).join("\n")}
 
     /* 多数のトランジション */
-    ${Array.from({ length: 20 }, (_, i) => `
+    ${Array.from(
+      { length: 20 },
+      (_, i) => `
     .transition-${i} {
       transition: all ${0.2 + i * 0.02}s ease;
     }
     .transition-${i}:hover {
-      transform: scale(1.0${5 + i % 5});
+      transform: scale(1.0${5 + (i % 5)});
       box-shadow: 0 ${4 + i}px ${20 + i * 2}px rgba(0, 0, 0, 0.1);
     }
-    `).join('\n')}
+    `
+    ).join("\n")}
 
     /* Reduced motion support */
     @media (prefers-reduced-motion: reduce) {
@@ -317,9 +323,12 @@ const COMPLEX_HTML = `
   <div class="dashboard">
     <aside class="sidebar animate-0">
       <nav>
-        ${Array.from({ length: 10 }, (_, i) => `
+        ${Array.from(
+          { length: 10 },
+          (_, i) => `
         <a href="/nav${i}" class="nav-item transition-${i}">Navigation ${i + 1}</a>
-        `).join('\n')}
+        `
+        ).join("\n")}
       </nav>
     </aside>
     <main class="main-content">
@@ -330,13 +339,16 @@ const COMPLEX_HTML = `
       <section class="metrics animate-2">
         <h2>Key Metrics</h2>
         <div class="metric-grid">
-          ${Array.from({ length: 6 }, (_, i) => `
+          ${Array.from(
+            { length: 6 },
+            (_, i) => `
           <article class="card transition-${i}">
             <h3>Metric ${i + 1}</h3>
             <p class="value">${Math.floor(Math.random() * 10000)}</p>
             <span class="trend">+${(Math.random() * 20).toFixed(1)}%</span>
           </article>
-          `).join('\n')}
+          `
+          ).join("\n")}
         </div>
       </section>
 
@@ -361,28 +373,34 @@ const COMPLEX_HTML = `
             </tr>
           </thead>
           <tbody>
-            ${Array.from({ length: 20 }, (_, i) => `
+            ${Array.from(
+              { length: 20 },
+              (_, i) => `
             <tr class="transition-${i % 10}">
               <td>${1000 + i}</td>
               <td>User ${i + 1}</td>
               <td>Action Type ${i % 5}</td>
-              <td>2025-12-${String(i + 1).padStart(2, '0')}</td>
-              <td>${['Active', 'Pending', 'Completed'][i % 3]}</td>
+              <td>2025-12-${String(i + 1).padStart(2, "0")}</td>
+              <td>${["Active", "Pending", "Completed"][i % 3]}</td>
             </tr>
-            `).join('\n')}
+            `
+            ).join("\n")}
           </tbody>
         </table>
       </section>
 
       <section class="widgets animate-5">
         <h2>Quick Actions</h2>
-        ${Array.from({ length: 8 }, (_, i) => `
+        ${Array.from(
+          { length: 8 },
+          (_, i) => `
         <article class="card transition-${i + 10}">
           <h3>Widget ${i + 1}</h3>
           <p>Description for widget ${i + 1}</p>
           <button class="btn transition-${i}">Action</button>
         </article>
-        `).join('\n')}
+        `
+        ).join("\n")}
       </section>
     </main>
   </div>
@@ -497,8 +515,8 @@ async function runBenchmark(
 
 function formatMetrics(target: BenchmarkTarget, metrics: BenchmarkMetrics): string {
   const slo = PAGE_ANALYZE_SLO[target];
-  const p95Status = metrics.passesP95 ? 'PASS' : 'FAIL';
-  const p99Status = metrics.passesP99 ? 'PASS' : 'FAIL';
+  const p95Status = metrics.passesP95 ? "PASS" : "FAIL";
+  const p99Status = metrics.passesP99 ? "PASS" : "FAIL";
 
   return `
 ${target}:
@@ -525,7 +543,7 @@ function createMockFetchHtml(html: string, delay = 100) {
     _url: string,
     _options: {
       timeout?: number;
-      waitUntil?: 'load' | 'domcontentloaded' | 'networkidle';
+      waitUntil?: "load" | "domcontentloaded" | "networkidle";
       viewport?: { width: number; height: number };
     }
   ) => {
@@ -533,8 +551,8 @@ function createMockFetchHtml(html: string, delay = 100) {
     await new Promise((resolve) => setTimeout(resolve, delay));
     return {
       html,
-      title: 'Test Page',
-      description: 'Test Description',
+      title: "Test Page",
+      description: "Test Description",
       screenshot: undefined,
     };
   };
@@ -543,18 +561,18 @@ function createMockFetchHtml(html: string, delay = 100) {
 function createMockPrismaClient(): IPageAnalyzePrismaClient {
   return {
     webPage: {
-      create: async (args) => ({ id: args.data.id ?? 'mock-web-page-id' }),
+      create: async (args) => ({ id: args.data.id ?? "mock-web-page-id" }),
     },
     sectionPattern: {
-      create: async (args) => ({ id: args.data.id ?? 'mock-section-id' }),
+      create: async (args) => ({ id: args.data.id ?? "mock-section-id" }),
       createMany: async (args) => ({ count: args.data.length }),
     },
     motionPattern: {
-      create: async (args) => ({ id: args.data.id ?? 'mock-motion-id' }),
+      create: async (args) => ({ id: args.data.id ?? "mock-motion-id" }),
       createMany: async (args) => ({ count: args.data.length }),
     },
     qualityEvaluation: {
-      create: async (args) => ({ id: args.data.id ?? 'mock-quality-id' }),
+      create: async (args) => ({ id: args.data.id ?? "mock-quality-id" }),
     },
     $transaction: async <T>(fn: (tx: IPageAnalyzePrismaClient) => Promise<T>) => {
       return fn(createMockPrismaClient());
@@ -567,20 +585,20 @@ function createMockPrismaClient(): IPageAnalyzePrismaClient {
 // ベンチマークテスト
 // =====================================================
 
-describe('page.analyze Performance Benchmark', () => {
+describe("page.analyze Performance Benchmark", () => {
   const benchmarkResults: Record<string, BenchmarkMetrics> = {};
   let memoryBefore: MemoryMetrics;
   let memoryAfter: MemoryMetrics;
 
   beforeAll(() => {
     memoryBefore = measureMemory();
-    console.log('\n=== page.analyze Performance Benchmark ===\n');
-    console.log('Memory Before:', JSON.stringify(memoryBefore, null, 2));
+    console.log("\n=== page.analyze Performance Benchmark ===\n");
+    console.log("Memory Before:", JSON.stringify(memoryBefore, null, 2));
   });
 
   afterAll(() => {
     memoryAfter = measureMemory();
-    console.log('\n=== Benchmark Summary ===\n');
+    console.log("\n=== Benchmark Summary ===\n");
 
     // 結果サマリー（手動フォーマット）
     for (const [label, metrics] of Object.entries(benchmarkResults)) {
@@ -594,14 +612,16 @@ describe('page.analyze Performance Benchmark', () => {
       console.log(`  P50: ${metrics.p50.toFixed(2)}ms`);
       console.log(`  P75: ${metrics.p75.toFixed(2)}ms`);
       console.log(`  P90: ${metrics.p90.toFixed(2)}ms`);
-      console.log(`  P95: ${metrics.p95.toFixed(2)}ms [${metrics.passesP95 ? 'PASS' : 'FAIL'}]`);
-      console.log(`  P99: ${metrics.p99.toFixed(2)}ms [${metrics.passesP99 ? 'PASS' : 'FAIL'}]`);
-      console.log('');
+      console.log(`  P95: ${metrics.p95.toFixed(2)}ms [${metrics.passesP95 ? "PASS" : "FAIL"}]`);
+      console.log(`  P99: ${metrics.p99.toFixed(2)}ms [${metrics.passesP99 ? "PASS" : "FAIL"}]`);
+      console.log("");
     }
 
     // メモリ使用量
-    console.log('Memory After:', JSON.stringify(memoryAfter, null, 2));
-    console.log(`Memory Delta (Heap Used): ${(memoryAfter.heapUsedMB - memoryBefore.heapUsedMB).toFixed(2)}MB`);
+    console.log("Memory After:", JSON.stringify(memoryAfter, null, 2));
+    console.log(
+      `Memory Delta (Heap Used): ${(memoryAfter.heapUsedMB - memoryBefore.heapUsedMB).toFixed(2)}MB`
+    );
   });
 
   beforeEach(() => {
@@ -618,9 +638,9 @@ describe('page.analyze Performance Benchmark', () => {
   // 個別サービスベンチマーク
   // =====================================================
 
-  describe('Individual Service Benchmarks', () => {
-    describe('Layout Analysis', () => {
-      it('should analyze simple HTML within SLO', async () => {
+  describe("Individual Service Benchmarks", () => {
+    describe("Layout Analysis", () => {
+      it("should analyze simple HTML within SLO", async () => {
         const layoutAnalyzer = getLayoutAnalyzerService();
 
         const metrics = await runBenchmark(async () => {
@@ -628,15 +648,15 @@ describe('page.analyze Performance Benchmark', () => {
             includeContent: true,
             includeStyles: true,
           });
-        }, 'layout.analyze');
+        }, "layout.analyze");
 
-        benchmarkResults['layout.analyze (simple)'] = metrics;
-        console.log(formatMetrics('layout.analyze', metrics));
+        benchmarkResults["layout.analyze (simple)"] = metrics;
+        console.log(formatMetrics("layout.analyze", metrics));
 
         expect(metrics.passesP95).toBe(true);
       });
 
-      it('should analyze landing page HTML within SLO', async () => {
+      it("should analyze landing page HTML within SLO", async () => {
         const layoutAnalyzer = getLayoutAnalyzerService();
 
         const metrics = await runBenchmark(async () => {
@@ -644,15 +664,15 @@ describe('page.analyze Performance Benchmark', () => {
             includeContent: true,
             includeStyles: true,
           });
-        }, 'layout.analyze');
+        }, "layout.analyze");
 
-        benchmarkResults['layout.analyze (landing)'] = metrics;
-        console.log(formatMetrics('layout.analyze', metrics));
+        benchmarkResults["layout.analyze (landing)"] = metrics;
+        console.log(formatMetrics("layout.analyze", metrics));
 
         expect(metrics.passesP95).toBe(true);
       });
 
-      it('should analyze complex HTML within SLO', async () => {
+      it("should analyze complex HTML within SLO", async () => {
         const layoutAnalyzer = getLayoutAnalyzerService();
 
         const metrics = await runBenchmark(async () => {
@@ -660,17 +680,17 @@ describe('page.analyze Performance Benchmark', () => {
             includeContent: true,
             includeStyles: true,
           });
-        }, 'layout.analyze');
+        }, "layout.analyze");
 
-        benchmarkResults['layout.analyze (complex)'] = metrics;
-        console.log(formatMetrics('layout.analyze', metrics));
+        benchmarkResults["layout.analyze (complex)"] = metrics;
+        console.log(formatMetrics("layout.analyze", metrics));
 
         expect(metrics.passesP95).toBe(true);
       });
     });
 
-    describe('Motion Detection', () => {
-      it('should detect motion in simple HTML within SLO', async () => {
+    describe("Motion Detection", () => {
+      it("should detect motion in simple HTML within SLO", async () => {
         const motionDetector = getMotionDetectorService();
 
         const metrics = await runBenchmark(async () => {
@@ -681,15 +701,15 @@ describe('page.analyze Performance Benchmark', () => {
             maxPatterns: 100,
             verbose: false,
           });
-        }, 'motion.detect');
+        }, "motion.detect");
 
-        benchmarkResults['motion.detect (simple)'] = metrics;
-        console.log(formatMetrics('motion.detect', metrics));
+        benchmarkResults["motion.detect (simple)"] = metrics;
+        console.log(formatMetrics("motion.detect", metrics));
 
         expect(metrics.passesP95).toBe(true);
       });
 
-      it('should detect motion in landing page HTML within SLO', async () => {
+      it("should detect motion in landing page HTML within SLO", async () => {
         const motionDetector = getMotionDetectorService();
 
         const metrics = await runBenchmark(async () => {
@@ -700,15 +720,15 @@ describe('page.analyze Performance Benchmark', () => {
             maxPatterns: 100,
             verbose: false,
           });
-        }, 'motion.detect');
+        }, "motion.detect");
 
-        benchmarkResults['motion.detect (landing)'] = metrics;
-        console.log(formatMetrics('motion.detect', metrics));
+        benchmarkResults["motion.detect (landing)"] = metrics;
+        console.log(formatMetrics("motion.detect", metrics));
 
         expect(metrics.passesP95).toBe(true);
       });
 
-      it('should detect motion in complex HTML within SLO', async () => {
+      it("should detect motion in complex HTML within SLO", async () => {
         const motionDetector = getMotionDetectorService();
 
         const metrics = await runBenchmark(async () => {
@@ -719,57 +739,57 @@ describe('page.analyze Performance Benchmark', () => {
             maxPatterns: 100,
             verbose: false,
           });
-        }, 'motion.detect');
+        }, "motion.detect");
 
-        benchmarkResults['motion.detect (complex)'] = metrics;
-        console.log(formatMetrics('motion.detect', metrics));
+        benchmarkResults["motion.detect (complex)"] = metrics;
+        console.log(formatMetrics("motion.detect", metrics));
 
         expect(metrics.passesP95).toBe(true);
       });
     });
 
-    describe('Quality Evaluation', () => {
-      it('should evaluate simple HTML within SLO', async () => {
+    describe("Quality Evaluation", () => {
+      it("should evaluate simple HTML within SLO", async () => {
         const qualityEvaluator = getQualityEvaluatorService();
 
         const metrics = await runBenchmark(async () => {
           await qualityEvaluator.evaluate(SIMPLE_HTML, {
             includeRecommendations: true,
           });
-        }, 'quality.evaluate');
+        }, "quality.evaluate");
 
-        benchmarkResults['quality.evaluate (simple)'] = metrics;
-        console.log(formatMetrics('quality.evaluate', metrics));
+        benchmarkResults["quality.evaluate (simple)"] = metrics;
+        console.log(formatMetrics("quality.evaluate", metrics));
 
         expect(metrics.passesP95).toBe(true);
       });
 
-      it('should evaluate landing page HTML within SLO', async () => {
+      it("should evaluate landing page HTML within SLO", async () => {
         const qualityEvaluator = getQualityEvaluatorService();
 
         const metrics = await runBenchmark(async () => {
           await qualityEvaluator.evaluate(LANDING_PAGE_HTML, {
             includeRecommendations: true,
           });
-        }, 'quality.evaluate');
+        }, "quality.evaluate");
 
-        benchmarkResults['quality.evaluate (landing)'] = metrics;
-        console.log(formatMetrics('quality.evaluate', metrics));
+        benchmarkResults["quality.evaluate (landing)"] = metrics;
+        console.log(formatMetrics("quality.evaluate", metrics));
 
         expect(metrics.passesP95).toBe(true);
       });
 
-      it('should evaluate complex HTML within SLO', async () => {
+      it("should evaluate complex HTML within SLO", async () => {
         const qualityEvaluator = getQualityEvaluatorService();
 
         const metrics = await runBenchmark(async () => {
           await qualityEvaluator.evaluate(COMPLEX_HTML, {
             includeRecommendations: true,
           });
-        }, 'quality.evaluate');
+        }, "quality.evaluate");
 
-        benchmarkResults['quality.evaluate (complex)'] = metrics;
-        console.log(formatMetrics('quality.evaluate', metrics));
+        benchmarkResults["quality.evaluate (complex)"] = metrics;
+        console.log(formatMetrics("quality.evaluate", metrics));
 
         expect(metrics.passesP95).toBe(true);
       });
@@ -780,8 +800,8 @@ describe('page.analyze Performance Benchmark', () => {
   // 並列実行ベンチマーク
   // =====================================================
 
-  describe('Parallel Execution Benchmarks', () => {
-    it('should run layout/motion/quality in parallel within SLO', async () => {
+  describe("Parallel Execution Benchmarks", () => {
+    it("should run layout/motion/quality in parallel within SLO", async () => {
       const layoutAnalyzer = getLayoutAnalyzerService();
       const motionDetector = getMotionDetectorService();
       const qualityEvaluator = getQualityEvaluatorService();
@@ -805,16 +825,16 @@ describe('page.analyze Performance Benchmark', () => {
             includeRecommendations: true,
           }),
         ]);
-      }, 'total_no_video');
+      }, "total_no_video");
 
-      benchmarkResults['parallel (landing, no video)'] = metrics;
-      console.log(formatMetrics('total_no_video', metrics));
+      benchmarkResults["parallel (landing, no video)"] = metrics;
+      console.log(formatMetrics("total_no_video", metrics));
 
       // 並列実行なので個別SLOより速いはず
       expect(metrics.passesP95).toBe(true);
     });
 
-    it('should run parallel analysis on complex HTML within SLO', async () => {
+    it("should run parallel analysis on complex HTML within SLO", async () => {
       const layoutAnalyzer = getLayoutAnalyzerService();
       const motionDetector = getMotionDetectorService();
       const qualityEvaluator = getQualityEvaluatorService();
@@ -838,10 +858,10 @@ describe('page.analyze Performance Benchmark', () => {
             includeRecommendations: true,
           }),
         ]);
-      }, 'total_no_video');
+      }, "total_no_video");
 
-      benchmarkResults['parallel (complex, no video)'] = metrics;
-      console.log(formatMetrics('total_no_video', metrics));
+      benchmarkResults["parallel (complex, no video)"] = metrics;
+      console.log(formatMetrics("total_no_video", metrics));
 
       expect(metrics.passesP95).toBe(true);
     });
@@ -851,8 +871,8 @@ describe('page.analyze Performance Benchmark', () => {
   // 統合ベンチマーク（モック利用）
   // =====================================================
 
-  describe('Integration Benchmarks (with mocks)', () => {
-    it('should complete full analysis with mocked fetch within SLO', async () => {
+  describe("Integration Benchmarks (with mocks)", () => {
+    it("should complete full analysis with mocked fetch within SLO", async () => {
       // モックサービスファクトリを設定
       const mockService: IPageAnalyzeService = {
         fetchHtml: createMockFetchHtml(LANDING_PAGE_HTML, 50), // 50ms模擬遅延
@@ -861,13 +881,13 @@ describe('page.analyze Performance Benchmark', () => {
       setPageAnalyzePrismaClientFactory(() => createMockPrismaClient());
 
       const input: PageAnalyzeInput = {
-        url: 'https://example.com',
+        url: "https://example.com",
         features: { layout: true, motion: true, quality: true },
         summary: true,
         timeout: 60000,
-        waitUntil: 'load',
-        sourceType: 'user_provided',
-        usageScope: 'inspiration_only',
+        waitUntil: "load",
+        sourceType: "user_provided",
+        usageScope: "inspiration_only",
         async: false, // 同期モードを強制（auto-async Vision回避）
         auto_timeout: false, // pre-flight probeオーバーヘッド回避
         layoutOptions: { useVision: false }, // Vision処理をスキップ
@@ -879,18 +899,22 @@ describe('page.analyze Performance Benchmark', () => {
         },
       };
 
-      const metrics = await runBenchmark(async () => {
-        const result = await pageAnalyzeHandler(input);
-        expect((result as PageAnalyzeOutput).success).toBe(true);
-      }, 'total_no_video', { iterations: 5, warmup: 2 });
+      const metrics = await runBenchmark(
+        async () => {
+          const result = await pageAnalyzeHandler(input);
+          expect((result as PageAnalyzeOutput).success).toBe(true);
+        },
+        "total_no_video",
+        { iterations: 5, warmup: 2 }
+      );
 
-      benchmarkResults['integration (landing, mocked)'] = metrics;
-      console.log(formatMetrics('total_no_video', metrics));
+      benchmarkResults["integration (landing, mocked)"] = metrics;
+      console.log(formatMetrics("total_no_video", metrics));
 
       expect(metrics.passesP95).toBe(true);
     });
 
-    it('should complete complex analysis with mocked fetch within SLO', async () => {
+    it("should complete complex analysis with mocked fetch within SLO", async () => {
       const mockService: IPageAnalyzeService = {
         fetchHtml: createMockFetchHtml(COMPLEX_HTML, 50),
       };
@@ -898,13 +922,13 @@ describe('page.analyze Performance Benchmark', () => {
       setPageAnalyzePrismaClientFactory(() => createMockPrismaClient());
 
       const input: PageAnalyzeInput = {
-        url: 'https://example.com/complex',
+        url: "https://example.com/complex",
         features: { layout: true, motion: true, quality: true },
         summary: true,
         timeout: 60000,
-        waitUntil: 'load',
-        sourceType: 'user_provided',
-        usageScope: 'inspiration_only',
+        waitUntil: "load",
+        sourceType: "user_provided",
+        usageScope: "inspiration_only",
         async: false, // 同期モードを強制（auto-async Vision回避）
         auto_timeout: false, // pre-flight probeオーバーヘッド回避
         layoutOptions: { useVision: false }, // Vision処理をスキップ
@@ -916,18 +940,22 @@ describe('page.analyze Performance Benchmark', () => {
         },
       };
 
-      const metrics = await runBenchmark(async () => {
-        const result = await pageAnalyzeHandler(input);
-        expect((result as PageAnalyzeOutput).success).toBe(true);
-      }, 'total_no_video', { iterations: 5, warmup: 2 });
+      const metrics = await runBenchmark(
+        async () => {
+          const result = await pageAnalyzeHandler(input);
+          expect((result as PageAnalyzeOutput).success).toBe(true);
+        },
+        "total_no_video",
+        { iterations: 5, warmup: 2 }
+      );
 
-      benchmarkResults['integration (complex, mocked)'] = metrics;
-      console.log(formatMetrics('total_no_video', metrics));
+      benchmarkResults["integration (complex, mocked)"] = metrics;
+      console.log(formatMetrics("total_no_video", metrics));
 
       expect(metrics.passesP95).toBe(true);
     });
 
-    it('should handle DB save operations within SLO', async () => {
+    it("should handle DB save operations within SLO", async () => {
       const mockPrisma = createMockPrismaClient();
 
       const metrics = await runBenchmark(async () => {
@@ -935,18 +963,18 @@ describe('page.analyze Performance Benchmark', () => {
         await mockPrisma.$transaction(async (tx) => {
           await tx.webPage.create({
             data: {
-              id: 'test-id',
-              url: 'https://example.com',
+              id: "test-id",
+              url: "https://example.com",
               htmlContent: LANDING_PAGE_HTML,
-              sourceType: 'user_provided',
-              usageScope: 'inspiration_only',
+              sourceType: "user_provided",
+              usageScope: "inspiration_only",
             },
           });
           await tx.sectionPattern.createMany({
             data: Array.from({ length: 10 }, (_, i) => ({
               id: `section-${i}`,
-              webPageId: 'test-id',
-              type: 'feature',
+              webPageId: "test-id",
+              type: "feature",
               positionIndex: i,
               confidence: 0.9,
             })),
@@ -954,31 +982,31 @@ describe('page.analyze Performance Benchmark', () => {
           await tx.motionPattern.createMany({
             data: Array.from({ length: 5 }, (_, i) => ({
               id: `motion-${i}`,
-              webPageId: 'test-id',
+              webPageId: "test-id",
               name: `animation-${i}`,
-              category: 'entrance',
-              triggerType: 'load',
+              category: "entrance",
+              triggerType: "load",
               animation: { duration: 300 },
-              properties: ['opacity'],
+              properties: ["opacity"],
             })),
           });
           await tx.qualityEvaluation.create({
             data: {
-              id: 'quality-id',
-              targetType: 'web_page',
-              targetId: 'test-id',
+              id: "quality-id",
+              targetType: "web_page",
+              targetId: "test-id",
               overallScore: 85,
-              grade: 'B',
+              grade: "B",
               originalityScore: 80,
               craftsmanshipScore: 85,
               contextualityScore: 90,
             },
           });
         });
-      }, 'db.save');
+      }, "db.save");
 
-      benchmarkResults['db.save (mock)'] = metrics;
-      console.log(formatMetrics('db.save', metrics));
+      benchmarkResults["db.save (mock)"] = metrics;
+      console.log(formatMetrics("db.save", metrics));
 
       expect(metrics.passesP95).toBe(true);
     });
@@ -988,26 +1016,26 @@ describe('page.analyze Performance Benchmark', () => {
   // 境界条件テスト
   // =====================================================
 
-  describe('Edge Case Benchmarks', () => {
-    it('should handle empty HTML gracefully', async () => {
+  describe("Edge Case Benchmarks", () => {
+    it("should handle empty HTML gracefully", async () => {
       const layoutAnalyzer = getLayoutAnalyzerService();
 
       const metrics = await runBenchmark(async () => {
-        await layoutAnalyzer.analyze('', {
+        await layoutAnalyzer.analyze("", {
           includeContent: true,
           includeStyles: true,
         });
-      }, 'layout.analyze');
+      }, "layout.analyze");
 
-      benchmarkResults['layout.analyze (empty)'] = metrics;
-      console.log(formatMetrics('layout.analyze', metrics));
+      benchmarkResults["layout.analyze (empty)"] = metrics;
+      console.log(formatMetrics("layout.analyze", metrics));
 
       // 空HTMLは非常に高速であるべき
       expect(metrics.p95).toBeLessThan(100);
     });
 
-    it('should handle minimal HTML', async () => {
-      const minimalHtml = '<html><body></body></html>';
+    it("should handle minimal HTML", async () => {
+      const minimalHtml = "<html><body></body></html>";
       const layoutAnalyzer = getLayoutAnalyzerService();
 
       const metrics = await runBenchmark(async () => {
@@ -1015,10 +1043,10 @@ describe('page.analyze Performance Benchmark', () => {
           includeContent: true,
           includeStyles: true,
         });
-      }, 'layout.analyze');
+      }, "layout.analyze");
 
-      benchmarkResults['layout.analyze (minimal)'] = metrics;
-      console.log(formatMetrics('layout.analyze', metrics));
+      benchmarkResults["layout.analyze (minimal)"] = metrics;
+      console.log(formatMetrics("layout.analyze", metrics));
 
       expect(metrics.p95).toBeLessThan(100);
     });

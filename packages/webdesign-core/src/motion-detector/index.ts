@@ -9,10 +9,10 @@
  * @module @reftrix/webdesign-core/motion-detector
  */
 
-import { load as loadCheerio, type CheerioAPI } from 'cheerio';
-import type { Element } from 'domhandler';
-import * as csstree from 'css-tree';
-import { v4 as uuidv4 } from 'uuid';
+import { load as loadCheerio, type CheerioAPI } from "cheerio";
+import type { Element } from "domhandler";
+import * as csstree from "css-tree";
+import { v4 as uuidv4 } from "uuid";
 
 // =========================================
 // Type Definitions - Re-exported from types.ts
@@ -28,7 +28,7 @@ export type {
   KeyframeStep,
   MotionDetectorOptions,
   CSSStyleProperties,
-} from './types';
+} from "./types";
 
 // ローカルで使用するためインポート
 import type {
@@ -40,7 +40,7 @@ import type {
   KeyframeStep,
   MotionDetectorOptions,
   CSSStyleProperties,
-} from './types';
+} from "./types";
 
 // =========================================
 // Constants
@@ -48,17 +48,17 @@ import type {
 
 /** レイアウトトリガーするプロパティ（パフォーマンス警告対象） */
 const LAYOUT_TRIGGERING_PROPERTIES = [
-  'width',
-  'height',
-  'top',
-  'left',
-  'right',
-  'bottom',
-  'margin',
-  'padding',
-  'border-width',
-  'font-size',
-  'line-height',
+  "width",
+  "height",
+  "top",
+  "left",
+  "right",
+  "bottom",
+  "margin",
+  "padding",
+  "border-width",
+  "font-size",
+  "line-height",
 ];
 
 /**
@@ -66,24 +66,20 @@ const LAYOUT_TRIGGERING_PROPERTIES = [
  * 将来の拡張用にエクスポート
  */
 export const PAINT_TRIGGERING_PROPERTIES = [
-  'color',
-  'background-color',
-  'background-image',
-  'box-shadow',
-  'text-shadow',
-  'border-radius',
-  'outline',
+  "color",
+  "background-color",
+  "background-image",
+  "box-shadow",
+  "text-shadow",
+  "border-radius",
+  "outline",
 ] as const;
 
 /**
  * GPUアクセラレーション対応プロパティ（推奨）
  * 将来の拡張用にエクスポート
  */
-export const GPU_ACCELERATED_PROPERTIES = [
-  'transform',
-  'opacity',
-  'filter',
-] as const;
+export const GPU_ACCELERATED_PROPERTIES = ["transform", "opacity", "filter"] as const;
 
 /** 長時間アニメーションの閾値（ミリ秒） */
 const LONG_DURATION_THRESHOLD = 5000;
@@ -123,9 +119,9 @@ export class MotionDetector {
   constructor(options?: MotionDetectorOptions) {
     this.options = { ...DEFAULT_OPTIONS, ...options };
 
-    if (process.env.NODE_ENV === 'development') {
+    if (process.env.NODE_ENV === "development") {
       // eslint-disable-next-line no-console -- Intentional debug log in development
-      console.log('[MotionDetector] Initialized with options:', this.options);
+      console.log("[MotionDetector] Initialized with options:", this.options);
     }
   }
 
@@ -137,9 +133,9 @@ export class MotionDetector {
    * @returns モーション検出結果
    */
   public detect(html: string, css?: string): MotionDetectionResult {
-    if (process.env.NODE_ENV === 'development') {
+    if (process.env.NODE_ENV === "development") {
       // eslint-disable-next-line no-console -- Intentional debug log in development
-      console.log('[MotionDetector] Starting detection...');
+      console.log("[MotionDetector] Starting detection...");
     }
 
     // 状態をリセット
@@ -158,11 +154,11 @@ export class MotionDetector {
     const $ = loadCheerio(html);
 
     // スタイルシートからキーフレームとルールを抽出
-    let combinedCss = '';
+    let combinedCss = "";
     if (this.options.includeStyleSheets) {
-      $('style').each((_, el) => {
+      $("style").each((_, el) => {
         const styleContent = $(el).text();
-        combinedCss += styleContent + '\n';
+        combinedCss += styleContent + "\n";
       });
       if (css) {
         combinedCss += css;
@@ -171,18 +167,15 @@ export class MotionDetector {
 
     // ベンダープレフィックス検出
     if (
-      combinedCss.includes('-webkit-') ||
-      combinedCss.includes('-moz-') ||
-      combinedCss.includes('-o-')
+      combinedCss.includes("-webkit-") ||
+      combinedCss.includes("-moz-") ||
+      combinedCss.includes("-o-")
     ) {
       this.hasVendorPrefixes = true;
     }
 
     // scroll-timeline検出
-    if (
-      combinedCss.includes('animation-timeline') ||
-      combinedCss.includes('scroll()')
-    ) {
+    if (combinedCss.includes("animation-timeline") || combinedCss.includes("scroll()")) {
       this.hasScrollTimeline = true;
     }
 
@@ -202,9 +195,7 @@ export class MotionDetector {
     }
 
     // minDurationでフィルタ
-    const filteredPatterns = patterns.filter(
-      (p) => p.duration >= this.options.minDuration
-    );
+    const filteredPatterns = patterns.filter((p) => p.duration >= this.options.minDuration);
 
     // 警告を生成
     const generatedWarnings = this.generateWarnings(filteredPatterns);
@@ -213,51 +204,43 @@ export class MotionDetector {
     // 互換性警告：ベンダープレフィックス
     if (this.hasVendorPrefixes) {
       warnings.push({
-        type: 'compatibility',
-        severity: 'low',
+        type: "compatibility",
+        severity: "low",
         message:
-          'Vendor prefixes detected (-webkit-, -moz-, -o-). Consider using autoprefixer for better maintainability.',
-        suggestion:
-          'Use autoprefixer or remove vendor prefixes if browser support is sufficient.',
+          "Vendor prefixes detected (-webkit-, -moz-, -o-). Consider using autoprefixer for better maintainability.",
+        suggestion: "Use autoprefixer or remove vendor prefixes if browser support is sufficient.",
       });
     }
 
     // 互換性警告：scroll-timeline
     if (this.hasScrollTimeline) {
       warnings.push({
-        type: 'compatibility',
-        severity: 'medium',
+        type: "compatibility",
+        severity: "medium",
         message:
-          'Scroll-linked animations (animation-timeline) detected. This is an experimental feature with limited browser support.',
-        suggestion:
-          'Provide a fallback for browsers that do not support scroll-linked animations.',
+          "Scroll-linked animations (animation-timeline) detected. This is an experimental feature with limited browser support.",
+        suggestion: "Provide a fallback for browsers that do not support scroll-linked animations.",
       });
     }
 
     // アクセシビリティ警告（prefers-reduced-motion）
-    if (
-      filteredPatterns.length > 0 &&
-      !combinedCss.includes('prefers-reduced-motion')
-    ) {
+    if (filteredPatterns.length > 0 && !combinedCss.includes("prefers-reduced-motion")) {
       warnings.push({
-        type: 'accessibility',
-        severity: 'medium',
+        type: "accessibility",
+        severity: "medium",
         message:
-          'No prefers-reduced-motion media query detected. Consider adding support for users who prefer reduced motion.',
+          "No prefers-reduced-motion media query detected. Consider adding support for users who prefer reduced motion.",
         suggestion:
-          '@media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }',
+          "@media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }",
       });
     }
 
     // サマリーを計算
     const summary = this.calculateSummary(filteredPatterns);
 
-    if (process.env.NODE_ENV === 'development') {
+    if (process.env.NODE_ENV === "development") {
       // eslint-disable-next-line no-console -- Intentional debug log in development
-      console.log(
-        '[MotionDetector] Detection complete. Patterns:',
-        filteredPatterns.length
-      );
+      console.log("[MotionDetector] Detection complete. Patterns:", filteredPatterns.length);
     }
 
     return {
@@ -274,33 +257,21 @@ export class MotionDetector {
    * @param styles - CSSStylePropertiesオブジェクト
    * @returns 検出されたパターン配列
    */
-  public detectElement(
-    selector: string,
-    styles: CSSStyleProperties
-  ): MotionPattern[] {
+  public detectElement(selector: string, styles: CSSStyleProperties): MotionPattern[] {
     const patterns: MotionPattern[] = [];
 
     // アニメーション検出
-    const animationName =
-      styles.animationName || this.extractAnimationName(styles.animation || '');
-    if (animationName && animationName !== 'none') {
-      const pattern = this.createAnimationPattern(
-        selector,
-        animationName,
-        styles
-      );
+    const animationName = styles.animationName || this.extractAnimationName(styles.animation || "");
+    if (animationName && animationName !== "none") {
+      const pattern = this.createAnimationPattern(selector, animationName, styles);
       patterns.push(pattern);
     }
 
     // トランジション検出
-    const transitionProperty = styles.transitionProperty || 'all';
+    const transitionProperty = styles.transitionProperty || "all";
     const transitionDuration = styles.transitionDuration;
-    if (transitionDuration && transitionDuration !== '0s') {
-      const pattern = this.createTransitionPattern(
-        selector,
-        transitionProperty,
-        styles
-      );
+    if (transitionDuration && transitionDuration !== "0s") {
+      const pattern = this.createTransitionPattern(selector, transitionProperty, styles);
       patterns.push(pattern);
     }
 
@@ -316,7 +287,7 @@ export class MotionDetector {
   public parseKeyframes(css: string): Map<string, KeyframeDefinition> {
     const keyframes = new Map<string, KeyframeDefinition>();
 
-    if (!css || css.trim() === '') {
+    if (!css || css.trim() === "") {
       return keyframes;
     }
 
@@ -327,7 +298,7 @@ export class MotionDetector {
       });
 
       csstree.walk(ast, (node) => {
-        if (node.type === 'Atrule' && node.name === 'keyframes') {
+        if (node.type === "Atrule" && node.name === "keyframes") {
           const name = this.extractKeyframeName(node);
           if (name) {
             const steps = this.extractKeyframeSteps(node);
@@ -336,10 +307,10 @@ export class MotionDetector {
         }
         // ベンダープレフィックス付きキーフレーム
         if (
-          node.type === 'Atrule' &&
-          (node.name === '-webkit-keyframes' ||
-            node.name === '-moz-keyframes' ||
-            node.name === '-o-keyframes')
+          node.type === "Atrule" &&
+          (node.name === "-webkit-keyframes" ||
+            node.name === "-moz-keyframes" ||
+            node.name === "-o-keyframes")
         ) {
           const name = this.extractKeyframeName(node);
           if (name && !keyframes.has(name)) {
@@ -349,17 +320,14 @@ export class MotionDetector {
         }
       });
     } catch (error) {
-      if (process.env.NODE_ENV === 'development') {
-        console.warn('[MotionDetector] Failed to parse keyframes:', error);
+      if (process.env.NODE_ENV === "development") {
+        console.warn("[MotionDetector] Failed to parse keyframes:", error);
       }
     }
 
-    if (process.env.NODE_ENV === 'development') {
+    if (process.env.NODE_ENV === "development") {
       // eslint-disable-next-line no-console -- Intentional debug log in development
-      console.log(
-        '[MotionDetector] Parsed keyframes:',
-        Array.from(keyframes.keys())
-      );
+      console.log("[MotionDetector] Parsed keyframes:", Array.from(keyframes.keys()));
     }
 
     return keyframes;
@@ -378,12 +346,11 @@ export class MotionDetector {
       // 長時間アニメーション警告
       if (pattern.duration > LONG_DURATION_THRESHOLD) {
         warnings.push({
-          type: 'performance',
-          severity: 'medium',
+          type: "performance",
+          severity: "medium",
           message: `Animation "${pattern.name}" has a long duration (${pattern.duration}ms). Consider reducing for better user experience.`,
           pattern: pattern.name,
-          suggestion:
-            'Keep animations under 5 seconds for better user engagement.',
+          suggestion: "Keep animations under 5 seconds for better user engagement.",
         });
       }
 
@@ -393,42 +360,37 @@ export class MotionDetector {
       );
       if (layoutProps.length > 0) {
         warnings.push({
-          type: 'performance',
-          severity: 'high',
-          message: `Animation "${pattern.name}" animates layout-triggering properties (${layoutProps.map((p) => p.name).join(', ')}). This can cause performance issues.`,
+          type: "performance",
+          severity: "high",
+          message: `Animation "${pattern.name}" animates layout-triggering properties (${layoutProps.map((p) => p.name).join(", ")}). This can cause performance issues.`,
           pattern: pattern.name,
           suggestion:
-            'Use transform and opacity instead of width, height, top, left for better performance.',
+            "Use transform and opacity instead of width, height, top, left for better performance.",
         });
       }
 
       // box-shadow アニメーション警告
       const shadowProps = pattern.properties.filter(
-        (p) => p.name === 'box-shadow' || p.name === 'text-shadow'
+        (p) => p.name === "box-shadow" || p.name === "text-shadow"
       );
       if (shadowProps.length > 0) {
         warnings.push({
-          type: 'performance',
-          severity: 'medium',
+          type: "performance",
+          severity: "medium",
           message: `Animation "${pattern.name}" animates box-shadow/text-shadow. This can be expensive to render.`,
           pattern: pattern.name,
-          suggestion:
-            'Consider using a pseudo-element with opacity for shadow animations.',
+          suggestion: "Consider using a pseudo-element with opacity for shadow animations.",
         });
       }
 
       // 高速アニメーション + 無限ループ警告（アクセシビリティ）
-      if (
-        pattern.duration < FAST_ANIMATION_THRESHOLD &&
-        pattern.iterations === 'infinite'
-      ) {
+      if (pattern.duration < FAST_ANIMATION_THRESHOLD && pattern.iterations === "infinite") {
         warnings.push({
-          type: 'accessibility',
-          severity: 'high',
+          type: "accessibility",
+          severity: "high",
           message: `Animation "${pattern.name}" is rapid (${pattern.duration}ms) and infinite. This may cause discomfort for users with vestibular disorders.`,
           pattern: pattern.name,
-          suggestion:
-            'Increase duration or limit iterations. Support prefers-reduced-motion.',
+          suggestion: "Increase duration or limit iterations. Support prefers-reduced-motion.",
         });
       }
     }
@@ -464,7 +426,7 @@ export class MotionDetector {
       }
 
       // 無限ループ（12点追加）
-      if (pattern.iterations === 'infinite') {
+      if (pattern.iterations === "infinite") {
         score += 12;
       }
 
@@ -479,15 +441,12 @@ export class MotionDetector {
       }
 
       // 複雑なイージング（3点追加）
-      if (pattern.easing.includes('cubic-bezier')) {
+      if (pattern.easing.includes("cubic-bezier")) {
         score += 3;
       }
 
       // 複雑な方向（3点追加）
-      if (
-        pattern.direction === 'alternate' ||
-        pattern.direction === 'alternate-reverse'
-      ) {
+      if (pattern.direction === "alternate" || pattern.direction === "alternate-reverse") {
         score += 3;
       }
     }
@@ -535,34 +494,25 @@ export class MotionDetector {
   /**
    * スタイルシートからパターンを検出
    */
-  private detectFromStylesheet(
-    _$: CheerioAPI,
-    css: string
-  ): MotionPattern[] {
+  private detectFromStylesheet(_$: CheerioAPI, css: string): MotionPattern[] {
     const patterns: MotionPattern[] = [];
 
     try {
       const ast = csstree.parse(css);
 
       csstree.walk(ast, (node) => {
-        if (node.type === 'Rule') {
+        if (node.type === "Rule") {
           const selector = csstree.generate(node.prelude);
           const declarations = this.extractDeclarations(node);
 
           // アニメーション検出
-          const animationPattern = this.detectAnimationFromDeclarations(
-            selector,
-            declarations
-          );
+          const animationPattern = this.detectAnimationFromDeclarations(selector, declarations);
           if (animationPattern) {
             patterns.push(animationPattern);
           }
 
           // トランジション検出
-          const transitionPattern = this.detectTransitionFromDeclarations(
-            selector,
-            declarations
-          );
+          const transitionPattern = this.detectTransitionFromDeclarations(selector, declarations);
           if (transitionPattern) {
             patterns.push(transitionPattern);
           }
@@ -572,8 +522,8 @@ export class MotionDetector {
       // 擬似クラスからトリガーを更新
       this.updateTriggersFromPseudoClasses(patterns, css);
     } catch (error) {
-      if (process.env.NODE_ENV === 'development') {
-        console.warn('[MotionDetector] Failed to parse stylesheet:', error);
+      if (process.env.NODE_ENV === "development") {
+        console.warn("[MotionDetector] Failed to parse stylesheet:", error);
       }
     }
 
@@ -586,15 +536,13 @@ export class MotionDetector {
   private detectFromInlineStyles($: CheerioAPI): MotionPattern[] {
     const patterns: MotionPattern[] = [];
 
-    $('[style]').each((_, el) => {
+    $("[style]").each((_, el) => {
       const element = el as Element;
-      const style = $(element).attr('style') || '';
+      const style = $(element).attr("style") || "";
       const selector = this.generateSelector($, element);
 
       // animation プロパティ検出
-      const animationMatch = style.match(
-        /animation\s*:\s*([^;]+)/i
-      );
+      const animationMatch = style.match(/animation\s*:\s*([^;]+)/i);
       if (animationMatch?.[1]) {
         const animValue = animationMatch[1].trim();
         const pattern = this.parseAnimationShorthand(selector, animValue);
@@ -604,9 +552,7 @@ export class MotionDetector {
       }
 
       // transition プロパティ検出
-      const transitionMatch = style.match(
-        /transition\s*:\s*([^;]+)/i
-      );
+      const transitionMatch = style.match(/transition\s*:\s*([^;]+)/i);
       if (transitionMatch?.[1]) {
         const transValue = transitionMatch[1].trim();
         const pattern = this.parseTransitionShorthand(selector, transValue);
@@ -626,84 +572,76 @@ export class MotionDetector {
     selector: string,
     declarations: Map<string, string>
   ): MotionPattern | null {
-    const animation = declarations.get('animation');
+    const animation = declarations.get("animation");
     const animationName =
-      declarations.get('animation-name') ||
+      declarations.get("animation-name") ||
       (animation ? this.extractAnimationName(animation) : null);
 
-    if (!animationName || animationName === 'none') {
+    if (!animationName || animationName === "none") {
       return null;
     }
 
     const duration = this.parseDuration(
-      declarations.get('animation-duration') ||
-        this.extractAnimationDuration(animation || '') ||
-        '0s'
+      declarations.get("animation-duration") ||
+        this.extractAnimationDuration(animation || "") ||
+        "0s"
     );
-    const delay = this.parseDuration(
-      declarations.get('animation-delay') || '0s'
-    );
+    const delay = this.parseDuration(declarations.get("animation-delay") || "0s");
     const easing =
-      declarations.get('animation-timing-function') ||
-      this.extractAnimationEasing(animation || '') ||
-      'ease';
+      declarations.get("animation-timing-function") ||
+      this.extractAnimationEasing(animation || "") ||
+      "ease";
 
     // iteration-countの検出（ショートハンドから）
-    let iterations: number | 'infinite' = this.parseIterations(
-      declarations.get('animation-iteration-count') || '1'
+    let iterations: number | "infinite" = this.parseIterations(
+      declarations.get("animation-iteration-count") || "1"
     );
-    if (iterations === 1 && animation && animation.includes('infinite')) {
-      iterations = 'infinite';
+    if (iterations === 1 && animation && animation.includes("infinite")) {
+      iterations = "infinite";
     }
 
     // directionの検出（ショートハンドから）
-    let direction = this.parseDirection(
-      declarations.get('animation-direction') || 'normal'
-    );
-    if (direction === 'normal' && animation) {
-      if (animation.includes('alternate-reverse')) {
-        direction = 'alternate-reverse';
-      } else if (animation.includes('alternate')) {
-        direction = 'alternate';
+    let direction = this.parseDirection(declarations.get("animation-direction") || "normal");
+    if (direction === "normal" && animation) {
+      if (animation.includes("alternate-reverse")) {
+        direction = "alternate-reverse";
+      } else if (animation.includes("alternate")) {
+        direction = "alternate";
       } else if (animation.match(/\breverse\b/)) {
-        direction = 'reverse';
+        direction = "reverse";
       }
     }
 
     // fillModeの検出（ショートハンドから）
-    let fillMode = this.parseFillMode(
-      declarations.get('animation-fill-mode') || 'none'
-    );
-    if (fillMode === 'none' && animation) {
-      if (animation.includes('forwards')) {
-        fillMode = 'forwards';
-      } else if (animation.includes('backwards')) {
-        fillMode = 'backwards';
+    let fillMode = this.parseFillMode(declarations.get("animation-fill-mode") || "none");
+    if (fillMode === "none" && animation) {
+      if (animation.includes("forwards")) {
+        fillMode = "forwards";
+      } else if (animation.includes("backwards")) {
+        fillMode = "backwards";
       } else if (animation.match(/\bboth\b/)) {
-        fillMode = 'both';
+        fillMode = "both";
       }
     }
 
-    const playState = this.parsePlayState(
-      declarations.get('animation-play-state') || 'running'
-    );
+    const playState = this.parsePlayState(declarations.get("animation-play-state") || "running");
 
     // キーフレームからプロパティを取得
     const properties = this.getPropertiesFromKeyframes(animationName);
 
     // scroll関連のトリガー検出
-    let trigger: MotionPattern['trigger'] = 'load';
+    let trigger: MotionPattern["trigger"] = "load";
     if (
-      declarations.has('animation-timeline') &&
-      (declarations.get('animation-timeline')?.includes('scroll') ||
-        declarations.get('animation-timeline')?.includes('view'))
+      declarations.has("animation-timeline") &&
+      (declarations.get("animation-timeline")?.includes("scroll") ||
+        declarations.get("animation-timeline")?.includes("view"))
     ) {
-      trigger = 'scroll';
+      trigger = "scroll";
     }
 
     return {
       id: uuidv4(),
-      type: 'animation',
+      type: "animation",
       name: animationName,
       selector,
       properties,
@@ -726,13 +664,13 @@ export class MotionDetector {
     selector: string,
     declarations: Map<string, string>
   ): MotionPattern | null {
-    const transition = declarations.get('transition');
-    let transitionProperty = declarations.get('transition-property') || '';
+    const transition = declarations.get("transition");
+    let transitionProperty = declarations.get("transition-property") || "";
     const transitionDuration =
-      declarations.get('transition-duration') ||
+      declarations.get("transition-duration") ||
       (transition ? this.extractTransitionDuration(transition) : null);
 
-    if (!transitionDuration || transitionDuration === '0s') {
+    if (!transitionDuration || transitionDuration === "0s") {
       return null;
     }
 
@@ -742,30 +680,28 @@ export class MotionDetector {
     }
 
     if (!transitionProperty) {
-      transitionProperty = 'all';
+      transitionProperty = "all";
     }
 
     const duration = this.parseDuration(transitionDuration);
-    const delay = this.parseDuration(
-      declarations.get('transition-delay') || '0s'
-    );
+    const delay = this.parseDuration(declarations.get("transition-delay") || "0s");
     const easing =
-      declarations.get('transition-timing-function') ||
-      this.extractTransitionEasing(transition || '') ||
-      'ease';
+      declarations.get("transition-timing-function") ||
+      this.extractTransitionEasing(transition || "") ||
+      "ease";
 
-    const propertyList = transitionProperty.split(',');
+    const propertyList = transitionProperty.split(",");
     const properties: MotionProperty[] = propertyList.map((prop) => ({
       name: prop.trim(),
-      from: '',
-      to: '',
+      from: "",
+      to: "",
     }));
 
-    const firstProperty = propertyList[0]?.trim() ?? 'all';
+    const firstProperty = propertyList[0]?.trim() ?? "all";
 
     return {
       id: uuidv4(),
-      type: 'transition',
+      type: "transition",
       name: `transition-${firstProperty}`,
       selector,
       properties,
@@ -773,10 +709,10 @@ export class MotionDetector {
       delay,
       easing,
       iterations: 1,
-      direction: 'normal',
-      fillMode: 'none',
-      playState: 'running',
-      trigger: 'hover', // デフォルトはhover、後で更新される可能性
+      direction: "normal",
+      fillMode: "none",
+      playState: "running",
+      trigger: "hover", // デフォルトはhover、後で更新される可能性
       confidence: 0.8,
     };
   }
@@ -786,7 +722,7 @@ export class MotionDetector {
    */
   private extractTransitionProperties(transition: string): string {
     // transition: background-color 0.3s ease, transform 0.2s ease-out;
-    const segments = transition.split(',');
+    const segments = transition.split(",");
     const properties: string[] = [];
 
     for (const segment of segments) {
@@ -802,27 +738,27 @@ export class MotionDetector {
       }
     }
 
-    return properties.length > 0 ? properties.join(', ') : 'all';
+    return properties.length > 0 ? properties.join(", ") : "all";
   }
 
   /**
    * 擬似クラスからトリガーを更新し、:hover等からプロパティを抽出
    */
-  private updateTriggersFromPseudoClasses(
-    patterns: MotionPattern[],
-    css: string
-  ): void {
+  private updateTriggersFromPseudoClasses(patterns: MotionPattern[], css: string): void {
     // 擬似クラスルールからプロパティを抽出するためのマップ
     const pseudoProperties = this.extractPseudoClassProperties(css);
 
     for (const pattern of patterns) {
       const selector = pattern.selector;
-      const baseSelector = selector.replace(/:[a-z-]+/gi, '');
+      const baseSelector = selector.replace(/:[a-z-]+/gi, "");
 
       // :hover チェック
-      if (css.includes(`${selector}:hover`) || selector.includes(':hover') ||
-          css.includes(`${baseSelector}:hover`)) {
-        pattern.trigger = 'hover';
+      if (
+        css.includes(`${selector}:hover`) ||
+        selector.includes(":hover") ||
+        css.includes(`${baseSelector}:hover`)
+      ) {
+        pattern.trigger = "hover";
         // :hoverルールからプロパティを追加
         const hoverProps = pseudoProperties.get(`${baseSelector}:hover`);
         if (hoverProps) {
@@ -835,25 +771,28 @@ export class MotionDetector {
         css.includes(`${selector}:focus`) ||
         css.includes(`${selector}:focus-within`) ||
         css.includes(`${baseSelector}:focus`) ||
-        selector.includes(':focus')
+        selector.includes(":focus")
       ) {
-        pattern.trigger = 'focus';
+        pattern.trigger = "focus";
       }
 
       // :active チェック
-      if (css.includes(`${selector}:active`) || selector.includes(':active') ||
-          css.includes(`${baseSelector}:active`)) {
-        pattern.trigger = 'click';
+      if (
+        css.includes(`${selector}:active`) ||
+        selector.includes(":active") ||
+        css.includes(`${baseSelector}:active`)
+      ) {
+        pattern.trigger = "click";
       }
 
       // 属性セレクタ
-      if (selector.includes('[data-') || selector.includes('[aria-')) {
-        pattern.trigger = 'custom';
+      if (selector.includes("[data-") || selector.includes("[aria-")) {
+        pattern.trigger = "custom";
       }
 
       // scroll-timeline
-      if (css.includes('animation-timeline') && css.includes('scroll')) {
-        pattern.trigger = 'scroll';
+      if (css.includes("animation-timeline") && css.includes("scroll")) {
+        pattern.trigger = "scroll";
       }
     }
   }
@@ -861,16 +800,14 @@ export class MotionDetector {
   /**
    * 擬似クラスルールからプロパティを抽出
    */
-  private extractPseudoClassProperties(
-    css: string
-  ): Map<string, Map<string, string>> {
+  private extractPseudoClassProperties(css: string): Map<string, Map<string, string>> {
     const pseudoProps = new Map<string, Map<string, string>>();
 
     try {
       const ast = csstree.parse(css);
 
       csstree.walk(ast, (node) => {
-        if (node.type === 'Rule') {
+        if (node.type === "Rule") {
           const selectorText = csstree.generate(node.prelude);
           // 擬似クラスを含むセレクタを検出
           if (selectorText.match(/:(hover|focus|active|focus-within)/)) {
@@ -880,8 +817,8 @@ export class MotionDetector {
         }
       });
     } catch (error) {
-      if (process.env.NODE_ENV === 'development') {
-        console.warn('[MotionDetector] Failed to extract pseudo properties:', error);
+      if (process.env.NODE_ENV === "development") {
+        console.warn("[MotionDetector] Failed to extract pseudo properties:", error);
       }
     }
 
@@ -896,15 +833,15 @@ export class MotionDetector {
     declarations: Map<string, string>
   ): void {
     // transform プロパティを追加
-    const transform = declarations.get('transform');
+    const transform = declarations.get("transform");
     if (transform) {
-      const existingTransform = pattern.properties.find(p => p.name === 'transform');
+      const existingTransform = pattern.properties.find((p) => p.name === "transform");
       if (existingTransform) {
         existingTransform.to = transform;
       } else {
         pattern.properties.push({
-          name: 'transform',
-          from: '',
+          name: "transform",
+          from: "",
           to: transform,
         });
       }
@@ -912,8 +849,8 @@ export class MotionDetector {
 
     // その他のトランジションプロパティも追加可能
     for (const [prop, value] of declarations) {
-      if (!['transform', 'transition', 'animation'].includes(prop)) {
-        const existingProp = pattern.properties.find(p => p.name === prop);
+      if (!["transform", "transition", "animation"].includes(prop)) {
+        const existingProp = pattern.properties.find((p) => p.name === prop);
         if (existingProp) {
           existingProp.to = value;
         }
@@ -924,14 +861,12 @@ export class MotionDetector {
   /**
    * CSSルールから宣言を抽出
    */
-  private extractDeclarations(
-    rule: csstree.Rule
-  ): Map<string, string> {
+  private extractDeclarations(rule: csstree.Rule): Map<string, string> {
     const declarations = new Map<string, string>();
 
     if (rule.block) {
       csstree.walk(rule.block, (node) => {
-        if (node.type === 'Declaration') {
+        if (node.type === "Declaration") {
           const property = node.property;
           const value = csstree.generate(node.value);
           declarations.set(property, value);
@@ -946,7 +881,7 @@ export class MotionDetector {
    * キーフレーム名を抽出
    */
   private extractKeyframeName(atrule: csstree.Atrule): string | null {
-    if (atrule.prelude && atrule.prelude.type === 'AtrulePrelude') {
+    if (atrule.prelude && atrule.prelude.type === "AtrulePrelude") {
       return csstree.generate(atrule.prelude).trim();
     }
     return null;
@@ -960,7 +895,7 @@ export class MotionDetector {
 
     if (atrule.block) {
       csstree.walk(atrule.block, (node) => {
-        if (node.type === 'Rule') {
+        if (node.type === "Rule") {
           const prelude = csstree.generate(node.prelude);
           const offsets = this.parseKeyframeOffsets(prelude);
           const properties: { name: string; value: string }[] = [];
@@ -968,8 +903,8 @@ export class MotionDetector {
 
           if (node.block) {
             csstree.walk(node.block, (declNode) => {
-              if (declNode.type === 'Declaration') {
-                if (declNode.property === 'animation-timing-function') {
+              if (declNode.type === "Declaration") {
+                if (declNode.property === "animation-timing-function") {
                   timingFunction = csstree.generate(declNode.value);
                 } else {
                   properties.push({
@@ -1003,15 +938,15 @@ export class MotionDetector {
    */
   private parseKeyframeOffsets(prelude: string): number[] {
     const offsets: number[] = [];
-    const parts = prelude.split(',');
+    const parts = prelude.split(",");
 
     for (const part of parts) {
       const trimmed = part.trim().toLowerCase();
-      if (trimmed === 'from') {
+      if (trimmed === "from") {
         offsets.push(0);
-      } else if (trimmed === 'to') {
+      } else if (trimmed === "to") {
         offsets.push(1);
-      } else if (trimmed.endsWith('%')) {
+      } else if (trimmed.endsWith("%")) {
         const percent = parseFloat(trimmed);
         if (!isNaN(percent)) {
           offsets.push(percent / 100);
@@ -1025,9 +960,7 @@ export class MotionDetector {
   /**
    * キーフレームからプロパティを取得
    */
-  private getPropertiesFromKeyframes(
-    animationName: string
-  ): MotionProperty[] {
+  private getPropertiesFromKeyframes(animationName: string): MotionProperty[] {
     const keyframeDef = this.keyframesMap.get(animationName);
     if (!keyframeDef || keyframeDef.steps.length === 0) {
       return [];
@@ -1040,8 +973,8 @@ export class MotionDetector {
         if (!propertyMap.has(prop.name)) {
           propertyMap.set(prop.name, {
             name: prop.name,
-            from: '',
-            to: '',
+            from: "",
+            to: "",
             keyframes: [],
           });
         }
@@ -1081,7 +1014,7 @@ export class MotionDetector {
         return part;
       }
     }
-    return '';
+    return "";
   }
 
   /**
@@ -1089,7 +1022,7 @@ export class MotionDetector {
    */
   private extractAnimationDuration(animation: string): string {
     const match = animation.match(/(\d+\.?\d*)(s|ms)/);
-    return match ? match[0] : '0s';
+    return match ? match[0] : "0s";
   }
 
   /**
@@ -1099,7 +1032,7 @@ export class MotionDetector {
     const easingMatch = animation.match(
       /(ease-in-out|ease-in|ease-out|ease|linear|cubic-bezier\([^)]+\)|steps\([^)]+\))/i
     );
-    return easingMatch?.[1] ?? 'ease';
+    return easingMatch?.[1] ?? "ease";
   }
 
   /**
@@ -1107,7 +1040,7 @@ export class MotionDetector {
    */
   private extractTransitionDuration(transition: string): string {
     const match = transition.match(/(\d+\.?\d*)(s|ms)/);
-    return match ? match[0] : '0s';
+    return match ? match[0] : "0s";
   }
 
   /**
@@ -1117,39 +1050,34 @@ export class MotionDetector {
     const easingMatch = transition.match(
       /(ease-in-out|ease-in|ease-out|ease|linear|cubic-bezier\([^)]+\))/i
     );
-    return easingMatch?.[1] ?? 'ease';
+    return easingMatch?.[1] ?? "ease";
   }
 
   /**
    * animationショートハンドをパース
    */
-  private parseAnimationShorthand(
-    selector: string,
-    animation: string
-  ): MotionPattern | null {
+  private parseAnimationShorthand(selector: string, animation: string): MotionPattern | null {
     const name = this.extractAnimationName(animation);
     if (!name) return null;
 
-    const duration = this.parseDuration(
-      this.extractAnimationDuration(animation)
-    );
+    const duration = this.parseDuration(this.extractAnimationDuration(animation));
     const easing = this.extractAnimationEasing(animation);
-    const iterations = animation.includes('infinite') ? 'infinite' : 1;
+    const iterations = animation.includes("infinite") ? "infinite" : 1;
 
     return {
       id: uuidv4(),
-      type: 'animation',
+      type: "animation",
       name,
       selector,
       properties: [],
       duration,
       delay: 0,
       easing,
-      iterations: iterations as number | 'infinite',
-      direction: 'normal',
-      fillMode: 'none',
-      playState: 'running',
-      trigger: 'load',
+      iterations: iterations as number | "infinite",
+      direction: "normal",
+      fillMode: "none",
+      playState: "running",
+      trigger: "load",
       confidence: 0.7,
     };
   }
@@ -1157,32 +1085,27 @@ export class MotionDetector {
   /**
    * transitionショートハンドをパース
    */
-  private parseTransitionShorthand(
-    selector: string,
-    transition: string
-  ): MotionPattern | null {
-    const duration = this.parseDuration(
-      this.extractTransitionDuration(transition)
-    );
+  private parseTransitionShorthand(selector: string, transition: string): MotionPattern | null {
+    const duration = this.parseDuration(this.extractTransitionDuration(transition));
     if (duration === 0) return null;
 
     const easing = this.extractTransitionEasing(transition);
-    const property = transition.split(/\s+/)[0] || 'all';
+    const property = transition.split(/\s+/)[0] || "all";
 
     return {
       id: uuidv4(),
-      type: 'transition',
+      type: "transition",
       name: `transition-${property}`,
       selector,
-      properties: [{ name: property, from: '', to: '' }],
+      properties: [{ name: property, from: "", to: "" }],
       duration,
       delay: 0,
       easing,
       iterations: 1,
-      direction: 'normal',
-      fillMode: 'none',
-      playState: 'running',
-      trigger: 'hover',
+      direction: "normal",
+      fillMode: "none",
+      playState: "running",
+      trigger: "hover",
       confidence: 0.7,
     };
   }
@@ -1197,18 +1120,18 @@ export class MotionDetector {
   ): MotionPattern {
     return {
       id: uuidv4(),
-      type: 'animation',
+      type: "animation",
       name: animationName,
       selector,
       properties: this.getPropertiesFromKeyframes(animationName),
-      duration: this.parseDuration(styles.animationDuration || '0s'),
-      delay: this.parseDuration(styles.animationDelay || '0s'),
-      easing: styles.animationTimingFunction || 'ease',
-      iterations: this.parseIterations(styles.animationIterationCount || '1'),
-      direction: this.parseDirection(styles.animationDirection || 'normal'),
-      fillMode: this.parseFillMode(styles.animationFillMode || 'none'),
-      playState: this.parsePlayState(styles.animationPlayState || 'running'),
-      trigger: 'load',
+      duration: this.parseDuration(styles.animationDuration || "0s"),
+      delay: this.parseDuration(styles.animationDelay || "0s"),
+      easing: styles.animationTimingFunction || "ease",
+      iterations: this.parseIterations(styles.animationIterationCount || "1"),
+      direction: this.parseDirection(styles.animationDirection || "normal"),
+      fillMode: this.parseFillMode(styles.animationFillMode || "none"),
+      playState: this.parsePlayState(styles.animationPlayState || "running"),
+      trigger: "load",
       confidence: 0.85,
     };
   }
@@ -1221,27 +1144,27 @@ export class MotionDetector {
     transitionProperty: string,
     styles: CSSStyleProperties
   ): MotionPattern {
-    const propList = transitionProperty.split(',');
-    const firstProp = propList[0]?.trim() ?? 'all';
+    const propList = transitionProperty.split(",");
+    const firstProp = propList[0]?.trim() ?? "all";
 
     return {
       id: uuidv4(),
-      type: 'transition',
+      type: "transition",
       name: `transition-${firstProp}`,
       selector,
       properties: propList.map((p) => ({
         name: p.trim(),
-        from: '',
-        to: '',
+        from: "",
+        to: "",
       })),
-      duration: this.parseDuration(styles.transitionDuration ?? '0s'),
-      delay: this.parseDuration(styles.transitionDelay ?? '0s'),
-      easing: styles.transitionTimingFunction ?? 'ease',
+      duration: this.parseDuration(styles.transitionDuration ?? "0s"),
+      delay: this.parseDuration(styles.transitionDelay ?? "0s"),
+      easing: styles.transitionTimingFunction ?? "ease",
       iterations: 1,
-      direction: 'normal',
-      fillMode: 'none',
-      playState: 'running',
-      trigger: 'hover',
+      direction: "normal",
+      fillMode: "none",
+      playState: "running",
+      trigger: "hover",
       confidence: 0.85,
     };
   }
@@ -1256,14 +1179,14 @@ export class MotionDetector {
     const num = parseFloat(match[1]);
     const unit = match[2];
 
-    return unit === 's' ? num * 1000 : num;
+    return unit === "s" ? num * 1000 : num;
   }
 
   /**
    * 繰り返し回数を解析
    */
-  private parseIterations(value: string): number | 'infinite' {
-    if (value === 'infinite') return 'infinite';
+  private parseIterations(value: string): number | "infinite" {
+    if (value === "infinite") return "infinite";
     const num = parseFloat(value);
     return isNaN(num) ? 1 : num;
   }
@@ -1271,64 +1194,57 @@ export class MotionDetector {
   /**
    * 再生方向を解析
    */
-  private parseDirection(
-    value: string
-  ): MotionPattern['direction'] {
+  private parseDirection(value: string): MotionPattern["direction"] {
     const normalized = value.toLowerCase().trim();
     if (
-      normalized === 'normal' ||
-      normalized === 'reverse' ||
-      normalized === 'alternate' ||
-      normalized === 'alternate-reverse'
+      normalized === "normal" ||
+      normalized === "reverse" ||
+      normalized === "alternate" ||
+      normalized === "alternate-reverse"
     ) {
       return normalized;
     }
-    return 'normal';
+    return "normal";
   }
 
   /**
    * フィルモードを解析
    */
-  private parseFillMode(value: string): MotionPattern['fillMode'] {
+  private parseFillMode(value: string): MotionPattern["fillMode"] {
     const normalized = value.toLowerCase().trim();
     if (
-      normalized === 'none' ||
-      normalized === 'forwards' ||
-      normalized === 'backwards' ||
-      normalized === 'both'
+      normalized === "none" ||
+      normalized === "forwards" ||
+      normalized === "backwards" ||
+      normalized === "both"
     ) {
       return normalized;
     }
-    return 'none';
+    return "none";
   }
 
   /**
    * 再生状態を解析
    */
-  private parsePlayState(
-    value: string
-  ): MotionPattern['playState'] {
+  private parsePlayState(value: string): MotionPattern["playState"] {
     const normalized = value.toLowerCase().trim();
-    return normalized === 'paused' ? 'paused' : 'running';
+    return normalized === "paused" ? "paused" : "running";
   }
 
   /**
    * 要素のセレクタを生成
    */
-  private generateSelector(
-    $: CheerioAPI,
-    element: Element
-  ): string {
-    const tagName = element.tagName?.toLowerCase() || 'div';
-    const id = $(element).attr('id');
-    const classes = $(element).attr('class')?.split(/\s+/).filter(Boolean) || [];
+  private generateSelector($: CheerioAPI, element: Element): string {
+    const tagName = element.tagName?.toLowerCase() || "div";
+    const id = $(element).attr("id");
+    const classes = $(element).attr("class")?.split(/\s+/).filter(Boolean) || [];
 
     if (id) {
       return `#${id}`;
     }
 
     if (classes.length > 0) {
-      return `${tagName}.${classes.join('.')}`;
+      return `${tagName}.${classes.join(".")}`;
     }
 
     return tagName;
@@ -1337,8 +1253,8 @@ export class MotionDetector {
   /**
    * サマリーを計算
    */
-  private calculateSummary(patterns: MotionPattern[]): MotionDetectionResult['summary'] {
-    const byType: Record<MotionPattern['type'], number> = {
+  private calculateSummary(patterns: MotionPattern[]): MotionDetectionResult["summary"] {
+    const byType: Record<MotionPattern["type"], number> = {
       animation: 0,
       transition: 0,
       transform: 0,
@@ -1347,7 +1263,7 @@ export class MotionDetector {
       keyframe: 0,
     };
 
-    const byTrigger: Record<MotionPattern['trigger'], number> = {
+    const byTrigger: Record<MotionPattern["trigger"], number> = {
       load: 0,
       hover: 0,
       scroll: 0,
@@ -1364,13 +1280,12 @@ export class MotionDetector {
       byTrigger[pattern.trigger]++;
       totalDuration += pattern.duration;
 
-      if (pattern.iterations === 'infinite') {
+      if (pattern.iterations === "infinite") {
         hasInfiniteAnimations = true;
       }
     }
 
-    const averageDuration =
-      patterns.length > 0 ? totalDuration / patterns.length : 0;
+    const averageDuration = patterns.length > 0 ? totalDuration / patterns.length : 0;
     const complexityScore = this.calculateComplexity(patterns);
 
     return {
@@ -1390,5 +1305,4 @@ export {
   MotionFeatureExtractor,
   MOTION_EMBEDDING_DIM,
   type SimilarityResult,
-} from './motion-embedding';
-
+} from "./motion-embedding";

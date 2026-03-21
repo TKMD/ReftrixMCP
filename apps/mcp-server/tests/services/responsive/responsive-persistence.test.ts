@@ -10,10 +10,10 @@
  * @module tests/services/responsive/responsive-persistence.test
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 // Prisma モック
-vi.mock('@reftrix/database', () => ({
+vi.mock("@reftrix/database", () => ({
   prisma: {
     responsiveAnalysis: {
       create: vi.fn(),
@@ -22,12 +22,12 @@ vi.mock('@reftrix/database', () => ({
     },
   },
   Prisma: {
-    DbNull: Symbol('DbNull'),
+    DbNull: Symbol("DbNull"),
   },
 }));
 
 // logger モック
-vi.mock('../../../src/utils/logger', () => ({
+vi.mock("../../../src/utils/logger", () => ({
   logger: {
     info: vi.fn(),
     warn: vi.fn(),
@@ -37,10 +37,10 @@ vi.mock('../../../src/utils/logger', () => ({
   isDevelopment: () => true,
 }));
 
-import { prisma, Prisma } from '@reftrix/database';
-import { logger } from '../../../src/utils/logger';
-import { ResponsivePersistenceService } from '../../../src/services/responsive/responsive-persistence.service';
-import type { ResponsiveAnalysisResult } from '../../../src/services/responsive/types';
+import { prisma, Prisma } from "@reftrix/database";
+import { logger } from "../../../src/utils/logger";
+import { ResponsivePersistenceService } from "../../../src/services/responsive/responsive-persistence.service";
+import type { ResponsiveAnalysisResult } from "../../../src/services/responsive/types";
 
 // ============================================================================
 // ヘルパー
@@ -51,33 +51,33 @@ function createMockResult(
 ): ResponsiveAnalysisResult {
   return {
     viewportsAnalyzed: [
-      { name: 'desktop', width: 1440, height: 900 },
-      { name: 'tablet', width: 768, height: 1024 },
-      { name: 'mobile', width: 375, height: 812 },
+      { name: "desktop", width: 1440, height: 900 },
+      { name: "tablet", width: 768, height: 1024 },
+      { name: "mobile", width: 375, height: 812 },
     ],
     differences: [
       {
-        element: 'nav',
-        description: 'ナビゲーション変化',
-        category: 'navigation',
-        desktop: { type: 'horizontal-menu' },
-        mobile: { type: 'hamburger-menu' },
+        element: "nav",
+        description: "ナビゲーション変化",
+        category: "navigation",
+        desktop: { type: "horizontal-menu" },
+        mobile: { type: "hamburger-menu" },
       },
     ],
-    breakpoints: ['768px', '1024px'],
+    breakpoints: ["768px", "1024px"],
     analysisTimeMs: 1234,
     ...overrides,
   };
 }
 
-const MOCK_WEB_PAGE_ID = '01912345-6789-7abc-8def-0123456789ab';
-const MOCK_RECORD_ID = '01912345-aaaa-7bbb-8ccc-ddddeeeeeeee';
+const MOCK_WEB_PAGE_ID = "01912345-6789-7abc-8def-0123456789ab";
+const MOCK_RECORD_ID = "01912345-aaaa-7bbb-8ccc-ddddeeeeeeee";
 
 // ============================================================================
 // Tests
 // ============================================================================
 
-describe('ResponsivePersistenceService', () => {
+describe("ResponsivePersistenceService", () => {
   let service: ResponsivePersistenceService;
 
   beforeEach(() => {
@@ -95,8 +95,8 @@ describe('ResponsivePersistenceService', () => {
   // save()
   // ==========================================================================
 
-  describe('save', () => {
-    it('解析結果をDBに保存しレコードIDを返す', async () => {
+  describe("save", () => {
+    it("解析結果をDBに保存しレコードIDを返す", async () => {
       const result = createMockResult();
 
       vi.mocked(prisma.responsiveAnalysis.create).mockResolvedValue({
@@ -118,11 +118,11 @@ describe('ResponsivePersistenceService', () => {
       expect(callArgs.select).toEqual({ id: true });
     });
 
-    it('viewportsAnalyzed を [{name, width, height}] 形式で保存する', async () => {
+    it("viewportsAnalyzed を [{name, width, height}] 形式で保存する", async () => {
       const result = createMockResult({
         viewportsAnalyzed: [
-          { name: 'desktop', width: 1440, height: 900 },
-          { name: 'mobile', width: 375, height: 812 },
+          { name: "desktop", width: 1440, height: 900 },
+          { name: "mobile", width: 375, height: 812 },
         ],
       });
 
@@ -137,14 +137,14 @@ describe('ResponsivePersistenceService', () => {
       };
 
       expect(callArgs.data.viewportsAnalyzed).toEqual([
-        { name: 'desktop', width: 1440, height: 900 },
-        { name: 'mobile', width: 375, height: 812 },
+        { name: "desktop", width: 1440, height: 900 },
+        { name: "mobile", width: 375, height: 812 },
       ]);
     });
 
-    it('breakpoints を [{name}] 形式で保存する', async () => {
+    it("breakpoints を [{name}] 形式で保存する", async () => {
       const result = createMockResult({
-        breakpoints: ['480px', '768px', '1024px'],
+        breakpoints: ["480px", "768px", "1024px"],
       });
 
       vi.mocked(prisma.responsiveAnalysis.create).mockResolvedValue({
@@ -158,18 +158,18 @@ describe('ResponsivePersistenceService', () => {
       };
 
       expect(callArgs.data.breakpoints).toEqual([
-        { name: '480px' },
-        { name: '768px' },
-        { name: '1024px' },
+        { name: "480px" },
+        { name: "768px" },
+        { name: "1024px" },
       ]);
     });
 
-    it('viewportDiffs がある場合 screenshotDiffs に変換して保存する', async () => {
+    it("viewportDiffs がある場合 screenshotDiffs に変換して保存する", async () => {
       const result = createMockResult({
         viewportDiffs: [
           {
-            viewport1: 'desktop',
-            viewport2: 'mobile',
+            viewport1: "desktop",
+            viewport2: "mobile",
             diffPercentage: 45.2,
             diffPixelCount: 50000,
             totalPixels: 110400,
@@ -193,8 +193,8 @@ describe('ResponsivePersistenceService', () => {
       expect(Array.isArray(diffs)).toBe(true);
       expect(diffs).toHaveLength(1);
       expect(diffs[0]).toEqual({
-        viewport1: 'desktop',
-        viewport2: 'mobile',
+        viewport1: "desktop",
+        viewport2: "mobile",
         diffPercentage: 45.2,
         diffPixelCount: 50000,
         totalPixels: 110400,
@@ -203,7 +203,7 @@ describe('ResponsivePersistenceService', () => {
       });
     });
 
-    it('viewportDiffs がない場合 screenshotDiffs に Prisma.DbNull を設定', async () => {
+    it("viewportDiffs がない場合 screenshotDiffs に Prisma.DbNull を設定", async () => {
       const result = createMockResult();
       // viewportDiffs は undefined
 
@@ -220,18 +220,18 @@ describe('ResponsivePersistenceService', () => {
       expect(callArgs.data.screenshotDiffs).toBe(Prisma.DbNull);
     });
 
-    it('diffImageBuffer はDBに保存されない', async () => {
+    it("diffImageBuffer はDBに保存されない", async () => {
       const result = createMockResult({
         viewportDiffs: [
           {
-            viewport1: 'desktop',
-            viewport2: 'mobile',
+            viewport1: "desktop",
+            viewport2: "mobile",
             diffPercentage: 10,
             diffPixelCount: 1000,
             totalPixels: 10000,
             comparedWidth: 100,
             comparedHeight: 100,
-            diffImageBuffer: Buffer.from('fake-image-data'),
+            diffImageBuffer: Buffer.from("fake-image-data"),
           },
         ],
       });
@@ -247,18 +247,18 @@ describe('ResponsivePersistenceService', () => {
       };
 
       const diffs = callArgs.data.screenshotDiffs as Array<Record<string, unknown>>;
-      expect(diffs[0]).not.toHaveProperty('diffImageBuffer');
+      expect(diffs[0]).not.toHaveProperty("diffImageBuffer");
     });
 
-    it('Prisma エラー時に例外をスローする', async () => {
+    it("Prisma エラー時に例外をスローする", async () => {
       const result = createMockResult();
 
       vi.mocked(prisma.responsiveAnalysis.create).mockRejectedValue(
-        new Error('Foreign key constraint failed') as never
+        new Error("Foreign key constraint failed") as never
       );
 
       await expect(service.save(MOCK_WEB_PAGE_ID, result)).rejects.toThrow(
-        'Foreign key constraint failed'
+        "Foreign key constraint failed"
       );
     });
 
@@ -266,28 +266,28 @@ describe('ResponsivePersistenceService', () => {
     // clean-slate パターン
     // ========================================================================
 
-    it('clean-slate: create 前に deleteMany を呼ぶ', async () => {
+    it("clean-slate: create 前に deleteMany を呼ぶ", async () => {
       const result = createMockResult();
       const callOrder: string[] = [];
 
       vi.mocked(prisma.responsiveAnalysis.deleteMany).mockImplementation(async () => {
-        callOrder.push('deleteMany');
+        callOrder.push("deleteMany");
         return { count: 0 };
       });
       vi.mocked(prisma.responsiveAnalysis.create).mockImplementation(async () => {
-        callOrder.push('create');
+        callOrder.push("create");
         return { id: MOCK_RECORD_ID } as never;
       });
 
       await service.save(MOCK_WEB_PAGE_ID, result);
 
-      expect(callOrder).toEqual(['deleteMany', 'create']);
+      expect(callOrder).toEqual(["deleteMany", "create"]);
       expect(prisma.responsiveAnalysis.deleteMany).toHaveBeenCalledWith({
         where: { webPageId: MOCK_WEB_PAGE_ID },
       });
     });
 
-    it('clean-slate: 既存レコード削除時にログが出力される', async () => {
+    it("clean-slate: 既存レコード削除時にログが出力される", async () => {
       const result = createMockResult();
 
       vi.mocked(prisma.responsiveAnalysis.deleteMany).mockResolvedValue({ count: 2 });
@@ -298,12 +298,12 @@ describe('ResponsivePersistenceService', () => {
       await service.save(MOCK_WEB_PAGE_ID, result);
 
       expect(logger.info).toHaveBeenCalledWith(
-        '[ResponsivePersistence] Deleted existing records (clean-slate)',
+        "[ResponsivePersistence] Deleted existing records (clean-slate)",
         { webPageId: MOCK_WEB_PAGE_ID, deletedCount: 2 }
       );
     });
 
-    it('clean-slate: 既存レコードがない場合は削除ログを出力しない', async () => {
+    it("clean-slate: 既存レコードがない場合は削除ログを出力しない", async () => {
       const result = createMockResult();
 
       vi.mocked(prisma.responsiveAnalysis.deleteMany).mockResolvedValue({ count: 0 });
@@ -315,20 +315,20 @@ describe('ResponsivePersistenceService', () => {
 
       const infoCalls = vi.mocked(logger.info).mock.calls;
       const deletionLogCalls = infoCalls.filter(
-        (call) => typeof call[0] === 'string' && call[0].includes('clean-slate')
+        (call) => typeof call[0] === "string" && call[0].includes("clean-slate")
       );
       expect(deletionLogCalls).toHaveLength(0);
     });
 
-    it('clean-slate: deleteMany のエラー時に例外がスローされる', async () => {
+    it("clean-slate: deleteMany のエラー時に例外がスローされる", async () => {
       const result = createMockResult();
 
       vi.mocked(prisma.responsiveAnalysis.deleteMany).mockRejectedValue(
-        new Error('Database connection lost') as never
+        new Error("Database connection lost") as never
       );
 
       await expect(service.save(MOCK_WEB_PAGE_ID, result)).rejects.toThrow(
-        'Database connection lost'
+        "Database connection lost"
       );
       // create は呼ばれない
       expect(prisma.responsiveAnalysis.create).not.toHaveBeenCalled();
@@ -339,65 +339,57 @@ describe('ResponsivePersistenceService', () => {
   // findByWebPageId()
   // ==========================================================================
 
-  describe('findByWebPageId', () => {
-    it('最新のレコードを返す', async () => {
+  describe("findByWebPageId", () => {
+    it("最新のレコードを返す", async () => {
       const mockRecord = {
         id: MOCK_RECORD_ID,
         webPageId: MOCK_WEB_PAGE_ID,
-        viewportsAnalyzed: [{ name: 'desktop' }, { name: 'mobile' }],
-        differences: [{ element: 'nav', category: 'navigation' }],
-        breakpoints: [{ name: '768px' }],
+        viewportsAnalyzed: [{ name: "desktop" }, { name: "mobile" }],
+        differences: [{ element: "nav", category: "navigation" }],
+        breakpoints: [{ name: "768px" }],
         screenshotDiffs: null,
         qualityMetrics: null,
         analysisTimeMs: 1500,
-        createdAt: new Date('2026-03-01T00:00:00Z'),
+        createdAt: new Date("2026-03-01T00:00:00Z"),
       };
 
-      vi.mocked(prisma.responsiveAnalysis.findFirst).mockResolvedValue(
-        mockRecord as never
-      );
+      vi.mocked(prisma.responsiveAnalysis.findFirst).mockResolvedValue(mockRecord as never);
 
       const result = await service.findByWebPageId(MOCK_WEB_PAGE_ID);
 
       expect(result).toEqual(mockRecord);
       expect(prisma.responsiveAnalysis.findFirst).toHaveBeenCalledWith({
         where: { webPageId: MOCK_WEB_PAGE_ID },
-        orderBy: { createdAt: 'desc' },
+        orderBy: { createdAt: "desc" },
       });
     });
 
-    it('レコードが存在しない場合 null を返す', async () => {
-      vi.mocked(prisma.responsiveAnalysis.findFirst).mockResolvedValue(
-        null as never
-      );
+    it("レコードが存在しない場合 null を返す", async () => {
+      vi.mocked(prisma.responsiveAnalysis.findFirst).mockResolvedValue(null as never);
 
-      const result = await service.findByWebPageId('non-existent-id');
+      const result = await service.findByWebPageId("non-existent-id");
 
       expect(result).toBeNull();
     });
 
-    it('createdAt desc で最新レコードを取得する', async () => {
-      vi.mocked(prisma.responsiveAnalysis.findFirst).mockResolvedValue(
-        null as never
-      );
+    it("createdAt desc で最新レコードを取得する", async () => {
+      vi.mocked(prisma.responsiveAnalysis.findFirst).mockResolvedValue(null as never);
 
       await service.findByWebPageId(MOCK_WEB_PAGE_ID);
 
       expect(prisma.responsiveAnalysis.findFirst).toHaveBeenCalledWith(
         expect.objectContaining({
-          orderBy: { createdAt: 'desc' },
+          orderBy: { createdAt: "desc" },
         })
       );
     });
 
-    it('Prisma エラー時に例外をスローする', async () => {
+    it("Prisma エラー時に例外をスローする", async () => {
       vi.mocked(prisma.responsiveAnalysis.findFirst).mockRejectedValue(
-        new Error('Connection refused') as never
+        new Error("Connection refused") as never
       );
 
-      await expect(
-        service.findByWebPageId(MOCK_WEB_PAGE_ID)
-      ).rejects.toThrow('Connection refused');
+      await expect(service.findByWebPageId(MOCK_WEB_PAGE_ID)).rejects.toThrow("Connection refused");
     });
   });
 });

@@ -31,4 +31,4 @@ export {
   type PaletteMetadataInput,
   type BrandPaletteInput,
   type BrandPaletteOutput,
-} from './palette.schema';
+} from "./palette.schema";

@@ -15,8 +15,8 @@
  * @see apps/mcp-server/tests/services/vision/vision-fallback.service.test.ts
  */
 
-import type { DetectedSection, SectionDetector } from '@reftrix/webdesign-core';
-import type { LlamaVisionAdapter, VisionAnalysisResult } from './llama-vision-adapter.js';
+import type { DetectedSection, SectionDetector } from "@reftrix/webdesign-core";
+import type { LlamaVisionAdapter, VisionAnalysisResult } from "./llama-vision-adapter.js";
 
 // =============================================================================
 // 型定義
@@ -140,7 +140,7 @@ export class VisionFallbackService {
     const timeoutMs = options.visionTimeoutMs ?? this.defaultTimeoutMs;
 
     // Strategy 3: No image → HTML analysis only (no warning, expected behavior)
-    const hasImage = image !== undefined && image !== '';
+    const hasImage = image !== undefined && image !== "";
     if (!hasImage) {
       const htmlAnalysis = await this.runHtmlAnalysis(html);
       const endTime = performance.now();
@@ -168,7 +168,7 @@ export class VisionFallbackService {
           success: false,
           visionUsed: false,
           htmlAnalysisOnly: false,
-          fallbackReason: 'forceVision is true but Vision adapter is not configured',
+          fallbackReason: "forceVision is true but Vision adapter is not configured",
           htmlAnalysis,
           metrics: {
             totalTimeMs: endTime - startTime,
@@ -181,7 +181,7 @@ export class VisionFallbackService {
         success: !htmlAnalysis.error,
         visionUsed: false,
         htmlAnalysisOnly: true,
-        fallbackReason: 'Vision adapter is not configured',
+        fallbackReason: "Vision adapter is not configured",
         htmlAnalysis,
         metrics: {
           totalTimeMs: endTime - startTime,
@@ -201,7 +201,7 @@ export class VisionFallbackService {
           success: false,
           visionUsed: false,
           htmlAnalysisOnly: false,
-          fallbackReason: 'forceVision is true but Ollama is not available',
+          fallbackReason: "forceVision is true but Ollama is not available",
           htmlAnalysis,
           metrics: {
             totalTimeMs: endTime - startTime,
@@ -214,7 +214,7 @@ export class VisionFallbackService {
         success: !htmlAnalysis.error,
         visionUsed: false,
         htmlAnalysisOnly: true,
-        fallbackReason: 'Ollama is not available',
+        fallbackReason: "Ollama is not available",
         htmlAnalysis,
         metrics: {
           totalTimeMs: endTime - startTime,
@@ -234,9 +234,10 @@ export class VisionFallbackService {
     } catch (error) {
       visionError = error instanceof Error ? error : new Error(String(error));
       // Check if it was a timeout
-      visionTimedOut = visionError.message.includes('timeout') ||
-                       visionError.message.includes('Timeout') ||
-                       visionError.message.includes('timed out');
+      visionTimedOut =
+        visionError.message.includes("timeout") ||
+        visionError.message.includes("Timeout") ||
+        visionError.message.includes("timed out");
     }
 
     const visionAttemptTimeMs = performance.now() - visionStartTime;
@@ -254,7 +255,7 @@ export class VisionFallbackService {
           visionUsed: false,
           htmlAnalysisOnly: false,
           fallbackReason: visionTimedOut
-            ? 'forceVision is true but Vision analysis timed out'
+            ? "forceVision is true but Vision analysis timed out"
             : `forceVision is true but Vision analysis error: ${visionError.message}`,
           htmlAnalysis,
           metrics: {
@@ -326,14 +327,18 @@ export class VisionFallbackService {
     prompt?: string
   ): Promise<VisionAnalysisResult<string>> {
     if (!this.visionAdapter) {
-      throw new Error('Vision adapter is not configured');
+      throw new Error("Vision adapter is not configured");
     }
 
-    const actualPrompt = prompt ?? 'Describe the layout and visual structure of this webpage screenshot.';
+    const actualPrompt =
+      prompt ?? "Describe the layout and visual structure of this webpage screenshot.";
     const visionPromise = this.visionAdapter.analyze(image, actualPrompt);
 
     const timeoutPromise = new Promise<never>((_, reject) => {
-      setTimeout(() => reject(new Error(`Vision analysis timeout after ${timeoutMs}ms`)), timeoutMs);
+      setTimeout(
+        () => reject(new Error(`Vision analysis timeout after ${timeoutMs}ms`)),
+        timeoutMs
+      );
     });
 
     return Promise.race([visionPromise, timeoutPromise]);
@@ -346,7 +351,7 @@ export class VisionFallbackService {
     if (!this.sectionDetector) {
       return {
         sections: [],
-        error: 'Section detector is not configured',
+        error: "Section detector is not configured",
       };
     }
 

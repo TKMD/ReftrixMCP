@@ -12,7 +12,7 @@
  * @module services/quality/axe-core-shared
  */
 
-import type { Result as AxeResult, AxeResults } from 'axe-core';
+import type { Result as AxeResult, AxeResults } from "axe-core";
 
 // =====================================================
 // 型定義
@@ -21,12 +21,12 @@ import type { Result as AxeResult, AxeResults } from 'axe-core';
 /**
  * 違反のインパクトレベル
  */
-export type ViolationImpact = 'minor' | 'moderate' | 'serious' | 'critical';
+export type ViolationImpact = "minor" | "moderate" | "serious" | "critical";
 
 /**
  * WCAGレベル
  */
-export type WcagLevel = 'A' | 'AA' | 'AAA';
+export type WcagLevel = "A" | "AA" | "AAA";
 
 /**
  * aXe違反情報
@@ -79,9 +79,9 @@ export const IMPACT_PENALTIES: Record<ViolationImpact, number> = {
  * WCAGレベルに対応するaXeタグ
  */
 export const WCAG_LEVEL_TAGS: Record<WcagLevel, string[]> = {
-  A: ['wcag2a', 'wcag21a'],
-  AA: ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'],
-  AAA: ['wcag2a', 'wcag2aa', 'wcag2aaa', 'wcag21a', 'wcag21aa', 'wcag21aaa'],
+  A: ["wcag2a", "wcag21a"],
+  AA: ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"],
+  AAA: ["wcag2a", "wcag2aa", "wcag2aaa", "wcag21a", "wcag21aa", "wcag21aaa"],
 };
 
 /**
@@ -89,9 +89,9 @@ export const WCAG_LEVEL_TAGS: Record<WcagLevel, string[]> = {
  * 降順でソート（高いしきい値から判定）
  */
 export const SCORE_TO_WCAG_LEVEL: { threshold: number; level: WcagLevel }[] = [
-  { threshold: 95, level: 'AAA' },
-  { threshold: 80, level: 'AA' },
-  { threshold: 0, level: 'A' },
+  { threshold: 95, level: "AAA" },
+  { threshold: 80, level: "AA" },
+  { threshold: 0, level: "A" },
 ];
 
 // =====================================================
@@ -131,7 +131,7 @@ export function calculateAccessibilityScore(results: AxeResults): number {
 
   // 違反によるペナルティ
   for (const violation of results.violations) {
-    const impact = (violation.impact as ViolationImpact) ?? 'moderate';
+    const impact = (violation.impact as ViolationImpact) ?? "moderate";
     const penalty = Math.abs(IMPACT_PENALTIES[impact]);
     score -= penalty;
   }
@@ -149,15 +149,15 @@ export function calculateAccessibilityScore(results: AxeResults): number {
  */
 export function determineWcagLevel(score: number, violations: AxeViolation[]): WcagLevel {
   // Critical違反がある場合は必ずレベルA
-  const hasCritical = violations.some((v) => v.impact === 'critical');
+  const hasCritical = violations.some((v) => v.impact === "critical");
   if (hasCritical) {
-    return 'A';
+    return "A";
   }
 
   // Serious違反があり、かつスコアが90未満の場合はレベルA
-  const hasSerious = violations.some((v) => v.impact === 'serious');
+  const hasSerious = violations.some((v) => v.impact === "serious");
   if (hasSerious && score < 90) {
-    return 'A';
+    return "A";
   }
 
   // スコアベースでレベルを決定
@@ -167,7 +167,7 @@ export function determineWcagLevel(score: number, violations: AxeViolation[]): W
     }
   }
 
-  return 'A';
+  return "A";
 }
 
 /**
@@ -176,7 +176,7 @@ export function determineWcagLevel(score: number, violations: AxeViolation[]): W
  * @param wcagLevel - 設定するWCAGレベル（デフォルト: 'AA'）
  * @returns 空のAxeAccessibilityResult
  */
-export function createEmptyResult(wcagLevel: WcagLevel = 'AA'): AxeAccessibilityResult {
+export function createEmptyResult(wcagLevel: WcagLevel = "AA"): AxeAccessibilityResult {
   return {
     violations: [],
     passes: 0,
@@ -194,7 +194,7 @@ export function createEmptyResult(wcagLevel: WcagLevel = 'AA'): AxeAccessibility
 export function convertAxeViolation(violation: AxeResult): AxeViolation {
   return {
     id: violation.id,
-    impact: (violation.impact as ViolationImpact) ?? 'moderate',
+    impact: (violation.impact as ViolationImpact) ?? "moderate",
     description: violation.description,
     help: violation.help,
     helpUrl: violation.helpUrl,

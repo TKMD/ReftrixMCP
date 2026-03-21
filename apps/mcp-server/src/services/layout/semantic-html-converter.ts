@@ -16,7 +16,7 @@
  * @module services/layout/semantic-html-converter
  */
 
-import { JSDOM } from 'jsdom';
+import { JSDOM } from "jsdom";
 
 // ==========================================================
 // 型定義
@@ -57,58 +57,58 @@ export interface SemanticConversionOptions {
  */
 const SECTION_TYPE_TO_ELEMENT: Record<string, string> = {
   // ページ構造要素
-  header: 'header',
-  footer: 'footer',
-  navigation: 'nav',
-  nav: 'nav',
-  content: 'main',
-  main: 'main',
-  article: 'article',
-  sidebar: 'aside',
-  aside: 'aside',
+  header: "header",
+  footer: "footer",
+  navigation: "nav",
+  nav: "nav",
+  content: "main",
+  main: "main",
+  article: "article",
+  sidebar: "aside",
+  aside: "aside",
 
   // セクション要素（すべて <section> にマッピング）
-  hero: 'section',
-  feature: 'section',
-  features: 'section',
-  cta: 'section',
-  testimonial: 'section',
-  testimonials: 'section',
-  pricing: 'section',
-  faq: 'section',
-  contact: 'section',
-  about: 'section',
-  services: 'section',
-  portfolio: 'section',
-  gallery: 'section',
-  team: 'section',
-  blog: 'section',
-  news: 'section',
-  stats: 'section',
-  clients: 'section',
-  partners: 'section',
-  logos: 'section',
-  benefits: 'section',
-  process: 'section',
-  timeline: 'section',
-  comparison: 'section',
-  download: 'section',
-  subscribe: 'section',
-  newsletter: 'section',
+  hero: "section",
+  feature: "section",
+  features: "section",
+  cta: "section",
+  testimonial: "section",
+  testimonials: "section",
+  pricing: "section",
+  faq: "section",
+  contact: "section",
+  about: "section",
+  services: "section",
+  portfolio: "section",
+  gallery: "section",
+  team: "section",
+  blog: "section",
+  news: "section",
+  stats: "section",
+  clients: "section",
+  partners: "section",
+  logos: "section",
+  benefits: "section",
+  process: "section",
+  timeline: "section",
+  comparison: "section",
+  download: "section",
+  subscribe: "section",
+  newsletter: "section",
 };
 
 /**
  * sectionType → aria-labelデフォルト値マッピング
  */
 const SECTION_TYPE_TO_DEFAULT_LABEL: Record<string, string> = {
-  header: 'Site header',
-  footer: 'Site footer',
-  navigation: 'Main navigation',
-  nav: 'Main navigation',
-  content: 'Main content',
-  main: 'Main content',
-  sidebar: 'Sidebar navigation',
-  aside: 'Sidebar navigation',
+  header: "Site header",
+  footer: "Site footer",
+  navigation: "Main navigation",
+  nav: "Main navigation",
+  content: "Main content",
+  main: "Main content",
+  sidebar: "Sidebar navigation",
+  aside: "Sidebar navigation",
 };
 
 // ==========================================================
@@ -150,7 +150,7 @@ export function mapSectionTypeToElement(sectionType: string): string {
   }
 
   // デフォルトは section
-  return 'section';
+  return "section";
 }
 
 /**
@@ -167,10 +167,7 @@ export function mapSectionTypeToElement(sectionType: string): string {
  * generateAriaLabel('header', undefined);           // 'Site header'
  * ```
  */
-export function generateAriaLabel(
-  sectionType: string,
-  sectionName: string | undefined
-): string {
+export function generateAriaLabel(sectionType: string, sectionName: string | undefined): string {
   // sectionNameが指定されている場合はそれを使用
   if (sectionName && sectionName.trim().length > 0) {
     return sectionName.trim();
@@ -207,13 +204,10 @@ export function generateAriaLabel(
  * // '<section class="hero" aria-label="Hero Section"><h1>Welcome</h1></section>'
  * ```
  */
-export function convertToSemanticHtml(
-  html: string,
-  options: SemanticConversionOptions
-): string {
+export function convertToSemanticHtml(html: string, options: SemanticConversionOptions): string {
   // 空のHTMLの処理
   if (!html || html.trim().length === 0) {
-    return '';
+    return "";
   }
 
   // デフォルトオプション
@@ -238,29 +232,29 @@ export function convertToSemanticHtml(
   // ルート要素を取得（bodyの最初の子要素）
   const children = Array.from(body.children);
   if (children.length === 0) {
-    return '';
+    return "";
   }
 
   // 最初の要素をルート要素として処理
   const rootElement = children[0];
   if (!rootElement) {
-    return '';
+    return "";
   }
 
   // 現在の要素名を取得
   const currentTagName = rootElement.tagName.toLowerCase();
 
   // セマンティック要素のリスト
-  const semanticElements = ['section', 'header', 'footer', 'nav', 'main', 'article', 'aside'];
+  const semanticElements = ["section", "header", "footer", "nav", "main", "article", "aside"];
 
   // 既にセマンティック要素の場合
   if (semanticElements.includes(currentTagName)) {
     // aria-labelの処理
     if (opts.addAriaLabel) {
-      const existingAriaLabel = rootElement.getAttribute('aria-label');
+      const existingAriaLabel = rootElement.getAttribute("aria-label");
       if (!existingAriaLabel || !opts.preserveExistingAriaLabel) {
         if (!existingAriaLabel) {
-          rootElement.setAttribute('aria-label', ariaLabel);
+          rootElement.setAttribute("aria-label", ariaLabel);
         }
       }
     }
@@ -268,7 +262,7 @@ export function convertToSemanticHtml(
   }
 
   // div要素の場合、セマンティック要素に変換
-  if (currentTagName === 'div') {
+  if (currentTagName === "div") {
     // 新しいセマンティック要素を作成
     const newElement = document.createElement(targetElement);
 
@@ -279,7 +273,7 @@ export function convertToSemanticHtml(
 
     // aria-labelを追加
     if (opts.addAriaLabel) {
-      newElement.setAttribute('aria-label', ariaLabel);
+      newElement.setAttribute("aria-label", ariaLabel);
     }
 
     // 子要素をコピー
@@ -291,7 +285,7 @@ export function convertToSemanticHtml(
   // その他の要素の場合はセマンティック要素でラップ
   const wrapperElement = document.createElement(targetElement);
   if (opts.addAriaLabel) {
-    wrapperElement.setAttribute('aria-label', ariaLabel);
+    wrapperElement.setAttribute("aria-label", ariaLabel);
   }
   wrapperElement.appendChild(rootElement.cloneNode(true));
 

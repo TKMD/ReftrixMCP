@@ -19,13 +19,10 @@
  * @module dinov2/service
  */
 
-import { Worker } from 'node:worker_threads';
-import { fileURLToPath } from 'node:url';
-import path from 'node:path';
-import type {
-  DINOv2WorkerMessage,
-  DINOv2WorkerResponse,
-} from './worker-thread-types.js';
+import { Worker } from "node:worker_threads";
+import { fileURLToPath } from "node:url";
+import path from "node:path";
+import type { DINOv2WorkerMessage, DINOv2WorkerResponse } from "./worker-thread-types.js";
 
 // =====================================================
 // Constants
@@ -82,7 +79,7 @@ function generateRequestId(): string {
  */
 function resolveWorkerScriptPath(): string {
   const currentDir = path.dirname(fileURLToPath(import.meta.url));
-  return path.resolve(currentDir, 'worker-thread.js');
+  return path.resolve(currentDir, "worker-thread.js");
 }
 
 /**
@@ -91,9 +88,9 @@ function resolveWorkerScriptPath(): string {
  */
 function isWorkerThreadEnabled(): boolean {
   const envVal = process.env.DINOV2_WORKER_THREAD;
-  if (envVal === 'false' || envVal === '0') return false;
+  if (envVal === "false" || envVal === "0") return false;
   // Disable in Vitest to avoid worker thread complications in test harness
-  if (process.env.VITEST === 'true' || process.env.VITEST_WORKER_ID !== undefined) return false;
+  if (process.env.VITEST === "true" || process.env.VITEST_WORKER_ID !== undefined) return false;
   return true;
 }
 
@@ -121,7 +118,6 @@ export class DINOv2Service {
   private lastCrashTime = 0;
 
   // --- In-process fallback state ---
-  // eslint-disable-next-line @typescript-eslint/no-redundant-type-constituents
   private inProcessSession: unknown | null = null;
 
   private _isInitialized = false;
@@ -164,7 +160,7 @@ export class DINOv2Service {
       const elapsed = Date.now() - this.lastCrashTime;
       if (elapsed < CRASH_COOLDOWN_MS) {
         const waitMs = CRASH_COOLDOWN_MS - elapsed;
-        await new Promise<void>(resolve => setTimeout(resolve, waitMs));
+        await new Promise<void>((resolve) => setTimeout(resolve, waitMs));
       }
     }
 
@@ -180,18 +176,18 @@ export class DINOv2Service {
       // Pass empty array to prevent parent flags from propagating.
       this.worker = new Worker(scriptPath, { execArgv: [] });
 
-      this.worker.on('message', (response: DINOv2WorkerResponse) => {
+      this.worker.on("message", (response: DINOv2WorkerResponse) => {
         this.handleWorkerResponse(response);
       });
 
-      this.worker.on('error', (error: Error) => {
-        console.warn('[DINOv2] Worker Thread error:', error.message);
+      this.worker.on("error", (error: Error) => {
+        console.warn("[DINOv2] Worker Thread error:", error.message);
         this.handleWorkerCrash(error);
       });
 
-      this.worker.on('exit', (code: number) => {
+      this.worker.on("exit", (code: number) => {
         if (code !== 0) {
-          console.warn('[DINOv2] Worker Thread exited with code:', code);
+          console.warn("[DINOv2] Worker Thread exited with code:", code);
           this.handleWorkerCrash(new Error(`Worker thread exited with code ${code}`));
         }
         this.workerReady = false;
@@ -199,25 +195,25 @@ export class DINOv2Service {
       });
 
       const response = await this.sendWorkerMessage({
-        type: 'init',
+        type: "init",
         requestId: generateRequestId(),
         modelPath: this.modelPath,
       });
 
-      if (response.type === 'error') {
+      if (response.type === "error") {
         throw new Error(`Worker init failed: ${response.error}`);
       }
 
       this.workerReady = true;
 
-      if (response.type === 'init') {
+      if (response.type === "init") {
         // eslint-disable-next-line no-console
-        console.log('[DINOv2] Worker Thread initialized in %dms', response.loadTimeMs);
+        console.log("[DINOv2] Worker Thread initialized in %dms", response.loadTimeMs);
       }
     } catch (error) {
       this.workerInitPromise = null;
       this.workerReady = false;
-      const message = error instanceof Error ? error.message : 'Unknown error';
+      const message = error instanceof Error ? error.message : "Unknown error";
       throw new Error(`Failed to initialize DINOv2 Worker Thread: ${message}`);
     }
   }
@@ -227,15 +223,17 @@ export class DINOv2Service {
    */
   private sendWorkerMessage(message: DINOv2WorkerMessage): Promise<DINOv2WorkerResponse> {
     if (!this.worker) {
-      return Promise.reject(new Error('Worker thread not available'));
+      return Promise.reject(new Error("Worker thread not available"));
     }
 
     return new Promise<DINOv2WorkerResponse>((resolve, reject) => {
       const timer = setTimeout(() => {
         this.pendingRequests.delete(message.requestId);
-        reject(new Error(
-          `Worker thread response timeout (${WORKER_RESPONSE_TIMEOUT_MS}ms) for ${message.type}`,
-        ));
+        reject(
+          new Error(
+            `Worker thread response timeout (${WORKER_RESPONSE_TIMEOUT_MS}ms) for ${message.type}`
+          )
+        );
       }, WORKER_RESPONSE_TIMEOUT_MS);
 
       this.pendingRequests.set(message.requestId, { resolve, reject, timer });
@@ -282,20 +280,20 @@ export class DINOv2Service {
   // =====================================================
 
   private async initializeInProcess(): Promise<void> {
-    const ortModule = await import('onnxruntime-node');
+    const ortModule = await import("onnxruntime-node");
     this.inProcessSession = await ortModule.InferenceSession.create(this.modelPath, {
-      executionProviders: ['cpu'],
+      executionProviders: ["cpu"],
     });
     // eslint-disable-next-line no-console
-    console.log('[DINOv2] Session initialized in-process:', this.modelPath);
+    console.log("[DINOv2] Session initialized in-process:", this.modelPath);
   }
 
   private async generateInProcess(imageBuffer: Buffer): Promise<number[]> {
-    const ortModule = await import('onnxruntime-node');
+    const ortModule = await import("onnxruntime-node");
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const sess = this.inProcessSession as any;
-    if (!sess) throw new Error('DINOv2 in-process session not initialized');
+    if (!sess) throw new Error("DINOv2 in-process session not initialized");
 
     const width = DINOV2_INPUT_SIZE;
     const height = DINOV2_INPUT_SIZE;
@@ -318,12 +316,12 @@ export class DINOv2Service {
       }
     }
 
-    const inputTensor = new ortModule.Tensor('float32', float32, [1, 3, height, width]);
+    const inputTensor = new ortModule.Tensor("float32", float32, [1, 3, height, width]);
     const output = await sess.run({ pixel_values: inputTensor });
 
     const lastHiddenState = output.last_hidden_state;
     if (!lastHiddenState) {
-      throw new Error('Model output missing last_hidden_state');
+      throw new Error("Model output missing last_hidden_state");
     }
 
     const data = lastHiddenState.data as Float32Array;
@@ -345,7 +343,7 @@ export class DINOv2Service {
     }
     norm = Math.sqrt(norm);
     if (norm === 0) {
-      throw new Error('Zero vector: L2 norm is 0');
+      throw new Error("Zero vector: L2 norm is 0");
     }
     const normalized = new Float32Array(DINOV2_EMBEDDING_DIMENSION);
     for (let i = 0; i < DINOV2_EMBEDDING_DIMENSION; i++) {
@@ -376,7 +374,7 @@ export class DINOv2Service {
     const expectedSize = DINOV2_INPUT_SIZE * DINOV2_INPUT_SIZE * 3;
     if (imageBuffer.length !== expectedSize) {
       throw new Error(
-        `Invalid image buffer size: expected ${expectedSize} (224x224x3 RGB), got ${imageBuffer.length}`,
+        `Invalid image buffer size: expected ${expectedSize} (224x224x3 RGB), got ${imageBuffer.length}`
       );
     }
 
@@ -417,25 +415,23 @@ export class DINOv2Service {
 
     // Copy to a fresh ArrayBuffer for structured clone transfer
     const arrayBuffer = new ArrayBuffer(imageBuffer.byteLength);
-    new Uint8Array(arrayBuffer).set(new Uint8Array(
-      imageBuffer.buffer,
-      imageBuffer.byteOffset,
-      imageBuffer.byteLength,
-    ));
+    new Uint8Array(arrayBuffer).set(
+      new Uint8Array(imageBuffer.buffer, imageBuffer.byteOffset, imageBuffer.byteLength)
+    );
 
     const response = await this.sendWorkerMessage({
-      type: 'infer',
+      type: "infer",
       requestId: generateRequestId(),
       imageBuffer: arrayBuffer,
       width: DINOV2_INPUT_SIZE,
       height: DINOV2_INPUT_SIZE,
     });
 
-    if (response.type === 'error') {
+    if (response.type === "error") {
       throw new Error(`DINOv2 inference failed: ${response.error}`);
     }
 
-    if (response.type !== 'infer') {
+    if (response.type !== "infer") {
       throw new Error(`Unexpected worker response type: ${response.type}`);
     }
 
@@ -451,7 +447,7 @@ export class DINOv2Service {
       if (this.worker && this.workerReady) {
         try {
           await this.sendWorkerMessage({
-            type: 'dispose',
+            type: "dispose",
             requestId: generateRequestId(),
           });
         } catch {
@@ -481,7 +477,7 @@ export class DINOv2Service {
     if (this.worker) {
       try {
         await this.sendWorkerMessage({
-          type: 'dispose',
+          type: "dispose",
           requestId: generateRequestId(),
         });
       } catch {
@@ -515,7 +511,7 @@ export class DINOv2Service {
     // Reject any remaining pending requests
     for (const [id, pending] of this.pendingRequests) {
       clearTimeout(pending.timer);
-      pending.reject(new Error('Service terminated'));
+      pending.reject(new Error("Service terminated"));
       this.pendingRequests.delete(id);
     }
   }

@@ -11,37 +11,37 @@
  * @module tests/tools/preference/security.test
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 import {
   preferenceHearHandler,
   setPreferenceServiceFactory as setHearServiceFactory,
   resetPreferenceServiceFactory as resetHearServiceFactory,
   type IPreferenceService,
-} from '../../../src/tools/preference/hear.tool';
+} from "../../../src/tools/preference/hear.tool";
 
 import {
   preferenceGetHandler,
   setPreferenceServiceFactory as setGetServiceFactory,
   resetPreferenceServiceFactory as resetGetServiceFactory,
-} from '../../../src/tools/preference/get.tool';
+} from "../../../src/tools/preference/get.tool";
 
 import {
   preferenceResetHandler,
   setPreferenceServiceFactory as setResetServiceFactory,
   resetPreferenceServiceFactory as resetResetServiceFactory,
-} from '../../../src/tools/preference/reset.tool';
+} from "../../../src/tools/preference/reset.tool";
 
 import {
   PREFERENCE_MCP_ERROR_CODES,
   sanitizeErrorMessage,
-} from '../../../src/tools/preference/schemas';
+} from "../../../src/tools/preference/schemas";
 
 // =====================================================
 // テストデータ / Test Data
 // =====================================================
 
-const MOCK_PROFILE_ID = '01234567-89ab-cdef-0123-456789abcdef';
+const MOCK_PROFILE_ID = "01234567-89ab-cdef-0123-456789abcdef";
 
 // =====================================================
 // モックサービス / Mock Service
@@ -55,7 +55,7 @@ function createMockService(overrides?: Partial<IPreferenceService>): IPreference
       progress: {
         confidence: 0,
         estimated_remaining: 5,
-        remaining_reason: 'テスト / test',
+        remaining_reason: "テスト / test",
         should_continue: true,
         mood_categories_covered: 0,
         mood_categories_total: 5,
@@ -68,11 +68,11 @@ function createMockService(overrides?: Partial<IPreferenceService>): IPreference
     }),
     getProfile: vi.fn().mockResolvedValue({
       profile_id: MOCK_PROFILE_ID,
-      name: 'default',
+      name: "default",
       preference_text: null,
       interaction_count: 0,
-      created_at: '2026-03-07T00:00:00Z',
-      updated_at: '2026-03-07T00:00:00Z',
+      created_at: "2026-03-07T00:00:00Z",
+      updated_at: "2026-03-07T00:00:00Z",
     }),
     resetProfile: vi.fn().mockResolvedValue({
       reset: true,
@@ -107,7 +107,7 @@ function resetAllFactories(): void {
 // セキュリティテスト / Security Tests
 // =====================================================
 
-describe('preference セキュリティテスト', () => {
+describe("preference セキュリティテスト", () => {
   beforeEach(() => {
     resetAllFactories();
   });
@@ -120,7 +120,7 @@ describe('preference セキュリティテスト', () => {
   // 1. SQLインジェクション防御 / SQL Injection Defense
   // =====================================================
 
-  describe('SQLインジェクション防御', () => {
+  describe("SQLインジェクション防御", () => {
     const SQL_INJECTION_PAYLOADS = [
       "'; DROP TABLE preference_profiles; --",
       "1' OR '1'='1",
@@ -128,7 +128,7 @@ describe('preference セキュリティテスト', () => {
       "' UNION SELECT id, preference_text FROM preference_profiles --",
     ];
 
-    it('profile_id に SQL injection 文字列 → Zodバリデーションエラー（UUID形式不一致）', async () => {
+    it("profile_id に SQL injection 文字列 → Zodバリデーションエラー（UUID形式不一致）", async () => {
       const mockService = createMockService();
       setupAllFactories(mockService);
 
@@ -137,7 +137,7 @@ describe('preference セキュリティテスト', () => {
           profile_id: payload,
         });
 
-        expect(result).toHaveProperty('success', false);
+        expect(result).toHaveProperty("success", false);
         const error = (result as { success: false; error: { code: string } }).error;
         expect(error.code).toBe(PREFERENCE_MCP_ERROR_CODES.VALIDATION_ERROR);
       }
@@ -147,7 +147,7 @@ describe('preference セキュリティテスト', () => {
       expect(mockService.processFeedback).not.toHaveBeenCalled();
     });
 
-    it('exclude_ids に SQL injection 文字列 → Zodバリデーションエラー（UUID形式不一致）', async () => {
+    it("exclude_ids に SQL injection 文字列 → Zodバリデーションエラー（UUID形式不一致）", async () => {
       const mockService = createMockService();
       setupAllFactories(mockService);
 
@@ -157,7 +157,7 @@ describe('preference セキュリティテスト', () => {
           exclude_ids: [payload],
         });
 
-        expect(result).toHaveProperty('success', false);
+        expect(result).toHaveProperty("success", false);
         const error = (result as { success: false; error: { code: string } }).error;
         expect(error.code).toBe(PREFERENCE_MCP_ERROR_CODES.VALIDATION_ERROR);
       }
@@ -165,7 +165,7 @@ describe('preference セキュリティテスト', () => {
       expect(mockService.getSamples).not.toHaveBeenCalled();
     });
 
-    it('preference_text に SQL injection 文字列 → パラメータ化クエリで安全に処理', async () => {
+    it("preference_text に SQL injection 文字列 → パラメータ化クエリで安全に処理", async () => {
       const mockService = createMockService();
       setupAllFactories(mockService);
 
@@ -178,15 +178,15 @@ describe('preference セキュリティテスト', () => {
         profile_id: MOCK_PROFILE_ID,
         feedback: [
           {
-            sample_id: '11111111-1111-1111-1111-111111111111',
-            rating: 'positive',
+            sample_id: "11111111-1111-1111-1111-111111111111",
+            rating: "positive",
           },
         ],
         preference_text: longPayload,
       });
 
       // Zod通過後、サービスレイヤーに到達（パラメータ化クエリで安全に処理）
-      expect(result).toHaveProperty('success', true);
+      expect(result).toHaveProperty("success", true);
       expect(mockService.processFeedback).toHaveBeenCalledWith(
         MOCK_PROFILE_ID,
         expect.any(Array),
@@ -194,7 +194,7 @@ describe('preference セキュリティテスト', () => {
       );
     });
 
-    it('comment に SQL injection 文字列 → パラメータ化クエリで安全に処理', async () => {
+    it("comment に SQL injection 文字列 → パラメータ化クエリで安全に処理", async () => {
       const mockService = createMockService();
       setupAllFactories(mockService);
 
@@ -204,21 +204,19 @@ describe('preference セキュリティテスト', () => {
         profile_id: MOCK_PROFILE_ID,
         feedback: [
           {
-            sample_id: '11111111-1111-1111-1111-111111111111',
-            rating: 'positive',
+            sample_id: "11111111-1111-1111-1111-111111111111",
+            rating: "positive",
             comment: sqlComment,
           },
         ],
-        preference_text: 'テスト嗜好テキストです。ミニマルなデザインが好み。',
+        preference_text: "テスト嗜好テキストです。ミニマルなデザインが好み。",
       });
 
       // comment はパラメータ化クエリで安全に処理される
-      expect(result).toHaveProperty('success', true);
+      expect(result).toHaveProperty("success", true);
       expect(mockService.processFeedback).toHaveBeenCalledWith(
         MOCK_PROFILE_ID,
-        expect.arrayContaining([
-          expect.objectContaining({ comment: sqlComment }),
-        ]),
+        expect.arrayContaining([expect.objectContaining({ comment: sqlComment })]),
         expect.any(String)
       );
     });
@@ -228,16 +226,16 @@ describe('preference セキュリティテスト', () => {
   // 2. 不正UUID処理 / Invalid UUID Handling
   // =====================================================
 
-  describe('不正UUID処理', () => {
-    it('非UUID形式の profile_id → バリデーションエラー（hear）', async () => {
+  describe("不正UUID処理", () => {
+    it("非UUID形式の profile_id → バリデーションエラー（hear）", async () => {
       const mockService = createMockService();
       setupAllFactories(mockService);
 
       const invalidIds = [
-        'not-a-uuid',
-        '12345',
-        'ZZZZZZZZ-ZZZZ-ZZZZ-ZZZZ-ZZZZZZZZZZZZ',
-        '../../../etc/passwd',
+        "not-a-uuid",
+        "12345",
+        "ZZZZZZZZ-ZZZZ-ZZZZ-ZZZZ-ZZZZZZZZZZZZ",
+        "../../../etc/passwd",
         '<script>alert("xss")</script>',
       ];
 
@@ -246,38 +244,38 @@ describe('preference セキュリティテスト', () => {
           profile_id: invalidId,
         });
 
-        expect(result).toHaveProperty('success', false);
+        expect(result).toHaveProperty("success", false);
         const error = (result as { success: false; error: { code: string } }).error;
         expect(error.code).toBe(PREFERENCE_MCP_ERROR_CODES.VALIDATION_ERROR);
       }
     });
 
-    it('空文字列の profile_id → バリデーションエラー（get）', async () => {
+    it("空文字列の profile_id → バリデーションエラー（get）", async () => {
       const mockService = createMockService();
       setupAllFactories(mockService);
 
       const result = await preferenceGetHandler({
-        profile_id: '',
+        profile_id: "",
       });
 
-      expect(result).toHaveProperty('success', false);
+      expect(result).toHaveProperty("success", false);
       const error = (result as { success: false; error: { code: string } }).error;
       expect(error.code).toBe(PREFERENCE_MCP_ERROR_CODES.VALIDATION_ERROR);
     });
 
-    it('不正形式の exclude_ids 要素 → バリデーションエラー', async () => {
+    it("不正形式の exclude_ids 要素 → バリデーションエラー", async () => {
       const mockService = createMockService();
       setupAllFactories(mockService);
 
       const result = await preferenceHearHandler({
         profile_id: MOCK_PROFILE_ID,
         exclude_ids: [
-          '11111111-1111-1111-1111-111111111111', // 有効
-          'invalid-uuid-format',                    // 無効
+          "11111111-1111-1111-1111-111111111111", // 有効
+          "invalid-uuid-format", // 無効
         ],
       });
 
-      expect(result).toHaveProperty('success', false);
+      expect(result).toHaveProperty("success", false);
       const error = (result as { success: false; error: { code: string } }).error;
       expect(error.code).toBe(PREFERENCE_MCP_ERROR_CODES.VALIDATION_ERROR);
 
@@ -290,26 +288,26 @@ describe('preference セキュリティテスト', () => {
   // 3. 超長文字列処理 / Long String Handling
   // =====================================================
 
-  describe('超長文字列処理', () => {
-    it('1000文字超の preference_text → Zodバリデーションエラー（max: 1000）', async () => {
+  describe("超長文字列処理", () => {
+    it("1000文字超の preference_text → Zodバリデーションエラー（max: 1000）", async () => {
       const mockService = createMockService();
       setupAllFactories(mockService);
 
       // 1001文字の文字列を生成
-      const longText = 'あ'.repeat(1001);
+      const longText = "あ".repeat(1001);
 
       const result = await preferenceHearHandler({
         profile_id: MOCK_PROFILE_ID,
         feedback: [
           {
-            sample_id: '11111111-1111-1111-1111-111111111111',
-            rating: 'positive',
+            sample_id: "11111111-1111-1111-1111-111111111111",
+            rating: "positive",
           },
         ],
         preference_text: longText,
       });
 
-      expect(result).toHaveProperty('success', false);
+      expect(result).toHaveProperty("success", false);
       const error = (result as { success: false; error: { code: string } }).error;
       expect(error.code).toBe(PREFERENCE_MCP_ERROR_CODES.VALIDATION_ERROR);
 
@@ -317,26 +315,26 @@ describe('preference セキュリティテスト', () => {
       expect(mockService.processFeedback).not.toHaveBeenCalled();
     });
 
-    it('500文字超の comment → Zodバリデーションエラー（max: 500）', async () => {
+    it("500文字超の comment → Zodバリデーションエラー（max: 500）", async () => {
       const mockService = createMockService();
       setupAllFactories(mockService);
 
       // 501文字のコメントを生成
-      const longComment = 'b'.repeat(501);
+      const longComment = "b".repeat(501);
 
       const result = await preferenceHearHandler({
         profile_id: MOCK_PROFILE_ID,
         feedback: [
           {
-            sample_id: '11111111-1111-1111-1111-111111111111',
-            rating: 'positive',
+            sample_id: "11111111-1111-1111-1111-111111111111",
+            rating: "positive",
             comment: longComment,
           },
         ],
-        preference_text: 'テスト嗜好テキストです。ミニマルなデザインが好み。',
+        preference_text: "テスト嗜好テキストです。ミニマルなデザインが好み。",
       });
 
-      expect(result).toHaveProperty('success', false);
+      expect(result).toHaveProperty("success", false);
       const error = (result as { success: false; error: { code: string } }).error;
       expect(error.code).toBe(PREFERENCE_MCP_ERROR_CODES.VALIDATION_ERROR);
 
@@ -349,8 +347,8 @@ describe('preference セキュリティテスト', () => {
   // 4. エラーメッセージサニタイズ / Error Message Sanitization
   // =====================================================
 
-  describe('エラーメッセージサニタイズ', () => {
-    it('DBエラー時にテーブル名が漏洩しない（preference_profiles）', async () => {
+  describe("エラーメッセージサニタイズ", () => {
+    it("DBエラー時にテーブル名が漏洩しない（preference_profiles）", async () => {
       const dbError = new Error(
         'insert or update on table "preference_profiles" violates foreign key constraint'
       );
@@ -361,25 +359,25 @@ describe('preference セキュリティテスト', () => {
 
       const result = await preferenceHearHandler({});
 
-      expect(result).toHaveProperty('success', false);
+      expect(result).toHaveProperty("success", false);
       const error = (result as { success: false; error: { code: string; message: string } }).error;
 
       // テーブル名が含まれていないことを検証
-      expect(error.message).not.toContain('preference_profiles');
-      expect(error.message).not.toContain('preference_signals');
-      expect(error.message).not.toContain('design_narratives');
-      expect(error.message).not.toContain('web_pages');
+      expect(error.message).not.toContain("preference_profiles");
+      expect(error.message).not.toContain("preference_signals");
+      expect(error.message).not.toContain("design_narratives");
+      expect(error.message).not.toContain("web_pages");
 
       // サニタイズ済みメッセージであることを検証
       expect(error.code).toBe(PREFERENCE_MCP_ERROR_CODES.INTERNAL_ERROR);
-      expect(error.message).toBe('An internal error occurred');
+      expect(error.message).toBe("An internal error occurred");
     });
 
-    it('DBエラー時にSQL構文が漏洩しない（SELECT/INSERT/DELETE）', async () => {
+    it("DBエラー時にSQL構文が漏洩しない（SELECT/INSERT/DELETE）", async () => {
       const sqlErrors = [
-        new Error('SELECT id FROM preference_profiles WHERE id = $1 failed: connection refused'),
-        new Error('INSERT INTO preference_signals (profile_id) VALUES ($1) failed'),
-        new Error('DELETE FROM preference_signals WHERE profile_id = $1::uuid failed'),
+        new Error("SELECT id FROM preference_profiles WHERE id = $1 failed: connection refused"),
+        new Error("INSERT INTO preference_signals (profile_id) VALUES ($1) failed"),
+        new Error("DELETE FROM preference_signals WHERE profile_id = $1::uuid failed"),
       ];
 
       for (const sqlError of sqlErrors) {
@@ -393,41 +391,42 @@ describe('preference セキュリティテスト', () => {
           profile_id: MOCK_PROFILE_ID,
         });
 
-        expect(result).toHaveProperty('success', false);
-        const error = (result as { success: false; error: { code: string; message: string } }).error;
+        expect(result).toHaveProperty("success", false);
+        const error = (result as { success: false; error: { code: string; message: string } })
+          .error;
 
         // SQL構文が含まれていないことを検証
-        expect(error.message).not.toContain('SELECT');
-        expect(error.message).not.toContain('INSERT');
-        expect(error.message).not.toContain('DELETE');
-        expect(error.message).not.toContain('FROM');
-        expect(error.message).not.toContain('WHERE');
-        expect(error.message).not.toContain('$1');
+        expect(error.message).not.toContain("SELECT");
+        expect(error.message).not.toContain("INSERT");
+        expect(error.message).not.toContain("DELETE");
+        expect(error.message).not.toContain("FROM");
+        expect(error.message).not.toContain("WHERE");
+        expect(error.message).not.toContain("$1");
       }
     });
 
-    it('sanitizeErrorMessage() は全エラーコードに対して固定メッセージのみ返却する', () => {
+    it("sanitizeErrorMessage() は全エラーコードに対して固定メッセージのみ返却する", () => {
       // 全定義済みエラーコードを検証
       const allCodes = Object.values(PREFERENCE_MCP_ERROR_CODES);
 
       for (const code of allCodes) {
         const message = sanitizeErrorMessage(code);
-        expect(typeof message).toBe('string');
+        expect(typeof message).toBe("string");
         expect(message.length).toBeGreaterThan(0);
 
         // DB構造が含まれていないことを検証
-        expect(message).not.toContain('preference_profiles');
-        expect(message).not.toContain('preference_signals');
-        expect(message).not.toContain('SELECT');
-        expect(message).not.toContain('INSERT');
+        expect(message).not.toContain("preference_profiles");
+        expect(message).not.toContain("preference_signals");
+        expect(message).not.toContain("SELECT");
+        expect(message).not.toContain("INSERT");
       }
 
       // 未知のエラーコードに対してもフォールバックメッセージを返す
-      const unknownMessage = sanitizeErrorMessage('UNKNOWN_CODE');
-      expect(unknownMessage).toBe('An unexpected error occurred');
+      const unknownMessage = sanitizeErrorMessage("UNKNOWN_CODE");
+      expect(unknownMessage).toBe("An unexpected error occurred");
     });
 
-    it('reset ハンドラーもDBエラー時にサニタイズ済みメッセージを返す', async () => {
+    it("reset ハンドラーもDBエラー時にサニタイズ済みメッセージを返す", async () => {
       const dbError = new Error(
         'update "preference_profiles" set interaction_count = 0 failed: disk full'
       );
@@ -441,14 +440,14 @@ describe('preference セキュリティテスト', () => {
         confirm: true,
       });
 
-      expect(result).toHaveProperty('success', false);
+      expect(result).toHaveProperty("success", false);
       const error = (result as { success: false; error: { code: string; message: string } }).error;
 
-      expect(error.message).not.toContain('preference_profiles');
-      expect(error.message).not.toContain('interaction_count');
-      expect(error.message).not.toContain('disk full');
+      expect(error.message).not.toContain("preference_profiles");
+      expect(error.message).not.toContain("interaction_count");
+      expect(error.message).not.toContain("disk full");
       expect(error.code).toBe(PREFERENCE_MCP_ERROR_CODES.INTERNAL_ERROR);
-      expect(error.message).toBe('An internal error occurred');
+      expect(error.message).toBe("An internal error occurred");
     });
   });
 });

@@ -18,24 +18,21 @@
  * @module services/motion/frame-embedding.service
  */
 
-import { isDevelopment, logger } from '../../utils/logger';
+import { isDevelopment, logger } from "../../utils/logger";
 import type {
   FrameImageAnalysisOutput,
   AnimationZone,
   LayoutShiftInfo,
   MotionVectorInfo,
-} from './frame-image-analyzer.adapter';
-import {
-  validateEmbeddingVector,
-  EmbeddingValidationError,
-} from '../embedding-validation.service';
+} from "./frame-image-analyzer.adapter";
+import { validateEmbeddingVector, EmbeddingValidationError } from "../embedding-validation.service";
 
 // =====================================================
 // 定数
 // =====================================================
 
 /** デフォルトのモデル名 */
-export const DEFAULT_MODEL_NAME = 'multilingual-e5-base';
+export const DEFAULT_MODEL_NAME = "multilingual-e5-base";
 
 /** デフォルトのEmbedding次元数 */
 export const DEFAULT_EMBEDDING_DIMENSIONS = 768;
@@ -62,8 +59,8 @@ export interface CacheStats {
  * EmbeddingServiceインターフェース
  */
 export interface IEmbeddingService {
-  generateEmbedding(text: string, type: 'query' | 'passage'): Promise<number[]>;
-  generateBatchEmbeddings(texts: string[], type: 'query' | 'passage'): Promise<number[][]>;
+  generateEmbedding(text: string, type: "query" | "passage"): Promise<number[]>;
+  generateBatchEmbeddings(texts: string[], type: "query" | "passage"): Promise<number[][]>;
   getCacheStats(): CacheStats;
   clearCache(): void;
 }
@@ -170,11 +167,13 @@ export interface SavedFrameAnalysisResult {
   /** エラー理由（失敗時） */
   reason?: string | undefined;
   /** カテゴリ別保存数 */
-  byCategory?: {
-    animationZones: number;
-    layoutShifts: number;
-    motionVectors: number;
-  } | undefined;
+  byCategory?:
+    | {
+        animationZones: number;
+        layoutShifts: number;
+        motionVectors: number;
+      }
+    | undefined;
 }
 
 /**
@@ -209,9 +208,7 @@ let prismaClientFactory: (() => IPrismaClient) | null = null;
 /**
  * EmbeddingServiceファクトリを設定
  */
-export function setEmbeddingServiceFactory(
-  factory: () => IEmbeddingService
-): void {
+export function setEmbeddingServiceFactory(factory: () => IEmbeddingService): void {
   embeddingServiceFactory = factory;
 }
 
@@ -225,9 +222,7 @@ export function resetEmbeddingServiceFactory(): void {
 /**
  * PrismaClientファクトリを設定
  */
-export function setPrismaClientFactory(
-  factory: () => IPrismaClient
-): void {
+export function setPrismaClientFactory(factory: () => IPrismaClient): void {
   prismaClientFactory = factory;
 }
 
@@ -273,19 +268,17 @@ export function animationZoneToText(zone: AnimationZone): string {
   // フレーム範囲
   parts.push(`frames: ${zone.frameStart} to ${zone.frameEnd}`);
 
-  return parts.join('. ') + '.';
+  return parts.join(". ") + ".";
 }
 
 /**
  * LayoutShiftInfoからテキスト表現を生成
  */
-export function layoutShiftToText(
-  layoutShift: LayoutShiftInfo
-): string {
+export function layoutShiftToText(layoutShift: LayoutShiftInfo): string {
   const parts: string[] = [];
 
   // タイプ
-  parts.push('layout shift detected');
+  parts.push("layout shift detected");
 
   // フレーム範囲
   parts.push(`frame range: ${layoutShift.frameRange}`);
@@ -298,11 +291,9 @@ export function layoutShiftToText(
 
   // 境界ボックス
   const bbox = layoutShift.boundingBox;
-  parts.push(
-    `bounding box: x=${bbox.x}, y=${bbox.y}, width=${bbox.width}, height=${bbox.height}`
-  );
+  parts.push(`bounding box: x=${bbox.x}, y=${bbox.y}, width=${bbox.width}, height=${bbox.height}`);
 
-  return parts.join('. ') + '.';
+  return parts.join(". ") + ".";
 }
 
 /**
@@ -315,7 +306,7 @@ export function motionVectorToText(vector: MotionVectorInfo): string {
   const parts: string[] = [];
 
   // タイプ
-  parts.push('motion vector detected');
+  parts.push("motion vector detected");
 
   // 方向
   parts.push(`direction: ${vector.direction}`);
@@ -332,7 +323,7 @@ export function motionVectorToText(vector: MotionVectorInfo): string {
   // 角度
   parts.push(`angle: ${vector.angle} degrees`);
 
-  return parts.join('. ') + '.';
+  return parts.join(". ") + ".";
 }
 
 /**
@@ -370,7 +361,7 @@ export function frameAnalysisToText(analysis: FrameImageAnalysisOutput): string 
     }
   }
 
-  return parts.join(' ');
+  return parts.join(" ");
 }
 
 // Backward compatibility aliases
@@ -444,7 +435,7 @@ export class FrameEmbeddingService {
     }
 
     if (isDevelopment()) {
-      logger.info('[FrameEmbedding] Service initialized', {
+      logger.info("[FrameEmbedding] Service initialized", {
         modelName: this.modelName,
         normalize: this.normalize,
       });
@@ -464,7 +455,7 @@ export class FrameEmbeddingService {
       return this.embeddingService;
     }
 
-    throw new Error('EmbeddingService not initialized');
+    throw new Error("EmbeddingService not initialized");
   }
 
   /**
@@ -480,7 +471,7 @@ export class FrameEmbeddingService {
       return this.prismaClient;
     }
 
-    throw new Error('PrismaClient not initialized');
+    throw new Error("PrismaClient not initialized");
   }
 
   /**
@@ -488,7 +479,7 @@ export class FrameEmbeddingService {
    */
   private async generateEmbeddingFromText(text: string): Promise<number[]> {
     const service = this.getEmbeddingService();
-    const embedding = await service.generateEmbedding(`passage: ${text}`, 'passage');
+    const embedding = await service.generateEmbedding(`passage: ${text}`, "passage");
 
     // Embeddingベクトルの検証
     const validationResult = validateEmbeddingVector(embedding);
@@ -497,9 +488,9 @@ export class FrameEmbeddingService {
       const errorMessage =
         error?.index !== undefined
           ? `${error.message} at index ${error.index}`
-          : error?.message ?? 'Unknown validation error';
+          : (error?.message ?? "Unknown validation error");
       throw new EmbeddingValidationError(
-        error?.code ?? 'INVALID_VECTOR',
+        error?.code ?? "INVALID_VECTOR",
         errorMessage,
         error?.index
       );
@@ -521,15 +512,15 @@ export class FrameEmbeddingService {
    * AnimationZoneからEmbeddingを生成
    */
   async generateFromAnimationZone(zone: AnimationZone): Promise<EmbeddingResult> {
-    if (!zone || typeof zone !== 'object') {
-      throw new Error('Invalid input: zone must be a valid AnimationZone object');
+    if (!zone || typeof zone !== "object") {
+      throw new Error("Invalid input: zone must be a valid AnimationZone object");
     }
 
     const startTime = Date.now();
     const textUsed = animationZoneToText(zone);
 
     if (isDevelopment()) {
-      logger.info('[FrameEmbedding] Generating from animation zone', {
+      logger.info("[FrameEmbedding] Generating from animation zone", {
         animationType: zone.animationType,
         scrollRange: `${zone.scrollStart}-${zone.scrollEnd}`,
       });
@@ -550,15 +541,15 @@ export class FrameEmbeddingService {
    * MotionVectorInfoからEmbeddingを生成
    */
   async generateFromMotionVector(vector: MotionVectorInfo): Promise<EmbeddingResult> {
-    if (!vector || typeof vector !== 'object') {
-      throw new Error('Invalid input: vector must be a valid MotionVectorInfo object');
+    if (!vector || typeof vector !== "object") {
+      throw new Error("Invalid input: vector must be a valid MotionVectorInfo object");
     }
 
     const startTime = Date.now();
     const textUsed = motionVectorToText(vector);
 
     if (isDevelopment()) {
-      logger.info('[FrameEmbedding] Generating from motion vector', {
+      logger.info("[FrameEmbedding] Generating from motion vector", {
         direction: vector.direction,
         magnitude: vector.magnitude,
       });
@@ -579,15 +570,15 @@ export class FrameEmbeddingService {
    * FrameImageAnalysisOutputからEmbeddingを生成
    */
   async generateFromFrameAnalysis(analysis: FrameImageAnalysisOutput): Promise<EmbeddingResult> {
-    if (!analysis || typeof analysis !== 'object') {
-      throw new Error('Invalid input: analysis must be a valid FrameImageAnalysisOutput object');
+    if (!analysis || typeof analysis !== "object") {
+      throw new Error("Invalid input: analysis must be a valid FrameImageAnalysisOutput object");
     }
 
     const startTime = Date.now();
     const textUsed = frameAnalysisToText(analysis);
 
     if (isDevelopment()) {
-      logger.info('[FrameEmbedding] Generating from frame analysis', {
+      logger.info("[FrameEmbedding] Generating from frame analysis", {
         totalFrames: analysis.metadata.totalFrames,
         zones: analysis.animationZones.length,
         vectors: analysis.motionVectors.length,
@@ -623,7 +614,7 @@ export class FrameEmbeddingService {
       const service = this.getEmbeddingService();
       const embeddings = await service.generateBatchEmbeddings(
         texts.map((t) => `passage: ${t}`),
-        'passage'
+        "passage"
       );
 
       return zones.map((_zone, i) => {
@@ -633,7 +624,7 @@ export class FrameEmbeddingService {
         }
         return {
           embedding,
-          textUsed: texts[i] ?? '',
+          textUsed: texts[i] ?? "",
           modelName: this.modelName,
           processingTimeMs: 0,
         };
@@ -641,8 +632,8 @@ export class FrameEmbeddingService {
     } catch (error) {
       // バッチ処理が失敗した場合は個別に処理
       if (isDevelopment()) {
-        logger.warn('[FrameEmbedding] Batch failed, falling back to individual', {
-          error: error instanceof Error ? error.message : 'Unknown error',
+        logger.warn("[FrameEmbedding] Batch failed, falling back to individual", {
+          error: error instanceof Error ? error.message : "Unknown error",
         });
       }
 
@@ -673,7 +664,7 @@ export class FrameEmbeddingService {
       const service = this.getEmbeddingService();
       const embeddings = await service.generateBatchEmbeddings(
         texts.map((t) => `passage: ${t}`),
-        'passage'
+        "passage"
       );
 
       return vectors.map((_vector, i) => {
@@ -683,7 +674,7 @@ export class FrameEmbeddingService {
         }
         return {
           embedding,
-          textUsed: texts[i] ?? '',
+          textUsed: texts[i] ?? "",
           modelName: this.modelName,
           processingTimeMs: 0,
         };
@@ -691,8 +682,8 @@ export class FrameEmbeddingService {
     } catch (error) {
       // バッチ処理が失敗した場合は個別に処理
       if (isDevelopment()) {
-        logger.warn('[FrameEmbedding] Batch failed, falling back to individual', {
-          error: error instanceof Error ? error.message : 'Unknown error',
+        logger.warn("[FrameEmbedding] Batch failed, falling back to individual", {
+          error: error instanceof Error ? error.message : "Unknown error",
         });
       }
 
@@ -720,7 +711,7 @@ export class FrameEmbeddingService {
     const startTime = Date.now();
 
     if (isDevelopment()) {
-      logger.info('[FrameEmbedding] Generating from analysis (integrated)', {
+      logger.info("[FrameEmbedding] Generating from analysis (integrated)", {
         zones: analysis.animationZones.length,
         vectors: analysis.motionVectors.length,
       });
@@ -774,7 +765,7 @@ export class FrameEmbeddingService {
       const texts = zones.map((zone) => animationZoneToText(zone));
       const embeddings = await service.generateBatchEmbeddings(
         texts.map((t) => `passage: ${t}`),
-        'passage'
+        "passage"
       );
 
       for (let i = 0; i < zones.length; i++) {
@@ -784,7 +775,7 @@ export class FrameEmbeddingService {
         }
         results.push({
           embedding,
-          textUsed: texts[i] ?? '',
+          textUsed: texts[i] ?? "",
           modelName: this.modelName,
           processingTimeMs: 0,
         });
@@ -796,8 +787,8 @@ export class FrameEmbeddingService {
     } catch (error) {
       // バッチ処理が失敗した場合は個別に処理
       if (isDevelopment()) {
-        logger.warn('[FrameEmbedding] Batch failed, falling back to individual', {
-          error: error instanceof Error ? error.message : 'Unknown error',
+        logger.warn("[FrameEmbedding] Batch failed, falling back to individual", {
+          error: error instanceof Error ? error.message : "Unknown error",
         });
       }
 
@@ -880,7 +871,7 @@ export class FrameEmbeddingService {
     const textRepresentation = animationZoneToText(zone);
 
     if (isDevelopment()) {
-      logger.info('[FrameEmbedding] Saving animation zone', {
+      logger.info("[FrameEmbedding] Saving animation zone", {
         animationType: zone.animationType,
         scrollRange: `${zone.scrollStart}-${zone.scrollEnd}`,
       });
@@ -907,7 +898,7 @@ export class FrameEmbeddingService {
       name: `${zone.animationType}_${zone.scrollStart}-${zone.scrollEnd}`,
       type: `scroll_animation_${zone.animationType}`,
       category: this.mapAnimationTypeToCategory(zone.animationType),
-      triggerType: 'scroll',
+      triggerType: "scroll",
       triggerConfig: { scrollStart: zone.scrollStart, scrollEnd: zone.scrollEnd },
       animation: {
         duration: zone.duration,
@@ -915,18 +906,18 @@ export class FrameEmbeddingService {
         peakChange: parseFloat(zone.peakDiff),
       },
       properties: [
-        { property: 'opacity', from: '0', to: '1' },
-        { property: 'transform', from: 'none', to: 'none' },
+        { property: "opacity", from: "0", to: "1" },
+        { property: "transform", from: "none", to: "none" },
       ],
       implementation: {},
       accessibility: {},
       performance: {},
-      usageScope: 'inspiration_only',
-      tags: ['frame-analysis', zone.animationType],
+      usageScope: "inspiration_only",
+      tags: ["frame-analysis", zone.animationType],
       metadata: {
         frameStart: zone.frameStart,
         frameEnd: zone.frameEnd,
-        analysisSource: 'frame-image-analysis',
+        analysisSource: "frame-image-analysis",
       },
     };
 
@@ -942,10 +933,7 @@ export class FrameEmbeddingService {
     });
 
     // Embeddingを生成して保存
-    const embeddingId = await this.saveEmbeddingToDb(
-      createdPattern.id,
-      textRepresentation
-    );
+    const embeddingId = await this.saveEmbeddingToDb(createdPattern.id, textRepresentation);
 
     return { patternId: createdPattern.id, embeddingId };
   }
@@ -963,7 +951,7 @@ export class FrameEmbeddingService {
     const textRepresentation = layoutShiftToText(layoutShift);
 
     if (isDevelopment()) {
-      logger.info('[FrameEmbedding] Saving layout shift', {
+      logger.info("[FrameEmbedding] Saving layout shift", {
         frameRange: layoutShift.frameRange,
         impactFraction: layoutShift.impactFraction,
       });
@@ -987,29 +975,27 @@ export class FrameEmbeddingService {
       metadata: unknown;
     } = {
       name: `layout_shift_${layoutShift.impactFraction}`,
-      category: 'layout_shift',
-      triggerType: 'scroll',
+      category: "layout_shift",
+      triggerType: "scroll",
       triggerConfig: {},
       animation: {
         impactFraction: parseFloat(layoutShift.impactFraction),
       },
-      properties: [
-        { property: 'position', from: 'initial', to: 'shifted' },
-      ],
+      properties: [{ property: "position", from: "initial", to: "shifted" }],
       implementation: {},
       accessibility: {
-        warnings: ['potential-cls-issue'],
+        warnings: ["potential-cls-issue"],
       },
       performance: {
         clsImpact: parseFloat(layoutShift.impactFraction),
       },
-      usageScope: 'inspiration_only',
-      tags: ['frame-analysis', 'layout-shift', 'cls'],
+      usageScope: "inspiration_only",
+      tags: ["frame-analysis", "layout-shift", "cls"],
       metadata: {
         frameRange: layoutShift.frameRange,
         scrollRange: layoutShift.scrollRange,
         boundingBox: layoutShift.boundingBox,
-        analysisSource: 'frame-image-analysis',
+        analysisSource: "frame-image-analysis",
       },
     };
 
@@ -1025,10 +1011,7 @@ export class FrameEmbeddingService {
     });
 
     // Embeddingを生成して保存
-    const embeddingId = await this.saveEmbeddingToDb(
-      createdPattern.id,
-      textRepresentation
-    );
+    const embeddingId = await this.saveEmbeddingToDb(createdPattern.id, textRepresentation);
 
     return { patternId: createdPattern.id, embeddingId };
   }
@@ -1046,7 +1029,7 @@ export class FrameEmbeddingService {
     const textRepresentation = motionVectorToText(vector);
 
     if (isDevelopment()) {
-      logger.info('[FrameEmbedding] Saving motion vector', {
+      logger.info("[FrameEmbedding] Saving motion vector", {
         direction: vector.direction,
         magnitude: vector.magnitude,
       });
@@ -1070,8 +1053,8 @@ export class FrameEmbeddingService {
       metadata: unknown;
     } = {
       name: `motion_${vector.direction}_${vector.magnitude}`,
-      category: 'motion_vector',
-      triggerType: 'scroll',
+      category: "motion_vector",
+      triggerType: "scroll",
       triggerConfig: {},
       animation: {
         dx: vector.dx,
@@ -1080,17 +1063,21 @@ export class FrameEmbeddingService {
         angle: parseFloat(vector.angle),
       },
       properties: [
-        { property: 'transform', from: 'translate(0,0)', to: `translate(${vector.dx}px,${vector.dy}px)` },
+        {
+          property: "transform",
+          from: "translate(0,0)",
+          to: `translate(${vector.dx}px,${vector.dy}px)`,
+        },
       ],
       implementation: {},
       accessibility: {},
       performance: {},
-      usageScope: 'inspiration_only',
-      tags: ['frame-analysis', 'motion-vector', vector.direction],
+      usageScope: "inspiration_only",
+      tags: ["frame-analysis", "motion-vector", vector.direction],
       metadata: {
         frameRange: vector.frameRange,
         direction: vector.direction,
-        analysisSource: 'frame-image-analysis',
+        analysisSource: "frame-image-analysis",
       },
     };
 
@@ -1106,10 +1093,7 @@ export class FrameEmbeddingService {
     });
 
     // Embeddingを生成して保存
-    const embeddingId = await this.saveEmbeddingToDb(
-      createdPattern.id,
-      textRepresentation
-    );
+    const embeddingId = await this.saveEmbeddingToDb(createdPattern.id, textRepresentation);
 
     return { patternId: createdPattern.id, embeddingId };
   }
@@ -1117,10 +1101,7 @@ export class FrameEmbeddingService {
   /**
    * Embeddingを生成してDBに保存
    */
-  private async saveEmbeddingToDb(
-    patternId: string,
-    textRepresentation: string
-  ): Promise<string> {
+  private async saveEmbeddingToDb(patternId: string, textRepresentation: string): Promise<string> {
     const prisma = this.getPrismaClient();
 
     // Embeddingを生成
@@ -1133,8 +1114,8 @@ export class FrameEmbeddingService {
         throw error;
       }
       if (isDevelopment()) {
-        logger.warn('[FrameEmbedding] Embedding generation failed', {
-          error: error instanceof Error ? error.message : 'Unknown error',
+        logger.warn("[FrameEmbedding] Embedding generation failed", {
+          error: error instanceof Error ? error.message : "Unknown error",
           patternId,
         });
       }
@@ -1153,7 +1134,7 @@ export class FrameEmbeddingService {
 
     // Embeddingベクトルを更新（pgvector形式）
     if (embedding.length > 0) {
-      const vectorString = `[${embedding.join(',')}]`;
+      const vectorString = `[${embedding.join(",")}]`;
       await prisma.$executeRawUnsafe(
         `UPDATE motion_embeddings SET embedding = $1::vector WHERE id = $2::uuid`,
         vectorString,
@@ -1167,29 +1148,25 @@ export class FrameEmbeddingService {
   /**
    * AnimationTypeをDBカテゴリにマッピング
    */
-  private mapAnimationTypeToCategory(
-    animationType: AnimationZone['animationType']
-  ): string {
+  private mapAnimationTypeToCategory(animationType: AnimationZone["animationType"]): string {
     switch (animationType) {
-      case 'micro-interaction':
-        return 'micro_interaction';
-      case 'fade/slide transition':
-        return 'transition';
-      case 'scroll-linked animation':
-        return 'scroll_animation';
-      case 'long-form reveal':
-        return 'reveal_animation';
+      case "micro-interaction":
+        return "micro_interaction";
+      case "fade/slide transition":
+        return "transition";
+      case "scroll-linked animation":
+        return "scroll_animation";
+      case "long-form reveal":
+        return "reveal_animation";
       default:
-        return 'unknown';
+        return "unknown";
     }
   }
 
   /**
    * フレーム画像分析結果をDBに保存
    */
-  async saveFrameAnalysis(
-    input: SaveFrameAnalysisInput
-  ): Promise<SavedFrameAnalysisResult> {
+  async saveFrameAnalysis(input: SaveFrameAnalysisInput): Promise<SavedFrameAnalysisResult> {
     const { analysisResult, webPageId, sourceUrl } = input;
     const patternIds: string[] = [];
     const embeddingIds: string[] = [];
@@ -1200,7 +1177,7 @@ export class FrameEmbeddingService {
     let motionVectorsSaved = 0;
 
     if (isDevelopment()) {
-      logger.info('[FrameEmbedding] Starting frame analysis save', {
+      logger.info("[FrameEmbedding] Starting frame analysis save", {
         animationZones: analysisResult.animationZones.length,
         layoutShifts: analysisResult.layoutShifts.length,
         motionVectors: analysisResult.motionVectors.length,
@@ -1220,14 +1197,14 @@ export class FrameEmbeddingService {
         animationZonesSaved++;
       } catch (error) {
         errors.push({
-          type: 'animationZone',
+          type: "animationZone",
           index: i,
-          error: error instanceof Error ? error : new Error('Unknown error'),
+          error: error instanceof Error ? error : new Error("Unknown error"),
         });
         if (isDevelopment()) {
-          logger.warn('[FrameEmbedding] Failed to save animation zone', {
+          logger.warn("[FrameEmbedding] Failed to save animation zone", {
             index: i,
-            error: error instanceof Error ? error.message : 'Unknown error',
+            error: error instanceof Error ? error.message : "Unknown error",
           });
         }
       }
@@ -1239,24 +1216,20 @@ export class FrameEmbeddingService {
       if (!layoutShift) continue;
 
       try {
-        const result = await this.saveLayoutShift(
-          layoutShift,
-          webPageId,
-          sourceUrl
-        );
+        const result = await this.saveLayoutShift(layoutShift, webPageId, sourceUrl);
         patternIds.push(result.patternId);
         embeddingIds.push(result.embeddingId);
         layoutShiftsSaved++;
       } catch (error) {
         errors.push({
-          type: 'layoutShift',
+          type: "layoutShift",
           index: i,
-          error: error instanceof Error ? error : new Error('Unknown error'),
+          error: error instanceof Error ? error : new Error("Unknown error"),
         });
         if (isDevelopment()) {
-          logger.warn('[FrameEmbedding] Failed to save layout shift', {
+          logger.warn("[FrameEmbedding] Failed to save layout shift", {
             index: i,
-            error: error instanceof Error ? error.message : 'Unknown error',
+            error: error instanceof Error ? error.message : "Unknown error",
           });
         }
       }
@@ -1274,14 +1247,14 @@ export class FrameEmbeddingService {
         motionVectorsSaved++;
       } catch (error) {
         errors.push({
-          type: 'motionVector',
+          type: "motionVector",
           index: i,
-          error: error instanceof Error ? error : new Error('Unknown error'),
+          error: error instanceof Error ? error : new Error("Unknown error"),
         });
         if (isDevelopment()) {
-          logger.warn('[FrameEmbedding] Failed to save motion vector', {
+          logger.warn("[FrameEmbedding] Failed to save motion vector", {
             index: i,
-            error: error instanceof Error ? error.message : 'Unknown error',
+            error: error instanceof Error ? error.message : "Unknown error",
           });
         }
       }
@@ -1294,7 +1267,7 @@ export class FrameEmbeddingService {
       analysisResult.motionVectors.length;
 
     if (isDevelopment()) {
-      logger.info('[FrameEmbedding] Frame analysis save completed', {
+      logger.info("[FrameEmbedding] Frame analysis save completed", {
         savedCount,
         totalItems,
         errorCount: errors.length,
@@ -1322,9 +1295,9 @@ export class FrameEmbeddingService {
     // エラーがある場合は理由を設定
     if (!result.saved && errors.length > 0) {
       const firstError = errors[0];
-      result.reason = `Save failed: ${firstError?.error.message || 'Unknown error'} [total=${totalItems}, errors=${errors.length}]`;
+      result.reason = `Save failed: ${firstError?.error.message || "Unknown error"} [total=${totalItems}, errors=${errors.length}]`;
     } else if (!result.saved && totalItems === 0) {
-      result.reason = 'No items to save';
+      result.reason = "No items to save";
     }
 
     return result;
@@ -1339,8 +1312,8 @@ export class FrameEmbeddingService {
       return true;
     } catch (error) {
       if (isDevelopment()) {
-        logger.warn('[FrameEmbedding] isAvailable check failed', {
-          error: error instanceof Error ? error.message : 'Unknown error',
+        logger.warn("[FrameEmbedding] isAvailable check failed", {
+          error: error instanceof Error ? error.message : "Unknown error",
           hasPrismaClientFactory: prismaClientFactory !== null,
           hasEmbeddingServiceFactory: embeddingServiceFactory !== null,
         });
@@ -1368,7 +1341,7 @@ export async function saveMotionEmbedding(
   modelVersion: string
 ): Promise<string> {
   if (!prismaClientFactory) {
-    throw new Error('PrismaClient not initialized');
+    throw new Error("PrismaClient not initialized");
   }
 
   const prisma = prismaClientFactory();
@@ -1384,7 +1357,7 @@ export async function saveMotionEmbedding(
 
   // Embeddingベクトルを更新（pgvector形式）
   if (embedding.length > 0) {
-    const vectorString = `[${embedding.join(',')}]`;
+    const vectorString = `[${embedding.join(",")}]`;
     await prisma.$executeRawUnsafe(
       `UPDATE motion_embeddings SET embedding = $1::vector WHERE id = $2::uuid`,
       vectorString,

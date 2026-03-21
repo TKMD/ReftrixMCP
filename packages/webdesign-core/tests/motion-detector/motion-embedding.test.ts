@@ -15,17 +15,14 @@
  * @module @reftrix/webdesign-core/tests/motion-detector/motion-embedding
  */
 
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach } from "vitest";
 import {
   MotionEmbedding,
   MotionFeatureExtractor,
   MOTION_EMBEDDING_DIM,
   type SimilarityResult,
-} from '../../src/motion-detector/motion-embedding';
-import type {
-  MotionPattern,
-  KeyframeStep,
-} from '../../src/motion-detector';
+} from "../../src/motion-detector/motion-embedding";
+import type { MotionPattern, KeyframeStep } from "../../src/motion-detector";
 
 // =========================================
 // Test Fixtures
@@ -35,19 +32,19 @@ import type {
  * シンプルなフェードインアニメーションパターン
  */
 const createFadeInPattern = (): MotionPattern => ({
-  id: 'fade-in-1',
-  type: 'animation',
-  name: 'fadeIn',
-  selector: '.element',
-  properties: [{ name: 'opacity', from: '0', to: '1' }],
+  id: "fade-in-1",
+  type: "animation",
+  name: "fadeIn",
+  selector: ".element",
+  properties: [{ name: "opacity", from: "0", to: "1" }],
   duration: 1000,
   delay: 0,
-  easing: 'ease-in-out',
+  easing: "ease-in-out",
   iterations: 1,
-  direction: 'normal',
-  fillMode: 'forwards',
-  playState: 'running',
-  trigger: 'load',
+  direction: "normal",
+  fillMode: "forwards",
+  playState: "running",
+  trigger: "load",
   confidence: 0.9,
 });
 
@@ -55,19 +52,19 @@ const createFadeInPattern = (): MotionPattern => ({
  * シンプルなフェードアウトアニメーションパターン
  */
 const createFadeOutPattern = (): MotionPattern => ({
-  id: 'fade-out-1',
-  type: 'animation',
-  name: 'fadeOut',
-  selector: '.element',
-  properties: [{ name: 'opacity', from: '1', to: '0' }],
+  id: "fade-out-1",
+  type: "animation",
+  name: "fadeOut",
+  selector: ".element",
+  properties: [{ name: "opacity", from: "1", to: "0" }],
   duration: 1000,
   delay: 0,
-  easing: 'ease-in-out',
+  easing: "ease-in-out",
   iterations: 1,
-  direction: 'normal',
-  fillMode: 'forwards',
-  playState: 'running',
-  trigger: 'load',
+  direction: "normal",
+  fillMode: "forwards",
+  playState: "running",
+  trigger: "load",
   confidence: 0.9,
 });
 
@@ -75,19 +72,19 @@ const createFadeOutPattern = (): MotionPattern => ({
  * スライドインアニメーションパターン
  */
 const createSlideInPattern = (): MotionPattern => ({
-  id: 'slide-in-1',
-  type: 'animation',
-  name: 'slideIn',
-  selector: '.element',
-  properties: [{ name: 'transform', from: 'translateX(-100%)', to: 'translateX(0)' }],
+  id: "slide-in-1",
+  type: "animation",
+  name: "slideIn",
+  selector: ".element",
+  properties: [{ name: "transform", from: "translateX(-100%)", to: "translateX(0)" }],
   duration: 500,
   delay: 0,
-  easing: 'ease-out',
+  easing: "ease-out",
   iterations: 1,
-  direction: 'normal',
-  fillMode: 'forwards',
-  playState: 'running',
-  trigger: 'load',
+  direction: "normal",
+  fillMode: "forwards",
+  playState: "running",
+  trigger: "load",
   confidence: 0.9,
 });
 
@@ -95,30 +92,30 @@ const createSlideInPattern = (): MotionPattern => ({
  * 複雑なバウンスアニメーションパターン
  */
 const createBouncePattern = (): MotionPattern => ({
-  id: 'bounce-1',
-  type: 'animation',
-  name: 'bounce',
-  selector: '.element',
+  id: "bounce-1",
+  type: "animation",
+  name: "bounce",
+  selector: ".element",
   properties: [
     {
-      name: 'transform',
-      from: 'translateY(0)',
-      to: 'translateY(0)',
+      name: "transform",
+      from: "translateY(0)",
+      to: "translateY(0)",
       keyframes: [
-        { offset: 0, value: 'translateY(0)' },
-        { offset: 0.5, value: 'translateY(-30px)' },
-        { offset: 1, value: 'translateY(0)' },
+        { offset: 0, value: "translateY(0)" },
+        { offset: 0.5, value: "translateY(-30px)" },
+        { offset: 1, value: "translateY(0)" },
       ],
     },
   ],
   duration: 800,
   delay: 0,
-  easing: 'cubic-bezier(0.68, -0.55, 0.27, 1.55)',
-  iterations: 'infinite',
-  direction: 'normal',
-  fillMode: 'none',
-  playState: 'running',
-  trigger: 'load',
+  easing: "cubic-bezier(0.68, -0.55, 0.27, 1.55)",
+  iterations: "infinite",
+  direction: "normal",
+  fillMode: "none",
+  playState: "running",
+  trigger: "load",
   confidence: 0.9,
 });
 
@@ -126,22 +123,22 @@ const createBouncePattern = (): MotionPattern => ({
  * hoverトランジションパターン
  */
 const createHoverTransitionPattern = (): MotionPattern => ({
-  id: 'hover-1',
-  type: 'transition',
-  name: 'transition-transform',
-  selector: '.button',
+  id: "hover-1",
+  type: "transition",
+  name: "transition-transform",
+  selector: ".button",
   properties: [
-    { name: 'transform', from: 'scale(1)', to: 'scale(1.1)' },
-    { name: 'box-shadow', from: 'none', to: '0 4px 8px rgba(0,0,0,0.2)' },
+    { name: "transform", from: "scale(1)", to: "scale(1.1)" },
+    { name: "box-shadow", from: "none", to: "0 4px 8px rgba(0,0,0,0.2)" },
   ],
   duration: 200,
   delay: 0,
-  easing: 'ease',
+  easing: "ease",
   iterations: 1,
-  direction: 'normal',
-  fillMode: 'none',
-  playState: 'running',
-  trigger: 'hover',
+  direction: "normal",
+  fillMode: "none",
+  playState: "running",
+  trigger: "hover",
   confidence: 0.85,
 });
 
@@ -149,49 +146,49 @@ const createHoverTransitionPattern = (): MotionPattern => ({
  * 複雑なマルチプロパティアニメーション
  */
 const createComplexAnimationPattern = (): MotionPattern => ({
-  id: 'complex-1',
-  type: 'animation',
-  name: 'complexEntrance',
-  selector: '.card',
+  id: "complex-1",
+  type: "animation",
+  name: "complexEntrance",
+  selector: ".card",
   properties: [
     {
-      name: 'opacity',
-      from: '0',
-      to: '1',
+      name: "opacity",
+      from: "0",
+      to: "1",
       keyframes: [
-        { offset: 0, value: '0' },
-        { offset: 0.5, value: '0.5' },
-        { offset: 1, value: '1' },
+        { offset: 0, value: "0" },
+        { offset: 0.5, value: "0.5" },
+        { offset: 1, value: "1" },
       ],
     },
     {
-      name: 'transform',
-      from: 'scale(0.8) translateY(20px)',
-      to: 'scale(1) translateY(0)',
+      name: "transform",
+      from: "scale(0.8) translateY(20px)",
+      to: "scale(1) translateY(0)",
       keyframes: [
-        { offset: 0, value: 'scale(0.8) translateY(20px)' },
-        { offset: 0.5, value: 'scale(0.9) translateY(10px)' },
-        { offset: 1, value: 'scale(1) translateY(0)' },
+        { offset: 0, value: "scale(0.8) translateY(20px)" },
+        { offset: 0.5, value: "scale(0.9) translateY(10px)" },
+        { offset: 1, value: "scale(1) translateY(0)" },
       ],
     },
     {
-      name: 'filter',
-      from: 'blur(10px)',
-      to: 'blur(0)',
+      name: "filter",
+      from: "blur(10px)",
+      to: "blur(0)",
       keyframes: [
-        { offset: 0, value: 'blur(10px)' },
-        { offset: 1, value: 'blur(0)' },
+        { offset: 0, value: "blur(10px)" },
+        { offset: 1, value: "blur(0)" },
       ],
     },
   ],
   duration: 1200,
   delay: 100,
-  easing: 'cubic-bezier(0.4, 0, 0.2, 1)',
+  easing: "cubic-bezier(0.4, 0, 0.2, 1)",
   iterations: 1,
-  direction: 'normal',
-  fillMode: 'both',
-  playState: 'running',
-  trigger: 'scroll',
+  direction: "normal",
+  fillMode: "both",
+  playState: "running",
+  trigger: "scroll",
   confidence: 0.95,
 });
 
@@ -199,25 +196,25 @@ const createComplexAnimationPattern = (): MotionPattern => ({
  * スピンアニメーションパターン
  */
 const createSpinPattern = (): MotionPattern => ({
-  id: 'spin-1',
-  type: 'animation',
-  name: 'spin',
-  selector: '.loader',
+  id: "spin-1",
+  type: "animation",
+  name: "spin",
+  selector: ".loader",
   properties: [
     {
-      name: 'transform',
-      from: 'rotate(0deg)',
-      to: 'rotate(360deg)',
+      name: "transform",
+      from: "rotate(0deg)",
+      to: "rotate(360deg)",
     },
   ],
   duration: 1000,
   delay: 0,
-  easing: 'linear',
-  iterations: 'infinite',
-  direction: 'normal',
-  fillMode: 'none',
-  playState: 'running',
-  trigger: 'load',
+  easing: "linear",
+  iterations: "infinite",
+  direction: "normal",
+  fillMode: "none",
+  playState: "running",
+  trigger: "load",
   confidence: 0.9,
 });
 
@@ -225,40 +222,40 @@ const createSpinPattern = (): MotionPattern => ({
  * パルスアニメーションパターン
  */
 const createPulsePattern = (): MotionPattern => ({
-  id: 'pulse-1',
-  type: 'animation',
-  name: 'pulse',
-  selector: '.notification',
+  id: "pulse-1",
+  type: "animation",
+  name: "pulse",
+  selector: ".notification",
   properties: [
     {
-      name: 'transform',
-      from: 'scale(1)',
-      to: 'scale(1)',
+      name: "transform",
+      from: "scale(1)",
+      to: "scale(1)",
       keyframes: [
-        { offset: 0, value: 'scale(1)' },
-        { offset: 0.5, value: 'scale(1.05)' },
-        { offset: 1, value: 'scale(1)' },
+        { offset: 0, value: "scale(1)" },
+        { offset: 0.5, value: "scale(1.05)" },
+        { offset: 1, value: "scale(1)" },
       ],
     },
     {
-      name: 'opacity',
-      from: '1',
-      to: '1',
+      name: "opacity",
+      from: "1",
+      to: "1",
       keyframes: [
-        { offset: 0, value: '1' },
-        { offset: 0.5, value: '0.8' },
-        { offset: 1, value: '1' },
+        { offset: 0, value: "1" },
+        { offset: 0.5, value: "0.8" },
+        { offset: 1, value: "1" },
       ],
     },
   ],
   duration: 2000,
   delay: 0,
-  easing: 'ease-in-out',
-  iterations: 'infinite',
-  direction: 'normal',
-  fillMode: 'none',
-  playState: 'running',
-  trigger: 'load',
+  easing: "ease-in-out",
+  iterations: "infinite",
+  direction: "normal",
+  fillMode: "none",
+  playState: "running",
+  trigger: "load",
   confidence: 0.9,
 });
 
@@ -266,19 +263,19 @@ const createPulsePattern = (): MotionPattern => ({
  * ゼロduration/delayパターン
  */
 const createZeroDurationPattern = (): MotionPattern => ({
-  id: 'zero-1',
-  type: 'animation',
-  name: 'instant',
-  selector: '.element',
-  properties: [{ name: 'opacity', from: '0', to: '1' }],
+  id: "zero-1",
+  type: "animation",
+  name: "instant",
+  selector: ".element",
+  properties: [{ name: "opacity", from: "0", to: "1" }],
   duration: 0,
   delay: 0,
-  easing: 'linear',
+  easing: "linear",
   iterations: 1,
-  direction: 'normal',
-  fillMode: 'none',
-  playState: 'running',
-  trigger: 'load',
+  direction: "normal",
+  fillMode: "none",
+  playState: "running",
+  trigger: "load",
   confidence: 0.5,
 });
 
@@ -286,19 +283,19 @@ const createZeroDurationPattern = (): MotionPattern => ({
  * プロパティなしパターン
  */
 const createEmptyPropertiesPattern = (): MotionPattern => ({
-  id: 'empty-1',
-  type: 'animation',
-  name: 'empty',
-  selector: '.element',
+  id: "empty-1",
+  type: "animation",
+  name: "empty",
+  selector: ".element",
   properties: [],
   duration: 1000,
   delay: 0,
-  easing: 'ease',
+  easing: "ease",
   iterations: 1,
-  direction: 'normal',
-  fillMode: 'none',
-  playState: 'running',
-  trigger: 'load',
+  direction: "normal",
+  fillMode: "none",
+  playState: "running",
+  trigger: "load",
   confidence: 0.3,
 });
 
@@ -306,15 +303,15 @@ const createEmptyPropertiesPattern = (): MotionPattern => ({
 // 1. 特徴抽出テスト (15テスト)
 // =========================================
 
-describe('MotionFeatureExtractor - 特徴抽出', () => {
+describe("MotionFeatureExtractor - 特徴抽出", () => {
   let extractor: MotionFeatureExtractor;
 
   beforeEach(() => {
     extractor = new MotionFeatureExtractor();
   });
 
-  describe('プロパティ特徴量', () => {
-    it('should extract property features from opacity animation', () => {
+  describe("プロパティ特徴量", () => {
+    it("should extract property features from opacity animation", () => {
       // Arrange
       const pattern = createFadeInPattern();
 
@@ -328,7 +325,7 @@ describe('MotionFeatureExtractor - 特徴抽出', () => {
       // opacityはGPUアクセラレーション対応プロパティなのでフラグが立つ
     });
 
-    it('should extract property features from transform animation', () => {
+    it("should extract property features from transform animation", () => {
       // Arrange
       const pattern = createSlideInPattern();
 
@@ -341,7 +338,7 @@ describe('MotionFeatureExtractor - 特徴抽出', () => {
       // transformはGPUアクセラレーション対応
     });
 
-    it('should handle multiple properties', () => {
+    it("should handle multiple properties", () => {
       // Arrange
       const pattern = createComplexAnimationPattern();
 
@@ -353,7 +350,7 @@ describe('MotionFeatureExtractor - 特徴抽出', () => {
       // 複数プロパティがある場合、特徴量に反映される
     });
 
-    it('should return zero vector for empty properties', () => {
+    it("should return zero vector for empty properties", () => {
       // Arrange
       const pattern = createEmptyPropertiesPattern();
 
@@ -365,13 +362,13 @@ describe('MotionFeatureExtractor - 特徴抽出', () => {
       expect(features.every((v) => v === 0)).toBe(true);
     });
 
-    it('should differentiate GPU vs non-GPU properties', () => {
+    it("should differentiate GPU vs non-GPU properties", () => {
       // Arrange
       const gpuPattern = createFadeInPattern(); // opacity (GPU)
       const nonGpuPattern: MotionPattern = {
         ...createFadeInPattern(),
-        id: 'non-gpu',
-        properties: [{ name: 'width', from: '100px', to: '200px' }],
+        id: "non-gpu",
+        properties: [{ name: "width", from: "100px", to: "200px" }],
       };
 
       // Act
@@ -383,8 +380,8 @@ describe('MotionFeatureExtractor - 特徴抽出', () => {
     });
   });
 
-  describe('タイミング特徴量', () => {
-    it('should extract timing features with duration', () => {
+  describe("タイミング特徴量", () => {
+    it("should extract timing features with duration", () => {
       // Arrange
       const pattern = createFadeInPattern();
 
@@ -396,7 +393,7 @@ describe('MotionFeatureExtractor - 特徴抽出', () => {
       expect(features.length).toBeGreaterThan(0);
     });
 
-    it('should extract timing features with delay', () => {
+    it("should extract timing features with delay", () => {
       // Arrange
       const pattern = createComplexAnimationPattern(); // delay: 100
 
@@ -408,7 +405,7 @@ describe('MotionFeatureExtractor - 特徴抽出', () => {
       // delay情報が特徴量に含まれる
     });
 
-    it('should handle zero duration', () => {
+    it("should handle zero duration", () => {
       // Arrange
       const pattern = createZeroDurationPattern();
 
@@ -420,7 +417,7 @@ describe('MotionFeatureExtractor - 特徴抽出', () => {
       expect(features.length).toBeGreaterThan(0);
     });
 
-    it('should normalize duration values', () => {
+    it("should normalize duration values", () => {
       // Arrange
       const shortPattern: MotionPattern = {
         ...createFadeInPattern(),
@@ -441,7 +438,7 @@ describe('MotionFeatureExtractor - 特徴抽出', () => {
       expect(longFeatures.every((v) => v >= -1 && v <= 1)).toBe(true);
     });
 
-    it('should handle infinite iterations', () => {
+    it("should handle infinite iterations", () => {
       // Arrange
       const infinitePattern = createBouncePattern(); // iterations: 'infinite'
 
@@ -454,10 +451,10 @@ describe('MotionFeatureExtractor - 特徴抽出', () => {
     });
   });
 
-  describe('イージング特徴量', () => {
-    it('should extract features for ease easing', () => {
+  describe("イージング特徴量", () => {
+    it("should extract features for ease easing", () => {
       // Arrange
-      const easing = 'ease';
+      const easing = "ease";
 
       // Act
       const features = extractor.extractEasingFeatures(easing);
@@ -467,9 +464,9 @@ describe('MotionFeatureExtractor - 特徴抽出', () => {
       expect(features.length).toBeGreaterThan(0);
     });
 
-    it('should extract features for linear easing', () => {
+    it("should extract features for linear easing", () => {
       // Arrange
-      const easing = 'linear';
+      const easing = "linear";
 
       // Act
       const features = extractor.extractEasingFeatures(easing);
@@ -478,9 +475,9 @@ describe('MotionFeatureExtractor - 特徴抽出', () => {
       expect(features).toBeDefined();
     });
 
-    it('should extract features for ease-in-out easing', () => {
+    it("should extract features for ease-in-out easing", () => {
       // Arrange
-      const easing = 'ease-in-out';
+      const easing = "ease-in-out";
 
       // Act
       const features = extractor.extractEasingFeatures(easing);
@@ -489,9 +486,9 @@ describe('MotionFeatureExtractor - 特徴抽出', () => {
       expect(features).toBeDefined();
     });
 
-    it('should extract features for cubic-bezier easing', () => {
+    it("should extract features for cubic-bezier easing", () => {
       // Arrange
-      const easing = 'cubic-bezier(0.4, 0, 0.2, 1)';
+      const easing = "cubic-bezier(0.4, 0, 0.2, 1)";
 
       // Act
       const features = extractor.extractEasingFeatures(easing);
@@ -501,11 +498,11 @@ describe('MotionFeatureExtractor - 特徴抽出', () => {
       // cubic-bezierのパラメータが特徴量に反映される
     });
 
-    it('should differentiate different easings', () => {
+    it("should differentiate different easings", () => {
       // Arrange & Act
-      const linearFeatures = extractor.extractEasingFeatures('linear');
-      const easeInFeatures = extractor.extractEasingFeatures('ease-in');
-      const easeOutFeatures = extractor.extractEasingFeatures('ease-out');
+      const linearFeatures = extractor.extractEasingFeatures("linear");
+      const easeInFeatures = extractor.extractEasingFeatures("ease-in");
+      const easeOutFeatures = extractor.extractEasingFeatures("ease-out");
 
       // Assert
       expect(linearFeatures).not.toEqual(easeInFeatures);
@@ -513,12 +510,12 @@ describe('MotionFeatureExtractor - 特徴抽出', () => {
     });
   });
 
-  describe('キーフレーム特徴量', () => {
-    it('should extract keyframe features from simple keyframes', () => {
+  describe("キーフレーム特徴量", () => {
+    it("should extract keyframe features from simple keyframes", () => {
       // Arrange
       const keyframes: KeyframeStep[] = [
-        { offset: 0, properties: [{ name: 'opacity', value: '0' }] },
-        { offset: 1, properties: [{ name: 'opacity', value: '1' }] },
+        { offset: 0, properties: [{ name: "opacity", value: "0" }] },
+        { offset: 1, properties: [{ name: "opacity", value: "1" }] },
       ];
 
       // Act
@@ -529,14 +526,14 @@ describe('MotionFeatureExtractor - 特徴抽出', () => {
       expect(features.length).toBeGreaterThan(0);
     });
 
-    it('should extract keyframe features from complex keyframes', () => {
+    it("should extract keyframe features from complex keyframes", () => {
       // Arrange
       const keyframes: KeyframeStep[] = [
-        { offset: 0, properties: [{ name: 'transform', value: 'translateY(0)' }] },
-        { offset: 0.25, properties: [{ name: 'transform', value: 'translateY(-10px)' }] },
-        { offset: 0.5, properties: [{ name: 'transform', value: 'translateY(-20px)' }] },
-        { offset: 0.75, properties: [{ name: 'transform', value: 'translateY(-10px)' }] },
-        { offset: 1, properties: [{ name: 'transform', value: 'translateY(0)' }] },
+        { offset: 0, properties: [{ name: "transform", value: "translateY(0)" }] },
+        { offset: 0.25, properties: [{ name: "transform", value: "translateY(-10px)" }] },
+        { offset: 0.5, properties: [{ name: "transform", value: "translateY(-20px)" }] },
+        { offset: 0.75, properties: [{ name: "transform", value: "translateY(-10px)" }] },
+        { offset: 1, properties: [{ name: "transform", value: "translateY(0)" }] },
       ];
 
       // Act
@@ -547,7 +544,7 @@ describe('MotionFeatureExtractor - 特徴抽出', () => {
       // キーフレーム数が特徴量に反映される
     });
 
-    it('should handle empty keyframes', () => {
+    it("should handle empty keyframes", () => {
       // Arrange
       const keyframes: KeyframeStep[] = [];
 
@@ -559,7 +556,7 @@ describe('MotionFeatureExtractor - 特徴抽出', () => {
       expect(features.every((v) => v === 0)).toBe(true);
     });
 
-    it('should capture keyframe timing distribution', () => {
+    it("should capture keyframe timing distribution", () => {
       // Arrange
       const evenKeyframes: KeyframeStep[] = [
         { offset: 0, properties: [] },
@@ -580,11 +577,11 @@ describe('MotionFeatureExtractor - 特徴抽出', () => {
       expect(evenFeatures).not.toEqual(unevenFeatures);
     });
 
-    it('should extract features with timing function in keyframes', () => {
+    it("should extract features with timing function in keyframes", () => {
       // Arrange
       const keyframes: KeyframeStep[] = [
-        { offset: 0, properties: [], timingFunction: 'ease-out' },
-        { offset: 1, properties: [], timingFunction: 'ease-in' },
+        { offset: 0, properties: [], timingFunction: "ease-out" },
+        { offset: 1, properties: [], timingFunction: "ease-in" },
       ];
 
       // Act
@@ -600,15 +597,15 @@ describe('MotionFeatureExtractor - 特徴抽出', () => {
 // 2. Embedding生成テスト (15テスト)
 // =========================================
 
-describe('MotionEmbedding - Embedding生成', () => {
+describe("MotionEmbedding - Embedding生成", () => {
   let embedding: MotionEmbedding;
 
   beforeEach(() => {
     embedding = new MotionEmbedding();
   });
 
-  describe('単一パターンEmbedding', () => {
-    it('should generate embedding for simple animation', () => {
+  describe("単一パターンEmbedding", () => {
+    it("should generate embedding for simple animation", () => {
       // Arrange
       const pattern = createFadeInPattern();
 
@@ -620,7 +617,7 @@ describe('MotionEmbedding - Embedding生成', () => {
       expect(Array.isArray(result)).toBe(true);
     });
 
-    it('should generate embedding with correct dimension', () => {
+    it("should generate embedding with correct dimension", () => {
       // Arrange
       const pattern = createFadeInPattern();
 
@@ -631,7 +628,7 @@ describe('MotionEmbedding - Embedding生成', () => {
       expect(result.length).toBe(MOTION_EMBEDDING_DIM);
     });
 
-    it('should generate embedding for complex animation', () => {
+    it("should generate embedding for complex animation", () => {
       // Arrange
       const pattern = createComplexAnimationPattern();
 
@@ -642,7 +639,7 @@ describe('MotionEmbedding - Embedding生成', () => {
       expect(result.length).toBe(MOTION_EMBEDDING_DIM);
     });
 
-    it('should generate embedding for transition', () => {
+    it("should generate embedding for transition", () => {
       // Arrange
       const pattern = createHoverTransitionPattern();
 
@@ -653,7 +650,7 @@ describe('MotionEmbedding - Embedding生成', () => {
       expect(result.length).toBe(MOTION_EMBEDDING_DIM);
     });
 
-    it('should generate different embeddings for different patterns', () => {
+    it("should generate different embeddings for different patterns", () => {
       // Arrange
       const fadeIn = createFadeInPattern();
       const slideIn = createSlideInPattern();
@@ -666,7 +663,7 @@ describe('MotionEmbedding - Embedding生成', () => {
       expect(fadeInEmbedding).not.toEqual(slideInEmbedding);
     });
 
-    it('should handle pattern with empty properties', () => {
+    it("should handle pattern with empty properties", () => {
       // Arrange
       const pattern = createEmptyPropertiesPattern();
 
@@ -679,14 +676,10 @@ describe('MotionEmbedding - Embedding生成', () => {
     });
   });
 
-  describe('バッチEmbedding', () => {
-    it('should generate batch embeddings', () => {
+  describe("バッチEmbedding", () => {
+    it("should generate batch embeddings", () => {
       // Arrange
-      const patterns = [
-        createFadeInPattern(),
-        createSlideInPattern(),
-        createBouncePattern(),
-      ];
+      const patterns = [createFadeInPattern(), createSlideInPattern(), createBouncePattern()];
 
       // Act
       const results = embedding.embedBatch(patterns);
@@ -697,7 +690,7 @@ describe('MotionEmbedding - Embedding生成', () => {
       expect(results.length).toBe(3);
     });
 
-    it('should generate correct dimension for batch', () => {
+    it("should generate correct dimension for batch", () => {
       // Arrange
       const patterns = [createFadeInPattern(), createSlideInPattern()];
 
@@ -710,7 +703,7 @@ describe('MotionEmbedding - Embedding生成', () => {
       });
     });
 
-    it('should handle empty batch', () => {
+    it("should handle empty batch", () => {
       // Arrange
       const patterns: MotionPattern[] = [];
 
@@ -722,7 +715,7 @@ describe('MotionEmbedding - Embedding生成', () => {
       expect(results.length).toBe(0);
     });
 
-    it('should handle single item batch', () => {
+    it("should handle single item batch", () => {
       // Arrange
       const patterns = [createFadeInPattern()];
 
@@ -734,7 +727,7 @@ describe('MotionEmbedding - Embedding生成', () => {
       expect(results[0].length).toBe(MOTION_EMBEDDING_DIM);
     });
 
-    it('should maintain consistency with single embed', () => {
+    it("should maintain consistency with single embed", () => {
       // Arrange
       const pattern = createFadeInPattern();
 
@@ -747,8 +740,8 @@ describe('MotionEmbedding - Embedding生成', () => {
     });
   });
 
-  describe('正規化検証', () => {
-    it('should generate L2 normalized embedding', () => {
+  describe("正規化検証", () => {
+    it("should generate L2 normalized embedding", () => {
       // Arrange
       const pattern = createFadeInPattern();
 
@@ -760,7 +753,7 @@ describe('MotionEmbedding - Embedding生成', () => {
       expect(norm).toBeCloseTo(1, 5);
     });
 
-    it('should generate normalized embeddings for all patterns', () => {
+    it("should generate normalized embeddings for all patterns", () => {
       // Arrange
       const patterns = [
         createFadeInPattern(),
@@ -777,7 +770,7 @@ describe('MotionEmbedding - Embedding生成', () => {
       });
     });
 
-    it('should handle zero vector normalization', () => {
+    it("should handle zero vector normalization", () => {
       // Arrange - pattern that might produce zero vector
       const pattern = createZeroDurationPattern();
 
@@ -790,7 +783,7 @@ describe('MotionEmbedding - Embedding生成', () => {
       expect(result.length).toBe(MOTION_EMBEDDING_DIM);
     });
 
-    it('should contain values in valid range after normalization', () => {
+    it("should contain values in valid range after normalization", () => {
       // Arrange
       const pattern = createComplexAnimationPattern();
 
@@ -810,15 +803,15 @@ describe('MotionEmbedding - Embedding生成', () => {
 // 3. 類似度計算テスト (10テスト)
 // =========================================
 
-describe('MotionEmbedding - 類似度計算', () => {
+describe("MotionEmbedding - 類似度計算", () => {
   let embedding: MotionEmbedding;
 
   beforeEach(() => {
     embedding = new MotionEmbedding();
   });
 
-  describe('コサイン類似度', () => {
-    it('should calculate similarity between two embeddings', () => {
+  describe("コサイン類似度", () => {
+    it("should calculate similarity between two embeddings", () => {
       // Arrange
       const pattern1 = createFadeInPattern();
       const pattern2 = createFadeOutPattern();
@@ -830,16 +823,12 @@ describe('MotionEmbedding - 類似度計算', () => {
 
       // Assert
       expect(similarity).toBeDefined();
-      expect(typeof similarity).toBe('number');
+      expect(typeof similarity).toBe("number");
     });
 
-    it('should return value between -1 and 1', () => {
+    it("should return value between -1 and 1", () => {
       // Arrange
-      const patterns = [
-        createFadeInPattern(),
-        createSlideInPattern(),
-        createBouncePattern(),
-      ];
+      const patterns = [createFadeInPattern(), createSlideInPattern(), createBouncePattern()];
       const embeddings = patterns.map((p) => embedding.embed(p));
 
       // Act & Assert
@@ -852,7 +841,7 @@ describe('MotionEmbedding - 類似度計算', () => {
       }
     });
 
-    it('should be symmetric', () => {
+    it("should be symmetric", () => {
       // Arrange
       const pattern1 = createFadeInPattern();
       const pattern2 = createSlideInPattern();
@@ -868,8 +857,8 @@ describe('MotionEmbedding - 類似度計算', () => {
     });
   });
 
-  describe('同一パターンの類似度', () => {
-    it('should return 1 for identical embeddings', () => {
+  describe("同一パターンの類似度", () => {
+    it("should return 1 for identical embeddings", () => {
       // Arrange
       const pattern = createFadeInPattern();
       const emb = embedding.embed(pattern);
@@ -881,7 +870,7 @@ describe('MotionEmbedding - 類似度計算', () => {
       expect(similarity).toBeCloseTo(1, 5);
     });
 
-    it('should return high similarity for same pattern type', () => {
+    it("should return high similarity for same pattern type", () => {
       // Arrange
       const pattern1 = createFadeInPattern();
       const pattern2 = createFadeOutPattern();
@@ -896,7 +885,7 @@ describe('MotionEmbedding - 類似度計算', () => {
       expect(similarity).toBeGreaterThan(0.5);
     });
 
-    it('should return 1 for copy of same embedding', () => {
+    it("should return 1 for copy of same embedding", () => {
       // Arrange
       const pattern = createBouncePattern();
       const emb = embedding.embed(pattern);
@@ -910,8 +899,8 @@ describe('MotionEmbedding - 類似度計算', () => {
     });
   });
 
-  describe('異なるパターンの類似度', () => {
-    it('should return lower similarity for different pattern types', () => {
+  describe("異なるパターンの類似度", () => {
+    it("should return lower similarity for different pattern types", () => {
       // Arrange
       const fadePattern = createFadeInPattern();
       const spinPattern = createSpinPattern();
@@ -926,7 +915,7 @@ describe('MotionEmbedding - 類似度計算', () => {
       expect(similarity).toBeLessThan(0.9);
     });
 
-    it('should differentiate between animation and transition', () => {
+    it("should differentiate between animation and transition", () => {
       // Arrange
       const animationPattern = createBouncePattern();
       const transitionPattern = createHoverTransitionPattern();
@@ -940,7 +929,7 @@ describe('MotionEmbedding - 類似度計算', () => {
       expect(similarity).toBeLessThan(1);
     });
 
-    it('should group similar motion patterns together', () => {
+    it("should group similar motion patterns together", () => {
       // Arrange
       const pulse = createPulsePattern();
       const bounce = createBouncePattern();
@@ -958,11 +947,11 @@ describe('MotionEmbedding - 類似度計算', () => {
       // Pulse and Bounce are both infinite transform animations
       // They should be more similar to each other than to Fade
       // (This is a semantic expectation, may need adjustment based on implementation)
-      expect(typeof pulseBounce).toBe('number');
-      expect(typeof pulseFade).toBe('number');
+      expect(typeof pulseBounce).toBe("number");
+      expect(typeof pulseFade).toBe("number");
     });
 
-    it('should handle zero vectors gracefully', () => {
+    it("should handle zero vectors gracefully", () => {
       // Arrange
       const zeroVector = new Array(MOTION_EMBEDDING_DIM).fill(0);
       const pattern = createFadeInPattern();
@@ -982,15 +971,15 @@ describe('MotionEmbedding - 類似度計算', () => {
 // 4. 検索テスト (10テスト)
 // =========================================
 
-describe('MotionEmbedding - 検索', () => {
+describe("MotionEmbedding - 検索", () => {
   let embedding: MotionEmbedding;
 
   beforeEach(() => {
     embedding = new MotionEmbedding();
   });
 
-  describe('topK検索', () => {
-    it('should find top K similar patterns', () => {
+  describe("topK検索", () => {
+    it("should find top K similar patterns", () => {
       // Arrange
       const target = embedding.embed(createFadeInPattern());
       const candidates = [
@@ -1008,7 +997,7 @@ describe('MotionEmbedding - 検索', () => {
       expect(results.length).toBe(2);
     });
 
-    it('should return results sorted by similarity descending', () => {
+    it("should return results sorted by similarity descending", () => {
       // Arrange
       const target = embedding.embed(createFadeInPattern());
       const candidates = [
@@ -1022,13 +1011,11 @@ describe('MotionEmbedding - 検索', () => {
 
       // Assert
       for (let i = 0; i < results.length - 1; i++) {
-        expect(results[i].similarity).toBeGreaterThanOrEqual(
-          results[i + 1].similarity
-        );
+        expect(results[i].similarity).toBeGreaterThanOrEqual(results[i + 1].similarity);
       }
     });
 
-    it('should return correct indices', () => {
+    it("should return correct indices", () => {
       // Arrange
       const target = embedding.embed(createFadeInPattern());
       const candidates = [
@@ -1047,7 +1034,7 @@ describe('MotionEmbedding - 検索', () => {
       });
     });
 
-    it('should handle K larger than candidates', () => {
+    it("should handle K larger than candidates", () => {
       // Arrange
       const target = embedding.embed(createFadeInPattern());
       const candidates = [embedding.embed(createSlideInPattern())];
@@ -1059,7 +1046,7 @@ describe('MotionEmbedding - 検索', () => {
       expect(results.length).toBe(1);
     });
 
-    it('should return all candidates when K equals candidates length', () => {
+    it("should return all candidates when K equals candidates length", () => {
       // Arrange
       const target = embedding.embed(createFadeInPattern());
       const candidates = [
@@ -1075,7 +1062,7 @@ describe('MotionEmbedding - 検索', () => {
       expect(results.length).toBe(3);
     });
 
-    it('should default to returning all results when K not specified', () => {
+    it("should default to returning all results when K not specified", () => {
       // Arrange
       const target = embedding.embed(createFadeInPattern());
       const candidates = [
@@ -1091,8 +1078,8 @@ describe('MotionEmbedding - 検索', () => {
     });
   });
 
-  describe('空候補リスト', () => {
-    it('should return empty array for empty candidates', () => {
+  describe("空候補リスト", () => {
+    it("should return empty array for empty candidates", () => {
       // Arrange
       const target = embedding.embed(createFadeInPattern());
       const candidates: number[][] = [];
@@ -1105,7 +1092,7 @@ describe('MotionEmbedding - 検索', () => {
       expect(results.length).toBe(0);
     });
 
-    it('should handle K = 0', () => {
+    it("should handle K = 0", () => {
       // Arrange
       const target = embedding.embed(createFadeInPattern());
       const candidates = [embedding.embed(createSlideInPattern())];
@@ -1118,8 +1105,8 @@ describe('MotionEmbedding - 検索', () => {
     });
   });
 
-  describe('SimilarityResult形式', () => {
-    it('should return SimilarityResult with index and similarity', () => {
+  describe("SimilarityResult形式", () => {
+    it("should return SimilarityResult with index and similarity", () => {
       // Arrange
       const target = embedding.embed(createFadeInPattern());
       const candidates = [embedding.embed(createSlideInPattern())];
@@ -1128,13 +1115,13 @@ describe('MotionEmbedding - 検索', () => {
       const results = embedding.findSimilar(target, candidates, 1);
 
       // Assert
-      expect(results[0]).toHaveProperty('index');
-      expect(results[0]).toHaveProperty('similarity');
-      expect(typeof results[0].index).toBe('number');
-      expect(typeof results[0].similarity).toBe('number');
+      expect(results[0]).toHaveProperty("index");
+      expect(results[0]).toHaveProperty("similarity");
+      expect(typeof results[0].index).toBe("number");
+      expect(typeof results[0].similarity).toBe("number");
     });
 
-    it('should have similarity in valid range', () => {
+    it("should have similarity in valid range", () => {
       // Arrange
       const target = embedding.embed(createFadeInPattern());
       const candidates = [
@@ -1158,12 +1145,12 @@ describe('MotionEmbedding - 検索', () => {
 // 5. 定数とエクスポートテスト
 // =========================================
 
-describe('MotionEmbedding - 定数', () => {
-  it('should export MOTION_EMBEDDING_DIM as 64', () => {
+describe("MotionEmbedding - 定数", () => {
+  it("should export MOTION_EMBEDDING_DIM as 64", () => {
     expect(MOTION_EMBEDDING_DIM).toBe(64);
   });
 
-  it('should have consistent embedding dimension', () => {
+  it("should have consistent embedding dimension", () => {
     const embedding = new MotionEmbedding();
     const pattern = createFadeInPattern();
     const result = embedding.embed(pattern);
@@ -1176,29 +1163,29 @@ describe('MotionEmbedding - 定数', () => {
 // 6. エッジケーステスト
 // =========================================
 
-describe('MotionEmbedding - エッジケース', () => {
+describe("MotionEmbedding - エッジケース", () => {
   let embedding: MotionEmbedding;
 
   beforeEach(() => {
     embedding = new MotionEmbedding();
   });
 
-  it('should handle pattern with all default values', () => {
+  it("should handle pattern with all default values", () => {
     // Arrange
     const pattern: MotionPattern = {
-      id: 'minimal',
-      type: 'animation',
-      name: 'minimal',
-      selector: '.x',
+      id: "minimal",
+      type: "animation",
+      name: "minimal",
+      selector: ".x",
       properties: [],
       duration: 0,
       delay: 0,
-      easing: 'ease',
+      easing: "ease",
       iterations: 1,
-      direction: 'normal',
-      fillMode: 'none',
-      playState: 'running',
-      trigger: 'load',
+      direction: "normal",
+      fillMode: "none",
+      playState: "running",
+      trigger: "load",
       confidence: 0,
     };
 
@@ -1210,11 +1197,11 @@ describe('MotionEmbedding - エッジケース', () => {
     expect(result.length).toBe(MOTION_EMBEDDING_DIM);
   });
 
-  it('should handle pattern with unusual easing', () => {
+  it("should handle pattern with unusual easing", () => {
     // Arrange
     const pattern: MotionPattern = {
       ...createFadeInPattern(),
-      easing: 'steps(5, end)',
+      easing: "steps(5, end)",
     };
 
     // Act
@@ -1225,7 +1212,7 @@ describe('MotionEmbedding - エッジケース', () => {
     expect(result.length).toBe(MOTION_EMBEDDING_DIM);
   });
 
-  it('should handle very long duration', () => {
+  it("should handle very long duration", () => {
     // Arrange
     const pattern: MotionPattern = {
       ...createFadeInPattern(),
@@ -1241,15 +1228,15 @@ describe('MotionEmbedding - エッジケース', () => {
     expect(norm).toBeCloseTo(1, 5);
   });
 
-  it('should handle all trigger types', () => {
+  it("should handle all trigger types", () => {
     // Arrange
-    const triggers: MotionPattern['trigger'][] = [
-      'load',
-      'hover',
-      'scroll',
-      'click',
-      'focus',
-      'custom',
+    const triggers: MotionPattern["trigger"][] = [
+      "load",
+      "hover",
+      "scroll",
+      "click",
+      "focus",
+      "custom",
     ];
 
     // Act & Assert
@@ -1263,13 +1250,13 @@ describe('MotionEmbedding - エッジケース', () => {
     });
   });
 
-  it('should handle all direction types', () => {
+  it("should handle all direction types", () => {
     // Arrange
-    const directions: MotionPattern['direction'][] = [
-      'normal',
-      'reverse',
-      'alternate',
-      'alternate-reverse',
+    const directions: MotionPattern["direction"][] = [
+      "normal",
+      "reverse",
+      "alternate",
+      "alternate-reverse",
     ];
 
     // Act & Assert
@@ -1283,14 +1270,9 @@ describe('MotionEmbedding - エッジケース', () => {
     });
   });
 
-  it('should handle all fill mode types', () => {
+  it("should handle all fill mode types", () => {
     // Arrange
-    const fillModes: MotionPattern['fillMode'][] = [
-      'none',
-      'forwards',
-      'backwards',
-      'both',
-    ];
+    const fillModes: MotionPattern["fillMode"][] = ["none", "forwards", "backwards", "both"];
 
     // Act & Assert
     fillModes.forEach((fillMode) => {

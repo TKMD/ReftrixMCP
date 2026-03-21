@@ -15,7 +15,7 @@
  * - craftsmanship (技巧): 実装品質、コード構造、アクセシビリティ
  * - contextuality (文脈適合性): 業界・ターゲット適合度
  */
-import { z } from 'zod';
+import { z } from "zod";
 
 // ============================================================================
 // Enum Schemas
@@ -25,25 +25,25 @@ import { z } from 'zod';
  * 評価グレード
  * A: 90-100, B: 80-89, C: 70-79, D: 60-69, F: 0-59
  */
-export const gradeSchema = z.enum(['A', 'B', 'C', 'D', 'F']);
+export const gradeSchema = z.enum(["A", "B", "C", "D", "F"]);
 export type Grade = z.infer<typeof gradeSchema>;
 
 /**
  * 推奨事項の優先度
  */
-export const recommendationPrioritySchema = z.enum(['high', 'medium', 'low']);
+export const recommendationPrioritySchema = z.enum(["high", "medium", "low"]);
 export type RecommendationPriority = z.infer<typeof recommendationPrioritySchema>;
 
 /**
  * 推奨事項のカテゴリ
  */
 export const recommendationCategorySchema = z.enum([
-  'originality',
-  'craftsmanship',
-  'contextuality',
-  'accessibility',
-  'performance',
-  'general',
+  "originality",
+  "craftsmanship",
+  "contextuality",
+  "accessibility",
+  "performance",
+  "general",
 ]);
 export type RecommendationCategory = z.infer<typeof recommendationCategorySchema>;
 
@@ -52,12 +52,12 @@ export type RecommendationCategory = z.infer<typeof recommendationCategorySchema
  * (recommendationCategorySchemaと同一値だが、suggest_improvements専用に定義)
  */
 export const improvementCategorySchema = z.enum([
-  'originality',
-  'craftsmanship',
-  'contextuality',
-  'accessibility',
-  'performance',
-  'general',
+  "originality",
+  "craftsmanship",
+  "contextuality",
+  "accessibility",
+  "performance",
+  "general",
 ]);
 export type ImprovementCategory = z.infer<typeof improvementCategorySchema>;
 
@@ -73,18 +73,18 @@ export const weightsSchema = z
   .object({
     originality: z
       .number()
-      .min(0, { message: 'originality weightは0以上1以下である必要があります' })
-      .max(1, { message: 'originality weightは0以上1以下である必要があります' })
+      .min(0, { message: "originality weightは0以上1以下である必要があります" })
+      .max(1, { message: "originality weightは0以上1以下である必要があります" })
       .default(0.35),
     craftsmanship: z
       .number()
-      .min(0, { message: 'craftsmanship weightは0以上1以下である必要があります' })
-      .max(1, { message: 'craftsmanship weightは0以上1以下である必要があります' })
+      .min(0, { message: "craftsmanship weightは0以上1以下である必要があります" })
+      .max(1, { message: "craftsmanship weightは0以上1以下である必要があります" })
       .default(0.4),
     contextuality: z
       .number()
-      .min(0, { message: 'contextuality weightは0以上1以下である必要があります' })
-      .max(1, { message: 'contextuality weightは0以上1以下である必要があります' })
+      .min(0, { message: "contextuality weightは0以上1以下である必要があります" })
+      .max(1, { message: "contextuality weightは0以上1以下である必要があります" })
       .default(0.25),
   })
   .refine(
@@ -94,7 +94,7 @@ export const weightsSchema = z
       return sum >= 0.99 && sum <= 1.01;
     },
     {
-      message: '重みの合計は1.0である必要があります',
+      message: "重みの合計は1.0である必要があります",
     }
   );
 export type Weights = z.infer<typeof weightsSchema>;
@@ -105,7 +105,7 @@ export type Weights = z.infer<typeof weightsSchema>;
  * - evaluate: 品質評価（デフォルト）
  * - suggest_improvements: 評価結果に基づく改善提案生成
  */
-export const qualityEvaluateActionSchema = z.enum(['evaluate', 'suggest_improvements']);
+export const qualityEvaluateActionSchema = z.enum(["evaluate", "suggest_improvements"]);
 export type QualityEvaluateAction = z.infer<typeof qualityEvaluateActionSchema>;
 
 /**
@@ -118,15 +118,15 @@ export const patternComparisonSchema = z.object({
   /** 最小類似度しきい値 (0-1, default: 0.7) */
   minSimilarity: z
     .number()
-    .min(0, { message: 'minSimilarityは0以上1以下である必要があります' })
-    .max(1, { message: 'minSimilarityは0以上1以下である必要があります' })
+    .min(0, { message: "minSimilarityは0以上1以下である必要があります" })
+    .max(1, { message: "minSimilarityは0以上1以下である必要があります" })
     .default(0.7),
   /** 取得するパターンの最大数 (1-20, default: 5) */
   maxPatterns: z
     .number()
     .int()
-    .min(1, { message: 'maxPatternsは1以上20以下である必要があります' })
-    .max(20, { message: 'maxPatternsは1以上20以下である必要があります' })
+    .min(1, { message: "maxPatternsは1以上20以下である必要があります" })
+    .max(20, { message: "maxPatternsは1以上20以下である必要があります" })
     .default(5),
 });
 export type PatternComparison = z.infer<typeof patternComparisonSchema>;
@@ -137,9 +137,12 @@ export type PatternComparison = z.infer<typeof patternComparisonSchema>;
  */
 export const evaluationContextSchema = z.object({
   /** プロジェクトID (UUID) */
-  projectId: z.string().uuid({ message: '有効なUUID形式のprojectIdを指定してください' }).optional(),
+  projectId: z.string().uuid({ message: "有効なUUID形式のprojectIdを指定してください" }).optional(),
   /** ブランドパレットID (UUID) */
-  brandPaletteId: z.string().uuid({ message: '有効なUUID形式のbrandPaletteIdを指定してください' }).optional(),
+  brandPaletteId: z
+    .string()
+    .uuid({ message: "有効なUUID形式のbrandPaletteIdを指定してください" })
+    .optional(),
   /** ターゲット業界 */
   targetIndustry: z.string().max(100).optional(),
   /** ターゲットオーディエンス */
@@ -155,33 +158,36 @@ export const responsiveEvaluationSchema = z.object({
   /** レスポンシブ評価を有効にするか (default: false) */
   enabled: z.boolean().default(false),
   /** 評価対象URL（pageId使用時は必須） */
-  url: z
-    .string()
-    .url({ message: '有効なURLを指定してください' })
-    .optional(),
+  url: z.string().url({ message: "有効なURLを指定してください" }).optional(),
   /** 評価対象のビューポート */
-  viewports: z.array(z.object({
-    name: z.string(),
-    width: z.number().int().min(320).max(3840),
-    height: z.number().int().min(480).max(2160),
-  })).optional(),
+  viewports: z
+    .array(
+      z.object({
+        name: z.string(),
+        width: z.number().int().min(320).max(3840),
+        height: z.number().int().min(480).max(2160),
+      })
+    )
+    .optional(),
   /** 実行するチェック項目 */
-  checks: z.object({
-    /** タッチターゲットサイズ検証 (WCAG 2.5.5: 44x44px) */
-    touchTargets: z.boolean().default(true),
-    /** モバイル読みやすさ評価 */
-    readability: z.boolean().default(true),
-    /** コンテンツオーバーフロー検出 */
-    overflow: z.boolean().default(true),
-    /** レスポンシブ画像チェック */
-    images: z.boolean().default(true),
-  }).optional(),
+  checks: z
+    .object({
+      /** タッチターゲットサイズ検証 (WCAG 2.5.5: 44x44px) */
+      touchTargets: z.boolean().default(true),
+      /** モバイル読みやすさ評価 */
+      readability: z.boolean().default(true),
+      /** コンテンツオーバーフロー検出 */
+      overflow: z.boolean().default(true),
+      /** レスポンシブ画像チェック */
+      images: z.boolean().default(true),
+    })
+    .optional(),
   /** タイムアウト (ms, default: 30000) */
   timeout: z
     .number()
     .int()
-    .min(5000, { message: 'timeoutは5000ms以上にしてください' })
-    .max(120000, { message: 'timeoutは120000ms以下にしてください' })
+    .min(5000, { message: "timeoutは5000ms以上にしてください" })
+    .max(120000, { message: "timeoutは120000ms以下にしてください" })
     .default(30000),
 });
 export type ResponsiveEvaluation = z.infer<typeof responsiveEvaluationSchema>;
@@ -203,26 +209,23 @@ export type ResponsiveEvaluation = z.infer<typeof responsiveEvaluationSchema>;
 export const qualityEvaluateInputSchema = z
   .object({
     // 共通フィールド
-    action: qualityEvaluateActionSchema.optional().default('evaluate'),
-    pageId: z
-      .string()
-      .uuid({ message: '有効なUUID形式のpageIdを指定してください' })
-      .optional(),
+    action: qualityEvaluateActionSchema.optional().default("evaluate"),
+    pageId: z.string().uuid({ message: "有効なUUID形式のpageIdを指定してください" }).optional(),
     html: z
       .string()
-      .min(1, { message: 'HTMLコンテンツは1文字以上必要です' })
-      .max(10_000_000, { message: 'HTMLコンテンツは10MB以下にしてください' })
+      .min(1, { message: "HTMLコンテンツは1文字以上必要です" })
+      .max(10_000_000, { message: "HTMLコンテンツは10MB以下にしてください" })
       .optional(),
 
     // action: "evaluate" 用オプション
     weights: weightsSchema.optional(),
     targetIndustry: z
       .string()
-      .max(100, { message: 'targetIndustryは100文字以下にしてください' })
+      .max(100, { message: "targetIndustryは100文字以下にしてください" })
       .optional(),
     targetAudience: z
       .string()
-      .max(100, { message: 'targetAudienceは100文字以下にしてください' })
+      .max(100, { message: "targetAudienceは100文字以下にしてください" })
       .optional(),
     includeRecommendations: z.boolean().default(true),
     strict: z.boolean().default(false),
@@ -274,20 +277,18 @@ export const qualityEvaluateInputSchema = z
      * - pageId が指定されている場合のみ有効（HTMLのみの場合はスキップ）
      * - 保存失敗時は警告ログを出力するが、評価結果は正常に返却（graceful degradation）
      */
-    save_to_db: z.boolean().default(false).describe(
-      'Save evaluation results to database (QualityEvaluation table). ' +
-      'When true, saves overall score, grade, subscores, and pattern references.'
-    ),
+    save_to_db: z
+      .boolean()
+      .default(false)
+      .describe(
+        "Save evaluation results to database (QualityEvaluation table). " +
+          "When true, saves overall score, grade, subscores, and pattern references."
+      ),
 
     // action: "suggest_improvements" 用オプション
     categories: z.array(improvementCategorySchema).optional(),
     minPriority: recommendationPrioritySchema.optional(),
-    maxSuggestions: z
-      .number()
-      .int()
-      .min(1)
-      .max(50)
-      .default(10),
+    maxSuggestions: z.number().int().min(1).max(50).default(10),
     includeCodeExamples: z.boolean().default(true),
   })
   .refine(
@@ -297,7 +298,7 @@ export const qualityEvaluateInputSchema = z
       return hasPageId || hasHtml;
     },
     {
-      message: 'pageIdまたはhtmlのいずれかを指定してください',
+      message: "pageIdまたはhtmlのいずれかを指定してください",
     }
   )
   .refine(
@@ -307,7 +308,7 @@ export const qualityEvaluateInputSchema = z
       return !(hasPageId && hasHtml);
     },
     {
-      message: 'pageIdとhtmlを同時に指定することはできません',
+      message: "pageIdとhtmlを同時に指定することはできません",
     }
   );
 export type QualityEvaluateInput = z.infer<typeof qualityEvaluateInputSchema>;
@@ -433,7 +434,7 @@ export const clicheDetectionSchema = z.object({
     z.object({
       type: z.string(),
       description: z.string(),
-      severity: z.enum(['high', 'medium', 'low']),
+      severity: z.enum(["high", "medium", "low"]),
       location: z.string().optional(),
     })
   ),
@@ -461,7 +462,7 @@ export const axeViolationSchema = z.object({
   /** ルールID (e.g., 'image-alt', 'button-name') */
   id: z.string(),
   /** インパクトレベル */
-  impact: z.enum(['minor', 'moderate', 'serious', 'critical']),
+  impact: z.enum(["minor", "moderate", "serious", "critical"]),
   /** 違反の説明 */
   description: z.string(),
   /** 修正方法のヘルプテキスト */
@@ -485,7 +486,7 @@ export const axeAccessibilityResultSchema = z.object({
   /** アクセシビリティスコア (0-100) */
   score: z.number().min(0).max(100),
   /** WCAGレベル (A, AA, AAA) */
-  wcagLevel: z.enum(['A', 'AA', 'AAA']),
+  wcagLevel: z.enum(["A", "AA", "AAA"]),
 });
 export type AxeAccessibilityResultOutput = z.infer<typeof axeAccessibilityResultSchema>;
 
@@ -509,20 +510,24 @@ export const qualityEvaluateDataSchema = z.object({
   /** aXeアクセシビリティ結果（v0.1.0新規、WCAG 2.1 AA準拠チェック） */
   axeAccessibility: axeAccessibilityResultSchema.optional(),
   /** レスポンシブデザイン品質評価結果（v0.1.0新規、Playwright実測定） */
-  responsiveDesign: z.object({
-    /** 総合レスポンシブスコア (0-100) */
-    overallScore: z.number().min(0).max(100),
-    /** 評価時間 (ms) */
-    evaluationTimeMs: z.number().nonnegative(),
-    /** ビューポート別結果サマリー */
-    viewportSummaries: z.array(z.object({
-      viewport: z.string(),
-      touchTargetScore: z.number().min(0).max(100),
-      readabilityScore: z.number().min(0).max(100),
-      overflowOk: z.boolean(),
-      responsiveImageScore: z.number().min(0).max(100),
-    })),
-  }).optional(),
+  responsiveDesign: z
+    .object({
+      /** 総合レスポンシブスコア (0-100) */
+      overallScore: z.number().min(0).max(100),
+      /** 評価時間 (ms) */
+      evaluationTimeMs: z.number().nonnegative(),
+      /** ビューポート別結果サマリー */
+      viewportSummaries: z.array(
+        z.object({
+          viewport: z.string(),
+          touchTargetScore: z.number().min(0).max(100),
+          readabilityScore: z.number().min(0).max(100),
+          overflowOk: z.boolean(),
+          responsiveImageScore: z.number().min(0).max(100),
+        })
+      ),
+    })
+    .optional(),
   evaluatedAt: z.string().datetime(),
   weights: weightsSchema.optional(),
   targetIndustry: z.string().optional(),
@@ -561,7 +566,7 @@ export const qualityEvaluateErrorOutputSchema = z.object({
 /**
  * quality.evaluate 出力スキーマ（統合）
  */
-export const qualityEvaluateOutputSchema = z.discriminatedUnion('success', [
+export const qualityEvaluateOutputSchema = z.discriminatedUnion("success", [
   qualityEvaluateSuccessOutputSchema,
   qualityEvaluateErrorOutputSchema,
 ]);
@@ -573,18 +578,20 @@ export type QualityEvaluateOutput = z.infer<typeof qualityEvaluateOutputSchema>;
  */
 export const qualityEvaluateSuggestImprovementsSuccessOutputSchema = z.object({
   success: z.literal(true),
-  action: z.literal('suggest_improvements'),
+  action: z.literal("suggest_improvements"),
   data: z.object({
-    improvements: z.array(z.object({
-      id: z.string(),
-      category: improvementCategorySchema,
-      priority: recommendationPrioritySchema,
-      title: z.string(),
-      description: z.string(),
-      originalCode: z.string().optional(),
-      suggestedCode: z.string(),
-      impact: z.number().min(0).max(100).optional(),
-    })),
+    improvements: z.array(
+      z.object({
+        id: z.string(),
+        category: improvementCategorySchema,
+        priority: recommendationPrioritySchema,
+        title: z.string(),
+        description: z.string(),
+        originalCode: z.string().optional(),
+        suggestedCode: z.string(),
+        impact: z.number().min(0).max(100).optional(),
+      })
+    ),
     summary: z.object({
       totalImprovements: z.number().int().nonnegative(),
       estimatedScoreGain: z.number().min(0).max(100),
@@ -623,25 +630,25 @@ export type QualityEvaluateUnifiedOutput =
  */
 export const QUALITY_MCP_ERROR_CODES = {
   /** バリデーションエラー */
-  VALIDATION_ERROR: 'VALIDATION_ERROR',
+  VALIDATION_ERROR: "VALIDATION_ERROR",
   /** ページが見つからない */
-  PAGE_NOT_FOUND: 'PAGE_NOT_FOUND',
+  PAGE_NOT_FOUND: "PAGE_NOT_FOUND",
   /** 無効なHTML */
-  INVALID_HTML: 'INVALID_HTML',
+  INVALID_HTML: "INVALID_HTML",
   /** 無効な重み */
-  INVALID_WEIGHTS: 'INVALID_WEIGHTS',
+  INVALID_WEIGHTS: "INVALID_WEIGHTS",
   /** 評価エラー */
-  EVALUATION_ERROR: 'EVALUATION_ERROR',
+  EVALUATION_ERROR: "EVALUATION_ERROR",
   /** データベースエラー */
-  DB_ERROR: 'DB_ERROR',
+  DB_ERROR: "DB_ERROR",
   /** 内部エラー */
-  INTERNAL_ERROR: 'INTERNAL_ERROR',
+  INTERNAL_ERROR: "INTERNAL_ERROR",
   /** サービス利用不可 */
-  SERVICE_UNAVAILABLE: 'SERVICE_UNAVAILABLE',
+  SERVICE_UNAVAILABLE: "SERVICE_UNAVAILABLE",
   /** 評価が見つからない */
-  EVALUATION_NOT_FOUND: 'EVALUATION_NOT_FOUND',
+  EVALUATION_NOT_FOUND: "EVALUATION_NOT_FOUND",
   /** 改善提案生成エラー */
-  SUGGESTION_GENERATION_ERROR: 'SUGGESTION_GENERATION_ERROR',
+  SUGGESTION_GENERATION_ERROR: "SUGGESTION_GENERATION_ERROR",
 } as const;
 
 export type QualityMcpErrorCode =
@@ -655,11 +662,11 @@ export type QualityMcpErrorCode =
  * スコアからグレードを計算
  */
 export function scoreToGrade(score: number): Grade {
-  if (score >= 90) return 'A';
-  if (score >= 80) return 'B';
-  if (score >= 70) return 'C';
-  if (score >= 60) return 'D';
-  return 'F';
+  if (score >= 90) return "A";
+  if (score >= 80) return "B";
+  if (score >= 70) return "C";
+  if (score >= 60) return "D";
+  return "F";
 }
 
 /**
@@ -687,10 +694,10 @@ export function calculateWeightedScore(
  * MCPプロトコル準拠のツール定義
  */
 export const qualityMcpTools = {
-  'quality.evaluate': {
-    name: 'quality.evaluate',
+  "quality.evaluate": {
+    name: "quality.evaluate",
     description:
-      'Webデザインの品質を3軸（独自性・技巧・文脈適合性）で評価し、AIクリシェ検出を行います',
+      "Webデザインの品質を3軸（独自性・技巧・文脈適合性）で評価し、AIクリシェ検出を行います",
     inputSchema: qualityEvaluateInputSchema,
   },
 } as const;
@@ -708,21 +715,16 @@ export const suggestImprovementsInputSchema = z
   .object({
     evaluationId: z
       .string()
-      .uuid({ message: '有効なUUID形式のevaluationIdを指定してください' })
+      .uuid({ message: "有効なUUID形式のevaluationIdを指定してください" })
       .optional(),
     html: z
       .string()
-      .min(1, { message: 'HTMLコンテンツは1文字以上必要です' })
-      .max(10_000_000, { message: 'HTMLコンテンツは10MB以下にしてください' })
+      .min(1, { message: "HTMLコンテンツは1文字以上必要です" })
+      .max(10_000_000, { message: "HTMLコンテンツは10MB以下にしてください" })
       .optional(),
     categories: z.array(improvementCategorySchema).optional(),
     minPriority: recommendationPrioritySchema.optional(),
-    maxSuggestions: z
-      .number()
-      .int()
-      .min(1)
-      .max(50)
-      .default(10),
+    maxSuggestions: z.number().int().min(1).max(50).default(10),
     includeCodeExamples: z.boolean().default(true),
   })
   .refine(
@@ -732,7 +734,7 @@ export const suggestImprovementsInputSchema = z
       return hasEvaluationId || hasHtml;
     },
     {
-      message: 'evaluationIdまたはhtmlのいずれかを指定してください',
+      message: "evaluationIdまたはhtmlのいずれかを指定してください",
     }
   )
   .refine(
@@ -742,7 +744,7 @@ export const suggestImprovementsInputSchema = z
       return !(hasEvaluationId && hasHtml);
     },
     {
-      message: 'evaluationIdとhtmlを同時に指定することはできません',
+      message: "evaluationIdとhtmlを同時に指定することはできません",
     }
   );
 export type SuggestImprovementsInput = z.infer<typeof suggestImprovementsInputSchema>;
@@ -809,7 +811,7 @@ export const suggestImprovementsErrorOutputSchema = z.object({
 /**
  * suggest_improvements 出力スキーマ（統合）
  */
-export const suggestImprovementsOutputSchema = z.discriminatedUnion('success', [
+export const suggestImprovementsOutputSchema = z.discriminatedUnion("success", [
   suggestImprovementsSuccessOutputSchema,
   suggestImprovementsErrorOutputSchema,
 ]);
@@ -829,14 +831,11 @@ export type SuggestImprovementsOutput = z.infer<typeof suggestImprovementsOutput
  */
 export const batchEvaluateItemSchema = z
   .object({
-    pageId: z
-      .string()
-      .uuid({ message: '有効なUUID形式のpageIdを指定してください' })
-      .optional(),
+    pageId: z.string().uuid({ message: "有効なUUID形式のpageIdを指定してください" }).optional(),
     html: z
       .string()
-      .min(1, { message: 'HTMLコンテンツは1文字以上必要です' })
-      .max(10_000_000, { message: 'HTMLコンテンツは10MB以下にしてください' })
+      .min(1, { message: "HTMLコンテンツは1文字以上必要です" })
+      .max(10_000_000, { message: "HTMLコンテンツは10MB以下にしてください" })
       .optional(),
   })
   .refine(
@@ -846,7 +845,7 @@ export const batchEvaluateItemSchema = z
       return hasPageId || hasHtml;
     },
     {
-      message: 'pageIdまたはhtmlのいずれかを指定してください',
+      message: "pageIdまたはhtmlのいずれかを指定してください",
     }
   )
   .refine(
@@ -856,7 +855,7 @@ export const batchEvaluateItemSchema = z
       return !(hasPageId && hasHtml);
     },
     {
-      message: 'pageIdとhtmlを同時に指定することはできません',
+      message: "pageIdとhtmlを同時に指定することはできません",
     }
   );
 export type BatchEvaluateItem = z.infer<typeof batchEvaluateItemSchema>;
@@ -867,15 +866,15 @@ export type BatchEvaluateItem = z.infer<typeof batchEvaluateItemSchema>;
 export const batchQualityEvaluateInputSchema = z.object({
   items: z
     .array(batchEvaluateItemSchema)
-    .min(1, { message: '少なくとも1つのアイテムを指定してください' })
-    .max(100, { message: '最大100件まで指定できます' }),
+    .min(1, { message: "少なくとも1つのアイテムを指定してください" })
+    .max(100, { message: "最大100件まで指定できます" }),
   batch_size: z
     .number()
     .int()
-    .min(1, { message: 'batch_sizeは1以上50以下にしてください' })
-    .max(50, { message: 'batch_sizeは1以上50以下にしてください' })
+    .min(1, { message: "batch_sizeは1以上50以下にしてください" })
+    .max(50, { message: "batch_sizeは1以上50以下にしてください" })
     .default(10),
-  on_error: z.enum(['skip', 'abort']).default('skip'),
+  on_error: z.enum(["skip", "abort"]).default("skip"),
   weights: weightsSchema.optional(),
   strict: z.boolean().default(false),
 });
@@ -886,7 +885,7 @@ export type BatchQualityEvaluateInput = z.infer<typeof batchQualityEvaluateInput
  */
 export const batchQualityJobStatusSchema = z.object({
   job_id: z.string().uuid(),
-  status: z.enum(['pending', 'processing', 'completed', 'failed', 'cancelled']),
+  status: z.enum(["pending", "processing", "completed", "failed", "cancelled"]),
   total_items: z.number().int().nonnegative(),
   processed_items: z.number().int().nonnegative(),
   success_items: z.number().int().nonnegative(),
@@ -911,10 +910,10 @@ export type BatchQualityJobStatus = z.infer<typeof batchQualityJobStatusSchema>;
  */
 export const batchQualityEvaluateDataSchema = z.object({
   job_id: z.string().uuid(),
-  status: z.enum(['pending', 'processing', 'completed', 'failed', 'cancelled']),
+  status: z.enum(["pending", "processing", "completed", "failed", "cancelled"]),
   total_items: z.number().int().nonnegative(),
   batch_size: z.number().int().positive(),
-  on_error: z.enum(['skip', 'abort']),
+  on_error: z.enum(["skip", "abort"]),
   created_at: z.string().datetime(),
   message: z.string(),
 });
@@ -952,7 +951,7 @@ export const batchQualityEvaluateErrorOutputSchema = z.object({
 /**
  * バッチ評価出力スキーマ（統合）
  */
-export const batchQualityEvaluateOutputSchema = z.discriminatedUnion('success', [
+export const batchQualityEvaluateOutputSchema = z.discriminatedUnion("success", [
   batchQualityEvaluateSuccessOutputSchema,
   batchQualityEvaluateErrorOutputSchema,
 ]);
@@ -966,12 +965,12 @@ export type BatchQualityEvaluateOutput = z.infer<typeof batchQualityEvaluateOutp
  * ジョブステート（BullMQ互換）
  */
 export const qualityJobStateSchema = z.enum([
-  'waiting',    // キュー待ち
-  'active',     // 処理中
-  'completed',  // 完了
-  'failed',     // 失敗
-  'delayed',    // 遅延
-  'unknown',    // 不明
+  "waiting", // キュー待ち
+  "active", // 処理中
+  "completed", // 完了
+  "failed", // 失敗
+  "delayed", // 遅延
+  "unknown", // 不明
 ]);
 export type QualityJobState = z.infer<typeof qualityJobStateSchema>;
 
@@ -983,7 +982,7 @@ export const qualityGetJobStatusInputSchema = z.object({
    * ジョブID（quality.batch_evaluate で返されたjob_id）
    * MCP命名規約に沿ってsnake_case
    */
-  job_id: z.string().uuid({ message: '有効なUUID形式のjob_idを指定してください' }),
+  job_id: z.string().uuid({ message: "有効なUUID形式のjob_idを指定してください" }),
 });
 export type QualityGetJobStatusInput = z.infer<typeof qualityGetJobStatusInputSchema>;
 
@@ -998,10 +997,12 @@ export const batchQualityResultItemSchema = z.object({
   /** 評価結果（成功時のみ） */
   data: qualityEvaluateDataSchema.optional(),
   /** エラー情報（失敗時のみ） */
-  error: z.object({
-    code: z.string(),
-    message: z.string(),
-  }).optional(),
+  error: z
+    .object({
+      code: z.string(),
+      message: z.string(),
+    })
+    .optional(),
 });
 export type BatchQualityResultItem = z.infer<typeof batchQualityResultItemSchema>;
 
@@ -1085,7 +1086,9 @@ export const qualityGetJobStatusSuccessOutputSchema = z.object({
   data: qualityGetJobStatusDataSchema,
   metadata: qualityGetJobStatusMetadataSchema.optional(),
 });
-export type QualityGetJobStatusSuccessOutput = z.infer<typeof qualityGetJobStatusSuccessOutputSchema>;
+export type QualityGetJobStatusSuccessOutput = z.infer<
+  typeof qualityGetJobStatusSuccessOutputSchema
+>;
 
 /**
  * quality.getJobStatus エラーレスポンススキーマ
@@ -1104,7 +1107,7 @@ export type QualityGetJobStatusErrorOutput = z.infer<typeof qualityGetJobStatusE
 /**
  * quality.getJobStatus 出力スキーマ（統合）
  */
-export const qualityGetJobStatusOutputSchema = z.discriminatedUnion('success', [
+export const qualityGetJobStatusOutputSchema = z.discriminatedUnion("success", [
   qualityGetJobStatusSuccessOutputSchema,
   qualityGetJobStatusErrorOutputSchema,
 ]);

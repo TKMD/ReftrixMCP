@@ -18,10 +18,10 @@
  * ログレベル定義
  */
 export enum LogLevel {
-  DEBUG = 'debug',
-  INFO = 'info',
-  WARN = 'warn',
-  ERROR = 'error',
+  DEBUG = "debug",
+  INFO = "info",
+  WARN = "warn",
+  ERROR = "error",
 }
 
 /**
@@ -38,7 +38,7 @@ export interface ILogger {
  * 有効な環境値
  * NODE_ENVはこれらの値のいずれかである必要がある
  */
-const VALID_ENVIRONMENTS = ['development', 'production', 'test'] as const;
+const VALID_ENVIRONMENTS = ["development", "production", "test"] as const;
 
 /**
  * 有効な環境の型
@@ -64,7 +64,7 @@ export const getEnvironment = (): Environment => {
 
   // 未設定の場合はproductionとして扱う（安全側倒し）
   if (rawEnv === undefined || rawEnv === null) {
-    return 'production';
+    return "production";
   }
 
   // trim()して正規化
@@ -72,17 +72,17 @@ export const getEnvironment = (): Environment => {
 
   // 空文字列の場合はproductionとして扱う（安全側倒し）
   if (!env) {
-    return 'production';
+    return "production";
   }
 
   // 厳密な完全一致チェック：有効な値のみ受け入れ
   // タブ、改行、空白などが含まれる場合は無効として扱う
-  if (env === 'development') return 'development';
-  if (env === 'production') return 'production';
-  if (env === 'test') return 'test';
+  if (env === "development") return "development";
+  if (env === "production") return "production";
+  if (env === "test") return "test";
 
   // 無効な値の場合はproductionとして扱う（安全側倒し）
-  return 'production';
+  return "production";
 };
 
 /**
@@ -107,7 +107,7 @@ export const validateEnvironment = (): ValidEnvironment => {
   // 未設定の場合はエラー
   if (rawEnv === undefined || rawEnv === null) {
     throw new Error(
-      'NODE_ENV is not set. Please set NODE_ENV to one of: development, production, test'
+      "NODE_ENV is not set. Please set NODE_ENV to one of: development, production, test"
     );
   }
 
@@ -117,7 +117,7 @@ export const validateEnvironment = (): ValidEnvironment => {
   // 空文字列または空白のみの場合はエラー
   if (!env) {
     throw new Error(
-      'NODE_ENV is empty. Please set NODE_ENV to one of: development, production, test'
+      "NODE_ENV is empty. Please set NODE_ENV to one of: development, production, test"
     );
   }
 
@@ -132,7 +132,7 @@ export const validateEnvironment = (): ValidEnvironment => {
     `[ENV] [WARN] [${timestamp}] Invalid NODE_ENV value: "${env}". Valid values are: development, production, test. Falling back to "production".`
   );
 
-  return 'production';
+  return "production";
 };
 
 /**
@@ -141,19 +141,19 @@ export const validateEnvironment = (): ValidEnvironment => {
  * SEC: NODE_ENVが明示的に'development'に設定されている場合のみtrue
  * 未設定/無効値の場合はfalseを返す（テスト用APIキー無効化）
  */
-export const isDevelopment = (): boolean => getEnvironment() === 'development';
+export const isDevelopment = (): boolean => getEnvironment() === "development";
 
 /**
  * テスト環境かどうかを判定
  */
-export const isTest = (): boolean => getEnvironment() === 'test';
+export const isTest = (): boolean => getEnvironment() === "test";
 
 /**
  * 本番環境かどうかを判定
  *
  * SEC: NODE_ENVが未設定または無効な値の場合もtrueを返す（安全側倒し）
  */
-export const isProductionEnvironment = (): boolean => getEnvironment() === 'production';
+export const isProductionEnvironment = (): boolean => getEnvironment() === "production";
 
 /**
  * タイムスタンプを取得
@@ -179,12 +179,12 @@ const formatErrorData = (data: unknown): unknown => {
  */
 const formatData = (data: unknown): string => {
   if (data === undefined) {
-    return '';
+    return "";
   }
   try {
-    return ' ' + JSON.stringify(data);
+    return " " + JSON.stringify(data);
   } catch {
-    return ' [Unserializable data]';
+    return " [Unserializable data]";
   }
 };
 
@@ -197,7 +197,7 @@ const formatData = (data: unknown): string => {
 export class Logger implements ILogger {
   private readonly prefix: string;
 
-  constructor(prefix: string = 'MCP') {
+  constructor(prefix: string = "MCP") {
     this.prefix = prefix;
   }
 
@@ -208,7 +208,7 @@ export class Logger implements ILogger {
    */
   private shouldLog(level: LogLevel): boolean {
     // テスト環境では明示的に有効化されていない限り出力しない
-    if (isTest() && process.env.ENABLE_TEST_LOGS !== 'true') {
+    if (isTest() && process.env.ENABLE_TEST_LOGS !== "true") {
       return false;
     }
 
@@ -289,4 +289,4 @@ export function createLogger(module: string): ILogger {
 /**
  * デフォルトのLoggerインスタンス
  */
-export const logger = new Logger('MCP');
+export const logger = new Logger("MCP");

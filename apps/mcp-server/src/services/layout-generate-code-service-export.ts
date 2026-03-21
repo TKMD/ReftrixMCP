@@ -11,12 +11,12 @@
 import {
   layoutGenerateCodeHandler,
   setLayoutToCodeServiceFactory,
-} from '../tools/layout/to-code.tool';
+} from "../tools/layout/to-code.tool";
 import {
   createLayoutToCodeServiceFactory,
   setLayoutToCodePrismaClientFactory,
   type IPrismaClient,
-} from './layout-to-code.service';
+} from "./layout-to-code.service";
 import type {
   LayoutToCodeInput,
   LayoutToCodeOutput,
@@ -24,7 +24,7 @@ import type {
   LayoutToCodeOptions,
   LayoutToCodeErrorInfo,
   Framework,
-} from '../tools/layout/schemas';
+} from "../tools/layout/schemas";
 
 // =====================================================
 // Service Initialization
@@ -55,9 +55,9 @@ function ensureServiceInitialized(): void {
   setLayoutToCodeServiceFactory(createLayoutToCodeServiceFactory());
   isInitialized = true;
 
-  if (process.env.NODE_ENV === 'development') {
+  if (process.env.NODE_ENV === "development") {
     // eslint-disable-next-line no-console -- Development-only initialization log
-    console.log('[layout-generate-code-service-export] Service factory initialized');
+    console.log("[layout-generate-code-service-export] Service factory initialized");
   }
 }
 

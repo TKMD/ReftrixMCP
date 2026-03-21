@@ -9,19 +9,16 @@
  * 観測性統合（MetricsCollector）
  */
 
-import { ErrorCode, McpError } from './utils/errors';
-import { logger } from './utils/logger';
-import type { AuthMiddlewareInstance, AuthContext } from './middleware/auth';
+import { ErrorCode, McpError } from "./utils/errors";
+import { logger } from "./utils/logger";
+import type { AuthMiddlewareInstance, AuthContext } from "./middleware/auth";
 import {
   applyLightResponse,
   extractLightResponseOptions,
-} from './middleware/light-response-controller';
-import {
-  getMetricsCollector,
-  type MetricsStats,
-} from './services/metrics-collector';
-import { generateRequestId } from './utils/mcp-response';
-import type { ProgressNotification } from '@modelcontextprotocol/sdk/types.js';
+} from "./middleware/light-response-controller";
+import { getMetricsCollector, type MetricsStats } from "./services/metrics-collector";
+import { generateRequestId } from "./utils/mcp-response";
+import type { ProgressNotification } from "@modelcontextprotocol/sdk/types.js";
 
 /**
  * 進捗報告コンテキスト（MCP Phase 4）
@@ -45,7 +42,7 @@ export type ToolHandler = (
 
 /**
  * ツールハンドラーのマップ
- * 23のMCPツールを管理（allToolDefinitions SSoTから自動同期）
+ * 26のMCPツールを管理（allToolDefinitions SSoTから自動同期）
  */
 export const toolHandlers: Map<string, ToolHandler> = new Map();
 
@@ -60,7 +57,7 @@ let authMiddleware: AuthMiddlewareInstance | null = null;
  * @param middleware - 認証ミドルウェアインスタンス
  */
 export function setAuthMiddleware(middleware: AuthMiddlewareInstance): void {
-  logger.info('[Router] Authentication middleware configured');
+  logger.info("[Router] Authentication middleware configured");
   authMiddleware = middleware;
 }
 
@@ -141,7 +138,7 @@ export async function handleToolCall(
 
   // メトリクス収集
   const metrics = getMetricsCollector();
-  metrics.incrementRequestCount(toolName, 'TOOL_CALL');
+  metrics.incrementRequestCount(toolName, "TOOL_CALL");
   metrics.incrementActiveConnections();
 
   logger.debug(`[Router] Tool call: ${toolName}`, {
@@ -156,14 +153,11 @@ export async function handleToolCall(
     const authResult = await authMiddleware.checkAuth(toolName, apiKey);
     if (!authResult.success) {
       const errorCode =
-        authResult.error?.code === 'FORBIDDEN'
-          ? ErrorCode.FORBIDDEN
-          : ErrorCode.UNAUTHORIZED;
-      const error = new McpError(
-        errorCode,
-        authResult.error?.message ?? 'Authentication failed',
-        { tool: toolName, requestId: reqId }
-      );
+        authResult.error?.code === "FORBIDDEN" ? ErrorCode.FORBIDDEN : ErrorCode.UNAUTHORIZED;
+      const error = new McpError(errorCode, authResult.error?.message ?? "Authentication failed", {
+        tool: toolName,
+        requestId: reqId,
+      });
 
       // 認証エラーをメトリクスに記録
       metrics.incrementErrorCount(toolName, errorCode);
@@ -191,11 +185,10 @@ export async function handleToolCall(
   const handler = toolHandlers.get(toolName);
 
   if (!handler) {
-    const error = new McpError(
-      ErrorCode.TOOL_NOT_FOUND,
-      `Unknown tool: ${toolName}`,
-      { toolName, requestId: reqId }
-    );
+    const error = new McpError(ErrorCode.TOOL_NOT_FOUND, `Unknown tool: ${toolName}`, {
+      toolName,
+      requestId: reqId,
+    });
 
     // ツール未発見エラーをメトリクスに記録
     metrics.incrementErrorCount(toolName, ErrorCode.TOOL_NOT_FOUND);
@@ -238,7 +231,7 @@ export async function handleToolCall(
     return lightResult;
   } catch (error) {
     const duration = performance.now() - startTime;
-    const errorType = error instanceof McpError ? error.code : 'UNKNOWN_ERROR';
+    const errorType = error instanceof McpError ? error.code : "UNKNOWN_ERROR";
 
     // エラーをメトリクスに記録
     metrics.incrementErrorCount(toolName, errorType);
@@ -304,44 +297,44 @@ export function exportMetricsPrometheus(): string {
  */
 export const TOOL_NAMES = {
   // Style ツール (1)
-  STYLE_GET_PALETTE: 'style.get_palette',
+  STYLE_GET_PALETTE: "style.get_palette",
   // System ツール (1)
-  SYSTEM_HEALTH: 'system.health',
+  SYSTEM_HEALTH: "system.health",
   // Layout ツール (5)
-  LAYOUT_INSPECT: 'layout.inspect',
-  LAYOUT_INGEST: 'layout.ingest',
-  LAYOUT_SEARCH: 'layout.search',
-  LAYOUT_GENERATE_CODE: 'layout.generate_code',
-  LAYOUT_BATCH_INGEST: 'layout.batch_ingest',
+  LAYOUT_INSPECT: "layout.inspect",
+  LAYOUT_INGEST: "layout.ingest",
+  LAYOUT_SEARCH: "layout.search",
+  LAYOUT_GENERATE_CODE: "layout.generate_code",
+  LAYOUT_BATCH_INGEST: "layout.batch_ingest",
   // Quality ツール (3)
-  QUALITY_EVALUATE: 'quality.evaluate',
-  QUALITY_BATCH_EVALUATE: 'quality.batch_evaluate',
-  QUALITY_GET_JOB_STATUS: 'quality.getJobStatus',
+  QUALITY_EVALUATE: "quality.evaluate",
+  QUALITY_BATCH_EVALUATE: "quality.batch_evaluate",
+  QUALITY_GET_JOB_STATUS: "quality.getJobStatus",
   // Motion ツール (2)
-  MOTION_DETECT: 'motion.detect',
-  MOTION_SEARCH: 'motion.search',
+  MOTION_DETECT: "motion.detect",
+  MOTION_SEARCH: "motion.search",
   // Brief ツール (1)
-  BRIEF_VALIDATE: 'brief.validate',
+  BRIEF_VALIDATE: "brief.validate",
   // Project ツール (2)
-  PROJECT_GET: 'project.get',
-  PROJECT_LIST: 'project.list',
+  PROJECT_GET: "project.get",
+  PROJECT_LIST: "project.list",
   // Page ツール (2)
-  PAGE_ANALYZE: 'page.analyze',
-  PAGE_GET_JOB_STATUS: 'page.getJobStatus',
+  PAGE_ANALYZE: "page.analyze",
+  PAGE_GET_JOB_STATUS: "page.getJobStatus",
   // Narrative ツール (1)
-  NARRATIVE_SEARCH: 'narrative.search',
+  NARRATIVE_SEARCH: "narrative.search",
   // Background ツール (1)
-  BACKGROUND_SEARCH: 'background.search',
+  BACKGROUND_SEARCH: "background.search",
   // Responsive ツール (1)
-  RESPONSIVE_SEARCH: 'responsive.search',
+  RESPONSIVE_SEARCH: "responsive.search",
   // Preference ツール (3)
-  PREFERENCE_HEAR: 'preference.hear',
-  PREFERENCE_GET: 'preference.get',
-  PREFERENCE_RESET: 'preference.reset',
+  PREFERENCE_HEAR: "preference.hear",
+  PREFERENCE_GET: "preference.get",
+  PREFERENCE_RESET: "preference.reset",
   // Part ツール (3)
-  PART_SEARCH: 'part.search',
-  PART_INSPECT: 'part.inspect',
-  PART_COMPARE: 'part.compare',
+  PART_SEARCH: "part.search",
+  PART_INSPECT: "part.inspect",
+  PART_COMPARE: "part.compare",
 } as const;
 
 /**

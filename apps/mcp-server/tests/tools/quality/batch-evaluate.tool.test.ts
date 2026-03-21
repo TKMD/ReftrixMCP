@@ -6,7 +6,7 @@
  *
  * 複数ページの品質評価を一括処理するツールのテスト
  */
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import {
   batchQualityEvaluateHandler,
   setBatchQualityEvaluateServiceFactory,
@@ -16,21 +16,23 @@ import {
   getBatchJob,
   getJobStoreStats,
   type IBatchQualityEvaluateService,
-} from '../../../src/tools/quality/batch-evaluate.tool';
-import type { BatchQualityJobStatus } from '../../../src/tools/quality/schemas';
+} from "../../../src/tools/quality/batch-evaluate.tool";
+import type { BatchQualityJobStatus } from "../../../src/tools/quality/schemas";
 
 // =====================================================
 // テストヘルパー
 // =====================================================
 
-const createMockService = (overrides?: Partial<IBatchQualityEvaluateService>): IBatchQualityEvaluateService => ({
+const createMockService = (
+  overrides?: Partial<IBatchQualityEvaluateService>
+): IBatchQualityEvaluateService => ({
   evaluatePage: vi.fn().mockResolvedValue({
-    pageId: 'test-page-id',
+    pageId: "test-page-id",
     overall: 75,
-    grade: 'C',
-    originality: { score: 70, grade: 'C' },
-    craftsmanship: { score: 80, grade: 'B' },
-    contextuality: { score: 75, grade: 'C' },
+    grade: "C",
+    originality: { score: 70, grade: "C" },
+    craftsmanship: { score: 80, grade: "B" },
+    contextuality: { score: 75, grade: "C" },
     evaluatedAt: new Date().toISOString(),
   }),
   ...overrides,
@@ -38,9 +40,9 @@ const createMockService = (overrides?: Partial<IBatchQualityEvaluateService>): I
 
 const validBatchInput = {
   items: [
-    { html: '<html><body><h1>Page 1</h1></body></html>' },
-    { html: '<html><body><h1>Page 2</h1></body></html>' },
-    { html: '<html><body><h1>Page 3</h1></body></html>' },
+    { html: "<html><body><h1>Page 1</h1></body></html>" },
+    { html: "<html><body><h1>Page 2</h1></body></html>" },
+    { html: "<html><body><h1>Page 3</h1></body></html>" },
   ],
 };
 
@@ -48,7 +50,7 @@ const validBatchInput = {
 // テスト
 // =====================================================
 
-describe('quality.batch_evaluate', () => {
+describe("quality.batch_evaluate", () => {
   beforeEach(() => {
     clearBatchJobStore();
     resetBatchQualityEvaluateServiceFactory();
@@ -63,19 +65,19 @@ describe('quality.batch_evaluate', () => {
   // 入力バリデーション
   // =====================================================
 
-  describe('Input Validation', () => {
-    it('should reject empty items array', async () => {
+  describe("Input Validation", () => {
+    it("should reject empty items array", async () => {
       setBatchQualityEvaluateServiceFactory(() => createMockService());
 
       const result = await batchQualityEvaluateHandler({ items: [] });
 
       expect(result.success).toBe(false);
       if (!result.success) {
-        expect(result.error.code).toBe('VALIDATION_ERROR');
+        expect(result.error.code).toBe("VALIDATION_ERROR");
       }
     });
 
-    it('should reject more than 100 items', async () => {
+    it("should reject more than 100 items", async () => {
       setBatchQualityEvaluateServiceFactory(() => createMockService());
 
       const items = Array.from({ length: 101 }, (_, i) => ({
@@ -86,11 +88,11 @@ describe('quality.batch_evaluate', () => {
 
       expect(result.success).toBe(false);
       if (!result.success) {
-        expect(result.error.code).toBe('VALIDATION_ERROR');
+        expect(result.error.code).toBe("VALIDATION_ERROR");
       }
     });
 
-    it('should reject items without html or pageId', async () => {
+    it("should reject items without html or pageId", async () => {
       setBatchQualityEvaluateServiceFactory(() => createMockService());
 
       const result = await batchQualityEvaluateHandler({
@@ -99,36 +101,38 @@ describe('quality.batch_evaluate', () => {
 
       expect(result.success).toBe(false);
       if (!result.success) {
-        expect(result.error.code).toBe('VALIDATION_ERROR');
+        expect(result.error.code).toBe("VALIDATION_ERROR");
       }
     });
 
-    it('should reject items with both html and pageId', async () => {
+    it("should reject items with both html and pageId", async () => {
       setBatchQualityEvaluateServiceFactory(() => createMockService());
 
       const result = await batchQualityEvaluateHandler({
-        items: [{ html: '<html></html>', pageId: '123e4567-e89b-12d3-a456-426614174000' }],
+        items: [{ html: "<html></html>", pageId: "123e4567-e89b-12d3-a456-426614174000" }],
       });
 
       expect(result.success).toBe(false);
       if (!result.success) {
-        expect(result.error.code).toBe('VALIDATION_ERROR');
+        expect(result.error.code).toBe("VALIDATION_ERROR");
       }
     });
 
-    it('should accept valid pageId format', async () => {
-      setBatchQualityEvaluateServiceFactory(() => createMockService({
-        getPageById: vi.fn().mockResolvedValue('<html><body>Test</body></html>'),
-      }));
+    it("should accept valid pageId format", async () => {
+      setBatchQualityEvaluateServiceFactory(() =>
+        createMockService({
+          getPageById: vi.fn().mockResolvedValue("<html><body>Test</body></html>"),
+        })
+      );
 
       const result = await batchQualityEvaluateHandler({
-        items: [{ pageId: '123e4567-e89b-12d3-a456-426614174000' }],
+        items: [{ pageId: "123e4567-e89b-12d3-a456-426614174000" }],
       });
 
       expect(result.success).toBe(true);
     });
 
-    it('should accept batch_size within range', async () => {
+    it("should accept batch_size within range", async () => {
       setBatchQualityEvaluateServiceFactory(() => createMockService());
 
       const result = await batchQualityEvaluateHandler({
@@ -142,7 +146,7 @@ describe('quality.batch_evaluate', () => {
       }
     });
 
-    it('should reject batch_size below minimum', async () => {
+    it("should reject batch_size below minimum", async () => {
       setBatchQualityEvaluateServiceFactory(() => createMockService());
 
       const result = await batchQualityEvaluateHandler({
@@ -152,11 +156,11 @@ describe('quality.batch_evaluate', () => {
 
       expect(result.success).toBe(false);
       if (!result.success) {
-        expect(result.error.code).toBe('VALIDATION_ERROR');
+        expect(result.error.code).toBe("VALIDATION_ERROR");
       }
     });
 
-    it('should reject batch_size above maximum', async () => {
+    it("should reject batch_size above maximum", async () => {
       setBatchQualityEvaluateServiceFactory(() => createMockService());
 
       const result = await batchQualityEvaluateHandler({
@@ -166,23 +170,23 @@ describe('quality.batch_evaluate', () => {
 
       expect(result.success).toBe(false);
       if (!result.success) {
-        expect(result.error.code).toBe('VALIDATION_ERROR');
+        expect(result.error.code).toBe("VALIDATION_ERROR");
       }
     });
 
-    it('should accept on_error values', async () => {
+    it("should accept on_error values", async () => {
       setBatchQualityEvaluateServiceFactory(() => createMockService());
 
       const skipResult = await batchQualityEvaluateHandler({
         ...validBatchInput,
-        on_error: 'skip',
+        on_error: "skip",
       });
 
       expect(skipResult.success).toBe(true);
 
       const abortResult = await batchQualityEvaluateHandler({
         ...validBatchInput,
-        on_error: 'abort',
+        on_error: "abort",
       });
 
       expect(abortResult.success).toBe(true);
@@ -193,8 +197,8 @@ describe('quality.batch_evaluate', () => {
   // ジョブ作成
   // =====================================================
 
-  describe('Job Creation', () => {
-    it('should create a job with valid UUID', async () => {
+  describe("Job Creation", () => {
+    it("should create a job with valid UUID", async () => {
       setBatchQualityEvaluateServiceFactory(() => createMockService());
 
       const result = await batchQualityEvaluateHandler(validBatchInput);
@@ -207,18 +211,18 @@ describe('quality.batch_evaluate', () => {
       }
     });
 
-    it('should return pending status on creation', async () => {
+    it("should return pending status on creation", async () => {
       setBatchQualityEvaluateServiceFactory(() => createMockService());
 
       const result = await batchQualityEvaluateHandler(validBatchInput);
 
       expect(result.success).toBe(true);
       if (result.success) {
-        expect(result.data.status).toBe('pending');
+        expect(result.data.status).toBe("pending");
       }
     });
 
-    it('should return correct total_items count', async () => {
+    it("should return correct total_items count", async () => {
       setBatchQualityEvaluateServiceFactory(() => createMockService());
 
       const result = await batchQualityEvaluateHandler(validBatchInput);
@@ -229,7 +233,7 @@ describe('quality.batch_evaluate', () => {
       }
     });
 
-    it('should use default batch_size when not specified', async () => {
+    it("should use default batch_size when not specified", async () => {
       setBatchQualityEvaluateServiceFactory(() => createMockService());
 
       const result = await batchQualityEvaluateHandler(validBatchInput);
@@ -240,18 +244,18 @@ describe('quality.batch_evaluate', () => {
       }
     });
 
-    it('should use default on_error when not specified', async () => {
+    it("should use default on_error when not specified", async () => {
       setBatchQualityEvaluateServiceFactory(() => createMockService());
 
       const result = await batchQualityEvaluateHandler(validBatchInput);
 
       expect(result.success).toBe(true);
       if (result.success) {
-        expect(result.data.on_error).toBe('skip');
+        expect(result.data.on_error).toBe("skip");
       }
     });
 
-    it('should include created_at timestamp', async () => {
+    it("should include created_at timestamp", async () => {
       setBatchQualityEvaluateServiceFactory(() => createMockService());
 
       const result = await batchQualityEvaluateHandler(validBatchInput);
@@ -263,7 +267,7 @@ describe('quality.batch_evaluate', () => {
       }
     });
 
-    it('should store job in jobStore', async () => {
+    it("should store job in jobStore", async () => {
       setBatchQualityEvaluateServiceFactory(() => createMockService());
 
       const result = await batchQualityEvaluateHandler(validBatchInput);
@@ -274,7 +278,7 @@ describe('quality.batch_evaluate', () => {
         expect(storedJob).toBeDefined();
         // LRU fallback mode: ジョブは即時開始されるため、pendingまたはprocessingの状態
         // Redis/BullMQ使用時はpending、LRUフォールバック時は即座にprocessingに遷移する可能性あり
-        expect(['pending', 'processing']).toContain(storedJob?.status);
+        expect(["pending", "processing"]).toContain(storedJob?.status);
       }
     });
   });
@@ -283,8 +287,8 @@ describe('quality.batch_evaluate', () => {
   // サービス連携
   // =====================================================
 
-  describe('Service Integration', () => {
-    it('should succeed even when service factory is not set for HTML items', async () => {
+  describe("Service Integration", () => {
+    it("should succeed even when service factory is not set for HTML items", async () => {
       // Factory not set - but HTML items should still work
       const result = await batchQualityEvaluateHandler(validBatchInput);
 
@@ -295,12 +299,12 @@ describe('quality.batch_evaluate', () => {
       }
     });
 
-    it('should warn when service factory is not set for pageId items', async () => {
+    it("should warn when service factory is not set for pageId items", async () => {
       // pageIdを持つアイテムはサービスが必要だが、警告のみでジョブは開始される
       const pageIdInput = {
         items: [
-          { pageId: '00000000-0000-0000-0000-000000000001' },
-          { html: '<html><body>Test</body></html>' },
+          { pageId: "00000000-0000-0000-0000-000000000001" },
+          { html: "<html><body>Test</body></html>" },
         ],
       };
 
@@ -310,15 +314,15 @@ describe('quality.batch_evaluate', () => {
       expect(result.success).toBe(true);
     });
 
-    it('should include message in successful response', async () => {
+    it("should include message in successful response", async () => {
       setBatchQualityEvaluateServiceFactory(() => createMockService());
 
       const result = await batchQualityEvaluateHandler(validBatchInput);
 
       expect(result.success).toBe(true);
       if (result.success) {
-        expect(result.data.message).toContain('3');
-        expect(result.data.message).toContain('10');
+        expect(result.data.message).toContain("3");
+        expect(result.data.message).toContain("10");
       }
     });
   });
@@ -327,8 +331,8 @@ describe('quality.batch_evaluate', () => {
   // 出力スキーマ
   // =====================================================
 
-  describe('Output Schema', () => {
-    it('should return success: true for valid input', async () => {
+  describe("Output Schema", () => {
+    it("should return success: true for valid input", async () => {
       setBatchQualityEvaluateServiceFactory(() => createMockService());
 
       const result = await batchQualityEvaluateHandler(validBatchInput);
@@ -336,7 +340,7 @@ describe('quality.batch_evaluate', () => {
       expect(result.success).toBe(true);
     });
 
-    it('should return success: false for invalid input', async () => {
+    it("should return success: false for invalid input", async () => {
       setBatchQualityEvaluateServiceFactory(() => createMockService());
 
       const result = await batchQualityEvaluateHandler({});
@@ -344,32 +348,32 @@ describe('quality.batch_evaluate', () => {
       expect(result.success).toBe(false);
     });
 
-    it('should have correct data structure on success', async () => {
+    it("should have correct data structure on success", async () => {
       setBatchQualityEvaluateServiceFactory(() => createMockService());
 
       const result = await batchQualityEvaluateHandler(validBatchInput);
 
       expect(result.success).toBe(true);
       if (result.success) {
-        expect(result.data).toHaveProperty('job_id');
-        expect(result.data).toHaveProperty('status');
-        expect(result.data).toHaveProperty('total_items');
-        expect(result.data).toHaveProperty('batch_size');
-        expect(result.data).toHaveProperty('on_error');
-        expect(result.data).toHaveProperty('created_at');
-        expect(result.data).toHaveProperty('message');
+        expect(result.data).toHaveProperty("job_id");
+        expect(result.data).toHaveProperty("status");
+        expect(result.data).toHaveProperty("total_items");
+        expect(result.data).toHaveProperty("batch_size");
+        expect(result.data).toHaveProperty("on_error");
+        expect(result.data).toHaveProperty("created_at");
+        expect(result.data).toHaveProperty("message");
       }
     });
 
-    it('should have correct error structure on failure', async () => {
+    it("should have correct error structure on failure", async () => {
       setBatchQualityEvaluateServiceFactory(() => createMockService());
 
       const result = await batchQualityEvaluateHandler({});
 
       expect(result.success).toBe(false);
       if (!result.success) {
-        expect(result.error).toHaveProperty('code');
-        expect(result.error).toHaveProperty('message');
+        expect(result.error).toHaveProperty("code");
+        expect(result.error).toHaveProperty("message");
       }
     });
   });
@@ -378,11 +382,11 @@ describe('quality.batch_evaluate', () => {
   // ジョブストア操作
   // =====================================================
 
-  describe('Job Store Operations', () => {
-    it('clearBatchJobStore should clear all jobs', () => {
+  describe("Job Store Operations", () => {
+    it("clearBatchJobStore should clear all jobs", () => {
       const job: BatchQualityJobStatus = {
-        job_id: 'test-id',
-        status: 'pending',
+        job_id: "test-id",
+        status: "pending",
         total_items: 5,
         processed_items: 0,
         success_items: 0,
@@ -392,16 +396,16 @@ describe('quality.batch_evaluate', () => {
       };
 
       addBatchJob(job);
-      expect(getBatchJob('test-id')).toBeDefined();
+      expect(getBatchJob("test-id")).toBeDefined();
 
       clearBatchJobStore();
-      expect(getBatchJob('test-id')).toBeUndefined();
+      expect(getBatchJob("test-id")).toBeUndefined();
     });
 
-    it('addBatchJob should add a job to store', () => {
+    it("addBatchJob should add a job to store", () => {
       const job: BatchQualityJobStatus = {
-        job_id: 'new-job',
-        status: 'processing',
+        job_id: "new-job",
+        status: "processing",
         total_items: 10,
         processed_items: 5,
         success_items: 4,
@@ -412,14 +416,14 @@ describe('quality.batch_evaluate', () => {
 
       addBatchJob(job);
 
-      const retrieved = getBatchJob('new-job');
+      const retrieved = getBatchJob("new-job");
       expect(retrieved).toBeDefined();
-      expect(retrieved?.status).toBe('processing');
+      expect(retrieved?.status).toBe("processing");
       expect(retrieved?.processed_items).toBe(5);
     });
 
-    it('getBatchJob should return undefined for non-existent job', () => {
-      const result = getBatchJob('non-existent');
+    it("getBatchJob should return undefined for non-existent job", () => {
+      const result = getBatchJob("non-existent");
       expect(result).toBeUndefined();
     });
   });
@@ -428,21 +432,23 @@ describe('quality.batch_evaluate', () => {
   // 設定オプション
   // =====================================================
 
-  describe('Configuration Options', () => {
-    it('should pass weights to evaluation', async () => {
+  describe("Configuration Options", () => {
+    it("should pass weights to evaluation", async () => {
       const evaluateMock = vi.fn().mockResolvedValue({
-        pageId: 'test',
+        pageId: "test",
         overall: 80,
-        grade: 'B',
-        originality: { score: 75, grade: 'C' },
-        craftsmanship: { score: 85, grade: 'B' },
-        contextuality: { score: 80, grade: 'B' },
+        grade: "B",
+        originality: { score: 75, grade: "C" },
+        craftsmanship: { score: 85, grade: "B" },
+        contextuality: { score: 80, grade: "B" },
         evaluatedAt: new Date().toISOString(),
       });
 
-      setBatchQualityEvaluateServiceFactory(() => createMockService({
-        evaluatePage: evaluateMock,
-      }));
+      setBatchQualityEvaluateServiceFactory(() =>
+        createMockService({
+          evaluatePage: evaluateMock,
+        })
+      );
 
       const result = await batchQualityEvaluateHandler({
         ...validBatchInput,
@@ -456,7 +462,7 @@ describe('quality.batch_evaluate', () => {
       expect(result.success).toBe(true);
     });
 
-    it('should validate weights sum to 1.0', async () => {
+    it("should validate weights sum to 1.0", async () => {
       setBatchQualityEvaluateServiceFactory(() => createMockService());
 
       const result = await batchQualityEvaluateHandler({
@@ -470,11 +476,11 @@ describe('quality.batch_evaluate', () => {
 
       expect(result.success).toBe(false);
       if (!result.success) {
-        expect(result.error.code).toBe('VALIDATION_ERROR');
+        expect(result.error.code).toBe("VALIDATION_ERROR");
       }
     });
 
-    it('should accept strict mode option', async () => {
+    it("should accept strict mode option", async () => {
       setBatchQualityEvaluateServiceFactory(() => createMockService());
 
       const result = await batchQualityEvaluateHandler({
@@ -490,8 +496,8 @@ describe('quality.batch_evaluate', () => {
   // LRUキャッシュ・TTL機能（M-1セキュリティ対策）
   // =====================================================
 
-  describe('LRU Cache and TTL (M-1 Security)', () => {
-    it('should evict oldest job when max size is exceeded', async () => {
+  describe("LRU Cache and TTL (M-1 Security)", () => {
+    it("should evict oldest job when max size is exceeded", async () => {
       setBatchQualityEvaluateServiceFactory(() => createMockService());
 
       // まず1000件のジョブを作成（デフォルトmax）
@@ -514,7 +520,7 @@ describe('quality.batch_evaluate', () => {
 
       // 1001番目のジョブを作成
       const result = await batchQualityEvaluateHandler({
-        items: [{ html: '<html><body>Page 1001</body></html>' }],
+        items: [{ html: "<html><body>Page 1001</body></html>" }],
       });
       expect(result.success).toBe(true);
 
@@ -527,7 +533,7 @@ describe('quality.batch_evaluate', () => {
       expect(getBatchJob(jobIds[0])).toBeUndefined();
     });
 
-    it('should return undefined for expired jobs', async () => {
+    it("should return undefined for expired jobs", async () => {
       setBatchQualityEvaluateServiceFactory(() => createMockService());
 
       const result = await batchQualityEvaluateHandler(validBatchInput);
@@ -547,15 +553,15 @@ describe('quality.batch_evaluate', () => {
       vi.useRealTimers();
     });
 
-    it('should update lastAccessed on get (LRU behavior)', async () => {
+    it("should update lastAccessed on get (LRU behavior)", async () => {
       setBatchQualityEvaluateServiceFactory(() => createMockService());
 
       // 2つのジョブを作成
       const result1 = await batchQualityEvaluateHandler({
-        items: [{ html: '<html><body>Page 1</body></html>' }],
+        items: [{ html: "<html><body>Page 1</body></html>" }],
       });
       const result2 = await batchQualityEvaluateHandler({
-        items: [{ html: '<html><body>Page 2</body></html>' }],
+        items: [{ html: "<html><body>Page 2</body></html>" }],
       });
 
       expect(result1.success).toBe(true);
@@ -576,7 +582,7 @@ describe('quality.batch_evaluate', () => {
       expect(job2).toBeDefined();
     });
 
-    it('should expose getJobStoreStats for monitoring', async () => {
+    it("should expose getJobStoreStats for monitoring", async () => {
       setBatchQualityEvaluateServiceFactory(() => createMockService());
 
       // 5つのジョブを作成
@@ -587,11 +593,11 @@ describe('quality.batch_evaluate', () => {
       }
 
       // 統計が取得できる（実装後に追加される関数）
-      const { getJobStoreStats } = await import('../../../src/tools/quality/batch-evaluate.tool');
+      const { getJobStoreStats } = await import("../../../src/tools/quality/batch-evaluate.tool");
       const stats = getJobStoreStats();
 
-      expect(stats).toHaveProperty('size');
-      expect(stats).toHaveProperty('maxSize');
+      expect(stats).toHaveProperty("size");
+      expect(stats).toHaveProperty("maxSize");
       expect(stats.size).toBe(5);
       expect(stats.maxSize).toBe(1000);
     });

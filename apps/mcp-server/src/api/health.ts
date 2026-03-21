@@ -13,16 +13,16 @@
  * - unhealthy: 重要サービスがダウン
  */
 
-import { createLogger } from '../utils/logger';
+import { createLogger } from "../utils/logger";
 
-const healthLogger = createLogger('HealthCheck');
+const healthLogger = createLogger("HealthCheck");
 
 /**
  * サービスヘルスの詳細情報
  */
 export interface ServiceHealth {
   name: string;
-  status: 'healthy' | 'degraded' | 'unhealthy';
+  status: "healthy" | "degraded" | "unhealthy";
   responseTime: number;
   details: Record<string, unknown>;
 }
@@ -31,7 +31,7 @@ export interface ServiceHealth {
  * 基本ヘルスチェックレスポンス
  */
 export interface BasicHealthResponse {
-  status: 'healthy' | 'degraded' | 'unhealthy';
+  status: "healthy" | "degraded" | "unhealthy";
   timestamp: string;
   version: string;
   uptime: number;
@@ -88,7 +88,7 @@ class DefaultDatabaseChecker implements DatabaseChecker {
     // 実際の実装ではPrismaクライアントを使用
     return {
       connected: true,
-      version: '18.1',
+      version: "18.1",
     };
   }
 }
@@ -101,7 +101,7 @@ class DefaultRedisChecker implements RedisChecker {
     // 実際の実装ではRedisクライアントを使用
     return {
       connected: true,
-      version: '7.2',
+      version: "7.2",
     };
   }
 }
@@ -132,12 +132,12 @@ export class HealthCheckService {
   private externalServiceCheckers: ExternalServiceChecker[];
 
   constructor(config?: HealthCheckConfig) {
-    this.version = config?.version ?? '0.1.0';
+    this.version = config?.version ?? "0.1.0";
     this.databaseChecker = config?.databaseChecker ?? new DefaultDatabaseChecker();
     this.redisChecker = config?.redisChecker ?? new DefaultRedisChecker();
     this.externalServiceCheckers = config?.externalServiceCheckers ?? [
-      new DefaultExternalServiceChecker('S3'),
-      new DefaultExternalServiceChecker('OpenAI API'),
+      new DefaultExternalServiceChecker("S3"),
+      new DefaultExternalServiceChecker("OpenAI API"),
     ];
   }
 
@@ -146,7 +146,7 @@ export class HealthCheckService {
    */
   async checkBasicHealth(): Promise<BasicHealthResponse> {
     return {
-      status: 'healthy',
+      status: "healthy",
       timestamp: new Date().toISOString(),
       version: this.version,
       uptime: process.uptime(),
@@ -163,16 +163,16 @@ export class HealthCheckService {
 
     // ステータス判定
     const allServices = [database, redis, ...externalServices];
-    const hasUnhealthy = allServices.some((s) => s.status === 'unhealthy');
-    const hasDegraded = allServices.some((s) => s.status === 'degraded');
+    const hasUnhealthy = allServices.some((s) => s.status === "unhealthy");
+    const hasDegraded = allServices.some((s) => s.status === "degraded");
 
-    let overallStatus: 'healthy' | 'degraded' | 'unhealthy';
+    let overallStatus: "healthy" | "degraded" | "unhealthy";
     if (hasUnhealthy) {
-      overallStatus = 'unhealthy';
+      overallStatus = "unhealthy";
     } else if (hasDegraded) {
-      overallStatus = 'degraded';
+      overallStatus = "degraded";
     } else {
-      overallStatus = 'healthy';
+      overallStatus = "healthy";
     }
 
     return {
@@ -199,8 +199,8 @@ export class HealthCheckService {
       const responseTime = Date.now() - startTime;
 
       return {
-        name: 'PostgreSQL',
-        status: result.connected ? 'healthy' : 'unhealthy',
+        name: "PostgreSQL",
+        status: result.connected ? "healthy" : "unhealthy",
         responseTime,
         details: {
           connected: result.connected,
@@ -210,16 +210,16 @@ export class HealthCheckService {
     } catch (error) {
       const responseTime = Date.now() - startTime;
 
-      healthLogger.error('Database check failed', error);
+      healthLogger.error("Database check failed", error);
 
       return {
-        name: 'PostgreSQL',
-        status: 'unhealthy',
+        name: "PostgreSQL",
+        status: "unhealthy",
         responseTime,
         details: {
           connected: false,
           version: null,
-          error: error instanceof Error ? error.message : 'Unknown error',
+          error: error instanceof Error ? error.message : "Unknown error",
         },
       };
     }
@@ -236,8 +236,8 @@ export class HealthCheckService {
       const responseTime = Date.now() - startTime;
 
       return {
-        name: 'Redis',
-        status: result.connected ? 'healthy' : 'unhealthy',
+        name: "Redis",
+        status: result.connected ? "healthy" : "unhealthy",
         responseTime,
         details: {
           connected: result.connected,
@@ -247,16 +247,16 @@ export class HealthCheckService {
     } catch (error) {
       const responseTime = Date.now() - startTime;
 
-      healthLogger.error('Redis check failed', error);
+      healthLogger.error("Redis check failed", error);
 
       return {
-        name: 'Redis',
-        status: 'unhealthy',
+        name: "Redis",
+        status: "unhealthy",
         responseTime,
         details: {
           connected: false,
           version: null,
-          error: error instanceof Error ? error.message : 'Unknown error',
+          error: error instanceof Error ? error.message : "Unknown error",
         },
       };
     }
@@ -277,7 +277,7 @@ export class HealthCheckService {
 
         results.push({
           name: checker.name,
-          status: result.accessible ? 'healthy' : 'unhealthy',
+          status: result.accessible ? "healthy" : "unhealthy",
           responseTime,
           details: {
             accessible: result.accessible,
@@ -291,11 +291,11 @@ export class HealthCheckService {
 
         results.push({
           name: checker.name,
-          status: 'unhealthy',
+          status: "unhealthy",
           responseTime,
           details: {
             accessible: false,
-            error: error instanceof Error ? error.message : 'Unknown error',
+            error: error instanceof Error ? error.message : "Unknown error",
           },
         });
       }
@@ -358,7 +358,7 @@ export function createHealthCheckEndpoint(service: HealthCheckService): HealthCh
       const responseTime = Date.now() - startTime;
 
       return {
-        statusCode: health.status === 'unhealthy' ? 503 : 200,
+        statusCode: health.status === "unhealthy" ? 503 : 200,
         body: {
           ...health,
           responseTime,

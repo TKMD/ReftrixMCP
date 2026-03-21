@@ -13,20 +13,17 @@
  * @module services/motion-persistence.service
  */
 
-import { isDevelopment, logger } from '../utils/logger';
-import type { MotionPattern, MotionSaveResult } from '../tools/motion/schemas';
-import { assertNonProductionFactory } from './production-guard';
-import {
-  validateEmbeddingVector,
-  EmbeddingValidationError,
-} from './embedding-validation.service';
+import { isDevelopment, logger } from "../utils/logger";
+import type { MotionPattern, MotionSaveResult } from "../tools/motion/schemas";
+import { assertNonProductionFactory } from "./production-guard";
+import { validateEmbeddingVector, EmbeddingValidationError } from "./embedding-validation.service";
 
 // =====================================================
 // 定数
 // =====================================================
 
 /** デフォルトのモデル名 */
-export const DEFAULT_MODEL_NAME = 'multilingual-e5-base';
+export const DEFAULT_MODEL_NAME = "multilingual-e5-base";
 
 /** デフォルトのEmbedding次元数 */
 export const DEFAULT_EMBEDDING_DIMENSIONS = 768;
@@ -39,7 +36,7 @@ export const DEFAULT_EMBEDDING_DIMENSIONS = 768;
  * EmbeddingServiceインターフェース
  */
 export interface IEmbeddingService {
-  generateEmbedding(text: string, type: 'query' | 'passage'): Promise<number[]>;
+  generateEmbedding(text: string, type: "query" | "passage"): Promise<number[]>;
 }
 
 /**
@@ -114,7 +111,7 @@ export function setMotionPersistenceEmbeddingServiceFactory(
 ): void {
   // 本番環境で既に設定済みの場合のみ禁止（上書き防止）
   if (embeddingServiceFactory !== null) {
-    assertNonProductionFactory('motionPersistenceEmbeddingService');
+    assertNonProductionFactory("motionPersistenceEmbeddingService");
   }
   embeddingServiceFactory = factory;
 }
@@ -131,12 +128,10 @@ export function resetMotionPersistenceEmbeddingServiceFactory(): void {
  *
  * @throws ProductionGuardError 本番環境で上書きを試みた場合
  */
-export function setMotionPersistencePrismaClientFactory(
-  factory: () => IPrismaClient
-): void {
+export function setMotionPersistencePrismaClientFactory(factory: () => IPrismaClient): void {
   // 本番環境で既に設定済みの場合のみ禁止（上書き防止）
   if (prismaClientFactory !== null) {
-    assertNonProductionFactory('motionPersistencePrismaClient');
+    assertNonProductionFactory("motionPersistencePrismaClient");
   }
   prismaClientFactory = factory;
 }
@@ -191,7 +186,7 @@ export function patternToTextRepresentation(pattern: MotionPattern): string {
 
   // プロパティ
   if (pattern.properties.length > 0) {
-    const propNames = pattern.properties.map((p) => p.property).join(', ');
+    const propNames = pattern.properties.map((p) => p.property).join(", ");
     parts.push(`properties: ${propNames}`);
   }
 
@@ -200,7 +195,7 @@ export function patternToTextRepresentation(pattern: MotionPattern): string {
     parts.push(`selector: ${pattern.selector}`);
   }
 
-  return parts.join('. ') + '.';
+  return parts.join(". ") + ".";
 }
 
 /**
@@ -245,7 +240,7 @@ export class MotionPatternPersistenceService {
       return this.embeddingService;
     }
 
-    throw new Error('EmbeddingService not initialized');
+    throw new Error("EmbeddingService not initialized");
   }
 
   /**
@@ -261,7 +256,7 @@ export class MotionPatternPersistenceService {
       return this.prismaClient;
     }
 
-    throw new Error('PrismaClient not initialized');
+    throw new Error("PrismaClient not initialized");
   }
 
   /**
@@ -272,7 +267,7 @@ export class MotionPatternPersistenceService {
     const prisma = this.getPrismaClient();
 
     if (isDevelopment()) {
-      logger.info('[MotionPersistence] Saving pattern', {
+      logger.info("[MotionPersistence] Saving pattern", {
         name: pattern.name,
         type: pattern.type,
         category: pattern.category,
@@ -306,7 +301,7 @@ export class MotionPatternPersistenceService {
       implementation: {},
       accessibility: pattern.accessibility || {},
       performance: pattern.performance || {},
-      usageScope: 'inspiration_only',
+      usageScope: "inspiration_only",
       tags: [],
       metadata: {
         selector: pattern.selector,
@@ -334,18 +329,19 @@ export class MotionPatternPersistenceService {
       const embeddingService = this.getEmbeddingService();
       embedding = await embeddingService.generateEmbedding(
         `passage: ${textRepresentation}`,
-        'passage'
+        "passage"
       );
 
       // Embedding ベクトルの検証（Phase6-SEC-2対応）
       const validationResult = validateEmbeddingVector(embedding);
       if (!validationResult.isValid) {
         const error = validationResult.error;
-        const errorMessage = error?.index !== undefined
-          ? `${error.message} at index ${error.index}`
-          : error?.message ?? 'Unknown validation error';
+        const errorMessage =
+          error?.index !== undefined
+            ? `${error.message} at index ${error.index}`
+            : (error?.message ?? "Unknown validation error");
         throw new EmbeddingValidationError(
-          error?.code ?? 'INVALID_VECTOR',
+          error?.code ?? "INVALID_VECTOR",
           errorMessage,
           error?.index
         );
@@ -356,8 +352,8 @@ export class MotionPatternPersistenceService {
         throw error;
       }
       if (isDevelopment()) {
-        logger.warn('[MotionPersistence] Embedding generation failed', {
-          error: error instanceof Error ? error.message : 'Unknown error',
+        logger.warn("[MotionPersistence] Embedding generation failed", {
+          error: error instanceof Error ? error.message : "Unknown error",
           patternId: createdPattern.id,
         });
       }
@@ -376,7 +372,7 @@ export class MotionPatternPersistenceService {
 
     // Embeddingベクトルを更新（pgvector形式）
     if (embedding.length > 0) {
-      const vectorString = `[${embedding.join(',')}]`;
+      const vectorString = `[${embedding.join(",")}]`;
       await prisma.$executeRawUnsafe(
         `UPDATE motion_embeddings SET embedding = $1::vector WHERE id = $2::uuid`,
         vectorString,
@@ -385,7 +381,7 @@ export class MotionPatternPersistenceService {
     }
 
     if (isDevelopment()) {
-      logger.info('[MotionPersistence] Pattern saved', {
+      logger.info("[MotionPersistence] Pattern saved", {
         patternId: createdPattern.id,
         embeddingId: createdEmbedding.id,
         embeddingGenerated: embedding.length > 0,
@@ -424,7 +420,7 @@ export class MotionPatternPersistenceService {
     }
 
     if (isDevelopment()) {
-      logger.info('[MotionPersistence] Saving multiple patterns', {
+      logger.info("[MotionPersistence] Saving multiple patterns", {
         count: patterns.length,
         webPageId,
       });
@@ -450,12 +446,12 @@ export class MotionPatternPersistenceService {
         if (continueOnError) {
           errors.push({
             index: i,
-            error: error instanceof Error ? error : new Error('Unknown error'),
+            error: error instanceof Error ? error : new Error("Unknown error"),
           });
           if (isDevelopment()) {
-            logger.warn('[MotionPersistence] Failed to save pattern', {
+            logger.warn("[MotionPersistence] Failed to save pattern", {
               index: i,
-              error: error instanceof Error ? error.message : 'Unknown error',
+              error: error instanceof Error ? error.message : "Unknown error",
             });
           }
         } else {
@@ -467,7 +463,7 @@ export class MotionPatternPersistenceService {
     const savedCount = patternIds.length;
 
     if (isDevelopment()) {
-      logger.info('[MotionPersistence] Patterns saved', {
+      logger.info("[MotionPersistence] Patterns saved", {
         savedCount,
         errorCount: errors.length,
         total: patterns.length,
@@ -487,7 +483,7 @@ export class MotionPatternPersistenceService {
       const debugInfo = `[patterns=${patterns.length}, errors=${errors.length}, savedCount=${savedCount}]`;
       if (errors.length > 0) {
         const firstError = errors[0]?.error;
-        result.reason = `Save failed: ${firstError?.message || 'Unknown error'} ${debugInfo}`;
+        result.reason = `Save failed: ${firstError?.message || "Unknown error"} ${debugInfo}`;
       } else if (patterns.length > 0 && savedCount === 0) {
         // パターンがあるのに savedCount が 0 で errors も空の場合（予期しない状態）
         result.reason = `Unexpected: patterns exist but no saves and no errors recorded ${debugInfo}`;
@@ -508,8 +504,8 @@ export class MotionPatternPersistenceService {
       return true;
     } catch (error) {
       if (isDevelopment()) {
-        logger.warn('[MotionPersistence] isAvailable check failed', {
-          error: error instanceof Error ? error.message : 'Unknown error',
+        logger.warn("[MotionPersistence] isAvailable check failed", {
+          error: error instanceof Error ? error.message : "Unknown error",
           hasPrismaClientFactory: prismaClientFactory !== null,
           hasEmbeddingServiceFactory: embeddingServiceFactory !== null,
         });

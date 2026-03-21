@@ -15,7 +15,7 @@ import type {
   LayoutStructureResult,
   NarrativeAnalysisResult,
   MoodCategory,
-} from '../types/narrative.types';
+} from "../types/narrative.types";
 
 // =============================================================================
 // Constants
@@ -28,8 +28,8 @@ import type {
  * - query: 検索クエリ側（検索時）
  */
 export const E5_PREFIX = {
-  PASSAGE: 'passage:',
-  QUERY: 'query:',
+  PASSAGE: "passage:",
+  QUERY: "query:",
 } as const;
 
 /**
@@ -48,27 +48,27 @@ const MAX_TEXT_LENGTH = 2048;
  * 文字列を安全にトリム
  */
 function safeTrim(value: unknown): string {
-  if (typeof value === 'string') {
+  if (typeof value === "string") {
     return value.trim();
   }
-  return '';
+  return "";
 }
 
 /**
  * 配列を安全にjoin
  */
 function safeJoin(arr: unknown[], separator: string): string {
-  return arr.filter((item) => typeof item === 'string' && item.trim()).join(separator);
+  return arr.filter((item) => typeof item === "string" && item.trim()).join(separator);
 }
 
 /**
  * 数値を安全に文字列化
  */
 function safeNumber(value: unknown, decimals: number = 2): string {
-  if (typeof value === 'number' && !isNaN(value)) {
+  if (typeof value === "number" && !isNaN(value)) {
     return value.toFixed(decimals);
   }
-  return '';
+  return "";
 }
 
 // =============================================================================
@@ -126,7 +126,7 @@ function generateWorldViewText(worldView: WorldViewResult): string[] {
     if (me.pace) {
       parts.push(`motion pace: ${me.pace}`);
     }
-    if (typeof me.intensity === 'number') {
+    if (typeof me.intensity === "number") {
       parts.push(`motion intensity: ${safeNumber(me.intensity)}`);
     }
   }
@@ -137,12 +137,13 @@ function generateWorldViewText(worldView: WorldViewResult): string[] {
     if (ot.primary) {
       parts.push(`overall tone: ${safeTrim(ot.primary)}`);
     }
-    if (typeof ot.formality === 'number') {
-      const formalityLabel = ot.formality > 0.7 ? 'formal' : ot.formality > 0.3 ? 'balanced' : 'casual';
+    if (typeof ot.formality === "number") {
+      const formalityLabel =
+        ot.formality > 0.7 ? "formal" : ot.formality > 0.3 ? "balanced" : "casual";
       parts.push(`formality: ${formalityLabel}`);
     }
-    if (typeof ot.energy === 'number') {
-      const energyLabel = ot.energy > 0.7 ? 'dynamic' : ot.energy > 0.3 ? 'balanced' : 'calm';
+    if (typeof ot.energy === "number") {
+      const energyLabel = ot.energy > 0.7 ? "dynamic" : ot.energy > 0.3 ? "balanced" : "calm";
       parts.push(`energy: ${energyLabel}`);
     }
   }
@@ -163,7 +164,7 @@ function generateLayoutStructureText(layoutStructure: LayoutStructureResult): st
   // Grid System
   if (layoutStructure.gridSystem) {
     const gs = layoutStructure.gridSystem;
-    const columnsStr = gs.columns === 'fluid' ? 'fluid' : `${gs.columns} columns`;
+    const columnsStr = gs.columns === "fluid" ? "fluid" : `${gs.columns} columns`;
     parts.push(`layout grid: ${gs.type} ${columnsStr}`);
     if (gs.containerWidth) {
       parts.push(`container width: ${gs.containerWidth}`);
@@ -177,13 +178,18 @@ function generateLayoutStructureText(layoutStructure: LayoutStructureResult): st
       parts.push(`section flow: ${vh.sectionFlow}`);
     }
     if (vh.primaryElements.length > 0) {
-      parts.push(`primary elements: ${safeJoin(vh.primaryElements.slice(0, 3), ', ')}`);
+      parts.push(`primary elements: ${safeJoin(vh.primaryElements.slice(0, 3), ", ")}`);
     }
     if (vh.weightDistribution) {
       const wd = vh.weightDistribution;
-      const dominant = wd.top > wd.middle && wd.top > wd.bottom ? 'top-heavy' :
-                       wd.middle > wd.top && wd.middle > wd.bottom ? 'center-focused' :
-                       wd.bottom > wd.top && wd.bottom > wd.middle ? 'bottom-heavy' : 'balanced';
+      const dominant =
+        wd.top > wd.middle && wd.top > wd.bottom
+          ? "top-heavy"
+          : wd.middle > wd.top && wd.middle > wd.bottom
+            ? "center-focused"
+            : wd.bottom > wd.top && wd.bottom > wd.middle
+              ? "bottom-heavy"
+              : "balanced";
       parts.push(`visual weight: ${dominant}`);
     }
   }
@@ -204,18 +210,18 @@ function generateLayoutStructureText(layoutStructure: LayoutStructureResult): st
     const ge = layoutStructure.graphicElements;
 
     // Image Layout
-    if (ge.imageLayout?.pattern && ge.imageLayout.pattern !== 'none') {
+    if (ge.imageLayout?.pattern && ge.imageLayout.pattern !== "none") {
       parts.push(`image layout: ${ge.imageLayout.pattern}`);
     }
 
     // Decorations
     if (ge.decorations) {
       const decorationParts: string[] = [];
-      if (ge.decorations.hasGradients) decorationParts.push('gradients');
-      if (ge.decorations.hasShadows) decorationParts.push('shadows');
-      if (ge.decorations.hasIllustrations) decorationParts.push('illustrations');
+      if (ge.decorations.hasGradients) decorationParts.push("gradients");
+      if (ge.decorations.hasShadows) decorationParts.push("shadows");
+      if (ge.decorations.hasIllustrations) decorationParts.push("illustrations");
       if (decorationParts.length > 0) {
-        parts.push(`decorations: ${decorationParts.join(', ')}`);
+        parts.push(`decorations: ${decorationParts.join(", ")}`);
       }
     }
 
@@ -228,8 +234,9 @@ function generateLayoutStructureText(layoutStructure: LayoutStructureResult): st
       if (vb.density) {
         parts.push(`density: ${vb.density}`);
       }
-      if (typeof vb.whitespace === 'number') {
-        const whitespaceLabel = vb.whitespace > 0.5 ? 'spacious' : vb.whitespace > 0.3 ? 'balanced' : 'compact';
+      if (typeof vb.whitespace === "number") {
+        const whitespaceLabel =
+          vb.whitespace > 0.5 ? "spacious" : vb.whitespace > 0.3 ? "balanced" : "compact";
         parts.push(`whitespace: ${whitespaceLabel}`);
       }
     }
@@ -266,11 +273,11 @@ export function generateTextRepresentation(result: NarrativeAnalysisResult): str
   parts.push(...layoutParts);
 
   // テキスト結合
-  let text = parts.filter((p) => p.length > 0).join('. ');
+  let text = parts.filter((p) => p.length > 0).join(". ");
 
   // 長さ制限
   if (text.length > MAX_TEXT_LENGTH) {
-    text = text.substring(0, MAX_TEXT_LENGTH - 3) + '...';
+    text = text.substring(0, MAX_TEXT_LENGTH - 3) + "...";
   }
 
   // e5プレフィックス付与
@@ -285,10 +292,10 @@ export function generateTextRepresentation(result: NarrativeAnalysisResult): str
  */
 export function generateWorldViewTextRepresentation(worldView: WorldViewResult): string {
   const parts = generateWorldViewText(worldView);
-  let text = parts.filter((p) => p.length > 0).join('. ');
+  let text = parts.filter((p) => p.length > 0).join(". ");
 
   if (text.length > MAX_TEXT_LENGTH) {
-    text = text.substring(0, MAX_TEXT_LENGTH - 3) + '...';
+    text = text.substring(0, MAX_TEXT_LENGTH - 3) + "...";
   }
 
   return `${E5_PREFIX.PASSAGE} web design mood and tone. ${text}.`;
@@ -300,12 +307,14 @@ export function generateWorldViewTextRepresentation(worldView: WorldViewResult):
  * @param layoutStructure - レイアウト構成分析結果
  * @returns e5形式のテキスト表現
  */
-export function generateLayoutStructureTextRepresentation(layoutStructure: LayoutStructureResult): string {
+export function generateLayoutStructureTextRepresentation(
+  layoutStructure: LayoutStructureResult
+): string {
   const parts = generateLayoutStructureText(layoutStructure);
-  let text = parts.filter((p) => p.length > 0).join('. ');
+  let text = parts.filter((p) => p.length > 0).join(". ");
 
   if (text.length > MAX_TEXT_LENGTH) {
-    text = text.substring(0, MAX_TEXT_LENGTH - 3) + '...';
+    text = text.substring(0, MAX_TEXT_LENGTH - 3) + "...";
   }
 
   return `${E5_PREFIX.PASSAGE} web layout structure. ${text}.`;
@@ -335,18 +344,18 @@ export function formatSearchQuery(query: string): string {
  */
 export function moodCategoryToSearchText(moodCategory: MoodCategory): string {
   const descriptions: Record<MoodCategory, string> = {
-    professional: 'professional business corporate',
-    playful: 'playful fun casual',
-    premium: 'premium luxury high-end',
-    tech: 'tech technology modern digital',
-    organic: 'organic natural eco friendly',
-    minimal: 'minimal simple clean',
-    bold: 'bold impactful striking',
-    elegant: 'elegant sophisticated refined',
-    friendly: 'friendly approachable warm',
-    artistic: 'artistic creative expressive',
-    trustworthy: 'trustworthy reliable secure',
-    energetic: 'energetic dynamic vibrant',
+    professional: "professional business corporate",
+    playful: "playful fun casual",
+    premium: "premium luxury high-end",
+    tech: "tech technology modern digital",
+    organic: "organic natural eco friendly",
+    minimal: "minimal simple clean",
+    bold: "bold impactful striking",
+    elegant: "elegant sophisticated refined",
+    friendly: "friendly approachable warm",
+    artistic: "artistic creative expressive",
+    trustworthy: "trustworthy reliable secure",
+    energetic: "energetic dynamic vibrant",
   };
 
   return descriptions[moodCategory] || moodCategory;

@@ -151,11 +151,11 @@ ReftrixMCPはデュアルライセンスモデルであるAGPL-3.0-only + 商用
 
 ReftrixMCPは他のプロジェクトとの干渉を避けるため、**21000オフセット**を使用しています:
 
-| サービス | ポート |
-|---------|--------|
-| PostgreSQL | 26432 |
-| Prisma Studio | 26555 |
-| Redis | 27379 |
+| サービス         | ポート |
+| ---------------- | ------ |
+| PostgreSQL       | 26432  |
+| Prisma Studio    | 26555  |
+| Redis            | 27379  |
 
 ---
 
@@ -182,7 +182,6 @@ ReftrixMCPは他のプロジェクトとの干渉を避けるため、**21000オ
    ```
 
 3. **テスト駆動開発（TDD）**
-
    - まず失敗するテストを書く（Red）
    - テストをパスする最小限のコードを書く（Green）
    - コードをリファクタリングする（Refactor）
@@ -225,8 +224,8 @@ ReftrixMCPは他のプロジェクトとの干渉を避けるため、**21000オ
 - **本番環境**: エラーログのみ
 
 ```typescript
-if (process.env.NODE_ENV === 'development') {
-  console.log('[Search] Query:', { q, filters });
+if (process.env.NODE_ENV === "development") {
+  console.log("[Search] Query:", { q, filters });
 }
 ```
 
@@ -301,17 +300,17 @@ pnpm --filter @reftrix/mcp-server test:e2e:playwright
 
 #### Type
 
-| Prefix | 用途 |
-|--------|------|
-| `feat:` | 新機能 |
-| `fix:` | バグ修正 |
-| `test:` | テスト追加・修正 |
-| `docs:` | ドキュメント |
-| `refactor:` | リファクタリング |
-| `style:` | コードスタイル変更 |
-| `chore:` | ビルド・設定変更 |
-| `perf:` | パフォーマンス改善 |
-| `hotfix:` | 緊急修正（本番障害対応） |
+| Prefix      | 用途                     |
+| ----------- | ------------------------ |
+| `feat:`     | 新機能                   |
+| `fix:`      | バグ修正                 |
+| `test:`     | テスト追加・修正         |
+| `docs:`     | ドキュメント             |
+| `refactor:` | リファクタリング         |
+| `style:`    | コードスタイル変更       |
+| `chore:`    | ビルド・設定変更         |
+| `perf:`     | パフォーマンス改善       |
+| `hotfix:`   | 緊急修正（本番障害対応） |
 
 #### 例
 
@@ -337,15 +336,15 @@ Closes #123
 
 #### Type一覧
 
-| Type | 用途 | 例 |
-|------|------|-----|
-| `feature/` | 新機能開発 | `feature/semantic-search` |
-| `fix/` | バグ修正 | `fix/login-error` |
-| `chore/` | 設定・依存関係更新 | `chore/update-deps` |
-| `hotfix/` | 緊急本番修正 | `hotfix/critical-auth-bug` |
-| `docs/` | ドキュメント更新 | `docs/api-reference` |
-| `test/` | テスト追加・修正 | `test/search-unit-tests` |
-| `refactor/` | リファクタリング | `refactor/auth-module` |
+| Type        | 用途               | 例                         |
+| ----------- | ------------------ | -------------------------- |
+| `feature/`  | 新機能開発         | `feature/semantic-search`  |
+| `fix/`      | バグ修正           | `fix/login-error`          |
+| `chore/`    | 設定・依存関係更新 | `chore/update-deps`        |
+| `hotfix/`   | 緊急本番修正       | `hotfix/critical-auth-bug` |
+| `docs/`     | ドキュメント更新   | `docs/api-reference`       |
+| `test/`     | テスト追加・修正   | `test/search-unit-tests`   |
+| `refactor/` | リファクタリング   | `refactor/auth-module`     |
 
 #### 命名ルール
 
@@ -429,11 +428,11 @@ PRタイトルは **Squash時の最終コミットメッセージのsubject部�
 
 ### PRサイズ制限
 
-| 状態 | 差分行数 | 推奨アクション |
-|------|---------|---------------|
-| ✅ 適切 | 400行以下 | そのままレビュー |
-| ⚠️ 要検討 | 400-800行 | 分割を検討 |
-| ❌ 分割必須 | 800行超 | 必ず分割する |
+| 状態        | 差分行数  | 推奨アクション   |
+| ----------- | --------- | ---------------- |
+| ✅ 適切     | 400行以下 | そのままレビュー |
+| ⚠️ 要検討   | 400-800行 | 分割を検討       |
+| ❌ 分割必須 | 800行超   | 必ず分割する     |
 
 **例外**: 自動生成ファイル、ロックファイル、大規模リファクタリング（事前承認済み）
 
@@ -460,11 +459,11 @@ pnpm lint && pnpm typecheck && pnpm test
 
 **Squash and Merge のみ使用** - 他のマージ方法は禁止
 
-| 方法 | 許可 | 理由 |
-|------|------|------|
-| Squash and Merge | ✅ | 履歴がクリーン |
-| Merge Commit | ❌ | 履歴が複雑になる |
-| Rebase and Merge | ❌ | 一貫性のため禁止 |
+| 方法             | 許可 | 理由             |
+| ---------------- | ---- | ---------------- |
+| Squash and Merge | ✅   | 履歴がクリーン   |
+| Merge Commit     | ❌   | 履歴が複雑になる |
+| Rebase and Merge | ❌   | 一貫性のため禁止 |
 
 ### ブランチ保護ルール（main）
 
@@ -757,11 +756,11 @@ Ensure you have the following tools installed:
 
 ReftrixMCP uses a **21000 offset** to avoid conflicts:
 
-| Service | Port |
-|---------|------|
-| PostgreSQL | 26432 |
-| Prisma Studio | 26555 |
-| Redis | 27379 |
+| Service          | Port  |
+| ---------------- | ----- |
+| PostgreSQL       | 26432 |
+| Prisma Studio    | 26555 |
+| Redis            | 27379 |
 
 ---
 
@@ -788,7 +787,6 @@ ReftrixMCP uses a **21000 offset** to avoid conflicts:
    ```
 
 3. **Test-Driven Development (TDD)**
-
    - Write failing tests (Red)
    - Write minimal code to pass (Green)
    - Refactor code (Refactor)
@@ -831,8 +829,8 @@ ReftrixMCP uses a **21000 offset** to avoid conflicts:
 - **Production**: Error logs only
 
 ```typescript
-if (process.env.NODE_ENV === 'development') {
-  console.log('[Search] Query:', { q, filters });
+if (process.env.NODE_ENV === "development") {
+  console.log("[Search] Query:", { q, filters });
 }
 ```
 
@@ -895,17 +893,17 @@ Use the following format:
 
 #### Types
 
-| Prefix | Purpose |
-|--------|---------|
-| `feat:` | New feature |
-| `fix:` | Bug fix |
-| `test:` | Test addition/modification |
-| `docs:` | Documentation |
-| `refactor:` | Refactoring |
-| `style:` | Code style changes |
-| `chore:` | Build/config changes |
-| `perf:` | Performance improvements |
-| `hotfix:` | Emergency production fix |
+| Prefix      | Purpose                    |
+| ----------- | -------------------------- |
+| `feat:`     | New feature                |
+| `fix:`      | Bug fix                    |
+| `test:`     | Test addition/modification |
+| `docs:`     | Documentation              |
+| `refactor:` | Refactoring                |
+| `style:`    | Code style changes         |
+| `chore:`    | Build/config changes       |
+| `perf:`     | Performance improvements   |
+| `hotfix:`   | Emergency production fix   |
 
 #### Example
 
@@ -931,15 +929,15 @@ Closes #123
 
 #### Types
 
-| Type | Purpose | Example |
-|------|---------|---------|
-| `feature/` | Feature development | `feature/semantic-search` |
-| `fix/` | Bug fix | `fix/login-error` |
-| `chore/` | Config/dependency updates | `chore/update-deps` |
-| `hotfix/` | Critical production fix | `hotfix/critical-auth-bug` |
-| `docs/` | Documentation updates | `docs/api-reference` |
-| `test/` | Test additions/modifications | `test/search-unit-tests` |
-| `refactor/` | Refactoring | `refactor/auth-module` |
+| Type        | Purpose                      | Example                    |
+| ----------- | ---------------------------- | -------------------------- |
+| `feature/`  | Feature development          | `feature/semantic-search`  |
+| `fix/`      | Bug fix                      | `fix/login-error`          |
+| `chore/`    | Config/dependency updates    | `chore/update-deps`        |
+| `hotfix/`   | Critical production fix      | `hotfix/critical-auth-bug` |
+| `docs/`     | Documentation updates        | `docs/api-reference`       |
+| `test/`     | Test additions/modifications | `test/search-unit-tests`   |
+| `refactor/` | Refactoring                  | `refactor/auth-module`     |
 
 #### Naming Rules
 
@@ -1000,11 +998,11 @@ PR titles are used as the **subject line of the final squash commit message**:
 
 ### PR Size Limits
 
-| Status | Diff Lines | Recommended Action |
-|--------|-----------|-------------------|
-| Appropriate | 400 lines or less | Proceed with review |
-| Needs consideration | 400-800 lines | Consider splitting |
-| Must split | Over 800 lines | Must be split |
+| Status              | Diff Lines        | Recommended Action  |
+| ------------------- | ----------------- | ------------------- |
+| Appropriate         | 400 lines or less | Proceed with review |
+| Needs consideration | 400-800 lines     | Consider splitting  |
+| Must split          | Over 800 lines    | Must be split       |
 
 **Exceptions**: Auto-generated files, lock files, large-scale refactoring (pre-approved)
 
@@ -1031,11 +1029,11 @@ pnpm lint && pnpm typecheck && pnpm test
 
 **Squash and Merge only** - other merge methods are prohibited
 
-| Method | Allowed | Reason |
-|--------|---------|--------|
-| Squash and Merge | Yes | Clean history |
-| Merge Commit | No | History becomes complex |
-| Rebase and Merge | No | Prohibited for consistency |
+| Method           | Allowed | Reason                     |
+| ---------------- | ------- | -------------------------- |
+| Squash and Merge | Yes     | Clean history              |
+| Merge Commit     | No      | History becomes complex    |
+| Rebase and Merge | No      | Prohibited for consistency |
 
 ### Branch Protection Rules (main)
 

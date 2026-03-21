@@ -23,10 +23,14 @@
  * @module tools/part/compare.tool
  */
 
-import { ZodError } from 'zod';
-import { prisma } from '@reftrix/database';
-import { logger, isDevelopment } from '../../utils/logger';
-import { partCompareInputSchema, truncateId, type PartCompareInput } from '../../services/part/schemas';
+import { ZodError } from "zod";
+import { prisma } from "@reftrix/database";
+import { logger, isDevelopment } from "../../utils/logger";
+import {
+  partCompareInputSchema,
+  truncateId,
+  type PartCompareInput,
+} from "../../services/part/schemas";
 
 // =====================================================
 // 型定義 / Type Definitions
@@ -93,9 +97,9 @@ export type PartCompareOutput =
 // =====================================================
 
 export const PART_COMPARE_ERROR_CODES = {
-  VALIDATION_ERROR: 'VALIDATION_ERROR',
-  PARTS_NOT_FOUND: 'PARTS_NOT_FOUND',
-  INTERNAL_ERROR: 'INTERNAL_ERROR',
+  VALIDATION_ERROR: "VALIDATION_ERROR",
+  PARTS_NOT_FOUND: "PARTS_NOT_FOUND",
+  INTERNAL_ERROR: "INTERNAL_ERROR",
 } as const;
 
 // =====================================================
@@ -111,13 +115,16 @@ function sanitizeErrorMessage(error: unknown): string {
     const prismaError = error as { code?: string };
     if (prismaError.code) {
       switch (prismaError.code) {
-        case 'P2002': return 'A record with this value already exists';
-        case 'P2025': return 'Record not found';
-        default: return 'Database operation failed';
+        case "P2002":
+          return "A record with this value already exists";
+        case "P2025":
+          return "Record not found";
+        default:
+          return "Database operation failed";
       }
     }
   }
-  return 'An internal error occurred';
+  return "An internal error occurred";
 }
 
 // =====================================================
@@ -129,30 +136,53 @@ function sanitizeErrorMessage(error: unknown): string {
  * Key properties for style comparison
  */
 const STYLE_COMPARISON_KEYS = [
-  'backgroundColor', 'color', 'fontSize', 'fontFamily', 'fontWeight',
-  'borderRadius', 'padding', 'margin', 'border', 'boxShadow',
-  'lineHeight', 'letterSpacing', 'textAlign', 'display', 'position',
+  "backgroundColor",
+  "color",
+  "fontSize",
+  "fontFamily",
+  "fontWeight",
+  "borderRadius",
+  "padding",
+  "margin",
+  "border",
+  "boxShadow",
+  "lineHeight",
+  "letterSpacing",
+  "textAlign",
+  "display",
+  "position",
 ];
 
 /**
  * レイアウト比較用のキープロパティ
  * Key properties for layout comparison
  */
-const LAYOUT_COMPARISON_KEYS = ['width', 'height', 'x', 'y'];
+const LAYOUT_COMPARISON_KEYS = ["width", "height", "x", "y"];
 
 /**
  * インタラクション比較用のキープロパティ
  * Key properties for interaction comparison
  */
 const INTERACTION_COMPARISON_KEYS = [
-  'hasHover', 'hasFocus', 'hasActive', 'hasTransition', 'transitionDuration',
+  "hasHover",
+  "hasFocus",
+  "hasActive",
+  "hasTransition",
+  "transitionDuration",
 ];
 
 /**
  * アクセシビリティ比較用のキー属性
  * Key attributes for accessibility comparison
  */
-const ACCESSIBILITY_ATTRIBUTE_KEYS = ['aria-label', 'role', 'alt', 'aria-describedby', 'tabindex', 'title'];
+const ACCESSIBILITY_ATTRIBUTE_KEYS = [
+  "aria-label",
+  "role",
+  "alt",
+  "aria-describedby",
+  "tabindex",
+  "title",
+];
 
 /**
  * 値が同一かどうか判定
@@ -186,7 +216,7 @@ function buildStylesComparison(
     });
   }
 
-  return { aspect: 'styles', properties };
+  return { aspect: "styles", properties };
 }
 
 /**
@@ -221,12 +251,12 @@ function buildLayoutComparison(
   });
 
   properties.push({
-    property: 'aspectRatio',
+    property: "aspectRatio",
     values: aspectRatioValues,
     isIdentical: areValuesIdentical(aspectRatioValues.map((v) => v.value)),
   });
 
-  return { aspect: 'layout', properties };
+  return { aspect: "layout", properties };
 }
 
 /**
@@ -251,7 +281,7 @@ function buildInteractionComparison(
     });
   }
 
-  return { aspect: 'interaction', properties };
+  return { aspect: "interaction", properties };
 }
 
 /**
@@ -284,12 +314,12 @@ function buildAccessibilityComparison(
     const attrs = p.attributes as Record<string, string>;
     return {
       partId: p.id,
-      value: attrs['alt'] !== undefined && attrs['alt'] !== null,
+      value: attrs["alt"] !== undefined && attrs["alt"] !== null,
     };
   });
 
   properties.push({
-    property: 'hasAltText',
+    property: "hasAltText",
     values: altPresence,
     isIdentical: areValuesIdentical(altPresence.map((v) => v.value)),
   });
@@ -299,17 +329,17 @@ function buildAccessibilityComparison(
     const attrs = p.attributes as Record<string, string>;
     return {
       partId: p.id,
-      value: attrs['aria-label'] !== undefined && attrs['aria-label'] !== null,
+      value: attrs["aria-label"] !== undefined && attrs["aria-label"] !== null,
     };
   });
 
   properties.push({
-    property: 'hasAriaLabel',
+    property: "hasAriaLabel",
     values: ariaLabelPresence,
     isIdentical: areValuesIdentical(ariaLabelPresence.map((v) => v.value)),
   });
 
-  return { aspect: 'accessibility', properties };
+  return { aspect: "accessibility", properties };
 }
 
 // =====================================================
@@ -323,11 +353,9 @@ function buildAccessibilityComparison(
  * @param input - 入力パラメータ / Input parameters
  * @returns 比較結果 / Comparison results
  */
-export async function partCompareHandler(
-  input: unknown
-): Promise<PartCompareOutput> {
+export async function partCompareHandler(input: unknown): Promise<PartCompareOutput> {
   if (isDevelopment()) {
-    logger.info('[MCP Tool] part.compare called', {
+    logger.info("[MCP Tool] part.compare called", {
       partCount: Array.isArray((input as Record<string, unknown>)?.part_ids)
         ? ((input as Record<string, unknown>).part_ids as unknown[]).length
         : 0,
@@ -340,11 +368,9 @@ export async function partCompareHandler(
     validated = partCompareInputSchema.parse(input);
   } catch (error) {
     if (error instanceof ZodError) {
-      const errorMessage = error.errors
-        .map((e) => `${e.path.join('.')}: ${e.message}`)
-        .join(', ');
+      const errorMessage = error.errors.map((e) => `${e.path.join(".")}: ${e.message}`).join(", ");
 
-      logger.warn('[MCP Tool] part.compare validation error', {
+      logger.warn("[MCP Tool] part.compare validation error", {
         errors: error.errors,
       });
 
@@ -375,7 +401,7 @@ export async function partCompareHandler(
     const missingIds = validated.part_ids.filter((id) => !foundIds.has(id));
 
     if (missingIds.length > 0) {
-      logger.warn('[MCP Tool] part.compare parts not found', {
+      logger.warn("[MCP Tool] part.compare parts not found", {
         missingCount: missingIds.length,
         missingIds: missingIds.map((id) => truncateId(id)),
       });
@@ -412,23 +438,23 @@ export async function partCompareHandler(
 
     for (const aspect of validated.compare_aspects) {
       switch (aspect) {
-        case 'styles':
+        case "styles":
           comparisons.styles = buildStylesComparison(partsForComparison);
           break;
-        case 'layout':
+        case "layout":
           comparisons.layout = buildLayoutComparison(partsForComparison);
           break;
-        case 'interaction':
+        case "interaction":
           comparisons.interaction = buildInteractionComparison(partsForComparison);
           break;
-        case 'accessibility':
+        case "accessibility":
           comparisons.accessibility = buildAccessibilityComparison(partsForComparison);
           break;
       }
     }
 
     if (isDevelopment()) {
-      logger.info('[MCP Tool] part.compare completed', {
+      logger.info("[MCP Tool] part.compare completed", {
         partCount: partsInfo.length,
         aspects: validated.compare_aspects,
       });
@@ -446,7 +472,7 @@ export async function partCompareHandler(
 
     // 全環境でログ出力（isDevelopmentガードなし）
     // Log in all environments (no isDevelopment guard)
-    logger.warn('[MCP Tool] part.compare error', {
+    logger.warn("[MCP Tool] part.compare error", {
       code: PART_COMPARE_ERROR_CODES.INTERNAL_ERROR,
       error: errorInstance.message,
     });
@@ -470,39 +496,40 @@ export async function partCompareHandler(
  * part.compare MCP tool definition
  */
 export const partCompareToolDefinition = {
-  name: 'part.compare' as const,
+  name: "part.compare" as const,
   description:
-    '2-5個のUIコンポーネントパーツをスタイル・レイアウト・インタラクション・' +
-    'アクセシビリティの観点で並列比較します。' +
-    ' / Compare 2-5 UI component parts side by side on styles, layout, ' +
-    'interaction, and accessibility aspects.',
+    "2-5個のUIコンポーネントパーツをスタイル・レイアウト・インタラクション・" +
+    "アクセシビリティの観点で並列比較します。" +
+    " / Compare 2-5 UI component parts side by side on styles, layout, " +
+    "interaction, and accessibility aspects.",
   annotations: {
-    title: 'Part Compare',
+    title: "Part Compare",
     readOnlyHint: true,
     idempotentHint: true,
     openWorldHint: false,
   },
   inputSchema: {
-    type: 'object' as const,
+    type: "object" as const,
     properties: {
       part_ids: {
-        type: 'array',
-        items: { type: 'string', format: 'uuid' },
+        type: "array",
+        items: { type: "string", format: "uuid" },
         minItems: 2,
         maxItems: 5,
-        description: '比較対象パーツID（2-5個） / 2-5 part IDs to compare',
+        description: "比較対象パーツID（2-5個） / 2-5 part IDs to compare",
       },
       compare_aspects: {
-        type: 'array',
+        type: "array",
         items: {
-          type: 'string',
-          enum: ['styles', 'layout', 'interaction', 'accessibility'],
+          type: "string",
+          enum: ["styles", "layout", "interaction", "accessibility"],
         },
-        default: ['styles', 'layout'],
-        description: '比較観点（デフォルト: styles, layout） / Aspects to compare (default: styles, layout)',
+        default: ["styles", "layout"],
+        description:
+          "比較観点（デフォルト: styles, layout） / Aspects to compare (default: styles, layout)",
       },
     },
-    required: ['part_ids'],
+    required: ["part_ids"],
   },
 };
 
@@ -511,5 +538,5 @@ export const partCompareToolDefinition = {
 // =====================================================
 
 if (isDevelopment()) {
-  logger.debug('[part.compare] Tool module loaded');
+  logger.debug("[part.compare] Tool module loaded");
 }

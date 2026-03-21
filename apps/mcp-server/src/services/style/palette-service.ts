@@ -15,17 +15,17 @@
  * @module services/creative/palette-service
  */
 
-import type { PrismaClient } from '@prisma/client';
+import type { PrismaClient } from "@prisma/client";
 import type {
   BrandPalette,
   PaletteMode,
   ColorToken,
   ContrastRequirement,
   GradientDefinition,
-} from '../../types/creative/palette';
-import { createLogger } from '../../utils/logger';
-import { McpError, ErrorCode } from '../../utils/errors';
-import { PrismaPaletteRepository } from './prisma-palette-repository';
+} from "../../types/creative/palette";
+import { createLogger } from "../../utils/logger";
+import { McpError, ErrorCode } from "../../utils/errors";
+import { PrismaPaletteRepository } from "./prisma-palette-repository";
 
 // =============================================================================
 // 型定義
@@ -36,7 +36,7 @@ import { PrismaPaletteRepository } from './prisma-palette-repository';
  */
 export interface GradientAutoGenerateOptions {
   /** グラデーションタイプ（linear/radial） */
-  type?: 'linear' | 'radial' | undefined;
+  type?: "linear" | "radial" | undefined;
   /** リニアグラデーションの角度（0-360） */
   angle?: number | undefined;
   /** 使用するトークンペアの配列 */
@@ -108,7 +108,7 @@ export interface GradientApi {
   id: string;
   name: string;
   description?: string;
-  type: 'linear' | 'radial';
+  type: "linear" | "radial";
   angle?: number;
   centerX?: number;
   centerY?: number;
@@ -167,92 +167,92 @@ export interface PaletteRepository {
  */
 const defaultPalettes: BrandPalette[] = [
   {
-    id: '01939abc-def0-7000-8000-000000000001',
-    brandId: 'reftrix-standard',
-    brandName: 'Reftrix Standard',
-    description: 'Reftrixのデフォルトブランドパレット',
-    mode: 'light',
+    id: "01939abc-def0-7000-8000-000000000001",
+    brandId: "reftrix-standard",
+    brandName: "Reftrix Standard",
+    description: "Reftrixのデフォルトブランドパレット",
+    mode: "light",
     tokens: {
       primary: {
-        name: 'Primary Blue',
-        description: '主要ブランドカラー',
+        name: "Primary Blue",
+        description: "主要ブランドカラー",
         oklch: { l: 0.623, c: 0.214, h: 259.7 },
-        hex: '#3B82F6',
-        usage: ['accent', 'cta', 'link'],
+        hex: "#3B82F6",
+        usage: ["accent", "cta", "link"],
       },
       secondary: {
-        name: 'Secondary Indigo',
+        name: "Secondary Indigo",
         oklch: { l: 0.585, c: 0.241, h: 279.0 },
-        hex: '#6366F1',
-        usage: ['accent'],
+        hex: "#6366F1",
+        usage: ["accent"],
       },
       accent: {
-        name: 'Accent Violet',
+        name: "Accent Violet",
         oklch: { l: 0.586, c: 0.234, h: 293.0 },
-        hex: '#8B5CF6',
-        usage: ['highlight'],
+        hex: "#8B5CF6",
+        usage: ["highlight"],
       },
       neutral: {
-        name: 'Neutral Gray',
+        name: "Neutral Gray",
         oklch: { l: 0.554, c: 0.022, h: 258.0 },
-        hex: '#6B7280',
-        usage: ['foreground'],
+        hex: "#6B7280",
+        usage: ["foreground"],
       },
       success: {
-        name: 'Success Green',
+        name: "Success Green",
         oklch: { l: 0.723, c: 0.213, h: 142.5 },
-        hex: '#22C55E',
-        usage: ['success'],
+        hex: "#22C55E",
+        usage: ["success"],
       },
       error: {
-        name: 'Error Red',
+        name: "Error Red",
         oklch: { l: 0.628, c: 0.258, h: 27.0 },
-        hex: '#EF4444',
-        usage: ['error'],
+        hex: "#EF4444",
+        usage: ["error"],
       },
     },
     gradients: [
       {
-        id: 'primary-gradient',
-        name: 'Primary Gradient',
-        type: 'linear',
+        id: "primary-gradient",
+        name: "Primary Gradient",
+        type: "linear",
         angle: 135,
         stops: [
-          { offset: 0, token: 'primary' },
-          { offset: 100, token: 'accent' },
+          { offset: 0, token: "primary" },
+          { offset: 100, token: "accent" },
         ],
       },
     ],
     metadata: {
-      version: '0.1.0',
-      author: 'Reftrix Team',
-      tags: ['modern', 'blue', 'professional'],
+      version: "0.1.0",
+      author: "Reftrix Team",
+      tags: ["modern", "blue", "professional"],
     },
-    createdAt: new Date('2025-11-01T00:00:00Z'),
-    updatedAt: new Date('2025-12-01T00:00:00Z'),
+    createdAt: new Date("2025-11-01T00:00:00Z"),
+    updatedAt: new Date("2025-12-01T00:00:00Z"),
   },
   {
-    id: '01939abc-def0-7000-8000-000000000002',
-    brandId: 'reftrix-dark',
-    brandName: 'Reftrix Dark',
-    description: 'Reftrixのダークモードパレット',
-    mode: 'dark',
+    id: "01939abc-def0-7000-8000-000000000002",
+    brandId: "reftrix-dark",
+    brandName: "Reftrix Dark",
+    description: "Reftrixのダークモードパレット",
+    mode: "dark",
     tokens: {
       primary: {
-        name: 'Primary Blue Light',
+        name: "Primary Blue Light",
         oklch: { l: 0.728, c: 0.18, h: 254.0 },
-        hex: '#60A5FA',
-        usage: ['accent', 'cta'],
+        hex: "#60A5FA",
+        usage: ["accent", "cta"],
       },
       secondary: {
-        name: 'Secondary Indigo Light',
+        name: "Secondary Indigo Light",
         oklch: { l: 0.695, c: 0.196, h: 277.0 },
-        hex: '#818CF8',
-        usage: ['accent'],
+        hex: "#818CF8",
+        usage: ["accent"],
       },
     },
-    createdAt: new Date('2025-11-01T00:00:00Z'),
-    updatedAt: new Date('2025-12-01T00:00:00Z'),
+    createdAt: new Date("2025-11-01T00:00:00Z"),
+    updatedAt: new Date("2025-12-01T00:00:00Z"),
   },
 ];
 
@@ -271,13 +271,11 @@ class DefaultPaletteRepository implements PaletteRepository {
   }
 
   async findByBrandName(name: string): Promise<BrandPalette[]> {
-    return this.palettes.filter((p) =>
-      p.brandName.toLowerCase().includes(name.toLowerCase())
-    );
+    return this.palettes.filter((p) => p.brandName.toLowerCase().includes(name.toLowerCase()));
   }
 
   async findByMode(mode: PaletteMode): Promise<BrandPalette[]> {
-    return this.palettes.filter((p) => p.mode === mode || p.mode === 'both');
+    return this.palettes.filter((p) => p.mode === mode || p.mode === "both");
   }
 }
 
@@ -285,13 +283,12 @@ class DefaultPaletteRepository implements PaletteRepository {
 // PaletteServiceクラス
 // =============================================================================
 
-const logger = createLogger('PaletteService');
+const logger = createLogger("PaletteService");
 
 /**
  * UUID形式を検証
  */
-const UUID_REGEX =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /**
  * PaletteService - ブランドパレット取得サービス
@@ -316,14 +313,20 @@ export class PaletteService {
     const {
       id,
       brand_name,
-      mode = 'both',
+      mode = "both",
       include_gradients = true,
       auto_generate_gradients = false,
       gradient_options,
     } = options;
 
-    if (process.env.NODE_ENV === 'development') {
-      logger.info('getPalette called', { id, brand_name, mode, include_gradients, auto_generate_gradients });
+    if (process.env.NODE_ENV === "development") {
+      logger.info("getPalette called", {
+        id,
+        brand_name,
+        mode,
+        include_gradients,
+        auto_generate_gradients,
+      });
     }
 
     // ID指定の場合は詳細取得
@@ -332,7 +335,7 @@ export class PaletteService {
     }
 
     // ブランド名検索または一覧取得
-    if (brand_name !== undefined && brand_name !== '') {
+    if (brand_name !== undefined && brand_name !== "") {
       return this.search(brand_name, mode);
     }
 
@@ -396,7 +399,7 @@ export class PaletteService {
   ): GradientApi[] {
     const gradients: GradientApi[] = [];
     const tokenNames = Object.keys(palette.tokens);
-    const type = options?.type ?? 'linear';
+    const type = options?.type ?? "linear";
     const angle = options?.angle ?? 135;
 
     // token_pairs が指定されている場合はそれを使用
@@ -410,20 +413,20 @@ export class PaletteService {
     }
 
     // デフォルト: primary, secondary, accent から自動生成
-    const primaryTokens = ['primary', 'secondary', 'accent'].filter(t => tokenNames.includes(t));
+    const primaryTokens = ["primary", "secondary", "accent"].filter((t) => tokenNames.includes(t));
 
     if (primaryTokens.length >= 2) {
       // primary -> secondary
-      if (tokenNames.includes('primary') && tokenNames.includes('secondary')) {
-        gradients.push(this.createGradient('primary', 'secondary', type, angle));
+      if (tokenNames.includes("primary") && tokenNames.includes("secondary")) {
+        gradients.push(this.createGradient("primary", "secondary", type, angle));
       }
       // primary -> accent
-      if (tokenNames.includes('primary') && tokenNames.includes('accent')) {
-        gradients.push(this.createGradient('primary', 'accent', type, angle));
+      if (tokenNames.includes("primary") && tokenNames.includes("accent")) {
+        gradients.push(this.createGradient("primary", "accent", type, angle));
       }
       // secondary -> accent
-      if (tokenNames.includes('secondary') && tokenNames.includes('accent')) {
-        gradients.push(this.createGradient('secondary', 'accent', type, angle));
+      if (tokenNames.includes("secondary") && tokenNames.includes("accent")) {
+        gradients.push(this.createGradient("secondary", "accent", type, angle));
       }
     }
 
@@ -436,7 +439,7 @@ export class PaletteService {
   private createGradient(
     fromToken: string,
     toToken: string,
-    type: 'linear' | 'radial',
+    type: "linear" | "radial",
     angle: number
   ): GradientApi {
     const gradient: GradientApi = {
@@ -450,7 +453,7 @@ export class PaletteService {
       auto_generated: true,
     };
 
-    if (type === 'linear') {
+    if (type === "linear") {
       gradient.angle = angle;
     } else {
       gradient.centerX = 0.5;
@@ -473,12 +476,12 @@ export class PaletteService {
    * @param mode - モードフィルター
    * @returns パレット一覧
    */
-  async search(brandName: string, mode: PaletteMode = 'both'): Promise<GetPaletteResult> {
+  async search(brandName: string, mode: PaletteMode = "both"): Promise<GetPaletteResult> {
     let palettes = await this.repository.findByBrandName(brandName);
 
     // モードでフィルタリング
-    if (mode !== 'both') {
-      palettes = palettes.filter((p) => p.mode === mode || p.mode === 'both');
+    if (mode !== "both") {
+      palettes = palettes.filter((p) => p.mode === mode || p.mode === "both");
     }
 
     return {
@@ -492,11 +495,11 @@ export class PaletteService {
    * @returns パレット一覧
    */
   async list(options?: { mode?: PaletteMode }): Promise<GetPaletteResult> {
-    const mode = options?.mode ?? 'both';
+    const mode = options?.mode ?? "both";
 
     let palettes: BrandPalette[];
 
-    if (mode === 'both') {
+    if (mode === "both") {
       palettes = await this.repository.findAll();
     } else {
       palettes = await this.repository.findByMode(mode);
@@ -549,9 +552,7 @@ export class PaletteService {
   /**
    * トークンをAPI形式に変換
    */
-  private convertTokens(
-    tokens: Record<string, ColorToken>
-  ): Record<string, ColorTokenApi> {
+  private convertTokens(tokens: Record<string, ColorToken>): Record<string, ColorTokenApi> {
     const result: Record<string, ColorTokenApi> = {};
 
     for (const [key, token] of Object.entries(tokens)) {
@@ -574,12 +575,10 @@ export class PaletteService {
       }
 
       if (token.contrastWith !== undefined && token.contrastWith.length > 0) {
-        apiToken.contrast_with = token.contrastWith.map(
-          (c: ContrastRequirement) => ({
-            token: c.token,
-            min_ratio: c.minRatio,
-          })
-        );
+        apiToken.contrast_with = token.contrastWith.map((c: ContrastRequirement) => ({
+          token: c.token,
+          min_ratio: c.minRatio,
+        }));
       }
 
       result[key] = apiToken;
@@ -591,9 +590,7 @@ export class PaletteService {
   /**
    * グラデーションをAPI形式に変換
    */
-  private convertGradients(
-    gradients?: GradientDefinition[]
-  ): GradientApi[] {
+  private convertGradients(gradients?: GradientDefinition[]): GradientApi[] {
     if (gradients === undefined || gradients.length === 0) {
       return [];
     }
@@ -604,7 +601,7 @@ export class PaletteService {
         name: g.name,
         type: g.type,
         stops: g.stops.map((s) => {
-          const stop: GradientApi['stops'][number] = {
+          const stop: GradientApi["stops"][number] = {
             offset: s.offset,
           };
           if (s.token !== undefined) {

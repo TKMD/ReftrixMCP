@@ -21,7 +21,7 @@ export {
   // Renamed to avoid collision with ScoringSystem types
   type ClicheReport as AntiAiClicheReport,
   type LayoutInfo as ClicheLayoutInfo,
-} from './anti-ai-cliche';
+} from "./anti-ai-cliche";
 
 // Scoring System
 export {
@@ -36,4 +36,4 @@ export {
   type LayoutInfo,
   type LayoutSpacing,
   type ResponsiveInfo,
-} from './scoring-system';
+} from "./scoring-system";

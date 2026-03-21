@@ -39,7 +39,7 @@ export interface RetryStrategyConfig {
  * - heavy: 重いWebGL/3Dサイト（180秒程度かかる）
  * - ultra-heavy: 非常に重いサイト（resn.co.nz等、180秒+でもタイムアウトする可能性）
  */
-export type SiteTier = 'normal' | 'webgl' | 'heavy' | 'ultra-heavy';
+export type SiteTier = "normal" | "webgl" | "heavy" | "ultra-heavy";
 
 /**
  * サイトの種類に応じたリトライ戦略を取得する
@@ -61,7 +61,7 @@ export type SiteTier = 'normal' | 'webgl' | 'heavy' | 'ultra-heavy';
  */
 export function getRetryStrategy(siteTier: SiteTier): RetryStrategyConfig {
   switch (siteTier) {
-    case 'ultra-heavy':
+    case "ultra-heavy":
       // 非常に重いサイト: リトライ1回、タイムアウト累積なし、ネットワークエラーのみ
       // 目的: MCP 600秒上限を確実に遵守
       return {
@@ -72,7 +72,7 @@ export function getRetryStrategy(siteTier: SiteTier): RetryStrategyConfig {
         retryOnlyOnNetworkError: true,
       };
 
-    case 'heavy':
+    case "heavy":
       // 重いサイト: リトライ1回、タイムアウト累積なし、ネットワークエラーのみ
       return {
         autoRetry: true,
@@ -82,7 +82,7 @@ export function getRetryStrategy(siteTier: SiteTier): RetryStrategyConfig {
         retryOnlyOnNetworkError: true,
       };
 
-    case 'webgl':
+    case "webgl":
       // WebGL/Three.jsサイト: リトライ2回、軽い累積、全エラーでリトライ
       return {
         autoRetry: true,
@@ -92,7 +92,7 @@ export function getRetryStrategy(siteTier: SiteTier): RetryStrategyConfig {
         retryOnlyOnNetworkError: false,
       };
 
-    case 'normal':
+    case "normal":
     default:
       // 通常サイト: 従来動作（リトライ2回、1.5倍累積）
       return {
@@ -110,16 +110,16 @@ export function getRetryStrategy(siteTier: SiteTier): RetryStrategyConfig {
  * これらのパターンにマッチするエラーメッセージはネットワークエラーと判断される
  */
 const NETWORK_ERROR_PATTERNS: readonly string[] = [
-  'net::err_',
-  'econnrefused',
-  'etimedout',
-  'enotfound',
-  'network',
-  'socket',
-  'econnreset',
-  'econnaborted',
-  'dns',
-  'ehostunreach',
+  "net::err_",
+  "econnrefused",
+  "etimedout",
+  "enotfound",
+  "network",
+  "socket",
+  "econnreset",
+  "econnaborted",
+  "dns",
+  "ehostunreach",
 ] as const;
 
 /**
@@ -142,9 +142,7 @@ export function isNetworkError(error: unknown): boolean {
 
   const message = error.message.toLowerCase();
 
-  return NETWORK_ERROR_PATTERNS.some((pattern) =>
-    message.includes(pattern.toLowerCase())
-  );
+  return NETWORK_ERROR_PATTERNS.some((pattern) => message.includes(pattern.toLowerCase()));
 }
 
 /**
@@ -164,10 +162,7 @@ export function isNetworkError(error: unknown): boolean {
  * // 180000 + 180000 + 5000 = 365000ms (365秒)
  * ```
  */
-export function calculateMaxTotalTime(
-  baseTimeoutMs: number,
-  config: RetryStrategyConfig
-): number {
+export function calculateMaxTotalTime(baseTimeoutMs: number, config: RetryStrategyConfig): number {
   let totalTime = 0;
   let currentTimeout = baseTimeoutMs;
 

@@ -16,10 +16,10 @@
  * @see SEC監査: 機密情報漏洩防止のため details は開発環境のみ
  */
 
-import { z } from 'zod';
-import { v7 as uuidv7 } from 'uuid';
-import type { ErrorCode } from './errors';
-import { isDevelopment } from './logger';
+import { z } from "zod";
+import { v7 as uuidv7 } from "uuid";
+import type { ErrorCode } from "./errors";
+import { isDevelopment } from "./logger";
 
 // =============================================================================
 // 型定義
@@ -32,7 +32,7 @@ import { isDevelopment } from './logger';
  * - compact: 最小限（ID等のみ）
  * - truncated: 切り詰め（サイズ制限適用）
  */
-export type OptimizationMode = 'full' | 'summary' | 'compact' | 'truncated';
+export type OptimizationMode = "full" | "summary" | "compact" | "truncated";
 
 /**
  * メタデータ（全レスポンス共通）
@@ -98,7 +98,7 @@ export type McpResponse<T> = McpSuccessResponse<T> | McpErrorResponse;
 /**
  * 最適化モードスキーマ
  */
-export const optimizationModeSchema = z.enum(['full', 'summary', 'compact', 'truncated']);
+export const optimizationModeSchema = z.enum(["full", "summary", "compact", "truncated"]);
 
 /**
  * メタデータスキーマ
@@ -166,10 +166,7 @@ export function createMcpResponseSchema<T extends z.ZodTypeAny>(
     typeof mcpErrorResponseSchema,
   ]
 > {
-  return z.union([
-    createSuccessResponseSchema(dataSchema),
-    mcpErrorResponseSchema,
-  ]);
+  return z.union([createSuccessResponseSchema(dataSchema), mcpErrorResponseSchema]);
 }
 
 // =============================================================================
@@ -220,18 +217,14 @@ export function createErrorResponse(
 /**
  * レスポンスが成功かどうかを判定（型ガード）
  */
-export function isSuccessResponse<T>(
-  response: McpResponse<T>
-): response is McpSuccessResponse<T> {
+export function isSuccessResponse<T>(response: McpResponse<T>): response is McpSuccessResponse<T> {
   return response.success === true;
 }
 
 /**
  * レスポンスがエラーかどうかを判定（型ガード）
  */
-export function isErrorResponse<T>(
-  response: McpResponse<T>
-): response is McpErrorResponse {
+export function isErrorResponse<T>(response: McpResponse<T>): response is McpErrorResponse {
   return response.success === false;
 }
 
@@ -299,7 +292,7 @@ export function withTruncation(
     ...existingMetadata,
     truncated: true,
     original_size: originalSize,
-    optimization_mode: 'truncated',
+    optimization_mode: "truncated",
   };
 }
 
@@ -329,7 +322,7 @@ export function generateRequestId(): string {
   } catch {
     // SEC: フォールバック - crypto.randomUUID()を使用
     // UUIDv7生成に失敗した場合の耐障害性確保
-    if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+    if (typeof crypto !== "undefined" && crypto.randomUUID) {
       return crypto.randomUUID();
     }
     // 最終フォールバック: タイムスタンプ + ランダム文字列
@@ -361,7 +354,7 @@ export function withRequestId(
 export function createSuccessResponseWithRequestId<T>(
   data: T,
   requestId?: string,
-  metadata?: Omit<McpResponseMetadata, 'request_id'>
+  metadata?: Omit<McpResponseMetadata, "request_id">
 ): McpSuccessResponse<T> {
   return {
     success: true,
@@ -386,7 +379,7 @@ export function createErrorResponseWithRequestId(
   message: string,
   requestId?: string,
   details?: unknown,
-  metadata?: Omit<McpResponseMetadata, 'request_id'>
+  metadata?: Omit<McpResponseMetadata, "request_id">
 ): McpErrorResponse {
   return {
     success: false,

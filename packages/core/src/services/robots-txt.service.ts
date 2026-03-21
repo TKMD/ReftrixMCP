@@ -66,7 +66,7 @@ export class RobotsTxtService {
   async isAllowed(
     url: string,
     productToken?: string,
-    respectRobotsTxt?: boolean,
+    respectRobotsTxt?: boolean
   ): Promise<RobotsTxtCheckResult> {
     const token = productToken ?? ROBOTS_TXT.PRODUCT_TOKEN;
 
@@ -236,10 +236,7 @@ export class RobotsTxtService {
 
     try {
       const controller = new AbortController();
-      const timeoutId = setTimeout(
-        () => controller.abort(),
-        ROBOTS_TXT.FETCH_TIMEOUT_MS,
-      );
+      const timeoutId = setTimeout(() => controller.abort(), ROBOTS_TXT.FETCH_TIMEOUT_MS);
 
       try {
         // リダイレクト先のSSRFバイパスを防ぐため manual mode
@@ -438,7 +435,7 @@ export class RobotsTxtService {
     domain: string,
     robotsTxtContent: string | null,
     productToken: string,
-    cached: boolean,
+    cached: boolean
   ): RobotsTxtCheckResult {
     // フェッチ失敗（null） → コンサバティブ deny
     if (robotsTxtContent === null) {
@@ -497,7 +494,11 @@ export class RobotsTxtService {
     }, ROBOTS_TXT.CLEANUP_INTERVAL_MS);
 
     // タイマーがプロセス終了をブロックしないようにする
-    if (this.cleanupTimer && typeof this.cleanupTimer === "object" && "unref" in this.cleanupTimer) {
+    if (
+      this.cleanupTimer &&
+      typeof this.cleanupTimer === "object" &&
+      "unref" in this.cleanupTimer
+    ) {
       this.cleanupTimer.unref();
     }
   }
@@ -528,7 +529,7 @@ export function getRobotsTxtService(): RobotsTxtService {
  */
 export async function isUrlAllowedByRobotsTxt(
   url: string,
-  respectRobotsTxt?: boolean,
+  respectRobotsTxt?: boolean
 ): Promise<RobotsTxtCheckResult> {
   return getRobotsTxtService().isAllowed(url, undefined, respectRobotsTxt);
 }

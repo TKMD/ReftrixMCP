@@ -11,12 +11,12 @@
  * - 破損検出
  */
 
-import * as crypto from 'crypto';
-import * as fs from 'fs/promises';
-import { createReadStream } from 'fs';
-import { Logger } from '../utils/logger';
+import * as crypto from "crypto";
+import * as fs from "fs/promises";
+import { createReadStream } from "fs";
+import { Logger } from "../utils/logger";
 
-const logger = new Logger('ChecksumService');
+const logger = new Logger("ChecksumService");
 
 /**
  * チェックサムサービスインターフェース
@@ -52,7 +52,7 @@ export class ChecksumError extends Error {
     public readonly code: string
   ) {
     super(message);
-    this.name = 'ChecksumError';
+    this.name = "ChecksumError";
   }
 }
 
@@ -80,18 +80,18 @@ export class SHA256ChecksumService implements ChecksumService {
    * @returns 64文字の小文字16進数ハッシュ文字列
    */
   generateHash(data: string | Buffer): string {
-    const dataLength = typeof data === 'string' ? data.length : data.length;
+    const dataLength = typeof data === "string" ? data.length : data.length;
     logger.debug(`Generating SHA-256 hash for ${dataLength} bytes`);
 
-    const hash = crypto.createHash('sha256');
+    const hash = crypto.createHash("sha256");
 
-    if (typeof data === 'string') {
-      hash.update(data, 'utf-8');
+    if (typeof data === "string") {
+      hash.update(data, "utf-8");
     } else {
       hash.update(data);
     }
 
-    return hash.digest('hex');
+    return hash.digest("hex");
   }
 
   /**
@@ -118,37 +118,37 @@ export class SHA256ChecksumService implements ChecksumService {
       await fs.access(filePath, fs.constants.R_OK);
     } catch (error) {
       const err = error as { code?: string };
-      if (err.code === 'ENOENT') {
-        throw new ChecksumError(`File not found: ${filePath}`, 'FILE_NOT_FOUND');
+      if (err.code === "ENOENT") {
+        throw new ChecksumError(`File not found: ${filePath}`, "FILE_NOT_FOUND");
       }
-      if (err.code === 'EACCES') {
-        throw new ChecksumError(`Permission denied: ${filePath}`, 'PERMISSION_DENIED');
+      if (err.code === "EACCES") {
+        throw new ChecksumError(`Permission denied: ${filePath}`, "PERMISSION_DENIED");
       }
-      throw new ChecksumError(`Failed to access file: ${filePath}`, 'FILE_ACCESS_ERROR');
+      throw new ChecksumError(`Failed to access file: ${filePath}`, "FILE_ACCESS_ERROR");
     }
 
     return new Promise((resolve, reject) => {
-      const hash = crypto.createHash('sha256');
+      const hash = crypto.createHash("sha256");
       const stream = createReadStream(filePath);
 
-      stream.on('data', (chunk: string | Buffer) => {
+      stream.on("data", (chunk: string | Buffer) => {
         // string | Buffer 両方に対応（型安全性確保）
-        if (typeof chunk === 'string') {
-          hash.update(chunk, 'utf-8');
+        if (typeof chunk === "string") {
+          hash.update(chunk, "utf-8");
         } else {
           hash.update(chunk);
         }
       });
 
-      stream.on('end', () => {
-        const digest = hash.digest('hex');
+      stream.on("end", () => {
+        const digest = hash.digest("hex");
         logger.debug(`File hash generated: ${digest.substring(0, 16)}...`);
         resolve(digest);
       });
 
-      stream.on('error', (err: Error) => {
-        logger.error('File hash error', err);
-        reject(new ChecksumError(`Failed to read file: ${filePath}`, 'FILE_READ_ERROR'));
+      stream.on("error", (err: Error) => {
+        logger.error("File hash error", err);
+        reject(new ChecksumError(`Failed to read file: ${filePath}`, "FILE_READ_ERROR"));
       });
     });
   }
@@ -165,7 +165,7 @@ export class SHA256ChecksumService implements ChecksumService {
   verifyChecksum(data: string | Buffer, expectedHash: string): boolean {
     // 入力検証: ハッシュフォーマットチェック
     if (!this.isValidHashFormat(expectedHash)) {
-      logger.debug('Invalid hash format provided');
+      logger.debug("Invalid hash format provided");
       return false;
     }
 
@@ -186,13 +186,13 @@ export class SHA256ChecksumService implements ChecksumService {
 
     // 入力検証: ハッシュフォーマットチェック
     if (!this.isValidHashFormat(expectedHash)) {
-      throw new ChecksumError('Invalid checksum format', 'INVALID_FORMAT');
+      throw new ChecksumError("Invalid checksum format", "INVALID_FORMAT");
     }
 
     const actualHash = await this.generateFileHash(filePath);
     const isValid = this.timingSafeCompare(actualHash, expectedHash.toLowerCase());
 
-    logger.debug(`File integrity: ${isValid ? 'valid' : 'invalid'}`);
+    logger.debug(`File integrity: ${isValid ? "valid" : "invalid"}`);
 
     return isValid;
   }
@@ -207,13 +207,13 @@ export class SHA256ChecksumService implements ChecksumService {
    */
   compareChecksums(checksum1: string, checksum2: string): boolean {
     // 空文字列の特別処理
-    if (checksum1 === '' && checksum2 === '') {
+    if (checksum1 === "" && checksum2 === "") {
       return true;
     }
 
     // 入力検証
     if (!this.isValidHashFormat(checksum1) || !this.isValidHashFormat(checksum2)) {
-      throw new ChecksumError('Invalid checksum format', 'INVALID_FORMAT');
+      throw new ChecksumError("Invalid checksum format", "INVALID_FORMAT");
     }
 
     return this.timingSafeCompare(checksum1.toLowerCase(), checksum2.toLowerCase());
@@ -229,7 +229,7 @@ export class SHA256ChecksumService implements ChecksumService {
   detectCorruption(originalChecksum: string, currentChecksum: string): CorruptionDetectionResult {
     // 入力検証
     if (!this.isValidHashFormat(originalChecksum) || !this.isValidHashFormat(currentChecksum)) {
-      throw new ChecksumError('Invalid checksum format', 'INVALID_FORMAT');
+      throw new ChecksumError("Invalid checksum format", "INVALID_FORMAT");
     }
 
     const isMatch = this.timingSafeCompare(
@@ -275,8 +275,8 @@ export class SHA256ChecksumService implements ChecksumService {
       return false;
     }
 
-    const bufA = Buffer.from(a, 'utf-8');
-    const bufB = Buffer.from(b, 'utf-8');
+    const bufA = Buffer.from(a, "utf-8");
+    const bufB = Buffer.from(b, "utf-8");
 
     return crypto.timingSafeEqual(bufA, bufB);
   }

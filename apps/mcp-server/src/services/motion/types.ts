@@ -201,11 +201,11 @@ export interface DiffAnalysisSummary {
  * レイアウトシフトの推定原因
  */
 export type LayoutShiftCause =
-  | 'image_load'
-  | 'font_swap'
-  | 'dynamic_content'
-  | 'ad_injection'
-  | 'unknown';
+  | "image_load"
+  | "font_swap"
+  | "dynamic_content"
+  | "ad_injection"
+  | "unknown";
 
 /**
  * レイアウトシフト結果
@@ -246,7 +246,7 @@ export interface LayoutShiftSummary {
 /**
  * 色変化タイプ
  */
-export type ColorChangeType = 'fade_in' | 'fade_out' | 'color_transition' | 'brightness_change';
+export type ColorChangeType = "fade_in" | "fade_out" | "color_transition" | "brightness_change";
 
 /**
  * 色変化イベント
@@ -290,15 +290,15 @@ export interface ColorChangeResult {
  * モーションタイプ
  */
 export type MotionType =
-  | 'static'
-  | 'slide_left'
-  | 'slide_right'
-  | 'slide_up'
-  | 'slide_down'
-  | 'zoom_in'
-  | 'zoom_out'
-  | 'rotation'
-  | 'complex';
+  | "static"
+  | "slide_left"
+  | "slide_right"
+  | "slide_up"
+  | "slide_down"
+  | "zoom_in"
+  | "zoom_out"
+  | "rotation"
+  | "complex";
 
 /**
  * モーションベクトル結果
@@ -337,7 +337,7 @@ export interface MotionVectorSummary {
 /**
  * 要素可視性イベントタイプ
  */
-export type VisibilityEventType = 'appear' | 'disappear';
+export type VisibilityEventType = "appear" | "disappear";
 
 /**
  * 要素可視性イベント
@@ -374,30 +374,30 @@ export interface ElementVisibilityResult {
  */
 export const FrameAnalysisErrorCodes = {
   // === 入力バリデーション ===
-  INVALID_INPUT: 'FRAME_ANALYSIS_INVALID_INPUT',
-  MISSING_FRAMES: 'FRAME_ANALYSIS_MISSING_FRAMES',
-  INVALID_FRAME_FORMAT: 'FRAME_ANALYSIS_INVALID_FRAME_FORMAT',
-  DIMENSION_MISMATCH: 'FRAME_ANALYSIS_DIMENSION_MISMATCH',
-  PATH_TRAVERSAL: 'FRAME_ANALYSIS_PATH_TRAVERSAL',
+  INVALID_INPUT: "FRAME_ANALYSIS_INVALID_INPUT",
+  MISSING_FRAMES: "FRAME_ANALYSIS_MISSING_FRAMES",
+  INVALID_FRAME_FORMAT: "FRAME_ANALYSIS_INVALID_FRAME_FORMAT",
+  DIMENSION_MISMATCH: "FRAME_ANALYSIS_DIMENSION_MISMATCH",
+  PATH_TRAVERSAL: "FRAME_ANALYSIS_PATH_TRAVERSAL",
 
   // === リソース制限 ===
-  MAX_FRAMES_EXCEEDED: 'FRAME_ANALYSIS_MAX_FRAMES_EXCEEDED',
-  MEMORY_LIMIT_EXCEEDED: 'FRAME_ANALYSIS_MEMORY_LIMIT_EXCEEDED',
-  TIMEOUT: 'FRAME_ANALYSIS_TIMEOUT',
+  MAX_FRAMES_EXCEEDED: "FRAME_ANALYSIS_MAX_FRAMES_EXCEEDED",
+  MEMORY_LIMIT_EXCEEDED: "FRAME_ANALYSIS_MEMORY_LIMIT_EXCEEDED",
+  TIMEOUT: "FRAME_ANALYSIS_TIMEOUT",
 
   // === 処理エラー ===
-  DIFF_FAILED: 'FRAME_ANALYSIS_DIFF_FAILED',
-  LAYOUT_SHIFT_FAILED: 'FRAME_ANALYSIS_LAYOUT_SHIFT_FAILED',
-  COLOR_ANALYSIS_FAILED: 'FRAME_ANALYSIS_COLOR_ANALYSIS_FAILED',
-  MOTION_VECTOR_FAILED: 'FRAME_ANALYSIS_MOTION_VECTOR_FAILED',
+  DIFF_FAILED: "FRAME_ANALYSIS_DIFF_FAILED",
+  LAYOUT_SHIFT_FAILED: "FRAME_ANALYSIS_LAYOUT_SHIFT_FAILED",
+  COLOR_ANALYSIS_FAILED: "FRAME_ANALYSIS_COLOR_ANALYSIS_FAILED",
+  MOTION_VECTOR_FAILED: "FRAME_ANALYSIS_MOTION_VECTOR_FAILED",
 
   // === インフラエラー ===
-  WORKER_FAILED: 'FRAME_ANALYSIS_WORKER_FAILED',
-  SHARP_ERROR: 'FRAME_ANALYSIS_SHARP_ERROR',
-  FILE_READ_ERROR: 'FRAME_ANALYSIS_FILE_READ_ERROR',
+  WORKER_FAILED: "FRAME_ANALYSIS_WORKER_FAILED",
+  SHARP_ERROR: "FRAME_ANALYSIS_SHARP_ERROR",
+  FILE_READ_ERROR: "FRAME_ANALYSIS_FILE_READ_ERROR",
 
   // === 内部エラー ===
-  INTERNAL_ERROR: 'FRAME_ANALYSIS_INTERNAL_ERROR',
+  INTERNAL_ERROR: "FRAME_ANALYSIS_INTERNAL_ERROR",
 } as const;
 
 export type FrameAnalysisErrorCode =
@@ -461,13 +461,13 @@ export interface FrameAnalysisResult {
  * タイムラインイベントタイプ
  */
 export type TimelineEventType =
-  | 'motion_start'
-  | 'motion_end'
-  | 'layout_shift'
-  | 'fade_in'
-  | 'fade_out'
-  | 'element_appear'
-  | 'element_disappear';
+  | "motion_start"
+  | "motion_end"
+  | "layout_shift"
+  | "fade_in"
+  | "fade_out"
+  | "element_appear"
+  | "element_disappear";
 
 /**
  * タイムラインイベント
@@ -649,10 +649,14 @@ export class FrameAnalysisError extends Error {
     public readonly details?: Record<string, unknown>
   ) {
     super(message);
-    this.name = 'FrameAnalysisError';
+    this.name = "FrameAnalysisError";
   }
 
-  toJSON(): { code: FrameAnalysisErrorCode; message: string; details?: Record<string, unknown> | undefined } {
+  toJSON(): {
+    code: FrameAnalysisErrorCode;
+    message: string;
+    details?: Record<string, unknown> | undefined;
+  } {
     return {
       code: this.code,
       message: this.message,
@@ -700,7 +704,7 @@ export const LIMITS = {
   /** 最大処理時間（60秒） */
   MAX_PROCESSING_TIME_MS: 60 * 1000,
   /** 許可された拡張子 */
-  ALLOWED_EXTENSIONS: ['.png', '.jpg', '.jpeg'] as readonly string[],
+  ALLOWED_EXTENSIONS: [".png", ".jpg", ".jpeg"] as readonly string[],
   /** 最大ファイルサイズ（10MB） */
   MAX_FILE_SIZE: 10 * 1024 * 1024,
 } as const;
@@ -724,7 +728,7 @@ export interface FrameLoaderMetadata {
   /** ファイルサイズ (bytes) */
   fileSize: number;
   /** フォーマット */
-  format: 'png' | 'jpeg';
+  format: "png" | "jpeg";
 }
 
 /**
@@ -767,13 +771,13 @@ export interface FrameLoaderOptions {
  * パス検証エラーコード
  */
 export type PathValidationErrorCode =
-  | 'PATH_TRAVERSAL'
-  | 'OUTSIDE_ALLOWED_DIR'
-  | 'INVALID_EXTENSION'
-  | 'FILE_NOT_FOUND'
-  | 'FILE_TOO_LARGE'
-  | 'NOT_A_FILE'
-  | 'PERMISSION_DENIED';
+  | "PATH_TRAVERSAL"
+  | "OUTSIDE_ALLOWED_DIR"
+  | "INVALID_EXTENSION"
+  | "FILE_NOT_FOUND"
+  | "FILE_TOO_LARGE"
+  | "NOT_A_FILE"
+  | "PERMISSION_DENIED";
 
 /**
  * パス検証結果
@@ -794,15 +798,19 @@ export interface PathValidationResult {
  */
 export class FrameLoaderError extends Error {
   constructor(
-    public readonly code: PathValidationErrorCode | 'DIMENSION_MISMATCH' | 'LOAD_FAILED',
+    public readonly code: PathValidationErrorCode | "DIMENSION_MISMATCH" | "LOAD_FAILED",
     message: string,
     public readonly details?: Record<string, unknown>
   ) {
     super(message);
-    this.name = 'FrameLoaderError';
+    this.name = "FrameLoaderError";
   }
 
-  toJSON(): { code: PathValidationErrorCode | 'DIMENSION_MISMATCH' | 'LOAD_FAILED'; message: string; details?: Record<string, unknown> | undefined } {
+  toJSON(): {
+    code: PathValidationErrorCode | "DIMENSION_MISMATCH" | "LOAD_FAILED";
+    message: string;
+    details?: Record<string, unknown> | undefined;
+  } {
     return {
       code: this.code,
       message: this.message,

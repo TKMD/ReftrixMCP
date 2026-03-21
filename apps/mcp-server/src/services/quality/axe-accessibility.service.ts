@@ -16,9 +16,9 @@
  * @module services/quality/axe-accessibility.service
  */
 
-import axe, { type RuleObject, type AxeResults } from 'axe-core';
-import { JSDOM } from 'jsdom';
-import { logger, isDevelopment } from '../../utils/logger';
+import axe, { type RuleObject, type AxeResults } from "axe-core";
+import { JSDOM } from "jsdom";
+import { logger, isDevelopment } from "../../utils/logger";
 
 // 共通モジュールからインポート
 import {
@@ -32,7 +32,7 @@ import {
   determineWcagLevel,
   createEmptyResult,
   convertAxeViolation,
-} from './axe-core-shared';
+} from "./axe-core-shared";
 
 // 型の再エクスポート（後方互換性のため）
 export type { ViolationImpact, WcagLevel, AxeViolation, AxeAccessibilityResult };
@@ -76,13 +76,13 @@ export class AxeAccessibilityService {
    */
   constructor(options: AxeServiceOptions = {}) {
     this.options = {
-      wcagLevel: options.wcagLevel ?? 'AA',
+      wcagLevel: options.wcagLevel ?? "AA",
       rules: options.rules,
       timeout: options.timeout ?? 30000,
     };
 
     if (isDevelopment()) {
-      logger.info('[AxeAccessibilityService] Initialized', {
+      logger.info("[AxeAccessibilityService] Initialized", {
         wcagLevel: this.options.wcagLevel,
         hasCustomRules: !!options.rules,
       });
@@ -97,14 +97,14 @@ export class AxeAccessibilityService {
    */
   async analyze(html: string): Promise<AxeAccessibilityResult> {
     // 空またはホワイトスペースのみの場合
-    if (!html || html.trim() === '') {
+    if (!html || html.trim() === "") {
       return this.createEmptyResult();
     }
 
     try {
       // JSDOMでHTMLをパース
       const dom = new JSDOM(html, {
-        runScripts: 'outside-only',
+        runScripts: "outside-only",
         pretendToBeVisual: true,
       });
 
@@ -114,7 +114,7 @@ export class AxeAccessibilityService {
       const axeConfig = this.buildAxeConfig();
 
       if (isDevelopment()) {
-        logger.info('[AxeAccessibilityService] Running aXe analysis', {
+        logger.info("[AxeAccessibilityService] Running aXe analysis", {
           htmlLength: html.length,
           wcagLevel: this.options.wcagLevel,
         });
@@ -127,7 +127,7 @@ export class AxeAccessibilityService {
       const processedResult = this.processResults(results);
 
       if (isDevelopment()) {
-        logger.info('[AxeAccessibilityService] Analysis completed', {
+        logger.info("[AxeAccessibilityService] Analysis completed", {
           violationCount: processedResult.violations.length,
           passes: processedResult.passes,
           score: processedResult.score,
@@ -141,8 +141,8 @@ export class AxeAccessibilityService {
       return processedResult;
     } catch (error) {
       if (isDevelopment()) {
-        logger.error('[AxeAccessibilityService] Analysis error', {
-          error: error instanceof Error ? error.message : 'Unknown error',
+        logger.error("[AxeAccessibilityService] Analysis error", {
+          error: error instanceof Error ? error.message : "Unknown error",
         });
       }
 
@@ -169,21 +169,21 @@ export class AxeAccessibilityService {
    * aXe設定を構築
    */
   private buildAxeConfig(): {
-    runOnly?: { type: 'tag'; values: string[] };
+    runOnly?: { type: "tag"; values: string[] };
     rules?: Record<string, { enabled: boolean }>;
   } {
     const config: {
-      runOnly?: { type: 'tag'; values: string[] };
+      runOnly?: { type: "tag"; values: string[] };
       rules?: Record<string, { enabled: boolean }>;
     } = {};
 
     // WCAGレベルに基づくルールフィルタリング
-    const wcagLevel = this.options.wcagLevel ?? 'AA';
+    const wcagLevel = this.options.wcagLevel ?? "AA";
     const tags = WCAG_LEVEL_TAGS[wcagLevel];
 
     if (tags) {
       config.runOnly = {
-        type: 'tag',
+        type: "tag",
         values: tags,
       };
     }
@@ -226,7 +226,7 @@ export class AxeAccessibilityService {
    * 空の結果を作成
    */
   private createEmptyResult(): AxeAccessibilityResult {
-    return createEmptyResult(this.options.wcagLevel ?? 'AA');
+    return createEmptyResult(this.options.wcagLevel ?? "AA");
   }
 }
 

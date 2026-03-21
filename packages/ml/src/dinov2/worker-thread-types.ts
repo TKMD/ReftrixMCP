@@ -20,7 +20,7 @@
  * Initialize the ONNX InferenceSession in the worker thread.
  */
 export interface DINOv2WorkerInitMessage {
-  type: 'init';
+  type: "init";
   requestId: string;
   modelPath: string;
 }
@@ -30,7 +30,7 @@ export interface DINOv2WorkerInitMessage {
  * The main thread sends raw 224x224x3 RGB pixel data.
  */
 export interface DINOv2WorkerInferMessage {
-  type: 'infer';
+  type: "infer";
   requestId: string;
   imageBuffer: ArrayBuffer; // 224x224x3 RGB raw pixels
   width: number;
@@ -41,7 +41,7 @@ export interface DINOv2WorkerInferMessage {
  * Dispose the ONNX session to free native memory.
  */
 export interface DINOv2WorkerDisposeMessage {
-  type: 'dispose';
+  type: "dispose";
   requestId: string;
 }
 
@@ -58,7 +58,7 @@ export type DINOv2WorkerMessage =
  * Successful response from init.
  */
 export interface DINOv2WorkerInitResponse {
-  type: 'init';
+  type: "init";
   requestId: string;
   success: true;
   loadTimeMs: number;
@@ -69,7 +69,7 @@ export interface DINOv2WorkerInitResponse {
  * Embedding is a plain number[] (structured clone compatible).
  */
 export interface DINOv2WorkerInferResponse {
-  type: 'infer';
+  type: "infer";
   requestId: string;
   success: true;
   embedding: number[]; // 768D, L2 normalized
@@ -80,7 +80,7 @@ export interface DINOv2WorkerInferResponse {
  * Successful response from dispose.
  */
 export interface DINOv2WorkerDisposeResponse {
-  type: 'dispose';
+  type: "dispose";
   requestId: string;
   success: true;
 }
@@ -89,11 +89,11 @@ export interface DINOv2WorkerDisposeResponse {
  * Error response for any message type.
  */
 export interface DINOv2WorkerErrorResponse {
-  type: 'error';
+  type: "error";
   requestId: string;
   success: false;
   error: string;
-  originalType: DINOv2WorkerMessage['type'];
+  originalType: DINOv2WorkerMessage["type"];
 }
 
 export type DINOv2WorkerResponse =

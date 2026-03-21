@@ -19,7 +19,7 @@
  * @module tests/tools/layout/to-code.tool.test
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 // =====================================================
 // インポート（実装後に動作するようになる）
@@ -32,45 +32,45 @@ import {
   resetLayoutToCodeServiceFactory,
   type LayoutToCodeInput,
   type ILayoutToCodeService,
-} from '../../../src/tools/layout/to-code.tool';
+} from "../../../src/tools/layout/to-code.tool";
 
 import {
   layoutToCodeInputSchema,
   layoutToCodeOutputSchema,
-} from '../../../src/tools/layout/schemas';
+} from "../../../src/tools/layout/schemas";
 
 // =====================================================
 // テストデータ
 // =====================================================
 
-const validUUID = '11111111-1111-1111-1111-111111111111';
-const validUUID2 = '22222222-2222-2222-2222-222222222222';
-const invalidUUID = 'not-a-valid-uuid';
+const validUUID = "11111111-1111-1111-1111-111111111111";
+const validUUID2 = "22222222-2222-2222-2222-222222222222";
+const invalidUUID = "not-a-valid-uuid";
 
 const mockSectionPattern = {
   id: validUUID,
-  webPageId: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
-  sectionType: 'hero',
-  sectionName: 'Modern Hero Section',
+  webPageId: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+  sectionType: "hero",
+  sectionName: "Modern Hero Section",
   positionIndex: 0,
   layoutInfo: {
-    type: 'hero',
-    grid: { columns: 2, gap: '32px' },
-    alignment: 'left',
-    heading: 'Welcome to Our Platform',
-    description: 'Build amazing things with our tools',
+    type: "hero",
+    grid: { columns: 2, gap: "32px" },
+    alignment: "left",
+    heading: "Welcome to Our Platform",
+    description: "Build amazing things with our tools",
   },
   visualFeatures: {
-    colors: { dominant: '#3B82F6', background: '#FFFFFF' },
+    colors: { dominant: "#3B82F6", background: "#FFFFFF" },
   },
   htmlSnippet: '<section class="hero"><h1>Welcome</h1></section>',
-  textRepresentation: 'Hero section with blue gradient, left-aligned heading, CTA button',
+  textRepresentation: "Hero section with blue gradient, left-aligned heading, CTA button",
   webPage: {
-    id: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
-    url: 'https://example.com/page1',
-    title: 'Example Page 1',
-    sourceType: 'award_gallery',
-    usageScope: 'inspiration_only',
+    id: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+    url: "https://example.com/page1",
+    title: "Example Page 1",
+    sourceType: "award_gallery",
+    usageScope: "inspiration_only",
   },
 };
 
@@ -97,9 +97,9 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
   );
 };
 `,
-    componentName: 'HeroSection',
-    filename: 'HeroSection.tsx',
-    dependencies: ['react'],
+    componentName: "HeroSection",
+    filename: "HeroSection.tsx",
+    dependencies: ["react"],
   },
   vue: {
     code: `<template>
@@ -118,9 +118,9 @@ defineProps<{
 }>();
 </script>
 `,
-    componentName: 'HeroSection',
-    filename: 'HeroSection.vue',
-    dependencies: ['vue'],
+    componentName: "HeroSection",
+    filename: "HeroSection.vue",
+    dependencies: ["vue"],
   },
   html: {
     code: `<section class="hero bg-white">
@@ -130,8 +130,8 @@ defineProps<{
   </div>
 </section>
 `,
-    componentName: 'hero-section',
-    filename: 'hero-section.html',
+    componentName: "hero-section",
+    filename: "hero-section.html",
     dependencies: [],
   },
 };
@@ -144,7 +144,7 @@ function createMockService(overrides?: Partial<ILayoutToCodeService>): ILayoutTo
   return {
     getSectionPatternById: vi.fn().mockResolvedValue(mockSectionPattern),
     generateCode: vi.fn().mockImplementation((pattern, options) => {
-      const framework = options?.framework ?? 'react';
+      const framework = options?.framework ?? "react";
       return Promise.resolve(mockGeneratedCode[framework as keyof typeof mockGeneratedCode]);
     }),
     ...overrides,
@@ -155,9 +155,9 @@ function createMockService(overrides?: Partial<ILayoutToCodeService>): ILayoutTo
 // 入力バリデーションテスト（18+ tests）
 // =====================================================
 
-describe('layoutToCodeInputSchema', () => {
-  describe('patternId バリデーション', () => {
-    it('有効なUUIDを受け付ける', () => {
+describe("layoutToCodeInputSchema", () => {
+  describe("patternId バリデーション", () => {
+    it("有効なUUIDを受け付ける", () => {
       const input = { patternId: validUUID };
       const result = layoutToCodeInputSchema.safeParse(input);
       expect(result.success).toBe(true);
@@ -166,89 +166,89 @@ describe('layoutToCodeInputSchema', () => {
       }
     });
 
-    it('別の有効なUUIDを受け付ける', () => {
+    it("別の有効なUUIDを受け付ける", () => {
       const input = { patternId: validUUID2 };
       const result = layoutToCodeInputSchema.safeParse(input);
       expect(result.success).toBe(true);
     });
 
-    it('無効なUUID形式を拒否する', () => {
+    it("無効なUUID形式を拒否する", () => {
       const input = { patternId: invalidUUID };
       const result = layoutToCodeInputSchema.safeParse(input);
       expect(result.success).toBe(false);
     });
 
-    it('空文字列を拒否する', () => {
-      const input = { patternId: '' };
+    it("空文字列を拒否する", () => {
+      const input = { patternId: "" };
       const result = layoutToCodeInputSchema.safeParse(input);
       expect(result.success).toBe(false);
     });
 
-    it('patternIdなしを拒否する', () => {
+    it("patternIdなしを拒否する", () => {
       const input = {};
       const result = layoutToCodeInputSchema.safeParse(input);
       expect(result.success).toBe(false);
     });
 
-    it('数値を拒否する', () => {
+    it("数値を拒否する", () => {
       const input = { patternId: 12345 };
       const result = layoutToCodeInputSchema.safeParse(input);
       expect(result.success).toBe(false);
     });
 
-    it('nullを拒否する', () => {
+    it("nullを拒否する", () => {
       const input = { patternId: null };
       const result = layoutToCodeInputSchema.safeParse(input);
       expect(result.success).toBe(false);
     });
   });
 
-  describe('options.framework バリデーション', () => {
-    it('reactを受け付ける', () => {
-      const input = { patternId: validUUID, options: { framework: 'react' } };
+  describe("options.framework バリデーション", () => {
+    it("reactを受け付ける", () => {
+      const input = { patternId: validUUID, options: { framework: "react" } };
       const result = layoutToCodeInputSchema.safeParse(input);
       expect(result.success).toBe(true);
       if (result.success) {
-        expect(result.data.options?.framework).toBe('react');
+        expect(result.data.options?.framework).toBe("react");
       }
     });
 
-    it('vueを受け付ける', () => {
-      const input = { patternId: validUUID, options: { framework: 'vue' } };
+    it("vueを受け付ける", () => {
+      const input = { patternId: validUUID, options: { framework: "vue" } };
       const result = layoutToCodeInputSchema.safeParse(input);
       expect(result.success).toBe(true);
       if (result.success) {
-        expect(result.data.options?.framework).toBe('vue');
+        expect(result.data.options?.framework).toBe("vue");
       }
     });
 
-    it('htmlを受け付ける', () => {
-      const input = { patternId: validUUID, options: { framework: 'html' } };
+    it("htmlを受け付ける", () => {
+      const input = { patternId: validUUID, options: { framework: "html" } };
       const result = layoutToCodeInputSchema.safeParse(input);
       expect(result.success).toBe(true);
       if (result.success) {
-        expect(result.data.options?.framework).toBe('html');
+        expect(result.data.options?.framework).toBe("html");
       }
     });
 
-    it('無効なframeworkを拒否する', () => {
-      const input = { patternId: validUUID, options: { framework: 'angular' } };
+    it("無効なframeworkを拒否する", () => {
+      const input = { patternId: validUUID, options: { framework: "angular" } };
       const result = layoutToCodeInputSchema.safeParse(input);
       expect(result.success).toBe(false);
     });
 
-    it('frameworkのデフォルト値はreact', () => {
+    it("frameworkのデフォルト値はreact", () => {
       const input = { patternId: validUUID, options: {} };
       const result = layoutToCodeInputSchema.safeParse(input);
       expect(result.success).toBe(true);
       if (result.success) {
-        expect(result.data.options?.framework).toBe('react');
+        expect(result.data.options?.framework).toBe("react");
       }
     });
   });
 
-  describe('options.typescript バリデーション', () => {
-    it('trueを受け付ける', () => {
+  describe("options.typescript バリデーション", () => {
+    it("trueを受け付ける", () => {
       const input = { patternId: validUUID, options: { typescript: true } };
       const result = layoutToCodeInputSchema.safeParse(input);
       expect(result.success).toBe(true);
@@ -257,7 +257,7 @@ describe('layoutToCodeInputSchema', () => {
       }
     });
 
-    it('falseを受け付ける', () => {
+    it("falseを受け付ける", () => {
       const input = { patternId: validUUID, options: { typescript: false } };
       const result = layoutToCodeInputSchema.safeParse(input);
       expect(result.success).toBe(true);
@@ -266,7 +266,7 @@ describe('layoutToCodeInputSchema', () => {
       }
     });
 
-    it('typescriptのデフォルト値はtrue', () => {
+    it("typescriptのデフォルト値はtrue", () => {
       const input = { patternId: validUUID, options: {} };
       const result = layoutToCodeInputSchema.safeParse(input);
       expect(result.success).toBe(true);
@@ -276,8 +276,8 @@ describe('layoutToCodeInputSchema', () => {
     });
   });
 
-  describe('options.tailwind バリデーション', () => {
-    it('trueを受け付ける', () => {
+  describe("options.tailwind バリデーション", () => {
+    it("trueを受け付ける", () => {
       const input = { patternId: validUUID, options: { tailwind: true } };
       const result = layoutToCodeInputSchema.safeParse(input);
       expect(result.success).toBe(true);
@@ -286,7 +286,7 @@ describe('layoutToCodeInputSchema', () => {
       }
     });
 
-    it('falseを受け付ける', () => {
+    it("falseを受け付ける", () => {
       const input = { patternId: validUUID, options: { tailwind: false } };
       const result = layoutToCodeInputSchema.safeParse(input);
       expect(result.success).toBe(true);
@@ -295,7 +295,7 @@ describe('layoutToCodeInputSchema', () => {
       }
     });
 
-    it('tailwindのデフォルト値はtrue', () => {
+    it("tailwindのデフォルト値はtrue", () => {
       const input = { patternId: validUUID, options: {} };
       const result = layoutToCodeInputSchema.safeParse(input);
       expect(result.success).toBe(true);
@@ -305,43 +305,43 @@ describe('layoutToCodeInputSchema', () => {
     });
   });
 
-  describe('options.componentName バリデーション', () => {
-    it('PascalCase形式を受け付ける', () => {
-      const input = { patternId: validUUID, options: { componentName: 'MyHeroSection' } };
+  describe("options.componentName バリデーション", () => {
+    it("PascalCase形式を受け付ける", () => {
+      const input = { patternId: validUUID, options: { componentName: "MyHeroSection" } };
       const result = layoutToCodeInputSchema.safeParse(input);
       expect(result.success).toBe(true);
       if (result.success) {
-        expect(result.data.options?.componentName).toBe('MyHeroSection');
+        expect(result.data.options?.componentName).toBe("MyHeroSection");
       }
     });
 
-    it('camelCase形式を拒否する', () => {
-      const input = { patternId: validUUID, options: { componentName: 'myHeroSection' } };
+    it("camelCase形式を拒否する", () => {
+      const input = { patternId: validUUID, options: { componentName: "myHeroSection" } };
       const result = layoutToCodeInputSchema.safeParse(input);
       expect(result.success).toBe(false);
     });
 
-    it('kebab-case形式を拒否する', () => {
-      const input = { patternId: validUUID, options: { componentName: 'my-hero-section' } };
+    it("kebab-case形式を拒否する", () => {
+      const input = { patternId: validUUID, options: { componentName: "my-hero-section" } };
       const result = layoutToCodeInputSchema.safeParse(input);
       expect(result.success).toBe(false);
     });
 
-    it('数字で始まる名前を拒否する', () => {
-      const input = { patternId: validUUID, options: { componentName: '1HeroSection' } };
+    it("数字で始まる名前を拒否する", () => {
+      const input = { patternId: validUUID, options: { componentName: "1HeroSection" } };
       const result = layoutToCodeInputSchema.safeParse(input);
       expect(result.success).toBe(false);
     });
 
-    it('空文字列を拒否する', () => {
-      const input = { patternId: validUUID, options: { componentName: '' } };
+    it("空文字列を拒否する", () => {
+      const input = { patternId: validUUID, options: { componentName: "" } };
       const result = layoutToCodeInputSchema.safeParse(input);
       expect(result.success).toBe(false);
     });
   });
 
-  describe('options.paletteId バリデーション', () => {
-    it('有効なUUIDを受け付ける', () => {
+  describe("options.paletteId バリデーション", () => {
+    it("有効なUUIDを受け付ける", () => {
       const input = { patternId: validUUID, options: { paletteId: validUUID2 } };
       const result = layoutToCodeInputSchema.safeParse(input);
       expect(result.success).toBe(true);
@@ -350,22 +350,22 @@ describe('layoutToCodeInputSchema', () => {
       }
     });
 
-    it('無効なUUIDを拒否する', () => {
-      const input = { patternId: validUUID, options: { paletteId: 'invalid-palette-id' } };
+    it("無効なUUIDを拒否する", () => {
+      const input = { patternId: validUUID, options: { paletteId: "invalid-palette-id" } };
       const result = layoutToCodeInputSchema.safeParse(input);
       expect(result.success).toBe(false);
     });
   });
 
-  describe('全オプション組み合わせ', () => {
-    it('全てのオプションを指定できる', () => {
+  describe("全オプション組み合わせ", () => {
+    it("全てのオプションを指定できる", () => {
       const input = {
         patternId: validUUID,
         options: {
-          framework: 'vue',
+          framework: "vue",
           typescript: true,
           tailwind: true,
-          componentName: 'CustomHero',
+          componentName: "CustomHero",
           paletteId: validUUID2,
         },
       };
@@ -373,15 +373,15 @@ describe('layoutToCodeInputSchema', () => {
       expect(result.success).toBe(true);
       if (result.success) {
         expect(result.data.patternId).toBe(validUUID);
-        expect(result.data.options?.framework).toBe('vue');
+        expect(result.data.options?.framework).toBe("vue");
         expect(result.data.options?.typescript).toBe(true);
         expect(result.data.options?.tailwind).toBe(true);
-        expect(result.data.options?.componentName).toBe('CustomHero');
+        expect(result.data.options?.componentName).toBe("CustomHero");
         expect(result.data.options?.paletteId).toBe(validUUID2);
       }
     });
 
-    it('optionsなしでpatternIdのみを受け付ける', () => {
+    it("optionsなしでpatternIdのみを受け付ける", () => {
       const input = { patternId: validUUID };
       const result = layoutToCodeInputSchema.safeParse(input);
       expect(result.success).toBe(true);
@@ -393,7 +393,7 @@ describe('layoutToCodeInputSchema', () => {
 // コード生成テスト（10+ tests）
 // =====================================================
 
-describe('layoutToCodeHandler - コード生成', () => {
+describe("layoutToCodeHandler - コード生成", () => {
   beforeEach(() => {
     resetLayoutToCodeServiceFactory();
   });
@@ -402,7 +402,7 @@ describe('layoutToCodeHandler - コード生成', () => {
     resetLayoutToCodeServiceFactory();
   });
 
-  it('patternIdからセクションパターンを取得する', async () => {
+  it("patternIdからセクションパターンを取得する", async () => {
     const mockService = createMockService();
     setLayoutToCodeServiceFactory(() => mockService);
 
@@ -412,20 +412,17 @@ describe('layoutToCodeHandler - コード生成', () => {
     expect(mockService.getSectionPatternById).toHaveBeenCalledWith(validUUID);
   });
 
-  it('CodeGeneratorにパターンを渡してコード生成する', async () => {
+  it("CodeGeneratorにパターンを渡してコード生成する", async () => {
     const mockService = createMockService();
     setLayoutToCodeServiceFactory(() => mockService);
 
     const input: LayoutToCodeInput = { patternId: validUUID };
     await layoutToCodeHandler(input);
 
-    expect(mockService.generateCode).toHaveBeenCalledWith(
-      mockSectionPattern,
-      expect.any(Object)
-    );
+    expect(mockService.generateCode).toHaveBeenCalledWith(mockSectionPattern, expect.any(Object));
   });
 
-  it('生成コードを返却する', async () => {
+  it("生成コードを返却する", async () => {
     const mockService = createMockService();
     setLayoutToCodeServiceFactory(() => mockService);
 
@@ -434,12 +431,12 @@ describe('layoutToCodeHandler - コード生成', () => {
 
     expect(result.success).toBe(true);
     if (result.success) {
-      expect(result.data.code).toContain('HeroSection');
-      expect(result.data.code).toContain('React');
+      expect(result.data.code).toContain("HeroSection");
+      expect(result.data.code).toContain("React");
     }
   });
 
-  it('デフォルトオプションでReact/TypeScriptコードを生成する', async () => {
+  it("デフォルトオプションでReact/TypeScriptコードを生成する", async () => {
     const mockService = createMockService();
     setLayoutToCodeServiceFactory(() => mockService);
 
@@ -448,52 +445,52 @@ describe('layoutToCodeHandler - コード生成', () => {
 
     expect(result.success).toBe(true);
     if (result.success) {
-      expect(result.data.framework).toBe('react');
-      expect(result.data.filename).toContain('.tsx');
+      expect(result.data.framework).toBe("react");
+      expect(result.data.filename).toContain(".tsx");
     }
   });
 
-  it('オプションで指定したframeworkでコードを生成する', async () => {
+  it("オプションで指定したframeworkでコードを生成する", async () => {
     const mockService = createMockService();
     setLayoutToCodeServiceFactory(() => mockService);
 
     const input: LayoutToCodeInput = {
       patternId: validUUID,
-      options: { framework: 'vue' },
+      options: { framework: "vue" },
     };
     const result = await layoutToCodeHandler(input);
 
     expect(result.success).toBe(true);
     if (result.success) {
-      expect(result.data.framework).toBe('vue');
-      expect(result.data.filename).toContain('.vue');
+      expect(result.data.framework).toBe("vue");
+      expect(result.data.filename).toContain(".vue");
     }
   });
 
-  it('カスタムcomponentNameを使用する', async () => {
+  it("カスタムcomponentNameを使用する", async () => {
     const mockService = createMockService({
       generateCode: vi.fn().mockResolvedValue({
-        code: 'export const CustomHero = () => {}',
-        componentName: 'CustomHero',
-        filename: 'CustomHero.tsx',
-        dependencies: ['react'],
+        code: "export const CustomHero = () => {}",
+        componentName: "CustomHero",
+        filename: "CustomHero.tsx",
+        dependencies: ["react"],
       }),
     });
     setLayoutToCodeServiceFactory(() => mockService);
 
     const input: LayoutToCodeInput = {
       patternId: validUUID,
-      options: { componentName: 'CustomHero' },
+      options: { componentName: "CustomHero" },
     };
     const result = await layoutToCodeHandler(input);
 
     expect(result.success).toBe(true);
     if (result.success) {
-      expect(result.data.componentName).toBe('CustomHero');
+      expect(result.data.componentName).toBe("CustomHero");
     }
   });
 
-  it('dependenciesリストを返却する', async () => {
+  it("dependenciesリストを返却する", async () => {
     const mockService = createMockService();
     setLayoutToCodeServiceFactory(() => mockService);
 
@@ -507,7 +504,7 @@ describe('layoutToCodeHandler - コード生成', () => {
     }
   });
 
-  it('inspirationUrlsを返却する', async () => {
+  it("inspirationUrlsを返却する", async () => {
     const mockService = createMockService();
     setLayoutToCodeServiceFactory(() => mockService);
 
@@ -520,7 +517,7 @@ describe('layoutToCodeHandler - コード生成', () => {
     }
   });
 
-  it('usageScopeを返却する', async () => {
+  it("usageScopeを返却する", async () => {
     const mockService = createMockService();
     setLayoutToCodeServiceFactory(() => mockService);
 
@@ -530,17 +527,17 @@ describe('layoutToCodeHandler - コード生成', () => {
     expect(result.success).toBe(true);
     if (result.success) {
       expect(result.data.usageScope).toBeDefined();
-      expect(['inspiration_only', 'owned_asset']).toContain(result.data.usageScope);
+      expect(["inspiration_only", "owned_asset"]).toContain(result.data.usageScope);
     }
   });
 
-  it('tailwind=falseでVanilla CSSコードを生成する', async () => {
+  it("tailwind=falseでVanilla CSSコードを生成する", async () => {
     const mockService = createMockService({
       generateCode: vi.fn().mockResolvedValue({
         code: '<section style="background: white;">...</section>',
-        componentName: 'HeroSection',
-        filename: 'HeroSection.tsx',
-        dependencies: ['react'],
+        componentName: "HeroSection",
+        filename: "HeroSection.tsx",
+        dependencies: ["react"],
       }),
     });
     setLayoutToCodeServiceFactory(() => mockService);
@@ -562,7 +559,7 @@ describe('layoutToCodeHandler - コード生成', () => {
 // フレームワーク別テスト（9+ tests）
 // =====================================================
 
-describe('layoutToCodeHandler - フレームワーク別出力', () => {
+describe("layoutToCodeHandler - フレームワーク別出力", () => {
   beforeEach(() => {
     resetLayoutToCodeServiceFactory();
   });
@@ -571,31 +568,31 @@ describe('layoutToCodeHandler - フレームワーク別出力', () => {
     resetLayoutToCodeServiceFactory();
   });
 
-  describe('React出力', () => {
-    it('React関数コンポーネントを生成する', async () => {
+  describe("React出力", () => {
+    it("React関数コンポーネントを生成する", async () => {
       const mockService = createMockService();
       setLayoutToCodeServiceFactory(() => mockService);
 
       const input: LayoutToCodeInput = {
         patternId: validUUID,
-        options: { framework: 'react' },
+        options: { framework: "react" },
       };
       const result = await layoutToCodeHandler(input);
 
       expect(result.success).toBe(true);
       if (result.success) {
-        expect(result.data.code).toContain('React');
-        expect(result.data.framework).toBe('react');
+        expect(result.data.code).toContain("React");
+        expect(result.data.framework).toBe("react");
       }
     });
 
-    it('TypeScript有効時に.tsxファイルを生成する', async () => {
+    it("TypeScript有効時に.tsxファイルを生成する", async () => {
       const mockService = createMockService();
       setLayoutToCodeServiceFactory(() => mockService);
 
       const input: LayoutToCodeInput = {
         patternId: validUUID,
-        options: { framework: 'react', typescript: true },
+        options: { framework: "react", typescript: true },
       };
       const result = await layoutToCodeHandler(input);
 
@@ -605,20 +602,20 @@ describe('layoutToCodeHandler - フレームワーク別出力', () => {
       }
     });
 
-    it('TypeScript無効時に.jsxファイルを生成する', async () => {
+    it("TypeScript無効時に.jsxファイルを生成する", async () => {
       const mockService = createMockService({
         generateCode: vi.fn().mockResolvedValue({
-          code: 'export const HeroSection = () => {}',
-          componentName: 'HeroSection',
-          filename: 'HeroSection.jsx',
-          dependencies: ['react'],
+          code: "export const HeroSection = () => {}",
+          componentName: "HeroSection",
+          filename: "HeroSection.jsx",
+          dependencies: ["react"],
         }),
       });
       setLayoutToCodeServiceFactory(() => mockService);
 
       const input: LayoutToCodeInput = {
         patternId: validUUID,
-        options: { framework: 'react', typescript: false },
+        options: { framework: "react", typescript: false },
       };
       const result = await layoutToCodeHandler(input);
 
@@ -629,31 +626,31 @@ describe('layoutToCodeHandler - フレームワーク別出力', () => {
     });
   });
 
-  describe('Vue出力', () => {
-    it('Vue SFCを生成する', async () => {
+  describe("Vue出力", () => {
+    it("Vue SFCを生成する", async () => {
       const mockService = createMockService();
       setLayoutToCodeServiceFactory(() => mockService);
 
       const input: LayoutToCodeInput = {
         patternId: validUUID,
-        options: { framework: 'vue' },
+        options: { framework: "vue" },
       };
       const result = await layoutToCodeHandler(input);
 
       expect(result.success).toBe(true);
       if (result.success) {
-        expect(result.data.code).toContain('<template>');
-        expect(result.data.framework).toBe('vue');
+        expect(result.data.code).toContain("<template>");
+        expect(result.data.framework).toBe("vue");
       }
     });
 
-    it('.vueファイルを生成する', async () => {
+    it(".vueファイルを生成する", async () => {
       const mockService = createMockService();
       setLayoutToCodeServiceFactory(() => mockService);
 
       const input: LayoutToCodeInput = {
         patternId: validUUID,
-        options: { framework: 'vue' },
+        options: { framework: "vue" },
       };
       const result = await layoutToCodeHandler(input);
 
@@ -669,7 +666,7 @@ describe('layoutToCodeHandler - フレームワーク別出力', () => {
 
       const input: LayoutToCodeInput = {
         patternId: validUUID,
-        options: { framework: 'vue', typescript: true },
+        options: { framework: "vue", typescript: true },
       };
       const result = await layoutToCodeHandler(input);
 
@@ -680,31 +677,31 @@ describe('layoutToCodeHandler - フレームワーク別出力', () => {
     });
   });
 
-  describe('HTML出力', () => {
-    it('静的HTMLを生成する', async () => {
+  describe("HTML出力", () => {
+    it("静的HTMLを生成する", async () => {
       const mockService = createMockService();
       setLayoutToCodeServiceFactory(() => mockService);
 
       const input: LayoutToCodeInput = {
         patternId: validUUID,
-        options: { framework: 'html' },
+        options: { framework: "html" },
       };
       const result = await layoutToCodeHandler(input);
 
       expect(result.success).toBe(true);
       if (result.success) {
-        expect(result.data.code).toContain('<section');
-        expect(result.data.framework).toBe('html');
+        expect(result.data.code).toContain("<section");
+        expect(result.data.framework).toBe("html");
       }
     });
 
-    it('.htmlファイルを生成する', async () => {
+    it(".htmlファイルを生成する", async () => {
       const mockService = createMockService();
       setLayoutToCodeServiceFactory(() => mockService);
 
       const input: LayoutToCodeInput = {
         patternId: validUUID,
-        options: { framework: 'html' },
+        options: { framework: "html" },
       };
       const result = await layoutToCodeHandler(input);
 
@@ -714,13 +711,13 @@ describe('layoutToCodeHandler - フレームワーク別出力', () => {
       }
     });
 
-    it('HTMLでは依存関係が空または最小限', async () => {
+    it("HTMLでは依存関係が空または最小限", async () => {
       const mockService = createMockService();
       setLayoutToCodeServiceFactory(() => mockService);
 
       const input: LayoutToCodeInput = {
         patternId: validUUID,
-        options: { framework: 'html' },
+        options: { framework: "html" },
       };
       const result = await layoutToCodeHandler(input);
 
@@ -736,7 +733,7 @@ describe('layoutToCodeHandler - フレームワーク別出力', () => {
 // スタイリング別テスト（6+ tests）
 // =====================================================
 
-describe('layoutToCodeHandler - スタイリング別出力', () => {
+describe("layoutToCodeHandler - スタイリング別出力", () => {
   beforeEach(() => {
     resetLayoutToCodeServiceFactory();
   });
@@ -745,8 +742,8 @@ describe('layoutToCodeHandler - スタイリング別出力', () => {
     resetLayoutToCodeServiceFactory();
   });
 
-  describe('Tailwind CSS', () => {
-    it('tailwind=trueでTailwindクラスを使用する', async () => {
+  describe("Tailwind CSS", () => {
+    it("tailwind=trueでTailwindクラスを使用する", async () => {
       const mockService = createMockService();
       setLayoutToCodeServiceFactory(() => mockService);
 
@@ -763,7 +760,7 @@ describe('layoutToCodeHandler - スタイリング別出力', () => {
       }
     });
 
-    it('tailwindがデフォルトで有効', async () => {
+    it("tailwindがデフォルトで有効", async () => {
       const mockService = createMockService();
       setLayoutToCodeServiceFactory(() => mockService);
 
@@ -777,14 +774,14 @@ describe('layoutToCodeHandler - スタイリング別出力', () => {
     });
   });
 
-  describe('Vanilla CSS', () => {
-    it('tailwind=falseでインラインスタイルまたはCSSクラスを使用する', async () => {
+  describe("Vanilla CSS", () => {
+    it("tailwind=falseでインラインスタイルまたはCSSクラスを使用する", async () => {
       const mockService = createMockService({
         generateCode: vi.fn().mockResolvedValue({
           code: '<section className="hero-section">...</section>',
-          componentName: 'HeroSection',
-          filename: 'HeroSection.tsx',
-          dependencies: ['react'],
+          componentName: "HeroSection",
+          filename: "HeroSection.tsx",
+          dependencies: ["react"],
         }),
       });
       setLayoutToCodeServiceFactory(() => mockService);
@@ -802,8 +799,8 @@ describe('layoutToCodeHandler - スタイリング別出力', () => {
     });
   });
 
-  describe('paletteId適用', () => {
-    it('paletteIdが指定された場合にサービスに渡される', async () => {
+  describe("paletteId適用", () => {
+    it("paletteIdが指定された場合にサービスに渡される", async () => {
       const mockService = createMockService();
       setLayoutToCodeServiceFactory(() => mockService);
 
@@ -819,7 +816,7 @@ describe('layoutToCodeHandler - スタイリング別出力', () => {
       );
     });
 
-    it('paletteIdが指定されない場合はデフォルトカラーを使用', async () => {
+    it("paletteIdが指定されない場合はデフォルトカラーを使用", async () => {
       const mockService = createMockService();
       setLayoutToCodeServiceFactory(() => mockService);
 
@@ -838,7 +835,7 @@ describe('layoutToCodeHandler - スタイリング別出力', () => {
 // エラーハンドリングテスト（8+ tests）
 // =====================================================
 
-describe('layoutToCodeHandler - エラーハンドリング', () => {
+describe("layoutToCodeHandler - エラーハンドリング", () => {
   beforeEach(() => {
     resetLayoutToCodeServiceFactory();
   });
@@ -847,7 +844,7 @@ describe('layoutToCodeHandler - エラーハンドリング', () => {
     resetLayoutToCodeServiceFactory();
   });
 
-  it('存在しないpatternIdでPATTERN_NOT_FOUNDエラーを返す', async () => {
+  it("存在しないpatternIdでPATTERN_NOT_FOUNDエラーを返す", async () => {
     const mockService = createMockService({
       getSectionPatternById: vi.fn().mockResolvedValue(null),
     });
@@ -858,11 +855,11 @@ describe('layoutToCodeHandler - エラーハンドリング', () => {
 
     expect(result.success).toBe(false);
     if (!result.success) {
-      expect(result.error.code).toBe('PATTERN_NOT_FOUND');
+      expect(result.error.code).toBe("PATTERN_NOT_FOUND");
     }
   });
 
-  it('無効な入力でVALIDATION_ERRORを返す', async () => {
+  it("無効な入力でVALIDATION_ERRORを返す", async () => {
     const mockService = createMockService();
     setLayoutToCodeServiceFactory(() => mockService);
 
@@ -871,11 +868,11 @@ describe('layoutToCodeHandler - エラーハンドリング', () => {
 
     expect(result.success).toBe(false);
     if (!result.success) {
-      expect(result.error.code).toBe('VALIDATION_ERROR');
+      expect(result.error.code).toBe("VALIDATION_ERROR");
     }
   });
 
-  it('サービスファクトリーが未設定の場合にエラーを返す', async () => {
+  it("サービスファクトリーが未設定の場合にエラーを返す", async () => {
     resetLayoutToCodeServiceFactory();
 
     const input: LayoutToCodeInput = { patternId: validUUID };
@@ -883,13 +880,13 @@ describe('layoutToCodeHandler - エラーハンドリング', () => {
 
     expect(result.success).toBe(false);
     if (!result.success) {
-      expect(result.error.code).toBe('SERVICE_UNAVAILABLE');
+      expect(result.error.code).toBe("SERVICE_UNAVAILABLE");
     }
   });
 
-  it('DB接続エラーをハンドリングする', async () => {
+  it("DB接続エラーをハンドリングする", async () => {
     const mockService = createMockService({
-      getSectionPatternById: vi.fn().mockRejectedValue(new Error('Database connection failed')),
+      getSectionPatternById: vi.fn().mockRejectedValue(new Error("Database connection failed")),
     });
     setLayoutToCodeServiceFactory(() => mockService);
 
@@ -898,13 +895,13 @@ describe('layoutToCodeHandler - エラーハンドリング', () => {
 
     expect(result.success).toBe(false);
     if (!result.success) {
-      expect(result.error.code).toBe('INTERNAL_ERROR');
+      expect(result.error.code).toBe("INTERNAL_ERROR");
     }
   });
 
-  it('CodeGenerator内部エラーをハンドリングする', async () => {
+  it("CodeGenerator内部エラーをハンドリングする", async () => {
     const mockService = createMockService({
-      generateCode: vi.fn().mockRejectedValue(new Error('Code generation failed')),
+      generateCode: vi.fn().mockRejectedValue(new Error("Code generation failed")),
     });
     setLayoutToCodeServiceFactory(() => mockService);
 
@@ -913,13 +910,13 @@ describe('layoutToCodeHandler - エラーハンドリング', () => {
 
     expect(result.success).toBe(false);
     if (!result.success) {
-      expect(result.error.code).toBe('CODE_GENERATION_FAILED');
+      expect(result.error.code).toBe("CODE_GENERATION_FAILED");
     }
   });
 
-  it('不明なエラーをINTERNAL_ERRORとして返す', async () => {
+  it("不明なエラーをINTERNAL_ERRORとして返す", async () => {
     const mockService = createMockService({
-      getSectionPatternById: vi.fn().mockRejectedValue('Unknown error'),
+      getSectionPatternById: vi.fn().mockRejectedValue("Unknown error"),
     });
     setLayoutToCodeServiceFactory(() => mockService);
 
@@ -928,13 +925,13 @@ describe('layoutToCodeHandler - エラーハンドリング', () => {
 
     expect(result.success).toBe(false);
     if (!result.success) {
-      expect(result.error.code).toBe('INTERNAL_ERROR');
+      expect(result.error.code).toBe("INTERNAL_ERROR");
     }
   });
 
-  it('エラーメッセージに詳細が含まれる', async () => {
+  it("エラーメッセージに詳細が含まれる", async () => {
     const mockService = createMockService({
-      generateCode: vi.fn().mockRejectedValue(new Error('Template parsing error at line 42')),
+      generateCode: vi.fn().mockRejectedValue(new Error("Template parsing error at line 42")),
     });
     setLayoutToCodeServiceFactory(() => mockService);
 
@@ -943,13 +940,13 @@ describe('layoutToCodeHandler - エラーハンドリング', () => {
 
     expect(result.success).toBe(false);
     if (!result.success) {
-      expect(result.error.message).toContain('Template parsing error');
+      expect(result.error.message).toContain("Template parsing error");
     }
   });
 
-  it('タイムアウトエラーをハンドリングする', async () => {
+  it("タイムアウトエラーをハンドリングする", async () => {
     const mockService = createMockService({
-      generateCode: vi.fn().mockRejectedValue(new Error('Operation timed out')),
+      generateCode: vi.fn().mockRejectedValue(new Error("Operation timed out")),
     });
     setLayoutToCodeServiceFactory(() => mockService);
 
@@ -964,7 +961,7 @@ describe('layoutToCodeHandler - エラーハンドリング', () => {
 // レスポンス形式テスト（6+ tests）
 // =====================================================
 
-describe('layoutToCodeHandler - レスポンス形式', () => {
+describe("layoutToCodeHandler - レスポンス形式", () => {
   beforeEach(() => {
     resetLayoutToCodeServiceFactory();
   });
@@ -973,7 +970,7 @@ describe('layoutToCodeHandler - レスポンス形式', () => {
     resetLayoutToCodeServiceFactory();
   });
 
-  it('codeフィールドが文字列', async () => {
+  it("codeフィールドが文字列", async () => {
     const mockService = createMockService();
     setLayoutToCodeServiceFactory(() => mockService);
 
@@ -982,12 +979,12 @@ describe('layoutToCodeHandler - レスポンス形式', () => {
 
     expect(result.success).toBe(true);
     if (result.success) {
-      expect(typeof result.data.code).toBe('string');
+      expect(typeof result.data.code).toBe("string");
       expect(result.data.code.length).toBeGreaterThan(0);
     }
   });
 
-  it('frameworkフィールドが正しいenum値', async () => {
+  it("frameworkフィールドが正しいenum値", async () => {
     const mockService = createMockService();
     setLayoutToCodeServiceFactory(() => mockService);
 
@@ -996,11 +993,11 @@ describe('layoutToCodeHandler - レスポンス形式', () => {
 
     expect(result.success).toBe(true);
     if (result.success) {
-      expect(['react', 'vue', 'html']).toContain(result.data.framework);
+      expect(["react", "vue", "html"]).toContain(result.data.framework);
     }
   });
 
-  it('componentNameフィールドが文字列', async () => {
+  it("componentNameフィールドが文字列", async () => {
     const mockService = createMockService();
     setLayoutToCodeServiceFactory(() => mockService);
 
@@ -1009,12 +1006,12 @@ describe('layoutToCodeHandler - レスポンス形式', () => {
 
     expect(result.success).toBe(true);
     if (result.success) {
-      expect(typeof result.data.componentName).toBe('string');
+      expect(typeof result.data.componentName).toBe("string");
       expect(result.data.componentName.length).toBeGreaterThan(0);
     }
   });
 
-  it('filenameフィールドが正しい拡張子を持つ', async () => {
+  it("filenameフィールドが正しい拡張子を持つ", async () => {
     const mockService = createMockService();
     setLayoutToCodeServiceFactory(() => mockService);
 
@@ -1027,7 +1024,7 @@ describe('layoutToCodeHandler - レスポンス形式', () => {
     }
   });
 
-  it('dependenciesフィールドが配列', async () => {
+  it("dependenciesフィールドが配列", async () => {
     const mockService = createMockService();
     setLayoutToCodeServiceFactory(() => mockService);
 
@@ -1040,7 +1037,7 @@ describe('layoutToCodeHandler - レスポンス形式', () => {
     }
   });
 
-  it('usageScopeフィールドが正しいenum値', async () => {
+  it("usageScopeフィールドが正しいenum値", async () => {
     const mockService = createMockService();
     setLayoutToCodeServiceFactory(() => mockService);
 
@@ -1049,11 +1046,11 @@ describe('layoutToCodeHandler - レスポンス形式', () => {
 
     expect(result.success).toBe(true);
     if (result.success) {
-      expect(['inspiration_only', 'owned_asset']).toContain(result.data.usageScope);
+      expect(["inspiration_only", "owned_asset"]).toContain(result.data.usageScope);
     }
   });
 
-  it('出力がlayoutToCodeOutputSchemaに準拠する', async () => {
+  it("出力がlayoutToCodeOutputSchemaに準拠する", async () => {
     const mockService = createMockService();
     setLayoutToCodeServiceFactory(() => mockService);
 
@@ -1069,43 +1066,43 @@ describe('layoutToCodeHandler - レスポンス形式', () => {
 // ツール定義テスト（5+ tests）
 // =====================================================
 
-describe('layoutToCodeToolDefinition', () => {
-  it('正しい名前を持つ', () => {
+describe("layoutToCodeToolDefinition", () => {
+  it("正しい名前を持つ", () => {
     // v0.1.0: layout.to_code → layout.generate_code にリネーム
     // layoutToCodeToolDefinitionは後方互換性のためのエイリアスで、新しい名前を返す
-    expect(layoutToCodeToolDefinition.name).toBe('layout.generate_code');
+    expect(layoutToCodeToolDefinition.name).toBe("layout.generate_code");
   });
 
-  it('説明が設定されている', () => {
+  it("説明が設定されている", () => {
     expect(layoutToCodeToolDefinition.description).toBeTruthy();
     expect(layoutToCodeToolDefinition.description.length).toBeGreaterThan(10);
   });
 
-  it('inputSchemaが定義されている', () => {
+  it("inputSchemaが定義されている", () => {
     expect(layoutToCodeToolDefinition.inputSchema).toBeDefined();
-    expect(layoutToCodeToolDefinition.inputSchema.type).toBe('object');
+    expect(layoutToCodeToolDefinition.inputSchema.type).toBe("object");
   });
 
-  it('必須プロパティにpatternIdが含まれる', () => {
-    expect(layoutToCodeToolDefinition.inputSchema.required).toContain('patternId');
+  it("必須プロパティにpatternIdが含まれる", () => {
+    expect(layoutToCodeToolDefinition.inputSchema.required).toContain("patternId");
   });
 
-  it('patternIdプロパティの定義が正しい', () => {
+  it("patternIdプロパティの定義が正しい", () => {
     const patternIdProp = layoutToCodeToolDefinition.inputSchema.properties.patternId;
-    expect(patternIdProp.type).toBe('string');
-    expect(patternIdProp.format).toBe('uuid');
+    expect(patternIdProp.type).toBe("string");
+    expect(patternIdProp.format).toBe("uuid");
   });
 
-  it('optionsプロパティが定義されている', () => {
+  it("optionsプロパティが定義されている", () => {
     const optionsProp = layoutToCodeToolDefinition.inputSchema.properties.options;
-    expect(optionsProp.type).toBe('object');
+    expect(optionsProp.type).toBe("object");
   });
 
-  it('options.frameworkプロパティが正しく定義されている', () => {
+  it("options.frameworkプロパティが正しく定義されている", () => {
     const optionsProp = layoutToCodeToolDefinition.inputSchema.properties.options;
-    expect(optionsProp.properties.framework.enum).toContain('react');
-    expect(optionsProp.properties.framework.enum).toContain('vue');
-    expect(optionsProp.properties.framework.enum).toContain('html');
+    expect(optionsProp.properties.framework.enum).toContain("react");
+    expect(optionsProp.properties.framework.enum).toContain("vue");
+    expect(optionsProp.properties.framework.enum).toContain("html");
   });
 });
 
@@ -1113,18 +1110,18 @@ describe('layoutToCodeToolDefinition', () => {
 // 出力スキーマテスト（4+ tests）
 // =====================================================
 
-describe('layoutToCodeOutputSchema', () => {
-  it('有効な成功レスポンスを検証できる', () => {
+describe("layoutToCodeOutputSchema", () => {
+  it("有効な成功レスポンスを検証できる", () => {
     const validOutput = {
       success: true,
       data: {
-        code: 'export const HeroSection = () => <section>...</section>',
-        framework: 'react',
-        componentName: 'HeroSection',
-        filename: 'HeroSection.tsx',
-        dependencies: ['react'],
-        inspirationUrls: ['https://example.com/page1'],
-        usageScope: 'inspiration_only',
+        code: "export const HeroSection = () => <section>...</section>",
+        framework: "react",
+        componentName: "HeroSection",
+        filename: "HeroSection.tsx",
+        dependencies: ["react"],
+        inspirationUrls: ["https://example.com/page1"],
+        usageScope: "inspiration_only",
       },
     };
 
@@ -1132,15 +1129,15 @@ describe('layoutToCodeOutputSchema', () => {
     expect(result.success).toBe(true);
   });
 
-  it('dependenciesがオプション', () => {
+  it("dependenciesがオプション", () => {
     const outputWithoutDeps = {
       success: true,
       data: {
-        code: '<section>...</section>',
-        framework: 'html',
-        componentName: 'hero-section',
-        filename: 'hero-section.html',
-        usageScope: 'inspiration_only',
+        code: "<section>...</section>",
+        framework: "html",
+        componentName: "hero-section",
+        filename: "hero-section.html",
+        usageScope: "inspiration_only",
       },
     };
 
@@ -1148,15 +1145,15 @@ describe('layoutToCodeOutputSchema', () => {
     expect(result.success).toBe(true);
   });
 
-  it('inspirationUrlsがオプション', () => {
+  it("inspirationUrlsがオプション", () => {
     const outputWithoutUrls = {
       success: true,
       data: {
-        code: 'export const HeroSection = () => {}',
-        framework: 'react',
-        componentName: 'HeroSection',
-        filename: 'HeroSection.tsx',
-        usageScope: 'owned_asset',
+        code: "export const HeroSection = () => {}",
+        framework: "react",
+        componentName: "HeroSection",
+        filename: "HeroSection.tsx",
+        usageScope: "owned_asset",
       },
     };
 
@@ -1164,15 +1161,15 @@ describe('layoutToCodeOutputSchema', () => {
     expect(result.success).toBe(true);
   });
 
-  it('無効なframeworkを拒否する', () => {
+  it("無効なframeworkを拒否する", () => {
     const invalidOutput = {
       success: true,
       data: {
-        code: 'export const HeroSection = () => {}',
-        framework: 'angular', // 無効
-        componentName: 'HeroSection',
-        filename: 'HeroSection.ts',
-        usageScope: 'inspiration_only',
+        code: "export const HeroSection = () => {}",
+        framework: "angular", // 無効
+        componentName: "HeroSection",
+        filename: "HeroSection.ts",
+        usageScope: "inspiration_only",
       },
     };
 
@@ -1180,15 +1177,15 @@ describe('layoutToCodeOutputSchema', () => {
     expect(result.success).toBe(false);
   });
 
-  it('無効なusageScopeを拒否する', () => {
+  it("無効なusageScopeを拒否する", () => {
     const invalidOutput = {
       success: true,
       data: {
-        code: 'export const HeroSection = () => {}',
-        framework: 'react',
-        componentName: 'HeroSection',
-        filename: 'HeroSection.tsx',
-        usageScope: 'commercial', // 無効
+        code: "export const HeroSection = () => {}",
+        framework: "react",
+        componentName: "HeroSection",
+        filename: "HeroSection.tsx",
+        usageScope: "commercial", // 無効
       },
     };
 
@@ -1196,12 +1193,12 @@ describe('layoutToCodeOutputSchema', () => {
     expect(result.success).toBe(false);
   });
 
-  it('有効なエラーレスポンスを検証できる', () => {
+  it("有効なエラーレスポンスを検証できる", () => {
     const errorOutput = {
       success: false,
       error: {
-        code: 'PATTERN_NOT_FOUND',
-        message: 'Pattern not found',
+        code: "PATTERN_NOT_FOUND",
+        message: "Pattern not found",
       },
     };
 
@@ -1214,7 +1211,7 @@ describe('layoutToCodeOutputSchema', () => {
 // 統合テスト（3+ tests）
 // =====================================================
 
-describe('layoutToCodeHandler - 統合テスト', () => {
+describe("layoutToCodeHandler - 統合テスト", () => {
   beforeEach(() => {
     resetLayoutToCodeServiceFactory();
   });
@@ -1223,14 +1220,14 @@ describe('layoutToCodeHandler - 統合テスト', () => {
     resetLayoutToCodeServiceFactory();
   });
 
-  it('完全なコード生成フローが動作する', async () => {
+  it("完全なコード生成フローが動作する", async () => {
     const mockService = createMockService();
     setLayoutToCodeServiceFactory(() => mockService);
 
     const input: LayoutToCodeInput = {
       patternId: validUUID,
       options: {
-        framework: 'react',
+        framework: "react",
         typescript: true,
         tailwind: true,
       },
@@ -1243,44 +1240,44 @@ describe('layoutToCodeHandler - 統合テスト', () => {
     expect(result.success).toBe(true);
     if (result.success) {
       expect(result.data.code).toBeDefined();
-      expect(result.data.framework).toBe('react');
+      expect(result.data.framework).toBe("react");
       expect(result.data.componentName).toBeDefined();
       expect(result.data.filename).toBeDefined();
     }
   });
 
-  it('Vueコード生成フローが動作する', async () => {
+  it("Vueコード生成フローが動作する", async () => {
     const mockService = createMockService();
     setLayoutToCodeServiceFactory(() => mockService);
 
     const input: LayoutToCodeInput = {
       patternId: validUUID,
-      options: { framework: 'vue' },
+      options: { framework: "vue" },
     };
 
     const result = await layoutToCodeHandler(input);
 
     expect(result.success).toBe(true);
     if (result.success) {
-      expect(result.data.framework).toBe('vue');
-      expect(result.data.code).toContain('<template>');
+      expect(result.data.framework).toBe("vue");
+      expect(result.data.code).toContain("<template>");
     }
   });
 
-  it('HTMLコード生成フローが動作する', async () => {
+  it("HTMLコード生成フローが動作する", async () => {
     const mockService = createMockService();
     setLayoutToCodeServiceFactory(() => mockService);
 
     const input: LayoutToCodeInput = {
       patternId: validUUID,
-      options: { framework: 'html' },
+      options: { framework: "html" },
     };
 
     const result = await layoutToCodeHandler(input);
 
     expect(result.success).toBe(true);
     if (result.success) {
-      expect(result.data.framework).toBe('html');
+      expect(result.data.framework).toBe("html");
       expect(result.data.filename).toMatch(/\.html$/);
     }
   });
@@ -1290,8 +1287,8 @@ describe('layoutToCodeHandler - 統合テスト', () => {
 // テストカウント確認
 // =====================================================
 
-describe('テストカウント確認', () => {
-  it('55以上のテストケースが存在する', () => {
+describe("テストカウント確認", () => {
+  it("55以上のテストケースが存在する", () => {
     // このテストはテスト数を確認するためのプレースホルダー
     // 実際のテスト数は上記のdescribeブロック内のitの数
     // 入力バリデーション: 25+ tests
@@ -1314,53 +1311,53 @@ describe('テストカウント確認', () => {
 // layout.to_code → layout.generate_code
 // =====================================================
 
-describe('Phase4-1: ツールリネーム (layout.to_code → layout.generate_code)', () => {
-  describe('新しいツール名', () => {
-    it('ツール名がlayout.generate_codeである', () => {
+describe("Phase4-1: ツールリネーム (layout.to_code → layout.generate_code)", () => {
+  describe("新しいツール名", () => {
+    it("ツール名がlayout.generate_codeである", () => {
       // TDD Red: 新しい名前を期待
-      expect(layoutToCodeToolDefinition.name).toBe('layout.generate_code');
+      expect(layoutToCodeToolDefinition.name).toBe("layout.generate_code");
     });
 
-    it('descriptionに生成機能が明記されている', () => {
-      expect(layoutToCodeToolDefinition.description).toContain('生成');
+    it("descriptionに生成機能が明記されている", () => {
+      expect(layoutToCodeToolDefinition.description).toContain("生成");
     });
   });
 
-  describe('後方互換性エイリアス', () => {
-    it('layoutGenerateCodeToolDefinitionがエクスポートされている', async () => {
+  describe("後方互換性エイリアス", () => {
+    it("layoutGenerateCodeToolDefinitionがエクスポートされている", async () => {
       // 新しい命名でのエクスポート
-      const module = await import('../../../src/tools/layout/to-code.tool');
+      const module = await import("../../../src/tools/layout/to-code.tool");
       expect(module.layoutGenerateCodeToolDefinition).toBeDefined();
     });
 
-    it('layoutGenerateCodeHandlerがエクスポートされている', async () => {
+    it("layoutGenerateCodeHandlerがエクスポートされている", async () => {
       // 新しい命名でのハンドラーエクスポート
-      const module = await import('../../../src/tools/layout/to-code.tool');
+      const module = await import("../../../src/tools/layout/to-code.tool");
       expect(module.layoutGenerateCodeHandler).toBeDefined();
     });
 
-    it('旧名layoutToCodeToolDefinitionが後方互換性のためにエクスポートされている', async () => {
+    it("旧名layoutToCodeToolDefinitionが後方互換性のためにエクスポートされている", async () => {
       // 既存のエクスポートは引き続き動作する（deprecation警告付き）
-      const module = await import('../../../src/tools/layout/to-code.tool');
+      const module = await import("../../../src/tools/layout/to-code.tool");
       expect(module.layoutToCodeToolDefinition).toBeDefined();
     });
 
-    it('旧名layoutToCodeHandlerが後方互換性のためにエクスポートされている', async () => {
+    it("旧名layoutToCodeHandlerが後方互換性のためにエクスポートされている", async () => {
       // 既存のハンドラーは引き続き動作する
-      const module = await import('../../../src/tools/layout/to-code.tool');
+      const module = await import("../../../src/tools/layout/to-code.tool");
       expect(module.layoutToCodeHandler).toBeDefined();
     });
   });
 
-  describe('router.ts TOOL_NAMES定数', () => {
-    it('LAYOUT_GENERATE_CODEが定義されている', async () => {
-      const { TOOL_NAMES } = await import('../../../src/router');
-      expect(TOOL_NAMES.LAYOUT_GENERATE_CODE).toBe('layout.generate_code');
+  describe("router.ts TOOL_NAMES定数", () => {
+    it("LAYOUT_GENERATE_CODEが定義されている", async () => {
+      const { TOOL_NAMES } = await import("../../../src/router");
+      expect(TOOL_NAMES.LAYOUT_GENERATE_CODE).toBe("layout.generate_code");
     });
 
     // NOTE: LAYOUT_TO_CODE（旧名）は完全に削除されたため、テストをスキップ
     // layout.to_code → layout.generate_code への移行は完了
-    it.skip('LAYOUT_TO_CODEが後方互換性のために残っている（deprecation）- 削除済み', async () => {
+    it.skip("LAYOUT_TO_CODEが後方互換性のために残っている（deprecation）- 削除済み", async () => {
       // 旧名は削除された
     });
   });

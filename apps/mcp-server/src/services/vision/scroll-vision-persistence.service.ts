@@ -15,9 +15,9 @@
  * @module services/vision/scroll-vision-persistence.service
  */
 
-import { v7 as uuidv7 } from 'uuid';
-import { logger, isDevelopment } from '../../utils/logger';
-import type { ScrollVisionResult, AggregatedScrollAnimation } from './scroll-vision.analyzer.js';
+import { v7 as uuidv7 } from "uuid";
+import { logger, isDevelopment } from "../../utils/logger";
+import type { ScrollVisionResult, AggregatedScrollAnimation } from "./scroll-vision.analyzer.js";
 
 // =============================================================================
 // Types
@@ -42,7 +42,9 @@ export interface SaveScrollVisionResult {
  */
 export interface ScrollVisionPrismaClient {
   motionPattern: {
-    deleteMany: (args: { where: { webPageId: string; type: string } }) => Promise<{ count: number }>;
+    deleteMany: (args: {
+      where: { webPageId: string; type: string };
+    }) => Promise<{ count: number }>;
     createMany: (args: { data: unknown[] }) => Promise<{ count: number }>;
   };
 }
@@ -55,17 +57,17 @@ export interface ScrollVisionPrismaClient {
  * Vision検出のMotionPatternタイプ識別子
  * CSS静的解析で検出されたものと区別する
  */
-const VISION_DETECTED_TYPE = 'vision_detected';
+const VISION_DETECTED_TYPE = "vision_detected";
 
 /**
  * ScrollChangeType → MotionPattern category マッピング
  */
 const CHANGE_TYPE_TO_CATEGORY: Record<string, string> = {
-  appear: 'reveal',
-  animate: 'scroll_trigger',
-  transform: 'scroll_trigger',
-  'lazy-load': 'entrance',
-  parallax: 'parallax',
+  appear: "reveal",
+  animate: "scroll_trigger",
+  transform: "scroll_trigger",
+  "lazy-load": "entrance",
+  parallax: "parallax",
 };
 
 // =============================================================================
@@ -81,7 +83,7 @@ function animationToMotionPatternData(
   sourceUrl: string
 ): Record<string, unknown> {
   const id = uuidv7();
-  const category = CHANGE_TYPE_TO_CATEGORY[animation.animationType] ?? 'scroll_trigger';
+  const category = CHANGE_TYPE_TO_CATEGORY[animation.animationType] ?? "scroll_trigger";
 
   return {
     id,
@@ -89,34 +91,34 @@ function animationToMotionPatternData(
     name: `Scroll-triggered ${animation.animationType}: ${animation.element.slice(0, 100)}`,
     type: VISION_DETECTED_TYPE,
     category,
-    triggerType: 'scroll',
+    triggerType: "scroll",
     triggerConfig: {
       scrollY: animation.triggerScrollY,
-      source: 'scroll_vision',
+      source: "scroll_vision",
     },
     animation: {
       duration: 0,
       delay: 0,
-      easing: { type: 'unknown' },
+      easing: { type: "unknown" },
       iterations: 1,
-      direction: 'normal',
-      fill_mode: 'forwards',
-      source: 'vision_detected',
+      direction: "normal",
+      fill_mode: "forwards",
+      source: "vision_detected",
     },
     properties: [],
     implementation: {},
     accessibility: {
       respects_reduced_motion: false,
-      note: 'Detected via Vision analysis, CSS properties unknown',
+      note: "Detected via Vision analysis, CSS properties unknown",
     },
     performance: {},
     sourceUrl,
-    usageScope: 'inspiration_only',
-    tags: ['scroll-vision', animation.animationType],
+    usageScope: "inspiration_only",
+    tags: ["scroll-vision", animation.animationType],
     metadata: {
       visionConfidence: animation.confidence,
       scrollY: animation.triggerScrollY,
-      detectionSource: 'scroll_vision_analyzer',
+      detectionSource: "scroll_vision_analyzer",
     },
   };
 }
@@ -158,7 +160,7 @@ export async function saveScrollVisionResults(
     });
 
     if (isDevelopment()) {
-      logger.debug('[ScrollVisionPersistence] Existing vision-detected patterns deleted', {
+      logger.debug("[ScrollVisionPersistence] Existing vision-detected patterns deleted", {
         webPageId,
       });
     }
@@ -179,7 +181,7 @@ export async function saveScrollVisionResults(
     const result = await prisma.motionPattern.createMany({ data });
 
     if (isDevelopment()) {
-      logger.info('[ScrollVisionPersistence] Saved scroll vision motion patterns', {
+      logger.info("[ScrollVisionPersistence] Saved scroll vision motion patterns", {
         webPageId,
         count: result.count,
         idCount: ids.length,
@@ -193,12 +195,11 @@ export async function saveScrollVisionResults(
       idMapping,
     };
   } catch (error) {
-    const errorMessage = error instanceof Error
-      ? error.message
-      : 'Failed to save scroll vision results';
+    const errorMessage =
+      error instanceof Error ? error.message : "Failed to save scroll vision results";
 
     if (isDevelopment()) {
-      logger.error('[ScrollVisionPersistence] Save failed', {
+      logger.error("[ScrollVisionPersistence] Save failed", {
         webPageId,
         error: errorMessage,
       });

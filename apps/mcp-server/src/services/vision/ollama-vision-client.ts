@@ -21,10 +21,10 @@
  * - apps/mcp-server/src/services/vision/timeout-calculator.ts
  */
 
-import { VisionAnalysisError } from './vision.errors.js';
-import { type HardwareInfo } from './hardware-detector.js';
-import { TimeoutCalculator } from './timeout-calculator.js';
-import { logger } from '../../utils/logger';
+import { VisionAnalysisError } from "./vision.errors.js";
+import { type HardwareInfo } from "./hardware-detector.js";
+import { TimeoutCalculator } from "./timeout-calculator.js";
+import { logger } from "../../utils/logger";
 
 // =============================================================================
 // 定数
@@ -43,7 +43,7 @@ const DEFAULT_TIMEOUT_MS = 60000;
 /**
  * デフォルトモデル
  */
-const DEFAULT_MODEL = 'llama3.2-vision';
+const DEFAULT_MODEL = "llama3.2-vision";
 
 /**
  * 最大リトライ回数
@@ -115,7 +115,7 @@ export class OllamaVisionClient {
   private readonly timeoutCalculator: TimeoutCalculator;
 
   constructor(config?: OllamaVisionClientConfig) {
-    this.ollamaUrl = config?.ollamaUrl ?? 'http://localhost:11434';
+    this.ollamaUrl = config?.ollamaUrl ?? "http://localhost:11434";
     this.timeout = config?.timeout ?? DEFAULT_TIMEOUT_MS;
     this.model = config?.model ?? DEFAULT_MODEL;
     // P2タスク: リトライをデフォルトで有効化（Graceful Degradation対応）
@@ -149,7 +149,7 @@ export class OllamaVisionClient {
       });
 
       // 成功時のログ
-      logger.debug('[OllamaVisionClient] Vision API call success', {
+      logger.debug("[OllamaVisionClient] Vision API call success", {
         duration_ms: Date.now() - startTime,
         response_length: response.length,
         model: this.model,
@@ -158,10 +158,9 @@ export class OllamaVisionClient {
       return response;
     } catch (error) {
       // エラー時のログ
-      console.error('[OllamaVisionClient] Vision API call failed', {
+      console.error("[OllamaVisionClient] Vision API call failed", {
         duration_ms: Date.now() - startTime,
-        error_code:
-          error instanceof VisionAnalysisError ? error.code : 'UNKNOWN',
+        error_code: error instanceof VisionAnalysisError ? error.code : "UNKNOWN",
         error_message: error instanceof Error ? error.message : String(error),
       });
       throw error;
@@ -183,15 +182,15 @@ export class OllamaVisionClient {
     const jsonString = this.extractFirstJSON(response);
     if (!jsonString) {
       // デバッグログ追加
-      if (process.env.NODE_ENV === 'development') {
-        console.warn('[OllamaVisionClient] No JSON found in response', {
+      if (process.env.NODE_ENV === "development") {
+        console.warn("[OllamaVisionClient] No JSON found in response", {
           responseLength: response.length,
           responsePreview: response.substring(0, 500),
         });
       }
       throw new VisionAnalysisError(
-        'Response does not contain valid JSON',
-        'INVALID_RESPONSE',
+        "Response does not contain valid JSON",
+        "INVALID_RESPONSE",
         false
       );
     }
@@ -199,11 +198,7 @@ export class OllamaVisionClient {
     try {
       return JSON.parse(jsonString) as T;
     } catch {
-      throw new VisionAnalysisError(
-        'Failed to parse JSON response',
-        'INVALID_RESPONSE',
-        false
-      );
+      throw new VisionAnalysisError("Failed to parse JSON response", "INVALID_RESPONSE", false);
     }
   }
 
@@ -241,7 +236,7 @@ export class OllamaVisionClient {
       });
 
       // 成功時のログ
-      logger.debug('[OllamaVisionClient] Vision API call success (dynamic timeout)', {
+      logger.debug("[OllamaVisionClient] Vision API call success (dynamic timeout)", {
         duration_ms: Date.now() - startTime,
         response_length: response.length,
         model: this.model,
@@ -252,10 +247,9 @@ export class OllamaVisionClient {
       return response;
     } catch (error) {
       // エラー時のログ
-      console.error('[OllamaVisionClient] Vision API call failed (dynamic timeout)', {
+      console.error("[OllamaVisionClient] Vision API call failed (dynamic timeout)", {
         duration_ms: Date.now() - startTime,
-        error_code:
-          error instanceof VisionAnalysisError ? error.code : 'UNKNOWN',
+        error_code: error instanceof VisionAnalysisError ? error.code : "UNKNOWN",
         error_message: error instanceof Error ? error.message : String(error),
         image_size_bytes: imageSizeBytes,
       });
@@ -283,16 +277,16 @@ export class OllamaVisionClient {
     const jsonString = this.extractFirstJSON(response);
     if (!jsonString) {
       // デバッグログ追加
-      if (process.env.NODE_ENV === 'development') {
-        console.warn('[OllamaVisionClient] No JSON found in response (with image size)', {
+      if (process.env.NODE_ENV === "development") {
+        console.warn("[OllamaVisionClient] No JSON found in response (with image size)", {
           responseLength: response.length,
           responsePreview: response.substring(0, 500),
           imageSizeBytes,
         });
       }
       throw new VisionAnalysisError(
-        'Response does not contain valid JSON',
-        'INVALID_RESPONSE',
+        "Response does not contain valid JSON",
+        "INVALID_RESPONSE",
         false
       );
     }
@@ -300,11 +294,7 @@ export class OllamaVisionClient {
     try {
       return JSON.parse(jsonString) as T;
     } catch {
-      throw new VisionAnalysisError(
-        'Failed to parse JSON response',
-        'INVALID_RESPONSE',
-        false
-      );
+      throw new VisionAnalysisError("Failed to parse JSON response", "INVALID_RESPONSE", false);
     }
   }
 
@@ -319,7 +309,7 @@ export class OllamaVisionClient {
       const timeoutId = setTimeout(() => controller.abort(), 5000);
 
       const response = await fetch(`${this.ollamaUrl}/api/tags`, {
-        method: 'GET',
+        method: "GET",
         signal: controller.signal,
       });
 
@@ -343,14 +333,14 @@ export class OllamaVisionClient {
 
     try {
       const response = await fetch(`${this.ollamaUrl}/api/generate`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           model: this.model,
           prompt,
           images: [image],
           stream: false,
-          format: 'json',
+          format: "json",
         }),
         signal: controller.signal,
       });
@@ -359,13 +349,13 @@ export class OllamaVisionClient {
         if (response.status === 404) {
           throw new VisionAnalysisError(
             `Model ${this.model} not found`,
-            'OLLAMA_UNAVAILABLE',
+            "OLLAMA_UNAVAILABLE",
             false
           );
         }
         throw new VisionAnalysisError(
           `Ollama API error: ${response.statusText}`,
-          'OLLAMA_UNAVAILABLE',
+          "OLLAMA_UNAVAILABLE",
           true
         );
       }
@@ -373,11 +363,7 @@ export class OllamaVisionClient {
       const data = (await response.json()) as OllamaGenerateResponse;
 
       if (!data.response) {
-        throw new VisionAnalysisError(
-          'Empty response from Ollama',
-          'INVALID_RESPONSE',
-          false
-        );
+        throw new VisionAnalysisError("Empty response from Ollama", "INVALID_RESPONSE", false);
       }
 
       return data.response;
@@ -387,26 +373,22 @@ export class OllamaVisionClient {
       }
 
       if (error instanceof Error) {
-        if (error.name === 'AbortError') {
-          throw new VisionAnalysisError(
-            `Request timeout after ${this.timeout}ms`,
-            'TIMEOUT',
-            true
-          );
+        if (error.name === "AbortError") {
+          throw new VisionAnalysisError(`Request timeout after ${this.timeout}ms`, "TIMEOUT", true);
         }
 
         // 接続エラー
         const lowerMessage = error.message.toLowerCase();
         if (
-          lowerMessage.includes('econnrefused') ||
-          lowerMessage.includes('connection refused') ||
-          lowerMessage.includes('fetch failed') ||
-          lowerMessage.includes('network') ||
-          lowerMessage.includes('socket')
+          lowerMessage.includes("econnrefused") ||
+          lowerMessage.includes("connection refused") ||
+          lowerMessage.includes("fetch failed") ||
+          lowerMessage.includes("network") ||
+          lowerMessage.includes("socket")
         ) {
           throw new VisionAnalysisError(
-            'Cannot connect to Ollama service',
-            'OLLAMA_UNAVAILABLE',
+            "Cannot connect to Ollama service",
+            "OLLAMA_UNAVAILABLE",
             true
           );
         }
@@ -414,7 +396,7 @@ export class OllamaVisionClient {
 
       throw new VisionAnalysisError(
         `Unknown error: ${error instanceof Error ? error.message : String(error)}`,
-        'OLLAMA_UNAVAILABLE',
+        "OLLAMA_UNAVAILABLE",
         true
       );
     } finally {
@@ -435,10 +417,7 @@ export class OllamaVisionClient {
         lastError = error instanceof Error ? error : new Error(String(error));
 
         // リトライ不可能なエラーは即座に再throw
-        if (
-          error instanceof VisionAnalysisError &&
-          !error.isRetryable
-        ) {
+        if (error instanceof VisionAnalysisError && !error.isRetryable) {
           throw error;
         }
 
@@ -449,12 +428,14 @@ export class OllamaVisionClient {
 
         // 指数バックオフで待機
         const delay = RETRY_BASE_DELAY_MS * Math.pow(2, attempt);
-        logger.debug(`[OllamaVisionClient] Retry ${attempt + 1}/${this.maxRetries} after ${delay}ms`);
+        logger.debug(
+          `[OllamaVisionClient] Retry ${attempt + 1}/${this.maxRetries} after ${delay}ms`
+        );
         await this.sleep(delay);
       }
     }
 
-    throw lastError ?? new VisionAnalysisError('Unknown error', 'OLLAMA_UNAVAILABLE', false);
+    throw lastError ?? new VisionAnalysisError("Unknown error", "OLLAMA_UNAVAILABLE", false);
   }
 
   /**
@@ -474,7 +455,7 @@ export class OllamaVisionClient {
    * @returns 抽出されたJSON文字列、見つからない場合はnull
    */
   private extractFirstJSON(text: string): string | null {
-    const startIndex = text.indexOf('{');
+    const startIndex = text.indexOf("{");
     if (startIndex === -1) {
       return null;
     }
@@ -491,7 +472,7 @@ export class OllamaVisionClient {
         continue;
       }
 
-      if (char === '\\' && inString) {
+      if (char === "\\" && inString) {
         escapeNext = true;
         continue;
       }
@@ -505,9 +486,9 @@ export class OllamaVisionClient {
         continue;
       }
 
-      if (char === '{') {
+      if (char === "{") {
         depth++;
-      } else if (char === '}') {
+      } else if (char === "}") {
         depth--;
         if (depth === 0) {
           return text.substring(startIndex, i + 1);
@@ -541,7 +522,7 @@ export class OllamaVisionClient {
         imageSizeBytes
       );
 
-      logger.debug('[OllamaVisionClient] Dynamic timeout calculated', {
+      logger.debug("[OllamaVisionClient] Dynamic timeout calculated", {
         hardware_type: hardwareInfo.type,
         is_gpu_available: hardwareInfo.isGpuAvailable,
         vram_bytes: hardwareInfo.vramBytes,
@@ -554,8 +535,8 @@ export class OllamaVisionClient {
       return dynamicTimeout;
     } catch (error) {
       // HardwareDetectorエラー時はデフォルトタイムアウト（Graceful Degradation）
-      if (process.env.NODE_ENV === 'development') {
-        console.warn('[OllamaVisionClient] HardwareDetector failed, using default timeout', {
+      if (process.env.NODE_ENV === "development") {
+        console.warn("[OllamaVisionClient] HardwareDetector failed, using default timeout", {
           error: error instanceof Error ? error.message : String(error),
           default_timeout_ms: this.timeout,
         });
@@ -577,14 +558,14 @@ export class OllamaVisionClient {
 
     try {
       const response = await fetch(`${this.ollamaUrl}/api/generate`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           model: this.model,
           prompt,
           images: [image],
           stream: false,
-          format: 'json',
+          format: "json",
         }),
         signal: controller.signal,
       });
@@ -593,13 +574,13 @@ export class OllamaVisionClient {
         if (response.status === 404) {
           throw new VisionAnalysisError(
             `Model ${this.model} not found`,
-            'OLLAMA_UNAVAILABLE',
+            "OLLAMA_UNAVAILABLE",
             false
           );
         }
         throw new VisionAnalysisError(
           `Ollama API error: ${response.statusText}`,
-          'OLLAMA_UNAVAILABLE',
+          "OLLAMA_UNAVAILABLE",
           true
         );
       }
@@ -607,11 +588,7 @@ export class OllamaVisionClient {
       const data = (await response.json()) as OllamaGenerateResponse;
 
       if (!data.response) {
-        throw new VisionAnalysisError(
-          'Empty response from Ollama',
-          'INVALID_RESPONSE',
-          false
-        );
+        throw new VisionAnalysisError("Empty response from Ollama", "INVALID_RESPONSE", false);
       }
 
       return data.response;
@@ -621,26 +598,22 @@ export class OllamaVisionClient {
       }
 
       if (error instanceof Error) {
-        if (error.name === 'AbortError') {
-          throw new VisionAnalysisError(
-            `Request timeout after ${timeoutMs}ms`,
-            'TIMEOUT',
-            true
-          );
+        if (error.name === "AbortError") {
+          throw new VisionAnalysisError(`Request timeout after ${timeoutMs}ms`, "TIMEOUT", true);
         }
 
         // 接続エラー
         const lowerMessage = error.message.toLowerCase();
         if (
-          lowerMessage.includes('econnrefused') ||
-          lowerMessage.includes('connection refused') ||
-          lowerMessage.includes('fetch failed') ||
-          lowerMessage.includes('network') ||
-          lowerMessage.includes('socket')
+          lowerMessage.includes("econnrefused") ||
+          lowerMessage.includes("connection refused") ||
+          lowerMessage.includes("fetch failed") ||
+          lowerMessage.includes("network") ||
+          lowerMessage.includes("socket")
         ) {
           throw new VisionAnalysisError(
-            'Cannot connect to Ollama service',
-            'OLLAMA_UNAVAILABLE',
+            "Cannot connect to Ollama service",
+            "OLLAMA_UNAVAILABLE",
             true
           );
         }
@@ -648,7 +621,7 @@ export class OllamaVisionClient {
 
       throw new VisionAnalysisError(
         `Unknown error: ${error instanceof Error ? error.message : String(error)}`,
-        'OLLAMA_UNAVAILABLE',
+        "OLLAMA_UNAVAILABLE",
         true
       );
     } finally {

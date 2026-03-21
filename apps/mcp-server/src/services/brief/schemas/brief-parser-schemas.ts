@@ -8,7 +8,7 @@
  *
  * @module services/brief/schemas/brief-parser-schemas
  */
-import { z } from 'zod';
+import { z } from "zod";
 
 // =============================================================================
 // NG表現スキーマ

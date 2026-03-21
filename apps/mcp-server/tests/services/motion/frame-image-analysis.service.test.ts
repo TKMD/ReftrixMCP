@@ -7,24 +7,23 @@
  * TDD: Red -> Green -> Refactor
  */
 
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import * as path from 'path';
-import * as fs from 'fs';
-import * as os from 'os';
-import sharp from 'sharp';
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import * as path from "path";
+import * as fs from "fs";
+import * as os from "os";
+import sharp from "sharp";
 
 import {
   FrameImageAnalysisService,
   createFrameImageAnalysisService,
-} from '../../../src/services/motion/frame-image-analysis.service';
-import type {
-  FrameAnalysisInput} from '../../../src/services/motion/types';
+} from "../../../src/services/motion/frame-image-analysis.service";
+import type { FrameAnalysisInput } from "../../../src/services/motion/types";
 import {
   FrameAnalysisError,
   FrameAnalysisErrorCodes,
   DEFAULTS,
   LIMITS,
-} from '../../../src/services/motion/types';
+} from "../../../src/services/motion/types";
 
 // テストヘルパー: 有効なPNG画像を作成
 async function createTestFrameDir(
@@ -33,9 +32,9 @@ async function createTestFrameDir(
   height: number = 100,
   colorOffset: number = 0
 ): Promise<string> {
-  const tmpDir = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'frame-test-'));
+  const tmpDir = await fs.promises.mkdtemp(path.join(os.tmpdir(), "frame-test-"));
   for (let i = 0; i < frameCount; i++) {
-    const framePath = path.join(tmpDir, 'frame_' + String(i).padStart(4, '0') + '.png');
+    const framePath = path.join(tmpDir, "frame_" + String(i).padStart(4, "0") + ".png");
     // フレームごとに色を少し変えて差分が発生するようにする
     const color = {
       r: Math.min(255, 100 + i * 10 + colorOffset),
@@ -79,20 +78,20 @@ async function cleanupDir(dir: string): Promise<void> {
   }
 }
 
-describe('FrameImageAnalysisService', () => {
-  describe('サービスの初期化', () => {
-    it('createFrameImageAnalysisService でサービスインスタンスを作成できる', () => {
+describe("FrameImageAnalysisService", () => {
+  describe("サービスの初期化", () => {
+    it("createFrameImageAnalysisService でサービスインスタンスを作成できる", () => {
       const service = createFrameImageAnalysisService();
       expect(service).toBeDefined();
       expect(service).toBeInstanceOf(FrameImageAnalysisService);
     });
 
-    it('new FrameImageAnalysisService() でサービスインスタンスを作成できる', () => {
+    it("new FrameImageAnalysisService() でサービスインスタンスを作成できる", () => {
       const service = new FrameImageAnalysisService();
       expect(service).toBeDefined();
     });
 
-    it('カスタム設定でサービスを初期化できる', () => {
+    it("カスタム設定でサービスを初期化できる", () => {
       const service = new FrameImageAnalysisService({
         maxWorkers: 2,
         cacheSize: 25,
@@ -101,7 +100,7 @@ describe('FrameImageAnalysisService', () => {
     });
   });
 
-  describe('入力バリデーション', () => {
+  describe("入力バリデーション", () => {
     let service: FrameImageAnalysisService;
 
     beforeEach(() => {
@@ -112,34 +111,34 @@ describe('FrameImageAnalysisService', () => {
       await service.dispose();
     });
 
-    it('入力ソースがない場合はエラーを返す', async () => {
+    it("入力ソースがない場合はエラーを返す", async () => {
       const input: FrameAnalysisInput = {};
       const result = await service.analyze(input);
       expect(result.success).toBe(false);
       expect(result.error?.code).toBe(FrameAnalysisErrorCodes.INVALID_INPUT);
     });
 
-    it('パストラバーサルを検出してエラーを返す', async () => {
+    it("パストラバーサルを検出してエラーを返す", async () => {
       const input: FrameAnalysisInput = {
-        frameDir: '/tmp/../etc/passwd',
+        frameDir: "/tmp/../etc/passwd",
       };
       const result = await service.analyze(input);
       expect(result.success).toBe(false);
       expect(result.error?.code).toBe(FrameAnalysisErrorCodes.PATH_TRAVERSAL);
     });
 
-    it('存在しないディレクトリでエラーを返す', async () => {
+    it("存在しないディレクトリでエラーを返す", async () => {
       const input: FrameAnalysisInput = {
-        frameDir: '/nonexistent/path/to/frames',
+        frameDir: "/nonexistent/path/to/frames",
       };
       const result = await service.analyze(input);
       expect(result.success).toBe(false);
       expect(result.error?.code).toBe(FrameAnalysisErrorCodes.MISSING_FRAMES);
     });
 
-    it('最大フレーム数を超えた場合はエラーを返す', async () => {
+    it("最大フレーム数を超えた場合はエラーを返す", async () => {
       const input: FrameAnalysisInput = {
-        framePaths: Array(LIMITS.MAX_TOTAL_FRAMES + 1).fill('/tmp/frame.png'),
+        framePaths: Array(LIMITS.MAX_TOTAL_FRAMES + 1).fill("/tmp/frame.png"),
       };
       const result = await service.analyze(input);
       expect(result.success).toBe(false);
@@ -147,7 +146,7 @@ describe('FrameImageAnalysisService', () => {
     });
   });
 
-  describe('analyze() メインエントリポイント', () => {
+  describe("analyze() メインエントリポイント", () => {
     let service: FrameImageAnalysisService;
 
     beforeEach(() => {
@@ -158,7 +157,7 @@ describe('FrameImageAnalysisService', () => {
       await service.dispose();
     });
 
-    it('frameDir から分析結果を返す', async () => {
+    it("frameDir から分析結果を返す", async () => {
       const tmpDir = await createTestFrameDir(5);
       try {
         const input: FrameAnalysisInput = { frameDir: tmpDir, fps: 30 };
@@ -171,7 +170,7 @@ describe('FrameImageAnalysisService', () => {
       }
     });
 
-    it('framePaths から分析結果を返す', async () => {
+    it("framePaths から分析結果を返す", async () => {
       const tmpDir = await createTestFrameDir(3);
       try {
         const framePaths = await fs.promises.readdir(tmpDir);
@@ -188,7 +187,7 @@ describe('FrameImageAnalysisService', () => {
       }
     });
 
-    it('extractResult から分析結果を返す', async () => {
+    it("extractResult から分析結果を返す", async () => {
       const tmpDir = await createTestFrameDir(10);
       try {
         const input: FrameAnalysisInput = {
@@ -203,7 +202,7 @@ describe('FrameImageAnalysisService', () => {
       }
     });
 
-    it('デフォルトFPS (30) が使用される', async () => {
+    it("デフォルトFPS (30) が使用される", async () => {
       const tmpDir = await createTestFrameDir(2);
       try {
         const input: FrameAnalysisInput = { frameDir: tmpDir };
@@ -215,7 +214,7 @@ describe('FrameImageAnalysisService', () => {
       }
     });
 
-    it('summary モードでは簡略化された結果を返す', async () => {
+    it("summary モードでは簡略化された結果を返す", async () => {
       const tmpDir = await createTestFrameDir(5);
       try {
         const input: FrameAnalysisInput = { frameDir: tmpDir, summary: true };
@@ -228,7 +227,7 @@ describe('FrameImageAnalysisService', () => {
     });
   });
 
-  describe('comparePair() 単一フレームペア比較', () => {
+  describe("comparePair() 単一フレームペア比較", () => {
     let service: FrameImageAnalysisService;
 
     beforeEach(() => {
@@ -239,7 +238,7 @@ describe('FrameImageAnalysisService', () => {
       await service.dispose();
     });
 
-    it('同一画像を比較すると変化率0を返す', async () => {
+    it("同一画像を比較すると変化率0を返す", async () => {
       const frame1 = createTestFrameBuffer(100, 100, { r: 255, g: 0, b: 0 });
       const frame2 = createTestFrameBuffer(100, 100, { r: 255, g: 0, b: 0 });
       const result = await service.comparePair(frame1, frame2, { threshold: 0.1 });
@@ -248,7 +247,7 @@ describe('FrameImageAnalysisService', () => {
       expect(result.changedPixels).toBe(0);
     });
 
-    it('完全に異なる画像を比較すると変化率1を返す', async () => {
+    it("完全に異なる画像を比較すると変化率1を返す", async () => {
       const frame1 = createTestFrameBuffer(100, 100, { r: 255, g: 255, b: 255 });
       const frame2 = createTestFrameBuffer(100, 100, { r: 0, g: 0, b: 0 });
       const result = await service.comparePair(frame1, frame2, { threshold: 0.1 });
@@ -257,7 +256,7 @@ describe('FrameImageAnalysisService', () => {
       expect(result.changedPixels).toBe(100 * 100);
     });
 
-    it('変化領域を正しく検出する', async () => {
+    it("変化領域を正しく検出する", async () => {
       const frame1 = createTestFrameBuffer(100, 100, { r: 255, g: 255, b: 255 });
       const frame2 = Buffer.from(frame1);
       for (let y = 0; y < 25; y++) {
@@ -277,7 +276,7 @@ describe('FrameImageAnalysisService', () => {
     });
   });
 
-  describe('差分分析オプション', () => {
+  describe("差分分析オプション", () => {
     let service: FrameImageAnalysisService;
 
     beforeEach(() => {
@@ -288,7 +287,7 @@ describe('FrameImageAnalysisService', () => {
       await service.dispose();
     });
 
-    it('diffAnalysis: true で差分分析結果を含む', async () => {
+    it("diffAnalysis: true で差分分析結果を含む", async () => {
       const tmpDir = await createTestFrameDir(5);
       try {
         const input: FrameAnalysisInput = {
@@ -305,7 +304,7 @@ describe('FrameImageAnalysisService', () => {
       }
     });
 
-    it('diffAnalysis: false で差分分析をスキップする', async () => {
+    it("diffAnalysis: false で差分分析をスキップする", async () => {
       const tmpDir = await createTestFrameDir(5);
       try {
         const input: FrameAnalysisInput = {
@@ -321,7 +320,7 @@ describe('FrameImageAnalysisService', () => {
     });
   });
 
-  describe('レイアウトシフト検出オプション', () => {
+  describe("レイアウトシフト検出オプション", () => {
     let service: FrameImageAnalysisService;
 
     beforeEach(() => {
@@ -332,7 +331,7 @@ describe('FrameImageAnalysisService', () => {
       await service.dispose();
     });
 
-    it('layoutShift: true でレイアウトシフト結果を含む', async () => {
+    it("layoutShift: true でレイアウトシフト結果を含む", async () => {
       const tmpDir = await createTestFrameDir(5);
       try {
         const input: FrameAnalysisInput = {
@@ -351,7 +350,7 @@ describe('FrameImageAnalysisService', () => {
     });
   });
 
-  describe('色変化検出オプション', () => {
+  describe("色変化検出オプション", () => {
     let service: FrameImageAnalysisService;
 
     beforeEach(() => {
@@ -362,7 +361,7 @@ describe('FrameImageAnalysisService', () => {
       await service.dispose();
     });
 
-    it('colorChange: true で色変化結果を含む', async () => {
+    it("colorChange: true で色変化結果を含む", async () => {
       const tmpDir = await createTestFrameDir(5);
       try {
         const input: FrameAnalysisInput = {
@@ -378,7 +377,7 @@ describe('FrameImageAnalysisService', () => {
       }
     });
 
-    it('colorChange: false で色変化検出をスキップする', async () => {
+    it("colorChange: false で色変化検出をスキップする", async () => {
       const tmpDir = await createTestFrameDir(5);
       try {
         const input: FrameAnalysisInput = {
@@ -394,7 +393,7 @@ describe('FrameImageAnalysisService', () => {
     });
   });
 
-  describe('タイムライン生成', () => {
+  describe("タイムライン生成", () => {
     let service: FrameImageAnalysisService;
 
     beforeEach(() => {
@@ -405,7 +404,7 @@ describe('FrameImageAnalysisService', () => {
       await service.dispose();
     });
 
-    it('分析結果からタイムラインを生成する', async () => {
+    it("分析結果からタイムラインを生成する", async () => {
       const tmpDir = await createTestFrameDir(10);
       try {
         const input: FrameAnalysisInput = {
@@ -423,7 +422,7 @@ describe('FrameImageAnalysisService', () => {
     });
   });
 
-  describe('パフォーマンス', () => {
+  describe("パフォーマンス", () => {
     let service: FrameImageAnalysisService;
 
     beforeEach(() => {
@@ -434,7 +433,7 @@ describe('FrameImageAnalysisService', () => {
       await service.dispose();
     });
 
-    it('フレームペア解析は150ms以内に完了する', async () => {
+    it("フレームペア解析は150ms以内に完了する", async () => {
       // NOTE: CI環境やマシン負荷に依存するため、閾値を50ms→150msに緩和 (TDA推奨)
       const frame1 = createTestFrameBuffer(1920, 1080, { r: 255, g: 0, b: 0 });
       const frame2 = createTestFrameBuffer(1920, 1080, { r: 0, g: 255, b: 0 });
@@ -444,7 +443,7 @@ describe('FrameImageAnalysisService', () => {
       expect(elapsed).toBeLessThan(150);
     });
 
-    it('30フレーム解析は3秒以内に完了する', async () => {
+    it("30フレーム解析は3秒以内に完了する", async () => {
       const tmpDir = await createTestFrameDir(30);
       try {
         const input: FrameAnalysisInput = {
@@ -460,14 +459,14 @@ describe('FrameImageAnalysisService', () => {
       }
     });
 
-    it('processingTimeMs が結果に含まれる', async () => {
+    it("processingTimeMs が結果に含まれる", async () => {
       const tmpDir = await createTestFrameDir(5);
       try {
         const input: FrameAnalysisInput = { frameDir: tmpDir };
         const result = await service.analyze(input);
         expect(result.success).toBe(true);
         expect(result.data?.processingTimeMs).toBeDefined();
-        expect(typeof result.data?.processingTimeMs).toBe('number');
+        expect(typeof result.data?.processingTimeMs).toBe("number");
         expect(result.data?.processingTimeMs).toBeGreaterThan(0);
       } finally {
         await cleanupDir(tmpDir);
@@ -475,7 +474,7 @@ describe('FrameImageAnalysisService', () => {
     });
   });
 
-  describe('並列処理', () => {
+  describe("並列処理", () => {
     let service: FrameImageAnalysisService;
 
     beforeEach(() => {
@@ -486,7 +485,7 @@ describe('FrameImageAnalysisService', () => {
       await service.dispose();
     });
 
-    it('parallel: true で並列処理が有効になる', async () => {
+    it("parallel: true で並列処理が有効になる", async () => {
       const tmpDir = await createTestFrameDir(10);
       try {
         const input: FrameAnalysisInput = {
@@ -500,7 +499,7 @@ describe('FrameImageAnalysisService', () => {
       }
     });
 
-    it('parallel: false で直列処理になる', async () => {
+    it("parallel: false で直列処理になる", async () => {
       const tmpDir = await createTestFrameDir(5);
       try {
         const input: FrameAnalysisInput = {
@@ -515,8 +514,8 @@ describe('FrameImageAnalysisService', () => {
     });
   });
 
-  describe('リソース管理', () => {
-    it('dispose() でリソースが解放される', async () => {
+  describe("リソース管理", () => {
+    it("dispose() でリソースが解放される", async () => {
       const service = new FrameImageAnalysisService();
       const tmpDir = await createTestFrameDir(5);
       try {
@@ -529,16 +528,16 @@ describe('FrameImageAnalysisService', () => {
       }
     });
 
-    it('複数回 dispose() を呼んでもエラーにならない', async () => {
+    it("複数回 dispose() を呼んでもエラーにならない", async () => {
       const service = new FrameImageAnalysisService();
       await service.dispose();
       await service.dispose();
       await service.dispose();
-      expect(true).toBe(true);
+      // dispose() が例外をスローしなければ成功
     });
   });
 
-  describe('エラーハンドリング', () => {
+  describe("エラーハンドリング", () => {
     let service: FrameImageAnalysisService;
 
     beforeEach(() => {
@@ -549,30 +548,25 @@ describe('FrameImageAnalysisService', () => {
       await service.dispose();
     });
 
-    it('内部エラーは INTERNAL_ERROR として返される', async () => {
-      vi.spyOn(service as any, 'loadFrames').mockRejectedValueOnce(
-        new Error('Unexpected error')
-      );
-      const result = await service.analyze({ frameDir: '/tmp/test' });
+    it("内部エラーは INTERNAL_ERROR として返される", async () => {
+      vi.spyOn(service as any, "loadFrames").mockRejectedValueOnce(new Error("Unexpected error"));
+      const result = await service.analyze({ frameDir: "/tmp/test" });
       expect(result.success).toBe(false);
       expect(result.error?.code).toBe(FrameAnalysisErrorCodes.INTERNAL_ERROR);
     });
 
-    it('FrameAnalysisError はそのまま伝播される', async () => {
-      vi.spyOn(service as any, 'loadFrames').mockRejectedValueOnce(
-        new FrameAnalysisError(
-          FrameAnalysisErrorCodes.FILE_READ_ERROR,
-          'Failed to read file'
-        )
+    it("FrameAnalysisError はそのまま伝播される", async () => {
+      vi.spyOn(service as any, "loadFrames").mockRejectedValueOnce(
+        new FrameAnalysisError(FrameAnalysisErrorCodes.FILE_READ_ERROR, "Failed to read file")
       );
-      const result = await service.analyze({ frameDir: '/tmp/test' });
+      const result = await service.analyze({ frameDir: "/tmp/test" });
       expect(result.success).toBe(false);
       expect(result.error?.code).toBe(FrameAnalysisErrorCodes.FILE_READ_ERROR);
     });
   });
 });
 
-describe('結果集約 (aggregateResults)', () => {
+describe("結果集約 (aggregateResults)", () => {
   let service: FrameImageAnalysisService;
 
   beforeEach(() => {
@@ -583,7 +577,7 @@ describe('結果集約 (aggregateResults)', () => {
     await service.dispose();
   });
 
-  it('差分分析のサマリーが正しく計算される', async () => {
+  it("差分分析のサマリーが正しく計算される", async () => {
     const tmpDir = await createTestFrameDir(5);
     try {
       const input: FrameAnalysisInput = {
@@ -594,16 +588,16 @@ describe('結果集約 (aggregateResults)', () => {
       expect(result.success).toBe(true);
       const summary = result.data?.diffAnalysis?.summary;
       expect(summary).toBeDefined();
-      expect(typeof summary?.avgChangeRatio).toBe('number');
-      expect(typeof summary?.maxChangeRatio).toBe('number');
-      expect(typeof summary?.motionFrameCount).toBe('number');
-      expect(typeof summary?.motionFrameRatio).toBe('number');
+      expect(typeof summary?.avgChangeRatio).toBe("number");
+      expect(typeof summary?.maxChangeRatio).toBe("number");
+      expect(typeof summary?.motionFrameCount).toBe("number");
+      expect(typeof summary?.motionFrameRatio).toBe("number");
     } finally {
       await cleanupDir(tmpDir);
     }
   });
 
-  it('レイアウトシフトのサマリーが正しく計算される', async () => {
+  it("レイアウトシフトのサマリーが正しく計算される", async () => {
     const tmpDir = await createTestFrameDir(5);
     try {
       const input: FrameAnalysisInput = {
@@ -614,15 +608,15 @@ describe('結果集約 (aggregateResults)', () => {
       expect(result.success).toBe(true);
       const summary = result.data?.layoutShifts?.summary;
       expect(summary).toBeDefined();
-      expect(typeof summary?.totalShifts).toBe('number');
-      expect(typeof summary?.maxImpactScore).toBe('number');
-      expect(typeof summary?.cumulativeShiftScore).toBe('number');
+      expect(typeof summary?.totalShifts).toBe("number");
+      expect(typeof summary?.maxImpactScore).toBe("number");
+      expect(typeof summary?.cumulativeShiftScore).toBe("number");
     } finally {
       await cleanupDir(tmpDir);
     }
   });
 
-  it('analyzedPairs は totalFrames - 1 である', async () => {
+  it("analyzedPairs は totalFrames - 1 である", async () => {
     const tmpDir = await createTestFrameDir(10);
     try {
       const input: FrameAnalysisInput = { frameDir: tmpDir };
@@ -634,7 +628,7 @@ describe('結果集約 (aggregateResults)', () => {
     }
   });
 
-  it('durationMs が正しく計算される', async () => {
+  it("durationMs が正しく計算される", async () => {
     const tmpDir = await createTestFrameDir(30);
     try {
       const input: FrameAnalysisInput = { frameDir: tmpDir, fps: 30 };
@@ -647,27 +641,27 @@ describe('結果集約 (aggregateResults)', () => {
   });
 });
 
-describe('定数エクスポート', () => {
-  it('DEFAULTS がエクスポートされている', () => {
+describe("定数エクスポート", () => {
+  it("DEFAULTS がエクスポートされている", () => {
     expect(DEFAULTS).toBeDefined();
     expect(DEFAULTS.FPS).toBe(30);
     expect(DEFAULTS.DIFF_THRESHOLD).toBe(0.1);
     expect(DEFAULTS.LAYOUT_SHIFT_THRESHOLD).toBe(0.05);
   });
 
-  it('LIMITS がエクスポートされている', () => {
+  it("LIMITS がエクスポートされている", () => {
     expect(LIMITS).toBeDefined();
     expect(LIMITS.MAX_TOTAL_FRAMES).toBe(3600);
     expect(LIMITS.MAX_MEMORY_BYTES).toBe(500 * 1024 * 1024);
-    expect(LIMITS.ALLOWED_EXTENSIONS).toContain('.png');
-    expect(LIMITS.ALLOWED_EXTENSIONS).toContain('.jpg');
-    expect(LIMITS.ALLOWED_EXTENSIONS).toContain('.jpeg');
+    expect(LIMITS.ALLOWED_EXTENSIONS).toContain(".png");
+    expect(LIMITS.ALLOWED_EXTENSIONS).toContain(".jpg");
+    expect(LIMITS.ALLOWED_EXTENSIONS).toContain(".jpeg");
   });
 
-  it('FrameAnalysisErrorCodes がエクスポートされている', () => {
+  it("FrameAnalysisErrorCodes がエクスポートされている", () => {
     expect(FrameAnalysisErrorCodes).toBeDefined();
-    expect(FrameAnalysisErrorCodes.INVALID_INPUT).toBe('FRAME_ANALYSIS_INVALID_INPUT');
-    expect(FrameAnalysisErrorCodes.PATH_TRAVERSAL).toBe('FRAME_ANALYSIS_PATH_TRAVERSAL');
-    expect(FrameAnalysisErrorCodes.MAX_FRAMES_EXCEEDED).toBe('FRAME_ANALYSIS_MAX_FRAMES_EXCEEDED');
+    expect(FrameAnalysisErrorCodes.INVALID_INPUT).toBe("FRAME_ANALYSIS_INVALID_INPUT");
+    expect(FrameAnalysisErrorCodes.PATH_TRAVERSAL).toBe("FRAME_ANALYSIS_PATH_TRAVERSAL");
+    expect(FrameAnalysisErrorCodes.MAX_FRAMES_EXCEEDED).toBe("FRAME_ANALYSIS_MAX_FRAMES_EXCEEDED");
   });
 });

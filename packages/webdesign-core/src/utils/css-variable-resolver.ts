@@ -16,7 +16,7 @@
  * @module @reftrix/webdesign-core/utils/css-variable-resolver
  */
 
-import * as cheerio from 'cheerio';
+import * as cheerio from "cheerio";
 
 // =====================================================
 // 型定義
@@ -62,7 +62,7 @@ export interface CssVariableResolverOptions {
   /** 最大ネスト解決深度（デフォルト: 10） */
   maxDepth?: number;
   /** 未定義変数のフォールバック戦略（デフォルト: 'fallback'） */
-  undefinedStrategy?: 'fallback' | 'keep' | 'remove';
+  undefinedStrategy?: "fallback" | "keep" | "remove";
   /** HTMLからの変数抽出を有効化（デフォルト: true） */
   extractFromHtml?: boolean;
 }
@@ -81,7 +81,7 @@ const CSS_VAR_PATTERN = /var\s*\(\s*(--[\w-]+)\s*(?:,\s*([^)]+))?\s*\)/gi;
 const CSS_VAR_DEFINITION_PATTERN = /(--[\w-]+)\s*:\s*([^;}\n]+)/g;
 
 /** CSS変数を含む可能性のあるセレクタ */
-const ROOT_SELECTORS = [':root', 'html', 'body', '[data-theme]', '.dark', '.light'];
+const ROOT_SELECTORS = [":root", "html", "body", "[data-theme]", ".dark", ".light"];
 
 // =====================================================
 // ヘルパー関数
@@ -148,7 +148,7 @@ export class CssVariableResolver {
   constructor(options: CssVariableResolverOptions = {}) {
     this.options = {
       maxDepth: options.maxDepth ?? DEFAULT_MAX_DEPTH,
-      undefinedStrategy: options.undefinedStrategy ?? 'fallback',
+      undefinedStrategy: options.undefinedStrategy ?? "fallback",
       extractFromHtml: options.extractFromHtml ?? true,
     };
   }
@@ -172,7 +172,7 @@ export class CssVariableResolver {
 
     // 1. <style> タグからCSS変数定義を抽出
     const $ = cheerio.load(html);
-    $('style').each((_, elem) => {
+    $("style").each((_, elem) => {
       const cssContent = $(elem).html();
       if (cssContent) {
         extractedCount += this.extractVariablesFromCss(cssContent);
@@ -182,7 +182,7 @@ export class CssVariableResolver {
     // 2. ルート要素のインラインスタイルからも抽出
     for (const selector of ROOT_SELECTORS) {
       $(selector).each((_, elem) => {
-        const style = $(elem).attr('style');
+        const style = $(elem).attr("style");
         if (style) {
           extractedCount += this.extractVariablesFromStyleAttr(style, selector);
         }
@@ -206,8 +206,8 @@ export class CssVariableResolver {
     // ルートセレクタ内の変数定義を検索
     for (const selector of ROOT_SELECTORS) {
       // セレクタのブロックを検索（:root { ... }, html { ... } 等）
-      const escapedSelector = selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      const blockPattern = new RegExp(`${escapedSelector}\\s*\\{([^}]+)\\}`, 'gi');
+      const escapedSelector = selector.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      const blockPattern = new RegExp(`${escapedSelector}\\s*\\{([^}]+)\\}`, "gi");
 
       let blockMatch: RegExpExecArray | null;
       while ((blockMatch = blockPattern.exec(css)) !== null) {
@@ -231,7 +231,7 @@ export class CssVariableResolver {
   private extractVariablesFromBlock(block: string, _source: string): number {
     let count = 0;
     let match: RegExpExecArray | null;
-    const pattern = new RegExp(CSS_VAR_DEFINITION_PATTERN.source, 'g');
+    const pattern = new RegExp(CSS_VAR_DEFINITION_PATTERN.source, "g");
 
     while ((match = pattern.exec(block)) !== null) {
       const name = match[1];
@@ -265,7 +265,7 @@ export class CssVariableResolver {
    * @param value - 変数の値
    */
   setVariable(name: string, value: string): void {
-    if (!name.startsWith('--')) {
+    if (!name.startsWith("--")) {
       name = `--${name}`;
     }
     this.variables.set(name, value);
@@ -289,7 +289,7 @@ export class CssVariableResolver {
    * @returns 変数の値（未定義の場合undefined）
    */
   getVariable(name: string): string | undefined {
-    if (!name.startsWith('--')) {
+    if (!name.startsWith("--")) {
       name = `--${name}`;
     }
     return this.variables.get(name);
@@ -315,11 +315,11 @@ export class CssVariableResolver {
    * @returns 解決結果
    */
   resolve(value: string): CssVariableResolutionResult {
-    if (!value || typeof value !== 'string') {
+    if (!value || typeof value !== "string") {
       return {
         success: false,
-        originalValue: value ?? '',
-        error: 'Invalid input value',
+        originalValue: value ?? "",
+        error: "Invalid input value",
       };
     }
 
@@ -346,7 +346,7 @@ export class CssVariableResolver {
       return {
         success: false,
         originalValue: value,
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: error instanceof Error ? error.message : "Unknown error",
       };
     }
   }
@@ -371,7 +371,7 @@ export class CssVariableResolver {
     }
 
     // var() を置換
-    const pattern = new RegExp(CSS_VAR_PATTERN.source, 'gi');
+    const pattern = new RegExp(CSS_VAR_PATTERN.source, "gi");
     let result = value;
 
     // 置換を繰り返す（一度に全部置換すると正規表現のインデックスがずれる）
@@ -408,11 +408,11 @@ export class CssVariableResolver {
 
         // フォールバックなしで未定義
         switch (this.options.undefinedStrategy) {
-          case 'keep':
+          case "keep":
             return fullMatch;
-          case 'remove':
-            return '';
-          case 'fallback':
+          case "remove":
+            return "";
+          case "fallback":
           default:
             // フォールバックがない場合は元のまま
             return fullMatch;
@@ -506,7 +506,7 @@ export function extractAndResolveColors(
   // ヘルパー: 背景色値を処理して追加
   const processBackgroundColor = (value: string): void => {
     const trimmedValue = value.trim();
-    if (trimmedValue && !trimmedValue.includes('gradient') && !trimmedValue.includes('url(')) {
+    if (trimmedValue && !trimmedValue.includes("gradient") && !trimmedValue.includes("url(")) {
       const result = resolver.resolve(trimmedValue);
       if (result.success && result.resolvedValue) {
         if (isValidColorValue(result.resolvedValue)) {
@@ -555,15 +555,15 @@ export function extractAndResolveColors(
   const $ = cheerio.load(html);
 
   // 全要素のstyle属性から色を抽出
-  $('[style]').each((_, elem) => {
-    const styleAttr = $(elem).attr('style');
+  $("[style]").each((_, elem) => {
+    const styleAttr = $(elem).attr("style");
     if (styleAttr) {
       extractColorsFromCssText(styleAttr);
     }
   });
 
   // 2. <style>タグ内のCSSからも色を抽出
-  $('style').each((_, elem) => {
+  $("style").each((_, elem) => {
     const cssContent = $(elem).html();
     if (cssContent) {
       extractColorsFromCssText(cssContent);
@@ -589,7 +589,7 @@ export function extractAndResolveColors(
  * @returns 有効な色値の場合true
  */
 export function isValidColorValue(value: string): boolean {
-  if (!value || typeof value !== 'string') {
+  if (!value || typeof value !== "string") {
     return false;
   }
 
@@ -597,12 +597,12 @@ export function isValidColorValue(value: string): boolean {
 
   // 空文字、inherit、initial等は除外
   if (
-    trimmed === '' ||
-    trimmed === 'inherit' ||
-    trimmed === 'initial' ||
-    trimmed === 'unset' ||
-    trimmed === 'transparent' ||
-    trimmed === 'currentcolor'
+    trimmed === "" ||
+    trimmed === "inherit" ||
+    trimmed === "initial" ||
+    trimmed === "unset" ||
+    trimmed === "transparent" ||
+    trimmed === "currentcolor"
   ) {
     return false;
   }
@@ -632,33 +632,155 @@ export function isValidColorValue(value: string): boolean {
 
   // CSS named colors（一部）
   const namedColors = new Set([
-    'black', 'white', 'red', 'green', 'blue', 'yellow', 'orange', 'purple',
-    'pink', 'gray', 'grey', 'brown', 'cyan', 'magenta', 'lime', 'navy',
-    'teal', 'olive', 'maroon', 'silver', 'aqua', 'fuchsia',
+    "black",
+    "white",
+    "red",
+    "green",
+    "blue",
+    "yellow",
+    "orange",
+    "purple",
+    "pink",
+    "gray",
+    "grey",
+    "brown",
+    "cyan",
+    "magenta",
+    "lime",
+    "navy",
+    "teal",
+    "olive",
+    "maroon",
+    "silver",
+    "aqua",
+    "fuchsia",
     // 追加の一般的な色名
-    'aliceblue', 'antiquewhite', 'aquamarine', 'azure', 'beige', 'bisque',
-    'blanchedalmond', 'blueviolet', 'burlywood', 'cadetblue', 'chartreuse',
-    'chocolate', 'coral', 'cornflowerblue', 'cornsilk', 'crimson', 'darkblue',
-    'darkcyan', 'darkgoldenrod', 'darkgray', 'darkgreen', 'darkgrey', 'darkkhaki',
-    'darkmagenta', 'darkolivegreen', 'darkorange', 'darkorchid', 'darkred',
-    'darksalmon', 'darkseagreen', 'darkslateblue', 'darkslategray', 'darkslategrey',
-    'darkturquoise', 'darkviolet', 'deeppink', 'deepskyblue', 'dimgray', 'dimgrey',
-    'dodgerblue', 'firebrick', 'floralwhite', 'forestgreen', 'gainsboro', 'ghostwhite',
-    'gold', 'goldenrod', 'greenyellow', 'honeydew', 'hotpink', 'indianred', 'indigo',
-    'ivory', 'khaki', 'lavender', 'lavenderblush', 'lawngreen', 'lemonchiffon',
-    'lightblue', 'lightcoral', 'lightcyan', 'lightgoldenrodyellow', 'lightgray',
-    'lightgreen', 'lightgrey', 'lightpink', 'lightsalmon', 'lightseagreen',
-    'lightskyblue', 'lightslategray', 'lightslategrey', 'lightsteelblue', 'lightyellow',
-    'limegreen', 'linen', 'mediumaquamarine', 'mediumblue', 'mediumorchid',
-    'mediumpurple', 'mediumseagreen', 'mediumslateblue', 'mediumspringgreen',
-    'mediumturquoise', 'mediumvioletred', 'midnightblue', 'mintcream', 'mistyrose',
-    'moccasin', 'navajowhite', 'oldlace', 'olivedrab', 'orangered', 'orchid',
-    'palegoldenrod', 'palegreen', 'paleturquoise', 'palevioletred', 'papayawhip',
-    'peachpuff', 'peru', 'plum', 'powderblue', 'rebeccapurple', 'rosybrown',
-    'royalblue', 'saddlebrown', 'salmon', 'sandybrown', 'seagreen', 'seashell',
-    'sienna', 'skyblue', 'slateblue', 'slategray', 'slategrey', 'snow', 'springgreen',
-    'steelblue', 'tan', 'thistle', 'tomato', 'turquoise', 'violet', 'wheat',
-    'whitesmoke', 'yellowgreen',
+    "aliceblue",
+    "antiquewhite",
+    "aquamarine",
+    "azure",
+    "beige",
+    "bisque",
+    "blanchedalmond",
+    "blueviolet",
+    "burlywood",
+    "cadetblue",
+    "chartreuse",
+    "chocolate",
+    "coral",
+    "cornflowerblue",
+    "cornsilk",
+    "crimson",
+    "darkblue",
+    "darkcyan",
+    "darkgoldenrod",
+    "darkgray",
+    "darkgreen",
+    "darkgrey",
+    "darkkhaki",
+    "darkmagenta",
+    "darkolivegreen",
+    "darkorange",
+    "darkorchid",
+    "darkred",
+    "darksalmon",
+    "darkseagreen",
+    "darkslateblue",
+    "darkslategray",
+    "darkslategrey",
+    "darkturquoise",
+    "darkviolet",
+    "deeppink",
+    "deepskyblue",
+    "dimgray",
+    "dimgrey",
+    "dodgerblue",
+    "firebrick",
+    "floralwhite",
+    "forestgreen",
+    "gainsboro",
+    "ghostwhite",
+    "gold",
+    "goldenrod",
+    "greenyellow",
+    "honeydew",
+    "hotpink",
+    "indianred",
+    "indigo",
+    "ivory",
+    "khaki",
+    "lavender",
+    "lavenderblush",
+    "lawngreen",
+    "lemonchiffon",
+    "lightblue",
+    "lightcoral",
+    "lightcyan",
+    "lightgoldenrodyellow",
+    "lightgray",
+    "lightgreen",
+    "lightgrey",
+    "lightpink",
+    "lightsalmon",
+    "lightseagreen",
+    "lightskyblue",
+    "lightslategray",
+    "lightslategrey",
+    "lightsteelblue",
+    "lightyellow",
+    "limegreen",
+    "linen",
+    "mediumaquamarine",
+    "mediumblue",
+    "mediumorchid",
+    "mediumpurple",
+    "mediumseagreen",
+    "mediumslateblue",
+    "mediumspringgreen",
+    "mediumturquoise",
+    "mediumvioletred",
+    "midnightblue",
+    "mintcream",
+    "mistyrose",
+    "moccasin",
+    "navajowhite",
+    "oldlace",
+    "olivedrab",
+    "orangered",
+    "orchid",
+    "palegoldenrod",
+    "palegreen",
+    "paleturquoise",
+    "palevioletred",
+    "papayawhip",
+    "peachpuff",
+    "peru",
+    "plum",
+    "powderblue",
+    "rebeccapurple",
+    "rosybrown",
+    "royalblue",
+    "saddlebrown",
+    "salmon",
+    "sandybrown",
+    "seagreen",
+    "seashell",
+    "sienna",
+    "skyblue",
+    "slateblue",
+    "slategray",
+    "slategrey",
+    "snow",
+    "springgreen",
+    "steelblue",
+    "tan",
+    "thistle",
+    "tomato",
+    "turquoise",
+    "violet",
+    "wheat",
+    "whitesmoke",
+    "yellowgreen",
   ]);
 
   return namedColors.has(trimmed);

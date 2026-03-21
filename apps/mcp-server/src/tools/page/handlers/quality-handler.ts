@@ -8,13 +8,10 @@
  * @module tools/page/handlers/quality-handler
  */
 
-import { logger, isDevelopment } from '../../../utils/logger';
-import { getQualityEvaluatorService } from '../../../services/page/quality-evaluator.service';
-import {
-  PAGE_ANALYZE_ERROR_CODES,
-  type PageAnalyzeInput,
-} from '../schemas';
-import { type QualityServiceResult } from './types';
+import { logger, isDevelopment } from "../../../utils/logger";
+import { getQualityEvaluatorService } from "../../../services/page/quality-evaluator.service";
+import { PAGE_ANALYZE_ERROR_CODES, type PageAnalyzeInput } from "../schemas";
+import { type QualityServiceResult } from "./types";
 
 /**
  * デフォルトの品質評価
@@ -23,7 +20,7 @@ import { type QualityServiceResult } from './types';
  */
 export async function defaultEvaluateQuality(
   html: string,
-  options?: PageAnalyzeInput['qualityOptions']
+  options?: PageAnalyzeInput["qualityOptions"]
 ): Promise<QualityServiceResult> {
   const startTime = Date.now();
 
@@ -52,7 +49,7 @@ export async function defaultEvaluateQuality(
     const evaluatorResult = await evaluatorService.evaluate(html, evaluatorOptions);
 
     if (isDevelopment()) {
-      logger.info('[page.analyze] Quality evaluation completed via QualityEvaluatorService', {
+      logger.info("[page.analyze] Quality evaluation completed via QualityEvaluatorService", {
         overallScore: evaluatorResult.overallScore,
         grade: evaluatorResult.grade,
         clicheCount: evaluatorResult.clicheCount,
@@ -94,13 +91,13 @@ export async function defaultEvaluateQuality(
     return result;
   } catch (error) {
     if (isDevelopment()) {
-      logger.error('[page.analyze] Quality evaluation failed', { error });
+      logger.error("[page.analyze] Quality evaluation failed", { error });
     }
 
     return {
       success: false,
       overallScore: 0,
-      grade: 'F',
+      grade: "F",
       axisScores: {
         originality: 0,
         craftsmanship: 0,
@@ -110,7 +107,7 @@ export async function defaultEvaluateQuality(
       processingTimeMs: Date.now() - startTime,
       error: {
         code: PAGE_ANALYZE_ERROR_CODES.QUALITY_EVALUATION_FAILED,
-        message: error instanceof Error ? error.message : 'Quality evaluation failed',
+        message: error instanceof Error ? error.message : "Quality evaluation failed",
       },
     };
   }

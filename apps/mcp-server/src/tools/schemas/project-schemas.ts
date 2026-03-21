@@ -8,8 +8,8 @@
  * @module tools/schemas/project-schemas
  */
 
-import { z } from 'zod';
-import { getSummaryDefault } from './shared';
+import { z } from "zod";
+import { getSummaryDefault } from "./shared";
 
 // =============================================================================
 // project.get スキーマ
@@ -21,13 +21,15 @@ import { getSummaryDefault } from './shared';
  * @property id - プロジェクトID（UUID形式、必須）
  * @property summary - 軽量レスポンスモード（デフォルトfalse）
  */
-export const projectGetInputSchema = z.object({
-  id: z.string().uuid({ message: '有効なUUID形式のIDを指定してください' }),
-  summary: z.boolean().optional(),
-}).transform((data) => ({
-  ...data,
-  summary: data.summary ?? getSummaryDefault(),
-}));
+export const projectGetInputSchema = z
+  .object({
+    id: z.string().uuid({ message: "有効なUUID形式のIDを指定してください" }),
+    summary: z.boolean().optional(),
+  })
+  .transform((data) => ({
+    ...data,
+    summary: data.summary ?? getSummaryDefault(),
+  }));
 
 /**
  * project.get ツールの入力型
@@ -96,11 +98,11 @@ export type ProjectGetSummaryOutput = z.infer<typeof projectGetSummaryOutputSche
  * プロジェクトステータスのスキーマ
  */
 export const projectStatusSchema = z.enum([
-  'draft',
-  'in_progress',
-  'review',
-  'completed',
-  'archived',
+  "draft",
+  "in_progress",
+  "review",
+  "completed",
+  "archived",
 ]);
 
 /**
@@ -111,7 +113,7 @@ export type ProjectStatus = z.infer<typeof projectStatusSchema>;
 /**
  * ソート項目のスキーマ
  */
-export const projectSortBySchema = z.enum(['createdAt', 'updatedAt', 'name']);
+export const projectSortBySchema = z.enum(["createdAt", "updatedAt", "name"]);
 
 /**
  * ソート項目の型
@@ -121,7 +123,7 @@ export type ProjectSortBy = z.infer<typeof projectSortBySchema>;
 /**
  * ソート順のスキーマ
  */
-export const projectSortOrderSchema = z.enum(['asc', 'desc']);
+export const projectSortOrderSchema = z.enum(["asc", "desc"]);
 
 /**
  * ソート順の型
@@ -138,28 +140,30 @@ export type ProjectSortOrder = z.infer<typeof projectSortOrderSchema>;
  * @property sortOrder - ソート順（デフォルト: desc）
  * @property summary - 軽量レスポンスモード（デフォルトfalse）
  */
-export const projectListInputSchema = z.object({
-  status: projectStatusSchema.optional(),
-  limit: z
-    .number()
-    .int()
-    .min(1, { message: 'limitは1以上の整数を指定してください' })
-    .max(50, { message: 'limitは50以下の整数を指定してください' })
-    .optional()
-    .default(10),
-  offset: z
-    .number()
-    .int()
-    .min(0, { message: 'offsetは0以上の整数を指定してください' })
-    .optional()
-    .default(0),
-  sortBy: projectSortBySchema.optional().default('updatedAt'),
-  sortOrder: projectSortOrderSchema.optional().default('desc'),
-  summary: z.boolean().optional(),
-}).transform((data) => ({
-  ...data,
-  summary: data.summary ?? getSummaryDefault(),
-}));
+export const projectListInputSchema = z
+  .object({
+    status: projectStatusSchema.optional(),
+    limit: z
+      .number()
+      .int()
+      .min(1, { message: "limitは1以上の整数を指定してください" })
+      .max(50, { message: "limitは50以下の整数を指定してください" })
+      .optional()
+      .default(10),
+    offset: z
+      .number()
+      .int()
+      .min(0, { message: "offsetは0以上の整数を指定してください" })
+      .optional()
+      .default(0),
+    sortBy: projectSortBySchema.optional().default("updatedAt"),
+    sortOrder: projectSortOrderSchema.optional().default("desc"),
+    summary: z.boolean().optional(),
+  })
+  .transform((data) => ({
+    ...data,
+    summary: data.summary ?? getSummaryDefault(),
+  }));
 
 /**
  * project.list ツールの入力型

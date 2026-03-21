@@ -15,10 +15,10 @@
  * @module services/part/part-db.service
  */
 
-import type { PrismaClient, Prisma } from '@prisma/client';
-import type { ExtractedPart } from './types';
-import { logger } from '../../utils/logger';
-import { truncateId } from './schemas';
+import type { PrismaClient, Prisma } from "@prisma/client";
+import type { ExtractedPart } from "./types";
+import { logger } from "../../utils/logger";
+import { truncateId } from "./schemas";
 
 // ============================================================================
 // Types / 型定義
@@ -58,7 +58,7 @@ export async function saveExtractedParts(
   webPageId: string,
   sectionPatternId: string,
   parts: ExtractedPart[],
-  sourceUrl: string | null,
+  sourceUrl: string | null
 ): Promise<PartSaveResult> {
   if (parts.length === 0) {
     return { savedCount: 0, skippedDuplicates: 0 };
@@ -97,7 +97,7 @@ export async function saveExtractedParts(
 
     const skippedDuplicates = parts.length - result.count;
 
-    logger.info('[part-db] Parts saved to database', {
+    logger.info("[part-db] Parts saved to database", {
       webPageId: truncateId(webPageId),
       sectionPatternId: truncateId(sectionPatternId),
       totalParts: parts.length,
@@ -110,7 +110,7 @@ export async function saveExtractedParts(
       skippedDuplicates,
     };
   } catch (error) {
-    logger.error('[part-db] Failed to save parts', {
+    logger.error("[part-db] Failed to save parts", {
       webPageId: truncateId(webPageId),
       sectionPatternId: truncateId(sectionPatternId),
       partCount: parts.length,

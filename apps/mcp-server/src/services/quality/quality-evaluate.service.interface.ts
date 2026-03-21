@@ -14,7 +14,7 @@
  * @module services/quality/quality-evaluate.service.interface
  */
 
-import type { QualityEvaluateData } from '../../tools/quality/schemas';
+import type { QualityEvaluateData } from "../../tools/quality/schemas";
 
 // =====================================================
 // Similar Section/Motion Types
@@ -91,7 +91,7 @@ export interface QualityBenchmark {
   /** 総合スコア (85-100) */
   overallScore: number;
   /** グレード (A or B) */
-  grade: 'A' | 'B';
+  grade: "A" | "B";
   /** 特徴量リスト */
   characteristics: string[];
   /** 軸別スコア */
@@ -241,10 +241,7 @@ export interface IQualityEvaluateService {
    * @param limit - 最大取得件数 (デフォルト: 5)
    * @returns ベンチマーク配列（スコア降順）
    */
-  getHighQualityBenchmarks(
-    sectionType: string,
-    limit?: number
-  ): Promise<QualityBenchmark[]>;
+  getHighQualityBenchmarks(sectionType: string, limit?: number): Promise<QualityBenchmark[]>;
 
   /**
    * パターン参照付きで評価結果を保存

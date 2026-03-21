@@ -19,5 +19,4 @@
  * 未設定の場合はローカル開発環境用のフォールバックを使用。
  */
 export const TEST_DATABASE_URL =
-  process.env.DATABASE_URL ||
-  'postgresql://reftrix:change_me@localhost:26432/reftrix';
+  process.env.DATABASE_URL || "postgresql://reftrix:change_me@localhost:26432/reftrix";

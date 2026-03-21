@@ -10,11 +10,11 @@
  * @module services/narrative/types/narrative.types
  */
 
-import type { CSSVariableExtractionResult } from '../../visual/css-variable-extractor.service';
-import type { TypographyExtractionResult } from '../../visual/typography-extractor.service';
-import type { MotionDetectionResult } from '../../page/motion-detector.service';
-import type { DetectedSection } from '@reftrix/webdesign-core';
-import type { VisualFeatures } from '../../../tools/page/schemas';
+import type { CSSVariableExtractionResult } from "../../visual/css-variable-extractor.service";
+import type { TypographyExtractionResult } from "../../visual/typography-extractor.service";
+import type { MotionDetectionResult } from "../../page/motion-detector.service";
+import type { DetectedSection } from "@reftrix/webdesign-core";
+import type { VisualFeatures } from "../../../tools/page/schemas";
 
 // =============================================================================
 // MoodCategory ENUM
@@ -26,36 +26,18 @@ import type { VisualFeatures } from '../../../tools/page/schemas';
  * Webデザインの全体的な雰囲気を分類
  */
 export type MoodCategory =
-  | 'professional'    // ビジネス、企業
-  | 'playful'         // 遊び心、カジュアル
-  | 'premium'         // 高級、ラグジュアリー
-  | 'tech'            // テクノロジー、先進的
-  | 'organic'         // 自然、オーガニック
-  | 'minimal'         // ミニマル、シンプル
-  | 'bold'            // 大胆、インパクト
-  | 'elegant'         // 上品、洗練
-  | 'friendly'        // 親しみやすい
-  | 'artistic'        // アート、クリエイティブ
-  | 'trustworthy'     // 信頼、安心
-  | 'energetic';      // エネルギッシュ、活発
-
-/**
- * MoodCategoryの日本語名マッピング
- */
-export const MoodCategoryLabels: Record<MoodCategory, string> = {
-  professional: 'プロフェッショナル',
-  playful: '遊び心',
-  premium: 'プレミアム',
-  tech: 'テクノロジー',
-  organic: 'オーガニック',
-  minimal: 'ミニマル',
-  bold: '大胆',
-  elegant: 'エレガント',
-  friendly: 'フレンドリー',
-  artistic: 'アーティスティック',
-  trustworthy: '信頼感',
-  energetic: 'エネルギッシュ',
-};
+  | "professional" // ビジネス、企業
+  | "playful" // 遊び心、カジュアル
+  | "premium" // 高級、ラグジュアリー
+  | "tech" // テクノロジー、先進的
+  | "organic" // 自然、オーガニック
+  | "minimal" // ミニマル、シンプル
+  | "bold" // 大胆、インパクト
+  | "elegant" // 上品、洗練
+  | "friendly" // 親しみやすい
+  | "artistic" // アート、クリエイティブ
+  | "trustworthy" // 信頼、安心
+  | "energetic"; // エネルギッシュ、活発
 
 // =============================================================================
 // WorldView Types（世界観・雰囲気）
@@ -70,7 +52,13 @@ export interface ColorImpression {
   /** 支配的な感情（"trust", "excitement", "calm"等） */
   dominantEmotion: string;
   /** 配色調和タイプ */
-  harmony: 'complementary' | 'analogous' | 'monochromatic' | 'triadic' | 'split-complementary' | 'mixed';
+  harmony:
+    | "complementary"
+    | "analogous"
+    | "monochromatic"
+    | "triadic"
+    | "split-complementary"
+    | "mixed";
 }
 
 /**
@@ -80,9 +68,9 @@ export interface TypographyPersonality {
   /** スタイル（"modern", "classic", "playful", "technical"等） */
   style: string;
   /** 読みやすさ */
-  readability: 'high' | 'medium' | 'low';
+  readability: "high" | "medium" | "low";
   /** 階層の明確さ */
-  hierarchy: 'clear' | 'subtle' | 'flat';
+  hierarchy: "clear" | "subtle" | "flat";
 }
 
 /**
@@ -92,7 +80,7 @@ export interface MotionEmotion {
   /** 全体的な印象（"smooth and elegant", "dynamic and playful"等） */
   overall: string;
   /** ペース */
-  pace: 'slow' | 'moderate' | 'fast';
+  pace: "slow" | "moderate" | "fast";
   /** 強度（0-1） */
   intensity: number;
   /** prefers-reduced-motion対応 */
@@ -138,9 +126,9 @@ export interface WorldViewResult {
  */
 export interface GridSystem {
   /** グリッドタイプ */
-  type: 'css-grid' | 'flexbox' | 'float' | 'mixed' | 'none';
+  type: "css-grid" | "flexbox" | "float" | "mixed" | "none";
   /** カラム数（'fluid'はフルードグリッド） */
-  columns: number | 'fluid';
+  columns: number | "fluid";
   /** ガター幅 */
   gutterWidth?: string;
   /** コンテナ幅 */
@@ -165,7 +153,7 @@ export interface VisualHierarchy {
   /** 三次要素 */
   tertiaryElements: string[];
   /** セクション配置パターン */
-  sectionFlow: 'linear' | 'modular' | 'asymmetric';
+  sectionFlow: "linear" | "modular" | "asymmetric";
   /** 視覚的重み分布 */
   weightDistribution: {
     /** 上部（hero area）の重み（0-1） */
@@ -186,7 +174,7 @@ export interface SpacingRhythm {
   /** スケール倍率 */
   scale: number[];
   /** スケール名（検出された場合） */
-  scaleName?: 'fibonacci' | 'linear' | 'geometric' | 'custom';
+  scaleName?: "fibonacci" | "linear" | "geometric" | "custom";
   /** セクション間スペーシング */
   sectionGaps: {
     min: string;
@@ -204,7 +192,7 @@ export interface SectionRelationship {
   /** ターゲットセクションID */
   targetId: string;
   /** 関係タイプ */
-  relationshipType: 'follows' | 'contains' | 'parallels' | 'contrasts';
+  relationshipType: "follows" | "contains" | "parallels" | "contrasts";
   /** 関係の強さ（0-1） */
   strength: number;
 }
@@ -216,11 +204,11 @@ export interface GraphicElements {
   /** 画像配置パターン */
   imageLayout: {
     /** パターン */
-    pattern: 'full-bleed' | 'contained' | 'scattered' | 'grid' | 'none';
+    pattern: "full-bleed" | "contained" | "scattered" | "grid" | "none";
     /** アスペクト比 */
     aspectRatios: string[];
     /** 配置位置 */
-    positions: ('hero' | 'inline' | 'background' | 'decorative')[];
+    positions: ("hero" | "inline" | "background" | "decorative")[];
   };
   /** 装飾要素 */
   decorations: {
@@ -232,9 +220,9 @@ export interface GraphicElements {
   /** 視覚的バランス */
   visualBalance: {
     /** 対称性 */
-    symmetry: 'symmetric' | 'asymmetric' | 'dynamic';
+    symmetry: "symmetric" | "asymmetric" | "dynamic";
     /** 密度 */
-    density: 'sparse' | 'balanced' | 'dense';
+    density: "sparse" | "balanced" | "dense";
     /** ホワイトスペース比率（0-1） */
     whitespace: number;
   };
@@ -441,10 +429,7 @@ export interface INarrativeAnalysisService {
   /**
    * 分析結果をDBに保存
    */
-  save(
-    webPageId: string,
-    result: NarrativeAnalysisResult
-  ): Promise<SavedNarrative>;
+  save(webPageId: string, result: NarrativeAnalysisResult): Promise<SavedNarrative>;
 
   /**
    * 分析と保存を一括実行

@@ -2,6 +2,12 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 /**
+ * NOTE: このファイルは「integration」と命名されていますが、サービス層を大量にモックしている
+ * ハンドラーユニットテストです。真の統合テストではありません。
+ *
+ * NOTE: Despite the "integration" naming, this file is a handler unit test
+ * with extensive service mocking. It is not a true integration test.
+ *
  * motion.detect + AnimationMetricsCollector 統合テスト
  *
  * Phase4-TDD-Red: 失敗テストを先に作成
@@ -21,11 +27,11 @@
  * @module tests/tools/motion/detect-animation-metrics-integration
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 // CI環境でのスキップ条件
 // NOTE: モック完備によりCI環境でも実行可能（enable_frame_capture: falseでPlaywright起動を回避）
-const SKIP_SLOW_TESTS = process.env.SKIP_SLOW_TESTS === 'true';
+const SKIP_SLOW_TESTS = process.env.SKIP_SLOW_TESTS === "true";
 
 // =====================================================
 // インポート
@@ -41,21 +47,21 @@ import {
   resetFrameAnalyzerServiceFactory,
   setAnimationMetricsCollectorFactory,
   resetAnimationMetricsCollectorFactory,
-} from '../../../src/tools/motion/detect.tool';
+} from "../../../src/tools/motion/detect.tool";
 
 import {
   motionDetectInputSchema,
   type MotionDetectInput,
   type MotionPattern,
   type LighthouseMetrics,
-} from '../../../src/tools/motion/schemas';
+} from "../../../src/tools/motion/schemas";
 
 import type {
   AnimationMetricsResult,
   AnimationImpactScore,
   ClsContributor,
   PerformanceRecommendation,
-} from '../../../src/services/motion/animation-metrics-collector.service';
+} from "../../../src/services/motion/animation-metrics-collector.service";
 
 // =====================================================
 // テストヘルパー
@@ -66,15 +72,15 @@ import type {
  */
 function createMockPattern(overrides: Partial<MotionPattern> = {}): MotionPattern {
   return {
-    id: 'test-pattern-1',
-    name: 'test-animation',
-    type: 'css_animation',
-    category: 'entrance',
-    trigger: 'load',
+    id: "test-pattern-1",
+    name: "test-animation",
+    type: "css_animation",
+    category: "entrance",
+    trigger: "load",
     animation: {
       duration: 300,
       delay: 0,
-      easing: 'ease-out',
+      easing: "ease-out",
       iterations: 1,
     },
     properties: [],
@@ -83,7 +89,7 @@ function createMockPattern(overrides: Partial<MotionPattern> = {}): MotionPatter
       usesOpacity: true,
       triggersLayout: false,
       triggersPaint: false,
-      level: 'good',
+      level: "good",
     },
     accessibility: {
       respectsReducedMotion: true,
@@ -120,10 +126,10 @@ function createMockAnimationMetricsResult(
   return {
     patternImpacts: [
       {
-        patternId: 'test-pattern-1',
-        patternName: 'test-animation',
+        patternId: "test-pattern-1",
+        patternName: "test-animation",
         score: 15,
-        impactLevel: 'low',
+        impactLevel: "low",
         factors: [],
       },
     ],
@@ -144,11 +150,11 @@ function createMockAnimationMetricsResult(
 function createMockVideoRecorderService() {
   return {
     record: vi.fn().mockResolvedValue({
-      videoPath: '/tmp/test-video.webm',
+      videoPath: "/tmp/test-video.webm",
       duration: 5000,
       sizeBytes: 1024 * 1024,
       viewport: { width: 1280, height: 720 },
-      pageTitle: 'Test Page',
+      pageTitle: "Test Page",
     }),
     cleanup: vi.fn().mockResolvedValue(undefined),
     close: vi.fn().mockResolvedValue(undefined),
@@ -162,7 +168,7 @@ function createMockVideoRecorderService() {
 function createMockFrameAnalyzerService(mockPatterns: MotionPattern[] = [createMockPattern()]) {
   return {
     extractFrames: vi.fn().mockResolvedValue({
-      framePaths: ['/tmp/frame001.png', '/tmp/frame002.png'],
+      framePaths: ["/tmp/frame001.png", "/tmp/frame002.png"],
       totalFrames: 50,
       fps: 10,
       durationMs: 5000,
@@ -176,7 +182,7 @@ function createMockFrameAnalyzerService(mockPatterns: MotionPattern[] = [createM
           startTimeMs: 0,
           endTimeMs: 1000,
           intensity: 0.5,
-          type: 'fade',
+          type: "fade",
         },
       ],
       motionCoverage: 0.2,
@@ -201,9 +207,7 @@ function createMockLighthouseService(overrides: Partial<LighthouseMetrics> = {})
 /**
  * モックAnimationMetricsCollectorを作成
  */
-function createMockAnimationMetricsCollector(
-  overrides: Partial<AnimationMetricsResult> = {}
-) {
+function createMockAnimationMetricsCollector(overrides: Partial<AnimationMetricsResult> = {}) {
   return {
     analyze: vi.fn().mockResolvedValue(createMockAnimationMetricsResult(overrides)),
     calculateImpactScore: vi.fn().mockReturnValue(15),
@@ -216,7 +220,7 @@ function createMockAnimationMetricsCollector(
 // =====================================================
 
 // NOTE: 統合テストはブラウザ起動が必要で時間がかかるためCIではスキップ
-describe.skipIf(SKIP_SLOW_TESTS)('Phase4: motion.detect + AnimationMetricsCollector 統合', () => {
+describe.skipIf(SKIP_SLOW_TESTS)("Phase4: motion.detect + AnimationMetricsCollector 統合", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
@@ -228,11 +232,11 @@ describe.skipIf(SKIP_SLOW_TESTS)('Phase4: motion.detect + AnimationMetricsCollec
     resetAnimationMetricsCollectorFactory();
   });
 
-  describe('analyze_metrics パラメータバリデーション', () => {
-    it('analyze_metrics=trueのスキーマバリデーションが成功する', () => {
+  describe("analyze_metrics パラメータバリデーション", () => {
+    it("analyze_metrics=trueのスキーマバリデーションが成功する", () => {
       const input: MotionDetectInput = {
-        url: 'https://example.com',
-        detection_mode: 'video',
+        url: "https://example.com",
+        detection_mode: "video",
         lighthouse_options: { enabled: true },
         analyze_metrics: true,
       };
@@ -242,10 +246,10 @@ describe.skipIf(SKIP_SLOW_TESTS)('Phase4: motion.detect + AnimationMetricsCollec
       expect(result.success).toBe(true);
     });
 
-    it('analyze_metricsがデフォルトでfalseになる', () => {
+    it("analyze_metricsがデフォルトでfalseになる", () => {
       const input = {
-        url: 'https://example.com',
-        detection_mode: 'video',
+        url: "https://example.com",
+        detection_mode: "video",
         lighthouse_options: { enabled: true },
       };
 
@@ -256,10 +260,10 @@ describe.skipIf(SKIP_SLOW_TESTS)('Phase4: motion.detect + AnimationMetricsCollec
       }
     });
 
-    it('analyze_metrics_optionsのスキーマバリデーションが成功する', () => {
+    it("analyze_metrics_optionsのスキーマバリデーションが成功する", () => {
       const input: MotionDetectInput = {
-        url: 'https://example.com',
-        detection_mode: 'video',
+        url: "https://example.com",
+        detection_mode: "video",
         lighthouse_options: { enabled: true },
         analyze_metrics: true,
         analyze_metrics_options: {
@@ -274,14 +278,14 @@ describe.skipIf(SKIP_SLOW_TESTS)('Phase4: motion.detect + AnimationMetricsCollec
 
     // NOTE: この機能はPhase4で予定されているが、現時点では警告は追加されない
     // 実装が完了したらテストを有効化する
-    it.skip('analyze_metrics=trueでlighthouse_options.enabled=falseの場合は警告を追加する', async () => {
+    it.skip("analyze_metrics=trueでlighthouse_options.enabled=falseの場合は警告を追加する", async () => {
       // DI設定 - VideoRecorderServiceファクトリは同期的にIVideoRecorderServiceを返す
       setVideoRecorderServiceFactory(() => createMockVideoRecorderService());
       setFrameAnalyzerServiceFactory(() => createMockFrameAnalyzerService());
 
       const input: MotionDetectInput = {
-        url: 'https://example.com',
-        detection_mode: 'video',
+        url: "https://example.com",
+        detection_mode: "video",
         enable_frame_capture: false, // CI環境用: Playwrightブラウザ起動を回避
         lighthouse_options: { enabled: false },
         analyze_metrics: true,
@@ -293,16 +297,16 @@ describe.skipIf(SKIP_SLOW_TESTS)('Phase4: motion.detect + AnimationMetricsCollec
       if (result.success && result.data) {
         // 警告が含まれることを確認
         expect(result.data.warnings).toBeDefined();
-        expect(result.data.warnings?.some((w) =>
-          w.code === 'ANALYZE_METRICS_REQUIRES_LIGHTHOUSE'
-        )).toBe(true);
+        expect(
+          result.data.warnings?.some((w) => w.code === "ANALYZE_METRICS_REQUIRES_LIGHTHOUSE")
+        ).toBe(true);
       }
     });
 
     it('detection_mode != "video"の場合はanalyze_metricsを無視する', async () => {
       const input: MotionDetectInput = {
-        html: '<div></div>',
-        detection_mode: 'css',
+        html: "<div></div>",
+        detection_mode: "css",
         analyze_metrics: true,
       };
 
@@ -320,8 +324,8 @@ describe.skipIf(SKIP_SLOW_TESTS)('Phase4: motion.detect + AnimationMetricsCollec
   // Phase4-TDD-Red: AnimationMetricsCollector統合
   // =====================================================
 
-  describe('AnimationMetricsCollector 統合', () => {
-    it('analyze_metrics=trueでAnimationMetricsCollectorが呼び出される', async () => {
+  describe("AnimationMetricsCollector 統合", () => {
+    it("analyze_metrics=trueでAnimationMetricsCollectorが呼び出される", async () => {
       const mockAnalyze = vi.fn().mockResolvedValue(createMockAnimationMetricsResult());
       const mockCollector = {
         analyze: mockAnalyze,
@@ -329,18 +333,14 @@ describe.skipIf(SKIP_SLOW_TESTS)('Phase4: motion.detect + AnimationMetricsCollec
         getRecommendations: vi.fn(),
       };
 
-      setVideoRecorderServiceFactory(() =>
-        createMockVideoRecorderService()
-      );
+      setVideoRecorderServiceFactory(() => createMockVideoRecorderService());
       setFrameAnalyzerServiceFactory(() => createMockFrameAnalyzerService());
-      setLighthouseDetectorServiceFactory(() =>
-        createMockLighthouseService()
-      );
+      setLighthouseDetectorServiceFactory(() => createMockLighthouseService());
       setAnimationMetricsCollectorFactory(() => mockCollector);
 
       const input: MotionDetectInput = {
-        url: 'https://example.com',
-        detection_mode: 'video',
+        url: "https://example.com",
+        detection_mode: "video",
         enable_frame_capture: false, // CI環境用: Playwrightブラウザ起動を回避
         lighthouse_options: { enabled: true },
         analyze_metrics: true,
@@ -352,27 +352,23 @@ describe.skipIf(SKIP_SLOW_TESTS)('Phase4: motion.detect + AnimationMetricsCollec
       expect(mockAnalyze).toHaveBeenCalledTimes(1);
     });
 
-    it('animation_metricsがレスポンスに含まれる', async () => {
+    it("animation_metricsがレスポンスに含まれる", async () => {
       const expectedMetrics = createMockAnimationMetricsResult({
         overallScore: 75,
         patternImpacts: [
           {
-            patternId: 'test-1',
-            patternName: 'fade-in',
+            patternId: "test-1",
+            patternName: "fade-in",
             score: 25,
-            impactLevel: 'medium',
-            factors: ['no-gpu-acceleration'],
+            impactLevel: "medium",
+            factors: ["no-gpu-acceleration"],
           },
         ],
       });
 
-      setVideoRecorderServiceFactory(() =>
-        createMockVideoRecorderService()
-      );
+      setVideoRecorderServiceFactory(() => createMockVideoRecorderService());
       setFrameAnalyzerServiceFactory(() => createMockFrameAnalyzerService());
-      setLighthouseDetectorServiceFactory(() =>
-        createMockLighthouseService()
-      );
+      setLighthouseDetectorServiceFactory(() => createMockLighthouseService());
       setAnimationMetricsCollectorFactory(() => ({
         analyze: vi.fn().mockResolvedValue(expectedMetrics),
         calculateImpactScore: vi.fn(),
@@ -380,8 +376,8 @@ describe.skipIf(SKIP_SLOW_TESTS)('Phase4: motion.detect + AnimationMetricsCollec
       }));
 
       const input: MotionDetectInput = {
-        url: 'https://example.com',
-        detection_mode: 'video',
+        url: "https://example.com",
+        detection_mode: "video",
         enable_frame_capture: false, // CI環境用: Playwrightブラウザ起動を回避
         lighthouse_options: { enabled: true },
         analyze_metrics: true,
@@ -397,10 +393,10 @@ describe.skipIf(SKIP_SLOW_TESTS)('Phase4: motion.detect + AnimationMetricsCollec
       }
     });
 
-    it('patternsとlighthouse_metricsがAnimationMetricsCollectorに渡される', async () => {
+    it("patternsとlighthouse_metricsがAnimationMetricsCollectorに渡される", async () => {
       const mockPatterns = [
-        createMockPattern({ id: 'pattern-1', name: 'slide-in' }),
-        createMockPattern({ id: 'pattern-2', name: 'fade-out' }),
+        createMockPattern({ id: "pattern-1", name: "slide-in" }),
+        createMockPattern({ id: "pattern-2", name: "fade-out" }),
       ];
       const mockLighthouseMetrics = createMockLighthouseMetrics({ cls: 0.2 });
 
@@ -409,9 +405,7 @@ describe.skipIf(SKIP_SLOW_TESTS)('Phase4: motion.detect + AnimationMetricsCollec
       // VideoRecorderServiceのモック
       setVideoRecorderServiceFactory(() => createMockVideoRecorderService());
       setFrameAnalyzerServiceFactory(() => createMockFrameAnalyzerService(mockPatterns));
-      setLighthouseDetectorServiceFactory(() =>
-        createMockLighthouseService(mockLighthouseMetrics)
-      );
+      setLighthouseDetectorServiceFactory(() => createMockLighthouseService(mockLighthouseMetrics));
       setAnimationMetricsCollectorFactory(() => ({
         analyze: mockAnalyze,
         calculateImpactScore: vi.fn(),
@@ -419,8 +413,8 @@ describe.skipIf(SKIP_SLOW_TESTS)('Phase4: motion.detect + AnimationMetricsCollec
       }));
 
       const input: MotionDetectInput = {
-        url: 'https://example.com',
-        detection_mode: 'video',
+        url: "https://example.com",
+        detection_mode: "video",
         enable_frame_capture: false, // CI環境用: Playwrightブラウザ起動を回避
         lighthouse_options: { enabled: true },
         analyze_metrics: true,
@@ -434,25 +428,21 @@ describe.skipIf(SKIP_SLOW_TESTS)('Phase4: motion.detect + AnimationMetricsCollec
       });
     });
 
-    it('analyze_metrics_options.include_recommendations=falseでrecommendationsが除外される', async () => {
+    it("analyze_metrics_options.include_recommendations=falseでrecommendationsが除外される", async () => {
       const metricsWithRecommendations = createMockAnimationMetricsResult({
         recommendations: [
           {
-            priority: 'high',
-            category: 'use-transform',
-            description: 'Use transform instead of top/left',
-            affectedPatternIds: ['test-1'],
+            priority: "high",
+            category: "use-transform",
+            description: "Use transform instead of top/left",
+            affectedPatternIds: ["test-1"],
           },
         ],
       });
 
-      setVideoRecorderServiceFactory(() =>
-        createMockVideoRecorderService()
-      );
+      setVideoRecorderServiceFactory(() => createMockVideoRecorderService());
       setFrameAnalyzerServiceFactory(() => createMockFrameAnalyzerService());
-      setLighthouseDetectorServiceFactory(() =>
-        createMockLighthouseService()
-      );
+      setLighthouseDetectorServiceFactory(() => createMockLighthouseService());
       setAnimationMetricsCollectorFactory(() => ({
         analyze: vi.fn().mockResolvedValue(metricsWithRecommendations),
         calculateImpactScore: vi.fn(),
@@ -460,8 +450,8 @@ describe.skipIf(SKIP_SLOW_TESTS)('Phase4: motion.detect + AnimationMetricsCollec
       }));
 
       const input: MotionDetectInput = {
-        url: 'https://example.com',
-        detection_mode: 'video',
+        url: "https://example.com",
+        detection_mode: "video",
         enable_frame_capture: false, // CI環境用: Playwrightブラウザ起動を回避
         lighthouse_options: { enabled: true },
         analyze_metrics: true,
@@ -479,25 +469,21 @@ describe.skipIf(SKIP_SLOW_TESTS)('Phase4: motion.detect + AnimationMetricsCollec
       }
     });
 
-    it('analyze_metrics_options.include_cls_contributors=falseでclsContributorsが除外される', async () => {
+    it("analyze_metrics_options.include_cls_contributors=falseでclsContributorsが除外される", async () => {
       const metricsWithClsContributors = createMockAnimationMetricsResult({
         clsContributors: [
           {
-            patternId: 'test-1',
-            patternName: 'layout-animation',
+            patternId: "test-1",
+            patternName: "layout-animation",
             estimatedContribution: 0.3,
-            reason: 'layout-on-load',
+            reason: "layout-on-load",
           },
         ],
       });
 
-      setVideoRecorderServiceFactory(() =>
-        createMockVideoRecorderService()
-      );
+      setVideoRecorderServiceFactory(() => createMockVideoRecorderService());
       setFrameAnalyzerServiceFactory(() => createMockFrameAnalyzerService());
-      setLighthouseDetectorServiceFactory(() =>
-        createMockLighthouseService()
-      );
+      setLighthouseDetectorServiceFactory(() => createMockLighthouseService());
       setAnimationMetricsCollectorFactory(() => ({
         analyze: vi.fn().mockResolvedValue(metricsWithClsContributors),
         calculateImpactScore: vi.fn(),
@@ -505,8 +491,8 @@ describe.skipIf(SKIP_SLOW_TESTS)('Phase4: motion.detect + AnimationMetricsCollec
       }));
 
       const input: MotionDetectInput = {
-        url: 'https://example.com',
-        detection_mode: 'video',
+        url: "https://example.com",
+        detection_mode: "video",
         enable_frame_capture: false, // CI環境用: Playwrightブラウザ起動を回避
         lighthouse_options: { enabled: true },
         analyze_metrics: true,
@@ -524,10 +510,8 @@ describe.skipIf(SKIP_SLOW_TESTS)('Phase4: motion.detect + AnimationMetricsCollec
       }
     });
 
-    it('lighthouse_metricsがnullの場合もAnimationMetricsCollectorが動作する', async () => {
-      setVideoRecorderServiceFactory(() =>
-        createMockVideoRecorderService()
-      );
+    it("lighthouse_metricsがnullの場合もAnimationMetricsCollectorが動作する", async () => {
+      setVideoRecorderServiceFactory(() => createMockVideoRecorderService());
       setFrameAnalyzerServiceFactory(() => createMockFrameAnalyzerService());
       setLighthouseDetectorServiceFactory(() =>
         Promise.resolve({
@@ -540,8 +524,8 @@ describe.skipIf(SKIP_SLOW_TESTS)('Phase4: motion.detect + AnimationMetricsCollec
       );
 
       const input: MotionDetectInput = {
-        url: 'https://example.com',
-        detection_mode: 'video',
+        url: "https://example.com",
+        detection_mode: "video",
         enable_frame_capture: false, // CI環境用: Playwrightブラウザ起動を回避
         lighthouse_options: { enabled: true },
         analyze_metrics: true,
@@ -556,21 +540,15 @@ describe.skipIf(SKIP_SLOW_TESTS)('Phase4: motion.detect + AnimationMetricsCollec
       }
     });
 
-    it('メタデータにanalyze_metrics_processing_time_msが含まれる', async () => {
-      setVideoRecorderServiceFactory(() =>
-        createMockVideoRecorderService()
-      );
+    it("メタデータにanalyze_metrics_processing_time_msが含まれる", async () => {
+      setVideoRecorderServiceFactory(() => createMockVideoRecorderService());
       setFrameAnalyzerServiceFactory(() => createMockFrameAnalyzerService());
-      setLighthouseDetectorServiceFactory(() =>
-        createMockLighthouseService()
-      );
-      setAnimationMetricsCollectorFactory(() =>
-        createMockAnimationMetricsCollector()
-      );
+      setLighthouseDetectorServiceFactory(() => createMockLighthouseService());
+      setAnimationMetricsCollectorFactory(() => createMockAnimationMetricsCollector());
 
       const input: MotionDetectInput = {
-        url: 'https://example.com',
-        detection_mode: 'video',
+        url: "https://example.com",
+        detection_mode: "video",
         enable_frame_capture: false, // CI環境用: Playwrightブラウザ起動を回避
         lighthouse_options: { enabled: true },
         analyze_metrics: true,
@@ -581,7 +559,7 @@ describe.skipIf(SKIP_SLOW_TESTS)('Phase4: motion.detect + AnimationMetricsCollec
       expect(result.success).toBe(true);
       if (result.success && result.data) {
         expect(result.data.metadata.analyze_metrics_processing_time_ms).toBeDefined();
-        expect(typeof result.data.metadata.analyze_metrics_processing_time_ms).toBe('number');
+        expect(typeof result.data.metadata.analyze_metrics_processing_time_ms).toBe("number");
       }
     });
   });
@@ -590,22 +568,20 @@ describe.skipIf(SKIP_SLOW_TESTS)('Phase4: motion.detect + AnimationMetricsCollec
   // Phase4-TDD-Red: エラーハンドリング
   // =====================================================
 
-  describe('エラーハンドリング', () => {
-    it('AnimationMetricsCollector実行時エラーでもmotion.detect自体は成功する（graceful degradation）', async () => {
+  describe("エラーハンドリング", () => {
+    it("AnimationMetricsCollector実行時エラーでもmotion.detect自体は成功する（graceful degradation）", async () => {
       setVideoRecorderServiceFactory(() => createMockVideoRecorderService());
       setFrameAnalyzerServiceFactory(() => createMockFrameAnalyzerService());
-      setLighthouseDetectorServiceFactory(() =>
-        createMockLighthouseService()
-      );
+      setLighthouseDetectorServiceFactory(() => createMockLighthouseService());
       setAnimationMetricsCollectorFactory(() => ({
-        analyze: vi.fn().mockRejectedValue(new Error('Analysis failed')),
+        analyze: vi.fn().mockRejectedValue(new Error("Analysis failed")),
         calculateImpactScore: vi.fn(),
         getRecommendations: vi.fn(),
       }));
 
       const input: MotionDetectInput = {
-        url: 'https://example.com',
-        detection_mode: 'video',
+        url: "https://example.com",
+        detection_mode: "video",
         enable_frame_capture: false, // CI環境用: Playwrightブラウザ起動を回避
         lighthouse_options: { enabled: true },
         analyze_metrics: true,
@@ -620,23 +596,21 @@ describe.skipIf(SKIP_SLOW_TESTS)('Phase4: motion.detect + AnimationMetricsCollec
         expect(result.data.animation_metrics).toBeNull();
         // エラー情報が含まれる
         expect(result.data.animation_metrics_error).toBeDefined();
-        expect(result.data.animation_metrics_error?.code).toBe('ANIMATION_METRICS_ERROR');
+        expect(result.data.animation_metrics_error?.code).toBe("ANIMATION_METRICS_ERROR");
       }
     });
 
-    it('AnimationMetricsCollectorファクトリ未設定時はanalyze_metricsを無視する', async () => {
+    it("AnimationMetricsCollectorファクトリ未設定時はanalyze_metricsを無視する", async () => {
       // ファクトリをリセット（未設定状態）
       resetAnimationMetricsCollectorFactory();
 
       setVideoRecorderServiceFactory(() => createMockVideoRecorderService());
       setFrameAnalyzerServiceFactory(() => createMockFrameAnalyzerService());
-      setLighthouseDetectorServiceFactory(() =>
-        createMockLighthouseService()
-      );
+      setLighthouseDetectorServiceFactory(() => createMockLighthouseService());
 
       const input: MotionDetectInput = {
-        url: 'https://example.com',
-        detection_mode: 'video',
+        url: "https://example.com",
+        detection_mode: "video",
         enable_frame_capture: false, // CI環境用: Playwrightブラウザ起動を回避
         lighthouse_options: { enabled: true },
         analyze_metrics: true,
@@ -647,21 +621,19 @@ describe.skipIf(SKIP_SLOW_TESTS)('Phase4: motion.detect + AnimationMetricsCollec
       expect(result.success).toBe(true);
       if (result.success && result.data) {
         // 警告が追加されている
-        expect(result.data.warnings?.some((w) =>
-          w.code === 'ANIMATION_METRICS_UNAVAILABLE'
-        )).toBe(true);
+        expect(result.data.warnings?.some((w) => w.code === "ANIMATION_METRICS_UNAVAILABLE")).toBe(
+          true
+        );
         // ファクトリ未設定時はnullが返される（undefinedではない）
         expect(result.data.animation_metrics).toBeNull();
       }
     });
 
-    it('patternsが空配列の場合もAnimationMetricsCollectorが正常動作する', async () => {
+    it("patternsが空配列の場合もAnimationMetricsCollectorが正常動作する", async () => {
       // パターンが検出されなかった場合のモック
       setVideoRecorderServiceFactory(() => createMockVideoRecorderService());
       setFrameAnalyzerServiceFactory(() => createMockFrameAnalyzerService());
-      setLighthouseDetectorServiceFactory(() =>
-        createMockLighthouseService()
-      );
+      setLighthouseDetectorServiceFactory(() => createMockLighthouseService());
       setAnimationMetricsCollectorFactory(() =>
         createMockAnimationMetricsCollector({
           patternImpacts: [],
@@ -670,8 +642,8 @@ describe.skipIf(SKIP_SLOW_TESTS)('Phase4: motion.detect + AnimationMetricsCollec
       );
 
       const input: MotionDetectInput = {
-        url: 'https://example.com',
-        detection_mode: 'video',
+        url: "https://example.com",
+        detection_mode: "video",
         enable_frame_capture: false, // CI環境用: Playwrightブラウザ起動を回避
         lighthouse_options: { enabled: true },
         analyze_metrics: true,
@@ -686,15 +658,15 @@ describe.skipIf(SKIP_SLOW_TESTS)('Phase4: motion.detect + AnimationMetricsCollec
       }
     });
 
-    it('analyze_metricsのエラー時に適切なエラー情報を返す', async () => {
+    it("analyze_metricsのエラー時に適切なエラー情報を返す", async () => {
       setVideoRecorderServiceFactory(() => createMockVideoRecorderService());
       setFrameAnalyzerServiceFactory(() => createMockFrameAnalyzerService());
-      setLighthouseDetectorServiceFactory(() =>
-        createMockLighthouseService()
-      );
+      setLighthouseDetectorServiceFactory(() => createMockLighthouseService());
 
       // エラーを返す処理をシミュレート
-      const failingAnalyze = vi.fn().mockRejectedValue(new Error('Animation metrics analysis failed'));
+      const failingAnalyze = vi
+        .fn()
+        .mockRejectedValue(new Error("Animation metrics analysis failed"));
 
       setAnimationMetricsCollectorFactory(() => ({
         analyze: failingAnalyze,
@@ -703,8 +675,8 @@ describe.skipIf(SKIP_SLOW_TESTS)('Phase4: motion.detect + AnimationMetricsCollec
       }));
 
       const input: MotionDetectInput = {
-        url: 'https://example.com',
-        detection_mode: 'video',
+        url: "https://example.com",
+        detection_mode: "video",
         enable_frame_capture: false, // CI環境用: Playwrightブラウザ起動を回避
         lighthouse_options: { enabled: true },
         analyze_metrics: true,
@@ -720,24 +692,22 @@ describe.skipIf(SKIP_SLOW_TESTS)('Phase4: motion.detect + AnimationMetricsCollec
       if (result.success && result.data) {
         // animation_metrics_errorにエラー情報が含まれる
         expect(result.data.animation_metrics_error).toBeDefined();
-        expect(result.data.animation_metrics_error?.code).toBe('ANIMATION_METRICS_ERROR');
-        expect(result.data.animation_metrics_error?.message).toContain('Animation metrics analysis failed');
+        expect(result.data.animation_metrics_error?.code).toBe("ANIMATION_METRICS_ERROR");
+        expect(result.data.animation_metrics_error?.message).toContain(
+          "Animation metrics analysis failed"
+        );
       }
     });
 
-    it('summaryモードでもanimation_metricsが正しく返される', async () => {
+    it("summaryモードでもanimation_metricsが正しく返される", async () => {
       setVideoRecorderServiceFactory(() => createMockVideoRecorderService());
       setFrameAnalyzerServiceFactory(() => createMockFrameAnalyzerService());
-      setLighthouseDetectorServiceFactory(() =>
-        createMockLighthouseService()
-      );
-      setAnimationMetricsCollectorFactory(() =>
-        createMockAnimationMetricsCollector()
-      );
+      setLighthouseDetectorServiceFactory(() => createMockLighthouseService());
+      setAnimationMetricsCollectorFactory(() => createMockAnimationMetricsCollector());
 
       const input: MotionDetectInput = {
-        url: 'https://example.com',
-        detection_mode: 'video',
+        url: "https://example.com",
+        detection_mode: "video",
         enable_frame_capture: false, // CI環境用: Playwrightブラウザ起動を回避
         lighthouse_options: { enabled: true },
         analyze_metrics: true,

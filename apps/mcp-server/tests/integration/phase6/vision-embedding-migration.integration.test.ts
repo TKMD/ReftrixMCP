@@ -20,13 +20,13 @@
  * @see 
  */
 
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import { prisma, type PrismaClient } from '@reftrix/database';
+import { describe, it, expect, beforeAll, afterAll } from "vitest";
+import { prisma, type PrismaClient } from "@reftrix/database";
 
 // Skip all tests if DATABASE_URL is not set
 const isDatabaseAvailable = !!process.env.DATABASE_URL;
 
-describe.skipIf(!isDatabaseAvailable)('Vision Embedding Migration', () => {
+describe.skipIf(!isDatabaseAvailable)("Vision Embedding Migration", () => {
   // Use singleton prisma instance from @reftrix/database
 
   beforeAll(async () => {
@@ -39,15 +39,17 @@ describe.skipIf(!isDatabaseAvailable)('Vision Embedding Migration', () => {
     // await prisma.$disconnect();
   });
 
-  describe('MotionEmbedding Table Schema', () => {
-    it('should have vision_embedding column', async () => {
+  describe("MotionEmbedding Table Schema", () => {
+    it("should have vision_embedding column", async () => {
       // Query column information from PostgreSQL information_schema
-      const result = await prisma.$queryRaw<Array<{
-        column_name: string;
-        data_type: string;
-        is_nullable: string;
-        udt_name: string;
-      }>>`
+      const result = await prisma.$queryRaw<
+        Array<{
+          column_name: string;
+          data_type: string;
+          is_nullable: string;
+          udt_name: string;
+        }>
+      >`
         SELECT column_name, data_type, is_nullable, udt_name
         FROM information_schema.columns
         WHERE table_name = 'motion_embeddings'
@@ -55,19 +57,21 @@ describe.skipIf(!isDatabaseAvailable)('Vision Embedding Migration', () => {
       `;
 
       expect(result).toHaveLength(1);
-      expect(result[0].column_name).toBe('vision_embedding');
+      expect(result[0].column_name).toBe("vision_embedding");
       // pgvector columns show as 'USER-DEFINED' data_type with 'vector' udt_name
-      expect(result[0].data_type).toBe('USER-DEFINED');
-      expect(result[0].udt_name).toBe('vector');
+      expect(result[0].data_type).toBe("USER-DEFINED");
+      expect(result[0].udt_name).toBe("vector");
       // Column must be NULLABLE for backward compatibility
-      expect(result[0].is_nullable).toBe('YES');
+      expect(result[0].is_nullable).toBe("YES");
     });
 
-    it('should have vision_embedding as vector(768) type', async () => {
+    it("should have vision_embedding as vector(768) type", async () => {
       // Check vector dimension using pg_attribute and pg_type
-      const result = await prisma.$queryRaw<Array<{
-        typmod: number;
-      }>>`
+      const result = await prisma.$queryRaw<
+        Array<{
+          typmod: number;
+        }>
+      >`
         SELECT a.atttypmod as typmod
         FROM pg_attribute a
         JOIN pg_class c ON a.attrelid = c.oid
@@ -85,13 +89,15 @@ describe.skipIf(!isDatabaseAvailable)('Vision Embedding Migration', () => {
     });
   });
 
-  describe('HNSW Index for MotionEmbedding Vision', () => {
-    it('should have HNSW index on vision_embedding column', async () => {
+  describe("HNSW Index for MotionEmbedding Vision", () => {
+    it("should have HNSW index on vision_embedding column", async () => {
       // Query index information from pg_indexes
-      const result = await prisma.$queryRaw<Array<{
-        indexname: string;
-        indexdef: string;
-      }>>`
+      const result = await prisma.$queryRaw<
+        Array<{
+          indexname: string;
+          indexdef: string;
+        }>
+      >`
         SELECT indexname, indexdef
         FROM pg_indexes
         WHERE tablename = 'motion_embeddings'
@@ -101,22 +107,23 @@ describe.skipIf(!isDatabaseAvailable)('Vision Embedding Migration', () => {
       expect(result.length).toBeGreaterThanOrEqual(1);
 
       // Find the HNSW index for vision_embedding
-      const hnswIndex = result.find(idx =>
-        idx.indexdef.includes('hnsw') &&
-        idx.indexdef.includes('vision_embedding')
+      const hnswIndex = result.find(
+        (idx) => idx.indexdef.includes("hnsw") && idx.indexdef.includes("vision_embedding")
       );
 
       expect(hnswIndex).toBeDefined();
-      expect(hnswIndex!.indexdef).toContain('hnsw');
-      expect(hnswIndex!.indexdef).toContain('vision_embedding');
-      expect(hnswIndex!.indexdef).toContain('vector_cosine_ops');
+      expect(hnswIndex!.indexdef).toContain("hnsw");
+      expect(hnswIndex!.indexdef).toContain("vision_embedding");
+      expect(hnswIndex!.indexdef).toContain("vector_cosine_ops");
     });
 
-    it('should have correct HNSW parameters (m=16, ef_construction=64)', async () => {
+    it("should have correct HNSW parameters (m=16, ef_construction=64)", async () => {
       // Query index definition to verify parameters
-      const result = await prisma.$queryRaw<Array<{
-        indexdef: string;
-      }>>`
+      const result = await prisma.$queryRaw<
+        Array<{
+          indexdef: string;
+        }>
+      >`
         SELECT indexdef
         FROM pg_indexes
         WHERE tablename = 'motion_embeddings'
@@ -133,15 +140,17 @@ describe.skipIf(!isDatabaseAvailable)('Vision Embedding Migration', () => {
     });
   });
 
-  describe('SectionEmbedding Table Schema (Verification)', () => {
+  describe("SectionEmbedding Table Schema (Verification)", () => {
     // SectionEmbedding already has visionEmbedding - verify it's correctly configured
-    it('should have vision_embedding column', async () => {
-      const result = await prisma.$queryRaw<Array<{
-        column_name: string;
-        data_type: string;
-        is_nullable: string;
-        udt_name: string;
-      }>>`
+    it("should have vision_embedding column", async () => {
+      const result = await prisma.$queryRaw<
+        Array<{
+          column_name: string;
+          data_type: string;
+          is_nullable: string;
+          udt_name: string;
+        }>
+      >`
         SELECT column_name, data_type, is_nullable, udt_name
         FROM information_schema.columns
         WHERE table_name = 'section_embeddings'
@@ -149,17 +158,19 @@ describe.skipIf(!isDatabaseAvailable)('Vision Embedding Migration', () => {
       `;
 
       expect(result).toHaveLength(1);
-      expect(result[0].column_name).toBe('vision_embedding');
-      expect(result[0].data_type).toBe('USER-DEFINED');
-      expect(result[0].udt_name).toBe('vector');
-      expect(result[0].is_nullable).toBe('YES');
+      expect(result[0].column_name).toBe("vision_embedding");
+      expect(result[0].data_type).toBe("USER-DEFINED");
+      expect(result[0].udt_name).toBe("vector");
+      expect(result[0].is_nullable).toBe("YES");
     });
 
-    it('should have HNSW index on vision_embedding column', async () => {
-      const result = await prisma.$queryRaw<Array<{
-        indexname: string;
-        indexdef: string;
-      }>>`
+    it("should have HNSW index on vision_embedding column", async () => {
+      const result = await prisma.$queryRaw<
+        Array<{
+          indexname: string;
+          indexdef: string;
+        }>
+      >`
         SELECT indexname, indexdef
         FROM pg_indexes
         WHERE tablename = 'section_embeddings'
@@ -170,18 +181,20 @@ describe.skipIf(!isDatabaseAvailable)('Vision Embedding Migration', () => {
       expect(result.length).toBeGreaterThanOrEqual(1);
 
       const hnswIndex = result[0];
-      expect(hnswIndex.indexdef).toContain('hnsw');
-      expect(hnswIndex.indexdef).toContain('vision_embedding');
-      expect(hnswIndex.indexdef).toContain('vector_cosine_ops');
+      expect(hnswIndex.indexdef).toContain("hnsw");
+      expect(hnswIndex.indexdef).toContain("vision_embedding");
+      expect(hnswIndex.indexdef).toContain("vector_cosine_ops");
     });
   });
 
-  describe('Vector Search Functionality', () => {
-    it('should be able to perform vector similarity search on motion_embeddings.vision_embedding', async () => {
+  describe("Vector Search Functionality", () => {
+    it("should be able to perform vector similarity search on motion_embeddings.vision_embedding", async () => {
       // Generate a test embedding (768 dimensions, normalized)
-      const testEmbedding = Array(768).fill(0).map(() => Math.random());
+      const testEmbedding = Array(768)
+        .fill(0)
+        .map(() => Math.random());
       const norm = Math.sqrt(testEmbedding.reduce((sum, val) => sum + val * val, 0));
-      const normalizedEmbedding = testEmbedding.map(val => val / norm);
+      const normalizedEmbedding = testEmbedding.map((val) => val / norm);
 
       // This query should not fail if the column and index exist
       // Even with no data, the query structure should be valid
@@ -198,10 +211,10 @@ describe.skipIf(!isDatabaseAvailable)('Vision Embedding Migration', () => {
       expect(Number(result[0].count)).toBeGreaterThanOrEqual(0);
     });
 
-    it('should be able to use cosine distance operator on vision_embedding', async () => {
+    it("should be able to use cosine distance operator on vision_embedding", async () => {
       // Test that the cosine distance operator works with the index
       // This verifies vector_cosine_ops is properly configured
-      const testVector = `[${Array(768).fill(0.01).join(',')}]`;
+      const testVector = `[${Array(768).fill(0.01).join(",")}]`;
 
       // This query tests the index usage - should not throw
       const result = await prisma.$queryRaw<Array<{ id: string; distance: number }>>`

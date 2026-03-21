@@ -21,7 +21,7 @@
  * @module tests/services/gpu-resource-manager
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 // ============================================================================
 // モック設定
@@ -29,13 +29,13 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 // child_process.execFile をモック（nvidia-smi 呼び出し用）
 const mockExecFile = vi.fn();
-vi.mock('child_process', () => ({
+vi.mock("child_process", () => ({
   execFile: (...args: unknown[]) => mockExecFile(...args),
 }));
 
 // node:util の promisify をモック — promisify(execFile) の戻り値を制御
-vi.mock('util', async (importOriginal) => {
-  const original = await importOriginal<typeof import('util')>();
+vi.mock("util", async (importOriginal) => {
+  const original = await importOriginal<typeof import("util")>();
   return {
     ...original,
     promisify: () => mockExecFile,
@@ -44,10 +44,10 @@ vi.mock('util', async (importOriginal) => {
 
 // fetch をモック（Ollama API 呼び出し用）
 const mockFetch = vi.fn();
-vi.stubGlobal('fetch', mockFetch);
+vi.stubGlobal("fetch", mockFetch);
 
 // logger をモック
-vi.mock('../../src/utils/logger', () => ({
+vi.mock("../../src/utils/logger", () => ({
   createLogger: () => ({
     info: vi.fn(),
     warn: vi.fn(),
@@ -82,25 +82,25 @@ function mockNvidiaSmiSuccess(
  * nvidia-smiがエラーを返すようモックする（GPU非搭載環境）
  */
 function mockNvidiaSmiNotAvailable(): void {
-  mockExecFile.mockRejectedValue(new Error('nvidia-smi not found'));
+  mockExecFile.mockRejectedValue(new Error("nvidia-smi not found"));
 }
 
 // ============================================================================
 // テストスイート
 // ============================================================================
 
-describe('GpuResourceManager', () => {
+describe("GpuResourceManager", () => {
   // 動的インポート用の型
-  let GpuResourceManager: typeof import('../../src/services/gpu-resource-manager').GpuResourceManager;
-  let gpuModeSignal: typeof import('../../src/services/gpu-resource-manager').gpuModeSignal;
-  type GpuModeSignal = import('../../src/services/gpu-resource-manager').GpuModeSignal;
+  let GpuResourceManager: typeof import("../../src/services/gpu-resource-manager").GpuResourceManager;
+  let gpuModeSignal: typeof import("../../src/services/gpu-resource-manager").gpuModeSignal;
+  type GpuModeSignal = import("../../src/services/gpu-resource-manager").GpuModeSignal;
 
   beforeEach(async () => {
     vi.clearAllMocks();
     vi.useFakeTimers({ shouldAdvanceTime: true });
 
     // 動的インポートで新鮮なモジュールを取得
-    const module = await import('../../src/services/gpu-resource-manager');
+    const module = await import("../../src/services/gpu-resource-manager");
     GpuResourceManager = module.GpuResourceManager;
     gpuModeSignal = module.gpuModeSignal;
 
@@ -108,7 +108,7 @@ describe('GpuResourceManager', () => {
     GpuResourceManager.resetInstance();
 
     // gpuModeSignal をクリーンな状態に戻す
-    gpuModeSignal.requestedProvider = 'cpu';
+    gpuModeSignal.requestedProvider = "cpu";
     gpuModeSignal.onProviderSwitch = undefined;
   });
 
@@ -121,8 +121,8 @@ describe('GpuResourceManager', () => {
   // シングルトンパターン
   // ==========================================================================
 
-  describe('シングルトンパターン', () => {
-    it('getInstance() は同一インスタンスを返す', () => {
+  describe("シングルトンパターン", () => {
+    it("getInstance() は同一インスタンスを返す", () => {
       // Arrange & Act
       const instance1 = GpuResourceManager.getInstance();
       const instance2 = GpuResourceManager.getInstance();
@@ -131,7 +131,7 @@ describe('GpuResourceManager', () => {
       expect(instance1).toBe(instance2);
     });
 
-    it('resetInstance() 後は新しいインスタンスが返される', () => {
+    it("resetInstance() 後は新しいインスタンスが返される", () => {
       // Arrange
       const instance1 = GpuResourceManager.getInstance();
 
@@ -143,10 +143,10 @@ describe('GpuResourceManager', () => {
       expect(instance1).not.toBe(instance2);
     });
 
-    it('getInstance() にconfigを渡すと初回のみ適用される', () => {
+    it("getInstance() にconfigを渡すと初回のみ適用される", () => {
       // Arrange & Act
-      const instance1 = GpuResourceManager.getInstance({ ollamaUrl: 'http://custom:11434' });
-      const instance2 = GpuResourceManager.getInstance({ ollamaUrl: 'http://other:11434' });
+      const instance1 = GpuResourceManager.getInstance({ ollamaUrl: "http://custom:11434" });
+      const instance2 = GpuResourceManager.getInstance({ ollamaUrl: "http://other:11434" });
 
       // Assert: 2回目のconfigは無視、同一インスタンス
       expect(instance1).toBe(instance2);
@@ -157,8 +157,8 @@ describe('GpuResourceManager', () => {
   // GPU可用性検出
   // ==========================================================================
 
-  describe('isGpuAvailable()', () => {
-    it('nvidia-smi成功時はtrueを返す', async () => {
+  describe("isGpuAvailable()", () => {
+    it("nvidia-smi成功時はtrueを返す", async () => {
       // Arrange: GPU搭載環境をシミュレート（RTX 3060 12GB）
       mockNvidiaSmiSuccess(2000, 12288, 10288);
       const manager = GpuResourceManager.getInstance();
@@ -170,7 +170,7 @@ describe('GpuResourceManager', () => {
       expect(available).toBe(true);
     });
 
-    it('nvidia-smi失敗時はfalseを返す', async () => {
+    it("nvidia-smi失敗時はfalseを返す", async () => {
       // Arrange: GPU非搭載環境をシミュレート
       mockNvidiaSmiNotAvailable();
       const manager = GpuResourceManager.getInstance();
@@ -182,7 +182,7 @@ describe('GpuResourceManager', () => {
       expect(available).toBe(false);
     });
 
-    it('結果がキャッシュされる（nvidia-smiは1回のみ呼ばれる）', async () => {
+    it("結果がキャッシュされる（nvidia-smiは1回のみ呼ばれる）", async () => {
       // Arrange
       mockNvidiaSmiSuccess(2000, 12288, 10288);
       const manager = GpuResourceManager.getInstance();
@@ -195,7 +195,7 @@ describe('GpuResourceManager', () => {
       expect(mockExecFile).toHaveBeenCalledTimes(1);
     });
 
-    it('キャッシュされたfalse結果も1回のみの呼び出しで返される', async () => {
+    it("キャッシュされたfalse結果も1回のみの呼び出しで返される", async () => {
       // Arrange
       mockNvidiaSmiNotAvailable();
       const manager = GpuResourceManager.getInstance();
@@ -209,9 +209,9 @@ describe('GpuResourceManager', () => {
       expect(mockExecFile).toHaveBeenCalledTimes(1);
     });
 
-    it('nvidia-smiの出力が不正な場合はfalseを返す', async () => {
+    it("nvidia-smiの出力が不正な場合はfalseを返す", async () => {
       // Arrange: 不正な出力
-      mockExecFile.mockResolvedValue({ stdout: 'invalid output\n' });
+      mockExecFile.mockResolvedValue({ stdout: "invalid output\n" });
       const manager = GpuResourceManager.getInstance();
 
       // Act
@@ -221,9 +221,9 @@ describe('GpuResourceManager', () => {
       expect(available).toBe(false);
     });
 
-    it('nvidia-smiの出力が空の場合はfalseを返す', async () => {
+    it("nvidia-smiの出力が空の場合はfalseを返す", async () => {
       // Arrange
-      mockExecFile.mockResolvedValue({ stdout: '' });
+      mockExecFile.mockResolvedValue({ stdout: "" });
       const manager = GpuResourceManager.getInstance();
 
       // Act
@@ -233,9 +233,9 @@ describe('GpuResourceManager', () => {
       expect(available).toBe(false);
     });
 
-    it('nvidia-smiの出力にNaN値がある場合はfalseを返す', async () => {
+    it("nvidia-smiの出力にNaN値がある場合はfalseを返す", async () => {
       // Arrange
-      mockExecFile.mockResolvedValue({ stdout: 'NaN, 12288, NaN, 0\n' });
+      mockExecFile.mockResolvedValue({ stdout: "NaN, 12288, NaN, 0\n" });
       const manager = GpuResourceManager.getInstance();
 
       // Act
@@ -250,8 +250,8 @@ describe('GpuResourceManager', () => {
   // acquireForVision()
   // ==========================================================================
 
-  describe('acquireForVision()', () => {
-    it('GPU利用可能で所有者なしの場合、acquired=trueを返す', async () => {
+  describe("acquireForVision()", () => {
+    it("GPU利用可能で所有者なしの場合、acquired=trueを返す", async () => {
       // Arrange: GPU利用可能、十分なVRAM（>= 8192MB）
       mockNvidiaSmiSuccess(2000, 12288, 10288);
       const manager = GpuResourceManager.getInstance();
@@ -261,7 +261,7 @@ describe('GpuResourceManager', () => {
 
       // Assert
       expect(result.acquired).toBe(true);
-      expect(result.previousOwner).toBe('none');
+      expect(result.previousOwner).toBe("none");
     });
 
     it('acquireForVision後にcurrentOwnerが"vision"になる', async () => {
@@ -273,7 +273,7 @@ describe('GpuResourceManager', () => {
       await manager.acquireForVision();
 
       // Assert
-      expect(manager.getCurrentOwner()).toBe('vision');
+      expect(manager.getCurrentOwner()).toBe("vision");
     });
 
     it('Embeddingから切り替え時にonProviderSwitch("cpu")が呼ばれる', async () => {
@@ -295,7 +295,7 @@ describe('GpuResourceManager', () => {
       await manager.acquireForVision();
 
       // Assert: EmbeddingをCPUに切り替えるコールバック
-      expect(onProviderSwitch).toHaveBeenCalledWith('cpu');
+      expect(onProviderSwitch).toHaveBeenCalledWith("cpu");
     });
 
     it('Embeddingからの切り替え時にgpuModeSignal.requestedProviderが"cpu"になる', async () => {
@@ -306,7 +306,7 @@ describe('GpuResourceManager', () => {
       // EmbeddingがGPUを所有
       mockFetch.mockResolvedValueOnce({ ok: true });
       await manager.acquireForEmbedding();
-      expect(gpuModeSignal.requestedProvider).toBe('cuda');
+      expect(gpuModeSignal.requestedProvider).toBe("cuda");
 
       // VRAMチェック用
       mockNvidiaSmiSuccess(2000, 12288, 10288);
@@ -315,10 +315,10 @@ describe('GpuResourceManager', () => {
       await manager.acquireForVision();
 
       // Assert
-      expect(gpuModeSignal.requestedProvider).toBe('cpu');
+      expect(gpuModeSignal.requestedProvider).toBe("cpu");
     });
 
-    it('onProviderSwitch未設定でもEmbeddingからの切り替えが動作する', async () => {
+    it("onProviderSwitch未設定でもEmbeddingからの切り替えが動作する", async () => {
       // Arrange: コールバック未設定
       mockNvidiaSmiSuccess(2000, 12288, 10288);
       gpuModeSignal.onProviderSwitch = undefined;
@@ -336,10 +336,10 @@ describe('GpuResourceManager', () => {
       expect(result.acquired).toBe(true);
     });
 
-    it('onProviderSwitchがエラーを投げても処理が続行する', async () => {
+    it("onProviderSwitchがエラーを投げても処理が続行する", async () => {
       // Arrange
       mockNvidiaSmiSuccess(2000, 12288, 10288);
-      gpuModeSignal.onProviderSwitch = vi.fn().mockRejectedValue(new Error('switch failed'));
+      gpuModeSignal.onProviderSwitch = vi.fn().mockRejectedValue(new Error("switch failed"));
       const manager = GpuResourceManager.getInstance();
 
       // EmbeddingがGPUを所有
@@ -356,7 +356,7 @@ describe('GpuResourceManager', () => {
       expect(result.acquired).toBe(true);
     });
 
-    it('VRAM >= 8192MBになるまでポーリングで待機する', async () => {
+    it("VRAM >= 8192MBになるまでポーリングで待機する", async () => {
       // Arrange: GPU利用可能だがVRAM不足 → 十分に解放
       const manager = GpuResourceManager.getInstance();
 
@@ -364,9 +364,9 @@ describe('GpuResourceManager', () => {
       // 2回目: waitForVram → VRAM不足
       // 3回目: waitForVram → VRAM十分
       mockExecFile
-        .mockResolvedValueOnce({ stdout: '10000, 12288, 2288, 80\n' }) // isGpuAvailable
-        .mockResolvedValueOnce({ stdout: '10000, 12288, 2288, 80\n' }) // 1回目のVRAMポーリング: 不足
-        .mockResolvedValueOnce({ stdout: '2000, 12288, 10288, 20\n' }); // 2回目: 十分
+        .mockResolvedValueOnce({ stdout: "10000, 12288, 2288, 80\n" }) // isGpuAvailable
+        .mockResolvedValueOnce({ stdout: "10000, 12288, 2288, 80\n" }) // 1回目のVRAMポーリング: 不足
+        .mockResolvedValueOnce({ stdout: "2000, 12288, 10288, 20\n" }); // 2回目: 十分
 
       // Act
       const resultPromise = manager.acquireForVision();
@@ -379,13 +379,13 @@ describe('GpuResourceManager', () => {
       expect(result.acquired).toBe(true);
     });
 
-    it('VRAMポーリングタイムアウト（30秒）後はacquired=falseを返す', async () => {
+    it("VRAMポーリングタイムアウト（30秒）後はacquired=falseを返す", async () => {
       // Arrange: GPU利用可能だがVRAMが常に不足
       const manager = GpuResourceManager.getInstance();
 
       // nvidia-smi: 常にVRAM不足（8192MB未満）
       mockExecFile.mockResolvedValue({
-        stdout: '10000, 12288, 2288, 80\n',
+        stdout: "10000, 12288, 2288, 80\n",
       });
 
       // Act
@@ -399,7 +399,7 @@ describe('GpuResourceManager', () => {
       expect(result.acquired).toBe(false);
     });
 
-    it('GPU非搭載環境ではacquired=falseを返す', async () => {
+    it("GPU非搭載環境ではacquired=falseを返す", async () => {
       // Arrange
       mockNvidiaSmiNotAvailable();
       const manager = GpuResourceManager.getInstance();
@@ -409,10 +409,10 @@ describe('GpuResourceManager', () => {
 
       // Assert
       expect(result.acquired).toBe(false);
-      expect(result.previousOwner).toBe('none');
+      expect(result.previousOwner).toBe("none");
     });
 
-    it('既にVisionが所有している場合もacquired=trueを返す', async () => {
+    it("既にVisionが所有している場合もacquired=trueを返す", async () => {
       // Arrange
       mockNvidiaSmiSuccess(2000, 12288, 10288);
       const manager = GpuResourceManager.getInstance();
@@ -425,18 +425,18 @@ describe('GpuResourceManager', () => {
 
       // Assert: 成功
       expect(result.acquired).toBe(true);
-      expect(result.previousOwner).toBe('none');
+      expect(result.previousOwner).toBe("none");
     });
 
-    it('VRAMポーリング中にnvidia-smiが利用不可になるとbest-effortでtrue', async () => {
+    it("VRAMポーリング中にnvidia-smiが利用不可になるとbest-effortでtrue", async () => {
       // Arrange
       const manager = GpuResourceManager.getInstance();
 
       // 1回目: isGpuAvailable → GPU検出
       // 2回目: waitForVram → nvidia-smi失敗（best-effort続行）
       mockExecFile
-        .mockResolvedValueOnce({ stdout: '2000, 12288, 10288, 10\n' }) // isGpuAvailable: GPU検出
-        .mockRejectedValueOnce(new Error('nvidia-smi unavailable')); // waitForVram: 利用不可
+        .mockResolvedValueOnce({ stdout: "2000, 12288, 10288, 10\n" }) // isGpuAvailable: GPU検出
+        .mockRejectedValueOnce(new Error("nvidia-smi unavailable")); // waitForVram: 利用不可
 
       // Act
       const result = await manager.acquireForVision();
@@ -450,8 +450,8 @@ describe('GpuResourceManager', () => {
   // acquireForEmbedding()
   // ==========================================================================
 
-  describe('acquireForEmbedding()', () => {
-    it('GPU利用可能で所有者なしの場合、acquired=trueを返す', async () => {
+  describe("acquireForEmbedding()", () => {
+    it("GPU利用可能で所有者なしの場合、acquired=trueを返す", async () => {
       // Arrange: VRAM十分（>= 2048MB）
       mockNvidiaSmiSuccess(2000, 12288, 10288);
       // Ollama unload（所有者なしでもunload試行される）
@@ -466,7 +466,7 @@ describe('GpuResourceManager', () => {
       expect(result.fallbackToCpu).toBe(false);
     });
 
-    it('Visionからの切り替え時にOllama unload APIが正しく呼ばれる', async () => {
+    it("Visionからの切り替え時にOllama unload APIが正しく呼ばれる", async () => {
       // Arrange
       mockNvidiaSmiSuccess(2000, 12288, 10288);
       const manager = GpuResourceManager.getInstance();
@@ -478,7 +478,7 @@ describe('GpuResourceManager', () => {
       // Ollama unload成功 + VRAM十分
       mockFetch.mockResolvedValueOnce({ ok: true });
       mockExecFile.mockResolvedValue({
-        stdout: '2000, 12288, 10288, 10\n',
+        stdout: "2000, 12288, 10288, 10\n",
       });
 
       // Act
@@ -486,18 +486,18 @@ describe('GpuResourceManager', () => {
 
       // Assert: Ollama unload APIが正しいパラメータで呼ばれた
       expect(mockFetch).toHaveBeenCalledWith(
-        expect.stringContaining('/api/generate'),
+        expect.stringContaining("/api/generate"),
         expect.objectContaining({
-          method: 'POST',
-          body: expect.stringContaining('keep_alive'),
+          method: "POST",
+          body: expect.stringContaining("keep_alive"),
         })
       );
 
       // body に llama3.2-vision モデル名と keep_alive: '0' が含まれることを検証
       const callArgs = mockFetch.mock.calls[0];
       const body = JSON.parse(callArgs[1].body as string);
-      expect(body.model).toBe('llama3.2-vision');
-      expect(body.keep_alive).toBe('0');
+      expect(body.model).toBe("llama3.2-vision");
+      expect(body.keep_alive).toBe("0");
     });
 
     it('VRAM解放後にonProviderSwitch("cuda")が呼ばれる', async () => {
@@ -514,7 +514,7 @@ describe('GpuResourceManager', () => {
       await manager.acquireForEmbedding();
 
       // Assert: ONNX をCUDAモードに切り替えるコールバック
-      expect(onProviderSwitch).toHaveBeenCalledWith('cuda');
+      expect(onProviderSwitch).toHaveBeenCalledWith("cuda");
     });
 
     it('acquireForEmbedding後にgpuModeSignal.requestedProviderが"cuda"になる', async () => {
@@ -527,10 +527,10 @@ describe('GpuResourceManager', () => {
       await manager.acquireForEmbedding();
 
       // Assert
-      expect(gpuModeSignal.requestedProvider).toBe('cuda');
+      expect(gpuModeSignal.requestedProvider).toBe("cuda");
     });
 
-    it('VRAM >= 2048MBになるまで待機する', async () => {
+    it("VRAM >= 2048MBになるまで待機する", async () => {
       // Arrange
       mockNvidiaSmiSuccess(2000, 12288, 10288);
       const manager = GpuResourceManager.getInstance();
@@ -544,8 +544,8 @@ describe('GpuResourceManager', () => {
 
       // 1回目: VRAM不足、2回目: VRAM十分（>= 2048MB）
       mockExecFile
-        .mockResolvedValueOnce({ stdout: '11000, 12288, 1288, 90\n' }) // VRAM不足
-        .mockResolvedValueOnce({ stdout: '4000, 12288, 8288, 30\n' }); // VRAM十分
+        .mockResolvedValueOnce({ stdout: "11000, 12288, 1288, 90\n" }) // VRAM不足
+        .mockResolvedValueOnce({ stdout: "4000, 12288, 8288, 30\n" }); // VRAM十分
 
       // Act
       const resultPromise = manager.acquireForEmbedding();
@@ -557,7 +557,7 @@ describe('GpuResourceManager', () => {
       expect(result.fallbackToCpu).toBe(false);
     });
 
-    it('Ollama unload失敗時はfallbackToCpu=trueを返す', async () => {
+    it("Ollama unload失敗時はfallbackToCpu=trueを返す", async () => {
       // Arrange
       mockNvidiaSmiSuccess(2000, 12288, 10288);
       const manager = GpuResourceManager.getInstance();
@@ -567,7 +567,7 @@ describe('GpuResourceManager', () => {
       mockFetch.mockClear();
 
       // Ollama unload失敗（接続エラー）
-      mockFetch.mockRejectedValueOnce(new Error('Connection refused'));
+      mockFetch.mockRejectedValueOnce(new Error("Connection refused"));
 
       // Act
       const result = await manager.acquireForEmbedding();
@@ -577,7 +577,7 @@ describe('GpuResourceManager', () => {
       expect(result.fallbackToCpu).toBe(true);
     });
 
-    it('Ollama unload APIが非200レスポンスの場合もfallbackToCpu=trueを返す', async () => {
+    it("Ollama unload APIが非200レスポンスの場合もfallbackToCpu=trueを返す", async () => {
       // Arrange
       mockNvidiaSmiSuccess(2000, 12288, 10288);
       const manager = GpuResourceManager.getInstance();
@@ -586,7 +586,7 @@ describe('GpuResourceManager', () => {
       mockFetch.mockResolvedValueOnce({
         ok: false,
         status: 500,
-        statusText: 'Internal Server Error',
+        statusText: "Internal Server Error",
       });
 
       // Act
@@ -597,7 +597,7 @@ describe('GpuResourceManager', () => {
       expect(result.fallbackToCpu).toBe(true);
     });
 
-    it('VRAM解放タイムアウト時はfallbackToCpu=trueを返す', async () => {
+    it("VRAM解放タイムアウト時はfallbackToCpu=trueを返す", async () => {
       // Arrange
       mockNvidiaSmiSuccess(2000, 12288, 10288);
       const manager = GpuResourceManager.getInstance();
@@ -611,7 +611,7 @@ describe('GpuResourceManager', () => {
 
       // VRAMが永久に不足
       mockExecFile.mockResolvedValue({
-        stdout: '11000, 12288, 1288, 90\n',
+        stdout: "11000, 12288, 1288, 90\n",
       });
 
       // Act
@@ -624,7 +624,7 @@ describe('GpuResourceManager', () => {
       expect(result.fallbackToCpu).toBe(true);
     });
 
-    it('GPU非搭載環境ではfallbackToCpu=trueを返す', async () => {
+    it("GPU非搭載環境ではfallbackToCpu=trueを返す", async () => {
       // Arrange
       mockNvidiaSmiNotAvailable();
       const manager = GpuResourceManager.getInstance();
@@ -635,13 +635,13 @@ describe('GpuResourceManager', () => {
       // Assert
       expect(result.acquired).toBe(false);
       expect(result.fallbackToCpu).toBe(true);
-      expect(result.previousOwner).toBe('none');
+      expect(result.previousOwner).toBe("none");
     });
 
-    it('onProviderSwitchがエラーを投げるとfallbackToCpu=trueを返す', async () => {
+    it("onProviderSwitchがエラーを投げるとfallbackToCpu=trueを返す", async () => {
       // Arrange
       mockNvidiaSmiSuccess(2000, 12288, 10288);
-      gpuModeSignal.onProviderSwitch = vi.fn().mockRejectedValue(new Error('switch failed'));
+      gpuModeSignal.onProviderSwitch = vi.fn().mockRejectedValue(new Error("switch failed"));
       mockFetch.mockResolvedValueOnce({ ok: true });
       const manager = GpuResourceManager.getInstance();
 
@@ -652,10 +652,10 @@ describe('GpuResourceManager', () => {
       expect(result.acquired).toBe(false);
       expect(result.fallbackToCpu).toBe(true);
       // gpuModeSignalはCPUに戻る
-      expect(gpuModeSignal.requestedProvider).toBe('cpu');
+      expect(gpuModeSignal.requestedProvider).toBe("cpu");
     });
 
-    it('onProviderSwitch未設定でもacquireForEmbeddingが動作する', async () => {
+    it("onProviderSwitch未設定でもacquireForEmbeddingが動作する", async () => {
       // Arrange
       mockNvidiaSmiSuccess(2000, 12288, 10288);
       gpuModeSignal.onProviderSwitch = undefined;
@@ -668,7 +668,7 @@ describe('GpuResourceManager', () => {
       // Assert: コールバック未設定でも成功
       expect(result.acquired).toBe(true);
       expect(result.fallbackToCpu).toBe(false);
-      expect(gpuModeSignal.requestedProvider).toBe('cuda');
+      expect(gpuModeSignal.requestedProvider).toBe("cuda");
     });
   });
 
@@ -676,19 +676,19 @@ describe('GpuResourceManager', () => {
   // release()
   // ==========================================================================
 
-  describe('release()', () => {
+  describe("release()", () => {
     it('currentOwnerを"none"に設定する', async () => {
       // Arrange
       mockNvidiaSmiSuccess(2000, 12288, 10288);
       const manager = GpuResourceManager.getInstance();
       await manager.acquireForVision();
-      expect(manager.getCurrentOwner()).toBe('vision');
+      expect(manager.getCurrentOwner()).toBe("vision");
 
       // Act
       await manager.release();
 
       // Assert: 現在の所有者が"none"
-      expect(manager.getCurrentOwner()).toBe('none');
+      expect(manager.getCurrentOwner()).toBe("none");
     });
 
     it('Embeddingが所有中の場合、release時にonProviderSwitch("cpu")が呼ばれる', async () => {
@@ -707,7 +707,7 @@ describe('GpuResourceManager', () => {
       await manager.release();
 
       // Assert
-      expect(onProviderSwitch).toHaveBeenCalledWith('cpu');
+      expect(onProviderSwitch).toHaveBeenCalledWith("cpu");
     });
 
     it('Embedding release後にgpuModeSignal.requestedProviderが"cpu"になる', async () => {
@@ -717,13 +717,13 @@ describe('GpuResourceManager', () => {
       const manager = GpuResourceManager.getInstance();
 
       await manager.acquireForEmbedding();
-      expect(gpuModeSignal.requestedProvider).toBe('cuda');
+      expect(gpuModeSignal.requestedProvider).toBe("cuda");
 
       // Act
       await manager.release();
 
       // Assert
-      expect(gpuModeSignal.requestedProvider).toBe('cpu');
+      expect(gpuModeSignal.requestedProvider).toBe("cpu");
     });
 
     it('所有者が"none"の場合はno-op', async () => {
@@ -737,10 +737,10 @@ describe('GpuResourceManager', () => {
 
       // Assert: コールバックは呼ばれない
       expect(onProviderSwitch).not.toHaveBeenCalled();
-      expect(manager.getCurrentOwner()).toBe('none');
+      expect(manager.getCurrentOwner()).toBe("none");
     });
 
-    it('Visionが所有中の場合もrelease可能（onProviderSwitchは呼ばれない）', async () => {
+    it("Visionが所有中の場合もrelease可能（onProviderSwitchは呼ばれない）", async () => {
       // Arrange
       mockNvidiaSmiSuccess(2000, 12288, 10288);
       const onProviderSwitch = vi.fn();
@@ -755,13 +755,13 @@ describe('GpuResourceManager', () => {
       // Assert: Vision release時はonProviderSwitchは呼ばれない
       // （Ollama の GPU 解放は Ollama 自身のライフサイクルで管理）
       expect(onProviderSwitch).not.toHaveBeenCalled();
-      expect(manager.getCurrentOwner()).toBe('none');
+      expect(manager.getCurrentOwner()).toBe("none");
     });
 
-    it('release中にonProviderSwitchがエラーを投げても処理完了する', async () => {
+    it("release中にonProviderSwitchがエラーを投げても処理完了する", async () => {
       // Arrange
       mockNvidiaSmiSuccess(2000, 12288, 10288);
-      gpuModeSignal.onProviderSwitch = vi.fn().mockRejectedValue(new Error('switch failed'));
+      gpuModeSignal.onProviderSwitch = vi.fn().mockRejectedValue(new Error("switch failed"));
       mockFetch.mockResolvedValueOnce({ ok: true });
       const manager = GpuResourceManager.getInstance();
 
@@ -769,7 +769,7 @@ describe('GpuResourceManager', () => {
 
       // Act & Assert: エラーが伝播しない
       await expect(manager.release()).resolves.toBeUndefined();
-      expect(manager.getCurrentOwner()).toBe('none');
+      expect(manager.getCurrentOwner()).toBe("none");
     });
   });
 
@@ -777,13 +777,13 @@ describe('GpuResourceManager', () => {
   // getCurrentOwner()
   // ==========================================================================
 
-  describe('getCurrentOwner()', () => {
+  describe("getCurrentOwner()", () => {
     it('初期状態は"none"', () => {
       // Arrange & Act
       const manager = GpuResourceManager.getInstance();
 
       // Assert
-      expect(manager.getCurrentOwner()).toBe('none');
+      expect(manager.getCurrentOwner()).toBe("none");
     });
 
     it('acquireForVision後は"vision"', async () => {
@@ -795,7 +795,7 @@ describe('GpuResourceManager', () => {
       await manager.acquireForVision();
 
       // Assert
-      expect(manager.getCurrentOwner()).toBe('vision');
+      expect(manager.getCurrentOwner()).toBe("vision");
     });
 
     it('acquireForEmbedding後は"embedding"', async () => {
@@ -808,7 +808,7 @@ describe('GpuResourceManager', () => {
       await manager.acquireForEmbedding();
 
       // Assert
-      expect(manager.getCurrentOwner()).toBe('embedding');
+      expect(manager.getCurrentOwner()).toBe("embedding");
     });
 
     it('release後は"none"に戻る', async () => {
@@ -821,7 +821,7 @@ describe('GpuResourceManager', () => {
       await manager.release();
 
       // Assert
-      expect(manager.getCurrentOwner()).toBe('none');
+      expect(manager.getCurrentOwner()).toBe("none");
     });
   });
 
@@ -829,13 +829,13 @@ describe('GpuResourceManager', () => {
   // gpuModeSignal 共有シグナル
   // ==========================================================================
 
-  describe('gpuModeSignal', () => {
+  describe("gpuModeSignal", () => {
     it('初期値はrequested​Provider="cpu"', () => {
       // Assert
-      expect(gpuModeSignal.requestedProvider).toBe('cpu');
+      expect(gpuModeSignal.requestedProvider).toBe("cpu");
     });
 
-    it('onProviderSwitchは初期状態でundefined', () => {
+    it("onProviderSwitchは初期状態でundefined", () => {
       // Assert（beforeEachでリセット済み）
       expect(gpuModeSignal.onProviderSwitch).toBeUndefined();
     });
@@ -851,7 +851,7 @@ describe('GpuResourceManager', () => {
       await manager.acquireForEmbedding();
 
       // Assert
-      expect(gpuModeSignal.requestedProvider).toBe('cuda');
+      expect(gpuModeSignal.requestedProvider).toBe("cuda");
     });
 
     it('release後にrequested​Providerが"cpu"に戻る', async () => {
@@ -865,7 +865,7 @@ describe('GpuResourceManager', () => {
       await manager.release();
 
       // Assert
-      expect(gpuModeSignal.requestedProvider).toBe('cpu');
+      expect(gpuModeSignal.requestedProvider).toBe("cpu");
     });
   });
 
@@ -873,8 +873,8 @@ describe('GpuResourceManager', () => {
   // Graceful Degradation
   // ==========================================================================
 
-  describe('Graceful Degradation', () => {
-    it('nvidia-smi未搭載でもすべてのメソッドがエラーなく動作する', async () => {
+  describe("Graceful Degradation", () => {
+    it("nvidia-smi未搭載でもすべてのメソッドがエラーなく動作する", async () => {
       // Arrange: GPU非搭載環境
       mockNvidiaSmiNotAvailable();
       const manager = GpuResourceManager.getInstance();
@@ -893,7 +893,7 @@ describe('GpuResourceManager', () => {
       await expect(manager.release()).resolves.toBeUndefined();
     });
 
-    it('Ollama未起動でもacquireForVisionが動作する', async () => {
+    it("Ollama未起動でもacquireForVisionが動作する", async () => {
       // Arrange: GPU利用可能だがOllama未起動
       mockNvidiaSmiSuccess(2000, 12288, 10288);
       const manager = GpuResourceManager.getInstance();
@@ -907,10 +907,10 @@ describe('GpuResourceManager', () => {
       await expect(manager.release()).resolves.toBeUndefined();
     });
 
-    it('Ollama未起動でacquireForEmbeddingはfallbackToCpuを返す', async () => {
+    it("Ollama未起動でacquireForEmbeddingはfallbackToCpuを返す", async () => {
       // Arrange: GPU利用可能だがOllama未起動
       mockNvidiaSmiSuccess(2000, 12288, 10288);
-      mockFetch.mockRejectedValue(new Error('Connection refused'));
+      mockFetch.mockRejectedValue(new Error("Connection refused"));
       const manager = GpuResourceManager.getInstance();
 
       // VisionがGPUを所有
@@ -923,7 +923,7 @@ describe('GpuResourceManager', () => {
       expect(result.fallbackToCpu).toBe(true);
     });
 
-    it('GPU検出失敗はキャッシュされ再クエリしない', async () => {
+    it("GPU検出失敗はキャッシュされ再クエリしない", async () => {
       // Arrange
       mockNvidiaSmiNotAvailable();
       const manager = GpuResourceManager.getInstance();
@@ -942,8 +942,8 @@ describe('GpuResourceManager', () => {
   // 状態遷移の一貫性
   // ==========================================================================
 
-  describe('状態遷移の一貫性', () => {
-    it('Vision → Embedding → Vision の連続切り替えが正しく動作する', async () => {
+  describe("状態遷移の一貫性", () => {
+    it("Vision → Embedding → Vision の連続切り替えが正しく動作する", async () => {
       // Arrange
       mockNvidiaSmiSuccess(2000, 12288, 10288);
       const onProviderSwitch = vi.fn().mockResolvedValue(undefined);
@@ -956,19 +956,19 @@ describe('GpuResourceManager', () => {
       // Act: Vision → Embedding → Vision
       const v1 = await manager.acquireForVision();
       expect(v1.acquired).toBe(true);
-      expect(manager.getCurrentOwner()).toBe('vision');
+      expect(manager.getCurrentOwner()).toBe("vision");
 
       const e1 = await manager.acquireForEmbedding();
       expect(e1.acquired).toBe(true);
-      expect(manager.getCurrentOwner()).toBe('embedding');
+      expect(manager.getCurrentOwner()).toBe("embedding");
 
       const v2 = await manager.acquireForVision();
       expect(v2.acquired).toBe(true);
-      expect(v2.previousOwner).toBe('embedding');
-      expect(manager.getCurrentOwner()).toBe('vision');
+      expect(v2.previousOwner).toBe("embedding");
+      expect(manager.getCurrentOwner()).toBe("vision");
     });
 
-    it('release後に再度acquireできる', async () => {
+    it("release後に再度acquireできる", async () => {
       // Arrange
       mockNvidiaSmiSuccess(2000, 12288, 10288);
       const manager = GpuResourceManager.getInstance();
@@ -980,10 +980,10 @@ describe('GpuResourceManager', () => {
 
       // Assert
       expect(result.acquired).toBe(true);
-      expect(manager.getCurrentOwner()).toBe('vision');
+      expect(manager.getCurrentOwner()).toBe("vision");
     });
 
-    it('Embedding → release → Embedding の連続操作が正しく動作する', async () => {
+    it("Embedding → release → Embedding の連続操作が正しく動作する", async () => {
       // Arrange
       mockNvidiaSmiSuccess(2000, 12288, 10288);
       mockFetch.mockResolvedValue({ ok: true });
@@ -994,15 +994,15 @@ describe('GpuResourceManager', () => {
       expect(e1.acquired).toBe(true);
 
       await manager.release();
-      expect(manager.getCurrentOwner()).toBe('none');
+      expect(manager.getCurrentOwner()).toBe("none");
 
       const e2 = await manager.acquireForEmbedding();
       expect(e2.acquired).toBe(true);
-      expect(e2.previousOwner).toBe('none');
-      expect(manager.getCurrentOwner()).toBe('embedding');
+      expect(e2.previousOwner).toBe("none");
+      expect(manager.getCurrentOwner()).toBe("embedding");
     });
 
-    it('Vision → Embedding → Release → Vision フルサイクルが正しく動作する', async () => {
+    it("Vision → Embedding → Release → Vision フルサイクルが正しく動作する", async () => {
       // Arrange: GPU搭載環境のフルサイクルテスト
       mockNvidiaSmiSuccess(2000, 12288, 10288);
       mockFetch.mockResolvedValue({ ok: true });
@@ -1013,33 +1013,33 @@ describe('GpuResourceManager', () => {
       // Phase 1: Vision 確保
       const v1 = await manager.acquireForVision();
       expect(v1.acquired).toBe(true);
-      expect(v1.previousOwner).toBe('none');
-      expect(manager.getCurrentOwner()).toBe('vision');
-      expect(gpuModeSignal.requestedProvider).toBe('cpu'); // Vision は signal を変えない
+      expect(v1.previousOwner).toBe("none");
+      expect(manager.getCurrentOwner()).toBe("vision");
+      expect(gpuModeSignal.requestedProvider).toBe("cpu"); // Vision は signal を変えない
 
       // Phase 2: Embedding に切り替え（Ollama unload → CUDA モード）
       const e1 = await manager.acquireForEmbedding();
       expect(e1.acquired).toBe(true);
-      expect(e1.previousOwner).toBe('vision');
+      expect(e1.previousOwner).toBe("vision");
       expect(e1.fallbackToCpu).toBe(false);
-      expect(manager.getCurrentOwner()).toBe('embedding');
-      expect(gpuModeSignal.requestedProvider).toBe('cuda');
+      expect(manager.getCurrentOwner()).toBe("embedding");
+      expect(gpuModeSignal.requestedProvider).toBe("cuda");
 
       // Phase 3: Release（ONNX dispose → CPU モード）
       onProviderSwitch.mockClear();
       await manager.release();
-      expect(manager.getCurrentOwner()).toBe('none');
-      expect(gpuModeSignal.requestedProvider).toBe('cpu');
-      expect(onProviderSwitch).toHaveBeenCalledWith('cpu');
+      expect(manager.getCurrentOwner()).toBe("none");
+      expect(gpuModeSignal.requestedProvider).toBe("cpu");
+      expect(onProviderSwitch).toHaveBeenCalledWith("cpu");
 
       // Phase 4: 再度 Vision 確保
       const v2 = await manager.acquireForVision();
       expect(v2.acquired).toBe(true);
-      expect(v2.previousOwner).toBe('none');
-      expect(manager.getCurrentOwner()).toBe('vision');
+      expect(v2.previousOwner).toBe("none");
+      expect(manager.getCurrentOwner()).toBe("vision");
     });
 
-    it('GPU非搭載環境でのフルサイクルはすべてフォールバックする', async () => {
+    it("GPU非搭載環境でのフルサイクルはすべてフォールバックする", async () => {
       // Arrange
       mockNvidiaSmiNotAvailable();
       const manager = GpuResourceManager.getInstance();
@@ -1047,17 +1047,17 @@ describe('GpuResourceManager', () => {
       // Vision 確保 → GPU なし
       const vResult = await manager.acquireForVision();
       expect(vResult.acquired).toBe(false);
-      expect(manager.getCurrentOwner()).toBe('none');
+      expect(manager.getCurrentOwner()).toBe("none");
 
       // Embedding 確保 → CPU フォールバック
       const eResult = await manager.acquireForEmbedding();
       expect(eResult.acquired).toBe(false);
       expect(eResult.fallbackToCpu).toBe(true);
-      expect(manager.getCurrentOwner()).toBe('none');
+      expect(manager.getCurrentOwner()).toBe("none");
 
       // Release は何もしない
       await manager.release();
-      expect(manager.getCurrentOwner()).toBe('none');
+      expect(manager.getCurrentOwner()).toBe("none");
 
       // fetch は一度も呼ばれない（GPU がないため Ollama unload 不要）
       expect(mockFetch).not.toHaveBeenCalled();
@@ -1068,8 +1068,8 @@ describe('GpuResourceManager', () => {
   // エッジケース
   // ==========================================================================
 
-  describe('エッジケース', () => {
-    it('release を連続で呼んでもエラーにならない', async () => {
+  describe("エッジケース", () => {
+    it("release を連続で呼んでもエラーにならない", async () => {
       // Arrange
       mockNvidiaSmiSuccess(2000, 12288, 10288);
       const manager = GpuResourceManager.getInstance();
@@ -1078,10 +1078,10 @@ describe('GpuResourceManager', () => {
       // Act & Assert: 2回連続 release でエラーなし
       await expect(manager.release()).resolves.toBeUndefined();
       await expect(manager.release()).resolves.toBeUndefined();
-      expect(manager.getCurrentOwner()).toBe('none');
+      expect(manager.getCurrentOwner()).toBe("none");
     });
 
-    it('Embedding 所有中に acquireForEmbedding を呼ぶと Ollama unload をスキップする', async () => {
+    it("Embedding 所有中に acquireForEmbedding を呼ぶと Ollama unload をスキップする", async () => {
       // Arrange
       mockNvidiaSmiSuccess(2000, 12288, 10288);
       mockFetch.mockResolvedValue({ ok: true });
@@ -1099,13 +1099,13 @@ describe('GpuResourceManager', () => {
       // (ソースの if (this.currentOwner === 'vision' || this.currentOwner === 'none') を検証)
       expect(mockFetch).not.toHaveBeenCalled();
       expect(result.acquired).toBe(true);
-      expect(manager.getCurrentOwner()).toBe('embedding');
+      expect(manager.getCurrentOwner()).toBe("embedding");
     });
 
-    it('カスタム visionMinVramMb で低い VRAM 閾値を設定できる', async () => {
+    it("カスタム visionMinVramMb で低い VRAM 閾値を設定できる", async () => {
       // Arrange: 3000MB 空きで、閾値 2000MB
       mockExecFile.mockResolvedValue({
-        stdout: '9288, 12288, 3000, 75\n',
+        stdout: "9288, 12288, 3000, 75\n",
       });
 
       const manager = new GpuResourceManager({
@@ -1119,10 +1119,10 @@ describe('GpuResourceManager', () => {
       expect(result.acquired).toBe(true);
     });
 
-    it('カスタム embeddingMinVramMb で低い VRAM 閾値を設定できる', async () => {
+    it("カスタム embeddingMinVramMb で低い VRAM 閾値を設定できる", async () => {
       // Arrange: 1500MB 空きで、閾値 1000MB
       mockExecFile.mockResolvedValue({
-        stdout: '10788, 12288, 1500, 87\n',
+        stdout: "10788, 12288, 1500, 87\n",
       });
       mockFetch.mockResolvedValueOnce({ ok: true });
 
@@ -1143,8 +1143,8 @@ describe('GpuResourceManager', () => {
   // カスタム設定
   // ==========================================================================
 
-  describe('カスタム設定', () => {
-    it('ollamaUrlをカスタム設定できる（localhostのみ許可）', async () => {
+  describe("カスタム設定", () => {
+    it("ollamaUrlをカスタム設定できる（localhostのみ許可）", async () => {
       // Arrange: localhost上のカスタムポートを指定
       vi.useRealTimers();
       mockExecFile.mockReset();
@@ -1153,7 +1153,7 @@ describe('GpuResourceManager', () => {
       mockNvidiaSmiSuccess(2000, 12288, 10288);
       mockFetch.mockResolvedValueOnce({ ok: true });
 
-      const config = { ollamaUrl: 'http://localhost:12345' };
+      const config = { ollamaUrl: "http://localhost:12345" };
       const manager = new GpuResourceManager(config);
 
       // Act: acquireForEmbeddingはunloadOllamaModel → fetchを呼ぶ
@@ -1161,14 +1161,14 @@ describe('GpuResourceManager', () => {
 
       // Assert: カスタムポートのURLでfetchが呼ばれた
       expect(mockFetch).toHaveBeenCalledWith(
-        'http://localhost:12345/api/generate',
+        "http://localhost:12345/api/generate",
         expect.anything()
       );
 
       vi.useFakeTimers({ shouldAdvanceTime: true });
     });
 
-    it('SSRF防止: 非localhostのURLはデフォルトにフォールバックする', async () => {
+    it("SSRF防止: 非localhostのURLはデフォルトにフォールバックする", async () => {
       // Arrange: 外部ホストを指定（SSRF攻撃のシミュレート）
       vi.useRealTimers();
       mockExecFile.mockReset();
@@ -1177,7 +1177,7 @@ describe('GpuResourceManager', () => {
       mockNvidiaSmiSuccess(2000, 12288, 10288);
       mockFetch.mockResolvedValueOnce({ ok: true });
 
-      const config = { ollamaUrl: 'http://evil-server.com:11434' };
+      const config = { ollamaUrl: "http://evil-server.com:11434" };
       const manager = new GpuResourceManager(config);
 
       // Act
@@ -1185,14 +1185,14 @@ describe('GpuResourceManager', () => {
 
       // Assert: デフォルトlocalhost URLにフォールバック（SSRF防止）
       expect(mockFetch).toHaveBeenCalledWith(
-        'http://localhost:11434/api/generate',
+        "http://localhost:11434/api/generate",
         expect.anything()
       );
 
       vi.useFakeTimers({ shouldAdvanceTime: true });
     });
 
-    it('SSRF防止: 127.0.0.1 は許可される', async () => {
+    it("SSRF防止: 127.0.0.1 は許可される", async () => {
       // Arrange
       vi.useRealTimers();
       mockExecFile.mockReset();
@@ -1201,7 +1201,7 @@ describe('GpuResourceManager', () => {
       mockNvidiaSmiSuccess(2000, 12288, 10288);
       mockFetch.mockResolvedValueOnce({ ok: true });
 
-      const config = { ollamaUrl: 'http://127.0.0.1:11434' };
+      const config = { ollamaUrl: "http://127.0.0.1:11434" };
       const manager = new GpuResourceManager(config);
 
       // Act
@@ -1209,14 +1209,14 @@ describe('GpuResourceManager', () => {
 
       // Assert: 127.0.0.1 はブロックされない
       expect(mockFetch).toHaveBeenCalledWith(
-        'http://127.0.0.1:11434/api/generate',
+        "http://127.0.0.1:11434/api/generate",
         expect.anything()
       );
 
       vi.useFakeTimers({ shouldAdvanceTime: true });
     });
 
-    it('SSRF防止: [::1] (IPv6 localhost) は brackets 付きホスト名のためデフォルトにフォールバック', async () => {
+    it("SSRF防止: [::1] (IPv6 localhost) は brackets 付きホスト名のためデフォルトにフォールバック", async () => {
       // Arrange: Node.js の URL parser は IPv6 を brackets 付きで返す
       // new URL('http://[::1]:11434').hostname === '[::1]' (not '::1')
       // allowedHosts に '::1' はあるが '[::1]' はないためフォールバック
@@ -1227,7 +1227,7 @@ describe('GpuResourceManager', () => {
       mockNvidiaSmiSuccess(2000, 12288, 10288);
       mockFetch.mockResolvedValueOnce({ ok: true });
 
-      const config = { ollamaUrl: 'http://[::1]:11434' };
+      const config = { ollamaUrl: "http://[::1]:11434" };
       const manager = new GpuResourceManager(config);
 
       // Act
@@ -1235,14 +1235,14 @@ describe('GpuResourceManager', () => {
 
       // Assert: デフォルト localhost にフォールバック（SSRF防止の副作用だが安全側）
       expect(mockFetch).toHaveBeenCalledWith(
-        expect.stringContaining('localhost'),
+        expect.stringContaining("localhost"),
         expect.anything()
       );
 
       vi.useFakeTimers({ shouldAdvanceTime: true });
     });
 
-    it('SSRF防止: メタデータサービスURL (169.254.169.254) はブロックされる', async () => {
+    it("SSRF防止: メタデータサービスURL (169.254.169.254) はブロックされる", async () => {
       // Arrange: クラウドメタデータサービスへのSSRF
       vi.useRealTimers();
       mockExecFile.mockReset();
@@ -1251,7 +1251,7 @@ describe('GpuResourceManager', () => {
       mockNvidiaSmiSuccess(2000, 12288, 10288);
       mockFetch.mockResolvedValueOnce({ ok: true });
 
-      const config = { ollamaUrl: 'http://169.254.169.254:11434' };
+      const config = { ollamaUrl: "http://169.254.169.254:11434" };
       const manager = new GpuResourceManager(config);
 
       // Act
@@ -1259,14 +1259,14 @@ describe('GpuResourceManager', () => {
 
       // Assert: デフォルトlocalhost URLにフォールバック
       expect(mockFetch).toHaveBeenCalledWith(
-        'http://localhost:11434/api/generate',
+        "http://localhost:11434/api/generate",
         expect.anything()
       );
 
       vi.useFakeTimers({ shouldAdvanceTime: true });
     });
 
-    it('SSRF防止: 不正なURLはデフォルトにフォールバックする', async () => {
+    it("SSRF防止: 不正なURLはデフォルトにフォールバックする", async () => {
       // Arrange: パース不可能なURL
       vi.useRealTimers();
       mockExecFile.mockReset();
@@ -1275,7 +1275,7 @@ describe('GpuResourceManager', () => {
       mockNvidiaSmiSuccess(2000, 12288, 10288);
       mockFetch.mockResolvedValueOnce({ ok: true });
 
-      const config = { ollamaUrl: 'not-a-valid-url' };
+      const config = { ollamaUrl: "not-a-valid-url" };
       const manager = new GpuResourceManager(config);
 
       // Act
@@ -1283,14 +1283,14 @@ describe('GpuResourceManager', () => {
 
       // Assert: デフォルトlocalhost URLにフォールバック
       expect(mockFetch).toHaveBeenCalledWith(
-        'http://localhost:11434/api/generate',
+        "http://localhost:11434/api/generate",
         expect.anything()
       );
 
       vi.useFakeTimers({ shouldAdvanceTime: true });
     });
 
-    it('SSRF防止: プライベートIP (10.0.0.1) はブロックされる', async () => {
+    it("SSRF防止: プライベートIP (10.0.0.1) はブロックされる", async () => {
       // Arrange: プライベートネットワークへのSSRF
       vi.useRealTimers();
       mockExecFile.mockReset();
@@ -1299,7 +1299,7 @@ describe('GpuResourceManager', () => {
       mockNvidiaSmiSuccess(2000, 12288, 10288);
       mockFetch.mockResolvedValueOnce({ ok: true });
 
-      const config = { ollamaUrl: 'http://10.0.0.1:11434' };
+      const config = { ollamaUrl: "http://10.0.0.1:11434" };
       const manager = new GpuResourceManager(config);
 
       // Act
@@ -1307,14 +1307,14 @@ describe('GpuResourceManager', () => {
 
       // Assert: デフォルトlocalhost URLにフォールバック
       expect(mockFetch).toHaveBeenCalledWith(
-        'http://localhost:11434/api/generate',
+        "http://localhost:11434/api/generate",
         expect.anything()
       );
 
       vi.useFakeTimers({ shouldAdvanceTime: true });
     });
 
-    it('vramPollTimeoutMsをカスタム設定できる', async () => {
+    it("vramPollTimeoutMsをカスタム設定できる", async () => {
       // Arrange: 短いタイムアウト（5秒）
       const manager = new GpuResourceManager({
         vramPollTimeoutMs: 5000,
@@ -1322,7 +1322,7 @@ describe('GpuResourceManager', () => {
 
       // 常にVRAM不足
       mockExecFile.mockResolvedValue({
-        stdout: '10000, 12288, 2288, 80\n',
+        stdout: "10000, 12288, 2288, 80\n",
       });
 
       // Act
@@ -1334,7 +1334,7 @@ describe('GpuResourceManager', () => {
       expect(result.acquired).toBe(false);
     });
 
-    it('デフォルトollamaUrlはlocalhost:11434', async () => {
+    it("デフォルトollamaUrlはlocalhost:11434", async () => {
       // Arrange: デフォルト設定
       mockNvidiaSmiSuccess(2000, 12288, 10288);
       mockFetch.mockResolvedValueOnce({ ok: true });
@@ -1345,7 +1345,7 @@ describe('GpuResourceManager', () => {
 
       // Assert: デフォルトURLが使用される
       expect(mockFetch).toHaveBeenCalledWith(
-        'http://localhost:11434/api/generate',
+        "http://localhost:11434/api/generate",
         expect.anything()
       );
     });
@@ -1355,7 +1355,7 @@ describe('GpuResourceManager', () => {
   // acquireForDINOv2()
   // ==========================================================================
 
-  describe('acquireForDINOv2()', () => {
+  describe("acquireForDINOv2()", () => {
     it('GPU利用可能で所有者なしの場合、mode="cuda"で成功する', async () => {
       // Arrange: GPU搭載、十分なVRAM
       mockNvidiaSmiSuccess(2000, 12288, 10288);
@@ -1366,30 +1366,30 @@ describe('GpuResourceManager', () => {
 
       // Assert
       expect(result.success).toBe(true);
-      expect(result.mode).toBe('cuda');
-      expect(result.previousOwner).toBe('none');
-      expect(manager.getCurrentOwner()).toBe('dinov2');
+      expect(result.mode).toBe("cuda");
+      expect(result.previousOwner).toBe("none");
+      expect(manager.getCurrentOwner()).toBe("dinov2");
     });
 
-    it('既にDINOv2が所有中の場合、no-opで成功する', async () => {
+    it("既にDINOv2が所有中の場合、no-opで成功する", async () => {
       // Arrange: DINOv2を先に取得
       mockNvidiaSmiSuccess(2000, 12288, 10288);
       const manager = GpuResourceManager.getInstance();
       await manager.acquireForDINOv2();
-      expect(manager.getCurrentOwner()).toBe('dinov2');
+      expect(manager.getCurrentOwner()).toBe("dinov2");
 
       // Act: 再度取得
       const result = await manager.acquireForDINOv2();
 
       // Assert: no-op
       expect(result.success).toBe(true);
-      expect(result.mode).toBe('cuda');
-      expect(result.previousOwner).toBe('dinov2');
-      expect(result.message).toBe('DINOv2 already acquired');
-      expect(manager.getCurrentOwner()).toBe('dinov2');
+      expect(result.mode).toBe("cuda");
+      expect(result.previousOwner).toBe("dinov2");
+      expect(result.message).toBe("DINOv2 already acquired");
+      expect(manager.getCurrentOwner()).toBe("dinov2");
     });
 
-    it('Embeddingが所有中の場合、Embeddingを解放してからDINOv2を取得する', async () => {
+    it("Embeddingが所有中の場合、Embeddingを解放してからDINOv2を取得する", async () => {
       // Arrange: Embeddingを先に取得
       mockNvidiaSmiSuccess(2000, 12288, 10288);
       const onProviderSwitch = vi.fn().mockResolvedValue(undefined);
@@ -1397,7 +1397,7 @@ describe('GpuResourceManager', () => {
       mockFetch.mockResolvedValueOnce({ ok: true });
       const manager = GpuResourceManager.getInstance();
       await manager.acquireForEmbedding();
-      expect(manager.getCurrentOwner()).toBe('embedding');
+      expect(manager.getCurrentOwner()).toBe("embedding");
       onProviderSwitch.mockClear();
 
       // VRAMチェック用
@@ -1408,32 +1408,32 @@ describe('GpuResourceManager', () => {
 
       // Assert
       expect(result.success).toBe(true);
-      expect(result.mode).toBe('cuda');
-      expect(result.previousOwner).toBe('embedding');
-      expect(manager.getCurrentOwner()).toBe('dinov2');
+      expect(result.mode).toBe("cuda");
+      expect(result.previousOwner).toBe("embedding");
+      expect(manager.getCurrentOwner()).toBe("dinov2");
       // onProviderSwitchが呼ばれてembeddingのONNXが解放される
-      expect(onProviderSwitch).toHaveBeenCalledWith('cpu');
-      expect(gpuModeSignal.requestedProvider).toBe('cpu');
+      expect(onProviderSwitch).toHaveBeenCalledWith("cpu");
+      expect(gpuModeSignal.requestedProvider).toBe("cpu");
     });
 
-    it('Visionが所有中の場合、CPUフォールバックを返す', async () => {
+    it("Visionが所有中の場合、CPUフォールバックを返す", async () => {
       // Arrange: Visionを先に取得
       mockNvidiaSmiSuccess(2000, 12288, 10288);
       const manager = GpuResourceManager.getInstance();
       await manager.acquireForVision();
-      expect(manager.getCurrentOwner()).toBe('vision');
+      expect(manager.getCurrentOwner()).toBe("vision");
 
       // Act
       const result = await manager.acquireForDINOv2();
 
       // Assert: CPUフォールバック、Visionのオーナーシップは変更しない
       expect(result.success).toBe(true);
-      expect(result.mode).toBe('cpu');
-      expect(result.previousOwner).toBe('vision');
-      expect(manager.getCurrentOwner()).toBe('vision'); // Visionのまま
+      expect(result.mode).toBe("cpu");
+      expect(result.previousOwner).toBe("vision");
+      expect(manager.getCurrentOwner()).toBe("vision"); // Visionのまま
     });
 
-    it('CPU-only環境ではCPUモードを返す', async () => {
+    it("CPU-only環境ではCPUモードを返す", async () => {
       // Arrange: GPU非搭載
       mockNvidiaSmiNotAvailable();
       const manager = GpuResourceManager.getInstance();
@@ -1443,19 +1443,19 @@ describe('GpuResourceManager', () => {
 
       // Assert
       expect(result.success).toBe(true);
-      expect(result.mode).toBe('cpu');
-      expect(result.previousOwner).toBe('none');
-      expect(manager.getCurrentOwner()).toBe('none'); // GPU操作なし
+      expect(result.mode).toBe("cpu");
+      expect(result.previousOwner).toBe("none");
+      expect(manager.getCurrentOwner()).toBe("none"); // GPU操作なし
     });
 
-    it('VRAM不足の場合、CPUフォールバックを返す', async () => {
+    it("VRAM不足の場合、CPUフォールバックを返す", async () => {
       // Arrange: GPU搭載だがVRAM不足が続く
       const manager = GpuResourceManager.getInstance();
 
       // isGpuAvailable: GPU検出
-      mockExecFile.mockResolvedValueOnce({ stdout: '11000, 12288, 1288, 90\n' });
+      mockExecFile.mockResolvedValueOnce({ stdout: "11000, 12288, 1288, 90\n" });
       // waitForVram: 常にVRAM不足
-      mockExecFile.mockResolvedValue({ stdout: '11000, 12288, 1288, 90\n' });
+      mockExecFile.mockResolvedValue({ stdout: "11000, 12288, 1288, 90\n" });
 
       // Act
       const resultPromise = manager.acquireForDINOv2();
@@ -1464,8 +1464,8 @@ describe('GpuResourceManager', () => {
 
       // Assert: CPUフォールバック
       expect(result.success).toBe(true);
-      expect(result.mode).toBe('cpu');
-      expect(manager.getCurrentOwner()).toBe('none'); // GPU確保失敗
+      expect(result.mode).toBe("cpu");
+      expect(manager.getCurrentOwner()).toBe("none"); // GPU確保失敗
     });
   });
 
@@ -1473,45 +1473,45 @@ describe('GpuResourceManager', () => {
   // releaseFromDINOv2()
   // ==========================================================================
 
-  describe('releaseFromDINOv2()', () => {
+  describe("releaseFromDINOv2()", () => {
     it('DINOv2が所有中の場合、オーナーを"none"に設定する', async () => {
       // Arrange
       mockNvidiaSmiSuccess(2000, 12288, 10288);
       const manager = GpuResourceManager.getInstance();
       await manager.acquireForDINOv2();
-      expect(manager.getCurrentOwner()).toBe('dinov2');
+      expect(manager.getCurrentOwner()).toBe("dinov2");
 
       // Act
       await manager.releaseFromDINOv2();
 
       // Assert
-      expect(manager.getCurrentOwner()).toBe('none');
+      expect(manager.getCurrentOwner()).toBe("none");
     });
 
-    it('DINOv2以外が所有中の場合、no-op', async () => {
+    it("DINOv2以外が所有中の場合、no-op", async () => {
       // Arrange: Visionが所有中
       mockNvidiaSmiSuccess(2000, 12288, 10288);
       const manager = GpuResourceManager.getInstance();
       await manager.acquireForVision();
-      expect(manager.getCurrentOwner()).toBe('vision');
+      expect(manager.getCurrentOwner()).toBe("vision");
 
       // Act
       await manager.releaseFromDINOv2();
 
       // Assert: Visionのまま変更なし
-      expect(manager.getCurrentOwner()).toBe('vision');
+      expect(manager.getCurrentOwner()).toBe("vision");
     });
 
     it('所有者が"none"の場合もno-op', async () => {
       // Arrange
       const manager = GpuResourceManager.getInstance();
-      expect(manager.getCurrentOwner()).toBe('none');
+      expect(manager.getCurrentOwner()).toBe("none");
 
       // Act
       await manager.releaseFromDINOv2();
 
       // Assert
-      expect(manager.getCurrentOwner()).toBe('none');
+      expect(manager.getCurrentOwner()).toBe("none");
     });
   });
 
@@ -1519,21 +1519,21 @@ describe('GpuResourceManager', () => {
   // 既存メソッドのDINOv2状態ハンドリング
   // ==========================================================================
 
-  describe('既存メソッドのDINOv2状態ハンドリング', () => {
+  describe("既存メソッドのDINOv2状態ハンドリング", () => {
     it('DINOv2からacquireForVision: GPUを取得し previousOwner="dinov2"', async () => {
       // Arrange
       mockNvidiaSmiSuccess(2000, 12288, 10288);
       const manager = GpuResourceManager.getInstance();
       await manager.acquireForDINOv2();
-      expect(manager.getCurrentOwner()).toBe('dinov2');
+      expect(manager.getCurrentOwner()).toBe("dinov2");
 
       // Act
       const result = await manager.acquireForVision();
 
       // Assert
       expect(result.acquired).toBe(true);
-      expect(result.previousOwner).toBe('dinov2');
-      expect(manager.getCurrentOwner()).toBe('vision');
+      expect(result.previousOwner).toBe("dinov2");
+      expect(manager.getCurrentOwner()).toBe("vision");
     });
 
     it('DINOv2からacquireForEmbedding: GPUを取得し previousOwner="dinov2"', async () => {
@@ -1542,16 +1542,16 @@ describe('GpuResourceManager', () => {
       mockFetch.mockResolvedValue({ ok: true });
       const manager = GpuResourceManager.getInstance();
       await manager.acquireForDINOv2();
-      expect(manager.getCurrentOwner()).toBe('dinov2');
+      expect(manager.getCurrentOwner()).toBe("dinov2");
 
       // Act
       const result = await manager.acquireForEmbedding();
 
       // Assert
       expect(result.acquired).toBe(true);
-      expect(result.previousOwner).toBe('dinov2');
+      expect(result.previousOwner).toBe("dinov2");
       expect(result.fallbackToCpu).toBe(false);
-      expect(manager.getCurrentOwner()).toBe('embedding');
+      expect(manager.getCurrentOwner()).toBe("embedding");
     });
 
     it('DINOv2からrelease: GPUを解放しオーナーを"none"に設定する', async () => {
@@ -1564,10 +1564,10 @@ describe('GpuResourceManager', () => {
       await manager.release();
 
       // Assert
-      expect(manager.getCurrentOwner()).toBe('none');
+      expect(manager.getCurrentOwner()).toBe("none");
     });
 
-    it('Vision → DINOv2(CPU) → Embedding フルサイクル', async () => {
+    it("Vision → DINOv2(CPU) → Embedding フルサイクル", async () => {
       // Arrange
       mockNvidiaSmiSuccess(2000, 12288, 10288);
       mockFetch.mockResolvedValue({ ok: true });
@@ -1576,22 +1576,22 @@ describe('GpuResourceManager', () => {
       // Phase 1: Vision
       const v1 = await manager.acquireForVision();
       expect(v1.acquired).toBe(true);
-      expect(manager.getCurrentOwner()).toBe('vision');
+      expect(manager.getCurrentOwner()).toBe("vision");
 
       // Phase 2: DINOv2 — Visionが大きいためCPUフォールバック
       const d1 = await manager.acquireForDINOv2();
       expect(d1.success).toBe(true);
-      expect(d1.mode).toBe('cpu');
-      expect(manager.getCurrentOwner()).toBe('vision'); // Visionのまま
+      expect(d1.mode).toBe("cpu");
+      expect(manager.getCurrentOwner()).toBe("vision"); // Visionのまま
 
       // Phase 3: Embedding
       const e1 = await manager.acquireForEmbedding();
       expect(e1.acquired).toBe(true);
-      expect(e1.previousOwner).toBe('vision');
-      expect(manager.getCurrentOwner()).toBe('embedding');
+      expect(e1.previousOwner).toBe("vision");
+      expect(manager.getCurrentOwner()).toBe("embedding");
     });
 
-    it('DINOv2 → Embedding → DINOv2 連続切り替え', async () => {
+    it("DINOv2 → Embedding → DINOv2 連続切り替え", async () => {
       // Arrange
       mockNvidiaSmiSuccess(2000, 12288, 10288);
       mockFetch.mockResolvedValue({ ok: true });
@@ -1601,22 +1601,22 @@ describe('GpuResourceManager', () => {
 
       // DINOv2 取得
       const d1 = await manager.acquireForDINOv2();
-      expect(d1.mode).toBe('cuda');
-      expect(manager.getCurrentOwner()).toBe('dinov2');
+      expect(d1.mode).toBe("cuda");
+      expect(manager.getCurrentOwner()).toBe("dinov2");
 
       // Embedding に切り替え
       const e1 = await manager.acquireForEmbedding();
       expect(e1.acquired).toBe(true);
-      expect(e1.previousOwner).toBe('dinov2');
-      expect(manager.getCurrentOwner()).toBe('embedding');
+      expect(e1.previousOwner).toBe("dinov2");
+      expect(manager.getCurrentOwner()).toBe("embedding");
 
       // DINOv2 に戻す
       onProviderSwitch.mockClear();
       const d2 = await manager.acquireForDINOv2();
-      expect(d2.mode).toBe('cuda');
-      expect(d2.previousOwner).toBe('embedding');
-      expect(manager.getCurrentOwner()).toBe('dinov2');
-      expect(onProviderSwitch).toHaveBeenCalledWith('cpu');
+      expect(d2.mode).toBe("cuda");
+      expect(d2.previousOwner).toBe("embedding");
+      expect(manager.getCurrentOwner()).toBe("dinov2");
+      expect(onProviderSwitch).toHaveBeenCalledWith("cpu");
     });
   });
 
@@ -1624,15 +1624,15 @@ describe('GpuResourceManager', () => {
   // gpuModeSignal コンストラクタインジェクション（Task 1b）
   // ==========================================================================
 
-  describe('gpuModeSignal コンストラクタインジェクション', () => {
+  describe("gpuModeSignal コンストラクタインジェクション", () => {
     /**
      * テスト用の独立した GpuModeSignal を生成する
      */
     function createTestSignal(): GpuModeSignal {
-      return { requestedProvider: 'cpu' };
+      return { requestedProvider: "cpu" };
     }
 
-    it('コンストラクタに signal を渡すと、モジュールスコープの gpuModeSignal を使わない', async () => {
+    it("コンストラクタに signal を渡すと、モジュールスコープの gpuModeSignal を使わない", async () => {
       // Arrange: 独立したシグナルを注入
       mockNvidiaSmiSuccess(2000, 12288, 10288);
       mockFetch.mockResolvedValueOnce({ ok: true });
@@ -1644,12 +1644,12 @@ describe('GpuResourceManager', () => {
       await manager.acquireForEmbedding();
 
       // Assert: 注入されたシグナルが更新される
-      expect(testSignal.requestedProvider).toBe('cuda');
+      expect(testSignal.requestedProvider).toBe("cuda");
       // モジュールスコープのシグナルは変更されない
-      expect(gpuModeSignal.requestedProvider).toBe('cpu');
+      expect(gpuModeSignal.requestedProvider).toBe("cpu");
     });
 
-    it('signal 未指定時はデフォルトのモジュールスコープ gpuModeSignal を使用する', async () => {
+    it("signal 未指定時はデフォルトのモジュールスコープ gpuModeSignal を使用する", async () => {
       // Arrange: signal なし（デフォルト動作）
       mockNvidiaSmiSuccess(2000, 12288, 10288);
       mockFetch.mockResolvedValueOnce({ ok: true });
@@ -1659,10 +1659,10 @@ describe('GpuResourceManager', () => {
       await manager.acquireForEmbedding();
 
       // Assert: モジュールスコープのシグナルが更新される
-      expect(gpuModeSignal.requestedProvider).toBe('cuda');
+      expect(gpuModeSignal.requestedProvider).toBe("cuda");
     });
 
-    it('getInstance() に signal を渡すと初回のみ適用される', async () => {
+    it("getInstance() に signal を渡すと初回のみ適用される", async () => {
       // Arrange
       const testSignal = createTestSignal();
       const instance1 = GpuResourceManager.getInstance(undefined, testSignal);
@@ -1675,7 +1675,7 @@ describe('GpuResourceManager', () => {
       expect(instance1).toBe(instance2);
     });
 
-    it('注入されたシグナルの onProviderSwitch が呼ばれる', async () => {
+    it("注入されたシグナルの onProviderSwitch が呼ばれる", async () => {
       // Arrange
       mockNvidiaSmiSuccess(2000, 12288, 10288);
       mockFetch.mockResolvedValueOnce({ ok: true });
@@ -1690,7 +1690,7 @@ describe('GpuResourceManager', () => {
       await manager.acquireForEmbedding();
 
       // Assert: 注入シグナルの onProviderSwitch が呼ばれる
-      expect(onProviderSwitch).toHaveBeenCalledWith('cuda');
+      expect(onProviderSwitch).toHaveBeenCalledWith("cuda");
     });
 
     it('release() 時に注入シグナルの requestedProvider が "cpu" に戻る', async () => {
@@ -1704,17 +1704,17 @@ describe('GpuResourceManager', () => {
 
       const manager = new GpuResourceManager(undefined, testSignal);
       await manager.acquireForEmbedding();
-      expect(testSignal.requestedProvider).toBe('cuda');
+      expect(testSignal.requestedProvider).toBe("cuda");
 
       // Act
       await manager.release();
 
       // Assert
-      expect(testSignal.requestedProvider).toBe('cpu');
-      expect(onProviderSwitch).toHaveBeenCalledWith('cpu');
+      expect(testSignal.requestedProvider).toBe("cpu");
+      expect(onProviderSwitch).toHaveBeenCalledWith("cpu");
     });
 
-    it('Vision → Embedding 切り替え時に注入シグナルが正しく更新される', async () => {
+    it("Vision → Embedding 切り替え時に注入シグナルが正しく更新される", async () => {
       // Arrange
       mockNvidiaSmiSuccess(2000, 12288, 10288);
       mockFetch.mockResolvedValue({ ok: true });
@@ -1727,20 +1727,20 @@ describe('GpuResourceManager', () => {
 
       // Act: Vision → Embedding
       await manager.acquireForVision();
-      expect(testSignal.requestedProvider).toBe('cpu');
+      expect(testSignal.requestedProvider).toBe("cpu");
 
       await manager.acquireForEmbedding();
-      expect(testSignal.requestedProvider).toBe('cuda');
+      expect(testSignal.requestedProvider).toBe("cuda");
 
       // Embedding → Vision: onProviderSwitch('cpu') が呼ばれる
       onProviderSwitch.mockClear();
       await manager.acquireForVision();
 
       // Assert
-      expect(testSignal.requestedProvider).toBe('cpu');
-      expect(onProviderSwitch).toHaveBeenCalledWith('cpu');
+      expect(testSignal.requestedProvider).toBe("cpu");
+      expect(onProviderSwitch).toHaveBeenCalledWith("cpu");
       // モジュールスコープは影響を受けない
-      expect(gpuModeSignal.requestedProvider).toBe('cpu');
+      expect(gpuModeSignal.requestedProvider).toBe("cpu");
     });
   });
 });

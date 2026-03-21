@@ -25,7 +25,7 @@
  * @module services/orphaned-job-utils
  */
 
-import { DB_SAVED_PROGRESS_THRESHOLD, STALL_MARGIN_MS } from './worker-constants';
+import { DB_SAVED_PROGRESS_THRESHOLD, STALL_MARGIN_MS } from "./worker-constants";
 
 // ============================================================================
 // Types
@@ -38,7 +38,7 @@ import { DB_SAVED_PROGRESS_THRESHOLD, STALL_MARGIN_MS } from './worker-constants
  * - processing_interrupted: 処理中に中断（progress > 0 && < 90%）
  * - never_started: 処理が開始されていない（progress = 0）
  */
-export type OrphanedJobCategory = 'db_saved_but_stuck' | 'processing_interrupted' | 'never_started';
+export type OrphanedJobCategory = "db_saved_but_stuck" | "processing_interrupted" | "never_started";
 
 // ============================================================================
 // Progress Helpers
@@ -73,18 +73,18 @@ export function isDbSavedProgress(progress: number): boolean {
  */
 export function categorizeByProgress(
   progress: number,
-  processedOn: number | undefined | null,
+  processedOn: number | undefined | null
 ): OrphanedJobCategory {
   if (progress >= DB_SAVED_PROGRESS_THRESHOLD) {
-    return 'db_saved_but_stuck';
+    return "db_saved_but_stuck";
   }
   if (progress > 0) {
-    return 'processing_interrupted';
+    return "processing_interrupted";
   }
   if (processedOn === undefined || processedOn === null) {
-    return 'never_started';
+    return "never_started";
   }
-  return 'never_started';
+  return "never_started";
 }
 
 // ============================================================================
@@ -109,7 +109,7 @@ export function categorizeByProgress(
 export function isOrphanedByElapsedTime(
   processedOn: number | undefined | null,
   progress: number,
-  thresholdMs: number,
+  thresholdMs: number
 ): boolean {
   if (processedOn == null) {
     return true;
@@ -140,10 +140,10 @@ export function isOrphanedByElapsedTime(
 export function isOrphanedByLockExpiry(
   state: string,
   processedOn: number | undefined | null,
-  lockDurationMs: number,
+  lockDurationMs: number
 ): boolean {
   // active状態でないジョブは対象外
-  if (state !== 'active') {
+  if (state !== "active") {
     return false;
   }
 

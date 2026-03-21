@@ -14,7 +14,7 @@
  * - 強制CPUモード（NVMLドライバ不整合対策）
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import {
   HardwareDetector,
   HardwareType,
@@ -22,13 +22,13 @@ import {
   HardwareInfo,
   GpuMismatchInfo,
   HARDWARE_CACHE_TTL_MS,
-} from '../../../src/services/vision/hardware-detector.js';
+} from "../../../src/services/vision/hardware-detector.js";
 
 // Mock fetch globally
 const mockFetch = vi.fn();
-vi.stubGlobal('fetch', mockFetch);
+vi.stubGlobal("fetch", mockFetch);
 
-describe('HardwareDetector', () => {
+describe("HardwareDetector", () => {
   let detector: HardwareDetector;
 
   beforeEach(() => {
@@ -45,15 +45,15 @@ describe('HardwareDetector', () => {
   // GPU Detection Tests
   // ==========================================================================
 
-  describe('GPU Detection', () => {
-    it('should detect GPU when size_vram > 0', async () => {
+  describe("GPU Detection", () => {
+    it("should detect GPU when size_vram > 0", async () => {
       // Arrange: Ollama returns model with VRAM usage
       mockFetch.mockResolvedValueOnce({
         ok: true,
         json: async () => ({
           models: [
             {
-              name: 'llama3.2-vision:latest',
+              name: "llama3.2-vision:latest",
               size: 4_000_000_000,
               size_vram: 3_500_000_000, // GPU usage
             },
@@ -70,15 +70,15 @@ describe('HardwareDetector', () => {
       expect(result.isGpuAvailable).toBe(true);
     });
 
-    it('should detect GPU with multiple models (use max VRAM)', async () => {
+    it("should detect GPU with multiple models (use max VRAM)", async () => {
       // Arrange: Multiple models loaded
       mockFetch.mockResolvedValueOnce({
         ok: true,
         json: async () => ({
           models: [
-            { name: 'model1', size: 1000, size_vram: 500 },
-            { name: 'llama3.2-vision', size: 4000, size_vram: 3500 },
-            { name: 'model3', size: 2000, size_vram: 1000 },
+            { name: "model1", size: 1000, size_vram: 500 },
+            { name: "llama3.2-vision", size: 4000, size_vram: 3500 },
+            { name: "model3", size: 2000, size_vram: 1000 },
           ],
         }),
       });
@@ -96,15 +96,15 @@ describe('HardwareDetector', () => {
   // CPU Detection Tests
   // ==========================================================================
 
-  describe('CPU Detection', () => {
-    it('should detect CPU when size_vram === 0', async () => {
+  describe("CPU Detection", () => {
+    it("should detect CPU when size_vram === 0", async () => {
       // Arrange: Ollama returns model with no VRAM (CPU mode)
       mockFetch.mockResolvedValueOnce({
         ok: true,
         json: async () => ({
           models: [
             {
-              name: 'llama3.2-vision:latest',
+              name: "llama3.2-vision:latest",
               size: 4_000_000_000,
               size_vram: 0, // CPU mode
             },
@@ -121,7 +121,7 @@ describe('HardwareDetector', () => {
       expect(result.isGpuAvailable).toBe(false);
     });
 
-    it('should detect CPU when no models are loaded', async () => {
+    it("should detect CPU when no models are loaded", async () => {
       // Arrange: No models currently loaded
       mockFetch.mockResolvedValueOnce({
         ok: true,
@@ -143,10 +143,10 @@ describe('HardwareDetector', () => {
   // Graceful Degradation Tests
   // ==========================================================================
 
-  describe('Graceful Degradation', () => {
-    it('should fallback to CPU when Ollama is not running', async () => {
+  describe("Graceful Degradation", () => {
+    it("should fallback to CPU when Ollama is not running", async () => {
       // Arrange: Connection refused
-      mockFetch.mockRejectedValueOnce(new Error('ECONNREFUSED'));
+      mockFetch.mockRejectedValueOnce(new Error("ECONNREFUSED"));
 
       // Act
       const result = await detector.detect();
@@ -154,15 +154,15 @@ describe('HardwareDetector', () => {
       // Assert
       expect(result.type).toBe(HardwareType.CPU);
       expect(result.isGpuAvailable).toBe(false);
-      expect(result.error).toContain('Ollama');
+      expect(result.error).toContain("Ollama");
     });
 
-    it('should fallback to CPU on HTTP error', async () => {
+    it("should fallback to CPU on HTTP error", async () => {
       // Arrange: Ollama returns error
       mockFetch.mockResolvedValueOnce({
         ok: false,
         status: 500,
-        statusText: 'Internal Server Error',
+        statusText: "Internal Server Error",
       });
 
       // Act
@@ -173,12 +173,12 @@ describe('HardwareDetector', () => {
       expect(result.error).toBeDefined();
     });
 
-    it('should fallback to CPU on timeout', async () => {
+    it("should fallback to CPU on timeout", async () => {
       // Arrange: Request times out
       mockFetch.mockImplementationOnce(
         () =>
           new Promise((_, reject) => {
-            setTimeout(() => reject(new Error('AbortError')), 6000);
+            setTimeout(() => reject(new Error("AbortError")), 6000);
           })
       );
 
@@ -191,11 +191,11 @@ describe('HardwareDetector', () => {
       expect(result.type).toBe(HardwareType.CPU);
     });
 
-    it('should fallback to CPU on invalid JSON response', async () => {
+    it("should fallback to CPU on invalid JSON response", async () => {
       // Arrange: Invalid response format
       mockFetch.mockResolvedValueOnce({
         ok: true,
-        json: async () => ({ invalid: 'format' }),
+        json: async () => ({ invalid: "format" }),
       });
 
       // Act
@@ -210,13 +210,13 @@ describe('HardwareDetector', () => {
   // Cache Tests
   // ==========================================================================
 
-  describe('Cache Functionality', () => {
-    it('should cache result for 5 minutes', async () => {
+  describe("Cache Functionality", () => {
+    it("should cache result for 5 minutes", async () => {
       // Arrange: First call returns GPU
       mockFetch.mockResolvedValueOnce({
         ok: true,
         json: async () => ({
-          models: [{ name: 'model', size: 1000, size_vram: 500 }],
+          models: [{ name: "model", size: 1000, size_vram: 500 }],
         }),
       });
 
@@ -231,12 +231,12 @@ describe('HardwareDetector', () => {
       expect(mockFetch).toHaveBeenCalledTimes(1); // No additional call
     });
 
-    it('should refresh cache after TTL expires', async () => {
+    it("should refresh cache after TTL expires", async () => {
       // Arrange: First call returns GPU
       mockFetch.mockResolvedValueOnce({
         ok: true,
         json: async () => ({
-          models: [{ name: 'model', size: 1000, size_vram: 500 }],
+          models: [{ name: "model", size: 1000, size_vram: 500 }],
         }),
       });
 
@@ -251,7 +251,7 @@ describe('HardwareDetector', () => {
       mockFetch.mockResolvedValueOnce({
         ok: true,
         json: async () => ({
-          models: [{ name: 'model', size: 1000, size_vram: 0 }],
+          models: [{ name: "model", size: 1000, size_vram: 0 }],
         }),
       });
 
@@ -261,12 +261,12 @@ describe('HardwareDetector', () => {
       expect(mockFetch).toHaveBeenCalledTimes(2);
     });
 
-    it('should allow manual cache clear', async () => {
+    it("should allow manual cache clear", async () => {
       // Arrange
       mockFetch.mockResolvedValue({
         ok: true,
         json: async () => ({
-          models: [{ name: 'model', size: 1000, size_vram: 500 }],
+          models: [{ name: "model", size: 1000, size_vram: 500 }],
         }),
       });
 
@@ -287,10 +287,10 @@ describe('HardwareDetector', () => {
   // Configuration Tests
   // ==========================================================================
 
-  describe('Configuration', () => {
-    it('should use custom Ollama URL', async () => {
+  describe("Configuration", () => {
+    it("should use custom Ollama URL", async () => {
       // Arrange
-      const customUrl = 'http://custom-ollama:11434';
+      const customUrl = "http://custom-ollama:11434";
       const customDetector = new HardwareDetector({ ollamaUrl: customUrl });
 
       mockFetch.mockResolvedValueOnce({
@@ -302,13 +302,10 @@ describe('HardwareDetector', () => {
       await customDetector.detect();
 
       // Assert
-      expect(mockFetch).toHaveBeenCalledWith(
-        `${customUrl}/api/ps`,
-        expect.any(Object)
-      );
+      expect(mockFetch).toHaveBeenCalledWith(`${customUrl}/api/ps`, expect.any(Object));
     });
 
-    it('should use default Ollama URL', async () => {
+    it("should use default Ollama URL", async () => {
       mockFetch.mockResolvedValueOnce({
         ok: true,
         json: async () => ({ models: [] }),
@@ -318,10 +315,7 @@ describe('HardwareDetector', () => {
       await detector.detect();
 
       // Assert
-      expect(mockFetch).toHaveBeenCalledWith(
-        'http://localhost:11434/api/ps',
-        expect.any(Object)
-      );
+      expect(mockFetch).toHaveBeenCalledWith("http://localhost:11434/api/ps", expect.any(Object));
     });
   });
 
@@ -329,8 +323,8 @@ describe('HardwareDetector', () => {
   // Edge Cases
   // ==========================================================================
 
-  describe('Edge Cases', () => {
-    it('should handle null models array', async () => {
+  describe("Edge Cases", () => {
+    it("should handle null models array", async () => {
       mockFetch.mockResolvedValueOnce({
         ok: true,
         json: async () => ({ models: null }),
@@ -340,11 +334,11 @@ describe('HardwareDetector', () => {
       expect(result.type).toBe(HardwareType.CPU);
     });
 
-    it('should handle undefined size_vram', async () => {
+    it("should handle undefined size_vram", async () => {
       mockFetch.mockResolvedValueOnce({
         ok: true,
         json: async () => ({
-          models: [{ name: 'model', size: 1000 }], // no size_vram
+          models: [{ name: "model", size: 1000 }], // no size_vram
         }),
       });
 
@@ -352,7 +346,7 @@ describe('HardwareDetector', () => {
       expect(result.type).toBe(HardwareType.CPU);
     });
 
-    it('should handle concurrent detect calls', async () => {
+    it("should handle concurrent detect calls", async () => {
       // Arrange: Slow response
       let resolveFirst: (value: unknown) => void;
       mockFetch.mockImplementationOnce(
@@ -371,15 +365,11 @@ describe('HardwareDetector', () => {
       resolveFirst!({
         ok: true,
         json: async () => ({
-          models: [{ name: 'model', size: 1000, size_vram: 500 }],
+          models: [{ name: "model", size: 1000, size_vram: 500 }],
         }),
       });
 
-      const [result1, result2, result3] = await Promise.all([
-        promise1,
-        promise2,
-        promise3,
-      ]);
+      const [result1, result2, result3] = await Promise.all([promise1, promise2, promise3]);
 
       // Assert: All should return same result, only one fetch
       expect(result1.type).toBe(HardwareType.GPU);
@@ -393,8 +383,8 @@ describe('HardwareDetector', () => {
   // Force CPU Mode Tests (NVMLドライバ不整合対策)
   // ==========================================================================
 
-  describe('Force CPU Mode', () => {
-    it('should return CPU when forceCpuMode is enabled via constructor', async () => {
+  describe("Force CPU Mode", () => {
+    it("should return CPU when forceCpuMode is enabled via constructor", async () => {
       // Arrange: Force CPU mode via constructor option
       const forcedDetector = new HardwareDetector({ forceCpuMode: true });
 
@@ -407,14 +397,14 @@ describe('HardwareDetector', () => {
       expect(result.type).toBe(HardwareType.CPU);
       expect(result.isGpuAvailable).toBe(false);
       expect(result.vramBytes).toBe(0);
-      expect(result.error).toContain('Force CPU mode');
+      expect(result.error).toContain("Force CPU mode");
       expect(mockFetch).not.toHaveBeenCalled(); // No API call
     });
 
-    it('should return CPU when VISION_FORCE_CPU_MODE env is true', async () => {
+    it("should return CPU when VISION_FORCE_CPU_MODE env is true", async () => {
       // Arrange: Set environment variable
       const originalEnv = process.env.VISION_FORCE_CPU_MODE;
-      process.env.VISION_FORCE_CPU_MODE = 'true';
+      process.env.VISION_FORCE_CPU_MODE = "true";
 
       try {
         // Create detector after setting env
@@ -426,7 +416,7 @@ describe('HardwareDetector', () => {
         // Assert
         expect(result.type).toBe(HardwareType.CPU);
         expect(result.isGpuAvailable).toBe(false);
-        expect(result.error).toContain('Force CPU mode');
+        expect(result.error).toContain("Force CPU mode");
         expect(mockFetch).not.toHaveBeenCalled();
       } finally {
         // Cleanup
@@ -438,10 +428,10 @@ describe('HardwareDetector', () => {
       }
     });
 
-    it('should handle case-insensitive VISION_FORCE_CPU_MODE=TRUE', async () => {
+    it("should handle case-insensitive VISION_FORCE_CPU_MODE=TRUE", async () => {
       // Arrange
       const originalEnv = process.env.VISION_FORCE_CPU_MODE;
-      process.env.VISION_FORCE_CPU_MODE = 'TRUE';
+      process.env.VISION_FORCE_CPU_MODE = "TRUE";
 
       try {
         const envDetector = new HardwareDetector();
@@ -458,10 +448,10 @@ describe('HardwareDetector', () => {
       }
     });
 
-    it('should prioritize constructor option over environment variable', async () => {
+    it("should prioritize constructor option over environment variable", async () => {
       // Arrange: Env says true, but constructor says false
       const originalEnv = process.env.VISION_FORCE_CPU_MODE;
-      process.env.VISION_FORCE_CPU_MODE = 'true';
+      process.env.VISION_FORCE_CPU_MODE = "true";
 
       try {
         // Constructor explicitly sets forceCpuMode: false
@@ -470,7 +460,7 @@ describe('HardwareDetector', () => {
         mockFetch.mockResolvedValueOnce({
           ok: true,
           json: async () => ({
-            models: [{ name: 'model', size: 1000, size_vram: 500 }],
+            models: [{ name: "model", size: 1000, size_vram: 500 }],
           }),
         });
 
@@ -489,7 +479,7 @@ describe('HardwareDetector', () => {
       }
     });
 
-    it('should report force CPU mode status via isForceCpuModeEnabled()', () => {
+    it("should report force CPU mode status via isForceCpuModeEnabled()", () => {
       // Arrange & Act
       const defaultDetector = new HardwareDetector();
       const forcedDetector = new HardwareDetector({ forceCpuMode: true });
@@ -499,10 +489,10 @@ describe('HardwareDetector', () => {
       expect(forcedDetector.isForceCpuModeEnabled()).toBe(true);
     });
 
-    it('should not be affected by VISION_FORCE_CPU_MODE=false', async () => {
+    it("should not be affected by VISION_FORCE_CPU_MODE=false", async () => {
       // Arrange
       const originalEnv = process.env.VISION_FORCE_CPU_MODE;
-      process.env.VISION_FORCE_CPU_MODE = 'false';
+      process.env.VISION_FORCE_CPU_MODE = "false";
 
       try {
         const detector = new HardwareDetector();
@@ -510,7 +500,7 @@ describe('HardwareDetector', () => {
         mockFetch.mockResolvedValueOnce({
           ok: true,
           json: async () => ({
-            models: [{ name: 'model', size: 1000, size_vram: 500 }],
+            models: [{ name: "model", size: 1000, size_vram: 500 }],
           }),
         });
 
@@ -529,7 +519,7 @@ describe('HardwareDetector', () => {
       }
     });
 
-    it('should bypass cache when force CPU mode is enabled', async () => {
+    it("should bypass cache when force CPU mode is enabled", async () => {
       // Arrange: Force CPU mode
       const forcedDetector = new HardwareDetector({ forceCpuMode: true });
 
@@ -550,56 +540,56 @@ describe('HardwareDetector', () => {
   // Apple Silicon Detection Tests
   // ==========================================================================
 
-  describe('Apple Silicon Detection', () => {
+  describe("Apple Silicon Detection", () => {
     let originalPlatform: PropertyDescriptor;
     let originalArch: PropertyDescriptor;
 
     beforeEach(() => {
-      originalPlatform = Object.getOwnPropertyDescriptor(process, 'platform')!;
-      originalArch = Object.getOwnPropertyDescriptor(process, 'arch')!;
+      originalPlatform = Object.getOwnPropertyDescriptor(process, "platform")!;
+      originalArch = Object.getOwnPropertyDescriptor(process, "arch")!;
     });
 
     afterEach(() => {
-      Object.defineProperty(process, 'platform', originalPlatform);
-      Object.defineProperty(process, 'arch', originalArch);
+      Object.defineProperty(process, "platform", originalPlatform);
+      Object.defineProperty(process, "arch", originalArch);
     });
 
-    it('isAppleSilicon() should return true on macOS arm64', () => {
-      Object.defineProperty(process, 'platform', { value: 'darwin', configurable: true });
-      Object.defineProperty(process, 'arch', { value: 'arm64', configurable: true });
+    it("isAppleSilicon() should return true on macOS arm64", () => {
+      Object.defineProperty(process, "platform", { value: "darwin", configurable: true });
+      Object.defineProperty(process, "arch", { value: "arm64", configurable: true });
 
       expect(HardwareDetector.isAppleSilicon()).toBe(true);
     });
 
-    it('isAppleSilicon() should return false on Linux x64', () => {
-      Object.defineProperty(process, 'platform', { value: 'linux', configurable: true });
-      Object.defineProperty(process, 'arch', { value: 'x64', configurable: true });
+    it("isAppleSilicon() should return false on Linux x64", () => {
+      Object.defineProperty(process, "platform", { value: "linux", configurable: true });
+      Object.defineProperty(process, "arch", { value: "x64", configurable: true });
 
       expect(HardwareDetector.isAppleSilicon()).toBe(false);
     });
 
-    it('isAppleSilicon() should return false on macOS x64 (Intel Mac)', () => {
-      Object.defineProperty(process, 'platform', { value: 'darwin', configurable: true });
-      Object.defineProperty(process, 'arch', { value: 'x64', configurable: true });
+    it("isAppleSilicon() should return false on macOS x64 (Intel Mac)", () => {
+      Object.defineProperty(process, "platform", { value: "darwin", configurable: true });
+      Object.defineProperty(process, "arch", { value: "x64", configurable: true });
 
       expect(HardwareDetector.isAppleSilicon()).toBe(false);
     });
 
-    it('isAppleSilicon() should return false on Windows arm64', () => {
-      Object.defineProperty(process, 'platform', { value: 'win32', configurable: true });
-      Object.defineProperty(process, 'arch', { value: 'arm64', configurable: true });
+    it("isAppleSilicon() should return false on Windows arm64", () => {
+      Object.defineProperty(process, "platform", { value: "win32", configurable: true });
+      Object.defineProperty(process, "arch", { value: "arm64", configurable: true });
 
       expect(HardwareDetector.isAppleSilicon()).toBe(false);
     });
 
-    it('should set gpuVendor to APPLE_METAL when GPU detected on Apple Silicon', async () => {
-      Object.defineProperty(process, 'platform', { value: 'darwin', configurable: true });
-      Object.defineProperty(process, 'arch', { value: 'arm64', configurable: true });
+    it("should set gpuVendor to APPLE_METAL when GPU detected on Apple Silicon", async () => {
+      Object.defineProperty(process, "platform", { value: "darwin", configurable: true });
+      Object.defineProperty(process, "arch", { value: "arm64", configurable: true });
 
       mockFetch.mockResolvedValueOnce({
         ok: true,
         json: async () => ({
-          models: [{ name: 'llama3.2-vision', size: 4000, size_vram: 3500 }],
+          models: [{ name: "llama3.2-vision", size: 4000, size_vram: 3500 }],
         }),
       });
 
@@ -609,14 +599,14 @@ describe('HardwareDetector', () => {
       expect(result.gpuVendor).toBe(GpuVendor.APPLE_METAL);
     });
 
-    it('should set gpuVendor to NVIDIA when GPU detected on Linux', async () => {
-      Object.defineProperty(process, 'platform', { value: 'linux', configurable: true });
-      Object.defineProperty(process, 'arch', { value: 'x64', configurable: true });
+    it("should set gpuVendor to NVIDIA when GPU detected on Linux", async () => {
+      Object.defineProperty(process, "platform", { value: "linux", configurable: true });
+      Object.defineProperty(process, "arch", { value: "x64", configurable: true });
 
       mockFetch.mockResolvedValueOnce({
         ok: true,
         json: async () => ({
-          models: [{ name: 'llama3.2-vision', size: 4000, size_vram: 3500 }],
+          models: [{ name: "llama3.2-vision", size: 4000, size_vram: 3500 }],
         }),
       });
 
@@ -626,11 +616,11 @@ describe('HardwareDetector', () => {
       expect(result.gpuVendor).toBe(GpuVendor.NVIDIA);
     });
 
-    it('should not set gpuVendor on CPU fallback', async () => {
+    it("should not set gpuVendor on CPU fallback", async () => {
       mockFetch.mockResolvedValueOnce({
         ok: true,
         json: async () => ({
-          models: [{ name: 'model', size: 1000, size_vram: 0 }],
+          models: [{ name: "model", size: 1000, size_vram: 0 }],
         }),
       });
 
@@ -640,8 +630,8 @@ describe('HardwareDetector', () => {
       expect(result.gpuVendor).toBeUndefined();
     });
 
-    it('should not set gpuVendor on Ollama connection failure', async () => {
-      mockFetch.mockRejectedValueOnce(new Error('ECONNREFUSED'));
+    it("should not set gpuVendor on Ollama connection failure", async () => {
+      mockFetch.mockRejectedValueOnce(new Error("ECONNREFUSED"));
 
       const result = await detector.detect();
 
@@ -654,7 +644,7 @@ describe('HardwareDetector', () => {
   // GPU Mismatch Detection Tests (REFTRIX-GPU-MISMATCH-01)
   // ==========================================================================
 
-  describe('GPU Mismatch Detection', () => {
+  describe("GPU Mismatch Detection", () => {
     let originalQueryNvidiaGpu: typeof HardwareDetector.queryNvidiaGpu;
 
     beforeEach(() => {
@@ -665,15 +655,15 @@ describe('HardwareDetector', () => {
       HardwareDetector.queryNvidiaGpu = originalQueryNvidiaGpu;
     });
 
-    it('should detect mismatch when nvidia-smi finds GPU but Ollama uses CPU', async () => {
+    it("should detect mismatch when nvidia-smi finds GPU but Ollama uses CPU", async () => {
       // Arrange: nvidia-smi finds GPU
-      HardwareDetector.queryNvidiaGpu = vi.fn().mockReturnValue('NVIDIA GeForce RTX 3060');
+      HardwareDetector.queryNvidiaGpu = vi.fn().mockReturnValue("NVIDIA GeForce RTX 3060");
 
       // Ollama has model loaded but with size_vram=0 (CPU mode)
       mockFetch.mockResolvedValueOnce({
         ok: true,
         json: async () => ({
-          models: [{ name: 'llama3.2-vision:latest', size: 11700000000, size_vram: 0 }],
+          models: [{ name: "llama3.2-vision:latest", size: 11700000000, size_vram: 0 }],
         }),
       });
 
@@ -683,20 +673,20 @@ describe('HardwareDetector', () => {
       // Assert
       expect(result).not.toBeNull();
       expect(result!.mismatch).toBe(true);
-      expect(result!.nvidia_gpu).toBe('NVIDIA GeForce RTX 3060');
+      expect(result!.nvidia_gpu).toBe("NVIDIA GeForce RTX 3060");
       expect(result!.ollama_vram_bytes).toBe(0);
-      expect(result!.action).toContain('pkill ollama');
-      expect(result!.action).toContain('systemctl restart ollama');
+      expect(result!.action).toContain("pkill ollama");
+      expect(result!.action).toContain("systemctl restart ollama");
     });
 
-    it('should return null when Ollama uses GPU (no mismatch)', async () => {
+    it("should return null when Ollama uses GPU (no mismatch)", async () => {
       // Arrange: nvidia-smi finds GPU, Ollama uses VRAM
-      HardwareDetector.queryNvidiaGpu = vi.fn().mockReturnValue('NVIDIA GeForce RTX 3060');
+      HardwareDetector.queryNvidiaGpu = vi.fn().mockReturnValue("NVIDIA GeForce RTX 3060");
 
       mockFetch.mockResolvedValueOnce({
         ok: true,
         json: async () => ({
-          models: [{ name: 'llama3.2-vision:latest', size: 11700000000, size_vram: 9300000000 }],
+          models: [{ name: "llama3.2-vision:latest", size: 11700000000, size_vram: 9300000000 }],
         }),
       });
 
@@ -707,7 +697,7 @@ describe('HardwareDetector', () => {
       expect(result).toBeNull();
     });
 
-    it('should return null when no physical GPU detected', async () => {
+    it("should return null when no physical GPU detected", async () => {
       // Arrange: nvidia-smi not available or no GPU
       HardwareDetector.queryNvidiaGpu = vi.fn().mockReturnValue(null);
 
@@ -719,9 +709,9 @@ describe('HardwareDetector', () => {
       expect(mockFetch).not.toHaveBeenCalled(); // No Ollama call needed
     });
 
-    it('should return null when no models loaded in Ollama', async () => {
+    it("should return null when no models loaded in Ollama", async () => {
       // Arrange: GPU present but no Ollama models loaded
-      HardwareDetector.queryNvidiaGpu = vi.fn().mockReturnValue('NVIDIA GeForce RTX 3060');
+      HardwareDetector.queryNvidiaGpu = vi.fn().mockReturnValue("NVIDIA GeForce RTX 3060");
 
       mockFetch.mockResolvedValueOnce({
         ok: true,
@@ -735,11 +725,11 @@ describe('HardwareDetector', () => {
       expect(result).toBeNull();
     });
 
-    it('should return null when Ollama is unreachable', async () => {
+    it("should return null when Ollama is unreachable", async () => {
       // Arrange: GPU present but Ollama down
-      HardwareDetector.queryNvidiaGpu = vi.fn().mockReturnValue('NVIDIA GeForce RTX 3060');
+      HardwareDetector.queryNvidiaGpu = vi.fn().mockReturnValue("NVIDIA GeForce RTX 3060");
 
-      mockFetch.mockRejectedValueOnce(new Error('ECONNREFUSED'));
+      mockFetch.mockRejectedValueOnce(new Error("ECONNREFUSED"));
 
       // Act
       const result = await detector.detectGpuMismatch();
@@ -748,14 +738,14 @@ describe('HardwareDetector', () => {
       expect(result).toBeNull();
     });
 
-    it('should return null when Ollama returns HTTP error', async () => {
+    it("should return null when Ollama returns HTTP error", async () => {
       // Arrange
-      HardwareDetector.queryNvidiaGpu = vi.fn().mockReturnValue('NVIDIA GeForce RTX 3060');
+      HardwareDetector.queryNvidiaGpu = vi.fn().mockReturnValue("NVIDIA GeForce RTX 3060");
 
       mockFetch.mockResolvedValueOnce({
         ok: false,
         status: 500,
-        statusText: 'Internal Server Error',
+        statusText: "Internal Server Error",
       });
 
       // Act
@@ -770,9 +760,9 @@ describe('HardwareDetector', () => {
   // queryNvidiaGpu Tests
   // ==========================================================================
 
-  describe('queryNvidiaGpu', () => {
-    it('should be a static method', () => {
-      expect(typeof HardwareDetector.queryNvidiaGpu).toBe('function');
+  describe("queryNvidiaGpu", () => {
+    it("should be a static method", () => {
+      expect(typeof HardwareDetector.queryNvidiaGpu).toBe("function");
     });
   });
 
@@ -780,8 +770,8 @@ describe('HardwareDetector', () => {
   // Export Constants
   // ==========================================================================
 
-  describe('Constants', () => {
-    it('should export HARDWARE_CACHE_TTL_MS as 5 minutes', () => {
+  describe("Constants", () => {
+    it("should export HARDWARE_CACHE_TTL_MS as 5 minutes", () => {
       expect(HARDWARE_CACHE_TTL_MS).toBe(5 * 60 * 1000);
     });
   });

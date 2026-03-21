@@ -14,13 +14,17 @@ import { seedPalettes } from "./seed/palette-seed";
 const prisma = new PrismaClient();
 
 async function main(): Promise<void> {
+  // eslint-disable-next-line no-console -- CLI seed script: stdout is intentional
   console.log("[Seed] Starting database seed...");
+  // eslint-disable-next-line no-console -- CLI seed script: stdout is intentional
   console.log("=".repeat(60));
 
   try {
     await seedPalettes(prisma);
 
+    // eslint-disable-next-line no-console -- CLI seed script: stdout is intentional
     console.log("=".repeat(60));
+    // eslint-disable-next-line no-console -- CLI seed script: stdout is intentional
     console.log("[Seed] Database seeding completed successfully!");
   } catch (error) {
     console.error("[Seed] Error during seeding:", error);

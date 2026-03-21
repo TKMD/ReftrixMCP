@@ -9,10 +9,10 @@
  * @module tools/page/handlers/types
  */
 
-import type { PageAnalyzeInput, Grade, VisualFeatures } from '../schemas';
-import type { ComputedStyleInfo } from '../../../services/page-ingest-adapter';
-import type { CSSVariableExtractionResult } from '../../../services/visual/css-variable-extractor.service';
-import type { BackgroundDesignDetection } from '../../../services/background/background-design-detector.service';
+import type { PageAnalyzeInput, Grade, VisualFeatures } from "../schemas";
+import type { ComputedStyleInfo } from "../../../services/page-ingest-adapter";
+import type { CSSVariableExtractionResult } from "../../../services/visual/css-variable-extractor.service";
+import type { BackgroundDesignDetection } from "../../../services/background/background-design-detector.service";
 
 /**
  * BackgroundDesignDetection の型エイリアス（LayoutServiceResult用）
@@ -30,7 +30,7 @@ export type BackgroundDesignDetectionData = BackgroundDesignDetection;
 export interface MotionPatternInput {
   id: string;
   name: string;
-  type: 'css_animation' | 'css_transition' | 'keyframes';
+  type: "css_animation" | "css_transition" | "keyframes";
   category: string;
   trigger: string;
   duration?: number;
@@ -49,7 +49,7 @@ export interface FrameCaptureOptions {
   scroll_px_per_frame?: number | undefined;
   frame_interval_ms?: number | undefined;
   output_dir?: string | undefined;
-  output_format?: 'png' | 'jpeg' | undefined;
+  output_format?: "png" | "jpeg" | undefined;
   filename_pattern?: string | undefined;
 }
 
@@ -84,7 +84,7 @@ export interface FrameCaptureResult {
   config: {
     scroll_px_per_frame: number;
     frame_interval_ms: number;
-    output_format: 'png' | 'jpeg';
+    output_format: "png" | "jpeg";
     output_dir: string;
     filename_pattern: string;
   };
@@ -190,7 +190,7 @@ export interface PageVisionFeatures {
   modelName: string;
   // Vision CPU完走保証 Phase 3: メタ情報
   /** 検出されたハードウェアタイプ（GPU/CPU） */
-  hardwareType?: 'GPU' | 'CPU';
+  hardwareType?: "GPU" | "CPU";
   /** 計算されたタイムアウト値（ミリ秒） */
   timeoutMs?: number;
   /** 画像最適化が適用されたか */
@@ -198,7 +198,7 @@ export interface PageVisionFeatures {
   /** Graceful Degradationが発動したか */
   fallback?: boolean;
   /** フォールバック理由（timeout/error） */
-  fallbackReason?: 'timeout' | 'error';
+  fallbackReason?: "timeout" | "error";
 }
 
 // =====================================================
@@ -235,7 +235,7 @@ export interface LayoutServiceResult {
   };
   screenshot?: {
     base64: string;
-    format: 'png' | 'jpeg';
+    format: "png" | "jpeg";
     width: number;
     height: number;
   };
@@ -302,7 +302,13 @@ export interface MotionPatternData {
   name: string;
   // v0.1.0: library_animation と video_motion を追加（motion.detect統合）
   // v0.1.0: vision_detected を追加（scroll-vision-persistence経由のパターン）
-  type: 'css_animation' | 'css_transition' | 'keyframes' | 'library_animation' | 'video_motion' | 'vision_detected';
+  type:
+    | "css_animation"
+    | "css_transition"
+    | "keyframes"
+    | "library_animation"
+    | "video_motion"
+    | "vision_detected";
   category: string;
   trigger: string;
   // v0.1.0: duration は MotionPattern.animation.duration からの変換で undefined になり得る
@@ -312,7 +318,7 @@ export interface MotionPatternData {
   propertiesDetailed?: Array<{ property: string; from?: string; to?: string }> | undefined;
   performance: {
     // v0.1.0: 'high' を追加（video/runtime mode で使用）
-    level: 'good' | 'acceptable' | 'poor' | 'high';
+    level: "good" | "acceptable" | "poor" | "high";
     usesTransform: boolean;
     usesOpacity: boolean;
   };
@@ -361,7 +367,7 @@ export interface CDPAnimationData {
   playbackRate: number;
   startTime: number;
   currentTime: number;
-  type: 'CSSAnimation' | 'CSSTransition' | 'WebAnimation';
+  type: "CSSAnimation" | "CSSTransition" | "WebAnimation";
   source: CDPAnimationSource;
 }
 
@@ -493,7 +499,7 @@ export interface ThreeJSLibrarySpecificData {
     /** 抽出日時 (ISO8601) */
     extractedAt: string;
     /** 抽出レベル: 'detailed' = 全データ, 'basic' = トランケート後 */
-    extractionLevel: 'basic' | 'detailed';
+    extractionLevel: "basic" | "detailed";
     /** トランケート発生フラグ */
     truncated?: boolean;
     /** トランケート理由 */
@@ -566,20 +572,20 @@ export interface JSAnimationSummaryResult {
  * WebGLアニメーションカテゴリ
  */
 export type WebGLAnimationCategory =
-  | 'fade'
-  | 'pulse'
-  | 'wave'
-  | 'particle'
-  | 'morph'
-  | 'rotation'
-  | 'parallax'
-  | 'noise'
-  | 'complex';
+  | "fade"
+  | "pulse"
+  | "wave"
+  | "particle"
+  | "morph"
+  | "rotation"
+  | "parallax"
+  | "noise"
+  | "complex";
 
 /**
  * WebGLアニメーション変化パターン
  */
-export type WebGLChangePattern = 'continuous' | 'pulsed' | 'irregular';
+export type WebGLChangePattern = "continuous" | "pulsed" | "irregular";
 
 /**
  * WebGLアニメーション特性
@@ -658,10 +664,12 @@ export interface VideoModeInfo {
   /** 処理時間（ms） */
   processing_time_ms: number;
   /** ビューポートサイズ */
-  viewport?: {
-    width: number;
-    height: number;
-  } | undefined;
+  viewport?:
+    | {
+        width: number;
+        height: number;
+      }
+    | undefined;
   /** ページタイトル */
   page_title?: string | undefined;
   /** モーションカバレッジ（0-1） */
@@ -700,7 +708,7 @@ export interface MotionServiceResult {
   patterns?: MotionPatternData[];
   warnings?: Array<{
     code: string;
-    severity: 'info' | 'warning' | 'error';
+    severity: "info" | "warning" | "error";
     message: string;
   }>;
   error?: {
@@ -768,12 +776,12 @@ export interface QualityServiceResult {
   cliches?: Array<{
     type: string;
     description: string;
-    severity: 'high' | 'medium' | 'low';
+    severity: "high" | "medium" | "low";
   }>;
   recommendations?: Array<{
     id: string;
     category: string;
-    priority: 'high' | 'medium' | 'low';
+    priority: "high" | "medium" | "low";
     title: string;
     description: string;
   }>;
@@ -808,7 +816,7 @@ export interface MotionDetectionExtendedContext extends MotionDetectionContext {
   /** Vision解析用スクリーンショット（base64エンコード、mimeType付き） */
   screenshot?: {
     base64: string;
-    mimeType: 'image/png' | 'image/jpeg';
+    mimeType: "image/png" | "image/jpeg";
   };
   /**
    * layout_firstモードが有効かどうか
@@ -827,7 +835,7 @@ export interface IPageAnalyzeService {
     url: string,
     options: {
       timeout?: number;
-      waitUntil?: 'load' | 'domcontentloaded' | 'networkidle';
+      waitUntil?: "load" | "domcontentloaded" | "networkidle";
       viewport?: { width: number; height: number };
       includeComputedStyles?: boolean;
     }
@@ -842,7 +850,7 @@ export interface IPageAnalyzeService {
   /** レイアウト分析 */
   analyzeLayout?: (
     html: string,
-    options: PageAnalyzeInput['layoutOptions'],
+    options: PageAnalyzeInput["layoutOptions"],
     /** Vision解析用スクリーンショート（useVision=true時に使用） */
     screenshot?: { base64: string; mimeType: string },
     /** Computed Styles配列（PageIngestAdapterから取得、htmlSnippetにインラインスタイルとして適用） */
@@ -854,7 +862,7 @@ export interface IPageAnalyzeService {
   detectMotion?: (
     html: string,
     url: string,
-    options: PageAnalyzeInput['motionOptions'],
+    options: PageAnalyzeInput["motionOptions"],
     /** DB保存コンテキスト（JSアニメーションパターンのDB保存に使用） */
     dbContext?: MotionDetectionContext,
     /** 拡張コンテキスト（Vision解析用スクリーンショート等） */
@@ -865,7 +873,7 @@ export interface IPageAnalyzeService {
   /** 品質評価 */
   evaluateQuality?: (
     html: string,
-    options: PageAnalyzeInput['qualityOptions']
+    options: PageAnalyzeInput["qualityOptions"]
   ) => Promise<QualityServiceResult>;
 }
 
@@ -902,12 +910,12 @@ export interface WebPageUpdateData {
  * CSSフレームワークタイプ
  */
 export type CssFrameworkType =
-  | 'tailwind'
-  | 'bootstrap'
-  | 'css_modules'
-  | 'styled_components'
-  | 'vanilla'
-  | 'unknown';
+  | "tailwind"
+  | "bootstrap"
+  | "css_modules"
+  | "styled_components"
+  | "vanilla"
+  | "unknown";
 
 /**
  * CSSフレームワーク検出メタデータ
@@ -982,27 +990,27 @@ export interface QualityEvaluationCreateData {
  * JSアニメーションライブラリタイプ（Prisma ENUM対応）
  */
 export type JSAnimationLibraryType =
-  | 'gsap'
-  | 'framer_motion'
-  | 'anime_js'
-  | 'three_js'
-  | 'lottie'
-  | 'web_animations_api'
-  | 'unknown';
+  | "gsap"
+  | "framer_motion"
+  | "anime_js"
+  | "three_js"
+  | "lottie"
+  | "web_animations_api"
+  | "unknown";
 
 /**
  * JSアニメーションタイプ（Prisma ENUM対応）
  */
 export type JSAnimationTypeEnum =
-  | 'tween'
-  | 'timeline'
-  | 'spring'
-  | 'physics'
-  | 'keyframe'
-  | 'morphing'
-  | 'path'
-  | 'scroll_driven'
-  | 'gesture';
+  | "tween"
+  | "timeline"
+  | "spring"
+  | "physics"
+  | "keyframe"
+  | "morphing"
+  | "path"
+  | "scroll_driven"
+  | "gesture";
 
 /**
  * JSAnimationPattern作成データ型
@@ -1092,7 +1100,11 @@ export interface IPageAnalyzePrismaClient {
       update: JSAnimationEmbeddingUpdateData;
     }) => Promise<{ id: string }>;
     createMany: (args: {
-      data: Array<{ jsAnimationPatternId: string; textRepresentation: string; modelVersion: string }>;
+      data: Array<{
+        jsAnimationPatternId: string;
+        textRepresentation: string;
+        modelVersion: string;
+      }>;
     }) => Promise<{ count: number }>;
   };
   $transaction: <T>(
@@ -1100,7 +1112,7 @@ export interface IPageAnalyzePrismaClient {
     options?: {
       maxWait?: number;
       timeout?: number;
-      isolationLevel?: 'ReadUncommitted' | 'ReadCommitted' | 'RepeatableRead' | 'Serializable';
+      isolationLevel?: "ReadUncommitted" | "ReadCommitted" | "RepeatableRead" | "Serializable";
     }
   ) => Promise<T>;
   $executeRawUnsafe: (query: string, ...values: unknown[]) => Promise<number>;
@@ -1150,7 +1162,7 @@ export interface AnalysisResultForWarning {
 export const DEFAULT_SCREENSHOT = {
   WIDTH: 1440,
   HEIGHT: 900,
-  FORMAT: 'png' as const,
+  FORMAT: "png" as const,
 } as const;
 
 /**
@@ -1221,14 +1233,14 @@ export interface NarrativeHandlerResult {
       containerWidth?: string;
       visualHierarchy?: {
         primaryElements: string[];
-        sectionFlow: 'linear' | 'modular' | 'asymmetric';
+        sectionFlow: "linear" | "modular" | "asymmetric";
       };
       spacingRhythm?: {
         baseUnit: string;
         scale: number[];
       };
       whitespaceRatio?: number;
-      visualDensity?: 'sparse' | 'balanced' | 'dense';
+      visualDensity?: "sparse" | "balanced" | "dense";
     };
     confidence: number;
     analyzedAt: string;
@@ -1302,7 +1314,10 @@ export interface INarrativeService {
       fallbackReason?: string;
     };
   }>;
-  save: (webPageId: string, result: unknown) => Promise<{
+  save: (
+    webPageId: string,
+    result: unknown
+  ) => Promise<{
     id: string;
     webPageId: string;
     createdAt: Date;

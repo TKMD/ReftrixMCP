@@ -14,15 +14,15 @@
  * @module tools/background/search.tool
  */
 
-import { ZodError } from 'zod';
-import { logger, isDevelopment } from '../../utils/logger';
+import { ZodError } from "zod";
+import { logger, isDevelopment } from "../../utils/logger";
 import {
   backgroundSearchInputSchema,
   BACKGROUND_MCP_ERROR_CODES,
   type BackgroundSearchInput as BackgroundSearchInputType,
-} from './schemas';
-import { applyPreferenceReranking } from '../../services/preference-rerank.helper';
-import type { IPrismaClient } from '../../services/preference-profile.service';
+} from "./schemas";
+import { applyPreferenceReranking } from "../../services/preference-rerank.helper";
+import type { IPrismaClient } from "../../services/preference-profile.service";
 
 // =====================================================
 // 型定義
@@ -144,9 +144,7 @@ let backgroundSearchServiceFactory: (() => IBackgroundSearchService) | null = nu
 /**
  * サービスファクトリーを設定
  */
-export function setBackgroundSearchServiceFactory(
-  factory: () => IBackgroundSearchService
-): void {
+export function setBackgroundSearchServiceFactory(factory: () => IBackgroundSearchService): void {
   backgroundSearchServiceFactory = factory;
 }
 
@@ -167,9 +165,7 @@ let prismaClientFactory: (() => IPrismaClient) | null = null;
  * PrismaClientファクトリーを設定（嗜好リランキング用）
  * Set PrismaClient factory (for preference reranking)
  */
-export function setBackgroundSearchPrismaClientFactory(
-  factory: () => IPrismaClient
-): void {
+export function setBackgroundSearchPrismaClientFactory(factory: () => IPrismaClient): void {
   prismaClientFactory = factory;
 }
 
@@ -191,19 +187,19 @@ export function resetBackgroundSearchPrismaClientFactory(): void {
 function mapErrorToCode(error: Error): string {
   const message = error.message.toLowerCase();
 
-  if (message.includes('embedding') || message.includes('model')) {
+  if (message.includes("embedding") || message.includes("model")) {
     return BACKGROUND_MCP_ERROR_CODES.EMBEDDING_FAILED;
   }
 
   if (
-    message.includes('database') ||
-    message.includes('prisma') ||
-    message.includes('connection')
+    message.includes("database") ||
+    message.includes("prisma") ||
+    message.includes("connection")
   ) {
     return BACKGROUND_MCP_ERROR_CODES.SEARCH_FAILED;
   }
 
-  if (message.includes('timeout')) {
+  if (message.includes("timeout")) {
     return BACKGROUND_MCP_ERROR_CODES.SEARCH_FAILED;
   }
 
@@ -220,13 +216,11 @@ function mapErrorToCode(error: Error): string {
  * @param input - 入力パラメータ
  * @returns 検索結果
  */
-export async function backgroundSearchHandler(
-  input: unknown
-): Promise<BackgroundSearchOutput> {
+export async function backgroundSearchHandler(input: unknown): Promise<BackgroundSearchOutput> {
   const startTime = Date.now();
 
   if (isDevelopment()) {
-    logger.info('[MCP Tool] background.search called', {
+    logger.info("[MCP Tool] background.search called", {
       query: (input as Record<string, unknown>)?.query,
     });
   }
@@ -237,12 +231,10 @@ export async function backgroundSearchHandler(
     validated = backgroundSearchInputSchema.parse(input);
   } catch (error) {
     if (error instanceof ZodError) {
-      const errorMessage = error.errors
-        .map((e) => `${e.path.join('.')}: ${e.message}`)
-        .join(', ');
+      const errorMessage = error.errors.map((e) => `${e.path.join(".")}: ${e.message}`).join(", ");
 
       if (isDevelopment()) {
-        logger.error('[MCP Tool] background.search validation error', {
+        logger.error("[MCP Tool] background.search validation error", {
           errors: error.errors,
         });
       }
@@ -261,14 +253,14 @@ export async function backgroundSearchHandler(
   // サービスファクトリーチェック
   if (!backgroundSearchServiceFactory) {
     if (isDevelopment()) {
-      logger.error('[MCP Tool] background.search service factory not set');
+      logger.error("[MCP Tool] background.search service factory not set");
     }
 
     return {
       success: false,
       error: {
         code: BACKGROUND_MCP_ERROR_CODES.SERVICE_UNAVAILABLE,
-        message: 'Background search service is not available',
+        message: "Background search service is not available",
       },
     };
   }
@@ -285,7 +277,9 @@ export async function backgroundSearchHandler(
     // Embedding が null の場合は空結果を返す
     if (queryEmbedding === null) {
       if (isDevelopment()) {
-        logger.warn('[MCP Tool] background.search embedding not available, returning empty results');
+        logger.warn(
+          "[MCP Tool] background.search embedding not available, returning empty results"
+        );
       }
 
       return {
@@ -328,37 +322,28 @@ export async function backgroundSearchHandler(
 
     // 検索実行（ハイブリッド検索優先）
     const searchResult = service.searchBackgroundDesignsHybrid
-      ? await service.searchBackgroundDesignsHybrid(
-          validated.query,
-          queryEmbedding,
-          searchOptions
-        )
-      : await service.searchBackgroundDesigns(
-          queryEmbedding,
-          searchOptions
-        );
+      ? await service.searchBackgroundDesignsHybrid(validated.query, queryEmbedding, searchOptions)
+      : await service.searchBackgroundDesigns(queryEmbedding, searchOptions);
 
     // 結果マッピング
-    let mappedResults: BackgroundSearchResultItem[] = searchResult.results.map(
-      (r) => ({
-        id: r.id,
-        designType: r.designType,
-        cssValue: r.cssValue,
-        similarity: r.similarity,
-        source: {
-          webPageId: r.webPageId,
-        },
-        name: r.name,
-        selector: r.selector,
-        colorInfo: r.colorInfo,
-        textRepresentation: r.textRepresentation,
-      })
-    );
+    let mappedResults: BackgroundSearchResultItem[] = searchResult.results.map((r) => ({
+      id: r.id,
+      designType: r.designType,
+      cssValue: r.cssValue,
+      similarity: r.similarity,
+      source: {
+        webPageId: r.webPageId,
+      },
+      name: r.name,
+      selector: r.selector,
+      colorInfo: r.colorInfo,
+      textRepresentation: r.textRepresentation,
+    }));
 
     const searchTimeMs = Date.now() - startTime;
 
     if (isDevelopment()) {
-      logger.info('[MCP Tool] background.search completed', {
+      logger.info("[MCP Tool] background.search completed", {
         query: validated.query,
         resultCount: mappedResults.length,
         total: searchResult.total,
@@ -367,7 +352,13 @@ export async function backgroundSearchHandler(
     }
 
     // 嗜好プロファイルによるリランキング / Preference profile reranking
-    mappedResults = await applyPreferenceReranking(mappedResults, validated.profile_id, prismaClientFactory, 'background', 'background.search');
+    mappedResults = await applyPreferenceReranking(
+      mappedResults,
+      validated.profile_id,
+      prismaClientFactory,
+      "background",
+      "background.search"
+    );
 
     return {
       success: true,
@@ -383,7 +374,7 @@ export async function backgroundSearchHandler(
     const errorCode = mapErrorToCode(errorInstance);
 
     if (isDevelopment()) {
-      logger.error('[MCP Tool] background.search error', {
+      logger.error("[MCP Tool] background.search error", {
         code: errorCode,
         error: errorInstance.message,
       });
@@ -408,78 +399,79 @@ export async function backgroundSearchHandler(
  * MCP Protocol 用のツール定義オブジェクト
  */
 export const backgroundSearchToolDefinition = {
-  name: 'background.search',
+  name: "background.search",
   description:
-    'BackgroundDesignをセマンティック検索します。' +
-    'グラデーション、グラスモーフィズム、SVG背景等の背景デザインパターンを自然言語で検索できます。' +
-    'designType（14種類）やwebPageIdでフィルタリング可能です。',
+    "BackgroundDesignをセマンティック検索します。" +
+    "グラデーション、グラスモーフィズム、SVG背景等の背景デザインパターンを自然言語で検索できます。" +
+    "designType（14種類）やwebPageIdでフィルタリング可能です。",
   annotations: {
-    title: 'Background Search',
+    title: "Background Search",
     readOnlyHint: true,
     idempotentHint: true,
     openWorldHint: false,
   },
   inputSchema: {
-    type: 'object' as const,
+    type: "object" as const,
     properties: {
       query: {
-        type: 'string',
-        description: '検索クエリ（自然言語、1-500文字）',
+        type: "string",
+        description: "検索クエリ（自然言語、1-500文字）",
         minLength: 1,
         maxLength: 500,
       },
       limit: {
-        type: 'number',
-        description: '取得件数（1-50、デフォルト: 10）',
+        type: "number",
+        description: "取得件数（1-50、デフォルト: 10）",
         minimum: 1,
         maximum: 50,
         default: 10,
       },
       offset: {
-        type: 'number',
-        description: 'オフセット（0以上、デフォルト: 0）',
+        type: "number",
+        description: "オフセット（0以上、デフォルト: 0）",
         minimum: 0,
         default: 0,
       },
       filters: {
-        type: 'object',
-        description: '検索フィルター',
+        type: "object",
+        description: "検索フィルター",
         properties: {
           designType: {
-            type: 'string',
+            type: "string",
             enum: [
-              'solid_color',
-              'linear_gradient',
-              'radial_gradient',
-              'conic_gradient',
-              'mesh_gradient',
-              'image_background',
-              'pattern_background',
-              'video_background',
-              'animated_gradient',
-              'glassmorphism',
-              'noise_texture',
-              'svg_background',
-              'multi_layer',
-              'unknown',
+              "solid_color",
+              "linear_gradient",
+              "radial_gradient",
+              "conic_gradient",
+              "mesh_gradient",
+              "image_background",
+              "pattern_background",
+              "video_background",
+              "animated_gradient",
+              "glassmorphism",
+              "noise_texture",
+              "svg_background",
+              "multi_layer",
+              "unknown",
             ],
-            description: 'BackgroundDesignTypeでフィルター',
+            description: "BackgroundDesignTypeでフィルター",
           },
           webPageId: {
-            type: 'string',
-            format: 'uuid',
-            description: 'WebページIDでフィルター',
+            type: "string",
+            format: "uuid",
+            description: "WebページIDでフィルター",
           },
         },
       },
       // Preference reranking
       profile_id: {
-        type: 'string',
-        format: 'uuid',
-        description: '嗜好プロファイルID（検索結果のリランキングに使用） / Preference profile ID (used for search result reranking)',
+        type: "string",
+        format: "uuid",
+        description:
+          "嗜好プロファイルID（検索結果のリランキングに使用） / Preference profile ID (used for search result reranking)",
       },
     },
-    required: ['query'],
+    required: ["query"],
   },
 };
 
@@ -488,5 +480,5 @@ export const backgroundSearchToolDefinition = {
 // =====================================================
 
 if (isDevelopment()) {
-  logger.debug('[background.search] Tool module loaded');
+  logger.debug("[background.search] Tool module loaded");
 }

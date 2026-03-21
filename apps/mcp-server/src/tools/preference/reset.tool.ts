@@ -11,16 +11,16 @@
  * @module tools/preference/reset.tool
  */
 
-import { ZodError } from 'zod';
-import { logger, isDevelopment } from '../../utils/logger';
+import { ZodError } from "zod";
+import { logger, isDevelopment } from "../../utils/logger";
 import {
   preferenceResetInputSchema,
   PREFERENCE_MCP_ERROR_CODES,
   sanitizeErrorMessage,
   truncateId,
   type PreferenceResetInput,
-} from './schemas';
-import type { IPreferenceService } from './hear.tool';
+} from "./schemas";
+import type { IPreferenceService } from "./hear.tool";
 
 // =====================================================
 // 型定義 / Type Definitions
@@ -58,9 +58,7 @@ let preferenceServiceFactory: (() => IPreferenceService) | null = null;
  * サービスファクトリーを設定
  * Set service factory
  */
-export function setPreferenceServiceFactory(
-  factory: () => IPreferenceService
-): void {
+export function setPreferenceServiceFactory(factory: () => IPreferenceService): void {
   preferenceServiceFactory = factory;
 }
 
@@ -83,7 +81,7 @@ export function resetPreferenceServiceFactory(): void {
 function mapErrorToCode(error: Error): string {
   const message = error.message.toLowerCase();
 
-  if (message.includes('profile not found') || message.includes('not found')) {
+  if (message.includes("profile not found") || message.includes("not found")) {
     return PREFERENCE_MCP_ERROR_CODES.PROFILE_NOT_FOUND;
   }
 
@@ -101,11 +99,9 @@ function mapErrorToCode(error: Error): string {
  * @param input - 入力パラメータ / Input parameters
  * @returns リセット結果 / Reset result
  */
-export async function preferenceResetHandler(
-  input: unknown
-): Promise<PreferenceResetOutput> {
+export async function preferenceResetHandler(input: unknown): Promise<PreferenceResetOutput> {
   if (isDevelopment()) {
-    logger.info('[MCP Tool] preference.reset called', {
+    logger.info("[MCP Tool] preference.reset called", {
       profileId: truncateId((input as Record<string, unknown>)?.profile_id as string | undefined),
     });
   }
@@ -116,11 +112,9 @@ export async function preferenceResetHandler(
     validated = preferenceResetInputSchema.parse(input);
   } catch (error) {
     if (error instanceof ZodError) {
-      const errorMessage = error.errors
-        .map((e) => `${e.path.join('.')}: ${e.message}`)
-        .join(', ');
+      const errorMessage = error.errors.map((e) => `${e.path.join(".")}: ${e.message}`).join(", ");
 
-      logger.warn('[MCP Tool] preference.reset validation error', {
+      logger.warn("[MCP Tool] preference.reset validation error", {
         errors: error.errors,
       });
 
@@ -138,27 +132,27 @@ export async function preferenceResetHandler(
   // confirm チェック / Confirm check
   if (!validated.confirm) {
     if (isDevelopment()) {
-      logger.info('[MCP Tool] preference.reset rejected: confirm is false');
+      logger.info("[MCP Tool] preference.reset rejected: confirm is false");
     }
 
     return {
       success: false,
       error: {
         code: PREFERENCE_MCP_ERROR_CODES.RESET_NOT_CONFIRMED,
-        message: 'Reset not confirmed. Set confirm: true to proceed with profile reset.',
+        message: "Reset not confirmed. Set confirm: true to proceed with profile reset.",
       },
     };
   }
 
   // サービスファクトリーチェック / Service factory check
   if (!preferenceServiceFactory) {
-    logger.warn('[MCP Tool] preference.reset service factory not set');
+    logger.warn("[MCP Tool] preference.reset service factory not set");
 
     return {
       success: false,
       error: {
         code: PREFERENCE_MCP_ERROR_CODES.SERVICE_UNAVAILABLE,
-        message: 'Preference service is not available',
+        message: "Preference service is not available",
       },
     };
   }
@@ -172,7 +166,7 @@ export async function preferenceResetHandler(
       const result = await service.deleteProfile(validated.profile_id);
 
       if (isDevelopment()) {
-        logger.info('[MCP Tool] preference.reset hard delete completed', {
+        logger.info("[MCP Tool] preference.reset hard delete completed", {
           profileId: truncateId(result.profile_id),
           deleted: result.deleted,
         });
@@ -187,7 +181,7 @@ export async function preferenceResetHandler(
     const result = await service.resetProfile(validated.profile_id);
 
     if (isDevelopment()) {
-      logger.info('[MCP Tool] preference.reset completed', {
+      logger.info("[MCP Tool] preference.reset completed", {
         profileId: truncateId(result.profile_id),
         reset: result.reset,
       });
@@ -203,7 +197,7 @@ export async function preferenceResetHandler(
 
     // 全環境でログ出力（isDevelopmentガードなし）
     // Log in all environments (no isDevelopment guard)
-    logger.warn('[MCP Tool] preference.reset error', {
+    logger.warn("[MCP Tool] preference.reset error", {
       code: errorCode,
       error: errorInstance.message,
     });
@@ -227,36 +221,37 @@ export async function preferenceResetHandler(
  * preference.reset MCP tool definition
  */
 export const preferenceResetToolDefinition = {
-  name: 'preference.reset',
+  name: "preference.reset",
   description:
-    '嗜好プロファイルをリセットします。confirm: trueが必須です。preference_signalsもCASCADE削除されます。' +
-    'Reset preference profile. confirm: true is required. preference_signals are CASCADE deleted.',
+    "嗜好プロファイルをリセットします。confirm: trueが必須です。preference_signalsもCASCADE削除されます。" +
+    "Reset preference profile. confirm: true is required. preference_signals are CASCADE deleted.",
   annotations: {
-    title: 'Preference Reset',
+    title: "Preference Reset",
     readOnlyHint: false,
     idempotentHint: true,
     openWorldHint: false,
   },
   inputSchema: {
-    type: 'object' as const,
+    type: "object" as const,
     properties: {
       profile_id: {
-        type: 'string',
-        format: 'uuid',
-        description: 'プロファイルID（必須） / Profile ID (required)',
+        type: "string",
+        format: "uuid",
+        description: "プロファイルID（必須） / Profile ID (required)",
       },
       confirm: {
-        type: 'boolean',
-        description: 'リセット確認フラグ（trueでリセット実行） / Reset confirmation flag (true to execute reset)',
+        type: "boolean",
+        description:
+          "リセット確認フラグ（trueでリセット実行） / Reset confirmation flag (true to execute reset)",
       },
       hard_delete: {
-        type: 'boolean',
+        type: "boolean",
         description:
-          '完全削除フラグ（trueでプロファイルとシグナルを完全に削除、GDPR忘れられる権利対応） / ' +
-          'Hard delete flag (true to permanently delete profile and signals, GDPR Right to Erasure)',
+          "完全削除フラグ（trueでプロファイルとシグナルを完全に削除、GDPR忘れられる権利対応） / " +
+          "Hard delete flag (true to permanently delete profile and signals, GDPR Right to Erasure)",
       },
     },
-    required: ['profile_id', 'confirm'],
+    required: ["profile_id", "confirm"],
   },
 };
 
@@ -265,5 +260,5 @@ export const preferenceResetToolDefinition = {
 // =====================================================
 
 if (isDevelopment()) {
-  logger.debug('[preference.reset] Tool module loaded');
+  logger.debug("[preference.reset] Tool module loaded");
 }

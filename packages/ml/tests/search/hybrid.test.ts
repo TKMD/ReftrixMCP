@@ -13,11 +13,11 @@
  *
  * TDA監査 P2-5: Hybrid Search固有テスト欠如の解消
  */
-import { describe, it, expect, vi } from 'vitest';
-import { executeHybridSearch } from '../../src/search/hybrid';
-import { calculateRRF } from '../../src/search/rrf';
-import type { RankedItem } from '../../src/search/rrf';
-import type { HybridSearchConfig, HybridSearchResult } from '../../src/search/hybrid';
+import { describe, it, expect, vi } from "vitest";
+import { executeHybridSearch } from "../../src/search/hybrid";
+import { calculateRRF } from "../../src/search/rrf";
+import type { RankedItem } from "../../src/search/rrf";
+import type { HybridSearchConfig, HybridSearchResult } from "../../src/search/hybrid";
 
 // =====================================================
 // ヘルパー
@@ -42,18 +42,18 @@ function createFailingSearchFn(errorMessage: string): () => Promise<RankedItem[]
 // executeHybridSearch テスト
 // =====================================================
 
-describe('executeHybridSearch', () => {
+describe("executeHybridSearch", () => {
   // --- 正常系: 両方成功 ---
 
-  it('両方の検索が成功した場合にマージ結果を返すこと', async () => {
+  it("両方の検索が成功した場合にマージ結果を返すこと", async () => {
     // Arrange
     const vectorResults: RankedItem[] = [
-      createRankedItem('a', 1, { name: 'Vector A' }),
-      createRankedItem('b', 2, { name: 'Vector B' }),
+      createRankedItem("a", 1, { name: "Vector A" }),
+      createRankedItem("b", 2, { name: "Vector B" }),
     ];
     const fulltextResults: RankedItem[] = [
-      createRankedItem('c', 1, { name: 'Fulltext C' }),
-      createRankedItem('b', 2, { name: 'Fulltext B' }),
+      createRankedItem("c", 1, { name: "Fulltext C" }),
+      createRankedItem("b", 2, { name: "Fulltext B" }),
     ];
 
     const vectorFn = createMockSearchFn(vectorResults);
@@ -68,14 +68,10 @@ describe('executeHybridSearch', () => {
     expect(fulltextFn).toHaveBeenCalledOnce();
   });
 
-  it('結果がHybridSearchResult型に準拠していること', async () => {
+  it("結果がHybridSearchResult型に準拠していること", async () => {
     // Arrange
-    const vectorResults: RankedItem[] = [
-      createRankedItem('item-1', 1, { category: 'hero' }),
-    ];
-    const fulltextResults: RankedItem[] = [
-      createRankedItem('item-2', 1),
-    ];
+    const vectorResults: RankedItem[] = [createRankedItem("item-1", 1, { category: "hero" })];
+    const fulltextResults: RankedItem[] = [createRankedItem("item-2", 1)];
 
     // Act
     const results = await executeHybridSearch(
@@ -85,31 +81,31 @@ describe('executeHybridSearch', () => {
 
     // Assert: 各結果の型を検証
     for (const result of results) {
-      expect(result).toHaveProperty('id');
-      expect(typeof result.id).toBe('string');
+      expect(result).toHaveProperty("id");
+      expect(typeof result.id).toBe("string");
 
-      expect(result).toHaveProperty('similarity');
-      expect(typeof result.similarity).toBe('number');
+      expect(result).toHaveProperty("similarity");
+      expect(typeof result.similarity).toBe("number");
       expect(result.similarity).toBeGreaterThanOrEqual(0);
       expect(result.similarity).toBeLessThanOrEqual(1);
 
-      expect(result).toHaveProperty('source');
-      expect(typeof result.source).toBe('object');
+      expect(result).toHaveProperty("source");
+      expect(typeof result.source).toBe("object");
 
-      expect(result).toHaveProperty('data');
-      expect(typeof result.data).toBe('object');
+      expect(result).toHaveProperty("data");
+      expect(typeof result.data).toBe("object");
     }
   });
 
-  it('両方に存在するIDのsourceに両方のrankが含まれること', async () => {
+  it("両方に存在するIDのsourceに両方のrankが含まれること", async () => {
     // Arrange: 同じIDが両方に存在
     // 注: mergeWithRRF は配列のインデックスから rank を計算する（index+1）
     // fulltextResults の 'shared' は配列の3番目(index=2) → rank=3
-    const vectorResults: RankedItem[] = [createRankedItem('shared', 1)];
+    const vectorResults: RankedItem[] = [createRankedItem("shared", 1)];
     const fulltextResults: RankedItem[] = [
-      createRankedItem('other-1', 1),
-      createRankedItem('other-2', 2),
-      createRankedItem('shared', 3),
+      createRankedItem("other-1", 1),
+      createRankedItem("other-2", 2),
+      createRankedItem("shared", 3),
     ];
 
     // Act
@@ -119,15 +115,15 @@ describe('executeHybridSearch', () => {
     );
 
     // Assert
-    const shared = results.find((r) => r.id === 'shared');
+    const shared = results.find((r) => r.id === "shared");
     expect(shared).toBeDefined();
     expect(shared!.source.vectorRank).toBe(1);
     expect(shared!.source.fulltextRank).toBe(3);
   });
 
-  it('ベクトルのみに存在するIDのsourceにvectorRankのみ含まれること', async () => {
+  it("ベクトルのみに存在するIDのsourceにvectorRankのみ含まれること", async () => {
     // Arrange
-    const vectorResults: RankedItem[] = [createRankedItem('v-only', 1)];
+    const vectorResults: RankedItem[] = [createRankedItem("v-only", 1)];
     const fulltextResults: RankedItem[] = [];
 
     // Act
@@ -137,16 +133,16 @@ describe('executeHybridSearch', () => {
     );
 
     // Assert
-    const item = results.find((r) => r.id === 'v-only');
+    const item = results.find((r) => r.id === "v-only");
     expect(item).toBeDefined();
     expect(item!.source.vectorRank).toBe(1);
     expect(item!.source.fulltextRank).toBeUndefined();
   });
 
-  it('全文のみに存在するIDのsourceにfulltextRankのみ含まれること', async () => {
+  it("全文のみに存在するIDのsourceにfulltextRankのみ含まれること", async () => {
     // Arrange
     const vectorResults: RankedItem[] = [];
-    const fulltextResults: RankedItem[] = [createRankedItem('ft-only', 1)];
+    const fulltextResults: RankedItem[] = [createRankedItem("ft-only", 1)];
 
     // Act
     const results = await executeHybridSearch(
@@ -155,7 +151,7 @@ describe('executeHybridSearch', () => {
     );
 
     // Assert
-    const item = results.find((r) => r.id === 'ft-only');
+    const item = results.find((r) => r.id === "ft-only");
     expect(item).toBeDefined();
     expect(item!.source.fulltextRank).toBe(1);
     expect(item!.source.vectorRank).toBeUndefined();
@@ -163,7 +159,7 @@ describe('executeHybridSearch', () => {
 
   // --- similarityの正規化検証 ---
 
-  it('similarity値が0-1の範囲に正規化されていること', async () => {
+  it("similarity値が0-1の範囲に正規化されていること", async () => {
     // Arrange: 複数ランクの結果
     const vectorResults: RankedItem[] = Array.from({ length: 10 }, (_, i) =>
       createRankedItem(`v-${i}`, i + 1)
@@ -185,17 +181,14 @@ describe('executeHybridSearch', () => {
     }
   });
 
-  it('結果がsimilarity降順でソートされていること', async () => {
+  it("結果がsimilarity降順でソートされていること", async () => {
     // Arrange
     const vectorResults: RankedItem[] = [
-      createRankedItem('a', 1),
-      createRankedItem('b', 5),
-      createRankedItem('c', 10),
+      createRankedItem("a", 1),
+      createRankedItem("b", 5),
+      createRankedItem("c", 10),
     ];
-    const fulltextResults: RankedItem[] = [
-      createRankedItem('d', 1),
-      createRankedItem('e', 5),
-    ];
+    const fulltextResults: RankedItem[] = [createRankedItem("d", 1), createRankedItem("e", 5)];
 
     // Act
     const results = await executeHybridSearch(
@@ -211,7 +204,7 @@ describe('executeHybridSearch', () => {
 
   // --- 両方空結果 ---
 
-  it('両方の検索結果が空の場合に空配列を返すこと', async () => {
+  it("両方の検索結果が空の場合に空配列を返すこと", async () => {
     // Arrange
     const vectorFn = createMockSearchFn([]);
     const fulltextFn = createMockSearchFn([]);
@@ -226,10 +219,10 @@ describe('executeHybridSearch', () => {
 
   // --- カスタムconfigの適用 ---
 
-  it('カスタムvectorWeight/fulltextWeightが適用されること', async () => {
+  it("カスタムvectorWeight/fulltextWeightが適用されること", async () => {
     // Arrange: 同じランクのアイテムを異なるIDで
-    const vectorResults: RankedItem[] = [createRankedItem('v', 1)];
-    const fulltextResults: RankedItem[] = [createRankedItem('f', 1)];
+    const vectorResults: RankedItem[] = [createRankedItem("v", 1)];
+    const fulltextResults: RankedItem[] = [createRankedItem("f", 1)];
 
     const config: HybridSearchConfig = {
       vectorWeight: 0.3,
@@ -244,14 +237,14 @@ describe('executeHybridSearch', () => {
     );
 
     // Assert: 全文結果の方がスコアが高いこと（0.7 > 0.3）
-    const vItem = results.find((r) => r.id === 'v');
-    const fItem = results.find((r) => r.id === 'f');
+    const vItem = results.find((r) => r.id === "v");
+    const fItem = results.find((r) => r.id === "f");
     expect(fItem!.similarity).toBeGreaterThan(vItem!.similarity);
   });
 
-  it('カスタムk値が適用されること', async () => {
+  it("カスタムk値が適用されること", async () => {
     // Arrange
-    const vectorResults: RankedItem[] = [createRankedItem('a', 1)];
+    const vectorResults: RankedItem[] = [createRankedItem("a", 1)];
     const config: HybridSearchConfig = { k: 10 };
 
     // Act
@@ -269,9 +262,9 @@ describe('executeHybridSearch', () => {
     // 関数はデフォルトmaxで正規化するので > 1 もありうる → clamp to 1
   });
 
-  it('config未指定時にデフォルト値(k=60, 0.6/0.4)が使用されること', async () => {
+  it("config未指定時にデフォルト値(k=60, 0.6/0.4)が使用されること", async () => {
     // Arrange
-    const vectorResults: RankedItem[] = [createRankedItem('a', 1)];
+    const vectorResults: RankedItem[] = [createRankedItem("a", 1)];
 
     // Act: config なし
     const resultsNoConfig = await executeHybridSearch(
@@ -287,18 +280,15 @@ describe('executeHybridSearch', () => {
     );
 
     // Assert: 同じ結果
-    expect(resultsNoConfig[0].similarity).toBeCloseTo(
-      resultsDefaultConfig[0].similarity,
-      10
-    );
+    expect(resultsNoConfig[0].similarity).toBeCloseTo(resultsDefaultConfig[0].similarity, 10);
   });
 
   // --- 並列実行の検証 ---
 
-  it('両方の検索関数が呼び出されること（Promise.all並列実行）', async () => {
+  it("両方の検索関数が呼び出されること（Promise.all並列実行）", async () => {
     // Arrange
-    const vectorFn = vi.fn().mockResolvedValue([createRankedItem('a', 1)]);
-    const fulltextFn = vi.fn().mockResolvedValue([createRankedItem('b', 1)]);
+    const vectorFn = vi.fn().mockResolvedValue([createRankedItem("a", 1)]);
+    const fulltextFn = vi.fn().mockResolvedValue([createRankedItem("b", 1)]);
 
     // Act
     await executeHybridSearch(vectorFn, fulltextFn);
@@ -308,13 +298,13 @@ describe('executeHybridSearch', () => {
     expect(fulltextFn).toHaveBeenCalledOnce();
   });
 
-  it('遅延のある検索でも正しく結果が返ること', async () => {
+  it("遅延のある検索でも正しく結果が返ること", async () => {
     // Arrange: ベクトル検索に遅延
     const vectorFn = vi.fn().mockImplementation(async () => {
       await new Promise((resolve) => setTimeout(resolve, 50));
-      return [createRankedItem('delayed', 1)];
+      return [createRankedItem("delayed", 1)];
     });
-    const fulltextFn = createMockSearchFn([createRankedItem('instant', 1)]);
+    const fulltextFn = createMockSearchFn([createRankedItem("instant", 1)]);
 
     // Act
     const results = await executeHybridSearch(vectorFn, fulltextFn);
@@ -322,8 +312,8 @@ describe('executeHybridSearch', () => {
     // Assert: 両方の結果が含まれる
     expect(results).toHaveLength(2);
     const ids = results.map((r) => r.id);
-    expect(ids).toContain('delayed');
-    expect(ids).toContain('instant');
+    expect(ids).toContain("delayed");
+    expect(ids).toContain("instant");
   });
 
   // --- エラーハンドリング ---
@@ -331,48 +321,44 @@ describe('executeHybridSearch', () => {
   // 片側の失敗はPromise.all全体の失敗となる。
   // graceful degradationはcaller側（サービス層）で実装される。
 
-  it('ベクトル検索が失敗した場合にエラーが伝播すること', async () => {
+  it("ベクトル検索が失敗した場合にエラーが伝播すること", async () => {
     // Arrange
-    const vectorFn = createFailingSearchFn('Vector search failed');
-    const fulltextFn = createMockSearchFn([createRankedItem('a', 1)]);
+    const vectorFn = createFailingSearchFn("Vector search failed");
+    const fulltextFn = createMockSearchFn([createRankedItem("a", 1)]);
 
     // Act & Assert
-    await expect(
-      executeHybridSearch(vectorFn, fulltextFn)
-    ).rejects.toThrow('Vector search failed');
+    await expect(executeHybridSearch(vectorFn, fulltextFn)).rejects.toThrow("Vector search failed");
   });
 
-  it('全文検索が失敗した場合にエラーが伝播すること', async () => {
+  it("全文検索が失敗した場合にエラーが伝播すること", async () => {
     // Arrange
-    const vectorFn = createMockSearchFn([createRankedItem('a', 1)]);
-    const fulltextFn = createFailingSearchFn('Fulltext search failed');
+    const vectorFn = createMockSearchFn([createRankedItem("a", 1)]);
+    const fulltextFn = createFailingSearchFn("Fulltext search failed");
 
     // Act & Assert
-    await expect(
-      executeHybridSearch(vectorFn, fulltextFn)
-    ).rejects.toThrow('Fulltext search failed');
+    await expect(executeHybridSearch(vectorFn, fulltextFn)).rejects.toThrow(
+      "Fulltext search failed"
+    );
   });
 
-  it('両方が失敗した場合にエラーが伝播すること', async () => {
+  it("両方が失敗した場合にエラーが伝播すること", async () => {
     // Arrange
-    const vectorFn = createFailingSearchFn('Vector failed');
-    const fulltextFn = createFailingSearchFn('Fulltext failed');
+    const vectorFn = createFailingSearchFn("Vector failed");
+    const fulltextFn = createFailingSearchFn("Fulltext failed");
 
     // Act & Assert
-    await expect(
-      executeHybridSearch(vectorFn, fulltextFn)
-    ).rejects.toThrow();
+    await expect(executeHybridSearch(vectorFn, fulltextFn)).rejects.toThrow();
   });
 
   // --- 大量データ ---
 
-  it('大量の結果(100件ずつ)を正しく処理できること', async () => {
+  it("大量の結果(100件ずつ)を正しく処理できること", async () => {
     // Arrange
     const vectorResults: RankedItem[] = Array.from({ length: 100 }, (_, i) =>
-      createRankedItem(`v-${i}`, i + 1, { source: 'vector' })
+      createRankedItem(`v-${i}`, i + 1, { source: "vector" })
     );
     const fulltextResults: RankedItem[] = Array.from({ length: 100 }, (_, i) =>
-      createRankedItem(`f-${i}`, i + 1, { source: 'fulltext' })
+      createRankedItem(`f-${i}`, i + 1, { source: "fulltext" })
     );
 
     // Act
@@ -396,17 +382,17 @@ describe('executeHybridSearch', () => {
 
   // --- 重複率の高いケース ---
 
-  it('全アイテムが重複(完全一致)の場合にスコアが加算されること', async () => {
+  it("全アイテムが重複(完全一致)の場合にスコアが加算されること", async () => {
     // Arrange: 全て同じID
     const vectorResults: RankedItem[] = [
-      createRankedItem('same-1', 1),
-      createRankedItem('same-2', 2),
-      createRankedItem('same-3', 3),
+      createRankedItem("same-1", 1),
+      createRankedItem("same-2", 2),
+      createRankedItem("same-3", 3),
     ];
     const fulltextResults: RankedItem[] = [
-      createRankedItem('same-1', 2),
-      createRankedItem('same-2', 1),
-      createRankedItem('same-3', 3),
+      createRankedItem("same-1", 2),
+      createRankedItem("same-2", 1),
+      createRankedItem("same-3", 3),
     ];
 
     // Act
@@ -429,8 +415,8 @@ describe('executeHybridSearch', () => {
     // same-2: vector rank 2, fulltext rank 1 (高)
     // デフォルト重み0.6/0.4なので、vector rank 1の方がスコア寄与が大きい
     // → same-1 のスコアが最も高い可能性
-    const same1 = results.find((r) => r.id === 'same-1');
-    const same2 = results.find((r) => r.id === 'same-2');
+    const same1 = results.find((r) => r.id === "same-1");
+    const same2 = results.find((r) => r.id === "same-2");
     expect(same1).toBeDefined();
     expect(same2).toBeDefined();
 

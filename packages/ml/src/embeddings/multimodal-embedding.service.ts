@@ -15,10 +15,10 @@
  * @module embeddings/multimodal-embedding.service
  */
 
-import { z } from 'zod';
-import pLimit from 'p-limit';
-import type { VisionFeatures } from './vision-embedding.types.js';
-import { visionFeaturesToText } from './vision-embedding.service.js';
+import { z } from "zod";
+import pLimit from "p-limit";
+import type { VisionFeatures } from "./vision-embedding.types.js";
+import { visionFeaturesToText } from "./vision-embedding.service.js";
 
 // =============================================================================
 // 型定義
@@ -27,7 +27,7 @@ import { visionFeaturesToText } from './vision-embedding.service.js';
 /**
  * 検索モード
  */
-export type SearchMode = 'text_only' | 'vision_only' | 'combined';
+export type SearchMode = "text_only" | "vision_only" | "combined";
 
 /**
  * マルチモーダルEmbedding設定
@@ -52,7 +52,7 @@ export const DEFAULT_MULTIMODAL_CONFIG: Required<MultimodalEmbeddingConfig> = {
   textWeight: 0.6,
   visionWeight: 0.4,
   embeddingDimension: 768,
-  searchMode: 'combined',
+  searchMode: "combined",
   normalizeOutput: true,
 };
 
@@ -63,7 +63,7 @@ export const multimodalEmbeddingConfigSchema = z.object({
   textWeight: z.number().min(0).max(1).optional(),
   visionWeight: z.number().min(0).max(1).optional(),
   embeddingDimension: z.number().int().positive().optional(),
-  searchMode: z.enum(['text_only', 'vision_only', 'combined']).optional(),
+  searchMode: z.enum(["text_only", "vision_only", "combined"]).optional(),
   normalizeOutput: z.boolean().optional(),
 });
 
@@ -261,7 +261,7 @@ export interface OptimizedBatchResult {
  * Embeddingサービスインターフェース（DI用）
  */
 export interface IEmbeddingService {
-  generateEmbedding(text: string, type: 'query' | 'passage'): Promise<number[]>;
+  generateEmbedding(text: string, type: "query" | "passage"): Promise<number[]>;
 }
 
 // =============================================================================
@@ -291,10 +291,7 @@ export class MultimodalEmbeddingService {
   private config: Required<MultimodalEmbeddingConfig>;
   private embeddingService: IEmbeddingService;
 
-  constructor(
-    embeddingService: IEmbeddingService,
-    config: MultimodalEmbeddingConfig = {}
-  ) {
+  constructor(embeddingService: IEmbeddingService, config: MultimodalEmbeddingConfig = {}) {
     // 設定をマージ
     this.config = { ...DEFAULT_MULTIMODAL_CONFIG, ...config };
 
@@ -303,9 +300,9 @@ export class MultimodalEmbeddingService {
 
     this.embeddingService = embeddingService;
 
-    if (process.env.NODE_ENV === 'development') {
+    if (process.env.NODE_ENV === "development") {
       // eslint-disable-next-line no-console
-      console.log('[ML] MultimodalEmbeddingService created with config:', {
+      console.log("[ML] MultimodalEmbeddingService created with config:", {
         textWeight: this.config.textWeight,
         visionWeight: this.config.visionWeight,
         embeddingDimension: this.config.embeddingDimension,
@@ -340,9 +337,9 @@ export class MultimodalEmbeddingService {
     // 入力バリデーション
     multimodalEmbeddingInputSchema.parse(input);
 
-    if (process.env.NODE_ENV === 'development') {
+    if (process.env.NODE_ENV === "development") {
       // eslint-disable-next-line no-console
-      console.log('[ML] Generating multimodal embedding for:', {
+      console.log("[ML] Generating multimodal embedding for:", {
         textRepLength: input.textRepresentation.length,
         hasVisionFeatureText: !!input.visionFeatureText,
         hasOriginalText: !!input.originalText,
@@ -353,27 +350,21 @@ export class MultimodalEmbeddingService {
     const textForEmbedding = this.buildTextForEmbedding(input);
     const textEmbedding = await this.embeddingService.generateEmbedding(
       textForEmbedding,
-      'passage'
+      "passage"
     );
 
     // Vision特徴テキストからEmbeddingを生成
     const visionText = this.buildVisionText(input);
-    const visionEmbedding = await this.embeddingService.generateEmbedding(
-      visionText,
-      'passage'
-    );
+    const visionEmbedding = await this.embeddingService.generateEmbedding(visionText, "passage");
 
     // 重み付き結合
-    const combinedEmbedding = this.combineEmbeddings(
-      textEmbedding,
-      visionEmbedding
-    );
+    const combinedEmbedding = this.combineEmbeddings(textEmbedding, visionEmbedding);
 
     const processingTimeMs = Date.now() - startTime;
 
-    if (process.env.NODE_ENV === 'development') {
+    if (process.env.NODE_ENV === "development") {
       // eslint-disable-next-line no-console
-      console.log('[ML] Multimodal embedding generated in', processingTimeMs, 'ms');
+      console.log("[ML] Multimodal embedding generated in", processingTimeMs, "ms");
     }
 
     return {
@@ -400,7 +391,7 @@ export class MultimodalEmbeddingService {
 
     parts.push(input.textRepresentation);
 
-    return parts.join(' ');
+    return parts.join(" ");
   }
 
   /**
@@ -418,10 +409,7 @@ export class MultimodalEmbeddingService {
   /**
    * 2つのEmbeddingを重み付き結合
    */
-  private combineEmbeddings(
-    textEmbedding: number[],
-    visionEmbedding: number[]
-  ): number[] {
+  private combineEmbeddings(textEmbedding: number[], visionEmbedding: number[]): number[] {
     if (textEmbedding.length !== visionEmbedding.length) {
       throw new Error(
         `Embedding dimensions mismatch: text=${textEmbedding.length}, vision=${visionEmbedding.length}`
@@ -441,8 +429,7 @@ export class MultimodalEmbeddingService {
     for (let i = 0; i < textEmbedding.length; i++) {
       const textVal = textEmbedding[i] ?? 0;
       const visionVal = visionEmbedding[i] ?? 0;
-      combined[i] =
-        textVal * this.config.textWeight + visionVal * this.config.visionWeight;
+      combined[i] = textVal * this.config.textWeight + visionVal * this.config.visionWeight;
     }
 
     // L2正規化
@@ -499,23 +486,18 @@ export class MultimodalEmbeddingService {
     let effectiveSearchMode = mergedConfig.searchMode;
 
     // Graceful Degradation: visionFeaturesがない場合、combinedはtext_onlyにフォールバック
-    if (
-      effectiveSearchMode === 'combined' &&
-      !visionFeatures
-    ) {
-      effectiveSearchMode = 'text_only';
+    if (effectiveSearchMode === "combined" && !visionFeatures) {
+      effectiveSearchMode = "text_only";
     }
 
     // vision_onlyモードでvisionFeaturesがない場合はエラー
-    if (effectiveSearchMode === 'vision_only' && !visionFeatures) {
-      throw new Error(
-        'visionFeatures is required for vision_only mode'
-      );
+    if (effectiveSearchMode === "vision_only" && !visionFeatures) {
+      throw new Error("visionFeatures is required for vision_only mode");
     }
 
-    if (process.env.NODE_ENV === 'development') {
+    if (process.env.NODE_ENV === "development") {
       // eslint-disable-next-line no-console
-      console.log('[ML] createMultimodalEmbedding:', {
+      console.log("[ML] createMultimodalEmbedding:", {
         contentLength: content.length,
         hasVisionFeatures: !!visionFeatures,
         requestedMode: mergedConfig.searchMode,
@@ -529,11 +511,8 @@ export class MultimodalEmbeddingService {
     let combinedEmbedding: number[] | null = null;
 
     // text_only または combined: テキストEmbeddingを生成
-    if (effectiveSearchMode === 'text_only' || effectiveSearchMode === 'combined') {
-      textEmbedding = await this.embeddingService.generateEmbedding(
-        content,
-        'passage'
-      );
+    if (effectiveSearchMode === "text_only" || effectiveSearchMode === "combined") {
+      textEmbedding = await this.embeddingService.generateEmbedding(content, "passage");
       if (mergedConfig.normalizeOutput) {
         textEmbedding = this.normalizeVector(textEmbedding);
       }
@@ -541,31 +520,24 @@ export class MultimodalEmbeddingService {
 
     // vision_only または combined: VisionEmbeddingを生成
     if (
-      (effectiveSearchMode === 'vision_only' || effectiveSearchMode === 'combined') &&
+      (effectiveSearchMode === "vision_only" || effectiveSearchMode === "combined") &&
       visionFeatures
     ) {
       const visionText = visionFeaturesToText(visionFeatures);
-      visionEmbedding = await this.embeddingService.generateEmbedding(
-        visionText,
-        'passage'
-      );
+      visionEmbedding = await this.embeddingService.generateEmbedding(visionText, "passage");
       if (mergedConfig.normalizeOutput) {
         visionEmbedding = this.normalizeVector(visionEmbedding);
       }
     }
 
     // combinedEmbeddingを計算
-    if (effectiveSearchMode === 'text_only' && textEmbedding) {
+    if (effectiveSearchMode === "text_only" && textEmbedding) {
       // text_only: combinedはtextEmbeddingと同等
       combinedEmbedding = [...textEmbedding];
-    } else if (effectiveSearchMode === 'vision_only' && visionEmbedding) {
+    } else if (effectiveSearchMode === "vision_only" && visionEmbedding) {
       // vision_only: combinedはvisionEmbeddingと同等
       combinedEmbedding = [...visionEmbedding];
-    } else if (
-      effectiveSearchMode === 'combined' &&
-      textEmbedding &&
-      visionEmbedding
-    ) {
+    } else if (effectiveSearchMode === "combined" && textEmbedding && visionEmbedding) {
       // combined: 重み付き結合
       combinedEmbedding = this.combineEmbeddingsWithConfig(
         textEmbedding,
@@ -576,9 +548,9 @@ export class MultimodalEmbeddingService {
 
     const processingTimeMs = Date.now() - startTime;
 
-    if (process.env.NODE_ENV === 'development') {
+    if (process.env.NODE_ENV === "development") {
       // eslint-disable-next-line no-console
-      console.log('[ML] createMultimodalEmbedding completed in', processingTimeMs, 'ms');
+      console.log("[ML] createMultimodalEmbedding completed in", processingTimeMs, "ms");
     }
 
     return {
@@ -623,9 +595,9 @@ export class MultimodalEmbeddingService {
       };
     }
 
-    if (process.env.NODE_ENV === 'development') {
+    if (process.env.NODE_ENV === "development") {
       // eslint-disable-next-line no-console
-      console.log('[ML] createBatchMultimodalEmbeddings:', {
+      console.log("[ML] createBatchMultimodalEmbeddings:", {
         count: items.length,
       });
     }
@@ -647,18 +619,17 @@ export class MultimodalEmbeddingService {
       } catch (error) {
         // partial failure: エラーを記録し、処理を続行
         failedCount++;
-        if (process.env.NODE_ENV === 'development') {
-           
-          console.warn('[ML] Batch item failed:', error);
+        if (process.env.NODE_ENV === "development") {
+          console.warn("[ML] Batch item failed:", error);
         }
       }
     }
 
     const totalProcessingTimeMs = Date.now() - startTime;
 
-    if (process.env.NODE_ENV === 'development') {
+    if (process.env.NODE_ENV === "development") {
       // eslint-disable-next-line no-console
-      console.log('[ML] createBatchMultimodalEmbeddings completed:', {
+      console.log("[ML] createBatchMultimodalEmbeddings completed:", {
         total: items.length,
         success: successCount,
         failed: failedCount,
@@ -680,9 +651,7 @@ export class MultimodalEmbeddingService {
   /**
    * 設定をマージ
    */
-  private mergeConfig(
-    override?: MultimodalEmbeddingConfig
-  ): Required<MultimodalEmbeddingConfig> {
+  private mergeConfig(override?: MultimodalEmbeddingConfig): Required<MultimodalEmbeddingConfig> {
     if (!override) {
       return { ...this.config };
     }
@@ -757,7 +726,7 @@ export class MultimodalEmbeddingService {
           m: visionFeatures.mood,
           b: visionFeatures.brandTone,
         })
-      : 'null';
+      : "null";
     return `${searchMode ?? this.config.searchMode}:${content}:${visionPart}`;
   }
 
@@ -839,9 +808,9 @@ export class MultimodalEmbeddingService {
       };
     }
 
-    if (process.env.NODE_ENV === 'development') {
+    if (process.env.NODE_ENV === "development") {
       // eslint-disable-next-line no-console
-      console.log('[ML] createOptimizedBatchMultimodalEmbeddings:', {
+      console.log("[ML] createOptimizedBatchMultimodalEmbeddings:", {
         count: items.length,
         concurrency,
         itemTimeoutMs,
@@ -863,10 +832,10 @@ export class MultimodalEmbeddingService {
     let isTimedOut = false;
 
     // 全体タイムアウト設定
-    const totalTimeoutPromise = new Promise<'timeout'>((resolve) => {
+    const totalTimeoutPromise = new Promise<"timeout">((resolve) => {
       setTimeout(() => {
         isTimedOut = true;
-        resolve('timeout');
+        resolve("timeout");
       }, totalTimeoutMs);
     });
 
@@ -874,7 +843,7 @@ export class MultimodalEmbeddingService {
     const processItem = async (item: MultimodalBatchItem, index: number): Promise<void> => {
       // 全体タイムアウトチェック
       if (isTimedOut) {
-        errors.push({ index, error: 'Batch timeout exceeded' });
+        errors.push({ index, error: "Batch timeout exceeded" });
         return;
       }
 
@@ -911,13 +880,9 @@ export class MultimodalEmbeddingService {
       // タイムアウト付きでEmbedding生成
       try {
         const result = await Promise.race([
-          this.createMultimodalEmbedding(
-            item.content,
-            item.visionFeatures,
-            embeddingConfig
-          ),
+          this.createMultimodalEmbedding(item.content, item.visionFeatures, embeddingConfig),
           new Promise<never>((_, reject) =>
-            setTimeout(() => reject(new Error('Item timeout')), itemTimeoutMs)
+            setTimeout(() => reject(new Error("Item timeout")), itemTimeoutMs)
           ),
         ]);
 
@@ -957,7 +922,7 @@ export class MultimodalEmbeddingService {
         const hasResult = results.some((r) => r.index === i);
         const hasError = errors.some((e) => e.index === i);
         if (!hasResult && !hasError) {
-          errors.push({ index: i, error: 'Batch timeout exceeded' });
+          errors.push({ index: i, error: "Batch timeout exceeded" });
         }
       }
     }
@@ -976,9 +941,7 @@ export class MultimodalEmbeddingService {
         ? processingTimes.reduce((sum, t) => sum + t, 0) / processingTimes.length
         : 0;
     const throughputPerMinute =
-      totalProcessingTimeMs > 0
-        ? (successCount / totalProcessingTimeMs) * 60000
-        : 0;
+      totalProcessingTimeMs > 0 ? (successCount / totalProcessingTimeMs) * 60000 : 0;
 
     const metrics: MultimodalBatchMetrics = {
       totalItems: items.length,
@@ -991,9 +954,9 @@ export class MultimodalEmbeddingService {
       throughputPerMinute,
     };
 
-    if (process.env.NODE_ENV === 'development') {
+    if (process.env.NODE_ENV === "development") {
       // eslint-disable-next-line no-console
-      console.log('[ML] createOptimizedBatchMultimodalEmbeddings completed:', {
+      console.log("[ML] createOptimizedBatchMultimodalEmbeddings completed:", {
         ...metrics,
       });
     }
@@ -1011,9 +974,9 @@ export class MultimodalEmbeddingService {
   clearEmbeddingCache(): void {
     this.embeddingCache.clear();
 
-    if (process.env.NODE_ENV === 'development') {
+    if (process.env.NODE_ENV === "development") {
       // eslint-disable-next-line no-console
-      console.log('[ML] Embedding cache cleared');
+      console.log("[ML] Embedding cache cleared");
     }
   }
 

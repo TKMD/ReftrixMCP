@@ -8,9 +8,9 @@
  * @module services/responsive/responsive-quality-evaluator.service
  */
 
-import { type Browser, type BrowserContext, type Page } from 'playwright';
-import { logger, isDevelopment } from '../../utils/logger';
-import { SharedBrowserManager } from './shared-browser-manager';
+import { type Browser, type BrowserContext, type Page } from "playwright";
+import { logger, isDevelopment } from "../../utils/logger";
+import { SharedBrowserManager } from "./shared-browser-manager";
 import type {
   ResponsiveViewport,
   ResponsiveQualityResult,
@@ -20,7 +20,7 @@ import type {
   ReadabilityResult,
   OverflowResult,
   ResponsiveImageResult,
-} from './types';
+} from "./types";
 
 /**
  * タッチターゲット最小サイズ (WCAG 2.5.5)
@@ -38,16 +38,16 @@ const READABILITY_MIN_LINE_HEIGHT = 1.5;
  * デフォルト品質評価ビューポート
  */
 const QUALITY_VIEWPORTS: ResponsiveViewport[] = [
-  { name: 'desktop', width: 1440, height: 900 },
-  { name: 'tablet', width: 768, height: 1024 },
-  { name: 'mobile', width: 375, height: 667 },
+  { name: "desktop", width: 1440, height: 900 },
+  { name: "tablet", width: 768, height: 1024 },
+  { name: "mobile", width: 375, height: 667 },
 ];
 
 /**
  * Responsive Quality Evaluator Service
  */
 export class ResponsiveQualityEvaluatorService {
-  private readonly browserManager = new SharedBrowserManager('ResponsiveQualityEvaluator');
+  private readonly browserManager = new SharedBrowserManager("ResponsiveQualityEvaluator");
 
   /**
    * URLに対してレスポンシブ品質評価を実行
@@ -73,7 +73,7 @@ export class ResponsiveQualityEvaluatorService {
     };
 
     if (isDevelopment()) {
-      logger.info('[ResponsiveQualityEvaluator] Starting evaluation', {
+      logger.info("[ResponsiveQualityEvaluator] Starting evaluation", {
         url,
         viewports: viewports.map((v) => v.name),
         checks,
@@ -88,18 +88,12 @@ export class ResponsiveQualityEvaluatorService {
     // 順次評価（並列だとリソース消費が大きいため）
     for (const viewport of viewports) {
       try {
-        const result = await this.evaluateAtViewport(
-          browser,
-          url,
-          viewport,
-          timeout,
-          checks
-        );
+        const result = await this.evaluateAtViewport(browser, url, viewport, timeout, checks);
         viewportResults.push(result);
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error);
         if (isDevelopment()) {
-          logger.error('[ResponsiveQualityEvaluator] Evaluation failed for viewport', {
+          logger.error("[ResponsiveQualityEvaluator] Evaluation failed for viewport", {
             viewport: viewport.name,
             error: errorMessage,
           });
@@ -113,7 +107,7 @@ export class ResponsiveQualityEvaluatorService {
     const evaluationTimeMs = Date.now() - startTime;
 
     if (isDevelopment()) {
-      logger.info('[ResponsiveQualityEvaluator] Evaluation completed', {
+      logger.info("[ResponsiveQualityEvaluator] Evaluation completed", {
         url,
         viewportCount: viewportResults.length,
         overallScore,
@@ -152,7 +146,7 @@ export class ResponsiveQualityEvaluatorService {
 
       await page.goto(url, {
         timeout,
-        waitUntil: 'load',
+        waitUntil: "load",
       });
 
       // DOM安定化を待つ
@@ -160,18 +154,10 @@ export class ResponsiveQualityEvaluatorService {
 
       // 各チェックを実行
       const [touchTargets, readability, overflow, images] = await Promise.all([
-        checks.touchTargets
-          ? this.checkTouchTargets(page)
-          : this.defaultTouchTargetResult(),
-        checks.readability
-          ? this.checkReadability(page)
-          : this.defaultReadabilityResult(),
-        checks.overflow
-          ? this.checkOverflow(page)
-          : this.defaultOverflowResult(),
-        checks.images
-          ? this.checkResponsiveImages(page)
-          : this.defaultImageResult(),
+        checks.touchTargets ? this.checkTouchTargets(page) : this.defaultTouchTargetResult(),
+        checks.readability ? this.checkReadability(page) : this.defaultReadabilityResult(),
+        checks.overflow ? this.checkOverflow(page) : this.defaultOverflowResult(),
+        checks.images ? this.checkResponsiveImages(page) : this.defaultImageResult(),
       ]);
 
       return {
@@ -457,7 +443,8 @@ export class ResponsiveQualityEvaluatorService {
       // 画像 (20点)
       const totalImages = result.images.srcsetCount + result.images.missingResponsive;
       if (totalImages > 0) {
-        const responsiveRatio = (result.images.srcsetCount + result.images.pictureCount) / totalImages;
+        const responsiveRatio =
+          (result.images.srcsetCount + result.images.pictureCount) / totalImages;
         viewportScore += 20 * Math.min(responsiveRatio, 1);
       } else {
         viewportScore += 20;

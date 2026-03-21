@@ -15,8 +15,8 @@
  * @module services/quality/content-gap-detector.service
  */
 
-import { JSDOM } from 'jsdom';
-import { isDevelopment, logger } from '../../utils/logger';
+import { JSDOM } from "jsdom";
+import { isDevelopment, logger } from "../../utils/logger";
 
 // =====================================================
 // Types
@@ -27,9 +27,9 @@ import { isDevelopment, logger } from '../../utils/logger';
  */
 export interface ContentGap {
   /** ギャップ対象の要素タイプ */
-  type: 'image' | 'svg' | 'icon' | 'video' | 'background';
+  type: "image" | "svg" | "icon" | "video" | "background";
   /** 重要度 */
-  severity: 'critical' | 'high' | 'medium' | 'low';
+  severity: "critical" | "high" | "medium" | "low";
   /** ギャップの説明メッセージ */
   message: string;
   /** 現在の要素数 */
@@ -79,7 +79,8 @@ export interface IContentGapDetectorService {
 const BG_IMAGE_REGEX = /background(-image)?\s*:\s*[^;]*url\s*\(/gi;
 
 /** inline style 内の background-image 検出用正規表現 */
-const INLINE_STYLE_BG_REGEX = /style\s*=\s*["'][^"']*background(-image)?\s*:\s*[^"']*url\s*\([^"']*/gi;
+const INLINE_STYLE_BG_REGEX =
+  /style\s*=\s*["'][^"']*background(-image)?\s*:\s*[^"']*url\s*\([^"']*/gi;
 
 // =====================================================
 // サービス実装
@@ -108,12 +109,12 @@ export class ContentGapDetectorService implements IContentGapDetectorService {
    * @returns コンテンツギャップ検出結果
    */
   detect(html: string, css?: string): ContentGapResult {
-    if (!html || html.trim() === '') {
+    if (!html || html.trim() === "") {
       return this.createEmptyResult();
     }
 
     if (isDevelopment()) {
-      logger.info('[ContentGapDetector] Starting detection', {
+      logger.info("[ContentGapDetector] Starting detection", {
         htmlLength: html.length,
         cssLength: css?.length ?? 0,
       });
@@ -182,7 +183,7 @@ export class ContentGapDetectorService implements IContentGapDetectorService {
     };
 
     if (isDevelopment()) {
-      logger.info('[ContentGapDetector] Detection completed', {
+      logger.info("[ContentGapDetector] Detection completed", {
         score,
         gapCount: gaps.length,
         contentDensity: contentDensity.toFixed(2),
@@ -200,11 +201,11 @@ export class ContentGapDetectorService implements IContentGapDetectorService {
    * 実質的画像数をカウント（装飾的alt=""を除く）
    */
   private countImages(doc: Document): number {
-    const allImages = doc.querySelectorAll('img');
+    const allImages = doc.querySelectorAll("img");
     let count = 0;
     for (const img of allImages) {
       // alt="" は装飾的画像として除外
-      if (img.getAttribute('alt') !== '') {
+      if (img.getAttribute("alt") !== "") {
         count++;
       }
     }
@@ -215,19 +216,15 @@ export class ContentGapDetectorService implements IContentGapDetectorService {
    * インラインSVG数をカウント
    */
   private countSvgs(doc: Document): number {
-    return doc.querySelectorAll('svg').length;
+    return doc.querySelectorAll("svg").length;
   }
 
   /**
    * アイコン要素数をカウント（アイコンフォント含む）
    */
   private countIcons(doc: Document): number {
-    const iconSelectors = [
-      '[class*="icon"]',
-      '[class*="fa-"]',
-      '[class*="material-icons"]',
-    ];
-    const selector = iconSelectors.join(', ');
+    const iconSelectors = ['[class*="icon"]', '[class*="fa-"]', '[class*="material-icons"]'];
+    const selector = iconSelectors.join(", ");
     return doc.querySelectorAll(selector).length;
   }
 
@@ -235,7 +232,7 @@ export class ContentGapDetectorService implements IContentGapDetectorService {
    * ビデオ/キャンバス要素数をカウント
    */
   private countVideos(doc: Document): number {
-    return doc.querySelectorAll('video, canvas').length;
+    return doc.querySelectorAll("video, canvas").length;
   }
 
   /**
@@ -254,7 +251,7 @@ export class ContentGapDetectorService implements IContentGapDetectorService {
     const styleTagRegex = /<style[^>]*>([\s\S]*?)<\/style>/gi;
     let styleMatch: RegExpExecArray | null;
     while ((styleMatch = styleTagRegex.exec(html)) !== null) {
-      const styleContent = styleMatch[1] ?? '';
+      const styleContent = styleMatch[1] ?? "";
       const bgMatches = styleContent.match(BG_IMAGE_REGEX);
       count += bgMatches?.length ?? 0;
     }
@@ -270,9 +267,7 @@ export class ContentGapDetectorService implements IContentGapDetectorService {
    * セクション数をカウント
    */
   private countSections(doc: Document): number {
-    return doc.querySelectorAll(
-      'section, article, [role="region"], [role="main"]'
-    ).length;
+    return doc.querySelectorAll('section, article, [role="region"], [role="main"]').length;
   }
 
   // =====================================================
@@ -297,10 +292,10 @@ export class ContentGapDetectorService implements IContentGapDetectorService {
     // 画像0枚 → critical
     if (params.totalImages === 0) {
       gaps.push({
-        type: 'image',
-        severity: 'critical',
+        type: "image",
+        severity: "critical",
         message:
-          'No content images found. Professional websites typically include product photos, illustrations, or hero images.',
+          "No content images found. Professional websites typically include product photos, illustrations, or hero images.",
         count: 0,
         expectedMin: Math.max(1, Math.floor(params.sectionCount * 0.3)),
       });
@@ -309,10 +304,10 @@ export class ContentGapDetectorService implements IContentGapDetectorService {
     // SVG/アイコン0個 → high
     if (params.totalSvgs === 0 && params.totalIcons === 0) {
       gaps.push({
-        type: 'icon',
-        severity: 'high',
+        type: "icon",
+        severity: "high",
         message:
-          'No SVG icons or icon fonts found. Icons improve visual communication and scannability.',
+          "No SVG icons or icon fonts found. Icons improve visual communication and scannability.",
         count: 0,
         expectedMin: Math.max(2, Math.floor(params.sectionCount * 0.5)),
       });
@@ -321,8 +316,8 @@ export class ContentGapDetectorService implements IContentGapDetectorService {
     // コンテンツ密度 < 0.5 → medium
     if (params.contentDensity < 0.5) {
       gaps.push({
-        type: 'image',
-        severity: 'medium',
+        type: "image",
+        severity: "medium",
         message: `Low content density: ${params.contentDensity.toFixed(2)} visual elements per section. Target: >= 1.0`,
         count: params.totalContentElements,
         expectedMin: params.sectionCount,
@@ -332,10 +327,9 @@ export class ContentGapDetectorService implements IContentGapDetectorService {
     // background-image 0個 → low
     if (params.totalBackgroundImages === 0) {
       gaps.push({
-        type: 'background',
-        severity: 'low',
-        message:
-          'No CSS background images found. Background imagery adds visual depth.',
+        type: "background",
+        severity: "low",
+        message: "No CSS background images found. Background imagery adds visual depth.",
         count: 0,
         expectedMin: 1,
       });
@@ -360,16 +354,16 @@ export class ContentGapDetectorService implements IContentGapDetectorService {
     // ギャップペナルティ
     for (const gap of gaps) {
       switch (gap.severity) {
-        case 'critical':
+        case "critical":
           score -= 30;
           break;
-        case 'high':
+        case "high":
           score -= 20;
           break;
-        case 'medium':
+        case "medium":
           score -= 10;
           break;
-        case 'low':
+        case "low":
           score -= 5;
           break;
       }
@@ -418,7 +412,7 @@ export class ContentGapDetectorService implements IContentGapDetectorService {
         details.push(`  [${gap.severity.toUpperCase()}] ${gap.type}: ${gap.message}`);
       }
     } else {
-      details.push('No content gaps detected.');
+      details.push("No content gaps detected.");
     }
 
     return details;
@@ -442,7 +436,7 @@ export class ContentGapDetectorService implements IContentGapDetectorService {
       contentDensity: 0,
       gaps: [],
       score: 0,
-      details: ['Empty HTML provided. No content to analyze.'],
+      details: ["Empty HTML provided. No content to analyze."],
     };
   }
 }

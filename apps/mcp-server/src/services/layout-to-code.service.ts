@@ -463,9 +463,7 @@ defineProps({
     });
 
     // JSXからVueテンプレートへの変換（className→class）
-    const vueContent = jsxContent
-      .replace(/className=/g, 'class=')
-      .replace(/htmlFor=/g, 'for=');
+    const vueContent = jsxContent.replace(/className=/g, "class=").replace(/htmlFor=/g, "for=");
 
     if (isDevelopment()) {
       logger.debug("[generateVueCode] HTML to Vue template conversion completed", {
@@ -780,9 +778,7 @@ function generateHtmlCode(pattern: SectionPattern, options: CodeGeneratorOptions
   const normalizedExternalCss = hasExternalCssContent
     ? normalizeCssUrls(externalCssContent, baseUrl)
     : "";
-  const normalizedCssSnippet = hasCssSnippet
-    ? normalizeCssUrls(sanitizedCssSnippet, baseUrl)
-    : "";
+  const normalizedCssSnippet = hasCssSnippet ? normalizeCssUrls(sanitizedCssSnippet, baseUrl) : "";
 
   const combinedCssBlocks = [
     normalizedExternalCss ? `/* ${externalCssComment} */\n    ${normalizedExternalCss}` : "",
@@ -1567,9 +1563,10 @@ function generateReactSubComponentCode(
   const { typescript, tailwind } = options;
 
   // propsの型定義を生成
-  const propsInterface = props.length > 0
-    ? props.map((p) => `  ${p.name}?: ${p.type};`).join("\n")
-    : "  className?: string;";
+  const propsInterface =
+    props.length > 0
+      ? props.map((p) => `  ${p.name}?: ${p.type};`).join("\n")
+      : "  className?: string;";
 
   const propsType = typescript
     ? `
@@ -1580,9 +1577,7 @@ ${propsInterface}
     : "";
 
   // propsの引数（デストラクチャリング）
-  const propsNames = props.length > 0
-    ? props.map((p) => p.name).join(", ")
-    : "className";
+  const propsNames = props.length > 0 ? props.map((p) => p.name).join(", ") : "className";
   const propsArg = typescript ? `{ ${propsNames} }: ${name}Props` : `{ ${propsNames} }`;
 
   // スタイルクラス（tailwind対応）

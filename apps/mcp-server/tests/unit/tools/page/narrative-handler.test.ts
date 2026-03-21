@@ -17,8 +17,8 @@
  * @module tests/unit/tools/page/narrative-handler.test
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { z } from 'zod';
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { z } from "zod";
 
 // =====================================================
 // TDD Green Phase: インポート
@@ -26,15 +26,19 @@ import { z } from 'zod';
 // =====================================================
 
 // スキーマインポート
-import { narrativeOptionsSchema, narrativeResultSchema, pageAnalyzeDataSchema } from '../../../../src/tools/page/schemas';
+import {
+  narrativeOptionsSchema,
+  narrativeResultSchema,
+  pageAnalyzeDataSchema,
+} from "../../../../src/tools/page/schemas";
 
 // ハンドラーインポート
 import {
   handleNarrativeAnalysis,
   setNarrativeServiceFactory,
   resetNarrativeServiceFactory,
-} from '../../../../src/tools/page/handlers/narrative-handler';
-import type { NarrativeHandlerInput } from '../../../../src/tools/page/handlers/types';
+} from "../../../../src/tools/page/handlers/narrative-handler";
+import type { NarrativeHandlerInput } from "../../../../src/tools/page/handlers/types";
 
 // =====================================================
 // モックサービス
@@ -47,34 +51,34 @@ function createMockNarrativeAnalysisService() {
   return {
     analyze: vi.fn().mockResolvedValue({
       worldView: {
-        moodCategory: 'professional',
-        moodDescription: 'Clean and professional design with emphasis on clarity',
+        moodCategory: "professional",
+        moodDescription: "Clean and professional design with emphasis on clarity",
         colorImpression: {
-          overall: 'cool and professional',
-          dominantEmotion: 'trust',
-          harmony: 'complementary' as const,
+          overall: "cool and professional",
+          dominantEmotion: "trust",
+          harmony: "complementary" as const,
         },
         typographyPersonality: {
-          style: 'modern',
-          readability: 'high' as const,
-          hierarchy: 'clear' as const,
+          style: "modern",
+          readability: "high" as const,
+          hierarchy: "clear" as const,
         },
         overallTone: {
-          primary: 'professional',
+          primary: "professional",
           formality: 0.7,
           energy: 0.4,
         },
       },
       layoutStructure: {
         gridSystem: {
-          type: 'css-grid' as const,
+          type: "css-grid" as const,
           columns: 12,
         },
         visualHierarchy: {
-          primaryElements: ['hero-title', 'cta-button'],
-          secondaryElements: ['feature-cards'],
-          tertiaryElements: ['footer-links'],
-          sectionFlow: 'linear' as const,
+          primaryElements: ["hero-title", "cta-button"],
+          secondaryElements: ["feature-cards"],
+          tertiaryElements: ["footer-links"],
+          sectionFlow: "linear" as const,
           weightDistribution: {
             top: 0.5,
             middle: 0.35,
@@ -82,20 +86,20 @@ function createMockNarrativeAnalysisService() {
           },
         },
         spacingRhythm: {
-          baseUnit: '8px',
+          baseUnit: "8px",
           scale: [1, 2, 3, 4, 6, 8],
           sectionGaps: {
-            min: '24px',
-            max: '80px',
-            average: '48px',
+            min: "24px",
+            max: "80px",
+            average: "48px",
           },
         },
         sectionRelationships: [],
         graphicElements: {
           imageLayout: {
-            pattern: 'contained' as const,
-            aspectRatios: ['16:9', '4:3'],
-            positions: ['hero', 'inline'] as ('hero' | 'inline' | 'background' | 'decorative')[],
+            pattern: "contained" as const,
+            aspectRatios: ["16:9", "4:3"],
+            positions: ["hero", "inline"] as ("hero" | "inline" | "background" | "decorative")[],
           },
           decorations: {
             hasGradients: false,
@@ -104,14 +108,14 @@ function createMockNarrativeAnalysisService() {
             hasIllustrations: false,
           },
           visualBalance: {
-            symmetry: 'symmetric' as const,
-            density: 'balanced' as const,
+            symmetry: "symmetric" as const,
+            density: "balanced" as const,
             whitespace: 0.45,
           },
         },
       },
       metadata: {
-        textRepresentation: 'passage: Professional web design with clean layout...',
+        textRepresentation: "passage: Professional web design with clean layout...",
         embedding: new Array(768).fill(0.1),
         confidence: {
           overall: 0.85,
@@ -129,14 +133,14 @@ function createMockNarrativeAnalysisService() {
       },
     }),
     save: vi.fn().mockResolvedValue({
-      id: '019c2a92-0000-7f42-81a7-000000000001',
-      webPageId: '019c2a92-0000-7f42-81a7-000000000002',
+      id: "019c2a92-0000-7f42-81a7-000000000001",
+      webPageId: "019c2a92-0000-7f42-81a7-000000000002",
       createdAt: new Date(),
       updatedAt: new Date(),
     }),
     analyzeAndSave: vi.fn().mockResolvedValue({
-      id: '019c2a92-0000-7f42-81a7-000000000001',
-      webPageId: '019c2a92-0000-7f42-81a7-000000000002',
+      id: "019c2a92-0000-7f42-81a7-000000000001",
+      webPageId: "019c2a92-0000-7f42-81a7-000000000002",
       createdAt: new Date(),
       updatedAt: new Date(),
     }),
@@ -148,8 +152,8 @@ function createMockNarrativeAnalysisService() {
 // テスト: narrativeOptions スキーマバリデーション
 // =====================================================
 
-describe('narrativeOptionsSchema', () => {
-  it('should accept valid narrativeOptions with all fields', () => {
+describe("narrativeOptionsSchema", () => {
+  it("should accept valid narrativeOptions with all fields", () => {
     const validInput = {
       enabled: true,
       saveToDb: true,
@@ -160,7 +164,7 @@ describe('narrativeOptionsSchema', () => {
     expect(result.success).toBe(true);
   });
 
-  it('should use default values when not provided', () => {
+  it("should use default values when not provided", () => {
     const result = narrativeOptionsSchema.safeParse({});
     expect(result.success).toBe(true);
     if (result.success) {
@@ -170,9 +174,9 @@ describe('narrativeOptionsSchema', () => {
     }
   });
 
-  it('should reject invalid enabled type', () => {
+  it("should reject invalid enabled type", () => {
     const invalidInput = {
-      enabled: 'true', // should be boolean
+      enabled: "true", // should be boolean
     };
 
     const result = narrativeOptionsSchema.safeParse(invalidInput);
@@ -184,13 +188,18 @@ describe('narrativeOptionsSchema', () => {
 // テスト: handleNarrativeAnalysis 関数
 // =====================================================
 
-describe('handleNarrativeAnalysis', () => {
+describe("handleNarrativeAnalysis", () => {
   let mockService: ReturnType<typeof createMockNarrativeAnalysisService>;
 
   beforeEach(() => {
     mockService = createMockNarrativeAnalysisService();
     // モックサービスファクトリを設定
-    setNarrativeServiceFactory(() => mockService as unknown as ReturnType<typeof import('../../../../src/services/narrative/narrative-analysis.service').createNarrativeAnalysisService>);
+    setNarrativeServiceFactory(
+      () =>
+        mockService as unknown as ReturnType<
+          typeof import("../../../../src/services/narrative/narrative-analysis.service").createNarrativeAnalysisService
+        >
+    );
   });
 
   afterEach(() => {
@@ -199,12 +208,12 @@ describe('handleNarrativeAnalysis', () => {
     resetNarrativeServiceFactory();
   });
 
-  describe('正常系', () => {
-    it('should return narrative analysis result when enabled', async () => {
+  describe("正常系", () => {
+    it("should return narrative analysis result when enabled", async () => {
       const input: NarrativeHandlerInput = {
-        html: '<html><body><h1>Test</h1></body></html>',
-        screenshot: 'base64-screenshot-data',
-        webPageId: '019c2a92-0000-7f42-81a7-000000000002',
+        html: "<html><body><h1>Test</h1></body></html>",
+        screenshot: "base64-screenshot-data",
+        webPageId: "019c2a92-0000-7f42-81a7-000000000002",
         narrativeOptions: {
           enabled: true,
           saveToDb: true,
@@ -221,12 +230,12 @@ describe('handleNarrativeAnalysis', () => {
 
       expect(result.success).toBe(true);
       expect(result.narrative).toBeDefined();
-      expect(result.narrative?.worldView.moodCategory).toBe('professional');
+      expect(result.narrative?.worldView.moodCategory).toBe("professional");
     });
 
-    it('should skip analysis when enabled is false', async () => {
+    it("should skip analysis when enabled is false", async () => {
       const input: NarrativeHandlerInput = {
-        html: '<html><body><h1>Test</h1></body></html>',
+        html: "<html><body><h1>Test</h1></body></html>",
         narrativeOptions: {
           enabled: false,
         },
@@ -239,10 +248,10 @@ describe('handleNarrativeAnalysis', () => {
       expect(result.skipped).toBe(true);
     });
 
-    it('should save to DB when saveToDb is true', async () => {
+    it("should save to DB when saveToDb is true", async () => {
       const input: NarrativeHandlerInput = {
-        html: '<html><body><h1>Test</h1></body></html>',
-        webPageId: '019c2a92-0000-7f42-81a7-000000000002',
+        html: "<html><body><h1>Test</h1></body></html>",
+        webPageId: "019c2a92-0000-7f42-81a7-000000000002",
         narrativeOptions: {
           enabled: true,
           saveToDb: true,
@@ -255,10 +264,10 @@ describe('handleNarrativeAnalysis', () => {
       expect(result.savedId).toBeDefined();
     });
 
-    it('should not save to DB when saveToDb is false', async () => {
+    it("should not save to DB when saveToDb is false", async () => {
       const input: NarrativeHandlerInput = {
-        html: '<html><body><h1>Test</h1></body></html>',
-        webPageId: '019c2a92-0000-7f42-81a7-000000000002',
+        html: "<html><body><h1>Test</h1></body></html>",
+        webPageId: "019c2a92-0000-7f42-81a7-000000000002",
         narrativeOptions: {
           enabled: true,
           saveToDb: false,
@@ -272,25 +281,25 @@ describe('handleNarrativeAnalysis', () => {
       expect(result.savedId).toBeUndefined();
     });
 
-    it('should pass existing analysis results to service', async () => {
+    it("should pass existing analysis results to service", async () => {
       const existingAnalysis = {
         cssVariables: {
-          customProperties: [{ name: '--primary-color', value: '#3366cc' }],
+          customProperties: [{ name: "--primary-color", value: "#3366cc" }],
         },
         motionPatterns: {
-          patterns: [{ id: '1', name: 'fade-in', type: 'css_animation' }],
+          patterns: [{ id: "1", name: "fade-in", type: "css_animation" }],
           totalCount: 1,
           categories: { entrance: 1 },
         },
-        sections: [{ id: '1', type: 'hero', positionIndex: 0 }],
+        sections: [{ id: "1", type: "hero", positionIndex: 0 }],
         visualFeatures: {
-          colors: { primary: '#3366cc' },
-          theme: 'light',
+          colors: { primary: "#3366cc" },
+          theme: "light",
         },
       };
 
       const input: NarrativeHandlerInput = {
-        html: '<html><body><h1>Test</h1></body></html>',
+        html: "<html><body><h1>Test</h1></body></html>",
         narrativeOptions: {
           enabled: true,
           saveToDb: false,
@@ -311,11 +320,11 @@ describe('handleNarrativeAnalysis', () => {
     });
   });
 
-  describe('Vision設定', () => {
-    it('should use Vision when includeVision is true', async () => {
+  describe("Vision設定", () => {
+    it("should use Vision when includeVision is true", async () => {
       const input: NarrativeHandlerInput = {
-        html: '<html><body><h1>Test</h1></body></html>',
-        screenshot: 'base64-screenshot-data',
+        html: "<html><body><h1>Test</h1></body></html>",
+        screenshot: "base64-screenshot-data",
         narrativeOptions: {
           enabled: true,
           includeVision: true,
@@ -328,10 +337,10 @@ describe('handleNarrativeAnalysis', () => {
       expect(mockService.analyze).toHaveBeenCalled();
     });
 
-    it('should skip Vision when includeVision is false', async () => {
+    it("should skip Vision when includeVision is false", async () => {
       const input: NarrativeHandlerInput = {
-        html: '<html><body><h1>Test</h1></body></html>',
-        screenshot: 'base64-screenshot-data',
+        html: "<html><body><h1>Test</h1></body></html>",
+        screenshot: "base64-screenshot-data",
         narrativeOptions: {
           enabled: true,
           includeVision: false,
@@ -350,12 +359,12 @@ describe('handleNarrativeAnalysis', () => {
     });
   });
 
-  describe('エラーハンドリング', () => {
-    it('should handle service error gracefully', async () => {
-      mockService.analyze.mockRejectedValue(new Error('Service unavailable'));
+  describe("エラーハンドリング", () => {
+    it("should handle service error gracefully", async () => {
+      mockService.analyze.mockRejectedValue(new Error("Service unavailable"));
 
       const input: NarrativeHandlerInput = {
-        html: '<html><body><h1>Test</h1></body></html>',
+        html: "<html><body><h1>Test</h1></body></html>",
         narrativeOptions: {
           enabled: true,
         },
@@ -365,12 +374,12 @@ describe('handleNarrativeAnalysis', () => {
 
       expect(result.success).toBe(false);
       expect(result.error).toBeDefined();
-      expect(result.error?.code).toBe('NARRATIVE_ANALYSIS_FAILED');
+      expect(result.error?.code).toBe("NARRATIVE_ANALYSIS_FAILED");
     });
 
-    it('should handle missing webPageId when saveToDb is true', async () => {
+    it("should handle missing webPageId when saveToDb is true", async () => {
       const input: NarrativeHandlerInput = {
-        html: '<html><body><h1>Test</h1></body></html>',
+        html: "<html><body><h1>Test</h1></body></html>",
         // webPageId is missing
         narrativeOptions: {
           enabled: true,
@@ -381,15 +390,15 @@ describe('handleNarrativeAnalysis', () => {
       const result = await handleNarrativeAnalysis(input);
 
       expect(result.success).toBe(false);
-      expect(result.error?.code).toBe('VALIDATION_ERROR');
+      expect(result.error?.code).toBe("VALIDATION_ERROR");
     });
 
-    it('should handle DB save error gracefully', async () => {
-      mockService.analyzeAndSave.mockRejectedValue(new Error('DB connection failed'));
+    it("should handle DB save error gracefully", async () => {
+      mockService.analyzeAndSave.mockRejectedValue(new Error("DB connection failed"));
 
       const input: NarrativeHandlerInput = {
-        html: '<html><body><h1>Test</h1></body></html>',
-        webPageId: '019c2a92-0000-7f42-81a7-000000000002',
+        html: "<html><body><h1>Test</h1></body></html>",
+        webPageId: "019c2a92-0000-7f42-81a7-000000000002",
         narrativeOptions: {
           enabled: true,
           saveToDb: true,
@@ -399,7 +408,7 @@ describe('handleNarrativeAnalysis', () => {
       const result = await handleNarrativeAnalysis(input);
 
       expect(result.success).toBe(false);
-      expect(result.error?.code).toBe('NARRATIVE_SAVE_FAILED');
+      expect(result.error?.code).toBe("NARRATIVE_SAVE_FAILED");
     });
   });
 });
@@ -408,34 +417,34 @@ describe('handleNarrativeAnalysis', () => {
 // テスト: NarrativeResult型の構造
 // =====================================================
 
-describe('NarrativeResult type structure', () => {
-  it('should match expected structure', () => {
+describe("NarrativeResult type structure", () => {
+  it("should match expected structure", () => {
     const validResult = {
-      id: '019c2a92-0000-7f42-81a7-000000000001',
-      webPageId: '019c2a92-0000-7f42-81a7-000000000002',
+      id: "019c2a92-0000-7f42-81a7-000000000001",
+      webPageId: "019c2a92-0000-7f42-81a7-000000000002",
       worldView: {
-        moodCategory: 'professional',
-        secondaryMoodCategory: 'minimal',
-        moodDescription: 'Clean and professional design',
-        colorImpression: 'cool and trustworthy',
-        typographyPersonality: 'modern sans-serif',
-        motionEmotion: 'subtle and elegant',
-        overallTone: 'professional',
+        moodCategory: "professional",
+        secondaryMoodCategory: "minimal",
+        moodDescription: "Clean and professional design",
+        colorImpression: "cool and trustworthy",
+        typographyPersonality: "modern sans-serif",
+        motionEmotion: "subtle and elegant",
+        overallTone: "professional",
       },
       layoutStructure: {
-        gridSystem: 'css-grid',
+        gridSystem: "css-grid",
         columnCount: 12,
         visualHierarchy: {
-          primaryElements: ['hero-title'],
-          sectionFlow: 'linear',
+          primaryElements: ["hero-title"],
+          sectionFlow: "linear",
         },
         spacingRhythm: {
-          baseUnit: '8px',
+          baseUnit: "8px",
           scale: [1, 2, 3, 4, 6, 8],
         },
       },
       confidence: 0.85,
-      analyzedAt: '2026-02-05T10:00:00Z',
+      analyzedAt: "2026-02-05T10:00:00Z",
     };
 
     const result = narrativeResultSchema.safeParse(validResult);
@@ -447,18 +456,18 @@ describe('NarrativeResult type structure', () => {
 // テスト: page.analyze統合
 // =====================================================
 
-describe('page.analyze narrative integration', () => {
-  it('should include narrative in PageAnalyzeData when narrativeOptions.enabled is true', () => {
+describe("page.analyze narrative integration", () => {
+  it("should include narrative in PageAnalyzeData when narrativeOptions.enabled is true", () => {
     const dataWithNarrative = {
-      id: '019c2a92-0000-7f42-81a7-000000000002',
-      url: 'https://example.com',
-      normalizedUrl: 'https://example.com/',
+      id: "019c2a92-0000-7f42-81a7-000000000002",
+      url: "https://example.com",
+      normalizedUrl: "https://example.com/",
       metadata: {
-        title: 'Test Page',
+        title: "Test Page",
       },
       source: {
-        type: 'user_provided',
-        usageScope: 'inspiration_only',
+        type: "user_provided",
+        usageScope: "inspiration_only",
       },
       layout: {
         success: true,
@@ -467,45 +476,45 @@ describe('page.analyze narrative integration', () => {
         processingTimeMs: 1000,
       },
       narrative: {
-        id: '019c2a92-0000-7f42-81a7-000000000001',
-        webPageId: '019c2a92-0000-7f42-81a7-000000000002',
+        id: "019c2a92-0000-7f42-81a7-000000000001",
+        webPageId: "019c2a92-0000-7f42-81a7-000000000002",
         worldView: {
-          moodCategory: 'professional',
-          moodDescription: 'Clean design',
-          colorImpression: 'cool',
-          typographyPersonality: 'modern',
-          overallTone: 'professional',
+          moodCategory: "professional",
+          moodDescription: "Clean design",
+          colorImpression: "cool",
+          typographyPersonality: "modern",
+          overallTone: "professional",
         },
         layoutStructure: {
-          gridSystem: 'css-grid',
+          gridSystem: "css-grid",
           columnCount: 12,
         },
         confidence: 0.85,
-        analyzedAt: '2026-02-05T10:00:00Z',
+        analyzedAt: "2026-02-05T10:00:00Z",
       },
       totalProcessingTimeMs: 3000,
-      analyzedAt: '2026-02-05T10:00:00Z',
+      analyzedAt: "2026-02-05T10:00:00Z",
     };
 
     const result = pageAnalyzeDataSchema.safeParse(dataWithNarrative);
     expect(result.success).toBe(true);
     if (result.success) {
       expect(result.data.narrative).toBeDefined();
-      expect(result.data.narrative?.worldView.moodCategory).toBe('professional');
+      expect(result.data.narrative?.worldView.moodCategory).toBe("professional");
     }
   });
 
-  it('should allow narrative to be undefined when not enabled', () => {
+  it("should allow narrative to be undefined when not enabled", () => {
     const dataWithoutNarrative = {
-      id: '019c2a92-0000-7f42-81a7-000000000002',
-      url: 'https://example.com',
-      normalizedUrl: 'https://example.com/',
+      id: "019c2a92-0000-7f42-81a7-000000000002",
+      url: "https://example.com",
+      normalizedUrl: "https://example.com/",
       metadata: {
-        title: 'Test Page',
+        title: "Test Page",
       },
       source: {
-        type: 'user_provided',
-        usageScope: 'inspiration_only',
+        type: "user_provided",
+        usageScope: "inspiration_only",
       },
       layout: {
         success: true,
@@ -515,7 +524,7 @@ describe('page.analyze narrative integration', () => {
       },
       // narrative is not included
       totalProcessingTimeMs: 2000,
-      analyzedAt: '2026-02-05T10:00:00Z',
+      analyzedAt: "2026-02-05T10:00:00Z",
     };
 
     const result = pageAnalyzeDataSchema.safeParse(dataWithoutNarrative);

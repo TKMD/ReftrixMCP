@@ -15,8 +15,8 @@
  * @module services/layout/component-splitter
  */
 
-import { JSDOM } from 'jsdom';
-import { convertHtmlToJsx } from './html-to-jsx-converter';
+import { JSDOM } from "jsdom";
+import { convertHtmlToJsx } from "./html-to-jsx-converter";
 
 // ==========================================================
 // 型定義
@@ -76,29 +76,29 @@ export interface SplitResult {
  * セマンティックHTML要素とコンポーネント名のマッピング
  */
 const SEMANTIC_ELEMENT_MAP: Record<string, string> = {
-  header: 'HeaderSection',
-  nav: 'Navigation',
-  main: 'MainContent',
-  section: 'Section',
-  article: 'Article',
-  aside: 'Aside',
-  footer: 'FooterSection',
+  header: "HeaderSection",
+  nav: "Navigation",
+  main: "MainContent",
+  section: "Section",
+  article: "Article",
+  aside: "Aside",
+  footer: "FooterSection",
 };
 
 /**
  * クラスパターンとサフィックス
  */
 const CLASS_PATTERNS = [
-  { pattern: /-header$/i, suffix: 'Header' },
-  { pattern: /-nav$/i, suffix: 'Nav' },
-  { pattern: /-card$/i, suffix: 'Card' },
-  { pattern: /-item$/i, suffix: 'Item' },
-  { pattern: /-list$/i, suffix: 'List' },
-  { pattern: /-footer$/i, suffix: 'Footer' },
-  { pattern: /-content$/i, suffix: 'Content' },
-  { pattern: /-wrapper$/i, suffix: 'Wrapper' },
-  { pattern: /-section$/i, suffix: 'Section' },
-  { pattern: /-container$/i, suffix: 'Container' },
+  { pattern: /-header$/i, suffix: "Header" },
+  { pattern: /-nav$/i, suffix: "Nav" },
+  { pattern: /-card$/i, suffix: "Card" },
+  { pattern: /-item$/i, suffix: "Item" },
+  { pattern: /-list$/i, suffix: "List" },
+  { pattern: /-footer$/i, suffix: "Footer" },
+  { pattern: /-content$/i, suffix: "Content" },
+  { pattern: /-wrapper$/i, suffix: "Wrapper" },
+  { pattern: /-section$/i, suffix: "Section" },
+  { pattern: /-container$/i, suffix: "Container" },
 ];
 
 // ==========================================================
@@ -112,7 +112,7 @@ function toPascalCase(str: string): string {
   return str
     .split(/[-_]/)
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
-    .join('');
+    .join("");
 }
 
 /**
@@ -134,7 +134,7 @@ function getElementCount(element: Element): number {
  * 要素のクラス名を取得
  */
 function getClassName(element: Element): string | null {
-  const classAttr = element.getAttribute('class');
+  const classAttr = element.getAttribute("class");
   if (!classAttr) return null;
   // 最初のクラス名を返す
   return classAttr.trim().split(/\s+/)[0] || null;
@@ -158,11 +158,11 @@ function inferComponentNameFromClass(className: string): string | null {
  * data属性からコンポーネント名を取得
  */
 function getComponentNameFromDataAttr(element: Element): string | null {
-  const dataComponent = element.getAttribute('data-component');
+  const dataComponent = element.getAttribute("data-component");
   if (dataComponent) {
     return toPascalCase(dataComponent);
   }
-  const dataSection = element.getAttribute('data-section');
+  const dataSection = element.getAttribute("data-section");
   if (dataSection) {
     return toPascalCase(dataSection);
   }
@@ -204,7 +204,7 @@ function isSplitCandidate(
   }
 
   // data属性は要素数に関わらず候補
-  if (element.hasAttribute('data-component') || element.hasAttribute('data-section')) {
+  if (element.hasAttribute("data-component") || element.hasAttribute("data-section")) {
     const elementCount = getElementCount(element);
     return elementCount >= minElements;
   }
@@ -224,7 +224,7 @@ function isSplitCandidate(
     }
 
     // 一般的なクラス名も候補に（ただし、複数単語で構成されるクラス名のみ）
-    if (className.includes('-') || className.includes('_')) {
+    if (className.includes("-") || className.includes("_")) {
       return true;
     }
   }
@@ -254,7 +254,7 @@ function determineComponentName(element: Element): string {
   }
 
   // 4. デフォルト
-  return 'Component';
+  return "Component";
 }
 
 /**
@@ -308,7 +308,7 @@ function extractPropsFromRepeatingElements(elements: Element[]): PropDefinition[
           const propName = match[1].toLowerCase();
           if (!propsSet.has(propName)) {
             propsSet.add(propName);
-            props.push({ name: propName, type: 'string' });
+            props.push({ name: propName, type: "string" });
           }
         }
       }
@@ -317,29 +317,29 @@ function extractPropsFromRepeatingElements(elements: Element[]): PropDefinition[
   };
 
   // h1-h6からtitleを推測
-  const headings = firstElement.querySelectorAll('h1, h2, h3, h4, h5, h6');
-  if (headings.length > 0 && !propsSet.has('title')) {
-    propsSet.add('title');
-    props.push({ name: 'title', type: 'string' });
+  const headings = firstElement.querySelectorAll("h1, h2, h3, h4, h5, h6");
+  if (headings.length > 0 && !propsSet.has("title")) {
+    propsSet.add("title");
+    props.push({ name: "title", type: "string" });
   }
 
   // pタグからdescriptionを推測
-  const paragraphs = firstElement.querySelectorAll('p');
-  if (paragraphs.length > 0 && !propsSet.has('description')) {
-    propsSet.add('description');
-    props.push({ name: 'description', type: 'string' });
+  const paragraphs = firstElement.querySelectorAll("p");
+  if (paragraphs.length > 0 && !propsSet.has("description")) {
+    propsSet.add("description");
+    props.push({ name: "description", type: "string" });
   }
 
   // imgタグからsrcを推測
-  const images = firstElement.querySelectorAll('img');
+  const images = firstElement.querySelectorAll("img");
   if (images.length > 0) {
-    if (!propsSet.has('src')) {
-      propsSet.add('src');
-      props.push({ name: 'src', type: 'string' });
+    if (!propsSet.has("src")) {
+      propsSet.add("src");
+      props.push({ name: "src", type: "string" });
     }
-    if (!propsSet.has('alt')) {
-      propsSet.add('alt');
-      props.push({ name: 'alt', type: 'string' });
+    if (!propsSet.has("alt")) {
+      propsSet.add("alt");
+      props.push({ name: "alt", type: "string" });
     }
   }
 
@@ -356,42 +356,42 @@ function extractPropsFromElement(element: Element): PropDefinition[] {
   const propsSet = new Set<string>();
 
   // className props
-  if (element.hasAttribute('class')) {
-    propsSet.add('className');
-    props.push({ name: 'className', type: 'string' });
+  if (element.hasAttribute("class")) {
+    propsSet.add("className");
+    props.push({ name: "className", type: "string" });
   }
 
   // 子要素がある場合はchildren
   if (element.children.length > 0) {
-    propsSet.add('children');
-    props.push({ name: 'children', type: 'React.ReactNode' });
+    propsSet.add("children");
+    props.push({ name: "children", type: "React.ReactNode" });
   }
 
   // imgタグからsrcを推測
-  const images = element.querySelectorAll('img');
+  const images = element.querySelectorAll("img");
   if (images.length > 0) {
-    if (!propsSet.has('src')) {
-      propsSet.add('src');
-      props.push({ name: 'src', type: 'string' });
+    if (!propsSet.has("src")) {
+      propsSet.add("src");
+      props.push({ name: "src", type: "string" });
     }
-    if (!propsSet.has('alt')) {
-      propsSet.add('alt');
-      props.push({ name: 'alt', type: 'string' });
+    if (!propsSet.has("alt")) {
+      propsSet.add("alt");
+      props.push({ name: "alt", type: "string" });
     }
   }
 
   // h1-h6からtitleを推測
-  const headings = element.querySelectorAll('h1, h2, h3, h4, h5, h6');
-  if (headings.length > 0 && !propsSet.has('title')) {
-    propsSet.add('title');
-    props.push({ name: 'title', type: 'string' });
+  const headings = element.querySelectorAll("h1, h2, h3, h4, h5, h6");
+  if (headings.length > 0 && !propsSet.has("title")) {
+    propsSet.add("title");
+    props.push({ name: "title", type: "string" });
   }
 
   // pタグからdescriptionを推測
-  const paragraphs = element.querySelectorAll('p');
-  if (paragraphs.length > 0 && !propsSet.has('description')) {
-    propsSet.add('description');
-    props.push({ name: 'description', type: 'string' });
+  const paragraphs = element.querySelectorAll("p");
+  if (paragraphs.length > 0 && !propsSet.has("description")) {
+    propsSet.add("description");
+    props.push({ name: "description", type: "string" });
   }
 
   return props;
@@ -525,18 +525,18 @@ function collectSplitCandidates(
  */
 export function splitIntoComponents(html: string, options?: SplitOptions): SplitResult {
   const opts = {
-    mainComponentName: 'MainComponent',
+    mainComponentName: "MainComponent",
     minElements: 3,
     maxNestLevel: 2,
     ...options,
   };
 
   // 空のHTMLの場合
-  if (!html || html.trim() === '') {
+  if (!html || html.trim() === "") {
     return {
       mainComponent: {
         name: opts.mainComponentName,
-        jsx: '',
+        jsx: "",
         imports: [],
       },
       subComponents: [],
@@ -593,9 +593,7 @@ export function splitIntoComponents(html: string, options?: SplitOptions): Split
   }
 
   // import文を生成
-  const imports = subComponents.map(
-    (comp) => `import { ${comp.name} } from './${comp.name}';`
-  );
+  const imports = subComponents.map((comp) => `import { ${comp.name} } from './${comp.name}';`);
 
   // メインコンポーネントのJSXを生成
   // サブコンポーネントとして分割された要素をコンポーネントタグに置き換え
@@ -603,10 +601,14 @@ export function splitIntoComponents(html: string, options?: SplitOptions): Split
 
   // 繰り返し要素のマップ構文を生成
   for (const candidate of candidates) {
-    if (candidate.isRepeating && candidate.repeatingElements && candidate.repeatingElements.length > 0) {
+    if (
+      candidate.isRepeating &&
+      candidate.repeatingElements &&
+      candidate.repeatingElements.length > 0
+    ) {
       const componentName = generateUniqueName(candidate.name, new Set());
       const props = extractPropsFromRepeatingElements(candidate.repeatingElements);
-      const propsString = props.map((p) => `${p.name}={item.${p.name}}`).join(' ');
+      const propsString = props.map((p) => `${p.name}={item.${p.name}}`).join(" ");
 
       // 親要素を特定
       const firstElement = candidate.repeatingElements[0];
@@ -622,7 +624,7 @@ export function splitIntoComponents(html: string, options?: SplitOptions): Split
           // 同じクラスを持つ要素をすべてマップ構文に置き換え
           const regex = new RegExp(
             `<${firstElement.tagName.toLowerCase()}[^>]*class="[^"]*${className}[^"]*"[^>]*>[\\s\\S]*?<\\/${firstElement.tagName.toLowerCase()}>`,
-            'gi'
+            "gi"
           );
           let firstMatch = true;
           mainJsx = mainJsx.replace(regex, () => {
@@ -630,7 +632,7 @@ export function splitIntoComponents(html: string, options?: SplitOptions): Split
               firstMatch = false;
               return mapSyntax;
             }
-            return ''; // 2つ目以降は削除
+            return ""; // 2つ目以降は削除
           });
         }
       }

@@ -13,9 +13,9 @@
  * @module tests/e2e/page-analyze.e2e
  */
 
-import { describe, it, expect, beforeAll, afterAll, afterEach, vi } from 'vitest';
-import { PrismaClient } from '@prisma/client';
-import { v7 as uuidv7 } from 'uuid';
+import { describe, it, expect, beforeAll, afterAll, afterEach, vi } from "vitest";
+import { PrismaClient } from "@prisma/client";
+import { v7 as uuidv7 } from "uuid";
 
 // page.analyze ハンドラーとスキーマ
 import {
@@ -26,9 +26,9 @@ import {
   resetPageAnalyzePrismaClientFactory,
   PAGE_ANALYZE_ERROR_CODES,
   type PageAnalyzeOutput,
-} from '../../src/tools/page';
+} from "../../src/tools/page";
 
-import { TEST_DATABASE_URL } from './test-database-url';
+import { TEST_DATABASE_URL } from "./test-database-url";
 
 // ============================================================================
 // Prismaクライアント設定
@@ -40,7 +40,7 @@ const prisma = new PrismaClient({
       url: TEST_DATABASE_URL,
     },
   },
-  log: process.env.NODE_ENV === 'development' ? ['query', 'error'] : ['error'],
+  log: process.env.NODE_ENV === "development" ? ["query", "error"] : ["error"],
 });
 
 // ============================================================================
@@ -50,9 +50,9 @@ const prisma = new PrismaClient({
 /** レスポンスが成功か判定 */
 function isSuccess(response: unknown): response is { success: true; data: unknown } {
   return (
-    typeof response === 'object' &&
+    typeof response === "object" &&
     response !== null &&
-    'success' in response &&
+    "success" in response &&
     (response as { success: boolean }).success === true
   );
 }
@@ -60,9 +60,9 @@ function isSuccess(response: unknown): response is { success: true; data: unknow
 /** レスポンスがエラーか判定 */
 function isError(response: unknown): response is { success: false; error: unknown } {
   return (
-    typeof response === 'object' &&
+    typeof response === "object" &&
     response !== null &&
-    'success' in response &&
+    "success" in response &&
     (response as { success: boolean }).success === false
   );
 }
@@ -132,7 +132,7 @@ const TEST_LANDING_PAGE_HTML = `
 // E2Eテストスイート: page.analyze
 // ============================================================================
 
-describe('page.analyze E2Eテスト', () => {
+describe("page.analyze E2Eテスト", () => {
   // ==========================================================================
   // セットアップ・クリーンアップ
   // ==========================================================================
@@ -140,16 +140,16 @@ describe('page.analyze E2Eテスト', () => {
   beforeAll(async () => {
     try {
       await prisma.$connect();
-      console.log('[E2E][page.analyze] Database connected successfully');
+      console.log("[E2E][page.analyze] Database connected successfully");
 
       // PrismaClientFactoryを設定（DB保存機能を有効化）
       // E2E テストでは実際のDBを使用
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       setPageAnalyzePrismaClientFactory(() => prisma as any);
-      console.log('[E2E][page.analyze] PrismaClientFactory configured');
+      console.log("[E2E][page.analyze] PrismaClientFactory configured");
     } catch (error) {
-      console.error('[E2E][page.analyze] Database connection failed:', error);
-      throw new Error('Database connection failed. Ensure PostgreSQL is running on port 26432.');
+      console.error("[E2E][page.analyze] Database connection failed:", error);
+      throw new Error("Database connection failed. Ensure PostgreSQL is running on port 26432.");
     }
   }, 30000);
 
@@ -157,12 +157,12 @@ describe('page.analyze E2Eテスト', () => {
     try {
       // PrismaClientFactoryをリセット
       resetPageAnalyzePrismaClientFactory();
-      console.log('[E2E][page.analyze] PrismaClientFactory reset');
+      console.log("[E2E][page.analyze] PrismaClientFactory reset");
 
       await prisma.$disconnect();
-      console.log('[E2E][page.analyze] Database disconnected');
+      console.log("[E2E][page.analyze] Database disconnected");
     } catch (error) {
-      console.error('[E2E][page.analyze] Disconnect error:', error);
+      console.error("[E2E][page.analyze] Disconnect error:", error);
     }
 
     // サービスファクトリーをリセット
@@ -177,11 +177,11 @@ describe('page.analyze E2Eテスト', () => {
   // 基本フローテスト - バリデーション
   // ==========================================================================
 
-  describe('入力バリデーション', () => {
+  describe("入力バリデーション", () => {
     /**
      * URL指定が必須であることを検証
      */
-    it('URLが必須であることを検証', async () => {
+    it("URLが必須であることを検証", async () => {
       // Arrange - URLなしの入力
       const input = {};
 
@@ -195,16 +195,16 @@ describe('page.analyze E2Eテスト', () => {
         expect(error.code).toBe(PAGE_ANALYZE_ERROR_CODES.VALIDATION_ERROR);
       }
 
-      console.log('[E2E] page.analyze URL required validation passed');
+      console.log("[E2E] page.analyze URL required validation passed");
     });
 
     /**
      * 無効なURL形式でバリデーションエラーが発生することを検証
      */
-    it('無効なURL形式でバリデーションエラーが発生すること', async () => {
+    it("無効なURL形式でバリデーションエラーが発生すること", async () => {
       // Arrange
       const input = {
-        url: 'not-a-valid-url',
+        url: "not-a-valid-url",
       };
 
       // Act
@@ -217,16 +217,16 @@ describe('page.analyze E2Eテスト', () => {
         expect(error.code).toBe(PAGE_ANALYZE_ERROR_CODES.VALIDATION_ERROR);
       }
 
-      console.log('[E2E] page.analyze invalid URL format validation passed');
+      console.log("[E2E] page.analyze invalid URL format validation passed");
     });
 
     /**
      * FTPプロトコルが拒否されることを検証
      */
-    it('FTPプロトコルが拒否されること', async () => {
+    it("FTPプロトコルが拒否されること", async () => {
       // Arrange
       const input = {
-        url: 'ftp://example.com/file.html',
+        url: "ftp://example.com/file.html",
       };
 
       // Act
@@ -239,7 +239,7 @@ describe('page.analyze E2Eテスト', () => {
         expect(error.code).toBe(PAGE_ANALYZE_ERROR_CODES.VALIDATION_ERROR);
       }
 
-      console.log('[E2E] page.analyze FTP protocol rejected');
+      console.log("[E2E] page.analyze FTP protocol rejected");
     });
   });
 
@@ -247,14 +247,14 @@ describe('page.analyze E2Eテスト', () => {
   // SSRF対策テスト
   // ==========================================================================
 
-  describe('SSRF対策', () => {
+  describe("SSRF対策", () => {
     /**
      * localhostがブロックされることを検証
      */
-    it('localhostがブロックされること', async () => {
+    it("localhostがブロックされること", async () => {
       // Arrange
       const input = {
-        url: 'http://localhost:3000/test',
+        url: "http://localhost:3000/test",
       };
 
       // Act
@@ -267,16 +267,16 @@ describe('page.analyze E2Eテスト', () => {
         expect(error.code).toBe(PAGE_ANALYZE_ERROR_CODES.SSRF_BLOCKED);
       }
 
-      console.log('[E2E] page.analyze SSRF blocked for localhost');
+      console.log("[E2E] page.analyze SSRF blocked for localhost");
     });
 
     /**
      * 127.0.0.1がブロックされることを検証
      */
-    it('127.0.0.1がブロックされること', async () => {
+    it("127.0.0.1がブロックされること", async () => {
       // Arrange
       const input = {
-        url: 'http://127.0.0.1:8080/admin',
+        url: "http://127.0.0.1:8080/admin",
       };
 
       // Act
@@ -289,16 +289,16 @@ describe('page.analyze E2Eテスト', () => {
         expect(error.code).toBe(PAGE_ANALYZE_ERROR_CODES.SSRF_BLOCKED);
       }
 
-      console.log('[E2E] page.analyze SSRF blocked for 127.0.0.1');
+      console.log("[E2E] page.analyze SSRF blocked for 127.0.0.1");
     });
 
     /**
      * プライベートIP（192.168.x.x）がブロックされることを検証
      */
-    it('プライベートIPがブロックされること', async () => {
+    it("プライベートIPがブロックされること", async () => {
       // Arrange
       const input = {
-        url: 'http://192.168.1.1/admin',
+        url: "http://192.168.1.1/admin",
       };
 
       // Act
@@ -311,16 +311,16 @@ describe('page.analyze E2Eテスト', () => {
         expect(error.code).toBe(PAGE_ANALYZE_ERROR_CODES.SSRF_BLOCKED);
       }
 
-      console.log('[E2E] page.analyze SSRF blocked for private IP');
+      console.log("[E2E] page.analyze SSRF blocked for private IP");
     });
 
     /**
      * メタデータサービス（169.254.x.x）がブロックされることを検証
      */
-    it('メタデータサービスがブロックされること', async () => {
+    it("メタデータサービスがブロックされること", async () => {
       // Arrange
       const input = {
-        url: 'http://169.254.169.254/latest/meta-data/',
+        url: "http://169.254.169.254/latest/meta-data/",
       };
 
       // Act
@@ -333,7 +333,7 @@ describe('page.analyze E2Eテスト', () => {
         expect(error.code).toBe(PAGE_ANALYZE_ERROR_CODES.SSRF_BLOCKED);
       }
 
-      console.log('[E2E] page.analyze SSRF blocked for metadata service');
+      console.log("[E2E] page.analyze SSRF blocked for metadata service");
     });
   });
 
@@ -341,15 +341,15 @@ describe('page.analyze E2Eテスト', () => {
   // 機能フラグテスト
   // ==========================================================================
 
-  describe('機能フラグ', () => {
+  describe("機能フラグ", () => {
     /**
      * 全機能無効で最小レスポンスを返すことを検証
      * Note: 外部URLへのアクセスが必要なため、CI環境ではスキップ可能
      */
-    it.skip('全機能無効で最小レスポンスを返す（ネットワーク依存）', async () => {
+    it.skip("全機能無効で最小レスポンスを返す（ネットワーク依存）", async () => {
       // Arrange - 全機能を無効化
       const input = {
-        url: 'https://example.com/',
+        url: "https://example.com/",
         features: {
           layout: false,
           motion: false,
@@ -372,66 +372,70 @@ describe('page.analyze E2Eテスト', () => {
           quality?: unknown;
         };
         expect(data.id).toBeDefined();
-        expect(data.url).toBe('https://example.com/');
+        expect(data.url).toBe("https://example.com/");
         // 全機能無効でも基本情報は返る
         expect(isValidUUIDv7(data.id)).toBe(true);
       } else {
         // ネットワークエラーの場合はスキップ
-        console.log('[E2E] Skipped due to network:', result);
+        console.log("[E2E] Skipped due to network:", result);
       }
     }, 60000);
 
     /**
      * 個別機能のON/OFF切り替えが機能することを検証
      */
-    it.skipIf(process.env.SKIP_EXTERNAL_TESTS === 'true')('layoutのみ有効にできること', async () => {
-      // Arrange
-      // v6.x: auto_timeout=falseで pre-flight probe オーバーヘッドを回避
-      const input = {
-        url: 'https://example.com/',
-        features: {
-          layout: true,
-          motion: false,
-          quality: false,
-        },
-        summary: true,
-        timeout: 60000,
-        auto_timeout: false,
-        narrativeOptions: { enabled: false }, // E2Eテスト: narrative処理のオーバーヘッドを回避
-      };
-
-      // Act
-      const result = await pageAnalyzeHandler(input);
-
-      // Assert - SSRFブロックされない公開URLならlayoutのみ結果が返る
-      // Note: example.comへのアクセスが必要
-      if (isSuccess(result)) {
-        const data = result.data as {
-          layout?: { success: boolean };
-          motion?: { success: boolean };
-          quality?: { success: boolean };
+    it.skipIf(process.env.SKIP_EXTERNAL_TESTS === "true")(
+      "layoutのみ有効にできること",
+      async () => {
+        // Arrange
+        // v6.x: auto_timeout=falseで pre-flight probe オーバーヘッドを回避
+        const input = {
+          url: "https://example.com/",
+          features: {
+            layout: true,
+            motion: false,
+            quality: false,
+          },
+          summary: true,
+          timeout: 60000,
+          auto_timeout: false,
+          narrativeOptions: { enabled: false }, // E2Eテスト: narrative処理のオーバーヘッドを回避
         };
-        // layoutは有効化されている
-        expect(data.layout).toBeDefined();
-      }
-      // ネットワークエラーやタイムアウトでも受け入れる（CI環境考慮）
-    }, 120000);
+
+        // Act
+        const result = await pageAnalyzeHandler(input);
+
+        // Assert - SSRFブロックされない公開URLならlayoutのみ結果が返る
+        // Note: example.comへのアクセスが必要
+        if (isSuccess(result)) {
+          const data = result.data as {
+            layout?: { success: boolean };
+            motion?: { success: boolean };
+            quality?: { success: boolean };
+          };
+          // layoutは有効化されている
+          expect(data.layout).toBeDefined();
+        }
+        // ネットワークエラーやタイムアウトでも受け入れる（CI環境考慮）
+      },
+      120000
+    );
   });
 
   // ==========================================================================
   // オプションパラメータテスト
   // ==========================================================================
 
-  describe('オプションパラメータ', () => {
+  describe("オプションパラメータ", () => {
     /**
      * viewportサイズオプションがスキーマバリデーションを通過することを検証
      * Note: スキーマ検証のみ（外部URLアクセス不要）
      */
-    it('viewportオプションがバリデーションを通過すること', async () => {
+    it("viewportオプションがバリデーションを通過すること", async () => {
       // Arrange
-      const { pageAnalyzeInputSchema } = await import('../../src/tools/page/schemas');
+      const { pageAnalyzeInputSchema } = await import("../../src/tools/page/schemas");
       const input = {
-        url: 'https://example.com/',
+        url: "https://example.com/",
         layoutOptions: {
           viewport: {
             width: 1920,
@@ -452,24 +456,24 @@ describe('page.analyze E2Eテスト', () => {
         expect(result.data.layoutOptions?.viewport?.height).toBe(1080);
       }
 
-      console.log('[E2E] viewportオプションがスキーマバリデーションを通過');
+      console.log("[E2E] viewportオプションがスキーマバリデーションを通過");
     });
 
     /**
      * motionOptionsのvideo modeオプションがスキーマバリデーションを通過することを検証
      * Note: スキーマ検証のみ（外部URLアクセス不要）
      */
-    it('motionOptions video modeオプションがバリデーションを通過すること', async () => {
+    it("motionOptions video modeオプションがバリデーションを通過すること", async () => {
       // Arrange
-      const { pageAnalyzeInputSchema } = await import('../../src/tools/page/schemas');
+      const { pageAnalyzeInputSchema } = await import("../../src/tools/page/schemas");
       const input = {
-        url: 'https://example.com/',
+        url: "https://example.com/",
         motionOptions: {
           enable_frame_capture: true,
           frame_capture_options: {
             scroll_px_per_frame: 15,
             frame_rate: 30,
-            output_format: 'png' as const,
+            output_format: "png" as const,
           },
           analyze_frames: true,
           frame_analysis_options: {
@@ -490,18 +494,18 @@ describe('page.analyze E2Eテスト', () => {
         expect(result.data.motionOptions?.frame_capture_options?.scroll_px_per_frame).toBe(15);
       }
 
-      console.log('[E2E] motionOptions video modeオプションがスキーマバリデーションを通過');
+      console.log("[E2E] motionOptions video modeオプションがスキーマバリデーションを通過");
     });
 
     /**
      * qualityOptionsの重み付けがスキーマバリデーションを通過することを検証
      * Note: スキーマ検証のみ（外部URLアクセス不要）
      */
-    it('qualityOptions weightsオプションがバリデーションを通過すること', async () => {
+    it("qualityOptions weightsオプションがバリデーションを通過すること", async () => {
       // Arrange
-      const { pageAnalyzeInputSchema } = await import('../../src/tools/page/schemas');
+      const { pageAnalyzeInputSchema } = await import("../../src/tools/page/schemas");
       const input = {
-        url: 'https://example.com/',
+        url: "https://example.com/",
         qualityOptions: {
           weights: {
             originality: 0.4,
@@ -525,16 +529,16 @@ describe('page.analyze E2Eテスト', () => {
         expect(result.data.qualityOptions?.weights?.contextuality).toBe(0.25);
       }
 
-      console.log('[E2E] qualityOptions weightsオプションがスキーマバリデーションを通過');
+      console.log("[E2E] qualityOptions weightsオプションがスキーマバリデーションを通過");
     });
 
     /**
      * 無効なviewportサイズでバリデーションエラーが発生することを検証
      */
-    it('viewportサイズ範囲外でバリデーションエラーが発生すること', async () => {
+    it("viewportサイズ範囲外でバリデーションエラーが発生すること", async () => {
       // Arrange - width < 320
       const input = {
-        url: 'https://example.com/',
+        url: "https://example.com/",
         layoutOptions: {
           viewport: {
             width: 100, // 320未満で無効
@@ -557,14 +561,14 @@ describe('page.analyze E2Eテスト', () => {
     /**
      * frame_capture_optionsでパストラバーサルがブロックされることを検証
      */
-    it('frame_capture_options output_dirでパストラバーサルがブロックされること', async () => {
+    it("frame_capture_options output_dirでパストラバーサルがブロックされること", async () => {
       // Arrange
       const input = {
-        url: 'https://example.com/',
+        url: "https://example.com/",
         motionOptions: {
           enable_frame_capture: true,
           frame_capture_options: {
-            output_dir: '/tmp/../etc/', // パストラバーサル
+            output_dir: "/tmp/../etc/", // パストラバーサル
           },
         },
       };
@@ -585,21 +589,21 @@ describe('page.analyze E2Eテスト', () => {
   // エラーハンドリングテスト
   // ==========================================================================
 
-  describe('エラーハンドリング', () => {
+  describe("エラーハンドリング", () => {
     /**
      * 存在しないドメインでネットワークエラーが発生することを検証
      */
-    it('存在しないドメインでネットワークエラーが発生すること', async () => {
+    it("存在しないドメインでネットワークエラーが発生すること", async () => {
       // Arrange - fetchHtmlをモックしてネットワークエラーをシミュレート
       // 実際のPlaywright接続はタイムアウトが長いため、モックで高速化
       setPageAnalyzeServiceFactory(() => ({
         fetchHtml: async () => {
-          throw new Error('net::ERR_NAME_NOT_RESOLVED');
+          throw new Error("net::ERR_NAME_NOT_RESOLVED");
         },
       }));
 
       const input = {
-        url: 'https://this-domain-definitely-does-not-exist-12345.com/',
+        url: "https://this-domain-definitely-does-not-exist-12345.com/",
         timeout: 10000,
         async: false,
         auto_timeout: false,
@@ -624,17 +628,17 @@ describe('page.analyze E2Eテスト', () => {
       // クリーンアップ: サービスファクトリーをリセット
       resetPageAnalyzeServiceFactory();
 
-      console.log('[E2E] page.analyze network error handled correctly');
+      console.log("[E2E] page.analyze network error handled correctly");
     }, 30000);
 
     /**
      * 短いタイムアウトでタイムアウトエラーが発生することを検証
      */
-    it('短いタイムアウトでタイムアウトエラーが発生すること', async () => {
+    it("短いタイムアウトでタイムアウトエラーが発生すること", async () => {
       // Arrange - 極端に短いタイムアウト（5秒 = 最小値）
       // Note: 実際のページ取得には時間がかかるため、タイムアウトが発生する可能性が高い
       const input = {
-        url: 'https://httpstat.us/200?sleep=10000', // 10秒待機するエンドポイント
+        url: "https://httpstat.us/200?sleep=10000", // 10秒待機するエンドポイント
         timeout: 5000, // 5秒タイムアウト
       };
 
@@ -658,7 +662,7 @@ describe('page.analyze E2Eテスト', () => {
   // DB保存テスト（saveToDb=true）
   // ==========================================================================
 
-  describe('DB保存 (saveToDb=true)', () => {
+  describe("DB保存 (saveToDb=true)", () => {
     // テスト後クリーンアップ用のIDを保持
     let savedWebPageId: string | null = null;
 
@@ -674,7 +678,7 @@ describe('page.analyze E2Eテスト', () => {
           await prisma.webPage.delete({
             where: { id: savedWebPageId },
           });
-          console.log('[E2E] Cleaned up test WebPage:', savedWebPageId);
+          console.log("[E2E] Cleaned up test WebPage:", savedWebPageId);
         } catch {
           // 既に削除済みの場合は無視
         }
@@ -686,12 +690,12 @@ describe('page.analyze E2Eテスト', () => {
      * saveToDb=true でWebPageがDBに保存されることを検証
      * Note: 外部URLへのアクセスが必要なため、CI環境またはSKIP_EXTERNAL_TESTS=trueでスキップ
      */
-    it.skipIf(process.env.CI === 'true' || process.env.SKIP_EXTERNAL_TESTS === 'true')(
-      'saveToDb=true でWebPageがDBに保存されること',
+    it.skipIf(process.env.CI === "true" || process.env.SKIP_EXTERNAL_TESTS === "true")(
+      "saveToDb=true でWebPageがDBに保存されること",
       async () => {
         // Arrange
         const input = {
-          url: 'https://example.com/',
+          url: "https://example.com/",
           layoutOptions: {
             saveToDb: true,
             autoAnalyze: false, // Embedding生成は別テスト
@@ -711,7 +715,7 @@ describe('page.analyze E2Eテスト', () => {
         const result = await pageAnalyzeHandler(input);
 
         // Assert
-        console.log('[E2E] saveToDb test result:', JSON.stringify(result, null, 2).slice(0, 2000));
+        console.log("[E2E] saveToDb test result:", JSON.stringify(result, null, 2).slice(0, 2000));
 
         if (isSuccess(result)) {
           const data = result.data as {
@@ -725,7 +729,7 @@ describe('page.analyze E2Eテスト', () => {
 
           // layout.successを確認
           if (data.layout) {
-            console.log('[E2E] Layout result:', {
+            console.log("[E2E] Layout result:", {
               success: data.layout.success,
               pageId: data.layout.pageId,
               error: data.layout.error,
@@ -743,25 +747,25 @@ describe('page.analyze E2Eテスト', () => {
                   where: { id: savedWebPageId },
                 });
                 expect(webPage).not.toBeNull();
-                expect(webPage?.url).toBe('https://example.com/');
+                expect(webPage?.url).toBe("https://example.com/");
 
-                console.log('[E2E] WebPage saved to DB:', savedWebPageId);
+                console.log("[E2E] WebPage saved to DB:", savedWebPageId);
               } else {
                 // pageIdがnullの場合はwarningsを確認
-                console.log('[E2E] pageId is null, checking warnings:', data.warnings);
+                console.log("[E2E] pageId is null, checking warnings:", data.warnings);
                 // DB保存が失敗した場合はスキップ（graceful degradation）
-                console.log('[E2E] DB save may have failed - skipping DB verification');
+                console.log("[E2E] DB save may have failed - skipping DB verification");
               }
             } else {
               // layout自体が失敗した場合
-              console.log('[E2E] Layout failed, skipping DB verification');
+              console.log("[E2E] Layout failed, skipping DB verification");
             }
           } else {
-            console.log('[E2E] No layout result in response');
+            console.log("[E2E] No layout result in response");
           }
         } else if (isError(result)) {
           // エラーの場合は詳細を出力してスキップ（ネットワークエラー等）
-          console.log('[E2E] Request failed:', result.error);
+          console.log("[E2E] Request failed:", result.error);
         }
       },
       180000
@@ -771,12 +775,12 @@ describe('page.analyze E2Eテスト', () => {
      * autoAnalyze=true でSectionPatternも保存されることを検証
      * Note: 外部URLへのアクセスが必要なため、CI環境ではスキップ可能
      */
-    it.skipIf(process.env.CI === 'true')(
-      'autoAnalyze=true でSectionPatternも保存されること',
+    it.skipIf(process.env.CI === "true")(
+      "autoAnalyze=true でSectionPatternも保存されること",
       async () => {
         // Arrange
         const input = {
-          url: 'https://example.com/',
+          url: "https://example.com/",
           layoutOptions: {
             saveToDb: true,
             autoAnalyze: true, // セクション解析とEmbedding生成を有効化
@@ -819,10 +823,7 @@ describe('page.analyze E2Eテスト', () => {
             // セクションが検出された場合、DBに保存されている
             if (data.layout.sectionCount > 0) {
               expect(sectionPatterns.length).toBeGreaterThan(0);
-              console.log(
-                '[E2E] SectionPatterns saved:',
-                sectionPatterns.length
-              );
+              console.log("[E2E] SectionPatterns saved:", sectionPatterns.length);
             }
           }
         }
@@ -835,7 +836,7 @@ describe('page.analyze E2Eテスト', () => {
   // Embedding検証テスト（768次元ベクトル）
   // ==========================================================================
 
-  describe('Embedding検証 (autoAnalyze=true)', () => {
+  describe("Embedding検証 (autoAnalyze=true)", () => {
     let savedWebPageId: string | null = null;
 
     afterEach(async () => {
@@ -869,12 +870,12 @@ describe('page.analyze E2Eテスト', () => {
      * autoAnalyze=true でEmbeddingが768次元であることを検証
      * Note: 外部URLへのアクセスとML推論が必要なため、CI環境ではスキップ
      */
-    it.skipIf(process.env.CI === 'true')(
-      'autoAnalyze=true でEmbeddingが768次元であること',
+    it.skipIf(process.env.CI === "true")(
+      "autoAnalyze=true でEmbeddingが768次元であること",
       async () => {
         // Arrange
         const input = {
-          url: 'https://example.com/',
+          url: "https://example.com/",
           layoutOptions: {
             saveToDb: true,
             autoAnalyze: true,
@@ -923,7 +924,7 @@ describe('page.analyze E2Eテスト', () => {
                 // textRepresentationが存在することを確認（Embeddingの元データ）
                 expect(embeddings[0].textRepresentation).toBeDefined();
 
-                console.log('[E2E] Embedding record verified, textRepresentation exists');
+                console.log("[E2E] Embedding record verified, textRepresentation exists");
               }
             }
           }
@@ -936,17 +937,16 @@ describe('page.analyze E2Eテスト', () => {
      * Embeddingがpassage:プレフィックス付きテキストから生成されることを検証
      * 実際にはテキスト表現の生成をテスト
      */
-    it('セクションのテキスト表現が生成されること', async () => {
+    it("セクションのテキスト表現が生成されること", async () => {
       // Arrange - テキスト表現生成関数をテスト（直接インポートしてユニットテスト）
-      const { generateSectionTextRepresentation } = await import(
-        '../../src/tools/page/analyze.tool'
-      );
+      const { generateSectionTextRepresentation } =
+        await import("../../src/tools/page/analyze.tool");
 
       const section = {
         id: uuidv7(),
-        type: 'hero',
+        type: "hero",
         positionIndex: 0,
-        heading: 'Build Something Amazing',
+        heading: "Build Something Amazing",
         confidence: 0.95,
       };
 
@@ -954,46 +954,45 @@ describe('page.analyze E2Eテスト', () => {
       const textRepresentation = generateSectionTextRepresentation(section);
 
       // Assert
-      expect(textRepresentation).toContain('passage:');
-      expect(textRepresentation).toContain('hero');
-      expect(textRepresentation).toContain('Build Something Amazing');
-      expect(textRepresentation).toContain('95%');
+      expect(textRepresentation).toContain("passage:");
+      expect(textRepresentation).toContain("hero");
+      expect(textRepresentation).toContain("Build Something Amazing");
+      expect(textRepresentation).toContain("95%");
 
-      console.log('[E2E] Text representation:', textRepresentation);
+      console.log("[E2E] Text representation:", textRepresentation);
     });
 
     /**
      * モーションパターンのテキスト表現が生成されることを検証
      */
-    it('モーションパターンのテキスト表現が生成されること', async () => {
+    it("モーションパターンのテキスト表現が生成されること", async () => {
       // Arrange
-      const { generateMotionTextRepresentation } = await import(
-        '../../src/tools/page/analyze.tool'
-      );
+      const { generateMotionTextRepresentation } =
+        await import("../../src/tools/page/analyze.tool");
 
       const pattern = {
         id: uuidv7(),
-        name: 'fadeIn',
-        type: 'css_animation' as const,
-        category: 'entrance',
-        trigger: 'load',
+        name: "fadeIn",
+        type: "css_animation" as const,
+        category: "entrance",
+        trigger: "load",
         duration: 500,
-        easing: 'ease-out',
-        properties: ['opacity', 'transform'],
+        easing: "ease-out",
+        properties: ["opacity", "transform"],
       };
 
       // Act
       const textRepresentation = generateMotionTextRepresentation(pattern);
 
       // Assert
-      expect(textRepresentation).toContain('passage:');
-      expect(textRepresentation).toContain('css_animation');
-      expect(textRepresentation).toContain('fadeIn');
-      expect(textRepresentation).toContain('entrance');
-      expect(textRepresentation).toContain('500ms');
-      expect(textRepresentation).toContain('opacity');
+      expect(textRepresentation).toContain("passage:");
+      expect(textRepresentation).toContain("css_animation");
+      expect(textRepresentation).toContain("fadeIn");
+      expect(textRepresentation).toContain("entrance");
+      expect(textRepresentation).toContain("500ms");
+      expect(textRepresentation).toContain("opacity");
 
-      console.log('[E2E] Motion text representation:', textRepresentation);
+      console.log("[E2E] Motion text representation:", textRepresentation);
     });
   });
 
@@ -1001,17 +1000,17 @@ describe('page.analyze E2Eテスト', () => {
   // VideoMode DB保存テスト
   // ==========================================================================
 
-  describe('VideoMode DB保存', () => {
+  describe("VideoMode DB保存", () => {
     /**
      * motionOptions.saveToDb=true でMotionPatternが保存されることを検証
      * Note: ネットワーク依存のため、モックなしでは実行時間が長い
      */
-    it.skipIf(process.env.CI === 'true')(
-      'motionOptions.saveToDb=true でMotionPatternが保存されること',
+    it.skipIf(process.env.CI === "true")(
+      "motionOptions.saveToDb=true でMotionPatternが保存されること",
       async () => {
         // Arrange
         const input = {
-          url: 'https://example.com/',
+          url: "https://example.com/",
           features: {
             layout: false,
             motion: true,
@@ -1037,7 +1036,7 @@ describe('page.analyze E2Eテスト', () => {
 
           if (data.motion?.success && data.motion.patternCount > 0) {
             // モーションパターンが検出された場合、saveToDb=trueでDB保存が試行される
-            console.log('[E2E] Motion patterns detected:', data.motion.patternCount);
+            console.log("[E2E] Motion patterns detected:", data.motion.patternCount);
           }
         }
       },
@@ -1049,16 +1048,16 @@ describe('page.analyze E2Eテスト', () => {
   // パフォーマンステスト
   // ==========================================================================
 
-  describe('パフォーマンス', () => {
+  describe("パフォーマンス", () => {
     /**
      * 分析処理時間がレスポンスに含まれることを検証
      */
-    it.skipIf(process.env.CI === 'true')(
-      'totalProcessingTimeMsがレスポンスに含まれること',
+    it.skipIf(process.env.CI === "true")(
+      "totalProcessingTimeMsがレスポンスに含まれること",
       async () => {
         // Arrange
         const input = {
-          url: 'https://example.com/',
+          url: "https://example.com/",
           features: {
             layout: true,
             motion: false,
@@ -1080,7 +1079,7 @@ describe('page.analyze E2Eテスト', () => {
           };
 
           expect(data.totalProcessingTimeMs).toBeDefined();
-          expect(typeof data.totalProcessingTimeMs).toBe('number');
+          expect(typeof data.totalProcessingTimeMs).toBe("number");
           expect(data.totalProcessingTimeMs).toBeGreaterThanOrEqual(0);
 
           if (data.layout) {
@@ -1088,11 +1087,7 @@ describe('page.analyze E2Eテスト', () => {
             expect(data.layout.processingTimeMs).toBeGreaterThanOrEqual(0);
           }
 
-          console.log(
-            '[E2E] Processing time:',
-            data.totalProcessingTimeMs,
-            'ms'
-          );
+          console.log("[E2E] Processing time:", data.totalProcessingTimeMs, "ms");
         }
       },
       120000
@@ -1101,27 +1096,27 @@ describe('page.analyze E2Eテスト', () => {
     /**
      * summary=true がsummary=false より軽量なレスポンスを返すことを検証
      */
-    it('summary=true がより軽量なレスポンスを返すこと', async () => {
+    it("summary=true がより軽量なレスポンスを返すこと", async () => {
       // Arrange - 両方のモードでリクエスト構造を確認
       const summaryInput = {
-        url: 'https://example.com/',
+        url: "https://example.com/",
         summary: true,
       };
 
       const fullInput = {
-        url: 'https://example.com/',
+        url: "https://example.com/",
         summary: false,
       };
 
       // バリデーションが通過すること（実際のリクエストはスキップ）
       // summary オプションがスキーマで受け入れられることを確認
-      const { pageAnalyzeInputSchema } = await import('../../src/tools/page/schemas');
+      const { pageAnalyzeInputSchema } = await import("../../src/tools/page/schemas");
       expect(() => {
         pageAnalyzeInputSchema.parse(summaryInput);
         pageAnalyzeInputSchema.parse(fullInput);
       }).not.toThrow();
 
-      console.log('[E2E] summary option validation passed');
+      console.log("[E2E] summary option validation passed");
     });
   });
 
@@ -1129,28 +1124,26 @@ describe('page.analyze E2Eテスト', () => {
   // レスポンス構造テスト
   // ==========================================================================
 
-  describe('レスポンス構造', () => {
+  describe("レスポンス構造", () => {
     /**
      * 成功レスポンスの構造が正しいことを検証
      */
-    it('成功レスポンスがスキーマに準拠すること', async () => {
+    it("成功レスポンスがスキーマに準拠すること", async () => {
       // Arrange - スキーマ検証のみ（ネットワーク不要）
-      const {
-        pageAnalyzeSuccessOutputSchema,
-        pageAnalyzeDataSchema,
-      } = await import('../../src/tools/page/schemas');
+      const { pageAnalyzeSuccessOutputSchema, pageAnalyzeDataSchema } =
+        await import("../../src/tools/page/schemas");
 
       // モック成功データ
       const mockSuccessData = {
         id: uuidv7(),
-        url: 'https://example.com/',
-        normalizedUrl: 'https://example.com/',
+        url: "https://example.com/",
+        normalizedUrl: "https://example.com/",
         metadata: {
-          title: 'Example Domain',
+          title: "Example Domain",
         },
         source: {
-          type: 'user_provided',
-          usageScope: 'inspiration_only',
+          type: "user_provided",
+          usageScope: "inspiration_only",
         },
         layout: {
           success: true,
@@ -1172,23 +1165,21 @@ describe('page.analyze E2Eテスト', () => {
         expect(result.data.url).toBe(mockSuccessData.url);
       }
 
-      console.log('[E2E] Response schema validation passed');
+      console.log("[E2E] Response schema validation passed");
     });
 
     /**
      * エラーレスポンスの構造が正しいことを検証
      */
-    it('エラーレスポンスがスキーマに準拠すること', async () => {
+    it("エラーレスポンスがスキーマに準拠すること", async () => {
       // Arrange
-      const { pageAnalyzeErrorOutputSchema } = await import(
-        '../../src/tools/page/schemas'
-      );
+      const { pageAnalyzeErrorOutputSchema } = await import("../../src/tools/page/schemas");
 
       const mockErrorResponse = {
         success: false,
         error: {
-          code: 'VALIDATION_ERROR',
-          message: 'URL is required',
+          code: "VALIDATION_ERROR",
+          message: "URL is required",
         },
       };
 
@@ -1198,18 +1189,18 @@ describe('page.analyze E2Eテスト', () => {
       // Assert
       expect(result.success).toBe(true);
 
-      console.log('[E2E] Error schema validation passed');
+      console.log("[E2E] Error schema validation passed");
     });
 
     /**
      * analyzedAtがISO 8601形式であることを検証
      */
-    it.skipIf(process.env.CI === 'true')(
-      'analyzedAtがISO 8601形式であること',
+    it.skipIf(process.env.CI === "true")(
+      "analyzedAtがISO 8601形式であること",
       async () => {
         // Arrange
         const input = {
-          url: 'https://example.com/',
+          url: "https://example.com/",
           features: {
             layout: true,
             motion: false,
@@ -1242,16 +1233,16 @@ describe('page.analyze E2Eテスト', () => {
 // Vision統合テスト（useVision=true）
 // ============================================================================
 
-describe('Vision統合テスト (useVision=true)', () => {
+describe("Vision統合テスト (useVision=true)", () => {
   /**
    * useVisionオプションがスキーマバリデーションを通過することを検証
    * Note: スキーマ検証のみ（外部URLアクセス不要）
    */
-  it('useVisionオプションがバリデーションを通過すること', async () => {
+  it("useVisionオプションがバリデーションを通過すること", async () => {
     // Arrange
-    const { pageAnalyzeInputSchema } = await import('../../src/tools/page/schemas');
+    const { pageAnalyzeInputSchema } = await import("../../src/tools/page/schemas");
     const input = {
-      url: 'https://example.com/',
+      url: "https://example.com/",
       layoutOptions: {
         useVision: true,
       },
@@ -1273,19 +1264,19 @@ describe('Vision統合テスト (useVision=true)', () => {
       expect(result.data.features?.layout).toBe(true);
     }
 
-    console.log('[E2E] useVisionオプションがスキーマバリデーションを通過');
+    console.log("[E2E] useVisionオプションがスキーマバリデーションを通過");
   });
 
   /**
    * useVision=true でvisionFeaturesがレスポンスに含まれることを検証
    * Note: Ollama + llama3.2-visionが必要なため、環境依存
    */
-  it.skipIf(process.env.CI === 'true' || !process.env.ENABLE_VISION_TESTS)(
-    'useVision=true でvisionFeaturesがレスポンスに含まれること',
+  it.skipIf(process.env.CI === "true" || !process.env.ENABLE_VISION_TESTS)(
+    "useVision=true でvisionFeaturesがレスポンスに含まれること",
     async () => {
       // Arrange
       const input = {
-        url: 'https://example.com/',
+        url: "https://example.com/",
         layoutOptions: {
           useVision: true,
           includeScreenshot: true,
@@ -1316,7 +1307,7 @@ describe('Vision統合テスト (useVision=true)', () => {
         if (data.layout?.visionFeatures) {
           expect(data.layout.visionFeatures.success).toBeDefined();
           expect(Array.isArray(data.layout.visionFeatures.features)).toBe(true);
-          console.log('[E2E] Vision features:', data.layout.visionFeatures);
+          console.log("[E2E] Vision features:", data.layout.visionFeatures);
         }
       }
     },

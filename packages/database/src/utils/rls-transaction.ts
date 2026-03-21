@@ -31,12 +31,8 @@ export type RlsProtectedModel = (typeof RLS_PROTECTED_MODELS)[number];
 /**
  * Check if a model is RLS-protected
  */
-export function isRlsProtectedModel(
-  model: string | undefined
-): model is RlsProtectedModel {
-  return model
-    ? RLS_PROTECTED_MODELS.includes(model as RlsProtectedModel)
-    : false;
+export function isRlsProtectedModel(model: string | undefined): model is RlsProtectedModel {
+  return model ? RLS_PROTECTED_MODELS.includes(model as RlsProtectedModel) : false;
 }
 
 /**
@@ -75,15 +71,12 @@ export async function withRlsContext<T>(
     // and RLS policies reject all rows
     const safeUserId = userId?.replace(/'/g, "''") ?? "";
 
-    await tx.$executeRawUnsafe(
-      `SET LOCAL app.current_user_id = '${safeUserId}'`
-    );
+    await tx.$executeRawUnsafe(`SET LOCAL app.current_user_id = '${safeUserId}'`);
 
     // Log in development for debugging
     if (process.env.NODE_ENV === "development") {
-      console.log(
-        `[RLS] Context set: user_id=${safeUserId || "(empty - fail-close)"}`
-      );
+      // eslint-disable-next-line no-console -- Development-only RLS context logging
+      console.log(`[RLS] Context set: user_id=${safeUserId || "(empty - fail-close)"}`);
     }
 
     return fn(tx);

@@ -12,7 +12,7 @@
  * @module config/redis
  */
 
-import Redis from 'ioredis';
+import Redis from "ioredis";
 
 /**
  * Redis connection configuration interface
@@ -36,7 +36,7 @@ export interface RedisConfig {
  * Port offset: 21000 (standard Redis 6379 -> 27379)
  */
 export const DEFAULT_REDIS_CONFIG: RedisConfig = {
-  host: 'localhost',
+  host: "localhost",
   port: 27379, // 6379 + 21000 (port offset)
   maxRetriesPerRequest: 3,
   connectTimeout: 5000,
@@ -52,11 +52,11 @@ export const DEFAULT_REDIS_CONFIG: RedisConfig = {
 function parseRedisUrl(url: string): Partial<RedisConfig> | null {
   try {
     const parsed = new URL(url);
-    if (parsed.protocol !== 'redis:' && parsed.protocol !== 'rediss:') {
+    if (parsed.protocol !== "redis:" && parsed.protocol !== "rediss:") {
       return null;
     }
     return {
-      host: parsed.hostname || 'localhost',
+      host: parsed.hostname || "localhost",
       port: parsed.port ? parseInt(parsed.port, 10) : 27379,
     };
   } catch {
@@ -160,17 +160,17 @@ export function createRedisClient(config?: Partial<RedisConfig>): Redis {
   });
 
   // Log connection events in development
-  if (process.env.NODE_ENV === 'development') {
-    client.on('connect', () => {
+  if (process.env.NODE_ENV === "development") {
+    client.on("connect", () => {
       console.warn(`[Redis] Connected to ${finalConfig.host}:${finalConfig.port}`);
     });
 
-    client.on('error', (err) => {
-      console.error('[Redis] Connection error:', err.message);
+    client.on("error", (err) => {
+      console.error("[Redis] Connection error:", err.message);
     });
 
-    client.on('close', () => {
-      console.warn('[Redis] Connection closed');
+    client.on("close", () => {
+      console.warn("[Redis] Connection closed");
     });
   }
 
@@ -195,20 +195,18 @@ export function getRedisClient(): Redis {
  * @param client - Optional Redis client (uses singleton if not provided)
  * @returns Connection status with optional server info
  */
-export async function checkRedisConnection(
-  client?: Redis
-): Promise<RedisConnectionStatus> {
+export async function checkRedisConnection(client?: Redis): Promise<RedisConnectionStatus> {
   const redis = client || getRedisClient();
 
   try {
     // Try to connect if not already connected
-    if (redis.status !== 'ready') {
+    if (redis.status !== "ready") {
       await redis.connect();
     }
 
     // Ping to verify connection
     const pong = await redis.ping();
-    if (pong !== 'PONG') {
+    if (pong !== "PONG") {
       return {
         connected: false,
         error: `Unexpected ping response: ${pong}`,
@@ -216,11 +214,11 @@ export async function checkRedisConnection(
     }
 
     // Get server info
-    const info = await redis.info('server');
+    const info = await redis.info("server");
     const versionMatch = info.match(/redis_version:(\S+)/);
     const modeMatch = info.match(/redis_mode:(\S+)/);
 
-    const clientsInfo = await redis.info('clients');
+    const clientsInfo = await redis.info("clients");
     const clientsMatch = clientsInfo.match(/connected_clients:(\d+)/);
 
     // Build info object, only including defined values

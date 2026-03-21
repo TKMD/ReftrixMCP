@@ -16,7 +16,7 @@
  * @module tests/services/quality/content-gap-detector.test
  */
 
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import {
   ContentGapDetectorService,
   getContentGapDetectorService,
@@ -24,7 +24,7 @@ import {
   resetContentGapDetectorServiceFactory,
   type ContentGapResult,
   type IContentGapDetectorService,
-} from '../../../src/services/quality/content-gap-detector.service.js';
+} from "../../../src/services/quality/content-gap-detector.service.js";
 
 // =============================================================================
 // テスト用HTML定義
@@ -161,7 +161,7 @@ const LOW_DENSITY_HTML = `
 // テスト本体
 // =============================================================================
 
-describe('ContentGapDetectorService', () => {
+describe("ContentGapDetectorService", () => {
   let service: ContentGapDetectorService;
 
   beforeEach(() => {
@@ -176,10 +176,10 @@ describe('ContentGapDetectorService', () => {
   // 空入力処理
   // =========================================================================
 
-  describe('空入力処理', () => {
-    it('空文字列で空の結果を返すこと', () => {
+  describe("空入力処理", () => {
+    it("空文字列で空の結果を返すこと", () => {
       // Arrange & Act
-      const result = service.detect('');
+      const result = service.detect("");
 
       // Assert
       expect(result.totalImages).toBe(0);
@@ -190,11 +190,11 @@ describe('ContentGapDetectorService', () => {
       expect(result.sectionCount).toBe(0);
       expect(result.score).toBe(0);
       expect(result.gaps).toHaveLength(0);
-      expect(result.details).toContain('Empty HTML provided. No content to analyze.');
+      expect(result.details).toContain("Empty HTML provided. No content to analyze.");
     });
 
-    it('空白のみの文字列で空の結果を返すこと', () => {
-      const result = service.detect('   \n\t  ');
+    it("空白のみの文字列で空の結果を返すこと", () => {
+      const result = service.detect("   \n\t  ");
       expect(result.score).toBe(0);
     });
   });
@@ -203,8 +203,8 @@ describe('ContentGapDetectorService', () => {
   // 要素カウント
   // =========================================================================
 
-  describe('要素カウント', () => {
-    it('img要素を正しくカウントすること', () => {
+  describe("要素カウント", () => {
+    it("img要素を正しくカウントすること", () => {
       // Arrange & Act
       const result = service.detect(IMAGES_HTML);
 
@@ -220,7 +220,7 @@ describe('ContentGapDetectorService', () => {
       expect(result.totalImages).toBe(0);
     });
 
-    it('装飾的imgと実質的imgを正しく区別すること', () => {
+    it("装飾的imgと実質的imgを正しく区別すること", () => {
       // Arrange
       const mixedHtml = `
         <html><body><section>
@@ -237,7 +237,7 @@ describe('ContentGapDetectorService', () => {
       expect(result.totalImages).toBe(2);
     });
 
-    it('SVG要素を正しくカウントすること', () => {
+    it("SVG要素を正しくカウントすること", () => {
       // Arrange & Act
       const result = service.detect(SVG_HTML);
 
@@ -245,7 +245,7 @@ describe('ContentGapDetectorService', () => {
       expect(result.totalSvgs).toBe(2);
     });
 
-    it('アイコンフォント要素を検出すること', () => {
+    it("アイコンフォント要素を検出すること", () => {
       // Arrange & Act
       const result = service.detect(ICON_HTML);
 
@@ -253,7 +253,7 @@ describe('ContentGapDetectorService', () => {
       expect(result.totalIcons).toBe(4);
     });
 
-    it('video/canvas要素をカウントすること', () => {
+    it("video/canvas要素をカウントすること", () => {
       // Arrange & Act
       const result = service.detect(VIDEO_CANVAS_HTML);
 
@@ -261,7 +261,7 @@ describe('ContentGapDetectorService', () => {
       expect(result.totalVideos).toBe(2);
     });
 
-    it('CSS <style>タグ内のbackground-image: url()を検出すること', () => {
+    it("CSS <style>タグ内のbackground-image: url()を検出すること", () => {
       // Arrange & Act
       const result = service.detect(BG_IMAGE_HTML);
 
@@ -269,7 +269,7 @@ describe('ContentGapDetectorService', () => {
       expect(result.totalBackgroundImages).toBe(2);
     });
 
-    it('inline style属性内のbackground-image: url()を検出すること', () => {
+    it("inline style属性内のbackground-image: url()を検出すること", () => {
       // Arrange & Act
       const result = service.detect(INLINE_BG_IMAGE_HTML);
 
@@ -277,9 +277,9 @@ describe('ContentGapDetectorService', () => {
       expect(result.totalBackgroundImages).toBe(2);
     });
 
-    it('外部CSSパラメータのbackground-image: url()を検出すること', () => {
+    it("外部CSSパラメータのbackground-image: url()を検出すること", () => {
       // Arrange
-      const html = '<html><body><section><p>Content</p></section></body></html>';
+      const html = "<html><body><section><p>Content</p></section></body></html>";
       const css = `.hero { background-image: url('hero.jpg'); }
                    .banner { background: url('banner.png') center; }`;
 
@@ -290,7 +290,7 @@ describe('ContentGapDetectorService', () => {
       expect(result.totalBackgroundImages).toBe(2);
     });
 
-    it('セクション数を正しくカウントすること', () => {
+    it("セクション数を正しくカウントすること", () => {
       // Arrange & Act
       const result = service.detect(RICH_CONTENT_HTML);
 
@@ -298,7 +298,7 @@ describe('ContentGapDetectorService', () => {
       expect(result.sectionCount).toBe(3);
     });
 
-    it('role属性のセクションも検出すること', () => {
+    it("role属性のセクションも検出すること", () => {
       // Arrange
       const html = `
         <html><body>
@@ -319,20 +319,18 @@ describe('ContentGapDetectorService', () => {
   // ギャップ検出
   // =========================================================================
 
-  describe('ギャップ検出', () => {
-    it('画像0枚でcriticalギャップを検出すること', () => {
+  describe("ギャップ検出", () => {
+    it("画像0枚でcriticalギャップを検出すること", () => {
       // Arrange & Act
       const result = service.detect(NO_IMAGE_HTML);
 
       // Assert
-      const criticalGap = result.gaps.find(
-        (g) => g.type === 'image' && g.severity === 'critical'
-      );
+      const criticalGap = result.gaps.find((g) => g.type === "image" && g.severity === "critical");
       expect(criticalGap).toBeDefined();
       expect(criticalGap?.count).toBe(0);
     });
 
-    it('SVG/アイコン0個でhighギャップを検出すること', () => {
+    it("SVG/アイコン0個でhighギャップを検出すること", () => {
       // Arrange: 画像はあるがSVG/アイコンがないHTML
       const noIconHtml = `
         <html><body>
@@ -347,40 +345,36 @@ describe('ContentGapDetectorService', () => {
       const result = service.detect(noIconHtml);
 
       // Assert
-      const iconGap = result.gaps.find(
-        (g) => g.type === 'icon' && g.severity === 'high'
-      );
+      const iconGap = result.gaps.find((g) => g.type === "icon" && g.severity === "high");
       expect(iconGap).toBeDefined();
     });
 
-    it('低コンテンツ密度でmediumギャップを検出すること', () => {
+    it("低コンテンツ密度でmediumギャップを検出すること", () => {
       // Arrange & Act: セクション4つに対してコンテンツなし
       const result = service.detect(LOW_DENSITY_HTML);
 
       // Assert
-      const densityGap = result.gaps.find((g) => g.severity === 'medium');
+      const densityGap = result.gaps.find((g) => g.severity === "medium");
       expect(densityGap).toBeDefined();
       expect(result.contentDensity).toBeLessThan(0.5);
     });
 
-    it('background-image 0個でlowギャップを検出すること', () => {
+    it("background-image 0個でlowギャップを検出すること", () => {
       // Arrange & Act
       const result = service.detect(IMAGES_HTML);
 
       // Assert: background-image がない
-      const bgGap = result.gaps.find(
-        (g) => g.type === 'background' && g.severity === 'low'
-      );
+      const bgGap = result.gaps.find((g) => g.type === "background" && g.severity === "low");
       expect(bgGap).toBeDefined();
     });
 
-    it('十分なコンテンツでcritical/highギャップが0件であること', () => {
+    it("十分なコンテンツでcritical/highギャップが0件であること", () => {
       // Arrange & Act
       const result = service.detect(RICH_CONTENT_HTML);
 
       // Assert: 画像あり + SVGあり + アイコンあり → critical/highギャップなし
       const criticalOrHigh = result.gaps.filter(
-        (g) => g.severity === 'critical' || g.severity === 'high'
+        (g) => g.severity === "critical" || g.severity === "high"
       );
       expect(criticalOrHigh).toHaveLength(0);
     });
@@ -390,8 +384,8 @@ describe('ContentGapDetectorService', () => {
   // コンテンツ密度計算
   // =========================================================================
 
-  describe('コンテンツ密度', () => {
-    it('密度が正しく計算されること', () => {
+  describe("コンテンツ密度", () => {
+    it("密度が正しく計算されること", () => {
       // Arrange & Act
       const result = service.detect(RICH_CONTENT_HTML);
 
@@ -406,7 +400,7 @@ describe('ContentGapDetectorService', () => {
       expect(result.contentDensity).toBeCloseTo(expectedDensity, 2);
     });
 
-    it('セクション0個でも密度が計算されること（除算ゼロ回避）', () => {
+    it("セクション0個でも密度が計算されること（除算ゼロ回避）", () => {
       // Arrange: セクションがないHTML
       const noSectionHtml = `
         <html><body>
@@ -430,8 +424,8 @@ describe('ContentGapDetectorService', () => {
   // スコア計算
   // =========================================================================
 
-  describe('スコア計算', () => {
-    it('画像0枚でスコアが大幅に低下すること', () => {
+  describe("スコア計算", () => {
+    it("画像0枚でスコアが大幅に低下すること", () => {
       // Arrange & Act
       const result = service.detect(NO_IMAGE_HTML);
 
@@ -439,7 +433,7 @@ describe('ContentGapDetectorService', () => {
       expect(result.score).toBeLessThanOrEqual(70);
     });
 
-    it('リッチなコンテンツで高スコアを返すこと', () => {
+    it("リッチなコンテンツで高スコアを返すこと", () => {
       // Arrange & Act
       const result = service.detect(RICH_CONTENT_HTML);
 
@@ -447,7 +441,7 @@ describe('ContentGapDetectorService', () => {
       expect(result.score).toBeGreaterThanOrEqual(80);
     });
 
-    it('スコアが0-100の範囲内であること', () => {
+    it("スコアが0-100の範囲内であること", () => {
       // Arrange & Act
       const noContent = service.detect(NO_IMAGE_HTML);
       const rich = service.detect(RICH_CONTENT_HTML);
@@ -459,7 +453,7 @@ describe('ContentGapDetectorService', () => {
       expect(rich.score).toBeLessThanOrEqual(100);
     });
 
-    it('高密度コンテンツで密度ボーナスが加算されること', () => {
+    it("高密度コンテンツで密度ボーナスが加算されること", () => {
       // Arrange: 1セクション内に大量のコンテンツ要素
       const highDensityHtml = `
         <html><body>
@@ -483,7 +477,7 @@ describe('ContentGapDetectorService', () => {
       expect(result.contentDensity).toBeGreaterThanOrEqual(2.0);
       // critical/highギャップなし → 基本スコア高い
       const criticalOrHigh = result.gaps.filter(
-        (g) => g.severity === 'critical' || g.severity === 'high'
+        (g) => g.severity === "critical" || g.severity === "high"
       );
       expect(criticalOrHigh).toHaveLength(0);
     });
@@ -493,44 +487,30 @@ describe('ContentGapDetectorService', () => {
   // 詳細情報
   // =========================================================================
 
-  describe('詳細情報', () => {
-    it('detailsにコンテンツ要素数が記載されること', () => {
+  describe("詳細情報", () => {
+    it("detailsにコンテンツ要素数が記載されること", () => {
       // Arrange & Act
       const result = service.detect(RICH_CONTENT_HTML);
 
       // Assert
-      expect(result.details.some((d) => d.startsWith('Content images:'))).toBe(
-        true
-      );
-      expect(result.details.some((d) => d.startsWith('Inline SVGs:'))).toBe(
-        true
-      );
-      expect(result.details.some((d) => d.startsWith('Icon elements:'))).toBe(
-        true
-      );
-      expect(
-        result.details.some((d) => d.startsWith('Video/Canvas elements:'))
-      ).toBe(true);
-      expect(
-        result.details.some((d) => d.startsWith('CSS background images:'))
-      ).toBe(true);
-      expect(
-        result.details.some((d) => d.startsWith('Sections detected:'))
-      ).toBe(true);
-      expect(
-        result.details.some((d) => d.startsWith('Content density:'))
-      ).toBe(true);
+      expect(result.details.some((d) => d.startsWith("Content images:"))).toBe(true);
+      expect(result.details.some((d) => d.startsWith("Inline SVGs:"))).toBe(true);
+      expect(result.details.some((d) => d.startsWith("Icon elements:"))).toBe(true);
+      expect(result.details.some((d) => d.startsWith("Video/Canvas elements:"))).toBe(true);
+      expect(result.details.some((d) => d.startsWith("CSS background images:"))).toBe(true);
+      expect(result.details.some((d) => d.startsWith("Sections detected:"))).toBe(true);
+      expect(result.details.some((d) => d.startsWith("Content density:"))).toBe(true);
     });
 
-    it('ギャップがある場合にdetailsにギャップ情報が含まれること', () => {
+    it("ギャップがある場合にdetailsにギャップ情報が含まれること", () => {
       // Arrange & Act
       const result = service.detect(NO_IMAGE_HTML);
 
       // Assert
-      expect(result.details.some((d) => d.includes('[CRITICAL]'))).toBe(true);
+      expect(result.details.some((d) => d.includes("[CRITICAL]"))).toBe(true);
     });
 
-    it('ギャップがない場合に「No content gaps detected」が含まれること', () => {
+    it("ギャップがない場合に「No content gaps detected」が含まれること", () => {
       // Arrange: ギャップなしの状態を作る
       // RICH_CONTENT_HTMLにbackground-imageを追加してlowギャップも消す
       const noGapHtml = `
@@ -552,9 +532,7 @@ describe('ContentGapDetectorService', () => {
 
       // Assert: ギャップなし
       expect(result.gaps).toHaveLength(0);
-      expect(
-        result.details.some((d) => d.includes('No content gaps detected'))
-      ).toBe(true);
+      expect(result.details.some((d) => d.includes("No content gaps detected"))).toBe(true);
     });
   });
 
@@ -562,17 +540,17 @@ describe('ContentGapDetectorService', () => {
   // DI ファクトリパターン
   // =========================================================================
 
-  describe('DI ファクトリ', () => {
-    it('デフォルトファクトリでインスタンスが取得できること', () => {
+  describe("DI ファクトリ", () => {
+    it("デフォルトファクトリでインスタンスが取得できること", () => {
       // Arrange & Act
       const instance = getContentGapDetectorService();
 
       // Assert
       expect(instance).toBeDefined();
-      expect(typeof instance.detect).toBe('function');
+      expect(typeof instance.detect).toBe("function");
     });
 
-    it('カスタムファクトリを設定してインスタンスが差し替わること', () => {
+    it("カスタムファクトリを設定してインスタンスが差し替わること", () => {
       // Arrange
       const mockResult: ContentGapResult = {
         totalImages: 99,
@@ -584,7 +562,7 @@ describe('ContentGapDetectorService', () => {
         contentDensity: 99,
         gaps: [],
         score: 99,
-        details: ['mock'],
+        details: ["mock"],
       };
       const mockService: IContentGapDetectorService = {
         detect: (): ContentGapResult => mockResult,
@@ -593,14 +571,14 @@ describe('ContentGapDetectorService', () => {
       // Act
       setContentGapDetectorServiceFactory(() => mockService);
       const instance = getContentGapDetectorService();
-      const result = instance.detect('<html></html>');
+      const result = instance.detect("<html></html>");
 
       // Assert
       expect(result.score).toBe(99);
       expect(result.totalImages).toBe(99);
     });
 
-    it('リセットでデフォルトファクトリに戻ること', () => {
+    it("リセットでデフォルトファクトリに戻ること", () => {
       // Arrange
       const mockService: IContentGapDetectorService = {
         detect: (): ContentGapResult => ({
@@ -613,7 +591,7 @@ describe('ContentGapDetectorService', () => {
           contentDensity: 99,
           gaps: [],
           score: 99,
-          details: ['mock'],
+          details: ["mock"],
         }),
       };
       setContentGapDetectorServiceFactory(() => mockService);

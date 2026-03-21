@@ -13,8 +13,8 @@
  * @module services/part/schemas
  */
 
-import { z } from 'zod';
-import { ALL_PART_TYPES } from './types';
+import { z } from "zod";
+import { ALL_PART_TYPES } from "./types";
 
 // ============================================================================
 // PII Truncation Utility / PII切り詰めユーティリティ
@@ -46,7 +46,7 @@ export const partTypeSchema = z.enum(ALL_PART_TYPES);
  * PIIリスクレベルスキーマ
  * PII risk level schema
  */
-export const piiRiskLevelSchema = z.enum(['none', 'low', 'high']);
+export const piiRiskLevelSchema = z.enum(["none", "low", "high"]);
 
 /**
  * 利用範囲スキーマ（inspiration_onlyのみ許可）
@@ -55,7 +55,7 @@ export const piiRiskLevelSchema = z.enum(['none', 'low', 'high']);
  * 著作権法第30条の4に基づき、直接的な複製・再利用を意図しない。
  * Based on Copyright Act Art.30-4; not intended for direct reproduction.
  */
-export const usageScopeSchema = z.enum(['inspiration_only']).default('inspiration_only');
+export const usageScopeSchema = z.enum(["inspiration_only"]).default("inspiration_only");
 
 /**
  * バウンディングボックススキーマ
@@ -97,7 +97,11 @@ export const partExtractionConfigSchema = z.object({
   minPartSize: z.number().int().min(1).default(20),
   cropSize: z.number().int().min(64).max(512).default(224),
   partTypes: z.array(partTypeSchema).default([...ALL_PART_TYPES]),
-  rssLimitBytes: z.number().int().min(0).default(8 * 1024 * 1024 * 1024),
+  rssLimitBytes: z
+    .number()
+    .int()
+    .min(0)
+    .default(8 * 1024 * 1024 * 1024),
   timeoutMs: z.number().int().min(1000).max(120_000).default(30_000),
 });
 
@@ -115,27 +119,28 @@ export const partExtractionConfigSchema = z.object({
  * Provides visual similarity, text search, and hybrid search.
  * Either query or imageUrl is required.
  */
-export const partSearchInputSchema = z.object({
-  /** テキスト検索クエリ / Text search query */
-  query: z.string().min(1).max(500).optional(),
-  /** 画像URLによるビジュアル検索 / Visual search by image URL */
-  image_url: z.string().url().optional(),
-  /** パーツタイプフィルタ / Part type filter */
-  part_type: partTypeSchema.optional(),
-  /** WebページIDフィルタ / Web page ID filter */
-  web_page_id: z.string().uuid().optional(),
-  /** 返却件数 / Result limit */
-  limit: z.number().int().min(1).max(100).default(20),
-  /** オフセット / Offset */
-  offset: z.number().int().min(0).default(0),
-  /** 検索モード / Search mode */
-  search_mode: z.enum(['visual', 'text', 'hybrid']).default('hybrid'),
-  /** 最小類似度閾値 / Minimum similarity threshold */
-  min_similarity: z.number().min(0).max(1).default(0.3),
-}).refine(
-  (data) => data.query !== undefined || data.image_url !== undefined,
-  { message: 'Either query or image_url must be provided' }
-);
+export const partSearchInputSchema = z
+  .object({
+    /** テキスト検索クエリ / Text search query */
+    query: z.string().min(1).max(500).optional(),
+    /** 画像URLによるビジュアル検索 / Visual search by image URL */
+    image_url: z.string().url().optional(),
+    /** パーツタイプフィルタ / Part type filter */
+    part_type: partTypeSchema.optional(),
+    /** WebページIDフィルタ / Web page ID filter */
+    web_page_id: z.string().uuid().optional(),
+    /** 返却件数 / Result limit */
+    limit: z.number().int().min(1).max(100).default(20),
+    /** オフセット / Offset */
+    offset: z.number().int().min(0).default(0),
+    /** 検索モード / Search mode */
+    search_mode: z.enum(["visual", "text", "hybrid"]).default("hybrid"),
+    /** 最小類似度閾値 / Minimum similarity threshold */
+    min_similarity: z.number().min(0).max(1).default(0.3),
+  })
+  .refine((data) => data.query !== undefined || data.image_url !== undefined, {
+    message: "Either query or image_url must be provided",
+  });
 
 /**
  * part.inspect 入力スキーマ
@@ -167,9 +172,9 @@ export const partCompareInputSchema = z.object({
   /** 比較対象パーツID（2-5個） / Part IDs to compare (2-5) */
   part_ids: z.array(z.string().uuid()).min(2).max(5),
   /** 比較観点 / Comparison aspects */
-  compare_aspects: z.array(
-    z.enum(['styles', 'layout', 'interaction', 'accessibility'])
-  ).default(['styles', 'layout']),
+  compare_aspects: z
+    .array(z.enum(["styles", "layout", "interaction", "accessibility"]))
+    .default(["styles", "layout"]),
 });
 
 // ============================================================================

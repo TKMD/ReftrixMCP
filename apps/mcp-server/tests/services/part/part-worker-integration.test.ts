@@ -17,22 +17,26 @@
  * @module tests/services/part/part-worker-integration
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 // Mock the part extraction service
-vi.mock('../../../src/services/part/part-extraction.service', () => ({
+vi.mock("../../../src/services/part/part-extraction.service", () => ({
   extractPartsFromSection: vi.fn(),
 }));
 
 // Mock the part DB service
-vi.mock('../../../src/services/part/part-db.service', () => ({
+vi.mock("../../../src/services/part/part-db.service", () => ({
   saveExtractedParts: vi.fn(),
 }));
 
-import { extractPartsFromSection } from '../../../src/services/part/part-extraction.service';
-import { saveExtractedParts } from '../../../src/services/part/part-db.service';
-import { DEFAULT_PART_EXTRACTION_CONFIG, type PartExtractionConfig, type PartExtractionResult } from '../../../src/services/part/types';
-import type { PartSaveResult } from '../../../src/services/part/part-db.service';
+import { extractPartsFromSection } from "../../../src/services/part/part-extraction.service";
+import { saveExtractedParts } from "../../../src/services/part/part-db.service";
+import {
+  DEFAULT_PART_EXTRACTION_CONFIG,
+  type PartExtractionConfig,
+  type PartExtractionResult,
+} from "../../../src/services/part/types";
+import type { PartSaveResult } from "../../../src/services/part/part-db.service";
 
 // ============================================================================
 // Test helpers: simulate Phase 1.1 logic extracted from page-analyze-worker.ts
@@ -93,7 +97,7 @@ async function executePhase1_1(params: {
   // Check if part extraction is enabled
   const partExtractionEnabled =
     options.partExtractionOptions?.enabled !== false &&
-    completedPhases.includes('layout') &&
+    completedPhases.includes("layout") &&
     layoutSections &&
     Array.isArray(layoutSections) &&
     layoutSections.length > 0 &&
@@ -101,18 +105,18 @@ async function executePhase1_1(params: {
     sectionIdMapping.size > 0;
 
   if (!partExtractionEnabled) {
-    return { skipped: true, skipReason: 'disabled_or_no_sections' };
+    return { skipped: true, skipReason: "disabled_or_no_sections" };
   }
 
   const partExtractionStartTime = Date.now();
 
   // RSS Memory Guard [C-1]
-  const rssLimitBytes = options.partExtractionOptions?.rssLimitBytes
-    ?? DEFAULT_PART_EXTRACTION_CONFIG.rssLimitBytes;
+  const rssLimitBytes =
+    options.partExtractionOptions?.rssLimitBytes ?? DEFAULT_PART_EXTRACTION_CONFIG.rssLimitBytes;
   const currentRss = mockRssBytes ?? process.memoryUsage().rss;
 
   if (currentRss > rssLimitBytes) {
-    return { skipped: true, skipReason: 'rss_exceeded' };
+    return { skipped: true, skipReason: "rss_exceeded" };
   }
 
   // Build part extraction config
@@ -142,7 +146,7 @@ async function executePhase1_1(params: {
         let screenshotBuffer: Buffer | undefined;
         if (screenshotBase64) {
           try {
-            screenshotBuffer = Buffer.from(screenshotBase64, 'base64');
+            screenshotBuffer = Buffer.from(screenshotBase64, "base64");
           } catch {
             // ignore
           }
@@ -153,7 +157,7 @@ async function executePhase1_1(params: {
           const sectionPatternId = sectionIdMapping!.get(section.id);
           if (!sectionPatternId) continue;
 
-          const sectionHtml = section.htmlSnippet ?? '';
+          const sectionHtml = section.htmlSnippet ?? "";
           if (!sectionHtml) continue;
 
           try {
@@ -173,13 +177,9 @@ async function executePhase1_1(params: {
             });
 
             if (extractionResult.parts.length > 0) {
-              const saveResult: PartSaveResult = await (saveExtractedParts as ReturnType<typeof vi.fn>)(
-                prisma,
-                actualWebPageId,
-                sectionPatternId,
-                extractionResult.parts,
-                url,
-              );
+              const saveResult: PartSaveResult = await (
+                saveExtractedParts as ReturnType<typeof vi.fn>
+              )(prisma, actualWebPageId, sectionPatternId, extractionResult.parts, url);
               totalPartsSaved += saveResult.savedCount;
             }
 
@@ -195,7 +195,7 @@ async function executePhase1_1(params: {
       new Promise<never>((_resolve, reject) => {
         setTimeout(
           () => reject(new Error(`Part extraction timeout after ${partTimeoutMs}ms`)),
-          partTimeoutMs,
+          partTimeoutMs
         );
       }),
     ]);
@@ -220,21 +220,21 @@ async function executePhase1_1(params: {
 // Tests
 // ============================================================================
 
-describe('Phase 1.1: Part Extraction Worker Integration', () => {
+describe("Phase 1.1: Part Extraction Worker Integration", () => {
   const mockPrisma = {} as unknown;
 
   const mockSections = [
     {
-      id: 'section-1',
-      type: 'hero',
+      id: "section-1",
+      type: "hero",
       positionIndex: 0,
       confidence: 0.95,
       htmlSnippet: '<section class="hero"><h1>Title</h1><button>CTA</button></section>',
       position: { startY: 0, endY: 800, height: 800 },
     },
     {
-      id: 'section-2',
-      type: 'features',
+      id: "section-2",
+      type: "features",
       positionIndex: 1,
       confidence: 0.88,
       htmlSnippet: '<section class="features"><div class="card">Feature</div></section>',
@@ -243,28 +243,28 @@ describe('Phase 1.1: Part Extraction Worker Integration', () => {
   ];
 
   const mockIdMapping = new Map([
-    ['section-1', 'db-uuid-1'],
-    ['section-2', 'db-uuid-2'],
+    ["section-1", "db-uuid-1"],
+    ["section-2", "db-uuid-2"],
   ]);
 
   const mockExtractionResult: PartExtractionResult = {
     parts: [
       {
-        partType: 'button',
+        partType: "button",
         partSubtype: null,
-        htmlSnippet: '<button>CTA</button>',
+        htmlSnippet: "<button>CTA</button>",
         computedStyles: {},
         boundingBox: { x: 100, y: 200, width: 150, height: 40 },
-        cssClasses: ['cta'],
+        cssClasses: ["cta"],
         attributes: {},
         interactionInfo: { hasHover: true, hasFocus: true, hasActive: true, hasTransition: false },
-        visualSignature: 'abc123',
+        visualSignature: "abc123",
         sampleIndex: 0,
-        piiRiskLevel: 'none',
-        tags: ['button', 'cta'],
+        piiRiskLevel: "none",
+        tags: ["button", "cta"],
         metadata: {},
-        sourceUrl: 'https://example.com',
-        usageScope: 'inspiration_only',
+        sourceUrl: "https://example.com",
+        usageScope: "inspiration_only",
         cropBuffer: null,
       },
     ],
@@ -290,14 +290,14 @@ describe('Phase 1.1: Part Extraction Worker Integration', () => {
   // -----------------------------------------------------------------------
   // Test 1: Phase 1.1 runs when layout has sections with DB IDs
   // -----------------------------------------------------------------------
-  it('should extract and save parts when layout has sections with DB IDs', async () => {
+  it("should extract and save parts when layout has sections with DB IDs", async () => {
     const result = await executePhase1_1({
       options: {},
-      completedPhases: ['ingest', 'layout'],
+      completedPhases: ["ingest", "layout"],
       layoutSections: mockSections,
       sectionIdMapping: mockIdMapping,
-      actualWebPageId: 'web-page-uuid-1',
-      url: 'https://example.com',
+      actualWebPageId: "web-page-uuid-1",
+      url: "https://example.com",
       prisma: mockPrisma,
     });
 
@@ -316,38 +316,38 @@ describe('Phase 1.1: Part Extraction Worker Integration', () => {
     // Verify saveExtractedParts called with correct sectionPatternId from idMapping
     expect(saveExtractedParts).toHaveBeenCalledWith(
       mockPrisma,
-      'web-page-uuid-1',
-      'db-uuid-1',
+      "web-page-uuid-1",
+      "db-uuid-1",
       mockExtractionResult.parts,
-      'https://example.com',
+      "https://example.com"
     );
     expect(saveExtractedParts).toHaveBeenCalledWith(
       mockPrisma,
-      'web-page-uuid-1',
-      'db-uuid-2',
+      "web-page-uuid-1",
+      "db-uuid-2",
       mockExtractionResult.parts,
-      'https://example.com',
+      "https://example.com"
     );
   });
 
   // -----------------------------------------------------------------------
   // Test 2: Phase 1.1 skips when enabled=false
   // -----------------------------------------------------------------------
-  it('should skip when partExtractionOptions.enabled is false', async () => {
+  it("should skip when partExtractionOptions.enabled is false", async () => {
     const result = await executePhase1_1({
       options: {
         partExtractionOptions: { enabled: false },
       },
-      completedPhases: ['ingest', 'layout'],
+      completedPhases: ["ingest", "layout"],
       layoutSections: mockSections,
       sectionIdMapping: mockIdMapping,
-      actualWebPageId: 'web-page-uuid-1',
-      url: 'https://example.com',
+      actualWebPageId: "web-page-uuid-1",
+      url: "https://example.com",
       prisma: mockPrisma,
     });
 
     expect(result.skipped).toBe(true);
-    expect(result.skipReason).toBe('disabled_or_no_sections');
+    expect(result.skipReason).toBe("disabled_or_no_sections");
     expect(extractPartsFromSection).not.toHaveBeenCalled();
     expect(saveExtractedParts).not.toHaveBeenCalled();
   });
@@ -355,86 +355,86 @@ describe('Phase 1.1: Part Extraction Worker Integration', () => {
   // -----------------------------------------------------------------------
   // Test 3: Phase 1.1 skips when layout phase did not complete
   // -----------------------------------------------------------------------
-  it('should skip when layout phase did not complete', async () => {
+  it("should skip when layout phase did not complete", async () => {
     const result = await executePhase1_1({
       options: {},
-      completedPhases: ['ingest'], // no 'layout'
+      completedPhases: ["ingest"], // no 'layout'
       layoutSections: mockSections,
       sectionIdMapping: mockIdMapping,
-      actualWebPageId: 'web-page-uuid-1',
-      url: 'https://example.com',
+      actualWebPageId: "web-page-uuid-1",
+      url: "https://example.com",
       prisma: mockPrisma,
     });
 
     expect(result.skipped).toBe(true);
-    expect(result.skipReason).toBe('disabled_or_no_sections');
+    expect(result.skipReason).toBe("disabled_or_no_sections");
     expect(extractPartsFromSection).not.toHaveBeenCalled();
   });
 
   // -----------------------------------------------------------------------
   // Test 4: Phase 1.1 skips when no sections in layout result
   // -----------------------------------------------------------------------
-  it('should skip when layout result has no sections', async () => {
+  it("should skip when layout result has no sections", async () => {
     const result = await executePhase1_1({
       options: {},
-      completedPhases: ['ingest', 'layout'],
+      completedPhases: ["ingest", "layout"],
       layoutSections: [],
       sectionIdMapping: mockIdMapping,
-      actualWebPageId: 'web-page-uuid-1',
-      url: 'https://example.com',
+      actualWebPageId: "web-page-uuid-1",
+      url: "https://example.com",
       prisma: mockPrisma,
     });
 
     expect(result.skipped).toBe(true);
-    expect(result.skipReason).toBe('disabled_or_no_sections');
+    expect(result.skipReason).toBe("disabled_or_no_sections");
   });
 
   // -----------------------------------------------------------------------
   // Test 5: Phase 1.1 skips when no section ID mapping
   // -----------------------------------------------------------------------
-  it('should skip when sectionIdMapping is empty', async () => {
+  it("should skip when sectionIdMapping is empty", async () => {
     const result = await executePhase1_1({
       options: {},
-      completedPhases: ['ingest', 'layout'],
+      completedPhases: ["ingest", "layout"],
       layoutSections: mockSections,
       sectionIdMapping: new Map(),
-      actualWebPageId: 'web-page-uuid-1',
-      url: 'https://example.com',
+      actualWebPageId: "web-page-uuid-1",
+      url: "https://example.com",
       prisma: mockPrisma,
     });
 
     expect(result.skipped).toBe(true);
-    expect(result.skipReason).toBe('disabled_or_no_sections');
+    expect(result.skipReason).toBe("disabled_or_no_sections");
   });
 
   // -----------------------------------------------------------------------
   // Test 6: Phase 1.1 skips on RSS memory limit exceeded
   // -----------------------------------------------------------------------
-  it('should skip when RSS exceeds limit', async () => {
+  it("should skip when RSS exceeds limit", async () => {
     const result = await executePhase1_1({
       options: {
         partExtractionOptions: {
           rssLimitBytes: 1024, // very low limit
         },
       },
-      completedPhases: ['ingest', 'layout'],
+      completedPhases: ["ingest", "layout"],
       layoutSections: mockSections,
       sectionIdMapping: mockIdMapping,
-      actualWebPageId: 'web-page-uuid-1',
-      url: 'https://example.com',
+      actualWebPageId: "web-page-uuid-1",
+      url: "https://example.com",
       mockRssBytes: 2048, // exceeds 1024 limit
       prisma: mockPrisma,
     });
 
     expect(result.skipped).toBe(true);
-    expect(result.skipReason).toBe('rss_exceeded');
+    expect(result.skipReason).toBe("rss_exceeded");
     expect(extractPartsFromSection).not.toHaveBeenCalled();
   });
 
   // -----------------------------------------------------------------------
   // Test 7: Phase 1.1 timeout continues pipeline (graceful degradation)
   // -----------------------------------------------------------------------
-  it('should return error on timeout and not throw', async () => {
+  it("should return error on timeout and not throw", async () => {
     // Mock extractPartsFromSection to take longer than timeout
     (extractPartsFromSection as ReturnType<typeof vi.fn>).mockImplementation(
       () => new Promise((resolve) => setTimeout(() => resolve(mockExtractionResult), 5000))
@@ -446,34 +446,34 @@ describe('Phase 1.1: Part Extraction Worker Integration', () => {
           timeoutMs: 100, // 100ms timeout
         },
       },
-      completedPhases: ['ingest', 'layout'],
+      completedPhases: ["ingest", "layout"],
       layoutSections: mockSections,
       sectionIdMapping: mockIdMapping,
-      actualWebPageId: 'web-page-uuid-1',
-      url: 'https://example.com',
+      actualWebPageId: "web-page-uuid-1",
+      url: "https://example.com",
       prisma: mockPrisma,
     });
 
     expect(result.skipped).toBe(false);
-    expect(result.error).toContain('Part extraction timeout');
+    expect(result.error).toContain("Part extraction timeout");
     expect(result.result).toBeUndefined();
   }, 10000);
 
   // -----------------------------------------------------------------------
   // Test 8: Phase 1.1 extraction error does not throw (graceful degradation)
   // -----------------------------------------------------------------------
-  it('should handle extraction service errors gracefully', async () => {
+  it("should handle extraction service errors gracefully", async () => {
     (extractPartsFromSection as ReturnType<typeof vi.fn>).mockRejectedValue(
-      new Error('JSDOM parsing failed')
+      new Error("JSDOM parsing failed")
     );
 
     const result = await executePhase1_1({
       options: {},
-      completedPhases: ['ingest', 'layout'],
+      completedPhases: ["ingest", "layout"],
       layoutSections: mockSections,
       sectionIdMapping: mockIdMapping,
-      actualWebPageId: 'web-page-uuid-1',
-      url: 'https://example.com',
+      actualWebPageId: "web-page-uuid-1",
+      url: "https://example.com",
       prisma: mockPrisma,
     });
 
@@ -487,18 +487,18 @@ describe('Phase 1.1: Part Extraction Worker Integration', () => {
   // -----------------------------------------------------------------------
   // Test 9: Phase 1.1 saveExtractedParts error does not throw
   // -----------------------------------------------------------------------
-  it('should handle save errors gracefully (per-section catch)', async () => {
+  it("should handle save errors gracefully (per-section catch)", async () => {
     (saveExtractedParts as ReturnType<typeof vi.fn>).mockRejectedValue(
-      new Error('Database connection failed')
+      new Error("Database connection failed")
     );
 
     const result = await executePhase1_1({
       options: {},
-      completedPhases: ['ingest', 'layout'],
+      completedPhases: ["ingest", "layout"],
       layoutSections: mockSections,
       sectionIdMapping: mockIdMapping,
-      actualWebPageId: 'web-page-uuid-1',
-      url: 'https://example.com',
+      actualWebPageId: "web-page-uuid-1",
+      url: "https://example.com",
       prisma: mockPrisma,
     });
 
@@ -513,19 +513,19 @@ describe('Phase 1.1: Part Extraction Worker Integration', () => {
   // -----------------------------------------------------------------------
   // Test 10: Sections without htmlSnippet are skipped
   // -----------------------------------------------------------------------
-  it('should skip sections without htmlSnippet', async () => {
+  it("should skip sections without htmlSnippet", async () => {
     const sectionsWithoutHtml = [
-      { id: 'section-1', type: 'hero', positionIndex: 0, confidence: 0.95 },
-      { id: 'section-2', type: 'features', positionIndex: 1, confidence: 0.88, htmlSnippet: '' },
+      { id: "section-1", type: "hero", positionIndex: 0, confidence: 0.95 },
+      { id: "section-2", type: "features", positionIndex: 1, confidence: 0.88, htmlSnippet: "" },
     ];
 
     const result = await executePhase1_1({
       options: {},
-      completedPhases: ['ingest', 'layout'],
+      completedPhases: ["ingest", "layout"],
       layoutSections: sectionsWithoutHtml,
       sectionIdMapping: mockIdMapping,
-      actualWebPageId: 'web-page-uuid-1',
-      url: 'https://example.com',
+      actualWebPageId: "web-page-uuid-1",
+      url: "https://example.com",
       prisma: mockPrisma,
     });
 
@@ -537,18 +537,18 @@ describe('Phase 1.1: Part Extraction Worker Integration', () => {
   // -----------------------------------------------------------------------
   // Test 11: Sections without matching ID in idMapping are skipped
   // -----------------------------------------------------------------------
-  it('should skip sections without matching sectionPatternId', async () => {
+  it("should skip sections without matching sectionPatternId", async () => {
     const unmatchedIdMapping = new Map([
-      ['section-999', 'db-uuid-999'], // no match for section-1 or section-2
+      ["section-999", "db-uuid-999"], // no match for section-1 or section-2
     ]);
 
     const result = await executePhase1_1({
       options: {},
-      completedPhases: ['ingest', 'layout'],
+      completedPhases: ["ingest", "layout"],
       layoutSections: mockSections,
       sectionIdMapping: unmatchedIdMapping,
-      actualWebPageId: 'web-page-uuid-1',
-      url: 'https://example.com',
+      actualWebPageId: "web-page-uuid-1",
+      url: "https://example.com",
       prisma: mockPrisma,
     });
 
@@ -561,7 +561,7 @@ describe('Phase 1.1: Part Extraction Worker Integration', () => {
   // -----------------------------------------------------------------------
   // Test 12: Empty extraction result (0 parts) does not call save
   // -----------------------------------------------------------------------
-  it('should not call saveExtractedParts when extraction yields 0 parts', async () => {
+  it("should not call saveExtractedParts when extraction yields 0 parts", async () => {
     const emptyResult: PartExtractionResult = {
       parts: [],
       skippedCount: 0,
@@ -571,11 +571,11 @@ describe('Phase 1.1: Part Extraction Worker Integration', () => {
 
     const result = await executePhase1_1({
       options: {},
-      completedPhases: ['ingest', 'layout'],
+      completedPhases: ["ingest", "layout"],
       layoutSections: mockSections,
       sectionIdMapping: mockIdMapping,
-      actualWebPageId: 'web-page-uuid-1',
-      url: 'https://example.com',
+      actualWebPageId: "web-page-uuid-1",
+      url: "https://example.com",
       prisma: mockPrisma,
     });
 
@@ -588,14 +588,14 @@ describe('Phase 1.1: Part Extraction Worker Integration', () => {
   // -----------------------------------------------------------------------
   // Test 13: Default config values are applied correctly
   // -----------------------------------------------------------------------
-  it('should use default config when no options provided', async () => {
+  it("should use default config when no options provided", async () => {
     await executePhase1_1({
       options: {},
-      completedPhases: ['ingest', 'layout'],
+      completedPhases: ["ingest", "layout"],
       layoutSections: mockSections,
       sectionIdMapping: mockIdMapping,
-      actualWebPageId: 'web-page-uuid-1',
-      url: 'https://example.com',
+      actualWebPageId: "web-page-uuid-1",
+      url: "https://example.com",
       prisma: mockPrisma,
     });
 

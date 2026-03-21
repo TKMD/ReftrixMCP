@@ -13,21 +13,21 @@
  * @module tests/queues/batch-quality-progress.test.ts
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import type { Job } from 'bullmq';
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import type { Job } from "bullmq";
 import type {
   BatchQualityJobData,
   BatchQualityJobResult,
-} from '../../src/queues/batch-quality-queue';
+} from "../../src/queues/batch-quality-queue";
 
 // Mock Redis for unit tests
-vi.mock('../../src/config/redis', async (importOriginal) => {
-  const original = await importOriginal<typeof import('../../src/config/redis')>();
+vi.mock("../../src/config/redis", async (importOriginal) => {
+  const original = await importOriginal<typeof import("../../src/config/redis")>();
   return {
     ...original,
     isRedisAvailable: vi.fn().mockResolvedValue(false),
     getRedisClient: vi.fn().mockReturnValue({
-      setex: vi.fn().mockResolvedValue('OK'),
+      setex: vi.fn().mockResolvedValue("OK"),
       get: vi.fn().mockResolvedValue(null),
       del: vi.fn().mockResolvedValue(1),
     }),
@@ -38,15 +38,13 @@ vi.mock('../../src/config/redis', async (importOriginal) => {
 // Redis進捗保存/取得のテスト
 // =====================================================
 
-describe('MCP-RESP-04: Batch Quality Progress Accuracy', () => {
-  describe('saveBatchQualityProgress / getBatchQualityProgress', () => {
-    it('should save and retrieve progress data correctly via LRU fallback', async () => {
-      const { saveBatchQualityProgress, getBatchQualityProgress } = await import(
-        '../../src/queues/batch-quality-queue'
-      );
-      const { addBatchJob, getBatchJob } = await import(
-        '../../src/tools/quality/batch-evaluate.tool'
-      );
+describe("MCP-RESP-04: Batch Quality Progress Accuracy", () => {
+  describe("saveBatchQualityProgress / getBatchQualityProgress", () => {
+    it("should save and retrieve progress data correctly via LRU fallback", async () => {
+      const { saveBatchQualityProgress, getBatchQualityProgress } =
+        await import("../../src/queues/batch-quality-queue");
+      const { addBatchJob, getBatchJob } =
+        await import("../../src/tools/quality/batch-evaluate.tool");
 
       const jobId = `test-job-progress-001-${Date.now()}`;
       const progressData = {
@@ -59,7 +57,7 @@ describe('MCP-RESP-04: Batch Quality Progress Accuracy', () => {
       // LRUストアにジョブを追加（saveBatchQualityProgressがLRUに同期するため必要）
       addBatchJob({
         job_id: jobId,
-        status: 'processing',
+        status: "processing",
         total_items: 10,
         processed_items: 0,
         success_items: 0,
@@ -81,30 +79,25 @@ describe('MCP-RESP-04: Batch Quality Progress Accuracy', () => {
       expect(retrieved?.totalItems).toBe(10);
     });
 
-    it('should return null for non-existent job progress', async () => {
-      const { getBatchQualityProgress } = await import(
-        '../../src/queues/batch-quality-queue'
-      );
+    it("should return null for non-existent job progress", async () => {
+      const { getBatchQualityProgress } = await import("../../src/queues/batch-quality-queue");
 
-      const result = await getBatchQualityProgress('non-existent-job-id-' + Date.now());
+      const result = await getBatchQualityProgress("non-existent-job-id-" + Date.now());
 
       expect(result).toBeNull();
     });
 
-    it('should update existing progress data via LRU', async () => {
-      const { saveBatchQualityProgress, getBatchQualityProgress } = await import(
-        '../../src/queues/batch-quality-queue'
-      );
-      const { addBatchJob } = await import(
-        '../../src/tools/quality/batch-evaluate.tool'
-      );
+    it("should update existing progress data via LRU", async () => {
+      const { saveBatchQualityProgress, getBatchQualityProgress } =
+        await import("../../src/queues/batch-quality-queue");
+      const { addBatchJob } = await import("../../src/tools/quality/batch-evaluate.tool");
 
       const jobId = `test-job-progress-002-${Date.now()}`;
 
       // LRUストアにジョブを追加
       addBatchJob({
         job_id: jobId,
-        status: 'processing',
+        status: "processing",
         total_items: 10,
         processed_items: 0,
         success_items: 0,
@@ -137,21 +130,21 @@ describe('MCP-RESP-04: Batch Quality Progress Accuracy', () => {
     });
   });
 
-  describe('getBatchQualityJobStatus with accurate progress', () => {
-    it('should return accurate processedItems/successItems/failedItems from Redis', async () => {
+  describe("getBatchQualityJobStatus with accurate progress", () => {
+    it("should return accurate processedItems/successItems/failedItems from Redis", async () => {
       const {
         saveBatchQualityProgress,
         getBatchQualityJobStatus,
         createBatchQualityQueue,
         addBatchQualityJob,
         closeBatchQualityQueue,
-      } = await import('../../src/queues/batch-quality-queue');
-      const { isRedisAvailable } = await import('../../src/config/redis');
+      } = await import("../../src/queues/batch-quality-queue");
+      const { isRedisAvailable } = await import("../../src/config/redis");
 
       // Redisが利用可能かチェック
       const redisAvailable = await isRedisAvailable();
       if (!redisAvailable) {
-        console.log('Skipping test: Redis not available');
+        console.log("Skipping test: Redis not available");
         return;
       }
 
@@ -162,9 +155,9 @@ describe('MCP-RESP-04: Batch Quality Progress Accuracy', () => {
         // ジョブを作成
         await addBatchQualityJob(queue, {
           jobId,
-          items: Array.from({ length: 10 }, (_, i) => ({ index: i, html: '<html></html>' })),
+          items: Array.from({ length: 10 }, (_, i) => ({ index: i, html: "<html></html>" })),
           batchSize: 5,
-          onError: 'skip',
+          onError: "skip",
           strict: false,
         });
 
@@ -190,20 +183,20 @@ describe('MCP-RESP-04: Batch Quality Progress Accuracy', () => {
     });
   });
 
-  describe('updateBatchQualityJobProgress integration', () => {
-    it('should update progress in Redis and be retrievable via getBatchQualityJobStatus', async () => {
+  describe("updateBatchQualityJobProgress integration", () => {
+    it("should update progress in Redis and be retrievable via getBatchQualityJobStatus", async () => {
       const {
         updateBatchQualityJobProgress,
         getBatchQualityJobStatus,
         createBatchQualityQueue,
         addBatchQualityJob,
         closeBatchQualityQueue,
-      } = await import('../../src/queues/batch-quality-queue');
-      const { isRedisAvailable } = await import('../../src/config/redis');
+      } = await import("../../src/queues/batch-quality-queue");
+      const { isRedisAvailable } = await import("../../src/config/redis");
 
       const redisAvailable = await isRedisAvailable();
       if (!redisAvailable) {
-        console.log('Skipping test: Redis not available');
+        console.log("Skipping test: Redis not available");
         return;
       }
 
@@ -214,9 +207,9 @@ describe('MCP-RESP-04: Batch Quality Progress Accuracy', () => {
         // ジョブを作成
         const job = await addBatchQualityJob(queue, {
           jobId,
-          items: Array.from({ length: 20 }, (_, i) => ({ index: i, html: '<html></html>' })),
+          items: Array.from({ length: 20 }, (_, i) => ({ index: i, html: "<html></html>" })),
           batchSize: 5,
-          onError: 'skip',
+          onError: "skip",
           strict: false,
         });
 
@@ -237,19 +230,18 @@ describe('MCP-RESP-04: Batch Quality Progress Accuracy', () => {
     });
   });
 
-  describe('LRU store fallback for progress', () => {
-    it('should sync progress to LRU store when updating via Redis', async () => {
-      const { saveBatchQualityProgress } = await import('../../src/queues/batch-quality-queue');
-      const { getBatchJob, addBatchJob, updateBatchJob } = await import(
-        '../../src/tools/quality/batch-evaluate.tool'
-      );
+  describe("LRU store fallback for progress", () => {
+    it("should sync progress to LRU store when updating via Redis", async () => {
+      const { saveBatchQualityProgress } = await import("../../src/queues/batch-quality-queue");
+      const { getBatchJob, addBatchJob, updateBatchJob } =
+        await import("../../src/tools/quality/batch-evaluate.tool");
 
       const jobId = `test-lru-sync-${Date.now()}`;
 
       // LRUストアにジョブを追加
       addBatchJob({
         job_id: jobId,
-        status: 'processing',
+        status: "processing",
         total_items: 10,
         processed_items: 0,
         success_items: 0,
@@ -277,37 +269,44 @@ describe('MCP-RESP-04: Batch Quality Progress Accuracy', () => {
     });
   });
 
-  describe('Worker progress updates', () => {
-    it('should update progress correctly during batch processing', async () => {
+  describe("Worker progress updates", () => {
+    it("should update progress correctly during batch processing", async () => {
       // Mock updateBatchQualityJobProgress to capture calls
-      const updateProgressCalls: Array<{ processedItems: number; successItems: number; failedItems: number }> = [];
-      vi.doMock('../../src/queues/batch-quality-queue', async (importOriginal) => {
-        const original = await importOriginal<typeof import('../../src/queues/batch-quality-queue')>();
+      const updateProgressCalls: Array<{
+        processedItems: number;
+        successItems: number;
+        failedItems: number;
+      }> = [];
+      vi.doMock("../../src/queues/batch-quality-queue", async (importOriginal) => {
+        const original =
+          await importOriginal<typeof import("../../src/queues/batch-quality-queue")>();
         return {
           ...original,
-          updateBatchQualityJobProgress: vi.fn().mockImplementation(async (_job, processedItems, successItems, failedItems) => {
-            updateProgressCalls.push({ processedItems, successItems, failedItems });
-          }),
+          updateBatchQualityJobProgress: vi
+            .fn()
+            .mockImplementation(async (_job, processedItems, successItems, failedItems) => {
+              updateProgressCalls.push({ processedItems, successItems, failedItems });
+            }),
         };
       });
 
       // Re-import worker to get fresh module with mocked dependencies
       const { processBatchQualityJob, setQualityEvaluatorService, resetQualityEvaluatorService } =
-        await import('../../src/workers/batch-quality-worker');
+        await import("../../src/workers/batch-quality-worker");
 
       const mockService = {
         evaluatePage: vi.fn().mockResolvedValue({
           overall: 80,
-          grade: 'B',
+          grade: "B",
         }),
-        getPageById: vi.fn().mockResolvedValue('<html></html>'),
+        getPageById: vi.fn().mockResolvedValue("<html></html>"),
       };
 
       setQualityEvaluatorService(mockService);
 
       const jobId = `test-worker-progress-${Date.now()}`;
       const mockJob = {
-        id: 'bullmq-job-id',
+        id: "bullmq-job-id",
         data: {
           jobId,
           items: Array.from({ length: 4 }, (_, i) => ({
@@ -315,7 +314,7 @@ describe('MCP-RESP-04: Batch Quality Progress Accuracy', () => {
             html: `<html><body>Page ${i}</body></html>`,
           })),
           batchSize: 2,
-          onError: 'skip' as const,
+          onError: "skip" as const,
           strict: false,
           createdAt: new Date().toISOString(),
         },
@@ -334,35 +333,42 @@ describe('MCP-RESP-04: Batch Quality Progress Accuracy', () => {
         expect(result.totalItems).toBe(4);
       } finally {
         resetQualityEvaluatorService();
-        vi.doUnmock('../../src/queues/batch-quality-queue');
+        vi.doUnmock("../../src/queues/batch-quality-queue");
       }
     });
 
-    it('should update progress incrementally during processing', async () => {
+    it("should update progress incrementally during processing", async () => {
       // Mock updateBatchQualityJobProgress to capture calls
-      const updateProgressCalls: Array<{ processedItems: number; successItems: number; failedItems: number }> = [];
-      vi.doMock('../../src/queues/batch-quality-queue', async (importOriginal) => {
-        const original = await importOriginal<typeof import('../../src/queues/batch-quality-queue')>();
+      const updateProgressCalls: Array<{
+        processedItems: number;
+        successItems: number;
+        failedItems: number;
+      }> = [];
+      vi.doMock("../../src/queues/batch-quality-queue", async (importOriginal) => {
+        const original =
+          await importOriginal<typeof import("../../src/queues/batch-quality-queue")>();
         return {
           ...original,
-          updateBatchQualityJobProgress: vi.fn().mockImplementation(async (_job, processedItems, successItems, failedItems) => {
-            updateProgressCalls.push({ processedItems, successItems, failedItems });
-          }),
+          updateBatchQualityJobProgress: vi
+            .fn()
+            .mockImplementation(async (_job, processedItems, successItems, failedItems) => {
+              updateProgressCalls.push({ processedItems, successItems, failedItems });
+            }),
         };
       });
 
       const { processBatchQualityJob, setQualityEvaluatorService, resetQualityEvaluatorService } =
-        await import('../../src/workers/batch-quality-worker');
+        await import("../../src/workers/batch-quality-worker");
 
       const mockService = {
-        evaluatePage: vi.fn().mockResolvedValue({ overall: 80, grade: 'B' }),
-        getPageById: vi.fn().mockResolvedValue('<html></html>'),
+        evaluatePage: vi.fn().mockResolvedValue({ overall: 80, grade: "B" }),
+        getPageById: vi.fn().mockResolvedValue("<html></html>"),
       };
 
       setQualityEvaluatorService(mockService);
 
       const mockJob = {
-        id: 'bullmq-job-id',
+        id: "bullmq-job-id",
         data: {
           jobId: `test-incremental-job-${Date.now()}`,
           items: Array.from({ length: 6 }, (_, i) => ({
@@ -370,7 +376,7 @@ describe('MCP-RESP-04: Batch Quality Progress Accuracy', () => {
             html: `<html><body>Page ${i}</body></html>`,
           })),
           batchSize: 2, // 3バッチに分割
-          onError: 'skip' as const,
+          onError: "skip" as const,
           strict: false,
           createdAt: new Date().toISOString(),
         },
@@ -387,7 +393,7 @@ describe('MCP-RESP-04: Batch Quality Progress Accuracy', () => {
         expect(result.failedItems).toBe(0);
       } finally {
         resetQualityEvaluatorService();
-        vi.doUnmock('../../src/queues/batch-quality-queue');
+        vi.doUnmock("../../src/queues/batch-quality-queue");
       }
     });
   });

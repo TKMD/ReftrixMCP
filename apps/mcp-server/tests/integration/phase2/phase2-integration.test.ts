@@ -18,7 +18,7 @@
  * @module tests/integration/phase2/phase2-integration.test
  */
 
-import { describe, it, expect, beforeEach, vi, type Mock } from 'vitest';
+import { describe, it, expect, beforeEach, vi, type Mock } from "vitest";
 
 // Phase2実装モジュール
 import {
@@ -27,13 +27,13 @@ import {
   type PhaseResult,
   type PhaseType,
   type PhasedExecutionResult,
-} from '../../../src/tools/page/handlers/phased-executor';
+} from "../../../src/tools/page/handlers/phased-executor";
 
 import {
   PhasedDbHandler,
   type PhasedDbHandlerOptions,
   type MinimalPrismaClient,
-} from '../../../src/tools/page/handlers/phased-db-handler';
+} from "../../../src/tools/page/handlers/phased-db-handler";
 
 import {
   ExecutionStatusTrackerV2,
@@ -41,15 +41,15 @@ import {
   type ExecutionStatusV2,
   type AnalysisPhaseV2,
   PHASE_WEIGHTS,
-} from '../../../src/tools/page/handlers/execution-status-tracker';
+} from "../../../src/tools/page/handlers/execution-status-tracker";
 
-import { ExecutionStatusTracker } from '../../../src/tools/page/handlers/timeout-utils';
+import { ExecutionStatusTracker } from "../../../src/tools/page/handlers/timeout-utils";
 
 import type {
   LayoutServiceResult,
   MotionServiceResult,
   QualityServiceResult,
-} from '../../../src/tools/page/handlers/types';
+} from "../../../src/tools/page/handlers/types";
 
 // ============================================================================
 // 定数
@@ -78,7 +78,7 @@ const TEST_HTML = `
 `;
 
 /** テスト用URL */
-const TEST_URL = 'https://example.com/test-page';
+const TEST_URL = "https://example.com/test-page";
 
 // ============================================================================
 // モック Factory
@@ -120,7 +120,7 @@ function createMockQualityResult(overrides?: Partial<QualityServiceResult>): Qua
   return {
     success: true,
     overallScore: 85,
-    grade: 'A',
+    grade: "A",
     axisScores: {
       originality: 80,
       craftsmanship: 88,
@@ -149,7 +149,7 @@ function createMockPrismaClient(): MinimalPrismaClient & {
 } {
   return {
     webPage: {
-      update: vi.fn().mockResolvedValue({ id: 'test-page-id' }),
+      update: vi.fn().mockResolvedValue({ id: "test-page-id" }),
     },
   };
 }
@@ -158,7 +158,7 @@ function createMockPrismaClient(): MinimalPrismaClient & {
 // Phase2-1: PhasedExecutor テスト
 // ============================================================================
 
-describe('Phase2-1: PhasedExecutor（段階的分析実行）', () => {
+describe("Phase2-1: PhasedExecutor（段階的分析実行）", () => {
   let mockTracker: ExecutionStatusTracker;
 
   beforeEach(() => {
@@ -166,13 +166,13 @@ describe('Phase2-1: PhasedExecutor（段階的分析実行）', () => {
     mockTracker = new ExecutionStatusTracker({
       originalTimeoutMs: 60000,
       effectiveTimeoutMs: 60000,
-      strategy: 'progressive',
+      strategy: "progressive",
       partialResultsEnabled: true,
     });
   });
 
-  describe('正常フロー', () => {
-    it('Layout → Motion → Quality の順序で実行される', async () => {
+  describe("正常フロー", () => {
+    it("Layout → Motion → Quality の順序で実行される", async () => {
       const executionOrder: PhaseType[] = [];
 
       const options: PhasedExecutorOptions = {
@@ -182,15 +182,15 @@ describe('Phase2-1: PhasedExecutor（段階的分析実行）', () => {
         phaseTimeouts: TEST_TIMEOUTS,
         tracker: mockTracker,
         analyzeLayout: vi.fn().mockImplementation(async () => {
-          executionOrder.push('layout');
+          executionOrder.push("layout");
           return createMockLayoutResult();
         }),
         detectMotion: vi.fn().mockImplementation(async () => {
-          executionOrder.push('motion');
+          executionOrder.push("motion");
           return createMockMotionResult();
         }),
         evaluateQuality: vi.fn().mockImplementation(async () => {
-          executionOrder.push('quality');
+          executionOrder.push("quality");
           return createMockQualityResult();
         }),
       };
@@ -199,16 +199,16 @@ describe('Phase2-1: PhasedExecutor（段階的分析実行）', () => {
       const result = await executor.execute();
 
       // 実行順序の検証
-      expect(executionOrder).toEqual(['layout', 'motion', 'quality']);
+      expect(executionOrder).toEqual(["layout", "motion", "quality"]);
 
       // 結果の検証
       expect(result.overallSuccess).toBe(true);
       expect(result.partialSuccess).toBe(true);
-      expect(result.completedPhases).toEqual(['layout', 'motion', 'quality']);
+      expect(result.completedPhases).toEqual(["layout", "motion", "quality"]);
       expect(result.failedPhases).toEqual([]);
     });
 
-    it('全フェーズ成功時、overallSuccess=trueを返す', async () => {
+    it("全フェーズ成功時、overallSuccess=trueを返す", async () => {
       const options: PhasedExecutorOptions = {
         html: TEST_HTML,
         url: TEST_URL,
@@ -229,7 +229,7 @@ describe('Phase2-1: PhasedExecutor（段階的分析実行）', () => {
       expect(result.quality.success).toBe(true);
     });
 
-    it('各フェーズの処理時間（durationMs）が記録される', async () => {
+    it("各フェーズの処理時間（durationMs）が記録される", async () => {
       const LAYOUT_DELAY = 50;
       const MOTION_DELAY = 30;
       const QUALITY_DELAY = 20;
@@ -264,8 +264,8 @@ describe('Phase2-1: PhasedExecutor（段階的分析実行）', () => {
     });
   });
 
-  describe('部分成功', () => {
-    it('Layoutのみ成功、Motionでエラー発生時', async () => {
+  describe("部分成功", () => {
+    it("Layoutのみ成功、Motionでエラー発生時", async () => {
       const options: PhasedExecutorOptions = {
         html: TEST_HTML,
         url: TEST_URL,
@@ -273,7 +273,7 @@ describe('Phase2-1: PhasedExecutor（段階的分析実行）', () => {
         phaseTimeouts: TEST_TIMEOUTS,
         tracker: mockTracker,
         analyzeLayout: vi.fn().mockResolvedValue(createMockLayoutResult()),
-        detectMotion: vi.fn().mockRejectedValue(new Error('Motion detection failed')),
+        detectMotion: vi.fn().mockRejectedValue(new Error("Motion detection failed")),
         evaluateQuality: vi.fn().mockResolvedValue(createMockQualityResult()),
       };
 
@@ -283,17 +283,17 @@ describe('Phase2-1: PhasedExecutor（段階的分析実行）', () => {
       // 部分成功の検証
       expect(result.overallSuccess).toBe(false);
       expect(result.partialSuccess).toBe(true);
-      expect(result.completedPhases).toEqual(['layout', 'quality']);
-      expect(result.failedPhases).toEqual(['motion']);
+      expect(result.completedPhases).toEqual(["layout", "quality"]);
+      expect(result.failedPhases).toEqual(["motion"]);
 
       // 各フェーズの結果検証
       expect(result.layout.success).toBe(true);
       expect(result.motion.success).toBe(false);
-      expect(result.motion.error).toBe('Motion detection failed');
+      expect(result.motion.error).toBe("Motion detection failed");
       expect(result.quality.success).toBe(true);
     });
 
-    it('Layout + Motion成功、Qualityでエラー発生時', async () => {
+    it("Layout + Motion成功、Qualityでエラー発生時", async () => {
       const options: PhasedExecutorOptions = {
         html: TEST_HTML,
         url: TEST_URL,
@@ -302,7 +302,7 @@ describe('Phase2-1: PhasedExecutor（段階的分析実行）', () => {
         tracker: mockTracker,
         analyzeLayout: vi.fn().mockResolvedValue(createMockLayoutResult()),
         detectMotion: vi.fn().mockResolvedValue(createMockMotionResult()),
-        evaluateQuality: vi.fn().mockRejectedValue(new Error('Quality evaluation failed')),
+        evaluateQuality: vi.fn().mockRejectedValue(new Error("Quality evaluation failed")),
       };
 
       const executor = new PhasedExecutor(options);
@@ -310,20 +310,20 @@ describe('Phase2-1: PhasedExecutor（段階的分析実行）', () => {
 
       expect(result.overallSuccess).toBe(false);
       expect(result.partialSuccess).toBe(true);
-      expect(result.completedPhases).toEqual(['layout', 'motion']);
-      expect(result.failedPhases).toEqual(['quality']);
+      expect(result.completedPhases).toEqual(["layout", "motion"]);
+      expect(result.failedPhases).toEqual(["quality"]);
     });
 
-    it('全フェーズ失敗時、partialSuccess=falseを返す', async () => {
+    it("全フェーズ失敗時、partialSuccess=falseを返す", async () => {
       const options: PhasedExecutorOptions = {
         html: TEST_HTML,
         url: TEST_URL,
         features: { layout: true, motion: true, quality: true },
         phaseTimeouts: TEST_TIMEOUTS,
         tracker: mockTracker,
-        analyzeLayout: vi.fn().mockRejectedValue(new Error('Layout failed')),
-        detectMotion: vi.fn().mockRejectedValue(new Error('Motion failed')),
-        evaluateQuality: vi.fn().mockRejectedValue(new Error('Quality failed')),
+        analyzeLayout: vi.fn().mockRejectedValue(new Error("Layout failed")),
+        detectMotion: vi.fn().mockRejectedValue(new Error("Motion failed")),
+        evaluateQuality: vi.fn().mockRejectedValue(new Error("Quality failed")),
       };
 
       const executor = new PhasedExecutor(options);
@@ -332,12 +332,12 @@ describe('Phase2-1: PhasedExecutor（段階的分析実行）', () => {
       expect(result.overallSuccess).toBe(false);
       expect(result.partialSuccess).toBe(false);
       expect(result.completedPhases).toEqual([]);
-      expect(result.failedPhases).toEqual(['layout', 'motion', 'quality']);
+      expect(result.failedPhases).toEqual(["layout", "motion", "quality"]);
     });
   });
 
-  describe('タイムアウト処理', () => {
-    it('Motionフェーズでタイムアウト発生時、timedOut=trueを返す', async () => {
+  describe("タイムアウト処理", () => {
+    it("Motionフェーズでタイムアウト発生時、timedOut=trueを返す", async () => {
       const options: PhasedExecutorOptions = {
         html: TEST_HTML,
         url: TEST_URL,
@@ -361,7 +361,7 @@ describe('Phase2-1: PhasedExecutor（段階的分析実行）', () => {
 
       expect(result.motion.success).toBe(false);
       expect(result.motion.timedOut).toBe(true);
-      expect(result.motion.error).toContain('timed out');
+      expect(result.motion.error).toContain("timed out");
 
       // 他のフェーズは正常に完了
       expect(result.layout.success).toBe(true);
@@ -369,8 +369,8 @@ describe('Phase2-1: PhasedExecutor（段階的分析実行）', () => {
     });
   });
 
-  describe('フェーズ無効化', () => {
-    it('motion=falseの場合、Motionフェーズはスキップされる', async () => {
+  describe("フェーズ無効化", () => {
+    it("motion=falseの場合、Motionフェーズはスキップされる", async () => {
       const detectMotion = vi.fn();
 
       const options: PhasedExecutorOptions = {
@@ -392,16 +392,16 @@ describe('Phase2-1: PhasedExecutor（段階的分析実行）', () => {
 
       // Motionはスキップ状態
       expect(result.motion.success).toBe(false);
-      expect(result.motion.error).toBe('Phase skipped');
+      expect(result.motion.error).toBe("Phase skipped");
 
       // 全体としては成功（有効化されたフェーズのみカウント）
       expect(result.overallSuccess).toBe(true);
-      expect(result.completedPhases).toEqual(['layout', 'quality']);
+      expect(result.completedPhases).toEqual(["layout", "quality"]);
     });
   });
 
-  describe('onPhaseComplete コールバック', () => {
-    it('各フェーズ成功時にonPhaseCompleteが呼ばれる', async () => {
+  describe("onPhaseComplete コールバック", () => {
+    it("各フェーズ成功時にonPhaseCompleteが呼ばれる", async () => {
       const onPhaseComplete = vi.fn().mockResolvedValue(undefined);
 
       const options: PhasedExecutorOptions = {
@@ -423,21 +423,33 @@ describe('Phase2-1: PhasedExecutor（段階的分析実行）', () => {
       expect(onPhaseComplete).toHaveBeenCalledTimes(3);
 
       // 各呼び出しの引数を検証
-      expect(onPhaseComplete).toHaveBeenNthCalledWith(1, 'layout', expect.objectContaining({
-        phase: 'layout',
-        success: true,
-      }));
-      expect(onPhaseComplete).toHaveBeenNthCalledWith(2, 'motion', expect.objectContaining({
-        phase: 'motion',
-        success: true,
-      }));
-      expect(onPhaseComplete).toHaveBeenNthCalledWith(3, 'quality', expect.objectContaining({
-        phase: 'quality',
-        success: true,
-      }));
+      expect(onPhaseComplete).toHaveBeenNthCalledWith(
+        1,
+        "layout",
+        expect.objectContaining({
+          phase: "layout",
+          success: true,
+        })
+      );
+      expect(onPhaseComplete).toHaveBeenNthCalledWith(
+        2,
+        "motion",
+        expect.objectContaining({
+          phase: "motion",
+          success: true,
+        })
+      );
+      expect(onPhaseComplete).toHaveBeenNthCalledWith(
+        3,
+        "quality",
+        expect.objectContaining({
+          phase: "quality",
+          success: true,
+        })
+      );
     });
 
-    it('フェーズ失敗時はonPhaseCompleteが呼ばれない', async () => {
+    it("フェーズ失敗時はonPhaseCompleteが呼ばれない", async () => {
       const onPhaseComplete = vi.fn().mockResolvedValue(undefined);
 
       const options: PhasedExecutorOptions = {
@@ -447,7 +459,7 @@ describe('Phase2-1: PhasedExecutor（段階的分析実行）', () => {
         phaseTimeouts: TEST_TIMEOUTS,
         tracker: mockTracker,
         analyzeLayout: vi.fn().mockResolvedValue(createMockLayoutResult()),
-        detectMotion: vi.fn().mockRejectedValue(new Error('Motion failed')),
+        detectMotion: vi.fn().mockRejectedValue(new Error("Motion failed")),
         evaluateQuality: vi.fn().mockResolvedValue(createMockQualityResult()),
         onPhaseComplete,
       };
@@ -459,9 +471,10 @@ describe('Phase2-1: PhasedExecutor（段階的分析実行）', () => {
       expect(onPhaseComplete).toHaveBeenCalledTimes(2);
     });
 
-    it('onPhaseCompleteでエラーが発生しても処理は継続する', async () => {
-      const onPhaseComplete = vi.fn()
-        .mockRejectedValueOnce(new Error('Callback error'))
+    it("onPhaseCompleteでエラーが発生しても処理は継続する", async () => {
+      const onPhaseComplete = vi
+        .fn()
+        .mockRejectedValueOnce(new Error("Callback error"))
         .mockResolvedValue(undefined);
 
       const options: PhasedExecutorOptions = {
@@ -490,10 +503,10 @@ describe('Phase2-1: PhasedExecutor（段階的分析実行）', () => {
 // Phase2-2: PhasedDbHandler テスト
 // ============================================================================
 
-describe('Phase2-2: PhasedDbHandler（部分結果即時DB保存）', () => {
+describe("Phase2-2: PhasedDbHandler（部分結果即時DB保存）", () => {
   let mockPrisma: MinimalPrismaClient & { webPage: { update: Mock } };
   let handler: PhasedDbHandler;
-  const TEST_WEB_PAGE_ID = 'test-web-page-id';
+  const TEST_WEB_PAGE_ID = "test-web-page-id";
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -504,15 +517,15 @@ describe('Phase2-2: PhasedDbHandler（部分結果即時DB保存）', () => {
     });
   });
 
-  describe('markAnalysisStarted', () => {
-    it('分析開始時にanalysisPhaseStatus=pendingでDBを更新する', async () => {
+  describe("markAnalysisStarted", () => {
+    it("分析開始時にanalysisPhaseStatus=pendingでDBを更新する", async () => {
       await handler.markAnalysisStarted();
 
       expect(mockPrisma.webPage.update).toHaveBeenCalledWith({
         where: { id: TEST_WEB_PAGE_ID },
         data: expect.objectContaining({
-          analysisPhaseStatus: 'pending',
-          analysisStatus: 'processing',
+          analysisPhaseStatus: "pending",
+          analysisStatus: "processing",
           analysisStartedAt: expect.any(Date),
           analysisError: null,
           lastAnalyzedPhase: null,
@@ -521,138 +534,138 @@ describe('Phase2-2: PhasedDbHandler（部分結果即時DB保存）', () => {
     });
   });
 
-  describe('commitPhaseResult', () => {
-    it('Layout成功時にanalysisPhaseStatus=layout_doneを設定する', async () => {
+  describe("commitPhaseResult", () => {
+    it("Layout成功時にanalysisPhaseStatus=layout_doneを設定する", async () => {
       const layoutResult: PhaseResult<LayoutServiceResult> = {
-        phase: 'layout',
+        phase: "layout",
         success: true,
         data: createMockLayoutResult(),
         durationMs: 100,
         timedOut: false,
       };
 
-      await handler.commitPhaseResult('layout', layoutResult);
+      await handler.commitPhaseResult("layout", layoutResult);
 
       expect(mockPrisma.webPage.update).toHaveBeenCalledWith({
         where: { id: TEST_WEB_PAGE_ID },
         data: {
-          analysisPhaseStatus: 'layout_done',
-          lastAnalyzedPhase: 'layout',
+          analysisPhaseStatus: "layout_done",
+          lastAnalyzedPhase: "layout",
         },
       });
     });
 
-    it('Motion成功時にanalysisPhaseStatus=motion_doneを設定する', async () => {
+    it("Motion成功時にanalysisPhaseStatus=motion_doneを設定する", async () => {
       const motionResult: PhaseResult<MotionServiceResult> = {
-        phase: 'motion',
+        phase: "motion",
         success: true,
         data: createMockMotionResult(),
         durationMs: 150,
         timedOut: false,
       };
 
-      await handler.commitPhaseResult('motion', motionResult);
+      await handler.commitPhaseResult("motion", motionResult);
 
       expect(mockPrisma.webPage.update).toHaveBeenCalledWith({
         where: { id: TEST_WEB_PAGE_ID },
         data: {
-          analysisPhaseStatus: 'motion_done',
-          lastAnalyzedPhase: 'motion',
+          analysisPhaseStatus: "motion_done",
+          lastAnalyzedPhase: "motion",
         },
       });
     });
 
-    it('Quality成功時にanalysisPhaseStatus=quality_doneを設定する', async () => {
+    it("Quality成功時にanalysisPhaseStatus=quality_doneを設定する", async () => {
       const qualityResult: PhaseResult<QualityServiceResult> = {
-        phase: 'quality',
+        phase: "quality",
         success: true,
         data: createMockQualityResult(),
         durationMs: 200,
         timedOut: false,
       };
 
-      await handler.commitPhaseResult('quality', qualityResult);
+      await handler.commitPhaseResult("quality", qualityResult);
 
       expect(mockPrisma.webPage.update).toHaveBeenCalledWith({
         where: { id: TEST_WEB_PAGE_ID },
         data: {
-          analysisPhaseStatus: 'quality_done',
-          lastAnalyzedPhase: 'quality',
+          analysisPhaseStatus: "quality_done",
+          lastAnalyzedPhase: "quality",
         },
       });
     });
 
-    it('フェーズ失敗時はDBを更新しない（部分成功を維持）', async () => {
+    it("フェーズ失敗時はDBを更新しない（部分成功を維持）", async () => {
       const failedResult: PhaseResult<MotionServiceResult> = {
-        phase: 'motion',
+        phase: "motion",
         success: false,
-        error: 'Motion detection failed',
+        error: "Motion detection failed",
         durationMs: 100,
         timedOut: false,
       };
 
-      await handler.commitPhaseResult('motion', failedResult);
+      await handler.commitPhaseResult("motion", failedResult);
 
       expect(mockPrisma.webPage.update).not.toHaveBeenCalled();
     });
 
-    it('タイムアウト時もDBを更新しない', async () => {
+    it("タイムアウト時もDBを更新しない", async () => {
       const timedOutResult: PhaseResult<MotionServiceResult> = {
-        phase: 'motion',
+        phase: "motion",
         success: false,
-        error: 'motion-analysis timed out after 10000ms',
+        error: "motion-analysis timed out after 10000ms",
         durationMs: 10000,
         timedOut: true,
       };
 
-      await handler.commitPhaseResult('motion', timedOutResult);
+      await handler.commitPhaseResult("motion", timedOutResult);
 
       expect(mockPrisma.webPage.update).not.toHaveBeenCalled();
     });
   });
 
-  describe('markAnalysisCompleted', () => {
-    it('全フェーズ成功時（overallSuccess=true）はanalysisPhaseStatus=completedを設定する', async () => {
+  describe("markAnalysisCompleted", () => {
+    it("全フェーズ成功時（overallSuccess=true）はanalysisPhaseStatus=completedを設定する", async () => {
       await handler.markAnalysisCompleted(true);
 
       expect(mockPrisma.webPage.update).toHaveBeenCalledWith({
         where: { id: TEST_WEB_PAGE_ID },
         data: expect.objectContaining({
-          analysisPhaseStatus: 'completed',
-          analysisStatus: 'completed',
+          analysisPhaseStatus: "completed",
+          analysisStatus: "completed",
           analysisCompletedAt: expect.any(Date),
         }),
       });
     });
 
-    it('部分成功時（overallSuccess=false）はanalysisPhaseStatusを変更しない', async () => {
+    it("部分成功時（overallSuccess=false）はanalysisPhaseStatusを変更しない", async () => {
       await handler.markAnalysisCompleted(false);
 
       expect(mockPrisma.webPage.update).toHaveBeenCalledWith({
         where: { id: TEST_WEB_PAGE_ID },
         data: expect.objectContaining({
-          analysisStatus: 'completed',
+          analysisStatus: "completed",
           analysisCompletedAt: expect.any(Date),
         }),
       });
 
       // analysisPhaseStatus が含まれていないことを確認
       const updateCall = mockPrisma.webPage.update.mock.calls[0][0];
-      expect(updateCall.data).not.toHaveProperty('analysisPhaseStatus');
+      expect(updateCall.data).not.toHaveProperty("analysisPhaseStatus");
     });
   });
 
-  describe('markAnalysisFailed', () => {
-    it('分析失敗時にanalysisPhaseStatus=failedを設定する', async () => {
-      const errorMessage = 'Critical error during analysis';
+  describe("markAnalysisFailed", () => {
+    it("分析失敗時にanalysisPhaseStatus=failedを設定する", async () => {
+      const errorMessage = "Critical error during analysis";
 
       await handler.markAnalysisFailed(errorMessage);
 
       expect(mockPrisma.webPage.update).toHaveBeenCalledWith({
         where: { id: TEST_WEB_PAGE_ID },
         data: {
-          analysisPhaseStatus: 'failed',
-          analysisStatus: 'failed',
+          analysisPhaseStatus: "failed",
+          analysisStatus: "failed",
           analysisError: errorMessage,
           analysisCompletedAt: expect.any(Date),
         },
@@ -665,10 +678,10 @@ describe('Phase2-2: PhasedDbHandler（部分結果即時DB保存）', () => {
 // Phase2-3: ExecutionStatusTrackerV2 テスト
 // ============================================================================
 
-describe('Phase2-3: ExecutionStatusTrackerV2（進捗追跡・重み付き進捗計算）', () => {
+describe("Phase2-3: ExecutionStatusTrackerV2（進捗追跡・重み付き進捗計算）", () => {
   let tracker: ExecutionStatusTrackerV2;
-  const TEST_WEB_PAGE_ID = 'test-web-page-id';
-  const TEST_URL = 'https://example.com/test-page';
+  const TEST_WEB_PAGE_ID = "test-web-page-id";
+  const TEST_URL = "https://example.com/test-page";
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -678,93 +691,101 @@ describe('Phase2-3: ExecutionStatusTrackerV2（進捗追跡・重み付き進捗
     });
   });
 
-  describe('フェーズ状態管理', () => {
-    it('initialize後、全フェーズがpending状態', () => {
+  describe("フェーズ状態管理", () => {
+    it("initialize後、全フェーズがpending状態", () => {
       tracker.initialize();
       const status = tracker.getStatus();
 
-      expect(status.phases.initializing.status).toBe('pending');
-      expect(status.phases.layout.status).toBe('pending');
-      expect(status.phases.motion.status).toBe('pending');
-      expect(status.phases.quality.status).toBe('pending');
-      expect(status.phases.narrative.status).toBe('pending');
-      expect(status.phases.finalizing.status).toBe('pending');
+      expect(status.phases.initializing.status).toBe("pending");
+      expect(status.phases.layout.status).toBe("pending");
+      expect(status.phases.motion.status).toBe("pending");
+      expect(status.phases.quality.status).toBe("pending");
+      expect(status.phases.narrative.status).toBe("pending");
+      expect(status.phases.finalizing.status).toBe("pending");
     });
 
-    it('startPhase後、該当フェーズがrunning状態', () => {
+    it("startPhase後、該当フェーズがrunning状態", () => {
       tracker.initialize();
-      tracker.startPhase('layout');
+      tracker.startPhase("layout");
       const status = tracker.getStatus();
 
-      expect(status.phases.layout.status).toBe('running');
+      expect(status.phases.layout.status).toBe("running");
       expect(status.phases.layout.startedAt).toBeInstanceOf(Date);
-      expect(status.currentPhase).toBe('layout');
+      expect(status.currentPhase).toBe("layout");
     });
 
-    it('completePhase後、該当フェーズがcompleted状態', () => {
+    it("completePhase後、該当フェーズがcompleted状態", () => {
       tracker.initialize();
-      tracker.startPhase('layout');
-      tracker.completePhase('layout');
+      tracker.startPhase("layout");
+      tracker.completePhase("layout");
       const status = tracker.getStatus();
 
-      expect(status.phases.layout.status).toBe('completed');
+      expect(status.phases.layout.status).toBe("completed");
       expect(status.phases.layout.completedAt).toBeInstanceOf(Date);
       expect(status.phases.layout.progress).toBe(100);
     });
 
-    it('failPhase後、該当フェーズがfailed状態', () => {
+    it("failPhase後、該当フェーズがfailed状態", () => {
       tracker.initialize();
-      tracker.startPhase('motion');
-      tracker.failPhase('motion', 'Motion detection error');
+      tracker.startPhase("motion");
+      tracker.failPhase("motion", "Motion detection error");
       const status = tracker.getStatus();
 
-      expect(status.phases.motion.status).toBe('failed');
-      expect(status.phases.motion.error).toBe('Motion detection error');
+      expect(status.phases.motion.status).toBe("failed");
+      expect(status.phases.motion.error).toBe("Motion detection error");
     });
 
-    it('skipPhase後、該当フェーズがskipped状態', () => {
+    it("skipPhase後、該当フェーズがskipped状態", () => {
       tracker.initialize();
-      tracker.skipPhase('quality', 'Quality evaluation disabled');
+      tracker.skipPhase("quality", "Quality evaluation disabled");
       const status = tracker.getStatus();
 
-      expect(status.phases.quality.status).toBe('skipped');
-      expect(status.phases.quality.error).toBe('Quality evaluation disabled');
+      expect(status.phases.quality.status).toBe("skipped");
+      expect(status.phases.quality.error).toBe("Quality evaluation disabled");
     });
   });
 
-  describe('重み付き進捗計算', () => {
-    it('初期状態でoverallProgress=0', () => {
+  describe("重み付き進捗計算", () => {
+    it("初期状態でoverallProgress=0", () => {
       tracker.initialize();
       const status = tracker.getStatus();
 
       expect(status.overallProgress).toBe(0);
     });
 
-    it('initializingフェーズ完了で5%進捗', () => {
+    it("initializingフェーズ完了で5%進捗", () => {
       tracker.initialize();
-      tracker.startPhase('initializing');
-      tracker.completePhase('initializing');
+      tracker.startPhase("initializing");
+      tracker.completePhase("initializing");
       const status = tracker.getStatus();
 
       expect(status.overallProgress).toBe(PHASE_WEIGHTS.initializing);
     });
 
-    it('initializing + layout完了で40%進捗', () => {
+    it("initializing + layout完了で40%進捗", () => {
       tracker.initialize();
-      tracker.startPhase('initializing');
-      tracker.completePhase('initializing');
-      tracker.startPhase('layout');
-      tracker.completePhase('layout');
+      tracker.startPhase("initializing");
+      tracker.completePhase("initializing");
+      tracker.startPhase("layout");
+      tracker.completePhase("layout");
       const status = tracker.getStatus();
 
       const expectedProgress = PHASE_WEIGHTS.initializing + PHASE_WEIGHTS.layout;
       expect(status.overallProgress).toBe(expectedProgress);
     });
 
-    it('全フェーズ完了で100%進捗', () => {
+    it("全フェーズ完了で100%進捗", () => {
       tracker.initialize();
 
-      const phases: AnalysisPhaseV2[] = ['initializing', 'layout', 'motion', 'quality', 'narrative', 'responsive', 'finalizing'];
+      const phases: AnalysisPhaseV2[] = [
+        "initializing",
+        "layout",
+        "motion",
+        "quality",
+        "narrative",
+        "responsive",
+        "finalizing",
+      ];
       for (const phase of phases) {
         tracker.startPhase(phase);
         tracker.completePhase(phase);
@@ -774,52 +795,52 @@ describe('Phase2-3: ExecutionStatusTrackerV2（進捗追跡・重み付き進捗
       expect(status.overallProgress).toBe(100);
     });
 
-    it('skippedフェーズも100%として計算される', () => {
+    it("skippedフェーズも100%として計算される", () => {
       tracker.initialize();
-      tracker.startPhase('initializing');
-      tracker.completePhase('initializing');
-      tracker.startPhase('layout');
-      tracker.completePhase('layout');
-      tracker.skipPhase('motion'); // スキップ
-      tracker.startPhase('quality');
-      tracker.completePhase('quality');
-      tracker.startPhase('narrative');
-      tracker.completePhase('narrative');
-      tracker.startPhase('responsive');
-      tracker.completePhase('responsive');
-      tracker.startPhase('finalizing');
-      tracker.completePhase('finalizing');
+      tracker.startPhase("initializing");
+      tracker.completePhase("initializing");
+      tracker.startPhase("layout");
+      tracker.completePhase("layout");
+      tracker.skipPhase("motion"); // スキップ
+      tracker.startPhase("quality");
+      tracker.completePhase("quality");
+      tracker.startPhase("narrative");
+      tracker.completePhase("narrative");
+      tracker.startPhase("responsive");
+      tracker.completePhase("responsive");
+      tracker.startPhase("finalizing");
+      tracker.completePhase("finalizing");
 
       const status = tracker.getStatus();
       expect(status.overallProgress).toBe(100);
     });
 
-    it('failedフェーズは0%として計算される', () => {
+    it("failedフェーズは0%として計算される", () => {
       tracker.initialize();
-      tracker.startPhase('initializing');
-      tracker.completePhase('initializing'); // 5%
-      tracker.startPhase('layout');
-      tracker.failPhase('layout', 'Layout error'); // 0%（失敗）
+      tracker.startPhase("initializing");
+      tracker.completePhase("initializing"); // 5%
+      tracker.startPhase("layout");
+      tracker.failPhase("layout", "Layout error"); // 0%（失敗）
 
       const status = tracker.getStatus();
       expect(status.overallProgress).toBe(PHASE_WEIGHTS.initializing);
     });
 
-    it('runningフェーズの進捗率が反映される', () => {
+    it("runningフェーズの進捗率が反映される", () => {
       tracker.initialize();
-      tracker.startPhase('initializing');
-      tracker.completePhase('initializing'); // 5%
-      tracker.startPhase('layout');
-      tracker.updatePhaseProgress('layout', 50); // Layout 50% = 30 * 0.5 = 15%
+      tracker.startPhase("initializing");
+      tracker.completePhase("initializing"); // 5%
+      tracker.startPhase("layout");
+      tracker.updatePhaseProgress("layout", 50); // Layout 50% = 30 * 0.5 = 15%
 
       const status = tracker.getStatus();
-      const expectedProgress = PHASE_WEIGHTS.initializing + (PHASE_WEIGHTS.layout * 50 / 100);
+      const expectedProgress = PHASE_WEIGHTS.initializing + (PHASE_WEIGHTS.layout * 50) / 100;
       expect(status.overallProgress).toBe(Math.round(expectedProgress));
     });
   });
 
-  describe('onStatusChangeコールバック', () => {
-    it('startPhase時にonStatusChangeが呼ばれる', () => {
+  describe("onStatusChangeコールバック", () => {
+    it("startPhase時にonStatusChangeが呼ばれる", () => {
       const onStatusChange = vi.fn();
       tracker = new ExecutionStatusTrackerV2({
         webPageId: TEST_WEB_PAGE_ID,
@@ -830,17 +851,17 @@ describe('Phase2-3: ExecutionStatusTrackerV2（進捗追跡・重み付き進捗
       tracker.initialize();
       onStatusChange.mockClear();
 
-      tracker.startPhase('layout');
+      tracker.startPhase("layout");
 
       expect(onStatusChange).toHaveBeenCalledTimes(1);
       expect(onStatusChange).toHaveBeenCalledWith(
         expect.objectContaining({
-          currentPhase: 'layout',
+          currentPhase: "layout",
         })
       );
     });
 
-    it('completePhase時にonStatusChangeが呼ばれる', () => {
+    it("completePhase時にonStatusChangeが呼ばれる", () => {
       const onStatusChange = vi.fn();
       tracker = new ExecutionStatusTrackerV2({
         webPageId: TEST_WEB_PAGE_ID,
@@ -849,24 +870,24 @@ describe('Phase2-3: ExecutionStatusTrackerV2（進捗追跡・重み付き進捗
       });
 
       tracker.initialize();
-      tracker.startPhase('layout');
+      tracker.startPhase("layout");
       onStatusChange.mockClear();
 
-      tracker.completePhase('layout');
+      tracker.completePhase("layout");
 
       expect(onStatusChange).toHaveBeenCalledTimes(1);
       expect(onStatusChange).toHaveBeenCalledWith(
         expect.objectContaining({
           phases: expect.objectContaining({
             layout: expect.objectContaining({
-              status: 'completed',
+              status: "completed",
             }),
           }),
         })
       );
     });
 
-    it('updatePhaseProgress時にonStatusChangeが呼ばれる', () => {
+    it("updatePhaseProgress時にonStatusChangeが呼ばれる", () => {
       const onStatusChange = vi.fn();
       tracker = new ExecutionStatusTrackerV2({
         webPageId: TEST_WEB_PAGE_ID,
@@ -875,17 +896,17 @@ describe('Phase2-3: ExecutionStatusTrackerV2（進捗追跡・重み付き進捗
       });
 
       tracker.initialize();
-      tracker.startPhase('layout');
+      tracker.startPhase("layout");
       onStatusChange.mockClear();
 
-      tracker.updatePhaseProgress('layout', 75);
+      tracker.updatePhaseProgress("layout", 75);
 
       expect(onStatusChange).toHaveBeenCalledTimes(1);
     });
 
-    it('コールバックでエラーが発生しても処理は継続する', () => {
+    it("コールバックでエラーが発生しても処理は継続する", () => {
       const onStatusChange = vi.fn().mockImplementation(() => {
-        throw new Error('Callback error');
+        throw new Error("Callback error");
       });
 
       tracker = new ExecutionStatusTrackerV2({
@@ -897,25 +918,25 @@ describe('Phase2-3: ExecutionStatusTrackerV2（進捗追跡・重み付き進捗
       // エラーが発生してもクラッシュしない
       expect(() => {
         tracker.initialize();
-        tracker.startPhase('layout');
-        tracker.completePhase('layout');
+        tracker.startPhase("layout");
+        tracker.completePhase("layout");
       }).not.toThrow();
     });
   });
 
-  describe('完了予測時間計算', () => {
-    it('2フェーズ完了後に完了予測時間が計算される', async () => {
+  describe("完了予測時間計算", () => {
+    it("2フェーズ完了後に完了予測時間が計算される", async () => {
       tracker.initialize();
 
       // initializingフェーズ
-      tracker.startPhase('initializing');
+      tracker.startPhase("initializing");
       await delay(50);
-      tracker.completePhase('initializing');
+      tracker.completePhase("initializing");
 
       // layoutフェーズ
-      tracker.startPhase('layout');
+      tracker.startPhase("layout");
       await delay(100);
-      tracker.completePhase('layout');
+      tracker.completePhase("layout");
 
       const status = tracker.getStatus();
 
@@ -923,12 +944,12 @@ describe('Phase2-3: ExecutionStatusTrackerV2（進捗追跡・重み付き進捗
       expect(status.estimatedCompletion).toBeInstanceOf(Date);
     });
 
-    it('1フェーズ完了時点では予測不可（undefined）', async () => {
+    it("1フェーズ完了時点では予測不可（undefined）", async () => {
       tracker.initialize();
 
-      tracker.startPhase('initializing');
+      tracker.startPhase("initializing");
       await delay(50);
-      tracker.completePhase('initializing');
+      tracker.completePhase("initializing");
 
       const status = tracker.getStatus();
 
@@ -942,15 +963,15 @@ describe('Phase2-3: ExecutionStatusTrackerV2（進捗追跡・重み付き進捗
 // Phase2 統合シナリオテスト
 // ============================================================================
 
-describe('Phase2 統合シナリオ', () => {
-  describe('PhasedExecutor + PhasedDbHandler + ExecutionStatusTrackerV2 統合', () => {
-    it('正常フロー: Layout → Motion → Quality 全成功', async () => {
+describe("Phase2 統合シナリオ", () => {
+  describe("PhasedExecutor + PhasedDbHandler + ExecutionStatusTrackerV2 統合", () => {
+    it("正常フロー: Layout → Motion → Quality 全成功", async () => {
       const mockPrisma = createMockPrismaClient();
       const statusChanges: ExecutionStatusV2[] = [];
 
       // ExecutionStatusTrackerV2の設定
       const trackerV2 = new ExecutionStatusTrackerV2({
-        webPageId: 'test-page-id',
+        webPageId: "test-page-id",
         url: TEST_URL,
         onStatusChange: (status) => statusChanges.push({ ...status }),
       });
@@ -959,14 +980,14 @@ describe('Phase2 統合シナリオ', () => {
       // PhasedDbHandlerの設定
       const dbHandler = new PhasedDbHandler({
         prisma: mockPrisma,
-        webPageId: 'test-page-id',
+        webPageId: "test-page-id",
       });
 
       // ExecutionStatusTracker（withTimeout用）の設定
       const tracker = new ExecutionStatusTracker({
         originalTimeoutMs: 60000,
         effectiveTimeoutMs: 60000,
-        strategy: 'progressive',
+        strategy: "progressive",
         partialResultsEnabled: true,
       });
 
@@ -978,21 +999,21 @@ describe('Phase2 統合シナリオ', () => {
         phaseTimeouts: TEST_TIMEOUTS,
         tracker,
         analyzeLayout: vi.fn().mockImplementation(async () => {
-          trackerV2.startPhase('layout');
+          trackerV2.startPhase("layout");
           const result = createMockLayoutResult();
-          trackerV2.completePhase('layout');
+          trackerV2.completePhase("layout");
           return result;
         }),
         detectMotion: vi.fn().mockImplementation(async () => {
-          trackerV2.startPhase('motion');
+          trackerV2.startPhase("motion");
           const result = createMockMotionResult();
-          trackerV2.completePhase('motion');
+          trackerV2.completePhase("motion");
           return result;
         }),
         evaluateQuality: vi.fn().mockImplementation(async () => {
-          trackerV2.startPhase('quality');
+          trackerV2.startPhase("quality");
           const result = createMockQualityResult();
-          trackerV2.completePhase('quality');
+          trackerV2.completePhase("quality");
           return result;
         }),
         onPhaseComplete: async (phase, result) => {
@@ -1012,27 +1033,27 @@ describe('Phase2 統合シナリオ', () => {
 
       // 結果検証
       expect(result.overallSuccess).toBe(true);
-      expect(result.completedPhases).toEqual(['layout', 'motion', 'quality']);
+      expect(result.completedPhases).toEqual(["layout", "motion", "quality"]);
 
       // DB更新の検証
       expect(mockPrisma.webPage.update).toHaveBeenCalledTimes(5); // start + 3 phases + complete
 
       // TrackerV2の状態検証
       const finalStatus = trackerV2.getStatus();
-      expect(finalStatus.phases.layout.status).toBe('completed');
-      expect(finalStatus.phases.motion.status).toBe('completed');
-      expect(finalStatus.phases.quality.status).toBe('completed');
+      expect(finalStatus.phases.layout.status).toBe("completed");
+      expect(finalStatus.phases.motion.status).toBe("completed");
+      expect(finalStatus.phases.quality.status).toBe("completed");
 
       // onStatusChangeが呼ばれたことを確認
       expect(statusChanges.length).toBeGreaterThan(0);
     });
 
-    it('部分成功: Layoutのみ成功、Motionでタイムアウト', async () => {
+    it("部分成功: Layoutのみ成功、Motionでタイムアウト", async () => {
       const mockPrisma = createMockPrismaClient();
 
       // ExecutionStatusTrackerV2の設定
       const trackerV2 = new ExecutionStatusTrackerV2({
-        webPageId: 'test-page-id',
+        webPageId: "test-page-id",
         url: TEST_URL,
       });
       trackerV2.initialize();
@@ -1040,14 +1061,14 @@ describe('Phase2 統合シナリオ', () => {
       // PhasedDbHandlerの設定
       const dbHandler = new PhasedDbHandler({
         prisma: mockPrisma,
-        webPageId: 'test-page-id',
+        webPageId: "test-page-id",
       });
 
       // ExecutionStatusTracker（withTimeout用）の設定
       const tracker = new ExecutionStatusTracker({
         originalTimeoutMs: 60000,
         effectiveTimeoutMs: 60000,
-        strategy: 'progressive',
+        strategy: "progressive",
         partialResultsEnabled: true,
       });
 
@@ -1063,21 +1084,21 @@ describe('Phase2 統合シナリオ', () => {
         },
         tracker,
         analyzeLayout: vi.fn().mockImplementation(async () => {
-          trackerV2.startPhase('layout');
+          trackerV2.startPhase("layout");
           const result = createMockLayoutResult();
-          trackerV2.completePhase('layout');
+          trackerV2.completePhase("layout");
           return result;
         }),
         detectMotion: vi.fn().mockImplementation(async () => {
-          trackerV2.startPhase('motion');
+          trackerV2.startPhase("motion");
           await delay(200); // タイムアウトより長い
-          trackerV2.completePhase('motion');
+          trackerV2.completePhase("motion");
           return createMockMotionResult();
         }),
         evaluateQuality: vi.fn().mockImplementation(async () => {
-          trackerV2.startPhase('quality');
+          trackerV2.startPhase("quality");
           const result = createMockQualityResult();
-          trackerV2.completePhase('quality');
+          trackerV2.completePhase("quality");
           return result;
         }),
         onPhaseComplete: async (phase, result) => {
@@ -1098,8 +1119,8 @@ describe('Phase2 統合シナリオ', () => {
       // 結果検証
       expect(result.overallSuccess).toBe(false);
       expect(result.partialSuccess).toBe(true);
-      expect(result.completedPhases).toContain('layout');
-      expect(result.completedPhases).toContain('quality');
+      expect(result.completedPhases).toContain("layout");
+      expect(result.completedPhases).toContain("quality");
       expect(result.motion.timedOut).toBe(true);
 
       // DB更新の検証（Motionは失敗したので更新されない）
@@ -1112,25 +1133,25 @@ describe('Phase2 統合シナリオ', () => {
 
       // layout_done と quality_done が含まれることを確認
       const phaseStatuses = phaseStatusUpdates.map((call) => call[0].data.analysisPhaseStatus);
-      expect(phaseStatuses).toContain('layout_done');
-      expect(phaseStatuses).toContain('quality_done');
+      expect(phaseStatuses).toContain("layout_done");
+      expect(phaseStatuses).toContain("quality_done");
     });
 
-    it('DB更新失敗時も分析は継続する', async () => {
+    it("DB更新失敗時も分析は継続する", async () => {
       const mockPrisma = createMockPrismaClient();
       // 最初のDB更新で失敗するように設定
-      mockPrisma.webPage.update.mockRejectedValueOnce(new Error('DB connection error'));
+      mockPrisma.webPage.update.mockRejectedValueOnce(new Error("DB connection error"));
 
       const tracker = new ExecutionStatusTracker({
         originalTimeoutMs: 60000,
         effectiveTimeoutMs: 60000,
-        strategy: 'progressive',
+        strategy: "progressive",
         partialResultsEnabled: true,
       });
 
       const dbHandler = new PhasedDbHandler({
         prisma: mockPrisma,
-        webPageId: 'test-page-id',
+        webPageId: "test-page-id",
       });
 
       const options: PhasedExecutorOptions = {
@@ -1157,55 +1178,55 @@ describe('Phase2 統合シナリオ', () => {
 
       // DB更新失敗にも関わらず、分析は成功する
       expect(result.overallSuccess).toBe(true);
-      expect(result.completedPhases).toEqual(['layout', 'motion', 'quality']);
+      expect(result.completedPhases).toEqual(["layout", "motion", "quality"]);
     });
   });
 
-  describe('WebGL重いサイトシミュレーション', () => {
-    it('Layoutフェーズのみ完了して終了するシナリオ', async () => {
+  describe("WebGL重いサイトシミュレーション", () => {
+    it("Layoutフェーズのみ完了して終了するシナリオ", async () => {
       const mockPrisma = createMockPrismaClient();
 
       const trackerV2 = new ExecutionStatusTrackerV2({
-        webPageId: 'test-page-id',
-        url: 'https://resn.co.nz',
+        webPageId: "test-page-id",
+        url: "https://resn.co.nz",
       });
       trackerV2.initialize();
 
       const dbHandler = new PhasedDbHandler({
         prisma: mockPrisma,
-        webPageId: 'test-page-id',
+        webPageId: "test-page-id",
       });
 
       const tracker = new ExecutionStatusTracker({
         originalTimeoutMs: 180000, // 3分（ultra-heavy用）
         effectiveTimeoutMs: 180000,
-        strategy: 'progressive',
+        strategy: "progressive",
         partialResultsEnabled: true,
       });
 
       const options: PhasedExecutorOptions = {
         html: TEST_HTML,
-        url: 'https://resn.co.nz',
+        url: "https://resn.co.nz",
         features: { layout: true, motion: true, quality: true },
         phaseTimeouts: {
           layout: 60000, // 1分
-          motion: 50,     // タイムアウト（WebGLサイトで遅い想定）
-          quality: 50,    // タイムアウト（WebGLサイトで遅い想定）
+          motion: 50, // タイムアウト（WebGLサイトで遅い想定）
+          quality: 50, // タイムアウト（WebGLサイトで遅い想定）
         },
         tracker,
         analyzeLayout: vi.fn().mockImplementation(async () => {
-          trackerV2.startPhase('layout');
+          trackerV2.startPhase("layout");
           const result = createMockLayoutResult();
-          trackerV2.completePhase('layout');
+          trackerV2.completePhase("layout");
           return result;
         }),
         detectMotion: vi.fn().mockImplementation(async () => {
-          trackerV2.startPhase('motion');
+          trackerV2.startPhase("motion");
           await delay(200); // タイムアウトより長い
           return createMockMotionResult();
         }),
         evaluateQuality: vi.fn().mockImplementation(async () => {
-          trackerV2.startPhase('quality');
+          trackerV2.startPhase("quality");
           await delay(200); // タイムアウトより長い
           return createMockQualityResult();
         }),
@@ -1224,7 +1245,7 @@ describe('Phase2 統合シナリオ', () => {
       expect(result.motion.timedOut).toBe(true);
       expect(result.quality.timedOut).toBe(true);
       expect(result.partialSuccess).toBe(true);
-      expect(result.completedPhases).toEqual(['layout']);
+      expect(result.completedPhases).toEqual(["layout"]);
 
       // DBにはlayout_doneが保存されている
       const updateCalls = mockPrisma.webPage.update.mock.calls;
@@ -1239,24 +1260,24 @@ describe('Phase2 統合シナリオ', () => {
       const phaseStatuses = phaseStatusUpdates.map((call) => call[0].data.analysisPhaseStatus);
 
       // pending と layout_done が含まれることを確認
-      expect(phaseStatuses).toContain('pending');
-      expect(phaseStatuses).toContain('layout_done');
+      expect(phaseStatuses).toContain("pending");
+      expect(phaseStatuses).toContain("layout_done");
 
       // 部分成功の場合、layout_doneが最後のanalysisPhaseStatusの更新
       // markAnalysisCompleted(false)はanalysisPhaseStatusを更新しない
       const lastPhaseStatusUpdate = phaseStatusUpdates[phaseStatusUpdates.length - 1];
-      expect(lastPhaseStatusUpdate[0].data.analysisPhaseStatus).toBe('layout_done');
+      expect(lastPhaseStatusUpdate[0].data.analysisPhaseStatus).toBe("layout_done");
     });
 
-    it('MCP 600秒制限内に収まる（タイムアウト累積防止）', () => {
+    it("MCP 600秒制限内に収まる（タイムアウト累積防止）", () => {
       // Phase1で実装されたリトライ戦略と組み合わせた場合でも
       // MCP 600秒制限を超えないことを確認
 
       // ultra-heavyサイトの想定タイムアウト設定
       const ULTRA_HEAVY_TIMEOUTS = {
-        layout: 60000,   // 1分
-        motion: 120000,  // 2分（JSアニメーション検出含む）
-        quality: 30000,  // 30秒
+        layout: 60000, // 1分
+        motion: 120000, // 2分（JSアニメーション検出含む）
+        quality: 30000, // 30秒
       };
 
       // リトライ設定（Phase1から）
@@ -1270,38 +1291,37 @@ describe('Phase2 統合シナリオ', () => {
       // 1回目: layout + motion + quality
       // リトライ（ネットワークエラー時のみ）: layout + motion + quality
       const firstAttempt =
-        ULTRA_HEAVY_TIMEOUTS.layout +
-        ULTRA_HEAVY_TIMEOUTS.motion +
-        ULTRA_HEAVY_TIMEOUTS.quality;
+        ULTRA_HEAVY_TIMEOUTS.layout + ULTRA_HEAVY_TIMEOUTS.motion + ULTRA_HEAVY_TIMEOUTS.quality;
 
       const retryAttempt =
         RETRY_CONFIG.retryDelay +
-        (ULTRA_HEAVY_TIMEOUTS.layout +
-          ULTRA_HEAVY_TIMEOUTS.motion +
-          ULTRA_HEAVY_TIMEOUTS.quality) * RETRY_CONFIG.timeoutMultiplier;
+        (ULTRA_HEAVY_TIMEOUTS.layout + ULTRA_HEAVY_TIMEOUTS.motion + ULTRA_HEAVY_TIMEOUTS.quality) *
+          RETRY_CONFIG.timeoutMultiplier;
 
       const maxTotalTime = firstAttempt + retryAttempt;
 
-      console.log(`[Phase2] ultra-heavy max total time: ${maxTotalTime}ms (${maxTotalTime / 1000}s)`);
+      console.log(
+        `[Phase2] ultra-heavy max total time: ${maxTotalTime}ms (${maxTotalTime / 1000}s)`
+      );
 
       expect(maxTotalTime).toBeLessThanOrEqual(MCP_MAX_TIMEOUT_MS);
     });
   });
 
-  describe('進捗計算の正確性', () => {
-    it('重み付き進捗が正しく計算される（PHASE_WEIGHTSの検証）', () => {
+  describe("進捗計算の正確性", () => {
+    it("重み付き進捗が正しく計算される（PHASE_WEIGHTSの検証）", () => {
       // 重みの合計が100であることを確認
       const totalWeight = Object.values(PHASE_WEIGHTS).reduce((sum, weight) => sum + weight, 0);
       expect(totalWeight).toBe(100);
 
       // 各重みの検証
-      expect(PHASE_WEIGHTS.initializing).toBe(5);   // 5%
-      expect(PHASE_WEIGHTS.layout).toBe(30);        // 30%
-      expect(PHASE_WEIGHTS.motion).toBe(20);        // 20%
-      expect(PHASE_WEIGHTS.quality).toBe(15);       // 15%
-      expect(PHASE_WEIGHTS.narrative).toBe(10);     // 10%
-      expect(PHASE_WEIGHTS.responsive).toBe(15);    // 15%
-      expect(PHASE_WEIGHTS.finalizing).toBe(5);     // 5%
+      expect(PHASE_WEIGHTS.initializing).toBe(5); // 5%
+      expect(PHASE_WEIGHTS.layout).toBe(30); // 30%
+      expect(PHASE_WEIGHTS.motion).toBe(20); // 20%
+      expect(PHASE_WEIGHTS.quality).toBe(15); // 15%
+      expect(PHASE_WEIGHTS.narrative).toBe(10); // 10%
+      expect(PHASE_WEIGHTS.responsive).toBe(15); // 15%
+      expect(PHASE_WEIGHTS.finalizing).toBe(5); // 5%
     });
   });
 });
@@ -1310,20 +1330,20 @@ describe('Phase2 統合シナリオ', () => {
 // パフォーマンステスト
 // ============================================================================
 
-describe('Phase2 パフォーマンス', () => {
-  it('ExecutionStatusTrackerV2の状態更新が高速（10000回実行が100ms以内）', () => {
+describe("Phase2 パフォーマンス", () => {
+  it("ExecutionStatusTrackerV2の状態更新が高速（10000回実行が100ms以内）", () => {
     const tracker = new ExecutionStatusTrackerV2({
-      webPageId: 'test-page-id',
-      url: 'https://example.com',
+      webPageId: "test-page-id",
+      url: "https://example.com",
     });
 
     const startTime = performance.now();
 
     for (let i = 0; i < 10000; i++) {
       tracker.initialize();
-      tracker.startPhase('layout');
-      tracker.updatePhaseProgress('layout', 50);
-      tracker.completePhase('layout');
+      tracker.startPhase("layout");
+      tracker.updatePhaseProgress("layout", 50);
+      tracker.completePhase("layout");
     }
 
     const duration = performance.now() - startTime;
@@ -1332,18 +1352,18 @@ describe('Phase2 パフォーマンス', () => {
     console.log(`[Phase2] ExecutionStatusTrackerV2 10000回更新: ${duration.toFixed(2)}ms`);
   });
 
-  it('PhasedDbHandlerのcommitPhaseResultが非同期で高速（モック使用）', async () => {
+  it("PhasedDbHandlerのcommitPhaseResultが非同期で高速（モック使用）", async () => {
     const mockPrisma = createMockPrismaClient();
     const handler = new PhasedDbHandler({
       prisma: mockPrisma,
-      webPageId: 'test-page-id',
+      webPageId: "test-page-id",
     });
 
     const startTime = performance.now();
 
     for (let i = 0; i < 100; i++) {
-      await handler.commitPhaseResult('layout', {
-        phase: 'layout',
+      await handler.commitPhaseResult("layout", {
+        phase: "layout",
         success: true,
         data: createMockLayoutResult(),
         durationMs: 100,

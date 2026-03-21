@@ -18,7 +18,7 @@
  * @module tests/tools/page/visual-features-schema.test
  */
 
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect } from "vitest";
 import {
   colorPaletteItemSchema,
   visualFeaturesColorsSchema,
@@ -31,34 +31,34 @@ import {
   layoutResultFullSchema,
   moodTypeSchema,
   brandToneTypeSchema,
-} from '../../../src/tools/page/schemas';
+} from "../../../src/tools/page/schemas";
 
 // =============================================================================
 // Test Data Factories
 // =============================================================================
 
 const createValidColorsData = () => ({
-  dominant: ['#FF5733', '#33FF57', '#3357FF'],
-  accent: ['#FFFF33', '#FF33FF'],
+  dominant: ["#FF5733", "#33FF57", "#3357FF"],
+  accent: ["#FFFF33", "#FF33FF"],
   palette: [
-    { color: '#FF5733', percentage: 40 },
-    { color: '#33FF57', percentage: 30 },
-    { color: '#FFFFFF', percentage: 30 },
+    { color: "#FF5733", percentage: 40 },
+    { color: "#33FF57", percentage: 30 },
+    { color: "#FFFFFF", percentage: 30 },
   ],
-  source: 'deterministic' as const,
+  source: "deterministic" as const,
   confidence: 0.95,
 });
 
 const createValidThemeData = () => ({
-  type: 'light' as const,
-  backgroundColor: '#FFFFFF',
-  textColor: '#212121',
+  type: "light" as const,
+  backgroundColor: "#FFFFFF",
+  textColor: "#212121",
   contrastRatio: 12.5,
   luminance: {
     background: 1.0,
     foreground: 0.04,
   },
-  source: 'deterministic' as const,
+  source: "deterministic" as const,
   confidence: 0.92,
 });
 
@@ -68,7 +68,7 @@ const createValidDensityData = () => ({
   visualBalance: 78,
   regions: [
     {
-      id: 'region-1',
+      id: "region-1",
       x: 0,
       y: 0,
       width: 1440,
@@ -83,7 +83,7 @@ const createValidDensityData = () => ({
     averageEdgeIntensity: 0.45,
     standardDeviation: 0.12,
   },
-  source: 'deterministic' as const,
+  source: "deterministic" as const,
   confidence: 0.88,
 });
 
@@ -91,33 +91,33 @@ const createValidGradientData = () => ({
   hasGradient: true,
   gradients: [
     {
-      type: 'linear' as const,
+      type: "linear" as const,
       direction: 45,
       colorStops: [
-        { color: '#FF5733', position: 0 },
-        { color: '#33FF57', position: 1 },
+        { color: "#FF5733", position: 0 },
+        { color: "#33FF57", position: 1 },
       ],
       region: { x: 0, y: 0, width: 1440, height: 200 },
       confidence: 0.95,
     },
   ],
-  dominantGradientType: 'linear' as const,
+  dominantGradientType: "linear" as const,
   confidence: 0.9,
   processingTimeMs: 45,
-  source: 'deterministic' as const,
+  source: "deterministic" as const,
 });
 
 const createValidMoodData = () => ({
-  primary: 'professional' as const,
-  secondary: 'calm' as const,
-  source: 'vision-ai' as const,
+  primary: "professional" as const,
+  secondary: "calm" as const,
+  source: "vision-ai" as const,
   confidence: 0.85,
 });
 
 const createValidBrandToneData = () => ({
-  primary: 'corporate' as const,
-  secondary: 'trustworthy' as const,
-  source: 'vision-ai' as const,
+  primary: "corporate" as const,
+  secondary: "trustworthy" as const,
+  source: "vision-ai" as const,
   confidence: 0.82,
 });
 
@@ -129,7 +129,7 @@ const createValidVisualFeaturesData = () => ({
   mood: createValidMoodData(),
   brandTone: createValidBrandToneData(),
   metadata: {
-    mergedAt: '2026-01-19T06:00:00.000Z',
+    mergedAt: "2026-01-19T06:00:00.000Z",
     deterministicAvailable: true,
     visionAiAvailable: true,
     overallConfidence: 0.88,
@@ -142,76 +142,80 @@ const createValidVisualFeaturesData = () => ({
 // Color Palette Item Schema Tests
 // =============================================================================
 
-describe('colorPaletteItemSchema', () => {
-  describe('valid inputs', () => {
-    it('should accept valid HEX color and percentage', () => {
+describe("colorPaletteItemSchema", () => {
+  describe("valid inputs", () => {
+    it("should accept valid HEX color and percentage", () => {
       const result = colorPaletteItemSchema.safeParse({
-        color: '#FF5733',
+        color: "#FF5733",
         percentage: 40,
       });
       expect(result.success).toBe(true);
       if (result.success) {
-        expect(result.data.color).toBe('#FF5733');
+        expect(result.data.color).toBe("#FF5733");
         expect(result.data.percentage).toBe(40);
       }
     });
 
-    it('should accept lowercase HEX color', () => {
+    it("should accept lowercase HEX color", () => {
       const result = colorPaletteItemSchema.safeParse({
-        color: '#ff5733',
+        color: "#ff5733",
         percentage: 25.5,
       });
       expect(result.success).toBe(true);
     });
 
-    it('should accept percentage at boundaries (0 and 100)', () => {
-      expect(colorPaletteItemSchema.safeParse({ color: '#000000', percentage: 0 }).success).toBe(true);
-      expect(colorPaletteItemSchema.safeParse({ color: '#FFFFFF', percentage: 100 }).success).toBe(true);
+    it("should accept percentage at boundaries (0 and 100)", () => {
+      expect(colorPaletteItemSchema.safeParse({ color: "#000000", percentage: 0 }).success).toBe(
+        true
+      );
+      expect(colorPaletteItemSchema.safeParse({ color: "#FFFFFF", percentage: 100 }).success).toBe(
+        true
+      );
     });
   });
 
-  describe('invalid inputs', () => {
-    it('should reject invalid HEX color format (missing #)', () => {
+  describe("invalid inputs", () => {
+    it("should reject invalid HEX color format (missing #)", () => {
       const result = colorPaletteItemSchema.safeParse({
-        color: 'FF5733',
+        color: "FF5733",
         percentage: 40,
       });
       expect(result.success).toBe(false);
     });
 
-    it('should reject 3-digit HEX color', () => {
+    it("should reject 3-digit HEX color", () => {
       const result = colorPaletteItemSchema.safeParse({
-        color: '#F53',
+        color: "#F53",
         percentage: 40,
       });
       expect(result.success).toBe(false);
     });
 
-    it('should reject invalid HEX characters', () => {
+    it("should reject invalid HEX characters", () => {
       const result = colorPaletteItemSchema.safeParse({
-        color: '#GGGGGG',
+        color: "#GGGGGG",
         percentage: 40,
       });
       expect(result.success).toBe(false);
     });
 
-    it('should reject percentage below 0', () => {
+    it("should reject percentage below 0", () => {
       const result = colorPaletteItemSchema.safeParse({
-        color: '#FF5733',
+        color: "#FF5733",
         percentage: -5,
       });
       expect(result.success).toBe(false);
     });
 
-    it('should reject percentage above 100', () => {
+    it("should reject percentage above 100", () => {
       const result = colorPaletteItemSchema.safeParse({
-        color: '#FF5733',
+        color: "#FF5733",
         percentage: 150,
       });
       expect(result.success).toBe(false);
     });
 
-    it('should reject potential JSON injection in color field', () => {
+    it("should reject potential JSON injection in color field", () => {
       const maliciousInputs = [
         '#FF5733", "malicious": "data',
         '#FF5733\n"injected": true',
@@ -233,70 +237,76 @@ describe('colorPaletteItemSchema', () => {
 // Visual Features Colors Schema Tests
 // =============================================================================
 
-describe('visualFeaturesColorsSchema', () => {
-  describe('valid inputs', () => {
-    it('should accept valid color extraction result', () => {
+describe("visualFeaturesColorsSchema", () => {
+  describe("valid inputs", () => {
+    it("should accept valid color extraction result", () => {
       const result = visualFeaturesColorsSchema.safeParse(createValidColorsData());
       expect(result.success).toBe(true);
     });
 
-    it('should accept empty arrays for dominant and accent colors', () => {
+    it("should accept empty arrays for dominant and accent colors", () => {
       const result = visualFeaturesColorsSchema.safeParse({
         dominant: [],
         accent: [],
         palette: [],
-        source: 'deterministic',
+        source: "deterministic",
         confidence: 0.5,
       });
       expect(result.success).toBe(true);
     });
 
-    it('should accept maximum 5 dominant colors', () => {
+    it("should accept maximum 5 dominant colors", () => {
       const result = visualFeaturesColorsSchema.safeParse({
-        dominant: ['#111111', '#222222', '#333333', '#444444', '#555555'],
+        dominant: ["#111111", "#222222", "#333333", "#444444", "#555555"],
         accent: [],
         palette: [],
-        source: 'deterministic',
+        source: "deterministic",
         confidence: 0.9,
       });
       expect(result.success).toBe(true);
     });
   });
 
-  describe('invalid inputs', () => {
-    it('should reject more than 5 dominant colors', () => {
+  describe("invalid inputs", () => {
+    it("should reject more than 5 dominant colors", () => {
       const result = visualFeaturesColorsSchema.safeParse({
-        dominant: ['#111111', '#222222', '#333333', '#444444', '#555555', '#666666'],
+        dominant: ["#111111", "#222222", "#333333", "#444444", "#555555", "#666666"],
         accent: [],
         palette: [],
-        source: 'deterministic',
+        source: "deterministic",
         confidence: 0.9,
       });
       expect(result.success).toBe(false);
     });
 
-    it('should reject more than 3 accent colors', () => {
+    it("should reject more than 3 accent colors", () => {
       const result = visualFeaturesColorsSchema.safeParse({
         dominant: [],
-        accent: ['#111111', '#222222', '#333333', '#444444'],
+        accent: ["#111111", "#222222", "#333333", "#444444"],
         palette: [],
-        source: 'deterministic',
+        source: "deterministic",
         confidence: 0.9,
       });
       expect(result.success).toBe(false);
     });
 
-    it('should reject invalid source value', () => {
+    it("should reject invalid source value", () => {
       const result = visualFeaturesColorsSchema.safeParse({
         ...createValidColorsData(),
-        source: 'invalid-source',
+        source: "invalid-source",
       });
       expect(result.success).toBe(false);
     });
 
-    it('should reject confidence outside 0-1 range', () => {
-      expect(visualFeaturesColorsSchema.safeParse({ ...createValidColorsData(), confidence: -0.1 }).success).toBe(false);
-      expect(visualFeaturesColorsSchema.safeParse({ ...createValidColorsData(), confidence: 1.1 }).success).toBe(false);
+    it("should reject confidence outside 0-1 range", () => {
+      expect(
+        visualFeaturesColorsSchema.safeParse({ ...createValidColorsData(), confidence: -0.1 })
+          .success
+      ).toBe(false);
+      expect(
+        visualFeaturesColorsSchema.safeParse({ ...createValidColorsData(), confidence: 1.1 })
+          .success
+      ).toBe(false);
     });
   });
 });
@@ -305,15 +315,15 @@ describe('visualFeaturesColorsSchema', () => {
 // Visual Features Theme Schema Tests
 // =============================================================================
 
-describe('visualFeaturesThemeSchema', () => {
-  describe('valid inputs', () => {
-    it('should accept valid theme detection result', () => {
+describe("visualFeaturesThemeSchema", () => {
+  describe("valid inputs", () => {
+    it("should accept valid theme detection result", () => {
       const result = visualFeaturesThemeSchema.safeParse(createValidThemeData());
       expect(result.success).toBe(true);
     });
 
-    it('should accept all valid theme types', () => {
-      const themeTypes = ['light', 'dark', 'mixed'] as const;
+    it("should accept all valid theme types", () => {
+      const themeTypes = ["light", "dark", "mixed"] as const;
       themeTypes.forEach((type) => {
         const result = visualFeaturesThemeSchema.safeParse({
           ...createValidThemeData(),
@@ -323,12 +333,17 @@ describe('visualFeaturesThemeSchema', () => {
       });
     });
 
-    it('should accept contrast ratio at boundaries (1 and 21)', () => {
-      expect(visualFeaturesThemeSchema.safeParse({ ...createValidThemeData(), contrastRatio: 1 }).success).toBe(true);
-      expect(visualFeaturesThemeSchema.safeParse({ ...createValidThemeData(), contrastRatio: 21 }).success).toBe(true);
+    it("should accept contrast ratio at boundaries (1 and 21)", () => {
+      expect(
+        visualFeaturesThemeSchema.safeParse({ ...createValidThemeData(), contrastRatio: 1 }).success
+      ).toBe(true);
+      expect(
+        visualFeaturesThemeSchema.safeParse({ ...createValidThemeData(), contrastRatio: 21 })
+          .success
+      ).toBe(true);
     });
 
-    it('should accept luminance at boundaries (0 and 1)', () => {
+    it("should accept luminance at boundaries (0 and 1)", () => {
       const result = visualFeaturesThemeSchema.safeParse({
         ...createValidThemeData(),
         luminance: { background: 0, foreground: 1 },
@@ -337,24 +352,24 @@ describe('visualFeaturesThemeSchema', () => {
     });
   });
 
-  describe('invalid inputs', () => {
-    it('should reject invalid theme type', () => {
+  describe("invalid inputs", () => {
+    it("should reject invalid theme type", () => {
       const result = visualFeaturesThemeSchema.safeParse({
         ...createValidThemeData(),
-        type: 'invalid-type',
+        type: "invalid-type",
       });
       expect(result.success).toBe(false);
     });
 
-    it('should reject invalid HEX color for backgroundColor', () => {
+    it("should reject invalid HEX color for backgroundColor", () => {
       const result = visualFeaturesThemeSchema.safeParse({
         ...createValidThemeData(),
-        backgroundColor: 'white',
+        backgroundColor: "white",
       });
       expect(result.success).toBe(false);
     });
 
-    it('should reject contrast ratio below 1', () => {
+    it("should reject contrast ratio below 1", () => {
       const result = visualFeaturesThemeSchema.safeParse({
         ...createValidThemeData(),
         contrastRatio: 0.5,
@@ -362,7 +377,7 @@ describe('visualFeaturesThemeSchema', () => {
       expect(result.success).toBe(false);
     });
 
-    it('should reject contrast ratio above 21', () => {
+    it("should reject contrast ratio above 21", () => {
       const result = visualFeaturesThemeSchema.safeParse({
         ...createValidThemeData(),
         contrastRatio: 25,
@@ -370,7 +385,7 @@ describe('visualFeaturesThemeSchema', () => {
       expect(result.success).toBe(false);
     });
 
-    it('should reject luminance outside 0-1 range', () => {
+    it("should reject luminance outside 0-1 range", () => {
       expect(
         visualFeaturesThemeSchema.safeParse({
           ...createValidThemeData(),
@@ -392,62 +407,70 @@ describe('visualFeaturesThemeSchema', () => {
 // Visual Features Density Schema Tests
 // =============================================================================
 
-describe('visualFeaturesDensitySchema', () => {
-  describe('valid inputs', () => {
-    it('should accept valid density calculation result', () => {
+describe("visualFeaturesDensitySchema", () => {
+  describe("valid inputs", () => {
+    it("should accept valid density calculation result", () => {
       const result = visualFeaturesDensitySchema.safeParse(createValidDensityData());
       expect(result.success).toBe(true);
     });
 
-    it('should accept minimal density data without optional fields', () => {
+    it("should accept minimal density data without optional fields", () => {
       const result = visualFeaturesDensitySchema.safeParse({
         contentDensity: 0.5,
         whitespaceRatio: 0.5,
         visualBalance: 50,
-        source: 'deterministic',
+        source: "deterministic",
         confidence: 0.8,
       });
       expect(result.success).toBe(true);
     });
 
-    it('should accept density values at boundaries', () => {
+    it("should accept density values at boundaries", () => {
       const result = visualFeaturesDensitySchema.safeParse({
         contentDensity: 0,
         whitespaceRatio: 1,
         visualBalance: 0,
-        source: 'deterministic',
+        source: "deterministic",
         confidence: 0,
       });
       expect(result.success).toBe(true);
     });
   });
 
-  describe('invalid inputs', () => {
-    it('should reject contentDensity outside 0-1 range', () => {
-      expect(visualFeaturesDensitySchema.safeParse({ ...createValidDensityData(), contentDensity: -0.1 }).success).toBe(
-        false
-      );
-      expect(visualFeaturesDensitySchema.safeParse({ ...createValidDensityData(), contentDensity: 1.1 }).success).toBe(
-        false
-      );
+  describe("invalid inputs", () => {
+    it("should reject contentDensity outside 0-1 range", () => {
+      expect(
+        visualFeaturesDensitySchema.safeParse({ ...createValidDensityData(), contentDensity: -0.1 })
+          .success
+      ).toBe(false);
+      expect(
+        visualFeaturesDensitySchema.safeParse({ ...createValidDensityData(), contentDensity: 1.1 })
+          .success
+      ).toBe(false);
     });
 
-    it('should reject whitespaceRatio outside 0-1 range', () => {
-      expect(visualFeaturesDensitySchema.safeParse({ ...createValidDensityData(), whitespaceRatio: -0.1 }).success).toBe(
-        false
-      );
-      expect(visualFeaturesDensitySchema.safeParse({ ...createValidDensityData(), whitespaceRatio: 1.1 }).success).toBe(
-        false
-      );
+    it("should reject whitespaceRatio outside 0-1 range", () => {
+      expect(
+        visualFeaturesDensitySchema.safeParse({
+          ...createValidDensityData(),
+          whitespaceRatio: -0.1,
+        }).success
+      ).toBe(false);
+      expect(
+        visualFeaturesDensitySchema.safeParse({ ...createValidDensityData(), whitespaceRatio: 1.1 })
+          .success
+      ).toBe(false);
     });
 
-    it('should reject visualBalance outside 0-100 range', () => {
-      expect(visualFeaturesDensitySchema.safeParse({ ...createValidDensityData(), visualBalance: -1 }).success).toBe(
-        false
-      );
-      expect(visualFeaturesDensitySchema.safeParse({ ...createValidDensityData(), visualBalance: 101 }).success).toBe(
-        false
-      );
+    it("should reject visualBalance outside 0-100 range", () => {
+      expect(
+        visualFeaturesDensitySchema.safeParse({ ...createValidDensityData(), visualBalance: -1 })
+          .success
+      ).toBe(false);
+      expect(
+        visualFeaturesDensitySchema.safeParse({ ...createValidDensityData(), visualBalance: 101 })
+          .success
+      ).toBe(false);
     });
   });
 });
@@ -456,26 +479,26 @@ describe('visualFeaturesDensitySchema', () => {
 // Visual Features Gradient Schema Tests
 // =============================================================================
 
-describe('visualFeaturesGradientSchema', () => {
-  describe('valid inputs', () => {
-    it('should accept valid gradient detection result', () => {
+describe("visualFeaturesGradientSchema", () => {
+  describe("valid inputs", () => {
+    it("should accept valid gradient detection result", () => {
       const result = visualFeaturesGradientSchema.safeParse(createValidGradientData());
       expect(result.success).toBe(true);
     });
 
-    it('should accept result with no gradients detected', () => {
+    it("should accept result with no gradients detected", () => {
       const result = visualFeaturesGradientSchema.safeParse({
         hasGradient: false,
         gradients: [],
         confidence: 0.95,
         processingTimeMs: 20,
-        source: 'deterministic',
+        source: "deterministic",
       });
       expect(result.success).toBe(true);
     });
 
-    it('should accept all gradient types', () => {
-      const gradientTypes = ['linear', 'radial', 'conic'] as const;
+    it("should accept all gradient types", () => {
+      const gradientTypes = ["linear", "radial", "conic"] as const;
       gradientTypes.forEach((type) => {
         const result = visualFeaturesGradientSchema.safeParse({
           ...createValidGradientData(),
@@ -486,16 +509,16 @@ describe('visualFeaturesGradientSchema', () => {
     });
   });
 
-  describe('invalid inputs', () => {
-    it('should reject invalid gradient type', () => {
+  describe("invalid inputs", () => {
+    it("should reject invalid gradient type", () => {
       const result = visualFeaturesGradientSchema.safeParse({
         ...createValidGradientData(),
-        dominantGradientType: 'invalid-type',
+        dominantGradientType: "invalid-type",
       });
       expect(result.success).toBe(false);
     });
 
-    it('should reject negative processingTimeMs', () => {
+    it("should reject negative processingTimeMs", () => {
       const result = visualFeaturesGradientSchema.safeParse({
         ...createValidGradientData(),
         processingTimeMs: -10,
@@ -509,19 +532,19 @@ describe('visualFeaturesGradientSchema', () => {
 // Mood Type Schema Tests
 // =============================================================================
 
-describe('moodTypeSchema', () => {
-  it('should accept all valid mood types', () => {
+describe("moodTypeSchema", () => {
+  it("should accept all valid mood types", () => {
     const validMoods = [
-      'calm',
-      'energetic',
-      'professional',
-      'playful',
-      'luxurious',
-      'minimalist',
-      'bold',
-      'elegant',
-      'friendly',
-      'serious',
+      "calm",
+      "energetic",
+      "professional",
+      "playful",
+      "luxurious",
+      "minimalist",
+      "bold",
+      "elegant",
+      "friendly",
+      "serious",
     ] as const;
 
     validMoods.forEach((mood) => {
@@ -530,8 +553,8 @@ describe('moodTypeSchema', () => {
     });
   });
 
-  it('should reject invalid mood types', () => {
-    const invalidMoods = ['happy', 'sad', 'angry', 'invalid', ''];
+  it("should reject invalid mood types", () => {
+    const invalidMoods = ["happy", "sad", "angry", "invalid", ""];
     invalidMoods.forEach((mood) => {
       const result = moodTypeSchema.safeParse(mood);
       expect(result.success).toBe(false);
@@ -543,19 +566,19 @@ describe('moodTypeSchema', () => {
 // Brand Tone Type Schema Tests
 // =============================================================================
 
-describe('brandToneTypeSchema', () => {
-  it('should accept all valid brand tone types', () => {
+describe("brandToneTypeSchema", () => {
+  it("should accept all valid brand tone types", () => {
     const validBrandTones = [
-      'corporate',
-      'startup',
-      'luxury',
-      'eco-friendly',
-      'tech-forward',
-      'traditional',
-      'innovative',
-      'trustworthy',
-      'creative',
-      'accessible',
+      "corporate",
+      "startup",
+      "luxury",
+      "eco-friendly",
+      "tech-forward",
+      "traditional",
+      "innovative",
+      "trustworthy",
+      "creative",
+      "accessible",
     ] as const;
 
     validBrandTones.forEach((tone) => {
@@ -564,8 +587,8 @@ describe('brandToneTypeSchema', () => {
     });
   });
 
-  it('should reject invalid brand tone types', () => {
-    const invalidTones = ['professional', 'cool', 'trendy', 'invalid', ''];
+  it("should reject invalid brand tone types", () => {
+    const invalidTones = ["professional", "cool", "trendy", "invalid", ""];
     invalidTones.forEach((tone) => {
       const result = brandToneTypeSchema.safeParse(tone);
       expect(result.success).toBe(false);
@@ -577,41 +600,41 @@ describe('brandToneTypeSchema', () => {
 // Visual Features Mood Schema Tests
 // =============================================================================
 
-describe('visualFeaturesMoodSchema', () => {
-  describe('valid inputs', () => {
-    it('should accept valid mood data', () => {
+describe("visualFeaturesMoodSchema", () => {
+  describe("valid inputs", () => {
+    it("should accept valid mood data", () => {
       const result = visualFeaturesMoodSchema.safeParse(createValidMoodData());
       expect(result.success).toBe(true);
     });
 
-    it('should accept mood data without secondary', () => {
+    it("should accept mood data without secondary", () => {
       const result = visualFeaturesMoodSchema.safeParse({
-        primary: 'calm',
-        source: 'vision-ai',
+        primary: "calm",
+        source: "vision-ai",
         confidence: 0.7,
       });
       expect(result.success).toBe(true);
     });
 
-    it('should accept null value (nullable)', () => {
+    it("should accept null value (nullable)", () => {
       const result = visualFeaturesMoodSchema.safeParse(null);
       expect(result.success).toBe(true);
     });
   });
 
-  describe('invalid inputs', () => {
-    it('should reject invalid primary mood', () => {
+  describe("invalid inputs", () => {
+    it("should reject invalid primary mood", () => {
       const result = visualFeaturesMoodSchema.safeParse({
         ...createValidMoodData(),
-        primary: 'invalid-mood',
+        primary: "invalid-mood",
       });
       expect(result.success).toBe(false);
     });
 
-    it('should reject wrong source value', () => {
+    it("should reject wrong source value", () => {
       const result = visualFeaturesMoodSchema.safeParse({
         ...createValidMoodData(),
-        source: 'deterministic',
+        source: "deterministic",
       });
       expect(result.success).toBe(false);
     });
@@ -622,41 +645,41 @@ describe('visualFeaturesMoodSchema', () => {
 // Visual Features Brand Tone Schema Tests
 // =============================================================================
 
-describe('visualFeaturesBrandToneSchema', () => {
-  describe('valid inputs', () => {
-    it('should accept valid brand tone data', () => {
+describe("visualFeaturesBrandToneSchema", () => {
+  describe("valid inputs", () => {
+    it("should accept valid brand tone data", () => {
       const result = visualFeaturesBrandToneSchema.safeParse(createValidBrandToneData());
       expect(result.success).toBe(true);
     });
 
-    it('should accept brand tone data without secondary', () => {
+    it("should accept brand tone data without secondary", () => {
       const result = visualFeaturesBrandToneSchema.safeParse({
-        primary: 'startup',
-        source: 'vision-ai',
+        primary: "startup",
+        source: "vision-ai",
         confidence: 0.75,
       });
       expect(result.success).toBe(true);
     });
 
-    it('should accept null value (nullable)', () => {
+    it("should accept null value (nullable)", () => {
       const result = visualFeaturesBrandToneSchema.safeParse(null);
       expect(result.success).toBe(true);
     });
   });
 
-  describe('invalid inputs', () => {
-    it('should reject invalid primary brand tone', () => {
+  describe("invalid inputs", () => {
+    it("should reject invalid primary brand tone", () => {
       const result = visualFeaturesBrandToneSchema.safeParse({
         ...createValidBrandToneData(),
-        primary: 'invalid-tone',
+        primary: "invalid-tone",
       });
       expect(result.success).toBe(false);
     });
 
-    it('should reject wrong source value', () => {
+    it("should reject wrong source value", () => {
       const result = visualFeaturesBrandToneSchema.safeParse({
         ...createValidBrandToneData(),
-        source: 'deterministic',
+        source: "deterministic",
       });
       expect(result.success).toBe(false);
     });
@@ -667,21 +690,21 @@ describe('visualFeaturesBrandToneSchema', () => {
 // Visual Features (Unified) Schema Tests
 // =============================================================================
 
-describe('visualFeaturesSchema', () => {
-  describe('valid inputs', () => {
-    it('should accept complete visual features data', () => {
+describe("visualFeaturesSchema", () => {
+  describe("valid inputs", () => {
+    it("should accept complete visual features data", () => {
       const result = visualFeaturesSchema.safeParse(createValidVisualFeaturesData());
       expect(result.success).toBe(true);
     });
 
-    it('should accept partial visual features (only colors)', () => {
+    it("should accept partial visual features (only colors)", () => {
       const result = visualFeaturesSchema.safeParse({
         colors: createValidColorsData(),
       });
       expect(result.success).toBe(true);
     });
 
-    it('should accept visual features with null fields (graceful degradation)', () => {
+    it("should accept visual features with null fields (graceful degradation)", () => {
       const result = visualFeaturesSchema.safeParse({
         colors: null,
         theme: null,
@@ -693,12 +716,12 @@ describe('visualFeaturesSchema', () => {
       expect(result.success).toBe(true);
     });
 
-    it('should accept empty object (all fields optional)', () => {
+    it("should accept empty object (all fields optional)", () => {
       const result = visualFeaturesSchema.safeParse({});
       expect(result.success).toBe(true);
     });
 
-    it('should accept mixed deterministic and vision-ai sources', () => {
+    it("should accept mixed deterministic and vision-ai sources", () => {
       const result = visualFeaturesSchema.safeParse({
         colors: createValidColorsData(), // deterministic
         theme: createValidThemeData(), // deterministic
@@ -709,22 +732,22 @@ describe('visualFeaturesSchema', () => {
     });
   });
 
-  describe('invalid inputs', () => {
-    it('should reject invalid colors data', () => {
+  describe("invalid inputs", () => {
+    it("should reject invalid colors data", () => {
       const result = visualFeaturesSchema.safeParse({
         colors: {
           ...createValidColorsData(),
-          dominant: ['invalid-color'],
+          dominant: ["invalid-color"],
         },
       });
       expect(result.success).toBe(false);
     });
 
-    it('should reject invalid theme data', () => {
+    it("should reject invalid theme data", () => {
       const result = visualFeaturesSchema.safeParse({
         theme: {
           ...createValidThemeData(),
-          type: 'invalid-type',
+          type: "invalid-type",
         },
       });
       expect(result.success).toBe(false);
@@ -736,16 +759,16 @@ describe('visualFeaturesSchema', () => {
 // Integration with layoutResultFullSchema
 // =============================================================================
 
-describe('layoutResultFullSchema integration', () => {
+describe("layoutResultFullSchema integration", () => {
   const createValidLayoutResult = () => ({
     success: true,
-    pageId: '550e8400-e29b-41d4-a716-446655440000',
+    pageId: "550e8400-e29b-41d4-a716-446655440000",
     sectionCount: 5,
     sectionTypes: { hero: 1, feature: 2, cta: 1, testimonial: 1 },
     processingTimeMs: 1500,
   });
 
-  it('should accept layout result with visualFeatures', () => {
+  it("should accept layout result with visualFeatures", () => {
     const result = layoutResultFullSchema.safeParse({
       ...createValidLayoutResult(),
       visualFeatures: createValidVisualFeaturesData(),
@@ -757,7 +780,7 @@ describe('layoutResultFullSchema integration', () => {
     }
   });
 
-  it('should accept layout result without visualFeatures', () => {
+  it("should accept layout result without visualFeatures", () => {
     const result = layoutResultFullSchema.safeParse(createValidLayoutResult());
     expect(result.success).toBe(true);
     if (result.success) {
@@ -765,7 +788,7 @@ describe('layoutResultFullSchema integration', () => {
     }
   });
 
-  it('should accept layout result with partial visualFeatures', () => {
+  it("should accept layout result with partial visualFeatures", () => {
     const result = layoutResultFullSchema.safeParse({
       ...createValidLayoutResult(),
       visualFeatures: {
@@ -777,7 +800,7 @@ describe('layoutResultFullSchema integration', () => {
     expect(result.success).toBe(true);
   });
 
-  it('should distinguish visualFeatures from visionFeatures', () => {
+  it("should distinguish visualFeatures from visionFeatures", () => {
     const result = layoutResultFullSchema.safeParse({
       ...createValidLayoutResult(),
       // visionFeatures: Vision API analysis (existing field)
@@ -785,7 +808,7 @@ describe('layoutResultFullSchema integration', () => {
         success: true,
         features: [],
         processingTimeMs: 500,
-        modelName: 'llama3.2-vision',
+        modelName: "llama3.2-vision",
       },
       // visualFeatures: Phase 1/2 integrated extraction (new field)
       visualFeatures: createValidVisualFeaturesData(),
@@ -804,16 +827,16 @@ describe('layoutResultFullSchema integration', () => {
 // Security: JSON Injection Protection Tests
 // =============================================================================
 
-describe('JSON Injection Protection', () => {
+describe("JSON Injection Protection", () => {
   const maliciousColorInputs = [
     '#FF5733", "malicious": "data',
     '#FF5733\n"injected": true',
     '{"color": "#FF5733"}',
     '#FF5733<script>alert("xss")</script>',
-    '#FF5733; DROP TABLE colors;--',
+    "#FF5733; DROP TABLE colors;--",
   ];
 
-  it('should reject JSON injection attempts in dominant colors', () => {
+  it("should reject JSON injection attempts in dominant colors", () => {
     maliciousColorInputs.forEach((malicious) => {
       const result = visualFeaturesColorsSchema.safeParse({
         ...createValidColorsData(),
@@ -823,7 +846,7 @@ describe('JSON Injection Protection', () => {
     });
   });
 
-  it('should reject JSON injection attempts in accent colors', () => {
+  it("should reject JSON injection attempts in accent colors", () => {
     maliciousColorInputs.forEach((malicious) => {
       const result = visualFeaturesColorsSchema.safeParse({
         ...createValidColorsData(),
@@ -833,7 +856,7 @@ describe('JSON Injection Protection', () => {
     });
   });
 
-  it('should reject JSON injection attempts in theme backgroundColor', () => {
+  it("should reject JSON injection attempts in theme backgroundColor", () => {
     maliciousColorInputs.forEach((malicious) => {
       const result = visualFeaturesThemeSchema.safeParse({
         ...createValidThemeData(),
@@ -843,12 +866,12 @@ describe('JSON Injection Protection', () => {
     });
   });
 
-  it('should reject JSON injection attempts in gradient colors', () => {
+  it("should reject JSON injection attempts in gradient colors", () => {
     const result = visualFeaturesGradientSchema.safeParse({
       ...createValidGradientData(),
       gradients: [
         {
-          type: 'linear',
+          type: "linear",
           colors: ['#FF5733", "inject": "true'],
           angle: 45,
         },

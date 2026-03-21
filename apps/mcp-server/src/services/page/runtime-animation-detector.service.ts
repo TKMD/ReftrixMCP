@@ -16,13 +16,11 @@
  * @module services/page/runtime-animation-detector.service
  */
 
-/* eslint-disable no-undef -- page.evaluate() runs in browser context where window/document exist */
-
-import type { Page } from 'playwright';
-import { logger, isDevelopment } from '../../utils/logger';
+import type { Page } from "playwright";
+import { logger, isDevelopment } from "../../utils/logger";
 
 // グローバルWindow型拡張をインポート（ブラウザコンテキストのカスタムプロパティ用）
-import '../../types/reftrix-window';
+import "../../types/reftrix-window";
 
 // =====================================================
 // 型定義
@@ -31,7 +29,7 @@ import '../../types/reftrix-window';
 /**
  * アニメーションタイプ
  */
-export type AnimationType = 'css_animation' | 'web_animations_api' | 'css_transition';
+export type AnimationType = "css_animation" | "web_animations_api" | "css_transition";
 
 /**
  * アニメーション情報
@@ -42,7 +40,7 @@ export interface AnimationInfo {
   /** アニメーションタイプ */
   type: AnimationType;
   /** 再生状態 */
-  playState: 'idle' | 'running' | 'paused' | 'finished';
+  playState: "idle" | "running" | "paused" | "finished";
   /** アニメーション時間（ms） */
   duration: number;
   /** 繰り返し回数 */
@@ -155,7 +153,6 @@ const DEFAULT_OPTIONS: Required<RuntimeAnimationOptions> = {
  * JavaScript駆動アニメーションの実行時検出サービス
  */
 export class RuntimeAnimationDetectorService {
-
   /**
    * オプションを正規化
    */
@@ -192,7 +189,7 @@ export class RuntimeAnimationDetectorService {
     const opts = this.normalizeOptions(options);
 
     if (isDevelopment()) {
-      logger.debug('[RuntimeAnimationDetectorService] detect called', {
+      logger.debug("[RuntimeAnimationDetectorService] detect called", {
         waitForAnimations: opts.wait_for_animations,
         scrollPositions: opts.scroll_positions,
       });
@@ -201,7 +198,7 @@ export class RuntimeAnimationDetectorService {
     try {
       // ページがまだ開いているか確認
       if (page.isClosed()) {
-        throw new Error('Page is closed');
+        throw new Error("Page is closed");
       }
 
       // 並列で検出を実行
@@ -231,7 +228,7 @@ export class RuntimeAnimationDetectorService {
       };
 
       if (isDevelopment()) {
-        logger.debug('[RuntimeAnimationDetectorService] detect completed', {
+        logger.debug("[RuntimeAnimationDetectorService] detect completed", {
           totalDetected: result.totalDetected,
           animations: animations.length,
           intersectionObservers: intersectionObservers.length,
@@ -245,15 +242,15 @@ export class RuntimeAnimationDetectorService {
       const detectionTimeMs = Date.now() - startTime;
 
       if (isDevelopment()) {
-        logger.error('[RuntimeAnimationDetectorService] detect error', { error });
+        logger.error("[RuntimeAnimationDetectorService] detect error", { error });
       }
 
       // ページナビゲーション中などはエラーではなく空の結果を返す
       if (
         error instanceof Error &&
-        (error.message.includes('Target closed') ||
-          error.message.includes('Navigation') ||
-          error.message.includes('closed'))
+        (error.message.includes("Target closed") ||
+          error.message.includes("Navigation") ||
+          error.message.includes("closed"))
       ) {
         return {
           animations: [],
@@ -302,12 +299,12 @@ export class RuntimeAnimationDetectorService {
             ? (anim.effect as KeyframeEffect).target
             : null;
 
-          let targetSelector = '';
+          let targetSelector = "";
           if (target instanceof Element) {
             if (target.id) {
               targetSelector = `#${target.id}`;
-            } else if (target.className && typeof target.className === 'string') {
-              targetSelector = `.${target.className.split(' ').filter(Boolean).join('.')}`;
+            } else if (target.className && typeof target.className === "string") {
+              targetSelector = `.${target.className.split(" ").filter(Boolean).join(".")}`;
             } else {
               targetSelector = target.tagName.toLowerCase();
             }
@@ -317,11 +314,11 @@ export class RuntimeAnimationDetectorService {
           const isCssAnimation = anim instanceof CSSAnimation;
           const isCssTransition = anim instanceof CSSTransition;
 
-          let animType = 'web_animations_api';
+          let animType = "web_animations_api";
           if (isCssAnimation) {
-            animType = 'css_animation';
+            animType = "css_animation";
           } else if (isCssTransition) {
-            animType = 'css_transition';
+            animType = "css_transition";
           }
 
           // KeyframeEffectからプロパティを取得
@@ -332,10 +329,10 @@ export class RuntimeAnimationDetectorService {
             for (const kf of keyframes) {
               Object.keys(kf).forEach((key) => {
                 if (
-                  key !== 'offset' &&
-                  key !== 'computedOffset' &&
-                  key !== 'easing' &&
-                  key !== 'composite'
+                  key !== "offset" &&
+                  key !== "computedOffset" &&
+                  key !== "easing" &&
+                  key !== "composite"
                 ) {
                   propSet.add(key);
                 }
@@ -363,15 +360,15 @@ export class RuntimeAnimationDetectorService {
             type: animType,
             playState: anim.playState,
             duration:
-              typeof timing.duration === 'number' ? timing.duration : timing.duration ? 0 : 0,
+              typeof timing.duration === "number" ? timing.duration : timing.duration ? 0 : 0,
             iterations:
               timing.iterations === Infinity ? Infinity : (timing.iterations as number) || 1,
-            easing: (timing.easing as string) || 'linear',
+            easing: (timing.easing as string) || "linear",
             targetSelector,
             properties,
-            direction: (timing.direction as string) || 'normal',
-            fillMode: (timing.fill as string) || 'none',
-            delay: typeof timing.delay === 'number' ? timing.delay : 0,
+            direction: (timing.direction as string) || "normal",
+            fillMode: (timing.fill as string) || "none",
+            delay: typeof timing.delay === "number" ? timing.delay : 0,
           };
 
           // CSSAnimationの場合のみanimationNameを設定
@@ -393,12 +390,12 @@ export class RuntimeAnimationDetectorService {
       return rawAnimations.map((anim) => ({
         ...anim,
         type: anim.type as AnimationType,
-        playState: anim.playState as AnimationInfo['playState'],
+        playState: anim.playState as AnimationInfo["playState"],
         iterations: anim.iterations === null ? Infinity : anim.iterations,
       }));
     } catch (error) {
       if (isDevelopment()) {
-        logger.error('[RuntimeAnimationDetectorService] detectAnimations error', { error });
+        logger.error("[RuntimeAnimationDetectorService] detectAnimations error", { error });
       }
       return [];
     }
@@ -434,7 +431,7 @@ export class RuntimeAnimationDetectorService {
             targetCount: observer.targets?.length || 0,
             options: {
               threshold: observer.threshold || [0],
-              rootMargin: observer.rootMargin || '0px',
+              rootMargin: observer.rootMargin || "0px",
               ...(rootValue !== undefined && { root: rootValue }),
             },
             targetSelectors: observer.targetSelectors || [],
@@ -447,7 +444,7 @@ export class RuntimeAnimationDetectorService {
       return observers;
     } catch (error) {
       if (isDevelopment()) {
-        logger.error('[RuntimeAnimationDetectorService] detectIntersectionObservers error', {
+        logger.error("[RuntimeAnimationDetectorService] detectIntersectionObservers error", {
           error,
         });
       }
@@ -485,13 +482,13 @@ export class RuntimeAnimationDetectorService {
         const mutationObserver = new MutationObserver((mutations) => {
           const rafData = window.__reftrix_raf_data;
           for (const mutation of mutations) {
-            if (mutation.type === 'attributes' && mutation.attributeName === 'style') {
+            if (mutation.type === "attributes" && mutation.attributeName === "style") {
               const target = mutation.target as Element;
               let selector = target.tagName.toLowerCase();
               if (target.id) {
                 selector = `#${target.id}`;
-              } else if (target.className && typeof target.className === 'string') {
-                selector = `.${target.className.split(' ').filter(Boolean).join('.')}`;
+              } else if (target.className && typeof target.className === "string") {
+                selector = `.${target.className.split(" ").filter(Boolean).join(".")}`;
               }
 
               // アクティブなRAFコールバックに関連付け
@@ -508,7 +505,7 @@ export class RuntimeAnimationDetectorService {
 
         mutationObserver.observe(document.body, {
           attributes: true,
-          attributeFilter: ['style', 'class'],
+          attributeFilter: ["style", "class"],
           subtree: true,
         });
 
@@ -584,7 +581,8 @@ export class RuntimeAnimationDetectorService {
             counter++;
             const avgFrameTime =
               data.frameTimes.length > 0
-                ? data.frameTimes.reduce((a: number, b: number) => a + b, 0) / data.frameTimes.length
+                ? data.frameTimes.reduce((a: number, b: number) => a + b, 0) /
+                  data.frameTimes.length
                 : 0;
 
             results.push({
@@ -603,7 +601,7 @@ export class RuntimeAnimationDetectorService {
       return rafResults;
     } catch (error) {
       if (isDevelopment()) {
-        logger.error('[RuntimeAnimationDetectorService] detectRAFCallbacks error', { error });
+        logger.error("[RuntimeAnimationDetectorService] detectRAFCallbacks error", { error });
       }
       return [];
     }
@@ -629,14 +627,13 @@ export class RuntimeAnimationDetectorService {
         const OriginalIO = window.IntersectionObserver;
 
         // カスタムIntersectionObserverでオリジナルを上書き
-        (window as unknown as { IntersectionObserver: typeof IntersectionObserver }).IntersectionObserver = class ReftrixIntersectionObserver extends OriginalIO {
+        (
+          window as unknown as { IntersectionObserver: typeof IntersectionObserver }
+        ).IntersectionObserver = class ReftrixIntersectionObserver extends OriginalIO {
           private _targets: Element[] = [];
           private _id: number;
 
-          constructor(
-            callback: IntersectionObserverCallback,
-            options?: IntersectionObserverInit
-          ) {
+          constructor(callback: IntersectionObserverCallback, options?: IntersectionObserverInit) {
             const wrappedCallback: IntersectionObserverCallback = (entries, observer) => {
               for (const entry of entries) {
                 if (entry.isIntersecting) {
@@ -666,8 +663,8 @@ export class RuntimeAnimationDetectorService {
                   ? options.threshold
                   : [options.threshold]
                 : [0],
-              rootMargin: options?.rootMargin || '0px',
-              root: options?.root ? 'custom' : undefined,
+              rootMargin: options?.rootMargin || "0px",
+              root: options?.root ? "custom" : undefined,
               targetSelectors: [] as string[],
             });
           }
@@ -685,8 +682,8 @@ export class RuntimeAnimationDetectorService {
               let selector = target.tagName.toLowerCase();
               if (target.id) {
                 selector = `#${target.id}`;
-              } else if (target.className && typeof target.className === 'string') {
-                selector = `.${target.className.split(' ').filter(Boolean).join('.')}`;
+              } else if (target.className && typeof target.className === "string") {
+                selector = `.${target.className.split(" ").filter(Boolean).join(".")}`;
               }
               observer.targetSelectors.push(selector);
             }
@@ -738,7 +735,7 @@ export class RuntimeAnimationDetectorService {
       return results;
     } catch (error) {
       if (isDevelopment()) {
-        logger.error('[RuntimeAnimationDetectorService] detectAtScrollPositions error', { error });
+        logger.error("[RuntimeAnimationDetectorService] detectAtScrollPositions error", { error });
       }
       return {};
     }

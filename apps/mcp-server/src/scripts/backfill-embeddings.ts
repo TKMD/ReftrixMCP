@@ -26,61 +26,59 @@
  * @module scripts/backfill-embeddings
  */
 
-import { prisma } from '@reftrix/database';
-import { embeddingService } from '@reftrix/ml';
+import { prisma } from "@reftrix/database";
+import { embeddingService } from "@reftrix/ml";
 import {
   backfillWebPageEmbeddings,
   checkWebPageEmbeddingCoverage,
   findWebPagesWithMissingEmbeddings,
-} from '../services/embedding-backfill.service';
+} from "../services/embedding-backfill.service";
 import {
   setEmbeddingServiceFactory,
   setPrismaClientFactory as setLayoutPrismaClientFactory,
   LayoutEmbeddingService,
-} from '../services/layout-embedding.service';
-import {
-  setPrismaClientFactory as setMotionPrismaClientFactory,
-} from '../services/motion/frame-embedding.service';
+} from "../services/layout-embedding.service";
+import { setPrismaClientFactory as setMotionPrismaClientFactory } from "../services/motion/frame-embedding.service";
 import {
   setBackgroundEmbeddingServiceFactory,
   setBackgroundPrismaClientFactory,
   setMotionLayoutEmbeddingServiceFactory,
-} from '../tools/page/handlers/embedding-handler';
+} from "../tools/page/handlers/embedding-handler";
 
 /* eslint-disable no-console */
 
 // Load .env.local if present
-import fs from 'node:fs';
-import os from 'node:os';
-import path from 'node:path';
-import { execFileSync } from 'node:child_process';
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
+import { execFileSync } from "node:child_process";
 
 /**
  * Sentinel env var to prevent infinite re-exec loops.
  * Set by ensureLdLibraryPathForCuda() before re-spawning.
  */
-const REEXEC_SENTINEL = '__REFTRIX_CUDA_REEXEC';
+const REEXEC_SENTINEL = "__REFTRIX_CUDA_REEXEC";
 
 /**
  * Parse .env.local into a key-value map (without modifying process.env).
  */
 function parseEnvLocal(): Record<string, string> {
   const envPaths = [
-    path.resolve(process.cwd(), '.env.local'),
-    path.resolve(__dirname, '../../../../.env.local'),
+    path.resolve(process.cwd(), ".env.local"),
+    path.resolve(__dirname, "../../../../.env.local"),
   ];
 
   const envVars: Record<string, string> = {};
 
   for (const envPath of envPaths) {
     if (fs.existsSync(envPath)) {
-      const content = fs.readFileSync(envPath, 'utf-8');
-      for (const line of content.split('\n')) {
+      const content = fs.readFileSync(envPath, "utf-8");
+      for (const line of content.split("\n")) {
         const trimmed = line.trim();
-        if (!trimmed || trimmed.startsWith('#')) continue;
-        const [key, ...valueParts] = trimmed.split('=');
+        if (!trimmed || trimmed.startsWith("#")) continue;
+        const [key, ...valueParts] = trimmed.split("=");
         if (key) {
-          envVars[key] = valueParts.join('=').replace(/^["']|["']$/g, '');
+          envVars[key] = valueParts.join("=").replace(/^["']|["']$/g, "");
         }
       }
       break;
@@ -118,17 +116,17 @@ function loadEnvLocal(): void {
  */
 function ensureLdLibraryPathForCuda(): boolean {
   // Already re-executed — don't loop
-  if (process.env[REEXEC_SENTINEL] === '1') return true;
+  if (process.env[REEXEC_SENTINEL] === "1") return true;
 
   // Read .env.local to check if CUDA is requested
   const envVars = parseEnvLocal();
-  const onnxProvider = process.env.ONNX_EXECUTION_PROVIDER ?? envVars['ONNX_EXECUTION_PROVIDER'];
-  if (onnxProvider !== 'cuda' && onnxProvider !== 'rocm') return true;
+  const onnxProvider = process.env.ONNX_EXECUTION_PROVIDER ?? envVars["ONNX_EXECUTION_PROVIDER"];
+  if (onnxProvider !== "cuda" && onnxProvider !== "rocm") return true;
 
   // Check if LD_LIBRARY_PATH is already set at the OS level
   try {
-    const procEnv = fs.readFileSync('/proc/self/environ', 'utf-8');
-    if (procEnv.includes('LD_LIBRARY_PATH')) return true;
+    const procEnv = fs.readFileSync("/proc/self/environ", "utf-8");
+    if (procEnv.includes("LD_LIBRARY_PATH")) return true;
   } catch {
     // Non-Linux or /proc not available — assume OK
     return true;
@@ -136,13 +134,15 @@ function ensureLdLibraryPathForCuda(): boolean {
 
   // LD_LIBRARY_PATH is needed but not set at the OS level.
   // Re-exec the current process with proper environment.
-  const ldPath = process.env.LD_LIBRARY_PATH ?? envVars['LD_LIBRARY_PATH'];
+  const ldPath = process.env.LD_LIBRARY_PATH ?? envVars["LD_LIBRARY_PATH"];
   if (!ldPath) {
-    console.warn('[Backfill] CUDA requested but LD_LIBRARY_PATH not configured. Falling back to CPU.');
+    console.warn(
+      "[Backfill] CUDA requested but LD_LIBRARY_PATH not configured. Falling back to CPU."
+    );
     return true;
   }
 
-  console.warn('[Backfill] Re-executing with LD_LIBRARY_PATH for CUDA support...');
+  console.warn("[Backfill] Re-executing with LD_LIBRARY_PATH for CUDA support...");
 
   // Build merged environment: current env + .env.local vars + sentinel
   const mergedEnv: Record<string, string> = {};
@@ -152,9 +152,9 @@ function ensureLdLibraryPathForCuda(): boolean {
   for (const [k, v] of Object.entries(envVars)) {
     if (!(k in mergedEnv)) mergedEnv[k] = v;
   }
-  mergedEnv[REEXEC_SENTINEL] = '1';
+  mergedEnv[REEXEC_SENTINEL] = "1";
   // Ensure LD_LIBRARY_PATH is in the OS-level environment
-  mergedEnv['LD_LIBRARY_PATH'] = ldPath;
+  mergedEnv["LD_LIBRARY_PATH"] = ldPath;
 
   try {
     // Re-exec with the same argv and execArgv (--expose-gc etc.),
@@ -168,7 +168,7 @@ function ensureLdLibraryPathForCuda(): boolean {
     const childArgs = [...process.execArgv, ...process.argv.slice(1)];
     execFileSync(process.execPath, childArgs, {
       env: mergedEnv,
-      stdio: 'inherit',
+      stdio: "inherit",
     });
     // execFileSync returns buffer on success (exit code 0)
     process.exit(0);
@@ -186,7 +186,7 @@ function ensureLdLibraryPathForCuda(): boolean {
  * Sentinel env var set by the orchestrator process when spawning per-site
  * child processes.  Prevents the child from re-entering the orchestrator path.
  */
-const PER_SITE_CHILD_SENTINEL = '__REFTRIX_BACKFILL_CHILD';
+const PER_SITE_CHILD_SENTINEL = "__REFTRIX_BACKFILL_CHILD";
 
 interface CliOptions {
   dryRun: boolean;
@@ -197,15 +197,13 @@ interface CliOptions {
 
 function parseArgs(): CliOptions {
   const args = process.argv.slice(2);
-  const dryRun = args.includes('--dry-run');
-  const limit = args.includes('--limit')
-    ? parseInt(args[args.indexOf('--limit') + 1] || '0', 10) || undefined
+  const dryRun = args.includes("--dry-run");
+  const limit = args.includes("--limit")
+    ? parseInt(args[args.indexOf("--limit") + 1] || "0", 10) || undefined
     : undefined;
-  const urlFilter = args.includes('--url')
-    ? args[args.indexOf('--url') + 1]
-    : undefined;
-  const chunkSize = args.includes('--chunk-size')
-    ? parseInt(args[args.indexOf('--chunk-size') + 1] || '5', 10)
+  const urlFilter = args.includes("--url") ? args[args.indexOf("--url") + 1] : undefined;
+  const chunkSize = args.includes("--chunk-size")
+    ? parseInt(args[args.indexOf("--chunk-size") + 1] || "5", 10)
     : 5;
 
   return { dryRun, limit, urlFilter, chunkSize };
@@ -233,15 +231,15 @@ async function main(): Promise<void> {
   const options = parseArgs();
 
   const totalMemGB = (os.totalmem() / 1024 / 1024 / 1024).toFixed(1);
-  const thresholdGB = (os.totalmem() * 0.70 / 1024 / 1024 / 1024).toFixed(1);
+  const thresholdGB = ((os.totalmem() * 0.7) / 1024 / 1024 / 1024).toFixed(1);
 
-  console.log('=== Embedding Backfill ===');
-  console.log(`Mode: ${options.dryRun ? 'DRY RUN (no changes)' : 'LIVE'}`);
+  console.log("=== Embedding Backfill ===");
+  console.log(`Mode: ${options.dryRun ? "DRY RUN (no changes)" : "LIVE"}`);
   console.log(`Memory: ${totalMemGB}GB total, threshold ${thresholdGB}GB (70%)`);
   if (options.limit) console.log(`Limit: ${options.limit} per page`);
   if (options.urlFilter) console.log(`URL filter: ${options.urlFilter}`);
   console.log(`Chunk size: ${options.chunkSize}`);
-  console.log('');
+  console.log("");
 
   // Find pages with missing embeddings
   let pages: { webPageId: string; url: string; missingCount: number }[];
@@ -272,7 +270,7 @@ async function main(): Promise<void> {
   }
 
   if (pages.length === 0) {
-    console.log('No pages with missing embeddings found!');
+    console.log("No pages with missing embeddings found!");
     await prisma.$disconnect();
     return;
   }
@@ -290,14 +288,14 @@ async function main(): Promise<void> {
         }
       }
     }
-    console.log('\n[DRY RUN] No changes made');
+    console.log("\n[DRY RUN] No changes made");
     await prisma.$disconnect();
     return;
   }
 
   // When --url is specified (single site) OR we are a per-site child process,
   // process in-process directly.  Otherwise, orchestrate via child processes.
-  const isSingleSite = !!options.urlFilter || process.env[PER_SITE_CHILD_SENTINEL] === '1';
+  const isSingleSite = !!options.urlFilter || process.env[PER_SITE_CHILD_SENTINEL] === "1";
 
   if (isSingleSite) {
     await backfillSingleProcess(pages, options);
@@ -312,7 +310,7 @@ async function main(): Promise<void> {
  */
 async function backfillSingleProcess(
   pages: { webPageId: string; url: string; missingCount: number }[],
-  options: CliOptions,
+  options: CliOptions
 ): Promise<void> {
   let grandTotalBackfilled = 0;
   let grandTotalErrors = 0;
@@ -324,21 +322,23 @@ async function backfillSingleProcess(
     const result = await backfillWebPageEmbeddings(webPageId, {
       chunkSize: options.chunkSize,
       onProgress: (type, done, total) => {
-        process.stdout.write(
-          `\r  ${type}: ${done}/${total}`
-        );
+        process.stdout.write(`\r  ${type}: ${done}/${total}`);
       },
       onMemoryPressure: (type, rssGB, thresholdGB2, action) => {
-        if (action === 'dispose') {
-          console.warn(`\n  MEMORY PRESSURE at ${type}: RSS ${rssGB}GB > ${thresholdGB2}GB — disposing pipeline...`);
+        if (action === "dispose") {
+          console.warn(
+            `\n  MEMORY PRESSURE at ${type}: RSS ${rssGB}GB > ${thresholdGB2}GB — disposing pipeline...`
+          );
         } else {
-          console.warn(`\n  MEMORY SKIP at ${type}: RSS ${rssGB}GB > ${thresholdGB2}GB — recovery failed, skipping`);
+          console.warn(
+            `\n  MEMORY SKIP at ${type}: RSS ${rssGB}GB > ${thresholdGB2}GB — recovery failed, skipping`
+          );
         }
       },
     });
     const elapsed = Math.round((Date.now() - startTime) / 1000);
 
-    console.log(''); // newline after progress
+    console.log(""); // newline after progress
     console.log(`  Completed in ${elapsed}s`);
     console.log(`  Section: ${result.sectionBackfilled}`);
     console.log(`  Motion: ${result.motionBackfilled}`);
@@ -363,7 +363,7 @@ async function backfillSingleProcess(
     grandTotalErrors += result.errors.length;
   }
 
-  console.log('\n=== Summary ===');
+  console.log("\n=== Summary ===");
   console.log(`Total backfilled: ${grandTotalBackfilled}`);
   console.log(`Total errors: ${grandTotalErrors}`);
   console.log(`Pages processed: ${pages.length}`);
@@ -384,9 +384,11 @@ async function backfillSingleProcess(
  */
 async function backfillViaChildProcesses(
   pages: { webPageId: string; url: string; missingCount: number }[],
-  options: CliOptions,
+  options: CliOptions
 ): Promise<void> {
-  console.log(`\nProcessing ${pages.length} sites via per-site child processes (memory isolation)\n`);
+  console.log(
+    `\nProcessing ${pages.length} sites via per-site child processes (memory isolation)\n`
+  );
 
   await prisma.$disconnect();
 
@@ -399,22 +401,18 @@ async function backfillViaChildProcesses(
     console.log(`[${completed}/${pages.length}] Backfilling: ${url} (${missingCount} missing)`);
 
     // Build child args: re-invoke this script with --url for the specific site
-    const childArgs: string[] = [
-      ...process.execArgv,
-      ...process.argv.slice(1),
-      '--url', url,
-    ];
+    const childArgs: string[] = [...process.execArgv, ...process.argv.slice(1), "--url", url];
 
     // Merge current env + sentinel to prevent re-entering orchestrator
     const childEnv: Record<string, string> = {};
     for (const [k, v] of Object.entries(process.env)) {
       if (v !== undefined) childEnv[k] = v;
     }
-    childEnv[PER_SITE_CHILD_SENTINEL] = '1';
+    childEnv[PER_SITE_CHILD_SENTINEL] = "1";
 
     // Pass chunk-size if not already in argv
-    if (!process.argv.includes('--chunk-size')) {
-      childArgs.push('--chunk-size', String(options.chunkSize));
+    if (!process.argv.includes("--chunk-size")) {
+      childArgs.push("--chunk-size", String(options.chunkSize));
     }
 
     const startTime = Date.now();
@@ -422,7 +420,7 @@ async function backfillViaChildProcesses(
       // SEC-H3: execFileSync使用（シェル展開なし、コマンドインジェクション不可）
       execFileSync(process.execPath, childArgs, {
         env: childEnv,
-        stdio: 'inherit',
+        stdio: "inherit",
         timeout: 600_000, // 10 minutes per site
       });
       const elapsed = Math.round((Date.now() - startTime) / 1000);
@@ -436,12 +434,12 @@ async function backfillViaChildProcesses(
     }
   }
 
-  console.log('=== Batch Summary ===');
+  console.log("=== Batch Summary ===");
   console.log(`Total sites: ${pages.length}`);
   console.log(`Completed: ${pages.length - failed}`);
   console.log(`Failed: ${failed}`);
   if (failedUrls.length > 0) {
-    console.log('Failed URLs:');
+    console.log("Failed URLs:");
     for (const u of failedUrls) {
       console.log(`  - ${u}`);
     }
@@ -451,6 +449,6 @@ async function backfillViaChildProcesses(
 }
 
 main().catch((error) => {
-  console.error('Error:', error);
+  console.error("Error:", error);
   process.exit(1);
 });

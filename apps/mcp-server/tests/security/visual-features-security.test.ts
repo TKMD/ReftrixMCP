@@ -16,8 +16,8 @@
  * @module tests/security/visual-features-security.test
  */
 
-import { describe, it, expect, vi } from 'vitest';
-import { z } from 'zod';
+import { describe, it, expect, vi } from "vitest";
+import { z } from "zod";
 
 // テスト対象のスキーマをインポート
 import {
@@ -30,7 +30,7 @@ import {
   visualFeaturesBrandToneSchema,
   colorPaletteItemSchema,
   type VisualFeatures,
-} from '../../src/tools/page/schemas';
+} from "../../src/tools/page/schemas";
 
 // ============================================================================
 // テストユーティリティ
@@ -41,57 +41,57 @@ import {
  */
 const validVisualFeatures: VisualFeatures = {
   colors: {
-    dominant: ['#FF0000', '#00FF00', '#0000FF'],
-    accent: ['#FFFF00', '#FF00FF'],
+    dominant: ["#FF0000", "#00FF00", "#0000FF"],
+    accent: ["#FFFF00", "#FF00FF"],
     palette: [
-      { color: '#FF0000', percentage: 30 },
-      { color: '#00FF00', percentage: 25 },
-      { color: '#0000FF', percentage: 20 },
+      { color: "#FF0000", percentage: 30 },
+      { color: "#00FF00", percentage: 25 },
+      { color: "#0000FF", percentage: 20 },
     ],
-    source: 'deterministic',
+    source: "deterministic",
     confidence: 0.95,
   },
   theme: {
-    type: 'light',
-    backgroundColor: '#FFFFFF',
-    textColor: '#000000',
+    type: "light",
+    backgroundColor: "#FFFFFF",
+    textColor: "#000000",
     contrastRatio: 21,
     luminance: {
       background: 1.0,
       foreground: 0.0,
     },
-    source: 'deterministic',
+    source: "deterministic",
     confidence: 0.98,
   },
   density: {
     contentDensity: 0.45,
     whitespaceRatio: 0.55,
     visualBalance: 85,
-    source: 'deterministic',
+    source: "deterministic",
     confidence: 0.92,
   },
   gradient: {
     hasGradient: true,
     gradients: [],
-    dominantGradientType: 'linear',
+    dominantGradientType: "linear",
     confidence: 0.88,
     processingTimeMs: 123,
-    source: 'deterministic',
+    source: "deterministic",
   },
   mood: {
-    primary: 'professional',
-    secondary: 'elegant',
-    source: 'vision-ai',
+    primary: "professional",
+    secondary: "elegant",
+    source: "vision-ai",
     confidence: 0.75,
   },
   brandTone: {
-    primary: 'corporate',
-    secondary: 'trustworthy',
-    source: 'vision-ai',
+    primary: "corporate",
+    secondary: "trustworthy",
+    source: "vision-ai",
     confidence: 0.72,
   },
   metadata: {
-    mergedAt: '2026-01-19T10:00:00.000Z',
+    mergedAt: "2026-01-19T10:00:00.000Z",
     deterministicAvailable: true,
     visionAiAvailable: true,
     overallConfidence: 0.85,
@@ -104,30 +104,30 @@ const validVisualFeatures: VisualFeatures = {
 // Part 1: SQLインジェクション対策テスト
 // ============================================================================
 
-describe('visualFeatures SQLインジェクション対策', () => {
-  describe('HEXカラーパターンによるSQLインジェクション防止', () => {
-    it('SQLインジェクション文字列を含むカラーコードを拒否すること', () => {
+describe("visualFeatures SQLインジェクション対策", () => {
+  describe("HEXカラーパターンによるSQLインジェクション防止", () => {
+    it("SQLインジェクション文字列を含むカラーコードを拒否すること", () => {
       const maliciousColors = {
         dominant: ["'; DROP TABLE section_patterns; --"],
-        accent: ['#FF0000'],
+        accent: ["#FF0000"],
         palette: [],
-        source: 'deterministic' as const,
+        source: "deterministic" as const,
         confidence: 0.9,
       };
 
       const result = visualFeaturesColorsSchema.safeParse(maliciousColors);
       expect(result.success).toBe(false);
       if (!result.success) {
-        expect(result.error.errors[0].message).toContain('Invalid');
+        expect(result.error.errors[0].message).toContain("Invalid");
       }
     });
 
-    it('UNIONベースのSQLインジェクションを拒否すること', () => {
+    it("UNIONベースのSQLインジェクションを拒否すること", () => {
       const maliciousColors = {
         dominant: ["#FF0000' UNION SELECT * FROM users --"],
-        accent: ['#00FF00'],
+        accent: ["#00FF00"],
         palette: [],
-        source: 'deterministic' as const,
+        source: "deterministic" as const,
         confidence: 0.9,
       };
 
@@ -135,12 +135,12 @@ describe('visualFeatures SQLインジェクション対策', () => {
       expect(result.success).toBe(false);
     });
 
-    it('コメント文字列を含むインジェクションを拒否すること', () => {
+    it("コメント文字列を含むインジェクションを拒否すること", () => {
       const maliciousColors = {
-        dominant: ['#FF0000/*', '#00FF00*/'],
+        dominant: ["#FF0000/*", "#00FF00*/"],
         accent: [],
         palette: [],
-        source: 'deterministic' as const,
+        source: "deterministic" as const,
         confidence: 0.9,
       };
 
@@ -148,12 +148,12 @@ describe('visualFeatures SQLインジェクション対策', () => {
       expect(result.success).toBe(false);
     });
 
-    it('有効なHEXカラーコードは受け入れること', () => {
+    it("有効なHEXカラーコードは受け入れること", () => {
       const validColors = {
-        dominant: ['#FF0000', '#00FF00', '#0000FF'],
-        accent: ['#FFFF00'],
-        palette: [{ color: '#123456', percentage: 50 }],
-        source: 'deterministic' as const,
+        dominant: ["#FF0000", "#00FF00", "#0000FF"],
+        accent: ["#FFFF00"],
+        palette: [{ color: "#123456", percentage: 50 }],
+        source: "deterministic" as const,
         confidence: 0.95,
       };
 
@@ -161,12 +161,12 @@ describe('visualFeatures SQLインジェクション対策', () => {
       expect(result.success).toBe(true);
     });
 
-    it('小文字のHEXカラーコードも受け入れること', () => {
+    it("小文字のHEXカラーコードも受け入れること", () => {
       const validColors = {
-        dominant: ['#ff0000', '#aabbcc'],
-        accent: ['#1a2b3c'],
+        dominant: ["#ff0000", "#aabbcc"],
+        accent: ["#1a2b3c"],
         palette: [],
-        source: 'deterministic' as const,
+        source: "deterministic" as const,
         confidence: 0.9,
       };
 
@@ -175,15 +175,15 @@ describe('visualFeatures SQLインジェクション対策', () => {
     });
   });
 
-  describe('テーマフィールドのSQLインジェクション防止', () => {
-    it('SQLインジェクション文字列をbackgroundColorとして拒否すること', () => {
+  describe("テーマフィールドのSQLインジェクション防止", () => {
+    it("SQLインジェクション文字列をbackgroundColorとして拒否すること", () => {
       const maliciousTheme = {
-        type: 'light' as const,
+        type: "light" as const,
         backgroundColor: "'; DELETE FROM web_pages; --",
-        textColor: '#000000',
+        textColor: "#000000",
         contrastRatio: 21,
         luminance: { background: 1.0, foreground: 0.0 },
-        source: 'deterministic' as const,
+        source: "deterministic" as const,
         confidence: 0.9,
       };
 
@@ -191,14 +191,14 @@ describe('visualFeatures SQLインジェクション対策', () => {
       expect(result.success).toBe(false);
     });
 
-    it('テーマタイプへのインジェクションを拒否すること', () => {
+    it("テーマタイプへのインジェクションを拒否すること", () => {
       const maliciousTheme = {
         type: "light'; DROP TABLE section_patterns; --" as any,
-        backgroundColor: '#FFFFFF',
-        textColor: '#000000',
+        backgroundColor: "#FFFFFF",
+        textColor: "#000000",
         contrastRatio: 21,
         luminance: { background: 1.0, foreground: 0.0 },
-        source: 'deterministic' as const,
+        source: "deterministic" as const,
         confidence: 0.9,
       };
 
@@ -212,16 +212,16 @@ describe('visualFeatures SQLインジェクション対策', () => {
 // Part 2: JSONBインジェクション対策（プロトタイプ汚染）
 // ============================================================================
 
-describe('visualFeatures JSONBインジェクション対策', () => {
-  describe('プロトタイプ汚染攻撃の防止', () => {
-    it('__proto__プロパティを含むオブジェクトを適切に処理すること', () => {
+describe("visualFeatures JSONBインジェクション対策", () => {
+  describe("プロトタイプ汚染攻撃の防止", () => {
+    it("__proto__プロパティを含むオブジェクトを適切に処理すること", () => {
       // Zodはunknownキーを黙って削除（stripモード）
       const maliciousInput = {
         colors: {
-          dominant: ['#FF0000'],
+          dominant: ["#FF0000"],
           accent: [],
           palette: [],
-          source: 'deterministic',
+          source: "deterministic",
           confidence: 0.9,
           __proto__: { admin: true },
         },
@@ -238,13 +238,13 @@ describe('visualFeatures JSONBインジェクション対策', () => {
       }
     });
 
-    it('constructorプロパティへの攻撃を適切に処理すること', () => {
+    it("constructorプロパティへの攻撃を適切に処理すること", () => {
       const maliciousInput = {
         colors: {
-          dominant: ['#FF0000'],
+          dominant: ["#FF0000"],
           accent: [],
           palette: [],
-          source: 'deterministic',
+          source: "deterministic",
           confidence: 0.9,
           constructor: { prototype: { isAdmin: true } },
         },
@@ -257,19 +257,19 @@ describe('visualFeatures JSONBインジェクション対策', () => {
       }
     });
 
-    it('ネストされたプロトタイプ汚染攻撃を防止すること', () => {
+    it("ネストされたプロトタイプ汚染攻撃を防止すること", () => {
       const maliciousInput = {
         theme: {
-          type: 'light',
-          backgroundColor: '#FFFFFF',
-          textColor: '#000000',
+          type: "light",
+          backgroundColor: "#FFFFFF",
+          textColor: "#000000",
           contrastRatio: 21,
           luminance: {
             background: 1.0,
             foreground: 0.0,
             __proto__: { polluted: true },
           },
-          source: 'deterministic',
+          source: "deterministic",
           confidence: 0.9,
         },
       };
@@ -281,16 +281,16 @@ describe('visualFeatures JSONBインジェクション対策', () => {
     });
   });
 
-  describe('JSON.parseによる攻撃の防止', () => {
-    it('JSON文字列として埋め込まれた__proto__を拒否すること', () => {
+  describe("JSON.parseによる攻撃の防止", () => {
+    it("JSON文字列として埋め込まれた__proto__を拒否すること", () => {
       // themeのtypeフィールドはenumなので、不正な値は拒否される
       const maliciousTheme = {
         type: '{"__proto__": {"admin": true}}' as any,
-        backgroundColor: '#FFFFFF',
-        textColor: '#000000',
+        backgroundColor: "#FFFFFF",
+        textColor: "#000000",
         contrastRatio: 21,
         luminance: { background: 1.0, foreground: 0.0 },
-        source: 'deterministic' as const,
+        source: "deterministic" as const,
         confidence: 0.9,
       };
 
@@ -304,14 +304,14 @@ describe('visualFeatures JSONBインジェクション対策', () => {
 // Part 3: XSS対策テスト（レスポンス側）
 // ============================================================================
 
-describe('visualFeatures XSS対策', () => {
-  describe('スクリプトタグインジェクションの防止', () => {
-    it('カラーコードに含まれるスクリプトタグを拒否すること', () => {
+describe("visualFeatures XSS対策", () => {
+  describe("スクリプトタグインジェクションの防止", () => {
+    it("カラーコードに含まれるスクリプトタグを拒否すること", () => {
       const maliciousColors = {
         dominant: ['<script>alert("XSS")</script>'],
         accent: [],
         palette: [],
-        source: 'deterministic' as const,
+        source: "deterministic" as const,
         confidence: 0.9,
       };
 
@@ -319,12 +319,12 @@ describe('visualFeatures XSS対策', () => {
       expect(result.success).toBe(false);
     });
 
-    it('イベントハンドラ属性を含む文字列を拒否すること', () => {
+    it("イベントハンドラ属性を含む文字列を拒否すること", () => {
       const maliciousColors = {
         dominant: ['#FF0000" onmouseover="alert(1)'],
         accent: [],
         palette: [],
-        source: 'deterministic' as const,
+        source: "deterministic" as const,
         confidence: 0.9,
       };
 
@@ -332,12 +332,12 @@ describe('visualFeatures XSS対策', () => {
       expect(result.success).toBe(false);
     });
 
-    it('SVGベースのXSS攻撃を拒否すること', () => {
+    it("SVGベースのXSS攻撃を拒否すること", () => {
       const maliciousColors = {
         dominant: ['<svg onload="alert(1)">'],
         accent: [],
         palette: [],
-        source: 'deterministic' as const,
+        source: "deterministic" as const,
         confidence: 0.9,
       };
 
@@ -345,12 +345,12 @@ describe('visualFeatures XSS対策', () => {
       expect(result.success).toBe(false);
     });
 
-    it('imgタグのonerrorを含む攻撃を拒否すること', () => {
+    it("imgタグのonerrorを含む攻撃を拒否すること", () => {
       const maliciousColors = {
-        dominant: ['<img src=x onerror=alert(1)>'],
+        dominant: ["<img src=x onerror=alert(1)>"],
         accent: [],
         palette: [],
-        source: 'deterministic' as const,
+        source: "deterministic" as const,
         confidence: 0.9,
       };
 
@@ -359,13 +359,13 @@ describe('visualFeatures XSS対策', () => {
     });
   });
 
-  describe('JavaScriptプロトコルインジェクションの防止', () => {
-    it('javascript:プロトコルを含む文字列を拒否すること', () => {
+  describe("JavaScriptプロトコルインジェクションの防止", () => {
+    it("javascript:プロトコルを含む文字列を拒否すること", () => {
       const maliciousColors = {
-        dominant: ['javascript:alert(1)'],
+        dominant: ["javascript:alert(1)"],
         accent: [],
         palette: [],
-        source: 'deterministic' as const,
+        source: "deterministic" as const,
         confidence: 0.9,
       };
 
@@ -373,12 +373,12 @@ describe('visualFeatures XSS対策', () => {
       expect(result.success).toBe(false);
     });
 
-    it('data:プロトコルを含む文字列を拒否すること', () => {
+    it("data:プロトコルを含む文字列を拒否すること", () => {
       const maliciousColors = {
-        dominant: ['data:text/html,<script>alert(1)</script>'],
+        dominant: ["data:text/html,<script>alert(1)</script>"],
         accent: [],
         palette: [],
-        source: 'deterministic' as const,
+        source: "deterministic" as const,
         confidence: 0.9,
       };
 
@@ -387,11 +387,11 @@ describe('visualFeatures XSS対策', () => {
     });
   });
 
-  describe('ムード・ブランドトーンフィールドのXSS対策', () => {
-    it('moodのprimaryに不正な値を拒否すること', () => {
+  describe("ムード・ブランドトーンフィールドのXSS対策", () => {
+    it("moodのprimaryに不正な値を拒否すること", () => {
       const maliciousMood = {
         primary: '<script>alert("XSS")</script>' as any,
-        source: 'vision-ai' as const,
+        source: "vision-ai" as const,
         confidence: 0.75,
       };
 
@@ -399,10 +399,10 @@ describe('visualFeatures XSS対策', () => {
       expect(result.success).toBe(false);
     });
 
-    it('brandToneのprimaryに不正な値を拒否すること', () => {
+    it("brandToneのprimaryに不正な値を拒否すること", () => {
       const maliciousBrandTone = {
-        primary: '<img src=x onerror=alert(1)>' as any,
-        source: 'vision-ai' as const,
+        primary: "<img src=x onerror=alert(1)>" as any,
+        source: "vision-ai" as const,
         confidence: 0.7,
       };
 
@@ -416,30 +416,30 @@ describe('visualFeatures XSS対策', () => {
 // Part 4: DoS対策テスト（配列サイズ制限）
 // ============================================================================
 
-describe('visualFeatures DoS対策', () => {
-  describe('配列サイズ制限', () => {
-    it('dominant配列が5要素を超える場合を拒否すること', () => {
+describe("visualFeatures DoS対策", () => {
+  describe("配列サイズ制限", () => {
+    it("dominant配列が5要素を超える場合を拒否すること", () => {
       const oversizedColors = {
-        dominant: ['#FF0000', '#00FF00', '#0000FF', '#FFFF00', '#FF00FF', '#00FFFF'],
+        dominant: ["#FF0000", "#00FF00", "#0000FF", "#FFFF00", "#FF00FF", "#00FFFF"],
         accent: [],
         palette: [],
-        source: 'deterministic' as const,
+        source: "deterministic" as const,
         confidence: 0.9,
       };
 
       const result = visualFeaturesColorsSchema.safeParse(oversizedColors);
       expect(result.success).toBe(false);
       if (!result.success) {
-        expect(result.error.errors[0].message).toContain('5');
+        expect(result.error.errors[0].message).toContain("5");
       }
     });
 
-    it('accent配列が3要素を超える場合を拒否すること', () => {
+    it("accent配列が3要素を超える場合を拒否すること", () => {
       const oversizedColors = {
-        dominant: ['#FF0000'],
-        accent: ['#00FF00', '#0000FF', '#FFFF00', '#FF00FF'],
+        dominant: ["#FF0000"],
+        accent: ["#00FF00", "#0000FF", "#FFFF00", "#FF00FF"],
         palette: [],
-        source: 'deterministic' as const,
+        source: "deterministic" as const,
         confidence: 0.9,
       };
 
@@ -447,12 +447,12 @@ describe('visualFeatures DoS対策', () => {
       expect(result.success).toBe(false);
     });
 
-    it('dominant配列が正確に5要素の場合は受け入れること', () => {
+    it("dominant配列が正確に5要素の場合は受け入れること", () => {
       const maxColors = {
-        dominant: ['#FF0000', '#00FF00', '#0000FF', '#FFFF00', '#FF00FF'],
+        dominant: ["#FF0000", "#00FF00", "#0000FF", "#FFFF00", "#FF00FF"],
         accent: [],
         palette: [],
-        source: 'deterministic' as const,
+        source: "deterministic" as const,
         confidence: 0.9,
       };
 
@@ -460,12 +460,12 @@ describe('visualFeatures DoS対策', () => {
       expect(result.success).toBe(true);
     });
 
-    it('accent配列が正確に3要素の場合は受け入れること', () => {
+    it("accent配列が正確に3要素の場合は受け入れること", () => {
       const maxColors = {
-        dominant: ['#FF0000'],
-        accent: ['#00FF00', '#0000FF', '#FFFF00'],
+        dominant: ["#FF0000"],
+        accent: ["#00FF00", "#0000FF", "#FFFF00"],
         palette: [],
-        source: 'deterministic' as const,
+        source: "deterministic" as const,
         confidence: 0.9,
       };
 
@@ -474,29 +474,29 @@ describe('visualFeatures DoS対策', () => {
     });
   });
 
-  describe('大量ペイロード攻撃の防止', () => {
-    it('palette配列が100要素を超える場合を拒否すること', () => {
+  describe("大量ペイロード攻撃の防止", () => {
+    it("palette配列が100要素を超える場合を拒否すること", () => {
       const largePayload = {
-        dominant: ['#FF0000'],
+        dominant: ["#FF0000"],
         accent: [],
-        palette: Array(101).fill({ color: '#000000', percentage: 1 }),
-        source: 'deterministic' as const,
+        palette: Array(101).fill({ color: "#000000", percentage: 1 }),
+        source: "deterministic" as const,
         confidence: 0.9,
       };
 
       const result = visualFeaturesColorsSchema.safeParse(largePayload);
       expect(result.success).toBe(false);
       if (!result.success) {
-        expect(result.error.errors[0].message).toContain('100');
+        expect(result.error.errors[0].message).toContain("100");
       }
     });
 
-    it('palette配列が正確に100要素の場合は受け入れること', () => {
+    it("palette配列が正確に100要素の場合は受け入れること", () => {
       const maxPayload = {
-        dominant: ['#FF0000'],
+        dominant: ["#FF0000"],
         accent: [],
-        palette: Array(100).fill({ color: '#000000', percentage: 1 }),
-        source: 'deterministic' as const,
+        palette: Array(100).fill({ color: "#000000", percentage: 1 }),
+        source: "deterministic" as const,
         confidence: 0.9,
       };
 
@@ -505,13 +505,13 @@ describe('visualFeatures DoS対策', () => {
     });
   });
 
-  describe('数値フィールドの範囲制限', () => {
-    it('confidenceが1を超える場合を拒否すること', () => {
+  describe("数値フィールドの範囲制限", () => {
+    it("confidenceが1を超える場合を拒否すること", () => {
       const invalidColors = {
-        dominant: ['#FF0000'],
+        dominant: ["#FF0000"],
         accent: [],
         palette: [],
-        source: 'deterministic' as const,
+        source: "deterministic" as const,
         confidence: 1.5,
       };
 
@@ -519,12 +519,12 @@ describe('visualFeatures DoS対策', () => {
       expect(result.success).toBe(false);
     });
 
-    it('confidenceが0未満の場合を拒否すること', () => {
+    it("confidenceが0未満の場合を拒否すること", () => {
       const invalidColors = {
-        dominant: ['#FF0000'],
+        dominant: ["#FF0000"],
         accent: [],
         palette: [],
-        source: 'deterministic' as const,
+        source: "deterministic" as const,
         confidence: -0.1,
       };
 
@@ -532,14 +532,14 @@ describe('visualFeatures DoS対策', () => {
       expect(result.success).toBe(false);
     });
 
-    it('contrastRatioが21を超える場合を拒否すること', () => {
+    it("contrastRatioが21を超える場合を拒否すること", () => {
       const invalidTheme = {
-        type: 'light' as const,
-        backgroundColor: '#FFFFFF',
-        textColor: '#000000',
+        type: "light" as const,
+        backgroundColor: "#FFFFFF",
+        textColor: "#000000",
         contrastRatio: 25,
         luminance: { background: 1.0, foreground: 0.0 },
-        source: 'deterministic' as const,
+        source: "deterministic" as const,
         confidence: 0.9,
       };
 
@@ -547,9 +547,9 @@ describe('visualFeatures DoS対策', () => {
       expect(result.success).toBe(false);
     });
 
-    it('percentageが100を超える場合を拒否すること', () => {
+    it("percentageが100を超える場合を拒否すること", () => {
       const invalidPalette = {
-        color: '#FF0000',
+        color: "#FF0000",
         percentage: 150,
       };
 
@@ -563,9 +563,9 @@ describe('visualFeatures DoS対策', () => {
 // Part 5: Null/Undefined インジェクション対策
 // ============================================================================
 
-describe('visualFeatures Null/Undefined インジェクション対策', () => {
-  describe('Null値の適切な処理', () => {
-    it('colorsがnullの場合を適切に処理すること', () => {
+describe("visualFeatures Null/Undefined インジェクション対策", () => {
+  describe("Null値の適切な処理", () => {
+    it("colorsがnullの場合を適切に処理すること", () => {
       const nullInput = {
         colors: null,
         theme: null,
@@ -579,7 +579,7 @@ describe('visualFeatures Null/Undefined インジェクション対策', () => {
       }
     });
 
-    it('moodがnullの場合を適切に処理すること', () => {
+    it("moodがnullの場合を適切に処理すること", () => {
       const input = {
         mood: null,
       };
@@ -592,14 +592,14 @@ describe('visualFeatures Null/Undefined インジェクション対策', () => {
     });
   });
 
-  describe('Undefined値の適切な処理', () => {
-    it('オプショナルフィールドがundefinedの場合を受け入れること', () => {
+  describe("Undefined値の適切な処理", () => {
+    it("オプショナルフィールドがundefinedの場合を受け入れること", () => {
       const partialInput = {
         colors: {
-          dominant: ['#FF0000'],
+          dominant: ["#FF0000"],
           accent: [],
           palette: [],
-          source: 'deterministic' as const,
+          source: "deterministic" as const,
           confidence: 0.9,
         },
         // theme, density, gradient, mood, brandTone, metadataは省略
@@ -613,7 +613,7 @@ describe('visualFeatures Null/Undefined インジェクション対策', () => {
       }
     });
 
-    it('空オブジェクトを適切に処理すること', () => {
+    it("空オブジェクトを適切に処理すること", () => {
       const emptyInput = {};
 
       const result = visualFeaturesSchema.safeParse(emptyInput);
@@ -621,15 +621,15 @@ describe('visualFeatures Null/Undefined インジェクション対策', () => {
     });
   });
 
-  describe('型強制攻撃の防止', () => {
-    it('数値フィールドに文字列nullを渡した場合を拒否すること', () => {
+  describe("型強制攻撃の防止", () => {
+    it("数値フィールドに文字列nullを渡した場合を拒否すること", () => {
       const maliciousInput = {
         colors: {
-          dominant: ['#FF0000'],
+          dominant: ["#FF0000"],
           accent: [],
           palette: [],
-          source: 'deterministic',
-          confidence: 'null' as any,
+          source: "deterministic",
+          confidence: "null" as any,
         },
       };
 
@@ -637,13 +637,13 @@ describe('visualFeatures Null/Undefined インジェクション対策', () => {
       expect(result.success).toBe(false);
     });
 
-    it('配列フィールドに文字列undefinedを渡した場合を拒否すること', () => {
+    it("配列フィールドに文字列undefinedを渡した場合を拒否すること", () => {
       const maliciousInput = {
         colors: {
-          dominant: 'undefined' as any,
+          dominant: "undefined" as any,
           accent: [],
           palette: [],
-          source: 'deterministic',
+          source: "deterministic",
           confidence: 0.9,
         },
       };
@@ -652,14 +652,14 @@ describe('visualFeatures Null/Undefined インジェクション対策', () => {
       expect(result.success).toBe(false);
     });
 
-    it('enumフィールドにnullを渡した場合の動作を確認すること', () => {
+    it("enumフィールドにnullを渡した場合の動作を確認すること", () => {
       const maliciousTheme = {
         type: null as any,
-        backgroundColor: '#FFFFFF',
-        textColor: '#000000',
+        backgroundColor: "#FFFFFF",
+        textColor: "#000000",
         contrastRatio: 21,
         luminance: { background: 1.0, foreground: 0.0 },
-        source: 'deterministic' as const,
+        source: "deterministic" as const,
         confidence: 0.9,
       };
 
@@ -673,13 +673,13 @@ describe('visualFeatures Null/Undefined インジェクション対策', () => {
 // Part 6: 有効な入力の受け入れ確認（ポジティブテスト）
 // ============================================================================
 
-describe('visualFeatures 有効な入力の受け入れ', () => {
-  it('完全なvisualFeaturesオブジェクトを受け入れること', () => {
+describe("visualFeatures 有効な入力の受け入れ", () => {
+  it("完全なvisualFeaturesオブジェクトを受け入れること", () => {
     const result = visualFeaturesSchema.safeParse(validVisualFeatures);
     expect(result.success).toBe(true);
   });
 
-  it('部分的なvisualFeaturesオブジェクトを受け入れること', () => {
+  it("部分的なvisualFeaturesオブジェクトを受け入れること", () => {
     const partialFeatures = {
       colors: validVisualFeatures.colors,
       theme: null,
@@ -691,7 +691,7 @@ describe('visualFeatures 有効な入力の受け入れ', () => {
     expect(result.success).toBe(true);
   });
 
-  it('決定論的データのみのvisualFeaturesを受け入れること', () => {
+  it("決定論的データのみのvisualFeaturesを受け入れること", () => {
     const deterministicOnly = {
       colors: validVisualFeatures.colors,
       theme: validVisualFeatures.theme,
@@ -703,7 +703,7 @@ describe('visualFeatures 有効な入力の受け入れ', () => {
     expect(result.success).toBe(true);
   });
 
-  it('Vision AIデータのみのvisualFeaturesを受け入れること', () => {
+  it("Vision AIデータのみのvisualFeaturesを受け入れること", () => {
     const visionAiOnly = {
       mood: validVisualFeatures.mood,
       brandTone: validVisualFeatures.brandTone,

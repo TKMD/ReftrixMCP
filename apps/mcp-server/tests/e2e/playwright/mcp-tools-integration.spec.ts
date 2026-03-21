@@ -18,33 +18,30 @@
  * @module tests/e2e/playwright/mcp-tools-integration
  */
 
-import { test, expect, Page, Browser } from '@playwright/test';
-import { PrismaClient } from '@prisma/client';
+import { test, expect, Page, Browser } from "@playwright/test";
+import { PrismaClient } from "@prisma/client";
 
 // MCPツールハンドラーのインポート
 import {
   layoutIngestHandler,
   layoutSearchHandler,
   resetLayoutSearchServiceFactory,
-} from '../../../src/tools/layout';
+} from "../../../src/tools/layout";
 
-import {
-  motionDetectHandler,
-  resetMotionDetectServiceFactory,
-} from '../../../src/tools/motion';
+import { motionDetectHandler, resetMotionDetectServiceFactory } from "../../../src/tools/motion";
 
 import {
   qualityEvaluateHandler,
   resetQualityEvaluateServiceFactory,
-} from '../../../src/tools/quality';
+} from "../../../src/tools/quality";
 
 import {
   pageAnalyzeHandler,
   resetPageAnalyzeServiceFactory,
   resetPageAnalyzePrismaClientFactory,
-} from '../../../src/tools/page';
+} from "../../../src/tools/page";
 
-import { TEST_DATABASE_URL } from '../test-database-url';
+import { TEST_DATABASE_URL } from "../test-database-url";
 
 // ============================================================================
 // Prismaクライアント設定
@@ -56,7 +53,7 @@ const prisma = new PrismaClient({
       url: TEST_DATABASE_URL,
     },
   },
-  log: process.env.NODE_ENV === 'development' ? ['query', 'error'] : ['error'],
+  log: process.env.NODE_ENV === "development" ? ["query", "error"] : ["error"],
 });
 
 // ============================================================================
@@ -69,9 +66,9 @@ const prisma = new PrismaClient({
  */
 const TEST_URLS = {
   // httpbin.org - テスト用に安定したHTML
-  simple: 'https://httpbin.org/html',
+  simple: "https://httpbin.org/html",
   // Example.com - シンプルなHTML
-  example: 'https://example.com',
+  example: "https://example.com",
 };
 
 /**
@@ -229,7 +226,7 @@ async function cleanupTestData(): Promise<void> {
       await prisma.qualityEvaluation.deleteMany({
         where: {
           targetId: testWebPageId,
-          targetType: 'web_page',
+          targetType: "web_page",
         },
       });
       // WebPageを削除
@@ -240,7 +237,7 @@ async function cleanupTestData(): Promise<void> {
     }
   } catch (error) {
     // クリーンアップエラーは無視（既に削除済みの可能性）
-    console.warn('[Test Cleanup] Warning:', error);
+    console.warn("[Test Cleanup] Warning:", error);
   }
 }
 
@@ -248,7 +245,7 @@ async function cleanupTestData(): Promise<void> {
 // E2E テストスイート
 // ============================================================================
 
-test.describe('MCP Tools Integration E2E Tests', () => {
+test.describe("MCP Tools Integration E2E Tests", () => {
   // テスト前の準備
   test.beforeAll(async () => {
     // サービスファクトリをリセット
@@ -268,10 +265,10 @@ test.describe('MCP Tools Integration E2E Tests', () => {
   // --------------------------------------------------------------------------
   // Test 1: layout.ingest → layout.search フロー
   // --------------------------------------------------------------------------
-  test.describe('Layout Tools Flow', () => {
-    test('should ingest webpage and search for sections', async ({ page }) => {
+  test.describe("Layout Tools Flow", () => {
+    test("should ingest webpage and search for sections", async ({ page }) => {
       // Step 1: layout.ingest - URLからWebページを取得
-      console.log('[Test] Step 1: layout.ingest with URL');
+      console.log("[Test] Step 1: layout.ingest with URL");
 
       const ingestResult = await layoutIngestHandler({
         url: TEST_URLS.example,
@@ -292,16 +289,16 @@ test.describe('MCP Tools Integration E2E Tests', () => {
 
       // テスト用IDを保存
       testWebPageId = ingestResult.data?.id || null;
-      console.log('[Test] Ingested page ID:', testWebPageId);
+      console.log("[Test] Ingested page ID:", testWebPageId);
 
       // Step 2: layout.search - セクション検索
-      console.log('[Test] Step 2: layout.search for hero section');
+      console.log("[Test] Step 2: layout.search for hero section");
 
       // Embedding生成を待機
       await new Promise((resolve) => setTimeout(resolve, 2000));
 
       const searchResult = await layoutSearchHandler({
-        query: 'example domain',
+        query: "example domain",
         limit: 5,
         include_html: true,
         include_preview: true,
@@ -311,12 +308,12 @@ test.describe('MCP Tools Integration E2E Tests', () => {
       // 構造: { success: true, data: { results: [...], total: ..., query: ... } }
       // または { success: false, error: {...} }
       expect(searchResult).toBeDefined();
-      console.log('[Test] Search result:', JSON.stringify(searchResult, null, 2));
+      console.log("[Test] Search result:", JSON.stringify(searchResult, null, 2));
 
       // 検索サービスが利用できない場合はスキップ
       if (!searchResult.success) {
-        console.log('[Test] Search service not available, skipping search assertions');
-        console.log('[Test] Error:', searchResult.error);
+        console.log("[Test] Search service not available, skipping search assertions");
+        console.log("[Test] Error:", searchResult.error);
         // サービスが利用不可の場合でもテスト自体は成功とする
         return;
       }
@@ -330,14 +327,14 @@ test.describe('MCP Tools Integration E2E Tests', () => {
         const firstResult = results[0];
         expect(firstResult.pattern).toBeDefined();
         expect(firstResult.similarity).toBeGreaterThan(0);
-        console.log('[Test] Found sections:', results.length);
-        console.log('[Test] First result similarity:', firstResult.similarity);
+        console.log("[Test] Found sections:", results.length);
+        console.log("[Test] First result similarity:", firstResult.similarity);
       }
     });
 
-    test('should ingest real webpage via URL and return HTML', async ({ page }) => {
+    test("should ingest real webpage via URL and return HTML", async ({ page }) => {
       // 実際のURLからWebページを取得するテスト
-      console.log('[Test] Ingesting real webpage from URL');
+      console.log("[Test] Ingesting real webpage from URL");
 
       // example.comを使用（安定している）
       const ingestResult = await layoutIngestHandler({
@@ -355,10 +352,10 @@ test.describe('MCP Tools Integration E2E Tests', () => {
       expect(ingestResult.success).toBe(true);
       // include_html: true の場合のみHTMLが返される
       if (ingestResult.data?.html) {
-        expect(ingestResult.data.html).toContain('Example Domain');
-        console.log('[Test] Successfully ingested example.com with HTML');
+        expect(ingestResult.data.html).toContain("Example Domain");
+        console.log("[Test] Successfully ingested example.com with HTML");
       } else {
-        console.log('[Test] Successfully ingested example.com (HTML not included in response)');
+        console.log("[Test] Successfully ingested example.com (HTML not included in response)");
       }
     });
   });
@@ -366,13 +363,13 @@ test.describe('MCP Tools Integration E2E Tests', () => {
   // --------------------------------------------------------------------------
   // Test 2: motion.detect フロー
   // --------------------------------------------------------------------------
-  test.describe('Motion Detection Flow', () => {
-    test('should detect CSS animations from HTML', async () => {
-      console.log('[Test] motion.detect - CSS animation detection');
+  test.describe("Motion Detection Flow", () => {
+    test("should detect CSS animations from HTML", async () => {
+      console.log("[Test] motion.detect - CSS animation detection");
 
       const detectResult = await motionDetectHandler({
         html: TEST_HTML_CONTENT,
-        detection_mode: 'css',
+        detection_mode: "css",
         save_to_db: false,
         include_warnings: true,
         includeWarnings: true,
@@ -385,13 +382,11 @@ test.describe('MCP Tools Integration E2E Tests', () => {
       // パターンが検出されることを検証
       if (detectResult.patterns) {
         expect(Array.isArray(detectResult.patterns)).toBe(true);
-        console.log('[Test] Detected patterns:', detectResult.patterns.length);
+        console.log("[Test] Detected patterns:", detectResult.patterns.length);
 
         // fadeIn または pulse アニメーションが検出されることを期待
-        const animationNames = detectResult.patterns.map(
-          (p: { name?: string }) => p.name
-        );
-        console.log('[Test] Animation names:', animationNames);
+        const animationNames = detectResult.patterns.map((p: { name?: string }) => p.name);
+        console.log("[Test] Animation names:", animationNames);
 
         // 少なくとも1つのアニメーションが検出されるべき
         expect(detectResult.patterns.length).toBeGreaterThanOrEqual(0);
@@ -399,24 +394,24 @@ test.describe('MCP Tools Integration E2E Tests', () => {
 
       // サマリーの検証
       if (detectResult.summary) {
-        console.log('[Test] Motion summary:', detectResult.summary);
+        console.log("[Test] Motion summary:", detectResult.summary);
       }
     });
 
-    test('should include warnings for accessibility', async () => {
-      console.log('[Test] motion.detect - accessibility warnings');
+    test("should include warnings for accessibility", async () => {
+      console.log("[Test] motion.detect - accessibility warnings");
 
       const detectResult = await motionDetectHandler({
         html: TEST_HTML_CONTENT,
-        detection_mode: 'css',
+        detection_mode: "css",
         save_to_db: false,
         include_warnings: true,
-        min_severity: 'info',
+        min_severity: "info",
       });
 
       // 警告が存在する場合の検証
       if (detectResult.warnings && detectResult.warnings.length > 0) {
-        console.log('[Test] Warnings found:', detectResult.warnings.length);
+        console.log("[Test] Warnings found:", detectResult.warnings.length);
         // 警告の構造を検証
         detectResult.warnings.forEach(
           (warning: { type?: string; severity?: string; message?: string }) => {
@@ -431,9 +426,9 @@ test.describe('MCP Tools Integration E2E Tests', () => {
   // --------------------------------------------------------------------------
   // Test 3: quality.evaluate フロー
   // --------------------------------------------------------------------------
-  test.describe('Quality Evaluation Flow', () => {
-    test('should evaluate design quality from HTML', async () => {
-      console.log('[Test] quality.evaluate - design quality evaluation');
+  test.describe("Quality Evaluation Flow", () => {
+    test("should evaluate design quality from HTML", async () => {
+      console.log("[Test] quality.evaluate - design quality evaluation");
 
       const evaluateResult = await qualityEvaluateHandler({
         html: TEST_HTML_CONTENT,
@@ -453,30 +448,27 @@ test.describe('MCP Tools Integration E2E Tests', () => {
         expect(evaluation.overallScore).toBeGreaterThanOrEqual(0);
         expect(evaluation.overallScore).toBeLessThanOrEqual(100);
 
-        console.log('[Test] Overall score:', evaluation.overallScore);
-        console.log('[Test] Grade:', evaluation.grade);
+        console.log("[Test] Overall score:", evaluation.overallScore);
+        console.log("[Test] Grade:", evaluation.grade);
 
         // 各軸のスコア検証
         if (evaluation.axes) {
           expect(evaluation.axes.originality).toBeDefined();
           expect(evaluation.axes.craftsmanship).toBeDefined();
           expect(evaluation.axes.contextuality).toBeDefined();
-          console.log('[Test] Axes scores:', evaluation.axes);
+          console.log("[Test] Axes scores:", evaluation.axes);
         }
       }
 
       // 推奨事項の検証
       if (evaluateResult.recommendations) {
         expect(Array.isArray(evaluateResult.recommendations)).toBe(true);
-        console.log(
-          '[Test] Recommendations:',
-          evaluateResult.recommendations.length
-        );
+        console.log("[Test] Recommendations:", evaluateResult.recommendations.length);
       }
     });
 
-    test('should evaluate with strict mode', async () => {
-      console.log('[Test] quality.evaluate - strict mode');
+    test("should evaluate with strict mode", async () => {
+      console.log("[Test] quality.evaluate - strict mode");
 
       const evaluateResult = await qualityEvaluateHandler({
         html: TEST_HTML_CONTENT,
@@ -490,10 +482,7 @@ test.describe('MCP Tools Integration E2E Tests', () => {
 
       // strictモードではAIクリシェ検出がより厳格になる
       if (evaluateResult.evaluation?.clicheDetection) {
-        console.log(
-          '[Test] Cliche detection:',
-          evaluateResult.evaluation.clicheDetection
-        );
+        console.log("[Test] Cliche detection:", evaluateResult.evaluation.clicheDetection);
       }
     });
   });
@@ -501,9 +490,9 @@ test.describe('MCP Tools Integration E2E Tests', () => {
   // --------------------------------------------------------------------------
   // Test 4: page.analyze 統合フロー
   // --------------------------------------------------------------------------
-  test.describe('Page Analyze Integration Flow', () => {
-    test('should analyze page with all features enabled', async () => {
-      console.log('[Test] page.analyze - full integration');
+  test.describe("Page Analyze Integration Flow", () => {
+    test("should analyze page with all features enabled", async () => {
+      console.log("[Test] page.analyze - full integration");
 
       // page.analyzeは実際のURLが必要
       const analyzeResult = await pageAnalyzeHandler({
@@ -536,29 +525,26 @@ test.describe('MCP Tools Integration E2E Tests', () => {
 
       // Layout結果の検証
       if (analyzeResult.data?.layout) {
-        console.log('[Test] Layout analysis completed');
+        console.log("[Test] Layout analysis completed");
         expect(analyzeResult.data.layout).toBeDefined();
       }
 
       // Motion結果の検証
       if (analyzeResult.data?.motion) {
-        console.log('[Test] Motion analysis completed');
+        console.log("[Test] Motion analysis completed");
       }
 
       // Quality結果の検証
       if (analyzeResult.data?.quality) {
-        console.log('[Test] Quality evaluation completed');
+        console.log("[Test] Quality evaluation completed");
         if (analyzeResult.data.quality.evaluation) {
-          console.log(
-            '[Test] Quality score:',
-            analyzeResult.data.quality.evaluation.overallScore
-          );
+          console.log("[Test] Quality score:", analyzeResult.data.quality.evaluation.overallScore);
         }
       }
     });
 
-    test('should analyze with layout only', async () => {
-      console.log('[Test] page.analyze - layout only');
+    test("should analyze with layout only", async () => {
+      console.log("[Test] page.analyze - layout only");
 
       const analyzeResult = await pageAnalyzeHandler({
         url: TEST_URLS.example,
@@ -590,45 +576,45 @@ test.describe('MCP Tools Integration E2E Tests', () => {
   // --------------------------------------------------------------------------
   // Test 5: ブラウザ連携テスト
   // --------------------------------------------------------------------------
-  test.describe('Browser Integration Tests', () => {
-    test('should capture page screenshot with Playwright', async ({ page }) => {
-      console.log('[Test] Browser screenshot capture');
+  test.describe("Browser Integration Tests", () => {
+    test("should capture page screenshot with Playwright", async ({ page }) => {
+      console.log("[Test] Browser screenshot capture");
 
       // example.comにアクセス
-      await page.goto(TEST_URLS.example, { waitUntil: 'domcontentloaded' });
+      await page.goto(TEST_URLS.example, { waitUntil: "domcontentloaded" });
 
       // タイトルを検証
       const title = await page.title();
-      expect(title).toContain('Example Domain');
+      expect(title).toContain("Example Domain");
 
       // スクリーンショットを取得
       const screenshot = await page.screenshot({
         fullPage: true,
-        type: 'png',
+        type: "png",
       });
 
       // スクリーンショットが取得できたことを検証
       expect(screenshot).toBeDefined();
       expect(screenshot.length).toBeGreaterThan(0);
 
-      console.log('[Test] Screenshot size:', screenshot.length, 'bytes');
+      console.log("[Test] Screenshot size:", screenshot.length, "bytes");
     });
 
-    test('should extract HTML from browser', async ({ page }) => {
-      console.log('[Test] Browser HTML extraction');
+    test("should extract HTML from browser", async ({ page }) => {
+      console.log("[Test] Browser HTML extraction");
 
       // example.comにアクセス
-      await page.goto(TEST_URLS.example, { waitUntil: 'domcontentloaded' });
+      await page.goto(TEST_URLS.example, { waitUntil: "domcontentloaded" });
 
       // HTMLを取得
       const html = await page.content();
 
       // HTMLが取得できたことを検証
       expect(html).toBeDefined();
-      expect(html).toContain('<!DOCTYPE html>');
-      expect(html).toContain('Example Domain');
+      expect(html).toContain("<!DOCTYPE html>");
+      expect(html).toContain("Example Domain");
 
-      console.log('[Test] HTML length:', html.length, 'chars');
+      console.log("[Test] HTML length:", html.length, "chars");
 
       // 取得したHTMLでquality.evaluateを実行
       const evaluateResult = await qualityEvaluateHandler({
@@ -639,7 +625,7 @@ test.describe('MCP Tools Integration E2E Tests', () => {
 
       expect(evaluateResult.success).toBe(true);
       console.log(
-        '[Test] Quality score from browser HTML:',
+        "[Test] Quality score from browser HTML:",
         evaluateResult.evaluation?.overallScore
       );
     });
@@ -650,8 +636,8 @@ test.describe('MCP Tools Integration E2E Tests', () => {
 // パフォーマンステスト
 // ============================================================================
 
-test.describe('Performance Tests', () => {
-  test('should complete layout.ingest within timeout', async () => {
+test.describe("Performance Tests", () => {
+  test("should complete layout.ingest within timeout", async () => {
     const startTime = Date.now();
 
     const result = await layoutIngestHandler({
@@ -670,10 +656,10 @@ test.describe('Performance Tests', () => {
     expect(result.success).toBe(true);
     expect(duration).toBeLessThan(30000); // 30秒以内
 
-    console.log('[Performance] layout.ingest duration:', duration, 'ms');
+    console.log("[Performance] layout.ingest duration:", duration, "ms");
   });
 
-  test('should complete quality.evaluate within timeout', async () => {
+  test("should complete quality.evaluate within timeout", async () => {
     const startTime = Date.now();
 
     const result = await qualityEvaluateHandler({
@@ -687,15 +673,15 @@ test.describe('Performance Tests', () => {
     expect(result.success).toBe(true);
     expect(duration).toBeLessThan(30000); // 30秒以内
 
-    console.log('[Performance] quality.evaluate duration:', duration, 'ms');
+    console.log("[Performance] quality.evaluate duration:", duration, "ms");
   });
 
-  test('should complete motion.detect within timeout', async () => {
+  test("should complete motion.detect within timeout", async () => {
     const startTime = Date.now();
 
     const result = await motionDetectHandler({
       html: TEST_HTML_CONTENT,
-      detection_mode: 'css',
+      detection_mode: "css",
       save_to_db: false,
     });
 
@@ -704,6 +690,6 @@ test.describe('Performance Tests', () => {
     expect(result).toBeDefined();
     expect(duration).toBeLessThan(10000); // 10秒以内
 
-    console.log('[Performance] motion.detect duration:', duration, 'ms');
+    console.log("[Performance] motion.detect duration:", duration, "ms");
   });
 });

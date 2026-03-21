@@ -10,21 +10,21 @@
  * @module tests/services/visual-extractor/visual-feature-merger.test
  */
 
-import { describe, it, expect, beforeEach } from 'vitest';
-import type { ColorExtractionResult } from '../../../src/services/visual-extractor/color-extractor.service';
-import type { ThemeDetectionResult } from '../../../src/services/visual-extractor/theme-detector.service';
-import type { DensityCalculationResult } from '../../../src/services/visual-extractor/density-calculator.service';
+import { describe, it, expect, beforeEach } from "vitest";
+import type { ColorExtractionResult } from "../../../src/services/visual-extractor/color-extractor.service";
+import type { ThemeDetectionResult } from "../../../src/services/visual-extractor/theme-detector.service";
+import type { DensityCalculationResult } from "../../../src/services/visual-extractor/density-calculator.service";
 import type {
   MoodAnalysisResult,
   EnhancedBrandToneResult,
-} from '../../../src/services/vision-adapter/interface';
+} from "../../../src/services/vision-adapter/interface";
 import {
   createVisualFeatureMerger,
   type VisualFeatureMergerService,
   type MergedVisualFeatures,
   type DeterministicExtractionInput,
   type VisionAIAnalysisInput,
-} from '../../../src/services/visual-extractor/visual-feature-merger.service';
+} from "../../../src/services/visual-extractor/visual-feature-merger.service";
 
 // =============================================================================
 // Test Fixtures
@@ -37,14 +37,14 @@ function createMockColorExtractionResult(
   overrides?: Partial<ColorExtractionResult>
 ): ColorExtractionResult {
   return {
-    dominantColors: ['#3B82F6', '#1E40AF', '#FFFFFF'],
-    accentColors: ['#F59E0B', '#10B981'],
+    dominantColors: ["#3B82F6", "#1E40AF", "#FFFFFF"],
+    accentColors: ["#F59E0B", "#10B981"],
     colorPalette: [
-      { color: '#3B82F6', percentage: 40 },
-      { color: '#1E40AF', percentage: 25 },
-      { color: '#FFFFFF', percentage: 20 },
-      { color: '#F59E0B', percentage: 10 },
-      { color: '#10B981', percentage: 5 },
+      { color: "#3B82F6", percentage: 40 },
+      { color: "#1E40AF", percentage: 25 },
+      { color: "#FFFFFF", percentage: 20 },
+      { color: "#F59E0B", percentage: 10 },
+      { color: "#10B981", percentage: 5 },
     ],
     ...overrides,
   };
@@ -57,10 +57,10 @@ function createMockThemeDetectionResult(
   overrides?: Partial<ThemeDetectionResult>
 ): ThemeDetectionResult {
   return {
-    theme: 'light',
+    theme: "light",
     confidence: 0.95,
-    backgroundColor: '#FFFFFF',
-    textColor: '#1F2937',
+    backgroundColor: "#FFFFFF",
+    textColor: "#1F2937",
     contrastRatio: 12.63,
     luminance: {
       background: 1.0,
@@ -81,10 +81,10 @@ function createMockDensityCalculationResult(
     whitespaceRatio: 0.55,
     visualBalance: 85,
     regions: [
-      { row: 0, col: 0, density: 0.3, dominantColor: '#FFFFFF' },
-      { row: 0, col: 1, density: 0.5, dominantColor: '#3B82F6' },
-      { row: 1, col: 0, density: 0.6, dominantColor: '#1E40AF' },
-      { row: 1, col: 1, density: 0.4, dominantColor: '#FFFFFF' },
+      { row: 0, col: 0, density: 0.3, dominantColor: "#FFFFFF" },
+      { row: 0, col: 1, density: 0.5, dominantColor: "#3B82F6" },
+      { row: 1, col: 0, density: 0.6, dominantColor: "#1E40AF" },
+      { row: 1, col: 1, density: 0.4, dominantColor: "#FFFFFF" },
     ],
     metrics: {
       edgeDensity: 0.32,
@@ -98,14 +98,12 @@ function createMockDensityCalculationResult(
 /**
  * Create mock mood analysis result
  */
-function createMockMoodAnalysisResult(
-  overrides?: Partial<MoodAnalysisResult>
-): MoodAnalysisResult {
+function createMockMoodAnalysisResult(overrides?: Partial<MoodAnalysisResult>): MoodAnalysisResult {
   return {
-    primaryMood: 'professional',
-    secondaryMood: 'modern',
+    primaryMood: "professional",
+    secondaryMood: "modern",
     confidence: 0.75,
-    indicators: ['clean typography', 'blue color scheme', 'structured layout'],
+    indicators: ["clean typography", "blue color scheme", "structured layout"],
     colorContextUsed: true,
     ...overrides,
   };
@@ -118,15 +116,15 @@ function createMockBrandToneResult(
   overrides?: Partial<EnhancedBrandToneResult>
 ): EnhancedBrandToneResult {
   return {
-    primaryTone: 'corporate',
-    secondaryTone: 'trustworthy',
+    primaryTone: "corporate",
+    secondaryTone: "trustworthy",
     confidence: 0.72,
-    professionalism: 'bold',
-    warmth: 'neutral',
-    modernity: 'contemporary',
-    energy: 'balanced',
-    targetAudience: 'enterprise',
-    indicators: ['formal color palette', 'clean design'],
+    professionalism: "bold",
+    warmth: "neutral",
+    modernity: "contemporary",
+    energy: "balanced",
+    targetAudience: "enterprise",
+    indicators: ["formal color palette", "clean design"],
     colorContextUsed: true,
     ...overrides,
   };
@@ -136,7 +134,7 @@ function createMockBrandToneResult(
 // Test Suite
 // =============================================================================
 
-describe('VisualFeatureMergerService', () => {
+describe("VisualFeatureMergerService", () => {
   let service: VisualFeatureMergerService;
 
   beforeEach(() => {
@@ -147,9 +145,9 @@ describe('VisualFeatureMergerService', () => {
   // Basic Functionality Tests
   // ===========================================================================
 
-  describe('merge()', () => {
-    describe('with all inputs available', () => {
-      it('should merge deterministic and Vision AI results', async () => {
+  describe("merge()", () => {
+    describe("with all inputs available", () => {
+      it("should merge deterministic and Vision AI results", async () => {
         const deterministicInput: DeterministicExtractionInput = {
           colors: createMockColorExtractionResult(),
           theme: createMockThemeDetectionResult(),
@@ -172,7 +170,7 @@ describe('VisualFeatureMergerService', () => {
         expect(result.metadata).toBeDefined();
       });
 
-      it('should set correct source for deterministic results', async () => {
+      it("should set correct source for deterministic results", async () => {
         const deterministicInput: DeterministicExtractionInput = {
           colors: createMockColorExtractionResult(),
           theme: createMockThemeDetectionResult(),
@@ -186,12 +184,12 @@ describe('VisualFeatureMergerService', () => {
 
         const result = await service.merge(deterministicInput, visionAIInput);
 
-        expect(result.colors.source).toBe('deterministic');
-        expect(result.theme.source).toBe('deterministic');
-        expect(result.density.source).toBe('deterministic');
+        expect(result.colors.source).toBe("deterministic");
+        expect(result.theme.source).toBe("deterministic");
+        expect(result.density.source).toBe("deterministic");
       });
 
-      it('should set correct source for Vision AI results', async () => {
+      it("should set correct source for Vision AI results", async () => {
         const deterministicInput: DeterministicExtractionInput = {
           colors: createMockColorExtractionResult(),
           theme: createMockThemeDetectionResult(),
@@ -205,11 +203,11 @@ describe('VisualFeatureMergerService', () => {
 
         const result = await service.merge(deterministicInput, visionAIInput);
 
-        expect(result.mood.source).toBe('vision-ai');
-        expect(result.brandTone.source).toBe('vision-ai');
+        expect(result.mood.source).toBe("vision-ai");
+        expect(result.brandTone.source).toBe("vision-ai");
       });
 
-      it('should preserve color extraction data', async () => {
+      it("should preserve color extraction data", async () => {
         const colorResult = createMockColorExtractionResult();
         const deterministicInput: DeterministicExtractionInput = {
           colors: colorResult,
@@ -234,7 +232,7 @@ describe('VisualFeatureMergerService', () => {
         );
       });
 
-      it('should preserve theme detection data', async () => {
+      it("should preserve theme detection data", async () => {
         const themeResult = createMockThemeDetectionResult();
         const deterministicInput: DeterministicExtractionInput = {
           colors: createMockColorExtractionResult(),
@@ -255,7 +253,7 @@ describe('VisualFeatureMergerService', () => {
         expect(result.theme.contrastRatio).toBe(themeResult.contrastRatio);
       });
 
-      it('should preserve density calculation data', async () => {
+      it("should preserve density calculation data", async () => {
         const densityResult = createMockDensityCalculationResult();
         const deterministicInput: DeterministicExtractionInput = {
           colors: createMockColorExtractionResult(),
@@ -275,7 +273,7 @@ describe('VisualFeatureMergerService', () => {
         expect(result.density.visualBalance).toBe(densityResult.visualBalance);
       });
 
-      it('should preserve mood analysis data', async () => {
+      it("should preserve mood analysis data", async () => {
         const moodResult = createMockMoodAnalysisResult();
         const deterministicInput: DeterministicExtractionInput = {
           colors: createMockColorExtractionResult(),
@@ -294,7 +292,7 @@ describe('VisualFeatureMergerService', () => {
         expect(result.mood.secondary).toBe(moodResult.secondaryMood);
       });
 
-      it('should preserve brand tone analysis data', async () => {
+      it("should preserve brand tone analysis data", async () => {
         const brandToneResult = createMockBrandToneResult();
         const deterministicInput: DeterministicExtractionInput = {
           colors: createMockColorExtractionResult(),
@@ -319,8 +317,8 @@ describe('VisualFeatureMergerService', () => {
   // Confidence Scoring Tests
   // ===========================================================================
 
-  describe('confidence scoring', () => {
-    it('should assign 0.9-1.0 confidence for deterministic results', async () => {
+  describe("confidence scoring", () => {
+    it("should assign 0.9-1.0 confidence for deterministic results", async () => {
       const deterministicInput: DeterministicExtractionInput = {
         colors: createMockColorExtractionResult(),
         theme: createMockThemeDetectionResult({ confidence: 0.95 }),
@@ -343,7 +341,7 @@ describe('VisualFeatureMergerService', () => {
       expect(result.density.confidence).toBeLessThanOrEqual(1.0);
     });
 
-    it('should assign 0.6-0.8 confidence for Vision AI results', async () => {
+    it("should assign 0.6-0.8 confidence for Vision AI results", async () => {
       const deterministicInput: DeterministicExtractionInput = {
         colors: createMockColorExtractionResult(),
         theme: createMockThemeDetectionResult(),
@@ -364,7 +362,7 @@ describe('VisualFeatureMergerService', () => {
       expect(result.brandTone.confidence).toBeLessThanOrEqual(0.8);
     });
 
-    it('should cap high Vision AI confidence at 0.8', async () => {
+    it("should cap high Vision AI confidence at 0.8", async () => {
       const deterministicInput: DeterministicExtractionInput = {
         colors: createMockColorExtractionResult(),
         theme: createMockThemeDetectionResult(),
@@ -382,7 +380,7 @@ describe('VisualFeatureMergerService', () => {
       expect(result.brandTone.confidence).toBeLessThanOrEqual(0.8);
     });
 
-    it('should set low Vision AI confidence to 0.6 minimum', async () => {
+    it("should set low Vision AI confidence to 0.6 minimum", async () => {
       const deterministicInput: DeterministicExtractionInput = {
         colors: createMockColorExtractionResult(),
         theme: createMockThemeDetectionResult(),
@@ -400,7 +398,7 @@ describe('VisualFeatureMergerService', () => {
       expect(result.brandTone.confidence).toBeGreaterThanOrEqual(0.6);
     });
 
-    it('should calculate overall confidence correctly', async () => {
+    it("should calculate overall confidence correctly", async () => {
       const deterministicInput: DeterministicExtractionInput = {
         colors: createMockColorExtractionResult(),
         theme: createMockThemeDetectionResult({ confidence: 0.95 }),
@@ -424,9 +422,9 @@ describe('VisualFeatureMergerService', () => {
   // Graceful Degradation Tests
   // ===========================================================================
 
-  describe('graceful degradation', () => {
-    describe('when Vision AI is unavailable', () => {
-      it('should return valid result with only deterministic data', async () => {
+  describe("graceful degradation", () => {
+    describe("when Vision AI is unavailable", () => {
+      it("should return valid result with only deterministic data", async () => {
         const deterministicInput: DeterministicExtractionInput = {
           colors: createMockColorExtractionResult(),
           theme: createMockThemeDetectionResult(),
@@ -443,7 +441,7 @@ describe('VisualFeatureMergerService', () => {
         expect(result.metadata.visionAiAvailable).toBe(false);
       });
 
-      it('should provide null mood when Vision AI unavailable', async () => {
+      it("should provide null mood when Vision AI unavailable", async () => {
         const deterministicInput: DeterministicExtractionInput = {
           colors: createMockColorExtractionResult(),
           theme: createMockThemeDetectionResult(),
@@ -456,7 +454,7 @@ describe('VisualFeatureMergerService', () => {
         expect(result.brandTone).toBeNull();
       });
 
-      it('should set lower overall confidence when Vision AI unavailable', async () => {
+      it("should set lower overall confidence when Vision AI unavailable", async () => {
         const deterministicInput: DeterministicExtractionInput = {
           colors: createMockColorExtractionResult(),
           theme: createMockThemeDetectionResult(),
@@ -478,8 +476,8 @@ describe('VisualFeatureMergerService', () => {
       });
     });
 
-    describe('when deterministic extraction is unavailable', () => {
-      it('should return valid result with only Vision AI data', async () => {
+    describe("when deterministic extraction is unavailable", () => {
+      it("should return valid result with only Vision AI data", async () => {
         const visionAIInput: VisionAIAnalysisInput = {
           mood: createMockMoodAnalysisResult(),
           brandTone: createMockBrandToneResult(),
@@ -494,7 +492,7 @@ describe('VisualFeatureMergerService', () => {
         expect(result.metadata.visionAiAvailable).toBe(true);
       });
 
-      it('should provide null colors/theme/density when deterministic unavailable', async () => {
+      it("should provide null colors/theme/density when deterministic unavailable", async () => {
         const visionAIInput: VisionAIAnalysisInput = {
           mood: createMockMoodAnalysisResult(),
           brandTone: createMockBrandToneResult(),
@@ -508,16 +506,16 @@ describe('VisualFeatureMergerService', () => {
       });
     });
 
-    describe('when both sources are unavailable', () => {
-      it('should throw an error when both inputs are null', async () => {
+    describe("when both sources are unavailable", () => {
+      it("should throw an error when both inputs are null", async () => {
         await expect(service.merge(null, null)).rejects.toThrow(
-          'At least one input source must be provided'
+          "At least one input source must be provided"
         );
       });
     });
 
-    describe('partial Vision AI availability', () => {
-      it('should handle missing mood', async () => {
+    describe("partial Vision AI availability", () => {
+      it("should handle missing mood", async () => {
         const deterministicInput: DeterministicExtractionInput = {
           colors: createMockColorExtractionResult(),
           theme: createMockThemeDetectionResult(),
@@ -535,7 +533,7 @@ describe('VisualFeatureMergerService', () => {
         expect(result.brandTone).toBeDefined();
       });
 
-      it('should handle missing brandTone', async () => {
+      it("should handle missing brandTone", async () => {
         const deterministicInput: DeterministicExtractionInput = {
           colors: createMockColorExtractionResult(),
           theme: createMockThemeDetectionResult(),
@@ -554,8 +552,8 @@ describe('VisualFeatureMergerService', () => {
       });
     });
 
-    describe('partial deterministic availability', () => {
-      it('should handle missing colors', async () => {
+    describe("partial deterministic availability", () => {
+      it("should handle missing colors", async () => {
         const deterministicInput: DeterministicExtractionInput = {
           colors: undefined,
           theme: createMockThemeDetectionResult(),
@@ -574,7 +572,7 @@ describe('VisualFeatureMergerService', () => {
         expect(result.density).toBeDefined();
       });
 
-      it('should handle missing theme', async () => {
+      it("should handle missing theme", async () => {
         const deterministicInput: DeterministicExtractionInput = {
           colors: createMockColorExtractionResult(),
           theme: undefined,
@@ -593,7 +591,7 @@ describe('VisualFeatureMergerService', () => {
         expect(result.density).toBeDefined();
       });
 
-      it('should handle missing density', async () => {
+      it("should handle missing density", async () => {
         const deterministicInput: DeterministicExtractionInput = {
           colors: createMockColorExtractionResult(),
           theme: createMockThemeDetectionResult(),
@@ -618,8 +616,8 @@ describe('VisualFeatureMergerService', () => {
   // Metadata Tests
   // ===========================================================================
 
-  describe('metadata', () => {
-    it('should include mergedAt timestamp', async () => {
+  describe("metadata", () => {
+    it("should include mergedAt timestamp", async () => {
       const deterministicInput: DeterministicExtractionInput = {
         colors: createMockColorExtractionResult(),
         theme: createMockThemeDetectionResult(),
@@ -640,7 +638,7 @@ describe('VisualFeatureMergerService', () => {
       expect(result.metadata.mergedAt <= afterMerge).toBe(true);
     });
 
-    it('should indicate deterministicAvailable correctly', async () => {
+    it("should indicate deterministicAvailable correctly", async () => {
       const deterministicInput: DeterministicExtractionInput = {
         colors: createMockColorExtractionResult(),
         theme: createMockThemeDetectionResult(),
@@ -659,7 +657,7 @@ describe('VisualFeatureMergerService', () => {
       expect(visionOnlyResult.metadata.deterministicAvailable).toBe(false);
     });
 
-    it('should indicate visionAiAvailable correctly', async () => {
+    it("should indicate visionAiAvailable correctly", async () => {
       const deterministicInput: DeterministicExtractionInput = {
         colors: createMockColorExtractionResult(),
         theme: createMockThemeDetectionResult(),
@@ -683,8 +681,8 @@ describe('VisualFeatureMergerService', () => {
   // Type Safety Tests
   // ===========================================================================
 
-  describe('type safety', () => {
-    it('should return MergedVisualFeatures type', async () => {
+  describe("type safety", () => {
+    it("should return MergedVisualFeatures type", async () => {
       const deterministicInput: DeterministicExtractionInput = {
         colors: createMockColorExtractionResult(),
         theme: createMockThemeDetectionResult(),
@@ -699,12 +697,12 @@ describe('VisualFeatureMergerService', () => {
       const result = await service.merge(deterministicInput, visionAIInput);
 
       // Type assertions to verify structure
-      const _colors: MergedVisualFeatures['colors'] = result.colors!;
-      const _theme: MergedVisualFeatures['theme'] = result.theme!;
-      const _density: MergedVisualFeatures['density'] = result.density!;
-      const _mood: MergedVisualFeatures['mood'] = result.mood!;
-      const _brandTone: MergedVisualFeatures['brandTone'] = result.brandTone!;
-      const _metadata: MergedVisualFeatures['metadata'] = result.metadata;
+      const _colors: MergedVisualFeatures["colors"] = result.colors!;
+      const _theme: MergedVisualFeatures["theme"] = result.theme!;
+      const _density: MergedVisualFeatures["density"] = result.density!;
+      const _mood: MergedVisualFeatures["mood"] = result.mood!;
+      const _brandTone: MergedVisualFeatures["brandTone"] = result.brandTone!;
+      const _metadata: MergedVisualFeatures["metadata"] = result.metadata;
 
       // Verify non-null assertions compile
       expect(_colors).toBeDefined();
@@ -720,8 +718,8 @@ describe('VisualFeatureMergerService', () => {
   // Edge Cases Tests
   // ===========================================================================
 
-  describe('edge cases', () => {
-    it('should handle empty color arrays', async () => {
+  describe("edge cases", () => {
+    it("should handle empty color arrays", async () => {
       const deterministicInput: DeterministicExtractionInput = {
         colors: createMockColorExtractionResult({
           dominantColors: [],
@@ -745,7 +743,7 @@ describe('VisualFeatureMergerService', () => {
       expect(result.colors!.palette).toEqual([]);
     });
 
-    it('should handle extreme confidence values in theme detection', async () => {
+    it("should handle extreme confidence values in theme detection", async () => {
       const deterministicInput: DeterministicExtractionInput = {
         colors: createMockColorExtractionResult(),
         theme: createMockThemeDetectionResult({ confidence: 0.01 }),
@@ -763,10 +761,10 @@ describe('VisualFeatureMergerService', () => {
       expect(result.theme!.confidence).toBeGreaterThanOrEqual(0.9);
     });
 
-    it('should handle mixed theme type', async () => {
+    it("should handle mixed theme type", async () => {
       const deterministicInput: DeterministicExtractionInput = {
         colors: createMockColorExtractionResult(),
-        theme: createMockThemeDetectionResult({ theme: 'mixed' }),
+        theme: createMockThemeDetectionResult({ theme: "mixed" }),
         density: createMockDensityCalculationResult(),
       };
 
@@ -777,10 +775,10 @@ describe('VisualFeatureMergerService', () => {
 
       const result = await service.merge(deterministicInput, visionAIInput);
 
-      expect(result.theme!.type).toBe('mixed');
+      expect(result.theme!.type).toBe("mixed");
     });
 
-    it('should handle missing secondary mood', async () => {
+    it("should handle missing secondary mood", async () => {
       const deterministicInput: DeterministicExtractionInput = {
         colors: createMockColorExtractionResult(),
         theme: createMockThemeDetectionResult(),
@@ -797,7 +795,7 @@ describe('VisualFeatureMergerService', () => {
       expect(result.mood!.secondary).toBeUndefined();
     });
 
-    it('should handle missing secondary brand tone', async () => {
+    it("should handle missing secondary brand tone", async () => {
       const deterministicInput: DeterministicExtractionInput = {
         colors: createMockColorExtractionResult(),
         theme: createMockThemeDetectionResult(),
@@ -814,7 +812,7 @@ describe('VisualFeatureMergerService', () => {
       expect(result.brandTone!.secondary).toBeUndefined();
     });
 
-    it('should handle zero density values', async () => {
+    it("should handle zero density values", async () => {
       const deterministicInput: DeterministicExtractionInput = {
         colors: createMockColorExtractionResult(),
         theme: createMockThemeDetectionResult(),
@@ -837,7 +835,7 @@ describe('VisualFeatureMergerService', () => {
       expect(result.density!.visualBalance).toBe(0);
     });
 
-    it('should handle maximum density values', async () => {
+    it("should handle maximum density values", async () => {
       const deterministicInput: DeterministicExtractionInput = {
         colors: createMockColorExtractionResult(),
         theme: createMockThemeDetectionResult(),
@@ -865,8 +863,8 @@ describe('VisualFeatureMergerService', () => {
   // Completeness Score Tests (REFTRIX-VISION-01)
   // ===========================================================================
 
-  describe('completeness scoring', () => {
-    it('should calculate completeness = 1.0 when all fields are present', async () => {
+  describe("completeness scoring", () => {
+    it("should calculate completeness = 1.0 when all fields are present", async () => {
       const deterministicInput: DeterministicExtractionInput = {
         colors: createMockColorExtractionResult(),
         theme: createMockThemeDetectionResult(),
@@ -883,7 +881,7 @@ describe('VisualFeatureMergerService', () => {
       expect(result.metadata.completeness).toBe(1.0);
     });
 
-    it('should calculate completeness = 0.6 when only deterministic fields are present', async () => {
+    it("should calculate completeness = 0.6 when only deterministic fields are present", async () => {
       const deterministicInput: DeterministicExtractionInput = {
         colors: createMockColorExtractionResult(),
         theme: createMockThemeDetectionResult(),
@@ -896,7 +894,7 @@ describe('VisualFeatureMergerService', () => {
       expect(result.metadata.completeness).toBe(0.6);
     });
 
-    it('should calculate completeness = 0.4 when only Vision AI fields are present', async () => {
+    it("should calculate completeness = 0.4 when only Vision AI fields are present", async () => {
       const visionAIInput: VisionAIAnalysisInput = {
         mood: createMockMoodAnalysisResult(),
         brandTone: createMockBrandToneResult(),
@@ -908,7 +906,7 @@ describe('VisualFeatureMergerService', () => {
       expect(result.metadata.completeness).toBe(0.4);
     });
 
-    it('should calculate partial completeness with missing fields', async () => {
+    it("should calculate partial completeness with missing fields", async () => {
       const deterministicInput: DeterministicExtractionInput = {
         colors: createMockColorExtractionResult(),
         theme: undefined,
@@ -926,7 +924,7 @@ describe('VisualFeatureMergerService', () => {
       expect(result.metadata.completeness).toBe(0.6);
     });
 
-    it('should include completeness in metadata', async () => {
+    it("should include completeness in metadata", async () => {
       const deterministicInput: DeterministicExtractionInput = {
         colors: createMockColorExtractionResult(),
         theme: createMockThemeDetectionResult(),
@@ -935,8 +933,8 @@ describe('VisualFeatureMergerService', () => {
 
       const result = await service.merge(deterministicInput, null);
 
-      expect(result.metadata).toHaveProperty('completeness');
-      expect(typeof result.metadata.completeness).toBe('number');
+      expect(result.metadata).toHaveProperty("completeness");
+      expect(typeof result.metadata.completeness).toBe("number");
       expect(result.metadata.completeness).toBeGreaterThanOrEqual(0);
       expect(result.metadata.completeness).toBeLessThanOrEqual(1);
     });
@@ -946,8 +944,8 @@ describe('VisualFeatureMergerService', () => {
   // Fallback Tests (REFTRIX-VISION-01)
   // ===========================================================================
 
-  describe('fallback handling', () => {
-    it('should apply fallback mood when applyFallbacks is enabled and Vision AI unavailable', async () => {
+  describe("fallback handling", () => {
+    it("should apply fallback mood when applyFallbacks is enabled and Vision AI unavailable", async () => {
       const deterministicInput: DeterministicExtractionInput = {
         colors: createMockColorExtractionResult(),
         theme: createMockThemeDetectionResult(),
@@ -957,12 +955,12 @@ describe('VisualFeatureMergerService', () => {
       const result = await service.merge(deterministicInput, null, { applyFallbacks: true });
 
       expect(result.mood).toBeDefined();
-      expect(result.mood!.primary).toBe('neutral');
-      expect(result.mood!.source).toBe('fallback');
+      expect(result.mood!.primary).toBe("neutral");
+      expect(result.mood!.source).toBe("fallback");
       expect(result.mood!.confidence).toBe(0.3);
     });
 
-    it('should apply fallback brandTone when applyFallbacks is enabled and Vision AI unavailable', async () => {
+    it("should apply fallback brandTone when applyFallbacks is enabled and Vision AI unavailable", async () => {
       const deterministicInput: DeterministicExtractionInput = {
         colors: createMockColorExtractionResult(),
         theme: createMockThemeDetectionResult(),
@@ -972,12 +970,12 @@ describe('VisualFeatureMergerService', () => {
       const result = await service.merge(deterministicInput, null, { applyFallbacks: true });
 
       expect(result.brandTone).toBeDefined();
-      expect(result.brandTone!.primary).toBe('neutral');
-      expect(result.brandTone!.source).toBe('fallback');
+      expect(result.brandTone!.primary).toBe("neutral");
+      expect(result.brandTone!.source).toBe("fallback");
       expect(result.brandTone!.confidence).toBe(0.3);
     });
 
-    it('should NOT apply fallback when applyFallbacks is false (default)', async () => {
+    it("should NOT apply fallback when applyFallbacks is false (default)", async () => {
       const deterministicInput: DeterministicExtractionInput = {
         colors: createMockColorExtractionResult(),
         theme: createMockThemeDetectionResult(),
@@ -990,7 +988,7 @@ describe('VisualFeatureMergerService', () => {
       expect(result.brandTone).toBeNull();
     });
 
-    it('should apply fallback to missing mood when partial Vision AI available', async () => {
+    it("should apply fallback to missing mood when partial Vision AI available", async () => {
       const deterministicInput: DeterministicExtractionInput = {
         colors: createMockColorExtractionResult(),
         theme: createMockThemeDetectionResult(),
@@ -1002,15 +1000,17 @@ describe('VisualFeatureMergerService', () => {
         brandTone: createMockBrandToneResult(),
       };
 
-      const result = await service.merge(deterministicInput, visionAIInput, { applyFallbacks: true });
+      const result = await service.merge(deterministicInput, visionAIInput, {
+        applyFallbacks: true,
+      });
 
       expect(result.mood).toBeDefined();
-      expect(result.mood!.primary).toBe('neutral');
-      expect(result.mood!.source).toBe('fallback');
-      expect(result.brandTone!.source).toBe('vision-ai');
+      expect(result.mood!.primary).toBe("neutral");
+      expect(result.mood!.source).toBe("fallback");
+      expect(result.brandTone!.source).toBe("vision-ai");
     });
 
-    it('should apply fallback to missing brandTone when partial Vision AI available', async () => {
+    it("should apply fallback to missing brandTone when partial Vision AI available", async () => {
       const deterministicInput: DeterministicExtractionInput = {
         colors: createMockColorExtractionResult(),
         theme: createMockThemeDetectionResult(),
@@ -1022,15 +1022,17 @@ describe('VisualFeatureMergerService', () => {
         brandTone: undefined,
       };
 
-      const result = await service.merge(deterministicInput, visionAIInput, { applyFallbacks: true });
+      const result = await service.merge(deterministicInput, visionAIInput, {
+        applyFallbacks: true,
+      });
 
-      expect(result.mood!.source).toBe('vision-ai');
+      expect(result.mood!.source).toBe("vision-ai");
       expect(result.brandTone).toBeDefined();
-      expect(result.brandTone!.primary).toBe('neutral');
-      expect(result.brandTone!.source).toBe('fallback');
+      expect(result.brandTone!.primary).toBe("neutral");
+      expect(result.brandTone!.source).toBe("fallback");
     });
 
-    it('should calculate lower completeness for fallback fields (0.5 instead of 1.0)', async () => {
+    it("should calculate lower completeness for fallback fields (0.5 instead of 1.0)", async () => {
       const deterministicInput: DeterministicExtractionInput = {
         colors: createMockColorExtractionResult(),
         theme: createMockThemeDetectionResult(),
@@ -1048,8 +1050,8 @@ describe('VisualFeatureMergerService', () => {
   // Warnings Tests (REFTRIX-VISION-01)
   // ===========================================================================
 
-  describe('warnings', () => {
-    it('should include warnings array in metadata', async () => {
+  describe("warnings", () => {
+    it("should include warnings array in metadata", async () => {
       const deterministicInput: DeterministicExtractionInput = {
         colors: createMockColorExtractionResult(),
         theme: createMockThemeDetectionResult(),
@@ -1058,11 +1060,11 @@ describe('VisualFeatureMergerService', () => {
 
       const result = await service.merge(deterministicInput, null);
 
-      expect(result.metadata).toHaveProperty('warnings');
+      expect(result.metadata).toHaveProperty("warnings");
       expect(Array.isArray(result.metadata.warnings)).toBe(true);
     });
 
-    it('should generate VISION_AI_UNAVAILABLE warning when Vision AI is null', async () => {
+    it("should generate VISION_AI_UNAVAILABLE warning when Vision AI is null", async () => {
       const deterministicInput: DeterministicExtractionInput = {
         colors: createMockColorExtractionResult(),
         theme: createMockThemeDetectionResult(),
@@ -1072,13 +1074,13 @@ describe('VisualFeatureMergerService', () => {
       const result = await service.merge(deterministicInput, null);
 
       const visionUnavailableWarning = result.metadata.warnings.find(
-        (w) => w.code === 'VISION_AI_UNAVAILABLE'
+        (w) => w.code === "VISION_AI_UNAVAILABLE"
       );
       expect(visionUnavailableWarning).toBeDefined();
       expect(visionUnavailableWarning!.message).toBeTruthy();
     });
 
-    it('should generate LOW_CONFIDENCE warning when mood confidence < 0.5', async () => {
+    it("should generate LOW_CONFIDENCE warning when mood confidence < 0.5", async () => {
       const deterministicInput: DeterministicExtractionInput = {
         colors: createMockColorExtractionResult(),
         theme: createMockThemeDetectionResult(),
@@ -1093,13 +1095,13 @@ describe('VisualFeatureMergerService', () => {
       const result = await service.merge(deterministicInput, visionAIInput);
 
       const lowConfidenceWarning = result.metadata.warnings.find(
-        (w) => w.code === 'LOW_CONFIDENCE' && w.field === 'mood'
+        (w) => w.code === "LOW_CONFIDENCE" && w.field === "mood"
       );
       expect(lowConfidenceWarning).toBeDefined();
-      expect(lowConfidenceWarning!.details).toHaveProperty('confidence', 0.3);
+      expect(lowConfidenceWarning!.details).toHaveProperty("confidence", 0.3);
     });
 
-    it('should generate LOW_CONFIDENCE warning when brandTone confidence < 0.5', async () => {
+    it("should generate LOW_CONFIDENCE warning when brandTone confidence < 0.5", async () => {
       const deterministicInput: DeterministicExtractionInput = {
         colors: createMockColorExtractionResult(),
         theme: createMockThemeDetectionResult(),
@@ -1114,13 +1116,13 @@ describe('VisualFeatureMergerService', () => {
       const result = await service.merge(deterministicInput, visionAIInput);
 
       const lowConfidenceWarning = result.metadata.warnings.find(
-        (w) => w.code === 'LOW_CONFIDENCE' && w.field === 'brandTone'
+        (w) => w.code === "LOW_CONFIDENCE" && w.field === "brandTone"
       );
       expect(lowConfidenceWarning).toBeDefined();
-      expect(lowConfidenceWarning!.details).toHaveProperty('confidence', 0.2);
+      expect(lowConfidenceWarning!.details).toHaveProperty("confidence", 0.2);
     });
 
-    it('should NOT generate LOW_CONFIDENCE warning when confidence >= 0.5', async () => {
+    it("should NOT generate LOW_CONFIDENCE warning when confidence >= 0.5", async () => {
       const deterministicInput: DeterministicExtractionInput = {
         colors: createMockColorExtractionResult(),
         theme: createMockThemeDetectionResult(),
@@ -1135,12 +1137,26 @@ describe('VisualFeatureMergerService', () => {
       const result = await service.merge(deterministicInput, visionAIInput);
 
       const lowConfidenceWarning = result.metadata.warnings.find(
-        (w) => w.code === 'LOW_CONFIDENCE'
+        (w) => w.code === "LOW_CONFIDENCE"
       );
       expect(lowConfidenceWarning).toBeUndefined();
     });
 
-    it('should generate MOOD_FALLBACK_USED warning when fallback is applied', async () => {
+    it("should generate MOOD_FALLBACK_USED warning when fallback is applied", async () => {
+      const deterministicInput: DeterministicExtractionInput = {
+        colors: createMockColorExtractionResult(),
+        theme: createMockThemeDetectionResult(),
+        density: createMockDensityCalculationResult(),
+      };
+
+      const result = await service.merge(deterministicInput, null, { applyFallbacks: true });
+
+      const fallbackWarning = result.metadata.warnings.find((w) => w.code === "MOOD_FALLBACK_USED");
+      expect(fallbackWarning).toBeDefined();
+      expect(fallbackWarning!.field).toBe("mood");
+    });
+
+    it("should generate BRAND_TONE_FALLBACK_USED warning when fallback is applied", async () => {
       const deterministicInput: DeterministicExtractionInput = {
         colors: createMockColorExtractionResult(),
         theme: createMockThemeDetectionResult(),
@@ -1150,29 +1166,13 @@ describe('VisualFeatureMergerService', () => {
       const result = await service.merge(deterministicInput, null, { applyFallbacks: true });
 
       const fallbackWarning = result.metadata.warnings.find(
-        (w) => w.code === 'MOOD_FALLBACK_USED'
+        (w) => w.code === "BRAND_TONE_FALLBACK_USED"
       );
       expect(fallbackWarning).toBeDefined();
-      expect(fallbackWarning!.field).toBe('mood');
+      expect(fallbackWarning!.field).toBe("brandTone");
     });
 
-    it('should generate BRAND_TONE_FALLBACK_USED warning when fallback is applied', async () => {
-      const deterministicInput: DeterministicExtractionInput = {
-        colors: createMockColorExtractionResult(),
-        theme: createMockThemeDetectionResult(),
-        density: createMockDensityCalculationResult(),
-      };
-
-      const result = await service.merge(deterministicInput, null, { applyFallbacks: true });
-
-      const fallbackWarning = result.metadata.warnings.find(
-        (w) => w.code === 'BRAND_TONE_FALLBACK_USED'
-      );
-      expect(fallbackWarning).toBeDefined();
-      expect(fallbackWarning!.field).toBe('brandTone');
-    });
-
-    it('should generate DETERMINISTIC_EXTRACTION_PARTIAL warning when some deterministic fields are missing', async () => {
+    it("should generate DETERMINISTIC_EXTRACTION_PARTIAL warning when some deterministic fields are missing", async () => {
       const deterministicInput: DeterministicExtractionInput = {
         colors: createMockColorExtractionResult(),
         theme: undefined,
@@ -1187,12 +1187,16 @@ describe('VisualFeatureMergerService', () => {
       const result = await service.merge(deterministicInput, visionAIInput);
 
       const partialWarning = result.metadata.warnings.find(
-        (w) => w.code === 'DETERMINISTIC_EXTRACTION_PARTIAL'
+        (w) => w.code === "DETERMINISTIC_EXTRACTION_PARTIAL"
       );
       expect(partialWarning).toBeDefined();
-      expect(partialWarning!.details).toHaveProperty('missingFields');
-      expect((partialWarning!.details as { missingFields: string[] }).missingFields).toContain('theme');
-      expect((partialWarning!.details as { missingFields: string[] }).missingFields).toContain('density');
+      expect(partialWarning!.details).toHaveProperty("missingFields");
+      expect((partialWarning!.details as { missingFields: string[] }).missingFields).toContain(
+        "theme"
+      );
+      expect((partialWarning!.details as { missingFields: string[] }).missingFields).toContain(
+        "density"
+      );
     });
   });
 });

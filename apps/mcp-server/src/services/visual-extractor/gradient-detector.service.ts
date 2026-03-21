@@ -14,8 +14,8 @@
  * @module services/visual-extractor/gradient-detector.service
  */
 
-import { logger } from '../../utils/logger';
-import sharp from 'sharp';
+import { logger } from "../../utils/logger";
+import sharp from "sharp";
 import {
   parseAndValidateImageInput,
   withTimeout,
@@ -25,7 +25,7 @@ import {
   wrapSharpError,
   colorDistance,
   type RGB,
-} from './image-utils';
+} from "./image-utils";
 
 /**
  * Color stop in a gradient
@@ -86,7 +86,7 @@ export interface GradientTransition {
  */
 export interface DetectedGradient {
   /** Type of gradient */
-  type: 'linear' | 'radial' | 'conic';
+  type: "linear" | "radial" | "conic";
   /** Direction in degrees for linear gradient (0-360) */
   direction?: number;
   /** Center X position for radial/conic gradient (0-1) */
@@ -118,7 +118,7 @@ export interface GradientDetectionResult {
   /** List of detected gradients */
   gradients: DetectedGradient[];
   /** The most prominent gradient type */
-  dominantGradientType?: 'linear' | 'radial' | 'conic';
+  dominantGradientType?: "linear" | "radial" | "conic";
   /** Overall confidence score (0-1) */
   confidence: number;
   /** Processing time in milliseconds */
@@ -208,7 +208,7 @@ interface ParsedCSSRule {
  * CSS gradient match from regex
  */
 interface CSSGradientMatch {
-  type: 'linear' | 'radial' | 'conic';
+  type: "linear" | "radial" | "conic";
   fullMatch: string;
   isRepeating: boolean;
 }
@@ -217,33 +217,33 @@ interface CSSGradientMatch {
  * Parse CSS text into rules (simplified parser)
  */
 function parseCSSRules(css: string): ParsedCSSRule[] {
-  if (!css || typeof css !== 'string') {
+  if (!css || typeof css !== "string") {
     return [];
   }
 
   const rules: ParsedCSSRule[] = [];
   // Remove comments
-  const cleanedCss = css.replace(/\/\*[\s\S]*?\*\//g, '');
+  const cleanedCss = css.replace(/\/\*[\s\S]*?\*\//g, "");
 
   // Match CSS rules (simple regex, handles most cases)
   const ruleRegex = /([^{}]+)\{([^{}]*)\}/g;
   let match;
 
   while ((match = ruleRegex.exec(cleanedCss)) !== null) {
-    const selector = match[1]?.trim() ?? '';
-    const declarationBlock = match[2] ?? '';
+    const selector = match[1]?.trim() ?? "";
+    const declarationBlock = match[2] ?? "";
 
     // Skip @keyframes and @media (handle separately if needed)
-    if (selector.startsWith('@')) {
+    if (selector.startsWith("@")) {
       continue;
     }
 
     const declarations = new Map<string, string>();
 
     // Parse declarations
-    const declPairs = declarationBlock.split(';');
+    const declPairs = declarationBlock.split(";");
     for (const pair of declPairs) {
-      const colonIndex = pair.indexOf(':');
+      const colonIndex = pair.indexOf(":");
       if (colonIndex > 0) {
         const property = pair.substring(0, colonIndex).trim();
         const value = pair.substring(colonIndex + 1).trim();
@@ -268,12 +268,13 @@ function extractGradientMatches(value: string): CSSGradientMatch[] {
   const matches: CSSGradientMatch[] = [];
 
   // Regex to match gradient functions (handles nested parentheses)
-  const gradientRegex = /(repeating-)?(linear|radial|conic)-gradient\(([^()]*(?:\([^()]*\)[^()]*)*)\)/g;
+  const gradientRegex =
+    /(repeating-)?(linear|radial|conic)-gradient\(([^()]*(?:\([^()]*\)[^()]*)*)\)/g;
   let match;
 
   while ((match = gradientRegex.exec(value)) !== null) {
     const isRepeating = !!match[1];
-    const type = match[2] as 'linear' | 'radial' | 'conic';
+    const type = match[2] as "linear" | "radial" | "conic";
     const fullMatch = match[0];
 
     matches.push({
@@ -291,12 +292,12 @@ function extractGradientMatches(value: string): CSSGradientMatch[] {
  */
 function parseAnimationInfo(declarations: Map<string, string>): GradientAnimation | undefined {
   // Check for animation shorthand
-  const animationShorthand = declarations.get('animation');
+  const animationShorthand = declarations.get("animation");
   if (animationShorthand) {
     // Parse: name duration timing-function delay iteration-count direction fill-mode
     // Example: "gradient-shift 3s ease infinite"
     const parts = animationShorthand.split(/\s+/);
-    const result: GradientAnimation = { name: '' };
+    const result: GradientAnimation = { name: "" };
 
     for (const part of parts) {
       if (/^\d+(\.\d+)?(s|ms)$/.test(part)) {
@@ -306,7 +307,11 @@ function parseAnimationInfo(declarations: Map<string, string>): GradientAnimatio
         } else {
           result.delay = part;
         }
-      } else if (/^(ease|linear|ease-in|ease-out|ease-in-out|cubic-bezier\([^)]+\)|steps\([^)]+\))$/.test(part)) {
+      } else if (
+        /^(ease|linear|ease-in|ease-out|ease-in-out|cubic-bezier\([^)]+\)|steps\([^)]+\))$/.test(
+          part
+        )
+      ) {
         result.timingFunction = part;
       } else if (/^(infinite|\d+)$/.test(part)) {
         result.iterationCount = part;
@@ -325,29 +330,29 @@ function parseAnimationInfo(declarations: Map<string, string>): GradientAnimatio
   }
 
   // Check for individual animation properties
-  const animationName = declarations.get('animation-name');
-  if (animationName && animationName !== 'none') {
+  const animationName = declarations.get("animation-name");
+  if (animationName && animationName !== "none") {
     const result: GradientAnimation = {
       name: animationName,
     };
 
     // Only add properties if they have values (exactOptionalPropertyTypes compliance)
-    const duration = declarations.get('animation-duration');
+    const duration = declarations.get("animation-duration");
     if (duration) result.duration = duration;
 
-    const timingFunction = declarations.get('animation-timing-function');
+    const timingFunction = declarations.get("animation-timing-function");
     if (timingFunction) result.timingFunction = timingFunction;
 
-    const iterationCount = declarations.get('animation-iteration-count');
+    const iterationCount = declarations.get("animation-iteration-count");
     if (iterationCount) result.iterationCount = iterationCount;
 
-    const direction = declarations.get('animation-direction');
+    const direction = declarations.get("animation-direction");
     if (direction) result.direction = direction;
 
-    const delay = declarations.get('animation-delay');
+    const delay = declarations.get("animation-delay");
     if (delay) result.delay = delay;
 
-    const fillMode = declarations.get('animation-fill-mode');
+    const fillMode = declarations.get("animation-fill-mode");
     if (fillMode) result.fillMode = fillMode;
 
     return result;
@@ -361,12 +366,12 @@ function parseAnimationInfo(declarations: Map<string, string>): GradientAnimatio
  */
 function parseTransitionInfo(declarations: Map<string, string>): GradientTransition | undefined {
   // Check for transition shorthand
-  const transitionShorthand = declarations.get('transition');
+  const transitionShorthand = declarations.get("transition");
   if (transitionShorthand) {
     // Parse: property duration timing-function delay
     // Example: "background 0.3s ease"
     const parts = transitionShorthand.split(/\s+/);
-    const result: GradientTransition = { property: '' };
+    const result: GradientTransition = { property: "" };
 
     for (const part of parts) {
       if (/^\d+(\.\d+)?(s|ms)$/.test(part)) {
@@ -376,7 +381,11 @@ function parseTransitionInfo(declarations: Map<string, string>): GradientTransit
         } else {
           result.delay = part;
         }
-      } else if (/^(ease|linear|ease-in|ease-out|ease-in-out|cubic-bezier\([^)]+\)|steps\([^)]+\))$/.test(part)) {
+      } else if (
+        /^(ease|linear|ease-in|ease-out|ease-in-out|cubic-bezier\([^)]+\)|steps\([^)]+\))$/.test(
+          part
+        )
+      ) {
         result.timingFunction = part;
       } else if (part && !result.property) {
         result.property = part;
@@ -384,25 +393,29 @@ function parseTransitionInfo(declarations: Map<string, string>): GradientTransit
     }
 
     // Check if the transition applies to background
-    if (result.property && (result.property === 'all' || result.property.includes('background'))) {
+    if (result.property && (result.property === "all" || result.property.includes("background"))) {
       return result;
     }
   }
 
   // Check for individual transition properties
-  const transitionProperty = declarations.get('transition-property');
+  const transitionProperty = declarations.get("transition-property");
   if (transitionProperty) {
     // Check if background is included
-    const properties = transitionProperty.split(',').map((p) => p.trim());
-    const bgIndex = properties.findIndex((p) => p === 'all' || p.includes('background'));
+    const properties = transitionProperty.split(",").map((p) => p.trim());
+    const bgIndex = properties.findIndex((p) => p === "all" || p.includes("background"));
 
     if (bgIndex >= 0) {
-      const durations = (declarations.get('transition-duration') ?? '').split(',').map((d) => d.trim());
-      const timings = (declarations.get('transition-timing-function') ?? '').split(',').map((t) => t.trim());
-      const delays = (declarations.get('transition-delay') ?? '').split(',').map((d) => d.trim());
+      const durations = (declarations.get("transition-duration") ?? "")
+        .split(",")
+        .map((d) => d.trim());
+      const timings = (declarations.get("transition-timing-function") ?? "")
+        .split(",")
+        .map((t) => t.trim());
+      const delays = (declarations.get("transition-delay") ?? "").split(",").map((d) => d.trim());
 
       const result: GradientTransition = {
-        property: properties[bgIndex] ?? 'background',
+        property: properties[bgIndex] ?? "background",
       };
 
       // Only add properties if they have values (exactOptionalPropertyTypes compliance)
@@ -432,14 +445,14 @@ function parseColorStopsFromCSS(gradientArgs: string): ColorStop[] {
   // Split by comma but respect parentheses
   const parts: string[] = [];
   let depth = 0;
-  let current = '';
+  let current = "";
 
   for (const char of gradientArgs) {
-    if (char === '(') depth++;
-    if (char === ')') depth--;
-    if (char === ',' && depth === 0) {
+    if (char === "(") depth++;
+    if (char === ")") depth--;
+    if (char === "," && depth === 0) {
       parts.push(current.trim());
-      current = '';
+      current = "";
     } else {
       current += char;
     }
@@ -453,12 +466,12 @@ function parseColorStopsFromCSS(gradientArgs: string): ColorStop[] {
   if (parts[0]) {
     const firstPart = parts[0].toLowerCase();
     if (
-      firstPart.includes('deg') ||
-      firstPart.startsWith('to ') ||
-      firstPart.includes('at ') ||
-      firstPart === 'circle' ||
-      firstPart === 'ellipse' ||
-      firstPart.startsWith('from ')
+      firstPart.includes("deg") ||
+      firstPart.startsWith("to ") ||
+      firstPart.includes("at ") ||
+      firstPart === "circle" ||
+      firstPart === "ellipse" ||
+      firstPart.startsWith("from ")
     ) {
       startIndex = 1;
     }
@@ -466,14 +479,20 @@ function parseColorStopsFromCSS(gradientArgs: string): ColorStop[] {
 
   // Parse color stops
   for (let i = startIndex; i < parts.length; i++) {
-    const part = parts[i]?.trim() ?? '';
+    const part = parts[i]?.trim() ?? "";
 
     // Extract position percentage if present
     const posMatch = part.match(/(\d+(\.\d+)?%)/);
-    const position = posMatch ? parseFloat(posMatch[1] ?? '0') / 100 : i === startIndex ? 0 : i === parts.length - 1 ? 1 : (i - startIndex) / (parts.length - 1 - startIndex);
+    const position = posMatch
+      ? parseFloat(posMatch[1] ?? "0") / 100
+      : i === startIndex
+        ? 0
+        : i === parts.length - 1
+          ? 1
+          : (i - startIndex) / (parts.length - 1 - startIndex);
 
     // Extract color (simplified - just take the color part)
-    const colorPart = part.replace(/\d+(\.\d+)?%/g, '').trim();
+    const colorPart = part.replace(/\d+(\.\d+)?%/g, "").trim();
 
     if (colorPart) {
       colorStops.push({
@@ -490,23 +509,23 @@ function parseColorStopsFromCSS(gradientArgs: string): ColorStop[] {
  * Parse direction/angle from linear gradient
  */
 function parseLinearDirection(gradientArgs: string): number | undefined {
-  const firstPart = gradientArgs.split(',')[0]?.trim() ?? '';
+  const firstPart = gradientArgs.split(",")[0]?.trim() ?? "";
 
   // Check for angle (e.g., "45deg", "90deg")
   const angleMatch = firstPart.match(/^(-?\d+(\.\d+)?)(deg|grad|rad|turn)/);
   if (angleMatch) {
-    let value = parseFloat(angleMatch[1] ?? '0');
+    let value = parseFloat(angleMatch[1] ?? "0");
     const unit = angleMatch[3];
 
     // Convert to degrees
     switch (unit) {
-      case 'grad':
+      case "grad":
         value = (value * 360) / 400;
         break;
-      case 'rad':
+      case "rad":
         value = (value * 180) / Math.PI;
         break;
-      case 'turn':
+      case "turn":
         value = value * 360;
         break;
     }
@@ -516,14 +535,14 @@ function parseLinearDirection(gradientArgs: string): number | undefined {
 
   // Check for direction keywords
   const directionMap: Record<string, number> = {
-    'to top': 0,
-    'to top right': 45,
-    'to right': 90,
-    'to bottom right': 135,
-    'to bottom': 180,
-    'to bottom left': 225,
-    'to left': 270,
-    'to top left': 315,
+    "to top": 0,
+    "to top right": 45,
+    "to right": 90,
+    "to bottom right": 135,
+    "to bottom": 180,
+    "to bottom left": 225,
+    "to left": 270,
+    "to top left": 315,
   };
 
   const lowerFirst = firstPart.toLowerCase();
@@ -545,15 +564,15 @@ function parseGradientCenter(gradientArgs: string): { centerX?: number; centerY?
   // Check for "at X% Y%" or "at X Y"
   const atMatch = gradientArgs.match(/at\s+(\d+%?)\s+(\d+%?)/i);
   if (atMatch) {
-    const xStr = atMatch[1] ?? '50%';
-    const yStr = atMatch[2] ?? '50%';
+    const xStr = atMatch[1] ?? "50%";
+    const yStr = atMatch[2] ?? "50%";
 
-    result.centerX = xStr.includes('%') ? parseFloat(xStr) / 100 : parseFloat(xStr) / 100;
-    result.centerY = yStr.includes('%') ? parseFloat(yStr) / 100 : parseFloat(yStr) / 100;
+    result.centerX = xStr.includes("%") ? parseFloat(xStr) / 100 : parseFloat(xStr) / 100;
+    result.centerY = yStr.includes("%") ? parseFloat(yStr) / 100 : parseFloat(yStr) / 100;
   }
 
   // Check for 'at center' keyword
-  if (gradientArgs.toLowerCase().includes('at center')) {
+  if (gradientArgs.toLowerCase().includes("at center")) {
     result.centerX = 0.5;
     result.centerY = 0.5;
   }
@@ -685,7 +704,10 @@ function findSignificantColorPoints(colors: AngularColorSample[]): SignificantCo
       const nextDeltaE = colorDistance(currColorEntry.color, nextColorEntry.color);
 
       // Detect transition points
-      if (prevDeltaE > CONTINUOUS_GRADIENT_THRESHOLD || nextDeltaE > CONTINUOUS_GRADIENT_THRESHOLD) {
+      if (
+        prevDeltaE > CONTINUOUS_GRADIENT_THRESHOLD ||
+        nextDeltaE > CONTINUOUS_GRADIENT_THRESHOLD
+      ) {
         significantColors.push({
           color: currColorEntry.color,
           position: i / colors.length,
@@ -801,9 +823,12 @@ function sampleColorsAlongLine(
 /**
  * Calculate color variation metrics along sampled colors
  */
-function calculateColorVariation(
-  colors: LineColorSample[]
-): { avgDeltaE: number; totalChange: number; firstColor: RGB | null; lastColor: RGB | null } {
+function calculateColorVariation(colors: LineColorSample[]): {
+  avgDeltaE: number;
+  totalChange: number;
+  firstColor: RGB | null;
+  lastColor: RGB | null;
+} {
   if (colors.length < 2) {
     return { avgDeltaE: 0, totalChange: 0, firstColor: null, lastColor: null };
   }
@@ -860,7 +885,10 @@ function extractLineColorStops(
       const distFromStart = colorDistance(firstColor, midColor);
       const distFromEnd = colorDistance(midColor, lastColor);
 
-      if (distFromStart > CONTINUOUS_GRADIENT_THRESHOLD && distFromEnd > CONTINUOUS_GRADIENT_THRESHOLD) {
+      if (
+        distFromStart > CONTINUOUS_GRADIENT_THRESHOLD &&
+        distFromEnd > CONTINUOUS_GRADIENT_THRESHOLD
+      ) {
         colorStops.push({
           color: rgbToHex(midColor[0], midColor[1], midColor[2]),
           position: 0.5,
@@ -898,7 +926,17 @@ function analyzeLineGradient(
   step: number
 ): LineGradientResult {
   // Step 1: Sample colors along the line
-  const colors = sampleColorsAlongLine(data, width, height, channels, startX, startY, endX, endY, step);
+  const colors = sampleColorsAlongLine(
+    data,
+    width,
+    height,
+    channels,
+    startX,
+    startY,
+    endX,
+    endY,
+    step
+  );
 
   if (colors.length < 2) {
     return { isGradient: false, colorStops: [], avgDeltaE: 0, totalChange: 0 };
@@ -947,7 +985,9 @@ interface AngleAnalysisResult {
 }
 
 /** Standard angles to test for linear gradient detection */
-const LINEAR_TEST_ANGLES = [0, 30, 45, 60, 90, 120, 135, 150, 180, 210, 225, 240, 270, 300, 315, 330];
+const LINEAR_TEST_ANGLES = [
+  0, 30, 45, 60, 90, 120, 135, 150, 180, 210, 225, 240, 270, 300, 315, 330,
+];
 
 /** Number of parallel lines to sample for each angle */
 const LINEAR_NUM_SAMPLES = 7;
@@ -1064,7 +1104,8 @@ function analyzeLinearAngle(
   // Score this angle based on consistency of gradients across samples
   const gradientCount = lineResults.filter((r) => r.isGradient).length;
   const avgDeltaE = lineResults.reduce((sum, r) => sum + r.avgDeltaE, 0) / lineResults.length;
-  const avgTotalChange = lineResults.reduce((sum, r) => sum + r.totalChange, 0) / lineResults.length;
+  const avgTotalChange =
+    lineResults.reduce((sum, r) => sum + r.totalChange, 0) / lineResults.length;
   const consistency = gradientCount / LINEAR_NUM_SAMPLES;
 
   // Require at least half the lines to show gradient
@@ -1124,7 +1165,7 @@ function detectLinearGradient(
   const confidence = Math.min(1, colorChangeRatio * 0.7 + bestResult.consistency * 0.3);
 
   return {
-    type: 'linear',
+    type: "linear",
     direction: bestResult.angle,
     colorStops: bestResult.colorStops,
     region: { x: 0, y: 0, width, height },
@@ -1183,7 +1224,8 @@ function calculateRadialEndPoint(
   const maxX = angle > Math.PI / 2 && angle < (3 * Math.PI) / 2 ? cx : width - cx;
   const maxY = angle > 0 && angle < Math.PI ? height - cy : cy;
   const radius =
-    Math.min(maxX / Math.abs(Math.cos(angle) || 0.001), maxY / Math.abs(Math.sin(angle) || 0.001)) * 0.85;
+    Math.min(maxX / Math.abs(Math.cos(angle) || 0.001), maxY / Math.abs(Math.sin(angle) || 0.001)) *
+    0.85;
   const clampedRadius = Math.min(radius, Math.max(width, height) * 0.7);
   const endX = Math.floor(cx + Math.cos(angle) * clampedRadius);
   const endY = Math.floor(cy + Math.sin(angle) * clampedRadius);
@@ -1216,7 +1258,8 @@ function analyzeRadialCenter(
 
   // Calculate metrics
   const gradientCount = radialResults.filter((r) => r.isGradient).length;
-  const avgTotalChange = radialResults.reduce((sum, r) => sum + r.totalChange, 0) / radialResults.length;
+  const avgTotalChange =
+    radialResults.reduce((sum, r) => sum + r.totalChange, 0) / radialResults.length;
   const consistency = gradientCount / numAngles;
 
   // For radial gradient, at least half the radial lines should show gradient
@@ -1273,7 +1316,7 @@ function detectRadialGradient(
   const confidence = Math.min(1, colorChangeRatio * 0.5 + bestResult.consistency * 0.5);
 
   return {
-    type: 'radial',
+    type: "radial",
     centerX: bestResult.centerX,
     centerY: bestResult.centerY,
     colorStops: bestResult.colorStops,
@@ -1304,7 +1347,16 @@ function detectConicGradient(
   const numSamples = 36; // Every 10 degrees
 
   // Step 1: Sample colors around circle
-  const colors = sampleColorsAroundCircle(data, width, height, channels, cx, cy, radius, numSamples);
+  const colors = sampleColorsAroundCircle(
+    data,
+    width,
+    height,
+    channels,
+    cx,
+    cy,
+    radius,
+    numSamples
+  );
 
   if (colors.length < numSamples * CONIC_MIN_SAMPLES_RATIO) {
     return null;
@@ -1327,7 +1379,7 @@ function detectConicGradient(
   const confidence = Math.min(1, variationResult.avgVariation / 30);
 
   return {
-    type: 'conic',
+    type: "conic",
     centerX: 0.5,
     centerY: 0.5,
     colorStops,
@@ -1454,7 +1506,7 @@ function buildGradientResult(
   processingTimeMs: number
 ): GradientDetectionResult {
   // Determine dominant type
-  let dominantGradientType: 'linear' | 'radial' | 'conic' | undefined = undefined;
+  let dominantGradientType: "linear" | "radial" | "conic" | undefined = undefined;
   const firstGradient = gradients[0];
   if (firstGradient) {
     dominantGradientType = firstGradient.type;
@@ -1488,19 +1540,19 @@ function buildGradientResult(
 function generateCSSString(gradient: DetectedGradient): string {
   const colorStopsStr = gradient.colorStops
     .map((stop) => `${stop.color} ${Math.round(stop.position * 100)}%`)
-    .join(', ');
+    .join(", ");
 
   switch (gradient.type) {
-    case 'linear': {
+    case "linear": {
       const angle = gradient.direction ?? 0;
       return `linear-gradient(${angle}deg, ${colorStopsStr})`;
     }
-    case 'radial': {
+    case "radial": {
       const cx = gradient.centerX ?? 0.5;
       const cy = gradient.centerY ?? 0.5;
       return `radial-gradient(circle at ${Math.round(cx * 100)}% ${Math.round(cy * 100)}%, ${colorStopsStr})`;
     }
-    case 'conic': {
+    case "conic": {
       const cx = gradient.centerX ?? 0.5;
       const cy = gradient.centerY ?? 0.5;
       return `conic-gradient(from 0deg at ${Math.round(cx * 100)}% ${Math.round(cy * 100)}%, ${colorStopsStr})`;
@@ -1526,7 +1578,7 @@ class GradientDetectorServiceImpl implements GradientDetectorService {
     // Parse and validate input with size check (5MB max) - SEC H-1
     const imageBuffer = parseAndValidateImageInput(image);
 
-    logSecurityEvent('GradientDetector', 'Processing image', {
+    logSecurityEvent("GradientDetector", "Processing image", {
       size: imageBuffer.length,
       sizeKB: Math.round(imageBuffer.length / 1024),
     });
@@ -1547,7 +1599,7 @@ class GradientDetectorServiceImpl implements GradientDetectorService {
     const startTime = performance.now();
 
     // Handle null/undefined
-    if (!css || typeof css !== 'string') {
+    if (!css || typeof css !== "string") {
       return {
         hasGradient: false,
         gradients: [],
@@ -1556,7 +1608,7 @@ class GradientDetectorServiceImpl implements GradientDetectorService {
       };
     }
 
-    logger.debug('[GradientDetector] Parsing CSS for gradients:', {
+    logger.debug("[GradientDetector] Parsing CSS for gradients:", {
       cssLength: css.length,
     });
 
@@ -1567,7 +1619,7 @@ class GradientDetectorServiceImpl implements GradientDetectorService {
 
       for (const rule of rules) {
         // Check background and background-image properties
-        const bgProps = ['background', 'background-image'];
+        const bgProps = ["background", "background-image"];
 
         for (const prop of bgProps) {
           const value = rule.declarations.get(prop);
@@ -1579,7 +1631,7 @@ class GradientDetectorServiceImpl implements GradientDetectorService {
           for (const match of gradientMatches) {
             // Extract gradient arguments (inside parentheses)
             const argsMatch = match.fullMatch.match(/\(([^()]*(?:\([^()]*\)[^()]*)*)\)/);
-            const gradientArgs = argsMatch?.[1] ?? '';
+            const gradientArgs = argsMatch?.[1] ?? "";
 
             // Parse color stops
             const colorStops = parseColorStopsFromCSS(gradientArgs);
@@ -1590,19 +1642,17 @@ class GradientDetectorServiceImpl implements GradientDetectorService {
               colorStops,
               region: { x: 0, y: 0, width: 0, height: 0 }, // Region not applicable for CSS
               confidence: 1.0, // High confidence for CSS parsing
-              cssString: match.isRepeating
-                ? match.fullMatch
-                : match.fullMatch,
+              cssString: match.isRepeating ? match.fullMatch : match.fullMatch,
               parentElement: rule.selector,
             };
 
             // Parse type-specific properties
-            if (match.type === 'linear') {
+            if (match.type === "linear") {
               const direction = parseLinearDirection(gradientArgs);
               if (direction !== undefined) {
                 detectedGradient.direction = direction;
               }
-            } else if (match.type === 'radial' || match.type === 'conic') {
+            } else if (match.type === "radial" || match.type === "conic") {
               const center = parseGradientCenter(gradientArgs);
               if (center.centerX !== undefined) {
                 detectedGradient.centerX = center.centerX;
@@ -1629,15 +1679,15 @@ class GradientDetectorServiceImpl implements GradientDetectorService {
         }
       }
     } catch (error) {
-      if (process.env.NODE_ENV === 'development') {
-        console.error('[GradientDetector] Error parsing CSS:', error);
+      if (process.env.NODE_ENV === "development") {
+        console.error("[GradientDetector] Error parsing CSS:", error);
       }
     }
 
     const processingTimeMs = performance.now() - startTime;
 
     // Determine dominant gradient type
-    let dominantGradientType: 'linear' | 'radial' | 'conic' | undefined;
+    let dominantGradientType: "linear" | "radial" | "conic" | undefined;
     if (gradients.length > 0) {
       dominantGradientType = gradients[0]?.type;
     }
@@ -1653,7 +1703,7 @@ class GradientDetectorServiceImpl implements GradientDetectorService {
       result.dominantGradientType = dominantGradientType;
     }
 
-    logger.debug('[GradientDetector] CSS detection result:', {
+    logger.debug("[GradientDetector] CSS detection result:", {
       hasGradient: result.hasGradient,
       gradientCount: result.gradients.length,
       dominantType: result.dominantGradientType,
@@ -1672,14 +1722,14 @@ class GradientDetectorServiceImpl implements GradientDetectorService {
       const metadata = await processedImage.metadata();
 
       if (!metadata.width || !metadata.height) {
-        throw new Error('Invalid image: unable to read dimensions');
+        throw new Error("Invalid image: unable to read dimensions");
       }
 
       // Resize for performance while maintaining aspect ratio
       const resizeOptions: sharp.ResizeOptions = {
         width: Math.min(metadata.width, this.config.maxProcessingWidth),
         height: Math.min(metadata.height, this.config.maxProcessingHeight),
-        fit: 'inside',
+        fit: "inside",
         withoutEnlargement: true,
       };
 
@@ -1717,7 +1767,7 @@ class GradientDetectorServiceImpl implements GradientDetectorService {
       const processingTimeMs = performance.now() - startTime;
       const result = buildGradientResult(gradients, processingTimeMs);
 
-      logger.debug('[GradientDetector] Detection result:', {
+      logger.debug("[GradientDetector] Detection result:", {
         hasGradient: result.hasGradient,
         gradientCount: result.gradients.length,
         dominantType: result.dominantGradientType,

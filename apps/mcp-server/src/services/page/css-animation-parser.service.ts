@@ -71,18 +71,11 @@ export interface KeyframeStep {
  * Easing configuration
  */
 export interface EasingConfig {
-  type:
-    | 'linear'
-    | 'ease'
-    | 'ease-in'
-    | 'ease-out'
-    | 'ease-in-out'
-    | 'cubic-bezier'
-    | 'steps';
+  type: "linear" | "ease" | "ease-in" | "ease-out" | "ease-in-out" | "cubic-bezier" | "steps";
   cubicBezier?: [number, number, number, number];
   steps?: {
     count: number;
-    position: 'start' | 'end';
+    position: "start" | "end";
   };
 }
 
@@ -94,7 +87,7 @@ export interface ParsedAnimation {
   duration: number;
   easing: EasingConfig;
   delay: number;
-  iterations: number | 'infinite';
+  iterations: number | "infinite";
   direction: string;
   fillMode: string;
 }
@@ -114,24 +107,13 @@ export interface ParsedTransition {
 // =====================================================
 
 /** Easing keyword list */
-const EASING_KEYWORDS = [
-  'linear',
-  'ease',
-  'ease-in',
-  'ease-out',
-  'ease-in-out',
-] as const;
+const EASING_KEYWORDS = ["linear", "ease", "ease-in", "ease-out", "ease-in-out"] as const;
 
 /** Animation direction keywords */
-const DIRECTION_KEYWORDS = [
-  'normal',
-  'reverse',
-  'alternate',
-  'alternate-reverse',
-] as const;
+const DIRECTION_KEYWORDS = ["normal", "reverse", "alternate", "alternate-reverse"] as const;
 
 /** Animation fill-mode keywords */
-const FILL_MODE_KEYWORDS = ['none', 'forwards', 'backwards', 'both'] as const;
+const FILL_MODE_KEYWORDS = ["none", "forwards", "backwards", "both"] as const;
 
 // =====================================================
 // CssAnimationParser Service
@@ -158,8 +140,14 @@ export class CssAnimationParser {
 
     // Security: Validate input size to prevent ReDoS
     if (!css || css.length > CSS_PARSER_LIMITS.MAX_CSS_SIZE) {
-      if (process.env.NODE_ENV === 'development' && css && css.length > CSS_PARSER_LIMITS.MAX_CSS_SIZE) {
-        console.warn(`[CssAnimationParser] parseKeyframes: Input size ${css.length} exceeds limit ${CSS_PARSER_LIMITS.MAX_CSS_SIZE}`);
+      if (
+        process.env.NODE_ENV === "development" &&
+        css &&
+        css.length > CSS_PARSER_LIMITS.MAX_CSS_SIZE
+      ) {
+        console.warn(
+          `[CssAnimationParser] parseKeyframes: Input size ${css.length} exceeds limit ${CSS_PARSER_LIMITS.MAX_CSS_SIZE}`
+        );
       }
       return keyframesMap;
     }
@@ -177,16 +165,18 @@ export class CssAnimationParser {
 
       // Find matching closing brace with depth limit
       for (let i = startIndex; i < css.length && braceCount > 0; i++) {
-        if (css[i] === '{') {
+        if (css[i] === "{") {
           braceCount++;
           // Security: Limit brace nesting depth
           if (braceCount > CSS_PARSER_LIMITS.MAX_BRACE_DEPTH) {
-            if (process.env.NODE_ENV === 'development') {
-              console.warn(`[CssAnimationParser] parseKeyframes: Max brace depth exceeded for keyframe "${name}"`);
+            if (process.env.NODE_ENV === "development") {
+              console.warn(
+                `[CssAnimationParser] parseKeyframes: Max brace depth exceeded for keyframe "${name}"`
+              );
             }
             break;
           }
-        } else if (css[i] === '}') {
+        } else if (css[i] === "}") {
           braceCount--;
         }
         endIndex = i;
@@ -195,9 +185,10 @@ export class CssAnimationParser {
       const content = css.substring(startIndex, endIndex);
       if (content) {
         // Security: Limit keyframe content length
-        const truncatedContent = content.length > CSS_PARSER_LIMITS.MAX_KEYFRAME_CONTENT_LENGTH
-          ? content.substring(0, CSS_PARSER_LIMITS.MAX_KEYFRAME_CONTENT_LENGTH)
-          : content;
+        const truncatedContent =
+          content.length > CSS_PARSER_LIMITS.MAX_KEYFRAME_CONTENT_LENGTH
+            ? content.substring(0, CSS_PARSER_LIMITS.MAX_KEYFRAME_CONTENT_LENGTH)
+            : content;
 
         const steps = this.parseKeyframeSteps(truncatedContent);
         keyframesMap.set(name, steps);
@@ -219,9 +210,10 @@ export class CssAnimationParser {
     const steps: KeyframeStep[] = [];
 
     // Security: Limit content length to prevent ReDoS
-    const safeContent = content.length > CSS_PARSER_LIMITS.MAX_KEYFRAME_CONTENT_LENGTH
-      ? content.substring(0, CSS_PARSER_LIMITS.MAX_KEYFRAME_CONTENT_LENGTH)
-      : content;
+    const safeContent =
+      content.length > CSS_PARSER_LIMITS.MAX_KEYFRAME_CONTENT_LENGTH
+        ? content.substring(0, CSS_PARSER_LIMITS.MAX_KEYFRAME_CONTENT_LENGTH)
+        : content;
 
     // Security: Use length-limited pattern for styles block [^}]{0,MAX}
     // This prevents exponential backtracking on malformed input
@@ -232,8 +224,10 @@ export class CssAnimationParser {
     while ((match = stepRegex.exec(safeContent)) !== null) {
       // Security: Limit number of keyframes per animation
       if (++matchCount > CSS_PARSER_LIMITS.MAX_KEYFRAMES_PER_ANIMATION) {
-        if (process.env.NODE_ENV === 'development') {
-          console.warn(`[CssAnimationParser] parseKeyframeSteps: Max keyframes limit reached (${CSS_PARSER_LIMITS.MAX_KEYFRAMES_PER_ANIMATION})`);
+        if (process.env.NODE_ENV === "development") {
+          console.warn(
+            `[CssAnimationParser] parseKeyframeSteps: Max keyframes limit reached (${CSS_PARSER_LIMITS.MAX_KEYFRAMES_PER_ANIMATION})`
+          );
         }
         break;
       }
@@ -243,9 +237,9 @@ export class CssAnimationParser {
       if (!offsetStr || !stylesStr) continue;
 
       let offset: number;
-      if (offsetStr === 'from') {
+      if (offsetStr === "from") {
         offset = 0;
-      } else if (offsetStr === 'to') {
+      } else if (offsetStr === "to") {
         offset = 100;
       } else {
         offset = parseFloat(offsetStr);
@@ -261,9 +255,10 @@ export class CssAnimationParser {
         const propValue = styleMatch[2];
         if (propName && propValue) {
           // Security: Truncate extremely long property values
-          const truncatedValue = propValue.length > CSS_PARSER_LIMITS.MAX_PROPERTY_VALUE_LENGTH
-            ? propValue.substring(0, CSS_PARSER_LIMITS.MAX_PROPERTY_VALUE_LENGTH)
-            : propValue;
+          const truncatedValue =
+            propValue.length > CSS_PARSER_LIMITS.MAX_PROPERTY_VALUE_LENGTH
+              ? propValue.substring(0, CSS_PARSER_LIMITS.MAX_PROPERTY_VALUE_LENGTH)
+              : propValue;
           styles[propName.trim()] = truncatedValue.trim();
         }
       }
@@ -288,13 +283,13 @@ export class CssAnimationParser {
     // Tokenize respecting parentheses (for cubic-bezier, steps, etc.)
     const parts = this.tokenizeAnimationValue(value);
 
-    let name = '';
+    let name = "";
     let duration = 0;
-    let easing: EasingConfig = { type: 'ease' };
+    let easing: EasingConfig = { type: "ease" };
     let delay = 0;
-    let iterations: number | 'infinite' = 1;
-    let direction = 'normal';
-    let fillMode = 'none';
+    let iterations: number | "infinite" = 1;
+    let direction = "normal";
+    let fillMode = "none";
 
     let foundDuration = false;
 
@@ -310,41 +305,41 @@ export class CssAnimationParser {
         }
       }
       // Iteration count
-      else if (part === 'infinite') {
-        iterations = 'infinite';
+      else if (part === "infinite") {
+        iterations = "infinite";
       } else if (/^\d+$/.test(part)) {
         iterations = parseInt(part, 10);
       }
       // Easing - cubic-bezier
       // Security: Length limit prevents ReDoS on malformed/long inputs
-      else if (part.startsWith('cubic-bezier')) {
+      else if (part.startsWith("cubic-bezier")) {
         const bezierMatch = part.match(/cubic-bezier\(([\d.,\s-]{1,100})\)/);
         if (bezierMatch && bezierMatch[1]) {
-          const values = bezierMatch[1].split(',').map((v) => parseFloat(v.trim()));
+          const values = bezierMatch[1].split(",").map((v) => parseFloat(v.trim()));
           if (values.length === 4 && values.every((v) => !isNaN(v))) {
             easing = {
-              type: 'cubic-bezier',
+              type: "cubic-bezier",
               cubicBezier: values as [number, number, number, number],
             };
           }
         }
       }
       // Easing - steps
-      else if (part.startsWith('steps')) {
+      else if (part.startsWith("steps")) {
         const stepsMatch = part.match(/steps\((\d+)(?:,\s*(start|end))?\)/);
         if (stepsMatch && stepsMatch[1]) {
           easing = {
-            type: 'steps',
+            type: "steps",
             steps: {
               count: parseInt(stepsMatch[1], 10),
-              position: (stepsMatch[2] as 'start' | 'end') || 'end',
+              position: (stepsMatch[2] as "start" | "end") || "end",
             },
           };
         }
       }
       // Easing - keywords
       else if (EASING_KEYWORDS.includes(part as (typeof EASING_KEYWORDS)[number])) {
-        easing = { type: part as EasingConfig['type'] };
+        easing = { type: part as EasingConfig["type"] };
       }
       // Direction
       else if (DIRECTION_KEYWORDS.includes(part as (typeof DIRECTION_KEYWORDS)[number])) {
@@ -372,16 +367,16 @@ export class CssAnimationParser {
    */
   tokenizeAnimationValue(value: string): string[] {
     const tokens: string[] = [];
-    let current = '';
+    let current = "";
     let parenDepth = 0;
 
     for (let i = 0; i < value.length; i++) {
       const char = value[i];
 
-      if (char === '(') {
+      if (char === "(") {
         parenDepth++;
         current += char;
-      } else if (char === ')') {
+      } else if (char === ")") {
         parenDepth--;
         current += char;
       } else if (/\s/.test(char!) && parenDepth === 0) {
@@ -389,7 +384,7 @@ export class CssAnimationParser {
         if (current.trim()) {
           tokens.push(current.trim());
         }
-        current = '';
+        current = "";
       } else {
         current += char;
       }
@@ -422,9 +417,9 @@ export class CssAnimationParser {
     for (const part of parts) {
       // Use tokenizeAnimationValue to handle parentheses properly
       const tokens = this.tokenizeAnimationValue(part);
-      let property = 'all';
+      let property = "all";
       let duration = 0;
-      let easing: EasingConfig = { type: 'ease' };
+      let easing: EasingConfig = { type: "ease" };
       let delay = 0;
       let foundDuration = false;
 
@@ -438,20 +433,20 @@ export class CssAnimationParser {
             delay = timeMs;
           }
         } else if (EASING_KEYWORDS.includes(token as (typeof EASING_KEYWORDS)[number])) {
-          easing = { type: token as EasingConfig['type'] };
-        // Security: Length limit prevents ReDoS on malformed/long inputs
-        } else if (token.startsWith('cubic-bezier')) {
+          easing = { type: token as EasingConfig["type"] };
+          // Security: Length limit prevents ReDoS on malformed/long inputs
+        } else if (token.startsWith("cubic-bezier")) {
           const bezierMatch = token.match(/cubic-bezier\(([\d.,\s-]{1,100})\)/);
           if (bezierMatch && bezierMatch[1]) {
-            const values = bezierMatch[1].split(',').map((v) => parseFloat(v.trim()));
+            const values = bezierMatch[1].split(",").map((v) => parseFloat(v.trim()));
             if (values.length === 4 && values.every((v) => !isNaN(v))) {
               easing = {
-                type: 'cubic-bezier',
+                type: "cubic-bezier",
                 cubicBezier: values as [number, number, number, number],
               };
             }
           }
-        } else if (/^[\w-]+$/.test(token) && property === 'all') {
+        } else if (/^[\w-]+$/.test(token) && property === "all") {
           property = token;
         }
       }
@@ -470,23 +465,23 @@ export class CssAnimationParser {
    */
   private splitTransitionParts(value: string): string[] {
     const parts: string[] = [];
-    let current = '';
+    let current = "";
     let parenDepth = 0;
 
     for (let i = 0; i < value.length; i++) {
       const char = value[i];
 
-      if (char === '(') {
+      if (char === "(") {
         parenDepth++;
         current += char;
-      } else if (char === ')') {
+      } else if (char === ")") {
         parenDepth--;
         current += char;
-      } else if (char === ',' && parenDepth === 0) {
+      } else if (char === "," && parenDepth === 0) {
         if (current.trim()) {
           parts.push(current.trim());
         }
-        current = '';
+        current = "";
       } else {
         current += char;
       }
@@ -516,8 +511,14 @@ export class CssAnimationParser {
 
     // Security: Validate input size to prevent ReDoS
     if (!css || css.length > CSS_PARSER_LIMITS.MAX_CSS_SIZE) {
-      if (process.env.NODE_ENV === 'development' && css && css.length > CSS_PARSER_LIMITS.MAX_CSS_SIZE) {
-        console.warn(`[CssAnimationParser] extractStyleRules: Input size ${css.length} exceeds limit ${CSS_PARSER_LIMITS.MAX_CSS_SIZE}`);
+      if (
+        process.env.NODE_ENV === "development" &&
+        css &&
+        css.length > CSS_PARSER_LIMITS.MAX_CSS_SIZE
+      ) {
+        console.warn(
+          `[CssAnimationParser] extractStyleRules: Input size ${css.length} exceeds limit ${CSS_PARSER_LIMITS.MAX_CSS_SIZE}`
+        );
       }
       return rules;
     }
@@ -536,8 +537,10 @@ export class CssAnimationParser {
 
       // Security: Skip overly long selectors
       if (selectorTrimmed.length > CSS_PARSER_LIMITS.MAX_SELECTOR_LENGTH) {
-        if (process.env.NODE_ENV === 'development') {
-          console.warn(`[CssAnimationParser] extractStyleRules: Selector too long (${selectorTrimmed.length} chars), skipping`);
+        if (process.env.NODE_ENV === "development") {
+          console.warn(
+            `[CssAnimationParser] extractStyleRules: Selector too long (${selectorTrimmed.length} chars), skipping`
+          );
         }
         continue;
       }
@@ -554,9 +557,10 @@ export class CssAnimationParser {
         const propValue = declMatch[2];
         if (propName && propValue) {
           // Security: Truncate extremely long property values
-          const truncatedValue = propValue.length > CSS_PARSER_LIMITS.MAX_PROPERTY_VALUE_LENGTH
-            ? propValue.substring(0, CSS_PARSER_LIMITS.MAX_PROPERTY_VALUE_LENGTH)
-            : propValue;
+          const truncatedValue =
+            propValue.length > CSS_PARSER_LIMITS.MAX_PROPERTY_VALUE_LENGTH
+              ? propValue.substring(0, CSS_PARSER_LIMITS.MAX_PROPERTY_VALUE_LENGTH)
+              : propValue;
           styles[propName.trim()] = truncatedValue.trim();
         }
       }
@@ -578,9 +582,9 @@ export class CssAnimationParser {
    * @returns Time in milliseconds
    */
   parseTimeToMs(time: string): number {
-    if (time.endsWith('ms')) {
+    if (time.endsWith("ms")) {
       return parseFloat(time);
-    } else if (time.endsWith('s')) {
+    } else if (time.endsWith("s")) {
       return parseFloat(time) * 1000;
     }
     return parseFloat(time);
@@ -593,10 +597,10 @@ export class CssAnimationParser {
    * @returns CSS easing string
    */
   formatEasing(easing: EasingConfig): string {
-    if (easing.type === 'cubic-bezier' && easing.cubicBezier) {
-      return `cubic-bezier(${easing.cubicBezier.join(', ')})`;
+    if (easing.type === "cubic-bezier" && easing.cubicBezier) {
+      return `cubic-bezier(${easing.cubicBezier.join(", ")})`;
     }
-    if (easing.type === 'steps' && easing.steps) {
+    if (easing.type === "steps" && easing.steps) {
       return `steps(${easing.steps.count}, ${easing.steps.position})`;
     }
     return easing.type;
@@ -614,10 +618,10 @@ export class CssAnimationParser {
       .map((s) => {
         const styleStr = Object.entries(s.styles)
           .map(([k, v]) => `${k}: ${v}`)
-          .join('; ');
+          .join("; ");
         return `  ${s.offset}% { ${styleStr} }`;
       })
-      .join('\n');
+      .join("\n");
     return `@keyframes ${name} {\n${stepsStr}\n}`;
   }
 }

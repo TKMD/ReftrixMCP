@@ -15,27 +15,27 @@
  * @module tools/page/handlers/embedding-handler
  */
 
-import { isDevelopment, logger } from '../../../utils/logger';
+import { isDevelopment, logger } from "../../../utils/logger";
 import {
   LayoutEmbeddingService,
   saveSectionEmbedding,
   sectionToTextRepresentationWithVision,
   convertToVisionFeaturesForEmbedding,
   type SectionWithVision,
-} from '../../../services/layout-embedding.service';
-import { getMotionPersistenceService } from '../../../services/motion-persistence.service';
-import { saveMotionEmbedding } from '../../../services/motion/frame-embedding.service';
+} from "../../../services/layout-embedding.service";
+import { getMotionPersistenceService } from "../../../services/motion-persistence.service";
+import { saveMotionEmbedding } from "../../../services/motion/frame-embedding.service";
 import {
   generateAndSaveVisionEmbedding,
   hasValidVisualFeatures,
-} from '../../../services/vision-embedding.service';
+} from "../../../services/vision-embedding.service";
 import {
   generateBackgroundDesignEmbeddings as generateBgEmbeddings,
   type BackgroundDesignForText,
   type BackgroundDesignEmbeddingResult,
-} from '../../../services/background/background-design-embedding.service';
-import type { VisualFeatures } from '../../page/schemas';
-import type { MotionPatternForEmbedding } from './types';
+} from "../../../services/background/background-design-embedding.service";
+import type { VisualFeatures } from "../../page/schemas";
+import type { MotionPatternForEmbedding } from "./types";
 
 // Re-export for backward compatibility
 export type { MotionPatternForEmbedding };
@@ -230,7 +230,7 @@ export function generateSectionTextRepresentation(section: SectionPatternInput):
   // 信頼度
   parts.push(`Confidence: ${(section.confidence * 100).toFixed(0)}%`);
 
-  return `passage: ${parts.join('. ')}.`;
+  return `passage: ${parts.join(". ")}.`;
 }
 
 // =====================================================
@@ -263,7 +263,7 @@ export async function generateSectionEmbeddings(
   };
 
   if (isDevelopment()) {
-    logger.info('[EmbeddingHandler] Starting SectionEmbedding generation', {
+    logger.info("[EmbeddingHandler] Starting SectionEmbedding generation", {
       sectionCount: sections.length,
       pageId: options.webPageId,
       idMappingSize: sectionIdMapping.size,
@@ -283,7 +283,7 @@ export async function generateSectionEmbeddings(
       // キャッシュ無効にして初期化検証でキャッシュヒットを避ける
       embeddingService = new LayoutEmbeddingService({ cacheEnabled: false });
       // EmbeddingServiceの初期化を検証（ファクトリエラーを早期検出）
-      await embeddingService.generateFromText('__init_validation__');
+      await embeddingService.generateFromText("__init_validation__");
     }
 
     // Phase 1: テキスト表現を一括生成し、有効なセクションを収集
@@ -298,16 +298,20 @@ export async function generateSectionEmbeddings(
       const dbSectionId = sectionIdMapping.get(section.id);
       if (!dbSectionId) {
         if (isDevelopment()) {
-          logger.warn('[EmbeddingHandler] Section ID mapping not found, skipping embedding', {
+          logger.warn("[EmbeddingHandler] Section ID mapping not found, skipping embedding", {
             originalId: section.id,
           });
         }
         result.failedCount++;
         result.errors.push({
           sectionId: section.id,
-          error: 'Section ID mapping not found',
+          error: "Section ID mapping not found",
         });
-        try { options.onProgress?.(result.generatedCount + result.failedCount, sections.length); } catch { /* fire-and-forget */ }
+        try {
+          options.onProgress?.(result.generatedCount + result.failedCount, sections.length);
+        } catch {
+          /* fire-and-forget */
+        }
         continue;
       }
 
@@ -340,7 +344,7 @@ export async function generateSectionEmbeddings(
     // generateBatchFromTexts は内部で EmbeddingService.generateBatchEmbeddings() を呼び、
     // BATCH_SIZE=32 ごとにまとめて推論するため、1件ずつ generateFromText() を呼ぶより
     // モデル呼び出しオーバーヘッドが大幅に削減される。
-    const allTexts = validSections.map(v => v.textRepresentation);
+    const allTexts = validSections.map((v) => v.textRepresentation);
     let batchEmbeddings: Array<{ embedding: number[] }> = [];
 
     if (allTexts.length > 0) {
@@ -349,8 +353,8 @@ export async function generateSectionEmbeddings(
       } catch (batchError) {
         // バッチ推論失敗時は個別フォールバック（後続ループで1件ずつ生成）
         if (isDevelopment()) {
-          logger.warn('[EmbeddingHandler] Batch embedding failed, falling back to individual', {
-            error: batchError instanceof Error ? batchError.message : 'Unknown error',
+          logger.warn("[EmbeddingHandler] Batch embedding failed, falling back to individual", {
+            error: batchError instanceof Error ? batchError.message : "Unknown error",
           });
         }
         batchEmbeddings = [];
@@ -379,14 +383,14 @@ export async function generateSectionEmbeddings(
         await saveSectionEmbedding(
           dbSectionId,
           embedding,
-          'multilingual-e5-base',
+          "multilingual-e5-base",
           textRepresentation
         );
 
         result.generatedCount++;
 
         if (isDevelopment()) {
-          logger.info('[EmbeddingHandler] SectionEmbedding saved', {
+          logger.info("[EmbeddingHandler] SectionEmbedding saved", {
             originalSectionId: section.id,
             dbSectionId: dbSectionId,
             sectionType: section.type,
@@ -418,7 +422,7 @@ export async function generateSectionEmbeddings(
               result.visionEmbedding.generatedCount++;
 
               if (isDevelopment()) {
-                logger.info('[EmbeddingHandler] VisionEmbedding saved', {
+                logger.info("[EmbeddingHandler] VisionEmbedding saved", {
                   originalSectionId: section.id,
                   dbSectionId: dbSectionId,
                   visionEmbeddingId,
@@ -428,11 +432,11 @@ export async function generateSectionEmbeddings(
               result.visionEmbedding.failedCount++;
               result.visionEmbedding.errors.push({
                 sectionId: section.id,
-                error: 'VisionEmbedding generation returned null (internal error)',
+                error: "VisionEmbedding generation returned null (internal error)",
               });
 
               if (isDevelopment()) {
-                logger.warn('[EmbeddingHandler] VisionEmbedding generation returned null', {
+                logger.warn("[EmbeddingHandler] VisionEmbedding generation returned null", {
                   originalSectionId: section.id,
                   dbSectionId: dbSectionId,
                 });
@@ -448,32 +452,37 @@ export async function generateSectionEmbeddings(
               };
             }
             result.visionEmbedding.failedCount++;
-            const visionErrorMessage = visionError instanceof Error ? visionError.message : 'Unknown error';
+            const visionErrorMessage =
+              visionError instanceof Error ? visionError.message : "Unknown error";
             result.visionEmbedding.errors.push({
               sectionId: section.id,
               error: visionErrorMessage,
             });
 
             if (isDevelopment()) {
-              logger.warn('[EmbeddingHandler] VisionEmbedding generation failed (partial success)', {
-                originalSectionId: section.id,
-                dbSectionId: dbSectionId,
-                error: visionErrorMessage,
-              });
+              logger.warn(
+                "[EmbeddingHandler] VisionEmbedding generation failed (partial success)",
+                {
+                  originalSectionId: section.id,
+                  dbSectionId: dbSectionId,
+                  error: visionErrorMessage,
+                }
+              );
             }
           }
         }
       } catch (embeddingError) {
         // Embedding生成失敗時もSectionPatternは保存済み（部分成功）
         result.failedCount++;
-        const errorMessage = embeddingError instanceof Error ? embeddingError.message : 'Unknown error';
+        const errorMessage =
+          embeddingError instanceof Error ? embeddingError.message : "Unknown error";
         result.errors.push({
           sectionId: section.id,
           error: errorMessage,
         });
 
         if (isDevelopment()) {
-          logger.warn('[EmbeddingHandler] SectionEmbedding generation failed (partial success)', {
+          logger.warn("[EmbeddingHandler] SectionEmbedding generation failed (partial success)", {
             originalSectionId: section.id,
             dbSectionId: dbSectionId,
             error: errorMessage,
@@ -482,15 +491,19 @@ export async function generateSectionEmbeddings(
       }
 
       // Granular progress: report after each section (fire-and-forget)
-      try { options.onProgress?.(result.generatedCount + result.failedCount, sections.length); } catch { /* fire-and-forget */ }
+      try {
+        options.onProgress?.(result.generatedCount + result.failedCount, sections.length);
+      } catch {
+        /* fire-and-forget */
+      }
     }
   } catch (serviceError) {
     // EmbeddingService初期化失敗時
     result.success = false;
-    const errorMessage = serviceError instanceof Error ? serviceError.message : 'Unknown error';
+    const errorMessage = serviceError instanceof Error ? serviceError.message : "Unknown error";
 
     if (isDevelopment()) {
-      logger.warn('[EmbeddingHandler] EmbeddingService not available', {
+      logger.warn("[EmbeddingHandler] EmbeddingService not available", {
         error: errorMessage,
       });
     }
@@ -541,10 +554,10 @@ export function generateMotionTextRepresentation(pattern: MotionPatternForEmbedd
 
   // プロパティ
   if (pattern.properties && pattern.properties.length > 0) {
-    parts.push(`Properties: ${pattern.properties.join(', ')}`);
+    parts.push(`Properties: ${pattern.properties.join(", ")}`);
   }
 
-  return `passage: ${parts.join('. ')}.`;
+  return `passage: ${parts.join(". ")}.`;
 }
 
 /**
@@ -574,7 +587,7 @@ export async function generateMotionEmbeddings(
   const { motionPatternIdMapping } = options;
 
   if (isDevelopment()) {
-    logger.info('[EmbeddingHandler] Starting MotionEmbedding generation (embedding-only mode)', {
+    logger.info("[EmbeddingHandler] Starting MotionEmbedding generation (embedding-only mode)", {
       patternCount: patterns.length,
       hasIdMapping: !!motionPatternIdMapping,
       idMappingSize: motionPatternIdMapping?.size ?? 0,
@@ -585,7 +598,9 @@ export async function generateMotionEmbeddings(
   // db-handler.tsでパターンが保存されていない可能性がある
   if (!motionPatternIdMapping || motionPatternIdMapping.size === 0) {
     if (isDevelopment()) {
-      logger.warn('[EmbeddingHandler] No motionPatternIdMapping provided, skipping embedding generation');
+      logger.warn(
+        "[EmbeddingHandler] No motionPatternIdMapping provided, skipping embedding generation"
+      );
     }
     return result;
   }
@@ -596,7 +611,7 @@ export async function generateMotionEmbeddings(
     if (!motionPersistenceService.isAvailable()) {
       result.success = false;
       if (isDevelopment()) {
-        logger.warn('[EmbeddingHandler] MotionPersistenceService not available');
+        logger.warn("[EmbeddingHandler] MotionPersistenceService not available");
       }
       return result;
     }
@@ -614,13 +629,13 @@ export async function generateMotionEmbeddings(
       const dbPatternId = motionPatternIdMapping.get(pattern.id);
       if (!dbPatternId) {
         if (isDevelopment()) {
-          logger.warn('[EmbeddingHandler] Pattern ID mapping not found, skipping embedding', {
+          logger.warn("[EmbeddingHandler] Pattern ID mapping not found, skipping embedding", {
             originalId: pattern.id,
           });
         }
         result.errors.push({
           patternId: pattern.id,
-          error: 'Pattern ID mapping not found',
+          error: "Pattern ID mapping not found",
         });
         continue;
       }
@@ -637,7 +652,7 @@ export async function generateMotionEmbeddings(
         const embeddingId = await saveMotionEmbedding(
           dbPatternId,
           embeddingResult.embedding,
-          'multilingual-e5-base'
+          "multilingual-e5-base"
         );
 
         result.savedCount++;
@@ -645,7 +660,7 @@ export async function generateMotionEmbeddings(
         result.embeddingIds.push(embeddingId);
 
         if (isDevelopment()) {
-          logger.info('[EmbeddingHandler] MotionEmbedding saved', {
+          logger.info("[EmbeddingHandler] MotionEmbedding saved", {
             originalPatternId: pattern.id,
             dbPatternId: dbPatternId,
             embeddingId: embeddingId,
@@ -654,14 +669,15 @@ export async function generateMotionEmbeddings(
         }
       } catch (embeddingError) {
         // Embedding生成失敗時もパターンは保存済み（部分成功）
-        const errorMessage = embeddingError instanceof Error ? embeddingError.message : 'Unknown error';
+        const errorMessage =
+          embeddingError instanceof Error ? embeddingError.message : "Unknown error";
         result.errors.push({
           patternId: pattern.id,
           error: errorMessage,
         });
 
         if (isDevelopment()) {
-          logger.warn('[EmbeddingHandler] MotionEmbedding generation failed (partial success)', {
+          logger.warn("[EmbeddingHandler] MotionEmbedding generation failed (partial success)", {
             originalPatternId: pattern.id,
             dbPatternId: dbPatternId,
             error: errorMessage,
@@ -670,11 +686,15 @@ export async function generateMotionEmbeddings(
       }
 
       // Granular progress: report after each motion pattern (fire-and-forget)
-      try { options.onProgress?.(result.savedCount + result.errors.length, patterns.length); } catch { /* fire-and-forget */ }
+      try {
+        options.onProgress?.(result.savedCount + result.errors.length, patterns.length);
+      } catch {
+        /* fire-and-forget */
+      }
     }
 
     if (isDevelopment()) {
-      logger.info('[EmbeddingHandler] MotionEmbedding generation completed', {
+      logger.info("[EmbeddingHandler] MotionEmbedding generation completed", {
         savedCount: result.savedCount,
         errorCount: result.errors.length,
         patternIds: result.patternIds,
@@ -684,10 +704,10 @@ export async function generateMotionEmbeddings(
   } catch (serviceError) {
     // サービス初期化失敗時
     result.success = false;
-    const errorMessage = serviceError instanceof Error ? serviceError.message : 'Unknown error';
+    const errorMessage = serviceError instanceof Error ? serviceError.message : "Unknown error";
 
     if (isDevelopment()) {
-      logger.warn('[EmbeddingHandler] MotionEmbedding service error', {
+      logger.warn("[EmbeddingHandler] MotionEmbedding service error", {
         error: errorMessage,
       });
     }
@@ -732,7 +752,7 @@ export async function generateBackgroundDesignEmbeddings(
   options: GenerateBackgroundDesignEmbeddingsOptions = {}
 ): Promise<BackgroundDesignEmbeddingResult> {
   if (isDevelopment()) {
-    logger.info('[EmbeddingHandler] Starting BackgroundDesignEmbedding generation', {
+    logger.info("[EmbeddingHandler] Starting BackgroundDesignEmbedding generation", {
       backgroundCount: backgrounds.length,
       idMappingSize: backgroundDesignIdMapping.size,
       pageId: options.webPageId,
@@ -748,7 +768,7 @@ export async function generateBackgroundDesignEmbeddings(
   );
 
   if (isDevelopment()) {
-    logger.info('[EmbeddingHandler] BackgroundDesignEmbedding generation completed', {
+    logger.info("[EmbeddingHandler] BackgroundDesignEmbedding generation completed", {
       generatedCount: result.generatedCount,
       failedCount: result.failedCount,
       errorCount: result.errors.length,
@@ -764,7 +784,7 @@ export type {
   BackgroundDesignEmbeddingResult,
   BackgroundDesignSearchResult,
   BackgroundDesignSearchOptions,
-} from '../../../services/background/background-design-embedding.service';
+} from "../../../services/background/background-design-embedding.service";
 
 export {
   generateBackgroundDesignTextRepresentation,
@@ -773,7 +793,7 @@ export {
   resetBackgroundEmbeddingServiceFactory,
   setBackgroundPrismaClientFactory,
   resetBackgroundPrismaClientFactory,
-} from '../../../services/background/background-design-embedding.service';
+} from "../../../services/background/background-design-embedding.service";
 
 // =====================================================
 // VisionEmbedding関連の再エクスポート
@@ -783,11 +803,11 @@ export {
 export {
   generateAndSaveVisionEmbedding,
   hasValidVisualFeatures,
-} from '../../../services/vision-embedding.service';
+} from "../../../services/vision-embedding.service";
 
 export type {
   VisionEmbeddingResult,
   VisionBatchOptions,
   VisionEmbeddingBatchItem,
   VisionEmbeddingBatchResult,
-} from '../../../services/vision-embedding.service';
+} from "../../../services/vision-embedding.service";

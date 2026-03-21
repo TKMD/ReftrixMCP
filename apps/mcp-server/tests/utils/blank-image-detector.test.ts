@@ -16,35 +16,35 @@
  * @module tests/utils/blank-image-detector
  */
 
-import { describe, it, expect, afterEach } from 'vitest';
-import sharp from 'sharp';
+import { describe, it, expect, afterEach } from "vitest";
+import sharp from "sharp";
 
-import { isBlankImage } from '../../src/utils/blank-image-detector';
+import { isBlankImage } from "../../src/utils/blank-image-detector";
 
-describe('isBlankImage', () => {
+describe("isBlankImage", () => {
   // ==========================================================================
   // SEC-01: Buffer入力バリデーション / Buffer input validation
   // ==========================================================================
 
-  describe('SEC-01: 無効入力 / invalid input', () => {
-    it('null入力 → false を返す / null input returns false', async () => {
+  describe("SEC-01: 無効入力 / invalid input", () => {
+    it("null入力 → false を返す / null input returns false", async () => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const result = await isBlankImage(null as any);
       expect(result).toBe(false);
     });
 
-    it('undefined入力 → false を返す / undefined input returns false', async () => {
+    it("undefined入力 → false を返す / undefined input returns false", async () => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const result = await isBlankImage(undefined as any);
       expect(result).toBe(false);
     });
 
-    it('空バッファ → false を返す / empty buffer returns false', async () => {
+    it("空バッファ → false を返す / empty buffer returns false", async () => {
       const result = await isBlankImage(Buffer.alloc(0));
       expect(result).toBe(false);
     });
 
-    it('巨大バッファ(上限超過) → false を返す / oversized buffer returns false', async () => {
+    it("巨大バッファ(上限超過) → false を返す / oversized buffer returns false", async () => {
       // 20MB + 1 byte の巨大バッファ / Buffer exceeding 20MB limit
       const oversized = Buffer.alloc(20 * 1024 * 1024 + 1);
       const result = await isBlankImage(oversized);
@@ -56,8 +56,8 @@ describe('isBlankImage', () => {
   // 実バッファ統合テスト（TDA MEDIUM-2） / Real buffer integration tests
   // ==========================================================================
 
-  describe('実バッファ画像判定 / real buffer image detection', () => {
-    it('白画像(RGB stddev < 5.0) → true を返す / white image returns true', async () => {
+  describe("実バッファ画像判定 / real buffer image detection", () => {
+    it("白画像(RGB stddev < 5.0) → true を返す / white image returns true", async () => {
       // Sharp で 100x100 白画像を生成 / Generate 100x100 white image with Sharp
       const whiteBuffer = await sharp({
         create: {
@@ -74,7 +74,7 @@ describe('isBlankImage', () => {
       expect(result).toBe(true);
     });
 
-    it('単色画像(非白, 中間輝度) → false を返す / solid color mid-luminance image returns false', async () => {
+    it("単色画像(非白, 中間輝度) → false を返す / solid color mid-luminance image returns false", async () => {
       // 単色の青画像（mean ~97, 極端でない）→ blank ではない
       // Solid blue image (mean ~97, not extreme) → not blank
       const blueBuffer = await sharp({
@@ -92,7 +92,7 @@ describe('isBlankImage', () => {
       expect(result).toBe(false);
     });
 
-    it('純黒画像(near-black, stddev ≈ 0) → true を返す / pure black image returns true', async () => {
+    it("純黒画像(near-black, stddev ≈ 0) → true を返す / pure black image returns true", async () => {
       // 純黒画像（mean ~0, stddev ~0）→ blank
       // Pure black image (mean ~0, stddev ~0) → blank
       const blackBuffer = await sharp({
@@ -110,7 +110,7 @@ describe('isBlankImage', () => {
       expect(result).toBe(true);
     });
 
-    it('ダークテーマ背景(mean ~30-50, stddev < 5) → false を返す / dark theme background returns false', async () => {
+    it("ダークテーマ背景(mean ~30-50, stddev < 5) → false を返す / dark theme background returns false", async () => {
       // supabase.comのようなダークテーマ背景（mean ~35, stddev < 5）→ blank ではない
       // Dark theme background like supabase.com (mean ~35, stddev < 5) → not blank
       const darkBuffer = await sharp({
@@ -128,7 +128,7 @@ describe('isBlankImage', () => {
       expect(result).toBe(false);
     });
 
-    it('通常画像(stddev > 5.0) → false を返す / normal image returns false', async () => {
+    it("通常画像(stddev > 5.0) → false を返す / normal image returns false", async () => {
       // ノイズのある画像を生成: 半分白 + 半分黒のパターン
       // Generate noisy image: half white + half black pattern
       const width = 100;
@@ -163,7 +163,7 @@ describe('isBlankImage', () => {
       expect(result).toBe(false);
     });
 
-    it('グラデーション画像 → false を返す / gradient image returns false', async () => {
+    it("グラデーション画像 → false を返す / gradient image returns false", async () => {
       // 垂直グラデーション画像 / Vertical gradient image
       const width = 100;
       const height = 100;
@@ -195,39 +195,47 @@ describe('isBlankImage', () => {
   // v0.1.10: mean境界値テスト / mean threshold boundary tests
   // ==========================================================================
 
-  describe('mean閾値境界値 / mean threshold boundaries', () => {
-    it('mean=245(ちょうど上限) → false / mean exactly at upper threshold returns false', async () => {
+  describe("mean閾値境界値 / mean threshold boundaries", () => {
+    it("mean=245(ちょうど上限) → false / mean exactly at upper threshold returns false", async () => {
       // RGB(245, 245, 245) → avgMean = 245, 245 > 245 は false → blank ではない
       const buffer = await sharp({
         create: { width: 50, height: 50, channels: 3, background: { r: 245, g: 245, b: 245 } },
-      }).png().toBuffer();
+      })
+        .png()
+        .toBuffer();
 
       expect(await isBlankImage(buffer)).toBe(false);
     });
 
-    it('mean=246(上限超過) → true / mean above upper threshold returns true', async () => {
+    it("mean=246(上限超過) → true / mean above upper threshold returns true", async () => {
       // RGB(246, 246, 246) → avgMean = 246 > 245 → blank
       const buffer = await sharp({
         create: { width: 50, height: 50, channels: 3, background: { r: 246, g: 246, b: 246 } },
-      }).png().toBuffer();
+      })
+        .png()
+        .toBuffer();
 
       expect(await isBlankImage(buffer)).toBe(true);
     });
 
-    it('mean=10(ちょうど下限) → false / mean exactly at lower threshold returns false', async () => {
+    it("mean=10(ちょうど下限) → false / mean exactly at lower threshold returns false", async () => {
       // RGB(10, 10, 10) → avgMean = 10, 10 < 10 は false → blank ではない
       const buffer = await sharp({
         create: { width: 50, height: 50, channels: 3, background: { r: 10, g: 10, b: 10 } },
-      }).png().toBuffer();
+      })
+        .png()
+        .toBuffer();
 
       expect(await isBlankImage(buffer)).toBe(false);
     });
 
-    it('mean=9(下限未満) → true / mean below lower threshold returns true', async () => {
+    it("mean=9(下限未満) → true / mean below lower threshold returns true", async () => {
       // RGB(9, 9, 9) → avgMean = 9 < 10 → blank
       const buffer = await sharp({
         create: { width: 50, height: 50, channels: 3, background: { r: 9, g: 9, b: 9 } },
-      }).png().toBuffer();
+      })
+        .png()
+        .toBuffer();
 
       expect(await isBlankImage(buffer)).toBe(true);
     });
@@ -237,19 +245,19 @@ describe('isBlankImage', () => {
   // SEC-02: 環境変数の不正値防御 / Environment variable sanitization
   // ==========================================================================
 
-  describe('SEC-02: 環境変数 BLANK_IMAGE_STDDEV_THRESHOLD', () => {
-    const originalEnv = process.env['BLANK_IMAGE_STDDEV_THRESHOLD'];
+  describe("SEC-02: 環境変数 BLANK_IMAGE_STDDEV_THRESHOLD", () => {
+    const originalEnv = process.env["BLANK_IMAGE_STDDEV_THRESHOLD"];
 
     afterEach(() => {
       if (originalEnv === undefined) {
-        delete process.env['BLANK_IMAGE_STDDEV_THRESHOLD'];
+        delete process.env["BLANK_IMAGE_STDDEV_THRESHOLD"];
       } else {
-        process.env['BLANK_IMAGE_STDDEV_THRESHOLD'] = originalEnv;
+        process.env["BLANK_IMAGE_STDDEV_THRESHOLD"] = originalEnv;
       }
     });
 
-    it('NaN → デフォルト値(5.0)を使用する / NaN falls back to default', async () => {
-      process.env['BLANK_IMAGE_STDDEV_THRESHOLD'] = 'NaN';
+    it("NaN → デフォルト値(5.0)を使用する / NaN falls back to default", async () => {
+      process.env["BLANK_IMAGE_STDDEV_THRESHOLD"] = "NaN";
 
       // 白画像はデフォルト閾値 5.0 で true を返すべき
       // White image should return true with default threshold 5.0
@@ -268,8 +276,8 @@ describe('isBlankImage', () => {
       expect(result).toBe(true);
     });
 
-    it('負の値(-1) → デフォルト値を使用する / negative value falls back to default', async () => {
-      process.env['BLANK_IMAGE_STDDEV_THRESHOLD'] = '-1';
+    it("負の値(-1) → デフォルト値を使用する / negative value falls back to default", async () => {
+      process.env["BLANK_IMAGE_STDDEV_THRESHOLD"] = "-1";
 
       const whiteBuffer = await sharp({
         create: {
@@ -286,8 +294,8 @@ describe('isBlankImage', () => {
       expect(result).toBe(true);
     });
 
-    it('上限超過(300) → デフォルト値を使用する / value over 255 falls back to default', async () => {
-      process.env['BLANK_IMAGE_STDDEV_THRESHOLD'] = '300';
+    it("上限超過(300) → デフォルト値を使用する / value over 255 falls back to default", async () => {
+      process.env["BLANK_IMAGE_STDDEV_THRESHOLD"] = "300";
 
       const whiteBuffer = await sharp({
         create: {
@@ -306,8 +314,8 @@ describe('isBlankImage', () => {
       expect(result).toBe(true);
     });
 
-    it('有効な値(10.0) → その値をカスタム閾値として使用 / valid value is used as custom threshold', async () => {
-      process.env['BLANK_IMAGE_STDDEV_THRESHOLD'] = '10.0';
+    it("有効な値(10.0) → その値をカスタム閾値として使用 / valid value is used as custom threshold", async () => {
+      process.env["BLANK_IMAGE_STDDEV_THRESHOLD"] = "10.0";
 
       // stddev がちょうど閾値付近の微弱なノイズ画像を生成
       // Generate image with slight noise near the threshold
@@ -345,8 +353,8 @@ describe('isBlankImage', () => {
   // SEC-03: Sharp stats結果のNaN/Infinity防御
   // ==========================================================================
 
-  describe('SEC-03: Sharp stats異常値 / Sharp stats anomalies', () => {
-    it('壊れたバッファ → false を返す(Graceful Degradation) / corrupted buffer returns false', async () => {
+  describe("SEC-03: Sharp stats異常値 / Sharp stats anomalies", () => {
+    it("壊れたバッファ → false を返す(Graceful Degradation) / corrupted buffer returns false", async () => {
       // Sharp が例外を投げるような不正バッファ
       // Invalid buffer that causes Sharp to throw
       const corruptedBuffer = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x00, 0x00]);
@@ -359,8 +367,8 @@ describe('isBlankImage', () => {
   // LCC MUST-FIX-2: バッファ参照を保持しない / Buffer reference not retained
   // ==========================================================================
 
-  describe('LCC MUST-FIX-2: バッファ参照 / buffer reference', () => {
-    it('isBlankImage は入力バッファを変更しない / does not mutate input buffer', async () => {
+  describe("LCC MUST-FIX-2: バッファ参照 / buffer reference", () => {
+    it("isBlankImage は入力バッファを変更しない / does not mutate input buffer", async () => {
       const whiteBuffer = await sharp({
         create: {
           width: 50,

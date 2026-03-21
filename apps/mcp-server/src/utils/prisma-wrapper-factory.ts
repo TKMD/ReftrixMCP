@@ -21,18 +21,18 @@
  * サポートされるテーブル名
  */
 export type SupportedTableName =
-  | 'sectionPattern'
-  | 'sectionEmbedding'
-  | 'motionPattern'
-  | 'motionEmbedding'
-  | 'motionAnalysisResult'
-  | 'motionAnalysisEmbedding'
-  | 'webPage'
-  | 'qualityEvaluation'
-  | 'qualityBenchmark'
-  | 'jSAnimationPattern'
-  | 'jSAnimationEmbedding'
-  | 'backgroundDesignEmbedding';
+  | "sectionPattern"
+  | "sectionEmbedding"
+  | "motionPattern"
+  | "motionEmbedding"
+  | "motionAnalysisResult"
+  | "motionAnalysisEmbedding"
+  | "webPage"
+  | "qualityEvaluation"
+  | "qualityBenchmark"
+  | "jSAnimationPattern"
+  | "jSAnimationEmbedding"
+  | "backgroundDesignEmbedding";
 
 /**
  * テーブルラッパー設定
@@ -92,7 +92,7 @@ export interface TransactionOptions {
   /** トランザクションの最大実行時間（ミリ秒） */
   timeout?: number;
   /** 分離レベル */
-  isolationLevel?: 'ReadUncommitted' | 'ReadCommitted' | 'RepeatableRead' | 'Serializable';
+  isolationLevel?: "ReadUncommitted" | "ReadCommitted" | "RepeatableRead" | "Serializable";
 }
 
 /**
@@ -154,14 +154,20 @@ export function createTableWrapper<T extends MinimalPrismaClient>(
   // createMany が利用可能な場合のみラップ
   if (table.createMany) {
     wrapper.createMany = async (args: { data: unknown[] }): Promise<{ count: number }> => {
-      const result = await table.createMany!(args as Parameters<NonNullable<typeof table.createMany>>[0]);
+      const result = await table.createMany!(
+        args as Parameters<NonNullable<typeof table.createMany>>[0]
+      );
       return { count: result.count };
     };
   }
 
   // upsert が利用可能な場合のみラップ
   if (table.upsert) {
-    wrapper.upsert = async (args: { where: unknown; create: unknown; update: unknown }): Promise<{ id: string }> => {
+    wrapper.upsert = async (args: {
+      where: unknown;
+      create: unknown;
+      update: unknown;
+    }): Promise<{ id: string }> => {
       const result = await table.upsert!(args as Parameters<NonNullable<typeof table.upsert>>[0]);
       return { id: result.id };
     };
@@ -170,15 +176,22 @@ export function createTableWrapper<T extends MinimalPrismaClient>(
   // deleteMany が利用可能な場合のみラップ
   if (table.deleteMany) {
     wrapper.deleteMany = async (args: { where: unknown }): Promise<{ count: number }> => {
-      const result = await table.deleteMany!(args as Parameters<NonNullable<typeof table.deleteMany>>[0]);
+      const result = await table.deleteMany!(
+        args as Parameters<NonNullable<typeof table.deleteMany>>[0]
+      );
       return { count: result.count };
     };
   }
 
   // findUnique が利用可能な場合のみラップ
   if (table.findUnique) {
-    wrapper.findUnique = async (args: { where: unknown; include?: unknown }): Promise<unknown | null> => {
-      const result = await table.findUnique!(args as Parameters<NonNullable<typeof table.findUnique>>[0]);
+    wrapper.findUnique = async (args: {
+      where: unknown;
+      include?: unknown;
+    }): Promise<unknown | null> => {
+      const result = await table.findUnique!(
+        args as Parameters<NonNullable<typeof table.findUnique>>[0]
+      );
       return result;
     };
   }
@@ -186,7 +199,9 @@ export function createTableWrapper<T extends MinimalPrismaClient>(
   // findMany が利用可能な場合のみラップ
   if (table.findMany) {
     wrapper.findMany = async (args: { where: unknown; include?: unknown }): Promise<unknown[]> => {
-      const result = await table.findMany!(args as Parameters<NonNullable<typeof table.findMany>>[0]);
+      const result = await table.findMany!(
+        args as Parameters<NonNullable<typeof table.findMany>>[0]
+      );
       return result;
     };
   }
@@ -238,7 +253,7 @@ export function createPrismaWrapper<T extends MinimalPrismaClient>(
       options?: TransactionOptions
     ): Promise<R> => {
       if (!prisma.$transaction) {
-        throw new Error('PrismaClient does not support transactions');
+        throw new Error("PrismaClient does not support transactions");
       }
 
       return prisma.$transaction(async (tx) => {
@@ -256,7 +271,7 @@ export function createPrismaWrapper<T extends MinimalPrismaClient>(
 
         // ネストされたトランザクションを防止
         txWrapper.$transaction = async (): Promise<never> => {
-          throw new Error('Nested transactions not supported');
+          throw new Error("Nested transactions not supported");
         };
 
         return fn(txWrapper);

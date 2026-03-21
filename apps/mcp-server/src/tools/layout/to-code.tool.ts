@@ -16,8 +16,8 @@
  * @module tools/layout/to-code.tool
  */
 
-import { ZodError } from 'zod';
-import { logger, isDevelopment } from '../../utils/logger';
+import { ZodError } from "zod";
+import { logger, isDevelopment } from "../../utils/logger";
 import {
   layoutToCodeInputSchema,
   layoutToCodeDataSchema,
@@ -28,11 +28,8 @@ import {
   type LayoutToCodeData,
   type Framework,
   type UsageScope,
-} from './schemas';
-import {
-  createSuccessResponse,
-  createErrorResponse,
-} from '../common/error-codes';
+} from "./schemas";
+import { createSuccessResponse, createErrorResponse } from "../common/error-codes";
 
 // =====================================================
 // 型定義
@@ -151,10 +148,7 @@ export interface ILayoutToCodeService {
   /**
    * コードを生成
    */
-  generateCode: (
-    pattern: SectionPattern,
-    options: CodeGeneratorOptions
-  ) => Promise<GeneratedCode>;
+  generateCode: (pattern: SectionPattern, options: CodeGeneratorOptions) => Promise<GeneratedCode>;
 }
 
 // =====================================================
@@ -166,9 +160,7 @@ let serviceFactory: (() => ILayoutToCodeService) | null = null;
 /**
  * サービスファクトリーを設定
  */
-export function setLayoutToCodeServiceFactory(
-  factory: () => ILayoutToCodeService
-): void {
+export function setLayoutToCodeServiceFactory(factory: () => ILayoutToCodeService): void {
   serviceFactory = factory;
 }
 
@@ -187,29 +179,29 @@ export function resetLayoutToCodeServiceFactory(): void {
  * エラーからエラーコードを判定
  */
 function determineErrorCode(error: Error | string): string {
-  const message = typeof error === 'string' ? error : error.message;
+  const message = typeof error === "string" ? error : error.message;
   const lowerMessage = message.toLowerCase();
 
   // コード生成エラー
   if (
-    lowerMessage.includes('generation') ||
-    lowerMessage.includes('template') ||
-    lowerMessage.includes('parsing')
+    lowerMessage.includes("generation") ||
+    lowerMessage.includes("template") ||
+    lowerMessage.includes("parsing")
   ) {
     return LAYOUT_MCP_ERROR_CODES.CODE_GENERATION_FAILED;
   }
 
   // データベースエラー
   if (
-    lowerMessage.includes('database') ||
-    lowerMessage.includes('prisma') ||
-    lowerMessage.includes('connection')
+    lowerMessage.includes("database") ||
+    lowerMessage.includes("prisma") ||
+    lowerMessage.includes("connection")
   ) {
     return LAYOUT_MCP_ERROR_CODES.INTERNAL_ERROR;
   }
 
   // パターン見つからない
-  if (lowerMessage.includes('not found') || lowerMessage.includes('pattern')) {
+  if (lowerMessage.includes("not found") || lowerMessage.includes("pattern")) {
     return LAYOUT_MCP_ERROR_CODES.PATTERN_NOT_FOUND;
   }
 
@@ -226,7 +218,7 @@ function determineErrorCode(error: Error | string): string {
  */
 function normalizeOptions(options?: LayoutToCodeOptions): CodeGeneratorOptions {
   const result: CodeGeneratorOptions = {
-    framework: options?.framework ?? 'react',
+    framework: options?.framework ?? "react",
     typescript: options?.typescript ?? true,
     tailwind: options?.tailwind ?? true,
   };
@@ -275,12 +267,10 @@ function normalizeOptions(options?: LayoutToCodeOptions): CodeGeneratorOptions {
  * }
  * ```
  */
-export async function layoutToCodeHandler(
-  input: unknown
-): Promise<LayoutToCodeOutput> {
+export async function layoutToCodeHandler(input: unknown): Promise<LayoutToCodeOutput> {
   // 開発環境でのログ出力
   if (isDevelopment()) {
-    logger.info('[MCP Tool] layout.to_code called', {
+    logger.info("[MCP Tool] layout.to_code called", {
       patternId: (input as Record<string, unknown>)?.patternId,
     });
   }
@@ -291,12 +281,10 @@ export async function layoutToCodeHandler(
     validated = layoutToCodeInputSchema.parse(input);
   } catch (error) {
     if (error instanceof ZodError) {
-      const errorMessage = error.errors
-        .map((e) => `${e.path.join('.')}: ${e.message}`)
-        .join(', ');
+      const errorMessage = error.errors.map((e) => `${e.path.join(".")}: ${e.message}`).join(", ");
 
       if (isDevelopment()) {
-        logger.error('[MCP Tool] layout.to_code validation error', {
+        logger.error("[MCP Tool] layout.to_code validation error", {
           errors: error.errors,
         });
       }
@@ -317,12 +305,12 @@ export async function layoutToCodeHandler(
   // サービスファクトリーチェック
   if (!serviceFactory) {
     if (isDevelopment()) {
-      logger.error('[MCP Tool] layout.to_code service factory not set');
+      logger.error("[MCP Tool] layout.to_code service factory not set");
     }
 
     return createErrorResponse(
-      'SERVICE_UNAVAILABLE',
-      'Code generation service is not available'
+      "SERVICE_UNAVAILABLE",
+      "Code generation service is not available"
     ) as LayoutToCodeOutput;
   }
 
@@ -334,7 +322,7 @@ export async function layoutToCodeHandler(
 
     if (!pattern) {
       if (isDevelopment()) {
-        logger.warn('[MCP Tool] layout.to_code pattern not found', {
+        logger.warn("[MCP Tool] layout.to_code pattern not found", {
           patternId: validated.patternId,
         });
       }
@@ -349,7 +337,7 @@ export async function layoutToCodeHandler(
     const options = normalizeOptions(validated.options);
 
     if (isDevelopment()) {
-      logger.debug('[MCP Tool] layout.to_code generating code', {
+      logger.debug("[MCP Tool] layout.to_code generating code", {
         patternId: validated.patternId,
         sectionType: pattern.sectionType,
         framework: options.framework,
@@ -366,7 +354,7 @@ export async function layoutToCodeHandler(
       const errorMessage = error instanceof Error ? error.message : String(error);
 
       if (isDevelopment()) {
-        logger.error('[MCP Tool] layout.to_code generation error', {
+        logger.error("[MCP Tool] layout.to_code generation error", {
           error: errorMessage,
         });
       }
@@ -392,7 +380,7 @@ export async function layoutToCodeHandler(
     layoutToCodeDataSchema.parse(data);
 
     if (isDevelopment()) {
-      logger.info('[MCP Tool] layout.to_code completed', {
+      logger.info("[MCP Tool] layout.to_code completed", {
         patternId: validated.patternId,
         framework: options.framework,
         componentName: generatedCode.componentName,
@@ -407,7 +395,7 @@ export async function layoutToCodeHandler(
     const errorCode = determineErrorCode(error instanceof Error ? error : errorMessage);
 
     if (isDevelopment()) {
-      logger.error('[MCP Tool] layout.to_code error', {
+      logger.error("[MCP Tool] layout.to_code error", {
         code: errorCode,
         error: errorMessage,
       });
@@ -429,66 +417,66 @@ export async function layoutToCodeHandler(
  * 後方互換性のため layoutToCodeToolDefinition も引き続きエクスポート
  */
 export const layoutGenerateCodeToolDefinition = {
-  name: 'layout.generate_code',
+  name: "layout.generate_code",
   description:
-    'セクションパターンからReact/Vue/HTMLコードを生成します。' +
-    'パターンIDを指定して、選択したフレームワーク（React, Vue, HTML）でコードを出力できます。' +
-    'TypeScript/JavaScript、Tailwind CSS/Vanilla CSSの選択も可能です。',
+    "セクションパターンからReact/Vue/HTMLコードを生成します。" +
+    "パターンIDを指定して、選択したフレームワーク（React, Vue, HTML）でコードを出力できます。" +
+    "TypeScript/JavaScript、Tailwind CSS/Vanilla CSSの選択も可能です。",
   annotations: {
-    title: 'Layout Generate Code',
+    title: "Layout Generate Code",
     readOnlyHint: false,
     idempotentHint: true,
     openWorldHint: false,
   },
   inputSchema: {
-    type: 'object' as const,
+    type: "object" as const,
     properties: {
       patternId: {
-        type: 'string',
-        format: 'uuid',
-        description: 'セクションパターンID（UUID形式、必須）',
+        type: "string",
+        format: "uuid",
+        description: "セクションパターンID（UUID形式、必須）",
       },
       options: {
-        type: 'object',
-        description: 'コード生成オプション',
+        type: "object",
+        description: "コード生成オプション",
         properties: {
           framework: {
-            type: 'string',
-            enum: ['react', 'vue', 'html'],
-            description: '出力フレームワーク（デフォルト: react）',
-            default: 'react',
+            type: "string",
+            enum: ["react", "vue", "html"],
+            description: "出力フレームワーク（デフォルト: react）",
+            default: "react",
           },
           typescript: {
-            type: 'boolean',
-            description: 'TypeScript出力するか（デフォルト: true）',
+            type: "boolean",
+            description: "TypeScript出力するか（デフォルト: true）",
             default: true,
           },
           tailwind: {
-            type: 'boolean',
-            description: 'Tailwind CSSを使用するか（デフォルト: true）',
+            type: "boolean",
+            description: "Tailwind CSSを使用するか（デフォルト: true）",
             default: true,
           },
           componentName: {
-            type: 'string',
-            description: 'カスタムコンポーネント名（PascalCase形式）',
-            pattern: '^[A-Z][a-zA-Z0-9]*$',
+            type: "string",
+            description: "カスタムコンポーネント名（PascalCase形式）",
+            pattern: "^[A-Z][a-zA-Z0-9]*$",
           },
           paletteId: {
-            type: 'string',
-            format: 'uuid',
-            description: '適用するブランドパレットID（UUID形式）',
+            type: "string",
+            format: "uuid",
+            description: "適用するブランドパレットID（UUID形式）",
           },
           responsive: {
-            type: 'boolean',
+            type: "boolean",
             description:
-              'レスポンシブブレークポイント自動生成（デフォルト: true）。' +
-              '大きなwidth/padding/font-size/flex-directionをモバイルファーストのレスポンシブクラスに変換します。',
+              "レスポンシブブレークポイント自動生成（デフォルト: true）。" +
+              "大きなwidth/padding/font-size/flex-directionをモバイルファーストのレスポンシブクラスに変換します。",
             default: true,
           },
         },
       },
     },
-    required: ['patternId'],
+    required: ["patternId"],
   },
 };
 
@@ -511,5 +499,5 @@ export const layoutGenerateCodeHandler = layoutToCodeHandler;
 // =====================================================
 
 if (isDevelopment()) {
-  logger.debug('[layout.generate_code] Tool module loaded');
+  logger.debug("[layout.generate_code] Tool module loaded");
 }

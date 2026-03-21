@@ -9,10 +9,10 @@
  */
 
 // Types
-export * from './types';
+export * from "./types";
 
 // Section Detector
-export { SectionDetector } from './section-detector';
+export { SectionDetector } from "./section-detector";
 
 // Section Classifier
 export {
@@ -22,7 +22,7 @@ export {
   type ClassificationResult,
   type ContextualClassificationResult,
   type RangeValue,
-} from './section-classifier';
+} from "./section-classifier";
 
 // Text Representation Generator
 export {
@@ -33,14 +33,10 @@ export {
   type TypographyInfo,
   type GridInfo,
   type LayoutInspectOutput,
-} from './text-representation';
+} from "./text-representation";
 
 // Code Generator
-export {
-  CodeGenerator,
-  type CodeGeneratorOptions,
-  type GeneratedCode,
-} from './code-generator';
+export { CodeGenerator, type CodeGeneratorOptions, type GeneratedCode } from "./code-generator";
 
 // Quality Evaluator
 export {
@@ -63,7 +59,7 @@ export {
   type LayoutInfo,
   type LayoutSpacing,
   type ResponsiveInfo,
-} from './quality-evaluator';
+} from "./quality-evaluator";
 
 // Motion Detector
 export {
@@ -81,7 +77,7 @@ export {
   MotionFeatureExtractor,
   MOTION_EMBEDDING_DIM,
   type SimilarityResult,
-} from './motion-detector';
+} from "./motion-detector";
 
 // CSS Variable Resolver
 export {
@@ -94,7 +90,7 @@ export {
   type CssVariableResolutionResult,
   type CssVariableMap,
   type CssVariableResolverOptions,
-} from './utils/css-variable-resolver';
+} from "./utils/css-variable-resolver";
 
 // Pre-flight Probe Service
 export {
@@ -110,7 +106,7 @@ export {
   type ProbeResult,
   type ComplexityAnalysis,
   type IPreflightProbeService,
-} from './services';
+} from "./services";
 
 // Element Visibility Detector
 export {
@@ -123,4 +119,4 @@ export {
   type FrameData,
   type BoundingBox,
   type VisibilityEventType,
-} from './services';
+} from "./services";

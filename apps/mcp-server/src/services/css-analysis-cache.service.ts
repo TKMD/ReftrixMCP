@@ -28,12 +28,12 @@
  * @module services/css-analysis-cache.service
  */
 
-import * as crypto from 'crypto';
-import type { PersistentCache } from './persistent-cache';
-import { createPersistentCache } from './persistent-cache';
-import { Logger } from '../utils/logger';
+import * as crypto from "crypto";
+import type { PersistentCache } from "./persistent-cache";
+import { createPersistentCache } from "./persistent-cache";
+import { Logger } from "../utils/logger";
 
-const logger = new Logger('CSSAnalysisCache');
+const logger = new Logger("CSSAnalysisCache");
 
 // ============================================================
 // 型定義
@@ -55,7 +55,7 @@ export interface CSSAnalysisResult {
     scale?: number[];
   };
   grid: {
-    type: 'flex' | 'grid' | 'float' | 'none';
+    type: "flex" | "grid" | "float" | "none";
     columns?: number;
     gap?: string;
     maxWidth?: number;
@@ -143,7 +143,11 @@ export interface ICSSAnalysisCacheService {
 
   // motion.detect キャッシュ
   getMotionDetectResult: (key: string) => Promise<MotionAnalysisResult | null>;
-  setMotionDetectResult: (key: string, result: MotionAnalysisResult, ttlMs?: number) => Promise<void>;
+  setMotionDetectResult: (
+    key: string,
+    result: MotionAnalysisResult,
+    ttlMs?: number
+  ) => Promise<void>;
 
   // ユーティリティ
   generateCacheKey: (input: string | { url?: string; html?: string }) => string;
@@ -164,8 +168,8 @@ const DEFAULT_MAX_SIZE = 5000;
 const DEFAULT_TTL_MS = 3600000;
 
 /** キャッシュキープレフィックス */
-const LAYOUT_PREFIX = 'layout:';
-const MOTION_PREFIX = 'motion:';
+const LAYOUT_PREFIX = "layout:";
+const MOTION_PREFIX = "motion:";
 
 // ============================================================
 // CSSAnalysisCacheService 実装
@@ -212,7 +216,7 @@ export class CSSAnalysisCacheService implements ICSSAnalysisCacheService {
       enableLogging: this.enableLogging,
     });
 
-    this.log('debug', 'CSSAnalysisCacheService created', {
+    this.log("debug", "CSSAnalysisCacheService created", {
       cacheDir: options.cacheDir,
       maxSize: this.maxSize,
       defaultTtlMs: this.defaultTtlMs,
@@ -232,9 +236,9 @@ export class CSSAnalysisCacheService implements ICSSAnalysisCacheService {
    * @throws URL/HTMLが空の場合にエラー
    */
   generateCacheKey(input: string | { url?: string; html?: string }): string {
-    if (typeof input === 'string') {
+    if (typeof input === "string") {
       if (!input) {
-        throw new Error('HTML must be a non-empty string');
+        throw new Error("HTML must be a non-empty string");
       }
       return `html:${this.sha256(input)}`;
     }
@@ -242,7 +246,7 @@ export class CSSAnalysisCacheService implements ICSSAnalysisCacheService {
     // URLが指定されていればURLを優先
     if (input.url !== undefined) {
       if (!input.url) {
-        throw new Error('URL must be a non-empty string');
+        throw new Error("URL must be a non-empty string");
       }
       return `url:${this.sha256(input.url)}`;
     }
@@ -250,12 +254,12 @@ export class CSSAnalysisCacheService implements ICSSAnalysisCacheService {
     // HTMLが指定されていればHTMLを使用
     if (input.html !== undefined) {
       if (!input.html) {
-        throw new Error('HTML must be a non-empty string');
+        throw new Error("HTML must be a non-empty string");
       }
       return `html:${this.sha256(input.html)}`;
     }
 
-    throw new Error('Either url or html must be provided');
+    throw new Error("Either url or html must be provided");
   }
 
   /**
@@ -272,10 +276,10 @@ export class CSSAnalysisCacheService implements ICSSAnalysisCacheService {
 
     if (result) {
       this.layoutHits++;
-      this.log('debug', 'Layout cache hit', { key });
+      this.log("debug", "Layout cache hit", { key });
     } else {
       this.layoutMisses++;
-      this.log('debug', 'Layout cache miss', { key });
+      this.log("debug", "Layout cache miss", { key });
     }
 
     return result;
@@ -298,7 +302,7 @@ export class CSSAnalysisCacheService implements ICSSAnalysisCacheService {
     const internalKey = `${LAYOUT_PREFIX}${key}`;
     await this.layoutCache.set(internalKey, result, ttlMs);
 
-    this.log('debug', 'Layout cache set', { key, ttlMs: ttlMs ?? this.defaultTtlMs });
+    this.log("debug", "Layout cache set", { key, ttlMs: ttlMs ?? this.defaultTtlMs });
   }
 
   /**
@@ -315,10 +319,10 @@ export class CSSAnalysisCacheService implements ICSSAnalysisCacheService {
 
     if (result) {
       this.motionHits++;
-      this.log('debug', 'Motion cache hit', { key });
+      this.log("debug", "Motion cache hit", { key });
     } else {
       this.motionMisses++;
-      this.log('debug', 'Motion cache miss', { key });
+      this.log("debug", "Motion cache miss", { key });
     }
 
     return result;
@@ -341,7 +345,7 @@ export class CSSAnalysisCacheService implements ICSSAnalysisCacheService {
     const internalKey = `${MOTION_PREFIX}${key}`;
     await this.motionCache.set(internalKey, result, ttlMs);
 
-    this.log('debug', 'Motion cache set', { key, ttlMs: ttlMs ?? this.defaultTtlMs });
+    this.log("debug", "Motion cache set", { key, ttlMs: ttlMs ?? this.defaultTtlMs });
   }
 
   /**
@@ -362,7 +366,7 @@ export class CSSAnalysisCacheService implements ICSSAnalysisCacheService {
     const motionDeleted = await this.motionCache.delete(motionKey);
 
     const deleted = layoutDeleted || motionDeleted;
-    this.log('debug', 'Cache invalidated', { key, layoutDeleted, motionDeleted });
+    this.log("debug", "Cache invalidated", { key, layoutDeleted, motionDeleted });
 
     return deleted;
   }
@@ -382,7 +386,7 @@ export class CSSAnalysisCacheService implements ICSSAnalysisCacheService {
     this.motionHits = 0;
     this.motionMisses = 0;
 
-    this.log('debug', 'All caches cleared');
+    this.log("debug", "All caches cleared");
   }
 
   /**
@@ -434,7 +438,7 @@ export class CSSAnalysisCacheService implements ICSSAnalysisCacheService {
     await this.motionCache.close();
 
     this.isClosed = true;
-    this.log('debug', 'CSSAnalysisCacheService closed');
+    this.log("debug", "CSSAnalysisCacheService closed");
   }
 
   // ============================================================
@@ -445,7 +449,7 @@ export class CSSAnalysisCacheService implements ICSSAnalysisCacheService {
    * SHA-256ハッシュを生成
    */
   private sha256(input: string): string {
-    return crypto.createHash('sha256').update(input, 'utf8').digest('hex');
+    return crypto.createHash("sha256").update(input, "utf8").digest("hex");
   }
 
   /**
@@ -453,27 +457,27 @@ export class CSSAnalysisCacheService implements ICSSAnalysisCacheService {
    */
   private ensureNotClosed(): void {
     if (this.isClosed) {
-      throw new Error('CSSAnalysisCacheService is closed');
+      throw new Error("CSSAnalysisCacheService is closed");
     }
   }
 
   /**
    * ログ出力
    */
-  private log(level: 'debug' | 'info' | 'warn' | 'error', message: string, data?: unknown): void {
+  private log(level: "debug" | "info" | "warn" | "error", message: string, data?: unknown): void {
     if (!this.enableLogging) return;
 
     switch (level) {
-      case 'debug':
+      case "debug":
         logger.debug(message, data);
         break;
-      case 'info':
+      case "info":
         logger.info(message, data);
         break;
-      case 'warn':
+      case "warn":
         logger.warn(message, data);
         break;
-      case 'error':
+      case "error":
         logger.error(message, data);
         break;
     }
@@ -519,13 +523,13 @@ let globalInstance: CSSAnalysisCacheService | null = null;
  */
 export function getCSSAnalysisCacheService(): CSSAnalysisCacheService {
   if (!globalInstance) {
-    const cacheDir = process.env.CSS_ANALYSIS_CACHE_DIR ?? '/tmp/reftrix-css-analysis-cache';
+    const cacheDir = process.env.CSS_ANALYSIS_CACHE_DIR ?? "/tmp/reftrix-css-analysis-cache";
 
     globalInstance = createCSSAnalysisCacheService({
       cacheDir,
-      maxSize: parseInt(process.env.CSS_ANALYSIS_CACHE_MAX_SIZE ?? '5000', 10),
-      defaultTtlMs: parseInt(process.env.CSS_ANALYSIS_CACHE_TTL_MS ?? '3600000', 10),
-      enableLogging: process.env.NODE_ENV === 'development',
+      maxSize: parseInt(process.env.CSS_ANALYSIS_CACHE_MAX_SIZE ?? "5000", 10),
+      defaultTtlMs: parseInt(process.env.CSS_ANALYSIS_CACHE_TTL_MS ?? "3600000", 10),
+      enableLogging: process.env.NODE_ENV === "development",
     });
   }
 

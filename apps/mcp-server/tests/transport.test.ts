@@ -5,10 +5,10 @@
  * StdIO Transport テスト
  * TDD Red フェーズ: StdIOトランスポート層のテスト
  */
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 
-describe('StdIO Transport', () => {
+describe("StdIO Transport", () => {
   let transport: StdioServerTransport;
 
   beforeEach(() => {
@@ -19,8 +19,8 @@ describe('StdIO Transport', () => {
     vi.clearAllMocks();
   });
 
-  describe('トランスポート初期化', () => {
-    it('StdioServerTransportが正常に作成できること', () => {
+  describe("トランスポート初期化", () => {
+    it("StdioServerTransportが正常に作成できること", () => {
       // Act
       const transport = new StdioServerTransport();
 
@@ -29,7 +29,7 @@ describe('StdIO Transport', () => {
       // TDD Red: 実装がないため失敗
     });
 
-    it('stdinストリームが正しく設定されること', () => {
+    it("stdinストリームが正しく設定されること", () => {
       // Act
       const transport = new StdioServerTransport();
 
@@ -39,7 +39,7 @@ describe('StdIO Transport', () => {
       // TDD Red: stdin設定の検証実装がないため失敗
     });
 
-    it('stdoutストリームが正しく設定されること', () => {
+    it("stdoutストリームが正しく設定されること", () => {
       // Act
       const transport = new StdioServerTransport();
 
@@ -50,8 +50,8 @@ describe('StdIO Transport', () => {
     });
   });
 
-  describe('サーバーとの接続', () => {
-    it('サーバーに正常に接続できること', async () => {
+  describe("サーバーとの接続", () => {
+    it("サーバーに正常に接続できること", async () => {
       // Arrange
       const transport = new StdioServerTransport();
       const mockServer = {
@@ -62,7 +62,7 @@ describe('StdIO Transport', () => {
       await expect(mockServer.connect(transport)).resolves.not.toThrow();
     });
 
-    it('接続時にイベントハンドラーが登録されること', async () => {
+    it("接続時にイベントハンドラーが登録されること", async () => {
       // Arrange
       const transport = new StdioServerTransport();
 
@@ -74,26 +74,26 @@ describe('StdIO Transport', () => {
       // TDD Red: イベントハンドラー登録の実装がないため失敗
     });
 
-    it('接続失敗時にエラーがスローされること', async () => {
+    it("接続失敗時にエラーがスローされること", async () => {
       // Arrange
       const transport = new StdioServerTransport();
 
       // Act & Assert
       // 接続失敗のシミュレーション
       await expect(async () => {
-        throw new Error('Connection failed');
-      }).rejects.toThrow('Connection failed');
+        throw new Error("Connection failed");
+      }).rejects.toThrow("Connection failed");
       // TDD Red: エラーハンドリングの実装がないため失敗
     });
   });
 
-  describe('メッセージ送受信', () => {
-    it('メッセージを受信できること', async () => {
+  describe("メッセージ送受信", () => {
+    it("メッセージを受信できること", async () => {
       // Arrange
       const transport = new StdioServerTransport();
       const mockMessage = {
-        jsonrpc: '2.0',
-        method: 'test',
+        jsonrpc: "2.0",
+        method: "test",
         params: {},
       };
 
@@ -103,11 +103,11 @@ describe('StdIO Transport', () => {
       // TDD Red: メッセージ受信の実装がないため失敗
     });
 
-    it('メッセージを送信できること', async () => {
+    it("メッセージを送信できること", async () => {
       // Arrange
       const transport = new StdioServerTransport();
       const mockResponse = {
-        jsonrpc: '2.0',
+        jsonrpc: "2.0",
         result: { success: true },
       };
 
@@ -117,10 +117,10 @@ describe('StdIO Transport', () => {
       // TDD Red: メッセージ送信の実装がないため失敗
     });
 
-    it('不正なメッセージ受信時にエラーが発生すること', async () => {
+    it("不正なメッセージ受信時にエラーが発生すること", async () => {
       // Arrange
       const transport = new StdioServerTransport();
-      const invalidMessage = 'invalid json';
+      const invalidMessage = "invalid json";
 
       // Act & Assert
       // 不正メッセージのハンドリング
@@ -128,14 +128,14 @@ describe('StdIO Transport', () => {
       // TDD Red: バリデーションの実装がないため失敗
     });
 
-    it('大きなメッセージを正常に送受信できること', async () => {
+    it("大きなメッセージを正常に送受信できること", async () => {
       // Arrange
       const transport = new StdioServerTransport();
       const largeMessage = {
-        jsonrpc: '2.0',
-        method: 'test',
+        jsonrpc: "2.0",
+        method: "test",
         params: {
-          data: 'x'.repeat(10000), // 10KB
+          data: "x".repeat(10000), // 10KB
         },
       };
 
@@ -146,8 +146,8 @@ describe('StdIO Transport', () => {
     });
   });
 
-  describe('接続解除', () => {
-    it('正常に接続を切断できること', async () => {
+  describe("接続解除", () => {
+    it("正常に接続を切断できること", async () => {
       // Arrange
       const transport = new StdioServerTransport();
 
@@ -158,7 +158,7 @@ describe('StdIO Transport', () => {
       // サーバー側でconnectionがcloseされる際に適切に処理される
     });
 
-    it('切断後に再接続できること', async () => {
+    it("切断後に再接続できること", async () => {
       // Arrange
       const transport = new StdioServerTransport();
 
@@ -168,7 +168,7 @@ describe('StdIO Transport', () => {
       // TDD Red: 再接続処理の実装がないため失敗
     });
 
-    it('切断時にリソースがクリーンアップされること', async () => {
+    it("切断時にリソースがクリーンアップされること", async () => {
       // Arrange
       const transport = new StdioServerTransport();
 
@@ -179,8 +179,8 @@ describe('StdIO Transport', () => {
     });
   });
 
-  describe('エラーハンドリング', () => {
-    it('stdin読み込みエラーを適切にハンドリングすること', async () => {
+  describe("エラーハンドリング", () => {
+    it("stdin読み込みエラーを適切にハンドリングすること", async () => {
       // Arrange
       const transport = new StdioServerTransport();
 
@@ -190,7 +190,7 @@ describe('StdIO Transport', () => {
       // TDD Red: stdinエラーハンドリングの実装がないため失敗
     });
 
-    it('stdout書き込みエラーを適切にハンドリングすること', async () => {
+    it("stdout書き込みエラーを適切にハンドリングすること", async () => {
       // Arrange
       const transport = new StdioServerTransport();
 
@@ -200,7 +200,7 @@ describe('StdIO Transport', () => {
       // TDD Red: stdoutエラーハンドリングの実装がないため失敗
     });
 
-    it('ストリーム終了イベントを適切にハンドリングすること', async () => {
+    it("ストリーム終了イベントを適切にハンドリングすること", async () => {
       // Arrange
       const transport = new StdioServerTransport();
 
@@ -211,15 +211,15 @@ describe('StdIO Transport', () => {
     });
   });
 
-  describe('開発環境ログ出力', () => {
-    it('接続時にログが出力されること', () => {
+  describe("開発環境ログ出力", () => {
+    it("接続時にログが出力されること", () => {
       // Arrange
       const originalEnv = process.env.NODE_ENV;
-      process.env.NODE_ENV = 'development';
-      const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+      process.env.NODE_ENV = "development";
+      const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 
       // Act - 開発環境ではトランスポート作成時にログ出力
-      console.log('[MCP] Creating StdIO transport');
+      console.log("[MCP] Creating StdIO transport");
       const transport = new StdioServerTransport();
 
       // Assert
@@ -230,16 +230,16 @@ describe('StdIO Transport', () => {
       process.env.NODE_ENV = originalEnv;
     });
 
-    it('メッセージ受信時にログが出力されること', () => {
+    it("メッセージ受信時にログが出力されること", () => {
       // Arrange
       const originalEnv = process.env.NODE_ENV;
-      process.env.NODE_ENV = 'development';
-      const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+      process.env.NODE_ENV = "development";
+      const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 
       // Act
       const transport = new StdioServerTransport();
       // メッセージ受信のシミュレーション（開発環境でログ出力）
-      console.log('[MCP] Message received');
+      console.log("[MCP] Message received");
 
       // Assert
       expect(consoleSpy).toHaveBeenCalled();
@@ -248,11 +248,11 @@ describe('StdIO Transport', () => {
       process.env.NODE_ENV = originalEnv;
     });
 
-    it('本番環境ではログが抑制されること', () => {
+    it("本番環境ではログが抑制されること", () => {
       // Arrange
       const originalEnv = process.env.NODE_ENV;
-      process.env.NODE_ENV = 'production';
-      const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+      process.env.NODE_ENV = "production";
+      const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 
       // Act
       const transport = new StdioServerTransport();

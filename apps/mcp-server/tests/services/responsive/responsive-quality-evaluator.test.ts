@@ -10,8 +10,8 @@
  * @module tests/services/responsive/responsive-quality-evaluator.test
  */
 
-import { describe, it, expect, beforeEach } from 'vitest';
-import { ResponsiveQualityEvaluatorService } from '../../../src/services/responsive/responsive-quality-evaluator.service';
+import { describe, it, expect, beforeEach } from "vitest";
+import { ResponsiveQualityEvaluatorService } from "../../../src/services/responsive/responsive-quality-evaluator.service";
 import type {
   ViewportQualityResult,
   TouchTargetResult,
@@ -19,7 +19,7 @@ import type {
   OverflowResult,
   ResponsiveImageResult,
   ResponsiveViewport,
-} from '../../../src/services/responsive/types';
+} from "../../../src/services/responsive/types";
 
 // ============================================================================
 // テスト用サブクラス（private メソッドを公開）
@@ -41,9 +41,9 @@ class TestableEvaluator extends ResponsiveQualityEvaluatorService {
 
 function createViewport(name: string): ResponsiveViewport {
   const presets: Record<string, ResponsiveViewport> = {
-    desktop: { name: 'desktop', width: 1440, height: 900 },
-    tablet: { name: 'tablet', width: 768, height: 1024 },
-    mobile: { name: 'mobile', width: 375, height: 667 },
+    desktop: { name: "desktop", width: 1440, height: 900 },
+    tablet: { name: "tablet", width: 768, height: 1024 },
+    mobile: { name: "mobile", width: 375, height: 667 },
   };
   return presets[name] ?? { name, width: 1024, height: 768 };
 }
@@ -57,7 +57,7 @@ function createQualityResult(
     images: Partial<ResponsiveImageResult>;
   }> = {}
 ): ViewportQualityResult {
-  const viewportName = overrides.viewportName ?? 'mobile';
+  const viewportName = overrides.viewportName ?? "mobile";
 
   const touchTargets: TouchTargetResult = {
     passed: 0,
@@ -100,24 +100,24 @@ function createQualityResult(
 // Tests
 // ============================================================================
 
-describe('ResponsiveQualityEvaluatorService', () => {
+describe("ResponsiveQualityEvaluatorService", () => {
   // ==========================================================================
   // calculateOverallScore
   // ==========================================================================
 
-  describe('calculateOverallScore', () => {
+  describe("calculateOverallScore", () => {
     let evaluator: TestableEvaluator;
 
     beforeEach(() => {
       evaluator = new TestableEvaluator();
     });
 
-    it('空の結果配列で 0 を返す', () => {
+    it("空の結果配列で 0 を返す", () => {
       const score = evaluator.testCalculateOverallScore([]);
       expect(score).toBe(0);
     });
 
-    it('全チェックOKで 100点', () => {
+    it("全チェックOKで 100点", () => {
       const result = createQualityResult({
         touchTargets: { passed: 10, failed: 0 },
         readability: { fontSizeOk: true, lineLengthOk: true, lineHeightOk: true },
@@ -133,12 +133,12 @@ describe('ResponsiveQualityEvaluatorService', () => {
     // タッチターゲット (30点満点)
     // ================================================================
 
-    describe('タッチターゲット (30点)', () => {
-      it('全要素が44x44px以上 → 30点', () => {
+    describe("タッチターゲット (30点)", () => {
+      it("全要素が44x44px以上 → 30点", () => {
         const result = createQualityResult({
           touchTargets: { passed: 20, failed: 0 },
           readability: { fontSizeOk: false, lineLengthOk: false, lineHeightOk: false },
-          overflow: { horizontalScroll: true, overflowElements: ['div'] },
+          overflow: { horizontalScroll: true, overflowElements: ["div"] },
           images: { srcsetCount: 0, pictureCount: 0, missingResponsive: 10 },
         });
 
@@ -147,11 +147,11 @@ describe('ResponsiveQualityEvaluatorService', () => {
         expect(score).toBe(30);
       });
 
-      it('半分の要素が基準未満 → 15点', () => {
+      it("半分の要素が基準未満 → 15点", () => {
         const result = createQualityResult({
           touchTargets: { passed: 5, failed: 5 },
           readability: { fontSizeOk: false, lineLengthOk: false, lineHeightOk: false },
-          overflow: { horizontalScroll: true, overflowElements: ['div'] },
+          overflow: { horizontalScroll: true, overflowElements: ["div"] },
           images: { srcsetCount: 0, pictureCount: 0, missingResponsive: 10 },
         });
 
@@ -160,17 +160,15 @@ describe('ResponsiveQualityEvaluatorService', () => {
         expect(score).toBe(15);
       });
 
-      it('全要素が基準未満 → 0点', () => {
+      it("全要素が基準未満 → 0点", () => {
         const result = createQualityResult({
           touchTargets: {
             passed: 0,
             failed: 10,
-            failedElements: [
-              { selector: 'a.small', width: 30, height: 30 },
-            ],
+            failedElements: [{ selector: "a.small", width: 30, height: 30 }],
           },
           readability: { fontSizeOk: false, lineLengthOk: false, lineHeightOk: false },
-          overflow: { horizontalScroll: true, overflowElements: ['div'] },
+          overflow: { horizontalScroll: true, overflowElements: ["div"] },
           images: { srcsetCount: 0, pictureCount: 0, missingResponsive: 10 },
         });
 
@@ -179,11 +177,11 @@ describe('ResponsiveQualityEvaluatorService', () => {
         expect(score).toBe(0);
       });
 
-      it('タッチ対象要素が0件 → 30点（ペナルティなし）', () => {
+      it("タッチ対象要素が0件 → 30点（ペナルティなし）", () => {
         const result = createQualityResult({
           touchTargets: { passed: 0, failed: 0 },
           readability: { fontSizeOk: false, lineLengthOk: false, lineHeightOk: false },
-          overflow: { horizontalScroll: true, overflowElements: ['div'] },
+          overflow: { horizontalScroll: true, overflowElements: ["div"] },
           images: { srcsetCount: 0, pictureCount: 0, missingResponsive: 10 },
         });
 
@@ -197,12 +195,12 @@ describe('ResponsiveQualityEvaluatorService', () => {
     // 読みやすさ (30点満点: 3項目 x 10点)
     // ================================================================
 
-    describe('読みやすさ (30点)', () => {
-      it('fontSize >= 16px → fontSizeOk で 10点', () => {
+    describe("読みやすさ (30点)", () => {
+      it("fontSize >= 16px → fontSizeOk で 10点", () => {
         const result = createQualityResult({
           touchTargets: { passed: 0, failed: 0 },
           readability: { fontSizeOk: true, lineLengthOk: false, lineHeightOk: false },
-          overflow: { horizontalScroll: true, overflowElements: ['div'] },
+          overflow: { horizontalScroll: true, overflowElements: ["div"] },
           images: { srcsetCount: 0, pictureCount: 0, missingResponsive: 10 },
         });
 
@@ -211,11 +209,11 @@ describe('ResponsiveQualityEvaluatorService', () => {
         expect(score).toBe(40);
       });
 
-      it('lineHeight >= 1.5 → lineHeightOk で 10点', () => {
+      it("lineHeight >= 1.5 → lineHeightOk で 10点", () => {
         const result = createQualityResult({
           touchTargets: { passed: 0, failed: 0 },
           readability: { fontSizeOk: false, lineLengthOk: false, lineHeightOk: true },
-          overflow: { horizontalScroll: true, overflowElements: ['div'] },
+          overflow: { horizontalScroll: true, overflowElements: ["div"] },
           images: { srcsetCount: 0, pictureCount: 0, missingResponsive: 10 },
         });
 
@@ -224,11 +222,11 @@ describe('ResponsiveQualityEvaluatorService', () => {
         expect(score).toBe(40);
       });
 
-      it('lineLength <= 80文字 → lineLengthOk で 10点', () => {
+      it("lineLength <= 80文字 → lineLengthOk で 10点", () => {
         const result = createQualityResult({
           touchTargets: { passed: 0, failed: 0 },
           readability: { fontSizeOk: false, lineLengthOk: true, lineHeightOk: false },
-          overflow: { horizontalScroll: true, overflowElements: ['div'] },
+          overflow: { horizontalScroll: true, overflowElements: ["div"] },
           images: { srcsetCount: 0, pictureCount: 0, missingResponsive: 10 },
         });
 
@@ -237,11 +235,11 @@ describe('ResponsiveQualityEvaluatorService', () => {
         expect(score).toBe(40);
       });
 
-      it('3項目すべてOK → 30点', () => {
+      it("3項目すべてOK → 30点", () => {
         const result = createQualityResult({
           touchTargets: { passed: 0, failed: 0 },
           readability: { fontSizeOk: true, lineLengthOk: true, lineHeightOk: true },
-          overflow: { horizontalScroll: true, overflowElements: ['div'] },
+          overflow: { horizontalScroll: true, overflowElements: ["div"] },
           images: { srcsetCount: 0, pictureCount: 0, missingResponsive: 10 },
         });
 
@@ -250,11 +248,11 @@ describe('ResponsiveQualityEvaluatorService', () => {
         expect(score).toBe(60);
       });
 
-      it('3項目すべてNG → 0点', () => {
+      it("3項目すべてNG → 0点", () => {
         const result = createQualityResult({
           touchTargets: { passed: 0, failed: 0 },
           readability: { fontSizeOk: false, lineLengthOk: false, lineHeightOk: false },
-          overflow: { horizontalScroll: true, overflowElements: ['div'] },
+          overflow: { horizontalScroll: true, overflowElements: ["div"] },
           images: { srcsetCount: 0, pictureCount: 0, missingResponsive: 10 },
         });
 
@@ -268,8 +266,8 @@ describe('ResponsiveQualityEvaluatorService', () => {
     // オーバーフロー検出 (20点満点)
     // ================================================================
 
-    describe('オーバーフロー (20点)', () => {
-      it('水平スクロールなし + オーバーフロー要素なし → 20点', () => {
+    describe("オーバーフロー (20点)", () => {
+      it("水平スクロールなし + オーバーフロー要素なし → 20点", () => {
         const result = createQualityResult({
           touchTargets: { passed: 0, failed: 0 },
           readability: { fontSizeOk: false, lineLengthOk: false, lineHeightOk: false },
@@ -282,11 +280,11 @@ describe('ResponsiveQualityEvaluatorService', () => {
         expect(score).toBe(50);
       });
 
-      it('水平スクロールなし + オーバーフロー要素あり → 10点', () => {
+      it("水平スクロールなし + オーバーフロー要素あり → 10点", () => {
         const result = createQualityResult({
           touchTargets: { passed: 0, failed: 0 },
           readability: { fontSizeOk: false, lineLengthOk: false, lineHeightOk: false },
-          overflow: { horizontalScroll: false, overflowElements: ['div.wide'] },
+          overflow: { horizontalScroll: false, overflowElements: ["div.wide"] },
           images: { srcsetCount: 0, pictureCount: 0, missingResponsive: 10 },
         });
 
@@ -295,7 +293,7 @@ describe('ResponsiveQualityEvaluatorService', () => {
         expect(score).toBe(40);
       });
 
-      it('水平スクロールあり → 0点', () => {
+      it("水平スクロールあり → 0点", () => {
         const result = createQualityResult({
           touchTargets: { passed: 0, failed: 0 },
           readability: { fontSizeOk: false, lineLengthOk: false, lineHeightOk: false },
@@ -313,12 +311,12 @@ describe('ResponsiveQualityEvaluatorService', () => {
     // レスポンシブ画像 (20点満点)
     // ================================================================
 
-    describe('レスポンシブ画像 (20点)', () => {
-      it('全画像 srcset あり → 20点', () => {
+    describe("レスポンシブ画像 (20点)", () => {
+      it("全画像 srcset あり → 20点", () => {
         const result = createQualityResult({
           touchTargets: { passed: 0, failed: 0 },
           readability: { fontSizeOk: false, lineLengthOk: false, lineHeightOk: false },
-          overflow: { horizontalScroll: true, overflowElements: ['div'] },
+          overflow: { horizontalScroll: true, overflowElements: ["div"] },
           images: { srcsetCount: 5, pictureCount: 0, missingResponsive: 0 },
         });
 
@@ -327,11 +325,11 @@ describe('ResponsiveQualityEvaluatorService', () => {
         expect(score).toBe(50);
       });
 
-      it('srcset なし + missingResponsive あり → 0点', () => {
+      it("srcset なし + missingResponsive あり → 0点", () => {
         const result = createQualityResult({
           touchTargets: { passed: 0, failed: 0 },
           readability: { fontSizeOk: false, lineLengthOk: false, lineHeightOk: false },
-          overflow: { horizontalScroll: true, overflowElements: ['div'] },
+          overflow: { horizontalScroll: true, overflowElements: ["div"] },
           images: { srcsetCount: 0, pictureCount: 0, missingResponsive: 5 },
         });
 
@@ -340,11 +338,11 @@ describe('ResponsiveQualityEvaluatorService', () => {
         expect(score).toBe(30);
       });
 
-      it('画像なし → 20点（ペナルティなし）', () => {
+      it("画像なし → 20点（ペナルティなし）", () => {
         const result = createQualityResult({
           touchTargets: { passed: 0, failed: 0 },
           readability: { fontSizeOk: false, lineLengthOk: false, lineHeightOk: false },
-          overflow: { horizontalScroll: true, overflowElements: ['div'] },
+          overflow: { horizontalScroll: true, overflowElements: ["div"] },
           images: { srcsetCount: 0, pictureCount: 0, missingResponsive: 0 },
         });
 
@@ -353,11 +351,11 @@ describe('ResponsiveQualityEvaluatorService', () => {
         expect(score).toBe(50);
       });
 
-      it('picture 要素がカウントされる', () => {
+      it("picture 要素がカウントされる", () => {
         const result = createQualityResult({
           touchTargets: { passed: 0, failed: 0 },
           readability: { fontSizeOk: false, lineLengthOk: false, lineHeightOk: false },
-          overflow: { horizontalScroll: true, overflowElements: ['div'] },
+          overflow: { horizontalScroll: true, overflowElements: ["div"] },
           images: { srcsetCount: 2, pictureCount: 3, missingResponsive: 3 },
         });
 
@@ -367,11 +365,11 @@ describe('ResponsiveQualityEvaluatorService', () => {
         expect(score).toBe(50);
       });
 
-      it('一部のみ srcset → 部分点', () => {
+      it("一部のみ srcset → 部分点", () => {
         const result = createQualityResult({
           touchTargets: { passed: 0, failed: 0 },
           readability: { fontSizeOk: false, lineLengthOk: false, lineHeightOk: false },
-          overflow: { horizontalScroll: true, overflowElements: ['div'] },
+          overflow: { horizontalScroll: true, overflowElements: ["div"] },
           images: { srcsetCount: 2, pictureCount: 0, missingResponsive: 2 },
         });
 
@@ -386,10 +384,10 @@ describe('ResponsiveQualityEvaluatorService', () => {
     // 複数ビューポート
     // ================================================================
 
-    describe('複数ビューポートの平均化', () => {
-      it('2ビューポートのスコアが平均化される', () => {
+    describe("複数ビューポートの平均化", () => {
+      it("2ビューポートのスコアが平均化される", () => {
         const perfect = createQualityResult({
-          viewportName: 'desktop',
+          viewportName: "desktop",
           touchTargets: { passed: 10, failed: 0 },
           readability: { fontSizeOk: true, lineLengthOk: true, lineHeightOk: true },
           overflow: { horizontalScroll: false, overflowElements: [] },
@@ -397,10 +395,10 @@ describe('ResponsiveQualityEvaluatorService', () => {
         }); // 100点
 
         const poor = createQualityResult({
-          viewportName: 'mobile',
+          viewportName: "mobile",
           touchTargets: { passed: 0, failed: 10 },
           readability: { fontSizeOk: false, lineLengthOk: false, lineHeightOk: false },
-          overflow: { horizontalScroll: true, overflowElements: ['div'] },
+          overflow: { horizontalScroll: true, overflowElements: ["div"] },
           images: { srcsetCount: 0, pictureCount: 0, missingResponsive: 5 },
         }); // 0点
 
@@ -409,9 +407,9 @@ describe('ResponsiveQualityEvaluatorService', () => {
         expect(score).toBe(50);
       });
 
-      it('3ビューポートのスコアが平均化される', () => {
+      it("3ビューポートのスコアが平均化される", () => {
         const good = createQualityResult({
-          viewportName: 'desktop',
+          viewportName: "desktop",
           touchTargets: { passed: 10, failed: 0 },
           readability: { fontSizeOk: true, lineLengthOk: true, lineHeightOk: true },
           overflow: { horizontalScroll: false, overflowElements: [] },
@@ -419,7 +417,7 @@ describe('ResponsiveQualityEvaluatorService', () => {
         }); // 100点
 
         const medium = createQualityResult({
-          viewportName: 'tablet',
+          viewportName: "tablet",
           touchTargets: { passed: 10, failed: 0 },
           readability: { fontSizeOk: true, lineLengthOk: true, lineHeightOk: true },
           overflow: { horizontalScroll: false, overflowElements: [] },
@@ -427,7 +425,7 @@ describe('ResponsiveQualityEvaluatorService', () => {
         }); // 80点 (images: 0)
 
         const mobile = createQualityResult({
-          viewportName: 'mobile',
+          viewportName: "mobile",
           touchTargets: { passed: 10, failed: 0 },
           readability: { fontSizeOk: true, lineLengthOk: false, lineHeightOk: true },
           overflow: { horizontalScroll: false, overflowElements: [] },
@@ -445,8 +443,8 @@ describe('ResponsiveQualityEvaluatorService', () => {
   // TouchTargetResult 型テスト
   // ==========================================================================
 
-  describe('TouchTargetResult 構造', () => {
-    it('44x44px以上の要素は passed にカウント', () => {
+  describe("TouchTargetResult 構造", () => {
+    it("44x44px以上の要素は passed にカウント", () => {
       const result: TouchTargetResult = {
         passed: 5,
         failed: 0,
@@ -458,13 +456,13 @@ describe('ResponsiveQualityEvaluatorService', () => {
       expect(result.failedElements).toHaveLength(0);
     });
 
-    it('44x44px未満の要素は failed + failedElements に含まれる', () => {
+    it("44x44px未満の要素は failed + failedElements に含まれる", () => {
       const result: TouchTargetResult = {
         passed: 3,
         failed: 2,
         failedElements: [
-          { selector: 'a.small-link', width: 30, height: 20 },
-          { selector: 'button.icon-btn', width: 24, height: 24 },
+          { selector: "a.small-link", width: 30, height: 20 },
+          { selector: "button.icon-btn", width: 24, height: 24 },
         ],
       };
 
@@ -479,8 +477,8 @@ describe('ResponsiveQualityEvaluatorService', () => {
   // ReadabilityResult 型テスト
   // ==========================================================================
 
-  describe('ReadabilityResult 構造', () => {
-    it('基準を満たすケース', () => {
+  describe("ReadabilityResult 構造", () => {
+    it("基準を満たすケース", () => {
       const result: ReadabilityResult = {
         fontSizeOk: true,
         lineLengthOk: true,
@@ -499,7 +497,7 @@ describe('ResponsiveQualityEvaluatorService', () => {
       expect(result.details.avgLineHeight).toBeGreaterThanOrEqual(1.5);
     });
 
-    it('基準を満たさないケース', () => {
+    it("基準を満たさないケース", () => {
       const result: ReadabilityResult = {
         fontSizeOk: false,
         lineLengthOk: false,
@@ -523,8 +521,8 @@ describe('ResponsiveQualityEvaluatorService', () => {
   // OverflowResult 型テスト
   // ==========================================================================
 
-  describe('OverflowResult 構造', () => {
-    it('オーバーフローなし', () => {
+  describe("OverflowResult 構造", () => {
+    it("オーバーフローなし", () => {
       const result: OverflowResult = {
         horizontalScroll: false,
         overflowElements: [],
@@ -534,10 +532,10 @@ describe('ResponsiveQualityEvaluatorService', () => {
       expect(result.overflowElements).toHaveLength(0);
     });
 
-    it('水平スクロール + オーバーフロー要素検出', () => {
+    it("水平スクロール + オーバーフロー要素検出", () => {
       const result: OverflowResult = {
         horizontalScroll: true,
-        overflowElements: ['table.data-table', 'pre.code-block'],
+        overflowElements: ["table.data-table", "pre.code-block"],
       };
 
       expect(result.horizontalScroll).toBe(true);
@@ -549,8 +547,8 @@ describe('ResponsiveQualityEvaluatorService', () => {
   // ResponsiveImageResult 型テスト
   // ==========================================================================
 
-  describe('ResponsiveImageResult 構造', () => {
-    it('srcset あり', () => {
+  describe("ResponsiveImageResult 構造", () => {
+    it("srcset あり", () => {
       const result: ResponsiveImageResult = {
         srcsetCount: 8,
         pictureCount: 2,
@@ -562,7 +560,7 @@ describe('ResponsiveQualityEvaluatorService', () => {
       expect(result.missingResponsive).toBe(0);
     });
 
-    it('srcset なしの img がある', () => {
+    it("srcset なしの img がある", () => {
       const result: ResponsiveImageResult = {
         srcsetCount: 3,
         pictureCount: 0,

@@ -49,6 +49,7 @@ Refs: #123
 ## 説明的なコミットメッセージ例 / Descriptive Commit Message Examples
 
 **✅ 良い例 / Good example**:
+
 ```bash
 git commit -m "feat(auth): add JWT refresh token support (feat-002)
 
@@ -63,6 +64,7 @@ Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>"
 ```
 
 **❌ 悪い例 / Bad example**:
+
 ```bash
 # ❌ 悪い例: 曖昧、理由なし
 git commit -m "update auth"

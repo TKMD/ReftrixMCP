@@ -10,7 +10,7 @@
  * @module @reftrix/core/webdesign
  */
 
-import { z } from 'zod';
+import { z } from "zod";
 
 // =========================================
 // Enum / Literal Types with Zod Schemas
@@ -21,7 +21,7 @@ import { z } from 'zod';
  * - award_gallery: アワードサイトからの収集
  * - user_provided: ユーザーが提供
  */
-export const sourceTypeSchema = z.enum(['award_gallery', 'user_provided']);
+export const sourceTypeSchema = z.enum(["award_gallery", "user_provided"]);
 export type SourceType = z.infer<typeof sourceTypeSchema>;
 
 /**
@@ -29,7 +29,7 @@ export type SourceType = z.infer<typeof sourceTypeSchema>;
  * - inspiration_only: インスピレーションのみ（商用利用不可）
  * - owned_asset: 所有アセット（商用利用可）
  */
-export const usageScopeSchema = z.enum(['inspiration_only', 'owned_asset']);
+export const usageScopeSchema = z.enum(["inspiration_only", "owned_asset"]);
 export type UsageScope = z.infer<typeof usageScopeSchema>;
 
 /**
@@ -38,7 +38,7 @@ export type UsageScope = z.infer<typeof usageScopeSchema>;
  * - fwa: FWA (Favourite Website Awards)
  * - awwwards: Awwwards
  */
-export const awardSourceSchema = z.enum(['cssda', 'fwa', 'awwwards']);
+export const awardSourceSchema = z.enum(["cssda", "fwa", "awwwards"]);
 export type AwardSource = z.infer<typeof awardSourceSchema>;
 
 /**
@@ -46,17 +46,17 @@ export type AwardSource = z.infer<typeof awardSourceSchema>;
  * Webページの主要セクションタイプ
  */
 export const sectionTypeSchema = z.enum([
-  'hero',
-  'feature',
-  'cta',
-  'testimonial',
-  'pricing',
-  'footer',
-  'navigation',
-  'about',
-  'contact',
-  'gallery',
-  'unknown',
+  "hero",
+  "feature",
+  "cta",
+  "testimonial",
+  "pricing",
+  "footer",
+  "navigation",
+  "about",
+  "contact",
+  "gallery",
+  "unknown",
 ]);
 export type SectionType = z.infer<typeof sectionTypeSchema>;
 
@@ -65,41 +65,32 @@ export type SectionType = z.infer<typeof sectionTypeSchema>;
  * アニメーション・インタラクションの種類
  */
 export const motionTypeSchema = z.enum([
-  'scroll_trigger',
-  'hover',
-  'page_transition',
-  'loading',
-  'parallax',
-  'reveal',
-  'unknown',
+  "scroll_trigger",
+  "hover",
+  "page_transition",
+  "loading",
+  "parallax",
+  "reveal",
+  "unknown",
 ]);
 export type MotionType = z.infer<typeof motionTypeSchema>;
 
 /**
  * 解析ステータス
  */
-export const analysisStatusSchema = z.enum([
-  'pending',
-  'processing',
-  'completed',
-  'failed',
-]);
+export const analysisStatusSchema = z.enum(["pending", "processing", "completed", "failed"]);
 export type AnalysisStatus = z.infer<typeof analysisStatusSchema>;
 
 /**
  * コード生成タイプ
  */
-export const codeTypeSchema = z.enum(['react', 'html', 'tailwind']);
+export const codeTypeSchema = z.enum(["react", "html", "tailwind"]);
 export type CodeType = z.infer<typeof codeTypeSchema>;
 
 /**
  * MIMEタイプ（スクリーンショット用）
  */
-export const screenshotMimeTypeSchema = z.enum([
-  'image/png',
-  'image/jpeg',
-  'image/webp',
-]);
+export const screenshotMimeTypeSchema = z.enum(["image/png", "image/jpeg", "image/webp"]);
 export type ScreenshotMimeType = z.infer<typeof screenshotMimeTypeSchema>;
 
 // =========================================

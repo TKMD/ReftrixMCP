@@ -17,15 +17,15 @@
  * @module tests/services/section-screenshot.service
  */
 
-import { describe, it, expect, beforeEach, vi } from 'vitest';
-import sharp from 'sharp';
+import { describe, it, expect, beforeEach, vi } from "vitest";
+import sharp from "sharp";
 import {
   SectionScreenshotService,
   SectionScreenshotServiceError,
   type SectionBounds,
   type SectionScreenshotOptions,
   type MultiSectionResult,
-} from '../../src/services/section-screenshot.service';
+} from "../../src/services/section-screenshot.service";
 
 // =====================================================
 // テストユーティリティ
@@ -45,11 +45,11 @@ async function createFullPageScreenshot(options: {
 
   // デフォルトのストライプ（セクションをシミュレート）
   const stripes = options.stripes ?? [
-    { color: '#3B82F6', height: 600 }, // hero
-    { color: '#FFFFFF', height: 600 }, // features
-    { color: '#F3F4F6', height: 600 }, // testimonials
-    { color: '#1F2937', height: 600 }, // pricing
-    { color: '#111827', height: 600 }, // footer
+    { color: "#3B82F6", height: 600 }, // hero
+    { color: "#FFFFFF", height: 600 }, // features
+    { color: "#F3F4F6", height: 600 }, // testimonials
+    { color: "#1F2937", height: 600 }, // pricing
+    { color: "#111827", height: 600 }, // footer
   ];
 
   // ベース画像を作成（最初のストライプの色）
@@ -58,7 +58,7 @@ async function createFullPageScreenshot(options: {
       width,
       height,
       channels: 4,
-      background: stripes[0]?.color ?? '#FFFFFF',
+      background: stripes[0]?.color ?? "#FFFFFF",
     },
   });
 
@@ -87,17 +87,13 @@ async function createFullPageScreenshot(options: {
   }
 
   const buffer = await image.png().toBuffer();
-  return buffer.toString('base64');
+  return buffer.toString("base64");
 }
 
 /**
  * 小さなテスト画像を生成（Base64）
  */
-async function createSmallTestImage(
-  width = 100,
-  height = 100,
-  color = '#FF0000'
-): Promise<string> {
+async function createSmallTestImage(width = 100, height = 100, color = "#FF0000"): Promise<string> {
   const buffer = await sharp({
     create: {
       width,
@@ -108,36 +104,36 @@ async function createSmallTestImage(
   })
     .png()
     .toBuffer();
-  return buffer.toString('base64');
+  return buffer.toString("base64");
 }
 
 // =====================================================
 // 初期化テスト
 // =====================================================
 
-describe('SectionScreenshotService', () => {
-  describe('初期化', () => {
-    it('デフォルトオプションで初期化できる', () => {
+describe("SectionScreenshotService", () => {
+  describe("初期化", () => {
+    it("デフォルトオプションで初期化できる", () => {
       const service = new SectionScreenshotService();
       expect(service).toBeDefined();
     });
 
-    it('カスタムフォーマット（jpeg）で初期化できる', () => {
-      const service = new SectionScreenshotService({ format: 'jpeg' });
+    it("カスタムフォーマット（jpeg）で初期化できる", () => {
+      const service = new SectionScreenshotService({ format: "jpeg" });
       expect(service).toBeDefined();
     });
 
-    it('カスタムフォーマット（webp）で初期化できる', () => {
-      const service = new SectionScreenshotService({ format: 'webp' });
+    it("カスタムフォーマット（webp）で初期化できる", () => {
+      const service = new SectionScreenshotService({ format: "webp" });
       expect(service).toBeDefined();
     });
 
-    it('カスタム品質設定で初期化できる', () => {
+    it("カスタム品質設定で初期化できる", () => {
       const service = new SectionScreenshotService({ quality: 85 });
       expect(service).toBeDefined();
     });
 
-    it('カスタム並列数で初期化できる', () => {
+    it("カスタム並列数で初期化できる", () => {
       const service = new SectionScreenshotService({ maxConcurrency: 3 });
       expect(service).toBeDefined();
     });
@@ -147,7 +143,7 @@ describe('SectionScreenshotService', () => {
   // 単一セクション切り出し（正常系）（5テスト）
   // =====================================================
 
-  describe('extractSection - 正常系', () => {
+  describe("extractSection - 正常系", () => {
     let service: SectionScreenshotService;
     let fullPageBase64: string;
 
@@ -156,77 +152,61 @@ describe('SectionScreenshotService', () => {
       fullPageBase64 = await createFullPageScreenshot({});
     });
 
-    it('単一セクションを切り出せる', async () => {
+    it("単一セクションを切り出せる", async () => {
       const bounds: SectionBounds = {
         startY: 0,
         endY: 600,
         height: 600,
       };
 
-      const result = await service.extractSection(
-        fullPageBase64,
-        bounds,
-        'hero-section'
-      );
+      const result = await service.extractSection(fullPageBase64, bounds, "hero-section");
 
       expect(result).toBeDefined();
-      expect(result.sectionId).toBe('hero-section');
+      expect(result.sectionId).toBe("hero-section");
       expect(result.imageBuffer).toBeInstanceOf(Buffer);
       expect(result.base64).toBeDefined();
-      expect(result.base64.startsWith('data:image/png;base64,')).toBe(true);
+      expect(result.base64.startsWith("data:image/png;base64,")).toBe(true);
     });
 
-    it('切り出したセクションのサイズが正しい', async () => {
+    it("切り出したセクションのサイズが正しい", async () => {
       const bounds: SectionBounds = {
         startY: 600,
         endY: 1200,
         height: 600,
       };
 
-      const result = await service.extractSection(
-        fullPageBase64,
-        bounds,
-        'features-section'
-      );
+      const result = await service.extractSection(fullPageBase64, bounds, "features-section");
 
       expect(result.width).toBe(1440);
       expect(result.height).toBe(600);
     });
 
-    it('境界情報が正しく返される', async () => {
+    it("境界情報が正しく返される", async () => {
       const bounds: SectionBounds = {
         startY: 1200,
         endY: 1800,
         height: 600,
       };
 
-      const result = await service.extractSection(
-        fullPageBase64,
-        bounds,
-        'testimonials-section'
-      );
+      const result = await service.extractSection(fullPageBase64, bounds, "testimonials-section");
 
       expect(result.bounds).toEqual(bounds);
     });
 
-    it('ページ末尾のセクションを切り出せる', async () => {
+    it("ページ末尾のセクションを切り出せる", async () => {
       const bounds: SectionBounds = {
         startY: 2400,
         endY: 3000,
         height: 600,
       };
 
-      const result = await service.extractSection(
-        fullPageBase64,
-        bounds,
-        'footer-section'
-      );
+      const result = await service.extractSection(fullPageBase64, bounds, "footer-section");
 
-      expect(result.sectionId).toBe('footer-section');
+      expect(result.sectionId).toBe("footer-section");
       expect(result.height).toBe(600);
     });
 
-    it('data:image/プレフィックス付きBase64も処理できる', async () => {
+    it("data:image/プレフィックス付きBase64も処理できる", async () => {
       const base64WithPrefix = `data:image/png;base64,${fullPageBase64}`;
       const bounds: SectionBounds = {
         startY: 0,
@@ -234,14 +214,10 @@ describe('SectionScreenshotService', () => {
         height: 600,
       };
 
-      const result = await service.extractSection(
-        base64WithPrefix,
-        bounds,
-        'hero-section'
-      );
+      const result = await service.extractSection(base64WithPrefix, bounds, "hero-section");
 
       expect(result).toBeDefined();
-      expect(result.sectionId).toBe('hero-section');
+      expect(result.sectionId).toBe("hero-section");
     });
   });
 
@@ -249,7 +225,7 @@ describe('SectionScreenshotService', () => {
   // 境界外アクセス（エラー系）（4テスト）
   // =====================================================
 
-  describe('extractSection - 境界外アクセス', () => {
+  describe("extractSection - 境界外アクセス", () => {
     let service: SectionScreenshotService;
     let fullPageBase64: string;
 
@@ -259,26 +235,26 @@ describe('SectionScreenshotService', () => {
       fullPageBase64 = await createFullPageScreenshot({ height: 3000 });
     });
 
-    it('startYが画像の高さを超える場合エラー', async () => {
+    it("startYが画像の高さを超える場合エラー", async () => {
       const bounds: SectionBounds = {
         startY: 3500, // 画像高さ3000を超過
         endY: 4000,
         height: 500,
       };
 
-      await expect(
-        service.extractSection(fullPageBase64, bounds, 'out-of-bounds')
-      ).rejects.toThrow(SectionScreenshotServiceError);
+      await expect(service.extractSection(fullPageBase64, bounds, "out-of-bounds")).rejects.toThrow(
+        SectionScreenshotServiceError
+      );
 
       try {
-        await service.extractSection(fullPageBase64, bounds, 'out-of-bounds');
+        await service.extractSection(fullPageBase64, bounds, "out-of-bounds");
       } catch (error) {
         expect(error).toBeInstanceOf(SectionScreenshotServiceError);
-        expect((error as SectionScreenshotServiceError).code).toBe('OUT_OF_BOUNDS');
+        expect((error as SectionScreenshotServiceError).code).toBe("OUT_OF_BOUNDS");
       }
     });
 
-    it('endYが画像の高さを超える場合エラー', async () => {
+    it("endYが画像の高さを超える場合エラー", async () => {
       const bounds: SectionBounds = {
         startY: 2800,
         endY: 3500, // 画像高さ3000を超過
@@ -286,18 +262,18 @@ describe('SectionScreenshotService', () => {
       };
 
       await expect(
-        service.extractSection(fullPageBase64, bounds, 'partial-out-of-bounds')
+        service.extractSection(fullPageBase64, bounds, "partial-out-of-bounds")
       ).rejects.toThrow(SectionScreenshotServiceError);
 
       try {
-        await service.extractSection(fullPageBase64, bounds, 'partial-out-of-bounds');
+        await service.extractSection(fullPageBase64, bounds, "partial-out-of-bounds");
       } catch (error) {
         expect(error).toBeInstanceOf(SectionScreenshotServiceError);
-        expect((error as SectionScreenshotServiceError).code).toBe('OUT_OF_BOUNDS');
+        expect((error as SectionScreenshotServiceError).code).toBe("OUT_OF_BOUNDS");
       }
     });
 
-    it('startYが負の値の場合エラー', async () => {
+    it("startYが負の値の場合エラー", async () => {
       const bounds: SectionBounds = {
         startY: -100,
         endY: 500,
@@ -305,33 +281,33 @@ describe('SectionScreenshotService', () => {
       };
 
       await expect(
-        service.extractSection(fullPageBase64, bounds, 'negative-start')
+        service.extractSection(fullPageBase64, bounds, "negative-start")
       ).rejects.toThrow(SectionScreenshotServiceError);
 
       try {
-        await service.extractSection(fullPageBase64, bounds, 'negative-start');
+        await service.extractSection(fullPageBase64, bounds, "negative-start");
       } catch (error) {
         expect(error).toBeInstanceOf(SectionScreenshotServiceError);
-        expect((error as SectionScreenshotServiceError).code).toBe('INVALID_BOUNDS');
+        expect((error as SectionScreenshotServiceError).code).toBe("INVALID_BOUNDS");
       }
     });
 
-    it('endYがstartY以下の場合エラー', async () => {
+    it("endYがstartY以下の場合エラー", async () => {
       const bounds: SectionBounds = {
         startY: 600,
         endY: 600, // startYと同じ
         height: 0,
       };
 
-      await expect(
-        service.extractSection(fullPageBase64, bounds, 'invalid-range')
-      ).rejects.toThrow(SectionScreenshotServiceError);
+      await expect(service.extractSection(fullPageBase64, bounds, "invalid-range")).rejects.toThrow(
+        SectionScreenshotServiceError
+      );
 
       try {
-        await service.extractSection(fullPageBase64, bounds, 'invalid-range');
+        await service.extractSection(fullPageBase64, bounds, "invalid-range");
       } catch (error) {
         expect(error).toBeInstanceOf(SectionScreenshotServiceError);
-        expect((error as SectionScreenshotServiceError).code).toBe('INVALID_BOUNDS');
+        expect((error as SectionScreenshotServiceError).code).toBe("INVALID_BOUNDS");
       }
     });
   });
@@ -340,7 +316,7 @@ describe('SectionScreenshotService', () => {
   // 複数セクション並列切り出し（5テスト）
   // =====================================================
 
-  describe('extractMultipleSections - 並列処理', () => {
+  describe("extractMultipleSections - 並列処理", () => {
     let service: SectionScreenshotService;
     let fullPageBase64: string;
 
@@ -349,74 +325,62 @@ describe('SectionScreenshotService', () => {
       fullPageBase64 = await createFullPageScreenshot({});
     });
 
-    it('複数セクションを並列で切り出せる', async () => {
+    it("複数セクションを並列で切り出せる", async () => {
       const sections = [
-        { id: 'hero', bounds: { startY: 0, endY: 600, height: 600 } },
-        { id: 'features', bounds: { startY: 600, endY: 1200, height: 600 } },
-        { id: 'testimonials', bounds: { startY: 1200, endY: 1800, height: 600 } },
+        { id: "hero", bounds: { startY: 0, endY: 600, height: 600 } },
+        { id: "features", bounds: { startY: 600, endY: 1200, height: 600 } },
+        { id: "testimonials", bounds: { startY: 1200, endY: 1800, height: 600 } },
       ];
 
-      const result = await service.extractMultipleSections(
-        fullPageBase64,
-        sections
-      );
+      const result = await service.extractMultipleSections(fullPageBase64, sections);
 
       expect(result.successes).toHaveLength(3);
       expect(result.errors).toHaveLength(0);
     });
 
-    it('成功した切り出し結果のIDが正しい', async () => {
+    it("成功した切り出し結果のIDが正しい", async () => {
       const sections = [
-        { id: 'section-0', bounds: { startY: 0, endY: 600, height: 600 } },
-        { id: 'section-1', bounds: { startY: 600, endY: 1200, height: 600 } },
+        { id: "section-0", bounds: { startY: 0, endY: 600, height: 600 } },
+        { id: "section-1", bounds: { startY: 600, endY: 1200, height: 600 } },
       ];
 
-      const result = await service.extractMultipleSections(
-        fullPageBase64,
-        sections
-      );
+      const result = await service.extractMultipleSections(fullPageBase64, sections);
 
       const ids = result.successes.map((s) => s.sectionId);
-      expect(ids).toContain('section-0');
-      expect(ids).toContain('section-1');
+      expect(ids).toContain("section-0");
+      expect(ids).toContain("section-1");
     });
 
-    it('一部セクションが失敗しても他のセクションは成功する', async () => {
+    it("一部セクションが失敗しても他のセクションは成功する", async () => {
       const sections = [
-        { id: 'valid-1', bounds: { startY: 0, endY: 600, height: 600 } },
-        { id: 'invalid', bounds: { startY: 5000, endY: 5600, height: 600 } }, // 境界外
-        { id: 'valid-2', bounds: { startY: 600, endY: 1200, height: 600 } },
+        { id: "valid-1", bounds: { startY: 0, endY: 600, height: 600 } },
+        { id: "invalid", bounds: { startY: 5000, endY: 5600, height: 600 } }, // 境界外
+        { id: "valid-2", bounds: { startY: 600, endY: 1200, height: 600 } },
       ];
 
-      const result = await service.extractMultipleSections(
-        fullPageBase64,
-        sections
-      );
+      const result = await service.extractMultipleSections(fullPageBase64, sections);
 
       expect(result.successes).toHaveLength(2);
       expect(result.errors).toHaveLength(1);
-      expect(result.errors[0]?.sectionId).toBe('invalid');
-      expect(result.errors[0]?.errorCode).toBe('OUT_OF_BOUNDS');
+      expect(result.errors[0]?.sectionId).toBe("invalid");
+      expect(result.errors[0]?.errorCode).toBe("OUT_OF_BOUNDS");
     });
 
-    it('空のセクション配列で空結果を返す', async () => {
+    it("空のセクション配列で空結果を返す", async () => {
       const result = await service.extractMultipleSections(fullPageBase64, []);
 
       expect(result.successes).toHaveLength(0);
       expect(result.errors).toHaveLength(0);
     });
 
-    it('5件以上のセクションでもバッチ処理が動作する', async () => {
+    it("5件以上のセクションでもバッチ処理が動作する", async () => {
       // 10セクション生成
       const sections = Array.from({ length: 10 }, (_, i) => ({
         id: `section-${i}`,
         bounds: { startY: i * 300, endY: (i + 1) * 300, height: 300 },
       }));
 
-      const result = await service.extractMultipleSections(
-        fullPageBase64,
-        sections
-      );
+      const result = await service.extractMultipleSections(fullPageBase64, sections);
 
       expect(result.successes).toHaveLength(10);
       expect(result.errors).toHaveLength(0);
@@ -427,33 +391,33 @@ describe('SectionScreenshotService', () => {
   // 空/無効Base64入力（3テスト）
   // =====================================================
 
-  describe('extractSection - 無効入力', () => {
+  describe("extractSection - 無効入力", () => {
     let service: SectionScreenshotService;
 
     beforeEach(() => {
       service = new SectionScreenshotService();
     });
 
-    it('空のBase64文字列でエラー', async () => {
+    it("空のBase64文字列でエラー", async () => {
       const bounds: SectionBounds = {
         startY: 0,
         endY: 600,
         height: 600,
       };
 
-      await expect(
-        service.extractSection('', bounds, 'empty-input')
-      ).rejects.toThrow(SectionScreenshotServiceError);
+      await expect(service.extractSection("", bounds, "empty-input")).rejects.toThrow(
+        SectionScreenshotServiceError
+      );
 
       try {
-        await service.extractSection('', bounds, 'empty-input');
+        await service.extractSection("", bounds, "empty-input");
       } catch (error) {
         expect(error).toBeInstanceOf(SectionScreenshotServiceError);
-        expect((error as SectionScreenshotServiceError).code).toBe('INVALID_INPUT');
+        expect((error as SectionScreenshotServiceError).code).toBe("INVALID_INPUT");
       }
     });
 
-    it('無効なBase64文字列でエラー', async () => {
+    it("無効なBase64文字列でエラー", async () => {
       const bounds: SectionBounds = {
         startY: 0,
         endY: 600,
@@ -461,21 +425,21 @@ describe('SectionScreenshotService', () => {
       };
 
       // 画像ではないBase64
-      const invalidBase64 = Buffer.from('not an image').toString('base64');
+      const invalidBase64 = Buffer.from("not an image").toString("base64");
 
-      await expect(
-        service.extractSection(invalidBase64, bounds, 'invalid-image')
-      ).rejects.toThrow(SectionScreenshotServiceError);
+      await expect(service.extractSection(invalidBase64, bounds, "invalid-image")).rejects.toThrow(
+        SectionScreenshotServiceError
+      );
 
       try {
-        await service.extractSection(invalidBase64, bounds, 'invalid-image');
+        await service.extractSection(invalidBase64, bounds, "invalid-image");
       } catch (error) {
         expect(error).toBeInstanceOf(SectionScreenshotServiceError);
-        expect((error as SectionScreenshotServiceError).code).toBe('IMAGE_PROCESSING_ERROR');
+        expect((error as SectionScreenshotServiceError).code).toBe("IMAGE_PROCESSING_ERROR");
       }
     });
 
-    it('data:image/プレフィックスのみの場合エラー', async () => {
+    it("data:image/プレフィックスのみの場合エラー", async () => {
       const bounds: SectionBounds = {
         startY: 0,
         endY: 600,
@@ -483,14 +447,14 @@ describe('SectionScreenshotService', () => {
       };
 
       await expect(
-        service.extractSection('data:image/png;base64,', bounds, 'empty-after-prefix')
+        service.extractSection("data:image/png;base64,", bounds, "empty-after-prefix")
       ).rejects.toThrow(SectionScreenshotServiceError);
 
       try {
-        await service.extractSection('data:image/png;base64,', bounds, 'empty-after-prefix');
+        await service.extractSection("data:image/png;base64,", bounds, "empty-after-prefix");
       } catch (error) {
         expect(error).toBeInstanceOf(SectionScreenshotServiceError);
-        expect((error as SectionScreenshotServiceError).code).toBe('INVALID_INPUT');
+        expect((error as SectionScreenshotServiceError).code).toBe("INVALID_INPUT");
       }
     });
   });
@@ -499,50 +463,38 @@ describe('SectionScreenshotService', () => {
   // 出力フォーマット（3テスト）
   // =====================================================
 
-  describe('extractSection - 出力フォーマット', () => {
+  describe("extractSection - 出力フォーマット", () => {
     let fullPageBase64: string;
 
     beforeEach(async () => {
       fullPageBase64 = await createFullPageScreenshot({});
     });
 
-    it('PNG形式で出力できる', async () => {
-      const service = new SectionScreenshotService({ format: 'png' });
+    it("PNG形式で出力できる", async () => {
+      const service = new SectionScreenshotService({ format: "png" });
       const bounds: SectionBounds = { startY: 0, endY: 600, height: 600 };
 
-      const result = await service.extractSection(
-        fullPageBase64,
-        bounds,
-        'png-section'
-      );
+      const result = await service.extractSection(fullPageBase64, bounds, "png-section");
 
-      expect(result.base64.startsWith('data:image/png;base64,')).toBe(true);
+      expect(result.base64.startsWith("data:image/png;base64,")).toBe(true);
     });
 
-    it('JPEG形式で出力できる', async () => {
-      const service = new SectionScreenshotService({ format: 'jpeg' });
+    it("JPEG形式で出力できる", async () => {
+      const service = new SectionScreenshotService({ format: "jpeg" });
       const bounds: SectionBounds = { startY: 0, endY: 600, height: 600 };
 
-      const result = await service.extractSection(
-        fullPageBase64,
-        bounds,
-        'jpeg-section'
-      );
+      const result = await service.extractSection(fullPageBase64, bounds, "jpeg-section");
 
-      expect(result.base64.startsWith('data:image/jpeg;base64,')).toBe(true);
+      expect(result.base64.startsWith("data:image/jpeg;base64,")).toBe(true);
     });
 
-    it('WebP形式で出力できる', async () => {
-      const service = new SectionScreenshotService({ format: 'webp' });
+    it("WebP形式で出力できる", async () => {
+      const service = new SectionScreenshotService({ format: "webp" });
       const bounds: SectionBounds = { startY: 0, endY: 600, height: 600 };
 
-      const result = await service.extractSection(
-        fullPageBase64,
-        bounds,
-        'webp-section'
-      );
+      const result = await service.extractSection(fullPageBase64, bounds, "webp-section");
 
-      expect(result.base64.startsWith('data:image/webp;base64,')).toBe(true);
+      expect(result.base64.startsWith("data:image/webp;base64,")).toBe(true);
     });
   });
 
@@ -550,20 +502,20 @@ describe('SectionScreenshotService', () => {
   // 品質オプション（2テスト）
   // =====================================================
 
-  describe('extractSection - 品質オプション', () => {
+  describe("extractSection - 品質オプション", () => {
     let fullPageBase64: string;
 
     beforeEach(async () => {
       fullPageBase64 = await createFullPageScreenshot({});
     });
 
-    it('低品質JPEG出力のファイルサイズが小さい', async () => {
+    it("低品質JPEG出力のファイルサイズが小さい", async () => {
       const lowQualityService = new SectionScreenshotService({
-        format: 'jpeg',
+        format: "jpeg",
         quality: 30,
       });
       const highQualityService = new SectionScreenshotService({
-        format: 'jpeg',
+        format: "jpeg",
         quality: 95,
       });
 
@@ -572,33 +524,28 @@ describe('SectionScreenshotService', () => {
       const lowQuality = await lowQualityService.extractSection(
         fullPageBase64,
         bounds,
-        'low-quality'
+        "low-quality"
       );
       const highQuality = await highQualityService.extractSection(
         fullPageBase64,
         bounds,
-        'high-quality'
+        "high-quality"
       );
 
       // 低品質の方がファイルサイズが小さいはず
-      expect(lowQuality.imageBuffer.length).toBeLessThan(
-        highQuality.imageBuffer.length
-      );
+      expect(lowQuality.imageBuffer.length).toBeLessThan(highQuality.imageBuffer.length);
     });
 
-    it('呼び出し時のオプションでフォーマットを上書きできる', async () => {
-      const service = new SectionScreenshotService({ format: 'png' });
+    it("呼び出し時のオプションでフォーマットを上書きできる", async () => {
+      const service = new SectionScreenshotService({ format: "png" });
       const bounds: SectionBounds = { startY: 0, endY: 600, height: 600 };
 
       // 呼び出し時にJPEGを指定
-      const result = await service.extractSection(
-        fullPageBase64,
-        bounds,
-        'override-format',
-        { format: 'jpeg' }
-      );
+      const result = await service.extractSection(fullPageBase64, bounds, "override-format", {
+        format: "jpeg",
+      });
 
-      expect(result.base64.startsWith('data:image/jpeg;base64,')).toBe(true);
+      expect(result.base64.startsWith("data:image/jpeg;base64,")).toBe(true);
     });
   });
 
@@ -606,7 +553,7 @@ describe('SectionScreenshotService', () => {
   // 高さの不整合（2テスト）
   // =====================================================
 
-  describe('extractSection - 高さの不整合', () => {
+  describe("extractSection - 高さの不整合", () => {
     let service: SectionScreenshotService;
     let fullPageBase64: string;
 
@@ -615,7 +562,7 @@ describe('SectionScreenshotService', () => {
       fullPageBase64 = await createFullPageScreenshot({});
     });
 
-    it('heightがendY-startYと一致しなくてもendY-startYで切り出す', async () => {
+    it("heightがendY-startYと一致しなくてもendY-startYで切り出す", async () => {
       // heightは500だが、endY-startYは600
       const bounds: SectionBounds = {
         startY: 0,
@@ -623,17 +570,13 @@ describe('SectionScreenshotService', () => {
         height: 500, // 不一致
       };
 
-      const result = await service.extractSection(
-        fullPageBase64,
-        bounds,
-        'mismatched-height'
-      );
+      const result = await service.extractSection(fullPageBase64, bounds, "mismatched-height");
 
       // endY - startY = 600 で切り出される
       expect(result.height).toBe(600);
     });
 
-    it('heightが0でもendY>startYなら切り出せる', async () => {
+    it("heightが0でもendY>startYなら切り出せる", async () => {
       // これはエラーになるべき（height <= 0）
       const bounds: SectionBounds = {
         startY: 0,
@@ -641,9 +584,9 @@ describe('SectionScreenshotService', () => {
         height: 0, // 無効
       };
 
-      await expect(
-        service.extractSection(fullPageBase64, bounds, 'zero-height')
-      ).rejects.toThrow(SectionScreenshotServiceError);
+      await expect(service.extractSection(fullPageBase64, bounds, "zero-height")).rejects.toThrow(
+        SectionScreenshotServiceError
+      );
     });
   });
 });

@@ -10,49 +10,43 @@
  * @module tools/motion/di-factories
  */
 
-import type { Page } from 'playwright';
-import { logger, isDevelopment } from '../../utils/logger';
-import type { MotionPattern, LighthouseMetrics } from './schemas';
-import type { MotionPatternPersistenceService } from '../../services/motion-persistence.service';
-import { getMotionPersistenceService } from '../../services/motion-persistence.service';
-import type {
-  RecordOptions,
-  RecordResult,
-} from '../../services/page/video-recorder.service';
-import { VideoRecorderService } from '../../services/page/video-recorder.service';
+import type { Page } from "playwright";
+import { logger, isDevelopment } from "../../utils/logger";
+import type { MotionPattern, LighthouseMetrics } from "./schemas";
+import type { MotionPatternPersistenceService } from "../../services/motion-persistence.service";
+import { getMotionPersistenceService } from "../../services/motion-persistence.service";
+import type { RecordOptions, RecordResult } from "../../services/page/video-recorder.service";
+import { VideoRecorderService } from "../../services/page/video-recorder.service";
 import type {
   ExtractOptions,
   ExtractResult,
   AnalyzeOptions,
   AnalyzeResult,
-} from '../../services/page/frame-analyzer.service';
-import { FrameAnalyzerService } from '../../services/page/frame-analyzer.service';
+} from "../../services/page/frame-analyzer.service";
+import { FrameAnalyzerService } from "../../services/page/frame-analyzer.service";
 import type {
   RuntimeAnimationResult,
   RuntimeAnimationOptions,
-} from '../../services/page/runtime-animation-detector.service';
-import { RuntimeAnimationDetectorService } from '../../services/page/runtime-animation-detector.service';
+} from "../../services/page/runtime-animation-detector.service";
+import { RuntimeAnimationDetectorService } from "../../services/page/runtime-animation-detector.service";
 import type {
   FrameCaptureServiceOptions,
   FrameCaptureServiceResult,
-} from '../../services/motion/frame-capture.service';
-import { createFrameCaptureService } from '../../services/motion/frame-capture.service';
-import { createFrameImageAnalyzerAdapter } from '../../services/motion/frame-image-analyzer.adapter';
+} from "../../services/motion/frame-capture.service";
+import { createFrameCaptureService } from "../../services/motion/frame-capture.service";
+import { createFrameImageAnalyzerAdapter } from "../../services/motion/frame-image-analyzer.adapter";
 import {
   getFrameEmbeddingService,
   type SaveFrameAnalysisInput,
   type SavedFrameAnalysisResult,
-} from '../../services/motion/frame-embedding.service';
+} from "../../services/motion/frame-embedding.service";
 import type {
   JSAnimationResult,
   JSAnimationDetectOptions,
-} from '../../services/motion/js-animation-detector';
-import { createJSAnimationDetector } from '../../services/motion/js-animation-detector';
-import type {
-  IWebPageService,
-  FindOrCreateResult,
-} from '../../services/web-page.service';
-import { createWebPageService } from '../../services/web-page.service';
+} from "../../services/motion/js-animation-detector";
+import { createJSAnimationDetector } from "../../services/motion/js-animation-detector";
+import type { IWebPageService, FindOrCreateResult } from "../../services/web-page.service";
+import { createWebPageService } from "../../services/web-page.service";
 
 // =====================================================
 // 型定義
@@ -73,7 +67,7 @@ export interface DetectionResult {
  */
 export interface MotionWarning {
   code: string;
-  severity: 'info' | 'warning' | 'error';
+  severity: "info" | "warning" | "error";
   message: string;
   context?: Record<string, unknown> | undefined;
   suggestion?: string | undefined;
@@ -122,8 +116,14 @@ export interface DetectOptions {
  * モーション検出サービスインターフェース
  */
 export interface IMotionDetectService {
-  getPageById?: (id: string) => Promise<{ id: string; htmlContent: string; cssContent?: string } | null>;
-  detect?: (html: string, css?: string, options?: DetectOptions) => DetectionResult | Promise<DetectionResult>;
+  getPageById?: (
+    id: string
+  ) => Promise<{ id: string; htmlContent: string; cssContent?: string } | null>;
+  detect?: (
+    html: string,
+    css?: string,
+    options?: DetectOptions
+  ) => DetectionResult | Promise<DetectionResult>;
 }
 
 /**
@@ -173,11 +173,14 @@ export interface LighthouseDetailedResult {
     performance_score: number;
     fetched_at: string;
   };
-  audits: Record<string, {
-    score: number;
-    numericValue: number;
-    displayValue: string;
-  }>;
+  audits: Record<
+    string,
+    {
+      score: number;
+      numericValue: number;
+      displayValue: string;
+    }
+  >;
   processingTimeMs: number;
   rawReport: unknown | null;
 }
@@ -186,11 +189,14 @@ export interface LighthouseDetailedResult {
  * LighthouseDetectorServiceインターフェース
  */
 export interface ILighthouseDetectorService {
-  analyze: (url: string, options?: {
-    categories?: string[];
-    throttling?: boolean;
-    timeout?: number;
-  }) => Promise<LighthouseDetailedResult>;
+  analyze: (
+    url: string,
+    options?: {
+      categories?: string[];
+      throttling?: boolean;
+      timeout?: number;
+    }
+  ) => Promise<LighthouseDetailedResult>;
   isAvailable: () => Promise<boolean>;
 }
 
@@ -206,7 +212,7 @@ export interface IAnimationMetricsCollector {
       patternId: string;
       patternName: string;
       score: number;
-      impactLevel: 'high' | 'medium' | 'low';
+      impactLevel: "high" | "medium" | "low";
       factors: string[];
     }>;
     overallScore: number;
@@ -218,7 +224,7 @@ export interface IAnimationMetricsCollector {
     }>;
     layoutTriggeringProperties: string[];
     recommendations: Array<{
-      priority: 'high' | 'medium' | 'low';
+      priority: "high" | "medium" | "low";
       category: string;
       description: string;
       affectedPatternIds: string[];
@@ -258,7 +264,11 @@ export interface FrameImageAnalysisOutput {
     duration: number;
     avgDiff: string;
     peakDiff: string;
-    animationType: 'micro-interaction' | 'fade/slide transition' | 'scroll-linked animation' | 'long-form reveal';
+    animationType:
+      | "micro-interaction"
+      | "fade/slide transition"
+      | "scroll-linked animation"
+      | "long-form reveal";
   }>;
   layoutShifts: Array<{
     frameRange: string;
@@ -276,7 +286,7 @@ export interface FrameImageAnalysisOutput {
     dx: number;
     dy: number;
     magnitude: string;
-    direction: 'up' | 'down' | 'left' | 'right' | 'stationary';
+    direction: "up" | "down" | "left" | "right" | "stationary";
     angle: string;
   }>;
 }
@@ -285,21 +295,24 @@ export interface FrameImageAnalysisOutput {
  * FrameImageAnalysisServiceインターフェース
  */
 export interface IFrameImageAnalysisService {
-  analyze: (frameDir: string, options?: {
-    sampleInterval?: number;
-    diffThreshold?: number;
-    clsThreshold?: number;
-    motionThreshold?: number;
-    outputDiffImages?: boolean;
-    parallel?: boolean;
-    scrollPxPerFrame?: number;
-    /**
-     * 分析対象のフレーム数上限
-     * FrameCaptureServiceからキャプチャされたフレーム数を渡すことで、
-     * 古いフレームと混在することを防ぐ
-     */
-    maxFrames?: number;
-  }) => Promise<FrameImageAnalysisOutput>;
+  analyze: (
+    frameDir: string,
+    options?: {
+      sampleInterval?: number;
+      diffThreshold?: number;
+      clsThreshold?: number;
+      motionThreshold?: number;
+      outputDiffImages?: boolean;
+      parallel?: boolean;
+      scrollPxPerFrame?: number;
+      /**
+       * 分析対象のフレーム数上限
+       * FrameCaptureServiceからキャプチャされたフレーム数を渡すことで、
+       * 古いフレームと混在することを防ぐ
+       */
+      maxFrames?: number;
+    }
+  ) => Promise<FrameImageAnalysisOutput>;
   isAvailable: () => boolean;
   dispose: () => Promise<void>;
 }
@@ -368,7 +381,7 @@ export function setMotionPersistenceServiceFactory(
 ): void {
   persistenceServiceFactory = factory;
   if (isDevelopment()) {
-    logger.info('[DI] motion.detect persistence service factory SET', {
+    logger.info("[DI] motion.detect persistence service factory SET", {
       factoryExists: factory !== null,
     });
   }
@@ -383,15 +396,15 @@ export function getPersistenceService(): MotionPatternPersistenceService | null 
     try {
       const service = persistenceServiceFactory();
       if (isDevelopment()) {
-        logger.debug('[DI] motion.detect factory returned service', {
+        logger.debug("[DI] motion.detect factory returned service", {
           isAvailable: service?.isAvailable?.() ?? false,
         });
       }
       return service;
     } catch (error) {
       if (isDevelopment()) {
-        logger.error('[DI] motion.detect factory error', {
-          error: error instanceof Error ? error.message : 'Unknown error',
+        logger.error("[DI] motion.detect factory error", {
+          error: error instanceof Error ? error.message : "Unknown error",
         });
       }
       return null;
@@ -405,7 +418,7 @@ export function getPersistenceService(): MotionPatternPersistenceService | null 
     }
   } catch {
     if (isDevelopment()) {
-      logger.debug('[DI] motion.detect persistence service not available');
+      logger.debug("[DI] motion.detect persistence service not available");
     }
   }
   return null;
@@ -422,7 +435,7 @@ export function getPersistenceServiceFactoryExists(): boolean {
 export function setVideoRecorderServiceFactory(factory: () => IVideoRecorderService): void {
   videoRecorderServiceFactory = factory;
   if (isDevelopment()) {
-    logger.info('[DI] motion.detect video recorder factory SET');
+    logger.info("[DI] motion.detect video recorder factory SET");
   }
 }
 
@@ -444,7 +457,7 @@ export function getVideoRecorderService(): IVideoRecorderService {
 export function setFrameAnalyzerServiceFactory(factory: () => IFrameAnalyzerService): void {
   frameAnalyzerServiceFactory = factory;
   if (isDevelopment()) {
-    logger.info('[DI] motion.detect frame analyzer factory SET');
+    logger.info("[DI] motion.detect frame analyzer factory SET");
   }
 }
 
@@ -468,7 +481,7 @@ export function setRuntimeAnimationDetectorFactory(
 ): void {
   runtimeAnimationDetectorFactory = factory;
   if (isDevelopment()) {
-    logger.info('[DI] motion.detect runtime animation detector factory SET');
+    logger.info("[DI] motion.detect runtime animation detector factory SET");
   }
 }
 
@@ -490,7 +503,7 @@ export function getRuntimeAnimationDetectorService(): IRuntimeAnimationDetectorS
 export function setFrameCaptureServiceFactory(factory: () => IFrameCaptureService): void {
   frameCaptureServiceFactory = factory;
   if (isDevelopment()) {
-    logger.info('[DI] motion.detect frame capture service factory SET');
+    logger.info("[DI] motion.detect frame capture service factory SET");
   }
 }
 
@@ -514,7 +527,7 @@ export function setLighthouseDetectorServiceFactory(
 ): void {
   lighthouseDetectorServiceFactory = factory;
   if (isDevelopment()) {
-    logger.info('[DI] motion.detect lighthouse detector factory SET');
+    logger.info("[DI] motion.detect lighthouse detector factory SET");
   }
 }
 
@@ -538,7 +551,7 @@ export function setAnimationMetricsCollectorFactory(
 ): void {
   animationMetricsCollectorFactory = factory;
   if (isDevelopment()) {
-    logger.info('[DI] motion.detect animation metrics collector factory SET');
+    logger.info("[DI] motion.detect animation metrics collector factory SET");
   }
 }
 
@@ -562,7 +575,7 @@ export function setFrameImageAnalysisServiceFactory(
 ): void {
   frameImageAnalysisServiceFactory = factory;
   if (isDevelopment()) {
-    logger.info('[DI] motion.detect frame image analysis factory SET');
+    logger.info("[DI] motion.detect frame image analysis factory SET");
   }
 }
 
@@ -628,12 +641,10 @@ export function getFrameImageAnalysisService(): IFrameImageAnalysisService | nul
 // Frame Embedding Service
 // =====================================================
 
-export function setFrameEmbeddingServiceFactory(
-  factory: () => IFrameEmbeddingService
-): void {
+export function setFrameEmbeddingServiceFactory(factory: () => IFrameEmbeddingService): void {
   frameEmbeddingServiceFactory = factory;
   if (isDevelopment()) {
-    logger.info('[DI] motion.detect frame embedding service factory SET');
+    logger.info("[DI] motion.detect frame embedding service factory SET");
   }
 }
 
@@ -654,7 +665,7 @@ export function getFrameEmbeddingServiceInstance(): IFrameEmbeddingService | nul
     }
   } catch {
     if (isDevelopment()) {
-      logger.debug('[DI] motion.detect frame embedding service not available');
+      logger.debug("[DI] motion.detect frame embedding service not available");
     }
   }
   return null;
@@ -664,12 +675,10 @@ export function getFrameEmbeddingServiceInstance(): IFrameEmbeddingService | nul
 // JS Animation Detector Service (v0.1.0)
 // =====================================================
 
-export function setJSAnimationDetectorFactory(
-  factory: () => IJSAnimationDetectorService
-): void {
+export function setJSAnimationDetectorFactory(factory: () => IJSAnimationDetectorService): void {
   jsAnimationDetectorFactory = factory;
   if (isDevelopment()) {
-    logger.info('[DI] motion.detect JS animation detector factory SET');
+    logger.info("[DI] motion.detect JS animation detector factory SET");
   }
 }
 
@@ -693,7 +702,7 @@ export function getJSAnimationDetectorService(): IJSAnimationDetectorService {
 export function setWebPageServiceFactory(factory: () => IWebPageService): void {
   webPageServiceFactory = factory;
   if (isDevelopment()) {
-    logger.info('[DI] motion.detect WebPage service factory SET');
+    logger.info("[DI] motion.detect WebPage service factory SET");
   }
 }
 
@@ -723,10 +732,7 @@ let jsAnimationPrismaClientFactory: (() => IJSAnimationPersistencePrismaClient) 
  */
 export interface IJSAnimationPersistencePrismaClient {
   jSAnimationPattern: {
-    createMany: (args: {
-      data: unknown[];
-      skipDuplicates?: boolean;
-    }) => Promise<{ count: number }>;
+    createMany: (args: { data: unknown[]; skipDuplicates?: boolean }) => Promise<{ count: number }>;
     deleteMany: (args: { where: { webPageId: string } }) => Promise<{ count: number }>;
     findMany: (args: { where: { webPageId: string } }) => Promise<Array<{ id: string }>>;
   };
@@ -745,7 +751,7 @@ export function setJSAnimationPersistencePrismaClientFactory(
 ): void {
   jsAnimationPrismaClientFactory = factory;
   if (isDevelopment()) {
-    logger.info('[DI] motion.detect JS animation persistence prisma factory SET');
+    logger.info("[DI] motion.detect JS animation persistence prisma factory SET");
   }
 }
 

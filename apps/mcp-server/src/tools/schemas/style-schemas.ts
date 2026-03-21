@@ -8,7 +8,7 @@
  * @module tools/schemas/style-schemas
  */
 
-import { z } from 'zod';
+import { z } from "zod";
 
 // =============================================================================
 // パレットモード
@@ -20,7 +20,7 @@ import { z } from 'zod';
  * - dark: ダークモード専用
  * - both: 両モード対応
  */
-export const paletteModeSchema = z.enum(['light', 'dark', 'both']);
+export const paletteModeSchema = z.enum(["light", "dark", "both"]);
 
 // =============================================================================
 // style.get_palette 入力スキーマ
@@ -37,7 +37,7 @@ export const paletteModeSchema = z.enum(['light', 'dark', 'both']);
  * @property include_analogous - 類似色グラデーションを含めるか
  */
 export const gradientAutoGenerateOptionsSchema = z.object({
-  type: z.enum(['linear', 'radial']).optional().default('linear'),
+  type: z.enum(["linear", "radial"]).optional().default("linear"),
   angle: z.number().min(0).max(360).optional().default(135),
   token_pairs: z.array(z.tuple([z.string(), z.string()])).optional(),
   include_complementary: z.boolean().optional().default(false),
@@ -60,15 +60,9 @@ export type GradientAutoGenerateOptions = z.infer<typeof gradientAutoGenerateOpt
  * @property gradient_options - グラデーション自動生成オプション
  */
 export const styleGetPaletteInputSchema = z.object({
-  id: z
-    .string()
-    .uuid({ message: '有効なUUID形式のIDを指定してください' })
-    .optional(),
-  brand_name: z
-    .string()
-    .max(200, { message: 'ブランド名は200文字以下にしてください' })
-    .optional(),
-  mode: paletteModeSchema.optional().default('both'),
+  id: z.string().uuid({ message: "有効なUUID形式のIDを指定してください" }).optional(),
+  brand_name: z.string().max(200, { message: "ブランド名は200文字以下にしてください" }).optional(),
+  mode: paletteModeSchema.optional().default("both"),
   include_gradients: z.boolean().optional().default(true),
   auto_generate_gradients: z.boolean().optional().default(false),
   gradient_options: gradientAutoGenerateOptionsSchema.optional(),

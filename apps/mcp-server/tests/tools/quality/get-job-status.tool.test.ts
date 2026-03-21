@@ -14,50 +14,48 @@
  * @module tests/tools/quality/get-job-status.tool.test.ts
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach, type Mock } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach, type Mock } from "vitest";
 
 // モック対象
-vi.mock('../../../src/config/redis', () => ({
+vi.mock("../../../src/config/redis", () => ({
   isRedisAvailable: vi.fn(),
 }));
 
-vi.mock('../../../src/queues/batch-quality-queue', () => ({
+vi.mock("../../../src/queues/batch-quality-queue", () => ({
   createBatchQualityQueue: vi.fn(),
   getBatchQualityJobStatus: vi.fn(),
   closeBatchQualityQueue: vi.fn(),
 }));
 
-vi.mock('../../../src/utils/mcp-response', () => ({
-  generateRequestId: vi.fn(() => 'test-request-id-quality-12345'),
-  createErrorResponseWithRequestId: vi.fn(
-    (code: string, message: string, requestId: string) => ({
-      success: false,
-      error: { code, message },
-      metadata: { request_id: requestId },
-    })
-  ),
+vi.mock("../../../src/utils/mcp-response", () => ({
+  generateRequestId: vi.fn(() => "test-request-id-quality-12345"),
+  createErrorResponseWithRequestId: vi.fn((code: string, message: string, requestId: string) => ({
+    success: false,
+    error: { code, message },
+    metadata: { request_id: requestId },
+  })),
 }));
 
 // batch-evaluate.toolからのLRUストア関数をモック
-vi.mock('../../../src/tools/quality/batch-evaluate.tool', () => ({
+vi.mock("../../../src/tools/quality/batch-evaluate.tool", () => ({
   getBatchJob: vi.fn(),
 }));
 
 // インポート
-import { isRedisAvailable } from '../../../src/config/redis';
+import { isRedisAvailable } from "../../../src/config/redis";
 import {
   createBatchQualityQueue,
   getBatchQualityJobStatus,
   closeBatchQualityQueue,
-} from '../../../src/queues/batch-quality-queue';
+} from "../../../src/queues/batch-quality-queue";
 import {
   qualityGetJobStatusHandler,
   GET_QUALITY_JOB_STATUS_ERROR_CODES,
-} from '../../../src/tools/quality/get-job-status.tool';
-import { getBatchJob } from '../../../src/tools/quality/batch-evaluate.tool';
-import { generateRequestId } from '../../../src/utils/mcp-response';
+} from "../../../src/tools/quality/get-job-status.tool";
+import { getBatchJob } from "../../../src/tools/quality/batch-evaluate.tool";
+import { generateRequestId } from "../../../src/utils/mcp-response";
 
-describe('quality.getJobStatus MCPツール', () => {
+describe("quality.getJobStatus MCPツール", () => {
   // テスト用のモックキュー
   const mockQueue = {
     getJob: vi.fn(),
@@ -73,13 +71,13 @@ describe('quality.getJobStatus MCPツール', () => {
     vi.restoreAllMocks();
   });
 
-  describe('正常系: BullMQキューでジョブが見つかった場合', () => {
-    it('完了したジョブのステータスを返す（success: true）', async () => {
+  describe("正常系: BullMQキューでジョブが見つかった場合", () => {
+    it("完了したジョブのステータスを返す（success: true）", async () => {
       // Arrange
-      const validJobId = '01234567-89ab-cdef-0123-456789abcdef';
+      const validJobId = "01234567-89ab-cdef-0123-456789abcdef";
       const mockJobStatus = {
         jobId: validJobId,
-        state: 'completed' as const,
+        state: "completed" as const,
         progress: 100,
         totalItems: 10,
         processedItems: 10,
@@ -94,7 +92,7 @@ describe('quality.getJobStatus MCPツール', () => {
           failedItems: 1,
           results: [
             { index: 0, success: true, data: { overall: 85 } },
-            { index: 1, success: false, error: { code: 'EVAL_ERROR', message: 'Test error' } },
+            { index: 1, success: false, error: { code: "EVAL_ERROR", message: "Test error" } },
           ],
           processingTimeMs: 5000,
           completedAt: new Date().toISOString(),
@@ -116,7 +114,7 @@ describe('quality.getJobStatus MCPツール', () => {
       expect(result.success).toBe(true);
       if (result.success) {
         expect(result.data.jobId).toBe(validJobId);
-        expect(result.data.status).toBe('completed');
+        expect(result.data.status).toBe("completed");
         expect(result.data.progress).toBe(100);
         expect(result.data.totalItems).toBe(10);
         expect(result.data.successItems).toBe(9);
@@ -129,12 +127,12 @@ describe('quality.getJobStatus MCPツール', () => {
       expect(closeBatchQualityQueue).toHaveBeenCalledWith(mockQueue);
     });
 
-    it('処理中のジョブのステータスを返す', async () => {
+    it("処理中のジョブのステータスを返す", async () => {
       // Arrange
-      const validJobId = '01234567-89ab-cdef-0123-456789abcdef';
+      const validJobId = "01234567-89ab-cdef-0123-456789abcdef";
       const mockJobStatus = {
         jobId: validJobId,
-        state: 'active' as const,
+        state: "active" as const,
         progress: 50,
         totalItems: 10,
         processedItems: 5,
@@ -155,24 +153,24 @@ describe('quality.getJobStatus MCPツール', () => {
       // Assert
       expect(result.success).toBe(true);
       if (result.success) {
-        expect(result.data.status).toBe('active');
+        expect(result.data.status).toBe("active");
         expect(result.data.progress).toBe(50);
         expect(result.data.processedItems).toBe(5);
       }
     });
 
-    it('失敗したジョブのステータスを返す（failedReason付き）', async () => {
+    it("失敗したジョブのステータスを返す（failedReason付き）", async () => {
       // Arrange
-      const validJobId = '01234567-89ab-cdef-0123-456789abcdef';
+      const validJobId = "01234567-89ab-cdef-0123-456789abcdef";
       const mockJobStatus = {
         jobId: validJobId,
-        state: 'failed' as const,
+        state: "failed" as const,
         progress: 25,
         totalItems: 10,
         processedItems: 3,
         successItems: 2,
         failedItems: 1,
-        error: 'Batch processing failed: timeout',
+        error: "Batch processing failed: timeout",
         timestamps: {
           created: Date.now() - 60000,
           started: Date.now() - 55000,
@@ -189,19 +187,19 @@ describe('quality.getJobStatus MCPツール', () => {
       // Assert
       expect(result.success).toBe(true);
       if (result.success) {
-        expect(result.data.status).toBe('failed');
-        expect(result.data.failedReason).toBe('Batch processing failed: timeout');
+        expect(result.data.status).toBe("failed");
+        expect(result.data.failedReason).toBe("Batch processing failed: timeout");
       }
     });
   });
 
-  describe('正常系: LRUストアでジョブが見つかった場合（Redisフォールバック）', () => {
-    it('Redis未接続時にLRUストアからジョブを取得する', async () => {
+  describe("正常系: LRUストアでジョブが見つかった場合（Redisフォールバック）", () => {
+    it("Redis未接続時にLRUストアからジョブを取得する", async () => {
       // Arrange
-      const validJobId = '01234567-89ab-cdef-0123-456789abcdef';
+      const validJobId = "01234567-89ab-cdef-0123-456789abcdef";
       const mockLRUJob = {
         job_id: validJobId,
-        status: 'completed' as const,
+        status: "completed" as const,
         total_items: 5,
         processed_items: 5,
         success_items: 5,
@@ -210,8 +208,8 @@ describe('quality.getJobStatus MCPツール', () => {
         created_at: new Date().toISOString(),
         completed_at: new Date().toISOString(),
         results: [
-          { overall: 85, grade: 'B' },
-          { overall: 90, grade: 'A' },
+          { overall: 85, grade: "B" },
+          { overall: 90, grade: "A" },
         ],
       };
 
@@ -225,19 +223,19 @@ describe('quality.getJobStatus MCPツール', () => {
       expect(result.success).toBe(true);
       if (result.success) {
         expect(result.data.jobId).toBe(validJobId);
-        expect(result.data.status).toBe('completed');
+        expect(result.data.status).toBe("completed");
         expect(result.data.progress).toBe(100);
         expect(result.metadata?.redis_used).toBe(false);
         expect(result.metadata?.lru_fallback).toBe(true);
       }
     });
 
-    it('BullMQで見つからない場合はLRUストアにフォールバックする', async () => {
+    it("BullMQで見つからない場合はLRUストアにフォールバックする", async () => {
       // Arrange
-      const validJobId = '01234567-89ab-cdef-0123-456789abcdef';
+      const validJobId = "01234567-89ab-cdef-0123-456789abcdef";
       const mockLRUJob = {
         job_id: validJobId,
-        status: 'processing' as const,
+        status: "processing" as const,
         total_items: 10,
         processed_items: 5,
         success_items: 5,
@@ -256,16 +254,16 @@ describe('quality.getJobStatus MCPツール', () => {
       // Assert
       expect(result.success).toBe(true);
       if (result.success) {
-        expect(result.data.status).toBe('active');
+        expect(result.data.status).toBe("active");
         expect(result.metadata?.lru_fallback).toBe(true);
       }
     });
   });
 
-  describe('正常系: ジョブが見つからない場合', () => {
-    it('BullMQとLRUストア両方で見つからない場合JOB_NOT_FOUNDを返す', async () => {
+  describe("正常系: ジョブが見つからない場合", () => {
+    it("BullMQとLRUストア両方で見つからない場合JOB_NOT_FOUNDを返す", async () => {
       // Arrange
-      const nonExistentJobId = '01234567-89ab-cdef-0123-000000000000';
+      const nonExistentJobId = "01234567-89ab-cdef-0123-000000000000";
 
       (isRedisAvailable as Mock).mockResolvedValue(true);
       (getBatchQualityJobStatus as Mock).mockResolvedValue(null);
@@ -279,14 +277,14 @@ describe('quality.getJobStatus MCPツール', () => {
       if (!result.success) {
         expect(result.error.code).toBe(GET_QUALITY_JOB_STATUS_ERROR_CODES.JOB_NOT_FOUND);
         expect(result.error.message).toContain(nonExistentJobId);
-        expect(result.error.message).toContain('not found');
+        expect(result.error.message).toContain("not found");
       }
       expect(closeBatchQualityQueue).toHaveBeenCalledWith(mockQueue);
     });
 
-    it('Redis未接続でLRUストアにもない場合JOB_NOT_FOUNDを返す', async () => {
+    it("Redis未接続でLRUストアにもない場合JOB_NOT_FOUNDを返す", async () => {
       // Arrange
-      const nonExistentJobId = '01234567-89ab-cdef-0123-000000000000';
+      const nonExistentJobId = "01234567-89ab-cdef-0123-000000000000";
 
       (isRedisAvailable as Mock).mockResolvedValue(false);
       (getBatchJob as Mock).mockReturnValue(undefined);
@@ -302,10 +300,10 @@ describe('quality.getJobStatus MCPツール', () => {
     });
   });
 
-  describe('異常系: 無効なjob_id（バリデーションエラー）', () => {
-    it('無効なUUID形式でVALIDATION_ERRORを返す', async () => {
+  describe("異常系: 無効なjob_id（バリデーションエラー）", () => {
+    it("無効なUUID形式でVALIDATION_ERRORを返す", async () => {
       // Arrange
-      const invalidJobId = 'not-a-valid-uuid';
+      const invalidJobId = "not-a-valid-uuid";
 
       // Act
       const result = await qualityGetJobStatusHandler({ job_id: invalidJobId });
@@ -317,9 +315,9 @@ describe('quality.getJobStatus MCPツール', () => {
       }
     });
 
-    it('空のjob_idでVALIDATION_ERRORを返す', async () => {
+    it("空のjob_idでVALIDATION_ERRORを返す", async () => {
       // Arrange & Act
-      const result = await qualityGetJobStatusHandler({ job_id: '' });
+      const result = await qualityGetJobStatusHandler({ job_id: "" });
 
       // Assert
       expect(result.success).toBe(false);
@@ -328,7 +326,7 @@ describe('quality.getJobStatus MCPツール', () => {
       }
     });
 
-    it('job_idが欠落している場合VALIDATION_ERRORを返す', async () => {
+    it("job_idが欠落している場合VALIDATION_ERRORを返す", async () => {
       // Arrange & Act
       const result = await qualityGetJobStatusHandler({});
 
@@ -339,7 +337,7 @@ describe('quality.getJobStatus MCPツール', () => {
       }
     });
 
-    it('入力がnullの場合VALIDATION_ERRORを返す', async () => {
+    it("入力がnullの場合VALIDATION_ERRORを返す", async () => {
       // Arrange & Act
       const result = await qualityGetJobStatusHandler(null);
 
@@ -351,13 +349,13 @@ describe('quality.getJobStatus MCPツール', () => {
     });
   });
 
-  describe('メタデータ: request_idの検証', () => {
-    it('成功レスポンスにrequest_idが含まれる', async () => {
+  describe("メタデータ: request_idの検証", () => {
+    it("成功レスポンスにrequest_idが含まれる", async () => {
       // Arrange
-      const validJobId = '01234567-89ab-cdef-0123-456789abcdef';
+      const validJobId = "01234567-89ab-cdef-0123-456789abcdef";
       const mockJobStatus = {
         jobId: validJobId,
-        state: 'completed' as const,
+        state: "completed" as const,
         progress: 100,
         totalItems: 5,
         processedItems: 5,
@@ -375,12 +373,12 @@ describe('quality.getJobStatus MCPツール', () => {
       // Assert
       expect(generateRequestId).toHaveBeenCalled();
       expect(result.metadata).toBeDefined();
-      expect(result.metadata?.request_id).toBe('test-request-id-quality-12345');
+      expect(result.metadata?.request_id).toBe("test-request-id-quality-12345");
     });
 
-    it('エラーレスポンスにrequest_idが含まれる', async () => {
+    it("エラーレスポンスにrequest_idが含まれる", async () => {
       // Arrange
-      const invalidJobId = 'invalid';
+      const invalidJobId = "invalid";
 
       // Act
       const result = await qualityGetJobStatusHandler({ job_id: invalidJobId });
@@ -388,12 +386,12 @@ describe('quality.getJobStatus MCPツール', () => {
       // Assert
       expect(generateRequestId).toHaveBeenCalled();
       expect(result.metadata).toBeDefined();
-      expect(result.metadata?.request_id).toBe('test-request-id-quality-12345');
+      expect(result.metadata?.request_id).toBe("test-request-id-quality-12345");
     });
 
-    it('JOB_NOT_FOUNDレスポンスにrequest_idが含まれる', async () => {
+    it("JOB_NOT_FOUNDレスポンスにrequest_idが含まれる", async () => {
       // Arrange
-      const nonExistentJobId = '01234567-89ab-cdef-0123-000000000000';
+      const nonExistentJobId = "01234567-89ab-cdef-0123-000000000000";
 
       (isRedisAvailable as Mock).mockResolvedValue(true);
       (getBatchQualityJobStatus as Mock).mockResolvedValue(null);
@@ -404,17 +402,17 @@ describe('quality.getJobStatus MCPツール', () => {
 
       // Assert
       expect(result.metadata).toBeDefined();
-      expect(result.metadata?.request_id).toBe('test-request-id-quality-12345');
+      expect(result.metadata?.request_id).toBe("test-request-id-quality-12345");
     });
   });
 
-  describe('リソースクリーンアップ', () => {
-    it('正常完了時にキューがクローズされる', async () => {
+  describe("リソースクリーンアップ", () => {
+    it("正常完了時にキューがクローズされる", async () => {
       // Arrange
-      const validJobId = '01234567-89ab-cdef-0123-456789abcdef';
+      const validJobId = "01234567-89ab-cdef-0123-456789abcdef";
       const mockJobStatus = {
         jobId: validJobId,
-        state: 'completed' as const,
+        state: "completed" as const,
         progress: 100,
         totalItems: 5,
         processedItems: 5,
@@ -433,9 +431,9 @@ describe('quality.getJobStatus MCPツール', () => {
       expect(closeBatchQualityQueue).toHaveBeenCalledWith(mockQueue);
     });
 
-    it('ジョブ未発見時もキューがクローズされる', async () => {
+    it("ジョブ未発見時もキューがクローズされる", async () => {
       // Arrange
-      const validJobId = '01234567-89ab-cdef-0123-456789abcdef';
+      const validJobId = "01234567-89ab-cdef-0123-456789abcdef";
 
       (isRedisAvailable as Mock).mockResolvedValue(true);
       (getBatchQualityJobStatus as Mock).mockResolvedValue(null);
@@ -449,13 +447,13 @@ describe('quality.getJobStatus MCPツール', () => {
     });
   });
 
-  describe('LRUストアのステータスマッピング', () => {
-    it('pending -> waiting にマッピングされる', async () => {
+  describe("LRUストアのステータスマッピング", () => {
+    it("pending -> waiting にマッピングされる", async () => {
       // Arrange
-      const validJobId = '01234567-89ab-cdef-0123-456789abcdef';
+      const validJobId = "01234567-89ab-cdef-0123-456789abcdef";
       const mockLRUJob = {
         job_id: validJobId,
-        status: 'pending' as const,
+        status: "pending" as const,
         total_items: 5,
         processed_items: 0,
         success_items: 0,
@@ -473,16 +471,16 @@ describe('quality.getJobStatus MCPツール', () => {
       // Assert
       expect(result.success).toBe(true);
       if (result.success) {
-        expect(result.data.status).toBe('waiting');
+        expect(result.data.status).toBe("waiting");
       }
     });
 
-    it('processing -> active にマッピングされる', async () => {
+    it("processing -> active にマッピングされる", async () => {
       // Arrange
-      const validJobId = '01234567-89ab-cdef-0123-456789abcdef';
+      const validJobId = "01234567-89ab-cdef-0123-456789abcdef";
       const mockLRUJob = {
         job_id: validJobId,
-        status: 'processing' as const,
+        status: "processing" as const,
         total_items: 10,
         processed_items: 5,
         success_items: 4,
@@ -500,25 +498,23 @@ describe('quality.getJobStatus MCPツール', () => {
       // Assert
       expect(result.success).toBe(true);
       if (result.success) {
-        expect(result.data.status).toBe('active');
+        expect(result.data.status).toBe("active");
       }
     });
 
-    it('cancelled -> failed にマッピングされる', async () => {
+    it("cancelled -> failed にマッピングされる", async () => {
       // Arrange
-      const validJobId = '01234567-89ab-cdef-0123-456789abcdef';
+      const validJobId = "01234567-89ab-cdef-0123-456789abcdef";
       const mockLRUJob = {
         job_id: validJobId,
-        status: 'cancelled' as const,
+        status: "cancelled" as const,
         total_items: 10,
         processed_items: 3,
         success_items: 2,
         failed_items: 1,
         progress_percent: 30,
         created_at: new Date().toISOString(),
-        errors: [
-          { index: -1, error: { code: 'CANCELLED', message: 'Job cancelled by user' } },
-        ],
+        errors: [{ index: -1, error: { code: "CANCELLED", message: "Job cancelled by user" } }],
       };
 
       (isRedisAvailable as Mock).mockResolvedValue(false);
@@ -530,7 +526,7 @@ describe('quality.getJobStatus MCPツール', () => {
       // Assert
       expect(result.success).toBe(true);
       if (result.success) {
-        expect(result.data.status).toBe('failed');
+        expect(result.data.status).toBe("failed");
       }
     });
   });

@@ -10,19 +10,19 @@
  * @module tests/integration/css-analysis-cache-integration.test.ts
  */
 
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import {
   getCSSAnalysisCacheService,
   resetCSSAnalysisCacheService,
   type CSSAnalysisResult,
   type MotionAnalysisResult,
-} from '../../src/services/css-analysis-cache.service';
+} from "../../src/services/css-analysis-cache.service";
 import {
   layoutInspectHandler,
   resetLayoutInspectServiceFactory,
-} from '../../src/tools/layout/inspect/inspect.tool';
-import { handleCssMode } from '../../src/tools/motion/css-mode-handler';
-import type { MotionDetectInput } from '../../src/tools/motion/schemas';
+} from "../../src/tools/layout/inspect/inspect.tool";
+import { handleCssMode } from "../../src/tools/motion/css-mode-handler";
+import type { MotionDetectInput } from "../../src/tools/motion/schemas";
 
 // モック用のテストHTML
 const TEST_HTML = `
@@ -48,7 +48,7 @@ const TEST_HTML = `
 </html>
 `;
 
-describe('CSS Analysis Cache Integration', () => {
+describe("CSS Analysis Cache Integration", () => {
   beforeEach(async () => {
     // 各テスト前にキャッシュをリセット
     // 先に既存インスタンスのデータをクリアしてからリセット
@@ -65,8 +65,8 @@ describe('CSS Analysis Cache Integration', () => {
     resetLayoutInspectServiceFactory();
   });
 
-  describe('layout.inspect cache integration', () => {
-    it('should use cache service for repeated HTML analysis', async () => {
+  describe("layout.inspect cache integration", () => {
+    it("should use cache service for repeated HTML analysis", async () => {
       const cacheService = getCSSAnalysisCacheService();
 
       // 最初の呼び出し（キャッシュミス）
@@ -89,7 +89,7 @@ describe('CSS Analysis Cache Integration', () => {
       expect(stats2.layoutInspect.hits).toBeGreaterThanOrEqual(0);
     });
 
-    it('should generate consistent cache keys for same HTML', async () => {
+    it("should generate consistent cache keys for same HTML", async () => {
       const cacheService = getCSSAnalysisCacheService();
 
       const key1 = cacheService.generateCacheKey({ html: TEST_HTML });
@@ -99,33 +99,33 @@ describe('CSS Analysis Cache Integration', () => {
       expect(key1).toMatch(/^html:[a-f0-9]{64}$/);
     });
 
-    it('should generate different cache keys for different HTML', async () => {
+    it("should generate different cache keys for different HTML", async () => {
       const cacheService = getCSSAnalysisCacheService();
 
       const key1 = cacheService.generateCacheKey({ html: TEST_HTML });
-      const key2 = cacheService.generateCacheKey({ html: TEST_HTML + '<!-- modified -->' });
+      const key2 = cacheService.generateCacheKey({ html: TEST_HTML + "<!-- modified -->" });
 
       expect(key1).not.toBe(key2);
     });
 
-    it('should prioritize URL over HTML for cache key generation', async () => {
+    it("should prioritize URL over HTML for cache key generation", async () => {
       const cacheService = getCSSAnalysisCacheService();
 
-      const key1 = cacheService.generateCacheKey({ url: 'https://example.com' });
-      const key2 = cacheService.generateCacheKey({ url: 'https://example.com', html: TEST_HTML });
+      const key1 = cacheService.generateCacheKey({ url: "https://example.com" });
+      const key2 = cacheService.generateCacheKey({ url: "https://example.com", html: TEST_HTML });
 
       expect(key1).toBe(key2);
       expect(key1).toMatch(/^url:[a-f0-9]{64}$/);
     });
   });
 
-  describe('motion.detect cache integration', () => {
-    it('should use cache service for repeated CSS analysis', async () => {
+  describe("motion.detect cache integration", () => {
+    it("should use cache service for repeated CSS analysis", async () => {
       const cacheService = getCSSAnalysisCacheService();
       const startTime = Date.now();
 
       const validated: MotionDetectInput = {
-        detection_mode: 'css',
+        detection_mode: "css",
         html: TEST_HTML,
         includeInlineStyles: true,
         includeStyleSheets: true,
@@ -134,7 +134,7 @@ describe('CSS Analysis Cache Integration', () => {
         verbose: false,
         includeSummary: true,
         includeWarnings: true,
-        min_severity: 'info',
+        min_severity: "info",
         save_to_db: false,
         fetchExternalCss: false,
       };
@@ -157,11 +157,11 @@ describe('CSS Analysis Cache Integration', () => {
       expect(stats2.motionDetect.hits).toBeGreaterThanOrEqual(0);
     });
 
-    it('should detect animation patterns from HTML', async () => {
+    it("should detect animation patterns from HTML", async () => {
       const startTime = Date.now();
 
       const validated: MotionDetectInput = {
-        detection_mode: 'css',
+        detection_mode: "css",
         html: TEST_HTML,
         includeInlineStyles: true,
         includeStyleSheets: true,
@@ -170,7 +170,7 @@ describe('CSS Analysis Cache Integration', () => {
         verbose: false,
         includeSummary: true,
         includeWarnings: true,
-        min_severity: 'info',
+        min_severity: "info",
         save_to_db: false,
         fetchExternalCss: false,
       };
@@ -185,18 +185,18 @@ describe('CSS Analysis Cache Integration', () => {
     });
   });
 
-  describe('cache statistics', () => {
-    it('should track hit rate correctly', async () => {
+  describe("cache statistics", () => {
+    it("should track hit rate correctly", async () => {
       const cacheService = getCSSAnalysisCacheService();
 
       // キャッシュに手動でエントリを追加
       const mockLayoutResult: CSSAnalysisResult = {
-        colors: { palette: ['#fff', '#333'] },
-        typography: { fonts: ['Arial'] },
-        grid: { type: 'grid' },
-        sections: [{ type: 'hero', confidence: 0.9 }],
+        colors: { palette: ["#fff", "#333"] },
+        typography: { fonts: ["Arial"] },
+        grid: { type: "grid" },
+        sections: [{ type: "hero", confidence: 0.9 }],
         analyzedAt: Date.now(),
-        cacheKey: 'test-key',
+        cacheKey: "test-key",
       };
 
       const key = cacheService.generateCacheKey({ html: TEST_HTML });
@@ -211,7 +211,7 @@ describe('CSS Analysis Cache Integration', () => {
       // 2回目のget（ヒット）
       const hit = await cacheService.getLayoutInspectResult(key);
       expect(hit).not.toBeNull();
-      expect(hit?.cacheKey).toBe('test-key');
+      expect(hit?.cacheKey).toBe("test-key");
 
       // 統計確認
       const stats = await cacheService.getStats();
@@ -220,20 +220,18 @@ describe('CSS Analysis Cache Integration', () => {
       expect(stats.layoutInspect.hitRate).toBeCloseTo(0.5, 2);
     });
 
-    it('should track motion detect cache separately', async () => {
+    it("should track motion detect cache separately", async () => {
       const cacheService = getCSSAnalysisCacheService();
 
       const mockMotionResult: MotionAnalysisResult = {
-        patterns: [
-          { type: 'keyframe', name: 'fadeIn', duration: 300, easing: 'ease-out' },
-        ],
+        patterns: [{ type: "keyframe", name: "fadeIn", duration: 300, easing: "ease-out" }],
         summary: {
           totalPatterns: 1,
           hasAnimations: true,
           hasTransitions: false,
         },
         analyzedAt: Date.now(),
-        cacheKey: 'test-motion-key',
+        cacheKey: "test-motion-key",
       };
 
       const key = cacheService.generateCacheKey({ html: TEST_HTML });
@@ -251,15 +249,15 @@ describe('CSS Analysis Cache Integration', () => {
     });
   });
 
-  describe('cache invalidation', () => {
-    it('should invalidate both layout and motion caches', async () => {
+  describe("cache invalidation", () => {
+    it("should invalidate both layout and motion caches", async () => {
       const cacheService = getCSSAnalysisCacheService();
       const key = cacheService.generateCacheKey({ html: TEST_HTML });
 
       const mockLayoutResult: CSSAnalysisResult = {
         colors: { palette: [] },
         typography: { fonts: [] },
-        grid: { type: 'none' },
+        grid: { type: "none" },
         sections: [],
         analyzedAt: Date.now(),
         cacheKey: key,

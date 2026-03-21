@@ -16,23 +16,23 @@
  * @module tests/workers/batch-quality-worker.test.ts
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import type { Job } from 'bullmq';
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import type { Job } from "bullmq";
 import {
   processBatchQualityJob,
   setQualityEvaluatorService,
   resetQualityEvaluatorService,
   type IQualityEvaluatorService,
   type BatchQualityWorkerOptions,
-} from '../../src/workers/batch-quality-worker';
+} from "../../src/workers/batch-quality-worker";
 import type {
   BatchQualityJobData,
   BatchQualityJobResult,
-} from '../../src/queues/batch-quality-queue';
+} from "../../src/queues/batch-quality-queue";
 
 // Mock updateBatchQualityJobProgress to avoid Redis connection in tests
-vi.mock('../../src/queues/batch-quality-queue', async (importOriginal) => {
-  const original = await importOriginal<typeof import('../../src/queues/batch-quality-queue')>();
+vi.mock("../../src/queues/batch-quality-queue", async (importOriginal) => {
+  const original = await importOriginal<typeof import("../../src/queues/batch-quality-queue")>();
   return {
     ...original,
     updateBatchQualityJobProgress: vi.fn().mockResolvedValue(undefined),
@@ -47,22 +47,22 @@ const createMockJob = (
   data: Partial<BatchQualityJobData>
 ): Job<BatchQualityJobData, BatchQualityJobResult> => {
   const fullData: BatchQualityJobData = {
-    jobId: 'test-job-id',
+    jobId: "test-job-id",
     items: [],
     batchSize: 10,
-    onError: 'skip',
+    onError: "skip",
     strict: false,
     createdAt: new Date().toISOString(),
     ...data,
   };
 
   return {
-    id: 'bullmq-job-id',
+    id: "bullmq-job-id",
     data: fullData,
     updateProgress: vi.fn().mockResolvedValue(undefined),
     log: vi.fn().mockResolvedValue(undefined),
     // BullMQ Job interface の最小限のモック
-    name: 'batch-quality',
+    name: "batch-quality",
     opts: {},
     timestamp: Date.now(),
     attemptsMade: 0,
@@ -76,7 +76,7 @@ const createMockJob = (
     parent: undefined,
     parentKey: undefined,
     repeatJobKey: undefined,
-    token: 'test-token',
+    token: "test-token",
   } as unknown as Job<BatchQualityJobData, BatchQualityJobResult>;
 };
 
@@ -84,15 +84,15 @@ const createMockService = (
   overrides?: Partial<IQualityEvaluatorService>
 ): IQualityEvaluatorService => ({
   evaluatePage: vi.fn().mockResolvedValue({
-    pageId: 'test-page-id',
+    pageId: "test-page-id",
     overall: 75,
-    grade: 'C',
-    originality: { score: 70, grade: 'C' },
-    craftsmanship: { score: 80, grade: 'B' },
-    contextuality: { score: 75, grade: 'C' },
+    grade: "C",
+    originality: { score: 70, grade: "C" },
+    craftsmanship: { score: 80, grade: "B" },
+    contextuality: { score: 75, grade: "C" },
     evaluatedAt: new Date().toISOString(),
   }),
-  getPageById: vi.fn().mockResolvedValue('<html><body>Test</body></html>'),
+  getPageById: vi.fn().mockResolvedValue("<html><body>Test</body></html>"),
   ...overrides,
 });
 
@@ -100,7 +100,7 @@ const createMockService = (
 // テスト
 // =====================================================
 
-describe('BatchQualityWorker', () => {
+describe("BatchQualityWorker", () => {
   beforeEach(() => {
     resetQualityEvaluatorService();
   });
@@ -114,22 +114,22 @@ describe('BatchQualityWorker', () => {
   // サービスインジェクション
   // =====================================================
 
-  describe('Service Injection', () => {
-    it('should throw error when service is not configured', async () => {
+  describe("Service Injection", () => {
+    it("should throw error when service is not configured", async () => {
       const mockJob = createMockJob({
-        items: [{ index: 0, html: '<html></html>' }],
+        items: [{ index: 0, html: "<html></html>" }],
       });
 
       await expect(processBatchQualityJob(mockJob)).rejects.toThrow(
-        'Quality evaluator service not configured'
+        "Quality evaluator service not configured"
       );
     });
 
-    it('should process jobs after service is configured', async () => {
+    it("should process jobs after service is configured", async () => {
       setQualityEvaluatorService(createMockService());
 
       const mockJob = createMockJob({
-        items: [{ index: 0, html: '<html></html>' }],
+        items: [{ index: 0, html: "<html></html>" }],
       });
 
       const result = await processBatchQualityJob(mockJob);
@@ -138,16 +138,16 @@ describe('BatchQualityWorker', () => {
       expect(result.processedItems).toBe(1);
     });
 
-    it('should reset service correctly', async () => {
+    it("should reset service correctly", async () => {
       setQualityEvaluatorService(createMockService());
       resetQualityEvaluatorService();
 
       const mockJob = createMockJob({
-        items: [{ index: 0, html: '<html></html>' }],
+        items: [{ index: 0, html: "<html></html>" }],
       });
 
       await expect(processBatchQualityJob(mockJob)).rejects.toThrow(
-        'Quality evaluator service not configured'
+        "Quality evaluator service not configured"
       );
     });
   });
@@ -156,15 +156,15 @@ describe('BatchQualityWorker', () => {
   // バッチ処理
   // =====================================================
 
-  describe('Batch Processing', () => {
-    it('should process all items successfully', async () => {
+  describe("Batch Processing", () => {
+    it("should process all items successfully", async () => {
       setQualityEvaluatorService(createMockService());
 
       const mockJob = createMockJob({
         items: [
-          { index: 0, html: '<html><body>Page 1</body></html>' },
-          { index: 1, html: '<html><body>Page 2</body></html>' },
-          { index: 2, html: '<html><body>Page 3</body></html>' },
+          { index: 0, html: "<html><body>Page 1</body></html>" },
+          { index: 1, html: "<html><body>Page 2</body></html>" },
+          { index: 2, html: "<html><body>Page 3</body></html>" },
         ],
         batchSize: 10,
       });
@@ -179,10 +179,10 @@ describe('BatchQualityWorker', () => {
       expect(result.results).toHaveLength(3);
     });
 
-    it('should process items in batches', async () => {
+    it("should process items in batches", async () => {
       const evaluateMock = vi.fn().mockResolvedValue({
         overall: 80,
-        grade: 'B',
+        grade: "B",
       });
       setQualityEvaluatorService(createMockService({ evaluatePage: evaluateMock }));
 
@@ -204,26 +204,26 @@ describe('BatchQualityWorker', () => {
       expect(evaluateMock).toHaveBeenCalledTimes(25);
     });
 
-    it('should resolve HTML from pageId using getPageById', async () => {
-      const getPageByIdMock = vi.fn().mockResolvedValue('<html><body>From DB</body></html>');
+    it("should resolve HTML from pageId using getPageById", async () => {
+      const getPageByIdMock = vi.fn().mockResolvedValue("<html><body>From DB</body></html>");
       setQualityEvaluatorService(createMockService({ getPageById: getPageByIdMock }));
 
       const mockJob = createMockJob({
-        items: [{ index: 0, pageId: '00000000-0000-0000-0000-000000000001' }],
+        items: [{ index: 0, pageId: "00000000-0000-0000-0000-000000000001" }],
       });
 
       const result = await processBatchQualityJob(mockJob);
 
       expect(result.success).toBe(true);
-      expect(getPageByIdMock).toHaveBeenCalledWith('00000000-0000-0000-0000-000000000001');
+      expect(getPageByIdMock).toHaveBeenCalledWith("00000000-0000-0000-0000-000000000001");
     });
 
-    it('should use html directly when provided', async () => {
+    it("should use html directly when provided", async () => {
       const getPageByIdMock = vi.fn();
       setQualityEvaluatorService(createMockService({ getPageById: getPageByIdMock }));
 
       const mockJob = createMockJob({
-        items: [{ index: 0, html: '<html><body>Direct HTML</body></html>' }],
+        items: [{ index: 0, html: "<html><body>Direct HTML</body></html>" }],
       });
 
       const result = await processBatchQualityJob(mockJob);
@@ -232,14 +232,14 @@ describe('BatchQualityWorker', () => {
       expect(getPageByIdMock).not.toHaveBeenCalled();
     });
 
-    it('should return sorted results by index', async () => {
+    it("should return sorted results by index", async () => {
       setQualityEvaluatorService(createMockService());
 
       const mockJob = createMockJob({
         items: [
-          { index: 2, html: '<html><body>Page 2</body></html>' },
-          { index: 0, html: '<html><body>Page 0</body></html>' },
-          { index: 1, html: '<html><body>Page 1</body></html>' },
+          { index: 2, html: "<html><body>Page 2</body></html>" },
+          { index: 0, html: "<html><body>Page 0</body></html>" },
+          { index: 1, html: "<html><body>Page 1</body></html>" },
         ],
       });
 
@@ -255,23 +255,23 @@ describe('BatchQualityWorker', () => {
   // エラーハンドリング: skip モード
   // =====================================================
 
-  describe('Error Handling: skip mode', () => {
-    it('should continue processing after error with skip mode', async () => {
+  describe("Error Handling: skip mode", () => {
+    it("should continue processing after error with skip mode", async () => {
       const evaluateMock = vi
         .fn()
-        .mockResolvedValueOnce({ overall: 80, grade: 'B' })
-        .mockRejectedValueOnce(new Error('Evaluation failed'))
-        .mockResolvedValueOnce({ overall: 85, grade: 'B' });
+        .mockResolvedValueOnce({ overall: 80, grade: "B" })
+        .mockRejectedValueOnce(new Error("Evaluation failed"))
+        .mockResolvedValueOnce({ overall: 85, grade: "B" });
 
       setQualityEvaluatorService(createMockService({ evaluatePage: evaluateMock }));
 
       const mockJob = createMockJob({
         items: [
-          { index: 0, html: '<html>1</html>' },
-          { index: 1, html: '<html>2</html>' },
-          { index: 2, html: '<html>3</html>' },
+          { index: 0, html: "<html>1</html>" },
+          { index: 1, html: "<html>2</html>" },
+          { index: 2, html: "<html>3</html>" },
         ],
-        onError: 'skip',
+        onError: "skip",
       });
 
       const result = await processBatchQualityJob(mockJob);
@@ -284,38 +284,36 @@ describe('BatchQualityWorker', () => {
       expect(result.results.find((r) => r.index === 1)?.success).toBe(false);
     });
 
-    it('should record error details for failed items', async () => {
-      const evaluateMock = vi
-        .fn()
-        .mockRejectedValueOnce(new Error('Test error message'));
+    it("should record error details for failed items", async () => {
+      const evaluateMock = vi.fn().mockRejectedValueOnce(new Error("Test error message"));
 
       setQualityEvaluatorService(createMockService({ evaluatePage: evaluateMock }));
 
       const mockJob = createMockJob({
-        items: [{ index: 0, html: '<html></html>' }],
-        onError: 'skip',
+        items: [{ index: 0, html: "<html></html>" }],
+        onError: "skip",
       });
 
       const result = await processBatchQualityJob(mockJob);
 
       expect(result.results[0].success).toBe(false);
-      expect(result.results[0].error?.code).toBe('EVALUATION_ERROR');
-      expect(result.results[0].error?.message).toBe('Test error message');
+      expect(result.results[0].error?.code).toBe("EVALUATION_ERROR");
+      expect(result.results[0].error?.message).toBe("Test error message");
     });
 
-    it('should fail when HTML cannot be resolved', async () => {
+    it("should fail when HTML cannot be resolved", async () => {
       const getPageByIdMock = vi.fn().mockResolvedValue(null);
       setQualityEvaluatorService(createMockService({ getPageById: getPageByIdMock }));
 
       const mockJob = createMockJob({
-        items: [{ index: 0, pageId: '00000000-0000-0000-0000-000000000001' }],
-        onError: 'skip',
+        items: [{ index: 0, pageId: "00000000-0000-0000-0000-000000000001" }],
+        onError: "skip",
       });
 
       const result = await processBatchQualityJob(mockJob);
 
       expect(result.results[0].success).toBe(false);
-      expect(result.results[0].error?.message).toContain('Cannot resolve HTML');
+      expect(result.results[0].error?.message).toContain("Cannot resolve HTML");
     });
   });
 
@@ -323,23 +321,23 @@ describe('BatchQualityWorker', () => {
   // エラーハンドリング: abort モード
   // =====================================================
 
-  describe('Error Handling: abort mode', () => {
-    it('should abort processing on first error with abort mode', async () => {
+  describe("Error Handling: abort mode", () => {
+    it("should abort processing on first error with abort mode", async () => {
       const evaluateMock = vi
         .fn()
-        .mockResolvedValueOnce({ overall: 80, grade: 'B' })
-        .mockRejectedValueOnce(new Error('Evaluation failed'))
-        .mockResolvedValueOnce({ overall: 85, grade: 'B' });
+        .mockResolvedValueOnce({ overall: 80, grade: "B" })
+        .mockRejectedValueOnce(new Error("Evaluation failed"))
+        .mockResolvedValueOnce({ overall: 85, grade: "B" });
 
       setQualityEvaluatorService(createMockService({ evaluatePage: evaluateMock }));
 
       const mockJob = createMockJob({
         items: [
-          { index: 0, html: '<html>1</html>' },
-          { index: 1, html: '<html>2</html>' },
-          { index: 2, html: '<html>3</html>' },
+          { index: 0, html: "<html>1</html>" },
+          { index: 1, html: "<html>2</html>" },
+          { index: 2, html: "<html>3</html>" },
         ],
-        onError: 'abort',
+        onError: "abort",
       });
 
       const result = await processBatchQualityJob(mockJob);
@@ -348,25 +346,25 @@ describe('BatchQualityWorker', () => {
       // Should stop after first batch completes (all 3 items processed in parallel)
       // then abort when error is detected
       expect(result.failedItems).toBeGreaterThanOrEqual(1);
-      expect(result.error).toContain('Aborted');
-      expect(result.error).toContain('index 1');
+      expect(result.error).toContain("Aborted");
+      expect(result.error).toContain("index 1");
     });
 
-    it('should return partial results when aborted', async () => {
+    it("should return partial results when aborted", async () => {
       const evaluateMock = vi
         .fn()
-        .mockResolvedValueOnce({ overall: 80, grade: 'B' })
-        .mockRejectedValueOnce(new Error('Abort error'));
+        .mockResolvedValueOnce({ overall: 80, grade: "B" })
+        .mockRejectedValueOnce(new Error("Abort error"));
 
       setQualityEvaluatorService(createMockService({ evaluatePage: evaluateMock }));
 
       const mockJob = createMockJob({
         items: [
-          { index: 0, html: '<html>1</html>' },
-          { index: 1, html: '<html>2</html>' },
+          { index: 0, html: "<html>1</html>" },
+          { index: 1, html: "<html>2</html>" },
         ],
         batchSize: 10,
-        onError: 'abort',
+        onError: "abort",
       });
 
       const result = await processBatchQualityJob(mockJob);
@@ -380,10 +378,11 @@ describe('BatchQualityWorker', () => {
   // 進捗更新
   // =====================================================
 
-  describe('Progress Updates', () => {
-    it('should update progress after each batch', async () => {
+  describe("Progress Updates", () => {
+    it("should update progress after each batch", async () => {
       // Import the mocked function to check calls
-      const { updateBatchQualityJobProgress } = await import('../../src/queues/batch-quality-queue');
+      const { updateBatchQualityJobProgress } =
+        await import("../../src/queues/batch-quality-queue");
 
       setQualityEvaluatorService(createMockService());
 
@@ -408,17 +407,18 @@ describe('BatchQualityWorker', () => {
       expect(lastCall[1]).toBe(20); // processedItems
     });
 
-    it('should calculate correct progress percentage', async () => {
-      const { updateBatchQualityJobProgress } = await import('../../src/queues/batch-quality-queue');
+    it("should calculate correct progress percentage", async () => {
+      const { updateBatchQualityJobProgress } =
+        await import("../../src/queues/batch-quality-queue");
 
       setQualityEvaluatorService(createMockService());
 
       const mockJob = createMockJob({
         items: [
-          { index: 0, html: '<html>1</html>' },
-          { index: 1, html: '<html>2</html>' },
-          { index: 2, html: '<html>3</html>' },
-          { index: 3, html: '<html>4</html>' },
+          { index: 0, html: "<html>1</html>" },
+          { index: 1, html: "<html>2</html>" },
+          { index: 2, html: "<html>3</html>" },
+          { index: 3, html: "<html>4</html>" },
         ],
         batchSize: 2,
       });
@@ -438,25 +438,25 @@ describe('BatchQualityWorker', () => {
   // 結果構造
   // =====================================================
 
-  describe('Result Structure', () => {
-    it('should include jobId in result', async () => {
+  describe("Result Structure", () => {
+    it("should include jobId in result", async () => {
       setQualityEvaluatorService(createMockService());
 
       const mockJob = createMockJob({
-        jobId: 'custom-job-id-123',
-        items: [{ index: 0, html: '<html></html>' }],
+        jobId: "custom-job-id-123",
+        items: [{ index: 0, html: "<html></html>" }],
       });
 
       const result = await processBatchQualityJob(mockJob);
 
-      expect(result.jobId).toBe('custom-job-id-123');
+      expect(result.jobId).toBe("custom-job-id-123");
     });
 
-    it('should include completedAt timestamp', async () => {
+    it("should include completedAt timestamp", async () => {
       setQualityEvaluatorService(createMockService());
 
       const mockJob = createMockJob({
-        items: [{ index: 0, html: '<html></html>' }],
+        items: [{ index: 0, html: "<html></html>" }],
       });
 
       const result = await processBatchQualityJob(mockJob);
@@ -465,11 +465,11 @@ describe('BatchQualityWorker', () => {
       expect(new Date(result.completedAt).getTime()).not.toBeNaN();
     });
 
-    it('should include processingTimeMs', async () => {
+    it("should include processingTimeMs", async () => {
       setQualityEvaluatorService(createMockService());
 
       const mockJob = createMockJob({
-        items: [{ index: 0, html: '<html></html>' }],
+        items: [{ index: 0, html: "<html></html>" }],
       });
 
       const result = await processBatchQualityJob(mockJob);
@@ -477,18 +477,20 @@ describe('BatchQualityWorker', () => {
       expect(result.processingTimeMs).toBeGreaterThanOrEqual(0);
     });
 
-    it('should include evaluation data in successful results', async () => {
+    it("should include evaluation data in successful results", async () => {
       const mockData = {
         overall: 85,
-        grade: 'B',
-        originality: { score: 80, grade: 'B' },
+        grade: "B",
+        originality: { score: 80, grade: "B" },
       };
-      setQualityEvaluatorService(createMockService({
-        evaluatePage: vi.fn().mockResolvedValue(mockData),
-      }));
+      setQualityEvaluatorService(
+        createMockService({
+          evaluatePage: vi.fn().mockResolvedValue(mockData),
+        })
+      );
 
       const mockJob = createMockJob({
-        items: [{ index: 0, html: '<html></html>' }],
+        items: [{ index: 0, html: "<html></html>" }],
       });
 
       const result = await processBatchQualityJob(mockJob);
@@ -502,13 +504,13 @@ describe('BatchQualityWorker', () => {
   // 評価オプション
   // =====================================================
 
-  describe('Evaluation Options', () => {
-    it('should pass strict option to evaluatePage', async () => {
+  describe("Evaluation Options", () => {
+    it("should pass strict option to evaluatePage", async () => {
       const evaluateMock = vi.fn().mockResolvedValue({ overall: 80 });
       setQualityEvaluatorService(createMockService({ evaluatePage: evaluateMock }));
 
       const mockJob = createMockJob({
-        items: [{ index: 0, html: '<html></html>' }],
+        items: [{ index: 0, html: "<html></html>" }],
         strict: true,
       });
 
@@ -520,12 +522,12 @@ describe('BatchQualityWorker', () => {
       );
     });
 
-    it('should pass weights option to evaluatePage', async () => {
+    it("should pass weights option to evaluatePage", async () => {
       const evaluateMock = vi.fn().mockResolvedValue({ overall: 80 });
       setQualityEvaluatorService(createMockService({ evaluatePage: evaluateMock }));
 
       const mockJob = createMockJob({
-        items: [{ index: 0, html: '<html></html>' }],
+        items: [{ index: 0, html: "<html></html>" }],
         weights: {
           originality: 0.4,
           craftsmanship: 0.3,

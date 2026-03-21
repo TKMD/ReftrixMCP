@@ -25,20 +25,20 @@
  * @module tests/integration/ea-financial-page-analyze.integration
  */
 
-import { describe, it, expect, beforeAll } from 'vitest';
-import sharp from 'sharp';
+import { describe, it, expect, beforeAll } from "vitest";
+import sharp from "sharp";
 
 // サービスのインポート
-import { getLayoutAnalyzerService } from '../../src/services/page/layout-analyzer.service';
-import type { LayoutAnalyzerService } from '../../src/services/page/layout-analyzer.service';
+import { getLayoutAnalyzerService } from "../../src/services/page/layout-analyzer.service";
+import type { LayoutAnalyzerService } from "../../src/services/page/layout-analyzer.service";
 
 import {
   createPixelThemeDetectorService,
   DARK_THRESHOLD,
-} from '../../src/services/visual-extractor/pixel-theme-detector.service';
+} from "../../src/services/visual-extractor/pixel-theme-detector.service";
 
-import { visualDecorationDetector } from '../../src/services/visual-extractor/visual-decoration-detector.service';
-import type { VisualDecorationDetectorService } from '../../src/services/visual-extractor/visual-decoration-detector.service';
+import { visualDecorationDetector } from "../../src/services/visual-extractor/visual-decoration-detector.service";
+import type { VisualDecorationDetectorService } from "../../src/services/visual-extractor/visual-decoration-detector.service";
 
 // =====================================================
 // E&A Financial スタイルのテストフィクスチャ
@@ -48,9 +48,9 @@ import type { VisualDecorationDetectorService } from '../../src/services/visual-
  * E&A Financial サイトの期待値
  */
 const _EA_FINANCIAL_EXPECTED = {
-  url: 'https://ea.madebybuzzworthy.com/',
-  backgroundColor: '#0A1628',
-  theme: 'dark' as const,
+  url: "https://ea.madebybuzzworthy.com/",
+  backgroundColor: "#0A1628",
+  theme: "dark" as const,
   maxLuminance: 0.3,
 };
 
@@ -274,29 +274,30 @@ const EA_FINANCIAL_STYLE_HTML = `
  */
 const EA_FINANCIAL_COMPUTED_STYLES = [
   {
-    selector: 'body',
-    backgroundColor: 'rgb(10, 22, 40)', // #0A1628
-    color: 'rgb(255, 255, 255)',
+    selector: "body",
+    backgroundColor: "rgb(10, 22, 40)", // #0A1628
+    color: "rgb(255, 255, 255)",
   },
   {
-    selector: '.hero',
-    backgroundColor: 'rgba(0, 0, 0, 0)', // transparent, gradient で表示
-    backgroundImage: 'radial-gradient(ellipse at 20% 50%, rgba(0, 102, 255, 0.15) 0%, transparent 50%)',
+    selector: ".hero",
+    backgroundColor: "rgba(0, 0, 0, 0)", // transparent, gradient で表示
+    backgroundImage:
+      "radial-gradient(ellipse at 20% 50%, rgba(0, 102, 255, 0.15) 0%, transparent 50%)",
   },
   {
-    selector: 'header',
-    backgroundColor: 'rgba(13, 28, 50, 0.8)',
-    backdropFilter: 'blur(10px)',
+    selector: "header",
+    backgroundColor: "rgba(13, 28, 50, 0.8)",
+    backdropFilter: "blur(10px)",
   },
   {
-    selector: '.cta-button',
-    backgroundColor: 'rgb(0, 102, 255)',
-    boxShadow: '0 0 20px rgba(0, 102, 255, 0.4), 0 0 40px rgba(0, 212, 255, 0.2)',
+    selector: ".cta-button",
+    backgroundColor: "rgb(0, 102, 255)",
+    boxShadow: "0 0 20px rgba(0, 102, 255, 0.4), 0 0 40px rgba(0, 212, 255, 0.2)",
   },
   {
-    selector: '.glass-card',
-    backgroundColor: 'rgba(13, 28, 50, 0.6)',
-    backdropFilter: 'blur(20px)',
+    selector: ".glass-card",
+    backgroundColor: "rgba(13, 28, 50, 0.6)",
+    backdropFilter: "blur(20px)",
   },
 ];
 
@@ -354,7 +355,7 @@ async function createEAFinancialScreenshot(
 // テストスイート
 // =====================================================
 
-describe('E&A Financial page.analyze Integration', () => {
+describe("E&A Financial page.analyze Integration", () => {
   let layoutAnalyzer: LayoutAnalyzerService;
   let pixelDetector: ReturnType<typeof createPixelThemeDetectorService>;
   let decorationDetector: VisualDecorationDetectorService;
@@ -370,30 +371,30 @@ describe('E&A Financial page.analyze Integration', () => {
   // 1. HTML解析によるレイアウト検出
   // -------------------------------------------------
 
-  describe('1. LayoutAnalyzerService - HTML Analysis', () => {
-    it('should detect sections from E&A Financial style HTML', async () => {
+  describe("1. LayoutAnalyzerService - HTML Analysis", () => {
+    it("should detect sections from E&A Financial style HTML", async () => {
       const result = await layoutAnalyzer.analyze(EA_FINANCIAL_STYLE_HTML);
 
       // セクションが検出されること
       expect(result.sections.length).toBeGreaterThan(0);
     });
 
-    it('should detect hero section', async () => {
+    it("should detect hero section", async () => {
       const result = await layoutAnalyzer.analyze(EA_FINANCIAL_STYLE_HTML);
 
       // hero セクションが検出されること
       const heroSection = result.sections.find(
-        (s) => s.type === 'hero' || s.className?.includes('hero')
+        (s) => s.type === "hero" || s.className?.includes("hero")
       );
       expect(heroSection).toBeDefined();
     });
 
-    it('should detect features section', async () => {
+    it("should detect features section", async () => {
       const result = await layoutAnalyzer.analyze(EA_FINANCIAL_STYLE_HTML);
 
       // features セクションが検出されること
       const featuresSection = result.sections.find(
-        (s) => s.type === 'feature' || s.className?.includes('features')
+        (s) => s.type === "feature" || s.className?.includes("features")
       );
       expect(featuresSection).toBeDefined();
     });
@@ -403,8 +404,8 @@ describe('E&A Financial page.analyze Integration', () => {
   // 2. CSS解析によるスタイル検出
   // -------------------------------------------------
 
-  describe('2. CSS Analysis - Style Detection', () => {
-    it('should extract CSS from E&A Financial HTML', async () => {
+  describe("2. CSS Analysis - Style Detection", () => {
+    it("should extract CSS from E&A Financial HTML", async () => {
       const result = await layoutAnalyzer.analyze(EA_FINANCIAL_STYLE_HTML);
 
       // CSS が抽出されること
@@ -412,28 +413,28 @@ describe('E&A Financial page.analyze Integration', () => {
       expect(result.cssSnippet!.length).toBeGreaterThan(0);
     });
 
-    it('should detect dark background color in CSS variables', async () => {
+    it("should detect dark background color in CSS variables", async () => {
       const result = await layoutAnalyzer.analyze(EA_FINANCIAL_STYLE_HTML);
 
       // CSS に #0A1628 が含まれること
-      expect(result.cssSnippet).toContain('#0A1628');
+      expect(result.cssSnippet).toContain("#0A1628");
     });
 
-    it('should detect gradient backgrounds', async () => {
+    it("should detect gradient backgrounds", async () => {
       const result = await layoutAnalyzer.analyze(EA_FINANCIAL_STYLE_HTML);
 
       // CSS に gradient が含まれること
       expect(result.cssSnippet).toMatch(/linear-gradient|radial-gradient/);
     });
 
-    it('should detect backdrop-filter (glass morphism)', async () => {
+    it("should detect backdrop-filter (glass morphism)", async () => {
       const result = await layoutAnalyzer.analyze(EA_FINANCIAL_STYLE_HTML);
 
       // CSS に backdrop-filter が含まれること
       expect(result.cssSnippet).toMatch(/backdrop-filter/);
     });
 
-    it('should detect box-shadow (glow effects)', async () => {
+    it("should detect box-shadow (glow effects)", async () => {
       const result = await layoutAnalyzer.analyze(EA_FINANCIAL_STYLE_HTML);
 
       // CSS に box-shadow が含まれること
@@ -445,17 +446,17 @@ describe('E&A Financial page.analyze Integration', () => {
   // 3. ピクセルベーステーマ検出との統合
   // -------------------------------------------------
 
-  describe('3. Pixel Theme Detection Integration', () => {
-    it('should detect dark theme from E&A Financial screenshot', async () => {
+  describe("3. Pixel Theme Detection Integration", () => {
+    it("should detect dark theme from E&A Financial screenshot", async () => {
       const screenshot = await createEAFinancialScreenshot();
 
       const result = await pixelDetector.detectTheme(screenshot);
 
-      expect(result.theme).toBe('dark');
+      expect(result.theme).toBe("dark");
       expect(result.averageLuminance).toBeLessThan(DARK_THRESHOLD);
     });
 
-    it('should integrate pixel detection with layout analysis', async () => {
+    it("should integrate pixel detection with layout analysis", async () => {
       // Layout analysis
       const layoutResult = await layoutAnalyzer.analyze(EA_FINANCIAL_STYLE_HTML);
 
@@ -465,11 +466,11 @@ describe('E&A Financial page.analyze Integration', () => {
 
       // 統合結果の検証
       expect(layoutResult.sections.length).toBeGreaterThan(0);
-      expect(themeResult.theme).toBe('dark');
+      expect(themeResult.theme).toBe("dark");
 
       // 両方の結果が一貫していること
       // (レイアウト解析の CSS にダーク色が含まれ、ピクセル解析もダークと判定)
-      expect(layoutResult.cssSnippet).toContain('#0A1628');
+      expect(layoutResult.cssSnippet).toContain("#0A1628");
     });
   });
 
@@ -477,32 +478,32 @@ describe('E&A Financial page.analyze Integration', () => {
   // 4. Visual Decoration Detection との統合
   // -------------------------------------------------
 
-  describe('4. Visual Decoration Detection Integration', () => {
-    it('should detect glow effects from E&A Financial CSS', () => {
+  describe("4. Visual Decoration Detection Integration", () => {
+    it("should detect glow effects from E&A Financial CSS", () => {
       const result = decorationDetector.detectFromHTML(EA_FINANCIAL_STYLE_HTML);
 
       expect(result.summary.glowCount).toBeGreaterThan(0);
     });
 
-    it('should detect gradients from E&A Financial CSS', () => {
+    it("should detect gradients from E&A Financial CSS", () => {
       const result = decorationDetector.detectFromHTML(EA_FINANCIAL_STYLE_HTML);
 
       expect(result.summary.gradientCount).toBeGreaterThan(0);
     });
 
-    it('should detect glass morphism from E&A Financial CSS', () => {
+    it("should detect glass morphism from E&A Financial CSS", () => {
       const result = decorationDetector.detectFromHTML(EA_FINANCIAL_STYLE_HTML);
 
       expect(result.summary.glassMorphismCount).toBeGreaterThan(0);
     });
 
-    it('should detect animated borders from E&A Financial CSS', () => {
+    it("should detect animated borders from E&A Financial CSS", () => {
       const result = decorationDetector.detectFromHTML(EA_FINANCIAL_STYLE_HTML);
 
       expect(result.summary.animatedBorderCount).toBeGreaterThan(0);
     });
 
-    it('should return all decoration patterns', () => {
+    it("should return all decoration patterns", () => {
       const result = decorationDetector.detectFromHTML(EA_FINANCIAL_STYLE_HTML);
 
       // 複数のパターンが検出されること
@@ -510,8 +511,8 @@ describe('E&A Financial page.analyze Integration', () => {
 
       // 各パターンに type と confidence があること
       result.decorations.forEach((decoration) => {
-        expect(decoration).toHaveProperty('type');
-        expect(decoration).toHaveProperty('confidence');
+        expect(decoration).toHaveProperty("type");
+        expect(decoration).toHaveProperty("confidence");
       });
     });
   });
@@ -520,8 +521,8 @@ describe('E&A Financial page.analyze Integration', () => {
   // 5. 統合シナリオ: page.analyze フロー全体
   // -------------------------------------------------
 
-  describe('5. Full Integration Scenario', () => {
-    it('should complete full analysis flow for E&A Financial style page', async () => {
+  describe("5. Full Integration Scenario", () => {
+    it("should complete full analysis flow for E&A Financial style page", async () => {
       // Step 1: Layout Analysis
       const layoutResult = await layoutAnalyzer.analyze(EA_FINANCIAL_STYLE_HTML);
       expect(layoutResult.sections.length).toBeGreaterThan(0);
@@ -530,7 +531,7 @@ describe('E&A Financial page.analyze Integration', () => {
       // Step 2: Pixel Theme Detection
       const screenshot = await createEAFinancialScreenshot();
       const themeResult = await pixelDetector.detectTheme(screenshot);
-      expect(themeResult.theme).toBe('dark');
+      expect(themeResult.theme).toBe("dark");
 
       // Step 3: Visual Decoration Detection
       const decorationResult = decorationDetector.detectFromHTML(EA_FINANCIAL_STYLE_HTML);
@@ -538,30 +539,30 @@ describe('E&A Financial page.analyze Integration', () => {
       expect(decorationResult.summary.gradientCount).toBeGreaterThan(0);
 
       // Step 4: Computed Styles (シミュレート)
-      const computedBodyBg = EA_FINANCIAL_COMPUTED_STYLES.find((s) => s.selector === 'body');
-      expect(computedBodyBg?.backgroundColor).toBe('rgb(10, 22, 40)');
+      const computedBodyBg = EA_FINANCIAL_COMPUTED_STYLES.find((s) => s.selector === "body");
+      expect(computedBodyBg?.backgroundColor).toBe("rgb(10, 22, 40)");
 
       // Step 5: 最終結果の検証
       // - テーマは dark
       // - 背景色は #0A1628 相当
       // - Glow/Gradient 効果が検出
-      expect(themeResult.theme).toBe('dark');
+      expect(themeResult.theme).toBe("dark");
       expect(themeResult.averageLuminance).toBeLessThan(0.3);
       expect(decorationResult.summary.glowCount).toBeGreaterThan(0);
       expect(decorationResult.summary.gradientCount).toBeGreaterThan(0);
       expect(decorationResult.summary.glassMorphismCount).toBeGreaterThan(0);
     });
 
-    it('should never detect E&A Financial as light or mixed theme', async () => {
+    it("should never detect E&A Financial as light or mixed theme", async () => {
       // Layout + Theme 統合
       const _layoutResult = await layoutAnalyzer.analyze(EA_FINANCIAL_STYLE_HTML);
       const screenshot = await createEAFinancialScreenshot();
       const themeResult = await pixelDetector.detectTheme(screenshot);
 
       // 誤認識の防止
-      expect(themeResult.theme).not.toBe('light');
-      expect(themeResult.theme).not.toBe('mixed');
-      expect(themeResult.theme).toBe('dark');
+      expect(themeResult.theme).not.toBe("light");
+      expect(themeResult.theme).not.toBe("mixed");
+      expect(themeResult.theme).toBe("dark");
     });
   });
 
@@ -569,17 +570,17 @@ describe('E&A Financial page.analyze Integration', () => {
   // 6. エラーハンドリング
   // -------------------------------------------------
 
-  describe('6. Error Handling', () => {
-    it('should handle empty HTML gracefully', async () => {
-      const result = await layoutAnalyzer.analyze('');
+  describe("6. Error Handling", () => {
+    it("should handle empty HTML gracefully", async () => {
+      const result = await layoutAnalyzer.analyze("");
 
       // 空の結果が返されること（エラーではない）
       expect(result).toBeDefined();
       expect(result.sections).toEqual([]);
     });
 
-    it('should handle malformed HTML', async () => {
-      const malformedHtml = '<div><p>Unclosed tags<div>';
+    it("should handle malformed HTML", async () => {
+      const malformedHtml = "<div><p>Unclosed tags<div>";
 
       const result = await layoutAnalyzer.analyze(malformedHtml);
 
@@ -587,7 +588,7 @@ describe('E&A Financial page.analyze Integration', () => {
       expect(result).toBeDefined();
     });
 
-    it('should handle CSS-only input', async () => {
+    it("should handle CSS-only input", async () => {
       const cssOnlyHtml = `
         <style>
           body { background: #0A1628; }
@@ -597,7 +598,7 @@ describe('E&A Financial page.analyze Integration', () => {
       const result = await layoutAnalyzer.analyze(cssOnlyHtml);
 
       expect(result).toBeDefined();
-      expect(result.cssSnippet).toContain('#0A1628');
+      expect(result.cssSnippet).toContain("#0A1628");
     });
   });
 
@@ -605,8 +606,8 @@ describe('E&A Financial page.analyze Integration', () => {
   // 7. パフォーマンス要件
   // -------------------------------------------------
 
-  describe('7. Performance Requirements', () => {
-    it('should complete layout analysis within 500ms', async () => {
+  describe("7. Performance Requirements", () => {
+    it("should complete layout analysis within 500ms", async () => {
       const startTime = Date.now();
       await layoutAnalyzer.analyze(EA_FINANCIAL_STYLE_HTML);
       const elapsed = Date.now() - startTime;
@@ -614,7 +615,7 @@ describe('E&A Financial page.analyze Integration', () => {
       expect(elapsed).toBeLessThan(500);
     });
 
-    it('should complete pixel detection within 500ms', async () => {
+    it("should complete pixel detection within 500ms", async () => {
       const screenshot = await createEAFinancialScreenshot();
 
       const startTime = Date.now();
@@ -624,7 +625,7 @@ describe('E&A Financial page.analyze Integration', () => {
       expect(elapsed).toBeLessThan(500);
     });
 
-    it('should complete decoration detection within 100ms', () => {
+    it("should complete decoration detection within 100ms", () => {
       const startTime = Date.now();
       decorationDetector.detectFromHTML(EA_FINANCIAL_STYLE_HTML);
       const elapsed = Date.now() - startTime;
@@ -632,7 +633,7 @@ describe('E&A Financial page.analyze Integration', () => {
       expect(elapsed).toBeLessThan(100);
     });
 
-    it('should complete full integration flow within 2000ms', async () => {
+    it("should complete full integration flow within 2000ms", async () => {
       const startTime = Date.now();
 
       // Full flow
@@ -651,46 +652,46 @@ describe('E&A Financial page.analyze Integration', () => {
   // 8. 回帰テスト: 特定の誤認識シナリオ
   // -------------------------------------------------
 
-  describe('8. Regression: Specific Misdetection Scenarios', () => {
-    it('CRITICAL: Dark navy blue (#0A1628) must be detected as dark, not light', async () => {
+  describe("8. Regression: Specific Misdetection Scenarios", () => {
+    it("CRITICAL: Dark navy blue (#0A1628) must be detected as dark, not light", async () => {
       const screenshot = await createEAFinancialScreenshot();
       const result = await pixelDetector.detectTheme(screenshot);
 
-      expect(result.theme).toBe('dark');
-      expect(result.theme).not.toBe('light');
+      expect(result.theme).toBe("dark");
+      expect(result.theme).not.toBe("light");
     });
 
-    it('CRITICAL: Dark navy blue (#0A1628) must be detected as dark, not mixed', async () => {
+    it("CRITICAL: Dark navy blue (#0A1628) must be detected as dark, not mixed", async () => {
       const screenshot = await createEAFinancialScreenshot();
       const result = await pixelDetector.detectTheme(screenshot);
 
-      expect(result.theme).toBe('dark');
-      expect(result.theme).not.toBe('mixed');
+      expect(result.theme).toBe("dark");
+      expect(result.theme).not.toBe("mixed");
     });
 
-    it('CRITICAL: Luminance must be below 0.3 for E&A Financial colors', async () => {
+    it("CRITICAL: Luminance must be below 0.3 for E&A Financial colors", async () => {
       const screenshot = await createEAFinancialScreenshot();
       const result = await pixelDetector.detectTheme(screenshot);
 
       expect(result.averageLuminance).toBeLessThan(0.3);
     });
 
-    it('CRITICAL: All regions must be dark for uniform dark background', async () => {
+    it("CRITICAL: All regions must be dark for uniform dark background", async () => {
       const screenshot = await createEAFinancialScreenshot();
       const result = await pixelDetector.detectTheme(screenshot);
 
-      expect(result.analysis.topRegionTheme).toBe('dark');
-      expect(result.analysis.middleRegionTheme).toBe('dark');
-      expect(result.analysis.bottomRegionTheme).toBe('dark');
+      expect(result.analysis.topRegionTheme).toBe("dark");
+      expect(result.analysis.middleRegionTheme).toBe("dark");
+      expect(result.analysis.bottomRegionTheme).toBe("dark");
     });
 
-    it('CRITICAL: Glow effects must be detected in E&A Financial CSS', () => {
+    it("CRITICAL: Glow effects must be detected in E&A Financial CSS", () => {
       const result = decorationDetector.detectFromHTML(EA_FINANCIAL_STYLE_HTML);
 
       expect(result.summary.glowCount).toBeGreaterThan(0);
     });
 
-    it('CRITICAL: Glass morphism must be detected in E&A Financial CSS', () => {
+    it("CRITICAL: Glass morphism must be detected in E&A Financial CSS", () => {
       const result = decorationDetector.detectFromHTML(EA_FINANCIAL_STYLE_HTML);
 
       expect(result.summary.glassMorphismCount).toBeGreaterThan(0);

@@ -12,9 +12,8 @@
  * 3. 既存機能の動作保証
  */
 
-import { describe, it, expect, beforeEach } from 'vitest';
-import type {
-  AnimationMetricsInput} from '../../../src/services/motion/animation-metrics-collector.service';
+import { describe, it, expect, beforeEach } from "vitest";
+import type { AnimationMetricsInput } from "../../../src/services/motion/animation-metrics-collector.service";
 import {
   AnimationMetricsCollector,
   AnimationMetricsResult,
@@ -24,8 +23,8 @@ import {
   THRESHOLDS,
   extractPropertyName,
   extractPropertyNames,
-} from '../../../src/services/motion/animation-metrics-collector.service';
-import type { MotionPattern, LighthouseMetrics } from '../../../src/tools/motion/schemas';
+} from "../../../src/services/motion/animation-metrics-collector.service";
+import type { MotionPattern, LighthouseMetrics } from "../../../src/tools/motion/schemas";
 
 // ============================================================================
 // テストヘルパー
@@ -36,15 +35,15 @@ import type { MotionPattern, LighthouseMetrics } from '../../../src/tools/motion
  */
 function createMockPattern(overrides: Partial<MotionPattern> = {}): MotionPattern {
   return {
-    id: 'test-pattern-1',
-    name: 'test-animation',
-    type: 'css_animation',
-    category: 'entrance',
-    trigger: 'load',
+    id: "test-pattern-1",
+    name: "test-animation",
+    type: "css_animation",
+    category: "entrance",
+    trigger: "load",
     animation: {
       duration: 300,
       delay: 0,
-      easing: 'ease-out',
+      easing: "ease-out",
       iterations: 1,
     },
     properties: [],
@@ -53,7 +52,7 @@ function createMockPattern(overrides: Partial<MotionPattern> = {}): MotionPatter
       usesOpacity: true,
       triggersLayout: false,
       triggersPaint: false,
-      level: 'good',
+      level: "good",
     },
     accessibility: {
       respectsReducedMotion: true,
@@ -65,7 +64,9 @@ function createMockPattern(overrides: Partial<MotionPattern> = {}): MotionPatter
 /**
  * テスト用のLighthouseMetricsを作成
  */
-function createMockLighthouseMetrics(overrides: Partial<LighthouseMetrics> = {}): LighthouseMetrics {
+function createMockLighthouseMetrics(
+  overrides: Partial<LighthouseMetrics> = {}
+): LighthouseMetrics {
   return {
     performance_score: 90,
     cls: 0.05,
@@ -83,68 +84,68 @@ function createMockLighthouseMetrics(overrides: Partial<LighthouseMetrics> = {})
 // Phase3-TDD-Refactor: スコア計算定数化テスト
 // ============================================================================
 
-describe('AnimationMetricsCollector - スコア計算定数', () => {
-  describe('SCORE_FACTORS定数の公開検証', () => {
-    it('SCORE_FACTORSがエクスポートされている', () => {
+describe("AnimationMetricsCollector - スコア計算定数", () => {
+  describe("SCORE_FACTORS定数の公開検証", () => {
+    it("SCORE_FACTORSがエクスポートされている", () => {
       expect(SCORE_FACTORS).toBeDefined();
-      expect(typeof SCORE_FACTORS).toBe('object');
+      expect(typeof SCORE_FACTORS).toBe("object");
     });
 
-    it('SCORE_FACTORS.TRIGGERS_LAYOUT が 30 である', () => {
+    it("SCORE_FACTORS.TRIGGERS_LAYOUT が 30 である", () => {
       expect(SCORE_FACTORS.TRIGGERS_LAYOUT).toBe(30);
     });
 
-    it('SCORE_FACTORS.TRIGGERS_PAINT が 15 である', () => {
+    it("SCORE_FACTORS.TRIGGERS_PAINT が 15 である", () => {
       expect(SCORE_FACTORS.TRIGGERS_PAINT).toBe(15);
     });
 
-    it('SCORE_FACTORS.NO_GPU_ACCELERATION が 20 である', () => {
+    it("SCORE_FACTORS.NO_GPU_ACCELERATION が 20 である", () => {
       expect(SCORE_FACTORS.NO_GPU_ACCELERATION).toBe(20);
     });
 
-    it('SCORE_FACTORS.POOR_PERFORMANCE_LEVEL が 15 である', () => {
+    it("SCORE_FACTORS.POOR_PERFORMANCE_LEVEL が 15 である", () => {
       expect(SCORE_FACTORS.POOR_PERFORMANCE_LEVEL).toBe(15);
     });
 
-    it('SCORE_FACTORS.FAIR_PERFORMANCE_LEVEL が 5 である', () => {
+    it("SCORE_FACTORS.FAIR_PERFORMANCE_LEVEL が 5 である", () => {
       expect(SCORE_FACTORS.FAIR_PERFORMANCE_LEVEL).toBe(5);
     });
 
-    it('SCORE_FACTORS.LONG_DURATION が 10 である', () => {
+    it("SCORE_FACTORS.LONG_DURATION が 10 である", () => {
       expect(SCORE_FACTORS.LONG_DURATION).toBe(10);
     });
 
-    it('SCORE_FACTORS.INFINITE_ITERATIONS が 15 である', () => {
+    it("SCORE_FACTORS.INFINITE_ITERATIONS が 15 である", () => {
       expect(SCORE_FACTORS.INFINITE_ITERATIONS).toBe(15);
     });
 
-    it('SCORE_FACTORS.DELAYED_LAYOUT_CHANGE が 20 である', () => {
+    it("SCORE_FACTORS.DELAYED_LAYOUT_CHANGE が 20 である", () => {
       expect(SCORE_FACTORS.DELAYED_LAYOUT_CHANGE).toBe(20);
     });
 
-    it('SCORE_FACTORS.LAYOUT_PROPERTY が 5 である', () => {
+    it("SCORE_FACTORS.LAYOUT_PROPERTY が 5 である", () => {
       expect(SCORE_FACTORS.LAYOUT_PROPERTY).toBe(5);
     });
 
-    it('SCORE_FACTORS.CLS_CORRELATION が 15 である', () => {
+    it("SCORE_FACTORS.CLS_CORRELATION が 15 である", () => {
       expect(SCORE_FACTORS.CLS_CORRELATION).toBe(15);
     });
 
-    it('SCORE_FACTORS.TBT_CORRELATION が 10 である', () => {
+    it("SCORE_FACTORS.TBT_CORRELATION が 10 である", () => {
       expect(SCORE_FACTORS.TBT_CORRELATION).toBe(10);
     });
   });
 
-  describe('閾値定数の公開検証', () => {
-    it('THRESHOLDS.LONG_DURATION_MS が 1000 である', () => {
+  describe("閾値定数の公開検証", () => {
+    it("THRESHOLDS.LONG_DURATION_MS が 1000 である", () => {
       expect(THRESHOLDS.LONG_DURATION_MS).toBe(1000);
     });
 
-    it('THRESHOLDS.HIGH_TBT_MS が 600 である', () => {
+    it("THRESHOLDS.HIGH_TBT_MS が 600 である", () => {
       expect(THRESHOLDS.HIGH_TBT_MS).toBe(600);
     });
 
-    it('THRESHOLDS.LONG_ANIMATION_MS が 500 である', () => {
+    it("THRESHOLDS.LONG_ANIMATION_MS が 500 である", () => {
       expect(THRESHOLDS.LONG_ANIMATION_MS).toBe(500);
     });
   });
@@ -154,46 +155,48 @@ describe('AnimationMetricsCollector - スコア計算定数', () => {
 // Phase3-TDD-Refactor: プロパティ抽出ヘルパー関数テスト
 // ============================================================================
 
-describe('AnimationMetricsCollector - プロパティ抽出', () => {
-  describe('extractPropertyName関数', () => {
-    it('文字列プロパティをそのまま返す', () => {
-      expect(extractPropertyName('opacity')).toBe('opacity');
-      expect(extractPropertyName('transform')).toBe('transform');
-      expect(extractPropertyName('width')).toBe('width');
+describe("AnimationMetricsCollector - プロパティ抽出", () => {
+  describe("extractPropertyName関数", () => {
+    it("文字列プロパティをそのまま返す", () => {
+      expect(extractPropertyName("opacity")).toBe("opacity");
+      expect(extractPropertyName("transform")).toBe("transform");
+      expect(extractPropertyName("width")).toBe("width");
     });
 
-    it('AnimatedPropertyオブジェクトからpropertyフィールドを抽出する', () => {
-      expect(extractPropertyName({ property: 'opacity', from: '0', to: '1' })).toBe('opacity');
-      expect(extractPropertyName({ property: 'transform' })).toBe('transform');
-      expect(extractPropertyName({ property: 'margin-left', from: '0', to: '20px', unit: 'px' })).toBe('margin-left');
+    it("AnimatedPropertyオブジェクトからpropertyフィールドを抽出する", () => {
+      expect(extractPropertyName({ property: "opacity", from: "0", to: "1" })).toBe("opacity");
+      expect(extractPropertyName({ property: "transform" })).toBe("transform");
+      expect(
+        extractPropertyName({ property: "margin-left", from: "0", to: "20px", unit: "px" })
+      ).toBe("margin-left");
     });
   });
 
-  describe('extractPropertyNames関数', () => {
-    it('空配列を処理できる', () => {
+  describe("extractPropertyNames関数", () => {
+    it("空配列を処理できる", () => {
       expect(extractPropertyNames([])).toEqual([]);
     });
 
-    it('文字列のみの配列を処理できる', () => {
-      const result = extractPropertyNames(['opacity', 'transform', 'width']);
-      expect(result).toEqual(['opacity', 'transform', 'width']);
+    it("文字列のみの配列を処理できる", () => {
+      const result = extractPropertyNames(["opacity", "transform", "width"]);
+      expect(result).toEqual(["opacity", "transform", "width"]);
     });
 
-    it('オブジェクトのみの配列を処理できる', () => {
+    it("オブジェクトのみの配列を処理できる", () => {
       const result = extractPropertyNames([
-        { property: 'opacity', from: '0', to: '1' },
-        { property: 'transform' },
+        { property: "opacity", from: "0", to: "1" },
+        { property: "transform" },
       ]);
-      expect(result).toEqual(['opacity', 'transform']);
+      expect(result).toEqual(["opacity", "transform"]);
     });
 
-    it('混合配列を処理できる', () => {
+    it("混合配列を処理できる", () => {
       const result = extractPropertyNames([
-        'opacity',
-        { property: 'transform', from: 'scale(0)', to: 'scale(1)' },
-        'width',
+        "opacity",
+        { property: "transform", from: "scale(0)", to: "scale(1)" },
+        "width",
       ]);
-      expect(result).toEqual(['opacity', 'transform', 'width']);
+      expect(result).toEqual(["opacity", "transform", "width"]);
     });
   });
 });
@@ -202,15 +205,15 @@ describe('AnimationMetricsCollector - プロパティ抽出', () => {
 // 既存機能の動作保証テスト
 // ============================================================================
 
-describe('AnimationMetricsCollector - 基本機能', () => {
+describe("AnimationMetricsCollector - 基本機能", () => {
   let collector: AnimationMetricsCollector;
 
   beforeEach(() => {
     collector = new AnimationMetricsCollector();
   });
 
-  describe('analyze()', () => {
-    it('空のパターン配列で初期値を返す', async () => {
+  describe("analyze()", () => {
+    it("空のパターン配列で初期値を返す", async () => {
       const input: AnimationMetricsInput = {
         patterns: [],
         lighthouseMetrics: null,
@@ -227,11 +230,11 @@ describe('AnimationMetricsCollector - 基本機能', () => {
       expect(result.analyzedAt).toBeDefined();
     });
 
-    it('単一パターンを正常に分析する', async () => {
+    it("単一パターンを正常に分析する", async () => {
       const pattern = createMockPattern({
-        id: 'pattern-1',
-        name: 'fade-in',
-        properties: [{ property: 'opacity', from: '0', to: '1' }],
+        id: "pattern-1",
+        name: "fade-in",
+        properties: [{ property: "opacity", from: "0", to: "1" }],
       });
 
       const input: AnimationMetricsInput = {
@@ -242,13 +245,13 @@ describe('AnimationMetricsCollector - 基本機能', () => {
       const result = await collector.analyze(input);
 
       expect(result.patternImpacts).toHaveLength(1);
-      expect(result.patternImpacts[0].patternId).toBe('pattern-1');
-      expect(result.patternImpacts[0].patternName).toBe('fade-in');
+      expect(result.patternImpacts[0].patternId).toBe("pattern-1");
+      expect(result.patternImpacts[0].patternName).toBe("fade-in");
       expect(result.overallScore).toBeGreaterThanOrEqual(0);
       expect(result.overallScore).toBeLessThanOrEqual(100);
     });
 
-    it('Lighthouseメトリクスありで分析できる', async () => {
+    it("Lighthouseメトリクスありで分析できる", async () => {
       const pattern = createMockPattern();
       const lighthouseMetrics = createMockLighthouseMetrics();
 
@@ -262,11 +265,11 @@ describe('AnimationMetricsCollector - 基本機能', () => {
       expect(result.lighthouseAvailable).toBe(true);
     });
 
-    it('複数パターンを正常に分析する', async () => {
+    it("複数パターンを正常に分析する", async () => {
       const patterns = [
-        createMockPattern({ id: 'p1', name: 'anim-1' }),
-        createMockPattern({ id: 'p2', name: 'anim-2' }),
-        createMockPattern({ id: 'p3', name: 'anim-3' }),
+        createMockPattern({ id: "p1", name: "anim-1" }),
+        createMockPattern({ id: "p2", name: "anim-2" }),
+        createMockPattern({ id: "p3", name: "anim-3" }),
       ];
 
       const input: AnimationMetricsInput = {
@@ -280,15 +283,15 @@ describe('AnimationMetricsCollector - 基本機能', () => {
     });
   });
 
-  describe('calculateImpactScore()', () => {
-    it('レイアウトトリガーでスコアが増加する', () => {
+  describe("calculateImpactScore()", () => {
+    it("レイアウトトリガーでスコアが増加する", () => {
       const patternWithLayout = createMockPattern({
         performance: {
           usesTransform: false,
           usesOpacity: false,
           triggersLayout: true,
           triggersPaint: false,
-          level: 'poor',
+          level: "poor",
         },
       });
 
@@ -298,7 +301,7 @@ describe('AnimationMetricsCollector - 基本機能', () => {
           usesOpacity: true,
           triggersLayout: false,
           triggersPaint: false,
-          level: 'good',
+          level: "good",
         },
       });
 
@@ -308,12 +311,12 @@ describe('AnimationMetricsCollector - 基本機能', () => {
       expect(scoreWithLayout).toBeGreaterThan(scoreWithoutLayout);
     });
 
-    it('無限ループアニメーションでスコアが増加する', () => {
+    it("無限ループアニメーションでスコアが増加する", () => {
       const infinitePattern = createMockPattern({
         animation: {
           duration: 300,
           delay: 0,
-          easing: 'ease',
+          easing: "ease",
           iterations: Infinity,
         },
       });
@@ -322,7 +325,7 @@ describe('AnimationMetricsCollector - 基本機能', () => {
         animation: {
           duration: 300,
           delay: 0,
-          easing: 'ease',
+          easing: "ease",
           iterations: 1,
         },
       });
@@ -333,12 +336,12 @@ describe('AnimationMetricsCollector - 基本機能', () => {
       expect(infiniteScore).toBeGreaterThan(finiteScore);
     });
 
-    it('長いアニメーションでスコアが増加する', () => {
+    it("長いアニメーションでスコアが増加する", () => {
       const longPattern = createMockPattern({
         animation: {
           duration: 2000,
           delay: 0,
-          easing: 'ease',
+          easing: "ease",
           iterations: 1,
         },
       });
@@ -347,7 +350,7 @@ describe('AnimationMetricsCollector - 基本機能', () => {
         animation: {
           duration: 200,
           delay: 0,
-          easing: 'ease',
+          easing: "ease",
           iterations: 1,
         },
       });
@@ -358,18 +361,16 @@ describe('AnimationMetricsCollector - 基本機能', () => {
       expect(longScore).toBeGreaterThan(shortScore);
     });
 
-    it('レイアウトプロパティでスコアが増加する', () => {
+    it("レイアウトプロパティでスコアが増加する", () => {
       const layoutPropPattern = createMockPattern({
         properties: [
-          { property: 'width', from: '0', to: '100px' },
-          { property: 'height', from: '0', to: '100px' },
+          { property: "width", from: "0", to: "100px" },
+          { property: "height", from: "0", to: "100px" },
         ],
       });
 
       const transformPropPattern = createMockPattern({
-        properties: [
-          { property: 'transform', from: 'scale(0)', to: 'scale(1)' },
-        ],
+        properties: [{ property: "transform", from: "scale(0)", to: "scale(1)" }],
       });
 
       const layoutScore = collector.calculateImpactScore(layoutPropPattern, null);
@@ -379,59 +380,57 @@ describe('AnimationMetricsCollector - 基本機能', () => {
     });
   });
 
-  describe('getRecommendations()', () => {
-    it('レイアウトプロパティ使用時にtransform提案を返す', () => {
+  describe("getRecommendations()", () => {
+    it("レイアウトプロパティ使用時にtransform提案を返す", () => {
       const pattern = createMockPattern({
         properties: [
-          { property: 'left', from: '0', to: '100px' },
-          { property: 'top', from: '0', to: '50px' },
+          { property: "left", from: "0", to: "100px" },
+          { property: "top", from: "0", to: "50px" },
         ],
       });
 
       const recommendations = collector.getRecommendations([pattern], null);
 
-      const transformRec = recommendations.find((r) => r.category === 'use-transform');
+      const transformRec = recommendations.find((r) => r.category === "use-transform");
       expect(transformRec).toBeDefined();
-      expect(transformRec?.priority).toBe('high');
+      expect(transformRec?.priority).toBe("high");
     });
 
-    it('サイズプロパティ使用時にscale提案を返す', () => {
+    it("サイズプロパティ使用時にscale提案を返す", () => {
       const pattern = createMockPattern({
-        properties: [
-          { property: 'width', from: '0', to: '100px' },
-        ],
+        properties: [{ property: "width", from: "0", to: "100px" }],
       });
 
       const recommendations = collector.getRecommendations([pattern], null);
 
-      const avoidLayoutRec = recommendations.find((r) => r.category === 'avoid-layout');
+      const avoidLayoutRec = recommendations.find((r) => r.category === "avoid-layout");
       expect(avoidLayoutRec).toBeDefined();
     });
 
-    it('無限ループアニメーションに対して提案を返す', () => {
+    it("無限ループアニメーションに対して提案を返す", () => {
       const pattern = createMockPattern({
         animation: {
           duration: 1000,
           delay: 0,
-          easing: 'linear',
-          iterations: 'infinite',
+          easing: "linear",
+          iterations: "infinite",
         },
       });
 
       const recommendations = collector.getRecommendations([pattern], null);
 
-      const infiniteRec = recommendations.find((r) => r.category === 'infinite-animation');
+      const infiniteRec = recommendations.find((r) => r.category === "infinite-animation");
       expect(infiniteRec).toBeDefined();
-      expect(infiniteRec?.priority).toBe('medium');
+      expect(infiniteRec?.priority).toBe("medium");
     });
 
-    it('遅延レイアウト変更でCLSリスク提案を返す', () => {
+    it("遅延レイアウト変更でCLSリスク提案を返す", () => {
       const pattern = createMockPattern({
-        trigger: 'load',
+        trigger: "load",
         animation: {
           duration: 500,
           delay: 500,
-          easing: 'ease',
+          easing: "ease",
           iterations: 1,
         },
         performance: {
@@ -439,47 +438,47 @@ describe('AnimationMetricsCollector - 基本機能', () => {
           usesOpacity: false,
           triggersLayout: true,
           triggersPaint: false,
-          level: 'poor',
+          level: "poor",
         },
       });
 
       const recommendations = collector.getRecommendations([pattern], null);
 
-      const clsRec = recommendations.find((r) => r.category === 'cls-risk');
+      const clsRec = recommendations.find((r) => r.category === "cls-risk");
       expect(clsRec).toBeDefined();
-      expect(clsRec?.priority).toBe('high');
+      expect(clsRec?.priority).toBe("high");
     });
 
-    it('重複する提案がマージされる', () => {
+    it("重複する提案がマージされる", () => {
       const patterns = [
         createMockPattern({
-          id: 'p1',
-          properties: [{ property: 'left', from: '0', to: '100px' }],
+          id: "p1",
+          properties: [{ property: "left", from: "0", to: "100px" }],
         }),
         createMockPattern({
-          id: 'p2',
-          properties: [{ property: 'top', from: '0', to: '100px' }],
+          id: "p2",
+          properties: [{ property: "top", from: "0", to: "100px" }],
         }),
       ];
 
       const recommendations = collector.getRecommendations(patterns, null);
 
       // use-transformカテゴリは1つにマージされ、複数のpatternIdを含む
-      const transformRecs = recommendations.filter((r) => r.category === 'use-transform');
+      const transformRecs = recommendations.filter((r) => r.category === "use-transform");
       expect(transformRecs.length).toBeLessThanOrEqual(2);
     });
   });
 
-  describe('CLS貢献者検出', () => {
-    it('CLSが良好な場合は貢献者を返さない', async () => {
+  describe("CLS貢献者検出", () => {
+    it("CLSが良好な場合は貢献者を返さない", async () => {
       const pattern = createMockPattern({
-        trigger: 'load',
+        trigger: "load",
         performance: {
           usesTransform: false,
           usesOpacity: false,
           triggersLayout: true,
           triggersPaint: false,
-          level: 'poor',
+          level: "poor",
         },
       });
 
@@ -493,16 +492,16 @@ describe('AnimationMetricsCollector - 基本機能', () => {
       expect(result.clsContributors).toHaveLength(0);
     });
 
-    it('CLSが悪い場合にレイアウトトリガーパターンを検出する', async () => {
+    it("CLSが悪い場合にレイアウトトリガーパターンを検出する", async () => {
       const pattern = createMockPattern({
-        id: 'cls-contrib-pattern',
-        trigger: 'load',
+        id: "cls-contrib-pattern",
+        trigger: "load",
         performance: {
           usesTransform: false,
           usesOpacity: false,
           triggersLayout: true,
           triggersPaint: false,
-          level: 'poor',
+          level: "poor",
         },
       });
 
@@ -514,17 +513,17 @@ describe('AnimationMetricsCollector - 基本機能', () => {
       });
 
       expect(result.clsContributors.length).toBeGreaterThan(0);
-      expect(result.clsContributors[0].patternId).toBe('cls-contrib-pattern');
+      expect(result.clsContributors[0].patternId).toBe("cls-contrib-pattern");
     });
   });
 
-  describe('レイアウトトリガープロパティ収集', () => {
-    it('レイアウトプロパティを正しく収集する', async () => {
+  describe("レイアウトトリガープロパティ収集", () => {
+    it("レイアウトプロパティを正しく収集する", async () => {
       const pattern = createMockPattern({
         properties: [
-          { property: 'width', from: '0', to: '100px' },
-          { property: 'margin', from: '0', to: '10px' },
-          { property: 'opacity', from: '0', to: '1' },
+          { property: "width", from: "0", to: "100px" },
+          { property: "margin", from: "0", to: "10px" },
+          { property: "opacity", from: "0", to: "1" },
         ],
       });
 
@@ -533,18 +532,18 @@ describe('AnimationMetricsCollector - 基本機能', () => {
         lighthouseMetrics: null,
       });
 
-      expect(result.layoutTriggeringProperties).toContain('width');
-      expect(result.layoutTriggeringProperties).toContain('margin');
-      expect(result.layoutTriggeringProperties).not.toContain('opacity');
+      expect(result.layoutTriggeringProperties).toContain("width");
+      expect(result.layoutTriggeringProperties).toContain("margin");
+      expect(result.layoutTriggeringProperties).not.toContain("opacity");
     });
 
-    it('複数パターンからプロパティを収集する', async () => {
+    it("複数パターンからプロパティを収集する", async () => {
       const patterns = [
         createMockPattern({
-          properties: [{ property: 'height', from: '0', to: '100px' }],
+          properties: [{ property: "height", from: "0", to: "100px" }],
         }),
         createMockPattern({
-          properties: [{ property: 'padding', from: '0', to: '10px' }],
+          properties: [{ property: "padding", from: "0", to: "10px" }],
         }),
       ];
 
@@ -553,15 +552,15 @@ describe('AnimationMetricsCollector - 基本機能', () => {
         lighthouseMetrics: null,
       });
 
-      expect(result.layoutTriggeringProperties).toContain('height');
-      expect(result.layoutTriggeringProperties).toContain('padding');
+      expect(result.layoutTriggeringProperties).toContain("height");
+      expect(result.layoutTriggeringProperties).toContain("padding");
     });
   });
 
-  describe('プロパティ型ハンドリング', () => {
-    it('文字列プロパティを正しく処理する', async () => {
+  describe("プロパティ型ハンドリング", () => {
+    it("文字列プロパティを正しく処理する", async () => {
       const pattern = createMockPattern({
-        properties: ['width', 'height'] as unknown as MotionPattern['properties'],
+        properties: ["width", "height"] as unknown as MotionPattern["properties"],
       });
 
       const result = await collector.analyze({
@@ -569,15 +568,13 @@ describe('AnimationMetricsCollector - 基本機能', () => {
         lighthouseMetrics: null,
       });
 
-      expect(result.layoutTriggeringProperties).toContain('width');
-      expect(result.layoutTriggeringProperties).toContain('height');
+      expect(result.layoutTriggeringProperties).toContain("width");
+      expect(result.layoutTriggeringProperties).toContain("height");
     });
 
-    it('AnimatedPropertyオブジェクトを正しく処理する', async () => {
+    it("AnimatedPropertyオブジェクトを正しく処理する", async () => {
       const pattern = createMockPattern({
-        properties: [
-          { property: 'margin-left', from: '0', to: '20px' },
-        ],
+        properties: [{ property: "margin-left", from: "0", to: "20px" }],
       });
 
       const result = await collector.analyze({
@@ -585,15 +582,15 @@ describe('AnimationMetricsCollector - 基本機能', () => {
         lighthouseMetrics: null,
       });
 
-      expect(result.layoutTriggeringProperties).toContain('margin-left');
+      expect(result.layoutTriggeringProperties).toContain("margin-left");
     });
 
-    it('混合プロパティ配列を正しく処理する', async () => {
+    it("混合プロパティ配列を正しく処理する", async () => {
       const pattern = createMockPattern({
         properties: [
-          'top',
-          { property: 'left', from: '0', to: '100px' },
-        ] as unknown as MotionPattern['properties'],
+          "top",
+          { property: "left", from: "0", to: "100px" },
+        ] as unknown as MotionPattern["properties"],
       });
 
       const result = await collector.analyze({
@@ -601,8 +598,8 @@ describe('AnimationMetricsCollector - 基本機能', () => {
         lighthouseMetrics: null,
       });
 
-      expect(result.layoutTriggeringProperties).toContain('top');
-      expect(result.layoutTriggeringProperties).toContain('left');
+      expect(result.layoutTriggeringProperties).toContain("top");
+      expect(result.layoutTriggeringProperties).toContain("left");
     });
   });
 });
@@ -611,21 +608,21 @@ describe('AnimationMetricsCollector - 基本機能', () => {
 // Lighthouseメトリクス連携テスト
 // ============================================================================
 
-describe('AnimationMetricsCollector - Lighthouse連携', () => {
+describe("AnimationMetricsCollector - Lighthouse連携", () => {
   let collector: AnimationMetricsCollector;
 
   beforeEach(() => {
     collector = new AnimationMetricsCollector();
   });
 
-  it('CLS悪化時にレイアウトトリガーパターンの影響度が増加する', () => {
+  it("CLS悪化時にレイアウトトリガーパターンの影響度が増加する", () => {
     const pattern = createMockPattern({
       performance: {
         usesTransform: false,
         usesOpacity: false,
         triggersLayout: true,
         triggersPaint: false,
-        level: 'fair',
+        level: "fair",
       },
     });
 
@@ -638,12 +635,12 @@ describe('AnimationMetricsCollector - Lighthouse連携', () => {
     expect(scoreWithBadCls).toBeGreaterThan(scoreWithGoodCls);
   });
 
-  it('TBT悪化時に長いアニメーションの影響度が増加する', () => {
+  it("TBT悪化時に長いアニメーションの影響度が増加する", () => {
     const pattern = createMockPattern({
       animation: {
         duration: 600,
         delay: 0,
-        easing: 'ease',
+        easing: "ease",
         iterations: 1,
       },
     });
@@ -657,7 +654,7 @@ describe('AnimationMetricsCollector - Lighthouse連携', () => {
     expect(scoreWithBadTbt).toBeGreaterThan(scoreWithGoodTbt);
   });
 
-  it('パフォーマンススコア低下で全体スコアにペナルティが適用される', async () => {
+  it("パフォーマンススコア低下で全体スコアにペナルティが適用される", async () => {
     const pattern = createMockPattern();
 
     const goodPerf = createMockLighthouseMetrics({ performance_score: 90 });

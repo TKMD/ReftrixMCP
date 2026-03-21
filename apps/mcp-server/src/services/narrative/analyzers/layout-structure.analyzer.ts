@@ -24,10 +24,10 @@ import type {
   SpacingRhythm,
   SectionRelationship,
   GraphicElements,
-} from '../types/narrative.types';
-import type { CSSVariableExtractionResult } from '../../visual/css-variable-extractor.service';
-import type { DetectedSection } from '@reftrix/webdesign-core';
-import { isDevelopment, logger } from '../../../utils/logger';
+} from "../types/narrative.types";
+import type { CSSVariableExtractionResult } from "../../visual/css-variable-extractor.service";
+import type { DetectedSection } from "@reftrix/webdesign-core";
+import { isDevelopment, logger } from "../../../utils/logger";
 
 // =============================================================================
 // Types
@@ -76,23 +76,17 @@ export interface LayoutStructureAnalysisOutput {
 /**
  * 一般的なブレークポイント（文字列形式）
  */
-const DEFAULT_BREAKPOINTS: GridSystem['breakpoints'] = {
-  mobile: '640px',
-  tablet: '768px',
-  desktop: '1024px',
-  wide: '1280px',
+const DEFAULT_BREAKPOINTS: GridSystem["breakpoints"] = {
+  mobile: "640px",
+  tablet: "768px",
+  desktop: "1024px",
+  wide: "1280px",
 };
 
 /**
  * スペーシング関連のCSSプロパティ名
  */
-const SPACING_PROPERTY_PATTERNS = [
-  'space',
-  'spacing',
-  'gap',
-  'padding',
-  'margin',
-] as const;
+const SPACING_PROPERTY_PATTERNS = ["space", "spacing", "gap", "padding", "margin"] as const;
 
 // =============================================================================
 // Grid System Analysis
@@ -107,30 +101,30 @@ function analyzeGridSystem(
   cssVariables?: CSSVariableExtractionResult
 ): GridSystem {
   // CSS Grid検出
-  const hasDisplayGrid = css.includes('display: grid') || css.includes('display:grid');
+  const hasDisplayGrid = css.includes("display: grid") || css.includes("display:grid");
 
   // Flexbox検出
-  const hasDisplayFlex = css.includes('display: flex') || css.includes('display:flex');
+  const hasDisplayFlex = css.includes("display: flex") || css.includes("display:flex");
 
   // Float検出（レガシー）
-  const hasFloat = css.includes('float:') || css.includes('float :');
+  const hasFloat = css.includes("float:") || css.includes("float :");
 
   // グリッドタイプを決定
-  let type: GridSystem['type'] = 'none';
+  let type: GridSystem["type"] = "none";
   if (hasDisplayGrid && hasDisplayFlex) {
-    type = 'mixed';
+    type = "mixed";
   } else if (hasDisplayGrid) {
-    type = 'css-grid';
+    type = "css-grid";
   } else if (hasDisplayFlex) {
-    type = 'flexbox';
+    type = "flexbox";
   } else if (hasFloat) {
-    type = 'float';
+    type = "float";
   }
 
   // CSS変数からグリッド設定を抽出
-  let columns: number | 'fluid' = 12;
-  let gutterWidth = '1rem';
-  let containerWidth = '1280px';
+  let columns: number | "fluid" = 12;
+  let gutterWidth = "1rem";
+  let containerWidth = "1280px";
 
   if (cssVariables?.variables) {
     for (const variable of cssVariables.variables) {
@@ -138,7 +132,7 @@ function analyzeGridSystem(
       const value = variable.value;
 
       // カラム数
-      if (name.includes('column') && name.includes('count')) {
+      if (name.includes("column") && name.includes("count")) {
         const num = parseInt(value, 10);
         if (!isNaN(num) && num > 0 && num <= 24) {
           columns = num;
@@ -146,12 +140,12 @@ function analyzeGridSystem(
       }
 
       // ガター幅
-      if (name.includes('gutter') || name.includes('gap')) {
+      if (name.includes("gutter") || name.includes("gap")) {
         gutterWidth = value;
       }
 
       // コンテナ幅
-      if (name.includes('container') || name.includes('max-width')) {
+      if (name.includes("container") || name.includes("max-width")) {
         containerWidth = value;
       }
     }
@@ -167,7 +161,7 @@ function analyzeGridSystem(
   }
 
   // ブレークポイントを検出
-  const breakpoints: GridSystem['breakpoints'] = {};
+  const breakpoints: GridSystem["breakpoints"] = {};
   const mediaQueryPattern = /@media[^{]*\(min-width:\s*(\d+)px\)/g;
   let match;
   const detectedBreakpoints: number[] = [];
@@ -196,9 +190,8 @@ function analyzeGridSystem(
 
   // 検出されたブレークポイントがある場合はそれを使用、なければデフォルトを使用
   // exactOptionalPropertyTypes対応: 常に値を持つオブジェクトを渡す
-  const finalBreakpoints = Object.keys(breakpoints).length > 0
-    ? breakpoints
-    : { ...DEFAULT_BREAKPOINTS };
+  const finalBreakpoints =
+    Object.keys(breakpoints).length > 0 ? breakpoints : { ...DEFAULT_BREAKPOINTS };
 
   // 結果オブジェクトを構築
   const result: GridSystem = {
@@ -227,15 +220,13 @@ function analyzeGridSystem(
 /**
  * セクションから視覚的階層を分析
  */
-function analyzeVisualHierarchy(
-  sections?: DetectedSection[]
-): VisualHierarchy {
+function analyzeVisualHierarchy(sections?: DetectedSection[]): VisualHierarchy {
   // デフォルト結果
   const defaultHierarchy: VisualHierarchy = {
     primaryElements: [],
     secondaryElements: [],
     tertiaryElements: [],
-    sectionFlow: 'linear',
+    sectionFlow: "linear",
     weightDistribution: {
       top: 0.4,
       middle: 0.4,
@@ -255,14 +246,14 @@ function analyzeVisualHierarchy(
   for (const section of sections) {
     const type = section.type.toLowerCase();
 
-    if (type === 'hero' || type === 'header' || type === 'banner') {
+    if (type === "hero" || type === "header" || type === "banner") {
       heroSections.push(section.type);
     } else if (
-      type === 'content' ||
-      type === 'features' ||
-      type === 'services' ||
-      type === 'products' ||
-      type === 'about'
+      type === "content" ||
+      type === "features" ||
+      type === "services" ||
+      type === "products" ||
+      type === "about"
     ) {
       contentSections.push(section.type);
     } else {
@@ -277,11 +268,11 @@ function analyzeVisualHierarchy(
   const supportWeight = supportSections.length / total;
 
   // セクションフローを決定
-  let sectionFlow: VisualHierarchy['sectionFlow'] = 'linear';
-  if (sections.some(s => s.type.toLowerCase().includes('grid'))) {
-    sectionFlow = 'modular';
+  let sectionFlow: VisualHierarchy["sectionFlow"] = "linear";
+  if (sections.some((s) => s.type.toLowerCase().includes("grid"))) {
+    sectionFlow = "modular";
   } else if (heroWeight > 0.3 || supportWeight > heroWeight) {
-    sectionFlow = 'asymmetric';
+    sectionFlow = "asymmetric";
   }
 
   return {
@@ -304,17 +295,15 @@ function analyzeVisualHierarchy(
 /**
  * CSS変数からスペーシングリズムを分析
  */
-function analyzeSpacingRhythm(
-  cssVariables?: CSSVariableExtractionResult
-): SpacingRhythm {
+function analyzeSpacingRhythm(cssVariables?: CSSVariableExtractionResult): SpacingRhythm {
   // デフォルト結果
   const defaultRhythm: SpacingRhythm = {
-    baseUnit: '1rem',
+    baseUnit: "1rem",
     scale: [0.25, 0.5, 1, 1.5, 2, 3, 4],
     sectionGaps: {
-      min: '2rem',
-      max: '6rem',
-      average: '4rem',
+      min: "2rem",
+      max: "6rem",
+      average: "4rem",
     },
   };
 
@@ -323,8 +312,8 @@ function analyzeSpacingRhythm(
   }
 
   // スペーシング変数を抽出
-  const spacingVars = cssVariables.variables.filter(v =>
-    SPACING_PROPERTY_PATTERNS.some(p => v.name.toLowerCase().includes(p))
+  const spacingVars = cssVariables.variables.filter((v) =>
+    SPACING_PROPERTY_PATTERNS.some((p) => v.name.toLowerCase().includes(p))
   );
 
   if (spacingVars.length === 0) {
@@ -333,7 +322,7 @@ function analyzeSpacingRhythm(
 
   // 値をパースして数値配列を作成
   const parsedValues: number[] = [];
-  let baseUnit = 'rem';
+  let baseUnit = "rem";
 
   for (const v of spacingVars) {
     const value = v.value.toLowerCase();
@@ -359,19 +348,19 @@ function analyzeSpacingRhythm(
   const base = parsedValues[0] ?? 1;
 
   // スケールを計算
-  const scale = parsedValues.map(v => Math.round((v / base) * 4) / 4);
+  const scale = parsedValues.map((v) => Math.round((v / base) * 4) / 4);
   const uniqueScale = [...new Set(scale)].slice(0, 10);
 
   // スケール名を推定
-  let scaleName: SpacingRhythm['scaleName'] = 'custom';
+  let scaleName: SpacingRhythm["scaleName"] = "custom";
   const ratios = uniqueScale.slice(1).map((v, i) => v / (uniqueScale[i] ?? 1));
 
-  if (ratios.every(r => Math.abs(r - 1.618) < 0.1)) {
-    scaleName = 'fibonacci';
-  } else if (ratios.every(r => Math.abs(r - 2) < 0.1)) {
-    scaleName = 'geometric';
+  if (ratios.every((r) => Math.abs(r - 1.618) < 0.1)) {
+    scaleName = "fibonacci";
+  } else if (ratios.every((r) => Math.abs(r - 2) < 0.1)) {
+    scaleName = "geometric";
   } else if (ratios.every((r, i, arr) => i === 0 || Math.abs(r - (arr[i - 1] ?? 1)) < 0.1)) {
-    scaleName = 'linear';
+    scaleName = "linear";
   }
 
   // セクションギャップを推定
@@ -399,9 +388,7 @@ function analyzeSpacingRhythm(
 /**
  * セクション間の関係性を分析
  */
-function analyzeSectionRelationships(
-  sections?: DetectedSection[]
-): SectionRelationship[] {
+function analyzeSectionRelationships(sections?: DetectedSection[]): SectionRelationship[] {
   if (!sections || sections.length < 2) {
     return [];
   }
@@ -418,7 +405,7 @@ function analyzeSectionRelationships(
     relationships.push({
       sourceId: current.id,
       targetId: next.id,
-      relationshipType: 'follows',
+      relationshipType: "follows",
       strength: 0.8,
     });
 
@@ -427,20 +414,20 @@ function analyzeSectionRelationships(
       relationships.push({
         sourceId: current.id,
         targetId: next.id,
-        relationshipType: 'parallels',
+        relationshipType: "parallels",
         strength: 0.6,
       });
     }
 
     // hero→contentのような自然な流れは強い関係
     if (
-      current.type.toLowerCase() === 'hero' &&
-      ['content', 'features', 'about'].includes(next.type.toLowerCase())
+      current.type.toLowerCase() === "hero" &&
+      ["content", "features", "about"].includes(next.type.toLowerCase())
     ) {
       relationships.push({
         sourceId: current.id,
         targetId: next.id,
-        relationshipType: 'contrasts',
+        relationshipType: "contrasts",
         strength: 0.9,
       });
     }
@@ -456,36 +443,33 @@ function analyzeSectionRelationships(
 /**
  * HTMLとCSSからグラフィック要素を分析
  */
-function analyzeGraphicElements(
-  html: string,
-  css: string
-): GraphicElements {
+function analyzeGraphicElements(html: string, css: string): GraphicElements {
   // 画像パターンを検出
   const imgCount = (html.match(/<img/gi) || []).length;
   const bgImageCount = (css.match(/background-image/gi) || []).length;
   const svgCount = (html.match(/<svg/gi) || []).length;
 
   // 画像配置パターンを決定
-  let imagePattern: GraphicElements['imageLayout']['pattern'] = 'none';
+  let imagePattern: GraphicElements["imageLayout"]["pattern"] = "none";
   if (imgCount > 0 || bgImageCount > 0) {
     if (bgImageCount > imgCount) {
-      imagePattern = 'full-bleed';
+      imagePattern = "full-bleed";
     } else if (imgCount >= 6) {
-      imagePattern = 'grid';
+      imagePattern = "grid";
     } else if (imgCount >= 3) {
-      imagePattern = 'scattered';
+      imagePattern = "scattered";
     } else {
-      imagePattern = 'contained';
+      imagePattern = "contained";
     }
   }
 
   // アスペクト比を検出（一般的なパターン）
   const aspectRatios: string[] = [];
-  if (css.includes('aspect-ratio')) {
+  if (css.includes("aspect-ratio")) {
     const ratioMatches = css.match(/aspect-ratio:\s*([\d/.]+)/g);
     if (ratioMatches) {
       for (const match of ratioMatches) {
-        const ratio = match.replace('aspect-ratio:', '').trim();
+        const ratio = match.replace("aspect-ratio:", "").trim();
         if (ratio && !aspectRatios.includes(ratio)) {
           aspectRatios.push(ratio);
         }
@@ -494,28 +478,29 @@ function analyzeGraphicElements(
   }
 
   // 装飾要素を検出
-  const hasGradients = css.includes('linear-gradient') ||
-    css.includes('radial-gradient') ||
-    css.includes('conic-gradient');
-  const hasShadows = css.includes('box-shadow') || css.includes('text-shadow');
-  const hasBorders = css.includes('border-radius') || css.includes('border:');
+  const hasGradients =
+    css.includes("linear-gradient") ||
+    css.includes("radial-gradient") ||
+    css.includes("conic-gradient");
+  const hasShadows = css.includes("box-shadow") || css.includes("text-shadow");
+  const hasBorders = css.includes("border-radius") || css.includes("border:");
   const hasIllustrations = svgCount > 2;
 
   // 視覚的バランスを推定
-  let symmetry: GraphicElements['visualBalance']['symmetry'] = 'symmetric';
-  if (html.includes('flex') && html.includes('justify-between')) {
-    symmetry = 'asymmetric';
+  let symmetry: GraphicElements["visualBalance"]["symmetry"] = "symmetric";
+  if (html.includes("flex") && html.includes("justify-between")) {
+    symmetry = "asymmetric";
   } else if (imgCount % 2 !== 0) {
-    symmetry = 'dynamic';
+    symmetry = "dynamic";
   }
 
   // コンテンツ密度を推定
   const elementCount = (html.match(/<(div|section|article|p|h\d)/gi) || []).length;
-  let density: GraphicElements['visualBalance']['density'] = 'balanced';
+  let density: GraphicElements["visualBalance"]["density"] = "balanced";
   if (elementCount < 20) {
-    density = 'sparse';
+    density = "sparse";
   } else if (elementCount > 100) {
-    density = 'dense';
+    density = "dense";
   }
 
   // ホワイトスペース比率を推定（ヒューリスティック）
@@ -526,8 +511,8 @@ function analyzeGraphicElements(
   return {
     imageLayout: {
       pattern: imagePattern,
-      aspectRatios: aspectRatios.length > 0 ? aspectRatios : ['16/9', '4/3'],
-      positions: imgCount > 0 ? ['inline'] : [],
+      aspectRatios: aspectRatios.length > 0 ? aspectRatios : ["16/9", "4/3"],
+      positions: imgCount > 0 ? ["inline"] : [],
     },
     decorations: {
       hasGradients,
@@ -555,7 +540,7 @@ function analyzeGraphicElements(
 export class LayoutStructureAnalyzer {
   constructor() {
     if (isDevelopment()) {
-      logger.info('[LayoutStructureAnalyzer] Initialized');
+      logger.info("[LayoutStructureAnalyzer] Initialized");
     }
   }
 
@@ -589,7 +574,7 @@ export class LayoutStructureAnalyzer {
     const processingTimeMs = Date.now() - startTime;
 
     if (isDevelopment()) {
-      logger.info('[LayoutStructureAnalyzer] Analysis complete', {
+      logger.info("[LayoutStructureAnalyzer] Analysis complete", {
         processingTimeMs,
         gridType: gridSystem.type,
         sectionCount: input.sections?.length ?? 0,
@@ -611,7 +596,7 @@ export class LayoutStructureAnalyzer {
    * HTMLからstyleタグを抽出してCSSを結合
    */
   private extractAndCombineCss(html: string, externalCss?: string): string {
-    let combinedCss = externalCss ?? '';
+    let combinedCss = externalCss ?? "";
 
     // HTMLからstyleタグを抽出
     const styleTagPattern = /<style[^>]*>([\s\S]*?)<\/style>/gi;
@@ -619,7 +604,7 @@ export class LayoutStructureAnalyzer {
 
     while ((match = styleTagPattern.exec(html)) !== null) {
       if (match[1]) {
-        combinedCss += '\n' + match[1];
+        combinedCss += "\n" + match[1];
       }
     }
 
@@ -627,7 +612,7 @@ export class LayoutStructureAnalyzer {
     const inlineStylePattern = /style\s*=\s*["']([^"']+)["']/gi;
     while ((match = inlineStylePattern.exec(html)) !== null) {
       if (match[1]) {
-        combinedCss += '\n.inline { ' + match[1] + ' }';
+        combinedCss += "\n.inline { " + match[1] + " }";
       }
     }
 

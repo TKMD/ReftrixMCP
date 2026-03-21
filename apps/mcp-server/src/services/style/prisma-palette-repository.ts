@@ -8,17 +8,22 @@
  * @module services/style/prisma-palette-repository
  */
 
-import type { PrismaClient, BrandPalette as PrismaBrandPalette, ColorToken as PrismaColorToken, ColorRole } from '@prisma/client';
+import type {
+  PrismaClient,
+  BrandPalette as PrismaBrandPalette,
+  ColorToken as PrismaColorToken,
+  ColorRole,
+} from "@prisma/client";
 import type {
   BrandPalette,
   PaletteMode,
   ColorToken,
   TokenUsage,
-} from '../../types/creative/palette';
-import type { PaletteRepository } from './palette-service';
-import { createLogger } from '../../utils/logger';
+} from "../../types/creative/palette";
+import type { PaletteRepository } from "./palette-service";
+import { createLogger } from "../../utils/logger";
 
-const logger = createLogger('PrismaPaletteRepository');
+const logger = createLogger("PrismaPaletteRepository");
 
 /**
  * Prismaから取得したパレットと関連トークンの型
@@ -31,11 +36,11 @@ type PrismaPaletteWithTokens = PrismaBrandPalette & {
  * ColorRoleからTokenUsageへのマッピング
  */
 const roleToUsageMap: Record<ColorRole, TokenUsage[]> = {
-  primary: ['accent', 'cta'],
-  secondary: ['accent'],
-  accent: ['highlight'],
-  neutral: ['foreground'],
-  semantic: ['info'],
+  primary: ["accent", "cta"],
+  secondary: ["accent"],
+  accent: ["highlight"],
+  neutral: ["foreground"],
+  semantic: ["info"],
 };
 
 /**
@@ -44,8 +49,8 @@ const roleToUsageMap: Record<ColorRole, TokenUsage[]> = {
  * ドメインモデルは 'light' | 'dark' | 'both' を使用
  */
 function convertPaletteMode(mode: string): PaletteMode {
-  if (mode === 'system') {
-    return 'both';
+  if (mode === "system") {
+    return "both";
   }
   return mode as PaletteMode;
 }
@@ -121,14 +126,14 @@ export class PrismaPaletteRepository implements PaletteRepository {
    * 全パレットを取得
    */
   async findAll(): Promise<BrandPalette[]> {
-    if (process.env.NODE_ENV === 'development') {
-      logger.info('findAll: Fetching all palettes from database');
+    if (process.env.NODE_ENV === "development") {
+      logger.info("findAll: Fetching all palettes from database");
     }
 
     const palettes = await this.prisma.brandPalette.findMany({
       include: {
         tokens: {
-          orderBy: { sortOrder: 'asc' },
+          orderBy: { sortOrder: "asc" },
         },
       },
     });
@@ -140,15 +145,15 @@ export class PrismaPaletteRepository implements PaletteRepository {
    * IDでパレットを取得
    */
   async findById(id: string): Promise<BrandPalette | null> {
-    if (process.env.NODE_ENV === 'development') {
-      logger.info('findById: Fetching palette by ID', { id });
+    if (process.env.NODE_ENV === "development") {
+      logger.info("findById: Fetching palette by ID", { id });
     }
 
     const palette = await this.prisma.brandPalette.findUnique({
       where: { id },
       include: {
         tokens: {
-          orderBy: { sortOrder: 'asc' },
+          orderBy: { sortOrder: "asc" },
         },
       },
     });
@@ -164,20 +169,20 @@ export class PrismaPaletteRepository implements PaletteRepository {
    * ブランド名で部分一致検索（大文字小文字を区別しない）
    */
   async findByBrandName(name: string): Promise<BrandPalette[]> {
-    if (process.env.NODE_ENV === 'development') {
-      logger.info('findByBrandName: Searching palettes by brand name', { name });
+    if (process.env.NODE_ENV === "development") {
+      logger.info("findByBrandName: Searching palettes by brand name", { name });
     }
 
     const palettes = await this.prisma.brandPalette.findMany({
       where: {
         name: {
           contains: name,
-          mode: 'insensitive',
+          mode: "insensitive",
         },
       },
       include: {
         tokens: {
-          orderBy: { sortOrder: 'asc' },
+          orderBy: { sortOrder: "asc" },
         },
       },
     });
@@ -190,18 +195,18 @@ export class PrismaPaletteRepository implements PaletteRepository {
    * 'both'モードは存在しないため、指定されたモード（light/dark）のみを返す
    */
   async findByMode(mode: PaletteMode): Promise<BrandPalette[]> {
-    if (process.env.NODE_ENV === 'development') {
-      logger.info('findByMode: Fetching palettes by mode', { mode });
+    if (process.env.NODE_ENV === "development") {
+      logger.info("findByMode: Fetching palettes by mode", { mode });
     }
 
     // 'both'の場合はsystemモードも含める
-    const dbMode = mode === 'both' ? 'system' : mode;
+    const dbMode = mode === "both" ? "system" : mode;
 
     const palettes = await this.prisma.brandPalette.findMany({
       where: { mode: dbMode },
       include: {
         tokens: {
-          orderBy: { sortOrder: 'asc' },
+          orderBy: { sortOrder: "asc" },
         },
       },
     });

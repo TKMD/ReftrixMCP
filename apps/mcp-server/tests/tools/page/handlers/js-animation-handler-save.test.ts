@@ -10,16 +10,16 @@
  * @module tests/tools/page/handlers/js-animation-handler-save
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from "vitest";
 import {
   saveJSAnimationPatterns,
   truncatePatternVarcharFields,
   PRISMA_CREATE_MANY_BATCH_SIZE,
-} from '../../../../src/tools/page/handlers/js-animation-handler';
+} from "../../../../src/tools/page/handlers/js-animation-handler";
 import type {
   JSAnimationPatternCreateData,
   IPageAnalyzePrismaClient,
-} from '../../../../src/tools/page/handlers/types';
+} from "../../../../src/tools/page/handlers/types";
 
 // =============================================================================
 // テストヘルパー
@@ -30,14 +30,14 @@ function createMockPattern(
   overrides?: Partial<JSAnimationPatternCreateData>
 ): JSAnimationPatternCreateData {
   return {
-    webPageId: 'test-web-page-id',
-    libraryType: 'web_animations_api',
-    name: 'test-animation',
-    animationType: 'keyframe',
+    webPageId: "test-web-page-id",
+    libraryType: "web_animations_api",
+    name: "test-animation",
+    animationType: "keyframe",
     keyframes: [],
     properties: [],
-    sourceUrl: 'https://example.com',
-    usageScope: 'inspiration_only',
+    sourceUrl: "https://example.com",
+    usageScope: "inspiration_only",
     confidence: 0.9,
     ...overrides,
   };
@@ -45,9 +45,7 @@ function createMockPattern(
 
 /** N個のモックパターンを生成 */
 function createMockPatterns(count: number): JSAnimationPatternCreateData[] {
-  return Array.from({ length: count }, (_, i) =>
-    createMockPattern({ name: `animation-${i}` })
-  );
+  return Array.from({ length: count }, (_, i) => createMockPattern({ name: `animation-${i}` }));
 }
 
 /** $transaction対応のモックPrismaクライアント生成 */
@@ -108,9 +106,9 @@ function createMockPrisma(): {
 // テスト本体
 // =============================================================================
 
-describe('saveJSAnimationPatterns', () => {
+describe("saveJSAnimationPatterns", () => {
   let prisma: IPageAnalyzePrismaClient;
-  let mockTx: ReturnType<typeof createMockPrisma>['mockTx'];
+  let mockTx: ReturnType<typeof createMockPrisma>["mockTx"];
 
   beforeEach(() => {
     const mock = createMockPrisma();
@@ -121,8 +119,8 @@ describe('saveJSAnimationPatterns', () => {
   // ---------------------------------------------------------------------------
   // Test 1: 小規模データセット（10パターン）
   // ---------------------------------------------------------------------------
-  describe('小規模データセット（10パターン）', () => {
-    it('$transactionが1回呼ばれる', async () => {
+  describe("小規模データセット（10パターン）", () => {
+    it("$transactionが1回呼ばれる", async () => {
       const patterns = createMockPatterns(10);
       mockTx.jSAnimationPattern.createMany.mockResolvedValue({ count: 10 });
 
@@ -131,7 +129,7 @@ describe('saveJSAnimationPatterns', () => {
       expect(prisma.$transaction).toHaveBeenCalledTimes(1);
     });
 
-    it('createManyがトランザクション内で1回だけ呼ばれる（単一バッチ）', async () => {
+    it("createManyがトランザクション内で1回だけ呼ばれる（単一バッチ）", async () => {
       const patterns = createMockPatterns(10);
       mockTx.jSAnimationPattern.createMany.mockResolvedValue({ count: 10 });
 
@@ -141,7 +139,7 @@ describe('saveJSAnimationPatterns', () => {
       expect(result).toBe(10);
     });
 
-    it('createManyに渡されるデータが10件分である', async () => {
+    it("createManyに渡されるデータが10件分である", async () => {
       const patterns = createMockPatterns(10);
       mockTx.jSAnimationPattern.createMany.mockResolvedValue({ count: 10 });
 
@@ -156,8 +154,8 @@ describe('saveJSAnimationPatterns', () => {
   // ---------------------------------------------------------------------------
   // Test 2: 大規模データセット（1500パターン）
   // ---------------------------------------------------------------------------
-  describe('大規模データセット（1500パターン）', () => {
-    it('createManyが2回呼ばれる（バッチ1: 1000, バッチ2: 500）', async () => {
+  describe("大規模データセット（1500パターン）", () => {
+    it("createManyが2回呼ばれる（バッチ1: 1000, バッチ2: 500）", async () => {
       const patterns = createMockPatterns(1500);
       mockTx.jSAnimationPattern.createMany
         .mockResolvedValueOnce({ count: 1000 })
@@ -168,22 +166,26 @@ describe('saveJSAnimationPatterns', () => {
       expect(mockTx.jSAnimationPattern.createMany).toHaveBeenCalledTimes(2);
 
       // バッチ1: 1000件
-      const batch1 = (mockTx.jSAnimationPattern.createMany.mock.calls[0]?.[0] as {
-        data: JSAnimationPatternCreateData[];
-      })?.data;
+      const batch1 = (
+        mockTx.jSAnimationPattern.createMany.mock.calls[0]?.[0] as {
+          data: JSAnimationPatternCreateData[];
+        }
+      )?.data;
       expect(batch1).toHaveLength(1000);
 
       // バッチ2: 500件
-      const batch2 = (mockTx.jSAnimationPattern.createMany.mock.calls[1]?.[0] as {
-        data: JSAnimationPatternCreateData[];
-      })?.data;
+      const batch2 = (
+        mockTx.jSAnimationPattern.createMany.mock.calls[1]?.[0] as {
+          data: JSAnimationPatternCreateData[];
+        }
+      )?.data;
       expect(batch2).toHaveLength(500);
 
       // 合計カウント
       expect(result).toBe(1500);
     });
 
-    it('PRISMA_CREATE_MANY_BATCH_SIZEが1000である', () => {
+    it("PRISMA_CREATE_MANY_BATCH_SIZEが1000である", () => {
       expect(PRISMA_CREATE_MANY_BATCH_SIZE).toBe(1000);
     });
   });
@@ -191,9 +193,9 @@ describe('saveJSAnimationPatterns', () => {
   // ---------------------------------------------------------------------------
   // Test 3: VARCHARトランケーション
   // ---------------------------------------------------------------------------
-  describe('VARCHARトランケーション', () => {
-    it('easingフィールドが100文字に切り詰められる', async () => {
-      const longEasing = 'a'.repeat(200);
+  describe("VARCHARトランケーション", () => {
+    it("easingフィールドが100文字に切り詰められる", async () => {
+      const longEasing = "a".repeat(200);
       const patterns = [createMockPattern({ easing: longEasing })];
       mockTx.jSAnimationPattern.createMany.mockResolvedValue({ count: 1 });
 
@@ -204,8 +206,8 @@ describe('saveJSAnimationPatterns', () => {
       expect(data?.[0]?.easing).toHaveLength(100);
     });
 
-    it('nameフィールドが200文字に切り詰められる', async () => {
-      const longName = 'b'.repeat(300);
+    it("nameフィールドが200文字に切り詰められる", async () => {
+      const longName = "b".repeat(300);
       const patterns = [createMockPattern({ name: longName })];
       mockTx.jSAnimationPattern.createMany.mockResolvedValue({ count: 1 });
 
@@ -216,8 +218,8 @@ describe('saveJSAnimationPatterns', () => {
       expect(data?.[0]?.name).toHaveLength(200);
     });
 
-    it('directionフィールドが20文字に切り詰められる', async () => {
-      const longDirection = 'c'.repeat(50);
+    it("directionフィールドが20文字に切り詰められる", async () => {
+      const longDirection = "c".repeat(50);
       const patterns = [createMockPattern({ direction: longDirection })];
       mockTx.jSAnimationPattern.createMany.mockResolvedValue({ count: 1 });
 
@@ -228,8 +230,8 @@ describe('saveJSAnimationPatterns', () => {
       expect(data?.[0]?.direction).toHaveLength(20);
     });
 
-    it('targetSelectorフィールドが500文字に切り詰められる', async () => {
-      const longSelector = 'd'.repeat(600);
+    it("targetSelectorフィールドが500文字に切り詰められる", async () => {
+      const longSelector = "d".repeat(600);
       const patterns = [createMockPattern({ targetSelector: longSelector })];
       mockTx.jSAnimationPattern.createMany.mockResolvedValue({ count: 1 });
 
@@ -240,8 +242,8 @@ describe('saveJSAnimationPatterns', () => {
       expect(data?.[0]?.targetSelector).toHaveLength(500);
     });
 
-    it('fillModeフィールドが20文字に切り詰められる', async () => {
-      const longFillMode = 'e'.repeat(30);
+    it("fillModeフィールドが20文字に切り詰められる", async () => {
+      const longFillMode = "e".repeat(30);
       const patterns = [createMockPattern({ fillMode: longFillMode })];
       mockTx.jSAnimationPattern.createMany.mockResolvedValue({ count: 1 });
 
@@ -252,8 +254,8 @@ describe('saveJSAnimationPatterns', () => {
       expect(data?.[0]?.fillMode).toHaveLength(20);
     });
 
-    it('libraryVersionフィールドが50文字に切り詰められる', async () => {
-      const longVersion = 'f'.repeat(80);
+    it("libraryVersionフィールドが50文字に切り詰められる", async () => {
+      const longVersion = "f".repeat(80);
       const patterns = [createMockPattern({ libraryVersion: longVersion })];
       mockTx.jSAnimationPattern.createMany.mockResolvedValue({ count: 1 });
 
@@ -264,29 +266,31 @@ describe('saveJSAnimationPatterns', () => {
       expect(data?.[0]?.libraryVersion).toHaveLength(50);
     });
 
-    it('制限内の値はトランケートされない', async () => {
-      const patterns = [createMockPattern({
-        easing: 'ease-in-out',
-        name: 'fadeIn',
-        direction: 'normal',
-      })];
+    it("制限内の値はトランケートされない", async () => {
+      const patterns = [
+        createMockPattern({
+          easing: "ease-in-out",
+          name: "fadeIn",
+          direction: "normal",
+        }),
+      ];
       mockTx.jSAnimationPattern.createMany.mockResolvedValue({ count: 1 });
 
       await saveJSAnimationPatterns(prisma, patterns);
 
       const call = mockTx.jSAnimationPattern.createMany.mock.calls[0];
       const data = (call?.[0] as { data: JSAnimationPatternCreateData[] })?.data;
-      expect(data?.[0]?.easing).toBe('ease-in-out');
-      expect(data?.[0]?.name).toBe('fadeIn');
-      expect(data?.[0]?.direction).toBe('normal');
+      expect(data?.[0]?.easing).toBe("ease-in-out");
+      expect(data?.[0]?.name).toBe("fadeIn");
+      expect(data?.[0]?.direction).toBe("normal");
     });
   });
 
   // ---------------------------------------------------------------------------
   // Test 4: 空パターン
   // ---------------------------------------------------------------------------
-  describe('空パターン', () => {
-    it('空配列の場合、$transactionが呼ばれず0を返す', async () => {
+  describe("空パターン", () => {
+    it("空配列の場合、$transactionが呼ばれず0を返す", async () => {
       const result = await saveJSAnimationPatterns(prisma, []);
 
       expect(prisma.$transaction).not.toHaveBeenCalled();
@@ -297,9 +301,9 @@ describe('saveJSAnimationPatterns', () => {
   // ---------------------------------------------------------------------------
   // Test 5: webPageId指定あり（delete + create）
   // ---------------------------------------------------------------------------
-  describe('webPageId指定あり（delete + create）', () => {
-    it('deleteManyが正しいwebPageIdで呼ばれる', async () => {
-      const webPageId = 'test-page-123';
+  describe("webPageId指定あり（delete + create）", () => {
+    it("deleteManyが正しいwebPageIdで呼ばれる", async () => {
+      const webPageId = "test-page-123";
       const patterns = createMockPatterns(5);
       mockTx.jSAnimationPattern.createMany.mockResolvedValue({ count: 5 });
 
@@ -310,8 +314,8 @@ describe('saveJSAnimationPatterns', () => {
       });
     });
 
-    it('deleteManyとcreateManyが同一トランザクション内で実行される', async () => {
-      const webPageId = 'test-page-456';
+    it("deleteManyとcreateManyが同一トランザクション内で実行される", async () => {
+      const webPageId = "test-page-456";
       const patterns = createMockPatterns(3);
       mockTx.jSAnimationPattern.createMany.mockResolvedValue({ count: 3 });
 
@@ -336,8 +340,8 @@ describe('saveJSAnimationPatterns', () => {
   // ---------------------------------------------------------------------------
   // Test 6: webPageId未指定（create only）
   // ---------------------------------------------------------------------------
-  describe('webPageId未指定（create only）', () => {
-    it('deleteManyが呼ばれない', async () => {
+  describe("webPageId未指定（create only）", () => {
+    it("deleteManyが呼ばれない", async () => {
       const patterns = createMockPatterns(5);
       mockTx.jSAnimationPattern.createMany.mockResolvedValue({ count: 5 });
 
@@ -346,7 +350,7 @@ describe('saveJSAnimationPatterns', () => {
       expect(mockTx.jSAnimationPattern.deleteMany).not.toHaveBeenCalled();
     });
 
-    it('createManyは正常に呼ばれる', async () => {
+    it("createManyは正常に呼ばれる", async () => {
       const patterns = createMockPatterns(5);
       mockTx.jSAnimationPattern.createMany.mockResolvedValue({ count: 5 });
 
@@ -362,19 +366,19 @@ describe('saveJSAnimationPatterns', () => {
 // truncatePatternVarcharFields 単体テスト
 // =============================================================================
 
-describe('truncatePatternVarcharFields', () => {
-  it('各フィールドの制限値が正しい', () => {
+describe("truncatePatternVarcharFields", () => {
+  it("各フィールドの制限値が正しい", () => {
     const pattern = createMockPattern({
-      name: 'x'.repeat(300),
-      libraryVersion: 'v'.repeat(100),
-      targetSelector: 's'.repeat(600),
-      easing: 'e'.repeat(200),
-      direction: 'd'.repeat(50),
-      fillMode: 'f'.repeat(50),
-      triggerType: 't'.repeat(100),
-      cdpAnimationId: 'c'.repeat(200),
-      cdpSourceType: 'p'.repeat(100),
-      cdpPlayState: 'q'.repeat(50),
+      name: "x".repeat(300),
+      libraryVersion: "v".repeat(100),
+      targetSelector: "s".repeat(600),
+      easing: "e".repeat(200),
+      direction: "d".repeat(50),
+      fillMode: "f".repeat(50),
+      triggerType: "t".repeat(100),
+      cdpAnimationId: "c".repeat(200),
+      cdpSourceType: "p".repeat(100),
+      cdpPlayState: "q".repeat(50),
     });
 
     const truncated = truncatePatternVarcharFields(pattern);
@@ -391,7 +395,7 @@ describe('truncatePatternVarcharFields', () => {
     expect(truncated.cdpPlayState).toHaveLength(20);
   });
 
-  it('nullフィールドはnullのまま保持される', () => {
+  it("nullフィールドはnullのまま保持される", () => {
     const pattern = createMockPattern({
       easing: null,
       direction: null,
@@ -409,7 +413,7 @@ describe('truncatePatternVarcharFields', () => {
     expect(truncated.libraryVersion).toBeNull();
   });
 
-  it('undefinedフィールドはundefinedのまま保持される', () => {
+  it("undefinedフィールドはundefinedのまま保持される", () => {
     const pattern = createMockPattern({
       easing: undefined,
       direction: undefined,
@@ -421,17 +425,17 @@ describe('truncatePatternVarcharFields', () => {
     expect(truncated.direction).toBeUndefined();
   });
 
-  it('制限内の値は変更されない', () => {
+  it("制限内の値は変更されない", () => {
     const pattern = createMockPattern({
-      name: 'fadeIn',
-      easing: 'ease-out',
-      direction: 'normal',
+      name: "fadeIn",
+      easing: "ease-out",
+      direction: "normal",
     });
 
     const truncated = truncatePatternVarcharFields(pattern);
 
-    expect(truncated.name).toBe('fadeIn');
-    expect(truncated.easing).toBe('ease-out');
-    expect(truncated.direction).toBe('normal');
+    expect(truncated.name).toBe("fadeIn");
+    expect(truncated.easing).toBe("ease-out");
+    expect(truncated.direction).toBe("normal");
   });
 });

@@ -16,14 +16,14 @@
  * @module services/page/motion-performance-analyzer.service
  */
 
-import { logger, isDevelopment } from '../../utils/logger';
+import { logger, isDevelopment } from "../../utils/logger";
 
 // =====================================================
 // Types
 // =====================================================
 
 /** パフォーマンスレベル */
-export type PerformanceLevel = 'good' | 'acceptable' | 'poor';
+export type PerformanceLevel = "good" | "acceptable" | "poor";
 
 /** パフォーマンス情報 */
 export interface PerformanceInfo {
@@ -61,26 +61,26 @@ export interface DetailedProperty {
  * これらのプロパティはリフロー（reflow）を引き起こすため、パフォーマンスが悪い
  */
 export const LAYOUT_TRIGGER_PROPERTIES = new Set([
-  'width',
-  'height',
-  'padding',
-  'padding-top',
-  'padding-right',
-  'padding-bottom',
-  'padding-left',
-  'margin',
-  'margin-top',
-  'margin-right',
-  'margin-bottom',
-  'margin-left',
-  'top',
-  'right',
-  'bottom',
-  'left',
-  'border',
-  'border-width',
-  'font-size',
-  'line-height',
+  "width",
+  "height",
+  "padding",
+  "padding-top",
+  "padding-right",
+  "padding-bottom",
+  "padding-left",
+  "margin",
+  "margin-top",
+  "margin-right",
+  "margin-bottom",
+  "margin-left",
+  "top",
+  "right",
+  "bottom",
+  "left",
+  "border",
+  "border-width",
+  "font-size",
+  "line-height",
 ]);
 
 /**
@@ -88,15 +88,15 @@ export const LAYOUT_TRIGGER_PROPERTIES = new Set([
  * レイアウトには影響しないが、再描画が必要
  */
 export const PAINT_TRIGGER_PROPERTIES = new Set([
-  'background',
-  'background-color',
-  'background-image',
-  'color',
-  'border-color',
-  'border-style',
-  'box-shadow',
-  'text-shadow',
-  'outline',
+  "background",
+  "background-color",
+  "background-image",
+  "color",
+  "border-color",
+  "border-style",
+  "box-shadow",
+  "text-shadow",
+  "outline",
 ]);
 
 // =====================================================
@@ -139,12 +139,12 @@ export class MotionPerformanceAnalyzer {
     // GPU accelerated properties の検出
     const usesTransform = propNames.some(
       (p) =>
-        p === 'transform' ||
-        p.startsWith('translate') ||
-        p.startsWith('rotate') ||
-        p.startsWith('scale')
+        p === "transform" ||
+        p.startsWith("translate") ||
+        p.startsWith("rotate") ||
+        p.startsWith("scale")
     );
-    const usesOpacity = propNames.includes('opacity');
+    const usesOpacity = propNames.includes("opacity");
 
     // Trigger properties の検出
     const triggersLayout = propNames.some((p) => LAYOUT_TRIGGER_PROPERTIES.has(p));
@@ -154,20 +154,20 @@ export class MotionPerformanceAnalyzer {
     let level: PerformanceLevel;
     if (triggersLayout) {
       // レイアウトトリガーは常に poor
-      level = 'poor';
+      level = "poor";
     } else if (triggersPaint && !usesTransform && !usesOpacity) {
       // ペイントのみでGPU加速なしは acceptable
-      level = 'acceptable';
+      level = "acceptable";
     } else if (usesTransform || usesOpacity) {
       // GPU加速プロパティを使用は good
-      level = 'good';
+      level = "good";
     } else {
       // 不明なプロパティは acceptable
-      level = 'acceptable';
+      level = "acceptable";
     }
 
     if (isDevelopment()) {
-      logger.debug('[MotionPerformanceAnalyzer] analyzePerformance:', {
+      logger.debug("[MotionPerformanceAnalyzer] analyzePerformance:", {
         properties,
         level,
         usesTransform,
@@ -201,7 +201,7 @@ export class MotionPerformanceAnalyzer {
     const respectsReducedMotion = /prefers-reduced-motion/.test(css);
 
     if (isDevelopment()) {
-      logger.debug('[MotionPerformanceAnalyzer] analyzeAccessibility:', {
+      logger.debug("[MotionPerformanceAnalyzer] analyzeAccessibility:", {
         respectsReducedMotion,
         cssLength: css.length,
       });
@@ -230,7 +230,7 @@ export class MotionPerformanceAnalyzer {
     const result = Array.from(properties);
 
     if (isDevelopment()) {
-      logger.debug('[MotionPerformanceAnalyzer] extractPropertiesFromKeyframes:', {
+      logger.debug("[MotionPerformanceAnalyzer] extractPropertiesFromKeyframes:", {
         stepsCount: steps.length,
         propertiesCount: result.length,
         properties: result,
@@ -292,7 +292,7 @@ export class MotionPerformanceAnalyzer {
     });
 
     if (isDevelopment()) {
-      logger.debug('[MotionPerformanceAnalyzer] extractDetailedPropertiesFromKeyframes:', {
+      logger.debug("[MotionPerformanceAnalyzer] extractDetailedPropertiesFromKeyframes:", {
         stepsCount: steps.length,
         propertiesCount: result.length,
         properties: result.map((p) => p.property),
@@ -327,28 +327,28 @@ export class MotionPerformanceAnalyzer {
     const recommendations: string[] = [];
 
     // 既に最適化されている場合は推奨事項なし
-    if (info.level === 'good' && !info.triggersLayout && !info.triggersPaint) {
+    if (info.level === "good" && !info.triggersLayout && !info.triggersPaint) {
       return recommendations;
     }
 
     // レイアウトトリガーがある場合
     if (info.triggersLayout) {
       recommendations.push(
-        'レイアウトをトリガーするプロパティ（width, height, margin等）をtransformまたはopacityに置き換えることを検討してください。' +
-          'これによりGPU accelerationが有効になり、パフォーマンスが向上します。'
+        "レイアウトをトリガーするプロパティ（width, height, margin等）をtransformまたはopacityに置き換えることを検討してください。" +
+          "これによりGPU accelerationが有効になり、パフォーマンスが向上します。"
       );
     }
 
     // ペイントトリガーがあり、GPU加速がない場合
     if (info.triggersPaint && !info.usesTransform && !info.usesOpacity) {
       recommendations.push(
-        'ペイントをトリガーするプロパティ（background-color, color等）の代わりに、' +
-          'opacityやtransformを使用することでGPU accelerationを活用できます。'
+        "ペイントをトリガーするプロパティ（background-color, color等）の代わりに、" +
+          "opacityやtransformを使用することでGPU accelerationを活用できます。"
       );
     }
 
     if (isDevelopment()) {
-      logger.debug('[MotionPerformanceAnalyzer] getPerformanceRecommendations:', {
+      logger.debug("[MotionPerformanceAnalyzer] getPerformanceRecommendations:", {
         info,
         recommendationsCount: recommendations.length,
       });
@@ -373,7 +373,7 @@ export function getMotionPerformanceAnalyzer(): MotionPerformanceAnalyzer {
   if (!instance) {
     instance = new MotionPerformanceAnalyzer();
     if (isDevelopment()) {
-      logger.debug('[MotionPerformanceAnalyzer] Created new instance');
+      logger.debug("[MotionPerformanceAnalyzer] Created new instance");
     }
   }
   return instance;
@@ -385,6 +385,6 @@ export function getMotionPerformanceAnalyzer(): MotionPerformanceAnalyzer {
 export function resetMotionPerformanceAnalyzer(): void {
   instance = null;
   if (isDevelopment()) {
-    logger.debug('[MotionPerformanceAnalyzer] Instance reset');
+    logger.debug("[MotionPerformanceAnalyzer] Instance reset");
   }
 }

@@ -17,7 +17,7 @@
  * TDDのRedフェーズ: 全テストが失敗することを期待
  */
 
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach } from "vitest";
 
 // 実装が存在しないためインポートは失敗する
 // このテストはTDDのRedフェーズとして作成
@@ -25,9 +25,9 @@ import {
   SearchPerformanceService,
   type SearchPerformanceStats,
   type SLODefinition,
-} from '../../src/services/search-performance.service';
+} from "../../src/services/search-performance.service";
 
-describe('SearchPerformanceService', () => {
+describe("SearchPerformanceService", () => {
   let service: SearchPerformanceService;
 
   beforeEach(() => {
@@ -35,10 +35,10 @@ describe('SearchPerformanceService', () => {
     service = new SearchPerformanceService();
   });
 
-  describe('recordSearchTime - 検索時間の記録', () => {
-    it('検索時間を記録し、統計から取得できること', () => {
+  describe("recordSearchTime - 検索時間の記録", () => {
+    it("検索時間を記録し、統計から取得できること", () => {
       // Arrange
-      const toolName = 'layout.search';
+      const toolName = "layout.search";
       const durationMs = 150;
 
       // Act
@@ -51,9 +51,9 @@ describe('SearchPerformanceService', () => {
       expect(stats?.count).toBe(1);
     });
 
-    it('同一ツールに複数の検索時間を記録できること', () => {
+    it("同一ツールに複数の検索時間を記録できること", () => {
       // Arrange
-      const toolName = 'layout.search';
+      const toolName = "layout.search";
       const durations = [100, 200, 300, 400, 500];
 
       // Act
@@ -64,87 +64,87 @@ describe('SearchPerformanceService', () => {
       expect(stats?.count).toBe(5);
     });
 
-    it('負の値や0を記録してもエラーにならないこと', () => {
+    it("負の値や0を記録してもエラーにならないこと", () => {
       // Arrange & Act & Assert
       // エラーがスローされないことを確認
-      expect(() => service.recordSearchTime('layout.search', 0)).not.toThrow();
-      expect(() => service.recordSearchTime('layout.search', -1)).not.toThrow();
+      expect(() => service.recordSearchTime("layout.search", 0)).not.toThrow();
+      expect(() => service.recordSearchTime("layout.search", -1)).not.toThrow();
     });
   });
 
-  describe('getSLO - SLO定義の取得', () => {
+  describe("getSLO - SLO定義の取得", () => {
     // Note: SVG機能は削除されたため、layout/motionのみテスト
-    it('layout.searchのデフォルトSLOはP95 < 500msであること', () => {
+    it("layout.searchのデフォルトSLOはP95 < 500msであること", () => {
       // Arrange & Act
-      const slo = service.getSLO('layout.search');
+      const slo = service.getSLO("layout.search");
 
       // Assert
       expect(slo).toBeDefined();
       expect(slo?.p95).toBe(500);
     });
 
-    it('motion.searchのデフォルトSLOはP95 < 500msであること', () => {
+    it("motion.searchのデフォルトSLOはP95 < 500msであること", () => {
       // Arrange & Act
-      const slo = service.getSLO('motion.search');
+      const slo = service.getSLO("motion.search");
 
       // Assert
       expect(slo).toBeDefined();
       expect(slo?.p95).toBe(500);
     });
 
-    it('未定義のツールに対してはundefinedを返すこと', () => {
+    it("未定義のツールに対してはundefinedを返すこと", () => {
       // Arrange & Act
-      const slo = service.getSLO('unknown.tool');
+      const slo = service.getSLO("unknown.tool");
 
       // Assert
       expect(slo).toBeUndefined();
     });
 
-    it('SLO定義にはp95とp99が含まれること', () => {
+    it("SLO定義にはp95とp99が含まれること", () => {
       // Arrange & Act
-      const slo = service.getSLO('layout.search');
+      const slo = service.getSLO("layout.search");
 
       // Assert
-      expect(slo).toHaveProperty('p95');
-      expect(slo).toHaveProperty('p99');
-      expect(typeof slo?.p95).toBe('number');
-      expect(typeof slo?.p99).toBe('number');
+      expect(slo).toHaveProperty("p95");
+      expect(slo).toHaveProperty("p99");
+      expect(typeof slo?.p95).toBe("number");
+      expect(typeof slo?.p99).toBe("number");
     });
   });
 
-  describe('getStats - 統計取得', () => {
-    it('未記録のツールに対してはundefinedを返すこと', () => {
+  describe("getStats - 統計取得", () => {
+    it("未記録のツールに対してはundefinedを返すこと", () => {
       // Arrange & Act
-      const stats = service.getStats('unknown.tool');
+      const stats = service.getStats("unknown.tool");
 
       // Assert
       expect(stats).toBeUndefined();
     });
 
-    it('統計にcount, p50, p95, p99, sloViolationsが含まれること', () => {
+    it("統計にcount, p50, p95, p99, sloViolationsが含まれること", () => {
       // Arrange
-      service.recordSearchTime('layout.search', 100);
+      service.recordSearchTime("layout.search", 100);
 
       // Act
-      const stats = service.getStats('layout.search');
+      const stats = service.getStats("layout.search");
 
       // Assert
-      expect(stats).toHaveProperty('count');
-      expect(stats).toHaveProperty('p50');
-      expect(stats).toHaveProperty('p95');
-      expect(stats).toHaveProperty('p99');
-      expect(stats).toHaveProperty('sloViolations');
+      expect(stats).toHaveProperty("count");
+      expect(stats).toHaveProperty("p50");
+      expect(stats).toHaveProperty("p95");
+      expect(stats).toHaveProperty("p99");
+      expect(stats).toHaveProperty("sloViolations");
     });
 
-    it('ツールごとに独立した統計が保持されること', () => {
+    it("ツールごとに独立した統計が保持されること", () => {
       // Arrange
-      service.recordSearchTime('layout.search', 100);
-      service.recordSearchTime('layout.search', 200);
-      service.recordSearchTime('motion.search', 300);
+      service.recordSearchTime("layout.search", 100);
+      service.recordSearchTime("layout.search", 200);
+      service.recordSearchTime("motion.search", 300);
 
       // Act
-      const layoutStats = service.getStats('layout.search');
-      const motionStats = service.getStats('motion.search');
+      const layoutStats = service.getStats("layout.search");
+      const motionStats = service.getStats("motion.search");
 
       // Assert
       expect(layoutStats?.count).toBe(2);
@@ -152,11 +152,11 @@ describe('SearchPerformanceService', () => {
     });
   });
 
-  describe('checkSLOViolation - SLO違反チェック', () => {
-    it('P95 SLOを超える時間でtrueを返すこと', () => {
+  describe("checkSLOViolation - SLO違反チェック", () => {
+    it("P95 SLOを超える時間でtrueを返すこと", () => {
       // Arrange
       // layout.searchのP95 SLOは500ms
-      const toolName = 'layout.search';
+      const toolName = "layout.search";
       const durationExceedingSLO = 600;
 
       // Act
@@ -166,9 +166,9 @@ describe('SearchPerformanceService', () => {
       expect(isViolation).toBe(true);
     });
 
-    it('P95 SLO以下の時間でfalseを返すこと', () => {
+    it("P95 SLO以下の時間でfalseを返すこと", () => {
       // Arrange
-      const toolName = 'layout.search';
+      const toolName = "layout.search";
       const durationWithinSLO = 400;
 
       // Act
@@ -178,9 +178,9 @@ describe('SearchPerformanceService', () => {
       expect(isViolation).toBe(false);
     });
 
-    it('P95 SLOちょうどの時間でfalseを返すこと（境界値テスト）', () => {
+    it("P95 SLOちょうどの時間でfalseを返すこと（境界値テスト）", () => {
       // Arrange
-      const toolName = 'layout.search';
+      const toolName = "layout.search";
       const durationAtSLO = 500;
 
       // Act
@@ -190,9 +190,9 @@ describe('SearchPerformanceService', () => {
       expect(isViolation).toBe(false);
     });
 
-    it('未定義ツールに対してはfalseを返すこと', () => {
+    it("未定義ツールに対してはfalseを返すこと", () => {
       // Arrange
-      const unknownTool = 'unknown.tool';
+      const unknownTool = "unknown.tool";
 
       // Act
       const isViolation = service.checkSLOViolation(unknownTool, 1000);
@@ -201,9 +201,9 @@ describe('SearchPerformanceService', () => {
       expect(isViolation).toBe(false);
     });
 
-    it('SLO違反を記録するとsloViolationsカウントが増加すること', () => {
+    it("SLO違反を記録するとsloViolationsカウントが増加すること", () => {
       // Arrange
-      const toolName = 'layout.search';
+      const toolName = "layout.search";
 
       // Act
       // 記録時にSLO違反が自動カウントされる
@@ -218,11 +218,11 @@ describe('SearchPerformanceService', () => {
     });
   });
 
-  describe('パーセンタイル計算', () => {
-    it('P50（中央値）を正しく計算すること', () => {
+  describe("パーセンタイル計算", () => {
+    it("P50（中央値）を正しく計算すること", () => {
       // Arrange
       // 100個のデータポイント: 1, 2, 3, ..., 100
-      const toolName = 'layout.search';
+      const toolName = "layout.search";
       for (let i = 1; i <= 100; i++) {
         service.recordSearchTime(toolName, i);
       }
@@ -237,9 +237,9 @@ describe('SearchPerformanceService', () => {
       expect(stats?.p50).toBeCloseTo(50.5, 1);
     });
 
-    it('P95を正しく計算すること', () => {
+    it("P95を正しく計算すること", () => {
       // Arrange
-      const toolName = 'layout.search';
+      const toolName = "layout.search";
       for (let i = 1; i <= 100; i++) {
         service.recordSearchTime(toolName, i);
       }
@@ -252,9 +252,9 @@ describe('SearchPerformanceService', () => {
       expect(stats?.p95).toBeCloseTo(95, 0);
     });
 
-    it('P99を正しく計算すること', () => {
+    it("P99を正しく計算すること", () => {
       // Arrange
-      const toolName = 'layout.search';
+      const toolName = "layout.search";
       for (let i = 1; i <= 100; i++) {
         service.recordSearchTime(toolName, i);
       }
@@ -267,9 +267,9 @@ describe('SearchPerformanceService', () => {
       expect(stats?.p99).toBeCloseTo(99, 0);
     });
 
-    it('データが1件の場合、全パーセンタイルが同じ値になること', () => {
+    it("データが1件の場合、全パーセンタイルが同じ値になること", () => {
       // Arrange
-      const toolName = 'layout.search';
+      const toolName = "layout.search";
       service.recordSearchTime(toolName, 250);
 
       // Act
@@ -281,9 +281,9 @@ describe('SearchPerformanceService', () => {
       expect(stats?.p99).toBe(250);
     });
 
-    it('データが2件の場合、パーセンタイルが正しく計算されること', () => {
+    it("データが2件の場合、パーセンタイルが正しく計算されること", () => {
       // Arrange
-      const toolName = 'layout.search';
+      const toolName = "layout.search";
       service.recordSearchTime(toolName, 100);
       service.recordSearchTime(toolName, 200);
 
@@ -296,9 +296,9 @@ describe('SearchPerformanceService', () => {
       expect(stats?.p50).toBeLessThanOrEqual(200);
     });
 
-    it('外れ値がP99に反映されること', () => {
+    it("外れ値がP99に反映されること", () => {
       // Arrange
-      const toolName = 'layout.search';
+      const toolName = "layout.search";
       // 99個の正常値と1個の外れ値
       for (let i = 0; i < 99; i++) {
         service.recordSearchTime(toolName, 100);
@@ -315,41 +315,41 @@ describe('SearchPerformanceService', () => {
     });
   });
 
-  describe('reset - 統計リセット', () => {
-    it('全ツールの統計がリセットされること', () => {
+  describe("reset - 統計リセット", () => {
+    it("全ツールの統計がリセットされること", () => {
       // Arrange
-      service.recordSearchTime('layout.search', 100);
-      service.recordSearchTime('motion.search', 200);
+      service.recordSearchTime("layout.search", 100);
+      service.recordSearchTime("motion.search", 200);
 
       // Act
       service.reset();
 
       // Assert
-      expect(service.getStats('layout.search')).toBeUndefined();
-      expect(service.getStats('motion.search')).toBeUndefined();
+      expect(service.getStats("layout.search")).toBeUndefined();
+      expect(service.getStats("motion.search")).toBeUndefined();
     });
 
-    it('リセット後に新しいデータを記録できること', () => {
+    it("リセット後に新しいデータを記録できること", () => {
       // Arrange
-      service.recordSearchTime('layout.search', 100);
+      service.recordSearchTime("layout.search", 100);
       service.reset();
 
       // Act
-      service.recordSearchTime('layout.search', 200);
-      const stats = service.getStats('layout.search');
+      service.recordSearchTime("layout.search", 200);
+      const stats = service.getStats("layout.search");
 
       // Assert
       expect(stats?.count).toBe(1);
       expect(stats?.p50).toBe(200);
     });
 
-    it('リセット後もSLO定義は維持されること', () => {
+    it("リセット後もSLO定義は維持されること", () => {
       // Arrange
-      service.recordSearchTime('layout.search', 100);
+      service.recordSearchTime("layout.search", 100);
       service.reset();
 
       // Act
-      const slo = service.getSLO('layout.search');
+      const slo = service.getSLO("layout.search");
 
       // Assert
       expect(slo).toBeDefined();
@@ -357,25 +357,25 @@ describe('SearchPerformanceService', () => {
     });
   });
 
-  describe('DoS攻撃耐性（メモリ上限）', () => {
-    it('ツール数上限（100）を超えた場合、新規ツールが記録されないこと', () => {
+  describe("DoS攻撃耐性（メモリ上限）", () => {
+    it("ツール数上限（100）を超えた場合、新規ツールが記録されないこと", () => {
       // Arrange: 100個の異なるツールを登録
       for (let i = 0; i < 100; i++) {
         service.recordSearchTime(`tool_${i}`, 100);
       }
 
       // Act: 101個目のツールを登録試行
-      service.recordSearchTime('tool_100', 100);
+      service.recordSearchTime("tool_100", 100);
 
       // Assert: 101個目は登録されない
-      expect(service.getStats('tool_100')).toBeUndefined();
+      expect(service.getStats("tool_100")).toBeUndefined();
       // 既存のツールは正常に動作
-      expect(service.getStats('tool_0')).toBeDefined();
+      expect(service.getStats("tool_0")).toBeDefined();
     });
 
-    it('記録数上限（10000）を超えた場合、最古のデータが削除されること', () => {
+    it("記録数上限（10000）を超えた場合、最古のデータが削除されること", () => {
       // Arrange: 10000件を記録
-      const toolName = 'layout.search';
+      const toolName = "layout.search";
       for (let i = 1; i <= 10000; i++) {
         service.recordSearchTime(toolName, i);
       }
@@ -391,9 +391,9 @@ describe('SearchPerformanceService', () => {
       expect(stats?.p50).toBeGreaterThan(1);
     });
 
-    it('リングバッファ方式で古いデータから削除されること', () => {
+    it("リングバッファ方式で古いデータから削除されること", () => {
       // Arrange: 異常に遅い検索を記録後、正常な検索で埋める
-      const toolName = 'layout.search';
+      const toolName = "layout.search";
       service.recordSearchTime(toolName, 9999); // 異常値
 
       // 10000件の正常値で埋める
@@ -409,10 +409,10 @@ describe('SearchPerformanceService', () => {
     });
   });
 
-  describe('エッジケースとエラーハンドリング', () => {
-    it('非常に大きな値を記録してもオーバーフローしないこと', () => {
+  describe("エッジケースとエラーハンドリング", () => {
+    it("非常に大きな値を記録してもオーバーフローしないこと", () => {
       // Arrange
-      const toolName = 'layout.search';
+      const toolName = "layout.search";
       const largeValue = Number.MAX_SAFE_INTEGER;
 
       // Act & Assert
@@ -421,9 +421,9 @@ describe('SearchPerformanceService', () => {
       expect(stats?.p50).toBe(largeValue);
     });
 
-    it('小数点以下の値を正しく処理すること', () => {
+    it("小数点以下の値を正しく処理すること", () => {
       // Arrange
-      const toolName = 'layout.search';
+      const toolName = "layout.search";
       service.recordSearchTime(toolName, 10.5);
       service.recordSearchTime(toolName, 20.7);
       service.recordSearchTime(toolName, 30.3);
@@ -436,10 +436,10 @@ describe('SearchPerformanceService', () => {
       expect(stats?.p50).toBeCloseTo(20.7, 1);
     });
 
-    it('空のツール名でも動作すること', () => {
+    it("空のツール名でも動作すること", () => {
       // Arrange & Act
-      service.recordSearchTime('', 100);
-      const stats = service.getStats('');
+      service.recordSearchTime("", 100);
+      const stats = service.getStats("");
 
       // Assert
       expect(stats).toBeDefined();
@@ -447,13 +447,13 @@ describe('SearchPerformanceService', () => {
     });
   });
 
-  describe('型定義の検証', () => {
-    it('SearchPerformanceStatsの型が正しいこと', () => {
+  describe("型定義の検証", () => {
+    it("SearchPerformanceStatsの型が正しいこと", () => {
       // Arrange
-      service.recordSearchTime('layout.search', 100);
+      service.recordSearchTime("layout.search", 100);
 
       // Act
-      const stats = service.getStats('layout.search');
+      const stats = service.getStats("layout.search");
 
       // Assert
       // TypeScriptの型チェックを通過することを確認
@@ -464,33 +464,33 @@ describe('SearchPerformanceService', () => {
         const _p99: number = stats.p99;
         const _sloViolations: number = stats.sloViolations;
 
-        expect(typeof _count).toBe('number');
-        expect(typeof _p50).toBe('number');
-        expect(typeof _p95).toBe('number');
-        expect(typeof _p99).toBe('number');
-        expect(typeof _sloViolations).toBe('number');
+        expect(typeof _count).toBe("number");
+        expect(typeof _p50).toBe("number");
+        expect(typeof _p95).toBe("number");
+        expect(typeof _p99).toBe("number");
+        expect(typeof _sloViolations).toBe("number");
       }
     });
 
-    it('SLODefinitionの型が正しいこと', () => {
+    it("SLODefinitionの型が正しいこと", () => {
       // Arrange & Act
-      const slo = service.getSLO('layout.search');
+      const slo = service.getSLO("layout.search");
 
       // Assert
       if (slo) {
         const _p95: number = slo.p95;
         const _p99: number = slo.p99;
 
-        expect(typeof _p95).toBe('number');
-        expect(typeof _p99).toBe('number');
+        expect(typeof _p95).toBe("number");
+        expect(typeof _p99).toBe("number");
       }
     });
   });
 
-  describe('統合シナリオ', () => {
-    it('実際の使用パターンをシミュレートできること', () => {
+  describe("統合シナリオ", () => {
+    it("実際の使用パターンをシミュレートできること", () => {
       // Arrange: 1000件の検索をシミュレート
-      const toolName = 'layout.search';
+      const toolName = "layout.search";
       const slo = service.getSLO(toolName);
 
       // 正規分布に近い検索時間を生成（平均200ms、標準偏差100ms）
@@ -517,14 +517,14 @@ describe('SearchPerformanceService', () => {
       if (slo && stats) {
         // P95がSLO閾値付近または以下であることを期待
         // （シミュレーションデータの特性上、厳密な値は保証できない）
-        expect(typeof stats.sloViolations).toBe('number');
+        expect(typeof stats.sloViolations).toBe("number");
       }
     });
 
-    it('複数ツールの同時監視が正しく動作すること', () => {
+    it("複数ツールの同時監視が正しく動作すること", () => {
       // Arrange
       // Note: SVG機能は削除されたため、layout/motionのみテスト
-      const tools = ['layout.search', 'motion.search'];
+      const tools = ["layout.search", "motion.search"];
 
       // 各ツールに異なる特性のデータを記録
       tools.forEach((tool, index) => {

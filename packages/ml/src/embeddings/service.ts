@@ -16,18 +16,11 @@
  * run inference in-process (legacy behavior, for testing or debugging).
  */
 
-import { Worker } from 'node:worker_threads';
-import { fileURLToPath } from 'node:url';
-import path from 'node:path';
-import type {
-  EmbeddingTextType,
-  EmbeddingServiceConfig,
-  CacheStats,
-} from './types.js';
-import type {
-  WorkerMessage,
-  WorkerResponse,
-} from './worker-thread-types.js';
+import { Worker } from "node:worker_threads";
+import { fileURLToPath } from "node:url";
+import path from "node:path";
+import type { EmbeddingTextType, EmbeddingServiceConfig, CacheStats } from "./types.js";
+import type { WorkerMessage, WorkerResponse } from "./worker-thread-types.js";
 
 /**
  * Disposable pipeline interface (used only in in-process fallback mode).
@@ -41,7 +34,7 @@ interface DisposablePipeline {
   (
     texts: string | string[],
     options?: { pooling?: string; normalize?: boolean }
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
   ): Promise<any>;
   dispose?: () => Promise<unknown[]>;
 }
@@ -90,20 +83,21 @@ const WORKER_RESPONSE_TIMEOUT_MS = 120_000;
 
 // Default configuration
 const DEFAULT_CONFIG: Required<EmbeddingServiceConfig> = {
-  modelId: 'Xenova/multilingual-e5-base',
-  cacheDir: process.env.MODEL_CACHE_DIR || './.cache/models',
-  device: 'cpu',
-  dtype: 'fp32',
+  modelId: "Xenova/multilingual-e5-base",
+  cacheDir: process.env.MODEL_CACHE_DIR || "./.cache/models",
+  device: "cpu",
+  dtype: "fp32",
   maxCacheSize: DEFAULT_MAX_CACHE_SIZE,
-  pipelineRecycleThreshold: process.env.PIPELINE_RECYCLE_THRESHOLD !== undefined
-    ? parseInt(process.env.PIPELINE_RECYCLE_THRESHOLD, 10)
-    : DEFAULT_PIPELINE_RECYCLE_THRESHOLD,
+  pipelineRecycleThreshold:
+    process.env.PIPELINE_RECYCLE_THRESHOLD !== undefined
+      ? parseInt(process.env.PIPELINE_RECYCLE_THRESHOLD, 10)
+      : DEFAULT_PIPELINE_RECYCLE_THRESHOLD,
 };
 
 // E5 model prefixes for query and passage
 const E5_PREFIX = {
-  query: 'query: ',
-  passage: 'passage: ',
+  query: "query: ",
+  passage: "passage: ",
 } as const;
 
 // Embedding dimension for multilingual-e5-base
@@ -115,9 +109,9 @@ const EMBEDDING_DIMENSION = 768;
  */
 function isWorkerThreadEnabled(): boolean {
   const envVal = process.env.EMBEDDING_WORKER_THREAD;
-  if (envVal === 'false' || envVal === '0') return false;
+  if (envVal === "false" || envVal === "0") return false;
   // Disable in Vitest to avoid worker thread complications in test harness
-  if (process.env.VITEST === 'true' || process.env.VITEST_WORKER_ID !== undefined) return false;
+  if (process.env.VITEST === "true" || process.env.VITEST_WORKER_ID !== undefined) return false;
   return true;
 }
 
@@ -135,7 +129,7 @@ function generateRequestId(): string {
  */
 function resolveWorkerScriptPath(): string {
   const currentDir = path.dirname(fileURLToPath(import.meta.url));
-  return path.resolve(currentDir, 'worker-thread.js');
+  return path.resolve(currentDir, "worker-thread.js");
 }
 
 /**
@@ -152,7 +146,7 @@ function normalizeVector(vector: number[]): number[] {
  */
 export function cosineSimilarity(a: number[], b: number[]): number {
   if (a.length !== b.length) {
-    throw new Error('Vectors must have the same dimension');
+    throw new Error("Vectors must have the same dimension");
   }
 
   let dotProduct = 0;
@@ -216,7 +210,7 @@ export class EmbeddingService {
   private lastCrashTime = 0;
 
   // --- Provider tracking ---
-  private currentProvider: 'cpu' | 'cuda' = 'cpu';
+  private currentProvider: "cpu" | "cuda" = "cpu";
 
   // --- Idle timer for automatic VRAM release ---
   private idleTimer: ReturnType<typeof setTimeout> | null = null;
@@ -245,17 +239,17 @@ export class EmbeddingService {
     // Apply ONNX_EXECUTION_PROVIDER env var if device not explicitly set
     if (!config.device) {
       const envProvider = process.env.ONNX_EXECUTION_PROVIDER;
-      if (envProvider === 'cuda' || envProvider === 'rocm') {
-        this.config.device = 'cuda';
+      if (envProvider === "cuda" || envProvider === "rocm") {
+        this.config.device = "cuda";
       }
     }
 
     this.useWorkerThread = isWorkerThreadEnabled();
-    this.currentProvider = this.config.device === 'cuda' ? 'cuda' : 'cpu';
+    this.currentProvider = this.config.device === "cuda" ? "cuda" : "cpu";
 
-    if (process.env.NODE_ENV === 'development') {
+    if (process.env.NODE_ENV === "development") {
       // eslint-disable-next-line no-console
-      console.log('[ML] EmbeddingService created with config:', {
+      console.log("[ML] EmbeddingService created with config:", {
         modelId: this.config.modelId,
         device: this.config.device,
         dtype: this.config.dtype,
@@ -286,11 +280,11 @@ export class EmbeddingService {
       const elapsed = Date.now() - this.lastCrashTime;
       if (elapsed < CRASH_COOLDOWN_MS) {
         const waitMs = CRASH_COOLDOWN_MS - elapsed;
-        if (process.env.NODE_ENV === 'development') {
+        if (process.env.NODE_ENV === "development") {
           // eslint-disable-next-line no-console
-          console.log('[ML] Waiting %dms before Worker Thread restart (crash cooldown)', waitMs);
+          console.log("[ML] Waiting %dms before Worker Thread restart (crash cooldown)", waitMs);
         }
-        await new Promise<void>(resolve => setTimeout(resolve, waitMs));
+        await new Promise<void>((resolve) => setTimeout(resolve, waitMs));
       }
     }
 
@@ -302,9 +296,9 @@ export class EmbeddingService {
     try {
       const scriptPath = resolveWorkerScriptPath();
 
-      if (process.env.NODE_ENV === 'development') {
+      if (process.env.NODE_ENV === "development") {
         // eslint-disable-next-line no-console
-        console.log('[ML] Spawning ONNX Worker Thread:', scriptPath);
+        console.log("[ML] Spawning ONNX Worker Thread:", scriptPath);
       }
 
       // Worker threads inherit the parent's execArgv by default.
@@ -315,23 +309,23 @@ export class EmbeddingService {
       this.worker = new Worker(scriptPath, { execArgv: [] });
 
       // Handle worker messages
-      this.worker.on('message', (response: WorkerResponse) => {
+      this.worker.on("message", (response: WorkerResponse) => {
         this.handleWorkerResponse(response);
       });
 
       // Handle worker errors
-      this.worker.on('error', (error: Error) => {
-        if (process.env.NODE_ENV === 'development') {
-          console.warn('[ML] Worker Thread error:', error.message);
+      this.worker.on("error", (error: Error) => {
+        if (process.env.NODE_ENV === "development") {
+          console.warn("[ML] Worker Thread error:", error.message);
         }
         this.handleWorkerCrash(error);
       });
 
       // Handle worker exit
-      this.worker.on('exit', (code: number) => {
+      this.worker.on("exit", (code: number) => {
         if (code !== 0) {
-          if (process.env.NODE_ENV === 'development') {
-            console.warn('[ML] Worker Thread exited with code:', code);
+          if (process.env.NODE_ENV === "development") {
+            console.warn("[ML] Worker Thread exited with code:", code);
           }
           this.handleWorkerCrash(new Error(`Worker thread exited with code ${code}`));
         }
@@ -341,7 +335,7 @@ export class EmbeddingService {
 
       // Send init message and wait for response
       const response = await this.sendWorkerMessage({
-        type: 'init',
+        type: "init",
         requestId: generateRequestId(),
         config: {
           modelId: this.config.modelId,
@@ -352,24 +346,25 @@ export class EmbeddingService {
         },
       });
 
-      if (response.type === 'error') {
+      if (response.type === "error") {
         throw new Error(`Worker init failed: ${response.error}`);
       }
 
       this.workerReady = true;
 
-      if (response.type === 'init') {
-        this.currentProvider = response.executionProvider === 'cuda' ? 'cuda' : 'cpu';
+      if (response.type === "init") {
+        this.currentProvider = response.executionProvider === "cuda" ? "cuda" : "cpu";
         // eslint-disable-next-line no-console
-        console.log('[ML] Worker Thread initialized in %dms (provider: %s)',
+        console.log(
+          "[ML] Worker Thread initialized in %dms (provider: %s)",
           response.loadTimeMs,
-          response.executionProvider,
+          response.executionProvider
         );
       }
     } catch (error) {
       this.workerInitPromise = null;
       this.workerReady = false;
-      const message = error instanceof Error ? error.message : 'Unknown error';
+      const message = error instanceof Error ? error.message : "Unknown error";
       throw new Error(`Failed to initialize ONNX Worker Thread: ${message}`);
     }
   }
@@ -379,13 +374,17 @@ export class EmbeddingService {
    */
   private sendWorkerMessage(message: WorkerMessage): Promise<WorkerResponse> {
     if (!this.worker) {
-      return Promise.reject(new Error('Worker thread not available'));
+      return Promise.reject(new Error("Worker thread not available"));
     }
 
     return new Promise<WorkerResponse>((resolve, reject) => {
       const timer = setTimeout(() => {
         this.pendingRequests.delete(message.requestId);
-        reject(new Error(`Worker thread response timeout (${WORKER_RESPONSE_TIMEOUT_MS}ms) for ${message.type}`));
+        reject(
+          new Error(
+            `Worker thread response timeout (${WORKER_RESPONSE_TIMEOUT_MS}ms) for ${message.type}`
+          )
+        );
       }, WORKER_RESPONSE_TIMEOUT_MS);
 
       this.pendingRequests.set(message.requestId, { resolve, reject, timer });
@@ -422,9 +421,9 @@ export class EmbeddingService {
     this.workerRestartCount++;
     this.lastCrashTime = Date.now();
 
-    if (process.env.NODE_ENV === 'development') {
+    if (process.env.NODE_ENV === "development") {
       // eslint-disable-next-line no-console
-      console.log('[ML] Worker Thread crash, restart count:', this.workerRestartCount);
+      console.log("[ML] Worker Thread crash, restart count:", this.workerRestartCount);
     }
   }
 
@@ -452,30 +451,39 @@ export class EmbeddingService {
 
     this.initPromise = (async (): Promise<void> => {
       try {
-        if (process.env.NODE_ENV === 'development') {
+        if (process.env.NODE_ENV === "development") {
           // eslint-disable-next-line no-console
-          console.log('[ML] Loading embedding model (in-process):', this.config.modelId, '(device:', this.config.device + ')');
+          console.log(
+            "[ML] Loading embedding model (in-process):",
+            this.config.modelId,
+            "(device:",
+            this.config.device + ")"
+          );
         }
 
         const startTime = Date.now();
-        const { pipeline } = await import('@huggingface/transformers');
+        const { pipeline } = await import("@huggingface/transformers");
 
         try {
-          this.pipeline = await pipeline('feature-extraction', this.config.modelId, {
+          this.pipeline = (await pipeline("feature-extraction", this.config.modelId, {
             dtype: this.config.dtype,
             device: this.config.device,
-          }) as unknown as DisposablePipeline;
+          })) as unknown as DisposablePipeline;
         } catch (deviceError) {
-          if (this.config.device !== 'cpu') {
+          if (this.config.device !== "cpu") {
             const msg = deviceError instanceof Error ? deviceError.message : String(deviceError);
-            console.warn('[ML] %s pipeline creation failed, falling back to CPU: %s', this.config.device, msg);
-            this.config = { ...this.config, device: 'cpu' };
-            this.currentProvider = 'cpu';
+            console.warn(
+              "[ML] %s pipeline creation failed, falling back to CPU: %s",
+              this.config.device,
+              msg
+            );
+            this.config = { ...this.config, device: "cpu" };
+            this.currentProvider = "cpu";
 
-            this.pipeline = await pipeline('feature-extraction', this.config.modelId, {
+            this.pipeline = (await pipeline("feature-extraction", this.config.modelId, {
               dtype: this.config.dtype,
-              device: 'cpu',
-            }) as unknown as DisposablePipeline;
+              device: "cpu",
+            })) as unknown as DisposablePipeline;
           } else {
             throw deviceError;
           }
@@ -483,13 +491,18 @@ export class EmbeddingService {
 
         const loadTime = Date.now() - startTime;
 
-        if (process.env.NODE_ENV === 'development') {
+        if (process.env.NODE_ENV === "development") {
           // eslint-disable-next-line no-console
-          console.log('[ML] Model loaded in-process in', loadTime, 'ms (provider:', this.currentProvider + ')');
+          console.log(
+            "[ML] Model loaded in-process in",
+            loadTime,
+            "ms (provider:",
+            this.currentProvider + ")"
+          );
         }
       } catch (error) {
         this.initPromise = null;
-        const message = error instanceof Error ? error.message : 'Unknown error';
+        const message = error instanceof Error ? error.message : "Unknown error";
         throw new Error(`Failed to load embedding model: ${message}`);
       }
     })();
@@ -507,9 +520,9 @@ export class EmbeddingService {
     if (threshold <= 0) return;
 
     if (this.inferencesSinceRecycle >= threshold) {
-      if (process.env.NODE_ENV === 'development') {
+      if (process.env.NODE_ENV === "development") {
         // eslint-disable-next-line no-console
-        console.log('[ML] Pipeline recycle threshold reached', {
+        console.log("[ML] Pipeline recycle threshold reached", {
           inferencesSinceRecycle: this.inferencesSinceRecycle,
           threshold,
           totalRecycles: this.totalRecycles,
@@ -519,13 +532,13 @@ export class EmbeddingService {
       await this.disposeInProcess();
       this.totalRecycles++;
 
-      if (typeof global.gc === 'function') {
+      if (typeof global.gc === "function") {
         global.gc();
       }
 
-      if (process.env.NODE_ENV === 'development') {
+      if (process.env.NODE_ENV === "development") {
         // eslint-disable-next-line no-console
-        console.log('[ML] Pipeline recycled successfully', {
+        console.log("[ML] Pipeline recycled successfully", {
           totalRecycles: this.totalRecycles,
         });
       }
@@ -536,7 +549,7 @@ export class EmbeddingService {
    * Dispose the in-process pipeline.
    */
   private async disposeInProcess(): Promise<void> {
-    if (this.pipeline && typeof this.pipeline.dispose === 'function') {
+    if (this.pipeline && typeof this.pipeline.dispose === "function") {
       try {
         await this.pipeline.dispose();
       } catch {
@@ -553,25 +566,27 @@ export class EmbeddingService {
    */
   private async generateInProcess(prefixedText: string): Promise<number[]> {
     await this.initializeInProcess();
-    if (!this.pipeline) throw new Error('Embedding pipeline not initialized');
+    if (!this.pipeline) throw new Error("Embedding pipeline not initialized");
 
-    const output = await this.pipeline(prefixedText, { pooling: 'mean', normalize: true });
+    const output = await this.pipeline(prefixedText, { pooling: "mean", normalize: true });
 
     let embedding: number[];
-    if (output && typeof output.tolist === 'function') {
+    if (output && typeof output.tolist === "function") {
       const result = output.tolist();
       embedding = Array.isArray(result[0]) ? result[0] : result;
-      if (typeof output.dispose === 'function') {
+      if (typeof output.dispose === "function") {
         output.dispose();
       }
     } else if (Array.isArray(output)) {
       embedding = output;
     } else {
-      throw new Error('Unexpected embedding output format');
+      throw new Error("Unexpected embedding output format");
     }
 
     if (embedding.length !== EMBEDDING_DIMENSION) {
-      console.warn(`[ML] Warning: Expected ${EMBEDDING_DIMENSION} dimensions, got ${embedding.length}`);
+      console.warn(
+        `[ML] Warning: Expected ${EMBEDDING_DIMENSION} dimensions, got ${embedding.length}`
+      );
     }
 
     await this.recyclePipelineIfNeeded(1);
@@ -591,21 +606,21 @@ export class EmbeddingService {
 
       if (!this.pipeline) {
         await this.initializeInProcess();
-        if (!this.pipeline) throw new Error('Embedding pipeline not initialized after recycle');
+        if (!this.pipeline) throw new Error("Embedding pipeline not initialized after recycle");
       }
 
-      const output = await this.pipeline(batch, { pooling: 'mean', normalize: true });
+      const output = await this.pipeline(batch, { pooling: "mean", normalize: true });
 
       let batchEmbeddings: number[][];
-      if (output && typeof output.tolist === 'function') {
+      if (output && typeof output.tolist === "function") {
         batchEmbeddings = output.tolist();
-        if (typeof output.dispose === 'function') {
+        if (typeof output.dispose === "function") {
           output.dispose();
         }
       } else if (Array.isArray(output)) {
         batchEmbeddings = output;
       } else {
-        throw new Error('Unexpected batch embedding output format');
+        throw new Error("Unexpected batch embedding output format");
       }
 
       for (const emb of batchEmbeddings) {
@@ -616,7 +631,7 @@ export class EmbeddingService {
 
       // Yield between batches
       if (batchEnd < prefixedTexts.length) {
-        await new Promise<void>(resolve => setImmediate(resolve));
+        await new Promise<void>((resolve) => setImmediate(resolve));
       }
     }
 
@@ -648,9 +663,9 @@ export class EmbeddingService {
       clearTimeout(this.idleTimer);
       this.idleTimer = null;
     }
-    if (process.env.NODE_ENV === 'development') {
+    if (process.env.NODE_ENV === "development") {
       // eslint-disable-next-line no-console
-      console.log('[ML] Idle timeout set to %dms (0 = disabled)', ms);
+      console.log("[ML] Idle timeout set to %dms (0 = disabled)", ms);
     }
   }
 
@@ -667,18 +682,24 @@ export class EmbeddingService {
 
     this.idleTimer = setTimeout(() => {
       this.idleTimer = null;
-      if (process.env.NODE_ENV === 'development') {
+      if (process.env.NODE_ENV === "development") {
         // eslint-disable-next-line no-console
-        console.log('[ML] Idle timeout reached (%dms), disposing ONNX pipeline to free VRAM', this.idleTimeoutMs);
+        console.log(
+          "[ML] Idle timeout reached (%dms), disposing ONNX pipeline to free VRAM",
+          this.idleTimeoutMs
+        );
       }
       // Fire-and-forget: dispose() is safe to call and errors are caught internally
       void this.dispose().catch((err) => {
-        console.warn('[ML] Idle timer dispose failed:', err instanceof Error ? err.message : String(err));
+        console.warn(
+          "[ML] Idle timer dispose failed:",
+          err instanceof Error ? err.message : String(err)
+        );
       });
     }, this.idleTimeoutMs);
 
     // Ensure the timer does not prevent Node.js process from exiting
-    if (this.idleTimer && typeof this.idleTimer === 'object' && 'unref' in this.idleTimer) {
+    if (this.idleTimer && typeof this.idleTimer === "object" && "unref" in this.idleTimer) {
       this.idleTimer.unref();
     }
   }
@@ -728,9 +749,9 @@ export class EmbeddingService {
       if (oldestKey !== undefined) {
         this.cache.delete(oldestKey);
         this.cacheEvictions++;
-        if (process.env.NODE_ENV === 'development') {
+        if (process.env.NODE_ENV === "development") {
           // eslint-disable-next-line no-console
-          console.log('[ML] Cache evicted oldest entry, size:', this.cache.size);
+          console.log("[ML] Cache evicted oldest entry, size:", this.cache.size);
         }
       } else {
         break;
@@ -764,9 +785,9 @@ export class EmbeddingService {
     const cached = this.getCacheEntry(cacheKey);
     if (cached) {
       this.cacheHits++;
-      if (process.env.NODE_ENV === 'development') {
+      if (process.env.NODE_ENV === "development") {
         // eslint-disable-next-line no-console
-        console.log('[ML] Cache hit for:', text.substring(0, 30));
+        console.log("[ML] Cache hit for:", text.substring(0, 30));
       }
       // Cache hits also reset the idle timer (service is still "active")
       this.resetIdleTimer();
@@ -778,9 +799,9 @@ export class EmbeddingService {
     const startTime = Date.now();
     const prefixedText = E5_PREFIX[type] + text;
 
-    if (process.env.NODE_ENV === 'development') {
+    if (process.env.NODE_ENV === "development") {
       // eslint-disable-next-line no-console
-      console.log('[ML] Generating embedding for:', prefixedText.substring(0, 50));
+      console.log("[ML] Generating embedding for:", prefixedText.substring(0, 50));
     }
 
     try {
@@ -794,16 +815,18 @@ export class EmbeddingService {
 
       // Ensure proper dimension
       if (embedding.length !== EMBEDDING_DIMENSION) {
-        console.warn(`[ML] Warning: Expected ${EMBEDDING_DIMENSION} dimensions, got ${embedding.length}`);
+        console.warn(
+          `[ML] Warning: Expected ${EMBEDDING_DIMENSION} dimensions, got ${embedding.length}`
+        );
       }
 
       // Cache the result
       this.setCacheEntry(cacheKey, embedding);
 
       const elapsedMs = Date.now() - startTime;
-      if (process.env.NODE_ENV === 'development') {
+      if (process.env.NODE_ENV === "development") {
         // eslint-disable-next-line no-console
-        console.log('[ML] Embedding generated in', elapsedMs, 'ms');
+        console.log("[ML] Embedding generated in", elapsedMs, "ms");
       }
 
       return embedding;
@@ -825,16 +848,16 @@ export class EmbeddingService {
     }
 
     const response = await this.sendWorkerMessage({
-      type: 'generate',
+      type: "generate",
       requestId: generateRequestId(),
       text: prefixedText,
     });
 
-    if (response.type === 'error') {
+    if (response.type === "error") {
       throw new Error(`Worker inference failed: ${response.error}`);
     }
 
-    if (response.type !== 'generate') {
+    if (response.type !== "generate") {
       throw new Error(`Unexpected worker response type: ${response.type}`);
     }
 
@@ -853,16 +876,16 @@ export class EmbeddingService {
     }
 
     const response = await this.sendWorkerMessage({
-      type: 'generateBatch',
+      type: "generateBatch",
       requestId: generateRequestId(),
       texts: prefixedTexts,
     });
 
-    if (response.type === 'error') {
+    if (response.type === "error") {
       throw new Error(`Worker batch inference failed: ${response.error}`);
     }
 
-    if (response.type !== 'generateBatch') {
+    if (response.type !== "generateBatch") {
       throw new Error(`Unexpected worker response type: ${response.type}`);
     }
 
@@ -876,19 +899,16 @@ export class EmbeddingService {
    * @param type - Type of texts ('query' or 'passage')
    * @returns Array of 768-dimensional normalized embedding vectors
    */
-  async generateBatchEmbeddings(
-    texts: string[],
-    type: EmbeddingTextType
-  ): Promise<number[][]> {
+  async generateBatchEmbeddings(texts: string[], type: EmbeddingTextType): Promise<number[][]> {
     if (texts.length === 0) {
       return [];
     }
 
     const startTime = Date.now();
 
-    if (process.env.NODE_ENV === 'development') {
+    if (process.env.NODE_ENV === "development") {
       // eslint-disable-next-line no-console
-      console.log('[ML] Generating batch embeddings for', texts.length, 'texts');
+      console.log("[ML] Generating batch embeddings for", texts.length, "texts");
     }
 
     try {
@@ -945,9 +965,9 @@ export class EmbeddingService {
 
       const elapsedMs = Date.now() - startTime;
 
-      if (process.env.NODE_ENV === 'development') {
+      if (process.env.NODE_ENV === "development") {
         // eslint-disable-next-line no-console
-        console.log('[ML] Batch embeddings generated in', elapsedMs, 'ms');
+        console.log("[ML] Batch embeddings generated in", elapsedMs, "ms");
       }
 
       return results.filter((r): r is number[] => r !== undefined);
@@ -971,10 +991,10 @@ export class EmbeddingService {
       this.idleTimer = null;
     }
 
-    if (process.env.NODE_ENV === 'development') {
+    if (process.env.NODE_ENV === "development") {
       // eslint-disable-next-line no-console
-      console.log('[ML] Disposing ONNX pipeline', {
-        mode: this.useWorkerThread ? 'worker-thread' : 'in-process',
+      console.log("[ML] Disposing ONNX pipeline", {
+        mode: this.useWorkerThread ? "worker-thread" : "in-process",
         inferencesSinceRecycle: this.inferencesSinceRecycle,
         totalRecycles: this.totalRecycles,
       });
@@ -984,7 +1004,7 @@ export class EmbeddingService {
       if (this.worker && this.workerReady) {
         try {
           await this.sendWorkerMessage({
-            type: 'dispose',
+            type: "dispose",
             requestId: generateRequestId(),
           });
         } catch {
@@ -1012,7 +1032,7 @@ export class EmbeddingService {
     if (this.worker) {
       try {
         await this.sendWorkerMessage({
-          type: 'terminate',
+          type: "terminate",
           requestId: generateRequestId(),
         });
       } catch {
@@ -1037,7 +1057,7 @@ export class EmbeddingService {
     // Reject any remaining pending requests
     for (const [id, pending] of this.pendingRequests) {
       clearTimeout(pending.timer);
-      pending.reject(new Error('Service terminated'));
+      pending.reject(new Error("Service terminated"));
       this.pendingRequests.delete(id);
     }
   }
@@ -1063,9 +1083,9 @@ export class EmbeddingService {
     this.cacheMisses = 0;
     this.cacheEvictions = 0;
 
-    if (process.env.NODE_ENV === 'development') {
+    if (process.env.NODE_ENV === "development") {
       // eslint-disable-next-line no-console
-      console.log('[ML] Cache cleared');
+      console.log("[ML] Cache cleared");
     }
   }
 
@@ -1079,7 +1099,7 @@ export class EmbeddingService {
   /**
    * Get the current ONNX execution provider ('cpu' or 'cuda').
    */
-  getCurrentProvider(): 'cpu' | 'cuda' {
+  getCurrentProvider(): "cpu" | "cuda" {
     return this.currentProvider;
   }
 
@@ -1096,14 +1116,14 @@ export class EmbeddingService {
    *          active; false if the switch was not possible (e.g. CUDA not
    *          available) — in that case the service remains on CPU.
    */
-  async switchProvider(provider: 'cpu' | 'cuda'): Promise<boolean> {
+  async switchProvider(provider: "cpu" | "cuda"): Promise<boolean> {
     if (provider === this.currentProvider) {
       return true;
     }
 
-    if (process.env.NODE_ENV === 'development') {
+    if (process.env.NODE_ENV === "development") {
       // eslint-disable-next-line no-console
-      console.log('[ML] Switching provider: %s → %s', this.currentProvider, provider);
+      console.log("[ML] Switching provider: %s → %s", this.currentProvider, provider);
     }
 
     if (this.useWorkerThread) {
@@ -1115,7 +1135,7 @@ export class EmbeddingService {
   /**
    * Switch provider via Worker Thread message.
    */
-  private async switchProviderViaWorker(provider: 'cpu' | 'cuda'): Promise<boolean> {
+  private async switchProviderViaWorker(provider: "cpu" | "cuda"): Promise<boolean> {
     if (!this.workerReady || !this.worker) {
       // Worker not running — just update local config. When the worker
       // starts next, it will pick up the new device setting.
@@ -1128,19 +1148,19 @@ export class EmbeddingService {
     }
 
     const response = await this.sendWorkerMessage({
-      type: 'switch-provider',
+      type: "switch-provider",
       requestId: generateRequestId(),
       provider,
     });
 
-    if (response.type === 'error') {
-      if (process.env.NODE_ENV === 'development') {
-        console.warn('[ML] Provider switch failed:', response.error);
+    if (response.type === "error") {
+      if (process.env.NODE_ENV === "development") {
+        console.warn("[ML] Provider switch failed:", response.error);
       }
       return false;
     }
 
-    if (response.type === 'switch-provider') {
+    if (response.type === "switch-provider") {
       this.currentProvider = response.provider;
       this.config = { ...this.config, device: response.provider };
       return response.provider === provider;
@@ -1152,29 +1172,35 @@ export class EmbeddingService {
   /**
    * Switch provider in-process (fallback mode).
    */
-  private async switchProviderInProcess(provider: 'cpu' | 'cuda'): Promise<boolean> {
+  private async switchProviderInProcess(provider: "cpu" | "cuda"): Promise<boolean> {
     // For CUDA, verify the CUDA provider shared library is available
-    if (provider === 'cuda') {
+    if (provider === "cuda") {
       try {
-        const fs = await import('node:fs');
-        const pathMod = await import('node:path');
-        const { createRequire } = await import('node:module');
+        const fs = await import("node:fs");
+        const pathMod = await import("node:path");
+        const { createRequire } = await import("node:module");
         const require_ = createRequire(import.meta.url);
-        const ortNodePath = require_.resolve('onnxruntime-node');
+        const ortNodePath = require_.resolve("onnxruntime-node");
         // Walk up to package root (resolve returns .../dist/index.js)
         let packageDir = pathMod.dirname(ortNodePath);
         for (let i = 0; i < 5; i++) {
-          if (fs.existsSync(pathMod.join(packageDir, 'package.json'))) break;
+          if (fs.existsSync(pathMod.join(packageDir, "package.json"))) break;
           packageDir = pathMod.dirname(packageDir);
         }
 
         // Search across napi versions (v3, v6, etc.) for CUDA provider
         let cudaFound = false;
-        const binDir = pathMod.join(packageDir, 'bin');
+        const binDir = pathMod.join(packageDir, "bin");
         if (fs.existsSync(binDir)) {
-          const napiDirs = fs.readdirSync(binDir).filter((d: string) => d.startsWith('napi-v'));
+          const napiDirs = fs.readdirSync(binDir).filter((d: string) => d.startsWith("napi-v"));
           for (const napiDir of napiDirs) {
-            const p = pathMod.join(binDir, napiDir, 'linux', 'x64', 'libonnxruntime_providers_cuda.so');
+            const p = pathMod.join(
+              binDir,
+              napiDir,
+              "linux",
+              "x64",
+              "libonnxruntime_providers_cuda.so"
+            );
             if (fs.existsSync(p)) {
               cudaFound = true;
               break;
@@ -1182,14 +1208,14 @@ export class EmbeddingService {
           }
         }
         if (!cudaFound) {
-          if (process.env.NODE_ENV === 'development') {
-            console.warn('[ML] Cannot switch to CUDA in-process: CUDA provider not found');
+          if (process.env.NODE_ENV === "development") {
+            console.warn("[ML] Cannot switch to CUDA in-process: CUDA provider not found");
           }
           return false;
         }
       } catch {
-        if (process.env.NODE_ENV === 'development') {
-          console.warn('[ML] Cannot switch to CUDA in-process: onnxruntime-node not found');
+        if (process.env.NODE_ENV === "development") {
+          console.warn("[ML] Cannot switch to CUDA in-process: onnxruntime-node not found");
         }
         return false;
       }
@@ -1209,9 +1235,9 @@ export class EmbeddingService {
    * the provider is set to CPU.
    */
   async releaseGpu(): Promise<void> {
-    if (process.env.NODE_ENV === 'development') {
+    if (process.env.NODE_ENV === "development") {
       // eslint-disable-next-line no-console
-      console.log('[ML] Releasing GPU resources (current provider: %s)', this.currentProvider);
+      console.log("[ML] Releasing GPU resources (current provider: %s)", this.currentProvider);
     }
 
     if (this.useWorkerThread) {
@@ -1228,7 +1254,7 @@ export class EmbeddingService {
     if (this.worker && this.workerReady) {
       try {
         await this.sendWorkerMessage({
-          type: 'release-gpu',
+          type: "release-gpu",
           requestId: generateRequestId(),
         });
       } catch {
@@ -1236,8 +1262,8 @@ export class EmbeddingService {
       }
     }
 
-    this.currentProvider = 'cpu';
-    this.config = { ...this.config, device: 'cpu' };
+    this.currentProvider = "cpu";
+    this.config = { ...this.config, device: "cpu" };
   }
 
   /**
@@ -1245,8 +1271,8 @@ export class EmbeddingService {
    */
   private async releaseGpuInProcess(): Promise<void> {
     await this.disposeInProcess();
-    this.currentProvider = 'cpu';
-    this.config = { ...this.config, device: 'cpu' };
+    this.currentProvider = "cpu";
+    this.config = { ...this.config, device: "cpu" };
   }
 
   /**

@@ -16,12 +16,12 @@ Reftrixプロジェクトのセキュリティを真剣に受け止めていま�
 
 現在、以下のバージョンがセキュリティアップデートの対象です:
 
-| バージョン | サポート状況 |
-|----------|------------|
-| 0.1.x    | ✅ サポート中 |
-| < 0.1.0  | ❌ サポート対象外 |
+| バージョン | サポート状況      |
+| ---------- | ----------------- |
+| 0.1.x      | ✅ サポート中     |
+| < 0.1.0    | ❌ サポート対象外 |
 
-**注意**: Reftrixは初回リリース（v0.1.0）です。安定性が確認されるまで、本番環境での使用にはご注意ください。
+**注意**: Reftrixは現在初期リリースフェーズです。本番環境での使用は十分なテストの上で行ってください。
 
 ---
 
@@ -36,7 +36,6 @@ Reftrixプロジェクトのセキュリティを真剣に受け止めていま�
 セキュリティ脆弱性は、以下の方法で非公開に報告してください:
 
 1. **GitHub Security Advisories**（推奨）
-
    - リポジトリの「Security」タブから「Report a vulnerability」をクリック
    - 脆弱性の詳細を記入
    - 「Submit report」をクリック
@@ -66,12 +65,12 @@ Reftrixプロジェクトのセキュリティを真剣に受け止めていま�
 2. **初期評価**: **5営業日以内**に初期評価を行い、深刻度を判断します
 3. **修正作業**: 深刻度に応じて修正作業を開始します
 
-   | 深刻度 | 対応開始（Response） | 修正完了目標（Resolution Target） |
-   |--------|---------------------|----------------------------------|
-   | **Critical** | 24時間以内 | 7日以内 |
-   | **High** | 48時間以内 | 30日以内 |
-   | **Medium** | 7日以内 | 60日以内 |
-   | **Low** | 90日以内 | 次リリース |
+   | 深刻度       | 対応開始（Response） | 修正完了目標（Resolution Target） |
+   | ------------ | -------------------- | --------------------------------- |
+   | **Critical** | 24時間以内           | 7日以内                           |
+   | **High**     | 48時間以内           | 30日以内                          |
+   | **Medium**   | 7日以内              | 60日以内                          |
+   | **Low**      | 90日以内             | 次リリース                        |
 
    > **注意**: 上記のタイムラインは最善努力目標であり、保証ではありません。プロジェクトの規模やリソースにより、対応が遅延する場合があります。商用サポートが必要な場合は、別途お問い合わせください。
 
@@ -149,13 +148,13 @@ Reftrixでは、Webページクロール時に取得したHTMLをDOMPurify v3.3.
 
 ### 設定概要
 
-| 項目 | 設定値 | 目的 |
-|------|--------|------|
-| FORBID_TAGS | script, iframe, form, object, embed等 | XSS/フィッシング防止 |
-| FORBID_ATTR | on*イベントハンドラ, formaction, xlink:href | イベントベースXSS防止 |
-| ALLOW_UNKNOWN_PROTOCOLS | false | javascript:, vbscript:等のブロック |
-| SAFE_FOR_TEMPLATES | true | テンプレートインジェクション防止 |
-| SANITIZE_DOM | true | DOM Clobbering防止 |
+| 項目                    | 設定値                                       | 目的                               |
+| ----------------------- | -------------------------------------------- | ---------------------------------- |
+| FORBID_TAGS             | script, iframe, form, object, embed等        | XSS/フィッシング防止               |
+| FORBID_ATTR             | on\*イベントハンドラ, formaction, xlink:href | イベントベースXSS防止              |
+| ALLOW_UNKNOWN_PROTOCOLS | false                                        | javascript:, vbscript:等のブロック |
+| SAFE_FOR_TEMPLATES      | true                                         | テンプレートインジェクション防止   |
+| SANITIZE_DOM            | true                                         | DOM Clobbering防止                 |
 
 ### 大規模HTML処理時のバイパス（SEC-H1）
 
@@ -165,6 +164,7 @@ Reftrixでは、Webページクロール時に取得したHTMLをDOMPurify v3.3.
 2. **DOMPurifyバイパス**: 事前削減後も1M文字以上のHTMLに対して、DOMPurify（JSDOM）の実行をスキップ
 
 **リスク評価**:
+
 - バイパス時も、事前削減（`preStripDangerousTags`）により`<script>`, `<iframe>`, `<object>`等は除去済み
 - HTMLはDB保存用途であり、ブラウザで直接レンダリングされない
 - 属性ベースのXSS（`onerror`, `javascript:` URL等）はDB保存文脈では無害
@@ -258,12 +258,12 @@ We take the security of the ReftrixMCP project seriously. This document outlines
 
 The following versions are currently receiving security updates:
 
-| Version | Support Status |
-|---------|---------------|
-| 0.1.x   | ✅ Supported |
+| Version | Support Status   |
+| ------- | ---------------- |
+| 0.1.x   | ✅ Supported     |
 | < 0.1.0 | ❌ Not Supported |
 
-**Note**: ReftrixMCP is an initial release (v0.1.0). Please exercise caution when using in production until stability is confirmed.
+**Note**: ReftrixMCP is in its initial release phase. Please test thoroughly before production use.
 
 ---
 
@@ -278,7 +278,6 @@ If you discover a security vulnerability, please practice **responsible disclosu
 Report security vulnerabilities privately using one of these methods:
 
 1. **GitHub Security Advisories** (Recommended)
-
    - Navigate to the repository's "Security" tab
    - Click "Report a vulnerability"
    - Fill in the vulnerability details
@@ -309,12 +308,12 @@ When reporting a vulnerability, please include:
 2. **Initial assessment**: Severity evaluation within **5 business days**
 3. **Fix development**: Start based on severity
 
-   | Severity | Response | Resolution Target |
-   |----------|----------|-------------------|
-   | **Critical** | Within 24 hours | Within 7 days |
-   | **High** | Within 48 hours | Within 30 days |
-   | **Medium** | Within 7 days | Within 60 days |
-   | **Low** | Within 90 days | Next release |
+   | Severity     | Response        | Resolution Target |
+   | ------------ | --------------- | ----------------- |
+   | **Critical** | Within 24 hours | Within 7 days     |
+   | **High**     | Within 48 hours | Within 30 days    |
+   | **Medium**   | Within 7 days   | Within 60 days    |
+   | **Low**      | Within 90 days  | Next release      |
 
    > **Note**: The above timelines are best-effort targets, not guarantees. Actual response times may vary depending on project scale and available resources. For commercial support with SLA guarantees, please contact us separately.
 
@@ -392,13 +391,13 @@ Reftrix sanitizes HTML content from web page crawling using DOMPurify v3.3.x.
 
 ### Configuration Overview
 
-| Setting | Value | Purpose |
-|---------|-------|---------|
-| FORBID_TAGS | script, iframe, form, object, embed, etc. | XSS/phishing prevention |
-| FORBID_ATTR | on* event handlers, formaction, xlink:href | Event-based XSS prevention |
-| ALLOW_UNKNOWN_PROTOCOLS | false | Block javascript:, vbscript:, etc. |
-| SAFE_FOR_TEMPLATES | true | Template injection prevention |
-| SANITIZE_DOM | true | DOM Clobbering prevention |
+| Setting                 | Value                                       | Purpose                            |
+| ----------------------- | ------------------------------------------- | ---------------------------------- |
+| FORBID_TAGS             | script, iframe, form, object, embed, etc.   | XSS/phishing prevention            |
+| FORBID_ATTR             | on\* event handlers, formaction, xlink:href | Event-based XSS prevention         |
+| ALLOW_UNKNOWN_PROTOCOLS | false                                       | Block javascript:, vbscript:, etc. |
+| SAFE_FOR_TEMPLATES      | true                                        | Template injection prevention      |
+| SANITIZE_DOM            | true                                        | DOM Clobbering prevention          |
 
 ### Large HTML Bypass (SEC-H1)
 
@@ -408,6 +407,7 @@ Due to performance constraints, DOMPurify execution is skipped under specific co
 2. **DOMPurify bypass**: For HTML still over 1M characters after pre-strip, DOMPurify (JSDOM) execution is skipped
 
 **Risk Assessment**:
+
 - Even when bypassed, pre-strip (`preStripDangerousTags`) removes `<script>`, `<iframe>`, `<object>`, etc.
 - HTML is stored in database and is NOT rendered directly in a browser
 - Attribute-based XSS (`onerror`, `javascript:` URLs) is harmless in DB storage context

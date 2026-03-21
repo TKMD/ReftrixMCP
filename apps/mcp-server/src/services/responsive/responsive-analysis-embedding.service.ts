@@ -18,7 +18,7 @@
  * @module services/responsive/responsive-analysis-embedding
  */
 
-import { isDevelopment, logger } from '../../utils/logger';
+import { isDevelopment, logger } from "../../utils/logger";
 
 // =====================================================
 // 型定義
@@ -46,16 +46,20 @@ export interface ResponsiveAnalysisForText {
     viewports?: string[];
   }>;
   /** 検出されたブレークポイント */
-  breakpoints?: Array<{
-    width: number;
-    type?: string;
-  }> | undefined;
+  breakpoints?:
+    | Array<{
+        width: number;
+        type?: string;
+      }>
+    | undefined;
   /** スクリーンショット差分 */
-  screenshotDiffs?: Array<{
-    viewport1: string;
-    viewport2: string;
-    diffPercentage: number;
-  }> | undefined;
+  screenshotDiffs?:
+    | Array<{
+        viewport1: string;
+        viewport2: string;
+        diffPercentage: number;
+      }>
+    | undefined;
 }
 
 /**
@@ -120,9 +124,7 @@ interface IResponsivePrismaClient {
 
 let responsivePrismaClientFactory: (() => IResponsivePrismaClient) | null = null;
 
-export function setResponsivePrismaClientFactory(
-  factory: () => IResponsivePrismaClient
-): void {
+export function setResponsivePrismaClientFactory(factory: () => IResponsivePrismaClient): void {
   responsivePrismaClientFactory = factory;
 }
 
@@ -139,7 +141,7 @@ function getEmbeddingService(): IResponsiveEmbeddingService {
     return responsiveEmbeddingServiceFactory();
   }
   throw new Error(
-    'ResponsiveEmbeddingService not initialized. Use setResponsiveEmbeddingServiceFactory.'
+    "ResponsiveEmbeddingService not initialized. Use setResponsiveEmbeddingServiceFactory."
   );
 }
 
@@ -147,9 +149,7 @@ function getPrismaClient(): IResponsivePrismaClient {
   if (responsivePrismaClientFactory) {
     return responsivePrismaClientFactory();
   }
-  throw new Error(
-    'ResponsivePrismaClient not initialized. Use setResponsivePrismaClientFactory.'
-  );
+  throw new Error("ResponsivePrismaClient not initialized. Use setResponsivePrismaClientFactory.");
 }
 
 // =====================================================
@@ -174,14 +174,14 @@ export function generateResponsiveAnalysisTextRepresentation(
   if (analysis.url) {
     parts.push(`Responsive analysis: ${analysis.url}`);
   } else {
-    parts.push('Responsive analysis');
+    parts.push("Responsive analysis");
   }
 
   // ビューポート情報
   if (analysis.viewportsAnalyzed.length > 0) {
     const viewportDescriptions = analysis.viewportsAnalyzed
       .map((v) => `${v.name}(${v.width}x${v.height})`)
-      .join(', ');
+      .join(", ");
     parts.push(`Viewports: ${viewportDescriptions}`);
   }
 
@@ -190,17 +190,15 @@ export function generateResponsiveAnalysisTextRepresentation(
     const diffLines = analysis.differences
       .slice(0, 20) // 最大20件に制限（テキスト長制御）
       .map((d) => {
-        const selector = d.selector ? ` ${d.selector}` : '';
+        const selector = d.selector ? ` ${d.selector}` : "";
         return `- [${d.category}]${selector}: ${d.description}`;
       });
-    parts.push(`Differences:\n${diffLines.join('\n')}`);
+    parts.push(`Differences:\n${diffLines.join("\n")}`);
   }
 
   // ブレークポイント
   if (analysis.breakpoints && analysis.breakpoints.length > 0) {
-    const bpValues = analysis.breakpoints
-      .map((bp) => `${bp.width}px`)
-      .join(', ');
+    const bpValues = analysis.breakpoints.map((bp) => `${bp.width}px`).join(", ");
     parts.push(`Breakpoints: ${bpValues}`);
   }
 
@@ -208,11 +206,11 @@ export function generateResponsiveAnalysisTextRepresentation(
   if (analysis.screenshotDiffs && analysis.screenshotDiffs.length > 0) {
     const diffDescriptions = analysis.screenshotDiffs
       .map((sd) => `${sd.viewport1}↔${sd.viewport2} ${sd.diffPercentage.toFixed(1)}%`)
-      .join(', ');
+      .join(", ");
     parts.push(`Visual diff: ${diffDescriptions}`);
   }
 
-  return `passage: ${parts.join('\n')}`;
+  return `passage: ${parts.join("\n")}`;
 }
 
 // =====================================================
@@ -243,7 +241,7 @@ export function generateResponsiveAnalysisTextRepresentation(
 export async function generateResponsiveAnalysisEmbeddings(
   analysisIds: string[],
   embeddingServiceDirect: IResponsiveEmbeddingService,
-  prismaDirect: IResponsivePrismaClient,
+  prismaDirect: IResponsivePrismaClient
 ): Promise<ResponsiveAnalysisEmbeddingResult>;
 /**
  * 標準オーバーロード: ResponsiveAnalysisForText 配列 + DIファクトリ
@@ -251,13 +249,15 @@ export async function generateResponsiveAnalysisEmbeddings(
 // eslint-disable-next-line no-redeclare -- TypeScript function overloads
 export async function generateResponsiveAnalysisEmbeddings(
   analyses: ResponsiveAnalysisForText[],
-  onProgress?: (completed: number, total: number) => void,
+  onProgress?: (completed: number, total: number) => void
 ): Promise<ResponsiveAnalysisEmbeddingResult>;
 // eslint-disable-next-line no-redeclare -- TypeScript function overloads
 export async function generateResponsiveAnalysisEmbeddings(
   analysesOrIds: ResponsiveAnalysisForText[] | string[],
-  embeddingServiceOrProgress?: IResponsiveEmbeddingService | ((completed: number, total: number) => void),
-  prismaDirect?: IResponsivePrismaClient,
+  embeddingServiceOrProgress?:
+    | IResponsiveEmbeddingService
+    | ((completed: number, total: number) => void),
+  prismaDirect?: IResponsivePrismaClient
 ): Promise<ResponsiveAnalysisEmbeddingResult> {
   const result: ResponsiveAnalysisEmbeddingResult = {
     success: true,
@@ -271,7 +271,7 @@ export async function generateResponsiveAnalysisEmbeddings(
   }
 
   // Determine if this is the Worker overload (string[] + direct services)
-  const isWorkerOverload = typeof analysesOrIds[0] === 'string' && prismaDirect !== undefined;
+  const isWorkerOverload = typeof analysesOrIds[0] === "string" && prismaDirect !== undefined;
 
   let analyses: ResponsiveAnalysisForText[];
   let embeddingService: IResponsiveEmbeddingService;
@@ -284,32 +284,34 @@ export async function generateResponsiveAnalysisEmbeddings(
     // Fetch analyses from DB
     const ids = analysesOrIds as string[];
     try {
-      const rows = await prismaClient.$queryRawUnsafe<Array<{
-        id: string;
-        url: string | null;
-        viewports_analyzed: unknown;
-        differences: unknown;
-        breakpoints: unknown;
-        screenshot_diffs: unknown;
-      }>>(
+      const rows = await prismaClient.$queryRawUnsafe<
+        Array<{
+          id: string;
+          url: string | null;
+          viewports_analyzed: unknown;
+          differences: unknown;
+          breakpoints: unknown;
+          screenshot_diffs: unknown;
+        }>
+      >(
         `SELECT ra.id, wp.url, ra.viewports_analyzed, ra.differences, ra.breakpoints, ra.screenshot_diffs
          FROM responsive_analyses ra
          JOIN web_pages wp ON ra.web_page_id = wp.id
          WHERE ra.id = ANY($1::uuid[])
            AND NOT EXISTS (SELECT 1 FROM responsive_analysis_embeddings rae WHERE rae.responsive_analysis_id = ra.id)`,
-        ids,
+        ids
       );
       analyses = rows.map((r) => ({
         id: r.id,
         url: r.url ?? undefined,
-        viewportsAnalyzed: r.viewports_analyzed as ResponsiveAnalysisForText['viewportsAnalyzed'],
-        differences: r.differences as ResponsiveAnalysisForText['differences'],
-        breakpoints: r.breakpoints as ResponsiveAnalysisForText['breakpoints'],
-        screenshotDiffs: r.screenshot_diffs as ResponsiveAnalysisForText['screenshotDiffs'],
+        viewportsAnalyzed: r.viewports_analyzed as ResponsiveAnalysisForText["viewportsAnalyzed"],
+        differences: r.differences as ResponsiveAnalysisForText["differences"],
+        breakpoints: r.breakpoints as ResponsiveAnalysisForText["breakpoints"],
+        screenshotDiffs: r.screenshot_diffs as ResponsiveAnalysisForText["screenshotDiffs"],
       }));
     } catch (fetchError) {
       if (isDevelopment()) {
-        logger.warn('[ResponsiveAnalysisEmbedding] Failed to fetch analyses from DB', {
+        logger.warn("[ResponsiveAnalysisEmbedding] Failed to fetch analyses from DB", {
           error: fetchError instanceof Error ? fetchError.message : String(fetchError),
         });
       }
@@ -319,7 +321,8 @@ export async function generateResponsiveAnalysisEmbeddings(
     analyses = analysesOrIds as ResponsiveAnalysisForText[];
     embeddingService = getEmbeddingService();
     prismaClient = getPrismaClient();
-    onProgress = typeof embeddingServiceOrProgress === 'function' ? embeddingServiceOrProgress : undefined;
+    onProgress =
+      typeof embeddingServiceOrProgress === "function" ? embeddingServiceOrProgress : undefined;
   }
 
   if (analyses.length === 0) {
@@ -327,7 +330,7 @@ export async function generateResponsiveAnalysisEmbeddings(
   }
 
   if (isDevelopment()) {
-    logger.info('[ResponsiveAnalysisEmbedding] Starting embedding generation', {
+    logger.info("[ResponsiveAnalysisEmbedding] Starting embedding generation", {
       analysisCount: analyses.length,
     });
   }
@@ -335,7 +338,7 @@ export async function generateResponsiveAnalysisEmbeddings(
   const prisma = prismaClient;
 
   for (let i = 0; i < analyses.length; i++) {
-    if (i > 0 && i % 10 === 0 && typeof global.gc === 'function') {
+    if (i > 0 && i % 10 === 0 && typeof global.gc === "function") {
       global.gc();
     }
 
@@ -358,7 +361,7 @@ export async function generateResponsiveAnalysisEmbeddings(
       });
 
       // 4. pgvector 形式で embedding を更新
-      const vectorString = `[${embeddingResult.embedding.join(',')}]`;
+      const vectorString = `[${embeddingResult.embedding.join(",")}]`;
       await prisma.$executeRawUnsafe(
         `UPDATE responsive_analysis_embeddings SET embedding = $1::vector WHERE id = $2::uuid`,
         vectorString,
@@ -368,7 +371,7 @@ export async function generateResponsiveAnalysisEmbeddings(
       result.generatedCount++;
 
       if (isDevelopment()) {
-        logger.info('[ResponsiveAnalysisEmbedding] Embedding saved', {
+        logger.info("[ResponsiveAnalysisEmbedding] Embedding saved", {
           analysisId: analysis.id,
           embeddingId: createdRecord.id,
           dimensions: embeddingResult.embedding.length,
@@ -377,25 +380,29 @@ export async function generateResponsiveAnalysisEmbeddings(
       }
     } catch (error) {
       result.failedCount++;
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      const errorMessage = error instanceof Error ? error.message : "Unknown error";
       result.errors.push({
         id: analysis.id,
         error: errorMessage,
       });
 
       if (isDevelopment()) {
-        logger.warn('[ResponsiveAnalysisEmbedding] Embedding generation failed', {
+        logger.warn("[ResponsiveAnalysisEmbedding] Embedding generation failed", {
           analysisId: analysis.id,
           error: errorMessage,
         });
       }
     }
 
-    try { onProgress?.(result.generatedCount + result.failedCount, analyses.length); } catch { /* fire-and-forget */ }
+    try {
+      onProgress?.(result.generatedCount + result.failedCount, analyses.length);
+    } catch {
+      /* fire-and-forget */
+    }
   }
 
   if (isDevelopment()) {
-    logger.info('[ResponsiveAnalysisEmbedding] Generation completed', {
+    logger.info("[ResponsiveAnalysisEmbedding] Generation completed", {
       generatedCount: result.generatedCount,
       failedCount: result.failedCount,
       errorCount: result.errors.length,

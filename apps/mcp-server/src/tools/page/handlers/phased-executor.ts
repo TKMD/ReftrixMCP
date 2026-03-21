@@ -17,19 +17,11 @@
  * @module tools/page/handlers/phased-executor
  */
 
-import { logger, isDevelopment } from '../../../utils/logger';
-import {
-  withTimeout,
-  PhaseTimeoutError,
-  type AnalysisPhase,
-} from './timeout-utils';
-import type { ExecutionStatusTracker } from './timeout-utils';
-import type {
-  LayoutServiceResult,
-  MotionServiceResult,
-  QualityServiceResult,
-} from './types';
-import type { PageAnalyzeInput } from '../schemas';
+import { logger, isDevelopment } from "../../../utils/logger";
+import { withTimeout, PhaseTimeoutError, type AnalysisPhase } from "./timeout-utils";
+import type { ExecutionStatusTracker } from "./timeout-utils";
+import type { LayoutServiceResult, MotionServiceResult, QualityServiceResult } from "./types";
+import type { PageAnalyzeInput } from "../schemas";
 
 // =====================================================
 // 型定義
@@ -38,7 +30,7 @@ import type { PageAnalyzeInput } from '../schemas';
 /**
  * フェーズの種類
  */
-export type PhaseType = 'layout' | 'motion' | 'quality';
+export type PhaseType = "layout" | "motion" | "quality";
 
 /**
  * 個別フェーズの実行結果
@@ -108,25 +100,25 @@ export interface PhasedExecutorOptions {
   /** Layout分析関数 */
   analyzeLayout: (
     html: string,
-    options?: PageAnalyzeInput['layoutOptions']
+    options?: PageAnalyzeInput["layoutOptions"]
   ) => Promise<LayoutServiceResult>;
   /** Motion検出関数 */
   detectMotion: (
     html: string,
     url: string,
-    options?: PageAnalyzeInput['motionOptions']
+    options?: PageAnalyzeInput["motionOptions"]
   ) => Promise<MotionServiceResult>;
   /** Quality評価関数 */
   evaluateQuality: (
     html: string,
-    options?: PageAnalyzeInput['qualityOptions']
+    options?: PageAnalyzeInput["qualityOptions"]
   ) => Promise<QualityServiceResult>;
   /** Layoutオプション（オプション） */
-  layoutOptions?: PageAnalyzeInput['layoutOptions'];
+  layoutOptions?: PageAnalyzeInput["layoutOptions"];
   /** Motionオプション（オプション） */
-  motionOptions?: PageAnalyzeInput['motionOptions'];
+  motionOptions?: PageAnalyzeInput["motionOptions"];
   /** Qualityオプション（オプション） */
-  qualityOptions?: PageAnalyzeInput['qualityOptions'];
+  qualityOptions?: PageAnalyzeInput["qualityOptions"];
   /** フェーズ完了時のコールバック（DB保存用） */
   onPhaseComplete?: (phase: PhaseType, result: PhaseResult<unknown>) => Promise<void>;
 }
@@ -155,9 +147,9 @@ export class PhasedExecutor {
    */
   async execute(): Promise<PhasedExecutionResult> {
     const results: PhasedExecutionResult = {
-      layout: this.createSkippedResult('layout'),
-      motion: this.createSkippedResult('motion'),
-      quality: this.createSkippedResult('quality'),
+      layout: this.createSkippedResult("layout"),
+      motion: this.createSkippedResult("motion"),
+      quality: this.createSkippedResult("quality"),
       overallSuccess: false,
       partialSuccess: false,
       completedPhases: [],
@@ -167,49 +159,44 @@ export class PhasedExecutor {
     // Phase 1: Layout（最重要、最初に実行）
     if (this.options.features.layout !== false) {
       results.layout = await this.executePhase(
-        'layout',
-        () => this.options.analyzeLayout(
-          this.options.html,
-          this.options.layoutOptions
-        ),
+        "layout",
+        () => this.options.analyzeLayout(this.options.html, this.options.layoutOptions),
         this.options.phaseTimeouts.layout
       );
 
       if (results.layout.success) {
-        await this.callOnPhaseComplete('layout', results.layout);
+        await this.callOnPhaseComplete("layout", results.layout);
       }
     }
 
     // Phase 2: Motion
     if (this.options.features.motion !== false) {
       results.motion = await this.executePhase(
-        'motion',
-        () => this.options.detectMotion(
-          this.options.html,
-          this.options.url,
-          this.options.motionOptions
-        ),
+        "motion",
+        () =>
+          this.options.detectMotion(
+            this.options.html,
+            this.options.url,
+            this.options.motionOptions
+          ),
         this.options.phaseTimeouts.motion
       );
 
       if (results.motion.success) {
-        await this.callOnPhaseComplete('motion', results.motion);
+        await this.callOnPhaseComplete("motion", results.motion);
       }
     }
 
     // Phase 3: Quality
     if (this.options.features.quality !== false) {
       results.quality = await this.executePhase(
-        'quality',
-        () => this.options.evaluateQuality(
-          this.options.html,
-          this.options.qualityOptions
-        ),
+        "quality",
+        () => this.options.evaluateQuality(this.options.html, this.options.qualityOptions),
         this.options.phaseTimeouts.quality
       );
 
       if (results.quality.success) {
-        await this.callOnPhaseComplete('quality', results.quality);
+        await this.callOnPhaseComplete("quality", results.quality);
       }
     }
 
@@ -226,7 +213,7 @@ export class PhasedExecutor {
     return {
       phase,
       success: false,
-      error: 'Phase skipped',
+      error: "Phase skipped",
       durationMs: 0,
       timedOut: false,
     };
@@ -254,11 +241,7 @@ export class PhasedExecutor {
     }
 
     try {
-      const data = await withTimeout(
-        executor(),
-        timeoutMs,
-        `${phase}-analysis`
-      );
+      const data = await withTimeout(executor(), timeoutMs, `${phase}-analysis`);
 
       const durationMs = Date.now() - startTime;
 
@@ -310,10 +293,7 @@ export class PhasedExecutor {
    * onPhaseCompleteコールバックを呼び出す
    * エラーが発生しても処理は継続する
    */
-  private async callOnPhaseComplete(
-    phase: PhaseType,
-    result: PhaseResult<unknown>
-  ): Promise<void> {
+  private async callOnPhaseComplete(phase: PhaseType, result: PhaseResult<unknown>): Promise<void> {
     if (!this.options.onPhaseComplete) {
       return;
     }
@@ -341,24 +321,25 @@ export class PhasedExecutor {
    * 結果を集計
    */
   private aggregateResults(results: PhasedExecutionResult): void {
-    const phases: PhaseType[] = ['layout', 'motion', 'quality'];
+    const phases: PhaseType[] = ["layout", "motion", "quality"];
 
     // 完了したフェーズを抽出
-    results.completedPhases = phases.filter(phase => {
+    results.completedPhases = phases.filter((phase) => {
       const result = results[phase];
       return result.success;
     });
 
     // 失敗したフェーズを抽出（スキップは含まない）
-    results.failedPhases = phases.filter(phase => {
+    results.failedPhases = phases.filter((phase) => {
       const result = results[phase];
       // 有効化されていて、失敗した（スキップ以外）
       const isEnabled = this.options.features[phase] !== false;
-      return isEnabled && !result.success && result.error !== 'Phase skipped';
+      return isEnabled && !result.success && result.error !== "Phase skipped";
     });
 
     // 全フェーズ成功かどうか
-    results.overallSuccess = results.failedPhases.length === 0 && results.completedPhases.length > 0;
+    results.overallSuccess =
+      results.failedPhases.length === 0 && results.completedPhases.length > 0;
 
     // 部分成功かどうか（少なくとも1つのフェーズが成功）
     results.partialSuccess = results.completedPhases.length > 0;

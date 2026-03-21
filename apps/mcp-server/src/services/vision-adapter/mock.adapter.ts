@@ -31,7 +31,7 @@ import type {
   MotionCandidatesData,
   BrandToneData,
   AiClichesData,
-} from './interface';
+} from "./interface";
 
 // =============================================================================
 // 型定義
@@ -125,150 +125,161 @@ class SeededRandom {
  * 画像バッファのハッシュを生成（簡易版）
  */
 function createImageHash(imageBuffer: Buffer): string {
-  return Buffer.from(imageBuffer).toString('base64').slice(0, 32);
+  return Buffer.from(imageBuffer).toString("base64").slice(0, 32);
 }
 
 // =============================================================================
 // モックデータ定義
 // =============================================================================
 
-const GRID_TYPES: LayoutStructureData['gridType'][] = [
-  'single-column',
-  'two-column',
-  'three-column',
-  'grid',
-  'masonry',
-  'asymmetric',
+const GRID_TYPES: LayoutStructureData["gridType"][] = [
+  "single-column",
+  "two-column",
+  "three-column",
+  "grid",
+  "masonry",
+  "asymmetric",
 ];
 
 const MAIN_AREAS = [
-  'header',
-  'hero',
-  'navigation',
-  'sidebar',
-  'main',
-  'content',
-  'features',
-  'testimonials',
-  'pricing',
-  'cta',
-  'footer',
+  "header",
+  "hero",
+  "navigation",
+  "sidebar",
+  "main",
+  "content",
+  "features",
+  "testimonials",
+  "pricing",
+  "cta",
+  "footer",
 ];
 
 const COLOR_PALETTES = [
-  ['#3B82F6', '#1D4ED8', '#DBEAFE', '#FFFFFF', '#000000'],
-  ['#10B981', '#059669', '#D1FAE5', '#FFFFFF', '#1F2937'],
-  ['#F59E0B', '#D97706', '#FEF3C7', '#FFFFFF', '#111827'],
-  ['#EF4444', '#DC2626', '#FEE2E2', '#FFFFFF', '#1F2937'],
-  ['#8B5CF6', '#7C3AED', '#EDE9FE', '#FFFFFF', '#111827'],
-  ['#EC4899', '#DB2777', '#FCE7F3', '#FFFFFF', '#1F2937'],
-  ['#14B8A6', '#0D9488', '#CCFBF1', '#FFFFFF', '#134E4A'],
-  ['#6366F1', '#4F46E5', '#E0E7FF', '#FFFFFF', '#1E1B4B'],
+  ["#3B82F6", "#1D4ED8", "#DBEAFE", "#FFFFFF", "#000000"],
+  ["#10B981", "#059669", "#D1FAE5", "#FFFFFF", "#1F2937"],
+  ["#F59E0B", "#D97706", "#FEF3C7", "#FFFFFF", "#111827"],
+  ["#EF4444", "#DC2626", "#FEE2E2", "#FFFFFF", "#1F2937"],
+  ["#8B5CF6", "#7C3AED", "#EDE9FE", "#FFFFFF", "#111827"],
+  ["#EC4899", "#DB2777", "#FCE7F3", "#FFFFFF", "#1F2937"],
+  ["#14B8A6", "#0D9488", "#CCFBF1", "#FFFFFF", "#134E4A"],
+  ["#6366F1", "#4F46E5", "#E0E7FF", "#FFFFFF", "#1E1B4B"],
 ];
 
 const MOODS = [
-  'professional and trustworthy',
-  'playful and energetic',
-  'elegant and sophisticated',
-  'modern and minimalist',
-  'warm and inviting',
-  'bold and confident',
-  'calm and serene',
-  'dynamic and exciting',
+  "professional and trustworthy",
+  "playful and energetic",
+  "elegant and sophisticated",
+  "modern and minimalist",
+  "warm and inviting",
+  "bold and confident",
+  "calm and serene",
+  "dynamic and exciting",
 ];
 
 const HEADING_STYLES = [
-  'bold sans-serif, large size',
-  'elegant serif, medium weight',
-  'modern geometric sans',
-  'classic serif with high contrast',
-  'rounded friendly sans-serif',
-  'condensed impactful display',
+  "bold sans-serif, large size",
+  "elegant serif, medium weight",
+  "modern geometric sans",
+  "classic serif with high contrast",
+  "rounded friendly sans-serif",
+  "condensed impactful display",
 ];
 
 const BODY_STYLES = [
-  'regular sans-serif, comfortable reading size',
-  'light serif, elegant and readable',
-  'medium weight humanist sans',
-  'system font stack, optimized for screens',
-  'geometric sans with generous spacing',
+  "regular sans-serif, comfortable reading size",
+  "light serif, elegant and readable",
+  "medium weight humanist sans",
+  "system font stack, optimized for screens",
+  "geometric sans with generous spacing",
 ];
 
 const TYPOGRAPHY_HIERARCHY = [
-  ['h1 - 48px', 'h2 - 36px', 'h3 - 24px', 'body - 16px', 'small - 14px'],
-  ['h1 - 64px', 'h2 - 48px', 'h3 - 32px', 'body - 18px', 'small - 14px'],
-  ['h1 - 40px', 'h2 - 32px', 'h3 - 24px', 'body - 16px', 'caption - 12px'],
-  ['display - 72px', 'h1 - 48px', 'h2 - 32px', 'body - 16px', 'fine - 12px'],
+  ["h1 - 48px", "h2 - 36px", "h3 - 24px", "body - 16px", "small - 14px"],
+  ["h1 - 64px", "h2 - 48px", "h3 - 32px", "body - 18px", "small - 14px"],
+  ["h1 - 40px", "h2 - 32px", "h3 - 24px", "body - 16px", "caption - 12px"],
+  ["display - 72px", "h1 - 48px", "h2 - 32px", "body - 16px", "fine - 12px"],
 ];
 
 const FOCAL_POINTS = [
-  'hero image',
-  'headline',
-  'CTA button',
-  'logo',
-  'product image',
-  'testimonial',
-  'pricing card',
-  'feature icon',
-  'navigation menu',
+  "hero image",
+  "headline",
+  "CTA button",
+  "logo",
+  "product image",
+  "testimonial",
+  "pricing card",
+  "feature icon",
+  "navigation menu",
 ];
 
 const EMPHASIS_TECHNIQUES = [
-  'size contrast',
-  'color contrast',
-  'whitespace',
-  'position',
-  'typography weight',
-  'visual weight',
-  'isolation',
-  'direction',
+  "size contrast",
+  "color contrast",
+  "whitespace",
+  "position",
+  "typography weight",
+  "visual weight",
+  "isolation",
+  "direction",
 ];
 
-const SECTION_TYPES = ['hero', 'header', 'features', 'about', 'testimonials', 'pricing', 'cta', 'footer', 'content', 'gallery'];
+const SECTION_TYPES = [
+  "hero",
+  "header",
+  "features",
+  "about",
+  "testimonials",
+  "pricing",
+  "cta",
+  "footer",
+  "content",
+  "gallery",
+];
 
-const DENSITY_DESCRIPTIONS: Record<DensityData['level'], string[]> = {
+const DENSITY_DESCRIPTIONS: Record<DensityData["level"], string[]> = {
   sparse: [
-    'Very open layout with generous breathing room',
-    'Minimal content with maximum whitespace',
-    'Clean and uncluttered design',
+    "Very open layout with generous breathing room",
+    "Minimal content with maximum whitespace",
+    "Clean and uncluttered design",
   ],
   balanced: [
-    'Well-balanced information density',
-    'Good readability with appropriate spacing',
-    'Comfortable visual rhythm',
+    "Well-balanced information density",
+    "Good readability with appropriate spacing",
+    "Comfortable visual rhythm",
   ],
   dense: [
-    'Information-rich layout with efficient use of space',
-    'Compact design with adequate separation',
-    'Content-heavy but organized structure',
+    "Information-rich layout with efficient use of space",
+    "Compact design with adequate separation",
+    "Content-heavy but organized structure",
   ],
   cluttered: [
-    'Very dense layout with minimal spacing',
-    'Crowded design with competing elements',
-    'High information density requiring careful navigation',
+    "Very dense layout with minimal spacing",
+    "Crowded design with competing elements",
+    "High information density requiring careful navigation",
   ],
 };
 
-const RHYTHM_DESCRIPTIONS: Record<RhythmData['pattern'], string[]> = {
+const RHYTHM_DESCRIPTIONS: Record<RhythmData["pattern"], string[]> = {
   regular: [
-    'Consistent spacing and element sizes throughout',
-    'Uniform visual rhythm creating predictable flow',
-    'Regular intervals between content blocks',
+    "Consistent spacing and element sizes throughout",
+    "Uniform visual rhythm creating predictable flow",
+    "Regular intervals between content blocks",
   ],
   irregular: [
-    'Varied spacing creating visual interest',
-    'Intentional irregularity for emphasis',
-    'Dynamic rhythm with intentional breaks',
+    "Varied spacing creating visual interest",
+    "Intentional irregularity for emphasis",
+    "Dynamic rhythm with intentional breaks",
   ],
   progressive: [
-    'Gradually increasing or decreasing spacing',
-    'Building momentum through progressive sizing',
-    'Crescendo effect in visual hierarchy',
+    "Gradually increasing or decreasing spacing",
+    "Building momentum through progressive sizing",
+    "Crescendo effect in visual hierarchy",
   ],
   alternating: [
-    'Alternating patterns of spacing and size',
-    'A-B-A-B rhythm in content arrangement',
-    'Contrasting sections creating visual variety',
+    "Alternating patterns of spacing and size",
+    "A-B-A-B rhythm in content arrangement",
+    "Contrasting sections creating visual variety",
   ],
 };
 
@@ -321,18 +332,18 @@ export class MockVisionAdapter implements IVisionAnalyzer {
     // エラー率のバリデーション
     if (config?.errorRate !== undefined) {
       if (config.errorRate < 0 || config.errorRate > 1) {
-        throw new Error('errorRate must be between 0 and 1');
+        throw new Error("errorRate must be between 0 and 1");
       }
     }
 
-    this.name = config?.name ?? 'MockVisionAdapter';
-    this.modelName = config?.modelName ?? 'mock-vision-1.0';
+    this.name = config?.name ?? "MockVisionAdapter";
+    this.modelName = config?.modelName ?? "mock-vision-1.0";
     this._isAvailable = config?.isAvailable ?? true;
     this._latencyMs = config?.latencyMs ?? 100;
     this._latencyVariance = config?.latencyVariance ?? 0;
     this._errorRate = config?.errorRate ?? 0;
     this._seed = config?.seed ?? Date.now();
-    this._defaultFeatures = config?.defaultFeatures ?? ['layout_structure', 'color_palette'];
+    this._defaultFeatures = config?.defaultFeatures ?? ["layout_structure", "color_palette"];
     this._defaultConfidence = config?.defaultConfidence ?? 0.85;
     this._customResponses = config?.customResponses ?? new Map();
     this._callCount = 0;
@@ -365,16 +376,17 @@ export class MockVisionAdapter implements IVisionAnalyzer {
       return {
         success: false,
         features: [],
-        error: 'MockVisionAdapter is not available',
+        error: "MockVisionAdapter is not available",
         processingTimeMs: 0,
         modelName: this.modelName,
       };
     }
 
     // 遅延計算
-    const variance = this._latencyVariance > 0
-      ? this._random.nextInt(-this._latencyVariance, this._latencyVariance)
-      : 0;
+    const variance =
+      this._latencyVariance > 0
+        ? this._random.nextInt(-this._latencyVariance, this._latencyVariance)
+        : 0;
     const actualLatency = Math.max(0, this._latencyMs + variance);
 
     // タイムアウトチェック
@@ -397,7 +409,7 @@ export class MockVisionAdapter implements IVisionAnalyzer {
       return {
         success: false,
         features: [],
-        error: 'Simulated error from MockVisionAdapter',
+        error: "Simulated error from MockVisionAdapter",
         processingTimeMs: Date.now() - startTime,
         modelName: this.modelName,
       };
@@ -414,9 +426,8 @@ export class MockVisionAdapter implements IVisionAnalyzer {
     }
 
     // 特徴タイプの決定
-    const featureTypes = options.features && options.features.length > 0
-      ? options.features
-      : this._defaultFeatures;
+    const featureTypes =
+      options.features && options.features.length > 0 ? options.features : this._defaultFeatures;
 
     // 特徴の生成
     const features = featureTypes.map((type) => this.generateFeature(type));
@@ -434,7 +445,7 @@ export class MockVisionAdapter implements IVisionAnalyzer {
    */
   generateTextRepresentation(result: VisionAnalysisResult): string {
     if (!result.success || result.features.length === 0) {
-      return '';
+      return "";
     }
 
     const parts: string[] = [];
@@ -446,7 +457,7 @@ export class MockVisionAdapter implements IVisionAnalyzer {
       }
     }
 
-    return parts.join(' ');
+    return parts.join(" ");
   }
 
   // ---------------------------------------------------------------------------
@@ -482,7 +493,7 @@ export class MockVisionAdapter implements IVisionAnalyzer {
    */
   setErrorRate(rate: number): void {
     if (rate < 0 || rate > 1) {
-      throw new Error('errorRate must be between 0 and 1');
+      throw new Error("errorRate must be between 0 and 1");
     }
     this._errorRate = rate;
   }
@@ -555,27 +566,27 @@ export class MockVisionAdapter implements IVisionAnalyzer {
    */
   private generateFeatureData(type: VisionFeatureType): VisionFeatureData {
     switch (type) {
-      case 'layout_structure':
+      case "layout_structure":
         return this.generateLayoutStructure();
-      case 'color_palette':
+      case "color_palette":
         return this.generateColorPalette();
-      case 'typography':
+      case "typography":
         return this.generateTypography();
-      case 'visual_hierarchy':
+      case "visual_hierarchy":
         return this.generateVisualHierarchy();
-      case 'whitespace':
+      case "whitespace":
         return this.generateWhitespace();
-      case 'density':
+      case "density":
         return this.generateDensity();
-      case 'rhythm':
+      case "rhythm":
         return this.generateRhythm();
-      case 'section_boundaries':
+      case "section_boundaries":
         return this.generateSectionBoundaries();
-      case 'motion_candidates':
+      case "motion_candidates":
         return this.generateMotionCandidates();
-      case 'brand_tone':
+      case "brand_tone":
         return this.generateBrandTone();
-      case 'ai_cliches':
+      case "ai_cliches":
         return this.generateAiCliches();
     }
   }
@@ -588,17 +599,17 @@ export class MockVisionAdapter implements IVisionAnalyzer {
     const areaCount = this._random.nextInt(2, 5);
     const mainAreas = this._random.shuffle([...MAIN_AREAS]).slice(0, areaCount);
 
-    const descriptions: Record<LayoutStructureData['gridType'], string> = {
-      'single-column': 'Single column layout with stacked sections',
-      'two-column': 'Two column layout with sidebar',
-      'three-column': 'Three column layout for dashboard or content',
-      grid: 'Grid-based layout with flexible items',
-      masonry: 'Masonry layout with variable height items',
-      asymmetric: 'Asymmetric layout with intentional imbalance',
+    const descriptions: Record<LayoutStructureData["gridType"], string> = {
+      "single-column": "Single column layout with stacked sections",
+      "two-column": "Two column layout with sidebar",
+      "three-column": "Three column layout for dashboard or content",
+      grid: "Grid-based layout with flexible items",
+      masonry: "Masonry layout with variable height items",
+      asymmetric: "Asymmetric layout with intentional imbalance",
     };
 
     return {
-      type: 'layout_structure',
+      type: "layout_structure",
       gridType,
       mainAreas,
       description: descriptions[gridType],
@@ -619,16 +630,16 @@ export class MockVisionAdapter implements IVisionAnalyzer {
       const g = this._random.nextInt(0, 255);
       const b = this._random.nextInt(0, 255);
       additionalColors.push(
-        `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`.toUpperCase()
+        `#${r.toString(16).padStart(2, "0")}${g.toString(16).padStart(2, "0")}${b.toString(16).padStart(2, "0")}`.toUpperCase()
       );
     }
 
     const dominantColors = [...basePalette, ...additionalColors];
     const mood = this._random.pick(MOODS);
-    const contrast = this._random.pick(['high', 'medium', 'low'] as const);
+    const contrast = this._random.pick(["high", "medium", "low"] as const);
 
     return {
-      type: 'color_palette',
+      type: "color_palette",
       dominantColors,
       mood,
       contrast,
@@ -640,7 +651,7 @@ export class MockVisionAdapter implements IVisionAnalyzer {
    */
   private generateTypography(): TypographyData {
     return {
-      type: 'typography',
+      type: "typography",
       headingStyle: this._random.pick(HEADING_STYLES),
       bodyStyle: this._random.pick(BODY_STYLES),
       hierarchy: this._random.pick(TYPOGRAPHY_HIERARCHY),
@@ -655,16 +666,18 @@ export class MockVisionAdapter implements IVisionAnalyzer {
     const focalPoints = this._random.shuffle([...FOCAL_POINTS]).slice(0, focalPointCount);
 
     const emphasisCount = this._random.nextInt(2, 4);
-    const emphasisTechniques = this._random.shuffle([...EMPHASIS_TECHNIQUES]).slice(0, emphasisCount);
+    const emphasisTechniques = this._random
+      .shuffle([...EMPHASIS_TECHNIQUES])
+      .slice(0, emphasisCount);
 
     return {
-      type: 'visual_hierarchy',
+      type: "visual_hierarchy",
       focalPoints,
       flowDirection: this._random.pick([
-        'top-to-bottom',
-        'left-to-right',
-        'z-pattern',
-        'f-pattern',
+        "top-to-bottom",
+        "left-to-right",
+        "z-pattern",
+        "f-pattern",
       ] as const),
       emphasisTechniques,
     };
@@ -675,9 +688,9 @@ export class MockVisionAdapter implements IVisionAnalyzer {
    */
   private generateWhitespace(): WhitespaceData {
     return {
-      type: 'whitespace',
-      amount: this._random.pick(['minimal', 'moderate', 'generous', 'extreme'] as const),
-      distribution: this._random.pick(['even', 'top-heavy', 'bottom-heavy', 'centered'] as const),
+      type: "whitespace",
+      amount: this._random.pick(["minimal", "moderate", "generous", "extreme"] as const),
+      distribution: this._random.pick(["even", "top-heavy", "bottom-heavy", "centered"] as const),
     };
   }
 
@@ -685,12 +698,12 @@ export class MockVisionAdapter implements IVisionAnalyzer {
    * 密度を生成
    */
   private generateDensity(): DensityData {
-    const level = this._random.pick(['sparse', 'balanced', 'dense', 'cluttered'] as const);
+    const level = this._random.pick(["sparse", "balanced", "dense", "cluttered"] as const);
     const descriptions = DENSITY_DESCRIPTIONS[level];
     const description = this._random.pick(descriptions);
 
     return {
-      type: 'density',
+      type: "density",
       level,
       description,
     };
@@ -700,12 +713,17 @@ export class MockVisionAdapter implements IVisionAnalyzer {
    * リズムを生成
    */
   private generateRhythm(): RhythmData {
-    const pattern = this._random.pick(['regular', 'irregular', 'progressive', 'alternating'] as const);
+    const pattern = this._random.pick([
+      "regular",
+      "irregular",
+      "progressive",
+      "alternating",
+    ] as const);
     const descriptions = RHYTHM_DESCRIPTIONS[pattern];
     const description = this._random.pick(descriptions);
 
     return {
-      type: 'rhythm',
+      type: "rhythm",
       pattern,
       description,
     };
@@ -721,9 +739,11 @@ export class MockVisionAdapter implements IVisionAnalyzer {
     let currentY = 0;
     const pageHeight = this._random.nextInt(1500, 3000);
 
-    const sections: SectionBoundariesData['sections'] = types.map((type) => {
+    const sections: SectionBoundariesData["sections"] = types.map((type) => {
       const startY = currentY;
-      const sectionHeight = Math.floor((pageHeight / sectionCount) * (0.8 + this._random.next() * 0.4));
+      const sectionHeight = Math.floor(
+        (pageHeight / sectionCount) * (0.8 + this._random.next() * 0.4)
+      );
       currentY = startY + sectionHeight;
 
       return {
@@ -735,7 +755,7 @@ export class MockVisionAdapter implements IVisionAnalyzer {
     });
 
     return {
-      type: 'section_boundaries',
+      type: "section_boundaries",
       sections,
     };
   }
@@ -744,15 +764,29 @@ export class MockVisionAdapter implements IVisionAnalyzer {
    * モーション候補を生成（Reftrix専用）
    */
   private generateMotionCandidates(): MotionCandidatesData {
-    const animationTypes: MotionCandidatesData['likelyAnimations'][number]['animationType'][] = [
-      'fade-in', 'slide', 'scale', 'rotate', 'hover-scale', 'hover-lift', 'parallax', 'other',
+    const animationTypes: MotionCandidatesData["likelyAnimations"][number]["animationType"][] = [
+      "fade-in",
+      "slide",
+      "scale",
+      "rotate",
+      "hover-scale",
+      "hover-lift",
+      "parallax",
+      "other",
     ];
-    const elements = ['hero heading', 'feature cards', 'cta button', 'navigation menu', 'footer links'];
-    const interactiveElements = ['primary button', 'search input', 'dropdown menu', 'carousel'];
-    const scrollTriggers = ['feature section', 'testimonial carousel', 'pricing table'];
+    const elements = [
+      "hero heading",
+      "feature cards",
+      "cta button",
+      "navigation menu",
+      "footer links",
+    ];
+    const interactiveElements = ["primary button", "search input", "dropdown menu", "carousel"];
+    const scrollTriggers = ["feature section", "testimonial carousel", "pricing table"];
 
     const animationCount = this._random.nextInt(2, 5);
-    const likelyAnimations = this._random.shuffle([...elements])
+    const likelyAnimations = this._random
+      .shuffle([...elements])
       .slice(0, animationCount)
       .map((element) => ({
         element,
@@ -761,10 +795,14 @@ export class MockVisionAdapter implements IVisionAnalyzer {
       }));
 
     return {
-      type: 'motion_candidates',
+      type: "motion_candidates",
       likelyAnimations,
-      interactiveElements: this._random.shuffle([...interactiveElements]).slice(0, this._random.nextInt(2, 4)),
-      scrollTriggers: this._random.shuffle([...scrollTriggers]).slice(0, this._random.nextInt(1, 3)),
+      interactiveElements: this._random
+        .shuffle([...interactiveElements])
+        .slice(0, this._random.nextInt(2, 4)),
+      scrollTriggers: this._random
+        .shuffle([...scrollTriggers])
+        .slice(0, this._random.nextInt(1, 3)),
     };
   }
 
@@ -772,21 +810,34 @@ export class MockVisionAdapter implements IVisionAnalyzer {
    * ブランドトーンを生成（Reftrix専用）
    */
   private generateBrandTone(): BrandToneData {
-    const professionalismLevels: BrandToneData['professionalism'][] = ['minimal', 'moderate', 'bold'];
-    const warmthLevels: BrandToneData['warmth'][] = ['cold', 'neutral', 'warm'];
-    const modernityLevels: BrandToneData['modernity'][] = ['classic', 'contemporary', 'futuristic'];
-    const energyLevels: BrandToneData['energy'][] = ['calm', 'balanced', 'dynamic'];
-    const audiences: BrandToneData['targetAudience'][] = [
-      'enterprise', 'startup', 'creative', 'consumer',
+    const professionalismLevels: BrandToneData["professionalism"][] = [
+      "minimal",
+      "moderate",
+      "bold",
+    ];
+    const warmthLevels: BrandToneData["warmth"][] = ["cold", "neutral", "warm"];
+    const modernityLevels: BrandToneData["modernity"][] = ["classic", "contemporary", "futuristic"];
+    const energyLevels: BrandToneData["energy"][] = ["calm", "balanced", "dynamic"];
+    const audiences: BrandToneData["targetAudience"][] = [
+      "enterprise",
+      "startup",
+      "creative",
+      "consumer",
     ];
     const indicators = [
-      'rounded corners', 'warm accent colors', 'generous whitespace',
-      'lifestyle photography', 'bold typography', 'clean lines',
-      'subtle shadows', 'gradient backgrounds', 'icon-based UI',
+      "rounded corners",
+      "warm accent colors",
+      "generous whitespace",
+      "lifestyle photography",
+      "bold typography",
+      "clean lines",
+      "subtle shadows",
+      "gradient backgrounds",
+      "icon-based UI",
     ];
 
     return {
-      type: 'brand_tone',
+      type: "brand_tone",
       professionalism: this._random.pick(professionalismLevels),
       warmth: this._random.pick(warmthLevels),
       modernity: this._random.pick(modernityLevels),
@@ -800,52 +851,77 @@ export class MockVisionAdapter implements IVisionAnalyzer {
    * AIクリシェを生成（Reftrix専用）
    */
   private generateAiCliches(): AiClichesData {
-    const clicheTypes: AiClichesData['clichesDetected'][number]['clicheType'][] = [
-      'gradient_orbs', 'generic_isometric', 'meaningless_patterns',
-      'oversaturated_gradients', 'ai_generated_people', 'floating_ui',
-      'generic_hero', 'symmetrical_layout', 'other',
+    const clicheTypes: AiClichesData["clichesDetected"][number]["clicheType"][] = [
+      "gradient_orbs",
+      "generic_isometric",
+      "meaningless_patterns",
+      "oversaturated_gradients",
+      "ai_generated_people",
+      "floating_ui",
+      "generic_hero",
+      "symmetrical_layout",
+      "other",
     ];
-    const severities: AiClichesData['clichesDetected'][number]['severity'][] = ['low', 'medium', 'high'];
-    const locations = ['hero background', 'feature section', 'about section', 'testimonials', 'footer'];
+    const severities: AiClichesData["clichesDetected"][number]["severity"][] = [
+      "low",
+      "medium",
+      "high",
+    ];
+    const locations = [
+      "hero background",
+      "feature section",
+      "about section",
+      "testimonials",
+      "footer",
+    ];
     const suggestions = [
-      'Replace gradient orbs with brand-specific visuals',
-      'Use authentic photography instead of AI illustrations',
-      'Add unique design elements that reflect brand identity',
-      'Consider custom illustrations or icons',
-      'Avoid overly symmetrical layouts',
+      "Replace gradient orbs with brand-specific visuals",
+      "Use authentic photography instead of AI illustrations",
+      "Add unique design elements that reflect brand identity",
+      "Consider custom illustrations or icons",
+      "Avoid overly symmetrical layouts",
     ];
 
     const clicheCount = this._random.nextInt(0, 4);
-    const clichesDetected = clicheCount > 0
-      ? this._random.shuffle([...clicheTypes]).slice(0, clicheCount).map((clicheType) => ({
-          clicheType,
-          location: this._random.pick(locations),
-          severity: this._random.pick(severities),
-        }))
-      : [];
+    const clichesDetected =
+      clicheCount > 0
+        ? this._random
+            .shuffle([...clicheTypes])
+            .slice(0, clicheCount)
+            .map((clicheType) => ({
+              clicheType,
+              location: this._random.pick(locations),
+              severity: this._random.pick(severities),
+            }))
+        : [];
 
     // Calculate originality based on cliche count and severity
     let originalityScore = 85 - clicheCount * 10;
     clichesDetected.forEach((c) => {
-      if (c.severity === 'high') originalityScore -= 8;
-      else if (c.severity === 'medium') originalityScore -= 5;
+      if (c.severity === "high") originalityScore -= 8;
+      else if (c.severity === "medium") originalityScore -= 5;
       else originalityScore -= 2;
     });
     originalityScore = Math.max(10, Math.min(100, originalityScore + this._random.nextInt(-5, 5)));
 
-    const assessment: AiClichesData['assessment'] =
-      originalityScore >= 80 ? 'highly-original' :
-      originalityScore >= 60 ? 'mostly-original' :
-      originalityScore >= 40 ? 'moderate-ai-influence' : 'heavy-ai-influence';
+    const assessment: AiClichesData["assessment"] =
+      originalityScore >= 80
+        ? "highly-original"
+        : originalityScore >= 60
+          ? "mostly-original"
+          : originalityScore >= 40
+            ? "moderate-ai-influence"
+            : "heavy-ai-influence";
 
     return {
-      type: 'ai_cliches',
+      type: "ai_cliches",
       clichesDetected,
       originalityScore,
       assessment,
-      suggestions: clicheCount > 0
-        ? this._random.shuffle([...suggestions]).slice(0, Math.min(clicheCount + 1, 3))
-        : [],
+      suggestions:
+        clicheCount > 0
+          ? this._random.shuffle([...suggestions]).slice(0, Math.min(clicheCount + 1, 3))
+          : [],
     };
   }
 
@@ -856,40 +932,46 @@ export class MockVisionAdapter implements IVisionAnalyzer {
     const data = feature.data;
 
     switch (data.type) {
-      case 'layout_structure':
-        return `Layout: ${data.gridType} with ${data.mainAreas.join(', ')}. ${data.description}`;
+      case "layout_structure":
+        return `Layout: ${data.gridType} with ${data.mainAreas.join(", ")}. ${data.description}`;
 
-      case 'color_palette':
-        return `Colors: ${data.dominantColors.slice(0, 5).join(', ')}. Mood: ${data.mood}. Contrast: ${data.contrast}.`;
+      case "color_palette":
+        return `Colors: ${data.dominantColors.slice(0, 5).join(", ")}. Mood: ${data.mood}. Contrast: ${data.contrast}.`;
 
-      case 'typography':
-        return `Typography: Headings use ${data.headingStyle}. Body uses ${data.bodyStyle}. Hierarchy: ${data.hierarchy.join(', ')}.`;
+      case "typography":
+        return `Typography: Headings use ${data.headingStyle}. Body uses ${data.bodyStyle}. Hierarchy: ${data.hierarchy.join(", ")}.`;
 
-      case 'visual_hierarchy':
-        return `Visual Hierarchy: Focal points are ${data.focalPoints.join(', ')}. Flow: ${data.flowDirection}. Emphasis: ${data.emphasisTechniques.join(', ')}.`;
+      case "visual_hierarchy":
+        return `Visual Hierarchy: Focal points are ${data.focalPoints.join(", ")}. Flow: ${data.flowDirection}. Emphasis: ${data.emphasisTechniques.join(", ")}.`;
 
-      case 'whitespace':
+      case "whitespace":
         return `Whitespace: ${data.amount} amount with ${data.distribution} distribution.`;
 
-      case 'density':
+      case "density":
         return `Density: ${data.level}. ${data.description}`;
 
-      case 'rhythm':
+      case "rhythm":
         return `Rhythm: ${data.pattern} pattern. ${data.description}`;
 
-      case 'section_boundaries': {
-        const sectionList = data.sections.map((s) => `${s.type} (${s.startY}-${s.endY}px)`).join(', ');
+      case "section_boundaries": {
+        const sectionList = data.sections
+          .map((s) => `${s.type} (${s.startY}-${s.endY}px)`)
+          .join(", ");
         return `Sections: ${sectionList}`;
       }
-      case 'motion_candidates': {
-        const animations = data.likelyAnimations.map((a) => `${a.element}: ${a.animationType}`).join(', ');
-        return `Motion: ${animations || 'none'}. Interactive: ${data.interactiveElements.join(', ') || 'none'}.`;
+      case "motion_candidates": {
+        const animations = data.likelyAnimations
+          .map((a) => `${a.element}: ${a.animationType}`)
+          .join(", ");
+        return `Motion: ${animations || "none"}. Interactive: ${data.interactiveElements.join(", ") || "none"}.`;
       }
-      case 'brand_tone':
+      case "brand_tone":
         return `Brand: ${data.professionalism} professionalism, ${data.warmth} warmth, ${data.modernity} modernity.`;
-      case 'ai_cliches': {
-        const clicheList = data.clichesDetected.map((c) => `${c.clicheType} (${c.severity})`).join(', ');
-        return `AI cliches: ${clicheList || 'none'}. Originality: ${data.originalityScore}/100.`;
+      case "ai_cliches": {
+        const clicheList = data.clichesDetected
+          .map((c) => `${c.clicheType} (${c.severity})`)
+          .join(", ");
+        return `AI cliches: ${clicheList || "none"}. Originality: ${data.originalityScore}/100.`;
       }
     }
   }

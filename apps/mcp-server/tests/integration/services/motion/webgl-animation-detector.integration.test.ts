@@ -16,27 +16,27 @@
  * @module tests/integration/services/motion/webgl-animation-detector
  */
 
-import { describe, it, expect, beforeAll, afterAll, beforeEach, afterEach } from 'vitest';
-import { chromium, type Browser, type Page, type BrowserContext } from 'playwright';
-import * as fs from 'fs';
-import * as path from 'path';
+import { describe, it, expect, beforeAll, afterAll, beforeEach, afterEach } from "vitest";
+import { chromium, type Browser, type Page, type BrowserContext } from "playwright";
+import * as fs from "fs";
+import * as path from "path";
 import {
   WebGLAnimationDetectorService,
   type WebGLAnimationDetectionResult,
-} from '../../../../src/services/motion/webgl-animation-detector.service';
+} from "../../../../src/services/motion/webgl-animation-detector.service";
 
 // =====================================================
 // テストフィクスチャのパス
 // =====================================================
 
-const FIXTURES_DIR = path.resolve(__dirname, '../../../fixtures/webgl-animations');
+const FIXTURES_DIR = path.resolve(__dirname, "../../../fixtures/webgl-animations");
 
 /**
  * フィクスチャHTMLを読み込む
  */
 function loadFixture(filename: string): string {
   const filePath = path.join(FIXTURES_DIR, filename);
-  return fs.readFileSync(filePath, 'utf-8');
+  return fs.readFileSync(filePath, "utf-8");
 }
 
 /**
@@ -51,7 +51,7 @@ function fixtureExists(filename: string): boolean {
 // テストスイート: WebGLAnimationDetectorService 統合テスト
 // =====================================================
 
-describe('WebGLAnimationDetectorService 統合テスト', () => {
+describe("WebGLAnimationDetectorService 統合テスト", () => {
   let browser: Browser;
   let context: BrowserContext;
   let page: Page;
@@ -62,12 +62,12 @@ describe('WebGLAnimationDetectorService 統合テスト', () => {
     browser = await chromium.launch({
       headless: true,
       args: [
-        '--no-sandbox',
-        '--disable-setuid-sandbox',
-        '--disable-dev-shm-usage',
+        "--no-sandbox",
+        "--disable-setuid-sandbox",
+        "--disable-dev-shm-usage",
         // WebGLを有効化
-        '--enable-webgl',
-        '--use-gl=swiftshader',
+        "--enable-webgl",
+        "--use-gl=swiftshader",
       ],
     });
     context = await browser.newContext({
@@ -94,10 +94,10 @@ describe('WebGLAnimationDetectorService 統合テスト', () => {
   // 基本的なWebGLアニメーション検出テスト
   // =====================================================
 
-  describe('WebGL Animation Detection', () => {
-    it('should detect WebGL animations from a page with canvas', async () => {
+  describe("WebGL Animation Detection", () => {
+    it("should detect WebGL animations from a page with canvas", async () => {
       // Arrange: テスト用HTMLにWebGLコンテキストを含むcanvas
-      const html = loadFixture('basic-webgl-canvas.html');
+      const html = loadFixture("basic-webgl-canvas.html");
       await page.setContent(html);
       // アニメーションが開始するまで待機
       await page.waitForTimeout(500);
@@ -117,9 +117,9 @@ describe('WebGLAnimationDetectorService 統合テスト', () => {
       expect(result.summary.detectionTimeMs).toBeGreaterThan(0);
     });
 
-    it('should return empty patterns for static WebGL canvas', async () => {
+    it("should return empty patterns for static WebGL canvas", async () => {
       // Arrange: アニメーションのない静的なWebGLキャンバス
-      const html = loadFixture('static-webgl-canvas.html');
+      const html = loadFixture("static-webgl-canvas.html");
       await page.setContent(html);
       await page.waitForTimeout(200);
 
@@ -138,7 +138,7 @@ describe('WebGLAnimationDetectorService 統合テスト', () => {
       expect(result.summary.totalPatterns).toBe(0);
     });
 
-    it('should return empty result for page without canvas', async () => {
+    it("should return empty result for page without canvas", async () => {
       // Arrange: canvasのないページ
       const html = `
         <!DOCTYPE html>
@@ -162,7 +162,7 @@ describe('WebGLAnimationDetectorService 統合テスト', () => {
       expect(result.patterns).toHaveLength(0);
       // warningsが存在する場合は確認（サービスの実装によってはwarningsがない場合もある）
       if (result.warnings && result.warnings.length > 0) {
-        expect(result.warnings.some((w) => w.toLowerCase().includes('canvas'))).toBe(true);
+        expect(result.warnings.some((w) => w.toLowerCase().includes("canvas"))).toBe(true);
       } else {
         // warningsがない場合、パターンが空であることで十分
         expect(result.patterns).toHaveLength(0);
@@ -174,10 +174,10 @@ describe('WebGLAnimationDetectorService 統合テスト', () => {
   // アニメーションカテゴリ分類テスト
   // =====================================================
 
-  describe('Animation Categorization', () => {
-    it('should categorize fade animation correctly', async () => {
+  describe("Animation Categorization", () => {
+    it("should categorize fade animation correctly", async () => {
       // Arrange: フェードアニメーションのあるWebGLキャンバス
-      const html = loadFixture('basic-webgl-canvas.html');
+      const html = loadFixture("basic-webgl-canvas.html");
       await page.setContent(html);
       await page.waitForTimeout(300);
 
@@ -195,22 +195,22 @@ describe('WebGLAnimationDetectorService 統合テスト', () => {
         expect(pattern.category).toBeDefined();
         // カテゴリは有効な値のいずれか
         expect([
-          'fade',
-          'pulse',
-          'wave',
-          'particle',
-          'rotation',
-          'parallax',
-          'noise',
-          'complex',
-          'unknown',
+          "fade",
+          "pulse",
+          "wave",
+          "particle",
+          "rotation",
+          "parallax",
+          "noise",
+          "complex",
+          "unknown",
         ]).toContain(pattern.category);
       }
     });
 
-    it('should categorize rotation animation correctly', async () => {
+    it("should categorize rotation animation correctly", async () => {
       // Arrange: 回転アニメーション
-      const html = loadFixture('rotating-cube-webgl.html');
+      const html = loadFixture("rotating-cube-webgl.html");
       await page.setContent(html);
       await page.waitForTimeout(500);
 
@@ -226,19 +226,13 @@ describe('WebGLAnimationDetectorService 統合テスト', () => {
         const pattern = result.patterns[0];
         expect(pattern.category).toBeDefined();
         // 回転アニメーションはrotationまたはcomplexに分類されることが多い
-        expect([
-          'rotation',
-          'complex',
-          'wave',
-          'fade',
-          'unknown',
-        ]).toContain(pattern.category);
+        expect(["rotation", "complex", "wave", "fade", "unknown"]).toContain(pattern.category);
       }
     });
 
-    it('should categorize particle animation correctly', async () => {
+    it("should categorize particle animation correctly", async () => {
       // Arrange: パーティクルシステム
-      const html = loadFixture('particle-system-webgl.html');
+      const html = loadFixture("particle-system-webgl.html");
       await page.setContent(html);
       await page.waitForTimeout(500);
 
@@ -255,23 +249,23 @@ describe('WebGLAnimationDetectorService 統合テスト', () => {
         expect(pattern.category).toBeDefined();
         // パーティクルはparticle, noise, complex, parallax, pulse, fadeなどに分類されることがある
         expect([
-          'particle',
-          'noise',
-          'complex',
-          'parallax',
-          'pulse',
-          'fade',
-          'wave',
-          'morph',
-          'rotation',
-          'unknown',
+          "particle",
+          "noise",
+          "complex",
+          "parallax",
+          "pulse",
+          "fade",
+          "wave",
+          "morph",
+          "rotation",
+          "unknown",
         ]).toContain(pattern.category);
       }
     });
 
-    it('should categorize wave animation correctly', async () => {
+    it("should categorize wave animation correctly", async () => {
       // Arrange: 波形アニメーション
-      const html = loadFixture('wave-animation-webgl.html');
+      const html = loadFixture("wave-animation-webgl.html");
       await page.setContent(html);
       await page.waitForTimeout(500);
 
@@ -287,23 +281,23 @@ describe('WebGLAnimationDetectorService 統合テスト', () => {
         const pattern = result.patterns[0];
         expect(pattern.category).toBeDefined();
         expect([
-          'wave',
-          'complex',
-          'noise',
-          'rotation',
-          'fade',
-          'parallax',
-          'pulse',
-          'morph',
-          'particle',
-          'unknown',
+          "wave",
+          "complex",
+          "noise",
+          "rotation",
+          "fade",
+          "parallax",
+          "pulse",
+          "morph",
+          "particle",
+          "unknown",
         ]).toContain(pattern.category);
       }
     });
 
-    it('should categorize noise animation correctly', async () => {
+    it("should categorize noise animation correctly", async () => {
       // Arrange: ノイズアニメーション
-      const html = loadFixture('noise-animation-webgl.html');
+      const html = loadFixture("noise-animation-webgl.html");
       await page.setContent(html);
       await page.waitForTimeout(500);
 
@@ -319,14 +313,14 @@ describe('WebGLAnimationDetectorService 統合テスト', () => {
         const pattern = result.patterns[0];
         expect(pattern.category).toBeDefined();
         expect([
-          'noise',
-          'complex',
-          'wave',
-          'rotation',
-          'fade',
-          'pulse',
-          'particle',
-          'unknown',
+          "noise",
+          "complex",
+          "wave",
+          "rotation",
+          "fade",
+          "pulse",
+          "particle",
+          "unknown",
         ]).toContain(pattern.category);
       }
     });
@@ -336,10 +330,10 @@ describe('WebGLAnimationDetectorService 統合テスト', () => {
   // 複数canvasのテスト
   // =====================================================
 
-  describe('Multiple Canvas Detection', () => {
-    it('should detect multiple canvas animations on the same page', async () => {
+  describe("Multiple Canvas Detection", () => {
+    it("should detect multiple canvas animations on the same page", async () => {
       // Arrange: 複数のcanvasを持つページ
-      const html = loadFixture('multiple-canvas-webgl.html');
+      const html = loadFixture("multiple-canvas-webgl.html");
       await page.setContent(html);
       await page.waitForTimeout(500);
 
@@ -362,10 +356,10 @@ describe('WebGLAnimationDetectorService 統合テスト', () => {
   // ビジュアル特徴抽出テスト
   // =====================================================
 
-  describe('Visual Features Extraction', () => {
-    it('should extract visual features from detected patterns', async () => {
+  describe("Visual Features Extraction", () => {
+    it("should extract visual features from detected patterns", async () => {
       // Arrange
-      const html = loadFixture('basic-webgl-canvas.html');
+      const html = loadFixture("basic-webgl-canvas.html");
       await page.setContent(html);
       await page.waitForTimeout(500);
 
@@ -387,13 +381,13 @@ describe('WebGLAnimationDetectorService 統合テスト', () => {
         expect(pattern.visualFeatures.stdDeviation).toBeGreaterThanOrEqual(0);
         expect(pattern.visualFeatures.periodicityScore).toBeGreaterThanOrEqual(0);
         expect(pattern.visualFeatures.periodicityScore).toBeLessThanOrEqual(1);
-        expect(typeof pattern.visualFeatures.dynamicFrameRatio).toBe('number');
+        expect(typeof pattern.visualFeatures.dynamicFrameRatio).toBe("number");
       }
     });
 
-    it('should include frame analysis data', async () => {
+    it("should include frame analysis data", async () => {
       // Arrange
-      const html = loadFixture('wave-animation-webgl.html');
+      const html = loadFixture("wave-animation-webgl.html");
       await page.setContent(html);
       await page.waitForTimeout(500);
 
@@ -421,10 +415,10 @@ describe('WebGLAnimationDetectorService 統合テスト', () => {
   // パターン名・説明生成テスト
   // =====================================================
 
-  describe('Pattern Name and Description Generation', () => {
-    it('should generate meaningful pattern names', async () => {
+  describe("Pattern Name and Description Generation", () => {
+    it("should generate meaningful pattern names", async () => {
       // Arrange
-      const html = loadFixture('rotating-cube-webgl.html');
+      const html = loadFixture("rotating-cube-webgl.html");
       await page.setContent(html);
       await page.waitForTimeout(500);
 
@@ -439,7 +433,7 @@ describe('WebGLAnimationDetectorService 統合テスト', () => {
       if (result.patterns.length > 0) {
         const pattern = result.patterns[0];
         expect(pattern.name).toBeDefined();
-        expect(typeof pattern.name).toBe('string');
+        expect(typeof pattern.name).toBe("string");
         expect(pattern.name.length).toBeGreaterThan(0);
         // パターン名にはカテゴリとインデックスが含まれる
         // 実際の出力形式: "WebGL Fade Animation #1" または "webgl-fade-animation-1"
@@ -447,9 +441,9 @@ describe('WebGLAnimationDetectorService 統合テスト', () => {
       }
     });
 
-    it('should generate meaningful descriptions', async () => {
+    it("should generate meaningful descriptions", async () => {
       // Arrange
-      const html = loadFixture('particle-system-webgl.html');
+      const html = loadFixture("particle-system-webgl.html");
       await page.setContent(html);
       await page.waitForTimeout(500);
 
@@ -464,7 +458,7 @@ describe('WebGLAnimationDetectorService 統合テスト', () => {
       if (result.patterns.length > 0) {
         const pattern = result.patterns[0];
         expect(pattern.description).toBeDefined();
-        expect(typeof pattern.description).toBe('string');
+        expect(typeof pattern.description).toBe("string");
         expect(pattern.description.length).toBeGreaterThan(0);
       }
     });
@@ -474,10 +468,10 @@ describe('WebGLAnimationDetectorService 統合テスト', () => {
   // canvas情報テスト
   // =====================================================
 
-  describe('Canvas Information', () => {
-    it('should include canvas metadata in pattern data', async () => {
+  describe("Canvas Information", () => {
+    it("should include canvas metadata in pattern data", async () => {
       // Arrange
-      const html = loadFixture('basic-webgl-canvas.html');
+      const html = loadFixture("basic-webgl-canvas.html");
       await page.setContent(html);
       await page.waitForTimeout(500);
 
@@ -492,7 +486,7 @@ describe('WebGLAnimationDetectorService 統合テスト', () => {
       if (result.patterns.length > 0) {
         const pattern = result.patterns[0];
         expect(pattern.canvasSelector).toBeDefined();
-        expect(typeof pattern.canvasSelector).toBe('string');
+        expect(typeof pattern.canvasSelector).toBe("string");
         expect(pattern.canvasWidth).toBeGreaterThan(0);
         expect(pattern.canvasHeight).toBeGreaterThan(0);
         expect([1, 2]).toContain(pattern.webglVersion);
@@ -504,10 +498,10 @@ describe('WebGLAnimationDetectorService 統合テスト', () => {
   // 信頼度テスト
   // =====================================================
 
-  describe('Confidence Score', () => {
-    it('should calculate confidence score for detected patterns', async () => {
+  describe("Confidence Score", () => {
+    it("should calculate confidence score for detected patterns", async () => {
       // Arrange
-      const html = loadFixture('wave-animation-webgl.html');
+      const html = loadFixture("wave-animation-webgl.html");
       await page.setContent(html);
       await page.waitForTimeout(500);
 
@@ -532,10 +526,10 @@ describe('WebGLAnimationDetectorService 統合テスト', () => {
   // サマリー計算テスト
   // =====================================================
 
-  describe('Summary Calculation', () => {
-    it('should calculate correct summary statistics', async () => {
+  describe("Summary Calculation", () => {
+    it("should calculate correct summary statistics", async () => {
       // Arrange
-      const html = loadFixture('multiple-canvas-webgl.html');
+      const html = loadFixture("multiple-canvas-webgl.html");
       await page.setContent(html);
       await page.waitForTimeout(500);
 
@@ -550,7 +544,7 @@ describe('WebGLAnimationDetectorService 統合テスト', () => {
       expect(result.summary).toBeDefined();
       expect(result.summary.totalPatterns).toBe(result.patterns.length);
       expect(result.summary.categories).toBeDefined();
-      expect(typeof result.summary.categories).toBe('object');
+      expect(typeof result.summary.categories).toBe("object");
       expect(result.summary.avgChangeRatio).toBeGreaterThanOrEqual(0);
       expect(result.summary.detectionTimeMs).toBeGreaterThan(0);
 
@@ -567,10 +561,10 @@ describe('WebGLAnimationDetectorService 統合テスト', () => {
   // オプション設定テスト
   // =====================================================
 
-  describe('Options Configuration', () => {
-    it('should respect sampleFrames option', async () => {
+  describe("Options Configuration", () => {
+    it("should respect sampleFrames option", async () => {
       // Arrange
-      const html = loadFixture('basic-webgl-canvas.html');
+      const html = loadFixture("basic-webgl-canvas.html");
       await page.setContent(html);
       await page.waitForTimeout(300);
 
@@ -597,9 +591,9 @@ describe('WebGLAnimationDetectorService 統合テスト', () => {
       );
     });
 
-    it('should respect changeThreshold option', async () => {
+    it("should respect changeThreshold option", async () => {
       // Arrange
-      const html = loadFixture('basic-webgl-canvas.html');
+      const html = loadFixture("basic-webgl-canvas.html");
       await page.setContent(html);
       await page.waitForTimeout(500);
 
@@ -633,10 +627,10 @@ describe('WebGLAnimationDetectorService 統合テスト', () => {
   // タイムアウトテスト
   // =====================================================
 
-  describe('Timeout Handling', () => {
-    it('should handle timeout gracefully', async () => {
+  describe("Timeout Handling", () => {
+    it("should handle timeout gracefully", async () => {
       // Arrange
-      const html = loadFixture('multiple-canvas-webgl.html');
+      const html = loadFixture("multiple-canvas-webgl.html");
       await page.setContent(html);
       await page.waitForTimeout(300);
 
@@ -664,10 +658,10 @@ describe('WebGLAnimationDetectorService 統合テスト', () => {
   // クリーンアップテスト
   // =====================================================
 
-  describe('Cleanup', () => {
-    it('should cleanup resources properly', async () => {
+  describe("Cleanup", () => {
+    it("should cleanup resources properly", async () => {
       // Arrange
-      const html = loadFixture('basic-webgl-canvas.html');
+      const html = loadFixture("basic-webgl-canvas.html");
       await page.setContent(html);
       await page.waitForTimeout(300);
 
@@ -682,9 +676,9 @@ describe('WebGLAnimationDetectorService 統合テスト', () => {
       await expect(detector.cleanup()).resolves.not.toThrow();
     });
 
-    it('should allow multiple cleanup calls', async () => {
+    it("should allow multiple cleanup calls", async () => {
       // Arrange
-      const html = loadFixture('basic-webgl-canvas.html');
+      const html = loadFixture("basic-webgl-canvas.html");
       await page.setContent(html);
       await page.waitForTimeout(300);
 
@@ -704,10 +698,10 @@ describe('WebGLAnimationDetectorService 統合テスト', () => {
   // エラーハンドリングテスト
   // =====================================================
 
-  describe('Error Handling', () => {
-    it('should handle closed page gracefully', async () => {
+  describe("Error Handling", () => {
+    it("should handle closed page gracefully", async () => {
       // Arrange
-      const html = loadFixture('basic-webgl-canvas.html');
+      const html = loadFixture("basic-webgl-canvas.html");
       await page.setContent(html);
       await page.close();
 
@@ -726,7 +720,7 @@ describe('WebGLAnimationDetectorService 統合テスト', () => {
       page = await context.newPage();
     });
 
-    it('should handle JavaScript errors on page', async () => {
+    it("should handle JavaScript errors on page", async () => {
       // Arrange: JavaScriptエラーがあるページ
       const html = `
         <!DOCTYPE html>
@@ -770,10 +764,10 @@ describe('WebGLAnimationDetectorService 統合テスト', () => {
   // パフォーマンステスト
   // =====================================================
 
-  describe('Performance', () => {
-    it('should complete detection within 10 seconds', async () => {
+  describe("Performance", () => {
+    it("should complete detection within 10 seconds", async () => {
       // Arrange
-      const html = loadFixture('rotating-cube-webgl.html');
+      const html = loadFixture("rotating-cube-webgl.html");
       await page.setContent(html);
       await page.waitForTimeout(500);
 
@@ -796,13 +790,12 @@ describe('WebGLAnimationDetectorService 統合テスト', () => {
   });
 });
 
-
 // =====================================================
 // 型検証テスト
 // =====================================================
 
-describe('WebGL Animation 型検証', () => {
-  it('WebGLAnimationDetectionResult should have correct structure', () => {
+describe("WebGL Animation 型検証", () => {
+  it("WebGLAnimationDetectionResult should have correct structure", () => {
     const result: WebGLAnimationDetectionResult = {
       patterns: [],
       summary: {

@@ -18,25 +18,22 @@
  * @module tests/integration/page/page-analyze-services.integration
  */
 
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import type {
-  LayoutAnalyzerService} from '../../../src/services/page/layout-analyzer.service';
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import type { LayoutAnalyzerService } from "../../../src/services/page/layout-analyzer.service";
 import {
   getLayoutAnalyzerService,
   type LayoutAnalysisResult,
-} from '../../../src/services/page/layout-analyzer.service';
-import type {
-  MotionDetectorService} from '../../../src/services/page/motion-detector.service';
+} from "../../../src/services/page/layout-analyzer.service";
+import type { MotionDetectorService } from "../../../src/services/page/motion-detector.service";
 import {
   getMotionDetectorService,
   type MotionDetectionResult,
-} from '../../../src/services/page/motion-detector.service';
-import type {
-  QualityEvaluatorService} from '../../../src/services/page/quality-evaluator.service';
+} from "../../../src/services/page/motion-detector.service";
+import type { QualityEvaluatorService } from "../../../src/services/page/quality-evaluator.service";
 import {
   getQualityEvaluatorService,
   type QualityEvaluationResult,
-} from '../../../src/services/page/quality-evaluator.service';
+} from "../../../src/services/page/quality-evaluator.service";
 
 // =====================================================
 // 統合テスト用HTMLフィクスチャ
@@ -348,7 +345,7 @@ const EMPTY_BODY_HTML = `
 // 統合テスト: サービス連携動作
 // =====================================================
 
-describe('page.analyze サービス統合テスト', () => {
+describe("page.analyze サービス統合テスト", () => {
   let layoutService: LayoutAnalyzerService;
   let motionService: MotionDetectorService;
   let qualityService: QualityEvaluatorService;
@@ -364,8 +361,8 @@ describe('page.analyze サービス統合テスト', () => {
     vi.restoreAllMocks();
   });
 
-  describe('3サービス連携テスト', () => {
-    it('同一HTMLに対して3つのサービスが正常に動作する', async () => {
+  describe("3サービス連携テスト", () => {
+    it("同一HTMLに対して3つのサービスが正常に動作する", async () => {
       // Arrange: 同一のHTMLを使用
       const html = LANDING_PAGE_HTML;
 
@@ -391,7 +388,7 @@ describe('page.analyze サービス統合テスト', () => {
       expect(qualityResult.overallScore).toBeLessThanOrEqual(100);
     });
 
-    it('3つのサービスを並列実行しても正常動作する', async () => {
+    it("3つのサービスを並列実行しても正常動作する", async () => {
       // Arrange
       const html = LANDING_PAGE_HTML;
 
@@ -408,7 +405,7 @@ describe('page.analyze サービス統合テスト', () => {
       expect(qualityResult.success).toBe(true);
     });
 
-    it('レイアウト検出結果とモーション検出結果が関連するセクションを参照できる', async () => {
+    it("レイアウト検出結果とモーション検出結果が関連するセクションを参照できる", async () => {
       // Arrange
       const html = LANDING_PAGE_HTML;
 
@@ -417,17 +414,17 @@ describe('page.analyze サービス統合テスト', () => {
       const motionResult = motionService.detect(html, { includeStyleSheets: true });
 
       // Assert: heroセクションが両方で検出される
-      const heroSection = layoutResult.sections.find(s => s.type === 'hero');
+      const heroSection = layoutResult.sections.find((s) => s.type === "hero");
       expect(heroSection).toBeDefined();
 
       // heroに関連するアニメーションが検出される
       const heroAnimations = motionResult.patterns.filter(
-        p => p.name.includes('fade') || p.name.includes('slide')
+        (p) => p.name.includes("fade") || p.name.includes("slide")
       );
       expect(heroAnimations.length).toBeGreaterThan(0);
     });
 
-    it('品質スコアがセクション構造の複雑さに影響される', async () => {
+    it("品質スコアがセクション構造の複雑さに影響される", async () => {
       // Arrange: 構造が複雑なHTMLと単純なHTML
       const complexHtml = LANDING_PAGE_HTML;
       const simpleHtml = MINIMAL_HTML;
@@ -445,8 +442,8 @@ describe('page.analyze サービス統合テスト', () => {
     });
   });
 
-  describe('セクション検出とモーション検出の一貫性', () => {
-    it('CTAセクションにボタントランジションが含まれる', async () => {
+  describe("セクション検出とモーション検出の一貫性", () => {
+    it("CTAセクションにボタントランジションが含まれる", async () => {
       // Arrange
       const html = LANDING_PAGE_HTML;
 
@@ -455,25 +452,25 @@ describe('page.analyze サービス統合テスト', () => {
       const motionResult = motionService.detect(html, { includeStyleSheets: true });
 
       // Assert
-      const ctaSection = layoutResult.sections.find(s => s.type === 'cta');
+      const ctaSection = layoutResult.sections.find((s) => s.type === "cta");
       expect(ctaSection).toBeDefined();
 
       // ボタンのトランジションが検出される（セレクタ名またはプロパティで判定）
       // MotionDetectorServiceはCSSルールからトランジションを検出するため、
       // .btn-primaryセレクタのトランジションを探す
       const buttonTransitions = motionResult.patterns.filter(
-        p =>
-          p.type === 'css_transition' &&
-          (p.selector?.includes('btn') ||
-            p.name.includes('btn') ||
-            p.properties.includes('background-color'))
+        (p) =>
+          p.type === "css_transition" &&
+          (p.selector?.includes("btn") ||
+            p.name.includes("btn") ||
+            p.properties.includes("background-color"))
       );
       // ボタントランジションが存在するか、または全体のトランジションが存在することを確認
-      const hasTransitions = motionResult.patterns.some(p => p.type === 'css_transition');
+      const hasTransitions = motionResult.patterns.some((p) => p.type === "css_transition");
       expect(hasTransitions).toBe(true);
     });
 
-    it('フィーチャーセクションにカードトランジションが含まれる', async () => {
+    it("フィーチャーセクションにカードトランジションが含まれる", async () => {
       // Arrange
       const html = LANDING_PAGE_HTML;
 
@@ -482,26 +479,26 @@ describe('page.analyze サービス統合テスト', () => {
       const motionResult = motionService.detect(html, { includeStyleSheets: true });
 
       // Assert
-      const featureSection = layoutResult.sections.find(s => s.type === 'feature');
+      const featureSection = layoutResult.sections.find((s) => s.type === "feature");
       expect(featureSection).toBeDefined();
 
       // カードのホバートランジションが検出される（セレクタ名、名前、またはプロパティで判定）
       const cardTransitions = motionResult.patterns.filter(
-        p =>
-          p.selector?.includes('card') ||
-          p.name.includes('card') ||
-          (p.type === 'css_transition' && p.properties.includes('box-shadow'))
+        (p) =>
+          p.selector?.includes("card") ||
+          p.name.includes("card") ||
+          (p.type === "css_transition" && p.properties.includes("box-shadow"))
       );
       // カード関連のトランジションが存在するか、または全体のトランジションが存在することを確認
       const hasTransitions = motionResult.patterns.some(
-        p => p.type === 'css_transition' || p.type === 'css_animation'
+        (p) => p.type === "css_transition" || p.type === "css_animation"
       );
       expect(hasTransitions).toBe(true);
     });
   });
 
-  describe('品質評価とモーション警告の相関', () => {
-    it('アニメーションが多いHTMLでモーション警告が発生する', async () => {
+  describe("品質評価とモーション警告の相関", () => {
+    it("アニメーションが多いHTMLでモーション警告が発生する", async () => {
       // Arrange
       const html = ANIMATION_HEAVY_HTML;
 
@@ -513,14 +510,14 @@ describe('page.analyze サービス統合テスト', () => {
       const qualityResult = await qualityService.evaluate(html);
 
       // Assert: アクセシビリティ警告が検出される
-      const a11yWarnings = motionResult.warnings.filter(w => w.code.startsWith('A11Y_'));
+      const a11yWarnings = motionResult.warnings.filter((w) => w.code.startsWith("A11Y_"));
       expect(a11yWarnings.length).toBeGreaterThan(0);
 
       // 品質評価も成功する
       expect(qualityResult.success).toBe(true);
     });
 
-    it('無限アニメーションにアクセシビリティ警告が出る', async () => {
+    it("無限アニメーションにアクセシビリティ警告が出る", async () => {
       // Arrange
       const html = ANIMATION_HEAVY_HTML;
 
@@ -529,16 +526,16 @@ describe('page.analyze サービス統合テスト', () => {
 
       // Assert
       // MotionPatternではiterationsはトップレベルのプロパティ
-      const infinitePatterns = motionResult.patterns.filter(p => p.iterations === 'infinite');
+      const infinitePatterns = motionResult.patterns.filter((p) => p.iterations === "infinite");
 
       // 無限アニメーションパターンが存在するか、
       // または全体でアニメーションパターンが存在することを確認
-      const hasAnimations = motionResult.patterns.some(p => p.type === 'css_animation');
+      const hasAnimations = motionResult.patterns.some((p) => p.type === "css_animation");
       expect(hasAnimations || infinitePatterns.length > 0).toBe(true);
 
       // reduced-motion 未対応の警告があれば確認（オプショナル）
       // アクセシビリティ関連の警告が発生することを確認
-      const a11yWarnings = motionResult.warnings.filter(w => w.code.startsWith('A11Y_'));
+      const a11yWarnings = motionResult.warnings.filter((w) => w.code.startsWith("A11Y_"));
       // 少なくとも警告が0件以上であることを確認（警告がない場合も許容）
       expect(a11yWarnings).toBeDefined();
     });
@@ -549,7 +546,7 @@ describe('page.analyze サービス統合テスト', () => {
 // エラーハンドリング統合テスト
 // =====================================================
 
-describe('エラーハンドリング統合テスト', () => {
+describe("エラーハンドリング統合テスト", () => {
   let layoutService: LayoutAnalyzerService;
   let motionService: MotionDetectorService;
   let qualityService: QualityEvaluatorService;
@@ -560,10 +557,10 @@ describe('エラーハンドリング統合テスト', () => {
     qualityService = getQualityEvaluatorService();
   });
 
-  describe('空または不正なHTMLの処理', () => {
-    it('空文字列のHTMLでも各サービスがエラーを投げない', async () => {
+  describe("空または不正なHTMLの処理", () => {
+    it("空文字列のHTMLでも各サービスがエラーを投げない", async () => {
       // Arrange
-      const html = '';
+      const html = "";
 
       // Act & Assert: エラーを投げずに空の結果を返す
       const layoutResult = await layoutService.analyze(html);
@@ -576,7 +573,7 @@ describe('エラーハンドリング統合テスト', () => {
       expect(qualityResult.success).toBe(true);
     });
 
-    it('不正なHTMLでも部分的に処理できる', async () => {
+    it("不正なHTMLでも部分的に処理できる", async () => {
       // Arrange: 閉じタグがないHTML
       const malformedHtml = `
         <html><head><title>Test</title>
@@ -597,7 +594,7 @@ describe('エラーハンドリング統合テスト', () => {
       expect(qualityResult).toBeDefined();
     });
 
-    it('空のbodyでも処理が完了する', async () => {
+    it("空のbodyでも処理が完了する", async () => {
       // Arrange
       const html = EMPTY_BODY_HTML;
 
@@ -613,8 +610,8 @@ describe('エラーハンドリング統合テスト', () => {
     });
   });
 
-  describe('1つのサービスが失敗しても他は継続', () => {
-    it('レイアウト分析エラー時もモーション・品質は成功する', async () => {
+  describe("1つのサービスが失敗しても他は継続", () => {
+    it("レイアウト分析エラー時もモーション・品質は成功する", async () => {
       // Arrange: レイアウト分析でエラーをシミュレート
       // （実際のエラーは稀だが、将来の拡張で外部依存がある場合を想定）
       const html = LANDING_PAGE_HTML;
@@ -634,7 +631,7 @@ describe('エラーハンドリング統合テスト', () => {
 // パフォーマンス統合テスト
 // =====================================================
 
-describe('パフォーマンス統合テスト', () => {
+describe("パフォーマンス統合テスト", () => {
   let layoutService: LayoutAnalyzerService;
   let motionService: MotionDetectorService;
   let qualityService: QualityEvaluatorService;
@@ -645,8 +642,8 @@ describe('パフォーマンス統合テスト', () => {
     qualityService = getQualityEvaluatorService();
   });
 
-  describe('処理時間要件', () => {
-    it('3サービス合計が500ms以内に完了する（通常のHTML）', async () => {
+  describe("処理時間要件", () => {
+    it("3サービス合計が500ms以内に完了する（通常のHTML）", async () => {
       // Arrange
       const html = LANDING_PAGE_HTML;
       const startTime = Date.now();
@@ -663,7 +660,7 @@ describe('パフォーマンス統合テスト', () => {
       expect(totalTime).toBeLessThan(500);
     });
 
-    it('並列実行が順次実行より高速（または同等）', async () => {
+    it("並列実行が順次実行より高速（または同等）", async () => {
       // Arrange
       const html = LANDING_PAGE_HTML;
 
@@ -688,7 +685,7 @@ describe('パフォーマンス統合テスト', () => {
       expect(parTime).toBeLessThanOrEqual(seqTime * 3);
     });
 
-    it('各サービスがprocessingTimeMsを返す', async () => {
+    it("各サービスがprocessingTimeMsを返す", async () => {
       // Arrange
       const html = LANDING_PAGE_HTML;
 
@@ -703,7 +700,7 @@ describe('パフォーマンス統合テスト', () => {
       expect(qualityResult.processingTimeMs).toBeGreaterThanOrEqual(0);
     });
 
-    it('処理時間の合計がtotalProcessingTimeに反映される', async () => {
+    it("処理時間の合計がtotalProcessingTimeに反映される", async () => {
       // Arrange
       const html = LANDING_PAGE_HTML;
       const startTime = Date.now();
@@ -730,8 +727,8 @@ describe('パフォーマンス統合テスト', () => {
     });
   });
 
-  describe('大きなHTMLの処理', () => {
-    it('50KB超のHTMLでも正常処理できる', async () => {
+  describe("大きなHTMLの処理", () => {
+    it("50KB超のHTMLでも正常処理できる", async () => {
       // Arrange: 大きなHTMLを生成（セクションを繰り返し）
       // 各セクションが約350バイトなので、150セクションで約52.5KB
       const repeatedSections = Array(150)
@@ -751,7 +748,7 @@ describe('パフォーマンス統合テスト', () => {
         </section>
       `
         )
-        .join('\n');
+        .join("\n");
 
       const largeHtml = `
         <!DOCTYPE html>
@@ -792,7 +789,7 @@ describe('パフォーマンス統合テスト', () => {
 // 出力整合性テスト
 // =====================================================
 
-describe('出力整合性テスト', () => {
+describe("出力整合性テスト", () => {
   let layoutService: LayoutAnalyzerService;
   let motionService: MotionDetectorService;
   let qualityService: QualityEvaluatorService;
@@ -803,7 +800,7 @@ describe('出力整合性テスト', () => {
     qualityService = getQualityEvaluatorService();
   });
 
-  it('同一入力に対して各サービスの出力が一貫している', async () => {
+  it("同一入力に対して各サービスの出力が一貫している", async () => {
     // Arrange
     const html = LANDING_PAGE_HTML;
 
@@ -828,7 +825,7 @@ describe('出力整合性テスト', () => {
     expect(quality1.grade).toBe(quality2.grade);
   });
 
-  it('レイアウト結果のセクションタイプ内訳が正しい', async () => {
+  it("レイアウト結果のセクションタイプ内訳が正しい", async () => {
     // Arrange
     const html = LANDING_PAGE_HTML;
 
@@ -840,7 +837,7 @@ describe('出力整合性テスト', () => {
     expect(typeTotal).toBe(result.sectionCount);
   });
 
-  it('モーション結果のカテゴリ分類が正しい', () => {
+  it("モーション結果のカテゴリ分類が正しい", () => {
     // Arrange
     const html = LANDING_PAGE_HTML;
 
@@ -850,12 +847,12 @@ describe('出力整合性テスト', () => {
     // Assert: 各パターンにcategoryが設定されている
     for (const pattern of result.patterns) {
       expect(pattern.category).toBeDefined();
-      expect(typeof pattern.category).toBe('string');
+      expect(typeof pattern.category).toBe("string");
       expect(pattern.category.length).toBeGreaterThan(0);
     }
   });
 
-  it('品質評価の軸別スコアがoverallScoreに反映される', async () => {
+  it("品質評価の軸別スコアがoverallScoreに反映される", async () => {
     // Arrange
     const html = LANDING_PAGE_HTML;
 

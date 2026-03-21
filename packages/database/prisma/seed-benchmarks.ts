@@ -66,9 +66,7 @@ async function checkPatternStats(): Promise<BenchmarkStats> {
   const patternsWithQualityScore = Number(totalEvaluationsResult[0]?.count ?? 0);
 
   // Get section_embeddings count (use raw SQL due to Unsupported vector type)
-  const embeddingsResult = await prisma.$queryRaw<
-    { count: bigint }[]
-  >`
+  const embeddingsResult = await prisma.$queryRaw<{ count: bigint }[]>`
     SELECT COUNT(*) as count
     FROM section_embeddings
     WHERE text_embedding IS NOT NULL
@@ -76,9 +74,7 @@ async function checkPatternStats(): Promise<BenchmarkStats> {
   const patternsWithEmbeddings = Number(embeddingsResult[0]?.count ?? 0);
 
   // Check high quality evaluations (score >= 85) from quality_evaluations table
-  const highQualityResult = await prisma.$queryRaw<
-    { count: bigint }[]
-  >`
+  const highQualityResult = await prisma.$queryRaw<{ count: bigint }[]>`
     SELECT COUNT(*) as count
     FROM quality_evaluations qe
     WHERE qe.overall_score >= 85
@@ -182,9 +178,7 @@ async function refreshMaterializedViews(): Promise<void> {
     console.log("[Seed:Benchmarks] - mv_industry_quality_averages refreshed");
   } catch (error) {
     // CONCURRENTLY requires unique index; if fails, try without
-    console.log(
-      "[Seed:Benchmarks] - mv_industry_quality_averages: using non-concurrent refresh"
-    );
+    console.log("[Seed:Benchmarks] - mv_industry_quality_averages: using non-concurrent refresh");
     await prisma.$executeRaw`
       REFRESH MATERIALIZED VIEW mv_industry_quality_averages
     `;
@@ -197,9 +191,7 @@ async function refreshMaterializedViews(): Promise<void> {
     `;
     console.log("[Seed:Benchmarks] - mv_section_type_benchmarks refreshed");
   } catch (error) {
-    console.log(
-      "[Seed:Benchmarks] - mv_section_type_benchmarks: using non-concurrent refresh"
-    );
+    console.log("[Seed:Benchmarks] - mv_section_type_benchmarks: using non-concurrent refresh");
     await prisma.$executeRaw`
       REFRESH MATERIALIZED VIEW mv_section_type_benchmarks
     `;
@@ -263,17 +255,11 @@ async function seedBenchmarks(): Promise<void> {
   // Step 2: Handle case where no high-quality patterns exist
   if (stats.highQualityPatterns === 0) {
     console.log("\n[Seed:Benchmarks] No high-quality patterns found.");
-    console.log(
-      "[Seed:Benchmarks] Benchmarks will be automatically populated when:"
-    );
+    console.log("[Seed:Benchmarks] Benchmarks will be automatically populated when:");
     console.log("  1. Pages are analyzed with page.analyze MCPツール");
     console.log("  2. quality.evaluate scores a pattern >= 85");
-    console.log(
-      "  3. The benchmark extraction runs again (manually or scheduled)"
-    );
-    console.log(
-      "\n[Seed:Benchmarks] To populate benchmarks, analyze high-quality web pages:"
-    );
+    console.log("  3. The benchmark extraction runs again (manually or scheduled)");
+    console.log("\n[Seed:Benchmarks] To populate benchmarks, analyze high-quality web pages:");
     console.log("  await mcp__reftrix__page_analyze({ url: 'https://...' })");
     console.log("\n=".repeat(60));
     console.log(

@@ -14,20 +14,20 @@
  * @module tools/responsive/search.tool
  */
 
-import { ZodError } from 'zod';
-import { logger, isDevelopment } from '../../utils/logger';
+import { ZodError } from "zod";
+import { logger, isDevelopment } from "../../utils/logger";
 import {
   responsiveSearchInputSchema,
   RESPONSIVE_MCP_ERROR_CODES,
   type ResponsiveSearchInput as ResponsiveSearchInputType,
-} from './schemas';
+} from "./schemas";
 import type {
   IResponsiveSearchService,
   ResponsiveSearchResult,
   ResponsiveSearchOptions,
-} from '../../services/responsive-search.service';
-import { applyPreferenceReranking } from '../../services/preference-rerank.helper';
-import type { IPrismaClient } from '../../services/preference-profile.service';
+} from "../../services/responsive-search.service";
+import { applyPreferenceReranking } from "../../services/preference-rerank.helper";
+import type { IPrismaClient } from "../../services/preference-profile.service";
 
 // =====================================================
 // 型定義
@@ -75,9 +75,7 @@ export type ResponsiveSearchOutput =
 
 let responsiveSearchServiceFactory: (() => IResponsiveSearchService) | null = null;
 
-export function setResponsiveSearchServiceFactory(
-  factory: () => IResponsiveSearchService
-): void {
+export function setResponsiveSearchServiceFactory(factory: () => IResponsiveSearchService): void {
   responsiveSearchServiceFactory = factory;
 }
 
@@ -97,9 +95,7 @@ let prismaClientFactory: (() => IPrismaClient) | null = null;
  * PrismaClientファクトリーを設定（嗜好リランキング用）
  * Set PrismaClient factory (for preference reranking)
  */
-export function setResponsiveSearchPrismaClientFactory(
-  factory: () => IPrismaClient
-): void {
+export function setResponsiveSearchPrismaClientFactory(factory: () => IPrismaClient): void {
   prismaClientFactory = factory;
 }
 
@@ -118,19 +114,19 @@ export function resetResponsiveSearchPrismaClientFactory(): void {
 function mapErrorToCode(error: Error): string {
   const message = error.message.toLowerCase();
 
-  if (message.includes('embedding') || message.includes('model')) {
+  if (message.includes("embedding") || message.includes("model")) {
     return RESPONSIVE_MCP_ERROR_CODES.EMBEDDING_FAILED;
   }
 
   if (
-    message.includes('database') ||
-    message.includes('prisma') ||
-    message.includes('connection')
+    message.includes("database") ||
+    message.includes("prisma") ||
+    message.includes("connection")
   ) {
     return RESPONSIVE_MCP_ERROR_CODES.SEARCH_FAILED;
   }
 
-  if (message.includes('timeout')) {
+  if (message.includes("timeout")) {
     return RESPONSIVE_MCP_ERROR_CODES.SEARCH_FAILED;
   }
 
@@ -141,13 +137,11 @@ function mapErrorToCode(error: Error): string {
 // メインハンドラー
 // =====================================================
 
-export async function responsiveSearchHandler(
-  input: unknown
-): Promise<ResponsiveSearchOutput> {
+export async function responsiveSearchHandler(input: unknown): Promise<ResponsiveSearchOutput> {
   const startTime = Date.now();
 
   if (isDevelopment()) {
-    logger.info('[MCP Tool] responsive.search called', {
+    logger.info("[MCP Tool] responsive.search called", {
       query: (input as Record<string, unknown>)?.query,
     });
   }
@@ -158,12 +152,10 @@ export async function responsiveSearchHandler(
     validated = responsiveSearchInputSchema.parse(input);
   } catch (error) {
     if (error instanceof ZodError) {
-      const errorMessage = error.errors
-        .map((e) => `${e.path.join('.')}: ${e.message}`)
-        .join(', ');
+      const errorMessage = error.errors.map((e) => `${e.path.join(".")}: ${e.message}`).join(", ");
 
       if (isDevelopment()) {
-        logger.error('[MCP Tool] responsive.search validation error', {
+        logger.error("[MCP Tool] responsive.search validation error", {
           errors: error.errors,
         });
       }
@@ -182,14 +174,14 @@ export async function responsiveSearchHandler(
   // サービスファクトリーチェック
   if (!responsiveSearchServiceFactory) {
     if (isDevelopment()) {
-      logger.error('[MCP Tool] responsive.search service factory not set');
+      logger.error("[MCP Tool] responsive.search service factory not set");
     }
 
     return {
       success: false,
       error: {
         code: RESPONSIVE_MCP_ERROR_CODES.SERVICE_UNAVAILABLE,
-        message: 'Responsive search service is not available',
+        message: "Responsive search service is not available",
       },
     };
   }
@@ -205,7 +197,9 @@ export async function responsiveSearchHandler(
 
     if (queryEmbedding === null) {
       if (isDevelopment()) {
-        logger.warn('[MCP Tool] responsive.search embedding not available, returning empty results');
+        logger.warn(
+          "[MCP Tool] responsive.search embedding not available, returning empty results"
+        );
       }
 
       return {
@@ -226,7 +220,7 @@ export async function responsiveSearchHandler(
     };
 
     if (validated.filters) {
-      const filters: ResponsiveSearchOptions['filters'] = {};
+      const filters: ResponsiveSearchOptions["filters"] = {};
       if (validated.filters.diffCategory) {
         filters.diffCategory = validated.filters.diffCategory;
       }
@@ -235,8 +229,12 @@ export async function responsiveSearchHandler(
       }
       if (validated.filters.breakpointRange) {
         filters.breakpointRange = {
-          ...(validated.filters.breakpointRange.min !== undefined && { min: validated.filters.breakpointRange.min }),
-          ...(validated.filters.breakpointRange.max !== undefined && { max: validated.filters.breakpointRange.max }),
+          ...(validated.filters.breakpointRange.min !== undefined && {
+            min: validated.filters.breakpointRange.min,
+          }),
+          ...(validated.filters.breakpointRange.max !== undefined && {
+            max: validated.filters.breakpointRange.max,
+          }),
         };
       }
       if (validated.filters.minDiffPercentage !== undefined) {
@@ -251,10 +249,7 @@ export async function responsiveSearchHandler(
     }
 
     // 検索実行
-    const searchResult = await service.searchResponsiveAnalyses(
-      queryEmbedding,
-      searchOptions
-    );
+    const searchResult = await service.searchResponsiveAnalyses(queryEmbedding, searchOptions);
 
     // 結果マッピング
     let mappedResults: ResponsiveSearchResultItem[] = searchResult.results.map(
@@ -278,7 +273,7 @@ export async function responsiveSearchHandler(
     const searchTimeMs = Date.now() - startTime;
 
     if (isDevelopment()) {
-      logger.info('[MCP Tool] responsive.search completed', {
+      logger.info("[MCP Tool] responsive.search completed", {
         query: validated.query,
         resultCount: mappedResults.length,
         total: searchResult.total,
@@ -287,7 +282,13 @@ export async function responsiveSearchHandler(
     }
 
     // 嗜好プロファイルによるリランキング / Preference profile reranking
-    mappedResults = await applyPreferenceReranking(mappedResults, validated.profile_id, prismaClientFactory, 'responsive', 'responsive.search');
+    mappedResults = await applyPreferenceReranking(
+      mappedResults,
+      validated.profile_id,
+      prismaClientFactory,
+      "responsive",
+      "responsive.search"
+    );
 
     return {
       success: true,
@@ -303,7 +304,7 @@ export async function responsiveSearchHandler(
     const errorCode = mapErrorToCode(errorInstance);
 
     if (isDevelopment()) {
-      logger.error('[MCP Tool] responsive.search error', {
+      logger.error("[MCP Tool] responsive.search error", {
         code: errorCode,
         error: errorInstance.message,
       });
@@ -324,86 +325,97 @@ export async function responsiveSearchHandler(
 // =====================================================
 
 export const responsiveSearchToolDefinition = {
-  name: 'responsive.search',
+  name: "responsive.search",
   description:
-    'レスポンシブデザイン分析結果をセマンティック検索します。' +
-    'ビューポート間の差異（レイアウト変化、ナビゲーション変化、表示切替等）を' +
-    '自然言語で検索できます。差異カテゴリ、ビューポートペア、ブレークポイント範囲、' +
-    'スクリーンショット差分率でフィルタリング可能です。',
+    "レスポンシブデザイン分析結果をセマンティック検索します。" +
+    "ビューポート間の差異（レイアウト変化、ナビゲーション変化、表示切替等）を" +
+    "自然言語で検索できます。差異カテゴリ、ビューポートペア、ブレークポイント範囲、" +
+    "スクリーンショット差分率でフィルタリング可能です。",
   annotations: {
-    title: 'Responsive Search',
+    title: "Responsive Search",
     readOnlyHint: true,
     idempotentHint: true,
     openWorldHint: false,
   },
   inputSchema: {
-    type: 'object' as const,
+    type: "object" as const,
     properties: {
       query: {
-        type: 'string',
-        description: '検索クエリ（自然言語、1-500文字）。例: "モバイルでハンバーガーメニューに変わるサイト"',
+        type: "string",
+        description:
+          '検索クエリ（自然言語、1-500文字）。例: "モバイルでハンバーガーメニューに変わるサイト"',
         minLength: 1,
         maxLength: 500,
       },
       limit: {
-        type: 'number',
-        description: '取得件数（1-50、デフォルト: 10）',
+        type: "number",
+        description: "取得件数（1-50、デフォルト: 10）",
         minimum: 1,
         maximum: 50,
         default: 10,
       },
       offset: {
-        type: 'number',
-        description: 'オフセット（0以上、デフォルト: 0）',
+        type: "number",
+        description: "オフセット（0以上、デフォルト: 0）",
         minimum: 0,
         default: 0,
       },
       filters: {
-        type: 'object',
-        description: '検索フィルター',
+        type: "object",
+        description: "検索フィルター",
         properties: {
           diffCategory: {
-            type: 'string',
-            enum: ['layout', 'typography', 'spacing', 'visibility', 'navigation', 'image', 'interaction', 'animation'],
-            description: 'レスポンシブ差異カテゴリでフィルター',
+            type: "string",
+            enum: [
+              "layout",
+              "typography",
+              "spacing",
+              "visibility",
+              "navigation",
+              "image",
+              "interaction",
+              "animation",
+            ],
+            description: "レスポンシブ差異カテゴリでフィルター",
           },
           viewportPair: {
-            type: 'string',
-            enum: ['desktop-tablet', 'desktop-mobile', 'tablet-mobile'],
-            description: 'ビューポートペアでフィルター',
+            type: "string",
+            enum: ["desktop-tablet", "desktop-mobile", "tablet-mobile"],
+            description: "ビューポートペアでフィルター",
           },
           breakpointRange: {
-            type: 'object',
-            description: 'ブレークポイント範囲でフィルター',
+            type: "object",
+            description: "ブレークポイント範囲でフィルター",
             properties: {
-              min: { type: 'number', description: '最小ブレークポイント（px）' },
-              max: { type: 'number', description: '最大ブレークポイント（px）' },
+              min: { type: "number", description: "最小ブレークポイント（px）" },
+              max: { type: "number", description: "最大ブレークポイント（px）" },
             },
           },
           minDiffPercentage: {
-            type: 'number',
-            description: '最小スクリーンショット差分率（0-100）',
+            type: "number",
+            description: "最小スクリーンショット差分率（0-100）",
             minimum: 0,
             maximum: 100,
           },
           webPageId: {
-            type: 'string',
-            format: 'uuid',
-            description: 'WebページIDでフィルター',
+            type: "string",
+            format: "uuid",
+            description: "WebページIDでフィルター",
           },
         },
       },
       // Preference reranking
       profile_id: {
-        type: 'string',
-        format: 'uuid',
-        description: '嗜好プロファイルID（検索結果のリランキングに使用） / Preference profile ID (used for search result reranking)',
+        type: "string",
+        format: "uuid",
+        description:
+          "嗜好プロファイルID（検索結果のリランキングに使用） / Preference profile ID (used for search result reranking)",
       },
     },
-    required: ['query'],
+    required: ["query"],
   },
 };
 
 if (isDevelopment()) {
-  logger.debug('[responsive.search] Tool module loaded');
+  logger.debug("[responsive.search] Tool module loaded");
 }

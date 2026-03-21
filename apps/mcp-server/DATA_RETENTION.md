@@ -10,12 +10,12 @@
 
 ### 対象テーブル / Tables
 
-| テーブル / Table | 内容 / Description | 主なカラム / Key Columns |
-|---|---|---|
-| `preference_profiles` | ユーザー嗜好プロファイル / User preference profiles | `id`, `name`, `preference_text`, `preference_embedding` (768-dim vector), `interaction_count`, `created_at`, `updated_at` |
-| `preference_signals` | 個別フィードバック記録 / Individual feedback records | `id`, `profile_id` (FK), `signal_type`, `signal_weight`, `target_type`, `target_id`, `feedback_text`, `created_at` |
-| `component_parts` / `component_part_embeddings` | UIパーツ分析データ / UI part analysis data | `id`, `web_page_id` (FK, CASCADE), `partType`, `text_embedding` (768-dim vector), `visual_embedding` (768-dim vector, nullable), `boundingBox`, `computedStyles`, `textContent`, `innerHTML`, `piiRiskLevel`, `cssClasses`, `attributes`, `created_at`, `updated_at` |
-| `section_embeddings` | セクション視覚ベクトル / Section visual embedding | `section_pattern_id` (FK, CASCADE), `vision_embedding` (768-dim vector, nullable) |
+| テーブル / Table                                | 内容 / Description                                   | 主なカラム / Key Columns                                                                                                                                                                                                                                             |
+| ----------------------------------------------- | ---------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `preference_profiles`                           | ユーザー嗜好プロファイル / User preference profiles  | `id`, `name`, `preference_text`, `preference_embedding` (768-dim vector), `interaction_count`, `created_at`, `updated_at`                                                                                                                                            |
+| `preference_signals`                            | 個別フィードバック記録 / Individual feedback records | `id`, `profile_id` (FK), `signal_type`, `signal_weight`, `target_type`, `target_id`, `feedback_text`, `created_at`                                                                                                                                                   |
+| `component_parts` / `component_part_embeddings` | UIパーツ分析データ / UI part analysis data           | `id`, `web_page_id` (FK, CASCADE), `partType`, `text_embedding` (768-dim vector), `visual_embedding` (768-dim vector, nullable), `boundingBox`, `computedStyles`, `textContent`, `innerHTML`, `piiRiskLevel`, `cssClasses`, `attributes`, `created_at`, `updated_at` |
+| `section_embeddings`                            | セクション視覚ベクトル / Section visual embedding    | `section_pattern_id` (FK, CASCADE), `vision_embedding` (768-dim vector, nullable)                                                                                                                                                                                    |
 
 ### データの性質 / Nature of Data
 
@@ -125,13 +125,13 @@ preference.get(profile_id: "<uuid>", include_signals: true)
 
 ### 適用されるGDPR条項 / Applicable GDPR Articles
 
-| 条項 / Article | 内容 / Subject | Reftrixでの対応 / Reftrix Implementation |
-|---|---|---|
-| **Art. 5(1)(e)** | 保存制限の原則 / Storage limitation | ユーザーが明示的に削除可能。自動期限切れなし（ローカルツールとして適切）。 / User can explicitly delete. No auto-expiry (appropriate for local tool). |
-| **Art. 6(1)(f)** | 正当な利益 / Legitimate interest | ユーザーの自発的な使用に基づくパーソナライズ。 / Personalization based on voluntary user engagement. |
-| **Art. 13/14** | 情報提供義務 / Information obligations | 本ドキュメントおよび `preference.hear` の `profiling_notice` で通知。 / Informed via this document and `profiling_notice` in `preference.hear`. |
-| **Art. 17** | 忘れられる権利 / Right to erasure | `preference.reset(hard_delete: true)` で完全削除。 / Full deletion via `preference.reset(hard_delete: true)`. |
-| **Art. 20** | データポータビリティの権利 / Right to data portability | `preference.get(include_signals: true)` でJSON形式エクスポート。 / JSON export via `preference.get(include_signals: true)`. |
+| 条項 / Article   | 内容 / Subject                                         | Reftrixでの対応 / Reftrix Implementation                                                                                                              |
+| ---------------- | ------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Art. 5(1)(e)** | 保存制限の原則 / Storage limitation                    | ユーザーが明示的に削除可能。自動期限切れなし（ローカルツールとして適切）。 / User can explicitly delete. No auto-expiry (appropriate for local tool). |
+| **Art. 6(1)(f)** | 正当な利益 / Legitimate interest                       | ユーザーの自発的な使用に基づくパーソナライズ。 / Personalization based on voluntary user engagement.                                                  |
+| **Art. 13/14**   | 情報提供義務 / Information obligations                 | 本ドキュメントおよび `preference.hear` の `profiling_notice` で通知。 / Informed via this document and `profiling_notice` in `preference.hear`.       |
+| **Art. 17**      | 忘れられる権利 / Right to erasure                      | `preference.reset(hard_delete: true)` で完全削除。 / Full deletion via `preference.reset(hard_delete: true)`.                                         |
+| **Art. 20**      | データポータビリティの権利 / Right to data portability | `preference.get(include_signals: true)` でJSON形式エクスポート。 / JSON export via `preference.get(include_signals: true)`.                           |
 
 ### データ処理のライフサイクル / Data Processing Lifecycle
 
@@ -155,13 +155,13 @@ preference.get(profile_id: "<uuid>", include_signals: true)
 
 ## 6. セキュリティ措置 / Security Measures
 
-| 措置 / Measure | 実装状況 / Implementation |
-|---|---|
-| 入力バリデーション / Input validation | Zodスキーマによる全入力検証 / All inputs validated via Zod schemas |
-| エラーメッセージサニタイズ / Error message sanitization | `sanitizeErrorMessage()` でDB構造の漏洩防止 / `sanitizeErrorMessage()` prevents DB structure leakage |
-| PII配慮ログ / PII-aware logging | `profileId.slice(0, 8) + '...'` でtruncate / Truncated with `profileId.slice(0, 8) + '...'` |
-| 監査証跡 / Audit trail | `hard_delete` は全環境で `logger.warn` 出力 / `hard_delete` outputs `logger.warn` in all environments |
-| CASCADE削除 / CASCADE deletion | `preference_signals` はプロファイル削除時に自動削除 / `preference_signals` auto-deleted on profile deletion |
+| 措置 / Measure                                          | 実装状況 / Implementation                                                                                   |
+| ------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| 入力バリデーション / Input validation                   | Zodスキーマによる全入力検証 / All inputs validated via Zod schemas                                          |
+| エラーメッセージサニタイズ / Error message sanitization | `sanitizeErrorMessage()` でDB構造の漏洩防止 / `sanitizeErrorMessage()` prevents DB structure leakage        |
+| PII配慮ログ / PII-aware logging                         | `profileId.slice(0, 8) + '...'` でtruncate / Truncated with `profileId.slice(0, 8) + '...'`                 |
+| 監査証跡 / Audit trail                                  | `hard_delete` は全環境で `logger.warn` 出力 / `hard_delete` outputs `logger.warn` in all environments       |
+| CASCADE削除 / CASCADE deletion                          | `preference_signals` はプロファイル削除時に自動削除 / `preference_signals` auto-deleted on profile deletion |
 
 ---
 
@@ -192,11 +192,11 @@ If specific legal judgment is needed, please consult a qualified attorney.
 
 ### 対象データ / Data in Scope
 
-| テーブル / Table | カラム / Columns | 内容 / Description |
-|---|---|---|
+| テーブル / Table                                | カラム / Columns                                                                  | 内容 / Description                                                                                                                                                                                                               |
+| ----------------------------------------------- | --------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `component_parts` / `component_part_embeddings` | `partType`, `text_embedding`, `visual_embedding`, `boundingBox`, `computedStyles` | UIパーツの構造・スタイル・ベクトルデータ（16種類: button, link, image, video, form, input, heading, card, navigation, footer, cta, hero_image, icon, badge, tag, avatar） / UI part structure, style, and vector data (16 types) |
-| `component_parts` / `component_part_embeddings` | `textContent`, `innerHTML` | パーツのテキスト内容・HTML構造（`part.inspect` でopt-in取得） / Part text content and HTML structure (opt-in retrieval via `part.inspect`) |
-| `component_parts` / `component_part_embeddings` | `piiRiskLevel`, `cssClasses`, `attributes` | PIIリスク判定結果、CSSクラス名、HTML属性 / PII risk assessment result, CSS class names, HTML attributes |
+| `component_parts` / `component_part_embeddings` | `textContent`, `innerHTML`                                                        | パーツのテキスト内容・HTML構造（`part.inspect` でopt-in取得） / Part text content and HTML structure (opt-in retrieval via `part.inspect`)                                                                                       |
+| `component_parts` / `component_part_embeddings` | `piiRiskLevel`, `cssClasses`, `attributes`                                        | PIIリスク判定結果、CSSクラス名、HTML属性 / PII risk assessment result, CSS class names, HTML attributes                                                                                                                          |
 
 ### 保持方針 / Retention Policy
 
@@ -216,10 +216,10 @@ Parts assessed as `piiRiskLevel='high'` (form inputs, password fields, etc.) hav
 
 ### GDPR対応 / GDPR Compliance
 
-| 条項 / Article | 内容 / Subject | 対応 / Implementation |
-|---|---|---|
-| **Art. 17** | 忘れられる権利 / Right to erasure | WebPage削除時に全関連 `component_parts` / `component_part_embeddings` がCASCADE削除。テキスト内容、ベクトル、バウンディングボックス、スタイル情報を含むすべてのデータが物理削除される。 / All associated `component_parts` / `component_part_embeddings` are CASCADE deleted when WebPage is deleted. All data including text content, vectors, bounding boxes, and style information is permanently removed. |
-| **Art. 5(1)(c)** | データ最小化の原則 / Data minimisation | `piiRiskLevel='high'` パーツの visual embedding スキップにより、PII関連データの収集を最小化。 / Minimises PII-related data collection by skipping visual embedding for `piiRiskLevel='high'` parts. |
+| 条項 / Article   | 内容 / Subject                         | 対応 / Implementation                                                                                                                                                                                                                                                                                                                                                                                         |
+| ---------------- | -------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Art. 17**      | 忘れられる権利 / Right to erasure      | WebPage削除時に全関連 `component_parts` / `component_part_embeddings` がCASCADE削除。テキスト内容、ベクトル、バウンディングボックス、スタイル情報を含むすべてのデータが物理削除される。 / All associated `component_parts` / `component_part_embeddings` are CASCADE deleted when WebPage is deleted. All data including text content, vectors, bounding boxes, and style information is permanently removed. |
+| **Art. 5(1)(c)** | データ最小化の原則 / Data minimisation | `piiRiskLevel='high'` パーツの visual embedding スキップにより、PII関連データの収集を最小化。 / Minimises PII-related data collection by skipping visual embedding for `piiRiskLevel='high'` parts.                                                                                                                                                                                                           |
 
 ---
 
@@ -227,8 +227,8 @@ Parts assessed as `piiRiskLevel='high'` (form inputs, password fields, etc.) hav
 
 ### 対象データ / Data in Scope
 
-| テーブル / Table | カラム / Columns | 内容 / Description |
-|---|---|---|
+| テーブル / Table     | カラム / Columns   | 内容 / Description                                                                                                                                                                                                                                                                     |
+| -------------------- | ------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `section_embeddings` | `vision_embedding` | セクションのスクリーンショットから生成された768次元ベクトル（DINOv2 ViT-B/14、L2正規化済み）。セクション高さ < 10px の場合はスキップ（null）。 / 768-dimensional vector generated from section screenshot (DINOv2 ViT-B/14, L2-normalized). Skipped (null) when section height < 10px. |
 
 ### 保持方針 / Retention Policy
@@ -273,10 +273,10 @@ Blank image detection → Playwright capture (held in memory only) → DINOv2 in
 
 ### GDPR対応 / GDPR Compliance
 
-| 条項 / Article | 内容 / Subject | 対応 / Implementation |
-|---|---|---|
-| **Art. 17** | 忘れられる権利 / Right to erasure | WebPage削除時に全関連 `section_embeddings` がCASCADE削除。ベクトルデータを含むすべてのデータが物理削除される。 / All associated `section_embeddings` are CASCADE deleted when WebPage is deleted. All data including vector data is permanently removed. |
-| **Art. 5(1)(c)** | データ最小化の原則 / Data minimisation | `piiRiskLevel='high'` パーツを含むセクションの visual embedding スキップにより、PII関連データの収集を最小化。 / Minimises PII-related data collection by skipping visual embedding for sections containing `piiRiskLevel='high'` parts. |
+| 条項 / Article   | 内容 / Subject                         | 対応 / Implementation                                                                                                                                                                                                                                    |
+| ---------------- | -------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Art. 17**      | 忘れられる権利 / Right to erasure      | WebPage削除時に全関連 `section_embeddings` がCASCADE削除。ベクトルデータを含むすべてのデータが物理削除される。 / All associated `section_embeddings` are CASCADE deleted when WebPage is deleted. All data including vector data is permanently removed. |
+| **Art. 5(1)(c)** | データ最小化の原則 / Data minimisation | `piiRiskLevel='high'` パーツを含むセクションの visual embedding スキップにより、PII関連データの収集を最小化。 / Minimises PII-related data collection by skipping visual embedding for sections containing `piiRiskLevel='high'` parts.                  |
 
 ---
 
@@ -284,9 +284,9 @@ Blank image detection → Playwright capture (held in memory only) → DINOv2 in
 
 ### 対象データ / Data in Scope
 
-| テーブル / Table | カラム / Columns | 内容 / Description |
-|---|---|---|
-| `web_pages` | `html`, `screenshot` | クロール時に取得したHTML（DOMPurifyサニタイズ済み）、スクリーンショット画像 / Crawled HTML (DOMPurify-sanitized), screenshot images |
+| テーブル / Table   | カラム / Columns                                                     | 内容 / Description                                                                                                                                                                                                       |
+| ------------------ | -------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `web_pages`        | `html`, `screenshot`                                                 | クロール時に取得したHTML（DOMPurifyサニタイズ済み）、スクリーンショット画像 / Crawled HTML (DOMPurify-sanitized), screenshot images                                                                                      |
 | `section_patterns` | `htmlSnippet`, `cssSnippet`, `externalCssContent`, `externalCssMeta` | セクション単位のHTMLスニペット、ページレベルCSS（インライン+styleタグ+外部CSS実内容）、外部CSSメタデータ / Per-section HTML snippets, page-level CSS (inline + style tags + external CSS content), external CSS metadata |
 
 ### 保持方針 / Retention Policy
@@ -305,11 +305,11 @@ Crawl data is overwritten on re-analysis using the clean-slate pattern (`deleteM
 
 ## 変更履歴 / Changelog
 
-| 日付 / Date | バージョン / Version | 内容 / Description |
-|---|---|---|
-| 2026-03-14 | 1.5.0 | Blank Image Detection + Dynamic Fallback (v0.1.9) のデータフロー・PII保護・上限記述を追加 / Added data flow, PII protection, and cap description for Blank Image Detection + Dynamic Fallback (v0.1.9) |
-| 2026-03-14 | 1.4.0 | Section Screenshot Fallback (v0.1.6) のフォールバック機構透明性記述を追加（メモリ上一時保持、DB非保存） / Added fallback mechanism transparency for Section Screenshot Fallback (v0.1.6) (in-memory only, not persisted to DB) |
-| 2026-03-13 | 1.3.0 | Section Visual Embedding データ保持セクション追加（section_embeddings.vision_embedding、PII保護、CASCADE削除） / Added Section Visual Embedding data retention section (section_embeddings.vision_embedding, PII protection, CASCADE deletion) |
-| 2026-03-13 | 1.2.0 | Part-Level Analysis データ保持セクション追加（component_parts / component_part_embeddings テーブル、PII保護、CASCADE削除） / Added Part-Level Analysis data retention section (component_parts / component_part_embeddings tables, PII protection, CASCADE deletion) |
-| 2026-03-11 | 1.1.0 | クロールデータ保持セクション追加 / Added crawl data retention section |
-| 2026-03-08 | 1.0.0 | 初版作成 / Initial version |
+| 日付 / Date | バージョン / Version | 内容 / Description                                                                                                                                                                                                                                                   |
+| ----------- | -------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 2026-03-14  | 1.5.0                | Blank Image Detection + Dynamic Fallback (v0.1.9) のデータフロー・PII保護・上限記述を追加 / Added data flow, PII protection, and cap description for Blank Image Detection + Dynamic Fallback (v0.1.9)                                                               |
+| 2026-03-14  | 1.4.0                | Section Screenshot Fallback (v0.1.6) のフォールバック機構透明性記述を追加（メモリ上一時保持、DB非保存） / Added fallback mechanism transparency for Section Screenshot Fallback (v0.1.6) (in-memory only, not persisted to DB)                                       |
+| 2026-03-13  | 1.3.0                | Section Visual Embedding データ保持セクション追加（section_embeddings.vision_embedding、PII保護、CASCADE削除） / Added Section Visual Embedding data retention section (section_embeddings.vision_embedding, PII protection, CASCADE deletion)                       |
+| 2026-03-13  | 1.2.0                | Part-Level Analysis データ保持セクション追加（component_parts / component_part_embeddings テーブル、PII保護、CASCADE削除） / Added Part-Level Analysis data retention section (component_parts / component_part_embeddings tables, PII protection, CASCADE deletion) |
+| 2026-03-11  | 1.1.0                | クロールデータ保持セクション追加 / Added crawl data retention section                                                                                                                                                                                                |
+| 2026-03-08  | 1.0.0                | 初版作成 / Initial version                                                                                                                                                                                                                                           |

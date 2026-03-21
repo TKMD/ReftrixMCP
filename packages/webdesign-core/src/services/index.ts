@@ -20,7 +20,7 @@ export {
   type ProbeResult,
   type ComplexityAnalysis,
   type IPreflightProbeService,
-} from './preflight-probe.service';
+} from "./preflight-probe.service";
 
 // Element Visibility Detector
 export {
@@ -33,4 +33,4 @@ export {
   type FrameData,
   type BoundingBox,
   type VisibilityEventType,
-} from './element-visibility-detector';
+} from "./element-visibility-detector";

@@ -8,9 +8,9 @@
  * @module services/responsive/multi-viewport-capture.service
  */
 
-import { type Browser, type Page, type BrowserContext } from 'playwright';
-import { logger, isDevelopment } from '../../utils/logger';
-import { SharedBrowserManager } from './shared-browser-manager';
+import { type Browser, type Page, type BrowserContext } from "playwright";
+import { logger, isDevelopment } from "../../utils/logger";
+import { SharedBrowserManager } from "./shared-browser-manager";
 import type {
   ResponsiveViewport,
   ViewportCaptureResult,
@@ -19,29 +19,29 @@ import type {
   NavigationInfo,
   MultiViewportCaptureOptions,
   SemanticElementInfo,
-} from './types';
-import { extractCssUrls, fetchAllCss } from '../external-css-fetcher';
+} from "./types";
+import { extractCssUrls, fetchAllCss } from "../external-css-fetcher";
 
 /**
  * デフォルトビューポートプリセット
  */
 export const DEFAULT_VIEWPORTS: ResponsiveViewport[] = [
-  { name: 'desktop', width: 1920, height: 1080 },
-  { name: 'tablet', width: 768, height: 1024 },
-  { name: 'mobile', width: 375, height: 667 },
+  { name: "desktop", width: 1920, height: 1080 },
+  { name: "tablet", width: 768, height: 1024 },
+  { name: "mobile", width: 375, height: 667 },
 ];
 
 /**
  * デフォルトナビゲーションセレクタ
  */
 const DEFAULT_NAV_SELECTORS = [
-  'nav',
-  'header nav',
+  "nav",
+  "header nav",
   '[role="navigation"]',
-  '.navigation',
-  '.nav',
-  '#nav',
-  '#navigation',
+  ".navigation",
+  ".nav",
+  "#nav",
+  "#navigation",
 ];
 
 /**
@@ -54,23 +54,23 @@ export const MAX_SCREENSHOT_HEIGHT = 30_000;
  * デフォルトハンバーガーメニューセレクタ
  */
 const DEFAULT_HAMBURGER_SELECTORS = [
-  '.hamburger',
-  '.hamburger-menu',
-  '.burger',
-  '.burger-menu',
+  ".hamburger",
+  ".hamburger-menu",
+  ".burger",
+  ".burger-menu",
   '[aria-label*="menu"]',
   '[aria-label*="Menu"]',
-  '.mobile-menu-toggle',
-  '.menu-toggle',
-  'button[aria-expanded]',
-  '.nav-toggle',
+  ".mobile-menu-toggle",
+  ".menu-toggle",
+  "button[aria-expanded]",
+  ".nav-toggle",
 ];
 
 /**
  * Multi-Viewport Capture Service
  */
 export class MultiViewportCaptureService {
-  private readonly browserManager = new SharedBrowserManager('MultiViewportCapture');
+  private readonly browserManager = new SharedBrowserManager("MultiViewportCapture");
 
   /**
    * 複数ビューポートでページをキャプチャ
@@ -89,7 +89,7 @@ export class MultiViewportCaptureService {
     const startTime = Date.now();
 
     if (isDevelopment()) {
-      logger.info('[MultiViewportCapture] Starting multi-viewport capture', {
+      logger.info("[MultiViewportCapture] Starting multi-viewport capture", {
         url,
         viewports: viewports.map((v) => v.name),
         usingSharedBrowser: !!sharedBrowser,
@@ -107,12 +107,12 @@ export class MultiViewportCaptureService {
         const crawlDelay = options.crawlDelayMs;
         if (viewportIndex > 0 && crawlDelay !== undefined && crawlDelay > 0) {
           if (isDevelopment()) {
-            logger.info('[MultiViewportCapture] Applying crawl-delay before capture', {
+            logger.info("[MultiViewportCapture] Applying crawl-delay before capture", {
               viewport: viewport.name,
               crawlDelayMs: crawlDelay,
             });
           }
-          await new Promise<void>(resolve => setTimeout(resolve, crawlDelay));
+          await new Promise<void>((resolve) => setTimeout(resolve, crawlDelay));
         }
 
         const result = await this.captureAtViewport(browser, url, viewport, options);
@@ -120,14 +120,14 @@ export class MultiViewportCaptureService {
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error);
         if (isDevelopment()) {
-          logger.error('[MultiViewportCapture] Capture failed for viewport', {
+          logger.error("[MultiViewportCapture] Capture failed for viewport", {
             viewport: viewport.name,
             error: errorMessage,
           });
         }
         results.push({
           viewport,
-          html: '',
+          html: "",
           layoutInfo: this.createEmptyLayoutInfo(viewport),
           navigationInfo: this.createDefaultNavigationInfo(),
           error: errorMessage,
@@ -138,7 +138,7 @@ export class MultiViewportCaptureService {
 
     const elapsedMs = Date.now() - startTime;
     if (isDevelopment()) {
-      logger.info('[MultiViewportCapture] Multi-viewport capture completed', {
+      logger.info("[MultiViewportCapture] Multi-viewport capture completed", {
         url,
         viewportsCount: results.length,
         successCount: results.filter((r) => !r.error).length,
@@ -177,7 +177,7 @@ export class MultiViewportCaptureService {
       // ページに移動
       await page.goto(url, {
         timeout: options.timeout,
-        waitUntil: options.waitUntil ?? 'load',
+        waitUntil: options.waitUntil ?? "load",
       });
 
       // DOM安定化待機（オプション）
@@ -268,7 +268,10 @@ export class MultiViewportCaptureService {
    * Phase 2: セマンティック要素のcomputedStyleベース検出 + 既存セレクタベースのフォールバック
    * Phase 4: 拡張タイポグラフィ（h1-h6, p:first-of-type）、セクション間スペーシング
    */
-  private async extractLayoutInfo(page: Page, _viewport: ResponsiveViewport): Promise<ViewportLayoutInfo> {
+  private async extractLayoutInfo(
+    page: Page,
+    _viewport: ResponsiveViewport
+  ): Promise<ViewportLayoutInfo> {
     const info = await page.evaluate(`
       (function() {
         // ブレークポイント抽出（同一オリジンのスタイルシートのみ）
@@ -658,16 +661,19 @@ export class MultiViewportCaptureService {
 
       if (clipped) {
         if (isDevelopment()) {
-          logger.warn('[MultiViewportCapture] Page height exceeds MAX_SCREENSHOT_HEIGHT, clipping screenshot', {
-            viewport: viewport.name,
-            scrollHeight,
-            maxHeight: MAX_SCREENSHOT_HEIGHT,
-          });
+          logger.warn(
+            "[MultiViewportCapture] Page height exceeds MAX_SCREENSHOT_HEIGHT, clipping screenshot",
+            {
+              viewport: viewport.name,
+              scrollHeight,
+              maxHeight: MAX_SCREENSHOT_HEIGHT,
+            }
+          );
         }
         // clip を指定して上限までキャプチャ（fullPage: false で clip 指定）
         buffer = await page.screenshot({
           fullPage: false,
-          type: 'png',
+          type: "png",
           clip: {
             x: 0,
             y: 0,
@@ -679,14 +685,14 @@ export class MultiViewportCaptureService {
       } else {
         buffer = await page.screenshot({
           fullPage: true,
-          type: 'png',
+          type: "png",
         });
         capturedHeight = scrollHeight;
       }
     } else {
       buffer = await page.screenshot({
         fullPage: false,
-        type: 'png',
+        type: "png",
       });
       capturedHeight = viewport.height;
     }
@@ -696,8 +702,8 @@ export class MultiViewportCaptureService {
       width: viewport.width,
       height: viewport.height,
       screenshot: {
-        base64: buffer.toString('base64'),
-        format: 'png',
+        base64: buffer.toString("base64"),
+        format: "png",
         width: viewport.width,
         height: capturedHeight,
       },
@@ -723,7 +729,7 @@ export class MultiViewportCaptureService {
    */
   private createDefaultNavigationInfo(): NavigationInfo {
     return {
-      type: 'other',
+      type: "other",
       hasHamburgerMenu: false,
       hasHorizontalMenu: false,
       hasBottomNav: false,
@@ -771,7 +777,7 @@ export class MultiViewportCaptureService {
       }
 
       if (isDevelopment()) {
-        logger.info('[MultiViewportCapture] External CSS breakpoints extracted', {
+        logger.info("[MultiViewportCapture] External CSS breakpoints extracted", {
           cssUrlCount: cssUrls.length,
           breakpointCount: breakpoints.size,
         });
@@ -780,7 +786,7 @@ export class MultiViewportCaptureService {
       return Array.from(breakpoints);
     } catch (error) {
       if (isDevelopment()) {
-        logger.warn('[MultiViewportCapture] Failed to extract breakpoints from external CSS', {
+        logger.warn("[MultiViewportCapture] Failed to extract breakpoints from external CSS", {
           error: error instanceof Error ? error.message : String(error),
         });
       }
@@ -808,10 +814,14 @@ export class MultiViewportCaptureService {
       page = await context.newPage();
       page.setDefaultTimeout(timeout);
 
-      await page.goto(url, { timeout, waitUntil: 'load' });
+      await page.goto(url, { timeout, waitUntil: "load" });
       await this.waitForDomStable(page, 300);
 
-      const layoutInfo = await this.extractLayoutInfo(page, { name: `probe-${width}`, width, height: 800 });
+      const layoutInfo = await this.extractLayoutInfo(page, {
+        name: `probe-${width}`,
+        width,
+        height: 800,
+      });
       return layoutInfo.semanticElements ?? [];
     } finally {
       if (page) await page.close().catch(() => {});
@@ -846,7 +856,12 @@ export class MultiViewportCaptureService {
         const highWidth = Math.min(4096, candidate + 50);
 
         const stylesLow = await this.captureSemanticStylesAtWidth(browser, url, lowWidth, timeout);
-        const stylesHigh = await this.captureSemanticStylesAtWidth(browser, url, highWidth, timeout);
+        const stylesHigh = await this.captureSemanticStylesAtWidth(
+          browser,
+          url,
+          highWidth,
+          timeout
+        );
 
         if (!this.semanticStylesDiffer(stylesLow, stylesHigh)) {
           // スタイルが同じ → このブレークポイントでは変化なし
@@ -874,7 +889,7 @@ export class MultiViewportCaptureService {
         results.push({ value: hi, verified: true });
       } catch (error) {
         if (isDevelopment()) {
-          logger.warn('[MultiViewportCapture] Precise breakpoint detection failed', {
+          logger.warn("[MultiViewportCapture] Precise breakpoint detection failed", {
             candidate,
             error: error instanceof Error ? error.message : String(error),
           });

@@ -37,12 +37,12 @@ Reftrix uses the following AI/ML models as optional features in its web design s
 
 ## 2. モデル一覧 / Model Summary
 
-| モデル / Model | 用途 / Usage | ライセンス / License | 地域制限 / Regional Restriction | 必須 / Required |
-|---|---|---|---|---|
-| **Llama 3.2 Vision** (11B) | Scroll Vision Analysis (Phase 2.5) | Llama 3.2 Community License | **EU域内制限あり / EU Restricted** | いいえ / No |
-| **multilingual-e5-base** | Embedding生成 (768次元) | MIT License | なし / None | はい / Yes |
-| **DINOv2 ViT-B/14** | Visual Embedding生成 (768次元) | Apache License 2.0 | なし / None | いいえ / No |
-| **ONNX Runtime** | ML推論エンジン | MIT License | なし / None | はい / Yes |
+| モデル / Model             | 用途 / Usage                       | ライセンス / License        | 地域制限 / Regional Restriction    | 必須 / Required |
+| -------------------------- | ---------------------------------- | --------------------------- | ---------------------------------- | --------------- |
+| **Llama 3.2 Vision** (11B) | Scroll Vision Analysis (Phase 2.5) | Llama 3.2 Community License | **EU域内制限あり / EU Restricted** | いいえ / No     |
+| **multilingual-e5-base**   | Embedding生成 (768次元)            | MIT License                 | なし / None                        | はい / Yes      |
+| **DINOv2 ViT-B/14**        | Visual Embedding生成 (768次元)     | Apache License 2.0          | なし / None                        | いいえ / No     |
+| **ONNX Runtime**           | ML推論エンジン                     | MIT License                 | なし / None                        | はい / Yes      |
 
 ---
 
@@ -75,6 +75,7 @@ Llama 3.2 Vision (11B parameters) is used in Reftrix's Scroll Vision Analysis fe
 Llama 3.2 Visionは、**Llama 3.2 Community License Agreement**（Meta Platforms, Inc.独自ライセンス）の下で提供されています。これはOpen Source Initiative（OSI）が承認するオープンソースライセンスではなく、Meta社の独自商用ライセンスです。
 
 **主要条件**:
+
 - 商用利用: 許可（条件付き）
 - 月間アクティブユーザー（MAU）制限: 月間7億MAUを超える製品・サービスの場合、Metaへの個別ライセンス申請が必要
 - 帰属表示義務: 「Built with Llama」の目立つ表示が必要
@@ -89,6 +90,7 @@ Llama 3.2 Visionは、**Llama 3.2 Community License Agreement**（Meta Platforms
 Llama 3.2 Vision is provided under the **Llama 3.2 Community License Agreement**, a proprietary license by Meta Platforms, Inc. This is NOT an Open Source Initiative (OSI)-approved open-source license.
 
 **Key terms**:
+
 - Commercial use: Permitted (with conditions)
 - Monthly Active Users (MAU) limit: Products/services exceeding 700 million MAU require a separate license from Meta
 - Attribution obligation: Must prominently display "Built with Llama"
@@ -108,14 +110,14 @@ Llama 3.2 Vision is provided under the **Llama 3.2 Community License Agreement**
 
 **これは以下を意味します**:
 
-| 対象 | 制限の適用 |
-|------|-----------|
-| EU域内に住所を有する**個人** | ライセンス権が付与されない |
-| EU域内に主たる事業所を有する**法人** | ライセンス権が付与されない |
-| Llama 3.2 **テキストのみ**モデル（1B, 3B） | **制限なし**（マルチモーダルモデルではないため） |
-| Llama 3.2 **Vision**モデル（11B, 90B） | **制限あり**（マルチモーダルモデルに該当） |
-| マルチモーダルモデルを組み込んだ製品・サービスの**エンドユーザー** | **制限なし**（エンドユーザー例外の適用） |
-| EU域外に主たる事業所を有する法人がEU域内に提供するサービス | **制限なし**（標準的なグローバル配布として許容） |
+| 対象                                                               | 制限の適用                                       |
+| ------------------------------------------------------------------ | ------------------------------------------------ |
+| EU域内に住所を有する**個人**                                       | ライセンス権が付与されない                       |
+| EU域内に主たる事業所を有する**法人**                               | ライセンス権が付与されない                       |
+| Llama 3.2 **テキストのみ**モデル（1B, 3B）                         | **制限なし**（マルチモーダルモデルではないため） |
+| Llama 3.2 **Vision**モデル（11B, 90B）                             | **制限あり**（マルチモーダルモデルに該当）       |
+| マルチモーダルモデルを組み込んだ製品・サービスの**エンドユーザー** | **制限なし**（エンドユーザー例外の適用）         |
+| EU域外に主たる事業所を有する法人がEU域内に提供するサービス         | **制限なし**（標準的なグローバル配布として許容） |
 
 **制限の理由**: Meta社は、EU域内におけるGDPR（一般データ保護規則）への準拠状況やEU AI Act（EU人工知能法）等の規制不確実性を理由として、マルチモーダルモデルのEU域内でのライセンス付与を見合わせています。
 
@@ -129,14 +131,14 @@ Llama 3.2 Vision is provided under the **Llama 3.2 Community License Agreement**
 
 **This means**:
 
-| Subject | Restriction Applies |
-|---------|---------------------|
-| **Individuals** domiciled in the EU | License rights NOT granted |
-| **Companies** with principal place of business in the EU | License rights NOT granted |
-| Llama 3.2 **text-only** models (1B, 3B) | **No restriction** (not multimodal) |
-| Llama 3.2 **Vision** models (11B, 90B) | **Restricted** (classified as multimodal) |
-| **End users** of products/services incorporating multimodal models | **No restriction** (end-user exception) |
-| Non-EU companies distributing services to EU customers | **No restriction** (permitted under standard global distribution) |
+| Subject                                                            | Restriction Applies                                               |
+| ------------------------------------------------------------------ | ----------------------------------------------------------------- |
+| **Individuals** domiciled in the EU                                | License rights NOT granted                                        |
+| **Companies** with principal place of business in the EU           | License rights NOT granted                                        |
+| Llama 3.2 **text-only** models (1B, 3B)                            | **No restriction** (not multimodal)                               |
+| Llama 3.2 **Vision** models (11B, 90B)                             | **Restricted** (classified as multimodal)                         |
+| **End users** of products/services incorporating multimodal models | **No restriction** (end-user exception)                           |
+| Non-EU companies distributing services to EU customers             | **No restriction** (permitted under standard global distribution) |
 
 **Reason for restriction**: Meta cites regulatory uncertainty around GDPR compliance and the EU AI Act as the reason for withholding multimodal model licenses in the EU.
 
@@ -174,14 +176,14 @@ Llama 3.2 Vision is provided under the **Llama 3.2 Community License Agreement**
 
 以下のVision LLMはEU地域制限がなく、Ollama経由でReftrixと併用可能です。
 
-| モデル | ライセンス | EU制限 | Ollama対応 | 備考 |
-|-------|-----------|--------|-----------|------|
-| **Qwen2.5-VL** (7B/32B) | Apache 2.0 | なし | あり (`ollama pull qwen2.5vl`) | Alibaba Cloud提供。高い多言語対応力。推奨代替 |
-| **Qwen3-VL** (2B/8B) | Apache 2.0 | なし | あり (`ollama pull qwen3-vl`) | Qwenシリーズ最新。より高精度 |
-| **Gemma 3** (4B/12B/27B) | Gemma Terms of Use | EU固有制限なし | あり (`ollama pull gemma3`) | Google DeepMind提供。地域制限の明示なし |
-| **Mistral** (各種) | Apache 2.0 | なし | あり | 欧州企業Mistral AI提供。EUフレンドリー |
-| **MiniCPM-V** | Apache 2.0 | なし | あり | 軽量Vision LLM |
-| **Moondream** (2B) | Apache 2.0 | なし | あり (`ollama pull moondream`) | 非常に軽量、エッジデバイス向け |
+| モデル                   | ライセンス         | EU制限         | Ollama対応                     | 備考                                          |
+| ------------------------ | ------------------ | -------------- | ------------------------------ | --------------------------------------------- |
+| **Qwen2.5-VL** (7B/32B)  | Apache 2.0         | なし           | あり (`ollama pull qwen2.5vl`) | Alibaba Cloud提供。高い多言語対応力。推奨代替 |
+| **Qwen3-VL** (2B/8B)     | Apache 2.0         | なし           | あり (`ollama pull qwen3-vl`)  | Qwenシリーズ最新。より高精度                  |
+| **Gemma 3** (4B/12B/27B) | Gemma Terms of Use | EU固有制限なし | あり (`ollama pull gemma3`)    | Google DeepMind提供。地域制限の明示なし       |
+| **Mistral** (各種)       | Apache 2.0         | なし           | あり                           | 欧州企業Mistral AI提供。EUフレンドリー        |
+| **MiniCPM-V**            | Apache 2.0         | なし           | あり                           | 軽量Vision LLM                                |
+| **Moondream** (2B)       | Apache 2.0         | なし           | あり (`ollama pull moondream`) | 非常に軽量、エッジデバイス向け                |
 
 **推奨**: EU域内のユーザーには、**Qwen2.5-VL** または **Qwen3-VL** を推奨します。Apache 2.0ライセンスにより地域制限がなく、多言語（日本語・英語を含む）での画像理解に優れています。
 
@@ -201,14 +203,14 @@ OLLAMA_VISION_MODEL=qwen2.5vl:7b   # デフォルトの llama3.2-vision を上�
 
 The following Vision LLMs have no EU regional restrictions and can be used with Reftrix via Ollama:
 
-| Model | License | EU Restriction | Ollama | Notes |
-|-------|---------|----------------|--------|-------|
-| **Qwen2.5-VL** (7B/32B) | Apache 2.0 | None | Yes (`ollama pull qwen2.5vl`) | By Alibaba Cloud. Strong multilingual support. Recommended |
-| **Qwen3-VL** (2B/8B) | Apache 2.0 | None | Yes (`ollama pull qwen3-vl`) | Latest Qwen series. Higher accuracy |
-| **Gemma 3** (4B/12B/27B) | Gemma Terms of Use | No explicit EU restriction | Yes (`ollama pull gemma3`) | By Google DeepMind |
-| **Mistral** (various) | Apache 2.0 | None | Yes | By Mistral AI (EU-based company). EU-friendly |
-| **MiniCPM-V** | Apache 2.0 | None | Yes | Lightweight Vision LLM |
-| **Moondream** (2B) | Apache 2.0 | None | Yes (`ollama pull moondream`) | Very lightweight, edge-friendly |
+| Model                    | License            | EU Restriction             | Ollama                        | Notes                                                      |
+| ------------------------ | ------------------ | -------------------------- | ----------------------------- | ---------------------------------------------------------- |
+| **Qwen2.5-VL** (7B/32B)  | Apache 2.0         | None                       | Yes (`ollama pull qwen2.5vl`) | By Alibaba Cloud. Strong multilingual support. Recommended |
+| **Qwen3-VL** (2B/8B)     | Apache 2.0         | None                       | Yes (`ollama pull qwen3-vl`)  | Latest Qwen series. Higher accuracy                        |
+| **Gemma 3** (4B/12B/27B) | Gemma Terms of Use | No explicit EU restriction | Yes (`ollama pull gemma3`)    | By Google DeepMind                                         |
+| **Mistral** (various)    | Apache 2.0         | None                       | Yes                           | By Mistral AI (EU-based company). EU-friendly              |
+| **MiniCPM-V**            | Apache 2.0         | None                       | Yes                           | Lightweight Vision LLM                                     |
+| **Moondream** (2B)       | Apache 2.0         | None                       | Yes (`ollama pull moondream`) | Very lightweight, edge-friendly                            |
 
 **Recommendation**: For EU-based users, we recommend **Qwen2.5-VL** or **Qwen3-VL**. Their Apache 2.0 license has no regional restrictions, and they excel at multilingual (including Japanese and English) image understanding.
 
@@ -294,14 +296,14 @@ multilingual-e5-base (intfloat/multilingual-e5-base) is used in Reftrix's embedd
 
 ### 4.2 ライセンス / License
 
-| 項目 / Item | 内容 / Details |
-|---|---|
-| ライセンス / License | **MIT License** |
-| 提供元 / Provider | Microsoft Research (intfloat) |
-| 商用利用 / Commercial use | 許可 / Permitted |
-| 改変・再配布 / Modification & redistribution | 許可 / Permitted |
-| 地域制限 / Regional restriction | **なし / None** |
-| AGPL-3.0との互換性 / AGPL-3.0 compatibility | **互換 / Compatible** |
+| 項目 / Item                                  | 内容 / Details                |
+| -------------------------------------------- | ----------------------------- |
+| ライセンス / License                         | **MIT License**               |
+| 提供元 / Provider                            | Microsoft Research (intfloat) |
+| 商用利用 / Commercial use                    | 許可 / Permitted              |
+| 改変・再配布 / Modification & redistribution | 許可 / Permitted              |
+| 地域制限 / Regional restriction              | **なし / None**               |
+| AGPL-3.0との互換性 / AGPL-3.0 compatibility  | **互換 / Compatible**         |
 
 **出典 / Source**: https://huggingface.co/intfloat/multilingual-e5-base
 
@@ -339,15 +341,15 @@ DINOv2 ViT-B/14 (Meta AI Research) is used for visual embedding generation in Re
 
 ### 5.2 ライセンス / License
 
-| 項目 / Item | 内容 / Details |
-|---|---|
-| ライセンス / License | **Apache License 2.0** |
-| 提供元 / Provider | Meta AI Research (FAIR) |
-| 商用利用 / Commercial use | 許可 / Permitted |
+| 項目 / Item                                  | 内容 / Details                                                                                                      |
+| -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| ライセンス / License                         | **Apache License 2.0**                                                                                              |
+| 提供元 / Provider                            | Meta AI Research (FAIR)                                                                                             |
+| 商用利用 / Commercial use                    | 許可 / Permitted                                                                                                    |
 | 改変・再配布 / Modification & redistribution | 許可（著作権表示・ライセンス表示の維持が必要） / Permitted (requires preservation of copyright and license notices) |
-| 特許付与 / Patent grant | あり（Apache-2.0 第3条に基づく明示的特許ライセンス） / Yes (explicit patent license under Section 3 of Apache-2.0) |
-| 地域制限 / Regional restriction | **なし / None** |
-| AGPL-3.0との互換性 / AGPL-3.0 compatibility | **互換 / Compatible**（FSFがApache-2.0はGPLv3互換と確認済み） / (FSF confirms Apache-2.0 is GPLv3-compatible) |
+| 特許付与 / Patent grant                      | あり（Apache-2.0 第3条に基づく明示的特許ライセンス） / Yes (explicit patent license under Section 3 of Apache-2.0)  |
+| 地域制限 / Regional restriction              | **なし / None**                                                                                                     |
+| AGPL-3.0との互換性 / AGPL-3.0 compatibility  | **互換 / Compatible**（FSFがApache-2.0はGPLv3互換と確認済み） / (FSF confirms Apache-2.0 is GPLv3-compatible)       |
 
 **出典 / Source**: https://github.com/facebookresearch/dinov2
 
@@ -359,25 +361,25 @@ DINOv2 ViT-B/14 (Meta AI Research) is used for visual embedding generation in Re
 
 同じMeta AI Researchから提供されているLlama 3.2 Visionとは異なり、DINOv2は**Apache License 2.0**で提供されています。これはOSI承認のオープンソースライセンスであり、以下の重要な違いがあります:
 
-| 比較項目 / Comparison | DINOv2 | Llama 3.2 Vision |
-|---|---|---|
-| ライセンス / License | Apache-2.0（OSI承認） | Llama 3.2 Community License（独自） |
-| EU地域制限 / EU restriction | **なし** | **あり（マルチモーダルモデル）** |
-| MAU制限 / MAU limit | **なし** | 7億MAU超で個別ライセンス必要 |
-| 帰属表示 / Attribution | 著作権表示の維持のみ | 「Built with Llama」の表示義務 |
-| 特許付与 / Patent grant | **明示的** | 限定的 |
+| 比較項目 / Comparison       | DINOv2                | Llama 3.2 Vision                    |
+| --------------------------- | --------------------- | ----------------------------------- |
+| ライセンス / License        | Apache-2.0（OSI承認） | Llama 3.2 Community License（独自） |
+| EU地域制限 / EU restriction | **なし**              | **あり（マルチモーダルモデル）**    |
+| MAU制限 / MAU limit         | **なし**              | 7億MAU超で個別ライセンス必要        |
+| 帰属表示 / Attribution      | 著作権表示の維持のみ  | 「Built with Llama」の表示義務      |
+| 特許付与 / Patent grant     | **明示的**            | 限定的                              |
 
 #### English
 
 Unlike Llama 3.2 Vision, which is also provided by Meta AI Research, DINOv2 is released under the **Apache License 2.0**. This is an OSI-approved open-source license with the following key differences:
 
-| Comparison | DINOv2 | Llama 3.2 Vision |
-|---|---|---|
-| License | Apache-2.0 (OSI-approved) | Llama 3.2 Community License (proprietary) |
-| EU restriction | **None** | **Yes (multimodal models)** |
-| MAU limit | **None** | Separate license required above 700M MAU |
-| Attribution | Copyright notice preservation only | "Built with Llama" display obligation |
-| Patent grant | **Explicit** | Limited |
+| Comparison     | DINOv2                             | Llama 3.2 Vision                          |
+| -------------- | ---------------------------------- | ----------------------------------------- |
+| License        | Apache-2.0 (OSI-approved)          | Llama 3.2 Community License (proprietary) |
+| EU restriction | **None**                           | **Yes (multimodal models)**               |
+| MAU limit      | **None**                           | Separate license required above 700M MAU  |
+| Attribution    | Copyright notice preservation only | "Built with Llama" display obligation     |
+| Patent grant   | **Explicit**                       | Limited                                   |
 
 ---
 
@@ -403,14 +405,14 @@ ONNX Runtime (Microsoft) is used as the ML inference engine in Reftrix. It runs 
 
 ### 6.2 ライセンス / License
 
-| 項目 / Item | 内容 / Details |
-|---|---|
-| ライセンス / License | **MIT License** |
-| 提供元 / Provider | Microsoft |
-| 商用利用 / Commercial use | 許可 / Permitted |
-| 改変・再配布 / Modification & redistribution | 許可 / Permitted |
-| 地域制限 / Regional restriction | **なし / None** |
-| AGPL-3.0との互換性 / AGPL-3.0 compatibility | **互換 / Compatible** |
+| 項目 / Item                                  | 内容 / Details        |
+| -------------------------------------------- | --------------------- |
+| ライセンス / License                         | **MIT License**       |
+| 提供元 / Provider                            | Microsoft             |
+| 商用利用 / Commercial use                    | 許可 / Permitted      |
+| 改変・再配布 / Modification & redistribution | 許可 / Permitted      |
+| 地域制限 / Regional restriction              | **なし / None**       |
+| AGPL-3.0との互換性 / AGPL-3.0 compatibility  | **互換 / Compatible** |
 
 ---
 
@@ -432,6 +434,7 @@ Scroll Vision Analysis（Phase 2.5）は、以下の方法で無効化できま�
 ```
 
 Vision分析なしでも、以下の機能は正常に動作します:
+
 - Layout Analysis（HTML/CSS構造解析）
 - Motion Detection（CSSアニメーション検出）
 - Quality Evaluation（デザイン品質評価）
@@ -451,6 +454,7 @@ Scroll Vision Analysis (Phase 2.5) can be disabled in the following ways:
 ```
 
 Without Vision analysis, the following features work normally:
+
 - Layout Analysis (HTML/CSS structure analysis)
 - Motion Detection (CSS animation detection)
 - Quality Evaluation (design quality evaluation)
@@ -504,6 +508,7 @@ OLLAMA_VISION_MODEL=qwen2.5vl:7b    # Apache 2.0, EU制限なし
 ```
 
 **チェックリスト**:
+
 - [ ] Llama 3.2 Visionを使用していないことを確認
 - [ ] 代替Vision LLM（Qwen2.5-VL等）をインストール済み
 - [ ] `OLLAMA_VISION_MODEL`環境変数が正しく設定されていることを確認
@@ -526,6 +531,7 @@ OLLAMA_VISION_MODEL=qwen2.5vl:7b    # Apache 2.0, No EU restriction
 ```
 
 **Checklist**:
+
 - [ ] Confirm you are NOT using Llama 3.2 Vision
 - [ ] Install an alternative Vision LLM (e.g., Qwen2.5-VL)
 - [ ] Verify `OLLAMA_VISION_MODEL` environment variable is correctly set
@@ -588,6 +594,6 @@ Please consult a qualified attorney for specific legal decisions.
 
 ---
 
-*Reftrix AI Model License Guide v0.1.1*
-*Prepared by: Legal Compliance Counsel (AI-assisted analysis)*
-*法的調査日 / Legal Research Date: 2026-03-13*
+_Reftrix AI Model License Guide v0.1.1_
+_Prepared by: Legal Compliance Counsel (AI-assisted analysis)_
+_法的調査日 / Legal Research Date: 2026-03-13_

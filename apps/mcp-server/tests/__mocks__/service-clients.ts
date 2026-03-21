@@ -10,8 +10,14 @@
  * - 一貫したモックデータの提供
  * - 保守性の向上
  */
-import { vi, type Mock } from 'vitest';
-import type { SearchParams, SearchResult, SvgAsset, IngestResult, ProjectResponse } from '../../src/services/service-client';
+import { vi, type Mock } from "vitest";
+import type {
+  SearchParams,
+  SearchResult,
+  SvgAsset,
+  IngestResult,
+  ProjectResponse,
+} from "../../src/services/service-client";
 
 // ============================================================================
 // 型定義
@@ -64,11 +70,11 @@ export interface MockLogger {
  * UUIDv7形式のテスト用ID
  */
 export const TEST_UUIDS = {
-  svgAsset1: '01939abc-def0-7000-8000-000000000001',
-  svgAsset2: '01939abc-def0-7000-8000-000000000002',
-  project: '01939abc-def0-7000-8000-000000000003',
-  license: '01939abc-def0-7000-8000-000000000004',
-  category: '01939abc-def0-7000-8000-000000000005',
+  svgAsset1: "01939abc-def0-7000-8000-000000000001",
+  svgAsset2: "01939abc-def0-7000-8000-000000000002",
+  project: "01939abc-def0-7000-8000-000000000003",
+  license: "01939abc-def0-7000-8000-000000000004",
+  category: "01939abc-def0-7000-8000-000000000005",
 } as const;
 
 /**
@@ -165,43 +171,43 @@ export function createMockLoggerClass(): { new (): MockLogger } {
 export function createMockSvgAsset(overrides: Partial<SvgAsset> = {}): SvgAsset {
   return {
     id: TEST_UUIDS.svgAsset1,
-    name: 'Blue Star Icon',
-    slug: 'blue-star-icon',
-    description: 'A blue star icon for UI design',
+    name: "Blue Star Icon",
+    slug: "blue-star-icon",
+    description: "A blue star icon for UI design",
     svg_raw: VALID_SVG_CONTENT,
     svg_optimized: '<svg viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5z"/></svg>',
-    style: 'flat',
-    purpose: 'icon',
-    viewbox: '0 0 24 24',
+    style: "flat",
+    purpose: "icon",
+    viewbox: "0 0 24 24",
     width: 24,
     height: 24,
     file_size: 256,
-    colors: ['#3B82F6', '#1D4ED8'],
+    colors: ["#3B82F6", "#1D4ED8"],
     tags: [
-      { id: 't1', name: 'star', name_ja: '星' },
-      { id: 't2', name: 'blue', name_ja: '青' },
+      { id: "t1", name: "star", name_ja: "星" },
+      { id: "t2", name: "blue", name_ja: "青" },
     ],
     license: {
       id: TEST_UUIDS.license,
-      spdx_id: 'MIT',
-      name: 'MIT License',
+      spdx_id: "MIT",
+      name: "MIT License",
       commercial_use: true,
       modification: true,
       attribution_required: true,
-      attribution_template: 'Copyright (c) {year} {author}',
+      attribution_template: "Copyright (c) {year} {author}",
     },
     category: {
       id: TEST_UUIDS.category,
-      name: 'Icon',
-      name_ja: 'アイコン',
-      slug: 'icon',
-      path: '/inorganic/icon',
-      type: 'inorganic',
+      name: "Icon",
+      name_ja: "アイコン",
+      slug: "icon",
+      path: "/inorganic/icon",
+      type: "inorganic",
     },
-    source_url: 'https://example.com/icons/star.svg',
-    source_name: 'Example Icons',
-    created_at: '2025-11-29T10:00:00.000Z',
-    updated_at: '2025-11-29T10:00:00.000Z',
+    source_url: "https://example.com/icons/star.svg",
+    source_name: "Example Icons",
+    created_at: "2025-11-29T10:00:00.000Z",
+    updated_at: "2025-11-29T10:00:00.000Z",
     ...overrides,
   };
 }
@@ -212,32 +218,34 @@ export function createMockSvgAsset(overrides: Partial<SvgAsset> = {}): SvgAsset 
  * @param overrides - 上書きするプロパティ
  * @returns 検索結果アイテムのモックデータ
  */
-export function createMockSearchResultItem(overrides: Partial<{
-  id: string;
-  name: string;
-  slug: string;
-  similarity: number;
-  thumbnail_url: string;
-  style: string;
-  purpose: string;
-  tags: string[];
-  license: {
-    spdx_id: string;
-    commercial_use: boolean;
-    attribution_required: boolean;
-  };
-}> = {}) {
+export function createMockSearchResultItem(
+  overrides: Partial<{
+    id: string;
+    name: string;
+    slug: string;
+    similarity: number;
+    thumbnail_url: string;
+    style: string;
+    purpose: string;
+    tags: string[];
+    license: {
+      spdx_id: string;
+      commercial_use: boolean;
+      attribution_required: boolean;
+    };
+  }> = {}
+) {
   return {
     id: TEST_UUIDS.svgAsset1,
-    name: 'Blue Star Icon',
-    slug: 'blue-star-icon',
+    name: "Blue Star Icon",
+    slug: "blue-star-icon",
     similarity: 0.95,
     thumbnail_url: `/api/v1/svg/${TEST_UUIDS.svgAsset1}/thumbnail`,
-    style: 'flat',
-    purpose: 'icon',
-    tags: ['star', 'blue', 'icon'],
+    style: "flat",
+    purpose: "icon",
+    tags: ["star", "blue", "icon"],
     license: {
-      spdx_id: 'MIT',
+      spdx_id: "MIT",
       commercial_use: true,
       attribution_required: true,
     },
@@ -251,12 +259,14 @@ export function createMockSearchResultItem(overrides: Partial<{
  * @param overrides - 上書きするプロパティ
  * @returns 検索結果のモックデータ
  */
-export function createMockSearchResult(overrides: Partial<{
-  items: ReturnType<typeof createMockSearchResultItem>[];
-  total: number;
-  limit: number;
-  offset: number;
-}> = {}): SearchResult {
+export function createMockSearchResult(
+  overrides: Partial<{
+    items: ReturnType<typeof createMockSearchResultItem>[];
+    total: number;
+    limit: number;
+    offset: number;
+  }> = {}
+): SearchResult {
   return {
     items: [createMockSearchResultItem()],
     total: 1,
@@ -289,12 +299,12 @@ export function createEmptySearchResult(): SearchResult {
 export function createMockProject(overrides: Partial<ProjectResponse> = {}): ProjectResponse {
   return {
     id: TEST_UUIDS.project,
-    name: 'Test Project',
-    slug: 'test-project',
-    description: 'A test project for unit tests',
-    status: 'in_progress',
-    createdAt: '2025-11-29T10:00:00.000Z',
-    updatedAt: '2025-11-29T10:00:00.000Z',
+    name: "Test Project",
+    slug: "test-project",
+    description: "A test project for unit tests",
+    status: "in_progress",
+    createdAt: "2025-11-29T10:00:00.000Z",
+    updatedAt: "2025-11-29T10:00:00.000Z",
     pages: [],
     brandSetting: null,
     ...overrides,
@@ -310,14 +320,14 @@ export function createMockProject(overrides: Partial<ProjectResponse> = {}): Pro
 export function createMockIngestResult(overrides: Partial<IngestResult> = {}): IngestResult {
   return {
     id: TEST_UUIDS.svgAsset1,
-    name: 'Test Icon',
-    slug: 'test-icon',
+    name: "Test Icon",
+    slug: "test-icon",
     svg_optimized: '<svg viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5z"/></svg>',
     original_size: 256,
     optimized_size: 180,
     reduction_percent: 29.7,
-    colors_extracted: ['#3B82F6', '#1D4ED8'],
-    created_at: '2025-11-29T10:00:00.000Z',
+    colors_extracted: ["#3B82F6", "#1D4ED8"],
+    created_at: "2025-11-29T10:00:00.000Z",
     ...overrides,
   };
 }
@@ -369,7 +379,7 @@ export function getServiceClientMockModule(mockClient?: Partial<MockServiceClien
       enqueueVisionAnalysis: client.enqueueVisionAnalysis ?? vi.fn(),
       searchSvg: client.searchSvg ?? vi.fn(),
     },
-    API_BASE_URL: 'http://localhost:24000/api/v1',
+    API_BASE_URL: "http://localhost:24000/api/v1",
     ServiceClient: vi.fn(),
   };
 }
@@ -443,9 +453,6 @@ export function setupGetSvgMock(
  * @param mock - モック関数
  * @param error - スローするエラー
  */
-export function setupErrorMock(
-  mock: Mock,
-  error: Error
-): void {
+export function setupErrorMock(mock: Mock, error: Error): void {
   mock.mockRejectedValueOnce(error);
 }

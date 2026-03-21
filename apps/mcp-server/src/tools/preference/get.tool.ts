@@ -11,16 +11,16 @@
  * @module tools/preference/get.tool
  */
 
-import { ZodError } from 'zod';
-import { logger, isDevelopment } from '../../utils/logger';
+import { ZodError } from "zod";
+import { logger, isDevelopment } from "../../utils/logger";
 import {
   preferenceGetInputSchema,
   PREFERENCE_MCP_ERROR_CODES,
   sanitizeErrorMessage,
   truncateId,
   type PreferenceGetInput,
-} from './schemas';
-import type { IPreferenceService } from './hear.tool';
+} from "./schemas";
+import type { IPreferenceService } from "./hear.tool";
 
 // =====================================================
 // 型定義 / Type Definitions
@@ -32,7 +32,7 @@ export type { IPreferenceService };
  * preference.get 出力型
  * preference.get output type
  */
-import type { SignalData } from './hear.tool';
+import type { SignalData } from "./hear.tool";
 
 export type PreferenceGetOutput =
   | {
@@ -69,9 +69,7 @@ let preferenceServiceFactory: (() => IPreferenceService) | null = null;
  * サービスファクトリーを設定
  * Set service factory
  */
-export function setPreferenceServiceFactory(
-  factory: () => IPreferenceService
-): void {
+export function setPreferenceServiceFactory(factory: () => IPreferenceService): void {
   preferenceServiceFactory = factory;
 }
 
@@ -94,11 +92,9 @@ export function resetPreferenceServiceFactory(): void {
  * @param input - 入力パラメータ / Input parameters
  * @returns プロファイルデータ / Profile data
  */
-export async function preferenceGetHandler(
-  input: unknown
-): Promise<PreferenceGetOutput> {
+export async function preferenceGetHandler(input: unknown): Promise<PreferenceGetOutput> {
   if (isDevelopment()) {
-    logger.info('[MCP Tool] preference.get called', {
+    logger.info("[MCP Tool] preference.get called", {
       profileId: truncateId((input as Record<string, unknown>)?.profile_id as string | undefined),
     });
   }
@@ -109,11 +105,9 @@ export async function preferenceGetHandler(
     validated = preferenceGetInputSchema.parse(input);
   } catch (error) {
     if (error instanceof ZodError) {
-      const errorMessage = error.errors
-        .map((e) => `${e.path.join('.')}: ${e.message}`)
-        .join(', ');
+      const errorMessage = error.errors.map((e) => `${e.path.join(".")}: ${e.message}`).join(", ");
 
-      logger.warn('[MCP Tool] preference.get validation error', {
+      logger.warn("[MCP Tool] preference.get validation error", {
         errors: error.errors,
       });
 
@@ -130,13 +124,13 @@ export async function preferenceGetHandler(
 
   // サービスファクトリーチェック / Service factory check
   if (!preferenceServiceFactory) {
-    logger.warn('[MCP Tool] preference.get service factory not set');
+    logger.warn("[MCP Tool] preference.get service factory not set");
 
     return {
       success: false,
       error: {
         code: PREFERENCE_MCP_ERROR_CODES.SERVICE_UNAVAILABLE,
-        message: 'Preference service is not available',
+        message: "Preference service is not available",
       },
     };
   }
@@ -148,7 +142,7 @@ export async function preferenceGetHandler(
 
     if (profile === null) {
       if (isDevelopment()) {
-        logger.info('[MCP Tool] preference.get profile not found', {
+        logger.info("[MCP Tool] preference.get profile not found", {
           profileId: truncateId(validated.profile_id),
         });
       }
@@ -167,7 +161,7 @@ export async function preferenceGetHandler(
     }
 
     if (isDevelopment()) {
-      logger.info('[MCP Tool] preference.get completed', {
+      logger.info("[MCP Tool] preference.get completed", {
         profileId: truncateId(profile.profile_id),
         interactionCount: profile.interaction_count,
         signalsIncluded: !!signals,
@@ -183,7 +177,7 @@ export async function preferenceGetHandler(
 
     // 全環境でログ出力（isDevelopmentガードなし）
     // Log in all environments (no isDevelopment guard)
-    logger.warn('[MCP Tool] preference.get error', {
+    logger.warn("[MCP Tool] preference.get error", {
       code: PREFERENCE_MCP_ERROR_CODES.INTERNAL_ERROR,
       error: errorInstance.message,
     });
@@ -207,29 +201,29 @@ export async function preferenceGetHandler(
  * preference.get MCP tool definition
  */
 export const preferenceGetToolDefinition = {
-  name: 'preference.get',
+  name: "preference.get",
   description:
-    '現在の嗜好プロファイルを取得します。profile_id省略時はデフォルトプロファイルを返します。' +
-    'Get current preference profile. Returns default profile when profile_id is omitted.',
+    "現在の嗜好プロファイルを取得します。profile_id省略時はデフォルトプロファイルを返します。" +
+    "Get current preference profile. Returns default profile when profile_id is omitted.",
   annotations: {
-    title: 'Preference Get',
+    title: "Preference Get",
     readOnlyHint: true,
     idempotentHint: true,
     openWorldHint: false,
   },
   inputSchema: {
-    type: 'object' as const,
+    type: "object" as const,
     properties: {
       profile_id: {
-        type: 'string',
-        format: 'uuid',
-        description: 'プロファイルID（省略時はデフォルト） / Profile ID (default if omitted)',
+        type: "string",
+        format: "uuid",
+        description: "プロファイルID（省略時はデフォルト） / Profile ID (default if omitted)",
       },
       include_signals: {
-        type: 'boolean',
+        type: "boolean",
         description:
-          'シグナルデータを含める（GDPRデータポータビリティ対応） / ' +
-          'Include signal data (GDPR data portability compliance)',
+          "シグナルデータを含める（GDPRデータポータビリティ対応） / " +
+          "Include signal data (GDPR data portability compliance)",
       },
     },
   },
@@ -240,5 +234,5 @@ export const preferenceGetToolDefinition = {
 // =====================================================
 
 if (isDevelopment()) {
-  logger.debug('[preference.get] Tool module loaded');
+  logger.debug("[preference.get] Tool module loaded");
 }

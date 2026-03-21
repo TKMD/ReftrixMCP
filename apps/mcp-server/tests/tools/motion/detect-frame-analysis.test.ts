@@ -20,7 +20,7 @@
  * @module tests/tools/motion/detect-frame-analysis.test
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 // =====================================================
 // インポート
@@ -31,7 +31,7 @@ import {
   frameImageAnalysisInputOptionsSchema,
   type MotionDetectInput,
   type FrameImageAnalysisInputOptions,
-} from '../../../src/tools/motion/schemas';
+} from "../../../src/tools/motion/schemas";
 
 import {
   motionDetectHandler,
@@ -45,25 +45,28 @@ import {
   type IVideoRecorderService,
   type IFrameAnalyzerService,
   type FrameImageAnalysisOutput,
-} from '../../../src/tools/motion/detect.tool';
+} from "../../../src/tools/motion/detect.tool";
 
-import type { RecordResult } from '../../../src/services/page/video-recorder.service';
-import type { AnalyzeResult, ExtractResult } from '../../../src/services/page/frame-analyzer.service';
+import type { RecordResult } from "../../../src/services/page/video-recorder.service";
+import type {
+  AnalyzeResult,
+  ExtractResult,
+} from "../../../src/services/page/frame-analyzer.service";
 
 // =====================================================
 // テストデータ
 // =====================================================
 
-const sampleUrl = 'https://example.com/animated-page';
+const sampleUrl = "https://example.com/animated-page";
 
 /**
  * モック録画結果（Video Mode用）
  */
 const mockRecordResult: RecordResult = {
-  videoPath: '/tmp/video-recorder-test/video.webm',
+  videoPath: "/tmp/video-recorder-test/video.webm",
   durationMs: 5000,
   sizeBytes: 1024 * 100,
-  title: 'Test Page',
+  title: "Test Page",
   processingTimeMs: 3000,
 };
 
@@ -72,13 +75,13 @@ const mockRecordResult: RecordResult = {
  */
 const mockExtractResult: ExtractResult = {
   frames: [
-    { index: 0, path: '/tmp/frames/frame-0000.png', timestampMs: 0 },
-    { index: 1, path: '/tmp/frames/frame-0001.png', timestampMs: 100 },
+    { index: 0, path: "/tmp/frames/frame-0000.png", timestampMs: 0 },
+    { index: 1, path: "/tmp/frames/frame-0001.png", timestampMs: 100 },
   ],
   totalFrames: 50,
   fps: 10,
   durationMs: 5000,
-  outputDir: '/tmp/frames',
+  outputDir: "/tmp/frames",
   processingTimeMs: 200,
 };
 
@@ -95,11 +98,11 @@ const mockAnalyzeResult: AnalyzeResult = {
       durationMs: 1000,
       avgChangeRatio: 0.08,
       maxChangeRatio: 0.15,
-      estimatedType: 'fade',
-      estimatedEasing: 'ease-out',
+      estimatedType: "fade",
+      estimatedEasing: "ease-out",
     },
   ],
-  motionCoverage: 0.20,
+  motionCoverage: 0.2,
   durationMs: 5000,
   processingTimeMs: 500,
 };
@@ -113,7 +116,7 @@ const mockFrameImageAnalysisResult: FrameImageAnalysisOutput = {
     analyzedPairs: 20,
     sampleInterval: 10,
     scrollPxPerFrame: 15,
-    analysisTime: '1.5s',
+    analysisTime: "1.5s",
     analyzedAt: new Date().toISOString(),
   },
   statistics: {
@@ -125,31 +128,31 @@ const mockFrameImageAnalysisResult: FrameImageAnalysisOutput = {
   },
   animationZones: [
     {
-      frameStart: 'frame-0050.png',
-      frameEnd: 'frame-0100.png',
+      frameStart: "frame-0050.png",
+      frameEnd: "frame-0100.png",
       scrollStart: 750,
       scrollEnd: 1500,
       avgDiff: 3.2,
       peakDiff: 8.5,
       duration: 750,
-      animationType: 'scroll-linked animation',
+      animationType: "scroll-linked animation",
     },
   ],
   layoutShifts: [
     {
-      frameRange: 'frame-0150.png - frame-0160.png',
-      scrollRange: '2250px - 2400px',
+      frameRange: "frame-0150.png - frame-0160.png",
+      scrollRange: "2250px - 2400px",
       impactFraction: 0.08,
       boundingBox: { x: 100, y: 200, width: 400, height: 150 },
     },
   ],
   motionVectors: [
     {
-      frameRange: 'frame-0050.png - frame-0060.png',
+      frameRange: "frame-0050.png - frame-0060.png",
       dx: 0,
       dy: 50,
       magnitude: 50,
-      direction: 'down',
+      direction: "down",
       angle: 90,
     },
   ],
@@ -209,7 +212,7 @@ function createMockUnavailableFrameImageAnalysisService(): IFrameImageAnalysisSe
  * モックFrameImageAnalysisService（エラーケース）
  */
 function createMockErrorFrameImageAnalysisService(
-  errorMessage: string = 'Analysis failed'
+  errorMessage: string = "Analysis failed"
 ): IFrameImageAnalysisService {
   return {
     analyze: vi.fn().mockRejectedValue(new Error(errorMessage)),
@@ -222,7 +225,7 @@ function createMockErrorFrameImageAnalysisService(
 // テストスイート
 // =====================================================
 
-describe('motion.detect Frame Image Analysis (Phase5)', () => {
+describe("motion.detect Frame Image Analysis (Phase5)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
@@ -238,11 +241,11 @@ describe('motion.detect Frame Image Analysis (Phase5)', () => {
   // スキーマバリデーションテスト
   // =====================================================
 
-  describe('Schema Validation', () => {
-    it('should accept analyze_frames=true', () => {
+  describe("Schema Validation", () => {
+    it("should accept analyze_frames=true", () => {
       const input: Partial<MotionDetectInput> = {
         url: sampleUrl,
-        detection_mode: 'video',
+        detection_mode: "video",
         analyze_frames: true,
       };
 
@@ -253,12 +256,12 @@ describe('motion.detect Frame Image Analysis (Phase5)', () => {
       }
     });
 
-    it('should default analyze_frames to true (video mode enabled by default)', () => {
+    it("should default analyze_frames to true (video mode enabled by default)", () => {
       // video modeはデフォルトで有効（current-architecture.md準拠）
       // パフォーマンス最適化のため無効化する場合は明示的に analyze_frames: false を指定
       const input: Partial<MotionDetectInput> = {
         url: sampleUrl,
-        detection_mode: 'video',
+        detection_mode: "video",
       };
 
       const result = motionDetectInputSchema.safeParse(input);
@@ -268,10 +271,10 @@ describe('motion.detect Frame Image Analysis (Phase5)', () => {
       }
     });
 
-    it('should allow explicit disabling of analyze_frames', () => {
+    it("should allow explicit disabling of analyze_frames", () => {
       const input: Partial<MotionDetectInput> = {
         url: sampleUrl,
-        detection_mode: 'video',
+        detection_mode: "video",
         analyze_frames: false,
       };
 
@@ -282,9 +285,9 @@ describe('motion.detect Frame Image Analysis (Phase5)', () => {
       }
     });
 
-    it('should accept frame_analysis_options with all parameters', () => {
+    it("should accept frame_analysis_options with all parameters", () => {
       const options: FrameImageAnalysisInputOptions = {
-        frame_dir: 'custom-frames/',
+        frame_dir: "custom-frames/",
         sample_interval: 5,
         diff_threshold: 0.15,
         cls_threshold: 0.1,
@@ -296,7 +299,7 @@ describe('motion.detect Frame Image Analysis (Phase5)', () => {
       const result = frameImageAnalysisInputOptionsSchema.safeParse(options);
       expect(result.success).toBe(true);
       if (result.success) {
-        expect(result.data.frame_dir).toBe('custom-frames/');
+        expect(result.data.frame_dir).toBe("custom-frames/");
         expect(result.data.sample_interval).toBe(5);
         expect(result.data.diff_threshold).toBe(0.15);
         expect(result.data.cls_threshold).toBe(0.1);
@@ -306,7 +309,7 @@ describe('motion.detect Frame Image Analysis (Phase5)', () => {
       }
     });
 
-    it('should apply defaults for frame_analysis_options', () => {
+    it("should apply defaults for frame_analysis_options", () => {
       const options = {};
 
       const result = frameImageAnalysisInputOptionsSchema.safeParse(options);
@@ -321,53 +324,53 @@ describe('motion.detect Frame Image Analysis (Phase5)', () => {
       }
     });
 
-    it('should reject frame_dir with path traversal', () => {
+    it("should reject frame_dir with path traversal", () => {
       const options = {
-        frame_dir: '../../../etc/passwd',
+        frame_dir: "../../../etc/passwd",
       };
 
       const result = frameImageAnalysisInputOptionsSchema.safeParse(options);
       expect(result.success).toBe(false);
     });
 
-    it('should validate sample_interval range (1-100)', () => {
+    it("should validate sample_interval range (1-100)", () => {
       // 0は無効
-      expect(
-        frameImageAnalysisInputOptionsSchema.safeParse({ sample_interval: 0 }).success
-      ).toBe(false);
+      expect(frameImageAnalysisInputOptionsSchema.safeParse({ sample_interval: 0 }).success).toBe(
+        false
+      );
 
       // 101は無効
-      expect(
-        frameImageAnalysisInputOptionsSchema.safeParse({ sample_interval: 101 }).success
-      ).toBe(false);
+      expect(frameImageAnalysisInputOptionsSchema.safeParse({ sample_interval: 101 }).success).toBe(
+        false
+      );
 
       // 1は有効
-      expect(
-        frameImageAnalysisInputOptionsSchema.safeParse({ sample_interval: 1 }).success
-      ).toBe(true);
+      expect(frameImageAnalysisInputOptionsSchema.safeParse({ sample_interval: 1 }).success).toBe(
+        true
+      );
 
       // 100は有効
-      expect(
-        frameImageAnalysisInputOptionsSchema.safeParse({ sample_interval: 100 }).success
-      ).toBe(true);
+      expect(frameImageAnalysisInputOptionsSchema.safeParse({ sample_interval: 100 }).success).toBe(
+        true
+      );
     });
 
-    it('should validate diff_threshold range (0-1)', () => {
-      expect(
-        frameImageAnalysisInputOptionsSchema.safeParse({ diff_threshold: -0.1 }).success
-      ).toBe(false);
+    it("should validate diff_threshold range (0-1)", () => {
+      expect(frameImageAnalysisInputOptionsSchema.safeParse({ diff_threshold: -0.1 }).success).toBe(
+        false
+      );
 
-      expect(
-        frameImageAnalysisInputOptionsSchema.safeParse({ diff_threshold: 1.1 }).success
-      ).toBe(false);
+      expect(frameImageAnalysisInputOptionsSchema.safeParse({ diff_threshold: 1.1 }).success).toBe(
+        false
+      );
 
-      expect(
-        frameImageAnalysisInputOptionsSchema.safeParse({ diff_threshold: 0 }).success
-      ).toBe(true);
+      expect(frameImageAnalysisInputOptionsSchema.safeParse({ diff_threshold: 0 }).success).toBe(
+        true
+      );
 
-      expect(
-        frameImageAnalysisInputOptionsSchema.safeParse({ diff_threshold: 1 }).success
-      ).toBe(true);
+      expect(frameImageAnalysisInputOptionsSchema.safeParse({ diff_threshold: 1 }).success).toBe(
+        true
+      );
     });
   });
 
@@ -375,8 +378,8 @@ describe('motion.detect Frame Image Analysis (Phase5)', () => {
   // 正常系テスト
   // =====================================================
 
-  describe('Successful Analysis', () => {
-    it('should return frame_analysis when analyze_frames=true', async () => {
+  describe("Successful Analysis", () => {
+    it("should return frame_analysis when analyze_frames=true", async () => {
       // セットアップ
       const mockVideoRecorder = createMockVideoRecorderService();
       const mockFrameAnalyzer = createMockFrameAnalyzerService();
@@ -389,7 +392,7 @@ describe('motion.detect Frame Image Analysis (Phase5)', () => {
       // 実行
       const input: MotionDetectInput = {
         url: sampleUrl,
-        detection_mode: 'video',
+        detection_mode: "video",
         analyze_frames: true,
       };
 
@@ -420,7 +423,7 @@ describe('motion.detect Frame Image Analysis (Phase5)', () => {
       }
     });
 
-    it('should pass custom options to analysis service', async () => {
+    it("should pass custom options to analysis service", async () => {
       // セットアップ
       const mockVideoRecorder = createMockVideoRecorderService();
       const mockFrameAnalyzer = createMockFrameAnalyzerService();
@@ -433,10 +436,10 @@ describe('motion.detect Frame Image Analysis (Phase5)', () => {
       // 実行
       const input: MotionDetectInput = {
         url: sampleUrl,
-        detection_mode: 'video',
+        detection_mode: "video",
         analyze_frames: true,
         frame_analysis_options: {
-          frame_dir: 'custom-frames/',
+          frame_dir: "custom-frames/",
           sample_interval: 5,
           diff_threshold: 0.2,
           cls_threshold: 0.1,
@@ -450,7 +453,7 @@ describe('motion.detect Frame Image Analysis (Phase5)', () => {
 
       // サービスに正しいオプションが渡されたことを確認
       expect(mockFrameImageAnalysis.analyze).toHaveBeenCalledWith(
-        'custom-frames/',
+        "custom-frames/",
         expect.objectContaining({
           sampleInterval: 5,
           diffThreshold: 0.2,
@@ -463,7 +466,7 @@ describe('motion.detect Frame Image Analysis (Phase5)', () => {
       );
     });
 
-    it('should use frame_capture_options.output_dir when frame_dir not specified', async () => {
+    it("should use frame_capture_options.output_dir when frame_dir not specified", async () => {
       // セットアップ
       const mockVideoRecorder = createMockVideoRecorderService();
       const mockFrameAnalyzer = createMockFrameAnalyzerService();
@@ -476,10 +479,10 @@ describe('motion.detect Frame Image Analysis (Phase5)', () => {
       // 実行
       const input: MotionDetectInput = {
         url: sampleUrl,
-        detection_mode: 'video',
+        detection_mode: "video",
         analyze_frames: true,
         frame_capture_options: {
-          output_dir: 'captured-frames/',
+          output_dir: "captured-frames/",
         },
       };
 
@@ -488,12 +491,12 @@ describe('motion.detect Frame Image Analysis (Phase5)', () => {
       // frame_capture_options.output_dirが使用されたことを確認
       // validateAndNormalizeOutputDirにより絶対パスに変換される
       expect(mockFrameImageAnalysis.analyze).toHaveBeenCalledWith(
-        expect.stringContaining('captured-frames/'),
+        expect.stringContaining("captured-frames/"),
         expect.any(Object)
       );
     });
 
-    it('should include frame_analysis_processing_time_ms in metadata', async () => {
+    it("should include frame_analysis_processing_time_ms in metadata", async () => {
       // セットアップ
       const mockVideoRecorder = createMockVideoRecorderService();
       const mockFrameAnalyzer = createMockFrameAnalyzerService();
@@ -506,7 +509,7 @@ describe('motion.detect Frame Image Analysis (Phase5)', () => {
       // 実行
       const input: MotionDetectInput = {
         url: sampleUrl,
-        detection_mode: 'video',
+        detection_mode: "video",
         analyze_frames: true,
       };
 
@@ -516,7 +519,7 @@ describe('motion.detect Frame Image Analysis (Phase5)', () => {
       expect(result.success).toBe(true);
       if (result.success && result.data) {
         expect(result.data.metadata?.frame_analysis_processing_time_ms).toBeDefined();
-        expect(typeof result.data.metadata?.frame_analysis_processing_time_ms).toBe('number');
+        expect(typeof result.data.metadata?.frame_analysis_processing_time_ms).toBe("number");
       }
     });
   });
@@ -525,8 +528,8 @@ describe('motion.detect Frame Image Analysis (Phase5)', () => {
   // Graceful Degradationテスト
   // =====================================================
 
-  describe('Graceful Degradation', () => {
-    it('should add warning when service is unavailable', async () => {
+  describe("Graceful Degradation", () => {
+    it("should add warning when service is unavailable", async () => {
       // セットアップ
       const mockVideoRecorder = createMockVideoRecorderService();
       const mockFrameAnalyzer = createMockFrameAnalyzerService();
@@ -539,7 +542,7 @@ describe('motion.detect Frame Image Analysis (Phase5)', () => {
       // 実行
       const input: MotionDetectInput = {
         url: sampleUrl,
-        detection_mode: 'video',
+        detection_mode: "video",
         analyze_frames: true,
       };
 
@@ -552,15 +555,13 @@ describe('motion.detect Frame Image Analysis (Phase5)', () => {
         expect(result.data.frame_analysis).toBeFalsy();
 
         // 警告が含まれていること
-        const warning = result.data.warnings?.find(
-          (w) => w.code === 'FRAME_ANALYSIS_UNAVAILABLE'
-        );
+        const warning = result.data.warnings?.find((w) => w.code === "FRAME_ANALYSIS_UNAVAILABLE");
         expect(warning).toBeDefined();
-        expect(warning?.severity).toBe('warning');
+        expect(warning?.severity).toBe("warning");
       }
     });
 
-    it('should use default implementation when factory not configured', async () => {
+    it("should use default implementation when factory not configured", async () => {
       // セットアップ（FrameImageAnalysisFactoryは設定しない）
       // v0.1.0以降: デフォルト実装（FrameImageAnalyzerAdapter）が使用される
       const mockVideoRecorder = createMockVideoRecorderService();
@@ -574,7 +575,7 @@ describe('motion.detect Frame Image Analysis (Phase5)', () => {
       // 実行
       const input: MotionDetectInput = {
         url: sampleUrl,
-        detection_mode: 'video',
+        detection_mode: "video",
         analyze_frames: true,
       };
 
@@ -592,7 +593,7 @@ describe('motion.detect Frame Image Analysis (Phase5)', () => {
         const hasFrameAnalysis = result.data.frame_analysis != null;
         const hasFrameAnalysisError = result.data.frame_analysis_error != null;
         const hasWarning = result.data.warnings?.some(
-          (w) => w.code === 'FRAME_ANALYSIS_UNAVAILABLE' || w.code === 'FRAME_ANALYSIS_ERROR'
+          (w) => w.code === "FRAME_ANALYSIS_UNAVAILABLE" || w.code === "FRAME_ANALYSIS_ERROR"
         );
 
         // いずれかの状態になっていることを確認
@@ -600,12 +601,12 @@ describe('motion.detect Frame Image Analysis (Phase5)', () => {
       }
     });
 
-    it('should return frame_analysis_error on analysis failure', async () => {
+    it("should return frame_analysis_error on analysis failure", async () => {
       // セットアップ
       const mockVideoRecorder = createMockVideoRecorderService();
       const mockFrameAnalyzer = createMockFrameAnalyzerService();
       const mockFrameImageAnalysis = createMockErrorFrameImageAnalysisService(
-        'Frame loading failed: invalid PNG file'
+        "Frame loading failed: invalid PNG file"
       );
 
       setVideoRecorderServiceFactory(() => mockVideoRecorder);
@@ -615,7 +616,7 @@ describe('motion.detect Frame Image Analysis (Phase5)', () => {
       // 実行
       const input: MotionDetectInput = {
         url: sampleUrl,
-        detection_mode: 'video',
+        detection_mode: "video",
         analyze_frames: true,
       };
 
@@ -629,17 +630,17 @@ describe('motion.detect Frame Image Analysis (Phase5)', () => {
 
         // frame_analysis_errorが含まれていること
         expect(result.data.frame_analysis_error).toBeDefined();
-        expect(result.data.frame_analysis_error?.code).toBe('FRAME_ANALYSIS_ERROR');
-        expect(result.data.frame_analysis_error?.message).toContain('Frame loading failed');
+        expect(result.data.frame_analysis_error?.code).toBe("FRAME_ANALYSIS_ERROR");
+        expect(result.data.frame_analysis_error?.message).toContain("Frame loading failed");
       }
     });
 
-    it('should detect timeout errors', async () => {
+    it("should detect timeout errors", async () => {
       // セットアップ
       const mockVideoRecorder = createMockVideoRecorderService();
       const mockFrameAnalyzer = createMockFrameAnalyzerService();
       const mockFrameImageAnalysis = createMockErrorFrameImageAnalysisService(
-        'Analysis timed out after 30000ms'
+        "Analysis timed out after 30000ms"
       );
 
       setVideoRecorderServiceFactory(() => mockVideoRecorder);
@@ -649,7 +650,7 @@ describe('motion.detect Frame Image Analysis (Phase5)', () => {
       // 実行
       const input: MotionDetectInput = {
         url: sampleUrl,
-        detection_mode: 'video',
+        detection_mode: "video",
         analyze_frames: true,
       };
 
@@ -660,7 +661,7 @@ describe('motion.detect Frame Image Analysis (Phase5)', () => {
       if (result.success && result.data) {
         expect(result.data.frame_analysis_error).toBeDefined();
         // タイムアウトエラーはFRAME_ANALYSIS_ERRORとして返される
-        expect(result.data.frame_analysis_error?.code).toBe('FRAME_ANALYSIS_ERROR');
+        expect(result.data.frame_analysis_error?.code).toBe("FRAME_ANALYSIS_ERROR");
       }
     });
   });
@@ -669,8 +670,8 @@ describe('motion.detect Frame Image Analysis (Phase5)', () => {
   // analyze_frames=false のテスト
   // =====================================================
 
-  describe('Disabled Frame Analysis', () => {
-    it('should not call analysis service when analyze_frames=false', async () => {
+  describe("Disabled Frame Analysis", () => {
+    it("should not call analysis service when analyze_frames=false", async () => {
       // セットアップ
       const mockVideoRecorder = createMockVideoRecorderService();
       const mockFrameAnalyzer = createMockFrameAnalyzerService();
@@ -683,7 +684,7 @@ describe('motion.detect Frame Image Analysis (Phase5)', () => {
       // 実行
       const input: MotionDetectInput = {
         url: sampleUrl,
-        detection_mode: 'video',
+        detection_mode: "video",
         analyze_frames: false,
       };
 
@@ -701,7 +702,7 @@ describe('motion.detect Frame Image Analysis (Phase5)', () => {
       }
     });
 
-    it('should not include frame_analysis_processing_time_ms when disabled', async () => {
+    it("should not include frame_analysis_processing_time_ms when disabled", async () => {
       // セットアップ
       const mockVideoRecorder = createMockVideoRecorderService();
       const mockFrameAnalyzer = createMockFrameAnalyzerService();
@@ -712,7 +713,7 @@ describe('motion.detect Frame Image Analysis (Phase5)', () => {
       // 実行
       const input: MotionDetectInput = {
         url: sampleUrl,
-        detection_mode: 'video',
+        detection_mode: "video",
         analyze_frames: false,
       };
 

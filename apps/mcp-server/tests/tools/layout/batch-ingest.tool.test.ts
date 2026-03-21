@@ -16,23 +16,23 @@
  * 5. Skip failed URLs when on_error: 'skip'
  * 6. Validate URL array size (1-100)
  */
-import { describe, it, expect, beforeEach, afterEach, vi, type Mock } from 'vitest';
-import { ZodError } from 'zod';
+import { describe, it, expect, beforeEach, afterEach, vi, type Mock } from "vitest";
+import { ZodError } from "zod";
 
 // モジュールモック
-vi.mock('../../../src/utils/url-validator', () => ({
+vi.mock("../../../src/utils/url-validator", () => ({
   validateExternalUrl: vi.fn(),
-  BLOCKED_HOSTS: ['localhost', '127.0.0.1', '169.254.169.254'],
+  BLOCKED_HOSTS: ["localhost", "127.0.0.1", "169.254.169.254"],
   BLOCKED_IP_RANGES: [/^10\./, /^192\.168\./],
 }));
 
-vi.mock('../../../src/services/page-ingest-adapter', () => ({
+vi.mock("../../../src/services/page-ingest-adapter", () => ({
   pageIngestAdapter: {
     ingest: vi.fn(),
   },
 }));
 
-vi.mock('../../../src/utils/html-sanitizer', () => ({
+vi.mock("../../../src/utils/html-sanitizer", () => ({
   sanitizeHtml: vi.fn(),
 }));
 
@@ -42,14 +42,14 @@ import {
   layoutBatchIngestToolDefinition,
   type LayoutBatchIngestInput,
   type LayoutBatchIngestOutput,
-} from '../../../src/tools/layout/batch-ingest.tool';
+} from "../../../src/tools/layout/batch-ingest.tool";
 import {
   layoutBatchIngestInputSchema,
   layoutBatchIngestOutputSchema,
-} from '../../../src/tools/layout/schemas';
-import { validateExternalUrl } from '../../../src/utils/url-validator';
-import { pageIngestAdapter } from '../../../src/services/page-ingest-adapter';
-import { sanitizeHtml } from '../../../src/utils/html-sanitizer';
+} from "../../../src/tools/layout/schemas";
+import { validateExternalUrl } from "../../../src/utils/url-validator";
+import { pageIngestAdapter } from "../../../src/services/page-ingest-adapter";
+import { sanitizeHtml } from "../../../src/utils/html-sanitizer";
 
 // テスト用ヘルパー: 成功レスポンスを生成
 function createSuccessIngestResult(url: string) {
@@ -58,16 +58,16 @@ function createSuccessIngestResult(url: string) {
     html: `<html><body>Content from ${url}</body></html>`,
     metadata: {
       title: `Page from ${url}`,
-      description: 'Test page',
+      description: "Test page",
     },
     source: {
-      type: 'user_provided' as const,
-      usageScope: 'inspiration_only' as const,
+      type: "user_provided" as const,
+      usageScope: "inspiration_only" as const,
     },
     screenshots: [
       {
-        data: 'base64data',
-        format: 'png' as const,
+        data: "base64data",
+        format: "png" as const,
         viewport: { width: 1920, height: 1080 },
       },
     ],
@@ -80,22 +80,22 @@ function createFailedIngestResult(url: string, error: string) {
   return {
     success: false,
     error,
-    html: '',
+    html: "",
     metadata: {},
     source: {
-      type: 'user_provided' as const,
-      usageScope: 'inspiration_only' as const,
+      type: "user_provided" as const,
+      usageScope: "inspiration_only" as const,
     },
     screenshots: [],
     ingestedAt: new Date(),
   };
 }
 
-describe('layout.batch_ingest MCPツール', () => {
+describe("layout.batch_ingest MCPツール", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     // デフォルトのモック設定
-    (validateExternalUrl as Mock).mockReturnValue({ valid: true, normalizedUrl: '' });
+    (validateExternalUrl as Mock).mockReturnValue({ valid: true, normalizedUrl: "" });
     (sanitizeHtml as Mock).mockImplementation((html: string) => html);
   });
 
@@ -106,21 +106,21 @@ describe('layout.batch_ingest MCPツール', () => {
   // ==========================================
   // スキーマテスト
   // ==========================================
-  describe('入力スキーマ (layoutBatchIngestInputSchema)', () => {
-    describe('正常系', () => {
-      it('URLの配列のみで有効', () => {
+  describe("入力スキーマ (layoutBatchIngestInputSchema)", () => {
+    describe("正常系", () => {
+      it("URLの配列のみで有効", () => {
         const input = {
-          urls: ['https://example.com', 'https://example.org'],
+          urls: ["https://example.com", "https://example.org"],
         };
         expect(() => layoutBatchIngestInputSchema.parse(input)).not.toThrow();
       });
 
-      it('全オプションフィールド付きで有効', () => {
+      it("全オプションフィールド付きで有効", () => {
         const input: LayoutBatchIngestInput = {
-          urls: ['https://example.com', 'https://example.org'],
+          urls: ["https://example.com", "https://example.org"],
           options: {
             concurrency: 5,
-            on_error: 'skip',
+            on_error: "skip",
             save_to_db: true,
             auto_analyze: true,
           },
@@ -128,109 +128,109 @@ describe('layout.batch_ingest MCPツール', () => {
         const result = layoutBatchIngestInputSchema.parse(input);
         expect(result.urls.length).toBe(2);
         expect(result.options?.concurrency).toBe(5);
-        expect(result.options?.on_error).toBe('skip');
+        expect(result.options?.on_error).toBe("skip");
       });
 
-      it('concurrencyのデフォルト値が5', () => {
-        const input = { urls: ['https://example.com'] };
+      it("concurrencyのデフォルト値が5", () => {
+        const input = { urls: ["https://example.com"] };
         const result = layoutBatchIngestInputSchema.parse(input);
         expect(result.options?.concurrency ?? 5).toBe(5);
       });
 
-      it('on_errorのデフォルト値がskip', () => {
-        const input = { urls: ['https://example.com'] };
+      it("on_errorのデフォルト値がskip", () => {
+        const input = { urls: ["https://example.com"] };
         const result = layoutBatchIngestInputSchema.parse(input);
-        expect(result.options?.on_error ?? 'skip').toBe('skip');
+        expect(result.options?.on_error ?? "skip").toBe("skip");
       });
 
-      it('save_to_dbのデフォルト値がtrue', () => {
-        const input = { urls: ['https://example.com'] };
+      it("save_to_dbのデフォルト値がtrue", () => {
+        const input = { urls: ["https://example.com"] };
         const result = layoutBatchIngestInputSchema.parse(input);
         expect(result.options?.save_to_db ?? true).toBe(true);
       });
 
-      it('auto_analyzeのデフォルト値がtrue', () => {
-        const input = { urls: ['https://example.com'] };
+      it("auto_analyzeのデフォルト値がtrue", () => {
+        const input = { urls: ["https://example.com"] };
         const result = layoutBatchIngestInputSchema.parse(input);
         expect(result.options?.auto_analyze ?? true).toBe(true);
       });
 
-      it('100件のURLを受け入れる', () => {
+      it("100件のURLを受け入れる", () => {
         const urls = Array.from({ length: 100 }, (_, i) => `https://example${i}.com`);
         const input = { urls };
         expect(() => layoutBatchIngestInputSchema.parse(input)).not.toThrow();
       });
     });
 
-    describe('異常系', () => {
-      it('空の配列の場合エラー', () => {
+    describe("異常系", () => {
+      it("空の配列の場合エラー", () => {
         const input = { urls: [] };
         expect(() => layoutBatchIngestInputSchema.parse(input)).toThrow(ZodError);
       });
 
-      it('101件以上のURLの場合エラー', () => {
+      it("101件以上のURLの場合エラー", () => {
         const urls = Array.from({ length: 101 }, (_, i) => `https://example${i}.com`);
         const input = { urls };
         expect(() => layoutBatchIngestInputSchema.parse(input)).toThrow(ZodError);
       });
 
-      it('無効なURLが含まれる場合エラー', () => {
-        const input = { urls: ['https://example.com', 'not-a-url'] };
+      it("無効なURLが含まれる場合エラー", () => {
+        const input = { urls: ["https://example.com", "not-a-url"] };
         expect(() => layoutBatchIngestInputSchema.parse(input)).toThrow(ZodError);
       });
 
-      it('concurrencyが0の場合エラー', () => {
+      it("concurrencyが0の場合エラー", () => {
         const input = {
-          urls: ['https://example.com'],
+          urls: ["https://example.com"],
           options: { concurrency: 0 },
         };
         expect(() => layoutBatchIngestInputSchema.parse(input)).toThrow(ZodError);
       });
 
-      it('concurrencyが11以上の場合エラー', () => {
+      it("concurrencyが11以上の場合エラー", () => {
         const input = {
-          urls: ['https://example.com'],
+          urls: ["https://example.com"],
           options: { concurrency: 11 },
         };
         expect(() => layoutBatchIngestInputSchema.parse(input)).toThrow(ZodError);
       });
 
-      it('on_errorが無効な値の場合エラー', () => {
+      it("on_errorが無効な値の場合エラー", () => {
         const input = {
-          urls: ['https://example.com'],
-          options: { on_error: 'invalid' },
+          urls: ["https://example.com"],
+          options: { on_error: "invalid" },
         };
         expect(() => layoutBatchIngestInputSchema.parse(input)).toThrow(ZodError);
       });
     });
   });
 
-  describe('出力スキーマ (layoutBatchIngestOutputSchema)', () => {
-    it('成功レスポンスを検証', () => {
+  describe("出力スキーマ (layoutBatchIngestOutputSchema)", () => {
+    it("成功レスポンスを検証", () => {
       const output: LayoutBatchIngestOutput = {
         success: true,
         data: {
-          job_id: '019af946-a471-77e6-9122-76d627892016',
+          job_id: "019af946-a471-77e6-9122-76d627892016",
           total: 3,
           completed: 3,
           failed: 0,
           results: [
             {
-              url: 'https://example.com',
-              status: 'success',
-              page_id: '019af946-a471-77e6-9122-76d627892017',
+              url: "https://example.com",
+              status: "success",
+              page_id: "019af946-a471-77e6-9122-76d627892017",
               patterns_extracted: 5,
             },
             {
-              url: 'https://example.org',
-              status: 'success',
-              page_id: '019af946-a471-77e6-9122-76d627892018',
+              url: "https://example.org",
+              status: "success",
+              page_id: "019af946-a471-77e6-9122-76d627892018",
               patterns_extracted: 3,
             },
             {
-              url: 'https://example.net',
-              status: 'success',
-              page_id: '019af946-a471-77e6-9122-76d627892019',
+              url: "https://example.net",
+              status: "success",
+              page_id: "019af946-a471-77e6-9122-76d627892019",
               patterns_extracted: 4,
             },
           ],
@@ -244,30 +244,30 @@ describe('layout.batch_ingest MCPツール', () => {
       expect(() => layoutBatchIngestOutputSchema.parse(output)).not.toThrow();
     });
 
-    it('部分失敗レスポンスを検証', () => {
+    it("部分失敗レスポンスを検証", () => {
       const output: LayoutBatchIngestOutput = {
         success: true,
         data: {
-          job_id: '019af946-a471-77e6-9122-76d627892016',
+          job_id: "019af946-a471-77e6-9122-76d627892016",
           total: 3,
           completed: 2,
           failed: 1,
           results: [
             {
-              url: 'https://example.com',
-              status: 'success',
-              page_id: '019af946-a471-77e6-9122-76d627892017',
+              url: "https://example.com",
+              status: "success",
+              page_id: "019af946-a471-77e6-9122-76d627892017",
               patterns_extracted: 5,
             },
             {
-              url: 'https://invalid-url.com',
-              status: 'failed',
-              error: 'Network error: Unable to reach the specified URL',
+              url: "https://invalid-url.com",
+              status: "failed",
+              error: "Network error: Unable to reach the specified URL",
             },
             {
-              url: 'https://example.org',
-              status: 'success',
-              page_id: '019af946-a471-77e6-9122-76d627892018',
+              url: "https://example.org",
+              status: "success",
+              page_id: "019af946-a471-77e6-9122-76d627892018",
               patterns_extracted: 3,
             },
           ],
@@ -281,12 +281,12 @@ describe('layout.batch_ingest MCPツール', () => {
       expect(() => layoutBatchIngestOutputSchema.parse(output)).not.toThrow();
     });
 
-    it('エラーレスポンスを検証', () => {
+    it("エラーレスポンスを検証", () => {
       const output: LayoutBatchIngestOutput = {
         success: false,
         error: {
-          code: 'VALIDATION_ERROR',
-          message: 'URLs array must have 1-100 items',
+          code: "VALIDATION_ERROR",
+          message: "URLs array must have 1-100 items",
         },
       };
       expect(() => layoutBatchIngestOutputSchema.parse(output)).not.toThrow();
@@ -296,35 +296,31 @@ describe('layout.batch_ingest MCPツール', () => {
   // ==========================================
   // ツール定義テスト
   // ==========================================
-  describe('ツール定義 (layoutBatchIngestToolDefinition)', () => {
-    it('正しいツール名を持つ', () => {
-      expect(layoutBatchIngestToolDefinition.name).toBe('layout.batch_ingest');
+  describe("ツール定義 (layoutBatchIngestToolDefinition)", () => {
+    it("正しいツール名を持つ", () => {
+      expect(layoutBatchIngestToolDefinition.name).toBe("layout.batch_ingest");
     });
 
-    it('descriptionが設定されている', () => {
+    it("descriptionが設定されている", () => {
       expect(layoutBatchIngestToolDefinition.description).toBeDefined();
       expect(layoutBatchIngestToolDefinition.description.length).toBeGreaterThan(0);
     });
 
-    it('inputSchemaが設定されている', () => {
+    it("inputSchemaが設定されている", () => {
       expect(layoutBatchIngestToolDefinition.inputSchema).toBeDefined();
-      expect(layoutBatchIngestToolDefinition.inputSchema.type).toBe('object');
-      expect(layoutBatchIngestToolDefinition.inputSchema.required).toContain('urls');
+      expect(layoutBatchIngestToolDefinition.inputSchema.type).toBe("object");
+      expect(layoutBatchIngestToolDefinition.inputSchema.required).toContain("urls");
     });
   });
 
   // ==========================================
   // ハンドラーテスト
   // ==========================================
-  describe('ハンドラー (layoutBatchIngestHandler)', () => {
-    describe('正常系', () => {
-      it('3つのURLを正常にインジェスト', async () => {
+  describe("ハンドラー (layoutBatchIngestHandler)", () => {
+    describe("正常系", () => {
+      it("3つのURLを正常にインジェスト", async () => {
         // Arrange
-        const urls = [
-          'https://example.com',
-          'https://example.org',
-          'https://example.net',
-        ];
+        const urls = ["https://example.com", "https://example.org", "https://example.net"];
 
         urls.forEach((url) => {
           (validateExternalUrl as Mock).mockReturnValueOnce({
@@ -355,13 +351,9 @@ describe('layout.batch_ingest MCPツール', () => {
         }
       });
 
-      it('部分的な失敗を処理（on_error: skip）', async () => {
+      it("部分的な失敗を処理（on_error: skip）", async () => {
         // Arrange
-        const urls = [
-          'https://example.com',
-          'https://failing-site.com',
-          'https://example.org',
-        ];
+        const urls = ["https://example.com", "https://failing-site.com", "https://example.org"];
 
         urls.forEach((url) => {
           (validateExternalUrl as Mock).mockReturnValueOnce({
@@ -372,13 +364,13 @@ describe('layout.batch_ingest MCPツール', () => {
 
         (pageIngestAdapter.ingest as Mock)
           .mockResolvedValueOnce(createSuccessIngestResult(urls[0]))
-          .mockResolvedValueOnce(createFailedIngestResult(urls[1], 'Network error'))
+          .mockResolvedValueOnce(createFailedIngestResult(urls[1], "Network error"))
           .mockResolvedValueOnce(createSuccessIngestResult(urls[2]));
 
         // Act
         const result = await layoutBatchIngestHandler({
           urls,
-          options: { on_error: 'skip', save_to_db: false },
+          options: { on_error: "skip", save_to_db: false },
         });
 
         // Assert
@@ -389,23 +381,19 @@ describe('layout.batch_ingest MCPツール', () => {
           expect(result.data.failed).toBe(1);
 
           // 成功したURLの結果を確認
-          const successResults = result.data.results.filter(r => r.status === 'success');
+          const successResults = result.data.results.filter((r) => r.status === "success");
           expect(successResults).toHaveLength(2);
 
           // 失敗したURLの結果を確認
-          const failedResults = result.data.results.filter(r => r.status === 'failed');
+          const failedResults = result.data.results.filter((r) => r.status === "failed");
           expect(failedResults).toHaveLength(1);
           expect(failedResults[0]?.error).toBeDefined();
         }
       });
 
-      it('on_error: abort で最初の失敗で中止', async () => {
+      it("on_error: abort で最初の失敗で中止", async () => {
         // Arrange
-        const urls = [
-          'https://example.com',
-          'https://failing-site.com',
-          'https://example.org',
-        ];
+        const urls = ["https://example.com", "https://failing-site.com", "https://example.org"];
 
         urls.forEach((url) => {
           (validateExternalUrl as Mock).mockReturnValueOnce({
@@ -416,24 +404,24 @@ describe('layout.batch_ingest MCPツール', () => {
 
         (pageIngestAdapter.ingest as Mock)
           .mockResolvedValueOnce(createSuccessIngestResult(urls[0]))
-          .mockResolvedValueOnce(createFailedIngestResult(urls[1], 'Network error'));
+          .mockResolvedValueOnce(createFailedIngestResult(urls[1], "Network error"));
         // 3番目のURLは呼ばれないはず
 
         // Act
         const result = await layoutBatchIngestHandler({
           urls,
-          options: { on_error: 'abort', save_to_db: false },
+          options: { on_error: "abort", save_to_db: false },
         });
 
         // Assert
         expect(result.success).toBe(false);
         if (!result.success) {
-          expect(result.error.code).toBe('BATCH_ABORTED');
-          expect(result.error.message).toContain('failing-site.com');
+          expect(result.error.code).toBe("BATCH_ABORTED");
+          expect(result.error.message).toContain("failing-site.com");
         }
       });
 
-      it('並行処理の制限を尊重', async () => {
+      it("並行処理の制限を尊重", async () => {
         // Arrange
         const urls = Array.from({ length: 10 }, (_, i) => `https://example${i}.com`);
         const concurrency = 3;
@@ -476,19 +464,19 @@ describe('layout.batch_ingest MCPツール', () => {
         expect(maxActiveCount).toBeLessThanOrEqual(concurrency);
       });
 
-      it('job_idがUUIDv7形式で生成される', async () => {
+      it("job_idがUUIDv7形式で生成される", async () => {
         // Arrange
         (validateExternalUrl as Mock).mockReturnValue({
           valid: true,
-          normalizedUrl: 'https://example.com',
+          normalizedUrl: "https://example.com",
         });
         (pageIngestAdapter.ingest as Mock).mockResolvedValue(
-          createSuccessIngestResult('https://example.com')
+          createSuccessIngestResult("https://example.com")
         );
 
         // Act
         const result = await layoutBatchIngestHandler({
-          urls: ['https://example.com'],
+          urls: ["https://example.com"],
           options: { save_to_db: false },
         });
 
@@ -496,25 +484,26 @@ describe('layout.batch_ingest MCPツール', () => {
         expect(result.success).toBe(true);
         if (result.success) {
           // UUIDv7形式の検証: 8-4-4-4-12 で、バージョンが7
-          const uuidV7Regex = /^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+          const uuidV7Regex =
+            /^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
           expect(result.data.job_id).toMatch(uuidV7Regex);
         }
       });
 
-      it('処理時間がsummaryに含まれる', async () => {
+      it("処理時間がsummaryに含まれる", async () => {
         // Arrange
         (validateExternalUrl as Mock).mockReturnValue({
           valid: true,
-          normalizedUrl: 'https://example.com',
+          normalizedUrl: "https://example.com",
         });
         (pageIngestAdapter.ingest as Mock).mockImplementation(async () => {
           await new Promise((resolve) => setTimeout(resolve, 50));
-          return createSuccessIngestResult('https://example.com');
+          return createSuccessIngestResult("https://example.com");
         });
 
         // Act
         const result = await layoutBatchIngestHandler({
-          urls: ['https://example.com'],
+          urls: ["https://example.com"],
           options: { save_to_db: false },
         });
 
@@ -526,8 +515,8 @@ describe('layout.batch_ingest MCPツール', () => {
       });
     });
 
-    describe('異常系', () => {
-      it('空のURL配列でバリデーションエラー', async () => {
+    describe("異常系", () => {
+      it("空のURL配列でバリデーションエラー", async () => {
         // Act
         const result = await layoutBatchIngestHandler({
           urls: [],
@@ -536,11 +525,11 @@ describe('layout.batch_ingest MCPツール', () => {
         // Assert
         expect(result.success).toBe(false);
         if (!result.success) {
-          expect(result.error.code).toBe('VALIDATION_ERROR');
+          expect(result.error.code).toBe("VALIDATION_ERROR");
         }
       });
 
-      it('101件以上のURLでバリデーションエラー', async () => {
+      it("101件以上のURLでバリデーションエラー", async () => {
         // Arrange
         const urls = Array.from({ length: 101 }, (_, i) => `https://example${i}.com`);
 
@@ -550,26 +539,26 @@ describe('layout.batch_ingest MCPツール', () => {
         // Assert
         expect(result.success).toBe(false);
         if (!result.success) {
-          expect(result.error.code).toBe('VALIDATION_ERROR');
+          expect(result.error.code).toBe("VALIDATION_ERROR");
         }
       });
 
-      it('SSRFブロックされたURLを含む場合', async () => {
+      it("SSRFブロックされたURLを含む場合", async () => {
         // Arrange
-        const urls = ['https://example.com', 'http://169.254.169.254/metadata'];
+        const urls = ["https://example.com", "http://169.254.169.254/metadata"];
 
         (validateExternalUrl as Mock)
           .mockReturnValueOnce({ valid: true, normalizedUrl: urls[0] })
-          .mockReturnValueOnce({ valid: false, error: 'SSRF blocked' });
+          .mockReturnValueOnce({ valid: false, error: "SSRF blocked" });
 
         (pageIngestAdapter.ingest as Mock).mockResolvedValue(
-          createSuccessIngestResult('https://example.com')
+          createSuccessIngestResult("https://example.com")
         );
 
         // Act
         const result = await layoutBatchIngestHandler({
           urls,
-          options: { on_error: 'skip', save_to_db: false },
+          options: { on_error: "skip", save_to_db: false },
         });
 
         // Assert
@@ -577,8 +566,8 @@ describe('layout.batch_ingest MCPツール', () => {
         if (result.success) {
           expect(result.data.completed).toBe(1);
           expect(result.data.failed).toBe(1);
-          const failedResult = result.data.results.find(r => r.status === 'failed');
-          expect(failedResult?.error).toContain('SSRF');
+          const failedResult = result.data.results.find((r) => r.status === "failed");
+          expect(failedResult?.error).toContain("SSRF");
         }
       });
     });

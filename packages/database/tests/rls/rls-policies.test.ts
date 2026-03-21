@@ -23,30 +23,28 @@ import { withAdminBypass } from "../../src/utils/admin-operation";
 const DATABASE_URL = process.env.DATABASE_URL;
 const ADMIN_DATABASE_URL = process.env.ADMIN_DATABASE_URL;
 
-describe.skipIf(!DATABASE_URL || !ADMIN_DATABASE_URL)(
-  "RLS Policies - Tier 1 Tables",
-  () => {
-    let prisma: PrismaClient;
+describe.skipIf(!DATABASE_URL || !ADMIN_DATABASE_URL)("RLS Policies - Tier 1 Tables", () => {
+  let prisma: PrismaClient;
 
-    // Test users
-    const userAId = "00000000-0000-0000-0000-000000000001";
-    const userBId = "00000000-0000-0000-0000-000000000002";
+  // Test users
+  const userAId = "00000000-0000-0000-0000-000000000001";
+  const userBId = "00000000-0000-0000-0000-000000000002";
 
-    // Test data IDs
-    let userAProjectId: string;
-    let userBProjectId: string;
+  // Test data IDs
+  let userAProjectId: string;
+  let userBProjectId: string;
 
-    beforeAll(async () => {
-      prisma = new PrismaClient();
+  beforeAll(async () => {
+    prisma = new PrismaClient();
 
-      // Create test users and projects using admin bypass (bypasses RLS)
-      try {
-        await withAdminBypass(
-          "test_setup_rls_policies",
-          "Creating test data for RLS policies tests",
-          async (adminPrisma) => {
-            // Create test users
-            await adminPrisma.$executeRaw`
+    // Create test users and projects using admin bypass (bypasses RLS)
+    try {
+      await withAdminBypass(
+        "test_setup_rls_policies",
+        "Creating test data for RLS policies tests",
+        async (adminPrisma) => {
+          // Create test users
+          await adminPrisma.$executeRaw`
           INSERT INTO users (id, email, name, created_at, updated_at)
           VALUES
             (${userAId}::uuid, 'user-a@test.com', 'User A', NOW(), NOW()),
@@ -54,49 +52,49 @@ describe.skipIf(!DATABASE_URL || !ADMIN_DATABASE_URL)(
           ON CONFLICT (id) DO NOTHING
         `;
 
-            // Create test projects
-            const projectA = await adminPrisma.$queryRaw<{ id: string }[]>`
+          // Create test projects
+          const projectA = await adminPrisma.$queryRaw<{ id: string }[]>`
           INSERT INTO projects (id, user_id, name, slug, status, created_at, updated_at)
           VALUES (gen_random_uuid(), ${userAId}::uuid, 'User A Project', 'user-a-project-' || gen_random_uuid()::text, 'draft', NOW(), NOW())
           RETURNING id::text
         `;
-            userAProjectId = projectA[0]?.id ?? "";
+          userAProjectId = projectA[0]?.id ?? "";
 
-            const projectB = await adminPrisma.$queryRaw<{ id: string }[]>`
+          const projectB = await adminPrisma.$queryRaw<{ id: string }[]>`
           INSERT INTO projects (id, user_id, name, slug, status, created_at, updated_at)
           VALUES (gen_random_uuid(), ${userBId}::uuid, 'User B Project', 'user-b-project-' || gen_random_uuid()::text, 'draft', NOW(), NOW())
           RETURNING id::text
         `;
-            userBProjectId = projectB[0]?.id ?? "";
-          }
-        );
-      } catch (error) {
-        console.error("Setup failed:", error);
-        throw error;
-      }
-    });
+          userBProjectId = projectB[0]?.id ?? "";
+        }
+      );
+    } catch (error) {
+      console.error("Setup failed:", error);
+      throw error;
+    }
+  });
 
-    afterAll(async () => {
-      // Cleanup test data using admin bypass
-      try {
-        await withAdminBypass(
-          "test_cleanup_rls_policies",
-          "Cleaning up test data for RLS policies tests",
-          async (adminPrisma) => {
-            await adminPrisma.$executeRaw`
+  afterAll(async () => {
+    // Cleanup test data using admin bypass
+    try {
+      await withAdminBypass(
+        "test_cleanup_rls_policies",
+        "Cleaning up test data for RLS policies tests",
+        async (adminPrisma) => {
+          await adminPrisma.$executeRaw`
           DELETE FROM projects WHERE user_id IN (${userAId}::uuid, ${userBId}::uuid)
         `;
-            await adminPrisma.$executeRaw`
+          await adminPrisma.$executeRaw`
           DELETE FROM users WHERE id IN (${userAId}::uuid, ${userBId}::uuid)
         `;
-          }
-        );
-      } catch (error) {
-        console.error("Cleanup failed:", error);
-      }
+        }
+      );
+    } catch (error) {
+      console.error("Cleanup failed:", error);
+    }
 
-      await prisma.$disconnect();
-    });
+    await prisma.$disconnect();
+  });
 
   describe("projects table", () => {
     it("should allow owner to read their own projects", async () => {
@@ -226,5 +224,4 @@ describe.skipIf(!DATABASE_URL || !ADMIN_DATABASE_URL)(
 
   // [DELETED OSS] api_keys table tests removed
   // ApiKey table was deleted during OSS cleanup
-  }
-);
+});

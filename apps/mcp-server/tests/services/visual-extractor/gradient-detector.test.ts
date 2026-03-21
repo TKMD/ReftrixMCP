@@ -20,14 +20,13 @@
  * @module tests/services/visual-extractor/gradient-detector.test
  */
 
-import { describe, it, expect, beforeAll } from 'vitest';
-import sharp from 'sharp';
-import type {
-  GradientDetectorService} from '../../../src/services/visual-extractor/gradient-detector.service';
+import { describe, it, expect, beforeAll } from "vitest";
+import sharp from "sharp";
+import type { GradientDetectorService } from "../../../src/services/visual-extractor/gradient-detector.service";
 import {
   GradientDetectionResult,
   createGradientDetectorService,
-} from '../../../src/services/visual-extractor/gradient-detector.service';
+} from "../../../src/services/visual-extractor/gradient-detector.service";
 
 // Helper to create solid color test image
 async function createSolidColorImage(
@@ -160,7 +159,9 @@ async function createRadialGradientImage(
   const data = Buffer.alloc(width * height * channels);
   const cx = width * centerX;
   const cy = height * centerY;
-  const maxRadius = Math.sqrt(Math.pow(Math.max(cx, width - cx), 2) + Math.pow(Math.max(cy, height - cy), 2));
+  const maxRadius = Math.sqrt(
+    Math.pow(Math.max(cx, width - cx), 2) + Math.pow(Math.max(cy, height - cy), 2)
+  );
 
   for (let y = 0; y < height; y++) {
     for (let x = 0; x < width; x++) {
@@ -223,10 +224,7 @@ async function createConicGradientImage(
 }
 
 // Helper to create image with multiple gradient regions
-async function createMultiGradientImage(
-  width: number,
-  height: number
-): Promise<Buffer> {
+async function createMultiGradientImage(width: number, height: number): Promise<Buffer> {
   const channels = 3;
   const data = Buffer.alloc(width * height * channels);
   const halfWidth = Math.floor(width / 2);
@@ -263,19 +261,19 @@ function isValidHexColor(color: string): boolean {
   return /^#[0-9A-Fa-f]{6}$/.test(color);
 }
 
-describe('GradientDetectorService', () => {
+describe("GradientDetectorService", () => {
   let service: GradientDetectorService;
 
   beforeAll(() => {
     service = createGradientDetectorService();
   });
 
-  describe('detectGradient', () => {
+  describe("detectGradient", () => {
     // ==========================================
     // 1. Linear Gradient Detection - Horizontal
     // ==========================================
-    describe('1. Horizontal Linear Gradient Detection', () => {
-      it('should detect horizontal linear gradient from red to blue', async () => {
+    describe("1. Horizontal Linear Gradient Detection", () => {
+      it("should detect horizontal linear gradient from red to blue", async () => {
         const image = await createHorizontalGradientImage(
           200,
           100,
@@ -290,16 +288,15 @@ describe('GradientDetectorService', () => {
         expect(result.gradients.length).toBeGreaterThanOrEqual(1);
 
         const gradient = result.gradients[0];
-        expect(gradient.type).toBe('linear');
+        expect(gradient.type).toBe("linear");
         // Horizontal gradient should be around 0 or 180 degrees
         expect(gradient.direction).toBeDefined();
-        expect(
-          Math.abs(gradient.direction!) < 15 ||
-          Math.abs(gradient.direction! - 180) < 15
-        ).toBe(true);
+        expect(Math.abs(gradient.direction!) < 15 || Math.abs(gradient.direction! - 180) < 15).toBe(
+          true
+        );
       });
 
-      it('should detect horizontal linear gradient from white to black', async () => {
+      it("should detect horizontal linear gradient from white to black", async () => {
         const image = await createHorizontalGradientImage(
           200,
           100,
@@ -311,10 +308,10 @@ describe('GradientDetectorService', () => {
 
         expect(result.hasGradient).toBe(true);
         expect(result.gradients.length).toBeGreaterThanOrEqual(1);
-        expect(result.gradients[0].type).toBe('linear');
+        expect(result.gradients[0].type).toBe("linear");
       });
 
-      it('should extract color stops from horizontal gradient', async () => {
+      it("should extract color stops from horizontal gradient", async () => {
         const image = await createHorizontalGradientImage(
           200,
           100,
@@ -339,8 +336,8 @@ describe('GradientDetectorService', () => {
     // ==========================================
     // 2. Linear Gradient Detection - Vertical
     // ==========================================
-    describe('2. Vertical Linear Gradient Detection', () => {
-      it('should detect vertical linear gradient from top to bottom', async () => {
+    describe("2. Vertical Linear Gradient Detection", () => {
+      it("should detect vertical linear gradient from top to bottom", async () => {
         const image = await createVerticalGradientImage(
           100,
           200,
@@ -354,16 +351,15 @@ describe('GradientDetectorService', () => {
         expect(result.gradients.length).toBeGreaterThanOrEqual(1);
 
         const gradient = result.gradients[0];
-        expect(gradient.type).toBe('linear');
+        expect(gradient.type).toBe("linear");
         // Vertical gradient should be around 90 or 270 degrees
         expect(gradient.direction).toBeDefined();
         expect(
-          Math.abs(gradient.direction! - 90) < 15 ||
-          Math.abs(gradient.direction! - 270) < 15
+          Math.abs(gradient.direction! - 90) < 15 || Math.abs(gradient.direction! - 270) < 15
         ).toBe(true);
       });
 
-      it('should detect vertical gradient with multiple colors', async () => {
+      it("should detect vertical gradient with multiple colors", async () => {
         const channels = 3;
         const width = 100;
         const height = 300;
@@ -410,8 +406,8 @@ describe('GradientDetectorService', () => {
     // ==========================================
     // 3. Linear Gradient Detection - Diagonal
     // ==========================================
-    describe('3. Diagonal Linear Gradient Detection', () => {
-      it('should detect 45-degree diagonal gradient', async () => {
+    describe("3. Diagonal Linear Gradient Detection", () => {
+      it("should detect 45-degree diagonal gradient", async () => {
         const image = await createDiagonalGradientImage(
           200,
           200,
@@ -423,13 +419,13 @@ describe('GradientDetectorService', () => {
         const result = await service.detectGradient(image);
 
         expect(result.hasGradient).toBe(true);
-        expect(result.gradients[0].type).toBe('linear');
+        expect(result.gradients[0].type).toBe("linear");
         // Allow some tolerance for angle detection
         expect(result.gradients[0].direction).toBeDefined();
         expect(Math.abs(result.gradients[0].direction! - 45)).toBeLessThan(30);
       });
 
-      it('should detect 135-degree diagonal gradient', async () => {
+      it("should detect 135-degree diagonal gradient", async () => {
         const image = await createDiagonalGradientImage(
           200,
           200,
@@ -441,12 +437,12 @@ describe('GradientDetectorService', () => {
         const result = await service.detectGradient(image);
 
         expect(result.hasGradient).toBe(true);
-        expect(result.gradients[0].type).toBe('linear');
+        expect(result.gradients[0].type).toBe("linear");
         expect(result.gradients[0].direction).toBeDefined();
         expect(Math.abs(result.gradients[0].direction! - 135)).toBeLessThan(30);
       });
 
-      it('should detect 225-degree diagonal gradient', async () => {
+      it("should detect 225-degree diagonal gradient", async () => {
         const image = await createDiagonalGradientImage(
           200,
           200,
@@ -458,15 +454,15 @@ describe('GradientDetectorService', () => {
         const result = await service.detectGradient(image);
 
         expect(result.hasGradient).toBe(true);
-        expect(result.gradients[0].type).toBe('linear');
+        expect(result.gradients[0].type).toBe("linear");
       });
     });
 
     // ==========================================
     // 4. Radial Gradient Detection
     // ==========================================
-    describe('4. Radial Gradient Detection', () => {
-      it('should detect radial gradient centered in image', async () => {
+    describe("4. Radial Gradient Detection", () => {
+      it("should detect radial gradient centered in image", async () => {
         const image = await createRadialGradientImage(
           200,
           200,
@@ -482,12 +478,12 @@ describe('GradientDetectorService', () => {
         expect(result.gradients.length).toBeGreaterThanOrEqual(1);
 
         const gradient = result.gradients[0];
-        expect(gradient.type).toBe('radial');
+        expect(gradient.type).toBe("radial");
         expect(gradient.centerX).toBeCloseTo(0.5, 1);
         expect(gradient.centerY).toBeCloseTo(0.5, 1);
       });
 
-      it('should detect radial gradient with off-center point', async () => {
+      it("should detect radial gradient with off-center point", async () => {
         const image = await createRadialGradientImage(
           200,
           200,
@@ -500,12 +496,12 @@ describe('GradientDetectorService', () => {
         const result = await service.detectGradient(image);
 
         expect(result.hasGradient).toBe(true);
-        expect(result.gradients[0].type).toBe('radial');
+        expect(result.gradients[0].type).toBe("radial");
         expect(result.gradients[0].centerX).toBeDefined();
         expect(result.gradients[0].centerY).toBeDefined();
       });
 
-      it('should extract color stops from radial gradient', async () => {
+      it("should extract color stops from radial gradient", async () => {
         const image = await createRadialGradientImage(
           200,
           200,
@@ -525,8 +521,8 @@ describe('GradientDetectorService', () => {
     // ==========================================
     // 5. Conic Gradient Detection
     // ==========================================
-    describe('5. Conic Gradient Detection', () => {
-      it('should detect conic gradient with 4 colors', async () => {
+    describe("5. Conic Gradient Detection", () => {
+      it("should detect conic gradient with 4 colors", async () => {
         const image = await createConicGradientImage(200, 200, [
           { r: 255, g: 0, b: 0 },
           { r: 0, g: 255, b: 0 },
@@ -538,10 +534,10 @@ describe('GradientDetectorService', () => {
 
         expect(result.hasGradient).toBe(true);
         expect(result.gradients.length).toBeGreaterThanOrEqual(1);
-        expect(result.gradients[0].type).toBe('conic');
+        expect(result.gradients[0].type).toBe("conic");
       });
 
-      it('should detect conic gradient center position', async () => {
+      it("should detect conic gradient center position", async () => {
         const image = await createConicGradientImage(
           200,
           200,
@@ -559,7 +555,7 @@ describe('GradientDetectorService', () => {
         expect(result.gradients[0].centerY).toBeDefined();
       });
 
-      it('should detect conic gradient color stops', async () => {
+      it("should detect conic gradient color stops", async () => {
         const image = await createConicGradientImage(200, 200, [
           { r: 255, g: 0, b: 0 },
           { r: 0, g: 255, b: 0 },
@@ -575,8 +571,8 @@ describe('GradientDetectorService', () => {
     // ==========================================
     // 6. Multiple Gradient Detection
     // ==========================================
-    describe('6. Multiple Gradient Detection', () => {
-      it('should detect multiple gradients in different regions', async () => {
+    describe("6. Multiple Gradient Detection", () => {
+      it("should detect multiple gradients in different regions", async () => {
         const image = await createMultiGradientImage(400, 200);
 
         const result = await service.detectGradient(image);
@@ -585,7 +581,7 @@ describe('GradientDetectorService', () => {
         expect(result.gradients.length).toBeGreaterThanOrEqual(1);
       });
 
-      it('should provide region information for each detected gradient', async () => {
+      it("should provide region information for each detected gradient", async () => {
         const image = await createMultiGradientImage(400, 200);
 
         const result = await service.detectGradient(image);
@@ -603,8 +599,8 @@ describe('GradientDetectorService', () => {
     // ==========================================
     // 7. No Gradient (Solid Color) Detection
     // ==========================================
-    describe('7. No Gradient (Solid Color) Detection', () => {
-      it('should return hasGradient=false for solid red image', async () => {
+    describe("7. No Gradient (Solid Color) Detection", () => {
+      it("should return hasGradient=false for solid red image", async () => {
         const image = await createSolidColorImage(100, 100, { r: 255, g: 0, b: 0 });
 
         const result = await service.detectGradient(image);
@@ -613,7 +609,7 @@ describe('GradientDetectorService', () => {
         expect(result.gradients.length).toBe(0);
       });
 
-      it('should return hasGradient=false for solid white image', async () => {
+      it("should return hasGradient=false for solid white image", async () => {
         const image = await createSolidColorImage(100, 100, { r: 255, g: 255, b: 255 });
 
         const result = await service.detectGradient(image);
@@ -621,7 +617,7 @@ describe('GradientDetectorService', () => {
         expect(result.hasGradient).toBe(false);
       });
 
-      it('should return hasGradient=false for solid black image', async () => {
+      it("should return hasGradient=false for solid black image", async () => {
         const image = await createSolidColorImage(100, 100, { r: 0, g: 0, b: 0 });
 
         const result = await service.detectGradient(image);
@@ -629,7 +625,7 @@ describe('GradientDetectorService', () => {
         expect(result.hasGradient).toBe(false);
       });
 
-      it('should return hasGradient=false for near-solid image with minimal variation', async () => {
+      it("should return hasGradient=false for near-solid image with minimal variation", async () => {
         // Create image with very slight color variation (noise)
         const channels = 3;
         const width = 100;
@@ -657,8 +653,8 @@ describe('GradientDetectorService', () => {
     // ==========================================
     // 8. Edge Cases - Small Images
     // ==========================================
-    describe('8. Edge Cases - Small Images', () => {
-      it('should handle 1x1 pixel image', async () => {
+    describe("8. Edge Cases - Small Images", () => {
+      it("should handle 1x1 pixel image", async () => {
         const image = await createSolidColorImage(1, 1, { r: 255, g: 0, b: 0 });
 
         const result = await service.detectGradient(image);
@@ -669,17 +665,25 @@ describe('GradientDetectorService', () => {
         expect(result.confidence).toBeLessThanOrEqual(1);
       });
 
-      it('should handle 2x2 pixel gradient image', async () => {
+      it("should handle 2x2 pixel gradient image", async () => {
         const channels = 3;
         const width = 2;
         const height = 2;
         const data = Buffer.alloc(width * height * channels);
 
         // Top-left: red, Top-right: blue, Bottom-left: green, Bottom-right: yellow
-        data[0] = 255; data[1] = 0; data[2] = 0; // Red
-        data[3] = 0; data[4] = 0; data[5] = 255; // Blue
-        data[6] = 0; data[7] = 255; data[8] = 0; // Green
-        data[9] = 255; data[10] = 255; data[11] = 0; // Yellow
+        data[0] = 255;
+        data[1] = 0;
+        data[2] = 0; // Red
+        data[3] = 0;
+        data[4] = 0;
+        data[5] = 255; // Blue
+        data[6] = 0;
+        data[7] = 255;
+        data[8] = 0; // Green
+        data[9] = 255;
+        data[10] = 255;
+        data[11] = 0; // Yellow
 
         const image = await sharp(data, {
           raw: { width, height, channels },
@@ -693,7 +697,7 @@ describe('GradientDetectorService', () => {
         expect(result.processingTimeMs).toBeGreaterThanOrEqual(0);
       });
 
-      it('should handle 10x10 pixel gradient image', async () => {
+      it("should handle 10x10 pixel gradient image", async () => {
         const image = await createHorizontalGradientImage(
           10,
           10,
@@ -711,8 +715,8 @@ describe('GradientDetectorService', () => {
     // ==========================================
     // 9. Edge Cases - Large Images
     // ==========================================
-    describe('9. Edge Cases - Large Images', () => {
-      it('should handle 1920x1080 gradient image', async () => {
+    describe("9. Edge Cases - Large Images", () => {
+      it("should handle 1920x1080 gradient image", async () => {
         const image = await createHorizontalGradientImage(
           1920,
           1080,
@@ -726,7 +730,7 @@ describe('GradientDetectorService', () => {
         expect(result.hasGradient).toBe(true);
       });
 
-      it('should handle very wide image (3000x100)', async () => {
+      it("should handle very wide image (3000x100)", async () => {
         const image = await createHorizontalGradientImage(
           3000,
           100,
@@ -740,7 +744,7 @@ describe('GradientDetectorService', () => {
         expect(result.hasGradient).toBe(true);
       });
 
-      it('should handle very tall image (100x3000)', async () => {
+      it("should handle very tall image (100x3000)", async () => {
         const image = await createVerticalGradientImage(
           100,
           3000,
@@ -758,38 +762,38 @@ describe('GradientDetectorService', () => {
     // ==========================================
     // 10. Error Handling
     // ==========================================
-    describe('10. Error Handling', () => {
-      it('should throw error for null input', async () => {
+    describe("10. Error Handling", () => {
+      it("should throw error for null input", async () => {
         await expect(service.detectGradient(null as unknown as Buffer)).rejects.toThrow();
       });
 
-      it('should throw error for undefined input', async () => {
+      it("should throw error for undefined input", async () => {
         await expect(service.detectGradient(undefined as unknown as Buffer)).rejects.toThrow();
       });
 
-      it('should throw error for empty buffer', async () => {
+      it("should throw error for empty buffer", async () => {
         const emptyBuffer = Buffer.alloc(0);
         await expect(service.detectGradient(emptyBuffer)).rejects.toThrow();
       });
 
-      it('should throw error for invalid image data', async () => {
-        const invalidData = Buffer.from('not an image');
+      it("should throw error for invalid image data", async () => {
+        const invalidData = Buffer.from("not an image");
         await expect(service.detectGradient(invalidData)).rejects.toThrow();
       });
 
-      it('should throw error for invalid base64 string', async () => {
-        const invalidBase64 = 'not-valid-base64!!!';
+      it("should throw error for invalid base64 string", async () => {
+        const invalidBase64 = "not-valid-base64!!!";
         await expect(service.detectGradient(invalidBase64)).rejects.toThrow();
       });
 
-      it('should accept valid base64 encoded image', async () => {
+      it("should accept valid base64 encoded image", async () => {
         const image = await createHorizontalGradientImage(
           100,
           50,
           { r: 255, g: 0, b: 0 },
           { r: 0, g: 255, b: 0 }
         );
-        const base64Image = image.toString('base64');
+        const base64Image = image.toString("base64");
 
         const result = await service.detectGradient(base64Image);
 
@@ -797,14 +801,14 @@ describe('GradientDetectorService', () => {
         expect(result.hasGradient).toBe(true);
       });
 
-      it('should accept base64 with data URL prefix', async () => {
+      it("should accept base64 with data URL prefix", async () => {
         const image = await createHorizontalGradientImage(
           100,
           50,
           { r: 255, g: 0, b: 0 },
           { r: 0, g: 255, b: 0 }
         );
-        const base64WithPrefix = `data:image/png;base64,${image.toString('base64')}`;
+        const base64WithPrefix = `data:image/png;base64,${image.toString("base64")}`;
 
         const result = await service.detectGradient(base64WithPrefix);
 
@@ -816,8 +820,8 @@ describe('GradientDetectorService', () => {
     // ==========================================
     // 11. Confidence Score Validation
     // ==========================================
-    describe('11. Confidence Score Validation', () => {
-      it('should return overall confidence between 0 and 1', async () => {
+    describe("11. Confidence Score Validation", () => {
+      it("should return overall confidence between 0 and 1", async () => {
         const image = await createHorizontalGradientImage(
           200,
           100,
@@ -831,7 +835,7 @@ describe('GradientDetectorService', () => {
         expect(result.confidence).toBeLessThanOrEqual(1);
       });
 
-      it('should return per-gradient confidence between 0 and 1', async () => {
+      it("should return per-gradient confidence between 0 and 1", async () => {
         const image = await createRadialGradientImage(
           200,
           200,
@@ -847,7 +851,7 @@ describe('GradientDetectorService', () => {
         });
       });
 
-      it('should have higher confidence for clear gradients', async () => {
+      it("should have higher confidence for clear gradients", async () => {
         const clearGradient = await createHorizontalGradientImage(
           200,
           100,
@@ -864,8 +868,8 @@ describe('GradientDetectorService', () => {
     // ==========================================
     // 12. Dominant Gradient Type
     // ==========================================
-    describe('12. Dominant Gradient Type', () => {
-      it('should identify linear as dominant type for linear gradient', async () => {
+    describe("12. Dominant Gradient Type", () => {
+      it("should identify linear as dominant type for linear gradient", async () => {
         const image = await createHorizontalGradientImage(
           200,
           100,
@@ -875,10 +879,10 @@ describe('GradientDetectorService', () => {
 
         const result = await service.detectGradient(image);
 
-        expect(result.dominantGradientType).toBe('linear');
+        expect(result.dominantGradientType).toBe("linear");
       });
 
-      it('should identify radial as dominant type for radial gradient', async () => {
+      it("should identify radial as dominant type for radial gradient", async () => {
         const image = await createRadialGradientImage(
           200,
           200,
@@ -888,10 +892,10 @@ describe('GradientDetectorService', () => {
 
         const result = await service.detectGradient(image);
 
-        expect(result.dominantGradientType).toBe('radial');
+        expect(result.dominantGradientType).toBe("radial");
       });
 
-      it('should identify conic as dominant type for conic gradient', async () => {
+      it("should identify conic as dominant type for conic gradient", async () => {
         const image = await createConicGradientImage(200, 200, [
           { r: 255, g: 0, b: 0 },
           { r: 0, g: 255, b: 0 },
@@ -900,10 +904,10 @@ describe('GradientDetectorService', () => {
 
         const result = await service.detectGradient(image);
 
-        expect(result.dominantGradientType).toBe('conic');
+        expect(result.dominantGradientType).toBe("conic");
       });
 
-      it('should return undefined for no gradient', async () => {
+      it("should return undefined for no gradient", async () => {
         const image = await createSolidColorImage(100, 100, { r: 128, g: 128, b: 128 });
 
         const result = await service.detectGradient(image);
@@ -915,8 +919,8 @@ describe('GradientDetectorService', () => {
     // ==========================================
     // 13. Processing Time
     // ==========================================
-    describe('13. Processing Time', () => {
-      it('should include processing time in result', async () => {
+    describe("13. Processing Time", () => {
+      it("should include processing time in result", async () => {
         const image = await createHorizontalGradientImage(
           200,
           100,
@@ -927,11 +931,11 @@ describe('GradientDetectorService', () => {
         const result = await service.detectGradient(image);
 
         expect(result.processingTimeMs).toBeDefined();
-        expect(typeof result.processingTimeMs).toBe('number');
+        expect(typeof result.processingTimeMs).toBe("number");
         expect(result.processingTimeMs).toBeGreaterThanOrEqual(0);
       });
 
-      it('should process 200x100 image in less than 500ms', async () => {
+      it("should process 200x100 image in less than 500ms", async () => {
         const image = await createHorizontalGradientImage(
           200,
           100,
@@ -944,7 +948,7 @@ describe('GradientDetectorService', () => {
         expect(result.processingTimeMs).toBeLessThan(500);
       });
 
-      it('should process 1920x1080 image in less than 2000ms', async () => {
+      it("should process 1920x1080 image in less than 2000ms", async () => {
         const image = await createHorizontalGradientImage(
           1920,
           1080,
@@ -961,8 +965,8 @@ describe('GradientDetectorService', () => {
     // ==========================================
     // 14. Color Stop Position Accuracy
     // ==========================================
-    describe('14. Color Stop Position Accuracy', () => {
-      it('should have start color stop at position 0', async () => {
+    describe("14. Color Stop Position Accuracy", () => {
+      it("should have start color stop at position 0", async () => {
         const image = await createHorizontalGradientImage(
           200,
           100,
@@ -976,7 +980,7 @@ describe('GradientDetectorService', () => {
         expect(firstStop.position).toBeCloseTo(0, 1);
       });
 
-      it('should have end color stop at position 1', async () => {
+      it("should have end color stop at position 1", async () => {
         const image = await createHorizontalGradientImage(
           200,
           100,
@@ -991,7 +995,7 @@ describe('GradientDetectorService', () => {
         expect(lastStop.position).toBeCloseTo(1, 1);
       });
 
-      it('should have sorted color stop positions', async () => {
+      it("should have sorted color stop positions", async () => {
         const image = await createHorizontalGradientImage(
           200,
           100,
@@ -1011,8 +1015,8 @@ describe('GradientDetectorService', () => {
     // ==========================================
     // 15. Gradient Region Bounds
     // ==========================================
-    describe('15. Gradient Region Bounds', () => {
-      it('should have region bounds within image dimensions', async () => {
+    describe("15. Gradient Region Bounds", () => {
+      it("should have region bounds within image dimensions", async () => {
         const width = 200;
         const height = 100;
         const image = await createHorizontalGradientImage(

@@ -12,14 +12,13 @@
  * @module tests/services/visual-extractor/density-calculator.test
  */
 
-import { describe, it, expect, beforeAll } from 'vitest';
-import sharp from 'sharp';
-import type {
-  DensityCalculatorService} from '../../../src/services/visual-extractor/density-calculator.service';
+import { describe, it, expect, beforeAll } from "vitest";
+import sharp from "sharp";
+import type { DensityCalculatorService } from "../../../src/services/visual-extractor/density-calculator.service";
 import {
   DensityCalculationResult,
   createDensityCalculatorService,
-} from '../../../src/services/visual-extractor/density-calculator.service';
+} from "../../../src/services/visual-extractor/density-calculator.service";
 
 // Helper to create test images with solid color
 async function createSolidImage(
@@ -43,7 +42,13 @@ async function createSolidImage(
 async function createContentImage(
   width: number,
   height: number,
-  contentAreas: Array<{ x: number; y: number; w: number; h: number; color: { r: number; g: number; b: number } }>,
+  contentAreas: Array<{
+    x: number;
+    y: number;
+    w: number;
+    h: number;
+    color: { r: number; g: number; b: number };
+  }>,
   backgroundColor: { r: number; g: number; b: number } = { r: 255, g: 255, b: 255 }
 ): Promise<Buffer> {
   const channels = 3;
@@ -86,7 +91,7 @@ async function createContentImage(
 async function createGradientImage(
   width: number,
   height: number,
-  direction: 'horizontal' | 'vertical' = 'horizontal'
+  direction: "horizontal" | "vertical" = "horizontal"
 ): Promise<Buffer> {
   const channels = 3;
   const data = Buffer.alloc(width * height * channels);
@@ -94,9 +99,8 @@ async function createGradientImage(
   for (let y = 0; y < height; y++) {
     for (let x = 0; x < width; x++) {
       const pixelIndex = (y * width + x) * channels;
-      const intensity = direction === 'horizontal'
-        ? Math.floor((x / width) * 255)
-        : Math.floor((y / height) * 255);
+      const intensity =
+        direction === "horizontal" ? Math.floor((x / width) * 255) : Math.floor((y / height) * 255);
       data[pixelIndex] = intensity;
       data[pixelIndex + 1] = intensity;
       data[pixelIndex + 2] = intensity;
@@ -144,19 +148,20 @@ function isValidHexColor(color: string): boolean {
   return /^#[0-9A-Fa-f]{6}$/.test(color);
 }
 
-describe('DensityCalculatorService', () => {
+describe("DensityCalculatorService", () => {
   let service: DensityCalculatorService;
 
   beforeAll(() => {
     service = createDensityCalculatorService();
   });
 
-  describe('calculateDensity', () => {
-    describe('1. Minimal design pages should have high whitespace ratio', () => {
-      it('should return high whitespace ratio for mostly white image', async () => {
+  describe("calculateDensity", () => {
+    describe("1. Minimal design pages should have high whitespace ratio", () => {
+      it("should return high whitespace ratio for mostly white image", async () => {
         // Create a mostly white image with small content area
         const minimalImage = await createContentImage(
-          400, 400,
+          400,
+          400,
           [{ x: 180, y: 180, w: 40, h: 40, color: { r: 0, g: 0, b: 0 } }],
           { r: 255, g: 255, b: 255 }
         );
@@ -168,7 +173,7 @@ describe('DensityCalculatorService', () => {
         expect(result.contentDensity).toBeLessThan(0.2);
       });
 
-      it('should return whitespace ratio close to 1.0 for pure white image', async () => {
+      it("should return whitespace ratio close to 1.0 for pure white image", async () => {
         const whiteImage = await createSolidImage(100, 100, { r: 255, g: 255, b: 255 });
 
         const result = await service.calculateDensity(whiteImage);
@@ -178,11 +183,12 @@ describe('DensityCalculatorService', () => {
       });
     });
 
-    describe('2. Content-dense pages should have high density', () => {
-      it('should return high density for image with many content areas', async () => {
+    describe("2. Content-dense pages should have high density", () => {
+      it("should return high density for image with many content areas", async () => {
         // Create an image filled with content (dark areas)
         const denseImage = await createContentImage(
-          400, 400,
+          400,
+          400,
           [
             { x: 0, y: 0, w: 200, h: 200, color: { r: 50, g: 50, b: 50 } },
             { x: 200, y: 0, w: 200, h: 200, color: { r: 100, g: 100, b: 100 } },
@@ -198,7 +204,7 @@ describe('DensityCalculatorService', () => {
         expect(result.whitespaceRatio).toBeLessThan(0.5);
       });
 
-      it('should return density close to 1.0 for pure black image', async () => {
+      it("should return density close to 1.0 for pure black image", async () => {
         const blackImage = await createSolidImage(100, 100, { r: 0, g: 0, b: 0 });
 
         const result = await service.calculateDensity(blackImage);
@@ -208,8 +214,8 @@ describe('DensityCalculatorService', () => {
       });
     });
 
-    describe('3. Grid division should be accurate', () => {
-      it('should return correct number of regions for 3x3 grid', async () => {
+    describe("3. Grid division should be accurate", () => {
+      it("should return correct number of regions for 3x3 grid", async () => {
         const image = await createSolidImage(300, 300, { r: 128, g: 128, b: 128 });
 
         const result = await service.calculateDensity(image);
@@ -219,13 +225,13 @@ describe('DensityCalculatorService', () => {
         expect(result.regions.length).toBe(9); // 3x3 grid
       });
 
-      it('should return regions with correct row and col indices', async () => {
+      it("should return regions with correct row and col indices", async () => {
         const image = await createSolidImage(300, 300, { r: 128, g: 128, b: 128 });
 
         const result = await service.calculateDensity(image);
 
         // Check all expected indices are present
-        const indices = result.regions.map(r => `${r.row},${r.col}`);
+        const indices = result.regions.map((r) => `${r.row},${r.col}`);
         for (let row = 0; row < 3; row++) {
           for (let col = 0; col < 3; col++) {
             expect(indices).toContain(`${row},${col}`);
@@ -233,10 +239,11 @@ describe('DensityCalculatorService', () => {
         }
       });
 
-      it('should detect different densities in different regions', async () => {
+      it("should detect different densities in different regions", async () => {
         // Create image with high density in top-left, low density elsewhere
         const image = await createContentImage(
-          300, 300,
+          300,
+          300,
           [{ x: 0, y: 0, w: 100, h: 100, color: { r: 0, g: 0, b: 0 } }],
           { r: 255, g: 255, b: 255 }
         );
@@ -244,8 +251,8 @@ describe('DensityCalculatorService', () => {
         const result = await service.calculateDensity(image);
 
         // Find top-left region (0,0) and bottom-right region (2,2)
-        const topLeft = result.regions.find(r => r.row === 0 && r.col === 0);
-        const bottomRight = result.regions.find(r => r.row === 2 && r.col === 2);
+        const topLeft = result.regions.find((r) => r.row === 0 && r.col === 0);
+        const bottomRight = result.regions.find((r) => r.row === 2 && r.col === 2);
 
         expect(topLeft).toBeDefined();
         expect(bottomRight).toBeDefined();
@@ -253,8 +260,8 @@ describe('DensityCalculatorService', () => {
       });
     });
 
-    describe('4. Visual balance score should be in 0-100 range', () => {
-      it('should return visualBalance between 0 and 100', async () => {
+    describe("4. Visual balance score should be in 0-100 range", () => {
+      it("should return visualBalance between 0 and 100", async () => {
         const image = await createSolidImage(200, 200, { r: 100, g: 100, b: 100 });
 
         const result = await service.calculateDensity(image);
@@ -263,7 +270,7 @@ describe('DensityCalculatorService', () => {
         expect(result.visualBalance).toBeLessThanOrEqual(100);
       });
 
-      it('should return high balance score for uniform image', async () => {
+      it("should return high balance score for uniform image", async () => {
         const uniformImage = await createSolidImage(300, 300, { r: 128, g: 128, b: 128 });
 
         const result = await service.calculateDensity(uniformImage);
@@ -272,10 +279,11 @@ describe('DensityCalculatorService', () => {
         expect(result.visualBalance).toBeGreaterThan(80);
       });
 
-      it('should return lower balance score for asymmetric image', async () => {
+      it("should return lower balance score for asymmetric image", async () => {
         // Create highly asymmetric image (content only on left side)
         const asymmetricImage = await createContentImage(
-          400, 400,
+          400,
+          400,
           [{ x: 0, y: 0, w: 100, h: 400, color: { r: 0, g: 0, b: 0 } }],
           { r: 255, g: 255, b: 255 }
         );
@@ -287,8 +295,8 @@ describe('DensityCalculatorService', () => {
       });
     });
 
-    describe('5. Edge case: completely white image', () => {
-      it('should handle pure white image without errors', async () => {
+    describe("5. Edge case: completely white image", () => {
+      it("should handle pure white image without errors", async () => {
         const whiteImage = await createSolidImage(100, 100, { r: 255, g: 255, b: 255 });
 
         const result = await service.calculateDensity(whiteImage);
@@ -302,7 +310,7 @@ describe('DensityCalculatorService', () => {
         expect(result.visualBalance).toBeLessThanOrEqual(100);
       });
 
-      it('should return high whitespace ratio for white image', async () => {
+      it("should return high whitespace ratio for white image", async () => {
         const whiteImage = await createSolidImage(200, 200, { r: 255, g: 255, b: 255 });
 
         const result = await service.calculateDensity(whiteImage);
@@ -311,8 +319,8 @@ describe('DensityCalculatorService', () => {
       });
     });
 
-    describe('6. Edge case: completely black image', () => {
-      it('should handle pure black image without errors', async () => {
+    describe("6. Edge case: completely black image", () => {
+      it("should handle pure black image without errors", async () => {
         const blackImage = await createSolidImage(100, 100, { r: 0, g: 0, b: 0 });
 
         const result = await service.calculateDensity(blackImage);
@@ -326,7 +334,7 @@ describe('DensityCalculatorService', () => {
         expect(result.visualBalance).toBeLessThanOrEqual(100);
       });
 
-      it('should return low whitespace ratio for black image', async () => {
+      it("should return low whitespace ratio for black image", async () => {
         const blackImage = await createSolidImage(200, 200, { r: 0, g: 0, b: 0 });
 
         const result = await service.calculateDensity(blackImage);
@@ -335,8 +343,8 @@ describe('DensityCalculatorService', () => {
       });
     });
 
-    describe('Metrics calculation', () => {
-      it('should include edgeDensity metric', async () => {
+    describe("Metrics calculation", () => {
+      it("should include edgeDensity metric", async () => {
         const image = await createEdgyImage(200, 200, 50);
 
         const result = await service.calculateDensity(image);
@@ -347,7 +355,7 @@ describe('DensityCalculatorService', () => {
         expect(result.metrics.edgeDensity).toBeLessThanOrEqual(1);
       });
 
-      it('should have higher edgeDensity for checkerboard pattern', async () => {
+      it("should have higher edgeDensity for checkerboard pattern", async () => {
         const edgyImage = await createEdgyImage(200, 200, 20);
         const smoothImage = await createSolidImage(200, 200, { r: 128, g: 128, b: 128 });
 
@@ -357,7 +365,7 @@ describe('DensityCalculatorService', () => {
         expect(edgyResult.metrics.edgeDensity).toBeGreaterThan(smoothResult.metrics.edgeDensity);
       });
 
-      it('should include colorVariance metric', async () => {
+      it("should include colorVariance metric", async () => {
         const image = await createGradientImage(200, 200);
 
         const result = await service.calculateDensity(image);
@@ -366,7 +374,7 @@ describe('DensityCalculatorService', () => {
         expect(result.metrics.colorVariance).toBeGreaterThanOrEqual(0);
       });
 
-      it('should include symmetryScore metric', async () => {
+      it("should include symmetryScore metric", async () => {
         const image = await createSolidImage(200, 200, { r: 128, g: 128, b: 128 });
 
         const result = await service.calculateDensity(image);
@@ -377,21 +385,22 @@ describe('DensityCalculatorService', () => {
       });
     });
 
-    describe('Region dominant color', () => {
-      it('should return dominantColor in HEX format for each region', async () => {
+    describe("Region dominant color", () => {
+      it("should return dominantColor in HEX format for each region", async () => {
         const image = await createSolidImage(300, 300, { r: 255, g: 0, b: 0 });
 
         const result = await service.calculateDensity(image);
 
-        result.regions.forEach(region => {
+        result.regions.forEach((region) => {
           expect(isValidHexColor(region.dominantColor)).toBe(true);
         });
       });
 
-      it('should correctly identify region dominant colors', async () => {
+      it("should correctly identify region dominant colors", async () => {
         // Create image with red top-left, blue bottom-right
         const image = await createContentImage(
-          300, 300,
+          300,
+          300,
           [
             { x: 0, y: 0, w: 100, h: 100, color: { r: 255, g: 0, b: 0 } },
             { x: 200, y: 200, w: 100, h: 100, color: { r: 0, g: 0, b: 255 } },
@@ -401,8 +410,8 @@ describe('DensityCalculatorService', () => {
 
         const result = await service.calculateDensity(image);
 
-        const topLeft = result.regions.find(r => r.row === 0 && r.col === 0);
-        const bottomRight = result.regions.find(r => r.row === 2 && r.col === 2);
+        const topLeft = result.regions.find((r) => r.row === 0 && r.col === 0);
+        const bottomRight = result.regions.find((r) => r.row === 2 && r.col === 2);
 
         expect(topLeft).toBeDefined();
         expect(bottomRight).toBeDefined();
@@ -418,8 +427,8 @@ describe('DensityCalculatorService', () => {
     });
   });
 
-  describe('calculateWhitespace', () => {
-    it('should calculate whitespace ratio for white background', async () => {
+  describe("calculateWhitespace", () => {
+    it("should calculate whitespace ratio for white background", async () => {
       const whiteImage = await createSolidImage(100, 100, { r: 255, g: 255, b: 255 });
 
       const ratio = await service.calculateWhitespace(whiteImage);
@@ -427,7 +436,7 @@ describe('DensityCalculatorService', () => {
       expect(ratio).toBeGreaterThan(0.95);
     });
 
-    it('should accept custom background color', async () => {
+    it("should accept custom background color", async () => {
       // Create dark gray image
       const darkGrayImage = await createSolidImage(100, 100, { r: 50, g: 50, b: 50 });
 
@@ -436,11 +445,11 @@ describe('DensityCalculatorService', () => {
       expect(ratioWhiteBg).toBeLessThan(0.1);
 
       // With dark gray as background, this should be high whitespace
-      const ratioDarkBg = await service.calculateWhitespace(darkGrayImage, '#323232');
+      const ratioDarkBg = await service.calculateWhitespace(darkGrayImage, "#323232");
       expect(ratioDarkBg).toBeGreaterThan(0.9);
     });
 
-    it('should return 0-1 range', async () => {
+    it("should return 0-1 range", async () => {
       const image = await createGradientImage(200, 200);
 
       const ratio = await service.calculateWhitespace(image);
@@ -450,8 +459,8 @@ describe('DensityCalculatorService', () => {
     });
   });
 
-  describe('analyzeRegions', () => {
-    it('should return regions array with default 3x3 grid', async () => {
+  describe("analyzeRegions", () => {
+    it("should return regions array with default 3x3 grid", async () => {
       const image = await createSolidImage(300, 300, { r: 128, g: 128, b: 128 });
 
       const regions = await service.analyzeRegions(image);
@@ -459,7 +468,7 @@ describe('DensityCalculatorService', () => {
       expect(regions.length).toBe(9);
     });
 
-    it('should return regions array with custom 4x4 grid', async () => {
+    it("should return regions array with custom 4x4 grid", async () => {
       const image = await createSolidImage(400, 400, { r: 128, g: 128, b: 128 });
 
       const regions = await service.analyzeRegions(image, 4);
@@ -467,46 +476,46 @@ describe('DensityCalculatorService', () => {
       expect(regions.length).toBe(16);
     });
 
-    it('should return regions with correct structure', async () => {
+    it("should return regions with correct structure", async () => {
       const image = await createSolidImage(200, 200, { r: 100, g: 150, b: 200 });
 
       const regions = await service.analyzeRegions(image);
 
-      regions.forEach(region => {
-        expect(region).toHaveProperty('row');
-        expect(region).toHaveProperty('col');
-        expect(region).toHaveProperty('density');
-        expect(region).toHaveProperty('dominantColor');
-        expect(typeof region.row).toBe('number');
-        expect(typeof region.col).toBe('number');
-        expect(typeof region.density).toBe('number');
-        expect(typeof region.dominantColor).toBe('string');
+      regions.forEach((region) => {
+        expect(region).toHaveProperty("row");
+        expect(region).toHaveProperty("col");
+        expect(region).toHaveProperty("density");
+        expect(region).toHaveProperty("dominantColor");
+        expect(typeof region.row).toBe("number");
+        expect(typeof region.col).toBe("number");
+        expect(typeof region.density).toBe("number");
+        expect(typeof region.dominantColor).toBe("string");
       });
     });
   });
 
-  describe('Input validation', () => {
-    it('should throw error for null input', async () => {
+  describe("Input validation", () => {
+    it("should throw error for null input", async () => {
       await expect(service.calculateDensity(null as unknown as Buffer)).rejects.toThrow();
     });
 
-    it('should throw error for undefined input', async () => {
+    it("should throw error for undefined input", async () => {
       await expect(service.calculateDensity(undefined as unknown as Buffer)).rejects.toThrow();
     });
 
-    it('should throw error for empty buffer', async () => {
+    it("should throw error for empty buffer", async () => {
       const emptyBuffer = Buffer.alloc(0);
       await expect(service.calculateDensity(emptyBuffer)).rejects.toThrow();
     });
 
-    it('should throw error for invalid image data', async () => {
-      const invalidData = Buffer.from('not an image');
+    it("should throw error for invalid image data", async () => {
+      const invalidData = Buffer.from("not an image");
       await expect(service.calculateDensity(invalidData)).rejects.toThrow();
     });
 
-    it('should accept valid base64 encoded image', async () => {
+    it("should accept valid base64 encoded image", async () => {
       const image = await createSolidImage(100, 100, { r: 100, g: 150, b: 200 });
-      const base64Image = image.toString('base64');
+      const base64Image = image.toString("base64");
 
       const result = await service.calculateDensity(base64Image);
 
@@ -514,9 +523,9 @@ describe('DensityCalculatorService', () => {
       expect(result.contentDensity).toBeGreaterThanOrEqual(0);
     });
 
-    it('should accept base64 with data URL prefix', async () => {
+    it("should accept base64 with data URL prefix", async () => {
       const image = await createSolidImage(100, 100, { r: 100, g: 150, b: 200 });
-      const base64WithPrefix = `data:image/png;base64,${image.toString('base64')}`;
+      const base64WithPrefix = `data:image/png;base64,${image.toString("base64")}`;
 
       const result = await service.calculateDensity(base64WithPrefix);
 
@@ -524,8 +533,8 @@ describe('DensityCalculatorService', () => {
     });
   });
 
-  describe('Performance', () => {
-    it('should process a 1920x1080 image in less than 1000ms', async () => {
+  describe("Performance", () => {
+    it("should process a 1920x1080 image in less than 1000ms", async () => {
       // Create a large image
       const largeImage = await createEdgyImage(1920, 1080, 100);
 
@@ -538,7 +547,7 @@ describe('DensityCalculatorService', () => {
       expect(result).toBeDefined();
       expect(processingTime).toBeLessThan(1000);
 
-      if (process.env.NODE_ENV === 'development') {
+      if (process.env.NODE_ENV === "development") {
         console.log(`[DensityCalculator] Processing time: ${processingTime.toFixed(2)}ms`);
       }
     });

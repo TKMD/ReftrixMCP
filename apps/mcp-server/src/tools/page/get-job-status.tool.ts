@@ -20,24 +20,20 @@
  * @module tools/page/get-job-status.tool
  */
 
-import { isRedisAvailable } from '../../config/redis';
-import {
-  createPageAnalyzeQueue,
-  getJobStatus,
-  closeQueue,
-} from '../../queues/page-analyze-queue';
+import { isRedisAvailable } from "../../config/redis";
+import { createPageAnalyzeQueue, getJobStatus, closeQueue } from "../../queues/page-analyze-queue";
 import {
   pageGetJobStatusInputSchema,
   type PageGetJobStatusInput,
   type PageGetJobStatusOutput,
   type PageGetJobStatusData,
-} from './schemas';
-import { logger, isDevelopment } from '../../utils/logger';
+} from "./schemas";
+import { logger, isDevelopment } from "../../utils/logger";
 import {
   generateRequestId,
   createSuccessResponseWithRequestId,
   createErrorResponseWithRequestId,
-} from '../../utils/mcp-response';
+} from "../../utils/mcp-response";
 
 // ============================================================================
 // Constants
@@ -47,10 +43,10 @@ import {
  * Error codes for page.getJobStatus
  */
 export const GET_JOB_STATUS_ERROR_CODES = {
-  VALIDATION_ERROR: 'VALIDATION_ERROR',
-  REDIS_UNAVAILABLE: 'REDIS_UNAVAILABLE',
-  JOB_NOT_FOUND: 'JOB_NOT_FOUND',
-  INTERNAL_ERROR: 'INTERNAL_ERROR',
+  VALIDATION_ERROR: "VALIDATION_ERROR",
+  REDIS_UNAVAILABLE: "REDIS_UNAVAILABLE",
+  JOB_NOT_FOUND: "JOB_NOT_FOUND",
+  INTERNAL_ERROR: "INTERNAL_ERROR",
 } as const;
 
 // ============================================================================
@@ -61,7 +57,7 @@ export const GET_JOB_STATUS_ERROR_CODES = {
  * Tool definition for MCP registration
  */
 export const pageGetJobStatusToolDefinition = {
-  name: 'page.getJobStatus',
+  name: "page.getJobStatus",
   description: `Check the status of an async page analysis job.
 
 Use this tool to poll for the status and results of a job that was submitted
@@ -75,19 +71,19 @@ Returns:
 
 Note: Requires Redis to be running. Jobs are retained for 24 hours after completion.`,
   inputSchema: {
-    type: 'object' as const,
+    type: "object" as const,
     properties: {
       job_id: {
-        type: 'string',
-        format: 'uuid',
-        description: 'The job ID returned by page.analyze(async=true)',
+        type: "string",
+        format: "uuid",
+        description: "The job ID returned by page.analyze(async=true)",
       },
     },
-    required: ['job_id'],
+    required: ["job_id"],
     additionalProperties: false,
   },
   annotations: {
-    title: 'Page Get Job Status',
+    title: "Page Get Job Status",
     readOnlyHint: true,
     idempotentHint: true,
     openWorldHint: false,
@@ -104,16 +100,14 @@ Note: Requires Redis to be running. Jobs are retained for 24 hours after complet
  * @param input - Raw input from MCP
  * @returns 統一レスポンス形式（success: true/false + data/error + metadata.request_id）
  */
-export async function pageGetJobStatusHandler(
-  input: unknown
-): Promise<PageGetJobStatusOutput> {
+export async function pageGetJobStatusHandler(input: unknown): Promise<PageGetJobStatusOutput> {
   // router.tsから注入された_request_idを使用、フォールバックとして自動生成
   const requestId =
-    (input as Record<string, unknown> | null)?._request_id as string | undefined ??
+    ((input as Record<string, unknown> | null)?._request_id as string | undefined) ??
     generateRequestId();
 
   if (isDevelopment()) {
-    logger.info('[MCP Tool] page.getJobStatus called', {
+    logger.info("[MCP Tool] page.getJobStatus called", {
       hasInput: input !== null && input !== undefined,
       requestId,
     });
@@ -125,11 +119,11 @@ export async function pageGetJobStatusHandler(
     validated = pageGetJobStatusInputSchema.parse(input);
   } catch (error) {
     if (isDevelopment()) {
-      logger.error('[MCP Tool] page.getJobStatus validation error', { error, requestId });
+      logger.error("[MCP Tool] page.getJobStatus validation error", { error, requestId });
     }
     return createErrorResponseWithRequestId(
       GET_JOB_STATUS_ERROR_CODES.VALIDATION_ERROR,
-      error instanceof Error ? error.message : 'Invalid input',
+      error instanceof Error ? error.message : "Invalid input",
       requestId
     );
   }
@@ -140,11 +134,11 @@ export async function pageGetJobStatusHandler(
   const redisAvailable = await isRedisAvailable();
   if (!redisAvailable) {
     if (isDevelopment()) {
-      logger.warn('[MCP Tool] page.getJobStatus Redis unavailable', { requestId });
+      logger.warn("[MCP Tool] page.getJobStatus Redis unavailable", { requestId });
     }
     return createErrorResponseWithRequestId(
       GET_JOB_STATUS_ERROR_CODES.REDIS_UNAVAILABLE,
-      'Redis is not available. Cannot check job status without Redis.',
+      "Redis is not available. Cannot check job status without Redis.",
       requestId
     );
   }
@@ -158,7 +152,7 @@ export async function pageGetJobStatusHandler(
     if (!status) {
       // Job not found
       if (isDevelopment()) {
-        logger.debug('[MCP Tool] page.getJobStatus job not found', { jobId, requestId });
+        logger.debug("[MCP Tool] page.getJobStatus job not found", { jobId, requestId });
       }
       return createErrorResponseWithRequestId(
         GET_JOB_STATUS_ERROR_CODES.JOB_NOT_FOUND,
@@ -169,7 +163,7 @@ export async function pageGetJobStatusHandler(
 
     // Job found - build response data
     if (isDevelopment()) {
-      logger.debug('[MCP Tool] page.getJobStatus job found', {
+      logger.debug("[MCP Tool] page.getJobStatus job found", {
         jobId,
         state: status.state,
         progress: status.progress,
@@ -190,18 +184,18 @@ export async function pageGetJobStatusHandler(
       data.currentPhase = status.currentPhase;
     }
 
-    if (status.state === 'completed' && status.result) {
+    if (status.state === "completed" && status.result) {
       data.result = status.result;
     }
 
-    if (status.state === 'failed' && status.error) {
+    if (status.state === "failed" && status.error) {
       data.failedReason = status.error;
     }
 
     return createSuccessResponseWithRequestId(data, requestId);
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    logger.error('[MCP Tool] page.getJobStatus error', {
+    logger.error("[MCP Tool] page.getJobStatus error", {
       jobId,
       error: errorMessage,
       requestId,
@@ -210,7 +204,7 @@ export async function pageGetJobStatusHandler(
     // 開発環境のみ詳細を表示、本番では一般的なメッセージ
     const userMessage = isDevelopment()
       ? `Failed to get job status: ${errorMessage}`
-      : 'Failed to get job status';
+      : "Failed to get job status";
     return createErrorResponseWithRequestId(
       GET_JOB_STATUS_ERROR_CODES.INTERNAL_ERROR,
       userMessage,

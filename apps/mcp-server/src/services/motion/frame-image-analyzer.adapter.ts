@@ -14,10 +14,10 @@
  * @module @reftrix/mcp-server/services/motion/frame-image-analyzer.adapter
  */
 
-import * as fs from 'node:fs';
-import * as path from 'node:path';
-import sharp from 'sharp';
-import pixelmatch from 'pixelmatch';
+import * as fs from "node:fs";
+import * as path from "node:path";
+import sharp from "sharp";
+import pixelmatch from "pixelmatch";
 
 // ============================================================================
 // 型定義（detect.tool.ts の FrameImageAnalysisOutput と互換）
@@ -28,15 +28,15 @@ import pixelmatch from 'pixelmatch';
  * スクロール距離（duration）に基づいて分類
  */
 export type AnimationType =
-  | 'micro-interaction'         // < 500px
-  | 'fade/slide transition'     // 500-1500px
-  | 'scroll-linked animation'   // 1500-3000px
-  | 'long-form reveal';         // > 3000px
+  | "micro-interaction" // < 500px
+  | "fade/slide transition" // 500-1500px
+  | "scroll-linked animation" // 1500-3000px
+  | "long-form reveal"; // > 3000px
 
 /**
  * モーション方向
  */
-export type MotionDirection = 'up' | 'down' | 'left' | 'right' | 'stationary';
+export type MotionDirection = "up" | "down" | "left" | "right" | "stationary";
 
 /**
  * 境界ボックス
@@ -207,9 +207,9 @@ export class FrameImageAnalyzerAdapter {
   private disposed = false;
 
   constructor() {
-    if (process.env.NODE_ENV === 'development') {
+    if (process.env.NODE_ENV === "development") {
       // eslint-disable-next-line no-console -- Intentional debug log in development
-      console.log('[FrameImageAnalyzerAdapter] Initialized');
+      console.log("[FrameImageAnalyzerAdapter] Initialized");
     }
   }
 
@@ -236,9 +236,9 @@ export class FrameImageAnalyzerAdapter {
     const maxMotionVectors = options.maxMotionVectors ?? DEFAULT_MAX_MOTION_VECTORS;
     const maxAnimationZones = options.maxAnimationZones ?? DEFAULT_MAX_ANIMATION_ZONES;
 
-    if (process.env.NODE_ENV === 'development') {
+    if (process.env.NODE_ENV === "development") {
       // eslint-disable-next-line no-console -- Intentional debug log in development
-      console.log('[FrameImageAnalyzerAdapter] Starting analysis:', {
+      console.log("[FrameImageAnalyzerAdapter] Starting analysis:", {
         framesDir,
         sampleInterval,
         diffThreshold,
@@ -256,7 +256,11 @@ export class FrameImageAnalyzerAdapter {
     // フレームファイル一覧を取得
     const files = await fs.promises.readdir(framesDir);
     let frameFiles = files
-      .filter((f) => f.startsWith('frame-') && (f.endsWith('.png') || f.endsWith('.jpg') || f.endsWith('.jpeg')))
+      .filter(
+        (f) =>
+          f.startsWith("frame-") &&
+          (f.endsWith(".png") || f.endsWith(".jpg") || f.endsWith(".jpeg"))
+      )
       .sort();
 
     if (frameFiles.length === 0) {
@@ -267,9 +271,9 @@ export class FrameImageAnalyzerAdapter {
     // これにより、古いフレームと混在することを防ぐ
     const maxFrames = options.maxFrames;
     if (maxFrames !== undefined && maxFrames > 0 && frameFiles.length > maxFrames) {
-      if (process.env.NODE_ENV === 'development') {
+      if (process.env.NODE_ENV === "development") {
         // eslint-disable-next-line no-console -- Intentional debug log in development
-        console.log('[FrameImageAnalyzerAdapter] Limiting frames:', {
+        console.log("[FrameImageAnalyzerAdapter] Limiting frames:", {
           foundFrames: frameFiles.length,
           maxFrames,
           trimmedCount: frameFiles.length - maxFrames,
@@ -278,12 +282,12 @@ export class FrameImageAnalyzerAdapter {
       frameFiles = frameFiles.slice(0, maxFrames);
     }
 
-    if (process.env.NODE_ENV === 'development') {
+    if (process.env.NODE_ENV === "development") {
       // eslint-disable-next-line no-console -- Intentional debug log in development
-      console.log('[FrameImageAnalyzerAdapter] Found frames:', {
+      console.log("[FrameImageAnalyzerAdapter] Found frames:", {
         totalFrames: frameFiles.length,
         expectedPairs: Math.floor(frameFiles.length / sampleInterval),
-        maxFramesLimit: maxFrames ?? 'unlimited',
+        maxFramesLimit: maxFrames ?? "unlimited",
       });
     }
 
@@ -337,14 +341,17 @@ export class FrameImageAnalyzerAdapter {
           prevAnalysis = analysis;
 
           // 進捗ログ
-          if (process.env.NODE_ENV === 'development' && results.length % 10 === 0) {
+          if (process.env.NODE_ENV === "development" && results.length % 10 === 0) {
             // eslint-disable-next-line no-console -- Intentional debug log in development
             console.log(`[FrameImageAnalyzerAdapter] Analyzed ${results.length} frame pairs...`);
           }
         }
       } catch (err) {
-        if (process.env.NODE_ENV === 'development') {
-          console.error(`[FrameImageAnalyzerAdapter] Error analyzing ${frame1Name} vs ${frame2Name}:`, err);
+        if (process.env.NODE_ENV === "development") {
+          console.error(
+            `[FrameImageAnalyzerAdapter] Error analyzing ${frame1Name} vs ${frame2Name}:`,
+            err
+          );
         }
       }
     }
@@ -355,16 +362,17 @@ export class FrameImageAnalyzerAdapter {
 
     // 統計計算
     const significantChanges = results.filter((r) => r.significantChange);
-    const avgDiff = results.length > 0
-      ? results.reduce((sum, r) => sum + parseFloat(r.diffPercentage), 0) / results.length
-      : 0;
+    const avgDiff =
+      results.length > 0
+        ? results.reduce((sum, r) => sum + parseFloat(r.diffPercentage), 0) / results.length
+        : 0;
 
     // アニメーションゾーン検出
     const animationZones = this.detectAnimationZones(results, scrollPxPerFrame, sampleInterval);
 
-    if (process.env.NODE_ENV === 'development') {
+    if (process.env.NODE_ENV === "development") {
       // eslint-disable-next-line no-console -- Intentional debug log in development
-      console.log('[FrameImageAnalyzerAdapter] Analysis complete:', {
+      console.log("[FrameImageAnalyzerAdapter] Analysis complete:", {
         totalFrames: frameFiles.length,
         analyzedPairs: results.length,
         avgDiff: avgDiff.toFixed(2),
@@ -389,15 +397,16 @@ export class FrameImageAnalyzerAdapter {
       statistics: {
         averageDiffPercentage: avgDiff.toFixed(2),
         significantChangeCount: significantChanges.length,
-        significantChangePercentage: results.length > 0
-          ? ((significantChanges.length / results.length) * 100).toFixed(2)
-          : '0.00',
+        significantChangePercentage:
+          results.length > 0
+            ? ((significantChanges.length / results.length) * 100).toFixed(2)
+            : "0.00",
         layoutShiftCount: layoutShifts.length,
         motionVectorCount: motionVectors.length,
       },
       animationZones: animationZones.slice(0, maxAnimationZones),
       layoutShifts: layoutShifts.slice(0, maxLayoutShifts),
-      motionVectors: motionVectors.slice(0, maxMotionVectors)
+      motionVectors: motionVectors.slice(0, maxMotionVectors),
     };
   }
 
@@ -413,9 +422,9 @@ export class FrameImageAnalyzerAdapter {
    */
   async dispose(): Promise<void> {
     this.disposed = true;
-    if (process.env.NODE_ENV === 'development') {
+    if (process.env.NODE_ENV === "development") {
       // eslint-disable-next-line no-console -- Intentional debug log in development
-      console.log('[FrameImageAnalyzerAdapter] Disposed');
+      console.log("[FrameImageAnalyzerAdapter] Disposed");
     }
   }
 
@@ -453,7 +462,7 @@ export class FrameImageAnalyzerAdapter {
 
     // サイズ不一致チェック
     if (img1.width !== img2.width || img1.height !== img2.height) {
-      if (process.env.NODE_ENV === 'development') {
+      if (process.env.NODE_ENV === "development") {
         console.warn(
           `[FrameImageAnalyzerAdapter] Dimension mismatch: ${frame1Path} vs ${frame2Path}`
         );
@@ -465,14 +474,9 @@ export class FrameImageAnalyzerAdapter {
     const diffBuffer = Buffer.alloc(width * height * 4);
 
     // Pixelmatchで差分計算
-    const diffPixels = pixelmatch(
-      img1.data,
-      img2.data,
-      diffBuffer,
-      width,
-      height,
-      { threshold: 0.1 }
-    );
+    const diffPixels = pixelmatch(img1.data, img2.data, diffBuffer, width, height, {
+      threshold: 0.1,
+    });
 
     const totalPixels = width * height;
     const diffPercentage = (diffPixels / totalPixels) * 100;
@@ -537,8 +541,8 @@ export class FrameImageAnalyzerAdapter {
         boundingBox: null,
         centroid: null,
         area: 0,
-        areaPercentage: '0.00',
-        impactFraction: '0.0000',
+        areaPercentage: "0.00",
+        impactFraction: "0.0000",
         isLayoutShift: false,
       };
     }
@@ -578,7 +582,13 @@ export class FrameImageAnalyzerAdapter {
     prevAnalysis: FramePairAnalysis,
     currAnalysis: FramePairAnalysis,
     motionThreshold: number
-  ): { dx: number; dy: number; magnitude: string; direction: MotionDirection; angle: string } | null {
+  ): {
+    dx: number;
+    dy: number;
+    magnitude: string;
+    direction: MotionDirection;
+    angle: string;
+  } | null {
     if (!prevAnalysis.motion.detected || !currAnalysis.motion.detected) {
       return null;
     }
@@ -599,14 +609,14 @@ export class FrameImageAnalyzerAdapter {
     }
 
     // 方向を判定
-    let direction: MotionDirection = 'stationary';
+    let direction: MotionDirection = "stationary";
     const angle = Math.atan2(dy, dx) * (180 / Math.PI);
 
     if (magnitude >= motionThreshold) {
-      if (angle >= -45 && angle < 45) direction = 'right';
-      else if (angle >= 45 && angle < 135) direction = 'down';
-      else if (angle >= -135 && angle < -45) direction = 'up';
-      else direction = 'left';
+      if (angle >= -45 && angle < 45) direction = "right";
+      else if (angle >= 45 && angle < 135) direction = "down";
+      else if (angle >= -135 && angle < -45) direction = "up";
+      else direction = "left";
     }
 
     return {
@@ -703,10 +713,10 @@ export class FrameImageAnalyzerAdapter {
    * スクロール距離に基づく
    */
   private classifyAnimation(duration: number): AnimationType {
-    if (duration < 500) return 'micro-interaction';
-    if (duration < 1500) return 'fade/slide transition';
-    if (duration < 3000) return 'scroll-linked animation';
-    return 'long-form reveal';
+    if (duration < 500) return "micro-interaction";
+    if (duration < 1500) return "fade/slide transition";
+    if (duration < 3000) return "scroll-linked animation";
+    return "long-form reveal";
   }
 
   /**

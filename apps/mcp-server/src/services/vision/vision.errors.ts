@@ -28,12 +28,12 @@
  * Vision分析エラーコード
  */
 export type VisionErrorCode =
-  | 'OLLAMA_UNAVAILABLE'
-  | 'TIMEOUT'
-  | 'INVALID_RESPONSE'
-  | 'VALIDATION_FAILED'
-  | 'INPUT_VALIDATION'
-  | 'CACHE_ERROR';
+  | "OLLAMA_UNAVAILABLE"
+  | "TIMEOUT"
+  | "INVALID_RESPONSE"
+  | "VALIDATION_FAILED"
+  | "INPUT_VALIDATION"
+  | "CACHE_ERROR";
 
 // =============================================================================
 // VisionAnalysisError クラス
@@ -85,7 +85,7 @@ export class VisionAnalysisError extends Error {
     context?: Record<string, unknown>
   ) {
     super(message);
-    this.name = 'VisionAnalysisError';
+    this.name = "VisionAnalysisError";
     this.code = code;
     this.isRetryable = isRetryable;
     this.context = context;
@@ -127,12 +127,12 @@ export class CacheError extends Error {
   /**
    * エラーコード
    */
-  readonly code = 'CACHE_ERROR' as const;
+  readonly code = "CACHE_ERROR" as const;
 
   /**
    * 操作種別
    */
-  readonly operation: 'get' | 'set' | 'delete' | 'clear';
+  readonly operation: "get" | "set" | "delete" | "clear";
 
   /**
    * CacheErrorのコンストラクタ
@@ -140,9 +140,9 @@ export class CacheError extends Error {
    * @param message - エラーメッセージ
    * @param operation - 操作種別
    */
-  constructor(message: string, operation: 'get' | 'set' | 'delete' | 'clear') {
+  constructor(message: string, operation: "get" | "set" | "delete" | "clear") {
     super(message);
-    this.name = 'CacheError';
+    this.name = "CacheError";
     this.operation = operation;
 
     Object.setPrototypeOf(this, CacheError.prototype);
@@ -156,9 +156,7 @@ export class CacheError extends Error {
 /**
  * VisionAnalysisError かどうかをチェック
  */
-export function isVisionAnalysisError(
-  error: unknown
-): error is VisionAnalysisError {
+export function isVisionAnalysisError(error: unknown): error is VisionAnalysisError {
   return error instanceof VisionAnalysisError;
 }
 
@@ -177,12 +175,12 @@ export function isRetryableError(error: unknown): boolean {
  */
 export function getErrorMessage(code: VisionErrorCode): string {
   const messages: Record<VisionErrorCode, string> = {
-    OLLAMA_UNAVAILABLE: 'Ollama service is not available',
-    TIMEOUT: 'Request timed out',
-    INVALID_RESPONSE: 'Invalid response from Ollama',
-    VALIDATION_FAILED: 'Response validation failed',
-    INPUT_VALIDATION: 'Input validation failed',
-    CACHE_ERROR: 'Cache operation failed',
+    OLLAMA_UNAVAILABLE: "Ollama service is not available",
+    TIMEOUT: "Request timed out",
+    INVALID_RESPONSE: "Invalid response from Ollama",
+    VALIDATION_FAILED: "Response validation failed",
+    INPUT_VALIDATION: "Input validation failed",
+    CACHE_ERROR: "Cache operation failed",
   };
   return messages[code];
 }

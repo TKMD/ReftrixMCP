@@ -15,9 +15,9 @@
  * @module utils/path-security
  */
 
-import * as path from 'path';
-import * as fs from 'fs';
-import { isDevelopment, logger } from './logger';
+import * as path from "path";
+import * as fs from "fs";
+import { isDevelopment, logger } from "./logger";
 
 // =====================================================
 // 定数
@@ -27,14 +27,14 @@ import { isDevelopment, logger } from './logger';
  * ローカルパスアクセスを無効化する環境変数
  * true に設定すると project_context.project_path 機能が無効化される
  */
-export const ENV_DISABLE_LOCAL_PATH_ACCESS = 'REFTRIX_DISABLE_LOCAL_PATH_ACCESS';
+export const ENV_DISABLE_LOCAL_PATH_ACCESS = "REFTRIX_DISABLE_LOCAL_PATH_ACCESS";
 
 /**
  * 許可されたワークスペースパスを指定する環境変数
  * カンマ区切りで複数パスを指定可能
  * 例: /home/user/projects,/var/www/apps
  */
-export const ENV_ALLOWED_WORKSPACE_PATHS = 'REFTRIX_ALLOWED_WORKSPACE_PATHS';
+export const ENV_ALLOWED_WORKSPACE_PATHS = "REFTRIX_ALLOWED_WORKSPACE_PATHS";
 
 /**
  * デフォルトの許可パス（環境変数未設定時）
@@ -114,13 +114,13 @@ export interface PathValidationResult {
  * パスセキュリティエラーコード
  */
 export type PathSecurityErrorCode =
-  | 'LOCAL_PATH_ACCESS_DISABLED'
-  | 'PATH_NOT_ALLOWED'
-  | 'DIRECTORY_TRAVERSAL_DETECTED'
-  | 'BLOCKED_PATH_PATTERN'
-  | 'PATH_NOT_FOUND'
-  | 'PATH_NOT_DIRECTORY'
-  | 'SYMLINK_ESCAPE_DETECTED';
+  | "LOCAL_PATH_ACCESS_DISABLED"
+  | "PATH_NOT_ALLOWED"
+  | "DIRECTORY_TRAVERSAL_DETECTED"
+  | "BLOCKED_PATH_PATTERN"
+  | "PATH_NOT_FOUND"
+  | "PATH_NOT_DIRECTORY"
+  | "SYMLINK_ESCAPE_DETECTED";
 
 // =====================================================
 // ヘルパー関数
@@ -131,7 +131,7 @@ export type PathSecurityErrorCode =
  */
 export function isLocalPathAccessDisabled(): boolean {
   const envValue = process.env[ENV_DISABLE_LOCAL_PATH_ACCESS];
-  return envValue === 'true' || envValue === '1';
+  return envValue === "true" || envValue === "1";
 }
 
 /**
@@ -142,7 +142,7 @@ export function getAllowedWorkspacePaths(): string[] {
 
   if (envValue) {
     return envValue
-      .split(',')
+      .split(",")
       .map((p) => p.trim())
       .filter((p) => p.length > 0)
       .map((p) => path.resolve(p));
@@ -236,15 +236,15 @@ export function validateProjectPath(inputPath: string): PathValidationResult {
   // 1. ローカルパスアクセスが無効化されているか確認
   if (isLocalPathAccessDisabled()) {
     if (isDevelopment()) {
-      logger.warn('[PathSecurity] Local path access is disabled', {
-        reason: 'REFTRIX_DISABLE_LOCAL_PATH_ACCESS is set',
+      logger.warn("[PathSecurity] Local path access is disabled", {
+        reason: "REFTRIX_DISABLE_LOCAL_PATH_ACCESS is set",
       });
     }
     return {
       isValid: false,
       error: {
-        code: 'LOCAL_PATH_ACCESS_DISABLED',
-        message: 'Local path access is disabled by environment configuration',
+        code: "LOCAL_PATH_ACCESS_DISABLED",
+        message: "Local path access is disabled by environment configuration",
       },
     };
   }
@@ -254,9 +254,9 @@ export function validateProjectPath(inputPath: string): PathValidationResult {
 
   // 3. ディレクトリトラバーサルパターンの検出（正規化前の入力をチェック）
   // 正規化で解決されるが、悪意のある入力パターンを検出してログ
-  if (inputPath.includes('..') || inputPath.includes('./')) {
+  if (inputPath.includes("..") || inputPath.includes("./")) {
     if (isDevelopment()) {
-      logger.warn('[PathSecurity] Directory traversal pattern detected in input', {
+      logger.warn("[PathSecurity] Directory traversal pattern detected in input", {
         inputPath,
         normalizedPath,
       });
@@ -266,14 +266,14 @@ export function validateProjectPath(inputPath: string): PathValidationResult {
   // 4. ブロックされるパスパターンの確認
   if (matchesBlockedPattern(normalizedPath)) {
     if (isDevelopment()) {
-      logger.warn('[PathSecurity] Blocked path pattern detected', {
+      logger.warn("[PathSecurity] Blocked path pattern detected", {
         normalizedPath,
       });
     }
     return {
       isValid: false,
       error: {
-        code: 'BLOCKED_PATH_PATTERN',
+        code: "BLOCKED_PATH_PATTERN",
         message: `Access to path "${normalizedPath}" is blocked for security reasons`,
       },
     };
@@ -283,7 +283,7 @@ export function validateProjectPath(inputPath: string): PathValidationResult {
   const allowedPaths = getAllowedWorkspacePaths();
   if (!isWithinAllowedWorkspace(normalizedPath, allowedPaths)) {
     if (isDevelopment()) {
-      logger.warn('[PathSecurity] Path not within allowed workspace', {
+      logger.warn("[PathSecurity] Path not within allowed workspace", {
         normalizedPath,
         allowedPaths,
       });
@@ -291,8 +291,8 @@ export function validateProjectPath(inputPath: string): PathValidationResult {
     return {
       isValid: false,
       error: {
-        code: 'PATH_NOT_ALLOWED',
-        message: `Path "${normalizedPath}" is not within allowed workspace. Allowed: ${allowedPaths.join(', ')}`,
+        code: "PATH_NOT_ALLOWED",
+        message: `Path "${normalizedPath}" is not within allowed workspace. Allowed: ${allowedPaths.join(", ")}`,
       },
     };
   }
@@ -302,7 +302,7 @@ export function validateProjectPath(inputPath: string): PathValidationResult {
     return {
       isValid: false,
       error: {
-        code: 'PATH_NOT_FOUND',
+        code: "PATH_NOT_FOUND",
         message: `Path "${normalizedPath}" does not exist`,
       },
     };
@@ -315,7 +315,7 @@ export function validateProjectPath(inputPath: string): PathValidationResult {
       return {
         isValid: false,
         error: {
-          code: 'PATH_NOT_DIRECTORY',
+          code: "PATH_NOT_DIRECTORY",
           message: `Path "${normalizedPath}" is not a directory`,
         },
       };
@@ -324,7 +324,7 @@ export function validateProjectPath(inputPath: string): PathValidationResult {
     return {
       isValid: false,
       error: {
-        code: 'PATH_NOT_FOUND',
+        code: "PATH_NOT_FOUND",
         message: `Cannot access path "${normalizedPath}"`,
       },
     };
@@ -333,14 +333,14 @@ export function validateProjectPath(inputPath: string): PathValidationResult {
   // 8. シンボリックリンクによるエスケープ検出
   if (detectSymlinkEscape(normalizedPath, allowedPaths)) {
     if (isDevelopment()) {
-      logger.warn('[PathSecurity] Symlink escape detected', {
+      logger.warn("[PathSecurity] Symlink escape detected", {
         normalizedPath,
       });
     }
     return {
       isValid: false,
       error: {
-        code: 'SYMLINK_ESCAPE_DETECTED',
+        code: "SYMLINK_ESCAPE_DETECTED",
         message: `Path "${normalizedPath}" resolves to a location outside allowed workspace via symlink`,
       },
     };
@@ -348,7 +348,7 @@ export function validateProjectPath(inputPath: string): PathValidationResult {
 
   // 検証成功
   if (isDevelopment()) {
-    logger.debug('[PathSecurity] Path validated successfully', {
+    logger.debug("[PathSecurity] Path validated successfully", {
       normalizedPath,
     });
   }
@@ -373,7 +373,7 @@ export function validateFilePath(filePath: string, workspacePath: string): boole
   // ワークスペース配下であることを確認
   if (!normalizedFilePath.startsWith(normalizedWorkspace + path.sep)) {
     if (isDevelopment()) {
-      logger.warn('[PathSecurity] File path outside workspace', {
+      logger.warn("[PathSecurity] File path outside workspace", {
         filePath: normalizedFilePath,
         workspace: normalizedWorkspace,
       });
@@ -390,7 +390,7 @@ export function validateFilePath(filePath: string, workspacePath: string): boole
   const filename = path.basename(normalizedFilePath);
   if (matchesBlockedFilePattern(filename)) {
     if (isDevelopment()) {
-      logger.warn('[PathSecurity] Blocked file pattern detected', {
+      logger.warn("[PathSecurity] Blocked file pattern detected", {
         filename,
       });
     }
@@ -405,7 +405,7 @@ export function validateFilePath(filePath: string, workspacePath: string): boole
 // =====================================================
 
 if (isDevelopment()) {
-  logger.debug('[PathSecurity] Module loaded', {
+  logger.debug("[PathSecurity] Module loaded", {
     localPathAccessDisabled: isLocalPathAccessDisabled(),
     allowedWorkspacePaths: getAllowedWorkspacePaths(),
   });

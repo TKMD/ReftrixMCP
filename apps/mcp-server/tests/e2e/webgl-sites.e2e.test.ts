@@ -16,8 +16,8 @@
  * @module tests/e2e/webgl-sites.e2e.test
  */
 
-import { describe, it, expect, beforeAll, afterAll, vi, type MockInstance } from 'vitest';
-import { PrismaClient } from '@prisma/client';
+import { describe, it, expect, beforeAll, afterAll, vi, type MockInstance } from "vitest";
+import { PrismaClient } from "@prisma/client";
 
 // page.analyze ハンドラー
 import {
@@ -28,7 +28,7 @@ import {
   resetPageAnalyzePrismaClientFactory,
   PAGE_ANALYZE_ERROR_CODES,
   type PageAnalyzeOutput,
-} from '../../src/tools/page';
+} from "../../src/tools/page";
 
 // Phase1実装モジュール
 import {
@@ -36,19 +36,17 @@ import {
   detectSiteTier,
   KNOWN_WEBGL_DOMAINS,
   KNOWN_ULTRA_HEAVY_DOMAINS,
-} from '../../src/tools/page/handlers/webgl-pre-detector';
+} from "../../src/tools/page/handlers/webgl-pre-detector";
 
 import {
   getRetryStrategy,
   calculateMaxTotalTime,
   type SiteTier,
-} from '../../src/tools/page/handlers/retry-strategy';
+} from "../../src/tools/page/handlers/retry-strategy";
 
-import {
-  distributeTimeout,
-} from '../../src/tools/page/handlers/timeout-utils';
+import { distributeTimeout } from "../../src/tools/page/handlers/timeout-utils";
 
-import { TEST_DATABASE_URL } from './test-database-url';
+import { TEST_DATABASE_URL } from "./test-database-url";
 
 // ============================================================================
 // テスト設定
@@ -70,19 +68,21 @@ let prisma: PrismaClient | null = null;
 /** 成功レスポンスか判定 */
 function isSuccess(response: unknown): response is { success: true; data: PageAnalyzeOutput } {
   return (
-    typeof response === 'object' &&
+    typeof response === "object" &&
     response !== null &&
-    'success' in response &&
+    "success" in response &&
     (response as { success: boolean }).success === true
   );
 }
 
 /** エラーレスポンスか判定 */
-function isError(response: unknown): response is { success: false; error: { code: string; message: string } } {
+function isError(
+  response: unknown
+): response is { success: false; error: { code: string; message: string } } {
   return (
-    typeof response === 'object' &&
+    typeof response === "object" &&
     response !== null &&
-    'success' in response &&
+    "success" in response &&
     (response as { success: boolean }).success === false
   );
 }
@@ -91,7 +91,7 @@ function isError(response: unknown): response is { success: false; error: { code
 // E2Eテストスイート
 // ============================================================================
 
-describe('WebGLサイト E2Eテスト', () => {
+describe("WebGLサイト E2Eテスト", () => {
   // ==========================================================================
   // セットアップ
   // ==========================================================================
@@ -104,16 +104,16 @@ describe('WebGLサイト E2Eテスト', () => {
             url: TEST_DATABASE_URL,
           },
         },
-        log: ['error'],
+        log: ["error"],
       });
 
       await prisma.$connect();
-      console.log('[E2E][WebGL] Database connected');
+      console.log("[E2E][WebGL] Database connected");
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       setPageAnalyzePrismaClientFactory(() => prisma as any);
     } catch (error) {
-      console.warn('[E2E][WebGL] Database connection failed, some tests may be skipped:', error);
+      console.warn("[E2E][WebGL] Database connection failed, some tests may be skipped:", error);
     }
   }, 30000);
 
@@ -123,7 +123,7 @@ describe('WebGLサイト E2Eテスト', () => {
 
     if (prisma) {
       await prisma.$disconnect();
-      console.log('[E2E][WebGL] Database disconnected');
+      console.log("[E2E][WebGL] Database disconnected");
     }
   });
 
@@ -131,28 +131,28 @@ describe('WebGLサイト E2Eテスト', () => {
   // Phase1機能検証: モック使用
   // ==========================================================================
 
-  describe('Phase1機能検証（モック）', () => {
-    describe('SiteTier検出', () => {
+  describe("Phase1機能検証（モック）", () => {
+    describe("SiteTier検出", () => {
       it.each([
-        ['https://resn.co.nz', 'ultra-heavy'],
-        ['https://activetheory.net', 'ultra-heavy'],
-        ['https://lusion.co', 'ultra-heavy'],
-        ['https://bruno-simon.com', 'heavy'],
-        ['https://dogstudio.co', 'heavy'],
-        ['https://example.com/webgl/demo', 'webgl'],
-        ['https://example.com/3d/viewer', 'webgl'],
-        ['https://google.com', 'normal'],
+        ["https://resn.co.nz", "ultra-heavy"],
+        ["https://activetheory.net", "ultra-heavy"],
+        ["https://lusion.co", "ultra-heavy"],
+        ["https://bruno-simon.com", "heavy"],
+        ["https://dogstudio.co", "heavy"],
+        ["https://example.com/webgl/demo", "webgl"],
+        ["https://example.com/3d/viewer", "webgl"],
+        ["https://google.com", "normal"],
         // github.comはドメインリスト登録済みで、既知ドメインマッチ時はconfidence=1.0のためheavyになる
-        ['https://github.com', 'heavy'],
-      ] as const)('%s → %s', (url, expectedTier) => {
+        ["https://github.com", "heavy"],
+      ] as const)("%s → %s", (url, expectedTier) => {
         const tier = detectSiteTier(url);
         expect(tier).toBe(expectedTier);
       });
     });
 
-    describe('タイムアウト戦略', () => {
-      it('ultra-heavy: リトライ1回、累積なし', () => {
-        const config = getRetryStrategy('ultra-heavy');
+    describe("タイムアウト戦略", () => {
+      it("ultra-heavy: リトライ1回、累積なし", () => {
+        const config = getRetryStrategy("ultra-heavy");
 
         expect(config.maxRetries).toBe(1);
         expect(config.timeoutMultiplier).toBe(1.0);
@@ -163,8 +163,8 @@ describe('WebGLサイト E2Eテスト', () => {
         expect(maxTime).toBeLessThanOrEqual(MCP_MAX_TIMEOUT_MS);
       });
 
-      it('heavy: リトライ1回、累積なし', () => {
-        const config = getRetryStrategy('heavy');
+      it("heavy: リトライ1回、累積なし", () => {
+        const config = getRetryStrategy("heavy");
 
         expect(config.maxRetries).toBe(1);
         expect(config.timeoutMultiplier).toBe(1.0);
@@ -173,8 +173,8 @@ describe('WebGLサイト E2Eテスト', () => {
         expect(maxTime).toBeLessThanOrEqual(MCP_MAX_TIMEOUT_MS);
       });
 
-      it('webgl: リトライ2回、軽い累積(1.2)', () => {
-        const config = getRetryStrategy('webgl');
+      it("webgl: リトライ2回、軽い累積(1.2)", () => {
+        const config = getRetryStrategy("webgl");
 
         expect(config.maxRetries).toBe(2);
         expect(config.timeoutMultiplier).toBe(1.2);
@@ -183,8 +183,8 @@ describe('WebGLサイト E2Eテスト', () => {
         expect(maxTime).toBeLessThanOrEqual(MCP_MAX_TIMEOUT_MS);
       });
 
-      it('normal: リトライ2回、従来累積(1.5)', () => {
-        const config = getRetryStrategy('normal');
+      it("normal: リトライ2回、従来累積(1.5)", () => {
+        const config = getRetryStrategy("normal");
 
         expect(config.maxRetries).toBe(2);
         expect(config.timeoutMultiplier).toBe(1.5);
@@ -194,21 +194,19 @@ describe('WebGLサイト E2Eテスト', () => {
       });
     });
 
-    describe('タイムアウト分配', () => {
-      it('WebGL検出時: モーション検出タイムアウトが延長される', () => {
+    describe("タイムアウト分配", () => {
+      it("WebGL検出時: モーション検出タイムアウトが延長される", () => {
         const withWebGL = distributeTimeout(
           120000,
           false, // フレームキャプチャ無効
-          true,  // JSアニメーション有効
+          true, // JSアニメーション有効
           { detected: true, multiplier: 2.0 }
         );
 
-        const withoutWebGL = distributeTimeout(
-          120000,
-          false,
-          true,
-          { detected: false, multiplier: 1.0 }
-        );
+        const withoutWebGL = distributeTimeout(120000, false, true, {
+          detected: false,
+          multiplier: 1.0,
+        });
 
         // WebGL検出時はタイムアウトが延長される
         // ただし、最小値（MIN_WEBGL_JS_MOTION_TIMEOUT = 180000）が適用されるため
@@ -218,11 +216,11 @@ describe('WebGLサイト E2Eテスト', () => {
         expect(withWebGL.jsAnimationDetection).toBeGreaterThan(0);
       });
 
-      it('フレームキャプチャ有効時: frameCapture分が追加される', () => {
+      it("フレームキャプチャ有効時: frameCapture分が追加される", () => {
         const withFrameCapture = distributeTimeout(
           180000,
-          true,  // フレームキャプチャ有効
-          false,
+          true, // フレームキャプチャ有効
+          false
         );
 
         expect(withFrameCapture.frameCapture).toBeGreaterThan(0);
@@ -234,16 +232,16 @@ describe('WebGLサイト E2Eテスト', () => {
   // 実際のWebサイトテスト（スキップ可能）
   // ==========================================================================
 
-  describe('実際のWebサイトテスト', () => {
+  describe("実際のWebサイトテスト", () => {
     // 環境変数でスキップ可能
-    const SKIP_REAL_SITE_TESTS = process.env.SKIP_REAL_SITE_TESTS === 'true';
+    const SKIP_REAL_SITE_TESTS = process.env.SKIP_REAL_SITE_TESTS === "true";
 
-    describe.skipIf(SKIP_REAL_SITE_TESTS || !prisma)('stripe.com (medium tier)', () => {
+    describe.skipIf(SKIP_REAL_SITE_TESTS || !prisma)("stripe.com (medium tier)", () => {
       it(
-        'page.analyzeが成功する（save_to_db=false）',
+        "page.analyzeが成功する（save_to_db=false）",
         async () => {
           const result = await pageAnalyzeHandler({
-            url: 'https://stripe.com',
+            url: "https://stripe.com",
             summary: true,
             timeout: 120000, // 2分
             features: {
@@ -258,20 +256,20 @@ describe('WebGLサイト E2Eテスト', () => {
               includeScreenshot: false,
               useVision: false,
             },
-            waitUntil: 'domcontentloaded',
+            waitUntil: "domcontentloaded",
           });
 
           // 成功またはタイムアウトのいずれか
           if (isSuccess(result)) {
             expect(result.data).toBeDefined();
-            console.log('[E2E][stripe.com] Success:', {
+            console.log("[E2E][stripe.com] Success:", {
               hasPageInfo: !!result.data.pageInfo,
               hasLayout: !!result.data.layout,
               processingTime: result.data.processingTime,
             });
           } else if (isError(result)) {
             // タイムアウトやネットワークエラーは許容
-            console.log('[E2E][stripe.com] Error (acceptable):', result.error);
+            console.log("[E2E][stripe.com] Error (acceptable):", result.error);
             expect([
               PAGE_ANALYZE_ERROR_CODES.TIMEOUT_ERROR,
               PAGE_ANALYZE_ERROR_CODES.FETCH_FAILED,
@@ -283,12 +281,12 @@ describe('WebGLサイト E2Eテスト', () => {
       );
     });
 
-    describe.skipIf(SKIP_REAL_SITE_TESTS || !prisma)('supabase.com (medium tier)', () => {
+    describe.skipIf(SKIP_REAL_SITE_TESTS || !prisma)("supabase.com (medium tier)", () => {
       it(
-        'page.analyzeが成功する（save_to_db=false）',
+        "page.analyzeが成功する（save_to_db=false）",
         async () => {
           const result = await pageAnalyzeHandler({
-            url: 'https://supabase.com',
+            url: "https://supabase.com",
             summary: true,
             timeout: 120000, // 2分
             features: {
@@ -303,18 +301,18 @@ describe('WebGLサイト E2Eテスト', () => {
               includeScreenshot: false,
               useVision: false,
             },
-            waitUntil: 'domcontentloaded',
+            waitUntil: "domcontentloaded",
           });
 
           if (isSuccess(result)) {
             expect(result.data).toBeDefined();
-            console.log('[E2E][supabase.com] Success:', {
+            console.log("[E2E][supabase.com] Success:", {
               hasPageInfo: !!result.data.pageInfo,
               hasLayout: !!result.data.layout,
               processingTime: result.data.processingTime,
             });
           } else if (isError(result)) {
-            console.log('[E2E][supabase.com] Error (acceptable):', result.error);
+            console.log("[E2E][supabase.com] Error (acceptable):", result.error);
             expect([
               PAGE_ANALYZE_ERROR_CODES.TIMEOUT_ERROR,
               PAGE_ANALYZE_ERROR_CODES.FETCH_FAILED,
@@ -327,18 +325,18 @@ describe('WebGLサイト E2Eテスト', () => {
     });
 
     // Heavy/Ultra-heavyサイトは時間がかかりすぎるためCIではスキップ
-    describe.skip('heavy/ultra-heavy サイト（ローカル実行のみ）', () => {
-      it.skip('resn.co.nz (ultra-heavy) - 手動実行用', async () => {
-        const tier = detectSiteTier('https://resn.co.nz');
-        expect(tier).toBe('ultra-heavy');
+    describe.skip("heavy/ultra-heavy サイト（ローカル実行のみ）", () => {
+      it.skip("resn.co.nz (ultra-heavy) - 手動実行用", async () => {
+        const tier = detectSiteTier("https://resn.co.nz");
+        expect(tier).toBe("ultra-heavy");
 
         // 実際のテストは非常に時間がかかるためスキップ
         // ローカルで手動実行する場合はこのテストを有効化
       });
 
-      it.skip('bruno-simon.com (heavy) - 手動実行用', async () => {
-        const tier = detectSiteTier('https://bruno-simon.com');
-        expect(tier).toBe('heavy');
+      it.skip("bruno-simon.com (heavy) - 手動実行用", async () => {
+        const tier = detectSiteTier("https://bruno-simon.com");
+        expect(tier).toBe("heavy");
       });
     });
   });
@@ -347,10 +345,10 @@ describe('WebGLサイト E2Eテスト', () => {
   // エラーハンドリングテスト
   // ==========================================================================
 
-  describe('エラーハンドリング', () => {
-    it('無効なURLでエラーを返す', async () => {
+  describe("エラーハンドリング", () => {
+    it("無効なURLでエラーを返す", async () => {
       const result = await pageAnalyzeHandler({
-        url: 'not-a-valid-url',
+        url: "not-a-valid-url",
         summary: true,
         timeout: 10000,
       });
@@ -362,17 +360,17 @@ describe('WebGLサイト E2Eテスト', () => {
       }
     });
 
-    it('存在しないドメインでエラーを返す', async () => {
+    it("存在しないドメインでエラーを返す", async () => {
       // fetchHtmlをモックしてネットワークエラーをシミュレート
       // 実際のPlaywright接続はタイムアウトが長いため、モックで高速化
       setPageAnalyzeServiceFactory(() => ({
         fetchHtml: async () => {
-          throw new Error('net::ERR_NAME_NOT_RESOLVED');
+          throw new Error("net::ERR_NAME_NOT_RESOLVED");
         },
       }));
 
       const result = await pageAnalyzeHandler({
-        url: 'https://this-domain-definitely-does-not-exist-12345.com',
+        url: "https://this-domain-definitely-does-not-exist-12345.com",
         summary: true,
         timeout: 10000,
         async: false,
@@ -400,13 +398,13 @@ describe('WebGLサイト E2Eテスト', () => {
   // パフォーマンステスト
   // ==========================================================================
 
-  describe('パフォーマンス', () => {
-    it('SiteTier検出は1ms以内', () => {
+  describe("パフォーマンス", () => {
+    it("SiteTier検出は1ms以内", () => {
       const urls = [
-        'https://resn.co.nz',
-        'https://bruno-simon.com',
-        'https://example.com/webgl/demo',
-        'https://google.com',
+        "https://resn.co.nz",
+        "https://bruno-simon.com",
+        "https://example.com/webgl/demo",
+        "https://google.com",
       ];
 
       for (const url of urls) {
@@ -418,12 +416,12 @@ describe('WebGLサイト E2Eテスト', () => {
       }
     });
 
-    it('preDetectWebGL は1ms以内', () => {
+    it("preDetectWebGL は1ms以内", () => {
       const urls = [
-        'https://resn.co.nz',
-        'https://activetheory.net',
-        'https://threejs.org/examples',
-        'https://google.com',
+        "https://resn.co.nz",
+        "https://activetheory.net",
+        "https://threejs.org/examples",
+        "https://google.com",
       ];
 
       for (const url of urls) {
@@ -435,8 +433,8 @@ describe('WebGLサイト E2Eテスト', () => {
       }
     });
 
-    it('タイムアウト計算は600秒上限を遵守', () => {
-      const tiers: SiteTier[] = ['ultra-heavy', 'heavy', 'webgl', 'normal'];
+    it("タイムアウト計算は600秒上限を遵守", () => {
+      const tiers: SiteTier[] = ["ultra-heavy", "heavy", "webgl", "normal"];
       const baseTimeouts = [180000, 120000, 90000, 60000];
 
       for (let i = 0; i < tiers.length; i++) {
@@ -453,8 +451,8 @@ describe('WebGLサイト E2Eテスト', () => {
   // 成功指標の検証
   // ==========================================================================
 
-  describe('Phase1成功指標', () => {
-    it('WebGLサイト成功率: 80%以上の達成可能性を検証', () => {
+  describe("Phase1成功指標", () => {
+    it("WebGLサイト成功率: 80%以上の達成可能性を検証", () => {
       // 実際の成功率はCIでの実行結果から計測
       // ここでは、Phase1実装により成功率向上の前提条件が整っていることを確認
 
@@ -467,7 +465,7 @@ describe('WebGLサイト E2Eテスト', () => {
       // 2. SiteTierベースのリトライ戦略が正しく適用される
       for (const domain of KNOWN_ULTRA_HEAVY_DOMAINS) {
         const tier = detectSiteTier(`https://${domain}`);
-        expect(tier).toBe('ultra-heavy');
+        expect(tier).toBe("ultra-heavy");
 
         const config = getRetryStrategy(tier);
         expect(config.retryOnlyOnNetworkError).toBe(true);
@@ -475,10 +473,10 @@ describe('WebGLサイト E2Eテスト', () => {
 
       // 3. 全てのSiteTierでMCP上限を遵守
       const scenarios = [
-        { tier: 'ultra-heavy', baseTimeout: 180000 },
-        { tier: 'heavy', baseTimeout: 120000 },
-        { tier: 'webgl', baseTimeout: 90000 },
-        { tier: 'normal', baseTimeout: 60000 },
+        { tier: "ultra-heavy", baseTimeout: 180000 },
+        { tier: "heavy", baseTimeout: 120000 },
+        { tier: "webgl", baseTimeout: 90000 },
+        { tier: "normal", baseTimeout: 60000 },
       ] as const;
 
       for (const { tier, baseTimeout } of scenarios) {
@@ -487,12 +485,12 @@ describe('WebGLサイト E2Eテスト', () => {
         expect(maxTime).toBeLessThanOrEqual(MCP_MAX_TIMEOUT_MS);
       }
 
-      console.log('[Phase1] 成功指標の前提条件が満たされています');
+      console.log("[Phase1] 成功指標の前提条件が満たされています");
     });
 
-    it('タイムアウト発生率: 20%以下の達成可能性を検証', () => {
+    it("タイムアウト発生率: 20%以下の達成可能性を検証", () => {
       // ultra-heavyサイトではタイムアウトしやすいため、リトライ戦略を最小化
-      const ultraHeavyConfig = getRetryStrategy('ultra-heavy');
+      const ultraHeavyConfig = getRetryStrategy("ultra-heavy");
 
       // リトライ回数が少ない = タイムアウト累積が抑制される
       expect(ultraHeavyConfig.maxRetries).toBe(1);
@@ -503,7 +501,7 @@ describe('WebGLサイト E2Eテスト', () => {
       // ネットワークエラーのみリトライ = 無駄なタイムアウト待機を削減
       expect(ultraHeavyConfig.retryOnlyOnNetworkError).toBe(true);
 
-      console.log('[Phase1] タイムアウト抑制戦略が正しく設定されています');
+      console.log("[Phase1] タイムアウト抑制戦略が正しく設定されています");
     });
   });
 });

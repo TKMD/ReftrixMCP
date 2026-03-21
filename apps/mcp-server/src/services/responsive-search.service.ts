@@ -16,7 +16,7 @@
  * @module services/responsive-search
  */
 
-import { isDevelopment, logger } from '../utils/logger';
+import { isDevelopment, logger } from "../utils/logger";
 
 // =====================================================
 // 型定義
@@ -58,7 +58,7 @@ interface IResponsiveSearchPrismaClient {
 }
 
 interface IResponsiveSearchEmbeddingService {
-  generateEmbedding(text: string, type: 'query' | 'passage'): Promise<number[]>;
+  generateEmbedding(text: string, type: "query" | "passage"): Promise<number[]>;
 }
 
 // =====================================================
@@ -91,10 +91,10 @@ export function createResponsiveSearchService(
   return {
     generateQueryEmbedding: async (query: string): Promise<number[] | null> => {
       try {
-        return await embeddingService.generateEmbedding(query, 'query');
+        return await embeddingService.generateEmbedding(query, "query");
       } catch (error) {
         if (isDevelopment()) {
-          logger.warn('[ResponsiveSearch] Embedding generation failed', {
+          logger.warn("[ResponsiveSearch] Embedding generation failed", {
             error: error instanceof Error ? error.message : String(error),
           });
         }
@@ -106,12 +106,12 @@ export function createResponsiveSearchService(
       embedding: number[],
       options: ResponsiveSearchOptions
     ): Promise<{ results: ResponsiveSearchResult[]; total: number }> => {
-      const vectorString = `[${embedding.join(',')}]`;
+      const vectorString = `[${embedding.join(",")}]`;
       const { limit, offset, filters } = options;
 
       // Dynamic parameter indexing (SEC H-1/M-1 pattern)
       let paramIndex = 2; // $1 = vectorString
-      const conditions: string[] = ['rae.embedding IS NOT NULL'];
+      const conditions: string[] = ["rae.embedding IS NOT NULL"];
       const params: unknown[] = [vectorString];
 
       if (filters?.webPageId) {
@@ -128,32 +128,40 @@ export function createResponsiveSearchService(
 
       if (filters?.breakpointRange) {
         if (filters.breakpointRange.min !== undefined) {
-          conditions.push(`EXISTS (SELECT 1 FROM jsonb_array_elements(ra.breakpoints) bp WHERE (bp->>'width')::int >= $${paramIndex})`);
+          conditions.push(
+            `EXISTS (SELECT 1 FROM jsonb_array_elements(ra.breakpoints) bp WHERE (bp->>'width')::int >= $${paramIndex})`
+          );
           params.push(filters.breakpointRange.min);
           paramIndex++;
         }
         if (filters.breakpointRange.max !== undefined) {
-          conditions.push(`EXISTS (SELECT 1 FROM jsonb_array_elements(ra.breakpoints) bp WHERE (bp->>'width')::int <= $${paramIndex})`);
+          conditions.push(
+            `EXISTS (SELECT 1 FROM jsonb_array_elements(ra.breakpoints) bp WHERE (bp->>'width')::int <= $${paramIndex})`
+          );
           params.push(filters.breakpointRange.max);
           paramIndex++;
         }
       }
 
       if (filters?.minDiffPercentage !== undefined) {
-        conditions.push(`EXISTS (SELECT 1 FROM jsonb_array_elements(ra.screenshot_diffs) sd WHERE (sd->>'diffPercentage')::float >= $${paramIndex})`);
+        conditions.push(
+          `EXISTS (SELECT 1 FROM jsonb_array_elements(ra.screenshot_diffs) sd WHERE (sd->>'diffPercentage')::float >= $${paramIndex})`
+        );
         params.push(filters.minDiffPercentage);
         paramIndex++;
       }
 
       if (filters?.viewportPair) {
-        const [vp1, vp2] = filters.viewportPair.split('-');
-        conditions.push(`EXISTS (SELECT 1 FROM jsonb_array_elements(ra.screenshot_diffs) sd WHERE sd->>'viewport1' = $${paramIndex} AND sd->>'viewport2' = $${paramIndex + 1})`);
+        const [vp1, vp2] = filters.viewportPair.split("-");
+        conditions.push(
+          `EXISTS (SELECT 1 FROM jsonb_array_elements(ra.screenshot_diffs) sd WHERE sd->>'viewport1' = $${paramIndex} AND sd->>'viewport2' = $${paramIndex + 1})`
+        );
         params.push(vp1);
         params.push(vp2);
         paramIndex += 2;
       }
 
-      const whereClause = conditions.join(' AND ');
+      const whereClause = conditions.join(" AND ");
 
       // Limit & offset
       params.push(limit);
@@ -185,7 +193,7 @@ export function createResponsiveSearchService(
       `;
 
       if (isDevelopment()) {
-        logger.info('[ResponsiveSearch] Executing vector search', {
+        logger.info("[ResponsiveSearch] Executing vector search", {
           filterCount: conditions.length - 1,
           limit,
           offset,
@@ -203,11 +211,13 @@ export function createResponsiveSearchService(
         WHERE ${whereClause}
       `;
       const countParams = params.slice(0, params.length - 2); // exclude limit/offset
-      const countResult = (await prisma.$queryRawUnsafe(countSql, ...countParams)) as Array<{ total: number }>;
+      const countResult = (await prisma.$queryRawUnsafe(countSql, ...countParams)) as Array<{
+        total: number;
+      }>;
       const total = countResult[0]?.total ?? 0;
 
       if (isDevelopment()) {
-        logger.info('[ResponsiveSearch] Search completed', {
+        logger.info("[ResponsiveSearch] Search completed", {
           resultCount: rows.length,
           total,
           topSimilarity: rows.length > 0 ? rows[0]?.similarity : null,

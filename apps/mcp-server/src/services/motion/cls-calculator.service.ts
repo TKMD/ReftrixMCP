@@ -20,7 +20,7 @@
  * @module @reftrix/mcp-server/services/motion/cls-calculator
  */
 
-import type { FrameDiffResult, BoundingBox, ViewportSize } from './types';
+import type { FrameDiffResult, BoundingBox, ViewportSize } from "./types";
 
 // =============================================================================
 // 定数
@@ -92,7 +92,7 @@ export interface FramePairCLSResult {
   /** CLSスコア */
   cls: number;
   /** 分類 */
-  classification: 'good' | 'needs-improvement' | 'poor';
+  classification: "good" | "needs-improvement" | "poor";
   /** 検出されたシフト一覧 */
   shifts: LayoutShift[];
   /** 全体の影響割合 */
@@ -129,7 +129,7 @@ export interface FrameSequenceCLSResult {
   /** 最大セッションウィンドウのCLS（Core Web Vitals準拠） */
   maxSessionCLS: number;
   /** 分類（maxSessionCLSに基づく） */
-  classification: 'good' | 'needs-improvement' | 'poor';
+  classification: "good" | "needs-improvement" | "poor";
   /** シフト回数 */
   shiftCount: number;
   /** セッションウィンドウ */
@@ -164,14 +164,15 @@ export class CLSCalculator {
 
   constructor(config: CLSCalculatorConfig = {}) {
     this.config = {
-      sessionWindowDurationMs: config.sessionWindowDurationMs ?? DEFAULTS.SESSION_WINDOW_DURATION_MS,
+      sessionWindowDurationMs:
+        config.sessionWindowDurationMs ?? DEFAULTS.SESSION_WINDOW_DURATION_MS,
       gapThresholdMs: config.gapThresholdMs ?? DEFAULTS.GAP_THRESHOLD_MS,
       fps: config.fps ?? DEFAULTS.FPS,
     };
 
-    if (process.env.NODE_ENV === 'development') {
+    if (process.env.NODE_ENV === "development") {
       // eslint-disable-next-line no-console -- Intentional debug log in development
-      console.log('[CLSCalculator] Initialized:', this.config);
+      console.log("[CLSCalculator] Initialized:", this.config);
     }
   }
 
@@ -240,7 +241,8 @@ export class CLSCalculator {
 
     if (shifts.length > 0) {
       totalImpactFraction = shifts.reduce((sum, s) => sum + s.impactFraction, 0) / shifts.length;
-      totalDistanceFraction = shifts.reduce((sum, s) => sum + s.distanceFraction, 0) / shifts.length;
+      totalDistanceFraction =
+        shifts.reduce((sum, s) => sum + s.distanceFraction, 0) / shifts.length;
     }
 
     return {
@@ -275,7 +277,7 @@ export class CLSCalculator {
       return {
         totalCLS: 0,
         maxSessionCLS: 0,
-        classification: 'good',
+        classification: "good",
         shiftCount: 0,
         sessionWindows: [],
         frameResults: [],
@@ -306,17 +308,16 @@ export class CLSCalculator {
 
     // 累積CLSと最大セッションCLSを計算
     const totalCLS = frameResults.reduce((sum, r) => sum + r.cls, 0);
-    const maxSessionCLS = sessionWindows.length > 0
-      ? Math.max(...sessionWindows.map((w) => w.cls))
-      : totalCLS;
+    const maxSessionCLS =
+      sessionWindows.length > 0 ? Math.max(...sessionWindows.map((w) => w.cls)) : totalCLS;
 
     const shiftCount = frameResults.reduce((sum, r) => sum + r.shifts.length, 0);
 
     const processingTimeMs = Math.round(performance.now() - startTime);
 
-    if (process.env.NODE_ENV === 'development') {
+    if (process.env.NODE_ENV === "development") {
       // eslint-disable-next-line no-console -- Intentional debug log in development
-      console.log('[CLSCalculator] Sequence CLS calculated:', {
+      console.log("[CLSCalculator] Sequence CLS calculated:", {
         totalCLS: totalCLS.toFixed(4),
         maxSessionCLS: maxSessionCLS.toFixed(4),
         shiftCount,
@@ -392,21 +393,21 @@ export class CLSCalculator {
    */
   private validateViewport(viewport: ViewportSize): void {
     if (viewport.width <= 0 || viewport.height <= 0) {
-      throw new Error('Invalid viewport: width and height must be positive');
+      throw new Error("Invalid viewport: width and height must be positive");
     }
   }
 
   /**
    * CLSスコアを分類
    */
-  private classifyCLS(cls: number): 'good' | 'needs-improvement' | 'poor' {
+  private classifyCLS(cls: number): "good" | "needs-improvement" | "poor" {
     if (cls < CLS_THRESHOLDS.GOOD) {
-      return 'good';
+      return "good";
     }
     if (cls < CLS_THRESHOLDS.NEEDS_IMPROVEMENT) {
-      return 'needs-improvement';
+      return "needs-improvement";
     }
-    return 'poor';
+    return "poor";
   }
 
   /**
@@ -513,17 +514,6 @@ export class CLSCalculator {
 
     return windows;
   }
-}
-
-// =============================================================================
-// Factory Functions
-// =============================================================================
-
-/**
- * CLSCalculatorインスタンスを作成
- */
-export function createCLSCalculator(config?: CLSCalculatorConfig): CLSCalculator {
-  return new CLSCalculator(config);
 }
 
 export default CLSCalculator;

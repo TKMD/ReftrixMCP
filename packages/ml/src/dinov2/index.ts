@@ -5,12 +5,8 @@
  * DINOv2 visual embedding service exports
  */
 
-export {
-  DINOv2Service,
-  DINOV2_EMBEDDING_DIMENSION,
-  DINOV2_INPUT_SIZE,
-} from './service.js';
-export type { DINOv2ServiceConfig } from './service.js';
+export { DINOv2Service, DINOV2_EMBEDDING_DIMENSION, DINOV2_INPUT_SIZE } from "./service.js";
+export type { DINOv2ServiceConfig } from "./service.js";
 
 export type {
   DINOv2WorkerInitMessage,
@@ -22,4 +18,4 @@ export type {
   DINOv2WorkerDisposeResponse,
   DINOv2WorkerErrorResponse,
   DINOv2WorkerResponse,
-} from './worker-thread-types.js';
+} from "./worker-thread-types.js";

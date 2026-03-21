@@ -17,8 +17,8 @@
  * @module services/page/webgl-detector.service
  */
 
-import type { Page } from 'playwright';
-import { createLogger, isDevelopment } from '../../utils/logger';
+import type { Page } from "playwright";
+import { createLogger, isDevelopment } from "../../utils/logger";
 
 // =====================================================
 // Types and Interfaces
@@ -28,21 +28,21 @@ import { createLogger, isDevelopment } from '../../utils/logger';
  * Detected WebGL library names
  */
 export type WebGLLibrary =
-  | 'three.js'
-  | 'babylon.js'
-  | 'pixi.js'
-  | 'a-frame'
-  | 'p5.js'
-  | 'playcanvas'
-  | 'gsap'
-  | 'lottie'
-  | 'phaser'
-  | 'unknown';
+  | "three.js"
+  | "babylon.js"
+  | "pixi.js"
+  | "a-frame"
+  | "p5.js"
+  | "playcanvas"
+  | "gsap"
+  | "lottie"
+  | "phaser"
+  | "unknown";
 
 /**
  * Recommended wait strategy based on WebGL detection
  */
-export type WaitStrategy = 'standard' | 'webgl-extended' | 'networkidle';
+export type WaitStrategy = "standard" | "webgl-extended" | "networkidle";
 
 /**
  * WebGL detection result
@@ -90,7 +90,7 @@ export const WEBGL_DETECTION_DEFAULTS = {
 // Logger
 // =====================================================
 
-const logger = createLogger('WebGLDetector');
+const logger = createLogger("WebGLDetector");
 
 // =====================================================
 // Detection Script
@@ -269,7 +269,7 @@ export class WebGLDetectorService {
 
     try {
       if (isDevelopment()) {
-        logger.debug('[WebGLDetector] Starting detection');
+        logger.debug("[WebGLDetector] Starting detection");
       }
 
       // Execute detection script in browser context
@@ -277,14 +277,14 @@ export class WebGLDetectorService {
         page.evaluate(DETECTION_SCRIPT) as Promise<WebGLDetectionResult>,
         new Promise<never>((_, reject) =>
           setTimeout(
-            () => reject(new Error('Detection timeout')),
+            () => reject(new Error("Detection timeout")),
             WEBGL_DETECTION_DEFAULTS.detectionTimeout
           )
         ),
       ])) as WebGLDetectionResult;
 
       if (isDevelopment()) {
-        logger.debug('[WebGLDetector] Detection completed', {
+        logger.debug("[WebGLDetector] Detection completed", {
           hasWebGL: result.hasWebGL,
           canvasCount: result.canvasCount,
           libraries: result.detectedLibraries,
@@ -299,7 +299,7 @@ export class WebGLDetectorService {
       const errorMessage = error instanceof Error ? error.message : String(error);
 
       if (isDevelopment()) {
-        logger.warn('[WebGLDetector] Detection failed, using safe defaults', {
+        logger.warn("[WebGLDetector] Detection failed, using safe defaults", {
           error: errorMessage,
         });
       }
@@ -312,7 +312,7 @@ export class WebGLDetectorService {
         detectedLibraries: [],
         webglVersion: null,
         isHeavySite: false,
-        recommendedWaitStrategy: 'standard',
+        recommendedWaitStrategy: "standard",
         recommendedTimeout: WEBGL_DETECTION_DEFAULTS.standardTimeout,
         detectionTimeMs: Date.now() - startTime,
       };

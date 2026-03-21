@@ -10,9 +10,9 @@
  * @module @reftrix/webdesign-core/section-detector
  */
 
-import * as cheerio from 'cheerio';
-import type { Element as DomElement } from 'domhandler';
-import { v4 as uuidv4 } from 'uuid';
+import * as cheerio from "cheerio";
+import type { Element as DomElement } from "domhandler";
+import { v4 as uuidv4 } from "uuid";
 import type {
   SectionDetectorOptions,
   DetectedSection,
@@ -23,13 +23,13 @@ import type {
   PositionInfo,
   ButtonType,
   SectionClassificationRule,
-} from '../types/section.types';
+} from "../types/section.types";
 import {
   ARIA_LANDMARK_ROLES,
   SEMANTIC_TAGS,
   SECTION_TYPE_MAPPINGS,
   HTML_SNIPPET_MAX_SIZE,
-} from '../types/section.types';
+} from "../types/section.types";
 
 // Type alias for Cheerio elements
 type CheerioElement = cheerio.Cheerio<DomElement>;
@@ -44,15 +44,15 @@ type CheerioAnyElement = cheerio.Cheerio<any>;
 const CLASSIFICATION_RULES: SectionClassificationRule[] = [
   // Hero detection rules
   {
-    name: 'hero-class',
-    targetType: 'hero',
+    name: "hero-class",
+    targetType: "hero",
     classPatterns: [/hero/i, /banner/i, /jumbotron/i, /masthead/i],
     idPatterns: [/hero/i, /banner/i],
     baseConfidence: 0.85,
   },
   {
-    name: 'hero-content',
-    targetType: 'hero',
+    name: "hero-content",
+    targetType: "hero",
     contentConditions: {
       requiresH1: true,
       requiresButton: true,
@@ -64,42 +64,47 @@ const CLASSIFICATION_RULES: SectionClassificationRule[] = [
   },
   // Navigation detection rules
   {
-    name: 'navigation-tag',
-    targetType: 'navigation',
-    tagNames: ['nav'],
-    ariaRoles: ['navigation'], // banner は hero/header エリアを示すため除外
+    name: "navigation-tag",
+    targetType: "navigation",
+    tagNames: ["nav"],
+    ariaRoles: ["navigation"], // banner は hero/header エリアを示すため除外
     baseConfidence: 0.95,
   },
   {
-    name: 'navigation-class',
-    targetType: 'navigation',
+    name: "navigation-class",
+    targetType: "navigation",
     classPatterns: [/nav/i, /menu/i, /navigation/i, /navbar/i, /header/i],
     baseConfidence: 0.8,
   },
   // Feature detection rules (P1-1: ID属性強化)
   {
-    name: 'feature-id',
-    targetType: 'feature',
+    name: "feature-id",
+    targetType: "feature",
     // id="features", id="feature", id="features-section", id="mcp-tools" などを検出
     idPatterns: [/^features?$/i, /^features?-/i, /mcp-tools/i, /tools/i],
     baseConfidence: 0.85,
   },
   {
-    name: 'feature-class',
-    targetType: 'feature',
+    name: "feature-class",
+    targetType: "feature",
     classPatterns: [/feature/i, /benefit/i, /service/i, /grid/i, /column/i],
     baseConfidence: 0.8,
   },
   {
-    name: 'feature-grid',
-    targetType: 'feature',
+    name: "feature-grid",
+    targetType: "feature",
     // P1-1: Tailwind グリッドクラスパターン検出
-    classPatterns: [/grid-cols-[2-4]/i, /md:grid-cols-[2-4]/i, /lg:grid-cols-[2-4]/i, /sm:grid-cols-[2-4]/i],
+    classPatterns: [
+      /grid-cols-[2-4]/i,
+      /md:grid-cols-[2-4]/i,
+      /lg:grid-cols-[2-4]/i,
+      /sm:grid-cols-[2-4]/i,
+    ],
     baseConfidence: 0.75,
   },
   {
-    name: 'feature-content',
-    targetType: 'feature',
+    name: "feature-content",
+    targetType: "feature",
     contentConditions: {
       minImages: 2,
       minHeadings: 2,
@@ -108,21 +113,21 @@ const CLASSIFICATION_RULES: SectionClassificationRule[] = [
   },
   // CTA detection rules (P1-1: 信頼度と検出強化)
   {
-    name: 'cta-id',
-    targetType: 'cta',
+    name: "cta-id",
+    targetType: "cta",
     // id="cta", id="cta-section", id="call-to-action" などを検出
     idPatterns: [/^cta$/i, /^cta-/i, /call-to-action/i],
     baseConfidence: 0.85,
   },
   {
-    name: 'cta-class',
-    targetType: 'cta',
+    name: "cta-class",
+    targetType: "cta",
     classPatterns: [/cta/i, /call-to-action/i, /action/i, /signup/i],
     baseConfidence: 0.85,
   },
   {
-    name: 'cta-content',
-    targetType: 'cta',
+    name: "cta-content",
+    targetType: "cta",
     contentConditions: {
       requiresButton: true,
     },
@@ -131,57 +136,57 @@ const CLASSIFICATION_RULES: SectionClassificationRule[] = [
   },
   // Testimonial detection rules
   {
-    name: 'testimonial-class',
-    targetType: 'testimonial',
+    name: "testimonial-class",
+    targetType: "testimonial",
     classPatterns: [/testimonial/i, /review/i, /quote/i, /customer/i, /feedback/i],
     baseConfidence: 0.85,
   },
   // Pricing detection rules
   {
-    name: 'pricing-class',
-    targetType: 'pricing',
+    name: "pricing-class",
+    targetType: "pricing",
     classPatterns: [/pricing/i, /price/i, /plan/i, /package/i, /subscription/i],
     baseConfidence: 0.9,
   },
   // Footer detection rules
   {
-    name: 'footer-tag',
-    targetType: 'footer',
-    tagNames: ['footer'],
-    ariaRoles: ['contentinfo'],
+    name: "footer-tag",
+    targetType: "footer",
+    tagNames: ["footer"],
+    ariaRoles: ["contentinfo"],
     baseConfidence: 0.95,
   },
   {
-    name: 'footer-class',
-    targetType: 'footer',
+    name: "footer-class",
+    targetType: "footer",
     classPatterns: [/footer/i, /bottom/i],
     baseConfidence: 0.8,
   },
   // About detection rules
   {
-    name: 'about-class',
-    targetType: 'about',
+    name: "about-class",
+    targetType: "about",
     classPatterns: [/about/i, /company/i, /team/i, /story/i, /who-we-are/i],
     baseConfidence: 0.85,
   },
   // Contact detection rules
   {
-    name: 'contact-class',
-    targetType: 'contact',
+    name: "contact-class",
+    targetType: "contact",
     classPatterns: [/contact/i, /get-in-touch/i, /reach/i],
     baseConfidence: 0.85,
   },
   // Gallery detection rules
   {
-    name: 'gallery-class',
-    targetType: 'gallery',
+    name: "gallery-class",
+    targetType: "gallery",
     classPatterns: [/gallery/i, /portfolio/i, /showcase/i, /work/i, /project/i],
     idPatterns: [/gallery/i, /portfolio/i, /showcase/i, /stories/i, /works/i, /projects/i],
     baseConfidence: 0.85,
   },
   {
-    name: 'gallery-content',
-    targetType: 'gallery',
+    name: "gallery-content",
+    targetType: "gallery",
     contentConditions: {
       minImages: 4,
     },
@@ -191,56 +196,56 @@ const CLASSIFICATION_RULES: SectionClassificationRule[] = [
   // Extended type detection rules
   // Partners/Clients detection
   {
-    name: 'partners-class',
-    targetType: 'partners',
+    name: "partners-class",
+    targetType: "partners",
     classPatterns: [/partners?/i, /clients?/i, /sponsors?/i, /logos?/i, /brands?/i, /trusted/i],
     idPatterns: [/partners?/i, /clients?/i, /sponsors?/i, /logos?/i],
     baseConfidence: 0.85,
   },
   // Team detection
   {
-    name: 'team-class',
-    targetType: 'team',
+    name: "team-class",
+    targetType: "team",
     classPatterns: [/team/i, /members?/i, /people/i, /staff/i, /leadership/i, /board/i],
     idPatterns: [/team/i, /board/i, /members?/i, /leadership/i],
     baseConfidence: 0.85,
   },
   // Stories/Case Studies detection
   {
-    name: 'stories-class',
-    targetType: 'stories',
+    name: "stories-class",
+    targetType: "stories",
     classPatterns: [/stories/i, /case-stud/i, /success/i, /use-case/i],
     idPatterns: [/stories/i, /cases?/i],
     baseConfidence: 0.85,
   },
   // Research detection
   {
-    name: 'research-class',
-    targetType: 'research',
+    name: "research-class",
+    targetType: "research",
     classPatterns: [/research/i, /study/i, /data/i, /insights?/i, /report/i, /findings?/i],
     idPatterns: [/research/i, /study/i, /insights?/i],
     baseConfidence: 0.85,
   },
   // Subscribe/Newsletter detection
   {
-    name: 'subscribe-class',
-    targetType: 'subscribe',
+    name: "subscribe-class",
+    targetType: "subscribe",
     classPatterns: [/subscribe/i, /newsletter/i, /signup/i, /follow/i, /updates?/i, /notify/i],
     idPatterns: [/subscribe/i, /newsletter/i, /follow/i, /updates?/i],
     baseConfidence: 0.85,
   },
   // Stats/Metrics detection
   {
-    name: 'stats-class',
-    targetType: 'stats',
+    name: "stats-class",
+    targetType: "stats",
     classPatterns: [/stats?/i, /metrics?/i, /numbers?/i, /figures?/i, /counter/i, /achievements?/i],
     idPatterns: [/stats?/i, /metrics?/i, /numbers?/i],
     baseConfidence: 0.85,
   },
   // FAQ detection
   {
-    name: 'faq-class',
-    targetType: 'faq',
+    name: "faq-class",
+    targetType: "faq",
     classPatterns: [/faq/i, /questions?/i, /accordion/i, /support/i, /help/i],
     idPatterns: [/faq/i, /questions?/i],
     baseConfidence: 0.85,
@@ -273,7 +278,7 @@ function hasChildMatchingClassPattern(
   const children = $el.children();
   for (let i = 0; i < children.length; i++) {
     const $child = $(children[i]) as CheerioElement;
-    const childClasses = $child.attr('class') || '';
+    const childClasses = $child.attr("class") || "";
 
     // 子要素のクラスをチェック
     for (const pattern of patterns) {
@@ -511,7 +516,11 @@ const TAILWIND_SECTION_PATTERNS: Record<string, RegExp[]> = {
   cta: [...TAILWIND_BG_PATTERNS, ...TAILWIND_TEXT_PATTERNS.slice(0, 3)], // Bold text + bg colors
   pricing: [...TAILWIND_GRID_PATTERNS, ...TAILWIND_FLEX_PATTERNS],
   testimonial: [...TAILWIND_FLEX_PATTERNS, ...TAILWIND_SPACING_PATTERNS],
-  footer: [...TAILWIND_BG_PATTERNS, ...TAILWIND_FLEX_PATTERNS, ...TAILWIND_TEXT_PATTERNS.slice(10, 14)], // Text color patterns
+  footer: [
+    ...TAILWIND_BG_PATTERNS,
+    ...TAILWIND_FLEX_PATTERNS,
+    ...TAILWIND_TEXT_PATTERNS.slice(10, 14),
+  ], // Text color patterns
 };
 
 /**
@@ -540,10 +549,7 @@ function generateSelector(
  * @param $ - Cheerio API
  * @returns サニタイズ済みHTMLスニペット（最大50KB）
  */
-function extractHtmlSnippet(
-  $el: CheerioElement,
-  $: CheerioAPI
-): string | undefined {
+function extractHtmlSnippet($el: CheerioElement, $: CheerioAPI): string | undefined {
   try {
     // 要素のouterHTMLを取得
     let html = $.html($el);
@@ -553,7 +559,7 @@ function extractHtmlSnippet(
     }
 
     // サイズチェック（UTF-8バイト数で計算）
-    const byteLength = Buffer.byteLength(html, 'utf8');
+    const byteLength = Buffer.byteLength(html, "utf8");
 
     if (byteLength <= HTML_SNIPPET_MAX_SIZE) {
       return html;
@@ -561,10 +567,10 @@ function extractHtmlSnippet(
 
     // サイズ超過の場合、script/style/svg/noscriptを除去して再試行
     const $clone = $el.clone();
-    $clone.find('script, style, svg, noscript, iframe').remove();
+    $clone.find("script, style, svg, noscript, iframe").remove();
     html = $.html($clone);
 
-    const reducedByteLength = Buffer.byteLength(html, 'utf8');
+    const reducedByteLength = Buffer.byteLength(html, "utf8");
     if (reducedByteLength <= HTML_SNIPPET_MAX_SIZE) {
       return html;
     }
@@ -574,7 +580,7 @@ function extractHtmlSnippet(
     // おおよそ1文字 = 3バイトと仮定して安全マージンを取る
     const maxChars = Math.floor(HTML_SNIPPET_MAX_SIZE / 3);
     if (html.length > maxChars) {
-      html = html.substring(0, maxChars) + '<!-- truncated -->';
+      html = html.substring(0, maxChars) + "<!-- truncated -->";
     }
 
     return html;
@@ -622,51 +628,45 @@ function extractStyles(styleAttr: string | undefined): SectionStyle {
 /**
  * ボタンタイプを分類
  */
-function classifyButtonType(
-  $el: CheerioElement,
-  _$: CheerioAPI
-): ButtonType {
-  const classList = ($el.attr('class') || '').toLowerCase();
-  const tagName = $el.prop('tagName')?.toLowerCase() || '';
+function classifyButtonType($el: CheerioElement, _$: CheerioAPI): ButtonType {
+  const classList = ($el.attr("class") || "").toLowerCase();
+  const tagName = $el.prop("tagName")?.toLowerCase() || "";
 
-  if (classList.includes('primary') || classList.includes('btn-primary')) {
-    return 'primary';
+  if (classList.includes("primary") || classList.includes("btn-primary")) {
+    return "primary";
   }
-  if (classList.includes('secondary') || classList.includes('btn-secondary')) {
-    return 'secondary';
+  if (classList.includes("secondary") || classList.includes("btn-secondary")) {
+    return "secondary";
   }
-  if (classList.includes('link') || classList.includes('btn-link') || tagName === 'a') {
+  if (classList.includes("link") || classList.includes("btn-link") || tagName === "a") {
     // Only classify as link if it's an anchor tag with button-like class
-    if (tagName === 'a' && classList.includes('btn')) {
-      return 'link';
+    if (tagName === "a" && classList.includes("btn")) {
+      return "link";
     }
   }
 
   // Default to primary if it has prominent styling
-  if (classList.includes('large') || classList.includes('main') || classList.includes('cta')) {
-    return 'primary';
+  if (classList.includes("large") || classList.includes("main") || classList.includes("cta")) {
+    return "primary";
   }
 
-  return 'primary';
+  return "primary";
 }
 
 /**
  * コンテンツ抽出
  */
-function extractContent(
-  $el: CheerioElement,
-  $: CheerioAPI
-): SectionContent {
-  const headings: SectionContent['headings'] = [];
+function extractContent($el: CheerioElement, $: CheerioAPI): SectionContent {
+  const headings: SectionContent["headings"] = [];
   const paragraphs: string[] = [];
-  const links: SectionContent['links'] = [];
-  const images: SectionContent['images'] = [];
-  const buttons: SectionContent['buttons'] = [];
+  const links: SectionContent["links"] = [];
+  const images: SectionContent["images"] = [];
+  const buttons: SectionContent["buttons"] = [];
 
   // Extract headings
-  $el.find('h1, h2, h3, h4, h5, h6').each((_, el) => {
+  $el.find("h1, h2, h3, h4, h5, h6").each((_, el) => {
     const $heading = $(el);
-    const tagName = $heading.prop('tagName')?.toLowerCase() || '';
+    const tagName = $heading.prop("tagName")?.toLowerCase() || "";
     const level = parseInt(tagName.charAt(1), 10);
     const text = $heading.text().trim();
     if (text) {
@@ -675,7 +675,7 @@ function extractContent(
   });
 
   // Extract paragraphs
-  $el.find('p').each((_, el) => {
+  $el.find("p").each((_, el) => {
     const text = $(el).text().trim();
     if (text) {
       paragraphs.push(text);
@@ -683,11 +683,11 @@ function extractContent(
   });
 
   // Extract links (P1-1: ボタン風リンクも links に追加してCTA検出を強化)
-  $el.find('a').each((_, el) => {
+  $el.find("a").each((_, el) => {
     const $link = $(el);
-    const href = $link.attr('href') || '';
+    const href = $link.attr("href") || "";
     const text = $link.text().trim();
-    const classList = ($link.attr('class') || '').toLowerCase();
+    const classList = ($link.attr("class") || "").toLowerCase();
 
     // Always add to links array (P1-1: CTAのアクションリンク検出用)
     if (text || href) {
@@ -695,7 +695,7 @@ function extractContent(
     }
 
     // Additionally add to buttons if it's a button-style link
-    if (classList.includes('btn') || classList.includes('button')) {
+    if (classList.includes("btn") || classList.includes("button")) {
       buttons.push({
         text,
         type: classifyButtonType($link, $),
@@ -704,10 +704,10 @@ function extractContent(
   });
 
   // Extract images
-  $el.find('img').each((_, el) => {
+  $el.find("img").each((_, el) => {
     const $img = $(el);
-    const src = $img.attr('src') || '';
-    const alt = $img.attr('alt');
+    const src = $img.attr("src") || "";
+    const alt = $img.attr("alt");
     if (src) {
       images.push({ src, alt: alt || undefined });
     }
@@ -718,7 +718,7 @@ function extractContent(
     const $btn = $(el);
     let text = $btn.text().trim();
     if (!text) {
-      text = $btn.attr('value') || '';
+      text = $btn.attr("value") || "";
     }
     if (text) {
       buttons.push({
@@ -741,12 +741,12 @@ function classifySectionType(
   position: PositionInfo,
   options: Required<SectionDetectorOptions>
 ): { type: SectionType; confidence: number } {
-  const tagName = ($el.prop('tagName') || '').toLowerCase();
-  const id = $el.attr('id') || '';
-  const classList = $el.attr('class') || '';
-  const role = $el.attr('role') || '';
+  const tagName = ($el.prop("tagName") || "").toLowerCase();
+  const id = $el.attr("id") || "";
+  const classList = $el.attr("class") || "";
+  const role = $el.attr("role") || "";
 
-  let bestType: SectionType = 'unknown';
+  let bestType: SectionType = "unknown";
   let bestConfidence = 0;
 
   // Special case: role="banner" + hero class patterns → hero (not navigation)
@@ -755,9 +755,9 @@ function classifySectionType(
   const hasHeroClass = heroClassPatterns.some((p) => p.test(classList));
   const hasHeroId = /hero/i.test(id);
 
-  if (role === 'banner' && (hasHeroClass || hasHeroId)) {
+  if (role === "banner" && (hasHeroClass || hasHeroId)) {
     // Hero class + banner role = hero section with high confidence
-    bestType = 'hero';
+    bestType = "hero";
     bestConfidence = 0.92;
   } else if (options.detectLandmarks && role) {
     // Check ARIA landmarks (standard behavior)
@@ -886,28 +886,31 @@ function classifySectionType(
   // Special case: Copyright text indicates footer (override other detections)
   const fullText = $el.text().toLowerCase();
   if (
-    fullText.includes('copyright') || fullText.includes('©') || fullText.includes('all rights reserved')
+    fullText.includes("copyright") ||
+    fullText.includes("©") ||
+    fullText.includes("all rights reserved")
   ) {
     // Copyright text is a strong indicator of footer, override other types
-    if (bestType === 'unknown' || bestConfidence < 0.8) {
-      bestType = 'footer';
+    if (bestType === "unknown" || bestConfidence < 0.8) {
+      bestType = "footer";
       bestConfidence = Math.max(bestConfidence, 0.75);
     }
   }
 
   // Special case: Form elements indicate contact
-  if ($el.find('form').length > 0 && bestType === 'unknown') {
-    const contactIndicators =
-      $el.find('input[type="email"], textarea, input[name*="email"], input[name*="message"]').length;
+  if ($el.find("form").length > 0 && bestType === "unknown") {
+    const contactIndicators = $el.find(
+      'input[type="email"], textarea, input[name*="email"], input[name*="message"]'
+    ).length;
     if (contactIndicators > 0) {
-      bestType = 'contact';
+      bestType = "contact";
       bestConfidence = Math.max(bestConfidence, 0.75);
     }
   }
 
   // Special case: Blockquote indicates testimonial
-  if ($el.find('blockquote').length > 0 && bestType === 'unknown') {
-    bestType = 'testimonial';
+  if ($el.find("blockquote").length > 0 && bestType === "unknown") {
+    bestType = "testimonial";
     bestConfidence = Math.max(bestConfidence, 0.7);
   }
 
@@ -920,40 +923,40 @@ function classifySectionType(
 
   // Comprehensive price pattern detection (supports $, ¥, 円, /月, /mo, etc.)
   const pricePatterns = [
-    /\$[\d,]+/,              // $99, $1,000
-    /¥[\d,]+/,               // ¥9,800
-    /￥[\d,]+/,              // ￥9,800 (fullwidth)
-    /[\d,]+円/,              // 9,800円
-    /\/月/,                  // /月 (Japanese monthly)
-    /\/mo(nth)?/i,           // /mo, /month
-    /\/年/,                  // /年 (Japanese yearly)
-    /\/year/i,               // /year
+    /\$[\d,]+/, // $99, $1,000
+    /¥[\d,]+/, // ¥9,800
+    /￥[\d,]+/, // ￥9,800 (fullwidth)
+    /[\d,]+円/, // 9,800円
+    /\/月/, // /月 (Japanese monthly)
+    /\/mo(nth)?/i, // /mo, /month
+    /\/年/, // /年 (Japanese yearly)
+    /\/year/i, // /year
     /per\s*(月|month|年|year)/i, // per month, per 月
-    /月額/,                  // 月額 (monthly fee)
-    /年額/,                  // 年額 (yearly fee)
+    /月額/, // 月額 (monthly fee)
+    /年額/, // 年額 (yearly fee)
   ];
 
-  const hasPriceContent = pricePatterns.some(p => p.test(sectionText));
+  const hasPriceContent = pricePatterns.some((p) => p.test(sectionText));
   const priceMatchCount = pricePatterns.reduce((count, p) => {
-    const matches = sectionText.match(new RegExp(p.source, 'gi'));
+    const matches = sectionText.match(new RegExp(p.source, "gi"));
     return count + (matches ? matches.length : 0);
   }, 0);
 
   // Pricing detection: Multiple price mentions + grid structure = pricing section
   if (hasPriceContent && priceMatchCount >= 2) {
     const hasChildGrid = hasChildMatchingClassPattern($el, _$, TAILWIND_GRID_PATTERNS, 3);
-    const hasPricingClass = /pricing|price|plan|料金/i.test(classList + ' ' + id);
+    const hasPricingClass = /pricing|price|plan|料金/i.test(classList + " " + id);
 
     if (hasChildGrid || hasPricingClass) {
       // Strong pricing indicators: price content + grid layout
       if (bestConfidence < 0.78) {
-        bestType = 'pricing';
+        bestType = "pricing";
         bestConfidence = 0.78;
       }
     } else if (priceMatchCount >= 3) {
       // Multiple price mentions without grid = likely pricing
       if (bestConfidence < 0.72) {
-        bestType = 'pricing';
+        bestType = "pricing";
         bestConfidence = 0.72;
       }
     }
@@ -964,14 +967,14 @@ function classifySectionType(
   // =========================================
   // When parent element doesn't have explicit section class names (Tailwind utility-first),
   // check child elements for grid patterns to detect feature sections
-  if ((bestType === 'unknown' || bestConfidence < 0.65) && bestType !== 'pricing') {
+  if ((bestType === "unknown" || bestConfidence < 0.65) && bestType !== "pricing") {
     const hasChildGrid = hasChildMatchingClassPattern($el, _$, TAILWIND_GRID_PATTERNS, 3);
 
     if (hasChildGrid) {
       // Check for feature section indicators
       // Feature sections typically have multiple cards with heading + paragraph
-      const childHeadings = $el.find('h2, h3, h4').length;
-      const childParagraphs = $el.find('p').length;
+      const childHeadings = $el.find("h2, h3, h4").length;
+      const childParagraphs = $el.find("p").length;
       const hasFeaturePattern =
         /feature/i.test(classList) ||
         /feature/i.test(id) ||
@@ -981,12 +984,12 @@ function classifySectionType(
       // 3+ heading+paragraph combinations suggest a feature section
       if (childHeadings >= 3 && childParagraphs >= 3) {
         if (bestConfidence < 0.7) {
-          bestType = 'feature';
+          bestType = "feature";
           bestConfidence = 0.7;
         }
       } else if (hasFeaturePattern && childHeadings >= 2) {
         if (bestConfidence < 0.7) {
-          bestType = 'feature';
+          bestType = "feature";
           bestConfidence = 0.7;
         }
       }
@@ -997,15 +1000,15 @@ function classifySectionType(
   // Content-based detection fallback
   // =========================================
   // Additional content-based detection when type is still unknown
-  if (bestType === 'unknown' || bestConfidence < 0.5) {
+  if (bestType === "unknown" || bestConfidence < 0.5) {
     // Feature detection based on repeating content structure
-    const h3Count = $el.find('h3').length;
-    const h4Count = $el.find('h4').length;
-    const pCount = $el.find('p').length;
+    const h3Count = $el.find("h3").length;
+    const h4Count = $el.find("h4").length;
+    const pCount = $el.find("p").length;
 
     // Lowered threshold: 2+ h3/h4 with corresponding paragraphs = likely feature cards
-    if ((h3Count >= 2 || h4Count >= 2) && pCount >= 2 && bestType === 'unknown') {
-      bestType = 'feature';
+    if ((h3Count >= 2 || h4Count >= 2) && pCount >= 2 && bestType === "unknown") {
+      bestType = "feature";
       bestConfidence = Math.max(bestConfidence, 0.6);
     }
   }
@@ -1014,26 +1017,83 @@ function classifySectionType(
   // Heading text analysis fallback
   // =========================================
   // When type is still unknown, analyze heading text for section type hints
-  if (bestType === 'unknown' || bestConfidence < 0.55) {
+  if (bestType === "unknown" || bestConfidence < 0.55) {
     const headingTexts = content.headings.map((h) => h.text.toLowerCase());
-    const allHeadingText = headingTexts.join(' ');
+    const allHeadingText = headingTexts.join(" ");
 
     // Map heading text keywords to section types
     const HEADING_TYPE_MAP: Array<{ patterns: RegExp; type: SectionType; confidence: number }> = [
-      { patterns: /\b(features?|capabilities|what we offer|our solutions?|services?|why choose|our tools?)\b/i, type: 'feature', confidence: 0.72 },
-      { patterns: /\b(about|who we are|our story|our mission|our vision|company|背景|会社概要)\b/i, type: 'about', confidence: 0.72 },
-      { patterns: /\b(pricing|plans?|packages?|subscription|料金|プラン)\b/i, type: 'pricing', confidence: 0.72 },
-      { patterns: /\b(testimonials?|reviews?|what.*say|customer stories|お客様の声)\b/i, type: 'testimonial', confidence: 0.70 },
-      { patterns: /\b(contact|get in touch|reach out|talk to us|お問い合わせ|連絡)\b/i, type: 'contact', confidence: 0.72 },
-      { patterns: /\b(faq|frequently asked|questions?|よくある質問)\b/i, type: 'faq', confidence: 0.75 },
-      { patterns: /\b(team|our people|leadership|meet the|チーム|メンバー)\b/i, type: 'team', confidence: 0.70 },
-      { patterns: /\b(partners?|clients?|trusted by|brands?|パートナー)\b/i, type: 'partners', confidence: 0.70 },
-      { patterns: /\b(gallery|portfolio|our work|showcase|projects?|作品|実績)\b/i, type: 'gallery', confidence: 0.70 },
-      { patterns: /\b(case stud|success stories|stories|use cases?|事例)\b/i, type: 'stories', confidence: 0.70 },
-      { patterns: /\b(stats?|metrics?|by the numbers|achievements?|数字で見る|実績)\b/i, type: 'stats', confidence: 0.70 },
-      { patterns: /\b(subscribe|newsletter|stay updated|updates?|通知|ニュースレター)\b/i, type: 'subscribe', confidence: 0.70 },
-      { patterns: /\b(get started|try|sign up|start|join|begin|start free|始める|無料で始める)\b/i, type: 'cta', confidence: 0.65 },
-      { patterns: /\b(how it works|how to|steps?|process|workflow|使い方|仕組み)\b/i, type: 'feature', confidence: 0.65 },
+      {
+        patterns:
+          /\b(features?|capabilities|what we offer|our solutions?|services?|why choose|our tools?)\b/i,
+        type: "feature",
+        confidence: 0.72,
+      },
+      {
+        patterns: /\b(about|who we are|our story|our mission|our vision|company|背景|会社概要)\b/i,
+        type: "about",
+        confidence: 0.72,
+      },
+      {
+        patterns: /\b(pricing|plans?|packages?|subscription|料金|プラン)\b/i,
+        type: "pricing",
+        confidence: 0.72,
+      },
+      {
+        patterns: /\b(testimonials?|reviews?|what.*say|customer stories|お客様の声)\b/i,
+        type: "testimonial",
+        confidence: 0.7,
+      },
+      {
+        patterns: /\b(contact|get in touch|reach out|talk to us|お問い合わせ|連絡)\b/i,
+        type: "contact",
+        confidence: 0.72,
+      },
+      {
+        patterns: /\b(faq|frequently asked|questions?|よくある質問)\b/i,
+        type: "faq",
+        confidence: 0.75,
+      },
+      {
+        patterns: /\b(team|our people|leadership|meet the|チーム|メンバー)\b/i,
+        type: "team",
+        confidence: 0.7,
+      },
+      {
+        patterns: /\b(partners?|clients?|trusted by|brands?|パートナー)\b/i,
+        type: "partners",
+        confidence: 0.7,
+      },
+      {
+        patterns: /\b(gallery|portfolio|our work|showcase|projects?|作品|実績)\b/i,
+        type: "gallery",
+        confidence: 0.7,
+      },
+      {
+        patterns: /\b(case stud|success stories|stories|use cases?|事例)\b/i,
+        type: "stories",
+        confidence: 0.7,
+      },
+      {
+        patterns: /\b(stats?|metrics?|by the numbers|achievements?|数字で見る|実績)\b/i,
+        type: "stats",
+        confidence: 0.7,
+      },
+      {
+        patterns: /\b(subscribe|newsletter|stay updated|updates?|通知|ニュースレター)\b/i,
+        type: "subscribe",
+        confidence: 0.7,
+      },
+      {
+        patterns: /\b(get started|try|sign up|start|join|begin|start free|始める|無料で始める)\b/i,
+        type: "cta",
+        confidence: 0.65,
+      },
+      {
+        patterns: /\b(how it works|how to|steps?|process|workflow|使い方|仕組み)\b/i,
+        type: "feature",
+        confidence: 0.65,
+      },
     ];
 
     for (const mapping of HEADING_TYPE_MAP) {
@@ -1049,28 +1109,36 @@ function classifySectionType(
   // Semantic keyword extraction from class/id names
   // =========================================
   // Parse hyphenated class names for semantic hints (e.g., "about-section", "team-grid")
-  if (bestType === 'unknown' || bestConfidence < 0.6) {
-    const allClassesAndId = (classList + ' ' + id).toLowerCase();
+  if (bestType === "unknown" || bestConfidence < 0.6) {
+    const allClassesAndId = (classList + " " + id).toLowerCase();
     // Tokenize: split by spaces, hyphens, underscores, dots
     const tokens = allClassesAndId.split(/[\s\-_./]+/).filter((t) => t.length > 2);
 
     const SEMANTIC_TOKEN_MAP: Array<{ tokens: RegExp; type: SectionType; confidence: number }> = [
-      { tokens: /^(hero|banner|masthead|jumbotron)$/i, type: 'hero', confidence: 0.70 },
-      { tokens: /^(features?|benefits?|services?|capabilities|solutions?)$/i, type: 'feature', confidence: 0.68 },
-      { tokens: /^(cta|calltoaction|action|signup)$/i, type: 'cta', confidence: 0.68 },
-      { tokens: /^(testimonials?|reviews?|quotes?)$/i, type: 'testimonial', confidence: 0.68 },
-      { tokens: /^(pricing|prices?|plans?|packages?)$/i, type: 'pricing', confidence: 0.68 },
-      { tokens: /^(footer|colophon)$/i, type: 'footer', confidence: 0.68 },
-      { tokens: /^(about|company|mission|vision|story)$/i, type: 'about', confidence: 0.68 },
-      { tokens: /^(contact|inquiry|reach)$/i, type: 'contact', confidence: 0.68 },
-      { tokens: /^(gallery|portfolio|showcase|works?)$/i, type: 'gallery', confidence: 0.68 },
-      { tokens: /^(partners?|clients?|sponsors?|logos?)$/i, type: 'partners', confidence: 0.68 },
-      { tokens: /^(team|members?|people|staff|leadership)$/i, type: 'team', confidence: 0.68 },
-      { tokens: /^(stories|cases?|studies)$/i, type: 'stories', confidence: 0.68 },
-      { tokens: /^(stats?|metrics?|numbers?|counter|achievements?)$/i, type: 'stats', confidence: 0.68 },
-      { tokens: /^(subscribe|newsletter|follow|updates?)$/i, type: 'subscribe', confidence: 0.68 },
-      { tokens: /^(faq|questions?|accordion|help)$/i, type: 'faq', confidence: 0.68 },
-      { tokens: /^(nav|navigation|menu|navbar|header)$/i, type: 'navigation', confidence: 0.65 },
+      { tokens: /^(hero|banner|masthead|jumbotron)$/i, type: "hero", confidence: 0.7 },
+      {
+        tokens: /^(features?|benefits?|services?|capabilities|solutions?)$/i,
+        type: "feature",
+        confidence: 0.68,
+      },
+      { tokens: /^(cta|calltoaction|action|signup)$/i, type: "cta", confidence: 0.68 },
+      { tokens: /^(testimonials?|reviews?|quotes?)$/i, type: "testimonial", confidence: 0.68 },
+      { tokens: /^(pricing|prices?|plans?|packages?)$/i, type: "pricing", confidence: 0.68 },
+      { tokens: /^(footer|colophon)$/i, type: "footer", confidence: 0.68 },
+      { tokens: /^(about|company|mission|vision|story)$/i, type: "about", confidence: 0.68 },
+      { tokens: /^(contact|inquiry|reach)$/i, type: "contact", confidence: 0.68 },
+      { tokens: /^(gallery|portfolio|showcase|works?)$/i, type: "gallery", confidence: 0.68 },
+      { tokens: /^(partners?|clients?|sponsors?|logos?)$/i, type: "partners", confidence: 0.68 },
+      { tokens: /^(team|members?|people|staff|leadership)$/i, type: "team", confidence: 0.68 },
+      { tokens: /^(stories|cases?|studies)$/i, type: "stories", confidence: 0.68 },
+      {
+        tokens: /^(stats?|metrics?|numbers?|counter|achievements?)$/i,
+        type: "stats",
+        confidence: 0.68,
+      },
+      { tokens: /^(subscribe|newsletter|follow|updates?)$/i, type: "subscribe", confidence: 0.68 },
+      { tokens: /^(faq|questions?|accordion|help)$/i, type: "faq", confidence: 0.68 },
+      { tokens: /^(nav|navigation|menu|navbar|header)$/i, type: "navigation", confidence: 0.65 },
     ];
 
     for (const token of tokens) {
@@ -1081,7 +1149,7 @@ function classifySectionType(
           break;
         }
       }
-      if (bestType !== 'unknown') break;
+      if (bestType !== "unknown") break;
     }
   }
 
@@ -1089,13 +1157,13 @@ function classifySectionType(
   // List/link density heuristic
   // =========================================
   // Sections with many links but no other strong indicators → navigation or footer
-  if (bestType === 'unknown' && bestConfidence < 0.5) {
+  if (bestType === "unknown" && bestConfidence < 0.5) {
     const linkCount = content.links.length;
-    const ulOlCount = $el.find('ul, ol').length;
+    const ulOlCount = $el.find("ul, ol").length;
 
     // Many links in list structure → likely navigation or footer
     if (linkCount >= 5 && ulOlCount >= 1) {
-      bestType = 'navigation';
+      bestType = "navigation";
       bestConfidence = 0.55;
     }
   }
@@ -1105,7 +1173,7 @@ function classifySectionType(
   // =========================================
   // When a section type is already detected, check for additional Tailwind patterns
   // to boost confidence if patterns match the detected type
-  if (bestType !== 'unknown' && bestConfidence < 0.9) {
+  if (bestType !== "unknown" && bestConfidence < 0.9) {
     const sectionPatterns = TAILWIND_SECTION_PATTERNS[bestType];
     if (sectionPatterns) {
       let patternMatchCount = 0;
@@ -1138,29 +1206,29 @@ function classifySectionType(
   // =========================================
   // When section type is still unknown, use Tailwind flex/spacing patterns
   // to detect feature-like layouts
-  if (bestType === 'unknown' && bestConfidence < 0.6) {
+  if (bestType === "unknown" && bestConfidence < 0.6) {
     const hasFlexLayout = hasChildMatchingClassPattern($el, _$, TAILWIND_FLEX_PATTERNS, 3);
     const hasSpacingPattern = hasChildMatchingClassPattern($el, _$, TAILWIND_SPACING_PATTERNS, 3);
-    const hasContainerPattern = TAILWIND_CONTAINER_PATTERNS.some(p => p.test(classList));
+    const hasContainerPattern = TAILWIND_CONTAINER_PATTERNS.some((p) => p.test(classList));
 
     if (hasFlexLayout && hasSpacingPattern) {
       // Flex + spacing patterns suggest a structured content section
-      const h3Count = $el.find('h3').length;
-      const h4Count = $el.find('h4').length;
+      const h3Count = $el.find("h3").length;
+      const h4Count = $el.find("h4").length;
 
       if (h3Count >= 2 || h4Count >= 2) {
-        bestType = 'feature';
+        bestType = "feature";
         bestConfidence = 0.65;
       }
     }
 
     // Container with specific background colors may indicate CTA
     if (hasContainerPattern) {
-      const hasCTABackground = TAILWIND_BG_PATTERNS.slice(0, 8).some(p => p.test(classList));
+      const hasCTABackground = TAILWIND_BG_PATTERNS.slice(0, 8).some((p) => p.test(classList));
       const hasButton = content.buttons.length > 0;
 
       if (hasCTABackground && hasButton) {
-        bestType = 'cta';
+        bestType = "cta";
         bestConfidence = 0.68;
       }
     }
@@ -1211,9 +1279,9 @@ export class SectionDetector {
    * 子セクションの除去基準として使用しない
    */
   private static readonly TRANSPARENT_CONTAINER_TAGS = new Set([
-    'main',     // メインコンテンツコンテナ
-    'article',  // 記事コンテナ（内部にセクションを持つ）
-    'div',      // 汎用コンテナ（クラス名で判断）
+    "main", // メインコンテンツコンテナ
+    "article", // 記事コンテナ（内部にセクションを持つ）
+    "div", // 汎用コンテナ（クラス名で判断）
   ]);
 
   /**
@@ -1223,26 +1291,26 @@ export class SectionDetector {
    * @returns 透過的コンテナの場合true
    */
   private isTransparentContainer($el: CheerioAnyElement): boolean {
-    const tagName = ($el.prop('tagName') || '').toLowerCase();
+    const tagName = ($el.prop("tagName") || "").toLowerCase();
 
     // 透過的コンテナタグの場合
     if (SectionDetector.TRANSPARENT_CONTAINER_TAGS.has(tagName)) {
       // div の場合はクラス名で判断
-      if (tagName === 'div') {
-        const classes = ($el.attr('class') || '').toLowerCase();
+      if (tagName === "div") {
+        const classes = ($el.attr("class") || "").toLowerCase();
         // 意味のあるセクションクラスを持つ場合は透過的ではない
         const sectionKeywords = [
-          'hero',
-          'feature',
-          'cta',
-          'testimonial',
-          'pricing',
-          'about',
-          'contact',
-          'gallery',
-          'banner',
-          'review',
-          'portfolio',
+          "hero",
+          "feature",
+          "cta",
+          "testimonial",
+          "pricing",
+          "about",
+          "contact",
+          "gallery",
+          "banner",
+          "review",
+          "portfolio",
         ];
         for (const keyword of sectionKeywords) {
           if (classes.includes(keyword)) {
@@ -1269,10 +1337,7 @@ export class SectionDetector {
    * @param $ - CheerioAPI
    * @returns トップレベル要素のみ
    */
-  private removeNestedElements(
-    elements: CheerioAnyElement[],
-    $: CheerioAPI
-  ): CheerioAnyElement[] {
+  private removeNestedElements(elements: CheerioAnyElement[], $: CheerioAPI): CheerioAnyElement[] {
     const result: CheerioAnyElement[] = [];
     const domElements = elements.map(($el) => $el.get(0));
 
@@ -1371,9 +1436,9 @@ export class SectionDetector {
         '[class*="component"]',
         '[class*="module"]',
         // Phase 2追加: data-*属性パターン
-        '[data-section]',
-        '[data-component]',
-        '[data-block]',
+        "[data-section]",
+        "[data-component]",
+        "[data-block]",
         // Phase 2追加: BEMパターン（xxx-section, xxx_section）
         'div[class*="-section"]',
         'div[class*="_section"]',
@@ -1402,18 +1467,18 @@ export class SectionDetector {
     // DigitalSilk / dst-* blocks heuristic:
     // If the page contains multiple dst-wrapper/banner blocks, prefer them as section candidates
     const dstCandidates = uniqueElements.filter(($el) => {
-      const classes = ($el.attr('class') || '').toLowerCase();
+      const classes = ($el.attr("class") || "").toLowerCase();
       return (
-        classes.includes('dst-wrapper') ||
-        classes.includes('dst-banner') ||
-        classes.includes('ds-blocks-dst-wrapper')
+        classes.includes("dst-wrapper") ||
+        classes.includes("dst-banner") ||
+        classes.includes("ds-blocks-dst-wrapper")
       );
     });
 
     if (dstCandidates.length >= 2) {
       const structural = uniqueElements.filter(($el) => {
-        const tagName = ($el.prop('tagName') || '').toLowerCase();
-        return tagName === 'header' || tagName === 'nav' || tagName === 'footer';
+        const tagName = ($el.prop("tagName") || "").toLowerCase();
+        return tagName === "header" || tagName === "nav" || tagName === "footer";
       });
 
       // Merge and de-duplicate by element reference
@@ -1437,17 +1502,17 @@ export class SectionDetector {
 
     // Sort by document order (approximate using index)
     topLevelElements.sort((a, b) => {
-      const indexA = $('*').index(a);
-      const indexB = $('*').index(b);
+      const indexA = $("*").index(a);
+      const indexB = $("*").index(b);
       return indexA - indexB;
     });
 
     // Process each section element
     for (const $el of topLevelElements) {
-      const tagName = ($el.prop('tagName') || '').toLowerCase();
-      const id = $el.attr('id') || undefined;
-      const classList = ($el.attr('class') || '').split(/\s+/).filter(Boolean);
-      const styleAttr = $el.attr('style');
+      const tagName = ($el.prop("tagName") || "").toLowerCase();
+      const id = $el.attr("id") || undefined;
+      const classList = ($el.attr("class") || "").split(/\s+/).filter(Boolean);
+      const styleAttr = $el.attr("style");
 
       // Extract content
       const content = extractContent($el, $);
@@ -1488,7 +1553,12 @@ export class SectionDetector {
 
       // Skip only elements that are truly empty/generic
       // unknown + 低信頼度 + 見出しなし + ビジュアル要素なし の場合のみスキップ
-      if (type === 'unknown' && confidence < 0.2 && content.headings.length === 0 && !hasVisualContent) {
+      if (
+        type === "unknown" &&
+        confidence < 0.2 &&
+        content.headings.length === 0 &&
+        !hasVisualContent
+      ) {
         continue;
       }
 
@@ -1558,7 +1628,7 @@ export class SectionDetector {
 
     // Step 1: heroセクションを処理
     const heroSections = sections.filter(
-      (s) => s.type === 'hero' && s.position.estimatedTop !== undefined
+      (s) => s.type === "hero" && s.position.estimatedTop !== undefined
     );
 
     // 位置条件を満たすheroセクション
@@ -1576,7 +1646,7 @@ export class SectionDetector {
 
     // Step 2: footerセクションを処理
     const footerSections = sections.filter(
-      (s) => s.type === 'footer' && s.position.estimatedTop !== undefined
+      (s) => s.type === "footer" && s.position.estimatedTop !== undefined
     );
 
     // 位置条件を満たすfooterセクション
@@ -1585,14 +1655,14 @@ export class SectionDetector {
       const estimatedTop = s.position.estimatedTop;
       if (estimatedTop === undefined) return false;
       // 位置条件を満たす、または<footer>タグを持つ
-      return estimatedTop >= footerThreshold || s.element.tagName === 'footer';
+      return estimatedTop >= footerThreshold || s.element.tagName === "footer";
     });
 
     // 最高信頼度のfooterを選択（<footer>タグ優先）
     let selectedFooter: DetectedSection | undefined;
     if (validFooterSections.length > 0) {
       // <footer>タグを持つセクションを優先
-      const footerTagSections = validFooterSections.filter((s) => s.element.tagName === 'footer');
+      const footerTagSections = validFooterSections.filter((s) => s.element.tagName === "footer");
       if (footerTagSections.length > 0) {
         selectedFooter = footerTagSections.reduce((best, current) =>
           current.confidence > best.confidence ? current : best
@@ -1607,7 +1677,7 @@ export class SectionDetector {
     // Step 3: セクションを再分類
     const result: DetectedSection[] = [];
     for (const section of sections) {
-      if (section.type === 'hero') {
+      if (section.type === "hero") {
         if (section === selectedHero) {
           // 選択されたheroはそのまま
           result.push(section);
@@ -1615,12 +1685,12 @@ export class SectionDetector {
           // 選択されなかったheroはfeatureに再分類
           result.push({
             ...section,
-            type: 'feature',
+            type: "feature",
             // 信頼度を少し下げる（再分類されたことを示す）
             confidence: Math.max(0.1, section.confidence - 0.1),
           });
         }
-      } else if (section.type === 'footer') {
+      } else if (section.type === "footer") {
         if (section === selectedFooter) {
           // 選択されたfooterはそのまま
           result.push(section);
@@ -1628,7 +1698,7 @@ export class SectionDetector {
           // 選択されなかったfooterはunknownに再分類
           result.push({
             ...section,
-            type: 'unknown',
+            type: "unknown",
             // 信頼度を少し下げる（再分類されたことを示す）
             confidence: Math.max(0.1, section.confidence - 0.1),
           });
@@ -1646,7 +1716,10 @@ export class SectionDetector {
    * 同一タイプのセクション数を制限
    * 信頼度順でソートし、上位N件のみを返す
    */
-  private applyMaxSectionsPerType(sections: DetectedSection[], maxPerType: number): DetectedSection[] {
+  private applyMaxSectionsPerType(
+    sections: DetectedSection[],
+    maxPerType: number
+  ): DetectedSection[] {
     const typeCount = new Map<SectionType, number>();
     const result: DetectedSection[] = [];
 
@@ -1673,8 +1746,8 @@ export class SectionDetector {
     const { content, element, position } = section;
 
     // Check class/ID patterns
-    const classList = element.classes.join(' ');
-    const id = element.id || '';
+    const classList = element.classes.join(" ");
+    const id = element.id || "";
 
     for (const rule of CLASSIFICATION_RULES) {
       let matches = false;
@@ -1720,7 +1793,7 @@ export class SectionDetector {
         content.headings.some((h) => h.level === 1) &&
         content.buttons.length > 0
       ) {
-        return 'hero';
+        return "hero";
       }
 
       if (matches) {

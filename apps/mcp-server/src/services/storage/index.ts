@@ -12,4 +12,4 @@ export {
   StorageError,
   type StorageProvider,
   type LocalStorageProviderOptions,
-} from './local-storage.provider';
+} from "./local-storage.provider";

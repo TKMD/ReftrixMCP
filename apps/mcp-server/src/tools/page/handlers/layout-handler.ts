@@ -12,40 +12,49 @@
  * @module tools/page/handlers/layout-handler
  */
 
-import { v7 as uuidv7 } from 'uuid';
-import { logger, isDevelopment } from '../../../utils/logger';
-import { getLayoutAnalyzerService, type LayoutAnalysisResult } from '../../../services/page/layout-analyzer.service';
-import { SectionScreenshotService } from '../../../services/section-screenshot.service';
-import { PAGE_ANALYZE_ERROR_CODES, type PageAnalyzeInput, type VisualFeatures } from '../schemas';
-import type { VisionAnalysisResult, SectionBoundariesData } from '../../../services/vision-adapter';
-import type { ComputedStyleInfo } from '../../../services/page-ingest-adapter';
-import { postProcessSections } from '../../../services/page/section-postprocessor.service';
+import { v7 as uuidv7 } from "uuid";
+import { logger, isDevelopment } from "../../../utils/logger";
+import {
+  getLayoutAnalyzerService,
+  type LayoutAnalysisResult,
+} from "../../../services/page/layout-analyzer.service";
+import { SectionScreenshotService } from "../../../services/section-screenshot.service";
+import { PAGE_ANALYZE_ERROR_CODES, type PageAnalyzeInput, type VisualFeatures } from "../schemas";
+import type { VisionAnalysisResult, SectionBoundariesData } from "../../../services/vision-adapter";
+import type { ComputedStyleInfo } from "../../../services/page-ingest-adapter";
+import { postProcessSections } from "../../../services/page/section-postprocessor.service";
 import {
   type LayoutServiceResult,
   type CssFrameworkType,
   DEFAULT_SCREENSHOT,
   MAX_SECTIONS_FOR_PER_SECTION_VISION,
-} from './types';
+} from "./types";
 // Visual Feature Extraction Services (Phase 1 - Deterministic)
-import { createColorExtractorService } from '../../../services/visual-extractor/color-extractor.service';
-import { createThemeDetectorService } from '../../../services/visual-extractor/theme-detector.service';
-import { createDensityCalculatorService } from '../../../services/visual-extractor/density-calculator.service';
-import { createGradientDetectorService } from '../../../services/visual-extractor/gradient-detector.service';
-import { createVisualFeatureMerger, type DeterministicExtractionInput } from '../../../services/visual-extractor/visual-feature-merger.service';
+import { createColorExtractorService } from "../../../services/visual-extractor/color-extractor.service";
+import { createThemeDetectorService } from "../../../services/visual-extractor/theme-detector.service";
+import { createDensityCalculatorService } from "../../../services/visual-extractor/density-calculator.service";
+import { createGradientDetectorService } from "../../../services/visual-extractor/gradient-detector.service";
+import {
+  createVisualFeatureMerger,
+  type DeterministicExtractionInput,
+} from "../../../services/visual-extractor/visual-feature-merger.service";
 // CSS Variable Extraction (v0.1.0)
-import { createCSSVariableExtractorService } from '../../../services/visual/css-variable-extractor.service';
+import { createCSSVariableExtractorService } from "../../../services/visual/css-variable-extractor.service";
 // Background Design Detection
-import { createBackgroundDesignDetectorService, type BackgroundDesignDetection } from '../../../services/background/background-design-detector.service';
+import {
+  createBackgroundDesignDetectorService,
+  type BackgroundDesignDetection,
+} from "../../../services/background/background-design-detector.service";
 
 // Vision CPU完走保証 (Phase 1-2 Services)
-import { HardwareDetector, HardwareType } from '../../../services/vision/hardware-detector';
-import { TimeoutCalculator } from '../../../services/vision/timeout-calculator';
-import { ImageOptimizer } from '../../../services/vision/image-optimizer';
-import type { VisionOptions } from '../schemas';
+import { HardwareDetector, HardwareType } from "../../../services/vision/hardware-detector";
+import { TimeoutCalculator } from "../../../services/vision/timeout-calculator";
+import { ImageOptimizer } from "../../../services/vision/image-optimizer";
+import type { VisionOptions } from "../schemas";
 
 // Vision CPU完走保証 Phase 4: MCP進捗報告統合
-import type { ProgressContext } from '../../../router';
-import { createMCPProgressCallback, ProgressReporter } from '../../../services/vision/index';
+import type { ProgressContext } from "../../../router";
+import { createMCPProgressCallback, ProgressReporter } from "../../../services/vision/index";
 
 // =====================================================
 // 内部型定義
@@ -103,7 +112,7 @@ function mergeVisionDetectedSections(
 ): MutableSection[] {
   if (!visionBoundaries || !visionBoundaries.sections || visionBoundaries.sections.length === 0) {
     if (isDevelopment()) {
-      logger.debug('[layout-handler] mergeVisionDetectedSections: No vision boundaries to merge');
+      logger.debug("[layout-handler] mergeVisionDetectedSections: No vision boundaries to merge");
     }
     return htmlSections;
   }
@@ -163,7 +172,7 @@ function mergeVisionDetectedSections(
         existingSection.confidence = Math.min(1, existingSection.confidence + boostAmount);
 
         // セクションタイプがunknownの場合はVisionの結果で更新
-        if (existingSection.type === 'unknown' && visionSection.type !== 'unknown') {
+        if (existingSection.type === "unknown" && visionSection.type !== "unknown") {
           existingSection.type = visionSection.type;
         }
 
@@ -173,7 +182,7 @@ function mergeVisionDetectedSections(
       // 新規Vision専用セクションとして追加
       const newSection: MutableSection = {
         id: uuidv7(),
-        type: visionSection.type || 'unknown',
+        type: visionSection.type || "unknown",
         positionIndex: mergedSections.length,
         confidence: visionSection.confidence * 0.85, // Vision検出は若干低めに設定
         position: {
@@ -184,13 +193,15 @@ function mergeVisionDetectedSections(
         // Vision検出セクションはHTMLスニペットなし（後で取得可能）
         visionFeatures: {
           success: true,
-          features: [{
-            type: 'section_boundaries',
-            confidence: visionSection.confidence,
-            description: `Vision-detected ${visionSection.type} section`,
-          }],
+          features: [
+            {
+              type: "section_boundaries",
+              confidence: visionSection.confidence,
+              description: `Vision-detected ${visionSection.type} section`,
+            },
+          ],
           processingTimeMs: 0,
-          modelName: 'llama3.2-vision',
+          modelName: "llama3.2-vision",
         },
       };
 
@@ -211,7 +222,7 @@ function mergeVisionDetectedSections(
   });
 
   if (isDevelopment()) {
-    logger.info('[layout-handler] mergeVisionDetectedSections: completed', {
+    logger.info("[layout-handler] mergeVisionDetectedSections: completed", {
       originalHtmlSections: htmlSections.length,
       visionSections: visionBoundaries.sections.length,
       addedVisionSections,
@@ -247,7 +258,7 @@ async function extractDeterministicVisualFeatures(
   const startTime = Date.now();
 
   if (isDevelopment()) {
-    logger.info('[layout-handler] extractDeterministicVisualFeatures: starting', {
+    logger.info("[layout-handler] extractDeterministicVisualFeatures: starting", {
       screenshotSize: screenshot.base64.length,
       mimeType: screenshot.mimeType,
     });
@@ -255,7 +266,7 @@ async function extractDeterministicVisualFeatures(
 
   try {
     // Convert base64 to Buffer
-    const imageBuffer = Buffer.from(screenshot.base64, 'base64');
+    const imageBuffer = Buffer.from(screenshot.base64, "base64");
 
     // Create service instances
     const colorExtractor = createColorExtractorService();
@@ -269,8 +280,8 @@ async function extractDeterministicVisualFeatures(
     const [colorResult, themeResult, densityResult, gradientResult] = await Promise.all([
       colorExtractor.extractColors(imageBuffer).catch((error) => {
         if (isDevelopment()) {
-          logger.warn('[layout-handler] ColorExtractor failed', {
-            error: error instanceof Error ? error.message : 'Unknown error',
+          logger.warn("[layout-handler] ColorExtractor failed", {
+            error: error instanceof Error ? error.message : "Unknown error",
           });
         }
         return undefined;
@@ -279,24 +290,24 @@ async function extractDeterministicVisualFeatures(
       // This prioritizes computed backgroundColor values from Playwright over screenshot analysis
       themeDetector.detectThemeWithComputedStyles(imageBuffer, computedStyles).catch((error) => {
         if (isDevelopment()) {
-          logger.warn('[layout-handler] ThemeDetector failed', {
-            error: error instanceof Error ? error.message : 'Unknown error',
+          logger.warn("[layout-handler] ThemeDetector failed", {
+            error: error instanceof Error ? error.message : "Unknown error",
           });
         }
         return undefined;
       }),
       densityCalculator.calculateDensity(imageBuffer).catch((error) => {
         if (isDevelopment()) {
-          logger.warn('[layout-handler] DensityCalculator failed', {
-            error: error instanceof Error ? error.message : 'Unknown error',
+          logger.warn("[layout-handler] DensityCalculator failed", {
+            error: error instanceof Error ? error.message : "Unknown error",
           });
         }
         return undefined;
       }),
       gradientDetector.detectGradient(imageBuffer).catch((error) => {
         if (isDevelopment()) {
-          logger.warn('[layout-handler] GradientDetector failed', {
-            error: error instanceof Error ? error.message : 'Unknown error',
+          logger.warn("[layout-handler] GradientDetector failed", {
+            error: error instanceof Error ? error.message : "Unknown error",
           });
         }
         return undefined;
@@ -306,7 +317,7 @@ async function extractDeterministicVisualFeatures(
     // Check if at least one extraction succeeded
     if (!colorResult && !themeResult && !densityResult && !gradientResult) {
       if (isDevelopment()) {
-        logger.warn('[layout-handler] All deterministic extractions failed');
+        logger.warn("[layout-handler] All deterministic extractions failed");
       }
       return undefined;
     }
@@ -331,7 +342,7 @@ async function extractDeterministicVisualFeatures(
             dominant: colorResult.dominantColors,
             accent: colorResult.accentColors,
             palette: colorResult.colorPalette,
-            source: 'deterministic' as const,
+            source: "deterministic" as const,
             confidence: 0.95,
           }
         : null,
@@ -343,7 +354,7 @@ async function extractDeterministicVisualFeatures(
             textColor: themeResult.textColor,
             contrastRatio: themeResult.contrastRatio,
             luminance: themeResult.luminance,
-            source: 'deterministic' as const,
+            source: "deterministic" as const,
             confidence: themeResult.confidence,
           }
         : null,
@@ -355,7 +366,7 @@ async function extractDeterministicVisualFeatures(
             contentDensity: densityResult.contentDensity,
             whitespaceRatio: densityResult.whitespaceRatio,
             visualBalance: densityResult.visualBalance,
-            source: 'deterministic' as const,
+            source: "deterministic" as const,
             confidence: 0.95,
           }
         : null,
@@ -372,7 +383,7 @@ async function extractDeterministicVisualFeatures(
             dominantGradientType: gradientResult.dominantGradientType,
             confidence: gradientResult.confidence,
             processingTimeMs: gradientResult.processingTimeMs,
-            source: 'deterministic' as const,
+            source: "deterministic" as const,
           }
         : null,
     };
@@ -380,7 +391,7 @@ async function extractDeterministicVisualFeatures(
     const processingTimeMs = Date.now() - startTime;
 
     if (isDevelopment()) {
-      logger.info('[layout-handler] extractDeterministicVisualFeatures: completed', {
+      logger.info("[layout-handler] extractDeterministicVisualFeatures: completed", {
         processingTimeMs,
         hasColors: !!visualFeatures.colors,
         hasTheme: !!visualFeatures.theme,
@@ -393,8 +404,8 @@ async function extractDeterministicVisualFeatures(
     return visualFeatures;
   } catch (error) {
     if (isDevelopment()) {
-      logger.error('[layout-handler] extractDeterministicVisualFeatures failed', {
-        error: error instanceof Error ? error.message : 'Unknown error',
+      logger.error("[layout-handler] extractDeterministicVisualFeatures failed", {
+        error: error instanceof Error ? error.message : "Unknown error",
         processingTimeMs: Date.now() - startTime,
       });
     }
@@ -463,13 +474,13 @@ async function executePageVisionAnalysis(
   }
 
   try {
-    const { LlamaVisionAdapter } = await import('../../../services/vision-adapter/index.js');
+    const { LlamaVisionAdapter } = await import("../../../services/vision-adapter/index.js");
     const visionAdapter = new LlamaVisionAdapter();
 
     const isAvailable = await visionAdapter.isAvailable();
     if (isAvailable) {
-      let imageBuffer = Buffer.from(screenshot.base64, 'base64');
-      const mimeType = screenshot.mimeType as 'image/png' | 'image/jpeg' | 'image/webp';
+      let imageBuffer = Buffer.from(screenshot.base64, "base64");
+      const mimeType = screenshot.mimeType as "image/png" | "image/jpeg" | "image/webp";
       const originalImageSize = imageBuffer.length;
 
       // ================================================================
@@ -477,14 +488,14 @@ async function executePageVisionAnalysis(
       // ================================================================
       const hardwareDetector = new HardwareDetector();
       let hardwareType = HardwareType.CPU; // デフォルトはCPU（安全側）
-      let hardwareInfo: Awaited<ReturnType<HardwareDetector['detect']>> | null = null;
+      let hardwareInfo: Awaited<ReturnType<HardwareDetector["detect"]>> | null = null;
 
       try {
         hardwareInfo = await hardwareDetector.detect();
         hardwareType = visionForceCpu ? HardwareType.CPU : hardwareInfo.type;
 
         if (isDevelopment()) {
-          logger.info('[layout-handler] Hardware detection completed', {
+          logger.info("[layout-handler] Hardware detection completed", {
             detectedType: hardwareInfo.type,
             effectiveType: hardwareType,
             forceCpu: visionForceCpu,
@@ -495,15 +506,15 @@ async function executePageVisionAnalysis(
       } catch (hwError) {
         // ハードウェア検出失敗時はCPUと仮定（安全側）
         if (isDevelopment()) {
-          logger.warn('[layout-handler] Hardware detection failed, assuming CPU', {
-            error: hwError instanceof Error ? hwError.message : 'Unknown error',
+          logger.warn("[layout-handler] Hardware detection failed, assuming CPU", {
+            error: hwError instanceof Error ? hwError.message : "Unknown error",
           });
         }
       }
 
       // Phase 4: 進捗報告 - ハードウェア検出完了 (5%)
       if (progressReporter) {
-        progressReporter.updatePhase('preparing');
+        progressReporter.updatePhase("preparing");
         progressReporter.updateProgress(5);
       }
 
@@ -511,10 +522,11 @@ async function executePageVisionAnalysis(
       // Vision CPU完走保証 Phase 1: タイムアウト計算
       // ================================================================
       const timeoutCalculator = new TimeoutCalculator();
-      const calculatedTimeout = visionTimeoutMs ?? timeoutCalculator.calculate(hardwareType, originalImageSize);
+      const calculatedTimeout =
+        visionTimeoutMs ?? timeoutCalculator.calculate(hardwareType, originalImageSize);
 
       if (isDevelopment()) {
-        logger.info('[layout-handler] Vision timeout calculated', {
+        logger.info("[layout-handler] Vision timeout calculated", {
           hardwareType,
           imageSizeBytes: originalImageSize,
           calculatedTimeoutMs: calculatedTimeout,
@@ -541,7 +553,7 @@ async function executePageVisionAnalysis(
             optimizationApplied = true;
 
             if (isDevelopment()) {
-              logger.info('[layout-handler] Image optimization applied', {
+              logger.info("[layout-handler] Image optimization applied", {
                 originalSize: optimizeResult.originalSizeBytes,
                 optimizedSize: optimizeResult.optimizedSizeBytes,
                 compressionRatio: optimizeResult.compressionRatio.toFixed(2),
@@ -551,7 +563,7 @@ async function executePageVisionAnalysis(
             }
           } else {
             if (isDevelopment()) {
-              logger.debug('[layout-handler] Image optimization skipped', {
+              logger.debug("[layout-handler] Image optimization skipped", {
                 reason: optimizeResult.reason,
               });
             }
@@ -559,8 +571,8 @@ async function executePageVisionAnalysis(
         } catch (optError) {
           // 最適化失敗時は元の画像を使用
           if (isDevelopment()) {
-            logger.warn('[layout-handler] Image optimization failed, using original', {
-              error: optError instanceof Error ? optError.message : 'Unknown error',
+            logger.warn("[layout-handler] Image optimization failed, using original", {
+              error: optError instanceof Error ? optError.message : "Unknown error",
             });
           }
         }
@@ -568,7 +580,7 @@ async function executePageVisionAnalysis(
 
       // Phase 4: 進捗報告 - 画像最適化完了 (20%)
       if (progressReporter) {
-        progressReporter.updatePhase('optimizing');
+        progressReporter.updatePhase("optimizing");
         progressReporter.updateProgress(20);
       }
 
@@ -578,7 +590,11 @@ async function executePageVisionAnalysis(
       const analyzeWithTimeout = async (): Promise<VisionAnalysisResult> => {
         return new Promise((resolve, reject) => {
           const timeoutId = setTimeout(() => {
-            reject(new Error(`Vision analysis timeout after ${calculatedTimeout}ms (${timeoutCalculator.formatTimeout(calculatedTimeout)})`));
+            reject(
+              new Error(
+                `Vision analysis timeout after ${calculatedTimeout}ms (${timeoutCalculator.formatTimeout(calculatedTimeout)})`
+              )
+            );
           }, calculatedTimeout);
 
           visionAdapter
@@ -596,7 +612,7 @@ async function executePageVisionAnalysis(
 
       // Phase 4: 進捗報告 - Vision分析開始 (30%)
       if (progressReporter) {
-        progressReporter.updatePhase('analyzing');
+        progressReporter.updatePhase("analyzing");
         progressReporter.updateProgress(30);
       }
 
@@ -612,7 +628,10 @@ async function executePageVisionAnalysis(
         result.visionFeatures = {
           success: visionResult.success,
           features: visionResult.features.map((f) => {
-            const desc = 'description' in f.data ? (f.data as { description?: string }).description : undefined;
+            const desc =
+              "description" in f.data
+                ? (f.data as { description?: string }).description
+                : undefined;
             const feature: { type: string; confidence: number; description?: string } = {
               type: f.type,
               confidence: f.confidence,
@@ -633,7 +652,7 @@ async function executePageVisionAnalysis(
         result.textRepresentation = visionAdapter.generateTextRepresentation(visionResult);
 
         if (isDevelopment()) {
-          logger.info('[layout-handler] Vision analysis completed', {
+          logger.info("[layout-handler] Vision analysis completed", {
             featureCount: visionResult.features.length,
             processingTimeMs: visionProcessingTimeMs,
             textRepresentationLength: result.textRepresentation?.length,
@@ -654,22 +673,22 @@ async function executePageVisionAnalysis(
             analysisResult.sectionBoundaries = boundaryResult.data;
 
             if (isDevelopment()) {
-              logger.info('[layout-handler] Section boundary detection completed', {
+              logger.info("[layout-handler] Section boundary detection completed", {
                 sectionCount: boundaryResult.data.sections?.length ?? 0,
                 processingTimeMs: Date.now() - boundaryStartTime,
               });
             }
           } else {
             if (isDevelopment()) {
-              logger.warn('[layout-handler] Section boundary detection failed', {
+              logger.warn("[layout-handler] Section boundary detection failed", {
                 error: boundaryResult.error,
               });
             }
           }
         } catch (boundaryError) {
           if (isDevelopment()) {
-            logger.warn('[layout-handler] Section boundary detection error (non-critical)', {
-              error: boundaryError instanceof Error ? boundaryError.message : 'Unknown error',
+            logger.warn("[layout-handler] Section boundary detection error (non-critical)", {
+              error: boundaryError instanceof Error ? boundaryError.message : "Unknown error",
             });
           }
           // セクション境界検出エラーは非クリティカル - 続行
@@ -677,7 +696,7 @@ async function executePageVisionAnalysis(
 
         // Phase 4: 進捗報告 - セクション境界検出完了 (90%)
         if (progressReporter) {
-          progressReporter.updatePhase('completing');
+          progressReporter.updatePhase("completing");
           progressReporter.updateProgress(90);
         }
 
@@ -689,11 +708,11 @@ async function executePageVisionAnalysis(
         // ================================================================
         // Vision CPU完走保証 Phase 3: Graceful Degradation
         // ================================================================
-        const isTimeout = visionError instanceof Error && visionError.message.includes('timeout');
+        const isTimeout = visionError instanceof Error && visionError.message.includes("timeout");
 
         if (isDevelopment()) {
-          logger.warn('[layout-handler] Vision analysis failed', {
-            error: visionError instanceof Error ? visionError.message : 'Unknown error',
+          logger.warn("[layout-handler] Vision analysis failed", {
+            error: visionError instanceof Error ? visionError.message : "Unknown error",
             isTimeout,
             fallbackEnabled: visionFallbackToHtmlOnly,
           });
@@ -704,24 +723,26 @@ async function executePageVisionAnalysis(
           result.visionFeatures = {
             success: false,
             features: [],
-            error: visionError instanceof Error ? visionError.message : 'Vision analysis failed',
+            error: visionError instanceof Error ? visionError.message : "Vision analysis failed",
             processingTimeMs: Date.now() - visionStartTime,
-            modelName: 'llama3.2-vision',
+            modelName: "llama3.2-vision",
             // Vision CPU完走保証: フォールバック情報
             fallback: true,
-            fallbackReason: isTimeout ? 'timeout' : 'error',
+            fallbackReason: isTimeout ? "timeout" : "error",
             hardwareType,
             timeoutMs: calculatedTimeout,
           };
 
           // Phase 4: 進捗報告 - フォールバック完了 (100%)
           if (progressReporter) {
-            progressReporter.updatePhase('completing');
+            progressReporter.updatePhase("completing");
             progressReporter.complete();
           }
 
           if (isDevelopment()) {
-            logger.info('[layout-handler] Graceful Degradation: continuing with HTML analysis only');
+            logger.info(
+              "[layout-handler] Graceful Degradation: continuing with HTML analysis only"
+            );
           }
         } else {
           // フォールバック無効: エラーを再スロー
@@ -730,39 +751,40 @@ async function executePageVisionAnalysis(
       }
     } else {
       if (isDevelopment()) {
-        logger.warn('[layout-handler] VisionAdapter not available, skipping Vision analysis');
+        logger.warn("[layout-handler] VisionAdapter not available, skipping Vision analysis");
       }
 
       result.visionFeatures = {
         success: false,
         features: [],
-        error: 'Ollama service unavailable. Please ensure Ollama is running with llama3.2-vision model.',
+        error:
+          "Ollama service unavailable. Please ensure Ollama is running with llama3.2-vision model.",
         processingTimeMs: Date.now() - visionStartTime,
-        modelName: 'llama3.2-vision',
+        modelName: "llama3.2-vision",
       };
 
       // Phase 4: 進捗報告 - Ollama利用不可（100%で完了扱い）
       if (progressReporter) {
-        progressReporter.updatePhase('completing');
+        progressReporter.updatePhase("completing");
         progressReporter.complete();
       }
     }
   } catch (visionError) {
     if (isDevelopment()) {
-      logger.error('[layout-handler] Vision analysis failed', { error: visionError });
+      logger.error("[layout-handler] Vision analysis failed", { error: visionError });
     }
 
     result.visionFeatures = {
       success: false,
       features: [],
-      error: visionError instanceof Error ? visionError.message : 'Vision analysis failed',
+      error: visionError instanceof Error ? visionError.message : "Vision analysis failed",
       processingTimeMs: Date.now() - visionStartTime,
-      modelName: 'llama3.2-vision',
+      modelName: "llama3.2-vision",
     };
 
     // Phase 4: 進捗報告 - エラー終了（100%で完了扱い）
     if (progressReporter) {
-      progressReporter.updatePhase('completing');
+      progressReporter.updatePhase("completing");
       progressReporter.complete();
     }
   }
@@ -776,12 +798,12 @@ async function executePageVisionAnalysis(
 async function executePerSectionVisionAnalysis(
   screenshot: { base64: string; mimeType: string },
   sections: MutableSection[],
-  options?: PageAnalyzeInput['layoutOptions']
+  options?: PageAnalyzeInput["layoutOptions"]
 ): Promise<void> {
   const perSectionStartTime = Date.now();
 
   if (isDevelopment()) {
-    logger.info('[layout-handler] Per-section Vision analysis: starting', {
+    logger.info("[layout-handler] Per-section Vision analysis: starting", {
       sectionCount: sections.length,
       batchSize: options?.visionBatchSize ?? 3,
     });
@@ -808,7 +830,7 @@ async function executePerSectionVisionAnalysis(
     const sectionsWithBounds = allSectionsWithBounds.slice(0, MAX_SECTIONS_FOR_PER_SECTION_VISION);
 
     if (allSectionsWithBounds.length > MAX_SECTIONS_FOR_PER_SECTION_VISION) {
-      logger.warn('[layout-handler] Per-section Vision analysis: section count exceeded limit', {
+      logger.warn("[layout-handler] Per-section Vision analysis: section count exceeded limit", {
         totalSections: allSectionsWithBounds.length,
         processedSections: sectionsWithBounds.length,
         maxSections: MAX_SECTIONS_FOR_PER_SECTION_VISION,
@@ -818,7 +840,7 @@ async function executePerSectionVisionAnalysis(
 
     if (sectionsWithBounds.length > 0) {
       if (isDevelopment()) {
-        logger.debug('[layout-handler] Per-section Vision analysis: extracting sections', {
+        logger.debug("[layout-handler] Per-section Vision analysis: extracting sections", {
           sectionsWithBoundsCount: sectionsWithBounds.length,
         });
       }
@@ -829,13 +851,13 @@ async function executePerSectionVisionAnalysis(
       );
 
       if (isDevelopment()) {
-        logger.debug('[layout-handler] Per-section Vision analysis: extraction complete', {
+        logger.debug("[layout-handler] Per-section Vision analysis: extraction complete", {
           successCount: extractResult.successes.length,
           errorCount: extractResult.errors.length,
         });
       }
 
-      const { LlamaVisionAdapter } = await import('../../../services/vision-adapter/index.js');
+      const { LlamaVisionAdapter } = await import("../../../services/vision-adapter/index.js");
       const visionAdapter = new LlamaVisionAdapter();
 
       const isVisionAvailable = await visionAdapter.isAvailable();
@@ -848,9 +870,12 @@ async function executePerSectionVisionAnalysis(
           const batchIndex = Math.floor(i / batchSize) + 1;
 
           if (isDevelopment()) {
-            logger.info(`[layout-handler] Per-section Vision analysis: batch ${batchIndex}/${totalBatches}`, {
-              batchSectionIds: batch.map((b) => b.sectionId),
-            });
+            logger.info(
+              `[layout-handler] Per-section Vision analysis: batch ${batchIndex}/${totalBatches}`,
+              {
+                batchSectionIds: batch.map((b) => b.sectionId),
+              }
+            );
           }
 
           const visionResults = await Promise.allSettled(
@@ -860,16 +885,16 @@ async function executePerSectionVisionAnalysis(
               if (sectionType !== undefined) {
                 return visionAdapter.analyzeSection({
                   imageBuffer: ss.imageBuffer,
-                  mimeType: 'image/png' as const,
-                  features: ['layout_structure', 'color_palette', 'whitespace'] as const,
+                  mimeType: "image/png" as const,
+                  features: ["layout_structure", "color_palette", "whitespace"] as const,
                   sectionId: ss.sectionId,
                   sectionTypeHint: sectionType,
                 });
               }
               return visionAdapter.analyzeSection({
                 imageBuffer: ss.imageBuffer,
-                mimeType: 'image/png' as const,
-                features: ['layout_structure', 'color_palette', 'whitespace'] as const,
+                mimeType: "image/png" as const,
+                features: ["layout_structure", "color_palette", "whitespace"] as const,
                 sectionId: ss.sectionId,
               });
             })
@@ -888,7 +913,7 @@ async function executePerSectionVisionAnalysis(
               const visionResult = visionResults[j];
               if (!visionResult) continue;
 
-              if (visionResult.status === 'fulfilled') {
+              if (visionResult.status === "fulfilled") {
                 const vr = visionResult.value;
                 currentSection.visionFeatures = {
                   success: vr.success,
@@ -898,7 +923,11 @@ async function executePerSectionVisionAnalysis(
                       confidence: f.confidence,
                     };
                     const featureData = f.data as unknown as Record<string, unknown> | undefined;
-                    if (featureData && typeof featureData === 'object' && 'description' in featureData) {
+                    if (
+                      featureData &&
+                      typeof featureData === "object" &&
+                      "description" in featureData
+                    ) {
                       feature.description = String(featureData.description);
                     }
                     return feature;
@@ -911,13 +940,13 @@ async function executePerSectionVisionAnalysis(
                   modelName: vr.modelName,
                   sectionBounds: batchItem.bounds,
                 };
-              } else if (visionResult.status === 'rejected') {
+              } else if (visionResult.status === "rejected") {
                 currentSection.visionFeatures = {
                   success: false,
                   features: [],
                   error: String(visionResult.reason),
                   processingTimeMs: 0,
-                  modelName: 'llama3.2-vision',
+                  modelName: "llama3.2-vision",
                 };
               }
             }
@@ -925,7 +954,7 @@ async function executePerSectionVisionAnalysis(
         }
       } else {
         if (isDevelopment()) {
-          logger.warn('[layout-handler] Per-section Vision analysis: Ollama not available');
+          logger.warn("[layout-handler] Per-section Vision analysis: Ollama not available");
         }
 
         for (const section of sections) {
@@ -933,9 +962,9 @@ async function executePerSectionVisionAnalysis(
             section.visionFeatures = {
               success: false,
               features: [],
-              error: 'Ollama service unavailable for per-section Vision analysis.',
+              error: "Ollama service unavailable for per-section Vision analysis.",
               processingTimeMs: 0,
-              modelName: 'llama3.2-vision',
+              modelName: "llama3.2-vision",
             };
           }
         }
@@ -952,7 +981,7 @@ async function executePerSectionVisionAnalysis(
               features: [],
               error: `Screenshot extraction failed: ${extractError.errorMessage}`,
               processingTimeMs: 0,
-              modelName: 'llama3.2-vision',
+              modelName: "llama3.2-vision",
             };
           }
         }
@@ -962,7 +991,7 @@ async function executePerSectionVisionAnalysis(
     if (isDevelopment()) {
       const perSectionProcessingTime = Date.now() - perSectionStartTime;
       const successCount = sections.filter((s) => s.visionFeatures?.success).length;
-      logger.info('[layout-handler] Per-section Vision analysis: completed', {
+      logger.info("[layout-handler] Per-section Vision analysis: completed", {
         totalSections: sections.length,
         processedSections: sectionsWithBounds.length,
         successCount,
@@ -971,8 +1000,8 @@ async function executePerSectionVisionAnalysis(
     }
   } catch (perSectionError) {
     if (isDevelopment()) {
-      logger.error('[layout-handler] Per-section Vision analysis failed', {
-        error: perSectionError instanceof Error ? perSectionError.message : 'Unknown error',
+      logger.error("[layout-handler] Per-section Vision analysis failed", {
+        error: perSectionError instanceof Error ? perSectionError.message : "Unknown error",
       });
     }
 
@@ -981,9 +1010,9 @@ async function executePerSectionVisionAnalysis(
         section.visionFeatures = {
           success: false,
           features: [],
-          error: `Per-section analysis failed: ${perSectionError instanceof Error ? perSectionError.message : 'Unknown error'}`,
+          error: `Per-section analysis failed: ${perSectionError instanceof Error ? perSectionError.message : "Unknown error"}`,
           processingTimeMs: 0,
-          modelName: 'llama3.2-vision',
+          modelName: "llama3.2-vision",
         };
       }
     }
@@ -1017,7 +1046,7 @@ async function executePerSectionVisionAnalysis(
  */
 export async function defaultAnalyzeLayout(
   html: string,
-  options?: PageAnalyzeInput['layoutOptions'],
+  options?: PageAnalyzeInput["layoutOptions"],
   screenshot?: { base64: string; mimeType: string },
   computedStyles?: ComputedStyleInfo[],
   baseUrl?: string,
@@ -1029,7 +1058,7 @@ export async function defaultAnalyzeLayout(
   const startTime = Date.now();
 
   if (isDevelopment()) {
-    logger.debug('[layout-handler] defaultAnalyzeLayout called', {
+    logger.debug("[layout-handler] defaultAnalyzeLayout called", {
       htmlLength: html.length,
       hasOptions: !!options,
       useVision: options?.useVision,
@@ -1049,47 +1078,47 @@ export async function defaultAnalyzeLayout(
     const analysisResult: LayoutAnalysisResult = await layoutAnalyzer.analyze(html, {
       includeContent: true,
       includeStyles: true,
-      ...(shouldFetchExternalCss && baseUrl && {
-        externalCss: {
-          fetchExternalCss: true,
-          baseUrl,
-          // DOMPurifyで<link>タグが除去される問題の回避策
-          // サニタイズ前のHTMLから抽出したURLを使用
-          ...(preExtractedCssUrls && preExtractedCssUrls.length > 0 && {
-            preExtractedUrls: preExtractedCssUrls,
-          }),
-        },
-      }),
+      ...(shouldFetchExternalCss &&
+        baseUrl && {
+          externalCss: {
+            fetchExternalCss: true,
+            baseUrl,
+            // DOMPurifyで<link>タグが除去される問題の回避策
+            // サニタイズ前のHTMLから抽出したURLを使用
+            ...(preExtractedCssUrls &&
+              preExtractedCssUrls.length > 0 && {
+                preExtractedUrls: preExtractedCssUrls,
+              }),
+          },
+        }),
       // Computed StylesをhtmlSnippetにインラインスタイルとして適用
       ...(computedStyles && computedStyles.length > 0 && { computedStyles }),
     });
 
     // セクションを LayoutServiceResult 形式に変換
-    const sections: MutableSection[] = analysisResult.sections.map(
-      (section, index) => {
-        const result: MutableSection = {
-          id: section.id,
-          type: section.type,
-          positionIndex: index,
-          confidence: section.confidence,
-        };
-        const headingText = section.content?.headings?.[0]?.text;
-        if (headingText !== undefined) {
-          result.heading = headingText;
-        }
-        if (section.htmlSnippet !== undefined) {
-          result.htmlSnippet = section.htmlSnippet;
-        }
-        if (section.position) {
-          result.position = {
-            startY: section.position.startY,
-            endY: section.position.endY,
-            height: section.position.height,
-          };
-        }
-        return result;
+    const sections: MutableSection[] = analysisResult.sections.map((section, index) => {
+      const result: MutableSection = {
+        id: section.id,
+        type: section.type,
+        positionIndex: index,
+        confidence: section.confidence,
+      };
+      const headingText = section.content?.headings?.[0]?.text;
+      if (headingText !== undefined) {
+        result.heading = headingText;
       }
-    );
+      if (section.htmlSnippet !== undefined) {
+        result.htmlSnippet = section.htmlSnippet;
+      }
+      if (section.position) {
+        result.position = {
+          startY: section.position.startY,
+          endY: section.position.endY,
+          height: section.position.height,
+        };
+      }
+      return result;
+    });
 
     const result: LayoutServiceResult = {
       success: true,
@@ -1103,13 +1132,16 @@ export async function defaultAnalyzeLayout(
       result.cssSnippet = analysisResult.cssSnippet;
 
       if (isDevelopment()) {
-        logger.debug('[layout-handler] CSS snippet extracted', {
+        logger.debug("[layout-handler] CSS snippet extracted", {
           cssSnippetLength: analysisResult.cssSnippet.length,
         });
       }
     }
 
-    if (analysisResult.externalCssContent !== undefined && analysisResult.externalCssContent.length > 0) {
+    if (
+      analysisResult.externalCssContent !== undefined &&
+      analysisResult.externalCssContent.length > 0
+    ) {
       result.externalCssContent = analysisResult.externalCssContent;
 
       // v0.1.0: CSS変数抽出（外部CSSが取得された場合）
@@ -1118,14 +1150,14 @@ export async function defaultAnalyzeLayout(
         const cssVariableExtractor = createCSSVariableExtractorService();
         const combinedCss = [analysisResult.cssSnippet, analysisResult.externalCssContent]
           .filter(Boolean)
-          .join('\n');
+          .join("\n");
         const cssVariablesResult = cssVariableExtractor.extractFromCSS(combinedCss);
 
         if (cssVariablesResult.variables.length > 0 || cssVariablesResult.clampValues.length > 0) {
           result.cssVariables = cssVariablesResult;
 
           if (isDevelopment()) {
-            logger.info('[layout-handler] CSS variables extracted', {
+            logger.info("[layout-handler] CSS variables extracted", {
               variableCount: cssVariablesResult.variables.length,
               clampValueCount: cssVariablesResult.clampValues.length,
               calcExpressionCount: cssVariablesResult.calcExpressions.length,
@@ -1136,7 +1168,7 @@ export async function defaultAnalyzeLayout(
         }
       } catch (error) {
         if (isDevelopment()) {
-          logger.warn('[layout-handler] CSS variable extraction failed', { error });
+          logger.warn("[layout-handler] CSS variable extraction failed", { error });
         }
         // エラー時はcssVariablesを省略（Graceful Degradation）
       }
@@ -1148,7 +1180,7 @@ export async function defaultAnalyzeLayout(
 
     // cssFrameworkが存在する場合は結果に含める（exactOptionalPropertyTypes対応）
     if (isDevelopment()) {
-      logger.debug('[layout-handler] Checking cssFramework from analysisResult', {
+      logger.debug("[layout-handler] Checking cssFramework from analysisResult", {
         hasCssFramework: analysisResult.cssFramework !== undefined,
         cssFrameworkValue: analysisResult.cssFramework,
       });
@@ -1162,7 +1194,7 @@ export async function defaultAnalyzeLayout(
       };
 
       if (isDevelopment()) {
-        logger.debug('[layout-handler] CSS framework detected and set', {
+        logger.debug("[layout-handler] CSS framework detected and set", {
           framework: analysisResult.cssFramework.framework,
           confidence: analysisResult.cssFramework.confidence,
           evidenceCount: analysisResult.cssFramework.evidence.length,
@@ -1171,7 +1203,7 @@ export async function defaultAnalyzeLayout(
       }
     } else {
       if (isDevelopment()) {
-        logger.warn('[layout-handler] cssFramework is undefined in analysisResult');
+        logger.warn("[layout-handler] cssFramework is undefined in analysisResult");
       }
     }
 
@@ -1181,14 +1213,14 @@ export async function defaultAnalyzeLayout(
     try {
       const bgDetector = createBackgroundDesignDetectorService();
       const bgResult = bgDetector.detect({
-        cssContent: analysisResult.cssSnippet ?? '',
+        cssContent: analysisResult.cssSnippet ?? "",
         htmlContent: html,
-        externalCssContent: analysisResult.externalCssContent ?? '',
+        externalCssContent: analysisResult.externalCssContent ?? "",
       });
       backgroundDesigns = bgResult.backgrounds;
 
       if (isDevelopment() && backgroundDesigns.length > 0) {
-        logger.info('[layout-handler] Background designs detected', {
+        logger.info("[layout-handler] Background designs detected", {
           count: backgroundDesigns.length,
           types: backgroundDesigns.map((bg) => bg.designType),
           processingTimeMs: bgResult.processingTimeMs.toFixed(1),
@@ -1196,7 +1228,7 @@ export async function defaultAnalyzeLayout(
       }
     } catch (bgError) {
       if (isDevelopment()) {
-        logger.warn('[layout-handler] Background design detection failed', {
+        logger.warn("[layout-handler] Background design detection failed", {
           error: bgError instanceof Error ? bgError.message : String(bgError),
         });
       }
@@ -1215,29 +1247,40 @@ export async function defaultAnalyzeLayout(
       const visionStartTime = Date.now();
 
       if (isDevelopment()) {
-        logger.info('[layout-handler] Starting Vision analysis', {
+        logger.info("[layout-handler] Starting Vision analysis", {
           screenshotSize: screenshot.base64.length,
           mimeType: screenshot.mimeType,
         });
       }
 
-      visionAnalysisResult = await executePageVisionAnalysis(screenshot, result, visionStartTime, visionOptions, progressContext);
+      visionAnalysisResult = await executePageVisionAnalysis(
+        screenshot,
+        result,
+        visionStartTime,
+        visionOptions,
+        progressContext
+      );
     } else if (useVision && !screenshot) {
       if (isDevelopment()) {
-        logger.warn('[layout-handler] useVision=true but no screenshot available, falling back to HTML analysis');
+        logger.warn(
+          "[layout-handler] useVision=true but no screenshot available, falling back to HTML analysis"
+        );
       }
 
       result.visionFeatures = {
         success: false,
         features: [],
-        error: 'Screenshot not available for Vision analysis. Falling back to HTML analysis.',
+        error: "Screenshot not available for Vision analysis. Falling back to HTML analysis.",
         processingTimeMs: 0,
-        modelName: 'llama3.2-vision',
+        modelName: "llama3.2-vision",
       };
     }
 
     // Phase 1: Vision検出セクション境界とHTML検出セクションをマージ
-    const visionMergedSections = mergeVisionDetectedSections(sections, visionAnalysisResult.sectionBoundaries);
+    const visionMergedSections = mergeVisionDetectedSections(
+      sections,
+      visionAnalysisResult.sectionBoundaries
+    );
 
     // Phase 1: Section Merge Post-Processor（過剰分割修正）
     // JSDOM cannot interpret CSS layout (flexbox, grid, inline-block) → over-segmentation.
@@ -1245,9 +1288,13 @@ export async function defaultAnalyzeLayout(
     const postProcessResult = postProcessSections(visionMergedSections);
     const mergedSections = postProcessResult.sections;
 
-    if (postProcessResult.stats.mergedGroups > 0 || postProcessResult.stats.absorbedCount > 0 || postProcessResult.stats.splitCount > 0) {
+    if (
+      postProcessResult.stats.mergedGroups > 0 ||
+      postProcessResult.stats.absorbedCount > 0 ||
+      postProcessResult.stats.splitCount > 0
+    ) {
       if (isDevelopment()) {
-        logger.info('[layout-handler] Section post-processing applied', postProcessResult.stats);
+        logger.info("[layout-handler] Section post-processing applied", postProcessResult.stats);
       }
     }
 
@@ -1263,7 +1310,7 @@ export async function defaultAnalyzeLayout(
       result.sectionTypes = updatedSectionTypes;
 
       if (isDevelopment()) {
-        logger.info('[layout-handler] Sections merged with Vision boundaries', {
+        logger.info("[layout-handler] Sections merged with Vision boundaries", {
           originalCount: sections.length,
           mergedCount: mergedSections.length,
           addedSections: mergedSections.length - sections.length,
@@ -1278,7 +1325,7 @@ export async function defaultAnalyzeLayout(
       const visualFeaturesStartTime = Date.now();
 
       if (isDevelopment()) {
-        logger.info('[layout-handler] Starting Deterministic Visual Feature Extraction', {
+        logger.info("[layout-handler] Starting Deterministic Visual Feature Extraction", {
           screenshotSize: screenshot.base64.length,
           hasComputedStyles: !!computedStyles,
           computedStylesCount: computedStyles?.length ?? 0,
@@ -1291,7 +1338,7 @@ export async function defaultAnalyzeLayout(
         result.visualFeatures = visualFeatures;
 
         if (isDevelopment()) {
-          logger.info('[layout-handler] Deterministic Visual Features extracted', {
+          logger.info("[layout-handler] Deterministic Visual Features extracted", {
             hasDominantColors: !!visualFeatures.colors?.dominant?.length,
             hasAccentColors: !!visualFeatures.colors?.accent?.length,
             hasTheme: !!visualFeatures.theme,
@@ -1303,7 +1350,9 @@ export async function defaultAnalyzeLayout(
         }
       } else {
         if (isDevelopment()) {
-          logger.warn('[layout-handler] Deterministic Visual Feature Extraction failed, continuing without visualFeatures');
+          logger.warn(
+            "[layout-handler] Deterministic Visual Feature Extraction failed, continuing without visualFeatures"
+          );
         }
       }
     }
@@ -1319,7 +1368,7 @@ export async function defaultAnalyzeLayout(
 
     if (shouldIncludeScreenshot) {
       result.screenshot = {
-        base64: 'placeholder',
+        base64: "placeholder",
         format: DEFAULT_SCREENSHOT.FORMAT,
         width: DEFAULT_SCREENSHOT.WIDTH,
         height: DEFAULT_SCREENSHOT.HEIGHT,
@@ -1345,7 +1394,7 @@ export async function defaultAnalyzeLayout(
     result.processingTimeMs = Date.now() - startTime;
 
     if (isDevelopment()) {
-      logger.debug('[layout-handler] defaultAnalyzeLayout completed', {
+      logger.debug("[layout-handler] defaultAnalyzeLayout completed", {
         sectionCount: result.sectionCount,
         sectionTypes: result.sectionTypes,
         processingTimeMs: result.processingTimeMs,
@@ -1357,7 +1406,7 @@ export async function defaultAnalyzeLayout(
     return result;
   } catch (error) {
     if (isDevelopment()) {
-      logger.error('[layout-handler] defaultAnalyzeLayout error', { error });
+      logger.error("[layout-handler] defaultAnalyzeLayout error", { error });
     }
 
     return {
@@ -1367,7 +1416,7 @@ export async function defaultAnalyzeLayout(
       processingTimeMs: Date.now() - startTime,
       error: {
         code: PAGE_ANALYZE_ERROR_CODES.LAYOUT_ANALYSIS_FAILED,
-        message: error instanceof Error ? error.message : 'Layout analysis failed',
+        message: error instanceof Error ? error.message : "Layout analysis failed",
       },
     };
   }

@@ -10,29 +10,26 @@
  * @module tools/page/handlers/narrative-handler
  */
 
-import { logger, isDevelopment } from '../../../utils/logger';
+import { logger, isDevelopment } from "../../../utils/logger";
 import {
   createNarrativeAnalysisService,
   type NarrativeAnalysisService,
-} from '../../../services/narrative/narrative-analysis.service';
+} from "../../../services/narrative/narrative-analysis.service";
 import type {
   NarrativeAnalysisInput,
   NarrativeAnalysisResult,
   ExistingAnalysisResults,
-} from '../../../services/narrative/types/narrative.types';
-import type {
-  NarrativeHandlerInput,
-  NarrativeHandlerResult,
-} from './types';
+} from "../../../services/narrative/types/narrative.types";
+import type { NarrativeHandlerInput, NarrativeHandlerResult } from "./types";
 
 // =====================================================
 // Error Codes
 // =====================================================
 
 export const NARRATIVE_ERROR_CODES = {
-  NARRATIVE_ANALYSIS_FAILED: 'NARRATIVE_ANALYSIS_FAILED',
-  NARRATIVE_SAVE_FAILED: 'NARRATIVE_SAVE_FAILED',
-  VALIDATION_ERROR: 'VALIDATION_ERROR',
+  NARRATIVE_ANALYSIS_FAILED: "NARRATIVE_ANALYSIS_FAILED",
+  NARRATIVE_SAVE_FAILED: "NARRATIVE_SAVE_FAILED",
+  VALIDATION_ERROR: "VALIDATION_ERROR",
 } as const;
 
 // =====================================================
@@ -44,9 +41,7 @@ let narrativeServiceFactory: (() => NarrativeAnalysisService) | null = null;
 /**
  * NarrativeAnalysisServiceファクトリを設定（テスト用）
  */
-export function setNarrativeServiceFactory(
-  factory: () => NarrativeAnalysisService
-): void {
+export function setNarrativeServiceFactory(factory: () => NarrativeAnalysisService): void {
   narrativeServiceFactory = factory;
 }
 
@@ -85,7 +80,7 @@ export async function handleNarrativeAnalysis(
   // enabled=false の場合はスキップ
   if (!input.narrativeOptions?.enabled) {
     if (isDevelopment()) {
-      logger.debug('[narrative-handler] Skipped: enabled=false');
+      logger.debug("[narrative-handler] Skipped: enabled=false");
     }
     return {
       success: true,
@@ -94,7 +89,7 @@ export async function handleNarrativeAnalysis(
   }
 
   if (isDevelopment()) {
-    logger.info('[narrative-handler] Starting narrative analysis', {
+    logger.info("[narrative-handler] Starting narrative analysis", {
       hasHtml: !!input.html,
       hasScreenshot: !!input.screenshot,
       hasWebPageId: !!input.webPageId,
@@ -109,7 +104,7 @@ export async function handleNarrativeAnalysis(
       success: false,
       error: {
         code: NARRATIVE_ERROR_CODES.VALIDATION_ERROR,
-        message: 'webPageId is required when saveToDb is true',
+        message: "webPageId is required when saveToDb is true",
       },
     };
   }
@@ -121,14 +116,13 @@ export async function handleNarrativeAnalysis(
     // 既存分析結果をNarrativeAnalysisInput形式に変換
     // NOTE: exactOptionalPropertyTypes対応のため、as unknown as T パターンを使用
     // 入力のexistingAnalysisはpage.analyzeから渡されるため、型が一致することを保証
-    const existingAnalysis: ExistingAnalysisResults | undefined =
-      input.existingAnalysis
-        ? (input.existingAnalysis as unknown as ExistingAnalysisResults)
-        : undefined;
+    const existingAnalysis: ExistingAnalysisResults | undefined = input.existingAnalysis
+      ? (input.existingAnalysis as unknown as ExistingAnalysisResults)
+      : undefined;
 
     // NarrativeAnalysisInput を構築
     // exactOptionalPropertyTypes対応: undefinedのプロパティは含めないようにオブジェクトを構築
-    const analysisOptions: NarrativeAnalysisInput['options'] = {};
+    const analysisOptions: NarrativeAnalysisInput["options"] = {};
     if (input.narrativeOptions?.includeVision === false) {
       analysisOptions.forceVision = false;
     }
@@ -180,7 +174,7 @@ export async function handleNarrativeAnalysis(
     const narrative = formatNarrativeResult(result, input.webPageId, savedId);
 
     if (isDevelopment()) {
-      logger.info('[narrative-handler] Analysis complete', {
+      logger.info("[narrative-handler] Analysis complete", {
         moodCategory: result.worldView.moodCategory,
         confidence: result.metadata.confidence.overall,
         visionUsed: result.metadata.visionUsed,
@@ -206,16 +200,17 @@ export async function handleNarrativeAnalysis(
     const errorMessage = error instanceof Error ? error.message : String(error);
 
     if (isDevelopment()) {
-      logger.error('[narrative-handler] Analysis failed', {
+      logger.error("[narrative-handler] Analysis failed", {
         error: errorMessage,
         processingTimeMs,
       });
     }
 
     // エラーの種類を判定
-    const errorCode = errorMessage.includes('DB') || errorMessage.includes('save')
-      ? NARRATIVE_ERROR_CODES.NARRATIVE_SAVE_FAILED
-      : NARRATIVE_ERROR_CODES.NARRATIVE_ANALYSIS_FAILED;
+    const errorCode =
+      errorMessage.includes("DB") || errorMessage.includes("save")
+        ? NARRATIVE_ERROR_CODES.NARRATIVE_SAVE_FAILED
+        : NARRATIVE_ERROR_CODES.NARRATIVE_ANALYSIS_FAILED;
 
     return {
       success: false,
@@ -239,11 +234,11 @@ function formatNarrativeResult(
   result: NarrativeAnalysisResult,
   webPageId?: string,
   savedId?: string
-): NonNullable<NarrativeHandlerResult['narrative']> {
+): NonNullable<NarrativeHandlerResult["narrative"]> {
   const { worldView, layoutStructure, metadata } = result;
 
   // WorldView を簡略化（exactOptionalPropertyTypes対応）
-  const formattedWorldView: NonNullable<NarrativeHandlerResult['narrative']>['worldView'] = {
+  const formattedWorldView: NonNullable<NarrativeHandlerResult["narrative"]>["worldView"] = {
     moodCategory: worldView.moodCategory,
     moodDescription: worldView.moodDescription,
     colorImpression: formatColorImpression(worldView.colorImpression),
@@ -257,7 +252,9 @@ function formatNarrativeResult(
   }
 
   // LayoutStructure を簡略化（exactOptionalPropertyTypes対応）
-  const formattedLayoutStructure: NonNullable<NarrativeHandlerResult['narrative']>['layoutStructure'] = {
+  const formattedLayoutStructure: NonNullable<
+    NarrativeHandlerResult["narrative"]
+  >["layoutStructure"] = {
     gridSystem: layoutStructure.gridSystem.type,
     visualHierarchy: {
       primaryElements: layoutStructure.visualHierarchy.primaryElements,
@@ -272,7 +269,7 @@ function formatNarrativeResult(
   };
 
   // Optional fields for LayoutStructure
-  if (typeof layoutStructure.gridSystem.columns === 'number') {
+  if (typeof layoutStructure.gridSystem.columns === "number") {
     formattedLayoutStructure.columnCount = layoutStructure.gridSystem.columns;
   }
   if (layoutStructure.gridSystem.gutterWidth !== undefined) {
@@ -283,7 +280,7 @@ function formatNarrativeResult(
   }
 
   // exactOptionalPropertyTypes対応: undefinedのプロパティは含めない
-  const narrative: NonNullable<NarrativeHandlerResult['narrative']> = {
+  const narrative: NonNullable<NarrativeHandlerResult["narrative"]> = {
     worldView: formattedWorldView,
     layoutStructure: formattedLayoutStructure,
     confidence: metadata.confidence.overall,
@@ -336,17 +333,13 @@ function formatMotionEmotion(motion: {
   intensity: number;
   accessibility: boolean;
 }): string {
-  const a11y = motion.accessibility ? 'accessible' : 'not accessible';
+  const a11y = motion.accessibility ? "accessible" : "not accessible";
   return `${motion.overall} (${motion.pace} pace, ${Math.round(motion.intensity * 100)}% intensity, ${a11y})`;
 }
 
 /**
  * OverallTone を文字列に変換
  */
-function formatOverallTone(tone: {
-  primary: string;
-  formality: number;
-  energy: number;
-}): string {
+function formatOverallTone(tone: { primary: string; formality: number; energy: number }): string {
   return `${tone.primary} (formality: ${Math.round(tone.formality * 100)}%, energy: ${Math.round(tone.energy * 100)}%)`;
 }

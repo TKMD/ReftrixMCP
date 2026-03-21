@@ -21,7 +21,7 @@
  * @module tests/workers/page-analyze-worker-self-monitor
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 // ============================================================================
 // モック設定
@@ -36,7 +36,7 @@ const mockProcessExit = vi.fn();
 const originalProcessExit = process.exit;
 
 // logger モック
-vi.mock('../../src/utils/logger', () => ({
+vi.mock("../../src/utils/logger", () => ({
   logger: {
     info: vi.fn(),
     warn: vi.fn(),
@@ -50,7 +50,7 @@ vi.mock('../../src/utils/logger', () => ({
 // テストスイート
 // ============================================================================
 
-describe('Worker Memory Self-Monitoring', () => {
+describe("Worker Memory Self-Monitoring", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     // process.memoryUsage をモックに置き換え
@@ -65,8 +65,8 @@ describe('Worker Memory Self-Monitoring', () => {
     process.exit = originalProcessExit;
   });
 
-  describe('shouldExitForMemory()', () => {
-    it('ジョブ完了後にメモリ使用量をチェックする', async () => {
+  describe("shouldExitForMemory()", () => {
+    it("ジョブ完了後にメモリ使用量をチェックする", async () => {
       // Arrange: RSS 10GB (閾値以下)
       mockMemoryUsage.mockReturnValue({
         rss: 10 * 1024 * 1024 * 1024, // 10GB
@@ -77,22 +77,21 @@ describe('Worker Memory Self-Monitoring', () => {
       });
 
       // Act
-      const { shouldExitForMemory } = await import(
-        '../../src/services/worker-memory-monitor.service'
-      );
+      const { shouldExitForMemory } =
+        await import("../../src/services/worker-memory-monitor.service");
       const result = shouldExitForMemory();
 
       // Assert: メモリ使用量を確認し、結果を返す
       expect(mockMemoryUsage).toHaveBeenCalled();
-      expect(result).toHaveProperty('shouldExit');
-      expect(result).toHaveProperty('rssMb');
-      expect(typeof result.shouldExit).toBe('boolean');
-      expect(typeof result.rssMb).toBe('number');
+      expect(result).toHaveProperty("shouldExit");
+      expect(result).toHaveProperty("rssMb");
+      expect(typeof result.shouldExit).toBe("boolean");
+      expect(typeof result.rssMb).toBe("number");
     });
 
-    it('閾値以下ならプロセスを継続する（shouldExit = false）', async () => {
+    it("閾値以下ならプロセスを継続する（shouldExit = false）", async () => {
       // Arrange: RSS = 動的閾値の半分（どのマシンでも閾値以下）
-      const { resolveMemoryConfig } = await import('../../src/services/worker-memory-profile');
+      const { resolveMemoryConfig } = await import("../../src/services/worker-memory-profile");
       const config = resolveMemoryConfig();
       const safeRssMb = Math.floor(config.selfExitThresholdMb / 2);
       const safeRssBytes = safeRssMb * 1024 * 1024;
@@ -105,9 +104,8 @@ describe('Worker Memory Self-Monitoring', () => {
       });
 
       // Act
-      const { shouldExitForMemory } = await import(
-        '../../src/services/worker-memory-monitor.service'
-      );
+      const { shouldExitForMemory } =
+        await import("../../src/services/worker-memory-monitor.service");
       const result = shouldExitForMemory();
 
       // Assert: 閾値以下なのでexit不要
@@ -115,7 +113,7 @@ describe('Worker Memory Self-Monitoring', () => {
       expect(result.rssMb).toBe(safeRssMb);
     });
 
-    it('閾値超過でshouldExit = trueを返す', async () => {
+    it("閾値超過でshouldExit = trueを返す", async () => {
       // Arrange: RSS 13GB (閾値12GB超過)
       mockMemoryUsage.mockReturnValue({
         rss: 13 * 1024 * 1024 * 1024, // 13GB
@@ -126,9 +124,8 @@ describe('Worker Memory Self-Monitoring', () => {
       });
 
       // Act
-      const { shouldExitForMemory } = await import(
-        '../../src/services/worker-memory-monitor.service'
-      );
+      const { shouldExitForMemory } =
+        await import("../../src/services/worker-memory-monitor.service");
       const result = shouldExitForMemory();
 
       // Assert: 閾値超過なのでexit推奨
@@ -137,8 +134,8 @@ describe('Worker Memory Self-Monitoring', () => {
     });
   });
 
-  describe('performMemoryCheckAndExit()', () => {
-    it('閾値以下の場合はprocess.exitを呼ばない', async () => {
+  describe("performMemoryCheckAndExit()", () => {
+    it("閾値以下の場合はprocess.exitを呼ばない", async () => {
       // Arrange: RSS 5GB (閾値以下)
       mockMemoryUsage.mockReturnValue({
         rss: 5 * 1024 * 1024 * 1024,
@@ -149,16 +146,15 @@ describe('Worker Memory Self-Monitoring', () => {
       });
 
       // Act
-      const { performMemoryCheckAndExit } = await import(
-        '../../src/services/worker-memory-monitor.service'
-      );
+      const { performMemoryCheckAndExit } =
+        await import("../../src/services/worker-memory-monitor.service");
       performMemoryCheckAndExit();
 
       // Assert
       expect(mockProcessExit).not.toHaveBeenCalled();
     });
 
-    it('閾値超過でprocess.exit(0)を呼んでgraceful exitする', async () => {
+    it("閾値超過でprocess.exit(0)を呼んでgraceful exitする", async () => {
       // Arrange: RSS 14GB (閾値超過)
       mockMemoryUsage.mockReturnValue({
         rss: 14 * 1024 * 1024 * 1024,
@@ -169,9 +165,8 @@ describe('Worker Memory Self-Monitoring', () => {
       });
 
       // Act
-      const { performMemoryCheckAndExit } = await import(
-        '../../src/services/worker-memory-monitor.service'
-      );
+      const { performMemoryCheckAndExit } =
+        await import("../../src/services/worker-memory-monitor.service");
       performMemoryCheckAndExit();
 
       // Assert: exit code 0でgraceful exit（Supervisorが再起動する）
@@ -179,10 +174,10 @@ describe('Worker Memory Self-Monitoring', () => {
     });
   });
 
-  describe('カスタム閾値', () => {
-    it('環境変数WORKER_SELF_EXIT_THRESHOLD_MBで閾値を変更できる', async () => {
+  describe("カスタム閾値", () => {
+    it("環境変数WORKER_SELF_EXIT_THRESHOLD_MBで閾値を変更できる", async () => {
       // Arrange: カスタム閾値 = 4096MB (4GB)
-      process.env.WORKER_SELF_EXIT_THRESHOLD_MB = '4096';
+      process.env.WORKER_SELF_EXIT_THRESHOLD_MB = "4096";
 
       // RSS 5GB (カスタム閾値4GB超過)
       mockMemoryUsage.mockReturnValue({
@@ -197,9 +192,8 @@ describe('Worker Memory Self-Monitoring', () => {
       vi.resetModules();
 
       // Act
-      const { shouldExitForMemory } = await import(
-        '../../src/services/worker-memory-monitor.service'
-      );
+      const { shouldExitForMemory } =
+        await import("../../src/services/worker-memory-monitor.service");
       const result = shouldExitForMemory();
 
       // Assert
@@ -210,8 +204,8 @@ describe('Worker Memory Self-Monitoring', () => {
     });
   });
 
-  describe('GC統合', () => {
-    it('メモリチェック前にGCを試行する', async () => {
+  describe("GC統合", () => {
+    it("メモリチェック前にGCを試行する", async () => {
       // Arrange
       mockMemoryUsage.mockReturnValue({
         rss: 5 * 1024 * 1024 * 1024,
@@ -222,20 +216,20 @@ describe('Worker Memory Self-Monitoring', () => {
       });
 
       // ソースコード検証: shouldExitForMemory内でtryGarbageCollectが呼ばれること
-      const fs = await import('node:fs');
-      const path = await import('node:path');
+      const fs = await import("node:fs");
+      const path = await import("node:path");
       const servicePath = path.resolve(
         __dirname,
-        '../../src/services/worker-memory-monitor.service.ts'
+        "../../src/services/worker-memory-monitor.service.ts"
       );
 
       // ファイルが存在する場合のみソースコード検証
       // (TDD Redではファイルが存在しないためスキップ可能)
       try {
-        const source = fs.readFileSync(servicePath, 'utf8');
+        const source = fs.readFileSync(servicePath, "utf8");
         // GCトリガーがメモリ計測前に呼ばれることを検証
-        const gcPos = source.indexOf('tryGarbageCollect');
-        const memPos = source.indexOf('process.memoryUsage');
+        const gcPos = source.indexOf("tryGarbageCollect");
+        const memPos = source.indexOf("process.memoryUsage");
         if (gcPos > -1 && memPos > -1) {
           expect(gcPos).toBeLessThan(memPos);
         }

@@ -11,15 +11,15 @@
  * @version 0.1.0
  */
 
-import { EmbeddingService } from './service.js';
-import type { CacheStats } from './types.js';
+import { EmbeddingService } from "./service.js";
+import type { CacheStats } from "./types.js";
 
 // 開発環境でのログ出力
-const isDevelopment = process.env.NODE_ENV === 'development';
+const isDevelopment = process.env.NODE_ENV === "development";
 const log = (message: string, data?: unknown): void => {
   if (isDevelopment) {
     // eslint-disable-next-line no-console
-    console.log(`[StyleEmbedding] ${message}`, data ?? '');
+    console.log(`[StyleEmbedding] ${message}`, data ?? "");
   }
 };
 
@@ -54,7 +54,7 @@ export class StyleEmbeddingService {
     this.embeddingService = config.embeddingService ?? new EmbeddingService();
     this.batchSize = config.batchSize ?? 32;
 
-    log('StyleEmbeddingService created', { batchSize: this.batchSize });
+    log("StyleEmbeddingService created", { batchSize: this.batchSize });
   }
 
   /**
@@ -71,13 +71,13 @@ export class StyleEmbeddingService {
    * ```
    */
   async generateEmbedding(styleText: string): Promise<number[]> {
-    log('Generating embedding for style text', { length: styleText.length });
+    log("Generating embedding for style text", { length: styleText.length });
 
     // "passage:" プレフィックスを使用（ドキュメント埋め込みとして扱う）
     // スタイル特徴量は検索対象のドキュメント側なのでpassageを使用
-    const embedding = await this.embeddingService.generateEmbedding(styleText, 'passage');
+    const embedding = await this.embeddingService.generateEmbedding(styleText, "passage");
 
-    log('Embedding generated', { dimension: embedding.length });
+    log("Embedding generated", { dimension: embedding.length });
 
     return embedding;
   }
@@ -98,12 +98,12 @@ export class StyleEmbeddingService {
    * ```
    */
   async generateQueryEmbedding(queryText: string): Promise<number[]> {
-    log('Generating query embedding', { length: queryText.length });
+    log("Generating query embedding", { length: queryText.length });
 
     // "query:" プレフィックスを使用（検索クエリとして扱う）
-    const embedding = await this.embeddingService.generateEmbedding(queryText, 'query');
+    const embedding = await this.embeddingService.generateEmbedding(queryText, "query");
 
-    log('Query embedding generated', { dimension: embedding.length });
+    log("Query embedding generated", { dimension: embedding.length });
 
     return embedding;
   }
@@ -128,15 +128,15 @@ export class StyleEmbeddingService {
       return [];
     }
 
-    log('Generating batch embeddings', { count: styleTexts.length });
+    log("Generating batch embeddings", { count: styleTexts.length });
 
     const startTime = performance.now();
 
     // "passage:" プレフィックスを使用（ドキュメント埋め込み）
-    const embeddings = await this.embeddingService.generateBatchEmbeddings(styleTexts, 'passage');
+    const embeddings = await this.embeddingService.generateBatchEmbeddings(styleTexts, "passage");
 
     const elapsed = performance.now() - startTime;
-    log('Batch embeddings generated', {
+    log("Batch embeddings generated", {
       count: embeddings.length,
       elapsedMs: elapsed,
       avgMs: elapsed / embeddings.length,
@@ -157,7 +157,7 @@ export class StyleEmbeddingService {
    */
   clearCache(): void {
     this.embeddingService.clearCache();
-    log('Cache cleared');
+    log("Cache cleared");
   }
 }
 

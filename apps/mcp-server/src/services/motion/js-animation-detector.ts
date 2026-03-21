@@ -15,8 +15,8 @@
  * @module services/motion/js-animation-detector
  */
 
-import type { Page, CDPSession } from 'playwright';
-import { logger, isDevelopment } from '../../utils/logger';
+import type { Page, CDPSession } from "playwright";
+import { logger, isDevelopment } from "../../utils/logger";
 
 // =====================================================
 // 型定義
@@ -37,11 +37,11 @@ import { logger, isDevelopment } from '../../utils/logger';
  * - intersection_observer: IntersectionObserver検出 (0.65)
  */
 export type DetectionSource =
-  | 'cdp'
-  | 'web_animations_api'
-  | 'library_signature'
-  | 'raf_monitoring'
-  | 'intersection_observer';
+  | "cdp"
+  | "web_animations_api"
+  | "library_signature"
+  | "raf_monitoring"
+  | "intersection_observer";
 
 /**
  * 検出結果の信頼度情報
@@ -62,9 +62,9 @@ export interface DetectionConfidence {
  */
 export const BASE_CONFIDENCE_SCORES: Record<DetectionSource, number> = {
   cdp: 0.95,
-  web_animations_api: 0.90,
+  web_animations_api: 0.9,
   library_signature: 0.75,
-  raf_monitoring: 0.70,
+  raf_monitoring: 0.7,
   intersection_observer: 0.65,
 };
 
@@ -112,7 +112,7 @@ export interface CDPAnimation {
   /** 現在時間 */
   currentTime: number;
   /** アニメーションタイプ */
-  type: 'CSSAnimation' | 'CSSTransition' | 'WebAnimation';
+  type: "CSSAnimation" | "CSSTransition" | "WebAnimation";
   /** ソース情報（タイミング） */
   source: CDPAnimationSource;
   /** 信頼度情報 (v0.1.0) */
@@ -185,18 +185,20 @@ export interface ThreeJSScene {
   /** 背景色 (hex) */
   background?: string | undefined;
   /** フォグ設定 */
-  fog?: {
-    /** フォグタイプ (Fog | FogExp2) */
-    type: string;
-    /** フォグ色 (hex) */
-    color: string;
-    /** 密度 (FogExp2の場合) */
-    density?: number | undefined;
-    /** 開始距離 (Fogの場合) */
-    near?: number | undefined;
-    /** 終了距離 (Fogの場合) */
-    far?: number | undefined;
-  } | undefined;
+  fog?:
+    | {
+        /** フォグタイプ (Fog | FogExp2) */
+        type: string;
+        /** フォグ色 (hex) */
+        color: string;
+        /** 密度 (FogExp2の場合) */
+        density?: number | undefined;
+        /** 開始距離 (Fogの場合) */
+        near?: number | undefined;
+        /** 終了距離 (Fogの場合) */
+        far?: number | undefined;
+      }
+    | undefined;
   /** シーン内オブジェクト */
   objects: ThreeJSObject[];
 }
@@ -389,9 +391,7 @@ function mergeConfidenceScores(sources: DetectionSource[]): number {
   }
 
   // 最高スコアを基準に、追加ソースごとにボーナス
-  const sortedScores = sources
-    .map((s) => BASE_CONFIDENCE_SCORES[s])
-    .sort((a, b) => b - a);
+  const sortedScores = sources.map((s) => BASE_CONFIDENCE_SCORES[s]).sort((a, b) => b - a);
 
   const firstScore = sortedScores[0];
   if (firstScore === undefined) return 0;
@@ -435,20 +435,20 @@ export function calculateConfidence(
 
   const rationale: string[] = [];
 
-  if (sources.includes('cdp')) {
-    rationale.push('CDP Animation domain detection (high confidence)');
+  if (sources.includes("cdp")) {
+    rationale.push("CDP Animation domain detection (high confidence)");
   }
-  if (sources.includes('web_animations_api')) {
-    rationale.push('Web Animations API detection');
+  if (sources.includes("web_animations_api")) {
+    rationale.push("Web Animations API detection");
   }
-  if (sources.includes('library_signature')) {
-    rationale.push('Animation library signature detected');
+  if (sources.includes("library_signature")) {
+    rationale.push("Animation library signature detected");
   }
-  if (sources.includes('raf_monitoring')) {
-    rationale.push('requestAnimationFrame callback detected');
+  if (sources.includes("raf_monitoring")) {
+    rationale.push("requestAnimationFrame callback detected");
   }
-  if (sources.includes('intersection_observer')) {
-    rationale.push('IntersectionObserver triggered animation');
+  if (sources.includes("intersection_observer")) {
+    rationale.push("IntersectionObserver triggered animation");
   }
 
   rationale.push(...additionalRationale);
@@ -488,21 +488,21 @@ export class JSAnimationDetectorService {
       const client = await page.context().newCDPSession(page);
 
       // Animation ドメインを有効化
-      await client.send('Animation.enable');
+      await client.send("Animation.enable");
 
       this.cdpSession = client;
 
       if (isDevelopment()) {
-        logger.debug('[JSAnimationDetector] CDP session initialized');
+        logger.debug("[JSAnimationDetector] CDP session initialized");
       }
 
       return client;
     } catch (error) {
       if (isDevelopment()) {
-        logger.error('[JSAnimationDetector] CDP initialization failed', { error });
+        logger.error("[JSAnimationDetector] CDP initialization failed", { error });
       }
       throw new Error(
-        `CDP initialization failed: ${error instanceof Error ? error.message : 'Unknown error'}`
+        `CDP initialization failed: ${error instanceof Error ? error.message : "Unknown error"}`
       );
     }
   }
@@ -516,15 +516,15 @@ export class JSAnimationDetectorService {
     }
 
     // Animation.animationCreated イベント
-    client.on('Animation.animationCreated', (event: { id: string }) => {
+    client.on("Animation.animationCreated", (event: { id: string }) => {
       if (isDevelopment()) {
-        logger.debug('[JSAnimationDetector] Animation created', { id: event.id });
+        logger.debug("[JSAnimationDetector] Animation created", { id: event.id });
       }
     });
 
     // Animation.animationStarted イベント（タイミング情報含む）
     client.on(
-      'Animation.animationStarted',
+      "Animation.animationStarted",
       (event: {
         animation: {
           id: string;
@@ -579,19 +579,19 @@ export class JSAnimationDetectorService {
             duration: anim.source?.duration ?? 0,
             delay: anim.source?.delay ?? 0,
             iterations: anim.source?.iterations ?? 1,
-            direction: anim.source?.direction ?? 'normal',
-            easing: anim.source?.easing ?? 'linear',
+            direction: anim.source?.direction ?? "normal",
+            easing: anim.source?.easing ?? "linear",
             ...(anim.source?.keyframesRule !== undefined
               ? { keyframesRule: anim.source.keyframesRule }
               : {}),
           },
-          confidence: calculateConfidence(['cdp'], confidenceRationale),
+          confidence: calculateConfidence(["cdp"], confidenceRationale),
         };
 
         this.cdpAnimations.set(anim.id, cdpAnimation);
 
         if (isDevelopment()) {
-          logger.debug('[JSAnimationDetector] Animation started', {
+          logger.debug("[JSAnimationDetector] Animation started", {
             id: anim.id,
             name: anim.name,
             type: cdpAnimation.type,
@@ -602,11 +602,11 @@ export class JSAnimationDetectorService {
     );
 
     // Animation.animationCanceled イベント
-    client.on('Animation.animationCanceled', (event: { id: string }) => {
+    client.on("Animation.animationCanceled", (event: { id: string }) => {
       this.cdpAnimations.delete(event.id);
 
       if (isDevelopment()) {
-        logger.debug('[JSAnimationDetector] Animation canceled', { id: event.id });
+        logger.debug("[JSAnimationDetector] Animation canceled", { id: event.id });
       }
     });
 
@@ -616,26 +616,21 @@ export class JSAnimationDetectorService {
   /**
    * CDPのアニメーションタイプをマッピング
    */
-  private mapAnimationType(
-    type: string
-  ): 'CSSAnimation' | 'CSSTransition' | 'WebAnimation' {
+  private mapAnimationType(type: string): "CSSAnimation" | "CSSTransition" | "WebAnimation" {
     switch (type) {
-      case 'CSSAnimation':
-        return 'CSSAnimation';
-      case 'CSSTransition':
-        return 'CSSTransition';
+      case "CSSAnimation":
+        return "CSSAnimation";
+      case "CSSTransition":
+        return "CSSTransition";
       default:
-        return 'WebAnimation';
+        return "WebAnimation";
     }
   }
 
   /**
    * CDP経由でアニメーションを検出
    */
-  private async detectCDPAnimations(
-    page: Page,
-    waitTime: number
-  ): Promise<CDPAnimation[]> {
+  private async detectCDPAnimations(page: Page, waitTime: number): Promise<CDPAnimation[]> {
     try {
       const client = await this.initializeCDP(page);
       this.setupCDPListeners(client);
@@ -647,7 +642,7 @@ export class JSAnimationDetectorService {
       const animations = Array.from(this.cdpAnimations.values());
 
       if (isDevelopment()) {
-        logger.debug('[JSAnimationDetector] CDP animations detected', {
+        logger.debug("[JSAnimationDetector] CDP animations detected", {
           count: animations.length,
         });
       }
@@ -655,7 +650,7 @@ export class JSAnimationDetectorService {
       return animations;
     } catch (error) {
       if (isDevelopment()) {
-        logger.error('[JSAnimationDetector] CDP detection failed', { error });
+        logger.error("[JSAnimationDetector] CDP detection failed", { error });
       }
       return [];
     }
@@ -664,7 +659,6 @@ export class JSAnimationDetectorService {
   /**
    * Web Animations API でアニメーションを検出
    */
-  /* eslint-disable no-undef -- page.evaluate() runs in browser context */
   private async detectWebAnimations(page: Page): Promise<WebAnimation[]> {
     try {
       const animations = await page.evaluate(() => {
@@ -695,14 +689,14 @@ export class JSAnimationDetectorService {
           counter++;
 
           // ターゲット要素のセレクタを取得
-          let targetSelector = 'unknown';
+          let targetSelector = "unknown";
           const effect = anim.effect as KeyframeEffect | null;
           if (effect?.target instanceof Element) {
             const target = effect.target;
             if (target.id) {
               targetSelector = `#${target.id}`;
-            } else if (target.className && typeof target.className === 'string') {
-              targetSelector = `.${target.className.split(' ').filter(Boolean).join('.')}`;
+            } else if (target.className && typeof target.className === "string") {
+              targetSelector = `.${target.className.split(" ").filter(Boolean).join(".")}`;
             } else {
               targetSelector = target.tagName.toLowerCase();
             }
@@ -727,8 +721,7 @@ export class JSAnimationDetectorService {
                 composite: kf.composite as string,
                 ...Object.fromEntries(
                   Object.entries(kf).filter(
-                    ([key]) =>
-                      !['offset', 'easing', 'composite', 'computedOffset'].includes(key)
+                    ([key]) => !["offset", "easing", "composite", "computedOffset"].includes(key)
                   )
                 ),
               }));
@@ -742,18 +735,17 @@ export class JSAnimationDetectorService {
             playState: anim.playState,
             target: targetSelector,
             timing: {
-              duration:
-                typeof timing.duration === 'number' ? timing.duration : 0,
-              delay: typeof timing.delay === 'number' ? timing.delay : 0,
+              duration: typeof timing.duration === "number" ? timing.duration : 0,
+              delay: typeof timing.delay === "number" ? timing.delay : 0,
               iterations:
                 timing.iterations === Infinity
                   ? -1
-                  : typeof timing.iterations === 'number'
+                  : typeof timing.iterations === "number"
                     ? timing.iterations
                     : 1,
-              direction: (timing.direction as string) ?? 'normal',
-              easing: (timing.easing as string) ?? 'linear',
-              fill: (timing.fill as string) ?? 'none',
+              direction: (timing.direction as string) ?? "normal",
+              easing: (timing.easing as string) ?? "linear",
+              fill: (timing.fill as string) ?? "none",
             },
             keyframes,
           });
@@ -763,7 +755,7 @@ export class JSAnimationDetectorService {
       });
 
       if (isDevelopment()) {
-        logger.debug('[JSAnimationDetector] Web Animations detected', {
+        logger.debug("[JSAnimationDetector] Web Animations detected", {
           count: animations.length,
         });
       }
@@ -781,19 +773,18 @@ export class JSAnimationDetectorService {
 
         return {
           ...anim,
-          confidence: calculateConfidence(['web_animations_api'], confidenceRationale),
+          confidence: calculateConfidence(["web_animations_api"], confidenceRationale),
         };
       });
 
       return animationsWithConfidence;
     } catch (error) {
       if (isDevelopment()) {
-        logger.error('[JSAnimationDetector] Web Animations detection failed', { error });
+        logger.error("[JSAnimationDetector] Web Animations detection failed", { error });
       }
       return [];
     }
   }
-  /* eslint-enable no-undef */
 
   /**
    * Three.jsシーン詳細情報を取得
@@ -804,7 +795,6 @@ export class JSAnimationDetectorService {
    * @param page - Playwrightページオブジェクト
    * @returns Three.js詳細情報（検出できない場合はnull）
    */
-  /* eslint-disable no-undef -- page.evaluate() runs in browser context */
   private async detectThreeJSDetails(page: Page): Promise<ThreeJSDetails | null> {
     const startTime = Date.now();
 
@@ -824,7 +814,7 @@ export class JSAnimationDetectorService {
         };
 
         // Three.jsが存在しない場合はnull
-        if (typeof win.THREE === 'undefined') {
+        if (typeof win.THREE === "undefined") {
           return null;
         }
 
@@ -895,14 +885,14 @@ export class JSAnimationDetectorService {
         }
 
         // WebGLコンテキストからレンダラー情報を取得
-        const canvases = document.querySelectorAll('canvas');
+        const canvases = document.querySelectorAll("canvas");
         let webglContextCount = 0;
 
         canvases.forEach((canvas, index) => {
           try {
             const gl =
-              (canvas.getContext('webgl') as WebGLRenderingContext | null) ||
-              (canvas.getContext('webgl2') as WebGL2RenderingContext | null);
+              (canvas.getContext("webgl") as WebGLRenderingContext | null) ||
+              (canvas.getContext("webgl2") as WebGL2RenderingContext | null);
 
             if (!gl) return;
             webglContextCount++;
@@ -928,7 +918,7 @@ export class JSAnimationDetectorService {
             try {
               // WEBGL_debug_renderer_infoは一部ブラウザで取得可能
               // ただしプライバシー保護のため詳細は取得しない
-              const debugExt = gl.getExtension('WEBGL_debug_renderer_info');
+              const debugExt = gl.getExtension("WEBGL_debug_renderer_info");
               if (debugExt) {
                 // デバッグ情報が取得可能な場合のみフラグを設定
                 // 実際のGPU情報はプライバシー上の理由で省略
@@ -965,7 +955,7 @@ export class JSAnimationDetectorService {
                 // 背景色を取得
                 if (sceneObj.background) {
                   const bg = sceneObj.background as Record<string, unknown>;
-                  if (typeof bg.getHexString === 'function') {
+                  if (typeof bg.getHexString === "function") {
                     background = `#${(bg.getHexString as () => string)()}`;
                   }
                 }
@@ -982,20 +972,20 @@ export class JSAnimationDetectorService {
                     near?: number;
                     far?: number;
                   } = {
-                    type: fogObj.isFogExp2 ? 'FogExp2' : 'Fog',
+                    type: fogObj.isFogExp2 ? "FogExp2" : "Fog",
                     color:
-                      fogColor && typeof fogColor.getHexString === 'function'
+                      fogColor && typeof fogColor.getHexString === "function"
                         ? `#${(fogColor.getHexString as () => string)()}`
-                        : '#000000',
+                        : "#000000",
                   };
                   // 数値プロパティは存在する場合のみ設定
-                  if (typeof fogObj.density === 'number') {
+                  if (typeof fogObj.density === "number") {
                     fogData.density = fogObj.density;
                   }
-                  if (typeof fogObj.near === 'number') {
+                  if (typeof fogObj.near === "number") {
                     fogData.near = fogObj.near;
                   }
-                  if (typeof fogObj.far === 'number') {
+                  if (typeof fogObj.far === "number") {
                     fogData.far = fogObj.far;
                   }
                   fog = fogData;
@@ -1014,11 +1004,9 @@ export class JSAnimationDetectorService {
                 }> = [];
 
                 if (Array.isArray(sceneObj.children)) {
-                  const children = sceneObj.children.slice(0, 20) as Array<
-                    Record<string, unknown>
-                  >;
+                  const children = sceneObj.children.slice(0, 20) as Array<Record<string, unknown>>;
                   for (const child of children) {
-                    const objType = (child.type as string) || 'Object3D';
+                    const objType = (child.type as string) || "Object3D";
                     const obj: {
                       type: string;
                       geometry?: string;
@@ -1033,22 +1021,22 @@ export class JSAnimationDetectorService {
                     // ジオメトリ情報
                     if (child.geometry) {
                       const geo = child.geometry as Record<string, unknown>;
-                      obj.geometry = (geo.type as string) || 'BufferGeometry';
+                      obj.geometry = (geo.type as string) || "BufferGeometry";
                     }
 
                     // マテリアル情報
                     if (child.material) {
                       const mat = child.material as Record<string, unknown>;
-                      obj.material = (mat.type as string) || 'Material';
+                      obj.material = (mat.type as string) || "Material";
                     }
 
                     // 位置情報
                     if (child.position) {
                       const pos = child.position as Record<string, unknown>;
                       if (
-                        typeof pos.x === 'number' &&
-                        typeof pos.y === 'number' &&
-                        typeof pos.z === 'number'
+                        typeof pos.x === "number" &&
+                        typeof pos.y === "number" &&
+                        typeof pos.z === "number"
                       ) {
                         obj.position = [pos.x, pos.y, pos.z];
                       }
@@ -1058,9 +1046,9 @@ export class JSAnimationDetectorService {
                     if (child.rotation) {
                       const rot = child.rotation as Record<string, unknown>;
                       if (
-                        typeof rot.x === 'number' &&
-                        typeof rot.y === 'number' &&
-                        typeof rot.z === 'number'
+                        typeof rot.x === "number" &&
+                        typeof rot.y === "number" &&
+                        typeof rot.z === "number"
                       ) {
                         obj.rotation = [rot.x, rot.y, rot.z];
                       }
@@ -1070,23 +1058,23 @@ export class JSAnimationDetectorService {
                     if (child.scale) {
                       const scl = child.scale as Record<string, unknown>;
                       if (
-                        typeof scl.x === 'number' &&
-                        typeof scl.y === 'number' &&
-                        typeof scl.z === 'number'
+                        typeof scl.x === "number" &&
+                        typeof scl.y === "number" &&
+                        typeof scl.z === "number"
                       ) {
                         obj.scale = [scl.x, scl.y, scl.z];
                       }
                     }
 
                     // ライト固有情報
-                    if (objType.includes('Light')) {
+                    if (objType.includes("Light")) {
                       if (child.color) {
                         const col = child.color as Record<string, unknown>;
-                        if (typeof col.getHexString === 'function') {
+                        if (typeof col.getHexString === "function") {
                           obj.color = `#${(col.getHexString as () => string)()}`;
                         }
                       }
-                      if (typeof child.intensity === 'number') {
+                      if (typeof child.intensity === "number") {
                         obj.intensity = child.intensity;
                       }
                     }
@@ -1132,30 +1120,27 @@ export class JSAnimationDetectorService {
               }
 
               // トーンマッピング
-              if (typeof renderer.toneMapping === 'number') {
+              if (typeof renderer.toneMapping === "number") {
                 // Three.js ToneMappingを文字列にマッピング
                 const toneMappingMap: Record<number, string> = {
-                  0: 'NoToneMapping',
-                  1: 'LinearToneMapping',
-                  2: 'ReinhardToneMapping',
-                  3: 'CineonToneMapping',
-                  4: 'ACESFilmicToneMapping',
+                  0: "NoToneMapping",
+                  1: "LinearToneMapping",
+                  2: "ReinhardToneMapping",
+                  3: "CineonToneMapping",
+                  4: "ACESFilmicToneMapping",
                 };
-                details.renderer.toneMapping =
-                  toneMappingMap[renderer.toneMapping] || 'Unknown';
+                details.renderer.toneMapping = toneMappingMap[renderer.toneMapping] || "Unknown";
               }
 
               // 出力カラースペース
-              if (typeof renderer.outputColorSpace === 'string') {
+              if (typeof renderer.outputColorSpace === "string") {
                 details.renderer.outputColorSpace = renderer.outputColorSpace;
               }
 
               // ピクセル比
-              if (typeof renderer.getPixelRatio === 'function') {
+              if (typeof renderer.getPixelRatio === "function") {
                 try {
-                  details.renderer.pixelRatio = (
-                    renderer.getPixelRatio as () => number
-                  )();
+                  details.renderer.pixelRatio = (renderer.getPixelRatio as () => number)();
                 } catch {
                   // 取得失敗は無視
                 }
@@ -1167,16 +1152,16 @@ export class JSAnimationDetectorService {
                 const render = info.render as Record<string, unknown> | undefined;
 
                 if (render) {
-                  if (typeof render.calls === 'number') {
+                  if (typeof render.calls === "number") {
                     details.performance.drawCalls = render.calls;
                   }
-                  if (typeof render.triangles === 'number') {
+                  if (typeof render.triangles === "number") {
                     details.performance.triangles = render.triangles;
                   }
-                  if (typeof render.points === 'number') {
+                  if (typeof render.points === "number") {
                     details.performance.points = render.points;
                   }
-                  if (typeof render.lines === 'number') {
+                  if (typeof render.lines === "number") {
                     details.performance.lines = render.lines;
                   }
                 }
@@ -1204,7 +1189,7 @@ export class JSAnimationDetectorService {
       const processingTimeMs = Date.now() - startTime;
 
       if (isDevelopment()) {
-        logger.debug('[JSAnimationDetector] Three.js details detected', {
+        logger.debug("[JSAnimationDetector] Three.js details detected", {
           hasDetails: result !== null,
           version: result?.version,
           scenesCount: result?.scenes.length ?? 0,
@@ -1216,17 +1201,15 @@ export class JSAnimationDetectorService {
       return result;
     } catch (error) {
       if (isDevelopment()) {
-        logger.error('[JSAnimationDetector] Three.js details detection failed', { error });
+        logger.error("[JSAnimationDetector] Three.js details detection failed", { error });
       }
       return null;
     }
   }
-  /* eslint-enable no-undef */
 
   /**
    * アニメーションライブラリを検出
    */
-  /* eslint-disable no-undef -- page.evaluate() runs in browser context */
   private async detectLibraries(page: Page): Promise<LibraryDetectionResult> {
     try {
       const result = await page.evaluate(() => {
@@ -1250,7 +1233,7 @@ export class JSAnimationDetectorService {
         };
 
         // GSAP 検出
-        const gsapDetected = typeof win.gsap !== 'undefined';
+        const gsapDetected = typeof win.gsap !== "undefined";
         let gsapVersion: string | undefined;
         let gsapTweens = 0;
 
@@ -1269,27 +1252,26 @@ export class JSAnimationDetectorService {
 
         // Framer Motion 検出（data-framer-* 属性で判定）
         const framerMotionElements = document.querySelectorAll(
-          '[data-framer-appear-id], [data-framer-name], [data-framer-component-type]'
+          "[data-framer-appear-id], [data-framer-name], [data-framer-component-type]"
         );
         const framerMotionDetected = framerMotionElements.length > 0;
 
         // Anime.js 検出
-        const animeDetected = typeof win.anime !== 'undefined';
+        const animeDetected = typeof win.anime !== "undefined";
         let animeInstances = 0;
         if (animeDetected && win.anime?.running) {
           animeInstances = win.anime.running.length;
         }
 
         // Three.js 検出
-        const threeDetected = typeof win.THREE !== 'undefined';
+        const threeDetected = typeof win.THREE !== "undefined";
         let threeScenes = 0;
         if (threeDetected) {
           // canvas要素でWebGLコンテキストを使用しているものをカウント
-          const canvases = document.querySelectorAll('canvas');
+          const canvases = document.querySelectorAll("canvas");
           canvases.forEach((canvas) => {
             try {
-              const gl =
-                canvas.getContext('webgl') || canvas.getContext('webgl2');
+              const gl = canvas.getContext("webgl") || canvas.getContext("webgl2");
               if (gl) {
                 threeScenes++;
               }
@@ -1300,7 +1282,7 @@ export class JSAnimationDetectorService {
         }
 
         // Lottie 検出
-        const lottieDetected = typeof win.lottie !== 'undefined';
+        const lottieDetected = typeof win.lottie !== "undefined";
         let lottieAnimations = 0;
         if (lottieDetected && win.lottie?.getRegisteredAnimations) {
           try {
@@ -1312,7 +1294,7 @@ export class JSAnimationDetectorService {
 
         // Lottie要素も検出（lottie-player, dotlottie-player）
         const lottieElements = document.querySelectorAll(
-          'lottie-player, dotlottie-player, [data-lottie]'
+          "lottie-player, dotlottie-player, [data-lottie]"
         );
         if (lottieElements.length > 0) {
           lottieAnimations = Math.max(lottieAnimations, lottieElements.length);
@@ -1357,57 +1339,69 @@ export class JSAnimationDetectorService {
         gsap: {
           ...result.gsap,
           confidence: result.gsap.detected
-            ? calculateConfidence(['library_signature'], [
-                `Library: GSAP`,
-                ...(result.gsap.version ? [`Version: ${result.gsap.version}`] : []),
-                ...(result.gsap.tweens ? [`Active tweens: ${result.gsap.tweens}`] : []),
-              ])
+            ? calculateConfidence(
+                ["library_signature"],
+                [
+                  `Library: GSAP`,
+                  ...(result.gsap.version ? [`Version: ${result.gsap.version}`] : []),
+                  ...(result.gsap.tweens ? [`Active tweens: ${result.gsap.tweens}`] : []),
+                ]
+              )
             : undefined,
         },
         framerMotion: {
           ...result.framerMotion,
           confidence: result.framerMotion.detected
-            ? calculateConfidence(['library_signature'], [
-                `Library: Framer Motion`,
-                `Elements with data-framer-*: ${result.framerMotion.elements}`,
-              ])
+            ? calculateConfidence(
+                ["library_signature"],
+                [
+                  `Library: Framer Motion`,
+                  `Elements with data-framer-*: ${result.framerMotion.elements}`,
+                ]
+              )
             : undefined,
         },
         anime: {
           ...result.anime,
           confidence: result.anime.detected
-            ? calculateConfidence(['library_signature'], [
-                `Library: anime.js`,
-                ...(result.anime.instances
-                  ? [`Running instances: ${result.anime.instances}`]
-                  : []),
-              ])
+            ? calculateConfidence(
+                ["library_signature"],
+                [
+                  `Library: anime.js`,
+                  ...(result.anime.instances
+                    ? [`Running instances: ${result.anime.instances}`]
+                    : []),
+                ]
+              )
             : undefined,
         },
         three: {
           ...result.three,
           details: threeDetails,
           confidence: result.three.detected
-            ? calculateConfidence(['library_signature'], [
-                `Library: Three.js`,
-                ...(threeDetails?.version ? [`Version: ${threeDetails.version}`] : []),
-                `WebGL scenes: ${result.three.scenes}`,
-              ])
+            ? calculateConfidence(
+                ["library_signature"],
+                [
+                  `Library: Three.js`,
+                  ...(threeDetails?.version ? [`Version: ${threeDetails.version}`] : []),
+                  `WebGL scenes: ${result.three.scenes}`,
+                ]
+              )
             : undefined,
         },
         lottie: {
           ...result.lottie,
           confidence: result.lottie.detected
-            ? calculateConfidence(['library_signature'], [
-                `Library: Lottie`,
-                `Animations: ${result.lottie.animations}`,
-              ])
+            ? calculateConfidence(
+                ["library_signature"],
+                [`Library: Lottie`, `Animations: ${result.lottie.animations}`]
+              )
             : undefined,
         },
       };
 
       if (isDevelopment()) {
-        logger.debug('[JSAnimationDetector] Libraries detected', {
+        logger.debug("[JSAnimationDetector] Libraries detected", {
           gsap: finalResult.gsap.detected,
           framerMotion: finalResult.framerMotion.detected,
           anime: finalResult.anime.detected,
@@ -1420,7 +1414,7 @@ export class JSAnimationDetectorService {
       return finalResult;
     } catch (error) {
       if (isDevelopment()) {
-        logger.error('[JSAnimationDetector] Library detection failed', { error });
+        logger.error("[JSAnimationDetector] Library detection failed", { error });
       }
 
       return {
@@ -1432,7 +1426,6 @@ export class JSAnimationDetectorService {
       };
     }
   }
-  /* eslint-enable no-undef */
 
   /**
    * JSアニメーションを検出
@@ -1441,15 +1434,12 @@ export class JSAnimationDetectorService {
    * @param options - 検出オプション
    * @returns 検出結果
    */
-  async detect(
-    page: Page,
-    options?: JSAnimationDetectOptions
-  ): Promise<JSAnimationResult> {
+  async detect(page: Page, options?: JSAnimationDetectOptions): Promise<JSAnimationResult> {
     const startTime = Date.now();
     const opts = { ...DEFAULT_OPTIONS, ...options };
 
     if (isDevelopment()) {
-      logger.debug('[JSAnimationDetector] detect called', {
+      logger.debug("[JSAnimationDetector] detect called", {
         enableCDP: opts.enableCDP,
         enableWebAnimations: opts.enableWebAnimations,
         enableLibraryDetection: opts.enableLibraryDetection,
@@ -1488,24 +1478,24 @@ export class JSAnimationDetectorService {
     const overallRationale: string[] = [];
 
     if (opts.enableCDP && cdpAnimations.length > 0) {
-      usedSources.push('cdp');
+      usedSources.push("cdp");
       overallRationale.push(`CDP animations detected: ${cdpAnimations.length}`);
     }
     if (opts.enableWebAnimations && webAnimations.length > 0) {
-      usedSources.push('web_animations_api');
+      usedSources.push("web_animations_api");
       overallRationale.push(`Web Animations detected: ${webAnimations.length}`);
     }
     if (opts.enableLibraryDetection) {
       const detectedLibraries: string[] = [];
-      if (libraries.gsap.detected) detectedLibraries.push('GSAP');
-      if (libraries.framerMotion.detected) detectedLibraries.push('Framer Motion');
-      if (libraries.anime.detected) detectedLibraries.push('anime.js');
-      if (libraries.three.detected) detectedLibraries.push('Three.js');
-      if (libraries.lottie.detected) detectedLibraries.push('Lottie');
+      if (libraries.gsap.detected) detectedLibraries.push("GSAP");
+      if (libraries.framerMotion.detected) detectedLibraries.push("Framer Motion");
+      if (libraries.anime.detected) detectedLibraries.push("anime.js");
+      if (libraries.three.detected) detectedLibraries.push("Three.js");
+      if (libraries.lottie.detected) detectedLibraries.push("Lottie");
 
       if (detectedLibraries.length > 0) {
-        usedSources.push('library_signature');
-        overallRationale.push(`Libraries detected: ${detectedLibraries.join(', ')}`);
+        usedSources.push("library_signature");
+        overallRationale.push(`Libraries detected: ${detectedLibraries.join(", ")}`);
       }
     }
 
@@ -1514,7 +1504,7 @@ export class JSAnimationDetectorService {
     const overallConfidence =
       usedSources.length > 0
         ? calculateConfidence(usedSources, overallRationale)
-        : calculateConfidence([], ['No animations detected']);
+        : calculateConfidence([], ["No animations detected"]);
 
     const result: JSAnimationResult = {
       cdpAnimations,
@@ -1526,7 +1516,7 @@ export class JSAnimationDetectorService {
     };
 
     if (isDevelopment()) {
-      logger.info('[JSAnimationDetector] Detection completed', {
+      logger.info("[JSAnimationDetector] Detection completed", {
         cdpAnimations: cdpAnimations.length,
         webAnimations: webAnimations.length,
         totalDetected,
@@ -1544,7 +1534,7 @@ export class JSAnimationDetectorService {
   async cleanup(): Promise<void> {
     if (this.cdpSession) {
       try {
-        await this.cdpSession.send('Animation.disable');
+        await this.cdpSession.send("Animation.disable");
         await this.cdpSession.detach();
       } catch {
         // クリーンアップエラーは無視
@@ -1556,7 +1546,7 @@ export class JSAnimationDetectorService {
     this.isListening = false;
 
     if (isDevelopment()) {
-      logger.debug('[JSAnimationDetector] Cleanup completed');
+      logger.debug("[JSAnimationDetector] Cleanup completed");
     }
   }
 }

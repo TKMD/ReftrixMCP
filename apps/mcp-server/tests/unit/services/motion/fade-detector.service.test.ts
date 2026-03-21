@@ -11,18 +11,18 @@
  * @module @reftrix/mcp-server/tests/unit/services/motion/fade-detector.service.test
  */
 
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach } from "vitest";
 
 import type {
   FadeDetectorConfig,
   FadeEvent,
   FadeDetectionResult,
   FrameAlphaInfo,
-} from '../../../../src/services/motion/fade-detector.service';
+} from "../../../../src/services/motion/fade-detector.service";
 import {
   FadeDetector,
   createFadeDetector,
-} from '../../../../src/services/motion/fade-detector.service';
+} from "../../../../src/services/motion/fade-detector.service";
 
 // =============================================================================
 // Test Fixtures
@@ -56,7 +56,8 @@ function createMockFrame(
       if (options.gradientAlpha) {
         const ratio = y / (height - 1);
         buffer[i + 3] = Math.round(
-          options.gradientAlpha.start + (options.gradientAlpha.end - options.gradientAlpha.start) * ratio
+          options.gradientAlpha.start +
+            (options.gradientAlpha.end - options.gradientAlpha.start) * ratio
         );
       } else if (options.region) {
         const { x: rx, y: ry, w, h, alpha } = options.region;
@@ -132,19 +133,19 @@ function createStaticSequence(
 // Tests
 // =============================================================================
 
-describe('FadeDetector', () => {
+describe("FadeDetector", () => {
   let detector: FadeDetector;
 
   beforeEach(() => {
     detector = new FadeDetector();
   });
 
-  describe('constructor', () => {
-    it('should create instance with default config', () => {
+  describe("constructor", () => {
+    it("should create instance with default config", () => {
       expect(detector).toBeInstanceOf(FadeDetector);
     });
 
-    it('should accept custom config', () => {
+    it("should accept custom config", () => {
       const config: FadeDetectorConfig = {
         alphaThreshold: 0.2,
         minFadeDurationFrames: 5,
@@ -155,8 +156,8 @@ describe('FadeDetector', () => {
     });
   });
 
-  describe('analyzeFrameAlpha', () => {
-    it('should calculate average alpha for frame', () => {
+  describe("analyzeFrameAlpha", () => {
+    it("should calculate average alpha for frame", () => {
       const frame = createMockFrame(100, 100, { alpha: 128 });
 
       const result = detector.analyzeFrameAlpha(frame, 100, 100);
@@ -165,7 +166,7 @@ describe('FadeDetector', () => {
       expect(result.alphaRatio).toBeCloseTo(0.5, 1);
     });
 
-    it('should detect fully opaque frame', () => {
+    it("should detect fully opaque frame", () => {
       const frame = createMockFrame(100, 100, { alpha: 255 });
 
       const result = detector.analyzeFrameAlpha(frame, 100, 100);
@@ -174,7 +175,7 @@ describe('FadeDetector', () => {
       expect(result.alphaRatio).toBe(1);
     });
 
-    it('should detect fully transparent frame', () => {
+    it("should detect fully transparent frame", () => {
       const frame = createMockFrame(100, 100, { alpha: 0 });
 
       const result = detector.analyzeFrameAlpha(frame, 100, 100);
@@ -183,7 +184,7 @@ describe('FadeDetector', () => {
       expect(result.alphaRatio).toBe(0);
     });
 
-    it('should handle alpha gradient', () => {
+    it("should handle alpha gradient", () => {
       const frame = createMockFrame(100, 100, {
         gradientAlpha: { start: 0, end: 255 },
       });
@@ -195,7 +196,7 @@ describe('FadeDetector', () => {
       expect(result.averageAlpha).toBeLessThan(155);
     });
 
-    it('should detect regional alpha changes', () => {
+    it("should detect regional alpha changes", () => {
       const frame = createMockFrame(100, 100, {
         region: { x: 25, y: 25, w: 50, h: 50, alpha: 0 },
         alpha: 255,
@@ -209,73 +210,73 @@ describe('FadeDetector', () => {
     });
   });
 
-  describe('detectFadeIn', () => {
-    it('should detect fade in sequence', () => {
+  describe("detectFadeIn", () => {
+    it("should detect fade in sequence", () => {
       const frames = createFadeInSequence(100, 100, 30);
 
       const result = detector.detect(frames);
 
       expect(result.fadeEvents.length).toBeGreaterThan(0);
 
-      const fadeIn = result.fadeEvents.find((e) => e.type === 'fade_in');
+      const fadeIn = result.fadeEvents.find((e) => e.type === "fade_in");
       expect(fadeIn).toBeDefined();
     });
 
-    it('should calculate duration for fade in', () => {
+    it("should calculate duration for fade in", () => {
       const frames = createFadeInSequence(100, 100, 30);
 
       const result = detector.detect(frames, { fps: 30 });
 
-      const fadeIn = result.fadeEvents.find((e) => e.type === 'fade_in');
+      const fadeIn = result.fadeEvents.find((e) => e.type === "fade_in");
       expect(fadeIn?.durationMs).toBeGreaterThan(0);
       expect(fadeIn?.durationMs).toBeLessThanOrEqual(1001); // 30 frames at 30fps = 1s (with float tolerance)
     });
 
-    it('should include start and end frame indices', () => {
+    it("should include start and end frame indices", () => {
       const frames = createFadeInSequence(100, 100, 30);
 
       const result = detector.detect(frames);
 
-      const fadeIn = result.fadeEvents.find((e) => e.type === 'fade_in');
+      const fadeIn = result.fadeEvents.find((e) => e.type === "fade_in");
       expect(fadeIn?.startFrame).toBeDefined();
       expect(fadeIn?.endFrame).toBeDefined();
       expect(fadeIn!.endFrame).toBeGreaterThan(fadeIn!.startFrame);
     });
   });
 
-  describe('detectFadeOut', () => {
-    it('should detect fade out sequence', () => {
+  describe("detectFadeOut", () => {
+    it("should detect fade out sequence", () => {
       const frames = createFadeOutSequence(100, 100, 30);
 
       const result = detector.detect(frames);
 
       expect(result.fadeEvents.length).toBeGreaterThan(0);
 
-      const fadeOut = result.fadeEvents.find((e) => e.type === 'fade_out');
+      const fadeOut = result.fadeEvents.find((e) => e.type === "fade_out");
       expect(fadeOut).toBeDefined();
     });
 
-    it('should calculate duration for fade out', () => {
+    it("should calculate duration for fade out", () => {
       const frames = createFadeOutSequence(100, 100, 30);
 
       const result = detector.detect(frames, { fps: 30 });
 
-      const fadeOut = result.fadeEvents.find((e) => e.type === 'fade_out');
+      const fadeOut = result.fadeEvents.find((e) => e.type === "fade_out");
       expect(fadeOut?.durationMs).toBeGreaterThan(0);
     });
 
-    it('should include alpha change information', () => {
+    it("should include alpha change information", () => {
       const frames = createFadeOutSequence(100, 100, 30);
 
       const result = detector.detect(frames);
 
-      const fadeOut = result.fadeEvents.find((e) => e.type === 'fade_out');
+      const fadeOut = result.fadeEvents.find((e) => e.type === "fade_out");
       expect(fadeOut?.startAlpha).toBeGreaterThan(fadeOut!.endAlpha);
     });
   });
 
-  describe('detect (combined)', () => {
-    it('should return empty for static sequence', () => {
+  describe("detect (combined)", () => {
+    it("should return empty for static sequence", () => {
       const frames = createStaticSequence(100, 100, 30);
 
       const result = detector.detect(frames);
@@ -283,7 +284,7 @@ describe('FadeDetector', () => {
       expect(result.fadeEvents).toHaveLength(0);
     });
 
-    it('should handle single frame', () => {
+    it("should handle single frame", () => {
       const frames = [
         {
           buffer: createMockFrame(100, 100, { alpha: 255 }),
@@ -299,14 +300,14 @@ describe('FadeDetector', () => {
       expect(result.success).toBe(true);
     });
 
-    it('should handle empty frame array', () => {
+    it("should handle empty frame array", () => {
       const result = detector.detect([]);
 
       expect(result.fadeEvents).toHaveLength(0);
       expect(result.success).toBe(true);
     });
 
-    it('should detect multiple fade events in sequence', () => {
+    it("should detect multiple fade events in sequence", () => {
       // Create fade in followed by fade out
       const fadeIn = createFadeInSequence(100, 100, 15);
       const fadeOut = createFadeOutSequence(100, 100, 15).map((f, i) => ({
@@ -320,7 +321,7 @@ describe('FadeDetector', () => {
       expect(result.fadeEvents.length).toBeGreaterThanOrEqual(1);
     });
 
-    it('should include summary statistics', () => {
+    it("should include summary statistics", () => {
       const frames = createFadeInSequence(100, 100, 30);
 
       const result = detector.detect(frames);
@@ -330,7 +331,7 @@ describe('FadeDetector', () => {
       expect(result.totalFadeEvents).toBeDefined();
     });
 
-    it('should respect minimum duration threshold', () => {
+    it("should respect minimum duration threshold", () => {
       // Very short fade (only 2 frames)
       const frames = createFadeInSequence(100, 100, 2);
       const customDetector = new FadeDetector({ minFadeDurationFrames: 5 });
@@ -341,7 +342,7 @@ describe('FadeDetector', () => {
       expect(result.fadeEvents.length).toBe(0);
     });
 
-    it('should respect alpha change threshold', () => {
+    it("should respect alpha change threshold", () => {
       // Create subtle alpha change
       const frames = Array.from({ length: 30 }, (_, i) => ({
         buffer: createMockFrame(100, 100, { alpha: 250 + Math.round((i / 29) * 5) }),
@@ -357,8 +358,8 @@ describe('FadeDetector', () => {
     });
   });
 
-  describe('performance', () => {
-    it('should process 100 frames quickly', () => {
+  describe("performance", () => {
+    it("should process 100 frames quickly", () => {
       const frames = createFadeInSequence(200, 200, 100);
 
       const startTime = performance.now();
@@ -368,43 +369,39 @@ describe('FadeDetector', () => {
       expect(result).toBeDefined();
       expect(elapsedMs).toBeLessThan(5000); // Should complete in under 5 seconds
 
-      if (process.env.NODE_ENV === 'development') {
+      if (process.env.NODE_ENV === "development") {
         console.log(`[FadeDetector] 100 frames processed in ${elapsedMs.toFixed(2)}ms`);
       }
     });
   });
 
-  describe('factory function', () => {
-    it('should create detector via factory', () => {
+  describe("factory function", () => {
+    it("should create detector via factory", () => {
       const newDetector = createFadeDetector({ fps: 60 });
       expect(newDetector).toBeInstanceOf(FadeDetector);
     });
 
-    it('should create detector with defaults via factory', () => {
+    it("should create detector with defaults via factory", () => {
       const newDetector = createFadeDetector();
       expect(newDetector).toBeInstanceOf(FadeDetector);
     });
   });
 
-  describe('edge cases', () => {
-    it('should handle mismatched buffer sizes gracefully', () => {
-      const frames = [
-        { buffer: Buffer.alloc(100), width: 100, height: 100, index: 0 },
-      ];
+  describe("edge cases", () => {
+    it("should handle mismatched buffer sizes gracefully", () => {
+      const frames = [{ buffer: Buffer.alloc(100), width: 100, height: 100, index: 0 }];
 
       expect(() => detector.detect(frames)).not.toThrow();
     });
 
-    it('should handle zero-size frames', () => {
-      const frames = [
-        { buffer: Buffer.alloc(0), width: 0, height: 0, index: 0 },
-      ];
+    it("should handle zero-size frames", () => {
+      const frames = [{ buffer: Buffer.alloc(0), width: 0, height: 0, index: 0 }];
 
       const result = detector.detect(frames);
       expect(result.success).toBe(true);
     });
 
-    it('should handle very large alpha changes correctly', () => {
+    it("should handle very large alpha changes correctly", () => {
       const frames = [
         { buffer: createMockFrame(100, 100, { alpha: 0 }), width: 100, height: 100, index: 0 },
         { buffer: createMockFrame(100, 100, { alpha: 255 }), width: 100, height: 100, index: 1 },

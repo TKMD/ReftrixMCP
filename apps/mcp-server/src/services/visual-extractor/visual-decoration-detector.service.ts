@@ -17,7 +17,7 @@ import type {
   VisualDecoration,
   VisualDecorationsResult,
   VisualDecorationProperties,
-} from '../../tools/layout/inspect/visual-extractors.schemas';
+} from "../../tools/layout/inspect/visual-extractors.schemas";
 
 // =====================================================
 // Types
@@ -47,7 +47,7 @@ interface ParsedBoxShadow {
  * Parsed gradient value
  */
 interface ParsedGradient {
-  type: 'linear' | 'radial' | 'conic';
+  type: "linear" | "radial" | "conic";
   angle?: number;
   colorStops: Array<{ color: string; position?: string | number }>;
   shape?: string;
@@ -106,7 +106,7 @@ const PATTERNS = {
  */
 function parseCSSRules(cssText: string): CSSRuleInfo[] {
   const rules: CSSRuleInfo[] = [];
-  const ruleRegex = new RegExp(PATTERNS.CSS_RULE.source, 'g');
+  const ruleRegex = new RegExp(PATTERNS.CSS_RULE.source, "g");
   let match: RegExpExecArray | null;
 
   while ((match = ruleRegex.exec(cssText)) !== null) {
@@ -118,7 +118,7 @@ function parseCSSRules(cssText: string): CSSRuleInfo[] {
     const propertiesText = propertiesPart;
     const properties = new Map<string, string>();
 
-    const propRegex = new RegExp(PATTERNS.CSS_PROPERTY.source, 'gi');
+    const propRegex = new RegExp(PATTERNS.CSS_PROPERTY.source, "gi");
     let propMatch: RegExpExecArray | null;
     while ((propMatch = propRegex.exec(propertiesText)) !== null) {
       const propName = propMatch[1];
@@ -150,13 +150,13 @@ function parseBoxShadow(value: string): ParsedBoxShadow[] {
     if (!trimmed) continue;
 
     // Check for inset
-    const inset = trimmed.toLowerCase().startsWith('inset');
+    const inset = trimmed.toLowerCase().startsWith("inset");
     const valueWithoutInset = inset ? trimmed.slice(5).trim() : trimmed;
 
     // Extract color first (it can be at the beginning or end)
     const colorMatch = valueWithoutInset.match(PATTERNS.COLOR);
-    const color = colorMatch ? colorMatch[0] : '';
-    const valueWithoutColor = valueWithoutInset.replace(PATTERNS.COLOR, '').trim();
+    const color = colorMatch ? colorMatch[0] : "";
+    const valueWithoutColor = valueWithoutInset.replace(PATTERNS.COLOR, "").trim();
 
     // Parse numeric values
     const numbers = valueWithoutColor.match(/-?\d+(?:\.\d+)?(?:px|rem|em)?/g) || [];
@@ -172,7 +172,7 @@ function parseBoxShadow(value: string): ParsedBoxShadow[] {
           offsetY,
           blur: numericValues[2] ?? 0,
           spread: numericValues[3] ?? 0,
-          color: color || 'currentColor',
+          color: color || "currentColor",
         });
       }
     }
@@ -186,19 +186,19 @@ function parseBoxShadow(value: string): ParsedBoxShadow[] {
  */
 function splitShadowValues(value: string): string[] {
   const results: string[] = [];
-  let current = '';
+  let current = "";
   let depth = 0;
 
   for (const char of value) {
-    if (char === '(') {
+    if (char === "(") {
       depth++;
       current += char;
-    } else if (char === ')') {
+    } else if (char === ")") {
       depth--;
       current += char;
-    } else if (char === ',' && depth === 0) {
+    } else if (char === "," && depth === 0) {
       results.push(current.trim());
-      current = '';
+      current = "";
     } else {
       current += char;
     }
@@ -216,18 +216,18 @@ function splitShadowValues(value: string): string[] {
  */
 function parseGradient(value: string): ParsedGradient | null {
   // Normalize whitespace (replace newlines and multiple spaces with single space)
-  const normalizedValue = value.replace(/\s+/g, ' ').trim();
+  const normalizedValue = value.replace(/\s+/g, " ").trim();
 
   // Try linear gradient
   const linearMatch = normalizedValue.match(
     /linear-gradient\s*\(\s*((?:-?\d+(?:\.\d+)?(?:deg|rad|turn|grad)?|to\s+(?:top|bottom|left|right)(?:\s+(?:top|bottom|left|right))?)\s*,\s*)?(.+)\s*\)/i
   );
   if (linearMatch) {
-    const angleStr = linearMatch[1]?.trim().replace(/,\s*$/, '');
+    const angleStr = linearMatch[1]?.trim().replace(/,\s*$/, "");
     const stopsStr = linearMatch[2];
     const result: ParsedGradient = {
-      type: 'linear',
-      colorStops: parseColorStops(stopsStr ?? ''),
+      type: "linear",
+      colorStops: parseColorStops(stopsStr ?? ""),
       rawValue: value,
     };
     const angle = parseAngle(angleStr);
@@ -243,8 +243,8 @@ function parseGradient(value: string): ParsedGradient | null {
   );
   if (radialMatch) {
     const result: ParsedGradient = {
-      type: 'radial',
-      colorStops: parseColorStops(radialMatch[4] ?? ''),
+      type: "radial",
+      colorStops: parseColorStops(radialMatch[4] ?? ""),
       rawValue: value,
     };
     if (radialMatch[1]) {
@@ -266,8 +266,8 @@ function parseGradient(value: string): ParsedGradient | null {
   );
   if (conicMatch) {
     const result: ParsedGradient = {
-      type: 'conic',
-      colorStops: parseColorStops(conicMatch[3] ?? ''),
+      type: "conic",
+      colorStops: parseColorStops(conicMatch[3] ?? ""),
       rawValue: value,
     };
     const angle = parseAngle(conicMatch[1]);
@@ -291,17 +291,17 @@ function parseAngle(angleStr?: string): number | undefined {
   if (!angleStr) return undefined;
 
   // Handle "to direction" syntax
-  if (angleStr.startsWith('to ')) {
+  if (angleStr.startsWith("to ")) {
     const direction = angleStr.slice(3).toLowerCase();
     const directionAngles: Record<string, number> = {
       top: 0,
-      'top right': 45,
+      "top right": 45,
       right: 90,
-      'bottom right': 135,
+      "bottom right": 135,
       bottom: 180,
-      'bottom left': 225,
+      "bottom left": 225,
       left: 270,
-      'top left': 315,
+      "top left": 315,
     };
     return directionAngles[direction];
   }
@@ -311,14 +311,14 @@ function parseAngle(angleStr?: string): number | undefined {
   if (!numMatch || !numMatch[1]) return undefined;
 
   const value = parseFloat(numMatch[1]);
-  const unit = (numMatch[2] ?? 'deg').toLowerCase();
+  const unit = (numMatch[2] ?? "deg").toLowerCase();
 
   switch (unit) {
-    case 'rad':
+    case "rad":
       return (value * 180) / Math.PI;
-    case 'turn':
+    case "turn":
       return value * 360;
-    case 'grad':
+    case "grad":
       return value * 0.9;
     default:
       return value;
@@ -376,14 +376,14 @@ function parseBackdropFilter(value: string): {
   const saturateMatch = value.match(PATTERNS.BACKDROP_FILTER_SATURATE);
   if (saturateMatch?.groups?.value) {
     const val = parseFloat(saturateMatch.groups.value);
-    result.saturation = saturateMatch.groups.value.includes('%') ? val / 100 : val;
+    result.saturation = saturateMatch.groups.value.includes("%") ? val / 100 : val;
   }
 
   // Parse brightness
   const brightnessMatch = value.match(PATTERNS.BACKDROP_FILTER_BRIGHTNESS);
   if (brightnessMatch?.groups?.value) {
     const val = parseFloat(brightnessMatch.groups.value);
-    result.brightness = brightnessMatch.groups.value.includes('%') ? val / 100 : val;
+    result.brightness = brightnessMatch.groups.value.includes("%") ? val / 100 : val;
   }
 
   return result;
@@ -400,8 +400,8 @@ function detectGlowEffects(rules: CSSRuleInfo[]): VisualDecoration[] {
   const decorations: VisualDecoration[] = [];
 
   for (const rule of rules) {
-    const boxShadow = rule.properties.get('box-shadow');
-    if (!boxShadow || boxShadow === 'none') continue;
+    const boxShadow = rule.properties.get("box-shadow");
+    if (!boxShadow || boxShadow === "none") continue;
 
     const shadows = parseBoxShadow(boxShadow);
 
@@ -420,7 +420,9 @@ function detectGlowEffects(rules: CSSRuleInfo[]): VisualDecoration[] {
       if (isGlow) {
         // Calculate intensity from alpha if rgba
         let intensity: number | undefined;
-        const rgbaMatch = shadow.color.match(/rgba?\s*\(\s*\d+\s*,\s*\d+\s*,\s*\d+\s*(?:,\s*([\d.]+))?\s*\)/i);
+        const rgbaMatch = shadow.color.match(
+          /rgba?\s*\(\s*\d+\s*,\s*\d+\s*,\s*\d+\s*(?:,\s*([\d.]+))?\s*\)/i
+        );
         if (rgbaMatch?.[1]) {
           intensity = parseFloat(rgbaMatch[1]);
         }
@@ -441,7 +443,7 @@ function detectGlowEffects(rules: CSSRuleInfo[]): VisualDecoration[] {
         if (shadow.spread > 0) confidence += 0.05;
 
         decorations.push({
-          type: 'glow',
+          type: "glow",
           element: rule.selector,
           properties,
           confidence: Math.min(confidence, 1),
@@ -461,15 +463,15 @@ function detectGradientBackgrounds(rules: CSSRuleInfo[]): VisualDecoration[] {
 
   for (const rule of rules) {
     // Check background and background-image properties
-    const background = rule.properties.get('background') || rule.properties.get('background-image');
+    const background = rule.properties.get("background") || rule.properties.get("background-image");
     if (!background) continue;
 
     // Check for gradient functions
     if (
-      !background.includes('gradient') ||
-      (!background.includes('linear-gradient') &&
-        !background.includes('radial-gradient') &&
-        !background.includes('conic-gradient'))
+      !background.includes("gradient") ||
+      (!background.includes("linear-gradient") &&
+        !background.includes("radial-gradient") &&
+        !background.includes("conic-gradient"))
     ) {
       continue;
     }
@@ -493,7 +495,7 @@ function detectGradientBackgrounds(rules: CSSRuleInfo[]): VisualDecoration[] {
     if (gradient.angle !== undefined) confidence += 0.05;
 
     decorations.push({
-      type: 'gradient',
+      type: "gradient",
       element: rule.selector,
       properties,
       confidence: Math.min(confidence, 1),
@@ -515,29 +517,30 @@ function detectAnimatedBorders(rules: CSSRuleInfo[]): VisualDecoration[] {
     let confidence = 0.5;
 
     // Check for border-image with gradient
-    const borderImage = rule.properties.get('border-image') || rule.properties.get('border-image-source');
-    if (borderImage && borderImage.includes('gradient')) {
+    const borderImage =
+      rule.properties.get("border-image") || rule.properties.get("border-image-source");
+    if (borderImage && borderImage.includes("gradient")) {
       properties.borderImageSource = borderImage;
       properties.isGradientBorder = true;
       hasAnimatedBorder = true;
       confidence += 0.3;
 
-      const borderImageSlice = rule.properties.get('border-image-slice');
+      const borderImageSlice = rule.properties.get("border-image-slice");
       if (borderImageSlice) {
         properties.borderImageSlice = borderImageSlice;
       }
     }
 
     // Check for animation on border-related properties
-    const animation = rule.properties.get('animation') || rule.properties.get('animation-name');
-    if (animation && animation !== 'none') {
+    const animation = rule.properties.get("animation") || rule.properties.get("animation-name");
+    if (animation && animation !== "none") {
       // Check if the selector or animation name suggests border animation
       const isBorderAnimation =
-        rule.selector.toLowerCase().includes('border') ||
-        animation.toLowerCase().includes('border') ||
-        animation.toLowerCase().includes('glow') ||
-        animation.toLowerCase().includes('pulse') ||
-        animation.toLowerCase().includes('ring');
+        rule.selector.toLowerCase().includes("border") ||
+        animation.toLowerCase().includes("border") ||
+        animation.toLowerCase().includes("glow") ||
+        animation.toLowerCase().includes("pulse") ||
+        animation.toLowerCase().includes("ring");
 
       if (isBorderAnimation || hasAnimatedBorder) {
         // Parse animation name
@@ -550,7 +553,7 @@ function detectAnimatedBorders(rules: CSSRuleInfo[]): VisualDecoration[] {
         const durationMatch = animation.match(/([\d.]+)(s|ms)/i);
         if (durationMatch?.[1] && durationMatch[2]) {
           const value = parseFloat(durationMatch[1]);
-          properties.duration = durationMatch[2].toLowerCase() === 'ms' ? value : value * 1000;
+          properties.duration = durationMatch[2].toLowerCase() === "ms" ? value : value * 1000;
         }
 
         // Parse timing function
@@ -562,8 +565,8 @@ function detectAnimatedBorders(rules: CSSRuleInfo[]): VisualDecoration[] {
         }
 
         // Check for infinite
-        if (animation.includes('infinite')) {
-          properties.iterationCount = 'infinite';
+        if (animation.includes("infinite")) {
+          properties.iterationCount = "infinite";
         }
 
         hasAnimatedBorder = true;
@@ -572,9 +575,9 @@ function detectAnimatedBorders(rules: CSSRuleInfo[]): VisualDecoration[] {
     }
 
     // Check for glowing border (box-shadow with border-radius)
-    const boxShadow = rule.properties.get('box-shadow');
-    const borderRadius = rule.properties.get('border-radius');
-    if (boxShadow && borderRadius && boxShadow !== 'none') {
+    const boxShadow = rule.properties.get("box-shadow");
+    const borderRadius = rule.properties.get("border-radius");
+    if (boxShadow && borderRadius && boxShadow !== "none") {
       const shadows = parseBoxShadow(boxShadow);
       const hasGlowEffect = shadows.some(
         (s) => s.blur > 0 && Math.abs(s.offsetX) <= 2 && Math.abs(s.offsetY) <= 2
@@ -589,7 +592,7 @@ function detectAnimatedBorders(rules: CSSRuleInfo[]): VisualDecoration[] {
     }
 
     // Get border width if present
-    const borderWidth = rule.properties.get('border-width') || rule.properties.get('border');
+    const borderWidth = rule.properties.get("border-width") || rule.properties.get("border");
     if (borderWidth && hasAnimatedBorder) {
       const widthMatch = borderWidth.match(/(\d+(?:\.\d+)?(?:px|em|rem)?)/);
       if (widthMatch) {
@@ -598,11 +601,10 @@ function detectAnimatedBorders(rules: CSSRuleInfo[]): VisualDecoration[] {
     }
 
     if (hasAnimatedBorder) {
-      properties.rawValue =
-        borderImage || animation || boxShadow || undefined;
+      properties.rawValue = borderImage || animation || boxShadow || undefined;
 
       decorations.push({
-        type: 'animated-border',
+        type: "animated-border",
         element: rule.selector,
         properties,
         confidence: Math.min(confidence, 1),
@@ -621,9 +623,9 @@ function detectGlassMorphism(rules: CSSRuleInfo[]): VisualDecoration[] {
 
   for (const rule of rules) {
     const backdropFilter =
-      rule.properties.get('backdrop-filter') || rule.properties.get('-webkit-backdrop-filter');
+      rule.properties.get("backdrop-filter") || rule.properties.get("-webkit-backdrop-filter");
 
-    if (!backdropFilter || backdropFilter === 'none') continue;
+    if (!backdropFilter || backdropFilter === "none") continue;
 
     const parsed = parseBackdropFilter(backdropFilter);
     if (!parsed.blur && !parsed.saturation && !parsed.brightness) continue;
@@ -636,19 +638,21 @@ function detectGlassMorphism(rules: CSSRuleInfo[]): VisualDecoration[] {
     };
 
     // Check for background with transparency
-    const background = rule.properties.get('background') || rule.properties.get('background-color');
+    const background = rule.properties.get("background") || rule.properties.get("background-color");
     if (background) {
       properties.backgroundColor = background;
 
       // Extract opacity from rgba
-      const rgbaMatch = background.match(/rgba?\s*\(\s*\d+\s*,\s*\d+\s*,\s*\d+\s*,\s*([\d.]+)\s*\)/i);
+      const rgbaMatch = background.match(
+        /rgba?\s*\(\s*\d+\s*,\s*\d+\s*,\s*\d+\s*,\s*([\d.]+)\s*\)/i
+      );
       if (rgbaMatch?.[1]) {
         properties.backgroundOpacity = parseFloat(rgbaMatch[1]);
       }
     }
 
     // Check for subtle border (common in glass morphism)
-    const border = rule.properties.get('border');
+    const border = rule.properties.get("border");
     if (border) {
       properties.border = border;
     }
@@ -660,7 +664,7 @@ function detectGlassMorphism(rules: CSSRuleInfo[]): VisualDecoration[] {
     if (properties.border) confidence += 0.05;
 
     decorations.push({
-      type: 'glass-morphism',
+      type: "glass-morphism",
       element: rule.selector,
       properties,
       confidence: Math.min(confidence, 1),
@@ -733,7 +737,7 @@ export class VisualDecorationDetectorService {
     const cssFromStyles = this.extractStyleTagContent(html);
     const cssFromInline = this.extractInlineStyles(html);
 
-    const combinedCSS = cssFromStyles + '\n' + cssFromInline;
+    const combinedCSS = cssFromStyles + "\n" + cssFromInline;
 
     // Detect from combined CSS
     const result = this.detectFromCSS(combinedCSS);
@@ -760,7 +764,7 @@ export class VisualDecorationDetectorService {
       }
     }
 
-    return styles.join('\n');
+    return styles.join("\n");
   }
 
   /**
@@ -780,7 +784,7 @@ export class VisualDecorationDetectorService {
 
       // Create a pseudo selector for the inline style
       const selector = idOrClass
-        ? idOrClass.startsWith('#')
+        ? idOrClass.startsWith("#")
           ? idOrClass
           : `.${idOrClass.split(/\s+/)[0]}`
         : `${tagName}[inline-${counter++}]`;
@@ -788,7 +792,7 @@ export class VisualDecorationDetectorService {
       rules.push(`${selector} { ${style} }`);
     }
 
-    return rules.join('\n');
+    return rules.join("\n");
   }
 }
 

@@ -14,14 +14,13 @@
  * @module tests/services/visual-extractor/gradient-detector-extended.test
  */
 
-import { describe, it, expect, beforeAll } from 'vitest';
-import sharp from 'sharp';
+import { describe, it, expect, beforeAll } from "vitest";
+import sharp from "sharp";
 import type {
   GradientDetectorService,
-  DetectedGradient} from '../../../src/services/visual-extractor/gradient-detector.service';
-import {
-  createGradientDetectorService
-} from '../../../src/services/visual-extractor/gradient-detector.service';
+  DetectedGradient,
+} from "../../../src/services/visual-extractor/gradient-detector.service";
+import { createGradientDetectorService } from "../../../src/services/visual-extractor/gradient-detector.service";
 
 // Helper to create horizontal linear gradient image
 async function createHorizontalGradientImage(
@@ -81,15 +80,15 @@ async function createRadialGradientImage(
     .toBuffer();
 }
 
-describe('GradientDetectorService Extended Features (v0.1.0)', () => {
+describe("GradientDetectorService Extended Features (v0.1.0)", () => {
   let service: GradientDetectorService;
 
   beforeAll(() => {
     service = createGradientDetectorService();
   });
 
-  describe('1. CSS String Generation', () => {
-    it('should generate cssString for linear gradient', async () => {
+  describe("1. CSS String Generation", () => {
+    it("should generate cssString for linear gradient", async () => {
       const image = await createHorizontalGradientImage(
         200,
         100,
@@ -105,10 +104,10 @@ describe('GradientDetectorService Extended Features (v0.1.0)', () => {
       const gradient = result.gradients[0] as DetectedGradient;
       expect(gradient.cssString).toBeDefined();
       expect(gradient.cssString).toMatch(/linear-gradient\(/);
-      expect(gradient.cssString).toContain('#');
+      expect(gradient.cssString).toContain("#");
     });
 
-    it('should generate valid CSS gradient syntax', async () => {
+    it("should generate valid CSS gradient syntax", async () => {
       const image = await createHorizontalGradientImage(
         200,
         100,
@@ -120,12 +119,10 @@ describe('GradientDetectorService Extended Features (v0.1.0)', () => {
 
       const gradient = result.gradients[0] as DetectedGradient;
       // CSS gradient should follow format: linear-gradient(angle, color1 pos1, color2 pos2, ...)
-      expect(gradient.cssString).toMatch(
-        /^(linear|radial|conic)-gradient\([^)]+\)$/
-      );
+      expect(gradient.cssString).toMatch(/^(linear|radial|conic)-gradient\([^)]+\)$/);
     });
 
-    it('should generate cssString for radial gradient', async () => {
+    it("should generate cssString for radial gradient", async () => {
       const image = await createRadialGradientImage(
         200,
         200,
@@ -138,7 +135,7 @@ describe('GradientDetectorService Extended Features (v0.1.0)', () => {
       expect(result.gradients[0]?.cssString).toMatch(/radial-gradient\(/);
     });
 
-    it('should include color stops with positions in cssString', async () => {
+    it("should include color stops with positions in cssString", async () => {
       const image = await createHorizontalGradientImage(
         200,
         100,
@@ -153,7 +150,7 @@ describe('GradientDetectorService Extended Features (v0.1.0)', () => {
       expect(cssString).toMatch(/\d+%/);
     });
 
-    it('should generate cssString with correct angle for diagonal gradient', async () => {
+    it("should generate cssString with correct angle for diagonal gradient", async () => {
       const channels = 3;
       const width = 200;
       const height = 200;
@@ -184,8 +181,8 @@ describe('GradientDetectorService Extended Features (v0.1.0)', () => {
     });
   });
 
-  describe('2. Animation Info Detection', () => {
-    it('should detect animation info from CSS context', () => {
+  describe("2. Animation Info Detection", () => {
+    it("should detect animation info from CSS context", () => {
       const css = `
         .gradient-bg {
           background: linear-gradient(90deg, #ff0000, #0000ff);
@@ -201,13 +198,13 @@ describe('GradientDetectorService Extended Features (v0.1.0)', () => {
       const result = service.detectGradientFromCSS(css);
 
       expect(result.gradients[0]?.animation).toBeDefined();
-      expect(result.gradients[0]?.animation?.name).toBe('gradient-shift');
-      expect(result.gradients[0]?.animation?.duration).toBe('3s');
-      expect(result.gradients[0]?.animation?.timingFunction).toBe('ease');
-      expect(result.gradients[0]?.animation?.iterationCount).toBe('infinite');
+      expect(result.gradients[0]?.animation?.name).toBe("gradient-shift");
+      expect(result.gradients[0]?.animation?.duration).toBe("3s");
+      expect(result.gradients[0]?.animation?.timingFunction).toBe("ease");
+      expect(result.gradients[0]?.animation?.iterationCount).toBe("infinite");
     });
 
-    it('should detect animation with multiple properties', () => {
+    it("should detect animation with multiple properties", () => {
       const css = `
         .animated-gradient {
           background: linear-gradient(to right, #667eea 0%, #764ba2 100%);
@@ -221,12 +218,12 @@ describe('GradientDetectorService Extended Features (v0.1.0)', () => {
 
       const result = service.detectGradientFromCSS(css);
 
-      expect(result.gradients[0]?.animation?.name).toBe('pulse');
-      expect(result.gradients[0]?.animation?.duration).toBe('2s');
-      expect(result.gradients[0]?.animation?.direction).toBe('alternate');
+      expect(result.gradients[0]?.animation?.name).toBe("pulse");
+      expect(result.gradients[0]?.animation?.duration).toBe("2s");
+      expect(result.gradients[0]?.animation?.direction).toBe("alternate");
     });
 
-    it('should return undefined animation for static gradients', () => {
+    it("should return undefined animation for static gradients", () => {
       const css = `
         .static-gradient {
           background: linear-gradient(90deg, #ff0000, #0000ff);
@@ -239,8 +236,8 @@ describe('GradientDetectorService Extended Features (v0.1.0)', () => {
     });
   });
 
-  describe('3. Transition Info Detection', () => {
-    it('should detect transition info from CSS context', () => {
+  describe("3. Transition Info Detection", () => {
+    it("should detect transition info from CSS context", () => {
       const css = `
         .gradient-button {
           background: linear-gradient(90deg, #3b82f6, #8b5cf6);
@@ -254,12 +251,12 @@ describe('GradientDetectorService Extended Features (v0.1.0)', () => {
       const result = service.detectGradientFromCSS(css);
 
       expect(result.gradients[0]?.transition).toBeDefined();
-      expect(result.gradients[0]?.transition?.property).toBe('background');
-      expect(result.gradients[0]?.transition?.duration).toBe('0.3s');
-      expect(result.gradients[0]?.transition?.timingFunction).toBe('ease');
+      expect(result.gradients[0]?.transition?.property).toBe("background");
+      expect(result.gradients[0]?.transition?.duration).toBe("0.3s");
+      expect(result.gradients[0]?.transition?.timingFunction).toBe("ease");
     });
 
-    it('should detect transition with multiple properties', () => {
+    it("should detect transition with multiple properties", () => {
       const css = `
         .fancy-gradient {
           background: radial-gradient(circle, #fff, #000);
@@ -272,11 +269,11 @@ describe('GradientDetectorService Extended Features (v0.1.0)', () => {
 
       const result = service.detectGradientFromCSS(css);
 
-      expect(result.gradients[0]?.transition?.property).toContain('background');
-      expect(result.gradients[0]?.transition?.duration).toBe('0.5s');
+      expect(result.gradients[0]?.transition?.property).toContain("background");
+      expect(result.gradients[0]?.transition?.duration).toBe("0.5s");
     });
 
-    it('should return undefined transition for non-transitioning gradients', () => {
+    it("should return undefined transition for non-transitioning gradients", () => {
       const css = `
         .no-transition {
           background: linear-gradient(to bottom, #eee, #fff);
@@ -289,8 +286,8 @@ describe('GradientDetectorService Extended Features (v0.1.0)', () => {
     });
   });
 
-  describe('4. Parent Element Tracking', () => {
-    it('should track parent element selector', () => {
+  describe("4. Parent Element Tracking", () => {
+    it("should track parent element selector", () => {
       const css = `
         .hero-section .gradient-overlay {
           background: linear-gradient(rgba(0,0,0,0), rgba(0,0,0,0.8));
@@ -299,10 +296,10 @@ describe('GradientDetectorService Extended Features (v0.1.0)', () => {
 
       const result = service.detectGradientFromCSS(css);
 
-      expect(result.gradients[0]?.parentElement).toBe('.hero-section .gradient-overlay');
+      expect(result.gradients[0]?.parentElement).toBe(".hero-section .gradient-overlay");
     });
 
-    it('should track multiple selectors', () => {
+    it("should track multiple selectors", () => {
       const css = `
         header, footer {
           background: linear-gradient(90deg, #1a1a2e, #16213e);
@@ -311,10 +308,10 @@ describe('GradientDetectorService Extended Features (v0.1.0)', () => {
 
       const result = service.detectGradientFromCSS(css);
 
-      expect(result.gradients[0]?.parentElement).toBe('header, footer');
+      expect(result.gradients[0]?.parentElement).toBe("header, footer");
     });
 
-    it('should track pseudo-element selectors', () => {
+    it("should track pseudo-element selectors", () => {
       const css = `
         .card::before {
           background: linear-gradient(135deg, transparent 50%, rgba(255,255,255,0.1) 50%);
@@ -323,10 +320,10 @@ describe('GradientDetectorService Extended Features (v0.1.0)', () => {
 
       const result = service.detectGradientFromCSS(css);
 
-      expect(result.gradients[0]?.parentElement).toBe('.card::before');
+      expect(result.gradients[0]?.parentElement).toBe(".card::before");
     });
 
-    it('should track ID selectors', () => {
+    it("should track ID selectors", () => {
       const css = `
         #main-banner {
           background: linear-gradient(to right, #667eea 0%, #764ba2 100%);
@@ -335,12 +332,12 @@ describe('GradientDetectorService Extended Features (v0.1.0)', () => {
 
       const result = service.detectGradientFromCSS(css);
 
-      expect(result.gradients[0]?.parentElement).toBe('#main-banner');
+      expect(result.gradients[0]?.parentElement).toBe("#main-banner");
     });
   });
 
-  describe('5. detectGradientFromCSS method', () => {
-    it('should extract gradients from CSS text', () => {
+  describe("5. detectGradientFromCSS method", () => {
+    it("should extract gradients from CSS text", () => {
       const css = `
         .card {
           background: linear-gradient(180deg, #ffffff 0%, #f5f5f5 100%);
@@ -356,7 +353,7 @@ describe('GradientDetectorService Extended Features (v0.1.0)', () => {
       expect(result.gradients.length).toBe(2);
     });
 
-    it('should extract multiple gradients from single property', () => {
+    it("should extract multiple gradients from single property", () => {
       const css = `
         .overlay {
           background: linear-gradient(rgba(0,0,0,0.5), rgba(0,0,0,0.5)),
@@ -369,7 +366,7 @@ describe('GradientDetectorService Extended Features (v0.1.0)', () => {
       expect(result.gradients.length).toBe(2);
     });
 
-    it('should handle CSS variables in gradients', () => {
+    it("should handle CSS variables in gradients", () => {
       const css = `
         .themed {
           background: linear-gradient(var(--gradient-angle), var(--color-start), var(--color-end));
@@ -378,10 +375,10 @@ describe('GradientDetectorService Extended Features (v0.1.0)', () => {
 
       const result = service.detectGradientFromCSS(css);
 
-      expect(result.gradients[0]?.cssString).toContain('var(--');
+      expect(result.gradients[0]?.cssString).toContain("var(--");
     });
 
-    it('should handle conic-gradient', () => {
+    it("should handle conic-gradient", () => {
       const css = `
         .pie-chart {
           background: conic-gradient(#ff0000 0% 25%, #00ff00 25% 50%, #0000ff 50% 75%, #ffff00 75% 100%);
@@ -390,10 +387,10 @@ describe('GradientDetectorService Extended Features (v0.1.0)', () => {
 
       const result = service.detectGradientFromCSS(css);
 
-      expect(result.gradients[0]?.type).toBe('conic');
+      expect(result.gradients[0]?.type).toBe("conic");
     });
 
-    it('should handle repeating gradients', () => {
+    it("should handle repeating gradients", () => {
       const css = `
         .striped {
           background: repeating-linear-gradient(45deg, #606dbc, #606dbc 10px, #465298 10px, #465298 20px);
@@ -402,10 +399,10 @@ describe('GradientDetectorService Extended Features (v0.1.0)', () => {
 
       const result = service.detectGradientFromCSS(css);
 
-      expect(result.gradients[0]?.cssString).toContain('repeating-linear-gradient');
+      expect(result.gradients[0]?.cssString).toContain("repeating-linear-gradient");
     });
 
-    it('should return empty result for CSS without gradients', () => {
+    it("should return empty result for CSS without gradients", () => {
       const css = `
         .no-gradient {
           background-color: #ffffff;
@@ -419,21 +416,21 @@ describe('GradientDetectorService Extended Features (v0.1.0)', () => {
       expect(result.gradients).toHaveLength(0);
     });
 
-    it('should handle empty CSS input', () => {
-      const result = service.detectGradientFromCSS('');
+    it("should handle empty CSS input", () => {
+      const result = service.detectGradientFromCSS("");
 
       expect(result.hasGradient).toBe(false);
       expect(result.gradients).toHaveLength(0);
     });
 
-    it('should handle null/undefined CSS input', () => {
+    it("should handle null/undefined CSS input", () => {
       expect(() => service.detectGradientFromCSS(null as unknown as string)).not.toThrow();
       expect(() => service.detectGradientFromCSS(undefined as unknown as string)).not.toThrow();
     });
   });
 
-  describe('6. Extended Result Structure', () => {
-    it('should include all extended fields in DetectedGradient', async () => {
+  describe("6. Extended Result Structure", () => {
+    it("should include all extended fields in DetectedGradient", async () => {
       const image = await createHorizontalGradientImage(
         200,
         100,
@@ -456,9 +453,9 @@ describe('GradientDetectorService Extended Features (v0.1.0)', () => {
 
       // Optional extended fields (may be undefined for image-only detection)
       // These are populated when CSS context is available
-      expect('animation' in gradient || gradient.animation === undefined).toBe(true);
-      expect('transition' in gradient || gradient.transition === undefined).toBe(true);
-      expect('parentElement' in gradient || gradient.parentElement === undefined).toBe(true);
+      expect("animation" in gradient || gradient.animation === undefined).toBe(true);
+      expect("transition" in gradient || gradient.transition === undefined).toBe(true);
+      expect("parentElement" in gradient || gradient.parentElement === undefined).toBe(true);
     });
   });
 });

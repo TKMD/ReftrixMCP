@@ -16,13 +16,13 @@
  * @module tests/services/vision/scroll-vision-analyzer.test
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from "vitest";
 
 // LlamaVisionAdapter モック
 const mockIsAvailable = vi.fn().mockResolvedValue(true);
 const mockAnalyzeJSON = vi.fn();
 
-vi.mock('../../../src/services/vision/llama-vision-adapter.js', () => {
+vi.mock("../../../src/services/vision/llama-vision-adapter.js", () => {
   return {
     LlamaVisionAdapter: vi.fn().mockImplementation(function (this: Record<string, unknown>) {
       this.isAvailable = mockIsAvailable;
@@ -33,7 +33,7 @@ vi.mock('../../../src/services/vision/llama-vision-adapter.js', () => {
 });
 
 // Logger モック
-vi.mock('../../../src/utils/logger.js', () => ({
+vi.mock("../../../src/utils/logger.js", () => ({
   createLogger: vi.fn().mockReturnValue({
     debug: vi.fn(),
     info: vi.fn(),
@@ -45,8 +45,8 @@ vi.mock('../../../src/utils/logger.js', () => ({
 import {
   analyzeScrollCaptures,
   type ScrollVisionResult,
-} from '../../../src/services/vision/scroll-vision.analyzer.js';
-import type { ScrollCapture } from '../../../src/services/vision/scroll-vision-capture.service.js';
+} from "../../../src/services/vision/scroll-vision.analyzer.js";
+import type { ScrollCapture } from "../../../src/services/vision/scroll-vision-capture.service.js";
 
 // =============================================================================
 // ヘルパー関数
@@ -59,7 +59,7 @@ function createTestCapture(overrides?: Partial<ScrollCapture>): ScrollCapture {
   return {
     scrollY: 0,
     sectionIndex: 0,
-    screenshot: Buffer.from('fake-screenshot-data'),
+    screenshot: Buffer.from("fake-screenshot-data"),
     viewportHeight: 900,
     timestamp: Date.now(),
     ...overrides,
@@ -73,12 +73,12 @@ function createValidVisionResponse(overrides?: Record<string, unknown>): Record<
   return {
     scrollTriggeredElements: [
       {
-        element: 'Hero section fade-in animation',
-        changeType: 'appear',
+        element: "Hero section fade-in animation",
+        changeType: "appear",
         confidence: 0.85,
       },
     ],
-    visualImpression: 'Professional landing page with hero section',
+    visualImpression: "Professional landing page with hero section",
     confidence: 0.9,
     ...overrides,
   };
@@ -99,7 +99,7 @@ function createAdapterResult(responseOverrides?: Record<string, unknown>): {
   return {
     response: createValidVisionResponse(responseOverrides),
     metrics: {
-      hardwareType: 'GPU',
+      hardwareType: "GPU",
       originalSizeBytes: 1024,
       optimizationApplied: false,
       totalProcessingTimeMs: 100,
@@ -111,7 +111,7 @@ function createAdapterResult(responseOverrides?: Record<string, unknown>): {
 // analyzeScrollCaptures テスト
 // =============================================================================
 
-describe('analyzeScrollCaptures', () => {
+describe("analyzeScrollCaptures", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockIsAvailable.mockResolvedValue(true);
@@ -122,8 +122,8 @@ describe('analyzeScrollCaptures', () => {
   // 正常系
   // ---------------------------------------------------------------------------
 
-  describe('正常系', () => {
-    it('各キャプチャに対してVision分析を実行する', async () => {
+  describe("正常系", () => {
+    it("各キャプチャに対してVision分析を実行する", async () => {
       const captures: ScrollCapture[] = [
         createTestCapture({ scrollY: 0, sectionIndex: 0 }),
         createTestCapture({ scrollY: 500, sectionIndex: 1 }),
@@ -137,10 +137,8 @@ describe('analyzeScrollCaptures', () => {
       expect(result.captureCount).toBe(3);
     });
 
-    it('分析結果にscrollYとsectionIndexが含まれる', async () => {
-      const captures: ScrollCapture[] = [
-        createTestCapture({ scrollY: 500, sectionIndex: 2 }),
-      ];
+    it("分析結果にscrollYとsectionIndexが含まれる", async () => {
+      const captures: ScrollCapture[] = [createTestCapture({ scrollY: 500, sectionIndex: 2 })];
 
       const result = await analyzeScrollCaptures(captures);
 
@@ -149,56 +147,46 @@ describe('analyzeScrollCaptures', () => {
       expect(result.analyses[0]?.sectionIndex).toBe(2);
     });
 
-    it('scrollTriggeredElementsが正しく含まれる', async () => {
-      const captures: ScrollCapture[] = [
-        createTestCapture({ scrollY: 0, sectionIndex: 0 }),
-      ];
+    it("scrollTriggeredElementsが正しく含まれる", async () => {
+      const captures: ScrollCapture[] = [createTestCapture({ scrollY: 0, sectionIndex: 0 })];
 
       const result = await analyzeScrollCaptures(captures);
 
       const analysis = result.analyses[0];
       expect(analysis?.scrollTriggeredElements.length).toBe(1);
-      expect(analysis?.scrollTriggeredElements[0]?.element).toContain('Hero section');
-      expect(analysis?.scrollTriggeredElements[0]?.changeType).toBe('appear');
+      expect(analysis?.scrollTriggeredElements[0]?.element).toContain("Hero section");
+      expect(analysis?.scrollTriggeredElements[0]?.changeType).toBe("appear");
       expect(analysis?.scrollTriggeredElements[0]?.confidence).toBe(0.85);
     });
 
-    it('visualImpressionが含まれる', async () => {
-      const captures: ScrollCapture[] = [
-        createTestCapture({ scrollY: 0, sectionIndex: 0 }),
-      ];
+    it("visualImpressionが含まれる", async () => {
+      const captures: ScrollCapture[] = [createTestCapture({ scrollY: 0, sectionIndex: 0 })];
 
       const result = await analyzeScrollCaptures(captures);
 
-      expect(result.analyses[0]?.visualImpression).toContain('Professional landing page');
+      expect(result.analyses[0]?.visualImpression).toContain("Professional landing page");
     });
 
-    it('visionModelUsedが正しいモデル名を返す', async () => {
-      const captures: ScrollCapture[] = [
-        createTestCapture(),
-      ];
+    it("visionModelUsedが正しいモデル名を返す", async () => {
+      const captures: ScrollCapture[] = [createTestCapture()];
 
       const result = await analyzeScrollCaptures(captures);
 
-      expect(result.visionModelUsed).toBe('llama3.2-vision');
+      expect(result.visionModelUsed).toBe("llama3.2-vision");
     });
 
-    it('カスタムモデル名が反映される', async () => {
-      const captures: ScrollCapture[] = [
-        createTestCapture(),
-      ];
+    it("カスタムモデル名が反映される", async () => {
+      const captures: ScrollCapture[] = [createTestCapture()];
 
       const result = await analyzeScrollCaptures(captures, {
-        model: 'llava-v1.6',
+        model: "llava-v1.6",
       });
 
-      expect(result.visionModelUsed).toBe('llava-v1.6');
+      expect(result.visionModelUsed).toBe("llava-v1.6");
     });
 
-    it('processingTimeMsが計測される', async () => {
-      const captures: ScrollCapture[] = [
-        createTestCapture(),
-      ];
+    it("processingTimeMsが計測される", async () => {
+      const captures: ScrollCapture[] = [createTestCapture()];
 
       const result = await analyzeScrollCaptures(captures);
 
@@ -206,31 +194,27 @@ describe('analyzeScrollCaptures', () => {
       expect(result.analyses[0]?.processingTimeMs).toBeGreaterThanOrEqual(0);
     });
 
-    it('BufferスクリーンショットがLlamaVisionAdapterに渡される', async () => {
-      const screenshotData = Buffer.from('test-image-data');
-      const captures: ScrollCapture[] = [
-        createTestCapture({ screenshot: screenshotData }),
-      ];
+    it("BufferスクリーンショットがLlamaVisionAdapterに渡される", async () => {
+      const screenshotData = Buffer.from("test-image-data");
+      const captures: ScrollCapture[] = [createTestCapture({ screenshot: screenshotData })];
 
       await analyzeScrollCaptures(captures);
 
       // LlamaVisionAdapter.analyzeJSON は Buffer を直接受け取る
       expect(mockAnalyzeJSON).toHaveBeenCalledWith(
         screenshotData,
-        expect.stringContaining('scroll position')
+        expect.stringContaining("scroll position")
       );
     });
 
-    it('プロンプトにスクロール位置が含まれる', async () => {
-      const captures: ScrollCapture[] = [
-        createTestCapture({ scrollY: 1234 }),
-      ];
+    it("プロンプトにスクロール位置が含まれる", async () => {
+      const captures: ScrollCapture[] = [createTestCapture({ scrollY: 1234 })];
 
       await analyzeScrollCaptures(captures);
 
       expect(mockAnalyzeJSON).toHaveBeenCalledWith(
         expect.any(Buffer),
-        expect.stringContaining('1234px')
+        expect.stringContaining("1234px")
       );
     });
   });
@@ -239,14 +223,11 @@ describe('analyzeScrollCaptures', () => {
   // Graceful degradation
   // ---------------------------------------------------------------------------
 
-  describe('Ollama未接続時のgraceful degradation', () => {
-    it('Ollama未接続時は空の結果を返す', async () => {
+  describe("Ollama未接続時のgraceful degradation", () => {
+    it("Ollama未接続時は空の結果を返す", async () => {
       mockIsAvailable.mockResolvedValue(false);
 
-      const captures: ScrollCapture[] = [
-        createTestCapture(),
-        createTestCapture({ scrollY: 500 }),
-      ];
+      const captures: ScrollCapture[] = [createTestCapture(), createTestCapture({ scrollY: 500 })];
 
       const result = await analyzeScrollCaptures(captures);
 
@@ -256,12 +237,10 @@ describe('analyzeScrollCaptures', () => {
       expect(result.scrollTriggeredAnimations).toEqual([]);
     });
 
-    it('Ollama未接続時にVision APIが呼ばれない', async () => {
+    it("Ollama未接続時にVision APIが呼ばれない", async () => {
       mockIsAvailable.mockResolvedValue(false);
 
-      const captures: ScrollCapture[] = [
-        createTestCapture(),
-      ];
+      const captures: ScrollCapture[] = [createTestCapture()];
 
       await analyzeScrollCaptures(captures);
 
@@ -273,11 +252,11 @@ describe('analyzeScrollCaptures', () => {
   // エラーハンドリング
   // ---------------------------------------------------------------------------
 
-  describe('エラーハンドリング', () => {
-    it('個別キャプチャのVisionエラーは全体を中断しない', async () => {
+  describe("エラーハンドリング", () => {
+    it("個別キャプチャのVisionエラーは全体を中断しない", async () => {
       mockAnalyzeJSON
         .mockResolvedValueOnce(createAdapterResult())
-        .mockRejectedValueOnce(new Error('Vision timeout'))
+        .mockRejectedValueOnce(new Error("Vision timeout"))
         .mockResolvedValueOnce(createAdapterResult());
 
       const captures: ScrollCapture[] = [
@@ -293,15 +272,18 @@ describe('analyzeScrollCaptures', () => {
       expect(result.captureCount).toBe(3);
     });
 
-    it('無効なJSONレスポンスはスキップされる', async () => {
+    it("無効なJSONレスポンスはスキップされる", async () => {
       mockAnalyzeJSON.mockResolvedValue({
-        response: 'not-an-object',
-        metrics: { hardwareType: 'GPU', originalSizeBytes: 0, optimizationApplied: false, totalProcessingTimeMs: 0 },
+        response: "not-an-object",
+        metrics: {
+          hardwareType: "GPU",
+          originalSizeBytes: 0,
+          optimizationApplied: false,
+          totalProcessingTimeMs: 0,
+        },
       });
 
-      const captures: ScrollCapture[] = [
-        createTestCapture(),
-      ];
+      const captures: ScrollCapture[] = [createTestCapture()];
 
       const result = await analyzeScrollCaptures(captures);
 
@@ -309,19 +291,22 @@ describe('analyzeScrollCaptures', () => {
       expect(result.analyzedCount).toBe(0);
     });
 
-    it('不完全なJSONレスポンスはデフォルト値で補完される', async () => {
+    it("不完全なJSONレスポンスはデフォルト値で補完される", async () => {
       // scrollTriggeredElementsが空、他フィールドのみ
       mockAnalyzeJSON.mockResolvedValue({
         response: {
-          visualImpression: 'A simple page',
+          visualImpression: "A simple page",
           confidence: 0.7,
         },
-        metrics: { hardwareType: 'GPU', originalSizeBytes: 0, optimizationApplied: false, totalProcessingTimeMs: 0 },
+        metrics: {
+          hardwareType: "GPU",
+          originalSizeBytes: 0,
+          optimizationApplied: false,
+          totalProcessingTimeMs: 0,
+        },
       });
 
-      const captures: ScrollCapture[] = [
-        createTestCapture(),
-      ];
+      const captures: ScrollCapture[] = [createTestCapture()];
 
       const result = await analyzeScrollCaptures(captures);
 
@@ -329,31 +314,34 @@ describe('analyzeScrollCaptures', () => {
       expect(result.analyses[0]?.scrollTriggeredElements).toEqual([]);
     });
 
-    it('confidence < 0.3の要素はフィルタリングされる', async () => {
+    it("confidence < 0.3の要素はフィルタリングされる", async () => {
       mockAnalyzeJSON.mockResolvedValue({
         response: {
           scrollTriggeredElements: [
-            { element: 'High confidence', changeType: 'appear', confidence: 0.9 },
-            { element: 'Low confidence', changeType: 'animate', confidence: 0.1 },
+            { element: "High confidence", changeType: "appear", confidence: 0.9 },
+            { element: "Low confidence", changeType: "animate", confidence: 0.1 },
           ],
-          visualImpression: 'Test page',
+          visualImpression: "Test page",
           confidence: 0.8,
         },
-        metrics: { hardwareType: 'GPU', originalSizeBytes: 0, optimizationApplied: false, totalProcessingTimeMs: 0 },
+        metrics: {
+          hardwareType: "GPU",
+          originalSizeBytes: 0,
+          optimizationApplied: false,
+          totalProcessingTimeMs: 0,
+        },
       });
 
-      const captures: ScrollCapture[] = [
-        createTestCapture(),
-      ];
+      const captures: ScrollCapture[] = [createTestCapture()];
 
       const result = await analyzeScrollCaptures(captures);
 
       expect(result.analyses[0]?.scrollTriggeredElements.length).toBe(1);
-      expect(result.analyses[0]?.scrollTriggeredElements[0]?.element).toContain('High confidence');
+      expect(result.analyses[0]?.scrollTriggeredElements[0]?.element).toContain("High confidence");
     });
 
-    it('全キャプチャがエラーでも結果構造は正常', async () => {
-      mockAnalyzeJSON.mockRejectedValue(new Error('Ollama crashed'));
+    it("全キャプチャがエラーでも結果構造は正常", async () => {
+      mockAnalyzeJSON.mockRejectedValue(new Error("Ollama crashed"));
 
       const captures: ScrollCapture[] = [
         createTestCapture({ scrollY: 0 }),
@@ -374,29 +362,39 @@ describe('analyzeScrollCaptures', () => {
   // 集約
   // ---------------------------------------------------------------------------
 
-  describe('scrollTriggeredAnimationsの集約', () => {
-    it('全分析結果からスクロールトリガーアニメーションを集約する', async () => {
+  describe("scrollTriggeredAnimationsの集約", () => {
+    it("全分析結果からスクロールトリガーアニメーションを集約する", async () => {
       mockAnalyzeJSON
         .mockResolvedValueOnce({
           response: {
             scrollTriggeredElements: [
-              { element: 'Hero fade-in', changeType: 'appear', confidence: 0.9 },
+              { element: "Hero fade-in", changeType: "appear", confidence: 0.9 },
             ],
-            visualImpression: 'Hero section',
+            visualImpression: "Hero section",
             confidence: 0.85,
           },
-          metrics: { hardwareType: 'GPU', originalSizeBytes: 0, optimizationApplied: false, totalProcessingTimeMs: 0 },
+          metrics: {
+            hardwareType: "GPU",
+            originalSizeBytes: 0,
+            optimizationApplied: false,
+            totalProcessingTimeMs: 0,
+          },
         })
         .mockResolvedValueOnce({
           response: {
             scrollTriggeredElements: [
-              { element: 'Feature slide-in', changeType: 'animate', confidence: 0.8 },
-              { element: 'Parallax background', changeType: 'parallax', confidence: 0.7 },
+              { element: "Feature slide-in", changeType: "animate", confidence: 0.8 },
+              { element: "Parallax background", changeType: "parallax", confidence: 0.7 },
             ],
-            visualImpression: 'Feature section',
+            visualImpression: "Feature section",
             confidence: 0.8,
           },
-          metrics: { hardwareType: 'GPU', originalSizeBytes: 0, optimizationApplied: false, totalProcessingTimeMs: 0 },
+          metrics: {
+            hardwareType: "GPU",
+            originalSizeBytes: 0,
+            optimizationApplied: false,
+            totalProcessingTimeMs: 0,
+          },
         });
 
       const captures: ScrollCapture[] = [
@@ -409,27 +407,37 @@ describe('analyzeScrollCaptures', () => {
       expect(result.scrollTriggeredAnimations.length).toBe(3);
     });
 
-    it('集約結果はconfidenceで降順ソートされる', async () => {
+    it("集約結果はconfidenceで降順ソートされる", async () => {
       mockAnalyzeJSON
         .mockResolvedValueOnce({
           response: {
             scrollTriggeredElements: [
-              { element: 'Low conf', changeType: 'appear', confidence: 0.5 },
+              { element: "Low conf", changeType: "appear", confidence: 0.5 },
             ],
-            visualImpression: 'Section 1',
+            visualImpression: "Section 1",
             confidence: 0.7,
           },
-          metrics: { hardwareType: 'GPU', originalSizeBytes: 0, optimizationApplied: false, totalProcessingTimeMs: 0 },
+          metrics: {
+            hardwareType: "GPU",
+            originalSizeBytes: 0,
+            optimizationApplied: false,
+            totalProcessingTimeMs: 0,
+          },
         })
         .mockResolvedValueOnce({
           response: {
             scrollTriggeredElements: [
-              { element: 'High conf', changeType: 'animate', confidence: 0.95 },
+              { element: "High conf", changeType: "animate", confidence: 0.95 },
             ],
-            visualImpression: 'Section 2',
+            visualImpression: "Section 2",
             confidence: 0.9,
           },
-          metrics: { hardwareType: 'GPU', originalSizeBytes: 0, optimizationApplied: false, totalProcessingTimeMs: 0 },
+          metrics: {
+            hardwareType: "GPU",
+            originalSizeBytes: 0,
+            optimizationApplied: false,
+            totalProcessingTimeMs: 0,
+          },
         });
 
       const captures: ScrollCapture[] = [
@@ -443,43 +451,49 @@ describe('analyzeScrollCaptures', () => {
       expect(result.scrollTriggeredAnimations[1]?.confidence).toBe(0.5);
     });
 
-    it('集約結果にtriggerScrollYが含まれる', async () => {
+    it("集約結果にtriggerScrollYが含まれる", async () => {
       mockAnalyzeJSON.mockResolvedValue({
         response: {
           scrollTriggeredElements: [
-            { element: 'Test element', changeType: 'appear', confidence: 0.8 },
+            { element: "Test element", changeType: "appear", confidence: 0.8 },
           ],
-          visualImpression: 'Test',
+          visualImpression: "Test",
           confidence: 0.8,
         },
-        metrics: { hardwareType: 'GPU', originalSizeBytes: 0, optimizationApplied: false, totalProcessingTimeMs: 0 },
+        metrics: {
+          hardwareType: "GPU",
+          originalSizeBytes: 0,
+          optimizationApplied: false,
+          totalProcessingTimeMs: 0,
+        },
       });
 
-      const captures: ScrollCapture[] = [
-        createTestCapture({ scrollY: 750, sectionIndex: 2 }),
-      ];
+      const captures: ScrollCapture[] = [createTestCapture({ scrollY: 750, sectionIndex: 2 })];
 
       const result = await analyzeScrollCaptures(captures);
 
       expect(result.scrollTriggeredAnimations[0]?.triggerScrollY).toBe(750);
-      expect(result.scrollTriggeredAnimations[0]?.animationType).toBe('appear');
+      expect(result.scrollTriggeredAnimations[0]?.animationType).toBe("appear");
     });
 
-    it('低信頼度の要素は集約からも除外される', async () => {
+    it("低信頼度の要素は集約からも除外される", async () => {
       mockAnalyzeJSON.mockResolvedValue({
         response: {
           scrollTriggeredElements: [
-            { element: 'Maybe parallax', changeType: 'parallax', confidence: 0.1 },
+            { element: "Maybe parallax", changeType: "parallax", confidence: 0.1 },
           ],
-          visualImpression: 'Test',
+          visualImpression: "Test",
           confidence: 0.5,
         },
-        metrics: { hardwareType: 'GPU', originalSizeBytes: 0, optimizationApplied: false, totalProcessingTimeMs: 0 },
+        metrics: {
+          hardwareType: "GPU",
+          originalSizeBytes: 0,
+          optimizationApplied: false,
+          totalProcessingTimeMs: 0,
+        },
       });
 
-      const captures: ScrollCapture[] = [
-        createTestCapture(),
-      ];
+      const captures: ScrollCapture[] = [createTestCapture()];
 
       const result = await analyzeScrollCaptures(captures);
 
@@ -491,8 +505,8 @@ describe('analyzeScrollCaptures', () => {
   // 順次処理の検証
   // ---------------------------------------------------------------------------
 
-  describe('順次処理', () => {
-    it('キャプチャは順次処理される（並列ではない）', async () => {
+  describe("順次処理", () => {
+    it("キャプチャは順次処理される（並列ではない）", async () => {
       const callOrder: number[] = [];
 
       mockAnalyzeJSON.mockImplementation(async () => {
@@ -520,32 +534,35 @@ describe('analyzeScrollCaptures', () => {
   // XSSサニタイズ
   // ---------------------------------------------------------------------------
 
-  describe('XSSサニタイズ', () => {
-    it('Vision結果のHTML要素はサニタイズされる', async () => {
+  describe("XSSサニタイズ", () => {
+    it("Vision結果のHTML要素はサニタイズされる", async () => {
       mockAnalyzeJSON.mockResolvedValue({
         response: {
           scrollTriggeredElements: [
             {
               element: '<script>alert("xss")</script>Hero section',
-              changeType: 'appear',
+              changeType: "appear",
               confidence: 0.8,
             },
           ],
           visualImpression: '<img onerror="alert(1)">Landing page',
           confidence: 0.8,
         },
-        metrics: { hardwareType: 'GPU', originalSizeBytes: 0, optimizationApplied: false, totalProcessingTimeMs: 0 },
+        metrics: {
+          hardwareType: "GPU",
+          originalSizeBytes: 0,
+          optimizationApplied: false,
+          totalProcessingTimeMs: 0,
+        },
       });
 
-      const captures: ScrollCapture[] = [
-        createTestCapture(),
-      ];
+      const captures: ScrollCapture[] = [createTestCapture()];
 
       const result = await analyzeScrollCaptures(captures);
 
       const analysis = result.analyses[0];
-      expect(analysis?.scrollTriggeredElements[0]?.element).not.toContain('<script>');
-      expect(analysis?.visualImpression).not.toContain('<img');
+      expect(analysis?.scrollTriggeredElements[0]?.element).not.toContain("<script>");
+      expect(analysis?.visualImpression).not.toContain("<img");
     });
   });
 
@@ -553,8 +570,8 @@ describe('analyzeScrollCaptures', () => {
   // 空入力
   // ---------------------------------------------------------------------------
 
-  describe('空入力', () => {
-    it('空のキャプチャ配列では分析をスキップする', async () => {
+  describe("空入力", () => {
+    it("空のキャプチャ配列では分析をスキップする", async () => {
       const result = await analyzeScrollCaptures([]);
 
       expect(result.analyzedCount).toBe(0);

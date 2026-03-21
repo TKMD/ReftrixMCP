@@ -45,14 +45,14 @@ export interface SafeParseIntOptions {
 export function safeParseInt(
   value: string | undefined,
   defaultValue: number,
-  options?: SafeParseIntOptions,
+  options?: SafeParseIntOptions
 ): number {
   if (value === undefined || value === null) {
     return defaultValue;
   }
 
   const trimmed = value.trim();
-  if (trimmed === '') {
+  if (trimmed === "") {
     return defaultValue;
   }
 

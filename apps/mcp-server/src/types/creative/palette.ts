@@ -32,18 +32,18 @@ export interface OklchColor {
  * カラートークンの用途（どこで使用されるか）
  */
 export type TokenUsage =
-  | 'background'
-  | 'foreground'
-  | 'border'
-  | 'accent'
-  | 'cta'
-  | 'link'
-  | 'error'
-  | 'success'
-  | 'warning'
-  | 'info'
-  | 'highlight'
-  | 'divider';
+  | "background"
+  | "foreground"
+  | "border"
+  | "accent"
+  | "cta"
+  | "link"
+  | "error"
+  | "success"
+  | "warning"
+  | "info"
+  | "highlight"
+  | "divider";
 
 // =============================================================================
 // コントラスト要件
@@ -105,7 +105,7 @@ export interface ColorToken {
  * - dark: ダークモード専用
  * - both: 両モード対応
  */
-export type PaletteMode = 'light' | 'dark' | 'both';
+export type PaletteMode = "light" | "dark" | "both";
 
 // =============================================================================
 // グラデーション
@@ -136,7 +136,7 @@ export interface GradientDefinition {
   /** 説明（オプション）*/
   description?: string;
   /** グラデーションタイプ */
-  type: 'linear' | 'radial';
+  type: "linear" | "radial";
   /** リニアグラデーションの角度（0-360）*/
   angle?: number;
   /** ラジアルグラデーションの中心X（0-1）*/

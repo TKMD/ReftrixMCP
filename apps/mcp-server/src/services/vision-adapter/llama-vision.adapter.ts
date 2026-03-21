@@ -20,7 +20,7 @@ import type {
   VisionFeatureData,
   LayoutStructureData,
   WhitespaceData,
-} from './interface';
+} from "./interface";
 
 import {
   isLayoutStructureData,
@@ -35,7 +35,7 @@ import {
   isMotionCandidatesData,
   isBrandToneData,
   isAiClichesData,
-} from './interface';
+} from "./interface";
 
 import type {
   MotionCandidatesData,
@@ -52,337 +52,39 @@ import type {
   EnhancedAnalysisResult,
   // v0.1.0: Validation and warnings
   VisionAnalysisWarning,
-} from './interface';
+} from "./interface";
 
 import {
   LOW_CONFIDENCE_THRESHOLD,
   DEFAULT_MOOD_FALLBACK,
   DEFAULT_BRAND_TONE_FALLBACK,
-} from './interface';
+} from "./interface";
 
-import { logger } from '../../utils/logger';
+import { logger } from "../../utils/logger";
 
-// =============================================================================
-// 設定インターフェース
-// =============================================================================
+// 型定義・設定（分割ファイルからインポート）
+import type {
+  LlamaVisionAdapterConfig,
+  OllamaGenerateRequest,
+  OllamaGenerateResponse,
+  OllamaTagsResponse,
+} from "./llama-vision.types";
+import { DEFAULT_CONFIG } from "./llama-vision.types";
 
-/**
- * LlamaVisionAdapter設定
- */
-export interface LlamaVisionAdapterConfig {
-  /** Ollama接続先URL (default: http://localhost:11434) */
-  baseUrl?: string;
-  /** 使用するモデル名 (default: llama3.2-vision) */
-  modelName?: string;
+// 後方互換性のためre-export
+export type { LlamaVisionAdapterConfig } from "./llama-vision.types";
 
-  /** リクエストタイムアウト (default: 60000ms) */
-  requestTimeout?: number;
-  /** 接続タイムアウト (default: 10000ms) */
-  connectionTimeout?: number;
-
-  /** 最大リトライ回数 (default: 3) */
-  maxRetries?: number;
-  /** リトライ間隔 (default: 1000ms) */
-  retryDelay?: number;
-
-  /** デフォルトで解析する特徴タイプ */
-  defaultFeatures?: VisionFeatureType[];
-  /** 最大画像サイズ (bytes, default: 20MB) */
-  maxImageSize?: number;
-
-  /** システムプロンプト */
-  systemPrompt?: string;
-  /** 解析プロンプト */
-  analysisPrompt?: string;
-}
-
-// =============================================================================
-// Ollama API型定義
-// =============================================================================
-
-/**
- * Ollama /api/generate リクエスト
- */
-interface OllamaGenerateRequest {
-  model: string;
-  prompt: string;
-  images?: string[];
-  stream?: boolean;
-  options?: {
-    temperature?: number;
-    num_predict?: number;
-  };
-}
-
-/**
- * Ollama /api/generate レスポンス
- */
-interface OllamaGenerateResponse {
-  model: string;
-  response: string;
-  done: boolean;
-  total_duration?: number;
-  eval_count?: number;
-}
-
-/**
- * Ollama /api/tags レスポンス
- */
-interface OllamaTagsResponse {
-  models: Array<{
-    name: string;
-    size: number;
-    modified_at: string;
-  }>;
-}
-
-// =============================================================================
-// 定数
-// =============================================================================
-
-const DEFAULT_CONFIG: Required<LlamaVisionAdapterConfig> = {
-  baseUrl: 'http://localhost:11434',
-  modelName: 'llama3.2-vision',
-  requestTimeout: 60000,
-  connectionTimeout: 10000,
-  maxRetries: 3,
-  retryDelay: 1000,
-  defaultFeatures: [
-    'layout_structure',
-    'color_palette',
-  ],
-  maxImageSize: 20 * 1024 * 1024, // 20MB
-  systemPrompt: '',
-  analysisPrompt: '',
-};
-
-/**
- * シンプルなJSON出力プロンプト（llama3.2-vision最適化）
- *
- * llama3.2-visionは複雑なプロンプトでは不完全なJSONを生成する傾向があるため、
- * シンプルな構造で確実にJSON出力を得る戦略を採用。
- */
-const DEFAULT_ANALYSIS_PROMPT = `You are a JSON generator. Your ONLY output must be valid JSON. No explanations, no markdown, no text before or after.
-
-Look at this web page screenshot and analyze: {features_to_analyze}
-
-Output this exact JSON structure:
-{"layout":"grid-type","colors":["#hex1","#hex2","#hex3"],"mood":"dark-or-light","sections":["section1","section2"]}
-
-JSON:`;
-
-/**
- * セクション単位分析用プロンプト（llama3.2-vision最適化）
- *
- * 単一セクションのスクリーンショットに特化した分析プロンプト。
- * セクションタイプのヒントを活用してより正確な分析を行う。
- */
-const SECTION_ANALYSIS_PROMPT = `You are analyzing a single section extracted from a web page screenshot. Focus specifically on the visual characteristics of THIS section only.
-
-Section type hint: {section_type}
-
-Analyze the following aspects:
-1. Layout structure (grid, columns, alignment)
-2. Color scheme (dominant colors, contrast)
-3. Whitespace usage (minimal/moderate/generous)
-4. Visual hierarchy (typography scale, emphasis)
-5. Key visual elements (icons, images, buttons)
-
-Output a concise JSON:
-{"layout":"description", "colors":["#hex1","#hex2"], "whitespace":"level", "hierarchy":"description", "elements":["item1","item2"]}
-
-JSON:`;
-
-// =============================================================================
-// Reftrix専用プロンプト
-// =============================================================================
-
-/**
- * セクション境界検出プロンプト
- *
- * スクリーンショットからセクション境界を視覚的に検出。
- * HTML解析では検出できないビジュアルセパレーターを認識。
- *
- * @version 0.1.0 - 18種類のセクションタイプをサポート
- */
-const SECTION_BOUNDARY_DETECTION_PROMPT = `You are a web design section detector. Your ONLY output must be valid JSON. No explanations.
-
-Look at this web page screenshot and identify ALL distinct visual sections.
-
-Look for visual separators:
-- Background color changes
-- Large whitespace gaps
-- Horizontal dividers/lines
-- Full-width images/videos
-- Different content patterns (grid vs text)
-
-For each section found, output:
-1. type: One of the following 18 section types:
-   - hero: Hero/banner section at top
-   - feature: Features/benefits grid
-   - cta: Call-to-action with prominent button
-   - testimonial: Customer reviews/quotes
-   - pricing: Pricing plans/tables
-   - footer: Page footer
-   - navigation: Navigation bar/menu
-   - gallery: Image gallery/showcase
-   - about: About us/company info
-   - contact: Contact form/info
-   - partners: Partner/client logos
-   - portfolio: Portfolio/work samples
-   - team: Team members/staff
-   - stories: Case studies/success stories
-   - research: Research/insights/reports
-   - subscribe: Newsletter signup
-   - stats: Statistics/numbers/metrics
-   - faq: FAQ accordion/questions
-   - content: Generic content section
-   - unknown: Cannot determine type
-2. cues: visual indicators that define this section
-3. position: top/upper/middle/lower/bottom
-
-Output JSON array only:
-{"sections":[{"type":"hero","cues":["dark background","large heading","centered content"],"position":"top"},{"type":"feature","cues":["3-column grid","icons","white background"],"position":"middle"}]}
-
-JSON:`;
-
-/**
- * モーション/インタラクション検出プロンプト
- *
- * スクリーンショットからアニメーション対象要素を推定。
- * CSS/JS静的解析の補完として使用。
- */
-const MOTION_DETECTION_PROMPT = `You are a web animation detector. Your ONLY output must be valid JSON. No explanations.
-
-Analyze this web page screenshot for potential animation and interaction elements.
-
-Look for:
-- Buttons and CTAs (hover effects expected)
-- Cards with shadows (hover lift effects)
-- Navigation menus (dropdown animations)
-- Hero sections (entrance animations likely)
-- Scroll indicators (scroll animations)
-- Floating elements (parallax candidates)
-- Image galleries (transition effects)
-- Form inputs (focus animations)
-
-Output JSON:
-{"likely_animations":[{"element":"hero heading","type":"fade-in","confidence":0.8},{"element":"feature cards","type":"hover-scale","confidence":0.9}],"interactive_elements":["primary cta button","navigation menu","search input"],"scroll_triggers":["feature section","testimonial carousel"]}
-
-JSON:`;
-
-/**
- * AIクリシェ検出プロンプト
- *
- * AI生成デザインの典型的パターンを検出。
- * quality.evaluateのOriginality評価に活用。
- */
-const AI_CLICHE_DETECTION_PROMPT = `You are an AI design cliche detector. Your ONLY output must be valid JSON. No explanations.
-
-Detect AI-generated design clichés in this web page screenshot.
-
-Common AI design clichés to look for:
-- Abstract gradient spheres/orbs
-- Generic 3D isometric illustrations
-- Meaningless geometric patterns
-- Over-saturated purple/blue gradients
-- Stock-looking AI-generated people
-- Floating UI elements without context
-- Generic "hero with laptop" imagery
-- Overly symmetrical layouts
-
-Output JSON:
-{"cliches_detected":[{"type":"gradient_orbs","location":"hero background","severity":"high"},{"type":"generic_isometric","location":"feature section","severity":"medium"}],"originality_score":65,"assessment":"moderate-ai-influence","suggestions":["Replace gradient orbs with brand-specific visuals","Use authentic photography instead of AI illustrations"]}
-
-Types: gradient_orbs, generic_isometric, meaningless_patterns, oversaturated_gradients, ai_generated_people, floating_ui, generic_hero, symmetrical_layout, other
-Severity: low, medium, high
-Assessment: highly-original, mostly-original, moderate-ai-influence, heavy-ai-influence
-
-JSON:`;
-
-/**
- * ブランドトーン分析プロンプト
- *
- * デザインの視覚的トーンとブランドパーソナリティを分析。
- * 品質評価のContextuality軸に活用。
- */
-const BRAND_TONE_ANALYSIS_PROMPT = `You are a brand tone analyzer. Your ONLY output must be valid JSON. No explanations.
-
-Analyze the visual tone and brand personality of this web design.
-
-Evaluate on these dimensions:
-1. professionalism: minimal/moderate/bold
-2. warmth: cold/neutral/warm
-3. modernity: classic/contemporary/futuristic
-4. energy: calm/balanced/dynamic
-5. target_audience: enterprise/startup/creative/consumer
-
-Look for indicators:
-- Color temperature (cool vs warm)
-- Shape language (sharp vs rounded)
-- Imagery style (photography vs illustration)
-- Layout density (spacious vs compact)
-
-Output JSON:
-{"professionalism":"moderate","warmth":"warm","modernity":"contemporary","energy":"balanced","target_audience":"startup","indicators":["rounded corners","warm accent colors","generous whitespace","lifestyle photography"]}
-
-JSON:`;
-
-// =============================================================================
-// Phase 2: Enhanced Mood & Brand Tone Prompts
-// =============================================================================
-
-/**
- * Enhanced mood and brand tone analysis prompt
- *
- * Combines mood detection and brand tone analysis in a single request.
- * Optionally includes Phase 1 deterministic color context for improved accuracy.
- */
-const ENHANCED_MOOD_BRAND_TONE_PROMPT = `You are a web design mood and brand tone analyzer. Your ONLY output must be valid JSON. No explanations.
-
-Analyze this web design screenshot for mood and brand personality.
-
-MOOD TYPES (choose primary and optionally secondary):
-- professional: Clean, business-like, corporate feel
-- playful: Fun, whimsical, casual
-- minimal: Simple, clean, lots of whitespace
-- bold: Strong visual impact, dramatic
-- elegant: Sophisticated, refined, upscale
-- modern: Contemporary, cutting-edge
-- classic: Timeless, traditional
-- energetic: Dynamic, vibrant, active
-- calm: Peaceful, serene, relaxed
-- luxurious: Premium, high-end, exclusive
-
-BRAND TONE TYPES (choose primary and optionally secondary):
-- corporate: Professional, formal, business-focused
-- friendly: Approachable, warm, inviting
-- luxury: Premium, exclusive, high-end
-- tech-forward: Innovative, digital-first
-- creative: Artistic, imaginative
-- trustworthy: Reliable, dependable
-- innovative: Forward-thinking, pioneering
-- traditional: Established, conventional
-
-{color_context_section}
-
-Analyze and output JSON:
-{"mood":{"primary":"minimal","secondary":"modern","confidence":0.85,"indicators":["generous whitespace","clean typography","neutral colors"]},"brand_tone":{"primary":"tech-forward","secondary":"trustworthy","confidence":0.8,"professionalism":"moderate","warmth":"neutral","modernity":"contemporary","energy":"balanced","target_audience":"startup","indicators":["modern sans-serif fonts","tech imagery","blue accent colors"]}}
-
-JSON:`;
-
-/**
- * Color context section template for enhanced prompt
- */
-const COLOR_CONTEXT_SECTION_TEMPLATE = `
-DETERMINISTIC COLOR ANALYSIS (use this as reference):
-- Dominant colors: {dominant_colors}
-- Theme: {theme} (confidence: {theme_confidence})
-- Background: {background_color}
-- Content density: {density} (0=sparse, 1=dense)
-- Whitespace ratio: {whitespace_ratio}
-
-Use this color data to inform your mood and brand tone analysis.`;
+// プロンプト定数（分割ファイルからインポート）
+import {
+  DEFAULT_ANALYSIS_PROMPT,
+  SECTION_ANALYSIS_PROMPT,
+  SECTION_BOUNDARY_DETECTION_PROMPT,
+  MOTION_DETECTION_PROMPT,
+  AI_CLICHE_DETECTION_PROMPT,
+  BRAND_TONE_ANALYSIS_PROMPT,
+  ENHANCED_MOOD_BRAND_TONE_PROMPT,
+  COLOR_CONTEXT_SECTION_TEMPLATE,
+} from "./llama-vision.prompts";
 
 // =============================================================================
 // LlamaVisionAdapter 実装
@@ -411,7 +113,7 @@ Use this color data to inform your mood and brand tone analysis.`;
  */
 export class LlamaVisionAdapter implements IVisionAnalyzer {
   /** アダプタ名 */
-  public readonly name = 'LlamaVisionAdapter';
+  public readonly name = "LlamaVisionAdapter";
 
   /** 使用するモデル名 */
   public readonly modelName: string;
@@ -435,8 +137,8 @@ export class LlamaVisionAdapter implements IVisionAnalyzer {
 
     this.modelName = this.config.modelName;
 
-    if (process.env.NODE_ENV === 'development') {
-      logger.info('[LlamaVisionAdapter] Initialized with config:', {
+    if (process.env.NODE_ENV === "development") {
+      logger.info("[LlamaVisionAdapter] Initialized with config:", {
         baseUrl: this.config.baseUrl,
         modelName: this.config.modelName,
         requestTimeout: this.config.requestTimeout,
@@ -458,8 +160,8 @@ export class LlamaVisionAdapter implements IVisionAnalyzer {
     try {
       return await this.checkModelAvailability();
     } catch (error) {
-      if (process.env.NODE_ENV === 'development') {
-        console.error('[LlamaVisionAdapter] isAvailable error:', error);
+      if (process.env.NODE_ENV === "development") {
+        console.error("[LlamaVisionAdapter] isAvailable error:", error);
       }
       return false;
     }
@@ -486,8 +188,8 @@ export class LlamaVisionAdapter implements IVisionAnalyzer {
       const prompt = this.buildPrompt(features, options.prompt);
 
       // リトライ付きでリクエスト実行
-      const response = await this.executeWithRetry(
-        () => this.sendGenerateRequest(base64Image, prompt, options.timeout)
+      const response = await this.executeWithRetry(() =>
+        this.sendGenerateRequest(base64Image, prompt, options.timeout)
       );
 
       // レスポンスパース
@@ -495,8 +197,8 @@ export class LlamaVisionAdapter implements IVisionAnalyzer {
 
       const processingTimeMs = Date.now() - startTime;
 
-      if (process.env.NODE_ENV === 'development') {
-        logger.info('[LlamaVisionAdapter] Analysis completed:', {
+      if (process.env.NODE_ENV === "development") {
+        logger.info("[LlamaVisionAdapter] Analysis completed:", {
           success: parseResult.success,
           featureCount: parseResult.features.length,
           processingTimeMs,
@@ -510,11 +212,10 @@ export class LlamaVisionAdapter implements IVisionAnalyzer {
         rawResponse: response,
       };
     } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : 'Unknown error';
+      const errorMessage = error instanceof Error ? error.message : "Unknown error";
 
-      if (process.env.NODE_ENV === 'development') {
-        console.error('[LlamaVisionAdapter] Analysis error:', error);
+      if (process.env.NODE_ENV === "development") {
+        console.error("[LlamaVisionAdapter] Analysis error:", error);
       }
 
       return this.createErrorResult(errorMessage, startTime);
@@ -530,7 +231,7 @@ export class LlamaVisionAdapter implements IVisionAnalyzer {
     }
 
     if (result.features.length === 0) {
-      return 'No features detected in the image.';
+      return "No features detected in the image.";
     }
 
     const parts: string[] = [];
@@ -542,7 +243,7 @@ export class LlamaVisionAdapter implements IVisionAnalyzer {
       }
     }
 
-    return parts.join('\n');
+    return parts.join("\n");
   }
 
   // ===========================================================================
@@ -577,10 +278,10 @@ export class LlamaVisionAdapter implements IVisionAnalyzer {
     const startTime = Date.now();
     const { sectionTypeHint, sectionId, ...baseOptions } = options;
 
-    if (process.env.NODE_ENV === 'development') {
-      logger.info('[LlamaVision] analyzeSection:', {
-        sectionTypeHint: sectionTypeHint || 'unknown',
-        sectionId: sectionId || 'none',
+    if (process.env.NODE_ENV === "development") {
+      logger.info("[LlamaVision] analyzeSection:", {
+        sectionTypeHint: sectionTypeHint || "unknown",
+        sectionId: sectionId || "none",
         imageSize: options.imageBuffer.length,
       });
     }
@@ -608,9 +309,9 @@ export class LlamaVisionAdapter implements IVisionAnalyzer {
 
       const processingTimeMs = Date.now() - startTime;
 
-      if (process.env.NODE_ENV === 'development') {
-        logger.info('[LlamaVision] analyzeSection completed:', {
-          sectionId: sectionId || 'none',
+      if (process.env.NODE_ENV === "development") {
+        logger.info("[LlamaVision] analyzeSection completed:", {
+          sectionId: sectionId || "none",
           success: parseResult.success,
           featureCount: parseResult.features.length,
           processingTimeMs,
@@ -624,12 +325,11 @@ export class LlamaVisionAdapter implements IVisionAnalyzer {
         rawResponse: response,
       };
     } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : 'Unknown error';
+      const errorMessage = error instanceof Error ? error.message : "Unknown error";
 
-      if (process.env.NODE_ENV === 'development') {
-        console.error('[LlamaVision] analyzeSection error:', {
-          sectionId: sectionId || 'none',
+      if (process.env.NODE_ENV === "development") {
+        console.error("[LlamaVision] analyzeSection error:", {
+          sectionId: sectionId || "none",
           error: errorMessage,
         });
       }
@@ -653,16 +353,13 @@ export class LlamaVisionAdapter implements IVisionAnalyzer {
    * // "Section: hero\nLayout: single-column layout...\nColors: #000000, #ffffff..."
    * ```
    */
-  generateSectionTextRepresentation(
-    result: VisionAnalysisResult,
-    sectionType?: string
-  ): string {
+  generateSectionTextRepresentation(result: VisionAnalysisResult, sectionType?: string): string {
     if (!result.success && result.error) {
       return `Section Error: ${result.error}`;
     }
 
     if (result.features.length === 0) {
-      const typeInfo = sectionType ? ` (${sectionType})` : '';
+      const typeInfo = sectionType ? ` (${sectionType})` : "";
       return `No features detected in section${typeInfo}.`;
     }
 
@@ -681,7 +378,7 @@ export class LlamaVisionAdapter implements IVisionAnalyzer {
       }
     }
 
-    return parts.join('\n');
+    return parts.join("\n");
   }
 
   // ===========================================================================
@@ -708,13 +405,16 @@ export class LlamaVisionAdapter implements IVisionAnalyzer {
    * }
    * ```
    */
-  async detectSectionBoundaries(
-    options: VisionAnalysisOptions
-  ): Promise<{ success: boolean; data?: SectionBoundariesData; error?: string; processingTimeMs: number }> {
+  async detectSectionBoundaries(options: VisionAnalysisOptions): Promise<{
+    success: boolean;
+    data?: SectionBoundariesData;
+    error?: string;
+    processingTimeMs: number;
+  }> {
     const startTime = Date.now();
 
-    if (process.env.NODE_ENV === 'development') {
-      logger.info('[LlamaVision] detectSectionBoundaries: Starting analysis');
+    if (process.env.NODE_ENV === "development") {
+      logger.info("[LlamaVision] detectSectionBoundaries: Starting analysis");
     }
 
     try {
@@ -724,19 +424,19 @@ export class LlamaVisionAdapter implements IVisionAnalyzer {
       }
 
       const base64Image = await this.prepareImage(options.imageBuffer);
-      const response = await this.executeWithRetry(
-        () => this.sendGenerateRequest(base64Image, SECTION_BOUNDARY_DETECTION_PROMPT, options.timeout)
+      const response = await this.executeWithRetry(() =>
+        this.sendGenerateRequest(base64Image, SECTION_BOUNDARY_DETECTION_PROMPT, options.timeout)
       );
 
       const parsed = this.parseSectionBoundariesResponse(response);
       const processingTimeMs = Date.now() - startTime;
 
       // features配列からdataを抽出
-      const sectionBoundariesFeature = parsed.features.find(f => f.type === 'section_boundaries');
+      const sectionBoundariesFeature = parsed.features.find((f) => f.type === "section_boundaries");
       const data = sectionBoundariesFeature?.data as SectionBoundariesData | undefined;
 
-      if (process.env.NODE_ENV === 'development') {
-        logger.info('[LlamaVision] detectSectionBoundaries: Complete', {
+      if (process.env.NODE_ENV === "development") {
+        logger.info("[LlamaVision] detectSectionBoundaries: Complete", {
           success: parsed.success,
           sectionCount: data?.sections?.length || 0,
           processingTimeMs,
@@ -750,7 +450,7 @@ export class LlamaVisionAdapter implements IVisionAnalyzer {
         processingTimeMs,
       };
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      const errorMessage = error instanceof Error ? error.message : "Unknown error";
       return { success: false, error: errorMessage, processingTimeMs: Date.now() - startTime };
     }
   }
@@ -764,13 +464,16 @@ export class LlamaVisionAdapter implements IVisionAnalyzer {
    * @param options - 解析オプション
    * @returns モーション候補データを含む解析結果
    */
-  async detectMotionCandidates(
-    options: VisionAnalysisOptions
-  ): Promise<{ success: boolean; data?: MotionCandidatesData; error?: string; processingTimeMs: number }> {
+  async detectMotionCandidates(options: VisionAnalysisOptions): Promise<{
+    success: boolean;
+    data?: MotionCandidatesData;
+    error?: string;
+    processingTimeMs: number;
+  }> {
     const startTime = Date.now();
 
-    if (process.env.NODE_ENV === 'development') {
-      logger.info('[LlamaVision] detectMotionCandidates: Starting analysis');
+    if (process.env.NODE_ENV === "development") {
+      logger.info("[LlamaVision] detectMotionCandidates: Starting analysis");
     }
 
     try {
@@ -780,19 +483,19 @@ export class LlamaVisionAdapter implements IVisionAnalyzer {
       }
 
       const base64Image = await this.prepareImage(options.imageBuffer);
-      const response = await this.executeWithRetry(
-        () => this.sendGenerateRequest(base64Image, MOTION_DETECTION_PROMPT, options.timeout)
+      const response = await this.executeWithRetry(() =>
+        this.sendGenerateRequest(base64Image, MOTION_DETECTION_PROMPT, options.timeout)
       );
 
       const parsed = this.parseMotionCandidatesResponse(response);
       const processingTimeMs = Date.now() - startTime;
 
       // features配列からdataを抽出
-      const motionCandidatesFeature = parsed.features.find(f => f.type === 'motion_candidates');
+      const motionCandidatesFeature = parsed.features.find((f) => f.type === "motion_candidates");
       const data = motionCandidatesFeature?.data as MotionCandidatesData | undefined;
 
-      if (process.env.NODE_ENV === 'development') {
-        logger.info('[LlamaVision] detectMotionCandidates: Complete', {
+      if (process.env.NODE_ENV === "development") {
+        logger.info("[LlamaVision] detectMotionCandidates: Complete", {
           success: parsed.success,
           animationCount: data?.likelyAnimations?.length || 0,
           processingTimeMs,
@@ -806,7 +509,7 @@ export class LlamaVisionAdapter implements IVisionAnalyzer {
         processingTimeMs,
       };
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      const errorMessage = error instanceof Error ? error.message : "Unknown error";
       return { success: false, error: errorMessage, processingTimeMs: Date.now() - startTime };
     }
   }
@@ -825,8 +528,8 @@ export class LlamaVisionAdapter implements IVisionAnalyzer {
   ): Promise<{ success: boolean; data?: AiClichesData; error?: string; processingTimeMs: number }> {
     const startTime = Date.now();
 
-    if (process.env.NODE_ENV === 'development') {
-      logger.info('[LlamaVision] detectAiCliches: Starting analysis');
+    if (process.env.NODE_ENV === "development") {
+      logger.info("[LlamaVision] detectAiCliches: Starting analysis");
     }
 
     try {
@@ -836,19 +539,19 @@ export class LlamaVisionAdapter implements IVisionAnalyzer {
       }
 
       const base64Image = await this.prepareImage(options.imageBuffer);
-      const response = await this.executeWithRetry(
-        () => this.sendGenerateRequest(base64Image, AI_CLICHE_DETECTION_PROMPT, options.timeout)
+      const response = await this.executeWithRetry(() =>
+        this.sendGenerateRequest(base64Image, AI_CLICHE_DETECTION_PROMPT, options.timeout)
       );
 
       const parsed = this.parseAiClichesResponse(response);
       const processingTimeMs = Date.now() - startTime;
 
       // features配列からdataを抽出
-      const aiClichesFeature = parsed.features.find(f => f.type === 'ai_cliches');
+      const aiClichesFeature = parsed.features.find((f) => f.type === "ai_cliches");
       const data = aiClichesFeature?.data as AiClichesData | undefined;
 
-      if (process.env.NODE_ENV === 'development') {
-        logger.info('[LlamaVision] detectAiCliches: Complete', {
+      if (process.env.NODE_ENV === "development") {
+        logger.info("[LlamaVision] detectAiCliches: Complete", {
           success: parsed.success,
           clicheCount: data?.clichesDetected?.length || 0,
           originalityScore: data?.originalityScore,
@@ -863,7 +566,7 @@ export class LlamaVisionAdapter implements IVisionAnalyzer {
         processingTimeMs,
       };
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      const errorMessage = error instanceof Error ? error.message : "Unknown error";
       return { success: false, error: errorMessage, processingTimeMs: Date.now() - startTime };
     }
   }
@@ -882,8 +585,8 @@ export class LlamaVisionAdapter implements IVisionAnalyzer {
   ): Promise<{ success: boolean; data?: BrandToneData; error?: string; processingTimeMs: number }> {
     const startTime = Date.now();
 
-    if (process.env.NODE_ENV === 'development') {
-      logger.info('[LlamaVision] detectBrandTone: Starting analysis');
+    if (process.env.NODE_ENV === "development") {
+      logger.info("[LlamaVision] detectBrandTone: Starting analysis");
     }
 
     try {
@@ -893,19 +596,19 @@ export class LlamaVisionAdapter implements IVisionAnalyzer {
       }
 
       const base64Image = await this.prepareImage(options.imageBuffer);
-      const response = await this.executeWithRetry(
-        () => this.sendGenerateRequest(base64Image, BRAND_TONE_ANALYSIS_PROMPT, options.timeout)
+      const response = await this.executeWithRetry(() =>
+        this.sendGenerateRequest(base64Image, BRAND_TONE_ANALYSIS_PROMPT, options.timeout)
       );
 
       const parsed = this.parseBrandToneResponse(response);
       const processingTimeMs = Date.now() - startTime;
 
       // features配列からdataを抽出
-      const brandToneFeature = parsed.features.find(f => f.type === 'brand_tone');
+      const brandToneFeature = parsed.features.find((f) => f.type === "brand_tone");
       const data = brandToneFeature?.data as BrandToneData | undefined;
 
-      if (process.env.NODE_ENV === 'development') {
-        logger.info('[LlamaVision] detectBrandTone: Complete', {
+      if (process.env.NODE_ENV === "development") {
+        logger.info("[LlamaVision] detectBrandTone: Complete", {
           success: parsed.success,
           targetAudience: data?.targetAudience,
           processingTimeMs,
@@ -919,7 +622,7 @@ export class LlamaVisionAdapter implements IVisionAnalyzer {
         processingTimeMs,
       };
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      const errorMessage = error instanceof Error ? error.message : "Unknown error";
       return { success: false, error: errorMessage, processingTimeMs: Date.now() - startTime };
     }
   }
@@ -959,8 +662,8 @@ export class LlamaVisionAdapter implements IVisionAnalyzer {
   ): Promise<EnhancedAnalysisResult> {
     const startTime = Date.now();
 
-    if (process.env.NODE_ENV === 'development') {
-      logger.info('[LlamaVision] analyzeWithColorContext: Starting enhanced analysis', {
+    if (process.env.NODE_ENV === "development") {
+      logger.info("[LlamaVision] analyzeWithColorContext: Starting enhanced analysis", {
         includeColorContext: options.includeColorContext ?? false,
         hasColorContext: !!options.colorContext,
       });
@@ -980,8 +683,8 @@ export class LlamaVisionAdapter implements IVisionAnalyzer {
       const prompt = this.buildEnhancedMoodBrandTonePrompt(options);
 
       // Execute request with retry
-      const response = await this.executeWithRetry(
-        () => this.sendGenerateRequest(base64Image, prompt, options.timeout)
+      const response = await this.executeWithRetry(() =>
+        this.sendGenerateRequest(base64Image, prompt, options.timeout)
       );
 
       // Parse enhanced response
@@ -993,8 +696,8 @@ export class LlamaVisionAdapter implements IVisionAnalyzer {
 
       const processingTimeMs = Date.now() - startTime;
 
-      if (process.env.NODE_ENV === 'development') {
-        logger.info('[LlamaVision] analyzeWithColorContext: Complete', {
+      if (process.env.NODE_ENV === "development") {
+        logger.info("[LlamaVision] analyzeWithColorContext: Complete", {
           success: result.success,
           primaryMood: result.mood?.primaryMood,
           primaryTone: result.brandTone?.primaryTone,
@@ -1009,10 +712,10 @@ export class LlamaVisionAdapter implements IVisionAnalyzer {
         modelName: this.modelName,
       };
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      const errorMessage = error instanceof Error ? error.message : "Unknown error";
 
-      if (process.env.NODE_ENV === 'development') {
-        console.error('[LlamaVision] analyzeWithColorContext: Error', error);
+      if (process.env.NODE_ENV === "development") {
+        console.error("[LlamaVision] analyzeWithColorContext: Error", error);
       }
 
       return this.createEnhancedErrorResult(errorMessage, startTime);
@@ -1023,20 +726,22 @@ export class LlamaVisionAdapter implements IVisionAnalyzer {
    * Build enhanced mood/brand tone prompt with optional color context
    */
   private buildEnhancedMoodBrandTonePrompt(options: EnhancedVisionAnalysisOptions): string {
-    let colorContextSection = '';
+    let colorContextSection = "";
 
     if (options.includeColorContext && options.colorContext) {
       const ctx = options.colorContext;
-      colorContextSection = COLOR_CONTEXT_SECTION_TEMPLATE
-        .replace('{dominant_colors}', ctx.dominantColors?.join(', ') || 'unknown')
-        .replace('{theme}', ctx.theme || 'unknown')
-        .replace('{theme_confidence}', ctx.themeConfidence?.toFixed(2) || 'unknown')
-        .replace('{background_color}', ctx.backgroundColor || 'unknown')
-        .replace('{density}', ctx.contentDensity?.toFixed(2) || 'unknown')
-        .replace('{whitespace_ratio}', ctx.whitespaceRatio?.toFixed(2) || 'unknown');
+      colorContextSection = COLOR_CONTEXT_SECTION_TEMPLATE.replace(
+        "{dominant_colors}",
+        ctx.dominantColors?.join(", ") || "unknown"
+      )
+        .replace("{theme}", ctx.theme || "unknown")
+        .replace("{theme_confidence}", ctx.themeConfidence?.toFixed(2) || "unknown")
+        .replace("{background_color}", ctx.backgroundColor || "unknown")
+        .replace("{density}", ctx.contentDensity?.toFixed(2) || "unknown")
+        .replace("{whitespace_ratio}", ctx.whitespaceRatio?.toFixed(2) || "unknown");
     }
 
-    return ENHANCED_MOOD_BRAND_TONE_PROMPT.replace('{color_context_section}', colorContextSection);
+    return ENHANCED_MOOD_BRAND_TONE_PROMPT.replace("{color_context_section}", colorContextSection);
   }
 
   /**
@@ -1047,7 +752,7 @@ export class LlamaVisionAdapter implements IVisionAnalyzer {
     response: string,
     colorContextUsed: boolean,
     colorContext?: ColorContextInput
-  ): Omit<EnhancedAnalysisResult, 'processingTimeMs' | 'modelName'> {
+  ): Omit<EnhancedAnalysisResult, "processingTimeMs" | "modelName"> {
     const warnings: VisionAnalysisWarning[] = [];
     let fallbackUsed = false;
 
@@ -1057,8 +762,8 @@ export class LlamaVisionAdapter implements IVisionAnalyzer {
       if (!jsonMatch) {
         // v0.1.0: Use fallback values instead of failing
         warnings.push({
-          code: 'PARSE_WARNING',
-          message: 'No valid JSON found in response, using fallback values',
+          code: "PARSE_WARNING",
+          message: "No valid JSON found in response, using fallback values",
         });
         fallbackUsed = true;
 
@@ -1086,9 +791,9 @@ export class LlamaVisionAdapter implements IVisionAnalyzer {
         mood = { ...DEFAULT_MOOD_FALLBACK, colorContextUsed };
         fallbackUsed = true;
         warnings.push({
-          code: 'MOOD_FALLBACK_USED',
-          message: 'Failed to extract mood from response, using fallback value',
-          field: 'mood',
+          code: "MOOD_FALLBACK_USED",
+          message: "Failed to extract mood from response, using fallback value",
+          field: "mood",
         });
       }
 
@@ -1096,18 +801,18 @@ export class LlamaVisionAdapter implements IVisionAnalyzer {
         brandTone = { ...DEFAULT_BRAND_TONE_FALLBACK, colorContextUsed };
         fallbackUsed = true;
         warnings.push({
-          code: 'BRAND_TONE_FALLBACK_USED',
-          message: 'Failed to extract brand tone from response, using fallback value',
-          field: 'brandTone',
+          code: "BRAND_TONE_FALLBACK_USED",
+          message: "Failed to extract brand tone from response, using fallback value",
+          field: "brandTone",
         });
       }
 
       // v0.1.0: Check for low confidence and add warnings
       if (mood.confidence < LOW_CONFIDENCE_THRESHOLD) {
         warnings.push({
-          code: 'LOW_CONFIDENCE_MOOD',
+          code: "LOW_CONFIDENCE_MOOD",
           message: `Mood confidence (${mood.confidence.toFixed(2)}) is below threshold (${LOW_CONFIDENCE_THRESHOLD})`,
-          field: 'mood.confidence',
+          field: "mood.confidence",
           value: mood.confidence,
           threshold: LOW_CONFIDENCE_THRESHOLD,
         });
@@ -1115,42 +820,49 @@ export class LlamaVisionAdapter implements IVisionAnalyzer {
 
       if (brandTone.confidence < LOW_CONFIDENCE_THRESHOLD) {
         warnings.push({
-          code: 'LOW_CONFIDENCE_BRAND_TONE',
+          code: "LOW_CONFIDENCE_BRAND_TONE",
           message: `Brand tone confidence (${brandTone.confidence.toFixed(2)}) is below threshold (${LOW_CONFIDENCE_THRESHOLD})`,
-          field: 'brandTone.confidence',
+          field: "brandTone.confidence",
           value: brandTone.confidence,
           threshold: LOW_CONFIDENCE_THRESHOLD,
         });
       }
 
       // v0.1.0: Check for missing indicators
-      if (mood.indicators.length === 0 || (mood.indicators.length === 1 && mood.indicators[0] === 'fallback_value')) {
+      if (
+        mood.indicators.length === 0 ||
+        (mood.indicators.length === 1 && mood.indicators[0] === "fallback_value")
+      ) {
         warnings.push({
-          code: 'MISSING_INDICATORS',
-          message: 'Mood analysis lacks supporting indicators',
-          field: 'mood.indicators',
+          code: "MISSING_INDICATORS",
+          message: "Mood analysis lacks supporting indicators",
+          field: "mood.indicators",
         });
       }
 
-      if (brandTone.indicators.length === 0 || (brandTone.indicators.length === 1 && brandTone.indicators[0] === 'fallback_value')) {
+      if (
+        brandTone.indicators.length === 0 ||
+        (brandTone.indicators.length === 1 && brandTone.indicators[0] === "fallback_value")
+      ) {
         warnings.push({
-          code: 'MISSING_INDICATORS',
-          message: 'Brand tone analysis lacks supporting indicators',
-          field: 'brandTone.indicators',
+          code: "MISSING_INDICATORS",
+          message: "Brand tone analysis lacks supporting indicators",
+          field: "brandTone.indicators",
         });
       }
 
       // Build color context summary if used
-      const colorContextSummary = colorContextUsed && colorContext
-        ? {
-            dominantColors: colorContext.dominantColors || [],
-            theme: colorContext.theme || 'mixed',
-            density: colorContext.contentDensity || 0.5,
-          }
-        : undefined;
+      const colorContextSummary =
+        colorContextUsed && colorContext
+          ? {
+              dominantColors: colorContext.dominantColors || [],
+              theme: colorContext.theme || "mixed",
+              density: colorContext.contentDensity || 0.5,
+            }
+          : undefined;
 
       // Build result object conditionally to satisfy exactOptionalPropertyTypes
-      const result: Omit<EnhancedAnalysisResult, 'processingTimeMs' | 'modelName'> = {
+      const result: Omit<EnhancedAnalysisResult, "processingTimeMs" | "modelName"> = {
         success: true,
         mood,
         brandTone,
@@ -1170,15 +882,15 @@ export class LlamaVisionAdapter implements IVisionAnalyzer {
 
       return result;
     } catch (error) {
-      if (process.env.NODE_ENV === 'development') {
-        console.error('[LlamaVision] Failed to parse enhanced response:', error);
-        console.error('[LlamaVision] Raw response:', response);
+      if (process.env.NODE_ENV === "development") {
+        console.error("[LlamaVision] Failed to parse enhanced response:", error);
+        console.error("[LlamaVision] Raw response:", response);
       }
 
       // v0.1.0: Return fallback values with error warning instead of failing
       warnings.push({
-        code: 'PARSE_WARNING',
-        message: error instanceof Error ? error.message : 'Failed to parse response',
+        code: "PARSE_WARNING",
+        message: error instanceof Error ? error.message : "Failed to parse response",
       });
 
       return {
@@ -1199,15 +911,23 @@ export class LlamaVisionAdapter implements IVisionAnalyzer {
     moodData: unknown,
     colorContextUsed: boolean
   ): MoodAnalysisResult | undefined {
-    if (!moodData || typeof moodData !== 'object') {
+    if (!moodData || typeof moodData !== "object") {
       return undefined;
     }
 
     const data = moodData as Record<string, unknown>;
 
     const validMoods: MoodType[] = [
-      'professional', 'playful', 'minimal', 'bold', 'elegant',
-      'modern', 'classic', 'energetic', 'calm', 'luxurious',
+      "professional",
+      "playful",
+      "minimal",
+      "bold",
+      "elegant",
+      "modern",
+      "classic",
+      "energetic",
+      "calm",
+      "luxurious",
     ];
 
     // Support both formats: { primary } and { primaryMood }
@@ -1217,11 +937,10 @@ export class LlamaVisionAdapter implements IVisionAnalyzer {
     }
 
     const secondaryMood = this.validateMoodType(data.secondaryMood ?? data.secondary, validMoods);
-    const confidence = typeof data.confidence === 'number'
-      ? Math.min(1, Math.max(0, data.confidence))
-      : 0.7;
+    const confidence =
+      typeof data.confidence === "number" ? Math.min(1, Math.max(0, data.confidence)) : 0.7;
     const indicators = Array.isArray(data.indicators)
-      ? data.indicators.filter((i): i is string => typeof i === 'string')
+      ? data.indicators.filter((i): i is string => typeof i === "string")
       : [];
 
     return {
@@ -1241,15 +960,21 @@ export class LlamaVisionAdapter implements IVisionAnalyzer {
     brandToneData: unknown,
     colorContextUsed: boolean
   ): EnhancedBrandToneResult | undefined {
-    if (!brandToneData || typeof brandToneData !== 'object') {
+    if (!brandToneData || typeof brandToneData !== "object") {
       return undefined;
     }
 
     const data = brandToneData as Record<string, unknown>;
 
     const validTones: BrandToneType[] = [
-      'corporate', 'friendly', 'luxury', 'tech-forward',
-      'creative', 'trustworthy', 'innovative', 'traditional',
+      "corporate",
+      "friendly",
+      "luxury",
+      "tech-forward",
+      "creative",
+      "trustworthy",
+      "innovative",
+      "traditional",
     ];
 
     // Support both formats: { primary } and { primaryTone }
@@ -1258,41 +983,43 @@ export class LlamaVisionAdapter implements IVisionAnalyzer {
       return undefined;
     }
 
-    const secondaryTone = this.validateBrandToneType(data.secondaryTone ?? data.secondary, validTones);
-    const confidence = typeof data.confidence === 'number'
-      ? Math.min(1, Math.max(0, data.confidence))
-      : 0.7;
+    const secondaryTone = this.validateBrandToneType(
+      data.secondaryTone ?? data.secondary,
+      validTones
+    );
+    const confidence =
+      typeof data.confidence === "number" ? Math.min(1, Math.max(0, data.confidence)) : 0.7;
 
     // Extract dimension values with defaults
     // Support both snake_case (from prompt) and camelCase (from tests)
-    const professionalism = this.validateEnum<'minimal' | 'moderate' | 'bold'>(
+    const professionalism = this.validateEnum<"minimal" | "moderate" | "bold">(
       data.professionalism,
-      ['minimal', 'moderate', 'bold'],
-      'moderate'
+      ["minimal", "moderate", "bold"],
+      "moderate"
     );
-    const warmth = this.validateEnum<'cold' | 'neutral' | 'warm'>(
+    const warmth = this.validateEnum<"cold" | "neutral" | "warm">(
       data.warmth,
-      ['cold', 'neutral', 'warm'],
-      'neutral'
+      ["cold", "neutral", "warm"],
+      "neutral"
     );
-    const modernity = this.validateEnum<'classic' | 'contemporary' | 'futuristic'>(
+    const modernity = this.validateEnum<"classic" | "contemporary" | "futuristic">(
       data.modernity,
-      ['classic', 'contemporary', 'futuristic'],
-      'contemporary'
+      ["classic", "contemporary", "futuristic"],
+      "contemporary"
     );
-    const energy = this.validateEnum<'calm' | 'balanced' | 'dynamic'>(
+    const energy = this.validateEnum<"calm" | "balanced" | "dynamic">(
       data.energy,
-      ['calm', 'balanced', 'dynamic'],
-      'balanced'
+      ["calm", "balanced", "dynamic"],
+      "balanced"
     );
-    const targetAudience = this.validateEnum<'enterprise' | 'startup' | 'creative' | 'consumer'>(
+    const targetAudience = this.validateEnum<"enterprise" | "startup" | "creative" | "consumer">(
       data.targetAudience ?? data.target_audience,
-      ['enterprise', 'startup', 'creative', 'consumer'],
-      'consumer'
+      ["enterprise", "startup", "creative", "consumer"],
+      "consumer"
     );
 
     const indicators = Array.isArray(data.indicators)
-      ? data.indicators.filter((i): i is string => typeof i === 'string')
+      ? data.indicators.filter((i): i is string => typeof i === "string")
       : [];
 
     return {
@@ -1313,7 +1040,7 @@ export class LlamaVisionAdapter implements IVisionAnalyzer {
    * Validate mood type
    */
   private validateMoodType(value: unknown, validMoods: MoodType[]): MoodType | undefined {
-    if (typeof value === 'string' && validMoods.includes(value as MoodType)) {
+    if (typeof value === "string" && validMoods.includes(value as MoodType)) {
       return value as MoodType;
     }
     return undefined;
@@ -1322,8 +1049,11 @@ export class LlamaVisionAdapter implements IVisionAnalyzer {
   /**
    * Validate brand tone type
    */
-  private validateBrandToneType(value: unknown, validTones: BrandToneType[]): BrandToneType | undefined {
-    if (typeof value === 'string' && validTones.includes(value as BrandToneType)) {
+  private validateBrandToneType(
+    value: unknown,
+    validTones: BrandToneType[]
+  ): BrandToneType | undefined {
+    if (typeof value === "string" && validTones.includes(value as BrandToneType)) {
       return value as BrandToneType;
     }
     return undefined;
@@ -1332,12 +1062,8 @@ export class LlamaVisionAdapter implements IVisionAnalyzer {
   /**
    * Validate enum value with default
    */
-  private validateEnum<T extends string>(
-    value: unknown,
-    validValues: T[],
-    defaultValue: T
-  ): T {
-    if (typeof value === 'string' && validValues.includes(value as T)) {
+  private validateEnum<T extends string>(value: unknown, validValues: T[], defaultValue: T): T {
+    if (typeof value === "string" && validValues.includes(value as T)) {
       return value as T;
     }
     return defaultValue;
@@ -1365,13 +1091,10 @@ export class LlamaVisionAdapter implements IVisionAnalyzer {
   protected async checkOllamaServer(): Promise<boolean> {
     try {
       const controller = new AbortController();
-      const timeoutId = setTimeout(
-        () => controller.abort(),
-        this.config.connectionTimeout
-      );
+      const timeoutId = setTimeout(() => controller.abort(), this.config.connectionTimeout);
 
       const response = await fetch(`${this.config.baseUrl}/api/tags`, {
-        method: 'GET',
+        method: "GET",
         signal: controller.signal,
       });
 
@@ -1379,8 +1102,8 @@ export class LlamaVisionAdapter implements IVisionAnalyzer {
 
       return response.ok;
     } catch (error) {
-      if (process.env.NODE_ENV === 'development') {
-        console.error('[LlamaVisionAdapter] Server check failed:', error);
+      if (process.env.NODE_ENV === "development") {
+        console.error("[LlamaVisionAdapter] Server check failed:", error);
       }
       return false;
     }
@@ -1392,13 +1115,10 @@ export class LlamaVisionAdapter implements IVisionAnalyzer {
   protected async checkModelAvailability(): Promise<boolean> {
     try {
       const controller = new AbortController();
-      const timeoutId = setTimeout(
-        () => controller.abort(),
-        this.config.connectionTimeout
-      );
+      const timeoutId = setTimeout(() => controller.abort(), this.config.connectionTimeout);
 
       const response = await fetch(`${this.config.baseUrl}/api/tags`, {
-        method: 'GET',
+        method: "GET",
         signal: controller.signal,
       });
 
@@ -1416,13 +1136,11 @@ export class LlamaVisionAdapter implements IVisionAnalyzer {
 
       // モデル名の完全一致または前方一致で確認
       return data.models.some(
-        (model) =>
-          model.name === this.modelName ||
-          model.name.startsWith(`${this.modelName}:`)
+        (model) => model.name === this.modelName || model.name.startsWith(`${this.modelName}:`)
       );
     } catch (error) {
-      if (process.env.NODE_ENV === 'development') {
-        console.error('[LlamaVisionAdapter] Model check failed:', error);
+      if (process.env.NODE_ENV === "development") {
+        console.error("[LlamaVisionAdapter] Model check failed:", error);
       }
       return false;
     }
@@ -1436,7 +1154,7 @@ export class LlamaVisionAdapter implements IVisionAnalyzer {
    * 画像をbase64に変換
    */
   protected async prepareImage(image: Buffer): Promise<string> {
-    return image.toString('base64');
+    return image.toString("base64");
   }
 
   // ===========================================================================
@@ -1446,14 +1164,11 @@ export class LlamaVisionAdapter implements IVisionAnalyzer {
   /**
    * 解析プロンプトを生成
    */
-  protected buildPrompt(
-    features: VisionFeatureType[],
-    customPrompt?: string
-  ): string {
-    const featureList = features.map((f) => `- ${f}`).join('\n');
+  protected buildPrompt(features: VisionFeatureType[], customPrompt?: string): string {
+    const featureList = features.map((f) => `- ${f}`).join("\n");
 
     let basePrompt = this.config.analysisPrompt || DEFAULT_ANALYSIS_PROMPT;
-    basePrompt = basePrompt.replace('{features_to_analyze}', featureList);
+    basePrompt = basePrompt.replace("{features_to_analyze}", featureList);
 
     // システムプロンプトを追加
     let fullPrompt = this.config.systemPrompt
@@ -1471,14 +1186,11 @@ export class LlamaVisionAdapter implements IVisionAnalyzer {
   /**
    * セクション用解析プロンプトを生成
    */
-  protected buildSectionPrompt(
-    sectionTypeHint?: string,
-    customPrompt?: string
-  ): string {
+  protected buildSectionPrompt(sectionTypeHint?: string, customPrompt?: string): string {
     // セクションタイプをプロンプトに埋め込む
     let basePrompt = SECTION_ANALYSIS_PROMPT.replace(
-      '{section_type}',
-      sectionTypeHint || 'unknown'
+      "{section_type}",
+      sectionTypeHint || "unknown"
     );
 
     // システムプロンプトを追加
@@ -1524,9 +1236,9 @@ export class LlamaVisionAdapter implements IVisionAnalyzer {
       };
 
       const response = await fetch(`${this.config.baseUrl}/api/generate`, {
-        method: 'POST',
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify(requestBody),
         signal: controller.signal,
@@ -1540,9 +1252,9 @@ export class LlamaVisionAdapter implements IVisionAnalyzer {
 
         // 4xxエラーはリトライ不可としてマーク
         if (statusCode >= 400 && statusCode < 500) {
-          const error = new Error(
-            `HTTP ${statusCode}: ${statusText}`
-          ) as Error & { noRetry?: boolean };
+          const error = new Error(`HTTP ${statusCode}: ${statusText}`) as Error & {
+            noRetry?: boolean;
+          };
           error.noRetry = true;
           throw error;
         }
@@ -1553,15 +1265,15 @@ export class LlamaVisionAdapter implements IVisionAnalyzer {
       const data = (await response.json()) as OllamaGenerateResponse;
 
       if (!data.response) {
-        throw new Error('Empty response from Ollama');
+        throw new Error("Empty response from Ollama");
       }
 
       return data.response;
     } catch (error) {
       clearTimeout(timeoutId);
 
-      if (error instanceof Error && error.name === 'AbortError') {
-        throw new Error('Request timeout');
+      if (error instanceof Error && error.name === "AbortError") {
+        throw new Error("Request timeout");
       }
 
       throw error;
@@ -1571,9 +1283,7 @@ export class LlamaVisionAdapter implements IVisionAnalyzer {
   /**
    * リトライ付きでリクエストを実行
    */
-  private async executeWithRetry(
-    operation: () => Promise<string>
-  ): Promise<string> {
+  private async executeWithRetry(operation: () => Promise<string>): Promise<string> {
     let lastError: Error | null = null;
 
     for (let attempt = 0; attempt <= this.config.maxRetries; attempt++) {
@@ -1588,7 +1298,7 @@ export class LlamaVisionAdapter implements IVisionAnalyzer {
         }
 
         if (attempt < this.config.maxRetries) {
-          if (process.env.NODE_ENV === 'development') {
+          if (process.env.NODE_ENV === "development") {
             logger.info(
               `[LlamaVisionAdapter] Retry attempt ${attempt + 1}/${this.config.maxRetries}`
             );
@@ -1598,7 +1308,7 @@ export class LlamaVisionAdapter implements IVisionAnalyzer {
       }
     }
 
-    throw lastError || new Error('Max retries exceeded');
+    throw lastError || new Error("Max retries exceeded");
   }
 
   /**
@@ -1632,7 +1342,7 @@ export class LlamaVisionAdapter implements IVisionAnalyzer {
         return {
           success: false,
           features: [],
-          error: 'No valid JSON found in response',
+          error: "No valid JSON found in response",
         };
       }
 
@@ -1655,13 +1365,19 @@ export class LlamaVisionAdapter implements IVisionAnalyzer {
         const features: VisionFeature[] = [];
 
         // layout -> layout_structure
-        if (typeof parsed.layout === 'string') {
+        if (typeof parsed.layout === "string") {
           features.push({
-            type: 'layout_structure',
+            type: "layout_structure",
             confidence: 0.8,
             data: {
-              type: 'layout_structure',
-              gridType: parsed.layout as 'single-column' | 'two-column' | 'three-column' | 'grid' | 'masonry' | 'asymmetric',
+              type: "layout_structure",
+              gridType: parsed.layout as
+                | "single-column"
+                | "two-column"
+                | "three-column"
+                | "grid"
+                | "masonry"
+                | "asymmetric",
               mainAreas: parsed.sections || [],
               description: `${parsed.layout} layout`,
             },
@@ -1671,13 +1387,13 @@ export class LlamaVisionAdapter implements IVisionAnalyzer {
         // colors -> color_palette
         if (Array.isArray(parsed.colors)) {
           features.push({
-            type: 'color_palette',
+            type: "color_palette",
             confidence: 0.8,
             data: {
-              type: 'color_palette',
-              dominantColors: parsed.colors.filter((c: unknown) => typeof c === 'string'),
-              mood: typeof parsed.mood === 'string' ? parsed.mood : 'neutral',
-              contrast: 'medium' as const,
+              type: "color_palette",
+              dominantColors: parsed.colors.filter((c: unknown) => typeof c === "string"),
+              mood: typeof parsed.mood === "string" ? parsed.mood : "neutral",
+              contrast: "medium" as const,
             },
           });
         }
@@ -1685,10 +1401,10 @@ export class LlamaVisionAdapter implements IVisionAnalyzer {
         // sections -> section_boundaries
         if (Array.isArray(parsed.sections) && parsed.sections.length > 0) {
           features.push({
-            type: 'section_boundaries',
+            type: "section_boundaries",
             confidence: 0.7,
             data: {
-              type: 'section_boundaries',
+              type: "section_boundaries",
               sections: parsed.sections.map((name: string, index: number) => ({
                 type: name,
                 startY: index * 300,
@@ -1710,11 +1426,10 @@ export class LlamaVisionAdapter implements IVisionAnalyzer {
       return {
         success: false,
         features: [],
-        error: 'Invalid response structure: no recognizable format',
+        error: "Invalid response structure: no recognizable format",
       };
     } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : 'Parse error';
+      const errorMessage = error instanceof Error ? error.message : "Parse error";
       return {
         success: false,
         features: [],
@@ -1746,7 +1461,7 @@ export class LlamaVisionAdapter implements IVisionAnalyzer {
         return {
           success: false,
           features: [],
-          error: 'No valid JSON found in section response',
+          error: "No valid JSON found in section response",
         };
       }
 
@@ -1754,25 +1469,25 @@ export class LlamaVisionAdapter implements IVisionAnalyzer {
       const features: VisionFeature[] = [];
 
       // layout -> layout_structure
-      if (typeof parsed.layout === 'string') {
+      if (typeof parsed.layout === "string") {
         // gridTypeへのマッピング
-        const gridTypeMapping: Record<string, LayoutStructureData['gridType']> = {
-          'single-column': 'single-column',
-          'single column': 'single-column',
-          'one column': 'single-column',
-          'two-column': 'two-column',
-          'two column': 'two-column',
-          '2 column': 'two-column',
-          'three-column': 'three-column',
-          'three column': 'three-column',
-          '3 column': 'three-column',
-          'grid': 'grid',
-          'masonry': 'masonry',
-          'asymmetric': 'asymmetric',
+        const gridTypeMapping: Record<string, LayoutStructureData["gridType"]> = {
+          "single-column": "single-column",
+          "single column": "single-column",
+          "one column": "single-column",
+          "two-column": "two-column",
+          "two column": "two-column",
+          "2 column": "two-column",
+          "three-column": "three-column",
+          "three column": "three-column",
+          "3 column": "three-column",
+          grid: "grid",
+          masonry: "masonry",
+          asymmetric: "asymmetric",
         };
 
         const layoutLower = parsed.layout.toLowerCase();
-        let gridType: LayoutStructureData['gridType'] = 'single-column';
+        let gridType: LayoutStructureData["gridType"] = "single-column";
 
         for (const [key, value] of Object.entries(gridTypeMapping)) {
           if (layoutLower.includes(key)) {
@@ -1782,10 +1497,10 @@ export class LlamaVisionAdapter implements IVisionAnalyzer {
         }
 
         features.push({
-          type: 'layout_structure',
+          type: "layout_structure",
           confidence: 0.8,
           data: {
-            type: 'layout_structure',
+            type: "layout_structure",
             gridType,
             mainAreas: Array.isArray(parsed.elements) ? parsed.elements : [],
             description: parsed.layout,
@@ -1796,58 +1511,58 @@ export class LlamaVisionAdapter implements IVisionAnalyzer {
       // colors -> color_palette
       if (Array.isArray(parsed.colors) && parsed.colors.length > 0) {
         features.push({
-          type: 'color_palette',
+          type: "color_palette",
           confidence: 0.8,
           data: {
-            type: 'color_palette',
-            dominantColors: parsed.colors.filter((c: unknown) => typeof c === 'string'),
-            mood: typeof parsed.mood === 'string' ? parsed.mood : 'neutral',
-            contrast: 'medium' as const,
+            type: "color_palette",
+            dominantColors: parsed.colors.filter((c: unknown) => typeof c === "string"),
+            mood: typeof parsed.mood === "string" ? parsed.mood : "neutral",
+            contrast: "medium" as const,
           },
         });
       }
 
       // whitespace -> whitespace
-      if (typeof parsed.whitespace === 'string') {
-        const amountMapping: Record<string, WhitespaceData['amount']> = {
-          'minimal': 'minimal',
-          'moderate': 'moderate',
-          'generous': 'generous',
-          'extreme': 'extreme',
+      if (typeof parsed.whitespace === "string") {
+        const amountMapping: Record<string, WhitespaceData["amount"]> = {
+          minimal: "minimal",
+          moderate: "moderate",
+          generous: "generous",
+          extreme: "extreme",
         };
 
         const whitespaceValue = parsed.whitespace.toLowerCase();
-        const amount = amountMapping[whitespaceValue] || 'moderate';
+        const amount = amountMapping[whitespaceValue] || "moderate";
 
         features.push({
-          type: 'whitespace',
+          type: "whitespace",
           confidence: 0.7,
           data: {
-            type: 'whitespace',
+            type: "whitespace",
             amount,
-            distribution: 'even' as const,
+            distribution: "even" as const,
           },
         });
       }
 
       // hierarchy -> visual_hierarchy
-      if (typeof parsed.hierarchy === 'string') {
+      if (typeof parsed.hierarchy === "string") {
         features.push({
-          type: 'visual_hierarchy',
+          type: "visual_hierarchy",
           confidence: 0.7,
           data: {
-            type: 'visual_hierarchy',
+            type: "visual_hierarchy",
             focalPoints: Array.isArray(parsed.elements) ? parsed.elements.slice(0, 3) : [],
-            flowDirection: 'top-to-bottom' as const,
+            flowDirection: "top-to-bottom" as const,
             emphasisTechniques: [parsed.hierarchy],
           },
         });
       }
 
       if (features.length > 0) {
-        if (process.env.NODE_ENV === 'development') {
-          logger.info('[LlamaVision] parseSectionResponse:', {
-            sectionTypeHint: sectionTypeHint || 'unknown',
+        if (process.env.NODE_ENV === "development") {
+          logger.info("[LlamaVision] parseSectionResponse:", {
+            sectionTypeHint: sectionTypeHint || "unknown",
             featureCount: features.length,
             featureTypes: features.map((f) => f.type),
           });
@@ -1862,11 +1577,10 @@ export class LlamaVisionAdapter implements IVisionAnalyzer {
       // フォールバック: 既存のparseResponseを使用
       return this.parseResponse(response);
     } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : 'Parse error';
+      const errorMessage = error instanceof Error ? error.message : "Parse error";
 
-      if (process.env.NODE_ENV === 'development') {
-        console.error('[LlamaVision] parseSectionResponse error:', errorMessage);
+      if (process.env.NODE_ENV === "development") {
+        console.error("[LlamaVision] parseSectionResponse error:", errorMessage);
       }
 
       return {
@@ -1899,7 +1613,7 @@ export class LlamaVisionAdapter implements IVisionAnalyzer {
         return {
           success: false,
           features: [],
-          error: 'No valid JSON found in section boundaries response',
+          error: "No valid JSON found in section boundaries response",
         };
       }
 
@@ -1909,15 +1623,12 @@ export class LlamaVisionAdapter implements IVisionAnalyzer {
       if (Array.isArray(parsed.sections) && parsed.sections.length > 0) {
         // セクション境界データを構築
         const sectionBoundaries: SectionBoundariesData = {
-          type: 'section_boundaries',
+          type: "section_boundaries",
           sections: parsed.sections.map(
-            (
-              s: { type?: string; cues?: string[]; position?: string },
-              index: number
-            ) => ({
-              type: typeof s.type === 'string' ? s.type : 'unknown',
+            (s: { type?: string; cues?: string[]; position?: string }, index: number) => ({
+              type: typeof s.type === "string" ? s.type : "unknown",
               cues: Array.isArray(s.cues) ? s.cues : [],
-              position: typeof s.position === 'string' ? s.position : 'middle',
+              position: typeof s.position === "string" ? s.position : "middle",
               startY: index * 300, // 推定値
               endY: (index + 1) * 300,
               confidence: 0.7,
@@ -1926,13 +1637,13 @@ export class LlamaVisionAdapter implements IVisionAnalyzer {
         };
 
         features.push({
-          type: 'section_boundaries',
+          type: "section_boundaries",
           confidence: 0.75,
           data: sectionBoundaries,
         });
 
-        if (process.env.NODE_ENV === 'development') {
-          logger.info('[LlamaVision] parseSectionBoundariesResponse:', {
+        if (process.env.NODE_ENV === "development") {
+          logger.info("[LlamaVision] parseSectionBoundariesResponse:", {
             sectionCount: parsed.sections.length,
             types: parsed.sections.map((s: { type?: string }) => s.type),
           });
@@ -1942,10 +1653,10 @@ export class LlamaVisionAdapter implements IVisionAnalyzer {
       return {
         success: features.length > 0,
         features,
-        ...(features.length === 0 && { error: 'No sections found in response' }),
+        ...(features.length === 0 && { error: "No sections found in response" }),
       };
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Parse error';
+      const errorMessage = error instanceof Error ? error.message : "Parse error";
       return {
         success: false,
         features: [],
@@ -1973,7 +1684,7 @@ export class LlamaVisionAdapter implements IVisionAnalyzer {
         return {
           success: false,
           features: [],
-          error: 'No valid JSON found in motion candidates response',
+          error: "No valid JSON found in motion candidates response",
         };
       }
 
@@ -1982,43 +1693,44 @@ export class LlamaVisionAdapter implements IVisionAnalyzer {
 
       // motion_candidates feature を構築
       // アニメーションタイプのマッピング
-      const validAnimationTypes: MotionCandidatesData['likelyAnimations'][number]['animationType'][] = [
-        'fade-in', 'slide', 'scale', 'rotate', 'hover-scale', 'hover-lift', 'parallax', 'other'
-      ];
-      const mapAnimationType = (t: string): MotionCandidatesData['likelyAnimations'][number]['animationType'] => {
-        const normalized = t.toLowerCase().replace(/[_\s]/g, '-');
-        return validAnimationTypes.includes(normalized as typeof validAnimationTypes[number])
-          ? (normalized as typeof validAnimationTypes[number])
-          : 'other';
+      const validAnimationTypes: MotionCandidatesData["likelyAnimations"][number]["animationType"][] =
+        ["fade-in", "slide", "scale", "rotate", "hover-scale", "hover-lift", "parallax", "other"];
+      const mapAnimationType = (
+        t: string
+      ): MotionCandidatesData["likelyAnimations"][number]["animationType"] => {
+        const normalized = t.toLowerCase().replace(/[_\s]/g, "-");
+        return validAnimationTypes.includes(normalized as (typeof validAnimationTypes)[number])
+          ? (normalized as (typeof validAnimationTypes)[number])
+          : "other";
       };
 
       const motionData: MotionCandidatesData = {
-        type: 'motion_candidates',
+        type: "motion_candidates",
         likelyAnimations: Array.isArray(parsed.likely_animations)
           ? parsed.likely_animations.map(
               (a: { element?: string; type?: string; confidence?: number }) => ({
-                element: typeof a.element === 'string' ? a.element : 'unknown',
-                animationType: typeof a.type === 'string' ? mapAnimationType(a.type) : 'other',
-                confidence: typeof a.confidence === 'number' ? a.confidence : 0.5,
+                element: typeof a.element === "string" ? a.element : "unknown",
+                animationType: typeof a.type === "string" ? mapAnimationType(a.type) : "other",
+                confidence: typeof a.confidence === "number" ? a.confidence : 0.5,
               })
             )
           : [],
         interactiveElements: Array.isArray(parsed.interactive_elements)
-          ? parsed.interactive_elements.filter((e: unknown) => typeof e === 'string')
+          ? parsed.interactive_elements.filter((e: unknown) => typeof e === "string")
           : [],
         scrollTriggers: Array.isArray(parsed.scroll_triggers)
-          ? parsed.scroll_triggers.filter((t: unknown) => typeof t === 'string')
+          ? parsed.scroll_triggers.filter((t: unknown) => typeof t === "string")
           : [],
       };
 
       features.push({
-        type: 'motion_candidates',
+        type: "motion_candidates",
         confidence: 0.7,
         data: motionData,
       });
 
-      if (process.env.NODE_ENV === 'development') {
-        logger.info('[LlamaVision] parseMotionCandidatesResponse:', {
+      if (process.env.NODE_ENV === "development") {
+        logger.info("[LlamaVision] parseMotionCandidatesResponse:", {
           animationCount: motionData.likelyAnimations.length,
           interactiveCount: motionData.interactiveElements.length,
           scrollTriggerCount: motionData.scrollTriggers.length,
@@ -2030,7 +1742,7 @@ export class LlamaVisionAdapter implements IVisionAnalyzer {
         features,
       };
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Parse error';
+      const errorMessage = error instanceof Error ? error.message : "Parse error";
       return {
         success: false,
         features: [],
@@ -2058,7 +1770,7 @@ export class LlamaVisionAdapter implements IVisionAnalyzer {
         return {
           success: false,
           features: [],
-          error: 'No valid JSON found in AI cliches response',
+          error: "No valid JSON found in AI cliches response",
         };
       }
 
@@ -2068,50 +1780,62 @@ export class LlamaVisionAdapter implements IVisionAnalyzer {
       // ai_cliches feature を構築
       // 有効なclicheTypeへのマッピング
       const validClicheTypes = [
-        'gradient_orbs', 'generic_isometric', 'meaningless_patterns',
-        'oversaturated_gradients', 'ai_generated_people', 'floating_ui',
-        'generic_hero', 'symmetrical_layout', 'other',
+        "gradient_orbs",
+        "generic_isometric",
+        "meaningless_patterns",
+        "oversaturated_gradients",
+        "ai_generated_people",
+        "floating_ui",
+        "generic_hero",
+        "symmetrical_layout",
+        "other",
       ] as const;
-      const mapClicheType = (t: string): AiClichesData['clichesDetected'][number]['clicheType'] => {
-        const normalized = t.toLowerCase().replace(/[_\s]/g, '_');
-        return validClicheTypes.includes(normalized as typeof validClicheTypes[number])
-          ? (normalized as typeof validClicheTypes[number])
-          : 'other';
+      const mapClicheType = (t: string): AiClichesData["clichesDetected"][number]["clicheType"] => {
+        const normalized = t.toLowerCase().replace(/[_\s]/g, "_");
+        return validClicheTypes.includes(normalized as (typeof validClicheTypes)[number])
+          ? (normalized as (typeof validClicheTypes)[number])
+          : "other";
       };
 
       const clichesData: AiClichesData = {
-        type: 'ai_cliches',
+        type: "ai_cliches",
         clichesDetected: Array.isArray(parsed.cliches_detected)
           ? parsed.cliches_detected.map(
               (c: { type?: string; location?: string; severity?: string }) => ({
-                clicheType: typeof c.type === 'string' ? mapClicheType(c.type) : 'other',
-                location: typeof c.location === 'string' ? c.location : 'unknown',
-                severity: (typeof c.severity === 'string' &&
-                  ['low', 'medium', 'high'].includes(c.severity))
-                  ? (c.severity as 'low' | 'medium' | 'high')
-                  : 'medium',
+                clicheType: typeof c.type === "string" ? mapClicheType(c.type) : "other",
+                location: typeof c.location === "string" ? c.location : "unknown",
+                severity:
+                  typeof c.severity === "string" && ["low", "medium", "high"].includes(c.severity)
+                    ? (c.severity as "low" | "medium" | "high")
+                    : "medium",
               })
             )
           : [],
         originalityScore:
-          typeof parsed.originality_score === 'number' ? parsed.originality_score : 50,
-        assessment: (typeof parsed.assessment === 'string' &&
-          ['highly-original', 'mostly-original', 'moderate-ai-influence', 'heavy-ai-influence'].includes(parsed.assessment))
-          ? (parsed.assessment as AiClichesData['assessment'])
-          : 'moderate-ai-influence',
+          typeof parsed.originality_score === "number" ? parsed.originality_score : 50,
+        assessment:
+          typeof parsed.assessment === "string" &&
+          [
+            "highly-original",
+            "mostly-original",
+            "moderate-ai-influence",
+            "heavy-ai-influence",
+          ].includes(parsed.assessment)
+            ? (parsed.assessment as AiClichesData["assessment"])
+            : "moderate-ai-influence",
         suggestions: Array.isArray(parsed.suggestions)
-          ? parsed.suggestions.filter((s: unknown) => typeof s === 'string')
+          ? parsed.suggestions.filter((s: unknown) => typeof s === "string")
           : [],
       };
 
       features.push({
-        type: 'ai_cliches',
+        type: "ai_cliches",
         confidence: 0.75,
         data: clichesData,
       });
 
-      if (process.env.NODE_ENV === 'development') {
-        logger.info('[LlamaVision] parseAiClichesResponse:', {
+      if (process.env.NODE_ENV === "development") {
+        logger.info("[LlamaVision] parseAiClichesResponse:", {
           clicheCount: clichesData.clichesDetected.length,
           originalityScore: clichesData.originalityScore,
           assessment: clichesData.assessment,
@@ -2123,7 +1847,7 @@ export class LlamaVisionAdapter implements IVisionAnalyzer {
         features,
       };
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Parse error';
+      const errorMessage = error instanceof Error ? error.message : "Parse error";
       return {
         success: false,
         features: [],
@@ -2151,7 +1875,7 @@ export class LlamaVisionAdapter implements IVisionAnalyzer {
         return {
           success: false,
           features: [],
-          error: 'No valid JSON found in brand tone response',
+          error: "No valid JSON found in brand tone response",
         };
       }
 
@@ -2160,40 +1884,44 @@ export class LlamaVisionAdapter implements IVisionAnalyzer {
 
       // brand_tone feature を構築
       const brandToneData: BrandToneData = {
-        type: 'brand_tone',
-        professionalism: (typeof parsed.professionalism === 'string' &&
-          ['minimal', 'moderate', 'bold'].includes(parsed.professionalism))
-          ? (parsed.professionalism as 'minimal' | 'moderate' | 'bold')
-          : 'moderate',
-        warmth: (typeof parsed.warmth === 'string' &&
-          ['cold', 'neutral', 'warm'].includes(parsed.warmth))
-          ? (parsed.warmth as 'cold' | 'neutral' | 'warm')
-          : 'neutral',
-        modernity: (typeof parsed.modernity === 'string' &&
-          ['classic', 'contemporary', 'futuristic'].includes(parsed.modernity))
-          ? (parsed.modernity as 'classic' | 'contemporary' | 'futuristic')
-          : 'contemporary',
-        energy: (typeof parsed.energy === 'string' &&
-          ['calm', 'balanced', 'dynamic'].includes(parsed.energy))
-          ? (parsed.energy as 'calm' | 'balanced' | 'dynamic')
-          : 'balanced',
-        targetAudience: (typeof parsed.target_audience === 'string' &&
-          ['enterprise', 'startup', 'creative', 'consumer'].includes(parsed.target_audience))
-          ? (parsed.target_audience as 'enterprise' | 'startup' | 'creative' | 'consumer')
-          : 'consumer',
+        type: "brand_tone",
+        professionalism:
+          typeof parsed.professionalism === "string" &&
+          ["minimal", "moderate", "bold"].includes(parsed.professionalism)
+            ? (parsed.professionalism as "minimal" | "moderate" | "bold")
+            : "moderate",
+        warmth:
+          typeof parsed.warmth === "string" && ["cold", "neutral", "warm"].includes(parsed.warmth)
+            ? (parsed.warmth as "cold" | "neutral" | "warm")
+            : "neutral",
+        modernity:
+          typeof parsed.modernity === "string" &&
+          ["classic", "contemporary", "futuristic"].includes(parsed.modernity)
+            ? (parsed.modernity as "classic" | "contemporary" | "futuristic")
+            : "contemporary",
+        energy:
+          typeof parsed.energy === "string" &&
+          ["calm", "balanced", "dynamic"].includes(parsed.energy)
+            ? (parsed.energy as "calm" | "balanced" | "dynamic")
+            : "balanced",
+        targetAudience:
+          typeof parsed.target_audience === "string" &&
+          ["enterprise", "startup", "creative", "consumer"].includes(parsed.target_audience)
+            ? (parsed.target_audience as "enterprise" | "startup" | "creative" | "consumer")
+            : "consumer",
         indicators: Array.isArray(parsed.indicators)
-          ? parsed.indicators.filter((i: unknown) => typeof i === 'string')
+          ? parsed.indicators.filter((i: unknown) => typeof i === "string")
           : [],
       };
 
       features.push({
-        type: 'brand_tone',
+        type: "brand_tone",
         confidence: 0.7,
         data: brandToneData,
       });
 
-      if (process.env.NODE_ENV === 'development') {
-        logger.info('[LlamaVision] parseBrandToneResponse:', {
+      if (process.env.NODE_ENV === "development") {
+        logger.info("[LlamaVision] parseBrandToneResponse:", {
           professionalism: brandToneData.professionalism,
           warmth: brandToneData.warmth,
           modernity: brandToneData.modernity,
@@ -2206,7 +1934,7 @@ export class LlamaVisionAdapter implements IVisionAnalyzer {
         features,
       };
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Parse error';
+      const errorMessage = error instanceof Error ? error.message : "Parse error";
       return {
         success: false,
         features: [],
@@ -2227,7 +1955,7 @@ export class LlamaVisionAdapter implements IVisionAnalyzer {
 
     // 直接JSONとしてパースを試みる
     const trimmed = response.trim();
-    if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
+    if (trimmed.startsWith("{") && trimmed.endsWith("}")) {
       return this.sanitizeJsonString(trimmed);
     }
 
@@ -2254,7 +1982,7 @@ export class LlamaVisionAdapter implements IVisionAnalyzer {
     sanitized = sanitized.replace(/"(\s+)(\w+)"(\s*:)/g, '"$2"$3');
 
     // 末尾のカンマを除去（JSONではエラー）
-    sanitized = sanitized.replace(/,(\s*[}\]])/g, '$1');
+    sanitized = sanitized.replace(/,(\s*[}\]])/g, "$1");
 
     // 一般的なtypoを修正
     const typoFixes: [RegExp, string][] = [
@@ -2279,37 +2007,37 @@ export class LlamaVisionAdapter implements IVisionAnalyzer {
    * 2. フラット形式: { type, ...data } (confidenceはオプション)
    */
   private validateFeature(feature: unknown): VisionFeature | null {
-    if (!feature || typeof feature !== 'object') {
+    if (!feature || typeof feature !== "object") {
       return null;
     }
 
     const f = feature as Record<string, unknown>;
 
     // typeは必須
-    if (typeof f.type !== 'string') {
+    if (typeof f.type !== "string") {
       return null;
     }
 
     // typeの検証
     const validTypes: VisionFeatureType[] = [
-      'layout_structure',
-      'color_palette',
-      'typography',
-      'visual_hierarchy',
-      'whitespace',
-      'density',
-      'rhythm',
-      'section_boundaries',
+      "layout_structure",
+      "color_palette",
+      "typography",
+      "visual_hierarchy",
+      "whitespace",
+      "density",
+      "rhythm",
+      "section_boundaries",
       // Reftrix専用タイプ
-      'motion_candidates',
-      'brand_tone',
-      'ai_cliches',
+      "motion_candidates",
+      "brand_tone",
+      "ai_cliches",
     ];
 
     if (!validTypes.includes(f.type as VisionFeatureType)) {
       // typo対応: visual_hierachy -> visual_hierarchy
-      if (f.type === 'visual_hierachy') {
-        f.type = 'visual_hierarchy';
+      if (f.type === "visual_hierachy") {
+        f.type = "visual_hierarchy";
       } else {
         return null;
       }
@@ -2317,14 +2045,14 @@ export class LlamaVisionAdapter implements IVisionAnalyzer {
 
     // confidence取得（オプション、デフォルト0.8）
     let confidence = 0.8;
-    if (typeof f.confidence === 'number' && f.confidence >= 0 && f.confidence <= 1) {
+    if (typeof f.confidence === "number" && f.confidence >= 0 && f.confidence <= 1) {
       confidence = f.confidence;
     }
 
     // データ構造を決定（ネスト形式 vs フラット形式）
     let data: Record<string, unknown>;
 
-    if (f.data && typeof f.data === 'object') {
+    if (f.data && typeof f.data === "object") {
       // ネスト形式: { type, confidence, data: {...} }
       data = f.data as Record<string, unknown>;
     } else {
@@ -2339,8 +2067,8 @@ export class LlamaVisionAdapter implements IVisionAnalyzer {
 
     // 特徴タイプ別の検証
     if (!this.validateFeatureData(f.type as VisionFeatureType, data)) {
-      if (process.env.NODE_ENV === 'development') {
-        logger.debug('[LlamaVisionAdapter] Feature validation failed:', {
+      if (process.env.NODE_ENV === "development") {
+        logger.debug("[LlamaVisionAdapter] Feature validation failed:", {
           type: f.type,
           dataKeys: Object.keys(data),
         });
@@ -2358,81 +2086,70 @@ export class LlamaVisionAdapter implements IVisionAnalyzer {
   /**
    * 特徴データの詳細検証
    */
-  private validateFeatureData(
-    type: VisionFeatureType,
-    data: Record<string, unknown>
-  ): boolean {
+  private validateFeatureData(type: VisionFeatureType, data: Record<string, unknown>): boolean {
     switch (type) {
-      case 'layout_structure':
+      case "layout_structure":
         return (
-          typeof data.gridType === 'string' &&
+          typeof data.gridType === "string" &&
           Array.isArray(data.mainAreas) &&
-          typeof data.description === 'string'
+          typeof data.description === "string"
         );
 
-      case 'color_palette':
+      case "color_palette":
         return (
           Array.isArray(data.dominantColors) &&
-          typeof data.mood === 'string' &&
-          typeof data.contrast === 'string'
+          typeof data.mood === "string" &&
+          typeof data.contrast === "string"
         );
 
-      case 'typography':
+      case "typography":
         return (
-          typeof data.headingStyle === 'string' &&
-          typeof data.bodyStyle === 'string' &&
+          typeof data.headingStyle === "string" &&
+          typeof data.bodyStyle === "string" &&
           Array.isArray(data.hierarchy)
         );
 
-      case 'visual_hierarchy':
+      case "visual_hierarchy":
         return (
           Array.isArray(data.focalPoints) &&
-          typeof data.flowDirection === 'string' &&
+          typeof data.flowDirection === "string" &&
           Array.isArray(data.emphasisTechniques)
         );
 
-      case 'whitespace':
-        return (
-          typeof data.amount === 'string' &&
-          typeof data.distribution === 'string'
-        );
+      case "whitespace":
+        return typeof data.amount === "string" && typeof data.distribution === "string";
 
-      case 'density':
-        return (
-          typeof data.level === 'string' && typeof data.description === 'string'
-        );
+      case "density":
+        return typeof data.level === "string" && typeof data.description === "string";
 
-      case 'rhythm':
-        return (
-          typeof data.pattern === 'string' &&
-          typeof data.description === 'string'
-        );
+      case "rhythm":
+        return typeof data.pattern === "string" && typeof data.description === "string";
 
-      case 'section_boundaries':
+      case "section_boundaries":
         return Array.isArray(data.sections);
 
       // Reftrix専用タイプ
-      case 'motion_candidates':
+      case "motion_candidates":
         return (
           Array.isArray(data.likelyAnimations) &&
           Array.isArray(data.interactiveElements) &&
           Array.isArray(data.scrollTriggers)
         );
 
-      case 'brand_tone':
+      case "brand_tone":
         return (
-          typeof data.professionalism === 'string' &&
-          typeof data.warmth === 'string' &&
-          typeof data.modernity === 'string' &&
-          typeof data.energy === 'string' &&
-          typeof data.targetAudience === 'string'
+          typeof data.professionalism === "string" &&
+          typeof data.warmth === "string" &&
+          typeof data.modernity === "string" &&
+          typeof data.energy === "string" &&
+          typeof data.targetAudience === "string"
         );
 
-      case 'ai_cliches':
+      case "ai_cliches":
         return (
           Array.isArray(data.clichesDetected) &&
-          typeof data.originalityScore === 'number' &&
-          typeof data.assessment === 'string'
+          typeof data.originalityScore === "number" &&
+          typeof data.assessment === "string"
         );
 
       default:
@@ -2449,7 +2166,7 @@ export class LlamaVisionAdapter implements IVisionAnalyzer {
    */
   private validateInput(options: VisionAnalysisOptions): string | null {
     if (!options.imageBuffer || options.imageBuffer.length === 0) {
-      return 'Image buffer is empty';
+      return "Image buffer is empty";
     }
 
     if (options.imageBuffer.length > this.config.maxImageSize) {
@@ -2462,10 +2179,7 @@ export class LlamaVisionAdapter implements IVisionAnalyzer {
   /**
    * エラー結果を生成
    */
-  private createErrorResult(
-    error: string,
-    startTime: number
-  ): VisionAnalysisResult {
+  private createErrorResult(error: string, startTime: number): VisionAnalysisResult {
     return {
       success: false,
       features: [],
@@ -2482,19 +2196,19 @@ export class LlamaVisionAdapter implements IVisionAnalyzer {
     const { data } = feature;
 
     if (isLayoutStructureData(data)) {
-      return `Layout: ${data.gridType} layout with areas: ${data.mainAreas.join(', ')}. ${data.description}`;
+      return `Layout: ${data.gridType} layout with areas: ${data.mainAreas.join(", ")}. ${data.description}`;
     }
 
     if (isColorPaletteData(data)) {
-      return `Colors: ${data.dominantColors.join(', ')}. Mood: ${data.mood}. Contrast: ${data.contrast}.`;
+      return `Colors: ${data.dominantColors.join(", ")}. Mood: ${data.mood}. Contrast: ${data.contrast}.`;
     }
 
     if (isTypographyData(data)) {
-      return `Typography: Headings use ${data.headingStyle}, body uses ${data.bodyStyle}. Hierarchy: ${data.hierarchy.join(' > ')}.`;
+      return `Typography: Headings use ${data.headingStyle}, body uses ${data.bodyStyle}. Hierarchy: ${data.hierarchy.join(" > ")}.`;
     }
 
     if (isVisualHierarchyData(data)) {
-      return `Visual hierarchy: ${data.flowDirection} flow with focal points: ${data.focalPoints.join(', ')}. Techniques: ${data.emphasisTechniques.join(', ')}.`;
+      return `Visual hierarchy: ${data.flowDirection} flow with focal points: ${data.focalPoints.join(", ")}. Techniques: ${data.emphasisTechniques.join(", ")}.`;
     }
 
     if (isWhitespaceData(data)) {
@@ -2512,29 +2226,29 @@ export class LlamaVisionAdapter implements IVisionAnalyzer {
     if (isSectionBoundariesData(data)) {
       const sectionList = data.sections
         .map((s) => `${s.type} (${s.startY}-${s.endY}px)`)
-        .join(', ');
-      return `Sections: ${sectionList || 'none detected'}.`;
+        .join(", ");
+      return `Sections: ${sectionList || "none detected"}.`;
     }
 
     // Reftrix専用タイプ
     if (isMotionCandidatesData(data)) {
       const animations = data.likelyAnimations
         .map((a) => `${a.element}: ${a.animationType}`)
-        .join(', ');
-      return `Motion candidates: ${animations || 'none'}. Interactive: ${data.interactiveElements.join(', ') || 'none'}. Scroll triggers: ${data.scrollTriggers.join(', ') || 'none'}.`;
+        .join(", ");
+      return `Motion candidates: ${animations || "none"}. Interactive: ${data.interactiveElements.join(", ") || "none"}. Scroll triggers: ${data.scrollTriggers.join(", ") || "none"}.`;
     }
 
     if (isBrandToneData(data)) {
-      return `Brand tone: ${data.professionalism} professionalism, ${data.warmth} warmth, ${data.modernity} modernity, ${data.energy} energy. Target: ${data.targetAudience}. Indicators: ${data.indicators.join(', ')}.`;
+      return `Brand tone: ${data.professionalism} professionalism, ${data.warmth} warmth, ${data.modernity} modernity, ${data.energy} energy. Target: ${data.targetAudience}. Indicators: ${data.indicators.join(", ")}.`;
     }
 
     if (isAiClichesData(data)) {
       const clicheList = data.clichesDetected
         .map((c) => `${c.clicheType} (${c.severity})`)
-        .join(', ');
-      return `AI cliches: ${clicheList || 'none'}. Originality: ${data.originalityScore}/100. Assessment: ${data.assessment}. Suggestions: ${data.suggestions.join('; ')}.`;
+        .join(", ");
+      return `AI cliches: ${clicheList || "none"}. Originality: ${data.originalityScore}/100. Assessment: ${data.assessment}. Suggestions: ${data.suggestions.join("; ")}.`;
     }
 
-    return '';
+    return "";
   }
 }

@@ -16,7 +16,7 @@
  * @module tests/tools/motion/search.tool.test
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 // =====================================================
 // インポート
@@ -30,7 +30,7 @@ import {
   type IMotionSearchService,
   type MotionSearchInput,
   type MotionSearchOutput,
-} from '../../../src/tools/motion/search.tool';
+} from "../../../src/tools/motion/search.tool";
 
 import {
   motionSearchInputSchema,
@@ -42,27 +42,27 @@ import {
   type MotionSearchResultItem,
   type MotionPattern,
   MOTION_SEARCH_ERROR_CODES,
-} from '../../../src/tools/motion/schemas';
+} from "../../../src/tools/motion/schemas";
 
 // =====================================================
 // テストデータ
 // =====================================================
 
-const validUUID = '123e4567-e89b-12d3-a456-426614174000';
+const validUUID = "123e4567-e89b-12d3-a456-426614174000";
 
 const sampleMotionPattern: MotionPattern = {
-  id: 'pattern-1',
-  type: 'css_animation',
-  category: 'scroll_trigger',
-  name: 'fadeIn',
-  trigger: 'load',
+  id: "pattern-1",
+  type: "css_animation",
+  category: "scroll_trigger",
+  name: "fadeIn",
+  trigger: "load",
   animation: {
     duration: 600,
-    easing: { type: 'ease-out' },
+    easing: { type: "ease-out" },
   },
   properties: [
-    { property: 'opacity', from: 0, to: 1 },
-    { property: 'transform', from: 'translateY(20px)', to: 'translateY(0)' },
+    { property: "opacity", from: 0, to: 1 },
+    { property: "transform", from: "translateY(20px)", to: "translateY(0)" },
   ],
 };
 
@@ -72,25 +72,25 @@ const sampleSearchResults: MotionSearchResultItem[] = [
     similarity: 0.95,
     source: {
       pageId: validUUID,
-      url: 'https://example.com/page1',
-      selector: '.fade-in',
+      url: "https://example.com/page1",
+      selector: ".fade-in",
     },
   },
   {
     pattern: {
-      id: 'pattern-2',
-      type: 'css_transition',
-      category: 'hover_effect',
-      trigger: 'hover',
+      id: "pattern-2",
+      type: "css_transition",
+      category: "hover_effect",
+      trigger: "hover",
       animation: {
         duration: 300,
-        easing: { type: 'ease' },
+        easing: { type: "ease" },
       },
-      properties: [{ property: 'transform' }],
+      properties: [{ property: "transform" }],
     },
     similarity: 0.85,
     source: {
-      url: 'https://example.com/page2',
+      url: "https://example.com/page2",
     },
   },
 ];
@@ -99,102 +99,102 @@ const sampleSearchResults: MotionSearchResultItem[] = [
 // 入力バリデーションテスト（15 tests）
 // =====================================================
 
-describe('motionSearchInputSchema', () => {
-  describe('有効な入力', () => {
-    it('queryのみの入力を受け付ける', () => {
-      const input = { query: 'fade in animation' };
+describe("motionSearchInputSchema", () => {
+  describe("有効な入力", () => {
+    it("queryのみの入力を受け付ける", () => {
+      const input = { query: "fade in animation" };
       const result = motionSearchInputSchema.parse(input);
-      expect(result.query).toBe('fade in animation');
+      expect(result.query).toBe("fade in animation");
       expect(result.limit).toBe(10); // デフォルト値
       expect(result.minSimilarity).toBe(0.5); // デフォルト値
     });
 
-    it('samplePatternのみの入力を受け付ける', () => {
+    it("samplePatternのみの入力を受け付ける", () => {
       const input = {
         samplePattern: {
-          type: 'animation' as const,
+          type: "animation" as const,
           duration: 500,
         },
       };
       const result = motionSearchInputSchema.parse(input);
       expect(result.samplePattern).toBeDefined();
-      expect(result.samplePattern?.type).toBe('animation');
+      expect(result.samplePattern?.type).toBe("animation");
       expect(result.samplePattern?.duration).toBe(500);
     });
 
-    it('queryとsamplePatternの両方を受け付ける', () => {
+    it("queryとsamplePatternの両方を受け付ける", () => {
       const input = {
-        query: 'hover effect',
+        query: "hover effect",
         samplePattern: {
-          type: 'transition' as const,
-          easing: 'ease-in-out',
+          type: "transition" as const,
+          easing: "ease-in-out",
         },
       };
       const result = motionSearchInputSchema.parse(input);
-      expect(result.query).toBe('hover effect');
+      expect(result.query).toBe("hover effect");
       expect(result.samplePattern).toBeDefined();
     });
 
-    it('filtersを指定できる', () => {
+    it("filtersを指定できる", () => {
       const input = {
-        query: 'loading animation',
+        query: "loading animation",
         filters: {
-          type: 'animation' as const,
+          type: "animation" as const,
           minDuration: 100,
           maxDuration: 1000,
-          trigger: 'load' as const,
+          trigger: "load" as const,
         },
       };
       const result = motionSearchInputSchema.parse(input);
       expect(result.filters).toBeDefined();
-      expect(result.filters?.type).toBe('animation');
+      expect(result.filters?.type).toBe("animation");
       expect(result.filters?.minDuration).toBe(100);
       expect(result.filters?.maxDuration).toBe(1000);
-      expect(result.filters?.trigger).toBe('load');
+      expect(result.filters?.trigger).toBe("load");
     });
 
-    it('limitを指定できる', () => {
-      const input = { query: 'test', limit: 25 };
+    it("limitを指定できる", () => {
+      const input = { query: "test", limit: 25 };
       const result = motionSearchInputSchema.parse(input);
       expect(result.limit).toBe(25);
     });
 
-    it('minSimilarityを指定できる', () => {
-      const input = { query: 'test', minSimilarity: 0.8 };
+    it("minSimilarityを指定できる", () => {
+      const input = { query: "test", minSimilarity: 0.8 };
       const result = motionSearchInputSchema.parse(input);
       expect(result.minSimilarity).toBe(0.8);
     });
 
-    it('samplePatternのpropertiesを受け付ける', () => {
+    it("samplePatternのpropertiesを受け付ける", () => {
       const input = {
         samplePattern: {
-          properties: ['opacity', 'transform', 'scale'],
+          properties: ["opacity", "transform", "scale"],
         },
       };
       const result = motionSearchInputSchema.parse(input);
-      expect(result.samplePattern?.properties).toEqual(['opacity', 'transform', 'scale']);
+      expect(result.samplePattern?.properties).toEqual(["opacity", "transform", "scale"]);
     });
 
-    it('全オプション指定の入力を受け付ける', () => {
+    it("全オプション指定の入力を受け付ける", () => {
       const input: MotionSearchInput = {
-        query: 'smooth scroll animation',
+        query: "smooth scroll animation",
         samplePattern: {
-          type: 'scroll',
+          type: "scroll",
           duration: 800,
-          easing: 'ease-out',
-          properties: ['transform', 'opacity'],
+          easing: "ease-out",
+          properties: ["transform", "opacity"],
         },
         filters: {
-          type: 'scroll',
+          type: "scroll",
           minDuration: 300,
           maxDuration: 2000,
-          trigger: 'scroll',
+          trigger: "scroll",
         },
         limit: 20,
         minSimilarity: 0.7,
       };
       const result = motionSearchInputSchema.parse(input);
-      expect(result.query).toBe('smooth scroll animation');
+      expect(result.query).toBe("smooth scroll animation");
       expect(result.samplePattern).toBeDefined();
       expect(result.filters).toBeDefined();
       expect(result.limit).toBe(20);
@@ -202,39 +202,39 @@ describe('motionSearchInputSchema', () => {
     });
   });
 
-  describe('無効な入力', () => {
-    it('queryもsamplePatternもない場合エラー', () => {
+  describe("無効な入力", () => {
+    it("queryもsamplePatternもない場合エラー", () => {
       const input = {};
       expect(() => motionSearchInputSchema.parse(input)).toThrow();
     });
 
-    it('空のqueryの場合エラー', () => {
-      const input = { query: '' };
+    it("空のqueryの場合エラー", () => {
+      const input = { query: "" };
       expect(() => motionSearchInputSchema.parse(input)).toThrow();
     });
 
-    it('queryが500文字を超える場合エラー', () => {
-      const input = { query: 'a'.repeat(501) };
+    it("queryが500文字を超える場合エラー", () => {
+      const input = { query: "a".repeat(501) };
       expect(() => motionSearchInputSchema.parse(input)).toThrow();
     });
 
-    it('limitが0の場合エラー', () => {
-      const input = { query: 'test', limit: 0 };
+    it("limitが0の場合エラー", () => {
+      const input = { query: "test", limit: 0 };
       expect(() => motionSearchInputSchema.parse(input)).toThrow();
     });
 
-    it('limitが50を超える場合エラー', () => {
-      const input = { query: 'test', limit: 51 };
+    it("limitが50を超える場合エラー", () => {
+      const input = { query: "test", limit: 51 };
       expect(() => motionSearchInputSchema.parse(input)).toThrow();
     });
 
-    it('minSimilarityが負の場合エラー', () => {
-      const input = { query: 'test', minSimilarity: -0.1 };
+    it("minSimilarityが負の場合エラー", () => {
+      const input = { query: "test", minSimilarity: -0.1 };
       expect(() => motionSearchInputSchema.parse(input)).toThrow();
     });
 
-    it('minSimilarityが1を超える場合エラー', () => {
-      const input = { query: 'test', minSimilarity: 1.1 };
+    it("minSimilarityが1を超える場合エラー", () => {
+      const input = { query: "test", minSimilarity: 1.1 };
       expect(() => motionSearchInputSchema.parse(input)).toThrow();
     });
   });
@@ -244,40 +244,40 @@ describe('motionSearchInputSchema', () => {
 // サンプルパターンスキーマテスト（5 tests）
 // =====================================================
 
-describe('samplePatternSchema', () => {
-  it('空のオブジェクトを受け付ける', () => {
+describe("samplePatternSchema", () => {
+  it("空のオブジェクトを受け付ける", () => {
     const input = {};
     const result = samplePatternSchema.parse(input);
     expect(result).toEqual({});
   });
 
-  it('typeのみを受け付ける', () => {
-    const input = { type: 'hover' };
+  it("typeのみを受け付ける", () => {
+    const input = { type: "hover" };
     const result = samplePatternSchema.parse(input);
-    expect(result.type).toBe('hover');
+    expect(result.type).toBe("hover");
   });
 
-  it('全プロパティを受け付ける', () => {
+  it("全プロパティを受け付ける", () => {
     const input = {
-      type: 'animation' as const,
+      type: "animation" as const,
       duration: 1000,
-      easing: 'cubic-bezier(0.4, 0, 0.2, 1)',
-      properties: ['opacity', 'transform'],
+      easing: "cubic-bezier(0.4, 0, 0.2, 1)",
+      properties: ["opacity", "transform"],
     };
     const result = samplePatternSchema.parse(input);
-    expect(result.type).toBe('animation');
+    expect(result.type).toBe("animation");
     expect(result.duration).toBe(1000);
-    expect(result.easing).toBe('cubic-bezier(0.4, 0, 0.2, 1)');
-    expect(result.properties).toEqual(['opacity', 'transform']);
+    expect(result.easing).toBe("cubic-bezier(0.4, 0, 0.2, 1)");
+    expect(result.properties).toEqual(["opacity", "transform"]);
   });
 
-  it('負のdurationは拒否する', () => {
+  it("負のdurationは拒否する", () => {
     const input = { duration: -100 };
     expect(() => samplePatternSchema.parse(input)).toThrow();
   });
 
-  it('無効なtypeは拒否する', () => {
-    const input = { type: 'invalid_type' };
+  it("無効なtypeは拒否する", () => {
+    const input = { type: "invalid_type" };
     expect(() => samplePatternSchema.parse(input)).toThrow();
   });
 });
@@ -286,33 +286,33 @@ describe('samplePatternSchema', () => {
 // フィルタースキーマテスト（5 tests）
 // =====================================================
 
-describe('motionSearchFiltersSchema', () => {
-  it('空のオブジェクトを受け付ける', () => {
+describe("motionSearchFiltersSchema", () => {
+  it("空のオブジェクトを受け付ける", () => {
     const input = {};
     const result = motionSearchFiltersSchema.parse(input);
     expect(result).toEqual({});
   });
 
-  it('typeフィルターを受け付ける', () => {
-    const input = { type: 'keyframe' };
+  it("typeフィルターを受け付ける", () => {
+    const input = { type: "keyframe" };
     const result = motionSearchFiltersSchema.parse(input);
-    expect(result.type).toBe('keyframe');
+    expect(result.type).toBe("keyframe");
   });
 
-  it('duration範囲フィルターを受け付ける', () => {
+  it("duration範囲フィルターを受け付ける", () => {
     const input = { minDuration: 100, maxDuration: 500 };
     const result = motionSearchFiltersSchema.parse(input);
     expect(result.minDuration).toBe(100);
     expect(result.maxDuration).toBe(500);
   });
 
-  it('triggerフィルターを受け付ける', () => {
-    const input = { trigger: 'click' };
+  it("triggerフィルターを受け付ける", () => {
+    const input = { trigger: "click" };
     const result = motionSearchFiltersSchema.parse(input);
-    expect(result.trigger).toBe('click');
+    expect(result.trigger).toBe("click");
   });
 
-  it('負のminDurationは拒否する', () => {
+  it("負のminDurationは拒否する", () => {
     const input = { minDuration: -1 };
     expect(() => motionSearchFiltersSchema.parse(input)).toThrow();
   });
@@ -322,8 +322,8 @@ describe('motionSearchFiltersSchema', () => {
 // 出力スキーマテスト（5 tests）
 // =====================================================
 
-describe('motionSearchOutputSchema', () => {
-  it('成功時の基本レスポンスをバリデート', () => {
+describe("motionSearchOutputSchema", () => {
+  it("成功時の基本レスポンスをバリデート", () => {
     const output: MotionSearchOutput = {
       success: true,
       data: {
@@ -334,39 +334,39 @@ describe('motionSearchOutputSchema', () => {
     expect(() => motionSearchOutputSchema.parse(output)).not.toThrow();
   });
 
-  it('エラー時のレスポンスをバリデート', () => {
+  it("エラー時のレスポンスをバリデート", () => {
     const output = {
       success: false,
       error: {
-        code: 'VALIDATION_ERROR',
-        message: 'Invalid input',
+        code: "VALIDATION_ERROR",
+        message: "Invalid input",
       },
     };
     expect(() => motionSearchOutputSchema.parse(output)).not.toThrow();
   });
 
-  it('検索結果を含むレスポンスをバリデート', () => {
+  it("検索結果を含むレスポンスをバリデート", () => {
     const output: MotionSearchOutput = {
       success: true,
       data: {
         results: sampleSearchResults,
         total: 2,
         query: {
-          text: 'fade animation',
+          text: "fade animation",
         },
       },
     };
     expect(() => motionSearchOutputSchema.parse(output)).not.toThrow();
   });
 
-  it('embeddingを含むqueryをバリデート', () => {
+  it("embeddingを含むqueryをバリデート", () => {
     const output: MotionSearchOutput = {
       success: true,
       data: {
         results: [],
         total: 0,
         query: {
-          text: 'test',
+          text: "test",
           embedding: [0.1, 0.2, 0.3, 0.4, 0.5],
         },
       },
@@ -374,7 +374,7 @@ describe('motionSearchOutputSchema', () => {
     expect(() => motionSearchOutputSchema.parse(output)).not.toThrow();
   });
 
-  it('sourceを含む検索結果をバリデート', () => {
+  it("sourceを含む検索結果をバリデート", () => {
     const output: MotionSearchOutput = {
       success: true,
       data: {
@@ -384,8 +384,8 @@ describe('motionSearchOutputSchema', () => {
             similarity: 0.9,
             source: {
               pageId: validUUID,
-              url: 'https://example.com',
-              selector: '.animated',
+              url: "https://example.com",
+              selector: ".animated",
             },
           },
         ],
@@ -400,31 +400,31 @@ describe('motionSearchOutputSchema', () => {
 // ツール定義テスト（5 tests）
 // =====================================================
 
-describe('motionSearchToolDefinition', () => {
-  it('正しいツール名を持つ', () => {
-    expect(motionSearchToolDefinition.name).toBe('motion.search');
+describe("motionSearchToolDefinition", () => {
+  it("正しいツール名を持つ", () => {
+    expect(motionSearchToolDefinition.name).toBe("motion.search");
   });
 
-  it('descriptionが設定されている', () => {
+  it("descriptionが設定されている", () => {
     expect(motionSearchToolDefinition.description).toBeDefined();
-    expect(typeof motionSearchToolDefinition.description).toBe('string');
+    expect(typeof motionSearchToolDefinition.description).toBe("string");
     expect(motionSearchToolDefinition.description.length).toBeGreaterThan(0);
   });
 
-  it('inputSchemaがobject型', () => {
-    expect(motionSearchToolDefinition.inputSchema.type).toBe('object');
+  it("inputSchemaがobject型", () => {
+    expect(motionSearchToolDefinition.inputSchema.type).toBe("object");
   });
 
-  it('propertiesに必要なフィールドを含む', () => {
+  it("propertiesに必要なフィールドを含む", () => {
     const { properties } = motionSearchToolDefinition.inputSchema;
-    expect(properties).toHaveProperty('query');
-    expect(properties).toHaveProperty('samplePattern');
-    expect(properties).toHaveProperty('filters');
-    expect(properties).toHaveProperty('limit');
-    expect(properties).toHaveProperty('minSimilarity');
+    expect(properties).toHaveProperty("query");
+    expect(properties).toHaveProperty("samplePattern");
+    expect(properties).toHaveProperty("filters");
+    expect(properties).toHaveProperty("limit");
+    expect(properties).toHaveProperty("minSimilarity");
   });
 
-  it('デフォルト値が正しく設定されている', () => {
+  it("デフォルト値が正しく設定されている", () => {
     const { properties } = motionSearchToolDefinition.inputSchema;
     expect(properties.limit?.default).toBe(10);
     expect(properties.minSimilarity?.default).toBe(0.5);
@@ -435,7 +435,7 @@ describe('motionSearchToolDefinition', () => {
 // 検索テスト（20 tests）
 // =====================================================
 
-describe('検索機能', () => {
+describe("検索機能", () => {
   beforeEach(() => {
     resetMotionSearchServiceFactory();
   });
@@ -444,8 +444,8 @@ describe('検索機能', () => {
     vi.restoreAllMocks();
   });
 
-  describe('テキストクエリ検索', () => {
-    it('queryで検索が実行される', async () => {
+  describe("テキストクエリ検索", () => {
+    it("queryで検索が実行される", async () => {
       const mockSearch = vi.fn().mockResolvedValue({
         results: sampleSearchResults,
         total: 2,
@@ -455,14 +455,14 @@ describe('検索機能', () => {
         search: mockSearch,
       }));
 
-      const input: MotionSearchInput = { query: 'fade in animation' };
+      const input: MotionSearchInput = { query: "fade in animation" };
       const result = await motionSearchHandler(input);
 
       expect(result.success).toBe(true);
       expect(mockSearch).toHaveBeenCalled();
     });
 
-    it('検索結果が正しく返される', async () => {
+    it("検索結果が正しく返される", async () => {
       setMotionSearchServiceFactory(() => ({
         search: vi.fn().mockResolvedValue({
           results: sampleSearchResults,
@@ -470,7 +470,7 @@ describe('検索機能', () => {
         }),
       }));
 
-      const input: MotionSearchInput = { query: 'fade' };
+      const input: MotionSearchInput = { query: "fade" };
       const result = await motionSearchHandler(input);
 
       expect(result.success).toBe(true);
@@ -480,7 +480,7 @@ describe('検索機能', () => {
       }
     });
 
-    it('日本語クエリで検索できる', async () => {
+    it("日本語クエリで検索できる", async () => {
       const mockSearch = vi.fn().mockResolvedValue({
         results: sampleSearchResults,
         total: 2,
@@ -490,16 +490,18 @@ describe('検索機能', () => {
         search: mockSearch,
       }));
 
-      const input: MotionSearchInput = { query: 'フェードインアニメーション' };
+      const input: MotionSearchInput = { query: "フェードインアニメーション" };
       const result = await motionSearchHandler(input);
 
       expect(result.success).toBe(true);
-      expect(mockSearch).toHaveBeenCalledWith(expect.objectContaining({
-        query: 'フェードインアニメーション',
-      }));
+      expect(mockSearch).toHaveBeenCalledWith(
+        expect.objectContaining({
+          query: "フェードインアニメーション",
+        })
+      );
     });
 
-    it('空白を含むクエリで検索できる', async () => {
+    it("空白を含むクエリで検索できる", async () => {
       const mockSearch = vi.fn().mockResolvedValue({
         results: [],
         total: 0,
@@ -509,15 +511,15 @@ describe('検索機能', () => {
         search: mockSearch,
       }));
 
-      const input: MotionSearchInput = { query: '  smooth scroll animation  ' };
+      const input: MotionSearchInput = { query: "  smooth scroll animation  " };
       const result = await motionSearchHandler(input);
 
       expect(result.success).toBe(true);
     });
   });
 
-  describe('パターン類似検索', () => {
-    it('samplePatternで類似検索が実行される', async () => {
+  describe("パターン類似検索", () => {
+    it("samplePatternで類似検索が実行される", async () => {
       const mockSearch = vi.fn().mockResolvedValue({
         results: sampleSearchResults,
         total: 2,
@@ -529,20 +531,22 @@ describe('検索機能', () => {
 
       const input: MotionSearchInput = {
         samplePattern: {
-          type: 'animation',
+          type: "animation",
           duration: 500,
-          properties: ['opacity', 'transform'],
+          properties: ["opacity", "transform"],
         },
       };
       const result = await motionSearchHandler(input);
 
       expect(result.success).toBe(true);
-      expect(mockSearch).toHaveBeenCalledWith(expect.objectContaining({
-        samplePattern: input.samplePattern,
-      }));
+      expect(mockSearch).toHaveBeenCalledWith(
+        expect.objectContaining({
+          samplePattern: input.samplePattern,
+        })
+      );
     });
 
-    it('easingを含むsamplePatternで検索できる', async () => {
+    it("easingを含むsamplePatternで検索できる", async () => {
       const mockSearch = vi.fn().mockResolvedValue({
         results: sampleSearchResults,
         total: 1,
@@ -554,7 +558,7 @@ describe('検索機能', () => {
 
       const input: MotionSearchInput = {
         samplePattern: {
-          easing: 'cubic-bezier(0.4, 0, 0.2, 1)',
+          easing: "cubic-bezier(0.4, 0, 0.2, 1)",
         },
       };
       const result = await motionSearchHandler(input);
@@ -562,7 +566,7 @@ describe('検索機能', () => {
       expect(result.success).toBe(true);
     });
 
-    it('typeのみのsamplePatternで検索できる', async () => {
+    it("typeのみのsamplePatternで検索できる", async () => {
       const mockSearch = vi.fn().mockResolvedValue({
         results: sampleSearchResults.slice(0, 1),
         total: 1,
@@ -574,7 +578,7 @@ describe('検索機能', () => {
 
       const input: MotionSearchInput = {
         samplePattern: {
-          type: 'hover',
+          type: "hover",
         },
       };
       const result = await motionSearchHandler(input);
@@ -583,10 +587,10 @@ describe('検索機能', () => {
     });
   });
 
-  describe('フィルタリング', () => {
-    it('typeフィルターが適用される', async () => {
+  describe("フィルタリング", () => {
+    it("typeフィルターが適用される", async () => {
       const mockSearch = vi.fn().mockResolvedValue({
-        results: sampleSearchResults.filter(r => r.pattern.type === 'css_animation'),
+        results: sampleSearchResults.filter((r) => r.pattern.type === "css_animation"),
         total: 1,
       });
 
@@ -595,9 +599,9 @@ describe('検索機能', () => {
       }));
 
       const input: MotionSearchInput = {
-        query: 'animation',
+        query: "animation",
         filters: {
-          type: 'animation',
+          type: "animation",
         },
       };
       const result = await motionSearchHandler(input);
@@ -608,11 +612,9 @@ describe('検索機能', () => {
       }
     });
 
-    it('minDurationフィルターが適用される', async () => {
+    it("minDurationフィルターが適用される", async () => {
       const mockSearch = vi.fn().mockResolvedValue({
-        results: sampleSearchResults.filter(r =>
-          (r.pattern.animation.duration ?? 0) >= 500
-        ),
+        results: sampleSearchResults.filter((r) => (r.pattern.animation.duration ?? 0) >= 500),
         total: 1,
       });
 
@@ -621,7 +623,7 @@ describe('検索機能', () => {
       }));
 
       const input: MotionSearchInput = {
-        query: 'animation',
+        query: "animation",
         filters: {
           minDuration: 500,
         },
@@ -631,11 +633,9 @@ describe('検索機能', () => {
       expect(result.success).toBe(true);
     });
 
-    it('maxDurationフィルターが適用される', async () => {
+    it("maxDurationフィルターが適用される", async () => {
       const mockSearch = vi.fn().mockResolvedValue({
-        results: sampleSearchResults.filter(r =>
-          (r.pattern.animation.duration ?? 0) <= 400
-        ),
+        results: sampleSearchResults.filter((r) => (r.pattern.animation.duration ?? 0) <= 400),
         total: 1,
       });
 
@@ -644,7 +644,7 @@ describe('検索機能', () => {
       }));
 
       const input: MotionSearchInput = {
-        query: 'animation',
+        query: "animation",
         filters: {
           maxDuration: 400,
         },
@@ -654,9 +654,9 @@ describe('検索機能', () => {
       expect(result.success).toBe(true);
     });
 
-    it('triggerフィルターが適用される', async () => {
+    it("triggerフィルターが適用される", async () => {
       const mockSearch = vi.fn().mockResolvedValue({
-        results: sampleSearchResults.filter(r => r.pattern.trigger === 'hover'),
+        results: sampleSearchResults.filter((r) => r.pattern.trigger === "hover"),
         total: 1,
       });
 
@@ -665,9 +665,9 @@ describe('検索機能', () => {
       }));
 
       const input: MotionSearchInput = {
-        query: 'hover effect',
+        query: "hover effect",
         filters: {
-          trigger: 'hover',
+          trigger: "hover",
         },
       };
       const result = await motionSearchHandler(input);
@@ -675,7 +675,7 @@ describe('検索機能', () => {
       expect(result.success).toBe(true);
     });
 
-    it('複数フィルターの組み合わせが適用される', async () => {
+    it("複数フィルターの組み合わせが適用される", async () => {
       const mockSearch = vi.fn().mockResolvedValue({
         results: [],
         total: 0,
@@ -686,25 +686,27 @@ describe('検索機能', () => {
       }));
 
       const input: MotionSearchInput = {
-        query: 'animation',
+        query: "animation",
         filters: {
-          type: 'animation',
+          type: "animation",
           minDuration: 200,
           maxDuration: 800,
-          trigger: 'load',
+          trigger: "load",
         },
       };
       const result = await motionSearchHandler(input);
 
       expect(result.success).toBe(true);
-      expect(mockSearch).toHaveBeenCalledWith(expect.objectContaining({
-        filters: input.filters,
-      }));
+      expect(mockSearch).toHaveBeenCalledWith(
+        expect.objectContaining({
+          filters: input.filters,
+        })
+      );
     });
   });
 
-  describe('limit制限', () => {
-    it('limit=1で1件のみ返す', async () => {
+  describe("limit制限", () => {
+    it("limit=1で1件のみ返す", async () => {
       const mockSearch = vi.fn().mockResolvedValue({
         results: sampleSearchResults.slice(0, 1),
         total: 1,
@@ -714,7 +716,7 @@ describe('検索機能', () => {
         search: mockSearch,
       }));
 
-      const input: MotionSearchInput = { query: 'animation', limit: 1 };
+      const input: MotionSearchInput = { query: "animation", limit: 1 };
       const result = await motionSearchHandler(input);
 
       expect(result.success).toBe(true);
@@ -723,7 +725,7 @@ describe('検索機能', () => {
       }
     });
 
-    it('limit=50で最大50件返す', async () => {
+    it("limit=50で最大50件返す", async () => {
       const manyResults = Array.from({ length: 50 }, (_, i) => ({
         ...sampleSearchResults[0],
         pattern: { ...sampleMotionPattern, id: `pattern-${i}` },
@@ -739,7 +741,7 @@ describe('検索機能', () => {
         search: mockSearch,
       }));
 
-      const input: MotionSearchInput = { query: 'animation', limit: 50 };
+      const input: MotionSearchInput = { query: "animation", limit: 50 };
       const result = await motionSearchHandler(input);
 
       expect(result.success).toBe(true);
@@ -749,10 +751,10 @@ describe('検索機能', () => {
     });
   });
 
-  describe('minSimilarityフィルター', () => {
-    it('minSimilarity=0.9で高類似度のみ返す', async () => {
+  describe("minSimilarityフィルター", () => {
+    it("minSimilarity=0.9で高類似度のみ返す", async () => {
       const mockSearch = vi.fn().mockResolvedValue({
-        results: sampleSearchResults.filter(r => r.similarity >= 0.9),
+        results: sampleSearchResults.filter((r) => r.similarity >= 0.9),
         total: 1,
       });
 
@@ -760,18 +762,18 @@ describe('検索機能', () => {
         search: mockSearch,
       }));
 
-      const input: MotionSearchInput = { query: 'fade', minSimilarity: 0.9 };
+      const input: MotionSearchInput = { query: "fade", minSimilarity: 0.9 };
       const result = await motionSearchHandler(input);
 
       expect(result.success).toBe(true);
       if (result.success) {
-        result.data.results.forEach(r => {
+        result.data.results.forEach((r) => {
           expect(r.similarity).toBeGreaterThanOrEqual(0.9);
         });
       }
     });
 
-    it('minSimilarity=0で全結果を返す', async () => {
+    it("minSimilarity=0で全結果を返す", async () => {
       const mockSearch = vi.fn().mockResolvedValue({
         results: sampleSearchResults,
         total: 2,
@@ -781,7 +783,7 @@ describe('検索機能', () => {
         search: mockSearch,
       }));
 
-      const input: MotionSearchInput = { query: 'animation', minSimilarity: 0 };
+      const input: MotionSearchInput = { query: "animation", minSimilarity: 0 };
       const result = await motionSearchHandler(input);
 
       expect(result.success).toBe(true);
@@ -796,7 +798,7 @@ describe('検索機能', () => {
 // DIパターンテスト（10 tests）
 // =====================================================
 
-describe('DIパターン', () => {
+describe("DIパターン", () => {
   beforeEach(() => {
     resetMotionSearchServiceFactory();
   });
@@ -805,7 +807,7 @@ describe('DIパターン', () => {
     vi.restoreAllMocks();
   });
 
-  it('モックサービスを注入できる', async () => {
+  it("モックサービスを注入できる", async () => {
     const mockSearch = vi.fn().mockResolvedValue({
       results: sampleSearchResults,
       total: 2,
@@ -815,14 +817,14 @@ describe('DIパターン', () => {
       search: mockSearch,
     }));
 
-    const input: MotionSearchInput = { query: 'test' };
+    const input: MotionSearchInput = { query: "test" };
     const result = await motionSearchHandler(input);
 
     expect(result.success).toBe(true);
     expect(mockSearch).toHaveBeenCalled();
   });
 
-  it('ファクトリリセットが動作する', async () => {
+  it("ファクトリリセットが動作する", async () => {
     const mockSearch = vi.fn().mockResolvedValue({
       results: [],
       total: 0,
@@ -834,7 +836,7 @@ describe('DIパターン', () => {
 
     resetMotionSearchServiceFactory();
 
-    const input: MotionSearchInput = { query: 'test' };
+    const input: MotionSearchInput = { query: "test" };
     const result = await motionSearchHandler(input);
 
     // リセット後はサービス未設定エラー
@@ -844,14 +846,14 @@ describe('DIパターン', () => {
     }
   });
 
-  it('サービスエラーをハンドルする', async () => {
-    const mockSearch = vi.fn().mockRejectedValue(new Error('Search service error'));
+  it("サービスエラーをハンドルする", async () => {
+    const mockSearch = vi.fn().mockRejectedValue(new Error("Search service error"));
 
     setMotionSearchServiceFactory(() => ({
       search: mockSearch,
     }));
 
-    const input: MotionSearchInput = { query: 'test' };
+    const input: MotionSearchInput = { query: "test" };
     const result = await motionSearchHandler(input);
 
     expect(result.success).toBe(false);
@@ -860,7 +862,7 @@ describe('DIパターン', () => {
     }
   });
 
-  it('Embeddingサービスを注入できる', async () => {
+  it("Embeddingサービスを注入できる", async () => {
     const mockGetEmbedding = vi.fn().mockResolvedValue([0.1, 0.2, 0.3]);
     const mockSearch = vi.fn().mockResolvedValue({
       results: sampleSearchResults,
@@ -872,14 +874,14 @@ describe('DIパターン', () => {
       getEmbedding: mockGetEmbedding,
     }));
 
-    const input: MotionSearchInput = { query: 'fade animation' };
+    const input: MotionSearchInput = { query: "fade animation" };
     const result = await motionSearchHandler(input);
 
     expect(result.success).toBe(true);
   });
 
-  it('Embeddingエラーをハンドルする', async () => {
-    const mockGetEmbedding = vi.fn().mockRejectedValue(new Error('Embedding failed'));
+  it("Embeddingエラーをハンドルする", async () => {
+    const mockGetEmbedding = vi.fn().mockRejectedValue(new Error("Embedding failed"));
     const mockSearch = vi.fn().mockResolvedValue({
       results: [],
       total: 0,
@@ -890,7 +892,7 @@ describe('DIパターン', () => {
       getEmbedding: mockGetEmbedding,
     }));
 
-    const input: MotionSearchInput = { query: 'test' };
+    const input: MotionSearchInput = { query: "test" };
     const result = await motionSearchHandler(input);
 
     // Embeddingが失敗しても検索は続行される場合がある
@@ -898,13 +900,13 @@ describe('DIパターン', () => {
     expect(result).toBeDefined();
   });
 
-  it('カスタム検索ロジックを注入できる', async () => {
+  it("カスタム検索ロジックを注入できる", async () => {
     const customResults: MotionSearchResultItem[] = [
       {
         pattern: {
           ...sampleMotionPattern,
-          id: 'custom-pattern',
-          name: 'customAnimation',
+          id: "custom-pattern",
+          name: "customAnimation",
         },
         similarity: 0.99,
       },
@@ -917,16 +919,16 @@ describe('DIパターン', () => {
       }),
     }));
 
-    const input: MotionSearchInput = { query: 'custom' };
+    const input: MotionSearchInput = { query: "custom" };
     const result = await motionSearchHandler(input);
 
     expect(result.success).toBe(true);
     if (result.success) {
-      expect(result.data.results[0].pattern.name).toBe('customAnimation');
+      expect(result.data.results[0].pattern.name).toBe("customAnimation");
     }
   });
 
-  it('複数回の呼び出しで独立した結果を返す', async () => {
+  it("複数回の呼び出しで独立した結果を返す", async () => {
     let callCount = 0;
     setMotionSearchServiceFactory(() => ({
       search: vi.fn().mockImplementation(() => {
@@ -938,8 +940,8 @@ describe('DIパターン', () => {
       }),
     }));
 
-    const input1: MotionSearchInput = { query: 'test1' };
-    const input2: MotionSearchInput = { query: 'test2' };
+    const input1: MotionSearchInput = { query: "test1" };
+    const input2: MotionSearchInput = { query: "test2" };
 
     const result1 = await motionSearchHandler(input1);
     const result2 = await motionSearchHandler(input2);
@@ -952,29 +954,29 @@ describe('DIパターン', () => {
     }
   });
 
-  it('クエリ情報を結果に含める', async () => {
+  it("クエリ情報を結果に含める", async () => {
     setMotionSearchServiceFactory(() => ({
       search: vi.fn().mockResolvedValue({
         results: sampleSearchResults,
         total: 2,
         query: {
-          text: 'fade animation',
+          text: "fade animation",
           embedding: [0.1, 0.2, 0.3],
         },
       }),
     }));
 
-    const input: MotionSearchInput = { query: 'fade animation' };
+    const input: MotionSearchInput = { query: "fade animation" };
     const result = await motionSearchHandler(input);
 
     expect(result.success).toBe(true);
     if (result.success) {
       expect(result.data.query).toBeDefined();
-      expect(result.data.query?.text).toBe('fade animation');
+      expect(result.data.query?.text).toBe("fade animation");
     }
   });
 
-  it('ソース情報を含む結果を返す', async () => {
+  it("ソース情報を含む結果を返す", async () => {
     setMotionSearchServiceFactory(() => ({
       search: vi.fn().mockResolvedValue({
         results: sampleSearchResults,
@@ -982,21 +984,21 @@ describe('DIパターン', () => {
       }),
     }));
 
-    const input: MotionSearchInput = { query: 'fade' };
+    const input: MotionSearchInput = { query: "fade" };
     const result = await motionSearchHandler(input);
 
     expect(result.success).toBe(true);
     if (result.success) {
-      const resultWithSource = result.data.results.find(r => r.source?.pageId);
+      const resultWithSource = result.data.results.find((r) => r.source?.pageId);
       expect(resultWithSource).toBeDefined();
       expect(resultWithSource?.source?.pageId).toBe(validUUID);
     }
   });
 
-  it('サービスファクトリが未設定の場合エラーを返す', async () => {
+  it("サービスファクトリが未設定の場合エラーを返す", async () => {
     resetMotionSearchServiceFactory();
 
-    const input: MotionSearchInput = { query: 'test' };
+    const input: MotionSearchInput = { query: "test" };
     const result = await motionSearchHandler(input);
 
     expect(result.success).toBe(false);
@@ -1010,7 +1012,7 @@ describe('DIパターン', () => {
 // エッジケーステスト（5 tests）
 // =====================================================
 
-describe('エッジケース', () => {
+describe("エッジケース", () => {
   beforeEach(() => {
     resetMotionSearchServiceFactory();
   });
@@ -1019,7 +1021,7 @@ describe('エッジケース', () => {
     vi.restoreAllMocks();
   });
 
-  it('結果0件でも成功を返す', async () => {
+  it("結果0件でも成功を返す", async () => {
     setMotionSearchServiceFactory(() => ({
       search: vi.fn().mockResolvedValue({
         results: [],
@@ -1027,7 +1029,7 @@ describe('エッジケース', () => {
       }),
     }));
 
-    const input: MotionSearchInput = { query: 'nonexistent animation xyz123' };
+    const input: MotionSearchInput = { query: "nonexistent animation xyz123" };
     const result = await motionSearchHandler(input);
 
     expect(result.success).toBe(true);
@@ -1037,7 +1039,7 @@ describe('エッジケース', () => {
     }
   });
 
-  it('類似度しきい値でフィルタリングされる', async () => {
+  it("類似度しきい値でフィルタリングされる", async () => {
     const lowSimilarityResults: MotionSearchResultItem[] = [
       { ...sampleSearchResults[0], similarity: 0.3 },
       { ...sampleSearchResults[1], similarity: 0.2 },
@@ -1045,12 +1047,12 @@ describe('エッジケース', () => {
 
     setMotionSearchServiceFactory(() => ({
       search: vi.fn().mockResolvedValue({
-        results: lowSimilarityResults.filter(r => r.similarity >= 0.5),
+        results: lowSimilarityResults.filter((r) => r.similarity >= 0.5),
         total: 0,
       }),
     }));
 
-    const input: MotionSearchInput = { query: 'test', minSimilarity: 0.5 };
+    const input: MotionSearchInput = { query: "test", minSimilarity: 0.5 };
     const result = await motionSearchHandler(input);
 
     expect(result.success).toBe(true);
@@ -1059,7 +1061,7 @@ describe('エッジケース', () => {
     }
   });
 
-  it('nullやundefined入力でバリデーションエラー', async () => {
+  it("nullやundefined入力でバリデーションエラー", async () => {
     const result = await motionSearchHandler(null);
 
     expect(result.success).toBe(false);
@@ -1068,7 +1070,7 @@ describe('エッジケース', () => {
     }
   });
 
-  it('空オブジェクト入力でバリデーションエラー', async () => {
+  it("空オブジェクト入力でバリデーションエラー", async () => {
     const result = await motionSearchHandler({});
 
     expect(result.success).toBe(false);
@@ -1077,8 +1079,8 @@ describe('エッジケース', () => {
     }
   });
 
-  it('エラーメッセージにコンテキストを含む', async () => {
-    const result = await motionSearchHandler({ query: '' });
+  it("エラーメッセージにコンテキストを含む", async () => {
+    const result = await motionSearchHandler({ query: "" });
 
     expect(result.success).toBe(false);
     if (!result.success) {
@@ -1092,7 +1094,7 @@ describe('エッジケース', () => {
 // エラーハンドリングテスト（5 tests）
 // =====================================================
 
-describe('エラーハンドリング', () => {
+describe("エラーハンドリング", () => {
   beforeEach(() => {
     resetMotionSearchServiceFactory();
   });
@@ -1101,7 +1103,7 @@ describe('エラーハンドリング', () => {
     vi.restoreAllMocks();
   });
 
-  it('入力がnullの場合エラー', async () => {
+  it("入力がnullの場合エラー", async () => {
     const result = await motionSearchHandler(null);
     expect(result.success).toBe(false);
     if (!result.success) {
@@ -1109,7 +1111,7 @@ describe('エラーハンドリング', () => {
     }
   });
 
-  it('入力がundefinedの場合エラー', async () => {
+  it("入力がundefinedの場合エラー", async () => {
     const result = await motionSearchHandler(undefined);
     expect(result.success).toBe(false);
     if (!result.success) {
@@ -1117,7 +1119,7 @@ describe('エラーハンドリング', () => {
     }
   });
 
-  it('エラーコードが定義通りに使われる', async () => {
+  it("エラーコードが定義通りに使われる", async () => {
     const result = await motionSearchHandler({});
     expect(result.success).toBe(false);
     if (!result.success) {
@@ -1125,21 +1127,21 @@ describe('エラーハンドリング', () => {
     }
   });
 
-  it('エラー時も正常なレスポンス形式', async () => {
+  it("エラー時も正常なレスポンス形式", async () => {
     const result = await motionSearchHandler({});
-    expect(result).toHaveProperty('success');
+    expect(result).toHaveProperty("success");
     expect(result.success).toBe(false);
     if (!result.success) {
-      expect(result).toHaveProperty('error');
-      expect(result.error).toHaveProperty('code');
-      expect(result.error).toHaveProperty('message');
+      expect(result).toHaveProperty("error");
+      expect(result.error).toHaveProperty("code");
+      expect(result.error).toHaveProperty("message");
     }
   });
 
-  it('タイムアウトエラーをハンドルする', async () => {
+  it("タイムアウトエラーをハンドルする", async () => {
     const mockSearch = vi.fn().mockImplementation(() => {
-      const error = new Error('Request timeout');
-      (error as Error & { code?: string }).code = 'TIMEOUT';
+      const error = new Error("Request timeout");
+      (error as Error & { code?: string }).code = "TIMEOUT";
       return Promise.reject(error);
     });
 
@@ -1147,7 +1149,7 @@ describe('エラーハンドリング', () => {
       search: mockSearch,
     }));
 
-    const input: MotionSearchInput = { query: 'test' };
+    const input: MotionSearchInput = { query: "test" };
     const result = await motionSearchHandler(input);
 
     expect(result.success).toBe(false);
@@ -1156,14 +1158,14 @@ describe('エラーハンドリング', () => {
     }
   });
 
-  it('Embeddingエラーメッセージを含むエラーで正しいエラーコードを返す', async () => {
-    const mockSearch = vi.fn().mockRejectedValue(new Error('Embedding generation failed'));
+  it("Embeddingエラーメッセージを含むエラーで正しいエラーコードを返す", async () => {
+    const mockSearch = vi.fn().mockRejectedValue(new Error("Embedding generation failed"));
 
     setMotionSearchServiceFactory(() => ({
       search: mockSearch,
     }));
 
-    const input: MotionSearchInput = { query: 'test' };
+    const input: MotionSearchInput = { query: "test" };
     const result = await motionSearchHandler(input);
 
     expect(result.success).toBe(false);
@@ -1177,7 +1179,7 @@ describe('エラーハンドリング', () => {
 // 追加のカバレッジテスト
 // =====================================================
 
-describe('追加カバレッジテスト', () => {
+describe("追加カバレッジテスト", () => {
   beforeEach(() => {
     resetMotionSearchServiceFactory();
   });
@@ -1186,7 +1188,7 @@ describe('追加カバレッジテスト', () => {
     vi.restoreAllMocks();
   });
 
-  it('全てのフィルターオプションが検索に渡される', async () => {
+  it("全てのフィルターオプションが検索に渡される", async () => {
     const mockSearch = vi.fn().mockResolvedValue({
       results: sampleSearchResults,
       total: 2,
@@ -1197,18 +1199,18 @@ describe('追加カバレッジテスト', () => {
     }));
 
     const input: MotionSearchInput = {
-      query: 'test animation',
+      query: "test animation",
       samplePattern: {
-        type: 'animation',
+        type: "animation",
         duration: 500,
-        easing: 'ease-out',
-        properties: ['opacity', 'transform'],
+        easing: "ease-out",
+        properties: ["opacity", "transform"],
       },
       filters: {
-        type: 'animation',
+        type: "animation",
         minDuration: 100,
         maxDuration: 1000,
-        trigger: 'load',
+        trigger: "load",
       },
       limit: 15,
       minSimilarity: 0.6,
@@ -1218,18 +1220,18 @@ describe('追加カバレッジテスト', () => {
 
     expect(result.success).toBe(true);
     expect(mockSearch).toHaveBeenCalledWith({
-      query: 'test animation',
+      query: "test animation",
       samplePattern: {
-        type: 'animation',
+        type: "animation",
         duration: 500,
-        easing: 'ease-out',
-        properties: ['opacity', 'transform'],
+        easing: "ease-out",
+        properties: ["opacity", "transform"],
       },
       filters: {
-        type: 'animation',
+        type: "animation",
         minDuration: 100,
         maxDuration: 1000,
-        trigger: 'load',
+        trigger: "load",
       },
       limit: 15,
       minSimilarity: 0.6,
@@ -1241,23 +1243,23 @@ describe('追加カバレッジテスト', () => {
     });
   });
 
-  it('エラーオブジェクトでない場合もハンドルする', async () => {
-    const mockSearch = vi.fn().mockRejectedValue('String error');
+  it("エラーオブジェクトでない場合もハンドルする", async () => {
+    const mockSearch = vi.fn().mockRejectedValue("String error");
 
     setMotionSearchServiceFactory(() => ({
       search: mockSearch,
     }));
 
-    const input: MotionSearchInput = { query: 'test' };
+    const input: MotionSearchInput = { query: "test" };
     const result = await motionSearchHandler(input);
 
     expect(result.success).toBe(false);
     if (!result.success) {
-      expect(result.error.message).toBe('Search failed');
+      expect(result.error.message).toBe("Search failed");
     }
   });
 
-  it('queryのみでsamplePatternなしで検索できる', async () => {
+  it("queryのみでsamplePatternなしで検索できる", async () => {
     const mockSearch = vi.fn().mockResolvedValue({
       results: [],
       total: 0,
@@ -1268,7 +1270,7 @@ describe('追加カバレッジテスト', () => {
     }));
 
     const input: MotionSearchInput = {
-      query: 'simple query',
+      query: "simple query",
       limit: 5,
       minSimilarity: 0.3,
     };
@@ -1276,15 +1278,17 @@ describe('追加カバレッジテスト', () => {
     const result = await motionSearchHandler(input);
 
     expect(result.success).toBe(true);
-    expect(mockSearch).toHaveBeenCalledWith(expect.objectContaining({
-      query: 'simple query',
-      samplePattern: undefined,
-      limit: 5,
-      minSimilarity: 0.3,
-    }));
+    expect(mockSearch).toHaveBeenCalledWith(
+      expect.objectContaining({
+        query: "simple query",
+        samplePattern: undefined,
+        limit: 5,
+        minSimilarity: 0.3,
+      })
+    );
   });
 
-  it('samplePatternのみでqueryなしで検索できる', async () => {
+  it("samplePatternのみでqueryなしで検索できる", async () => {
     const mockSearch = vi.fn().mockResolvedValue({
       results: sampleSearchResults.slice(0, 1),
       total: 1,
@@ -1296,7 +1300,7 @@ describe('追加カバレッジテスト', () => {
 
     const input: MotionSearchInput = {
       samplePattern: {
-        type: 'transition',
+        type: "transition",
         duration: 300,
       },
     };
@@ -1304,16 +1308,18 @@ describe('追加カバレッジテスト', () => {
     const result = await motionSearchHandler(input);
 
     expect(result.success).toBe(true);
-    expect(mockSearch).toHaveBeenCalledWith(expect.objectContaining({
-      query: undefined,
-      samplePattern: {
-        type: 'transition',
-        duration: 300,
-      },
-    }));
+    expect(mockSearch).toHaveBeenCalledWith(
+      expect.objectContaining({
+        query: undefined,
+        samplePattern: {
+          type: "transition",
+          duration: 300,
+        },
+      })
+    );
   });
 
-  it('検索結果のソースがnullでも正しく返される', async () => {
+  it("検索結果のソースがnullでも正しく返される", async () => {
     const resultsWithoutSource: MotionSearchResultItem[] = [
       {
         pattern: sampleMotionPattern,
@@ -1328,7 +1334,7 @@ describe('追加カバレッジテスト', () => {
       }),
     }));
 
-    const input: MotionSearchInput = { query: 'test' };
+    const input: MotionSearchInput = { query: "test" };
     const result = await motionSearchHandler(input);
 
     expect(result.success).toBe(true);
@@ -1337,7 +1343,7 @@ describe('追加カバレッジテスト', () => {
     }
   });
 
-  it('空のsamplePatternオブジェクトでも検索できる', async () => {
+  it("空のsamplePatternオブジェクトでも検索できる", async () => {
     const mockSearch = vi.fn().mockResolvedValue({
       results: [],
       total: 0,
@@ -1356,7 +1362,7 @@ describe('追加カバレッジテスト', () => {
     expect(result.success).toBe(true);
   });
 
-  it('空のfiltersオブジェクトを渡しても検索できる', async () => {
+  it("空のfiltersオブジェクトを渡しても検索できる", async () => {
     const mockSearch = vi.fn().mockResolvedValue({
       results: sampleSearchResults,
       total: 2,
@@ -1367,16 +1373,18 @@ describe('追加カバレッジテスト', () => {
     }));
 
     const input: MotionSearchInput = {
-      query: 'test',
+      query: "test",
       filters: {},
     };
 
     const result = await motionSearchHandler(input);
 
     expect(result.success).toBe(true);
-    expect(mockSearch).toHaveBeenCalledWith(expect.objectContaining({
-      filters: {},
-    }));
+    expect(mockSearch).toHaveBeenCalledWith(
+      expect.objectContaining({
+        filters: {},
+      })
+    );
   });
 });
 
@@ -1384,27 +1392,27 @@ describe('追加カバレッジテスト', () => {
 // コード生成テスト（action: 'generate'）
 // =====================================================
 
-describe('コード生成（action: generate）', () => {
+describe("コード生成（action: generate）", () => {
   const sampleGeneratePattern = {
-    type: 'animation' as const,
-    name: 'fadeIn',
+    type: "animation" as const,
+    name: "fadeIn",
     duration: 500,
     delay: 0,
-    easing: 'ease-out',
-    iterations: 1 as number | 'infinite',
-    direction: 'normal' as const,
-    fillMode: 'none' as const,
+    easing: "ease-out",
+    iterations: 1 as number | "infinite",
+    direction: "normal" as const,
+    fillMode: "none" as const,
     properties: [
-      { name: 'opacity', from: '0', to: '1' },
-      { name: 'translateY', from: '20', to: '0' },
+      { name: "opacity", from: "0", to: "1" },
+      { name: "translateY", from: "20", to: "0" },
     ],
   };
 
-  it('Three.js形式でコードを生成できる', async () => {
+  it("Three.js形式でコードを生成できる", async () => {
     const input: MotionSearchInput = {
-      action: 'generate',
+      action: "generate",
       pattern: sampleGeneratePattern,
-      format: 'three-js',
+      format: "three-js",
       options: {
         typescript: true,
         includeReducedMotion: true,
@@ -1414,27 +1422,27 @@ describe('コード生成（action: generate）', () => {
     const result = await motionSearchHandler(input);
 
     expect(result.success).toBe(true);
-    if (result.success && 'implementation' in result.data) {
+    if (result.success && "implementation" in result.data) {
       expect(result.data.implementation).toBeDefined();
-      expect(result.data.implementation?.code).toContain('@react-three/fiber');
-      expect(result.data.implementation?.code).toContain('useFrame');
-      expect(result.data.implementation?.code).toContain('Canvas');
-      expect(result.data.implementation?.metadata.dependencies).toContain('@react-three/fiber');
-      expect(result.data.implementation?.metadata.dependencies).toContain('three');
+      expect(result.data.implementation?.code).toContain("@react-three/fiber");
+      expect(result.data.implementation?.code).toContain("useFrame");
+      expect(result.data.implementation?.code).toContain("Canvas");
+      expect(result.data.implementation?.metadata.dependencies).toContain("@react-three/fiber");
+      expect(result.data.implementation?.metadata.dependencies).toContain("three");
     }
   });
 
-  it('Three.jsスクロールアニメーションを生成できる', async () => {
+  it("Three.jsスクロールアニメーションを生成できる", async () => {
     const scrollPattern = {
       ...sampleGeneratePattern,
-      type: 'scroll' as const,
-      name: 'scrollFade',
+      type: "scroll" as const,
+      name: "scrollFade",
     };
 
     const input: MotionSearchInput = {
-      action: 'generate',
+      action: "generate",
       pattern: scrollPattern,
-      format: 'three-js',
+      format: "three-js",
       options: {
         typescript: true,
         includeReducedMotion: true,
@@ -1444,18 +1452,18 @@ describe('コード生成（action: generate）', () => {
     const result = await motionSearchHandler(input);
 
     expect(result.success).toBe(true);
-    if (result.success && 'implementation' in result.data) {
-      expect(result.data.implementation?.code).toContain('useScroll');
-      expect(result.data.implementation?.code).toContain('@react-three/drei');
-      expect(result.data.implementation?.metadata.dependencies).toContain('@react-three/drei');
+    if (result.success && "implementation" in result.data) {
+      expect(result.data.implementation?.code).toContain("useScroll");
+      expect(result.data.implementation?.code).toContain("@react-three/drei");
+      expect(result.data.implementation?.metadata.dependencies).toContain("@react-three/drei");
     }
   });
 
-  it('Three.js形式でJavaScript出力ができる', async () => {
+  it("Three.js形式でJavaScript出力ができる", async () => {
     const input: MotionSearchInput = {
-      action: 'generate',
+      action: "generate",
       pattern: sampleGeneratePattern,
-      format: 'three-js',
+      format: "three-js",
       options: {
         typescript: false,
         includeReducedMotion: false,
@@ -1465,18 +1473,18 @@ describe('コード生成（action: generate）', () => {
     const result = await motionSearchHandler(input);
 
     expect(result.success).toBe(true);
-    if (result.success && 'implementation' in result.data) {
+    if (result.success && "implementation" in result.data) {
       // TypeScript types should not be present
-      expect(result.data.implementation?.code).not.toContain(': FC<');
-      expect(result.data.implementation?.code).not.toContain(': Mesh');
+      expect(result.data.implementation?.code).not.toContain(": FC<");
+      expect(result.data.implementation?.code).not.toContain(": Mesh");
     }
   });
 
-  it('GSAP形式でコードを生成できる', async () => {
+  it("GSAP形式でコードを生成できる", async () => {
     const input: MotionSearchInput = {
-      action: 'generate',
+      action: "generate",
       pattern: sampleGeneratePattern,
-      format: 'gsap',
+      format: "gsap",
       options: {
         typescript: true,
       },
@@ -1485,17 +1493,17 @@ describe('コード生成（action: generate）', () => {
     const result = await motionSearchHandler(input);
 
     expect(result.success).toBe(true);
-    if (result.success && 'implementation' in result.data) {
-      expect(result.data.implementation?.code).toContain('gsap');
-      expect(result.data.implementation?.code).toContain('fromTo');
+    if (result.success && "implementation" in result.data) {
+      expect(result.data.implementation?.code).toContain("gsap");
+      expect(result.data.implementation?.code).toContain("fromTo");
     }
   });
 
-  it('Framer Motion形式でコードを生成できる', async () => {
+  it("Framer Motion形式でコードを生成できる", async () => {
     const input: MotionSearchInput = {
-      action: 'generate',
+      action: "generate",
       pattern: sampleGeneratePattern,
-      format: 'framer-motion',
+      format: "framer-motion",
       options: {
         typescript: true,
       },
@@ -1504,17 +1512,17 @@ describe('コード生成（action: generate）', () => {
     const result = await motionSearchHandler(input);
 
     expect(result.success).toBe(true);
-    if (result.success && 'implementation' in result.data) {
-      expect(result.data.implementation?.code).toContain('framer-motion');
-      expect(result.data.implementation?.code).toContain('motion.div');
+    if (result.success && "implementation" in result.data) {
+      expect(result.data.implementation?.code).toContain("framer-motion");
+      expect(result.data.implementation?.code).toContain("motion.div");
     }
   });
 
-  it('Lottie形式でコードを生成できる', async () => {
+  it("Lottie形式でコードを生成できる", async () => {
     const input: MotionSearchInput = {
-      action: 'generate',
+      action: "generate",
       pattern: sampleGeneratePattern,
-      format: 'lottie',
+      format: "lottie",
       options: {
         typescript: true,
         includeReducedMotion: true,
@@ -1524,27 +1532,27 @@ describe('コード生成（action: generate）', () => {
     const result = await motionSearchHandler(input);
 
     expect(result.success).toBe(true);
-    if (result.success && 'implementation' in result.data) {
+    if (result.success && "implementation" in result.data) {
       expect(result.data.implementation).toBeDefined();
-      expect(result.data.implementation?.code).toContain('lottie-react');
-      expect(result.data.implementation?.code).toContain('animationData');
-      expect(result.data.implementation?.code).toContain('loop');
-      expect(result.data.implementation?.code).toContain('autoplay');
-      expect(result.data.implementation?.metadata.dependencies).toContain('lottie-react');
+      expect(result.data.implementation?.code).toContain("lottie-react");
+      expect(result.data.implementation?.code).toContain("animationData");
+      expect(result.data.implementation?.code).toContain("loop");
+      expect(result.data.implementation?.code).toContain("autoplay");
+      expect(result.data.implementation?.metadata.dependencies).toContain("lottie-react");
     }
   });
 
-  it('Lottieアニメーションでループ設定が反映される', async () => {
+  it("Lottieアニメーションでループ設定が反映される", async () => {
     const loopPattern = {
       ...sampleGeneratePattern,
-      name: 'infiniteLoop',
-      iterations: 'infinite' as const,
+      name: "infiniteLoop",
+      iterations: "infinite" as const,
     };
 
     const input: MotionSearchInput = {
-      action: 'generate',
+      action: "generate",
       pattern: loopPattern,
-      format: 'lottie',
+      format: "lottie",
       options: {
         typescript: true,
       },
@@ -1553,16 +1561,16 @@ describe('コード生成（action: generate）', () => {
     const result = await motionSearchHandler(input);
 
     expect(result.success).toBe(true);
-    if (result.success && 'implementation' in result.data) {
-      expect(result.data.implementation?.code).toContain('loop = true');
+    if (result.success && "implementation" in result.data) {
+      expect(result.data.implementation?.code).toContain("loop = true");
     }
   });
 
-  it('Lottie形式でJavaScript出力ができる', async () => {
+  it("Lottie形式でJavaScript出力ができる", async () => {
     const input: MotionSearchInput = {
-      action: 'generate',
+      action: "generate",
       pattern: sampleGeneratePattern,
-      format: 'lottie',
+      format: "lottie",
       options: {
         typescript: false,
         includeReducedMotion: false,
@@ -1572,10 +1580,10 @@ describe('コード生成（action: generate）', () => {
     const result = await motionSearchHandler(input);
 
     expect(result.success).toBe(true);
-    if (result.success && 'implementation' in result.data) {
+    if (result.success && "implementation" in result.data) {
       // TypeScript types should not be present
-      expect(result.data.implementation?.code).not.toContain(': FC<');
-      expect(result.data.implementation?.code).not.toContain('interface');
+      expect(result.data.implementation?.code).not.toContain(": FC<");
+      expect(result.data.implementation?.code).not.toContain("interface");
     }
   });
 });
@@ -1584,7 +1592,7 @@ describe('コード生成（action: generate）', () => {
 // include_implementationテスト（v0.1.0）
 // =====================================================
 
-describe('include_implementation (v0.1.0)', () => {
+describe("include_implementation (v0.1.0)", () => {
   beforeEach(() => {
     resetMotionSearchServiceFactory();
   });
@@ -1594,25 +1602,25 @@ describe('include_implementation (v0.1.0)', () => {
     vi.clearAllMocks();
   });
 
-  it('include_implementation: false（デフォルト）の場合、implementationフィールドがない', async () => {
+  it("include_implementation: false（デフォルト）の場合、implementationフィールドがない", async () => {
     const mockService: IMotionSearchService = {
       search: vi.fn().mockResolvedValue({
         results: sampleSearchResults,
         total: 2,
-        query: { text: 'フェードイン' },
+        query: { text: "フェードイン" },
       }),
     };
     setMotionSearchServiceFactory(() => mockService);
 
     const input: MotionSearchInput = {
-      query: 'フェードイン',
+      query: "フェードイン",
       // include_implementation: false (default)
     };
 
     const result = await motionSearchHandler(input);
 
     expect(result.success).toBe(true);
-    if (result.success && 'results' in result.data) {
+    if (result.success && "results" in result.data) {
       expect(result.data.results).toHaveLength(2);
       // implementationフィールドがないことを確認
       result.data.results.forEach((item) => {
@@ -1621,25 +1629,25 @@ describe('include_implementation (v0.1.0)', () => {
     }
   });
 
-  it('include_implementation: trueの場合、各結果にimplementationフィールドが付与される', async () => {
+  it("include_implementation: trueの場合、各結果にimplementationフィールドが付与される", async () => {
     const mockService: IMotionSearchService = {
       search: vi.fn().mockResolvedValue({
         results: sampleSearchResults,
         total: 2,
-        query: { text: 'フェードイン' },
+        query: { text: "フェードイン" },
       }),
     };
     setMotionSearchServiceFactory(() => mockService);
 
     const input: MotionSearchInput = {
-      query: 'フェードイン',
+      query: "フェードイン",
       include_implementation: true,
     };
 
     const result = await motionSearchHandler(input);
 
     expect(result.success).toBe(true);
-    if (result.success && 'results' in result.data) {
+    if (result.success && "results" in result.data) {
       expect(result.data.results).toHaveLength(2);
       // 各結果にimplementationフィールドがあることを確認
       result.data.results.forEach((item) => {
@@ -1648,61 +1656,61 @@ describe('include_implementation (v0.1.0)', () => {
     }
   });
 
-  it('css_animationパターンの場合、keyframes, animation, tailwindが含まれる', async () => {
+  it("css_animationパターンの場合、keyframes, animation, tailwindが含まれる", async () => {
     const mockService: IMotionSearchService = {
       search: vi.fn().mockResolvedValue({
         results: [sampleSearchResults[0]], // css_animation パターン
         total: 1,
-        query: { text: 'フェードイン' },
+        query: { text: "フェードイン" },
       }),
     };
     setMotionSearchServiceFactory(() => mockService);
 
     const input: MotionSearchInput = {
-      query: 'フェードイン',
+      query: "フェードイン",
       include_implementation: true,
     };
 
     const result = await motionSearchHandler(input);
 
     expect(result.success).toBe(true);
-    if (result.success && 'results' in result.data) {
+    if (result.success && "results" in result.data) {
       const item = result.data.results[0];
       expect(item.implementation).toBeDefined();
       expect(item.implementation?.keyframes).toBeDefined();
-      expect(item.implementation?.keyframes).toContain('@keyframes fadeIn');
+      expect(item.implementation?.keyframes).toContain("@keyframes fadeIn");
       expect(item.implementation?.animation).toBeDefined();
-      expect(item.implementation?.animation).toContain('animation:');
+      expect(item.implementation?.animation).toContain("animation:");
       expect(item.implementation?.tailwind).toBeDefined();
-      expect(item.implementation?.tailwind).toBe('animate-fadeIn');
+      expect(item.implementation?.tailwind).toBe("animate-fadeIn");
       // transitionタイプでないのでtransitionはundefined
       expect(item.implementation?.transition).toBeUndefined();
     }
   });
 
-  it('css_transitionパターンの場合、transitionのみが含まれる', async () => {
+  it("css_transitionパターンの場合、transitionのみが含まれる", async () => {
     const mockService: IMotionSearchService = {
       search: vi.fn().mockResolvedValue({
         results: [sampleSearchResults[1]], // css_transition パターン
         total: 1,
-        query: { text: 'ホバー' },
+        query: { text: "ホバー" },
       }),
     };
     setMotionSearchServiceFactory(() => mockService);
 
     const input: MotionSearchInput = {
-      query: 'ホバー',
+      query: "ホバー",
       include_implementation: true,
     };
 
     const result = await motionSearchHandler(input);
 
     expect(result.success).toBe(true);
-    if (result.success && 'results' in result.data) {
+    if (result.success && "results" in result.data) {
       const item = result.data.results[0];
       expect(item.implementation).toBeDefined();
       expect(item.implementation?.transition).toBeDefined();
-      expect(item.implementation?.transition).toContain('transition:');
+      expect(item.implementation?.transition).toContain("transition:");
       // transitionタイプなのでkeyframes, animation, tailwindはundefined
       expect(item.implementation?.keyframes).toBeUndefined();
       expect(item.implementation?.animation).toBeUndefined();
@@ -1710,40 +1718,40 @@ describe('include_implementation (v0.1.0)', () => {
     }
   });
 
-  it('検索結果が空の場合でもエラーにならない', async () => {
+  it("検索結果が空の場合でもエラーにならない", async () => {
     const mockService: IMotionSearchService = {
       search: vi.fn().mockResolvedValue({
         results: [],
         total: 0,
-        query: { text: '存在しないパターン' },
+        query: { text: "存在しないパターン" },
       }),
     };
     setMotionSearchServiceFactory(() => mockService);
 
     const input: MotionSearchInput = {
-      query: '存在しないパターン',
+      query: "存在しないパターン",
       include_implementation: true,
     };
 
     const result = await motionSearchHandler(input);
 
     expect(result.success).toBe(true);
-    if (result.success && 'results' in result.data) {
+    if (result.success && "results" in result.data) {
       expect(result.data.results).toHaveLength(0);
       expect(result.data.total).toBe(0);
     }
   });
 
-  it('inputSchemaにinclude_implementationが定義されている', () => {
+  it("inputSchemaにinclude_implementationが定義されている", () => {
     const schema = motionSearchToolDefinition.inputSchema;
     expect(schema.properties.include_implementation).toBeDefined();
-    expect(schema.properties.include_implementation.type).toBe('boolean');
+    expect(schema.properties.include_implementation.type).toBe("boolean");
     expect(schema.properties.include_implementation.default).toBe(false);
   });
 
-  it('Zodスキーマでinclude_implementationがパースされる', () => {
+  it("Zodスキーマでinclude_implementationがパースされる", () => {
     const input = {
-      query: 'テスト',
+      query: "テスト",
       include_implementation: true,
     };
 
@@ -1751,9 +1759,9 @@ describe('include_implementation (v0.1.0)', () => {
     expect(parsed.include_implementation).toBe(true);
   });
 
-  it('Zodスキーマでinclude_implementationのデフォルト値はfalse', () => {
+  it("Zodスキーマでinclude_implementationのデフォルト値はfalse", () => {
     const input = {
-      query: 'テスト',
+      query: "テスト",
     };
 
     const parsed = motionSearchInputSchema.parse(input);
@@ -1765,7 +1773,7 @@ describe('include_implementation (v0.1.0)', () => {
 // 多様性フィルタリングテスト（v0.1.0）
 // =====================================================
 
-describe('多様性フィルタリング (v0.1.0)', () => {
+describe("多様性フィルタリング (v0.1.0)", () => {
   beforeEach(() => {
     resetMotionSearchServiceFactory();
   });
@@ -1778,75 +1786,75 @@ describe('多様性フィルタリング (v0.1.0)', () => {
   const diverseMotionPatterns: MotionSearchResultItem[] = [
     {
       pattern: {
-        id: 'pattern-scroll-1',
-        type: 'css_animation',
-        category: 'scroll_trigger',
-        trigger: 'scroll',
-        animation: { duration: 600, easing: { type: 'ease-out' } },
-        properties: [{ property: 'opacity', from: 0, to: 1 }],
+        id: "pattern-scroll-1",
+        type: "css_animation",
+        category: "scroll_trigger",
+        trigger: "scroll",
+        animation: { duration: 600, easing: { type: "ease-out" } },
+        properties: [{ property: "opacity", from: 0, to: 1 }],
       },
       similarity: 0.95,
     },
     {
       pattern: {
-        id: 'pattern-scroll-2',
-        type: 'css_animation',
-        category: 'scroll_trigger',
-        trigger: 'scroll',
-        animation: { duration: 550, easing: { type: 'ease-out' } },
-        properties: [{ property: 'opacity', from: 0, to: 1 }],
+        id: "pattern-scroll-2",
+        type: "css_animation",
+        category: "scroll_trigger",
+        trigger: "scroll",
+        animation: { duration: 550, easing: { type: "ease-out" } },
+        properties: [{ property: "opacity", from: 0, to: 1 }],
       },
       similarity: 0.93,
     },
     {
       pattern: {
-        id: 'pattern-hover-1',
-        type: 'css_transition',
-        category: 'hover_effect',
-        trigger: 'hover',
-        animation: { duration: 300, easing: { type: 'ease' } },
-        properties: [{ property: 'transform' }],
+        id: "pattern-hover-1",
+        type: "css_transition",
+        category: "hover_effect",
+        trigger: "hover",
+        animation: { duration: 300, easing: { type: "ease" } },
+        properties: [{ property: "transform" }],
       },
-      similarity: 0.90,
+      similarity: 0.9,
     },
     {
       pattern: {
-        id: 'pattern-loading-1',
-        type: 'css_animation',
-        category: 'loading_state',
-        trigger: 'load',
-        animation: { duration: 1000, easing: { type: 'linear' } },
-        properties: [{ property: 'transform', from: 'rotate(0deg)', to: 'rotate(360deg)' }],
+        id: "pattern-loading-1",
+        type: "css_animation",
+        category: "loading_state",
+        trigger: "load",
+        animation: { duration: 1000, easing: { type: "linear" } },
+        properties: [{ property: "transform", from: "rotate(0deg)", to: "rotate(360deg)" }],
       },
       similarity: 0.88,
     },
     {
       pattern: {
-        id: 'pattern-micro-1',
-        type: 'css_transition',
-        category: 'micro_interaction',
-        trigger: 'click',
-        animation: { duration: 200, easing: { type: 'ease-in-out' } },
-        properties: [{ property: 'transform' }],
+        id: "pattern-micro-1",
+        type: "css_transition",
+        category: "micro_interaction",
+        trigger: "click",
+        animation: { duration: 200, easing: { type: "ease-in-out" } },
+        properties: [{ property: "transform" }],
       },
       similarity: 0.85,
     },
     {
       pattern: {
-        id: 'pattern-scroll-3',
-        type: 'css_animation',
-        category: 'scroll_trigger',
-        trigger: 'scroll',
-        animation: { duration: 600, easing: { type: 'ease-out' } },
-        properties: [{ property: 'opacity', from: 0, to: 1 }],
+        id: "pattern-scroll-3",
+        type: "css_animation",
+        category: "scroll_trigger",
+        trigger: "scroll",
+        animation: { duration: 600, easing: { type: "ease-out" } },
+        properties: [{ property: "opacity", from: 0, to: 1 }],
       },
       similarity: 0.82,
     },
   ];
 
-  it('diversity_thresholdパラメータがスキーマで受け付けられる', () => {
+  it("diversity_thresholdパラメータがスキーマで受け付けられる", () => {
     const input = {
-      query: 'animation',
+      query: "animation",
       diversity_threshold: 0.5,
     };
 
@@ -1854,18 +1862,18 @@ describe('多様性フィルタリング (v0.1.0)', () => {
     expect(parsed.diversity_threshold).toBe(0.5);
   });
 
-  it('diversity_thresholdのデフォルト値は0.3', () => {
+  it("diversity_thresholdのデフォルト値は0.3", () => {
     const input = {
-      query: 'animation',
+      query: "animation",
     };
 
     const parsed = motionSearchInputSchema.parse(input);
     expect(parsed.diversity_threshold).toBe(0.3);
   });
 
-  it('ensure_category_diversityパラメータがスキーマで受け付けられる', () => {
+  it("ensure_category_diversityパラメータがスキーマで受け付けられる", () => {
     const input = {
-      query: 'animation',
+      query: "animation",
       ensure_category_diversity: false,
     };
 
@@ -1873,32 +1881,32 @@ describe('多様性フィルタリング (v0.1.0)', () => {
     expect(parsed.ensure_category_diversity).toBe(false);
   });
 
-  it('ensure_category_diversityのデフォルト値はtrue', () => {
+  it("ensure_category_diversityのデフォルト値はtrue", () => {
     const input = {
-      query: 'animation',
+      query: "animation",
     };
 
     const parsed = motionSearchInputSchema.parse(input);
     expect(parsed.ensure_category_diversity).toBe(true);
   });
 
-  it('diversity_thresholdが0-1の範囲外でエラー', () => {
+  it("diversity_thresholdが0-1の範囲外でエラー", () => {
     expect(() =>
       motionSearchInputSchema.parse({
-        query: 'animation',
+        query: "animation",
         diversity_threshold: 1.5,
       })
     ).toThrow();
 
     expect(() =>
       motionSearchInputSchema.parse({
-        query: 'animation',
+        query: "animation",
         diversity_threshold: -0.1,
       })
     ).toThrow();
   });
 
-  it('カテゴリ分散が有効な場合、異なるカテゴリが優先される', async () => {
+  it("カテゴリ分散が有効な場合、異なるカテゴリが優先される", async () => {
     const mockSearch = vi.fn().mockResolvedValue({
       results: diverseMotionPatterns,
       total: diverseMotionPatterns.length,
@@ -1909,7 +1917,7 @@ describe('多様性フィルタリング (v0.1.0)', () => {
     }));
 
     const input: MotionSearchInput = {
-      query: 'animation',
+      query: "animation",
       limit: 4,
       ensure_category_diversity: true,
       diversity_threshold: 0.3,
@@ -1928,7 +1936,7 @@ describe('多様性フィルタリング (v0.1.0)', () => {
     }
   });
 
-  it('カテゴリ分散が無効な場合、類似度順で返される（類似度フィルタのみ適用）', async () => {
+  it("カテゴリ分散が無効な場合、類似度順で返される（類似度フィルタのみ適用）", async () => {
     const mockSearch = vi.fn().mockResolvedValue({
       results: diverseMotionPatterns,
       total: diverseMotionPatterns.length,
@@ -1939,7 +1947,7 @@ describe('多様性フィルタリング (v0.1.0)', () => {
     }));
 
     const input: MotionSearchInput = {
-      query: 'animation',
+      query: "animation",
       limit: 4,
       ensure_category_diversity: false,
       diversity_threshold: 0.9, // 高しきい値で類似度フィルタをほぼ無効化
@@ -1954,39 +1962,39 @@ describe('多様性フィルタリング (v0.1.0)', () => {
     }
   });
 
-  it('diversity_threshold=0で全ての類似結果が間引かれる（limitが十分な場合補完あり）', async () => {
+  it("diversity_threshold=0で全ての類似結果が間引かれる（limitが十分な場合補完あり）", async () => {
     // 非常に類似したパターンのみ
     const verySimialarPatterns: MotionSearchResultItem[] = [
       {
         pattern: {
-          id: 'similar-1',
-          type: 'css_animation',
-          category: 'scroll_trigger',
-          trigger: 'scroll',
-          animation: { duration: 600, easing: { type: 'ease-out' } },
-          properties: [{ property: 'opacity', from: 0, to: 1 }],
+          id: "similar-1",
+          type: "css_animation",
+          category: "scroll_trigger",
+          trigger: "scroll",
+          animation: { duration: 600, easing: { type: "ease-out" } },
+          properties: [{ property: "opacity", from: 0, to: 1 }],
         },
         similarity: 0.95,
       },
       {
         pattern: {
-          id: 'similar-2',
-          type: 'css_animation',
-          category: 'scroll_trigger',
-          trigger: 'scroll',
-          animation: { duration: 600, easing: { type: 'ease-out' } },
-          properties: [{ property: 'opacity', from: 0, to: 1 }],
+          id: "similar-2",
+          type: "css_animation",
+          category: "scroll_trigger",
+          trigger: "scroll",
+          animation: { duration: 600, easing: { type: "ease-out" } },
+          properties: [{ property: "opacity", from: 0, to: 1 }],
         },
         similarity: 0.93,
       },
       {
         pattern: {
-          id: 'similar-3',
-          type: 'css_animation',
-          category: 'scroll_trigger',
-          trigger: 'scroll',
-          animation: { duration: 600, easing: { type: 'ease-out' } },
-          properties: [{ property: 'opacity', from: 0, to: 1 }],
+          id: "similar-3",
+          type: "css_animation",
+          category: "scroll_trigger",
+          trigger: "scroll",
+          animation: { duration: 600, easing: { type: "ease-out" } },
+          properties: [{ property: "opacity", from: 0, to: 1 }],
         },
         similarity: 0.91,
       },
@@ -2002,7 +2010,7 @@ describe('多様性フィルタリング (v0.1.0)', () => {
     }));
 
     const input: MotionSearchInput = {
-      query: 'animation',
+      query: "animation",
       limit: 10,
       ensure_category_diversity: false,
       diversity_threshold: 0, // 厳格なフィルタリング
@@ -2017,32 +2025,32 @@ describe('多様性フィルタリング (v0.1.0)', () => {
       // 結果として全3件が返される（フィルタリング1件 + 補完2件）
       expect(result.data.results.length).toBe(3);
       // 最初の結果は最も類似度が高い
-      expect(result.data.results[0].pattern.id).toBe('similar-1');
+      expect(result.data.results[0].pattern.id).toBe("similar-1");
     }
   });
 
-  it('diversity_threshold=0でlimit=1の場合、フィルタリングで1件のみ返される', async () => {
+  it("diversity_threshold=0でlimit=1の場合、フィルタリングで1件のみ返される", async () => {
     // 非常に類似したパターンのみ
     const verySimialarPatterns: MotionSearchResultItem[] = [
       {
         pattern: {
-          id: 'similar-1',
-          type: 'css_animation',
-          category: 'scroll_trigger',
-          trigger: 'scroll',
-          animation: { duration: 600, easing: { type: 'ease-out' } },
-          properties: [{ property: 'opacity', from: 0, to: 1 }],
+          id: "similar-1",
+          type: "css_animation",
+          category: "scroll_trigger",
+          trigger: "scroll",
+          animation: { duration: 600, easing: { type: "ease-out" } },
+          properties: [{ property: "opacity", from: 0, to: 1 }],
         },
         similarity: 0.95,
       },
       {
         pattern: {
-          id: 'similar-2',
-          type: 'css_animation',
-          category: 'scroll_trigger',
-          trigger: 'scroll',
-          animation: { duration: 600, easing: { type: 'ease-out' } },
-          properties: [{ property: 'opacity', from: 0, to: 1 }],
+          id: "similar-2",
+          type: "css_animation",
+          category: "scroll_trigger",
+          trigger: "scroll",
+          animation: { duration: 600, easing: { type: "ease-out" } },
+          properties: [{ property: "opacity", from: 0, to: 1 }],
         },
         similarity: 0.93,
       },
@@ -2058,7 +2066,7 @@ describe('多様性フィルタリング (v0.1.0)', () => {
     }));
 
     const input: MotionSearchInput = {
-      query: 'animation',
+      query: "animation",
       limit: 1, // limit=1で補完は発生しない
       ensure_category_diversity: false,
       diversity_threshold: 0,
@@ -2070,11 +2078,11 @@ describe('多様性フィルタリング (v0.1.0)', () => {
     if (result.success) {
       // limit=1なのでフィルタリング後1件のみ
       expect(result.data.results.length).toBe(1);
-      expect(result.data.results[0].pattern.id).toBe('similar-1');
+      expect(result.data.results[0].pattern.id).toBe("similar-1");
     }
   });
 
-  it('diversity_threshold=1で全ての結果が保持される', async () => {
+  it("diversity_threshold=1で全ての結果が保持される", async () => {
     const mockSearch = vi.fn().mockResolvedValue({
       results: diverseMotionPatterns,
       total: diverseMotionPatterns.length,
@@ -2085,7 +2093,7 @@ describe('多様性フィルタリング (v0.1.0)', () => {
     }));
 
     const input: MotionSearchInput = {
-      query: 'animation',
+      query: "animation",
       limit: 10,
       ensure_category_diversity: false,
       diversity_threshold: 1, // 全て許可
@@ -2100,7 +2108,7 @@ describe('多様性フィルタリング (v0.1.0)', () => {
     }
   });
 
-  it('空の検索結果でも多様性フィルタリングがエラーにならない', async () => {
+  it("空の検索結果でも多様性フィルタリングがエラーにならない", async () => {
     const mockSearch = vi.fn().mockResolvedValue({
       results: [],
       total: 0,
@@ -2111,7 +2119,7 @@ describe('多様性フィルタリング (v0.1.0)', () => {
     }));
 
     const input: MotionSearchInput = {
-      query: 'nonexistent',
+      query: "nonexistent",
       diversity_threshold: 0.5,
       ensure_category_diversity: true,
     };
@@ -2124,7 +2132,7 @@ describe('多様性フィルタリング (v0.1.0)', () => {
     }
   });
 
-  it('limitより少ない結果でも正常に動作する', async () => {
+  it("limitより少ない結果でも正常に動作する", async () => {
     const mockSearch = vi.fn().mockResolvedValue({
       results: diverseMotionPatterns.slice(0, 2),
       total: 2,
@@ -2135,7 +2143,7 @@ describe('多様性フィルタリング (v0.1.0)', () => {
     }));
 
     const input: MotionSearchInput = {
-      query: 'animation',
+      query: "animation",
       limit: 10,
       diversity_threshold: 0.5,
       ensure_category_diversity: true,
@@ -2149,7 +2157,7 @@ describe('多様性フィルタリング (v0.1.0)', () => {
     }
   });
 
-  it('include_implementationと多様性フィルタリングが組み合わせて動作する', async () => {
+  it("include_implementationと多様性フィルタリングが組み合わせて動作する", async () => {
     const mockSearch = vi.fn().mockResolvedValue({
       results: diverseMotionPatterns,
       total: diverseMotionPatterns.length,
@@ -2160,7 +2168,7 @@ describe('多様性フィルタリング (v0.1.0)', () => {
     }));
 
     const input: MotionSearchInput = {
-      query: 'animation',
+      query: "animation",
       limit: 4,
       diversity_threshold: 0.5,
       ensure_category_diversity: true,
@@ -2187,105 +2195,105 @@ describe('多様性フィルタリング (v0.1.0)', () => {
   // MMRアルゴリズムテスト（v0.1.0）
   // =====================================================
 
-  describe('MMR (Maximal Marginal Relevance) アルゴリズム', () => {
+  describe("MMR (Maximal Marginal Relevance) アルゴリズム", () => {
     // fadeIn系パターンが連続するテストデータ（問題を再現）
     const fadeInHeavyPatterns: MotionSearchResultItem[] = [
       {
         pattern: {
-          id: 'fadeIn-1',
-          name: 'fadeIn',
-          type: 'css_animation',
-          category: 'entrance',
-          trigger: 'load',
-          animation: { duration: 300, easing: { type: 'ease-out' } },
-          properties: [{ property: 'opacity', from: 0, to: 1 }],
+          id: "fadeIn-1",
+          name: "fadeIn",
+          type: "css_animation",
+          category: "entrance",
+          trigger: "load",
+          animation: { duration: 300, easing: { type: "ease-out" } },
+          properties: [{ property: "opacity", from: 0, to: 1 }],
         },
         similarity: 0.98,
       },
       {
         pattern: {
-          id: 'fadeIn-2',
-          name: 'fadeInUp',
-          type: 'css_animation',
-          category: 'entrance',
-          trigger: 'load',
-          animation: { duration: 350, easing: { type: 'ease-out' } },
+          id: "fadeIn-2",
+          name: "fadeInUp",
+          type: "css_animation",
+          category: "entrance",
+          trigger: "load",
+          animation: { duration: 350, easing: { type: "ease-out" } },
           properties: [
-            { property: 'opacity', from: 0, to: 1 },
-            { property: 'transform', from: 'translateY(20px)', to: 'translateY(0)' },
+            { property: "opacity", from: 0, to: 1 },
+            { property: "transform", from: "translateY(20px)", to: "translateY(0)" },
           ],
         },
         similarity: 0.96,
       },
       {
         pattern: {
-          id: 'fadeIn-3',
-          name: 'fadeInDown',
-          type: 'css_animation',
-          category: 'entrance',
-          trigger: 'load',
-          animation: { duration: 320, easing: { type: 'ease-out' } },
+          id: "fadeIn-3",
+          name: "fadeInDown",
+          type: "css_animation",
+          category: "entrance",
+          trigger: "load",
+          animation: { duration: 320, easing: { type: "ease-out" } },
           properties: [
-            { property: 'opacity', from: 0, to: 1 },
-            { property: 'transform', from: 'translateY(-20px)', to: 'translateY(0)' },
+            { property: "opacity", from: 0, to: 1 },
+            { property: "transform", from: "translateY(-20px)", to: "translateY(0)" },
           ],
         },
         similarity: 0.94,
       },
       {
         pattern: {
-          id: 'slideIn-1',
-          name: 'slideInLeft',
-          type: 'css_animation',
-          category: 'entrance',
-          trigger: 'scroll',
-          animation: { duration: 400, easing: { type: 'ease-in-out' } },
-          properties: [{ property: 'transform', from: 'translateX(-100%)', to: 'translateX(0)' }],
+          id: "slideIn-1",
+          name: "slideInLeft",
+          type: "css_animation",
+          category: "entrance",
+          trigger: "scroll",
+          animation: { duration: 400, easing: { type: "ease-in-out" } },
+          properties: [{ property: "transform", from: "translateX(-100%)", to: "translateX(0)" }],
         },
         similarity: 0.85,
       },
       {
         pattern: {
-          id: 'scale-1',
-          name: 'scaleUp',
-          type: 'css_transition',
-          category: 'hover_effect',
-          trigger: 'hover',
-          animation: { duration: 200, easing: { type: 'ease' } },
-          properties: [{ property: 'transform', from: 'scale(1)', to: 'scale(1.05)' }],
+          id: "scale-1",
+          name: "scaleUp",
+          type: "css_transition",
+          category: "hover_effect",
+          trigger: "hover",
+          animation: { duration: 200, easing: { type: "ease" } },
+          properties: [{ property: "transform", from: "scale(1)", to: "scale(1.05)" }],
         },
-        similarity: 0.80,
+        similarity: 0.8,
       },
       {
         pattern: {
-          id: 'rotate-1',
-          name: 'spin',
-          type: 'css_animation',
-          category: 'loading_state',
-          trigger: 'load',
-          animation: { duration: 1000, easing: { type: 'linear' } },
-          properties: [{ property: 'transform', from: 'rotate(0deg)', to: 'rotate(360deg)' }],
+          id: "rotate-1",
+          name: "spin",
+          type: "css_animation",
+          category: "loading_state",
+          trigger: "load",
+          animation: { duration: 1000, easing: { type: "linear" } },
+          properties: [{ property: "transform", from: "rotate(0deg)", to: "rotate(360deg)" }],
         },
         similarity: 0.75,
       },
       {
         pattern: {
-          id: 'fadeIn-4',
-          name: 'fadeInScale',
-          type: 'css_animation',
-          category: 'entrance',
-          trigger: 'load',
-          animation: { duration: 400, easing: { type: 'ease-out' } },
+          id: "fadeIn-4",
+          name: "fadeInScale",
+          type: "css_animation",
+          category: "entrance",
+          trigger: "load",
+          animation: { duration: 400, easing: { type: "ease-out" } },
           properties: [
-            { property: 'opacity', from: 0, to: 1 },
-            { property: 'transform', from: 'scale(0.9)', to: 'scale(1)' },
+            { property: "opacity", from: 0, to: 1 },
+            { property: "transform", from: "scale(0.9)", to: "scale(1)" },
           ],
         },
-        similarity: 0.70,
+        similarity: 0.7,
       },
     ];
 
-    it('MMRにより同一カテゴリの連続を避ける', async () => {
+    it("MMRにより同一カテゴリの連続を避ける", async () => {
       const mockSearch = vi.fn().mockResolvedValue({
         results: fadeInHeavyPatterns,
         total: fadeInHeavyPatterns.length,
@@ -2296,7 +2304,7 @@ describe('多様性フィルタリング (v0.1.0)', () => {
       }));
 
       const input: MotionSearchInput = {
-        query: 'animation',
+        query: "animation",
         limit: 5,
         diversity_threshold: 0.5, // バランス設定
         ensure_category_diversity: true,
@@ -2329,7 +2337,7 @@ describe('多様性フィルタリング (v0.1.0)', () => {
       }
     });
 
-    it('diversity_threshold=0.0で従来通り関連度順（多様性フィルタなし）', async () => {
+    it("diversity_threshold=0.0で従来通り関連度順（多様性フィルタなし）", async () => {
       const mockSearch = vi.fn().mockResolvedValue({
         results: fadeInHeavyPatterns,
         total: fadeInHeavyPatterns.length,
@@ -2340,7 +2348,7 @@ describe('多様性フィルタリング (v0.1.0)', () => {
       }));
 
       const input: MotionSearchInput = {
-        query: 'animation',
+        query: "animation",
         limit: 5,
         diversity_threshold: 0.0, // 関連度順のみ
         ensure_category_diversity: false,
@@ -2358,7 +2366,7 @@ describe('多様性フィルタリング (v0.1.0)', () => {
       }
     });
 
-    it('diversity_threshold=1.0で関連度順のまま返される（λ=1.0は多様性なし）', async () => {
+    it("diversity_threshold=1.0で関連度順のまま返される（λ=1.0は多様性なし）", async () => {
       const mockSearch = vi.fn().mockResolvedValue({
         results: fadeInHeavyPatterns,
         total: fadeInHeavyPatterns.length,
@@ -2369,7 +2377,7 @@ describe('多様性フィルタリング (v0.1.0)', () => {
       }));
 
       const input: MotionSearchInput = {
-        query: 'animation',
+        query: "animation",
         limit: 5,
         diversity_threshold: 1.0, // λ=1.0: 関連度のみ（多様性フィルタなし）
         ensure_category_diversity: false, // 明示的にカテゴリ分散を無効化
@@ -2387,7 +2395,7 @@ describe('多様性フィルタリング (v0.1.0)', () => {
       }
     });
 
-    it('diversity_threshold=0.0でensure_category_diversity=trueなら多様性最大化', async () => {
+    it("diversity_threshold=0.0でensure_category_diversity=trueなら多様性最大化", async () => {
       const mockSearch = vi.fn().mockResolvedValue({
         results: fadeInHeavyPatterns,
         total: fadeInHeavyPatterns.length,
@@ -2398,7 +2406,7 @@ describe('多様性フィルタリング (v0.1.0)', () => {
       }));
 
       const input: MotionSearchInput = {
-        query: 'animation',
+        query: "animation",
         limit: 5,
         diversity_threshold: 0.0, // λ=0.0: 多様性最大
         ensure_category_diversity: true, // カテゴリ分散有効
@@ -2416,7 +2424,7 @@ describe('多様性フィルタリング (v0.1.0)', () => {
       }
     });
 
-    it('diversity_threshold=0.5でバランスの取れた結果', async () => {
+    it("diversity_threshold=0.5でバランスの取れた結果", async () => {
       const mockSearch = vi.fn().mockResolvedValue({
         results: fadeInHeavyPatterns,
         total: fadeInHeavyPatterns.length,
@@ -2427,7 +2435,7 @@ describe('多様性フィルタリング (v0.1.0)', () => {
       }));
 
       const input: MotionSearchInput = {
-        query: 'animation',
+        query: "animation",
         limit: 5,
         diversity_threshold: 0.5, // バランス
         ensure_category_diversity: true,
@@ -2448,7 +2456,7 @@ describe('多様性フィルタリング (v0.1.0)', () => {
       }
     });
 
-    it('MMRスコアが正しく計算される（λ=0.5のとき）', async () => {
+    it("MMRスコアが正しく計算される（λ=0.5のとき）", async () => {
       // 最初の選択は最も高い類似度を持つべき
       const mockSearch = vi.fn().mockResolvedValue({
         results: fadeInHeavyPatterns,
@@ -2460,7 +2468,7 @@ describe('多様性フィルタリング (v0.1.0)', () => {
       }));
 
       const input: MotionSearchInput = {
-        query: 'animation',
+        query: "animation",
         limit: 3,
         diversity_threshold: 0.5,
         ensure_category_diversity: false, // MMRのみ、カテゴリ分散なし
@@ -2471,7 +2479,7 @@ describe('多様性フィルタリング (v0.1.0)', () => {
       expect(result.success).toBe(true);
       if (result.success) {
         // 最初の結果は最も類似度が高いパターン
-        expect(result.data.results[0].pattern.id).toBe('fadeIn-1');
+        expect(result.data.results[0].pattern.id).toBe("fadeIn-1");
         expect(result.data.results[0].similarity).toBe(0.98);
 
         // 2番目以降は類似度と多様性のバランス
@@ -2479,61 +2487,61 @@ describe('多様性フィルタリング (v0.1.0)', () => {
         // 異なるパターン（slideIn-1やscale-1）が選ばれる可能性がある
         const ids = result.data.results.map((r) => r.pattern.id);
         // fadeIn系が3つ連続しないこと
-        const fadeInCount = ids.filter((id) => id.startsWith('fadeIn')).length;
+        const fadeInCount = ids.filter((id) => id.startsWith("fadeIn")).length;
         expect(fadeInCount).toBeLessThanOrEqual(2);
       }
     });
 
-    it('同一名のパターンが連続しない', async () => {
+    it("同一名のパターンが連続しない", async () => {
       // 名前が似ているパターンのテストデータ
       const similarNamePatterns: MotionSearchResultItem[] = [
         {
           pattern: {
-            id: 'fadeIn-a',
-            name: 'fadeIn',
-            type: 'css_animation',
-            category: 'entrance',
-            trigger: 'load',
-            animation: { duration: 300, easing: { type: 'ease-out' } },
-            properties: [{ property: 'opacity', from: 0, to: 1 }],
+            id: "fadeIn-a",
+            name: "fadeIn",
+            type: "css_animation",
+            category: "entrance",
+            trigger: "load",
+            animation: { duration: 300, easing: { type: "ease-out" } },
+            properties: [{ property: "opacity", from: 0, to: 1 }],
           },
           similarity: 0.99,
         },
         {
           pattern: {
-            id: 'fadeIn-b',
-            name: 'fadeIn',
-            type: 'css_animation',
-            category: 'entrance',
-            trigger: 'load',
-            animation: { duration: 350, easing: { type: 'ease' } },
-            properties: [{ property: 'opacity', from: 0, to: 1 }],
+            id: "fadeIn-b",
+            name: "fadeIn",
+            type: "css_animation",
+            category: "entrance",
+            trigger: "load",
+            animation: { duration: 350, easing: { type: "ease" } },
+            properties: [{ property: "opacity", from: 0, to: 1 }],
           },
           similarity: 0.98,
         },
         {
           pattern: {
-            id: 'fadeIn-c',
-            name: 'fadeIn',
-            type: 'css_animation',
-            category: 'entrance',
-            trigger: 'scroll',
-            animation: { duration: 400, easing: { type: 'ease-in-out' } },
-            properties: [{ property: 'opacity', from: 0, to: 1 }],
+            id: "fadeIn-c",
+            name: "fadeIn",
+            type: "css_animation",
+            category: "entrance",
+            trigger: "scroll",
+            animation: { duration: 400, easing: { type: "ease-in-out" } },
+            properties: [{ property: "opacity", from: 0, to: 1 }],
           },
           similarity: 0.97,
         },
         {
           pattern: {
-            id: 'slideIn-a',
-            name: 'slideIn',
-            type: 'css_animation',
-            category: 'entrance',
-            trigger: 'scroll',
-            animation: { duration: 500, easing: { type: 'ease-out' } },
-            properties: [{ property: 'transform' }],
+            id: "slideIn-a",
+            name: "slideIn",
+            type: "css_animation",
+            category: "entrance",
+            trigger: "scroll",
+            animation: { duration: 500, easing: { type: "ease-out" } },
+            properties: [{ property: "transform" }],
           },
-          similarity: 0.80,
+          similarity: 0.8,
         },
       ];
 
@@ -2547,7 +2555,7 @@ describe('多様性フィルタリング (v0.1.0)', () => {
       }));
 
       const input: MotionSearchInput = {
-        query: 'fadeIn',
+        query: "fadeIn",
         limit: 3,
         diversity_threshold: 0.5,
         ensure_category_diversity: false,
@@ -2559,7 +2567,7 @@ describe('多様性フィルタリング (v0.1.0)', () => {
       if (result.success) {
         const names = result.data.results.map((r) => r.pattern.name);
         // 同名パターンが3つ連続しないこと
-        const fadeInCount = names.filter((n) => n === 'fadeIn').length;
+        const fadeInCount = names.filter((n) => n === "fadeIn").length;
         expect(fadeInCount).toBeLessThanOrEqual(2);
       }
     });

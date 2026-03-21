@@ -12,8 +12,8 @@
  * @module services/page/quality-evaluator.service
  */
 
-import { logger, isDevelopment } from '../../utils/logger';
-import { scoreToGrade, type Grade } from '../../tools/page/schemas';
+import { logger, isDevelopment } from "../../utils/logger";
+import { scoreToGrade, type Grade } from "../../tools/page/schemas";
 
 // =====================================================
 // 型定義
@@ -23,9 +23,9 @@ import { scoreToGrade, type Grade } from '../../tools/page/schemas';
  * クリシェパターン定義
  */
 interface ClichePattern {
-  type: 'gradient' | 'text' | 'button' | 'shadow' | 'layout';
+  type: "gradient" | "text" | "button" | "shadow" | "layout";
   description: string;
-  severity: 'high' | 'medium' | 'low';
+  severity: "high" | "medium" | "low";
   pattern: RegExp;
 }
 
@@ -35,7 +35,7 @@ interface ClichePattern {
 export interface DetectedCliche {
   type: string;
   description: string;
-  severity: 'high' | 'medium' | 'low';
+  severity: "high" | "medium" | "low";
 }
 
 /**
@@ -43,8 +43,8 @@ export interface DetectedCliche {
  */
 export interface Recommendation {
   id: string;
-  category: 'originality' | 'craftsmanship' | 'contextuality';
-  priority: 'high' | 'medium' | 'low';
+  category: "originality" | "craftsmanship" | "contextuality";
+  priority: "high" | "medium" | "low";
   title: string;
   description: string;
   /** 期待される改善効果（例: "+5 points"） */
@@ -125,21 +125,21 @@ export interface QualityEvaluatorResult {
 /** グラデーションクリシェ */
 const GRADIENT_CLICHES: ClichePattern[] = [
   {
-    type: 'gradient',
-    description: 'AI典型のパープル-ピンクグラデーション（#667eea, #764ba2）',
-    severity: 'high',
+    type: "gradient",
+    description: "AI典型のパープル-ピンクグラデーション（#667eea, #764ba2）",
+    severity: "high",
     pattern: /#667eea|#764ba2|667eea|764ba2/i,
   },
   {
-    type: 'gradient',
-    description: 'AI典型のピンク-オレンジグラデーション（#f857a6, #ff5858）',
-    severity: 'high',
+    type: "gradient",
+    description: "AI典型のピンク-オレンジグラデーション（#f857a6, #ff5858）",
+    severity: "high",
     pattern: /#f857a6|#ff5858|f857a6|ff5858/i,
   },
   {
-    type: 'gradient',
-    description: 'AI典型の青-紫グラデーション',
-    severity: 'medium',
+    type: "gradient",
+    description: "AI典型の青-紫グラデーション",
+    severity: "medium",
     pattern: /linear-gradient\s*\([^)]*(?:#6366f1|#8b5cf6|#a855f7)[^)]*\)/i,
   },
 ];
@@ -147,39 +147,39 @@ const GRADIENT_CLICHES: ClichePattern[] = [
 /** テキストクリシェ */
 const TEXT_CLICHES: ClichePattern[] = [
   {
-    type: 'text',
+    type: "text",
     description: 'AI典型フレーズ: "Transform Your Business"',
-    severity: 'high',
+    severity: "high",
     pattern: /transform\s+your\s+business/i,
   },
   {
-    type: 'text',
+    type: "text",
     description: 'AI典型フレーズ: "Unlock the power"',
-    severity: 'high',
+    severity: "high",
     pattern: /unlock\s+the\s+power/i,
   },
   {
-    type: 'text',
+    type: "text",
     description: 'AI典型フレーズ: "cutting-edge solutions"',
-    severity: 'medium',
+    severity: "medium",
     pattern: /cutting-edge\s+solutions?/i,
   },
   {
-    type: 'text',
+    type: "text",
     description: 'AI典型フレーズ: "seamless integration"',
-    severity: 'medium',
+    severity: "medium",
     pattern: /seamless(?:ly)?\s+integrat/i,
   },
   {
-    type: 'text',
+    type: "text",
     description: 'AI典型フレーズ: "Get Started Today"',
-    severity: 'medium',
+    severity: "medium",
     pattern: /get\s+started\s+today/i,
   },
   {
-    type: 'text',
+    type: "text",
     description: 'AI典型フレーズ: "Scale effortlessly"',
-    severity: 'low',
+    severity: "low",
     pattern: /scale\s+effortlessly/i,
   },
 ];
@@ -187,15 +187,15 @@ const TEXT_CLICHES: ClichePattern[] = [
 /** スタイルクリシェ */
 const STYLE_CLICHES: ClichePattern[] = [
   {
-    type: 'button',
-    description: 'AI典型のピル型ボタン（border-radius: 9999px）',
-    severity: 'medium',
+    type: "button",
+    description: "AI典型のピル型ボタン（border-radius: 9999px）",
+    severity: "medium",
     pattern: /border-radius:\s*9999px/i,
   },
   {
-    type: 'shadow',
-    description: 'AI典型のシャドウパターン',
-    severity: 'low',
+    type: "shadow",
+    description: "AI典型のシャドウパターン",
+    severity: "low",
     pattern: /box-shadow:\s*0\s+4px\s+6px\s+rgba\s*\(\s*0\s*,\s*0\s*,\s*0\s*,\s*0\.1\s*\)/i,
   },
 ];
@@ -327,7 +327,7 @@ function detectCliches(html: string, strict: boolean): DetectedCliche[] {
 
   for (const cliche of ALL_CLICHE_PATTERNS) {
     // strictモードでない場合、lowレベルはスキップ
-    if (!strict && cliche.severity === 'low') {
+    if (!strict && cliche.severity === "low") {
       continue;
     }
 
@@ -350,13 +350,29 @@ function detectCliches(html: string, strict: boolean): DetectedCliche[] {
 /** Bootstrap標準カラー（これらは独自カラーとみなさない） */
 const BOOTSTRAP_COLORS = [
   // Primary/Secondary
-  '#0d6efd', '#6c757d', '#198754', '#dc3545', '#ffc107', '#0dcaf0',
+  "#0d6efd",
+  "#6c757d",
+  "#198754",
+  "#dc3545",
+  "#ffc107",
+  "#0dcaf0",
   // Light/Dark
-  '#f8f9fa', '#212529',
+  "#f8f9fa",
+  "#212529",
   // 標準的なグレー
-  '#ffffff', '#000000', '#333333', '#666666', '#999999', '#cccccc',
+  "#ffffff",
+  "#000000",
+  "#333333",
+  "#666666",
+  "#999999",
+  "#cccccc",
   // Bootstrap v4互換
-  '#007bff', '#6c757d', '#28a745', '#dc3545', '#ffc107', '#17a2b8',
+  "#007bff",
+  "#6c757d",
+  "#28a745",
+  "#dc3545",
+  "#ffc107",
+  "#17a2b8",
 ];
 
 /**
@@ -366,9 +382,7 @@ const BOOTSTRAP_COLORS = [
 function hasCustomColorScheme(html: string): boolean {
   const hexColors = html.match(/#[0-9a-fA-F]{6}/gi) || [];
   const uniqueColors = [...new Set(hexColors.map((c) => c.toLowerCase()))];
-  const customColors = uniqueColors.filter(
-    (color) => !BOOTSTRAP_COLORS.includes(color)
-  );
+  const customColors = uniqueColors.filter((color) => !BOOTSTRAP_COLORS.includes(color));
   return customColors.length >= 3;
 }
 
@@ -390,7 +404,8 @@ function hasCustomFonts(html: string): boolean {
     return true;
   }
   // カスタムフォントファミリー（システムフォント以外）
-  const customFontFamilies = /font-family:\s*["']?(?!(?:Arial|Helvetica|Times|Georgia|Verdana|system-ui|sans-serif|serif|monospace)['";\s,])/i;
+  const customFontFamilies =
+    /font-family:\s*["']?(?!(?:Arial|Helvetica|Times|Georgia|Verdana|system-ui|sans-serif|serif|monospace)['";\s,])/i;
   return customFontFamilies.test(html);
 }
 
@@ -504,19 +519,19 @@ function evaluateOriginality(
   // ===================================
   for (const cliche of cliches) {
     switch (cliche.severity) {
-      case 'high':
+      case "high":
         score -= strict
           ? SCORE_ADJUSTMENTS.CLICHE_HIGH_PENALTY_STRICT
           : SCORE_ADJUSTMENTS.CLICHE_HIGH_PENALTY;
         details.push(`高クリシェ検出: ${cliche.description}`);
         break;
-      case 'medium':
+      case "medium":
         score -= strict
           ? SCORE_ADJUSTMENTS.CLICHE_MEDIUM_PENALTY_STRICT
           : SCORE_ADJUSTMENTS.CLICHE_MEDIUM_PENALTY;
         details.push(`中クリシェ検出: ${cliche.description}`);
         break;
-      case 'low':
+      case "low":
         score -= strict
           ? SCORE_ADJUSTMENTS.CLICHE_LOW_PENALTY_STRICT
           : SCORE_ADJUSTMENTS.CLICHE_LOW_PENALTY;
@@ -551,7 +566,9 @@ function evaluateOriginality(
   // カスタムアニメーション（+4点）
   if (hasCustomAnimations(html)) {
     score += SCORE_ADJUSTMENTS.CUSTOM_ANIMATIONS_BONUS;
-    details.push(`カスタムアニメーション/トランジション（+${SCORE_ADJUSTMENTS.CUSTOM_ANIMATIONS_BONUS}）`);
+    details.push(
+      `カスタムアニメーション/トランジション（+${SCORE_ADJUSTMENTS.CUSTOM_ANIMATIONS_BONUS}）`
+    );
   }
 
   // オリジナルグラフィック（+3点）
@@ -600,55 +617,55 @@ function evaluateCraftsmanship(html: string): { score: number; details: string[]
   // === セマンティックHTML評価 ===
   if (/<header[^>]*(?:role="banner")?[^>]*>/i.test(html)) {
     score += SCORE_ADJUSTMENTS.SEMANTIC_HEADER_BONUS;
-    details.push('セマンティックなheader使用');
+    details.push("セマンティックなheader使用");
   }
 
   if (/<main[^>]*(?:role="main")?[^>]*>/i.test(html)) {
     score += SCORE_ADJUSTMENTS.SEMANTIC_MAIN_BONUS;
-    details.push('セマンティックなmain使用');
+    details.push("セマンティックなmain使用");
   }
 
   if (/<nav[^>]*(?:role="navigation")?[^>]*>/i.test(html)) {
     score += SCORE_ADJUSTMENTS.SEMANTIC_NAV_BONUS;
-    details.push('セマンティックなnav使用');
+    details.push("セマンティックなnav使用");
   }
 
   if (/<footer[^>]*(?:role="contentinfo")?[^>]*>/i.test(html)) {
     score += SCORE_ADJUSTMENTS.SEMANTIC_FOOTER_BONUS;
-    details.push('セマンティックなfooter使用');
+    details.push("セマンティックなfooter使用");
   }
 
   // section, article, aside の検出
   if (/<section[^>]*>/i.test(html)) {
     score += 2;
-    details.push('section要素使用');
+    details.push("section要素使用");
   }
 
   if (/<article[^>]*>/i.test(html)) {
     score += 2;
-    details.push('article要素使用');
+    details.push("article要素使用");
   }
 
   if (/<aside[^>]*>/i.test(html)) {
     score += 2;
-    details.push('aside要素使用');
+    details.push("aside要素使用");
   }
 
   // === ARIA属性評価 ===
   if (/aria-label(ledby)?=/i.test(html)) {
     score += SCORE_ADJUSTMENTS.ARIA_LABEL_BONUS;
-    details.push('ARIA属性(aria-label/labelledby)使用');
+    details.push("ARIA属性(aria-label/labelledby)使用");
   }
 
   if (/aria-describedby=/i.test(html)) {
     score += SCORE_ADJUSTMENTS.ARIA_DESCRIBEDBY_BONUS;
-    details.push('ARIA属性(aria-describedby)使用');
+    details.push("ARIA属性(aria-describedby)使用");
   }
 
   // role属性
   if (/role="(?:banner|main|navigation|contentinfo)"/i.test(html)) {
     score += 2;
-    details.push('WAI-ARIA role属性使用');
+    details.push("WAI-ARIA role属性使用");
   }
 
   // === 画像alt属性評価 ===
@@ -657,47 +674,47 @@ function evaluateCraftsmanship(html: string): { score: number; details: string[]
 
   if (imgTags.length > 0 && imgsWithAlt.length === imgTags.length) {
     score += SCORE_ADJUSTMENTS.ALL_IMAGES_ALT_BONUS;
-    details.push('全ての画像にalt属性');
+    details.push("全ての画像にalt属性");
   } else if (imgTags.length > 0 && imgsWithAlt.length < imgTags.length) {
     score -= SCORE_ADJUSTMENTS.MISSING_ALT_PENALTY;
-    details.push('一部の画像にalt属性がない');
+    details.push("一部の画像にalt属性がない");
   }
 
   // === レスポンシブデザイン評価 ===
   if (/@media\s*\([^)]*(?:max|min)-width/i.test(html)) {
     score += SCORE_ADJUSTMENTS.RESPONSIVE_BONUS;
-    details.push('レスポンシブデザイン（@media）対応');
+    details.push("レスポンシブデザイン（@media）対応");
   }
 
   if (/prefers-reduced-motion/i.test(html)) {
     score += SCORE_ADJUSTMENTS.REDUCED_MOTION_BONUS;
-    details.push('モーション軽減（prefers-reduced-motion）対応');
+    details.push("モーション軽減（prefers-reduced-motion）対応");
   }
 
   if (/<meta[^>]*name="viewport"/i.test(html)) {
     score += SCORE_ADJUSTMENTS.VIEWPORT_META_BONUS;
-    details.push('viewport meta設定');
+    details.push("viewport meta設定");
   }
 
   if (/<html[^>]*lang=/i.test(html)) {
     score += SCORE_ADJUSTMENTS.LANG_ATTR_BONUS;
-    details.push('lang属性設定');
+    details.push("lang属性設定");
   }
 
   // === モダンCSS機能評価（既存） ===
   if (/clamp\s*\(/i.test(html)) {
     score += SCORE_ADJUSTMENTS.CLAMP_FUNCTION_BONUS;
-    details.push('clamp()関数使用');
+    details.push("clamp()関数使用");
   }
 
   if (/grid-template-columns|display:\s*grid/i.test(html)) {
     score += SCORE_ADJUSTMENTS.CSS_GRID_BONUS;
-    details.push('CSS Grid使用');
+    details.push("CSS Grid使用");
   }
 
   if (/display:\s*flex/i.test(html)) {
     score += SCORE_ADJUSTMENTS.FLEXBOX_BONUS;
-    details.push('Flexbox使用');
+    details.push("Flexbox使用");
   }
 
   // ===================================
@@ -713,7 +730,9 @@ function evaluateCraftsmanship(html: string): { score: number; details: string[]
   // gap プロパティ（Flex/Grid用モダンスペーシング）
   if (/\bgap:\s*\d/i.test(html)) {
     score += SCORE_ADJUSTMENTS.GAP_PROPERTY_BONUS;
-    details.push(`gap プロパティ使用（モダンスペーシング）（+${SCORE_ADJUSTMENTS.GAP_PROPERTY_BONUS}）`);
+    details.push(
+      `gap プロパティ使用（モダンスペーシング）（+${SCORE_ADJUSTMENTS.GAP_PROPERTY_BONUS}）`
+    );
   }
 
   // aspect-ratio プロパティ
@@ -725,7 +744,9 @@ function evaluateCraftsmanship(html: string): { score: number; details: string[]
   // scroll-snap（scroll-snap-type, scroll-snap-align）
   if (/scroll-snap-(?:type|align):/i.test(html)) {
     score += SCORE_ADJUSTMENTS.SCROLL_SNAP_BONUS;
-    details.push(`scroll-snap使用（スクロールスナップ）（+${SCORE_ADJUSTMENTS.SCROLL_SNAP_BONUS}）`);
+    details.push(
+      `scroll-snap使用（スクロールスナップ）（+${SCORE_ADJUSTMENTS.SCROLL_SNAP_BONUS}）`
+    );
   }
 
   // object-fit プロパティ
@@ -737,13 +758,17 @@ function evaluateCraftsmanship(html: string): { score: number; details: string[]
   // scroll-behavior: smooth
   if (/scroll-behavior:\s*smooth/i.test(html)) {
     score += SCORE_ADJUSTMENTS.SCROLL_BEHAVIOR_BONUS;
-    details.push(`scroll-behavior: smooth使用（スムーススクロール）（+${SCORE_ADJUSTMENTS.SCROLL_BEHAVIOR_BONUS}）`);
+    details.push(
+      `scroll-behavior: smooth使用（スムーススクロール）（+${SCORE_ADJUSTMENTS.SCROLL_BEHAVIOR_BONUS}）`
+    );
   }
 
   // place-items, place-content（モダンセンタリング）
   if (/place-(?:items|content):/i.test(html)) {
     score += SCORE_ADJUSTMENTS.PLACE_ITEMS_BONUS;
-    details.push(`place-items/place-content使用（モダンセンタリング）（+${SCORE_ADJUSTMENTS.PLACE_ITEMS_BONUS}）`);
+    details.push(
+      `place-items/place-content使用（モダンセンタリング）（+${SCORE_ADJUSTMENTS.PLACE_ITEMS_BONUS}）`
+    );
   }
 
   // ===================================
@@ -753,18 +778,24 @@ function evaluateCraftsmanship(html: string): { score: number; details: string[]
   // tabindex 属性（キーボードナビゲーション）
   if (/tabindex=/i.test(html)) {
     score += SCORE_ADJUSTMENTS.TABINDEX_BONUS;
-    details.push(`tabindex属性使用（キーボードナビゲーション）（+${SCORE_ADJUSTMENTS.TABINDEX_BONUS}）`);
+    details.push(
+      `tabindex属性使用（キーボードナビゲーション）（+${SCORE_ADJUSTMENTS.TABINDEX_BONUS}）`
+    );
   }
 
   // :focus-visible 疑似クラス（フォーカス表示）
   if (/:focus-visible/i.test(html)) {
     score += SCORE_ADJUSTMENTS.FOCUS_VISIBLE_BONUS;
-    details.push(`:focus-visible使用（フォーカス表示）（+${SCORE_ADJUSTMENTS.FOCUS_VISIBLE_BONUS}）`);
+    details.push(
+      `:focus-visible使用（フォーカス表示）（+${SCORE_ADJUSTMENTS.FOCUS_VISIBLE_BONUS}）`
+    );
   }
 
   // スキップリンク（Skip to main content等）
-  if (/skip[^"']*(?:to[^"']*)?(?:main|content|navigation)/i.test(html) ||
-      /href="#(?:main|content|navigation)"/i.test(html)) {
+  if (
+    /skip[^"']*(?:to[^"']*)?(?:main|content|navigation)/i.test(html) ||
+    /href="#(?:main|content|navigation)"/i.test(html)
+  ) {
     score += SCORE_ADJUSTMENTS.SKIP_LINK_BONUS;
     details.push(`スキップリンク使用（+${SCORE_ADJUSTMENTS.SKIP_LINK_BONUS}）`);
   }
@@ -772,7 +803,9 @@ function evaluateCraftsmanship(html: string): { score: number; details: string[]
   // prefers-color-scheme（ダークモード対応）
   if (/prefers-color-scheme/i.test(html) || /color-scheme:\s*(?:light|dark)/i.test(html)) {
     score += SCORE_ADJUSTMENTS.PREFERS_COLOR_SCHEME_BONUS;
-    details.push(`prefers-color-scheme対応（ダークモード）（+${SCORE_ADJUSTMENTS.PREFERS_COLOR_SCHEME_BONUS}）`);
+    details.push(
+      `prefers-color-scheme対応（ダークモード）（+${SCORE_ADJUSTMENTS.PREFERS_COLOR_SCHEME_BONUS}）`
+    );
   }
 
   // aria-live 属性（ライブリージョン）
@@ -794,36 +827,48 @@ function evaluateCraftsmanship(html: string): { score: number; details: string[]
   // fetchpriority 属性（リソース優先度）
   if (/fetchpriority=/i.test(html)) {
     score += SCORE_ADJUSTMENTS.FETCHPRIORITY_BONUS;
-    details.push(`fetchpriority使用（リソース優先度）（+${SCORE_ADJUSTMENTS.FETCHPRIORITY_BONUS}）`);
+    details.push(
+      `fetchpriority使用（リソース優先度）（+${SCORE_ADJUSTMENTS.FETCHPRIORITY_BONUS}）`
+    );
   }
 
   // preload, prefetch, dns-prefetch（リソースヒント）
   if (/rel=["']?(?:preload|prefetch|dns-prefetch)["']?/i.test(html)) {
     score += SCORE_ADJUSTMENTS.RESOURCE_HINTS_BONUS;
-    details.push(`preload/prefetch使用（リソースヒント）（+${SCORE_ADJUSTMENTS.RESOURCE_HINTS_BONUS}）`);
+    details.push(
+      `preload/prefetch使用（リソースヒント）（+${SCORE_ADJUSTMENTS.RESOURCE_HINTS_BONUS}）`
+    );
   }
 
   // async/defer スクリプト（非同期スクリプト）
   if (/<script[^>]*(?:async|defer)/i.test(html)) {
     score += SCORE_ADJUSTMENTS.ASYNC_DEFER_BONUS;
-    details.push(`async/deferスクリプト使用（非同期スクリプト）（+${SCORE_ADJUSTMENTS.ASYNC_DEFER_BONUS}）`);
+    details.push(
+      `async/deferスクリプト使用（非同期スクリプト）（+${SCORE_ADJUSTMENTS.ASYNC_DEFER_BONUS}）`
+    );
   }
 
   // WebP/AVIF（モダン画像フォーマット）- picture要素内のsource
   if (/<source[^>]*type=["']?image\/(?:webp|avif)["']?/i.test(html)) {
     score += SCORE_ADJUSTMENTS.MODERN_IMAGE_FORMAT_BONUS;
-    details.push(`WebP/AVIF使用（モダン画像フォーマット）（+${SCORE_ADJUSTMENTS.MODERN_IMAGE_FORMAT_BONUS}）`);
+    details.push(
+      `WebP/AVIF使用（モダン画像フォーマット）（+${SCORE_ADJUSTMENTS.MODERN_IMAGE_FORMAT_BONUS}）`
+    );
   }
 
   // font-display（フォント表示戦略）
   if (/font-display:\s*(?:swap|optional|fallback|block|auto)/i.test(html)) {
     score += SCORE_ADJUSTMENTS.FONT_DISPLAY_BONUS;
-    details.push(`font-display使用（フォント表示戦略）（+${SCORE_ADJUSTMENTS.FONT_DISPLAY_BONUS}）`);
+    details.push(
+      `font-display使用（フォント表示戦略）（+${SCORE_ADJUSTMENTS.FONT_DISPLAY_BONUS}）`
+    );
   }
 
   // 画像のwidth/height属性（CLSパフォーマンス改善）
-  if (/<img[^>]+width=["']?\d+["']?[^>]+height=["']?\d+["']?/i.test(html) ||
-      /<img[^>]+height=["']?\d+["']?[^>]+width=["']?\d+["']?/i.test(html)) {
+  if (
+    /<img[^>]+width=["']?\d+["']?[^>]+height=["']?\d+["']?/i.test(html) ||
+    /<img[^>]+height=["']?\d+["']?[^>]+width=["']?\d+["']?/i.test(html)
+  ) {
     score += SCORE_ADJUSTMENTS.IMAGE_DIMENSIONS_BONUS;
     details.push(`画像サイズ属性使用（CLS対策）（+${SCORE_ADJUSTMENTS.IMAGE_DIMENSIONS_BONUS}）`);
   }
@@ -844,7 +889,7 @@ function evaluateCraftsmanship(html: string): { score: number; details: string[]
 
   if (divCount > 10 && semanticCount < 3) {
     score -= SCORE_ADJUSTMENTS.DIV_OVERUSE_PENALTY;
-    details.push('divの過剰使用（セマンティック要素が少ない）');
+    details.push("divの過剰使用（セマンティック要素が少ない）");
   }
 
   return { score: clampScore(score), details };
@@ -866,34 +911,34 @@ function evaluateContextuality(
     const industryLower = targetIndustry.toLowerCase();
 
     // ヘルスケア
-    if (industryLower === 'healthcare' || industryLower === 'health') {
+    if (industryLower === "healthcare" || industryLower === "health") {
       if (/certification|certified|licensed|trust|secure/i.test(html)) {
         score += SCORE_ADJUSTMENTS.INDUSTRY_MATCH_BONUS;
-        details.push('ヘルスケア業界の信頼性要素');
+        details.push("ヘルスケア業界の信頼性要素");
       }
       if (/#[0-9a-f]{6}/gi.test(html)) {
         score += SCORE_ADJUSTMENTS.INDUSTRY_COLOR_BONUS;
-        details.push('業界適切なカラー使用');
+        details.push("業界適切なカラー使用");
       }
     }
 
     // 金融
-    if (industryLower === 'finance' || industryLower === 'financial') {
+    if (industryLower === "finance" || industryLower === "financial") {
       if (/security|secure|encrypt|protect|compliance/i.test(html)) {
         score += SCORE_ADJUSTMENTS.INDUSTRY_MATCH_BONUS;
-        details.push('金融業界のセキュリティ要素');
+        details.push("金融業界のセキュリティ要素");
       }
     }
 
     // テクノロジー
-    if (industryLower === 'technology' || industryLower === 'tech') {
+    if (industryLower === "technology" || industryLower === "tech") {
       if (/api|integration|developer|documentation/i.test(html)) {
         score += SCORE_ADJUSTMENTS.AUDIENCE_MATCH_BONUS;
-        details.push('テクノロジー業界の技術要素');
+        details.push("テクノロジー業界の技術要素");
       }
       if (/linear-gradient|grid|flex/i.test(html)) {
         score += SCORE_ADJUSTMENTS.AUDIENCE_MATCH_BONUS;
-        details.push('モダンなデザイン（テック業界向け）');
+        details.push("モダンなデザイン（テック業界向け）");
       }
     }
   }
@@ -903,35 +948,35 @@ function evaluateContextuality(
     const audienceLower = targetAudience.toLowerCase();
 
     // エンタープライズ/ビジネス
-    if (audienceLower === 'enterprise' || audienceLower === 'business') {
+    if (audienceLower === "enterprise" || audienceLower === "business") {
       if (/professional|enterprise|business|solutions/i.test(html)) {
         score += SCORE_ADJUSTMENTS.AUDIENCE_MATCH_BONUS;
-        details.push('エンタープライズ向けコンテンツ');
+        details.push("エンタープライズ向けコンテンツ");
       }
       if (/<button[^>]*>/i.test(html) && /contact|demo|trial/i.test(html)) {
         score += SCORE_ADJUSTMENTS.AUDIENCE_MATCH_BONUS;
-        details.push('ビジネス向けCTA');
+        details.push("ビジネス向けCTA");
       }
     }
 
     // 一般消費者
-    if (audienceLower === 'consumer' || audienceLower === 'general') {
+    if (audienceLower === "consumer" || audienceLower === "general") {
       if (/simple|easy|free|try/i.test(html)) {
         score += SCORE_ADJUSTMENTS.AUDIENCE_MATCH_BONUS;
-        details.push('消費者向けメッセージ');
+        details.push("消費者向けメッセージ");
       }
     }
 
     // 開発者/専門家
     if (
-      audienceLower === 'developers' ||
-      audienceLower === 'developer' ||
-      audienceLower === 'professionals' ||
-      audienceLower === 'expert'
+      audienceLower === "developers" ||
+      audienceLower === "developer" ||
+      audienceLower === "professionals" ||
+      audienceLower === "expert"
     ) {
       if (/advanced|professional|expert|technical|api|documentation/i.test(html)) {
         score += SCORE_ADJUSTMENTS.AUDIENCE_MATCH_BONUS;
-        details.push('専門家/開発者向けコンテンツ');
+        details.push("専門家/開発者向けコンテンツ");
       }
     }
   }
@@ -940,13 +985,13 @@ function evaluateContextuality(
   // 明確なページ構造
   if (/<header/i.test(html) && /<main/i.test(html) && /<footer/i.test(html)) {
     score += SCORE_ADJUSTMENTS.CLEAR_STRUCTURE_BONUS;
-    details.push('明確なページ構造');
+    details.push("明確なページ構造");
   }
 
   // CTA存在
   if (/<button/i.test(html) || /<a[^>]*class="[^"]*(?:cta|btn|button)/i.test(html)) {
     score += SCORE_ADJUSTMENTS.CLEAR_CTA_BONUS;
-    details.push('明確なCTA');
+    details.push("明確なCTA");
   }
 
   return { score: clampScore(score), details };
@@ -964,88 +1009,98 @@ const BASE_RECOMMENDATIONS: {
   originality: Array<{
     title: string;
     description: string;
-    priority: 'high' | 'medium' | 'low';
+    priority: "high" | "medium" | "low";
     impact: number;
     condition?: (score: number, details: string[]) => boolean;
   }>;
   craftsmanship: Array<{
     title: string;
     description: string;
-    priority: 'high' | 'medium' | 'low';
+    priority: "high" | "medium" | "low";
     impact: number;
     condition?: (score: number, details: string[]) => boolean;
   }>;
   contextuality: Array<{
     title: string;
     description: string;
-    priority: 'high' | 'medium' | 'low';
+    priority: "high" | "medium" | "low";
     impact: number;
     condition?: (score: number, details: string[]) => boolean;
   }>;
 } = {
   originality: [
     {
-      title: '独自のカラーパレットを定義する',
-      description: 'ブランド固有のカラーをCSS変数として定義し、一貫性のある配色を実現してください。Bootstrap標準カラーを避け、独自性を高めましょう。',
-      priority: 'high',
+      title: "独自のカラーパレットを定義する",
+      description:
+        "ブランド固有のカラーをCSS変数として定義し、一貫性のある配色を実現してください。Bootstrap標準カラーを避け、独自性を高めましょう。",
+      priority: "high",
       impact: 8,
       condition: (score) => score < 85,
     },
     {
-      title: 'カスタムアニメーションを追加する',
-      description: '@keyframesでユニークなアニメーションを定義し、サイトの個性を演出してください。cubic-bezierイージングでより洗練された動きを実現できます。',
-      priority: 'medium',
+      title: "カスタムアニメーションを追加する",
+      description:
+        "@keyframesでユニークなアニメーションを定義し、サイトの個性を演出してください。cubic-bezierイージングでより洗練された動きを実現できます。",
+      priority: "medium",
       impact: 5,
-      condition: (_score, details) => !details.some((d) => d.includes('アニメーション')),
+      condition: (_score, details) => !details.some((d) => d.includes("アニメーション")),
     },
     {
-      title: 'オリジナルのビジュアル要素を検討する',
-      description: 'インラインSVGやCanvasを活用してユニークなグラフィック要素を追加し、AIが生成した一般的なデザインとの差別化を図りましょう。',
-      priority: 'low',
+      title: "オリジナルのビジュアル要素を検討する",
+      description:
+        "インラインSVGやCanvasを活用してユニークなグラフィック要素を追加し、AIが生成した一般的なデザインとの差別化を図りましょう。",
+      priority: "low",
       impact: 3,
     },
   ],
   craftsmanship: [
     {
-      title: 'アクセシビリティを強化する',
-      description: 'ARIA属性（aria-label, aria-describedby等）を追加し、スクリーンリーダーユーザーのナビゲーション体験を向上させてください。',
-      priority: 'high',
+      title: "アクセシビリティを強化する",
+      description:
+        "ARIA属性（aria-label, aria-describedby等）を追加し、スクリーンリーダーユーザーのナビゲーション体験を向上させてください。",
+      priority: "high",
       impact: 8,
       condition: (score) => score < 85,
     },
     {
-      title: 'セマンティックHTML構造を最適化する',
-      description: 'section, article, aside, nav要素を適切に使用し、ドキュメント構造を明確にしてください。検索エンジン最適化にも効果的です。',
-      priority: 'medium',
+      title: "セマンティックHTML構造を最適化する",
+      description:
+        "section, article, aside, nav要素を適切に使用し、ドキュメント構造を明確にしてください。検索エンジン最適化にも効果的です。",
+      priority: "medium",
       impact: 5,
-      condition: (_score, details) => !details.some((d) => d.includes('section') && d.includes('article')),
+      condition: (_score, details) =>
+        !details.some((d) => d.includes("section") && d.includes("article")),
     },
     {
-      title: 'レスポンシブデザインを拡充する',
-      description: 'Container Queries、clamp()関数、prefers-reduced-motionなどのモダンCSS機能を活用し、より柔軟なレイアウトを実現してください。',
-      priority: 'low',
+      title: "レスポンシブデザインを拡充する",
+      description:
+        "Container Queries、clamp()関数、prefers-reduced-motionなどのモダンCSS機能を活用し、より柔軟なレイアウトを実現してください。",
+      priority: "low",
       impact: 3,
     },
   ],
   contextuality: [
     {
-      title: 'ターゲットオーディエンスを明確化する',
-      description: '業界やユーザー層に適したトーン、用語、ビジュアルスタイルを採用し、コンテンツの訴求力を高めてください。',
-      priority: 'medium',
+      title: "ターゲットオーディエンスを明確化する",
+      description:
+        "業界やユーザー層に適したトーン、用語、ビジュアルスタイルを採用し、コンテンツの訴求力を高めてください。",
+      priority: "medium",
       impact: 6,
       condition: (score) => score < 85,
     },
     {
-      title: 'CTAの視認性を向上させる',
-      description: 'Call-to-Actionボタンのコントラスト、サイズ、配置を最適化し、ユーザーの行動を促進してください。',
-      priority: 'medium',
+      title: "CTAの視認性を向上させる",
+      description:
+        "Call-to-Actionボタンのコントラスト、サイズ、配置を最適化し、ユーザーの行動を促進してください。",
+      priority: "medium",
       impact: 4,
-      condition: (_score, details) => !details.some((d) => d.includes('CTA')),
+      condition: (_score, details) => !details.some((d) => d.includes("CTA")),
     },
     {
-      title: 'コンテンツ階層を明確にする',
-      description: '見出し構造（h1-h6）、段落間隔、セクション分けを改善し、ユーザーが情報を素早く把握できるようにしてください。',
-      priority: 'low',
+      title: "コンテンツ階層を明確にする",
+      description:
+        "見出し構造（h1-h6）、段落間隔、セクション分けを改善し、ユーザーが情報を素早く把握できるようにしてください。",
+      priority: "low",
       impact: 3,
     },
   ],
@@ -1076,10 +1131,10 @@ function generateRecommendations(
   // Originalityに関する推奨（クリシェ検出時）
   if (cliches.length > 0) {
     for (const cliche of cliches.slice(0, 2)) {
-      const impact = cliche.severity === 'high' ? 10 : cliche.severity === 'medium' ? 6 : 3;
+      const impact = cliche.severity === "high" ? 10 : cliche.severity === "medium" ? 6 : 3;
       recommendations.push({
         id: `rec-${recId++}`,
-        category: 'originality',
+        category: "originality",
         priority: cliche.severity,
         title: `AIクリシェを回避: ${cliche.type}`,
         description: `${cliche.description}。独自のスタイルに置き換えることでデザインの独自性が向上します。`,
@@ -1089,36 +1144,39 @@ function generateRecommendations(
   }
 
   // Craftsmanshipに関する推奨（問題検出時）
-  if (details.craftsmanship.some((d) => d.includes('onclick'))) {
+  if (details.craftsmanship.some((d) => d.includes("onclick"))) {
     recommendations.push({
       id: `rec-${recId++}`,
-      category: 'craftsmanship',
-      priority: 'medium',
-      title: 'インラインイベントハンドラを削除する',
-      description: 'onclick属性の代わりにaddEventListenerを使用してください。コードの保守性とセキュリティが向上します。',
-      expectedImpact: '+4 points',
+      category: "craftsmanship",
+      priority: "medium",
+      title: "インラインイベントハンドラを削除する",
+      description:
+        "onclick属性の代わりにaddEventListenerを使用してください。コードの保守性とセキュリティが向上します。",
+      expectedImpact: "+4 points",
     });
   }
 
-  if (details.craftsmanship.some((d) => d.includes('alt') && d.includes('ない'))) {
+  if (details.craftsmanship.some((d) => d.includes("alt") && d.includes("ない"))) {
     recommendations.push({
       id: `rec-${recId++}`,
-      category: 'craftsmanship',
-      priority: 'high',
-      title: '画像にalt属性を追加する',
-      description: 'すべての画像に適切なalt属性を設定してください。アクセシビリティとSEOの両方に重要です。',
-      expectedImpact: '+8 points',
+      category: "craftsmanship",
+      priority: "high",
+      title: "画像にalt属性を追加する",
+      description:
+        "すべての画像に適切なalt属性を設定してください。アクセシビリティとSEOの両方に重要です。",
+      expectedImpact: "+8 points",
     });
   }
 
-  if (details.craftsmanship.some((d) => d.includes('div') && d.includes('過剰'))) {
+  if (details.craftsmanship.some((d) => d.includes("div") && d.includes("過剰"))) {
     recommendations.push({
       id: `rec-${recId++}`,
-      category: 'craftsmanship',
-      priority: 'medium',
-      title: 'セマンティックHTML要素を使用する',
-      description: 'divの代わりにsection, article, nav, asideなどを活用してください。ドキュメント構造が明確になります。',
-      expectedImpact: '+5 points',
+      category: "craftsmanship",
+      priority: "medium",
+      title: "セマンティックHTML要素を使用する",
+      description:
+        "divの代わりにsection, article, nav, asideなどを活用してください。ドキュメント構造が明確になります。",
+      expectedImpact: "+5 points",
     });
   }
 
@@ -1133,10 +1191,10 @@ function generateRecommendations(
   };
 
   // 各カテゴリから最低1件の推奨事項を追加
-  const categories: Array<'originality' | 'craftsmanship' | 'contextuality'> = [
-    'originality',
-    'craftsmanship',
-    'contextuality',
+  const categories: Array<"originality" | "craftsmanship" | "contextuality"> = [
+    "originality",
+    "craftsmanship",
+    "contextuality",
   ];
 
   for (const category of categories) {
@@ -1147,9 +1205,9 @@ function generateRecommendations(
       const baseRecs = BASE_RECOMMENDATIONS[category];
       const score = scores[category];
       const categoryDetails =
-        category === 'originality'
+        category === "originality"
           ? details.originality
-          : category === 'craftsmanship'
+          : category === "craftsmanship"
             ? details.craftsmanship
             : details.contextuality;
 
@@ -1191,24 +1249,26 @@ function generateRecommendations(
   if (recommendations.length < 3) {
     const additionalRecs = [
       {
-        category: 'originality' as const,
-        priority: 'low' as const,
-        title: 'ブランドの視覚的アイデンティティを強化する',
-        description: '一貫したカラースキーム、タイポグラフィ、スペーシングを適用し、ブランド認知度を高めてください。',
+        category: "originality" as const,
+        priority: "low" as const,
+        title: "ブランドの視覚的アイデンティティを強化する",
+        description:
+          "一貫したカラースキーム、タイポグラフィ、スペーシングを適用し、ブランド認知度を高めてください。",
         impact: 3,
       },
       {
-        category: 'craftsmanship' as const,
-        priority: 'low' as const,
-        title: 'パフォーマンス最適化を検討する',
-        description: '画像の遅延読み込み、CSSの最適化、不要なスクリプトの削除を検討してください。',
+        category: "craftsmanship" as const,
+        priority: "low" as const,
+        title: "パフォーマンス最適化を検討する",
+        description: "画像の遅延読み込み、CSSの最適化、不要なスクリプトの削除を検討してください。",
         impact: 3,
       },
       {
-        category: 'contextuality' as const,
-        priority: 'low' as const,
-        title: 'ユーザーフィードバックを収集する仕組みを追加',
-        description: 'フォーム、チャットウィジェット、フィードバックボタンなどを追加し、ユーザーの声を収集してください。',
+        category: "contextuality" as const,
+        priority: "low" as const,
+        title: "ユーザーフィードバックを収集する仕組みを追加",
+        description:
+          "フォーム、チャットウィジェット、フィードバックボタンなどを追加し、ユーザーの声を収集してください。",
         impact: 2,
       },
     ];
@@ -1265,7 +1325,7 @@ export class QualityEvaluatorService {
     const startTime = Date.now();
 
     if (isDevelopment()) {
-      logger.debug('[QualityEvaluatorService] evaluate called', {
+      logger.debug("[QualityEvaluatorService] evaluate called", {
         htmlLength: html.length,
         strict: options.strict,
         targetIndustry: options.targetIndustry,
@@ -1353,7 +1413,7 @@ export class QualityEvaluatorService {
       }
 
       if (isDevelopment()) {
-        logger.debug('[QualityEvaluatorService] evaluate completed', {
+        logger.debug("[QualityEvaluatorService] evaluate completed", {
           overallScore,
           grade,
           clicheCount: cliches.length,
@@ -1366,13 +1426,13 @@ export class QualityEvaluatorService {
       const processingTimeMs = Date.now() - startTime;
 
       if (isDevelopment()) {
-        logger.error('[QualityEvaluatorService] evaluate error', { error });
+        logger.error("[QualityEvaluatorService] evaluate error", { error });
       }
 
       return {
         success: false,
         overallScore: 0,
-        grade: 'F',
+        grade: "F",
         axisScores: {
           originality: 0,
           craftsmanship: 0,
@@ -1381,8 +1441,8 @@ export class QualityEvaluatorService {
         clicheCount: 0,
         processingTimeMs,
         error: {
-          code: 'QUALITY_EVALUATION_ERROR',
-          message: error instanceof Error ? error.message : 'Unknown error',
+          code: "QUALITY_EVALUATION_ERROR",
+          message: error instanceof Error ? error.message : "Unknown error",
         },
       };
     }

@@ -17,10 +17,10 @@
  * @module services/motion/analyzers/frame-diff.analyzer
  */
 
-import * as fs from 'node:fs';
-import pixelmatch from 'pixelmatch';
-import sharp from 'sharp';
-import { logger, isDevelopment } from '../../../utils/logger';
+import * as fs from "node:fs";
+import pixelmatch from "pixelmatch";
+import sharp from "sharp";
+import { logger, isDevelopment } from "../../../utils/logger";
 
 // =====================================================
 // 型定義
@@ -87,7 +87,7 @@ const DEFAULT_OPTIONS: Required<FrameDiffOptions> = {
 export class FrameDiffError extends Error {
   constructor(message: string) {
     super(message);
-    this.name = 'FrameDiffError';
+    this.name = "FrameDiffError";
   }
 }
 
@@ -113,7 +113,7 @@ export class FrameDiffAnalyzer {
     };
 
     if (isDevelopment()) {
-      logger.debug('[FrameDiffAnalyzer] Initialized', {
+      logger.debug("[FrameDiffAnalyzer] Initialized", {
         threshold: this.options.threshold,
         includeDiffImage: this.options.includeDiffImage,
       });
@@ -141,7 +141,7 @@ export class FrameDiffAnalyzer {
     };
 
     if (isDevelopment()) {
-      logger.debug('[FrameDiffAnalyzer] analyze called', { threshold: opts.threshold });
+      logger.debug("[FrameDiffAnalyzer] analyze called", { threshold: opts.threshold });
     }
 
     // 入力をBufferに変換
@@ -168,25 +168,19 @@ export class FrameDiffAnalyzer {
     const diffBuffer = Buffer.alloc(width * height * 4);
 
     // Pixelmatchで差分検出
-    const diffPixelCount = pixelmatch(
-      img1Data.data,
-      img2Data.data,
-      diffBuffer,
-      width,
-      height,
-      {
-        threshold: opts.threshold,
-        includeAA: opts.includeAA,
-      }
-    );
+    const diffPixelCount = pixelmatch(img1Data.data, img2Data.data, diffBuffer, width, height, {
+      threshold: opts.threshold,
+      includeAA: opts.includeAA,
+    });
 
     // 変化率を計算
     const changeRatio = this.calculateChangeRatio(diffPixelCount, totalPixelCount);
 
     // 差分領域を抽出（差分がない場合は空配列）
-    const diffRegions = diffPixelCount === 0
-      ? []
-      : this.extractDiffRegionsFromBuffer(diffBuffer, width, height, diffPixelCount);
+    const diffRegions =
+      diffPixelCount === 0
+        ? []
+        : this.extractDiffRegionsFromBuffer(diffBuffer, width, height, diffPixelCount);
 
     // 結果を構築
     const result: FrameDiffResult = {
@@ -202,7 +196,7 @@ export class FrameDiffAnalyzer {
     }
 
     if (isDevelopment()) {
-      logger.debug('[FrameDiffAnalyzer] analyze completed', {
+      logger.debug("[FrameDiffAnalyzer] analyze completed", {
         changeRatio,
         diffPixelCount,
         totalPixelCount,
@@ -243,13 +237,13 @@ export class FrameDiffAnalyzer {
     const result = await this.analyze(frame1, frame2, { includeDiffImage: true });
 
     if (!result.diffImageBuffer) {
-      throw new FrameDiffError('Failed to generate diff image');
+      throw new FrameDiffError("Failed to generate diff image");
     }
 
     if (outputPath) {
       fs.writeFileSync(outputPath, result.diffImageBuffer);
       if (isDevelopment()) {
-        logger.debug('[FrameDiffAnalyzer] Diff image saved', { outputPath });
+        logger.debug("[FrameDiffAnalyzer] Diff image saved", { outputPath });
       }
     }
 
@@ -266,7 +260,7 @@ export class FrameDiffAnalyzer {
   private async toBuffer(input: Buffer | string): Promise<Buffer> {
     if (Buffer.isBuffer(input)) {
       if (input.length === 0) {
-        throw new FrameDiffError('Empty buffer provided');
+        throw new FrameDiffError("Empty buffer provided");
       }
       return input;
     }
@@ -297,7 +291,7 @@ export class FrameDiffAnalyzer {
         height: result.info.height,
       };
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Unknown error';
+      const message = error instanceof Error ? error.message : "Unknown error";
       throw new FrameDiffError(`Failed to process image: ${message}`);
     }
   }
@@ -364,11 +358,7 @@ export class FrameDiffAnalyzer {
   /**
    * RGBAバッファをPNG画像に変換
    */
-  private async bufferToPng(
-    buffer: Buffer,
-    width: number,
-    height: number
-  ): Promise<Buffer> {
+  private async bufferToPng(buffer: Buffer, width: number, height: number): Promise<Buffer> {
     return sharp(buffer, {
       raw: {
         width,

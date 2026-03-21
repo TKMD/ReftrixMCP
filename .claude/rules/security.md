@@ -2,13 +2,13 @@
 
 ## 評価方法 / Evaluation Criteria
 
-| 検証項目 / Item | 評価方法 / Method | ツール / Tool | 目標 / Target |
-|---------|---------|-------|------|
-| HTMLサニタイズ / HTML sanitization | 自動（Code） + 手動（Human） / Auto + Manual | DOMPurify + コードレビュー / DOMPurify + code review | XSS脆弱性 0件 / 0 XSS vulnerabilities |
-| 脆弱性スキャン / Vulnerability scan | 自動（Code） / Auto | pnpm audit | High/Critical 0件 / 0 High/Critical |
-| SSRF対策 / SSRF prevention | 自動（Code） / Auto | Unit Test | プライベートIP/メタデータブロック100% / 100% private IP/metadata blocking |
-| SQLインジェクション / SQL injection | 自動（Code） / Auto | Prisma + Unit Test | 脆弱性 0件 / 0 vulnerabilities |
-| UUIDv7検証 / UUIDv7 validation | 自動（Code） / Auto | Zod Schema | 無効UUID検出100% / 100% invalid UUID detection |
+| 検証項目 / Item                     | 評価方法 / Method                            | ツール / Tool                                        | 目標 / Target                                                             |
+| ----------------------------------- | -------------------------------------------- | ---------------------------------------------------- | ------------------------------------------------------------------------- |
+| HTMLサニタイズ / HTML sanitization  | 自動（Code） + 手動（Human） / Auto + Manual | DOMPurify + コードレビュー / DOMPurify + code review | XSS脆弱性 0件 / 0 XSS vulnerabilities                                     |
+| 脆弱性スキャン / Vulnerability scan | 自動（Code） / Auto                          | pnpm audit                                           | High/Critical 0件 / 0 High/Critical                                       |
+| SSRF対策 / SSRF prevention          | 自動（Code） / Auto                          | Unit Test                                            | プライベートIP/メタデータブロック100% / 100% private IP/metadata blocking |
+| SQLインジェクション / SQL injection | 自動（Code） / Auto                          | Prisma + Unit Test                                   | 脆弱性 0件 / 0 vulnerabilities                                            |
+| UUIDv7検証 / UUIDv7 validation      | 自動（Code） / Auto                          | Zod Schema                                           | 無効UUID検出100% / 100% invalid UUID detection                            |
 
 ## HTMLサニタイズ（Webページクロール時） / HTML Sanitization (During Web Page Crawling)
 
@@ -30,31 +30,33 @@
 ### 検証方法 / Verification Method
 
 **自動テスト（Unit Test） / Automated tests (Unit Test)**:
-```typescript
-import DOMPurify from 'dompurify';
-import { JSDOM } from 'jsdom';
 
-describe('HTMLサニタイズ', () => {
-  test('script タグが除去される', () => {
-    const window = new JSDOM('').window;
+```typescript
+import DOMPurify from "dompurify";
+import { JSDOM } from "jsdom";
+
+describe("HTMLサニタイズ", () => {
+  test("script タグが除去される", () => {
+    const window = new JSDOM("").window;
     const purify = DOMPurify(window as any);
     const dirty = '<p>Hello</p><script>alert("XSS")</script>';
     const clean = purify.sanitize(dirty);
-    expect(clean).toBe('<p>Hello</p>');
-    expect(clean).not.toContain('<script>');
+    expect(clean).toBe("<p>Hello</p>");
+    expect(clean).not.toContain("<script>");
   });
 
-  test('javascript: URLが除去される', () => {
-    const window = new JSDOM('').window;
+  test("javascript: URLが除去される", () => {
+    const window = new JSDOM("").window;
     const purify = DOMPurify(window as any);
-    const dirty = '<a href="javascript:alert(\'XSS\')">Click</a>';
+    const dirty = "<a href=\"javascript:alert('XSS')\">Click</a>";
     const clean = purify.sanitize(dirty);
-    expect(clean).not.toContain('javascript:');
+    expect(clean).not.toContain("javascript:");
   });
 });
 ```
 
 **手動検証（コードレビュー） / Manual verification (code review)**:
+
 - layout.ingest/page.analyze のコードでDOMPurify使用を確認 / Verify DOMPurify usage in layout.ingest/page.analyze code
 - サニタイズ前のHTMLが外部に漏れていないことを確認 / Verify unsanitized HTML is not exposed externally
 
@@ -65,6 +67,7 @@ describe('HTMLサニタイズ', () => {
 >
 > helmet.js is not currently in dependencies (MCP server-only architecture).
 > Consider adding it if HTTP endpoints are introduced.
+
 - Content Security Policy の適用（将来的な実装目標） / Content Security Policy enforcement (future implementation goal)
 
 ## 依存関係管理 / Dependency Management
@@ -95,7 +98,7 @@ npx license-checker --production \
 ### ❌ FAIL基準 / FAIL Criteria
 
 - ❌ High/Critical 脆弱性が1件でも存在 / Any High/Critical vulnerability exists
-- ❌ 禁止ライセンスの依存を追加（GPL-2.0-only, GPL-3.0-only, SSPL, CC-BY-NC-*, proprietary） / Adding dependencies with prohibited licenses
+- ❌ 禁止ライセンスの依存を追加（GPL-2.0-only, GPL-3.0-only, SSPL, CC-BY-NC-\*, proprietary） / Adding dependencies with prohibited licenses
 - ❌ セキュリティテストが失敗 / Security tests fail
 
 ### 自動検証（CI） / Automated Verification (CI)
@@ -141,11 +144,13 @@ LGPL-3.0-or-later dependencies must be excluded via `--excludePackages` and revi
 Use a helper function that maps error codes to generic messages, preventing internal structure leakage.
 
 **✅ PASS基準 / PASS Criteria**:
+
 - ✅ Prisma/SQLの内部構造（テーブル名、カラム名、SQL構文）をクライアントレスポンスに含めない / Do not include Prisma/SQL internals (table names, column names, SQL syntax) in client responses
 - ✅ サーバーサイドログには `errorInstance.message` を記録（デバッグ用） / Log `errorInstance.message` on server side (for debugging)
 - ✅ クライアントレスポンスには固定メッセージのみ返却 / Return only fixed messages in client responses
 
 **❌ FAIL基準 / FAIL Criteria**:
+
 - ❌ `error.message` をそのままクライアントに返却 / Returning raw `error.message` to client
 - ❌ スタックトレースやDB構造がレスポンスに含まれる / Stack traces or DB structure included in response
 
@@ -154,16 +159,19 @@ Use a helper function that maps error codes to generic messages, preventing inte
 function sanitizeErrorMessage(error: unknown): string {
   if (error instanceof Prisma.PrismaClientKnownRequestError) {
     switch (error.code) {
-      case 'P2002': return 'A record with this value already exists';
-      case 'P2025': return 'Record not found';
-      default: return 'Database operation failed';
+      case "P2002":
+        return "A record with this value already exists";
+      case "P2025":
+        return "Record not found";
+      default:
+        return "Database operation failed";
     }
   }
-  return 'An internal error occurred';
+  return "An internal error occurred";
 }
 
 // サーバーログ / Server log
-logger.error('Operation failed', { error: errorInstance.message });
+logger.error("Operation failed", { error: errorInstance.message });
 // クライアント / Client
 return { error: sanitizeErrorMessage(error) };
 ```
@@ -177,10 +185,12 @@ return { error: sanitizeErrorMessage(error) };
 Do not use `isDevelopment()` guards in error handling paths (catch blocks). Eliminate the risk of errors being silently absorbed in production.
 
 **✅ PASS基準 / PASS Criteria**:
+
 - ✅ catchブロック内のログは全環境で `logger.warn` / `logger.error` を出力 / Log `logger.warn` / `logger.error` in all environments within catch blocks
 - ✅ 正常系のデバッグログ（verbose情報）は `isDevelopment()` ガード内で可 / Debug logs for normal flow (verbose info) may use `isDevelopment()` guard
 
 **❌ FAIL基準 / FAIL Criteria**:
+
 - ❌ catchブロック内で `if (isDevelopment())` によりログ出力を制限 / Restricting log output with `if (isDevelopment())` inside catch blocks
 - ❌ 本番環境でエラーが無視される構造 / Structure where errors are ignored in production
 
@@ -205,10 +215,12 @@ catch (error) {
 When logging personally identifiable information (PII), truncate to minimize leakage risk.
 
 **✅ PASS基準 / PASS Criteria**:
+
 - ✅ profileId等のPIIはログ出力時に `truncateId()` または `id.slice(0, 8) + '...'` でtruncate / Truncate PII such as profileId with `truncateId()` or `id.slice(0, 8) + '...'` when logging
 - ✅ 開発環境限定のログ（`isDevelopment()` ガード下）ではフル出力可 / Full output allowed in development-only logs (under `isDevelopment()` guard)
 
 **❌ FAIL基準 / FAIL Criteria**:
+
 - ❌ 本番ログにPII（profileId, userId等）をフル出力 / Full PII (profileId, userId, etc.) in production logs
 
 ### truncateId() ユーティリティ / truncateId() Utility
@@ -224,9 +236,9 @@ export function truncateId(id: string, length: number = 8): string {
 }
 
 // ✅ 良い例: truncateId()を使用 / Good example: using truncateId()
-import { truncateId } from './schemas';
+import { truncateId } from "./schemas";
 logger.info(`Profile updated: ${truncateId(profileId)}`);
-logger.warn('Reranking failed', { profileId: truncateId(profileId) });
+logger.warn("Reranking failed", { profileId: truncateId(profileId) });
 
 // ✅ 開発環境のみフル出力 / Full output in development only
 if (isDevelopment()) {
@@ -243,10 +255,12 @@ if (isDevelopment()) {
 `NaN` or `Infinity` in vector data (embeddings, etc.) causes pgvector query failures or silent search quality degradation. Validate numeric arrays at input/output boundaries.
 
 **✅ PASS基準 / PASS Criteria**:
+
 - ✅ Embedding生成結果に `NaN`/`Infinity` が含まれないことを検証 / Verify embedding results contain no `NaN`/`Infinity`
 - ✅ confidence等のスカラー値計算で `NaN`/`Infinity` を防御（`Math.min`/`Math.max`クランプ、除算前のゼロチェック等） / Defend against `NaN`/`Infinity` in scalar calculations (clamp with `Math.min`/`Math.max`, zero-division checks, etc.)
 
 **❌ FAIL基準 / FAIL Criteria**:
+
 - ❌ `NaN`/`Infinity` を含むベクトルをDBに保存 / Saving vectors containing `NaN`/`Infinity` to DB
 - ❌ 除算結果を検証せずにそのまま使用 / Using division results without validation
 
@@ -256,8 +270,8 @@ const confidence = totalWeight > 0 ? weightedSum / totalWeight : 0;
 const clampedScore = Math.max(0, Math.min(1, score));
 
 // ✅ Embedding検証 / Embedding validation
-if (embedding.some(v => !Number.isFinite(v))) {
-  throw new Error('Invalid embedding: contains NaN or Infinity');
+if (embedding.some((v) => !Number.isFinite(v))) {
+  throw new Error("Invalid embedding: contains NaN or Infinity");
 }
 ```
 

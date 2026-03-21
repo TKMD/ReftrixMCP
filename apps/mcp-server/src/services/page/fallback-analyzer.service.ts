@@ -19,7 +19,7 @@
  * @module services/page/fallback-analyzer.service
  */
 
-import { logger } from '../../utils/logger';
+import { logger } from "../../utils/logger";
 
 // ============================================================================
 // Types
@@ -32,7 +32,7 @@ export type FallbackLevel = 1 | 2 | 3;
 export interface FallbackWarning {
   code: string;
   message: string;
-  level: 'info' | 'warning' | 'error';
+  level: "info" | "warning" | "error";
 }
 
 /** レベル試行結果 */
@@ -114,15 +114,13 @@ export interface FallbackAnalyzeErrorResult {
 }
 
 /** フォールバック分析結果 */
-export type FallbackAnalyzeResult =
-  | FallbackAnalyzeSuccessResult
-  | FallbackAnalyzeErrorResult;
+export type FallbackAnalyzeResult = FallbackAnalyzeSuccessResult | FallbackAnalyzeErrorResult;
 
 /** フォールバックレベル設定 */
 export interface FallbackLevelConfig {
   level: FallbackLevel;
   timeout: number;
-  waitUntil: 'load' | 'domcontentloaded' | 'networkidle';
+  waitUntil: "load" | "domcontentloaded" | "networkidle";
   disableJavaScript: boolean;
   disableWebGL: boolean;
   description: string;
@@ -134,7 +132,7 @@ export interface IPageAnalyzeService {
     options: FallbackAnalyzeOptions & {
       level: FallbackLevel;
       timeout: number;
-      waitUntil: 'load' | 'domcontentloaded' | 'networkidle';
+      waitUntil: "load" | "domcontentloaded" | "networkidle";
       disableJavaScript: boolean;
       disableWebGL: boolean;
       features: FallbackFeatures;
@@ -157,37 +155,31 @@ export const FALLBACK_LEVELS: Record<FallbackLevel, FallbackLevelConfig> = {
   1: {
     level: 1,
     timeout: 30000,
-    waitUntil: 'load',
+    waitUntil: "load",
     disableJavaScript: false,
     disableWebGL: false,
-    description: 'Standard analysis',
+    description: "Standard analysis",
   },
   2: {
     level: 2,
     timeout: 60000,
-    waitUntil: 'domcontentloaded',
+    waitUntil: "domcontentloaded",
     disableJavaScript: true,
     disableWebGL: false,
-    description: 'Lightweight analysis (JavaScript disabled)',
+    description: "Lightweight analysis (JavaScript disabled)",
   },
   3: {
     level: 3,
     timeout: 120000,
-    waitUntil: 'domcontentloaded',
+    waitUntil: "domcontentloaded",
     disableJavaScript: true,
     disableWebGL: true,
-    description: 'Minimal analysis (WebGL disabled)',
+    description: "Minimal analysis (WebGL disabled)",
   },
 };
 
 // SSRFブロック対象のプライベートIP/ホスト
-const SSRF_BLOCKED_HOSTS = [
-  'localhost',
-  '127.0.0.1',
-  '0.0.0.0',
-  '::1',
-  '[::1]',
-];
+const SSRF_BLOCKED_HOSTS = ["localhost", "127.0.0.1", "0.0.0.0", "::1", "[::1]"];
 
 const SSRF_BLOCKED_IP_PATTERNS = [
   /^10\./,
@@ -223,9 +215,7 @@ export class FallbackAnalyzerService {
    * @param options - 分析オプション
    * @returns 分析結果
    */
-  async analyzeWithFallback(
-    options: FallbackAnalyzeOptions
-  ): Promise<FallbackAnalyzeResult> {
+  async analyzeWithFallback(options: FallbackAnalyzeOptions): Promise<FallbackAnalyzeResult> {
     const startTime = Date.now();
 
     // バリデーション
@@ -239,8 +229,8 @@ export class FallbackAnalyzerService {
       return {
         success: false,
         error: {
-          code: 'SERVICE_NOT_CONFIGURED',
-          message: 'Page analyze service is not configured',
+          code: "SERVICE_NOT_CONFIGURED",
+          message: "Page analyze service is not configured",
         },
       };
     }
@@ -260,10 +250,7 @@ export class FallbackAnalyzerService {
       const levelStartTime = Date.now();
 
       // Level 3ではmotionを強制無効化
-      const levelFeatures =
-        level === 3
-          ? { ...features, motion: false }
-          : { ...features };
+      const levelFeatures = level === 3 ? { ...features, motion: false } : { ...features };
 
       const analyzeOptions = {
         ...options,
@@ -304,8 +291,7 @@ export class FallbackAnalyzerService {
         }
       } catch (error) {
         const levelDurationMs = Date.now() - levelStartTime;
-        const errorMessage =
-          error instanceof Error ? error.message : String(error);
+        const errorMessage = error instanceof Error ? error.message : String(error);
 
         levelAttempts.push({
           level,
@@ -318,7 +304,7 @@ export class FallbackAnalyzerService {
         warnings.push({
           code: `LEVEL_${level}_FAILED`,
           message: `Level ${level} analysis failed: ${errorMessage}`,
-          level: 'info',
+          level: "info",
         });
 
         logger.debug(`[FallbackAnalyzer] Level ${level} failed`, {
@@ -330,12 +316,12 @@ export class FallbackAnalyzerService {
 
     // 全レベル失敗時: 部分結果を返す
     warnings.push({
-      code: 'ALL_LEVELS_FAILED',
-      message: 'All fallback levels failed for this URL',
-      level: 'error',
+      code: "ALL_LEVELS_FAILED",
+      message: "All fallback levels failed for this URL",
+      level: "error",
     });
 
-    logger.debug('[FallbackAnalyzer] All levels failed', {
+    logger.debug("[FallbackAnalyzer] All levels failed", {
       url: options.url,
       warnings,
     });
@@ -346,7 +332,7 @@ export class FallbackAnalyzerService {
       url: options.url,
       warnings,
       appliedLevel: 0,
-      appliedLevelDescription: 'All levels failed',
+      appliedLevelDescription: "All levels failed",
       layout: undefined,
       motion: undefined,
       quality: undefined,
@@ -360,16 +346,14 @@ export class FallbackAnalyzerService {
   /**
    * オプションのバリデーション
    */
-  private validateOptions(
-    options: FallbackAnalyzeOptions
-  ): FallbackAnalyzeErrorResult | null {
+  private validateOptions(options: FallbackAnalyzeOptions): FallbackAnalyzeErrorResult | null {
     // URL必須チェック
-    if (!options.url || options.url.trim() === '') {
+    if (!options.url || options.url.trim() === "") {
       return {
         success: false,
         error: {
-          code: 'VALIDATION_ERROR',
-          message: 'URL is required',
+          code: "VALIDATION_ERROR",
+          message: "URL is required",
         },
       };
     }
@@ -382,19 +366,19 @@ export class FallbackAnalyzerService {
       return {
         success: false,
         error: {
-          code: 'VALIDATION_ERROR',
-          message: 'Invalid URL format',
+          code: "VALIDATION_ERROR",
+          message: "Invalid URL format",
         },
       };
     }
 
     // プロトコルチェック
-    if (!['http:', 'https:'].includes(parsedUrl.protocol)) {
+    if (!["http:", "https:"].includes(parsedUrl.protocol)) {
       return {
         success: false,
         error: {
-          code: 'VALIDATION_ERROR',
-          message: 'Only http:// and https:// protocols are allowed',
+          code: "VALIDATION_ERROR",
+          message: "Only http:// and https:// protocols are allowed",
         },
       };
     }
@@ -405,8 +389,8 @@ export class FallbackAnalyzerService {
       return {
         success: false,
         error: {
-          code: 'SSRF_BLOCKED',
-          message: 'Access to local/private hosts is blocked',
+          code: "SSRF_BLOCKED",
+          message: "Access to local/private hosts is blocked",
         },
       };
     }
@@ -416,8 +400,8 @@ export class FallbackAnalyzerService {
         return {
           success: false,
           error: {
-            code: 'SSRF_BLOCKED',
-            message: 'Access to private IP addresses is blocked',
+            code: "SSRF_BLOCKED",
+            message: "Access to private IP addresses is blocked",
           },
         };
       }

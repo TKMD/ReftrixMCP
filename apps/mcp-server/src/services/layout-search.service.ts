@@ -14,9 +14,14 @@
  * @module services/layout-search.service
  */
 
-import { isDevelopment, logger } from '../utils/logger';
-import { executeHybridSearch, buildFulltextConditions, buildFulltextRankExpression, toRankedItems } from '@reftrix/ml';
-import type { RankedItem } from '@reftrix/ml';
+import { isDevelopment, logger } from "../utils/logger";
+import {
+  executeHybridSearch,
+  buildFulltextConditions,
+  buildFulltextRankExpression,
+  toRankedItems,
+} from "@reftrix/ml";
+import type { RankedItem } from "@reftrix/ml";
 import type {
   ILayoutSearchService,
   SearchOptions,
@@ -26,12 +31,9 @@ import type {
   VisualFeaturesTheme,
   VisualFeaturesColors,
   VisualFeaturesDensity,
-} from '../tools/layout/search.tool';
-import type {
-  LayoutSearchFilters,
-  VisualFeaturesFilter,
-} from '../tools/layout/schemas';
-import { isColorWithinTolerance } from '../utils/color';
+} from "../tools/layout/search.tool";
+import type { LayoutSearchFilters, VisualFeaturesFilter } from "../tools/layout/schemas";
+import { isColorWithinTolerance } from "../utils/color";
 
 // =====================================================
 // 定数
@@ -51,7 +53,7 @@ import { isColorWithinTolerance } from '../utils/color';
  * EmbeddingServiceインターフェース
  */
 export interface IEmbeddingService {
-  generateEmbedding(text: string, type: 'query' | 'passage'): Promise<number[]>;
+  generateEmbedding(text: string, type: "query" | "passage"): Promise<number[]>;
 }
 
 /**
@@ -179,7 +181,7 @@ function buildWhereClause(filters?: LayoutSearchFilters): { clause: string; para
   }
 
   return {
-    clause: conditions.length > 0 ? conditions.join(' AND ') : '',
+    clause: conditions.length > 0 ? conditions.join(" AND ") : "",
     params,
   };
 }
@@ -188,7 +190,7 @@ function buildWhereClause(filters?: LayoutSearchFilters): { clause: string; para
  * visualFeatures JSONをパースしてVisualFeatures型に変換
  */
 function parseVisualFeatures(raw: unknown): VisualFeatures | undefined {
-  if (typeof raw !== 'object' || raw === null) {
+  if (typeof raw !== "object" || raw === null) {
     return undefined;
   }
 
@@ -196,62 +198,62 @@ function parseVisualFeatures(raw: unknown): VisualFeatures | undefined {
   const result: VisualFeatures = {};
 
   // theme を抽出
-  if (typeof data.theme === 'object' && data.theme !== null) {
+  if (typeof data.theme === "object" && data.theme !== null) {
     const themeData = data.theme as Record<string, unknown>;
     const theme: VisualFeaturesTheme = {
-      type: themeData.type as 'light' | 'dark' | 'mixed',
+      type: themeData.type as "light" | "dark" | "mixed",
     };
-    if (typeof themeData.backgroundColor === 'string') {
+    if (typeof themeData.backgroundColor === "string") {
       theme.backgroundColor = themeData.backgroundColor;
     }
-    if (typeof themeData.textColor === 'string') {
+    if (typeof themeData.textColor === "string") {
       theme.textColor = themeData.textColor;
     }
-    if (typeof themeData.contrastRatio === 'number') {
+    if (typeof themeData.contrastRatio === "number") {
       theme.contrastRatio = themeData.contrastRatio;
     }
-    if (typeof themeData.luminance === 'object' && themeData.luminance !== null) {
+    if (typeof themeData.luminance === "object" && themeData.luminance !== null) {
       const lum = themeData.luminance as Record<string, number>;
-      if (typeof lum.background === 'number' && typeof lum.text === 'number') {
+      if (typeof lum.background === "number" && typeof lum.text === "number") {
         theme.luminance = { background: lum.background, text: lum.text };
       }
     }
-    if (typeof themeData.source === 'string') {
+    if (typeof themeData.source === "string") {
       theme.source = themeData.source;
     }
-    if (typeof themeData.confidence === 'number') {
+    if (typeof themeData.confidence === "number") {
       theme.confidence = themeData.confidence;
     }
     result.theme = theme;
   }
 
   // colors を抽出
-  if (typeof data.colors === 'object' && data.colors !== null) {
+  if (typeof data.colors === "object" && data.colors !== null) {
     const colorsData = data.colors as Record<string, unknown>;
     const colors: VisualFeaturesColors = {};
-    if (typeof colorsData.dominant === 'string') {
+    if (typeof colorsData.dominant === "string") {
       colors.dominant = colorsData.dominant;
     }
     if (Array.isArray(colorsData.accent)) {
-      colors.accent = colorsData.accent.filter((c): c is string => typeof c === 'string');
+      colors.accent = colorsData.accent.filter((c): c is string => typeof c === "string");
     }
     if (Array.isArray(colorsData.palette)) {
-      colors.palette = colorsData.palette.filter((c): c is string => typeof c === 'string');
+      colors.palette = colorsData.palette.filter((c): c is string => typeof c === "string");
     }
     result.colors = colors;
   }
 
   // density を抽出
-  if (typeof data.density === 'object' && data.density !== null) {
+  if (typeof data.density === "object" && data.density !== null) {
     const densityData = data.density as Record<string, unknown>;
     const density: VisualFeaturesDensity = {};
-    if (typeof densityData.contentDensity === 'number') {
+    if (typeof densityData.contentDensity === "number") {
       density.contentDensity = densityData.contentDensity;
     }
-    if (typeof densityData.whitespaceRatio === 'number') {
+    if (typeof densityData.whitespaceRatio === "number") {
       density.whitespaceRatio = densityData.whitespaceRatio;
     }
-    if (typeof densityData.visualBalance === 'number') {
+    if (typeof densityData.visualBalance === "number") {
       density.visualBalance = densityData.visualBalance;
     }
     result.density = density;
@@ -274,9 +276,10 @@ function matchesVisualFeaturesFilter(
     const hasActiveFilters =
       (filter.theme && (filter.theme.type || filter.theme.minContrastRatio)) ||
       (filter.colors && filter.colors.dominantColor) ||
-      (filter.density && (filter.density.minContentDensity !== undefined ||
-        filter.density.maxContentDensity !== undefined ||
-        filter.density.minWhitespaceRatio !== undefined));
+      (filter.density &&
+        (filter.density.minContentDensity !== undefined ||
+          filter.density.maxContentDensity !== undefined ||
+          filter.density.minWhitespaceRatio !== undefined));
     return !hasActiveFilters;
   }
 
@@ -350,23 +353,24 @@ function matchesVisualFeaturesFilter(
  * ベクトル検索結果をSearchResultに変換
  */
 function vectorResultToSearchResult(r: VectorSearchResult): SearchResult {
-  const layoutInfo = typeof r.layout_info === 'object' && r.layout_info !== null
-    ? r.layout_info as Record<string, unknown>
-    : {};
+  const layoutInfo =
+    typeof r.layout_info === "object" && r.layout_info !== null
+      ? (r.layout_info as Record<string, unknown>)
+      : {};
 
   // visualFeaturesをパース（layout_infoとvisual_features両方を確認）
-  const visualFeatures = parseVisualFeatures(r.visual_features) ||
-    parseVisualFeatures(layoutInfo.visualFeatures);
+  const visualFeatures =
+    parseVisualFeatures(r.visual_features) || parseVisualFeatures(layoutInfo.visualFeatures);
 
   // layoutInfo オブジェクトを構築（undefinedプロパティを除外）
-  const layoutInfoResult: SearchResult['layoutInfo'] = {};
-  if (typeof layoutInfo.type === 'string') {
+  const layoutInfoResult: SearchResult["layoutInfo"] = {};
+  if (typeof layoutInfo.type === "string") {
     layoutInfoResult.type = layoutInfo.type;
   }
-  if (typeof layoutInfo.heading === 'string') {
+  if (typeof layoutInfo.heading === "string") {
     layoutInfoResult.heading = layoutInfo.heading;
   }
-  if (typeof layoutInfo.description === 'string') {
+  if (typeof layoutInfo.description === "string") {
     layoutInfoResult.description = layoutInfo.description;
   }
   if (layoutInfo.grid !== undefined) {
@@ -376,12 +380,12 @@ function vectorResultToSearchResult(r: VectorSearchResult): SearchResult {
   // visionAnalysis を抽出（型安全にオブジェクトかどうかをチェック）
   if (
     layoutInfo.visionAnalysis !== undefined &&
-    typeof layoutInfo.visionAnalysis === 'object' &&
+    typeof layoutInfo.visionAnalysis === "object" &&
     layoutInfo.visionAnalysis !== null
   ) {
     const visionData = layoutInfo.visionAnalysis as Record<string, unknown>;
     // success と features が存在する場合のみ visionAnalysis として設定
-    if (typeof visionData.success === 'boolean' && Array.isArray(visionData.features)) {
+    if (typeof visionData.success === "boolean" && Array.isArray(visionData.features)) {
       layoutInfoResult.visionAnalysis = {
         success: visionData.success,
         features: visionData.features.map((f) => {
@@ -392,10 +396,10 @@ function vectorResultToSearchResult(r: VectorSearchResult): SearchResult {
             description?: string;
             data?: unknown;
           } = {
-            type: typeof feature.type === 'string' ? feature.type : '',
-            confidence: typeof feature.confidence === 'number' ? feature.confidence : 0,
+            type: typeof feature.type === "string" ? feature.type : "",
+            confidence: typeof feature.confidence === "number" ? feature.confidence : 0,
           };
-          if (typeof feature.description === 'string') {
+          if (typeof feature.description === "string") {
             result.description = feature.description;
           }
           if (feature.data !== undefined) {
@@ -405,19 +409,19 @@ function vectorResultToSearchResult(r: VectorSearchResult): SearchResult {
         }),
       };
       // オプショナルフィールドを追加
-      if (typeof visionData.textRepresentation === 'string') {
+      if (typeof visionData.textRepresentation === "string") {
         layoutInfoResult.visionAnalysis.textRepresentation = visionData.textRepresentation;
       }
-      if (typeof visionData.processingTimeMs === 'number') {
+      if (typeof visionData.processingTimeMs === "number") {
         layoutInfoResult.visionAnalysis.processingTimeMs = visionData.processingTimeMs;
       }
-      if (typeof visionData.modelName === 'string') {
+      if (typeof visionData.modelName === "string") {
         layoutInfoResult.visionAnalysis.modelName = visionData.modelName;
       }
-      if (typeof visionData.rawResponse === 'string') {
+      if (typeof visionData.rawResponse === "string") {
         layoutInfoResult.visionAnalysis.rawResponse = visionData.rawResponse;
       }
-      if (typeof visionData.error === 'string') {
+      if (typeof visionData.error === "string") {
         layoutInfoResult.visionAnalysis.error = visionData.error;
       }
     }
@@ -429,7 +433,7 @@ function vectorResultToSearchResult(r: VectorSearchResult): SearchResult {
   }
 
   // webPage オブジェクトを構築（undefinedプロパティを除外）
-  const webPageResult: SearchResult['webPage'] = {
+  const webPageResult: SearchResult["webPage"] = {
     id: r.wp_id,
     url: r.wp_url,
     sourceType: r.wp_source_type,
@@ -490,7 +494,7 @@ export class LayoutSearchService implements ILayoutSearchService {
       return this.embeddingService;
     }
 
-    throw new Error('EmbeddingService not initialized');
+    throw new Error("EmbeddingService not initialized");
   }
 
   /**
@@ -506,7 +510,7 @@ export class LayoutSearchService implements ILayoutSearchService {
       return this.prismaClient;
     }
 
-    throw new Error('PrismaClient not initialized');
+    throw new Error("PrismaClient not initialized");
   }
 
   /**
@@ -515,7 +519,7 @@ export class LayoutSearchService implements ILayoutSearchService {
    */
   async generateQueryEmbedding(query: string): Promise<number[] | null> {
     if (isDevelopment()) {
-      logger.info('[LayoutSearchService] Generating query embedding', {
+      logger.info("[LayoutSearchService] Generating query embedding", {
         queryLength: query.length,
       });
     }
@@ -523,18 +527,18 @@ export class LayoutSearchService implements ILayoutSearchService {
     // EmbeddingServiceが利用できない場合はnullを返す
     if (!embeddingServiceFactory) {
       if (isDevelopment()) {
-        logger.warn('[LayoutSearchService] EmbeddingService not available, returning null');
+        logger.warn("[LayoutSearchService] EmbeddingService not available, returning null");
       }
       return null;
     }
 
     try {
       const embeddingService = this.getEmbeddingService();
-      return await embeddingService.generateEmbedding(query, 'query');
+      return await embeddingService.generateEmbedding(query, "query");
     } catch (error) {
       if (isDevelopment()) {
-        logger.warn('[LayoutSearchService] Embedding generation failed, returning null', {
-          error: error instanceof Error ? error.message : 'Unknown error',
+        logger.warn("[LayoutSearchService] Embedding generation failed, returning null", {
+          error: error instanceof Error ? error.message : "Unknown error",
         });
       }
       // エラー時もnullを返し、空の結果を返す
@@ -552,7 +556,7 @@ export class LayoutSearchService implements ILayoutSearchService {
     const startTime = Date.now();
 
     if (isDevelopment()) {
-      logger.info('[LayoutSearchService] Starting section pattern search', {
+      logger.info("[LayoutSearchService] Starting section pattern search", {
         embeddingDimensions: embedding.length,
         limit: options.limit,
         offset: options.offset,
@@ -567,14 +571,14 @@ export class LayoutSearchService implements ILayoutSearchService {
     } catch {
       // PrismaClientが利用できない場合はnullを返す
       if (isDevelopment()) {
-        logger.warn('[LayoutSearchService] PrismaClient not available, returning null');
+        logger.warn("[LayoutSearchService] PrismaClient not available, returning null");
       }
       return null;
     }
 
     try {
       const { clause: filterClause, params: filterParams } = buildWhereClause(options.filters);
-      const vectorString = `[${embedding.join(',')}]`;
+      const vectorString = `[${embedding.join(",")}]`;
 
       // パラメータインデックスを計算
       const vectorParamIndex = filterParams.length + 1;
@@ -582,11 +586,11 @@ export class LayoutSearchService implements ILayoutSearchService {
       const offsetParamIndex = filterParams.length + 3;
 
       // WHERE句を構築
-      let whereClause = '';
+      let whereClause = "";
       if (filterClause) {
         whereClause = `WHERE ${filterClause} AND se.text_embedding IS NOT NULL`;
       } else {
-        whereClause = 'WHERE se.text_embedding IS NOT NULL';
+        whereClause = "WHERE se.text_embedding IS NOT NULL";
       }
 
       // ベクトル検索クエリ
@@ -646,8 +650,8 @@ export class LayoutSearchService implements ILayoutSearchService {
         total = Number(countResult[0]?.total || 0);
       } catch (dbError) {
         if (isDevelopment()) {
-          logger.warn('[LayoutSearchService] Vector search failed, returning empty results', {
-            error: dbError instanceof Error ? dbError.message : 'Unknown error',
+          logger.warn("[LayoutSearchService] Vector search failed, returning empty results", {
+            error: dbError instanceof Error ? dbError.message : "Unknown error",
           });
         }
         // データベースエラー時は空の結果を返す
@@ -668,7 +672,7 @@ export class LayoutSearchService implements ILayoutSearchService {
         );
 
         if (isDevelopment()) {
-          logger.debug('[LayoutSearchService] Applied visualFeatures filter', {
+          logger.debug("[LayoutSearchService] Applied visualFeatures filter", {
             originalCount: searchResults.length,
             filteredCount: results.length,
             filter: visualFeaturesFilter,
@@ -679,7 +683,7 @@ export class LayoutSearchService implements ILayoutSearchService {
       const processingTimeMs = Date.now() - startTime;
 
       if (isDevelopment()) {
-        logger.info('[LayoutSearchService] Search completed', {
+        logger.info("[LayoutSearchService] Search completed", {
           resultsCount: results.length,
           total,
           processingTimeMs,
@@ -692,8 +696,8 @@ export class LayoutSearchService implements ILayoutSearchService {
       };
     } catch (error) {
       if (isDevelopment()) {
-        logger.error('[LayoutSearchService] Search error', {
-          error: error instanceof Error ? error.message : 'Unknown error',
+        logger.error("[LayoutSearchService] Search error", {
+          error: error instanceof Error ? error.message : "Unknown error",
         });
       }
       throw error;
@@ -719,7 +723,7 @@ export class LayoutSearchService implements ILayoutSearchService {
     const startTime = Date.now();
 
     if (isDevelopment()) {
-      logger.info('[LayoutSearchService] Starting hybrid search (vector + fulltext)', {
+      logger.info("[LayoutSearchService] Starting hybrid search (vector + fulltext)", {
         queryTextLength: queryText.length,
         embeddingDimensions: embedding.length,
         limit: options.limit,
@@ -732,7 +736,7 @@ export class LayoutSearchService implements ILayoutSearchService {
       prisma = this.getPrismaClient();
     } catch {
       if (isDevelopment()) {
-        logger.warn('[LayoutSearchService] PrismaClient not available, returning null');
+        logger.warn("[LayoutSearchService] PrismaClient not available, returning null");
       }
       return null;
     }
@@ -744,15 +748,15 @@ export class LayoutSearchService implements ILayoutSearchService {
 
       // ベクトル検索関数
       const vectorSearchFn = async (): Promise<RankedItem[]> => {
-        const vectorString = `[${embedding.join(',')}]`;
+        const vectorString = `[${embedding.join(",")}]`;
         const vectorParamIndex = filterParams.length + 1;
         const limitParamIndex = filterParams.length + 2;
 
-        let whereClause = '';
+        let whereClause = "";
         if (filterClause) {
           whereClause = `WHERE ${filterClause} AND se.text_embedding IS NOT NULL`;
         } else {
-          whereClause = 'WHERE se.text_embedding IS NOT NULL';
+          whereClause = "WHERE se.text_embedding IS NOT NULL";
         }
 
         const query = `
@@ -794,8 +798,8 @@ export class LayoutSearchService implements ILayoutSearchService {
         const queryParamIndex = filterParams.length + 1;
         const limitParamIndex = filterParams.length + 2;
 
-        const ftConditions = buildFulltextConditions('se.search_vector', queryParamIndex);
-        const ftRank = buildFulltextRankExpression('se.search_vector', queryParamIndex);
+        const ftConditions = buildFulltextConditions("se.search_vector", queryParamIndex);
+        const ftRank = buildFulltextRankExpression("se.search_vector", queryParamIndex);
         const whereClause = filterClause
           ? `WHERE ${filterClause} AND ${ftConditions}`
           : `WHERE ${ftConditions}`;
@@ -836,8 +840,8 @@ export class LayoutSearchService implements ILayoutSearchService {
         } catch (ftError) {
           // 全文検索の失敗はハイブリッド検索全体をブロックしない
           if (isDevelopment()) {
-            logger.warn('[LayoutSearchService] Full-text search failed, using vector only', {
-              error: ftError instanceof Error ? ftError.message : 'Unknown error',
+            logger.warn("[LayoutSearchService] Full-text search failed, using vector only", {
+              error: ftError instanceof Error ? ftError.message : "Unknown error",
             });
           }
           return [];
@@ -845,16 +849,10 @@ export class LayoutSearchService implements ILayoutSearchService {
       };
 
       // RRFハイブリッド検索を実行（両検索を並列実行）
-      const hybridResults = await executeHybridSearch(
-        vectorSearchFn,
-        fulltextSearchFn
-      );
+      const hybridResults = await executeHybridSearch(vectorSearchFn, fulltextSearchFn);
 
       // offset/limitを適用
-      const paginatedResults = hybridResults.slice(
-        options.offset,
-        options.offset + options.limit
-      );
+      const paginatedResults = hybridResults.slice(options.offset, options.offset + options.limit);
 
       // HybridSearchResult を SearchResult に変換
       // mergeWithRRF が data から id を除去するため、hr.id で復元する
@@ -879,7 +877,7 @@ export class LayoutSearchService implements ILayoutSearchService {
       const processingTimeMs = Date.now() - startTime;
 
       if (isDevelopment()) {
-        logger.info('[LayoutSearchService] Hybrid search completed', {
+        logger.info("[LayoutSearchService] Hybrid search completed", {
           totalMerged: hybridResults.length,
           resultsCount: filteredResults.length,
           processingTimeMs,
@@ -892,8 +890,8 @@ export class LayoutSearchService implements ILayoutSearchService {
       };
     } catch (error) {
       if (isDevelopment()) {
-        logger.error('[LayoutSearchService] Hybrid search error, falling back to vector only', {
-          error: error instanceof Error ? error.message : 'Unknown error',
+        logger.error("[LayoutSearchService] Hybrid search error, falling back to vector only", {
+          error: error instanceof Error ? error.message : "Unknown error",
         });
       }
       // フォールバック: ベクトル検索のみ

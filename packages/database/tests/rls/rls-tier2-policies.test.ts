@@ -24,10 +24,8 @@ import { withAdminBypass } from "../../src/utils/admin-operation";
 const DATABASE_URL = process.env.DATABASE_URL;
 const ADMIN_DATABASE_URL = process.env.ADMIN_DATABASE_URL;
 
-describe.skipIf(!DATABASE_URL || !ADMIN_DATABASE_URL)(
-  "RLS Policies - Tier 2 Tables",
-  () => {
-    let prisma: PrismaClient;
+describe.skipIf(!DATABASE_URL || !ADMIN_DATABASE_URL)("RLS Policies - Tier 2 Tables", () => {
+  let prisma: PrismaClient;
 
   // Test users
   const userAId = "00000000-0000-0000-0000-000000000011";
@@ -161,5 +159,4 @@ describe.skipIf(!DATABASE_URL || !ADMIN_DATABASE_URL)(
       expect(settings).toHaveLength(0);
     });
   });
-  }
-);
+});

@@ -16,7 +16,7 @@
  * @module tests/services/page/css-animation-parser.service.test
  */
 
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach } from "vitest";
 import {
   CssAnimationParser,
   type KeyframeStep,
@@ -24,9 +24,9 @@ import {
   type ParsedAnimation,
   type ParsedTransition,
   CSS_PARSER_LIMITS,
-} from '../../../src/services/page/css-animation-parser.service';
+} from "../../../src/services/page/css-animation-parser.service";
 
-describe('CssAnimationParser', () => {
+describe("CssAnimationParser", () => {
   let parser: CssAnimationParser;
 
   beforeEach(() => {
@@ -37,8 +37,8 @@ describe('CssAnimationParser', () => {
   // parseKeyframes Tests
   // =====================================================
 
-  describe('parseKeyframes', () => {
-    it('should parse simple @keyframes with from/to', () => {
+  describe("parseKeyframes", () => {
+    it("should parse simple @keyframes with from/to", () => {
       const css = `
         @keyframes fadeIn {
           from { opacity: 0; }
@@ -48,14 +48,14 @@ describe('CssAnimationParser', () => {
 
       const result = parser.parseKeyframes(css);
 
-      expect(result.has('fadeIn')).toBe(true);
-      const steps = result.get('fadeIn');
+      expect(result.has("fadeIn")).toBe(true);
+      const steps = result.get("fadeIn");
       expect(steps).toHaveLength(2);
-      expect(steps![0]).toEqual({ offset: 0, styles: { opacity: '0' } });
-      expect(steps![1]).toEqual({ offset: 100, styles: { opacity: '1' } });
+      expect(steps![0]).toEqual({ offset: 0, styles: { opacity: "0" } });
+      expect(steps![1]).toEqual({ offset: 100, styles: { opacity: "1" } });
     });
 
-    it('should parse @keyframes with percentage steps', () => {
+    it("should parse @keyframes with percentage steps", () => {
       const css = `
         @keyframes bounce {
           0% { transform: translateY(0); }
@@ -66,15 +66,15 @@ describe('CssAnimationParser', () => {
 
       const result = parser.parseKeyframes(css);
 
-      expect(result.has('bounce')).toBe(true);
-      const steps = result.get('bounce');
+      expect(result.has("bounce")).toBe(true);
+      const steps = result.get("bounce");
       expect(steps).toHaveLength(3);
       expect(steps![0]!.offset).toBe(0);
       expect(steps![1]!.offset).toBe(50);
       expect(steps![2]!.offset).toBe(100);
     });
 
-    it('should parse multiple @keyframes definitions', () => {
+    it("should parse multiple @keyframes definitions", () => {
       const css = `
         @keyframes fadeIn {
           from { opacity: 0; }
@@ -89,11 +89,11 @@ describe('CssAnimationParser', () => {
       const result = parser.parseKeyframes(css);
 
       expect(result.size).toBe(2);
-      expect(result.has('fadeIn')).toBe(true);
-      expect(result.has('slideUp')).toBe(true);
+      expect(result.has("fadeIn")).toBe(true);
+      expect(result.has("slideUp")).toBe(true);
     });
 
-    it('should handle nested braces in keyframes', () => {
+    it("should handle nested braces in keyframes", () => {
       const css = `
         @keyframes complexAnim {
           0% {
@@ -109,12 +109,12 @@ describe('CssAnimationParser', () => {
 
       const result = parser.parseKeyframes(css);
 
-      expect(result.has('complexAnim')).toBe(true);
-      const steps = result.get('complexAnim');
+      expect(result.has("complexAnim")).toBe(true);
+      const steps = result.get("complexAnim");
       expect(steps).toHaveLength(2);
     });
 
-    it('should return empty map for CSS without @keyframes', () => {
+    it("should return empty map for CSS without @keyframes", () => {
       const css = `.button { color: red; }`;
 
       const result = parser.parseKeyframes(css);
@@ -122,7 +122,7 @@ describe('CssAnimationParser', () => {
       expect(result.size).toBe(0);
     });
 
-    it('should handle hyphenated animation names', () => {
+    it("should handle hyphenated animation names", () => {
       const css = `
         @keyframes fade-in-up {
           from { opacity: 0; transform: translateY(10px); }
@@ -132,7 +132,7 @@ describe('CssAnimationParser', () => {
 
       const result = parser.parseKeyframes(css);
 
-      expect(result.has('fade-in-up')).toBe(true);
+      expect(result.has("fade-in-up")).toBe(true);
     });
   });
 
@@ -140,8 +140,8 @@ describe('CssAnimationParser', () => {
   // parseKeyframeSteps Tests
   // =====================================================
 
-  describe('parseKeyframeSteps', () => {
-    it('should parse from/to syntax', () => {
+  describe("parseKeyframeSteps", () => {
+    it("should parse from/to syntax", () => {
       const content = `
         from { opacity: 0; }
         to { opacity: 1; }
@@ -154,7 +154,7 @@ describe('CssAnimationParser', () => {
       expect(result[1]!.offset).toBe(100);
     });
 
-    it('should parse percentage syntax', () => {
+    it("should parse percentage syntax", () => {
       const content = `
         0% { opacity: 0; }
         25% { opacity: 0.25; }
@@ -171,7 +171,7 @@ describe('CssAnimationParser', () => {
       expect(result[3]!.offset).toBe(100);
     });
 
-    it('should sort steps by offset', () => {
+    it("should sort steps by offset", () => {
       const content = `
         100% { opacity: 1; }
         0% { opacity: 0; }
@@ -185,7 +185,7 @@ describe('CssAnimationParser', () => {
       expect(result[2]!.offset).toBe(100);
     });
 
-    it('should parse multiple properties per step', () => {
+    it("should parse multiple properties per step", () => {
       const content = `
         0% { opacity: 0; transform: scale(0.8); }
         100% { opacity: 1; transform: scale(1); }
@@ -194,12 +194,12 @@ describe('CssAnimationParser', () => {
       const result = parser.parseKeyframeSteps(content);
 
       expect(result[0]!.styles).toEqual({
-        opacity: '0',
-        transform: 'scale(0.8)',
+        opacity: "0",
+        transform: "scale(0.8)",
       });
     });
 
-    it('should handle decimal percentages', () => {
+    it("should handle decimal percentages", () => {
       const content = `
         0% { opacity: 0; }
         33.3% { opacity: 0.33; }
@@ -218,95 +218,93 @@ describe('CssAnimationParser', () => {
   // parseAnimationProperty Tests
   // =====================================================
 
-  describe('parseAnimationProperty', () => {
-    it('should parse animation name only', () => {
-      const result = parser.parseAnimationProperty('fadeIn');
+  describe("parseAnimationProperty", () => {
+    it("should parse animation name only", () => {
+      const result = parser.parseAnimationProperty("fadeIn");
 
-      expect(result.name).toBe('fadeIn');
+      expect(result.name).toBe("fadeIn");
       expect(result.duration).toBe(0);
-      expect(result.easing.type).toBe('ease');
+      expect(result.easing.type).toBe("ease");
     });
 
-    it('should parse animation with duration in seconds', () => {
-      const result = parser.parseAnimationProperty('fadeIn 0.3s');
+    it("should parse animation with duration in seconds", () => {
+      const result = parser.parseAnimationProperty("fadeIn 0.3s");
 
-      expect(result.name).toBe('fadeIn');
+      expect(result.name).toBe("fadeIn");
       expect(result.duration).toBe(300);
     });
 
-    it('should parse animation with duration in milliseconds', () => {
-      const result = parser.parseAnimationProperty('fadeIn 300ms');
+    it("should parse animation with duration in milliseconds", () => {
+      const result = parser.parseAnimationProperty("fadeIn 300ms");
 
-      expect(result.name).toBe('fadeIn');
+      expect(result.name).toBe("fadeIn");
       expect(result.duration).toBe(300);
     });
 
-    it('should parse animation with duration and delay', () => {
-      const result = parser.parseAnimationProperty('fadeIn 0.3s 0.1s');
+    it("should parse animation with duration and delay", () => {
+      const result = parser.parseAnimationProperty("fadeIn 0.3s 0.1s");
 
-      expect(result.name).toBe('fadeIn');
+      expect(result.name).toBe("fadeIn");
       expect(result.duration).toBe(300);
       expect(result.delay).toBe(100);
     });
 
-    it('should parse animation with easing keyword', () => {
-      const result = parser.parseAnimationProperty('fadeIn 0.3s ease-in-out');
+    it("should parse animation with easing keyword", () => {
+      const result = parser.parseAnimationProperty("fadeIn 0.3s ease-in-out");
 
-      expect(result.easing.type).toBe('ease-in-out');
+      expect(result.easing.type).toBe("ease-in-out");
     });
 
-    it('should parse animation with cubic-bezier easing', () => {
-      const result = parser.parseAnimationProperty(
-        'fadeIn 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
-      );
+    it("should parse animation with cubic-bezier easing", () => {
+      const result = parser.parseAnimationProperty("fadeIn 0.3s cubic-bezier(0.4, 0, 0.2, 1)");
 
-      expect(result.easing.type).toBe('cubic-bezier');
+      expect(result.easing.type).toBe("cubic-bezier");
       expect(result.easing.cubicBezier).toEqual([0.4, 0, 0.2, 1]);
     });
 
-    it('should parse animation with steps easing', () => {
-      const result = parser.parseAnimationProperty('fadeIn 0.3s steps(4, end)');
+    it("should parse animation with steps easing", () => {
+      const result = parser.parseAnimationProperty("fadeIn 0.3s steps(4, end)");
 
-      expect(result.easing.type).toBe('steps');
-      expect(result.easing.steps).toEqual({ count: 4, position: 'end' });
+      expect(result.easing.type).toBe("steps");
+      expect(result.easing.steps).toEqual({ count: 4, position: "end" });
     });
 
-    it('should parse animation with iteration count', () => {
-      const result = parser.parseAnimationProperty('fadeIn 0.3s 3');
+    it("should parse animation with iteration count", () => {
+      const result = parser.parseAnimationProperty("fadeIn 0.3s 3");
 
       expect(result.iterations).toBe(3);
     });
 
-    it('should parse animation with infinite iteration', () => {
-      const result = parser.parseAnimationProperty('fadeIn 0.3s infinite');
+    it("should parse animation with infinite iteration", () => {
+      const result = parser.parseAnimationProperty("fadeIn 0.3s infinite");
 
-      expect(result.iterations).toBe('infinite');
+      expect(result.iterations).toBe("infinite");
     });
 
-    it('should parse animation with direction', () => {
-      const result = parser.parseAnimationProperty('fadeIn 0.3s alternate');
+    it("should parse animation with direction", () => {
+      const result = parser.parseAnimationProperty("fadeIn 0.3s alternate");
 
-      expect(result.direction).toBe('alternate');
+      expect(result.direction).toBe("alternate");
     });
 
-    it('should parse animation with fill-mode', () => {
-      const result = parser.parseAnimationProperty('fadeIn 0.3s forwards');
+    it("should parse animation with fill-mode", () => {
+      const result = parser.parseAnimationProperty("fadeIn 0.3s forwards");
 
-      expect(result.fillMode).toBe('forwards');
+      expect(result.fillMode).toBe("forwards");
     });
 
-    it('should parse full animation shorthand', () => {
+    it("should parse full animation shorthand", () => {
       const result = parser.parseAnimationProperty(
-        'fadeIn 0.3s ease-in-out 0.1s infinite alternate forwards'
+        "fadeIn 0.3s ease-in-out 0.1s infinite alternate forwards"
       );
 
-      expect(result.name).toBe('fadeIn');
+      expect(result.name).toBe("fadeIn");
       expect(result.duration).toBe(300);
-      expect(result.easing.type).toBe('ease-in-out');
+      expect(result.easing.type).toBe("ease-in-out");
       expect(result.delay).toBe(100);
-      expect(result.iterations).toBe('infinite');
-      expect(result.direction).toBe('alternate');
-      expect(result.fillMode).toBe('forwards');
+      expect(result.iterations).toBe("infinite");
+      expect(result.direction).toBe("alternate");
+      expect(result.fillMode).toBe("forwards");
     });
   });
 
@@ -314,40 +312,36 @@ describe('CssAnimationParser', () => {
   // tokenizeAnimationValue Tests
   // =====================================================
 
-  describe('tokenizeAnimationValue', () => {
-    it('should tokenize simple space-separated values', () => {
-      const result = parser.tokenizeAnimationValue('fadeIn 0.3s ease');
+  describe("tokenizeAnimationValue", () => {
+    it("should tokenize simple space-separated values", () => {
+      const result = parser.tokenizeAnimationValue("fadeIn 0.3s ease");
 
-      expect(result).toEqual(['fadeIn', '0.3s', 'ease']);
+      expect(result).toEqual(["fadeIn", "0.3s", "ease"]);
     });
 
-    it('should keep cubic-bezier as single token', () => {
-      const result = parser.tokenizeAnimationValue(
-        'fadeIn cubic-bezier(0.4, 0, 0.2, 1)'
-      );
+    it("should keep cubic-bezier as single token", () => {
+      const result = parser.tokenizeAnimationValue("fadeIn cubic-bezier(0.4, 0, 0.2, 1)");
 
-      expect(result).toContain('cubic-bezier(0.4, 0, 0.2, 1)');
+      expect(result).toContain("cubic-bezier(0.4, 0, 0.2, 1)");
     });
 
-    it('should keep steps as single token', () => {
-      const result = parser.tokenizeAnimationValue('fadeIn steps(4, end)');
+    it("should keep steps as single token", () => {
+      const result = parser.tokenizeAnimationValue("fadeIn steps(4, end)");
 
-      expect(result).toContain('steps(4, end)');
+      expect(result).toContain("steps(4, end)");
     });
 
-    it('should handle multiple whitespace', () => {
-      const result = parser.tokenizeAnimationValue('fadeIn   0.3s    ease');
+    it("should handle multiple whitespace", () => {
+      const result = parser.tokenizeAnimationValue("fadeIn   0.3s    ease");
 
-      expect(result).toEqual(['fadeIn', '0.3s', 'ease']);
+      expect(result).toEqual(["fadeIn", "0.3s", "ease"]);
     });
 
-    it('should handle nested parentheses in values', () => {
-      const result = parser.tokenizeAnimationValue(
-        'fadeIn cubic-bezier(0.4, 0, 0.2, 1) 0.3s'
-      );
+    it("should handle nested parentheses in values", () => {
+      const result = parser.tokenizeAnimationValue("fadeIn cubic-bezier(0.4, 0, 0.2, 1) 0.3s");
 
       expect(result).toHaveLength(3);
-      expect(result[1]).toBe('cubic-bezier(0.4, 0, 0.2, 1)');
+      expect(result[1]).toBe("cubic-bezier(0.4, 0, 0.2, 1)");
     });
   });
 
@@ -355,58 +349,54 @@ describe('CssAnimationParser', () => {
   // parseTransitionProperty Tests
   // =====================================================
 
-  describe('parseTransitionProperty', () => {
-    it('should parse simple transition', () => {
-      const result = parser.parseTransitionProperty('opacity 0.3s');
+  describe("parseTransitionProperty", () => {
+    it("should parse simple transition", () => {
+      const result = parser.parseTransitionProperty("opacity 0.3s");
 
       expect(result).toHaveLength(1);
-      expect(result[0]!.property).toBe('opacity');
+      expect(result[0]!.property).toBe("opacity");
       expect(result[0]!.duration).toBe(300);
     });
 
-    it('should parse transition with all property', () => {
-      const result = parser.parseTransitionProperty('all 0.3s');
+    it("should parse transition with all property", () => {
+      const result = parser.parseTransitionProperty("all 0.3s");
 
-      expect(result[0]!.property).toBe('all');
+      expect(result[0]!.property).toBe("all");
     });
 
-    it('should parse transition with easing', () => {
-      const result = parser.parseTransitionProperty('opacity 0.3s ease-in-out');
+    it("should parse transition with easing", () => {
+      const result = parser.parseTransitionProperty("opacity 0.3s ease-in-out");
 
-      expect(result[0]!.easing.type).toBe('ease-in-out');
+      expect(result[0]!.easing.type).toBe("ease-in-out");
     });
 
-    it('should parse transition with delay', () => {
-      const result = parser.parseTransitionProperty('opacity 0.3s ease 0.1s');
+    it("should parse transition with delay", () => {
+      const result = parser.parseTransitionProperty("opacity 0.3s ease 0.1s");
 
       expect(result[0]!.delay).toBe(100);
     });
 
-    it('should parse multiple transitions', () => {
-      const result = parser.parseTransitionProperty(
-        'opacity 0.3s, transform 0.5s'
-      );
+    it("should parse multiple transitions", () => {
+      const result = parser.parseTransitionProperty("opacity 0.3s, transform 0.5s");
 
       expect(result).toHaveLength(2);
-      expect(result[0]!.property).toBe('opacity');
+      expect(result[0]!.property).toBe("opacity");
       expect(result[0]!.duration).toBe(300);
-      expect(result[1]!.property).toBe('transform');
+      expect(result[1]!.property).toBe("transform");
       expect(result[1]!.duration).toBe(500);
     });
 
-    it('should parse transition with cubic-bezier', () => {
-      const result = parser.parseTransitionProperty(
-        'opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
-      );
+    it("should parse transition with cubic-bezier", () => {
+      const result = parser.parseTransitionProperty("opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1)");
 
-      expect(result[0]!.easing.type).toBe('cubic-bezier');
+      expect(result[0]!.easing.type).toBe("cubic-bezier");
       expect(result[0]!.easing.cubicBezier).toEqual([0.4, 0, 0.2, 1]);
     });
 
-    it('should handle transform property', () => {
-      const result = parser.parseTransitionProperty('transform 0.3s ease');
+    it("should handle transform property", () => {
+      const result = parser.parseTransitionProperty("transform 0.3s ease");
 
-      expect(result[0]!.property).toBe('transform');
+      expect(result[0]!.property).toBe("transform");
     });
   });
 
@@ -414,20 +404,20 @@ describe('CssAnimationParser', () => {
   // extractStyleRules Tests
   // =====================================================
 
-  describe('extractStyleRules', () => {
-    it('should extract simple CSS rule', () => {
+  describe("extractStyleRules", () => {
+    it("should extract simple CSS rule", () => {
       const css = `.button { color: red; background: blue; }`;
 
       const result = parser.extractStyleRules(css);
 
-      expect(result.has('.button')).toBe(true);
-      expect(result.get('.button')).toEqual({
-        color: 'red',
-        background: 'blue',
+      expect(result.has(".button")).toBe(true);
+      expect(result.get(".button")).toEqual({
+        color: "red",
+        background: "blue",
       });
     });
 
-    it('should extract multiple CSS rules', () => {
+    it("should extract multiple CSS rules", () => {
       const css = `
         .button { color: red; }
         .link { color: blue; }
@@ -436,27 +426,27 @@ describe('CssAnimationParser', () => {
       const result = parser.extractStyleRules(css);
 
       expect(result.size).toBe(2);
-      expect(result.has('.button')).toBe(true);
-      expect(result.has('.link')).toBe(true);
+      expect(result.has(".button")).toBe(true);
+      expect(result.has(".link")).toBe(true);
     });
 
-    it('should extract animation property', () => {
+    it("should extract animation property", () => {
       const css = `.animated { animation: fadeIn 0.3s ease; }`;
 
       const result = parser.extractStyleRules(css);
 
-      expect(result.get('.animated')!.animation).toBe('fadeIn 0.3s ease');
+      expect(result.get(".animated")!.animation).toBe("fadeIn 0.3s ease");
     });
 
-    it('should extract transition property', () => {
+    it("should extract transition property", () => {
       const css = `.button { transition: opacity 0.3s ease; }`;
 
       const result = parser.extractStyleRules(css);
 
-      expect(result.get('.button')!.transition).toBe('opacity 0.3s ease');
+      expect(result.get(".button")!.transition).toBe("opacity 0.3s ease");
     });
 
-    it('should skip keyframe step selectors', () => {
+    it("should skip keyframe step selectors", () => {
       const css = `
         @keyframes fadeIn {
           0% { opacity: 0; }
@@ -468,12 +458,12 @@ describe('CssAnimationParser', () => {
       const result = parser.extractStyleRules(css);
 
       // Should not include percentage selectors
-      expect(result.has('0%')).toBe(false);
-      expect(result.has('100%')).toBe(false);
-      expect(result.has('.button')).toBe(true);
+      expect(result.has("0%")).toBe(false);
+      expect(result.has("100%")).toBe(false);
+      expect(result.has(".button")).toBe(true);
     });
 
-    it('should handle :hover selectors', () => {
+    it("should handle :hover selectors", () => {
       const css = `
         .button { color: red; }
         .button:hover { color: blue; }
@@ -481,25 +471,25 @@ describe('CssAnimationParser', () => {
 
       const result = parser.extractStyleRules(css);
 
-      expect(result.has('.button')).toBe(true);
-      expect(result.has('.button:hover')).toBe(true);
+      expect(result.has(".button")).toBe(true);
+      expect(result.has(".button:hover")).toBe(true);
     });
 
-    it('should handle complex selectors', () => {
+    it("should handle complex selectors", () => {
       const css = `.nav > .item:first-child { color: red; }`;
 
       const result = parser.extractStyleRules(css);
 
-      expect(result.has('.nav > .item:first-child')).toBe(true);
+      expect(result.has(".nav > .item:first-child")).toBe(true);
     });
 
-    it('should handle animation-name property', () => {
+    it("should handle animation-name property", () => {
       const css = `.animated { animation-name: fadeIn; animation-duration: 0.3s; }`;
 
       const result = parser.extractStyleRules(css);
 
-      expect(result.get('.animated')!['animation-name']).toBe('fadeIn');
-      expect(result.get('.animated')!['animation-duration']).toBe('0.3s');
+      expect(result.get(".animated")!["animation-name"]).toBe("fadeIn");
+      expect(result.get(".animated")!["animation-duration"]).toBe("0.3s");
     });
   });
 
@@ -507,73 +497,73 @@ describe('CssAnimationParser', () => {
   // Utility Methods Tests
   // =====================================================
 
-  describe('parseTimeToMs', () => {
-    it('should parse seconds to milliseconds', () => {
-      expect(parser.parseTimeToMs('0.3s')).toBe(300);
-      expect(parser.parseTimeToMs('1s')).toBe(1000);
-      expect(parser.parseTimeToMs('2.5s')).toBe(2500);
+  describe("parseTimeToMs", () => {
+    it("should parse seconds to milliseconds", () => {
+      expect(parser.parseTimeToMs("0.3s")).toBe(300);
+      expect(parser.parseTimeToMs("1s")).toBe(1000);
+      expect(parser.parseTimeToMs("2.5s")).toBe(2500);
     });
 
-    it('should parse milliseconds', () => {
-      expect(parser.parseTimeToMs('300ms')).toBe(300);
-      expect(parser.parseTimeToMs('1000ms')).toBe(1000);
+    it("should parse milliseconds", () => {
+      expect(parser.parseTimeToMs("300ms")).toBe(300);
+      expect(parser.parseTimeToMs("1000ms")).toBe(1000);
     });
 
-    it('should handle decimal seconds', () => {
-      expect(parser.parseTimeToMs('0.15s')).toBe(150);
+    it("should handle decimal seconds", () => {
+      expect(parser.parseTimeToMs("0.15s")).toBe(150);
     });
   });
 
-  describe('formatEasing', () => {
-    it('should format keyword easing', () => {
-      expect(parser.formatEasing({ type: 'ease' })).toBe('ease');
-      expect(parser.formatEasing({ type: 'linear' })).toBe('linear');
-      expect(parser.formatEasing({ type: 'ease-in-out' })).toBe('ease-in-out');
+  describe("formatEasing", () => {
+    it("should format keyword easing", () => {
+      expect(parser.formatEasing({ type: "ease" })).toBe("ease");
+      expect(parser.formatEasing({ type: "linear" })).toBe("linear");
+      expect(parser.formatEasing({ type: "ease-in-out" })).toBe("ease-in-out");
     });
 
-    it('should format cubic-bezier easing', () => {
+    it("should format cubic-bezier easing", () => {
       const easing: EasingConfig = {
-        type: 'cubic-bezier',
+        type: "cubic-bezier",
         cubicBezier: [0.4, 0, 0.2, 1],
       };
 
-      expect(parser.formatEasing(easing)).toBe('cubic-bezier(0.4, 0, 0.2, 1)');
+      expect(parser.formatEasing(easing)).toBe("cubic-bezier(0.4, 0, 0.2, 1)");
     });
 
-    it('should format steps easing', () => {
+    it("should format steps easing", () => {
       const easing: EasingConfig = {
-        type: 'steps',
-        steps: { count: 4, position: 'end' },
+        type: "steps",
+        steps: { count: 4, position: "end" },
       };
 
-      expect(parser.formatEasing(easing)).toBe('steps(4, end)');
+      expect(parser.formatEasing(easing)).toBe("steps(4, end)");
     });
   });
 
-  describe('generateKeyframesCss', () => {
-    it('should generate CSS from keyframe steps', () => {
+  describe("generateKeyframesCss", () => {
+    it("should generate CSS from keyframe steps", () => {
       const steps: KeyframeStep[] = [
-        { offset: 0, styles: { opacity: '0' } },
-        { offset: 100, styles: { opacity: '1' } },
+        { offset: 0, styles: { opacity: "0" } },
+        { offset: 100, styles: { opacity: "1" } },
       ];
 
-      const result = parser.generateKeyframesCss('fadeIn', steps);
+      const result = parser.generateKeyframesCss("fadeIn", steps);
 
-      expect(result).toContain('@keyframes fadeIn');
-      expect(result).toContain('0% { opacity: 0 }');
-      expect(result).toContain('100% { opacity: 1 }');
+      expect(result).toContain("@keyframes fadeIn");
+      expect(result).toContain("0% { opacity: 0 }");
+      expect(result).toContain("100% { opacity: 1 }");
     });
 
-    it('should handle multiple properties per step', () => {
+    it("should handle multiple properties per step", () => {
       const steps: KeyframeStep[] = [
-        { offset: 0, styles: { opacity: '0', transform: 'scale(0.8)' } },
-        { offset: 100, styles: { opacity: '1', transform: 'scale(1)' } },
+        { offset: 0, styles: { opacity: "0", transform: "scale(0.8)" } },
+        { offset: 100, styles: { opacity: "1", transform: "scale(1)" } },
       ];
 
-      const result = parser.generateKeyframesCss('scaleIn', steps);
+      const result = parser.generateKeyframesCss("scaleIn", steps);
 
-      expect(result).toContain('opacity: 0');
-      expect(result).toContain('transform: scale(0.8)');
+      expect(result).toContain("opacity: 0");
+      expect(result).toContain("transform: scale(0.8)");
     });
   });
 
@@ -581,7 +571,7 @@ describe('CssAnimationParser', () => {
   // ReDoS Protection Tests (Security)
   // =====================================================
 
-  describe('ReDoS Protection', () => {
+  describe("ReDoS Protection", () => {
     /**
      * ReDoS (Regular Expression Denial of Service) Attack Prevention Tests
      *
@@ -600,8 +590,8 @@ describe('CssAnimationParser', () => {
      * - No CPU exhaustion or hangs
      */
 
-    describe('CSS_PARSER_LIMITS constants', () => {
-      it('should export limits constants', () => {
+    describe("CSS_PARSER_LIMITS constants", () => {
+      it("should export limits constants", () => {
         expect(CSS_PARSER_LIMITS).toBeDefined();
         expect(CSS_PARSER_LIMITS.MAX_CSS_SIZE).toBe(5 * 1024 * 1024); // 5MB
         expect(CSS_PARSER_LIMITS.MAX_PROPERTY_VALUE_LENGTH).toBe(10000);
@@ -611,10 +601,10 @@ describe('CssAnimationParser', () => {
       });
     });
 
-    describe('parseKeyframes - ReDoS protection', () => {
-      it('should handle extremely long CSS input gracefully', () => {
+    describe("parseKeyframes - ReDoS protection", () => {
+      it("should handle extremely long CSS input gracefully", () => {
         // Generate 6MB of CSS (exceeds 5MB limit)
-        const longCss = 'a'.repeat(6 * 1024 * 1024);
+        const longCss = "a".repeat(6 * 1024 * 1024);
 
         const start = performance.now();
         const result = parser.parseKeyframes(longCss);
@@ -625,9 +615,9 @@ describe('CssAnimationParser', () => {
         expect(result.size).toBe(0);
       });
 
-      it('should handle long keyframe content without hanging', () => {
+      it("should handle long keyframe content without hanging", () => {
         // Long content inside keyframes (potential ReDoS via [^}]*)
-        const longContent = 'a'.repeat(100000);
+        const longContent = "a".repeat(100000);
         const css = `@keyframes test { from { ${longContent} } to { opacity: 1; } }`;
 
         const start = performance.now();
@@ -636,10 +626,10 @@ describe('CssAnimationParser', () => {
 
         // Should complete in reasonable time
         expect(elapsed).toBeLessThan(1000);
-        expect(result.has('test')).toBe(true);
+        expect(result.has("test")).toBe(true);
       });
 
-      it('should complete in reasonable time for normal input', () => {
+      it("should complete in reasonable time for normal input", () => {
         const css = `
           @keyframes fadeIn {
             from { opacity: 0; }
@@ -655,10 +645,10 @@ describe('CssAnimationParser', () => {
       });
     });
 
-    describe('parseKeyframeSteps - ReDoS protection', () => {
-      it('should handle long property values without exponential backtracking', () => {
+    describe("parseKeyframeSteps - ReDoS protection", () => {
+      it("should handle long property values without exponential backtracking", () => {
         // Attack vector: long value without semicolon triggers [^;]+ backtracking
-        const longValue = 'a'.repeat(50000);
+        const longValue = "a".repeat(50000);
         const content = `from { transform: ${longValue} } to { opacity: 1; }`;
 
         const start = performance.now();
@@ -671,9 +661,9 @@ describe('CssAnimationParser', () => {
         expect(result.length).toBeGreaterThanOrEqual(0);
       });
 
-      it('should truncate extremely long property values', () => {
+      it("should truncate extremely long property values", () => {
         // Property value exceeds MAX_PROPERTY_VALUE_LENGTH
-        const longValue = 'translateX(' + 'a'.repeat(20000) + ')';
+        const longValue = "translateX(" + "a".repeat(20000) + ")";
         const content = `from { transform: ${longValue}; } to { opacity: 1; }`;
 
         const result = parser.parseKeyframeSteps(content);
@@ -683,10 +673,10 @@ describe('CssAnimationParser', () => {
       });
     });
 
-    describe('extractStyleRules - ReDoS protection', () => {
-      it('should handle long selector without hanging', () => {
+    describe("extractStyleRules - ReDoS protection", () => {
+      it("should handle long selector without hanging", () => {
         // Attack vector: long selector triggers [^{]* backtracking
-        const longSelector = '.class' + '-nested'.repeat(500);
+        const longSelector = ".class" + "-nested".repeat(500);
         const css = `${longSelector} { color: red; }`;
 
         const start = performance.now();
@@ -698,9 +688,9 @@ describe('CssAnimationParser', () => {
         expect(result.size).toBeGreaterThanOrEqual(0);
       });
 
-      it('should handle long declaration value without hanging', () => {
+      it("should handle long declaration value without hanging", () => {
         // Attack vector: long value without semicolon triggers [^;]+ backtracking
-        const longValue = 'a'.repeat(50000);
+        const longValue = "a".repeat(50000);
         const css = `.button { background: ${longValue}; }`;
 
         const start = performance.now();
@@ -711,8 +701,8 @@ describe('CssAnimationParser', () => {
         expect(result.size).toBeGreaterThanOrEqual(0);
       });
 
-      it('should reject CSS exceeding size limit', () => {
-        const largeCss = '.a { color: red; }'.repeat(500000);
+      it("should reject CSS exceeding size limit", () => {
+        const largeCss = ".a { color: red; }".repeat(500000);
 
         const start = performance.now();
         const result = parser.extractStyleRules(largeCss);
@@ -724,10 +714,10 @@ describe('CssAnimationParser', () => {
       });
     });
 
-    describe('parseAnimationProperty - ReDoS protection', () => {
-      it('should handle malformed cubic-bezier gracefully', () => {
+    describe("parseAnimationProperty - ReDoS protection", () => {
+      it("should handle malformed cubic-bezier gracefully", () => {
         // Attack vector: long content inside cubic-bezier triggers backtracking
-        const longBezier = 'cubic-bezier(' + '0.5,'.repeat(100) + '0.5)';
+        const longBezier = "cubic-bezier(" + "0.5,".repeat(100) + "0.5)";
         const value = `fadeIn 0.3s ${longBezier}`;
 
         const start = performance.now();
@@ -736,12 +726,12 @@ describe('CssAnimationParser', () => {
 
         expect(elapsed).toBeLessThan(100);
         // Should fall back to default easing
-        expect(result.name).toBe('fadeIn');
+        expect(result.name).toBe("fadeIn");
         expect(result.duration).toBe(300);
       });
 
-      it('should handle extremely long animation value', () => {
-        const longName = 'animation-' + 'x'.repeat(10000);
+      it("should handle extremely long animation value", () => {
+        const longName = "animation-" + "x".repeat(10000);
         const value = `${longName} 0.3s ease`;
 
         const start = performance.now();
@@ -754,10 +744,10 @@ describe('CssAnimationParser', () => {
       });
     });
 
-    describe('parseTransitionProperty - ReDoS protection', () => {
-      it('should handle many transition parts', () => {
+    describe("parseTransitionProperty - ReDoS protection", () => {
+      it("should handle many transition parts", () => {
         // Many comma-separated transitions
-        const parts = Array(100).fill('opacity 0.3s ease').join(', ');
+        const parts = Array(100).fill("opacity 0.3s ease").join(", ");
 
         const start = performance.now();
         const result = parser.parseTransitionProperty(parts);
@@ -767,8 +757,8 @@ describe('CssAnimationParser', () => {
         expect(result.length).toBe(100);
       });
 
-      it('should handle long cubic-bezier in transition', () => {
-        const longBezier = 'cubic-bezier(' + '0.5, '.repeat(50) + '0.5)';
+      it("should handle long cubic-bezier in transition", () => {
+        const longBezier = "cubic-bezier(" + "0.5, ".repeat(50) + "0.5)";
         const value = `opacity 0.3s ${longBezier}`;
 
         const start = performance.now();
@@ -777,14 +767,14 @@ describe('CssAnimationParser', () => {
 
         expect(elapsed).toBeLessThan(100);
         expect(result.length).toBe(1);
-        expect(result[0]!.property).toBe('opacity');
+        expect(result[0]!.property).toBe("opacity");
       });
     });
 
-    describe('tokenizeAnimationValue - ReDoS protection', () => {
-      it('should handle deeply nested parentheses', () => {
+    describe("tokenizeAnimationValue - ReDoS protection", () => {
+      it("should handle deeply nested parentheses", () => {
         // Attack vector: deeply nested parentheses
-        const nested = '('.repeat(100) + 'value' + ')'.repeat(100);
+        const nested = "(".repeat(100) + "value" + ")".repeat(100);
         const value = `fadeIn ${nested} 0.3s`;
 
         const start = performance.now();
@@ -795,8 +785,8 @@ describe('CssAnimationParser', () => {
         expect(result.length).toBeGreaterThan(0);
       });
 
-      it('should handle unbalanced parentheses gracefully', () => {
-        const value = 'fadeIn cubic-bezier(0.4, 0, 0.2 0.3s';
+      it("should handle unbalanced parentheses gracefully", () => {
+        const value = "fadeIn cubic-bezier(0.4, 0, 0.2 0.3s";
 
         const result = parser.tokenizeAnimationValue(value);
 
@@ -805,8 +795,8 @@ describe('CssAnimationParser', () => {
       });
     });
 
-    describe('Performance benchmarks', () => {
-      it('should parse complex realistic CSS in reasonable time', () => {
+    describe("Performance benchmarks", () => {
+      it("should parse complex realistic CSS in reasonable time", () => {
         const css = `
           @keyframes fadeIn {
             from { opacity: 0; transform: translateY(-10px); }

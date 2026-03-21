@@ -9,19 +9,19 @@
  * @module tools/motion/detect.tool.integration.test
  */
 
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import {
   motionDetectHandler,
   setMotionDetectServiceFactory,
   resetMotionDetectServiceFactory,
   type IMotionDetectService,
-} from '../../../src/tools/motion/detect.tool';
+} from "../../../src/tools/motion/detect.tool";
 import {
   MotionDetectorService,
   getMotionDetectorService,
   resetMotionDetectorService,
-} from '../../../src/services/page/motion-detector.service';
-import type { MotionDetectOutput } from '../../../src/tools/motion/schemas';
+} from "../../../src/services/page/motion-detector.service";
+import type { MotionDetectOutput } from "../../../src/tools/motion/schemas";
 
 // =====================================================
 // テストフィクスチャ
@@ -235,7 +235,7 @@ const TEST_HTML = {
 // MotionDetectorService統合テスト
 // =====================================================
 
-describe('motion.detect with MotionDetectorService Integration', () => {
+describe("motion.detect with MotionDetectorService Integration", () => {
   beforeEach(() => {
     // テスト前にサービスをリセット
     resetMotionDetectServiceFactory();
@@ -248,11 +248,11 @@ describe('motion.detect with MotionDetectorService Integration', () => {
     resetMotionDetectorService();
   });
 
-  describe('基本的な検出機能', () => {
-    it('CSSアニメーションを正しく検出する', async () => {
+  describe("基本的な検出機能", () => {
+    it("CSSアニメーションを正しく検出する", async () => {
       const result = await motionDetectHandler({
         html: TEST_HTML.withAnimation,
-        detection_mode: 'css' as const,
+        detection_mode: "css" as const,
       });
 
       expect(result.success).toBe(true);
@@ -262,16 +262,16 @@ describe('motion.detect with MotionDetectorService Integration', () => {
 
       // fadeInアニメーションが検出されること
       const fadeInPattern = result.data.patterns.find(
-        (p) => p.name === 'fadeIn' || p.type === 'css_animation'
+        (p) => p.name === "fadeIn" || p.type === "css_animation"
       );
       expect(fadeInPattern).toBeDefined();
       expect(fadeInPattern?.animation.duration).toBe(500);
     });
 
-    it('CSSトランジションを正しく検出する', async () => {
+    it("CSSトランジションを正しく検出する", async () => {
       const result = await motionDetectHandler({
         html: TEST_HTML.withTransition,
-        detection_mode: 'css' as const,
+        detection_mode: "css" as const,
       });
 
       expect(result.success).toBe(true);
@@ -280,17 +280,15 @@ describe('motion.detect with MotionDetectorService Integration', () => {
       expect(result.data.patterns.length).toBeGreaterThan(0);
 
       // トランジションが検出されること
-      const transitionPattern = result.data.patterns.find(
-        (p) => p.type === 'css_transition'
-      );
+      const transitionPattern = result.data.patterns.find((p) => p.type === "css_transition");
       expect(transitionPattern).toBeDefined();
-      expect(transitionPattern?.trigger).toBe('hover');
+      expect(transitionPattern?.trigger).toBe("hover");
     });
 
-    it('複数のアニメーションを検出する', async () => {
+    it("複数のアニメーションを検出する", async () => {
       const result = await motionDetectHandler({
         html: TEST_HTML.withMultipleAnimations,
-        detection_mode: 'css' as const,
+        detection_mode: "css" as const,
       });
 
       expect(result.success).toBe(true);
@@ -300,10 +298,10 @@ describe('motion.detect with MotionDetectorService Integration', () => {
       expect(result.data.patterns.length).toBeGreaterThanOrEqual(3);
     });
 
-    it('アニメーションがない場合は空配列を返す', async () => {
+    it("アニメーションがない場合は空配列を返す", async () => {
       const result = await motionDetectHandler({
         html: TEST_HTML.withoutAnimation,
-        detection_mode: 'css' as const,
+        detection_mode: "css" as const,
       });
 
       expect(result.success).toBe(true);
@@ -313,11 +311,11 @@ describe('motion.detect with MotionDetectorService Integration', () => {
     });
   });
 
-  describe('サマリー生成', () => {
-    it('サマリーが正しく生成される', async () => {
+  describe("サマリー生成", () => {
+    it("サマリーが正しく生成される", async () => {
       const result = await motionDetectHandler({
         html: TEST_HTML.withMultipleAnimations,
-        detection_mode: 'css' as const,
+        detection_mode: "css" as const,
         includeSummary: true,
       });
 
@@ -330,10 +328,10 @@ describe('motion.detect with MotionDetectorService Integration', () => {
       expect(result.data.summary?.byTrigger).toBeDefined();
     });
 
-    it('includeSummary=falseの場合サマリーがない', async () => {
+    it("includeSummary=falseの場合サマリーがない", async () => {
       const result = await motionDetectHandler({
         html: TEST_HTML.withAnimation,
-        detection_mode: 'css' as const,
+        detection_mode: "css" as const,
         includeSummary: false,
       });
 
@@ -344,11 +342,11 @@ describe('motion.detect with MotionDetectorService Integration', () => {
     });
   });
 
-  describe('警告生成', () => {
-    it('reduced-motion未対応の場合警告を生成する', async () => {
+  describe("警告生成", () => {
+    it("reduced-motion未対応の場合警告を生成する", async () => {
       const result = await motionDetectHandler({
         html: TEST_HTML.withAnimation,
-        detection_mode: 'css' as const,
+        detection_mode: "css" as const,
         includeWarnings: true,
       });
 
@@ -357,15 +355,15 @@ describe('motion.detect with MotionDetectorService Integration', () => {
 
       expect(result.data.warnings).toBeDefined();
       const reducedMotionWarning = result.data.warnings?.find(
-        (w) => w.code === 'A11Y_NO_REDUCED_MOTION'
+        (w) => w.code === "A11Y_NO_REDUCED_MOTION"
       );
       expect(reducedMotionWarning).toBeDefined();
     });
 
-    it('reduced-motion対応の場合は警告なし', async () => {
+    it("reduced-motion対応の場合は警告なし", async () => {
       const result = await motionDetectHandler({
         html: TEST_HTML.withReducedMotion,
-        detection_mode: 'css' as const,
+        detection_mode: "css" as const,
         includeWarnings: true,
       });
 
@@ -373,15 +371,15 @@ describe('motion.detect with MotionDetectorService Integration', () => {
       if (!result.success) return;
 
       const reducedMotionWarning = result.data.warnings?.find(
-        (w) => w.code === 'A11Y_NO_REDUCED_MOTION'
+        (w) => w.code === "A11Y_NO_REDUCED_MOTION"
       );
       expect(reducedMotionWarning).toBeUndefined();
     });
 
-    it('無限アニメーションの警告を生成する', async () => {
+    it("無限アニメーションの警告を生成する", async () => {
       const result = await motionDetectHandler({
         html: TEST_HTML.withMultipleAnimations,
-        detection_mode: 'css' as const,
+        detection_mode: "css" as const,
         includeWarnings: true,
       });
 
@@ -389,31 +387,29 @@ describe('motion.detect with MotionDetectorService Integration', () => {
       if (!result.success) return;
 
       const infiniteWarning = result.data.warnings?.find(
-        (w) => w.code === 'A11Y_INFINITE_ANIMATION'
+        (w) => w.code === "A11Y_INFINITE_ANIMATION"
       );
       expect(infiniteWarning).toBeDefined();
     });
 
-    it('レイアウトトリガーの警告を生成する', async () => {
+    it("レイアウトトリガーの警告を生成する", async () => {
       const result = await motionDetectHandler({
         html: TEST_HTML.withLayoutTrigger,
-        detection_mode: 'css' as const,
+        detection_mode: "css" as const,
         includeWarnings: true,
       });
 
       expect(result.success).toBe(true);
       if (!result.success) return;
 
-      const layoutWarning = result.data.warnings?.find(
-        (w) => w.code === 'PERF_LAYOUT_TRIGGER'
-      );
+      const layoutWarning = result.data.warnings?.find((w) => w.code === "PERF_LAYOUT_TRIGGER");
       expect(layoutWarning).toBeDefined();
     });
 
-    it('includeWarnings=falseの場合警告がない', async () => {
+    it("includeWarnings=falseの場合警告がない", async () => {
       const result = await motionDetectHandler({
         html: TEST_HTML.withAnimation,
-        detection_mode: 'css' as const,
+        detection_mode: "css" as const,
         includeWarnings: false,
       });
 
@@ -424,11 +420,11 @@ describe('motion.detect with MotionDetectorService Integration', () => {
     });
   });
 
-  describe('オプション処理', () => {
-    it('minDurationでフィルタリングする', async () => {
+  describe("オプション処理", () => {
+    it("minDurationでフィルタリングする", async () => {
       const result = await motionDetectHandler({
         html: TEST_HTML.withMultipleAnimations,
-        detection_mode: 'css' as const,
+        detection_mode: "css" as const,
         minDuration: 1500, // 1.5秒以上のみ
       });
 
@@ -438,7 +434,7 @@ describe('motion.detect with MotionDetectorService Integration', () => {
       // minDuration以上のパターンのみが検出されること
       // css_animation / css_transition タイプのパターンはすべて minDuration 以上
       const animationsWithDuration = result.data.patterns.filter(
-        (p) => p.type === 'css_animation' || p.type === 'css_transition'
+        (p) => p.type === "css_animation" || p.type === "css_transition"
       );
 
       for (const pattern of animationsWithDuration) {
@@ -446,14 +442,14 @@ describe('motion.detect with MotionDetectorService Integration', () => {
       }
 
       // 2秒のpulseアニメーションが含まれること
-      const pulsePattern = result.data.patterns.find((p) => p.name === 'pulse');
+      const pulsePattern = result.data.patterns.find((p) => p.name === "pulse");
       expect(pulsePattern).toBeDefined();
     });
 
-    it('maxPatternsで結果を制限する', async () => {
+    it("maxPatternsで結果を制限する", async () => {
       const result = await motionDetectHandler({
         html: TEST_HTML.withMultipleAnimations,
-        detection_mode: 'css' as const,
+        detection_mode: "css" as const,
         maxPatterns: 2,
       });
 
@@ -463,10 +459,10 @@ describe('motion.detect with MotionDetectorService Integration', () => {
       expect(result.data.patterns.length).toBeLessThanOrEqual(2);
     });
 
-    it('verbose=trueでrawCssを含める', async () => {
+    it("verbose=trueでrawCssを含める", async () => {
       const result = await motionDetectHandler({
         html: TEST_HTML.withAnimation,
-        detection_mode: 'css' as const,
+        detection_mode: "css" as const,
         verbose: true,
       });
 
@@ -477,10 +473,10 @@ describe('motion.detect with MotionDetectorService Integration', () => {
       expect(patternWithRawCss).toBeDefined();
     });
 
-    it('verbose=falseでrawCssを含めない', async () => {
+    it("verbose=falseでrawCssを含めない", async () => {
       const result = await motionDetectHandler({
         html: TEST_HTML.withAnimation,
-        detection_mode: 'css' as const,
+        detection_mode: "css" as const,
         verbose: false,
       });
 
@@ -491,10 +487,10 @@ describe('motion.detect with MotionDetectorService Integration', () => {
       expect(patternWithRawCss).toBeUndefined();
     });
 
-    it('includeInlineStyles=trueでインラインスタイルを解析する', async () => {
+    it("includeInlineStyles=trueでインラインスタイルを解析する", async () => {
       const result = await motionDetectHandler({
         html: TEST_HTML.withInlineStyles,
-        detection_mode: 'css' as const,
+        detection_mode: "css" as const,
         includeInlineStyles: true,
       });
 
@@ -505,10 +501,10 @@ describe('motion.detect with MotionDetectorService Integration', () => {
       expect(result.data.patterns.length).toBeGreaterThan(0);
     });
 
-    it('includeStyleSheets=falseでスタイルシートを無視する', async () => {
+    it("includeStyleSheets=falseでスタイルシートを無視する", async () => {
       const result = await motionDetectHandler({
         html: TEST_HTML.withAnimation,
-        detection_mode: 'css' as const,
+        detection_mode: "css" as const,
         includeStyleSheets: false,
         includeInlineStyles: true,
       });
@@ -517,18 +513,16 @@ describe('motion.detect with MotionDetectorService Integration', () => {
       if (!result.success) return;
 
       // スタイルシートからのアニメーションは検出されない
-      const fadeInPattern = result.data.patterns.find(
-        (p) => p.name === 'fadeIn'
-      );
+      const fadeInPattern = result.data.patterns.find((p) => p.name === "fadeIn");
       expect(fadeInPattern).toBeUndefined();
     });
   });
 
-  describe('パフォーマンス分析', () => {
-    it('transform使用時はパフォーマンスが良好と判定する', async () => {
+  describe("パフォーマンス分析", () => {
+    it("transform使用時はパフォーマンスが良好と判定する", async () => {
       const result = await motionDetectHandler({
         html: TEST_HTML.withAnimation,
-        detection_mode: 'css' as const,
+        detection_mode: "css" as const,
       });
 
       expect(result.success).toBe(true);
@@ -538,8 +532,8 @@ describe('motion.detect with MotionDetectorService Integration', () => {
       const opacityPattern = result.data.patterns.find((p) =>
         p.properties.some(
           (prop) =>
-            (typeof prop === 'string' && prop.includes('opacity')) ||
-            (typeof prop === 'object' && prop.property === 'opacity')
+            (typeof prop === "string" && prop.includes("opacity")) ||
+            (typeof prop === "object" && prop.property === "opacity")
         )
       );
       if (opacityPattern?.performance) {
@@ -547,10 +541,10 @@ describe('motion.detect with MotionDetectorService Integration', () => {
       }
     });
 
-    it('レイアウトプロパティ使用時はパフォーマンス警告', async () => {
+    it("レイアウトプロパティ使用時はパフォーマンス警告", async () => {
       const result = await motionDetectHandler({
         html: TEST_HTML.withLayoutTrigger,
-        detection_mode: 'css' as const,
+        detection_mode: "css" as const,
       });
 
       expect(result.success).toBe(true);
@@ -559,8 +553,8 @@ describe('motion.detect with MotionDetectorService Integration', () => {
       const resizePattern = result.data.patterns.find((p) =>
         p.properties.some(
           (prop) =>
-            (typeof prop === 'string' && prop === 'width') ||
-            (typeof prop === 'object' && prop.property === 'width')
+            (typeof prop === "string" && prop === "width") ||
+            (typeof prop === "object" && prop.property === "width")
         )
       );
       if (resizePattern?.performance) {
@@ -569,20 +563,20 @@ describe('motion.detect with MotionDetectorService Integration', () => {
     });
   });
 
-  describe('エラーハンドリング', () => {
-    it('HTMLが提供されない場合エラーを返す', async () => {
+  describe("エラーハンドリング", () => {
+    it("HTMLが提供されない場合エラーを返す", async () => {
       const result = await motionDetectHandler({});
 
       expect(result.success).toBe(false);
       if (result.success) return;
 
-      expect(result.error.code).toBe('VALIDATION_ERROR');
+      expect(result.error.code).toBe("VALIDATION_ERROR");
     });
 
-    it('空のHTMLでも正常に処理する', async () => {
+    it("空のHTMLでも正常に処理する", async () => {
       const result = await motionDetectHandler({
         html: TEST_HTML.empty,
-        detection_mode: 'css' as const,
+        detection_mode: "css" as const,
       });
 
       expect(result.success).toBe(true);
@@ -592,11 +586,11 @@ describe('motion.detect with MotionDetectorService Integration', () => {
     });
   });
 
-  describe('メタデータ', () => {
-    it('処理時間を記録する', async () => {
+  describe("メタデータ", () => {
+    it("処理時間を記録する", async () => {
       const result = await motionDetectHandler({
         html: TEST_HTML.withAnimation,
-        detection_mode: 'css' as const,
+        detection_mode: "css" as const,
       });
 
       expect(result.success).toBe(true);
@@ -605,72 +599,68 @@ describe('motion.detect with MotionDetectorService Integration', () => {
       expect(result.data.metadata.processingTimeMs).toBeGreaterThanOrEqual(0);
     });
 
-    it('HTMLサイズを記録する', async () => {
+    it("HTMLサイズを記録する", async () => {
       const result = await motionDetectHandler({
         html: TEST_HTML.withAnimation,
-        detection_mode: 'css' as const,
+        detection_mode: "css" as const,
       });
 
       expect(result.success).toBe(true);
       if (!result.success) return;
 
-      expect(result.data.metadata.htmlSize).toBe(
-        TEST_HTML.withAnimation.length
-      );
+      expect(result.data.metadata.htmlSize).toBe(TEST_HTML.withAnimation.length);
     });
   });
 
-  describe('カテゴリ分類', () => {
-    it('ローディング状態を正しく分類する', async () => {
+  describe("カテゴリ分類", () => {
+    it("ローディング状態を正しく分類する", async () => {
       const result = await motionDetectHandler({
         html: TEST_HTML.withMultipleAnimations,
-        detection_mode: 'css' as const,
+        detection_mode: "css" as const,
       });
 
       expect(result.success).toBe(true);
       if (!result.success) return;
 
       // infiniteアニメーションはloading_stateに分類される
-      const loadingPattern = result.data.patterns.find(
-        (p) => p.category === 'loading_state'
-      );
+      const loadingPattern = result.data.patterns.find((p) => p.category === "loading_state");
       expect(loadingPattern).toBeDefined();
     });
 
-    it('ホバーエフェクトを正しく分類する', async () => {
+    it("ホバーエフェクトを正しく分類する", async () => {
       const result = await motionDetectHandler({
         html: TEST_HTML.withHoverEffect,
-        detection_mode: 'css' as const,
+        detection_mode: "css" as const,
       });
 
       expect(result.success).toBe(true);
       if (!result.success) return;
 
       const hoverPattern = result.data.patterns.find(
-        (p) => p.category === 'hover_effect' || p.trigger === 'hover'
+        (p) => p.category === "hover_effect" || p.trigger === "hover"
       );
       expect(hoverPattern).toBeDefined();
     });
   });
 
-  describe('イージング解析', () => {
-    it('cubic-bezierを正しく解析する', async () => {
+  describe("イージング解析", () => {
+    it("cubic-bezierを正しく解析する", async () => {
       const result = await motionDetectHandler({
         html: TEST_HTML.withCubicBezier,
-        detection_mode: 'css' as const,
+        detection_mode: "css" as const,
       });
 
       expect(result.success).toBe(true);
       if (!result.success) return;
 
       const bouncePattern = result.data.patterns.find(
-        (p) => p.name === 'bounce' || p.type === 'css_animation'
+        (p) => p.name === "bounce" || p.type === "css_animation"
       );
       expect(bouncePattern).toBeDefined();
 
       // easingがcubic-bezier形式であることを確認
       const easing = bouncePattern?.animation.easing;
-      if (typeof easing === 'object' && easing.type === 'cubic-bezier') {
+      if (typeof easing === "object" && easing.type === "cubic-bezier") {
         expect(easing.cubicBezier).toBeDefined();
         expect(easing.cubicBezier?.length).toBe(4);
       }
@@ -682,7 +672,7 @@ describe('motion.detect with MotionDetectorService Integration', () => {
 // サービスファクトリテスト
 // =====================================================
 
-describe('MotionDetectorService Factory Integration', () => {
+describe("MotionDetectorService Factory Integration", () => {
   beforeEach(() => {
     resetMotionDetectServiceFactory();
     resetMotionDetectorService();
@@ -693,7 +683,7 @@ describe('MotionDetectorService Factory Integration', () => {
     resetMotionDetectorService();
   });
 
-  it('カスタムサービスファクトリを設定できる', async () => {
+  it("カスタムサービスファクトリを設定できる", async () => {
     const mockService: IMotionDetectService = {
       detect: vi.fn().mockReturnValue({
         patterns: [],
@@ -705,14 +695,14 @@ describe('MotionDetectorService Factory Integration', () => {
 
     const result = await motionDetectHandler({
       html: TEST_HTML.withAnimation,
-      detection_mode: 'css' as const,
+      detection_mode: "css" as const,
     });
 
     expect(mockService.detect).toHaveBeenCalled();
     expect(result.success).toBe(true);
   });
 
-  it('MotionDetectorServiceをファクトリとして設定できる', async () => {
+  it("MotionDetectorServiceをファクトリとして設定できる", async () => {
     // MotionDetectorServiceをラップしてIMotionDetectServiceに適合させる
     const motionDetectorService = getMotionDetectorService();
 
@@ -734,21 +724,36 @@ describe('MotionDetectorService Factory Integration', () => {
         return {
           patterns: detectionResult.patterns.map((p) => ({
             id: p.id,
-            type: p.type as 'css_animation' | 'css_transition' | 'keyframes' | 'library_animation',
+            type: p.type as "css_animation" | "css_transition" | "keyframes" | "library_animation",
             category: p.category,
             name: p.name,
             selector: p.selector,
-            trigger: p.trigger as 'scroll' | 'scroll_velocity' | 'hover' | 'click' | 'focus' | 'load' | 'intersection' | 'time' | 'state_change' | 'unknown',
+            trigger: p.trigger as
+              | "scroll"
+              | "scroll_velocity"
+              | "hover"
+              | "click"
+              | "focus"
+              | "load"
+              | "intersection"
+              | "time"
+              | "state_change"
+              | "unknown",
             animation: {
               duration: p.duration,
               delay: p.delay,
-              easing: { type: 'ease' as const },
+              easing: { type: "ease" as const },
               iterations: p.iterations,
-              direction: p.direction as 'normal' | 'reverse' | 'alternate' | 'alternate-reverse' | undefined,
-              fillMode: p.fillMode as 'none' | 'forwards' | 'backwards' | 'both' | undefined,
+              direction: p.direction as
+                | "normal"
+                | "reverse"
+                | "alternate"
+                | "alternate-reverse"
+                | undefined,
+              fillMode: p.fillMode as "none" | "forwards" | "backwards" | "both" | undefined,
             },
             properties: p.properties.map((prop) =>
-              typeof prop === 'string' ? { property: prop } : { property: prop }
+              typeof prop === "string" ? { property: prop } : { property: prop }
             ),
             performance: p.performance
               ? {
@@ -771,7 +776,7 @@ describe('MotionDetectorService Factory Integration', () => {
 
     const result = await motionDetectHandler({
       html: TEST_HTML.withAnimation,
-      detection_mode: 'css' as const,
+      detection_mode: "css" as const,
     });
 
     expect(result.success).toBe(true);

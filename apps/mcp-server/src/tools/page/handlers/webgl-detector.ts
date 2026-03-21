@@ -15,14 +15,14 @@
  * @module tools/page/handlers/webgl-detector
  */
 
-import { logger, isDevelopment } from '../../../utils/logger';
+import { logger, isDevelopment } from "../../../utils/logger";
 import {
   preDetectWebGL as preDetectWebGLFromPreDetector,
   detectSiteTier as detectSiteTierFromPreDetector,
   KNOWN_ULTRA_HEAVY_DOMAINS,
   KNOWN_HEAVY_DOMAINS,
-} from './webgl-pre-detector';
-import { type SiteTier } from './retry-strategy';
+} from "./webgl-pre-detector";
+import { type SiteTier } from "./retry-strategy";
 
 // ============================================================================
 // Phase4-1: 新しい統合型インターフェース
@@ -80,7 +80,7 @@ export interface RecommendedConfig {
   /** タイムアウト（ms） */
   timeout: number;
   /** ページ読み込み完了条件 */
-  waitUntil: 'load' | 'domcontentloaded' | 'networkidle';
+  waitUntil: "load" | "domcontentloaded" | "networkidle";
   /** JavaScript無効化 */
   disableJavaScript: boolean;
   /** WebGL無効化（--disable-gpu等） */
@@ -115,7 +115,7 @@ const WEBGL_PATTERNS: Array<{
   weight: number;
 }> = [
   {
-    name: 'three.js',
+    name: "three.js",
     patterns: [
       /three\.(?:min\.)?js/i,
       /THREE\s*\./,
@@ -126,46 +126,27 @@ const WEBGL_PATTERNS: Array<{
     weight: 1.0,
   },
   {
-    name: 'babylon.js',
-    patterns: [
-      /babylon\.(?:min\.)?js/i,
-      /BABYLON\s*\./,
-      /new\s+BABYLON\./,
-      /babylonjs/i,
-    ],
+    name: "babylon.js",
+    patterns: [/babylon\.(?:min\.)?js/i, /BABYLON\s*\./, /new\s+BABYLON\./, /babylonjs/i],
     weight: 1.0,
   },
   {
-    name: 'a-frame',
-    patterns: [
-      /aframe\.(?:min\.)?js/i,
-      /<a-scene/i,
-      /<a-entity/i,
-      /AFRAME\s*\./,
-    ],
+    name: "a-frame",
+    patterns: [/aframe\.(?:min\.)?js/i, /<a-scene/i, /<a-entity/i, /AFRAME\s*\./],
     weight: 0.9,
   },
   {
-    name: 'playcanvas',
-    patterns: [
-      /playcanvas\.(?:min\.)?js/i,
-      /pc\.Application/i,
-      /playcanvas/i,
-    ],
+    name: "playcanvas",
+    patterns: [/playcanvas\.(?:min\.)?js/i, /pc\.Application/i, /playcanvas/i],
     weight: 1.0,
   },
   {
-    name: 'pixi.js',
-    patterns: [
-      /pixi\.(?:min\.)?js/i,
-      /PIXI\s*\./,
-      /new\s+PIXI\./,
-      /@pixi\//i,
-    ],
+    name: "pixi.js",
+    patterns: [/pixi\.(?:min\.)?js/i, /PIXI\s*\./, /new\s+PIXI\./, /@pixi\//i],
     weight: 0.7, // PixiはWebGLだが2Dが多い
   },
   {
-    name: 'p5.js',
+    name: "p5.js",
     patterns: [
       /p5\.(?:min\.)?js/i,
       /new\s+p5\(/i,
@@ -174,7 +155,7 @@ const WEBGL_PATTERNS: Array<{
     weight: 0.6,
   },
   {
-    name: 'raw-webgl',
+    name: "raw-webgl",
     patterns: [
       /getContext\s*\(\s*['"]webgl['"]/i,
       /getContext\s*\(\s*['"]webgl2['"]/i,
@@ -185,26 +166,18 @@ const WEBGL_PATTERNS: Array<{
     weight: 0.8,
   },
   {
-    name: 'regl',
-    patterns: [
-      /regl\.(?:min\.)?js/i,
-      /createREGL/i,
-      /require\s*\(\s*['"]regl['"]\)/i,
-    ],
+    name: "regl",
+    patterns: [/regl\.(?:min\.)?js/i, /createREGL/i, /require\s*\(\s*['"]regl['"]\)/i],
     weight: 0.9,
   },
   {
-    name: 'ogl',
-    patterns: [
-      /ogl\.(?:min\.)?js/i,
-      /OGL\s*\./,
-      /import\s+.*\s+from\s+['"]ogl['"]/i,
-    ],
+    name: "ogl",
+    patterns: [/ogl\.(?:min\.)?js/i, /OGL\s*\./, /import\s+.*\s+from\s+['"]ogl['"]/i],
     weight: 0.9,
   },
   // Phase4-1: アニメーションライブラリを追加
   {
-    name: 'gsap',
+    name: "gsap",
     patterns: [
       /gsap\.(?:min\.)?js/i,
       /gsap\./i,
@@ -219,7 +192,7 @@ const WEBGL_PATTERNS: Array<{
     weight: 0.4, // GSAPは重いアニメーションだがWebGLではない
   },
   {
-    name: 'lottie',
+    name: "lottie",
     patterns: [
       /lottie\.(?:min\.)?js/i,
       /lottie\./i,
@@ -231,22 +204,13 @@ const WEBGL_PATTERNS: Array<{
     weight: 0.3, // Lottieは比較的軽い
   },
   {
-    name: 'gl-matrix',
-    patterns: [
-      /gl-matrix\.(?:min\.)?js/i,
-      /glMatrix/i,
-      /mat4\.create/i,
-      /vec3\.create/i,
-    ],
+    name: "gl-matrix",
+    patterns: [/gl-matrix\.(?:min\.)?js/i, /glMatrix/i, /mat4\.create/i, /vec3\.create/i],
     weight: 0.5, // WebGL補助ライブラリ
   },
   {
-    name: 'gpu.js',
-    patterns: [
-      /gpu\.(?:min\.)?js/i,
-      /new\s+GPU\s*\(/i,
-      /gpu\.createKernel/i,
-    ],
+    name: "gpu.js",
+    patterns: [/gpu\.(?:min\.)?js/i, /new\s+GPU\s*\(/i, /gpu\.createKernel/i],
     weight: 0.8, // GPU.jsはWebGL使用
   },
 ];
@@ -260,15 +224,12 @@ const HEAVY_ANIMATION_PATTERNS: Array<{
   weight: number;
 }> = [
   {
-    name: 'canvas-animation',
-    patterns: [
-      /requestAnimationFrame/i,
-      /cancelAnimationFrame/i,
-    ],
+    name: "canvas-animation",
+    patterns: [/requestAnimationFrame/i, /cancelAnimationFrame/i],
     weight: 0.3, // 単独では弱い証拠
   },
   {
-    name: 'shader',
+    name: "shader",
     patterns: [
       /gl\.createShader/i,
       /gl\.shaderSource/i,
@@ -280,13 +241,8 @@ const HEAVY_ANIMATION_PATTERNS: Array<{
     weight: 0.7,
   },
   {
-    name: 'webxr',
-    patterns: [
-      /navigator\.xr/i,
-      /XRSession/i,
-      /immersive-vr/i,
-      /immersive-ar/i,
-    ],
+    name: "webxr",
+    patterns: [/navigator\.xr/i, /XRSession/i, /immersive-vr/i, /immersive-ar/i],
     weight: 1.0,
   },
 ];
@@ -342,7 +298,7 @@ export function detectWebGL(html: string): LegacyWebGLDetectionResult {
   const detected = confidence >= 0.5 || libraries.length > 0;
 
   if (isDevelopment() && detected) {
-    logger.debug('[webgl-detector] WebGL content detected', {
+    logger.debug("[webgl-detector] WebGL content detected", {
       libraries,
       confidence,
       evidenceCount: evidence.length,
@@ -406,7 +362,7 @@ export function adjustTimeoutForWebGL(
   }
 
   if (isDevelopment()) {
-    logger.debug('[webgl-detector] Timeout extended for WebGL', {
+    logger.debug("[webgl-detector] Timeout extended for WebGL", {
       originalTimeout,
       extendedTimeout,
       multiplier,
@@ -510,11 +466,11 @@ export class WebGLDetector {
     if (preResult.matchedDomain) {
       // ultra-heavyドメインの場合はThree.js使用と推定
       if (KNOWN_ULTRA_HEAVY_DOMAINS.includes(preResult.matchedDomain)) {
-        detectedLibraries.push('three.js');
+        detectedLibraries.push("three.js");
       }
       // heavyドメインの場合もThree.js使用と推定
       if (KNOWN_HEAVY_DOMAINS.includes(preResult.matchedDomain)) {
-        detectedLibraries.push('three.js');
+        detectedLibraries.push("three.js");
       }
     }
 
@@ -559,7 +515,7 @@ export class WebGLDetector {
    */
   static analyzeHtml(html: string): WebGLDetectionResult {
     // 空文字列の場合は早期リターン
-    if (!html || html.trim() === '') {
+    if (!html || html.trim() === "") {
       return this.createEmptyResult();
     }
 
@@ -614,7 +570,17 @@ export class WebGLDetector {
 
     // WebGL判定（WebGLライブラリが検出された場合、または信頼度が高い場合）
     const hasWebGLLibrary = detectedLibraries.some((lib) =>
-      ['three.js', 'babylon.js', 'pixi.js', 'a-frame', 'playcanvas', 'raw-webgl', 'regl', 'ogl', 'gpu.js'].includes(lib)
+      [
+        "three.js",
+        "babylon.js",
+        "pixi.js",
+        "a-frame",
+        "playcanvas",
+        "raw-webgl",
+        "regl",
+        "ogl",
+        "gpu.js",
+      ].includes(lib)
     );
     const isWebGL = hasWebGLLibrary || confidence >= WEBGL_DETECTION_THRESHOLD;
 
@@ -626,7 +592,7 @@ export class WebGLDetector {
     });
 
     if (isDevelopment() && isWebGL) {
-      logger.debug('[WebGLDetector.analyzeHtml] WebGL content detected', {
+      logger.debug("[WebGLDetector.analyzeHtml] WebGL content detected", {
         detectedLibraries,
         confidence,
         siteTier,
@@ -664,7 +630,7 @@ export class WebGLDetector {
    * @returns 推奨設定
    */
   static getRecommendedConfig(
-    result: Omit<WebGLDetectionResult, 'recommendedConfig'>
+    result: Omit<WebGLDetectionResult, "recommendedConfig">
   ): RecommendedConfig {
     return this.getRecommendedConfigInternal({
       isWebGL: result.isWebGL,
@@ -680,26 +646,23 @@ export class WebGLDetector {
    * @param detectedLibraries - 検出されたライブラリ一覧
    * @returns SiteTier
    */
-  private static determineSiteTier(
-    confidence: number,
-    detectedLibraries: string[]
-  ): SiteTier {
+  private static determineSiteTier(confidence: number, detectedLibraries: string[]): SiteTier {
     // 重いWebGLライブラリが検出された場合
     const hasHeavyWebGL = detectedLibraries.some((lib) =>
-      ['three.js', 'babylon.js', 'a-frame', 'playcanvas'].includes(lib)
+      ["three.js", "babylon.js", "a-frame", "playcanvas"].includes(lib)
     );
 
     // 信頼度とライブラリに基づいてSiteTierを決定
     if (hasHeavyWebGL && confidence >= 0.7) {
-      return 'ultra-heavy';
+      return "ultra-heavy";
     }
     if (hasHeavyWebGL || confidence >= 0.5) {
-      return 'heavy';
+      return "heavy";
     }
     if (confidence >= 0.3) {
-      return 'webgl';
+      return "webgl";
     }
-    return 'normal';
+    return "normal";
   }
 
   /**
@@ -717,13 +680,13 @@ export class WebGLDetector {
     const { isWebGL, siteTier } = params;
 
     // 通常サイト
-    if (!isWebGL || siteTier === 'normal') {
+    if (!isWebGL || siteTier === "normal") {
       return {
         enableGPU: false,
         waitForWebGL: false,
         webglWaitMs: 0,
         timeout: 60000, // 1分
-        waitUntil: 'load',
+        waitUntil: "load",
         disableJavaScript: false,
         disableWebGL: false,
         forceKillOnTimeout: false,
@@ -732,38 +695,38 @@ export class WebGLDetector {
 
     // WebGLサイト
     switch (siteTier) {
-      case 'ultra-heavy':
+      case "ultra-heavy":
         return {
           enableGPU: true,
           waitForWebGL: true,
           webglWaitMs: 5000,
           timeout: 180000, // 3分
-          waitUntil: 'networkidle',
+          waitUntil: "networkidle",
           disableJavaScript: false,
           disableWebGL: false,
           forceKillOnTimeout: true, // ultra-heavyでは強制終了有効
         };
 
-      case 'heavy':
+      case "heavy":
         return {
           enableGPU: true,
           waitForWebGL: true,
           webglWaitMs: 3000,
           timeout: 120000, // 2分
-          waitUntil: 'networkidle',
+          waitUntil: "networkidle",
           disableJavaScript: false,
           disableWebGL: false,
           forceKillOnTimeout: false,
         };
 
-      case 'webgl':
+      case "webgl":
       default:
         return {
           enableGPU: true,
           waitForWebGL: true,
           webglWaitMs: 2000,
           timeout: 90000, // 1.5分
-          waitUntil: 'networkidle',
+          waitUntil: "networkidle",
           disableJavaScript: false,
           disableWebGL: false,
           forceKillOnTimeout: false,
@@ -778,7 +741,7 @@ export class WebGLDetector {
     return {
       isWebGL: false,
       confidence: 0,
-      siteTier: 'normal',
+      siteTier: "normal",
       detectedLibraries: [],
       indicators: {
         domainMatch: false,
@@ -791,7 +754,7 @@ export class WebGLDetector {
         waitForWebGL: false,
         webglWaitMs: 0,
         timeout: 60000,
-        waitUntil: 'load',
+        waitUntil: "load",
         disableJavaScript: false,
         disableWebGL: false,
         forceKillOnTimeout: false,
@@ -833,19 +796,19 @@ export class WebGLDetector {
 
     // ライブラリ検出
     for (const lib of signals.libraries) {
-      if (lib === 'three.js') {
+      if (lib === "three.js") {
         totalWeight += SIGNAL_WEIGHTS.threeJsScript;
         maxPossibleWeight += SIGNAL_WEIGHTS.threeJsScript;
-      } else if (lib === 'babylon.js') {
+      } else if (lib === "babylon.js") {
         totalWeight += SIGNAL_WEIGHTS.babylonJsScript;
         maxPossibleWeight += SIGNAL_WEIGHTS.babylonJsScript;
-      } else if (lib === 'pixi.js') {
+      } else if (lib === "pixi.js") {
         totalWeight += SIGNAL_WEIGHTS.pixiJsScript;
         maxPossibleWeight += SIGNAL_WEIGHTS.pixiJsScript;
-      } else if (lib === 'gsap') {
+      } else if (lib === "gsap") {
         totalWeight += SIGNAL_WEIGHTS.gsapScript;
         maxPossibleWeight += SIGNAL_WEIGHTS.gsapScript;
-      } else if (lib === 'lottie') {
+      } else if (lib === "lottie") {
         totalWeight += SIGNAL_WEIGHTS.lottieScript;
         maxPossibleWeight += SIGNAL_WEIGHTS.lottieScript;
       }

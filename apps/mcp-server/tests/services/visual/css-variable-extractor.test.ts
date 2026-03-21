@@ -11,9 +11,8 @@
  * @module tests/services/visual/css-variable-extractor.test
  */
 
-import { describe, it, expect, beforeAll } from 'vitest';
-import type {
-  CSSVariableExtractorService} from '../../../src/services/visual/css-variable-extractor.service';
+import { describe, it, expect, beforeAll } from "vitest";
+import type { CSSVariableExtractorService } from "../../../src/services/visual/css-variable-extractor.service";
 import {
   CSSVariableExtractionResult,
   CSSVariable,
@@ -21,18 +20,18 @@ import {
   CalcExpression,
   DesignTokensInfo,
   createCSSVariableExtractorService,
-} from '../../../src/services/visual/css-variable-extractor.service';
+} from "../../../src/services/visual/css-variable-extractor.service";
 
-describe('CSSVariableExtractorService', () => {
+describe("CSSVariableExtractorService", () => {
   let service: CSSVariableExtractorService;
 
   beforeAll(() => {
     service = createCSSVariableExtractorService();
   });
 
-  describe('extractFromCSS', () => {
-    describe('1. CSS Custom Properties extraction', () => {
-      it('should extract basic CSS variables from :root', () => {
+  describe("extractFromCSS", () => {
+    describe("1. CSS Custom Properties extraction", () => {
+      it("should extract basic CSS variables from :root", () => {
         const css = `
           :root {
             --color-primary: #3B82F6;
@@ -44,21 +43,21 @@ describe('CSSVariableExtractorService', () => {
         const result = service.extractFromCSS(css);
 
         expect(result.variables).toHaveLength(3);
-        expect(result.variables.find(v => v.name === '--color-primary')).toEqual({
-          name: '--color-primary',
-          value: '#3B82F6',
-          category: 'color',
-          scope: ':root',
+        expect(result.variables.find((v) => v.name === "--color-primary")).toEqual({
+          name: "--color-primary",
+          value: "#3B82F6",
+          category: "color",
+          scope: ":root",
         });
-        expect(result.variables.find(v => v.name === '--spacing-lg')).toEqual({
-          name: '--spacing-lg',
-          value: '32px',
-          category: 'spacing',
-          scope: ':root',
+        expect(result.variables.find((v) => v.name === "--spacing-lg")).toEqual({
+          name: "--spacing-lg",
+          value: "32px",
+          category: "spacing",
+          scope: ":root",
         });
       });
 
-      it('should extract CSS variables from multiple selectors', () => {
+      it("should extract CSS variables from multiple selectors", () => {
         const css = `
           :root {
             --color-bg: #ffffff;
@@ -74,11 +73,11 @@ describe('CSSVariableExtractorService', () => {
         const result = service.extractFromCSS(css);
 
         expect(result.variables).toHaveLength(3);
-        expect(result.variables.find(v => v.scope === '.dark')).toBeDefined();
-        expect(result.variables.find(v => v.scope === '[data-theme="dark"]')).toBeDefined();
+        expect(result.variables.find((v) => v.scope === ".dark")).toBeDefined();
+        expect(result.variables.find((v) => v.scope === '[data-theme="dark"]')).toBeDefined();
       });
 
-      it('should categorize CSS variables by naming pattern', () => {
+      it("should categorize CSS variables by naming pattern", () => {
         const css = `
           :root {
             --color-primary: #3B82F6;
@@ -93,16 +92,22 @@ describe('CSSVariableExtractorService', () => {
 
         const result = service.extractFromCSS(css);
 
-        expect(result.variables.find(v => v.name === '--color-primary')?.category).toBe('color');
-        expect(result.variables.find(v => v.name === '--font-size-lg')?.category).toBe('typography');
-        expect(result.variables.find(v => v.name === '--spacing-md')?.category).toBe('spacing');
-        expect(result.variables.find(v => v.name === '--border-radius-sm')?.category).toBe('border');
-        expect(result.variables.find(v => v.name === '--shadow-lg')?.category).toBe('shadow');
-        expect(result.variables.find(v => v.name === '--z-index-modal')?.category).toBe('layout');
-        expect(result.variables.find(v => v.name === '--transition-fast')?.category).toBe('animation');
+        expect(result.variables.find((v) => v.name === "--color-primary")?.category).toBe("color");
+        expect(result.variables.find((v) => v.name === "--font-size-lg")?.category).toBe(
+          "typography"
+        );
+        expect(result.variables.find((v) => v.name === "--spacing-md")?.category).toBe("spacing");
+        expect(result.variables.find((v) => v.name === "--border-radius-sm")?.category).toBe(
+          "border"
+        );
+        expect(result.variables.find((v) => v.name === "--shadow-lg")?.category).toBe("shadow");
+        expect(result.variables.find((v) => v.name === "--z-index-modal")?.category).toBe("layout");
+        expect(result.variables.find((v) => v.name === "--transition-fast")?.category).toBe(
+          "animation"
+        );
       });
 
-      it('should extract CSS variables with var() references', () => {
+      it("should extract CSS variables with var() references", () => {
         const css = `
           :root {
             --color-base: #3B82F6;
@@ -114,14 +119,14 @@ describe('CSSVariableExtractorService', () => {
 
         const result = service.extractFromCSS(css);
 
-        const primaryVar = result.variables.find(v => v.name === '--color-primary');
-        expect(primaryVar?.value).toBe('var(--color-base)');
-        expect(primaryVar?.references).toContain('--color-base');
+        const primaryVar = result.variables.find((v) => v.name === "--color-primary");
+        expect(primaryVar?.value).toBe("var(--color-base)");
+        expect(primaryVar?.references).toContain("--color-base");
       });
     });
 
-    describe('2. clamp() value extraction', () => {
-      it('should extract clamp() values for responsive typography', () => {
+    describe("2. clamp() value extraction", () => {
+      it("should extract clamp() values for responsive typography", () => {
         const css = `
           h1 {
             font-size: clamp(1.5rem, 2vw + 1rem, 3rem);
@@ -135,16 +140,16 @@ describe('CSSVariableExtractorService', () => {
 
         expect(result.clampValues).toHaveLength(2);
         expect(result.clampValues[0]).toEqual({
-          property: 'font-size',
-          selector: 'h1',
-          min: '1.5rem',
-          preferred: '2vw + 1rem',
-          max: '3rem',
-          raw: 'clamp(1.5rem, 2vw + 1rem, 3rem)',
+          property: "font-size",
+          selector: "h1",
+          min: "1.5rem",
+          preferred: "2vw + 1rem",
+          max: "3rem",
+          raw: "clamp(1.5rem, 2vw + 1rem, 3rem)",
         });
       });
 
-      it('should extract clamp() values for responsive spacing', () => {
+      it("should extract clamp() values for responsive spacing", () => {
         const css = `
           .container {
             padding: clamp(16px, 4vw, 64px);
@@ -155,11 +160,11 @@ describe('CSSVariableExtractorService', () => {
         const result = service.extractFromCSS(css);
 
         expect(result.clampValues).toHaveLength(2);
-        expect(result.clampValues.find(c => c.property === 'padding')?.min).toBe('16px');
-        expect(result.clampValues.find(c => c.property === 'gap')?.max).toBe('2rem');
+        expect(result.clampValues.find((c) => c.property === "padding")?.min).toBe("16px");
+        expect(result.clampValues.find((c) => c.property === "gap")?.max).toBe("2rem");
       });
 
-      it('should extract clamp() within CSS variables', () => {
+      it("should extract clamp() within CSS variables", () => {
         const css = `
           :root {
             --text-xl: clamp(1.25rem, 1rem + 1.25vw, 1.75rem);
@@ -169,13 +174,13 @@ describe('CSSVariableExtractorService', () => {
         const result = service.extractFromCSS(css);
 
         expect(result.clampValues).toHaveLength(1);
-        expect(result.clampValues[0]?.selector).toBe(':root');
-        expect(result.clampValues[0]?.property).toBe('--text-xl');
+        expect(result.clampValues[0]?.selector).toBe(":root");
+        expect(result.clampValues[0]?.property).toBe("--text-xl");
       });
     });
 
-    describe('3. calc() expression extraction', () => {
-      it('should extract calc() expressions', () => {
+    describe("3. calc() expression extraction", () => {
+      it("should extract calc() expressions", () => {
         const css = `
           .sidebar {
             width: calc(100% - 280px);
@@ -189,14 +194,14 @@ describe('CSSVariableExtractorService', () => {
 
         expect(result.calcExpressions).toHaveLength(2);
         expect(result.calcExpressions[0]).toEqual({
-          property: 'width',
-          selector: '.sidebar',
-          expression: '100% - 280px',
-          raw: 'calc(100% - 280px)',
+          property: "width",
+          selector: ".sidebar",
+          expression: "100% - 280px",
+          raw: "calc(100% - 280px)",
         });
       });
 
-      it('should extract nested calc() expressions', () => {
+      it("should extract nested calc() expressions", () => {
         const css = `
           .element {
             margin: calc(var(--spacing-unit) * 2);
@@ -207,12 +212,12 @@ describe('CSSVariableExtractorService', () => {
         const result = service.extractFromCSS(css);
 
         expect(result.calcExpressions).toHaveLength(2);
-        expect(result.calcExpressions[0]?.expression).toBe('var(--spacing-unit) * 2');
+        expect(result.calcExpressions[0]?.expression).toBe("var(--spacing-unit) * 2");
       });
     });
 
-    describe('4. Design Tokens detection', () => {
-      it('should detect Tailwind CSS design tokens', () => {
+    describe("4. Design Tokens detection", () => {
+      it("should detect Tailwind CSS design tokens", () => {
         const css = `
           :root {
             --tw-ring-offset-width: 0px;
@@ -225,12 +230,12 @@ describe('CSSVariableExtractorService', () => {
 
         const result = service.extractFromCSS(css);
 
-        expect(result.designTokens.framework).toBe('tailwind');
+        expect(result.designTokens.framework).toBe("tailwind");
         expect(result.designTokens.confidence).toBeGreaterThan(0.5);
-        expect(result.designTokens.evidence).toContain('tw- prefix variables');
+        expect(result.designTokens.evidence).toContain("tw- prefix variables");
       });
 
-      it('should detect CSS-in-JS / Styled Components patterns', () => {
+      it("should detect CSS-in-JS / Styled Components patterns", () => {
         const css = `
           .sc-bdVaJa {
             color: var(--token-color-primary);
@@ -242,11 +247,11 @@ describe('CSSVariableExtractorService', () => {
 
         const result = service.extractFromCSS(css);
 
-        expect(result.designTokens.framework).toBe('css-in-js');
+        expect(result.designTokens.framework).toBe("css-in-js");
         expect(result.designTokens.evidence.length).toBeGreaterThan(0);
       });
 
-      it('should detect standard CSS custom properties design system', () => {
+      it("should detect standard CSS custom properties design system", () => {
         const css = `
           :root {
             --color-primary-50: #eff6ff;
@@ -259,11 +264,11 @@ describe('CSSVariableExtractorService', () => {
 
         const result = service.extractFromCSS(css);
 
-        expect(result.designTokens.framework).toBe('css-variables');
-        expect(result.designTokens.evidence).toContain('color scale pattern (50-900)');
+        expect(result.designTokens.framework).toBe("css-variables");
+        expect(result.designTokens.evidence).toContain("color scale pattern (50-900)");
       });
 
-      it('should detect Open Props design tokens', () => {
+      it("should detect Open Props design tokens", () => {
         const css = `
           :root {
             --size-1: 0.25rem;
@@ -275,14 +280,14 @@ describe('CSSVariableExtractorService', () => {
 
         const result = service.extractFromCSS(css);
 
-        expect(result.designTokens.framework).toBe('open-props');
+        expect(result.designTokens.framework).toBe("open-props");
         expect(result.designTokens.confidence).toBeGreaterThan(0.5);
       });
     });
   });
 
-  describe('extractFromHTML', () => {
-    it('should extract CSS variables from inline styles', () => {
+  describe("extractFromHTML", () => {
+    it("should extract CSS variables from inline styles", () => {
       const html = `
         <div style="--custom-color: #ff0000; color: var(--custom-color)">
           Content
@@ -292,10 +297,10 @@ describe('CSSVariableExtractorService', () => {
       const result = service.extractFromHTML(html);
 
       expect(result.variables.length).toBeGreaterThan(0);
-      expect(result.variables.find(v => v.name === '--custom-color')).toBeDefined();
+      expect(result.variables.find((v) => v.name === "--custom-color")).toBeDefined();
     });
 
-    it('should extract CSS from <style> tags', () => {
+    it("should extract CSS from <style> tags", () => {
       const html = `
         <html>
         <head>
@@ -315,10 +320,10 @@ describe('CSSVariableExtractorService', () => {
       const result = service.extractFromHTML(html);
 
       expect(result.variables).toHaveLength(2);
-      expect(result.variables.find(v => v.name === '--bg-color')?.value).toBe('#fafafa');
+      expect(result.variables.find((v) => v.name === "--bg-color")?.value).toBe("#fafafa");
     });
 
-    it('should handle multiple <style> tags', () => {
+    it("should handle multiple <style> tags", () => {
       const html = `
         <style>:root { --color-a: #111; }</style>
         <style>:root { --color-b: #222; }</style>
@@ -330,8 +335,8 @@ describe('CSSVariableExtractorService', () => {
     });
   });
 
-  describe('extract (combined HTML + CSS)', () => {
-    it('should extract from both HTML and external CSS', () => {
+  describe("extract (combined HTML + CSS)", () => {
+    it("should extract from both HTML and external CSS", () => {
       const html = `
         <style>:root { --from-html: #111; }</style>
         <div>Content</div>
@@ -342,25 +347,25 @@ describe('CSSVariableExtractorService', () => {
 
       const result = service.extract(html, externalCss);
 
-      expect(result.variables.find(v => v.name === '--from-html')).toBeDefined();
-      expect(result.variables.find(v => v.name === '--from-external')).toBeDefined();
+      expect(result.variables.find((v) => v.name === "--from-html")).toBeDefined();
+      expect(result.variables.find((v) => v.name === "--from-external")).toBeDefined();
     });
 
-    it('should deduplicate variables from multiple sources', () => {
+    it("should deduplicate variables from multiple sources", () => {
       const html = `<style>:root { --color: #111; }</style>`;
       const externalCss = `:root { --color: #222; }`;
 
       const result = service.extract(html, externalCss);
 
       // External CSS should take precedence (loaded later)
-      const colorVars = result.variables.filter(v => v.name === '--color');
+      const colorVars = result.variables.filter((v) => v.name === "--color");
       expect(colorVars).toHaveLength(1);
-      expect(colorVars[0]?.value).toBe('#222');
+      expect(colorVars[0]?.value).toBe("#222");
     });
   });
 
-  describe('Result structure validation', () => {
-    it('should return complete CSSVariableExtractionResult structure', () => {
+  describe("Result structure validation", () => {
+    it("should return complete CSSVariableExtractionResult structure", () => {
       const css = `
         :root {
           --color: #333;
@@ -386,20 +391,20 @@ describe('CSSVariableExtractorService', () => {
       expect(result.designTokens.evidence).toBeDefined();
 
       expect(result.processingTimeMs).toBeDefined();
-      expect(typeof result.processingTimeMs).toBe('number');
+      expect(typeof result.processingTimeMs).toBe("number");
     });
   });
 
-  describe('Error handling', () => {
-    it('should handle empty CSS gracefully', () => {
-      const result = service.extractFromCSS('');
+  describe("Error handling", () => {
+    it("should handle empty CSS gracefully", () => {
+      const result = service.extractFromCSS("");
 
       expect(result.variables).toHaveLength(0);
       expect(result.clampValues).toHaveLength(0);
       expect(result.calcExpressions).toHaveLength(0);
     });
 
-    it('should handle invalid CSS gracefully', () => {
+    it("should handle invalid CSS gracefully", () => {
       const css = `
         :root {
           --color: #333
@@ -413,7 +418,7 @@ describe('CSSVariableExtractorService', () => {
       expect(result).toBeDefined();
     });
 
-    it('should handle malformed clamp() gracefully', () => {
+    it("should handle malformed clamp() gracefully", () => {
       const css = `
         .element {
           font-size: clamp(1rem);
@@ -423,23 +428,23 @@ describe('CSSVariableExtractorService', () => {
 
       const result = service.extractFromCSS(css);
       // Should not include malformed clamp
-      expect(result.clampValues.filter(c => c.min && c.preferred && c.max)).toHaveLength(0);
+      expect(result.clampValues.filter((c) => c.min && c.preferred && c.max)).toHaveLength(0);
     });
 
-    it('should handle null/undefined inputs', () => {
+    it("should handle null/undefined inputs", () => {
       expect(() => service.extractFromCSS(null as unknown as string)).not.toThrow();
       expect(() => service.extractFromHTML(undefined as unknown as string)).not.toThrow();
     });
   });
 
-  describe('Performance', () => {
-    it('should process large CSS files within reasonable time', () => {
+  describe("Performance", () => {
+    it("should process large CSS files within reasonable time", () => {
       // Generate large CSS
-      let css = ':root {\n';
+      let css = ":root {\n";
       for (let i = 0; i < 1000; i++) {
-        css += `  --color-${i}: #${i.toString(16).padStart(6, '0')};\n`;
+        css += `  --color-${i}: #${i.toString(16).padStart(6, "0")};\n`;
       }
-      css += '}';
+      css += "}";
 
       const start = Date.now();
       const result = service.extractFromCSS(css);

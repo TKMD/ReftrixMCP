@@ -17,7 +17,7 @@
  * @module tests/integration/phase5-4/mood-brandtone-embedding.integration.test
  */
 
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 
 import {
   MoodBrandToneEmbeddingService,
@@ -32,7 +32,7 @@ import {
   resetPrismaClientFactory,
   DEFAULT_MODEL_NAME,
   DEFAULT_EMBEDDING_DIMENSIONS,
-} from '../../../src/services/ml/mood-brandtone-embedding.service';
+} from "../../../src/services/ml/mood-brandtone-embedding.service";
 
 // MoodBrandToneEmbeddingResult は戻り値の型として間接的に使用される
 
@@ -42,30 +42,30 @@ import {
 
 /** プロフェッショナルなMoodテキスト表現 */
 const professionalMood: MoodTextRepresentation = {
-  primary: 'professional',
-  secondary: 'minimalist',
-  description: 'Clean, corporate design with minimal decoration and professional appearance',
+  primary: "professional",
+  secondary: "minimalist",
+  description: "Clean, corporate design with minimal decoration and professional appearance",
 };
 
 /** プレイフルなMoodテキスト表現 */
 const playfulMood: MoodTextRepresentation = {
-  primary: 'playful',
-  secondary: 'bright',
-  description: 'Fun and engaging design with vibrant colors and playful elements',
+  primary: "playful",
+  secondary: "bright",
+  description: "Fun and engaging design with vibrant colors and playful elements",
 };
 
 /** コーポレートなBrandToneテキスト表現 */
 const corporateBrandTone: BrandToneTextRepresentation = {
-  primary: 'corporate',
-  secondary: 'innovative',
-  description: 'Enterprise-focused with cutting-edge technology emphasis',
+  primary: "corporate",
+  secondary: "innovative",
+  description: "Enterprise-focused with cutting-edge technology emphasis",
 };
 
 /** フレンドリーなBrandToneテキスト表現 */
 const friendlyBrandTone: BrandToneTextRepresentation = {
-  primary: 'friendly',
-  secondary: 'approachable',
-  description: 'Warm and inviting design that feels welcoming to users',
+  primary: "friendly",
+  secondary: "approachable",
+  description: "Warm and inviting design that feels welcoming to users",
 };
 
 // =====================================================
@@ -91,8 +91,8 @@ function createMockEmbedding(seed: number = 0): number[] {
  * UUIDv7形式のIDを生成（テスト用）
  */
 function generateTestId(index: number = 0): string {
-  const timestamp = Date.now().toString(16).padStart(12, '0');
-  const suffix = index.toString(16).padStart(20, '0');
+  const timestamp = Date.now().toString(16).padStart(12, "0");
+  const suffix = index.toString(16).padStart(20, "0");
   return `${timestamp.slice(0, 8)}-${timestamp.slice(8, 12)}-7${suffix.slice(0, 3)}-8${suffix.slice(3, 6)}-${suffix.slice(6)}`;
 }
 
@@ -115,9 +115,9 @@ function _createMockSectionEmbedding(
     id: generateTestId(),
     sectionPatternId,
     textEmbedding: createMockEmbedding(0),
-    moodTextRepresentation: hasMood ? 'primary: professional, secondary: minimalist' : null,
+    moodTextRepresentation: hasMood ? "primary: professional, secondary: minimalist" : null,
     moodEmbedding: hasMood ? createMockEmbedding(moodSeed) : null,
-    brandToneTextRepresentation: hasBrandTone ? 'primary: corporate, secondary: innovative' : null,
+    brandToneTextRepresentation: hasBrandTone ? "primary: corporate, secondary: innovative" : null,
     brandToneEmbedding: hasBrandTone ? createMockEmbedding(brandToneSeed) : null,
   };
 }
@@ -154,66 +154,97 @@ function createMockPrismaClient(options?: {
 
   const mockPrisma = {
     sectionEmbedding: {
-      create: vi.fn().mockImplementation(async (args: { data: { sectionPatternId: string; modelVersion?: string; moodTextRepresentation?: string; brandToneTextRepresentation?: string } }) => {
-        if (shouldFailOnSave) {
-          throw new Error('DB create error');
-        }
-        const id = generateTestId();
-        const record: SectionEmbeddingData = {
-          id,
-          sectionPatternId: args.data.sectionPatternId,
-          moodTextRepresentation: args.data.moodTextRepresentation ?? null,
-          brandToneTextRepresentation: args.data.brandToneTextRepresentation ?? null,
-        };
-        savedRecords.set(args.data.sectionPatternId, record);
-        return record;
-      }),
-      update: vi.fn().mockImplementation(async (args: { where: { id?: string; sectionPatternId?: string }; data: { moodTextRepresentation?: string; brandToneTextRepresentation?: string } }) => {
-        if (shouldFailOnSave) {
-          throw new Error('DB update error');
-        }
-        const key = args.where.sectionPatternId ?? args.where.id;
-        if (!key) throw new Error('Missing key');
-        const existing = savedRecords.get(key);
-        if (!existing) throw new Error('Record not found');
-        const updated = { ...existing, ...args.data };
-        savedRecords.set(key, updated);
-        return updated;
-      }),
-      upsert: vi.fn().mockImplementation(async (args: { where: { sectionPatternId: string }; create: { sectionPatternId: string; modelVersion?: string; moodTextRepresentation?: string; brandToneTextRepresentation?: string }; update: { moodTextRepresentation?: string; brandToneTextRepresentation?: string } }) => {
-        if (shouldFailOnSave) {
-          throw new Error('DB upsert error');
-        }
-        const existing = savedRecords.get(args.where.sectionPatternId);
-        if (existing) {
-          const updated = { ...existing, ...args.update };
-          savedRecords.set(args.where.sectionPatternId, updated);
-          return updated;
-        } else {
+      create: vi.fn().mockImplementation(
+        async (args: {
+          data: {
+            sectionPatternId: string;
+            modelVersion?: string;
+            moodTextRepresentation?: string;
+            brandToneTextRepresentation?: string;
+          };
+        }) => {
+          if (shouldFailOnSave) {
+            throw new Error("DB create error");
+          }
           const id = generateTestId();
           const record: SectionEmbeddingData = {
             id,
-            sectionPatternId: args.create.sectionPatternId,
-            moodTextRepresentation: args.create.moodTextRepresentation ?? null,
-            brandToneTextRepresentation: args.create.brandToneTextRepresentation ?? null,
+            sectionPatternId: args.data.sectionPatternId,
+            moodTextRepresentation: args.data.moodTextRepresentation ?? null,
+            brandToneTextRepresentation: args.data.brandToneTextRepresentation ?? null,
           };
-          savedRecords.set(args.where.sectionPatternId, record);
+          savedRecords.set(args.data.sectionPatternId, record);
           return record;
         }
-      }),
-      findUnique: vi.fn().mockImplementation(async (args: { where: { sectionPatternId: string } }) => {
-        return savedRecords.get(args.where.sectionPatternId) ?? null;
-      }),
+      ),
+      update: vi
+        .fn()
+        .mockImplementation(
+          async (args: {
+            where: { id?: string; sectionPatternId?: string };
+            data: { moodTextRepresentation?: string; brandToneTextRepresentation?: string };
+          }) => {
+            if (shouldFailOnSave) {
+              throw new Error("DB update error");
+            }
+            const key = args.where.sectionPatternId ?? args.where.id;
+            if (!key) throw new Error("Missing key");
+            const existing = savedRecords.get(key);
+            if (!existing) throw new Error("Record not found");
+            const updated = { ...existing, ...args.data };
+            savedRecords.set(key, updated);
+            return updated;
+          }
+        ),
+      upsert: vi.fn().mockImplementation(
+        async (args: {
+          where: { sectionPatternId: string };
+          create: {
+            sectionPatternId: string;
+            modelVersion?: string;
+            moodTextRepresentation?: string;
+            brandToneTextRepresentation?: string;
+          };
+          update: { moodTextRepresentation?: string; brandToneTextRepresentation?: string };
+        }) => {
+          if (shouldFailOnSave) {
+            throw new Error("DB upsert error");
+          }
+          const existing = savedRecords.get(args.where.sectionPatternId);
+          if (existing) {
+            const updated = { ...existing, ...args.update };
+            savedRecords.set(args.where.sectionPatternId, updated);
+            return updated;
+          } else {
+            const id = generateTestId();
+            const record: SectionEmbeddingData = {
+              id,
+              sectionPatternId: args.create.sectionPatternId,
+              moodTextRepresentation: args.create.moodTextRepresentation ?? null,
+              brandToneTextRepresentation: args.create.brandToneTextRepresentation ?? null,
+            };
+            savedRecords.set(args.where.sectionPatternId, record);
+            return record;
+          }
+        }
+      ),
+      findUnique: vi
+        .fn()
+        .mockImplementation(async (args: { where: { sectionPatternId: string } }) => {
+          return savedRecords.get(args.where.sectionPatternId) ?? null;
+        }),
       findMany: vi.fn().mockImplementation(async () => {
         return Array.from(savedRecords.values());
       }),
     },
-    $transaction: vi.fn().mockImplementation(async (callback: (tx: typeof mockPrisma) => Promise<unknown>) => {
-      if (shouldFailOnTransaction) {
-        throw new Error('Transaction failed');
-      }
-      return callback(mockPrisma);
-    }),
+    $transaction: vi
+      .fn()
+      .mockImplementation(async (callback: (tx: typeof mockPrisma) => Promise<unknown>) => {
+        if (shouldFailOnTransaction) {
+          throw new Error("Transaction failed");
+        }
+        return callback(mockPrisma);
+      }),
     $executeRawUnsafe: vi.fn().mockResolvedValue(1),
     $queryRaw: vi.fn().mockResolvedValue([]),
     $queryRawUnsafe: vi.fn().mockResolvedValue([]),
@@ -226,7 +257,7 @@ function createMockPrismaClient(options?: {
 // 1. End-to-End Pipeline Tests
 // =====================================================
 
-describe('E2E Pipeline', () => {
+describe("E2E Pipeline", () => {
   let service: MoodBrandToneEmbeddingService;
   let savedRecords: Map<string, SectionEmbeddingData>;
 
@@ -248,13 +279,13 @@ describe('E2E Pipeline', () => {
     vi.restoreAllMocks();
   });
 
-  it('Mood生成 → DB保存 → DB取得の完全フロー', async () => {
+  it("Mood生成 → DB保存 → DB取得の完全フロー", async () => {
     // Step 1: Mood Embedding生成
     const moodResult = await service.generateMoodEmbedding(professionalMood);
 
     expect(moodResult).toBeDefined();
     expect(moodResult.embedding.length).toBe(DEFAULT_EMBEDDING_DIMENSIONS);
-    expect(moodResult.type).toBe('mood');
+    expect(moodResult.type).toBe("mood");
 
     // Step 2: DB保存
     const sectionPatternId = generateTestId(1);
@@ -262,7 +293,7 @@ describe('E2E Pipeline', () => {
 
     expect(saved).toBeDefined();
     expect(saved.sectionPatternId).toBe(sectionPatternId);
-    expect(saved.moodTextRepresentation).toContain('professional');
+    expect(saved.moodTextRepresentation).toContain("professional");
 
     // Step 3: 保存されたレコードを確認
     const stored = savedRecords.get(sectionPatternId);
@@ -270,21 +301,23 @@ describe('E2E Pipeline', () => {
     expect(stored?.moodTextRepresentation).toBe(moodResult.textRepresentation);
   });
 
-  it('BrandTone生成 → DB保存 → DB取得の完全フロー', async () => {
+  it("BrandTone生成 → DB保存 → DB取得の完全フロー", async () => {
     // Step 1: BrandTone Embedding生成
     const brandToneResult = await service.generateBrandToneEmbedding(corporateBrandTone);
 
     expect(brandToneResult).toBeDefined();
     expect(brandToneResult.embedding.length).toBe(DEFAULT_EMBEDDING_DIMENSIONS);
-    expect(brandToneResult.type).toBe('brandTone');
+    expect(brandToneResult.type).toBe("brandTone");
 
     // Step 2: DB保存
     const sectionPatternId = generateTestId(2);
-    const saved = await saveMoodBrandToneEmbedding(sectionPatternId, { brandTone: brandToneResult });
+    const saved = await saveMoodBrandToneEmbedding(sectionPatternId, {
+      brandTone: brandToneResult,
+    });
 
     expect(saved).toBeDefined();
     expect(saved.sectionPatternId).toBe(sectionPatternId);
-    expect(saved.brandToneTextRepresentation).toContain('corporate');
+    expect(saved.brandToneTextRepresentation).toContain("corporate");
 
     // Step 3: 保存されたレコードを確認
     const stored = savedRecords.get(sectionPatternId);
@@ -292,13 +325,13 @@ describe('E2E Pipeline', () => {
     expect(stored?.brandToneTextRepresentation).toBe(brandToneResult.textRepresentation);
   });
 
-  it('MoodとBrandTone両方同時生成 → DB保存の完全フロー', async () => {
+  it("MoodとBrandTone両方同時生成 → DB保存の完全フロー", async () => {
     // Step 1: 両方のEmbeddingを生成
     const moodResult = await service.generateMoodEmbedding(professionalMood);
     const brandToneResult = await service.generateBrandToneEmbedding(corporateBrandTone);
 
-    expect(moodResult.type).toBe('mood');
-    expect(brandToneResult.type).toBe('brandTone');
+    expect(moodResult.type).toBe("mood");
+    expect(brandToneResult.type).toBe("brandTone");
 
     // Step 2: 同時にDB保存
     const sectionPatternId = generateTestId(3);
@@ -308,8 +341,8 @@ describe('E2E Pipeline', () => {
     });
 
     expect(saved).toBeDefined();
-    expect(saved.moodTextRepresentation).toContain('professional');
-    expect(saved.brandToneTextRepresentation).toContain('corporate');
+    expect(saved.moodTextRepresentation).toContain("professional");
+    expect(saved.brandToneTextRepresentation).toContain("corporate");
 
     // Step 3: 保存されたレコードを確認
     const stored = savedRecords.get(sectionPatternId);
@@ -318,7 +351,7 @@ describe('E2E Pipeline', () => {
     expect(stored?.brandToneTextRepresentation).toBeDefined();
   });
 
-  it('バッチMood生成 → バッチDB保存の完全フロー', async () => {
+  it("バッチMood生成 → バッチDB保存の完全フロー", async () => {
     // Step 1: バッチMood Embedding生成
     const moods = [professionalMood, playfulMood, professionalMood];
     const results = await service.generateBatchMoodEmbeddings(moods);
@@ -326,7 +359,7 @@ describe('E2E Pipeline', () => {
     expect(results.length).toBe(3);
     results.forEach((r) => {
       expect(r.embedding.length).toBe(DEFAULT_EMBEDDING_DIMENSIONS);
-      expect(r.type).toBe('mood');
+      expect(r.type).toBe("mood");
     });
 
     // Step 2: バッチDB保存
@@ -346,7 +379,7 @@ describe('E2E Pipeline', () => {
     });
   });
 
-  it('バッチBrandTone生成 → バッチDB保存の完全フロー', async () => {
+  it("バッチBrandTone生成 → バッチDB保存の完全フロー", async () => {
     // Step 1: バッチBrandTone Embedding生成
     const brandTones = [corporateBrandTone, friendlyBrandTone];
     const results = await service.generateBatchBrandToneEmbeddings(brandTones);
@@ -354,7 +387,7 @@ describe('E2E Pipeline', () => {
     expect(results.length).toBe(2);
     results.forEach((r) => {
       expect(r.embedding.length).toBe(DEFAULT_EMBEDDING_DIMENSIONS);
-      expect(r.type).toBe('brandTone');
+      expect(r.type).toBe("brandTone");
     });
 
     // Step 2: バッチDB保存
@@ -374,7 +407,7 @@ describe('E2E Pipeline', () => {
     });
   });
 
-  it('混合バッチ（Mood + BrandTone）→ バッチDB保存の完全フロー', async () => {
+  it("混合バッチ（Mood + BrandTone）→ バッチDB保存の完全フロー", async () => {
     // Step 1: 両方のバッチを生成
     const moodResults = await service.generateBatchMoodEmbeddings([professionalMood, playfulMood]);
     const brandToneResults = await service.generateBatchBrandToneEmbeddings([
@@ -407,7 +440,7 @@ describe('E2E Pipeline', () => {
 // 2. Vector Search Integration
 // =====================================================
 
-describe('Vector Search Integration', () => {
+describe("Vector Search Integration", () => {
   let service: MoodBrandToneEmbeddingService;
 
   beforeEach(() => {
@@ -427,15 +460,15 @@ describe('Vector Search Integration', () => {
     vi.restoreAllMocks();
   });
 
-  it('768次元ベクトルが正しく生成される', async () => {
+  it("768次元ベクトルが正しく生成される", async () => {
     const moodResult = await service.generateMoodEmbedding(professionalMood);
 
     expect(moodResult.embedding.length).toBe(768);
-    expect(moodResult.embedding.every((v) => typeof v === 'number')).toBe(true);
+    expect(moodResult.embedding.every((v) => typeof v === "number")).toBe(true);
     expect(moodResult.embedding.every((v) => !isNaN(v))).toBe(true);
   });
 
-  it('生成されたベクトルがL2正規化されている', async () => {
+  it("生成されたベクトルがL2正規化されている", async () => {
     const moodResult = await service.generateMoodEmbedding(professionalMood);
 
     // L2ノルムを計算
@@ -445,7 +478,7 @@ describe('Vector Search Integration', () => {
     expect(norm).toBeCloseTo(1.0, 5);
   });
 
-  it('コサイン類似度計算が正しく動作する', async () => {
+  it("コサイン類似度計算が正しく動作する", async () => {
     // 同じ入力から2つのEmbeddingを生成
     const result1 = await service.generateMoodEmbedding(professionalMood);
     const result2 = await service.generateMoodEmbedding(professionalMood);
@@ -461,7 +494,7 @@ describe('Vector Search Integration', () => {
     expect(similarity).toBeLessThanOrEqual(1);
   });
 
-  it('異なるMoodは異なるベクトルを生成する', async () => {
+  it("異なるMoodは異なるベクトルを生成する", async () => {
     const professionalResult = await service.generateMoodEmbedding(professionalMood);
     const playfulResult = await service.generateMoodEmbedding(playfulMood);
 
@@ -473,19 +506,19 @@ describe('Vector Search Integration', () => {
     expect(isDifferent).toBe(true);
   });
 
-  it('ベクトル検索形式（pgvector文字列）への変換が正しい', async () => {
+  it("ベクトル検索形式（pgvector文字列）への変換が正しい", async () => {
     const result = await service.generateMoodEmbedding(professionalMood);
 
     // pgvector形式の文字列を生成
-    const vectorString = `[${result.embedding.join(',')}]`;
+    const vectorString = `[${result.embedding.join(",")}]`;
 
     // 形式が正しいことを確認
-    expect(vectorString.startsWith('[')).toBe(true);
-    expect(vectorString.endsWith(']')).toBe(true);
-    expect(vectorString.split(',').length).toBe(768);
+    expect(vectorString.startsWith("[")).toBe(true);
+    expect(vectorString.endsWith("]")).toBe(true);
+    expect(vectorString.split(",").length).toBe(768);
   });
 
-  it('HNSW Index用の次元数（768D）が一貫している', async () => {
+  it("HNSW Index用の次元数（768D）が一貫している", async () => {
     // 複数回生成して全て768次元であることを確認
     const results = await Promise.all([
       service.generateMoodEmbedding(professionalMood),
@@ -504,7 +537,7 @@ describe('Vector Search Integration', () => {
 // 3. Transaction Integrity
 // =====================================================
 
-describe('Transaction Integrity', () => {
+describe("Transaction Integrity", () => {
   let service: MoodBrandToneEmbeddingService;
 
   beforeEach(() => {
@@ -520,7 +553,7 @@ describe('Transaction Integrity', () => {
     vi.restoreAllMocks();
   });
 
-  it('単一トランザクション内でMood + BrandTone両方を保存する', async () => {
+  it("単一トランザクション内でMood + BrandTone両方を保存する", async () => {
     const { mockPrisma, savedRecords } = createMockPrismaClient();
     setPrismaClientFactory(() => mockPrisma);
 
@@ -542,20 +575,22 @@ describe('Transaction Integrity', () => {
     expect(stored?.brandToneTextRepresentation).toBeDefined();
   });
 
-  it('Mood保存失敗時にトランザクション全体がロールバックされる', async () => {
+  it("Mood保存失敗時にトランザクション全体がロールバックされる", async () => {
     const { mockPrisma, savedRecords } = createMockPrismaClient({ shouldFailOnSave: true });
     setPrismaClientFactory(() => mockPrisma);
 
     const moodResult = await service.generateMoodEmbedding(professionalMood);
     const sectionPatternId = generateTestId(101);
 
-    await expect(saveMoodBrandToneEmbedding(sectionPatternId, { mood: moodResult })).rejects.toThrow();
+    await expect(
+      saveMoodBrandToneEmbedding(sectionPatternId, { mood: moodResult })
+    ).rejects.toThrow();
 
     // ロールバック後はレコードが残らない
     expect(savedRecords.size).toBe(0);
   });
 
-  it('BrandTone保存失敗時にトランザクション全体がロールバックされる', async () => {
+  it("BrandTone保存失敗時にトランザクション全体がロールバックされる", async () => {
     const { mockPrisma, savedRecords } = createMockPrismaClient({ shouldFailOnSave: true });
     setPrismaClientFactory(() => mockPrisma);
 
@@ -570,19 +605,19 @@ describe('Transaction Integrity', () => {
     expect(savedRecords.size).toBe(0);
   });
 
-  it('トランザクション失敗時にエラーが適切に伝播される', async () => {
+  it("トランザクション失敗時にエラーが適切に伝播される", async () => {
     const { mockPrisma } = createMockPrismaClient({ shouldFailOnTransaction: true });
     setPrismaClientFactory(() => mockPrisma);
 
     const moodResult = await service.generateMoodEmbedding(professionalMood);
     const sectionPatternId = generateTestId(103);
 
-    await expect(saveMoodBrandToneEmbedding(sectionPatternId, { mood: moodResult })).rejects.toThrow(
-      'Transaction failed'
-    );
+    await expect(
+      saveMoodBrandToneEmbedding(sectionPatternId, { mood: moodResult })
+    ).rejects.toThrow("Transaction failed");
   });
 
-  it('バッチ保存がアトミックである（全成功または全失敗）', async () => {
+  it("バッチ保存がアトミックである（全成功または全失敗）", async () => {
     const { mockPrisma, savedRecords } = createMockPrismaClient();
     setPrismaClientFactory(() => mockPrisma);
 
@@ -605,7 +640,7 @@ describe('Transaction Integrity', () => {
 // 4. Performance Tests
 // =====================================================
 
-describe('Performance', () => {
+describe("Performance", () => {
   let service: MoodBrandToneEmbeddingService;
 
   beforeEach(() => {
@@ -638,7 +673,7 @@ describe('Performance', () => {
     vi.restoreAllMocks();
   });
 
-  it('100件のMood Embedding生成が5秒以内に完了する', async () => {
+  it("100件のMood Embedding生成が5秒以内に完了する", async () => {
     const moods = Array(100).fill(professionalMood);
 
     const startTime = Date.now();
@@ -649,7 +684,7 @@ describe('Performance', () => {
     expect(duration).toBeLessThan(5000);
   });
 
-  it('100件のBrandTone Embedding生成が5秒以内に完了する', async () => {
+  it("100件のBrandTone Embedding生成が5秒以内に完了する", async () => {
     const brandTones = Array(100).fill(corporateBrandTone);
 
     const startTime = Date.now();
@@ -660,7 +695,7 @@ describe('Performance', () => {
     expect(duration).toBeLessThan(5000);
   });
 
-  it('混合バッチ（50 Mood + 50 BrandTone）が5秒以内に完了する', async () => {
+  it("混合バッチ（50 Mood + 50 BrandTone）が5秒以内に完了する", async () => {
     const moods = Array(50).fill(professionalMood);
     const brandTones = Array(50).fill(corporateBrandTone);
 
@@ -676,7 +711,7 @@ describe('Performance', () => {
     expect(duration).toBeLessThan(5000);
   });
 
-  it('単一Embedding生成が200ms以内に完了する', async () => {
+  it("単一Embedding生成が200ms以内に完了する", async () => {
     const startTime = Date.now();
     await service.generateMoodEmbedding(professionalMood);
     const duration = Date.now() - startTime;
@@ -684,7 +719,7 @@ describe('Performance', () => {
     expect(duration).toBeLessThan(200);
   });
 
-  it('processingTimeMsが正しく計測される', async () => {
+  it("processingTimeMsが正しく計測される", async () => {
     const result = await service.generateMoodEmbedding(professionalMood);
 
     expect(result.processingTimeMs).toBeGreaterThanOrEqual(0);
@@ -696,7 +731,7 @@ describe('Performance', () => {
 // 5. Error Scenarios
 // =====================================================
 
-describe('Error Scenarios', () => {
+describe("Error Scenarios", () => {
   let service: MoodBrandToneEmbeddingService;
 
   beforeEach(() => {
@@ -711,25 +746,27 @@ describe('Error Scenarios', () => {
     vi.restoreAllMocks();
   });
 
-  it('無効なMoodテキストでEmbedding生成が失敗する', async () => {
+  it("無効なMoodテキストでEmbedding生成が失敗する", async () => {
     setEmbeddingServiceFactory(() => createMockEmbeddingService());
 
     const invalidMood: MoodTextRepresentation = {
-      primary: '',
-      secondary: '',
-      description: '',
+      primary: "",
+      secondary: "",
+      description: "",
     };
 
     await expect(service.generateMoodEmbedding(invalidMood)).rejects.toThrow();
   });
 
-  it('null入力でエラーがスローされる', async () => {
+  it("null入力でエラーがスローされる", async () => {
     setEmbeddingServiceFactory(() => createMockEmbeddingService());
 
-    await expect(service.generateMoodEmbedding(null as unknown as MoodTextRepresentation)).rejects.toThrow();
+    await expect(
+      service.generateMoodEmbedding(null as unknown as MoodTextRepresentation)
+    ).rejects.toThrow();
   });
 
-  it('DB保存失敗時にEmbeddingは生成されていてもDBに保存されない', async () => {
+  it("DB保存失敗時にEmbeddingは生成されていてもDBに保存されない", async () => {
     setEmbeddingServiceFactory(() => createMockEmbeddingService());
     const { mockPrisma, savedRecords } = createMockPrismaClient({ shouldFailOnSave: true });
     setPrismaClientFactory(() => mockPrisma);
@@ -741,18 +778,22 @@ describe('Error Scenarios', () => {
 
     // DB保存は失敗
     const sectionPatternId = generateTestId(200);
-    await expect(saveMoodBrandToneEmbedding(sectionPatternId, { mood: moodResult })).rejects.toThrow();
+    await expect(
+      saveMoodBrandToneEmbedding(sectionPatternId, { mood: moodResult })
+    ).rejects.toThrow();
 
     // DBにはレコードが残らない
     expect(savedRecords.size).toBe(0);
   });
 
-  it('タイムアウト時にエラーがスローされる', async () => {
+  it("タイムアウト時にエラーがスローされる", async () => {
     // 遅延するモックサービス
     setEmbeddingServiceFactory(() => ({
-      generateEmbedding: vi.fn().mockImplementation(
-        () => new Promise((resolve) => setTimeout(() => resolve(createMockEmbedding()), 35000))
-      ),
+      generateEmbedding: vi
+        .fn()
+        .mockImplementation(
+          () => new Promise((resolve) => setTimeout(() => resolve(createMockEmbedding()), 35000))
+        ),
       generateBatchEmbeddings: vi.fn().mockResolvedValue([createMockEmbedding()]),
       getCacheStats: vi.fn().mockReturnValue({ hits: 0, misses: 0, size: 0, evictions: 0 }),
       clearCache: vi.fn(),
@@ -764,7 +805,7 @@ describe('Error Scenarios', () => {
     await expect(service.generateMoodEmbedding(professionalMood)).rejects.toThrow();
   });
 
-  it('不正な形式のEmbedding（次元数不一致）でエラーがスローされる', async () => {
+  it("不正な形式のEmbedding（次元数不一致）でエラーがスローされる", async () => {
     // 次元数が間違っているEmbeddingを返すモック
     setEmbeddingServiceFactory(() => ({
       generateEmbedding: vi.fn().mockResolvedValue(Array(100).fill(0.1)), // 768ではなく100次元
@@ -776,7 +817,7 @@ describe('Error Scenarios', () => {
     await expect(service.generateMoodEmbedding(professionalMood)).rejects.toThrow();
   });
 
-  it('正規化されていないEmbeddingでエラーがスローされる（normalize: false）', async () => {
+  it("正規化されていないEmbeddingでエラーがスローされる（normalize: false）", async () => {
     // 正規化されていないEmbeddingを返すモック
     setEmbeddingServiceFactory(() => ({
       generateEmbedding: vi.fn().mockResolvedValue(Array(768).fill(1)), // L2ノルム = sqrt(768) ≈ 27.7
@@ -790,7 +831,7 @@ describe('Error Scenarios', () => {
     await expect(service.generateMoodEmbedding(professionalMood)).rejects.toThrow();
   });
 
-  it('空の配列でバッチ保存は空配列を返す', async () => {
+  it("空の配列でバッチ保存は空配列を返す", async () => {
     setEmbeddingServiceFactory(() => createMockEmbeddingService());
     const { mockPrisma } = createMockPrismaClient();
     setPrismaClientFactory(() => mockPrisma);
@@ -799,7 +840,7 @@ describe('Error Scenarios', () => {
     expect(result).toEqual([]);
   });
 
-  it('sectionPatternIdsとresultsの長さが異なる場合にエラーがスローされる', async () => {
+  it("sectionPatternIdsとresultsの長さが異なる場合にエラーがスローされる", async () => {
     setEmbeddingServiceFactory(() => createMockEmbeddingService());
     const { mockPrisma } = createMockPrismaClient();
     setPrismaClientFactory(() => mockPrisma);
@@ -807,8 +848,11 @@ describe('Error Scenarios', () => {
     const moodResult = await service.generateMoodEmbedding(professionalMood);
 
     await expect(
-      saveBatchMoodBrandToneEmbeddings([generateTestId(1), generateTestId(2)], [{ mood: moodResult }])
-    ).rejects.toThrow('sectionPatternIds and results must have the same length');
+      saveBatchMoodBrandToneEmbeddings(
+        [generateTestId(1), generateTestId(2)],
+        [{ mood: moodResult }]
+      )
+    ).rejects.toThrow("sectionPatternIds and results must have the same length");
   });
 });
 
@@ -816,7 +860,7 @@ describe('Error Scenarios', () => {
 // 6. Data Consistency
 // =====================================================
 
-describe('Data Consistency', () => {
+describe("Data Consistency", () => {
   let service: MoodBrandToneEmbeddingService;
 
   beforeEach(() => {
@@ -832,7 +876,7 @@ describe('Data Consistency', () => {
     vi.restoreAllMocks();
   });
 
-  it('moodEmbeddingとmoodTextRepresentationが一緒に保存される', async () => {
+  it("moodEmbeddingとmoodTextRepresentationが一緒に保存される", async () => {
     const { mockPrisma, savedRecords } = createMockPrismaClient();
     setPrismaClientFactory(() => mockPrisma);
 
@@ -848,7 +892,7 @@ describe('Data Consistency', () => {
     expect(mockPrisma.$executeRawUnsafe).toHaveBeenCalled();
   });
 
-  it('brandToneEmbeddingとbrandToneTextRepresentationが一緒に保存される', async () => {
+  it("brandToneEmbeddingとbrandToneTextRepresentationが一緒に保存される", async () => {
     const { mockPrisma, savedRecords } = createMockPrismaClient();
     setPrismaClientFactory(() => mockPrisma);
 
@@ -864,7 +908,7 @@ describe('Data Consistency', () => {
     expect(mockPrisma.$executeRawUnsafe).toHaveBeenCalled();
   });
 
-  it('MoodとBrandToneは独立して存在できる（Moodのみ）', async () => {
+  it("MoodとBrandToneは独立して存在できる（Moodのみ）", async () => {
     const { mockPrisma, savedRecords } = createMockPrismaClient();
     setPrismaClientFactory(() => mockPrisma);
 
@@ -879,7 +923,7 @@ describe('Data Consistency', () => {
     expect(stored?.brandToneTextRepresentation).toBeNull();
   });
 
-  it('MoodとBrandToneは独立して存在できる（BrandToneのみ）', async () => {
+  it("MoodとBrandToneは独立して存在できる（BrandToneのみ）", async () => {
     const { mockPrisma, savedRecords } = createMockPrismaClient();
     setPrismaClientFactory(() => mockPrisma);
 
@@ -894,7 +938,7 @@ describe('Data Consistency', () => {
     expect(stored?.brandToneTextRepresentation).toBeDefined();
   });
 
-  it('既存レコードの更新時に古いEmbeddingが正しく置き換えられる', async () => {
+  it("既存レコードの更新時に古いEmbeddingが正しく置き換えられる", async () => {
     const { mockPrisma, savedRecords } = createMockPrismaClient();
     setPrismaClientFactory(() => mockPrisma);
 
@@ -918,7 +962,7 @@ describe('Data Consistency', () => {
     expect(stored2?.moodTextRepresentation).not.toBe(originalTextRep);
   });
 
-  it('モデル名が正しく保存される', async () => {
+  it("モデル名が正しく保存される", async () => {
     const { mockPrisma } = createMockPrismaClient();
     setPrismaClientFactory(() => mockPrisma);
 
@@ -940,15 +984,15 @@ describe('Data Consistency', () => {
     );
   });
 
-  it('テキスト表現にe5モデル用のプレフィックスが含まれる', async () => {
+  it("テキスト表現にe5モデル用のプレフィックスが含まれる", async () => {
     setEmbeddingServiceFactory(() => createMockEmbeddingService());
 
     const moodResult = await service.generateMoodEmbedding(professionalMood);
     const brandToneResult = await service.generateBrandToneEmbedding(corporateBrandTone);
 
     // e5モデル用のpassage:プレフィックスが含まれる
-    expect(moodResult.textRepresentation).toContain('passage:');
-    expect(brandToneResult.textRepresentation).toContain('passage:');
+    expect(moodResult.textRepresentation).toContain("passage:");
+    expect(brandToneResult.textRepresentation).toContain("passage:");
   });
 });
 
@@ -956,7 +1000,7 @@ describe('Data Consistency', () => {
 // 7. Model Name & Config Tests
 // =====================================================
 
-describe('Model Name & Config', () => {
+describe("Model Name & Config", () => {
   beforeEach(() => {
     resetEmbeddingServiceFactory();
     resetPrismaClientFactory();
@@ -968,19 +1012,19 @@ describe('Model Name & Config', () => {
     vi.restoreAllMocks();
   });
 
-  it('デフォルトモデル名がmultilingual-e5-baseである', () => {
-    expect(DEFAULT_MODEL_NAME).toBe('multilingual-e5-base');
+  it("デフォルトモデル名がmultilingual-e5-baseである", () => {
+    expect(DEFAULT_MODEL_NAME).toBe("multilingual-e5-base");
   });
 
-  it('デフォルト次元数が768である', () => {
+  it("デフォルト次元数が768である", () => {
     expect(DEFAULT_EMBEDDING_DIMENSIONS).toBe(768);
   });
 
-  it('カスタムオプションでサービスを初期化できる', () => {
+  it("カスタムオプションでサービスを初期化できる", () => {
     setEmbeddingServiceFactory(() => createMockEmbeddingService());
 
     const service = new MoodBrandToneEmbeddingService({
-      modelName: 'custom-model',
+      modelName: "custom-model",
       dimensions: 512,
       normalize: false,
       cacheEnabled: false,
@@ -990,7 +1034,7 @@ describe('Model Name & Config', () => {
     expect(service).toBeDefined();
   });
 
-  it('結果にモデル名が含まれる', async () => {
+  it("結果にモデル名が含まれる", async () => {
     setEmbeddingServiceFactory(() => createMockEmbeddingService());
     const service = new MoodBrandToneEmbeddingService();
 
@@ -1004,7 +1048,7 @@ describe('Model Name & Config', () => {
 // 8. Cache Tests
 // =====================================================
 
-describe('Cache', () => {
+describe("Cache", () => {
   let service: MoodBrandToneEmbeddingService;
 
   beforeEach(() => {
@@ -1020,22 +1064,22 @@ describe('Cache', () => {
     vi.restoreAllMocks();
   });
 
-  it('キャッシュ統計を取得できる', () => {
+  it("キャッシュ統計を取得できる", () => {
     const stats = service.getCacheStats();
 
     expect(stats).toBeDefined();
-    expect(stats).toHaveProperty('hits');
-    expect(stats).toHaveProperty('misses');
-    expect(stats).toHaveProperty('size');
-    expect(stats).toHaveProperty('evictions');
+    expect(stats).toHaveProperty("hits");
+    expect(stats).toHaveProperty("misses");
+    expect(stats).toHaveProperty("size");
+    expect(stats).toHaveProperty("evictions");
   });
 
-  it('キャッシュをクリアできる', () => {
+  it("キャッシュをクリアできる", () => {
     // エラーなくクリアできることを確認
     expect(() => service.clearCache()).not.toThrow();
   });
 
-  it('cacheEnabled=falseでもサービスが動作する', async () => {
+  it("cacheEnabled=falseでもサービスが動作する", async () => {
     const noCacheService = new MoodBrandToneEmbeddingService({ cacheEnabled: false });
 
     const result = await noCacheService.generateMoodEmbedding(professionalMood);

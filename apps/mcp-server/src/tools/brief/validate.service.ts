@@ -7,7 +7,7 @@
  *
  * @module @reftrix/mcp-server/tools/brief/validate.service
  */
-import type { Brief, BriefIssue, BriefValidationResult, IssueSeverity } from './schemas';
+import type { Brief, BriefIssue, BriefValidationResult, IssueSeverity } from "./schemas";
 
 // ============================================================================
 // Validation Rules
@@ -19,13 +19,13 @@ import type { Brief, BriefIssue, BriefValidationResult, IssueSeverity } from './
  */
 export const VALIDATION_RULES = {
   /** Required fields - error level if missing/invalid */
-  required: ['projectName'] as const,
+  required: ["projectName"] as const,
 
   /** Recommended fields - warning level if missing */
-  recommended: ['description', 'targetAudience', 'industry', 'tone'] as const,
+  recommended: ["description", "targetAudience", "industry", "tone"] as const,
 
   /** Optional fields - suggestion level if missing */
-  optional: ['colorPreferences', 'references', 'constraints'] as const,
+  optional: ["colorPreferences", "references", "constraints"] as const,
 
   /** Minimum lengths for string fields */
   minLengths: {
@@ -86,41 +86,40 @@ export interface IBriefValidateService {
 
 const MESSAGES = {
   // Required field errors
-  projectNameRequired: 'プロジェクト名は必須です',
+  projectNameRequired: "プロジェクト名は必須です",
   projectNameTooShort: (min: number) => `プロジェクト名は${min}文字以上で入力してください`,
 
   // Recommended field warnings
-  descriptionMissing: 'プロジェクトの説明を追加することを推奨します',
+  descriptionMissing: "プロジェクトの説明を追加することを推奨します",
   descriptionTooShort: (min: number) => `説明は${min}文字以上にすることを推奨します`,
-  targetAudienceMissing: 'ターゲットオーディエンスを定義することを推奨します',
+  targetAudienceMissing: "ターゲットオーディエンスを定義することを推奨します",
   targetAudienceTooShort: (min: number) =>
     `ターゲットオーディエンスは${min}文字以上で記述することを推奨します`,
-  industryMissing: '業界・分野を指定することを推奨します',
-  toneMissing: 'デザインのトーン・雰囲気を指定することを推奨します',
+  industryMissing: "業界・分野を指定することを推奨します",
+  toneMissing: "デザインのトーン・雰囲気を指定することを推奨します",
 
   // Optional field suggestions
-  colorPreferencesSuggestion: 'ブランドカラーを設定すると、より一貫性のあるデザインが可能になります',
-  referencesSuggestion: '参考サイトを追加すると、デザインの方向性がより明確になります',
-  constraintsSuggestion: '制約条件を追加すると、より適切なデザイン提案が可能になります',
+  colorPreferencesSuggestion:
+    "ブランドカラーを設定すると、より一貫性のあるデザインが可能になります",
+  referencesSuggestion: "参考サイトを追加すると、デザインの方向性がより明確になります",
+  constraintsSuggestion: "制約条件を追加すると、より適切なデザイン提案が可能になります",
 
   // Strict mode errors
-  strictDescriptionTooShort: (min: number) =>
-    `厳格モード: 説明は${min}文字以上で入力してください`,
-  strictToneRequired: '厳格モード: トーン・雰囲気の指定は必須です',
-  strictColorsRequired: '厳格モード: カラー設定は必須です',
-  strictReferencesInsufficient: (min: number) =>
-    `厳格モード: 参考サイトは${min}件以上必要です`,
+  strictDescriptionTooShort: (min: number) => `厳格モード: 説明は${min}文字以上で入力してください`,
+  strictToneRequired: "厳格モード: トーン・雰囲気の指定は必須です",
+  strictColorsRequired: "厳格モード: カラー設定は必須です",
+  strictReferencesInsufficient: (min: number) => `厳格モード: 参考サイトは${min}件以上必要です`,
 
   // Suggestions
-  suggestionAddDescription: '詳細な説明を追加して、デザインの目的を明確にしましょう',
-  suggestionAddTargetAudience: 'ターゲットオーディエンスを定義して、適切なデザインを導きましょう',
-  suggestionAddIndustry: '業界・分野を指定して、コンテキストに合ったデザインを実現しましょう',
-  suggestionAddTone: 'トーン・雰囲気を選択して、デザインの一貫性を高めましょう',
-  suggestionAddColors: 'ブランドカラーを設定して、視覚的な統一感を出しましょう',
-  suggestionAddReferences: '参考サイトを追加して、デザインの方向性を明確にしましょう',
-  suggestionAddConstraints: '制約条件を設定して、より的確なデザイン提案を受けましょう',
-  suggestionMoreDescription: '説明をより詳細にして、プロジェクトの全体像を伝えましょう',
-  suggestionMoreReferences: '参考サイトを増やして、より多くのインスピレーションを得ましょう',
+  suggestionAddDescription: "詳細な説明を追加して、デザインの目的を明確にしましょう",
+  suggestionAddTargetAudience: "ターゲットオーディエンスを定義して、適切なデザインを導きましょう",
+  suggestionAddIndustry: "業界・分野を指定して、コンテキストに合ったデザインを実現しましょう",
+  suggestionAddTone: "トーン・雰囲気を選択して、デザインの一貫性を高めましょう",
+  suggestionAddColors: "ブランドカラーを設定して、視覚的な統一感を出しましょう",
+  suggestionAddReferences: "参考サイトを追加して、デザインの方向性を明確にしましょう",
+  suggestionAddConstraints: "制約条件を設定して、より的確なデザイン提案を受けましょう",
+  suggestionMoreDescription: "説明をより詳細にして、プロジェクトの全体像を伝えましょう",
+  suggestionMoreReferences: "参考サイトを増やして、より多くのインスピレーションを得ましょう",
 } as const;
 
 // ============================================================================
@@ -243,15 +242,15 @@ export class BriefValidateService implements IBriefValidateService {
     const completenessScore = calculateCompletenessScore(brief);
 
     // 6. Determine isValid (no error-level issues)
-    const isValid = !issues.some((i) => i.severity === 'error');
+    const isValid = !issues.some((i) => i.severity === "error");
 
     // 7. Determine readyForDesign (score >= 60 and no errors)
     const readyForDesign = isValid && completenessScore >= 60;
 
     // Log in development
-    if (process.env.NODE_ENV === 'development') {
+    if (process.env.NODE_ENV === "development") {
       // eslint-disable-next-line no-console
-      console.info('[BriefValidateService] Validation result:', {
+      console.info("[BriefValidateService] Validation result:", {
         isValid,
         completenessScore,
         issueCount: issues.length,
@@ -275,12 +274,12 @@ export class BriefValidateService implements IBriefValidateService {
   private validateRequiredFields(brief: Brief, issues: BriefIssue[]): void {
     // projectName validation
     if (!brief.projectName || brief.projectName.length === 0) {
-      issues.push(createIssue('projectName', 'error', MESSAGES.projectNameRequired));
+      issues.push(createIssue("projectName", "error", MESSAGES.projectNameRequired));
     } else if (brief.projectName.length < VALIDATION_RULES.minLengths.projectName) {
       issues.push(
         createIssue(
-          'projectName',
-          'error',
+          "projectName",
+          "error",
           MESSAGES.projectNameTooShort(VALIDATION_RULES.minLengths.projectName)
         )
       );
@@ -298,13 +297,13 @@ export class BriefValidateService implements IBriefValidateService {
   ): void {
     // description validation
     if (!brief.description || brief.description.length === 0) {
-      issues.push(createIssue('description', 'warning', MESSAGES.descriptionMissing));
+      issues.push(createIssue("description", "warning", MESSAGES.descriptionMissing));
       suggestions.push(MESSAGES.suggestionAddDescription);
     } else if (brief.description.length < VALIDATION_RULES.minLengths.description) {
       issues.push(
         createIssue(
-          'description',
-          'warning',
+          "description",
+          "warning",
           MESSAGES.descriptionTooShort(VALIDATION_RULES.minLengths.description)
         )
       );
@@ -313,13 +312,13 @@ export class BriefValidateService implements IBriefValidateService {
 
     // targetAudience validation
     if (!brief.targetAudience || brief.targetAudience.length === 0) {
-      issues.push(createIssue('targetAudience', 'warning', MESSAGES.targetAudienceMissing));
+      issues.push(createIssue("targetAudience", "warning", MESSAGES.targetAudienceMissing));
       suggestions.push(MESSAGES.suggestionAddTargetAudience);
     } else if (brief.targetAudience.length < VALIDATION_RULES.minLengths.targetAudience) {
       issues.push(
         createIssue(
-          'targetAudience',
-          'warning',
+          "targetAudience",
+          "warning",
           MESSAGES.targetAudienceTooShort(VALIDATION_RULES.minLengths.targetAudience)
         )
       );
@@ -327,13 +326,13 @@ export class BriefValidateService implements IBriefValidateService {
 
     // industry validation
     if (!brief.industry || brief.industry.length === 0) {
-      issues.push(createIssue('industry', 'warning', MESSAGES.industryMissing));
+      issues.push(createIssue("industry", "warning", MESSAGES.industryMissing));
       suggestions.push(MESSAGES.suggestionAddIndustry);
     }
 
     // tone validation
     if (!brief.tone || brief.tone.length === 0) {
-      issues.push(createIssue('tone', 'warning', MESSAGES.toneMissing));
+      issues.push(createIssue("tone", "warning", MESSAGES.toneMissing));
       suggestions.push(MESSAGES.suggestionAddTone);
     }
   }
@@ -342,20 +341,18 @@ export class BriefValidateService implements IBriefValidateService {
    * Validate optional fields
    * Generates suggestion-level issues for missing optional fields
    */
-  private validateOptionalFields(
-    brief: Brief,
-    issues: BriefIssue[],
-    suggestions: string[]
-  ): void {
+  private validateOptionalFields(brief: Brief, issues: BriefIssue[], suggestions: string[]): void {
     // colorPreferences validation
     if (!brief.colorPreferences || !brief.colorPreferences.primary) {
-      issues.push(createIssue('colorPreferences', 'suggestion', MESSAGES.colorPreferencesSuggestion));
+      issues.push(
+        createIssue("colorPreferences", "suggestion", MESSAGES.colorPreferencesSuggestion)
+      );
       suggestions.push(MESSAGES.suggestionAddColors);
     }
 
     // references validation
     if (!brief.references || brief.references.length === 0) {
-      issues.push(createIssue('references', 'suggestion', MESSAGES.referencesSuggestion));
+      issues.push(createIssue("references", "suggestion", MESSAGES.referencesSuggestion));
       suggestions.push(MESSAGES.suggestionAddReferences);
     }
 
@@ -365,7 +362,7 @@ export class BriefValidateService implements IBriefValidateService {
       ((brief.constraints.mustHave && brief.constraints.mustHave.length > 0) ||
         (brief.constraints.mustAvoid && brief.constraints.mustAvoid.length > 0));
     if (!hasConstraints) {
-      issues.push(createIssue('constraints', 'suggestion', MESSAGES.constraintsSuggestion));
+      issues.push(createIssue("constraints", "suggestion", MESSAGES.constraintsSuggestion));
       suggestions.push(MESSAGES.suggestionAddConstraints);
     }
   }
@@ -381,8 +378,8 @@ export class BriefValidateService implements IBriefValidateService {
     if (!brief.description || brief.description.length < strictRules.minDescription) {
       issues.push(
         createIssue(
-          'description',
-          'error',
+          "description",
+          "error",
           MESSAGES.strictDescriptionTooShort(strictRules.minDescription)
         )
       );
@@ -390,20 +387,20 @@ export class BriefValidateService implements IBriefValidateService {
 
     // tone required in strict mode
     if (strictRules.requireTone && (!brief.tone || brief.tone.length === 0)) {
-      issues.push(createIssue('tone', 'error', MESSAGES.strictToneRequired));
+      issues.push(createIssue("tone", "error", MESSAGES.strictToneRequired));
     }
 
     // colorPreferences required in strict mode
     if (strictRules.requireColors && (!brief.colorPreferences || !brief.colorPreferences.primary)) {
-      issues.push(createIssue('colorPreferences', 'error', MESSAGES.strictColorsRequired));
+      issues.push(createIssue("colorPreferences", "error", MESSAGES.strictColorsRequired));
     }
 
     // references >= 2 in strict mode
     if (!brief.references || brief.references.length < strictRules.minReferences) {
       issues.push(
         createIssue(
-          'references',
-          'error',
+          "references",
+          "error",
           MESSAGES.strictReferencesInsufficient(strictRules.minReferences)
         )
       );

@@ -12,11 +12,11 @@ Test suite created via test-driven development (TDD) for performance optimizatio
 
 ### 作成したテストファイル / Created Test Files
 
-| ファイル名 / File Name | 説明 / Description | テスト数 / Test Count |
-|-----------|------|---------|
-| `services/cache.test.ts` | キャッシュサービス（LRU、TTL、ヒット率） / Cache service (LRU, TTL, hit rate) | 24 |
-| `services/query-analyzer.test.ts` | クエリ分析（スロークエリ検出、統計、最適化提案） / Query analysis (slow query detection, stats, optimization suggestions) | 21 |
-| `performance/search-benchmark.test.ts` | 検索パフォーマンスベンチマーク（P95 < 100ms目標） / Search performance benchmark (P95 < 100ms target) | 22 |
+| ファイル名 / File Name                 | 説明 / Description                                                                                                        | テスト数 / Test Count |
+| -------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- | --------------------- |
+| `services/cache.test.ts`               | キャッシュサービス（LRU、TTL、ヒット率） / Cache service (LRU, TTL, hit rate)                                             | 24                    |
+| `services/query-analyzer.test.ts`      | クエリ分析（スロークエリ検出、統計、最適化提案） / Query analysis (slow query detection, stats, optimization suggestions) | 21                    |
+| `performance/search-benchmark.test.ts` | 検索パフォーマンスベンチマーク（P95 < 100ms目標） / Search performance benchmark (P95 < 100ms target)                     | 22                    |
 
 **合計 / Total**: 67テスト / 67 tests
 
@@ -34,6 +34,7 @@ Test suite created via test-driven development (TDD) for performance optimizatio
 ### 1. services/cache.test.ts（24テスト / 24 tests）
 
 **カバー範囲 / Coverage**:
+
 - LRU Cache基本操作 / LRU Cache basic operations（get/set/has/delete/clear/size）
 - TTL（有効期限）管理 / TTL (expiration) management
 - 最大サイズ制限とLRU排出 / Maximum size limit and LRU eviction
@@ -42,39 +43,42 @@ Test suite created via test-driven development (TDD) for performance optimizatio
 - Embeddingキャッシュ / Embedding cache（テキストハッシュ、メモリ効率 / text hash, memory efficiency）
 
 **重要なテストケース / Key Test Cases**:
+
 ```typescript
-describe('Cache Service', () => {
-  describe('LRU Cache - 基本操作 / Basic Operations', () => {
-    it('値を保存して取得できること / Can store and retrieve values');
-    it('存在しないキーでnullを返すこと / Returns null for non-existent keys');
-    it('has()でキーの存在を確認できること / Can check key existence with has()');
-    it('delete()でエントリを削除できること / Can delete entries with delete()');
+describe("Cache Service", () => {
+  describe("LRU Cache - 基本操作 / Basic Operations", () => {
+    it("値を保存して取得できること / Can store and retrieve values");
+    it("存在しないキーでnullを返すこと / Returns null for non-existent keys");
+    it("has()でキーの存在を確認できること / Can check key existence with has()");
+    it("delete()でエントリを削除できること / Can delete entries with delete()");
   });
 
-  describe('LRU Cache - TTL（有効期限）管理 / TTL Management', () => {
-    it('TTL期限内は値を取得できること / Can retrieve values within TTL');
-    it('TTL期限切れ後はnullを返すこと / Returns null after TTL expires');
+  describe("LRU Cache - TTL（有効期限）管理 / TTL Management", () => {
+    it("TTL期限内は値を取得できること / Can retrieve values within TTL");
+    it("TTL期限切れ後はnullを返すこと / Returns null after TTL expires");
   });
 
-  describe('LRU Cache - 最大サイズ制限とLRU排出 / Max Size and LRU Eviction', () => {
-    it('最大サイズを超えると最も古いエントリが削除されること / Oldest entry is evicted when max size is exceeded');
-    it('アクセス順序が更新されること / Access order is updated');
+  describe("LRU Cache - 最大サイズ制限とLRU排出 / Max Size and LRU Eviction", () => {
+    it(
+      "最大サイズを超えると最も古いエントリが削除されること / Oldest entry is evicted when max size is exceeded"
+    );
+    it("アクセス順序が更新されること / Access order is updated");
   });
 
-  describe('LRU Cache - キャッシュヒット率計算 / Hit Rate Calculation', () => {
-    it('ヒット率が正しく計算されること / Hit rate is calculated correctly');
-    it('stats()で統計情報を取得できること / Can get statistics with stats()');
+  describe("LRU Cache - キャッシュヒット率計算 / Hit Rate Calculation", () => {
+    it("ヒット率が正しく計算されること / Hit rate is calculated correctly");
+    it("stats()で統計情報を取得できること / Can get statistics with stats()");
   });
 
-  describe('Search Cache Service - 検索結果キャッシュ / Search Result Cache', () => {
-    it('検索結果をキャッシュできること / Can cache search results');
-    it('クエリハッシュが生成されること / Query hash is generated');
-    it('TTL 5分でキャッシュが期限切れになること / Cache expires at 5 min TTL');
+  describe("Search Cache Service - 検索結果キャッシュ / Search Result Cache", () => {
+    it("検索結果をキャッシュできること / Can cache search results");
+    it("クエリハッシュが生成されること / Query hash is generated");
+    it("TTL 5分でキャッシュが期限切れになること / Cache expires at 5 min TTL");
   });
 
-  describe('Embedding Cache Service - Embeddingキャッシュ / Embedding Cache', () => {
-    it('Embeddingベクトルをキャッシュできること / Can cache embedding vectors');
-    it('ベクトル配列のメモリ効率をテストできること / Can test memory efficiency of vector arrays');
+  describe("Embedding Cache Service - Embeddingキャッシュ / Embedding Cache", () => {
+    it("Embeddingベクトルをキャッシュできること / Can cache embedding vectors");
+    it("ベクトル配列のメモリ効率をテストできること / Can test memory efficiency of vector arrays");
   });
 });
 ```
@@ -82,6 +86,7 @@ describe('Cache Service', () => {
 ### 2. services/query-analyzer.test.ts（21テスト / 21 tests）
 
 **カバー範囲 / Coverage**:
+
 - クエリ解析 / Query analysis（実行時間計測、実行計画取得 / execution time measurement, execution plan retrieval）
 - スロークエリ検出 / Slow query detection（100ms超 / over 100ms）
 - 統計収集 / Statistics collection（P50/P95/P99レイテンシ計算 / P50/P95/P99 latency calculation）
@@ -90,32 +95,39 @@ describe('Cache Service', () => {
 - 最適化提案 / Optimization suggestions（インデックス推奨、クエリ書き換え / index recommendations, query rewriting）
 
 **重要なテストケース / Key Test Cases**:
+
 ```typescript
-describe('Query Analyzer Service', () => {
-  describe('クエリ解析 / Query Analysis', () => {
-    it('クエリ実行時間を計測できること / Can measure query execution time');
-    it('実行計画を取得できること / Can retrieve execution plan');
-    it('スロークエリを検出できること（100ms超） / Can detect slow queries (over 100ms)');
+describe("Query Analyzer Service", () => {
+  describe("クエリ解析 / Query Analysis", () => {
+    it("クエリ実行時間を計測できること / Can measure query execution time");
+    it("実行計画を取得できること / Can retrieve execution plan");
+    it("スロークエリを検出できること（100ms超） / Can detect slow queries (over 100ms)");
   });
 
-  describe('統計収集 - P50/P95/P99レイテンシ計算 / Statistics - Latency Calculation', () => {
-    it('P50/P95/P99レイテンシを計算できること / Can calculate P50/P95/P99 latency');
-    it('平均値・最小値・最大値を計算できること / Can calculate avg/min/max');
+  describe("統計収集 - P50/P95/P99レイテンシ計算 / Statistics - Latency Calculation", () => {
+    it("P50/P95/P99レイテンシを計算できること / Can calculate P50/P95/P99 latency");
+    it("平均値・最小値・最大値を計算できること / Can calculate avg/min/max");
   });
 
-  describe('クエリパターン別統計 / Per-Pattern Statistics', () => {
-    it('クエリパターンごとに統計を集計できること / Can aggregate statistics per query pattern');
-    it('パターンごとの平均実行時間を計算できること / Can calculate average execution time per pattern');
+  describe("クエリパターン別統計 / Per-Pattern Statistics", () => {
+    it("クエリパターンごとに統計を集計できること / Can aggregate statistics per query pattern");
+    it(
+      "パターンごとの平均実行時間を計算できること / Can calculate average execution time per pattern"
+    );
   });
 
-  describe('時間帯別負荷分析 / Time-Based Load Analysis', () => {
-    it('時間帯ごとのクエリ数を集計できること / Can aggregate query count per time period');
-    it('時間帯ごとの平均実行時間を計算できること / Can calculate average execution time per time period');
+  describe("時間帯別負荷分析 / Time-Based Load Analysis", () => {
+    it("時間帯ごとのクエリ数を集計できること / Can aggregate query count per time period");
+    it(
+      "時間帯ごとの平均実行時間を計算できること / Can calculate average execution time per time period"
+    );
   });
 
-  describe('最適化提案 / Optimization Suggestions', () => {
-    it('スロークエリが多い場合、インデックスを推奨すること / Recommends index when many slow queries');
-    it('P95が高い場合、クエリ書き換えを推奨すること / Recommends query rewriting when P95 is high');
+  describe("最適化提案 / Optimization Suggestions", () => {
+    it(
+      "スロークエリが多い場合、インデックスを推奨すること / Recommends index when many slow queries"
+    );
+    it("P95が高い場合、クエリ書き換えを推奨すること / Recommends query rewriting when P95 is high");
   });
 });
 ```
@@ -123,6 +135,7 @@ describe('Query Analyzer Service', () => {
 ### 3. performance/search-benchmark.test.ts（22テスト / 22 tests）
 
 **カバー範囲 / Coverage**:
+
 - レスポンスタイム / Response time（P95 < 100ms目標 / P95 < 100ms target）
 - 並列リクエスト / Concurrent requests（10, 50, 100同時 / 10, 50, 100 concurrent）
 - コールドスタート vs ウォームスタート / Cold start vs warm start
@@ -131,33 +144,36 @@ describe('Query Analyzer Service', () => {
 - スループット計測 / Throughput measurement
 
 **重要なテストケース / Key Test Cases**:
+
 ```typescript
-describe('Search Benchmark', () => {
-  describe('レスポンスタイム - P95 < 100ms 目標 / Response Time - P95 < 100ms Target', () => {
-    it('P95レスポンスタイムが100ms未満であること / P95 response time is under 100ms');
-    it('P50レスポンスタイムが50ms未満であること / P50 response time is under 50ms');
+describe("Search Benchmark", () => {
+  describe("レスポンスタイム - P95 < 100ms 目標 / Response Time - P95 < 100ms Target", () => {
+    it("P95レスポンスタイムが100ms未満であること / P95 response time is under 100ms");
+    it("P50レスポンスタイムが50ms未満であること / P50 response time is under 50ms");
   });
 
-  describe('並列リクエスト / Concurrent Requests', () => {
-    it('10同時リクエストを処理できること / Can handle 10 concurrent requests');
-    it('50同時リクエストを処理できること / Can handle 50 concurrent requests');
-    it('100同時リクエストを処理できること / Can handle 100 concurrent requests');
+  describe("並列リクエスト / Concurrent Requests", () => {
+    it("10同時リクエストを処理できること / Can handle 10 concurrent requests");
+    it("50同時リクエストを処理できること / Can handle 50 concurrent requests");
+    it("100同時リクエストを処理できること / Can handle 100 concurrent requests");
   });
 
-  describe('コールドスタート vs ウォームスタート / Cold Start vs Warm Start', () => {
-    it('コールドスタート（初回）は遅いこと / Cold start (first run) is slower');
-    it('ウォームスタート（キャッシュヒット）は速いこと / Warm start (cache hit) is faster');
+  describe("コールドスタート vs ウォームスタート / Cold Start vs Warm Start", () => {
+    it("コールドスタート（初回）は遅いこと / Cold start (first run) is slower");
+    it("ウォームスタート（キャッシュヒット）は速いこと / Warm start (cache hit) is faster");
   });
 
-  describe('スケーラビリティ / Scalability', () => {
-    it('1,000件のデータセットで検索できること / Can search 1,000 record dataset');
-    it('10,000件のデータセットで検索できること / Can search 10,000 record dataset');
-    it('100,000件のデータセットで検索できること / Can search 100,000 record dataset');
+  describe("スケーラビリティ / Scalability", () => {
+    it("1,000件のデータセットで検索できること / Can search 1,000 record dataset");
+    it("10,000件のデータセットで検索できること / Can search 10,000 record dataset");
+    it("100,000件のデータセットで検索できること / Can search 100,000 record dataset");
   });
 
-  describe('ページネーション効率 / Pagination Efficiency', () => {
-    it('ページネーションで異なるページを取得できること / Can retrieve different pages via pagination');
-    it('ページネーションのパフォーマンスが一定であること / Pagination performance is consistent');
+  describe("ページネーション効率 / Pagination Efficiency", () => {
+    it(
+      "ページネーションで異なるページを取得できること / Can retrieve different pages via pagination"
+    );
+    it("ページネーションのパフォーマンスが一定であること / Pagination performance is consistent");
   });
 });
 ```
@@ -168,32 +184,32 @@ describe('Search Benchmark', () => {
 
 ### キャッシュサービス / Cache Service
 
-| 指標 / Indicator | 目標値 / Target |
-|------|--------|
-| LRUキャッシュヒット率 / LRU cache hit rate | > 80% |
-| TTL精度 / TTL precision | ±100ms |
-| 検索結果キャッシュTTL / Search result cache TTL | 5分 / 5 min |
+| 指標 / Indicator                                     | 目標値 / Target              |
+| ---------------------------------------------------- | ---------------------------- |
+| LRUキャッシュヒット率 / LRU cache hit rate           | > 80%                        |
+| TTL精度 / TTL precision                              | ±100ms                       |
+| 検索結果キャッシュTTL / Search result cache TTL      | 5分 / 5 min                  |
 | メモリ使用量（Embedding） / Memory usage (Embedding) | < 2KB/エントリ / < 2KB/entry |
 
 ### クエリアナライザー / Query Analyzer
 
-| 指標 / Indicator | 目標値 / Target |
-|------|--------|
-| スロークエリ閾値 / Slow query threshold | > 100ms |
-| P95レイテンシ / P95 latency | < 100ms |
-| P99レイテンシ / P99 latency | < 150ms |
-| インデックス推奨精度 / Index recommendation accuracy | > 70% |
+| 指標 / Indicator                                     | 目標値 / Target |
+| ---------------------------------------------------- | --------------- |
+| スロークエリ閾値 / Slow query threshold              | > 100ms         |
+| P95レイテンシ / P95 latency                          | < 100ms         |
+| P99レイテンシ / P99 latency                          | < 150ms         |
+| インデックス推奨精度 / Index recommendation accuracy | > 70%           |
 
 ### 検索ベンチマーク / Search Benchmark
 
-| 指標 / Indicator | 目標値 / Target |
-|------|--------|
-| P95レスポンスタイム / P95 response time | < 100ms |
-| P50レスポンスタイム / P50 response time | < 50ms |
-| 並列処理（100同時） / Concurrent (100 parallel) | P95 < 500ms |
-| スループット / Throughput | > 10 req/s |
-| コールドスタート / Cold start | < 200ms |
-| ウォームスタート / Warm start | < 20ms |
+| 指標 / Indicator                                | 目標値 / Target |
+| ----------------------------------------------- | --------------- |
+| P95レスポンスタイム / P95 response time         | < 100ms         |
+| P50レスポンスタイム / P50 response time         | < 50ms          |
+| 並列処理（100同時） / Concurrent (100 parallel) | P95 < 500ms     |
+| スループット / Throughput                       | > 10 req/s      |
+| コールドスタート / Cold start                   | < 200ms         |
+| ウォームスタート / Warm start                   | < 20ms          |
 
 ---
 
@@ -234,24 +250,24 @@ pnpm test:coverage
 
 ## 実装状況 / Implementation Status
 
-| ファイル / File | ステータス / Status |
-|---------|----------|
-| `src/services/cache.ts` | 実装済み / Implemented |
-| `src/services/query-analyzer.ts` | 実装済み / Implemented |
-| `src/utils/benchmark.ts` | 実装済み（確認要） / Implemented (needs verification) |
-| `src/middleware/cache.ts` | 未確認 / Unverified |
-| `src/utils/performance.ts` | 未確認 / Unverified |
+| ファイル / File                  | ステータス / Status                                   |
+| -------------------------------- | ----------------------------------------------------- |
+| `src/services/cache.ts`          | 実装済み / Implemented                                |
+| `src/services/query-analyzer.ts` | 実装済み / Implemented                                |
+| `src/utils/benchmark.ts`         | 実装済み（確認要） / Implemented (needs verification) |
+| `src/middleware/cache.ts`        | 未確認 / Unverified                                   |
+| `src/utils/performance.ts`       | 未確認 / Unverified                                   |
 
 ---
 
 ## 品質目標 / Quality Targets
 
-| 指標 / Indicator | 目標値 / Target | 現在の状態 / Current Status |
-|------|--------|-----------|
-| テストカバレッジ / Test coverage | > 80% | 実装済み（実測値はCIで確認） / Implemented (actual values verified in CI) |
-| パフォーマンステストカバレッジ / Perf test coverage | > 90% | 実装済み（実測値はCIで確認） / Implemented (actual values verified in CI) |
-| テスト実行時間 / Test execution time | < 10秒 / < 10s | `pnpm test performance` で計測 / Measured with `pnpm test performance` |
-| テストパス率 / Test pass rate | 100% | 実装済み（`pnpm test` で確認） / Implemented (verified with `pnpm test`) |
+| 指標 / Indicator                                    | 目標値 / Target | 現在の状態 / Current Status                                               |
+| --------------------------------------------------- | --------------- | ------------------------------------------------------------------------- |
+| テストカバレッジ / Test coverage                    | > 80%           | 実装済み（実測値はCIで確認） / Implemented (actual values verified in CI) |
+| パフォーマンステストカバレッジ / Perf test coverage | > 90%           | 実装済み（実測値はCIで確認） / Implemented (actual values verified in CI) |
+| テスト実行時間 / Test execution time                | < 10秒 / < 10s  | `pnpm test performance` で計測 / Measured with `pnpm test performance`    |
+| テストパス率 / Test pass rate                       | 100%            | 実装済み（`pnpm test` で確認） / Implemented (verified with `pnpm test`)  |
 
 ---
 

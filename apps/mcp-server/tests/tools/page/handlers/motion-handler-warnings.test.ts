@@ -9,12 +9,12 @@
  * @module tests/tools/page/handlers/motion-handler-warnings
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { defaultDetectMotion } from '../../../../src/tools/page/handlers/motion-handler';
-import type { MotionDetectionExtendedContext } from '../../../../src/tools/page/handlers/types';
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { defaultDetectMotion } from "../../../../src/tools/page/handlers/motion-handler";
+import type { MotionDetectionExtendedContext } from "../../../../src/tools/page/handlers/types";
 
 // MotionDetectorServiceをモック
-vi.mock('../../../../src/services/page/motion-detector.service', () => ({
+vi.mock("../../../../src/services/page/motion-detector.service", () => ({
   getMotionDetectorService: () => ({
     detect: vi.fn().mockReturnValue({
       patterns: [],
@@ -25,23 +25,23 @@ vi.mock('../../../../src/services/page/motion-detector.service', () => ({
 }));
 
 // 外部CSSフェッチャーをモック
-vi.mock('../../../../src/services/external-css-fetcher', () => ({
+vi.mock("../../../../src/services/external-css-fetcher", () => ({
   extractCssUrls: vi.fn().mockReturnValue([]),
   fetchAllCss: vi.fn().mockResolvedValue([]),
 }));
 
 // video-handlerをモック（フレームキャプチャを無効化）
-vi.mock('../../../../src/tools/page/handlers/video-handler', () => ({
+vi.mock("../../../../src/tools/page/handlers/video-handler", () => ({
   executeVideoMode: vi.fn().mockResolvedValue({}),
 }));
 
 // js-animation-handlerをモック
-vi.mock('../../../../src/tools/page/handlers/js-animation-handler', () => ({
+vi.mock("../../../../src/tools/page/handlers/js-animation-handler", () => ({
   executeJSAnimationMode: vi.fn().mockResolvedValue({}),
   checkPlaywrightAvailability: vi.fn().mockResolvedValue(false),
 }));
 
-describe('Motion Handler Warning Messages', () => {
+describe("Motion Handler Warning Messages", () => {
   const MINIMAL_HTML = `<!DOCTYPE html><html><head></head><body></body></html>`;
 
   beforeEach(() => {
@@ -52,70 +52,60 @@ describe('Motion Handler Warning Messages', () => {
     vi.restoreAllMocks();
   });
 
-  describe('MOTION_DETECTION_LIMITED warning', () => {
-    it('Motion検出結果が0件の場合に警告が出ること', async () => {
-      const result = await defaultDetectMotion(
-        MINIMAL_HTML,
-        'https://example.com',
-        { includeWarnings: true }
-      );
+  describe("MOTION_DETECTION_LIMITED warning", () => {
+    it("Motion検出結果が0件の場合に警告が出ること", async () => {
+      const result = await defaultDetectMotion(MINIMAL_HTML, "https://example.com", {
+        includeWarnings: true,
+      });
 
       expect(result.success).toBe(true);
       expect(result.warnings).toBeDefined();
 
-      const limitedWarning = result.warnings?.find(
-        (w) => w.code === 'MOTION_DETECTION_LIMITED'
-      );
+      const limitedWarning = result.warnings?.find((w) => w.code === "MOTION_DETECTION_LIMITED");
       expect(limitedWarning).toBeDefined();
-      expect(limitedWarning?.severity).toBe('info');
-      expect(limitedWarning?.message).toContain('Motion detection found 0 patterns');
-      expect(limitedWarning?.message).toContain('detect_js_animations: true');
+      expect(limitedWarning?.severity).toBe("info");
+      expect(limitedWarning?.message).toContain("Motion detection found 0 patterns");
+      expect(limitedWarning?.message).toContain("detect_js_animations: true");
     });
 
-    it('CSS検出結果が0件の場合にCSS警告も出ること', async () => {
-      const result = await defaultDetectMotion(
-        MINIMAL_HTML,
-        'https://example.com',
-        { includeWarnings: true }
-      );
+    it("CSS検出結果が0件の場合にCSS警告も出ること", async () => {
+      const result = await defaultDetectMotion(MINIMAL_HTML, "https://example.com", {
+        includeWarnings: true,
+      });
 
-      const cssWarning = result.warnings?.find(
-        (w) => w.code === 'CSS_NO_ANIMATIONS_DETECTED'
-      );
+      const cssWarning = result.warnings?.find((w) => w.code === "CSS_NO_ANIMATIONS_DETECTED");
       expect(cssWarning).toBeDefined();
-      expect(cssWarning?.severity).toBe('warning');
+      expect(cssWarning?.severity).toBe("warning");
     });
 
-    it('layout_firstモード時はMOTION_DETECTION_LIMITED警告が出ないこと', async () => {
+    it("layout_firstモード時はMOTION_DETECTION_LIMITED警告が出ないこと", async () => {
       const extendedContext: MotionDetectionExtendedContext = {
         layoutFirstModeEnabled: true,
       };
 
       const result = await defaultDetectMotion(
         MINIMAL_HTML,
-        'https://example.com',
+        "https://example.com",
         { includeWarnings: true },
         undefined,
         extendedContext
       );
 
-      const limitedWarning = result.warnings?.find(
-        (w) => w.code === 'MOTION_DETECTION_LIMITED'
-      );
+      const limitedWarning = result.warnings?.find((w) => w.code === "MOTION_DETECTION_LIMITED");
       // layout_firstモードが有効な場合は、MOTION_DETECTION_LIMITED警告は出さない
       expect(limitedWarning).toBeUndefined();
     });
   });
 
-  describe('LAYOUT_FIRST_MODE_ENABLED warning', () => {
-    it('layout_firstモードが有効な場合に警告が出ること', async () => {
+  describe("LAYOUT_FIRST_MODE_ENABLED warning", () => {
+    it("layout_firstモードが有効な場合に警告が出ること", async () => {
       const extendedContext: MotionDetectionExtendedContext = {
         layoutFirstModeEnabled: true,
       };
 
       const result = await defaultDetectMotion(
         MINIMAL_HTML,
-        'https://example.com',
+        "https://example.com",
         { includeWarnings: true },
         undefined,
         extendedContext
@@ -125,52 +115,52 @@ describe('Motion Handler Warning Messages', () => {
       expect(result.warnings).toBeDefined();
 
       const layoutFirstWarning = result.warnings?.find(
-        (w) => w.code === 'LAYOUT_FIRST_MODE_ENABLED'
+        (w) => w.code === "LAYOUT_FIRST_MODE_ENABLED"
       );
       expect(layoutFirstWarning).toBeDefined();
-      expect(layoutFirstWarning?.severity).toBe('info');
-      expect(layoutFirstWarning?.message).toContain('layout_first mode is enabled');
-      expect(layoutFirstWarning?.message).toContain('WebGL/3D site');
+      expect(layoutFirstWarning?.severity).toBe("info");
+      expect(layoutFirstWarning?.message).toContain("layout_first mode is enabled");
+      expect(layoutFirstWarning?.message).toContain("WebGL/3D site");
       expect(layoutFirstWarning?.message).toContain('layout_first: "never"');
     });
 
-    it('layout_firstモードが無効な場合は警告が出ないこと', async () => {
+    it("layout_firstモードが無効な場合は警告が出ないこと", async () => {
       const result = await defaultDetectMotion(
         MINIMAL_HTML,
-        'https://example.com',
+        "https://example.com",
         { includeWarnings: true },
         undefined,
         undefined // extendedContextなし
       );
 
       const layoutFirstWarning = result.warnings?.find(
-        (w) => w.code === 'LAYOUT_FIRST_MODE_ENABLED'
+        (w) => w.code === "LAYOUT_FIRST_MODE_ENABLED"
       );
       expect(layoutFirstWarning).toBeUndefined();
     });
 
-    it('extendedContextがあってもlayoutFirstModeEnabled=falseなら警告が出ないこと', async () => {
+    it("extendedContextがあってもlayoutFirstModeEnabled=falseなら警告が出ないこと", async () => {
       const extendedContext: MotionDetectionExtendedContext = {
         layoutFirstModeEnabled: false,
       };
 
       const result = await defaultDetectMotion(
         MINIMAL_HTML,
-        'https://example.com',
+        "https://example.com",
         { includeWarnings: true },
         undefined,
         extendedContext
       );
 
       const layoutFirstWarning = result.warnings?.find(
-        (w) => w.code === 'LAYOUT_FIRST_MODE_ENABLED'
+        (w) => w.code === "LAYOUT_FIRST_MODE_ENABLED"
       );
       expect(layoutFirstWarning).toBeUndefined();
     });
   });
 
-  describe('通常のMotion検出時', () => {
-    it('CSSパターンが検出された場合はMOTION_DETECTION_LIMITED警告が出ないこと', async () => {
+  describe("通常のMotion検出時", () => {
+    it("CSSパターンが検出された場合はMOTION_DETECTION_LIMITED警告が出ないこと", async () => {
       // 注意: この動作を確認するにはモックを動的に変更する必要があるが、
       // vi.mockはファイルレベルで適用されるため、
       // ここではパターンが検出される場合のロジックが正しいことを検証する
@@ -179,18 +169,18 @@ describe('Motion Handler Warning Messages', () => {
       expect(true).toBe(true);
     });
 
-    it('extendedContextにlayoutFirstModeEnabledがundefinedの場合は警告が出ないこと', async () => {
+    it("extendedContextにlayoutFirstModeEnabledがundefinedの場合は警告が出ないこと", async () => {
       // extendedContextがundefinedの場合と同じ動作を確認
       const result = await defaultDetectMotion(
         MINIMAL_HTML,
-        'https://example.com',
+        "https://example.com",
         { includeWarnings: true },
         undefined,
         { screenshot: undefined } as MotionDetectionExtendedContext // layoutFirstModeEnabledなし
       );
 
       const layoutFirstWarning = result.warnings?.find(
-        (w) => w.code === 'LAYOUT_FIRST_MODE_ENABLED'
+        (w) => w.code === "LAYOUT_FIRST_MODE_ENABLED"
       );
       expect(layoutFirstWarning).toBeUndefined();
     });

@@ -25,10 +25,10 @@
  * @module services/part/part-embedding
  */
 
-import type { DINOv2Service } from '@reftrix/ml';
-import { DINOV2_EMBEDDING_DIMENSION } from '@reftrix/ml';
-import { logger } from '../../utils/logger';
-import { truncateId } from './schemas';
+import type { DINOv2Service } from "@reftrix/ml";
+import { DINOV2_EMBEDDING_DIMENSION } from "@reftrix/ml";
+import { logger } from "../../utils/logger";
+import { truncateId } from "./schemas";
 
 // ============================================================================
 // Types / 型定義
@@ -90,7 +90,7 @@ export interface PartEmbeddingResult {
  * Defined as interface to allow mocking in tests.
  */
 export interface EmbeddingServiceLike {
-  generateEmbedding(text: string, type: 'query' | 'passage'): Promise<number[]>;
+  generateEmbedding(text: string, type: "query" | "passage"): Promise<number[]>;
 }
 
 // ============================================================================
@@ -102,20 +102,20 @@ export interface EmbeddingServiceLike {
  * Style properties to include in text representation
  */
 const TEXT_REPR_STYLE_KEYS = [
-  'background-color',
-  'background',
-  'color',
-  'font-size',
-  'font-weight',
-  'font-family',
-  'border-radius',
-  'box-shadow',
-  'border',
-  'padding',
-  'margin',
-  'display',
-  'gap',
-  'opacity',
+  "background-color",
+  "background",
+  "color",
+  "font-size",
+  "font-weight",
+  "font-family",
+  "border-radius",
+  "box-shadow",
+  "border",
+  "padding",
+  "margin",
+  "display",
+  "gap",
+  "opacity",
 ] as const;
 
 /**
@@ -123,12 +123,12 @@ const TEXT_REPR_STYLE_KEYS = [
  * Attribute keys to include in text representation
  */
 const TEXT_REPR_ATTRIBUTE_KEYS = [
-  'alt',
-  'placeholder',
-  'aria-label',
-  'title',
-  'type',
-  'role',
+  "alt",
+  "placeholder",
+  "aria-label",
+  "title",
+  "type",
+  "role",
 ] as const;
 
 /**
@@ -163,30 +163,30 @@ export function buildPartTextRepresentation(part: ComponentPartForEmbedding): st
   const styleSegments: string[] = [];
   for (const key of TEXT_REPR_STYLE_KEYS) {
     const value = part.computedStyles[key];
-    if (value && value !== '' && value !== 'none' && value !== 'initial') {
+    if (value && value !== "" && value !== "none" && value !== "initial") {
       styleSegments.push(`${key}:${value}`);
     }
   }
   if (styleSegments.length > 0) {
-    segments.push(`styles:[${styleSegments.join(', ')}]`);
+    segments.push(`styles:[${styleSegments.join(", ")}]`);
   }
 
   // 3. CSSクラス（最大10件） / CSS classes (max 10)
   if (part.cssClasses.length > 0) {
     const classes = part.cssClasses.slice(0, MAX_CSS_CLASSES_IN_TEXT);
-    segments.push(`classes:[${classes.join(', ')}]`);
+    segments.push(`classes:[${classes.join(", ")}]`);
   }
 
   // 4. 属性情報 / Attribute information
   const attrSegments: string[] = [];
   for (const key of TEXT_REPR_ATTRIBUTE_KEYS) {
     const value = part.attributes[key];
-    if (value && value !== '') {
+    if (value && value !== "") {
       attrSegments.push(`${key}:${value}`);
     }
   }
   if (attrSegments.length > 0) {
-    segments.push(`attrs:[${attrSegments.join(', ')}]`);
+    segments.push(`attrs:[${attrSegments.join(", ")}]`);
   }
 
   // 5. インタラクション情報 / Interaction information
@@ -197,11 +197,11 @@ export function buildPartTextRepresentation(part: ComponentPartForEmbedding): st
     }
   }
   if (activeInteractions.length > 0) {
-    segments.push(`interaction:[${activeInteractions.join(', ')}]`);
+    segments.push(`interaction:[${activeInteractions.join(", ")}]`);
   }
 
   // e5-base format: "passage: " prefix
-  return `passage: ${segments.join(' ')}`;
+  return `passage: ${segments.join(" ")}`;
 }
 
 // ============================================================================
@@ -217,7 +217,7 @@ export function buildPartTextRepresentation(part: ComponentPartForEmbedding): st
  * @throws {Error} NaN/Infinityが検出された場合 / When NaN/Infinity is detected
  */
 function validateEmbeddingFinite(embedding: number[], label: string): void {
-  if (embedding.some(v => !Number.isFinite(v))) {
+  if (embedding.some((v) => !Number.isFinite(v))) {
     throw new Error(`Invalid ${label} embedding: contains NaN or Infinity`);
   }
 }
@@ -257,20 +257,20 @@ function validateNotZeroVector(embedding: number[], label: string): void {
  */
 export async function generateVisualEmbedding(
   dinov2Service: DINOv2Service,
-  cropBuffer: Buffer,
+  cropBuffer: Buffer
 ): Promise<number[]> {
   const embedding = await dinov2Service.generateEmbedding(cropBuffer);
 
   // [H-3] NaN/Infinity検証
-  validateEmbeddingFinite(embedding, 'visual');
+  validateEmbeddingFinite(embedding, "visual");
 
   // [H-3] ゼロベクトル検証
-  validateNotZeroVector(embedding, 'visual');
+  validateNotZeroVector(embedding, "visual");
 
   // DINOv2Serviceは既にL2正規化を行うが、次元数の検証
   if (embedding.length !== DINOV2_EMBEDDING_DIMENSION) {
     throw new Error(
-      `Visual embedding dimension mismatch: expected ${DINOV2_EMBEDDING_DIMENSION}, got ${embedding.length}`,
+      `Visual embedding dimension mismatch: expected ${DINOV2_EMBEDDING_DIMENSION}, got ${embedding.length}`
     );
   }
 
@@ -292,7 +292,7 @@ export async function generateVisualEmbedding(
  */
 export async function generateTextEmbedding(
   embeddingService: EmbeddingServiceLike,
-  textRepresentation: string,
+  textRepresentation: string
 ): Promise<number[]> {
   // textRepresentation は既に "passage: " プレフィックス付き。
   // EmbeddingService.generateEmbedding() は内部でプレフィックスを付加するため、
@@ -301,14 +301,14 @@ export async function generateTextEmbedding(
   // textRepresentation already has "passage: " prefix.
   // EmbeddingService.generateEmbedding() adds prefix internally,
   // so pass text without the prefix.
-  const textWithoutPrefix = textRepresentation.startsWith('passage: ')
-    ? textRepresentation.slice('passage: '.length)
+  const textWithoutPrefix = textRepresentation.startsWith("passage: ")
+    ? textRepresentation.slice("passage: ".length)
     : textRepresentation;
 
-  const embedding = await embeddingService.generateEmbedding(textWithoutPrefix, 'passage');
+  const embedding = await embeddingService.generateEmbedding(textWithoutPrefix, "passage");
 
   // [H-3] NaN/Infinity検証
-  validateEmbeddingFinite(embedding, 'text');
+  validateEmbeddingFinite(embedding, "text");
 
   return embedding;
 }
@@ -331,7 +331,7 @@ export async function generatePartEmbeddings(
   parts: ComponentPartWithCrop[],
   dinov2Service: DINOv2Service,
   embeddingService: EmbeddingServiceLike,
-  options?: { chunkSize?: number },
+  options?: { chunkSize?: number }
 ): Promise<PartEmbeddingResult[]> {
   const chunkSize = options?.chunkSize ?? 5;
   const results: PartEmbeddingResult[] = [];
@@ -340,7 +340,7 @@ export async function generatePartEmbeddings(
     return results;
   }
 
-  logger.info('[part-embedding] Starting batch embedding generation', {
+  logger.info("[part-embedding] Starting batch embedding generation", {
     totalParts: parts.length,
     chunkSize,
   });
@@ -375,15 +375,15 @@ export async function generatePartEmbeddings(
 
       // chunkSizeごとに進捗ログ / Progress log every chunkSize
       if ((i + 1) % chunkSize === 0 || i === parts.length - 1) {
-        logger.info('[part-embedding] Batch progress', {
+        logger.info("[part-embedding] Batch progress", {
           completed: i + 1,
           total: parts.length,
           elapsedMs: Date.now() - startTime,
         });
       }
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      logger.warn('[part-embedding] Failed to generate embedding for part', {
+      const errorMessage = error instanceof Error ? error.message : "Unknown error";
+      logger.warn("[part-embedding] Failed to generate embedding for part", {
         partId: truncateId(part.id),
         partType: part.partType,
         index: i,
@@ -395,7 +395,7 @@ export async function generatePartEmbeddings(
   }
 
   const durationMs = Date.now() - startTime;
-  logger.info('[part-embedding] Batch embedding generation complete', {
+  logger.info("[part-embedding] Batch embedding generation complete", {
     totalParts: parts.length,
     successCount: results.length,
     failedCount: parts.length - results.length,

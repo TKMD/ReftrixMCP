@@ -10,8 +10,8 @@
  * @module @reftrix/webdesign-core/quality-evaluator/anti-ai-cliche
  */
 
-import type { DetectedSection } from '../types/section.types';
-import type { ColorInfo, TypographyInfo } from '../text-representation';
+import type { DetectedSection } from "../types/section.types";
+import type { ColorInfo, TypographyInfo } from "../text-representation";
 
 // =========================================
 // Types - Exported
@@ -21,7 +21,7 @@ import type { ColorInfo, TypographyInfo } from '../text-representation';
  * レイアウト情報（拡張）
  */
 export interface LayoutInfo {
-  type: 'flex' | 'grid' | 'float' | 'unknown';
+  type: "flex" | "grid" | "float" | "unknown";
   columns?: number;
   gutterWidth?: number;
   maxWidth?: number;
@@ -67,7 +67,7 @@ export interface ClichePattern {
   /** 説明 */
   description: string;
   /** 深刻度 */
-  severity: 'low' | 'medium' | 'high';
+  severity: "low" | "medium" | "high";
   /** 重み（0-1） */
   weight: number;
   /** 検出関数 */
@@ -115,9 +115,9 @@ export class AntiAiClicheDetector {
     this.strictMode = options.strictMode ?? false;
     this.initBuiltinPatterns();
 
-    if (process.env.NODE_ENV === 'development') {
+    if (process.env.NODE_ENV === "development") {
       // eslint-disable-next-line no-console -- Intentional debug log in development
-      console.log('[AntiAiClicheDetector] Initialized with strictMode:', this.strictMode);
+      console.log("[AntiAiClicheDetector] Initialized with strictMode:", this.strictMode);
     }
   }
 
@@ -131,9 +131,9 @@ export class AntiAiClicheDetector {
   addPattern(pattern: ClichePattern): void {
     this.patterns.set(pattern.id, pattern);
 
-    if (process.env.NODE_ENV === 'development') {
+    if (process.env.NODE_ENV === "development") {
       // eslint-disable-next-line no-console -- Intentional debug log in development
-      console.log('[AntiAiClicheDetector] Pattern added:', pattern.id);
+      console.log("[AntiAiClicheDetector] Pattern added:", pattern.id);
     }
   }
 
@@ -143,9 +143,9 @@ export class AntiAiClicheDetector {
   removePattern(id: string): boolean {
     const result = this.patterns.delete(id);
 
-    if (process.env.NODE_ENV === 'development') {
+    if (process.env.NODE_ENV === "development") {
       // eslint-disable-next-line no-console -- Intentional debug log in development
-      console.log('[AntiAiClicheDetector] Pattern removed:', id, 'success:', result);
+      console.log("[AntiAiClicheDetector] Pattern removed:", id, "success:", result);
     }
 
     return result;
@@ -173,9 +173,9 @@ export class AntiAiClicheDetector {
    * 全パターンを検出
    */
   detect(context: DesignContext): ClicheReport {
-    if (process.env.NODE_ENV === 'development') {
+    if (process.env.NODE_ENV === "development") {
       // eslint-disable-next-line no-console -- Intentional debug log in development
-      console.log('[AntiAiClicheDetector] Starting detection with', this.patterns.size, 'patterns');
+      console.log("[AntiAiClicheDetector] Starting detection with", this.patterns.size, "patterns");
     }
 
     const detectedPatterns: Array<{
@@ -191,8 +191,8 @@ export class AntiAiClicheDetector {
           detectedPatterns.push({ pattern, result });
         }
       } catch (error) {
-        if (process.env.NODE_ENV === 'development') {
-          console.error('[AntiAiClicheDetector] Pattern detector failed:', pattern.id, error);
+        if (process.env.NODE_ENV === "development") {
+          console.error("[AntiAiClicheDetector] Pattern detector failed:", pattern.id, error);
         }
       }
     }
@@ -203,9 +203,14 @@ export class AntiAiClicheDetector {
     // Generate recommendations
     const recommendations = this.generateRecommendations(detectedPatterns);
 
-    if (process.env.NODE_ENV === 'development') {
+    if (process.env.NODE_ENV === "development") {
       // eslint-disable-next-line no-console -- Intentional debug log in development
-      console.log('[AntiAiClicheDetector] Detection complete. Score:', totalScore, 'Detected:', detectedPatterns.length);
+      console.log(
+        "[AntiAiClicheDetector] Detection complete. Score:",
+        totalScore,
+        "Detected:",
+        detectedPatterns.length
+      );
     }
 
     return {
@@ -222,8 +227,8 @@ export class AntiAiClicheDetector {
     const pattern = this.patterns.get(patternId);
 
     if (!pattern) {
-      if (process.env.NODE_ENV === 'development') {
-        console.warn('[AntiAiClicheDetector] Pattern not found:', patternId);
+      if (process.env.NODE_ENV === "development") {
+        console.warn("[AntiAiClicheDetector] Pattern not found:", patternId);
       }
       return { detected: false, confidence: 0 };
     }
@@ -231,8 +236,8 @@ export class AntiAiClicheDetector {
     try {
       return pattern.detector(context);
     } catch (error) {
-      if (process.env.NODE_ENV === 'development') {
-        console.error('[AntiAiClicheDetector] Detector failed:', patternId, error);
+      if (process.env.NODE_ENV === "development") {
+        console.error("[AntiAiClicheDetector] Detector failed:", patternId, error);
       }
       return { detected: false, confidence: 0 };
     }
@@ -245,87 +250,87 @@ export class AntiAiClicheDetector {
   private initBuiltinPatterns(): void {
     // 1. Excessive Gradients
     this.addPattern({
-      id: 'excessive-gradients',
-      name: 'Excessive Gradients',
-      description: 'Detects overuse of multi-color gradients (3+ colors)',
-      severity: 'high',
+      id: "excessive-gradients",
+      name: "Excessive Gradients",
+      description: "Detects overuse of multi-color gradients (3+ colors)",
+      severity: "high",
       weight: 0.8,
       detector: (context) => this.detectExcessiveGradients(context),
     });
 
     // 2. Unrealistic Colors
     this.addPattern({
-      id: 'unrealistic-colors',
-      name: 'Unrealistic Colors',
-      description: 'Detects highly saturated, neon-like color combinations',
-      severity: 'high',
+      id: "unrealistic-colors",
+      name: "Unrealistic Colors",
+      description: "Detects highly saturated, neon-like color combinations",
+      severity: "high",
       weight: 0.9,
       detector: (context) => this.detectUnrealisticColors(context),
     });
 
     // 3. Over Decoration
     this.addPattern({
-      id: 'over-decoration',
-      name: 'Over Decoration',
-      description: 'Detects excessive borders, shadows, and glows',
-      severity: 'medium',
+      id: "over-decoration",
+      name: "Over Decoration",
+      description: "Detects excessive borders, shadows, and glows",
+      severity: "medium",
       weight: 0.6,
       detector: (context) => this.detectOverDecoration(context),
     });
 
     // 4. Stock Photo Composition
     this.addPattern({
-      id: 'stock-photo-composition',
-      name: 'Stock Photo Composition',
-      description: 'Detects generic hero + 3-column layout',
-      severity: 'medium',
+      id: "stock-photo-composition",
+      name: "Stock Photo Composition",
+      description: "Detects generic hero + 3-column layout",
+      severity: "medium",
       weight: 0.7,
       detector: (context) => this.detectStockPhotoComposition(context),
     });
 
     // 5. Perfect Symmetry
     this.addPattern({
-      id: 'perfect-symmetry',
-      name: 'Perfect Symmetry',
-      description: 'Detects unnaturally perfect left-right symmetry',
-      severity: 'low',
+      id: "perfect-symmetry",
+      name: "Perfect Symmetry",
+      description: "Detects unnaturally perfect left-right symmetry",
+      severity: "low",
       weight: 0.4,
       detector: (context) => this.detectPerfectSymmetry(context),
     });
 
     // 6. Font Mismatch
     this.addPattern({
-      id: 'font-mismatch',
-      name: 'Font Mismatch',
-      description: 'Detects incompatible font pairings',
-      severity: 'medium',
+      id: "font-mismatch",
+      name: "Font Mismatch",
+      description: "Detects incompatible font pairings",
+      severity: "medium",
       weight: 0.5,
       detector: (context) => this.detectFontMismatch(context),
     });
 
     // 7. Shadow Overuse
     this.addPattern({
-      id: 'shadow-overuse',
-      name: 'Shadow Overuse',
-      description: 'Detects excessive drop shadows and glows',
-      severity: 'low',
+      id: "shadow-overuse",
+      name: "Shadow Overuse",
+      description: "Detects excessive drop shadows and glows",
+      severity: "low",
       weight: 0.5,
       detector: (context) => this.detectShadowOveruse(context),
     });
 
     // 8. Artificial Whitespace
     this.addPattern({
-      id: 'artificial-whitespace',
-      name: 'Artificial Whitespace',
-      description: 'Detects unnaturally uniform spacing',
-      severity: 'low',
+      id: "artificial-whitespace",
+      name: "Artificial Whitespace",
+      description: "Detects unnaturally uniform spacing",
+      severity: "low",
       weight: 0.3,
       detector: (context) => this.detectArtificialWhitespace(context),
     });
 
-    if (process.env.NODE_ENV === 'development') {
+    if (process.env.NODE_ENV === "development") {
       // eslint-disable-next-line no-console -- Intentional debug log in development
-      console.log('[AntiAiClicheDetector] Builtin patterns initialized:', this.patterns.size);
+      console.log("[AntiAiClicheDetector] Builtin patterns initialized:", this.patterns.size);
     }
   }
 
@@ -348,7 +353,7 @@ export class AntiAiClicheDetector {
     let multiColorCount = 0;
 
     for (const section of gradientSections) {
-      const bg = section.style.backgroundColor || '';
+      const bg = section.style.backgroundColor || "";
       // Count number of color stops in gradient (rough heuristic)
       const colorStops = bg.match(/#[0-9A-Fa-f]{6}/g) || [];
 
@@ -393,7 +398,7 @@ export class AntiAiClicheDetector {
       return {
         detected: true,
         confidence,
-        details: `${neonColors.length} highly saturated neon colors: ${neonColors.join(', ')}`,
+        details: `${neonColors.length} highly saturated neon colors: ${neonColors.join(", ")}`,
       };
     }
 
@@ -421,8 +426,8 @@ export class AntiAiClicheDetector {
       return { detected: false, confidence: 0 };
     }
 
-    const heroSection = sections.find((s) => s.type === 'hero' && s.position.startY < 100);
-    const featureSection = sections.find((s) => s.type === 'feature');
+    const heroSection = sections.find((s) => s.type === "hero" && s.position.startY < 100);
+    const featureSection = sections.find((s) => s.type === "feature");
 
     if (!heroSection || !featureSection) {
       return { detected: false, confidence: 0 };
@@ -436,7 +441,7 @@ export class AntiAiClicheDetector {
         detected: true,
         confidence: 0.8,
         locations: [heroSection.id, featureSection.id],
-        details: 'Generic hero + 3-column feature layout',
+        details: "Generic hero + 3-column feature layout",
       };
     }
 
@@ -465,9 +470,9 @@ export class AntiAiClicheDetector {
 
     // Known bad combinations
     const badPairs = [
-      ['comic sans ms', 'times new roman'],
-      ['papyrus', 'arial'],
-      ['impact', 'comic sans ms'],
+      ["comic sans ms", "times new roman"],
+      ["papyrus", "arial"],
+      ["impact", "comic sans ms"],
     ];
 
     for (const pair of badPairs) {
@@ -618,14 +623,14 @@ export class AntiAiClicheDetector {
    */
   private getRecommendation(patternId: string): string {
     const recommendationMap: Record<string, string> = {
-      'excessive-gradients': 'Simplify gradients to 2 colors or use solid backgrounds',
-      'unrealistic-colors': 'Use more natural, desaturated color palettes',
-      'over-decoration': 'Remove excessive borders, shadows, and decorative elements',
-      'stock-photo-composition': 'Experiment with asymmetric or non-standard layouts',
-      'perfect-symmetry': 'Add subtle asymmetry to create visual interest',
-      'font-mismatch': 'Choose harmonious font pairings (e.g., sans-serif + serif)',
-      'shadow-overuse': 'Reduce drop shadows or use subtle, consistent elevation',
-      'artificial-whitespace': 'Vary section heights and spacing for natural rhythm',
+      "excessive-gradients": "Simplify gradients to 2 colors or use solid backgrounds",
+      "unrealistic-colors": "Use more natural, desaturated color palettes",
+      "over-decoration": "Remove excessive borders, shadows, and decorative elements",
+      "stock-photo-composition": "Experiment with asymmetric or non-standard layouts",
+      "perfect-symmetry": "Add subtle asymmetry to create visual interest",
+      "font-mismatch": "Choose harmonious font pairings (e.g., sans-serif + serif)",
+      "shadow-overuse": "Reduce drop shadows or use subtle, consistent elevation",
+      "artificial-whitespace": "Vary section heights and spacing for natural rhythm",
     };
 
     // Return specific recommendation or generic fallback

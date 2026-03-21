@@ -19,18 +19,15 @@
  * @module services/motion/webgl-animation-embedding.service
  */
 
-import { isDevelopment, logger } from '../../utils/logger';
-import {
-  validateEmbeddingVector,
-  EmbeddingValidationError,
-} from '../embedding-validation.service';
+import { isDevelopment, logger } from "../../utils/logger";
+import { validateEmbeddingVector, EmbeddingValidationError } from "../embedding-validation.service";
 
 // =====================================================
 // 定数
 // =====================================================
 
 /** デフォルトのモデル名 */
-export const DEFAULT_MODEL_NAME = 'multilingual-e5-base';
+export const DEFAULT_MODEL_NAME = "multilingual-e5-base";
 
 /** デフォルトのEmbedding次元数 */
 export const DEFAULT_EMBEDDING_DIMENSIONS = 768;
@@ -122,8 +119,8 @@ export interface SimilarWebGLAnimationResult {
  * EmbeddingServiceインターフェース（DI用）
  */
 export interface IEmbeddingService {
-  generateEmbedding(text: string, type: 'query' | 'passage'): Promise<number[]>;
-  generateBatchEmbeddings(texts: string[], type: 'query' | 'passage'): Promise<number[][]>;
+  generateEmbedding(text: string, type: "query" | "passage"): Promise<number[]>;
+  generateBatchEmbeddings(texts: string[], type: "query" | "passage"): Promise<number[][]>;
   getCacheStats(): { hits: number; misses: number; size: number; evictions: number };
   clearCache(): void;
 }
@@ -172,9 +169,7 @@ let prismaClientFactory: (() => IWebGLPrismaClient) | null = null;
 /**
  * EmbeddingServiceファクトリを設定
  */
-export function setWebGLAnimationEmbeddingServiceFactory(
-  factory: () => IEmbeddingService
-): void {
+export function setWebGLAnimationEmbeddingServiceFactory(factory: () => IEmbeddingService): void {
   embeddingServiceFactory = factory;
 }
 
@@ -188,9 +183,7 @@ export function resetWebGLAnimationEmbeddingServiceFactory(): void {
 /**
  * PrismaClientファクトリを設定
  */
-export function setWebGLPrismaClientFactory(
-  factory: () => IWebGLPrismaClient
-): void {
+export function setWebGLPrismaClientFactory(factory: () => IWebGLPrismaClient): void {
   prismaClientFactory = factory;
 }
 
@@ -219,13 +212,13 @@ function normalizeL2(vector: number[]): number[] {
  */
 function getMotionIntensityText(avgChangeRatio: number): string {
   if (avgChangeRatio >= 0.4) {
-    return 'high motion intensity';
+    return "high motion intensity";
   } else if (avgChangeRatio >= 0.2) {
-    return 'moderate motion intensity';
+    return "moderate motion intensity";
   } else if (avgChangeRatio >= 0.1) {
-    return 'low motion intensity';
+    return "low motion intensity";
   }
-  return 'minimal motion';
+  return "minimal motion";
 }
 
 // =====================================================
@@ -256,7 +249,7 @@ export function generateWebGLAnimationTextRepresentation(
 
   // ライブラリ（任意）
   if (pattern.libraries && pattern.libraries.length > 0) {
-    parts.push(`with ${pattern.libraries.join(', ')}`);
+    parts.push(`with ${pattern.libraries.join(", ")}`);
   }
 
   // 説明（任意）
@@ -278,7 +271,7 @@ export function generateWebGLAnimationTextRepresentation(
 
   // ビジュアル特徴（任意）
   if (pattern.visualFeatures && pattern.visualFeatures.length > 0) {
-    parts.push(pattern.visualFeatures.join(', '));
+    parts.push(pattern.visualFeatures.join(", "));
   }
 
   // キャンバスサイズ
@@ -289,7 +282,7 @@ export function generateWebGLAnimationTextRepresentation(
   parts.push(`WebGL ${pattern.webglVersion}.0`);
 
   // E5モデル用プレフィックス付きで返す
-  return `passage: ${parts.join(', ')}.`;
+  return `passage: ${parts.join(", ")}.`;
 }
 
 // =====================================================
@@ -324,7 +317,7 @@ export class WebGLAnimationEmbeddingService {
     }
 
     if (isDevelopment()) {
-      logger.info('[WebGLAnimationEmbedding] Service created', {
+      logger.info("[WebGLAnimationEmbedding] Service created", {
         modelName: this.modelName,
         normalize: this.normalize,
       });
@@ -345,7 +338,7 @@ export class WebGLAnimationEmbeddingService {
     }
 
     throw new Error(
-      'EmbeddingService not initialized. Provide embeddingService in constructor options or set factory.'
+      "EmbeddingService not initialized. Provide embeddingService in constructor options or set factory."
     );
   }
 
@@ -362,9 +355,7 @@ export class WebGLAnimationEmbeddingService {
       return this.prismaClient;
     }
 
-    throw new Error(
-      'PrismaClient not initialized. Set factory with setWebGLPrismaClientFactory.'
-    );
+    throw new Error("PrismaClient not initialized. Set factory with setWebGLPrismaClientFactory.");
   }
 
   /**
@@ -389,18 +380,18 @@ export class WebGLAnimationEmbeddingService {
     patternId: string
   ): Promise<WebGLAnimationEmbeddingResult> {
     // バリデーション
-    if (!pattern || typeof pattern !== 'object') {
-      throw new Error('Invalid pattern: must be a valid object');
+    if (!pattern || typeof pattern !== "object") {
+      throw new Error("Invalid pattern: must be a valid object");
     }
 
     if (!pattern.category || !pattern.canvasDimensions) {
-      throw new Error('Invalid pattern: category and canvasDimensions are required');
+      throw new Error("Invalid pattern: category and canvasDimensions are required");
     }
 
     const startTime = Date.now();
 
     if (isDevelopment()) {
-      logger.info('[WebGLAnimationEmbedding] Generating embedding', {
+      logger.info("[WebGLAnimationEmbedding] Generating embedding", {
         patternId,
         category: pattern.category,
         libraries: pattern.libraries,
@@ -412,7 +403,7 @@ export class WebGLAnimationEmbeddingService {
 
     // Embedding生成
     const service = this.getEmbeddingService();
-    let embedding = await service.generateEmbedding(textRepresentation, 'passage');
+    let embedding = await service.generateEmbedding(textRepresentation, "passage");
 
     // Embeddingベクトルの検証
     const validationResult = validateEmbeddingVector(embedding);
@@ -421,9 +412,9 @@ export class WebGLAnimationEmbeddingService {
       const errorMessage =
         error?.index !== undefined
           ? `${error.message} at index ${error.index}`
-          : error?.message ?? 'Unknown validation error';
+          : (error?.message ?? "Unknown validation error");
       throw new EmbeddingValidationError(
-        error?.code ?? 'INVALID_VECTOR',
+        error?.code ?? "INVALID_VECTOR",
         errorMessage,
         error?.index
       );
@@ -437,7 +428,7 @@ export class WebGLAnimationEmbeddingService {
     const processingTimeMs = Date.now() - startTime;
 
     if (isDevelopment()) {
-      logger.info('[WebGLAnimationEmbedding] Generated embedding', {
+      logger.info("[WebGLAnimationEmbedding] Generated embedding", {
         patternId,
         dimensions: embedding.length,
         processingTimeMs,
@@ -467,7 +458,7 @@ export class WebGLAnimationEmbeddingService {
     const minSimilarity = options.minSimilarity ?? 0.5;
 
     if (isDevelopment()) {
-      logger.info('[WebGLAnimationEmbedding] Finding similar patterns', {
+      logger.info("[WebGLAnimationEmbedding] Finding similar patterns", {
         limit,
         minSimilarity,
       });
@@ -477,7 +468,7 @@ export class WebGLAnimationEmbeddingService {
       const prisma = this.getPrismaClient();
 
       // pgvector cosine similarity検索
-      const vectorString = `[${queryEmbedding.join(',')}]`;
+      const vectorString = `[${queryEmbedding.join(",")}]`;
       const results = (await prisma.$executeRawUnsafe(
         `
         SELECT
@@ -499,7 +490,7 @@ export class WebGLAnimationEmbeddingService {
       )) as SimilarWebGLAnimationResult[];
 
       if (isDevelopment()) {
-        logger.info('[WebGLAnimationEmbedding] Found similar patterns', {
+        logger.info("[WebGLAnimationEmbedding] Found similar patterns", {
           count: results.length,
         });
       }
@@ -507,8 +498,8 @@ export class WebGLAnimationEmbeddingService {
       return results;
     } catch (error) {
       if (isDevelopment()) {
-        logger.warn('[WebGLAnimationEmbedding] findSimilar failed', {
-          error: error instanceof Error ? error.message : 'Unknown error',
+        logger.warn("[WebGLAnimationEmbedding] findSimilar failed", {
+          error: error instanceof Error ? error.message : "Unknown error",
         });
       }
       // PrismaClientが初期化されていない場合は空配列を返す

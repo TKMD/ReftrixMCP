@@ -15,14 +15,14 @@
  * @module middleware/args-type-coercion
  */
 
-import { logger } from '../utils/logger';
+import { logger } from "../utils/logger";
 
 /**
  * 型変換マップ
  * キー: ドット区切りのフィールドパス（例: "limit", "options.timeout"）
  * 値: 変換先の型（"number" | "boolean"）
  */
-export type CoercionMap = Map<string, 'number' | 'boolean'>;
+export type CoercionMap = Map<string, "number" | "boolean">;
 
 /**
  * JSON Schema型定義のインターフェース
@@ -45,24 +45,21 @@ interface JsonSchemaProperty {
  * @param prefix - フィールドパスのプレフィックス（再帰用）
  * @returns 型変換マップ
  */
-export function buildCoercionMap(
-  schema: JsonSchemaProperty,
-  prefix: string = ''
-): CoercionMap {
+export function buildCoercionMap(schema: JsonSchemaProperty, prefix: string = ""): CoercionMap {
   const map: CoercionMap = new Map();
 
-  if (schema.type !== 'object' || !schema.properties) {
+  if (schema.type !== "object" || !schema.properties) {
     return map;
   }
 
   for (const [key, prop] of Object.entries(schema.properties)) {
     const fullPath = prefix ? `${prefix}.${key}` : key;
 
-    if (prop.type === 'number' || prop.type === 'integer') {
-      map.set(fullPath, 'number');
-    } else if (prop.type === 'boolean') {
-      map.set(fullPath, 'boolean');
-    } else if (prop.type === 'object' && prop.properties) {
+    if (prop.type === "number" || prop.type === "integer") {
+      map.set(fullPath, "number");
+    } else if (prop.type === "boolean") {
+      map.set(fullPath, "boolean");
+    } else if (prop.type === "object" && prop.properties) {
       // 再帰的にネストされたオブジェクトを処理
       const nestedMap = buildCoercionMap(prop, fullPath);
       for (const [nestedKey, nestedType] of nestedMap) {
@@ -81,10 +78,10 @@ export function buildCoercionMap(
  * @returns 数値に変換できた場合はnumber、できない場合は元の値
  */
 function tryCoerceToNumber(value: unknown): unknown {
-  if (typeof value === 'number') {
+  if (typeof value === "number") {
     return value;
   }
-  if (typeof value !== 'string' || value === '') {
+  if (typeof value !== "string" || value === "") {
     return value;
   }
   const num = Number(value);
@@ -104,16 +101,16 @@ function tryCoerceToNumber(value: unknown): unknown {
  * @returns ブーリアンに変換できた場合はboolean、できない場合は元の値
  */
 function tryCoerceToBoolean(value: unknown): unknown {
-  if (typeof value === 'boolean') {
+  if (typeof value === "boolean") {
     return value;
   }
-  if (typeof value !== 'string') {
+  if (typeof value !== "string") {
     return value;
   }
-  if (value === 'true') {
+  if (value === "true") {
     return true;
   }
-  if (value === 'false') {
+  if (value === "false") {
     return false;
   }
   return value;
@@ -130,7 +127,7 @@ function tryCoerceToBoolean(value: unknown): unknown {
 function applyCoercion(
   obj: Record<string, unknown>,
   coercionMap: CoercionMap,
-  prefix: string = ''
+  prefix: string = ""
 ): Record<string, unknown> {
   const result: Record<string, unknown> = {};
 
@@ -138,29 +135,21 @@ function applyCoercion(
     const fullPath = prefix ? `${prefix}.${key}` : key;
     const targetType = coercionMap.get(fullPath);
 
-    if (targetType === 'number') {
+    if (targetType === "number") {
       const coerced = tryCoerceToNumber(value);
       if (coerced !== value) {
         logger.debug(`[ArgsCoercion] Coerced ${fullPath}: "${value}" → ${coerced} (number)`);
       }
       result[key] = coerced;
-    } else if (targetType === 'boolean') {
+    } else if (targetType === "boolean") {
       const coerced = tryCoerceToBoolean(value);
       if (coerced !== value) {
         logger.debug(`[ArgsCoercion] Coerced ${fullPath}: "${value}" → ${coerced} (boolean)`);
       }
       result[key] = coerced;
-    } else if (
-      typeof value === 'object' &&
-      value !== null &&
-      !Array.isArray(value)
-    ) {
+    } else if (typeof value === "object" && value !== null && !Array.isArray(value)) {
       // ネストされたオブジェクトを再帰的に処理
-      result[key] = applyCoercion(
-        value as Record<string, unknown>,
-        coercionMap,
-        fullPath
-      );
+      result[key] = applyCoercion(value as Record<string, unknown>, coercionMap, fullPath);
     } else {
       result[key] = value;
     }
@@ -212,10 +201,7 @@ const coercionMapCache: Map<string, CoercionMap> = new Map();
  * @param schema - ツールのJSON Schema
  * @returns 型変換マップ
  */
-export function getCoercionMap(
-  toolName: string,
-  schema: JsonSchemaProperty
-): CoercionMap {
+export function getCoercionMap(toolName: string, schema: JsonSchemaProperty): CoercionMap {
   const cached = coercionMapCache.get(toolName);
   if (cached) {
     return cached;

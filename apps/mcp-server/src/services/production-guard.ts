@@ -13,7 +13,7 @@
  * @module services/production-guard
  */
 
-import { logger } from '../utils/logger';
+import { logger } from "../utils/logger";
 
 // =====================================================
 // 定数
@@ -23,8 +23,8 @@ import { logger } from '../utils/logger';
  * 環境識別子の定数
  * @internal
  */
-const NODE_ENV_PRODUCTION = 'production' as const;
-const NODE_ENV_DEVELOPMENT = 'development' as const;
+const NODE_ENV_PRODUCTION = "production" as const;
+const NODE_ENV_DEVELOPMENT = "development" as const;
 
 // =====================================================
 // エラークラス
@@ -53,7 +53,7 @@ export class ProductionGuardError extends Error {
 
   constructor(factoryName: string) {
     super(`DI Factory override is not allowed in production environment: ${factoryName}`);
-    this.name = 'ProductionGuardError';
+    this.name = "ProductionGuardError";
     this.factoryName = factoryName;
     // V8環境でスタックトレースを正しく保持
     if (Error.captureStackTrace) {
@@ -230,8 +230,8 @@ export function createProductionSafeFactory<T>(
  */
 export class ProductionAuthRequiredError extends Error {
   constructor() {
-    super('MCP authentication is required in production environment');
-    this.name = 'ProductionAuthRequiredError';
+    super("MCP authentication is required in production environment");
+    this.name = "ProductionAuthRequiredError";
     // V8環境でスタックトレースを正しく保持
     if (Error.captureStackTrace) {
       Error.captureStackTrace(this, ProductionAuthRequiredError);
@@ -245,7 +245,7 @@ export class ProductionAuthRequiredError extends Error {
  * @returns MCP_AUTH_ENABLED=true の場合 true
  */
 export function isMcpAuthEnabled(): boolean {
-  return process.env.MCP_AUTH_ENABLED === 'true';
+  return process.env.MCP_AUTH_ENABLED === "true";
 }
 
 /**
@@ -257,7 +257,7 @@ export function isMcpAuthEnabled(): boolean {
  * @returns MCP_ALLOW_INSECURE_PRODUCTION=true の場合 true
  */
 export function isInsecureProductionAllowed(): boolean {
-  return process.env.MCP_ALLOW_INSECURE_PRODUCTION === 'true';
+  return process.env.MCP_ALLOW_INSECURE_PRODUCTION === "true";
 }
 
 // =====================================================
@@ -287,10 +287,8 @@ export class ProductionCategoryRequiredError extends Error {
   public readonly missingCategories: string[];
 
   constructor(missingCategories: string[]) {
-    super(
-      `Production requires all categories: missing ${missingCategories.join(', ')}`
-    );
-    this.name = 'ProductionCategoryRequiredError';
+    super(`Production requires all categories: missing ${missingCategories.join(", ")}`);
+    this.name = "ProductionCategoryRequiredError";
     this.missingCategories = missingCategories;
     // V8環境でスタックトレースを正しく保持
     if (Error.captureStackTrace) {
@@ -305,12 +303,7 @@ export class ProductionCategoryRequiredError extends Error {
  * これらのカテゴリは本番環境で必ず初期化されている必要があります。
  * いずれかが欠けている場合、サーバー起動が失敗します。
  */
-export const REQUIRED_CATEGORIES_FOR_PRODUCTION = [
-  'motion',
-  'layout',
-  'quality',
-  'page',
-] as const;
+export const REQUIRED_CATEGORIES_FOR_PRODUCTION = ["motion", "layout", "quality", "page"] as const;
 
 /**
  * 本番環境で全必須カテゴリが初期化されていることを保証するガード関数
@@ -348,16 +341,16 @@ export function assertProductionRequiredCategoriesInitialized(
 
   // 本番環境では必須カテゴリ未初期化でエラー
   if (isProductionEnvironment()) {
-    logger.error('============================================================');
-    logger.error('FATAL: Required service categories are not initialized.');
-    logger.error(`  Missing: ${missingCategories.join(', ')}`);
-    logger.error('  Server cannot start without all required categories.');
-    logger.error('');
-    logger.error('To fix this issue:');
-    logger.error('  1. Ensure all required dependencies are available');
-    logger.error('  2. Check embeddingService and prisma client configuration');
-    logger.error('  3. Verify webPageService is provided for layout.inspect');
-    logger.error('============================================================');
+    logger.error("============================================================");
+    logger.error("FATAL: Required service categories are not initialized.");
+    logger.error(`  Missing: ${missingCategories.join(", ")}`);
+    logger.error("  Server cannot start without all required categories.");
+    logger.error("");
+    logger.error("To fix this issue:");
+    logger.error("  1. Ensure all required dependencies are available");
+    logger.error("  2. Check embeddingService and prisma client configuration");
+    logger.error("  3. Verify webPageService is provided for layout.inspect");
+    logger.error("============================================================");
 
     throw new ProductionCategoryRequiredError(missingCategories);
   }
@@ -365,7 +358,7 @@ export function assertProductionRequiredCategoriesInitialized(
   // 開発環境では警告のみ（既存の動作と同様）
   if (isDevelopmentEnvironment()) {
     logger.debug(
-      `[ProductionGuard] Missing categories in development: ${missingCategories.join(', ')}`
+      `[ProductionGuard] Missing categories in development: ${missingCategories.join(", ")}`
     );
   }
 }
@@ -404,27 +397,27 @@ export function assertProductionAuthEnabled(): void {
 
   // 明示的に安全でない起動を許可している場合は警告付きで続行
   if (isInsecureProductionAllowed()) {
-    logger.warn('============================================================');
-    logger.warn('SECURITY WARNING: Running production WITHOUT authentication!');
-    logger.warn('MCP_ALLOW_INSECURE_PRODUCTION=true is set.');
-    logger.warn('This is a CRITICAL security risk. Do NOT use in real production.');
-    logger.warn('Anyone can access the MCP server without authentication.');
-    logger.warn('============================================================');
+    logger.warn("============================================================");
+    logger.warn("SECURITY WARNING: Running production WITHOUT authentication!");
+    logger.warn("MCP_ALLOW_INSECURE_PRODUCTION=true is set.");
+    logger.warn("This is a CRITICAL security risk. Do NOT use in real production.");
+    logger.warn("Anyone can access the MCP server without authentication.");
+    logger.warn("============================================================");
     return;
   }
 
   // 本番環境で認証が無効かつ回避オプションがない場合はエラー
-  logger.error('============================================================');
+  logger.error("============================================================");
   logger.error('FATAL: MCP_AUTH_ENABLED must be set to "true" in production.');
-  logger.error('Server will not start without authentication enabled.');
-  logger.error('');
-  logger.error('To fix this issue:');
-  logger.error('  1. Set MCP_AUTH_ENABLED=true');
-  logger.error('  2. Configure MCP_API_KEYS with valid API keys');
-  logger.error('');
-  logger.error('For emergency bypass (NOT RECOMMENDED):');
-  logger.error('  Set MCP_ALLOW_INSECURE_PRODUCTION=true');
-  logger.error('============================================================');
+  logger.error("Server will not start without authentication enabled.");
+  logger.error("");
+  logger.error("To fix this issue:");
+  logger.error("  1. Set MCP_AUTH_ENABLED=true");
+  logger.error("  2. Configure MCP_API_KEYS with valid API keys");
+  logger.error("");
+  logger.error("For emergency bypass (NOT RECOMMENDED):");
+  logger.error("  Set MCP_ALLOW_INSECURE_PRODUCTION=true");
+  logger.error("============================================================");
 
   throw new ProductionAuthRequiredError();
 }

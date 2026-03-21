@@ -10,16 +10,16 @@
  * @module services/background-search.service
  */
 
-import { logger } from '../utils/logger';
-import { isDevelopmentEnvironment } from './production-guard';
+import { logger } from "../utils/logger";
+import { isDevelopmentEnvironment } from "./production-guard";
 import {
   executeHybridSearch,
   buildFulltextConditions,
   buildFulltextRankExpression,
   toRankedItems,
-} from '@reftrix/ml';
-import type { RankedItem } from '@reftrix/ml';
-import type { BackgroundDesignSearchResult } from '../tools/background/search.tool';
+} from "@reftrix/ml";
+import type { RankedItem } from "@reftrix/ml";
+import type { BackgroundDesignSearchResult } from "../tools/background/search.tool";
 
 // =====================================================
 // PrismaClient インターフェース（DI用）
@@ -34,7 +34,7 @@ export interface IBackgroundSearchPrismaClient {
 // =====================================================
 
 export interface IBackgroundSearchEmbeddingService {
-  generateEmbedding: (text: string, type: 'query' | 'passage') => Promise<number[]>;
+  generateEmbedding: (text: string, type: "query" | "passage") => Promise<number[]>;
 }
 
 // =====================================================
@@ -86,7 +86,7 @@ function mapRowToResult(row: BackgroundSearchRow): BackgroundDesignSearchResult 
     selector: row.selector,
     similarity: row.similarity,
     colorInfo: row.color_info ?? {},
-    textRepresentation: row.text_representation ?? '',
+    textRepresentation: row.text_representation ?? "",
   };
 }
 
@@ -105,7 +105,7 @@ function buildWhereClause(
   filters: BackgroundSearchFilters | undefined,
   startParamIndex: number
 ): BuildWhereResult {
-  const conditions: string[] = ['bde.embedding IS NOT NULL'];
+  const conditions: string[] = ["bde.embedding IS NOT NULL"];
   const params: unknown[] = [];
   let paramIndex = startParamIndex;
 
@@ -122,7 +122,7 @@ function buildWhereClause(
   }
 
   return {
-    whereClause: conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '',
+    whereClause: conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "",
     params,
     nextParamIndex: paramIndex,
   };
@@ -156,11 +156,11 @@ export function createBackgroundSearchService(config: BackgroundSearchServiceCon
   // -----------------------------------------------
   async function generateQueryEmbedding(query: string): Promise<number[] | null> {
     try {
-      return await embeddingService.generateEmbedding(query, 'query');
+      return await embeddingService.generateEmbedding(query, "query");
     } catch (error) {
       if (isDevelopmentEnvironment()) {
-        logger.warn('[BackgroundSearchService] Embedding generation failed', {
-          error: error instanceof Error ? error.message : 'Unknown error',
+        logger.warn("[BackgroundSearchService] Embedding generation failed", {
+          error: error instanceof Error ? error.message : "Unknown error",
         });
       }
       return null;
@@ -174,8 +174,12 @@ export function createBackgroundSearchService(config: BackgroundSearchServiceCon
     embedding: number[],
     options: { limit: number; offset: number; filters?: BackgroundSearchFilters }
   ): Promise<{ results: BackgroundDesignSearchResult[]; total: number }> {
-    const vectorString = `[${embedding.join(',')}]`;
-    const { whereClause, params: filterParams, nextParamIndex } = buildWhereClause(
+    const vectorString = `[${embedding.join(",")}]`;
+    const {
+      whereClause,
+      params: filterParams,
+      nextParamIndex,
+    } = buildWhereClause(
       options.filters,
       2 // $1 is reserved for vectorString
     );
@@ -228,11 +232,14 @@ export function createBackgroundSearchService(config: BackgroundSearchServiceCon
     options: { limit: number; offset: number; filters?: BackgroundSearchFilters }
   ): Promise<{ results: BackgroundDesignSearchResult[]; total: number }> {
     try {
-      const vectorString = `[${embedding.join(',')}]`;
+      const vectorString = `[${embedding.join(",")}]`;
       const fetchLimit = Math.min(options.limit * 3, 150);
 
-      const { whereClause: baseWhereClause, params: baseParams, nextParamIndex: paramIndex } =
-        buildWhereClause(options.filters, 1);
+      const {
+        whereClause: baseWhereClause,
+        params: baseParams,
+        nextParamIndex: paramIndex,
+      } = buildWhereClause(options.filters, 1);
 
       // ベクトル検索関数
       const vectorSearchFn = async (): Promise<RankedItem[]> => {
@@ -269,8 +276,8 @@ export function createBackgroundSearchService(config: BackgroundSearchServiceCon
           const ftQueryIdx = paramIndex;
           const ftLimitIdx = paramIndex + 1;
 
-          const ftConditions = buildFulltextConditions('bde.search_vector', ftQueryIdx);
-          const ftRank = buildFulltextRankExpression('bde.search_vector', ftQueryIdx);
+          const ftConditions = buildFulltextConditions("bde.search_vector", ftQueryIdx);
+          const ftRank = buildFulltextRankExpression("bde.search_vector", ftQueryIdx);
 
           // ベースフィルター + 全文検索条件
           const conditions = baseWhereClause
@@ -301,8 +308,8 @@ export function createBackgroundSearchService(config: BackgroundSearchServiceCon
           return toRankedItems(rows);
         } catch (ftError) {
           if (isDevelopmentEnvironment()) {
-            logger.warn('[BackgroundSearchService] Full-text search failed, using vector only', {
-              error: ftError instanceof Error ? ftError.message : 'Unknown error',
+            logger.warn("[BackgroundSearchService] Full-text search failed, using vector only", {
+              error: ftError instanceof Error ? ftError.message : "Unknown error",
             });
           }
           return [];
@@ -317,22 +324,23 @@ export function createBackgroundSearchService(config: BackgroundSearchServiceCon
         const data = hr.data as Record<string, unknown>;
         return {
           id: String(data.id ?? hr.id),
-          webPageId: String(data.web_page_id ?? ''),
-          name: String(data.name ?? ''),
-          designType: String(data.design_type ?? ''),
-          cssValue: String(data.css_value ?? ''),
-          selector: data.selector !== null && data.selector !== undefined ? String(data.selector) : null,
+          webPageId: String(data.web_page_id ?? ""),
+          name: String(data.name ?? ""),
+          designType: String(data.design_type ?? ""),
+          cssValue: String(data.css_value ?? ""),
+          selector:
+            data.selector !== null && data.selector !== undefined ? String(data.selector) : null,
           similarity: hr.similarity,
           colorInfo: (data.color_info as Record<string, unknown>) ?? {},
-          textRepresentation: String(data.text_representation ?? ''),
+          textRepresentation: String(data.text_representation ?? ""),
         };
       });
 
       return { results, total: hybridResults.length };
     } catch (error) {
       if (isDevelopmentEnvironment()) {
-        logger.error('[BackgroundSearchService] Hybrid search error, falling back to vector', {
-          error: error instanceof Error ? error.message : 'Unknown error',
+        logger.error("[BackgroundSearchService] Hybrid search error, falling back to vector", {
+          error: error instanceof Error ? error.message : "Unknown error",
         });
       }
       // フォールバック: ベクトル検索のみ
@@ -351,7 +359,9 @@ export function createBackgroundSearchService(config: BackgroundSearchServiceCon
  * DI Factoryから BackgroundSearchService を作成するファクトリ関数。
  * service-initializer.ts から呼ばれる。
  */
-export function createBackgroundSearchServiceFromFactories(): ReturnType<typeof createBackgroundSearchService> | null {
+export function createBackgroundSearchServiceFromFactories(): ReturnType<
+  typeof createBackgroundSearchService
+> | null {
   if (!prismaClientFactory || !embeddingServiceFactory) {
     return null;
   }

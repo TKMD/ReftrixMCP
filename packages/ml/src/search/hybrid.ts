@@ -10,8 +10,8 @@
  * Default weights: 60% vector + 40% full-text
  */
 
-import { mergeWithRRF, normalizeRRFScore } from './rrf.js';
-import type { RankedItem, RRFScoredItem } from './rrf.js';
+import { mergeWithRRF, normalizeRRFScore } from "./rrf.js";
+import type { RankedItem, RRFScoredItem } from "./rrf.js";
 
 /**
  * Configuration for hybrid search execution
@@ -90,7 +90,7 @@ export async function executeHybridSearch(
 
   // Normalize scores and format output
   return merged.map((item: RRFScoredItem): HybridSearchResult => {
-    const source: HybridSearchResult['source'] = {};
+    const source: HybridSearchResult["source"] = {};
     if (item.vectorRank !== undefined) {
       source.vectorRank = item.vectorRank;
     }

@@ -14,7 +14,7 @@
  * @module tests/tools/layout/ingest-to-search-flow.test
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 // =====================================================
 // モック設定（共通化・重複削減）
@@ -41,7 +41,7 @@ const {
 }));
 
 // Prismaモック
-vi.mock('@reftrix/database', () => ({
+vi.mock("@reftrix/database", () => ({
   prisma: {
     webPage: { upsert: mockWebPageUpsert },
     sectionPattern: { create: mockSectionPatternCreate, findMany: mockSectionPatternFindMany },
@@ -51,7 +51,7 @@ vi.mock('@reftrix/database', () => ({
 }));
 
 // loggerモック
-vi.mock('../../../src/utils/logger', () => ({
+vi.mock("../../../src/utils/logger", () => ({
   logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() },
   createLogger: () => ({
     info: vi.fn(),
@@ -63,13 +63,15 @@ vi.mock('../../../src/utils/logger', () => ({
 }));
 
 // url-validatorモック
-vi.mock('../../../src/utils/url-validator', () => ({ validateExternalUrl: mockValidateExternalUrl }));
+vi.mock("../../../src/utils/url-validator", () => ({
+  validateExternalUrl: mockValidateExternalUrl,
+}));
 
 // html-sanitizerモック
-vi.mock('../../../src/utils/html-sanitizer', () => ({ sanitizeHtml: mockSanitizeHtml }));
+vi.mock("../../../src/utils/html-sanitizer", () => ({ sanitizeHtml: mockSanitizeHtml }));
 
 // page-ingest-adapterモック
-vi.mock('../../../src/services/page-ingest-adapter', () => ({
+vi.mock("../../../src/services/page-ingest-adapter", () => ({
   pageIngestAdapter: { ingest: mockIngest },
 }));
 
@@ -78,19 +80,19 @@ import {
   setLayoutIngestServiceFactory,
   resetLayoutIngestServiceFactory,
   type ILayoutIngestService,
-} from '../../../src/tools/layout/ingest.tool';
+} from "../../../src/tools/layout/ingest.tool";
 import {
   layoutSearchHandler,
   setLayoutSearchServiceFactory,
   resetLayoutSearchServiceFactory,
   type ILayoutSearchService,
-} from '../../../src/tools/layout/search.tool';
+} from "../../../src/tools/layout/search.tool";
 
 // =====================================================
 // 共通テストデータ・ヘルパー（重複削減）
 // =====================================================
 
-const SAMPLE_WEB_PAGE_ID = '01234567-89ab-7def-8123-456789abcdef';
+const SAMPLE_WEB_PAGE_ID = "01234567-89ab-7def-8123-456789abcdef";
 
 const SAMPLE_HTML = `
 <!DOCTYPE html>
@@ -108,7 +110,7 @@ const SAMPLE_HTML = `
 
 // 共通セクションデータ生成ファクトリー（重複削減）
 const createMockSection = (
-  type: 'hero' | 'features' | 'cta' | 'footer',
+  type: "hero" | "features" | "cta" | "footer",
   overrides: Record<string, unknown> = {}
 ) => ({
   id: `section-${type}`,
@@ -116,13 +118,13 @@ const createMockSection = (
   confidence: 0.9,
   position: { startY: 0, endY: 300, height: 300 },
   content: {
-    headings: [{ level: type === 'hero' ? 1 : 2, text: `${type} heading` }],
+    headings: [{ level: type === "hero" ? 1 : 2, text: `${type} heading` }],
     paragraphs: [`${type} content`],
     links: [],
     images: [],
-    buttons: type === 'hero' || type === 'cta' ? [{ text: 'CTA', type: 'primary' }] : [],
+    buttons: type === "hero" || type === "cta" ? [{ text: "CTA", type: "primary" }] : [],
   },
-  style: { backgroundColor: '#ffffff' },
+  style: { backgroundColor: "#ffffff" },
   ...overrides,
 });
 
@@ -131,23 +133,28 @@ const createMockIngestResponse = (htmlContent = SAMPLE_HTML) => ({
   success: true,
   html: htmlContent,
   screenshots: [],
-  metadata: { title: 'Test Landing Page', description: 'A test page', favicon: null, ogImage: null },
-  source: { type: 'user_provided', usageScope: 'inspiration_only' },
-  ingestedAt: new Date('2025-01-15T00:00:00Z'),
+  metadata: {
+    title: "Test Landing Page",
+    description: "A test page",
+    favicon: null,
+    ogImage: null,
+  },
+  source: { type: "user_provided", usageScope: "inspiration_only" },
+  ingestedAt: new Date("2025-01-15T00:00:00Z"),
 });
 
 // 共通ILayoutIngestServiceモック生成（重複削減）
 const createMockIngestService = (
-  sections: ReturnType<typeof createMockSection>[] = [createMockSection('hero')]
+  sections: ReturnType<typeof createMockSection>[] = [createMockSection("hero")]
 ): ILayoutIngestService => ({
   analyzeHtml: vi.fn().mockResolvedValue({
     sections,
-    colors: { palette: [], dominant: '#000', background: '#fff', text: '#000' },
+    colors: { palette: [], dominant: "#000", background: "#fff", text: "#000" },
     typography: { fonts: [], headingScale: [], bodySize: 16, lineHeight: 1.5 },
-    grid: { type: 'flex' },
-    textRepresentation: sections.map(s => s.type).join(' '),
+    grid: { type: "flex" },
+    textRepresentation: sections.map((s) => s.type).join(" "),
   }),
-  saveSectionWithEmbedding: vi.fn().mockResolvedValue('mock-section-pattern-id'),
+  saveSectionWithEmbedding: vi.fn().mockResolvedValue("mock-section-pattern-id"),
   generateEmbedding: vi.fn().mockResolvedValue(new Array(768).fill(0.1)),
 });
 
@@ -162,7 +169,7 @@ const createMockSearchService = (
 
 // 共通検索結果パターン生成（重複削減）
 const createMockSearchResult = (sectionType: string, overrides: Record<string, unknown> = {}) => ({
-  id: '11111111-1111-1111-1111-111111111111',
+  id: "11111111-1111-1111-1111-111111111111",
   webPageId: SAMPLE_WEB_PAGE_ID,
   sectionType,
   sectionName: `${sectionType} Section`,
@@ -172,10 +179,10 @@ const createMockSearchResult = (sectionType: string, overrides: Record<string, u
   htmlSnippet: `<section class="${sectionType}">...</section>`,
   webPage: {
     id: SAMPLE_WEB_PAGE_ID,
-    url: 'https://example.com/landing',
-    title: 'Test Landing Page',
-    sourceType: 'user_provided',
-    usageScope: 'inspiration_only',
+    url: "https://example.com/landing",
+    title: "Test Landing Page",
+    sourceType: "user_provided",
+    usageScope: "inspiration_only",
     screenshotDesktopUrl: null,
   },
   ...overrides,
@@ -183,7 +190,7 @@ const createMockSearchResult = (sectionType: string, overrides: Record<string, u
 
 // 共通セットアップ関数（重複削減）
 const setupDefaultMocks = () => {
-  mockValidateExternalUrl.mockReturnValue({ valid: true, normalizedUrl: 'https://example.com/' });
+  mockValidateExternalUrl.mockReturnValue({ valid: true, normalizedUrl: "https://example.com/" });
   mockSanitizeHtml.mockImplementation((html: string) => html);
   mockIngest.mockResolvedValue(createMockIngestResponse());
   mockWebPageUpsert.mockResolvedValue({ id: SAMPLE_WEB_PAGE_ID });
@@ -199,7 +206,7 @@ const cleanupMocks = () => {
 // TDD Red Phase: 問題を再現するテスト
 // =====================================================
 
-describe('layout.ingest -> layout.search データフロー', () => {
+describe("layout.ingest -> layout.search データフロー", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     resetLayoutSearchServiceFactory();
@@ -209,10 +216,10 @@ describe('layout.ingest -> layout.search データフロー', () => {
 
   afterEach(cleanupMocks);
 
-  describe('[TDD Red] 現在の問題: layout.ingestはSectionPatternを作成しない', () => {
-    it('layout.ingest (save_to_db: true) はWebPageにのみ保存し、SectionPatternを作成しない', async () => {
+  describe("[TDD Red] 現在の問題: layout.ingestはSectionPatternを作成しない", () => {
+    it("layout.ingest (save_to_db: true) はWebPageにのみ保存し、SectionPatternを作成しない", async () => {
       const ingestResult = await layoutIngestHandler({
-        url: 'https://example.com/landing',
+        url: "https://example.com/landing",
         options: { save_to_db: true },
       });
 
@@ -222,14 +229,17 @@ describe('layout.ingest -> layout.search データフロー', () => {
       expect(mockSectionEmbeddingCreate).not.toHaveBeenCalled();
     });
 
-    it('layout.ingest後、layout.searchは0件を返す（データフローの断絶）', async () => {
-      await layoutIngestHandler({ url: 'https://example.com/landing', options: { save_to_db: true } });
+    it("layout.ingest後、layout.searchは0件を返す（データフローの断絶）", async () => {
+      await layoutIngestHandler({
+        url: "https://example.com/landing",
+        options: { save_to_db: true },
+      });
 
       setLayoutSearchServiceFactory(() => createMockSearchService([], 0));
 
       const searchResult = await layoutSearchHandler({
-        query: 'hero section with gradient',
-        filters: { sectionType: 'hero' },
+        query: "hero section with gradient",
+        filters: { sectionType: "hero" },
       });
 
       expect(searchResult.success).toBe(true);
@@ -240,18 +250,26 @@ describe('layout.ingest -> layout.search データフロー', () => {
     });
   });
 
-  describe('[TDD Green] 期待される動作: layout.ingestがセクション解析も行う', () => {
-    it('layout.ingest (auto_analyze: true) でSectionPatternも作成される', async () => {
+  describe("[TDD Green] 期待される動作: layout.ingestがセクション解析も行う", () => {
+    it("layout.ingest (auto_analyze: true) でSectionPatternも作成される", async () => {
       const mockSections = [
-        createMockSection('hero', { content: { headings: [{ level: 1, text: 'Welcome' }], paragraphs: ['Amazing'], links: [], images: [], buttons: [{ text: 'Get Started', type: 'primary' }] } }),
-        createMockSection('features'),
-        createMockSection('cta'),
+        createMockSection("hero", {
+          content: {
+            headings: [{ level: 1, text: "Welcome" }],
+            paragraphs: ["Amazing"],
+            links: [],
+            images: [],
+            buttons: [{ text: "Get Started", type: "primary" }],
+          },
+        }),
+        createMockSection("features"),
+        createMockSection("cta"),
       ];
       const mockIngestService = createMockIngestService(mockSections);
       setLayoutIngestServiceFactory(() => mockIngestService);
 
       const ingestResult = await layoutIngestHandler({
-        url: 'https://example.com/landing',
+        url: "https://example.com/landing",
         options: { save_to_db: true, auto_analyze: true },
       });
 
@@ -262,23 +280,30 @@ describe('layout.ingest -> layout.search データフロー', () => {
       expect(mockIngestService.saveSectionWithEmbedding).toHaveBeenCalledTimes(3);
     });
 
-    it('auto_analyze後、layout.searchで検索結果が返される', async () => {
-      const mockSearchResults = [createMockSearchResult('hero', { sectionName: 'Welcome to Our Platform' })];
+    it("auto_analyze後、layout.searchで検索結果が返される", async () => {
+      const mockSearchResults = [
+        createMockSearchResult("hero", { sectionName: "Welcome to Our Platform" }),
+      ];
       setLayoutSearchServiceFactory(() => createMockSearchService(mockSearchResults));
 
-      const searchResult = await layoutSearchHandler({ query: 'hero section with welcome message' });
+      const searchResult = await layoutSearchHandler({
+        query: "hero section with welcome message",
+      });
 
       expect(searchResult.success).toBe(true);
       if (searchResult.success) {
         expect(searchResult.data.results.length).toBeGreaterThan(0);
-        expect(searchResult.data.results[0].type).toBe('hero');
+        expect(searchResult.data.results[0].type).toBe("hero");
       }
     });
   });
 
-  describe('[TDD Red] データフローの断絶ポイント特定', () => {
-    it('WebPageテーブルにはHTMLが保存されている', async () => {
-      await layoutIngestHandler({ url: 'https://example.com/landing', options: { save_to_db: true } });
+  describe("[TDD Red] データフローの断絶ポイント特定", () => {
+    it("WebPageテーブルにはHTMLが保存されている", async () => {
+      await layoutIngestHandler({
+        url: "https://example.com/landing",
+        options: { save_to_db: true },
+      });
 
       expect(mockWebPageUpsert).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -289,14 +314,17 @@ describe('layout.ingest -> layout.search データフロー', () => {
       );
     });
 
-    it('SectionPatternテーブルは空のまま（Embeddingがない）', async () => {
-      await layoutIngestHandler({ url: 'https://example.com/landing', options: { save_to_db: true } });
+    it("SectionPatternテーブルは空のまま（Embeddingがない）", async () => {
+      await layoutIngestHandler({
+        url: "https://example.com/landing",
+        options: { save_to_db: true },
+      });
       expect(mockSectionPatternCreate).not.toHaveBeenCalled();
     });
 
-    it('layout.searchはSectionEmbeddingテーブルを参照するが、レコードがない', async () => {
+    it("layout.searchはSectionEmbeddingテーブルを参照するが、レコードがない", async () => {
       const expectedSqlPattern = /FROM section_patterns.*LEFT JOIN section_embeddings/;
-      expect(expectedSqlPattern.source).toContain('section_embeddings');
+      expect(expectedSqlPattern.source).toContain("section_embeddings");
     });
   });
 });
@@ -306,25 +334,31 @@ describe('layout.ingest -> layout.search データフロー', () => {
 // =====================================================
 
 describe.each([
-  { name: 'layout.analyze ツールの代替実装', description: 'auto_analyzeがlayout.analyzeの代替として機能' },
-  { name: 'layout.ingest への auto_analyze オプション追加', description: 'auto_analyzeオプションが追加される' },
-])('[TDD Green] 修正方針: $name', ({ description }) => {
+  {
+    name: "layout.analyze ツールの代替実装",
+    description: "auto_analyzeがlayout.analyzeの代替として機能",
+  },
+  {
+    name: "layout.ingest への auto_analyze オプション追加",
+    description: "auto_analyzeオプションが追加される",
+  },
+])("[TDD Green] 修正方針: $name", ({ description }) => {
   beforeEach(() => {
     vi.clearAllMocks();
     resetLayoutSearchServiceFactory();
     resetLayoutIngestServiceFactory();
     setupDefaultMocks();
-    mockIngest.mockResolvedValue(createMockIngestResponse('<html><body>Test</body></html>'));
+    mockIngest.mockResolvedValue(createMockIngestResponse("<html><body>Test</body></html>"));
   });
 
   afterEach(cleanupMocks);
 
   it(`${description}`, async () => {
-    const mockIngestService = createMockIngestService([createMockSection('hero')]);
+    const mockIngestService = createMockIngestService([createMockSection("hero")]);
     setLayoutIngestServiceFactory(() => mockIngestService);
 
     const ingestResult = await layoutIngestHandler({
-      url: 'https://example.com/landing',
+      url: "https://example.com/landing",
       options: { save_to_db: true, auto_analyze: true },
     });
 
@@ -338,7 +372,7 @@ describe.each([
 // 統合テスト: End-to-End フロー
 // =====================================================
 
-describe('[TDD Green] E2E: ingest から search までの完全フロー', () => {
+describe("[TDD Green] E2E: ingest から search までの完全フロー", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     resetLayoutSearchServiceFactory();
@@ -348,17 +382,17 @@ describe('[TDD Green] E2E: ingest から search までの完全フロー', () =>
 
   afterEach(cleanupMocks);
 
-  it('完全なE2Eフロー: ingest -> auto_analyze -> search', async () => {
+  it("完全なE2Eフロー: ingest -> auto_analyze -> search", async () => {
     const mockSections = [
-      createMockSection('hero', { confidence: 0.95 }),
-      createMockSection('features', { confidence: 0.88 }),
+      createMockSection("hero", { confidence: 0.95 }),
+      createMockSection("features", { confidence: 0.88 }),
     ];
     const mockIngestService = createMockIngestService(mockSections);
     setLayoutIngestServiceFactory(() => mockIngestService);
 
     // Step 1: layout.ingest with auto_analyze
     const ingestResult = await layoutIngestHandler({
-      url: 'https://example.com/landing',
+      url: "https://example.com/landing",
       options: { save_to_db: true, auto_analyze: true },
     });
 
@@ -368,15 +402,15 @@ describe('[TDD Green] E2E: ingest から search までの完全フロー', () =>
     expect(mockIngestService.saveSectionWithEmbedding).toHaveBeenCalledTimes(2);
 
     // Step 2: layout.search
-    const mockSearchResults = [createMockSearchResult('hero')];
+    const mockSearchResults = [createMockSearchResult("hero")];
     setLayoutSearchServiceFactory(() => createMockSearchService(mockSearchResults));
 
-    const searchResult = await layoutSearchHandler({ query: 'hero section with welcome message' });
+    const searchResult = await layoutSearchHandler({ query: "hero section with welcome message" });
 
     expect(searchResult.success).toBe(true);
     if (searchResult.success) {
       expect(searchResult.data.results.length).toBe(1);
-      expect(searchResult.data.results[0].type).toBe('hero');
+      expect(searchResult.data.results[0].type).toBe("hero");
     }
   });
 });

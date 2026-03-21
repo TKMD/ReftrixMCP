@@ -20,11 +20,13 @@ export const searchQuerySchema = z.object({
 export type SearchQuery = z.infer<typeof searchQuerySchema>;
 
 export const searchResultSchema = z.object({
-  items: z.array(z.object({
-    id: z.string().uuid(),
-    name: z.string(),
-    similarity: z.number(),
-  })),
+  items: z.array(
+    z.object({
+      id: z.string().uuid(),
+      name: z.string(),
+      similarity: z.number(),
+    })
+  ),
   total: z.number().int(),
   limit: z.number().int(),
   offset: z.number().int(),

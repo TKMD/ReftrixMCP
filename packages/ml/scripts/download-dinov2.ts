@@ -17,26 +17,18 @@
  *   DINOV2_MODEL_PATH=/custom/path pnpm dlx tsx packages/ml/scripts/download-dinov2.ts
  */
 
-import { createHash } from 'crypto';
-import {
-  createReadStream,
-  createWriteStream,
-  existsSync,
-  mkdirSync,
-  rmSync,
-  statSync,
-} from 'fs';
-import path from 'path';
-import { Readable } from 'stream';
-import { pipeline } from 'stream/promises';
+import { createHash } from "crypto";
+import { createReadStream, createWriteStream, existsSync, mkdirSync, rmSync, statSync } from "fs";
+import path from "path";
+import { Readable } from "stream";
+import { pipeline } from "stream/promises";
 
 // ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
 
 /** HuggingFace Hub URL for DINOv2 ViT-B/14 ONNX model (FP32) */
-const MODEL_URL =
-  'https://huggingface.co/Xenova/dinov2-base/resolve/main/onnx/model.onnx';
+const MODEL_URL = "https://huggingface.co/Xenova/dinov2-base/resolve/main/onnx/model.onnx";
 
 /**
  * Expected SHA-256 hash of the model file.
@@ -44,17 +36,17 @@ const MODEL_URL =
  *   sha256sum packages/ml/models/dinov2-base/model.onnx
  * Then replace this placeholder.
  */
-const EXPECTED_SHA256 = 'de9c675d214f0171285f90f1d1d7716bce1c5e280e93826d071d57f7b9314d98';
+const EXPECTED_SHA256 = "de9c675d214f0171285f90f1d1d7716bce1c5e280e93826d071d57f7b9314d98";
 
 /** Maximum allowed model file size in bytes (500 MB) */
 const MAX_MODEL_SIZE_BYTES = 500 * 1024 * 1024;
 
 /** Allowed download hostnames */
-const ALLOWED_HOSTS: ReadonlySet<string> = new Set(['huggingface.co']);
+const ALLOWED_HOSTS: ReadonlySet<string> = new Set(["huggingface.co"]);
 
 /** Default output path (relative to this script's package, i.e. packages/ml/) */
-const DEFAULT_MODEL_DIR = 'models/dinov2-base';
-const MODEL_FILENAME = 'model.onnx';
+const DEFAULT_MODEL_DIR = "models/dinov2-base";
+const MODEL_FILENAME = "model.onnx";
 
 // ---------------------------------------------------------------------------
 // Utilities (exported for testing)
@@ -67,15 +59,13 @@ const MODEL_FILENAME = 'model.onnx';
 export function validateDownloadUrl(urlString: string): URL {
   const parsed = new URL(urlString);
 
-  if (parsed.protocol !== 'https:') {
-    throw new Error(
-      `Download URL must use HTTPS. Got: ${parsed.protocol}`,
-    );
+  if (parsed.protocol !== "https:") {
+    throw new Error(`Download URL must use HTTPS. Got: ${parsed.protocol}`);
   }
 
   if (!ALLOWED_HOSTS.has(parsed.hostname)) {
     throw new Error(
-      `Download host not in allowlist. Got: ${parsed.hostname}, allowed: ${[...ALLOWED_HOSTS].join(', ')}`,
+      `Download host not in allowlist. Got: ${parsed.hostname}, allowed: ${[...ALLOWED_HOSTS].join(", ")}`
     );
   }
 
@@ -99,18 +89,14 @@ export function validateModelPath(modelPath: string): string {
   // After resolving, the path should not contain `..`
   // (path.resolve normalises, but we double-check the raw input)
   const normalised = path.normalize(modelPath);
-  if (normalised.includes('..')) {
-    throw new Error(
-      `Path traversal detected in model path: ${modelPath}`,
-    );
+  if (normalised.includes("..")) {
+    throw new Error(`Path traversal detected in model path: ${modelPath}`);
   }
 
   // Warn if outside project directory (but allow it for explicit overrides)
   const projectRoot = path.resolve(process.cwd());
-  if (!resolved.startsWith(projectRoot) && !resolved.startsWith('/tmp/')) {
-    console.warn(
-      `Warning: Model path outside project directory: ${resolved}`,
-    );
+  if (!resolved.startsWith(projectRoot) && !resolved.startsWith("/tmp/")) {
+    console.warn(`Warning: Model path outside project directory: ${resolved}`);
   }
 
   return resolved;
@@ -121,11 +107,11 @@ export function validateModelPath(modelPath: string): string {
  */
 export async function computeFileHash(filePath: string): Promise<string> {
   return new Promise((resolve, reject) => {
-    const hash = createHash('sha256');
+    const hash = createHash("sha256");
     const stream = createReadStream(filePath);
-    stream.on('data', (chunk: Buffer | string) => hash.update(chunk));
-    stream.on('end', () => resolve(hash.digest('hex')));
-    stream.on('error', reject);
+    stream.on("data", (chunk: Buffer | string) => hash.update(chunk));
+    stream.on("end", () => resolve(hash.digest("hex")));
+    stream.on("error", reject);
   });
 }
 
@@ -137,7 +123,7 @@ export function validateFileSize(filePath: string): void {
   const stats = statSync(filePath);
   if (stats.size > MAX_MODEL_SIZE_BYTES) {
     throw new Error(
-      `Model file exceeds size cap: ${stats.size} bytes > ${MAX_MODEL_SIZE_BYTES} bytes (500 MB)`,
+      `Model file exceeds size cap: ${stats.size} bytes > ${MAX_MODEL_SIZE_BYTES} bytes (500 MB)`
     );
   }
 }
@@ -163,25 +149,23 @@ async function downloadModel(outputPath: string): Promise<void> {
   // Check if model already exists
   if (existsSync(resolvedOutput)) {
     console.log(`Model already exists at: ${resolvedOutput}`);
-    console.log('Verifying existing model...');
+    console.log("Verifying existing model...");
 
     validateFileSize(resolvedOutput);
     const existingHash = await computeFileHash(resolvedOutput);
 
-    if (EXPECTED_SHA256 !== 'TODO_COMPUTE_ON_FIRST_DOWNLOAD') {
+    if (EXPECTED_SHA256 !== "TODO_COMPUTE_ON_FIRST_DOWNLOAD") {
       if (existingHash === EXPECTED_SHA256) {
-        console.log('SHA-256 hash verified. Model is valid.');
+        console.log("SHA-256 hash verified. Model is valid.");
         return;
       }
       console.warn(
-        `Hash mismatch for existing model. Expected: ${EXPECTED_SHA256}, Got: ${existingHash}`,
+        `Hash mismatch for existing model. Expected: ${EXPECTED_SHA256}, Got: ${existingHash}`
       );
-      console.log('Re-downloading model...');
+      console.log("Re-downloading model...");
     } else {
       console.log(`Existing model SHA-256: ${existingHash}`);
-      console.log(
-        'EXPECTED_SHA256 is a placeholder. Please update it in the script.',
-      );
+      console.log("EXPECTED_SHA256 is a placeholder. Please update it in the script.");
       return;
     }
   }
@@ -195,33 +179,29 @@ async function downloadModel(outputPath: string): Promise<void> {
 
   const response = await fetch(url.href, {
     headers: {
-      'User-Agent': 'Reftrix-ML/0.1.0 (model-download)',
+      "User-Agent": "Reftrix-ML/0.1.0 (model-download)",
     },
   });
 
   if (!response.ok) {
-    throw new Error(
-      `Download failed: HTTP ${response.status} ${response.statusText}`,
-    );
+    throw new Error(`Download failed: HTTP ${response.status} ${response.statusText}`);
   }
 
   // Check Content-Length before downloading
-  const contentLength = response.headers.get('content-length');
+  const contentLength = response.headers.get("content-length");
   if (contentLength) {
     const expectedSize = parseInt(contentLength, 10);
     if (expectedSize > MAX_MODEL_SIZE_BYTES) {
       throw new Error(
-        `Content-Length exceeds size cap: ${expectedSize} bytes > ${MAX_MODEL_SIZE_BYTES} bytes (500 MB)`,
+        `Content-Length exceeds size cap: ${expectedSize} bytes > ${MAX_MODEL_SIZE_BYTES} bytes (500 MB)`
       );
     }
-    console.log(
-      `Expected size: ${(expectedSize / 1024 / 1024).toFixed(1)} MB`,
-    );
+    console.log(`Expected size: ${(expectedSize / 1024 / 1024).toFixed(1)} MB`);
   }
 
   // Stream download with progress
   if (!response.body) {
-    throw new Error('Response body is null');
+    throw new Error("Response body is null");
   }
 
   const totalBytes = contentLength ? parseInt(contentLength, 10) : 0;
@@ -236,8 +216,8 @@ async function downloadModel(outputPath: string): Promise<void> {
       if (downloadedBytes > MAX_MODEL_SIZE_BYTES) {
         controller.error(
           new Error(
-            `Download exceeds size cap at ${downloadedBytes} bytes (limit: ${MAX_MODEL_SIZE_BYTES})`,
-          ),
+            `Download exceeds size cap at ${downloadedBytes} bytes (limit: ${MAX_MODEL_SIZE_BYTES})`
+          )
         );
         return;
       }
@@ -247,9 +227,7 @@ async function downloadModel(outputPath: string): Promise<void> {
         if (pct !== lastProgressPct && pct % 10 === 0) {
           lastProgressPct = pct;
           const mb = (downloadedBytes / 1024 / 1024).toFixed(1);
-          process.stdout.write(
-            `\r  Progress: ${pct}% (${mb} MB)`,
-          );
+          process.stdout.write(`\r  Progress: ${pct}% (${mb} MB)`);
         }
       }
 
@@ -262,37 +240,33 @@ async function downloadModel(outputPath: string): Promise<void> {
   const writeStream = createWriteStream(tmpPath);
 
   await pipeline(nodeStream, writeStream);
-  console.log(''); // Newline after progress
+  console.log(""); // Newline after progress
 
   // Validate file size
   validateFileSize(tmpPath);
-  console.log(
-    `Downloaded: ${(downloadedBytes / 1024 / 1024).toFixed(1)} MB`,
-  );
+  console.log(`Downloaded: ${(downloadedBytes / 1024 / 1024).toFixed(1)} MB`);
 
   // Compute and verify SHA-256 hash
   const hash = await computeFileHash(tmpPath);
   console.log(`SHA-256: ${hash}`);
 
-  if (EXPECTED_SHA256 === 'TODO_COMPUTE_ON_FIRST_DOWNLOAD') {
-    console.log('');
-    console.log(
-      'This is the first download. Please update EXPECTED_SHA256 in the script:',
-    );
+  if (EXPECTED_SHA256 === "TODO_COMPUTE_ON_FIRST_DOWNLOAD") {
+    console.log("");
+    console.log("This is the first download. Please update EXPECTED_SHA256 in the script:");
     console.log(`  EXPECTED_SHA256 = '${hash}'`);
-    console.log('');
+    console.log("");
   } else if (hash !== EXPECTED_SHA256) {
     // Hash mismatch - delete the file and error
     rmSync(tmpPath, { force: true });
     throw new Error(
-      `SHA-256 hash mismatch!\n  Expected: ${EXPECTED_SHA256}\n  Got:      ${hash}\nDownloaded file has been deleted.`,
+      `SHA-256 hash mismatch!\n  Expected: ${EXPECTED_SHA256}\n  Got:      ${hash}\nDownloaded file has been deleted.`
     );
   } else {
-    console.log('SHA-256 hash verified.');
+    console.log("SHA-256 hash verified.");
   }
 
   // Rename temp file to final path (atomic on same filesystem)
-  const { renameSync } = await import('fs');
+  const { renameSync } = await import("fs");
   renameSync(tmpPath, resolvedOutput);
   console.log(`Model saved to: ${resolvedOutput}`);
 }
@@ -313,7 +287,7 @@ async function cleanModel(outputPath: string): Promise<void> {
   // Remove parent directory if empty
   const dir = path.dirname(resolvedOutput);
   if (existsSync(dir)) {
-    const { readdirSync } = await import('fs');
+    const { readdirSync } = await import("fs");
     if (readdirSync(dir).length === 0) {
       rmSync(dir, { recursive: true });
       console.log(`Removed empty directory: ${dir}`);
@@ -326,7 +300,7 @@ async function cleanModel(outputPath: string): Promise<void> {
 // ---------------------------------------------------------------------------
 
 function getModelOutputPath(): string {
-  const envPath = process.env['DINOV2_MODEL_PATH'];
+  const envPath = process.env["DINOV2_MODEL_PATH"];
   if (envPath) {
     return envPath;
   }
@@ -335,12 +309,12 @@ function getModelOutputPath(): string {
 
 async function main(): Promise<void> {
   const args = process.argv.slice(2);
-  const isClean = args.includes('--clean');
+  const isClean = args.includes("--clean");
   const outputPath = getModelOutputPath();
 
-  console.log('=== DINOv2 ONNX Model Manager ===');
+  console.log("=== DINOv2 ONNX Model Manager ===");
   console.log(`Output path: ${path.resolve(outputPath)}`);
-  console.log('');
+  console.log("");
 
   if (isClean) {
     await cleanModel(outputPath);
@@ -351,8 +325,8 @@ async function main(): Promise<void> {
 
 // Only run CLI when executed directly (not when imported for testing)
 const isDirectExecution =
-  process.argv[1]?.endsWith('download-dinov2.ts') ||
-  process.argv[1]?.endsWith('download-dinov2.js');
+  process.argv[1]?.endsWith("download-dinov2.ts") ||
+  process.argv[1]?.endsWith("download-dinov2.js");
 
 if (isDirectExecution) {
   main().catch((error: unknown) => {

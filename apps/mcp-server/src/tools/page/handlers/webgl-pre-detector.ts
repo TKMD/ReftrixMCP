@@ -18,8 +18,8 @@
  * @module tools/page/handlers/webgl-pre-detector
  */
 
-import { type SiteTier } from './retry-strategy';
-import { WEBGL_DOMAIN_MAP, getDomainsByTier } from './webgl-domains';
+import { type SiteTier } from "./retry-strategy";
+import { WEBGL_DOMAIN_MAP, getDomainsByTier } from "./webgl-domains";
 
 /**
  * 事前検出結果のインターフェース
@@ -43,9 +43,7 @@ export interface PreDetectionResult {
  *
  * @deprecated Use WEBGL_DOMAIN_MAP from webgl-domains.ts for structured access
  */
-export const KNOWN_WEBGL_DOMAINS: readonly string[] = Array.from(
-  WEBGL_DOMAIN_MAP.keys()
-);
+export const KNOWN_WEBGL_DOMAINS: readonly string[] = Array.from(WEBGL_DOMAIN_MAP.keys());
 
 /**
  * WebGL/3D関連のURLパターン
@@ -53,13 +51,13 @@ export const KNOWN_WEBGL_DOMAINS: readonly string[] = Array.from(
  * 注: スラッシュで囲まれたパターンのみ検出（誤検出を避けるため）
  */
 export const WEBGL_URL_PATTERNS: readonly string[] = [
-  '/webgl/',
-  '/3d/',
-  '/canvas/',
-  '/three/',
-  '/experience/',
-  '/interactive/',
-  '/immersive/',
+  "/webgl/",
+  "/3d/",
+  "/canvas/",
+  "/three/",
+  "/experience/",
+  "/interactive/",
+  "/immersive/",
 ] as const;
 
 /**
@@ -68,21 +66,21 @@ export const WEBGL_URL_PATTERNS: readonly string[] = [
  * @returns ドメイン文字列、抽出できない場合はnull
  */
 function extractDomain(url: string): string | null {
-  if (!url || typeof url !== 'string') {
+  if (!url || typeof url !== "string") {
     return null;
   }
 
   try {
     // プロトコルがない場合は追加
     let normalizedUrl = url;
-    if (!url.includes('://')) {
-      normalizedUrl = 'https://' + url;
+    if (!url.includes("://")) {
+      normalizedUrl = "https://" + url;
     }
 
     const urlObj = new URL(normalizedUrl);
     // www. プレフィックスを除去してドメインを正規化
     let hostname = urlObj.hostname.toLowerCase();
-    if (hostname.startsWith('www.')) {
+    if (hostname.startsWith("www.")) {
       hostname = hostname.slice(4);
     }
     return hostname;
@@ -98,15 +96,15 @@ function extractDomain(url: string): string | null {
  * @returns パス文字列、抽出できない場合はnull
  */
 function extractPath(url: string): string | null {
-  if (!url || typeof url !== 'string') {
+  if (!url || typeof url !== "string") {
     return null;
   }
 
   try {
     // プロトコルがない場合は追加
     let normalizedUrl = url;
-    if (!url.includes('://')) {
-      normalizedUrl = 'https://' + url;
+    if (!url.includes("://")) {
+      normalizedUrl = "https://" + url;
     }
 
     const urlObj = new URL(normalizedUrl);
@@ -129,7 +127,7 @@ function matchKnownDomain(domain: string | null): string | null {
 
   for (const knownDomain of KNOWN_WEBGL_DOMAINS) {
     // 完全一致またはサブドメインマッチ
-    if (domain === knownDomain || domain.endsWith('.' + knownDomain)) {
+    if (domain === knownDomain || domain.endsWith("." + knownDomain)) {
       return knownDomain;
     }
   }
@@ -188,7 +186,7 @@ export function preDetectWebGL(url: string): PreDetectionResult {
   };
 
   // 空文字列や不正な入力の場合
-  if (!url || typeof url !== 'string' || url.trim() === '') {
+  if (!url || typeof url !== "string" || url.trim() === "") {
     return defaultResult;
   }
 
@@ -228,9 +226,9 @@ export function preDetectWebGL(url: string): PreDetectionResult {
  *
  * @deprecated Use getDomainsByTier('ultra-heavy') from webgl-domains.ts
  */
-export const KNOWN_ULTRA_HEAVY_DOMAINS: readonly string[] = getDomainsByTier(
-  'ultra-heavy'
-).map((e) => e.domain);
+export const KNOWN_ULTRA_HEAVY_DOMAINS: readonly string[] = getDomainsByTier("ultra-heavy").map(
+  (e) => e.domain
+);
 
 /**
  * 既知のheavyドメイン（重いサイト）
@@ -238,9 +236,9 @@ export const KNOWN_ULTRA_HEAVY_DOMAINS: readonly string[] = getDomainsByTier(
  *
  * @deprecated Use getDomainsByTier('heavy') from webgl-domains.ts
  */
-export const KNOWN_HEAVY_DOMAINS: readonly string[] = getDomainsByTier(
-  'heavy'
-).map((e) => e.domain);
+export const KNOWN_HEAVY_DOMAINS: readonly string[] = getDomainsByTier("heavy").map(
+  (e) => e.domain
+);
 
 /**
  * URLからサイト種別（SiteTier）を判定する
@@ -265,46 +263,46 @@ export function detectSiteTier(url: string, preDetection?: PreDetectionResult): 
 
   // 非WebGLサイトは通常処理
   if (!detection.isLikelyWebGL) {
-    return 'normal';
+    return "normal";
   }
 
   // ドメインを抽出して詳細判定
   let normalizedUrl = url;
-  if (!url.includes('://')) {
-    normalizedUrl = 'https://' + url;
+  if (!url.includes("://")) {
+    normalizedUrl = "https://" + url;
   }
 
   let domain: string | null = null;
   try {
     const urlObj = new URL(normalizedUrl);
     domain = urlObj.hostname.toLowerCase();
-    if (domain.startsWith('www.')) {
+    if (domain.startsWith("www.")) {
       domain = domain.slice(4);
     }
   } catch {
     // URL解析失敗時はWebGL判定に基づく
-    return detection.confidence >= 0.9 ? 'heavy' : 'webgl';
+    return detection.confidence >= 0.9 ? "heavy" : "webgl";
   }
 
   // ultra-heavyドメインチェック
   for (const ultraHeavyDomain of KNOWN_ULTRA_HEAVY_DOMAINS) {
-    if (domain === ultraHeavyDomain || domain.endsWith('.' + ultraHeavyDomain)) {
-      return 'ultra-heavy';
+    if (domain === ultraHeavyDomain || domain.endsWith("." + ultraHeavyDomain)) {
+      return "ultra-heavy";
     }
   }
 
   // heavyドメインチェック
   for (const heavyDomain of KNOWN_HEAVY_DOMAINS) {
-    if (domain === heavyDomain || domain.endsWith('.' + heavyDomain)) {
-      return 'heavy';
+    if (domain === heavyDomain || domain.endsWith("." + heavyDomain)) {
+      return "heavy";
     }
   }
 
   // 高信頼度のWebGL検出（confidence >= 1.0）はheavy扱い
   if (detection.confidence >= 1.0) {
-    return 'heavy';
+    return "heavy";
   }
 
   // その他のWebGLサイト
-  return 'webgl';
+  return "webgl";
 }

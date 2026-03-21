@@ -17,7 +17,7 @@
  * @module tests/tools/background-search.test
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 // 実装Phase（Green）で作成予定のモジュールからインポート
 // TDD Red Phase: これらのインポートは現時点で失敗する
@@ -32,12 +32,12 @@ import {
   type BackgroundSearchOutput,
   type IBackgroundSearchService,
   type BackgroundSearchResultItem,
-} from '../../src/tools/background/search.tool';
+} from "../../src/tools/background/search.tool";
 
 import {
   backgroundSearchInputSchema,
   BACKGROUND_MCP_ERROR_CODES,
-} from '../../src/tools/background/schemas';
+} from "../../src/tools/background/schemas";
 
 // =====================================================
 // テストデータ
@@ -48,20 +48,20 @@ import {
  * Prisma enum BackgroundDesignType に基づく
  */
 const VALID_DESIGN_TYPES = [
-  'solid_color',
-  'linear_gradient',
-  'radial_gradient',
-  'conic_gradient',
-  'mesh_gradient',
-  'image_background',
-  'pattern_background',
-  'video_background',
-  'animated_gradient',
-  'glassmorphism',
-  'noise_texture',
-  'svg_background',
-  'multi_layer',
-  'unknown',
+  "solid_color",
+  "linear_gradient",
+  "radial_gradient",
+  "conic_gradient",
+  "mesh_gradient",
+  "image_background",
+  "pattern_background",
+  "video_background",
+  "animated_gradient",
+  "glassmorphism",
+  "noise_texture",
+  "svg_background",
+  "multi_layer",
+  "unknown",
 ] as const;
 
 /**
@@ -89,13 +89,13 @@ function createMockSearchResult(
     name: `${designType} background design`,
     designType,
     cssValue: `linear-gradient(135deg, #1a1a2e, #16213e)`,
-    selector: '.hero',
+    selector: ".hero",
     similarity,
     colorInfo: {
-      dominantColors: ['#1a1a2e', '#16213e'],
+      dominantColors: ["#1a1a2e", "#16213e"],
       colorCount: 2,
       hasAlpha: false,
-      colorSpace: 'srgb',
+      colorSpace: "srgb",
     },
     textRepresentation: `passage: Background design type: ${designType}. Name: ${designType} background design.`,
   };
@@ -109,14 +109,16 @@ function createMockSearchResult(
  * モックサービスを作成
  * IBackgroundSearchService インターフェースに準拠
  */
-function createMockService(overrides?: Partial<IBackgroundSearchService>): IBackgroundSearchService {
+function createMockService(
+  overrides?: Partial<IBackgroundSearchService>
+): IBackgroundSearchService {
   return {
     generateQueryEmbedding: vi.fn().mockResolvedValue(new Array(768).fill(0.1)),
     searchBackgroundDesigns: vi.fn().mockResolvedValue({
       results: [
-        createMockSearchResult('11111111-1111-1111-1111-111111111111', 'linear_gradient', 0.92),
-        createMockSearchResult('22222222-2222-2222-2222-222222222222', 'glassmorphism', 0.87),
-        createMockSearchResult('33333333-3333-3333-3333-333333333333', 'solid_color', 0.81),
+        createMockSearchResult("11111111-1111-1111-1111-111111111111", "linear_gradient", 0.92),
+        createMockSearchResult("22222222-2222-2222-2222-222222222222", "glassmorphism", 0.87),
+        createMockSearchResult("33333333-3333-3333-3333-333333333333", "solid_color", 0.81),
       ],
       total: 3,
     }),
@@ -128,7 +130,7 @@ function createMockService(overrides?: Partial<IBackgroundSearchService>): IBack
 // 入力バリデーション テスト
 // =====================================================
 
-describe('background.search MCPツール', () => {
+describe("background.search MCPツール", () => {
   beforeEach(() => {
     resetBackgroundSearchServiceFactory();
   });
@@ -137,10 +139,10 @@ describe('background.search MCPツール', () => {
     resetBackgroundSearchServiceFactory();
   });
 
-  describe('入力バリデーション', () => {
+  describe("入力バリデーション", () => {
     // クエリが空の場合バリデーションエラー
-    it('クエリが空の場合バリデーションエラー', () => {
-      const input = { query: '' };
+    it("クエリが空の場合バリデーションエラー", () => {
+      const input = { query: "" };
       const result = backgroundSearchInputSchema.safeParse(input);
 
       expect(result.success).toBe(false);
@@ -150,34 +152,34 @@ describe('background.search MCPツール', () => {
     });
 
     // クエリが500文字超の場合バリデーションエラー
-    it('クエリが500文字超の場合バリデーションエラー', () => {
-      const input = { query: 'a'.repeat(501) };
+    it("クエリが500文字超の場合バリデーションエラー", () => {
+      const input = { query: "a".repeat(501) };
       const result = backgroundSearchInputSchema.safeParse(input);
 
       expect(result.success).toBe(false);
     });
 
     // limitが0以下の場合バリデーションエラー
-    it('limitが0以下の場合バリデーションエラー', () => {
-      const input = { query: 'dark gradient background', limit: 0 };
+    it("limitが0以下の場合バリデーションエラー", () => {
+      const input = { query: "dark gradient background", limit: 0 };
       const result = backgroundSearchInputSchema.safeParse(input);
 
       expect(result.success).toBe(false);
     });
 
     // limitが50超の場合バリデーションエラー
-    it('limitが50超の場合バリデーションエラー', () => {
-      const input = { query: 'dark gradient background', limit: 51 };
+    it("limitが50超の場合バリデーションエラー", () => {
+      const input = { query: "dark gradient background", limit: 51 };
       const result = backgroundSearchInputSchema.safeParse(input);
 
       expect(result.success).toBe(false);
     });
 
     // 不正なdesignTypeフィルターの場合バリデーションエラー
-    it('不正なdesignTypeフィルターの場合バリデーションエラー', () => {
+    it("不正なdesignTypeフィルターの場合バリデーションエラー", () => {
       const input = {
-        query: 'gradient background',
-        filters: { designType: 'invalid_type' },
+        query: "gradient background",
+        filters: { designType: "invalid_type" },
       };
       const result = backgroundSearchInputSchema.safeParse(input);
 
@@ -185,9 +187,9 @@ describe('background.search MCPツール', () => {
     });
 
     // 正常な入力はパースできる
-    it('正常な入力はパースできる', () => {
+    it("正常な入力はパースできる", () => {
       const input = {
-        query: 'dark gradient background',
+        query: "dark gradient background",
         limit: 10,
         offset: 0,
       };
@@ -197,10 +199,10 @@ describe('background.search MCPツール', () => {
     });
 
     // designTypeフィルターの全有効値がパースできる
-    it('designTypeフィルターの有効値がパースできる', () => {
+    it("designTypeフィルターの有効値がパースできる", () => {
       for (const designType of VALID_DESIGN_TYPES) {
         const input = {
-          query: 'background search',
+          query: "background search",
           filters: { designType },
         };
         const result = backgroundSearchInputSchema.safeParse(input);
@@ -210,8 +212,8 @@ describe('background.search MCPツール', () => {
     });
 
     // offsetが負の場合バリデーションエラー
-    it('offsetが負の場合バリデーションエラー', () => {
-      const input = { query: 'gradient', offset: -1 };
+    it("offsetが負の場合バリデーションエラー", () => {
+      const input = { query: "gradient", offset: -1 };
       const result = backgroundSearchInputSchema.safeParse(input);
 
       expect(result.success).toBe(false);
@@ -222,41 +224,41 @@ describe('background.search MCPツール', () => {
   // サービスファクトリー テスト
   // =====================================================
 
-  describe('サービスファクトリー', () => {
+  describe("サービスファクトリー", () => {
     // ファクトリー未設定時はSERVICE_UNAVAILABLEエラー
-    it('ファクトリー未設定時はSERVICE_UNAVAILABLEエラー', async () => {
+    it("ファクトリー未設定時はSERVICE_UNAVAILABLEエラー", async () => {
       // ファクトリーをリセット（未設定状態）
       resetBackgroundSearchServiceFactory();
 
       const result = await backgroundSearchHandler({
-        query: 'dark gradient',
+        query: "dark gradient",
       });
 
       expect(result.success).toBe(false);
       if (!result.success) {
-        expect(result.error.code).toBe('SERVICE_UNAVAILABLE');
+        expect(result.error.code).toBe("SERVICE_UNAVAILABLE");
       }
     });
 
     // ファクトリー設定後にリセットできる
-    it('ファクトリー設定後にリセットできる', async () => {
+    it("ファクトリー設定後にリセットできる", async () => {
       const mockService = createMockService();
       setBackgroundSearchServiceFactory(() => mockService);
 
       // 設定後は正常に動作
       const result1 = await backgroundSearchHandler({
-        query: 'gradient background',
+        query: "gradient background",
       });
       expect(result1.success).toBe(true);
 
       // リセット後はSERVICE_UNAVAILABLEエラー
       resetBackgroundSearchServiceFactory();
       const result2 = await backgroundSearchHandler({
-        query: 'gradient background',
+        query: "gradient background",
       });
       expect(result2.success).toBe(false);
       if (!result2.success) {
-        expect(result2.error.code).toBe('SERVICE_UNAVAILABLE');
+        expect(result2.error.code).toBe("SERVICE_UNAVAILABLE");
       }
     });
   });
@@ -265,14 +267,14 @@ describe('background.search MCPツール', () => {
   // 正常系検索 テスト
   // =====================================================
 
-  describe('正常系検索', () => {
+  describe("正常系検索", () => {
     // クエリでベクトル検索が実行される
-    it('クエリでベクトル検索が実行される', async () => {
+    it("クエリでベクトル検索が実行される", async () => {
       const mockService = createMockService();
       setBackgroundSearchServiceFactory(() => mockService);
 
       const result = await backgroundSearchHandler({
-        query: 'dark gradient background with glassmorphism',
+        query: "dark gradient background with glassmorphism",
       });
 
       expect(result.success).toBe(true);
@@ -281,12 +283,12 @@ describe('background.search MCPツール', () => {
     });
 
     // 検索結果がマッピングされて返却される
-    it('検索結果がマッピングされて返却される', async () => {
+    it("検索結果がマッピングされて返却される", async () => {
       const mockService = createMockService();
       setBackgroundSearchServiceFactory(() => mockService);
 
       const result = await backgroundSearchHandler({
-        query: 'gradient background',
+        query: "gradient background",
       });
 
       expect(result.success).toBe(true);
@@ -299,19 +301,19 @@ describe('background.search MCPツール', () => {
           expect(item.id).toBeDefined();
           expect(item.designType).toBeDefined();
           expect(item.similarity).toBeDefined();
-          expect(typeof item.similarity).toBe('number');
+          expect(typeof item.similarity).toBe("number");
         }
       }
     });
 
     // designTypeフィルターが適用される
-    it('designTypeフィルターが適用される', async () => {
+    it("designTypeフィルターが適用される", async () => {
       const mockService = createMockService();
       setBackgroundSearchServiceFactory(() => mockService);
 
       const input: BackgroundSearchInput = {
-        query: 'gradient background',
-        filters: { designType: 'linear_gradient' },
+        query: "gradient background",
+        filters: { designType: "linear_gradient" },
       };
       await backgroundSearchHandler(input);
 
@@ -320,20 +322,20 @@ describe('background.search MCPツール', () => {
         expect.any(Array),
         expect.objectContaining({
           filters: expect.objectContaining({
-            designType: 'linear_gradient',
+            designType: "linear_gradient",
           }),
         })
       );
     });
 
     // webPageIdフィルターが適用される
-    it('webPageIdフィルターが適用される', async () => {
+    it("webPageIdフィルターが適用される", async () => {
       const mockService = createMockService();
       setBackgroundSearchServiceFactory(() => mockService);
 
       const input: BackgroundSearchInput = {
-        query: 'gradient background',
-        filters: { webPageId: '99999999-9999-9999-9999-999999999999' },
+        query: "gradient background",
+        filters: { webPageId: "99999999-9999-9999-9999-999999999999" },
       };
       await backgroundSearchHandler(input);
 
@@ -341,19 +343,19 @@ describe('background.search MCPツール', () => {
         expect.any(Array),
         expect.objectContaining({
           filters: expect.objectContaining({
-            webPageId: '99999999-9999-9999-9999-999999999999',
+            webPageId: "99999999-9999-9999-9999-999999999999",
           }),
         })
       );
     });
 
     // limit/offsetが適用される
-    it('limit/offsetが適用される', async () => {
+    it("limit/offsetが適用される", async () => {
       const mockService = createMockService();
       setBackgroundSearchServiceFactory(() => mockService);
 
       const input: BackgroundSearchInput = {
-        query: 'solid background',
+        query: "solid background",
         limit: 5,
         offset: 10,
       };
@@ -369,12 +371,12 @@ describe('background.search MCPツール', () => {
     });
 
     // similarityスコアが含まれる
-    it('similarityスコアが含まれる', async () => {
+    it("similarityスコアが含まれる", async () => {
       const mockService = createMockService();
       setBackgroundSearchServiceFactory(() => mockService);
 
       const result = await backgroundSearchHandler({
-        query: 'gradient background',
+        query: "gradient background",
       });
 
       expect(result.success).toBe(true);
@@ -387,62 +389,62 @@ describe('background.search MCPツール', () => {
     });
 
     // クエリ文字列がレスポンスに含まれる
-    it('クエリ文字列がレスポンスに含まれる', async () => {
+    it("クエリ文字列がレスポンスに含まれる", async () => {
       const mockService = createMockService();
       setBackgroundSearchServiceFactory(() => mockService);
 
       const result = await backgroundSearchHandler({
-        query: 'animated gradient background',
+        query: "animated gradient background",
       });
 
       expect(result.success).toBe(true);
       if (result.success) {
-        expect(result.data.query).toBe('animated gradient background');
+        expect(result.data.query).toBe("animated gradient background");
       }
     });
 
     // 検索時間がレスポンスに含まれる
-    it('検索時間がレスポンスに含まれる', async () => {
+    it("検索時間がレスポンスに含まれる", async () => {
       const mockService = createMockService();
       setBackgroundSearchServiceFactory(() => mockService);
 
       const result = await backgroundSearchHandler({
-        query: 'glassmorphism',
+        query: "glassmorphism",
       });
 
       expect(result.success).toBe(true);
       if (result.success) {
         expect(result.data.searchTimeMs).toBeDefined();
-        expect(typeof result.data.searchTimeMs).toBe('number');
+        expect(typeof result.data.searchTimeMs).toBe("number");
         expect(result.data.searchTimeMs).toBeGreaterThanOrEqual(0);
       }
     });
 
     // cssValueが結果に含まれる
-    it('cssValueが結果に含まれる', async () => {
+    it("cssValueが結果に含まれる", async () => {
       const mockService = createMockService();
       setBackgroundSearchServiceFactory(() => mockService);
 
       const result = await backgroundSearchHandler({
-        query: 'gradient background',
+        query: "gradient background",
       });
 
       expect(result.success).toBe(true);
       if (result.success) {
         for (const item of result.data.results) {
           expect(item.cssValue).toBeDefined();
-          expect(typeof item.cssValue).toBe('string');
+          expect(typeof item.cssValue).toBe("string");
         }
       }
     });
 
     // source情報（webPageId、url等）が含まれる
-    it('source情報が結果に含まれる', async () => {
+    it("source情報が結果に含まれる", async () => {
       const mockService = createMockService();
       setBackgroundSearchServiceFactory(() => mockService);
 
       const result = await backgroundSearchHandler({
-        query: 'gradient background',
+        query: "gradient background",
       });
 
       expect(result.success).toBe(true);
@@ -459,34 +461,34 @@ describe('background.search MCPツール', () => {
   // Embedding テスト
   // =====================================================
 
-  describe('Embedding', () => {
+  describe("Embedding", () => {
     // E5プレフィックス(query:)が付与される
-    it('E5プレフィックス(query:)が付与される', async () => {
+    it("E5プレフィックス(query:)が付与される", async () => {
       const mockService = createMockService();
       setBackgroundSearchServiceFactory(() => mockService);
 
       await backgroundSearchHandler({
-        query: 'dark gradient',
+        query: "dark gradient",
       });
 
       // generateQueryEmbedding に "query: dark gradient" が渡される
       expect(mockService.generateQueryEmbedding).toHaveBeenCalledWith(
-        expect.stringContaining('query:')
+        expect.stringContaining("query:")
       );
       expect(mockService.generateQueryEmbedding).toHaveBeenCalledWith(
-        expect.stringContaining('dark gradient')
+        expect.stringContaining("dark gradient")
       );
     });
 
     // Embedding生成失敗時は空結果を返す
-    it('Embedding生成失敗時は空結果を返す', async () => {
+    it("Embedding生成失敗時は空結果を返す", async () => {
       const mockService = createMockService({
         generateQueryEmbedding: vi.fn().mockResolvedValue(null),
       });
       setBackgroundSearchServiceFactory(() => mockService);
 
       const result = await backgroundSearchHandler({
-        query: 'gradient background',
+        query: "gradient background",
       });
 
       expect(result.success).toBe(true);
@@ -497,7 +499,7 @@ describe('background.search MCPツール', () => {
     });
 
     // Embedding生成が768次元ベクトルを受け取ることを確認
-    it('768次元Embeddingベクトルが検索サービスに渡される', async () => {
+    it("768次元Embeddingベクトルが検索サービスに渡される", async () => {
       const mockEmbedding = new Array(768).fill(0.05);
       const mockService = createMockService({
         generateQueryEmbedding: vi.fn().mockResolvedValue(mockEmbedding),
@@ -505,7 +507,7 @@ describe('background.search MCPツール', () => {
       setBackgroundSearchServiceFactory(() => mockService);
 
       await backgroundSearchHandler({
-        query: 'noise texture background',
+        query: "noise texture background",
       });
 
       expect(mockService.searchBackgroundDesigns).toHaveBeenCalledWith(
@@ -519,58 +521,52 @@ describe('background.search MCPツール', () => {
   // エラーハンドリング テスト
   // =====================================================
 
-  describe('エラーハンドリング', () => {
+  describe("エラーハンドリング", () => {
     // DB検索エラー時は適切なエラーコードを返す
-    it('DB検索エラー時は適切なエラーコードを返す', async () => {
+    it("DB検索エラー時は適切なエラーコードを返す", async () => {
       const mockService = createMockService({
-        searchBackgroundDesigns: vi.fn().mockRejectedValue(
-          new Error('Database connection failed')
-        ),
+        searchBackgroundDesigns: vi.fn().mockRejectedValue(new Error("Database connection failed")),
       });
       setBackgroundSearchServiceFactory(() => mockService);
 
       const result = await backgroundSearchHandler({
-        query: 'gradient background',
+        query: "gradient background",
       });
 
       expect(result.success).toBe(false);
       if (!result.success) {
         expect(result.error.code).toBeDefined();
-        expect(result.error.message).toContain('Database');
+        expect(result.error.message).toContain("Database");
       }
     });
 
     // タイムアウトエラーを検出できる
-    it('タイムアウトエラーを検出できる', async () => {
+    it("タイムアウトエラーを検出できる", async () => {
       const mockService = createMockService({
-        searchBackgroundDesigns: vi.fn().mockRejectedValue(
-          new Error('Query timeout exceeded')
-        ),
+        searchBackgroundDesigns: vi.fn().mockRejectedValue(new Error("Query timeout exceeded")),
       });
       setBackgroundSearchServiceFactory(() => mockService);
 
       const result = await backgroundSearchHandler({
-        query: 'gradient background',
+        query: "gradient background",
       });
 
       expect(result.success).toBe(false);
       if (!result.success) {
         expect(result.error.code).toBeDefined();
-        expect(result.error.message).toContain('timeout');
+        expect(result.error.message).toContain("timeout");
       }
     });
 
     // Embedding生成エラー時は適切なエラーを返す
-    it('Embedding生成エラー時は適切にハンドリングされる', async () => {
+    it("Embedding生成エラー時は適切にハンドリングされる", async () => {
       const mockService = createMockService({
-        generateQueryEmbedding: vi.fn().mockRejectedValue(
-          new Error('Embedding model not loaded')
-        ),
+        generateQueryEmbedding: vi.fn().mockRejectedValue(new Error("Embedding model not loaded")),
       });
       setBackgroundSearchServiceFactory(() => mockService);
 
       const result = await backgroundSearchHandler({
-        query: 'gradient background',
+        query: "gradient background",
       });
 
       expect(result.success).toBe(false);
@@ -581,12 +577,12 @@ describe('background.search MCPツール', () => {
     });
 
     // バリデーションエラー時のレスポンス形式
-    it('バリデーションエラー時のレスポンスにVALIDATION_ERRORコードが含まれる', async () => {
+    it("バリデーションエラー時のレスポンスにVALIDATION_ERRORコードが含まれる", async () => {
       const mockService = createMockService();
       setBackgroundSearchServiceFactory(() => mockService);
 
       // 空クエリで呼び出す
-      const result = await backgroundSearchHandler({ query: '' });
+      const result = await backgroundSearchHandler({ query: "" });
 
       expect(result.success).toBe(false);
       if (!result.success) {
@@ -599,46 +595,46 @@ describe('background.search MCPツール', () => {
   // ツール定義 テスト
   // =====================================================
 
-  describe('ツール定義', () => {
+  describe("ツール定義", () => {
     // ツール名がbackground.searchである
-    it('ツール名がbackground.searchである', () => {
-      expect(backgroundSearchToolDefinition.name).toBe('background.search');
+    it("ツール名がbackground.searchである", () => {
+      expect(backgroundSearchToolDefinition.name).toBe("background.search");
     });
 
     // readOnlyHintがtrueである
-    it('readOnlyHintがtrueである', () => {
+    it("readOnlyHintがtrueである", () => {
       expect(backgroundSearchToolDefinition.annotations.readOnlyHint).toBe(true);
     });
 
     // inputSchemaにqueryが必須である
-    it('inputSchemaにqueryが必須である', () => {
-      expect(backgroundSearchToolDefinition.inputSchema.required).toContain('query');
+    it("inputSchemaにqueryが必須である", () => {
+      expect(backgroundSearchToolDefinition.inputSchema.required).toContain("query");
     });
 
     // inputSchemaにqueryプロパティが定義されている
-    it('inputSchemaにqueryプロパティが定義されている', () => {
+    it("inputSchemaにqueryプロパティが定義されている", () => {
       expect(backgroundSearchToolDefinition.inputSchema.properties.query).toBeDefined();
-      expect(backgroundSearchToolDefinition.inputSchema.properties.query.type).toBe('string');
+      expect(backgroundSearchToolDefinition.inputSchema.properties.query.type).toBe("string");
     });
 
     // inputSchemaにlimitプロパティが定義されている
-    it('inputSchemaにlimitプロパティが定義されている', () => {
+    it("inputSchemaにlimitプロパティが定義されている", () => {
       expect(backgroundSearchToolDefinition.inputSchema.properties.limit).toBeDefined();
-      expect(backgroundSearchToolDefinition.inputSchema.properties.limit.type).toBe('number');
+      expect(backgroundSearchToolDefinition.inputSchema.properties.limit.type).toBe("number");
     });
 
     // inputSchemaにfiltersプロパティが定義されている
-    it('inputSchemaにfiltersプロパティが定義されている', () => {
+    it("inputSchemaにfiltersプロパティが定義されている", () => {
       expect(backgroundSearchToolDefinition.inputSchema.properties.filters).toBeDefined();
     });
 
     // idempotentHintがtrueである（検索は冪等）
-    it('idempotentHintがtrueである', () => {
+    it("idempotentHintがtrueである", () => {
       expect(backgroundSearchToolDefinition.annotations.idempotentHint).toBe(true);
     });
 
     // descriptionが日本語を含む
-    it('descriptionが定義されている', () => {
+    it("descriptionが定義されている", () => {
       expect(backgroundSearchToolDefinition.description).toBeDefined();
       expect(backgroundSearchToolDefinition.description.length).toBeGreaterThan(0);
     });
@@ -648,14 +644,14 @@ describe('background.search MCPツール', () => {
   // レスポンス形式 テスト
   // =====================================================
 
-  describe('レスポンス形式', () => {
+  describe("レスポンス形式", () => {
     // 成功レスポンスの構造が正しい
-    it('成功レスポンスの構造が正しい', async () => {
+    it("成功レスポンスの構造が正しい", async () => {
       const mockService = createMockService();
       setBackgroundSearchServiceFactory(() => mockService);
 
       const result = await backgroundSearchHandler({
-        query: 'gradient background',
+        query: "gradient background",
       });
 
       expect(result.success).toBe(true);
@@ -664,38 +660,38 @@ describe('background.search MCPツール', () => {
         expect(result.data).toBeDefined();
         expect(result.data.results).toBeDefined();
         expect(Array.isArray(result.data.results)).toBe(true);
-        expect(typeof result.data.total).toBe('number');
-        expect(typeof result.data.query).toBe('string');
-        expect(typeof result.data.searchTimeMs).toBe('number');
+        expect(typeof result.data.total).toBe("number");
+        expect(typeof result.data.query).toBe("string");
+        expect(typeof result.data.searchTimeMs).toBe("number");
       }
     });
 
     // 失敗レスポンスの構造が正しい
-    it('失敗レスポンスの構造が正しい', async () => {
+    it("失敗レスポンスの構造が正しい", async () => {
       // ファクトリー未設定
       resetBackgroundSearchServiceFactory();
 
       const result = await backgroundSearchHandler({
-        query: 'gradient background',
+        query: "gradient background",
       });
 
       expect(result.success).toBe(false);
       if (!result.success) {
         expect(result.error).toBeDefined();
         expect(result.error.code).toBeDefined();
-        expect(typeof result.error.code).toBe('string');
+        expect(typeof result.error.code).toBe("string");
         expect(result.error.message).toBeDefined();
-        expect(typeof result.error.message).toBe('string');
+        expect(typeof result.error.message).toBe("string");
       }
     });
 
     // 検索結果アイテムの構造が正しい
-    it('検索結果アイテムの構造が正しい', async () => {
+    it("検索結果アイテムの構造が正しい", async () => {
       const mockService = createMockService();
       setBackgroundSearchServiceFactory(() => mockService);
 
       const result = await backgroundSearchHandler({
-        query: 'dark background',
+        query: "dark background",
       });
 
       expect(result.success).toBe(true);
@@ -703,16 +699,16 @@ describe('background.search MCPツール', () => {
         const item = result.data.results[0];
 
         // BackgroundSearchResultItem の必須フィールド
-        expect(typeof item.id).toBe('string');
-        expect(typeof item.designType).toBe('string');
-        expect(typeof item.cssValue).toBe('string');
-        expect(typeof item.similarity).toBe('number');
+        expect(typeof item.id).toBe("string");
+        expect(typeof item.designType).toBe("string");
+        expect(typeof item.cssValue).toBe("string");
+        expect(typeof item.similarity).toBe("number");
         expect(item.source).toBeDefined();
       }
     });
 
     // 空結果のレスポンス形式
-    it('空結果でもレスポンス構造は正しい', async () => {
+    it("空結果でもレスポンス構造は正しい", async () => {
       const mockService = createMockService({
         searchBackgroundDesigns: vi.fn().mockResolvedValue({
           results: [],
@@ -722,14 +718,14 @@ describe('background.search MCPツール', () => {
       setBackgroundSearchServiceFactory(() => mockService);
 
       const result = await backgroundSearchHandler({
-        query: 'nonexistent background type xyz',
+        query: "nonexistent background type xyz",
       });
 
       expect(result.success).toBe(true);
       if (result.success) {
         expect(result.data.results).toHaveLength(0);
         expect(result.data.total).toBe(0);
-        expect(result.data.query).toBe('nonexistent background type xyz');
+        expect(result.data.query).toBe("nonexistent background type xyz");
       }
     });
   });
@@ -738,13 +734,13 @@ describe('background.search MCPツール', () => {
   // デフォルト値 テスト
   // =====================================================
 
-  describe('デフォルト値', () => {
+  describe("デフォルト値", () => {
     // limitのデフォルト値は10
-    it('limitのデフォルト値は10', async () => {
+    it("limitのデフォルト値は10", async () => {
       const mockService = createMockService();
       setBackgroundSearchServiceFactory(() => mockService);
 
-      await backgroundSearchHandler({ query: 'gradient' });
+      await backgroundSearchHandler({ query: "gradient" });
 
       expect(mockService.searchBackgroundDesigns).toHaveBeenCalledWith(
         expect.any(Array),
@@ -755,11 +751,11 @@ describe('background.search MCPツール', () => {
     });
 
     // offsetのデフォルト値は0
-    it('offsetのデフォルト値は0', async () => {
+    it("offsetのデフォルト値は0", async () => {
       const mockService = createMockService();
       setBackgroundSearchServiceFactory(() => mockService);
 
-      await backgroundSearchHandler({ query: 'gradient' });
+      await backgroundSearchHandler({ query: "gradient" });
 
       expect(mockService.searchBackgroundDesigns).toHaveBeenCalledWith(
         expect.any(Array),
@@ -775,17 +771,16 @@ describe('background.search MCPツール', () => {
 // 嗜好プロファイルリランキング テスト
 // =====================================================
 
-describe('background.search 嗜好プロファイルリランキング', () => {
-  const PROFILE_ID = '11111111-2222-3333-4444-555555555555';
+describe("background.search 嗜好プロファイルリランキング", () => {
+  const PROFILE_ID = "11111111-2222-3333-4444-555555555555";
 
   /**
    * モックPrismaClientを作成
    * Create mock PrismaClient for preference reranking
    */
-  function createMockPrisma(options?: {
-    embedding?: number[] | null;
-    interactionCount?: number;
-  }): { $queryRawUnsafe: ReturnType<typeof vi.fn> } {
+  function createMockPrisma(options?: { embedding?: number[] | null; interactionCount?: number }): {
+    $queryRawUnsafe: ReturnType<typeof vi.fn>;
+  } {
     const embedding = options?.embedding ?? new Array(768).fill(0.5);
     const interactionCount = options?.interactionCount ?? 10;
 
@@ -794,7 +789,7 @@ describe('background.search 嗜好プロファイルリランキング', () => {
         embedding
           ? [
               {
-                preference_embedding: `[${embedding.join(',')}]`,
+                preference_embedding: `[${embedding.join(",")}]`,
                 interaction_count: interactionCount,
               },
             ]
@@ -813,12 +808,12 @@ describe('background.search 嗜好プロファイルリランキング', () => {
     resetBackgroundSearchPrismaClientFactory();
   });
 
-  it('profile_idが指定されていない場合はリランキングされない', async () => {
+  it("profile_idが指定されていない場合はリランキングされない", async () => {
     const mockService = createMockService();
     setBackgroundSearchServiceFactory(() => mockService);
 
     const result = await backgroundSearchHandler({
-      query: 'gradient background',
+      query: "gradient background",
     });
 
     expect(result.success).toBe(true);
@@ -829,13 +824,13 @@ describe('background.search 嗜好プロファイルリランキング', () => {
     }
   });
 
-  it('PrismaClientFactoryが未設定の場合はリランキングされない', async () => {
+  it("PrismaClientFactoryが未設定の場合はリランキングされない", async () => {
     const mockService = createMockService();
     setBackgroundSearchServiceFactory(() => mockService);
     // PrismaClientFactoryは設定しない
 
     const result = await backgroundSearchHandler({
-      query: 'gradient background',
+      query: "gradient background",
       profile_id: PROFILE_ID,
     });
 
@@ -847,14 +842,14 @@ describe('background.search 嗜好プロファイルリランキング', () => {
     }
   });
 
-  it('profile_idとPrismaClientFactoryが設定されている場合にリランキングが試行される', async () => {
+  it("profile_idとPrismaClientFactoryが設定されている場合にリランキングが試行される", async () => {
     const mockService = createMockService();
     setBackgroundSearchServiceFactory(() => mockService);
     const mockPrisma = createMockPrisma();
     setBackgroundSearchPrismaClientFactory(() => mockPrisma as never);
 
     const result = await backgroundSearchHandler({
-      query: 'gradient background',
+      query: "gradient background",
       profile_id: PROFILE_ID,
     });
 
@@ -863,14 +858,14 @@ describe('background.search 嗜好プロファイルリランキング', () => {
     expect(mockPrisma.$queryRawUnsafe).toHaveBeenCalled();
   });
 
-  it('インタラクション数不足時はリランキングされない（graceful degradation）', async () => {
+  it("インタラクション数不足時はリランキングされない（graceful degradation）", async () => {
     const mockService = createMockService();
     setBackgroundSearchServiceFactory(() => mockService);
     const mockPrisma = createMockPrisma({ interactionCount: 2 }); // 閾値5未満
     setBackgroundSearchPrismaClientFactory(() => mockPrisma as never);
 
     const result = await backgroundSearchHandler({
-      query: 'gradient background',
+      query: "gradient background",
       profile_id: PROFILE_ID,
     });
 
@@ -882,7 +877,7 @@ describe('background.search 嗜好プロファイルリランキング', () => {
     }
   });
 
-  it('プロファイルが存在しない場合はリランキングされない（graceful degradation）', async () => {
+  it("プロファイルが存在しない場合はリランキングされない（graceful degradation）", async () => {
     const mockService = createMockService();
     setBackgroundSearchServiceFactory(() => mockService);
     const mockPrisma = createMockPrisma({ embedding: null });
@@ -891,7 +886,7 @@ describe('background.search 嗜好プロファイルリランキング', () => {
     setBackgroundSearchPrismaClientFactory(() => mockPrisma as never);
 
     const result = await backgroundSearchHandler({
-      query: 'gradient background',
+      query: "gradient background",
       profile_id: PROFILE_ID,
     });
 
@@ -901,16 +896,16 @@ describe('background.search 嗜好プロファイルリランキング', () => {
     }
   });
 
-  it('PrismaClient呼び出しでエラーが発生してもgraceful degradationで元の結果が返る', async () => {
+  it("PrismaClient呼び出しでエラーが発生してもgraceful degradationで元の結果が返る", async () => {
     const mockService = createMockService();
     setBackgroundSearchServiceFactory(() => mockService);
     const mockPrisma = {
-      $queryRawUnsafe: vi.fn().mockRejectedValue(new Error('DB connection failed')),
+      $queryRawUnsafe: vi.fn().mockRejectedValue(new Error("DB connection failed")),
     };
     setBackgroundSearchPrismaClientFactory(() => mockPrisma as never);
 
     const result = await backgroundSearchHandler({
-      query: 'gradient background',
+      query: "gradient background",
       profile_id: PROFILE_ID,
     });
 
@@ -921,7 +916,7 @@ describe('background.search 嗜好プロファイルリランキング', () => {
     }
   });
 
-  it('検索結果が空の場合はリランキングをスキップする', async () => {
+  it("検索結果が空の場合はリランキングをスキップする", async () => {
     const mockService = createMockService({
       searchBackgroundDesigns: vi.fn().mockResolvedValue({
         results: [],
@@ -933,7 +928,7 @@ describe('background.search 嗜好プロファイルリランキング', () => {
     setBackgroundSearchPrismaClientFactory(() => mockPrisma as never);
 
     const result = await backgroundSearchHandler({
-      query: 'nonexistent pattern',
+      query: "nonexistent pattern",
       profile_id: PROFILE_ID,
     });
 
@@ -945,27 +940,27 @@ describe('background.search 嗜好プロファイルリランキング', () => {
     expect(mockPrisma.$queryRawUnsafe).not.toHaveBeenCalled();
   });
 
-  it('profile_idスキーマバリデーション: 有効なUUIDを受け付ける', () => {
+  it("profile_idスキーマバリデーション: 有効なUUIDを受け付ける", () => {
     const input = {
-      query: 'gradient',
-      profile_id: '11111111-2222-3333-4444-555555555555',
+      query: "gradient",
+      profile_id: "11111111-2222-3333-4444-555555555555",
     };
     const result = backgroundSearchInputSchema.safeParse(input);
     expect(result.success).toBe(true);
   });
 
-  it('profile_idスキーマバリデーション: 無効なUUIDを拒否する', () => {
+  it("profile_idスキーマバリデーション: 無効なUUIDを拒否する", () => {
     const input = {
-      query: 'gradient',
-      profile_id: 'not-a-uuid',
+      query: "gradient",
+      profile_id: "not-a-uuid",
     };
     const result = backgroundSearchInputSchema.safeParse(input);
     expect(result.success).toBe(false);
   });
 
-  it('profile_idスキーマバリデーション: undefinedを許容する', () => {
+  it("profile_idスキーマバリデーション: undefinedを許容する", () => {
     const input = {
-      query: 'gradient',
+      query: "gradient",
     };
     const result = backgroundSearchInputSchema.safeParse(input);
     expect(result.success).toBe(true);
@@ -979,11 +974,11 @@ describe('background.search 嗜好プロファイルリランキング', () => {
 // ツール定義 profile_id テスト
 // =====================================================
 
-describe('background.search ツール定義 profile_id', () => {
-  it('inputSchemaにprofile_idプロパティが定義されている', () => {
+describe("background.search ツール定義 profile_id", () => {
+  it("inputSchemaにprofile_idプロパティが定義されている", () => {
     expect(backgroundSearchToolDefinition.inputSchema.properties.profile_id).toBeDefined();
-    expect(backgroundSearchToolDefinition.inputSchema.properties.profile_id.type).toBe('string');
-    expect(backgroundSearchToolDefinition.inputSchema.properties.profile_id.format).toBe('uuid');
+    expect(backgroundSearchToolDefinition.inputSchema.properties.profile_id.type).toBe("string");
+    expect(backgroundSearchToolDefinition.inputSchema.properties.profile_id.format).toBe("uuid");
   });
 });
 
@@ -991,8 +986,8 @@ describe('background.search ツール定義 profile_id', () => {
 // テストカウント確認
 // =====================================================
 
-describe('background.search テスト - カウント確認', () => {
-  it('このファイルには 30 以上のテストケースが存在する', () => {
+describe("background.search テスト - カウント確認", () => {
+  it("このファイルには 30 以上のテストケースが存在する", () => {
     // テスト数を確認するためのプレースホルダー
     // 実際のテスト数は上記の describe ブロック内の it の数
     expect(true).toBe(true);

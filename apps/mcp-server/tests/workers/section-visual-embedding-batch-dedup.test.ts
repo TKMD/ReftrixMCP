@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 /**
- * PageAnalyzeWorker - Batch Fallback + Duplicate Vector Detection Tests (TDD Red Phase)
+ * PageAnalyzeWorker - Batch Fallback + Duplicate Vector Detection Tests
  *
  * page-analyze-worker.ts のバッチ処理化と重複ベクトル検出のテスト。
  * Section Screenshot Fallback のバッチ処理パターンと、
@@ -33,15 +33,15 @@
  * @module tests/workers/section-visual-embedding-batch-dedup
  */
 
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import * as fs from 'node:fs';
-import * as path from 'node:path';
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import * as fs from "node:fs";
+import * as path from "node:path";
 
 // ==========================================================================
 // cosineSimilarity ヘルパー関数のインポート
 // @reftrix/ml パッケージからエクスポートされている
 // ==========================================================================
-import { cosineSimilarity } from '@reftrix/ml';
+import { cosineSimilarity } from "@reftrix/ml";
 
 // ==========================================================================
 // ソースコード構造テスト用の定数
@@ -58,7 +58,7 @@ const SECTION_VISUAL_SLICE = 20000;
 // ==========================================================================
 
 // logger モック / Logger mock
-vi.mock('../../src/utils/logger', () => ({
+vi.mock("../../src/utils/logger", () => ({
   logger: {
     info: vi.fn(),
     warn: vi.fn(),
@@ -69,48 +69,46 @@ vi.mock('../../src/utils/logger', () => ({
 }));
 
 // url-validator モック / URL validator mock
-vi.mock('../../src/utils/url-validator', () => ({
+vi.mock("../../src/utils/url-validator", () => ({
   validateExternalUrl: vi.fn(),
 }));
 
-import { validateExternalUrl } from '../../src/utils/url-validator';
+import { validateExternalUrl } from "../../src/utils/url-validator";
 const mockValidateExternalUrl = vi.mocked(validateExternalUrl);
 
 // playwright モック / Playwright mock
-vi.mock('playwright', () => ({
+vi.mock("playwright", () => ({
   chromium: {
     launch: vi.fn(),
   },
 }));
 
-import { chromium } from 'playwright';
+import { chromium } from "playwright";
 const mockChromiumLaunch = vi.mocked(chromium.launch);
 
-import type { Browser, BrowserContext, Page } from 'playwright';
+import type { Browser, BrowserContext, Page } from "playwright";
 
-import {
-  captureSectionScreenshots,
-} from '../../src/services/part/section-screenshot-fallback.service';
+import { captureSectionScreenshots } from "../../src/services/part/section-screenshot-fallback.service";
 
 // ==========================================================================
 // テストデータ / Test Data
 // ==========================================================================
 
-const MOCK_URL = 'https://example.com/batch-test';
+const MOCK_URL = "https://example.com/batch-test";
 const MOCK_SECTION_IDS = [
-  'aaaa1111-1111-7111-1111-111111111111',
-  'bbbb2222-2222-7222-2222-222222222222',
-  'cccc3333-3333-7333-3333-333333333333',
-  'dddd4444-4444-7444-4444-444444444444',
-  'eeee5555-5555-7555-5555-555555555555',
+  "aaaa1111-1111-7111-1111-111111111111",
+  "bbbb2222-2222-7222-2222-222222222222",
+  "cccc3333-3333-7333-3333-333333333333",
+  "dddd4444-4444-7444-4444-444444444444",
+  "eeee5555-5555-7555-5555-555555555555",
 ];
 
 // ==========================================================================
 // モックファクトリー / Mock Factories
 // ==========================================================================
 
-function createMockScreenshotBuffer(prefix = 'mock-screenshot'): Buffer {
-  return Buffer.from(`${prefix}-png-data`, 'utf-8');
+function createMockScreenshotBuffer(prefix = "mock-screenshot"): Buffer {
+  return Buffer.from(`${prefix}-png-data`, "utf-8");
 }
 
 function createMockPage(overrides?: {
@@ -131,19 +129,25 @@ function createMockPage(overrides?: {
   } as unknown as Page;
 }
 
-function createMockContext(page: Page, overrides?: {
-  close?: ReturnType<typeof vi.fn>;
-}): BrowserContext {
+function createMockContext(
+  page: Page,
+  overrides?: {
+    close?: ReturnType<typeof vi.fn>;
+  }
+): BrowserContext {
   return {
     newPage: vi.fn().mockResolvedValue(page),
     close: overrides?.close ?? vi.fn().mockResolvedValue(undefined),
   } as unknown as BrowserContext;
 }
 
-function createMockBrowser(context: BrowserContext, overrides?: {
-  close?: ReturnType<typeof vi.fn>;
-  isConnected?: ReturnType<typeof vi.fn>;
-}): Browser {
+function createMockBrowser(
+  context: BrowserContext,
+  overrides?: {
+    close?: ReturnType<typeof vi.fn>;
+    isConnected?: ReturnType<typeof vi.fn>;
+  }
+): Browser {
   return {
     newContext: vi.fn().mockResolvedValue(context),
     close: overrides?.close ?? vi.fn().mockResolvedValue(undefined),
@@ -162,7 +166,7 @@ function createMockBrowser(context: BrowserContext, overrides?: {
 function l2Normalize(vec: number[]): number[] {
   const norm = Math.sqrt(vec.reduce((sum, v) => sum + v * v, 0));
   if (norm === 0) return vec;
-  return vec.map(v => v / norm);
+  return vec.map((v) => v / norm);
 }
 
 /**
@@ -178,17 +182,18 @@ function createRandomL2NormalizedVector(dim: number): number[] {
 // テスト / Tests
 // ==========================================================================
 
-describe('PageAnalyzeWorker - Batch Fallback + Duplicate Vector Detection', () => {
-  const workerSourcePath = path.resolve(
-    __dirname,
-    '../../src/workers/page-analyze-worker.ts',
-  );
+describe("PageAnalyzeWorker - Batch Fallback + Duplicate Vector Detection", () => {
+  // After TDA-C1 refactoring, processEmbeddingPhase, fallbackSections, and visual
+  // embedding logic moved to phase-5-embedding.ts. isDuplicateVisionEmbedding and
+  // other helpers are in phases/types.ts.
+  const phase5Path = path.resolve(__dirname, "../../src/workers/phases/phase-5-embedding.ts");
+  const typesPath = path.resolve(__dirname, "../../src/workers/phases/types.ts");
 
   let workerSource: string;
 
   beforeEach(() => {
     vi.clearAllMocks();
-    workerSource = fs.readFileSync(workerSourcePath, 'utf8');
+    workerSource = fs.readFileSync(typesPath, "utf8") + "\n" + fs.readFileSync(phase5Path, "utf8");
     // デフォルトでURL検証を通過 / Default: pass URL validation
     mockValidateExternalUrl.mockReturnValue({ valid: true, normalizedUrl: MOCK_URL });
   });
@@ -201,25 +206,25 @@ describe('PageAnalyzeWorker - Batch Fallback + Duplicate Vector Detection', () =
   // バッチ処理テスト（4件）
   // Batch processing tests (4 tests)
   // ========================================================================
-  describe('バッチ処理: フォールバック対象の一括キャプチャ / Batch processing: bulk fallback capture', () => {
-    it('フォールバック対象セクションが一括でcaptureSectionScreenshotsに渡される（sections配列がN件）', () => {
+  describe("バッチ処理: フォールバック対象の一括キャプチャ / Batch processing: bulk fallback capture", () => {
+    it("フォールバック対象セクションが一括でcaptureSectionScreenshotsに渡される（sections配列がN件）", () => {
       // Arrange & Act: ソースコード構造解析
       // フォールバック対象をfor文の前に事前収集し、
       // 1回のcaptureSectionScreenshots呼び出しでN件渡す
-      const fnStart = workerSource.indexOf('async function processEmbeddingPhase');
+      const fnStart = workerSource.indexOf("async function processEmbeddingPhase");
       expect(fnStart).toBeGreaterThan(-1);
       const fnBody = workerSource.slice(fnStart, fnStart + EMBEDDING_PHASE_SLICE);
 
       // Assert: バッチ収集パターンが存在する
       // fallbackSections 配列に事前収集される
-      expect(fnBody).toContain('fallbackSections');
+      expect(fnBody).toContain("fallbackSections");
 
       // captureSectionScreenshots に sections: fallbackSections を渡す
       // （1件ずつではなくN件のバッチ）
-      expect(fnBody).toContain('sections: fallbackSections');
+      expect(fnBody).toContain("sections: fallbackSections");
     });
 
-    it('page.goto呼び出しが1回であること（バッチ処理確認）', async () => {
+    it("page.goto呼び出しが1回であること（バッチ処理確認）", async () => {
       // Arrange: 5セクション分のバッチフォールバック
       const mockGoto = vi.fn().mockResolvedValue({ status: () => 200 });
       const mockPage = createMockPage({
@@ -248,31 +253,31 @@ describe('PageAnalyzeWorker - Batch Fallback + Duplicate Vector Detection', () =
       expect(mockGoto).toHaveBeenCalledTimes(1);
     });
 
-    it('フォールバック対象0件でバッチ呼び出しスキップ', () => {
+    it("フォールバック対象0件でバッチ呼び出しスキップ", () => {
       // Arrange & Act: ソースコード構造解析
-      const fnStart = workerSource.indexOf('async function processEmbeddingPhase');
+      const fnStart = workerSource.indexOf("async function processEmbeddingPhase");
       expect(fnStart).toBeGreaterThan(-1);
       const fnBody = workerSource.slice(fnStart, fnStart + EMBEDDING_PHASE_SLICE);
 
       // Assert: fallbackSections.length > 0 のガード条件が存在する
-      expect(fnBody).toContain('fallbackSections.length > 0');
+      expect(fnBody).toContain("fallbackSections.length > 0");
     });
 
-    it('バッチ呼び出し失敗でGraceful Degradation（text_embeddingのみで続行）', () => {
+    it("バッチ呼び出し失敗でGraceful Degradation（text_embeddingのみで続行）", () => {
       // Arrange & Act: ソースコード構造解析
-      const fnStart = workerSource.indexOf('async function processEmbeddingPhase');
+      const fnStart = workerSource.indexOf("async function processEmbeddingPhase");
       expect(fnStart).toBeGreaterThan(-1);
       const fnBody = workerSource.slice(fnStart, fnStart + EMBEDDING_PHASE_SLICE);
 
       // Assert: バッチフォールバック失敗時のcatchブロック
-      expect(fnBody).toContain('Batch section screenshot fallback failed (non-fatal)');
+      expect(fnBody).toContain("Batch section screenshot fallback failed (non-fatal)");
 
       // フォールバック失敗後も処理が続行される（result.completed = trueになる）
-      const batchFailPos = fnBody.indexOf('Batch section screenshot fallback failed');
+      const batchFailPos = fnBody.indexOf("Batch section screenshot fallback failed");
       expect(batchFailPos).toBeGreaterThan(-1);
       // catch後にbreak/returnがない（処理続行）
       const afterCatch = fnBody.slice(batchFailPos, batchFailPos + 500);
-      expect(afterCatch).not.toContain('throw');
+      expect(afterCatch).not.toContain("throw");
     });
   });
 
@@ -280,58 +285,58 @@ describe('PageAnalyzeWorker - Batch Fallback + Duplicate Vector Detection', () =
   // 重複検出テスト（4件）
   // Duplicate vector detection tests (4 tests)
   // ========================================================================
-  describe('重複ベクトル検出: コサイン類似度ベース / Duplicate vector detection: cosine similarity', () => {
-    it('コサイン類似度 > DUPLICATE_THRESHOLD でvision_embedding保存スキップ', () => {
+  describe("重複ベクトル検出: コサイン類似度ベース / Duplicate vector detection: cosine similarity", () => {
+    it("コサイン類似度 > DUPLICATE_THRESHOLD でvision_embedding保存スキップ", () => {
       // Arrange & Act: ソースコード構造解析
-      const fnStart = workerSource.indexOf('Section Visual Embedding');
+      const fnStart = workerSource.indexOf("Section Visual Embedding");
       expect(fnStart).toBeGreaterThan(-1);
       const sectionVisualBody = workerSource.slice(fnStart, fnStart + SECTION_VISUAL_SLICE);
 
       // Assert: 重複検出後のスキップパターン
-      expect(sectionVisualBody).toContain('isDuplicateVector');
-      expect(sectionVisualBody).toContain('Duplicate vision embedding detected');
-      expect(sectionVisualBody).toContain('DUPLICATE_THRESHOLD');
+      expect(sectionVisualBody).toContain("isDuplicateVector");
+      expect(sectionVisualBody).toContain("Duplicate vision embedding detected");
+      expect(sectionVisualBody).toContain("DUPLICATE_THRESHOLD");
 
       // isDuplicateVector が true の場合に continue でDB保存スキップ
-      const dupCheckPos = sectionVisualBody.indexOf('if (isDuplicateVector)');
+      const dupCheckPos = sectionVisualBody.indexOf("if (isDuplicateVector)");
       expect(dupCheckPos).toBeGreaterThan(-1);
       const afterDupCheck = sectionVisualBody.slice(dupCheckPos, dupCheckPos + 1000);
-      expect(afterDupCheck).toContain('continue');
+      expect(afterDupCheck).toContain("continue");
     });
 
-    it('コサイン類似度 < DUPLICATE_THRESHOLD で正常保存', () => {
+    it("コサイン類似度 < DUPLICATE_THRESHOLD で正常保存", () => {
       // Arrange & Act: ソースコード構造解析
-      const fnStart = workerSource.indexOf('Section Visual Embedding');
+      const fnStart = workerSource.indexOf("Section Visual Embedding");
       expect(fnStart).toBeGreaterThan(-1);
       const sectionVisualBody = workerSource.slice(fnStart, fnStart + SECTION_VISUAL_SLICE);
 
       // Assert: 重複検出を通過後にDB保存が実行される
-      const dupCheckPos = sectionVisualBody.indexOf('isDuplicateVector');
-      const dbSavePos = sectionVisualBody.indexOf('UPDATE section_embeddings');
+      const dupCheckPos = sectionVisualBody.indexOf("isDuplicateVector");
+      const dbSavePos = sectionVisualBody.indexOf("UPDATE section_embeddings");
       expect(dupCheckPos).toBeGreaterThan(-1);
       expect(dbSavePos).toBeGreaterThan(-1);
       // 重複チェック → DB保存の順序
       expect(dupCheckPos).toBeLessThan(dbSavePos);
 
       // スライディングウィンドウへの追加
-      expect(sectionVisualBody).toContain('recentSectionVisualEmbeddings.push');
+      expect(sectionVisualBody).toContain("recentSectionVisualEmbeddings.push");
     });
 
-    it('DUPLICATE_VECTOR_THRESHOLD環境変数による閾値変更', () => {
+    it("DUPLICATE_VECTOR_THRESHOLD環境変数による閾値変更", () => {
       // Arrange & Act: ソースコード構造解析
-      const fnStart = workerSource.indexOf('async function processEmbeddingPhase');
+      const fnStart = workerSource.indexOf("async function processEmbeddingPhase");
       expect(fnStart).toBeGreaterThan(-1);
       const fnBody = workerSource.slice(fnStart, fnStart + EMBEDDING_PHASE_SLICE);
 
       // Assert: 環境変数から閾値を読み取る
-      expect(fnBody).toContain("process.env['DUPLICATE_VECTOR_THRESHOLD']");
+      expect(fnBody).toContain('process.env["DUPLICATE_VECTOR_THRESHOLD"]');
       // デフォルト値 0.995
-      expect(fnBody).toContain("'0.995'");
+      expect(fnBody).toContain('"0.995"');
       // parseFloat で数値変換
-      expect(fnBody).toContain('parseFloat');
+      expect(fnBody).toContain("parseFloat");
     });
 
-    it('ドット積による重複検出の数学的正確性（L2正規化済みベクトル）', () => {
+    it("ドット積による重複検出の数学的正確性（L2正規化済みベクトル）", () => {
       // Arrange: L2正規化済みベクトルのペア
       // L2正規化済みベクトルの場合、コサイン類似度 = ドット積
 
@@ -377,21 +382,21 @@ describe('PageAnalyzeWorker - Batch Fallback + Duplicate Vector Detection', () =
   // rAF待機テスト（2件）
   // requestAnimationFrame wait tests (2 tests)
   // ========================================================================
-  describe('rAF待機: scrollTo後のレンダリング完了保証 / rAF wait: rendering completion after scrollTo', () => {
-    it('scrollTo後にrequestAnimationFrame待ちが実行される', () => {
+  describe("rAF待機: scrollTo後のレンダリング完了保証 / rAF wait: rendering completion after scrollTo", () => {
+    it("scrollTo後にrequestAnimationFrame待ちが実行される", () => {
       // Arrange & Act: SectionScreenshotFallbackService のソースコード構造解析
       const servicePath = path.resolve(
         __dirname,
-        '../../src/services/part/section-screenshot-fallback.service.ts',
+        "../../src/services/part/section-screenshot-fallback.service.ts"
       );
-      const serviceSource = fs.readFileSync(servicePath, 'utf8');
+      const serviceSource = fs.readFileSync(servicePath, "utf8");
 
       // Assert: scrollTo → waitForTimeout → rAF待ちの順序
-      const scrollToPos = serviceSource.indexOf('window.scrollTo(0, y)');
+      const scrollToPos = serviceSource.indexOf("window.scrollTo(0, y)");
       expect(scrollToPos).toBeGreaterThan(-1);
 
       // 実際のrAFコード呼び出し（コメントではなく）を検索
-      const rafCodePos = serviceSource.indexOf('requestAnimationFrame(() =>');
+      const rafCodePos = serviceSource.indexOf("requestAnimationFrame(() =>");
       expect(rafCodePos).toBeGreaterThan(-1);
 
       // scrollTo の後に rAF 待ちがある
@@ -400,33 +405,30 @@ describe('PageAnalyzeWorker - Batch Fallback + Duplicate Vector Detection', () =
       // 2フレーム分のrAF待ち（ダブルrAF パターン）
       // requestAnimationFrame(() => requestAnimationFrame(() => resolve()))
       const rafBlock = serviceSource.slice(rafCodePos, rafCodePos + 200);
-      expect(rafBlock).toContain('requestAnimationFrame(() => resolve()');
+      expect(rafBlock).toContain("requestAnimationFrame(() => resolve()");
     });
 
-    it('rAF待ちが2秒タイムアウトでハングしない', () => {
+    it("rAF待ちが2秒タイムアウトでハングしない", () => {
       // Arrange & Act: SectionScreenshotFallbackService のソースコード構造解析
       const servicePath = path.resolve(
         __dirname,
-        '../../src/services/part/section-screenshot-fallback.service.ts',
+        "../../src/services/part/section-screenshot-fallback.service.ts"
       );
-      const serviceSource = fs.readFileSync(servicePath, 'utf8');
+      const serviceSource = fs.readFileSync(servicePath, "utf8");
 
       // Assert: rAF待ちにPromise.raceで2秒タイムアウトが設定されている
       // 実際のrAFコード呼び出しを検索
-      const rafCodePos = serviceSource.indexOf('requestAnimationFrame(() =>');
+      const rafCodePos = serviceSource.indexOf("requestAnimationFrame(() =>");
       expect(rafCodePos).toBeGreaterThan(-1);
 
       // Promise.race で rAF と timeout の競合（rAFコードの前方を検索）
-      const promiseRaceBlock = serviceSource.slice(
-        Math.max(0, rafCodePos - 300),
-        rafCodePos + 300,
-      );
-      expect(promiseRaceBlock).toContain('Promise.race');
-      expect(promiseRaceBlock).toContain('waitForTimeout(2000)');
+      const promiseRaceBlock = serviceSource.slice(Math.max(0, rafCodePos - 300), rafCodePos + 300);
+      expect(promiseRaceBlock).toContain("Promise.race");
+      expect(promiseRaceBlock).toContain("waitForTimeout(2000)");
 
       // rAF失敗は非致命的（catch で吸収）
       const afterRaf = serviceSource.slice(rafCodePos, rafCodePos + 500);
-      expect(afterRaf).toContain('非致命的');
+      expect(afterRaf).toContain("非致命的");
     });
   });
 
@@ -434,8 +436,8 @@ describe('PageAnalyzeWorker - Batch Fallback + Duplicate Vector Detection', () =
   // メモリ・安全装置テスト（2件）
   // Memory and safety tests (2 tests)
   // ========================================================================
-  describe('メモリ・安全装置 / Memory and safety mechanisms', () => {
-    it('バッチ処理中のメモリ圧力チェックが機能（checkMemoryPressure）', async () => {
+  describe("メモリ・安全装置 / Memory and safety mechanisms", () => {
+    it("バッチ処理中のメモリ圧力チェックが機能（checkMemoryPressure）", async () => {
       // Arrange: checkMemoryPressure がバッチキャプチャに渡される
       const checkMemoryPressure = vi.fn().mockReturnValue({
         shouldDegrade: true,
@@ -464,32 +466,32 @@ describe('PageAnalyzeWorker - Batch Fallback + Duplicate Vector Detection', () =
       });
 
       // Assert: メモリ圧力下ではセクションがスキップされる
-      expect(result.results.every(r => r.skipped)).toBe(true);
-      expect(result.results.every(r => r.skipReason?.includes('memory'))).toBe(true);
+      expect(result.results.every((r) => r.skipped)).toBe(true);
+      expect(result.results.every((r) => r.skipReason?.includes("memory"))).toBe(true);
       expect(checkMemoryPressure).toHaveBeenCalled();
     });
 
-    it('重複検出後のDB格納でNaN/Infinity混入なし（Number.isFiniteチェック）', () => {
+    it("重複検出後のDB格納でNaN/Infinity混入なし（Number.isFiniteチェック）", () => {
       // Arrange & Act: ソースコード構造解析
       // 重複検出のドット積計算でNumber.isFiniteチェックが含まれる
       // isDuplicateVisionEmbedding ヘルパー関数に抽出済み
-      const helperStart = workerSource.indexOf('function isDuplicateVisionEmbedding');
+      const helperStart = workerSource.indexOf("function isDuplicateVisionEmbedding");
       expect(helperStart).toBeGreaterThan(-1);
       const helperBody = workerSource.slice(helperStart, helperStart + 1000);
 
       // Assert: ドット積の結果に Number.isFinite チェックがある
-      expect(helperBody).toContain('Number.isFinite');
+      expect(helperBody).toContain("Number.isFinite");
 
       // NaN/Infinityの場合は重複とみなさない（安全にスキップしない）
-      const isFinitePos = helperBody.indexOf('Number.isFinite(dot)');
+      const isFinitePos = helperBody.indexOf("Number.isFinite(dot)");
       expect(isFinitePos).toBeGreaterThan(-1);
 
       // DB格納前のベクトル文字列化でNaN/Infinityが混入しない設計
       // visualVectorString = `[${visualEmbedding.join(',')}]`
       // ← generateVisualEmbedding 内でNaN/Infinity検証済み
-      const fnStart = workerSource.indexOf('Section Visual Embedding');
+      const fnStart = workerSource.indexOf("Section Visual Embedding");
       const sectionVisualBody = workerSource.slice(fnStart, fnStart + SECTION_VISUAL_SLICE);
-      expect(sectionVisualBody).toContain('visualEmbedding.join');
+      expect(sectionVisualBody).toContain("visualEmbedding.join");
     });
   });
 });

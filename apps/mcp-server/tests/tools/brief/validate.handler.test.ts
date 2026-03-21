@@ -19,7 +19,7 @@
  * @module tests/tools/brief/validate.handler.test
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 // =====================================================
 // インポート
@@ -31,7 +31,7 @@ import {
   setBriefValidateServiceFactory,
   resetBriefValidateServiceFactory,
   type IBriefValidateServiceFactory,
-} from '../../../src/tools/brief/validate.handler';
+} from "../../../src/tools/brief/validate.handler";
 
 import {
   briefValidateInputSchema,
@@ -41,7 +41,7 @@ import {
   type BriefValidateInput,
   type BriefValidateOutput,
   type BriefValidationResult,
-} from '../../../src/tools/brief/schemas';
+} from "../../../src/tools/brief/schemas";
 
 // =====================================================
 // テストデータ
@@ -52,24 +52,24 @@ import {
  * strictMode の minDescription=100 を満たす必要がある
  */
 const completeBrief: Brief = {
-  projectName: 'Reftrix Web Application',
+  projectName: "Reftrix Web Application",
   description:
-    'SVGアセット管理プラットフォーム。AIエージェント向けのMCPツールを提供し、SVGの検索・変換・最適化を支援します。ベクトル検索によるセマンティック検索とReactコンポーネント変換機能を実装しています。',
-  targetAudience: 'Web開発者、UIデザイナー、AIエージェント開発者',
-  industry: 'technology',
-  tone: ['professional', 'minimal'],
+    "SVGアセット管理プラットフォーム。AIエージェント向けのMCPツールを提供し、SVGの検索・変換・最適化を支援します。ベクトル検索によるセマンティック検索とReactコンポーネント変換機能を実装しています。",
+  targetAudience: "Web開発者、UIデザイナー、AIエージェント開発者",
+  industry: "technology",
+  tone: ["professional", "minimal"],
   colorPreferences: {
-    primary: '#3B82F6',
-    secondary: '#10B981',
-    accent: '#F59E0B',
+    primary: "#3B82F6",
+    secondary: "#10B981",
+    accent: "#F59E0B",
   },
   references: [
-    { url: 'https://example.com/design1', note: 'カラーパレット参考' },
-    { url: 'https://example.com/design2', note: 'レイアウト参考' },
+    { url: "https://example.com/design1", note: "カラーパレット参考" },
+    { url: "https://example.com/design2", note: "レイアウト参考" },
   ],
   constraints: {
-    mustHave: ['アクセシビリティ対応', 'レスポンシブデザイン'],
-    mustAvoid: ['過度なアニメーション', '複雑なナビゲーション'],
+    mustHave: ["アクセシビリティ対応", "レスポンシブデザイン"],
+    mustAvoid: ["過度なアニメーション", "複雑なナビゲーション"],
   },
 };
 
@@ -77,7 +77,7 @@ const completeBrief: Brief = {
  * 最小限のブリーフ（必須フィールドのみ）
  */
 const minimalBrief: Brief = {
-  projectName: 'Minimal Project',
+  projectName: "Minimal Project",
 };
 
 /**
@@ -86,26 +86,26 @@ const minimalBrief: Brief = {
  * FIELD_WEIGHTS: projectName(10) + description(20) + targetAudience(15) = 45点を目標
  */
 const partialBrief: Brief = {
-  projectName: 'Partial Project',
+  projectName: "Partial Project",
   description:
-    'このプロジェクトは部分的に記入されたブリーフです。目的と概要のみが記載されています。詳細な説明を追加予定。',
-  targetAudience: '一般的なWebユーザーおよびモバイルアプリ利用者',
+    "このプロジェクトは部分的に記入されたブリーフです。目的と概要のみが記載されています。詳細な説明を追加予定。",
+  targetAudience: "一般的なWebユーザーおよびモバイルアプリ利用者",
 };
 
 /**
  * 無効なプロジェクト名（短すぎる）
  */
 const invalidShortNameBrief: Brief = {
-  projectName: 'AB', // 3文字未満
+  projectName: "AB", // 3文字未満
 };
 
 /**
  * 無効なHEXカラー
  */
 const invalidColorBrief: Brief = {
-  projectName: 'Invalid Color Project',
+  projectName: "Invalid Color Project",
   colorPreferences: {
-    primary: 'invalid-color', // HEX形式でない
+    primary: "invalid-color", // HEX形式でない
   },
 };
 
@@ -113,45 +113,45 @@ const invalidColorBrief: Brief = {
  * 無効なURL参照
  */
 const invalidReferenceBrief: Brief = {
-  projectName: 'Invalid Reference Project',
-  references: [{ url: 'not-a-valid-url' }],
+  projectName: "Invalid Reference Project",
+  references: [{ url: "not-a-valid-url" }],
 };
 
 // =====================================================
 // ツール定義テスト（5+ tests）
 // =====================================================
 
-describe('briefValidateToolDefinition', () => {
-  it('正しいツール名を持つ', () => {
-    expect(briefValidateToolDefinition.name).toBe('brief.validate');
+describe("briefValidateToolDefinition", () => {
+  it("正しいツール名を持つ", () => {
+    expect(briefValidateToolDefinition.name).toBe("brief.validate");
   });
 
-  it('description が設定されている', () => {
+  it("description が設定されている", () => {
     expect(briefValidateToolDefinition.description).toBeDefined();
-    expect(typeof briefValidateToolDefinition.description).toBe('string');
+    expect(typeof briefValidateToolDefinition.description).toBe("string");
     expect(briefValidateToolDefinition.description.length).toBeGreaterThan(0);
   });
 
-  it('inputSchema が object 型', () => {
-    expect(briefValidateToolDefinition.inputSchema.type).toBe('object');
+  it("inputSchema が object 型", () => {
+    expect(briefValidateToolDefinition.inputSchema.type).toBe("object");
   });
 
-  it('properties に brief を含む', () => {
+  it("properties に brief を含む", () => {
     const { properties } = briefValidateToolDefinition.inputSchema;
-    expect(properties).toHaveProperty('brief');
+    expect(properties).toHaveProperty("brief");
   });
 
-  it('properties に strictMode を含む', () => {
+  it("properties に strictMode を含む", () => {
     const { properties } = briefValidateToolDefinition.inputSchema;
-    expect(properties).toHaveProperty('strictMode');
+    expect(properties).toHaveProperty("strictMode");
   });
 
-  it('required に brief を含む', () => {
+  it("required に brief を含む", () => {
     const { required } = briefValidateToolDefinition.inputSchema;
-    expect(required).toContain('brief');
+    expect(required).toContain("brief");
   });
 
-  it('strictMode のデフォルト値が false', () => {
+  it("strictMode のデフォルト値が false", () => {
     const { properties } = briefValidateToolDefinition.inputSchema;
     expect(properties.strictMode.default).toBe(false);
   });
@@ -161,120 +161,120 @@ describe('briefValidateToolDefinition', () => {
 // 入力スキーマテスト（10+ tests）
 // =====================================================
 
-describe('briefValidateInputSchema', () => {
-  describe('有効な入力', () => {
-    it('完全なブリーフを受け付ける', () => {
+describe("briefValidateInputSchema", () => {
+  describe("有効な入力", () => {
+    it("完全なブリーフを受け付ける", () => {
       const input: BriefValidateInput = { brief: completeBrief };
       const result = briefValidateInputSchema.parse(input);
       expect(result.brief.projectName).toBe(completeBrief.projectName);
       expect(result.strictMode).toBe(false); // デフォルト
     });
 
-    it('最小限のブリーフを受け付ける', () => {
+    it("最小限のブリーフを受け付ける", () => {
       const input: BriefValidateInput = { brief: minimalBrief };
       const result = briefValidateInputSchema.parse(input);
       expect(result.brief.projectName).toBe(minimalBrief.projectName);
     });
 
-    it('strictMode=true を受け付ける', () => {
+    it("strictMode=true を受け付ける", () => {
       const input: BriefValidateInput = { brief: minimalBrief, strictMode: true };
       const result = briefValidateInputSchema.parse(input);
       expect(result.strictMode).toBe(true);
     });
 
-    it('strictMode=false を明示的に受け付ける', () => {
+    it("strictMode=false を明示的に受け付ける", () => {
       const input: BriefValidateInput = { brief: minimalBrief, strictMode: false };
       const result = briefValidateInputSchema.parse(input);
       expect(result.strictMode).toBe(false);
     });
 
-    it('tone 配列を受け付ける', () => {
+    it("tone 配列を受け付ける", () => {
       const input: BriefValidateInput = {
-        brief: { projectName: 'Test', tone: ['professional', 'minimal'] },
+        brief: { projectName: "Test", tone: ["professional", "minimal"] },
       };
       const result = briefValidateInputSchema.parse(input);
-      expect(result.brief.tone).toEqual(['professional', 'minimal']);
+      expect(result.brief.tone).toEqual(["professional", "minimal"]);
     });
 
-    it('colorPreferences を受け付ける', () => {
+    it("colorPreferences を受け付ける", () => {
       const input: BriefValidateInput = {
         brief: {
-          projectName: 'Test',
-          colorPreferences: { primary: '#FF0000' },
+          projectName: "Test",
+          colorPreferences: { primary: "#FF0000" },
         },
       };
       const result = briefValidateInputSchema.parse(input);
-      expect(result.brief.colorPreferences?.primary).toBe('#FF0000');
+      expect(result.brief.colorPreferences?.primary).toBe("#FF0000");
     });
 
-    it('references 配列を受け付ける', () => {
+    it("references 配列を受け付ける", () => {
       const input: BriefValidateInput = {
         brief: {
-          projectName: 'Test',
-          references: [{ url: 'https://example.com' }],
+          projectName: "Test",
+          references: [{ url: "https://example.com" }],
         },
       };
       const result = briefValidateInputSchema.parse(input);
       expect(result.brief.references?.length).toBe(1);
     });
 
-    it('constraints を受け付ける', () => {
+    it("constraints を受け付ける", () => {
       const input: BriefValidateInput = {
         brief: {
-          projectName: 'Test',
-          constraints: { mustHave: ['feature1'], mustAvoid: ['anti-pattern1'] },
+          projectName: "Test",
+          constraints: { mustHave: ["feature1"], mustAvoid: ["anti-pattern1"] },
         },
       };
       const result = briefValidateInputSchema.parse(input);
-      expect(result.brief.constraints?.mustHave).toContain('feature1');
+      expect(result.brief.constraints?.mustHave).toContain("feature1");
     });
   });
 
-  describe('無効な入力', () => {
-    it('brief がない場合エラー', () => {
+  describe("無効な入力", () => {
+    it("brief がない場合エラー", () => {
       const input = {};
       expect(() => briefValidateInputSchema.parse(input)).toThrow();
     });
 
-    it('projectName がない場合エラー', () => {
+    it("projectName がない場合エラー", () => {
       const input = { brief: {} };
       expect(() => briefValidateInputSchema.parse(input)).toThrow();
     });
 
-    it('projectName が空文字の場合エラー', () => {
-      const input = { brief: { projectName: '' } };
+    it("projectName が空文字の場合エラー", () => {
+      const input = { brief: { projectName: "" } };
       expect(() => briefValidateInputSchema.parse(input)).toThrow();
     });
 
-    it('無効な tone 値の場合エラー', () => {
-      const input = { brief: { projectName: 'Test', tone: ['invalid-tone'] } };
+    it("無効な tone 値の場合エラー", () => {
+      const input = { brief: { projectName: "Test", tone: ["invalid-tone"] } };
       expect(() => briefValidateInputSchema.parse(input)).toThrow();
     });
 
-    it('無効なHEXカラーの場合エラー', () => {
+    it("無効なHEXカラーの場合エラー", () => {
       const input = {
         brief: {
-          projectName: 'Test',
-          colorPreferences: { primary: 'not-hex' },
+          projectName: "Test",
+          colorPreferences: { primary: "not-hex" },
         },
       };
       expect(() => briefValidateInputSchema.parse(input)).toThrow();
     });
 
-    it('無効なURLの場合エラー', () => {
+    it("無効なURLの場合エラー", () => {
       const input = {
         brief: {
-          projectName: 'Test',
-          references: [{ url: 'invalid-url' }],
+          projectName: "Test",
+          references: [{ url: "invalid-url" }],
         },
       };
       expect(() => briefValidateInputSchema.parse(input)).toThrow();
     });
 
-    it('references が10件を超える場合エラー', () => {
+    it("references が10件を超える場合エラー", () => {
       const input = {
         brief: {
-          projectName: 'Test',
+          projectName: "Test",
           references: Array(11)
             .fill(null)
             .map((_, i) => ({ url: `https://example.com/${i}` })),
@@ -289,7 +289,7 @@ describe('briefValidateInputSchema', () => {
 // ハンドラー成功テスト（15+ tests）
 // =====================================================
 
-describe('briefValidateHandler - 成功ケース', () => {
+describe("briefValidateHandler - 成功ケース", () => {
   beforeEach(() => {
     resetBriefValidateServiceFactory();
   });
@@ -298,15 +298,15 @@ describe('briefValidateHandler - 成功ケース', () => {
     vi.restoreAllMocks();
   });
 
-  describe('Response Objectパターン', () => {
-    it('成功時 success=true を返す', async () => {
+  describe("Response Objectパターン", () => {
+    it("成功時 success=true を返す", async () => {
       const input: BriefValidateInput = { brief: completeBrief };
       const result = await briefValidateHandler(input);
 
       expect(result.success).toBe(true);
     });
 
-    it('成功時 data を含む', async () => {
+    it("成功時 data を含む", async () => {
       const input: BriefValidateInput = { brief: completeBrief };
       const result = await briefValidateHandler(input);
 
@@ -316,7 +316,7 @@ describe('briefValidateHandler - 成功ケース', () => {
       }
     });
 
-    it('成功時 error を含まない', async () => {
+    it("成功時 error を含まない", async () => {
       const input: BriefValidateInput = { brief: completeBrief };
       const result = await briefValidateHandler(input);
 
@@ -327,18 +327,18 @@ describe('briefValidateHandler - 成功ケース', () => {
     });
   });
 
-  describe('バリデーション結果', () => {
-    it('isValid を返す', async () => {
+  describe("バリデーション結果", () => {
+    it("isValid を返す", async () => {
       const input: BriefValidateInput = { brief: completeBrief };
       const result = await briefValidateHandler(input);
 
       expect(result.success).toBe(true);
       if (result.success) {
-        expect(typeof result.data.isValid).toBe('boolean');
+        expect(typeof result.data.isValid).toBe("boolean");
       }
     });
 
-    it('completenessScore を返す（0-100）', async () => {
+    it("completenessScore を返す（0-100）", async () => {
       const input: BriefValidateInput = { brief: completeBrief };
       const result = await briefValidateHandler(input);
 
@@ -349,7 +349,7 @@ describe('briefValidateHandler - 成功ケース', () => {
       }
     });
 
-    it('issues 配列を返す', async () => {
+    it("issues 配列を返す", async () => {
       const input: BriefValidateInput = { brief: minimalBrief };
       const result = await briefValidateHandler(input);
 
@@ -359,7 +359,7 @@ describe('briefValidateHandler - 成功ケース', () => {
       }
     });
 
-    it('suggestions 配列を返す', async () => {
+    it("suggestions 配列を返す", async () => {
       const input: BriefValidateInput = { brief: minimalBrief };
       const result = await briefValidateHandler(input);
 
@@ -369,19 +369,19 @@ describe('briefValidateHandler - 成功ケース', () => {
       }
     });
 
-    it('readyForDesign を返す', async () => {
+    it("readyForDesign を返す", async () => {
       const input: BriefValidateInput = { brief: completeBrief };
       const result = await briefValidateHandler(input);
 
       expect(result.success).toBe(true);
       if (result.success) {
-        expect(typeof result.data.readyForDesign).toBe('boolean');
+        expect(typeof result.data.readyForDesign).toBe("boolean");
       }
     });
   });
 
-  describe('完成度スコア計算', () => {
-    it('完全なブリーフは高スコア（80以上）', async () => {
+  describe("完成度スコア計算", () => {
+    it("完全なブリーフは高スコア（80以上）", async () => {
       const input: BriefValidateInput = { brief: completeBrief };
       const result = await briefValidateHandler(input);
 
@@ -391,7 +391,7 @@ describe('briefValidateHandler - 成功ケース', () => {
       }
     });
 
-    it('最小限のブリーフは低スコア', async () => {
+    it("最小限のブリーフは低スコア", async () => {
       const input: BriefValidateInput = { brief: minimalBrief };
       const result = await briefValidateHandler(input);
 
@@ -401,7 +401,7 @@ describe('briefValidateHandler - 成功ケース', () => {
       }
     });
 
-    it('中程度のブリーフは中程度スコア', async () => {
+    it("中程度のブリーフは中程度スコア", async () => {
       const input: BriefValidateInput = { brief: partialBrief };
       const result = await briefValidateHandler(input);
 
@@ -413,8 +413,8 @@ describe('briefValidateHandler - 成功ケース', () => {
     });
   });
 
-  describe('readyForDesign 判定', () => {
-    it('完全なブリーフは readyForDesign=true', async () => {
+  describe("readyForDesign 判定", () => {
+    it("完全なブリーフは readyForDesign=true", async () => {
       const input: BriefValidateInput = { brief: completeBrief };
       const result = await briefValidateHandler(input);
 
@@ -424,7 +424,7 @@ describe('briefValidateHandler - 成功ケース', () => {
       }
     });
 
-    it('最小限のブリーフは readyForDesign=false', async () => {
+    it("最小限のブリーフは readyForDesign=false", async () => {
       const input: BriefValidateInput = { brief: minimalBrief };
       const result = await briefValidateHandler(input);
 
@@ -435,50 +435,50 @@ describe('briefValidateHandler - 成功ケース', () => {
     });
   });
 
-  describe('Issue生成', () => {
-    it('最小限のブリーフで warning issues を生成', async () => {
+  describe("Issue生成", () => {
+    it("最小限のブリーフで warning issues を生成", async () => {
       const input: BriefValidateInput = { brief: minimalBrief };
       const result = await briefValidateHandler(input);
 
       expect(result.success).toBe(true);
       if (result.success) {
-        const warnings = result.data.issues.filter((i) => i.severity === 'warning');
+        const warnings = result.data.issues.filter((i) => i.severity === "warning");
         expect(warnings.length).toBeGreaterThan(0);
       }
     });
 
-    it('最小限のブリーフで suggestion issues を生成', async () => {
+    it("最小限のブリーフで suggestion issues を生成", async () => {
       const input: BriefValidateInput = { brief: minimalBrief };
       const result = await briefValidateHandler(input);
 
       expect(result.success).toBe(true);
       if (result.success) {
-        const suggestions = result.data.issues.filter((i) => i.severity === 'suggestion');
+        const suggestions = result.data.issues.filter((i) => i.severity === "suggestion");
         expect(suggestions.length).toBeGreaterThan(0);
       }
     });
 
-    it('完全なブリーフでは error issues がない', async () => {
+    it("完全なブリーフでは error issues がない", async () => {
       const input: BriefValidateInput = { brief: completeBrief };
       const result = await briefValidateHandler(input);
 
       expect(result.success).toBe(true);
       if (result.success) {
-        const errors = result.data.issues.filter((i) => i.severity === 'error');
+        const errors = result.data.issues.filter((i) => i.severity === "error");
         expect(errors.length).toBe(0);
       }
     });
 
-    it('issue に field, severity, message を含む', async () => {
+    it("issue に field, severity, message を含む", async () => {
       const input: BriefValidateInput = { brief: minimalBrief };
       const result = await briefValidateHandler(input);
 
       expect(result.success).toBe(true);
       if (result.success && result.data.issues.length > 0) {
         const issue = result.data.issues[0];
-        expect(issue).toHaveProperty('field');
-        expect(issue).toHaveProperty('severity');
-        expect(issue).toHaveProperty('message');
+        expect(issue).toHaveProperty("field");
+        expect(issue).toHaveProperty("severity");
+        expect(issue).toHaveProperty("message");
       }
     });
   });
@@ -488,7 +488,7 @@ describe('briefValidateHandler - 成功ケース', () => {
 // strictMode テスト（10+ tests）
 // =====================================================
 
-describe('briefValidateHandler - strictMode', () => {
+describe("briefValidateHandler - strictMode", () => {
   beforeEach(() => {
     resetBriefValidateServiceFactory();
   });
@@ -497,18 +497,18 @@ describe('briefValidateHandler - strictMode', () => {
     vi.restoreAllMocks();
   });
 
-  it('strictMode=false でデフォルト検証', async () => {
+  it("strictMode=false でデフォルト検証", async () => {
     const input: BriefValidateInput = { brief: partialBrief, strictMode: false };
     const result = await briefValidateHandler(input);
 
     expect(result.success).toBe(true);
     if (result.success) {
       // 通常モードでは isValid になる可能性がある
-      expect(typeof result.data.isValid).toBe('boolean');
+      expect(typeof result.data.isValid).toBe("boolean");
     }
   });
 
-  it('strictMode=true でより厳しい検証', async () => {
+  it("strictMode=true でより厳しい検証", async () => {
     const input: BriefValidateInput = { brief: partialBrief, strictMode: true };
     const result = await briefValidateHandler(input);
 
@@ -519,26 +519,23 @@ describe('briefValidateHandler - strictMode', () => {
     }
   });
 
-  it('strictMode=true で error issues を生成', async () => {
+  it("strictMode=true で error issues を生成", async () => {
     const input: BriefValidateInput = { brief: partialBrief, strictMode: true };
     const result = await briefValidateHandler(input);
 
     expect(result.success).toBe(true);
     if (result.success) {
-      const errors = result.data.issues.filter((i) => i.severity === 'error');
+      const errors = result.data.issues.filter((i) => i.severity === "error");
       expect(errors.length).toBeGreaterThan(0);
     }
   });
 
-  it('strictMode=true で description 必須', async () => {
+  it("strictMode=true で description 必須", async () => {
     const briefWithoutDescription: Brief = {
-      projectName: 'Test Project',
-      tone: ['professional'],
-      colorPreferences: { primary: '#3B82F6' },
-      references: [
-        { url: 'https://example.com/1' },
-        { url: 'https://example.com/2' },
-      ],
+      projectName: "Test Project",
+      tone: ["professional"],
+      colorPreferences: { primary: "#3B82F6" },
+      references: [{ url: "https://example.com/1" }, { url: "https://example.com/2" }],
     };
     const input: BriefValidateInput = { brief: briefWithoutDescription, strictMode: true };
     const result = await briefValidateHandler(input);
@@ -546,22 +543,19 @@ describe('briefValidateHandler - strictMode', () => {
     expect(result.success).toBe(true);
     if (result.success) {
       const descriptionError = result.data.issues.find(
-        (i) => i.field === 'description' && i.severity === 'error'
+        (i) => i.field === "description" && i.severity === "error"
       );
       expect(descriptionError).toBeDefined();
     }
   });
 
-  it('strictMode=true で tone 必須', async () => {
+  it("strictMode=true で tone 必須", async () => {
     const briefWithoutTone: Brief = {
-      projectName: 'Test Project',
+      projectName: "Test Project",
       description:
-        'このプロジェクトは詳細な説明を持っていますが、トーンが設定されていません。100文字以上の説明です。',
-      colorPreferences: { primary: '#3B82F6' },
-      references: [
-        { url: 'https://example.com/1' },
-        { url: 'https://example.com/2' },
-      ],
+        "このプロジェクトは詳細な説明を持っていますが、トーンが設定されていません。100文字以上の説明です。",
+      colorPreferences: { primary: "#3B82F6" },
+      references: [{ url: "https://example.com/1" }, { url: "https://example.com/2" }],
     };
     const input: BriefValidateInput = { brief: briefWithoutTone, strictMode: true };
     const result = await briefValidateHandler(input);
@@ -569,22 +563,19 @@ describe('briefValidateHandler - strictMode', () => {
     expect(result.success).toBe(true);
     if (result.success) {
       const toneError = result.data.issues.find(
-        (i) => i.field === 'tone' && i.severity === 'error'
+        (i) => i.field === "tone" && i.severity === "error"
       );
       expect(toneError).toBeDefined();
     }
   });
 
-  it('strictMode=true で colorPreferences 必須', async () => {
+  it("strictMode=true で colorPreferences 必須", async () => {
     const briefWithoutColors: Brief = {
-      projectName: 'Test Project',
+      projectName: "Test Project",
       description:
-        'このプロジェクトは詳細な説明を持っていますが、カラー設定がありません。100文字以上の説明です。',
-      tone: ['professional'],
-      references: [
-        { url: 'https://example.com/1' },
-        { url: 'https://example.com/2' },
-      ],
+        "このプロジェクトは詳細な説明を持っていますが、カラー設定がありません。100文字以上の説明です。",
+      tone: ["professional"],
+      references: [{ url: "https://example.com/1" }, { url: "https://example.com/2" }],
     };
     const input: BriefValidateInput = { brief: briefWithoutColors, strictMode: true };
     const result = await briefValidateHandler(input);
@@ -592,20 +583,20 @@ describe('briefValidateHandler - strictMode', () => {
     expect(result.success).toBe(true);
     if (result.success) {
       const colorError = result.data.issues.find(
-        (i) => i.field === 'colorPreferences' && i.severity === 'error'
+        (i) => i.field === "colorPreferences" && i.severity === "error"
       );
       expect(colorError).toBeDefined();
     }
   });
 
-  it('strictMode=true で references 2件以上必須', async () => {
+  it("strictMode=true で references 2件以上必須", async () => {
     const briefWithOneReference: Brief = {
-      projectName: 'Test Project',
+      projectName: "Test Project",
       description:
-        'このプロジェクトは詳細な説明を持っていますが、参考サイトが1件しかありません。100文字以上の説明です。',
-      tone: ['professional'],
-      colorPreferences: { primary: '#3B82F6' },
-      references: [{ url: 'https://example.com/1' }],
+        "このプロジェクトは詳細な説明を持っていますが、参考サイトが1件しかありません。100文字以上の説明です。",
+      tone: ["professional"],
+      colorPreferences: { primary: "#3B82F6" },
+      references: [{ url: "https://example.com/1" }],
     };
     const input: BriefValidateInput = { brief: briefWithOneReference, strictMode: true };
     const result = await briefValidateHandler(input);
@@ -613,13 +604,13 @@ describe('briefValidateHandler - strictMode', () => {
     expect(result.success).toBe(true);
     if (result.success) {
       const referencesError = result.data.issues.find(
-        (i) => i.field === 'references' && i.severity === 'error'
+        (i) => i.field === "references" && i.severity === "error"
       );
       expect(referencesError).toBeDefined();
     }
   });
 
-  it('strictMode でも完全なブリーフは isValid=true', async () => {
+  it("strictMode でも完全なブリーフは isValid=true", async () => {
     const input: BriefValidateInput = { brief: completeBrief, strictMode: true };
     const result = await briefValidateHandler(input);
 
@@ -629,7 +620,7 @@ describe('briefValidateHandler - strictMode', () => {
     }
   });
 
-  it('strictMode の方がスコアが低くなる（部分ブリーフ）', async () => {
+  it("strictMode の方がスコアが低くなる（部分ブリーフ）", async () => {
     const inputNormal: BriefValidateInput = { brief: partialBrief, strictMode: false };
     const inputStrict: BriefValidateInput = { brief: partialBrief, strictMode: true };
 
@@ -650,7 +641,7 @@ describe('briefValidateHandler - strictMode', () => {
 // エラーハンドリングテスト（10+ tests）
 // =====================================================
 
-describe('briefValidateHandler - エラーケース', () => {
+describe("briefValidateHandler - エラーケース", () => {
   beforeEach(() => {
     resetBriefValidateServiceFactory();
   });
@@ -659,13 +650,13 @@ describe('briefValidateHandler - エラーケース', () => {
     vi.restoreAllMocks();
   });
 
-  describe('Response Objectパターン（エラー）', () => {
-    it('エラー時 success=false を返す', async () => {
+  describe("Response Objectパターン（エラー）", () => {
+    it("エラー時 success=false を返す", async () => {
       const result = await briefValidateHandler(null);
       expect(result.success).toBe(false);
     });
 
-    it('エラー時 error を含む', async () => {
+    it("エラー時 error を含む", async () => {
       const result = await briefValidateHandler(null);
       expect(result.success).toBe(false);
       if (!result.success) {
@@ -673,7 +664,7 @@ describe('briefValidateHandler - エラーケース', () => {
       }
     });
 
-    it('エラー時 data を含まない', async () => {
+    it("エラー時 data を含まない", async () => {
       const result = await briefValidateHandler(null);
       expect(result.success).toBe(false);
       if (!result.success) {
@@ -681,18 +672,18 @@ describe('briefValidateHandler - エラーケース', () => {
       }
     });
 
-    it('error に code と message を含む', async () => {
+    it("error に code と message を含む", async () => {
       const result = await briefValidateHandler(null);
       expect(result.success).toBe(false);
       if (!result.success) {
-        expect(result.error).toHaveProperty('code');
-        expect(result.error).toHaveProperty('message');
+        expect(result.error).toHaveProperty("code");
+        expect(result.error).toHaveProperty("message");
       }
     });
   });
 
-  describe('バリデーションエラー', () => {
-    it('入力が null の場合 VALIDATION_ERROR', async () => {
+  describe("バリデーションエラー", () => {
+    it("入力が null の場合 VALIDATION_ERROR", async () => {
       const result = await briefValidateHandler(null);
       expect(result.success).toBe(false);
       if (!result.success) {
@@ -700,7 +691,7 @@ describe('briefValidateHandler - エラーケース', () => {
       }
     });
 
-    it('入力が undefined の場合 VALIDATION_ERROR', async () => {
+    it("入力が undefined の場合 VALIDATION_ERROR", async () => {
       const result = await briefValidateHandler(undefined);
       expect(result.success).toBe(false);
       if (!result.success) {
@@ -708,7 +699,7 @@ describe('briefValidateHandler - エラーケース', () => {
       }
     });
 
-    it('空オブジェクトの場合 VALIDATION_ERROR', async () => {
+    it("空オブジェクトの場合 VALIDATION_ERROR", async () => {
       const result = await briefValidateHandler({});
       expect(result.success).toBe(false);
       if (!result.success) {
@@ -716,7 +707,7 @@ describe('briefValidateHandler - エラーケース', () => {
       }
     });
 
-    it('brief が空オブジェクトの場合 VALIDATION_ERROR', async () => {
+    it("brief が空オブジェクトの場合 VALIDATION_ERROR", async () => {
       const result = await briefValidateHandler({ brief: {} });
       expect(result.success).toBe(false);
       if (!result.success) {
@@ -724,17 +715,17 @@ describe('briefValidateHandler - エラーケース', () => {
       }
     });
 
-    it('projectName が空の場合 VALIDATION_ERROR', async () => {
-      const result = await briefValidateHandler({ brief: { projectName: '' } });
+    it("projectName が空の場合 VALIDATION_ERROR", async () => {
+      const result = await briefValidateHandler({ brief: { projectName: "" } });
       expect(result.success).toBe(false);
       if (!result.success) {
         expect(result.error.code).toBe(BRIEF_MCP_ERROR_CODES.VALIDATION_ERROR);
       }
     });
 
-    it('無効な tone 値の場合 VALIDATION_ERROR', async () => {
+    it("無効な tone 値の場合 VALIDATION_ERROR", async () => {
       const result = await briefValidateHandler({
-        brief: { projectName: 'Test', tone: ['invalid'] },
+        brief: { projectName: "Test", tone: ["invalid"] },
       });
       expect(result.success).toBe(false);
       if (!result.success) {
@@ -742,9 +733,9 @@ describe('briefValidateHandler - エラーケース', () => {
       }
     });
 
-    it('無効なHEXカラーの場合 VALIDATION_ERROR', async () => {
+    it("無効なHEXカラーの場合 VALIDATION_ERROR", async () => {
       const result = await briefValidateHandler({
-        brief: { projectName: 'Test', colorPreferences: { primary: 'red' } },
+        brief: { projectName: "Test", colorPreferences: { primary: "red" } },
       });
       expect(result.success).toBe(false);
       if (!result.success) {
@@ -752,9 +743,9 @@ describe('briefValidateHandler - エラーケース', () => {
       }
     });
 
-    it('無効なURLの場合 VALIDATION_ERROR', async () => {
+    it("無効なURLの場合 VALIDATION_ERROR", async () => {
       const result = await briefValidateHandler({
-        brief: { projectName: 'Test', references: [{ url: 'not-url' }] },
+        brief: { projectName: "Test", references: [{ url: "not-url" }] },
       });
       expect(result.success).toBe(false);
       if (!result.success) {
@@ -763,8 +754,8 @@ describe('briefValidateHandler - エラーケース', () => {
     });
   });
 
-  describe('エラーメッセージ', () => {
-    it('エラーメッセージが空でない', async () => {
+  describe("エラーメッセージ", () => {
+    it("エラーメッセージが空でない", async () => {
       const result = await briefValidateHandler(null);
       expect(result.success).toBe(false);
       if (!result.success) {
@@ -772,7 +763,7 @@ describe('briefValidateHandler - エラーケース', () => {
       }
     });
 
-    it('バリデーションエラーで具体的なメッセージ', async () => {
+    it("バリデーションエラーで具体的なメッセージ", async () => {
       const result = await briefValidateHandler({ brief: {} });
       expect(result.success).toBe(false);
       if (!result.success) {
@@ -786,7 +777,7 @@ describe('briefValidateHandler - エラーケース', () => {
 // DI（サービスファクトリ）テスト（5+ tests）
 // =====================================================
 
-describe('briefValidateHandler - DI', () => {
+describe("briefValidateHandler - DI", () => {
   beforeEach(() => {
     resetBriefValidateServiceFactory();
   });
@@ -795,7 +786,7 @@ describe('briefValidateHandler - DI', () => {
     vi.restoreAllMocks();
   });
 
-  it('カスタムサービスファクトリを使用できる', async () => {
+  it("カスタムサービスファクトリを使用できる", async () => {
     const mockValidate = vi.fn().mockResolvedValue({
       isValid: true,
       completenessScore: 100,
@@ -815,7 +806,7 @@ describe('briefValidateHandler - DI', () => {
     expect(result.success).toBe(true);
   });
 
-  it('サービスファクトリに strictMode が渡される', async () => {
+  it("サービスファクトリに strictMode が渡される", async () => {
     const mockValidate = vi.fn().mockResolvedValue({
       isValid: false,
       completenessScore: 50,
@@ -834,7 +825,7 @@ describe('briefValidateHandler - DI', () => {
     expect(mockValidate).toHaveBeenCalledWith(completeBrief, true);
   });
 
-  it('サービスファクトリをリセットできる', async () => {
+  it("サービスファクトリをリセットできる", async () => {
     const mockValidate = vi.fn().mockResolvedValue({
       isValid: true,
       completenessScore: 100,
@@ -856,9 +847,9 @@ describe('briefValidateHandler - DI', () => {
     expect(mockValidate).not.toHaveBeenCalled();
   });
 
-  it('サービスエラー時 INTERNAL_ERROR を返す', async () => {
+  it("サービスエラー時 INTERNAL_ERROR を返す", async () => {
     setBriefValidateServiceFactory(() => ({
-      validate: vi.fn().mockRejectedValue(new Error('Service error')),
+      validate: vi.fn().mockRejectedValue(new Error("Service error")),
     }));
 
     const input: BriefValidateInput = { brief: completeBrief };
@@ -870,7 +861,7 @@ describe('briefValidateHandler - DI', () => {
     }
   });
 
-  it('サービスファクトリ未設定時はデフォルトサービスを使用', async () => {
+  it("サービスファクトリ未設定時はデフォルトサービスを使用", async () => {
     resetBriefValidateServiceFactory();
 
     const input: BriefValidateInput = { brief: completeBrief };
@@ -885,33 +876,33 @@ describe('briefValidateHandler - DI', () => {
 // 出力スキーマテスト（5+ tests）
 // =====================================================
 
-describe('briefValidateOutputSchema', () => {
-  it('成功レスポンスをバリデート', () => {
+describe("briefValidateOutputSchema", () => {
+  it("成功レスポンスをバリデート", () => {
     const output: BriefValidateOutput = {
       success: true,
       data: {
         isValid: true,
         completenessScore: 85,
         issues: [],
-        suggestions: ['カラーパレットを追加することを検討してください'],
+        suggestions: ["カラーパレットを追加することを検討してください"],
         readyForDesign: true,
       },
     };
     expect(() => briefValidateOutputSchema.parse(output)).not.toThrow();
   });
 
-  it('エラーレスポンスをバリデート', () => {
+  it("エラーレスポンスをバリデート", () => {
     const output: BriefValidateOutput = {
       success: false,
       error: {
-        code: 'VALIDATION_ERROR',
-        message: 'Invalid input',
+        code: "VALIDATION_ERROR",
+        message: "Invalid input",
       },
     };
     expect(() => briefValidateOutputSchema.parse(output)).not.toThrow();
   });
 
-  it('issues を含むレスポンスをバリデート', () => {
+  it("issues を含むレスポンスをバリデート", () => {
     const output: BriefValidateOutput = {
       success: true,
       data: {
@@ -919,10 +910,10 @@ describe('briefValidateOutputSchema', () => {
         completenessScore: 30,
         issues: [
           {
-            field: 'description',
-            severity: 'warning',
-            message: '説明を追加することを推奨します',
-            suggestion: 'プロジェクトの目的と背景を記載してください',
+            field: "description",
+            severity: "warning",
+            message: "説明を追加することを推奨します",
+            suggestion: "プロジェクトの目的と背景を記載してください",
           },
         ],
         suggestions: [],
@@ -932,7 +923,7 @@ describe('briefValidateOutputSchema', () => {
     expect(() => briefValidateOutputSchema.parse(output)).not.toThrow();
   });
 
-  it('completenessScore が範囲外の場合エラー', () => {
+  it("completenessScore が範囲外の場合エラー", () => {
     const output = {
       success: true,
       data: {
@@ -946,7 +937,7 @@ describe('briefValidateOutputSchema', () => {
     expect(() => briefValidateOutputSchema.parse(output)).toThrow();
   });
 
-  it('無効な severity でエラー', () => {
+  it("無効な severity でエラー", () => {
     const output = {
       success: true,
       data: {
@@ -954,9 +945,9 @@ describe('briefValidateOutputSchema', () => {
         completenessScore: 50,
         issues: [
           {
-            field: 'description',
-            severity: 'critical', // 無効な値
-            message: 'Invalid severity',
+            field: "description",
+            severity: "critical", // 無効な値
+            message: "Invalid severity",
           },
         ],
         suggestions: [],
@@ -971,7 +962,7 @@ describe('briefValidateOutputSchema', () => {
 // 統合テスト（5+ tests）
 // =====================================================
 
-describe('briefValidateHandler - 統合テスト', () => {
+describe("briefValidateHandler - 統合テスト", () => {
   beforeEach(() => {
     resetBriefValidateServiceFactory();
   });
@@ -980,20 +971,20 @@ describe('briefValidateHandler - 統合テスト', () => {
     vi.restoreAllMocks();
   });
 
-  it('ツール定義とハンドラーの入力が一致', () => {
+  it("ツール定義とハンドラーの入力が一致", () => {
     const { properties } = briefValidateToolDefinition.inputSchema;
-    expect(properties).toHaveProperty('brief');
-    expect(properties).toHaveProperty('strictMode');
+    expect(properties).toHaveProperty("brief");
+    expect(properties).toHaveProperty("strictMode");
   });
 
-  it('ハンドラー結果が出力スキーマに適合', async () => {
+  it("ハンドラー結果が出力スキーマに適合", async () => {
     const input: BriefValidateInput = { brief: completeBrief };
     const result = await briefValidateHandler(input);
 
     expect(() => briefValidateOutputSchema.parse(result)).not.toThrow();
   });
 
-  it('エラーコードが定義通りに使われる', async () => {
+  it("エラーコードが定義通りに使われる", async () => {
     // VALIDATION_ERROR
     const result1 = await briefValidateHandler({});
     expect(result1.success).toBe(false);
@@ -1002,7 +993,7 @@ describe('briefValidateHandler - 統合テスト', () => {
     }
   });
 
-  it('複数回の呼び出しで独立した結果', async () => {
+  it("複数回の呼び出しで独立した結果", async () => {
     const input1: BriefValidateInput = { brief: completeBrief };
     const input2: BriefValidateInput = { brief: minimalBrief };
 
@@ -1019,7 +1010,7 @@ describe('briefValidateHandler - 統合テスト', () => {
     }
   });
 
-  it('isValid と readyForDesign の整合性', async () => {
+  it("isValid と readyForDesign の整合性", async () => {
     // readyForDesign=true なら isValid=true である必要がある
     const input: BriefValidateInput = { brief: completeBrief };
     const result = await briefValidateHandler(input);

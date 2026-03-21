@@ -17,7 +17,7 @@
  * @module tests/integration/quality-evaluate-patterns.test
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 import {
   qualityEvaluateHandler,
@@ -28,15 +28,15 @@ import {
   setBenchmarkServiceFactory,
   resetBenchmarkServiceFactory,
   type IQualityEvaluateService,
-} from '../../src/tools/quality/evaluate.tool';
+} from "../../src/tools/quality/evaluate.tool";
 
 import type {
   IPatternMatcherService,
   SectionPatternMatch,
   MotionPatternMatch,
-} from '../../src/services/quality/pattern-matcher.service';
+} from "../../src/services/quality/pattern-matcher.service";
 
-import type { IBenchmarkService } from '../../src/services/quality/benchmark.service';
+import type { IBenchmarkService } from "../../src/services/quality/benchmark.service";
 
 import {
   qualityEvaluateInputSchema,
@@ -46,7 +46,7 @@ import {
   contextualRecommendationSchema,
   type QualityEvaluateInput,
   QUALITY_MCP_ERROR_CODES,
-} from '../../src/tools/quality/schemas';
+} from "../../src/tools/quality/schemas";
 
 // =====================================================
 // テストデータ
@@ -107,9 +107,9 @@ const sampleHtmlWithCliches = `<!DOCTYPE html>
 </body>
 </html>`;
 
-const validUUID = '123e4567-e89b-12d3-a456-426614174000';
-const validUUID2 = '223e4567-e89b-12d3-a456-426614174001';
-const validWebPageId = '323e4567-e89b-12d3-a456-426614174002';
+const validUUID = "123e4567-e89b-12d3-a456-426614174000";
+const validUUID2 = "223e4567-e89b-12d3-a456-426614174001";
+const validWebPageId = "323e4567-e89b-12d3-a456-426614174002";
 
 // =====================================================
 // モックデータ
@@ -122,18 +122,18 @@ const mockHighQualitySectionPatterns: SectionPatternMatch[] = [
   {
     id: validUUID,
     webPageId: validWebPageId,
-    sectionType: 'hero',
+    sectionType: "hero",
     similarity: 0.92,
     qualityScore: 90,
-    sourceUrl: 'https://example.com/high-quality',
+    sourceUrl: "https://example.com/high-quality",
   },
   {
     id: validUUID2,
     webPageId: validWebPageId,
-    sectionType: 'feature',
+    sectionType: "feature",
     similarity: 0.88,
     qualityScore: 87,
-    sourceUrl: 'https://example.com/feature',
+    sourceUrl: "https://example.com/feature",
   },
 ];
 
@@ -144,10 +144,10 @@ const mockLowQualitySectionPatterns: SectionPatternMatch[] = [
   {
     id: validUUID,
     webPageId: validWebPageId,
-    sectionType: 'hero',
+    sectionType: "hero",
     similarity: 0.75,
     qualityScore: 60,
-    sourceUrl: 'https://example.com/low-quality',
+    sourceUrl: "https://example.com/low-quality",
   },
 ];
 
@@ -158,9 +158,9 @@ const mockMotionPatterns: MotionPatternMatch[] = [
   {
     id: validUUID,
     webPageId: validWebPageId,
-    name: 'fade-in',
-    type: 'animation',
-    trigger: 'scroll',
+    name: "fade-in",
+    type: "animation",
+    trigger: "scroll",
     similarity: 0.85,
     duration: 300,
   },
@@ -198,22 +198,22 @@ function createMockPatternMatcherService(
   } = options;
 
   return {
-    extractTextRepresentation: vi.fn().mockReturnValue('Mock text representation'),
+    extractTextRepresentation: vi.fn().mockReturnValue("Mock text representation"),
     findSimilarSectionPatterns: vi.fn().mockImplementation(async () => {
       if (throwOnSectionSearch) {
-        throw new Error('Section pattern search failed');
+        throw new Error("Section pattern search failed");
       }
       return sectionPatterns;
     }),
     findSimilarMotionPatterns: vi.fn().mockImplementation(async () => {
       if (throwOnMotionSearch) {
-        throw new Error('Motion pattern search failed');
+        throw new Error("Motion pattern search failed");
       }
       return motionPatterns;
     }),
     calculateUniquenessScore: vi.fn().mockImplementation(async () => {
       if (throwOnUniqueness) {
-        throw new Error('Uniqueness calculation failed');
+        throw new Error("Uniqueness calculation failed");
       }
       return uniquenessScore;
     }),
@@ -247,13 +247,13 @@ function createMockQualityEvaluateService(
   return {
     generateEmbedding: vi.fn().mockImplementation(async () => {
       if (throwOnEmbedding) {
-        throw new Error('Embedding generation failed');
+        throw new Error("Embedding generation failed");
       }
       return embeddings;
     }),
     getPageById: vi.fn().mockImplementation(async () => {
       if (throwOnGetPage) {
-        throw new Error('Page retrieval failed');
+        throw new Error("Page retrieval failed");
       }
       return page;
     }),
@@ -282,7 +282,7 @@ function createMockBenchmarkService(
   return {
     findSimilarBenchmarks: vi.fn().mockImplementation(async () => {
       if (throwOnFind) {
-        throw new Error('Benchmark search failed');
+        throw new Error("Benchmark search failed");
       }
       return benchmarks;
     }),
@@ -297,7 +297,7 @@ function createMockBenchmarkService(
 // パターン駆動評価フローテスト
 // =====================================================
 
-describe('quality.evaluate with pattern comparison', () => {
+describe("quality.evaluate with pattern comparison", () => {
   beforeEach(() => {
     // 全てのファクトリをリセット
     resetQualityEvaluateServiceFactory();
@@ -316,7 +316,7 @@ describe('quality.evaluate with pattern comparison', () => {
   // パターン駆動評価が正常に動作するケース
   // =====================================================
 
-  it('should return pattern analysis when services available', async () => {
+  it("should return pattern analysis when services available", async () => {
     // Arrange: サービスモック設定
     // パターン駆動評価には、PatternMatcherServiceとQualityEvaluateServiceが必要
     const mockPatternMatcher = createMockPatternMatcherService({
@@ -341,7 +341,7 @@ describe('quality.evaluate with pattern comparison', () => {
 
     // Assert
     expect(result.success).toBe(true);
-    if (result.success && 'data' in result) {
+    if (result.success && "data" in result) {
       // patternAnalysisが存在することを確認
       expect(result.data.patternAnalysis).toBeDefined();
 
@@ -362,7 +362,7 @@ describe('quality.evaluate with pattern comparison', () => {
     }
   });
 
-  it('should include contextualRecommendations with referencePatternId', async () => {
+  it("should include contextualRecommendations with referencePatternId", async () => {
     // Arrange: 高品質パターンを含むモック
     const mockPatternMatcher = createMockPatternMatcherService({
       sectionPatterns: mockHighQualitySectionPatterns,
@@ -387,11 +387,14 @@ describe('quality.evaluate with pattern comparison', () => {
 
     // Assert
     expect(result.success).toBe(true);
-    if (result.success && 'data' in result) {
+    if (result.success && "data" in result) {
       // コンテキスト付き推奨事項が存在することを確認
       expect(result.data.contextualRecommendations).toBeDefined();
 
-      if (result.data.contextualRecommendations && result.data.contextualRecommendations.length > 0) {
+      if (
+        result.data.contextualRecommendations &&
+        result.data.contextualRecommendations.length > 0
+      ) {
         // 少なくとも1つの推奨事項を確認
         const firstRec = result.data.contextualRecommendations[0];
         expect(firstRec).toBeDefined();
@@ -410,7 +413,7 @@ describe('quality.evaluate with pattern comparison', () => {
   // フォールバック動作テスト
   // =====================================================
 
-  it('should fallback to static analysis when services unavailable', async () => {
+  it("should fallback to static analysis when services unavailable", async () => {
     // Arrange: サービスファクトリを設定しない（null状態）
     // これにより、パターン駆動評価がフォールバックする
 
@@ -424,7 +427,7 @@ describe('quality.evaluate with pattern comparison', () => {
 
     // Assert
     expect(result.success).toBe(true);
-    if (result.success && 'data' in result) {
+    if (result.success && "data" in result) {
       // patternAnalysisがフォールバックモードであることを確認
       expect(result.data.patternAnalysis).toBeDefined();
       if (result.data.patternAnalysis) {
@@ -441,7 +444,7 @@ describe('quality.evaluate with pattern comparison', () => {
     }
   });
 
-  it('should fallback when embedding generation fails', async () => {
+  it("should fallback when embedding generation fails", async () => {
     // Arrange: Embedding生成が失敗するモック
     const mockPatternMatcher = createMockPatternMatcherService({
       sectionPatterns: mockHighQualitySectionPatterns,
@@ -463,14 +466,14 @@ describe('quality.evaluate with pattern comparison', () => {
 
     // Assert
     expect(result.success).toBe(true);
-    if (result.success && 'data' in result) {
+    if (result.success && "data" in result) {
       expect(result.data.patternAnalysis?.fallbackUsed).toBe(true);
       // 静的分析によるスコアは正常に計算される
       expect(result.data.overall).toBeGreaterThan(0);
     }
   });
 
-  it('should continue with partial results when section search fails', async () => {
+  it("should continue with partial results when section search fails", async () => {
     // Arrange: セクション検索が失敗するが、モーション検索は成功
     const mockPatternMatcher = createMockPatternMatcherService({
       sectionPatterns: [],
@@ -495,7 +498,7 @@ describe('quality.evaluate with pattern comparison', () => {
 
     // Assert: 処理は続行され、部分的な結果が返される
     expect(result.success).toBe(true);
-    if (result.success && 'data' in result) {
+    if (result.success && "data" in result) {
       expect(result.data.patternAnalysis).toBeDefined();
       // セクション検索失敗でも処理は継続
       expect(result.data.overall).toBeGreaterThan(0);
@@ -506,7 +509,7 @@ describe('quality.evaluate with pattern comparison', () => {
   // スコア調整ロジックテスト
   // =====================================================
 
-  it('should adjust originality based on uniqueness score (high uniqueness)', async () => {
+  it("should adjust originality based on uniqueness score (high uniqueness)", async () => {
     // Arrange: 高いユニークネススコア（0.8 = 80%）
     const mockPatternMatcher = createMockPatternMatcherService({
       sectionPatterns: [], // 類似パターンなし
@@ -530,13 +533,13 @@ describe('quality.evaluate with pattern comparison', () => {
 
     // Assert
     expect(result.success).toBe(true);
-    if (result.success && 'data' in result) {
+    if (result.success && "data" in result) {
       // 高ユニークネスの場合、ユニークネススコアが高い
       expect(result.data.patternAnalysis?.uniquenessScore).toBeGreaterThanOrEqual(70);
     }
   });
 
-  it('should penalize originality when uniqueness is low', async () => {
+  it("should penalize originality when uniqueness is low", async () => {
     // Arrange: 低いユニークネススコア（0.2 = 20%）= 既存パターンと類似
     const mockPatternMatcher = createMockPatternMatcherService({
       sectionPatterns: mockLowQualitySectionPatterns,
@@ -560,13 +563,13 @@ describe('quality.evaluate with pattern comparison', () => {
 
     // Assert
     expect(result.success).toBe(true);
-    if (result.success && 'data' in result) {
+    if (result.success && "data" in result) {
       // 低ユニークネスの場合、ユニークネススコアが低い
       expect(result.data.patternAnalysis?.uniquenessScore).toBeLessThan(30);
     }
   });
 
-  it('should boost craftsmanship when similar to high-quality patterns', async () => {
+  it("should boost craftsmanship when similar to high-quality patterns", async () => {
     // Arrange: 高品質パターン（スコア >= 85）との類似度が高い
     const mockPatternMatcher = createMockPatternMatcherService({
       sectionPatterns: mockHighQualitySectionPatterns, // qualityScore: 90, 87
@@ -601,8 +604,12 @@ describe('quality.evaluate with pattern comparison', () => {
     expect(resultWithHighQuality.success).toBe(true);
     expect(resultWithoutPattern.success).toBe(true);
 
-    if (resultWithHighQuality.success && 'data' in resultWithHighQuality &&
-        resultWithoutPattern.success && 'data' in resultWithoutPattern) {
+    if (
+      resultWithHighQuality.success &&
+      "data" in resultWithHighQuality &&
+      resultWithoutPattern.success &&
+      "data" in resultWithoutPattern
+    ) {
       // 高品質パターンとの類似があると、craftsmanshipにボーナスがつく可能性がある
       // ただし、パターン駆動評価のフォールバックを考慮
       if (!resultWithHighQuality.data.patternAnalysis?.fallbackUsed) {
@@ -619,8 +626,8 @@ describe('quality.evaluate with pattern comparison', () => {
 // 入力バリデーションテスト
 // =====================================================
 
-describe('quality.evaluate input schema', () => {
-  it('should accept patternComparison options', () => {
+describe("quality.evaluate input schema", () => {
+  it("should accept patternComparison options", () => {
     // Arrange
     const input = {
       html: sampleHtmlGood,
@@ -640,14 +647,14 @@ describe('quality.evaluate input schema', () => {
     expect(parsed.patternComparison?.maxPatterns).toBe(10);
   });
 
-  it('should accept evaluation context', () => {
+  it("should accept evaluation context", () => {
     // Arrange
     const input = {
       html: sampleHtmlGood,
       context: {
         projectId: validUUID,
-        targetIndustry: 'healthcare',
-        targetAudience: 'enterprise',
+        targetIndustry: "healthcare",
+        targetAudience: "enterprise",
       },
     };
 
@@ -656,11 +663,11 @@ describe('quality.evaluate input schema', () => {
 
     const parsed = qualityEvaluateInputSchema.parse(input);
     expect(parsed.context?.projectId).toBe(validUUID);
-    expect(parsed.context?.targetIndustry).toBe('healthcare');
-    expect(parsed.context?.targetAudience).toBe('enterprise');
+    expect(parsed.context?.targetIndustry).toBe("healthcare");
+    expect(parsed.context?.targetAudience).toBe("enterprise");
   });
 
-  it('should reject invalid minSimilarity (> 1)', () => {
+  it("should reject invalid minSimilarity (> 1)", () => {
     // Arrange
     const input = {
       html: sampleHtmlGood,
@@ -674,7 +681,7 @@ describe('quality.evaluate input schema', () => {
     expect(() => qualityEvaluateInputSchema.parse(input)).toThrow();
   });
 
-  it('should reject invalid minSimilarity (< 0)', () => {
+  it("should reject invalid minSimilarity (< 0)", () => {
     // Arrange
     const input = {
       html: sampleHtmlGood,
@@ -688,7 +695,7 @@ describe('quality.evaluate input schema', () => {
     expect(() => qualityEvaluateInputSchema.parse(input)).toThrow();
   });
 
-  it('should reject invalid maxPatterns (> 20)', () => {
+  it("should reject invalid maxPatterns (> 20)", () => {
     // Arrange
     const input = {
       html: sampleHtmlGood,
@@ -702,7 +709,7 @@ describe('quality.evaluate input schema', () => {
     expect(() => qualityEvaluateInputSchema.parse(input)).toThrow();
   });
 
-  it('should reject invalid maxPatterns (< 1)', () => {
+  it("should reject invalid maxPatterns (< 1)", () => {
     // Arrange
     const input = {
       html: sampleHtmlGood,
@@ -716,7 +723,7 @@ describe('quality.evaluate input schema', () => {
     expect(() => qualityEvaluateInputSchema.parse(input)).toThrow();
   });
 
-  it('should accept default patternComparison values', () => {
+  it("should accept default patternComparison values", () => {
     // Arrange
     const input = {
       html: sampleHtmlGood,
@@ -736,12 +743,12 @@ describe('quality.evaluate input schema', () => {
     expect(parsed.patternComparison?.maxPatterns).toBe(5);
   });
 
-  it('should reject invalid context.projectId (not UUID)', () => {
+  it("should reject invalid context.projectId (not UUID)", () => {
     // Arrange
     const input = {
       html: sampleHtmlGood,
       context: {
-        projectId: 'not-a-valid-uuid',
+        projectId: "not-a-valid-uuid",
       },
     };
 
@@ -749,12 +756,12 @@ describe('quality.evaluate input schema', () => {
     expect(() => qualityEvaluateInputSchema.parse(input)).toThrow();
   });
 
-  it('should accept partial context', () => {
+  it("should accept partial context", () => {
     // Arrange: 一部のcontextフィールドのみ
     const input = {
       html: sampleHtmlGood,
       context: {
-        targetIndustry: 'technology',
+        targetIndustry: "technology",
       },
     };
 
@@ -762,7 +769,7 @@ describe('quality.evaluate input schema', () => {
     expect(() => qualityEvaluateInputSchema.parse(input)).not.toThrow();
 
     const parsed = qualityEvaluateInputSchema.parse(input);
-    expect(parsed.context?.targetIndustry).toBe('technology');
+    expect(parsed.context?.targetIndustry).toBe("technology");
     expect(parsed.context?.projectId).toBeUndefined();
   });
 });
@@ -771,8 +778,8 @@ describe('quality.evaluate input schema', () => {
 // スキーマ単体テスト
 // =====================================================
 
-describe('patternComparisonSchema', () => {
-  it('should parse valid patternComparison', () => {
+describe("patternComparisonSchema", () => {
+  it("should parse valid patternComparison", () => {
     const valid = {
       enabled: true,
       minSimilarity: 0.75,
@@ -786,7 +793,7 @@ describe('patternComparisonSchema', () => {
     expect(parsed.maxPatterns).toBe(8);
   });
 
-  it('should use default values when not provided', () => {
+  it("should use default values when not provided", () => {
     const minimal = {};
 
     const parsed = patternComparisonSchema.parse(minimal);
@@ -796,19 +803,19 @@ describe('patternComparisonSchema', () => {
   });
 });
 
-describe('evaluationContextSchema', () => {
-  it('should parse valid context with all fields', () => {
+describe("evaluationContextSchema", () => {
+  it("should parse valid context with all fields", () => {
     const valid = {
       projectId: validUUID,
       brandPaletteId: validUUID2,
-      targetIndustry: 'healthcare',
-      targetAudience: 'enterprise',
+      targetIndustry: "healthcare",
+      targetAudience: "enterprise",
     };
 
     expect(() => evaluationContextSchema.parse(valid)).not.toThrow();
   });
 
-  it('should parse empty context', () => {
+  it("should parse empty context", () => {
     const empty = {};
 
     expect(() => evaluationContextSchema.parse(empty)).not.toThrow();
@@ -817,32 +824,32 @@ describe('evaluationContextSchema', () => {
     expect(parsed.targetIndustry).toBeUndefined();
   });
 
-  it('should reject invalid UUID format', () => {
+  it("should reject invalid UUID format", () => {
     const invalid = {
-      projectId: 'invalid-uuid-format',
+      projectId: "invalid-uuid-format",
     };
 
     expect(() => evaluationContextSchema.parse(invalid)).toThrow();
   });
 });
 
-describe('patternAnalysisSchema', () => {
-  it('should parse valid patternAnalysis', () => {
+describe("patternAnalysisSchema", () => {
+  it("should parse valid patternAnalysis", () => {
     const valid = {
       similarSections: [
         {
           id: validUUID,
-          type: 'hero',
+          type: "hero",
           similarity: 0.92,
-          sourceUrl: 'https://example.com',
+          sourceUrl: "https://example.com",
           webPageId: validWebPageId,
         },
       ],
       similarMotions: [
         {
           id: validUUID,
-          type: 'animation',
-          category: 'scroll',
+          type: "animation",
+          category: "scroll",
           similarity: 0.85,
           webPageId: validWebPageId,
         },
@@ -857,7 +864,7 @@ describe('patternAnalysisSchema', () => {
     expect(() => patternAnalysisSchema.parse(valid)).not.toThrow();
   });
 
-  it('should parse patternAnalysis with fallback', () => {
+  it("should parse patternAnalysis with fallback", () => {
     const fallback = {
       similarSections: [],
       similarMotions: [],
@@ -866,40 +873,40 @@ describe('patternAnalysisSchema', () => {
       patternSimilarityAvg: 0,
       patternDrivenEnabled: false,
       fallbackUsed: true,
-      fallbackReason: 'Pattern services unavailable',
+      fallbackReason: "Pattern services unavailable",
     };
 
     expect(() => patternAnalysisSchema.parse(fallback)).not.toThrow();
     const parsed = patternAnalysisSchema.parse(fallback);
     expect(parsed.fallbackUsed).toBe(true);
-    expect(parsed.fallbackReason).toBe('Pattern services unavailable');
+    expect(parsed.fallbackReason).toBe("Pattern services unavailable");
   });
 });
 
-describe('contextualRecommendationSchema', () => {
-  it('should parse recommendation with pattern reference', () => {
+describe("contextualRecommendationSchema", () => {
+  it("should parse recommendation with pattern reference", () => {
     const valid = {
-      id: 'rec-1',
-      category: 'originality',
-      priority: 'high',
-      title: 'AIクリシェを回避',
-      description: 'グラデーションパターンを独自のものに変更してください',
+      id: "rec-1",
+      category: "originality",
+      priority: "high",
+      title: "AIクリシェを回避",
+      description: "グラデーションパターンを独自のものに変更してください",
       impact: 15,
       referencePatternId: validUUID,
-      referenceUrl: 'https://example.com/reference',
-      patternInsight: '高品質パターン（スコア: 90）を参照',
+      referenceUrl: "https://example.com/reference",
+      patternInsight: "高品質パターン（スコア: 90）を参照",
     };
 
     expect(() => contextualRecommendationSchema.parse(valid)).not.toThrow();
   });
 
-  it('should parse recommendation without pattern reference', () => {
+  it("should parse recommendation without pattern reference", () => {
     const valid = {
-      id: 'rec-2',
-      category: 'craftsmanship',
-      priority: 'medium',
-      title: 'アクセシビリティ改善',
-      description: 'ARIA属性を追加してください',
+      id: "rec-2",
+      category: "craftsmanship",
+      priority: "medium",
+      title: "アクセシビリティ改善",
+      description: "ARIA属性を追加してください",
       impact: 10,
     };
 
@@ -911,7 +918,7 @@ describe('contextualRecommendationSchema', () => {
 // コンテキスト付き推奨事項テスト
 // =====================================================
 
-describe('contextual recommendations', () => {
+describe("contextual recommendations", () => {
   beforeEach(() => {
     resetQualityEvaluateServiceFactory();
     resetPatternMatcherServiceFactory();
@@ -925,17 +932,17 @@ describe('contextual recommendations', () => {
     resetBenchmarkServiceFactory();
   });
 
-  it('should include referenceUrl when benchmark found', async () => {
+  it("should include referenceUrl when benchmark found", async () => {
     // Arrange: ベンチマークサービスのモック
     const mockBenchmarkService = createMockBenchmarkService({
       benchmarks: [
         {
           benchmarkId: validUUID,
-          sectionType: 'hero',
+          sectionType: "hero",
           overallScore: 92,
-          grade: 'A',
+          grade: "A",
           similarity: 0.9,
-          sourceUrl: 'https://example.com/benchmark',
+          sourceUrl: "https://example.com/benchmark",
         },
       ],
     });
@@ -963,12 +970,12 @@ describe('contextual recommendations', () => {
 
     // Assert
     expect(result.success).toBe(true);
-    if (result.success && 'data' in result) {
+    if (result.success && "data" in result) {
       // コンテキスト付き推奨事項を確認
       if (result.data.contextualRecommendations) {
         // 参照URLを含む推奨事項が存在するか確認
         const hasReferenceUrl = result.data.contextualRecommendations.some(
-          rec => rec.referenceUrl !== undefined
+          (rec) => rec.referenceUrl !== undefined
         );
         // 高品質パターンからの推奨が追加される可能性
         expect(result.data.contextualRecommendations.length).toBeGreaterThan(0);
@@ -976,7 +983,7 @@ describe('contextual recommendations', () => {
     }
   });
 
-  it('should suggest improvements for low-scoring axes', async () => {
+  it("should suggest improvements for low-scoring axes", async () => {
     // Arrange: 低品質HTMLを使用
     const mockPatternMatcher = createMockPatternMatcherService({
       sectionPatterns: [],
@@ -1001,7 +1008,7 @@ describe('contextual recommendations', () => {
 
     // Assert
     expect(result.success).toBe(true);
-    if (result.success && 'data' in result) {
+    if (result.success && "data" in result) {
       // 低スコア軸に対する推奨事項が含まれているはず
       const recommendations = result.data.recommendations ?? [];
       const contextualRecs = result.data.contextualRecommendations ?? [];
@@ -1009,24 +1016,22 @@ describe('contextual recommendations', () => {
       const allRecs = [...recommendations, ...contextualRecs];
 
       // クリシェを含むHTMLなのでoriginality関連の推奨があるはず
-      const hasOriginalityRec = allRecs.some(
-        rec => rec.category === 'originality'
-      );
+      const hasOriginalityRec = allRecs.some((rec) => rec.category === "originality");
       expect(hasOriginalityRec).toBe(true);
     }
   });
 
-  it('should include patternInsight when referencing high-quality patterns', async () => {
+  it("should include patternInsight when referencing high-quality patterns", async () => {
     // Arrange
     const mockPatternMatcher = createMockPatternMatcherService({
       sectionPatterns: [
         {
           id: validUUID,
           webPageId: validWebPageId,
-          sectionType: 'hero',
+          sectionType: "hero",
           similarity: 0.95,
           qualityScore: 95, // 非常に高品質
-          sourceUrl: 'https://example.com/excellent',
+          sourceUrl: "https://example.com/excellent",
         },
       ],
       motionPatterns: [],
@@ -1050,14 +1055,17 @@ describe('contextual recommendations', () => {
 
     // Assert
     expect(result.success).toBe(true);
-    if (result.success && 'data' in result && result.data.contextualRecommendations) {
+    if (result.success && "data" in result && result.data.contextualRecommendations) {
       // patternInsightを含む推奨事項を確認
       const hasPatternInsight = result.data.contextualRecommendations.some(
-        rec => rec.patternInsight !== undefined
+        (rec) => rec.patternInsight !== undefined
       );
       // 高品質パターンからの洞察が含まれる可能性
       if (result.data.contextualRecommendations.length > 0) {
-        expect(hasPatternInsight || result.data.contextualRecommendations.some(r => r.referencePatternId)).toBe(true);
+        expect(
+          hasPatternInsight ||
+            result.data.contextualRecommendations.some((r) => r.referencePatternId)
+        ).toBe(true);
       }
     }
   });
@@ -1067,7 +1075,7 @@ describe('contextual recommendations', () => {
 // パターン駆動評価無効時のテスト
 // =====================================================
 
-describe('quality.evaluate with patternComparison disabled', () => {
+describe("quality.evaluate with patternComparison disabled", () => {
   beforeEach(() => {
     resetQualityEvaluateServiceFactory();
     resetPatternMatcherServiceFactory();
@@ -1078,7 +1086,7 @@ describe('quality.evaluate with patternComparison disabled', () => {
     vi.restoreAllMocks();
   });
 
-  it('should skip pattern-driven evaluation when disabled', async () => {
+  it("should skip pattern-driven evaluation when disabled", async () => {
     // Arrange: サービスを設定してもpatternComparison.enabled=falseなら使用されない
     const mockPatternMatcher = createMockPatternMatcherService({
       sectionPatterns: mockHighQualitySectionPatterns,
@@ -1095,7 +1103,7 @@ describe('quality.evaluate with patternComparison disabled', () => {
 
     // Assert
     expect(result.success).toBe(true);
-    if (result.success && 'data' in result) {
+    if (result.success && "data" in result) {
       // パターン駆動評価が無効なのでpatternAnalysisは含まれない可能性
       // または、存在しても空のフォールバック状態
       if (result.data.patternAnalysis) {
@@ -1115,7 +1123,7 @@ describe('quality.evaluate with patternComparison disabled', () => {
 // エッジケーステスト
 // =====================================================
 
-describe('edge cases', () => {
+describe("edge cases", () => {
   beforeEach(() => {
     resetQualityEvaluateServiceFactory();
     resetPatternMatcherServiceFactory();
@@ -1126,7 +1134,7 @@ describe('edge cases', () => {
     vi.restoreAllMocks();
   });
 
-  it('should handle empty section patterns gracefully', async () => {
+  it("should handle empty section patterns gracefully", async () => {
     // Arrange: 類似パターンなし
     const mockPatternMatcher = createMockPatternMatcherService({
       sectionPatterns: [],
@@ -1150,7 +1158,7 @@ describe('edge cases', () => {
 
     // Assert
     expect(result.success).toBe(true);
-    if (result.success && 'data' in result) {
+    if (result.success && "data" in result) {
       expect(result.data.patternAnalysis?.similarSections).toHaveLength(0);
       expect(result.data.patternAnalysis?.similarMotions).toHaveLength(0);
       // ユニークネススコアは高い（類似パターンがないため）
@@ -1158,9 +1166,9 @@ describe('edge cases', () => {
     }
   });
 
-  it('should handle very short HTML', async () => {
+  it("should handle very short HTML", async () => {
     // Arrange
-    const shortHtml = '<html><body><p>Test</p></body></html>';
+    const shortHtml = "<html><body><p>Test</p></body></html>";
 
     const input: QualityEvaluateInput = {
       html: shortHtml,
@@ -1174,7 +1182,7 @@ describe('edge cases', () => {
     expect(result.success).toBe(true);
   });
 
-  it('should use default minSimilarity when not specified', async () => {
+  it("should use default minSimilarity when not specified", async () => {
     // Arrange
     const mockPatternMatcher = createMockPatternMatcherService({
       sectionPatterns: mockHighQualitySectionPatterns,

@@ -20,28 +20,25 @@
  * @module tools/quality/get-job-status.tool
  */
 
-import { isRedisAvailable } from '../../config/redis';
+import { isRedisAvailable } from "../../config/redis";
 import {
   createBatchQualityQueue,
   getBatchQualityJobStatus,
   closeBatchQualityQueue,
-} from '../../queues/batch-quality-queue';
+} from "../../queues/batch-quality-queue";
 import {
   qualityGetJobStatusInputSchema,
   type QualityGetJobStatusInput,
   type QualityGetJobStatusOutput,
   type QualityGetJobStatusData,
   type QualityJobState,
-} from './schemas';
+} from "./schemas";
 
 // Re-export types for external use
-export type { QualityGetJobStatusInput, QualityGetJobStatusOutput } from './schemas';
-import { getBatchJob } from './batch-evaluate.tool';
-import { logger, isDevelopment } from '../../utils/logger';
-import {
-  generateRequestId,
-  createErrorResponseWithRequestId,
-} from '../../utils/mcp-response';
+export type { QualityGetJobStatusInput, QualityGetJobStatusOutput } from "./schemas";
+import { getBatchJob } from "./batch-evaluate.tool";
+import { logger, isDevelopment } from "../../utils/logger";
+import { generateRequestId, createErrorResponseWithRequestId } from "../../utils/mcp-response";
 
 // ============================================================================
 // Constants
@@ -51,10 +48,10 @@ import {
  * Error codes for quality.getJobStatus
  */
 export const GET_QUALITY_JOB_STATUS_ERROR_CODES = {
-  VALIDATION_ERROR: 'VALIDATION_ERROR',
-  REDIS_UNAVAILABLE: 'REDIS_UNAVAILABLE',
-  JOB_NOT_FOUND: 'JOB_NOT_FOUND',
-  INTERNAL_ERROR: 'INTERNAL_ERROR',
+  VALIDATION_ERROR: "VALIDATION_ERROR",
+  REDIS_UNAVAILABLE: "REDIS_UNAVAILABLE",
+  JOB_NOT_FOUND: "JOB_NOT_FOUND",
+  INTERNAL_ERROR: "INTERNAL_ERROR",
 } as const;
 
 // ============================================================================
@@ -65,7 +62,7 @@ export const GET_QUALITY_JOB_STATUS_ERROR_CODES = {
  * Tool definition for MCP registration
  */
 export const qualityGetJobStatusToolDefinition = {
-  name: 'quality.getJobStatus',
+  name: "quality.getJobStatus",
   description: `Check the status of an async batch quality evaluation job.
 
 Use this tool to poll for the status and results of a job that was submitted
@@ -81,19 +78,19 @@ Returns:
 Note: When Redis is unavailable, falls back to LRU store (in-memory).
 Jobs in LRU store are not persisted across server restarts.`,
   inputSchema: {
-    type: 'object' as const,
+    type: "object" as const,
     properties: {
       job_id: {
-        type: 'string',
-        format: 'uuid',
-        description: 'The job ID returned by quality.batch_evaluate',
+        type: "string",
+        format: "uuid",
+        description: "The job ID returned by quality.batch_evaluate",
       },
     },
-    required: ['job_id'],
+    required: ["job_id"],
     additionalProperties: false,
   },
   annotations: {
-    title: 'Quality Get Job Status',
+    title: "Quality Get Job Status",
     readOnlyHint: true,
     idempotentHint: true,
     openWorldHint: false,
@@ -108,7 +105,7 @@ Jobs in LRU store are not persisted across server restarts.`,
  * Map BullMQ job state to QualityJobState
  */
 function mapBullMQStateToQualityState(
-  state: 'waiting' | 'active' | 'completed' | 'failed' | 'delayed' | 'unknown'
+  state: "waiting" | "active" | "completed" | "failed" | "delayed" | "unknown"
 ): QualityJobState {
   return state;
 }
@@ -117,21 +114,21 @@ function mapBullMQStateToQualityState(
  * Map LRU store status to QualityJobState
  */
 function mapLRUStatusToQualityState(
-  status: 'pending' | 'processing' | 'completed' | 'failed' | 'cancelled'
+  status: "pending" | "processing" | "completed" | "failed" | "cancelled"
 ): QualityJobState {
   switch (status) {
-    case 'pending':
-      return 'waiting';
-    case 'processing':
-      return 'active';
-    case 'completed':
-      return 'completed';
-    case 'failed':
-      return 'failed';
-    case 'cancelled':
-      return 'failed';
+    case "pending":
+      return "waiting";
+    case "processing":
+      return "active";
+    case "completed":
+      return "completed";
+    case "failed":
+      return "failed";
+    case "cancelled":
+      return "failed";
     default:
-      return 'unknown';
+      return "unknown";
   }
 }
 
@@ -150,11 +147,11 @@ export async function qualityGetJobStatusHandler(
 ): Promise<QualityGetJobStatusOutput> {
   // router.tsから注入された_request_idを使用、フォールバックとして自動生成
   const requestId =
-    (input as Record<string, unknown> | null)?._request_id as string | undefined ??
+    ((input as Record<string, unknown> | null)?._request_id as string | undefined) ??
     generateRequestId();
 
   if (isDevelopment()) {
-    logger.info('[MCP Tool] quality.getJobStatus called', {
+    logger.info("[MCP Tool] quality.getJobStatus called", {
       hasInput: input !== null && input !== undefined,
       requestId,
     });
@@ -165,12 +162,13 @@ export async function qualityGetJobStatusHandler(
   try {
     validated = qualityGetJobStatusInputSchema.parse(input);
   } catch (error) {
-    if (isDevelopment()) {
-      logger.error('[MCP Tool] quality.getJobStatus validation error', { error, requestId });
-    }
+    logger.warn("[MCP Tool] quality.getJobStatus validation error", {
+      error: error instanceof Error ? error.message : String(error),
+      requestId,
+    });
     return createErrorResponseWithRequestId(
       GET_QUALITY_JOB_STATUS_ERROR_CODES.VALIDATION_ERROR,
-      error instanceof Error ? error.message : 'Invalid input',
+      error instanceof Error ? error.message : "Invalid input",
       requestId
     );
   }
@@ -190,7 +188,7 @@ export async function qualityGetJobStatusHandler(
       if (status) {
         // Job found in BullMQ
         if (isDevelopment()) {
-          logger.debug('[MCP Tool] quality.getJobStatus job found in BullMQ', {
+          logger.debug("[MCP Tool] quality.getJobStatus job found in BullMQ", {
             jobId,
             state: status.state,
             progress: status.progress,
@@ -210,7 +208,7 @@ export async function qualityGetJobStatusHandler(
         };
 
         // Add result if completed
-        if (status.state === 'completed' && status.result) {
+        if (status.state === "completed" && status.result) {
           data.result = {
             jobId: status.result.jobId,
             success: status.result.success,
@@ -231,7 +229,7 @@ export async function qualityGetJobStatusHandler(
         }
 
         // Add error if failed
-        if (status.state === 'failed' && status.error) {
+        if (status.state === "failed" && status.error) {
           data.failedReason = status.error;
         }
 
@@ -248,7 +246,7 @@ export async function qualityGetJobStatusHandler(
 
       // Job not found in BullMQ, try LRU store as fallback
       if (isDevelopment()) {
-        logger.debug('[MCP Tool] quality.getJobStatus job not found in BullMQ, trying LRU store', {
+        logger.debug("[MCP Tool] quality.getJobStatus job not found in BullMQ, trying LRU store", {
           jobId,
           requestId,
         });
@@ -265,7 +263,7 @@ export async function qualityGetJobStatusHandler(
   if (lruJob) {
     // Job found in LRU store
     if (isDevelopment()) {
-      logger.debug('[MCP Tool] quality.getJobStatus job found in LRU store', {
+      logger.debug("[MCP Tool] quality.getJobStatus job found in LRU store", {
         jobId,
         status: lruJob.status,
         progress: lruJob.progress_percent,
@@ -288,7 +286,7 @@ export async function qualityGetJobStatusHandler(
     };
 
     // Add result if completed
-    if (lruJob.status === 'completed' && lruJob.results) {
+    if (lruJob.status === "completed" && lruJob.results) {
       data.result = {
         jobId: lruJob.job_id,
         success: lruJob.failed_items === 0,
@@ -307,7 +305,7 @@ export async function qualityGetJobStatusHandler(
       // Add errors if any
       if (lruJob.errors && lruJob.errors.length > 0) {
         data.result.results = [
-          ...data.result.results ?? [],
+          ...(data.result.results ?? []),
           ...lruJob.errors.map((e) => ({
             index: e.index,
             success: false,
@@ -318,8 +316,8 @@ export async function qualityGetJobStatusHandler(
     }
 
     // Add error if failed
-    if (lruJob.status === 'failed' && lruJob.errors && lruJob.errors.length > 0) {
-      data.failedReason = lruJob.errors[0]?.error?.message ?? 'Unknown error';
+    if (lruJob.status === "failed" && lruJob.errors && lruJob.errors.length > 0) {
+      data.failedReason = lruJob.errors[0]?.error?.message ?? "Unknown error";
     }
 
     return {
@@ -335,7 +333,7 @@ export async function qualityGetJobStatusHandler(
 
   // Job not found in either BullMQ or LRU store
   if (isDevelopment()) {
-    logger.debug('[MCP Tool] quality.getJobStatus job not found', { jobId, requestId });
+    logger.debug("[MCP Tool] quality.getJobStatus job not found", { jobId, requestId });
   }
 
   return createErrorResponseWithRequestId(

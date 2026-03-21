@@ -14,7 +14,7 @@
  * @see apps/mcp-server/tests/services/vision/progress-reporter.test.ts
  */
 
-import { logger } from '../../utils/logger';
+import { logger } from "../../utils/logger";
 
 // =============================================================================
 // 型定義
@@ -24,10 +24,10 @@ import { logger } from '../../utils/logger';
  * 処理フェーズ
  */
 export enum ProgressPhase {
-  PREPARING = 'preparing',
-  OPTIMIZING = 'optimizing',
-  ANALYZING = 'analyzing',
-  COMPLETING = 'completing',
+  PREPARING = "preparing",
+  OPTIMIZING = "optimizing",
+  ANALYZING = "analyzing",
+  COMPLETING = "completing",
 }
 
 /**
@@ -35,7 +35,7 @@ export enum ProgressPhase {
  */
 export interface ProgressEvent {
   /** 現在の処理フェーズ */
-  phase: 'preparing' | 'optimizing' | 'analyzing' | 'completing';
+  phase: "preparing" | "optimizing" | "analyzing" | "completing";
   /** 進捗率（0-100） */
   progress: number;
   /** 推定残り時間（ミリ秒） */
@@ -68,7 +68,7 @@ export interface ProgressReporterConfig {
 /**
  * フェーズごとの進捗範囲
  */
-const PHASE_PROGRESS_RANGES: Record<ProgressEvent['phase'], { min: number; max: number }> = {
+const PHASE_PROGRESS_RANGES: Record<ProgressEvent["phase"], { min: number; max: number }> = {
   preparing: { min: 0, max: 10 },
   optimizing: { min: 10, max: 30 },
   analyzing: { min: 30, max: 90 },
@@ -78,7 +78,7 @@ const PHASE_PROGRESS_RANGES: Record<ProgressEvent['phase'], { min: number; max: 
 /**
  * フェーズごとのデフォルト進捗値
  */
-const PHASE_DEFAULT_PROGRESS: Record<ProgressEvent['phase'], number> = {
+const PHASE_DEFAULT_PROGRESS: Record<ProgressEvent["phase"], number> = {
   preparing: 5,
   optimizing: 20,
   analyzing: 50,
@@ -88,11 +88,11 @@ const PHASE_DEFAULT_PROGRESS: Record<ProgressEvent['phase'], number> = {
 /**
  * フェーズごとのメッセージ
  */
-const PHASE_MESSAGES: Record<ProgressEvent['phase'], string> = {
-  preparing: '準備中: 画像を読み込んでいます...',
-  optimizing: '最適化中: 画像を最適化しています...',
-  analyzing: '分析中: Vision AI 推論を実行しています...',
-  completing: '完了: 結果を処理しています...',
+const PHASE_MESSAGES: Record<ProgressEvent["phase"], string> = {
+  preparing: "準備中: 画像を読み込んでいます...",
+  optimizing: "最適化中: 画像を最適化しています...",
+  analyzing: "分析中: Vision AI 推論を実行しています...",
+  completing: "完了: 結果を処理しています...",
 };
 
 /**
@@ -131,7 +131,7 @@ export class ProgressReporter {
 
   private startTime: number = 0;
   private estimatedTotalMs: number = 0;
-  private currentPhase: ProgressEvent['phase'] = 'preparing';
+  private currentPhase: ProgressEvent["phase"] = "preparing";
   private currentProgress: number = 0;
   private intervalId: ReturnType<typeof setInterval> | null = null;
   private isStarted: boolean = false;
@@ -164,7 +164,7 @@ export class ProgressReporter {
     // 状態を初期化
     this.startTime = Date.now();
     this.estimatedTotalMs = Math.max(0, estimatedTotalMs);
-    this.currentPhase = 'preparing';
+    this.currentPhase = "preparing";
     // estimatedTotalMs が 0 の場合は進捗 0 から開始（推定時間不明）
     this.currentProgress = this.estimatedTotalMs > 0 ? PHASE_DEFAULT_PROGRESS.preparing : 0;
     this.isStarted = true;
@@ -182,7 +182,7 @@ export class ProgressReporter {
    *
    * @param phase - 新しいフェーズ
    */
-  updatePhase(phase: ProgressEvent['phase']): void {
+  updatePhase(phase: ProgressEvent["phase"]): void {
     this.currentPhase = phase;
     this.currentProgress = PHASE_DEFAULT_PROGRESS[phase];
 
@@ -210,7 +210,7 @@ export class ProgressReporter {
     }
 
     this.isCompleted = true;
-    this.currentPhase = 'completing';
+    this.currentPhase = "completing";
     this.currentProgress = 100;
 
     // インターバルをクリア
@@ -218,10 +218,10 @@ export class ProgressReporter {
 
     // 完了イベントを発火
     const event: ProgressEvent = {
-      phase: 'completing',
+      phase: "completing",
       progress: 100,
       estimatedRemainingMs: 0,
-      message: '完了しました',
+      message: "完了しました",
     };
 
     this.emitProgressEvent(event);
@@ -321,7 +321,7 @@ export class ProgressReporter {
       } catch (error) {
         // コールバックエラーは無視して処理を継続
         if (this.enableConsoleLog) {
-          console.error('[ProgressReporter] Callback error:', error);
+          console.error("[ProgressReporter] Callback error:", error);
         }
       }
     }
@@ -354,7 +354,7 @@ export class ProgressReporter {
    */
   private generateMessage(): string {
     if (this.isCompleted) {
-      return '完了しました';
+      return "完了しました";
     }
 
     const baseMessage = PHASE_MESSAGES[this.currentPhase];

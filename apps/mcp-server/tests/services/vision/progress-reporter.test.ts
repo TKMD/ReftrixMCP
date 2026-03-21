@@ -11,14 +11,14 @@
  * @see apps/mcp-server/src/services/vision/progress-reporter.ts
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import {
   ProgressReporter,
   type ProgressEvent,
   type ProgressCallback,
   type ProgressReporterConfig,
   ProgressPhase,
-} from '../../../src/services/vision/progress-reporter.js';
+} from "../../../src/services/vision/progress-reporter.js";
 
 // =============================================================================
 // テスト用ヘルパー
@@ -29,7 +29,7 @@ import {
  */
 function expectProgressEvent(
   event: ProgressEvent,
-  expectedPhase: ProgressEvent['phase'],
+  expectedPhase: ProgressEvent["phase"],
   expectedProgressRange: { min: number; max: number }
 ): void {
   expect(event.phase).toBe(expectedPhase);
@@ -43,7 +43,7 @@ function expectProgressEvent(
 // ProgressReporter テスト
 // =============================================================================
 
-describe('ProgressReporter', () => {
+describe("ProgressReporter", () => {
   let reporter: ProgressReporter;
   let progressCallback: ProgressCallback;
   let receivedEvents: ProgressEvent[];
@@ -65,13 +65,13 @@ describe('ProgressReporter', () => {
   // 初期化テスト
   // ===========================================================================
 
-  describe('constructor', () => {
-    it('should create instance with default config', () => {
+  describe("constructor", () => {
+    it("should create instance with default config", () => {
       reporter = new ProgressReporter();
       expect(reporter).toBeInstanceOf(ProgressReporter);
     });
 
-    it('should create instance with custom config', () => {
+    it("should create instance with custom config", () => {
       reporter = new ProgressReporter({
         onProgress: progressCallback,
         reportInterval: 10000,
@@ -80,7 +80,7 @@ describe('ProgressReporter', () => {
       expect(reporter).toBeInstanceOf(ProgressReporter);
     });
 
-    it('should accept undefined config values', () => {
+    it("should accept undefined config values", () => {
       reporter = new ProgressReporter({
         onProgress: undefined,
         reportInterval: undefined,
@@ -94,17 +94,17 @@ describe('ProgressReporter', () => {
   // start() テスト
   // ===========================================================================
 
-  describe('start', () => {
-    it('should emit preparing phase on start', () => {
+  describe("start", () => {
+    it("should emit preparing phase on start", () => {
       reporter = new ProgressReporter({ onProgress: progressCallback });
 
       reporter.start(60000);
 
       expect(progressCallback).toHaveBeenCalledTimes(1);
-      expectProgressEvent(receivedEvents[0], 'preparing', { min: 0, max: 10 });
+      expectProgressEvent(receivedEvents[0], "preparing", { min: 0, max: 10 });
     });
 
-    it('should set estimatedTotalMs correctly', () => {
+    it("should set estimatedTotalMs correctly", () => {
       reporter = new ProgressReporter({ onProgress: progressCallback });
 
       reporter.start(180000);
@@ -115,7 +115,7 @@ describe('ProgressReporter', () => {
       expect(event.estimatedRemainingMs).toBeGreaterThan(0);
     });
 
-    it('should emit message with estimated time', () => {
+    it("should emit message with estimated time", () => {
       reporter = new ProgressReporter({ onProgress: progressCallback });
 
       reporter.start(600000); // 10分
@@ -123,20 +123,20 @@ describe('ProgressReporter', () => {
       expect(receivedEvents[0].message).toMatch(/準備中|preparing|10/i);
     });
 
-    it('should handle zero estimatedTotalMs', () => {
+    it("should handle zero estimatedTotalMs", () => {
       reporter = new ProgressReporter({ onProgress: progressCallback });
 
       expect(() => reporter.start(0)).not.toThrow();
       expect(receivedEvents[0].progress).toBe(0);
     });
 
-    it('should handle negative estimatedTotalMs', () => {
+    it("should handle negative estimatedTotalMs", () => {
       reporter = new ProgressReporter({ onProgress: progressCallback });
 
       expect(() => reporter.start(-1000)).not.toThrow();
     });
 
-    it('should not emit if no callback provided', () => {
+    it("should not emit if no callback provided", () => {
       reporter = new ProgressReporter(); // No callback
 
       expect(() => reporter.start(60000)).not.toThrow();
@@ -147,7 +147,7 @@ describe('ProgressReporter', () => {
   // updatePhase() テスト
   // ===========================================================================
 
-  describe('updatePhase', () => {
+  describe("updatePhase", () => {
     beforeEach(() => {
       reporter = new ProgressReporter({ onProgress: progressCallback });
       reporter.start(60000);
@@ -155,48 +155,48 @@ describe('ProgressReporter', () => {
       vi.mocked(progressCallback).mockClear();
     });
 
-    it('should emit progress event on phase change', () => {
-      reporter.updatePhase('optimizing');
+    it("should emit progress event on phase change", () => {
+      reporter.updatePhase("optimizing");
 
       expect(progressCallback).toHaveBeenCalledTimes(1);
-      expectProgressEvent(receivedEvents[0], 'optimizing', { min: 10, max: 30 });
+      expectProgressEvent(receivedEvents[0], "optimizing", { min: 10, max: 30 });
     });
 
-    it('should calculate correct progress for preparing phase (0-10%)', () => {
-      reporter.updatePhase('preparing');
+    it("should calculate correct progress for preparing phase (0-10%)", () => {
+      reporter.updatePhase("preparing");
 
-      expectProgressEvent(receivedEvents[0], 'preparing', { min: 0, max: 10 });
+      expectProgressEvent(receivedEvents[0], "preparing", { min: 0, max: 10 });
     });
 
-    it('should calculate correct progress for optimizing phase (10-30%)', () => {
-      reporter.updatePhase('optimizing');
+    it("should calculate correct progress for optimizing phase (10-30%)", () => {
+      reporter.updatePhase("optimizing");
 
-      expectProgressEvent(receivedEvents[0], 'optimizing', { min: 10, max: 30 });
+      expectProgressEvent(receivedEvents[0], "optimizing", { min: 10, max: 30 });
     });
 
-    it('should calculate correct progress for analyzing phase (30-90%)', () => {
-      reporter.updatePhase('analyzing');
+    it("should calculate correct progress for analyzing phase (30-90%)", () => {
+      reporter.updatePhase("analyzing");
 
-      expectProgressEvent(receivedEvents[0], 'analyzing', { min: 30, max: 90 });
+      expectProgressEvent(receivedEvents[0], "analyzing", { min: 30, max: 90 });
     });
 
-    it('should calculate correct progress for completing phase (90-100%)', () => {
-      reporter.updatePhase('completing');
+    it("should calculate correct progress for completing phase (90-100%)", () => {
+      reporter.updatePhase("completing");
 
-      expectProgressEvent(receivedEvents[0], 'completing', { min: 90, max: 100 });
+      expectProgressEvent(receivedEvents[0], "completing", { min: 90, max: 100 });
     });
 
-    it('should emit message specific to each phase', () => {
-      reporter.updatePhase('analyzing');
+    it("should emit message specific to each phase", () => {
+      reporter.updatePhase("analyzing");
 
       expect(receivedEvents[0].message).toMatch(/分析|analyzing|推論|inference/i);
     });
 
-    it('should track current phase internally', () => {
-      reporter.updatePhase('analyzing');
+    it("should track current phase internally", () => {
+      reporter.updatePhase("analyzing");
 
       const currentProgress = reporter.getCurrentProgress();
-      expect(currentProgress.phase).toBe('analyzing');
+      expect(currentProgress.phase).toBe("analyzing");
     });
   });
 
@@ -204,7 +204,7 @@ describe('ProgressReporter', () => {
   // updateProgress() テスト
   // ===========================================================================
 
-  describe('updateProgress', () => {
+  describe("updateProgress", () => {
     beforeEach(() => {
       reporter = new ProgressReporter({ onProgress: progressCallback });
       reporter.start(60000);
@@ -212,14 +212,14 @@ describe('ProgressReporter', () => {
       vi.mocked(progressCallback).mockClear();
     });
 
-    it('should emit event with specified progress value', () => {
+    it("should emit event with specified progress value", () => {
       reporter.updateProgress(50);
 
       expect(progressCallback).toHaveBeenCalledTimes(1);
       expect(receivedEvents[0].progress).toBe(50);
     });
 
-    it('should clamp progress to 0-100 range', () => {
+    it("should clamp progress to 0-100 range", () => {
       reporter.updateProgress(150);
       expect(receivedEvents[0].progress).toBe(100);
 
@@ -230,21 +230,21 @@ describe('ProgressReporter', () => {
       expect(receivedEvents[0].progress).toBe(0);
     });
 
-    it('should update estimatedRemainingMs based on progress', () => {
+    it("should update estimatedRemainingMs based on progress", () => {
       reporter.updateProgress(50);
 
       // 50% 完了時、推定残り時間は初期の約半分
       expect(receivedEvents[0].estimatedRemainingMs).toBeLessThanOrEqual(60000);
     });
 
-    it('should keep current phase when updating progress', () => {
-      reporter.updatePhase('analyzing');
+    it("should keep current phase when updating progress", () => {
+      reporter.updatePhase("analyzing");
       vi.mocked(progressCallback).mockClear();
       receivedEvents = [];
 
       reporter.updateProgress(60);
 
-      expect(receivedEvents[0].phase).toBe('analyzing');
+      expect(receivedEvents[0].phase).toBe("analyzing");
     });
   });
 
@@ -252,12 +252,12 @@ describe('ProgressReporter', () => {
   // 推定時間計算テスト
   // ===========================================================================
 
-  describe('progress calculation', () => {
+  describe("progress calculation", () => {
     beforeEach(() => {
       reporter = new ProgressReporter({ onProgress: progressCallback });
     });
 
-    it('should calculate estimatedRemainingMs based on elapsed time', () => {
+    it("should calculate estimatedRemainingMs based on elapsed time", () => {
       reporter.start(60000);
 
       // 30秒経過をシミュレート
@@ -271,7 +271,7 @@ describe('ProgressReporter', () => {
       expect(event.estimatedRemainingMs).toBeLessThanOrEqual(30000);
     });
 
-    it('should return 0 when estimatedRemainingMs goes negative', () => {
+    it("should return 0 when estimatedRemainingMs goes negative", () => {
       reporter.start(60000);
 
       // 推定時間を超過（90秒経過）
@@ -284,7 +284,7 @@ describe('ProgressReporter', () => {
       expect(event.estimatedRemainingMs).toBeGreaterThanOrEqual(0);
     });
 
-    it('should decrease estimatedRemainingMs as time progresses', () => {
+    it("should decrease estimatedRemainingMs as time progresses", () => {
       reporter.start(60000);
       const initialRemaining = receivedEvents[0].estimatedRemainingMs;
 
@@ -300,8 +300,8 @@ describe('ProgressReporter', () => {
   // 自動進捗報告テスト
   // ===========================================================================
 
-  describe('automatic progress reporting', () => {
-    it('should emit progress events at reportInterval', () => {
+  describe("automatic progress reporting", () => {
+    it("should emit progress events at reportInterval", () => {
       reporter = new ProgressReporter({
         onProgress: progressCallback,
         reportInterval: 5000, // 5秒ごと
@@ -320,7 +320,7 @@ describe('ProgressReporter', () => {
       expect(progressCallback).toHaveBeenCalledTimes(2);
     });
 
-    it('should use default reportInterval of 5000ms', () => {
+    it("should use default reportInterval of 5000ms", () => {
       reporter = new ProgressReporter({ onProgress: progressCallback });
 
       reporter.start(60000);
@@ -331,7 +331,7 @@ describe('ProgressReporter', () => {
       expect(progressCallback).toHaveBeenCalledTimes(1);
     });
 
-    it('should stop interval on abort', () => {
+    it("should stop interval on abort", () => {
       reporter = new ProgressReporter({
         onProgress: progressCallback,
         reportInterval: 1000,
@@ -347,7 +347,7 @@ describe('ProgressReporter', () => {
       expect(progressCallback).not.toHaveBeenCalled();
     });
 
-    it('should stop interval on complete', () => {
+    it("should stop interval on complete", () => {
       reporter = new ProgressReporter({
         onProgress: progressCallback,
         reportInterval: 1000,
@@ -368,7 +368,7 @@ describe('ProgressReporter', () => {
   // complete() テスト
   // ===========================================================================
 
-  describe('complete', () => {
+  describe("complete", () => {
     beforeEach(() => {
       reporter = new ProgressReporter({ onProgress: progressCallback });
       reporter.start(60000);
@@ -376,14 +376,14 @@ describe('ProgressReporter', () => {
       vi.mocked(progressCallback).mockClear();
     });
 
-    it('should emit completing phase at 100%', () => {
+    it("should emit completing phase at 100%", () => {
       reporter.complete();
 
       expect(progressCallback).toHaveBeenCalledTimes(1);
-      expectProgressEvent(receivedEvents[0], 'completing', { min: 100, max: 100 });
+      expectProgressEvent(receivedEvents[0], "completing", { min: 100, max: 100 });
     });
 
-    it('should clear interval', () => {
+    it("should clear interval", () => {
       reporter.complete();
 
       vi.mocked(progressCallback).mockClear();
@@ -393,19 +393,19 @@ describe('ProgressReporter', () => {
       expect(progressCallback).not.toHaveBeenCalled();
     });
 
-    it('should set estimatedRemainingMs to 0', () => {
+    it("should set estimatedRemainingMs to 0", () => {
       reporter.complete();
 
       expect(receivedEvents[0].estimatedRemainingMs).toBe(0);
     });
 
-    it('should emit completion message', () => {
+    it("should emit completion message", () => {
       reporter.complete();
 
       expect(receivedEvents[0].message).toMatch(/完了|complete/i);
     });
 
-    it('should be idempotent (multiple calls should not throw)', () => {
+    it("should be idempotent (multiple calls should not throw)", () => {
       expect(() => {
         reporter.complete();
         reporter.complete();
@@ -418,7 +418,7 @@ describe('ProgressReporter', () => {
   // abort() テスト
   // ===========================================================================
 
-  describe('abort', () => {
+  describe("abort", () => {
     beforeEach(() => {
       reporter = new ProgressReporter({ onProgress: progressCallback });
       reporter.start(60000);
@@ -426,26 +426,26 @@ describe('ProgressReporter', () => {
       receivedEvents = [];
     });
 
-    it('should stop interval', () => {
+    it("should stop interval", () => {
       reporter.abort();
 
       vi.advanceTimersByTime(10000);
       expect(progressCallback).not.toHaveBeenCalled();
     });
 
-    it('should not emit further events', () => {
+    it("should not emit further events", () => {
       reporter.abort();
 
       expect(progressCallback).not.toHaveBeenCalled();
     });
 
-    it('should be safe to call before start', () => {
+    it("should be safe to call before start", () => {
       const freshReporter = new ProgressReporter({ onProgress: progressCallback });
 
       expect(() => freshReporter.abort()).not.toThrow();
     });
 
-    it('should be idempotent (multiple calls should not throw)', () => {
+    it("should be idempotent (multiple calls should not throw)", () => {
       expect(() => {
         reporter.abort();
         reporter.abort();
@@ -458,40 +458,40 @@ describe('ProgressReporter', () => {
   // getCurrentProgress() テスト
   // ===========================================================================
 
-  describe('getCurrentProgress', () => {
-    it('should return initial state before start', () => {
+  describe("getCurrentProgress", () => {
+    it("should return initial state before start", () => {
       reporter = new ProgressReporter({ onProgress: progressCallback });
 
       const progress = reporter.getCurrentProgress();
 
-      expect(progress.phase).toBe('preparing');
+      expect(progress.phase).toBe("preparing");
       expect(progress.progress).toBe(0);
       expect(progress.estimatedRemainingMs).toBe(0);
       expect(progress.message).toBeTruthy();
     });
 
-    it('should return current state after start', () => {
+    it("should return current state after start", () => {
       reporter = new ProgressReporter({ onProgress: progressCallback });
       reporter.start(60000);
 
       const progress = reporter.getCurrentProgress();
 
-      expect(progress.phase).toBe('preparing');
+      expect(progress.phase).toBe("preparing");
       expect(progress.progress).toBeGreaterThanOrEqual(0);
       expect(progress.estimatedRemainingMs).toBeGreaterThan(0);
     });
 
-    it('should reflect phase updates', () => {
+    it("should reflect phase updates", () => {
       reporter = new ProgressReporter({ onProgress: progressCallback });
       reporter.start(60000);
-      reporter.updatePhase('analyzing');
+      reporter.updatePhase("analyzing");
 
       const progress = reporter.getCurrentProgress();
 
-      expect(progress.phase).toBe('analyzing');
+      expect(progress.phase).toBe("analyzing");
     });
 
-    it('should reflect progress updates', () => {
+    it("should reflect progress updates", () => {
       reporter = new ProgressReporter({ onProgress: progressCallback });
       reporter.start(60000);
       reporter.updateProgress(75);
@@ -501,14 +501,14 @@ describe('ProgressReporter', () => {
       expect(progress.progress).toBe(75);
     });
 
-    it('should return completion state after complete', () => {
+    it("should return completion state after complete", () => {
       reporter = new ProgressReporter({ onProgress: progressCallback });
       reporter.start(60000);
       reporter.complete();
 
       const progress = reporter.getCurrentProgress();
 
-      expect(progress.phase).toBe('completing');
+      expect(progress.phase).toBe("completing");
       expect(progress.progress).toBe(100);
       expect(progress.estimatedRemainingMs).toBe(0);
     });
@@ -518,10 +518,10 @@ describe('ProgressReporter', () => {
   // コンソールログテスト
   // ===========================================================================
 
-  describe('console logging', () => {
-    it('should log to console when enableConsoleLog is true', async () => {
-      const { logger } = await import('../../../src/utils/logger.js');
-      const loggerSpy = vi.spyOn(logger, 'info').mockImplementation(() => {});
+  describe("console logging", () => {
+    it("should log to console when enableConsoleLog is true", async () => {
+      const { logger } = await import("../../../src/utils/logger.js");
+      const loggerSpy = vi.spyOn(logger, "info").mockImplementation(() => {});
 
       reporter = new ProgressReporter({
         onProgress: progressCallback,
@@ -535,9 +535,9 @@ describe('ProgressReporter', () => {
       loggerSpy.mockRestore();
     });
 
-    it('should not log to console when enableConsoleLog is false', async () => {
-      const { logger } = await import('../../../src/utils/logger.js');
-      const loggerSpy = vi.spyOn(logger, 'info').mockImplementation(() => {});
+    it("should not log to console when enableConsoleLog is false", async () => {
+      const { logger } = await import("../../../src/utils/logger.js");
+      const loggerSpy = vi.spyOn(logger, "info").mockImplementation(() => {});
 
       reporter = new ProgressReporter({
         onProgress: progressCallback,
@@ -556,16 +556,16 @@ describe('ProgressReporter', () => {
   // ProgressPhase 列挙型テスト
   // ===========================================================================
 
-  describe('ProgressPhase enum', () => {
-    it('should export ProgressPhase enum', () => {
+  describe("ProgressPhase enum", () => {
+    it("should export ProgressPhase enum", () => {
       expect(ProgressPhase).toBeDefined();
     });
 
-    it('should have all required phases', () => {
-      expect(ProgressPhase.PREPARING).toBe('preparing');
-      expect(ProgressPhase.OPTIMIZING).toBe('optimizing');
-      expect(ProgressPhase.ANALYZING).toBe('analyzing');
-      expect(ProgressPhase.COMPLETING).toBe('completing');
+    it("should have all required phases", () => {
+      expect(ProgressPhase.PREPARING).toBe("preparing");
+      expect(ProgressPhase.OPTIMIZING).toBe("optimizing");
+      expect(ProgressPhase.ANALYZING).toBe("analyzing");
+      expect(ProgressPhase.COMPLETING).toBe("completing");
     });
   });
 
@@ -573,25 +573,25 @@ describe('ProgressReporter', () => {
   // 境界値テスト
   // ===========================================================================
 
-  describe('edge cases', () => {
-    it('should handle very large estimatedTotalMs', () => {
+  describe("edge cases", () => {
+    it("should handle very large estimatedTotalMs", () => {
       reporter = new ProgressReporter({ onProgress: progressCallback });
 
       expect(() => reporter.start(Number.MAX_SAFE_INTEGER)).not.toThrow();
     });
 
-    it('should handle rapid phase changes', () => {
+    it("should handle rapid phase changes", () => {
       reporter = new ProgressReporter({ onProgress: progressCallback });
       reporter.start(60000);
 
       expect(() => {
-        reporter.updatePhase('optimizing');
-        reporter.updatePhase('analyzing');
-        reporter.updatePhase('completing');
+        reporter.updatePhase("optimizing");
+        reporter.updatePhase("analyzing");
+        reporter.updatePhase("completing");
       }).not.toThrow();
     });
 
-    it('should handle start called multiple times', () => {
+    it("should handle start called multiple times", () => {
       reporter = new ProgressReporter({ onProgress: progressCallback });
 
       reporter.start(60000);
@@ -601,9 +601,9 @@ describe('ProgressReporter', () => {
       expect(receivedEvents.length).toBeGreaterThanOrEqual(2);
     });
 
-    it('should handle callback that throws error', () => {
+    it("should handle callback that throws error", () => {
       const throwingCallback = vi.fn(() => {
-        throw new Error('Callback error');
+        throw new Error("Callback error");
       });
 
       reporter = new ProgressReporter({ onProgress: throwingCallback });
@@ -617,17 +617,17 @@ describe('ProgressReporter', () => {
   // メッセージ国際化テスト
   // ===========================================================================
 
-  describe('message localization', () => {
-    it('should provide meaningful messages for each phase', () => {
+  describe("message localization", () => {
+    it("should provide meaningful messages for each phase", () => {
       reporter = new ProgressReporter({ onProgress: progressCallback });
 
       reporter.start(60000);
       expect(receivedEvents[0].message.length).toBeGreaterThan(0);
 
-      reporter.updatePhase('optimizing');
+      reporter.updatePhase("optimizing");
       expect(receivedEvents[receivedEvents.length - 1].message.length).toBeGreaterThan(0);
 
-      reporter.updatePhase('analyzing');
+      reporter.updatePhase("analyzing");
       expect(receivedEvents[receivedEvents.length - 1].message.length).toBeGreaterThan(0);
 
       reporter.complete();

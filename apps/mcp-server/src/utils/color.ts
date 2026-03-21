@@ -52,12 +52,12 @@ export interface HslColor {
  */
 export function hexToRgb(hex: string): RgbColor | null {
   // 入力バリデーション
-  if (hex === null || hex === undefined || typeof hex !== 'string') {
+  if (hex === null || hex === undefined || typeof hex !== "string") {
     return null;
   }
 
   // 空文字列チェック
-  if (hex === '') {
+  if (hex === "") {
     return null;
   }
 
@@ -67,16 +67,16 @@ export function hexToRgb(hex: string): RgbColor | null {
   }
 
   // スペースを含む場合は無効
-  if (hex.includes(' ')) {
+  if (hex.includes(" ")) {
     return null;
   }
 
   // #を除去
-  let cleanHex = hex.startsWith('#') ? hex.slice(1) : hex;
+  let cleanHex = hex.startsWith("#") ? hex.slice(1) : hex;
 
   // 3桁HEXを6桁に展開
   if (cleanHex.length === 3) {
-    const [r, g, b] = cleanHex.split('');
+    const [r, g, b] = cleanHex.split("");
     if (r === undefined || g === undefined || b === undefined) {
       return null;
     }
@@ -125,7 +125,7 @@ export function rgbToHex(r: number, g: number, b: number): string {
     const rounded = Math.round(n);
     // 0-255にクランプ
     const clamped = Math.max(0, Math.min(255, rounded));
-    return clamped.toString(16).padStart(2, '0').toUpperCase();
+    return clamped.toString(16).padStart(2, "0").toUpperCase();
   };
 
   return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
@@ -202,7 +202,7 @@ export function rgbToHsl(r: number, g: number, b: number): HslColor {
  */
 export function hslToRgb(h: number, s: number, l: number): RgbColor {
   // 360度以上の色相を正規化
-  const hNorm = ((h % 360) + 360) % 360 / 360;
+  const hNorm = (((h % 360) + 360) % 360) / 360;
   const sNorm = s / 100;
   const lNorm = l / 100;
 
@@ -308,9 +308,7 @@ export function calculateColorSimilarity(hex1: string, hex2: string): number {
 
   // ユークリッド距離を計算
   const distance = Math.sqrt(
-    Math.pow(rgb1.r - rgb2.r, 2) +
-    Math.pow(rgb1.g - rgb2.g, 2) +
-    Math.pow(rgb1.b - rgb2.b, 2)
+    Math.pow(rgb1.r - rgb2.r, 2) + Math.pow(rgb1.g - rgb2.g, 2) + Math.pow(rgb1.b - rgb2.b, 2)
   );
 
   // 最大距離は sqrt(255^2 * 3) = sqrt(195075) ≒ 441.67
@@ -344,9 +342,7 @@ function rgbToXyz(rgb: RgbColor): { x: number; y: number; z: number } {
   const normalize = (c: number): number => {
     const val = c / 255;
     // sRGBのガンマ補正（逆変換）
-    return val > 0.04045
-      ? Math.pow((val + 0.055) / 1.055, 2.4)
-      : val / 12.92;
+    return val > 0.04045 ? Math.pow((val + 0.055) / 1.055, 2.4) : val / 12.92;
   };
 
   const r = normalize(rgb.r);
@@ -357,8 +353,8 @@ function rgbToXyz(rgb: RgbColor): { x: number; y: number; z: number } {
   // Observer: 2°, Illuminant: D65
   return {
     x: r * 0.4124564 + g * 0.3575761 + b * 0.1804375,
-    y: r * 0.2126729 + g * 0.7151522 + b * 0.0721750,
-    z: r * 0.0193339 + g * 0.1191920 + b * 0.9503041,
+    y: r * 0.2126729 + g * 0.7151522 + b * 0.072175,
+    z: r * 0.0193339 + g * 0.119192 + b * 0.9503041,
   };
 }
 
@@ -383,9 +379,7 @@ function xyzToLab(xyz: { x: number; y: number; z: number }): LabColor {
   // CIE LAB変換関数
   const f = (t: number): number => {
     const delta = 6 / 29;
-    return t > Math.pow(delta, 3)
-      ? Math.pow(t, 1 / 3)
-      : t / (3 * Math.pow(delta, 2)) + 4 / 29;
+    return t > Math.pow(delta, 3) ? Math.pow(t, 1 / 3) : t / (3 * Math.pow(delta, 2)) + 4 / 29;
   };
 
   const fy = f(y);
@@ -450,9 +444,7 @@ export function hexToLab(hex: string): LabColor | null {
  */
 export function calculateDeltaE76(lab1: LabColor, lab2: LabColor): number {
   return Math.sqrt(
-    Math.pow(lab1.l - lab2.l, 2) +
-    Math.pow(lab1.a - lab2.a, 2) +
-    Math.pow(lab1.b - lab2.b, 2)
+    Math.pow(lab1.l - lab2.l, 2) + Math.pow(lab1.a - lab2.a, 2) + Math.pow(lab1.b - lab2.b, 2)
   );
 }
 
@@ -521,13 +513,13 @@ export function isColorWithinTolerance(
  */
 export function normalizeHexColor(hex: string): string | null {
   // 入力バリデーション
-  if (hex === null || hex === undefined || typeof hex !== 'string') {
+  if (hex === null || hex === undefined || typeof hex !== "string") {
     return null;
   }
 
   // 前後の空白を除去
   const trimmed = hex.trim();
-  if (trimmed === '') {
+  if (trimmed === "") {
     return null;
   }
 

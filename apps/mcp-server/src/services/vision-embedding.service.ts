@@ -18,13 +18,13 @@
  * @module services/vision-embedding.service
  */
 
-import { isDevelopment, logger } from '../utils/logger';
-import type { VisualFeatures } from '../tools/page/schemas';
+import { isDevelopment, logger } from "../utils/logger";
+import type { VisualFeatures } from "../tools/page/schemas";
 import {
   LayoutEmbeddingService,
   DEFAULT_MODEL_NAME,
   type IPrismaClient,
-} from './layout-embedding.service';
+} from "./layout-embedding.service";
 
 // =====================================================
 // 型定義
@@ -149,7 +149,7 @@ function getPrismaClient(): IPrismaClient {
     return prismaClientFactory();
   }
 
-  throw new Error('PrismaClient not initialized. Use setVisionPrismaClientFactory in production.');
+  throw new Error("PrismaClient not initialized. Use setVisionPrismaClientFactory in production.");
 }
 
 // =====================================================
@@ -171,16 +171,16 @@ export function visualFeaturesToText(features: VisualFeatures): string {
   // Colors情報
   if (features.colors) {
     if (features.colors.dominant.length > 0) {
-      parts.push(`dominant colors: ${features.colors.dominant.join(', ')}`);
+      parts.push(`dominant colors: ${features.colors.dominant.join(", ")}`);
     }
     if (features.colors.accent.length > 0) {
-      parts.push(`accent colors: ${features.colors.accent.join(', ')}`);
+      parts.push(`accent colors: ${features.colors.accent.join(", ")}`);
     }
     // パレット情報（主要な色のみ、最大3色）
     const topPalette = features.colors.palette
       .slice(0, 3)
       .map((p) => `${p.color} (${p.percentage.toFixed(1)}%)`)
-      .join(', ');
+      .join(", ");
     if (topPalette.length > 0) {
       parts.push(`color palette: ${topPalette}`);
     }
@@ -204,7 +204,7 @@ export function visualFeaturesToText(features: VisualFeatures): string {
   // Gradient情報
   if (features.gradient) {
     if (features.gradient.hasGradient) {
-      parts.push('has gradient');
+      parts.push("has gradient");
       if (features.gradient.dominantGradientType) {
         parts.push(`gradient type: ${features.gradient.dominantGradientType}`);
       }
@@ -212,12 +212,12 @@ export function visualFeaturesToText(features: VisualFeatures): string {
       if (features.gradient.gradients.length > 0) {
         const firstGradient = features.gradient.gradients[0];
         if (firstGradient && firstGradient.colorStops.length > 0) {
-          const colors = firstGradient.colorStops.map((stop) => stop.color).join(' to ');
+          const colors = firstGradient.colorStops.map((stop) => stop.color).join(" to ");
           parts.push(`gradient colors: ${colors}`);
         }
       }
     } else {
-      parts.push('no gradient');
+      parts.push("no gradient");
     }
   }
 
@@ -243,7 +243,7 @@ export function visualFeaturesToText(features: VisualFeatures): string {
   }
 
   // e5モデル用にpassage:プレフィックスを付与
-  return `passage: ${parts.join('. ')}.`;
+  return `passage: ${parts.join(". ")}.`;
 }
 
 /**
@@ -293,7 +293,7 @@ export class VisionEmbeddingService {
    */
   async generateEmbedding(features: VisualFeatures): Promise<VisionEmbeddingResult> {
     if (!hasValidVisualFeatures(features)) {
-      throw new Error('Invalid VisualFeatures: no valid data');
+      throw new Error("Invalid VisualFeatures: no valid data");
     }
 
     const startTime = Date.now();
@@ -302,7 +302,7 @@ export class VisionEmbeddingService {
     const textRepresentation = visualFeaturesToText(features);
 
     if (isDevelopment()) {
-      logger.info('[VisionEmbedding] Generating embedding from visual features', {
+      logger.info("[VisionEmbedding] Generating embedding from visual features", {
         textLength: textRepresentation.length,
         hasColors: !!features.colors,
         hasTheme: !!features.theme,
@@ -319,7 +319,7 @@ export class VisionEmbeddingService {
     const processingTimeMs = Date.now() - startTime;
 
     if (isDevelopment()) {
-      logger.info('[VisionEmbedding] Embedding generated', {
+      logger.info("[VisionEmbedding] Embedding generated", {
         dimensions: result.embedding.length,
         processingTimeMs,
       });
@@ -357,7 +357,7 @@ export class VisionEmbeddingService {
     const continueOnError = options?.continueOnError ?? true;
 
     if (isDevelopment()) {
-      logger.info('[VisionEmbedding] Starting batch generation', {
+      logger.info("[VisionEmbedding] Starting batch generation", {
         count: items.length,
       });
     }
@@ -372,7 +372,7 @@ export class VisionEmbeddingService {
           result.results.push({
             sectionPatternId: item.sectionPatternId,
             success: false,
-            error: 'No valid visual features data',
+            error: "No valid visual features data",
           });
           result.failedCount++;
           continue;
@@ -396,7 +396,7 @@ export class VisionEmbeddingService {
         });
         result.successCount++;
       } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        const errorMessage = error instanceof Error ? error.message : "Unknown error";
         result.results.push({
           sectionPatternId: item.sectionPatternId,
           success: false,
@@ -409,7 +409,7 @@ export class VisionEmbeddingService {
         }
 
         if (isDevelopment()) {
-          logger.warn('[VisionEmbedding] Batch item failed', {
+          logger.warn("[VisionEmbedding] Batch item failed", {
             sectionPatternId: item.sectionPatternId,
             error: errorMessage,
           });
@@ -423,7 +423,7 @@ export class VisionEmbeddingService {
     }
 
     if (isDevelopment()) {
-      logger.info('[VisionEmbedding] Batch generation completed', {
+      logger.info("[VisionEmbedding] Batch generation completed", {
         total: items.length,
         successCount: result.successCount,
         failedCount: result.failedCount,
@@ -459,7 +459,7 @@ export async function saveVisionEmbedding(
   const prisma = getPrismaClient();
 
   if (isDevelopment()) {
-    logger.info('[VisionEmbedding] Saving vision embedding to DB', {
+    logger.info("[VisionEmbedding] Saving vision embedding to DB", {
       sectionPatternId,
       embeddingDimensions: embedding.length,
       textLength: textRepresentation.length,
@@ -481,7 +481,7 @@ export async function saveVisionEmbedding(
     // 既存レコードがある場合はvision_embeddingのみ更新（text_embeddingは保持）
     sectionEmbeddingId = existingRecord.id;
 
-    const vectorString = `[${embedding.join(',')}]`;
+    const vectorString = `[${embedding.join(",")}]`;
     await prisma.$executeRawUnsafe(
       `UPDATE section_embeddings
        SET vision_embedding = $1::vector,
@@ -494,7 +494,7 @@ export async function saveVisionEmbedding(
     );
 
     if (isDevelopment()) {
-      logger.info('[VisionEmbedding] Updated existing SectionEmbedding vision_embedding', {
+      logger.info("[VisionEmbedding] Updated existing SectionEmbedding vision_embedding", {
         sectionPatternId,
       });
     }
@@ -504,14 +504,14 @@ export async function saveVisionEmbedding(
       data: {
         sectionPatternId,
         modelVersion: modelName,
-        textRepresentation: '', // text_representationはtext_embedding用
+        textRepresentation: "", // text_representationはtext_embedding用
       },
     });
 
     sectionEmbeddingId = newRecord.id;
 
     // vision_embeddingをraw SQLで設定
-    const vectorString = `[${embedding.join(',')}]`;
+    const vectorString = `[${embedding.join(",")}]`;
     await prisma.$executeRawUnsafe(
       `UPDATE section_embeddings SET vision_embedding = $1::vector WHERE id = $2::uuid`,
       vectorString,
@@ -519,7 +519,7 @@ export async function saveVisionEmbedding(
     );
 
     if (isDevelopment()) {
-      logger.info('[VisionEmbedding] Created new SectionEmbedding with vision_embedding', {
+      logger.info("[VisionEmbedding] Created new SectionEmbedding with vision_embedding", {
         sectionEmbeddingId,
         sectionPatternId,
       });
@@ -547,14 +547,14 @@ export async function updateVisionEmbedding(
   const prisma = getPrismaClient();
 
   if (isDevelopment()) {
-    logger.info('[VisionEmbedding] Updating vision embedding', {
+    logger.info("[VisionEmbedding] Updating vision embedding", {
       sectionEmbeddingId,
       embeddingDimensions: embedding.length,
       modelName,
     });
   }
 
-  const vectorString = `[${embedding.join(',')}]`;
+  const vectorString = `[${embedding.join(",")}]`;
   await prisma.$executeRawUnsafe(
     `UPDATE section_embeddings
      SET vision_embedding = $1::vector,
@@ -567,7 +567,7 @@ export async function updateVisionEmbedding(
   );
 
   if (isDevelopment()) {
-    logger.info('[VisionEmbedding] Vision embedding updated', {
+    logger.info("[VisionEmbedding] Vision embedding updated", {
       sectionEmbeddingId,
     });
   }
@@ -592,7 +592,7 @@ export async function generateAndSaveVisionEmbedding(
 ): Promise<string | null> {
   if (!hasValidVisualFeatures(visualFeatures)) {
     if (isDevelopment()) {
-      logger.info('[VisionEmbedding] No valid visual features, skipping embedding', {
+      logger.info("[VisionEmbedding] No valid visual features, skipping embedding", {
         sectionPatternId,
       });
     }
@@ -615,9 +615,9 @@ export async function generateAndSaveVisionEmbedding(
     return embeddingId;
   } catch (error) {
     if (isDevelopment()) {
-      logger.warn('[VisionEmbedding] Failed to generate/save vision embedding', {
+      logger.warn("[VisionEmbedding] Failed to generate/save vision embedding", {
         sectionPatternId,
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: error instanceof Error ? error.message : "Unknown error",
       });
     }
     return null;

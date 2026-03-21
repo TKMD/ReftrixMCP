@@ -16,7 +16,7 @@
  * @module services/visual/css-variable-extractor.service
  */
 
-import { logger } from '../../utils/logger';
+import { logger } from "../../utils/logger";
 
 /**
  * CSS Variable with metadata
@@ -27,7 +27,15 @@ export interface CSSVariable {
   /** Variable value (may contain var() references) */
   value: string;
   /** Category inferred from naming pattern */
-  category: 'color' | 'typography' | 'spacing' | 'border' | 'shadow' | 'layout' | 'animation' | 'other';
+  category:
+    | "color"
+    | "typography"
+    | "spacing"
+    | "border"
+    | "shadow"
+    | "layout"
+    | "animation"
+    | "other";
   /** CSS selector scope where variable is defined */
   scope: string;
   /** Referenced variable names (from var() in value) */
@@ -71,7 +79,7 @@ export interface CalcExpression {
  */
 export interface DesignTokensInfo {
   /** Detected framework/system */
-  framework: 'tailwind' | 'open-props' | 'css-in-js' | 'css-variables' | 'unknown';
+  framework: "tailwind" | "open-props" | "css-in-js" | "css-variables" | "unknown";
   /** Detection confidence (0-1) */
   confidence: number;
   /** Evidence/reasons for detection */
@@ -144,15 +152,15 @@ function extractCalcExpression(value: string): Array<{ expression: string; raw: 
   // Find all calc( occurrences
   let startIndex = 0;
   while (true) {
-    const calcStart = value.indexOf('calc(', startIndex);
+    const calcStart = value.indexOf("calc(", startIndex);
     if (calcStart === -1) break;
 
     // Find matching closing parenthesis
     let depth = 1;
     let i = calcStart + 5; // Start after 'calc('
     while (i < value.length && depth > 0) {
-      if (value[i] === '(') depth++;
-      if (value[i] === ')') depth--;
+      if (value[i] === "(") depth++;
+      if (value[i] === ")") depth--;
       i++;
     }
 
@@ -171,79 +179,79 @@ function extractCalcExpression(value: string): Array<{ expression: string; raw: 
 /**
  * Categorize CSS variable by naming pattern
  */
-function categorizeVariable(name: string): CSSVariable['category'] {
+function categorizeVariable(name: string): CSSVariable["category"] {
   const lowerName = name.toLowerCase();
 
   if (
-    lowerName.includes('color') ||
-    lowerName.includes('bg') ||
-    lowerName.includes('background') ||
-    lowerName.includes('text-') ||
-    lowerName.includes('border-color') ||
-    lowerName.includes('fill') ||
-    lowerName.includes('stroke')
+    lowerName.includes("color") ||
+    lowerName.includes("bg") ||
+    lowerName.includes("background") ||
+    lowerName.includes("text-") ||
+    lowerName.includes("border-color") ||
+    lowerName.includes("fill") ||
+    lowerName.includes("stroke")
   ) {
-    return 'color';
+    return "color";
   }
 
   if (
-    lowerName.includes('font') ||
-    lowerName.includes('text') ||
-    lowerName.includes('line-height') ||
-    lowerName.includes('letter') ||
-    lowerName.includes('leading') ||
-    lowerName.includes('tracking')
+    lowerName.includes("font") ||
+    lowerName.includes("text") ||
+    lowerName.includes("line-height") ||
+    lowerName.includes("letter") ||
+    lowerName.includes("leading") ||
+    lowerName.includes("tracking")
   ) {
-    return 'typography';
+    return "typography";
   }
 
   if (
-    lowerName.includes('spacing') ||
-    lowerName.includes('gap') ||
-    lowerName.includes('padding') ||
-    lowerName.includes('margin') ||
-    lowerName.includes('space') ||
-    lowerName.includes('size') && !lowerName.includes('font-size')
+    lowerName.includes("spacing") ||
+    lowerName.includes("gap") ||
+    lowerName.includes("padding") ||
+    lowerName.includes("margin") ||
+    lowerName.includes("space") ||
+    (lowerName.includes("size") && !lowerName.includes("font-size"))
   ) {
-    return 'spacing';
+    return "spacing";
   }
 
   if (
-    lowerName.includes('border') ||
-    lowerName.includes('radius') ||
-    lowerName.includes('rounded')
+    lowerName.includes("border") ||
+    lowerName.includes("radius") ||
+    lowerName.includes("rounded")
   ) {
-    return 'border';
+    return "border";
   }
 
-  if (lowerName.includes('shadow') || lowerName.includes('elevation')) {
-    return 'shadow';
+  if (lowerName.includes("shadow") || lowerName.includes("elevation")) {
+    return "shadow";
   }
 
   if (
-    lowerName.includes('z-index') ||
-    lowerName.includes('zindex') ||
-    lowerName.includes('layer') ||
-    lowerName.includes('width') ||
-    lowerName.includes('height') ||
-    lowerName.includes('max-') ||
-    lowerName.includes('min-')
+    lowerName.includes("z-index") ||
+    lowerName.includes("zindex") ||
+    lowerName.includes("layer") ||
+    lowerName.includes("width") ||
+    lowerName.includes("height") ||
+    lowerName.includes("max-") ||
+    lowerName.includes("min-")
   ) {
-    return 'layout';
+    return "layout";
   }
 
   if (
-    lowerName.includes('transition') ||
-    lowerName.includes('animation') ||
-    lowerName.includes('duration') ||
-    lowerName.includes('delay') ||
-    lowerName.includes('ease') ||
-    lowerName.includes('timing')
+    lowerName.includes("transition") ||
+    lowerName.includes("animation") ||
+    lowerName.includes("duration") ||
+    lowerName.includes("delay") ||
+    lowerName.includes("ease") ||
+    lowerName.includes("timing")
   ) {
-    return 'animation';
+    return "animation";
   }
 
-  return 'other';
+  return "other";
 }
 
 /**
@@ -251,7 +259,7 @@ function categorizeVariable(name: string): CSSVariable['category'] {
  */
 function extractVarReferences(value: string): string[] {
   const references: string[] = [];
-  const regex = new RegExp(VAR_REFERENCE_PATTERN.source, 'g');
+  const regex = new RegExp(VAR_REFERENCE_PATTERN.source, "g");
   let match;
 
   while ((match = regex.exec(value)) !== null) {
@@ -268,88 +276,94 @@ function extractVarReferences(value: string): string[] {
  */
 function detectDesignTokens(variables: CSSVariable[], css: string): DesignTokensInfo {
   const evidence: string[] = [];
-  let framework: DesignTokensInfo['framework'] = 'unknown';
+  let framework: DesignTokensInfo["framework"] = "unknown";
   let confidence = 0;
 
   // Tailwind detection
-  const hasTwPrefix = variables.some(v => v.name.startsWith('--tw-'));
-  const hasTwRing = css.includes('--tw-ring');
-  const hasTwShadow = css.includes('--tw-shadow');
-  const hasTwTextOpacity = css.includes('--tw-text-opacity');
+  const hasTwPrefix = variables.some((v) => v.name.startsWith("--tw-"));
+  const hasTwRing = css.includes("--tw-ring");
+  const hasTwShadow = css.includes("--tw-shadow");
+  const hasTwTextOpacity = css.includes("--tw-text-opacity");
 
   if (hasTwPrefix || hasTwRing || hasTwShadow || hasTwTextOpacity) {
-    framework = 'tailwind';
+    framework = "tailwind";
     confidence = 0.6; // Higher base confidence for Tailwind
-    evidence.push('tw- prefix variables');
+    evidence.push("tw- prefix variables");
     if (hasTwRing) {
-      evidence.push('--tw-ring variables');
+      evidence.push("--tw-ring variables");
       confidence += 0.1;
     }
     if (hasTwShadow) {
-      evidence.push('--tw-shadow variables');
+      evidence.push("--tw-shadow variables");
       confidence += 0.1;
     }
     if (hasTwTextOpacity) {
-      evidence.push('--tw-text-opacity variable');
+      evidence.push("--tw-text-opacity variable");
       confidence += 0.1;
     }
   }
 
   // Open Props detection (check before CSS-in-JS)
-  const hasOpenPropsSize = variables.some(v => /^--size-\d+$/.test(v.name));
-  const hasOpenPropsGray = variables.some(v => /^--gray-\d+$/.test(v.name));
-  const hasOpenPropsFont = variables.some(v => v.name.startsWith('--font-') && v.value.includes('system-ui'));
+  const hasOpenPropsSize = variables.some((v) => /^--size-\d+$/.test(v.name));
+  const hasOpenPropsGray = variables.some((v) => /^--gray-\d+$/.test(v.name));
+  const hasOpenPropsFont = variables.some(
+    (v) => v.name.startsWith("--font-") && v.value.includes("system-ui")
+  );
 
-  const openPropsMatches = [hasOpenPropsSize, hasOpenPropsGray, hasOpenPropsFont].filter(Boolean).length;
+  const openPropsMatches = [hasOpenPropsSize, hasOpenPropsGray, hasOpenPropsFont].filter(
+    Boolean
+  ).length;
 
-  if (openPropsMatches >= 2 || (openPropsMatches >= 1 && framework === 'unknown')) {
-    if (framework === 'unknown' || (framework !== 'tailwind' && openPropsMatches >= 2)) {
-      framework = 'open-props';
-      confidence = 0.5 + (openPropsMatches * 0.15); // Higher confidence with more matches
+  if (openPropsMatches >= 2 || (openPropsMatches >= 1 && framework === "unknown")) {
+    if (framework === "unknown" || (framework !== "tailwind" && openPropsMatches >= 2)) {
+      framework = "open-props";
+      confidence = 0.5 + openPropsMatches * 0.15; // Higher confidence with more matches
     }
-    if (hasOpenPropsSize) evidence.push('Open Props size scale');
-    if (hasOpenPropsGray) evidence.push('Open Props gray scale');
-    if (hasOpenPropsFont) evidence.push('Open Props font stack');
+    if (hasOpenPropsSize) evidence.push("Open Props size scale");
+    if (hasOpenPropsGray) evidence.push("Open Props gray scale");
+    if (hasOpenPropsFont) evidence.push("Open Props font stack");
   }
 
   // CSS-in-JS detection (Styled Components, Emotion, Chakra)
-  const hasScPrefix = css.includes('.sc-') || css.includes('class="sc-');
-  const hasEmotionPrefix = css.includes('.emotion-') || css.includes('.css-');
-  const hasChakraVars = variables.some(v => v.name.includes('chakra'));
-  const hasTokenPrefix = variables.some(v => v.name.includes('--token-'));
+  const hasScPrefix = css.includes(".sc-") || css.includes('class="sc-');
+  const hasEmotionPrefix = css.includes(".emotion-") || css.includes(".css-");
+  const hasChakraVars = variables.some((v) => v.name.includes("chakra"));
+  const hasTokenPrefix = variables.some((v) => v.name.includes("--token-"));
 
-  const cssInJsMatches = [hasScPrefix, hasEmotionPrefix, hasChakraVars, hasTokenPrefix].filter(Boolean).length;
+  const cssInJsMatches = [hasScPrefix, hasEmotionPrefix, hasChakraVars, hasTokenPrefix].filter(
+    Boolean
+  ).length;
 
   if (cssInJsMatches > 0) {
-    if (framework === 'unknown') {
-      framework = 'css-in-js';
-      confidence = 0.4 + (cssInJsMatches * 0.15);
+    if (framework === "unknown") {
+      framework = "css-in-js";
+      confidence = 0.4 + cssInJsMatches * 0.15;
     }
-    if (hasScPrefix) evidence.push('Styled Components class pattern');
-    if (hasEmotionPrefix) evidence.push('Emotion class pattern');
-    if (hasChakraVars) evidence.push('Chakra UI variables');
-    if (hasTokenPrefix) evidence.push('Token-prefixed variables');
+    if (hasScPrefix) evidence.push("Styled Components class pattern");
+    if (hasEmotionPrefix) evidence.push("Emotion class pattern");
+    if (hasChakraVars) evidence.push("Chakra UI variables");
+    if (hasTokenPrefix) evidence.push("Token-prefixed variables");
   }
 
   // CSS Variables design system detection (color scales)
-  const colorScalePattern = variables.filter(v =>
+  const colorScalePattern = variables.filter((v) =>
     /--[\w-]+-(?:50|100|200|300|400|500|600|700|800|900)$/.test(v.name)
   );
 
   if (colorScalePattern.length >= 3) {
-    if (framework === 'unknown') {
-      framework = 'css-variables';
+    if (framework === "unknown") {
+      framework = "css-variables";
       confidence = 0.5;
     }
-    evidence.push('color scale pattern (50-900)');
+    evidence.push("color scale pattern (50-900)");
     confidence += 0.2;
   }
 
   // General CSS variables system (fallback)
-  if (framework === 'unknown' && variables.length > 0) {
-    framework = 'css-variables';
+  if (framework === "unknown" && variables.length > 0) {
+    framework = "css-variables";
     confidence = 0.3;
-    evidence.push('Custom CSS properties detected');
+    evidence.push("Custom CSS properties detected");
   }
 
   return {
@@ -366,7 +380,7 @@ class CSSVariableExtractorServiceImpl implements CSSVariableExtractorService {
   extractFromCSS(css: string): CSSVariableExtractionResult {
     const startTime = Date.now();
 
-    if (!css || typeof css !== 'string') {
+    if (!css || typeof css !== "string") {
       return this.emptyResult(Date.now() - startTime);
     }
 
@@ -375,20 +389,20 @@ class CSSVariableExtractorServiceImpl implements CSSVariableExtractorService {
     const calcExpressions: CalcExpression[] = [];
 
     // Extract CSS blocks with selectors
-    const selectorBlockRegex = new RegExp(CSS_SELECTOR_BLOCK_PATTERN.source, 'g');
+    const selectorBlockRegex = new RegExp(CSS_SELECTOR_BLOCK_PATTERN.source, "g");
     let blockMatch;
 
     while ((blockMatch = selectorBlockRegex.exec(css)) !== null) {
-      const selector = blockMatch[1]?.trim() ?? '';
-      const block = blockMatch[2] ?? '';
+      const selector = blockMatch[1]?.trim() ?? "";
+      const block = blockMatch[2] ?? "";
 
       // Extract CSS variables
-      const varRegex = new RegExp(CSS_VAR_DECLARATION_PATTERN.source, 'g');
+      const varRegex = new RegExp(CSS_VAR_DECLARATION_PATTERN.source, "g");
       let varMatch;
 
       while ((varMatch = varRegex.exec(block)) !== null) {
         const name = varMatch[1];
-        const value = varMatch[2]?.trim() ?? '';
+        const value = varMatch[2]?.trim() ?? "";
 
         if (name) {
           const references = extractVarReferences(value);
@@ -415,11 +429,11 @@ class CSSVariableExtractorServiceImpl implements CSSVariableExtractorService {
 
       while ((propMatch = propertyPattern.exec(block)) !== null) {
         const property = propMatch[1];
-        const value = propMatch[2] ?? '';
+        const value = propMatch[2] ?? "";
 
-        if (property && !property.startsWith('--')) {
+        if (property && !property.startsWith("--")) {
           // clamp() extraction
-          const clampRegex = new RegExp(CLAMP_PATTERN.source, 'g');
+          const clampRegex = new RegExp(CLAMP_PATTERN.source, "g");
           let clampMatch;
 
           while ((clampMatch = clampRegex.exec(value)) !== null) {
@@ -456,13 +470,14 @@ class CSSVariableExtractorServiceImpl implements CSSVariableExtractorService {
     const limitedClampValues = clampValues.slice(0, MAX_CLAMP_VALUES);
     const limitedCalcExpressions = calcExpressions.slice(0, MAX_CALC_EXPRESSIONS);
 
-    logger.debug('[CSSVariableExtractor] extractFromCSS:', {
+    logger.debug("[CSSVariableExtractor] extractFromCSS:", {
       variablesCount: limitedVariables.length,
       totalVariablesBeforeLimit: variables.length,
       clampValuesCount: limitedClampValues.length,
       calcExpressionsCount: limitedCalcExpressions.length,
       framework: designTokens.framework,
-      truncated: variables.length > MAX_CSS_VARIABLES ||
+      truncated:
+        variables.length > MAX_CSS_VARIABLES ||
         clampValues.length > MAX_CLAMP_VALUES ||
         calcExpressions.length > MAX_CALC_EXPRESSIONS,
     });
@@ -479,24 +494,24 @@ class CSSVariableExtractorServiceImpl implements CSSVariableExtractorService {
   extractFromHTML(html: string): CSSVariableExtractionResult {
     const startTime = Date.now();
 
-    if (!html || typeof html !== 'string') {
+    if (!html || typeof html !== "string") {
       return this.emptyResult(Date.now() - startTime);
     }
 
-    let combinedCss = '';
+    let combinedCss = "";
 
     // Extract CSS from <style> tags
-    const styleTagRegex = new RegExp(STYLE_TAG_PATTERN.source, 'gi');
+    const styleTagRegex = new RegExp(STYLE_TAG_PATTERN.source, "gi");
     let styleMatch;
 
     while ((styleMatch = styleTagRegex.exec(html)) !== null) {
       if (styleMatch[1]) {
-        combinedCss += styleMatch[1] + '\n';
+        combinedCss += styleMatch[1] + "\n";
       }
     }
 
     // Extract inline styles
-    const inlineRegex = new RegExp(INLINE_STYLE_PATTERN.source, 'gi');
+    const inlineRegex = new RegExp(INLINE_STYLE_PATTERN.source, "gi");
     let inlineMatch;
     let inlineIndex = 0;
 
@@ -518,7 +533,7 @@ class CSSVariableExtractorServiceImpl implements CSSVariableExtractorService {
   extract(html: string, externalCss?: string): CSSVariableExtractionResult {
     const startTime = Date.now();
 
-    const htmlResult = this.extractFromHTML(html ?? '');
+    const htmlResult = this.extractFromHTML(html ?? "");
     const cssResult = externalCss ? this.extractFromCSS(externalCss) : this.emptyResult(0);
 
     // Merge results, with external CSS taking precedence
@@ -539,7 +554,7 @@ class CSSVariableExtractorServiceImpl implements CSSVariableExtractorService {
     const nonRootVars: CSSVariable[] = [];
 
     for (const variable of variableMap.values()) {
-      if (variable.scope === ':root') {
+      if (variable.scope === ":root") {
         rootVars.set(variable.name, variable);
       } else {
         nonRootVars.push(variable);
@@ -598,7 +613,7 @@ class CSSVariableExtractorServiceImpl implements CSSVariableExtractorService {
 
   private extractClampFromValue(property: string, selector: string, value: string): ClampValue[] {
     const results: ClampValue[] = [];
-    const clampRegex = new RegExp(CLAMP_PATTERN.source, 'g');
+    const clampRegex = new RegExp(CLAMP_PATTERN.source, "g");
     let match;
 
     while ((match = clampRegex.exec(value)) !== null) {
@@ -623,7 +638,7 @@ class CSSVariableExtractorServiceImpl implements CSSVariableExtractorService {
       clampValues: [],
       calcExpressions: [],
       designTokens: {
-        framework: 'unknown',
+        framework: "unknown",
         confidence: 0,
         evidence: [],
       },

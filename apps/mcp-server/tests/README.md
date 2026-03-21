@@ -12,15 +12,15 @@ Test suite for the Reftrix MCP server. Covers all 26 WebDesign-dedicated tools.
 
 ### 現行テストファイル構成 / Current Test File Structure
 
-| ディレクトリ / Directory | 説明 / Description | テスト数 / Test Count |
-|-----------|------|---------|
-| `tests/unit/` | ユニットテスト（サービス、ユーティリティ） / Unit tests (services, utilities) | ~100 |
-| `tests/integration/` | 統合テスト（DB、サービス間連携） / Integration tests (DB, inter-service) | ~50 |
-| `tests/tools/` | MCPツールハンドラーテスト / MCP tool handler tests | ~200 |
-| `tests/services/` | サービス層テスト / Service layer tests | ~300 |
-| `tests/e2e/` | エンドツーエンドテスト / End-to-end tests | ~20 |
-| `tests/api/` | APIヘルスチェック / API health checks | ~10 |
-| `tests/performance/` | パフォーマンスベンチマーク / Performance benchmarks | ~5 |
+| ディレクトリ / Directory | 説明 / Description                                                            | テスト数 / Test Count |
+| ------------------------ | ----------------------------------------------------------------------------- | --------------------- |
+| `tests/unit/`            | ユニットテスト（サービス、ユーティリティ） / Unit tests (services, utilities) | ~100                  |
+| `tests/integration/`     | 統合テスト（DB、サービス間連携） / Integration tests (DB, inter-service)      | ~50                   |
+| `tests/tools/`           | MCPツールハンドラーテスト / MCP tool handler tests                            | ~200                  |
+| `tests/services/`        | サービス層テスト / Service layer tests                                        | ~300                  |
+| `tests/e2e/`             | エンドツーエンドテスト / End-to-end tests                                     | ~20                   |
+| `tests/api/`             | APIヘルスチェック / API health checks                                         | ~10                   |
+| `tests/performance/`     | パフォーマンスベンチマーク / Performance benchmarks                           | ~5                    |
 
 **合計 / Total**: 約11,500テスト / Approximately 11,500 tests
 
@@ -30,34 +30,34 @@ SVG機能は削除され、WebDesign専用ツールに移行しました。
 
 SVG features have been removed; migrated to WebDesign-dedicated tools.
 
-| カテゴリ / Category | ツール名 / Tool Name | テストファイル / Test File |
-|---------|---------|--------------|
-| Style | `style.get_palette` | `tools/style-get-palette.test.ts` |
-| System | `system.health` | `tools/system-health.test.ts` |
-| Layout | `layout.inspect` | `tools/layout/inspect.tool.test.ts` |
-| Layout | `layout.ingest` | `tools/layout/ingest.tool.test.ts` |
-| Layout | `layout.search` | `tools/layout/search.tool.test.ts` |
-| Layout | `layout.generate_code` | `tools/layout/to-code.tool.test.ts` |
-| Layout | `layout.batch_ingest` | `tools/layout/batch-ingest.tool.test.ts` |
-| Quality | `quality.evaluate` | `tools/quality/evaluate.tool.test.ts` |
-| Quality | `quality.batch_evaluate` | `tools/quality/batch-evaluate.tool.test.ts` |
-| Quality | `quality.getJobStatus` | `tools/quality/get-job-status.tool.test.ts` |
-| Motion | `motion.detect` | `tools/motion/detect.tool.test.ts` |
-| Motion | `motion.search` | `tools/motion/search.tool.test.ts` |
-| Brief | `brief.validate` | `tools/brief/validate.handler.test.ts` |
-| Project | `project.get` | `tools/project-get.test.ts` |
-| Project | `project.list` | `tools/project-list.test.ts` |
-| Page | `page.analyze` | `tools/page/analyze.tool.test.ts` |
-| Page | `page.getJobStatus` | `tools/page/get-job-status.tool.test.ts` |
-| Narrative | `narrative.search` | `tools/narrative/search.tool.test.ts` |
-| Background | `background.search` | `tools/background/search.tool.test.ts` |
-| Responsive | `responsive.search` | `tools/responsive/search.tool.test.ts` |
-| Preference | `preference.hear` | `tools/preference/hear.tool.test.ts` |
-| Preference | `preference.get` | `tools/preference/get.tool.test.ts` |
-| Preference | `preference.reset` | `tools/preference/reset.tool.test.ts` |
-| Part | `part.search` | `tools/part/search.tool.test.ts` |
-| Part | `part.inspect` | `tools/part/inspect.tool.test.ts` |
-| Part | `part.compare` | `tools/part/compare.tool.test.ts` |
+| カテゴリ / Category | ツール名 / Tool Name     | テストファイル / Test File                  |
+| ------------------- | ------------------------ | ------------------------------------------- |
+| Style               | `style.get_palette`      | `tools/style-get-palette.test.ts`           |
+| System              | `system.health`          | `tools/system-health.test.ts`               |
+| Layout              | `layout.inspect`         | `tools/layout/inspect.tool.test.ts`         |
+| Layout              | `layout.ingest`          | `tools/layout/ingest.tool.test.ts`          |
+| Layout              | `layout.search`          | `tools/layout/search.tool.test.ts`          |
+| Layout              | `layout.generate_code`   | `tools/layout/to-code.tool.test.ts`         |
+| Layout              | `layout.batch_ingest`    | `tools/layout/batch-ingest.tool.test.ts`    |
+| Quality             | `quality.evaluate`       | `tools/quality/evaluate.tool.test.ts`       |
+| Quality             | `quality.batch_evaluate` | `tools/quality/batch-evaluate.tool.test.ts` |
+| Quality             | `quality.getJobStatus`   | `tools/quality/get-job-status.tool.test.ts` |
+| Motion              | `motion.detect`          | `tools/motion/detect.tool.test.ts`          |
+| Motion              | `motion.search`          | `tools/motion/search.tool.test.ts`          |
+| Brief               | `brief.validate`         | `tools/brief/validate.handler.test.ts`      |
+| Project             | `project.get`            | `tools/project-get.test.ts`                 |
+| Project             | `project.list`           | `tools/project-list.test.ts`                |
+| Page                | `page.analyze`           | `tools/page/analyze.tool.test.ts`           |
+| Page                | `page.getJobStatus`      | `tools/page/get-job-status.tool.test.ts`    |
+| Narrative           | `narrative.search`       | `tools/narrative/search.tool.test.ts`       |
+| Background          | `background.search`      | `tools/background/search.tool.test.ts`      |
+| Responsive          | `responsive.search`      | `tools/responsive/search.tool.test.ts`      |
+| Preference          | `preference.hear`        | `tools/preference/hear.tool.test.ts`        |
+| Preference          | `preference.get`         | `tools/preference/get.tool.test.ts`         |
+| Preference          | `preference.reset`       | `tools/preference/reset.tool.test.ts`       |
+| Part                | `part.search`            | `tools/part/search.tool.test.ts`            |
+| Part                | `part.inspect`           | `tools/part/inspect.tool.test.ts`           |
+| Part                | `part.compare`           | `tools/part/compare.tool.test.ts`           |
 
 ## テスト実行方法 / Test Execution
 
@@ -99,10 +99,10 @@ pnpm test tests/smoke/
 **目的 / Purpose**: 全26ツールが正しく登録されていることを確認 / Verify all 26 tools are correctly registered
 
 ```typescript
-describe('MCP Tool Registration', () => {
-  it('toolHandlers に26ツールが登録されている');
-  it('allToolDefinitions に26ツール定義がある');
-  it('各ツールに対応するハンドラーが存在する');
+describe("MCP Tool Registration", () => {
+  it("toolHandlers に26ツールが登録されている");
+  it("allToolDefinitions に26ツール定義がある");
+  it("各ツールに対応するハンドラーが存在する");
 });
 ```
 
@@ -133,12 +133,12 @@ describe('MCP Tool Registration', () => {
 
 ## 品質目標 / Quality Targets
 
-| 指標 / Indicator | 目標値 / Target | 現在の状態 / Current Status |
-|------|--------|-----------|
-| テストカバレッジ / Test coverage | > 80% | ~85% |
-| ツールテストカバレッジ / Tool test coverage | > 90% | ~92% |
-| テスト実行時間 / Test execution time | < 5分 / < 5 min | ~4.5分 / ~4.5 min |
-| テストパス率 / Test pass rate | 100% | 100% (約11,500 passed / approx. 11,500 passed) |
+| 指標 / Indicator                            | 目標値 / Target | 現在の状態 / Current Status                    |
+| ------------------------------------------- | --------------- | ---------------------------------------------- |
+| テストカバレッジ / Test coverage            | > 80%           | ~85%                                           |
+| ツールテストカバレッジ / Tool test coverage | > 90%           | ~92%                                           |
+| テスト実行時間 / Test execution time        | < 5分 / < 5 min | ~4.5分 / ~4.5 min                              |
+| テストパス率 / Test pass rate               | 100%            | 100% (約11,500 passed / approx. 11,500 passed) |
 
 ## スキップされたテスト / Skipped Tests
 

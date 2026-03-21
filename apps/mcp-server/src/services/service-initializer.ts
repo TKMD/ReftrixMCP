@@ -17,8 +17,7 @@
  * @module services/service-initializer
  */
 
-import { logger } from '../utils/logger';
-
+import { logger } from "../utils/logger";
 
 // =====================================================
 // 本番環境ガード (Production Guard) - 再エクスポート
@@ -35,15 +34,15 @@ export {
   assertProductionRequiredCategoriesInitialized,
   REQUIRED_CATEGORIES_FOR_PRODUCTION,
   type ProductionSafeFactory,
-} from './production-guard';
+} from "./production-guard";
 
 // ローカルで使用するためインポート
 import {
   isDevelopmentEnvironment,
   assertProductionRequiredCategoriesInitialized,
-} from './production-guard';
+} from "./production-guard";
 
-import { createPrismaWrapper } from '../utils/prisma-wrapper-factory';
+import { createPrismaWrapper } from "../utils/prisma-wrapper-factory";
 
 // Motion関連インポート
 // 循環依存解消: tools/motion/index.ts ではなく個別ファイルからインポート
@@ -52,134 +51,140 @@ import {
   setMotionPersistenceServiceFactory,
   setJSAnimationPersistencePrismaClientFactory,
   type IJSAnimationPersistencePrismaClient,
-} from '../tools/motion/di-factories';
+} from "../tools/motion/di-factories";
 import {
   setMotionSearchServiceFactory,
   setMotionSearchPrismaClientFactory as setMotionSearchRerankPrismaClientFactory,
-} from '../tools/motion/search.tool';
+} from "../tools/motion/search.tool";
 import {
   setMotionPersistenceEmbeddingServiceFactory,
   setMotionPersistencePrismaClientFactory,
   MotionPatternPersistenceService,
   type IPrismaClient as IMotionPrismaClient,
-} from './motion-persistence.service';
+} from "./motion-persistence.service";
 import {
   createMotionSearchServiceFactory,
   setEmbeddingServiceFactory as setMotionSearchEmbeddingServiceFactory,
   setPrismaClientFactory as setMotionSearchPrismaClientFactory,
   setJSAnimationSearchServiceFactory,
   type IPrismaClient as IMotionSearchPrismaClient,
-} from './motion-search.service';
+} from "./motion-search.service";
 import {
   setJSAnimationEmbeddingServiceFactory,
   type IEmbeddingService as IJSAnimationEmbeddingService,
-} from './motion/js-animation-embedding.service';
+} from "./motion/js-animation-embedding.service";
 import {
   JSAnimationSearchService,
   type IPrismaClient as IJSAnimationSearchPrismaClient,
-} from './motion/js-animation-search.service';
+} from "./motion/js-animation-search.service";
 import {
   setMotionDbEmbeddingServiceFactory,
   setMotionDbPrismaClientFactory,
   type IPrismaClient as IMotionDbPrismaClient,
-} from './motion/motion-db.service';
+} from "./motion/motion-db.service";
 import {
   setEmbeddingServiceFactory as setFrameEmbeddingServiceFactory,
   setPrismaClientFactory as setFramePrismaClientFactory,
   type IPrismaClient as IFramePrismaClient,
-} from './motion/frame-embedding.service';
+} from "./motion/frame-embedding.service";
 
 // Layout関連インポート
 // 循環依存解消: tools/layout/index.ts ではなく個別ファイルからインポート
 import {
   setLayoutSearchServiceFactory,
   setLayoutSearchPrismaClientFactory as setLayoutSearchRerankPrismaClientFactory,
-} from '../tools/layout/search.tool';
-import { setLayoutToCodeServiceFactory } from '../tools/layout/to-code.tool';
-import { setLayoutInspectServiceFactory } from '../tools/layout/inspect';
-import { setLayoutIngestServiceFactory } from '../tools/layout/ingest.tool';
+} from "../tools/layout/search.tool";
+import { setLayoutToCodeServiceFactory } from "../tools/layout/to-code.tool";
+import { setLayoutInspectServiceFactory } from "../tools/layout/inspect";
+import { setLayoutIngestServiceFactory } from "../tools/layout/ingest.tool";
 
 // Page関連インポート
 // 循環依存解消: tools/page/index.ts ではなく個別ファイルからインポート
 import {
   setPageAnalyzePrismaClientFactory,
   type IPageAnalyzePrismaClient,
-} from '../tools/page/analyze.tool';
+} from "../tools/page/analyze.tool";
 
 // Narrative関連インポート
 import {
   setNarrativeSearchServiceFactory,
   setNarrativeSearchPrismaClientFactory as setNarrativeSearchRerankPrismaClientFactory,
-} from '../tools/narrative/search.tool';
-import { createNarrativeSearchService } from './narrative-search.service';
+} from "../tools/narrative/search.tool";
+import {
+  createNarrativeSearchService,
+  setNarrativePrismaClientFactory,
+  setNarrativeEmbeddingServiceFactory,
+  type INarrativePrismaClient,
+  type INarrativeAnalysisService,
+  type NarrativeSearchOptions,
+  type NarrativeSearchResult,
+} from "./narrative";
 
 // Background関連インポート
 import {
   setBackgroundSearchServiceFactory,
   setBackgroundSearchPrismaClientFactory as setBackgroundSearchRerankPrismaClientFactory,
-} from '../tools/background/search.tool';
-import { createBackgroundSearchService } from './background-search.service';
+} from "../tools/background/search.tool";
+import { createBackgroundSearchService } from "./background-search.service";
 import {
   setBackgroundPrismaClientFactory,
   setBackgroundEmbeddingServiceFactory,
-} from './background/background-design-embedding.service';
+} from "./background/background-design-embedding.service";
 
 // Responsive関連インポート
 import {
   setResponsiveSearchServiceFactory,
   setResponsiveSearchPrismaClientFactory as setResponsiveSearchRerankPrismaClientFactory,
-} from '../tools/responsive/search.tool';
-import { createResponsiveSearchService } from './responsive-search.service';
+} from "../tools/responsive/search.tool";
+import { createResponsiveSearchService } from "./responsive-search.service";
 
 // Preference関連インポート
 import {
   setPreferenceHearServiceFactory,
   setPreferenceGetServiceFactory,
   setPreferenceResetServiceFactory,
-} from '../tools/preference';
+} from "../tools/preference";
 import {
   createPreferenceProfileServiceFactory,
   setPreferencePrismaClientFactory,
   setPreferenceEmbeddingServiceFactory,
   type IPrismaClient as IPreferencePrismaClient,
-} from './preference-profile.service';
+} from "./preference-profile.service";
 
 // Embedding Handler関連インポート（backfill DI用）
-import {
-  setMotionLayoutEmbeddingServiceFactory,
-} from '../tools/page/handlers/embedding-handler';
+import { setMotionLayoutEmbeddingServiceFactory } from "../tools/page/handlers/embedding-handler";
 
 // Quality関連インポート
 import {
   setQualityEvaluateServiceFactory,
   setBenchmarkServiceFactory,
   setPatternMatcherServiceFactory,
-} from '../tools/quality/evaluate.tool';
-import { BenchmarkService } from './quality/benchmark.service';
+} from "../tools/quality/evaluate.tool";
+import { BenchmarkService } from "./quality/benchmark.service";
 import {
   setPatternMatcherPrismaClientFactory,
   createPatternMatcherServiceFactory,
   type IPrismaClient as IPatternMatcherPrismaClient,
-} from './quality/pattern-matcher.service';
-import { createQualitySearchService } from './quality-search.service';
+} from "./quality/pattern-matcher.service";
+import { createQualitySearchService } from "./quality-search.service";
 import {
   createLayoutSearchServiceFactory,
   setLayoutEmbeddingServiceFactory as setLayoutSearchEmbeddingServiceFactory,
   setLayoutPrismaClientFactory as setLayoutSearchPrismaClientFactory,
   type IPrismaClient as ILayoutSearchPrismaClient,
-} from './layout-search.service';
+} from "./layout-search.service";
 import {
   createLayoutToCodeServiceFactory,
   setLayoutToCodePrismaClientFactory,
   type IPrismaClient as ILayoutToCodePrismaClient,
-} from './layout-to-code.service';
+} from "./layout-to-code.service";
 import {
   setEmbeddingServiceFactory as setLayoutEmbeddingServiceFactory,
   setPrismaClientFactory as setLayoutPrismaClientFactory,
   saveSectionWithEmbedding,
   type SaveSectionOptions,
   type IPrismaClient as ILayoutPrismaClient,
-} from './layout-embedding.service';
+} from "./layout-embedding.service";
 import {
   detectSections,
   analyzeTypography,
@@ -187,15 +192,12 @@ import {
   extractColors,
   type LayoutInspectData,
   type SectionInfo,
-} from '../tools/layout/inspect';
-import type { ScreenshotInput } from '../tools/layout/inspect/inspect.tool';
+} from "../tools/layout/inspect";
+import type { ScreenshotInput } from "../tools/layout/inspect/inspect.tool";
 
 // Vision Adapter インポート
-import { LlamaVisionAdapter } from './vision-adapter/llama-vision.adapter';
-import type {
-  IVisionAnalyzer,
-  VisionAnalysisResult,
-} from './vision-adapter/interface';
+import { LlamaVisionAdapter } from "./vision-adapter/llama-vision.adapter";
+import type { IVisionAnalyzer, VisionAnalysisResult } from "./vision-adapter/interface";
 
 // =====================================================
 // 型定義
@@ -206,7 +208,7 @@ import type {
  * 各サービスはこのインターフェースを拡張している場合がある
  */
 export interface IEmbeddingService {
-  generateEmbedding(text: string, type?: 'query' | 'passage'): Promise<number[]>;
+  generateEmbedding(text: string, type?: "query" | "passage"): Promise<number[]>;
   /** GPU VRAMアイドルタイムアウト設定 / Set idle timeout for GPU VRAM auto-release */
   setIdleTimeout?(ms: number): void;
 }
@@ -215,8 +217,8 @@ export interface IEmbeddingService {
  * Layout用拡張Embeddingサービスインターフェース
  */
 interface ILayoutEmbeddingService {
-  generateEmbedding(text: string, type: 'query' | 'passage'): Promise<number[]>;
-  generateBatchEmbeddings(texts: string[], type: 'query' | 'passage'): Promise<number[][]>;
+  generateEmbedding(text: string, type: "query" | "passage"): Promise<number[]>;
+  generateBatchEmbeddings(texts: string[], type: "query" | "passage"): Promise<number[][]>;
   getCacheStats(): { hits: number; misses: number; size: number; evictions: number };
   clearCache(): void;
 }
@@ -394,7 +396,7 @@ export function initializeMotionServices(
       registeredFactories: [],
       categories: [],
       skipped: [],
-      error: 'Missing required dependency: prisma',
+      error: "Missing required dependency: prisma",
     };
   }
 
@@ -404,7 +406,7 @@ export function initializeMotionServices(
       registeredFactories: [],
       categories: [],
       skipped: [],
-      error: 'Missing required dependency: embeddingService',
+      error: "Missing required dependency: embeddingService",
     };
   }
 
@@ -418,15 +420,15 @@ export function initializeMotionServices(
           // exactOptionalPropertyTypes対応: undefinedを明示的に設定しない
           const motionResult: MotionWebPageResult = {
             id: result.id,
-            htmlContent: result.htmlContent ?? '',
+            htmlContent: result.htmlContent ?? "",
           };
           return motionResult;
         },
       }));
-      registeredFactories.push('motionDetect');
-      logger.info('[ServiceInitializer] motionDetect factory registered');
+      registeredFactories.push("motionDetect");
+      logger.info("[ServiceInitializer] motionDetect factory registered");
     } else {
-      skipped.push('motionDetect');
+      skipped.push("motionDetect");
     }
 
     // 2. motion.search ファクトリ
@@ -434,29 +436,31 @@ export function initializeMotionServices(
     setMotionSearchPrismaClientFactory(
       () =>
         createPrismaWrapper(config.prisma, {
-          tables: ['motionPattern', 'motionEmbedding'],
+          tables: ["motionPattern", "motionEmbedding"],
           supportsTransaction: false,
         }) as unknown as IMotionSearchPrismaClient
     );
     setMotionSearchServiceFactory(createMotionSearchServiceFactory());
     // 嗜好リランキング用PrismaClientFactory登録（$queryRawUnsafeのみ使用）
     // Register PrismaClientFactory for preference reranking (uses $queryRawUnsafe only)
-    setMotionSearchRerankPrismaClientFactory(() => config.prisma as unknown as IPreferencePrismaClient);
-    registeredFactories.push('motionSearch');
-    logger.info('[ServiceInitializer] motionSearch factory registered');
+    setMotionSearchRerankPrismaClientFactory(
+      () => config.prisma as unknown as IPreferencePrismaClient
+    );
+    registeredFactories.push("motionSearch");
+    logger.info("[ServiceInitializer] motionSearch factory registered");
 
     // 3. motion.detect persistence ファクトリ
     setMotionPersistenceEmbeddingServiceFactory(() => config.embeddingService);
     setMotionPersistencePrismaClientFactory(
       () =>
         createPrismaWrapper(config.prisma, {
-          tables: ['motionPattern', 'motionEmbedding'],
+          tables: ["motionPattern", "motionEmbedding"],
           supportsTransaction: true,
         }) as unknown as IMotionPrismaClient
     );
     setMotionPersistenceServiceFactory(() => new MotionPatternPersistenceService());
-    registeredFactories.push('motionPersistence');
-    logger.info('[ServiceInitializer] motionPersistence factory registered');
+    registeredFactories.push("motionPersistence");
+    logger.info("[ServiceInitializer] motionPersistence factory registered");
 
     // 4. JS Animation Embedding ファクトリ
     // NOTE: config.embeddingService (@reftrix/ml) は必要なメソッド全て持っているが、
@@ -464,77 +468,85 @@ export function initializeMotionServices(
     setJSAnimationEmbeddingServiceFactory(
       () => config.embeddingService as unknown as IJSAnimationEmbeddingService
     );
-    registeredFactories.push('jsAnimationEmbedding');
-    logger.info('[ServiceInitializer] jsAnimationEmbedding factory registered');
+    registeredFactories.push("jsAnimationEmbedding");
+    logger.info("[ServiceInitializer] jsAnimationEmbedding factory registered");
 
     // 4.5. JS Animation Search ファクトリ（motion.search JS統合用）
     // PrismaClientのラッパーを使ってJSAnimationSearchServiceを初期化
     setJSAnimationSearchServiceFactory(() => {
       const jsSearchPrisma = createPrismaWrapper(config.prisma, {
-        tables: ['jSAnimationPattern', 'jSAnimationEmbedding'],
+        tables: ["jSAnimationPattern", "jSAnimationEmbedding"],
         supportsTransaction: false,
       });
       return new JSAnimationSearchService({
         prisma: jsSearchPrisma as unknown as IJSAnimationSearchPrismaClient,
       });
     });
-    registeredFactories.push('jsAnimationSearch');
-    logger.info('[ServiceInitializer] jsAnimationSearch factory registered');
+    registeredFactories.push("jsAnimationSearch");
+    logger.info("[ServiceInitializer] jsAnimationSearch factory registered");
 
     // 4.6. JS Animation Persistence Prisma ファクトリ（motion.detect JS保存用）
     setJSAnimationPersistencePrismaClientFactory(
       () =>
         createPrismaWrapper(config.prisma, {
-          tables: ['jSAnimationPattern', 'jSAnimationEmbedding'],
+          tables: ["jSAnimationPattern", "jSAnimationEmbedding"],
           supportsTransaction: true,
         }) as unknown as IJSAnimationPersistencePrismaClient
     );
-    registeredFactories.push('jsAnimationPersistence');
-    logger.info('[ServiceInitializer] jsAnimationPersistence factory registered');
+    registeredFactories.push("jsAnimationPersistence");
+    logger.info("[ServiceInitializer] jsAnimationPersistence factory registered");
 
     // 5. MotionDbService ファクトリ（Frame Image Analysis結果のDB保存用）
     setMotionDbEmbeddingServiceFactory(() => config.embeddingService);
     setMotionDbPrismaClientFactory(
       () =>
         createPrismaWrapper(config.prisma, {
-          tables: ['motionAnalysisResult', 'motionAnalysisEmbedding'],
+          tables: ["motionAnalysisResult", "motionAnalysisEmbedding"],
           supportsTransaction: true,
         }) as unknown as IMotionDbPrismaClient
     );
-    registeredFactories.push('motionDb');
-    logger.info('[ServiceInitializer] motionDb factory registered');
+    registeredFactories.push("motionDb");
+    logger.info("[ServiceInitializer] motionDb factory registered");
 
     // 6. FrameEmbeddingService ファクトリ（フレーム解析結果のEmbedding保存用）
     // NOTE: frame-embedding.service は拡張インターフェースを要求するため、
     // Layout Embedding と同様にアダプタを作成
     const frameEmbeddingAdapter = {
-      generateEmbedding: (text: string, type: 'query' | 'passage'): Promise<number[]> =>
+      generateEmbedding: (text: string, type: "query" | "passage"): Promise<number[]> =>
         config.embeddingService.generateEmbedding(text, type),
-      generateBatchEmbeddings: async (texts: string[], type: 'query' | 'passage'): Promise<number[][]> => {
+      generateBatchEmbeddings: async (
+        texts: string[],
+        type: "query" | "passage"
+      ): Promise<number[][]> => {
         const results: number[][] = [];
         for (const text of texts) {
           results.push(await config.embeddingService.generateEmbedding(text, type));
         }
         return results;
       },
-      getCacheStats: (): { hits: number; misses: number; size: number; evictions: number } => ({ hits: 0, misses: 0, size: 0, evictions: 0 }),
+      getCacheStats: (): { hits: number; misses: number; size: number; evictions: number } => ({
+        hits: 0,
+        misses: 0,
+        size: 0,
+        evictions: 0,
+      }),
       clearCache: (): void => {},
     };
     setFrameEmbeddingServiceFactory(() => frameEmbeddingAdapter);
     setFramePrismaClientFactory(
       () =>
         createPrismaWrapper(config.prisma, {
-          tables: ['motionPattern', 'motionEmbedding'],
+          tables: ["motionPattern", "motionEmbedding"],
           supportsTransaction: true,
         }) as unknown as IFramePrismaClient
     );
-    registeredFactories.push('frameEmbedding');
-    logger.info('[ServiceInitializer] frameEmbedding factory registered');
+    registeredFactories.push("frameEmbedding");
+    logger.info("[ServiceInitializer] frameEmbedding factory registered");
 
     return {
       success: true,
       registeredFactories,
-      categories: ['motion'],
+      categories: ["motion"],
       skipped,
     };
   } catch (error) {
@@ -543,7 +555,7 @@ export function initializeMotionServices(
       registeredFactories,
       categories: [],
       skipped,
-      error: error instanceof Error ? error.message : 'Unknown error',
+      error: error instanceof Error ? error.message : "Unknown error",
     };
   }
 }
@@ -577,7 +589,7 @@ export function initializeLayoutServices(
       registeredFactories: [],
       categories: [],
       skipped: [],
-      error: 'Missing required dependency: prisma',
+      error: "Missing required dependency: prisma",
     };
   }
 
@@ -587,7 +599,7 @@ export function initializeLayoutServices(
       registeredFactories: [],
       categories: [],
       skipped: [],
-      error: 'Missing required dependency: embeddingService',
+      error: "Missing required dependency: embeddingService",
     };
   }
 
@@ -597,28 +609,32 @@ export function initializeLayoutServices(
     setLayoutSearchPrismaClientFactory(
       () =>
         createPrismaWrapper(config.prisma, {
-          tables: ['sectionPattern', 'sectionEmbedding'],
+          tables: ["sectionPattern", "sectionEmbedding"],
           supportsTransaction: false,
         }) as unknown as ILayoutSearchPrismaClient
     );
     setLayoutSearchServiceFactory(createLayoutSearchServiceFactory());
     // 嗜好リランキング用PrismaClientFactory登録（$queryRawUnsafeのみ使用）
     // Register PrismaClientFactory for preference reranking (uses $queryRawUnsafe only)
-    setLayoutSearchRerankPrismaClientFactory(() => config.prisma as unknown as IPreferencePrismaClient);
-    registeredFactories.push('layoutSearch');
-    logger.info('[ServiceInitializer] layoutSearch factory registered (with EmbeddingService + PrismaClient)');
+    setLayoutSearchRerankPrismaClientFactory(
+      () => config.prisma as unknown as IPreferencePrismaClient
+    );
+    registeredFactories.push("layoutSearch");
+    logger.info(
+      "[ServiceInitializer] layoutSearch factory registered (with EmbeddingService + PrismaClient)"
+    );
 
     // 2. layout.to_code ファクトリ（PrismaClient + Service）
     setLayoutToCodePrismaClientFactory(
       () =>
         createPrismaWrapper(config.prisma, {
-          tables: ['sectionPattern', 'webPage'],
+          tables: ["sectionPattern", "webPage"],
           supportsTransaction: false,
         }) as unknown as ILayoutToCodePrismaClient
     );
     setLayoutToCodeServiceFactory(createLayoutToCodeServiceFactory());
-    registeredFactories.push('layoutToCode');
-    logger.info('[ServiceInitializer] layoutToCode factory registered (with PrismaClient)');
+    registeredFactories.push("layoutToCode");
+    logger.info("[ServiceInitializer] layoutToCode factory registered (with PrismaClient)");
 
     // 3. layout.inspect ファクトリ（webPageServiceなしでも基本機能は使用可能）
     // LlamaVisionAdapter をインスタンス化（遅延初期化）
@@ -627,7 +643,7 @@ export function initializeLayoutServices(
       if (!visionAdapterInstance) {
         visionAdapterInstance = new LlamaVisionAdapter();
         if (isDevelopmentEnvironment()) {
-          logger.debug('[ServiceInitializer] LlamaVisionAdapter created lazily');
+          logger.debug("[ServiceInitializer] LlamaVisionAdapter created lazily");
         }
       }
       return visionAdapterInstance;
@@ -651,26 +667,27 @@ export function initializeLayoutServices(
             return {
               success: false,
               features: [],
-              error: 'LlamaVision (Ollama) is not available. Please ensure Ollama is running with llama3.2-vision model.',
+              error:
+                "LlamaVision (Ollama) is not available. Please ensure Ollama is running with llama3.2-vision model.",
               processingTimeMs: 0,
               modelName: adapter.modelName,
             };
           }
 
           // base64をBufferに変換
-          const imageBuffer = Buffer.from(screenshot.base64, 'base64');
+          const imageBuffer = Buffer.from(screenshot.base64, "base64");
 
           // Vision解析実行
           const result = await adapter.analyze({
             imageBuffer,
             mimeType: screenshot.mimeType,
             features: [
-              'layout_structure',
-              'color_palette',
-              'typography',
-              'visual_hierarchy',
-              'whitespace',
-              'section_boundaries',
+              "layout_structure",
+              "color_palette",
+              "typography",
+              "visual_hierarchy",
+              "whitespace",
+              "section_boundaries",
             ],
           });
 
@@ -690,22 +707,22 @@ export function initializeLayoutServices(
           if (!result) return null;
           return {
             id: result.id,
-            htmlContent: result.htmlContent ?? '',
+            htmlContent: result.htmlContent ?? "",
           };
         };
       }
 
       return service;
     });
-    registeredFactories.push('layoutInspect');
-    logger.info('[ServiceInitializer] layoutInspect factory registered (with LlamaVision support)');
+    registeredFactories.push("layoutInspect");
+    logger.info("[ServiceInitializer] layoutInspect factory registered (with LlamaVision support)");
 
     // 4. layout.ingest ファクトリ
     // Layout Embedding Serviceは拡張インターフェースを要求するため、アダプタを作成
     const layoutEmbeddingAdapter: ILayoutEmbeddingService = {
-      generateEmbedding: (text: string, type: 'query' | 'passage') =>
+      generateEmbedding: (text: string, type: "query" | "passage") =>
         config.embeddingService.generateEmbedding(text, type),
-      generateBatchEmbeddings: async (texts: string[], type: 'query' | 'passage') => {
+      generateBatchEmbeddings: async (texts: string[], type: "query" | "passage") => {
         // 順次処理でバッチをエミュレート
         const results: number[][] = [];
         for (const text of texts) {
@@ -720,7 +737,7 @@ export function initializeLayoutServices(
     setLayoutPrismaClientFactory(
       () =>
         createPrismaWrapper(config.prisma, {
-          tables: ['sectionPattern', 'sectionEmbedding'],
+          tables: ["sectionPattern", "sectionEmbedding"],
           supportsTransaction: false,
         }) as unknown as ILayoutPrismaClient
     );
@@ -736,8 +753,8 @@ export function initializeLayoutServices(
           grid,
           colors,
           textRepresentation: sections
-            .map((s) => `${s.type}: ${s.content.headings.map((h) => h.text).join(', ')}`)
-            .join('; '),
+            .map((s) => `${s.type}: ${s.content.headings.map((h) => h.text).join(", ")}`)
+            .join("; "),
         };
       },
       saveSectionWithEmbedding: async (
@@ -750,17 +767,17 @@ export function initializeLayoutServices(
         return saveSectionWithEmbedding(section, webPageId, embedding, options, textRepresentation);
       },
       generateEmbedding: async (text: string): Promise<number[]> => {
-        const result = await config.embeddingService.generateEmbedding(text, 'passage');
+        const result = await config.embeddingService.generateEmbedding(text, "passage");
         return result;
       },
     }));
-    registeredFactories.push('layoutIngest');
-    logger.info('[ServiceInitializer] layoutIngest factory registered');
+    registeredFactories.push("layoutIngest");
+    logger.info("[ServiceInitializer] layoutIngest factory registered");
 
     return {
       success: true,
       registeredFactories,
-      categories: ['layout'],
+      categories: ["layout"],
       skipped,
     };
   } catch (error) {
@@ -769,7 +786,7 @@ export function initializeLayoutServices(
       registeredFactories,
       categories: [],
       skipped,
-      error: error instanceof Error ? error.message : 'Unknown error',
+      error: error instanceof Error ? error.message : "Unknown error",
     };
   }
 }
@@ -801,7 +818,7 @@ export function initializeQualityServices(
       registeredFactories: [],
       categories: [],
       skipped: [],
-      error: 'Missing required dependency: prisma',
+      error: "Missing required dependency: prisma",
     };
   }
 
@@ -811,7 +828,7 @@ export function initializeQualityServices(
       registeredFactories: [],
       categories: [],
       skipped: [],
-      error: 'Missing required dependency: embeddingService',
+      error: "Missing required dependency: embeddingService",
     };
   }
 
@@ -822,8 +839,8 @@ export function initializeQualityServices(
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       return new BenchmarkService(config.prisma as any);
     });
-    registeredFactories.push('benchmarkService');
-    logger.info('[ServiceInitializer] benchmarkService factory registered');
+    registeredFactories.push("benchmarkService");
+    logger.info("[ServiceInitializer] benchmarkService factory registered");
 
     // 2. QualityEvaluateService ファクトリ
     // TDA-HS-R1 / M-2: QualitySearchService を独立ファイルに抽出
@@ -834,27 +851,33 @@ export function initializeQualityServices(
         webPageService: config.webPageService,
       })
     );
-    registeredFactories.push('qualityEvaluate');
-    logger.info('[ServiceInitializer] qualityEvaluate factory registered');
+    registeredFactories.push("qualityEvaluate");
+    logger.info("[ServiceInitializer] qualityEvaluate factory registered");
 
     // 3. PatternMatcherService ファクトリ（パターン駆動評価用）
     // PrismaClientファクトリを先に設定
     setPatternMatcherPrismaClientFactory(
       () =>
         createPrismaWrapper(config.prisma, {
-          tables: ['sectionPattern', 'sectionEmbedding', 'motionPattern', 'motionEmbedding', 'webPage'],
+          tables: [
+            "sectionPattern",
+            "sectionEmbedding",
+            "motionPattern",
+            "motionEmbedding",
+            "webPage",
+          ],
           supportsTransaction: false,
         }) as unknown as IPatternMatcherPrismaClient
     );
     // PatternMatcherServiceファクトリを設定
     setPatternMatcherServiceFactory(createPatternMatcherServiceFactory());
-    registeredFactories.push('patternMatcher');
-    logger.info('[ServiceInitializer] patternMatcher factory registered');
+    registeredFactories.push("patternMatcher");
+    logger.info("[ServiceInitializer] patternMatcher factory registered");
 
     return {
       success: true,
       registeredFactories,
-      categories: ['quality'],
+      categories: ["quality"],
       skipped,
     };
   } catch (error) {
@@ -863,7 +886,7 @@ export function initializeQualityServices(
       registeredFactories,
       categories: [],
       skipped,
-      error: error instanceof Error ? error.message : 'Unknown error',
+      error: error instanceof Error ? error.message : "Unknown error",
     };
   }
 }
@@ -883,9 +906,7 @@ export function initializeQualityServices(
  * @param config サービス初期化設定
  * @returns 初期化結果
  */
-export function initializeAllServices(
-  config: ServiceInitializerConfig
-): ServiceInitializerResult {
+export function initializeAllServices(config: ServiceInitializerConfig): ServiceInitializerResult {
   const allRegistered: string[] = [];
   const allCategories: string[] = [];
   const allSkipped: string[] = [];
@@ -902,14 +923,14 @@ export function initializeAllServices(
     allCategories.push(...motionResult.categories);
   } else if (motionResult.error) {
     errors.push(`Motion: ${motionResult.error}`);
-    errorsInfo.push({ category: 'Motion', error: motionResult.error });
+    errorsInfo.push({ category: "Motion", error: motionResult.error });
   }
   allSkipped.push(...motionResult.skipped);
   // スキップされたファクトリの理由を記録
   for (const skippedFactory of motionResult.skipped) {
     skippedCategoriesInfo.push({
       category: `Motion.${skippedFactory}`,
-      reason: 'Missing dependency (webPageService)',
+      reason: "Missing dependency (webPageService)",
     });
   }
 
@@ -920,13 +941,13 @@ export function initializeAllServices(
     allCategories.push(...layoutResult.categories);
   } else if (layoutResult.error) {
     errors.push(`Layout: ${layoutResult.error}`);
-    errorsInfo.push({ category: 'Layout', error: layoutResult.error });
+    errorsInfo.push({ category: "Layout", error: layoutResult.error });
   }
   allSkipped.push(...layoutResult.skipped);
   for (const skippedFactory of layoutResult.skipped) {
     skippedCategoriesInfo.push({
       category: `Layout.${skippedFactory}`,
-      reason: 'Missing dependency',
+      reason: "Missing dependency",
     });
   }
 
@@ -937,13 +958,13 @@ export function initializeAllServices(
     allCategories.push(...qualityResult.categories);
   } else if (qualityResult.error) {
     errors.push(`Quality: ${qualityResult.error}`);
-    errorsInfo.push({ category: 'Quality', error: qualityResult.error });
+    errorsInfo.push({ category: "Quality", error: qualityResult.error });
   }
   allSkipped.push(...qualityResult.skipped);
   for (const skippedFactory of qualityResult.skipped) {
     skippedCategoriesInfo.push({
       category: `Quality.${skippedFactory}`,
-      reason: 'Missing dependency',
+      reason: "Missing dependency",
     });
   }
 
@@ -953,53 +974,77 @@ export function initializeAllServices(
       () =>
         createPrismaWrapper(config.prisma, {
           tables: [
-            'webPage',
-            'sectionPattern',
-            'motionPattern',
-            'qualityEvaluation',
-            'qualityBenchmark',
-            'jSAnimationPattern',
-            'jSAnimationEmbedding',
+            "webPage",
+            "sectionPattern",
+            "motionPattern",
+            "qualityEvaluation",
+            "qualityBenchmark",
+            "jSAnimationPattern",
+            "jSAnimationEmbedding",
           ],
           supportsTransaction: true,
         }) as unknown as IPageAnalyzePrismaClient
     );
-    allRegistered.push('setPageAnalyzePrismaClientFactory');
-    allCategories.push('page');
-    logger.debug('[ServiceInitializer] page.analyze PrismaClient factory registered');
+    allRegistered.push("setPageAnalyzePrismaClientFactory");
+    allCategories.push("page");
+    logger.debug("[ServiceInitializer] page.analyze PrismaClient factory registered");
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
     errors.push(`Page: ${errorMessage}`);
-    errorsInfo.push({ category: 'Page', error: errorMessage });
-    allSkipped.push('pageAnalyzePrismaClient');
+    errorsInfo.push({ category: "Page", error: errorMessage });
+    allSkipped.push("pageAnalyzePrismaClient");
     skippedCategoriesInfo.push({
-      category: 'Page.pageAnalyzePrismaClient',
+      category: "Page.pageAnalyzePrismaClient",
       reason: errorMessage,
     });
   }
 
   // Narrative サービス初期化（narrative.search用）
-  // TDA-HS-R1 / M-1: NarrativeSearchService を独立ファイルに抽出
+  // TDA-HS-R1 / M-1: NarrativeSearchService を narrative/ サブディレクトリに統合
   try {
-    setNarrativeSearchServiceFactory(() =>
-      createNarrativeSearchService({
-        prisma: config.prisma,
-        embeddingService: config.embeddingService,
+    // 新版 NarrativeSearchService の DI factories を登録
+    // New NarrativeSearchService DI factory registration
+    setNarrativePrismaClientFactory(() => config.prisma as unknown as INarrativePrismaClient);
+    setNarrativeEmbeddingServiceFactory(() => config.embeddingService);
+    const narrativeSearchInstance = createNarrativeSearchService();
+    setNarrativeSearchServiceFactory(
+      (): INarrativeAnalysisService => ({
+        analyze: async (): Promise<never> => {
+          throw new Error(
+            "NarrativeAnalysisService.analyze() is not available via DI search factory. Use narrative.analyze tool directly."
+          );
+        },
+        save: async (): Promise<never> => {
+          throw new Error(
+            "NarrativeAnalysisService.save() is not available via DI search factory."
+          );
+        },
+        analyzeAndSave: async (): Promise<never> => {
+          throw new Error(
+            "NarrativeAnalysisService.analyzeAndSave() is not available via DI search factory."
+          );
+        },
+        search: (opts: NarrativeSearchOptions): Promise<NarrativeSearchResult[]> =>
+          narrativeSearchInstance.search(opts),
+        searchHybrid: (opts: NarrativeSearchOptions): Promise<NarrativeSearchResult[]> =>
+          narrativeSearchInstance.searchHybrid(opts),
       })
     );
     // 嗜好リランキング用PrismaClientFactory登録（$queryRawUnsafeのみ使用）
     // Register PrismaClientFactory for preference reranking (uses $queryRawUnsafe only)
-    setNarrativeSearchRerankPrismaClientFactory(() => config.prisma as unknown as IPreferencePrismaClient);
-    allRegistered.push('narrativeSearch');
-    allCategories.push('narrative');
-    logger.info('[ServiceInitializer] narrativeSearch factory registered');
+    setNarrativeSearchRerankPrismaClientFactory(
+      () => config.prisma as unknown as IPreferencePrismaClient
+    );
+    allRegistered.push("narrativeSearch");
+    allCategories.push("narrative");
+    logger.info("[ServiceInitializer] narrativeSearch factory registered");
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
     errors.push(`Narrative: ${errorMessage}`);
-    errorsInfo.push({ category: 'Narrative', error: errorMessage });
-    allSkipped.push('narrativeSearch');
+    errorsInfo.push({ category: "Narrative", error: errorMessage });
+    allSkipped.push("narrativeSearch");
     skippedCategoriesInfo.push({
-      category: 'Narrative.narrativeSearch',
+      category: "Narrative.narrativeSearch",
       reason: errorMessage,
     });
   }
@@ -1015,17 +1060,19 @@ export function initializeAllServices(
     );
     // 嗜好リランキング用PrismaClientFactory登録（$queryRawUnsafeのみ使用）
     // Register PrismaClientFactory for preference reranking (uses $queryRawUnsafe only)
-    setBackgroundSearchRerankPrismaClientFactory(() => config.prisma as unknown as IPreferencePrismaClient);
-    allRegistered.push('backgroundSearch');
-    allCategories.push('background');
-    logger.info('[ServiceInitializer] backgroundSearch factory registered');
+    setBackgroundSearchRerankPrismaClientFactory(
+      () => config.prisma as unknown as IPreferencePrismaClient
+    );
+    allRegistered.push("backgroundSearch");
+    allCategories.push("background");
+    logger.info("[ServiceInitializer] backgroundSearch factory registered");
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
     errors.push(`Background: ${errorMessage}`);
-    errorsInfo.push({ category: 'Background', error: errorMessage });
-    allSkipped.push('backgroundSearch');
+    errorsInfo.push({ category: "Background", error: errorMessage });
+    allSkipped.push("backgroundSearch");
     skippedCategoriesInfo.push({
-      category: 'Background.backgroundSearch',
+      category: "Background.backgroundSearch",
       reason: errorMessage,
     });
   }
@@ -1040,17 +1087,19 @@ export function initializeAllServices(
     );
     // 嗜好リランキング用PrismaClientFactory登録（$queryRawUnsafeのみ使用）
     // Register PrismaClientFactory for preference reranking (uses $queryRawUnsafe only)
-    setResponsiveSearchRerankPrismaClientFactory(() => config.prisma as unknown as IPreferencePrismaClient);
-    allRegistered.push('responsiveSearch');
-    allCategories.push('responsive');
-    logger.info('[ServiceInitializer] responsiveSearch factory registered');
+    setResponsiveSearchRerankPrismaClientFactory(
+      () => config.prisma as unknown as IPreferencePrismaClient
+    );
+    allRegistered.push("responsiveSearch");
+    allCategories.push("responsive");
+    logger.info("[ServiceInitializer] responsiveSearch factory registered");
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
     errors.push(`Responsive: ${errorMessage}`);
-    errorsInfo.push({ category: 'Responsive', error: errorMessage });
-    allSkipped.push('responsiveSearch');
+    errorsInfo.push({ category: "Responsive", error: errorMessage });
+    allSkipped.push("responsiveSearch");
     skippedCategoriesInfo.push({
-      category: 'Responsive.responsiveSearch',
+      category: "Responsive.responsiveSearch",
       reason: errorMessage,
     });
   }
@@ -1065,16 +1114,16 @@ export function initializeAllServices(
     setPreferenceHearServiceFactory(preferenceFactory);
     setPreferenceGetServiceFactory(preferenceFactory);
     setPreferenceResetServiceFactory(preferenceFactory);
-    allRegistered.push('preferenceHear', 'preferenceGet', 'preferenceReset');
-    allCategories.push('preference');
-    logger.info('[ServiceInitializer] preference factories registered (hear, get, reset)');
+    allRegistered.push("preferenceHear", "preferenceGet", "preferenceReset");
+    allCategories.push("preference");
+    logger.info("[ServiceInitializer] preference factories registered (hear, get, reset)");
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
     errors.push(`Preference: ${errorMessage}`);
-    errorsInfo.push({ category: 'Preference', error: errorMessage });
-    allSkipped.push('preferenceHear', 'preferenceGet', 'preferenceReset');
+    errorsInfo.push({ category: "Preference", error: errorMessage });
+    allSkipped.push("preferenceHear", "preferenceGet", "preferenceReset");
     skippedCategoriesInfo.push({
-      category: 'Preference.preference',
+      category: "Preference.preference",
       reason: errorMessage,
     });
   }
@@ -1087,56 +1136,64 @@ export function initializeAllServices(
     setBackgroundPrismaClientFactory(
       () =>
         createPrismaWrapper(config.prisma, {
-          tables: ['backgroundDesignEmbedding'],
+          tables: ["backgroundDesignEmbedding"],
           supportsTransaction: false,
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
         }) as any
     );
-    allRegistered.push('backgroundPrismaClient');
+    allRegistered.push("backgroundPrismaClient");
 
     // 2. BackgroundDesign Embedding 用 EmbeddingService
     // IBackgroundEmbeddingService は generateFromText(text) を要求
     setBackgroundEmbeddingServiceFactory(() => ({
-      generateFromText: async (text: string): Promise<{
+      generateFromText: async (
+        text: string
+      ): Promise<{
         embedding: number[];
         modelName: string;
         textUsed: string;
         processingTimeMs: number;
       }> => {
         const start = Date.now();
-        const embedding = await config.embeddingService.generateEmbedding(text, 'passage');
+        const embedding = await config.embeddingService.generateEmbedding(text, "passage");
         return {
           embedding,
-          modelName: 'multilingual-e5-base',
+          modelName: "multilingual-e5-base",
           textUsed: text,
           processingTimeMs: Date.now() - start,
         };
       },
     }));
-    allRegistered.push('backgroundEmbeddingService');
+    allRegistered.push("backgroundEmbeddingService");
 
     // 3. Motion Embedding 用 LayoutEmbeddingService（embedding-handler DI）
     // ILayoutEmbeddingServiceForMotion は generateFromText(text) を要求
     setMotionLayoutEmbeddingServiceFactory(() => ({
-      generateFromText: async (text: string): Promise<{
+      generateFromText: async (
+        text: string
+      ): Promise<{
         embedding: number[];
         modelName: string;
       }> => {
-        const embedding = await config.embeddingService.generateEmbedding(text, 'passage');
+        const embedding = await config.embeddingService.generateEmbedding(text, "passage");
         return {
           embedding,
-          modelName: 'multilingual-e5-base',
+          modelName: "multilingual-e5-base",
         };
       },
     }));
-    allRegistered.push('motionLayoutEmbeddingService');
+    allRegistered.push("motionLayoutEmbeddingService");
 
-    logger.info('[ServiceInitializer] Embedding backfill DI factories registered (background + motion)');
+    logger.info(
+      "[ServiceInitializer] Embedding backfill DI factories registered (background + motion)"
+    );
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
     errors.push(`EmbeddingBackfill: ${errorMessage}`);
-    errorsInfo.push({ category: 'EmbeddingBackfill', error: errorMessage });
-    logger.warn(`[ServiceInitializer] Failed to register embedding backfill DI factories: ${errorMessage}`);
+    errorsInfo.push({ category: "EmbeddingBackfill", error: errorMessage });
+    logger.warn(
+      `[ServiceInitializer] Failed to register embedding backfill DI factories: ${errorMessage}`
+    );
   }
 
   // 少なくとも1つ成功していれば success=true
@@ -1150,21 +1207,21 @@ export function initializeAllServices(
     (cat) => cat.charAt(0).toUpperCase() + cat.slice(1)
   );
 
-  logger.info('============================================================');
-  logger.info('[ServiceInitializer] Service Initialization Complete');
-  logger.info(`  Initialized: ${capitalizedCategories.join(', ') || 'None'}`);
+  logger.info("============================================================");
+  logger.info("[ServiceInitializer] Service Initialization Complete");
+  logger.info(`  Initialized: ${capitalizedCategories.join(", ") || "None"}`);
   logger.info(`  Factories: ${allRegistered.length} registered`);
   if (allSkipped.length > 0) {
-    logger.info(`  Skipped: ${allSkipped.join(', ')}`);
+    logger.info(`  Skipped: ${allSkipped.join(", ")}`);
   }
-  logger.info('============================================================');
+  logger.info("============================================================");
 
   // =====================================================
   // MCP-INIT-02: 警告ログ強化
   // =====================================================
   // エラーがある場合の警告出力
   if (errorsInfo.length > 0) {
-    const errorSummary = errorsInfo.map((e) => `${e.category}: ${e.error}`).join(', ');
+    const errorSummary = errorsInfo.map((e) => `${e.category}: ${e.error}`).join(", ");
     logger.warn(`⚠️ Initialization errors: ${errorSummary}`);
   }
 
@@ -1172,64 +1229,62 @@ export function initializeAllServices(
   if (skippedCategoriesInfo.length > 0) {
     const skippedSummary = skippedCategoriesInfo
       .map((s) => `${s.category} (${s.reason})`)
-      .join(', ');
+      .join(", ");
     logger.warn(`⚠️ Skipped categories: ${skippedSummary}`);
   }
 
   // =====================================================
   // 配線漏れ検出（必須サービスが未初期化の場合に警告）
   // =====================================================
-  const requiredCategories = ['motion', 'layout', 'quality', 'page'];
-  const missingCategories = requiredCategories.filter(
-    (cat) => !uniqueCategories.includes(cat)
-  );
+  const requiredCategories = ["motion", "layout", "quality", "page"];
+  const missingCategories = requiredCategories.filter((cat) => !uniqueCategories.includes(cat));
 
   if (missingCategories.length > 0) {
-    logger.warn('============================================================');
-    logger.warn('[ServiceInitializer] MISSING REQUIRED CATEGORIES:');
+    logger.warn("============================================================");
+    logger.warn("[ServiceInitializer] MISSING REQUIRED CATEGORIES:");
     for (const missing of missingCategories) {
       logger.warn(`  - ${missing.toUpperCase()} services not initialized`);
       // MCP-INIT-02: 不足カテゴリも skippedCategoriesInfo に追加
       skippedCategoriesInfo.push({
         category: missing.toUpperCase(),
-        reason: 'Category not initialized',
+        reason: "Category not initialized",
       });
     }
-    logger.warn('  This may cause runtime errors when using MCP tools.');
-    logger.warn('============================================================');
+    logger.warn("  This may cause runtime errors when using MCP tools.");
+    logger.warn("============================================================");
   }
 
   // 必須ファクトリの検証
   const requiredFactories = [
     // Motion
-    'motionSearch',
-    'motionPersistence',
-    'motionDb',
-    'frameEmbedding',
-    'jsAnimationEmbedding',
+    "motionSearch",
+    "motionPersistence",
+    "motionDb",
+    "frameEmbedding",
+    "jsAnimationEmbedding",
     // Layout
-    'layoutSearch',
-    'layoutToCode',
-    'layoutInspect',
-    'layoutIngest',
+    "layoutSearch",
+    "layoutToCode",
+    "layoutInspect",
+    "layoutIngest",
     // Quality
-    'qualityEvaluate',
-    'benchmarkService',
-    'patternMatcher',
+    "qualityEvaluate",
+    "benchmarkService",
+    "patternMatcher",
   ];
   const missingFactories = requiredFactories.filter(
     (factory) => !allRegistered.includes(factory) && !allSkipped.includes(factory)
   );
 
   if (missingFactories.length > 0) {
-    logger.warn('[ServiceInitializer] MISSING REQUIRED FACTORIES:');
+    logger.warn("[ServiceInitializer] MISSING REQUIRED FACTORIES:");
     for (const missing of missingFactories) {
       logger.warn(`  - ${missing} not registered`);
     }
   }
 
   if (errors.length > 0) {
-    logger.error('[ServiceInitializer] Initialization errors:');
+    logger.error("[ServiceInitializer] Initialization errors:");
     for (const err of errors) {
       logger.error(`  - ${err}`);
     }
@@ -1269,7 +1324,7 @@ export function initializeAllServices(
   };
 
   if (errors.length > 0) {
-    result.error = errors.join('; ');
+    result.error = errors.join("; ");
   }
 
   return result;
@@ -1298,16 +1353,16 @@ const DEFAULT_EMBEDDING_IDLE_TIMEOUT_MS = 30_000;
 function configureEmbeddingIdleTimeout(embeddingService: IEmbeddingService): void {
   // setIdleTimeoutメソッドの存在チェック（オプショナルメソッド）
   // Runtime check for setIdleTimeout method (optional on IEmbeddingService)
-  if (typeof embeddingService.setIdleTimeout !== 'function') {
+  if (typeof embeddingService.setIdleTimeout !== "function") {
     logger.debug(
-      '[ServiceInitializer] EmbeddingService.setIdleTimeout() not available, skipping GPU VRAM idle timeout configuration'
+      "[ServiceInitializer] EmbeddingService.setIdleTimeout() not available, skipping GPU VRAM idle timeout configuration"
     );
     return;
   }
 
   // 環境変数でタイムアウト値を設定可能にする（デフォルト30秒）
   // Allow timeout configuration via environment variable (default 30s)
-  const envTimeout = process.env['EMBEDDING_IDLE_TIMEOUT_MS'];
+  const envTimeout = process.env["EMBEDDING_IDLE_TIMEOUT_MS"];
   let timeoutMs = DEFAULT_EMBEDDING_IDLE_TIMEOUT_MS;
 
   if (envTimeout !== undefined) {

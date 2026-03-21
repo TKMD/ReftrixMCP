@@ -22,15 +22,16 @@
  * @module tools/part/search.tool
  */
 
-import { ZodError } from 'zod';
-import { logger, isDevelopment } from '../../utils/logger';
-import { partSearchInputSchema, type PartSearchInput } from '../../services/part/schemas';
+import { ZodError } from "zod";
+import { logger, isDevelopment } from "../../utils/logger";
+import { sanitizeHtml } from "../../utils/html-sanitizer";
+import { partSearchInputSchema, type PartSearchInput } from "../../services/part/schemas";
 import {
   getPartSearchService,
   type PartSearchResult,
   type PartSearchResultItem,
   type PartSearchOptions,
-} from '../../services/part/part-search.service';
+} from "../../services/part/part-search.service";
 
 // =====================================================
 // 型定義
@@ -81,11 +82,11 @@ export type PartSearchOutput =
 // =====================================================
 
 export const PART_SEARCH_ERROR_CODES = {
-  VALIDATION_ERROR: 'VALIDATION_ERROR',
-  SEARCH_FAILED: 'SEARCH_FAILED',
-  EMBEDDING_FAILED: 'EMBEDDING_FAILED',
-  SERVICE_UNAVAILABLE: 'SERVICE_UNAVAILABLE',
-  INTERNAL_ERROR: 'INTERNAL_ERROR',
+  VALIDATION_ERROR: "VALIDATION_ERROR",
+  SEARCH_FAILED: "SEARCH_FAILED",
+  EMBEDDING_FAILED: "EMBEDDING_FAILED",
+  SERVICE_UNAVAILABLE: "SERVICE_UNAVAILABLE",
+  INTERNAL_ERROR: "INTERNAL_ERROR",
 } as const;
 
 // =====================================================
@@ -99,19 +100,19 @@ export const PART_SEARCH_ERROR_CODES = {
 function mapErrorToCode(error: Error): string {
   const message = error.message.toLowerCase();
 
-  if (message.includes('embedding') || message.includes('model')) {
+  if (message.includes("embedding") || message.includes("model")) {
     return PART_SEARCH_ERROR_CODES.EMBEDDING_FAILED;
   }
 
   if (
-    message.includes('database') ||
-    message.includes('prisma') ||
-    message.includes('connection')
+    message.includes("database") ||
+    message.includes("prisma") ||
+    message.includes("connection")
   ) {
     return PART_SEARCH_ERROR_CODES.SEARCH_FAILED;
   }
 
-  if (message.includes('timeout')) {
+  if (message.includes("timeout")) {
     return PART_SEARCH_ERROR_CODES.SEARCH_FAILED;
   }
 
@@ -127,13 +128,16 @@ function sanitizePartSearchError(error: unknown): string {
     const prismaError = error as { code?: string };
     if (prismaError.code) {
       switch (prismaError.code) {
-        case 'P2002': return 'A record with this value already exists';
-        case 'P2025': return 'Record not found';
-        default: return 'Database operation failed';
+        case "P2002":
+          return "A record with this value already exists";
+        case "P2025":
+          return "Record not found";
+        default:
+          return "Database operation failed";
       }
     }
   }
-  return 'An internal error occurred';
+  return "An internal error occurred";
 }
 
 // =====================================================
@@ -147,7 +151,7 @@ function sanitizePartSearchError(error: unknown): string {
 function formatSearchResult(
   result: PartSearchResult,
   includeStyles: boolean,
-  includeHtml: boolean,
+  includeHtml: boolean
 ): PartSearchMcpResultItem[] {
   return result.results.map((r: PartSearchResultItem) => {
     const item: PartSearchMcpResultItem = {
@@ -170,7 +174,7 @@ function formatSearchResult(
       item.computedStyles = r.computedStyles;
     }
     if (includeHtml && r.htmlSnippet) {
-      item.htmlSnippet = r.htmlSnippet;
+      item.htmlSnippet = sanitizeHtml(r.htmlSnippet);
     }
 
     return item;
@@ -188,17 +192,13 @@ function formatSearchResult(
  * @param input - 入力パラメータ / Input parameters
  * @returns 検索結果 / Search results
  */
-export async function partSearchHandler(
-  input: unknown
-): Promise<PartSearchOutput> {
+export async function partSearchHandler(input: unknown): Promise<PartSearchOutput> {
   const startTime = Date.now();
 
   if (isDevelopment()) {
-    logger.info('[MCP Tool] part.search called', {
+    logger.info("[MCP Tool] part.search called", {
       query: (input as Record<string, unknown>)?.query,
-      image_url: (input as Record<string, unknown>)?.image_url
-        ? '(provided)'
-        : undefined,
+      image_url: (input as Record<string, unknown>)?.image_url ? "(provided)" : undefined,
     });
   }
 
@@ -208,11 +208,9 @@ export async function partSearchHandler(
     validated = partSearchInputSchema.parse(input);
   } catch (error) {
     if (error instanceof ZodError) {
-      const errorMessage = error.errors
-        .map((e) => `${e.path.join('.')}: ${e.message}`)
-        .join(', ');
+      const errorMessage = error.errors.map((e) => `${e.path.join(".")}: ${e.message}`).join(", ");
 
-      logger.warn('[MCP Tool] part.search validation error', {
+      logger.warn("[MCP Tool] part.search validation error", {
         errors: error.errors,
       });
 
@@ -236,7 +234,7 @@ export async function partSearchHandler(
       success: false,
       error: {
         code: PART_SEARCH_ERROR_CODES.SERVICE_UNAVAILABLE,
-        message: 'Part search service is not available',
+        message: "Part search service is not available",
       },
     };
   }
@@ -261,7 +259,7 @@ export async function partSearchHandler(
 
     let result: PartSearchResult;
 
-    if (validated.search_mode === 'visual' && validated.image_url) {
+    if (validated.search_mode === "visual" && validated.image_url) {
       // ビジュアル検索: imageUrlをreferencePartIdとして使用できるか確認
       // 現在の実装は referencePartId（既存パーツID）のみ対応
       // Visual search: currently only supports referencePartId (existing part ID)
@@ -270,7 +268,8 @@ export async function partSearchHandler(
         success: false,
         error: {
           code: PART_SEARCH_ERROR_CODES.VALIDATION_ERROR,
-          message: 'Visual search by imageUrl is not yet supported. Use text or hybrid mode, or provide an existing part ID via part.inspect + visual search.',
+          message:
+            "Visual search by imageUrl is not yet supported. Use text or hybrid mode, or provide an existing part ID via part.inspect + visual search.",
         },
       };
     }
@@ -279,20 +278,18 @@ export async function partSearchHandler(
       // テキストまたはハイブリッド検索 / Text or hybrid search
       const embedding = await searchService.generateQueryEmbedding(validated.query);
 
-      if (embedding && validated.search_mode !== 'text') {
+      if (embedding && validated.search_mode !== "text") {
         // ハイブリッド検索: ベクトル + 全文検索 / Hybrid: vector + fulltext
-        result = await searchService.searchPartsHybrid(
-          validated.query,
-          embedding,
-          options
-        );
+        result = await searchService.searchPartsHybrid(validated.query, embedding, options);
       } else if (embedding) {
         // テキストベクトル検索のみ / Text vector search only
         result = await searchService.searchParts(embedding, options);
       } else {
         // Embedding生成失敗 / Embedding generation failed
         if (isDevelopment()) {
-          logger.warn('[MCP Tool] part.search: embedding generation failed, returning empty results');
+          logger.warn(
+            "[MCP Tool] part.search: embedding generation failed, returning empty results"
+          );
         }
 
         return {
@@ -328,7 +325,7 @@ export async function partSearchHandler(
     const searchTimeMs = Date.now() - startTime;
 
     if (isDevelopment()) {
-      logger.info('[MCP Tool] part.search completed', {
+      logger.info("[MCP Tool] part.search completed", {
         query: validated.query,
         searchMode: validated.search_mode,
         resultCount: mappedResults.length,
@@ -353,7 +350,7 @@ export async function partSearchHandler(
     const errorInstance = error instanceof Error ? error : new Error(String(error));
     const errorCode = mapErrorToCode(errorInstance);
 
-    logger.warn('[MCP Tool] part.search error', {
+    logger.warn("[MCP Tool] part.search error", {
       code: errorCode,
       error: sanitizePartSearchError(error),
     });
@@ -377,70 +374,85 @@ export async function partSearchHandler(
  * part.search MCP tool definition
  */
 export const partSearchToolDefinition = {
-  name: 'part.search',
+  name: "part.search",
   description:
-    'UIコンポーネントパーツ（ボタン、カード、リンク等）をセマンティック検索します。' +
-    'テキストクエリ（e5-base + full-text）によるハイブリッド検索を提供。' +
-    'partType（16種類）やsearchMode（visual/text/hybrid）でフィルタリング可能です。' +
-    ' / Search UI component parts (buttons, cards, links, etc.) by text query. ' +
-    'Provides hybrid search via e5-base + full-text. ' +
-    'Filterable by partType (16 types) and searchMode (visual/text/hybrid).',
+    "UIコンポーネントパーツ（ボタン、カード、リンク等）をセマンティック検索します。" +
+    "テキストクエリ（e5-base + full-text）によるハイブリッド検索を提供。" +
+    "partType（16種類）やsearchMode（visual/text/hybrid）でフィルタリング可能です。" +
+    " / Search UI component parts (buttons, cards, links, etc.) by text query. " +
+    "Provides hybrid search via e5-base + full-text. " +
+    "Filterable by partType (16 types) and searchMode (visual/text/hybrid).",
   annotations: {
-    title: 'Part Search',
+    title: "Part Search",
     readOnlyHint: true,
     idempotentHint: true,
     openWorldHint: false,
   },
   inputSchema: {
-    type: 'object' as const,
+    type: "object" as const,
     properties: {
       query: {
-        type: 'string',
-        description: 'テキスト検索クエリ（1-500文字） / Text search query (1-500 chars)',
+        type: "string",
+        description: "テキスト検索クエリ（1-500文字） / Text search query (1-500 chars)",
         minLength: 1,
         maxLength: 500,
       },
       image_url: {
-        type: 'string',
-        format: 'uri',
-        description: '画像URLによるビジュアル検索（将来対応予定） / Visual search by image URL (future support)',
+        type: "string",
+        format: "uri",
+        description:
+          "画像URLによるビジュアル検索（将来対応予定） / Visual search by image URL (future support)",
       },
       part_type: {
-        type: 'string',
+        type: "string",
         enum: [
-          'button', 'link', 'image', 'video', 'form', 'input',
-          'heading', 'card', 'navigation', 'footer', 'cta',
-          'hero_image', 'icon', 'badge', 'tag', 'avatar',
+          "button",
+          "link",
+          "image",
+          "video",
+          "form",
+          "input",
+          "heading",
+          "card",
+          "navigation",
+          "footer",
+          "cta",
+          "hero_image",
+          "icon",
+          "badge",
+          "tag",
+          "avatar",
         ],
-        description: 'パーツタイプでフィルター（16種類） / Filter by part type (16 types)',
+        description: "パーツタイプでフィルター（16種類） / Filter by part type (16 types)",
       },
       web_page_id: {
-        type: 'string',
-        format: 'uuid',
-        description: 'WebページIDでフィルター / Filter by web page ID',
+        type: "string",
+        format: "uuid",
+        description: "WebページIDでフィルター / Filter by web page ID",
       },
       limit: {
-        type: 'number',
-        description: '取得件数（1-100、デフォルト: 20） / Result limit (1-100, default: 20)',
+        type: "number",
+        description: "取得件数（1-100、デフォルト: 20） / Result limit (1-100, default: 20)",
         minimum: 1,
         maximum: 100,
         default: 20,
       },
       offset: {
-        type: 'number',
-        description: 'オフセット（0以上、デフォルト: 0） / Offset (0+, default: 0)',
+        type: "number",
+        description: "オフセット（0以上、デフォルト: 0） / Offset (0+, default: 0)",
         minimum: 0,
         default: 0,
       },
       search_mode: {
-        type: 'string',
-        enum: ['visual', 'text', 'hybrid'],
-        default: 'hybrid',
-        description: '検索モード（デフォルト: hybrid） / Search mode (default: hybrid)',
+        type: "string",
+        enum: ["visual", "text", "hybrid"],
+        default: "hybrid",
+        description: "検索モード（デフォルト: hybrid） / Search mode (default: hybrid)",
       },
       min_similarity: {
-        type: 'number',
-        description: '最小類似度閾値（0-1、デフォルト: 0.3） / Min similarity threshold (0-1, default: 0.3)',
+        type: "number",
+        description:
+          "最小類似度閾値（0-1、デフォルト: 0.3） / Min similarity threshold (0-1, default: 0.3)",
         minimum: 0,
         maximum: 1,
         default: 0.3,
@@ -454,5 +466,5 @@ export const partSearchToolDefinition = {
 // =====================================================
 
 if (isDevelopment()) {
-  logger.debug('[part.search] Tool module loaded');
+  logger.debug("[part.search] Tool module loaded");
 }

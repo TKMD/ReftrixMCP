@@ -8,11 +8,8 @@
  * @module services/layout-search-service-export
  */
 
-import { layoutSearchHandler } from '../tools/layout/search.tool';
-import type {
-  LayoutSearchInput,
-  LayoutSearchOutput,
-} from '../tools/layout/schemas';
+import { layoutSearchHandler } from "../tools/layout/search.tool";
+import type { LayoutSearchInput, LayoutSearchOutput } from "../tools/layout/schemas";
 
 /**
  * layout.searchツールを直接実行するService関数
@@ -41,9 +38,7 @@ import type {
  * }
  * ```
  */
-export async function executeLayoutSearch(
-  input: LayoutSearchInput
-): Promise<LayoutSearchOutput> {
+export async function executeLayoutSearch(input: LayoutSearchInput): Promise<LayoutSearchOutput> {
   return await layoutSearchHandler(input);
 }
 
@@ -57,4 +52,4 @@ export type {
   LayoutSearchFilters,
   LayoutSearchPreview,
   LayoutSearchSource,
-} from '../tools/layout/schemas';
+} from "../tools/layout/schemas";

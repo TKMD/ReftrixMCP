@@ -675,7 +675,8 @@ function extractColors($: CheerioAPI, html: string, externalCss?: string): Color
 
     // CSS変数を解決
     const result = resolver.resolve(trimmedValue);
-    const resolvedValue = result.success && result.resolvedValue ? result.resolvedValue : trimmedValue;
+    const resolvedValue =
+      result.success && result.resolvedValue ? result.resolvedValue : trimmedValue;
 
     // 有効な色値かチェック
     if (isValidColorValue(resolvedValue)) {
@@ -841,7 +842,11 @@ function extractExternalCssUrls($: CheerioAPI, baseUrl: string): string[] {
 async function extractCssWithExternalContent(
   $: CheerioAPI,
   options: ExternalCssFetchOptions
-): Promise<{ cssSnippet: string; externalCssContent: string; fetchResult: ExternalCssFetchResult }> {
+): Promise<{
+  cssSnippet: string;
+  externalCssContent: string;
+  fetchResult: ExternalCssFetchResult;
+}> {
   const startTime = Date.now();
   const cssChunks: string[] = [];
   const externalCssContentChunks: string[] = [];
@@ -932,7 +937,11 @@ async function extractCssWithExternalContent(
         fetcher.fetchAllCss(externalCssUrls, fetchAllOptions),
         new Promise<never>((_, reject) => {
           setTimeout(() => {
-            reject(new Error(`External CSS fetch overall timeout after ${EXTERNAL_CSS_OVERALL_TIMEOUT_MS}ms`));
+            reject(
+              new Error(
+                `External CSS fetch overall timeout after ${EXTERNAL_CSS_OVERALL_TIMEOUT_MS}ms`
+              )
+            );
           }, EXTERNAL_CSS_OVERALL_TIMEOUT_MS);
         }),
       ]);
@@ -976,11 +985,17 @@ async function extractCssWithExternalContent(
     } catch (overallFetchError) {
       // 全体タイムアウト: Graceful Degradation（インラインCSSのみで分析を継続）
       if (isDevelopment()) {
-        logger.warn("[LayoutAnalyzerService] External CSS fetch overall timeout (graceful degradation)", {
-          error: overallFetchError instanceof Error ? overallFetchError.message : String(overallFetchError),
-          urlCount: externalCssUrls.length,
-          timeoutMs: EXTERNAL_CSS_OVERALL_TIMEOUT_MS,
-        });
+        logger.warn(
+          "[LayoutAnalyzerService] External CSS fetch overall timeout (graceful degradation)",
+          {
+            error:
+              overallFetchError instanceof Error
+                ? overallFetchError.message
+                : String(overallFetchError),
+            urlCount: externalCssUrls.length,
+            timeoutMs: EXTERNAL_CSS_OVERALL_TIMEOUT_MS,
+          }
+        );
       }
       // fetchResult はデフォルト値のまま（successCount: 0）
     }
@@ -2041,9 +2056,7 @@ function detectCssFramework($: CheerioAPI, html: string): CssFrameworkDetection 
       confidenceMap[scoreEntry.framework] = Math.round(secondaryConfidence * 100) / 100;
       // evidenceにセカンダリ検出を追加
       const evidenceText = scoreEntry.evidence[0] ?? "pattern matches";
-      result.evidence.push(
-        `Also detected ${scoreEntry.framework}: ${evidenceText}`
-      );
+      result.evidence.push(`Also detected ${scoreEntry.framework}: ${evidenceText}`);
     }
   }
 
@@ -2391,7 +2404,11 @@ export class LayoutAnalyzerService {
       // CSSフレームワーク検出（外部CSSを含めた場合は再度検出）
       // 外部CSSを取得した場合は、その内容も含めてフレームワーク検出を行う
       let cssFramework: CssFrameworkDetection;
-      if (externalCssFetch && externalCssFetch.successCount > 0 && (cssSnippet || externalCssContent)) {
+      if (
+        externalCssFetch &&
+        externalCssFetch.successCount > 0 &&
+        (cssSnippet || externalCssContent)
+      ) {
         // 外部CSSの内容を含めたHTMLを構築して検出
         const combinedCss = [cssSnippet, externalCssContent].filter(Boolean).join("\n\n");
         const htmlWithCss = html + `<style>${combinedCss}</style>`;

@@ -16,9 +16,9 @@
  * @module services/motion/existing-animation-detector.service
  */
 
-import * as fs from 'fs/promises';
-import * as path from 'path';
-import { isDevelopment, logger } from '../../utils/logger';
+import * as fs from "fs/promises";
+import * as path from "path";
+import { isDevelopment, logger } from "../../utils/logger";
 
 // =====================================================
 // 型定義
@@ -67,7 +67,7 @@ export interface NewAnimationPattern {
     }>;
   }>;
   /** タイプ */
-  type: 'animation' | 'transition' | 'transform' | 'scroll' | 'hover' | 'keyframe';
+  type: "animation" | "transition" | "transform" | "scroll" | "hover" | "keyframe";
   /** 継続時間(ms) */
   duration: number;
   /** イージング */
@@ -149,21 +149,21 @@ export class ExistingAnimationDetectorService {
     const animations: ExistingAnimation[] = [];
 
     try {
-      const content = await fs.readFile(filePath, 'utf-8');
+      const content = await fs.readFile(filePath, "utf-8");
       const parsed = this.parseCSSContent(content, filePath);
       animations.push(...parsed);
 
       if (isDevelopment()) {
-        logger.debug('[ExistingAnimationDetector] Scanned CSS file', {
+        logger.debug("[ExistingAnimationDetector] Scanned CSS file", {
           filePath,
           animationCount: animations.length,
         });
       }
     } catch (error) {
       if (isDevelopment()) {
-        logger.warn('[ExistingAnimationDetector] Failed to scan CSS file', {
+        logger.warn("[ExistingAnimationDetector] Failed to scan CSS file", {
           filePath,
-          error: error instanceof Error ? error.message : 'Unknown error',
+          error: error instanceof Error ? error.message : "Unknown error",
         });
       }
       // ファイル読み取りエラーは空配列を返す
@@ -197,7 +197,7 @@ export class ExistingAnimationDetectorService {
       }
 
       // 名前がない場合はスキップ
-      if (!block.name || block.name.trim() === '') {
+      if (!block.name || block.name.trim() === "") {
         continue;
       }
 
@@ -215,7 +215,9 @@ export class ExistingAnimationDetectorService {
       } catch {
         // パースエラーはスキップして続行
         if (isDevelopment()) {
-          logger.debug('[ExistingAnimationDetector] Failed to parse keyframe', { name: block.name });
+          logger.debug("[ExistingAnimationDetector] Failed to parse keyframe", {
+            name: block.name,
+          });
         }
       }
     }
@@ -228,10 +230,10 @@ export class ExistingAnimationDetectorService {
    */
   private removeVendorKeyframes(content: string): string {
     let result = content;
-    const vendorPrefixes = ['-webkit-', '-moz-', '-ms-', '-o-'];
+    const vendorPrefixes = ["-webkit-", "-moz-", "-ms-", "-o-"];
 
     for (const prefix of vendorPrefixes) {
-      const regex = new RegExp(`@${prefix}keyframes\\s+[\\w-]+\\s*\\{`, 'g');
+      const regex = new RegExp(`@${prefix}keyframes\\s+[\\w-]+\\s*\\{`, "g");
       let match: RegExpExecArray | null;
 
       while ((match = regex.exec(result)) !== null) {
@@ -250,7 +252,9 @@ export class ExistingAnimationDetectorService {
   /**
    * @keyframesブロックを抽出
    */
-  private extractKeyframeBlocks(content: string): Array<{ name: string; body: string; raw: string }> {
+  private extractKeyframeBlocks(
+    content: string
+  ): Array<{ name: string; body: string; raw: string }> {
     const blocks: Array<{ name: string; body: string; raw: string }> = [];
     const regex = /@keyframes\s+([a-zA-Z_][\w-]*)\s*\{/g;
     let match: RegExpExecArray | null;
@@ -280,9 +284,9 @@ export class ExistingAnimationDetectorService {
     let i = openIndex + 1;
 
     while (i < content.length && depth > 0) {
-      if (content[i] === '{') {
+      if (content[i] === "{") {
         depth++;
-      } else if (content[i] === '}') {
+      } else if (content[i] === "}") {
         depth--;
       }
       i++;
@@ -300,7 +304,7 @@ export class ExistingAnimationDetectorService {
   private parseKeyframeBody(body: string): Keyframe[] {
     const keyframes: Keyframe[] = [];
     let match: RegExpExecArray | null;
-    const regex = new RegExp(KEYFRAME_BLOCK_REGEX.source, 'g');
+    const regex = new RegExp(KEYFRAME_BLOCK_REGEX.source, "g");
 
     while ((match = regex.exec(body)) !== null) {
       const offsetsRaw = match[1];
@@ -312,7 +316,7 @@ export class ExistingAnimationDetectorService {
       // プロパティを抽出
       const properties: Record<string, string> = {};
       let propMatch: RegExpExecArray | null;
-      const propRegex = new RegExp(CSS_PROPERTY_REGEX.source, 'g');
+      const propRegex = new RegExp(CSS_PROPERTY_REGEX.source, "g");
 
       while ((propMatch = propRegex.exec(propsStr)) !== null) {
         const propName = propMatch[1];
@@ -336,7 +340,7 @@ export class ExistingAnimationDetectorService {
     // 重複オフセットをマージ（同じオフセットのプロパティを結合）
     const mergedKeyframes: Keyframe[] = [];
     for (const kf of keyframes) {
-      const existing = mergedKeyframes.find(m => m.offset === kf.offset);
+      const existing = mergedKeyframes.find((m) => m.offset === kf.offset);
       if (existing) {
         Object.assign(existing.properties, kf.properties);
       } else {
@@ -353,14 +357,14 @@ export class ExistingAnimationDetectorService {
    */
   private parseOffsets(offsetsStr: string): number[] {
     const offsets: number[] = [];
-    const parts = offsetsStr.split(',').map(s => s.trim());
+    const parts = offsetsStr.split(",").map((s) => s.trim());
 
     for (const part of parts) {
-      if (part === 'from') {
+      if (part === "from") {
         offsets.push(0);
-      } else if (part === 'to') {
+      } else if (part === "to") {
         offsets.push(1);
-      } else if (part.endsWith('%')) {
+      } else if (part.endsWith("%")) {
         const num = parseFloat(part);
         if (!isNaN(num)) {
           offsets.push(num / 100);
@@ -406,8 +410,11 @@ export class ExistingAnimationDetectorService {
     const nameSimilarity = this.calculateNameSimilarity(existing.name, newPattern.name);
 
     // 2. プロパティの重複率 (重み: 0.6 - 最重要)
-    const newPropertyNames = newPattern.properties.map(p => p.name);
-    const propertySimilarity = this.calculatePropertySimilarity(existing.properties, newPropertyNames);
+    const newPropertyNames = newPattern.properties.map((p) => p.name);
+    const propertySimilarity = this.calculatePropertySimilarity(
+      existing.properties,
+      newPropertyNames
+    );
 
     // 3. 値の類似性 (重み: 0.2)
     const valueSimilarity = this.calculateValueSimilarity(existing, newPattern);
@@ -491,10 +498,10 @@ export class ExistingAnimationDetectorService {
     if (existingProps.length === 0 && newProps.length === 0) return 1;
     if (existingProps.length === 0 || newProps.length === 0) return 0;
 
-    const existingSet = new Set(existingProps.map(p => p.toLowerCase()));
-    const newSet = new Set(newProps.map(p => p.toLowerCase()));
+    const existingSet = new Set(existingProps.map((p) => p.toLowerCase()));
+    const newSet = new Set(newProps.map((p) => p.toLowerCase()));
 
-    const intersection = [...newSet].filter(p => existingSet.has(p)).length;
+    const intersection = [...newSet].filter((p) => existingSet.has(p)).length;
     const union = new Set([...existingSet, ...newSet]).size;
 
     return union > 0 ? intersection / union : 0;
@@ -503,7 +510,10 @@ export class ExistingAnimationDetectorService {
   /**
    * 値の類似性を計算
    */
-  private calculateValueSimilarity(existing: ExistingAnimation, newPattern: NewAnimationPattern): number {
+  private calculateValueSimilarity(
+    existing: ExistingAnimation,
+    newPattern: NewAnimationPattern
+  ): number {
     if (existing.keyframes.length === 0 || newPattern.properties.length === 0) {
       return 0;
     }
@@ -516,19 +526,21 @@ export class ExistingAnimationDetectorService {
       const propName = newProp.name.toLowerCase();
 
       // 既存のキーフレームから該当プロパティを検索
-      const startKf = existing.keyframes.find(kf => kf.offset === 0);
-      const endKf = existing.keyframes.find(kf => kf.offset === 1);
+      const startKf = existing.keyframes.find((kf) => kf.offset === 0);
+      const endKf = existing.keyframes.find((kf) => kf.offset === 1);
 
       let existingFrom: string | undefined;
       let existingTo: string | undefined;
 
       if (startKf) {
-        existingFrom = Object.entries(startKf.properties)
-          .find(([k]) => k.toLowerCase() === propName)?.[1];
+        existingFrom = Object.entries(startKf.properties).find(
+          ([k]) => k.toLowerCase() === propName
+        )?.[1];
       }
       if (endKf) {
-        existingTo = Object.entries(endKf.properties)
-          .find(([k]) => k.toLowerCase() === propName)?.[1];
+        existingTo = Object.entries(endKf.properties).find(
+          ([k]) => k.toLowerCase() === propName
+        )?.[1];
       }
 
       if (existingFrom && existingTo) {
@@ -604,9 +616,10 @@ export class ExistingAnimationDetectorService {
 
       if (similarity >= threshold) {
         const fileName = path.basename(existing.filePath);
-        const suggestion = similarity >= 0.9
-          ? `Use existing '${existing.name}' from ${fileName} instead of generating new animation`
-          : `Consider using existing '${existing.name}' from ${fileName} (${Math.round(similarity * 100)}% similar)`;
+        const suggestion =
+          similarity >= 0.9
+            ? `Use existing '${existing.name}' from ${fileName} instead of generating new animation`
+            : `Consider using existing '${existing.name}' from ${fileName} (${Math.round(similarity * 100)}% similar)`;
 
         existingMatches.push({
           animationName: existing.name,
@@ -625,7 +638,7 @@ export class ExistingAnimationDetectorService {
     existingMatches.sort((a, b) => b.similarity - a.similarity);
 
     if (isDevelopment()) {
-      logger.info('[ExistingAnimationDetector] Duplicate check completed', {
+      logger.info("[ExistingAnimationDetector] Duplicate check completed", {
         patternName: newPattern.name,
         scannedFiles: cssFiles.length,
         totalAnimations: allAnimations.length,
@@ -654,7 +667,7 @@ export class ExistingAnimationDetectorService {
       const entries = await fs.readdir(dirPath);
 
       for (const entry of entries) {
-        if (!entry.endsWith('.css')) continue;
+        if (!entry.endsWith(".css")) continue;
 
         const filePath = path.join(dirPath, entry);
         const stat = await fs.stat(filePath);
@@ -666,9 +679,9 @@ export class ExistingAnimationDetectorService {
       }
     } catch (error) {
       if (isDevelopment()) {
-        logger.warn('[ExistingAnimationDetector] Failed to scan directory', {
+        logger.warn("[ExistingAnimationDetector] Failed to scan directory", {
           dirPath,
-          error: error instanceof Error ? error.message : 'Unknown error',
+          error: error instanceof Error ? error.message : "Unknown error",
         });
       }
     }

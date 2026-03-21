@@ -15,10 +15,10 @@
  * PostgreSQL 16対応
  */
 
-import { spawn, execSync, type ChildProcess, type SpawnOptions } from 'child_process';
-import { Logger } from '../utils/logger';
+import { spawn, execSync, type ChildProcess, type SpawnOptions } from "child_process";
+import { Logger } from "../utils/logger";
 
-const logger = new Logger('DatabaseDumper');
+const logger = new Logger("DatabaseDumper");
 
 // =============================================================================
 // 型定義
@@ -86,9 +86,12 @@ export interface AvailabilityResult {
  * DATABASE_URL パースエラー
  */
 export class DatabaseUrlParseError extends Error {
-  constructor(message: string, public readonly url?: string) {
+  constructor(
+    message: string,
+    public readonly url?: string
+  ) {
     super(message);
-    this.name = 'DatabaseUrlParseError';
+    this.name = "DatabaseUrlParseError";
   }
 }
 
@@ -96,9 +99,9 @@ export class DatabaseUrlParseError extends Error {
  * pg_dump が見つからないエラー
  */
 export class PgDumpNotFoundError extends Error {
-  constructor(message = 'pg_dump command not found. Please install PostgreSQL client tools.') {
+  constructor(message = "pg_dump command not found. Please install PostgreSQL client tools.") {
     super(message);
-    this.name = 'PgDumpNotFoundError';
+    this.name = "PgDumpNotFoundError";
   }
 }
 
@@ -112,7 +115,7 @@ export class DumpError extends Error {
     public readonly exitCode?: number
   ) {
     super(message);
-    this.name = 'DumpError';
+    this.name = "DumpError";
   }
 }
 
@@ -126,7 +129,7 @@ export class RestoreError extends Error {
     public readonly exitCode?: number
   ) {
     super(message);
-    this.name = 'RestoreError';
+    this.name = "RestoreError";
   }
 }
 
@@ -134,9 +137,12 @@ export class RestoreError extends Error {
  * 接続エラー
  */
 export class ConnectionError extends Error {
-  constructor(message: string, public readonly stderr?: string) {
+  constructor(
+    message: string,
+    public readonly stderr?: string
+  ) {
     super(message);
-    this.name = 'ConnectionError';
+    this.name = "ConnectionError";
   }
 }
 
@@ -149,7 +155,7 @@ export class TimeoutError extends Error {
     public readonly timeoutMs: number
   ) {
     super(message);
-    this.name = 'TimeoutError';
+    this.name = "TimeoutError";
   }
 }
 
@@ -165,14 +171,14 @@ export class TimeoutError extends Error {
  * @throws DatabaseUrlParseError
  */
 export function parseDatabaseUrl(url: string): DatabaseConnectionInfo {
-  if (!url || typeof url !== 'string') {
-    throw new DatabaseUrlParseError('DATABASE_URL is required');
+  if (!url || typeof url !== "string") {
+    throw new DatabaseUrlParseError("DATABASE_URL is required");
   }
 
   // postgresql:// または postgres:// で始まる必要がある
-  if (!url.startsWith('postgresql://') && !url.startsWith('postgres://')) {
+  if (!url.startsWith("postgresql://") && !url.startsWith("postgres://")) {
     throw new DatabaseUrlParseError(
-      'DATABASE_URL must start with postgresql:// or postgres://',
+      "DATABASE_URL must start with postgresql:// or postgres://",
       url
     );
   }
@@ -181,25 +187,25 @@ export function parseDatabaseUrl(url: string): DatabaseConnectionInfo {
   try {
     parsed = new URL(url);
   } catch {
-    throw new DatabaseUrlParseError('Invalid DATABASE_URL format', url);
+    throw new DatabaseUrlParseError("Invalid DATABASE_URL format", url);
   }
 
   // ユーザー名は必須
   if (!parsed.username) {
-    throw new DatabaseUrlParseError('DATABASE_URL must include username', url);
+    throw new DatabaseUrlParseError("DATABASE_URL must include username", url);
   }
 
   // データベース名を抽出（先頭の / を除去）
   const database = parsed.pathname.slice(1);
   if (!database) {
-    throw new DatabaseUrlParseError('DATABASE_URL must include database name', url);
+    throw new DatabaseUrlParseError("DATABASE_URL must include database name", url);
   }
 
   // パスワードをデコード（URLエンコードされている場合）
-  const password = decodeURIComponent(parsed.password || '');
+  const password = decodeURIComponent(parsed.password || "");
 
   // SSLモードを抽出
-  const sslmode = parsed.searchParams.get('sslmode');
+  const sslmode = parsed.searchParams.get("sslmode");
 
   const result: DatabaseConnectionInfo = {
     host: parsed.hostname,
@@ -270,33 +276,33 @@ export class DatabaseDumperService {
    */
   private static readonly ALLOWED_ADDITIONAL_ARGS = new Set([
     // 出力制御
-    '--no-owner',
-    '--no-acl',
-    '--no-comments',
-    '--no-publications',
-    '--no-security-labels',
-    '--no-subscriptions',
-    '--no-tablespaces',
-    '--no-privileges',
+    "--no-owner",
+    "--no-acl",
+    "--no-comments",
+    "--no-publications",
+    "--no-security-labels",
+    "--no-subscriptions",
+    "--no-tablespaces",
+    "--no-privileges",
     // データ形式
-    '--inserts',
-    '--column-inserts',
-    '--rows-per-insert',
+    "--inserts",
+    "--column-inserts",
+    "--rows-per-insert",
     // クリーンアップ
-    '--clean',
-    '--if-exists',
-    '--create',
+    "--clean",
+    "--if-exists",
+    "--create",
     // 圧縮
-    '--compress',
+    "--compress",
     // その他安全なオプション
-    '--no-synchronized-snapshots',
-    '--no-unlogged-table-data',
-    '--quote-all-identifiers',
-    '--serializable-deferrable',
-    '--snapshot',
-    '--strict-names',
-    '--use-set-session-authorization',
-    '--verbose',
+    "--no-synchronized-snapshots",
+    "--no-unlogged-table-data",
+    "--quote-all-identifiers",
+    "--serializable-deferrable",
+    "--snapshot",
+    "--strict-names",
+    "--use-set-session-authorization",
+    "--verbose",
   ]);
 
   /**
@@ -314,7 +320,7 @@ export class DatabaseDumperService {
     // pg_dump コマンド引数を構築
     const args = this.buildDumpArgs(connInfo, options);
 
-    logger.debug('Executing pg_dump', { host: connInfo.host, database: connInfo.database });
+    logger.debug("Executing pg_dump", { host: connInfo.host, database: connInfo.database });
 
     return new Promise<string>((resolve, reject) => {
       const chunks: Buffer[] = [];
@@ -333,12 +339,12 @@ export class DatabaseDumperService {
 
       const spawnOptions: SpawnOptions = {
         env,
-        stdio: ['ignore', 'pipe', 'pipe'],
+        stdio: ["ignore", "pipe", "pipe"],
       };
 
       let child: ChildProcess;
       try {
-        child = spawn('pg_dump', args, spawnOptions);
+        child = spawn("pg_dump", args, spawnOptions);
       } catch {
         reject(new PgDumpNotFoundError());
         return;
@@ -347,25 +353,25 @@ export class DatabaseDumperService {
       // タイムアウト設定
       const timeoutId = setTimeout(() => {
         if (!child.killed) {
-          child.kill('SIGTERM');
+          child.kill("SIGTERM");
           reject(new TimeoutError(`pg_dump timed out after ${timeoutMs}ms`, timeoutMs));
         }
       }, timeoutMs);
 
       // stdout 収集
-      child.stdout?.on('data', (data: Buffer) => {
+      child.stdout?.on("data", (data: Buffer) => {
         chunks.push(data);
       });
 
       // stderr 収集
-      child.stderr?.on('data', (data: Buffer) => {
+      child.stderr?.on("data", (data: Buffer) => {
         stderrChunks.push(data);
       });
 
       // エラーハンドリング
-      child.on('error', (err: Error & { code?: string }) => {
+      child.on("error", (err: Error & { code?: string }) => {
         clearTimeout(timeoutId);
-        if (err.code === 'ENOENT' || err.message.includes('ENOENT')) {
+        if (err.code === "ENOENT" || err.message.includes("ENOENT")) {
           reject(new PgDumpNotFoundError());
         } else {
           reject(new DumpError(`pg_dump failed: ${err.message}`));
@@ -373,14 +379,14 @@ export class DatabaseDumperService {
       });
 
       // 終了ハンドリング
-      child.on('close', (code) => {
+      child.on("close", (code) => {
         clearTimeout(timeoutId);
 
         const stderr = Buffer.concat(stderrChunks).toString();
 
         if (code === 0) {
           const stdout = Buffer.concat(chunks).toString();
-          logger.debug('pg_dump completed', { bytes: stdout.length });
+          logger.debug("pg_dump completed", { bytes: stdout.length });
           resolve(stdout);
         } else {
           // エラー分類
@@ -413,7 +419,7 @@ export class DatabaseDumperService {
     // psql コマンド引数を構築
     const args = this.buildRestoreArgs(connInfo);
 
-    logger.debug('Executing psql restore', { host: connInfo.host, database: connInfo.database });
+    logger.debug("Executing psql restore", { host: connInfo.host, database: connInfo.database });
 
     return new Promise<void>((resolve, reject) => {
       const stderrChunks: Buffer[] = [];
@@ -430,48 +436,50 @@ export class DatabaseDumperService {
 
       const spawnOptions: SpawnOptions = {
         env,
-        stdio: ['pipe', 'pipe', 'pipe'],
+        stdio: ["pipe", "pipe", "pipe"],
       };
 
       let child: ChildProcess;
       try {
-        child = spawn('psql', args, spawnOptions);
+        child = spawn("psql", args, spawnOptions);
       } catch {
-        reject(new RestoreError('psql command not found. Please install PostgreSQL client tools.'));
+        reject(new RestoreError("psql command not found. Please install PostgreSQL client tools."));
         return;
       }
 
       // タイムアウト設定
       const timeoutId = setTimeout(() => {
         if (!child.killed) {
-          child.kill('SIGTERM');
+          child.kill("SIGTERM");
           reject(new TimeoutError(`psql restore timed out after ${timeoutMs}ms`, timeoutMs));
         }
       }, timeoutMs);
 
       // stderr 収集
-      child.stderr?.on('data', (data: Buffer) => {
+      child.stderr?.on("data", (data: Buffer) => {
         stderrChunks.push(data);
       });
 
       // エラーハンドリング
-      child.on('error', (err: Error & { code?: string }) => {
+      child.on("error", (err: Error & { code?: string }) => {
         clearTimeout(timeoutId);
-        if (err.code === 'ENOENT' || err.message.includes('ENOENT')) {
-          reject(new RestoreError('psql command not found. Please install PostgreSQL client tools.'));
+        if (err.code === "ENOENT" || err.message.includes("ENOENT")) {
+          reject(
+            new RestoreError("psql command not found. Please install PostgreSQL client tools.")
+          );
         } else {
           reject(new RestoreError(`psql failed: ${err.message}`));
         }
       });
 
       // 終了ハンドリング
-      child.on('close', (code) => {
+      child.on("close", (code) => {
         clearTimeout(timeoutId);
 
         const stderr = Buffer.concat(stderrChunks).toString();
 
         if (code === 0) {
-          logger.debug('psql restore completed');
+          logger.debug("psql restore completed");
           resolve();
         } else {
           // エラー分類
@@ -505,7 +513,7 @@ export class DatabaseDumperService {
     // ハードコードされたコマンド文字列のみ（ユーザー入力なし、インジェクション不可）
     // pg_dump チェック
     try {
-      const pgDumpOutput = execSync('pg_dump --version', { encoding: 'utf8' });
+      const pgDumpOutput = execSync("pg_dump --version", { encoding: "utf8" });
       result.pgDump = true;
       result.pgDumpVersion = this.extractVersion(pgDumpOutput);
     } catch {
@@ -514,7 +522,7 @@ export class DatabaseDumperService {
 
     // psql チェック
     try {
-      const psqlOutput = execSync('psql --version', { encoding: 'utf8' });
+      const psqlOutput = execSync("psql --version", { encoding: "utf8" });
       result.psql = true;
       result.psqlVersion = this.extractVersion(psqlOutput);
     } catch {
@@ -537,17 +545,17 @@ export class DatabaseDumperService {
       `--port=${connInfo.port}`,
       `--username=${connInfo.user}`,
       `--dbname=${connInfo.database}`,
-      '--format=plain',
-      '--no-password', // PGPASSWORD環境変数を使用
+      "--format=plain",
+      "--no-password", // PGPASSWORD環境変数を使用
     ];
 
     // オプション処理
     if (options.schemaOnly) {
-      args.push('--schema-only');
+      args.push("--schema-only");
     }
 
     if (options.dataOnly) {
-      args.push('--data-only');
+      args.push("--data-only");
     }
 
     if (options.tables && options.tables.length > 0) {
@@ -556,7 +564,7 @@ export class DatabaseDumperService {
         if (this.isValidIdentifier(table)) {
           args.push(`--table=${table}`);
         } else {
-          logger.warn('Invalid table name skipped', { table });
+          logger.warn("Invalid table name skipped", { table });
         }
       }
     }
@@ -566,24 +574,24 @@ export class DatabaseDumperService {
         if (this.isValidIdentifier(table)) {
           args.push(`--exclude-table=${table}`);
         } else {
-          logger.warn('Invalid exclude table name skipped', { table });
+          logger.warn("Invalid exclude table name skipped", { table });
         }
       }
     }
 
     if (options.includeLargeObjects) {
-      args.push('--blobs');
+      args.push("--blobs");
     }
 
     if (options.additionalArgs) {
       for (const arg of options.additionalArgs) {
         // 引数の基本部分を抽出（--compress=9 → --compress）
-        const baseArg = arg.split('=')[0];
+        const baseArg = arg.split("=")[0];
         if (baseArg && DatabaseDumperService.ALLOWED_ADDITIONAL_ARGS.has(baseArg)) {
           args.push(arg);
         } else {
           // セキュリティログ: 許可されていない引数はスキップ
-          logger.warn('Skipping disallowed additional arg for security', { arg });
+          logger.warn("Skipping disallowed additional arg for security", { arg });
         }
       }
     }
@@ -600,9 +608,10 @@ export class DatabaseDumperService {
       `--port=${connInfo.port}`,
       `--username=${connInfo.user}`,
       `--dbname=${connInfo.database}`,
-      '--no-password', // PGPASSWORD環境変数を使用
-      '--quiet',
-      '-v', 'ON_ERROR_STOP=1', // エラー時に停止
+      "--no-password", // PGPASSWORD環境変数を使用
+      "--quiet",
+      "-v",
+      "ON_ERROR_STOP=1", // エラー時に停止
     ];
   }
 
@@ -614,12 +623,12 @@ export class DatabaseDumperService {
 
     // トランザクション開始
     if (!options.noTransaction) {
-      parts.push('BEGIN;');
+      parts.push("BEGIN;");
     }
 
     // 外部キー制約の一時無効化
     if (options.disableForeignKeys) {
-      parts.push('SET session_replication_role = replica;');
+      parts.push("SET session_replication_role = replica;");
     }
 
     // メインSQL
@@ -627,15 +636,15 @@ export class DatabaseDumperService {
 
     // 外部キー制約の再有効化
     if (options.disableForeignKeys) {
-      parts.push('SET session_replication_role = DEFAULT;');
+      parts.push("SET session_replication_role = DEFAULT;");
     }
 
     // トランザクションコミット
     if (!options.noTransaction) {
-      parts.push('COMMIT;');
+      parts.push("COMMIT;");
     }
 
-    return parts.join('\n');
+    return parts.join("\n");
   }
 
   /**

@@ -16,12 +16,12 @@
  * @module services/page/playwright-crawler.service
  */
 
-import type { Browser, Page, BrowserContext } from 'playwright';
-import { chromium } from 'playwright';
-import { validateExternalUrl } from '../../utils/url-validator';
-import { logger, isDevelopment } from '../../utils/logger';
-import { withTimeout } from '../../tools/page/handlers/timeout-utils';
-import { isUrlAllowedByRobotsTxt, ROBOTS_TXT } from '@reftrix/core';
+import type { Browser, Page, BrowserContext } from "playwright";
+import { chromium } from "playwright";
+import { validateExternalUrl } from "../../utils/url-validator";
+import { logger, isDevelopment } from "../../utils/logger";
+import { withTimeout } from "../../tools/page/handlers/timeout-utils";
+import { isUrlAllowedByRobotsTxt, ROBOTS_TXT } from "@reftrix/core";
 
 // =====================================================
 // 型定義
@@ -34,7 +34,7 @@ export interface CrawlOptions {
   /** タイムアウト（ミリ秒） デフォルト: 30000 */
   timeout?: number | undefined;
   /** ページ読み込み完了の判定方法 デフォルト: 'load' */
-  waitUntil?: 'load' | 'domcontentloaded' | 'networkidle' | undefined;
+  waitUntil?: "load" | "domcontentloaded" | "networkidle" | undefined;
   /** ビューポートサイズ デフォルト: { width: 1440, height: 900 } */
   viewport?: { width: number; height: number } | undefined;
   /** robots.txtを尊重するかどうか（RFC 9309） */
@@ -58,10 +58,11 @@ export interface CrawlResult {
 /**
  * デフォルトのクロールオプション
  */
-export const DEFAULT_CRAWL_OPTIONS: Required<Omit<CrawlOptions, 'respectRobotsTxt'>> & Pick<CrawlOptions, 'respectRobotsTxt'> = {
+export const DEFAULT_CRAWL_OPTIONS: Required<Omit<CrawlOptions, "respectRobotsTxt">> &
+  Pick<CrawlOptions, "respectRobotsTxt"> = {
   timeout: 30000,
   // WebGL/3Dサイト対応: domcontentloadedをデフォルトに（loadは3Dサイトで非常に時間がかかる）
-  waitUntil: 'domcontentloaded',
+  waitUntil: "domcontentloaded",
   viewport: { width: 1440, height: 900 },
 };
 
@@ -75,7 +76,7 @@ export const DEFAULT_CRAWL_OPTIONS: Required<Omit<CrawlOptions, 'respectRobotsTx
 export class SSRFBlockedError extends Error {
   constructor(message: string) {
     super(message);
-    this.name = 'SSRFBlockedError';
+    this.name = "SSRFBlockedError";
   }
 }
 
@@ -85,7 +86,7 @@ export class SSRFBlockedError extends Error {
 export class InvalidProtocolError extends Error {
   constructor(message: string) {
     super(message);
-    this.name = 'InvalidProtocolError';
+    this.name = "InvalidProtocolError";
   }
 }
 
@@ -97,7 +98,7 @@ export class CrawlError extends Error {
 
   constructor(message: string, statusCode?: number | undefined) {
     super(message);
-    this.name = 'CrawlError';
+    this.name = "CrawlError";
     this.statusCode = statusCode;
   }
 }
@@ -110,7 +111,7 @@ export class CrawlError extends Error {
  * URLのプロトコルを検証
  */
 function validateProtocol(url: string): void {
-  const allowedProtocols = ['http:', 'https:'];
+  const allowedProtocols = ["http:", "https:"];
 
   try {
     const urlObj = new URL(url);
@@ -133,7 +134,7 @@ function validateProtocol(url: string): void {
 function validateUrlForSSRF(url: string): void {
   const result = validateExternalUrl(url);
   if (!result.valid) {
-    throw new SSRFBlockedError(result.error ?? 'URL is blocked for security reasons');
+    throw new SSRFBlockedError(result.error ?? "URL is blocked for security reasons");
   }
 }
 
@@ -144,9 +145,7 @@ function extractMetadataFromHtml(html: string): { description?: string } {
   const result: { description?: string } = {};
 
   // description
-  const descMatch = html.match(
-    /<meta[^>]*name=["']description["'][^>]*content=["']([^"']*)["']/i
-  );
+  const descMatch = html.match(/<meta[^>]*name=["']description["'][^>]*content=["']([^"']*)["']/i);
   if (!descMatch) {
     // content が先に来るパターン
     const descMatchAlt = html.match(
@@ -188,9 +187,12 @@ export class PlaywrightCrawlerService {
       } catch (error) {
         // ブラウザがクローズ済みの場合はリセット
         if (isDevelopment()) {
-          logger.warn('[PlaywrightCrawlerService] Browser was closed unexpectedly, resetting instance', {
-            error: error instanceof Error ? error.message : String(error),
-          });
+          logger.warn(
+            "[PlaywrightCrawlerService] Browser was closed unexpectedly, resetting instance",
+            {
+              error: error instanceof Error ? error.message : String(error),
+            }
+          );
         }
         this.browser = null;
       }
@@ -198,15 +200,15 @@ export class PlaywrightCrawlerService {
 
     if (!this.browser) {
       if (isDevelopment()) {
-        logger.debug('[PlaywrightCrawlerService] Launching browser');
+        logger.debug("[PlaywrightCrawlerService] Launching browser");
       }
       this.browser = await chromium.launch({
         headless: true,
         args: [
-          '--no-sandbox',
-          '--disable-setuid-sandbox',
-          '--disable-dev-shm-usage',
-          '--disable-gpu',
+          "--no-sandbox",
+          "--disable-setuid-sandbox",
+          "--disable-dev-shm-usage",
+          "--disable-gpu",
         ],
       });
     }
@@ -227,7 +229,7 @@ export class PlaywrightCrawlerService {
     const opts = { ...DEFAULT_CRAWL_OPTIONS, ...options };
 
     if (isDevelopment()) {
-      logger.debug('[PlaywrightCrawlerService] crawl called', {
+      logger.debug("[PlaywrightCrawlerService] crawl called", {
         url,
         timeout: opts.timeout,
         waitUntil: opts.waitUntil,
@@ -246,8 +248,8 @@ export class PlaywrightCrawlerService {
     if (!robotsResult.allowed) {
       throw new CrawlError(
         `Blocked by robots.txt: ${url} (domain: ${robotsResult.domain}, reason: ${robotsResult.reason}). ` +
-        `Use respect_robots_txt: false to override. ` +
-          `Note: Overriding robots.txt may have legal implications depending on jurisdiction (e.g., EU DSM Directive Article 4).`,
+          `Use respect_robots_txt: false to override. ` +
+          `Note: Overriding robots.txt may have legal implications depending on jurisdiction (e.g., EU DSM Directive Article 4).`
       );
     }
 
@@ -270,7 +272,7 @@ export class PlaywrightCrawlerService {
 
       // ナビゲーション（WebGL/3Dサイト対応: domcontentloadedをデフォルトに）
       const response = await page.goto(url, {
-        waitUntil: opts.waitUntil ?? 'domcontentloaded',
+        waitUntil: opts.waitUntil ?? "domcontentloaded",
         timeout: opts.timeout ?? 30000,
       });
 
@@ -290,11 +292,7 @@ export class PlaywrightCrawlerService {
 
       // HTML取得（タイムアウト付き: 重いJSサイトでpage.content()が無限ハングする対策）
       const operationTimeout = opts.timeout ?? 30000;
-      const html = await withTimeout(
-        page.content(),
-        operationTimeout,
-        'page.content()'
-      );
+      const html = await withTimeout(page.content(), operationTimeout, "page.content()");
 
       // タイトル取得
       const title = await page.title();
@@ -305,16 +303,16 @@ export class PlaywrightCrawlerService {
       // スクリーンショット取得（タイムアウト付き）
       const screenshotBuffer = await withTimeout(
         page.screenshot({
-          type: 'png',
+          type: "png",
           fullPage: false, // viewportサイズのみ
         }),
         operationTimeout,
-        'page.screenshot()'
+        "page.screenshot()"
       );
-      const screenshot = screenshotBuffer.toString('base64');
+      const screenshot = screenshotBuffer.toString("base64");
 
       if (isDevelopment()) {
-        logger.debug('[PlaywrightCrawlerService] crawl completed', {
+        logger.debug("[PlaywrightCrawlerService] crawl completed", {
           url,
           htmlLength: html.length,
           hasTitle: !!title,
@@ -331,24 +329,27 @@ export class PlaywrightCrawlerService {
       };
     } catch (error) {
       if (isDevelopment()) {
-        logger.error('[PlaywrightCrawlerService] crawl error', { url, error });
+        logger.error("[PlaywrightCrawlerService] crawl error", { url, error });
       }
 
       // ブラウザがクローズされたエラーの場合はインスタンスをリセット
       // "Target page, context or browser has been closed" エラーに対応
       if (error instanceof Error) {
         const isBrowserClosedError =
-          error.message.includes('has been closed') ||
-          error.message.includes('Target closed') ||
-          error.message.includes('browser has been closed') ||
-          error.message.includes('context has been closed');
+          error.message.includes("has been closed") ||
+          error.message.includes("Target closed") ||
+          error.message.includes("browser has been closed") ||
+          error.message.includes("context has been closed");
 
         if (isBrowserClosedError) {
           if (isDevelopment()) {
-            logger.warn('[PlaywrightCrawlerService] Browser closed error detected, resetting instance', {
-              url,
-              error: error.message,
-            });
+            logger.warn(
+              "[PlaywrightCrawlerService] Browser closed error detected, resetting instance",
+              {
+                url,
+                error: error.message,
+              }
+            );
           }
           // ブラウザインスタンスをリセット（次回呼び出し時に再起動）
           this.browser = null;
@@ -367,24 +368,24 @@ export class PlaywrightCrawlerService {
 
       // Playwrightのタイムアウトエラー
       if (error instanceof Error) {
-        if (error.message.includes('Timeout') || error.message.includes('timeout')) {
+        if (error.message.includes("Timeout") || error.message.includes("timeout")) {
           throw new CrawlError(`Timeout: page load exceeded ${opts.timeout}ms`);
         }
 
         // DNS/ネットワークエラー
         if (
-          error.message.includes('net::ERR_NAME_NOT_RESOLVED') ||
-          error.message.includes('DNS') ||
-          error.message.includes('ENOTFOUND')
+          error.message.includes("net::ERR_NAME_NOT_RESOLVED") ||
+          error.message.includes("DNS") ||
+          error.message.includes("ENOTFOUND")
         ) {
           throw new CrawlError(`Network error: unable to resolve DNS for ${url}`);
         }
 
         // その他のネットワークエラー
         if (
-          error.message.includes('net::') ||
-          error.message.includes('Network') ||
-          error.message.includes('ECONNREFUSED')
+          error.message.includes("net::") ||
+          error.message.includes("Network") ||
+          error.message.includes("ECONNREFUSED")
         ) {
           throw new CrawlError(`Network error: ${error.message}`);
         }
@@ -392,7 +393,7 @@ export class PlaywrightCrawlerService {
 
       // 不明なエラー
       throw new CrawlError(
-        `Crawl failed: ${error instanceof Error ? error.message : 'Unknown error'}`
+        `Crawl failed: ${error instanceof Error ? error.message : "Unknown error"}`
       );
     } finally {
       // リソースクリーンアップ
@@ -415,7 +416,7 @@ export class PlaywrightCrawlerService {
   async close(): Promise<void> {
     if (this.browser) {
       if (isDevelopment()) {
-        logger.debug('[PlaywrightCrawlerService] Closing browser');
+        logger.debug("[PlaywrightCrawlerService] Closing browser");
       }
       await this.browser.close();
       this.browser = null;
@@ -461,10 +462,7 @@ function getSharedService(): PlaywrightCrawlerService {
  * console.log(result.screenshot); // base64
  * ```
  */
-export async function crawlPage(
-  url: string,
-  options: CrawlOptions = {}
-): Promise<CrawlResult> {
+export async function crawlPage(url: string, options: CrawlOptions = {}): Promise<CrawlResult> {
   const service = getSharedService();
   return service.crawl(url, options);
 }

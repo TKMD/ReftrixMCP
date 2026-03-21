@@ -17,7 +17,7 @@
  * @see apps/mcp-server/tests/services/vision/hardware-detector.test.ts
  */
 
-import { execSync } from 'node:child_process';
+import { execSync } from "node:child_process";
 
 // =============================================================================
 // 定数
@@ -31,7 +31,7 @@ export const HARDWARE_CACHE_TTL_MS = 5 * 60 * 1000;
 /**
  * デフォルトOllama URL
  */
-const DEFAULT_OLLAMA_URL = 'http://localhost:11434';
+const DEFAULT_OLLAMA_URL = "http://localhost:11434";
 
 /**
  * API呼び出しタイムアウト（5秒）
@@ -48,7 +48,7 @@ const API_TIMEOUT_MS = 5000;
  * - 環境変数: VISION_FORCE_CPU_MODE=true
  * - コンストラクタオプション: { forceCpuMode: true }
  */
-const ENV_FORCE_CPU_MODE = 'VISION_FORCE_CPU_MODE';
+const ENV_FORCE_CPU_MODE = "VISION_FORCE_CPU_MODE";
 
 // =============================================================================
 // 型定義
@@ -58,17 +58,17 @@ const ENV_FORCE_CPU_MODE = 'VISION_FORCE_CPU_MODE';
  * ハードウェアタイプ列挙型
  */
 export enum HardwareType {
-  GPU = 'GPU',
-  CPU = 'CPU',
+  GPU = "GPU",
+  CPU = "CPU",
 }
 
 /**
  * GPUベンダー列挙型
  */
 export enum GpuVendor {
-  NVIDIA = 'NVIDIA',
-  APPLE_METAL = 'APPLE_METAL',
-  UNKNOWN = 'UNKNOWN',
+  NVIDIA = "NVIDIA",
+  APPLE_METAL = "APPLE_METAL",
+  UNKNOWN = "UNKNOWN",
 }
 
 /**
@@ -170,7 +170,7 @@ export class HardwareDetector {
    * @returns Apple Silicon環境の場合true
    */
   static isAppleSilicon(): boolean {
-    return process.platform === 'darwin' && process.arch === 'arm64';
+    return process.platform === "darwin" && process.arch === "arm64";
   }
 
   private readonly ollamaUrl: string;
@@ -187,8 +187,7 @@ export class HardwareDetector {
     this.ollamaUrl = config?.ollamaUrl ?? DEFAULT_OLLAMA_URL;
     // 強制CPUモード: コンストラクタオプション > 環境変数
     this.forceCpuMode =
-      config?.forceCpuMode ??
-      process.env[ENV_FORCE_CPU_MODE]?.toLowerCase() === 'true';
+      config?.forceCpuMode ?? process.env[ENV_FORCE_CPU_MODE]?.toLowerCase() === "true";
   }
 
   // ===========================================================================
@@ -208,9 +207,7 @@ export class HardwareDetector {
   async detect(): Promise<HardwareInfo> {
     // 強制CPUモードチェック（NVMLドライバ不整合対策）
     if (this.forceCpuMode) {
-      return this.createCpuFallback(
-        'Force CPU mode enabled (VISION_FORCE_CPU_MODE=true)'
-      );
+      return this.createCpuFallback("Force CPU mode enabled (VISION_FORCE_CPU_MODE=true)");
     }
 
     // キャッシュチェック
@@ -262,11 +259,11 @@ export class HardwareDetector {
    */
   static queryNvidiaGpu(): string | null {
     try {
-      const result = execSync(
-        'nvidia-smi --query-gpu=name --format=csv,noheader',
-        { timeout: 3000, encoding: 'utf-8' }
-      );
-      const gpuName = result.trim().split('\n')[0]?.trim();
+      const result = execSync("nvidia-smi --query-gpu=name --format=csv,noheader", {
+        timeout: 3000,
+        encoding: "utf-8",
+      });
+      const gpuName = result.trim().split("\n")[0]?.trim();
       return gpuName || null;
     } catch {
       return null;
@@ -294,7 +291,7 @@ export class HardwareDetector {
 
       try {
         const response = await fetch(`${this.ollamaUrl}/api/ps`, {
-          method: 'GET',
+          method: "GET",
           signal: controller.signal,
         });
 
@@ -307,7 +304,7 @@ export class HardwareDetector {
           return null;
         }
 
-        const hasVram = models.some(m => (m.size_vram ?? 0) > 0);
+        const hasVram = models.some((m) => (m.size_vram ?? 0) > 0);
         if (hasVram) return null;
 
         return {
@@ -315,9 +312,9 @@ export class HardwareDetector {
           nvidia_gpu: nvidiaGpu,
           ollama_vram_bytes: 0,
           action:
-            'Ollama is running models on CPU despite GPU being available. ' +
+            "Ollama is running models on CPU despite GPU being available. " +
             'Likely cause: a rogue ollama process started with CUDA_VISIBLE_DEVICES="" is occupying port 11434. ' +
-            'Fix: (1) pkill ollama (2) sudo systemctl restart ollama ' +
+            "Fix: (1) pkill ollama (2) sudo systemctl restart ollama " +
             '(3) Verify: curl http://localhost:11434/api/ps | jq ".models[].size_vram"',
         };
       } finally {
@@ -371,7 +368,7 @@ export class HardwareDetector {
 
       try {
         const response = await fetch(`${this.ollamaUrl}/api/ps`, {
-          method: 'GET',
+          method: "GET",
           signal: controller.signal,
         });
 
@@ -418,9 +415,7 @@ export class HardwareDetector {
         type: HardwareType.GPU,
         vramBytes: maxVram,
         isGpuAvailable: true,
-        gpuVendor: HardwareDetector.isAppleSilicon()
-          ? GpuVendor.APPLE_METAL
-          : GpuVendor.NVIDIA,
+        gpuVendor: HardwareDetector.isAppleSilicon() ? GpuVendor.APPLE_METAL : GpuVendor.NVIDIA,
       };
     }
 

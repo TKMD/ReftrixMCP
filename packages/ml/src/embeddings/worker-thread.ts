@@ -19,15 +19,11 @@
  * @module embeddings/worker-thread
  */
 
-import { parentPort } from 'node:worker_threads';
-import { createRequire } from 'node:module';
-import fs from 'node:fs';
-import nodePath from 'node:path';
-import type {
-  WorkerMessage,
-  WorkerResponse,
-  WorkerErrorResponse,
-} from './worker-thread-types.js';
+import { parentPort } from "node:worker_threads";
+import { createRequire } from "node:module";
+import fs from "node:fs";
+import nodePath from "node:path";
+import type { WorkerMessage, WorkerResponse, WorkerErrorResponse } from "./worker-thread-types.js";
 
 // =====================================================
 // Pipeline types (mirrors service.ts DisposablePipeline)
@@ -37,7 +33,7 @@ interface DisposablePipeline {
   (
     texts: string | string[],
     options?: { pooling?: string; normalize?: boolean }
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
   ): Promise<any>;
   dispose?: () => Promise<unknown[]>;
 }
@@ -46,7 +42,7 @@ interface DisposablePipeline {
 // GPU execution provider detection
 // =====================================================
 
-type ExecutionProvider = 'cpu' | 'cuda';
+type ExecutionProvider = "cpu" | "cuda";
 
 /**
  * Detect the ONNX execution provider based on environment configuration.
@@ -58,19 +54,19 @@ type ExecutionProvider = 'cpu' | 'cuda';
 function detectExecutionProvider(): ExecutionProvider {
   const envProvider = process.env.ONNX_EXECUTION_PROVIDER;
 
-  if (envProvider === 'cuda' || envProvider === 'rocm') {
+  if (envProvider === "cuda" || envProvider === "rocm") {
     const cudaAvailable = verifyCudaAvailability();
     if (cudaAvailable) {
-      return 'cuda';
+      return "cuda";
     }
     console.warn(
-      '[EmbeddingWorker] ONNX_EXECUTION_PROVIDER=%s but CUDA provider not available, falling back to CPU',
-      envProvider,
+      "[EmbeddingWorker] ONNX_EXECUTION_PROVIDER=%s but CUDA provider not available, falling back to CPU",
+      envProvider
     );
-    return 'cpu';
+    return "cpu";
   }
 
-  return 'cpu';
+  return "cpu";
 }
 
 /**
@@ -84,23 +80,26 @@ function detectExecutionProvider(): ExecutionProvider {
 function verifyCudaAvailability(): boolean {
   try {
     const esmRequire = createRequire(import.meta.url);
-    const ortNodePath = esmRequire.resolve('onnxruntime-node');
+    const ortNodePath = esmRequire.resolve("onnxruntime-node");
     // require.resolve returns e.g. .../onnxruntime-node/dist/index.js
     // Walk up to package root by finding the directory containing package.json
     let packageDir = nodePath.dirname(ortNodePath);
     for (let i = 0; i < 5; i++) {
-      if (fs.existsSync(nodePath.join(packageDir, 'package.json'))) break;
+      if (fs.existsSync(nodePath.join(packageDir, "package.json"))) break;
       packageDir = nodePath.dirname(packageDir);
     }
 
     // Search across napi versions (v3, v6, etc.) for CUDA provider
-    const binDir = nodePath.join(packageDir, 'bin');
+    const binDir = nodePath.join(packageDir, "bin");
     if (fs.existsSync(binDir)) {
-      const napiDirs = fs.readdirSync(binDir).filter(d => d.startsWith('napi-v'));
+      const napiDirs = fs.readdirSync(binDir).filter((d) => d.startsWith("napi-v"));
       for (const napiDir of napiDirs) {
         const cudaProviderPath = nodePath.join(
-          binDir, napiDir, 'linux', 'x64',
-          'libonnxruntime_providers_cuda.so',
+          binDir,
+          napiDir,
+          "linux",
+          "x64",
+          "libonnxruntime_providers_cuda.so"
         );
         if (fs.existsSync(cudaProviderPath)) {
           return true;
@@ -108,13 +107,10 @@ function verifyCudaAvailability(): boolean {
       }
     }
 
-    console.warn(
-      '[EmbeddingWorker] CUDA provider not found in: %s',
-      binDir,
-    );
+    console.warn("[EmbeddingWorker] CUDA provider not found in: %s", binDir);
     return false;
   } catch {
-    console.warn('[EmbeddingWorker] Cannot verify CUDA provider: onnxruntime-node not found');
+    console.warn("[EmbeddingWorker] Cannot verify CUDA provider: onnxruntime-node not found");
     return false;
   }
 }
@@ -127,14 +123,14 @@ let pipeline: DisposablePipeline | null = null;
 let initPromise: Promise<void> | null = null;
 let inferencesSinceRecycle = 0;
 let totalRecycles = 0;
-let resolvedProvider: ExecutionProvider = 'cpu';
+let resolvedProvider: ExecutionProvider = "cpu";
 /** Whether resolvedProvider was explicitly set by a switch-provider message. */
 let providerExplicitlySet = false;
 let config = {
-  modelId: 'Xenova/multilingual-e5-base',
-  cacheDir: './.cache/models',
-  device: 'cpu',
-  dtype: 'fp32',
+  modelId: "Xenova/multilingual-e5-base",
+  cacheDir: "./.cache/models",
+  device: "cpu",
+  dtype: "fp32",
   pipelineRecycleThreshold: 30,
 };
 
@@ -162,8 +158,8 @@ function normalizeVector(vector: number[]): number[] {
  */
 function isLdLibraryPathSetAtOsLevel(): boolean {
   try {
-    const procEnv = fs.readFileSync('/proc/self/environ', 'utf-8');
-    return procEnv.includes('LD_LIBRARY_PATH');
+    const procEnv = fs.readFileSync("/proc/self/environ", "utf-8");
+    return procEnv.includes("LD_LIBRARY_PATH");
   } catch {
     // /proc/self/environ not available (non-Linux) — assume set
     return true;
@@ -185,19 +181,19 @@ async function initializePipeline(): Promise<void> {
       // Safety check: if CUDA is requested but LD_LIBRARY_PATH was not set at
       // the OS level (only set via loadEnvLocal at runtime), CUDA init will crash
       // because dlopen() can't find CUDA shared libraries. Fall back to CPU.
-      if (resolvedProvider === 'cuda' && !isLdLibraryPathSetAtOsLevel()) {
+      if (resolvedProvider === "cuda" && !isLdLibraryPathSetAtOsLevel()) {
         console.warn(
-          '[EmbeddingWorker] CUDA requested but LD_LIBRARY_PATH not set at OS level. ' +
-          'dlopen() cannot find CUDA libraries. Falling back to CPU. ' +
-          'To use CUDA, set LD_LIBRARY_PATH before starting the Node.js process.'
+          "[EmbeddingWorker] CUDA requested but LD_LIBRARY_PATH not set at OS level. " +
+            "dlopen() cannot find CUDA libraries. Falling back to CPU. " +
+            "To use CUDA, set LD_LIBRARY_PATH before starting the Node.js process."
         );
-        resolvedProvider = 'cpu';
+        resolvedProvider = "cpu";
       }
 
-      const effectiveDevice = resolvedProvider === 'cuda' ? 'cuda' : config.device;
+      const effectiveDevice = resolvedProvider === "cuda" ? "cuda" : config.device;
 
       // eslint-disable-next-line no-console
-      console.log('[EmbeddingWorker] Initializing ONNX pipeline', {
+      console.log("[EmbeddingWorker] Initializing ONNX pipeline", {
         model: config.modelId,
         requestedDevice: config.device,
         resolvedProvider,
@@ -206,40 +202,41 @@ async function initializePipeline(): Promise<void> {
         recycleThreshold: config.pipelineRecycleThreshold,
       });
 
-      const { pipeline: createPipeline } = await import('@huggingface/transformers');
+      const { pipeline: createPipeline } = await import("@huggingface/transformers");
 
       // Attempt to create pipeline with the resolved device.
       // If CUDA init fails (e.g. library not found), catch and retry with CPU.
       try {
-        pipeline = await createPipeline('feature-extraction', config.modelId, {
-          dtype: config.dtype as 'fp32',
-          device: effectiveDevice as 'cpu',
-        }) as unknown as DisposablePipeline;
+        pipeline = (await createPipeline("feature-extraction", config.modelId, {
+          dtype: config.dtype as "fp32",
+          device: effectiveDevice as "cpu",
+        })) as unknown as DisposablePipeline;
       } catch (deviceError) {
-        if (effectiveDevice !== 'cpu') {
+        if (effectiveDevice !== "cpu") {
           // CUDA/GPU init failed — fallback to CPU
-          const deviceErrorMsg = deviceError instanceof Error ? deviceError.message : String(deviceError);
+          const deviceErrorMsg =
+            deviceError instanceof Error ? deviceError.message : String(deviceError);
           console.warn(
-            '[EmbeddingWorker] %s pipeline creation failed, falling back to CPU: %s',
+            "[EmbeddingWorker] %s pipeline creation failed, falling back to CPU: %s",
             effectiveDevice,
-            deviceErrorMsg,
+            deviceErrorMsg
           );
-          resolvedProvider = 'cpu';
+          resolvedProvider = "cpu";
 
-          pipeline = await createPipeline('feature-extraction', config.modelId, {
-            dtype: config.dtype as 'fp32',
-            device: 'cpu',
-          }) as unknown as DisposablePipeline;
+          pipeline = (await createPipeline("feature-extraction", config.modelId, {
+            dtype: config.dtype as "fp32",
+            device: "cpu",
+          })) as unknown as DisposablePipeline;
         } else {
           throw deviceError;
         }
       }
 
       // eslint-disable-next-line no-console
-      console.log('[EmbeddingWorker] ONNX pipeline ready (provider: %s)', resolvedProvider);
+      console.log("[EmbeddingWorker] ONNX pipeline ready (provider: %s)", resolvedProvider);
     } catch (error) {
       initPromise = null;
-      const message = error instanceof Error ? error.message : 'Unknown error';
+      const message = error instanceof Error ? error.message : "Unknown error";
       throw new Error(`Failed to load embedding model in worker thread: ${message}`);
     }
   })();
@@ -248,7 +245,7 @@ async function initializePipeline(): Promise<void> {
 }
 
 async function disposePipeline(): Promise<void> {
-  if (pipeline && typeof pipeline.dispose === 'function') {
+  if (pipeline && typeof pipeline.dispose === "function") {
     try {
       await pipeline.dispose();
     } catch {
@@ -270,7 +267,7 @@ async function recyclePipelineIfNeeded(inferenceCount: number): Promise<void> {
     await disposePipeline();
     totalRecycles++;
 
-    if (typeof global.gc === 'function') {
+    if (typeof global.gc === "function") {
       global.gc();
     }
   }
@@ -286,16 +283,16 @@ async function recyclePipelineIfNeeded(inferenceCount: number): Promise<void> {
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function extractSingleEmbedding(output: any): number[] {
   let embedding: number[];
-  if (output && typeof output.tolist === 'function') {
+  if (output && typeof output.tolist === "function") {
     const result = output.tolist();
     embedding = Array.isArray(result[0]) ? result[0] : result;
-    if (typeof output.dispose === 'function') {
+    if (typeof output.dispose === "function") {
       output.dispose();
     }
   } else if (Array.isArray(output)) {
     embedding = output;
   } else {
-    throw new Error('Unexpected embedding output format');
+    throw new Error("Unexpected embedding output format");
   }
 
   if (embedding.length !== EMBEDDING_DIMENSION) {
@@ -311,15 +308,15 @@ function extractSingleEmbedding(output: any): number[] {
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function extractBatchEmbeddings(output: any): number[][] {
   let batchEmbeddings: number[][];
-  if (output && typeof output.tolist === 'function') {
+  if (output && typeof output.tolist === "function") {
     batchEmbeddings = output.tolist();
-    if (typeof output.dispose === 'function') {
+    if (typeof output.dispose === "function") {
       output.dispose();
     }
   } else if (Array.isArray(output)) {
     batchEmbeddings = output;
   } else {
-    throw new Error('Unexpected batch embedding output format');
+    throw new Error("Unexpected batch embedding output format");
   }
 
   return batchEmbeddings.map(normalizeVector);
@@ -327,9 +324,9 @@ function extractBatchEmbeddings(output: any): number[][] {
 
 async function generateSingle(text: string): Promise<number[]> {
   await initializePipeline();
-  if (!pipeline) throw new Error('Pipeline not initialized');
+  if (!pipeline) throw new Error("Pipeline not initialized");
 
-  const output = await pipeline(text, { pooling: 'mean', normalize: true });
+  const output = await pipeline(text, { pooling: "mean", normalize: true });
   const embedding = extractSingleEmbedding(output);
 
   await recyclePipelineIfNeeded(1);
@@ -348,9 +345,9 @@ async function generateBatch(texts: string[]): Promise<number[][]> {
 
     // Re-initialize if recycled during previous batch
     await initializePipeline();
-    if (!pipeline) throw new Error('Pipeline not initialized after recycle');
+    if (!pipeline) throw new Error("Pipeline not initialized after recycle");
 
-    const output = await pipeline(batch, { pooling: 'mean', normalize: true });
+    const output = await pipeline(batch, { pooling: "mean", normalize: true });
     const batchEmbeddings = extractBatchEmbeddings(output);
     allEmbeddings.push(...batchEmbeddings);
 
@@ -368,10 +365,10 @@ function sendResponse(response: WorkerResponse): void {
   parentPort?.postMessage(response);
 }
 
-function sendError(requestId: string, originalType: WorkerMessage['type'], error: unknown): void {
+function sendError(requestId: string, originalType: WorkerMessage["type"], error: unknown): void {
   const errorMessage = error instanceof Error ? error.message : String(error);
   const response: WorkerErrorResponse = {
-    type: 'error',
+    type: "error",
     requestId,
     success: false,
     error: errorMessage,
@@ -382,12 +379,12 @@ function sendError(requestId: string, originalType: WorkerMessage['type'], error
 
 async function handleMessage(message: WorkerMessage): Promise<void> {
   switch (message.type) {
-    case 'init': {
+    case "init": {
       config = { ...config, ...message.config };
       const startTime = Date.now();
       await initializePipeline();
       sendResponse({
-        type: 'init',
+        type: "init",
         requestId: message.requestId,
         success: true,
         loadTimeMs: Date.now() - startTime,
@@ -396,11 +393,11 @@ async function handleMessage(message: WorkerMessage): Promise<void> {
       break;
     }
 
-    case 'generate': {
+    case "generate": {
       const startTime = Date.now();
       const embedding = await generateSingle(message.text);
       sendResponse({
-        type: 'generate',
+        type: "generate",
         requestId: message.requestId,
         success: true,
         embedding,
@@ -409,11 +406,11 @@ async function handleMessage(message: WorkerMessage): Promise<void> {
       break;
     }
 
-    case 'generateBatch': {
+    case "generateBatch": {
       const startTime = Date.now();
       const embeddings = await generateBatch(message.texts);
       sendResponse({
-        type: 'generateBatch',
+        type: "generateBatch",
         requestId: message.requestId,
         success: true,
         embeddings,
@@ -422,20 +419,20 @@ async function handleMessage(message: WorkerMessage): Promise<void> {
       break;
     }
 
-    case 'dispose': {
+    case "dispose": {
       await disposePipeline();
       sendResponse({
-        type: 'dispose',
+        type: "dispose",
         requestId: message.requestId,
         success: true,
       });
       break;
     }
 
-    case 'terminate': {
+    case "terminate": {
       await disposePipeline();
       sendResponse({
-        type: 'terminate',
+        type: "terminate",
         requestId: message.requestId,
         success: true,
       });
@@ -444,19 +441,19 @@ async function handleMessage(message: WorkerMessage): Promise<void> {
       break;
     }
 
-    case 'switch-provider': {
+    case "switch-provider": {
       const targetProvider = message.provider;
 
       // If switching to CUDA, verify availability first
-      if (targetProvider === 'cuda') {
+      if (targetProvider === "cuda") {
         const canUseCuda = verifyCudaAvailability();
         if (!canUseCuda) {
           // Cannot switch to CUDA — respond with current (cpu) provider
           sendResponse({
-            type: 'switch-provider',
+            type: "switch-provider",
             requestId: message.requestId,
             success: true,
-            provider: 'cpu',
+            provider: "cpu",
           });
           break;
         }
@@ -472,10 +469,10 @@ async function handleMessage(message: WorkerMessage): Promise<void> {
       config = { ...config, device: targetProvider };
 
       // eslint-disable-next-line no-console
-      console.log('[EmbeddingWorker] Switched provider to:', resolvedProvider);
+      console.log("[EmbeddingWorker] Switched provider to:", resolvedProvider);
 
       sendResponse({
-        type: 'switch-provider',
+        type: "switch-provider",
         requestId: message.requestId,
         success: true,
         provider: resolvedProvider,
@@ -483,18 +480,18 @@ async function handleMessage(message: WorkerMessage): Promise<void> {
       break;
     }
 
-    case 'release-gpu': {
+    case "release-gpu": {
       // Dispose pipeline and revert to CPU
       await disposePipeline();
-      resolvedProvider = 'cpu';
+      resolvedProvider = "cpu";
       providerExplicitlySet = true;
-      config = { ...config, device: 'cpu' };
+      config = { ...config, device: "cpu" };
 
       // eslint-disable-next-line no-console
-      console.log('[EmbeddingWorker] Released GPU, reverted to CPU');
+      console.log("[EmbeddingWorker] Released GPU, reverted to CPU");
 
       sendResponse({
-        type: 'release-gpu',
+        type: "release-gpu",
         requestId: message.requestId,
         success: true,
       });
@@ -503,11 +500,11 @@ async function handleMessage(message: WorkerMessage): Promise<void> {
 
     default: {
       // SEC-M2: Reject unknown message types for defense-in-depth
-      const unknownType = (message as Record<string, unknown>).type ?? 'unknown';
+      const unknownType = (message as Record<string, unknown>).type ?? "unknown";
       sendError(
-        (message as Record<string, unknown>).requestId as string ?? 'unknown',
-        unknownType as WorkerMessage['type'],
-        new Error(`Unknown worker message type: ${String(unknownType)}`),
+        ((message as Record<string, unknown>).requestId as string) ?? "unknown",
+        unknownType as WorkerMessage["type"],
+        new Error(`Unknown worker message type: ${String(unknownType)}`)
       );
       break;
     }
@@ -519,10 +516,10 @@ async function handleMessage(message: WorkerMessage): Promise<void> {
 // =====================================================
 
 if (!parentPort) {
-  throw new Error('worker-thread.ts must be run as a Worker Thread (no parentPort)');
+  throw new Error("worker-thread.ts must be run as a Worker Thread (no parentPort)");
 }
 
-parentPort.on('message', (message: WorkerMessage) => {
+parentPort.on("message", (message: WorkerMessage) => {
   handleMessage(message).catch((error) => {
     sendError(message.requestId, message.type, error);
   });

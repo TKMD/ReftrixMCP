@@ -19,8 +19,8 @@
  * @module services/layout/html-to-jsx-converter
  */
 
-import { JSDOM } from 'jsdom';
-import { mapStyleToTailwind } from './style-to-tailwind-mapper';
+import { JSDOM } from "jsdom";
+import { mapStyleToTailwind } from "./style-to-tailwind-mapper";
 
 // ==========================================================
 // 型定義
@@ -55,20 +55,20 @@ export interface HtmlToJsxOptions {
  * これらの要素は終了タグを持たない
  */
 const VOID_ELEMENTS = new Set([
-  'area',
-  'base',
-  'br',
-  'col',
-  'embed',
-  'hr',
-  'img',
-  'input',
-  'link',
-  'meta',
-  'param',
-  'source',
-  'track',
-  'wbr',
+  "area",
+  "base",
+  "br",
+  "col",
+  "embed",
+  "hr",
+  "img",
+  "input",
+  "link",
+  "meta",
+  "param",
+  "source",
+  "track",
+  "wbr",
 ]);
 
 /**
@@ -76,72 +76,72 @@ const VOID_ELEMENTS = new Set([
  */
 const ATTRIBUTE_MAP: Record<string, string> = {
   // React DOM属性
-  class: 'className',
-  for: 'htmlFor',
+  class: "className",
+  for: "htmlFor",
 
   // キャメルケース変換が必要な属性
-  tabindex: 'tabIndex',
-  colspan: 'colSpan',
-  rowspan: 'rowSpan',
-  maxlength: 'maxLength',
-  minlength: 'minLength',
-  readonly: 'readOnly',
-  contenteditable: 'contentEditable',
-  autocomplete: 'autoComplete',
-  autofocus: 'autoFocus',
-  autoplay: 'autoPlay',
-  spellcheck: 'spellCheck',
-  cellpadding: 'cellPadding',
-  cellspacing: 'cellSpacing',
-  frameborder: 'frameBorder',
-  allowfullscreen: 'allowFullScreen',
-  usemap: 'useMap',
-  crossorigin: 'crossOrigin',
-  datetime: 'dateTime',
-  enctype: 'encType',
-  formaction: 'formAction',
-  formenctype: 'formEncType',
-  formmethod: 'formMethod',
-  formnovalidate: 'formNoValidate',
-  formtarget: 'formTarget',
-  hreflang: 'hrefLang',
-  inputmode: 'inputMode',
-  novalidate: 'noValidate',
-  srcset: 'srcSet',
-  srcdoc: 'srcDoc',
-  srclang: 'srcLang',
+  tabindex: "tabIndex",
+  colspan: "colSpan",
+  rowspan: "rowSpan",
+  maxlength: "maxLength",
+  minlength: "minLength",
+  readonly: "readOnly",
+  contenteditable: "contentEditable",
+  autocomplete: "autoComplete",
+  autofocus: "autoFocus",
+  autoplay: "autoPlay",
+  spellcheck: "spellCheck",
+  cellpadding: "cellPadding",
+  cellspacing: "cellSpacing",
+  frameborder: "frameBorder",
+  allowfullscreen: "allowFullScreen",
+  usemap: "useMap",
+  crossorigin: "crossOrigin",
+  datetime: "dateTime",
+  enctype: "encType",
+  formaction: "formAction",
+  formenctype: "formEncType",
+  formmethod: "formMethod",
+  formnovalidate: "formNoValidate",
+  formtarget: "formTarget",
+  hreflang: "hrefLang",
+  inputmode: "inputMode",
+  novalidate: "noValidate",
+  srcset: "srcSet",
+  srcdoc: "srcDoc",
+  srclang: "srcLang",
 
   // ハイフン付き属性
-  'accept-charset': 'acceptCharset',
-  'http-equiv': 'httpEquiv',
+  "accept-charset": "acceptCharset",
+  "http-equiv": "httpEquiv",
 };
 
 /**
  * ブール属性（値なしで使用可能）
  */
 const BOOLEAN_ATTRIBUTES = new Set([
-  'disabled',
-  'checked',
-  'selected',
-  'readonly',
-  'required',
-  'multiple',
-  'autofocus',
-  'autoplay',
-  'controls',
-  'loop',
-  'muted',
-  'open',
-  'hidden',
-  'novalidate',
-  'async',
-  'defer',
+  "disabled",
+  "checked",
+  "selected",
+  "readonly",
+  "required",
+  "multiple",
+  "autofocus",
+  "autoplay",
+  "controls",
+  "loop",
+  "muted",
+  "open",
+  "hidden",
+  "novalidate",
+  "async",
+  "defer",
 ]);
 
 /**
  * controlled componentでdefaultValueに変換すべき要素
  */
-const DEFAULT_VALUE_ELEMENTS = new Set(['input', 'textarea', 'select']);
+const DEFAULT_VALUE_ELEMENTS = new Set(["input", "textarea", "select"]);
 
 /**
  * デフォルトで除去する独自クラス名のプレフィックス
@@ -164,24 +164,24 @@ const DEFAULT_VALUE_ELEMENTS = new Set(['input', 'textarea', 'select']);
  * - is-*: 状態クラス（is-active, is-visible等）
  * - has-*: 状態クラス（has-dropdown等）
  */
- 
+
 const DEFAULT_PROPRIETARY_CLASS_PREFIXES = [
-  'dwg-',
-  'webflow-',
-  'w-',
-  'framer-',
-  'wix-',
-  'squarespace-',
-  'shopify-',
-  'wp-',
-  'elementor-',
-  'divi-',
-  'beaver-',
-  'et-',
-  'vc-',
-  'js-',
-  'is-',
-  'has-',
+  "dwg-",
+  "webflow-",
+  "w-",
+  "framer-",
+  "wix-",
+  "squarespace-",
+  "shopify-",
+  "wp-",
+  "elementor-",
+  "divi-",
+  "beaver-",
+  "et-",
+  "vc-",
+  "js-",
+  "is-",
+  "has-",
 ];
 
 // ==========================================================
@@ -195,11 +195,8 @@ const DEFAULT_PROPRIETARY_CLASS_PREFIXES = [
  * @param prefixes - 除去するプレフィックスリスト
  * @returns 独自クラス名を除去した後のクラス名配列
  */
-function removeProprietaryClasses(
-  classString: string,
-  prefixes: string[]
-): string[] {
-  if (!classString || classString.trim() === '') {
+function removeProprietaryClasses(classString: string, prefixes: string[]): string[] {
+  if (!classString || classString.trim() === "") {
     return [];
   }
 
@@ -216,17 +213,17 @@ function removeProprietaryClasses(
  */
 function cssPropertyToCamelCase(prop: string): string {
   // ベンダープレフィックス（-webkit-, -moz- など）の処理
-  if (prop.startsWith('-')) {
+  if (prop.startsWith("-")) {
     // -webkit-transform → WebkitTransform
     const withoutLeadingDash = prop.slice(1);
-    const parts = withoutLeadingDash.split('-');
+    const parts = withoutLeadingDash.split("-");
     return parts
       .map((part, index) =>
         index === 0
           ? part.charAt(0).toUpperCase() + part.slice(1)
           : part.charAt(0).toUpperCase() + part.slice(1)
       )
-      .join('');
+      .join("");
   }
 
   // 通常のハイフン付きプロパティ
@@ -237,15 +234,15 @@ function cssPropertyToCamelCase(prop: string): string {
  * style文字列をパースしてスタイルオブジェクトに変換
  */
 function parseStyleString(styleString: string): Record<string, string> {
-  if (!styleString || styleString.trim() === '') {
+  if (!styleString || styleString.trim() === "") {
     return {};
   }
 
   const styles: Record<string, string> = {};
-  const declarations = styleString.split(';').filter((s) => s.trim());
+  const declarations = styleString.split(";").filter((s) => s.trim());
 
   for (const declaration of declarations) {
-    const colonIndex = declaration.indexOf(':');
+    const colonIndex = declaration.indexOf(":");
     if (colonIndex === -1) continue;
 
     const property = declaration.slice(0, colonIndex).trim();
@@ -265,12 +262,12 @@ function parseStyleString(styleString: string): Record<string, string> {
  */
 function stylesToJsxString(styles: Record<string, string>): string {
   if (Object.keys(styles).length === 0) {
-    return '';
+    return "";
   }
 
   const styleEntries = Object.entries(styles)
     .map(([key, val]) => `${key}: '${val.replace(/'/g, "\\'")}'`)
-    .join(', ');
+    .join(", ");
 
   return `style={{${styleEntries}}}`;
 }
@@ -300,7 +297,7 @@ function convertStyleToTailwind(styleString: string): StyleConversionResult {
   const styles = parseStyleString(styleString);
 
   if (Object.keys(styles).length === 0) {
-    return { tailwindClasses: [], remainingStyleJsx: '' };
+    return { tailwindClasses: [], remainingStyleJsx: "" };
   }
 
   const result = mapStyleToTailwind(styles);
@@ -318,7 +315,7 @@ function convertAttributeName(name: string, tagName: string): string | null {
   const lowerName = name.toLowerCase();
 
   // イベントハンドラは除去（セキュリティ）
-  if (lowerName.startsWith('on')) {
+  if (lowerName.startsWith("on")) {
     return null;
   }
 
@@ -328,27 +325,23 @@ function convertAttributeName(name: string, tagName: string): string | null {
   }
 
   // data-*, aria-*, role はそのまま
-  if (
-    lowerName.startsWith('data-') ||
-    lowerName.startsWith('aria-') ||
-    lowerName === 'role'
-  ) {
+  if (lowerName.startsWith("data-") || lowerName.startsWith("aria-") || lowerName === "role") {
     return lowerName;
   }
 
   // value属性はcontrolled component要素ではdefaultValueに変換
-  if (lowerName === 'value' && DEFAULT_VALUE_ELEMENTS.has(tagName.toLowerCase())) {
-    return 'defaultValue';
+  if (lowerName === "value" && DEFAULT_VALUE_ELEMENTS.has(tagName.toLowerCase())) {
+    return "defaultValue";
   }
 
   // checked属性はdefaultCheckedに変換
-  if (lowerName === 'checked' && tagName.toLowerCase() === 'input') {
-    return 'defaultChecked';
+  if (lowerName === "checked" && tagName.toLowerCase() === "input") {
+    return "defaultChecked";
   }
 
   // selected属性はdefaultSelectedに変換
-  if (lowerName === 'selected' && tagName.toLowerCase() === 'option') {
-    return 'defaultSelected';
+  if (lowerName === "selected" && tagName.toLowerCase() === "option") {
+    return "defaultSelected";
   }
 
   return name;
@@ -357,45 +350,40 @@ function convertAttributeName(name: string, tagName: string): string | null {
 /**
  * 属性をJSX形式に変換（style, class属性は除外）
  */
-function convertAttributeToJsx(
-  attr: Attr,
-  tagName: string,
-  options: HtmlToJsxOptions
-): string {
+function convertAttributeToJsx(attr: Attr, tagName: string, options: HtmlToJsxOptions): string {
   const name = attr.name.toLowerCase();
   const value = attr.value;
 
   // style属性は別処理（useTailwind対応のため）
-  if (name === 'style') {
+  if (name === "style") {
     // useTailwindの場合は後で処理するので空を返す
     if (options.useTailwind) {
-      return '';
+      return "";
     }
     const styleJsx = convertStyleToJsx(value);
     return styleJsx;
   }
 
   // class属性も別処理（useTailwind対応またはremoveProprietaryClasses対応のため）
-  if (name === 'class') {
+  if (name === "class") {
     // useTailwindの場合は後で処理するので空を返す
     if (options.useTailwind) {
-      return '';
+      return "";
     }
     // 空の属性を除去するオプション
-    if (options.removeEmptyAttributes && value === '') {
-      return '';
+    if (options.removeEmptyAttributes && value === "") {
+      return "";
     }
     // 独自クラス名の除去（removeProprietaryClasses オプションが有効な場合）
     // useTailwind=falseでも独自クラスを除去できるようにする
     if (options.removeProprietaryClasses) {
-      const prefixes =
-        options.proprietaryClassPrefixes ?? DEFAULT_PROPRIETARY_CLASS_PREFIXES;
+      const prefixes = options.proprietaryClassPrefixes ?? DEFAULT_PROPRIETARY_CLASS_PREFIXES;
       const filteredClasses = removeProprietaryClasses(value, prefixes);
       if (filteredClasses.length === 0) {
         // すべてのクラスが除去された場合、className属性自体を削除
-        return '';
+        return "";
       }
-      return `className="${filteredClasses.join(' ')}"`;
+      return `className="${filteredClasses.join(" ")}"`;
     }
     return `className="${value}"`;
   }
@@ -404,23 +392,23 @@ function convertAttributeToJsx(
   const jsxName = convertAttributeName(name, tagName);
   if (jsxName === null) {
     // イベントハンドラなど、除去すべき属性
-    return '';
+    return "";
   }
 
   // 空の属性を除去するオプション
-  if (options.removeEmptyAttributes && value === '') {
-    return '';
+  if (options.removeEmptyAttributes && value === "") {
+    return "";
   }
 
   // ブール属性の処理
   if (BOOLEAN_ATTRIBUTES.has(name)) {
     // 値がない場合、またはtrue相当の場合
-    if (value === '' || value === name || value === 'true') {
+    if (value === "" || value === name || value === "true") {
       return jsxName;
     }
     // falseの場合は属性自体を除去
-    if (value === 'false') {
-      return '';
+    if (value === "false") {
+      return "";
     }
   }
 
@@ -431,21 +419,17 @@ function convertAttributeToJsx(
 /**
  * ノードをJSXに変換
  */
-function nodeToJsx(
-  node: Node,
-  options: HtmlToJsxOptions,
-  indent: string = ''
-): string {
-  const newLine = options.pretty ? '\n' : '';
-  const childIndent = options.pretty ? indent + '  ' : '';
+function nodeToJsx(node: Node, options: HtmlToJsxOptions, indent: string = ""): string {
+  const newLine = options.pretty ? "\n" : "";
+  const childIndent = options.pretty ? indent + "  " : "";
 
   // テキストノード
   if (node.nodeType === 3) {
     // Node.TEXT_NODE
-    const text = node.textContent || '';
+    const text = node.textContent || "";
     // 空白のみのテキストノードは除去（prettyモードでない場合）
-    if (!options.pretty && text.trim() === '') {
-      return '';
+    if (!options.pretty && text.trim() === "") {
+      return "";
     }
     return text;
   }
@@ -454,9 +438,9 @@ function nodeToJsx(
   if (node.nodeType === 8) {
     // Node.COMMENT_NODE
     if (options.preserveComments) {
-      return `{/* ${node.textContent || ''} */}`;
+      return `{/* ${node.textContent || ""} */}`;
     }
-    return '';
+    return "";
   }
 
   // 要素ノード
@@ -466,8 +450,8 @@ function nodeToJsx(
     const tagName = element.tagName.toLowerCase();
 
     // scriptタグは除去
-    if (tagName === 'script') {
-      return '';
+    if (tagName === "script") {
+      return "";
     }
 
     // 属性を変換
@@ -475,8 +459,8 @@ function nodeToJsx(
 
     // useTailwindの場合、classとstyleを特別処理
     if (options.useTailwind) {
-      const existingClass = element.getAttribute('class') || '';
-      const styleAttr = element.getAttribute('style') || '';
+      const existingClass = element.getAttribute("class") || "";
+      const styleAttr = element.getAttribute("style") || "";
 
       // Tailwind変換
       const { tailwindClasses, remainingStyleJsx } = convertStyleToTailwind(styleAttr);
@@ -486,8 +470,7 @@ function nodeToJsx(
 
       // 独自クラス名の除去（removeProprietaryClasses オプションが有効な場合）
       if (options.removeProprietaryClasses) {
-        const prefixes =
-          options.proprietaryClassPrefixes ?? DEFAULT_PROPRIETARY_CLASS_PREFIXES;
+        const prefixes = options.proprietaryClassPrefixes ?? DEFAULT_PROPRIETARY_CLASS_PREFIXES;
         existingClasses = removeProprietaryClasses(existingClass, prefixes);
       }
 
@@ -495,7 +478,7 @@ function nodeToJsx(
       const allClasses = [...existingClasses, ...tailwindClasses];
 
       if (allClasses.length > 0) {
-        attrs.push(`className="${allClasses.join(' ')}"`);
+        attrs.push(`className="${allClasses.join(" ")}"`);
       }
 
       // 残りのstyleがある場合のみ追加
@@ -512,7 +495,7 @@ function nodeToJsx(
       }
     }
 
-    const attrString = attrs.length > 0 ? ' ' + attrs.join(' ') : '';
+    const attrString = attrs.length > 0 ? " " + attrs.join(" ") : "";
 
     // 自己閉じタグ
     if (VOID_ELEMENTS.has(tagName)) {
@@ -522,7 +505,7 @@ function nodeToJsx(
     // 子要素を変換
     const children = Array.from(element.childNodes)
       .map((child) => nodeToJsx(child, options, childIndent))
-      .filter((s) => s !== '');
+      .filter((s) => s !== "");
 
     if (children.length === 0) {
       return `${indent}<${tagName}${attrString}></${tagName}>`;
@@ -530,12 +513,12 @@ function nodeToJsx(
 
     const childContent = options.pretty
       ? newLine + children.join(newLine) + newLine + indent
-      : children.join('');
+      : children.join("");
 
     return `${indent}<${tagName}${attrString}>${childContent}</${tagName}>`;
   }
 
-  return '';
+  return "";
 }
 
 // ==========================================================
@@ -573,8 +556,8 @@ export function convertHtmlToJsx(html: string, options?: HtmlToJsxOptions): stri
   };
 
   // 空の入力は空文字を返す
-  if (!html || html.trim() === '') {
-    return '';
+  if (!html || html.trim() === "") {
+    return "";
   }
 
   // JSDOMでパース
@@ -583,12 +566,12 @@ export function convertHtmlToJsx(html: string, options?: HtmlToJsxOptions): stri
 
   // 子ノードを変換
   const children = Array.from(body.childNodes)
-    .map((node) => nodeToJsx(node, opts, opts.pretty ? '' : ''))
-    .filter((s) => s !== '');
+    .map((node) => nodeToJsx(node, opts, opts.pretty ? "" : ""))
+    .filter((s) => s !== "");
 
   // 結果が空の場合
   if (children.length === 0) {
-    return '';
+    return "";
   }
 
   // 単一のルート要素
@@ -599,12 +582,10 @@ export function convertHtmlToJsx(html: string, options?: HtmlToJsxOptions): stri
 
   // 複数のルート要素
   if (opts.wrapInFragment) {
-    const content = opts.pretty
-      ? '\n' + children.join('\n') + '\n'
-      : children.join('');
+    const content = opts.pretty ? "\n" + children.join("\n") + "\n" : children.join("");
     return `<>${content}</>`;
   }
 
   // フラグメントなしの場合は連結して返す
-  return children.join(opts.pretty ? '\n' : '');
+  return children.join(opts.pretty ? "\n" : "");
 }

@@ -14,13 +14,17 @@
  * - ツールレベルの可用性（REFTRIX-HEALTH-01）
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { systemHealthHandler, systemHealthToolDefinition, type SystemHealthHandlerResponse } from '../../src/tools/system-health';
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import {
+  systemHealthHandler,
+  systemHealthToolDefinition,
+  type SystemHealthHandlerResponse,
+} from "../../src/tools/system-health";
 
 // service-initializer モジュールをモック
-vi.mock('../../src/services/service-initializer', async () => {
-  const actual = await vi.importActual<typeof import('../../src/services/service-initializer')>(
-    '../../src/services/service-initializer'
+vi.mock("../../src/services/service-initializer", async () => {
+  const actual = await vi.importActual<typeof import("../../src/services/service-initializer")>(
+    "../../src/services/service-initializer"
   );
   return {
     ...actual,
@@ -29,9 +33,9 @@ vi.mock('../../src/services/service-initializer', async () => {
 });
 
 // quality/evaluate.tool モジュールをモック（パターンサービス）
-vi.mock('../../src/tools/quality/evaluate.tool', async () => {
-  const actual = await vi.importActual<typeof import('../../src/tools/quality/evaluate.tool')>(
-    '../../src/tools/quality/evaluate.tool'
+vi.mock("../../src/tools/quality/evaluate.tool", async () => {
+  const actual = await vi.importActual<typeof import("../../src/tools/quality/evaluate.tool")>(
+    "../../src/tools/quality/evaluate.tool"
   );
   return {
     ...actual,
@@ -41,10 +45,10 @@ vi.mock('../../src/tools/quality/evaluate.tool', async () => {
 });
 
 // css-analysis-cache.service モジュールをモック（MCP-CACHE-02）
-vi.mock('../../src/services/css-analysis-cache.service', async () => {
-  const actual = await vi.importActual<typeof import('../../src/services/css-analysis-cache.service')>(
-    '../../src/services/css-analysis-cache.service'
-  );
+vi.mock("../../src/services/css-analysis-cache.service", async () => {
+  const actual = await vi.importActual<
+    typeof import("../../src/services/css-analysis-cache.service")
+  >("../../src/services/css-analysis-cache.service");
   return {
     ...actual,
     getCSSAnalysisCacheService: vi.fn(() => ({
@@ -62,29 +66,29 @@ vi.mock('../../src/services/css-analysis-cache.service', async () => {
   };
 });
 
-import { getLastInitializationResult } from '../../src/services/service-initializer';
-import { getPatternMatcherServiceFactory, getBenchmarkServiceFactory } from '../../src/tools/quality/evaluate.tool';
-import { getCSSAnalysisCacheService } from '../../src/services/css-analysis-cache.service';
-import { HardwareDetector, HardwareType } from '../../src/services/vision/hardware-detector';
+import { getLastInitializationResult } from "../../src/services/service-initializer";
+import {
+  getPatternMatcherServiceFactory,
+  getBenchmarkServiceFactory,
+} from "../../src/tools/quality/evaluate.tool";
+import { getCSSAnalysisCacheService } from "../../src/services/css-analysis-cache.service";
+import { HardwareDetector, HardwareType } from "../../src/services/vision/hardware-detector";
 
 // HardwareDetector モジュールをモック
 // Note: vi.hoisted() でモック関数を先にホイスティングし、vi.mock()内で参照可能にする
-const {
-  mockDetect,
-  mockIsForceCpuModeEnabled,
-  mockClearCache,
-  mockDetectGpuMismatch,
-} = vi.hoisted(() => ({
-  mockDetect: vi.fn(),
-  mockIsForceCpuModeEnabled: vi.fn(),
-  mockClearCache: vi.fn(),
-  mockDetectGpuMismatch: vi.fn(),
-}));
+const { mockDetect, mockIsForceCpuModeEnabled, mockClearCache, mockDetectGpuMismatch } = vi.hoisted(
+  () => ({
+    mockDetect: vi.fn(),
+    mockIsForceCpuModeEnabled: vi.fn(),
+    mockClearCache: vi.fn(),
+    mockDetectGpuMismatch: vi.fn(),
+  })
+);
 
-vi.mock('../../src/services/vision/hardware-detector', async () => {
-  const actual = await vi.importActual<typeof import('../../src/services/vision/hardware-detector')>(
-    '../../src/services/vision/hardware-detector'
-  );
+vi.mock("../../src/services/vision/hardware-detector", async () => {
+  const actual = await vi.importActual<
+    typeof import("../../src/services/vision/hardware-detector")
+  >("../../src/services/vision/hardware-detector");
 
   // クラスとしてモックを定義（Vitest要件: "function" or "class" in implementation）
   class MockHardwareDetector {
@@ -100,7 +104,7 @@ vi.mock('../../src/services/vision/hardware-detector', async () => {
   };
 });
 
-describe('system.health MCPツール', () => {
+describe("system.health MCPツール", () => {
   let fetchMock: ReturnType<typeof vi.fn>;
   let originalFetch: typeof global.fetch;
   const mockGetPatternMatcherServiceFactory = vi.mocked(getPatternMatcherServiceFactory);
@@ -111,15 +115,15 @@ describe('system.health MCPツール', () => {
     fetchMock = vi.fn();
     global.fetch = fetchMock;
     // デフォルトでパターンサービスを利用可能に設定
-    mockGetPatternMatcherServiceFactory.mockReturnValue(() => ({} as any));
-    mockGetBenchmarkServiceFactory.mockReturnValue(() => ({} as any));
+    mockGetPatternMatcherServiceFactory.mockReturnValue(() => ({}) as any);
+    mockGetBenchmarkServiceFactory.mockReturnValue(() => ({}) as any);
     // HardwareDetectorモックのデフォルト設定（Vision CPU完走保証診断用）
     // Note: HardwareType.CPUはモジュールがモックされているため、文字列'CPU'を使用
     mockDetect.mockResolvedValue({
       type: HardwareType.CPU,
       vramBytes: 0,
       isGpuAvailable: false,
-      error: 'Force CPU mode enabled (VISION_FORCE_CPU_MODE=true)',
+      error: "Force CPU mode enabled (VISION_FORCE_CPU_MODE=true)",
     });
     mockIsForceCpuModeEnabled.mockReturnValue(true);
     mockClearCache.mockReturnValue(undefined);
@@ -131,13 +135,13 @@ describe('system.health MCPツール', () => {
     vi.restoreAllMocks();
   });
 
-  describe('McpResponse形式', () => {
-    it('成功時にsuccess: true, data, metadataを含むレスポンスを返すこと', async () => {
+  describe("McpResponse形式", () => {
+    it("成功時にsuccess: true, data, metadataを含むレスポンスを返すこと", async () => {
       // Arrange
       fetchMock.mockResolvedValueOnce({
         ok: true,
         status: 200,
-        json: async () => ({ status: 'ok', version: '0.1.0' }),
+        json: async () => ({ status: "ok", version: "0.1.0" }),
       });
 
       // Act
@@ -145,18 +149,18 @@ describe('system.health MCPツール', () => {
 
       // Assert
       expect(result.success).toBe(true);
-      expect(result).toHaveProperty('data');
+      expect(result).toHaveProperty("data");
       expect(result.metadata).toBeDefined();
       expect(result.metadata?.request_id).toBeDefined();
       expect(result.metadata?.processing_time_ms).toBeGreaterThanOrEqual(0);
     });
 
-    it('request_idがUUID形式であること', async () => {
+    it("request_idがUUID形式であること", async () => {
       // Arrange
       fetchMock.mockResolvedValueOnce({
         ok: true,
         status: 200,
-        json: async () => ({ status: 'ok', version: '0.1.0' }),
+        json: async () => ({ status: "ok", version: "0.1.0" }),
       });
 
       // Act
@@ -168,13 +172,13 @@ describe('system.health MCPツール', () => {
       );
     });
 
-    it('外部から_request_idを渡した場合、そのIDが使用されること', async () => {
+    it("外部から_request_idを渡した場合、そのIDが使用されること", async () => {
       // Arrange
-      const customRequestId = '01234567-89ab-cdef-0123-456789abcdef';
+      const customRequestId = "01234567-89ab-cdef-0123-456789abcdef";
       fetchMock.mockResolvedValueOnce({
         ok: true,
         status: 200,
-        json: async () => ({ status: 'ok', version: '0.1.0' }),
+        json: async () => ({ status: "ok", version: "0.1.0" }),
       });
 
       // Act
@@ -185,8 +189,8 @@ describe('system.health MCPツール', () => {
     });
   });
 
-  describe('systemHealthHandler', () => {
-    it('レスポンスにtimestampが含まれること', async () => {
+  describe("systemHealthHandler", () => {
+    it("レスポンスにtimestampが含まれること", async () => {
       // Arrange
       fetchMock.mockResolvedValueOnce({
         ok: true,
@@ -204,69 +208,84 @@ describe('system.health MCPツール', () => {
         expect(() => new Date(result.data.timestamp)).not.toThrow();
       }
     });
-
   });
 
-  describe('ツール定義', () => {
-    it('正しいツール名が定義されていること', () => {
-      expect(systemHealthToolDefinition.name).toBe('system.health');
+  describe("ツール定義", () => {
+    it("正しいツール名が定義されていること", () => {
+      expect(systemHealthToolDefinition.name).toBe("system.health");
     });
 
-    it('説明が定義されていること', () => {
+    it("説明が定義されていること", () => {
       expect(systemHealthToolDefinition.description).toBeDefined();
       expect(systemHealthToolDefinition.description.length).toBeGreaterThan(0);
     });
 
-    it('入力スキーマが定義されていること', () => {
+    it("入力スキーマが定義されていること", () => {
       expect(systemHealthToolDefinition.inputSchema).toBeDefined();
-      expect(systemHealthToolDefinition.inputSchema.type).toBe('object');
+      expect(systemHealthToolDefinition.inputSchema.type).toBe("object");
     });
 
-    it('必須パラメータがないこと', () => {
+    it("必須パラメータがないこと", () => {
       expect(systemHealthToolDefinition.inputSchema.required).toEqual([]);
     });
 
-    it('include_initialization_statusパラメータが定義されていること（MCP-INIT-02）', () => {
-      expect(systemHealthToolDefinition.inputSchema.properties.include_initialization_status).toBeDefined();
-      expect(systemHealthToolDefinition.inputSchema.properties.include_initialization_status.type).toBe('boolean');
-      expect(systemHealthToolDefinition.inputSchema.properties.include_initialization_status.default).toBe(true);
+    it("include_initialization_statusパラメータが定義されていること（MCP-INIT-02）", () => {
+      expect(
+        systemHealthToolDefinition.inputSchema.properties.include_initialization_status
+      ).toBeDefined();
+      expect(
+        systemHealthToolDefinition.inputSchema.properties.include_initialization_status.type
+      ).toBe("boolean");
+      expect(
+        systemHealthToolDefinition.inputSchema.properties.include_initialization_status.default
+      ).toBe(true);
     });
 
-    it('include_tools_statusパラメータが定義されていること（REFTRIX-HEALTH-01）', () => {
+    it("include_tools_statusパラメータが定義されていること（REFTRIX-HEALTH-01）", () => {
       expect(systemHealthToolDefinition.inputSchema.properties.include_tools_status).toBeDefined();
-      expect(systemHealthToolDefinition.inputSchema.properties.include_tools_status.type).toBe('boolean');
-      expect(systemHealthToolDefinition.inputSchema.properties.include_tools_status.default).toBe(true);
+      expect(systemHealthToolDefinition.inputSchema.properties.include_tools_status.type).toBe(
+        "boolean"
+      );
+      expect(systemHealthToolDefinition.inputSchema.properties.include_tools_status.default).toBe(
+        true
+      );
     });
 
-    it('include_css_analysis_cache_statsパラメータが定義されていること（MCP-CACHE-02）', () => {
-      expect(systemHealthToolDefinition.inputSchema.properties.include_css_analysis_cache_stats).toBeDefined();
-      expect(systemHealthToolDefinition.inputSchema.properties.include_css_analysis_cache_stats.type).toBe('boolean');
-      expect(systemHealthToolDefinition.inputSchema.properties.include_css_analysis_cache_stats.default).toBe(true);
+    it("include_css_analysis_cache_statsパラメータが定義されていること（MCP-CACHE-02）", () => {
+      expect(
+        systemHealthToolDefinition.inputSchema.properties.include_css_analysis_cache_stats
+      ).toBeDefined();
+      expect(
+        systemHealthToolDefinition.inputSchema.properties.include_css_analysis_cache_stats.type
+      ).toBe("boolean");
+      expect(
+        systemHealthToolDefinition.inputSchema.properties.include_css_analysis_cache_stats.default
+      ).toBe(true);
     });
   });
 
-  describe('サービス初期化状態（MCP-INIT-02）', () => {
+  describe("サービス初期化状態（MCP-INIT-02）", () => {
     const mockGetLastInitializationResult = vi.mocked(getLastInitializationResult);
 
     beforeEach(() => {
       mockGetLastInitializationResult.mockReset();
     });
 
-    it('初期化状態が正常な場合、初期化情報がレスポンスに含まれること', async () => {
+    it("初期化状態が正常な場合、初期化情報がレスポンスに含まれること", async () => {
       // Arrange
       fetchMock.mockResolvedValueOnce({
         ok: true,
         status: 200,
-        json: async () => ({ status: 'ok', version: '0.1.0' }),
+        json: async () => ({ status: "ok", version: "0.1.0" }),
       });
 
       mockGetLastInitializationResult.mockReturnValue({
         success: true,
-        initializedCategories: ['motion', 'layout', 'quality', 'page'],
+        initializedCategories: ["motion", "layout", "quality", "page"],
         skippedCategories: [],
         errors: [],
         registeredToolCount: 19,
-        registeredFactories: ['motionSearch', 'layoutSearch', 'qualityEvaluate'],
+        registeredFactories: ["motionSearch", "layoutSearch", "qualityEvaluate"],
       });
 
       // Act
@@ -276,7 +295,12 @@ describe('system.health MCPツール', () => {
       expect(result.success).toBe(true);
       if (result.success) {
         expect(result.data.services.initialization).toBeDefined();
-        expect(result.data.services.initialization?.initializedCategories).toEqual(['motion', 'layout', 'quality', 'page']);
+        expect(result.data.services.initialization?.initializedCategories).toEqual([
+          "motion",
+          "layout",
+          "quality",
+          "page",
+        ]);
         expect(result.data.services.initialization?.skippedCategories).toEqual([]);
         expect(result.data.services.initialization?.errors).toEqual([]);
         // v0.1.5: 26 tools (WebDesign専用) - part.search/inspect/compare追加
@@ -284,25 +308,21 @@ describe('system.health MCPツール', () => {
       }
     });
 
-    it('初期化エラーがある場合、エラー情報がレスポンスに含まれること', async () => {
+    it("初期化エラーがある場合、エラー情報がレスポンスに含まれること", async () => {
       // Arrange
       fetchMock.mockResolvedValueOnce({
         ok: true,
         status: 200,
-        json: async () => ({ status: 'ok', version: '0.1.0' }),
+        json: async () => ({ status: "ok", version: "0.1.0" }),
       });
 
       mockGetLastInitializationResult.mockReturnValue({
         success: true,
-        initializedCategories: ['motion', 'layout'],
-        skippedCategories: [
-          { category: 'Quality.patternMatcher', reason: 'Missing dependency' },
-        ],
-        errors: [
-          { category: 'Page', error: 'PrismaClient initialization failed' },
-        ],
+        initializedCategories: ["motion", "layout"],
+        skippedCategories: [{ category: "Quality.patternMatcher", reason: "Missing dependency" }],
+        errors: [{ category: "Page", error: "PrismaClient initialization failed" }],
         registeredToolCount: 10,
-        registeredFactories: ['motionSearch', 'layoutSearch'],
+        registeredFactories: ["motionSearch", "layoutSearch"],
       });
 
       // Act
@@ -311,31 +331,31 @@ describe('system.health MCPツール', () => {
       // Assert
       expect(result.success).toBe(true);
       if (result.success) {
-        expect(result.data.status).toBe('degraded'); // エラーがある場合は degraded になる
+        expect(result.data.status).toBe("degraded"); // エラーがある場合は degraded になる
         expect(result.data.services.initialization?.errors).toHaveLength(1);
         expect(result.data.services.initialization?.errors[0]).toEqual({
-          category: 'Page',
-          error: 'PrismaClient initialization failed',
+          category: "Page",
+          error: "PrismaClient initialization failed",
         });
         expect(result.data.services.initialization?.skippedCategories).toHaveLength(1);
         expect(result.data.services.initialization?.skippedCategories[0]).toEqual({
-          category: 'Quality.patternMatcher',
-          reason: 'Missing dependency',
+          category: "Quality.patternMatcher",
+          reason: "Missing dependency",
         });
       }
     });
 
-    it('include_initialization_status=falseの場合、初期化状態が含まれないこと', async () => {
+    it("include_initialization_status=falseの場合、初期化状態が含まれないこと", async () => {
       // Arrange
       fetchMock.mockResolvedValueOnce({
         ok: true,
         status: 200,
-        json: async () => ({ status: 'ok', version: '0.1.0' }),
+        json: async () => ({ status: "ok", version: "0.1.0" }),
       });
 
       mockGetLastInitializationResult.mockReturnValue({
         success: true,
-        initializedCategories: ['motion', 'layout', 'quality', 'page'],
+        initializedCategories: ["motion", "layout", "quality", "page"],
         skippedCategories: [],
         errors: [],
         registeredToolCount: 19,
@@ -352,12 +372,12 @@ describe('system.health MCPツール', () => {
       }
     });
 
-    it('初期化結果がnullの場合、初期化状態がレスポンスに含まれないこと', async () => {
+    it("初期化結果がnullの場合、初期化状態がレスポンスに含まれないこと", async () => {
       // Arrange
       fetchMock.mockResolvedValueOnce({
         ok: true,
         status: 200,
-        json: async () => ({ status: 'ok', version: '0.1.0' }),
+        json: async () => ({ status: "ok", version: "0.1.0" }),
       });
 
       mockGetLastInitializationResult.mockReturnValue(null);
@@ -372,17 +392,17 @@ describe('system.health MCPツール', () => {
       }
     });
 
-    it('デフォルトで初期化状態が含まれること', async () => {
+    it("デフォルトで初期化状態が含まれること", async () => {
       // Arrange
       fetchMock.mockResolvedValueOnce({
         ok: true,
         status: 200,
-        json: async () => ({ status: 'ok', version: '0.1.0' }),
+        json: async () => ({ status: "ok", version: "0.1.0" }),
       });
 
       mockGetLastInitializationResult.mockReturnValue({
         success: true,
-        initializedCategories: ['motion', 'layout', 'quality', 'page'],
+        initializedCategories: ["motion", "layout", "quality", "page"],
         skippedCategories: [],
         errors: [],
         registeredToolCount: 19,
@@ -400,7 +420,7 @@ describe('system.health MCPツール', () => {
     });
   });
 
-  describe('ツールレベルの可用性（REFTRIX-HEALTH-01）', () => {
+  describe("ツールレベルの可用性（REFTRIX-HEALTH-01）", () => {
     const mockGetLastInitializationResult = vi.mocked(getLastInitializationResult);
 
     beforeEach(() => {
@@ -409,7 +429,7 @@ describe('system.health MCPツール', () => {
       mockGetBenchmarkServiceFactory.mockReset();
     });
 
-    it('パターンサービスがfallbackモードでもツールがoperationalであればdegradedを返すこと', async () => {
+    it("パターンサービスがfallbackモードでもツールがoperationalであればdegradedを返すこと", async () => {
       // Arrange - パターンサービスが利用不可
       mockGetPatternMatcherServiceFactory.mockReturnValue(null);
       mockGetBenchmarkServiceFactory.mockReturnValue(null);
@@ -418,7 +438,7 @@ describe('system.health MCPツール', () => {
       fetchMock.mockResolvedValueOnce({
         ok: true,
         status: 200,
-        json: async () => ({ status: 'ok', version: '0.1.0' }),
+        json: async () => ({ status: "ok", version: "0.1.0" }),
       });
 
       // Act
@@ -427,21 +447,23 @@ describe('system.health MCPツール', () => {
       // Assert
       expect(result.success).toBe(true);
       if (result.success) {
-        expect(result.data.status).toBe('degraded'); // unhealthyではなくdegraded
-        expect(result.data.services.pattern_services?.patternDrivenEvaluation).toBe('fallback_mode');
+        expect(result.data.status).toBe("degraded"); // unhealthyではなくdegraded
+        expect(result.data.services.pattern_services?.patternDrivenEvaluation).toBe(
+          "fallback_mode"
+        );
         expect(result.data.services.tools).toBeDefined();
-        expect(result.data.services.tools?.['quality.evaluate']?.status).toBe('operational');
-        expect(result.data.services.tools?.['quality.evaluate']?.mode).toBe('fallback');
+        expect(result.data.services.tools?.["quality.evaluate"]?.status).toBe("operational");
+        expect(result.data.services.tools?.["quality.evaluate"]?.mode).toBe("fallback");
       }
     });
 
-    it('すべてのサービスが正常な場合、ツールはフル機能でoperationalを返すこと', async () => {
+    it("すべてのサービスが正常な場合、ツールはフル機能でoperationalを返すこと", async () => {
       // Arrange - パターンサービスが利用可能
-      mockGetPatternMatcherServiceFactory.mockReturnValue(() => ({} as any));
-      mockGetBenchmarkServiceFactory.mockReturnValue(() => ({} as any));
+      mockGetPatternMatcherServiceFactory.mockReturnValue(() => ({}) as any);
+      mockGetBenchmarkServiceFactory.mockReturnValue(() => ({}) as any);
       mockGetLastInitializationResult.mockReturnValue({
         success: true,
-        initializedCategories: ['motion', 'layout', 'quality', 'page'],
+        initializedCategories: ["motion", "layout", "quality", "page"],
         skippedCategories: [],
         errors: [],
         registeredToolCount: 19,
@@ -451,7 +473,7 @@ describe('system.health MCPツール', () => {
       fetchMock.mockResolvedValueOnce({
         ok: true,
         status: 200,
-        json: async () => ({ status: 'ok', version: '0.1.0' }),
+        json: async () => ({ status: "ok", version: "0.1.0" }),
       });
 
       // Act
@@ -460,22 +482,22 @@ describe('system.health MCPツール', () => {
       // Assert
       expect(result.success).toBe(true);
       if (result.success) {
-        expect(result.data.status).toBe('healthy');
+        expect(result.data.status).toBe("healthy");
         expect(result.data.services.tools).toBeDefined();
-        expect(result.data.services.tools?.['quality.evaluate']?.status).toBe('operational');
-        expect(result.data.services.tools?.['quality.evaluate']?.mode).toBe('full');
+        expect(result.data.services.tools?.["quality.evaluate"]?.status).toBe("operational");
+        expect(result.data.services.tools?.["quality.evaluate"]?.mode).toBe("full");
       }
     });
 
-    it('include_tools_status=falseの場合、ツール状態が含まれないこと', async () => {
+    it("include_tools_status=falseの場合、ツール状態が含まれないこと", async () => {
       // Arrange
-      mockGetPatternMatcherServiceFactory.mockReturnValue(() => ({} as any));
-      mockGetBenchmarkServiceFactory.mockReturnValue(() => ({} as any));
+      mockGetPatternMatcherServiceFactory.mockReturnValue(() => ({}) as any);
+      mockGetBenchmarkServiceFactory.mockReturnValue(() => ({}) as any);
 
       fetchMock.mockResolvedValueOnce({
         ok: true,
         status: 200,
-        json: async () => ({ status: 'ok', version: '0.1.0' }),
+        json: async () => ({ status: "ok", version: "0.1.0" }),
       });
 
       // Act
@@ -488,15 +510,15 @@ describe('system.health MCPツール', () => {
       }
     });
 
-    it('デフォルトでツール状態が含まれること', async () => {
+    it("デフォルトでツール状態が含まれること", async () => {
       // Arrange
-      mockGetPatternMatcherServiceFactory.mockReturnValue(() => ({} as any));
-      mockGetBenchmarkServiceFactory.mockReturnValue(() => ({} as any));
+      mockGetPatternMatcherServiceFactory.mockReturnValue(() => ({}) as any);
+      mockGetBenchmarkServiceFactory.mockReturnValue(() => ({}) as any);
 
       fetchMock.mockResolvedValueOnce({
         ok: true,
         status: 200,
-        json: async () => ({ status: 'ok', version: '0.1.0' }),
+        json: async () => ({ status: "ok", version: "0.1.0" }),
       });
 
       // Act
@@ -509,15 +531,15 @@ describe('system.health MCPツール', () => {
       }
     });
 
-    it('layout.searchツールがoperationalであることを確認', async () => {
+    it("layout.searchツールがoperationalであることを確認", async () => {
       // Arrange
-      mockGetPatternMatcherServiceFactory.mockReturnValue(() => ({} as any));
-      mockGetBenchmarkServiceFactory.mockReturnValue(() => ({} as any));
+      mockGetPatternMatcherServiceFactory.mockReturnValue(() => ({}) as any);
+      mockGetBenchmarkServiceFactory.mockReturnValue(() => ({}) as any);
 
       fetchMock.mockResolvedValueOnce({
         ok: true,
         status: 200,
-        json: async () => ({ status: 'ok', version: '0.1.0' }),
+        json: async () => ({ status: "ok", version: "0.1.0" }),
       });
 
       // Act
@@ -526,19 +548,19 @@ describe('system.health MCPツール', () => {
       // Assert
       expect(result.success).toBe(true);
       if (result.success) {
-        expect(result.data.services.tools?.['layout.search']?.status).toBe('operational');
+        expect(result.data.services.tools?.["layout.search"]?.status).toBe("operational");
       }
     });
 
-    it('motion.detectツールがoperationalであることを確認', async () => {
+    it("motion.detectツールがoperationalであることを確認", async () => {
       // Arrange
-      mockGetPatternMatcherServiceFactory.mockReturnValue(() => ({} as any));
-      mockGetBenchmarkServiceFactory.mockReturnValue(() => ({} as any));
+      mockGetPatternMatcherServiceFactory.mockReturnValue(() => ({}) as any);
+      mockGetBenchmarkServiceFactory.mockReturnValue(() => ({}) as any);
 
       fetchMock.mockResolvedValueOnce({
         ok: true,
         status: 200,
-        json: async () => ({ status: 'ok', version: '0.1.0' }),
+        json: async () => ({ status: "ok", version: "0.1.0" }),
       });
 
       // Act
@@ -547,12 +569,12 @@ describe('system.health MCPツール', () => {
       // Assert
       expect(result.success).toBe(true);
       if (result.success) {
-        expect(result.data.services.tools?.['motion.detect']?.status).toBe('operational');
+        expect(result.data.services.tools?.["motion.detect"]?.status).toBe("operational");
       }
     });
   });
 
-  describe('CSS解析キャッシュ統計（MCP-CACHE-02）', () => {
+  describe("CSS解析キャッシュ統計（MCP-CACHE-02）", () => {
     const mockGetCSSAnalysisCacheService = vi.mocked(getCSSAnalysisCacheService);
 
     beforeEach(() => {
@@ -571,12 +593,12 @@ describe('system.health MCPツール', () => {
       } as any);
     });
 
-    it('デフォルトでCSS解析キャッシュ統計が含まれること', async () => {
+    it("デフォルトでCSS解析キャッシュ統計が含まれること", async () => {
       // Arrange
       fetchMock.mockResolvedValueOnce({
         ok: true,
         status: 200,
-        json: async () => ({ status: 'ok', version: '0.1.0' }),
+        json: async () => ({ status: "ok", version: "0.1.0" }),
       });
 
       // Act
@@ -594,12 +616,12 @@ describe('system.health MCPツール', () => {
       }
     });
 
-    it('layout.inspectキャッシュ統計が正しく返されること', async () => {
+    it("layout.inspectキャッシュ統計が正しく返されること", async () => {
       // Arrange
       fetchMock.mockResolvedValueOnce({
         ok: true,
         status: 200,
-        json: async () => ({ status: 'ok', version: '0.1.0' }),
+        json: async () => ({ status: "ok", version: "0.1.0" }),
       });
 
       // Act
@@ -615,12 +637,12 @@ describe('system.health MCPツール', () => {
       }
     });
 
-    it('motion.detectキャッシュ統計が正しく返されること', async () => {
+    it("motion.detectキャッシュ統計が正しく返されること", async () => {
       // Arrange
       fetchMock.mockResolvedValueOnce({
         ok: true,
         status: 200,
-        json: async () => ({ status: 'ok', version: '0.1.0' }),
+        json: async () => ({ status: "ok", version: "0.1.0" }),
       });
 
       // Act
@@ -636,12 +658,12 @@ describe('system.health MCPツール', () => {
       }
     });
 
-    it('合計統計が正しく返されること', async () => {
+    it("合計統計が正しく返されること", async () => {
       // Arrange
       fetchMock.mockResolvedValueOnce({
         ok: true,
         status: 200,
-        json: async () => ({ status: 'ok', version: '0.1.0' }),
+        json: async () => ({ status: "ok", version: "0.1.0" }),
       });
 
       // Act
@@ -656,12 +678,12 @@ describe('system.health MCPツール', () => {
       }
     });
 
-    it('include_css_analysis_cache_stats=falseの場合、CSS解析キャッシュ統計が含まれないこと', async () => {
+    it("include_css_analysis_cache_stats=falseの場合、CSS解析キャッシュ統計が含まれないこと", async () => {
       // Arrange
       fetchMock.mockResolvedValueOnce({
         ok: true,
         status: 200,
-        json: async () => ({ status: 'ok', version: '0.1.0' }),
+        json: async () => ({ status: "ok", version: "0.1.0" }),
       });
 
       // Act
@@ -674,16 +696,16 @@ describe('system.health MCPツール', () => {
       }
     });
 
-    it('キャッシュサービスがエラーを返しても、全体は成功すること', async () => {
+    it("キャッシュサービスがエラーを返しても、全体は成功すること", async () => {
       // Arrange
       fetchMock.mockResolvedValueOnce({
         ok: true,
         status: 200,
-        json: async () => ({ status: 'ok', version: '0.1.0' }),
+        json: async () => ({ status: "ok", version: "0.1.0" }),
       });
 
       mockGetCSSAnalysisCacheService.mockReturnValue({
-        getStats: vi.fn().mockRejectedValue(new Error('Cache service error')),
+        getStats: vi.fn().mockRejectedValue(new Error("Cache service error")),
       } as any);
 
       // Act
@@ -692,26 +714,26 @@ describe('system.health MCPツール', () => {
       // Assert
       expect(result.success).toBe(true);
       if (result.success) {
-        expect(result.data.status).toBe('healthy'); // エラーでもhealthyを維持
+        expect(result.data.status).toBe("healthy"); // エラーでもhealthyを維持
         expect(result.data.css_analysis_cache).toBeUndefined(); // キャッシュ統計は含まれない
       }
     });
   });
 
-  describe('エラーハンドリング', () => {
-    it('予期しないエラーが発生した場合、エラーレスポンスを返すこと', async () => {
+  describe("エラーハンドリング", () => {
+    it("予期しないエラーが発生した場合、エラーレスポンスを返すこと", async () => {
       // Arrange - fetchがエラーを投げる（webApiHealthChecker内で捕捉されないエラー）
       // webApiHealthCheckerは通常エラーを捕捉するため、
       // 代わりに初期化関数のモックでエラーを発生させる
       const mockGetLastInitializationResult = vi.mocked(getLastInitializationResult);
       mockGetLastInitializationResult.mockImplementation(() => {
-        throw new Error('Unexpected initialization error');
+        throw new Error("Unexpected initialization error");
       });
 
       fetchMock.mockResolvedValueOnce({
         ok: true,
         status: 200,
-        json: async () => ({ status: 'ok', version: '0.1.0' }),
+        json: async () => ({ status: "ok", version: "0.1.0" }),
       });
 
       // Act
@@ -720,15 +742,15 @@ describe('system.health MCPツール', () => {
       // Assert
       expect(result.success).toBe(false);
       if (!result.success) {
-        expect(result.error.code).toBe('HEALTH_CHECK_ERROR');
-        expect(result.error.message).toContain('Unexpected initialization error');
+        expect(result.error.code).toBe("HEALTH_CHECK_ERROR");
+        expect(result.error.message).toContain("Unexpected initialization error");
         expect(result.metadata?.request_id).toBeDefined();
         expect(result.metadata?.processing_time_ms).toBeGreaterThanOrEqual(0);
       }
     });
   });
 
-  describe('Vision Hardware診断（Vision CPU完走保証）', () => {
+  describe("Vision Hardware診断（Vision CPU完走保証）", () => {
     // Note: mockDetect, mockIsForceCpuModeEnabled, mockClearCache は
     // vi.hoisted() でファイル先頭に定義済み。beforeEach でデフォルト値が設定される。
 
@@ -740,12 +762,12 @@ describe('system.health MCPツール', () => {
       mockGetLastInitializationResult.mockReturnValue(null);
     });
 
-    it('デフォルトでVision Hardware状態が含まれること', async () => {
+    it("デフォルトでVision Hardware状態が含まれること", async () => {
       // Arrange
       fetchMock.mockResolvedValueOnce({
         ok: true,
         status: 200,
-        json: async () => ({ status: 'ok', version: '0.1.0' }),
+        json: async () => ({ status: "ok", version: "0.1.0" }),
       });
 
       // Act
@@ -758,12 +780,12 @@ describe('system.health MCPツール', () => {
       }
     });
 
-    it('force_cpu_modeが正しく返されること', async () => {
+    it("force_cpu_modeが正しく返されること", async () => {
       // Arrange
       fetchMock.mockResolvedValueOnce({
         ok: true,
         status: 200,
-        json: async () => ({ status: 'ok', version: '0.1.0' }),
+        json: async () => ({ status: "ok", version: "0.1.0" }),
       });
 
       // Act
@@ -776,12 +798,12 @@ describe('system.health MCPツール', () => {
       }
     });
 
-    it('detected_typeが正しく返されること', async () => {
+    it("detected_typeが正しく返されること", async () => {
       // Arrange
       fetchMock.mockResolvedValueOnce({
         ok: true,
         status: 200,
-        json: async () => ({ status: 'ok', version: '0.1.0' }),
+        json: async () => ({ status: "ok", version: "0.1.0" }),
       });
 
       // Act
@@ -790,16 +812,16 @@ describe('system.health MCPツール', () => {
       // Assert
       expect(result.success).toBe(true);
       if (result.success) {
-        expect(result.data.vision_hardware?.detected_type).toBe('CPU');
+        expect(result.data.vision_hardware?.detected_type).toBe("CPU");
       }
     });
 
-    it('detection_errorが存在する場合、正しく返されること', async () => {
+    it("detection_errorが存在する場合、正しく返されること", async () => {
       // Arrange
       fetchMock.mockResolvedValueOnce({
         ok: true,
         status: 200,
-        json: async () => ({ status: 'ok', version: '0.1.0' }),
+        json: async () => ({ status: "ok", version: "0.1.0" }),
       });
 
       // Act
@@ -808,16 +830,16 @@ describe('system.health MCPツール', () => {
       // Assert
       expect(result.success).toBe(true);
       if (result.success) {
-        expect(result.data.vision_hardware?.detection_error).toContain('Force CPU mode');
+        expect(result.data.vision_hardware?.detection_error).toContain("Force CPU mode");
       }
     });
 
-    it('include_vision_hardware=falseの場合、Vision Hardware状態が含まれないこと', async () => {
+    it("include_vision_hardware=falseの場合、Vision Hardware状態が含まれないこと", async () => {
       // Arrange
       fetchMock.mockResolvedValueOnce({
         ok: true,
         status: 200,
-        json: async () => ({ status: 'ok', version: '0.1.0' }),
+        json: async () => ({ status: "ok", version: "0.1.0" }),
       });
 
       // Act
@@ -830,21 +852,27 @@ describe('system.health MCPツール', () => {
       }
     });
 
-    it('include_vision_hardwareパラメータがスキーマに定義されていること', () => {
-      expect(systemHealthToolDefinition.inputSchema.properties.include_vision_hardware).toBeDefined();
-      expect(systemHealthToolDefinition.inputSchema.properties.include_vision_hardware.type).toBe('boolean');
-      expect(systemHealthToolDefinition.inputSchema.properties.include_vision_hardware.default).toBe(true);
+    it("include_vision_hardwareパラメータがスキーマに定義されていること", () => {
+      expect(
+        systemHealthToolDefinition.inputSchema.properties.include_vision_hardware
+      ).toBeDefined();
+      expect(systemHealthToolDefinition.inputSchema.properties.include_vision_hardware.type).toBe(
+        "boolean"
+      );
+      expect(
+        systemHealthToolDefinition.inputSchema.properties.include_vision_hardware.default
+      ).toBe(true);
     });
 
-    it('HardwareDetectorがエラーを投げてもエラーが返されないこと（Graceful Degradation）', async () => {
+    it("HardwareDetectorがエラーを投げてもエラーが返されないこと（Graceful Degradation）", async () => {
       // Arrange: mockDetectをエラーを投げるように設定
-      mockDetect.mockRejectedValueOnce(new Error('HardwareDetector error'));
+      mockDetect.mockRejectedValueOnce(new Error("HardwareDetector error"));
       mockIsForceCpuModeEnabled.mockReturnValueOnce(false);
 
       fetchMock.mockResolvedValueOnce({
         ok: true,
         status: 200,
-        json: async () => ({ status: 'ok', version: '0.1.0' }),
+        json: async () => ({ status: "ok", version: "0.1.0" }),
       });
 
       // Act
@@ -855,12 +883,12 @@ describe('system.health MCPツール', () => {
       if (result.success) {
         // エラー時はフォールバック値が設定される
         expect(result.data.vision_hardware).toBeDefined();
-        expect(result.data.vision_hardware?.detection_error).toContain('HardwareDetector error');
-        expect(result.data.vision_hardware?.detected_type).toBe('CPU'); // 安全側
+        expect(result.data.vision_hardware?.detection_error).toContain("HardwareDetector error");
+        expect(result.data.vision_hardware?.detected_type).toBe("CPU"); // 安全側
       }
     });
 
-    it('GPU検出時にdetected_type=GPUが返されること', async () => {
+    it("GPU検出時にdetected_type=GPUが返されること", async () => {
       // Arrange: mockDetectをGPU検出結果に設定
       mockDetect.mockResolvedValueOnce({
         type: HardwareType.GPU,
@@ -872,7 +900,7 @@ describe('system.health MCPツール', () => {
       fetchMock.mockResolvedValueOnce({
         ok: true,
         status: 200,
-        json: async () => ({ status: 'ok', version: '0.1.0' }),
+        json: async () => ({ status: "ok", version: "0.1.0" }),
       });
 
       // Act
@@ -881,7 +909,7 @@ describe('system.health MCPツール', () => {
       // Assert
       expect(result.success).toBe(true);
       if (result.success) {
-        expect(result.data.vision_hardware?.detected_type).toBe('GPU');
+        expect(result.data.vision_hardware?.detected_type).toBe("GPU");
         expect(result.data.vision_hardware?.vram_bytes).toBe(8589934592);
         expect(result.data.vision_hardware?.is_gpu_available).toBe(true);
         expect(result.data.vision_hardware?.force_cpu_mode).toBe(false);

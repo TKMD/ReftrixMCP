@@ -10,14 +10,14 @@
  * @module src/tools/page/handlers/phased-db-handler
  */
 
-import type { PrismaClient, AnalysisPhaseStatus } from '@prisma/client';
-import { logger } from '../../../utils/logger';
+import type { PrismaClient, AnalysisPhaseStatus } from "@prisma/client";
+import { logger } from "../../../utils/logger";
 
 /**
  * フェーズ結果型（phased-executor.tsと共有）
  */
 export interface PhaseResult<T> {
-  phase: 'layout' | 'motion' | 'quality';
+  phase: "layout" | "motion" | "quality";
   success: boolean;
   data?: T;
   error?: string;
@@ -38,10 +38,7 @@ export interface PhasedDbHandlerOptions {
  */
 export interface MinimalPrismaClient {
   webPage: {
-    update: (args: {
-      where: { id: string };
-      data: Record<string, unknown>;
-    }) => Promise<unknown>;
+    update: (args: { where: { id: string }; data: Record<string, unknown> }) => Promise<unknown>;
   };
   $transaction?: <T>(fn: (tx: MinimalPrismaClient) => Promise<T>) => Promise<T>;
 }
@@ -49,10 +46,10 @@ export interface MinimalPrismaClient {
 /**
  * フェーズに対応するAnalysisPhaseStatus
  */
-const PHASE_STATUS_MAP: Record<'layout' | 'motion' | 'quality', AnalysisPhaseStatus> = {
-  layout: 'layout_done',
-  motion: 'motion_done',
-  quality: 'quality_done',
+const PHASE_STATUS_MAP: Record<"layout" | "motion" | "quality", AnalysisPhaseStatus> = {
+  layout: "layout_done",
+  motion: "motion_done",
+  quality: "quality_done",
 };
 
 /**
@@ -82,8 +79,8 @@ export class PhasedDbHandler {
     await this.options.prisma.webPage.update({
       where: { id: this.options.webPageId },
       data: {
-        analysisPhaseStatus: 'pending' as AnalysisPhaseStatus,
-        analysisStatus: 'processing', // 後方互換性
+        analysisPhaseStatus: "pending" as AnalysisPhaseStatus,
+        analysisStatus: "processing", // 後方互換性
         analysisStartedAt: now,
         analysisError: null,
         lastAnalyzedPhase: null,
@@ -103,7 +100,7 @@ export class PhasedDbHandler {
    * @param result フェーズ結果
    */
   async commitPhaseResult(
-    phase: 'layout' | 'motion' | 'quality',
+    phase: "layout" | "motion" | "quality",
     result: PhaseResult<unknown>
   ): Promise<void> {
     // 失敗時は更新しない（前のフェーズの成功状態を維持）
@@ -144,14 +141,14 @@ export class PhasedDbHandler {
     };
 
     if (overallSuccess) {
-      updateData.analysisPhaseStatus = 'completed' as AnalysisPhaseStatus;
-      updateData.analysisStatus = 'completed'; // 後方互換性
+      updateData.analysisPhaseStatus = "completed" as AnalysisPhaseStatus;
+      updateData.analysisStatus = "completed"; // 後方互換性
     } else {
       // 部分成功時はanalysisPhaseStatusを変更しない
       // analysisStatusはcompletedに（処理自体は終了したため）
       // ただし、ステータスを明示的に部分成功として扱う
       // analysisPhaseStatus は最後に成功したフェーズのまま維持
-      updateData.analysisStatus = 'completed'; // 後方互換性（処理終了を示す）
+      updateData.analysisStatus = "completed"; // 後方互換性（処理終了を示す）
     }
 
     await this.options.prisma.webPage.update({
@@ -175,8 +172,8 @@ export class PhasedDbHandler {
     await this.options.prisma.webPage.update({
       where: { id: this.options.webPageId },
       data: {
-        analysisPhaseStatus: 'failed' as AnalysisPhaseStatus,
-        analysisStatus: 'failed', // 後方互換性
+        analysisPhaseStatus: "failed" as AnalysisPhaseStatus,
+        analysisStatus: "failed", // 後方互換性
         analysisError: error,
         analysisCompletedAt: now,
       },

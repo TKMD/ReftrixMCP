@@ -15,12 +15,12 @@
  * ```
  */
 
-import * as fs from 'fs/promises';
-import * as path from 'path';
-import * as os from 'os';
-import { Logger } from '../../utils/logger';
+import * as fs from "fs/promises";
+import * as path from "path";
+import * as os from "os";
+import { Logger } from "../../utils/logger";
 
-const logger = new Logger('LocalStorage');
+const logger = new Logger("LocalStorage");
 
 /**
  * ストレージプロバイダーインターフェース
@@ -40,12 +40,17 @@ export interface StorageProvider {
  */
 export class StorageError extends Error {
   constructor(
-    public readonly code: 'PATH_TRAVERSAL' | 'INVALID_KEY' | 'NOT_FOUND' | 'PERMISSION_DENIED' | 'UNKNOWN',
+    public readonly code:
+      | "PATH_TRAVERSAL"
+      | "INVALID_KEY"
+      | "NOT_FOUND"
+      | "PERMISSION_DENIED"
+      | "UNKNOWN",
     message: string,
     public readonly cause?: unknown
   ) {
     super(message);
-    this.name = 'StorageError';
+    this.name = "StorageError";
   }
 }
 
@@ -94,8 +99,8 @@ export class LocalStorageProvider implements StorageProvider {
     this.baseDir = path.resolve(baseDir);
     this.options = { ...DEFAULT_OPTIONS, ...options };
 
-    if (process.env.NODE_ENV === 'development') {
-      logger.debug('LocalStorageProvider initialized', { baseDir: this.baseDir });
+    if (process.env.NODE_ENV === "development") {
+      logger.debug("LocalStorageProvider initialized", { baseDir: this.baseDir });
     }
   }
 
@@ -105,7 +110,8 @@ export class LocalStorageProvider implements StorageProvider {
    * 環境変数 REFTRIX_STORAGE_PATH を使用、未設定の場合は ~/.reftrix/storage
    */
   static createDefault(options?: LocalStorageProviderOptions): LocalStorageProvider {
-    const storagePath = process.env.REFTRIX_STORAGE_PATH || path.join(os.homedir(), '.reftrix', 'storage');
+    const storagePath =
+      process.env.REFTRIX_STORAGE_PATH || path.join(os.homedir(), ".reftrix", "storage");
     return new LocalStorageProvider(storagePath, options);
   }
 
@@ -131,16 +137,16 @@ export class LocalStorageProvider implements StorageProvider {
       // パーミッションを明示的に設定（writeFileのmodeオプションはumaskの影響を受けるため）
       await fs.chmod(fullPath, this.options.fileMode);
 
-      if (process.env.NODE_ENV === 'development') {
-        logger.debug('File uploaded', { key, size: data.length, path: fullPath });
+      if (process.env.NODE_ENV === "development") {
+        logger.debug("File uploaded", { key, size: data.length, path: fullPath });
       }
 
       return fullPath;
     } catch (error) {
       if (this.isPermissionError(error)) {
-        throw new StorageError('PERMISSION_DENIED', `Permission denied: ${key}`, error);
+        throw new StorageError("PERMISSION_DENIED", `Permission denied: ${key}`, error);
       }
-      throw new StorageError('UNKNOWN', `Failed to upload: ${key}`, error);
+      throw new StorageError("UNKNOWN", `Failed to upload: ${key}`, error);
     }
   }
 
@@ -158,19 +164,19 @@ export class LocalStorageProvider implements StorageProvider {
     try {
       const data = await fs.readFile(fullPath);
 
-      if (process.env.NODE_ENV === 'development') {
-        logger.debug('File downloaded', { key, size: data.length });
+      if (process.env.NODE_ENV === "development") {
+        logger.debug("File downloaded", { key, size: data.length });
       }
 
       return data;
     } catch (error) {
       if (this.isNotFoundError(error)) {
-        throw new StorageError('NOT_FOUND', `File not found: ${key}`, error);
+        throw new StorageError("NOT_FOUND", `File not found: ${key}`, error);
       }
       if (this.isPermissionError(error)) {
-        throw new StorageError('PERMISSION_DENIED', `Permission denied: ${key}`, error);
+        throw new StorageError("PERMISSION_DENIED", `Permission denied: ${key}`, error);
       }
-      throw new StorageError('UNKNOWN', `Failed to download: ${key}`, error);
+      throw new StorageError("UNKNOWN", `Failed to download: ${key}`, error);
     }
   }
 
@@ -187,17 +193,17 @@ export class LocalStorageProvider implements StorageProvider {
     try {
       await fs.unlink(fullPath);
 
-      if (process.env.NODE_ENV === 'development') {
-        logger.debug('File deleted', { key });
+      if (process.env.NODE_ENV === "development") {
+        logger.debug("File deleted", { key });
       }
     } catch (error) {
       if (this.isNotFoundError(error)) {
-        throw new StorageError('NOT_FOUND', `File not found: ${key}`, error);
+        throw new StorageError("NOT_FOUND", `File not found: ${key}`, error);
       }
       if (this.isPermissionError(error)) {
-        throw new StorageError('PERMISSION_DENIED', `Permission denied: ${key}`, error);
+        throw new StorageError("PERMISSION_DENIED", `Permission denied: ${key}`, error);
       }
-      throw new StorageError('UNKNOWN', `Failed to delete: ${key}`, error);
+      throw new StorageError("UNKNOWN", `Failed to delete: ${key}`, error);
     }
   }
 
@@ -237,8 +243,8 @@ export class LocalStorageProvider implements StorageProvider {
     try {
       const files = await this.listFilesRecursively(searchDir, this.baseDir);
 
-      if (process.env.NODE_ENV === 'development') {
-        logger.debug('Files listed', { prefix, count: files.length });
+      if (process.env.NODE_ENV === "development") {
+        logger.debug("Files listed", { prefix, count: files.length });
       }
 
       return files;
@@ -256,13 +262,13 @@ export class LocalStorageProvider implements StorageProvider {
    */
   private validateKey(key: string): void {
     // 空のキーをチェック
-    if (!key || key.trim() === '') {
-      throw new StorageError('INVALID_KEY', 'Key cannot be empty');
+    if (!key || key.trim() === "") {
+      throw new StorageError("INVALID_KEY", "Key cannot be empty");
     }
 
     // パストラバーサルをチェック
     if (this.isPathTraversal(key)) {
-      throw new StorageError('PATH_TRAVERSAL', `Path traversal detected: ${key}`);
+      throw new StorageError("PATH_TRAVERSAL", `Path traversal detected: ${key}`);
     }
   }
 
@@ -278,10 +284,10 @@ export class LocalStorageProvider implements StorageProvider {
 
     // 危険なパターンをチェック
     const dangerousPatterns = [
-      /\.\./,           // ..
-      /^\.\//,          // ./で始まる
-      /^\//,            // 絶対パス
-      /^[a-zA-Z]:\\/,   // Windowsドライブレター
+      /\.\./, // ..
+      /^\.\//, // ./で始まる
+      /^\//, // 絶対パス
+      /^[a-zA-Z]:\\/, // Windowsドライブレター
     ];
 
     for (const pattern of dangerousPatterns) {
@@ -341,7 +347,9 @@ export class LocalStorageProvider implements StorageProvider {
    * ファイル未存在エラーかどうかを判定
    */
   private isNotFoundError(error: unknown): boolean {
-    return error instanceof Error && 'code' in error && (error as { code?: string }).code === 'ENOENT';
+    return (
+      error instanceof Error && "code" in error && (error as { code?: string }).code === "ENOENT"
+    );
   }
 
   /**
@@ -350,8 +358,8 @@ export class LocalStorageProvider implements StorageProvider {
   private isPermissionError(error: unknown): boolean {
     return (
       error instanceof Error &&
-      'code' in error &&
-      ['EACCES', 'EPERM'].includes((error as { code?: string }).code ?? '')
+      "code" in error &&
+      ["EACCES", "EPERM"].includes((error as { code?: string }).code ?? "")
     );
   }
 }

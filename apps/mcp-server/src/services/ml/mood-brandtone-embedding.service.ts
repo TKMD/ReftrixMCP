@@ -17,14 +17,14 @@
  * @module services/ml/mood-brandtone-embedding.service
  */
 
-import { isDevelopment, logger } from '../../utils/logger';
+import { isDevelopment, logger } from "../../utils/logger";
 
 // =====================================================
 // 定数
 // =====================================================
 
 /** デフォルトのモデル名 */
-export const DEFAULT_MODEL_NAME = 'multilingual-e5-base';
+export const DEFAULT_MODEL_NAME = "multilingual-e5-base";
 
 /** デフォルトのEmbedding次元数 */
 export const DEFAULT_EMBEDDING_DIMENSIONS = 768;
@@ -89,7 +89,7 @@ export interface MoodBrandToneEmbeddingResult {
   /** 処理時間（ミリ秒） */
   processingTimeMs: number;
   /** タイプ（mood または brandTone） */
-  type: 'mood' | 'brandTone';
+  type: "mood" | "brandTone";
 }
 
 /**
@@ -120,8 +120,8 @@ export interface CacheStats {
  * EmbeddingServiceインターフェース
  */
 export interface IEmbeddingService {
-  generateEmbedding(text: string, type?: 'query' | 'passage'): Promise<number[]>;
-  generateBatchEmbeddings(texts: string[], type?: 'query' | 'passage'): Promise<number[][]>;
+  generateEmbedding(text: string, type?: "query" | "passage"): Promise<number[]>;
+  generateBatchEmbeddings(texts: string[], type?: "query" | "passage"): Promise<number[][]>;
   getCacheStats(): CacheStats;
   clearCache(): void;
 }
@@ -230,7 +230,7 @@ function getPrismaClient(): IPrismaClient {
     return prismaClientFactory();
   }
 
-  throw new Error('PrismaClient not initialized. Use setPrismaClientFactory in production.');
+  throw new Error("PrismaClient not initialized. Use setPrismaClientFactory in production.");
 }
 
 // =====================================================
@@ -254,7 +254,7 @@ function moodToText(mood: MoodTextRepresentation): string {
   }
 
   // e5モデル用にpassage:プレフィックスを付与
-  return `passage: mood design. ${parts.join('. ')}.`;
+  return `passage: mood design. ${parts.join(". ")}.`;
 }
 
 /**
@@ -274,7 +274,7 @@ function brandToneToText(brandTone: BrandToneTextRepresentation): string {
   }
 
   // e5モデル用にpassage:プレフィックスを付与
-  return `passage: brand tone design. ${parts.join('. ')}.`;
+  return `passage: brand tone design. ${parts.join(". ")}.`;
 }
 
 /**
@@ -282,28 +282,32 @@ function brandToneToText(brandTone: BrandToneTextRepresentation): string {
  */
 function validateMoodInput(mood: MoodTextRepresentation | null | undefined): void {
   if (mood === null || mood === undefined) {
-    throw new Error('Invalid input: mood cannot be null or undefined');
+    throw new Error("Invalid input: mood cannot be null or undefined");
   }
 
-  if (typeof mood !== 'object') {
-    throw new Error('Invalid input: mood must be an object');
+  if (typeof mood !== "object") {
+    throw new Error("Invalid input: mood must be an object");
   }
 
-  if (typeof mood.primary !== 'string') {
-    throw new Error('Invalid input: mood.primary must be a string');
+  if (typeof mood.primary !== "string") {
+    throw new Error("Invalid input: mood.primary must be a string");
   }
 
-  if (typeof mood.secondary !== 'string') {
-    throw new Error('Invalid input: mood.secondary must be a string');
+  if (typeof mood.secondary !== "string") {
+    throw new Error("Invalid input: mood.secondary must be a string");
   }
 
-  if (typeof mood.description !== 'string') {
-    throw new Error('Invalid input: mood.description must be a string');
+  if (typeof mood.description !== "string") {
+    throw new Error("Invalid input: mood.description must be a string");
   }
 
   // 空文字列チェック
-  if (mood.primary.trim() === '' && mood.secondary.trim() === '' && mood.description.trim() === '') {
-    throw new Error('Invalid input: mood text representation cannot be empty');
+  if (
+    mood.primary.trim() === "" &&
+    mood.secondary.trim() === "" &&
+    mood.description.trim() === ""
+  ) {
+    throw new Error("Invalid input: mood text representation cannot be empty");
   }
 }
 
@@ -312,28 +316,32 @@ function validateMoodInput(mood: MoodTextRepresentation | null | undefined): voi
  */
 function validateBrandToneInput(brandTone: BrandToneTextRepresentation | null | undefined): void {
   if (brandTone === null || brandTone === undefined) {
-    throw new Error('Invalid input: brandTone cannot be null or undefined');
+    throw new Error("Invalid input: brandTone cannot be null or undefined");
   }
 
-  if (typeof brandTone !== 'object') {
-    throw new Error('Invalid input: brandTone must be an object');
+  if (typeof brandTone !== "object") {
+    throw new Error("Invalid input: brandTone must be an object");
   }
 
-  if (typeof brandTone.primary !== 'string') {
-    throw new Error('Invalid input: brandTone.primary must be a string');
+  if (typeof brandTone.primary !== "string") {
+    throw new Error("Invalid input: brandTone.primary must be a string");
   }
 
-  if (typeof brandTone.secondary !== 'string') {
-    throw new Error('Invalid input: brandTone.secondary must be a string');
+  if (typeof brandTone.secondary !== "string") {
+    throw new Error("Invalid input: brandTone.secondary must be a string");
   }
 
-  if (typeof brandTone.description !== 'string') {
-    throw new Error('Invalid input: brandTone.description must be a string');
+  if (typeof brandTone.description !== "string") {
+    throw new Error("Invalid input: brandTone.description must be a string");
   }
 
   // 空文字列チェック
-  if (brandTone.primary.trim() === '' && brandTone.secondary.trim() === '' && brandTone.description.trim() === '') {
-    throw new Error('Invalid input: brandTone text representation cannot be empty');
+  if (
+    brandTone.primary.trim() === "" &&
+    brandTone.secondary.trim() === "" &&
+    brandTone.description.trim() === ""
+  ) {
+    throw new Error("Invalid input: brandTone text representation cannot be empty");
   }
 }
 
@@ -344,11 +352,13 @@ function validateBrandToneInput(brandTone: BrandToneTextRepresentation | null | 
  */
 function validateEmbedding(embedding: number[]): void {
   if (!Array.isArray(embedding) || embedding.length === 0) {
-    throw new Error('Invalid embedding: must be a non-empty array');
+    throw new Error("Invalid embedding: must be a non-empty array");
   }
 
   if (embedding.length !== DEFAULT_EMBEDDING_DIMENSIONS) {
-    throw new Error(`Invalid embedding: expected ${DEFAULT_EMBEDDING_DIMENSIONS} dimensions, got ${embedding.length}`);
+    throw new Error(
+      `Invalid embedding: expected ${DEFAULT_EMBEDDING_DIMENSIONS} dimensions, got ${embedding.length}`
+    );
   }
 
   // L2ノルムを計算
@@ -356,7 +366,9 @@ function validateEmbedding(embedding: number[]): void {
 
   // L2正規化のチェック（誤差許容）
   if (Math.abs(norm - 1.0) > 0.01) {
-    throw new Error(`Invalid embedding: not L2 normalized (norm = ${norm.toFixed(5)}, expected ≈ 1.0)`);
+    throw new Error(
+      `Invalid embedding: not L2 normalized (norm = ${norm.toFixed(5)}, expected ≈ 1.0)`
+    );
   }
 }
 
@@ -377,7 +389,7 @@ function normalizeL2(embedding: number[]): number[] {
 async function withTimeout<T>(
   promise: Promise<T>,
   timeoutMs: number,
-  errorMessage: string = 'Operation timed out'
+  errorMessage: string = "Operation timed out"
 ): Promise<T> {
   return Promise.race([
     promise,
@@ -407,16 +419,14 @@ interface BatchProcessParams<T> {
   items: T[];
   validateFn: (item: T) => void;
   toTextFn: (item: T) => string;
-  type: 'mood' | 'brandTone';
+  type: "mood" | "brandTone";
   continueOnError: boolean;
 }
 
 /**
  * 入力アイテムをバリデートしてテキスト表現に変換
  */
-function validateAndConvertItems<T>(
-  params: BatchProcessParams<T>
-): ValidatedItem<T>[] {
+function validateAndConvertItems<T>(params: BatchProcessParams<T>): ValidatedItem<T>[] {
   const validItems: ValidatedItem<T>[] = [];
 
   for (let i = 0; i < params.items.length; i++) {
@@ -448,7 +458,7 @@ function processEmbeddingResult<T>(
   rawEmbedding: number[],
   normalize: boolean,
   modelName: string,
-  type: 'mood' | 'brandTone',
+  type: "mood" | "brandTone",
   continueOnError: boolean
 ): MoodBrandToneEmbeddingResult | null {
   try {
@@ -488,7 +498,9 @@ const DEFAULT_OPTIONS: Required<MoodBrandToneEmbeddingOptions> = {
 /**
  * デフォルトオプションを構築（複雑度削減用）
  */
-function buildDefaultOptions(options?: MoodBrandToneEmbeddingOptions): Required<MoodBrandToneEmbeddingOptions> {
+function buildDefaultOptions(
+  options?: MoodBrandToneEmbeddingOptions
+): Required<MoodBrandToneEmbeddingOptions> {
   if (!options) return { ...DEFAULT_OPTIONS };
   return {
     modelName: options.modelName ?? DEFAULT_OPTIONS.modelName,
@@ -510,7 +522,7 @@ export class MoodBrandToneEmbeddingService {
     this.options = buildDefaultOptions(options);
 
     if (isDevelopment()) {
-      logger.info('[MoodBrandToneEmbedding] Service created', {
+      logger.info("[MoodBrandToneEmbedding] Service created", {
         modelName: this.options.modelName,
         dimensions: this.options.dimensions,
         cacheEnabled: this.options.cacheEnabled,
@@ -533,7 +545,9 @@ export class MoodBrandToneEmbeddingService {
       return this.embeddingService;
     }
 
-    throw new Error('EmbeddingService not initialized. Use setEmbeddingServiceFactory in production.');
+    throw new Error(
+      "EmbeddingService not initialized. Use setEmbeddingServiceFactory in production."
+    );
   }
 
   /**
@@ -550,7 +564,7 @@ export class MoodBrandToneEmbeddingService {
     const textRepresentation = moodToText(mood);
 
     if (isDevelopment()) {
-      logger.info('[MoodBrandToneEmbedding] Generating mood embedding', {
+      logger.info("[MoodBrandToneEmbedding] Generating mood embedding", {
         textLength: textRepresentation.length,
         primary: mood.primary,
         secondary: mood.secondary,
@@ -561,9 +575,9 @@ export class MoodBrandToneEmbeddingService {
 
     // タイムアウト付きで実行
     const rawEmbedding = await withTimeout(
-      service.generateEmbedding(textRepresentation, 'passage'),
+      service.generateEmbedding(textRepresentation, "passage"),
       this.options.timeout,
-      'Mood embedding generation timed out'
+      "Mood embedding generation timed out"
     );
 
     // L2正規化
@@ -575,7 +589,7 @@ export class MoodBrandToneEmbeddingService {
     const processingTimeMs = Date.now() - startTime;
 
     if (isDevelopment()) {
-      logger.info('[MoodBrandToneEmbedding] Mood embedding generated', {
+      logger.info("[MoodBrandToneEmbedding] Mood embedding generated", {
         dimensions: embedding.length,
         processingTimeMs,
       });
@@ -586,7 +600,7 @@ export class MoodBrandToneEmbeddingService {
       textRepresentation,
       modelName: this.options.modelName,
       processingTimeMs,
-      type: 'mood',
+      type: "mood",
     };
   }
 
@@ -596,7 +610,9 @@ export class MoodBrandToneEmbeddingService {
    * @param brandTone - BrandTone テキスト表現
    * @returns MoodBrandToneEmbeddingResult
    */
-  async generateBrandToneEmbedding(brandTone: BrandToneTextRepresentation): Promise<MoodBrandToneEmbeddingResult> {
+  async generateBrandToneEmbedding(
+    brandTone: BrandToneTextRepresentation
+  ): Promise<MoodBrandToneEmbeddingResult> {
     // 入力バリデーション
     validateBrandToneInput(brandTone);
 
@@ -604,7 +620,7 @@ export class MoodBrandToneEmbeddingService {
     const textRepresentation = brandToneToText(brandTone);
 
     if (isDevelopment()) {
-      logger.info('[MoodBrandToneEmbedding] Generating brandTone embedding', {
+      logger.info("[MoodBrandToneEmbedding] Generating brandTone embedding", {
         textLength: textRepresentation.length,
         primary: brandTone.primary,
         secondary: brandTone.secondary,
@@ -615,9 +631,9 @@ export class MoodBrandToneEmbeddingService {
 
     // タイムアウト付きで実行
     const rawEmbedding = await withTimeout(
-      service.generateEmbedding(textRepresentation, 'passage'),
+      service.generateEmbedding(textRepresentation, "passage"),
       this.options.timeout,
-      'BrandTone embedding generation timed out'
+      "BrandTone embedding generation timed out"
     );
 
     // L2正規化
@@ -629,7 +645,7 @@ export class MoodBrandToneEmbeddingService {
     const processingTimeMs = Date.now() - startTime;
 
     if (isDevelopment()) {
-      logger.info('[MoodBrandToneEmbedding] BrandTone embedding generated', {
+      logger.info("[MoodBrandToneEmbedding] BrandTone embedding generated", {
         dimensions: embedding.length,
         processingTimeMs,
       });
@@ -640,7 +656,7 @@ export class MoodBrandToneEmbeddingService {
       textRepresentation,
       modelName: this.options.modelName,
       processingTimeMs,
-      type: 'brandTone',
+      type: "brandTone",
     };
   }
 
@@ -660,7 +676,7 @@ export class MoodBrandToneEmbeddingService {
       validateMoodInput,
       moodToText,
       (mood) => this.generateMoodEmbedding(mood),
-      'mood',
+      "mood",
       options
     );
   }
@@ -673,7 +689,7 @@ export class MoodBrandToneEmbeddingService {
     validateFn: (item: T) => void,
     toTextFn: (item: T) => string,
     generateSingleFn: (item: T) => Promise<MoodBrandToneEmbeddingResult>,
-    type: 'mood' | 'brandTone',
+    type: "mood" | "brandTone",
     options?: BatchOptions
   ): Promise<MoodBrandToneEmbeddingResult[]> {
     if (items.length === 0) {
@@ -730,7 +746,7 @@ export class MoodBrandToneEmbeddingService {
   private async processBatchEmbeddings<T>(
     validItems: ValidatedItem<T>[],
     generateSingleFn: (item: T) => Promise<MoodBrandToneEmbeddingResult>,
-    type: 'mood' | 'brandTone',
+    type: "mood" | "brandTone",
     continueOnError: boolean,
     options?: BatchOptions
   ): Promise<MoodBrandToneEmbeddingResult[]> {
@@ -740,7 +756,7 @@ export class MoodBrandToneEmbeddingService {
 
     try {
       const embeddings = await withTimeout(
-        service.generateBatchEmbeddings(texts, 'passage'),
+        service.generateBatchEmbeddings(texts, "passage"),
         this.options.timeout,
         `Batch ${type} embedding generation timed out`
       );
@@ -769,12 +785,21 @@ export class MoodBrandToneEmbeddingService {
     } catch (batchError) {
       // バッチ処理が失敗した場合、個別に処理
       if (isDevelopment()) {
-        logger.warn('[MoodBrandToneEmbedding] Batch processing failed, falling back to individual', {
-          error: batchError instanceof Error ? batchError.message : 'Unknown error',
-        });
+        logger.warn(
+          "[MoodBrandToneEmbedding] Batch processing failed, falling back to individual",
+          {
+            error: batchError instanceof Error ? batchError.message : "Unknown error",
+          }
+        );
       }
 
-      await this.processBatchFallback(validItems, generateSingleFn, continueOnError, options, results);
+      await this.processBatchFallback(
+        validItems,
+        generateSingleFn,
+        continueOnError,
+        options,
+        results
+      );
     }
 
     return results;
@@ -823,7 +848,7 @@ export class MoodBrandToneEmbeddingService {
       validateBrandToneInput,
       brandToneToText,
       (brandTone) => this.generateBrandToneEmbedding(brandTone),
-      'brandTone',
+      "brandTone",
       options
     );
   }
@@ -880,8 +905,8 @@ function buildUpsertData(
   data: { mood?: MoodBrandToneEmbeddingResult; brandTone?: MoodBrandToneEmbeddingResult }
 ): UpsertData {
   const modelVersion = data.mood?.modelName ?? data.brandTone?.modelName ?? DEFAULT_MODEL_NAME;
-  const createData: UpsertData['create'] = { sectionPatternId, modelVersion };
-  const updateData: UpsertData['update'] = { modelVersion };
+  const createData: UpsertData["create"] = { sectionPatternId, modelVersion };
+  const updateData: UpsertData["update"] = { modelVersion };
 
   if (data.mood) {
     createData.moodTextRepresentation = data.mood.textRepresentation;
@@ -905,7 +930,7 @@ async function updateVectorEmbeddings(
   data: { mood?: MoodBrandToneEmbeddingResult; brandTone?: MoodBrandToneEmbeddingResult }
 ): Promise<void> {
   if (data.mood) {
-    const moodVectorString = `[${data.mood.embedding.join(',')}]`;
+    const moodVectorString = `[${data.mood.embedding.join(",")}]`;
     await tx.$executeRawUnsafe(
       `UPDATE section_embeddings SET mood_embedding = $1::vector WHERE id = $2::uuid`,
       moodVectorString,
@@ -913,7 +938,7 @@ async function updateVectorEmbeddings(
     );
   }
   if (data.brandTone) {
-    const brandToneVectorString = `[${data.brandTone.embedding.join(',')}]`;
+    const brandToneVectorString = `[${data.brandTone.embedding.join(",")}]`;
     await tx.$executeRawUnsafe(
       `UPDATE section_embeddings SET brand_tone_embedding = $1::vector WHERE id = $2::uuid`,
       brandToneVectorString,
@@ -941,12 +966,12 @@ export async function saveMoodBrandToneEmbedding(
   const prisma = getPrismaClient();
 
   // 入力バリデーション
-  if (!sectionPatternId || typeof sectionPatternId !== 'string') {
-    throw new Error('Invalid sectionPatternId: must be a non-empty string');
+  if (!sectionPatternId || typeof sectionPatternId !== "string") {
+    throw new Error("Invalid sectionPatternId: must be a non-empty string");
   }
 
   if (!data.mood && !data.brandTone) {
-    throw new Error('At least one of mood or brandTone must be provided');
+    throw new Error("At least one of mood or brandTone must be provided");
   }
 
   // Embedding の検証
@@ -954,7 +979,7 @@ export async function saveMoodBrandToneEmbedding(
   if (data.brandTone) validateEmbedding(data.brandTone.embedding);
 
   if (isDevelopment()) {
-    logger.info('[MoodBrandToneEmbedding] Saving mood/brandTone embedding', {
+    logger.info("[MoodBrandToneEmbedding] Saving mood/brandTone embedding", {
       sectionPatternId,
       hasMood: !!data.mood,
       hasBrandTone: !!data.brandTone,
@@ -976,7 +1001,7 @@ export async function saveMoodBrandToneEmbedding(
     await updateVectorEmbeddings(tx, sectionEmbedding.id, data);
 
     if (isDevelopment()) {
-      logger.info('[MoodBrandToneEmbedding] Saved mood/brandTone embedding', {
+      logger.info("[MoodBrandToneEmbedding] Saved mood/brandTone embedding", {
         sectionEmbeddingId: sectionEmbedding.id,
         sectionPatternId,
       });
@@ -1005,7 +1030,7 @@ export async function saveBatchMoodBrandToneEmbeddings(
 ): Promise<SectionEmbeddingData[]> {
   // 入力バリデーション
   if (sectionPatternIds.length !== results.length) {
-    throw new Error('sectionPatternIds and results must have the same length');
+    throw new Error("sectionPatternIds and results must have the same length");
   }
 
   if (sectionPatternIds.length === 0) {
@@ -1019,7 +1044,7 @@ export async function saveBatchMoodBrandToneEmbeddings(
   const startTime = Date.now();
 
   if (isDevelopment()) {
-    logger.info('[MoodBrandToneEmbedding] Starting batch save', {
+    logger.info("[MoodBrandToneEmbedding] Starting batch save", {
       count: sectionPatternIds.length,
     });
   }
@@ -1050,7 +1075,7 @@ export async function saveBatchMoodBrandToneEmbeddings(
     const duration = Date.now() - startTime;
 
     if (isDevelopment()) {
-      logger.info('[MoodBrandToneEmbedding] Batch save completed', {
+      logger.info("[MoodBrandToneEmbedding] Batch save completed", {
         count: savedResults.length,
         durationMs: duration,
       });
@@ -1074,7 +1099,7 @@ function validateBatchSaveInputs(
     const sectionPatternId = sectionPatternIds[i];
     const data = results[i];
 
-    if (!sectionPatternId || typeof sectionPatternId !== 'string') {
+    if (!sectionPatternId || typeof sectionPatternId !== "string") {
       throw new Error(`Invalid sectionPatternId at index ${i}: must be a non-empty string`);
     }
 

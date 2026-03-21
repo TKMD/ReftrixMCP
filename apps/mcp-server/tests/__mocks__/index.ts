@@ -5,4 +5,4 @@
  * テストモック インデックス
  * すべてのモックファクトリをエクスポート
  */
-export * from './service-clients';
+export * from "./service-clients";

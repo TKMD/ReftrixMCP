@@ -18,11 +18,11 @@
  * 仕様: docs/specs/frame-image-analysis-spec.md
  */
 
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import * as fs from 'node:fs';
-import * as path from 'node:path';
-import * as os from 'node:os';
-import sharp from 'sharp';
+import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import * as fs from "node:fs";
+import * as path from "node:path";
+import * as os from "node:os";
+import sharp from "sharp";
 
 // テスト対象のインポート（まだ存在しない - TDD Red Phase）
 import {
@@ -30,7 +30,7 @@ import {
   type FrameDiffResult,
   type BoundingBox,
   type FrameDiffOptions,
-} from '../../../../src/services/motion/analyzers/frame-diff.analyzer';
+} from "../../../../src/services/motion/analyzers/frame-diff.analyzer";
 
 // =====================================================
 // テストユーティリティ
@@ -115,13 +115,13 @@ async function createImageWithRegion(
 // テストスイート
 // =====================================================
 
-describe('FrameDiffAnalyzer', () => {
+describe("FrameDiffAnalyzer", () => {
   let analyzer: FrameDiffAnalyzer;
   let tempDir: string;
 
   beforeEach(() => {
     analyzer = new FrameDiffAnalyzer();
-    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'frame-diff-test-'));
+    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "frame-diff-test-"));
   });
 
   afterEach(async () => {
@@ -135,8 +135,8 @@ describe('FrameDiffAnalyzer', () => {
   // analyze() メソッドのテスト
   // -------------------------------------------------
 
-  describe('analyze()', () => {
-    it('should return zero change ratio for identical images', async () => {
+  describe("analyze()", () => {
+    it("should return zero change ratio for identical images", async () => {
       // 同一画像の比較: 変化率は0
       const image = await createSolidColorImage(100, 100, { r: 255, g: 0, b: 0 });
 
@@ -148,7 +148,7 @@ describe('FrameDiffAnalyzer', () => {
       expect(result.diffRegions).toHaveLength(0);
     });
 
-    it('should detect 100% change for completely different images', async () => {
+    it("should detect 100% change for completely different images", async () => {
       // 完全に異なる画像: 変化率は約1.0（100%）
       const image1 = await createSolidColorImage(100, 100, { r: 255, g: 0, b: 0 });
       const image2 = await createSolidColorImage(100, 100, { r: 0, g: 0, b: 255 });
@@ -160,7 +160,7 @@ describe('FrameDiffAnalyzer', () => {
       expect(result.totalPixelCount).toBe(10000);
     });
 
-    it('should detect partial change in specific region', async () => {
+    it("should detect partial change in specific region", async () => {
       // 25%の領域が変化した画像
       const image1 = await createSolidColorImage(100, 100, { r: 255, g: 255, b: 255 });
       const image2 = await createImageWithRegion(
@@ -178,7 +178,7 @@ describe('FrameDiffAnalyzer', () => {
       expect(result.diffPixelCount).toBe(2500);
     });
 
-    it('should detect change regions with bounding boxes', async () => {
+    it("should detect change regions with bounding boxes", async () => {
       // 変化領域のバウンディングボックスを検出
       const image1 = await createSolidColorImage(100, 100, { r: 255, g: 255, b: 255 });
       const image2 = await createImageWithRegion(
@@ -201,7 +201,7 @@ describe('FrameDiffAnalyzer', () => {
       expect(region.y + region.height).toBeGreaterThanOrEqual(74);
     });
 
-    it('should handle alpha channel correctly', async () => {
+    it("should handle alpha channel correctly", async () => {
       // アルファチャンネル付き画像の比較
       const image1 = await createSolidColorImage(50, 50, { r: 255, g: 0, b: 0, alpha: 255 });
       const image2 = await createSolidColorImage(50, 50, { r: 255, g: 0, b: 0, alpha: 128 });
@@ -212,20 +212,20 @@ describe('FrameDiffAnalyzer', () => {
       expect(result.changeRatio).toBeGreaterThan(0);
     });
 
-    it('should throw error for different image dimensions', async () => {
+    it("should throw error for different image dimensions", async () => {
       // 異なるサイズの画像はエラー
       const image1 = await createSolidColorImage(100, 100, { r: 255, g: 0, b: 0 });
       const image2 = await createSolidColorImage(200, 200, { r: 255, g: 0, b: 0 });
 
       await expect(analyzer.analyze(image1, image2)).rejects.toThrow(
-        'Image dimensions do not match'
+        "Image dimensions do not match"
       );
     });
 
-    it('should accept file paths as input', async () => {
+    it("should accept file paths as input", async () => {
       // ファイルパスでも動作する
-      const image1Path = path.join(tempDir, 'frame1.png');
-      const image2Path = path.join(tempDir, 'frame2.png');
+      const image1Path = path.join(tempDir, "frame1.png");
+      const image2Path = path.join(tempDir, "frame2.png");
 
       const image1 = await createSolidColorImage(100, 100, { r: 255, g: 0, b: 0 });
       const image2 = await createSolidColorImage(100, 100, { r: 0, g: 255, b: 0 });
@@ -243,23 +243,23 @@ describe('FrameDiffAnalyzer', () => {
   // calculateChangeRatio() メソッドのテスト
   // -------------------------------------------------
 
-  describe('calculateChangeRatio()', () => {
-    it('should calculate correct ratio for 0 diff pixels', () => {
+  describe("calculateChangeRatio()", () => {
+    it("should calculate correct ratio for 0 diff pixels", () => {
       const ratio = analyzer.calculateChangeRatio(0, 10000);
       expect(ratio).toBe(0);
     });
 
-    it('should calculate correct ratio for 100% diff', () => {
+    it("should calculate correct ratio for 100% diff", () => {
       const ratio = analyzer.calculateChangeRatio(10000, 10000);
       expect(ratio).toBe(1);
     });
 
-    it('should calculate correct ratio for partial diff', () => {
+    it("should calculate correct ratio for partial diff", () => {
       const ratio = analyzer.calculateChangeRatio(2500, 10000);
       expect(ratio).toBe(0.25);
     });
 
-    it('should handle edge case of zero total pixels', () => {
+    it("should handle edge case of zero total pixels", () => {
       const ratio = analyzer.calculateChangeRatio(0, 0);
       expect(ratio).toBe(0);
     });
@@ -269,15 +269,15 @@ describe('FrameDiffAnalyzer', () => {
   // extractDiffRegions() メソッドのテスト
   // -------------------------------------------------
 
-  describe('extractDiffRegions()', () => {
-    it('should return empty array for no differences', async () => {
+  describe("extractDiffRegions()", () => {
+    it("should return empty array for no differences", async () => {
       const image = await createSolidColorImage(100, 100, { r: 255, g: 255, b: 255 });
       const result = await analyzer.analyze(image, image);
 
       expect(result.diffRegions).toEqual([]);
     });
 
-    it('should extract single contiguous region', async () => {
+    it("should extract single contiguous region", async () => {
       const image1 = await createSolidColorImage(100, 100, { r: 255, g: 255, b: 255 });
       const image2 = await createImageWithRegion(
         100,
@@ -299,7 +299,7 @@ describe('FrameDiffAnalyzer', () => {
       expect(region.y + region.height).toBeGreaterThanOrEqual(39);
     });
 
-    it('should merge nearby regions into single bounding box', async () => {
+    it("should merge nearby regions into single bounding box", async () => {
       // 近接した複数の変化は単一のバウンディングボックスにマージ
       // （実装の詳細によるが、一般的な期待動作）
       const image1 = await createSolidColorImage(100, 100, { r: 255, g: 255, b: 255 });
@@ -339,8 +339,8 @@ describe('FrameDiffAnalyzer', () => {
   // createDiffImage() メソッドのテスト
   // -------------------------------------------------
 
-  describe('createDiffImage()', () => {
-    it('should generate a diff visualization image', async () => {
+  describe("createDiffImage()", () => {
+    it("should generate a diff visualization image", async () => {
       const image1 = await createSolidColorImage(100, 100, { r: 255, g: 0, b: 0 });
       const image2 = await createSolidColorImage(100, 100, { r: 0, g: 255, b: 0 });
 
@@ -357,10 +357,10 @@ describe('FrameDiffAnalyzer', () => {
       expect(diffImage[3]).toBe(0x47); // 'G'
     });
 
-    it('should save diff image to file when path is provided', async () => {
+    it("should save diff image to file when path is provided", async () => {
       const image1 = await createSolidColorImage(100, 100, { r: 255, g: 0, b: 0 });
       const image2 = await createSolidColorImage(100, 100, { r: 0, g: 255, b: 0 });
-      const outputPath = path.join(tempDir, 'diff.png');
+      const outputPath = path.join(tempDir, "diff.png");
 
       const diffImage = await analyzer.createDiffImage(image1, image2, outputPath);
 
@@ -376,8 +376,8 @@ describe('FrameDiffAnalyzer', () => {
   // 閾値オプションのテスト
   // -------------------------------------------------
 
-  describe('threshold options', () => {
-    it('should use default threshold of 0.1', async () => {
+  describe("threshold options", () => {
+    it("should use default threshold of 0.1", async () => {
       const analyzer = new FrameDiffAnalyzer();
       const image = await createSolidColorImage(100, 100, { r: 255, g: 0, b: 0 });
 
@@ -386,7 +386,7 @@ describe('FrameDiffAnalyzer', () => {
       expect(result.changeRatio).toBe(0);
     });
 
-    it('should respect custom threshold in options', async () => {
+    it("should respect custom threshold in options", async () => {
       // より厳しい閾値を設定
       const strictAnalyzer = new FrameDiffAnalyzer({ threshold: 0.01 });
 
@@ -405,7 +405,7 @@ describe('FrameDiffAnalyzer', () => {
       expect(strictResult.diffPixelCount).toBeGreaterThanOrEqual(lenientResult.diffPixelCount);
     });
 
-    it('should accept threshold in analyze method options', async () => {
+    it("should accept threshold in analyze method options", async () => {
       const image1 = await createSolidColorImage(100, 100, { r: 255, g: 0, b: 0 });
       const image2 = await createSolidColorImage(100, 100, { r: 0, g: 255, b: 0 });
 
@@ -419,8 +419,8 @@ describe('FrameDiffAnalyzer', () => {
   // パフォーマンス要件のテスト
   // -------------------------------------------------
 
-  describe('performance', () => {
-    it('should process 1920x1080 frame pair within 1 second', async () => {
+  describe("performance", () => {
+    it("should process 1920x1080 frame pair within 1 second", async () => {
       // 仕様: 1920x1080のフレームペアを1秒以内に比較
       const image1 = await createSolidColorImage(1920, 1080, { r: 255, g: 0, b: 0 });
       const image2 = await createSolidColorImage(1920, 1080, { r: 0, g: 255, b: 0 });
@@ -432,7 +432,7 @@ describe('FrameDiffAnalyzer', () => {
       expect(elapsedMs).toBeLessThan(1000);
     });
 
-    it('should process 100x100 frame pair within 100ms', async () => {
+    it("should process 100x100 frame pair within 100ms", async () => {
       // 仕様: フレーム差分（1ペア）< 100ms
       const image1 = await createSolidColorImage(100, 100, { r: 255, g: 0, b: 0 });
       const image2 = await createSolidColorImage(100, 100, { r: 0, g: 255, b: 0 });
@@ -449,8 +449,8 @@ describe('FrameDiffAnalyzer', () => {
   // エッジケースのテスト
   // -------------------------------------------------
 
-  describe('edge cases', () => {
-    it('should handle very small images (1x1)', async () => {
+  describe("edge cases", () => {
+    it("should handle very small images (1x1)", async () => {
       const image1 = await createSolidColorImage(1, 1, { r: 255, g: 0, b: 0 });
       const image2 = await createSolidColorImage(1, 1, { r: 0, g: 255, b: 0 });
 
@@ -461,7 +461,7 @@ describe('FrameDiffAnalyzer', () => {
       expect(result.changeRatio).toBe(1);
     });
 
-    it('should handle grayscale images', async () => {
+    it("should handle grayscale images", async () => {
       // グレースケール画像の生成と比較
       // sharp.create()はchannels 1をサポートしないため、RGB同値で疑似グレースケールを生成
       const gray1 = await sharp({
@@ -493,15 +493,15 @@ describe('FrameDiffAnalyzer', () => {
       expect(result.changeRatio).toBeGreaterThan(0);
     });
 
-    it('should handle empty buffer gracefully', async () => {
+    it("should handle empty buffer gracefully", async () => {
       const emptyBuffer = Buffer.alloc(0);
       const validImage = await createSolidColorImage(100, 100, { r: 255, g: 0, b: 0 });
 
       await expect(analyzer.analyze(emptyBuffer, validImage)).rejects.toThrow();
     });
 
-    it('should handle invalid image data gracefully', async () => {
-      const invalidBuffer = Buffer.from('not an image');
+    it("should handle invalid image data gracefully", async () => {
+      const invalidBuffer = Buffer.from("not an image");
       const validImage = await createSolidColorImage(100, 100, { r: 255, g: 0, b: 0 });
 
       await expect(analyzer.analyze(invalidBuffer, validImage)).rejects.toThrow();
@@ -512,33 +512,33 @@ describe('FrameDiffAnalyzer', () => {
   // FrameDiffResult インターフェースの検証
   // -------------------------------------------------
 
-  describe('FrameDiffResult interface', () => {
-    it('should return all required fields', async () => {
+  describe("FrameDiffResult interface", () => {
+    it("should return all required fields", async () => {
       const image1 = await createSolidColorImage(100, 100, { r: 255, g: 0, b: 0 });
       const image2 = await createSolidColorImage(100, 100, { r: 0, g: 255, b: 0 });
 
       const result = await analyzer.analyze(image1, image2);
 
       // 必須フィールドの存在確認
-      expect(result).toHaveProperty('changeRatio');
-      expect(result).toHaveProperty('diffPixelCount');
-      expect(result).toHaveProperty('totalPixelCount');
-      expect(result).toHaveProperty('diffRegions');
+      expect(result).toHaveProperty("changeRatio");
+      expect(result).toHaveProperty("diffPixelCount");
+      expect(result).toHaveProperty("totalPixelCount");
+      expect(result).toHaveProperty("diffRegions");
 
       // 型確認
-      expect(typeof result.changeRatio).toBe('number');
-      expect(typeof result.diffPixelCount).toBe('number');
-      expect(typeof result.totalPixelCount).toBe('number');
+      expect(typeof result.changeRatio).toBe("number");
+      expect(typeof result.diffPixelCount).toBe("number");
+      expect(typeof result.totalPixelCount).toBe("number");
       expect(Array.isArray(result.diffRegions)).toBe(true);
     });
 
-    it('should have optional diffImageBuffer field when requested', async () => {
+    it("should have optional diffImageBuffer field when requested", async () => {
       const image1 = await createSolidColorImage(100, 100, { r: 255, g: 0, b: 0 });
       const image2 = await createSolidColorImage(100, 100, { r: 0, g: 255, b: 0 });
 
       const result = await analyzer.analyze(image1, image2, { includeDiffImage: true });
 
-      expect(result).toHaveProperty('diffImageBuffer');
+      expect(result).toHaveProperty("diffImageBuffer");
       expect(result.diffImageBuffer).toBeInstanceOf(Buffer);
     });
   });
@@ -547,8 +547,8 @@ describe('FrameDiffAnalyzer', () => {
   // BoundingBox インターフェースの検証
   // -------------------------------------------------
 
-  describe('BoundingBox interface', () => {
-    it('should have correct structure', async () => {
+  describe("BoundingBox interface", () => {
+    it("should have correct structure", async () => {
       const image1 = await createSolidColorImage(100, 100, { r: 255, g: 255, b: 255 });
       const image2 = await createImageWithRegion(
         100,
@@ -563,15 +563,15 @@ describe('FrameDiffAnalyzer', () => {
       expect(result.diffRegions.length).toBeGreaterThan(0);
 
       const bbox = result.diffRegions[0];
-      expect(bbox).toHaveProperty('x');
-      expect(bbox).toHaveProperty('y');
-      expect(bbox).toHaveProperty('width');
-      expect(bbox).toHaveProperty('height');
+      expect(bbox).toHaveProperty("x");
+      expect(bbox).toHaveProperty("y");
+      expect(bbox).toHaveProperty("width");
+      expect(bbox).toHaveProperty("height");
 
-      expect(typeof bbox?.x).toBe('number');
-      expect(typeof bbox?.y).toBe('number');
-      expect(typeof bbox?.width).toBe('number');
-      expect(typeof bbox?.height).toBe('number');
+      expect(typeof bbox?.x).toBe("number");
+      expect(typeof bbox?.y).toBe("number");
+      expect(typeof bbox?.width).toBe("number");
+      expect(typeof bbox?.height).toBe("number");
     });
   });
 });

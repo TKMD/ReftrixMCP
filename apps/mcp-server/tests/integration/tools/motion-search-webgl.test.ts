@@ -15,31 +15,31 @@
  * @module tests/integration/tools/motion-search-webgl
  */
 
-import { describe, it, expect, beforeAll, afterAll, beforeEach, afterEach } from 'vitest';
-import { chromium, type Browser, type Page, type BrowserContext } from 'playwright';
-import * as fs from 'fs';
-import * as path from 'path';
+import { describe, it, expect, beforeAll, afterAll, beforeEach, afterEach } from "vitest";
+import { chromium, type Browser, type Page, type BrowserContext } from "playwright";
+import * as fs from "fs";
+import * as path from "path";
 import {
   WebGLAnimationDetectorService,
   type WebGLAnimationPatternData,
-} from '../../../src/services/motion/webgl-animation-detector.service';
+} from "../../../src/services/motion/webgl-animation-detector.service";
 import {
   generateWebGLAnimationTextRepresentation,
   type WebGLAnimationPatternData as EmbeddingPatternData,
-} from '../../../src/services/motion/webgl-animation-embedding.service';
+} from "../../../src/services/motion/webgl-animation-embedding.service";
 
 // =====================================================
 // テストフィクスチャのパス
 // =====================================================
 
-const FIXTURES_DIR = path.resolve(__dirname, '../../fixtures/webgl-animations');
+const FIXTURES_DIR = path.resolve(__dirname, "../../fixtures/webgl-animations");
 
 /**
  * フィクスチャHTMLを読み込む
  */
 function loadFixture(filename: string): string {
   const filePath = path.join(FIXTURES_DIR, filename);
-  return fs.readFileSync(filePath, 'utf-8');
+  return fs.readFileSync(filePath, "utf-8");
 }
 
 // =====================================================
@@ -51,7 +51,7 @@ function loadFixture(filename: string): string {
  */
 function convertToEmbeddingPattern(
   detectorPattern: WebGLAnimationPatternData,
-  id: string = 'test-id'
+  id: string = "test-id"
 ): EmbeddingPatternData {
   return {
     id,
@@ -60,9 +60,10 @@ function convertToEmbeddingPattern(
     description: detectorPattern.description,
     periodicity: {
       isPeriodic: detectorPattern.visualFeatures.periodicityScore > 0.5,
-      cycleSeconds: detectorPattern.visualFeatures.estimatedPeriodMs > 0
-        ? detectorPattern.visualFeatures.estimatedPeriodMs / 1000
-        : null,
+      cycleSeconds:
+        detectorPattern.visualFeatures.estimatedPeriodMs > 0
+          ? detectorPattern.visualFeatures.estimatedPeriodMs / 1000
+          : null,
       confidence: detectorPattern.visualFeatures.periodicityScore,
     },
     avgChangeRatio: detectorPattern.visualFeatures.avgChangeRatio,
@@ -84,7 +85,7 @@ function convertToEmbeddingPattern(
 // WebGLアニメーション検索テスト
 // =====================================================
 
-describe('motion.search WebGL Animation Search 統合テスト', () => {
+describe("motion.search WebGL Animation Search 統合テスト", () => {
   let browser: Browser;
   let context: BrowserContext;
   let page: Page;
@@ -94,11 +95,11 @@ describe('motion.search WebGL Animation Search 統合テスト', () => {
     browser = await chromium.launch({
       headless: true,
       args: [
-        '--no-sandbox',
-        '--disable-setuid-sandbox',
-        '--disable-dev-shm-usage',
-        '--enable-webgl',
-        '--use-gl=swiftshader',
+        "--no-sandbox",
+        "--disable-setuid-sandbox",
+        "--disable-dev-shm-usage",
+        "--enable-webgl",
+        "--use-gl=swiftshader",
       ],
     });
     context = await browser.newContext({
@@ -125,10 +126,10 @@ describe('motion.search WebGL Animation Search 統合テスト', () => {
   // テキスト表現生成テスト
   // =====================================================
 
-  describe('Text Representation Generation', () => {
-    it('should generate text representation for detected WebGL patterns', async () => {
+  describe("Text Representation Generation", () => {
+    it("should generate text representation for detected WebGL patterns", async () => {
       // Arrange
-      const html = loadFixture('wave-animation-webgl.html');
+      const html = loadFixture("wave-animation-webgl.html");
       await page.setContent(html);
       await page.waitForTimeout(500);
 
@@ -148,18 +149,18 @@ describe('motion.search WebGL Animation Search 統合テスト', () => {
         const textRepresentation = generateWebGLAnimationTextRepresentation(embeddingPattern);
 
         expect(textRepresentation).toBeDefined();
-        expect(typeof textRepresentation).toBe('string');
+        expect(typeof textRepresentation).toBe("string");
         expect(textRepresentation.length).toBeGreaterThan(0);
         // E5モデル用プレフィックス
-        expect(textRepresentation.startsWith('passage:')).toBe(true);
+        expect(textRepresentation.startsWith("passage:")).toBe(true);
         // カテゴリが含まれる
-        expect(textRepresentation).toContain('WebGL');
+        expect(textRepresentation).toContain("WebGL");
       }
     });
 
-    it('should include category in text representation', async () => {
+    it("should include category in text representation", async () => {
       // Arrange
-      const html = loadFixture('rotating-cube-webgl.html');
+      const html = loadFixture("rotating-cube-webgl.html");
       await page.setContent(html);
       await page.waitForTimeout(500);
 
@@ -180,9 +181,9 @@ describe('motion.search WebGL Animation Search 統合テスト', () => {
       }
     });
 
-    it('should include motion intensity in text representation', async () => {
+    it("should include motion intensity in text representation", async () => {
       // Arrange
-      const html = loadFixture('particle-system-webgl.html');
+      const html = loadFixture("particle-system-webgl.html");
       await page.setContent(html);
       await page.waitForTimeout(500);
 
@@ -208,13 +209,17 @@ describe('motion.search WebGL Animation Search 統合テスト', () => {
   // フィルタリングテスト（ロジックテスト）
   // =====================================================
 
-  describe('WebGL Animation Filtering Logic', () => {
-    it('should filter patterns by category', async () => {
+  describe("WebGL Animation Filtering Logic", () => {
+    it("should filter patterns by category", async () => {
       // Arrange: 検出された複数パターンをシミュレート
       const patternsFromDifferentPages: WebGLAnimationPatternData[] = [];
 
       // 複数のHTMLからパターンを収集
-      const fixtures = ['basic-webgl-canvas.html', 'rotating-cube-webgl.html', 'wave-animation-webgl.html'];
+      const fixtures = [
+        "basic-webgl-canvas.html",
+        "rotating-cube-webgl.html",
+        "wave-animation-webgl.html",
+      ];
 
       for (const fixture of fixtures) {
         const html = loadFixture(fixture);
@@ -249,9 +254,9 @@ describe('motion.search WebGL Animation Search 統合テスト', () => {
       }
     });
 
-    it('should filter patterns by minConfidence', async () => {
+    it("should filter patterns by minConfidence", async () => {
       // Arrange
-      const html = loadFixture('basic-webgl-canvas.html');
+      const html = loadFixture("basic-webgl-canvas.html");
       await page.setContent(html);
       await page.waitForTimeout(500);
 
@@ -271,9 +276,9 @@ describe('motion.search WebGL Animation Search 統合テスト', () => {
       }
     });
 
-    it('should combine multiple filters', async () => {
+    it("should combine multiple filters", async () => {
       // Arrange
-      const html = loadFixture('multiple-canvas-webgl.html');
+      const html = loadFixture("multiple-canvas-webgl.html");
       await page.setContent(html);
       await page.waitForTimeout(500);
 
@@ -291,7 +296,9 @@ describe('motion.search WebGL Animation Search 統合テスト', () => {
           (p) => p.confidence >= minConfidence && p.canvasWidth > 0
         );
 
-        expect(filtered.every((p) => p.confidence >= minConfidence && p.canvasWidth > 0)).toBe(true);
+        expect(filtered.every((p) => p.confidence >= minConfidence && p.canvasWidth > 0)).toBe(
+          true
+        );
       }
     });
   });
@@ -300,10 +307,10 @@ describe('motion.search WebGL Animation Search 統合テスト', () => {
   // 実際のフレームキャプチャからの検索テスト
   // =====================================================
 
-  describe('Search from Actual Frame Capture', () => {
-    it('should detect patterns with searchable data from live page', async () => {
+  describe("Search from Actual Frame Capture", () => {
+    it("should detect patterns with searchable data from live page", async () => {
       // Arrange
-      const html = loadFixture('rotating-cube-webgl.html');
+      const html = loadFixture("rotating-cube-webgl.html");
       await page.setContent(html);
       await page.waitForTimeout(500);
 
@@ -333,9 +340,9 @@ describe('motion.search WebGL Animation Search 統合テスト', () => {
       }
     });
 
-    it('should generate consistent text representations for same visual pattern', async () => {
+    it("should generate consistent text representations for same visual pattern", async () => {
       // Arrange: 同じページを2回検出
-      const html = loadFixture('wave-animation-webgl.html');
+      const html = loadFixture("wave-animation-webgl.html");
       await page.setContent(html);
       await page.waitForTimeout(500);
 
@@ -363,8 +370,8 @@ describe('motion.search WebGL Animation Search 統合テスト', () => {
         );
 
         // 同じページなので同じカテゴリを含む
-        expect(textRep1).toContain('WebGL');
-        expect(textRep2).toContain('WebGL');
+        expect(textRep1).toContain("WebGL");
+        expect(textRep2).toContain("WebGL");
       }
     });
   });
@@ -373,10 +380,10 @@ describe('motion.search WebGL Animation Search 統合テスト', () => {
   // パフォーマンステスト
   // =====================================================
 
-  describe('Performance', () => {
-    it('should generate text representations quickly', async () => {
+  describe("Performance", () => {
+    it("should generate text representations quickly", async () => {
       // Arrange
-      const html = loadFixture('particle-system-webgl.html');
+      const html = loadFixture("particle-system-webgl.html");
       await page.setContent(html);
       await page.waitForTimeout(500);
 
@@ -392,9 +399,7 @@ describe('motion.search WebGL Animation Search 統合テスト', () => {
 
         // 複数のテキスト表現を生成
         for (let i = 0; i < 10; i++) {
-          generateWebGLAnimationTextRepresentation(
-            convertToEmbeddingPattern(result.patterns[0])
-          );
+          generateWebGLAnimationTextRepresentation(convertToEmbeddingPattern(result.patterns[0]));
         }
 
         const elapsed = Date.now() - startTime;
@@ -410,7 +415,7 @@ describe('motion.search WebGL Animation Search 統合テスト', () => {
 // CSS + JS + WebGL 統合検索テスト
 // =====================================================
 
-describe('CSS + JS + WebGL 統合検索テスト', () => {
+describe("CSS + JS + WebGL 統合検索テスト", () => {
   let browser: Browser;
   let context: BrowserContext;
   let page: Page;
@@ -420,11 +425,11 @@ describe('CSS + JS + WebGL 統合検索テスト', () => {
     browser = await chromium.launch({
       headless: true,
       args: [
-        '--no-sandbox',
-        '--disable-setuid-sandbox',
-        '--disable-dev-shm-usage',
-        '--enable-webgl',
-        '--use-gl=swiftshader',
+        "--no-sandbox",
+        "--disable-setuid-sandbox",
+        "--disable-dev-shm-usage",
+        "--enable-webgl",
+        "--use-gl=swiftshader",
       ],
     });
     context = await browser.newContext({
@@ -447,7 +452,7 @@ describe('CSS + JS + WebGL 統合検索テスト', () => {
     await page?.close().catch(() => {});
   });
 
-  it('should detect WebGL patterns in mixed content page', async () => {
+  it("should detect WebGL patterns in mixed content page", async () => {
     // Arrange: CSS + JS + WebGL混在ページ
     const html = `
       <!DOCTYPE html>
@@ -500,12 +505,21 @@ describe('CSS + JS + WebGL 統合検索テスト', () => {
     expect(result.summary).toBeDefined();
   });
 
-  it('should generate distinct text representations for WebGL patterns', async () => {
+  it("should generate distinct text representations for WebGL patterns", async () => {
     // Arrange: 複数の異なるアニメーション
     const fixtures = [
-      { file: 'wave-animation-webgl.html', expectedCategory: ['wave', 'noise', 'complex', 'unknown'] },
-      { file: 'particle-system-webgl.html', expectedCategory: ['particle', 'noise', 'complex', 'unknown'] },
-      { file: 'rotating-cube-webgl.html', expectedCategory: ['rotation', 'complex', 'wave', 'unknown'] },
+      {
+        file: "wave-animation-webgl.html",
+        expectedCategory: ["wave", "noise", "complex", "unknown"],
+      },
+      {
+        file: "particle-system-webgl.html",
+        expectedCategory: ["particle", "noise", "complex", "unknown"],
+      },
+      {
+        file: "rotating-cube-webgl.html",
+        expectedCategory: ["rotation", "complex", "wave", "unknown"],
+      },
     ];
 
     const textRepresentations: string[] = [];
@@ -535,7 +549,7 @@ describe('CSS + JS + WebGL 統合検索テスト', () => {
     // Assert: 異なるアニメーションは異なるテキスト表現を持つ
     if (textRepresentations.length >= 2) {
       // 全てがWebGLを含む
-      expect(textRepresentations.every((t) => t.includes('WebGL'))).toBe(true);
+      expect(textRepresentations.every((t) => t.includes("WebGL"))).toBe(true);
     }
   });
 });
@@ -544,50 +558,50 @@ describe('CSS + JS + WebGL 統合検索テスト', () => {
 // 型検証テスト
 // =====================================================
 
-describe('WebGL Search 型検証', () => {
-  it('WebGLAnimationFilters should have correct structure', () => {
+describe("WebGL Search 型検証", () => {
+  it("WebGLAnimationFilters should have correct structure", () => {
     // フィルター構造のテスト
     const filters = {
-      category: 'wave' as const,
-      detectedLibrary: 'three.js',
+      category: "wave" as const,
+      detectedLibrary: "three.js",
       minConfidence: 0.8,
     };
 
-    expect(filters.category).toBe('wave');
-    expect(filters.detectedLibrary).toBe('three.js');
+    expect(filters.category).toBe("wave");
+    expect(filters.detectedLibrary).toBe("three.js");
     expect(filters.minConfidence).toBe(0.8);
   });
 
-  it('WebGLAnimationInfo should have correct structure', () => {
+  it("WebGLAnimationInfo should have correct structure", () => {
     // 検索結果のWebGL情報構造テスト
     const webglInfo = {
-      category: 'particle' as const,
-      detectedLibrary: 'three.js',
-      canvasSelector: '#webgl-canvas',
+      category: "particle" as const,
+      detectedLibrary: "three.js",
+      canvasSelector: "#webgl-canvas",
       confidence: 0.9,
       visualMetrics: {
         averageChangeRate: 0.25,
         peakChangeRate: 0.5,
-        changePattern: 'continuous' as const,
+        changePattern: "continuous" as const,
       },
     };
 
-    expect(webglInfo.category).toBe('particle');
+    expect(webglInfo.category).toBe("particle");
     expect(webglInfo.confidence).toBe(0.9);
-    expect(webglInfo.visualMetrics?.changePattern).toBe('continuous');
+    expect(webglInfo.visualMetrics?.changePattern).toBe("continuous");
   });
 
-  it('convertToEmbeddingPattern should produce valid EmbeddingPatternData', () => {
+  it("convertToEmbeddingPattern should produce valid EmbeddingPatternData", () => {
     // 型変換のテスト
     const detectorPattern: WebGLAnimationPatternData = {
-      name: 'webgl-wave-animation-0',
-      category: 'wave',
-      description: 'Test wave animation',
-      canvasSelector: '#test-canvas',
+      name: "webgl-wave-animation-0",
+      category: "wave",
+      description: "Test wave animation",
+      canvasSelector: "#test-canvas",
       canvasWidth: 800,
       canvasHeight: 600,
       webglVersion: 2,
-      detectedLibraries: ['three.js'],
+      detectedLibraries: ["three.js"],
       frameAnalysis: {
         frameCount: 20,
         diffSummary: {
@@ -598,7 +612,7 @@ describe('WebGL Search 型検証', () => {
         },
         changeRatioTimeSeries: Array(20).fill(0.15),
         motionAnalysis: {
-          dominantDirection: 'none',
+          dominantDirection: "none",
           averageSpeed: 0,
           speedVariance: 0,
           trajectoryComplexity: 0.5,
@@ -616,11 +630,11 @@ describe('WebGL Search 型検証', () => {
       confidence: 0.87,
     };
 
-    const embeddingPattern = convertToEmbeddingPattern(detectorPattern, 'test-uuid');
+    const embeddingPattern = convertToEmbeddingPattern(detectorPattern, "test-uuid");
 
-    expect(embeddingPattern.id).toBe('test-uuid');
-    expect(embeddingPattern.category).toBe('wave');
-    expect(embeddingPattern.libraries).toEqual(['three.js']);
+    expect(embeddingPattern.id).toBe("test-uuid");
+    expect(embeddingPattern.category).toBe("wave");
+    expect(embeddingPattern.libraries).toEqual(["three.js"]);
     expect(embeddingPattern.avgChangeRatio).toBe(0.15);
     expect(embeddingPattern.canvasDimensions.width).toBe(800);
     expect(embeddingPattern.webglVersion).toBe(2);

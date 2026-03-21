@@ -12,8 +12,8 @@
  * @module @reftrix/webdesign-core/quality-evaluator/scoring-system
  */
 
-import type { DetectedSection, SectionType } from '../types/section.types';
-import type { ColorInfo, TypographyInfo } from '../text-representation';
+import type { DetectedSection, SectionType } from "../types/section.types";
+import type { ColorInfo, TypographyInfo } from "../text-representation";
 
 // =========================================
 // Types
@@ -72,7 +72,7 @@ export interface QualityScore {
   /** Contextuality axis score */
   contextuality: AxisScore;
   /** Letter grade (A, B, C, D, F) */
-  grade: 'A' | 'B' | 'C' | 'D' | 'F';
+  grade: "A" | "B" | "C" | "D" | "F";
   /** Summary description */
   summary: string;
   /** Improvement recommendations */
@@ -86,7 +86,7 @@ export interface DetectedCliche {
   /** Pattern identifier */
   pattern: string;
   /** Severity level */
-  severity: 'low' | 'medium' | 'high';
+  severity: "low" | "medium" | "high";
   /** Location in design */
   location: string;
   /** Improvement suggestion */
@@ -134,7 +134,7 @@ export interface ResponsiveInfo {
  */
 export interface LayoutInfo {
   /** Layout type */
-  type: 'flex' | 'grid' | 'float' | 'unknown';
+  type: "flex" | "grid" | "float" | "unknown";
   /** Number of columns */
   columns?: number;
   /** Gutter width */
@@ -142,7 +142,7 @@ export interface LayoutInfo {
   /** Maximum width */
   maxWidth?: number;
   /** Alignment */
-  alignment?: 'left' | 'center' | 'right';
+  alignment?: "left" | "center" | "right";
   /** Spacing configuration */
   spacing?: LayoutSpacing;
   /** Responsive configuration */
@@ -182,29 +182,29 @@ const DEFAULT_WEIGHTS: ScoringWeights = {
 
 /** Generic font families (lower originality score) */
 const GENERIC_FONTS = [
-  'arial',
-  'helvetica',
-  'times',
-  'times new roman',
-  'verdana',
-  'georgia',
-  'courier',
-  'courier new',
-  'tahoma',
-  'trebuchet',
-  'system-ui',
-  'sans-serif',
-  'serif',
-  'monospace',
+  "arial",
+  "helvetica",
+  "times",
+  "times new roman",
+  "verdana",
+  "georgia",
+  "courier",
+  "courier new",
+  "tahoma",
+  "trebuchet",
+  "system-ui",
+  "sans-serif",
+  "serif",
+  "monospace",
 ];
 
 /** Industry-specific section expectations */
 const INDUSTRY_SECTIONS: Record<string, SectionType[]> = {
-  saas: ['hero', 'feature', 'pricing', 'testimonial', 'cta', 'footer'],
-  ecommerce: ['hero', 'gallery', 'feature', 'testimonial', 'cta', 'footer'],
-  portfolio: ['hero', 'gallery', 'about', 'testimonial', 'contact', 'footer'],
-  corporate: ['hero', 'about', 'feature', 'testimonial', 'contact', 'footer'],
-  blog: ['hero', 'feature', 'about', 'contact', 'footer'],
+  saas: ["hero", "feature", "pricing", "testimonial", "cta", "footer"],
+  ecommerce: ["hero", "gallery", "feature", "testimonial", "cta", "footer"],
+  portfolio: ["hero", "gallery", "about", "testimonial", "contact", "footer"],
+  corporate: ["hero", "about", "feature", "testimonial", "contact", "footer"],
+  blog: ["hero", "feature", "about", "contact", "footer"],
 };
 
 // =========================================
@@ -250,7 +250,7 @@ export class ScoringSystem {
       craftsmanship,
       contextuality,
       grade,
-      summary: '',
+      summary: "",
       recommendations: [],
     };
 
@@ -271,57 +271,57 @@ export class ScoringSystem {
     // 1. Unique Color Usage (20%)
     const colorScore = this.evaluateUniqueColorUsage(context.colors);
     breakdown.push({
-      criterion: 'uniqueColorUsage',
+      criterion: "uniqueColorUsage",
       score: colorScore.score,
       weight: 0.2,
       details: colorScore.details,
     });
     if (colorScore.score >= 70) {
-      strengths.push('Diverse and unique color palette');
+      strengths.push("Diverse and unique color palette");
     } else if (colorScore.score < 50) {
-      weaknesses.push('Generic color palette');
+      weaknesses.push("Generic color palette");
     }
 
     // 2. Layout Creativity (25%)
     const layoutScore = this.evaluateLayoutCreativity(context.sections);
     breakdown.push({
-      criterion: 'layoutCreativity',
+      criterion: "layoutCreativity",
       score: layoutScore.score,
       weight: 0.25,
       details: layoutScore.details,
     });
     if (layoutScore.score >= 70) {
-      strengths.push('Creative and varied section layout');
+      strengths.push("Creative and varied section layout");
     } else if (layoutScore.score < 50) {
-      weaknesses.push('Limited section variety');
+      weaknesses.push("Limited section variety");
     }
 
     // 3. Typography Personality (20%)
     const typoScore = this.evaluateTypographyPersonality(context.typography);
     breakdown.push({
-      criterion: 'typographyPersonality',
+      criterion: "typographyPersonality",
       score: typoScore.score,
       weight: 0.2,
       details: typoScore.details,
     });
     if (typoScore.score >= 70) {
-      strengths.push('Distinctive typography choices');
+      strengths.push("Distinctive typography choices");
     } else if (typoScore.score < 50) {
-      weaknesses.push('Generic font selection');
+      weaknesses.push("Generic font selection");
     }
 
     // 4. Anti-Cliche Bonus (35%)
     const antiClicheScore = this.evaluateAntiClicheBonus(context.clicheReport);
     breakdown.push({
-      criterion: 'antiClicheBonus',
+      criterion: "antiClicheBonus",
       score: antiClicheScore.score,
       weight: 0.35,
       details: antiClicheScore.details,
     });
     if (antiClicheScore.score >= 70) {
-      strengths.push('Original design avoiding common cliches');
+      strengths.push("Original design avoiding common cliches");
     } else if (antiClicheScore.score < 50) {
-      weaknesses.push('Heavy use of design cliches');
+      weaknesses.push("Heavy use of design cliches");
     }
 
     const score = this.calculateWeightedScore(breakdown);
@@ -340,71 +340,71 @@ export class ScoringSystem {
     // 1. Grid Alignment (20%)
     const gridScore = this.evaluateGridAlignment(context.layout);
     breakdown.push({
-      criterion: 'gridAlignment',
+      criterion: "gridAlignment",
       score: gridScore.score,
       weight: 0.2,
       details: gridScore.details,
     });
     if (gridScore.score >= 70) {
-      strengths.push('Well-structured grid system');
+      strengths.push("Well-structured grid system");
     } else if (gridScore.score < 50) {
-      weaknesses.push('Inconsistent or missing grid structure');
+      weaknesses.push("Inconsistent or missing grid structure");
     }
 
     // 2. Typography Consistency (20%)
     const typoConsistencyScore = this.evaluateTypographyConsistency(context.typography);
     breakdown.push({
-      criterion: 'typographyConsistency',
+      criterion: "typographyConsistency",
       score: typoConsistencyScore.score,
       weight: 0.2,
       details: typoConsistencyScore.details,
     });
     if (typoConsistencyScore.score >= 70) {
-      strengths.push('Consistent typography system');
+      strengths.push("Consistent typography system");
     } else if (typoConsistencyScore.score < 50) {
-      weaknesses.push('Inconsistent typography');
+      weaknesses.push("Inconsistent typography");
     }
 
     // 3. Color Harmony (20%)
     const harmonyScore = this.evaluateColorHarmony(context.colors);
     breakdown.push({
-      criterion: 'colorHarmony',
+      criterion: "colorHarmony",
       score: harmonyScore.score,
       weight: 0.2,
       details: harmonyScore.details,
     });
     if (harmonyScore.score >= 70) {
-      strengths.push('Harmonious color combinations');
+      strengths.push("Harmonious color combinations");
     } else if (harmonyScore.score < 50) {
-      weaknesses.push('Clashing color combinations');
+      weaknesses.push("Clashing color combinations");
     }
 
     // 4. Whitespace Rhythm (20%)
     const spacingScore = this.evaluateWhitespaceRhythm(context.layout);
     breakdown.push({
-      criterion: 'whitespaceRhythm',
+      criterion: "whitespaceRhythm",
       score: spacingScore.score,
       weight: 0.2,
       details: spacingScore.details,
     });
     if (spacingScore.score >= 70) {
-      strengths.push('Good use of whitespace');
+      strengths.push("Good use of whitespace");
     } else if (spacingScore.score < 50) {
-      weaknesses.push('Inconsistent spacing');
+      weaknesses.push("Inconsistent spacing");
     }
 
     // 5. Responsive Design (20%)
     const responsiveScore = this.evaluateResponsiveDesign(context.layout);
     breakdown.push({
-      criterion: 'responsiveDesign',
+      criterion: "responsiveDesign",
       score: responsiveScore.score,
       weight: 0.2,
       details: responsiveScore.details,
     });
     if (responsiveScore.score >= 70) {
-      strengths.push('Well-implemented responsive design');
+      strengths.push("Well-implemented responsive design");
     } else if (responsiveScore.score < 50) {
-      weaknesses.push('Limited responsive adaptations');
+      weaknesses.push("Limited responsive adaptations");
     }
 
     const score = this.calculateWeightedScore(breakdown);
@@ -423,57 +423,57 @@ export class ScoringSystem {
     // 1. Industry Fit (30%)
     const industryScore = this.evaluateIndustryFit(context);
     breakdown.push({
-      criterion: 'industryFit',
+      criterion: "industryFit",
       score: industryScore.score,
       weight: 0.3,
       details: industryScore.details,
     });
     if (industryScore.score >= 70) {
-      strengths.push('Design fits industry expectations');
+      strengths.push("Design fits industry expectations");
     } else if (industryScore.score < 50) {
-      weaknesses.push('Poor industry fit');
+      weaknesses.push("Poor industry fit");
     }
 
     // 2. Audience Fit (25%)
     const audienceScore = this.evaluateAudienceFit(context);
     breakdown.push({
-      criterion: 'audienceFit',
+      criterion: "audienceFit",
       score: audienceScore.score,
       weight: 0.25,
       details: audienceScore.details,
     });
     if (audienceScore.score >= 70) {
-      strengths.push('Design appeals to target audience');
+      strengths.push("Design appeals to target audience");
     } else if (audienceScore.score < 50) {
-      weaknesses.push('May not resonate with target audience');
+      weaknesses.push("May not resonate with target audience");
     }
 
     // 3. Brand Consistency (25%)
     const brandScore = this.evaluateBrandConsistency(context);
     breakdown.push({
-      criterion: 'brandConsistency',
+      criterion: "brandConsistency",
       score: brandScore.score,
       weight: 0.25,
       details: brandScore.details,
     });
     if (brandScore.score >= 70) {
-      strengths.push('Strong brand consistency');
+      strengths.push("Strong brand consistency");
     } else if (brandScore.score < 50) {
-      weaknesses.push('Inconsistent branding');
+      weaknesses.push("Inconsistent branding");
     }
 
     // 4. Accessibility Compliance (20%)
     const a11yScore = this.evaluateAccessibilityCompliance(context);
     breakdown.push({
-      criterion: 'accessibilityCompliance',
+      criterion: "accessibilityCompliance",
       score: a11yScore.score,
       weight: 0.2,
       details: a11yScore.details,
     });
     if (a11yScore.score >= 70) {
-      strengths.push('Good accessibility practices');
+      strengths.push("Good accessibility practices");
     } else if (a11yScore.score < 50) {
-      weaknesses.push('Poor accessibility');
+      weaknesses.push("Poor accessibility");
     }
 
     const score = this.calculateWeightedScore(breakdown);
@@ -501,12 +501,12 @@ export class ScoringSystem {
   /**
    * Calculate letter grade from score
    */
-  calculateGrade(score: number): 'A' | 'B' | 'C' | 'D' | 'F' {
-    if (score >= 90) return 'A';
-    if (score >= 80) return 'B';
-    if (score >= 70) return 'C';
-    if (score >= 60) return 'D';
-    return 'F';
+  calculateGrade(score: number): "A" | "B" | "C" | "D" | "F" {
+    if (score >= 90) return "A";
+    if (score >= 80) return "B";
+    if (score >= 70) return "C";
+    if (score >= 60) return "D";
+    return "F";
   }
 
   /**
@@ -514,25 +514,25 @@ export class ScoringSystem {
    */
   generateSummary(score: QualityScore): string {
     const gradeDescriptions: Record<string, string> = {
-      A: 'excellent',
-      B: 'good',
-      C: 'average',
-      D: 'below average',
-      F: 'needs significant improvement',
+      A: "excellent",
+      B: "good",
+      C: "average",
+      D: "below average",
+      F: "needs significant improvement",
     };
 
     const qualityWord = gradeDescriptions[score.grade];
 
     // Find strongest and weakest axis
     const axes = [
-      { name: 'originality', score: score.originality.score },
-      { name: 'craftsmanship', score: score.craftsmanship.score },
-      { name: 'contextuality', score: score.contextuality.score },
+      { name: "originality", score: score.originality.score },
+      { name: "craftsmanship", score: score.craftsmanship.score },
+      { name: "contextuality", score: score.contextuality.score },
     ];
 
     axes.sort((a, b) => b.score - a.score);
-    const strongest = axes[0] ?? { name: 'unknown', score: 0 };
-    const weakest = axes[2] ?? axes[axes.length - 1] ?? { name: 'unknown', score: 0 };
+    const strongest = axes[0] ?? { name: "unknown", score: 0 };
+    const weakest = axes[2] ?? axes[axes.length - 1] ?? { name: "unknown", score: 0 };
 
     let summary = `This design is rated ${score.grade} (${qualityWord}) `;
     summary += `with an overall score of ${score.overall.toFixed(1)}. `;
@@ -559,9 +559,9 @@ export class ScoringSystem {
 
     // Sort axes by score (lowest first)
     const axes = [
-      { name: 'originality', axisScore: score.originality },
-      { name: 'craftsmanship', axisScore: score.craftsmanship },
-      { name: 'contextuality', axisScore: score.contextuality },
+      { name: "originality", axisScore: score.originality },
+      { name: "craftsmanship", axisScore: score.craftsmanship },
+      { name: "contextuality", axisScore: score.contextuality },
     ].sort((a, b) => a.axisScore.score - b.axisScore.score);
 
     // Generate recommendations based on weaknesses
@@ -578,13 +578,13 @@ export class ScoringSystem {
     // Add generic recommendations if needed
     if (recommendations.length === 0 && score.overall < 90) {
       if (score.originality.score < 90) {
-        recommendations.push('Consider adding more unique design elements to improve originality.');
+        recommendations.push("Consider adding more unique design elements to improve originality.");
       }
       if (score.craftsmanship.score < 90) {
-        recommendations.push('Fine-tune spacing and alignment for better craftsmanship.');
+        recommendations.push("Fine-tune spacing and alignment for better craftsmanship.");
       }
       if (score.contextuality.score < 90) {
-        recommendations.push('Ensure design aligns well with target audience and industry.');
+        recommendations.push("Ensure design aligns well with target audience and industry.");
       }
     }
 
@@ -597,7 +597,7 @@ export class ScoringSystem {
 
   private evaluateUniqueColorUsage(colors: ColorInfo): { score: number; details: string } {
     if (!colors.palette || colors.palette.length === 0) {
-      return { score: 30, details: 'No color palette detected' };
+      return { score: 30, details: "No color palette detected" };
     }
 
     const paletteSize = colors.palette.length;
@@ -633,9 +633,12 @@ export class ScoringSystem {
     };
   }
 
-  private evaluateLayoutCreativity(sections: DetectedSection[]): { score: number; details: string } {
+  private evaluateLayoutCreativity(sections: DetectedSection[]): {
+    score: number;
+    details: string;
+  } {
     if (!sections || sections.length === 0) {
-      return { score: 30, details: 'No sections detected' };
+      return { score: 30, details: "No sections detected" };
     }
 
     let score = 0;
@@ -656,7 +659,7 @@ export class ScoringSystem {
     }
 
     // Bonus for having key section types (up to 30 points)
-    const keyTypes: SectionType[] = ['hero', 'feature', 'testimonial', 'pricing', 'cta'];
+    const keyTypes: SectionType[] = ["hero", "feature", "testimonial", "pricing", "cta"];
     const hasKeyTypes = keyTypes.filter((t) => sectionTypes.has(t));
     score += hasKeyTypes.length * 6;
 
@@ -675,9 +678,12 @@ export class ScoringSystem {
     };
   }
 
-  private evaluateTypographyPersonality(typography: TypographyInfo): { score: number; details: string } {
+  private evaluateTypographyPersonality(typography: TypographyInfo): {
+    score: number;
+    details: string;
+  } {
     if (!typography.fonts || typography.fonts.length === 0) {
-      return { score: 30, details: 'No typography detected' };
+      return { score: 30, details: "No typography detected" };
     }
 
     let score = 0;
@@ -725,7 +731,7 @@ export class ScoringSystem {
   private evaluateAntiClicheBonus(clicheReport?: ClicheReport): { score: number; details: string } {
     if (!clicheReport) {
       // No cliche report means we assume moderate originality
-      return { score: 60, details: 'No cliche analysis available' };
+      return { score: 60, details: "No cliche analysis available" };
     }
 
     // Invert cliche score (0 cliches = 100, 1 cliche = 0)
@@ -742,9 +748,9 @@ export class ScoringSystem {
     let score = 0;
 
     // Check layout type (up to 30 points)
-    if (layout.type === 'grid') {
+    if (layout.type === "grid") {
       score += 30;
-    } else if (layout.type === 'flex') {
+    } else if (layout.type === "flex") {
       score += 25;
     } else {
       score += 10;
@@ -775,7 +781,10 @@ export class ScoringSystem {
     };
   }
 
-  private evaluateTypographyConsistency(typography: TypographyInfo): { score: number; details: string } {
+  private evaluateTypographyConsistency(typography: TypographyInfo): {
+    score: number;
+    details: string;
+  } {
     let score = 0;
 
     // Check font family count - fewer is more consistent (up to 30 points)
@@ -801,7 +810,8 @@ export class ScoringSystem {
         }
       }
       const avgRatio = ratios.reduce((a, b) => a + b, 0) / ratios.length;
-      const variance = ratios.reduce((sum, r) => sum + Math.pow(r - avgRatio, 2), 0) / ratios.length;
+      const variance =
+        ratios.reduce((sum, r) => sum + Math.pow(r - avgRatio, 2), 0) / ratios.length;
 
       if (variance < 0.1) {
         score += 40;
@@ -831,7 +841,7 @@ export class ScoringSystem {
 
   private evaluateColorHarmony(colors: ColorInfo): { score: number; details: string } {
     if (!colors.palette || colors.palette.length === 0) {
-      return { score: 30, details: 'No color palette detected' };
+      return { score: 30, details: "No color palette detected" };
     }
 
     let score = 0;
@@ -875,7 +885,7 @@ export class ScoringSystem {
 
   private evaluateWhitespaceRhythm(layout: LayoutInfo): { score: number; details: string } {
     if (!layout.spacing) {
-      return { score: 50, details: 'No spacing information available' };
+      return { score: 50, details: "No spacing information available" };
     }
 
     let score = 0;
@@ -903,7 +913,12 @@ export class ScoringSystem {
     const elementToComponent = layout.spacing.element / layout.spacing.component;
 
     // Good ratio is around 2-4x
-    if (sectionToElement >= 2 && sectionToElement <= 5 && elementToComponent >= 1 && elementToComponent <= 3) {
+    if (
+      sectionToElement >= 2 &&
+      sectionToElement <= 5 &&
+      elementToComponent >= 1 &&
+      elementToComponent <= 3
+    ) {
       score += 30;
     } else {
       score += 15;
@@ -917,7 +932,7 @@ export class ScoringSystem {
 
   private evaluateResponsiveDesign(layout: LayoutInfo): { score: number; details: string } {
     if (!layout.responsive) {
-      return { score: 30, details: 'No responsive information available' };
+      return { score: 30, details: "No responsive information available" };
     }
 
     let score = 0;
@@ -959,7 +974,7 @@ export class ScoringSystem {
   private evaluateIndustryFit(context: ScoringContext): { score: number; details: string } {
     if (!context.targetIndustry) {
       // Without industry info, give a neutral score
-      return { score: 60, details: 'No target industry specified' };
+      return { score: 60, details: "No target industry specified" };
     }
 
     const industry = context.targetIndustry.toLowerCase();
@@ -985,7 +1000,7 @@ export class ScoringSystem {
 
   private evaluateAudienceFit(context: ScoringContext): { score: number; details: string } {
     if (!context.targetAudience) {
-      return { score: 60, details: 'No target audience specified' };
+      return { score: 60, details: "No target audience specified" };
     }
 
     let score = 60; // Base score
@@ -996,9 +1011,9 @@ export class ScoringSystem {
     const fontFamilies = context.typography.fonts.map((f) => f.family.toLowerCase());
 
     // Developers prefer monospace/technical fonts
-    if (audience.includes('developer') || audience.includes('technical')) {
+    if (audience.includes("developer") || audience.includes("technical")) {
       const hasTechnicalFont = fontFamilies.some(
-        (f) => f.includes('mono') || f.includes('code') || f.includes('jetbrains')
+        (f) => f.includes("mono") || f.includes("code") || f.includes("jetbrains")
       );
       if (hasTechnicalFont) {
         score += 20;
@@ -1006,13 +1021,13 @@ export class ScoringSystem {
     }
 
     // Modern/young audience prefers contemporary typography
-    if (audience.includes('young') || audience.includes('modern')) {
+    if (audience.includes("young") || audience.includes("modern")) {
       const hasModernFont = fontFamilies.some(
         (f) =>
-          f.includes('inter') ||
-          f.includes('poppins') ||
-          f.includes('montserrat') ||
-          f.includes('space')
+          f.includes("inter") ||
+          f.includes("poppins") ||
+          f.includes("montserrat") ||
+          f.includes("space")
       );
       if (hasModernFont) {
         score += 20;
@@ -1061,11 +1076,14 @@ export class ScoringSystem {
 
     return {
       score: Math.min(100, score),
-      details: 'Brand consistency evaluation',
+      details: "Brand consistency evaluation",
     };
   }
 
-  private evaluateAccessibilityCompliance(context: ScoringContext): { score: number; details: string } {
+  private evaluateAccessibilityCompliance(context: ScoringContext): {
+    score: number;
+    details: string;
+  } {
     let score = 0;
 
     // Check text/background contrast (up to 60 points)
@@ -1126,9 +1144,7 @@ export class ScoringSystem {
   }
 
   private calculateWeightedScore(breakdown: ScoreBreakdown[]): number {
-    return this.roundTo2Decimals(
-      breakdown.reduce((sum, b) => sum + b.score * b.weight, 0)
-    );
+    return this.roundTo2Decimals(breakdown.reduce((sum, b) => sum + b.score * b.weight, 0));
   }
 
   private roundTo2Decimals(value: number): number {
@@ -1156,15 +1172,15 @@ export class ScoringSystem {
 
   private getLuminance(hex: string): number {
     // Remove # if present
-    const color = hex.replace('#', '');
+    const color = hex.replace("#", "");
 
     // Parse RGB values
     let r: number, g: number, b: number;
 
     if (color.length === 3) {
-      const c0 = color[0] ?? '0';
-      const c1 = color[1] ?? '0';
-      const c2 = color[2] ?? '0';
+      const c0 = color[0] ?? "0";
+      const c1 = color[1] ?? "0";
+      const c2 = color[2] ?? "0";
       r = parseInt(c0 + c0, 16) / 255;
       g = parseInt(c1 + c1, 16) / 255;
       b = parseInt(c2 + c2, 16) / 255;
@@ -1172,9 +1188,9 @@ export class ScoringSystem {
       r = parseInt(color.substring(0, 2), 16) / 255;
       g = parseInt(color.substring(2, 4), 16) / 255;
       b = parseInt(color.substring(4, 6), 16) / 255;
-    } else if (color === 'white') {
+    } else if (color === "white") {
       return 1;
-    } else if (color === 'black') {
+    } else if (color === "black") {
       return 0;
     } else {
       return 0.5; // Default for unknown colors
@@ -1207,11 +1223,11 @@ export class ScoringSystem {
   }
 
   private hexToRgb(hex: string): { r: number; g: number; b: number } {
-    const color = hex.replace('#', '');
+    const color = hex.replace("#", "");
     if (color.length === 3) {
-      const c0 = color[0] ?? '0';
-      const c1 = color[1] ?? '0';
-      const c2 = color[2] ?? '0';
+      const c0 = color[0] ?? "0";
+      const c1 = color[1] ?? "0";
+      const c2 = color[2] ?? "0";
       return {
         r: parseInt(c0 + c0, 16),
         g: parseInt(c1 + c1, 16),
@@ -1228,26 +1244,36 @@ export class ScoringSystem {
   private generateRecommendationFor(axis: string, weakness: string): string {
     const recommendations: Record<string, Record<string, string>> = {
       originality: {
-        'Generic color palette': 'Consider using a more distinctive color palette with unique accent colors.',
-        'Limited section variety': 'Add more varied section types to create visual interest.',
-        'Generic font selection': 'Consider using custom web fonts to establish a unique typographic identity.',
-        'Heavy use of design cliches': 'Review and replace common design patterns with more original alternatives.',
-        default: 'Explore more unique design elements to improve originality.',
+        "Generic color palette":
+          "Consider using a more distinctive color palette with unique accent colors.",
+        "Limited section variety": "Add more varied section types to create visual interest.",
+        "Generic font selection":
+          "Consider using custom web fonts to establish a unique typographic identity.",
+        "Heavy use of design cliches":
+          "Review and replace common design patterns with more original alternatives.",
+        default: "Explore more unique design elements to improve originality.",
       },
       craftsmanship: {
-        'Inconsistent or missing grid structure': 'Implement a consistent grid system (e.g., 12-column) for better alignment.',
-        'Inconsistent typography': 'Establish a clear typography hierarchy with consistent sizing and spacing.',
-        'Clashing color combinations': 'Review color harmony and ensure colors work well together.',
-        'Inconsistent spacing': 'Apply consistent spacing values using a spacing scale (e.g., 8px base).',
-        'Limited responsive adaptations': 'Add more breakpoints and responsive adaptations for different devices.',
-        default: 'Fine-tune spacing, alignment, and consistency for better craftsmanship.',
+        "Inconsistent or missing grid structure":
+          "Implement a consistent grid system (e.g., 12-column) for better alignment.",
+        "Inconsistent typography":
+          "Establish a clear typography hierarchy with consistent sizing and spacing.",
+        "Clashing color combinations": "Review color harmony and ensure colors work well together.",
+        "Inconsistent spacing":
+          "Apply consistent spacing values using a spacing scale (e.g., 8px base).",
+        "Limited responsive adaptations":
+          "Add more breakpoints and responsive adaptations for different devices.",
+        default: "Fine-tune spacing, alignment, and consistency for better craftsmanship.",
       },
       contextuality: {
-        'Poor industry fit': 'Review industry best practices and ensure design meets user expectations.',
-        'May not resonate with target audience': 'Research target audience preferences and adjust design accordingly.',
-        'Inconsistent branding': 'Ensure consistent use of brand colors and typography throughout.',
-        'Poor accessibility': 'Improve color contrast and ensure minimum font sizes for better accessibility.',
-        default: 'Ensure design aligns with target audience and industry context.',
+        "Poor industry fit":
+          "Review industry best practices and ensure design meets user expectations.",
+        "May not resonate with target audience":
+          "Research target audience preferences and adjust design accordingly.",
+        "Inconsistent branding": "Ensure consistent use of brand colors and typography throughout.",
+        "Poor accessibility":
+          "Improve color contrast and ensure minimum font sizes for better accessibility.",
+        default: "Ensure design aligns with target audience and industry context.",
       },
     };
 

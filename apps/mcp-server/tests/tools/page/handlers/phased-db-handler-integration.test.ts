@@ -10,19 +10,19 @@
  * @module tests/tools/page/handlers/phased-db-handler-integration.test
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { v7 as uuidv7 } from 'uuid';
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { v7 as uuidv7 } from "uuid";
 import {
   PhasedDbHandler,
   type PhaseResult,
   type MinimalPrismaClient,
-} from '../../../../src/tools/page/handlers/phased-db-handler';
+} from "../../../../src/tools/page/handlers/phased-db-handler";
 import {
   PhasedExecutor,
   type PhasedExecutorOptions,
   type PhaseType,
-} from '../../../../src/tools/page/handlers/phased-executor';
-import { ExecutionStatusTracker } from '../../../../src/tools/page/handlers/timeout-utils';
+} from "../../../../src/tools/page/handlers/phased-executor";
+import { ExecutionStatusTracker } from "../../../../src/tools/page/handlers/timeout-utils";
 
 // =====================================================
 // モック用型定義
@@ -47,9 +47,11 @@ function createMockPrismaClient(): MockPrismaClient {
     $transaction: vi.fn(),
   };
 
-  mockClient.$transaction = vi.fn().mockImplementation(async (fn: (tx: MockPrismaClient) => Promise<unknown>) => {
-    return await fn(mockClient);
-  });
+  mockClient.$transaction = vi
+    .fn()
+    .mockImplementation(async (fn: (tx: MockPrismaClient) => Promise<unknown>) => {
+      return await fn(mockClient);
+    });
 
   return mockClient;
 }
@@ -58,7 +60,7 @@ function createMockPrismaClient(): MockPrismaClient {
 // 統合テストスイート
 // =====================================================
 
-describe('PhasedDbHandler + PhasedExecutor 統合テスト', () => {
+describe("PhasedDbHandler + PhasedExecutor 統合テスト", () => {
   let mockPrismaClient: MockPrismaClient;
   let webPageId: string;
   let tracker: ExecutionStatusTracker;
@@ -70,7 +72,7 @@ describe('PhasedDbHandler + PhasedExecutor 統合テスト', () => {
     tracker = new ExecutionStatusTracker({
       originalTimeoutMs: 60000,
       effectiveTimeoutMs: 60000,
-      strategy: 'progressive',
+      strategy: "progressive",
       partialResultsEnabled: true,
       webglDetected: false,
       timeoutExtended: false,
@@ -81,34 +83,34 @@ describe('PhasedDbHandler + PhasedExecutor 統合テスト', () => {
     vi.restoreAllMocks();
   });
 
-  describe('PhasedExecutorのonPhaseComplete経由での統合', () => {
-    it('各フェーズ完了時にPhasedDbHandlerのcommitPhaseResultが呼ばれる', async () => {
+  describe("PhasedExecutorのonPhaseComplete経由での統合", () => {
+    it("各フェーズ完了時にPhasedDbHandlerのcommitPhaseResultが呼ばれる", async () => {
       const dbHandler = new PhasedDbHandler({
         prisma: mockPrismaClient,
         webPageId,
       });
 
       // commitPhaseResultをスパイ
-      const commitPhaseResultSpy = vi.spyOn(dbHandler, 'commitPhaseResult');
+      const commitPhaseResultSpy = vi.spyOn(dbHandler, "commitPhaseResult");
 
       // PhasedExecutor用のモックサービス
       const mockAnalyzeLayout = vi.fn().mockResolvedValue({
         success: true,
-        sections: [{ id: 'section-1', type: 'hero' }],
+        sections: [{ id: "section-1", type: "hero" }],
       });
       const mockDetectMotion = vi.fn().mockResolvedValue({
         success: true,
-        patterns: [{ id: 'pattern-1', type: 'css_animation' }],
+        patterns: [{ id: "pattern-1", type: "css_animation" }],
       });
       const mockEvaluateQuality = vi.fn().mockResolvedValue({
         success: true,
         overallScore: 85,
-        grade: 'A',
+        grade: "A",
       });
 
       const executorOptions: PhasedExecutorOptions = {
-        html: '<html><body><h1>Test</h1></body></html>',
-        url: 'https://example.com',
+        html: "<html><body><h1>Test</h1></body></html>",
+        url: "https://example.com",
         features: { layout: true, motion: true, quality: true },
         phaseTimeouts: { layout: 30000, motion: 20000, quality: 10000 },
         tracker,
@@ -126,7 +128,7 @@ describe('PhasedDbHandler + PhasedExecutor 統合テスト', () => {
 
       // 全フェーズ成功を確認
       expect(result.overallSuccess).toBe(true);
-      expect(result.completedPhases).toEqual(['layout', 'motion', 'quality']);
+      expect(result.completedPhases).toEqual(["layout", "motion", "quality"]);
 
       // commitPhaseResultが3回（各フェーズで1回）呼ばれた
       expect(commitPhaseResultSpy).toHaveBeenCalledTimes(3);
@@ -134,22 +136,22 @@ describe('PhasedDbHandler + PhasedExecutor 統合テスト', () => {
       // 各フェーズの呼び出し確認
       expect(commitPhaseResultSpy).toHaveBeenNthCalledWith(
         1,
-        'layout',
-        expect.objectContaining({ success: true, phase: 'layout' })
+        "layout",
+        expect.objectContaining({ success: true, phase: "layout" })
       );
       expect(commitPhaseResultSpy).toHaveBeenNthCalledWith(
         2,
-        'motion',
-        expect.objectContaining({ success: true, phase: 'motion' })
+        "motion",
+        expect.objectContaining({ success: true, phase: "motion" })
       );
       expect(commitPhaseResultSpy).toHaveBeenNthCalledWith(
         3,
-        'quality',
-        expect.objectContaining({ success: true, phase: 'quality' })
+        "quality",
+        expect.objectContaining({ success: true, phase: "quality" })
       );
     });
 
-    it('フェーズ失敗時はcommitPhaseResultが呼ばれるがDB更新はスキップ', async () => {
+    it("フェーズ失敗時はcommitPhaseResultが呼ばれるがDB更新はスキップ", async () => {
       const dbHandler = new PhasedDbHandler({
         prisma: mockPrismaClient,
         webPageId,
@@ -158,18 +160,18 @@ describe('PhasedDbHandler + PhasedExecutor 統合テスト', () => {
       // Layout成功、Motion失敗、Quality成功のシナリオ
       const mockAnalyzeLayout = vi.fn().mockResolvedValue({
         success: true,
-        sections: [{ id: 'section-1', type: 'hero' }],
+        sections: [{ id: "section-1", type: "hero" }],
       });
-      const mockDetectMotion = vi.fn().mockRejectedValue(new Error('Motion detection timeout'));
+      const mockDetectMotion = vi.fn().mockRejectedValue(new Error("Motion detection timeout"));
       const mockEvaluateQuality = vi.fn().mockResolvedValue({
         success: true,
         overallScore: 85,
-        grade: 'A',
+        grade: "A",
       });
 
       const executorOptions: PhasedExecutorOptions = {
-        html: '<html><body><h1>Test</h1></body></html>',
-        url: 'https://example.com',
+        html: "<html><body><h1>Test</h1></body></html>",
+        url: "https://example.com",
         features: { layout: true, motion: true, quality: true },
         phaseTimeouts: { layout: 30000, motion: 20000, quality: 10000 },
         tracker,
@@ -188,8 +190,8 @@ describe('PhasedDbHandler + PhasedExecutor 統合テスト', () => {
       // 部分成功を確認
       expect(result.overallSuccess).toBe(false);
       expect(result.partialSuccess).toBe(true);
-      expect(result.completedPhases).toEqual(['layout', 'quality']);
-      expect(result.failedPhases).toEqual(['motion']);
+      expect(result.completedPhases).toEqual(["layout", "quality"]);
+      expect(result.failedPhases).toEqual(["motion"]);
 
       // Motion失敗時はonPhaseCompleteが呼ばれないため、DB更新は2回のみ
       expect(mockPrismaClient.webPage.update).toHaveBeenCalledTimes(2);
@@ -198,18 +200,18 @@ describe('PhasedDbHandler + PhasedExecutor 統合テスト', () => {
       expect(mockPrismaClient.webPage.update).toHaveBeenCalledWith({
         where: { id: webPageId },
         data: expect.objectContaining({
-          analysisPhaseStatus: 'layout_done',
+          analysisPhaseStatus: "layout_done",
         }),
       });
       expect(mockPrismaClient.webPage.update).toHaveBeenCalledWith({
         where: { id: webPageId },
         data: expect.objectContaining({
-          analysisPhaseStatus: 'quality_done',
+          analysisPhaseStatus: "quality_done",
         }),
       });
     });
 
-    it('フルフロー: 開始 -> 各フェーズ完了 -> 完了マーク', async () => {
+    it("フルフロー: 開始 -> 各フェーズ完了 -> 完了マーク", async () => {
       const dbHandler = new PhasedDbHandler({
         prisma: mockPrismaClient,
         webPageId,
@@ -222,8 +224,8 @@ describe('PhasedDbHandler + PhasedExecutor 統合テスト', () => {
       expect(mockPrismaClient.webPage.update).toHaveBeenCalledWith({
         where: { id: webPageId },
         data: expect.objectContaining({
-          analysisPhaseStatus: 'pending',
-          analysisStatus: 'processing',
+          analysisPhaseStatus: "pending",
+          analysisStatus: "processing",
           analysisStartedAt: expect.any(Date),
           analysisError: null,
           lastAnalyzedPhase: null,
@@ -235,21 +237,21 @@ describe('PhasedDbHandler + PhasedExecutor 統合テスト', () => {
       // PhasedExecutor用のモックサービス
       const mockAnalyzeLayout = vi.fn().mockResolvedValue({
         success: true,
-        sections: [{ id: 'section-1', type: 'hero' }],
+        sections: [{ id: "section-1", type: "hero" }],
       });
       const mockDetectMotion = vi.fn().mockResolvedValue({
         success: true,
-        patterns: [{ id: 'pattern-1', type: 'css_animation' }],
+        patterns: [{ id: "pattern-1", type: "css_animation" }],
       });
       const mockEvaluateQuality = vi.fn().mockResolvedValue({
         success: true,
         overallScore: 85,
-        grade: 'A',
+        grade: "A",
       });
 
       const executorOptions: PhasedExecutorOptions = {
-        html: '<html><body><h1>Test</h1></body></html>',
-        url: 'https://example.com',
+        html: "<html><body><h1>Test</h1></body></html>",
+        url: "https://example.com",
         features: { layout: true, motion: true, quality: true },
         phaseTimeouts: { layout: 30000, motion: 20000, quality: 10000 },
         tracker,
@@ -279,14 +281,14 @@ describe('PhasedDbHandler + PhasedExecutor 統合テスト', () => {
       expect(mockPrismaClient.webPage.update).toHaveBeenCalledWith({
         where: { id: webPageId },
         data: expect.objectContaining({
-          analysisPhaseStatus: 'completed',
-          analysisStatus: 'completed',
+          analysisPhaseStatus: "completed",
+          analysisStatus: "completed",
           analysisCompletedAt: expect.any(Date),
         }),
       });
     });
 
-    it('部分成功フロー: Layout完了後にMotionで失敗', async () => {
+    it("部分成功フロー: Layout完了後にMotionで失敗", async () => {
       const dbHandler = new PhasedDbHandler({
         prisma: mockPrismaClient,
         webPageId,
@@ -299,23 +301,21 @@ describe('PhasedDbHandler + PhasedExecutor 統合テスト', () => {
       // Layout成功、Motionタイムアウト、Qualityスキップのシナリオ
       const mockAnalyzeLayout = vi.fn().mockResolvedValue({
         success: true,
-        sections: [{ id: 'section-1', type: 'hero' }],
+        sections: [{ id: "section-1", type: "hero" }],
       });
       const mockDetectMotion = vi.fn().mockImplementation(async () => {
         // タイムアウトをシミュレート
-        await new Promise((_, reject) =>
-          setTimeout(() => reject(new Error('Timeout')), 100)
-        );
+        await new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout")), 100));
       });
       const mockEvaluateQuality = vi.fn().mockResolvedValue({
         success: true,
         overallScore: 75,
-        grade: 'B',
+        grade: "B",
       });
 
       const executorOptions: PhasedExecutorOptions = {
-        html: '<html><body><h1>Test</h1></body></html>',
-        url: 'https://example.com',
+        html: "<html><body><h1>Test</h1></body></html>",
+        url: "https://example.com",
         features: { layout: true, motion: true, quality: true },
         phaseTimeouts: { layout: 30000, motion: 50, quality: 10000 }, // Motionを短いタイムアウトに
         tracker,
@@ -333,8 +333,8 @@ describe('PhasedDbHandler + PhasedExecutor 統合テスト', () => {
       // 部分成功
       expect(result.overallSuccess).toBe(false);
       expect(result.partialSuccess).toBe(true);
-      expect(result.completedPhases).toEqual(['layout', 'quality']);
-      expect(result.failedPhases).toEqual(['motion']);
+      expect(result.completedPhases).toEqual(["layout", "quality"]);
+      expect(result.failedPhases).toEqual(["motion"]);
 
       // DB更新回数（Layout + Quality = 2回）
       expect(mockPrismaClient.webPage.update).toHaveBeenCalledTimes(2);
@@ -348,16 +348,16 @@ describe('PhasedDbHandler + PhasedExecutor 統合テスト', () => {
       const updateCall = vi.mocked(mockPrismaClient.webPage.update).mock.calls[0];
       expect(updateCall?.[0]?.data).toMatchObject({
         analysisCompletedAt: expect.any(Date),
-        analysisStatus: 'completed',
+        analysisStatus: "completed",
       });
-      expect(updateCall?.[0]?.data?.analysisPhaseStatus).not.toBe('completed');
+      expect(updateCall?.[0]?.data?.analysisPhaseStatus).not.toBe("completed");
     });
   });
 
-  describe('エラーハンドリング', () => {
-    it('onPhaseCompleteコールバック内のDB更新失敗でも分析は継続', async () => {
+  describe("エラーハンドリング", () => {
+    it("onPhaseCompleteコールバック内のDB更新失敗でも分析は継続", async () => {
       // DB更新を失敗させる
-      mockPrismaClient.webPage.update = vi.fn().mockRejectedValue(new Error('DB write failed'));
+      mockPrismaClient.webPage.update = vi.fn().mockRejectedValue(new Error("DB write failed"));
 
       const dbHandler = new PhasedDbHandler({
         prisma: mockPrismaClient,
@@ -366,21 +366,21 @@ describe('PhasedDbHandler + PhasedExecutor 統合テスト', () => {
 
       const mockAnalyzeLayout = vi.fn().mockResolvedValue({
         success: true,
-        sections: [{ id: 'section-1', type: 'hero' }],
+        sections: [{ id: "section-1", type: "hero" }],
       });
       const mockDetectMotion = vi.fn().mockResolvedValue({
         success: true,
-        patterns: [{ id: 'pattern-1', type: 'css_animation' }],
+        patterns: [{ id: "pattern-1", type: "css_animation" }],
       });
       const mockEvaluateQuality = vi.fn().mockResolvedValue({
         success: true,
         overallScore: 85,
-        grade: 'A',
+        grade: "A",
       });
 
       const executorOptions: PhasedExecutorOptions = {
-        html: '<html><body><h1>Test</h1></body></html>',
-        url: 'https://example.com',
+        html: "<html><body><h1>Test</h1></body></html>",
+        url: "https://example.com",
         features: { layout: true, motion: true, quality: true },
         phaseTimeouts: { layout: 30000, motion: 20000, quality: 10000 },
         tracker,
@@ -398,7 +398,7 @@ describe('PhasedDbHandler + PhasedExecutor 統合テスト', () => {
 
       // DB更新失敗にもかかわらず、分析自体は成功
       expect(result.overallSuccess).toBe(true);
-      expect(result.completedPhases).toEqual(['layout', 'motion', 'quality']);
+      expect(result.completedPhases).toEqual(["layout", "motion", "quality"]);
 
       // DB更新は3回試みられた
       expect(mockPrismaClient.webPage.update).toHaveBeenCalledTimes(3);

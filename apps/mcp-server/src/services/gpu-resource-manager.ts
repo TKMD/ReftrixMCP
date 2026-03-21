@@ -18,10 +18,10 @@
  * @module services/gpu-resource-manager
  */
 
-import { createLogger } from '../utils/logger.js';
-import { queryVram } from './vision/vram-utils.js';
+import { createLogger } from "../utils/logger.js";
+import { queryVram } from "./vision/vram-utils.js";
 
-const logger = createLogger('GpuResourceManager');
+const logger = createLogger("GpuResourceManager");
 
 // =============================================================================
 // 定数
@@ -46,35 +46,35 @@ const VRAM_POLL_TIMEOUT_MS = 30_000;
 const OLLAMA_API_TIMEOUT_MS = 10_000;
 
 /** Ollama のデフォルト URL */
-const DEFAULT_OLLAMA_URL = 'http://localhost:11434';
+const DEFAULT_OLLAMA_URL = "http://localhost:11434";
 
 /** Ollama Vision モデル名 */
-const OLLAMA_VISION_MODEL = process.env.OLLAMA_VISION_MODEL ?? 'llama3.2-vision';
+const OLLAMA_VISION_MODEL = process.env.OLLAMA_VISION_MODEL ?? "llama3.2-vision";
 
 // =============================================================================
 // 型定義
 // =============================================================================
 
 /** GPU リソースの現在のオーナー */
-export type GpuOwner = 'vision' | 'embedding' | 'dinov2' | 'none';
+export type GpuOwner = "vision" | "embedding" | "dinov2" | "none";
 
 /** acquireForVision() の戻り値 */
 export interface VisionAcquireResult {
   acquired: boolean;
-  previousOwner: 'embedding' | 'dinov2' | 'none';
+  previousOwner: "embedding" | "dinov2" | "none";
 }
 
 /** acquireForEmbedding() の戻り値 */
 export interface EmbeddingAcquireResult {
   acquired: boolean;
-  previousOwner: 'vision' | 'dinov2' | 'none';
+  previousOwner: "vision" | "dinov2" | "none";
   fallbackToCpu: boolean;
 }
 
 /** acquireForDINOv2() の戻り値 */
 export interface DINOv2AcquireResult {
   success: boolean;
-  mode: 'cuda' | 'cpu';
+  mode: "cuda" | "cpu";
   message: string;
   previousOwner: GpuOwner;
 }
@@ -88,13 +88,13 @@ export interface DINOv2AcquireResult {
  */
 export interface GpuModeSignal {
   /** 要求された実行プロバイダ */
-  requestedProvider: 'cpu' | 'cuda';
+  requestedProvider: "cpu" | "cuda";
   /**
    * プロバイダ切り替え時のコールバック。
    * EmbeddingService が設定し、GpuResourceManager が呼び出す。
    * パイプラインの dispose + 再初期化をトリガーする。
    */
-  onProviderSwitch?: ((provider: 'cpu' | 'cuda') => Promise<void>) | undefined;
+  onProviderSwitch?: ((provider: "cpu" | "cuda") => Promise<void>) | undefined;
 }
 
 /** GpuResourceManager 設定 */
@@ -130,7 +130,7 @@ export interface GpuResourceManagerConfig {
  * ```
  */
 export const gpuModeSignal: GpuModeSignal = {
-  requestedProvider: 'cpu',
+  requestedProvider: "cpu",
 };
 
 // =============================================================================
@@ -154,7 +154,7 @@ export class GpuResourceManager {
   private readonly vramPollTimeoutMs: number;
   private readonly signal: GpuModeSignal;
 
-  private currentOwner: GpuOwner = 'none';
+  private currentOwner: GpuOwner = "none";
   private gpuAvailable: boolean | null = null;
 
   constructor(config?: GpuResourceManagerConfig, signal?: GpuModeSignal) {
@@ -175,14 +175,14 @@ export class GpuResourceManager {
   private static validateOllamaUrl(url: string): string {
     try {
       const parsed = new URL(url);
-      const allowedHosts = ['localhost', '127.0.0.1', '::1'];
+      const allowedHosts = ["localhost", "127.0.0.1", "::1"];
       if (!allowedHosts.includes(parsed.hostname)) {
-        logger.warn('Ollama URL rejected: must point to localhost', { url: parsed.hostname });
+        logger.warn("Ollama URL rejected: must point to localhost", { url: parsed.hostname });
         return DEFAULT_OLLAMA_URL;
       }
       return url;
     } catch {
-      logger.warn('Invalid Ollama URL, falling back to default', { url });
+      logger.warn("Invalid Ollama URL, falling back to default", { url });
       return DEFAULT_OLLAMA_URL;
     }
   }
@@ -194,7 +194,10 @@ export class GpuResourceManager {
   /**
    * シングルトンインスタンスを取得
    */
-  static getInstance(config?: GpuResourceManagerConfig, signal?: GpuModeSignal): GpuResourceManager {
+  static getInstance(
+    config?: GpuResourceManagerConfig,
+    signal?: GpuModeSignal
+  ): GpuResourceManager {
     if (!singletonInstance) {
       singletonInstance = new GpuResourceManager(config, signal);
     }
@@ -224,41 +227,44 @@ export class GpuResourceManager {
     const hasGpu = await this.isGpuAvailable();
 
     if (!hasGpu) {
-      logger.info('No GPU available, Vision will use CPU-based Ollama');
-      return { acquired: false, previousOwner: 'none' };
+      logger.info("No GPU available, Vision will use CPU-based Ollama");
+      return { acquired: false, previousOwner: "none" };
     }
 
-    const previousOwner: 'embedding' | 'dinov2' | 'none' =
-      this.currentOwner === 'embedding' ? 'embedding' :
-      this.currentOwner === 'dinov2' ? 'dinov2' : 'none';
+    const previousOwner: "embedding" | "dinov2" | "none" =
+      this.currentOwner === "embedding"
+        ? "embedding"
+        : this.currentOwner === "dinov2"
+          ? "dinov2"
+          : "none";
 
     // ONNX (Embedding / DINOv2) が GPU を使用中の場合: dispose して GPU を解放
-    if (this.currentOwner === 'embedding' || this.currentOwner === 'dinov2') {
+    if (this.currentOwner === "embedding" || this.currentOwner === "dinov2") {
       logger.info(`Switching GPU: ${this.currentOwner} → vision`);
 
       // EmbeddingService にパイプライン dispose を要求
-      if (this.currentOwner === 'embedding' && this.signal.onProviderSwitch) {
+      if (this.currentOwner === "embedding" && this.signal.onProviderSwitch) {
         try {
-          await this.signal.onProviderSwitch('cpu');
+          await this.signal.onProviderSwitch("cpu");
         } catch (error) {
-          logger.warn('Failed to signal ONNX provider switch to CPU', error);
+          logger.warn("Failed to signal ONNX provider switch to CPU", error);
         }
       }
-      this.signal.requestedProvider = 'cpu';
+      this.signal.requestedProvider = "cpu";
     }
 
     // VRAM 空き容量を待機
     const vramReady = await this.waitForVram(this.visionMinVramMb);
 
     if (!vramReady) {
-      logger.warn('Failed to acquire sufficient VRAM for Vision', {
+      logger.warn("Failed to acquire sufficient VRAM for Vision", {
         requiredMb: this.visionMinVramMb,
       });
       return { acquired: false, previousOwner };
     }
 
-    this.currentOwner = 'vision';
-    logger.info('GPU acquired for Vision', { previousOwner });
+    this.currentOwner = "vision";
+    logger.info("GPU acquired for Vision", { previousOwner });
     return { acquired: true, previousOwner };
   }
 
@@ -274,27 +280,30 @@ export class GpuResourceManager {
     const hasGpu = await this.isGpuAvailable();
 
     if (!hasGpu) {
-      logger.info('No GPU available, Embedding will use CPU');
-      return { acquired: false, previousOwner: 'none', fallbackToCpu: true };
+      logger.info("No GPU available, Embedding will use CPU");
+      return { acquired: false, previousOwner: "none", fallbackToCpu: true };
     }
 
-    const previousOwner: 'vision' | 'dinov2' | 'none' =
-      this.currentOwner === 'vision' ? 'vision' :
-      this.currentOwner === 'dinov2' ? 'dinov2' : 'none';
+    const previousOwner: "vision" | "dinov2" | "none" =
+      this.currentOwner === "vision"
+        ? "vision"
+        : this.currentOwner === "dinov2"
+          ? "dinov2"
+          : "none";
 
     // DINOv2 が所有中の場合: DINOv2 は軽量 ONNX モデルなので直接解放
-    if (this.currentOwner === 'dinov2') {
-      logger.info('Switching GPU: dinov2 → embedding');
-      this.currentOwner = 'none';
+    if (this.currentOwner === "dinov2") {
+      logger.info("Switching GPU: dinov2 → embedding");
+      this.currentOwner = "none";
     }
 
     // Ollama Vision モデルを VRAM からアンロード
-    if (this.currentOwner === 'vision' || this.currentOwner === 'none') {
-      logger.info('Switching GPU: vision → embedding (unloading Ollama model)');
+    if (this.currentOwner === "vision" || this.currentOwner === "none") {
+      logger.info("Switching GPU: vision → embedding (unloading Ollama model)");
 
       const unloaded = await this.unloadOllamaModel();
       if (!unloaded) {
-        logger.warn('Failed to unload Ollama model, falling back to CPU for Embedding');
+        logger.warn("Failed to unload Ollama model, falling back to CPU for Embedding");
         return { acquired: false, previousOwner, fallbackToCpu: true };
       }
     }
@@ -303,25 +312,25 @@ export class GpuResourceManager {
     const vramReady = await this.waitForVram(this.embeddingMinVramMb);
 
     if (!vramReady) {
-      logger.warn('Insufficient VRAM for ONNX CUDA after Ollama unload, falling back to CPU');
-      this.signal.requestedProvider = 'cpu';
+      logger.warn("Insufficient VRAM for ONNX CUDA after Ollama unload, falling back to CPU");
+      this.signal.requestedProvider = "cpu";
       return { acquired: false, previousOwner, fallbackToCpu: true };
     }
 
     // ONNX を CUDA モードに切り替え
-    this.signal.requestedProvider = 'cuda';
+    this.signal.requestedProvider = "cuda";
     if (this.signal.onProviderSwitch) {
       try {
-        await this.signal.onProviderSwitch('cuda');
+        await this.signal.onProviderSwitch("cuda");
       } catch (error) {
-        logger.warn('Failed to signal ONNX provider switch to CUDA, falling back to CPU', error);
-        this.signal.requestedProvider = 'cpu';
+        logger.warn("Failed to signal ONNX provider switch to CUDA, falling back to CPU", error);
+        this.signal.requestedProvider = "cpu";
         return { acquired: false, previousOwner, fallbackToCpu: true };
       }
     }
 
-    this.currentOwner = 'embedding';
-    logger.info('GPU acquired for Embedding (CUDA)', { previousOwner });
+    this.currentOwner = "embedding";
+    logger.info("GPU acquired for Embedding (CUDA)", { previousOwner });
     return { acquired: true, previousOwner, fallbackToCpu: false };
   }
 
@@ -346,72 +355,72 @@ export class GpuResourceManager {
     // GPU 非搭載環境: CPU モードで実行
     const hasGpu = await this.isGpuAvailable();
     if (!hasGpu) {
-      logger.info('No GPU available, DINOv2 will use CPU mode');
+      logger.info("No GPU available, DINOv2 will use CPU mode");
       return {
         success: true,
-        mode: 'cpu',
-        message: 'CPU-only environment: DINOv2 running on CPU',
+        mode: "cpu",
+        message: "CPU-only environment: DINOv2 running on CPU",
         previousOwner,
       };
     }
 
     // 既に DINOv2 が所有中: no-op
-    if (this.currentOwner === 'dinov2') {
-      logger.info('DINOv2 already owns GPU, no action needed');
+    if (this.currentOwner === "dinov2") {
+      logger.info("DINOv2 already owns GPU, no action needed");
       return {
         success: true,
-        mode: 'cuda',
-        message: 'DINOv2 already acquired',
+        mode: "cuda",
+        message: "DINOv2 already acquired",
         previousOwner,
       };
     }
 
     // Vision が所有中: ~9.3GB 使用中のため共存不可 → CPU フォールバック
-    if (this.currentOwner === 'vision') {
-      logger.info('Vision owns GPU (~9.3GB), DINOv2 falling back to CPU');
+    if (this.currentOwner === "vision") {
+      logger.info("Vision owns GPU (~9.3GB), DINOv2 falling back to CPU");
       return {
         success: true,
-        mode: 'cpu',
-        message: 'Vision occupies GPU, DINOv2 falling back to CPU',
+        mode: "cpu",
+        message: "Vision occupies GPU, DINOv2 falling back to CPU",
         previousOwner,
       };
     }
 
     // Embedding が所有中: dispose して GPU を解放
-    if (this.currentOwner === 'embedding') {
-      logger.info('Switching GPU: embedding → dinov2');
+    if (this.currentOwner === "embedding") {
+      logger.info("Switching GPU: embedding → dinov2");
 
       if (this.signal.onProviderSwitch) {
         try {
-          await this.signal.onProviderSwitch('cpu');
+          await this.signal.onProviderSwitch("cpu");
         } catch (error) {
-          logger.warn('Failed to signal ONNX provider switch to CPU for DINOv2', error);
+          logger.warn("Failed to signal ONNX provider switch to CPU for DINOv2", error);
         }
       }
-      this.signal.requestedProvider = 'cpu';
+      this.signal.requestedProvider = "cpu";
     }
 
     // VRAM 空き容量を待機
     const vramReady = await this.waitForVram(this.dinov2MinVramMb);
 
     if (!vramReady) {
-      logger.warn('Failed to acquire sufficient VRAM for DINOv2, falling back to CPU', {
+      logger.warn("Failed to acquire sufficient VRAM for DINOv2, falling back to CPU", {
         requiredMb: this.dinov2MinVramMb,
       });
       return {
         success: true,
-        mode: 'cpu',
-        message: 'Insufficient VRAM for DINOv2, falling back to CPU',
+        mode: "cpu",
+        message: "Insufficient VRAM for DINOv2, falling back to CPU",
         previousOwner,
       };
     }
 
-    this.currentOwner = 'dinov2';
-    logger.info('GPU acquired for DINOv2', { previousOwner });
+    this.currentOwner = "dinov2";
+    logger.info("GPU acquired for DINOv2", { previousOwner });
     return {
       success: true,
-      mode: 'cuda',
-      message: 'GPU acquired for DINOv2',
+      mode: "cuda",
+      message: "GPU acquired for DINOv2",
       previousOwner,
     };
   }
@@ -423,9 +432,9 @@ export class GpuResourceManager {
    * DINOv2 以外がオーナーの場合は no-op。
    */
   async releaseFromDINOv2(): Promise<void> {
-    if (this.currentOwner === 'dinov2') {
-      this.currentOwner = 'none';
-      logger.info('[GpuResourceManager] Released GPU from DINOv2');
+    if (this.currentOwner === "dinov2") {
+      this.currentOwner = "none";
+      logger.info("[GpuResourceManager] Released GPU from DINOv2");
     }
   }
 
@@ -436,29 +445,29 @@ export class GpuResourceManager {
    * Ollama は自身のライフサイクルで管理するためアンロードしない。
    */
   async release(): Promise<void> {
-    if (this.currentOwner === 'none') {
+    if (this.currentOwner === "none") {
       return;
     }
 
-    logger.info('Releasing GPU resources', { currentOwner: this.currentOwner });
+    logger.info("Releasing GPU resources", { currentOwner: this.currentOwner });
 
-    if (this.currentOwner === 'embedding') {
+    if (this.currentOwner === "embedding") {
       // ONNX パイプラインを dispose
       if (this.signal.onProviderSwitch) {
         try {
-          await this.signal.onProviderSwitch('cpu');
+          await this.signal.onProviderSwitch("cpu");
         } catch (error) {
-          logger.warn('Failed to signal ONNX provider switch during release', error);
+          logger.warn("Failed to signal ONNX provider switch during release", error);
         }
       }
-      this.signal.requestedProvider = 'cpu';
+      this.signal.requestedProvider = "cpu";
     }
 
     // DINOv2 は独立したモデル管理のため signal 操作不要
     // Vision は Ollama 自身のライフサイクルで管理するためアンロードしない
 
-    this.currentOwner = 'none';
-    logger.info('GPU resources released');
+    this.currentOwner = "none";
+    logger.info("GPU resources released");
   }
 
   /**
@@ -483,12 +492,12 @@ export class GpuResourceManager {
     this.gpuAvailable = vram !== null;
 
     if (this.gpuAvailable) {
-      logger.info('GPU detected', {
+      logger.info("GPU detected", {
         totalMb: vram!.totalMb,
         freeMb: vram!.freeMb,
       });
     } else {
-      logger.info('No GPU detected (nvidia-smi not available)');
+      logger.info("No GPU detected (nvidia-smi not available)");
     }
 
     return this.gpuAvailable;
@@ -516,12 +525,12 @@ export class GpuResourceManager {
 
       // nvidia-smi 利用不可: VRAM チェック不能、best-effort で続行
       if (vram === null) {
-        logger.info('nvidia-smi unavailable during VRAM wait, proceeding with best-effort');
+        logger.info("nvidia-smi unavailable during VRAM wait, proceeding with best-effort");
         return true;
       }
 
       if (vram.freeMb >= requiredFreeMb) {
-        logger.info('VRAM requirement met', {
+        logger.info("VRAM requirement met", {
           freeMb: vram.freeMb,
           requiredFreeMb,
           waitedMs: Date.now() - startTime,
@@ -529,7 +538,7 @@ export class GpuResourceManager {
         return true;
       }
 
-      logger.info('Waiting for VRAM', {
+      logger.info("Waiting for VRAM", {
         freeMb: vram.freeMb,
         requiredFreeMb,
         nextPollMs: delay,
@@ -543,8 +552,8 @@ export class GpuResourceManager {
 
     // タイムアウト
     const finalVram = await queryVram();
-    logger.warn('VRAM wait timeout', {
-      freeMb: finalVram?.freeMb ?? 'unknown',
+    logger.warn("VRAM wait timeout", {
+      freeMb: finalVram?.freeMb ?? "unknown",
       requiredFreeMb,
       timeoutMs: this.vramPollTimeoutMs,
     });
@@ -566,29 +575,29 @@ export class GpuResourceManager {
   private async unloadOllamaModel(): Promise<boolean> {
     try {
       const response = await fetch(`${this.ollamaUrl}/api/generate`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           model: OLLAMA_VISION_MODEL,
-          keep_alive: '0',
-          prompt: '',
+          keep_alive: "0",
+          prompt: "",
         }),
         signal: AbortSignal.timeout(OLLAMA_API_TIMEOUT_MS),
       });
 
       if (!response.ok) {
-        logger.warn('Ollama model unload request failed', {
+        logger.warn("Ollama model unload request failed", {
           status: response.status,
           statusText: response.statusText,
         });
         return false;
       }
 
-      logger.info('Ollama model unloaded from VRAM', { model: OLLAMA_VISION_MODEL });
+      logger.info("Ollama model unloaded from VRAM", { model: OLLAMA_VISION_MODEL });
       return true;
     } catch (error) {
       // Ollama 未起動やネットワークエラー: 警告のみ
-      logger.warn('Failed to unload Ollama model (service may be unavailable)', error);
+      logger.warn("Failed to unload Ollama model (service may be unavailable)", error);
       return false;
     }
   }

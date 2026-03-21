@@ -10,8 +10,8 @@
  * @module services/web-page.service
  */
 
-import { prisma } from '@reftrix/database';
-import { logger, isDevelopment } from '../utils/logger';
+import { prisma } from "@reftrix/database";
+import { logger, isDevelopment } from "../utils/logger";
 
 // =====================================================
 // 型定義
@@ -50,7 +50,10 @@ export interface FindOrCreateResult {
 export interface IWebPageService {
   getPageById(id: string): Promise<WebPageResult | null>;
   findByUrl(url: string): Promise<WebPageMinimal | null>;
-  findOrCreateByUrl(url: string, options?: { sourceType?: string; usageScope?: string }): Promise<FindOrCreateResult>;
+  findOrCreateByUrl(
+    url: string,
+    options?: { sourceType?: string; usageScope?: string }
+  ): Promise<FindOrCreateResult>;
 }
 
 // =====================================================
@@ -71,7 +74,7 @@ class WebPageService implements IWebPageService {
   async getPageById(id: string): Promise<WebPageResult | null> {
     try {
       if (isDevelopment()) {
-        logger.info('[WebPageService] getPageById', { id });
+        logger.info("[WebPageService] getPageById", { id });
       }
 
       const page = await prisma.webPage.findUnique({
@@ -85,20 +88,20 @@ class WebPageService implements IWebPageService {
 
       if (!page) {
         if (isDevelopment()) {
-          logger.warn('[WebPageService] Page not found', { id });
+          logger.warn("[WebPageService] Page not found", { id });
         }
         return null;
       }
 
       if (!page.htmlContent) {
         if (isDevelopment()) {
-          logger.warn('[WebPageService] Page has no HTML content', { id });
+          logger.warn("[WebPageService] Page has no HTML content", { id });
         }
         return null;
       }
 
       if (isDevelopment()) {
-        logger.info('[WebPageService] Page found', {
+        logger.info("[WebPageService] Page found", {
           id: page.id,
           htmlLength: page.htmlContent.length,
         });
@@ -110,7 +113,7 @@ class WebPageService implements IWebPageService {
         // cssContent is undefined as WebPage doesn't store CSS separately
       };
     } catch (error) {
-      logger.error('[WebPageService] Error getting page by ID', {
+      logger.error("[WebPageService] Error getting page by ID", {
         id,
         error: error instanceof Error ? error.message : String(error),
       });
@@ -127,7 +130,7 @@ class WebPageService implements IWebPageService {
   async findByUrl(url: string): Promise<WebPageMinimal | null> {
     try {
       if (isDevelopment()) {
-        logger.info('[WebPageService] findByUrl', { url });
+        logger.info("[WebPageService] findByUrl", { url });
       }
 
       const page = await prisma.webPage.findUnique({
@@ -140,13 +143,13 @@ class WebPageService implements IWebPageService {
 
       if (!page) {
         if (isDevelopment()) {
-          logger.debug('[WebPageService] Page not found by URL', { url });
+          logger.debug("[WebPageService] Page not found by URL", { url });
         }
         return null;
       }
 
       if (isDevelopment()) {
-        logger.info('[WebPageService] Page found by URL', {
+        logger.info("[WebPageService] Page found by URL", {
           id: page.id,
           url: page.url,
         });
@@ -157,7 +160,7 @@ class WebPageService implements IWebPageService {
         url: page.url,
       };
     } catch (error) {
-      logger.error('[WebPageService] Error finding page by URL', {
+      logger.error("[WebPageService] Error finding page by URL", {
         url,
         error: error instanceof Error ? error.message : String(error),
       });
@@ -179,19 +182,19 @@ class WebPageService implements IWebPageService {
     url: string,
     options?: { sourceType?: string; usageScope?: string }
   ): Promise<FindOrCreateResult> {
-    const sourceType = options?.sourceType ?? 'user_provided';
-    const usageScope = options?.usageScope ?? 'inspiration_only';
+    const sourceType = options?.sourceType ?? "user_provided";
+    const usageScope = options?.usageScope ?? "inspiration_only";
 
     try {
       if (isDevelopment()) {
-        logger.info('[WebPageService] findOrCreateByUrl', { url, sourceType, usageScope });
+        logger.info("[WebPageService] findOrCreateByUrl", { url, sourceType, usageScope });
       }
 
       // まず既存のレコードを検索
       const existing = await this.findByUrl(url);
       if (existing) {
         if (isDevelopment()) {
-          logger.info('[WebPageService] Using existing WebPage', {
+          logger.info("[WebPageService] Using existing WebPage", {
             id: existing.id,
             url: existing.url,
           });
@@ -219,7 +222,7 @@ class WebPageService implements IWebPageService {
       });
 
       if (isDevelopment()) {
-        logger.info('[WebPageService] Created new WebPage', {
+        logger.info("[WebPageService] Created new WebPage", {
           id: created.id,
           url: created.url,
           sourceType,
@@ -233,7 +236,7 @@ class WebPageService implements IWebPageService {
         created: true,
       };
     } catch (error) {
-      logger.error('[WebPageService] Error in findOrCreateByUrl', {
+      logger.error("[WebPageService] Error in findOrCreateByUrl", {
         url,
         error: error instanceof Error ? error.message : String(error),
       });
@@ -268,5 +271,5 @@ export function createWebPageService(): IWebPageService {
 // =====================================================
 
 if (isDevelopment()) {
-  logger.debug('[WebPageService] Module loaded');
+  logger.debug("[WebPageService] Module loaded");
 }

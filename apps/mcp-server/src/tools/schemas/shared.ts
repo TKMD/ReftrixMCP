@@ -8,7 +8,7 @@
  * @module tools/schemas/shared
  */
 
-import { z } from 'zod';
+import { z } from "zod";
 
 // =============================================================================
 // Summary Mode Utility
@@ -28,7 +28,7 @@ export function getSummaryDefault(): boolean {
   const envValue = process.env.MCP_DEFAULT_SUMMARY_MODE;
   // 明示的に 'false' が設定された場合のみ false を返す
   // 未設定・'true'・その他の値は true（LLM最適化デフォルト）
-  return envValue !== 'false';
+  return envValue !== "false";
 }
 
 // =============================================================================
@@ -41,9 +41,9 @@ export function getSummaryDefault(): boolean {
  */
 export const point2dSchema = z.object({
   /** X座標 */
-  x: z.number().finite('x must be a finite number'),
+  x: z.number().finite("x must be a finite number"),
   /** Y座標 */
-  y: z.number().finite('y must be a finite number'),
+  y: z.number().finite("y must be a finite number"),
 });
 
 export type Point2D = z.infer<typeof point2dSchema>;
@@ -58,9 +58,9 @@ export type Point2D = z.infer<typeof point2dSchema>;
  */
 export const sizeSchema = z.object({
   /** 幅（正の値） */
-  width: z.number().positive('width must be a positive number'),
+  width: z.number().positive("width must be a positive number"),
   /** 高さ（正の値） */
-  height: z.number().positive('height must be a positive number'),
+  height: z.number().positive("height must be a positive number"),
 });
 
 export type Size = z.infer<typeof sizeSchema>;
@@ -75,13 +75,13 @@ export type Size = z.infer<typeof sizeSchema>;
  */
 export const boundingBoxSchema = z.object({
   /** X座標（負の値も可） */
-  x: z.number().finite('x must be a finite number'),
+  x: z.number().finite("x must be a finite number"),
   /** Y座標（負の値も可） */
-  y: z.number().finite('y must be a finite number'),
+  y: z.number().finite("y must be a finite number"),
   /** 幅（0以上） */
-  width: z.number().min(0, 'width must be non-negative'),
+  width: z.number().min(0, "width must be non-negative"),
   /** 高さ（0以上） */
-  height: z.number().min(0, 'height must be non-negative'),
+  height: z.number().min(0, "height must be non-negative"),
 });
 
 export type BoundingBox = z.infer<typeof boundingBoxSchema>;
@@ -105,7 +105,7 @@ const HEX_COLOR_REGEX = /^#([0-9A-Fa-f]{3}|[0-9A-Fa-f]{6}|[0-9A-Fa-f]{8})$/;
  */
 export const hexColorSchema = z
   .string()
-  .regex(HEX_COLOR_REGEX, 'Invalid HEX color format. Use #RGB, #RRGGBB, or #RRGGBBAA');
+  .regex(HEX_COLOR_REGEX, "Invalid HEX color format. Use #RGB, #RRGGBB, or #RRGGBBAA");
 
 export type HexColor = z.infer<typeof hexColorSchema>;
 
@@ -147,14 +147,11 @@ const CSS_COLOR_PATTERNS = [
  */
 export const cssColorSchema = z
   .string()
-  .min(1, 'CSS color must not be empty')
-  .refine(
-    (value) => CSS_COLOR_PATTERNS.some((pattern) => pattern.test(value)),
-    {
-      message:
-        'Invalid CSS color format. Supported formats: HEX (#RGB, #RRGGBB, #RRGGBBAA), rgb(), rgba(), hsl(), hsla(), currentColor, transparent, inherit, var(--name)',
-    }
-  );
+  .min(1, "CSS color must not be empty")
+  .refine((value) => CSS_COLOR_PATTERNS.some((pattern) => pattern.test(value)), {
+    message:
+      "Invalid CSS color format. Supported formats: HEX (#RGB, #RRGGBB, #RRGGBBAA), rgb(), rgba(), hsl(), hsla(), currentColor, transparent, inherit, var(--name)",
+  });
 
 export type CssColor = z.infer<typeof cssColorSchema>;
 
@@ -170,8 +167,8 @@ export const processingMetaSchema = z.object({
   /** 処理時間（ミリ秒、0以上の有限数） */
   processingTimeMs: z
     .number()
-    .finite('processingTimeMs must be a finite number')
-    .min(0, 'processingTimeMs must be non-negative'),
+    .finite("processingTimeMs must be a finite number")
+    .min(0, "processingTimeMs must be non-negative"),
   /** 警告メッセージ配列（オプション） */
   warnings: z.array(z.string()).optional(),
 });

@@ -10,12 +10,12 @@
  * @module services/page-ingest-adapter
  */
 
-import { chromium, type Browser, type Page, type BrowserContext } from 'playwright';
-import { logger, isDevelopment } from '../utils/logger';
-import { GPU_BROWSER_BASE_ARGS } from '../utils/gpu-browser-args';
-import { BrowserProcessManager } from './browser-process-manager';
-import { isUrlAllowedByRobotsTxt, ROBOTS_TXT } from '@reftrix/core';
-import { McpError, ErrorCode } from '../utils/errors';
+import { chromium, type Browser, type Page, type BrowserContext } from "playwright";
+import { logger, isDevelopment } from "../utils/logger";
+import { GPU_BROWSER_BASE_ARGS } from "../utils/gpu-browser-args";
+import { BrowserProcessManager } from "./browser-process-manager";
+import { isUrlAllowedByRobotsTxt, ROBOTS_TXT } from "@reftrix/core";
+import { McpError, ErrorCode } from "../utils/errors";
 
 // =============================================
 // 型定義
@@ -60,7 +60,7 @@ export interface WebGLWaitResult {
   /** 最終フレームレート(fps) */
   lastFrameRate?: number;
   /** 理由 */
-  reason: 'stable' | 'timeout' | 'no_webgl' | 'error';
+  reason: "stable" | "timeout" | "no_webgl" | "error";
 }
 
 /**
@@ -78,7 +78,7 @@ export interface IngestAdapterOptions {
   /** JavaScript無効化 */
   disableJavaScript?: boolean;
   /** ページ読み込み完了判定（デフォルト: 'load'） */
-  waitUntil?: 'load' | 'domcontentloaded' | 'networkidle';
+  waitUntil?: "load" | "domcontentloaded" | "networkidle";
   /** DOM安定化待機（React/Vue/Next.js対応） */
   waitForDomStable?: boolean;
   /** DOM安定化判定の無変更時間（ms）（デフォルト: 500） */
@@ -96,12 +96,12 @@ export interface IngestAdapterOptions {
   /** Computed Styles取得（デフォルトfalse、パフォーマンス考慮） */
   includeComputedStyles?: boolean;
   /** ソースタイプ */
-  sourceType?: 'award_gallery' | 'user_provided';
+  sourceType?: "award_gallery" | "user_provided";
   /** 利用範囲 */
-  usageScope?: 'inspiration_only' | 'owned_asset';
+  usageScope?: "inspiration_only" | "owned_asset";
   /** スクリーンショットオプション */
   screenshotOptions?: {
-    format?: 'png' | 'jpeg';
+    format?: "png" | "jpeg";
     quality?: number;
   };
   /**
@@ -164,9 +164,9 @@ export interface IngestAdapterOptions {
  * ソース情報
  */
 export interface IngestSourceInfo {
-  type: 'award_gallery' | 'user_provided';
-  usageScope: 'inspiration_only' | 'owned_asset';
-  awardSite?: 'cssda' | 'fwa' | 'awwwards';
+  type: "award_gallery" | "user_provided";
+  usageScope: "inspiration_only" | "owned_asset";
+  awardSite?: "cssda" | "fwa" | "awwwards";
 }
 
 /**
@@ -200,7 +200,7 @@ export interface IngestScreenshotResult {
   viewportName: string;
   viewport: IngestViewport;
   data: string;
-  format: 'png' | 'jpeg';
+  format: "png" | "jpeg";
   fullPage: boolean;
   size: number;
 }
@@ -354,10 +354,10 @@ export const DNS_RETRY_CONFIG = {
  * 一時的なDNSリゾルバ障害のみリトライする。
  */
 const DNS_ERROR_PATTERNS = [
-  'ERR_NAME_NOT_RESOLVED',
-  'ERR_NAME_RESOLUTION_FAILED',
-  'EAI_AGAIN',
-  'ENOTFOUND',
+  "ERR_NAME_NOT_RESOLVED",
+  "ERR_NAME_RESOLUTION_FAILED",
+  "EAI_AGAIN",
+  "ENOTFOUND",
 ] as const;
 
 /**
@@ -374,7 +374,7 @@ export function isDnsRelatedError(error: unknown): boolean {
     return false;
   }
 
-  const message = error instanceof Error ? error.message : '';
+  const message = error instanceof Error ? error.message : "";
   if (!message) {
     return false;
   }
@@ -530,7 +530,10 @@ class PageIngestAdapter {
     const startTime = Date.now();
 
     // セレクターを分割（カンマ区切り対応）
-    const selectors = selector.split(',').map(s => s.trim()).filter(Boolean);
+    const selectors = selector
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean);
 
     const result = await page.evaluate(
       `(async function() {
@@ -615,7 +618,7 @@ class PageIngestAdapter {
     const typedResult = result as { hidden: boolean; waitTime: number; reason: string };
 
     if (isDevelopment()) {
-      logger.debug('[PageIngestAdapter] Loading element visibility check', {
+      logger.debug("[PageIngestAdapter] Loading element visibility check", {
         hidden: typedResult.hidden,
         waitTime: typedResult.waitTime,
         reason: typedResult.reason,
@@ -642,7 +645,7 @@ class PageIngestAdapter {
     maxWait: number = 10000
   ): Promise<{ stable: boolean; mutations: number; waitTime: number }> {
     if (isDevelopment()) {
-      logger.debug('[PageIngestAdapter] Waiting for DOM to stabilize...', {
+      logger.debug("[PageIngestAdapter] Waiting for DOM to stabilize...", {
         stableTimeout,
         maxWait,
       });
@@ -740,7 +743,7 @@ class PageIngestAdapter {
     };
 
     if (isDevelopment()) {
-      logger.info('[PageIngestAdapter] DOM stability check completed', {
+      logger.info("[PageIngestAdapter] DOM stability check completed", {
         stable: typedResult.stable,
         mutations: typedResult.mutations,
         waitTime: typedResult.waitTime,
@@ -764,7 +767,7 @@ class PageIngestAdapter {
     const startTime = Date.now();
 
     if (isDevelopment()) {
-      logger.debug('[PageIngestAdapter] Detecting WebGL/Canvas elements...');
+      logger.debug("[PageIngestAdapter] Detecting WebGL/Canvas elements...");
     }
 
     const result = await page.evaluate(`
@@ -820,11 +823,11 @@ class PageIngestAdapter {
       })()
     `);
 
-    const typedResult = result as Omit<WebGLDetectionResult, 'detectionTimeMs'>;
+    const typedResult = result as Omit<WebGLDetectionResult, "detectionTimeMs">;
     const detectionTimeMs = Date.now() - startTime;
 
     if (isDevelopment()) {
-      logger.info('[PageIngestAdapter] WebGL detection completed', {
+      logger.info("[PageIngestAdapter] WebGL detection completed", {
         ...typedResult,
         detectionTimeMs,
       });
@@ -853,7 +856,7 @@ class PageIngestAdapter {
     const startTime = Date.now();
 
     if (isDevelopment()) {
-      logger.debug('[PageIngestAdapter] Waiting for stable frame rate...', {
+      logger.debug("[PageIngestAdapter] Waiting for stable frame rate...", {
         maxWaitMs,
       });
     }
@@ -947,7 +950,7 @@ class PageIngestAdapter {
       const typedResult = result as WebGLWaitResult;
 
       if (isDevelopment()) {
-        logger.info('[PageIngestAdapter] Frame rate stabilization check completed', {
+        logger.info("[PageIngestAdapter] Frame rate stabilization check completed", {
           ...typedResult,
           totalElapsed: Date.now() - startTime,
         });
@@ -958,7 +961,7 @@ class PageIngestAdapter {
       const errorMessage = error instanceof Error ? error.message : String(error);
 
       if (isDevelopment()) {
-        logger.warn('[PageIngestAdapter] Frame rate check failed', {
+        logger.warn("[PageIngestAdapter] Frame rate check failed", {
           error: errorMessage,
           elapsed: Date.now() - startTime,
         });
@@ -968,7 +971,7 @@ class PageIngestAdapter {
         stable: false,
         waitTimeMs: Date.now() - startTime,
         frameRateStable: false,
-        reason: 'error',
+        reason: "error",
       };
     }
   }
@@ -1000,7 +1003,7 @@ class PageIngestAdapter {
     // WebGL未検出の場合は早期リターン
     if (!detection.detected) {
       if (isDevelopment()) {
-        logger.debug('[PageIngestAdapter] No WebGL detected, skipping adaptive wait');
+        logger.debug("[PageIngestAdapter] No WebGL detected, skipping adaptive wait");
       }
       return { detection };
     }
@@ -1016,14 +1019,17 @@ class PageIngestAdapter {
     // Step 3: Graceful Degradation - 安定化失敗時は警告を追加
     if (!waitResult.stable) {
       warnings.push({
-        code: 'WEBGL_FRAME_RATE_UNSTABLE',
+        code: "WEBGL_FRAME_RATE_UNSTABLE",
         message: `WebGL frame rate not stabilized after ${waitResult.waitTimeMs}ms, continuing with current state`,
       });
 
       if (isDevelopment()) {
-        logger.warn('[PageIngestAdapter] WebGL frame rate not stabilized, continuing with current state', {
-          waitResult,
-        });
+        logger.warn(
+          "[PageIngestAdapter] WebGL frame rate not stabilized, continuing with current state",
+          {
+            waitResult,
+          }
+        );
       }
     }
 
@@ -1031,7 +1037,7 @@ class PageIngestAdapter {
     const extraWaitMs = options.webglExtraWaitMs ?? WEBGL_CONSTANTS.DEFAULT_EXTRA_WAIT_MS;
     if (extraWaitMs > 0) {
       if (isDevelopment()) {
-        logger.debug('[PageIngestAdapter] Additional WebGL wait', { extraWaitMs });
+        logger.debug("[PageIngestAdapter] Additional WebGL wait", { extraWaitMs });
       }
       await page.waitForTimeout(extraWaitMs);
     }
@@ -1063,23 +1069,23 @@ class PageIngestAdapter {
     // ブラウザが存在するが閉じられている場合は参照をクリア
     if (this.browser && !this.browser.isConnected()) {
       if (isDevelopment()) {
-        logger.warn('[PageIngestAdapter] Browser disconnected, will re-launch...');
+        logger.warn("[PageIngestAdapter] Browser disconnected, will re-launch...");
       }
       this.browser = null;
     }
 
     if (!this.browser) {
       if (isDevelopment()) {
-        logger.info('[PageIngestAdapter] Launching Chromium browser...');
+        logger.info("[PageIngestAdapter] Launching Chromium browser...");
       }
       this.browser = await chromium.launch({
         headless: true,
         args: [
-          '--disable-gpu',
-          '--disable-dev-shm-usage',
-          '--disable-setuid-sandbox',
+          "--disable-gpu",
+          "--disable-dev-shm-usage",
+          "--disable-setuid-sandbox",
           // セキュリティ強化: --no-sandboxを削除し、GPUサンドボックスを早期起動
-          '--gpu-sandbox-start-early',
+          "--gpu-sandbox-start-early",
         ],
       });
     }
@@ -1096,7 +1102,7 @@ class PageIngestAdapter {
    */
   private async launchGPUEnabledBrowser(): Promise<Browser> {
     if (isDevelopment()) {
-      logger.info('[PageIngestAdapter] Launching GPU-enabled Chromium browser...');
+      logger.info("[PageIngestAdapter] Launching GPU-enabled Chromium browser...");
     }
     return chromium.launch({
       headless: true,
@@ -1111,29 +1117,29 @@ class PageIngestAdapter {
    */
   private async launchWebGLDisabledBrowser(): Promise<Browser> {
     if (isDevelopment()) {
-      logger.info('[PageIngestAdapter] Launching WebGL-disabled Chromium browser...');
+      logger.info("[PageIngestAdapter] Launching WebGL-disabled Chromium browser...");
     }
     return chromium.launch({
       headless: true,
       args: [
         // 標準のセキュリティ/パフォーマンス設定
-        '--disable-gpu',
-        '--disable-dev-shm-usage',
-        '--disable-setuid-sandbox',
+        "--disable-gpu",
+        "--disable-dev-shm-usage",
+        "--disable-setuid-sandbox",
         // セキュリティ強化: --no-sandboxを削除し、GPUサンドボックスを早期起動
-        '--gpu-sandbox-start-early',
+        "--gpu-sandbox-start-early",
         // WebGL/3D関連を完全に無効化
-        '--disable-webgl',
-        '--disable-webgl2',
-        '--disable-3d-apis',
-        '--disable-software-rasterizer',
-        '--disable-accelerated-2d-canvas',
-        '--disable-accelerated-video-decode',
+        "--disable-webgl",
+        "--disable-webgl2",
+        "--disable-3d-apis",
+        "--disable-software-rasterizer",
+        "--disable-accelerated-2d-canvas",
+        "--disable-accelerated-video-decode",
         // 追加のパフォーマンス最適化
-        '--disable-background-timer-throttling',
-        '--disable-renderer-backgrounding',
+        "--disable-background-timer-throttling",
+        "--disable-renderer-backgrounding",
         // タイムアウト強制用
-        '--disable-hang-monitor',
+        "--disable-hang-monitor",
       ],
     });
   }
@@ -1178,10 +1184,7 @@ class PageIngestAdapter {
   /**
    * ビューポート情報を取得
    */
-  private async getViewportInfo(
-    page: Page,
-    viewport: IngestViewport
-  ): Promise<IngestViewportInfo> {
+  private async getViewportInfo(page: Page, viewport: IngestViewport): Promise<IngestViewportInfo> {
     // page.evaluate内でTypeScriptヘルパー関数(__name)が使用されないよう、
     // 文字列形式で記述し、パラメータは別途渡す
     const result = await page.evaluate(`
@@ -1218,7 +1221,7 @@ class PageIngestAdapter {
    */
   private async extractComputedStyles(page: Page): Promise<ComputedStyleInfo[]> {
     if (isDevelopment()) {
-      logger.debug('[PageIngestAdapter] Extracting computed styles...');
+      logger.debug("[PageIngestAdapter] Extracting computed styles...");
     }
 
     const result = await page.evaluate(`
@@ -1390,11 +1393,8 @@ class PageIngestAdapter {
     const computedStyles = result as ComputedStyleInfo[];
 
     if (isDevelopment()) {
-      const totalChildren = computedStyles.reduce(
-        (sum, s) => sum + (s.children?.length ?? 0),
-        0
-      );
-      logger.debug('[PageIngestAdapter] Computed styles extracted', {
+      const totalChildren = computedStyles.reduce((sum, s) => sum + (s.children?.length ?? 0), 0);
+      logger.debug("[PageIngestAdapter] Computed styles extracted", {
         sectionCount: computedStyles.length,
         totalChildElements: totalChildren,
       });
@@ -1420,7 +1420,7 @@ class PageIngestAdapter {
     const forceKillOnTimeout = ingestOptions.forceKillOnTimeout === true;
 
     if (isDevelopment()) {
-      logger.info('[PageIngestAdapter] Starting ingest', {
+      logger.info("[PageIngestAdapter] Starting ingest", {
         url,
         viewport,
         timeout,
@@ -1436,9 +1436,9 @@ class PageIngestAdapter {
       throw new McpError(
         ErrorCode.ROBOTS_TXT_BLOCKED,
         `Blocked by robots.txt: ${url} (domain: ${robotsResult.domain}, reason: ${robotsResult.reason}). ` +
-        `Use respect_robots_txt: false to override. ` +
-        `Note: Overriding robots.txt may have legal implications depending on jurisdiction (e.g., EU DSM Directive Article 4).`,
-        { domain: robotsResult.domain, reason: robotsResult.reason },
+          `Use respect_robots_txt: false to override. ` +
+          `Note: Overriding robots.txt may have legal implications depending on jurisdiction (e.g., EU DSM Directive Article 4).`,
+        { domain: robotsResult.domain, reason: robotsResult.reason }
       );
     }
 
@@ -1465,7 +1465,7 @@ class PageIngestAdapter {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         browserPid = (browser as any).process?.()?.pid as number | undefined;
         if (isDevelopment()) {
-          logger.debug('[PageIngestAdapter] Using dedicated WebGL-disabled browser', {
+          logger.debug("[PageIngestAdapter] Using dedicated WebGL-disabled browser", {
             pid: browserPid,
           });
         }
@@ -1476,7 +1476,7 @@ class PageIngestAdapter {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         browserPid = (browser as any).process?.()?.pid as number | undefined;
         if (isDevelopment()) {
-          logger.debug('[PageIngestAdapter] Using dedicated GPU-enabled browser', {
+          logger.debug("[PageIngestAdapter] Using dedicated GPU-enabled browser", {
             pid: browserPid,
           });
         }
@@ -1495,7 +1495,7 @@ class PageIngestAdapter {
           killGracePeriodMs: 5000,
         });
         if (isDevelopment()) {
-          logger.debug('[PageIngestAdapter] BrowserProcessManager created for dedicated browser');
+          logger.debug("[PageIngestAdapter] BrowserProcessManager created for dedicated browser");
         }
       }
 
@@ -1524,10 +1524,12 @@ class PageIngestAdapter {
       const globalTimeoutMs = timeout + 5000;
 
       globalTimeoutId = setTimeout(async () => {
-        const timeoutError = new Error(`Global timeout: ingest operation exceeded ${timeout}ms for ${url}`);
+        const timeoutError = new Error(
+          `Global timeout: ingest operation exceeded ${timeout}ms for ${url}`
+        );
 
         if (isDevelopment()) {
-          logger.error('[PageIngestAdapter] Global timeout triggered, force closing', {
+          logger.error("[PageIngestAdapter] Global timeout triggered, force closing", {
             url,
             timeout,
             forceKillOnTimeout,
@@ -1539,11 +1541,13 @@ class PageIngestAdapter {
         try {
           await Promise.race([
             page?.close(),
-            new Promise((_, reject) => setTimeout(() => reject(new Error('page.close timeout')), 5000)),
+            new Promise((_, reject) =>
+              setTimeout(() => reject(new Error("page.close timeout")), 5000)
+            ),
           ]);
         } catch {
           if (isDevelopment()) {
-            logger.warn('[PageIngestAdapter] page.close() failed or timed out');
+            logger.warn("[PageIngestAdapter] page.close() failed or timed out");
           }
         }
 
@@ -1554,26 +1558,30 @@ class PageIngestAdapter {
             // BrowserProcessManagerを使用: タイムアウト付きクローズ（失敗時は自動で強制終了）
             const closed = await processManager.closeWithTimeout(5000);
             if (!closed && isDevelopment()) {
-              logger.warn('[PageIngestAdapter] browser.close() timed out, force kill attempted');
+              logger.warn("[PageIngestAdapter] browser.close() timed out, force kill attempted");
             }
           } else {
             // processManagerがない場合は従来の方法でクローズ
             try {
               await Promise.race([
                 dedicatedBrowser.close(),
-                new Promise((_, reject) => setTimeout(() => reject(new Error('browser.close timeout')), 5000)),
+                new Promise((_, reject) =>
+                  setTimeout(() => reject(new Error("browser.close timeout")), 5000)
+                ),
               ]);
             } catch {
               if (isDevelopment()) {
-                logger.warn('[PageIngestAdapter] browser.close() failed or timed out');
+                logger.warn("[PageIngestAdapter] browser.close() failed or timed out");
               }
               // forceKillOnTimeoutが有効な場合は手動でkill
               if (forceKillOnTimeout && browserPid) {
                 try {
                   if (isDevelopment()) {
-                    logger.warn('[PageIngestAdapter] Force killing browser process', { pid: browserPid });
+                    logger.warn("[PageIngestAdapter] Force killing browser process", {
+                      pid: browserPid,
+                    });
                   }
-                  process.kill(browserPid, 'SIGKILL');
+                  process.kill(browserPid, "SIGKILL");
                 } catch {
                   // プロセスが既に終了している場合は無視
                 }
@@ -1591,7 +1599,10 @@ class PageIngestAdapter {
 
       // グローバルタイムアウトとレースするためのヘルパー関数
       // 既存のwithTimeout関数とは異なり、グローバルタイムアウトPromiseとレースする
-      const withGlobalTimeout = async <T>(operation: Promise<T>, operationName: string): Promise<T> => {
+      const withGlobalTimeout = async <T>(
+        operation: Promise<T>,
+        operationName: string
+      ): Promise<T> => {
         return Promise.race([
           operation,
           timeoutPromise.then(() => {
@@ -1605,26 +1616,26 @@ class PageIngestAdapter {
       // waitForWebGL: trueの場合は'domcontentloaded'を使用（networkidleは永遠に完了しない問題への対応）
       // adaptiveWebGLWait有効時も'domcontentloaded'を使用（WebGLサイトは'load'が発火しない場合がある）
       // WebGL検出とフレームレート安定化で追加待機を処理するため、早期のDOM準備完了で十分
-      let waitUntil = ingestOptions.waitUntil ?? 'load';
+      let waitUntil = ingestOptions.waitUntil ?? "load";
       if (ingestOptions.waitForWebGL === true) {
         // waitForWebGL: trueが明示的に指定された場合、常にdomcontentloadedを使用
-        waitUntil = 'domcontentloaded';
+        waitUntil = "domcontentloaded";
         if (isDevelopment()) {
-          logger.debug('[PageIngestAdapter] Using domcontentloaded for waitForWebGL mode');
+          logger.debug("[PageIngestAdapter] Using domcontentloaded for waitForWebGL mode");
         }
-      } else if (ingestOptions.adaptiveWebGLWait !== false && waitUntil === 'load') {
-        waitUntil = 'domcontentloaded';
+      } else if (ingestOptions.adaptiveWebGLWait !== false && waitUntil === "load") {
+        waitUntil = "domcontentloaded";
         if (isDevelopment()) {
-          logger.debug('[PageIngestAdapter] Using domcontentloaded for adaptive WebGL wait');
+          logger.debug("[PageIngestAdapter] Using domcontentloaded for adaptive WebGL wait");
         }
       }
       if (isDevelopment()) {
-        logger.debug('[PageIngestAdapter] Navigating with waitUntil', { url, waitUntil, timeout });
+        logger.debug("[PageIngestAdapter] Navigating with waitUntil", { url, waitUntil, timeout });
       }
 
       // DNS不安定対策: リトライ機構付きpage.goto
       // ERR_NAME_NOT_RESOLVED, EAI_AGAIN等のDNSエラー時のみリトライする
-      let response: Awaited<ReturnType<Page['goto']>> = null;
+      let response: Awaited<ReturnType<Page["goto"]>> = null;
       let lastError: Error | null = null;
 
       for (let attempt = 0; attempt <= DNS_RETRY_CONFIG.MAX_RETRIES; attempt++) {
@@ -1634,7 +1645,7 @@ class PageIngestAdapter {
               timeout,
               waitUntil,
             }),
-            'page.goto'
+            "page.goto"
           );
           lastError = null;
           break; // 成功したらループを抜ける
@@ -1648,7 +1659,7 @@ class PageIngestAdapter {
 
           // 最後のリトライで失敗した場合は再throw
           if (attempt >= DNS_RETRY_CONFIG.MAX_RETRIES) {
-            logger.error('[PageIngestAdapter] DNS retry exhausted', {
+            logger.error("[PageIngestAdapter] DNS retry exhausted", {
               url,
               attempts: attempt + 1,
               error: lastError.message,
@@ -1661,7 +1672,7 @@ class PageIngestAdapter {
 
           // 残りタイムアウトをチェック: リトライ遅延 + 次の試行がタイムアウトを超えないこと
           // グローバルタイムアウトが管理しているため、ここでは警告ログのみ
-          logger.warn('[PageIngestAdapter] DNS error, retrying', {
+          logger.warn("[PageIngestAdapter] DNS error, retrying", {
             url,
             attempt: attempt + 1,
             maxRetries: DNS_RETRY_CONFIG.MAX_RETRIES,
@@ -1674,7 +1685,7 @@ class PageIngestAdapter {
       }
 
       if (!response) {
-        throw lastError ?? new Error('No response received from page');
+        throw lastError ?? new Error("No response received from page");
       }
 
       const finalUrl = page.url();
@@ -1690,7 +1701,7 @@ class PageIngestAdapter {
       // マウス移動でローディングアニメーションを解除するサイト対応
       if (ingestOptions.simulateUserInteraction !== false) {
         if (isDevelopment()) {
-          logger.debug('[PageIngestAdapter] Step 0: Simulating user interaction');
+          logger.debug("[PageIngestAdapter] Step 0: Simulating user interaction");
         }
         try {
           // ビューポート中央にマウスを移動
@@ -1702,11 +1713,13 @@ class PageIngestAdapter {
           // 元に戻す
           await page.mouse.wheel(0, -100);
           if (isDevelopment()) {
-            logger.debug('[PageIngestAdapter] User interaction simulation completed');
+            logger.debug("[PageIngestAdapter] User interaction simulation completed");
           }
         } catch (e) {
           if (isDevelopment()) {
-            logger.warn('[PageIngestAdapter] User interaction simulation failed', { error: String(e) });
+            logger.warn("[PageIngestAdapter] User interaction simulation failed", {
+              error: String(e),
+            });
           }
         }
       }
@@ -1715,12 +1728,14 @@ class PageIngestAdapter {
       // networkidleが永遠に完了しないWebGLサイト向けの最適化
       if (ingestOptions.waitForWebGL === true) {
         if (isDevelopment()) {
-          logger.debug('[PageIngestAdapter] Step 0.5: waitForWebGL mode - waiting for canvas element');
+          logger.debug(
+            "[PageIngestAdapter] Step 0.5: waitForWebGL mode - waiting for canvas element"
+          );
         }
 
         try {
           // Canvas要素の出現を待機（最大10秒）
-          await page.waitForSelector('canvas', { timeout: WEBGL_CONSTANTS.CANVAS_WAIT_TIMEOUT_MS });
+          await page.waitForSelector("canvas", { timeout: WEBGL_CONSTANTS.CANVAS_WAIT_TIMEOUT_MS });
 
           // WebGLコンテキスト取得確認
           const hasWebGL = await page.evaluate(`
@@ -1737,23 +1752,29 @@ class PageIngestAdapter {
             const webglWaitMs = ingestOptions.webglWaitMs ?? WEBGL_CONSTANTS.DEFAULT_WEBGL_WAIT_MS;
             if (webglWaitMs > 0) {
               if (isDevelopment()) {
-                logger.debug('[PageIngestAdapter] WebGL context found, waiting for initialization', {
-                  webglWaitMs,
-                });
+                logger.debug(
+                  "[PageIngestAdapter] WebGL context found, waiting for initialization",
+                  {
+                    webglWaitMs,
+                  }
+                );
               }
               await page.waitForTimeout(webglWaitMs);
             }
           } else {
             if (isDevelopment()) {
-              logger.debug('[PageIngestAdapter] Canvas found but no WebGL context, skipping wait');
+              logger.debug("[PageIngestAdapter] Canvas found but no WebGL context, skipping wait");
             }
           }
         } catch (e) {
           // Canvas未検出やエラー時もエラーにしない（Graceful Degradation）
           if (isDevelopment()) {
-            logger.debug('[PageIngestAdapter] waitForWebGL canvas/context check failed, continuing', {
-              error: e instanceof Error ? e.message : String(e),
-            });
+            logger.debug(
+              "[PageIngestAdapter] waitForWebGL canvas/context check failed, continuing",
+              {
+                error: e instanceof Error ? e.message : String(e),
+              }
+            );
           }
         }
       }
@@ -1762,9 +1783,12 @@ class PageIngestAdapter {
       // CSSアニメーション（opacity, transform）で隠れるローディング要素対応
       if (ingestOptions.waitForSelectorHidden) {
         if (isDevelopment()) {
-          logger.debug('[PageIngestAdapter] Step 1: Waiting for loading element to become invisible', {
-            selector: ingestOptions.waitForSelectorHidden,
-          });
+          logger.debug(
+            "[PageIngestAdapter] Step 1: Waiting for loading element to become invisible",
+            {
+              selector: ingestOptions.waitForSelectorHidden,
+            }
+          );
         }
         const loadingHiddenResult = await this.waitForLoadingElementHidden(
           page,
@@ -1772,7 +1796,7 @@ class PageIngestAdapter {
           Math.min(timeout / 2, 30000)
         );
         if (isDevelopment()) {
-          logger.debug('[PageIngestAdapter] Loading element check completed', loadingHiddenResult);
+          logger.debug("[PageIngestAdapter] Loading element check completed", loadingHiddenResult);
         }
       }
 
@@ -1780,21 +1804,21 @@ class PageIngestAdapter {
       // 実際のコンテンツが描画されるまで待機（sr-only以外の可視要素）
       if (ingestOptions.waitForContentVisible) {
         if (isDevelopment()) {
-          logger.debug('[PageIngestAdapter] Step 1.5: Waiting for content to become visible', {
+          logger.debug("[PageIngestAdapter] Step 1.5: Waiting for content to become visible", {
             selector: ingestOptions.waitForContentVisible,
           });
         }
         try {
           await page.waitForSelector(ingestOptions.waitForContentVisible, {
-            state: 'visible',
+            state: "visible",
             timeout: Math.min(timeout / 2, 30000),
           });
           if (isDevelopment()) {
-            logger.debug('[PageIngestAdapter] Content element visible');
+            logger.debug("[PageIngestAdapter] Content element visible");
           }
         } catch {
           if (isDevelopment()) {
-            logger.warn('[PageIngestAdapter] Content element not found or timeout', {
+            logger.warn("[PageIngestAdapter] Content element not found or timeout", {
               selector: ingestOptions.waitForContentVisible,
             });
           }
@@ -1807,17 +1831,17 @@ class PageIngestAdapter {
         const domStableTimeout = ingestOptions.domStableTimeout ?? 500;
         const maxWait = Math.min(timeout / 2, 10000);
         if (isDevelopment()) {
-          logger.debug('[PageIngestAdapter] Step 2: Waiting for DOM stability', {
+          logger.debug("[PageIngestAdapter] Step 2: Waiting for DOM stability", {
             domStableTimeout,
             maxWait,
           });
         }
         const result = await withGlobalTimeout(
           this.waitForDomStable(page, domStableTimeout, maxWait),
-          'waitForDomStable'
+          "waitForDomStable"
         );
         if (isDevelopment()) {
-          logger.debug('[PageIngestAdapter] DOM stability check completed', result);
+          logger.debug("[PageIngestAdapter] DOM stability check completed", result);
         }
       }
 
@@ -1831,26 +1855,27 @@ class PageIngestAdapter {
       // disableWebGL使用時は警告を追加
       if (useWebGLDisabledBrowser) {
         warnings.push({
-          code: 'WEBGL_DISABLED',
-          message: 'WebGL has been disabled for this ingest. 3D/WebGL content will not render correctly.',
+          code: "WEBGL_DISABLED",
+          message:
+            "WebGL has been disabled for this ingest. 3D/WebGL content will not render correctly.",
         });
         if (isDevelopment()) {
-          logger.info('[PageIngestAdapter] Skipping WebGL detection (disableWebGL=true)');
+          logger.info("[PageIngestAdapter] Skipping WebGL detection (disableWebGL=true)");
         }
       } else if (ingestOptions.adaptiveWebGLWait !== false) {
         if (isDevelopment()) {
-          logger.debug('[PageIngestAdapter] Step 2.5: Adaptive WebGL wait (enabled by default)');
+          logger.debug("[PageIngestAdapter] Step 2.5: Adaptive WebGL wait (enabled by default)");
         }
         try {
           const webglResult = await withGlobalTimeout(
             this.waitForWebGLReady(page, ingestOptions, warnings),
-            'waitForWebGLReady'
+            "waitForWebGLReady"
           );
           webglDetection = webglResult.detection;
           webglWait = webglResult.wait;
 
           if (webglDetection.detected && isDevelopment()) {
-            logger.info('[PageIngestAdapter] WebGL site detected', {
+            logger.info("[PageIngestAdapter] WebGL site detected", {
               canvasCount: webglDetection.canvasCount,
               webgl1Count: webglDetection.webgl1Count,
               webgl2Count: webglDetection.webgl2Count,
@@ -1863,11 +1888,11 @@ class PageIngestAdapter {
           // Graceful Degradation: WebGL待機失敗時も処理を継続
           const errorMessage = e instanceof Error ? e.message : String(e);
           warnings.push({
-            code: 'WEBGL_WAIT_ERROR',
+            code: "WEBGL_WAIT_ERROR",
             message: `WebGL adaptive wait failed: ${errorMessage}`,
           });
           if (isDevelopment()) {
-            logger.warn('[PageIngestAdapter] WebGL adaptive wait failed, continuing', {
+            logger.warn("[PageIngestAdapter] WebGL adaptive wait failed, continuing", {
               error: errorMessage,
             });
           }
@@ -1877,7 +1902,7 @@ class PageIngestAdapter {
       // ステップ3: 追加の固定待機時間（アニメーション完了用）
       if (ingestOptions.waitForTimeout && ingestOptions.waitForTimeout > 0) {
         if (isDevelopment()) {
-          logger.debug('[PageIngestAdapter] Step 3: Additional wait', {
+          logger.debug("[PageIngestAdapter] Step 3: Additional wait", {
             waitForTimeout: ingestOptions.waitForTimeout,
           });
         }
@@ -1892,21 +1917,21 @@ class PageIngestAdapter {
       const html = await withTimeout(
         page.content(),
         OPERATION_TIMEOUTS.CONTENT_EXTRACTION * timeoutMultiplier,
-        'page.content()'
+        "page.content()"
       );
 
       // メタデータ抽出（操作レベルタイムアウト付き）
       const metadata = await withTimeout(
         this.extractMetadata(page),
         OPERATION_TIMEOUTS.METADATA_EXTRACTION * timeoutMultiplier,
-        'extractMetadata'
+        "extractMetadata"
       );
 
       // ビューポート情報取得（操作レベルタイムアウト付き）
       const viewportInfo = await withTimeout(
         this.getViewportInfo(page, viewport),
         OPERATION_TIMEOUTS.VIEWPORT_INFO * timeoutMultiplier,
-        'getViewportInfo'
+        "getViewportInfo"
       );
 
       // スクリーンショット取得（skipScreenshot: true の場合はスキップ）
@@ -1924,13 +1949,16 @@ class PageIngestAdapter {
 
           if (isDevelopment()) {
             if (isWebGLSite) {
-              logger.debug('[PageIngestAdapter] WebGL site detected: using viewport-only screenshot (fullPage disabled)', {
-                timeout: screenshotTimeout,
-                originalFullPage: ingestOptions.fullPage ?? true,
-                effectiveFullPage,
-              });
+              logger.debug(
+                "[PageIngestAdapter] WebGL site detected: using viewport-only screenshot (fullPage disabled)",
+                {
+                  timeout: screenshotTimeout,
+                  originalFullPage: ingestOptions.fullPage ?? true,
+                  effectiveFullPage,
+                }
+              );
             } else {
-              logger.debug('[PageIngestAdapter] Taking screenshot', {
+              logger.debug("[PageIngestAdapter] Taking screenshot", {
                 timeout: screenshotTimeout,
                 fullPage: effectiveFullPage,
               });
@@ -1948,28 +1976,44 @@ class PageIngestAdapter {
 
               // SEC: NaN/Infinity防御 — 無効値の場合はスクロールスキップ
               // SEC: NaN/Infinity defense — skip scroll on invalid dimensions
-              if (!Number.isFinite(scrollHeight) || !Number.isFinite(viewportHeight) || scrollHeight <= 0) {
+              if (
+                !Number.isFinite(scrollHeight) ||
+                !Number.isFinite(viewportHeight) ||
+                scrollHeight <= 0
+              ) {
                 if (isDevelopment()) {
-                  logger.debug('[PageIngestAdapter] Skipping lazy loading scroll: invalid dimensions', {
-                    scrollHeight,
-                    viewportHeight,
-                  });
+                  logger.debug(
+                    "[PageIngestAdapter] Skipping lazy loading scroll: invalid dimensions",
+                    {
+                      scrollHeight,
+                      viewportHeight,
+                    }
+                  );
                 }
               } else {
                 const scrollStep = Math.max(viewportHeight, LAZY_SCROLL_MIN_STEP_PX);
                 const maxScrollIterations = LAZY_SCROLL_MAX_ITERATIONS;
                 let iterations = 0;
 
-                for (let y = 0; y < scrollHeight && iterations < maxScrollIterations; y += scrollStep) {
+                for (
+                  let y = 0;
+                  y < scrollHeight && iterations < maxScrollIterations;
+                  y += scrollStep
+                ) {
                   await page.evaluate((sy: number) => window.scrollTo(0, sy), y);
                   // requestAnimationFrame 2フレーム完了待ち + 2秒タイムアウトガード
                   // Wait for 2 rAF frames + 2s timeout guard (consistent with section-screenshot-fallback.service.ts)
                   await Promise.race([
-                    page.evaluate(() => new Promise<void>(resolve => {
-                      requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
-                    })),
+                    page.evaluate(
+                      () =>
+                        new Promise<void>((resolve) => {
+                          requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+                        })
+                    ),
                     page.waitForTimeout(RAF_TIMEOUT_MS),
-                  ]).catch(() => { /* non-fatal */ });
+                  ]).catch(() => {
+                    /* non-fatal */
+                  });
                   iterations++;
                 }
 
@@ -1979,7 +2023,7 @@ class PageIngestAdapter {
                 await page.waitForTimeout(LAZY_SCROLL_STABILIZE_MS);
 
                 if (isDevelopment()) {
-                  logger.debug('[PageIngestAdapter] Lazy loading scroll completed', {
+                  logger.debug("[PageIngestAdapter] Lazy loading scroll completed", {
                     scrollHeight,
                     viewportHeight,
                     iterations,
@@ -1989,7 +2033,7 @@ class PageIngestAdapter {
             } catch (scrollError) {
               // Graceful Degradation: スクロール失敗時もスクリーンショットは続行
               // Graceful Degradation: continue screenshot even if scroll fails
-              logger.warn('[PageIngestAdapter] Pre-screenshot scroll failed (non-fatal)', {
+              logger.warn("[PageIngestAdapter] Pre-screenshot scroll failed (non-fatal)", {
                 error: scrollError instanceof Error ? scrollError.message : String(scrollError),
               });
             }
@@ -1998,32 +2042,33 @@ class PageIngestAdapter {
           const screenshotBuffer = await withGlobalTimeout(
             page.screenshot({
               fullPage: effectiveFullPage,
-              type: 'png',
+              type: "png",
               timeout: screenshotTimeout,
             }),
-            'page.screenshot'
+            "page.screenshot"
           );
-          const screenshotBase64 = screenshotBuffer.toString('base64');
+          const screenshotBase64 = screenshotBuffer.toString("base64");
           screenshots = [
             {
-              viewportName: 'desktop',
+              viewportName: "desktop",
               viewport,
               data: screenshotBase64,
-              format: 'png',
+              format: "png",
               fullPage: effectiveFullPage,
               size: screenshotBuffer.length,
             },
           ];
         } catch (screenshotError) {
           // Graceful Degradation: スクリーンショット失敗時も続行
-          const errorMessage = screenshotError instanceof Error ? screenshotError.message : String(screenshotError);
+          const errorMessage =
+            screenshotError instanceof Error ? screenshotError.message : String(screenshotError);
           warnings.push({
-            code: 'SCREENSHOT_FAILED',
+            code: "SCREENSHOT_FAILED",
             message: `Screenshot capture failed: ${errorMessage}. Analysis will continue without screenshot.`,
           });
 
           if (isDevelopment()) {
-            logger.warn('[PageIngestAdapter] Screenshot failed, continuing without screenshot', {
+            logger.warn("[PageIngestAdapter] Screenshot failed, continuing without screenshot", {
               error: errorMessage,
               isWebGLSite,
               fullPage: ingestOptions.fullPage ?? true,
@@ -2039,7 +2084,7 @@ class PageIngestAdapter {
       }
 
       if (isDevelopment()) {
-        logger.info('[PageIngestAdapter] Ingest completed', {
+        logger.info("[PageIngestAdapter] Ingest completed", {
           url,
           finalUrl,
           htmlSize: html.length,
@@ -2062,8 +2107,8 @@ class PageIngestAdapter {
         metadata,
         ingestedAt: new Date(),
         source: {
-          type: ingestOptions.sourceType ?? 'user_provided',
-          usageScope: ingestOptions.usageScope ?? 'inspiration_only',
+          type: ingestOptions.sourceType ?? "user_provided",
+          usageScope: ingestOptions.usageScope ?? "inspiration_only",
         },
       };
 
@@ -2105,7 +2150,7 @@ class PageIngestAdapter {
       const errorMessage = error instanceof Error ? error.message : String(error);
 
       if (isDevelopment()) {
-        logger.error('[PageIngestAdapter] Ingest failed', {
+        logger.error("[PageIngestAdapter] Ingest failed", {
           url,
           error: errorMessage,
         });
@@ -2117,7 +2162,7 @@ class PageIngestAdapter {
         error: errorMessage,
         url,
         finalUrl: url,
-        html: '',
+        html: "",
         htmlSize: 0,
         viewportInfo: {
           documentWidth: 0,
@@ -2126,11 +2171,11 @@ class PageIngestAdapter {
           viewportHeight: 0,
           scrollHeight: 0,
         },
-        metadata: { title: '' },
+        metadata: { title: "" },
         ingestedAt: new Date(),
         source: {
-          type: options.sourceType ?? 'user_provided',
-          usageScope: options.usageScope ?? 'inspiration_only',
+          type: options.sourceType ?? "user_provided",
+          usageScope: options.usageScope ?? "inspiration_only",
         },
       };
     } finally {
@@ -2145,13 +2190,13 @@ class PageIngestAdapter {
       // BrowserProcessManagerを使用して安全にクローズ
       if (dedicatedBrowser) {
         if (isDevelopment()) {
-          logger.debug('[PageIngestAdapter] Closing dedicated browser');
+          logger.debug("[PageIngestAdapter] Closing dedicated browser");
         }
         if (processManager) {
           // BrowserProcessManagerを使用して安全にクローズ（タイムアウト10秒）
           const closed = await processManager.closeWithTimeout(10000);
           if (!closed && isDevelopment()) {
-            logger.warn('[PageIngestAdapter] Dedicated browser close timed out in finally block');
+            logger.warn("[PageIngestAdapter] Dedicated browser close timed out in finally block");
           }
         } else {
           // processManagerがない場合は従来の方法でクローズ
@@ -2171,7 +2216,7 @@ class PageIngestAdapter {
       await this.browser.close();
       this.browser = null;
       if (isDevelopment()) {
-        logger.info('[PageIngestAdapter] Browser closed');
+        logger.info("[PageIngestAdapter] Browser closed");
       }
     }
   }
@@ -2187,16 +2232,16 @@ let processListenersRegistered = false;
 if (!processListenersRegistered) {
   processListenersRegistered = true;
 
-  process.on('beforeExit', async () => {
+  process.on("beforeExit", async () => {
     await pageIngestAdapter.close();
   });
 
-  process.on('SIGINT', async () => {
+  process.on("SIGINT", async () => {
     await pageIngestAdapter.close();
     process.exit(0);
   });
 
-  process.on('SIGTERM', async () => {
+  process.on("SIGTERM", async () => {
     await pageIngestAdapter.close();
     process.exit(0);
   });
@@ -2207,5 +2252,5 @@ if (!processListenersRegistered) {
 // =============================================
 
 if (isDevelopment()) {
-  logger.debug('[PageIngestAdapter] Module loaded (Playwright direct integration)');
+  logger.debug("[PageIngestAdapter] Module loaded (Playwright direct integration)");
 }

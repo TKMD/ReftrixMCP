@@ -18,13 +18,13 @@
  * @module tools/motion/detect.tool
  */
 
-import { ZodError } from 'zod';
-import { logger, isDevelopment } from '../../utils/logger';
+import { ZodError } from "zod";
+import { logger, isDevelopment } from "../../utils/logger";
 import {
   createValidationErrorWithHints,
   formatMultipleDetailedErrors,
   formatZodError,
-} from '../../utils/error-messages';
+} from "../../utils/error-messages";
 import {
   motionDetectInputSchema,
   calculateComplexityScore,
@@ -46,7 +46,7 @@ import {
   MOTION_MCP_ERROR_CODES,
   MOTION_WARNING_CODES,
   type MotionMcpErrorCode,
-} from './schemas';
+} from "./schemas";
 
 // DI factories
 import {
@@ -94,7 +94,7 @@ import {
   type FrameImageAnalysisOutput,
   type JSAnimationResult,
   type FindOrCreateResult,
-} from './di-factories';
+} from "./di-factories";
 
 // Detection modes
 import {
@@ -105,18 +105,23 @@ import {
   executeFrameCapture,
   executeRuntimeDetection,
   defaultDetect,
-} from './detection-modes';
+} from "./detection-modes";
 
 // CSS mode handler
-import { handleCssMode, savePatternsToDb, generateWebglDetectionWarning, type SaveResultWithDebug } from './css-mode-handler';
+import {
+  handleCssMode,
+  savePatternsToDb,
+  generateWebglDetectionWarning,
+  type SaveResultWithDebug,
+} from "./css-mode-handler";
 
 // JS Animation DB保存（page.analyze と共有）
 import {
   mapJSAnimationResultToPatterns,
   saveJSAnimationPatternsWithEmbeddings,
-} from '../page/handlers/js-animation-handler';
-import type { JSAnimationFullResult } from '../page/handlers/types';
-import { getJSAnimationPersistencePrismaClient } from './di-factories';
+} from "../page/handlers/js-animation-handler";
+import type { JSAnimationFullResult } from "../page/handlers/types";
+import { getJSAnimationPersistencePrismaClient } from "./di-factories";
 
 // =====================================================
 // タイムアウト設定定数 (v0.1.0)
@@ -134,13 +139,13 @@ export const MIN_MOTION_TIMEOUT = 30000;
  */
 export const TimeoutWarningCode = {
   /** motion.detect 全体のタイムアウト */
-  MOTION_DETECTION_TIMEOUT: 'MOTION_DETECTION_TIMEOUT',
+  MOTION_DETECTION_TIMEOUT: "MOTION_DETECTION_TIMEOUT",
   /** JSアニメーション検出のタイムアウト */
-  JS_ANIMATION_TIMEOUT: 'JS_ANIMATION_TIMEOUT',
+  JS_ANIMATION_TIMEOUT: "JS_ANIMATION_TIMEOUT",
   /** フレームキャプチャのタイムアウト */
-  FRAME_CAPTURE_TIMEOUT: 'FRAME_CAPTURE_TIMEOUT',
+  FRAME_CAPTURE_TIMEOUT: "FRAME_CAPTURE_TIMEOUT",
   /** 部分的な結果（一部処理がタイムアウト） */
-  PARTIAL_RESULT: 'PARTIAL_RESULT',
+  PARTIAL_RESULT: "PARTIAL_RESULT",
 } as const;
 
 export type TimeoutWarningCodeType = (typeof TimeoutWarningCode)[keyof typeof TimeoutWarningCode];
@@ -159,7 +164,7 @@ export class MotionTimeoutError extends Error {
 
   constructor(phase: string, elapsedMs: number) {
     super(`Motion detection timeout in ${phase} phase after ${elapsedMs}ms`);
-    this.name = 'MotionTimeoutError';
+    this.name = "MotionTimeoutError";
     this.phase = phase;
     this.elapsedMs = elapsedMs;
   }
@@ -181,7 +186,7 @@ export async function withTimeout<T>(
       reject(new MotionTimeoutError(phase, elapsedMs));
     }, timeoutMs);
     // Node.js特有: タイマーがプロセス終了を阻止しないようにする
-    if (typeof timer === 'object' && timer !== null && 'unref' in timer) {
+    if (typeof timer === "object" && timer !== null && "unref" in timer) {
       (timer as { unref: () => void }).unref();
     }
   });
@@ -200,7 +205,7 @@ export function createTimeoutResponse(
   const warnings: MotionWarning[] = [
     {
       code: TimeoutWarningCode.MOTION_DETECTION_TIMEOUT,
-      severity: 'warning',
+      severity: "warning",
       message: `Motion detection timed out in ${phase} phase after ${elapsedMs}ms`,
       context: { elapsedMs, phase },
     },
@@ -209,7 +214,7 @@ export function createTimeoutResponse(
   if (partialPatterns.length > 0) {
     warnings.push({
       code: TimeoutWarningCode.PARTIAL_RESULT,
-      severity: 'info',
+      severity: "info",
       message: `Partial results available: ${partialPatterns.length} patterns detected before timeout`,
     });
   }
@@ -238,9 +243,9 @@ export function createTimeoutResponse(
         timeout_phase: phase,
         timeout_elapsed_ms: elapsedMs,
         processingTimeMs: elapsedMs,
-        detection_mode: 'css',
+        detection_mode: "css",
         detectedAt: new Date().toISOString(),
-        schemaVersion: '0.1.0',
+        schemaVersion: "0.1.0",
       },
     },
   };
@@ -249,12 +254,7 @@ export function createTimeoutResponse(
 // Re-exports for backward compatibility
 export type { MotionDetectInput, MotionDetectOutput };
 export { motionDetectInputSchema };
-export {
-  SSRFBlockedError,
-  VideoRecordError,
-  FrameAnalysisError,
-  executeFrameCapture,
-};
+export { SSRFBlockedError, VideoRecordError, FrameAnalysisError, executeFrameCapture };
 export {
   setMotionDetectServiceFactory,
   resetMotionDetectServiceFactory,
@@ -311,13 +311,11 @@ export {
  * - hybrid: runtime + CSS
  * - css (default): handleCssMode
  */
-export async function motionDetectHandler(
-  input: unknown
-): Promise<MotionDetectOutput> {
+export async function motionDetectHandler(input: unknown): Promise<MotionDetectOutput> {
   const startTime = Date.now();
 
   if (isDevelopment()) {
-    logger.info('[MCP Tool] motion.detect called', {
+    logger.info("[MCP Tool] motion.detect called", {
       hasInput: input !== null && input !== undefined,
     });
   }
@@ -328,12 +326,12 @@ export async function motionDetectHandler(
     validated = motionDetectInputSchema.parse(input);
   } catch (error) {
     if (error instanceof ZodError) {
-      const errorWithHints = createValidationErrorWithHints(error, 'motion.detect');
+      const errorWithHints = createValidationErrorWithHints(error, "motion.detect");
       const detailedMessage = formatMultipleDetailedErrors(errorWithHints.errors);
       const formattedErrors = formatZodError(error);
 
       if (isDevelopment()) {
-        logger.error('[MCP Tool] motion.detect validation error', {
+        logger.error("[MCP Tool] motion.detect validation error", {
           errors: errorWithHints.errors,
         });
       }
@@ -352,13 +350,13 @@ export async function motionDetectHandler(
     }
 
     if (isDevelopment()) {
-      logger.error('[MCP Tool] motion.detect validation error', { error });
+      logger.error("[MCP Tool] motion.detect validation error", { error });
     }
     return {
       success: false,
       error: {
         code: MOTION_MCP_ERROR_CODES.VALIDATION_ERROR,
-        message: error instanceof Error ? error.message : 'Invalid input',
+        message: error instanceof Error ? error.message : "Invalid input",
       },
     };
   }
@@ -372,12 +370,12 @@ export async function motionDetectHandler(
 
   if (elapsedAfterValidation >= timeout) {
     if (isDevelopment()) {
-      logger.warn('[MCP Tool] motion.detect timeout before processing', {
+      logger.warn("[MCP Tool] motion.detect timeout before processing", {
         timeout,
         elapsed: elapsedAfterValidation,
       });
     }
-    return createTimeoutResponse('validation', elapsedAfterValidation);
+    return createTimeoutResponse("validation", elapsedAfterValidation);
   }
 
   // 残りの時間でタイムアウト付き処理を実行
@@ -386,12 +384,12 @@ export async function motionDetectHandler(
   // =====================================================
   // Video Mode Detection
   // =====================================================
-  if (validated.detection_mode === 'video' && validated.url) {
+  if (validated.detection_mode === "video" && validated.url) {
     try {
       return await withTimeout(
         handleVideoMode(validated, startTime),
         remainingTimeout,
-        'video',
+        "video",
         startTime
       );
     } catch (error) {
@@ -405,12 +403,12 @@ export async function motionDetectHandler(
   // =====================================================
   // Runtime Mode Detection
   // =====================================================
-  if (validated.detection_mode === 'runtime' && validated.url) {
+  if (validated.detection_mode === "runtime" && validated.url) {
     try {
       return await withTimeout(
         handleRuntimeMode(validated, startTime),
         remainingTimeout,
-        'runtime',
+        "runtime",
         startTime
       );
     } catch (error) {
@@ -424,12 +422,12 @@ export async function motionDetectHandler(
   // =====================================================
   // Hybrid Mode Detection (CSS + Runtime)
   // =====================================================
-  if (validated.detection_mode === 'hybrid' && validated.url) {
+  if (validated.detection_mode === "hybrid" && validated.url) {
     try {
       return await withTimeout(
         handleHybridMode(validated, startTime),
         remainingTimeout,
-        'hybrid',
+        "hybrid",
         startTime
       );
     } catch (error) {
@@ -445,11 +443,14 @@ export async function motionDetectHandler(
   // 注: library_only モードは layout_first モード経由で使用される
   // 直接呼び出しの場合はデフォルトモードにフォールバック
   // =====================================================
-  if (validated.detection_mode === 'library_only') {
+  if (validated.detection_mode === "library_only") {
     if (isDevelopment()) {
-      logger.info('[MCP Tool] library_only mode: falling back to css mode with JS animation detection', {
-        url: validated.url,
-      });
+      logger.info(
+        "[MCP Tool] library_only mode: falling back to css mode with JS animation detection",
+        {
+          url: validated.url,
+        }
+      );
     }
     // デフォルトモードで処理（layout_first経由で呼び出される場合はJS animation optionsが設定済み）
   }
@@ -461,7 +462,7 @@ export async function motionDetectHandler(
     return await withTimeout(
       handleDefaultMode(validated, startTime),
       remainingTimeout,
-      'css',
+      "css",
       startTime
     );
   } catch (error) {
@@ -494,12 +495,12 @@ async function findOrCreateWebPageForUrl(
   try {
     const webPageService = getWebPageService();
     const result = await webPageService.findOrCreateByUrl(url, {
-      sourceType: 'user_provided',
-      usageScope: 'inspiration_only',
+      sourceType: "user_provided",
+      usageScope: "inspiration_only",
     });
 
     if (isDevelopment()) {
-      logger.info('[MCP Tool] motion.detect WebPage findOrCreate result', {
+      logger.info("[MCP Tool] motion.detect WebPage findOrCreate result", {
         url,
         webPageId: result.id,
         created: result.created,
@@ -512,9 +513,9 @@ async function findOrCreateWebPageForUrl(
     };
   } catch (error) {
     if (isDevelopment()) {
-      logger.warn('[MCP Tool] motion.detect WebPage findOrCreate failed', {
+      logger.warn("[MCP Tool] motion.detect WebPage findOrCreate failed", {
         url,
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: error instanceof Error ? error.message : "Unknown error",
       });
     }
     // エラー時はnullを返す（graceful degradation: 保存は source_url のみで続行）
@@ -531,7 +532,7 @@ async function handleVideoMode(
   startTime: number
 ): Promise<MotionDetectOutput> {
   if (isDevelopment()) {
-    logger.info('[MCP Tool] motion.detect using video mode', {
+    logger.info("[MCP Tool] motion.detect using video mode", {
       url: validated.url,
       videoOptions: validated.video_options,
     });
@@ -569,15 +570,15 @@ async function handleVideoMode(
           scroll_px_per_frame?: number;
           frame_interval_ms?: number;
           output_dir?: string;
-          output_format?: 'png' | 'jpeg';
+          output_format?: "png" | "jpeg";
           filename_pattern?: string;
           viewport?: { width: number; height: number };
         } = {
           scroll_px_per_frame: frameCaptureOpts.scroll_px_per_frame ?? 15,
           frame_interval_ms: frameCaptureOpts.frame_interval_ms ?? 33,
-          output_dir: frameCaptureOpts.output_dir ?? '/tmp/reftrix-frames/',
-          output_format: frameCaptureOpts.output_format ?? 'png',
-          filename_pattern: frameCaptureOpts.filename_pattern ?? 'frame-{0000}.png',
+          output_dir: frameCaptureOpts.output_dir ?? "/tmp/reftrix-frames/",
+          output_format: frameCaptureOpts.output_format ?? "png",
+          filename_pattern: frameCaptureOpts.filename_pattern ?? "frame-{0000}.png",
         };
         if (validated.video_options?.viewport) {
           frameCaptureExecOpts.viewport = validated.video_options.viewport;
@@ -588,8 +589,11 @@ async function handleVideoMode(
         frameCaptureProcessingTimeMs = Date.now() - frameCaptureStartTime;
         const errorObj = fcErr as Error & { code?: string };
         frameCaptureError = {
-          code: errorObj.name === 'SSRFBlockedError' ? 'FRAME_CAPTURE_SSRF_BLOCKED' : 'FRAME_CAPTURE_ERROR',
-          message: fcErr instanceof Error ? fcErr.message : 'Frame capture failed',
+          code:
+            errorObj.name === "SSRFBlockedError"
+              ? "FRAME_CAPTURE_SSRF_BLOCKED"
+              : "FRAME_CAPTURE_ERROR",
+          message: fcErr instanceof Error ? fcErr.message : "Frame capture failed",
         };
       }
     }
@@ -623,18 +627,22 @@ async function handleVideoMode(
     );
 
     // Phase7: Frame Analysis DB保存（非同期、メインレスポンスをブロックしない）
-    let frameAnalysisSaveResult: {
-      saved: boolean;
-      savedCount: number;
-      patternIds: string[];
-      embeddingIds: string[];
-      reason?: string | undefined;
-      byCategory?: {
-        animationZones: number;
-        layoutShifts: number;
-        motionVectors: number;
-      } | undefined;
-    } | undefined;
+    let frameAnalysisSaveResult:
+      | {
+          saved: boolean;
+          savedCount: number;
+          patternIds: string[];
+          embeddingIds: string[];
+          reason?: string | undefined;
+          byCategory?:
+            | {
+                animationZones: number;
+                layoutShifts: number;
+                motionVectors: number;
+              }
+            | undefined;
+        }
+      | undefined;
 
     if (validated.save_to_db && frameAnalysisResults.result) {
       const frameAnalysisSaveResultPromise = executeFrameAnalysisSave(
@@ -648,7 +656,7 @@ async function handleVideoMode(
         frameAnalysisSaveResult = await frameAnalysisSaveResultPromise;
 
         if (isDevelopment()) {
-          logger.info('[MCP Tool] motion.detect frame analysis DB save completed', {
+          logger.info("[MCP Tool] motion.detect frame analysis DB save completed", {
             saved: frameAnalysisSaveResult.saved,
             savedCount: frameAnalysisSaveResult.savedCount,
             patternIds: frameAnalysisSaveResult.patternIds.length,
@@ -656,8 +664,8 @@ async function handleVideoMode(
         }
       } catch (saveError) {
         if (isDevelopment()) {
-          logger.warn('[MCP Tool] motion.detect frame analysis DB save failed', {
-            error: saveError instanceof Error ? saveError.message : 'Unknown error',
+          logger.warn("[MCP Tool] motion.detect frame analysis DB save failed", {
+            error: saveError instanceof Error ? saveError.message : "Unknown error",
           });
         }
         // エラー時も結果を返す（saved: false）
@@ -666,7 +674,7 @@ async function handleVideoMode(
           savedCount: 0,
           patternIds: [],
           embeddingIds: [],
-          reason: saveError instanceof Error ? saveError.message : 'DB save failed',
+          reason: saveError instanceof Error ? saveError.message : "DB save failed",
         };
       }
     }
@@ -676,7 +684,7 @@ async function handleVideoMode(
     let patternSaveResult: SaveResultWithDebug | undefined;
     if (validated.save_to_db && patterns.length > 0) {
       if (isDevelopment()) {
-        logger.info('[MCP Tool] motion.detect saving patterns to DB (video mode)', {
+        logger.info("[MCP Tool] motion.detect saving patterns to DB (video mode)", {
           patternsCount: patterns.length,
           webPageId,
           webPageCreated,
@@ -714,7 +722,7 @@ async function handleVideoMode(
     if (webglWarning) {
       allWarnings.push(webglWarning);
       if (isDevelopment()) {
-        logger.info('[MCP Tool] motion.detect WebGL detection warning added (video mode)', {
+        logger.info("[MCP Tool] motion.detect WebGL detection warning added (video mode)", {
           patternCount: patterns.length,
           detectJsAnimations: validated.detect_js_animations ?? false,
         });
@@ -736,12 +744,14 @@ async function handleVideoMode(
     const metadata: MotionMetadata = {
       detectedAt: new Date().toISOString(),
       processingTimeMs,
-      schemaVersion: '0.1.0',
-      detection_mode: 'video',
+      schemaVersion: "0.1.0",
+      detection_mode: "video",
       lighthouse_processing_time_ms: lighthouseResults.processingTimeMs,
       analyze_metrics_processing_time_ms: animationMetricsResults.processingTimeMs,
       frame_analysis_processing_time_ms: frameAnalysisResults.processingTimeMs,
-      frame_capture_processing_time_ms: validated.enable_frame_capture ? frameCaptureProcessingTimeMs : undefined,
+      frame_capture_processing_time_ms: validated.enable_frame_capture
+        ? frameCaptureProcessingTimeMs
+        : undefined,
       js_animation_processing_time_ms: jsAnimationResults.processingTimeMs,
     };
 
@@ -780,7 +790,7 @@ async function handleVideoMode(
     };
   } catch (error) {
     if (isDevelopment()) {
-      logger.error('[MCP Tool] motion.detect video mode error', { error });
+      logger.error("[MCP Tool] motion.detect video mode error", { error });
     }
 
     let errorCode: MotionMcpErrorCode = MOTION_MCP_ERROR_CODES.VIDEO_RECORD_ERROR;
@@ -789,16 +799,17 @@ async function handleVideoMode(
     } else if (error instanceof FrameAnalysisError) {
       errorCode = MOTION_MCP_ERROR_CODES.FRAME_ANALYSIS_ERROR;
     } else if (error instanceof VideoRecordError) {
-      errorCode = error.message.includes('timeout') || error.message.includes('Timeout')
-        ? MOTION_MCP_ERROR_CODES.VIDEO_TIMEOUT_ERROR
-        : MOTION_MCP_ERROR_CODES.VIDEO_RECORD_ERROR;
+      errorCode =
+        error.message.includes("timeout") || error.message.includes("Timeout")
+          ? MOTION_MCP_ERROR_CODES.VIDEO_TIMEOUT_ERROR
+          : MOTION_MCP_ERROR_CODES.VIDEO_RECORD_ERROR;
     }
 
     return {
       success: false,
       error: {
         code: errorCode,
-        message: error instanceof Error ? error.message : 'Video detection failed',
+        message: error instanceof Error ? error.message : "Video detection failed",
       },
     };
   }
@@ -813,7 +824,7 @@ async function handleRuntimeMode(
   startTime: number
 ): Promise<MotionDetectOutput> {
   if (isDevelopment()) {
-    logger.info('[MCP Tool] motion.detect using runtime mode', {
+    logger.info("[MCP Tool] motion.detect using runtime mode", {
       url: validated.url,
       runtimeOptions: validated.runtime_options,
     });
@@ -847,7 +858,7 @@ async function handleRuntimeMode(
     let patternSaveResult: SaveResultWithDebug | undefined;
     if (validated.save_to_db && patterns.length > 0) {
       if (isDevelopment()) {
-        logger.info('[MCP Tool] motion.detect saving patterns to DB (runtime mode)', {
+        logger.info("[MCP Tool] motion.detect saving patterns to DB (runtime mode)", {
           patternsCount: patterns.length,
           webPageId,
           webPageCreated,
@@ -878,7 +889,7 @@ async function handleRuntimeMode(
     if (webglWarning) {
       allWarnings.push(webglWarning);
       if (isDevelopment()) {
-        logger.info('[MCP Tool] motion.detect WebGL detection warning added (runtime mode)', {
+        logger.info("[MCP Tool] motion.detect WebGL detection warning added (runtime mode)", {
           patternCount: patterns.length,
           detectJsAnimations: validated.detect_js_animations ?? false,
         });
@@ -893,15 +904,15 @@ async function handleRuntimeMode(
       byTrigger: countByTrigger(patterns),
       byCategory: countByCategory(patterns),
       averageDuration: calculateAverageDuration(patterns),
-      hasInfiniteAnimations: patterns.some((p) => p.animation?.iterations === 'infinite'),
+      hasInfiniteAnimations: patterns.some((p) => p.animation?.iterations === "infinite"),
       complexityScore: calculateComplexityScore(patterns),
     };
 
     const metadata: MotionMetadata = {
       detectedAt: new Date().toISOString(),
       processingTimeMs,
-      schemaVersion: '0.1.0',
-      detection_mode: 'runtime',
+      schemaVersion: "0.1.0",
+      detection_mode: "runtime",
       js_animation_processing_time_ms: jsAnimationResults.processingTimeMs,
     };
 
@@ -922,16 +933,17 @@ async function handleRuntimeMode(
     };
   } catch (error) {
     if (isDevelopment()) {
-      logger.error('[MCP Tool] motion.detect runtime mode error', { error });
+      logger.error("[MCP Tool] motion.detect runtime mode error", { error });
     }
 
     return {
       success: false,
       error: {
-        code: error instanceof SSRFBlockedError
-          ? MOTION_MCP_ERROR_CODES.SSRF_BLOCKED
-          : MOTION_MCP_ERROR_CODES.INTERNAL_ERROR,
-        message: error instanceof Error ? error.message : 'Runtime detection failed',
+        code:
+          error instanceof SSRFBlockedError
+            ? MOTION_MCP_ERROR_CODES.SSRF_BLOCKED
+            : MOTION_MCP_ERROR_CODES.INTERNAL_ERROR,
+        message: error instanceof Error ? error.message : "Runtime detection failed",
       },
     };
   }
@@ -946,7 +958,7 @@ async function handleHybridMode(
   startTime: number
 ): Promise<MotionDetectOutput> {
   if (isDevelopment()) {
-    logger.info('[MCP Tool] motion.detect using hybrid mode', {
+    logger.info("[MCP Tool] motion.detect using hybrid mode", {
       url: validated.url,
       runtimeOptions: validated.runtime_options,
     });
@@ -954,29 +966,26 @@ async function handleHybridMode(
 
   try {
     // 1. Runtime検出を実行
-    const runtimeResult = await executeRuntimeDetection(
-      validated.url!,
-      validated.runtime_options
-    );
+    const runtimeResult = await executeRuntimeDetection(validated.url!, validated.runtime_options);
 
     // 2. CSS検出も実行
-    const { chromium } = await import('playwright');
+    const { chromium } = await import("playwright");
     let browser = null;
-    let htmlContent = '';
+    let htmlContent = "";
 
     try {
       browser = await chromium.launch({
         headless: true,
-        args: ['--no-sandbox', '--disable-setuid-sandbox'],
+        args: ["--no-sandbox", "--disable-setuid-sandbox"],
       });
       const context = await browser.newContext();
       const page = await context.newPage();
       // WebGL/3Dサイト対応: domcontentloadedで待機（loadは3Dサイトで非常に時間がかかる）
-      await page.goto(validated.url!, { waitUntil: 'domcontentloaded', timeout: 30000 });
+      await page.goto(validated.url!, { waitUntil: "domcontentloaded", timeout: 30000 });
       htmlContent = await page.content();
     } catch {
       if (isDevelopment()) {
-        logger.warn('[MCP Tool] motion.detect hybrid mode: failed to get HTML for CSS detection');
+        logger.warn("[MCP Tool] motion.detect hybrid mode: failed to get HTML for CSS detection");
       }
     } finally {
       // ブラウザリソースを確実に解放
@@ -1022,7 +1031,7 @@ async function handleHybridMode(
     if (webglWarning) {
       mergedWarnings.push(webglWarning);
       if (isDevelopment()) {
-        logger.info('[MCP Tool] motion.detect WebGL detection warning added (hybrid mode)', {
+        logger.info("[MCP Tool] motion.detect WebGL detection warning added (hybrid mode)", {
           patternCount: mergedPatterns.length,
           detectJsAnimations: validated.detect_js_animations ?? false,
         });
@@ -1044,7 +1053,7 @@ async function handleHybridMode(
     let patternSaveResult: SaveResultWithDebug | undefined;
     if (validated.save_to_db && mergedPatterns.length > 0) {
       if (isDevelopment()) {
-        logger.info('[MCP Tool] motion.detect saving patterns to DB (hybrid mode)', {
+        logger.info("[MCP Tool] motion.detect saving patterns to DB (hybrid mode)", {
           patternsCount: mergedPatterns.length,
           webPageId,
           webPageCreated,
@@ -1072,15 +1081,15 @@ async function handleHybridMode(
       byTrigger: countByTrigger(mergedPatterns),
       byCategory: countByCategory(mergedPatterns),
       averageDuration: calculateAverageDuration(mergedPatterns),
-      hasInfiniteAnimations: mergedPatterns.some((p) => p.animation?.iterations === 'infinite'),
+      hasInfiniteAnimations: mergedPatterns.some((p) => p.animation?.iterations === "infinite"),
       complexityScore: calculateComplexityScore(mergedPatterns),
     };
 
     const metadata: MotionMetadata = {
       detectedAt: new Date().toISOString(),
       processingTimeMs,
-      schemaVersion: '0.1.0',
-      detection_mode: 'hybrid',
+      schemaVersion: "0.1.0",
+      detection_mode: "hybrid",
       js_animation_processing_time_ms: jsAnimationResults.processingTimeMs,
     };
 
@@ -1110,16 +1119,17 @@ async function handleHybridMode(
     };
   } catch (error) {
     if (isDevelopment()) {
-      logger.error('[MCP Tool] motion.detect hybrid mode error', { error });
+      logger.error("[MCP Tool] motion.detect hybrid mode error", { error });
     }
 
     return {
       success: false,
       error: {
-        code: error instanceof SSRFBlockedError
-          ? MOTION_MCP_ERROR_CODES.SSRF_BLOCKED
-          : MOTION_MCP_ERROR_CODES.INTERNAL_ERROR,
-        message: error instanceof Error ? error.message : 'Hybrid detection failed',
+        code:
+          error instanceof SSRFBlockedError
+            ? MOTION_MCP_ERROR_CODES.SSRF_BLOCKED
+            : MOTION_MCP_ERROR_CODES.INTERNAL_ERROR,
+        message: error instanceof Error ? error.message : "Hybrid detection failed",
       },
     };
   }
@@ -1147,7 +1157,7 @@ async function handleDefaultMode(
           success: false,
           error: {
             code: MOTION_MCP_ERROR_CODES.SERVICE_UNAVAILABLE,
-            message: 'Page service is not available',
+            message: "Page service is not available",
           },
         };
       }
@@ -1168,13 +1178,13 @@ async function handleDefaultMode(
       pageId = page.id;
     } catch (error) {
       if (isDevelopment()) {
-        logger.error('[MCP Tool] motion.detect DB error', { error });
+        logger.error("[MCP Tool] motion.detect DB error", { error });
       }
       return {
         success: false,
         error: {
           code: MOTION_MCP_ERROR_CODES.DB_ERROR,
-          message: error instanceof Error ? error.message : 'Database error',
+          message: error instanceof Error ? error.message : "Database error",
         },
       };
     }
@@ -1185,7 +1195,7 @@ async function handleDefaultMode(
       success: false,
       error: {
         code: MOTION_MCP_ERROR_CODES.VALIDATION_ERROR,
-        message: 'No HTML content provided',
+        message: "No HTML content provided",
       },
     };
   }
@@ -1198,7 +1208,9 @@ async function handleDefaultMode(
 // =====================================================
 
 interface LighthouseResult {
-  metrics: ReturnType<typeof getLighthouseDetectorService> extends null ? null : LighthouseDetailedResult['metrics'] | null;
+  metrics: ReturnType<typeof getLighthouseDetectorService> extends null
+    ? null
+    : LighthouseDetailedResult["metrics"] | null;
   error?: { code: string; message: string } | undefined;
   warnings: MotionWarning[];
   processingTimeMs?: number | undefined;
@@ -1220,8 +1232,8 @@ async function executeLighthouseIfEnabled(
   if (!lighthouseService) {
     warnings.push({
       code: MOTION_WARNING_CODES.LIGHTHOUSE_UNAVAILABLE,
-      severity: 'warning',
-      message: 'Lighthouse detector service factory not configured',
+      severity: "warning",
+      message: "Lighthouse detector service factory not configured",
     });
     return { metrics: null, warnings, processingTimeMs: Date.now() - startTime };
   }
@@ -1231,8 +1243,8 @@ async function executeLighthouseIfEnabled(
     if (!isAvailable) {
       warnings.push({
         code: MOTION_WARNING_CODES.LIGHTHOUSE_UNAVAILABLE,
-        severity: 'warning',
-        message: 'Lighthouse service is not available',
+        severity: "warning",
+        message: "Lighthouse service is not available",
       });
       return { metrics: null, warnings, processingTimeMs: Date.now() - startTime };
     }
@@ -1242,7 +1254,7 @@ async function executeLighthouseIfEnabled(
       throttling?: boolean;
       timeout?: number;
     } = {
-      categories: options.categories || ['performance'],
+      categories: options.categories || ["performance"],
       throttling: options.throttling ?? false,
     };
     if (options.timeout !== undefined) {
@@ -1261,15 +1273,16 @@ async function executeLighthouseIfEnabled(
     return returnResult;
   } catch (err) {
     const errorObj = err as Error & { code?: string };
-    const isTimeout = errorObj.message?.toLowerCase().includes('timeout') ||
-      errorObj.message?.toLowerCase().includes('timed out') ||
-      errorObj.code === 'TIMEOUT';
+    const isTimeout =
+      errorObj.message?.toLowerCase().includes("timeout") ||
+      errorObj.message?.toLowerCase().includes("timed out") ||
+      errorObj.code === "TIMEOUT";
 
     return {
       metrics: null,
       error: {
-        code: isTimeout ? 'LIGHTHOUSE_TIMEOUT' : 'LIGHTHOUSE_ERROR',
-        message: err instanceof Error ? err.message : 'Lighthouse analysis failed',
+        code: isTimeout ? "LIGHTHOUSE_TIMEOUT" : "LIGHTHOUSE_ERROR",
+        message: err instanceof Error ? err.message : "Lighthouse analysis failed",
       },
       warnings,
       processingTimeMs: Date.now() - startTime,
@@ -1291,7 +1304,7 @@ interface AnimationMetricsResultWrapper {
 async function executeAnimationMetricsIfEnabled(
   enabled: boolean | undefined,
   patterns: MotionPattern[],
-  lighthouseMetrics: LighthouseDetailedResult['metrics'] | null | undefined,
+  lighthouseMetrics: LighthouseDetailedResult["metrics"] | null | undefined,
   options: AnalyzeMetricsOptions | undefined
 ): Promise<AnimationMetricsResultWrapper> {
   if (!enabled) {
@@ -1305,8 +1318,8 @@ async function executeAnimationMetricsIfEnabled(
   if (!collector) {
     warnings.push({
       code: MOTION_WARNING_CODES.ANIMATION_METRICS_UNAVAILABLE,
-      severity: 'warning',
-      message: 'Animation metrics collector factory not configured',
+      severity: "warning",
+      message: "Animation metrics collector factory not configured",
     });
     return { metrics: null, warnings, processingTimeMs: Date.now() - startTime };
   }
@@ -1322,36 +1335,48 @@ async function executeAnimationMetricsIfEnabled(
         patternId: impact.patternId,
         patternName: impact.patternName,
         impactScore: impact.score,
-        layoutImpact: Math.min(100, impact.factors.filter((f) => f.includes('layout')).length * 25),
-        renderImpact: Math.min(100, impact.factors.filter((f) => f.includes('paint') || f.includes('render')).length * 25),
-        cpuImpact: Math.min(100, impact.factors.filter((f) => f.includes('cpu') || f.includes('duration')).length * 25),
-        severity: impact.impactLevel === 'high' ? 'critical' : impact.impactLevel,
+        layoutImpact: Math.min(100, impact.factors.filter((f) => f.includes("layout")).length * 25),
+        renderImpact: Math.min(
+          100,
+          impact.factors.filter((f) => f.includes("paint") || f.includes("render")).length * 25
+        ),
+        cpuImpact: Math.min(
+          100,
+          impact.factors.filter((f) => f.includes("cpu") || f.includes("duration")).length * 25
+        ),
+        severity: impact.impactLevel === "high" ? "critical" : impact.impactLevel,
         details: { factors: impact.factors },
       })),
       overallScore: result.overallScore,
-      clsContributors: options?.include_cls_contributors !== false
-        ? result.clsContributors.map((c) => ({
-            selector: c.patternName,
-            contribution: c.estimatedContribution,
-            relatedPatternId: c.patternId,
-          }))
-        : [],
+      clsContributors:
+        options?.include_cls_contributors !== false
+          ? result.clsContributors.map((c) => ({
+              selector: c.patternName,
+              contribution: c.estimatedContribution,
+              relatedPatternId: c.patternId,
+            }))
+          : [],
       layoutTriggeringProperties: result.layoutTriggeringProperties,
-      recommendations: options?.include_recommendations !== false
-        ? result.recommendations.map((r) => ({
-            id: `rec-${r.category}-${r.priority}`,
-            priority: r.priority as 'high' | 'medium' | 'low',
-            category: r.category.includes('transform') || r.category.includes('layout') ? 'layout'
-              : r.category.includes('paint') ? 'rendering'
-              : r.category.includes('animation') || r.category.includes('duration') ? 'animation'
-              : 'accessibility',
-            title: r.description.split('.')[0] || r.description,
-            description: r.description,
-            affectedPatterns: r.affectedPatternIds,
-            estimatedImpact: r.estimatedImprovement ? 0.5 : 0.3,
-            effort: r.priority === 'high' ? 'low' : r.priority === 'medium' ? 'medium' : 'high',
-          }))
-        : [],
+      recommendations:
+        options?.include_recommendations !== false
+          ? result.recommendations.map((r) => ({
+              id: `rec-${r.category}-${r.priority}`,
+              priority: r.priority as "high" | "medium" | "low",
+              category:
+                r.category.includes("transform") || r.category.includes("layout")
+                  ? "layout"
+                  : r.category.includes("paint")
+                    ? "rendering"
+                    : r.category.includes("animation") || r.category.includes("duration")
+                      ? "animation"
+                      : "accessibility",
+              title: r.description.split(".")[0] || r.description,
+              description: r.description,
+              affectedPatterns: r.affectedPatternIds,
+              estimatedImpact: r.estimatedImprovement ? 0.5 : 0.3,
+              effort: r.priority === "high" ? "low" : r.priority === "medium" ? "medium" : "high",
+            }))
+          : [],
       lighthouseAvailable: result.lighthouseAvailable,
       analyzedAt: result.analyzedAt,
     };
@@ -1359,14 +1384,14 @@ async function executeAnimationMetricsIfEnabled(
     return { metrics, warnings, processingTimeMs: Date.now() - startTime };
   } catch (err) {
     const errorObj = err as Error & { code?: string };
-    const isTimeout = errorObj.message?.toLowerCase().includes('timeout') ||
-      errorObj.code === 'TIMEOUT';
+    const isTimeout =
+      errorObj.message?.toLowerCase().includes("timeout") || errorObj.code === "TIMEOUT";
 
     return {
       metrics: null,
       error: {
-        code: isTimeout ? 'ANIMATION_METRICS_TIMEOUT' : 'ANIMATION_METRICS_ERROR',
-        message: err instanceof Error ? err.message : 'Animation metrics analysis failed',
+        code: isTimeout ? "ANIMATION_METRICS_TIMEOUT" : "ANIMATION_METRICS_ERROR",
+        message: err instanceof Error ? err.message : "Animation metrics analysis failed",
       },
       warnings,
       processingTimeMs: Date.now() - startTime,
@@ -1403,8 +1428,8 @@ async function executeFrameImageAnalysisIfEnabled(
   if (!service) {
     warnings.push({
       code: MOTION_WARNING_CODES.FRAME_ANALYSIS_UNAVAILABLE,
-      severity: 'warning',
-      message: 'Frame image analysis service factory not configured',
+      severity: "warning",
+      message: "Frame image analysis service factory not configured",
     });
     return { result: null, warnings, processingTimeMs: Date.now() - startTime };
   }
@@ -1412,13 +1437,14 @@ async function executeFrameImageAnalysisIfEnabled(
   if (!service.isAvailable()) {
     warnings.push({
       code: MOTION_WARNING_CODES.FRAME_ANALYSIS_UNAVAILABLE,
-      severity: 'warning',
-      message: 'Frame image analysis service is not available',
+      severity: "warning",
+      message: "Frame image analysis service is not available",
     });
     return { result: null, warnings, processingTimeMs: Date.now() - startTime };
   }
 
-  const frameDir = options?.frame_dir ?? capturedOutputDir ?? configuredOutputDir ?? '/tmp/reftrix-frames/';
+  const frameDir =
+    options?.frame_dir ?? capturedOutputDir ?? configuredOutputDir ?? "/tmp/reftrix-frames/";
 
   try {
     const result = await service.analyze(frameDir, {
@@ -1436,14 +1462,14 @@ async function executeFrameImageAnalysisIfEnabled(
     return { result, warnings, processingTimeMs: Date.now() - startTime };
   } catch (err) {
     const errorObj = err as Error & { code?: string };
-    const isTimeout = errorObj.message?.toLowerCase().includes('timeout') ||
-      errorObj.code === 'TIMEOUT';
+    const isTimeout =
+      errorObj.message?.toLowerCase().includes("timeout") || errorObj.code === "TIMEOUT";
 
     return {
       result: null,
       error: {
-        code: isTimeout ? 'FRAME_ANALYSIS_TIMEOUT' : 'FRAME_ANALYSIS_ERROR',
-        message: err instanceof Error ? err.message : 'Frame image analysis failed',
+        code: isTimeout ? "FRAME_ANALYSIS_TIMEOUT" : "FRAME_ANALYSIS_ERROR",
+        message: err instanceof Error ? err.message : "Frame image analysis failed",
       },
       warnings,
       processingTimeMs: Date.now() - startTime,
@@ -1461,11 +1487,13 @@ interface FrameAnalysisSaveResult {
   patternIds: string[];
   embeddingIds: string[];
   reason?: string | undefined;
-  byCategory?: {
-    animationZones: number;
-    layoutShifts: number;
-    motionVectors: number;
-  } | undefined;
+  byCategory?:
+    | {
+        animationZones: number;
+        layoutShifts: number;
+        motionVectors: number;
+      }
+    | undefined;
 }
 
 /**
@@ -1486,32 +1514,33 @@ async function executeFrameAnalysisSave(
 
   if (!service) {
     if (isDevelopment()) {
-      logger.warn('[MCP Tool] motion.detect frame embedding service not available');
+      logger.warn("[MCP Tool] motion.detect frame embedding service not available");
     }
     return {
       saved: false,
       savedCount: 0,
       patternIds: [],
       embeddingIds: [],
-      reason: 'Frame embedding service not available',
+      reason: "Frame embedding service not available",
     };
   }
 
   if (!service.isAvailable()) {
     if (isDevelopment()) {
-      logger.warn('[MCP Tool] motion.detect frame embedding service not ready');
+      logger.warn("[MCP Tool] motion.detect frame embedding service not ready");
     }
     return {
       saved: false,
       savedCount: 0,
       patternIds: [],
       embeddingIds: [],
-      reason: 'Frame embedding service is not ready (check PrismaClient/EmbeddingService factories)',
+      reason:
+        "Frame embedding service is not ready (check PrismaClient/EmbeddingService factories)",
     };
   }
 
   if (isDevelopment()) {
-    logger.info('[MCP Tool] motion.detect saving frame analysis to DB', {
+    logger.info("[MCP Tool] motion.detect saving frame analysis to DB", {
       animationZones: analysisResult.animationZones.length,
       layoutShifts: analysisResult.layoutShifts.length,
       motionVectors: analysisResult.motionVectors.length,
@@ -1561,26 +1590,26 @@ async function executeJSAnimationDetectionWithUrl(
   const startTime = Date.now();
 
   // Playwrightを動的にインポートしてブラウザを起動
-  const { chromium } = await import('playwright');
+  const { chromium } = await import("playwright");
   let browser: Awaited<ReturnType<typeof chromium.launch>> | null = null;
 
   try {
     browser = await chromium.launch({
       headless: true,
-      args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'],
+      args: ["--no-sandbox", "--disable-setuid-sandbox", "--disable-dev-shm-usage"],
     });
 
     const context = await browser.newContext({
       viewport: { width: 1280, height: 720 },
       userAgent:
-        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 Reftrix/0.1.0',
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 Reftrix/0.1.0",
     });
 
     const page = await context.newPage();
 
     // WebGL/3Dサイト対応: domcontentloadedで待機（loadは3Dサイトで非常に時間がかかる）
     await page.goto(url, {
-      waitUntil: 'domcontentloaded',
+      waitUntil: "domcontentloaded",
       timeout: 30000,
     });
 
@@ -1608,20 +1637,20 @@ async function executeJSAnimationDetectionWithUrl(
   } catch (err) {
     const errorObj = err as Error & { code?: string };
     const isTimeout =
-      errorObj.message?.toLowerCase().includes('timeout') || errorObj.code === 'TIMEOUT';
+      errorObj.message?.toLowerCase().includes("timeout") || errorObj.code === "TIMEOUT";
 
     if (isDevelopment()) {
-      logger.warn('[MCP Tool] motion.detect JS animation detection with URL failed', {
+      logger.warn("[MCP Tool] motion.detect JS animation detection with URL failed", {
         url,
-        error: err instanceof Error ? err.message : 'Unknown error',
+        error: err instanceof Error ? err.message : "Unknown error",
       });
     }
 
     return {
       result: null,
       error: {
-        code: isTimeout ? 'JS_ANIMATION_TIMEOUT' : 'JS_ANIMATION_ERROR',
-        message: err instanceof Error ? err.message : 'JS animation detection failed',
+        code: isTimeout ? "JS_ANIMATION_TIMEOUT" : "JS_ANIMATION_ERROR",
+        message: err instanceof Error ? err.message : "JS animation detection failed",
       },
       warnings,
       processingTimeMs: Date.now() - startTime,
@@ -1668,9 +1697,11 @@ async function saveJSAnimationsToDb(
   const prisma = getJSAnimationPersistencePrismaClient();
   if (!prisma) {
     if (isDevelopment()) {
-      logger.warn('[motion.detect] JS animation persistence PrismaClient not available, skipping DB save');
+      logger.warn(
+        "[motion.detect] JS animation persistence PrismaClient not available, skipping DB save"
+      );
     }
-    return { savedPatternCount: 0, embeddingCount: 0, error: 'PrismaClient not available' };
+    return { savedPatternCount: 0, embeddingCount: 0, error: "PrismaClient not available" };
   }
 
   try {
@@ -1683,13 +1714,13 @@ async function saveJSAnimationsToDb(
 
     if (patterns.length === 0) {
       if (isDevelopment()) {
-        logger.debug('[motion.detect] No JS animation patterns to save');
+        logger.debug("[motion.detect] No JS animation patterns to save");
       }
       return { savedPatternCount: 0, embeddingCount: 0 };
     }
 
     if (isDevelopment()) {
-      logger.info('[motion.detect] Saving JS animation patterns to DB', {
+      logger.info("[motion.detect] Saving JS animation patterns to DB", {
         patternsCount: patterns.length,
         webPageId,
         sourceUrl,
@@ -1697,13 +1728,18 @@ async function saveJSAnimationsToDb(
     }
 
     // page.analyze と同じ保存ロジックを使用（IPageAnalyzePrismaClient互換のキャスト）
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const saveResult = await saveJSAnimationPatternsWithEmbeddings(prisma as any, patterns, webPageId, {
-      generateEmbedding: true,
-    });
+    const saveResult = await saveJSAnimationPatternsWithEmbeddings(
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      prisma as any,
+      patterns,
+      webPageId,
+      {
+        generateEmbedding: true,
+      }
+    );
 
     if (isDevelopment()) {
-      logger.info('[motion.detect] JS animation DB save completed', {
+      logger.info("[motion.detect] JS animation DB save completed", {
         savedPatternCount: saveResult.savedPatternCount,
         embeddingCount: saveResult.embeddingCount,
       });
@@ -1711,9 +1747,9 @@ async function saveJSAnimationsToDb(
 
     return saveResult;
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
     if (isDevelopment()) {
-      logger.error('[motion.detect] JS animation DB save error', { error: errorMessage });
+      logger.error("[motion.detect] JS animation DB save error", { error: errorMessage });
     }
     return { savedPatternCount: 0, embeddingCount: 0, error: errorMessage };
   }
@@ -1724,143 +1760,145 @@ async function saveJSAnimationsToDb(
 // =====================================================
 
 export const motionDetectToolDefinition = {
-  name: 'motion.detect',
+  name: "motion.detect",
   description:
-    'Detect/classify motion patterns from web page. Parses CSS animations, transitions, keyframes. Warns about performance/accessibility issues.',
+    "Detect/classify motion patterns from web page. Parses CSS animations, transitions, keyframes. Warns about performance/accessibility issues.",
   annotations: {
-    title: 'Motion Detect',
+    title: "Motion Detect",
     readOnlyHint: true,
     idempotentHint: true,
     openWorldHint: false,
   },
   inputSchema: {
-    type: 'object' as const,
+    type: "object" as const,
     properties: {
       pageId: {
-        type: 'string',
-        format: 'uuid',
-        description: 'WebPage ID (UUID, from DB)',
+        type: "string",
+        format: "uuid",
+        description: "WebPage ID (UUID, from DB)",
       },
       html: {
-        type: 'string',
+        type: "string",
         minLength: 1,
         maxLength: 10000000,
-        description: 'HTML content (direct, max 10MB)',
+        description: "HTML content (direct, max 10MB)",
       },
       css: {
-        type: 'string',
+        type: "string",
         maxLength: 5000000,
-        description: 'Additional CSS content (max 5MB)',
+        description: "Additional CSS content (max 5MB)",
       },
       includeInlineStyles: {
-        type: 'boolean',
+        type: "boolean",
         default: true,
-        description: 'Parse inline styles (default: true)',
+        description: "Parse inline styles (default: true)",
       },
       includeStyleSheets: {
-        type: 'boolean',
+        type: "boolean",
         default: true,
-        description: 'Parse stylesheets (default: true)',
+        description: "Parse stylesheets (default: true)",
       },
       minDuration: {
-        type: 'number',
+        type: "number",
         minimum: 0,
         maximum: 60000,
         default: 0,
-        description: 'Minimum duration to detect (ms, default: 0)',
+        description: "Minimum duration to detect (ms, default: 0)",
       },
       maxPatterns: {
-        type: 'number',
+        type: "number",
         minimum: 1,
         maximum: 4000,
         default: 100,
-        description: 'Max patterns to detect (default: 100)',
+        description: "Max patterns to detect (default: 100)",
       },
       includeWarnings: {
-        type: 'boolean',
+        type: "boolean",
         default: true,
-        description: 'Include warnings (default: true)',
+        description: "Include warnings (default: true)",
       },
       min_severity: {
-        type: 'string',
-        enum: ['info', 'warning', 'error'],
-        default: 'info',
-        description: 'Minimum severity level to include in warnings (default: info)',
+        type: "string",
+        enum: ["info", "warning", "error"],
+        default: "info",
+        description: "Minimum severity level to include in warnings (default: info)",
       },
       includeSummary: {
-        type: 'boolean',
+        type: "boolean",
         default: true,
-        description: 'Include summary (default: true)',
+        description: "Include summary (default: true)",
       },
       verbose: {
-        type: 'boolean',
+        type: "boolean",
         default: false,
-        description: 'Verbose mode: include rawCss (default: false)',
+        description: "Verbose mode: include rawCss (default: false)",
       },
       fetchExternalCss: {
-        type: 'boolean',
+        type: "boolean",
         default: true,
-        description: 'Fetch external CSS from <link> tags (default: true)',
+        description: "Fetch external CSS from <link> tags (default: true)",
       },
       baseUrl: {
-        type: 'string',
-        format: 'uri',
-        description: 'Base URL for resolving relative CSS paths (required if fetchExternalCss is true)',
+        type: "string",
+        format: "uri",
+        description:
+          "Base URL for resolving relative CSS paths (required if fetchExternalCss is true)",
       },
       externalCssOptions: {
-        type: 'object',
-        description: 'Options for external CSS fetching',
+        type: "object",
+        description: "Options for external CSS fetching",
         properties: {
           timeout: {
-            type: 'number',
+            type: "number",
             minimum: 1000,
             maximum: 30000,
             default: 5000,
-            description: 'Fetch timeout in ms (default: 5000)',
+            description: "Fetch timeout in ms (default: 5000)",
           },
           maxConcurrent: {
-            type: 'number',
+            type: "number",
             minimum: 1,
             maximum: 10,
             default: 5,
-            description: 'Max concurrent fetches (default: 5)',
+            description: "Max concurrent fetches (default: 5)",
           },
         },
       },
       save_to_db: {
-        type: 'boolean',
+        type: "boolean",
         default: true,
-        description: 'Save detected patterns to motion_patterns table with embeddings (default: true)',
+        description:
+          "Save detected patterns to motion_patterns table with embeddings (default: true)",
       },
       detection_mode: {
-        type: 'string',
-        enum: ['css', 'video', 'runtime', 'hybrid'],
-        default: 'video',
+        type: "string",
+        enum: ["css", "video", "runtime", "hybrid"],
+        default: "video",
         description:
           "Detection mode: 'css' (requires html/pageId) for static CSS parsing without browser, 'video' (default, requires url) for visual motion detection with frame capture, 'runtime' (requires url) for JS-driven animations, 'hybrid' (requires url) for CSS+runtime combined.",
       },
       url: {
-        type: 'string',
-        format: 'uri',
+        type: "string",
+        format: "uri",
         description:
           "Target URL for video/runtime/hybrid modes. Required when detection_mode='video', 'runtime', or 'hybrid'.",
       },
       detect_js_animations: {
-        type: 'boolean',
+        type: "boolean",
         default: false,
         description:
-          'Enable JavaScript animation detection via CDP + Web Animations API. Requires Playwright. Default: false (disabled for performance).',
+          "Enable JavaScript animation detection via CDP + Web Animations API. Requires Playwright. Default: false (disabled for performance).",
       },
       timeout: {
-        type: 'integer',
+        type: "integer",
         minimum: 30000,
         maximum: 600000,
         default: 180000,
         description:
-          'Overall timeout in milliseconds (30000-600000, default: 180000 = 3 minutes). On timeout, returns partial results with warnings (graceful degradation).',
+          "Overall timeout in milliseconds (30000-600000, default: 180000 = 3 minutes). On timeout, returns partial results with warnings (graceful degradation).",
       },
     },
-    required: ['html'],
+    required: ["html"],
   },
 };
 

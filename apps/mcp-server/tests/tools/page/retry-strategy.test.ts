@@ -9,7 +9,7 @@
  * @module tests/tools/page/retry-strategy.test
  */
 
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect } from "vitest";
 import {
   getRetryStrategy,
   isNetworkError,
@@ -17,13 +17,13 @@ import {
   shouldRetry,
   type RetryStrategyConfig,
   type SiteTier,
-} from '../../../src/tools/page/handlers/retry-strategy';
+} from "../../../src/tools/page/handlers/retry-strategy";
 
-describe('retry-strategy', () => {
-  describe('getRetryStrategy', () => {
-    describe('normal tier', () => {
-      it('should return default retry config for normal sites', () => {
-        const config = getRetryStrategy('normal');
+describe("retry-strategy", () => {
+  describe("getRetryStrategy", () => {
+    describe("normal tier", () => {
+      it("should return default retry config for normal sites", () => {
+        const config = getRetryStrategy("normal");
 
         expect(config.autoRetry).toBe(true);
         expect(config.maxRetries).toBe(2);
@@ -33,9 +33,9 @@ describe('retry-strategy', () => {
       });
     });
 
-    describe('webgl tier', () => {
-      it('should return WebGL-specific retry config', () => {
-        const config = getRetryStrategy('webgl');
+    describe("webgl tier", () => {
+      it("should return WebGL-specific retry config", () => {
+        const config = getRetryStrategy("webgl");
 
         expect(config.autoRetry).toBe(true);
         expect(config.maxRetries).toBe(2);
@@ -45,9 +45,9 @@ describe('retry-strategy', () => {
       });
     });
 
-    describe('heavy tier', () => {
-      it('should return conservative retry config for heavy sites', () => {
-        const config = getRetryStrategy('heavy');
+    describe("heavy tier", () => {
+      it("should return conservative retry config for heavy sites", () => {
+        const config = getRetryStrategy("heavy");
 
         expect(config.autoRetry).toBe(true);
         expect(config.maxRetries).toBe(1);
@@ -57,9 +57,9 @@ describe('retry-strategy', () => {
       });
     });
 
-    describe('ultra-heavy tier', () => {
-      it('should return minimal retry config for ultra-heavy sites', () => {
-        const config = getRetryStrategy('ultra-heavy');
+    describe("ultra-heavy tier", () => {
+      it("should return minimal retry config for ultra-heavy sites", () => {
+        const config = getRetryStrategy("ultra-heavy");
 
         expect(config.autoRetry).toBe(true);
         expect(config.maxRetries).toBe(1);
@@ -69,10 +69,10 @@ describe('retry-strategy', () => {
       });
     });
 
-    describe('unknown tier', () => {
-      it('should fallback to normal tier for unknown values', () => {
+    describe("unknown tier", () => {
+      it("should fallback to normal tier for unknown values", () => {
         // @ts-expect-error - Testing unknown tier value
-        const config = getRetryStrategy('unknown-tier');
+        const config = getRetryStrategy("unknown-tier");
 
         expect(config.autoRetry).toBe(true);
         expect(config.maxRetries).toBe(2);
@@ -81,62 +81,62 @@ describe('retry-strategy', () => {
     });
   });
 
-  describe('isNetworkError', () => {
-    describe('should detect network errors', () => {
-      it('should detect net::ERR_ errors', () => {
-        const error = new Error('net::ERR_CONNECTION_REFUSED');
+  describe("isNetworkError", () => {
+    describe("should detect network errors", () => {
+      it("should detect net::ERR_ errors", () => {
+        const error = new Error("net::ERR_CONNECTION_REFUSED");
         expect(isNetworkError(error)).toBe(true);
       });
 
-      it('should detect ECONNREFUSED errors', () => {
-        const error = new Error('connect ECONNREFUSED 127.0.0.1:3000');
+      it("should detect ECONNREFUSED errors", () => {
+        const error = new Error("connect ECONNREFUSED 127.0.0.1:3000");
         expect(isNetworkError(error)).toBe(true);
       });
 
-      it('should detect ETIMEDOUT errors', () => {
-        const error = new Error('connect ETIMEDOUT 192.168.1.1');
+      it("should detect ETIMEDOUT errors", () => {
+        const error = new Error("connect ETIMEDOUT 192.168.1.1");
         expect(isNetworkError(error)).toBe(true);
       });
 
-      it('should detect ENOTFOUND errors', () => {
-        const error = new Error('getaddrinfo ENOTFOUND example.invalid');
+      it("should detect ENOTFOUND errors", () => {
+        const error = new Error("getaddrinfo ENOTFOUND example.invalid");
         expect(isNetworkError(error)).toBe(true);
       });
 
-      it('should detect network errors (generic)', () => {
-        const error = new Error('Network request failed');
+      it("should detect network errors (generic)", () => {
+        const error = new Error("Network request failed");
         expect(isNetworkError(error)).toBe(true);
       });
 
-      it('should detect socket errors', () => {
-        const error = new Error('Socket closed unexpectedly');
+      it("should detect socket errors", () => {
+        const error = new Error("Socket closed unexpectedly");
         expect(isNetworkError(error)).toBe(true);
       });
 
-      it('should be case-insensitive', () => {
-        const error = new Error('NETWORK ERROR');
+      it("should be case-insensitive", () => {
+        const error = new Error("NETWORK ERROR");
         expect(isNetworkError(error)).toBe(true);
       });
     });
 
-    describe('should not detect non-network errors', () => {
-      it('should not detect timeout errors as network errors', () => {
-        const error = new Error('Timeout waiting for page to load');
+    describe("should not detect non-network errors", () => {
+      it("should not detect timeout errors as network errors", () => {
+        const error = new Error("Timeout waiting for page to load");
         expect(isNetworkError(error)).toBe(false);
       });
 
-      it('should not detect JavaScript errors', () => {
-        const error = new Error('Cannot read property of undefined');
+      it("should not detect JavaScript errors", () => {
+        const error = new Error("Cannot read property of undefined");
         expect(isNetworkError(error)).toBe(false);
       });
 
-      it('should not detect validation errors', () => {
-        const error = new Error('Invalid URL format');
+      it("should not detect validation errors", () => {
+        const error = new Error("Invalid URL format");
         expect(isNetworkError(error)).toBe(false);
       });
 
-      it('should handle non-Error objects', () => {
-        expect(isNetworkError('not an error')).toBe(false);
+      it("should handle non-Error objects", () => {
+        expect(isNetworkError("not an error")).toBe(false);
         expect(isNetworkError(null)).toBe(false);
         expect(isNetworkError(undefined)).toBe(false);
         expect(isNetworkError(42)).toBe(false);
@@ -145,10 +145,10 @@ describe('retry-strategy', () => {
     });
   });
 
-  describe('calculateMaxTotalTime', () => {
-    describe('should calculate max total time correctly', () => {
-      it('should calculate for normal tier (timeout × (1 + 1.5 + 2.25) × 3 attempts + waits)', () => {
-        const config = getRetryStrategy('normal');
+  describe("calculateMaxTotalTime", () => {
+    describe("should calculate max total time correctly", () => {
+      it("should calculate for normal tier (timeout × (1 + 1.5 + 2.25) × 3 attempts + waits)", () => {
+        const config = getRetryStrategy("normal");
         const baseTimeout = 60000; // 60 seconds
 
         const maxTime = calculateMaxTotalTime(baseTimeout, config);
@@ -161,8 +161,8 @@ describe('retry-strategy', () => {
         expect(maxTime).toBe(287000);
       });
 
-      it('should calculate for ultra-heavy tier (no timeout accumulation)', () => {
-        const config = getRetryStrategy('ultra-heavy');
+      it("should calculate for ultra-heavy tier (no timeout accumulation)", () => {
+        const config = getRetryStrategy("ultra-heavy");
         const baseTimeout = 180000; // 180 seconds
 
         const maxTime = calculateMaxTotalTime(baseTimeout, config);
@@ -174,8 +174,8 @@ describe('retry-strategy', () => {
         expect(maxTime).toBe(365000);
       });
 
-      it('should stay within MCP 600s limit for heavy sites', () => {
-        const config = getRetryStrategy('heavy');
+      it("should stay within MCP 600s limit for heavy sites", () => {
+        const config = getRetryStrategy("heavy");
         const baseTimeout = 180000; // 180 seconds (max recommended)
 
         const maxTime = calculateMaxTotalTime(baseTimeout, config);
@@ -185,8 +185,8 @@ describe('retry-strategy', () => {
         expect(maxTime).toBeLessThanOrEqual(600000); // MCP limit
       });
 
-      it('should stay within MCP 600s limit for ultra-heavy sites', () => {
-        const config = getRetryStrategy('ultra-heavy');
+      it("should stay within MCP 600s limit for ultra-heavy sites", () => {
+        const config = getRetryStrategy("ultra-heavy");
         const baseTimeout = 180000; // 180 seconds
 
         const maxTime = calculateMaxTotalTime(baseTimeout, config);
@@ -196,8 +196,8 @@ describe('retry-strategy', () => {
     });
   });
 
-  describe('shouldRetry', () => {
-    describe('with retryOnlyOnNetworkError=false', () => {
+  describe("shouldRetry", () => {
+    describe("with retryOnlyOnNetworkError=false", () => {
       const config: RetryStrategyConfig = {
         autoRetry: true,
         maxRetries: 2,
@@ -206,29 +206,29 @@ describe('retry-strategy', () => {
         retryOnlyOnNetworkError: false,
       };
 
-      it('should retry on timeout errors', () => {
-        const error = new Error('Timeout waiting for page to load');
+      it("should retry on timeout errors", () => {
+        const error = new Error("Timeout waiting for page to load");
         expect(shouldRetry(error, 0, config)).toBe(true);
       });
 
-      it('should retry on network errors', () => {
-        const error = new Error('net::ERR_CONNECTION_REFUSED');
+      it("should retry on network errors", () => {
+        const error = new Error("net::ERR_CONNECTION_REFUSED");
         expect(shouldRetry(error, 0, config)).toBe(true);
       });
 
-      it('should not retry when max retries reached', () => {
-        const error = new Error('Some error');
+      it("should not retry when max retries reached", () => {
+        const error = new Error("Some error");
         expect(shouldRetry(error, 2, config)).toBe(false);
       });
 
-      it('should not retry when autoRetry is disabled', () => {
+      it("should not retry when autoRetry is disabled", () => {
         const disabledConfig = { ...config, autoRetry: false };
-        const error = new Error('Some error');
+        const error = new Error("Some error");
         expect(shouldRetry(error, 0, disabledConfig)).toBe(false);
       });
     });
 
-    describe('with retryOnlyOnNetworkError=true', () => {
+    describe("with retryOnlyOnNetworkError=true", () => {
       const config: RetryStrategyConfig = {
         autoRetry: true,
         maxRetries: 1,
@@ -237,33 +237,33 @@ describe('retry-strategy', () => {
         retryOnlyOnNetworkError: true,
       };
 
-      it('should retry on network errors', () => {
-        const error = new Error('net::ERR_CONNECTION_REFUSED');
+      it("should retry on network errors", () => {
+        const error = new Error("net::ERR_CONNECTION_REFUSED");
         expect(shouldRetry(error, 0, config)).toBe(true);
       });
 
-      it('should NOT retry on timeout errors', () => {
-        const error = new Error('Timeout waiting for page to load');
+      it("should NOT retry on timeout errors", () => {
+        const error = new Error("Timeout waiting for page to load");
         expect(shouldRetry(error, 0, config)).toBe(false);
       });
 
-      it('should NOT retry on JavaScript errors', () => {
-        const error = new Error('Cannot read property of undefined');
+      it("should NOT retry on JavaScript errors", () => {
+        const error = new Error("Cannot read property of undefined");
         expect(shouldRetry(error, 0, config)).toBe(false);
       });
 
-      it('should not retry when max retries reached', () => {
-        const error = new Error('net::ERR_CONNECTION_REFUSED');
+      it("should not retry when max retries reached", () => {
+        const error = new Error("net::ERR_CONNECTION_REFUSED");
         expect(shouldRetry(error, 1, config)).toBe(false);
       });
     });
   });
 
-  describe('SiteTier type', () => {
-    it('should accept valid tier values', () => {
-      const tiers: SiteTier[] = ['normal', 'webgl', 'heavy', 'ultra-heavy'];
+  describe("SiteTier type", () => {
+    it("should accept valid tier values", () => {
+      const tiers: SiteTier[] = ["normal", "webgl", "heavy", "ultra-heavy"];
 
-      tiers.forEach(tier => {
+      tiers.forEach((tier) => {
         const config = getRetryStrategy(tier);
         expect(config).toBeDefined();
         expect(config.autoRetry).toBeDefined();
@@ -275,9 +275,9 @@ describe('retry-strategy', () => {
     });
   });
 
-  describe('integration: timeout accumulation prevention', () => {
-    it('should prevent timeout accumulation for ultra-heavy sites', () => {
-      const config = getRetryStrategy('ultra-heavy');
+  describe("integration: timeout accumulation prevention", () => {
+    it("should prevent timeout accumulation for ultra-heavy sites", () => {
+      const config = getRetryStrategy("ultra-heavy");
 
       // timeoutMultiplier=1.0 means no accumulation
       expect(config.timeoutMultiplier).toBe(1.0);
@@ -291,8 +291,8 @@ describe('retry-strategy', () => {
       expect(maxTime).toBeLessThan(600000);
     });
 
-    it('should prevent timeout accumulation for heavy sites', () => {
-      const config = getRetryStrategy('heavy');
+    it("should prevent timeout accumulation for heavy sites", () => {
+      const config = getRetryStrategy("heavy");
 
       expect(config.timeoutMultiplier).toBe(1.0);
       expect(config.maxRetries).toBe(1);
@@ -303,8 +303,8 @@ describe('retry-strategy', () => {
       expect(maxTime).toBeLessThan(600000);
     });
 
-    it('should allow mild accumulation for webgl sites', () => {
-      const config = getRetryStrategy('webgl');
+    it("should allow mild accumulation for webgl sites", () => {
+      const config = getRetryStrategy("webgl");
 
       // WebGL sites get mild accumulation (1.2x)
       expect(config.timeoutMultiplier).toBe(1.2);
@@ -317,8 +317,8 @@ describe('retry-strategy', () => {
       expect(maxTime).toBeLessThan(600000);
     });
 
-    it('should allow normal accumulation for normal sites', () => {
-      const config = getRetryStrategy('normal');
+    it("should allow normal accumulation for normal sites", () => {
+      const config = getRetryStrategy("normal");
 
       // Normal sites get standard accumulation (1.5x)
       expect(config.timeoutMultiplier).toBe(1.5);
@@ -332,17 +332,17 @@ describe('retry-strategy', () => {
     });
   });
 
-  describe('edge cases', () => {
-    it('should handle zero base timeout', () => {
-      const config = getRetryStrategy('normal');
+  describe("edge cases", () => {
+    it("should handle zero base timeout", () => {
+      const config = getRetryStrategy("normal");
       const maxTime = calculateMaxTotalTime(0, config);
 
       // Only wait times: 1s × 2 retries = 2s
       expect(maxTime).toBe(2000);
     });
 
-    it('should handle very large base timeout', () => {
-      const config = getRetryStrategy('ultra-heavy');
+    it("should handle very large base timeout", () => {
+      const config = getRetryStrategy("ultra-heavy");
       const maxTime = calculateMaxTotalTime(300000, config); // 300s
 
       // 300 + 300 + 5 = 605s (slightly over, but that's user's choice)

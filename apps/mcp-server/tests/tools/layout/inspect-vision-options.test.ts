@@ -14,8 +14,8 @@
  * @module tests/tools/layout/inspect-vision-options.test
  */
 
-import { describe, it, expect } from 'vitest';
-import { z } from 'zod';
+import { describe, it, expect } from "vitest";
+import { z } from "zod";
 
 // =============================================================================
 // visionOptionsSchema（page.analyzeと共通の仕様をlayout.inspectに適用）
@@ -47,9 +47,9 @@ const layoutInspectVisionOptionsSchema = z
 // Test Suites
 // =============================================================================
 
-describe('layoutInspectVisionOptionsSchema', () => {
-  describe('valid inputs', () => {
-    it('should accept empty object (all fields optional)', () => {
+describe("layoutInspectVisionOptionsSchema", () => {
+  describe("valid inputs", () => {
+    it("should accept empty object (all fields optional)", () => {
       const result = layoutInspectVisionOptionsSchema.safeParse({});
       expect(result.success).toBe(true);
       if (result.success) {
@@ -58,12 +58,12 @@ describe('layoutInspectVisionOptionsSchema', () => {
       }
     });
 
-    it('should accept undefined (optional schema)', () => {
+    it("should accept undefined (optional schema)", () => {
       const result = layoutInspectVisionOptionsSchema.safeParse(undefined);
       expect(result.success).toBe(true);
     });
 
-    it('should accept valid complete options', () => {
+    it("should accept valid complete options", () => {
       const result = layoutInspectVisionOptionsSchema.safeParse({
         visionTimeoutMs: 600000, // 10 minutes
         visionImageMaxSize: 5000000, // 5MB
@@ -80,39 +80,39 @@ describe('layoutInspectVisionOptionsSchema', () => {
     });
 
     // visionTimeoutMs boundary tests
-    it('should accept visionTimeoutMs at minimum (1000ms)', () => {
+    it("should accept visionTimeoutMs at minimum (1000ms)", () => {
       const result = layoutInspectVisionOptionsSchema.safeParse({ visionTimeoutMs: 1000 });
       expect(result.success).toBe(true);
     });
 
-    it('should accept visionTimeoutMs at maximum (1200000ms = 20min)', () => {
+    it("should accept visionTimeoutMs at maximum (1200000ms = 20min)", () => {
       const result = layoutInspectVisionOptionsSchema.safeParse({ visionTimeoutMs: 1200000 });
       expect(result.success).toBe(true);
     });
 
-    it('should accept typical GPU timeout (60000ms = 1min)', () => {
+    it("should accept typical GPU timeout (60000ms = 1min)", () => {
       const result = layoutInspectVisionOptionsSchema.safeParse({ visionTimeoutMs: 60000 });
       expect(result.success).toBe(true);
     });
 
-    it('should accept typical CPU timeout (600000ms = 10min)', () => {
+    it("should accept typical CPU timeout (600000ms = 10min)", () => {
       const result = layoutInspectVisionOptionsSchema.safeParse({ visionTimeoutMs: 600000 });
       expect(result.success).toBe(true);
     });
 
     // visionImageMaxSize boundary tests
-    it('should accept visionImageMaxSize at minimum (1024 bytes = 1KB)', () => {
+    it("should accept visionImageMaxSize at minimum (1024 bytes = 1KB)", () => {
       const result = layoutInspectVisionOptionsSchema.safeParse({ visionImageMaxSize: 1024 });
       expect(result.success).toBe(true);
     });
 
-    it('should accept visionImageMaxSize at maximum (10000000 bytes = 10MB)', () => {
+    it("should accept visionImageMaxSize at maximum (10000000 bytes = 10MB)", () => {
       const result = layoutInspectVisionOptionsSchema.safeParse({ visionImageMaxSize: 10000000 });
       expect(result.success).toBe(true);
     });
 
     // Boolean fields tests
-    it('should accept visionForceCpu: true', () => {
+    it("should accept visionForceCpu: true", () => {
       const result = layoutInspectVisionOptionsSchema.safeParse({ visionForceCpu: true });
       expect(result.success).toBe(true);
       if (result.success) {
@@ -120,8 +120,10 @@ describe('layoutInspectVisionOptionsSchema', () => {
       }
     });
 
-    it('should accept visionFallbackToHtmlOnly: false', () => {
-      const result = layoutInspectVisionOptionsSchema.safeParse({ visionFallbackToHtmlOnly: false });
+    it("should accept visionFallbackToHtmlOnly: false", () => {
+      const result = layoutInspectVisionOptionsSchema.safeParse({
+        visionFallbackToHtmlOnly: false,
+      });
       expect(result.success).toBe(true);
       if (result.success) {
         expect(result.data.visionFallbackToHtmlOnly).toBe(false);
@@ -129,40 +131,40 @@ describe('layoutInspectVisionOptionsSchema', () => {
     });
   });
 
-  describe('invalid inputs', () => {
-    it('should reject visionTimeoutMs below minimum (< 1000ms)', () => {
+  describe("invalid inputs", () => {
+    it("should reject visionTimeoutMs below minimum (< 1000ms)", () => {
       const result = layoutInspectVisionOptionsSchema.safeParse({ visionTimeoutMs: 999 });
       expect(result.success).toBe(false);
     });
 
-    it('should reject visionTimeoutMs above maximum (> 1200000ms)', () => {
+    it("should reject visionTimeoutMs above maximum (> 1200000ms)", () => {
       const result = layoutInspectVisionOptionsSchema.safeParse({ visionTimeoutMs: 1200001 });
       expect(result.success).toBe(false);
     });
 
-    it('should reject visionImageMaxSize below minimum (< 1024 bytes)', () => {
+    it("should reject visionImageMaxSize below minimum (< 1024 bytes)", () => {
       const result = layoutInspectVisionOptionsSchema.safeParse({ visionImageMaxSize: 1023 });
       expect(result.success).toBe(false);
     });
 
-    it('should reject visionImageMaxSize above maximum (> 10000000 bytes)', () => {
+    it("should reject visionImageMaxSize above maximum (> 10000000 bytes)", () => {
       const result = layoutInspectVisionOptionsSchema.safeParse({ visionImageMaxSize: 10000001 });
       expect(result.success).toBe(false);
     });
 
-    it('should reject non-number visionTimeoutMs', () => {
-      const result = layoutInspectVisionOptionsSchema.safeParse({ visionTimeoutMs: '60000' });
+    it("should reject non-number visionTimeoutMs", () => {
+      const result = layoutInspectVisionOptionsSchema.safeParse({ visionTimeoutMs: "60000" });
       expect(result.success).toBe(false);
     });
 
-    it('should reject non-boolean visionForceCpu', () => {
-      const result = layoutInspectVisionOptionsSchema.safeParse({ visionForceCpu: 'true' });
+    it("should reject non-boolean visionForceCpu", () => {
+      const result = layoutInspectVisionOptionsSchema.safeParse({ visionForceCpu: "true" });
       expect(result.success).toBe(false);
     });
   });
 
-  describe('default values', () => {
-    it('should apply default false for visionForceCpu', () => {
+  describe("default values", () => {
+    it("should apply default false for visionForceCpu", () => {
       const result = layoutInspectVisionOptionsSchema.safeParse({});
       expect(result.success).toBe(true);
       if (result.success) {
@@ -170,7 +172,7 @@ describe('layoutInspectVisionOptionsSchema', () => {
       }
     });
 
-    it('should apply default true for visionFallbackToHtmlOnly', () => {
+    it("should apply default true for visionFallbackToHtmlOnly", () => {
       const result = layoutInspectVisionOptionsSchema.safeParse({});
       expect(result.success).toBe(true);
       if (result.success) {
@@ -178,7 +180,7 @@ describe('layoutInspectVisionOptionsSchema', () => {
       }
     });
 
-    it('should not apply defaults for optional numeric fields', () => {
+    it("should not apply defaults for optional numeric fields", () => {
       const result = layoutInspectVisionOptionsSchema.safeParse({});
       expect(result.success).toBe(true);
       if (result.success) {
@@ -188,8 +190,8 @@ describe('layoutInspectVisionOptionsSchema', () => {
     });
   });
 
-  describe('use cases', () => {
-    it('should support GPU mode with fast timeout', () => {
+  describe("use cases", () => {
+    it("should support GPU mode with fast timeout", () => {
       const result = layoutInspectVisionOptionsSchema.safeParse({
         visionTimeoutMs: 60000,
         visionForceCpu: false,
@@ -197,7 +199,7 @@ describe('layoutInspectVisionOptionsSchema', () => {
       expect(result.success).toBe(true);
     });
 
-    it('should support CPU mode with extended timeout', () => {
+    it("should support CPU mode with extended timeout", () => {
       const result = layoutInspectVisionOptionsSchema.safeParse({
         visionTimeoutMs: 1200000,
         visionForceCpu: true,
@@ -206,14 +208,14 @@ describe('layoutInspectVisionOptionsSchema', () => {
       expect(result.success).toBe(true);
     });
 
-    it('should support strict mode (no fallback)', () => {
+    it("should support strict mode (no fallback)", () => {
       const result = layoutInspectVisionOptionsSchema.safeParse({
         visionFallbackToHtmlOnly: false,
       });
       expect(result.success).toBe(true);
     });
 
-    it('should support graceful degradation mode (default)', () => {
+    it("should support graceful degradation mode (default)", () => {
       const result = layoutInspectVisionOptionsSchema.safeParse({
         visionFallbackToHtmlOnly: true,
       });
@@ -222,7 +224,7 @@ describe('layoutInspectVisionOptionsSchema', () => {
   });
 });
 
-describe('layoutInspectInputSchema with visionOptions integration', () => {
+describe("layoutInspectInputSchema with visionOptions integration", () => {
   /**
    * 拡張されたlayoutInspectInputSchemaのテスト用スキーマ
    * 実際の実装では inspect.schemas.ts に追加される
@@ -244,13 +246,13 @@ describe('layoutInspectInputSchema with visionOptions integration', () => {
       options: layoutInspectOptionsSchema.optional(),
     })
     .refine((data) => data.id !== undefined || data.html !== undefined, {
-      message: 'Either id or html must be provided',
+      message: "Either id or html must be provided",
     });
 
-  describe('visionOptions in layoutInspectInputSchema', () => {
-    it('should accept html with visionOptions', () => {
+  describe("visionOptions in layoutInspectInputSchema", () => {
+    it("should accept html with visionOptions", () => {
       const result = extendedLayoutInspectInputSchema.safeParse({
-        html: '<html><body>Test</body></html>',
+        html: "<html><body>Test</body></html>",
         options: {
           useVision: true,
           visionOptions: {
@@ -262,9 +264,9 @@ describe('layoutInspectInputSchema with visionOptions integration', () => {
       expect(result.success).toBe(true);
     });
 
-    it('should accept id with visionOptions', () => {
+    it("should accept id with visionOptions", () => {
       const result = extendedLayoutInspectInputSchema.safeParse({
-        id: '01234567-89ab-cdef-0123-456789abcdef',
+        id: "01234567-89ab-cdef-0123-456789abcdef",
         options: {
           useVision: true,
           visionOptions: {
@@ -275,9 +277,9 @@ describe('layoutInspectInputSchema with visionOptions integration', () => {
       expect(result.success).toBe(true);
     });
 
-    it('should accept options without visionOptions', () => {
+    it("should accept options without visionOptions", () => {
       const result = extendedLayoutInspectInputSchema.safeParse({
-        html: '<html><body>Test</body></html>',
+        html: "<html><body>Test</body></html>",
         options: {
           useVision: true,
           // visionOptions省略
@@ -286,9 +288,9 @@ describe('layoutInspectInputSchema with visionOptions integration', () => {
       expect(result.success).toBe(true);
     });
 
-    it('should apply default values for visionOptions', () => {
+    it("should apply default values for visionOptions", () => {
       const result = extendedLayoutInspectInputSchema.safeParse({
-        html: '<html><body>Test</body></html>',
+        html: "<html><body>Test</body></html>",
         options: {
           useVision: true,
           visionOptions: {},
@@ -302,10 +304,10 @@ describe('layoutInspectInputSchema with visionOptions integration', () => {
     });
   });
 
-  describe('screenshot mode with visionOptions', () => {
+  describe("screenshot mode with visionOptions", () => {
     const screenshotInputSchema = z.object({
       base64: z.string().min(100),
-      mimeType: z.enum(['image/png', 'image/jpeg', 'image/webp']).default('image/png'),
+      mimeType: z.enum(["image/png", "image/jpeg", "image/webp"]).default("image/png"),
       width: z.number().int().positive().optional(),
       height: z.number().int().positive().optional(),
     });
@@ -316,14 +318,14 @@ describe('layoutInspectInputSchema with visionOptions integration', () => {
         options: layoutInspectOptionsSchema.optional(),
       })
       .refine((data) => data.screenshot !== undefined, {
-        message: 'Screenshot must be provided',
+        message: "Screenshot must be provided",
       });
 
-    it('should accept screenshot with visionOptions', () => {
+    it("should accept screenshot with visionOptions", () => {
       const result = extendedScreenshotInputSchema.safeParse({
         screenshot: {
-          base64: 'A'.repeat(100),
-          mimeType: 'image/png',
+          base64: "A".repeat(100),
+          mimeType: "image/png",
         },
         options: {
           visionOptions: {
@@ -335,11 +337,11 @@ describe('layoutInspectInputSchema with visionOptions integration', () => {
       expect(result.success).toBe(true);
     });
 
-    it('should accept screenshot without visionOptions', () => {
+    it("should accept screenshot without visionOptions", () => {
       const result = extendedScreenshotInputSchema.safeParse({
         screenshot: {
-          base64: 'A'.repeat(100),
-          mimeType: 'image/jpeg',
+          base64: "A".repeat(100),
+          mimeType: "image/jpeg",
         },
       });
       expect(result.success).toBe(true);
@@ -347,37 +349,35 @@ describe('layoutInspectInputSchema with visionOptions integration', () => {
   });
 });
 
-describe('Vision CPU completion guarantee configuration', () => {
-  describe('Hardware detection integration', () => {
-    it('should select GPU mode when visionForceCpu is false', () => {
+describe("Vision CPU completion guarantee configuration", () => {
+  describe("Hardware detection integration", () => {
+    it("should select GPU mode when visionForceCpu is false", () => {
       const config = {
         visionForceCpu: false,
-        detectedHardware: 'GPU' as const,
+        detectedHardware: "GPU" as const,
       };
-      const effectiveHardware =
-        config.visionForceCpu ? 'CPU' : config.detectedHardware;
-      expect(effectiveHardware).toBe('GPU');
+      const effectiveHardware = config.visionForceCpu ? "CPU" : config.detectedHardware;
+      expect(effectiveHardware).toBe("GPU");
     });
 
-    it('should select CPU mode when visionForceCpu is true', () => {
+    it("should select CPU mode when visionForceCpu is true", () => {
       const config = {
         visionForceCpu: true,
-        detectedHardware: 'GPU' as const,
+        detectedHardware: "GPU" as const,
       };
-      const effectiveHardware =
-        config.visionForceCpu ? 'CPU' : config.detectedHardware;
-      expect(effectiveHardware).toBe('CPU');
+      const effectiveHardware = config.visionForceCpu ? "CPU" : config.detectedHardware;
+      expect(effectiveHardware).toBe("CPU");
     });
   });
 
-  describe('Timeout calculation integration', () => {
-    it('should calculate GPU timeout', () => {
+  describe("Timeout calculation integration", () => {
+    it("should calculate GPU timeout", () => {
       const GPU_TIMEOUT = 60000;
       const timeout = GPU_TIMEOUT;
       expect(timeout).toBe(60000);
     });
 
-    it('should calculate CPU timeout based on image size', () => {
+    it("should calculate CPU timeout based on image size", () => {
       const CPU_SMALL_TIMEOUT = 180000;
       const CPU_MEDIUM_TIMEOUT = 600000;
       const CPU_LARGE_TIMEOUT = 1200000;
@@ -414,8 +414,8 @@ describe('Vision CPU completion guarantee configuration', () => {
     });
   });
 
-  describe('Graceful degradation configuration', () => {
-    it('should fallback to HTML-only when visionFallbackToHtmlOnly is true', () => {
+  describe("Graceful degradation configuration", () => {
+    it("should fallback to HTML-only when visionFallbackToHtmlOnly is true", () => {
       const config = {
         visionFallbackToHtmlOnly: true,
         visionFailed: true,
@@ -424,7 +424,7 @@ describe('Vision CPU completion guarantee configuration', () => {
       expect(shouldFallback).toBe(true);
     });
 
-    it('should not fallback when visionFallbackToHtmlOnly is false', () => {
+    it("should not fallback when visionFallbackToHtmlOnly is false", () => {
       const config = {
         visionFallbackToHtmlOnly: false,
         visionFailed: true,
@@ -433,7 +433,7 @@ describe('Vision CPU completion guarantee configuration', () => {
       expect(shouldFallback).toBe(false);
     });
 
-    it('should not fallback when vision succeeds', () => {
+    it("should not fallback when vision succeeds", () => {
       const config = {
         visionFallbackToHtmlOnly: true,
         visionFailed: false,

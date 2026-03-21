@@ -18,7 +18,7 @@
  *
  * SEC M-4: BackgroundSearchService ユニットテスト追加
  */
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from "vitest";
 import {
   createBackgroundSearchService,
   createBackgroundSearchServiceFromFactories,
@@ -27,19 +27,19 @@ import {
   type IBackgroundSearchPrismaClient,
   type IBackgroundSearchEmbeddingService,
   type BackgroundSearchServiceConfig,
-} from '../../../src/services/background-search.service';
+} from "../../../src/services/background-search.service";
 
 // =====================================================
 // production-guard モック（isDevelopmentEnvironment → false）
 // =====================================================
-vi.mock('../../../src/services/production-guard', () => ({
+vi.mock("../../../src/services/production-guard", () => ({
   isDevelopmentEnvironment: (): boolean => false,
 }));
 
 // =====================================================
 // logger モック（テスト時のログ出力抑制）
 // =====================================================
-vi.mock('../../../src/utils/logger', () => ({
+vi.mock("../../../src/utils/logger", () => ({
   logger: {
     info: vi.fn(),
     warn: vi.fn(),
@@ -60,14 +60,14 @@ function createMockEmbedding(fill = 0.01): number[] {
 /** テスト用のBackgroundSearchRow（DBから返されるsnake_case形式） */
 function createMockRow(overrides?: Record<string, unknown>): Record<string, unknown> {
   return {
-    id: 'bg-001',
-    web_page_id: 'wp-001',
-    name: 'Gradient Hero Background',
-    design_type: 'linear_gradient',
-    css_value: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-    selector: '.hero-bg',
-    color_info: { primary: '#667eea', secondary: '#764ba2' },
-    text_representation: 'purple blue gradient background',
+    id: "bg-001",
+    web_page_id: "wp-001",
+    name: "Gradient Hero Background",
+    design_type: "linear_gradient",
+    css_value: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+    selector: ".hero-bg",
+    color_info: { primary: "#667eea", secondary: "#764ba2" },
+    text_representation: "purple blue gradient background",
     similarity: 0.93,
     ...overrides,
   };
@@ -103,38 +103,43 @@ function createTestService(overrides?: Partial<BackgroundSearchServiceConfig>): 
 // テスト
 // =====================================================
 
-describe('BackgroundSearchService', () => {
+describe("BackgroundSearchService", () => {
   // -------------------------------------------------
   // generateQueryEmbedding
   // -------------------------------------------------
-  describe('generateQueryEmbedding', () => {
-    it('正常系: embeddingServiceが呼ばれ結果のベクトルを返すこと', async () => {
+  describe("generateQueryEmbedding", () => {
+    it("正常系: embeddingServiceが呼ばれ結果のベクトルを返すこと", async () => {
       // Arrange
       const expectedVector = createMockEmbedding(0.05);
       const embeddingService = createMockEmbeddingService();
-      (embeddingService.generateEmbedding as ReturnType<typeof vi.fn>).mockResolvedValue(expectedVector);
-      const { service } = createTestService({ embeddingService });
-
-      // Act
-      const result = await service.generateQueryEmbedding('gradient background');
-
-      // Assert
-      expect(embeddingService.generateEmbedding).toHaveBeenCalledOnce();
-      expect(embeddingService.generateEmbedding).toHaveBeenCalledWith('gradient background', 'query');
-      expect(result).toBe(expectedVector);
-      expect(result).toHaveLength(768);
-    });
-
-    it('エラー時: nullを返し例外をスローしないこと', async () => {
-      // Arrange
-      const embeddingService = createMockEmbeddingService();
-      (embeddingService.generateEmbedding as ReturnType<typeof vi.fn>).mockRejectedValue(
-        new Error('ONNX session failed')
+      (embeddingService.generateEmbedding as ReturnType<typeof vi.fn>).mockResolvedValue(
+        expectedVector
       );
       const { service } = createTestService({ embeddingService });
 
       // Act
-      const result = await service.generateQueryEmbedding('test query');
+      const result = await service.generateQueryEmbedding("gradient background");
+
+      // Assert
+      expect(embeddingService.generateEmbedding).toHaveBeenCalledOnce();
+      expect(embeddingService.generateEmbedding).toHaveBeenCalledWith(
+        "gradient background",
+        "query"
+      );
+      expect(result).toBe(expectedVector);
+      expect(result).toHaveLength(768);
+    });
+
+    it("エラー時: nullを返し例外をスローしないこと", async () => {
+      // Arrange
+      const embeddingService = createMockEmbeddingService();
+      (embeddingService.generateEmbedding as ReturnType<typeof vi.fn>).mockRejectedValue(
+        new Error("ONNX session failed")
+      );
+      const { service } = createTestService({ embeddingService });
+
+      // Act
+      const result = await service.generateQueryEmbedding("test query");
 
       // Assert: nullを返し、例外はスローされない
       expect(result).toBeNull();
@@ -144,10 +149,10 @@ describe('BackgroundSearchService', () => {
   // -------------------------------------------------
   // searchBackgroundDesigns (vector-only)
   // -------------------------------------------------
-  describe('searchBackgroundDesigns', () => {
-    it('正常検索: 正しいSQLとパラメータで$queryRawUnsafeが呼ばれること', async () => {
+  describe("searchBackgroundDesigns", () => {
+    it("正常検索: 正しいSQLとパラメータで$queryRawUnsafeが呼ばれること", async () => {
       // Arrange
-      const mockRows = [createMockRow(), createMockRow({ id: 'bg-002', similarity: 0.85 })];
+      const mockRows = [createMockRow(), createMockRow({ id: "bg-002", similarity: 0.85 })];
       const prisma = createMockPrisma();
       (prisma.$queryRawUnsafe as ReturnType<typeof vi.fn>).mockResolvedValue(mockRows);
       const { service } = createTestService({ prisma });
@@ -167,24 +172,24 @@ describe('BackgroundSearchService', () => {
       const sql = callArgs[0] as string;
 
       // SQL構造の検証
-      expect(sql).toContain('background_designs');
-      expect(sql).toContain('background_design_embeddings');
-      expect(sql).toContain('bde.embedding <=> $1::vector');
-      expect(sql).toContain('LIMIT');
-      expect(sql).toContain('OFFSET');
+      expect(sql).toContain("background_designs");
+      expect(sql).toContain("background_design_embeddings");
+      expect(sql).toContain("bde.embedding <=> $1::vector");
+      expect(sql).toContain("LIMIT");
+      expect(sql).toContain("OFFSET");
 
       // パラメータの検証: [vectorString, limit, offset]
       const vectorString = callArgs[1];
-      expect(vectorString).toBe(`[${embedding.join(',')}]`);
+      expect(vectorString).toBe(`[${embedding.join(",")}]`);
 
       // 結果の検証
       expect(result.results).toHaveLength(2);
-      expect(result.results[0].id).toBe('bg-001');
+      expect(result.results[0].id).toBe("bg-001");
       // offset=0でrows.length < limit なのでCOUNTクエリは発行されない
       expect(result.total).toBe(2);
     });
 
-    it('designTypeフィルタ: WHERE条件にdesign_typeが含まれること', async () => {
+    it("designTypeフィルタ: WHERE条件にdesign_typeが含まれること", async () => {
       // Arrange
       const prisma = createMockPrisma();
       (prisma.$queryRawUnsafe as ReturnType<typeof vi.fn>).mockResolvedValue([createMockRow()]);
@@ -194,18 +199,18 @@ describe('BackgroundSearchService', () => {
       await service.searchBackgroundDesigns(createMockEmbedding(), {
         limit: 10,
         offset: 0,
-        filters: { designType: 'linear_gradient' },
+        filters: { designType: "linear_gradient" },
       });
 
       // Assert
       const callArgs = (prisma.$queryRawUnsafe as ReturnType<typeof vi.fn>).mock.calls[0];
       const sql = callArgs[0] as string;
-      expect(sql).toContain('bd.design_type::text = $2');
+      expect(sql).toContain("bd.design_type::text = $2");
       // designType パラメータが含まれる
-      expect(callArgs).toContain('linear_gradient');
+      expect(callArgs).toContain("linear_gradient");
     });
 
-    it('webPageIdフィルタ: WHERE条件にweb_page_idが含まれること', async () => {
+    it("webPageIdフィルタ: WHERE条件にweb_page_idが含まれること", async () => {
       // Arrange
       const prisma = createMockPrisma();
       (prisma.$queryRawUnsafe as ReturnType<typeof vi.fn>).mockResolvedValue([createMockRow()]);
@@ -215,17 +220,17 @@ describe('BackgroundSearchService', () => {
       await service.searchBackgroundDesigns(createMockEmbedding(), {
         limit: 10,
         offset: 0,
-        filters: { webPageId: '019c0000-0000-7000-8000-000000000001' },
+        filters: { webPageId: "019c0000-0000-7000-8000-000000000001" },
       });
 
       // Assert
       const callArgs = (prisma.$queryRawUnsafe as ReturnType<typeof vi.fn>).mock.calls[0];
       const sql = callArgs[0] as string;
-      expect(sql).toContain('bd.web_page_id = $2');
-      expect(callArgs).toContain('019c0000-0000-7000-8000-000000000001');
+      expect(sql).toContain("bd.web_page_id = $2");
+      expect(callArgs).toContain("019c0000-0000-7000-8000-000000000001");
     });
 
-    it('両フィルタ同時: designTypeとwebPageId両方のWHERE条件が含まれること', async () => {
+    it("両フィルタ同時: designTypeとwebPageId両方のWHERE条件が含まれること", async () => {
       // Arrange
       const prisma = createMockPrisma();
       (prisma.$queryRawUnsafe as ReturnType<typeof vi.fn>).mockResolvedValue([createMockRow()]);
@@ -236,8 +241,8 @@ describe('BackgroundSearchService', () => {
         limit: 10,
         offset: 0,
         filters: {
-          designType: 'glassmorphism',
-          webPageId: '019c0000-0000-7000-8000-000000000002',
+          designType: "glassmorphism",
+          webPageId: "019c0000-0000-7000-8000-000000000002",
         },
       });
 
@@ -245,13 +250,13 @@ describe('BackgroundSearchService', () => {
       const callArgs = (prisma.$queryRawUnsafe as ReturnType<typeof vi.fn>).mock.calls[0];
       const sql = callArgs[0] as string;
       // designType は $2、webPageId は $3
-      expect(sql).toContain('bd.design_type::text = $2');
-      expect(sql).toContain('bd.web_page_id = $3');
-      expect(callArgs).toContain('glassmorphism');
-      expect(callArgs).toContain('019c0000-0000-7000-8000-000000000002');
+      expect(sql).toContain("bd.design_type::text = $2");
+      expect(sql).toContain("bd.web_page_id = $3");
+      expect(callArgs).toContain("glassmorphism");
+      expect(callArgs).toContain("019c0000-0000-7000-8000-000000000002");
     });
 
-    it('ページネーション: limit/offsetパラメータが正しく渡されること', async () => {
+    it("ページネーション: limit/offsetパラメータが正しく渡されること", async () => {
       // Arrange
       const prisma = createMockPrisma();
       (prisma.$queryRawUnsafe as ReturnType<typeof vi.fn>).mockResolvedValue([]);
@@ -266,20 +271,17 @@ describe('BackgroundSearchService', () => {
       // Assert: フィルタなしの場合 limit=$2, offset=$3
       const callArgs = (prisma.$queryRawUnsafe as ReturnType<typeof vi.fn>).mock.calls[0];
       const sql = callArgs[0] as string;
-      expect(sql).toContain('LIMIT $2');
-      expect(sql).toContain('OFFSET $3');
+      expect(sql).toContain("LIMIT $2");
+      expect(sql).toContain("OFFSET $3");
       // パラメータ: [vectorString, limit, offset]
       expect(callArgs[2]).toBe(5);
       expect(callArgs[3]).toBe(20);
     });
 
-    it('COUNTクエリ: offset=0かつrows.length >= limitのとき発行されること', async () => {
+    it("COUNTクエリ: offset=0かつrows.length >= limitのとき発行されること", async () => {
       // Arrange
       const limit = 2;
-      const mockRows = [
-        createMockRow({ id: 'bg-001' }),
-        createMockRow({ id: 'bg-002' }),
-      ];
+      const mockRows = [createMockRow({ id: "bg-001" }), createMockRow({ id: "bg-002" })];
       const prisma = createMockPrisma();
       // 1回目: メイン検索 → limit件ちょうど返す（COUNTトリガー）
       // 2回目: COUNTクエリ → total返却
@@ -298,19 +300,20 @@ describe('BackgroundSearchService', () => {
       // Assert: $queryRawUnsafe が2回呼ばれる（メイン + COUNT）
       expect(prisma.$queryRawUnsafe).toHaveBeenCalledTimes(2);
 
-      const countSql = (prisma.$queryRawUnsafe as ReturnType<typeof vi.fn>).mock.calls[1][0] as string;
-      expect(countSql).toContain('COUNT(*)');
-      expect(countSql).toContain('background_designs');
+      const countSql = (prisma.$queryRawUnsafe as ReturnType<typeof vi.fn>).mock
+        .calls[1][0] as string;
+      expect(countSql).toContain("COUNT(*)");
+      expect(countSql).toContain("background_designs");
 
       // total が COUNT 結果から取得されている
       expect(result.total).toBe(42);
       expect(result.results).toHaveLength(2);
     });
 
-    it('COUNTクエリ: offset > 0のときは発行されないこと', async () => {
+    it("COUNTクエリ: offset > 0のときは発行されないこと", async () => {
       // Arrange
       const prisma = createMockPrisma();
-      const mockRows = [createMockRow(), createMockRow({ id: 'bg-002' })];
+      const mockRows = [createMockRow(), createMockRow({ id: "bg-002" })];
       (prisma.$queryRawUnsafe as ReturnType<typeof vi.fn>).mockResolvedValue(mockRows);
       const { service } = createTestService({ prisma });
 
@@ -325,7 +328,7 @@ describe('BackgroundSearchService', () => {
       expect(result.total).toBe(2); // rows.length がそのまま total
     });
 
-    it('COUNTクエリ: rows.length < limitのときは発行されないこと', async () => {
+    it("COUNTクエリ: rows.length < limitのときは発行されないこと", async () => {
       // Arrange
       const prisma = createMockPrisma();
       (prisma.$queryRawUnsafe as ReturnType<typeof vi.fn>).mockResolvedValue([createMockRow()]);
@@ -346,16 +349,16 @@ describe('BackgroundSearchService', () => {
   // -------------------------------------------------
   // searchBackgroundDesignsHybrid
   // -------------------------------------------------
-  describe('searchBackgroundDesignsHybrid', () => {
-    it('正常ハイブリッド検索: vector + fulltext が両方呼ばれRRFマージされること', async () => {
+  describe("searchBackgroundDesignsHybrid", () => {
+    it("正常ハイブリッド検索: vector + fulltext が両方呼ばれRRFマージされること", async () => {
       // Arrange
       const vectorRows = [
-        createMockRow({ id: 'vec-001', similarity: 0.95 }),
-        createMockRow({ id: 'vec-002', similarity: 0.85 }),
+        createMockRow({ id: "vec-001", similarity: 0.95 }),
+        createMockRow({ id: "vec-002", similarity: 0.85 }),
       ];
       const fulltextRows = [
-        createMockRow({ id: 'ft-001', similarity: 0.9 }),
-        createMockRow({ id: 'vec-001', similarity: 0.8 }), // vectorと重複
+        createMockRow({ id: "ft-001", similarity: 0.9 }),
+        createMockRow({ id: "vec-001", similarity: 0.8 }), // vectorと重複
       ];
 
       const prisma = createMockPrisma();
@@ -368,7 +371,7 @@ describe('BackgroundSearchService', () => {
 
       // Act
       const result = await service.searchBackgroundDesignsHybrid(
-        'gradient background',
+        "gradient background",
         createMockEmbedding(),
         { limit: 10, offset: 0 }
       );
@@ -382,24 +385,22 @@ describe('BackgroundSearchService', () => {
       expect(result.total).toBeGreaterThan(0);
     });
 
-    it('fulltext検索失敗時: vector結果のみでRRFマージされること', async () => {
+    it("fulltext検索失敗時: vector結果のみでRRFマージされること", async () => {
       // Arrange
-      const vectorRows = [
-        createMockRow({ id: 'vec-001', similarity: 0.95 }),
-      ];
+      const vectorRows = [createMockRow({ id: "vec-001", similarity: 0.95 })];
 
       const prisma = createMockPrisma();
       // 1回目: vector検索 → 成功
       // 2回目: fulltext検索 → 失敗
       (prisma.$queryRawUnsafe as ReturnType<typeof vi.fn>)
         .mockResolvedValueOnce(vectorRows)
-        .mockRejectedValueOnce(new Error('Full-text index not available'));
+        .mockRejectedValueOnce(new Error("Full-text index not available"));
 
       const { service } = createTestService({ prisma });
 
       // Act
       const result = await service.searchBackgroundDesignsHybrid(
-        'gradient',
+        "gradient",
         createMockEmbedding(),
         { limit: 10, offset: 0 }
       );
@@ -409,42 +410,44 @@ describe('BackgroundSearchService', () => {
       expect(result.total).toBeGreaterThan(0);
     });
 
-    it('ハイブリッド全体失敗時: searchBackgroundDesignsにフォールバックすること', async () => {
+    it("ハイブリッド全体失敗時: searchBackgroundDesignsにフォールバックすること", async () => {
       // Arrange
-      const fallbackRows = [createMockRow({ id: 'fallback-001', similarity: 0.80 })];
+      const fallbackRows = [createMockRow({ id: "fallback-001", similarity: 0.8 })];
 
       const prisma = createMockPrisma();
       // ハイブリッド検索で両方の $queryRawUnsafe が失敗するようにする
       // → vector検索関数自体が例外を投げる → catch で searchBackgroundDesigns にフォールバック
       let callCount = 0;
-      (prisma.$queryRawUnsafe as ReturnType<typeof vi.fn>).mockImplementation((...args: unknown[]) => {
-        callCount++;
-        const sql = args[0] as string;
-        // ハイブリッド内のvector検索はLIMITのみ(OFFSETなし)で区別可能
-        // フォールバック先のsearchBackgroundDesignsはOFFSETを含む
-        if (callCount <= 1) {
-          // ハイブリッド内のvector検索 → 失敗
-          return Promise.reject(new Error('Database connection lost'));
+      (prisma.$queryRawUnsafe as ReturnType<typeof vi.fn>).mockImplementation(
+        (...args: unknown[]) => {
+          callCount++;
+          const sql = args[0] as string;
+          // ハイブリッド内のvector検索はLIMITのみ(OFFSETなし)で区別可能
+          // フォールバック先のsearchBackgroundDesignsはOFFSETを含む
+          if (callCount <= 1) {
+            // ハイブリッド内のvector検索 → 失敗
+            return Promise.reject(new Error("Database connection lost"));
+          }
+          // フォールバック: searchBackgroundDesigns
+          return Promise.resolve(fallbackRows);
         }
-        // フォールバック: searchBackgroundDesigns
-        return Promise.resolve(fallbackRows);
-      });
+      );
 
       const { service } = createTestService({ prisma });
 
       // Act
       const result = await service.searchBackgroundDesignsHybrid(
-        'gradient',
+        "gradient",
         createMockEmbedding(),
         { limit: 10, offset: 0 }
       );
 
       // Assert: フォールバックにより結果が返る
       expect(result.results).toHaveLength(1);
-      expect(result.results[0].id).toBe('fallback-001');
+      expect(result.results[0].id).toBe("fallback-001");
     });
 
-    it('フィルタ付きハイブリッド検索: ベースWHERE句が正しく構築されること', async () => {
+    it("フィルタ付きハイブリッド検索: ベースWHERE句が正しく構築されること", async () => {
       // Arrange
       const prisma = createMockPrisma();
       (prisma.$queryRawUnsafe as ReturnType<typeof vi.fn>)
@@ -454,15 +457,11 @@ describe('BackgroundSearchService', () => {
       const { service } = createTestService({ prisma });
 
       // Act
-      await service.searchBackgroundDesignsHybrid(
-        'gradient query',
-        createMockEmbedding(),
-        {
-          limit: 10,
-          offset: 0,
-          filters: { designType: 'linear_gradient', webPageId: 'wp-001' },
-        }
-      );
+      await service.searchBackgroundDesignsHybrid("gradient query", createMockEmbedding(), {
+        limit: 10,
+        offset: 0,
+        filters: { designType: "linear_gradient", webPageId: "wp-001" },
+      });
 
       // Assert: 両方の検索SQLにフィルタ条件が含まれる
       const calls = (prisma.$queryRawUnsafe as ReturnType<typeof vi.fn>).mock.calls;
@@ -470,19 +469,19 @@ describe('BackgroundSearchService', () => {
 
       // vector検索SQL
       const vecSql = calls[0][0] as string;
-      expect(vecSql).toContain('bd.design_type::text');
-      expect(vecSql).toContain('bd.web_page_id');
+      expect(vecSql).toContain("bd.design_type::text");
+      expect(vecSql).toContain("bd.web_page_id");
 
       // fulltext検索SQL
       const ftSql = calls[1][0] as string;
-      expect(ftSql).toContain('bd.design_type::text');
-      expect(ftSql).toContain('bd.web_page_id');
+      expect(ftSql).toContain("bd.design_type::text");
+      expect(ftSql).toContain("bd.web_page_id");
     });
 
-    it('ハイブリッド検索: offset/limitによるスライスが正しいこと', async () => {
+    it("ハイブリッド検索: offset/limitによるスライスが正しいこと", async () => {
       // Arrange: 多数の結果を返す
       const manyRows = Array.from({ length: 10 }, (_, i) =>
-        createMockRow({ id: `bg-${String(i).padStart(3, '0')}`, similarity: 0.9 - i * 0.01 })
+        createMockRow({ id: `bg-${String(i).padStart(3, "0")}`, similarity: 0.9 - i * 0.01 })
       );
 
       const prisma = createMockPrisma();
@@ -495,7 +494,7 @@ describe('BackgroundSearchService', () => {
 
       // Act: offset=2, limit=3 でスライス
       const result = await service.searchBackgroundDesignsHybrid(
-        'gradient',
+        "gradient",
         createMockEmbedding(),
         { limit: 3, offset: 2 }
       );
@@ -510,7 +509,7 @@ describe('BackgroundSearchService', () => {
   // -------------------------------------------------
   // DI Factory
   // -------------------------------------------------
-  describe('createBackgroundSearchServiceFromFactories', () => {
+  describe("createBackgroundSearchServiceFromFactories", () => {
     beforeEach(() => {
       // DI Factoryをリセット（モジュールレベルの状態）
       // factory を null にするため、未設定の factory を上書き
@@ -518,7 +517,7 @@ describe('BackgroundSearchService', () => {
       setBackgroundSearchEmbeddingServiceFactory(createMockEmbeddingService);
     });
 
-    it('factory設定済みの場合: サービスオブジェクトが返ること', () => {
+    it("factory設定済みの場合: サービスオブジェクトが返ること", () => {
       // Arrange: beforeEach で設定済み
 
       // Act
@@ -526,12 +525,12 @@ describe('BackgroundSearchService', () => {
 
       // Assert
       expect(service).not.toBeNull();
-      expect(service).toHaveProperty('generateQueryEmbedding');
-      expect(service).toHaveProperty('searchBackgroundDesigns');
-      expect(service).toHaveProperty('searchBackgroundDesignsHybrid');
+      expect(service).toHaveProperty("generateQueryEmbedding");
+      expect(service).toHaveProperty("searchBackgroundDesigns");
+      expect(service).toHaveProperty("searchBackgroundDesignsHybrid");
     });
 
-    it('prismaClientFactory未設定の場合: nullが返ること', () => {
+    it("prismaClientFactory未設定の場合: nullが返ること", () => {
       // Arrange: prisma factory を null にリセット
       // モジュール変数を直接リセットできないため、新しいimportが必要
       // 代替: factory に null をセットする方法は公開されていないので、
@@ -543,16 +542,16 @@ describe('BackgroundSearchService', () => {
   // -------------------------------------------------
   // DI Factory（モジュールリロード版）
   // -------------------------------------------------
-  describe('createBackgroundSearchServiceFromFactories (モジュールリロード)', () => {
-    it('factory未設定の場合: nullが返ること', async () => {
+  describe("createBackgroundSearchServiceFromFactories (モジュールリロード)", () => {
+    it("factory未設定の場合: nullが返ること", async () => {
       // Arrange: モジュールをリロードして初期状態（factory=null）にする
       vi.resetModules();
 
       // production-guard と logger のモックを再設定
-      vi.doMock('../../../src/services/production-guard', () => ({
+      vi.doMock("../../../src/services/production-guard", () => ({
         isDevelopmentEnvironment: (): boolean => false,
       }));
-      vi.doMock('../../../src/utils/logger', () => ({
+      vi.doMock("../../../src/utils/logger", () => ({
         logger: {
           info: vi.fn(),
           warn: vi.fn(),
@@ -561,7 +560,7 @@ describe('BackgroundSearchService', () => {
         },
       }));
 
-      const freshModule = await import('../../../src/services/background-search.service');
+      const freshModule = await import("../../../src/services/background-search.service");
 
       // Act: factory 未設定のまま呼び出し
       const service = freshModule.createBackgroundSearchServiceFromFactories();
@@ -570,14 +569,14 @@ describe('BackgroundSearchService', () => {
       expect(service).toBeNull();
     });
 
-    it('embeddingServiceFactory のみ未設定の場合: nullが返ること', async () => {
+    it("embeddingServiceFactory のみ未設定の場合: nullが返ること", async () => {
       // Arrange: モジュールをリロード
       vi.resetModules();
 
-      vi.doMock('../../../src/services/production-guard', () => ({
+      vi.doMock("../../../src/services/production-guard", () => ({
         isDevelopmentEnvironment: (): boolean => false,
       }));
-      vi.doMock('../../../src/utils/logger', () => ({
+      vi.doMock("../../../src/utils/logger", () => ({
         logger: {
           info: vi.fn(),
           warn: vi.fn(),
@@ -586,7 +585,7 @@ describe('BackgroundSearchService', () => {
         },
       }));
 
-      const freshModule = await import('../../../src/services/background-search.service');
+      const freshModule = await import("../../../src/services/background-search.service");
 
       // prismaClientFactory のみ設定
       freshModule.setBackgroundSearchPrismaClientFactory(createMockPrisma);
@@ -603,18 +602,18 @@ describe('BackgroundSearchService', () => {
   // -------------------------------------------------
   // ヘルパー: mapRowToResult
   // -------------------------------------------------
-  describe('mapRowToResult（searchBackgroundDesigns経由で間接検証）', () => {
-    it('snake_case→camelCaseマッピングが正しいこと', async () => {
+  describe("mapRowToResult（searchBackgroundDesigns経由で間接検証）", () => {
+    it("snake_case→camelCaseマッピングが正しいこと", async () => {
       // Arrange
       const row = createMockRow({
-        id: 'map-001',
-        web_page_id: 'wp-map',
-        name: 'Test Background',
-        design_type: 'radial_gradient',
-        css_value: 'radial-gradient(circle, #fff, #000)',
-        selector: '#main-bg',
-        color_info: { dominant: '#ffffff' },
-        text_representation: 'white to black radial',
+        id: "map-001",
+        web_page_id: "wp-map",
+        name: "Test Background",
+        design_type: "radial_gradient",
+        css_value: "radial-gradient(circle, #fff, #000)",
+        selector: "#main-bg",
+        color_info: { dominant: "#ffffff" },
+        text_representation: "white to black radial",
         similarity: 0.88,
       });
 
@@ -630,18 +629,18 @@ describe('BackgroundSearchService', () => {
 
       // Assert: camelCase にマッピングされている
       const item = result.results[0];
-      expect(item.id).toBe('map-001');
-      expect(item.webPageId).toBe('wp-map');
-      expect(item.name).toBe('Test Background');
-      expect(item.designType).toBe('radial_gradient');
-      expect(item.cssValue).toBe('radial-gradient(circle, #fff, #000)');
-      expect(item.selector).toBe('#main-bg');
-      expect(item.colorInfo).toEqual({ dominant: '#ffffff' });
-      expect(item.textRepresentation).toBe('white to black radial');
+      expect(item.id).toBe("map-001");
+      expect(item.webPageId).toBe("wp-map");
+      expect(item.name).toBe("Test Background");
+      expect(item.designType).toBe("radial_gradient");
+      expect(item.cssValue).toBe("radial-gradient(circle, #fff, #000)");
+      expect(item.selector).toBe("#main-bg");
+      expect(item.colorInfo).toEqual({ dominant: "#ffffff" });
+      expect(item.textRepresentation).toBe("white to black radial");
       expect(item.similarity).toBe(0.88);
     });
 
-    it('selector が null の場合も正しくマッピングされること', async () => {
+    it("selector が null の場合も正しくマッピングされること", async () => {
       // Arrange
       const row = createMockRow({ selector: null });
       const prisma = createMockPrisma();
@@ -658,7 +657,7 @@ describe('BackgroundSearchService', () => {
       expect(result.results[0].selector).toBeNull();
     });
 
-    it('color_info が null の場合にデフォルト空オブジェクトになること', async () => {
+    it("color_info が null の場合にデフォルト空オブジェクトになること", async () => {
       // Arrange
       const row = createMockRow({ color_info: null });
       const prisma = createMockPrisma();
@@ -675,7 +674,7 @@ describe('BackgroundSearchService', () => {
       expect(result.results[0].colorInfo).toEqual({});
     });
 
-    it('text_representation が null の場合にデフォルト空文字列になること', async () => {
+    it("text_representation が null の場合にデフォルト空文字列になること", async () => {
       // Arrange
       const row = createMockRow({ text_representation: null });
       const prisma = createMockPrisma();
@@ -689,15 +688,15 @@ describe('BackgroundSearchService', () => {
       });
 
       // Assert: null → '' にフォールバック
-      expect(result.results[0].textRepresentation).toBe('');
+      expect(result.results[0].textRepresentation).toBe("");
     });
   });
 
   // -------------------------------------------------
   // ヘルパー: buildWhereClause（searchBackgroundDesigns経由で間接検証）
   // -------------------------------------------------
-  describe('buildWhereClause（searchBackgroundDesigns経由で間接検証）', () => {
-    it('フィルタなし: bde.embedding IS NOT NULL のみのWHERE句', async () => {
+  describe("buildWhereClause（searchBackgroundDesigns経由で間接検証）", () => {
+    it("フィルタなし: bde.embedding IS NOT NULL のみのWHERE句", async () => {
       // Arrange
       const prisma = createMockPrisma();
       (prisma.$queryRawUnsafe as ReturnType<typeof vi.fn>).mockResolvedValue([]);
@@ -711,13 +710,13 @@ describe('BackgroundSearchService', () => {
 
       // Assert
       const sql = (prisma.$queryRawUnsafe as ReturnType<typeof vi.fn>).mock.calls[0][0] as string;
-      expect(sql).toContain('bde.embedding IS NOT NULL');
+      expect(sql).toContain("bde.embedding IS NOT NULL");
       // フィルタ条件がない
-      expect(sql).not.toContain('bd.design_type::text');
-      expect(sql).not.toContain('bd.web_page_id =');
+      expect(sql).not.toContain("bd.design_type::text");
+      expect(sql).not.toContain("bd.web_page_id =");
     });
 
-    it('designTypeのみ: $2にdesignTypeがバインドされること', async () => {
+    it("designTypeのみ: $2にdesignTypeがバインドされること", async () => {
       // Arrange
       const prisma = createMockPrisma();
       (prisma.$queryRawUnsafe as ReturnType<typeof vi.fn>).mockResolvedValue([]);
@@ -727,18 +726,18 @@ describe('BackgroundSearchService', () => {
       await service.searchBackgroundDesigns(createMockEmbedding(), {
         limit: 10,
         offset: 0,
-        filters: { designType: 'mesh_gradient' },
+        filters: { designType: "mesh_gradient" },
       });
 
       // Assert
       const callArgs = (prisma.$queryRawUnsafe as ReturnType<typeof vi.fn>).mock.calls[0];
       const sql = callArgs[0] as string;
-      expect(sql).toContain('bd.design_type::text = $2');
+      expect(sql).toContain("bd.design_type::text = $2");
       // パラメータ: [vectorString, designType, limit, offset]
-      expect(callArgs[2]).toBe('mesh_gradient');
+      expect(callArgs[2]).toBe("mesh_gradient");
     });
 
-    it('webPageIdのみ: $2にwebPageIdがバインドされること', async () => {
+    it("webPageIdのみ: $2にwebPageIdがバインドされること", async () => {
       // Arrange
       const prisma = createMockPrisma();
       (prisma.$queryRawUnsafe as ReturnType<typeof vi.fn>).mockResolvedValue([]);
@@ -748,17 +747,17 @@ describe('BackgroundSearchService', () => {
       await service.searchBackgroundDesigns(createMockEmbedding(), {
         limit: 10,
         offset: 0,
-        filters: { webPageId: 'wp-123' },
+        filters: { webPageId: "wp-123" },
       });
 
       // Assert
       const callArgs = (prisma.$queryRawUnsafe as ReturnType<typeof vi.fn>).mock.calls[0];
       const sql = callArgs[0] as string;
-      expect(sql).toContain('bd.web_page_id = $2');
-      expect(callArgs[2]).toBe('wp-123');
+      expect(sql).toContain("bd.web_page_id = $2");
+      expect(callArgs[2]).toBe("wp-123");
     });
 
-    it('両方のフィルタ: パラメータインデックスが正しくインクリメントされること', async () => {
+    it("両方のフィルタ: パラメータインデックスが正しくインクリメントされること", async () => {
       // Arrange
       const prisma = createMockPrisma();
       (prisma.$queryRawUnsafe as ReturnType<typeof vi.fn>).mockResolvedValue([]);
@@ -768,21 +767,21 @@ describe('BackgroundSearchService', () => {
       await service.searchBackgroundDesigns(createMockEmbedding(), {
         limit: 10,
         offset: 0,
-        filters: { designType: 'solid_color', webPageId: 'wp-456' },
+        filters: { designType: "solid_color", webPageId: "wp-456" },
       });
 
       // Assert
       const callArgs = (prisma.$queryRawUnsafe as ReturnType<typeof vi.fn>).mock.calls[0];
       const sql = callArgs[0] as string;
       // designType=$2, webPageId=$3, limit=$4, offset=$5
-      expect(sql).toContain('bd.design_type::text = $2');
-      expect(sql).toContain('bd.web_page_id = $3');
-      expect(sql).toContain('LIMIT $4');
-      expect(sql).toContain('OFFSET $5');
+      expect(sql).toContain("bd.design_type::text = $2");
+      expect(sql).toContain("bd.web_page_id = $3");
+      expect(sql).toContain("LIMIT $4");
+      expect(sql).toContain("OFFSET $5");
       // パラメータ: [vectorString, designType, webPageId, limit, offset]
-      expect(callArgs[1]).toBe(`[${createMockEmbedding().join(',')}]`);
-      expect(callArgs[2]).toBe('solid_color');
-      expect(callArgs[3]).toBe('wp-456');
+      expect(callArgs[1]).toBe(`[${createMockEmbedding().join(",")}]`);
+      expect(callArgs[2]).toBe("solid_color");
+      expect(callArgs[3]).toBe("wp-456");
       expect(callArgs[4]).toBe(10);
       expect(callArgs[5]).toBe(0);
     });

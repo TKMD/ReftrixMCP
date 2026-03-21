@@ -102,11 +102,7 @@ const REFTRIX_BOT_SPECIFIC = [
 /**
  * Crawl-delayを含むrobots.txt
  */
-const WITH_CRAWL_DELAY = [
-  "User-agent: *",
-  "Crawl-delay: 10",
-  "Disallow: /admin/",
-].join("\n");
+const WITH_CRAWL_DELAY = ["User-agent: *", "Crawl-delay: 10", "Disallow: /admin/"].join("\n");
 
 // =============================================================================
 // テスト本体
@@ -164,7 +160,7 @@ describe("RobotsTxtService", () => {
       expect(mockFetch).not.toHaveBeenCalled();
     });
 
-    it('環境変数 REFTRIX_RESPECT_ROBOTS_TXT=0 → 常に許可', async () => {
+    it("環境変数 REFTRIX_RESPECT_ROBOTS_TXT=0 → 常に許可", async () => {
       // Arrange
       vi.stubEnv("REFTRIX_RESPECT_ROBOTS_TXT", "0");
 
@@ -176,7 +172,7 @@ describe("RobotsTxtService", () => {
       expect(result.reason).toBe("feature_disabled");
     });
 
-    it('環境変数 REFTRIX_RESPECT_ROBOTS_TXT=FALSE → 大文字小文字を区別しない', async () => {
+    it("環境変数 REFTRIX_RESPECT_ROBOTS_TXT=FALSE → 大文字小文字を区別しない", async () => {
       // Arrange
       vi.stubEnv("REFTRIX_RESPECT_ROBOTS_TXT", "FALSE");
 
@@ -191,9 +187,7 @@ describe("RobotsTxtService", () => {
     it("環境変数 未設定 → デフォルトで有効（robots.txtを尊重）", async () => {
       // Arrange: 環境変数を設定しない
       // 200 OKでDisallow: /を返す → 拒否されるべき
-      mockFetch.mockResolvedValue(
-        createMockResponse({ status: 200, body: DISALLOW_ALL }),
-      );
+      mockFetch.mockResolvedValue(createMockResponse({ status: 200, body: DISALLOW_ALL }));
 
       // Act
       const result = await service.isAllowed("https://example.com/page");
@@ -204,12 +198,10 @@ describe("RobotsTxtService", () => {
       expect(mockFetch).toHaveBeenCalledOnce();
     });
 
-    it('環境変数 REFTRIX_RESPECT_ROBOTS_TXT=true → 有効', async () => {
+    it("環境変数 REFTRIX_RESPECT_ROBOTS_TXT=true → 有効", async () => {
       // Arrange
       vi.stubEnv("REFTRIX_RESPECT_ROBOTS_TXT", "true");
-      mockFetch.mockResolvedValue(
-        createMockResponse({ status: 200, body: DISALLOW_ALL }),
-      );
+      mockFetch.mockResolvedValue(createMockResponse({ status: 200, body: DISALLOW_ALL }));
 
       // Act
       const result = await service.isAllowed("https://example.com/page");
@@ -222,9 +214,7 @@ describe("RobotsTxtService", () => {
     it('環境変数 REFTRIX_RESPECT_ROBOTS_TXT=1 → 有効（"false"と"0"以外はすべて有効）', async () => {
       // Arrange
       vi.stubEnv("REFTRIX_RESPECT_ROBOTS_TXT", "1");
-      mockFetch.mockResolvedValue(
-        createMockResponse({ status: 200, body: DISALLOW_ALL }),
-      );
+      mockFetch.mockResolvedValue(createMockResponse({ status: 200, body: DISALLOW_ALL }));
 
       // Act
       const result = await service.isAllowed("https://example.com/page");
@@ -238,11 +228,7 @@ describe("RobotsTxtService", () => {
       // Arrange: 環境変数は有効にしておく（デフォルト）
 
       // Act
-      const result = await service.isAllowed(
-        "https://example.com/page",
-        undefined,
-        false,
-      );
+      const result = await service.isAllowed("https://example.com/page", undefined, false);
 
       // Assert
       expect(result.allowed).toBe(true);
@@ -253,16 +239,10 @@ describe("RobotsTxtService", () => {
 
     it("per-tool override: respectRobotsTxt=true → robots.txtを尊重", async () => {
       // Arrange
-      mockFetch.mockResolvedValue(
-        createMockResponse({ status: 200, body: DISALLOW_ALL }),
-      );
+      mockFetch.mockResolvedValue(createMockResponse({ status: 200, body: DISALLOW_ALL }));
 
       // Act
-      const result = await service.isAllowed(
-        "https://example.com/page",
-        undefined,
-        true,
-      );
+      const result = await service.isAllowed("https://example.com/page", undefined, true);
 
       // Assert
       expect(result.allowed).toBe(false);
@@ -274,11 +254,7 @@ describe("RobotsTxtService", () => {
       vi.stubEnv("REFTRIX_RESPECT_ROBOTS_TXT", "true");
 
       // Act
-      const result = await service.isAllowed(
-        "https://example.com/page",
-        undefined,
-        false,
-      );
+      const result = await service.isAllowed("https://example.com/page", undefined, false);
 
       // Assert
       // per-toolオーバーライドは環境変数より優先される
@@ -295,9 +271,7 @@ describe("RobotsTxtService", () => {
   describe("robots.txt パーステスト", () => {
     it("Disallow: / → すべてのパスが拒否される", async () => {
       // Arrange
-      mockFetch.mockResolvedValue(
-        createMockResponse({ status: 200, body: DISALLOW_ALL }),
-      );
+      mockFetch.mockResolvedValue(createMockResponse({ status: 200, body: DISALLOW_ALL }));
 
       // Act
       const result = await service.isAllowed("https://example.com/any/path");
@@ -310,14 +284,10 @@ describe("RobotsTxtService", () => {
 
     it("Allow: /public/ は Disallow: / より優先される", async () => {
       // Arrange
-      mockFetch.mockResolvedValue(
-        createMockResponse({ status: 200, body: ALLOW_SPECIFIC_PATH }),
-      );
+      mockFetch.mockResolvedValue(createMockResponse({ status: 200, body: ALLOW_SPECIFIC_PATH }));
 
       // Act
-      const allowedResult = await service.isAllowed(
-        "https://example.com/public/page",
-      );
+      const allowedResult = await service.isAllowed("https://example.com/public/page");
 
       // Assert
       expect(allowedResult.allowed).toBe(true);
@@ -326,14 +296,10 @@ describe("RobotsTxtService", () => {
 
     it("Allow: /public/ のスコープ外は Disallow される", async () => {
       // Arrange
-      mockFetch.mockResolvedValue(
-        createMockResponse({ status: 200, body: ALLOW_SPECIFIC_PATH }),
-      );
+      mockFetch.mockResolvedValue(createMockResponse({ status: 200, body: ALLOW_SPECIFIC_PATH }));
 
       // Act
-      const deniedResult = await service.isAllowed(
-        "https://example.com/secret/page",
-      );
+      const deniedResult = await service.isAllowed("https://example.com/secret/page");
 
       // Assert
       expect(deniedResult.allowed).toBe(false);
@@ -342,9 +308,7 @@ describe("RobotsTxtService", () => {
 
     it("ReftrixBot専用ルールが適用される", async () => {
       // Arrange
-      mockFetch.mockResolvedValue(
-        createMockResponse({ status: 200, body: REFTRIX_BOT_SPECIFIC }),
-      );
+      mockFetch.mockResolvedValue(createMockResponse({ status: 200, body: REFTRIX_BOT_SPECIFIC }));
 
       // Act: ReftrixBotのデフォルトトークンで確認
       const publicResult = await service.isAllowed("https://example.com/page");
@@ -355,14 +319,10 @@ describe("RobotsTxtService", () => {
 
     it("ReftrixBot専用ルールで /private/ は拒否される", async () => {
       // Arrange
-      mockFetch.mockResolvedValue(
-        createMockResponse({ status: 200, body: REFTRIX_BOT_SPECIFIC }),
-      );
+      mockFetch.mockResolvedValue(createMockResponse({ status: 200, body: REFTRIX_BOT_SPECIFIC }));
 
       // Act
-      const privateResult = await service.isAllowed(
-        "https://example.com/private/data",
-      );
+      const privateResult = await service.isAllowed("https://example.com/private/data");
 
       // Assert
       expect(privateResult.allowed).toBe(false);
@@ -371,15 +331,10 @@ describe("RobotsTxtService", () => {
 
     it("カスタムproductTokenを指定すると対応するUser-agentルールが適用される", async () => {
       // Arrange: *は全拒否、ReftrixBotのみ許可
-      mockFetch.mockResolvedValue(
-        createMockResponse({ status: 200, body: REFTRIX_BOT_SPECIFIC }),
-      );
+      mockFetch.mockResolvedValue(createMockResponse({ status: 200, body: REFTRIX_BOT_SPECIFIC }));
 
       // Act: ワイルドカードルール適用対象の別のbot
-      const result = await service.isAllowed(
-        "https://example.com/page",
-        "OtherBot",
-      );
+      const result = await service.isAllowed("https://example.com/page", "OtherBot");
 
       // Assert: OtherBotは * ルール (Disallow: /) が適用される
       expect(result.allowed).toBe(false);
@@ -388,23 +343,13 @@ describe("RobotsTxtService", () => {
 
     it("ワイルドカード (*) User-agent フォールバック", async () => {
       // Arrange
-      const robotsTxt = [
-        "User-agent: *",
-        "Disallow: /admin/",
-        "Allow: /",
-      ].join("\n");
-      mockFetch.mockResolvedValue(
-        createMockResponse({ status: 200, body: robotsTxt }),
-      );
+      const robotsTxt = ["User-agent: *", "Disallow: /admin/", "Allow: /"].join("\n");
+      mockFetch.mockResolvedValue(createMockResponse({ status: 200, body: robotsTxt }));
 
       // Act
-      const adminResult = await service.isAllowed(
-        "https://example.com/admin/settings",
-      );
+      const adminResult = await service.isAllowed("https://example.com/admin/settings");
       // 別のインスタンスではなくキャッシュから取得
-      const publicResult = await service.isAllowed(
-        "https://example.com/page",
-      );
+      const publicResult = await service.isAllowed("https://example.com/page");
 
       // Assert
       expect(adminResult.allowed).toBe(false);
@@ -413,9 +358,7 @@ describe("RobotsTxtService", () => {
 
     it("空のrobots.txt → すべて許可", async () => {
       // Arrange
-      mockFetch.mockResolvedValue(
-        createMockResponse({ status: 200, body: "" }),
-      );
+      mockFetch.mockResolvedValue(createMockResponse({ status: 200, body: "" }));
 
       // Act
       const result = await service.isAllowed("https://example.com/any/path");
@@ -428,9 +371,7 @@ describe("RobotsTxtService", () => {
 
     it("Crawl-delay ディレクティブが結果に含まれる", async () => {
       // Arrange
-      mockFetch.mockResolvedValue(
-        createMockResponse({ status: 200, body: WITH_CRAWL_DELAY }),
-      );
+      mockFetch.mockResolvedValue(createMockResponse({ status: 200, body: WITH_CRAWL_DELAY }));
 
       // Act
       const result = await service.isAllowed("https://example.com/page");
@@ -442,9 +383,7 @@ describe("RobotsTxtService", () => {
 
     it("Crawl-delay 未指定の場合はcrawlDelayフィールドなし", async () => {
       // Arrange
-      mockFetch.mockResolvedValue(
-        createMockResponse({ status: 200, body: DISALLOW_ALL }),
-      );
+      mockFetch.mockResolvedValue(createMockResponse({ status: 200, body: DISALLOW_ALL }));
 
       // Act
       const result = await service.isAllowed("https://example.com/page");
@@ -456,9 +395,7 @@ describe("RobotsTxtService", () => {
     it("Disallow が空 → すべて許可", async () => {
       // Arrange
       const robotsTxt = "User-agent: *\nDisallow:";
-      mockFetch.mockResolvedValue(
-        createMockResponse({ status: 200, body: robotsTxt }),
-      );
+      mockFetch.mockResolvedValue(createMockResponse({ status: 200, body: robotsTxt }));
 
       // Act
       const result = await service.isAllowed("https://example.com/any/path");
@@ -477,9 +414,7 @@ describe("RobotsTxtService", () => {
         "User-agent: *",
         "Disallow: /",
       ].join("\n");
-      mockFetch.mockResolvedValue(
-        createMockResponse({ status: 200, body: robotsTxt }),
-      );
+      mockFetch.mockResolvedValue(createMockResponse({ status: 200, body: robotsTxt }));
 
       // Act
       const apiResult = await service.isAllowed("https://example.com/api/data");
@@ -498,9 +433,7 @@ describe("RobotsTxtService", () => {
   describe("HTTP Fetch テスト", () => {
     it("200 OK → robots.txtをパースして判定する", async () => {
       // Arrange
-      mockFetch.mockResolvedValue(
-        createMockResponse({ status: 200, body: DISALLOW_ALL }),
-      );
+      mockFetch.mockResolvedValue(createMockResponse({ status: 200, body: DISALLOW_ALL }));
 
       // Act
       const result = await service.isAllowed("https://example.com/page");
@@ -515,7 +448,7 @@ describe("RobotsTxtService", () => {
             Accept: "text/plain",
           }),
           redirect: "manual",
-        }),
+        })
       );
       expect(result.allowed).toBe(false);
     });
@@ -612,7 +545,7 @@ describe("RobotsTxtService", () => {
           status: 200,
           body: "<html>Not a robots.txt</html>",
           contentType: "text/html",
-        }),
+        })
       );
 
       // Act
@@ -631,7 +564,7 @@ describe("RobotsTxtService", () => {
           status: 200,
           body: '{"error": "not found"}',
           contentType: "application/json",
-        }),
+        })
       );
 
       // Act
@@ -650,7 +583,7 @@ describe("RobotsTxtService", () => {
           status: 200,
           body: "User-agent: *\nAllow: /",
           contentLength: oversizedLength,
-        }),
+        })
       );
 
       // Act
@@ -669,7 +602,7 @@ describe("RobotsTxtService", () => {
           status: 200,
           body: oversizedBody,
           // contentLength を指定しない
-        }),
+        })
       );
 
       // Act
@@ -688,7 +621,7 @@ describe("RobotsTxtService", () => {
           status: 200,
           body: "User-agent: *\nAllow: /",
           contentLength: exactSize,
-        }),
+        })
       );
 
       // Act
@@ -701,7 +634,7 @@ describe("RobotsTxtService", () => {
     it("fetchにAbortSignalが渡されることを確認", async () => {
       // Arrange
       mockFetch.mockResolvedValue(
-        createMockResponse({ status: 200, body: "User-agent: *\nAllow: /" }),
+        createMockResponse({ status: 200, body: "User-agent: *\nAllow: /" })
       );
 
       // Act
@@ -712,7 +645,7 @@ describe("RobotsTxtService", () => {
         expect.any(String),
         expect.objectContaining({
           signal: expect.any(AbortSignal),
-        }),
+        })
       );
     });
 
@@ -723,11 +656,9 @@ describe("RobotsTxtService", () => {
           createMockResponse({
             status: 302,
             headers: { location: "https://cdn.example.com/robots.txt" },
-          }),
+          })
         )
-        .mockResolvedValueOnce(
-          createMockResponse({ status: 200, body: DISALLOW_ALL }),
-        );
+        .mockResolvedValueOnce(createMockResponse({ status: 200, body: DISALLOW_ALL }));
 
       // Act
       const result = await service.isAllowed("https://example.com/page");
@@ -737,7 +668,7 @@ describe("RobotsTxtService", () => {
         expect.any(String),
         expect.objectContaining({
           redirect: "manual",
-        }),
+        })
       );
       // リダイレクト先にもfetchが呼ばれること
       expect(mockFetch).toHaveBeenCalledTimes(2);
@@ -753,9 +684,7 @@ describe("RobotsTxtService", () => {
   describe("キャッシュテスト", () => {
     it("同一ドメインの2回目チェック → cached=true", async () => {
       // Arrange
-      mockFetch.mockResolvedValue(
-        createMockResponse({ status: 200, body: DISALLOW_ALL }),
-      );
+      mockFetch.mockResolvedValue(createMockResponse({ status: 200, body: DISALLOW_ALL }));
 
       // Act
       const first = await service.isAllowed("https://example.com/page1");
@@ -770,9 +699,7 @@ describe("RobotsTxtService", () => {
 
     it("異なるドメインは個別にキャッシュされる", async () => {
       // Arrange
-      mockFetch.mockResolvedValue(
-        createMockResponse({ status: 200, body: DISALLOW_ALL }),
-      );
+      mockFetch.mockResolvedValue(createMockResponse({ status: 200, body: DISALLOW_ALL }));
 
       // Act
       await service.isAllowed("https://example.com/page");
@@ -784,9 +711,7 @@ describe("RobotsTxtService", () => {
 
     it("TTL切れ → 再取得される", async () => {
       // Arrange
-      mockFetch.mockResolvedValue(
-        createMockResponse({ status: 200, body: DISALLOW_ALL }),
-      );
+      mockFetch.mockResolvedValue(createMockResponse({ status: 200, body: DISALLOW_ALL }));
 
       // Act: 初回取得
       const first = await service.isAllowed("https://example.com/page");
@@ -805,9 +730,7 @@ describe("RobotsTxtService", () => {
 
     it("TTL内 → キャッシュを使用", async () => {
       // Arrange
-      mockFetch.mockResolvedValue(
-        createMockResponse({ status: 200, body: DISALLOW_ALL }),
-      );
+      mockFetch.mockResolvedValue(createMockResponse({ status: 200, body: DISALLOW_ALL }));
 
       // Act: 初回取得
       await service.isAllowed("https://example.com/page");
@@ -829,7 +752,7 @@ describe("RobotsTxtService", () => {
         createMockResponse({
           status: 200,
           body: "User-agent: *\nAllow: /",
-        }),
+        })
       );
 
       // Act: MAX_CACHE_ENTRIES + 1 個のドメインをキャッシュ
@@ -843,9 +766,7 @@ describe("RobotsTxtService", () => {
 
     it("clearCache() でキャッシュがクリアされる", async () => {
       // Arrange
-      mockFetch.mockResolvedValue(
-        createMockResponse({ status: 200, body: DISALLOW_ALL }),
-      );
+      mockFetch.mockResolvedValue(createMockResponse({ status: 200, body: DISALLOW_ALL }));
       await service.isAllowed("https://example.com/page");
       expect(service.getCacheSize()).toBe(1);
 
@@ -858,9 +779,7 @@ describe("RobotsTxtService", () => {
 
     it("getCacheSize() が正確なキャッシュエントリ数を返す", async () => {
       // Arrange
-      mockFetch.mockResolvedValue(
-        createMockResponse({ status: 200, body: DISALLOW_ALL }),
-      );
+      mockFetch.mockResolvedValue(createMockResponse({ status: 200, body: DISALLOW_ALL }));
 
       // Act & Assert
       expect(service.getCacheSize()).toBe(0);
@@ -884,7 +803,7 @@ describe("RobotsTxtService", () => {
         createMockResponse({
           status: 200,
           body: "User-agent: *\nAllow: /",
-        }),
+        })
       );
 
       // Act
@@ -919,9 +838,7 @@ describe("RobotsTxtService", () => {
 
     it("dispose() でキャッシュとタイマーがクリアされる", async () => {
       // Arrange
-      mockFetch.mockResolvedValue(
-        createMockResponse({ status: 200, body: DISALLOW_ALL }),
-      );
+      mockFetch.mockResolvedValue(createMockResponse({ status: 200, body: DISALLOW_ALL }));
       await service.isAllowed("https://example.com/page");
       expect(service.getCacheSize()).toBe(1);
 
@@ -938,7 +855,7 @@ describe("RobotsTxtService", () => {
         createMockResponse({
           status: 200,
           body: "User-agent: *\nAllow: /",
-        }),
+        })
       );
       await service.isAllowed("https://example.com/page");
       expect(service.getCacheSize()).toBe(1);
@@ -979,9 +896,7 @@ describe("RobotsTxtService", () => {
 
     it("isUrlAllowedByRobotsTxt() はシングルトンに委譲する", async () => {
       // Arrange
-      mockFetch.mockResolvedValue(
-        createMockResponse({ status: 200, body: DISALLOW_ALL }),
-      );
+      mockFetch.mockResolvedValue(createMockResponse({ status: 200, body: DISALLOW_ALL }));
 
       // Act
       const result = await isUrlAllowedByRobotsTxt("https://example.com/page");
@@ -994,10 +909,7 @@ describe("RobotsTxtService", () => {
 
     it("isUrlAllowedByRobotsTxt() に respectRobotsTxt=false を渡せる", async () => {
       // Arrange & Act
-      const result = await isUrlAllowedByRobotsTxt(
-        "https://example.com/page",
-        false,
-      );
+      const result = await isUrlAllowedByRobotsTxt("https://example.com/page", false);
 
       // Assert
       expect(result.allowed).toBe(true);
@@ -1007,9 +919,7 @@ describe("RobotsTxtService", () => {
 
     it("resetRobotsTxtService() 後にisUrlAllowedByRobotsTxt() は新しいインスタンスを使用する", async () => {
       // Arrange
-      mockFetch.mockResolvedValue(
-        createMockResponse({ status: 200, body: DISALLOW_ALL }),
-      );
+      mockFetch.mockResolvedValue(createMockResponse({ status: 200, body: DISALLOW_ALL }));
 
       // 初回呼び出しでキャッシュを生成
       await isUrlAllowedByRobotsTxt("https://example.com/page");
@@ -1036,9 +946,7 @@ describe("RobotsTxtService", () => {
       mockFetch.mockResolvedValue(createMockResponse({ status: 404 }));
 
       // Act
-      const result = await service.isAllowed(
-        "https://example.com/path/to/page?query=1",
-      );
+      const result = await service.isAllowed("https://example.com/path/to/page?query=1");
 
       // Assert
       expect(result.domain).toBe("https://example.com");
@@ -1060,9 +968,7 @@ describe("RobotsTxtService", () => {
       mockFetch.mockResolvedValue(createMockResponse({ status: 404 }));
 
       // Act
-      const result = await service.isAllowed(
-        "http://example.com:8080/path",
-      );
+      const result = await service.isAllowed("http://example.com:8080/path");
 
       // Assert
       expect(result.domain).toBe("http://example.com:8080");
@@ -1073,9 +979,7 @@ describe("RobotsTxtService", () => {
       mockFetch.mockResolvedValue(createMockResponse({ status: 404 }));
 
       // Act
-      const result = await service.isAllowed(
-        "https://sub.domain.example.com/page",
-      );
+      const result = await service.isAllowed("https://sub.domain.example.com/page");
 
       // Assert
       expect(result.domain).toBe("https://sub.domain.example.com");
@@ -1094,9 +998,7 @@ describe("RobotsTxtService", () => {
 
     it("同一ドメインの異なるパスは同じキャッシュエントリを使用する", async () => {
       // Arrange
-      mockFetch.mockResolvedValue(
-        createMockResponse({ status: 200, body: DISALLOW_ALL }),
-      );
+      mockFetch.mockResolvedValue(createMockResponse({ status: 200, body: DISALLOW_ALL }));
 
       // Act
       await service.isAllowed("https://example.com/path1");
@@ -1116,10 +1018,7 @@ describe("RobotsTxtService", () => {
       await service.isAllowed("https://example.com/deep/nested/path");
 
       // Assert
-      expect(mockFetch).toHaveBeenCalledWith(
-        "https://example.com/robots.txt",
-        expect.any(Object),
-      );
+      expect(mockFetch).toHaveBeenCalledWith("https://example.com/robots.txt", expect.any(Object));
     });
   });
 
@@ -1137,9 +1036,7 @@ describe("RobotsTxtService", () => {
         "User-agent: *",
         "Disallow: /",
       ].join("\n");
-      mockFetch.mockResolvedValue(
-        createMockResponse({ status: 200, body: robotsTxt }),
-      );
+      mockFetch.mockResolvedValue(createMockResponse({ status: 200, body: robotsTxt }));
 
       // Act: productTokenを指定しない
       const result = await service.isAllowed("https://example.com/page");
@@ -1157,21 +1054,13 @@ describe("RobotsTxtService", () => {
         "User-agent: *",
         "Disallow: /",
       ].join("\n");
-      mockFetch.mockResolvedValue(
-        createMockResponse({ status: 200, body: robotsTxt }),
-      );
+      mockFetch.mockResolvedValue(createMockResponse({ status: 200, body: robotsTxt }));
 
       // Act
-      const googlebotResult = await service.isAllowed(
-        "https://example.com/page",
-        "Googlebot",
-      );
+      const googlebotResult = await service.isAllowed("https://example.com/page", "Googlebot");
 
       // キャッシュされているためfetchは再実行されない
-      const reftrixResult = await service.isAllowed(
-        "https://example.com/page",
-        "ReftrixBot",
-      );
+      const reftrixResult = await service.isAllowed("https://example.com/page", "ReftrixBot");
 
       // Assert
       expect(googlebotResult.allowed).toBe(true);
@@ -1186,9 +1075,7 @@ describe("RobotsTxtService", () => {
   describe("エッジケーステスト", () => {
     it("robots.txtに改行のみ → すべて許可", async () => {
       // Arrange
-      mockFetch.mockResolvedValue(
-        createMockResponse({ status: 200, body: "\n\n\n" }),
-      );
+      mockFetch.mockResolvedValue(createMockResponse({ status: 200, body: "\n\n\n" }));
 
       // Act
       const result = await service.isAllowed("https://example.com/page");
@@ -1203,7 +1090,7 @@ describe("RobotsTxtService", () => {
         createMockResponse({
           status: 200,
           body: "# This is a comment\n# Another comment",
-        }),
+        })
       );
 
       // Act
@@ -1224,11 +1111,11 @@ describe("RobotsTxtService", () => {
                   createMockResponse({
                     status: 200,
                     body: "User-agent: *\nAllow: /",
-                  }),
+                  })
                 ),
-              100,
+              100
             );
-          }),
+          })
       );
 
       // Act: 同時に3つのリクエスト
@@ -1258,7 +1145,7 @@ describe("RobotsTxtService", () => {
           status: 200,
           body: DISALLOW_ALL,
           contentType: "text/plain; charset=utf-8",
-        }),
+        })
       );
 
       // Act
@@ -1277,7 +1164,7 @@ describe("RobotsTxtService", () => {
           status: 200,
           body: DISALLOW_ALL,
           contentType: "",
-        }),
+        })
       );
 
       // Act
@@ -1298,17 +1185,11 @@ describe("RobotsTxtService", () => {
         "",
         "Sitemap: https://example.com/sitemap.xml",
       ].join("\n");
-      mockFetch.mockResolvedValue(
-        createMockResponse({ status: 200, body: robotsTxt }),
-      );
+      mockFetch.mockResolvedValue(createMockResponse({ status: 200, body: robotsTxt }));
 
       // Act
-      const publicResult = await service.isAllowed(
-        "https://example.com/page",
-      );
-      const privateResult = await service.isAllowed(
-        "https://example.com/private/data",
-      );
+      const publicResult = await service.isAllowed("https://example.com/page");
+      const privateResult = await service.isAllowed("https://example.com/private/data");
 
       // Assert
       expect(publicResult.allowed).toBe(true);
@@ -1317,15 +1198,11 @@ describe("RobotsTxtService", () => {
 
     it("非常に長いパスのURL → 正常に処理される", async () => {
       // Arrange
-      mockFetch.mockResolvedValue(
-        createMockResponse({ status: 200, body: DISALLOW_ALL }),
-      );
+      mockFetch.mockResolvedValue(createMockResponse({ status: 200, body: DISALLOW_ALL }));
       const longPath = "/segment/".repeat(100) + "page";
 
       // Act
-      const result = await service.isAllowed(
-        `https://example.com${longPath}`,
-      );
+      const result = await service.isAllowed(`https://example.com${longPath}`);
 
       // Assert
       expect(result.allowed).toBe(false);
@@ -1338,13 +1215,11 @@ describe("RobotsTxtService", () => {
         createMockResponse({
           status: 200,
           body: "User-agent: *\nDisallow: /search",
-        }),
+        })
       );
 
       // Act
-      const result = await service.isAllowed(
-        "https://example.com/search?q=test#section1",
-      );
+      const result = await service.isAllowed("https://example.com/search?q=test#section1");
 
       // Assert
       expect(result.allowed).toBe(false);
@@ -1444,9 +1319,7 @@ describe("RobotsTxtService", () => {
     });
 
     it("外部ドメイン (example.com) → SSRF blockedされない", async () => {
-      mockFetch.mockResolvedValue(
-        createMockResponse({ status: 200, body: "" }),
-      );
+      mockFetch.mockResolvedValue(createMockResponse({ status: 200, body: "" }));
       const result = await service.isAllowed("https://example.com/page");
       expect(result.allowed).toBe(true);
       expect(mockFetch).toHaveBeenCalled();
@@ -1458,7 +1331,7 @@ describe("RobotsTxtService", () => {
         createMockResponse({
           status: 302,
           headers: { location: "http://169.254.169.254/robots.txt" },
-        }),
+        })
       );
 
       const result = await service.isAllowed("https://example.com/page");
@@ -1473,7 +1346,7 @@ describe("RobotsTxtService", () => {
         createMockResponse({
           status: 301,
           headers: { location: "http://127.0.0.1/robots.txt" },
-        }),
+        })
       );
 
       const result = await service.isAllowed("https://example.com/page");
@@ -1485,9 +1358,24 @@ describe("RobotsTxtService", () => {
     it("最大3回までのリダイレクト追従", async () => {
       // 3回リダイレクト → 4回目は200
       mockFetch
-        .mockResolvedValueOnce(createMockResponse({ status: 302, headers: { location: "https://cdn1.example.com/robots.txt" } }))
-        .mockResolvedValueOnce(createMockResponse({ status: 302, headers: { location: "https://cdn2.example.com/robots.txt" } }))
-        .mockResolvedValueOnce(createMockResponse({ status: 302, headers: { location: "https://cdn3.example.com/robots.txt" } }))
+        .mockResolvedValueOnce(
+          createMockResponse({
+            status: 302,
+            headers: { location: "https://cdn1.example.com/robots.txt" },
+          })
+        )
+        .mockResolvedValueOnce(
+          createMockResponse({
+            status: 302,
+            headers: { location: "https://cdn2.example.com/robots.txt" },
+          })
+        )
+        .mockResolvedValueOnce(
+          createMockResponse({
+            status: 302,
+            headers: { location: "https://cdn3.example.com/robots.txt" },
+          })
+        )
         .mockResolvedValueOnce(createMockResponse({ status: 200, body: "" }));
 
       const result = await service.isAllowed("https://example.com/page");

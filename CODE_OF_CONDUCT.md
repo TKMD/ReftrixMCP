@@ -16,19 +16,19 @@
 
 ポジティブな環境に貢献する行動の例:
 
-* 他の人々に対して共感と親切を示す
-* 異なる意見、視点、経験を尊重する
-* 建設的なフィードバックを丁寧に与え、受け入れる
-* 自分の過ちの影響を受けた人々に責任を認め、謝罪し、経験から学ぶ
-* 個人としてだけでなく、コミュニティ全体にとって最善なことに焦点を当てる
+- 他の人々に対して共感と親切を示す
+- 異なる意見、視点、経験を尊重する
+- 建設的なフィードバックを丁寧に与え、受け入れる
+- 自分の過ちの影響を受けた人々に責任を認め、謝罪し、経験から学ぶ
+- 個人としてだけでなく、コミュニティ全体にとって最善なことに焦点を当てる
 
 許容されない行動の例:
 
-* 性的な言葉やイメージの使用、および性的な注目やアプローチ
-* 荒らし、侮辱的または軽蔑的なコメント、個人的または政治的な攻撃
-* 公的または私的なハラスメント
-* 明確な許可なく、物理的またはメールアドレスなどの他者の個人情報を公開すること
-* 職業的な場面で不適切と合理的に考えられるその他の行為
+- 性的な言葉やイメージの使用、および性的な注目やアプローチ
+- 荒らし、侮辱的または軽蔑的なコメント、個人的または政治的な攻撃
+- 公的または私的なハラスメント
+- 明確な許可なく、物理的またはメールアドレスなどの他者の個人情報を公開すること
+- 職業的な場面で不適切と合理的に考えられるその他の行為
 
 ### 執行責任
 
@@ -90,19 +90,19 @@ We pledge to act and interact in ways that contribute to an open, welcoming, div
 
 Examples of behavior that contributes to a positive environment for our community include:
 
-* Demonstrating empathy and kindness toward other people
-* Being respectful of differing opinions, viewpoints, and experiences
-* Giving and gracefully accepting constructive feedback
-* Accepting responsibility and apologizing to those affected by our mistakes, and learning from the experience
-* Focusing on what is best not just for us as individuals, but for the overall community
+- Demonstrating empathy and kindness toward other people
+- Being respectful of differing opinions, viewpoints, and experiences
+- Giving and gracefully accepting constructive feedback
+- Accepting responsibility and apologizing to those affected by our mistakes, and learning from the experience
+- Focusing on what is best not just for us as individuals, but for the overall community
 
 Examples of unacceptable behavior include:
 
-* The use of sexualized language or imagery, and sexual attention or advances of any kind
-* Trolling, insulting or derogatory comments, and personal or political attacks
-* Public or private harassment
-* Publishing others' private information, such as a physical or email address, without their explicit permission
-* Other conduct which could reasonably be considered inappropriate in a professional setting
+- The use of sexualized language or imagery, and sexual attention or advances of any kind
+- Trolling, insulting or derogatory comments, and personal or political attacks
+- Public or private harassment
+- Publishing others' private information, such as a physical or email address, without their explicit permission
+- Other conduct which could reasonably be considered inappropriate in a professional setting
 
 ### Enforcement Responsibilities
 

@@ -15,7 +15,7 @@
  * @module services/visual-extractor/image-utils
  */
 
-import { logger } from '../../utils/logger';
+import { logger } from "../../utils/logger";
 
 /**
  * Maximum allowed image size in bytes (5MB)
@@ -36,7 +36,7 @@ export class ImageSizeExceededError extends Error {
     const actualMB = (actualSize / 1024 / 1024).toFixed(2);
     const maxMB = (maxSize / 1024 / 1024).toFixed(0);
     super(`Image size (${actualMB}MB) exceeds maximum allowed size (${maxMB}MB)`);
-    this.name = 'ImageSizeExceededError';
+    this.name = "ImageSizeExceededError";
   }
 }
 
@@ -46,7 +46,7 @@ export class ImageSizeExceededError extends Error {
 export class ProcessingTimeoutError extends Error {
   constructor(timeoutMs: number = DEFAULT_PROCESSING_TIMEOUT) {
     super(`Processing timeout after ${timeoutMs}ms`);
-    this.name = 'ProcessingTimeoutError';
+    this.name = "ProcessingTimeoutError";
   }
 }
 
@@ -57,10 +57,7 @@ export class ProcessingTimeoutError extends Error {
  * @param maxSize - Maximum allowed size in bytes (default: 5MB)
  * @throws ImageSizeExceededError if buffer exceeds max size
  */
-export function validateImageSize(
-  buffer: Buffer,
-  maxSize: number = MAX_IMAGE_SIZE
-): void {
+export function validateImageSize(buffer: Buffer, maxSize: number = MAX_IMAGE_SIZE): void {
   if (buffer.length > maxSize) {
     throw new ImageSizeExceededError(buffer.length, maxSize);
   }
@@ -79,36 +76,36 @@ export function parseAndValidateImageInput(
   maxSize: number = MAX_IMAGE_SIZE
 ): Buffer {
   if (!image) {
-    throw new Error('Image input is required');
+    throw new Error("Image input is required");
   }
 
   let buffer: Buffer;
 
   if (Buffer.isBuffer(image)) {
     if (image.length === 0) {
-      throw new Error('Empty image buffer');
+      throw new Error("Empty image buffer");
     }
     buffer = image;
-  } else if (typeof image === 'string') {
+  } else if (typeof image === "string") {
     // Remove data URL prefix if present
     let base64Data = image;
-    if (image.includes('base64,')) {
-      const parts = image.split('base64,');
-      base64Data = parts[1] ?? '';
+    if (image.includes("base64,")) {
+      const parts = image.split("base64,");
+      base64Data = parts[1] ?? "";
     }
 
     // Validate base64 format
     const base64Regex = /^[A-Za-z0-9+/=]+$/;
     if (!base64Regex.test(base64Data)) {
-      throw new Error('Invalid base64 string');
+      throw new Error("Invalid base64 string");
     }
 
-    buffer = Buffer.from(base64Data, 'base64');
+    buffer = Buffer.from(base64Data, "base64");
     if (buffer.length === 0) {
-      throw new Error('Empty image buffer from base64');
+      throw new Error("Empty image buffer from base64");
     }
   } else {
-    throw new Error('Invalid image input type');
+    throw new Error("Invalid image input type");
   }
 
   // Validate size after parsing
@@ -159,7 +156,7 @@ export function logSecurityEvent(
   event: string,
   details?: Record<string, unknown>
 ): void {
-  logger.debug(`[Security:${service}] ${event}`, details ?? '');
+  logger.debug(`[Security:${service}] ${event}`, details ?? "");
 }
 
 /** RGB color tuple type */
@@ -176,38 +173,38 @@ export type RGB = [number, number, number];
  */
 export function parseImageInput(image: Buffer | string): Buffer {
   if (!image) {
-    throw new Error('Image input is required');
+    throw new Error("Image input is required");
   }
 
   if (Buffer.isBuffer(image)) {
     if (image.length === 0) {
-      throw new Error('Empty image buffer');
+      throw new Error("Empty image buffer");
     }
     return image;
   }
 
-  if (typeof image === 'string') {
+  if (typeof image === "string") {
     // Remove data URL prefix if present
     let base64Data = image;
-    if (image.includes('base64,')) {
-      const parts = image.split('base64,');
-      base64Data = parts[1] ?? '';
+    if (image.includes("base64,")) {
+      const parts = image.split("base64,");
+      base64Data = parts[1] ?? "";
     }
 
     // Validate base64
     const base64Regex = /^[A-Za-z0-9+/=]+$/;
     if (!base64Regex.test(base64Data)) {
-      throw new Error('Invalid base64 string');
+      throw new Error("Invalid base64 string");
     }
 
-    const buffer = Buffer.from(base64Data, 'base64');
+    const buffer = Buffer.from(base64Data, "base64");
     if (buffer.length === 0) {
-      throw new Error('Empty image buffer from base64');
+      throw new Error("Empty image buffer from base64");
     }
     return buffer;
   }
 
-  throw new Error('Invalid image input type');
+  throw new Error("Invalid image input type");
 }
 
 /**
@@ -218,7 +215,7 @@ export function parseImageInput(image: Buffer | string): Buffer {
  * @throws Error if hex format is invalid
  */
 export function hexToRgb(hex: string): RGB {
-  const cleanHex = hex.replace('#', '');
+  const cleanHex = hex.replace("#", "");
 
   if (!/^[0-9A-Fa-f]{6}$/.test(cleanHex)) {
     throw new Error(`Invalid hex color: ${hex}`);
@@ -241,7 +238,7 @@ export function hexToRgb(hex: string): RGB {
 export function rgbToHex(r: number, g: number, b: number): string {
   const toHex = (n: number): string => {
     const hex = Math.max(0, Math.min(255, Math.round(n))).toString(16);
-    return hex.length === 1 ? '0' + hex : hex;
+    return hex.length === 1 ? "0" + hex : hex;
   };
   return `#${toHex(r)}${toHex(g)}${toHex(b)}`.toUpperCase();
 }
@@ -256,8 +253,8 @@ export function rgbToHex(r: number, g: number, b: number): string {
 export function colorDistance(color1: RGB, color2: RGB): number {
   return Math.sqrt(
     Math.pow(color1[0] - color2[0], 2) +
-    Math.pow(color1[1] - color2[1], 2) +
-    Math.pow(color1[2] - color2[2], 2)
+      Math.pow(color1[1] - color2[1], 2) +
+      Math.pow(color1[2] - color2[2], 2)
   );
 }
 
@@ -311,11 +308,11 @@ export function parseHexColor(hexColor: string): { r: number; g: number; b: numb
 export function isSharpImageError(error: Error): boolean {
   const message = error.message;
   return (
-    message.includes('Input buffer') ||
-    message.includes('unsupported image format') ||
-    message.includes('Input file') ||
-    message.includes('VipsJpeg') ||
-    message.includes('vips')
+    message.includes("Input buffer") ||
+    message.includes("unsupported image format") ||
+    message.includes("Input file") ||
+    message.includes("VipsJpeg") ||
+    message.includes("vips")
   );
 }
 
@@ -327,10 +324,10 @@ export function isSharpImageError(error: Error): boolean {
  */
 export function wrapSharpError(error: unknown): Error {
   if (error instanceof Error && isSharpImageError(error)) {
-    return new Error('Invalid image data');
+    return new Error("Invalid image data");
   }
   if (error instanceof Error) {
     return error;
   }
-  return new Error('Unknown image processing error');
+  return new Error("Unknown image processing error");
 }

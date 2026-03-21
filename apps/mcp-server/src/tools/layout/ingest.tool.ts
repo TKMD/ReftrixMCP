@@ -12,20 +12,20 @@
  * @see /docs/plans/webdesign/01-page-ingest.md
  */
 
-import { ZodError } from 'zod';
-import { v7 as uuidv7 } from 'uuid';
-import { prisma } from '@reftrix/database';
-import { logger, isDevelopment } from '../../utils/logger';
-import { validateExternalUrl } from '../../utils/url-validator';
-import { normalizeUrlForStorage } from '../../utils/url-normalizer';
-import { sanitizeHtml } from '../../utils/html-sanitizer';
-import { pageIngestAdapter, type IngestResult } from '../../services/page-ingest-adapter';
-import { extractCssUrls } from '../../services/external-css-fetcher';
+import { ZodError } from "zod";
+import { v7 as uuidv7 } from "uuid";
+import { prisma } from "@reftrix/database";
+import { logger, isDevelopment } from "../../utils/logger";
+import { validateExternalUrl } from "../../utils/url-validator";
+import { normalizeUrlForStorage } from "../../utils/url-normalizer";
+import { sanitizeHtml } from "../../utils/html-sanitizer";
+import { pageIngestAdapter, type IngestResult } from "../../services/page-ingest-adapter";
+import { extractCssUrls } from "../../services/external-css-fetcher";
 import {
   formatZodError,
   createValidationErrorWithHints,
   formatMultipleDetailedErrors,
-} from '../../utils/error-messages';
+} from "../../utils/error-messages";
 import {
   layoutIngestInputSchema,
   LAYOUT_MCP_ERROR_CODES,
@@ -35,19 +35,19 @@ import {
   type ScreenshotInfo,
   type PageMetadataOutput,
   type SourceInfoOutput,
-} from './schemas';
-import { createHash } from 'crypto';
-import type { SectionInfo, LayoutInspectData } from './inspect';
+} from "./schemas";
+import { createHash } from "crypto";
+import type { SectionInfo, LayoutInspectData } from "./inspect";
 import {
   getLayoutAnalyzerService,
   type LayoutAnalysisResult,
   type ExternalCssFetchResult,
-} from '../../services/page/layout-analyzer.service';
+} from "../../services/page/layout-analyzer.service";
 import {
   responsiveAnalysisService,
   responsivePersistenceService,
   type ResponsiveAnalysisResult,
-} from '../../services/responsive';
+} from "../../services/responsive";
 
 // =============================================
 // 定数定義
@@ -60,7 +60,7 @@ const DEFAULT_RESPONSE_SIZE_LIMIT = 1000000;
 const AUTO_OPTIMIZE_HTML_MAX_SIZE = 20000;
 
 /** 自動最適化時のHTMLトリミングマーカー */
-const AUTO_OPTIMIZE_TRUNCATION_MARKER = '\n<!-- truncated by auto_optimize -->';
+const AUTO_OPTIMIZE_TRUNCATION_MARKER = "\n<!-- truncated by auto_optimize -->";
 
 /** デフォルトのingestタイムアウト（30秒） */
 const DEFAULT_INGEST_TIMEOUT = 30000;
@@ -179,28 +179,28 @@ function optimizeHtml(html: string): string {
   let optimized = html;
 
   // scriptタグを除去（インライン含む）
-  optimized = optimized.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '');
+  optimized = optimized.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, "");
 
   // styleタグを除去
-  optimized = optimized.replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, '');
+  optimized = optimized.replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, "");
 
   // noscriptタグを除去
-  optimized = optimized.replace(/<noscript\b[^<]*(?:(?!<\/noscript>)<[^<]*)*<\/noscript>/gi, '');
+  optimized = optimized.replace(/<noscript\b[^<]*(?:(?!<\/noscript>)<[^<]*)*<\/noscript>/gi, "");
 
   // HTMLコメントを除去
-  optimized = optimized.replace(/<!--[\s\S]*?-->/g, '');
+  optimized = optimized.replace(/<!--[\s\S]*?-->/g, "");
 
   // 連続する空白を1つに圧縮
-  optimized = optimized.replace(/[ \t]+/g, ' ');
+  optimized = optimized.replace(/[ \t]+/g, " ");
 
   // 連続する改行を2つ以下に圧縮
-  optimized = optimized.replace(/\n{3,}/g, '\n\n');
+  optimized = optimized.replace(/\n{3,}/g, "\n\n");
 
   // 行頭・行末の空白を削除
-  optimized = optimized.replace(/^\s+|\s+$/gm, '');
+  optimized = optimized.replace(/^\s+|\s+$/gm, "");
 
   // 空行を削除
-  optimized = optimized.replace(/\n\s*\n/g, '\n');
+  optimized = optimized.replace(/\n\s*\n/g, "\n");
 
   return optimized.trim();
 }
@@ -231,13 +231,13 @@ function sectionToTextRepresentation(section: SectionInfo): string {
 
   // 見出し
   if (section.content.headings.length > 0) {
-    const headingTexts = section.content.headings.map((h) => h.text).join(', ');
+    const headingTexts = section.content.headings.map((h) => h.text).join(", ");
     parts.push(`with headings: ${headingTexts}`);
   }
 
   // ボタン
   if (section.content.buttons.length > 0) {
-    const buttonTexts = section.content.buttons.map((b) => b.text).join(', ');
+    const buttonTexts = section.content.buttons.map((b) => b.text).join(", ");
     parts.push(`buttons: ${buttonTexts}`);
   }
 
@@ -246,9 +246,7 @@ function sectionToTextRepresentation(section: SectionInfo): string {
     const firstParagraph = section.content.paragraphs[0];
     if (firstParagraph && firstParagraph.length > 0) {
       const truncated =
-        firstParagraph.length > 100
-          ? firstParagraph.substring(0, 100) + '...'
-          : firstParagraph;
+        firstParagraph.length > 100 ? firstParagraph.substring(0, 100) + "..." : firstParagraph;
       parts.push(`content: "${truncated}"`);
     }
   }
@@ -262,10 +260,10 @@ function sectionToTextRepresentation(section: SectionInfo): string {
     styleInfo.push(`text color ${section.style.textColor}`);
   }
   if (section.style.hasGradient) {
-    styleInfo.push('gradient');
+    styleInfo.push("gradient");
   }
   if (styleInfo.length > 0) {
-    parts.push(`style: ${styleInfo.join(', ')}`);
+    parts.push(`style: ${styleInfo.join(", ")}`);
   }
 
   // 画像
@@ -278,7 +276,7 @@ function sectionToTextRepresentation(section: SectionInfo): string {
     parts.push(`${section.content.links.length} link(s)`);
   }
 
-  return parts.join('. ') + '.';
+  return parts.join(". ") + ".";
 }
 
 // =============================================
@@ -289,46 +287,46 @@ function sectionToTextRepresentation(section: SectionInfo): string {
  * エラーメッセージからエラーコードを判定
  */
 function determineErrorCode(error: Error | string): string {
-  const message = typeof error === 'string' ? error : error.message;
+  const message = typeof error === "string" ? error : error.message;
   const lowerMessage = message.toLowerCase();
 
   // タイムアウトエラー
   if (
-    lowerMessage.includes('timeout') ||
-    lowerMessage.includes('navigation timeout') ||
-    lowerMessage.includes('timed out')
+    lowerMessage.includes("timeout") ||
+    lowerMessage.includes("navigation timeout") ||
+    lowerMessage.includes("timed out")
   ) {
     return LAYOUT_MCP_ERROR_CODES.TIMEOUT_ERROR;
   }
 
   // ネットワークエラー
   if (
-    lowerMessage.includes('net::') ||
-    lowerMessage.includes('econnrefused') ||
-    lowerMessage.includes('enotfound') ||
-    lowerMessage.includes('name_not_resolved') ||
-    lowerMessage.includes('network') ||
-    lowerMessage.includes('dns')
+    lowerMessage.includes("net::") ||
+    lowerMessage.includes("econnrefused") ||
+    lowerMessage.includes("enotfound") ||
+    lowerMessage.includes("name_not_resolved") ||
+    lowerMessage.includes("network") ||
+    lowerMessage.includes("dns")
   ) {
     return LAYOUT_MCP_ERROR_CODES.NETWORK_ERROR;
   }
 
   // ブラウザエラー
   if (
-    lowerMessage.includes('browser') ||
-    lowerMessage.includes('browser has been closed') ||
-    lowerMessage.includes('context has been closed') ||
-    lowerMessage.includes('page has been closed')
+    lowerMessage.includes("browser") ||
+    lowerMessage.includes("browser has been closed") ||
+    lowerMessage.includes("context has been closed") ||
+    lowerMessage.includes("page has been closed")
   ) {
     return LAYOUT_MCP_ERROR_CODES.BROWSER_ERROR;
   }
 
   // HTTPエラー
   if (
-    lowerMessage.includes('http ') ||
-    lowerMessage.includes('status') ||
-    lowerMessage.includes('404') ||
-    lowerMessage.includes('500')
+    lowerMessage.includes("http ") ||
+    lowerMessage.includes("status") ||
+    lowerMessage.includes("404") ||
+    lowerMessage.includes("500")
   ) {
     return LAYOUT_MCP_ERROR_CODES.HTTP_ERROR;
   }
@@ -378,34 +376,32 @@ function formatErrorMessage(code: string, originalMessage: string): string {
  * });
  * ```
  */
-export async function layoutIngestHandler(
-  input: unknown
-): Promise<LayoutIngestOutput> {
+export async function layoutIngestHandler(input: unknown): Promise<LayoutIngestOutput> {
   // 開発環境でのログ出力 - デバッグ用に詳細な入力情報を出力
   if (isDevelopment()) {
-    logger.info('[MCP Tool] layout.ingest called', {
+    logger.info("[MCP Tool] layout.ingest called", {
       url: (input as Record<string, unknown>)?.url,
     });
     // DEBUG: 入力値の詳細をログ出力（型情報含む）
     const rawOptions = (input as Record<string, unknown>)?.options;
-    logger.debug('[MCP Tool] layout.ingest raw input', {
+    logger.debug("[MCP Tool] layout.ingest raw input", {
       rawInput: JSON.stringify(input),
       inputOptions: JSON.stringify(rawOptions),
       optionsType: typeof rawOptions,
-      optionsIsString: typeof rawOptions === 'string',
+      optionsIsString: typeof rawOptions === "string",
     });
   }
 
   // MCP経由でoptionsがJSON文字列として渡される場合の前処理
   let processedInput = input;
-  if (input && typeof input === 'object') {
+  if (input && typeof input === "object") {
     const inputObj = input as Record<string, unknown>;
-    if (typeof inputObj.options === 'string') {
+    if (typeof inputObj.options === "string") {
       try {
         const parsedOptions = JSON.parse(inputObj.options);
         processedInput = { ...inputObj, options: parsedOptions };
         if (isDevelopment()) {
-          logger.debug('[MCP Tool] layout.ingest options parsed from string', {
+          logger.debug("[MCP Tool] layout.ingest options parsed from string", {
             originalOptions: inputObj.options,
             parsedOptions: JSON.stringify(parsedOptions),
           });
@@ -413,7 +409,7 @@ export async function layoutIngestHandler(
       } catch {
         // JSON解析に失敗した場合は元の入力をそのまま使用
         if (isDevelopment()) {
-          logger.warn('[MCP Tool] layout.ingest options string parse failed', {
+          logger.warn("[MCP Tool] layout.ingest options string parse failed", {
             options: inputObj.options,
           });
         }
@@ -423,19 +419,19 @@ export async function layoutIngestHandler(
     // 後方互換性: camelCaseパラメータをsnake_caseに正規化
     // MCP命名規約ではsnake_caseを使用するが、既存クライアントのために両方受け入れる
     const processedObj = processedInput as Record<string, unknown>;
-    if (processedObj.options && typeof processedObj.options === 'object') {
+    if (processedObj.options && typeof processedObj.options === "object") {
       const opts = processedObj.options as Record<string, unknown>;
       const normalizedOpts = { ...opts };
 
       // camelCase -> snake_case マッピング
       const camelToSnakeMap: Record<string, string> = {
-        fullPage: 'full_page',
-        waitForSelector: 'wait_for_selector',
-        disableJavaScript: 'disable_javascript',
-        disableWebGL: 'disable_webgl',
-        forceKillOnTimeout: 'force_kill_on_timeout',
-        includeHtml: 'include_html',
-        includeScreenshot: 'include_screenshot',
+        fullPage: "full_page",
+        waitForSelector: "wait_for_selector",
+        disableJavaScript: "disable_javascript",
+        disableWebGL: "disable_webgl",
+        forceKillOnTimeout: "force_kill_on_timeout",
+        includeHtml: "include_html",
+        includeScreenshot: "include_screenshot",
       };
 
       for (const [camelKey, snakeKey] of Object.entries(camelToSnakeMap)) {
@@ -443,7 +439,7 @@ export async function layoutIngestHandler(
           normalizedOpts[snakeKey] = opts[camelKey];
           delete normalizedOpts[camelKey];
           if (isDevelopment()) {
-            logger.debug('[MCP Tool] layout.ingest deprecated param normalized', {
+            logger.debug("[MCP Tool] layout.ingest deprecated param normalized", {
               from: camelKey,
               to: snakeKey,
             });
@@ -462,14 +458,14 @@ export async function layoutIngestHandler(
   } catch (error) {
     if (error instanceof ZodError) {
       // 拡張エラーメッセージユーティリティを使用（ヒント付き）
-      const errorWithHints = createValidationErrorWithHints(error, 'layout.ingest');
+      const errorWithHints = createValidationErrorWithHints(error, "layout.ingest");
       const detailedMessage = formatMultipleDetailedErrors(errorWithHints.errors);
 
       // 後方互換性のため旧形式も保持
       const formattedErrors = formatZodError(error);
 
       if (isDevelopment()) {
-        logger.error('[MCP Tool] layout.ingest validation error', {
+        logger.error("[MCP Tool] layout.ingest validation error", {
           errors: errorWithHints.errors,
         });
       }
@@ -491,7 +487,7 @@ export async function layoutIngestHandler(
 
   // DEBUG: バリデーション後の値をログ出力
   if (isDevelopment()) {
-    logger.debug('[MCP Tool] layout.ingest validated input', {
+    logger.debug("[MCP Tool] layout.ingest validated input", {
       validatedOptions: JSON.stringify(validated.options),
       include_html: validated.options?.include_html,
       include_screenshot: validated.options?.include_screenshot,
@@ -502,7 +498,7 @@ export async function layoutIngestHandler(
   const urlValidation = validateExternalUrl(validated.url);
   if (!urlValidation.valid) {
     if (isDevelopment()) {
-      logger.warn('[MCP Tool] layout.ingest SSRF blocked', {
+      logger.warn("[MCP Tool] layout.ingest SSRF blocked", {
         url: validated.url,
         reason: urlValidation.error,
       });
@@ -512,7 +508,7 @@ export async function layoutIngestHandler(
       success: false,
       error: {
         code: LAYOUT_MCP_ERROR_CODES.SSRF_BLOCKED,
-        message: urlValidation.error ?? 'URL is blocked for security reasons',
+        message: urlValidation.error ?? "URL is blocked for security reasons",
       },
     };
   }
@@ -522,7 +518,7 @@ export async function layoutIngestHandler(
     const includeHtml = validated.options?.include_html ?? false;
     const includeScreenshot = validated.options?.include_screenshot ?? false;
     const truncateHtmlBytes = validated.options?.truncate_html_bytes;
-    const screenshotFormat = validated.options?.screenshot_format ?? 'png';
+    const screenshotFormat = validated.options?.screenshot_format ?? "png";
     const screenshotQuality = validated.options?.screenshot_quality;
     const screenshotMaxWidth = validated.options?.screenshot_max_width;
     const screenshotMaxHeight = validated.options?.screenshot_max_height;
@@ -558,7 +554,7 @@ export async function layoutIngestHandler(
     }
     // wait_untilが'load'以外の場合のみ明示的に設定
     // 'load'の場合はadaptiveWebGLWait機能によりWebGLサイトで自動的に'domcontentloaded'に変更される
-    if (validated.options?.wait_until !== undefined && validated.options.wait_until !== 'load') {
+    if (validated.options?.wait_until !== undefined && validated.options.wait_until !== "load") {
       ingestOptions.waitUntil = validated.options.wait_until;
     }
     // DOM安定化待機（デフォルトtrue - React/Vue/Next.js対応）
@@ -613,7 +609,7 @@ export async function layoutIngestHandler(
     const effectiveTimeout = (ingestOptions.timeout ?? DEFAULT_INGEST_TIMEOUT) * 1.5;
 
     if (isDevelopment()) {
-      logger.debug('[MCP Tool] layout.ingest starting with timeout', {
+      logger.debug("[MCP Tool] layout.ingest starting with timeout", {
         url: validated.url,
         userTimeout: ingestOptions.timeout,
         effectiveTimeout,
@@ -631,7 +627,7 @@ export async function layoutIngestHandler(
     // インジェスト失敗チェック
     if (!ingestResult.success) {
       if (isDevelopment()) {
-        logger.error('[MCP Tool] layout.ingest failed', {
+        logger.error("[MCP Tool] layout.ingest failed", {
           url: validated.url,
           error: ingestResult.error,
         });
@@ -641,7 +637,7 @@ export async function layoutIngestHandler(
         success: false,
         error: {
           code: LAYOUT_MCP_ERROR_CODES.INGEST_FAILED,
-          message: ingestResult.error ?? 'Page ingest failed',
+          message: ingestResult.error ?? "Page ingest failed",
         },
       };
     }
@@ -654,10 +650,10 @@ export async function layoutIngestHandler(
     if (autoAnalyze && saveToDb && fetchExternalCss) {
       const baseUrl = urlValidation.normalizedUrl ?? validated.url;
       preExtractedCssUrls = extractCssUrls(ingestResult.html, baseUrl)
-        .map(u => u.url)
-        .filter(url => url.length > 0); // 空のURLを除外
+        .map((u) => u.url)
+        .filter((url) => url.length > 0); // 空のURLを除外
       if (isDevelopment()) {
-        logger.debug('[MCP Tool] layout.ingest pre-extracted CSS URLs before sanitization', {
+        logger.debug("[MCP Tool] layout.ingest pre-extracted CSS URLs before sanitization", {
           urlCount: preExtractedCssUrls.length,
           urls: preExtractedCssUrls.slice(0, 5), // Log first 5 URLs
         });
@@ -677,7 +673,7 @@ export async function layoutIngestHandler(
         if (htmlBytes.length > truncateHtmlBytes) {
           // UTF-8バイト境界を考慮してトランケート
           // マーカーのバイト数を考慮して切り詰める
-          const TRUNCATION_MARKER = '\n<!-- truncated -->';
+          const TRUNCATION_MARKER = "\n<!-- truncated -->";
           const markerByteLength = new TextEncoder().encode(TRUNCATION_MARKER).length;
           const targetByteLength = Math.max(0, truncateHtmlBytes - markerByteLength);
           const truncatedBytes = htmlBytes.slice(0, targetByteLength);
@@ -694,7 +690,7 @@ export async function layoutIngestHandler(
         let width = firstScreenshot.viewport.width;
         let height = firstScreenshot.viewport.height;
         let base64Data = firstScreenshot.data;
-        const format = screenshotFormat === 'jpeg' ? 'jpeg' : firstScreenshot.format;
+        const format = screenshotFormat === "jpeg" ? "jpeg" : firstScreenshot.format;
 
         // リサイズが必要な場合
         if (screenshotMaxWidth !== undefined || screenshotMaxHeight !== undefined) {
@@ -717,7 +713,7 @@ export async function layoutIngestHandler(
           // ここではサイズ情報のみ更新（base64データはそのまま）
           // 本番ではsharpなどでリサイズを実装
           if (isDevelopment()) {
-            logger.debug('[MCP Tool] Screenshot resize requested', {
+            logger.debug("[MCP Tool] Screenshot resize requested", {
               original: { width: originalWidth, height: originalHeight },
               resized: { width, height },
             });
@@ -726,7 +722,7 @@ export async function layoutIngestHandler(
 
         screenshot = {
           base64: base64Data,
-          format: format as 'png' | 'jpeg',
+          format: format as "png" | "jpeg",
           width,
           height,
         };
@@ -735,7 +731,7 @@ export async function layoutIngestHandler(
 
     // メタデータを変換
     const metadata: PageMetadataOutput = {
-      title: ingestResult.metadata.title || '',
+      title: ingestResult.metadata.title || "",
       description: ingestResult.metadata.description,
       favicon: ingestResult.metadata.favicon,
       ogImage: ingestResult.metadata.ogImage,
@@ -754,11 +750,13 @@ export async function layoutIngestHandler(
     if (saveToDb && sanitizedHtml) {
       try {
         // HTMLハッシュを生成（変更検知用）
-        const htmlHash = createHash('sha256').update(sanitizedHtml).digest('hex');
+        const htmlHash = createHash("sha256").update(sanitizedHtml).digest("hex");
 
         // WebPageテーブルに保存（upsert: URLが重複する場合は更新）
         // URL正規化で末尾スラッシュ等の重複を防止
-        const normalizedDbUrl = normalizeUrlForStorage(urlValidation.normalizedUrl ?? validated.url);
+        const normalizedDbUrl = normalizeUrlForStorage(
+          urlValidation.normalizedUrl ?? validated.url
+        );
         const savedPage = await prisma.webPage.upsert({
           where: { url: normalizedDbUrl },
           create: {
@@ -774,7 +772,7 @@ export async function layoutIngestHandler(
               ogImage: metadata.ogImage,
             },
             crawledAt: ingestResult.ingestedAt,
-            analysisStatus: 'pending',
+            analysisStatus: "pending",
           },
           update: {
             title: metadata.title || null,
@@ -786,7 +784,7 @@ export async function layoutIngestHandler(
               ogImage: metadata.ogImage,
             },
             crawledAt: ingestResult.ingestedAt,
-            analysisStatus: 'pending',
+            analysisStatus: "pending",
           },
           select: { id: true },
         });
@@ -795,7 +793,7 @@ export async function layoutIngestHandler(
         savedToDb = true;
 
         if (isDevelopment()) {
-          logger.info('[MCP Tool] layout.ingest saved to DB', {
+          logger.info("[MCP Tool] layout.ingest saved to DB", {
             id: persistedId,
             url: urlValidation.normalizedUrl ?? validated.url,
           });
@@ -805,7 +803,7 @@ export async function layoutIngestHandler(
         const errorMessage = dbError instanceof Error ? dbError.message : String(dbError);
 
         if (isDevelopment()) {
-          logger.error('[MCP Tool] layout.ingest DB save failed', {
+          logger.error("[MCP Tool] layout.ingest DB save failed", {
             url: validated.url,
             error: errorMessage,
           });
@@ -829,9 +827,13 @@ export async function layoutIngestHandler(
     if (validated.options?.responsive?.enabled === true) {
       try {
         if (isDevelopment()) {
-          logger.info('[MCP Tool] layout.ingest responsive analysis starting', {
+          logger.info("[MCP Tool] layout.ingest responsive analysis starting", {
             url: validated.url,
-            viewports: validated.options.responsive.viewports?.map((v) => v.name) ?? ['desktop', 'tablet', 'mobile'],
+            viewports: validated.options.responsive.viewports?.map((v) => v.name) ?? [
+              "desktop",
+              "tablet",
+              "mobile",
+            ],
             includeScreenshots: validated.options.responsive.include_screenshots ?? true,
           });
         }
@@ -879,7 +881,7 @@ export async function layoutIngestHandler(
         );
 
         if (isDevelopment()) {
-          logger.info('[MCP Tool] layout.ingest responsive analysis completed', {
+          logger.info("[MCP Tool] layout.ingest responsive analysis completed", {
             url: validated.url,
             viewportsAnalyzed: responsiveAnalysisResult.viewportsAnalyzed.length,
             differencesFound: responsiveAnalysisResult.differences.length,
@@ -891,9 +893,10 @@ export async function layoutIngestHandler(
         // レスポンシブ解析の失敗はエラーとして返すのではなく、警告ログを出力して続行
         // インジェスト自体は成功しているため
         if (isDevelopment()) {
-          logger.warn('[MCP Tool] layout.ingest responsive analysis failed', {
+          logger.warn("[MCP Tool] layout.ingest responsive analysis failed", {
             url: validated.url,
-            error: responsiveError instanceof Error ? responsiveError.message : String(responsiveError),
+            error:
+              responsiveError instanceof Error ? responsiveError.message : String(responsiveError),
           });
         }
       }
@@ -915,7 +918,7 @@ export async function layoutIngestHandler(
         );
 
         if (isDevelopment()) {
-          logger.info('[MCP Tool] layout.ingest responsive analysis saved to DB', {
+          logger.info("[MCP Tool] layout.ingest responsive analysis saved to DB", {
             responsiveAnalysisId,
             webPageId: persistedId,
           });
@@ -923,7 +926,7 @@ export async function layoutIngestHandler(
       } catch (dbError) {
         // DB保存失敗はエラーとして返さず、警告ログを出力して続行
         if (isDevelopment()) {
-          logger.warn('[MCP Tool] layout.ingest responsive DB save failed', {
+          logger.warn("[MCP Tool] layout.ingest responsive DB save failed", {
             webPageId: persistedId,
             error: dbError instanceof Error ? dbError.message : String(dbError),
           });
@@ -941,7 +944,7 @@ export async function layoutIngestHandler(
       if (service) {
         try {
           if (isDevelopment()) {
-            logger.info('[MCP Tool] layout.ingest auto_analyze starting', {
+            logger.info("[MCP Tool] layout.ingest auto_analyze starting", {
               webPageId: persistedId,
             });
           }
@@ -958,9 +961,10 @@ export async function layoutIngestHandler(
             includeContent: true,
             includeStyles: true,
             // Computed StylesをhtmlSnippetにインラインスタイルとして適用
-            ...(ingestResult.computedStyles && ingestResult.computedStyles.length > 0 && {
-              computedStyles: ingestResult.computedStyles,
-            }),
+            ...(ingestResult.computedStyles &&
+              ingestResult.computedStyles.length > 0 && {
+                computedStyles: ingestResult.computedStyles,
+              }),
             ...(fetchExternalCss && {
               externalCss: {
                 fetchExternalCss: true as const,
@@ -986,7 +990,7 @@ export async function layoutIngestHandler(
           externalCssFetchResult = layoutAnalysisResult.externalCssFetch;
 
           if (isDevelopment() && externalCssFetchResult) {
-            logger.debug('[MCP Tool] layout.ingest external CSS fetch completed', {
+            logger.debug("[MCP Tool] layout.ingest external CSS fetch completed", {
               webPageId: persistedId,
               successCount: externalCssFetchResult.successCount,
               failedCount: externalCssFetchResult.failedCount,
@@ -1042,7 +1046,7 @@ export async function layoutIngestHandler(
               sectionsAnalyzed++;
 
               if (isDevelopment()) {
-                logger.debug('[MCP Tool] layout.ingest section saved', {
+                logger.debug("[MCP Tool] layout.ingest section saved", {
                   sectionType: section.type,
                   sectionId: section.id,
                   hasCssSnippet: !!layoutAnalysisResult.cssSnippet,
@@ -1056,16 +1060,17 @@ export async function layoutIngestHandler(
             } catch (sectionError) {
               // 個別セクションの保存失敗は警告ログのみで継続
               if (isDevelopment()) {
-                logger.warn('[MCP Tool] layout.ingest section save failed', {
+                logger.warn("[MCP Tool] layout.ingest section save failed", {
                   sectionType: section.type,
-                  error: sectionError instanceof Error ? sectionError.message : String(sectionError),
+                  error:
+                    sectionError instanceof Error ? sectionError.message : String(sectionError),
                 });
               }
             }
           }
 
           if (isDevelopment()) {
-            logger.info('[MCP Tool] layout.ingest auto_analyze completed', {
+            logger.info("[MCP Tool] layout.ingest auto_analyze completed", {
               webPageId: persistedId,
               sectionsAnalyzed,
               totalSections: inspectResult.sections.length,
@@ -1077,7 +1082,7 @@ export async function layoutIngestHandler(
         } catch (analyzeError) {
           // 解析失敗は警告ログのみで、インジェスト自体は成功とする
           if (isDevelopment()) {
-            logger.warn('[MCP Tool] layout.ingest auto_analyze failed', {
+            logger.warn("[MCP Tool] layout.ingest auto_analyze failed", {
               webPageId: persistedId,
               error: analyzeError instanceof Error ? analyzeError.message : String(analyzeError),
             });
@@ -1085,7 +1090,7 @@ export async function layoutIngestHandler(
         }
       } else {
         if (isDevelopment()) {
-          logger.warn('[MCP Tool] layout.ingest auto_analyze service not available', {
+          logger.warn("[MCP Tool] layout.ingest auto_analyze service not available", {
             webPageId: persistedId,
           });
         }
@@ -1118,7 +1123,10 @@ export async function layoutIngestHandler(
     };
 
     // レスポンスサイズチェックと自動最適化
-    let response: LayoutIngestOutput & { _responseSizeWarning?: string; _optimizationInfo?: object } = {
+    let response: LayoutIngestOutput & {
+      _responseSizeWarning?: string;
+      _optimizationInfo?: object;
+    } = {
       success: true,
       data,
     };
@@ -1128,7 +1136,7 @@ export async function layoutIngestHandler(
 
     // 開発環境で初期サイズをログ出力
     if (isDevelopment()) {
-      logger.debug('[MCP Tool] layout.ingest response size check', {
+      logger.debug("[MCP Tool] layout.ingest response size check", {
         initialSize: initialResponseSize,
         threshold: sizeThreshold,
         autoOptimize,
@@ -1188,7 +1196,7 @@ export async function layoutIngestHandler(
             reductionPercent: Math.round((1 - finalResponseSize / initialResponseSize) * 100),
           };
 
-          logger.info('[MCP Tool] layout.ingest auto-optimization applied', {
+          logger.info("[MCP Tool] layout.ingest auto-optimization applied", {
             originalSize: initialResponseSize,
             finalSize: finalResponseSize,
             reductionPercent: Math.round((1 - finalResponseSize / initialResponseSize) * 100),
@@ -1197,7 +1205,13 @@ export async function layoutIngestHandler(
           });
         }
 
-        response = { success: true, data, ...(isDevelopment() && response._optimizationInfo ? { _optimizationInfo: response._optimizationInfo } : {}) };
+        response = {
+          success: true,
+          data,
+          ...(isDevelopment() && response._optimizationInfo
+            ? { _optimizationInfo: response._optimizationInfo }
+            : {}),
+        };
       } else {
         // 警告を追加
         response._responseSizeWarning = `Response size (${initialResponseSize} bytes) exceeds threshold (${sizeThreshold} bytes). Consider using include_html: false, include_screenshot: false, or truncate_html_bytes option.`;
@@ -1207,7 +1221,7 @@ export async function layoutIngestHandler(
     const finalResponseSize = JSON.stringify(response).length;
 
     if (isDevelopment()) {
-      logger.info('[MCP Tool] layout.ingest completed', {
+      logger.info("[MCP Tool] layout.ingest completed", {
         id: data.id,
         url: data.url,
         htmlLength: data.html?.length ?? 0,
@@ -1227,7 +1241,7 @@ export async function layoutIngestHandler(
     const formattedMessage = formatErrorMessage(errorCode, errorMessage);
 
     if (isDevelopment()) {
-      logger.error('[MCP Tool] layout.ingest error', {
+      logger.error("[MCP Tool] layout.ingest error", {
         url: validated.url,
         code: errorCode,
         error: errorMessage,
@@ -1254,269 +1268,282 @@ export async function layoutIngestHandler(
  * MCP Protocol用のツール定義オブジェクト
  */
 export const layoutIngestToolDefinition = {
-  name: 'layout.ingest',
+  name: "layout.ingest",
   description:
-    'Fetch HTML/screenshot from URL for layout analysis. SSRF protection blocks private IPs/metadata services. HTML is sanitized.',
+    "Fetch HTML/screenshot from URL for layout analysis. SSRF protection blocks private IPs/metadata services. HTML is sanitized.",
   annotations: {
-    title: 'Layout Ingest',
+    title: "Layout Ingest",
     readOnlyHint: false,
     idempotentHint: false,
     openWorldHint: true,
   },
   inputSchema: {
-    type: 'object' as const,
+    type: "object" as const,
     properties: {
       url: {
-        type: 'string',
-        description: 'Target URL (https:// or http://)',
-        format: 'uri',
+        type: "string",
+        description: "Target URL (https:// or http://)",
+        format: "uri",
       },
       source_type: {
-        type: 'string',
-        enum: ['award_gallery', 'user_provided'],
-        description:
-          'Source type: award_gallery or user_provided',
-        default: 'user_provided',
+        type: "string",
+        enum: ["award_gallery", "user_provided"],
+        description: "Source type: award_gallery or user_provided",
+        default: "user_provided",
       },
       usage_scope: {
-        type: 'string',
-        enum: ['inspiration_only', 'owned_asset'],
-        description:
-          'Usage scope: inspiration_only or owned_asset',
-        default: 'inspiration_only',
+        type: "string",
+        enum: ["inspiration_only", "owned_asset"],
+        description: "Usage scope: inspiration_only or owned_asset",
+        default: "inspiration_only",
       },
       options: {
-        type: 'object',
-        description: 'Options',
+        type: "object",
+        description: "Options",
         properties: {
           full_page: {
-            type: 'boolean',
-            description: 'Full page screenshot (default: true)',
+            type: "boolean",
+            description: "Full page screenshot (default: true)",
             default: true,
           },
           viewport: {
-            type: 'object',
-            description: 'Viewport size',
+            type: "object",
+            description: "Viewport size",
             properties: {
               width: {
-                type: 'number',
-                description: 'Width (px) 320-4096',
+                type: "number",
+                description: "Width (px) 320-4096",
                 minimum: 320,
                 maximum: 4096,
               },
               height: {
-                type: 'number',
-                description: 'Height (px) 240-16384',
+                type: "number",
+                description: "Height (px) 240-16384",
                 minimum: 240,
                 maximum: 16384,
               },
             },
-            required: ['width', 'height'],
+            required: ["width", "height"],
           },
           wait_for_selector: {
-            type: 'string',
-            description: 'CSS selector to wait for (page load detection)',
+            type: "string",
+            description: "CSS selector to wait for (page load detection)",
           },
           wait_until: {
-            type: 'string',
-            enum: ['load', 'domcontentloaded', 'networkidle'],
-            description: 'Page load completion strategy: load (default, fastest), domcontentloaded (faster), networkidle (slowest, for heavy JS sites)',
-            default: 'load',
+            type: "string",
+            enum: ["load", "domcontentloaded", "networkidle"],
+            description:
+              "Page load completion strategy: load (default, fastest), domcontentloaded (faster), networkidle (slowest, for heavy JS sites)",
+            default: "load",
           },
           timeout: {
-            type: 'number',
-            description: 'Timeout (ms) 1000-120000',
+            type: "number",
+            description: "Timeout (ms) 1000-120000",
             minimum: 1000,
             maximum: 120000,
             default: 30000,
           },
           disable_javascript: {
-            type: 'boolean',
-            description: 'Disable JavaScript (default: false)',
+            type: "boolean",
+            description: "Disable JavaScript (default: false)",
             default: false,
           },
           // Response optimization options
           include_html: {
-            type: 'boolean',
-            description: 'Include HTML in response (default: false for DB-first workflow)',
+            type: "boolean",
+            description: "Include HTML in response (default: false for DB-first workflow)",
             default: false,
           },
           include_screenshot: {
-            type: 'boolean',
-            description: 'Include screenshot in response (default: false for DB-first workflow)',
+            type: "boolean",
+            description: "Include screenshot in response (default: false for DB-first workflow)",
             default: false,
           },
           truncate_html_bytes: {
-            type: 'number',
-            description: 'Truncate HTML to specified bytes (100-10000000)',
+            type: "number",
+            description: "Truncate HTML to specified bytes (100-10000000)",
             minimum: 100,
             maximum: 10000000,
           },
           screenshot_format: {
-            type: 'string',
-            enum: ['png', 'jpeg'],
-            description: 'Screenshot format (default: png)',
-            default: 'png',
+            type: "string",
+            enum: ["png", "jpeg"],
+            description: "Screenshot format (default: png)",
+            default: "png",
           },
           screenshot_quality: {
-            type: 'number',
-            description: 'JPEG quality (1-100, only for jpeg format)',
+            type: "number",
+            description: "JPEG quality (1-100, only for jpeg format)",
             minimum: 1,
             maximum: 100,
           },
           screenshot_max_width: {
-            type: 'number',
-            description: 'Max screenshot width (resize with aspect ratio)',
+            type: "number",
+            description: "Max screenshot width (resize with aspect ratio)",
             minimum: 1,
           },
           screenshot_max_height: {
-            type: 'number',
-            description: 'Max screenshot height (resize with aspect ratio)',
+            type: "number",
+            description: "Max screenshot height (resize with aspect ratio)",
             minimum: 1,
           },
           auto_optimize: {
-            type: 'boolean',
-            description: 'Auto-optimize response if exceeds size limit: removes script/style tags, compresses whitespace, then removes screenshot/HTML as needed (default: false)',
+            type: "boolean",
+            description:
+              "Auto-optimize response if exceeds size limit: removes script/style tags, compresses whitespace, then removes screenshot/HTML as needed (default: false)",
             default: false,
           },
           response_size_limit: {
-            type: 'number',
-            description: 'Response size threshold in bytes for auto_optimize (default: 1000000 = 1MB)',
+            type: "number",
+            description:
+              "Response size threshold in bytes for auto_optimize (default: 1000000 = 1MB)",
             minimum: 10000,
             maximum: 50000000,
             default: 1000000,
           },
           save_to_db: {
-            type: 'boolean',
-            description: 'Save to WebPage table for later use with motion.detect pageId mode (default: false)',
+            type: "boolean",
+            description:
+              "Save to WebPage table for later use with motion.detect pageId mode (default: false)",
             default: false,
           },
           auto_analyze: {
-            type: 'boolean',
-            description: 'Auto-analyze HTML and save SectionPattern with embeddings when save_to_db is true (default: false)',
+            type: "boolean",
+            description:
+              "Auto-analyze HTML and save SectionPattern with embeddings when save_to_db is true (default: false)",
             default: false,
           },
           include_computed_styles: {
-            type: 'boolean',
-            description: 'Include computed styles for section elements (getComputedStyle). Useful for accurate design reproduction. (default: false, for performance)',
+            type: "boolean",
+            description:
+              "Include computed styles for section elements (getComputedStyle). Useful for accurate design reproduction. (default: false, for performance)",
             default: false,
           },
           // External CSS fetching options
           fetch_external_css: {
-            type: 'boolean',
-            description: 'Fetch external CSS files content from <link rel="stylesheet"> tags (default: true)',
+            type: "boolean",
+            description:
+              'Fetch external CSS files content from <link rel="stylesheet"> tags (default: true)',
             default: true,
           },
           external_css_timeout: {
-            type: 'number',
-            description: 'Timeout for fetching each external CSS file (ms) 1000-30000 (default: 5000)',
+            type: "number",
+            description:
+              "Timeout for fetching each external CSS file (ms) 1000-30000 (default: 5000)",
             minimum: 1000,
             maximum: 30000,
             default: 5000,
           },
           external_css_max_size: {
-            type: 'number',
-            description: 'Maximum size per external CSS file (bytes) 1024-10485760 (default: 5MB)',
+            type: "number",
+            description: "Maximum size per external CSS file (bytes) 1024-10485760 (default: 5MB)",
             minimum: 1024,
             maximum: 10485760,
             default: 5242880,
           },
           external_css_max_concurrent: {
-            type: 'number',
-            description: 'Maximum concurrent external CSS fetches 1-10 (default: 5)',
+            type: "number",
+            description: "Maximum concurrent external CSS fetches 1-10 (default: 5)",
             minimum: 1,
             maximum: 10,
             default: 5,
           },
           external_css_max_files: {
-            type: 'number',
-            description: 'Maximum number of external CSS files to fetch 1-50 (default: 20)',
+            type: "number",
+            description: "Maximum number of external CSS files to fetch 1-50 (default: 20)",
             minimum: 1,
             maximum: 50,
             default: 20,
           },
           // WebGL/3D site handling options
           disable_webgl: {
-            type: 'boolean',
-            description: 'Disable WebGL completely. Use for heavy 3D sites (Three.js, WebGL) that cause timeouts. When true, launches a dedicated browser instance with WebGL disabled.',
+            type: "boolean",
+            description:
+              "Disable WebGL completely. Use for heavy 3D sites (Three.js, WebGL) that cause timeouts. When true, launches a dedicated browser instance with WebGL disabled.",
             default: false,
           },
           force_kill_on_timeout: {
-            type: 'boolean',
-            description: 'Force kill browser process on timeout. Use as last resort when WebGL sites hang. Sends SIGKILL to the browser process.',
+            type: "boolean",
+            description:
+              "Force kill browser process on timeout. Use as last resort when WebGL sites hang. Sends SIGKILL to the browser process.",
             default: false,
           },
           // Responsive analysis options
           responsive: {
-            type: 'object',
-            description: 'Responsive layout analysis options. Captures layouts at multiple viewport sizes and detects differences.',
+            type: "object",
+            description:
+              "Responsive layout analysis options. Captures layouts at multiple viewport sizes and detects differences.",
             properties: {
               enabled: {
-                type: 'boolean',
-                description: 'Enable responsive analysis (default: false)',
+                type: "boolean",
+                description: "Enable responsive analysis (default: false)",
                 default: false,
               },
               viewports: {
-                type: 'array',
-                description: 'Custom viewport configurations. Default: desktop (1920x1080), tablet (768x1024), mobile (375x667)',
+                type: "array",
+                description:
+                  "Custom viewport configurations. Default: desktop (1920x1080), tablet (768x1024), mobile (375x667)",
                 items: {
-                  type: 'object',
+                  type: "object",
                   properties: {
                     name: {
-                      type: 'string',
-                      description: 'Viewport name (e.g., desktop, tablet, mobile)',
+                      type: "string",
+                      description: "Viewport name (e.g., desktop, tablet, mobile)",
                     },
                     width: {
-                      type: 'number',
-                      description: 'Width in pixels (320-4096)',
+                      type: "number",
+                      description: "Width in pixels (320-4096)",
                       minimum: 320,
                       maximum: 4096,
                     },
                     height: {
-                      type: 'number',
-                      description: 'Height in pixels (240-16384)',
+                      type: "number",
+                      description: "Height in pixels (240-16384)",
                       minimum: 240,
                       maximum: 16384,
                     },
                   },
-                  required: ['name', 'width', 'height'],
+                  required: ["name", "width", "height"],
                 },
               },
               include_screenshots: {
-                type: 'boolean',
-                description: 'Include screenshots for each viewport (default: true)',
+                type: "boolean",
+                description: "Include screenshots for each viewport (default: true)",
                 default: true,
               },
               include_diff_images: {
-                type: 'boolean',
-                description: 'Include diff images in viewport comparison results (default: false)',
+                type: "boolean",
+                description: "Include diff images in viewport comparison results (default: false)",
                 default: false,
               },
               diff_threshold: {
-                type: 'number',
-                description: 'Pixel diff threshold for viewport comparison (0-1, default: 0.1)',
+                type: "number",
+                description: "Pixel diff threshold for viewport comparison (0-1, default: 0.1)",
                 minimum: 0,
                 maximum: 1,
                 default: 0.1,
               },
               save_to_db: {
-                type: 'boolean',
-                description: 'Save responsive analysis results to DB (default: true, requires save_to_db at top level)',
+                type: "boolean",
+                description:
+                  "Save responsive analysis results to DB (default: true, requires save_to_db at top level)",
                 default: true,
               },
               detect_navigation: {
-                type: 'boolean',
-                description: 'Detect navigation pattern changes (horizontal-menu to hamburger-menu, etc.) (default: true)',
+                type: "boolean",
+                description:
+                  "Detect navigation pattern changes (horizontal-menu to hamburger-menu, etc.) (default: true)",
                 default: true,
               },
               detect_visibility: {
-                type: 'boolean',
-                description: 'Detect element visibility changes between viewports (default: true)',
+                type: "boolean",
+                description: "Detect element visibility changes between viewports (default: true)",
                 default: true,
               },
               detect_layout: {
-                type: 'boolean',
-                description: 'Detect layout structure changes (grid columns, flex direction, etc.) (default: true)',
+                type: "boolean",
+                description:
+                  "Detect layout structure changes (grid columns, flex direction, etc.) (default: true)",
                 default: true,
               },
             },
@@ -1524,7 +1551,7 @@ export const layoutIngestToolDefinition = {
         },
       },
     },
-    required: ['url'],
+    required: ["url"],
   },
 };
 
@@ -1533,5 +1560,5 @@ export const layoutIngestToolDefinition = {
 // =============================================
 
 if (isDevelopment()) {
-  logger.debug('[layout.ingest] Tool module loaded');
+  logger.debug("[layout.ingest] Tool module loaded");
 }

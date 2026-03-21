@@ -16,8 +16,8 @@
  * @module services/motion/analyzers/webgl-motion-analyzer
  */
 
-import { createLogger, isDevelopment } from '../../../utils/logger';
-import type { FrameDiffResult, BoundingBox } from '../types';
+import { createLogger, isDevelopment } from "../../../utils/logger";
+import type { FrameDiffResult, BoundingBox } from "../types";
 
 // =====================================================
 // 型定義
@@ -133,7 +133,7 @@ export interface WebGLMotionAnalysisResult {
 // 定数
 // =====================================================
 
-const logger = createLogger('WebGLMotionAnalyzer');
+const logger = createLogger("WebGLMotionAnalyzer");
 
 /** デフォルトオプション */
 const DEFAULT_OPTIONS: Required<WebGLMotionAnalysisOptions> = {
@@ -166,7 +166,7 @@ export class WebGLMotionAnalyzer {
     };
 
     if (isDevelopment()) {
-      logger.debug('[WebGLMotionAnalyzer] Initialized', {
+      logger.debug("[WebGLMotionAnalyzer] Initialized", {
         options: this.options,
       });
     }
@@ -185,7 +185,7 @@ export class WebGLMotionAnalyzer {
     try {
       // バリデーション
       if (frameDiffs.length < 2) {
-        return this.createErrorResult('INSUFFICIENT_DATA', 'At least 2 frame diffs required');
+        return this.createErrorResult("INSUFFICIENT_DATA", "At least 2 frame diffs required");
       }
 
       // changeRatio配列を抽出
@@ -209,7 +209,7 @@ export class WebGLMotionAnalyzer {
       const processingTimeMs = Date.now() - startTime;
 
       if (isDevelopment()) {
-        logger.debug('[WebGLMotionAnalyzer] Analysis complete', {
+        logger.debug("[WebGLMotionAnalyzer] Analysis complete", {
           frameCount: frameDiffs.length,
           avgChangeRatio: statistics.avgChangeRatio,
           periodicityScore: periodicity.score,
@@ -232,11 +232,11 @@ export class WebGLMotionAnalyzer {
 
       return result;
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Unknown error';
+      const message = error instanceof Error ? error.message : "Unknown error";
       if (isDevelopment()) {
-        logger.error('[WebGLMotionAnalyzer] Analysis failed', { error: message });
+        logger.error("[WebGLMotionAnalyzer] Analysis failed", { error: message });
       }
-      return this.createErrorResult('ANALYSIS_FAILED', message);
+      return this.createErrorResult("ANALYSIS_FAILED", message);
     }
   }
 
@@ -247,15 +247,12 @@ export class WebGLMotionAnalyzer {
    * @param fps - フレームレート（デフォルト: 30）
    * @returns 分析結果
    */
-  analyzeFromRatios(
-    changeRatios: number[],
-    fps: number = DEFAULT_FPS
-  ): WebGLMotionAnalysisResult {
+  analyzeFromRatios(changeRatios: number[], fps: number = DEFAULT_FPS): WebGLMotionAnalysisResult {
     const startTime = Date.now();
 
     try {
       if (changeRatios.length < 2) {
-        return this.createErrorResult('INSUFFICIENT_DATA', 'At least 2 values required');
+        return this.createErrorResult("INSUFFICIENT_DATA", "At least 2 values required");
       }
 
       const statistics = this.calculateStatistics(changeRatios);
@@ -272,8 +269,8 @@ export class WebGLMotionAnalyzer {
         processingTimeMs,
       };
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Unknown error';
-      return this.createErrorResult('ANALYSIS_FAILED', message);
+      const message = error instanceof Error ? error.message : "Unknown error";
+      return this.createErrorResult("ANALYSIS_FAILED", message);
     }
   }
 
@@ -284,7 +281,7 @@ export class WebGLMotionAnalyzer {
   /**
    * 基本統計を計算
    */
-  private calculateStatistics(changeRatios: number[]): WebGLMotionAnalysisResult['statistics'] {
+  private calculateStatistics(changeRatios: number[]): WebGLMotionAnalysisResult["statistics"] {
     const n = changeRatios.length;
     const sum = changeRatios.reduce((a, b) => a + b, 0);
     const avgChangeRatio = sum / n;
@@ -298,9 +295,7 @@ export class WebGLMotionAnalyzer {
     const stdDeviation = Math.sqrt(variance);
 
     // 変化があったフレーム数
-    const changeFrameCount = changeRatios.filter(
-      (r) => r > this.options.changeThreshold
-    ).length;
+    const changeFrameCount = changeRatios.filter((r) => r > this.options.changeThreshold).length;
 
     return {
       avgChangeRatio,
@@ -394,10 +389,7 @@ export class WebGLMotionAnalyzer {
   /**
    * 周期性の信頼度を計算
    */
-  private calculatePeriodicityConfidence(
-    autocorrelations: number[],
-    peakIndex: number
-  ): number {
+  private calculatePeriodicityConfidence(autocorrelations: number[], peakIndex: number): number {
     if (peakIndex === 0 || autocorrelations.length < 3) {
       return 0;
     }
@@ -409,7 +401,11 @@ export class WebGLMotionAnalyzer {
 
     // ピーク周辺の値との差を計算
     const neighbors: number[] = [];
-    for (let i = Math.max(0, peakIndex - 2); i <= Math.min(autocorrelations.length - 1, peakIndex + 2); i++) {
+    for (
+      let i = Math.max(0, peakIndex - 2);
+      i <= Math.min(autocorrelations.length - 1, peakIndex + 2);
+      i++
+    ) {
       if (i !== peakIndex) {
         const val = autocorrelations[i];
         if (val !== undefined) {

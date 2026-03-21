@@ -15,9 +15,9 @@
  * @module tests/tools/page/vision-cpu-guarantee-integration
  */
 
-import { describe, it, expect, vi } from 'vitest';
-import { pageAnalyzeInputSchema, visionOptionsSchema } from '../../../src/tools/page/schemas';
-import type { z } from 'zod';
+import { describe, it, expect, vi } from "vitest";
+import { pageAnalyzeInputSchema, visionOptionsSchema } from "../../../src/tools/page/schemas";
+import type { z } from "zod";
 
 // =============================================================================
 // テスト用型定義
@@ -30,11 +30,11 @@ type VisionOptions = z.infer<typeof visionOptionsSchema>;
 // pageAnalyzeInputSchema with visionOptions Tests
 // =============================================================================
 
-describe('Vision CPU完走保証 Phase 3: pageAnalyzeInputSchema統合', () => {
-  describe('visionOptions field', () => {
-    it('should accept visionOptions in pageAnalyzeInputSchema', () => {
+describe("Vision CPU完走保証 Phase 3: pageAnalyzeInputSchema統合", () => {
+  describe("visionOptions field", () => {
+    it("should accept visionOptions in pageAnalyzeInputSchema", () => {
       const input = {
-        url: 'https://example.com',
+        url: "https://example.com",
         visionOptions: {
           visionTimeoutMs: 60000,
           visionForceCpu: false,
@@ -52,22 +52,22 @@ describe('Vision CPU完走保証 Phase 3: pageAnalyzeInputSchema統合', () => {
       }
     });
 
-    it('should accept pageAnalyzeInputSchema without visionOptions (optional)', () => {
+    it("should accept pageAnalyzeInputSchema without visionOptions (optional)", () => {
       const input = {
-        url: 'https://example.com',
+        url: "https://example.com",
       };
 
       const result = pageAnalyzeInputSchema.safeParse(input);
       expect(result.success).toBe(true);
       if (result.success) {
         // visionOptions is optional, so it should be undefined or have defaults
-        expect(result.data.url).toBe('https://example.com');
+        expect(result.data.url).toBe("https://example.com");
       }
     });
 
-    it('should apply default values for visionOptions boolean fields', () => {
+    it("should apply default values for visionOptions boolean fields", () => {
       const input = {
-        url: 'https://example.com',
+        url: "https://example.com",
         visionOptions: {
           visionTimeoutMs: 120000,
         },
@@ -85,10 +85,10 @@ describe('Vision CPU完走保証 Phase 3: pageAnalyzeInputSchema統合', () => {
     });
   });
 
-  describe('GPU mode configuration', () => {
-    it('should support GPU mode with fast timeout', () => {
+  describe("GPU mode configuration", () => {
+    it("should support GPU mode with fast timeout", () => {
       const input = {
-        url: 'https://example.com',
+        url: "https://example.com",
         visionOptions: {
           visionTimeoutMs: 60000, // GPU timeout
           visionForceCpu: false,
@@ -104,10 +104,10 @@ describe('Vision CPU完走保証 Phase 3: pageAnalyzeInputSchema統合', () => {
     });
   });
 
-  describe('CPU mode configuration', () => {
-    it('should support forced CPU mode with extended timeout', () => {
+  describe("CPU mode configuration", () => {
+    it("should support forced CPU mode with extended timeout", () => {
       const input = {
-        url: 'https://example.com',
+        url: "https://example.com",
         visionOptions: {
           visionTimeoutMs: 600000, // 10 minutes for CPU
           visionForceCpu: true,
@@ -122,9 +122,9 @@ describe('Vision CPU完走保証 Phase 3: pageAnalyzeInputSchema統合', () => {
       }
     });
 
-    it('should support CPU Large configuration (20 minutes)', () => {
+    it("should support CPU Large configuration (20 minutes)", () => {
       const input = {
-        url: 'https://example.com',
+        url: "https://example.com",
         visionOptions: {
           visionTimeoutMs: 1200000, // 20 minutes for CPU Large
           visionForceCpu: true,
@@ -141,10 +141,10 @@ describe('Vision CPU完走保証 Phase 3: pageAnalyzeInputSchema統合', () => {
     });
   });
 
-  describe('Graceful Degradation configuration', () => {
-    it('should support fallback enabled (default)', () => {
+  describe("Graceful Degradation configuration", () => {
+    it("should support fallback enabled (default)", () => {
       const input = {
-        url: 'https://example.com',
+        url: "https://example.com",
         visionOptions: {
           visionFallbackToHtmlOnly: true,
         },
@@ -157,9 +157,9 @@ describe('Vision CPU完走保証 Phase 3: pageAnalyzeInputSchema統合', () => {
       }
     });
 
-    it('should support fallback disabled (strict mode)', () => {
+    it("should support fallback disabled (strict mode)", () => {
       const input = {
-        url: 'https://example.com',
+        url: "https://example.com",
         visionOptions: {
           visionFallbackToHtmlOnly: false, // Vision失敗時にエラーを返す
         },
@@ -173,10 +173,10 @@ describe('Vision CPU完走保証 Phase 3: pageAnalyzeInputSchema統合', () => {
     });
   });
 
-  describe('Progress tracking configuration', () => {
-    it('should support progress tracking enabled', () => {
+  describe("Progress tracking configuration", () => {
+    it("should support progress tracking enabled", () => {
       const input = {
-        url: 'https://example.com',
+        url: "https://example.com",
         visionOptions: {
           visionEnableProgress: true,
           visionTimeoutMs: 600000,
@@ -191,10 +191,10 @@ describe('Vision CPU完走保証 Phase 3: pageAnalyzeInputSchema統合', () => {
     });
   });
 
-  describe('Complete configuration scenarios', () => {
-    it('should support full CPU mode with all options', () => {
+  describe("Complete configuration scenarios", () => {
+    it("should support full CPU mode with all options", () => {
       const input: PageAnalyzeInput = {
-        url: 'https://example.com',
+        url: "https://example.com",
         layoutOptions: {
           useVision: true,
         },
@@ -218,9 +218,9 @@ describe('Vision CPU完走保証 Phase 3: pageAnalyzeInputSchema統合', () => {
       }
     });
 
-    it('should support auto-detect mode (no forced CPU)', () => {
+    it("should support auto-detect mode (no forced CPU)", () => {
       const input: PageAnalyzeInput = {
-        url: 'https://example.com',
+        url: "https://example.com",
         layoutOptions: {
           useVision: true,
         },
@@ -238,10 +238,10 @@ describe('Vision CPU完走保証 Phase 3: pageAnalyzeInputSchema統合', () => {
     });
   });
 
-  describe('Validation errors', () => {
-    it('should reject visionTimeoutMs below minimum', () => {
+  describe("Validation errors", () => {
+    it("should reject visionTimeoutMs below minimum", () => {
       const input = {
-        url: 'https://example.com',
+        url: "https://example.com",
         visionOptions: {
           visionTimeoutMs: 500, // Below 1000ms minimum
         },
@@ -251,9 +251,9 @@ describe('Vision CPU完走保証 Phase 3: pageAnalyzeInputSchema統合', () => {
       expect(result.success).toBe(false);
     });
 
-    it('should reject visionTimeoutMs above maximum', () => {
+    it("should reject visionTimeoutMs above maximum", () => {
       const input = {
-        url: 'https://example.com',
+        url: "https://example.com",
         visionOptions: {
           visionTimeoutMs: 1500000, // Above 1200000ms maximum
         },
@@ -263,9 +263,9 @@ describe('Vision CPU完走保証 Phase 3: pageAnalyzeInputSchema統合', () => {
       expect(result.success).toBe(false);
     });
 
-    it('should reject visionImageMaxSize below minimum', () => {
+    it("should reject visionImageMaxSize below minimum", () => {
       const input = {
-        url: 'https://example.com',
+        url: "https://example.com",
         visionOptions: {
           visionImageMaxSize: 500, // Below 1024 bytes minimum
         },
@@ -275,9 +275,9 @@ describe('Vision CPU完走保証 Phase 3: pageAnalyzeInputSchema統合', () => {
       expect(result.success).toBe(false);
     });
 
-    it('should reject visionImageMaxSize above maximum', () => {
+    it("should reject visionImageMaxSize above maximum", () => {
       const input = {
-        url: 'https://example.com',
+        url: "https://example.com",
         visionOptions: {
           visionImageMaxSize: 20000000, // Above 10000000 bytes maximum
         },
@@ -293,24 +293,25 @@ describe('Vision CPU完走保証 Phase 3: pageAnalyzeInputSchema統合', () => {
 // Layout Handler Integration Tests (Mock-based)
 // =============================================================================
 
-describe('Vision CPU完走保証 Phase 3: Layout Handler統合', () => {
-  describe('HardwareDetector integration', () => {
-    it('should detect GPU when VRAM is available', async () => {
+describe("Vision CPU完走保証 Phase 3: Layout Handler統合", () => {
+  describe("HardwareDetector integration", () => {
+    it("should detect GPU when VRAM is available", async () => {
       // HardwareDetectorの型定義と振る舞いをテスト
-      const { HardwareDetector, HardwareType } = await import('../../../src/services/vision/hardware-detector');
+      const { HardwareDetector, HardwareType } =
+        await import("../../../src/services/vision/hardware-detector");
 
       const detector = new HardwareDetector();
       // 実際のOllama接続をテストするのではなく、型の互換性を確認
-      expect(typeof detector.detect).toBe('function');
-      expect(HardwareType.GPU).toBe('GPU');
-      expect(HardwareType.CPU).toBe('CPU');
+      expect(typeof detector.detect).toBe("function");
+      expect(HardwareType.GPU).toBe("GPU");
+      expect(HardwareType.CPU).toBe("CPU");
     });
   });
 
-  describe('TimeoutCalculator integration', () => {
-    it('should calculate correct timeout for GPU', async () => {
-      const { TimeoutCalculator } = await import('../../../src/services/vision/timeout-calculator');
-      const { HardwareType } = await import('../../../src/services/vision/hardware-detector');
+  describe("TimeoutCalculator integration", () => {
+    it("should calculate correct timeout for GPU", async () => {
+      const { TimeoutCalculator } = await import("../../../src/services/vision/timeout-calculator");
+      const { HardwareType } = await import("../../../src/services/vision/hardware-detector");
 
       const calculator = new TimeoutCalculator();
       const timeout = calculator.calculate(HardwareType.GPU, 100000);
@@ -319,9 +320,9 @@ describe('Vision CPU完走保証 Phase 3: Layout Handler統合', () => {
       expect(timeout).toBe(60000);
     });
 
-    it('should calculate correct timeout for CPU Small', async () => {
-      const { TimeoutCalculator } = await import('../../../src/services/vision/timeout-calculator');
-      const { HardwareType } = await import('../../../src/services/vision/hardware-detector');
+    it("should calculate correct timeout for CPU Small", async () => {
+      const { TimeoutCalculator } = await import("../../../src/services/vision/timeout-calculator");
+      const { HardwareType } = await import("../../../src/services/vision/hardware-detector");
 
       const calculator = new TimeoutCalculator();
       const timeout = calculator.calculate(HardwareType.CPU, 50000); // 50KB = Small
@@ -330,9 +331,9 @@ describe('Vision CPU完走保証 Phase 3: Layout Handler統合', () => {
       expect(timeout).toBe(180000);
     });
 
-    it('should calculate correct timeout for CPU Medium', async () => {
-      const { TimeoutCalculator } = await import('../../../src/services/vision/timeout-calculator');
-      const { HardwareType } = await import('../../../src/services/vision/hardware-detector');
+    it("should calculate correct timeout for CPU Medium", async () => {
+      const { TimeoutCalculator } = await import("../../../src/services/vision/timeout-calculator");
+      const { HardwareType } = await import("../../../src/services/vision/hardware-detector");
 
       const calculator = new TimeoutCalculator();
       const timeout = calculator.calculate(HardwareType.CPU, 200000); // 200KB = Medium
@@ -341,9 +342,9 @@ describe('Vision CPU完走保証 Phase 3: Layout Handler統合', () => {
       expect(timeout).toBe(600000);
     });
 
-    it('should calculate correct timeout for CPU Large', async () => {
-      const { TimeoutCalculator } = await import('../../../src/services/vision/timeout-calculator');
-      const { HardwareType } = await import('../../../src/services/vision/hardware-detector');
+    it("should calculate correct timeout for CPU Large", async () => {
+      const { TimeoutCalculator } = await import("../../../src/services/vision/timeout-calculator");
+      const { HardwareType } = await import("../../../src/services/vision/hardware-detector");
 
       const calculator = new TimeoutCalculator();
       const timeout = calculator.calculate(HardwareType.CPU, 600000); // 600KB = Large
@@ -352,22 +353,23 @@ describe('Vision CPU完走保証 Phase 3: Layout Handler統合', () => {
       expect(timeout).toBe(1200000);
     });
 
-    it('should format timeout correctly', async () => {
-      const { TimeoutCalculator } = await import('../../../src/services/vision/timeout-calculator');
+    it("should format timeout correctly", async () => {
+      const { TimeoutCalculator } = await import("../../../src/services/vision/timeout-calculator");
 
       const calculator = new TimeoutCalculator();
 
-      expect(calculator.formatTimeout(60000)).toBe('1m 0s');
-      expect(calculator.formatTimeout(180000)).toBe('3m 0s');
-      expect(calculator.formatTimeout(600000)).toBe('10m 0s');
-      expect(calculator.formatTimeout(1200000)).toBe('20m 0s');
+      expect(calculator.formatTimeout(60000)).toBe("1m 0s");
+      expect(calculator.formatTimeout(180000)).toBe("3m 0s");
+      expect(calculator.formatTimeout(600000)).toBe("10m 0s");
+      expect(calculator.formatTimeout(1200000)).toBe("20m 0s");
     });
   });
 
-  describe('ImageOptimizer integration', () => {
-    it('should select NONE strategy for GPU', async () => {
-      const { ImageOptimizer, OptimizationStrategy } = await import('../../../src/services/vision/image-optimizer');
-      const { HardwareType } = await import('../../../src/services/vision/hardware-detector');
+  describe("ImageOptimizer integration", () => {
+    it("should select NONE strategy for GPU", async () => {
+      const { ImageOptimizer, OptimizationStrategy } =
+        await import("../../../src/services/vision/image-optimizer");
+      const { HardwareType } = await import("../../../src/services/vision/hardware-detector");
 
       const optimizer = new ImageOptimizer();
       const strategy = optimizer.selectStrategy(HardwareType.GPU, 500000);
@@ -375,9 +377,10 @@ describe('Vision CPU完走保証 Phase 3: Layout Handler統合', () => {
       expect(strategy).toBe(OptimizationStrategy.NONE);
     });
 
-    it('should select NONE strategy for CPU Small', async () => {
-      const { ImageOptimizer, OptimizationStrategy } = await import('../../../src/services/vision/image-optimizer');
-      const { HardwareType } = await import('../../../src/services/vision/hardware-detector');
+    it("should select NONE strategy for CPU Small", async () => {
+      const { ImageOptimizer, OptimizationStrategy } =
+        await import("../../../src/services/vision/image-optimizer");
+      const { HardwareType } = await import("../../../src/services/vision/hardware-detector");
 
       const optimizer = new ImageOptimizer();
       const strategy = optimizer.selectStrategy(HardwareType.CPU, 50000); // 50KB = Small
@@ -385,9 +388,10 @@ describe('Vision CPU完走保証 Phase 3: Layout Handler統合', () => {
       expect(strategy).toBe(OptimizationStrategy.NONE);
     });
 
-    it('should select MEDIUM strategy for CPU Medium', async () => {
-      const { ImageOptimizer, OptimizationStrategy } = await import('../../../src/services/vision/image-optimizer');
-      const { HardwareType } = await import('../../../src/services/vision/hardware-detector');
+    it("should select MEDIUM strategy for CPU Medium", async () => {
+      const { ImageOptimizer, OptimizationStrategy } =
+        await import("../../../src/services/vision/image-optimizer");
+      const { HardwareType } = await import("../../../src/services/vision/hardware-detector");
 
       const optimizer = new ImageOptimizer();
       const strategy = optimizer.selectStrategy(HardwareType.CPU, 200000); // 200KB = Medium
@@ -395,9 +399,10 @@ describe('Vision CPU完走保証 Phase 3: Layout Handler統合', () => {
       expect(strategy).toBe(OptimizationStrategy.MEDIUM);
     });
 
-    it('should select AGGRESSIVE strategy for CPU Large', async () => {
-      const { ImageOptimizer, OptimizationStrategy } = await import('../../../src/services/vision/image-optimizer');
-      const { HardwareType } = await import('../../../src/services/vision/hardware-detector');
+    it("should select AGGRESSIVE strategy for CPU Large", async () => {
+      const { ImageOptimizer, OptimizationStrategy } =
+        await import("../../../src/services/vision/image-optimizer");
+      const { HardwareType } = await import("../../../src/services/vision/hardware-detector");
 
       const optimizer = new ImageOptimizer();
       const strategy = optimizer.selectStrategy(HardwareType.CPU, 600000); // 600KB = Large
@@ -405,16 +410,21 @@ describe('Vision CPU完走保証 Phase 3: Layout Handler統合', () => {
       expect(strategy).toBe(OptimizationStrategy.AGGRESSIVE);
     });
 
-    it('should estimate optimal size for CPU', async () => {
-      const { ImageOptimizer, OptimizationStrategy, OPTIMIZATION_CONFIGS } = await import('../../../src/services/vision/image-optimizer');
-      const { HardwareType } = await import('../../../src/services/vision/hardware-detector');
+    it("should estimate optimal size for CPU", async () => {
+      const { ImageOptimizer, OptimizationStrategy, OPTIMIZATION_CONFIGS } =
+        await import("../../../src/services/vision/image-optimizer");
+      const { HardwareType } = await import("../../../src/services/vision/hardware-detector");
 
       const optimizer = new ImageOptimizer();
       const estimate = optimizer.estimateOptimalSize(600000, HardwareType.CPU);
 
       expect(estimate.strategy).toBe(OptimizationStrategy.AGGRESSIVE);
-      expect(estimate.maxWidth).toBe(OPTIMIZATION_CONFIGS[OptimizationStrategy.AGGRESSIVE].maxWidth);
-      expect(estimate.maxHeight).toBe(OPTIMIZATION_CONFIGS[OptimizationStrategy.AGGRESSIVE].maxHeight);
+      expect(estimate.maxWidth).toBe(
+        OPTIMIZATION_CONFIGS[OptimizationStrategy.AGGRESSIVE].maxWidth
+      );
+      expect(estimate.maxHeight).toBe(
+        OPTIMIZATION_CONFIGS[OptimizationStrategy.AGGRESSIVE].maxHeight
+      );
       expect(estimate.quality).toBe(OPTIMIZATION_CONFIGS[OptimizationStrategy.AGGRESSIVE].quality);
     });
   });
@@ -424,28 +434,34 @@ describe('Vision CPU完走保証 Phase 3: Layout Handler統合', () => {
 // VisionOptions Schema Integration Tests
 // =============================================================================
 
-describe('Vision CPU完走保証 Phase 3: visionOptionsSchema統合', () => {
-  describe('Schema consistency', () => {
-    it('should have consistent defaults with pageAnalyzeInputSchema', () => {
+describe("Vision CPU完走保証 Phase 3: visionOptionsSchema統合", () => {
+  describe("Schema consistency", () => {
+    it("should have consistent defaults with pageAnalyzeInputSchema", () => {
       // visionOptionsSchemaとpageAnalyzeInputSchemaのvisionOptionsフィールドが一致すること
       const standaloneResult = visionOptionsSchema.safeParse({});
       expect(standaloneResult.success).toBe(true);
 
       const pageResult = pageAnalyzeInputSchema.safeParse({
-        url: 'https://example.com',
+        url: "https://example.com",
         visionOptions: {},
       });
       expect(pageResult.success).toBe(true);
 
       if (standaloneResult.success && pageResult.success) {
         // デフォルト値が一致
-        expect(standaloneResult.data.visionForceCpu).toBe(pageResult.data.visionOptions?.visionForceCpu);
-        expect(standaloneResult.data.visionEnableProgress).toBe(pageResult.data.visionOptions?.visionEnableProgress);
-        expect(standaloneResult.data.visionFallbackToHtmlOnly).toBe(pageResult.data.visionOptions?.visionFallbackToHtmlOnly);
+        expect(standaloneResult.data.visionForceCpu).toBe(
+          pageResult.data.visionOptions?.visionForceCpu
+        );
+        expect(standaloneResult.data.visionEnableProgress).toBe(
+          pageResult.data.visionOptions?.visionEnableProgress
+        );
+        expect(standaloneResult.data.visionFallbackToHtmlOnly).toBe(
+          pageResult.data.visionOptions?.visionFallbackToHtmlOnly
+        );
       }
     });
 
-    it('should validate same constraints in both schemas', () => {
+    it("should validate same constraints in both schemas", () => {
       // 境界値が両スキーマで同じ
       const minTimeout = 1000;
       const maxTimeout = 1200000;
@@ -453,26 +469,38 @@ describe('Vision CPU完走保証 Phase 3: visionOptionsSchema統合', () => {
       // visionOptionsSchema
       expect(visionOptionsSchema.safeParse({ visionTimeoutMs: minTimeout }).success).toBe(true);
       expect(visionOptionsSchema.safeParse({ visionTimeoutMs: maxTimeout }).success).toBe(true);
-      expect(visionOptionsSchema.safeParse({ visionTimeoutMs: minTimeout - 1 }).success).toBe(false);
-      expect(visionOptionsSchema.safeParse({ visionTimeoutMs: maxTimeout + 1 }).success).toBe(false);
+      expect(visionOptionsSchema.safeParse({ visionTimeoutMs: minTimeout - 1 }).success).toBe(
+        false
+      );
+      expect(visionOptionsSchema.safeParse({ visionTimeoutMs: maxTimeout + 1 }).success).toBe(
+        false
+      );
 
       // pageAnalyzeInputSchema
-      expect(pageAnalyzeInputSchema.safeParse({
-        url: 'https://example.com',
-        visionOptions: { visionTimeoutMs: minTimeout }
-      }).success).toBe(true);
-      expect(pageAnalyzeInputSchema.safeParse({
-        url: 'https://example.com',
-        visionOptions: { visionTimeoutMs: maxTimeout }
-      }).success).toBe(true);
-      expect(pageAnalyzeInputSchema.safeParse({
-        url: 'https://example.com',
-        visionOptions: { visionTimeoutMs: minTimeout - 1 }
-      }).success).toBe(false);
-      expect(pageAnalyzeInputSchema.safeParse({
-        url: 'https://example.com',
-        visionOptions: { visionTimeoutMs: maxTimeout + 1 }
-      }).success).toBe(false);
+      expect(
+        pageAnalyzeInputSchema.safeParse({
+          url: "https://example.com",
+          visionOptions: { visionTimeoutMs: minTimeout },
+        }).success
+      ).toBe(true);
+      expect(
+        pageAnalyzeInputSchema.safeParse({
+          url: "https://example.com",
+          visionOptions: { visionTimeoutMs: maxTimeout },
+        }).success
+      ).toBe(true);
+      expect(
+        pageAnalyzeInputSchema.safeParse({
+          url: "https://example.com",
+          visionOptions: { visionTimeoutMs: minTimeout - 1 },
+        }).success
+      ).toBe(false);
+      expect(
+        pageAnalyzeInputSchema.safeParse({
+          url: "https://example.com",
+          visionOptions: { visionTimeoutMs: maxTimeout + 1 },
+        }).success
+      ).toBe(false);
     });
   });
 });

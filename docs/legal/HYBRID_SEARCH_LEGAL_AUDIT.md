@@ -37,11 +37,11 @@ Reftrixは、Webデザインの構造化ナレッジを管理するプラット�
 
 ### 1.2 監査スコープ
 
-| 対象 | 範囲 |
-|------|------|
-| 機能 | Hybrid Search（ベクトル検索 + 全文検索のRRF統合） |
-| データフロー | text_representation生成 -> tsvectorインデックス -> tsquery検索 -> RRFスコア統合 |
-| 法域 | 日本（著作権法、個人情報保護法）、米国（Copyright Act、CFAA）、EU（GDPR、DSM Directive） |
+| 対象             | 範囲                                                                                             |
+| ---------------- | ------------------------------------------------------------------------------------------------ |
+| 機能             | Hybrid Search（ベクトル検索 + 全文検索のRRF統合）                                                |
+| データフロー     | text_representation生成 -> tsvectorインデックス -> tsquery検索 -> RRFスコア統合                  |
+| 法域             | 日本（著作権法、個人情報保護法）、米国（Copyright Act、CFAA）、EU（GDPR、DSM Directive）         |
 | 既存ドキュメント | LEGAL_RISK_ASSESSMENT.md (v0.2.0)、PRIVACY_POLICY.md (v0.1.0)、ROBOTS_TXT_COMPLIANCE.md (v1.0.0) |
 
 ---
@@ -71,13 +71,13 @@ Reftrixは、Webデザインの構造化ナレッジを管理するプラット�
 
 全文検索インデックスの対象となる`text_representation`フィールドは、クロールしたWebページのレイアウト分析結果をテキスト形式で表現したものである。以下の情報を含む:
 
-| 含まれる情報 | 例 | 個人情報リスク |
-|-------------|-----|--------------|
-| レイアウトタイプ | "hero", "grid", "split" | 低 |
-| CSSプロパティ | "flex", "grid-template", "position: sticky" | 低 |
-| セクション構造 | "3-column layout with sidebar" | 低 |
-| テキスト要素の概要 | 見出しやラベルのテキスト断片 | **中** |
-| OGP/メタデータ | サイトタイトル、説明文 | **中** |
+| 含まれる情報       | 例                                          | 個人情報リスク |
+| ------------------ | ------------------------------------------- | -------------- |
+| レイアウトタイプ   | "hero", "grid", "split"                     | 低             |
+| CSSプロパティ      | "flex", "grid-template", "position: sticky" | 低             |
+| セクション構造     | "3-column layout with sidebar"              | 低             |
+| テキスト要素の概要 | 見出しやラベルのテキスト断片                | **中**         |
+| OGP/メタデータ     | サイトタイトル、説明文                      | **中**         |
 
 ### 2.3 tsvectorインデックス
 
@@ -124,6 +124,7 @@ text_representationフィールドには、クロール対象ページに含ま�
 #### 3.1.3 改正動向への留意
 
 個人情報保護委員会は2026年1月9日に「3年ごと見直しに係る制度改正方針」を公表し、国会への改正案早期提出を目指している。主な改正の方向性:
+
 - 課徴金制度の導入
 - リスクベースアプローチの強化
 - 適正なデータ利活用の推進
@@ -182,14 +183,14 @@ Reftrixではrobots.txt尊重機能がデフォルト有効で実装されてい
 
 **PASS（条件付き）**
 
-| 評価項目 | 判定 | リスクレベル | 備考 |
-|---------|------|------------|------|
-| AGPL-3.0互換性 | PASS | Info | Hybrid Search機能自体にライセンス固有の追加リスクなし |
-| 著作権法コンプライアンス | PASS | Low | 情報解析目的の範囲内（第30条の4適用） |
-| 個人情報保護（APPI/GDPR） | 条件付きPASS | Medium | text_representationへの個人情報混入リスクの設計保証が必要 |
-| robots.txt/ToS尊重 | PASS | Low | 既存のrobots.txt尊重機能がHybrid Searchにも適用（クロール段階でブロック済み） |
-| EU DSM Directive | PASS | Low | robots.txtオプトアウト尊重済み |
-| 全文検索インデックスの透明性 | 条件付きPASS | Medium | プライバシーポリシーへの追記が望ましい |
+| 評価項目                     | 判定         | リスクレベル | 備考                                                                          |
+| ---------------------------- | ------------ | ------------ | ----------------------------------------------------------------------------- |
+| AGPL-3.0互換性               | PASS         | Info         | Hybrid Search機能自体にライセンス固有の追加リスクなし                         |
+| 著作権法コンプライアンス     | PASS         | Low          | 情報解析目的の範囲内（第30条の4適用）                                         |
+| 個人情報保護（APPI/GDPR）    | 条件付きPASS | Medium       | text_representationへの個人情報混入リスクの設計保証が必要                     |
+| robots.txt/ToS尊重           | PASS         | Low          | 既存のrobots.txt尊重機能がHybrid Searchにも適用（クロール段階でブロック済み） |
+| EU DSM Directive             | PASS         | Low          | robots.txtオプトアウト尊重済み                                                |
+| 全文検索インデックスの透明性 | 条件付きPASS | Medium       | プライバシーポリシーへの追記が望ましい                                        |
 
 ### 4.2 PASSの条件
 
@@ -201,28 +202,28 @@ Reftrixではrobots.txt尊重機能がデフォルト有効で実装されてい
 
 ### 5.1 P2（次スプリント推奨）
 
-| No. | アクション | 対象リスク | 詳細 |
-|-----|-----------|-----------|------|
-| HS-P2-1 | `text_representation`に個人情報が混入しない設計保証の文書化 | APPI, GDPR | text_representation生成ロジックにおいて、レイアウト構造情報（CSSプロパティ、セクションタイプ等）のみを含み、人名・メールアドレス・電話番号等の個人情報を含まない設計であることを文書化する。現行実装で個人情報が混入する経路がある場合、フィルタリングの実装または設計変更を検討する |
-| HS-P2-2 | robots.txt尊重ロジックのHybrid Search統合における検証・テスト追加 | 著作権法、DSM Directive | Hybrid Search機能が、robots.txtでブロックされたURLのデータを検索結果に含まないことを確認するテストを追加する。クロール段階でブロックされるため論理的には問題ないが、既存DBに保存されたデータ（robots.txt変更前にクロールしたデータ）に関する取り扱いも検討する |
-| HS-P2-3 | プライバシーポリシーに全文検索インデックスの使用を追記 | APPI, GDPR, 透明性 | `PRIVACY_POLICY.md`の「分析結果データ」セクションに、全文検索インデックス（tsvector）の使用目的・保存形式・保持期間を追記する。現行のプライバシーポリシーではHybrid Searchの記載はあるが、text_representationフィールドの詳細やtsvectorインデックスの存在は明示されていない |
+| No.     | アクション                                                        | 対象リスク              | 詳細                                                                                                                                                                                                                                                                                 |
+| ------- | ----------------------------------------------------------------- | ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| HS-P2-1 | `text_representation`に個人情報が混入しない設計保証の文書化       | APPI, GDPR              | text_representation生成ロジックにおいて、レイアウト構造情報（CSSプロパティ、セクションタイプ等）のみを含み、人名・メールアドレス・電話番号等の個人情報を含まない設計であることを文書化する。現行実装で個人情報が混入する経路がある場合、フィルタリングの実装または設計変更を検討する |
+| HS-P2-2 | robots.txt尊重ロジックのHybrid Search統合における検証・テスト追加 | 著作権法、DSM Directive | Hybrid Search機能が、robots.txtでブロックされたURLのデータを検索結果に含まないことを確認するテストを追加する。クロール段階でブロックされるため論理的には問題ないが、既存DBに保存されたデータ（robots.txt変更前にクロールしたデータ）に関する取り扱いも検討する                       |
+| HS-P2-3 | プライバシーポリシーに全文検索インデックスの使用を追記            | APPI, GDPR, 透明性      | `PRIVACY_POLICY.md`の「分析結果データ」セクションに、全文検索インデックス（tsvector）の使用目的・保存形式・保持期間を追記する。現行のプライバシーポリシーではHybrid Searchの記載はあるが、text_representationフィールドの詳細やtsvectorインデックスの存在は明示されていない          |
 
 ### 5.2 P3（将来タスク）
 
-| No. | アクション | 対象リスク | 詳細 |
-|-----|-----------|-----------|------|
-| HS-P3-1 | ToS確認プロセスの設計検討 | 契約法、著作権法 | クロール対象サイトのToSがスクレイピング・インデキシングを禁止していないか確認するプロセスの設計を検討する。完全な自動化は技術的に困難であるため、利用規約でユーザーに確認義務を課す方式が現実的。LEGAL_RISK_ASSESSMENT.md Section 3.4の既存分析と整合 |
+| No.     | アクション                                     | 対象リスク              | 詳細                                                                                                                                                                                                                                                        |
+| ------- | ---------------------------------------------- | ----------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| HS-P3-1 | ToS確認プロセスの設計検討                      | 契約法、著作権法        | クロール対象サイトのToSがスクレイピング・インデキシングを禁止していないか確認するプロセスの設計を検討する。完全な自動化は技術的に困難であるため、利用規約でユーザーに確認義務を課す方式が現実的。LEGAL_RISK_ASSESSMENT.md Section 3.4の既存分析と整合       |
 | HS-P3-2 | EU DSM Directive TDMオプトアウト対応の拡張検討 | DSM Directive Article 4 | robots.txt以外のTDMオプトアウト手段（meta robots tag、X-Robots-Tag HTTPヘッダー、自然言語によるToSでのオプトアウト表明）への対応を検討する。欧州委員会の技術プロトコル協議結果（2026年1月締切）およびCopyright Directive見直し（2026年6月予定）の動向を注視 |
 
 ### 5.3 アクションアイテムとLEGAL_RISK_ASSESSMENT.mdの対応関係
 
-| HS アクション | LEGAL_RISK_ASSESSMENT.md 関連項目 | 関係 |
-|-------------|----------------------------------|------|
-| HS-P2-1 | H-2（個人情報フィルタリング機能） | 関連（Hybrid Search固有の観点を追加） |
-| HS-P2-2 | C-1（robots.txt尊重機能）, Section 3.4 | 関連（既存機能のHybrid Search統合確認） |
-| HS-P2-3 | M-3（プライバシーポリシー整備） | 追加（全文検索インデックスの透明性追記） |
-| HS-P3-1 | Section 3.4（ToSの法的拘束力） | 関連（長期的なToS確認プロセスの検討） |
-| HS-P3-2 | Section 3.3.2（DSM Directive TDM） | 拡張（robots.txt以外のオプトアウト手段） |
+| HS アクション | LEGAL_RISK_ASSESSMENT.md 関連項目      | 関係                                     |
+| ------------- | -------------------------------------- | ---------------------------------------- |
+| HS-P2-1       | H-2（個人情報フィルタリング機能）      | 関連（Hybrid Search固有の観点を追加）    |
+| HS-P2-2       | C-1（robots.txt尊重機能）, Section 3.4 | 関連（既存機能のHybrid Search統合確認）  |
+| HS-P2-3       | M-3（プライバシーポリシー整備）        | 追加（全文検索インデックスの透明性追記） |
+| HS-P3-1       | Section 3.4（ToSの法的拘束力）         | 関連（長期的なToS確認プロセスの検討）    |
+| HS-P3-2       | Section 3.3.2（DSM Directive TDM）     | 拡張（robots.txt以外のオプトアウト手段） |
 
 ---
 
@@ -295,11 +296,11 @@ This audit evaluates the legal compliance of this Hybrid Search feature.
 
 ### 1.2 Audit Scope
 
-| Subject | Scope |
-|---------|-------|
-| Feature | Hybrid Search (RRF integration of vector search + full-text search) |
-| Data Flow | text_representation generation -> tsvector index -> tsquery search -> RRF score integration |
-| Jurisdictions | Japan (Copyright Act, APPI), United States (Copyright Act, CFAA), EU (GDPR, DSM Directive) |
+| Subject            | Scope                                                                                            |
+| ------------------ | ------------------------------------------------------------------------------------------------ |
+| Feature            | Hybrid Search (RRF integration of vector search + full-text search)                              |
+| Data Flow          | text_representation generation -> tsvector index -> tsquery search -> RRF score integration      |
+| Jurisdictions      | Japan (Copyright Act, APPI), United States (Copyright Act, CFAA), EU (GDPR, DSM Directive)       |
 | Existing Documents | LEGAL_RISK_ASSESSMENT.md (v0.2.0), PRIVACY_POLICY.md (v0.1.0), ROBOTS_TXT_COMPLIANCE.md (v1.0.0) |
 
 ---
@@ -329,13 +330,13 @@ This audit evaluates the legal compliance of this Hybrid Search feature.
 
 The `text_representation` field, which serves as the target for full-text search indexing, is a textual expression of layout analysis results from crawled web pages. It includes the following information:
 
-| Information Included | Example | Personal Data Risk |
-|---------------------|---------|-------------------|
-| Layout type | "hero", "grid", "split" | Low |
-| CSS properties | "flex", "grid-template", "position: sticky" | Low |
-| Section structure | "3-column layout with sidebar" | Low |
-| Text element summaries | Text fragments from headings and labels | **Medium** |
-| OGP/metadata | Site title, description | **Medium** |
+| Information Included   | Example                                     | Personal Data Risk |
+| ---------------------- | ------------------------------------------- | ------------------ |
+| Layout type            | "hero", "grid", "split"                     | Low                |
+| CSS properties         | "flex", "grid-template", "position: sticky" | Low                |
+| Section structure      | "3-column layout with sidebar"              | Low                |
+| Text element summaries | Text fragments from headings and labels     | **Medium**         |
+| OGP/metadata           | Site title, description                     | **Medium**         |
 
 ### 2.3 tsvector Index
 
@@ -382,6 +383,7 @@ The text_representation field may inadvertently include personal information (na
 #### 3.1.3 Note on Pending Legislative Amendments
 
 The Personal Information Protection Commission published its "Institutional Reform Policy for the Triennial Review" on January 9, 2026, aiming for early submission of an amendment bill to the Diet. Key directions of the amendment include:
+
 - Introduction of an administrative surcharge system
 - Strengthening of a risk-based approach
 - Promotion of proper data utilization
@@ -440,14 +442,14 @@ Note that attention should be paid to the outcomes of the European Commission's 
 
 **PASS (Conditional)**
 
-| Evaluation Item | Verdict | Risk Level | Notes |
-|----------------|---------|------------|-------|
-| AGPL-3.0 compatibility | PASS | Info | No license-specific additional risk from the Hybrid Search feature itself |
-| Copyright law compliance | PASS | Low | Within the scope of information analysis purpose (Article 30-4 applicable) |
-| Personal information protection (APPI/GDPR) | Conditional PASS | Medium | Design assurance against personal information inclusion in text_representation is required |
-| robots.txt/ToS compliance | PASS | Low | Existing robots.txt compliance feature applies to Hybrid Search (blocked at the crawl stage) |
-| EU DSM Directive | PASS | Low | robots.txt opt-out is respected |
-| Full-text search index transparency | Conditional PASS | Medium | Addition to privacy policy is desirable |
+| Evaluation Item                             | Verdict          | Risk Level | Notes                                                                                        |
+| ------------------------------------------- | ---------------- | ---------- | -------------------------------------------------------------------------------------------- |
+| AGPL-3.0 compatibility                      | PASS             | Info       | No license-specific additional risk from the Hybrid Search feature itself                    |
+| Copyright law compliance                    | PASS             | Low        | Within the scope of information analysis purpose (Article 30-4 applicable)                   |
+| Personal information protection (APPI/GDPR) | Conditional PASS | Medium     | Design assurance against personal information inclusion in text_representation is required   |
+| robots.txt/ToS compliance                   | PASS             | Low        | Existing robots.txt compliance feature applies to Hybrid Search (blocked at the crawl stage) |
+| EU DSM Directive                            | PASS             | Low        | robots.txt opt-out is respected                                                              |
+| Full-text search index transparency         | Conditional PASS | Medium     | Addition to privacy policy is desirable                                                      |
 
 ### 4.2 Conditions for PASS
 
@@ -459,28 +461,28 @@ The legal compliance of the Hybrid Search feature is assessed as PASS, condition
 
 ### 5.1 P2 (Recommended for Next Sprint)
 
-| No. | Action | Target Risk | Details |
-|-----|--------|------------|---------|
-| HS-P2-1 | Document design assurance that `text_representation` does not contain personal information | APPI, GDPR | Document that the text_representation generation logic includes only layout structural information (CSS properties, section types, etc.) and does not include personal information such as names, email addresses, or phone numbers. If pathways exist in the current implementation through which personal information may be included, consider implementing filtering or redesigning |
-| HS-P2-2 | Verify and add tests for robots.txt compliance logic in Hybrid Search integration | Copyright Act, DSM Directive | Add tests to confirm that the Hybrid Search feature does not include data from URLs blocked by robots.txt in search results. While this is logically not an issue as blocking occurs at the crawl stage, also consider handling of data already stored in the DB (data crawled before robots.txt changes) |
-| HS-P2-3 | Add full-text search index usage to the privacy policy | APPI, GDPR, Transparency | Add the purpose of use, storage format, and retention period for full-text search indexes (tsvector) to the "Analysis Result Data" section of `PRIVACY_POLICY.md`. The current privacy policy mentions Hybrid Search but does not explicitly describe the text_representation field details or the existence of tsvector indexes |
+| No.     | Action                                                                                     | Target Risk                  | Details                                                                                                                                                                                                                                                                                                                                                                                 |
+| ------- | ------------------------------------------------------------------------------------------ | ---------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| HS-P2-1 | Document design assurance that `text_representation` does not contain personal information | APPI, GDPR                   | Document that the text_representation generation logic includes only layout structural information (CSS properties, section types, etc.) and does not include personal information such as names, email addresses, or phone numbers. If pathways exist in the current implementation through which personal information may be included, consider implementing filtering or redesigning |
+| HS-P2-2 | Verify and add tests for robots.txt compliance logic in Hybrid Search integration          | Copyright Act, DSM Directive | Add tests to confirm that the Hybrid Search feature does not include data from URLs blocked by robots.txt in search results. While this is logically not an issue as blocking occurs at the crawl stage, also consider handling of data already stored in the DB (data crawled before robots.txt changes)                                                                               |
+| HS-P2-3 | Add full-text search index usage to the privacy policy                                     | APPI, GDPR, Transparency     | Add the purpose of use, storage format, and retention period for full-text search indexes (tsvector) to the "Analysis Result Data" section of `PRIVACY_POLICY.md`. The current privacy policy mentions Hybrid Search but does not explicitly describe the text_representation field details or the existence of tsvector indexes                                                        |
 
 ### 5.2 P3 (Future Tasks)
 
-| No. | Action | Target Risk | Details |
-|-----|--------|------------|---------|
-| HS-P3-1 | Design a ToS verification process | Contract law, Copyright Act | Consider designing a process to verify that the ToS of crawled sites do not prohibit scraping or indexing. Since full automation is technically difficult, a practical approach is to impose a verification obligation on users through the terms of service. Align with the existing analysis in LEGAL_RISK_ASSESSMENT.md Section 3.4 |
-| HS-P3-2 | Consider expanding EU DSM Directive TDM opt-out support | DSM Directive Article 4 | Consider support for TDM opt-out mechanisms beyond robots.txt (meta robots tag, X-Robots-Tag HTTP header, natural-language ToS opt-out declarations). Monitor the outcomes of the European Commission's technical protocol consultation (January 2026 deadline) and Copyright Directive review (scheduled June 2026) |
+| No.     | Action                                                  | Target Risk                 | Details                                                                                                                                                                                                                                                                                                                                |
+| ------- | ------------------------------------------------------- | --------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| HS-P3-1 | Design a ToS verification process                       | Contract law, Copyright Act | Consider designing a process to verify that the ToS of crawled sites do not prohibit scraping or indexing. Since full automation is technically difficult, a practical approach is to impose a verification obligation on users through the terms of service. Align with the existing analysis in LEGAL_RISK_ASSESSMENT.md Section 3.4 |
+| HS-P3-2 | Consider expanding EU DSM Directive TDM opt-out support | DSM Directive Article 4     | Consider support for TDM opt-out mechanisms beyond robots.txt (meta robots tag, X-Robots-Tag HTTP header, natural-language ToS opt-out declarations). Monitor the outcomes of the European Commission's technical protocol consultation (January 2026 deadline) and Copyright Directive review (scheduled June 2026)                   |
 
 ### 5.3 Mapping of Action Items to LEGAL_RISK_ASSESSMENT.md
 
-| HS Action | LEGAL_RISK_ASSESSMENT.md Related Item | Relationship |
-|-----------|--------------------------------------|-------------|
-| HS-P2-1 | H-2 (Personal information filtering) | Related (adding Hybrid Search-specific perspective) |
-| HS-P2-2 | C-1 (robots.txt compliance), Section 3.4 | Related (verification of existing feature integration with Hybrid Search) |
-| HS-P2-3 | M-3 (Privacy policy preparation) | Addition (transparency disclosure for full-text search index) |
-| HS-P3-1 | Section 3.4 (Legal enforceability of ToS) | Related (long-term ToS verification process design) |
-| HS-P3-2 | Section 3.3.2 (DSM Directive TDM) | Extension (opt-out mechanisms beyond robots.txt) |
+| HS Action | LEGAL_RISK_ASSESSMENT.md Related Item     | Relationship                                                              |
+| --------- | ----------------------------------------- | ------------------------------------------------------------------------- |
+| HS-P2-1   | H-2 (Personal information filtering)      | Related (adding Hybrid Search-specific perspective)                       |
+| HS-P2-2   | C-1 (robots.txt compliance), Section 3.4  | Related (verification of existing feature integration with Hybrid Search) |
+| HS-P2-3   | M-3 (Privacy policy preparation)          | Addition (transparency disclosure for full-text search index)             |
+| HS-P3-1   | Section 3.4 (Legal enforceability of ToS) | Related (long-term ToS verification process design)                       |
+| HS-P3-2   | Section 3.3.2 (DSM Directive TDM)         | Extension (opt-out mechanisms beyond robots.txt)                          |
 
 ---
 
@@ -525,6 +527,6 @@ Legal Research Date: 2026-02-22
 
 ---
 
-*Reftrix Hybrid Search Legal Audit Report v1.0.0*
-*Prepared by: Legal Compliance Counsel (AI-assisted analysis)*
-*Legal Research Date: 2026-02-22*
+_Reftrix Hybrid Search Legal Audit Report v1.0.0_
+_Prepared by: Legal Compliance Counsel (AI-assisted analysis)_
+_Legal Research Date: 2026-02-22_

@@ -19,15 +19,15 @@
  * @module services/visual-extractor/density-calculator.service
  */
 
-import { logger } from '../../utils/logger';
-import sharp from 'sharp';
+import { logger } from "../../utils/logger";
+import sharp from "sharp";
 import {
   parseAndValidateImageInput,
   withTimeout,
   DEFAULT_PROCESSING_TIMEOUT,
   logSecurityEvent,
   wrapSharpError,
-} from './image-utils';
+} from "./image-utils";
 
 /**
  * Region analysis result with density and dominant color
@@ -122,8 +122,8 @@ const DEFAULT_CONFIG: DensityCalculatorConfig = {
 };
 
 // Common types and utility functions imported from image-utils.ts
-import type { RGB } from './image-utils';
-import { hexToRgb, rgbToHex, colorDistance, calculateBrightness } from './image-utils';
+import type { RGB } from "./image-utils";
+import { hexToRgb, rgbToHex, colorDistance, calculateBrightness } from "./image-utils";
 
 // parseImageInput has been moved to image-utils.ts as parseAndValidateImageInput
 // with additional security controls (size validation)
@@ -140,14 +140,14 @@ async function getPixelData(
   const metadata = await processedImage.metadata();
 
   if (!metadata.width || !metadata.height) {
-    throw new Error('Invalid image: unable to read dimensions');
+    throw new Error("Invalid image: unable to read dimensions");
   }
 
   // Resize for performance while maintaining aspect ratio
   const resizeOptions: sharp.ResizeOptions = {
     width: Math.min(metadata.width, maxWidth),
     height: Math.min(metadata.height, maxHeight),
-    fit: 'inside',
+    fit: "inside",
     withoutEnlargement: true,
   };
 
@@ -200,12 +200,7 @@ function convertToGrayscale(data: Buffer): number[] {
 /**
  * Apply Sobel convolution at a single pixel position
  */
-function applySobelAtPixel(
-  grayscale: number[],
-  x: number,
-  y: number,
-  width: number
-): number {
+function applySobelAtPixel(grayscale: number[], x: number, y: number, width: number): number {
   let gx = 0;
   let gy = 0;
 
@@ -225,11 +220,7 @@ function applySobelAtPixel(
  * Apply Sobel edge detection approximation
  * Returns edge strength for each pixel
  */
-function detectEdges(
-  data: Buffer,
-  width: number,
-  height: number
-): number[] {
+function detectEdges(data: Buffer, width: number, height: number): number[] {
   const grayscale = convertToGrayscale(data);
   const edges: number[] = [];
 
@@ -275,11 +266,7 @@ function calculateDominantColor(
     return [128, 128, 128];
   }
 
-  return [
-    Math.round(totalR / count),
-    Math.round(totalG / count),
-    Math.round(totalB / count),
-  ];
+  return [Math.round(totalR / count), Math.round(totalG / count), Math.round(totalB / count)];
 }
 
 /**
@@ -324,18 +311,14 @@ function calculateRegionDensity(
 function calculateVariance(values: number[]): number {
   if (values.length === 0) return 0;
   const mean = values.reduce((sum, val) => sum + val, 0) / values.length;
-  const squaredDiffs = values.map(val => Math.pow(val - mean, 2));
+  const squaredDiffs = values.map((val) => Math.pow(val - mean, 2));
   return squaredDiffs.reduce((sum, val) => sum + val, 0) / values.length;
 }
 
 /**
  * Calculate symmetry score by comparing left/right halves
  */
-function calculateSymmetry(
-  data: Buffer,
-  width: number,
-  height: number
-): number {
+function calculateSymmetry(data: Buffer, width: number, height: number): number {
   const channels = 3;
   let totalDiff = 0;
   let maxDiff = 0;
@@ -361,7 +344,7 @@ function calculateSymmetry(
     }
   }
 
-  return maxDiff > 0 ? 1 - (totalDiff / maxDiff) : 1;
+  return maxDiff > 0 ? 1 - totalDiff / maxDiff : 1;
 }
 
 /**
@@ -378,7 +361,7 @@ class DensityCalculatorServiceImpl implements DensityCalculatorService {
     // Parse and validate input with size check (5MB max) - SEC H-1
     const imageBuffer = parseAndValidateImageInput(image);
 
-    logSecurityEvent('DensityCalculator', 'Processing image', {
+    logSecurityEvent("DensityCalculator", "Processing image", {
       size: imageBuffer.length,
       sizeKB: Math.round(imageBuffer.length / 1024),
     });
@@ -409,7 +392,7 @@ class DensityCalculatorServiceImpl implements DensityCalculatorService {
       // Calculate edge density
       const edges = detectEdges(data, width, height);
       const maxEdge = 1442; // Approximate max Sobel magnitude
-      const normalizedEdges = edges.map(e => Math.min(e / maxEdge, 1));
+      const normalizedEdges = edges.map((e) => Math.min(e / maxEdge, 1));
       const edgeDensity = normalizedEdges.reduce((sum, e) => sum + e, 0) / normalizedEdges.length;
 
       // Calculate content density (inverse of whitespace, adjusted by edge density)
@@ -425,9 +408,9 @@ class DensityCalculatorServiceImpl implements DensityCalculatorService {
       );
 
       // Calculate visual balance from region density variance
-      const regionDensities = regions.map(r => r.density);
+      const regionDensities = regions.map((r) => r.density);
       const densityVariance = calculateVariance(regionDensities);
-      const visualBalance = Math.max(0, Math.min(100, 100 - (densityVariance * 400)));
+      const visualBalance = Math.max(0, Math.min(100, 100 - densityVariance * 400));
 
       // Calculate color variance
       const colorVariance = this.calculateColorVariance(data, width, height);
@@ -435,7 +418,7 @@ class DensityCalculatorServiceImpl implements DensityCalculatorService {
       // Calculate symmetry score
       const symmetryScore = calculateSymmetry(data, width, height);
 
-      logger.debug('[DensityCalculator] Analysis complete:', {
+      logger.debug("[DensityCalculator] Analysis complete:", {
         contentDensity: contentDensity.toFixed(3),
         whitespaceRatio: whitespaceRatio.toFixed(3),
         visualBalance: visualBalance.toFixed(1),
@@ -458,14 +441,11 @@ class DensityCalculatorServiceImpl implements DensityCalculatorService {
     }
   }
 
-  async calculateWhitespace(
-    image: Buffer | string,
-    backgroundColor?: string
-  ): Promise<number> {
+  async calculateWhitespace(image: Buffer | string, backgroundColor?: string): Promise<number> {
     // Parse and validate input with size check (5MB max) - SEC H-1
     const imageBuffer = parseAndValidateImageInput(image);
 
-    logSecurityEvent('DensityCalculator', 'Calculating whitespace', {
+    logSecurityEvent("DensityCalculator", "Calculating whitespace", {
       size: imageBuffer.length,
       sizeKB: Math.round(imageBuffer.length / 1024),
     });
@@ -487,21 +467,16 @@ class DensityCalculatorServiceImpl implements DensityCalculatorService {
       this.config.maxProcessingHeight
     );
 
-    const bgColor: RGB = backgroundColor
-      ? hexToRgb(backgroundColor)
-      : [255, 255, 255];
+    const bgColor: RGB = backgroundColor ? hexToRgb(backgroundColor) : [255, 255, 255];
 
     return this.calculateWhitespaceFromData(data, width, height, bgColor);
   }
 
-  async analyzeRegions(
-    image: Buffer | string,
-    gridSize?: number
-  ): Promise<RegionAnalysis[]> {
+  async analyzeRegions(image: Buffer | string, gridSize?: number): Promise<RegionAnalysis[]> {
     // Parse and validate input with size check (5MB max) - SEC H-1
     const imageBuffer = parseAndValidateImageInput(image);
 
-    logSecurityEvent('DensityCalculator', 'Analyzing regions', {
+    logSecurityEvent("DensityCalculator", "Analyzing regions", {
       size: imageBuffer.length,
       sizeKB: Math.round(imageBuffer.length / 1024),
       gridSize: gridSize ?? this.config.defaultGridSize,
@@ -603,11 +578,7 @@ class DensityCalculatorServiceImpl implements DensityCalculatorService {
           row,
           col,
           density,
-          dominantColor: rgbToHex(
-            dominantColorRgb[0],
-            dominantColorRgb[1],
-            dominantColorRgb[2]
-          ),
+          dominantColor: rgbToHex(dominantColorRgb[0], dominantColorRgb[1], dominantColorRgb[2]),
         });
       }
     }
@@ -618,11 +589,7 @@ class DensityCalculatorServiceImpl implements DensityCalculatorService {
   /**
    * Calculate color variance across the image
    */
-  private calculateColorVariance(
-    data: Buffer,
-    _width: number,
-    _height: number
-  ): number {
+  private calculateColorVariance(data: Buffer, _width: number, _height: number): number {
     const channels = 3;
     const brightnesses: number[] = [];
 

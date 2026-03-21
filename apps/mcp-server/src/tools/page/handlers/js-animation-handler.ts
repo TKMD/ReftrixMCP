@@ -12,14 +12,14 @@
  * @module tools/page/handlers/js-animation-handler
  */
 
-import type { Browser } from 'playwright';
-import { logger, isDevelopment } from '../../../utils/logger';
-import { getJSAnimationDetectorService } from '../../motion/di-factories';
+import type { Browser } from "playwright";
+import { logger, isDevelopment } from "../../../utils/logger";
+import { getJSAnimationDetectorService } from "../../motion/di-factories";
 import {
   createJSAnimationEmbeddingService,
   type JSAnimationPatternForEmbedding,
   type IEmbeddingService,
-} from '../../../services/motion/js-animation-embedding.service';
+} from "../../../services/motion/js-animation-embedding.service";
 import type {
   JSAnimationFullResult,
   JSAnimationSummaryResult,
@@ -33,7 +33,7 @@ import type {
   ThreeJSDetailsData,
   ThreeJSLibrarySpecificData,
   ThreeJSSceneData,
-} from './types';
+} from "./types";
 
 // =====================================================
 // JSON サイズ制限定数
@@ -78,7 +78,7 @@ export interface JsonSizeValidationResult {
  */
 export function validateLibrarySpecificDataSize(data: unknown): JsonSizeValidationResult {
   const jsonStr = JSON.stringify(data);
-  const sizeBytes = Buffer.byteLength(jsonStr, 'utf-8');
+  const sizeBytes = Buffer.byteLength(jsonStr, "utf-8");
   const exceedsLimit = sizeBytes > JSON_SIZE_LIMIT_BYTES;
 
   return {
@@ -113,7 +113,7 @@ export interface ThreeJSTruncateResult {
  */
 export function truncateThreeJSData(details: ThreeJSDetailsData): ThreeJSTruncateResult {
   // 元データのサイズをチェック
-  const originalSize = Buffer.byteLength(JSON.stringify(details), 'utf-8');
+  const originalSize = Buffer.byteLength(JSON.stringify(details), "utf-8");
 
   // 1MB以下なら何もしない
   if (originalSize <= JSON_SIZE_LIMIT_BYTES) {
@@ -121,10 +121,12 @@ export function truncateThreeJSData(details: ThreeJSDetailsData): ThreeJSTruncat
   }
 
   // トランケート実行
-  const truncatedScenes: ThreeJSSceneData[] = details.scenes.slice(0, THREEJS_MAX_SCENES).map((scene) => ({
-    ...scene,
-    objects: scene.objects.slice(0, THREEJS_MAX_OBJECTS_PER_SCENE),
-  }));
+  const truncatedScenes: ThreeJSSceneData[] = details.scenes
+    .slice(0, THREEJS_MAX_SCENES)
+    .map((scene) => ({
+      ...scene,
+      objects: scene.objects.slice(0, THREEJS_MAX_OBJECTS_PER_SCENE),
+    }));
 
   const truncatedTextures = details.textures?.slice(0, THREEJS_MAX_TEXTURES);
 
@@ -138,17 +140,18 @@ export function truncateThreeJSData(details: ThreeJSDetailsData): ThreeJSTruncat
   };
 
   // トランケート後のサイズ計算
-  const truncatedSize = Buffer.byteLength(JSON.stringify(truncatedDetails), 'utf-8');
+  const truncatedSize = Buffer.byteLength(JSON.stringify(truncatedDetails), "utf-8");
 
   const originalObjectCount = details.scenes.reduce((sum, s) => sum + s.objects.length, 0);
   const truncatedObjectCount = truncatedScenes.reduce((sum, s) => sum + s.objects.length, 0);
 
-  const truncationReason = `Size reduced from ${Math.round(originalSize / 1024)}KB to ${Math.round(truncatedSize / 1024)}KB. ` +
+  const truncationReason =
+    `Size reduced from ${Math.round(originalSize / 1024)}KB to ${Math.round(truncatedSize / 1024)}KB. ` +
     `Objects: ${originalObjectCount} -> ${truncatedObjectCount}. ` +
     `Scenes: ${details.scenes.length} -> ${truncatedScenes.length}.`;
 
   if (isDevelopment()) {
-    logger.debug('[js-animation-handler] Three.js data truncated', {
+    logger.debug("[js-animation-handler] Three.js data truncated", {
       originalSize,
       truncatedSize,
       originalObjectCount,
@@ -173,7 +176,7 @@ export function truncateThreeJSData(details: ThreeJSDetailsData): ThreeJSTruncat
 export function buildThreeJSLibrarySpecificData(
   details: ThreeJSDetailsData | undefined,
   sceneCount: number
-): { scenes?: number; three_js?: ThreeJSLibrarySpecificData['three_js'] } {
+): { scenes?: number; three_js?: ThreeJSLibrarySpecificData["three_js"] } {
   // 詳細情報がない場合はシンプルな構造を返す
   if (!details) {
     return { scenes: sceneCount };
@@ -182,7 +185,7 @@ export function buildThreeJSLibrarySpecificData(
   // トランケートが必要か判定して実行
   const { data: finalDetails, truncated, truncationReason } = truncateThreeJSData(details);
 
-  const extractionLevel: 'basic' | 'detailed' = truncated ? 'basic' : 'detailed';
+  const extractionLevel: "basic" | "detailed" = truncated ? "basic" : "detailed";
 
   // ThreeJSLibrarySpecificData構造を構築
   const result: ThreeJSLibrarySpecificData = {
@@ -202,7 +205,7 @@ export function buildThreeJSLibrarySpecificData(
   // 最終サイズチェック
   const finalValidation = validateLibrarySpecificDataSize(result);
   if (isDevelopment()) {
-    logger.debug('[js-animation-handler] Three.js library_specific_data built', {
+    logger.debug("[js-animation-handler] Three.js library_specific_data built", {
       sizeBytes: finalValidation.sizeBytes,
       extractionLevel,
       truncated,
@@ -279,14 +282,14 @@ const JS_ANIMATION_DEFAULTS = {
  */
 function mapCDPTypeToAnimationType(cdpType: string): JSAnimationTypeEnum {
   switch (cdpType) {
-    case 'CSSAnimation':
-      return 'keyframe';
-    case 'CSSTransition':
-      return 'tween';
-    case 'WebAnimation':
-      return 'keyframe';
+    case "CSSAnimation":
+      return "keyframe";
+    case "CSSTransition":
+      return "tween";
+    case "WebAnimation":
+      return "keyframe";
     default:
-      return 'tween';
+      return "tween";
   }
 }
 
@@ -299,7 +302,7 @@ export function mapCDPAnimationToPattern(
   sourceUrl?: string
 ): JSAnimationPatternCreateData {
   const libraryType: JSAnimationLibraryType =
-    cdpAnim.type === 'WebAnimation' ? 'web_animations_api' : 'unknown';
+    cdpAnim.type === "WebAnimation" ? "web_animations_api" : "unknown";
 
   return {
     webPageId: webPageId ?? null,
@@ -324,7 +327,7 @@ export function mapCDPAnimationToPattern(
       source: cdpAnim.source,
     },
     sourceUrl: sourceUrl ?? null,
-    usageScope: 'inspiration_only',
+    usageScope: "inspiration_only",
     confidence: 0.9,
   };
 }
@@ -339,18 +342,14 @@ export function mapWebAnimationToPattern(
 ): JSAnimationPatternCreateData {
   // キーフレームからプロパティを抽出
   const properties = webAnim.keyframes
-    .flatMap((kf) =>
-      Object.keys(kf).filter(
-        (k) => !['offset', 'easing', 'composite'].includes(k)
-      )
-    )
+    .flatMap((kf) => Object.keys(kf).filter((k) => !["offset", "easing", "composite"].includes(k)))
     .filter((v, i, a) => a.indexOf(v) === i);
 
   return {
     webPageId: webPageId ?? null,
-    libraryType: 'web_animations_api',
+    libraryType: "web_animations_api",
     name: webAnim.id || `web-animation-${Date.now()}`,
-    animationType: 'keyframe',
+    animationType: "keyframe",
     targetSelector: webAnim.target || null,
     durationMs: webAnim.timing.duration > 0 ? Math.round(webAnim.timing.duration) : null,
     delayMs: webAnim.timing.delay > 0 ? Math.round(webAnim.timing.delay) : null,
@@ -362,7 +361,7 @@ export function mapWebAnimationToPattern(
     properties,
     cdpPlayState: webAnim.playState,
     sourceUrl: sourceUrl ?? null,
-    usageScope: 'inspiration_only',
+    usageScope: "inspiration_only",
     confidence: 0.95,
   };
 }
@@ -381,10 +380,10 @@ export function mapLibraryDetectionToPatterns(
   if (libraries.gsap.detected) {
     patterns.push({
       webPageId: webPageId ?? null,
-      libraryType: 'gsap',
+      libraryType: "gsap",
       libraryVersion: libraries.gsap.version ?? null,
-      name: 'GSAP Library Detection',
-      animationType: 'timeline',
+      name: "GSAP Library Detection",
+      animationType: "timeline",
       description: `GSAP detected with ${libraries.gsap.tweens ?? 0} active tweens`,
       properties: [],
       librarySpecificData: {
@@ -392,7 +391,7 @@ export function mapLibraryDetectionToPatterns(
         version: libraries.gsap.version,
       },
       sourceUrl: sourceUrl ?? null,
-      usageScope: 'inspiration_only',
+      usageScope: "inspiration_only",
       confidence: 0.85,
     });
   }
@@ -401,16 +400,16 @@ export function mapLibraryDetectionToPatterns(
   if (libraries.framerMotion.detected) {
     patterns.push({
       webPageId: webPageId ?? null,
-      libraryType: 'framer_motion',
-      name: 'Framer Motion Library Detection',
-      animationType: 'spring',
+      libraryType: "framer_motion",
+      name: "Framer Motion Library Detection",
+      animationType: "spring",
       description: `Framer Motion detected with ${libraries.framerMotion.elements ?? 0} animated elements`,
       properties: [],
       librarySpecificData: {
         elements: libraries.framerMotion.elements,
       },
       sourceUrl: sourceUrl ?? null,
-      usageScope: 'inspiration_only',
+      usageScope: "inspiration_only",
       confidence: 0.8,
     });
   }
@@ -419,16 +418,16 @@ export function mapLibraryDetectionToPatterns(
   if (libraries.anime.detected) {
     patterns.push({
       webPageId: webPageId ?? null,
-      libraryType: 'anime_js',
-      name: 'anime.js Library Detection',
-      animationType: 'tween',
+      libraryType: "anime_js",
+      name: "anime.js Library Detection",
+      animationType: "tween",
       description: `anime.js detected with ${libraries.anime.instances ?? 0} active instances`,
       properties: [],
       librarySpecificData: {
         instances: libraries.anime.instances,
       },
       sourceUrl: sourceUrl ?? null,
-      usageScope: 'inspiration_only',
+      usageScope: "inspiration_only",
       confidence: 0.85,
     });
   }
@@ -439,23 +438,24 @@ export function mapLibraryDetectionToPatterns(
     const details = libraries.three.details;
     const hasDetails = details !== undefined;
     const sceneCount = libraries.three.scenes ?? 0;
-    const description = hasDetails && details.version
-      ? `Three.js ${details.version} detected with ${sceneCount} WebGL scenes`
-      : `Three.js detected with ${sceneCount} WebGL scenes`;
+    const description =
+      hasDetails && details.version
+        ? `Three.js ${details.version} detected with ${sceneCount} WebGL scenes`
+        : `Three.js detected with ${sceneCount} WebGL scenes`;
 
     // 詳細情報をlibrary_specific_dataに含める（1MB制限対応、自動トランケート）
     const librarySpecificData = buildThreeJSLibrarySpecificData(details, sceneCount);
 
     patterns.push({
       webPageId: webPageId ?? null,
-      libraryType: 'three_js',
-      name: 'Three.js Library Detection',
-      animationType: 'physics',
+      libraryType: "three_js",
+      name: "Three.js Library Detection",
+      animationType: "physics",
       description,
       properties: [],
       librarySpecificData,
       sourceUrl: sourceUrl ?? null,
-      usageScope: 'inspiration_only',
+      usageScope: "inspiration_only",
       // 詳細情報がある場合は信頼度を上げる
       confidence: hasDetails ? 0.85 : 0.75,
     });
@@ -465,16 +465,16 @@ export function mapLibraryDetectionToPatterns(
   if (libraries.lottie.detected) {
     patterns.push({
       webPageId: webPageId ?? null,
-      libraryType: 'lottie',
-      name: 'Lottie Library Detection',
-      animationType: 'morphing',
+      libraryType: "lottie",
+      name: "Lottie Library Detection",
+      animationType: "morphing",
       description: `Lottie detected with ${libraries.lottie.animations ?? 0} animations`,
       properties: [],
       librarySpecificData: {
         animations: libraries.lottie.animations,
       },
       sourceUrl: sourceUrl ?? null,
-      usageScope: 'inspiration_only',
+      usageScope: "inspiration_only",
       confidence: 0.9,
     });
   }
@@ -548,7 +548,7 @@ export async function saveJSAnimationPatterns(
 ): Promise<number> {
   if (patterns.length === 0) {
     if (isDevelopment()) {
-      logger.debug('[js-animation-handler] No patterns to save, skipping DB save');
+      logger.debug("[js-animation-handler] No patterns to save, skipping DB save");
     }
     return 0;
   }
@@ -579,7 +579,7 @@ export async function saveJSAnimationPatterns(
     });
 
     if (isDevelopment()) {
-      logger.info('[js-animation-handler] Saved JS animation patterns to DB', {
+      logger.info("[js-animation-handler] Saved JS animation patterns to DB", {
         savedCount: totalCount,
         totalPatterns: patterns.length,
         batches: Math.ceil(patterns.length / PRISMA_CREATE_MANY_BATCH_SIZE),
@@ -590,7 +590,7 @@ export async function saveJSAnimationPatterns(
     return totalCount;
   } catch (error) {
     if (isDevelopment()) {
-      logger.error('[js-animation-handler] Failed to save JS animation patterns', { error });
+      logger.error("[js-animation-handler] Failed to save JS animation patterns", { error });
     }
     throw error;
   }
@@ -643,7 +643,7 @@ export async function saveJSAnimationEmbeddings(
 ): Promise<number> {
   if (patterns.length === 0) {
     if (isDevelopment()) {
-      logger.debug('[js-animation-handler] No patterns for embedding generation');
+      logger.debug("[js-animation-handler] No patterns for embedding generation");
     }
     return 0;
   }
@@ -652,15 +652,13 @@ export async function saveJSAnimationEmbeddings(
 
   try {
     // EmbeddingService を作成
-    const serviceOptions = embeddingService
-      ? { embeddingService }
-      : undefined;
+    const serviceOptions = embeddingService ? { embeddingService } : undefined;
 
     const service = createJSAnimationEmbeddingService(serviceOptions);
 
     // Embedding用にパターンを変換
-    const embeddingPatterns: JSAnimationPatternForEmbedding[] = patterns.map(
-      ({ pattern, id }) => convertToEmbeddingFormat(pattern, id)
+    const embeddingPatterns: JSAnimationPatternForEmbedding[] = patterns.map(({ pattern, id }) =>
+      convertToEmbeddingFormat(pattern, id)
     );
 
     // バッチでEmbedding生成
@@ -678,7 +676,7 @@ export async function saveJSAnimationEmbeddings(
 
       try {
         // Embedding を pgvector 形式で保存
-        const embeddingVector = `[${embeddingResult.embedding.join(',')}]`;
+        const embeddingVector = `[${embeddingResult.embedding.join(",")}]`;
 
         await prisma.$executeRawUnsafe(
           `INSERT INTO js_animation_embeddings (id, js_animation_pattern_id, embedding, text_representation, model_version, embedding_timestamp, updated_at)
@@ -693,9 +691,9 @@ export async function saveJSAnimationEmbeddings(
         savedCount++;
       } catch (upsertError) {
         if (isDevelopment()) {
-          logger.warn('[js-animation-handler] Failed to save embedding for pattern', {
+          logger.warn("[js-animation-handler] Failed to save embedding for pattern", {
             patternId,
-            error: upsertError instanceof Error ? upsertError.message : 'Unknown error',
+            error: upsertError instanceof Error ? upsertError.message : "Unknown error",
           });
         }
         // 個別のエラーは無視して続行
@@ -703,7 +701,7 @@ export async function saveJSAnimationEmbeddings(
     }
 
     if (isDevelopment()) {
-      logger.info('[js-animation-handler] Saved JS animation embeddings to DB', {
+      logger.info("[js-animation-handler] Saved JS animation embeddings to DB", {
         savedCount,
         totalPatterns: patterns.length,
         processingTimeMs: Date.now() - startTime,
@@ -713,7 +711,7 @@ export async function saveJSAnimationEmbeddings(
     return savedCount;
   } catch (error) {
     if (isDevelopment()) {
-      logger.error('[js-animation-handler] Failed to generate/save embeddings', { error });
+      logger.error("[js-animation-handler] Failed to generate/save embeddings", { error });
     }
     throw error;
   }
@@ -742,7 +740,8 @@ export async function saveJSAnimationPatternsWithEmbeddings(
   const savedPatternCount = await saveJSAnimationPatterns(prisma, patterns, webPageId);
 
   // 2. Embedding生成が有効な場合
-  const shouldGenerateEmbedding = options?.generateEmbedding ?? JS_ANIMATION_DEFAULTS.GENERATE_EMBEDDING;
+  const shouldGenerateEmbedding =
+    options?.generateEmbedding ?? JS_ANIMATION_DEFAULTS.GENERATE_EMBEDDING;
   if (!shouldGenerateEmbedding || savedPatternCount === 0) {
     return { savedPatternCount, embeddingCount: 0 };
   }
@@ -750,7 +749,7 @@ export async function saveJSAnimationPatternsWithEmbeddings(
   // 3. 保存されたパターンのIDを取得
   if (!webPageId) {
     if (isDevelopment()) {
-      logger.debug('[js-animation-handler] No webPageId, skipping embedding generation');
+      logger.debug("[js-animation-handler] No webPageId, skipping embedding generation");
     }
     return { savedPatternCount, embeddingCount: 0 };
   }
@@ -758,7 +757,7 @@ export async function saveJSAnimationPatternsWithEmbeddings(
   try {
     // 保存されたパターンのIDを取得
     if (isDevelopment()) {
-      logger.debug('[js-animation-handler] Finding saved patterns', {
+      logger.debug("[js-animation-handler] Finding saved patterns", {
         webPageId,
         inputPatternsCount: patterns.length,
       });
@@ -769,16 +768,19 @@ export async function saveJSAnimationPatternsWithEmbeddings(
     });
 
     if (isDevelopment()) {
-      logger.debug('[js-animation-handler] Found patterns', {
+      logger.debug("[js-animation-handler] Found patterns", {
         savedPatternsCount: savedPatterns.length,
       });
     }
 
     // パターンとIDをマッピング（保存順と同じ順序と仮定）
-    const patternsWithIds = patterns.slice(0, savedPatterns.length).map((pattern, index) => ({
-      pattern,
-      id: savedPatterns[index]?.id ?? '',
-    })).filter(({ id }) => id !== '');
+    const patternsWithIds = patterns
+      .slice(0, savedPatterns.length)
+      .map((pattern, index) => ({
+        pattern,
+        id: savedPatterns[index]?.id ?? "",
+      }))
+      .filter(({ id }) => id !== "");
 
     // 4. Embedding生成と保存
     const embeddingCount = await saveJSAnimationEmbeddings(
@@ -788,7 +790,7 @@ export async function saveJSAnimationPatternsWithEmbeddings(
     );
 
     if (isDevelopment()) {
-      logger.debug('[js-animation-handler] Embedding save completed', {
+      logger.debug("[js-animation-handler] Embedding save completed", {
         embeddingCount,
       });
     }
@@ -796,8 +798,8 @@ export async function saveJSAnimationPatternsWithEmbeddings(
     return { savedPatternCount, embeddingCount };
   } catch (error) {
     if (isDevelopment()) {
-      logger.error('[js-animation-handler] Embedding generation error', {
-        error: error instanceof Error ? error.message : 'Unknown error',
+      logger.error("[js-animation-handler] Embedding generation error", {
+        error: error instanceof Error ? error.message : "Unknown error",
       });
     }
     // パターン保存は成功しているのでエラーは投げない
@@ -825,12 +827,12 @@ export async function checkPlaywrightAvailability(): Promise<boolean> {
 
   try {
     // Playwrightモジュールの存在確認
-    const playwright = await import('playwright');
+    const playwright = await import("playwright");
 
     // chromiumが存在するか確認
     if (!playwright.chromium) {
       if (isDevelopment()) {
-        logger.warn('[js-animation-handler] Playwright chromium not found');
+        logger.warn("[js-animation-handler] Playwright chromium not found");
       }
       playwrightAvailabilityCache = false;
       return false;
@@ -840,8 +842,8 @@ export async function checkPlaywrightAvailability(): Promise<boolean> {
     return true;
   } catch (error) {
     if (isDevelopment()) {
-      logger.warn('[js-animation-handler] Playwright not available', {
-        error: error instanceof Error ? error.message : 'Unknown error',
+      logger.warn("[js-animation-handler] Playwright not available", {
+        error: error instanceof Error ? error.message : "Unknown error",
         hint: 'Run "pnpm exec playwright install chromium" to install Playwright',
       });
     }
@@ -898,29 +900,31 @@ export async function executeJSAnimationMode(
 
   if (!enableJSAnimation) {
     if (isDevelopment()) {
-      logger.info('[js-animation-handler] JS animation detection disabled, skipping');
+      logger.info("[js-animation-handler] JS animation detection disabled, skipping");
     }
     return result;
   }
 
   if (!url) {
     if (isDevelopment()) {
-      logger.warn('[js-animation-handler] URL is required for JS animation detection');
+      logger.warn("[js-animation-handler] URL is required for JS animation detection");
     }
     return {
       js_animation_error: {
-        code: 'JS_ANIMATION_URL_REQUIRED',
-        message: 'URL is required for JS animation detection',
+        code: "JS_ANIMATION_URL_REQUIRED",
+        message: "URL is required for JS animation detection",
       },
     };
   }
 
   if (isDevelopment()) {
-    logger.info('[js-animation-handler] Starting JS animation detection', {
+    logger.info("[js-animation-handler] Starting JS animation detection", {
       url,
       enableCDP: options?.enableCDP ?? JS_ANIMATION_DEFAULTS.ENABLE_CDP,
-      enableWebAnimations: options?.enableWebAnimations ?? JS_ANIMATION_DEFAULTS.ENABLE_WEB_ANIMATIONS,
-      enableLibraryDetection: options?.enableLibraryDetection ?? JS_ANIMATION_DEFAULTS.ENABLE_LIBRARY_DETECTION,
+      enableWebAnimations:
+        options?.enableWebAnimations ?? JS_ANIMATION_DEFAULTS.ENABLE_WEB_ANIMATIONS,
+      enableLibraryDetection:
+        options?.enableLibraryDetection ?? JS_ANIMATION_DEFAULTS.ENABLE_LIBRARY_DETECTION,
       waitTime: options?.waitTime ?? JS_ANIMATION_DEFAULTS.WAIT_TIME,
     });
   }
@@ -934,21 +938,21 @@ export async function executeJSAnimationMode(
     if (sharedBrowser) {
       browser = sharedBrowser;
       if (isDevelopment()) {
-        logger.info('[js-animation-handler] Using shared browser instance', { url });
+        logger.info("[js-animation-handler] Using shared browser instance", { url });
       }
     } else {
       // Playwright動的インポート
-      const { chromium } = await import('playwright');
+      const { chromium } = await import("playwright");
 
       // ブラウザ起動
       browser = await chromium.launch({
         headless: true,
         args: [
-          '--no-sandbox',
-          '--disable-setuid-sandbox',
-          '--disable-dev-shm-usage',
-          '--disable-accelerated-2d-canvas',
-          '--disable-gpu',
+          "--no-sandbox",
+          "--disable-setuid-sandbox",
+          "--disable-dev-shm-usage",
+          "--disable-accelerated-2d-canvas",
+          "--disable-gpu",
         ],
       });
     }
@@ -967,7 +971,7 @@ export async function executeJSAnimationMode(
     // 'load'イベントはWebGL/3Dサイトで非常に時間がかかるため'domcontentloaded'を使用
     // JSアニメーション検出はDOM構築後に実行可能なため、load待機は不要
     await page.goto(url, {
-      waitUntil: 'domcontentloaded',
+      waitUntil: "domcontentloaded",
       timeout: JS_ANIMATION_DEFAULTS.TIMEOUT,
     });
 
@@ -978,8 +982,10 @@ export async function executeJSAnimationMode(
     const detector = getJSAnimationDetectorService();
     const detectionResult = await detector.detect(page, {
       enableCDP: options?.enableCDP ?? JS_ANIMATION_DEFAULTS.ENABLE_CDP,
-      enableWebAnimations: options?.enableWebAnimations ?? JS_ANIMATION_DEFAULTS.ENABLE_WEB_ANIMATIONS,
-      enableLibraryDetection: options?.enableLibraryDetection ?? JS_ANIMATION_DEFAULTS.ENABLE_LIBRARY_DETECTION,
+      enableWebAnimations:
+        options?.enableWebAnimations ?? JS_ANIMATION_DEFAULTS.ENABLE_WEB_ANIMATIONS,
+      enableLibraryDetection:
+        options?.enableLibraryDetection ?? JS_ANIMATION_DEFAULTS.ENABLE_LIBRARY_DETECTION,
       waitTime: options?.waitTime ?? JS_ANIMATION_DEFAULTS.WAIT_TIME,
     });
 
@@ -988,11 +994,11 @@ export async function executeJSAnimationMode(
 
     // 検出されたライブラリのリスト作成
     const detectedLibraries: string[] = [];
-    if (detectionResult.libraries.gsap.detected) detectedLibraries.push('gsap');
-    if (detectionResult.libraries.framerMotion.detected) detectedLibraries.push('framer-motion');
-    if (detectionResult.libraries.anime.detected) detectedLibraries.push('anime.js');
-    if (detectionResult.libraries.three.detected) detectedLibraries.push('three.js');
-    if (detectionResult.libraries.lottie.detected) detectedLibraries.push('lottie');
+    if (detectionResult.libraries.gsap.detected) detectedLibraries.push("gsap");
+    if (detectionResult.libraries.framerMotion.detected) detectedLibraries.push("framer-motion");
+    if (detectionResult.libraries.anime.detected) detectedLibraries.push("anime.js");
+    if (detectionResult.libraries.three.detected) detectedLibraries.push("three.js");
+    if (detectionResult.libraries.lottie.detected) detectedLibraries.push("lottie");
 
     // サマリー結果
     const summary: JSAnimationSummaryResult = {
@@ -1082,7 +1088,8 @@ export async function executeJSAnimationMode(
 
     // DB保存処理（Embedding生成含む）
     const shouldSaveToDb = options?.saveToDb ?? JS_ANIMATION_DEFAULTS.SAVE_TO_DB;
-    const shouldGenerateEmbedding = options?.generateEmbedding ?? JS_ANIMATION_DEFAULTS.GENERATE_EMBEDDING;
+    const shouldGenerateEmbedding =
+      options?.generateEmbedding ?? JS_ANIMATION_DEFAULTS.GENERATE_EMBEDDING;
 
     if (shouldSaveToDb && dbContext?.prisma) {
       try {
@@ -1093,7 +1100,10 @@ export async function executeJSAnimationMode(
         );
 
         // パターン保存 + Embedding生成
-        const embeddingOptions: { generateEmbedding?: boolean; embeddingService?: IEmbeddingService } = {
+        const embeddingOptions: {
+          generateEmbedding?: boolean;
+          embeddingService?: IEmbeddingService;
+        } = {
           generateEmbedding: shouldGenerateEmbedding,
         };
         if (options?.embeddingService) {
@@ -1110,7 +1120,7 @@ export async function executeJSAnimationMode(
         result.embeddingCount = saveResult.embeddingCount;
 
         if (isDevelopment()) {
-          logger.info('[js-animation-handler] JS animation patterns and embeddings saved to DB', {
+          logger.info("[js-animation-handler] JS animation patterns and embeddings saved to DB", {
             savedPatternCount: saveResult.savedPatternCount,
             embeddingCount: saveResult.embeddingCount,
             patternCount: patterns.length,
@@ -1120,24 +1130,26 @@ export async function executeJSAnimationMode(
       } catch (dbError) {
         // DB保存エラーは検出結果には影響させない（警告のみ）
         if (isDevelopment()) {
-          logger.warn('[js-animation-handler] Failed to save patterns to DB, continuing', {
-            error: dbError instanceof Error ? dbError.message : 'Unknown error',
+          logger.warn("[js-animation-handler] Failed to save patterns to DB, continuing", {
+            error: dbError instanceof Error ? dbError.message : "Unknown error",
           });
         }
         result.embedding_error = {
-          code: 'DB_SAVE_ERROR',
-          message: dbError instanceof Error ? dbError.message : 'Failed to save to DB',
+          code: "DB_SAVE_ERROR",
+          message: dbError instanceof Error ? dbError.message : "Failed to save to DB",
         };
       }
     } else if (shouldSaveToDb && !dbContext?.prisma) {
       // saveToDb=trueだがprismaがない場合は警告
       if (isDevelopment()) {
-        logger.debug('[js-animation-handler] saveToDb enabled but no prisma context, skipping DB save');
+        logger.debug(
+          "[js-animation-handler] saveToDb enabled but no prisma context, skipping DB save"
+        );
       }
     }
 
     if (isDevelopment()) {
-      logger.info('[js-animation-handler] JS animation detection completed', {
+      logger.info("[js-animation-handler] JS animation detection completed", {
         cdpAnimationCount: summary.cdpAnimationCount,
         webAnimationCount: summary.webAnimationCount,
         detectedLibraries,
@@ -1151,37 +1163,45 @@ export async function executeJSAnimationMode(
     return result;
   } catch (error) {
     // エラー処理（ブラウザクリーンアップはfinallyで行う）
-    const errorMessage = error instanceof Error ? error.message : 'JS animation detection failed';
+    const errorMessage = error instanceof Error ? error.message : "JS animation detection failed";
     const processingTimeMs = Date.now() - startTime;
 
     // エラーの種類に応じたエラーコードを決定
-    let errorCode = 'JS_ANIMATION_DETECTION_ERROR';
+    let errorCode = "JS_ANIMATION_DETECTION_ERROR";
     let hint: string | undefined;
 
-    if (errorMessage.includes('timeout') || errorMessage.includes('Timeout')) {
-      errorCode = 'JS_ANIMATION_TIMEOUT';
-      hint = 'Consider using motionOptions.js_animation_options.waitTime with a lower value, or set detect_js_animations: false for WebGL/3D sites';
-    } else if (errorMessage.includes('net::ERR_') || errorMessage.includes('Navigation')) {
-      errorCode = 'JS_ANIMATION_NETWORK_ERROR';
-    } else if (errorMessage.includes('CDP') || errorMessage.includes('Protocol')) {
-      errorCode = 'JS_ANIMATION_CDP_ERROR';
-      hint = 'CDP connection failed. The page may have heavy JavaScript or WebGL content';
-    } else if (errorMessage.includes('chromium') || errorMessage.includes('browser') || errorMessage.includes('Browser')) {
-      errorCode = 'JS_ANIMATION_BROWSER_ERROR';
-      hint = 'For WebGL/3D sites, consider using layoutOptions.disableWebGL: true or motionOptions.detect_js_animations: false';
+    if (errorMessage.includes("timeout") || errorMessage.includes("Timeout")) {
+      errorCode = "JS_ANIMATION_TIMEOUT";
+      hint =
+        "Consider using motionOptions.js_animation_options.waitTime with a lower value, or set detect_js_animations: false for WebGL/3D sites";
+    } else if (errorMessage.includes("net::ERR_") || errorMessage.includes("Navigation")) {
+      errorCode = "JS_ANIMATION_NETWORK_ERROR";
+    } else if (errorMessage.includes("CDP") || errorMessage.includes("Protocol")) {
+      errorCode = "JS_ANIMATION_CDP_ERROR";
+      hint = "CDP connection failed. The page may have heavy JavaScript or WebGL content";
+    } else if (
+      errorMessage.includes("chromium") ||
+      errorMessage.includes("browser") ||
+      errorMessage.includes("Browser")
+    ) {
+      errorCode = "JS_ANIMATION_BROWSER_ERROR";
+      hint =
+        "For WebGL/3D sites, consider using layoutOptions.disableWebGL: true or motionOptions.detect_js_animations: false";
     }
 
     // 開発環境では詳細なエラーログを出力
     if (isDevelopment()) {
-      logger.error('[js-animation-handler] JS animation detection failed', {
+      logger.error("[js-animation-handler] JS animation detection failed", {
         error,
         errorCode,
         url,
         processingTimeMs,
         options: {
           enableCDP: options?.enableCDP ?? JS_ANIMATION_DEFAULTS.ENABLE_CDP,
-          enableWebAnimations: options?.enableWebAnimations ?? JS_ANIMATION_DEFAULTS.ENABLE_WEB_ANIMATIONS,
-          enableLibraryDetection: options?.enableLibraryDetection ?? JS_ANIMATION_DEFAULTS.ENABLE_LIBRARY_DETECTION,
+          enableWebAnimations:
+            options?.enableWebAnimations ?? JS_ANIMATION_DEFAULTS.ENABLE_WEB_ANIMATIONS,
+          enableLibraryDetection:
+            options?.enableLibraryDetection ?? JS_ANIMATION_DEFAULTS.ENABLE_LIBRARY_DETECTION,
           waitTime: options?.waitTime ?? JS_ANIMATION_DEFAULTS.WAIT_TIME,
         },
         hint,
@@ -1190,7 +1210,9 @@ export async function executeJSAnimationMode(
 
     // 本番環境でも重要なエラー情報を記録（console.errorを使用）
     // これにより運用時のトラブルシューティングが容易になる
-    console.error(`[js-animation-handler] ${errorCode}: ${errorMessage}${hint ? ` (Hint: ${hint})` : ''}`);
+    console.error(
+      `[js-animation-handler] ${errorCode}: ${errorMessage}${hint ? ` (Hint: ${hint})` : ""}`
+    );
 
     return {
       js_animation_error: {

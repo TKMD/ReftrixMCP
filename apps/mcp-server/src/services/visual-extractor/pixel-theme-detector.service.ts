@@ -29,8 +29,8 @@
  * @module services/visual-extractor/pixel-theme-detector.service
  */
 
-import { logger } from '../../utils/logger';
-import sharp from 'sharp';
+import { logger } from "../../utils/logger";
+import sharp from "sharp";
 import {
   parseAndValidateImageInput,
   withTimeout,
@@ -38,7 +38,7 @@ import {
   logSecurityEvent,
   rgbToHex,
   wrapSharpError,
-} from './image-utils';
+} from "./image-utils";
 
 // ============================================================================
 // Constants
@@ -74,12 +74,12 @@ const MAX_DOMINANT_COLORS = 5;
 /**
  * Region theme classification
  */
-type RegionTheme = 'light' | 'dark';
+type RegionTheme = "light" | "dark";
 
 /**
  * Overall theme classification
  */
-type ThemeType = 'light' | 'dark' | 'mixed';
+type ThemeType = "light" | "dark" | "mixed";
 
 /**
  * Result of pixel-based theme detection
@@ -164,7 +164,7 @@ function classifyRegionTheme(luminance: number): RegionTheme {
   // Use 0.5 as the boundary for region classification
   // This is different from the overall thresholds to detect
   // clearly light/dark regions within mixed images
-  return luminance > 0.5 ? 'light' : 'dark';
+  return luminance > 0.5 ? "light" : "dark";
 }
 
 /**
@@ -175,11 +175,11 @@ function classifyRegionTheme(luminance: number): RegionTheme {
  */
 function classifyOverallTheme(luminance: number): ThemeType {
   if (luminance < DARK_THRESHOLD) {
-    return 'dark';
+    return "dark";
   } else if (luminance > LIGHT_THRESHOLD) {
-    return 'light';
+    return "light";
   } else {
-    return 'mixed';
+    return "mixed";
   }
 }
 
@@ -191,17 +191,13 @@ function classifyOverallTheme(luminance: number): ThemeType {
  * @param regionAgreement - Number of regions that agree (0-3)
  * @returns Confidence score (0-1)
  */
-function calculateConfidence(
-  luminance: number,
-  theme: ThemeType,
-  regionAgreement: number
-): number {
+function calculateConfidence(luminance: number, theme: ThemeType, regionAgreement: number): number {
   let baseConfidence: number;
 
-  if (theme === 'dark') {
+  if (theme === "dark") {
     // Confidence increases as luminance decreases from threshold
     baseConfidence = Math.min(1, (DARK_THRESHOLD - luminance) / DARK_THRESHOLD + 0.5);
-  } else if (theme === 'light') {
+  } else if (theme === "light") {
     // Confidence increases as luminance increases from threshold
     baseConfidence = Math.min(1, (luminance - LIGHT_THRESHOLD) / (1 - LIGHT_THRESHOLD) + 0.5);
   } else {
@@ -240,11 +236,7 @@ interface ColorBucket {
  * @param height - Image height
  * @returns Array of dominant colors in HEX format
  */
-function extractDominantColors(
-  data: Buffer,
-  width: number,
-  height: number
-): string[] {
+function extractDominantColors(data: Buffer, width: number, height: number): string[] {
   // Use a simple bucketing approach for fast color extraction
   const bucketSize = 32; // Reduce color space to 8 values per channel
   const buckets = new Map<string, ColorBucket>();
@@ -368,7 +360,7 @@ class PixelThemeDetectorServiceImpl implements PixelThemeDetectorService {
     // Parse and validate input with size check (5MB max)
     const imageBuffer = parseAndValidateImageInput(image);
 
-    logSecurityEvent('PixelThemeDetector', 'Processing image', {
+    logSecurityEvent("PixelThemeDetector", "Processing image", {
       size: imageBuffer.length,
       sizeKB: Math.round(imageBuffer.length / 1024),
     });
@@ -384,7 +376,7 @@ class PixelThemeDetectorServiceImpl implements PixelThemeDetectorService {
       const metadata = await processedImage.metadata();
 
       if (!metadata.width || !metadata.height) {
-        throw new Error('Invalid image: unable to read dimensions');
+        throw new Error("Invalid image: unable to read dimensions");
       }
 
       // Calculate resize dimensions (preserve aspect ratio)
@@ -397,7 +389,7 @@ class PixelThemeDetectorServiceImpl implements PixelThemeDetectorService {
 
       // Resize and get raw RGB data
       const { data, info } = await processedImage
-        .resize(targetWidth, targetHeight, { fit: 'inside' })
+        .resize(targetWidth, targetHeight, { fit: "inside" })
         .flatten({ background: { r: 255, g: 255, b: 255 } })
         .raw()
         .toBuffer({ resolveWithObject: true });
@@ -418,7 +410,7 @@ class PixelThemeDetectorServiceImpl implements PixelThemeDetectorService {
       const theme = classifyOverallTheme(averageLuminance);
 
       // Calculate region agreement
-      const expectedTheme = theme === 'mixed' ? 'dark' : theme; // For mixed, check against dark
+      const expectedTheme = theme === "mixed" ? "dark" : theme; // For mixed, check against dark
       let regionAgreement = 0;
       if (regionAnalysis.topTheme === expectedTheme) regionAgreement++;
       if (regionAnalysis.middleTheme === expectedTheme) regionAgreement++;
@@ -439,7 +431,7 @@ class PixelThemeDetectorServiceImpl implements PixelThemeDetectorService {
         },
       };
 
-      logger.debug('[PixelThemeDetector] Theme detection result:', {
+      logger.debug("[PixelThemeDetector] Theme detection result:", {
         theme: result.theme,
         confidence: result.confidence.toFixed(3),
         averageLuminance: result.averageLuminance.toFixed(4),

@@ -15,17 +15,17 @@
  * @module workers/batch-quality-worker
  */
 
-import { Worker, type Job } from 'bullmq';
-import { getRedisConfig, type RedisConfig } from '../config/redis';
+import { Worker, type Job } from "bullmq";
+import { getRedisConfig, type RedisConfig } from "../config/redis";
 import {
   BATCH_QUALITY_QUEUE_NAME,
   type BatchQualityJobData,
   type BatchQualityJobResult,
   type BatchQualityItemResult,
   updateBatchQualityJobProgress,
-} from '../queues/batch-quality-queue';
-import { logger, isDevelopment } from '../utils/logger';
-import type { QualityEvaluateData } from '../tools/quality/schemas';
+} from "../queues/batch-quality-queue";
+import { logger, isDevelopment } from "../utils/logger";
+import type { QualityEvaluateData } from "../tools/quality/schemas";
 
 // ============================================================================
 // Types
@@ -128,7 +128,7 @@ async function processBatchQualityJob(
   const { jobId, items, batchSize, onError, weights, strict } = job.data;
 
   if (isDevelopment()) {
-    logger.info('[BatchQualityWorker] Processing job', {
+    logger.info("[BatchQualityWorker] Processing job", {
       jobId: job.id,
       batchJobId: jobId,
       totalItems: items.length,
@@ -139,7 +139,9 @@ async function processBatchQualityJob(
 
   // Validate service injection
   if (!qualityEvaluatorService) {
-    throw new Error('Quality evaluator service not configured. Call setQualityEvaluatorService() before processing.');
+    throw new Error(
+      "Quality evaluator service not configured. Call setQualityEvaluatorService() before processing."
+    );
   }
 
   const results: BatchQualityItemResult[] = [];
@@ -153,7 +155,7 @@ async function processBatchQualityJob(
     const batch = items.slice(batchStart, batchEnd);
 
     if (isDevelopment()) {
-      logger.debug('[BatchQualityWorker] Processing batch', {
+      logger.debug("[BatchQualityWorker] Processing batch", {
         batchJobId: jobId,
         batchStart,
         batchEnd,
@@ -196,7 +198,7 @@ async function processBatchQualityJob(
         const errorMessage = error instanceof Error ? error.message : String(error);
 
         if (isDevelopment()) {
-          logger.warn('[BatchQualityWorker] Item evaluation failed', {
+          logger.warn("[BatchQualityWorker] Item evaluation failed", {
             batchJobId: jobId,
             itemIndex: item.index,
             error: errorMessage,
@@ -207,7 +209,7 @@ async function processBatchQualityJob(
           index: item.index,
           success: false,
           error: {
-            code: 'EVALUATION_ERROR',
+            code: "EVALUATION_ERROR",
             message: errorMessage,
           },
         } as BatchQualityItemResult;
@@ -228,9 +230,9 @@ async function processBatchQualityJob(
         failedItems++;
 
         // Abort on first error if onError === 'abort'
-        if (onError === 'abort') {
+        if (onError === "abort") {
           if (isDevelopment()) {
-            logger.info('[BatchQualityWorker] Aborting due to error', {
+            logger.info("[BatchQualityWorker] Aborting due to error", {
               batchJobId: jobId,
               failedIndex: result.index,
             });
@@ -259,7 +261,7 @@ async function processBatchQualityJob(
 
     if (isDevelopment()) {
       const progress = Math.round((processedItems / items.length) * 100);
-      logger.debug('[BatchQualityWorker] Batch completed', {
+      logger.debug("[BatchQualityWorker] Batch completed", {
         batchJobId: jobId,
         processedItems,
         successItems,
@@ -286,7 +288,7 @@ async function processBatchQualityJob(
   };
 
   if (isDevelopment()) {
-    logger.info('[BatchQualityWorker] Job completed', {
+    logger.info("[BatchQualityWorker] Job completed", {
       jobId: job.id,
       batchJobId: jobId,
       success,
@@ -323,7 +325,7 @@ export function createBatchQualityWorker(
   const config = getRedisConfig(redisConfig);
 
   if (verbose) {
-    logger.info('[BatchQualityWorker] Creating worker', {
+    logger.info("[BatchQualityWorker] Creating worker", {
       queueName: BATCH_QUALITY_QUEUE_NAME,
       concurrency,
       lockDuration,
@@ -351,9 +353,9 @@ export function createBatchQualityWorker(
   );
 
   // Event handlers for monitoring
-  worker.on('completed', (job, result) => {
+  worker.on("completed", (job, result) => {
     if (verbose) {
-      logger.info('[BatchQualityWorker] Job completed event', {
+      logger.info("[BatchQualityWorker] Job completed event", {
         jobId: job.id,
         batchJobId: result.jobId,
         success: result.success,
@@ -363,26 +365,26 @@ export function createBatchQualityWorker(
     }
   });
 
-  worker.on('failed', (job, error) => {
-    logger.error('[BatchQualityWorker] Job failed event', {
+  worker.on("failed", (job, error) => {
+    logger.error("[BatchQualityWorker] Job failed event", {
       jobId: job?.id,
       error: error.message,
     });
   });
 
-  worker.on('error', (error) => {
-    logger.error('[BatchQualityWorker] Worker error', {
+  worker.on("error", (error) => {
+    logger.error("[BatchQualityWorker] Worker error", {
       error: error.message,
     });
   });
 
-  worker.on('stalled', (jobId) => {
-    logger.warn('[BatchQualityWorker] Job stalled', { jobId });
+  worker.on("stalled", (jobId) => {
+    logger.warn("[BatchQualityWorker] Job stalled", { jobId });
   });
 
-  worker.on('progress', (job, progress) => {
+  worker.on("progress", (job, progress) => {
     if (verbose) {
-      logger.debug('[BatchQualityWorker] Job progress', {
+      logger.debug("[BatchQualityWorker] Job progress", {
         jobId: job.id,
         progress,
       });
@@ -395,14 +397,14 @@ export function createBatchQualityWorker(
     worker,
     close: async (): Promise<void> => {
       if (verbose) {
-        logger.info('[BatchQualityWorker] Closing worker');
+        logger.info("[BatchQualityWorker] Closing worker");
       }
       isRunning = false;
       await worker.close();
     },
     pause: async (): Promise<void> => {
       if (verbose) {
-        logger.info('[BatchQualityWorker] Pausing worker (no new jobs will be accepted)');
+        logger.info("[BatchQualityWorker] Pausing worker (no new jobs will be accepted)");
       }
       await worker.pause();
     },

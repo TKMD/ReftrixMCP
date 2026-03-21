@@ -17,7 +17,7 @@
  * @module services/quality/visual-design-analyzer.service
  */
 
-import { isDevelopment, logger } from '../../utils/logger';
+import { isDevelopment, logger } from "../../utils/logger";
 
 // =====================================================
 // Interfaces
@@ -66,8 +66,7 @@ const SECTION_ELEMENT_RE =
   /<(?:section|article|main|header|footer|nav)\b[^>]*>|<[^>]*\brole\s*=\s*["'](?:region|main|banner|contentinfo|navigation)["'][^>]*>/gi;
 
 /** font-size値の正規表現 */
-const FONT_SIZE_RE =
-  /font-size\s*:\s*([\d.]+(?:px|rem|em|vw|vh|%)|clamp\([^)]+\))/gi;
+const FONT_SIZE_RE = /font-size\s*:\s*([\d.]+(?:px|rem|em|vw|vh|%)|clamp\([^)]+\))/gi;
 
 /** font-weight値の正規表現 */
 const FONT_WEIGHT_RE = /font-weight\s*:\s*(\d{3}|bold|bolder|lighter|normal)/gi;
@@ -81,15 +80,63 @@ const COLOR_VALUE_RE =
 
 /** CSS名前付きカラー（主要なもの） */
 const NAMED_COLORS = new Set([
-  'black', 'white', 'red', 'green', 'blue', 'yellow', 'orange', 'purple',
-  'pink', 'gray', 'grey', 'brown', 'cyan', 'magenta', 'lime', 'navy',
-  'teal', 'olive', 'maroon', 'silver', 'gold', 'coral', 'salmon',
-  'tomato', 'crimson', 'indigo', 'violet', 'turquoise', 'tan', 'khaki',
-  'beige', 'ivory', 'lavender', 'plum', 'orchid', 'sienna', 'peru',
-  'chocolate', 'firebrick', 'darkred', 'darkblue', 'darkgreen',
-  'darkgray', 'darkgrey', 'lightgray', 'lightgrey', 'whitesmoke',
-  'ghostwhite', 'aliceblue', 'mintcream', 'honeydew', 'azure',
-  'mistyrose', 'linen', 'seashell', 'snow', 'floralwhite',
+  "black",
+  "white",
+  "red",
+  "green",
+  "blue",
+  "yellow",
+  "orange",
+  "purple",
+  "pink",
+  "gray",
+  "grey",
+  "brown",
+  "cyan",
+  "magenta",
+  "lime",
+  "navy",
+  "teal",
+  "olive",
+  "maroon",
+  "silver",
+  "gold",
+  "coral",
+  "salmon",
+  "tomato",
+  "crimson",
+  "indigo",
+  "violet",
+  "turquoise",
+  "tan",
+  "khaki",
+  "beige",
+  "ivory",
+  "lavender",
+  "plum",
+  "orchid",
+  "sienna",
+  "peru",
+  "chocolate",
+  "firebrick",
+  "darkred",
+  "darkblue",
+  "darkgreen",
+  "darkgray",
+  "darkgrey",
+  "lightgray",
+  "lightgrey",
+  "whitesmoke",
+  "ghostwhite",
+  "aliceblue",
+  "mintcream",
+  "honeydew",
+  "azure",
+  "mistyrose",
+  "linen",
+  "seashell",
+  "snow",
+  "floralwhite",
 ]);
 
 /** 名前付きカラー検出正規表現（CSSプロパティ値内） */
@@ -119,8 +166,7 @@ const FILTER_RE = /(?:^|[^-])filter\s*:[^;}{]+/gi;
 const BACKDROP_FILTER_RE = /backdrop-filter\s*:[^;}{]+/gi;
 
 /** gradient正規表現 */
-const GRADIENT_RE =
-  /(?:linear|radial|conic)-gradient\([^)]*(?:\([^)]*\))*[^)]*\)/gi;
+const GRADIENT_RE = /(?:linear|radial|conic)-gradient\([^)]*(?:\([^)]*\))*[^)]*\)/gi;
 
 /** transform正規表現 */
 const TRANSFORM_RE = /transform\s*:[^;}{]+/gi;
@@ -160,7 +206,7 @@ function extractCssFromHtml(html: string): string {
     if (match[1]) parts.push(match[1]);
   }
 
-  return parts.join('\n');
+  return parts.join("\n");
 }
 
 /**
@@ -188,9 +234,9 @@ function normalizeFontSizeToPx(value: string): number {
   const trimmed = value.trim().toLowerCase();
 
   // clamp()の場合は中間値（preferred）を使用
-  if (trimmed.startsWith('clamp(')) {
+  if (trimmed.startsWith("clamp(")) {
     const inner = trimmed.slice(6, -1);
-    const parts = inner.split(',').map((s) => s.trim());
+    const parts = inner.split(",").map((s) => s.trim());
     const preferred = parts[1];
     if (parts.length >= 2 && preferred) {
       return normalizeFontSizeToPx(preferred);
@@ -202,18 +248,18 @@ function normalizeFontSizeToPx(value: string): number {
   if (!numMatch || !numMatch[1]) return 16;
 
   const num = parseFloat(numMatch[1]);
-  const unit = numMatch[2] ?? 'px';
+  const unit = numMatch[2] ?? "px";
 
   switch (unit) {
-    case 'px':
+    case "px":
       return num;
-    case 'rem':
-    case 'em':
+    case "rem":
+    case "em":
       return num * 16;
-    case 'vw':
-    case 'vh':
+    case "vw":
+    case "vh":
       return num * 10; // 1000px viewport概算
-    case '%':
+    case "%":
       return (num / 100) * 16;
     default:
       return num;
@@ -226,13 +272,13 @@ function normalizeFontSizeToPx(value: string): number {
 function normalizeWeight(value: string): number {
   const trimmed = value.trim().toLowerCase();
   switch (trimmed) {
-    case 'normal':
+    case "normal":
       return 400;
-    case 'bold':
+    case "bold":
       return 700;
-    case 'bolder':
+    case "bolder":
       return 800;
-    case 'lighter':
+    case "lighter":
       return 300;
     default: {
       const parsed = parseInt(trimmed, 10);
@@ -255,9 +301,7 @@ function extractHue(colorStr: string): number | null {
   }
 
   // RGB形式
-  const rgbMatch = trimmed.match(
-    /rgba?\(\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})/
-  );
+  const rgbMatch = trimmed.match(/rgba?\(\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})/);
   if (rgbMatch && rgbMatch[1] && rgbMatch[2] && rgbMatch[3]) {
     return rgbToHue(
       parseInt(rgbMatch[1], 10),
@@ -344,9 +388,9 @@ function calculateHueVariance(hues: number[]): number {
 function normalizeSpacingToPx(value: string): number {
   const trimmed = value.trim().toLowerCase();
 
-  if (trimmed.startsWith('clamp(')) {
+  if (trimmed.startsWith("clamp(")) {
     const inner = trimmed.slice(6, -1);
-    const parts = inner.split(',').map((s) => s.trim());
+    const parts = inner.split(",").map((s) => s.trim());
     const preferred = parts[1];
     if (parts.length >= 2 && preferred) {
       return normalizeSpacingToPx(preferred);
@@ -354,7 +398,7 @@ function normalizeSpacingToPx(value: string): number {
     return 0;
   }
 
-  if (trimmed.startsWith('var(')) {
+  if (trimmed.startsWith("var(")) {
     return -1; // CSS変数はスコア加算用のシグナル
   }
 
@@ -362,17 +406,17 @@ function normalizeSpacingToPx(value: string): number {
   if (!numMatch || !numMatch[1]) return 0;
 
   const num = parseFloat(numMatch[1]);
-  const unit = numMatch[2] ?? 'px';
+  const unit = numMatch[2] ?? "px";
 
   switch (unit) {
-    case 'px':
+    case "px":
       return num;
-    case 'rem':
-    case 'em':
+    case "rem":
+    case "em":
       return num * 16;
-    case '%':
-    case 'vw':
-    case 'vh':
+    case "%":
+    case "vw":
+    case "vh":
       return num * 10;
     default:
       return num;
@@ -424,8 +468,7 @@ function calculateVisualDensity(html: string): { score: number; detail: string }
 
   score = clampScore(score);
 
-  const detail =
-    `visualDensity: ${score} (media=${effectiveMediaCount}, sections=${sectionCount}, density=${density.toFixed(2)})`;
+  const detail = `visualDensity: ${score} (media=${effectiveMediaCount}, sections=${sectionCount}, density=${density.toFixed(2)})`;
 
   return { score, detail };
 }
@@ -433,10 +476,7 @@ function calculateVisualDensity(html: string): { score: number; detail: string }
 /**
  * 2. typographyContrast: タイポグラフィコントラスト
  */
-function calculateTypographyContrast(
-  css: string,
-  html: string
-): { score: number; detail: string } {
+function calculateTypographyContrast(css: string, html: string): { score: number; detail: string } {
   // font-size値を全て抽出
   const fontSizes: number[] = [];
   let match: RegExpExecArray | null;
@@ -469,7 +509,7 @@ function calculateTypographyContrast(
   if (fontSizes.length === 0) {
     return {
       score: 10,
-      detail: 'typographyContrast: 10 (no font-size declarations found)',
+      detail: "typographyContrast: 10 (no font-size declarations found)",
     };
   }
 
@@ -507,8 +547,7 @@ function calculateTypographyContrast(
 
   score = clampScore(score);
 
-  const detail =
-    `typographyContrast: ${score} (sizes=${uniqueSizes.length}, ratio=${sizeRatio.toFixed(1)}, weights=${uniqueWeights.length}, lineHeights=${lineHeights})`;
+  const detail = `typographyContrast: ${score} (sizes=${uniqueSizes.length}, ratio=${sizeRatio.toFixed(1)}, weights=${uniqueWeights.length}, lineHeights=${lineHeights})`;
 
   return { score, detail };
 }
@@ -516,11 +555,8 @@ function calculateTypographyContrast(
 /**
  * 3. colorVariety: 色彩豊富度
  */
-function calculateColorVariety(
-  css: string,
-  html: string
-): { score: number; detail: string } {
-  const combined = css + '\n' + html;
+function calculateColorVariety(css: string, html: string): { score: number; detail: string } {
+  const combined = css + "\n" + html;
 
   // カラー値を抽出
   const colorMatches = getAllMatches(combined, COLOR_VALUE_RE);
@@ -539,7 +575,7 @@ function calculateColorVariety(
 
   // ユニークカラー集合
   const uniqueColors = new Set([
-    ...colorMatches.map((c) => c.toLowerCase().replace(/\s+/g, '')),
+    ...colorMatches.map((c) => c.toLowerCase().replace(/\s+/g, "")),
     ...namedColorMatches,
   ]);
 
@@ -578,8 +614,7 @@ function calculateColorVariety(
 
   score = clampScore(score);
 
-  const detail =
-    `colorVariety: ${score} (uniqueColors=${uniqueCount}, hueVariance=${hueVariance.toFixed(2)}, hues=${hues.length})`;
+  const detail = `colorVariety: ${score} (uniqueColors=${uniqueCount}, hueVariance=${hueVariance.toFixed(2)}, hues=${hues.length})`;
 
   return { score, detail };
 }
@@ -591,7 +626,7 @@ function calculateWhitespaceIntentionality(
   css: string,
   html: string
 ): { score: number; detail: string } {
-  const combined = css + '\n' + html;
+  const combined = css + "\n" + html;
 
   // spacing値を抽出
   const spacingDeclarations = getAllMatches(combined, SPACING_VALUE_RE);
@@ -601,12 +636,14 @@ function calculateWhitespaceIntentionality(
 
   for (const decl of spacingDeclarations) {
     // プロパティ名部分を除去して値部分のみ取得
-    const colonIndex = decl.indexOf(':');
+    const colonIndex = decl.indexOf(":");
     if (colonIndex === -1) continue;
     const rawValue = decl.slice(colonIndex + 1).trim();
 
     // 複数値（shorthand）を個別に処理
-    const values = rawValue.split(/\s+/).filter((v) => v && v !== '0' && v !== 'auto' && v !== 'inherit');
+    const values = rawValue
+      .split(/\s+/)
+      .filter((v) => v && v !== "0" && v !== "auto" && v !== "inherit");
 
     for (const v of values) {
       if (CLAMP_RE.test(v)) {
@@ -634,7 +671,7 @@ function calculateWhitespaceIntentionality(
   if (spacingValues.length === 0 && clampCount === 0 && cssVarCount === 0) {
     return {
       score: 10,
-      detail: 'whitespaceIntentionality: 10 (no spacing declarations found)',
+      detail: "whitespaceIntentionality: 10 (no spacing declarations found)",
     };
   }
 
@@ -666,8 +703,7 @@ function calculateWhitespaceIntentionality(
 
   score = clampScore(score);
 
-  const detail =
-    `whitespaceIntentionality: ${score} (declarations=${spacingDeclarations.length}, clamp=${clampCount}, cssVar=${cssVarCount}, values=${spacingValues.length})`;
+  const detail = `whitespaceIntentionality: ${score} (declarations=${spacingDeclarations.length}, clamp=${clampCount}, cssVar=${cssVarCount}, values=${spacingValues.length})`;
 
   return { score, detail };
 }
@@ -675,11 +711,8 @@ function calculateWhitespaceIntentionality(
 /**
  * 5. visualDepth: 視覚的深度
  */
-function calculateVisualDepth(
-  css: string,
-  html: string
-): { score: number; detail: string } {
-  const combined = css + '\n' + html;
+function calculateVisualDepth(css: string, html: string): { score: number; detail: string } {
+  const combined = css + "\n" + html;
 
   // 各プロパティの使用数をカウント
   const boxShadowCount = countMatches(combined, BOX_SHADOW_RE);
@@ -739,8 +772,7 @@ function calculateVisualDepth(
 
   score = clampScore(score);
 
-  const detail =
-    `visualDepth: ${score} (shadow=${boxShadowCount}+${textShadowCount}, filter=${filterCount}+${backdropFilterCount}, gradients=${gradients.length}, transform=${transformCount}, zIndex=${zIndexCount}, pseudo=${pseudoElements.length})`;
+  const detail = `visualDepth: ${score} (shadow=${boxShadowCount}+${textShadowCount}, filter=${filterCount}+${backdropFilterCount}, gradients=${gradients.length}, transform=${transformCount}, zIndex=${zIndexCount}, pseudo=${pseudoElements.length})`;
 
   return { score, detail };
 }
@@ -771,7 +803,7 @@ export class VisualDesignAnalyzerService implements IVisualDesignAnalyzerService
    * @returns 5つのメトリクス + overall + details
    */
   analyze(html: string, css?: string): VisualDesignMetrics {
-    if (!html || html.trim() === '') {
+    if (!html || html.trim() === "") {
       return this.createEmptyResult();
     }
 
@@ -791,16 +823,16 @@ export class VisualDesignAnalyzerService implements IVisualDesignAnalyzerService
     // 加重平均
     const overall = clampScore(
       density.score * 0.25 +
-      typography.score * 0.20 +
-      color.score * 0.15 +
-      whitespace.score * 0.15 +
-      depth.score * 0.25
+        typography.score * 0.2 +
+        color.score * 0.15 +
+        whitespace.score * 0.15 +
+        depth.score * 0.25
     );
 
     const elapsed = Date.now() - startTime;
 
     if (isDevelopment()) {
-      logger.info('[VisualDesignAnalyzer] Analysis completed', {
+      logger.info("[VisualDesignAnalyzer] Analysis completed", {
         overall,
         elapsed: `${elapsed}ms`,
         htmlLength: html.length,
@@ -837,7 +869,7 @@ export class VisualDesignAnalyzerService implements IVisualDesignAnalyzerService
       whitespaceIntentionality: 0,
       visualDepth: 0,
       overall: 0,
-      details: ['No HTML content provided'],
+      details: ["No HTML content provided"],
     };
   }
 }
@@ -847,9 +879,7 @@ export class VisualDesignAnalyzerService implements IVisualDesignAnalyzerService
 // =====================================================
 
 /** ファクトリ関数（テスト時のDI用） */
-let visualDesignAnalyzerServiceFactory:
-  | (() => IVisualDesignAnalyzerService)
-  | null = null;
+let visualDesignAnalyzerServiceFactory: (() => IVisualDesignAnalyzerService) | null = null;
 
 /**
  * VisualDesignAnalyzerServiceファクトリを設定（テスト用）

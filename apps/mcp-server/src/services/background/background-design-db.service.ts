@@ -15,8 +15,8 @@
  * @module services/background/background-design-db.service
  */
 
-import { v7 as uuidv7 } from 'uuid';
-import { logger, isDevelopment } from '../../utils/logger';
+import { v7 as uuidv7 } from "uuid";
+import { logger, isDevelopment } from "../../utils/logger";
 
 // =============================================================================
 // Types
@@ -99,7 +99,7 @@ export async function saveBackgroundDesigns(
     });
 
     if (isDevelopment()) {
-      logger.debug('[BackgroundDesignDB] Existing records deleted', { webPageId });
+      logger.debug("[BackgroundDesignDB] Existing records deleted", { webPageId });
     }
 
     // 2. UUIDv7を生成してデータを準備
@@ -111,20 +111,20 @@ export async function saveBackgroundDesigns(
       idMapping.set(bg.name, id); // Use original name for mapping lookups
 
       // Truncate fields to fit DB column limits
-      const truncatedName = bg.name.length > 200
-        ? bg.name.slice(0, 200)
-        : bg.name;
-      const truncatedSelector = bg.selector !== undefined && bg.selector.length > 500
-        ? bg.selector.slice(0, 500)
-        : bg.selector;
+      const truncatedName = bg.name.length > 200 ? bg.name.slice(0, 200) : bg.name;
+      const truncatedSelector =
+        bg.selector !== undefined && bg.selector.length > 500
+          ? bg.selector.slice(0, 500)
+          : bg.selector;
 
       if (bg.name.length > 200 || (bg.selector !== undefined && bg.selector.length > 500)) {
-        logger.debug('[BackgroundDesignDB] Truncated fields', {
+        logger.debug("[BackgroundDesignDB] Truncated fields", {
           webPageId,
           originalName: bg.name.length > 200 ? `${bg.name.length} chars → 200` : undefined,
-          originalSelector: bg.selector !== undefined && bg.selector.length > 500
-            ? `${bg.selector.length} chars → 500`
-            : undefined,
+          originalSelector:
+            bg.selector !== undefined && bg.selector.length > 500
+              ? `${bg.selector.length} chars → 500`
+              : undefined,
         });
       }
 
@@ -139,7 +139,7 @@ export async function saveBackgroundDesigns(
         colorInfo: bg.colorInfo,
         visualProperties: bg.visualProperties,
         performance: bg.performance,
-        usageScope: bg.usageScope ?? 'inspiration_only',
+        usageScope: bg.usageScope ?? "inspiration_only",
         tags: bg.tags ?? [],
         metadata: {},
       };
@@ -171,7 +171,7 @@ export async function saveBackgroundDesigns(
     const result = await prisma.backgroundDesign.createMany({ data });
 
     if (isDevelopment()) {
-      logger.info('[BackgroundDesignDB] Saved background designs', {
+      logger.info("[BackgroundDesignDB] Saved background designs", {
         webPageId,
         count: result.count,
         idCount: ids.length,
@@ -185,12 +185,11 @@ export async function saveBackgroundDesigns(
       idMapping,
     };
   } catch (error) {
-    const errorMessage = error instanceof Error
-      ? error.message
-      : 'Failed to save background designs';
+    const errorMessage =
+      error instanceof Error ? error.message : "Failed to save background designs";
 
     if (isDevelopment()) {
-      logger.error('[BackgroundDesignDB] Save failed', {
+      logger.error("[BackgroundDesignDB] Save failed", {
         webPageId,
         error: errorMessage,
       });

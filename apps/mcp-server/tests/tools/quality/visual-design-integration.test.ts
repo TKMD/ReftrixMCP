@@ -20,7 +20,7 @@
  * @module tests/tools/quality/visual-design-integration.test
  */
 
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from "vitest";
 
 import {
   qualityEvaluateHandler,
@@ -30,19 +30,19 @@ import {
   resetPatternMatcherServiceFactory,
   resetBenchmarkServiceFactory,
   resetPlaywrightAxeServiceFactory,
-} from '../../../src/tools/quality/evaluate.tool';
+} from "../../../src/tools/quality/evaluate.tool";
 
 import {
   setVisualDesignAnalyzerServiceFactory,
   resetVisualDesignAnalyzerServiceFactory,
-} from '../../../src/services/quality/visual-design-analyzer.service';
+} from "../../../src/services/quality/visual-design-analyzer.service";
 
 import {
   setContentGapDetectorServiceFactory,
   resetContentGapDetectorServiceFactory,
-} from '../../../src/services/quality/content-gap-detector.service';
+} from "../../../src/services/quality/content-gap-detector.service";
 
-import type { QualityEvaluateData } from '../../../src/tools/quality/schemas';
+import type { QualityEvaluateData } from "../../../src/tools/quality/schemas";
 
 // =============================================================================
 // テスト用HTML定義
@@ -151,9 +151,11 @@ const RICH_HTML = `
 /**
  * テスト結果からdataを安全に取得
  */
-function extractData(result: Awaited<ReturnType<typeof qualityEvaluateHandler>>): QualityEvaluateData {
+function extractData(
+  result: Awaited<ReturnType<typeof qualityEvaluateHandler>>
+): QualityEvaluateData {
   expect(result.success).toBe(true);
-  expect('data' in result && result.data).toBeTruthy();
+  expect("data" in result && result.data).toBeTruthy();
   return (result as { success: true; data: QualityEvaluateData }).data;
 }
 
@@ -161,7 +163,7 @@ function extractData(result: Awaited<ReturnType<typeof qualityEvaluateHandler>>)
 // テスト本体
 // =============================================================================
 
-describe('quality.evaluate visual design integration', () => {
+describe("quality.evaluate visual design integration", () => {
   beforeEach(() => {
     // 全てのDIファクトリをリセットしてデフォルト動作に戻す
     resetQualityEvaluateServiceFactory();
@@ -187,8 +189,8 @@ describe('quality.evaluate visual design integration', () => {
   // visualDesign / contentGaps は handler 未統合のため undefined
   // =========================================================================
 
-  describe('visualDesign / contentGaps 未統合確認', () => {
-    it('デフォルト設定でvisualDesignがレスポンスに含まれないこと', async () => {
+  describe("visualDesign / contentGaps 未統合確認", () => {
+    it("デフォルト設定でvisualDesignがレスポンスに含まれないこと", async () => {
       // Arrange & Act
       const result = await qualityEvaluateHandler({
         html: RICH_HTML,
@@ -201,7 +203,7 @@ describe('quality.evaluate visual design integration', () => {
       expect(data.visualDesign).toBeUndefined();
     });
 
-    it('デフォルト設定でcontentGapsがレスポンスに含まれないこと', async () => {
+    it("デフォルト設定でcontentGapsがレスポンスに含まれないこと", async () => {
       // Arrange & Act
       const result = await qualityEvaluateHandler({
         html: RICH_HTML,
@@ -214,7 +216,7 @@ describe('quality.evaluate visual design integration', () => {
       expect(data.contentGaps).toBeUndefined();
     });
 
-    it('enableVisualDesign: trueを指定してもvisualDesignは含まれないこと', async () => {
+    it("enableVisualDesign: trueを指定してもvisualDesignは含まれないこと", async () => {
       // Arrange & Act
       const result = await qualityEvaluateHandler({
         html: RICH_HTML,
@@ -234,8 +236,8 @@ describe('quality.evaluate visual design integration', () => {
   // enableVisualDesign: false（後方互換性）
   // =========================================================================
 
-  describe('enableVisualDesign: false（回帰テスト）', () => {
-    it('visualDesign結果がレスポンスに含まれないこと', async () => {
+  describe("enableVisualDesign: false（回帰テスト）", () => {
+    it("visualDesign結果がレスポンスに含まれないこと", async () => {
       // Arrange & Act
       const result = await qualityEvaluateHandler({
         html: RICH_HTML,
@@ -250,7 +252,7 @@ describe('quality.evaluate visual design integration', () => {
       expect(data.contentGaps).toBeUndefined();
     });
 
-    it('従来の3軸スコアが正常に返ること', async () => {
+    it("従来の3軸スコアが正常に返ること", async () => {
       // Arrange & Act
       const result = await qualityEvaluateHandler({
         html: RICH_HTML,
@@ -268,7 +270,7 @@ describe('quality.evaluate visual design integration', () => {
       expect(data.grade).toBeDefined();
     });
 
-    it('enableVisualDesignの有無でcraftsmanshipスコアが同一であること（handler未統合のため）', async () => {
+    it("enableVisualDesignの有無でcraftsmanshipスコアが同一であること（handler未統合のため）", async () => {
       // Arrange & Act
       const resultWithVD = await qualityEvaluateHandler({
         html: RICH_HTML,
@@ -294,8 +296,8 @@ describe('quality.evaluate visual design integration', () => {
   // 画像0枚ページ → 基本的な評価動作
   // =========================================================================
 
-  describe('画像0枚ページの評価', () => {
-    it('画像0枚でもcontentGapsは含まれないこと（handler未統合）', async () => {
+  describe("画像0枚ページの評価", () => {
+    it("画像0枚でもcontentGapsは含まれないこと（handler未統合）", async () => {
       // Arrange & Act
       const result = await qualityEvaluateHandler({
         html: MINIMAL_HTML,
@@ -309,7 +311,7 @@ describe('quality.evaluate visual design integration', () => {
       expect(data.contentGaps).toBeUndefined();
     });
 
-    it('画像0枚でもcraftsmanshipスコアが返ること', async () => {
+    it("画像0枚でもcraftsmanshipスコアが返ること", async () => {
       // Arrange & Act
       const result = await qualityEvaluateHandler({
         html: MINIMAL_HTML,
@@ -324,7 +326,7 @@ describe('quality.evaluate visual design integration', () => {
       expect(data.craftsmanship.score).toBeLessThanOrEqual(100);
     });
 
-    it('画像0枚でもvisualDesignは含まれないこと（handler未統合）', async () => {
+    it("画像0枚でもvisualDesignは含まれないこと（handler未統合）", async () => {
       // Arrange & Act
       const result = await qualityEvaluateHandler({
         html: MINIMAL_HTML,
@@ -343,8 +345,8 @@ describe('quality.evaluate visual design integration', () => {
   // リッチHTML → 基本的な評価動作
   // =========================================================================
 
-  describe('リッチHTMLの評価', () => {
-    it('リッチHTMLで3軸スコアが返ること', async () => {
+  describe("リッチHTMLの評価", () => {
+    it("リッチHTMLで3軸スコアが返ること", async () => {
       // Arrange & Act
       const result = await qualityEvaluateHandler({
         html: RICH_HTML,
@@ -361,7 +363,7 @@ describe('quality.evaluate visual design integration', () => {
       expect(data.contextuality.score).toBeGreaterThanOrEqual(0);
     });
 
-    it('リッチHTMLのcraftsmanship detailsが返ること', async () => {
+    it("リッチHTMLのcraftsmanship detailsが返ること", async () => {
       // Arrange & Act
       const result = await qualityEvaluateHandler({
         html: RICH_HTML,
@@ -375,7 +377,7 @@ describe('quality.evaluate visual design integration', () => {
       expect(data.craftsmanship.details).toBeDefined();
     });
 
-    it('リッチHTMLでoverallが正の値であること', async () => {
+    it("リッチHTMLでoverallが正の値であること", async () => {
       // Arrange & Act
       const result = await qualityEvaluateHandler({
         html: RICH_HTML,
@@ -394,8 +396,8 @@ describe('quality.evaluate visual design integration', () => {
   // summary mode
   // =========================================================================
 
-  describe('summary mode', () => {
-    it('summary: trueでvisualDesignは含まれないこと（handler未統合）', async () => {
+  describe("summary mode", () => {
+    it("summary: trueでvisualDesignは含まれないこと（handler未統合）", async () => {
       // Arrange & Act
       const result = await qualityEvaluateHandler({
         html: RICH_HTML,
@@ -409,7 +411,7 @@ describe('quality.evaluate visual design integration', () => {
       expect(data.visualDesign).toBeUndefined();
     });
 
-    it('summary: trueでcontentGapsは含まれないこと（handler未統合）', async () => {
+    it("summary: trueでcontentGapsは含まれないこと（handler未統合）", async () => {
       // Arrange & Act
       const result = await qualityEvaluateHandler({
         html: RICH_HTML,
@@ -423,7 +425,7 @@ describe('quality.evaluate visual design integration', () => {
       expect(data.contentGaps).toBeUndefined();
     });
 
-    it('summary: trueでも3軸スコアが返ること', async () => {
+    it("summary: trueでも3軸スコアが返ること", async () => {
       // Arrange & Act
       const result = await qualityEvaluateHandler({
         html: MINIMAL_HTML,
@@ -439,7 +441,7 @@ describe('quality.evaluate visual design integration', () => {
       expect(data.grade).toBeDefined();
     });
 
-    it('summary: falseで3軸スコアとdetailsが返ること', async () => {
+    it("summary: falseで3軸スコアとdetailsが返ること", async () => {
       // Arrange & Act
       const result = await qualityEvaluateHandler({
         html: RICH_HTML,
@@ -460,8 +462,8 @@ describe('quality.evaluate visual design integration', () => {
   // DIファクトリ差し替え
   // =========================================================================
 
-  describe('DIファクトリによるモック差し替え', () => {
-    it('VisualDesignAnalyzerをモックに差し替えてもhandler未統合のためvisualDesignはundefined', async () => {
+  describe("DIファクトリによるモック差し替え", () => {
+    it("VisualDesignAnalyzerをモックに差し替えてもhandler未統合のためvisualDesignはundefined", async () => {
       // Arrange: 高スコアを返すモックに差し替え
       setVisualDesignAnalyzerServiceFactory(() => ({
         analyze: () => ({
@@ -471,7 +473,7 @@ describe('quality.evaluate visual design integration', () => {
           whitespaceIntentionality: 90,
           visualDepth: 90,
           overall: 90,
-          details: ['mock visual design'],
+          details: ["mock visual design"],
         }),
       }));
 
@@ -491,7 +493,7 @@ describe('quality.evaluate visual design integration', () => {
       expect(data.craftsmanship.score).toBeGreaterThanOrEqual(0);
     });
 
-    it('ContentGapDetectorをモックに差し替えてもhandler未統合のためcontentGapsはundefined', async () => {
+    it("ContentGapDetectorをモックに差し替えてもhandler未統合のためcontentGapsはundefined", async () => {
       // Arrange: ギャップなしの結果を返すモックに差し替え
       setContentGapDetectorServiceFactory(() => ({
         detect: () => ({
@@ -504,7 +506,7 @@ describe('quality.evaluate visual design integration', () => {
           contentDensity: 8.33,
           gaps: [],
           score: 100,
-          details: ['mock content gap'],
+          details: ["mock content gap"],
         }),
       }));
 
@@ -528,8 +530,8 @@ describe('quality.evaluate visual design integration', () => {
   // 回帰テスト: 全体のoverallスコアの妥当性
   // =========================================================================
 
-  describe('回帰テスト', () => {
-    it('overall スコアが0-100の範囲内であること', async () => {
+  describe("回帰テスト", () => {
+    it("overall スコアが0-100の範囲内であること", async () => {
       // Arrange & Act
       const results = await Promise.all([
         qualityEvaluateHandler({
@@ -555,7 +557,7 @@ describe('quality.evaluate visual design integration', () => {
       }
     });
 
-    it('3軸スコアが全て0-100の範囲内であること', async () => {
+    it("3軸スコアが全て0-100の範囲内であること", async () => {
       // Arrange & Act
       const result = await qualityEvaluateHandler({
         html: RICH_HTML,
@@ -574,7 +576,7 @@ describe('quality.evaluate visual design integration', () => {
       expect(data.contextuality.score).toBeLessThanOrEqual(100);
     });
 
-    it('gradeが有効な値であること', async () => {
+    it("gradeが有効な値であること", async () => {
       // Arrange & Act
       const result = await qualityEvaluateHandler({
         html: RICH_HTML,
@@ -583,7 +585,7 @@ describe('quality.evaluate visual design integration', () => {
 
       // Assert
       const data = extractData(result);
-      const validGrades = ['S', 'A', 'B', 'C', 'D', 'F'];
+      const validGrades = ["S", "A", "B", "C", "D", "F"];
       expect(validGrades).toContain(data.grade);
     });
   });

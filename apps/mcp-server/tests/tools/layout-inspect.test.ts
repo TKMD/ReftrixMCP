@@ -19,7 +19,7 @@
  * @module tests/tools/layout-inspect
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 // =====================================================
 // 新しいモジュール構造からのインポート（TDD Red: まだ存在しない）
@@ -48,7 +48,7 @@ import {
   type TypographyInfo,
   type GridInfo,
   type LayoutInspectData,
-} from '../../src/tools/layout/inspect/inspect.schemas';
+} from "../../src/tools/layout/inspect/inspect.schemas";
 
 // ユーティリティ関数（inspect.utils.ts から）
 import {
@@ -57,7 +57,7 @@ import {
   analyzeTypography,
   detectGrid,
   generateTextRepresentation,
-} from '../../src/tools/layout/inspect/inspect.utils';
+} from "../../src/tools/layout/inspect/inspect.utils";
 
 // ハンドラーとツール定義（inspect.tool.ts から）
 import {
@@ -66,16 +66,16 @@ import {
   setLayoutInspectServiceFactory,
   resetLayoutInspectServiceFactory,
   type ILayoutInspectService,
-} from '../../src/tools/layout/inspect/inspect.tool';
+} from "../../src/tools/layout/inspect/inspect.tool";
 
 // 公開エクスポート（index.ts から）
-import * as inspectModule from '../../src/tools/layout/inspect';
+import * as inspectModule from "../../src/tools/layout/inspect";
 
 // =====================================================
 // テストユーティリティ
 // =====================================================
 
-const validUuid = '01939abc-def0-7000-8000-000000000001';
+const validUuid = "01939abc-def0-7000-8000-000000000001";
 
 /**
  * テスト用HTMLサンプル: ヒーローセクションを含む
@@ -115,7 +115,7 @@ const sampleHtmlWithHero = `
 /**
  * テスト用HTMLサンプル: 最小限
  */
-const minimalHtml = '<div>Hello World</div>';
+const minimalHtml = "<div>Hello World</div>";
 
 /**
  * テスト用HTMLサンプル: 色情報を含む
@@ -170,9 +170,9 @@ const sampleHtmlWithFlex = `
 // 1. スキーマテスト (inspect.schemas.ts 用)
 // =====================================================
 
-describe('inspect.schemas.ts', () => {
-  describe('layoutInspectInputSchema', () => {
-    it('should accept valid id input', () => {
+describe("inspect.schemas.ts", () => {
+  describe("layoutInspectInputSchema", () => {
+    it("should accept valid id input", () => {
       // idのみ指定した場合
       const result = layoutInspectInputSchema.safeParse({
         id: validUuid,
@@ -180,7 +180,7 @@ describe('inspect.schemas.ts', () => {
       expect(result.success).toBe(true);
     });
 
-    it('should accept valid html input', () => {
+    it("should accept valid html input", () => {
       // htmlのみ指定した場合
       const result = layoutInspectInputSchema.safeParse({
         html: minimalHtml,
@@ -188,7 +188,7 @@ describe('inspect.schemas.ts', () => {
       expect(result.success).toBe(true);
     });
 
-    it('should accept input with options', () => {
+    it("should accept input with options", () => {
       // オプション付き入力
       const result = layoutInspectInputSchema.safeParse({
         html: minimalHtml,
@@ -203,7 +203,7 @@ describe('inspect.schemas.ts', () => {
       expect(result.success).toBe(true);
     });
 
-    it('should reject input without id or html', () => {
+    it("should reject input without id or html", () => {
       // idもhtmlも指定されていない場合はエラー
       const result = layoutInspectInputSchema.safeParse({
         options: { detectSections: true },
@@ -211,28 +211,28 @@ describe('inspect.schemas.ts', () => {
       expect(result.success).toBe(false);
     });
 
-    it('should reject invalid UUID format', () => {
+    it("should reject invalid UUID format", () => {
       // 無効なUUID形式
       const result = layoutInspectInputSchema.safeParse({
-        id: 'not-a-valid-uuid',
+        id: "not-a-valid-uuid",
       });
       expect(result.success).toBe(false);
     });
 
-    it('should reject empty html', () => {
+    it("should reject empty html", () => {
       // 空のHTML
       const result = layoutInspectInputSchema.safeParse({
-        html: '',
+        html: "",
       });
       expect(result.success).toBe(false);
     });
   });
 
-  describe('sectionInfoSchema', () => {
-    it('should validate correct section info', () => {
+  describe("sectionInfoSchema", () => {
+    it("should validate correct section info", () => {
       const sectionInfo = {
-        id: 'section-0',
-        type: 'hero' as const,
+        id: "section-0",
+        type: "hero" as const,
         confidence: 0.95,
         position: {
           startY: 0,
@@ -240,15 +240,15 @@ describe('inspect.schemas.ts', () => {
           height: 600,
         },
         content: {
-          headings: [{ level: 1, text: 'Welcome' }],
-          paragraphs: ['This is a paragraph'],
-          links: [{ text: 'Home', href: '/' }],
-          images: [{ src: '/image.jpg', alt: 'Image' }],
-          buttons: [{ text: 'Click', type: 'primary' }],
+          headings: [{ level: 1, text: "Welcome" }],
+          paragraphs: ["This is a paragraph"],
+          links: [{ text: "Home", href: "/" }],
+          images: [{ src: "/image.jpg", alt: "Image" }],
+          buttons: [{ text: "Click", type: "primary" }],
         },
         style: {
-          backgroundColor: '#ffffff',
-          textColor: '#000000',
+          backgroundColor: "#ffffff",
+          textColor: "#000000",
           hasGradient: false,
           hasImage: false,
         },
@@ -257,10 +257,10 @@ describe('inspect.schemas.ts', () => {
       expect(result.success).toBe(true);
     });
 
-    it('should reject confidence outside 0-1 range', () => {
+    it("should reject confidence outside 0-1 range", () => {
       const sectionInfo = {
-        id: 'section-0',
-        type: 'hero',
+        id: "section-0",
+        type: "hero",
         confidence: 1.5, // 無効: 1を超えている
         position: { startY: 0, endY: 100, height: 100 },
         content: {
@@ -276,10 +276,10 @@ describe('inspect.schemas.ts', () => {
       expect(result.success).toBe(false);
     });
 
-    it('should reject invalid section type', () => {
+    it("should reject invalid section type", () => {
       const sectionInfo = {
-        id: 'section-0',
-        type: 'invalid_type', // 無効なセクションタイプ
+        id: "section-0",
+        type: "invalid_type", // 無効なセクションタイプ
         confidence: 0.9,
         position: { startY: 0, endY: 100, height: 100 },
         content: {
@@ -296,24 +296,24 @@ describe('inspect.schemas.ts', () => {
     });
   });
 
-  describe('sectionTypeSchema', () => {
+  describe("sectionTypeSchema", () => {
     const validTypes: SectionType[] = [
-      'hero',
-      'header',
-      'navigation',
-      'features',
-      'testimonial',
-      'pricing',
-      'cta',
-      'footer',
-      'content',
-      'gallery',
-      'about',
-      'contact',
-      'faq',
-      'team',
-      'stats',
-      'unknown',
+      "hero",
+      "header",
+      "navigation",
+      "features",
+      "testimonial",
+      "pricing",
+      "cta",
+      "footer",
+      "content",
+      "gallery",
+      "about",
+      "contact",
+      "faq",
+      "team",
+      "stats",
+      "unknown",
     ];
 
     it.each(validTypes)('should accept "%s" as valid section type', (type) => {
@@ -321,61 +321,61 @@ describe('inspect.schemas.ts', () => {
       expect(result.success).toBe(true);
     });
 
-    it('should reject invalid section type', () => {
-      const result = sectionTypeSchema.safeParse('invalid');
+    it("should reject invalid section type", () => {
+      const result = sectionTypeSchema.safeParse("invalid");
       expect(result.success).toBe(false);
     });
   });
 
-  describe('colorPaletteInfoSchema', () => {
-    it('should validate correct color palette info', () => {
+  describe("colorPaletteInfoSchema", () => {
+    it("should validate correct color palette info", () => {
       const colorInfo: ColorPaletteInfo = {
         palette: [
-          { hex: '#3B82F6', count: 10, role: 'primary' },
-          { hex: '#FFFFFF', count: 5, role: 'background' },
-          { hex: '#000000', count: 3, role: 'text' },
+          { hex: "#3B82F6", count: 10, role: "primary" },
+          { hex: "#FFFFFF", count: 5, role: "background" },
+          { hex: "#000000", count: 3, role: "text" },
         ],
-        dominant: '#3B82F6',
-        background: '#FFFFFF',
-        text: '#000000',
-        accent: '#10B981',
+        dominant: "#3B82F6",
+        background: "#FFFFFF",
+        text: "#000000",
+        accent: "#10B981",
       };
       const result = colorPaletteInfoSchema.safeParse(colorInfo);
       expect(result.success).toBe(true);
     });
 
-    it('should reject invalid hex color format', () => {
+    it("should reject invalid hex color format", () => {
       const colorInfo = {
         palette: [
-          { hex: 'not-a-hex', count: 10 }, // 無効なHEXカラー
+          { hex: "not-a-hex", count: 10 }, // 無効なHEXカラー
         ],
-        dominant: '#3B82F6',
-        background: '#FFFFFF',
-        text: '#000000',
+        dominant: "#3B82F6",
+        background: "#FFFFFF",
+        text: "#000000",
       };
       const result = colorPaletteInfoSchema.safeParse(colorInfo);
       expect(result.success).toBe(false);
     });
 
-    it('should accept color palette without accent', () => {
+    it("should accept color palette without accent", () => {
       // accentはオプション
       const colorInfo = {
-        palette: [{ hex: '#3B82F6', count: 10 }],
-        dominant: '#3B82F6',
-        background: '#FFFFFF',
-        text: '#000000',
+        palette: [{ hex: "#3B82F6", count: 10 }],
+        dominant: "#3B82F6",
+        background: "#FFFFFF",
+        text: "#000000",
       };
       const result = colorPaletteInfoSchema.safeParse(colorInfo);
       expect(result.success).toBe(true);
     });
   });
 
-  describe('typographyInfoSchema', () => {
-    it('should validate correct typography info', () => {
+  describe("typographyInfoSchema", () => {
+    it("should validate correct typography info", () => {
       const typographyInfo: TypographyInfo = {
         fonts: [
-          { family: 'Inter', weights: [400, 500, 700] },
-          { family: 'Georgia', weights: [400] },
+          { family: "Inter", weights: [400, 500, 700] },
+          { family: "Georgia", weights: [400] },
         ],
         headingScale: [48, 36, 24, 20, 18, 16],
         bodySize: 16,
@@ -385,7 +385,7 @@ describe('inspect.schemas.ts', () => {
       expect(result.success).toBe(true);
     });
 
-    it('should accept empty fonts array', () => {
+    it("should accept empty fonts array", () => {
       const typographyInfo = {
         fonts: [],
         headingScale: [48, 36],
@@ -396,7 +396,7 @@ describe('inspect.schemas.ts', () => {
       expect(result.success).toBe(true);
     });
 
-    it('should reject negative bodySize', () => {
+    it("should reject negative bodySize", () => {
       const typographyInfo = {
         fonts: [],
         headingScale: [],
@@ -411,59 +411,59 @@ describe('inspect.schemas.ts', () => {
     });
   });
 
-  describe('gridInfoSchema', () => {
-    it('should validate grid type info', () => {
+  describe("gridInfoSchema", () => {
+    it("should validate grid type info", () => {
       const gridInfo: GridInfo = {
-        type: 'grid',
+        type: "grid",
         columns: 12,
         gutterWidth: 24,
         maxWidth: 1200,
         breakpoints: [
-          { name: 'sm', minWidth: 640 },
-          { name: 'md', minWidth: 768 },
-          { name: 'lg', minWidth: 1024 },
+          { name: "sm", minWidth: 640 },
+          { name: "md", minWidth: 768 },
+          { name: "lg", minWidth: 1024 },
         ],
       };
       const result = gridInfoSchema.safeParse(gridInfo);
       expect(result.success).toBe(true);
     });
 
-    it('should validate flex type info', () => {
+    it("should validate flex type info", () => {
       const gridInfo = {
-        type: 'flex',
+        type: "flex",
         gutterWidth: 16,
       };
       const result = gridInfoSchema.safeParse(gridInfo);
       expect(result.success).toBe(true);
     });
 
-    it('should validate float type info', () => {
+    it("should validate float type info", () => {
       const gridInfo = {
-        type: 'float',
+        type: "float",
       };
       const result = gridInfoSchema.safeParse(gridInfo);
       expect(result.success).toBe(true);
     });
 
-    it('should validate unknown type info', () => {
+    it("should validate unknown type info", () => {
       const gridInfo = {
-        type: 'unknown',
+        type: "unknown",
       };
       const result = gridInfoSchema.safeParse(gridInfo);
       expect(result.success).toBe(true);
     });
 
-    it('should reject invalid grid type', () => {
+    it("should reject invalid grid type", () => {
       const gridInfo = {
-        type: 'invalid_type', // 無効なグリッドタイプ
+        type: "invalid_type", // 無効なグリッドタイプ
       };
       const result = gridInfoSchema.safeParse(gridInfo);
       expect(result.success).toBe(false);
     });
   });
 
-  describe('layoutInspectOptionsSchema', () => {
-    it('should accept empty options with defaults', () => {
+  describe("layoutInspectOptionsSchema", () => {
+    it("should accept empty options with defaults", () => {
       const result = layoutInspectOptionsSchema.safeParse({});
       expect(result.success).toBe(true);
       if (result.success) {
@@ -475,7 +475,7 @@ describe('inspect.schemas.ts', () => {
       }
     });
 
-    it('should accept all options set to false', () => {
+    it("should accept all options set to false", () => {
       const result = layoutInspectOptionsSchema.safeParse({
         detectSections: false,
         extractColors: false,
@@ -486,7 +486,7 @@ describe('inspect.schemas.ts', () => {
       expect(result.success).toBe(true);
     });
 
-    it('should accept partial options', () => {
+    it("should accept partial options", () => {
       const result = layoutInspectOptionsSchema.safeParse({
         detectSections: true,
         useVision: true,
@@ -494,9 +494,9 @@ describe('inspect.schemas.ts', () => {
       expect(result.success).toBe(true);
     });
 
-    it('should reject non-boolean values', () => {
+    it("should reject non-boolean values", () => {
       const result = layoutInspectOptionsSchema.safeParse({
-        detectSections: 'yes', // 文字列は無効
+        detectSections: "yes", // 文字列は無効
       });
       expect(result.success).toBe(false);
     });
@@ -507,118 +507,116 @@ describe('inspect.schemas.ts', () => {
 // 2. ユーティリティテスト (inspect.utils.ts 用)
 // =====================================================
 
-describe('inspect.utils.ts', () => {
-  describe('detectSections', () => {
-    it('should detect hero section', () => {
+describe("inspect.utils.ts", () => {
+  describe("detectSections", () => {
+    it("should detect hero section", () => {
       const sections = detectSections(sampleHtmlWithHero);
-      const heroSection = sections.find((s) => s.type === 'hero');
+      const heroSection = sections.find((s) => s.type === "hero");
       expect(heroSection).toBeDefined();
       expect(heroSection?.confidence).toBeGreaterThanOrEqual(0.9);
     });
 
-    it('should detect header section', () => {
+    it("should detect header section", () => {
       const sections = detectSections(sampleHtmlWithHero);
-      const headerSection = sections.find((s) => s.type === 'header');
+      const headerSection = sections.find((s) => s.type === "header");
       expect(headerSection).toBeDefined();
     });
 
-    it('should detect features section', () => {
+    it("should detect features section", () => {
       const sections = detectSections(sampleHtmlWithHero);
-      const featuresSection = sections.find((s) => s.type === 'features');
+      const featuresSection = sections.find((s) => s.type === "features");
       expect(featuresSection).toBeDefined();
     });
 
-    it('should detect footer section', () => {
+    it("should detect footer section", () => {
       const sections = detectSections(sampleHtmlWithHero);
-      const footerSection = sections.find((s) => s.type === 'footer');
+      const footerSection = sections.find((s) => s.type === "footer");
       expect(footerSection).toBeDefined();
     });
 
-    it('should detect navigation section', () => {
+    it("should detect navigation section", () => {
       const sections = detectSections(sampleHtmlWithHero);
-      const navSection = sections.find((s) => s.type === 'navigation');
+      const navSection = sections.find((s) => s.type === "navigation");
       expect(navSection).toBeDefined();
     });
 
-    it('should return empty array for minimal html', () => {
+    it("should return empty array for minimal html", () => {
       const sections = detectSections(minimalHtml);
       // 最小限のHTMLにはセクションパターンがないため、空配列
       expect(sections).toEqual([]);
     });
 
-    it('should assign sequential section ids', () => {
+    it("should assign sequential section ids", () => {
       const sections = detectSections(sampleHtmlWithHero);
       const ids = sections.map((s) => s.id);
       // IDは連番であるべき
-      expect(ids[0]).toBe('section-0');
+      expect(ids[0]).toBe("section-0");
       if (sections.length > 1) {
-        expect(ids[1]).toBe('section-1');
+        expect(ids[1]).toBe("section-1");
       }
     });
 
-    it('should extract headings from sections', () => {
+    it("should extract headings from sections", () => {
       const sections = detectSections(sampleHtmlWithHero);
-      const heroSection = sections.find((s) => s.type === 'hero');
+      const heroSection = sections.find((s) => s.type === "hero");
       expect(heroSection?.content.headings.length).toBeGreaterThan(0);
-      expect(heroSection?.content.headings[0]?.text).toBe('Welcome to Our Site');
+      expect(heroSection?.content.headings[0]?.text).toBe("Welcome to Our Site");
     });
 
-    it('should extract buttons from sections', () => {
+    it("should extract buttons from sections", () => {
       const sections = detectSections(sampleHtmlWithHero);
-      const heroSection = sections.find((s) => s.type === 'hero');
+      const heroSection = sections.find((s) => s.type === "hero");
       expect(heroSection?.content.buttons.length).toBeGreaterThanOrEqual(1);
     });
 
-    it('should extract images from features section', () => {
+    it("should extract images from features section", () => {
       const sections = detectSections(sampleHtmlWithHero);
-      const featuresSection = sections.find((s) => s.type === 'features');
+      const featuresSection = sections.find((s) => s.type === "features");
       expect(featuresSection?.content.images.length).toBe(3);
     });
   });
 
-  describe('extractColors', () => {
-    it('should extract hex colors from html', () => {
+  describe("extractColors", () => {
+    it("should extract hex colors from html", () => {
       const colors = extractColors(sampleHtmlWithColors);
       expect(colors.palette.length).toBeGreaterThan(0);
     });
 
-    it('should identify primary color', () => {
+    it("should identify primary color", () => {
       const colors = extractColors(sampleHtmlWithColors);
       // 最も使われている色がprimaryとして識別される
-      const primaryColor = colors.palette.find((c) => c.role === 'primary');
+      const primaryColor = colors.palette.find((c) => c.role === "primary");
       expect(primaryColor).toBeDefined();
     });
 
-    it('should identify background color', () => {
+    it("should identify background color", () => {
       const colors = extractColors(sampleHtmlWithColors);
       expect(colors.background).toBeDefined();
       // 白系の色がbackgroundとして識別される
       expect(colors.background.toUpperCase()).toMatch(/#F{6}|#FFFFFF/);
     });
 
-    it('should identify text color', () => {
+    it("should identify text color", () => {
       const colors = extractColors(sampleHtmlWithColors);
       expect(colors.text).toBeDefined();
       // 黒系の色がtextとして識別される
       expect(colors.text).toMatch(/#(000000|1[0-9A-F]{5})/i);
     });
 
-    it('should convert rgb to hex', () => {
+    it("should convert rgb to hex", () => {
       // rgb(17, 24, 39) -> #111827
       const colors = extractColors(sampleHtmlWithColors);
-      const hasConvertedColor = colors.palette.some(
-        (c) => c.hex.toUpperCase() === '#111827'
-      );
+      const hasConvertedColor = colors.palette.some((c) => c.hex.toUpperCase() === "#111827");
       expect(hasConvertedColor).toBe(true);
     });
 
-    it('should set dominant color', () => {
+    it("should set dominant color", () => {
       const colors = extractColors(sampleHtmlWithColors);
       expect(colors.dominant).toBeDefined();
       expect(colors.dominant).toMatch(/^#[0-9A-F]{6}$/i);
     });
 
-    it('should return default colors for minimal html', () => {
+    it("should return default colors for minimal html", () => {
       const colors = extractColors(minimalHtml);
       // 色情報がない場合はデフォルト値
       expect(colors.dominant).toBeDefined();
@@ -627,39 +625,39 @@ describe('inspect.utils.ts', () => {
     });
   });
 
-  describe('analyzeTypography', () => {
-    it('should extract font families', () => {
+  describe("analyzeTypography", () => {
+    it("should extract font families", () => {
       const typography = analyzeTypography(sampleHtmlWithTypography);
       expect(typography.fonts.length).toBeGreaterThan(0);
       const fontNames = typography.fonts.map((f) => f.family);
-      expect(fontNames).toContain('Roboto');
+      expect(fontNames).toContain("Roboto");
     });
 
-    it('should extract font weights', () => {
+    it("should extract font weights", () => {
       const typography = analyzeTypography(sampleHtmlWithTypography);
-      const roboto = typography.fonts.find((f) => f.family === 'Roboto');
+      const roboto = typography.fonts.find((f) => f.family === "Roboto");
       expect(roboto?.weights).toBeDefined();
       expect(roboto?.weights).toContain(700);
     });
 
-    it('should extract heading scale', () => {
+    it("should extract heading scale", () => {
       const typography = analyzeTypography(sampleHtmlWithTypography);
       expect(typography.headingScale.length).toBeGreaterThan(0);
       // h1 = 64
       expect(typography.headingScale[0]).toBe(64);
     });
 
-    it('should extract body size', () => {
+    it("should extract body size", () => {
       const typography = analyzeTypography(sampleHtmlWithTypography);
       expect(typography.bodySize).toBe(18);
     });
 
-    it('should extract line height', () => {
+    it("should extract line height", () => {
       const typography = analyzeTypography(sampleHtmlWithTypography);
       expect(typography.lineHeight).toBe(1.75);
     });
 
-    it('should return default values for minimal html', () => {
+    it("should return default values for minimal html", () => {
       const typography = analyzeTypography(minimalHtml);
       // デフォルト値
       expect(typography.fonts.length).toBeGreaterThan(0);
@@ -667,97 +665,97 @@ describe('inspect.utils.ts', () => {
       expect(typography.lineHeight).toBe(1.5);
     });
 
-    it('should provide default heading scale when not found', () => {
+    it("should provide default heading scale when not found", () => {
       const typography = analyzeTypography(minimalHtml);
       expect(typography.headingScale.length).toBe(6);
       expect(typography.headingScale).toEqual([48, 36, 24, 20, 18, 16]);
     });
   });
 
-  describe('detectGrid', () => {
-    it('should detect CSS Grid layout', () => {
+  describe("detectGrid", () => {
+    it("should detect CSS Grid layout", () => {
       const grid = detectGrid(sampleHtmlWithGrid);
-      expect(grid.type).toBe('grid');
+      expect(grid.type).toBe("grid");
     });
 
-    it('should extract grid columns', () => {
+    it("should extract grid columns", () => {
       const grid = detectGrid(sampleHtmlWithGrid);
       expect(grid.columns).toBe(4);
     });
 
-    it('should extract grid gap (gutter width)', () => {
+    it("should extract grid gap (gutter width)", () => {
       const grid = detectGrid(sampleHtmlWithGrid);
       expect(grid.gutterWidth).toBe(16);
     });
 
-    it('should extract max width', () => {
+    it("should extract max width", () => {
       const grid = detectGrid(sampleHtmlWithGrid);
       expect(grid.maxWidth).toBe(1280);
     });
 
-    it('should have breakpoints as undefined or empty when no media queries', () => {
+    it("should have breakpoints as undefined or empty when no media queries", () => {
       // インラインスタイルではメディアクエリを指定できないため、
       // ブレイクポイントは undefined または空配列
       const grid = detectGrid(sampleHtmlWithGrid);
       expect(grid.breakpoints === undefined || grid.breakpoints?.length === 0).toBe(true);
     });
 
-    it('should detect Flexbox layout', () => {
+    it("should detect Flexbox layout", () => {
       const grid = detectGrid(sampleHtmlWithFlex);
-      expect(grid.type).toBe('flex');
+      expect(grid.type).toBe("flex");
     });
 
-    it('should extract flex gap', () => {
+    it("should extract flex gap", () => {
       const grid = detectGrid(sampleHtmlWithFlex);
       expect(grid.gutterWidth).toBe(20);
     });
 
-    it('should return unknown for minimal html', () => {
+    it("should return unknown for minimal html", () => {
       const grid = detectGrid(minimalHtml);
-      expect(grid.type).toBe('unknown');
+      expect(grid.type).toBe("unknown");
     });
 
-    it('should detect float layout', () => {
+    it("should detect float layout", () => {
       // DOMPurifyは<style>タグを削除するため、インラインスタイルを使用
       const floatHtml = '<div style="float: left;">Sidebar</div>';
       const grid = detectGrid(floatHtml);
-      expect(grid.type).toBe('float');
+      expect(grid.type).toBe("float");
     });
   });
 
-  describe('generateTextRepresentation', () => {
-    it('should generate text representation for embedding', () => {
+  describe("generateTextRepresentation", () => {
+    it("should generate text representation for embedding", () => {
       const data: LayoutInspectData = {
         sections: [
           {
-            id: 'section-0',
-            type: 'hero',
+            id: "section-0",
+            type: "hero",
             confidence: 0.95,
             position: { startY: 0, endY: 600, height: 600 },
             content: {
-              headings: [{ level: 1, text: 'Welcome' }],
+              headings: [{ level: 1, text: "Welcome" }],
               paragraphs: [],
               links: [],
               images: [],
-              buttons: [{ text: 'Get Started', type: 'primary' }],
+              buttons: [{ text: "Get Started", type: "primary" }],
             },
             style: {},
           },
         ],
         colors: {
           palette: [],
-          dominant: '#3B82F6',
-          background: '#FFFFFF',
-          text: '#000000',
+          dominant: "#3B82F6",
+          background: "#FFFFFF",
+          text: "#000000",
         },
         typography: {
-          fonts: [{ family: 'Inter', weights: [400] }],
+          fonts: [{ family: "Inter", weights: [400] }],
           headingScale: [],
           bodySize: 16,
           lineHeight: 1.5,
         },
-        grid: { type: 'grid', columns: 12 },
-        textRepresentation: '',
+        grid: { type: "grid", columns: 12 },
+        textRepresentation: "",
       };
 
       const text = generateTextRepresentation(data);
@@ -765,12 +763,12 @@ describe('inspect.utils.ts', () => {
       expect(text.length).toBeGreaterThan(0);
     });
 
-    it('should include section types in text representation', () => {
+    it("should include section types in text representation", () => {
       const data: LayoutInspectData = {
         sections: [
           {
-            id: 'section-0',
-            type: 'hero',
+            id: "section-0",
+            type: "hero",
             confidence: 0.9,
             position: { startY: 0, endY: 400, height: 400 },
             content: {
@@ -783,8 +781,8 @@ describe('inspect.utils.ts', () => {
             style: {},
           },
           {
-            id: 'section-1',
-            type: 'features',
+            id: "section-1",
+            type: "features",
             confidence: 0.85,
             position: { startY: 400, endY: 800, height: 400 },
             content: {
@@ -799,9 +797,9 @@ describe('inspect.utils.ts', () => {
         ],
         colors: {
           palette: [],
-          dominant: '#000000',
-          background: '#FFFFFF',
-          text: '#000000',
+          dominant: "#000000",
+          background: "#FFFFFF",
+          text: "#000000",
         },
         typography: {
           fonts: [],
@@ -809,23 +807,23 @@ describe('inspect.utils.ts', () => {
           bodySize: 16,
           lineHeight: 1.5,
         },
-        grid: { type: 'unknown' },
-        textRepresentation: '',
+        grid: { type: "unknown" },
+        textRepresentation: "",
       };
 
       const text = generateTextRepresentation(data);
-      expect(text).toContain('hero');
-      expect(text).toContain('features');
+      expect(text).toContain("hero");
+      expect(text).toContain("features");
     });
 
-    it('should include color information', () => {
+    it("should include color information", () => {
       const data: LayoutInspectData = {
         sections: [],
         colors: {
           palette: [],
-          dominant: '#3B82F6',
-          background: '#FFFFFF',
-          text: '#000000',
+          dominant: "#3B82F6",
+          background: "#FFFFFF",
+          text: "#000000",
         },
         typography: {
           fonts: [],
@@ -833,46 +831,46 @@ describe('inspect.utils.ts', () => {
           bodySize: 16,
           lineHeight: 1.5,
         },
-        grid: { type: 'unknown' },
-        textRepresentation: '',
+        grid: { type: "unknown" },
+        textRepresentation: "",
       };
 
       const text = generateTextRepresentation(data);
-      expect(text).toContain('#3B82F6');
-      expect(text).toContain('#FFFFFF');
+      expect(text).toContain("#3B82F6");
+      expect(text).toContain("#FFFFFF");
     });
 
-    it('should include typography information', () => {
+    it("should include typography information", () => {
       const data: LayoutInspectData = {
         sections: [],
         colors: {
           palette: [],
-          dominant: '#000000',
-          background: '#FFFFFF',
-          text: '#000000',
+          dominant: "#000000",
+          background: "#FFFFFF",
+          text: "#000000",
         },
         typography: {
-          fonts: [{ family: 'Inter', weights: [400] }],
+          fonts: [{ family: "Inter", weights: [400] }],
           headingScale: [],
           bodySize: 16,
           lineHeight: 1.5,
         },
-        grid: { type: 'unknown' },
-        textRepresentation: '',
+        grid: { type: "unknown" },
+        textRepresentation: "",
       };
 
       const text = generateTextRepresentation(data);
-      expect(text).toContain('Inter');
+      expect(text).toContain("Inter");
     });
 
-    it('should include grid information', () => {
+    it("should include grid information", () => {
       const data: LayoutInspectData = {
         sections: [],
         colors: {
           palette: [],
-          dominant: '#000000',
-          background: '#FFFFFF',
-          text: '#000000',
+          dominant: "#000000",
+          background: "#FFFFFF",
+          text: "#000000",
         },
         typography: {
           fonts: [],
@@ -880,13 +878,13 @@ describe('inspect.utils.ts', () => {
           bodySize: 16,
           lineHeight: 1.5,
         },
-        grid: { type: 'grid', columns: 12 },
-        textRepresentation: '',
+        grid: { type: "grid", columns: 12 },
+        textRepresentation: "",
       };
 
       const text = generateTextRepresentation(data);
-      expect(text).toContain('grid');
-      expect(text).toContain('12');
+      expect(text).toContain("grid");
+      expect(text).toContain("12");
     });
   });
 });
@@ -895,7 +893,7 @@ describe('inspect.utils.ts', () => {
 // 3. ハンドラーテスト (inspect.tool.ts 用)
 // =====================================================
 
-describe('inspect.tool.ts', () => {
+describe("inspect.tool.ts", () => {
   beforeEach(() => {
     // 各テスト前にサービスファクトリをリセット
     resetLayoutInspectServiceFactory();
@@ -906,8 +904,8 @@ describe('inspect.tool.ts', () => {
     resetLayoutInspectServiceFactory();
   });
 
-  describe('layoutInspectHandler - 正常系', () => {
-    it('should analyze html and return success', async () => {
+  describe("layoutInspectHandler - 正常系", () => {
+    it("should analyze html and return success", async () => {
       const result = await layoutInspectHandler({
         html: sampleHtmlWithHero,
       });
@@ -922,7 +920,7 @@ describe('inspect.tool.ts', () => {
       }
     });
 
-    it('should detect sections when detectSections is true', async () => {
+    it("should detect sections when detectSections is true", async () => {
       const result = await layoutInspectHandler({
         html: sampleHtmlWithHero,
         options: { detectSections: true },
@@ -934,7 +932,7 @@ describe('inspect.tool.ts', () => {
       }
     });
 
-    it('should not detect sections when detectSections is false', async () => {
+    it("should not detect sections when detectSections is false", async () => {
       const result = await layoutInspectHandler({
         html: sampleHtmlWithHero,
         options: { detectSections: false },
@@ -946,7 +944,7 @@ describe('inspect.tool.ts', () => {
       }
     });
 
-    it('should extract colors when extractColors is true', async () => {
+    it("should extract colors when extractColors is true", async () => {
       const result = await layoutInspectHandler({
         html: sampleHtmlWithColors,
         options: { extractColors: true },
@@ -958,7 +956,7 @@ describe('inspect.tool.ts', () => {
       }
     });
 
-    it('should return default colors when extractColors is false', async () => {
+    it("should return default colors when extractColors is false", async () => {
       const result = await layoutInspectHandler({
         html: sampleHtmlWithColors,
         options: { extractColors: false },
@@ -967,12 +965,12 @@ describe('inspect.tool.ts', () => {
       expect(result.success).toBe(true);
       if (result.success) {
         expect(result.data.colors.palette).toEqual([]);
-        expect(result.data.colors.dominant).toBe('#000000');
-        expect(result.data.colors.background).toBe('#FFFFFF');
+        expect(result.data.colors.dominant).toBe("#000000");
+        expect(result.data.colors.background).toBe("#FFFFFF");
       }
     });
 
-    it('should analyze typography when analyzeTypography is true', async () => {
+    it("should analyze typography when analyzeTypography is true", async () => {
       const result = await layoutInspectHandler({
         html: sampleHtmlWithTypography,
         options: { analyzeTypography: true },
@@ -984,7 +982,7 @@ describe('inspect.tool.ts', () => {
       }
     });
 
-    it('should detect grid when detectGrid is true', async () => {
+    it("should detect grid when detectGrid is true", async () => {
       const result = await layoutInspectHandler({
         html: sampleHtmlWithGrid,
         options: { detectGrid: true },
@@ -992,11 +990,11 @@ describe('inspect.tool.ts', () => {
 
       expect(result.success).toBe(true);
       if (result.success) {
-        expect(result.data.grid.type).toBe('grid');
+        expect(result.data.grid.type).toBe("grid");
       }
     });
 
-    it('should generate text representation', async () => {
+    it("should generate text representation", async () => {
       const result = await layoutInspectHandler({
         html: sampleHtmlWithHero,
       });
@@ -1008,8 +1006,8 @@ describe('inspect.tool.ts', () => {
     });
   });
 
-  describe('layoutInspectHandler - ID入力時', () => {
-    it('should fetch html from service when id is provided', async () => {
+  describe("layoutInspectHandler - ID入力時", () => {
+    it("should fetch html from service when id is provided", async () => {
       // モックサービスを設定
       const mockService: ILayoutInspectService = {
         getWebPageById: vi.fn().mockResolvedValue({
@@ -1028,7 +1026,7 @@ describe('inspect.tool.ts', () => {
       expect(mockService.getWebPageById).toHaveBeenCalledWith(validUuid);
     });
 
-    it('should return NOT_FOUND when webpage is not found', async () => {
+    it("should return NOT_FOUND when webpage is not found", async () => {
       // モックサービスを設定（null返却）
       const mockService: ILayoutInspectService = {
         getWebPageById: vi.fn().mockResolvedValue(null),
@@ -1042,11 +1040,11 @@ describe('inspect.tool.ts', () => {
 
       expect(result.success).toBe(false);
       if (!result.success) {
-        expect(result.error.code).toBe('NOT_FOUND');
+        expect(result.error.code).toBe("NOT_FOUND");
       }
     });
 
-    it('should return SERVICE_UNAVAILABLE when service is not available', async () => {
+    it("should return SERVICE_UNAVAILABLE when service is not available", async () => {
       // サービスファクトリを設定しない（null）
 
       const result = await layoutInspectHandler({
@@ -1055,11 +1053,11 @@ describe('inspect.tool.ts', () => {
 
       expect(result.success).toBe(false);
       if (!result.success) {
-        expect(result.error.code).toBe('SERVICE_UNAVAILABLE');
+        expect(result.error.code).toBe("SERVICE_UNAVAILABLE");
       }
     });
 
-    it('should include webPageId in response when fetched from service', async () => {
+    it("should include webPageId in response when fetched from service", async () => {
       // モックサービスを設定
       const mockService: ILayoutInspectService = {
         getWebPageById: vi.fn().mockResolvedValue({
@@ -1081,8 +1079,8 @@ describe('inspect.tool.ts', () => {
     });
   });
 
-  describe('layoutInspectHandler - 入力バリデーションエラー', () => {
-    it('should return VALIDATION_ERROR for invalid input', async () => {
+  describe("layoutInspectHandler - 入力バリデーションエラー", () => {
+    it("should return VALIDATION_ERROR for invalid input", async () => {
       const result = await layoutInspectHandler({
         // idもhtmlも指定されていない
         options: { detectSections: true },
@@ -1090,60 +1088,60 @@ describe('inspect.tool.ts', () => {
 
       expect(result.success).toBe(false);
       if (!result.success) {
-        expect(result.error.code).toBe('VALIDATION_ERROR');
+        expect(result.error.code).toBe("VALIDATION_ERROR");
       }
     });
 
-    it('should return VALIDATION_ERROR for empty html', async () => {
+    it("should return VALIDATION_ERROR for empty html", async () => {
       const result = await layoutInspectHandler({
-        html: '',
+        html: "",
       });
 
       expect(result.success).toBe(false);
       if (!result.success) {
-        expect(result.error.code).toBe('VALIDATION_ERROR');
+        expect(result.error.code).toBe("VALIDATION_ERROR");
       }
     });
 
-    it('should return VALIDATION_ERROR for invalid uuid', async () => {
+    it("should return VALIDATION_ERROR for invalid uuid", async () => {
       const result = await layoutInspectHandler({
-        id: 'not-a-valid-uuid',
+        id: "not-a-valid-uuid",
       });
 
       expect(result.success).toBe(false);
       if (!result.success) {
-        expect(result.error.code).toBe('VALIDATION_ERROR');
+        expect(result.error.code).toBe("VALIDATION_ERROR");
       }
     });
 
-    it('should return VALIDATION_ERROR for null input', async () => {
+    it("should return VALIDATION_ERROR for null input", async () => {
       const result = await layoutInspectHandler(null);
 
       expect(result.success).toBe(false);
       if (!result.success) {
-        expect(result.error.code).toBe('VALIDATION_ERROR');
+        expect(result.error.code).toBe("VALIDATION_ERROR");
       }
     });
 
-    it('should return VALIDATION_ERROR for undefined input', async () => {
+    it("should return VALIDATION_ERROR for undefined input", async () => {
       const result = await layoutInspectHandler(undefined);
 
       expect(result.success).toBe(false);
       if (!result.success) {
-        expect(result.error.code).toBe('VALIDATION_ERROR');
+        expect(result.error.code).toBe("VALIDATION_ERROR");
       }
     });
   });
 
-  describe('layoutInspectHandler - Vision API連携', () => {
-    it('should call vision API when useVision is true', async () => {
+  describe("layoutInspectHandler - Vision API連携", () => {
+    it("should call vision API when useVision is true", async () => {
       // モックサービスを設定
       const mockService: ILayoutInspectService = {
         analyzeWithVision: vi.fn().mockResolvedValue({
           success: true,
-          features: ['feature1', 'feature2'],
+          features: ["feature1", "feature2"],
           processingTimeMs: 100,
-          modelName: 'test-model',
+          modelName: "test-model",
         }),
       };
 
@@ -1161,12 +1159,10 @@ describe('inspect.tool.ts', () => {
       }
     });
 
-    it('should handle vision API error gracefully', async () => {
+    it("should handle vision API error gracefully", async () => {
       // モックサービスを設定（エラーをスロー）
       const mockService: ILayoutInspectService = {
-        analyzeWithVision: vi
-          .fn()
-          .mockRejectedValue(new Error('Vision API error')),
+        analyzeWithVision: vi.fn().mockRejectedValue(new Error("Vision API error")),
       };
 
       setLayoutInspectServiceFactory(() => mockService);
@@ -1184,7 +1180,7 @@ describe('inspect.tool.ts', () => {
       }
     });
 
-    it('should not call vision API when useVision is false', async () => {
+    it("should not call vision API when useVision is false", async () => {
       // モックサービスを設定
       const mockService: ILayoutInspectService = {
         analyzeWithVision: vi.fn(),
@@ -1202,11 +1198,11 @@ describe('inspect.tool.ts', () => {
     });
   });
 
-  describe('layoutInspectHandler - DB エラー', () => {
-    it('should return DB_ERROR when database throws error', async () => {
+  describe("layoutInspectHandler - DB エラー", () => {
+    it("should return DB_ERROR when database throws error", async () => {
       // モックサービスを設定（エラーをスロー）
       const mockService: ILayoutInspectService = {
-        getWebPageById: vi.fn().mockRejectedValue(new Error('Database error')),
+        getWebPageById: vi.fn().mockRejectedValue(new Error("Database error")),
       };
 
       setLayoutInspectServiceFactory(() => mockService);
@@ -1217,35 +1213,35 @@ describe('inspect.tool.ts', () => {
 
       expect(result.success).toBe(false);
       if (!result.success) {
-        expect(result.error.code).toBe('DB_ERROR');
+        expect(result.error.code).toBe("DB_ERROR");
       }
     });
   });
 
-  describe('layoutInspectToolDefinition', () => {
-    it('should have correct tool name', () => {
-      expect(layoutInspectToolDefinition.name).toBe('layout.inspect');
+  describe("layoutInspectToolDefinition", () => {
+    it("should have correct tool name", () => {
+      expect(layoutInspectToolDefinition.name).toBe("layout.inspect");
     });
 
-    it('should have description', () => {
+    it("should have description", () => {
       expect(layoutInspectToolDefinition.description).toBeDefined();
       expect(layoutInspectToolDefinition.description.length).toBeGreaterThan(0);
     });
 
-    it('should have valid input schema', () => {
+    it("should have valid input schema", () => {
       expect(layoutInspectToolDefinition.inputSchema).toBeDefined();
-      expect(layoutInspectToolDefinition.inputSchema.type).toBe('object');
+      expect(layoutInspectToolDefinition.inputSchema.type).toBe("object");
     });
 
-    it('should define id property in input schema', () => {
+    it("should define id property in input schema", () => {
       expect(layoutInspectToolDefinition.inputSchema.properties?.id).toBeDefined();
     });
 
-    it('should define html property in input schema', () => {
+    it("should define html property in input schema", () => {
       expect(layoutInspectToolDefinition.inputSchema.properties?.html).toBeDefined();
     });
 
-    it('should define options property in input schema', () => {
+    it("should define options property in input schema", () => {
       expect(layoutInspectToolDefinition.inputSchema.properties?.options).toBeDefined();
     });
   });
@@ -1255,46 +1251,46 @@ describe('inspect.tool.ts', () => {
 // 4. インポートテスト (index.ts 用)
 // =====================================================
 
-describe('index.ts - Public Exports', () => {
-  it('should export layoutInspectInputSchema', () => {
+describe("index.ts - Public Exports", () => {
+  it("should export layoutInspectInputSchema", () => {
     expect(inspectModule.layoutInspectInputSchema).toBeDefined();
   });
 
-  it('should export layoutInspectOutputSchema', () => {
+  it("should export layoutInspectOutputSchema", () => {
     expect(inspectModule.layoutInspectOutputSchema).toBeDefined();
   });
 
-  it('should export layoutInspectHandler', () => {
+  it("should export layoutInspectHandler", () => {
     expect(inspectModule.layoutInspectHandler).toBeDefined();
-    expect(typeof inspectModule.layoutInspectHandler).toBe('function');
+    expect(typeof inspectModule.layoutInspectHandler).toBe("function");
   });
 
-  it('should export layoutInspectToolDefinition', () => {
+  it("should export layoutInspectToolDefinition", () => {
     expect(inspectModule.layoutInspectToolDefinition).toBeDefined();
-    expect(inspectModule.layoutInspectToolDefinition.name).toBe('layout.inspect');
+    expect(inspectModule.layoutInspectToolDefinition.name).toBe("layout.inspect");
   });
 
-  it('should export sectionTypeSchema', () => {
+  it("should export sectionTypeSchema", () => {
     expect(inspectModule.sectionTypeSchema).toBeDefined();
   });
 
-  it('should export sectionInfoSchema', () => {
+  it("should export sectionInfoSchema", () => {
     expect(inspectModule.sectionInfoSchema).toBeDefined();
   });
 
-  it('should export colorPaletteInfoSchema', () => {
+  it("should export colorPaletteInfoSchema", () => {
     expect(inspectModule.colorPaletteInfoSchema).toBeDefined();
   });
 
-  it('should export typographyInfoSchema', () => {
+  it("should export typographyInfoSchema", () => {
     expect(inspectModule.typographyInfoSchema).toBeDefined();
   });
 
-  it('should export gridInfoSchema', () => {
+  it("should export gridInfoSchema", () => {
     expect(inspectModule.gridInfoSchema).toBeDefined();
   });
 
-  it('should export utility functions', () => {
+  it("should export utility functions", () => {
     expect(inspectModule.detectSections).toBeDefined();
     expect(inspectModule.extractColors).toBeDefined();
     expect(inspectModule.analyzeTypography).toBeDefined();
@@ -1302,18 +1298,18 @@ describe('index.ts - Public Exports', () => {
     expect(inspectModule.generateTextRepresentation).toBeDefined();
   });
 
-  it('should export service factory functions', () => {
+  it("should export service factory functions", () => {
     expect(inspectModule.setLayoutInspectServiceFactory).toBeDefined();
     expect(inspectModule.resetLayoutInspectServiceFactory).toBeDefined();
   });
 
   // 型のエクスポートは実行時には確認できないため、
   // コンパイル時の型チェックに依存
-  it('should compile with exported types', () => {
+  it("should compile with exported types", () => {
     // このテストはコンパイルが成功すれば通過
     // 型定義が正しくエクスポートされていることを確認
     const _input: LayoutInspectInput = {
-      html: '<div>test</div>',
+      html: "<div>test</div>",
     };
     expect(_input).toBeDefined();
   });
@@ -1323,8 +1319,8 @@ describe('index.ts - Public Exports', () => {
 // 5. 統合テスト
 // =====================================================
 
-describe('Integration Tests', () => {
-  it('should process complete html and return all analysis results', async () => {
+describe("Integration Tests", () => {
+  it("should process complete html and return all analysis results", async () => {
     const result = await layoutInspectHandler({
       html: sampleHtmlWithHero,
       options: {
@@ -1356,7 +1352,7 @@ describe('Integration Tests', () => {
     }
   });
 
-  it('should handle all options disabled', async () => {
+  it("should handle all options disabled", async () => {
     const result = await layoutInspectHandler({
       html: sampleHtmlWithHero,
       options: {
@@ -1373,7 +1369,7 @@ describe('Integration Tests', () => {
       expect(result.data.sections).toEqual([]);
       expect(result.data.colors.palette).toEqual([]);
       expect(result.data.typography.fonts).toEqual([]);
-      expect(result.data.grid.type).toBe('unknown');
+      expect(result.data.grid.type).toBe("unknown");
     }
   });
 });
@@ -1382,8 +1378,8 @@ describe('Integration Tests', () => {
 // テストカバレッジサマリー
 // =====================================================
 
-describe('Test Coverage Summary', () => {
-  it('should have comprehensive test coverage for TDD Red phase', () => {
+describe("Test Coverage Summary", () => {
+  it("should have comprehensive test coverage for TDD Red phase", () => {
     // このテストはTDD Redフェーズのテストファイルが
     // 必要な全てのテストケースを含んでいることを確認するメタテスト
     //

@@ -1,8 +1,8 @@
 // SPDX-FileCopyrightText: 2026 TKMD and Reftrix Contributors
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import { defineConfig } from 'vitest/config';
-import path from 'path';
+import { defineConfig } from "vitest/config";
+import path from "path";
 
 /**
  * Vitest Smoke Test Configuration
@@ -17,24 +17,24 @@ import path from 'path';
  */
 export default defineConfig({
   test: {
-    name: 'smoke',
+    name: "smoke",
     globals: true,
-    environment: 'node',
-    pool: 'forks',
+    environment: "node",
+    pool: "forks",
     maxWorkers: 3, // メモリ枯渇防止: 各ワーカー約3.5GB消費
-    include: ['tests/smoke/**/*.test.ts'],
-    exclude: ['node_modules', 'dist'],
+    include: ["tests/smoke/**/*.test.ts"],
+    exclude: ["node_modules", "dist"],
     // スモークテストは高速実行（10秒タイムアウト）
     testTimeout: 10000,
     hookTimeout: 10000,
     env: {
-      NODE_ENV: 'test',
-      MCP_SKIP_RATE_LIMIT: 'true',
+      NODE_ENV: "test",
+      MCP_SKIP_RATE_LIMIT: "true",
     },
   },
   resolve: {
     alias: {
-      '@': path.resolve(__dirname, './src'),
+      "@": path.resolve(__dirname, "./src"),
     },
   },
 });

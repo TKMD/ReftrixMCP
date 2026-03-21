@@ -8,37 +8,34 @@
  * @module tests/tools/project-get.test
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 // project.get MCPツールハンドラーとツール定義をインポート
 // （実装後に動作するようになる）
-import {
-  projectGetHandler,
-  projectGetToolDefinition,
-} from '../../src/tools/project-get';
+import { projectGetHandler, projectGetToolDefinition } from "../../src/tools/project-get";
 import {
   projectGetInputSchema,
   type ProjectGetInput,
-} from '../../src/tools/schemas/project-schemas';
+} from "../../src/tools/schemas/project-schemas";
 
 // =============================================================================
 // テストデータ
 // =============================================================================
 
-const validProjectId = '123e4567-e89b-12d3-a456-426614174000';
-const invalidProjectId = 'not-a-uuid';
+const validProjectId = "123e4567-e89b-12d3-a456-426614174000";
+const invalidProjectId = "not-a-uuid";
 
 const mockProjectResponse = {
   id: validProjectId,
-  name: 'Test Project',
-  slug: 'test-project',
-  description: 'A test project for TDD',
-  status: 'draft',
-  createdAt: '2025-01-01T00:00:00.000Z',
-  updatedAt: '2025-01-02T00:00:00.000Z',
+  name: "Test Project",
+  slug: "test-project",
+  description: "A test project for TDD",
+  status: "draft",
+  createdAt: "2025-01-01T00:00:00.000Z",
+  updatedAt: "2025-01-02T00:00:00.000Z",
   // [DELETED Phase 1] pages removed (ProjectPage table deleted)
   brandSetting: {
-    id: '789e0123-e89b-12d3-a456-426614174002',
+    id: "789e0123-e89b-12d3-a456-426614174002",
     brandId: null,
     paletteId: null,
   },
@@ -48,53 +45,53 @@ const mockProjectResponse = {
 // 入力スキーマテスト
 // =============================================================================
 
-describe('projectGetInputSchema', () => {
-  describe('有効な入力', () => {
+describe("projectGetInputSchema", () => {
+  describe("有効な入力", () => {
     // P1-PERF-3: LLM最適化のためsummaryデフォルトはtrue
-    it('IDのみの入力を受け付ける', () => {
+    it("IDのみの入力を受け付ける", () => {
       const input = { id: validProjectId };
       const result = projectGetInputSchema.parse(input);
       expect(result.id).toBe(validProjectId);
       expect(result.summary).toBe(true); // デフォルト（LLM最適化）
     });
 
-    it('summary=trueの入力を受け付ける', () => {
+    it("summary=trueの入力を受け付ける", () => {
       const input = { id: validProjectId, summary: true };
       const result = projectGetInputSchema.parse(input);
       expect(result.id).toBe(validProjectId);
       expect(result.summary).toBe(true);
     });
 
-    it('summary=falseの入力を受け付ける', () => {
+    it("summary=falseの入力を受け付ける", () => {
       const input = { id: validProjectId, summary: false };
       const result = projectGetInputSchema.parse(input);
       expect(result.summary).toBe(false);
     });
   });
 
-  describe('無効な入力', () => {
-    it('idが空の場合エラー', () => {
-      const input = { id: '' };
+  describe("無効な入力", () => {
+    it("idが空の場合エラー", () => {
+      const input = { id: "" };
       expect(() => projectGetInputSchema.parse(input)).toThrow();
     });
 
-    it('idがnullの場合エラー', () => {
+    it("idがnullの場合エラー", () => {
       const input = { id: null };
       expect(() => projectGetInputSchema.parse(input)).toThrow();
     });
 
-    it('idがundefinedの場合エラー', () => {
+    it("idがundefinedの場合エラー", () => {
       const input = {};
       expect(() => projectGetInputSchema.parse(input)).toThrow();
     });
 
-    it('idが無効なUUID形式の場合エラー', () => {
+    it("idが無効なUUID形式の場合エラー", () => {
       const input = { id: invalidProjectId };
       expect(() => projectGetInputSchema.parse(input)).toThrow();
     });
 
-    it('summaryが文字列の場合エラー', () => {
-      const input = { id: validProjectId, summary: 'true' };
+    it("summaryが文字列の場合エラー", () => {
+      const input = { id: validProjectId, summary: "true" };
       expect(() => projectGetInputSchema.parse(input)).toThrow();
     });
   });
@@ -104,34 +101,34 @@ describe('projectGetInputSchema', () => {
 // ツール定義テスト
 // =============================================================================
 
-describe('projectGetToolDefinition', () => {
-  it('正しいツール名を持つ', () => {
-    expect(projectGetToolDefinition.name).toBe('project.get');
+describe("projectGetToolDefinition", () => {
+  it("正しいツール名を持つ", () => {
+    expect(projectGetToolDefinition.name).toBe("project.get");
   });
 
-  it('descriptionが設定されている', () => {
+  it("descriptionが設定されている", () => {
     expect(projectGetToolDefinition.description).toBeDefined();
-    expect(typeof projectGetToolDefinition.description).toBe('string');
+    expect(typeof projectGetToolDefinition.description).toBe("string");
     expect(projectGetToolDefinition.description.length).toBeGreaterThan(0);
   });
 
-  it('inputSchemaがobject型', () => {
-    expect(projectGetToolDefinition.inputSchema.type).toBe('object');
+  it("inputSchemaがobject型", () => {
+    expect(projectGetToolDefinition.inputSchema.type).toBe("object");
   });
 
-  it('idが必須プロパティ', () => {
-    expect(projectGetToolDefinition.inputSchema.required).toContain('id');
+  it("idが必須プロパティ", () => {
+    expect(projectGetToolDefinition.inputSchema.required).toContain("id");
   });
 
-  it('プロパティを含む', () => {
+  it("プロパティを含む", () => {
     const { properties } = projectGetToolDefinition.inputSchema;
-    expect(properties).toHaveProperty('id');
-    expect(properties).toHaveProperty('summary');
+    expect(properties).toHaveProperty("id");
+    expect(properties).toHaveProperty("summary");
   });
 
-  it('idプロパティがUUID形式', () => {
+  it("idプロパティがUUID形式", () => {
     const { properties } = projectGetToolDefinition.inputSchema;
-    expect(properties.id.format).toBe('uuid');
+    expect(properties.id.format).toBe("uuid");
   });
 });
 
@@ -139,7 +136,7 @@ describe('projectGetToolDefinition', () => {
 // ハンドラーテスト
 // =============================================================================
 
-describe('projectGetHandler', () => {
+describe("projectGetHandler", () => {
   let fetchMock: ReturnType<typeof vi.fn>;
 
   beforeEach(() => {
@@ -152,9 +149,9 @@ describe('projectGetHandler', () => {
     vi.restoreAllMocks();
   });
 
-  describe('正常系: プロジェクト取得', () => {
+  describe("正常系: プロジェクト取得", () => {
     // P1-PERF-3: デフォルトsummary=trueなので、フル詳細取得時はsummary=falseを明示
-    it('有効なIDでプロジェクト詳細を取得する', async () => {
+    it("有効なIDでプロジェクト詳細を取得する", async () => {
       // Arrange
       fetchMock.mockResolvedValueOnce({
         ok: true,
@@ -171,18 +168,18 @@ describe('projectGetHandler', () => {
       expect(result.metadata?.request_id).toBeDefined();
       if (result.success) {
         expect(result.data.id).toBe(validProjectId);
-        expect(result.data.name).toBe('Test Project');
-        expect(result.data.slug).toBe('test-project');
-        expect(result.data.description).toBe('A test project for TDD');
-        expect(result.data.status).toBe('draft');
-        expect(result.data.createdAt).toBe('2025-01-01T00:00:00.000Z');
-        expect(result.data.updatedAt).toBe('2025-01-02T00:00:00.000Z');
+        expect(result.data.name).toBe("Test Project");
+        expect(result.data.slug).toBe("test-project");
+        expect(result.data.description).toBe("A test project for TDD");
+        expect(result.data.status).toBe("draft");
+        expect(result.data.createdAt).toBe("2025-01-01T00:00:00.000Z");
+        expect(result.data.updatedAt).toBe("2025-01-02T00:00:00.000Z");
         // [DELETED Phase 1] pages assertion removed (ProjectPage table deleted)
         expect(result.data.brandSetting).toBeDefined();
       }
     });
 
-    it('summary=trueで軽量レスポンスを返す', async () => {
+    it("summary=trueで軽量レスポンスを返す", async () => {
       // Arrange
       fetchMock.mockResolvedValueOnce({
         ok: true,
@@ -199,8 +196,8 @@ describe('projectGetHandler', () => {
       expect(result.metadata?.request_id).toBeDefined();
       if (result.success) {
         expect(result.data.id).toBe(validProjectId);
-        expect(result.data.name).toBe('Test Project');
-        expect(result.data.status).toBe('draft');
+        expect(result.data.name).toBe("Test Project");
+        expect(result.data.status).toBe("draft");
         expect((result.data as { _summary_mode?: boolean })._summary_mode).toBe(true);
 
         // summaryモードでは詳細情報が含まれない
@@ -210,7 +207,7 @@ describe('projectGetHandler', () => {
       }
     });
 
-    it('summary=falseでフルレスポンスを返す', async () => {
+    it("summary=falseでフルレスポンスを返す", async () => {
       // Arrange
       fetchMock.mockResolvedValueOnce({
         ok: true,
@@ -227,7 +224,7 @@ describe('projectGetHandler', () => {
       expect(result.metadata?.request_id).toBeDefined();
       if (result.success) {
         expect(result.data.id).toBe(validProjectId);
-        expect(result.data.name).toBe('Test Project');
+        expect(result.data.name).toBe("Test Project");
         // [DELETED Phase 1] pages assertion removed (ProjectPage table deleted)
         expect(result.data.brandSetting).toBeDefined();
         expect((result.data as { _summary_mode?: boolean })._summary_mode).toBeUndefined();
@@ -235,49 +232,49 @@ describe('projectGetHandler', () => {
     });
   });
 
-  describe('異常系: バリデーションエラー', () => {
-    it('無効なUUID形式の場合エラーレスポンスを返す', async () => {
+  describe("異常系: バリデーションエラー", () => {
+    it("無効なUUID形式の場合エラーレスポンスを返す", async () => {
       const input = { id: invalidProjectId };
       const result = await projectGetHandler(input);
 
       expect(result.success).toBe(false);
       expect(result.metadata?.request_id).toBeDefined();
       if (!result.success) {
-        expect(result.error.code).toBe('VALIDATION_ERROR');
+        expect(result.error.code).toBe("VALIDATION_ERROR");
         expect(result.error.message).toMatch(/入力バリデーションエラー/);
       }
     });
 
-    it('idが空の場合エラーレスポンスを返す', async () => {
-      const input = { id: '' };
+    it("idが空の場合エラーレスポンスを返す", async () => {
+      const input = { id: "" };
       const result = await projectGetHandler(input);
 
       expect(result.success).toBe(false);
       if (!result.success) {
-        expect(result.error.code).toBe('VALIDATION_ERROR');
+        expect(result.error.code).toBe("VALIDATION_ERROR");
       }
     });
 
-    it('入力がnullの場合エラーレスポンスを返す', async () => {
+    it("入力がnullの場合エラーレスポンスを返す", async () => {
       const result = await projectGetHandler(null);
       expect(result.success).toBe(false);
       expect(result.metadata?.request_id).toBeDefined();
     });
 
-    it('入力がundefinedの場合エラーレスポンスを返す', async () => {
+    it("入力がundefinedの場合エラーレスポンスを返す", async () => {
       const result = await projectGetHandler(undefined);
       expect(result.success).toBe(false);
       expect(result.metadata?.request_id).toBeDefined();
     });
   });
 
-  describe('異常系: 存在しないプロジェクト', () => {
-    it('存在しないIDの場合エラーレスポンスを返す', async () => {
+  describe("異常系: 存在しないプロジェクト", () => {
+    it("存在しないIDの場合エラーレスポンスを返す", async () => {
       // Arrange
       fetchMock.mockResolvedValueOnce({
         ok: false,
         status: 404,
-        text: async () => JSON.stringify({ error: { code: 'NOT_FOUND' } }),
+        text: async () => JSON.stringify({ error: { code: "NOT_FOUND" } }),
       });
 
       // Act
@@ -288,20 +285,20 @@ describe('projectGetHandler', () => {
       expect(result.success).toBe(false);
       expect(result.metadata?.request_id).toBeDefined();
       if (!result.success) {
-        expect(result.error.code).toBe('PROJECT_NOT_FOUND');
+        expect(result.error.code).toBe("PROJECT_NOT_FOUND");
         expect(result.error.message).toMatch(/プロジェクトが見つかりません/);
       }
     });
   });
 
-  describe('異常系: 認証エラー', () => {
-    it('認証されていない場合エラーレスポンスを返す', async () => {
+  describe("異常系: 認証エラー", () => {
+    it("認証されていない場合エラーレスポンスを返す", async () => {
       // Arrange
       fetchMock.mockResolvedValueOnce({
         ok: false,
         status: 401,
         text: async () =>
-          JSON.stringify({ error: { code: 'UNAUTHORIZED', message: 'Authentication required' } }),
+          JSON.stringify({ error: { code: "UNAUTHORIZED", message: "Authentication required" } }),
       });
 
       // Act
@@ -312,19 +309,19 @@ describe('projectGetHandler', () => {
       expect(result.success).toBe(false);
       expect(result.metadata?.request_id).toBeDefined();
       if (!result.success) {
-        expect(result.error.code).toBe('UNAUTHORIZED');
+        expect(result.error.code).toBe("UNAUTHORIZED");
         expect(result.error.message).toMatch(/認証が必要です/);
       }
     });
   });
 
-  describe('異常系: APIエラー', () => {
-    it('サーバーエラーの場合エラーレスポンスを返す', async () => {
+  describe("異常系: APIエラー", () => {
+    it("サーバーエラーの場合エラーレスポンスを返す", async () => {
       // Arrange
       fetchMock.mockResolvedValueOnce({
         ok: false,
         status: 500,
-        text: async () => 'Internal Server Error',
+        text: async () => "Internal Server Error",
       });
 
       // Act
@@ -335,14 +332,14 @@ describe('projectGetHandler', () => {
       expect(result.success).toBe(false);
       expect(result.metadata?.request_id).toBeDefined();
       if (!result.success) {
-        expect(result.error.code).toBe('INTERNAL_ERROR');
+        expect(result.error.code).toBe("INTERNAL_ERROR");
         expect(result.error.message).toMatch(/エラーが発生しました/);
       }
     });
 
-    it('ネットワークエラーの場合エラーレスポンスを返す', async () => {
+    it("ネットワークエラーの場合エラーレスポンスを返す", async () => {
       // Arrange
-      fetchMock.mockRejectedValueOnce(new Error('Network error'));
+      fetchMock.mockRejectedValueOnce(new Error("Network error"));
 
       // Act
       const input: ProjectGetInput = { id: validProjectId };
@@ -352,7 +349,7 @@ describe('projectGetHandler', () => {
       expect(result.success).toBe(false);
       expect(result.metadata?.request_id).toBeDefined();
       if (!result.success) {
-        expect(result.error.code).toBe('INTERNAL_ERROR');
+        expect(result.error.code).toBe("INTERNAL_ERROR");
       }
     });
   });
@@ -362,25 +359,25 @@ describe('projectGetHandler', () => {
 // 統合テスト
 // =============================================================================
 
-describe('project.get 統合テスト', () => {
-  it('ツール定義とハンドラーが一致する', () => {
+describe("project.get 統合テスト", () => {
+  it("ツール定義とハンドラーが一致する", () => {
     // ツール定義のプロパティ名がハンドラーで使用される入力と一致
     const { properties } = projectGetToolDefinition.inputSchema;
     const propNames = Object.keys(properties);
 
     // 必須のプロパティ
-    expect(propNames).toContain('id');
+    expect(propNames).toContain("id");
 
     // オプションプロパティ
-    expect(propNames).toContain('summary');
+    expect(propNames).toContain("summary");
   });
 
-  it('Zodスキーマとツール定義のrequiredが一致する', () => {
+  it("Zodスキーマとツール定義のrequiredが一致する", () => {
     // ツール定義の必須フィールド
     const toolRequired = projectGetToolDefinition.inputSchema.required;
 
     // Zodスキーマで必須のフィールドはidのみ
-    expect(toolRequired).toContain('id');
-    expect(toolRequired).not.toContain('summary'); // オプション
+    expect(toolRequired).toContain("id");
+    expect(toolRequired).not.toContain("summary"); // オプション
   });
 });

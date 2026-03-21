@@ -65,7 +65,7 @@ export interface FrameAlphaInfo {
  */
 export interface FadeEvent {
   /** フェードタイプ */
-  type: 'fade_in' | 'fade_out';
+  type: "fade_in" | "fade_out";
   /** 開始フレームインデックス */
   startFrame: number;
   /** 終了フレームインデックス */
@@ -131,14 +131,11 @@ interface FrameData {
 /**
  * アルファ変化の方向を判定
  */
-function determineFadeType(
-  startAlpha: number,
-  endAlpha: number
-): 'fade_in' | 'fade_out' | null {
+function determineFadeType(startAlpha: number, endAlpha: number): "fade_in" | "fade_out" | null {
   if (endAlpha > startAlpha) {
-    return 'fade_in';
+    return "fade_in";
   } else if (endAlpha < startAlpha) {
-    return 'fade_out';
+    return "fade_out";
   }
   return null;
 }
@@ -159,14 +156,13 @@ export class FadeDetector {
   constructor(config: FadeDetectorConfig = {}) {
     this.config = {
       alphaThreshold: config.alphaThreshold ?? DEFAULTS.ALPHA_THRESHOLD,
-      minFadeDurationFrames:
-        config.minFadeDurationFrames ?? DEFAULTS.MIN_FADE_DURATION_FRAMES,
+      minFadeDurationFrames: config.minFadeDurationFrames ?? DEFAULTS.MIN_FADE_DURATION_FRAMES,
       fps: config.fps ?? DEFAULTS.FPS,
     };
 
-    if (process.env.NODE_ENV === 'development') {
+    if (process.env.NODE_ENV === "development") {
       // eslint-disable-next-line no-console -- Intentional debug log in development
-      console.log('[FadeDetector] Created with config:', this.config);
+      console.log("[FadeDetector] Created with config:", this.config);
     }
   }
 
@@ -255,8 +251,8 @@ export class FadeDetector {
     // フェードイベントを検出
     const fadeEvents = this.detectFadeEvents(frames, alphaInfos, fps);
 
-    const fadeInCount = fadeEvents.filter((e) => e.type === 'fade_in').length;
-    const fadeOutCount = fadeEvents.filter((e) => e.type === 'fade_out').length;
+    const fadeInCount = fadeEvents.filter((e) => e.type === "fade_in").length;
+    const fadeOutCount = fadeEvents.filter((e) => e.type === "fade_out").length;
 
     return {
       success: true,
@@ -286,7 +282,7 @@ export class FadeDetector {
 
     let fadeStartIndex: number | null = null;
     let fadeStartAlpha: number | null = null;
-    let currentFadeType: 'fade_in' | 'fade_out' | null = null;
+    let currentFadeType: "fade_in" | "fade_out" | null = null;
 
     for (let i = 1; i < alphaInfos.length; i++) {
       const prevAlpha = alphaInfos[i - 1]?.alphaRatio ?? 0;
@@ -310,9 +306,7 @@ export class FadeDetector {
         if (expectedType !== currentFadeType || absAlphaDiff < 0.001) {
           // フェードイベントを確定
           const fadeFrameCount = i - fadeStartIndex;
-          const totalAlphaChange = Math.abs(
-            (alphaInfos[i - 1]?.alphaRatio ?? 0) - fadeStartAlpha!
-          );
+          const totalAlphaChange = Math.abs((alphaInfos[i - 1]?.alphaRatio ?? 0) - fadeStartAlpha!);
 
           // 最小持続時間と閾値を満たすか確認
           if (

@@ -16,10 +16,10 @@
  */
 
 // Types
-export * from './types';
+export * from "./types";
 
 // Schemas
-export * from './schemas';
+export * from "./schemas";
 
 // Services - Extraction
 export {
@@ -30,13 +30,10 @@ export {
   cropAndResizePart,
   computeVisualSignature,
   isLogoElement,
-} from './part-extraction.service';
+} from "./part-extraction.service";
 
 // Services - DB Save
-export {
-  saveExtractedParts,
-  type PartSaveResult,
-} from './part-db.service';
+export { saveExtractedParts, type PartSaveResult } from "./part-db.service";
 
 // Services - Embedding Generation
 export {
@@ -48,21 +45,21 @@ export {
   type ComponentPartWithCrop,
   type PartEmbeddingResult,
   type EmbeddingServiceLike,
-} from './part-embedding.service';
+} from "./part-embedding.service";
 
 // Services - Embedding DB Save
 export {
   savePartEmbeddings,
   type PartEmbeddingSaveResult,
   type PartEmbeddingPrismaClient,
-} from './part-embedding-db.service';
+} from "./part-embedding-db.service";
 
 // Services - Backfill
 export {
   backfillPartEmbeddings,
   type BackfillOptions,
   type BackfillResult,
-} from './part-backfill.service';
+} from "./part-backfill.service";
 
 // Services - Search
 export {
@@ -81,4 +78,4 @@ export {
   type PartSearchOptions,
   type PartSearchResult,
   type PartSearchResultItem,
-} from './part-search.service';
+} from "./part-search.service";

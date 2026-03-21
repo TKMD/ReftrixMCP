@@ -26,9 +26,22 @@
  * Of the 22 types in the Prisma schema comments, 16 types with validated extraction quality.
  */
 export const ALL_PART_TYPES = [
-  'button', 'link', 'image', 'video', 'form', 'input',
-  'heading', 'card', 'navigation', 'footer', 'cta',
-  'hero_image', 'icon', 'badge', 'tag', 'avatar',
+  "button",
+  "link",
+  "image",
+  "video",
+  "form",
+  "input",
+  "heading",
+  "card",
+  "navigation",
+  "footer",
+  "cta",
+  "hero_image",
+  "icon",
+  "badge",
+  "tag",
+  "avatar",
 ] as const;
 
 /**
@@ -42,7 +55,12 @@ export const ALL_PART_TYPES = [
  * will be promoted to ALL_PART_TYPES when extraction quality is validated.
  */
 export const FUTURE_PART_TYPES = [
-  'carousel', 'accordion', 'tab', 'modal', 'tooltip', 'dropdown',
+  "carousel",
+  "accordion",
+  "tab",
+  "modal",
+  "tooltip",
+  "dropdown",
 ] as const;
 
 // ============================================================================
@@ -50,10 +68,10 @@ export const FUTURE_PART_TYPES = [
 // ============================================================================
 
 /** コア16パーツタイプ / Core 16 part types */
-export type PartType = typeof ALL_PART_TYPES[number];
+export type PartType = (typeof ALL_PART_TYPES)[number];
 
 /** 将来拡張パーツタイプ / Future extension part types */
-export type FuturePartType = typeof FUTURE_PART_TYPES[number];
+export type FuturePartType = (typeof FUTURE_PART_TYPES)[number];
 
 /** 全パーツタイプ（コア + 将来拡張） / All part types (core + future) */
 export type AllPartType = PartType | FuturePartType;
@@ -70,7 +88,7 @@ export type AllPartType = PartType | FuturePartType;
  * - 'low': ユーザーデータフィールドを含むフォーム/入力 / Forms/inputs with user data fields
  * - 'high': アバタータイプ → CSSプロパティのみ保存、画像バッファ保存禁止 / Avatar type → CSS only, no image buffer
  */
-export type PiiRiskLevel = 'none' | 'low' | 'high';
+export type PiiRiskLevel = "none" | "low" | "high";
 
 // ============================================================================
 // Core Interfaces / コアインターフェース
@@ -191,7 +209,7 @@ export interface ExtractedPart {
   /** ソースURL（web_pages.urlからコピー、フェッチには使用しない） / Source URL (copied from web_pages.url, not used for fetching) */
   sourceUrl: string | null;
   /** 利用範囲（inspiration_onlyのみ） / Usage scope (inspiration_only only) */
-  usageScope: 'inspiration_only';
+  usageScope: "inspiration_only";
   /** クロップ済み画像バッファ（piiRiskLevel='high'の場合はnull） / Cropped image buffer (null for piiRiskLevel='high') */
   cropBuffer: Buffer | null;
 }
@@ -209,7 +227,7 @@ export interface PartExtractionResult {
   /** スキップされたパーツ数 / Number of skipped parts */
   skippedCount: number;
   /** スキップ理由 / Skip reason */
-  skipReason?: 'memory_pressure' | 'timeout' | 'disabled';
+  skipReason?: "memory_pressure" | "timeout" | "disabled";
   /** 抽出処理時間（ミリ秒） / Extraction duration (milliseconds) */
   durationMs: number;
 }
@@ -223,19 +241,23 @@ export interface PartExtractionResult {
  * HTML tag to part type mapping (primary detection)
  */
 export const TAG_TO_PART_TYPE: Record<string, PartType> = {
-  'button': 'button',
-  'a': 'link',
-  'img': 'image',
-  'video': 'video',
-  'form': 'form',
-  'input': 'input',
-  'select': 'input',
-  'textarea': 'input',
-  'h1': 'heading', 'h2': 'heading', 'h3': 'heading',
-  'h4': 'heading', 'h5': 'heading', 'h6': 'heading',
-  'nav': 'navigation',
-  'footer': 'footer',
-  'svg': 'icon',
+  button: "button",
+  a: "link",
+  img: "image",
+  video: "video",
+  form: "form",
+  input: "input",
+  select: "input",
+  textarea: "input",
+  h1: "heading",
+  h2: "heading",
+  h3: "heading",
+  h4: "heading",
+  h5: "heading",
+  h6: "heading",
+  nav: "navigation",
+  footer: "footer",
+  svg: "icon",
 };
 
 /**
@@ -243,12 +265,12 @@ export const TAG_TO_PART_TYPE: Record<string, PartType> = {
  * CSS class pattern to part type mapping (secondary detection)
  */
 export const CLASS_PATTERNS: ReadonlyArray<{ pattern: RegExp; type: PartType }> = [
-  { pattern: /\b(btn|button|cta)\b/i, type: 'button' },
-  { pattern: /\b(card|tile)\b/i, type: 'card' },
-  { pattern: /\b(badge|chip|tag|label)\b/i, type: 'badge' },
-  { pattern: /\b(avatar|profile-img)\b/i, type: 'avatar' },
-  { pattern: /\b(hero|banner)\b/i, type: 'hero_image' },
-  { pattern: /\b(nav|navbar|menu)\b/i, type: 'navigation' },
+  { pattern: /\b(btn|button|cta)\b/i, type: "button" },
+  { pattern: /\b(card|tile)\b/i, type: "card" },
+  { pattern: /\b(badge|chip|tag|label)\b/i, type: "badge" },
+  { pattern: /\b(avatar|profile-img)\b/i, type: "avatar" },
+  { pattern: /\b(hero|banner)\b/i, type: "hero_image" },
+  { pattern: /\b(nav|navbar|menu)\b/i, type: "navigation" },
 ];
 
 /**
@@ -264,14 +286,14 @@ export const CLASS_PATTERNS: ReadonlyArray<{ pattern: RegExp; type: PartType }> 
  * active when promoted to ALL_PART_TYPES.
  */
 export const ROLE_TO_PART_TYPE: Record<string, string> = {
-  'button': 'button',
-  'link': 'link',
-  'navigation': 'navigation',
-  'img': 'image',
-  'tab': 'tab',
-  'tabpanel': 'tab',
-  'dialog': 'modal',
-  'tooltip': 'tooltip',
-  'menu': 'dropdown',
-  'listbox': 'dropdown',
+  button: "button",
+  link: "link",
+  navigation: "navigation",
+  img: "image",
+  tab: "tab",
+  tabpanel: "tab",
+  dialog: "modal",
+  tooltip: "tooltip",
+  menu: "dropdown",
+  listbox: "dropdown",
 };

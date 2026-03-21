@@ -16,7 +16,7 @@
  * @module tools/page/handlers/execution-status-tracker
  */
 
-import { logger, isDevelopment } from '../../../utils/logger';
+import { logger, isDevelopment } from "../../../utils/logger";
 
 // =====================================================
 // 型定義
@@ -25,12 +25,19 @@ import { logger, isDevelopment } from '../../../utils/logger';
 /**
  * 分析フェーズの種類（V2）
  */
-export type AnalysisPhaseV2 = 'initializing' | 'layout' | 'motion' | 'quality' | 'narrative' | 'responsive' | 'finalizing';
+export type AnalysisPhaseV2 =
+  | "initializing"
+  | "layout"
+  | "motion"
+  | "quality"
+  | "narrative"
+  | "responsive"
+  | "finalizing";
 
 /**
  * フェーズのステータス
  */
-export type PhaseStatusType = 'pending' | 'running' | 'completed' | 'failed' | 'skipped';
+export type PhaseStatusType = "pending" | "running" | "completed" | "failed" | "skipped";
 
 /**
  * 個別フェーズの状態
@@ -93,26 +100,26 @@ export interface ExecutionStatusTrackerV2Options {
  * 合計が100になるように設定
  */
 export const PHASE_WEIGHTS: Record<AnalysisPhaseV2, number> = {
-  initializing: 5,   // 5%
-  layout: 30,        // 30%
-  motion: 20,        // 20%
-  quality: 15,       // 15%
-  narrative: 10,     // 10%
-  responsive: 15,    // 15%
-  finalizing: 5,     // 5%
+  initializing: 5, // 5%
+  layout: 30, // 30%
+  motion: 20, // 20%
+  quality: 15, // 15%
+  narrative: 10, // 10%
+  responsive: 15, // 15%
+  finalizing: 5, // 5%
 };
 
 /**
  * フェーズの順序
  */
 const PHASE_ORDER: AnalysisPhaseV2[] = [
-  'initializing',
-  'layout',
-  'motion',
-  'quality',
-  'narrative',
-  'responsive',
-  'finalizing',
+  "initializing",
+  "layout",
+  "motion",
+  "quality",
+  "narrative",
+  "responsive",
+  "finalizing",
 ];
 
 // =====================================================
@@ -135,7 +142,7 @@ export class ExecutionStatusTrackerV2 {
 
   constructor(options: ExecutionStatusTrackerV2Options) {
     this.options = options;
-    this.currentPhase = 'initializing';
+    this.currentPhase = "initializing";
     this.startedAt = new Date();
     this.lastUpdatedAt = new Date();
     this.phases = this.createInitialPhases();
@@ -146,13 +153,13 @@ export class ExecutionStatusTrackerV2 {
    */
   private createInitialPhases(): Record<AnalysisPhaseV2, PhaseStatus> {
     return {
-      initializing: { phase: 'initializing', status: 'pending' },
-      layout: { phase: 'layout', status: 'pending' },
-      motion: { phase: 'motion', status: 'pending' },
-      quality: { phase: 'quality', status: 'pending' },
-      narrative: { phase: 'narrative', status: 'pending' },
-      responsive: { phase: 'responsive', status: 'pending' },
-      finalizing: { phase: 'finalizing', status: 'pending' },
+      initializing: { phase: "initializing", status: "pending" },
+      layout: { phase: "layout", status: "pending" },
+      motion: { phase: "motion", status: "pending" },
+      quality: { phase: "quality", status: "pending" },
+      narrative: { phase: "narrative", status: "pending" },
+      responsive: { phase: "responsive", status: "pending" },
+      finalizing: { phase: "finalizing", status: "pending" },
     };
   }
 
@@ -162,11 +169,11 @@ export class ExecutionStatusTrackerV2 {
   initialize(): void {
     this.startedAt = new Date();
     this.lastUpdatedAt = new Date();
-    this.currentPhase = 'initializing';
+    this.currentPhase = "initializing";
     this.phases = this.createInitialPhases();
 
     if (isDevelopment()) {
-      logger.debug('[ExecutionStatusTrackerV2] Initialized', {
+      logger.debug("[ExecutionStatusTrackerV2] Initialized", {
         webPageId: this.options.webPageId,
         url: this.options.url,
         startedAt: this.startedAt.toISOString(),
@@ -186,14 +193,14 @@ export class ExecutionStatusTrackerV2 {
     this.currentPhase = phase;
     this.phases[phase] = {
       ...this.phases[phase],
-      status: 'running',
+      status: "running",
       startedAt: now,
       progress: 0,
     };
     this.lastUpdatedAt = now;
 
     if (isDevelopment()) {
-      logger.debug('[ExecutionStatusTrackerV2] Phase started', {
+      logger.debug("[ExecutionStatusTrackerV2] Phase started", {
         phase,
         startedAt: now.toISOString(),
       });
@@ -219,7 +226,7 @@ export class ExecutionStatusTrackerV2 {
     this.lastUpdatedAt = new Date();
 
     if (isDevelopment()) {
-      logger.debug('[ExecutionStatusTrackerV2] Phase progress updated', {
+      logger.debug("[ExecutionStatusTrackerV2] Phase progress updated", {
         phase,
         progress: normalizedProgress,
       });
@@ -239,7 +246,7 @@ export class ExecutionStatusTrackerV2 {
 
     this.phases[phase] = {
       ...this.phases[phase],
-      status: 'completed',
+      status: "completed",
       completedAt: now,
       progress: 100,
     };
@@ -252,7 +259,7 @@ export class ExecutionStatusTrackerV2 {
     }
 
     if (isDevelopment()) {
-      logger.debug('[ExecutionStatusTrackerV2] Phase completed', {
+      logger.debug("[ExecutionStatusTrackerV2] Phase completed", {
         phase,
         completedAt: now.toISOString(),
         durationMs: startedAt ? now.getTime() - startedAt.getTime() : undefined,
@@ -273,14 +280,14 @@ export class ExecutionStatusTrackerV2 {
 
     this.phases[phase] = {
       ...this.phases[phase],
-      status: 'failed',
+      status: "failed",
       completedAt: now,
       error,
     };
     this.lastUpdatedAt = now;
 
     if (isDevelopment()) {
-      logger.debug('[ExecutionStatusTrackerV2] Phase failed', {
+      logger.debug("[ExecutionStatusTrackerV2] Phase failed", {
         phase,
         error,
         failedAt: now.toISOString(),
@@ -301,7 +308,7 @@ export class ExecutionStatusTrackerV2 {
 
     const updatedPhase: PhaseStatus = {
       ...this.phases[phase],
-      status: 'skipped',
+      status: "skipped",
       completedAt: now,
     };
     // reasonが提供された場合のみerrorを設定
@@ -312,7 +319,7 @@ export class ExecutionStatusTrackerV2 {
     this.lastUpdatedAt = now;
 
     if (isDevelopment()) {
-      logger.debug('[ExecutionStatusTrackerV2] Phase skipped', {
+      logger.debug("[ExecutionStatusTrackerV2] Phase skipped", {
         phase,
         reason,
         skippedAt: now.toISOString(),
@@ -359,13 +366,13 @@ export class ExecutionStatusTrackerV2 {
       const phaseStatus = this.phases[phase];
       const weight = PHASE_WEIGHTS[phase];
 
-      if (phaseStatus.status === 'completed' || phaseStatus.status === 'skipped') {
+      if (phaseStatus.status === "completed" || phaseStatus.status === "skipped") {
         // 完了またはスキップ済みフェーズは100%として扱う
         totalProgress += weight;
-      } else if (phaseStatus.status === 'running' && phaseStatus.progress !== undefined) {
+      } else if (phaseStatus.status === "running" && phaseStatus.progress !== undefined) {
         // 進行中のフェーズは進捗率に応じた重みを加算
         totalProgress += (weight * phaseStatus.progress) / 100;
-      } else if (phaseStatus.status === 'failed') {
+      } else if (phaseStatus.status === "failed") {
         // 失敗したフェーズは0%として扱う
         // 何も加算しない
       }
@@ -410,9 +417,9 @@ export class ExecutionStatusTrackerV2 {
     let remainingWeight = 0;
     for (const phase of PHASE_ORDER) {
       const phaseStatus = this.phases[phase];
-      if (phaseStatus.status === 'pending' || phaseStatus.status === 'running') {
+      if (phaseStatus.status === "pending" || phaseStatus.status === "running") {
         const weight = PHASE_WEIGHTS[phase];
-        if (phaseStatus.status === 'running' && phaseStatus.progress !== undefined) {
+        if (phaseStatus.status === "running" && phaseStatus.progress !== undefined) {
           // 進行中のフェーズは残り進捗分の重みを加算
           remainingWeight += weight * (1 - phaseStatus.progress / 100);
         } else {
@@ -445,7 +452,7 @@ export class ExecutionStatusTrackerV2 {
     } catch (error) {
       // コールバックのエラーは無視して処理を継続
       if (isDevelopment()) {
-        logger.warn('[ExecutionStatusTrackerV2] onStatusChange callback error', {
+        logger.warn("[ExecutionStatusTrackerV2] onStatusChange callback error", {
           error: error instanceof Error ? error.message : String(error),
         });
       }

@@ -54,13 +54,13 @@ Reftrix is a **WebDesign-specialized platform**. This guide explains how to use 
 ```typescript
 // URLを指定するだけで、レイアウト・モーション・品質を一括解析
 const result = await page.analyze({
-  url: 'https://example.com',
-  summary: true,  // 軽量レスポンス（推奨）
+  url: "https://example.com",
+  summary: true, // 軽量レスポンス（推奨）
   features: {
     layout: true,
     motion: true,
-    quality: true
-  }
+    quality: true,
+  },
 });
 
 // 結果には以下が含まれます:
@@ -72,15 +72,17 @@ const result = await page.analyze({
 ### 推奨される最初のステップ / Recommended First Steps
 
 1. **システムヘルスチェック / System Health Check**（セッション開始時に必ず実行 / Always run at session start）
+
    ```typescript
    await system.health({ detailed: true });
    ```
 
 2. **ページ解析 / Page Analysis**（興味のあるサイトを解析 / Analyze sites of interest）
+
    ```typescript
    await page.analyze({
-     url: 'https://awwwards.com/sites/example',
-     summary: true
+     url: "https://awwwards.com/sites/example",
+     summary: true,
    });
    ```
 
@@ -88,7 +90,7 @@ const result = await page.analyze({
    ```typescript
    await quality.evaluate({
      html: myHtml,
-     action: 'evaluate'
+     action: "evaluate",
    });
    ```
 
@@ -98,21 +100,21 @@ const result = await page.analyze({
 
 ### WebDesign MCPツール（26ツール） / WebDesign MCP Tools (26 Tools)
 
-| カテゴリ / Category | ツール数 / Count | 主な用途 / Primary Purpose |
-|---------|---------|---------|
-| **System** | 1 | ヘルスチェック / Health check |
-| **Project** | 2 | プロジェクト管理 / Project management |
-| **Style** | 1 | ブランドパレット取得 / Brand palette retrieval |
-| **Brief** | 1 | デザインブリーフ検証 / Design brief verification |
-| **Layout** | 5 | Webページ構造の収集・解析・検索・コード生成・バッチ処理 / Web page structure collection, analysis, search, code generation, batch processing |
-| **Motion** | 2 | CSSアニメーション検出・セマンティック検索 / CSS animation detection and semantic search |
-| **Quality** | 3 | デザイン品質評価・バッチ評価・ジョブステータス確認 / Design quality evaluation, batch evaluation, job status check |
-| **Page** | 2 | 統合ページ解析・非同期ジョブステータス / Unified page analysis and async job status |
-| **Narrative** | 1 | 世界観・レイアウト構成セマンティック検索 / Worldview and layout semantic search |
-| **Background** | 1 | バックグラウンドデザインパターン検索 / Background design pattern search |
-| **Responsive** | 1 | レスポンシブ分析結果のセマンティック検索 / Responsive analysis semantic search |
-| **Preference** | 3 | 嗜好プロファイリング・検索パーソナライズ / Preference profiling and search personalization |
-| **Part** | 3 | UIパーツ検索・詳細取得・比較 / UI part search, inspection, and comparison |
+| カテゴリ / Category | ツール数 / Count | 主な用途 / Primary Purpose                                                                                                                   |
+| ------------------- | ---------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| **System**          | 1                | ヘルスチェック / Health check                                                                                                                |
+| **Project**         | 2                | プロジェクト管理 / Project management                                                                                                        |
+| **Style**           | 1                | ブランドパレット取得 / Brand palette retrieval                                                                                               |
+| **Brief**           | 1                | デザインブリーフ検証 / Design brief verification                                                                                             |
+| **Layout**          | 5                | Webページ構造の収集・解析・検索・コード生成・バッチ処理 / Web page structure collection, analysis, search, code generation, batch processing |
+| **Motion**          | 2                | CSSアニメーション検出・セマンティック検索 / CSS animation detection and semantic search                                                      |
+| **Quality**         | 3                | デザイン品質評価・バッチ評価・ジョブステータス確認 / Design quality evaluation, batch evaluation, job status check                           |
+| **Page**            | 2                | 統合ページ解析・非同期ジョブステータス / Unified page analysis and async job status                                                          |
+| **Narrative**       | 1                | 世界観・レイアウト構成セマンティック検索 / Worldview and layout semantic search                                                              |
+| **Background**      | 1                | バックグラウンドデザインパターン検索 / Background design pattern search                                                                      |
+| **Responsive**      | 1                | レスポンシブ分析結果のセマンティック検索 / Responsive analysis semantic search                                                               |
+| **Preference**      | 3                | 嗜好プロファイリング・検索パーソナライズ / Preference profiling and search personalization                                                   |
+| **Part**            | 3                | UIパーツ検索・詳細取得・比較 / UI part search, inspection, and comparison                                                                    |
 
 ### ツール選択のフローチャート / Tool Selection Flowchart
 
@@ -166,7 +168,7 @@ Layout tools collect, analyze, and search web page structures, and generate Reac
 ```typescript
 // 最小構成: URLを指定するだけ（デフォルトでDB保存＋自動解析）
 const result = await layout.ingest({
-  url: 'https://example.com'
+  url: "https://example.com",
 });
 
 // レスポンス（{ success: true, data: { ... } } 形式）:
@@ -182,7 +184,7 @@ const result = await layout.ingest({
 // デフォルトでsave_to_db: true, auto_analyze: trueのため、
 // URLを指定するだけで自動的に検索可能になります
 const result = await layout.ingest({
-  url: 'https://example.com'
+  url: "https://example.com",
   // save_to_db: true（デフォルト）→ WebPageテーブルへ保存
   // auto_analyze: true（デフォルト）→ セクション解析＋Embedding生成
 });
@@ -192,15 +194,15 @@ const result = await layout.ingest({
 
 **主要パラメータ**
 
-| パラメータ | 型 | デフォルト | 説明 |
-|-----------|---|-----------|------|
-| `url` | string | （必須） | 収集対象URL |
-| `options.save_to_db` | boolean | true | DB保存（検索には必須） |
-| `options.auto_analyze` | boolean | true | セクション解析＋Embedding生成（検索には必須） |
-| `options.full_page` | boolean | true | フルページスクリーンショット |
-| `options.include_html` | boolean | false | HTMLを含める |
-| `options.include_screenshot` | boolean | false | スクリーンショットを含める |
-| `options.timeout` | number | 30000 | タイムアウト（ms） |
+| パラメータ                   | 型      | デフォルト | 説明                                          |
+| ---------------------------- | ------- | ---------- | --------------------------------------------- |
+| `url`                        | string  | （必須）   | 収集対象URL                                   |
+| `options.save_to_db`         | boolean | true       | DB保存（検索には必須）                        |
+| `options.auto_analyze`       | boolean | true       | セクション解析＋Embedding生成（検索には必須） |
+| `options.full_page`          | boolean | true       | フルページスクリーンショット                  |
+| `options.include_html`       | boolean | false      | HTMLを含める                                  |
+| `options.include_screenshot` | boolean | false      | スクリーンショットを含める                    |
+| `options.timeout`            | number  | 30000      | タイムアウト（ms）                            |
 
 **ベストプラクティス**
 
@@ -220,11 +222,11 @@ const result = await layout.ingest({
 const result = await layout.inspect({
   html: myHtml,
   options: {
-    detectSections: true,       // セクション検出
-    detectGrid: true,           // グリッド検出
-    analyzeTypography: true,    // タイポグラフィ解析
-    extractColors: true         // 色抽出
-  }
+    detectSections: true, // セクション検出
+    detectGrid: true, // グリッド検出
+    analyzeTypography: true, // タイポグラフィ解析
+    extractColors: true, // 色抽出
+  },
 });
 
 // レスポンス:
@@ -239,10 +241,10 @@ const result = await layout.inspect({
 ```typescript
 // layout.ingestで保存したページを解析
 const result = await layout.inspect({
-  id: 'webPageId',  // layout.ingestのidを指定
+  id: "webPageId", // layout.ingestのidを指定
   options: {
-    detectSections: true
-  }
+    detectSections: true,
+  },
 });
 ```
 
@@ -262,9 +264,9 @@ const result = await layout.inspect({
 
 ```typescript
 const results = await layout.search({
-  query: 'modern hero section with video background',
+  query: "modern hero section with video background",
   limit: 10,
-  include_html: false  // HTMLスニペットを含めない（推奨）
+  include_html: false, // HTMLスニペットを含めない（推奨）
 });
 
 // レスポンス:
@@ -280,15 +282,15 @@ const results = await layout.search({
 
 ```typescript
 const results = await layout.search({
-  query: 'pricing section',
+  query: "pricing section",
   filters: {
-    sectionType: 'pricing',           // セクションタイプ
-    sourceType: 'award_gallery',      // アワードサイトのみ
-    usageScope: 'inspiration_only'    // インスピレーション用途
+    sectionType: "pricing", // セクションタイプ
+    sourceType: "award_gallery", // アワードサイトのみ
+    usageScope: "inspiration_only", // インスピレーション用途
   },
   limit: 20,
   offset: 0,
-  include_html: true  // HTMLスニペットを含める（必要時のみ）
+  include_html: true, // HTMLスニペットを含める（必要時のみ）
 });
 ```
 
@@ -330,12 +332,12 @@ const results = await layout.search({
 
 ```typescript
 const code = await layout.generate_code({
-  patternId: 'section-pattern-id',  // layout.searchで取得したID
+  patternId: "section-pattern-id", // layout.searchで取得したID
   options: {
-    framework: 'react',     // react | vue | html
-    typescript: true,       // TypeScript出力
-    tailwind: true          // Tailwind CSS使用
-  }
+    framework: "react", // react | vue | html
+    typescript: true, // TypeScript出力
+    tailwind: true, // Tailwind CSS使用
+  },
 });
 
 // レスポンス:
@@ -348,13 +350,13 @@ const code = await layout.generate_code({
 
 ```typescript
 const code = await layout.generate_code({
-  patternId: 'section-pattern-id',
+  patternId: "section-pattern-id",
   options: {
-    framework: 'react',
+    framework: "react",
     typescript: true,
     tailwind: true,
-    paletteId: 'brand-palette-id'  // style.get_paletteで取得
-  }
+    paletteId: "brand-palette-id", // style.get_paletteで取得
+  },
 });
 
 // 生成されたコードにブランドカラーが反映されます
@@ -364,11 +366,11 @@ const code = await layout.generate_code({
 
 ```typescript
 const code = await layout.generate_code({
-  patternId: 'section-pattern-id',
+  patternId: "section-pattern-id",
   options: {
-    framework: 'react',
-    componentName: 'LandingHero'  // PascalCase形式
-  }
+    framework: "react",
+    componentName: "LandingHero", // PascalCase形式
+  },
 });
 ```
 
@@ -383,15 +385,15 @@ const code = await layout.generate_code({
 ```typescript
 const result = await layout.batch_ingest({
   urls: [
-    'https://awwwards.com/sites/site1',
-    'https://awwwards.com/sites/site2',
-    'https://awwwards.com/sites/site3'
+    "https://awwwards.com/sites/site1",
+    "https://awwwards.com/sites/site2",
+    "https://awwwards.com/sites/site3",
   ],
   options: {
-    save_to_db: true,      // デフォルト: true
-    auto_analyze: true,    // デフォルト: true
-    concurrency: 5         // 並列数（デフォルト: 5）
-  }
+    save_to_db: true, // デフォルト: true
+    auto_analyze: true, // デフォルト: true
+    concurrency: 5, // 並列数（デフォルト: 5）
+  },
 });
 
 // レスポンス:
@@ -406,8 +408,8 @@ const result = await layout.batch_ingest({
 const result = await layout.batch_ingest({
   urls: urls,
   options: {
-    on_error: 'skip'       // skip（デフォルト）| abort
-  }
+    on_error: "skip", // skip（デフォルト）| abort
+  },
 });
 
 // 'skip': 失敗したURLをスキップして続行
@@ -437,8 +439,8 @@ Motion tools detect and classify CSS animations, transitions, and keyframes, and
 ```typescript
 const result = await motion.detect({
   html: myHtml,
-  includeWarnings: true,  // パフォーマンス・アクセシビリティ警告
-  includeSummary: true    // サマリー情報
+  includeWarnings: true, // パフォーマンス・アクセシビリティ警告
+  includeSummary: true, // サマリー情報
 });
 
 // レスポンス:
@@ -457,7 +459,7 @@ const result = await motion.detect({
 ```typescript
 const result = await motion.detect({
   html: myHtml,
-  save_to_db: true  // ★必須: MotionPattern + Embedding自動生成
+  save_to_db: true, // ★必須: MotionPattern + Embedding自動生成
 });
 
 // この後、motion.searchで検索可能になります
@@ -471,18 +473,18 @@ const result = await motion.detect({
 
 `detection_mode` parameter specifies the animation detection method.
 
-| モード / Mode | 説明 / Description |
-|---|---|
-| `css` | CSS静的解析のみ / CSS static analysis only |
-| `runtime` | ブラウザでの実行時検出 / Runtime detection in browser |
-| `hybrid` | CSS解析 + 実行時検出の組み合わせ / CSS analysis + runtime detection |
-| `video` | フレームキャプチャによる検出（**デフォルト**） / Frame capture detection (**default**) |
+| モード / Mode  | 説明 / Description                                                                                                        |
+| -------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| `css`          | CSS静的解析のみ / CSS static analysis only                                                                                |
+| `runtime`      | ブラウザでの実行時検出 / Runtime detection in browser                                                                     |
+| `hybrid`       | CSS解析 + 実行時検出の組み合わせ / CSS analysis + runtime detection                                                       |
+| `video`        | フレームキャプチャによる検出（**デフォルト**） / Frame capture detection (**default**)                                    |
 | `library_only` | JSライブラリ検出のみ（GSAP, Three.js, Framer Motion等） / JS library detection only (e.g., GSAP, Three.js, Framer Motion) |
 
 ```typescript
 const result = await motion.detect({
   html: myHtml,
-  detection_mode: 'hybrid'  // CSS + ランタイム両方で検出
+  detection_mode: "hybrid", // CSS + ランタイム両方で検出
 });
 ```
 
@@ -494,18 +496,19 @@ Reftrixの**デフォルト設定では video mode が有効**です。スクロ
 
 **デフォルト設定**
 
-| パラメータ | デフォルト値 | 説明 |
-|-----------|-------------|------|
-| `enable_frame_capture` | **true** | デフォルトで有効 |
-| `analyze_frames` | **true** | フレーム画像分析デフォルト有効 |
-| `scroll_px_per_frame` | **15px** | 基準値（アニメーション検出に最適化）※サービス層で適用 |
-| `frame_rate` | 30 fps | フレームレート ※サービス層で適用 |
-| `frame_interval_ms` | 33ms | フレーム間隔（1000/30） |
-| `scroll_speed_px_per_sec` | 450 px/sec | スクロール速度（15 × 30） |
-| `output_format` | png | PNG推奨（ロスレス） |
-| `output_dir` | /tmp/reftrix-frames/ | 出力ディレクトリ |
+| パラメータ                | デフォルト値         | 説明                                                  |
+| ------------------------- | -------------------- | ----------------------------------------------------- |
+| `enable_frame_capture`    | **true**             | デフォルトで有効                                      |
+| `analyze_frames`          | **true**             | フレーム画像分析デフォルト有効                        |
+| `scroll_px_per_frame`     | **15px**             | 基準値（アニメーション検出に最適化）※サービス層で適用 |
+| `frame_rate`              | 30 fps               | フレームレート ※サービス層で適用                      |
+| `frame_interval_ms`       | 33ms                 | フレーム間隔（1000/30）                               |
+| `scroll_speed_px_per_sec` | 450 px/sec           | スクロール速度（15 × 30）                             |
+| `output_format`           | png                  | PNG推奨（ロスレス）                                   |
+| `output_dir`              | /tmp/reftrix-frames/ | 出力ディレクトリ                                      |
 
 **15px/frame の根拠**:
+
 - 60fps等価スクロール（216px/秒 ÷ 60 ≈ 3.6px）と50px/frameの中間
 - IntersectionObserver閾値（0.1〜0.3）を確実に検出
 - cubic-bezier easing曲線の解析に十分なサンプル数
@@ -525,7 +528,7 @@ const result = await motion.detect({
 // video modeを無効化する場合
 const result = await motion.detect({
   html: myHtml,
-  enable_frame_capture: false
+  enable_frame_capture: false,
 });
 
 // CLS問題特定（Core Web Vitals改善）
@@ -534,11 +537,11 @@ const result = await motion.detect({
   enable_frame_capture: true,
   analyze_frames: true,
   frame_analysis_options: {
-    diff_threshold: 0.1,          // ピクセル差分しきい値
-    cls_threshold: 0.05,          // Core Web Vitals閾値
-    motion_threshold: 50,         // モーション検出しきい値
-    parallel: true                // Worker Thread並列処理
-  }
+    diff_threshold: 0.1, // ピクセル差分しきい値
+    cls_threshold: 0.05, // Core Web Vitals閾値
+    motion_threshold: 50, // モーション検出しきい値
+    parallel: true, // Worker Thread並列処理
+  },
 });
 ```
 
@@ -572,12 +575,14 @@ const result = await motion.detect({
    4x4 grid sampling for dominant color extraction. Detects fade-in, fade-out, color transitions, and brightness changes. Inter-frame color distance calculation (RGB/HSL).
 
 **主な用途 / Primary Use Cases**:
+
 - **CLS検出**: Cumulative Layout Shift問題の視覚的特定（Core Web Vitals改善）
 - **差分解析**: アニメーション変化の定量化（Pixelmatch使用）
 - **パフォーマンス診断**: 大きな再描画領域の可視化
 - **色変化分析**: フェード効果やカラートランジションの定量化
 
 **パフォーマンス目標**:
+
 - フレーム差分（1ペア）: < 100ms
 - 10フレームシーケンス: < 5s（Worker Thread並列処理）
 - 100フレームシーケンス: < 30s（Worker Thread並列処理）
@@ -591,11 +596,11 @@ const result = await motion.detect({
   enable_frame_capture: true,
   analyze_frames: true,
   frame_analysis_options: {
-    diff_threshold: 0.1,           // ピクセル差分しきい値
-    cls_threshold: 0.1,            // Core Web Vitals 'good' 閾値
-    motion_threshold: 50,          // モーション検出しきい値
-    parallel: true                 // Worker Thread並列処理（色変化検出含む）
-  }
+    diff_threshold: 0.1, // ピクセル差分しきい値
+    cls_threshold: 0.1, // Core Web Vitals 'good' 閾値
+    motion_threshold: 50, // モーション検出しきい値
+    parallel: true, // Worker Thread並列処理（色変化検出含む）
+  },
 });
 
 // レスポンス:
@@ -619,6 +624,7 @@ const result = await motion.detect({
 ```
 
 **注意事項**:
+
 - **video modeはデフォルトで有効**（無効化する場合は明示的に `enable_frame_capture: false` を指定）
 - CI環境では`analyze_frames: false`推奨（ローカルのみ実行）
 - 10ペア超の差分計算は `FrameWorkerPool` により自動的にWorker Thread並列化される
@@ -629,24 +635,24 @@ const result = await motion.detect({
 
 **検出カテゴリ**
 
-| カテゴリ | 説明 |
-|---------|------|
-| `scroll_trigger` | IntersectionObserver、スクロール連動 |
-| `hover_effect` | ホバーエフェクト |
-| `page_transition` | ページ遷移 |
-| `loading_state` | ローディング・スピナー |
-| `entrance` | フェードイン・スライドイン |
-| `exit` | フェードアウト・スライドアウト |
-| `micro_interaction` | 短いインタラクション |
+| カテゴリ            | 説明                                 |
+| ------------------- | ------------------------------------ |
+| `scroll_trigger`    | IntersectionObserver、スクロール連動 |
+| `hover_effect`      | ホバーエフェクト                     |
+| `page_transition`   | ページ遷移                           |
+| `loading_state`     | ローディング・スピナー               |
+| `entrance`          | フェードイン・スライドイン           |
+| `exit`              | フェードアウト・スライドアウト       |
+| `micro_interaction` | 短いインタラクション                 |
 
 **警告タイプ**
 
-| コード | 重大度 | 説明 |
-|--------|--------|------|
-| `PERF_LAYOUT_TRIGGER` | warning | レイアウト再計算プロパティ使用 |
-| `PERF_TOO_MANY_ANIMATIONS` | warning | 20個以上のアニメーション |
-| `A11Y_NO_REDUCED_MOTION` | warning | prefers-reduced-motion未対応 |
-| `A11Y_INFINITE_ANIMATION` | info | 無限ループアニメーション |
+| コード                     | 重大度  | 説明                           |
+| -------------------------- | ------- | ------------------------------ |
+| `PERF_LAYOUT_TRIGGER`      | warning | レイアウト再計算プロパティ使用 |
+| `PERF_TOO_MANY_ANIMATIONS` | warning | 20個以上のアニメーション       |
+| `A11Y_NO_REDUCED_MOTION`   | warning | prefers-reduced-motion未対応   |
+| `A11Y_INFINITE_ANIMATION`  | info    | 無限ループアニメーション       |
 
 **ベストプラクティス**
 
@@ -664,9 +670,9 @@ const result = await motion.detect({
 
 ```typescript
 const results = await motion.search({
-  query: 'smooth fade in animation on scroll',
+  query: "smooth fade in animation on scroll",
   limit: 10,
-  minSimilarity: 0.7  // 類似度閾値（0-1）
+  minSimilarity: 0.7, // 類似度閾値（0-1）
 });
 
 // レスポンス:
@@ -684,12 +690,12 @@ const results = await motion.search({
 ```typescript
 const results = await motion.search({
   samplePattern: {
-    type: 'transition',
+    type: "transition",
     duration: 300,
-    easing: 'cubic-bezier(0.4, 0, 0.2, 1)',
-    properties: ['opacity', 'transform']
+    easing: "cubic-bezier(0.4, 0, 0.2, 1)",
+    properties: ["opacity", "transform"],
   },
-  limit: 10
+  limit: 10,
 });
 ```
 
@@ -697,13 +703,13 @@ const results = await motion.search({
 
 ```typescript
 const results = await motion.search({
-  query: 'scroll animation',
+  query: "scroll animation",
   filters: {
-    type: 'animation',          // animation | transition | transform | scroll | hover | keyframe
-    trigger: 'scroll',          // scroll | hover | click | load | focus | custom
+    type: "animation", // animation | transition | transform | scroll | hover | keyframe
+    trigger: "scroll", // scroll | hover | click | load | focus | custom
     minDuration: 200,
-    maxDuration: 1000
-  }
+    maxDuration: 1000,
+  },
 });
 ```
 
@@ -724,7 +730,7 @@ Quality tools evaluate web design quality on 3 axes (originality, craftsmanship,
 ```typescript
 const result = await quality.evaluate({
   html: myHtml,
-  action: 'evaluate'  // evaluate（デフォルト）| 'suggest_improvements'
+  action: "evaluate", // evaluate（デフォルト）| 'suggest_improvements'
 });
 
 // レスポンス:
@@ -743,10 +749,10 @@ const result = await quality.evaluate({
 ```typescript
 const result = await quality.evaluate({
   html: myHtml,
-  action: 'suggest_improvements',  // 改善提案生成
-  categories: ['originality', 'accessibility'],
-  minPriority: 'high',
-  maxSuggestions: 10
+  action: "suggest_improvements", // 改善提案生成
+  categories: ["originality", "accessibility"],
+  minPriority: "high",
+  maxSuggestions: 10,
 });
 
 // レスポンス:
@@ -764,11 +770,11 @@ const result = await quality.evaluate({
 const result = await quality.evaluate({
   html: myHtml,
   weights: {
-    originality: 0.35,     // デフォルト: 0.35
-    craftsmanship: 0.4,    // デフォルト: 0.4
-    contextuality: 0.25    // デフォルト: 0.25
+    originality: 0.35, // デフォルト: 0.35
+    craftsmanship: 0.4, // デフォルト: 0.4
+    contextuality: 0.25, // デフォルト: 0.25
   },
-  strict: true  // 厳格モード（AI cliche検出を強化）
+  strict: true, // 厳格モード（AI cliche検出を強化）
 });
 ```
 
@@ -777,8 +783,8 @@ const result = await quality.evaluate({
 ```typescript
 const result = await quality.evaluate({
   html: myHtml,
-  targetIndustry: 'healthcare',
-  targetAudience: 'medical professionals'
+  targetIndustry: "healthcare",
+  targetAudience: "medical professionals",
 });
 
 // contextualityスコアに反映されます
@@ -786,11 +792,11 @@ const result = await quality.evaluate({
 
 **3つの評価軸**
 
-| 軸 | 説明 | 主な評価基準 |
-|----|------|-------------|
-| **Originality** | 独創性 | AI cliche回避、ユニークな表現 |
-| **Craftsmanship** | 職人性 | タイポグラフィ、グリッド、余白の精度 |
-| **Contextuality** | 文脈適合性 | 業界・ターゲット層との適合 |
+| 軸                | 説明       | 主な評価基準                         |
+| ----------------- | ---------- | ------------------------------------ |
+| **Originality**   | 独創性     | AI cliche回避、ユニークな表現        |
+| **Craftsmanship** | 職人性     | タイポグラフィ、グリッド、余白の精度 |
+| **Contextuality** | 文脈適合性 | 業界・ターゲット層との適合           |
 
 **ベストプラクティス**
 
@@ -806,14 +812,10 @@ const result = await quality.evaluate({
 
 ```typescript
 const result = await quality.batch_evaluate({
-  items: [
-    { page_id: 'page-1' },
-    { html: '<html>...</html>' },
-    { page_id: 'page-2' }
-  ],
+  items: [{ page_id: "page-1" }, { html: "<html>...</html>" }, { page_id: "page-2" }],
   strict: true,
   batch_size: 10,
-  on_error: 'skip'  // skip | abort
+  on_error: "skip", // skip | abort
 });
 
 // レスポンス:
@@ -829,26 +831,22 @@ const result = await quality.batch_evaluate({
 
 **パラメータ / Parameters**
 
-| パラメータ / Parameter | 型 / Type | 必須 / Required | 説明 / Description |
-|-----------|---|------|------|
-| `job_id` | string | 必須 / Required | `quality.batch_evaluate` で返されたジョブID / Job ID returned by `quality.batch_evaluate` |
+| パラメータ / Parameter | 型 / Type | 必須 / Required | 説明 / Description                                                                        |
+| ---------------------- | --------- | --------------- | ----------------------------------------------------------------------------------------- |
+| `job_id`               | string    | 必須 / Required | `quality.batch_evaluate` で返されたジョブID / Job ID returned by `quality.batch_evaluate` |
 
 **基本的な使い方 / Basic Usage**
 
 ```typescript
 // バッチ評価を実行 / Execute batch evaluation
 const job = await quality.batch_evaluate({
-  items: [
-    { page_id: 'page-1' },
-    { page_id: 'page-2' },
-    { page_id: 'page-3' }
-  ],
-  strict: true
+  items: [{ page_id: "page-1" }, { page_id: "page-2" }, { page_id: "page-3" }],
+  strict: true,
 });
 
 // ジョブステータスを確認 / Check job status
 const status = await quality.getJobStatus({
-  job_id: job.job_id
+  job_id: job.job_id,
 });
 
 // レスポンス / Response:
@@ -865,11 +863,11 @@ async function waitForBatchEvaluation(jobId: string, maxWait = 120000): Promise<
   const start = Date.now();
   while (Date.now() - start < maxWait) {
     const status = await quality.getJobStatus({ job_id: jobId });
-    if (status.status === 'completed') return status.result;
-    if (status.status === 'failed') throw new Error('Batch evaluation failed');
-    await new Promise(r => setTimeout(r, 2000)); // 2秒間隔 / 2-second interval
+    if (status.status === "completed") return status.result;
+    if (status.status === "failed") throw new Error("Batch evaluation failed");
+    await new Promise((r) => setTimeout(r, 2000)); // 2秒間隔 / 2-second interval
   }
-  throw new Error('Timeout waiting for batch evaluation');
+  throw new Error("Timeout waiting for batch evaluation");
 }
 ```
 
@@ -895,8 +893,8 @@ Style tools provide brand color palette retrieval and application.
 
 ```typescript
 const result = await style.get_palette({
-  id: 'palette-id',
-  include_gradients: true
+  id: "palette-id",
+  include_gradients: true,
 });
 
 // レスポンス:
@@ -910,8 +908,8 @@ const result = await style.get_palette({
 
 ```typescript
 const result = await style.get_palette({
-  brand_name: 'Reftrix',
-  mode: 'light'  // light | dark | both
+  brand_name: "Reftrix",
+  mode: "light", // light | dark | both
 });
 ```
 
@@ -937,19 +935,17 @@ const result = await style.get_palette({});
 ```typescript
 const result = await brief.validate({
   brief: {
-    projectName: 'New Landing Page',
-    description: 'A modern landing page for SaaS product...',
-    targetAudience: 'B2B software developers',
-    industry: 'technology',
-    tone: ['professional', 'minimal'],
+    projectName: "New Landing Page",
+    description: "A modern landing page for SaaS product...",
+    targetAudience: "B2B software developers",
+    industry: "technology",
+    tone: ["professional", "minimal"],
     colorPreferences: {
-      primary: '#3B82F6',
-      secondary: '#10B981'
+      primary: "#3B82F6",
+      secondary: "#10B981",
     },
-    references: [
-      { url: 'https://example.com', note: 'Love the hero section' }
-    ]
-  }
+    references: [{ url: "https://example.com", note: "Love the hero section" }],
+  },
 });
 
 // レスポンス:
@@ -972,16 +968,16 @@ const result = await brief.validate({
 
 **完成度スコアのフィールド別Weight**
 
-| フィールド | Weight | 達成条件 |
-|-----------|--------|----------|
-| projectName | 10 | 3文字以上 |
-| description | 20 | 50文字以上 |
-| targetAudience | 15 | 20文字以上 |
-| industry | 10 | 非空 |
-| tone | 15 | 非空配列 |
-| colorPreferences | 15 | primary色あり |
-| references | 10 | 非空配列 |
-| constraints | 5 | mustHave/mustAvoidあり |
+| フィールド       | Weight | 達成条件               |
+| ---------------- | ------ | ---------------------- |
+| projectName      | 10     | 3文字以上              |
+| description      | 20     | 50文字以上             |
+| targetAudience   | 15     | 20文字以上             |
+| industry         | 10     | 非空                   |
+| tone             | 15     | 非空配列               |
+| colorPreferences | 15     | primary色あり          |
+| references       | 10     | 非空配列               |
+| constraints      | 5      | mustHave/mustAvoidあり |
 
 ---
 
@@ -993,8 +989,8 @@ const result = await brief.validate({
 
 ```typescript
 const result = await project.get({
-  id: 'project-id',
-  summary: true  // 軽量モード（id, name, statusのみ）
+  id: "project-id",
+  summary: true, // 軽量モード（id, name, statusのみ）
 });
 
 // レスポンス（summary: false時）:
@@ -1014,10 +1010,10 @@ const result = await project.get({
 
 ```typescript
 const result = await project.list({
-  status: 'in_progress',  // draft | in_progress | review | completed | archived
+  status: "in_progress", // draft | in_progress | review | completed | archived
   limit: 20,
   offset: 0,
-  summary: true
+  summary: true,
 });
 
 // レスポンス:
@@ -1037,13 +1033,13 @@ const result = await project.list({
 
 ```typescript
 const result = await page.analyze({
-  url: 'https://example.com',
-  summary: true,  // デフォルト: false。軽量レスポンスには明示的にtrueを指定（推奨）
+  url: "https://example.com",
+  summary: true, // デフォルト: false。軽量レスポンスには明示的にtrueを指定（推奨）
   features: {
     layout: true,
     motion: true,
-    quality: true
-  }
+    quality: true,
+  },
 });
 
 // レスポンス:
@@ -1058,14 +1054,14 @@ const result = await page.analyze({
 
 ```typescript
 const result = await page.analyze({
-  url: 'https://example.com',
-  summary: false,  // 詳細レスポンス
-  timeout: 600000,  // 10分（デフォルト）
+  url: "https://example.com",
+  summary: false, // 詳細レスポンス
+  timeout: 600000, // 10分（デフォルト）
   features: {
     layout: true,
     motion: true,
-    quality: true
-  }
+    quality: true,
+  },
 });
 
 // レスポンス:
@@ -1080,30 +1076,30 @@ const result = await page.analyze({
 
 ```typescript
 const result = await page.analyze({
-  url: 'https://example.com',
+  url: "https://example.com",
   summary: true,
   features: {
-    motion: true
+    motion: true,
   },
   motionOptions: {
-    enable_frame_capture: true,  // 明示的に有効化
-    analyze_frames: true         // フレーム画像分析（CLS検出）
-  }
+    enable_frame_capture: true, // 明示的に有効化
+    analyze_frames: true, // フレーム画像分析（CLS検出）
+  },
 });
 ```
 
 **パラメータ: `layoutOptions.useVision`（v0.1.0+）**
 
-| パラメータ / Parameter | 型 / Type | デフォルト / Default | 説明 / Description |
-|-----------|---|------|------|
-| `layoutOptions.useVision` | boolean | `true` | Ollama Vision（llama3.2-vision）を使用したリッチなレイアウト解析を有効化。`false` の場合はHTML静的解析のみ。 / Enable rich layout analysis using Ollama Vision (llama3.2-vision). When `false`, only HTML static analysis is performed. |
+| パラメータ / Parameter    | 型 / Type | デフォルト / Default | 説明 / Description                                                                                                                                                                                                                      |
+| ------------------------- | --------- | -------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `layoutOptions.useVision` | boolean   | `true`               | Ollama Vision（llama3.2-vision）を使用したリッチなレイアウト解析を有効化。`false` の場合はHTML静的解析のみ。 / Enable rich layout analysis using Ollama Vision (llama3.2-vision). When `false`, only HTML static analysis is performed. |
 
 ```typescript
 const result = await page.analyze({
-  url: 'https://example.com',
+  url: "https://example.com",
   layoutOptions: {
-    useVision: true   // デフォルト: true（Ollama Vision使用）
-  }
+    useVision: true, // デフォルト: true（Ollama Vision使用）
+  },
 });
 ```
 
@@ -1145,13 +1141,13 @@ The response includes a `visionUsed: boolean` field that accurately indicates wh
 ```typescript
 // 非同期モードでpage.analyzeを実行
 const job = await page.analyze({
-  url: 'https://example.com',
-  async: true  // 非同期モード
+  url: "https://example.com",
+  async: true, // 非同期モード
 });
 
 // ジョブステータスを確認
 const status = await page.getJobStatus({
-  job_id: job.job_id  // UUID形式
+  job_id: job.job_id, // UUID形式
 });
 
 // レスポンス:
@@ -1169,11 +1165,11 @@ async function waitForCompletion(jobId: string, maxWait = 120000): Promise<unkno
   const start = Date.now();
   while (Date.now() - start < maxWait) {
     const status = await page.getJobStatus({ job_id: jobId });
-    if (status.status === 'completed') return status.result;
-    if (status.status === 'failed') throw new Error(status.failedReason);
-    await new Promise(r => setTimeout(r, 2000)); // 2秒間隔
+    if (status.status === "completed") return status.result;
+    if (status.status === "failed") throw new Error(status.failedReason);
+    await new Promise((r) => setTimeout(r, 2000)); // 2秒間隔
   }
-  throw new Error('Timeout waiting for job completion');
+  throw new Error("Timeout waiting for job completion");
 }
 ```
 
@@ -1194,7 +1190,7 @@ async function waitForCompletion(jobId: string, maxWait = 120000): Promise<unkno
 
 ```typescript
 const result = await system.health({
-  detailed: true
+  detailed: true,
 });
 
 // レスポンス:
@@ -1208,7 +1204,7 @@ const result = await system.health({
 
 ```typescript
 const result = await system.health({
-  component: 'database'  // database | system_resources | mcp_tools
+  component: "database", // database | system_resources | mcp_tools
 });
 ```
 
@@ -1233,22 +1229,22 @@ Narrative tools provide semantic search for web design worldview (WorldView) and
 
 `NarrativeSearchService` is a full implementation using Prisma + pgvector (HNSW cosine similarity). It provides the following 4 search methods:
 
-| メソッド / Method | 説明 / Description |
-|---|---|
-| `search()` | ベクトル検索（768次元embedding） / Vector search (768-dim embedding) |
-| `searchHybrid()` | RRF（60% vector + 40% full-text）によるハイブリッド検索 / Hybrid search via RRF (60% vector + 40% full-text) |
-| `searchByVector()` | embedding直接指定によるベクトル検索 / Vector search with direct embedding input |
-| `searchByMoodCategory()` | MoodCategoryフィルター検索 / Filter search by MoodCategory |
+| メソッド / Method        | 説明 / Description                                                                                           |
+| ------------------------ | ------------------------------------------------------------------------------------------------------------ |
+| `search()`               | ベクトル検索（768次元embedding） / Vector search (768-dim embedding)                                         |
+| `searchHybrid()`         | RRF（60% vector + 40% full-text）によるハイブリッド検索 / Hybrid search via RRF (60% vector + 40% full-text) |
+| `searchByVector()`       | embedding直接指定によるベクトル検索 / Vector search with direct embedding input                              |
+| `searchByMoodCategory()` | MoodCategoryフィルター検索 / Filter search by MoodCategory                                                   |
 
 **基本的な使い方（ハイブリッド検索）/ Basic Usage (Hybrid Search)**
 
 ```typescript
 const results = await narrative.search({
-  query: 'サイバーセキュリティ感のあるダークなデザイン',
+  query: "サイバーセキュリティ感のあるダークなデザイン",
   options: {
     limit: 10,
-    searchMode: 'hybrid'  // vector | hybrid（デフォルト）
-  }
+    searchMode: "hybrid", // vector | hybrid（デフォルト）
+  },
 });
 
 // レスポンス:
@@ -1275,12 +1271,12 @@ const results = await narrative.search({
 
 ```typescript
 const results = await narrative.search({
-  query: 'minimalist tech landing page',
+  query: "minimalist tech landing page",
   options: {
-    searchMode: 'vector',  // pgvector cosine similarity のみ
+    searchMode: "vector", // pgvector cosine similarity のみ
     limit: 10,
-    minSimilarity: 0.7
-  }
+    minSimilarity: 0.7,
+  },
 });
 ```
 
@@ -1289,10 +1285,10 @@ const results = await narrative.search({
 ```typescript
 // 事前に生成済みの768次元embeddingで検索
 const results = await narrative.search({
-  embedding: precomputedVector,  // number[768]
+  embedding: precomputedVector, // number[768]
   options: {
-    limit: 10
-  }
+    limit: 10,
+  },
 });
 ```
 
@@ -1300,14 +1296,14 @@ const results = await narrative.search({
 
 ```typescript
 const results = await narrative.search({
-  query: 'clean corporate design',
+  query: "clean corporate design",
   filters: {
-    moodCategory: 'professional',                // 単一のムードカテゴリを指定
-    minConfidence: 0.7
+    moodCategory: "professional", // 単一のムードカテゴリを指定
+    minConfidence: 0.7,
   },
   options: {
-    limit: 20
-  }
+    limit: 20,
+  },
 });
 ```
 
@@ -1315,34 +1311,34 @@ const results = await narrative.search({
 
 ```typescript
 const results = await narrative.search({
-  query: 'elegant minimal design',
+  query: "elegant minimal design",
   filters: {
-    moodCategory: 'elegant',      // 単一のムードカテゴリを指定
-    minConfidence: 0.7             // 最小信頼度（0-1）
+    moodCategory: "elegant", // 単一のムードカテゴリを指定
+    minConfidence: 0.7, // 最小信頼度（0-1）
   },
   options: {
     limit: 20,
-    minSimilarity: 0.7,           // 最小類似度（デフォルト: 0.6）
-    searchMode: 'hybrid',
-    vectorWeight: 0.6,            // Vector検索の重み（デフォルト: 0.6）
-    fulltextWeight: 0.4           // Full-text検索の重み（デフォルト: 0.4）
-  }
+    minSimilarity: 0.7, // 最小類似度（デフォルト: 0.6）
+    searchMode: "hybrid",
+    vectorWeight: 0.6, // Vector検索の重み（デフォルト: 0.6）
+    fulltextWeight: 0.4, // Full-text検索の重み（デフォルト: 0.4）
+  },
 });
 ```
 
 **主要パラメータ**
 
-| パラメータ | 型 | デフォルト | 説明 |
-|-----------|---|-----------|------|
-| `query` | string | （query/embeddingいずれか必須） | 自然言語検索クエリ（1-500文字） |
-| `embedding` | number[] | （query/embeddingいずれか必須） | 768次元Embedding直接指定 |
-| `filters.moodCategory` | string | - | ムードカテゴリフィルター（単一指定） |
-| `filters.minConfidence` | number | - | 最小信頼度（0-1） |
-| `options.limit` | number | 10 | 結果数（1-50） |
-| `options.minSimilarity` | number | 0.6 | 最小類似度（0-1） |
-| `options.searchMode` | string | hybrid | 検索モード（vector / hybrid） |
-| `options.vectorWeight` | number | 0.6 | Vector検索の重み（RRF結合時） |
-| `options.fulltextWeight` | number | 0.4 | Full-text検索の重み（RRF結合時） |
+| パラメータ               | 型       | デフォルト                      | 説明                                 |
+| ------------------------ | -------- | ------------------------------- | ------------------------------------ |
+| `query`                  | string   | （query/embeddingいずれか必須） | 自然言語検索クエリ（1-500文字）      |
+| `embedding`              | number[] | （query/embeddingいずれか必須） | 768次元Embedding直接指定             |
+| `filters.moodCategory`   | string   | -                               | ムードカテゴリフィルター（単一指定） |
+| `filters.minConfidence`  | number   | -                               | 最小信頼度（0-1）                    |
+| `options.limit`          | number   | 10                              | 結果数（1-50）                       |
+| `options.minSimilarity`  | number   | 0.6                             | 最小類似度（0-1）                    |
+| `options.searchMode`     | string   | hybrid                          | 検索モード（vector / hybrid）        |
+| `options.vectorWeight`   | number   | 0.6                             | Vector検索の重み（RRF結合時）        |
+| `options.fulltextWeight` | number   | 0.4                             | Full-text検索の重み（RRF結合時）     |
 
 **検索アーキテクチャ / Search Architecture**
 
@@ -1365,20 +1361,20 @@ narrative.search({ query, searchMode: 'hybrid' })
 
 **サポートされるムードカテゴリ**
 
-| カテゴリ | 説明 |
-|---------|------|
-| `professional` | ビジネス、企業 |
-| `playful` | 遊び心、カジュアル |
-| `premium` | 高級、ラグジュアリー |
-| `tech` | テクノロジー、先進的 |
-| `organic` | 自然、オーガニック |
-| `minimal` | ミニマル、シンプル |
-| `bold` | 大胆、インパクト |
-| `elegant` | 上品、洗練 |
-| `friendly` | 親しみやすい |
-| `artistic` | アート、クリエイティブ |
-| `trustworthy` | 信頼、安心 |
-| `energetic` | エネルギッシュ、活発 |
+| カテゴリ       | 説明                   |
+| -------------- | ---------------------- |
+| `professional` | ビジネス、企業         |
+| `playful`      | 遊び心、カジュアル     |
+| `premium`      | 高級、ラグジュアリー   |
+| `tech`         | テクノロジー、先進的   |
+| `organic`      | 自然、オーガニック     |
+| `minimal`      | ミニマル、シンプル     |
+| `bold`         | 大胆、インパクト       |
+| `elegant`      | 上品、洗練             |
+| `friendly`     | 親しみやすい           |
+| `artistic`     | アート、クリエイティブ |
+| `trustworthy`  | 信頼、安心             |
+| `energetic`    | エネルギッシュ、活発   |
 
 **ベストプラクティス**
 
@@ -1405,8 +1401,8 @@ Background tools provide semantic search for BackgroundDesign patterns (gradient
 
 ```typescript
 const results = await background.search({
-  query: 'dark gradient with purple tones',
-  limit: 10
+  query: "dark gradient with purple tones",
+  limit: 10,
 });
 
 // レスポンス:
@@ -1430,44 +1426,44 @@ const results = await background.search({
 
 ```typescript
 const results = await background.search({
-  query: 'glassmorphism effect',
+  query: "glassmorphism effect",
   limit: 20,
   offset: 0,
   filters: {
-    designType: 'glassmorphism',  // デザインタイプでフィルター
-    webPageId: 'page-uuid'        // 特定ページの背景のみ
-  }
+    designType: "glassmorphism", // デザインタイプでフィルター
+    webPageId: "page-uuid", // 特定ページの背景のみ
+  },
 });
 ```
 
 **主要パラメータ**
 
-| パラメータ | 型 | デフォルト | 説明 |
-|-----------|---|-----------|------|
-| `query` | string | （必須） | 検索クエリ（1-500文字） |
-| `limit` | number | 10 | 取得件数（1-50） |
-| `offset` | number | 0 | オフセット（ページネーション用） |
-| `filters.designType` | string | - | デザインタイプでフィルター |
-| `filters.webPageId` | string | - | WebページIDでフィルター |
+| パラメータ           | 型     | デフォルト | 説明                             |
+| -------------------- | ------ | ---------- | -------------------------------- |
+| `query`              | string | （必須）   | 検索クエリ（1-500文字）          |
+| `limit`              | number | 10         | 取得件数（1-50）                 |
+| `offset`             | number | 0          | オフセット（ページネーション用） |
+| `filters.designType` | string | -          | デザインタイプでフィルター       |
+| `filters.webPageId`  | string | -          | WebページIDでフィルター          |
 
 **サポートされるデザインタイプ（14種類）**
 
-| タイプ | 説明 |
-|-------|------|
-| `solid_color` | 単色背景 |
-| `linear_gradient` | 線形グラデーション |
-| `radial_gradient` | 放射状グラデーション |
-| `conic_gradient` | 円錐グラデーション |
-| `mesh_gradient` | メッシュグラデーション |
-| `image_background` | 画像背景 |
-| `pattern_background` | パターン背景 |
-| `video_background` | 動画背景 |
-| `animated_gradient` | アニメーショングラデーション |
-| `glassmorphism` | グラスモーフィズム |
-| `noise_texture` | ノイズテクスチャ |
-| `svg_background` | SVG背景 |
-| `multi_layer` | 多層背景 |
-| `unknown` | 未分類 |
+| タイプ               | 説明                         |
+| -------------------- | ---------------------------- |
+| `solid_color`        | 単色背景                     |
+| `linear_gradient`    | 線形グラデーション           |
+| `radial_gradient`    | 放射状グラデーション         |
+| `conic_gradient`     | 円錐グラデーション           |
+| `mesh_gradient`      | メッシュグラデーション       |
+| `image_background`   | 画像背景                     |
+| `pattern_background` | パターン背景                 |
+| `video_background`   | 動画背景                     |
+| `animated_gradient`  | アニメーショングラデーション |
+| `glassmorphism`      | グラスモーフィズム           |
+| `noise_texture`      | ノイズテクスチャ             |
+| `svg_background`     | SVG背景                      |
+| `multi_layer`        | 多層背景                     |
+| `unknown`            | 未分類                       |
 
 **ベストプラクティス**
 
@@ -1492,8 +1488,8 @@ Responsive tools provide semantic search over responsive analysis results (viewp
 
 ```typescript
 const results = await responsive.search({
-  query: 'navigation layout changes between mobile and desktop',
-  limit: 10
+  query: "navigation layout changes between mobile and desktop",
+  limit: 10,
 });
 
 // レスポンス / Response:
@@ -1513,31 +1509,31 @@ const results = await responsive.search({
 
 ```typescript
 const results = await responsive.search({
-  query: 'typography size differences',
+  query: "typography size differences",
   filters: {
-    diffCategory: 'typography',           // 差異カテゴリ / Diff category
-    viewportPair: 'desktop-mobile',       // ビューポートペア / Viewport pair
+    diffCategory: "typography", // 差異カテゴリ / Diff category
+    viewportPair: "desktop-mobile", // ビューポートペア / Viewport pair
     breakpointRange: { min: 768, max: 1440 }, // ブレークポイント範囲(px) / Breakpoint range
-    minDiffPercentage: 5,                 // 最小差分率(%) / Min diff percentage
-    webPageId: 'page-uuid'                // WebページIDでフィルタ / Filter by web page
+    minDiffPercentage: 5, // 最小差分率(%) / Min diff percentage
+    webPageId: "page-uuid", // WebページIDでフィルタ / Filter by web page
   },
   limit: 20,
-  offset: 0
+  offset: 0,
 });
 ```
 
 **主要パラメータ / Key Parameters**
 
-| パラメータ / Parameter | 型 / Type | デフォルト / Default | 説明 / Description |
-|-----------|---|-----------|------|
-| `query` | string | （必須 / required） | 検索クエリ（1-500文字） / Search query (1-500 chars) |
-| `limit` | number | 10 | 取得件数（1-50） / Result limit |
-| `offset` | number | 0 | オフセット / Pagination offset |
-| `filters.diffCategory` | string | - | 差異カテゴリ / Diff category: layout, typography, spacing, visibility, navigation, image, interaction, animation |
-| `filters.viewportPair` | string | - | ビューポートペア / Viewport pair: desktop-tablet, desktop-mobile, tablet-mobile |
-| `filters.breakpointRange` | object | - | ブレークポイント範囲 `{min, max}` (px) / Breakpoint range |
-| `filters.minDiffPercentage` | number | - | 最小スクリーンショット差分率(0-100) / Min screenshot diff percentage |
-| `filters.webPageId` | string | - | WebページIDでフィルタ / Filter by web page UUID |
+| パラメータ / Parameter      | 型 / Type | デフォルト / Default | 説明 / Description                                                                                               |
+| --------------------------- | --------- | -------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| `query`                     | string    | （必須 / required）  | 検索クエリ（1-500文字） / Search query (1-500 chars)                                                             |
+| `limit`                     | number    | 10                   | 取得件数（1-50） / Result limit                                                                                  |
+| `offset`                    | number    | 0                    | オフセット / Pagination offset                                                                                   |
+| `filters.diffCategory`      | string    | -                    | 差異カテゴリ / Diff category: layout, typography, spacing, visibility, navigation, image, interaction, animation |
+| `filters.viewportPair`      | string    | -                    | ビューポートペア / Viewport pair: desktop-tablet, desktop-mobile, tablet-mobile                                  |
+| `filters.breakpointRange`   | object    | -                    | ブレークポイント範囲 `{min, max}` (px) / Breakpoint range                                                        |
+| `filters.minDiffPercentage` | number    | -                    | 最小スクリーンショット差分率(0-100) / Min screenshot diff percentage                                             |
+| `filters.webPageId`         | string    | -                    | WebページIDでフィルタ / Filter by web page UUID                                                                  |
 
 **データライフサイクル / Data Lifecycle**: 同一URLの再分析時は clean-slate（`deleteMany` → `create`）で旧データを上書きします。 / On re-analysis of the same URL, old data is overwritten via clean-slate (`deleteMany` → `create`).
 
@@ -1565,10 +1561,10 @@ Preference profiling tools interactively learn user design preferences and perso
 
 **動作モード / Operation Modes**:
 
-| モード / Mode | トリガー / Trigger | 動作 / Behavior |
-|---|---|---|
-| Mode A（サンプル提示） | フィードバックなし | DBからサンプルデザインを提示し、2因子confidence進捗をトラッキング / Present sample designs from DB with 2-factor confidence tracking |
-| Mode B（フィードバック記録） | フィードバックあり | フィードバックを記録し、嗜好プロファイルを更新 / Record feedback and update preference profile |
+| モード / Mode                | トリガー / Trigger | 動作 / Behavior                                                                                                                      |
+| ---------------------------- | ------------------ | ------------------------------------------------------------------------------------------------------------------------------------ |
+| Mode A（サンプル提示）       | フィードバックなし | DBからサンプルデザインを提示し、2因子confidence進捗をトラッキング / Present sample designs from DB with 2-factor confidence tracking |
+| Mode B（フィードバック記録） | フィードバックあり | フィードバックを記録し、嗜好プロファイルを更新 / Record feedback and update preference profile                                       |
 
 **基本的な使い方 / Basic Usage**
 
@@ -1583,10 +1579,10 @@ const result2 = await preference.hear({
   profile_id: result.data.profile_id,
   feedback: {
     sample_id: result.data.samples[0].id,
-    rating: 'positive',
-    comment: 'このグラデーション背景が好き'
+    rating: "positive",
+    comment: "このグラデーション背景が好き",
   },
-  exclude_ids: [result.data.samples[0].id]
+  exclude_ids: [result.data.samples[0].id],
 });
 
 // ステップ3: confidence閾値（0.8）に達するまで繰り返し（最大15回）
@@ -1595,11 +1591,11 @@ const result2 = await preference.hear({
 
 **confidenceモデル / Confidence Model**
 
-| 因子 / Factor | 重み / Weight | 説明 / Description |
-|---|---|---|
-| MoodCategory Coverage | 0.6 | 多様なデザインカテゴリへのフィードバック網羅率 / Feedback coverage across diverse design categories |
-| Interaction Sufficiency | 0.4 | フィードバック回数の十分性 / Sufficiency of feedback count |
-| 閾値 / Threshold | 0.8 | プロファイル完成判定 / Profile completion threshold |
+| 因子 / Factor           | 重み / Weight | 説明 / Description                                                                                  |
+| ----------------------- | ------------- | --------------------------------------------------------------------------------------------------- |
+| MoodCategory Coverage   | 0.6           | 多様なデザインカテゴリへのフィードバック網羅率 / Feedback coverage across diverse design categories |
+| Interaction Sufficiency | 0.4           | フィードバック回数の十分性 / Sufficiency of feedback count                                          |
+| 閾値 / Threshold        | 0.8           | プロファイル完成判定 / Profile completion threshold                                                 |
 
 ---
 
@@ -1612,14 +1608,14 @@ const result2 = await preference.hear({
 ```typescript
 // プロファイル概要取得 / Get profile summary
 const profile = await preference.get({
-  profile_id: '<uuid>'
+  profile_id: "<uuid>",
 });
 
 // 全シグナルデータ含むエクスポート（GDPR Art. 20 データポータビリティ）
 // Export with all signal data (GDPR Art. 20 Data Portability)
 const exportData = await preference.get({
-  profile_id: '<uuid>',
-  include_signals: true
+  profile_id: "<uuid>",
+  include_signals: true,
 });
 ```
 
@@ -1635,16 +1631,16 @@ const exportData = await preference.get({
 // ソフトリセット（嗜好データクリア、プロファイル枠は維持）
 // Soft reset (clear preference data, keep profile shell)
 await preference.reset({
-  profile_id: '<uuid>',
-  confirm: true
+  profile_id: "<uuid>",
+  confirm: true,
 });
 
 // 完全削除（GDPR Art. 17 忘れられる権利）
 // Hard delete (GDPR Art. 17 Right to Erasure)
 await preference.reset({
-  profile_id: '<uuid>',
+  profile_id: "<uuid>",
   confirm: true,
-  hard_delete: true
+  hard_delete: true,
 });
 ```
 
@@ -1672,17 +1668,17 @@ Semantic search for UI parts. Supports 3 search modes: visual, text, and hybrid.
 ```typescript
 // テキスト検索 / Text search
 const results = await mcp__reftrix__part_search({
-  query: 'CTAボタン グラデーション背景',
-  searchMode: 'text',
-  limit: 10
+  query: "CTAボタン グラデーション背景",
+  searchMode: "text",
+  limit: 10,
 });
 
 // パーツタイプフィルター付き / With part type filter
 const buttons = await mcp__reftrix__part_search({
-  query: 'primary action button',
-  partType: 'button',
-  searchMode: 'hybrid',
-  limit: 5
+  query: "primary action button",
+  partType: "button",
+  searchMode: "hybrid",
+  limit: 5,
 });
 ```
 
@@ -1694,9 +1690,9 @@ Retrieve detailed information for a part by ID, including computed styles, bound
 
 ```typescript
 const detail = await mcp__reftrix__part_inspect({
-  id: 'part-uuid-here',
+  id: "part-uuid-here",
   includeHtml: true,
-  includeEmbedding: false
+  includeEmbedding: false,
 });
 ```
 
@@ -1708,7 +1704,7 @@ Compare 2-5 parts side by side on styles, layout, interaction, and accessibility
 
 ```typescript
 const comparison = await mcp__reftrix__part_compare({
-  partIds: ['part-uuid-1', 'part-uuid-2', 'part-uuid-3']
+  partIds: ["part-uuid-1", "part-uuid-2", "part-uuid-3"],
 });
 ```
 
@@ -1721,40 +1717,40 @@ const comparison = await mcp__reftrix__part_compare({
 ```typescript
 // ステップ1: アワードサイトを収集
 await layout.ingest({
-  url: 'https://awwwards.com/sites/example',
+  url: "https://awwwards.com/sites/example",
   options: {
     save_to_db: true,
-    auto_analyze: true
-  }
+    auto_analyze: true,
+  },
 });
 
 // ステップ2: 類似レイアウトを検索
 const layouts = await layout.search({
-  query: 'modern hero section with animation',
+  query: "modern hero section with animation",
   limit: 10,
-  include_html: false
+  include_html: false,
 });
 
 // ステップ3: モーションパターンを検索
 const motions = await motion.search({
-  query: 'smooth scroll animation',
-  limit: 5
+  query: "smooth scroll animation",
+  limit: 5,
 });
 
 // ステップ4: コード生成
 const code = await layout.generate_code({
   patternId: layouts.results[0].id,
   options: {
-    framework: 'react',
+    framework: "react",
     typescript: true,
-    tailwind: true
-  }
+    tailwind: true,
+  },
 });
 
 // ステップ5: 品質評価
 const quality = await quality.evaluate({
   html: code.code,
-  action: 'evaluate'
+  action: "evaluate",
 });
 ```
 
@@ -1767,7 +1763,7 @@ const quality = await quality.evaluate({
 const evaluation = await quality.evaluate({
   html: currentHtml,
   strict: true,
-  includeRecommendations: true
+  includeRecommendations: true,
 });
 
 // ステップ2: 推奨事項に基づいて手動で改善
@@ -1779,7 +1775,7 @@ const evaluation = await quality.evaluate({
 // ステップ3: 改善後に再評価
 const reEvaluation = await quality.evaluate({
   html: improvedHtml,
-  includeRecommendations: true
+  includeRecommendations: true,
 });
 ```
 
@@ -1790,25 +1786,25 @@ const reEvaluation = await quality.evaluate({
 ```typescript
 // ステップ1: ブランドパレットを取得
 const palette = await style.get_palette({
-  brand_name: 'Reftrix',
-  mode: 'light'
+  brand_name: "Reftrix",
+  mode: "light",
 });
 
 // ステップ2: レイアウトパターンを検索
 const layouts = await layout.search({
-  query: 'landing page hero',
-  limit: 5
+  query: "landing page hero",
+  limit: 5,
 });
 
 // ステップ3: パレット適用してコード生成
 const code = await layout.generate_code({
   patternId: layouts.results[0].id,
   options: {
-    framework: 'react',
+    framework: "react",
     typescript: true,
     tailwind: true,
-    paletteId: palette.id
-  }
+    paletteId: palette.id,
+  },
 });
 ```
 
@@ -1819,13 +1815,15 @@ const code = await layout.generate_code({
 ### summary=true の活用 / Leveraging summary=true
 
 **トークン削減率**:
+
 ```typescript
-layout.search({ summary: true });   // 詳細なHTMLスニペットを省略
-motion.detect({ includeSummary: true });   // サマリー情報を含める（デフォルトtrue）
+layout.search({ summary: true }); // 詳細なHTMLスニペットを省略
+motion.detect({ includeSummary: true }); // サマリー情報を含める（デフォルトtrue）
 quality.evaluate({ summary: true }); // 詳細な改善提案を省略
 ```
 
 **推奨される使い方**:
+
 1. 初回は `summary: true` で概要確認
 2. 詳細が必要な場合のみ `summary: false`
 3. 一覧系は常に `summary: true`
@@ -1836,11 +1834,11 @@ quality.evaluate({ summary: true }); // 詳細な改善提案を省略
 
 ```typescript
 // ✅ 推奨
-layout.search({ query: '...', limit: 10 });
-motion.search({ query: '...', limit: 10 });
+layout.search({ query: "...", limit: 10 });
+motion.search({ query: "...", limit: 10 });
 
 // ❌ 非推奨（レスポンスサイズ大）
-layout.search({ query: '...', limit: 100 });
+layout.search({ query: "...", limit: 100 });
 ```
 
 ---
@@ -1850,14 +1848,14 @@ layout.search({ query: '...', limit: 100 });
 ```typescript
 // ✅ 推奨: 並列実行
 const [layoutResult, motionResult, qualityResult] = await Promise.all([
-  layout.search({ query: 'hero section' }),
-  motion.search({ query: 'fade in' }),
-  quality.evaluate({ html: myHtml })
+  layout.search({ query: "hero section" }),
+  motion.search({ query: "fade in" }),
+  quality.evaluate({ html: myHtml }),
 ]);
 
 // ❌ 非推奨: 逐次実行
-const layoutResult = await layout.search({ query: 'hero section' });
-const motionResult = await motion.search({ query: 'fade in' });
+const layoutResult = await layout.search({ query: "hero section" });
+const motionResult = await motion.search({ query: "fade in" });
 const qualityResult = await quality.evaluate({ html: myHtml });
 ```
 
@@ -1868,17 +1866,17 @@ const qualityResult = await quality.evaluate({ html: myHtml });
 ```typescript
 // ✅ 推奨: 不要なデータを除外
 await layout.ingest({
-  url: 'https://example.com',
+  url: "https://example.com",
   options: {
-    include_html: false,       // HTML不要
-    include_screenshot: false  // スクリーンショット不要
-  }
+    include_html: false, // HTML不要
+    include_screenshot: false, // スクリーンショット不要
+  },
 });
 
 // ✅ 推奨: 検索時もHTMLを除外
 await layout.search({
-  query: 'hero section',
-  include_html: false  // デフォルトでfalse（明示的に指定推奨）
+  query: "hero section",
+  include_html: false, // デフォルトでfalse（明示的に指定推奨）
 });
 ```
 
@@ -1893,10 +1891,11 @@ await layout.search({
 **原因**: `layout.ingest` で `save_to_db: false` または `auto_analyze: false` を明示的に指定している、あるいはまだページを収集していない
 
 **解決策**:
+
 ```typescript
 // ✅ 正しい方法（デフォルトでsave_to_db: true, auto_analyze: true）
 await layout.ingest({
-  url: 'https://example.com'
+  url: "https://example.com",
   // save_to_db: true（デフォルト）
   // auto_analyze: true（デフォルト）
 });
@@ -1909,11 +1908,12 @@ await layout.ingest({
 **原因**: `motion.detect` で `save_to_db: true` を指定していない
 
 **解決策**:
+
 ```typescript
 // ✅ 正しい方法
 await motion.detect({
   html: myHtml,
-  save_to_db: true  // ★必須
+  save_to_db: true, // ★必須
 });
 ```
 
@@ -1924,17 +1924,18 @@ await motion.detect({
 **原因**: デフォルトタイムアウト（600秒/10分）を超えている
 
 **解決策**:
+
 ```typescript
 // タイムアウトを延長（デフォルト: 600000ms = 10分）
 await page.analyze({
-  url: 'https://heavy-page.com',
-  timeout: 900000  // 15分
+  url: "https://heavy-page.com",
+  timeout: 900000, // 15分
 });
 
 // または summary: true で軽量化
 await page.analyze({
-  url: 'https://heavy-page.com',
-  summary: true
+  url: "https://heavy-page.com",
+  summary: true,
 });
 ```
 
@@ -1945,18 +1946,19 @@ await page.analyze({
 **原因**: `include_html: true`, `include_screenshot: true` を明示的に指定している
 
 **解決策**:
+
 ```typescript
 // ✅ 軽量化（デフォルトでinclude_html/include_screenshotはfalse）
 await layout.ingest({
-  url: 'https://example.com'
+  url: "https://example.com",
   // include_html: false（デフォルト）
   // include_screenshot: false（デフォルト）
 });
 
 // summary: true を使用
 await layout.search({
-  query: 'hero section',
-  include_html: false  // デフォルトでfalse
+  query: "hero section",
+  include_html: false, // デフォルトでfalse
 });
 ```
 
@@ -1967,22 +1969,23 @@ await layout.search({
 **原因**: 大量のフレームキャプチャ
 
 **解決策**:
+
 ```typescript
 // CI環境では無効化
 await motion.detect({
   html: myHtml,
-  enable_frame_capture: false
+  enable_frame_capture: false,
 });
 
 // ローカルでは解像度を下げる
 await page.analyze({
-  url: 'https://example.com',
+  url: "https://example.com",
   motionOptions: {
     enable_frame_capture: true,
     frame_capture_options: {
-      scroll_px_per_frame: 30  // 15→30で半分のフレーム数
-    }
-  }
+      scroll_px_per_frame: 30, // 15→30で半分のフレーム数
+    },
+  },
 });
 ```
 

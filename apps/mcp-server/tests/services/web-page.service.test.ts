@@ -7,10 +7,10 @@
  * motion.detectツールで使用するWebPage取得サービスのテスト
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 // Prismaモック
-vi.mock('@reftrix/database', () => ({
+vi.mock("@reftrix/database", () => ({
   prisma: {
     webPage: {
       findUnique: vi.fn(),
@@ -19,7 +19,7 @@ vi.mock('@reftrix/database', () => ({
 }));
 
 // loggerモック
-vi.mock('../../src/utils/logger', () => ({
+vi.mock("../../src/utils/logger", () => ({
   logger: {
     info: vi.fn(),
     warn: vi.fn(),
@@ -29,10 +29,10 @@ vi.mock('../../src/utils/logger', () => ({
   isDevelopment: () => true,
 }));
 
-import { prisma } from '@reftrix/database';
-import { webPageService, createWebPageService } from '../../src/services/web-page.service';
+import { prisma } from "@reftrix/database";
+import { webPageService, createWebPageService } from "../../src/services/web-page.service";
 
-describe('WebPageService', () => {
+describe("WebPageService", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
@@ -41,11 +41,11 @@ describe('WebPageService', () => {
     vi.resetAllMocks();
   });
 
-  describe('getPageById', () => {
-    it('should return WebPage with HTML content when found', async () => {
+  describe("getPageById", () => {
+    it("should return WebPage with HTML content when found", async () => {
       const mockPage = {
-        id: '01234567-89ab-cdef-0123-456789abcdef',
-        htmlContent: '<html><body><h1>Test Page</h1></body></html>',
+        id: "01234567-89ab-cdef-0123-456789abcdef",
+        htmlContent: "<html><body><h1>Test Page</h1></body></html>",
       };
 
       vi.mocked(prisma.webPage.findUnique).mockResolvedValue(mockPage as never);
@@ -66,17 +66,17 @@ describe('WebPageService', () => {
       });
     });
 
-    it('should return null when page is not found', async () => {
+    it("should return null when page is not found", async () => {
       vi.mocked(prisma.webPage.findUnique).mockResolvedValue(null);
 
-      const result = await webPageService.getPageById('nonexistent-id');
+      const result = await webPageService.getPageById("nonexistent-id");
 
       expect(result).toBeNull();
     });
 
-    it('should return null when page has no HTML content', async () => {
+    it("should return null when page has no HTML content", async () => {
       const mockPage = {
-        id: '01234567-89ab-cdef-0123-456789abcdef',
+        id: "01234567-89ab-cdef-0123-456789abcdef",
         htmlContent: null,
       };
 
@@ -87,25 +87,25 @@ describe('WebPageService', () => {
       expect(result).toBeNull();
     });
 
-    it('should throw error when database query fails', async () => {
-      const dbError = new Error('Database connection failed');
+    it("should throw error when database query fails", async () => {
+      const dbError = new Error("Database connection failed");
       vi.mocked(prisma.webPage.findUnique).mockRejectedValue(dbError);
 
-      await expect(webPageService.getPageById('any-id')).rejects.toThrow(
-        'Database connection failed'
+      await expect(webPageService.getPageById("any-id")).rejects.toThrow(
+        "Database connection failed"
       );
     });
   });
 
-  describe('createWebPageService', () => {
-    it('should return a service instance with getPageById method', () => {
+  describe("createWebPageService", () => {
+    it("should return a service instance with getPageById method", () => {
       const service = createWebPageService();
 
       expect(service).toBeDefined();
-      expect(typeof service.getPageById).toBe('function');
+      expect(typeof service.getPageById).toBe("function");
     });
 
-    it('should return the same singleton instance', () => {
+    it("should return the same singleton instance", () => {
       const service1 = createWebPageService();
       const service2 = createWebPageService();
 
@@ -115,12 +115,12 @@ describe('WebPageService', () => {
   });
 });
 
-describe('WebPageService Integration with motion.detect', () => {
-  it('should provide compatible interface for IMotionDetectService', async () => {
+describe("WebPageService Integration with motion.detect", () => {
+  it("should provide compatible interface for IMotionDetectService", async () => {
     // motion.detect expects: { id: string; htmlContent: string; cssContent?: string }
     const mockPage = {
-      id: 'test-page-id',
-      htmlContent: '<html><head><style>body { color: red; }</style></head><body>Test</body></html>',
+      id: "test-page-id",
+      htmlContent: "<html><head><style>body { color: red; }</style></head><body>Test</body></html>",
     };
 
     vi.mocked(prisma.webPage.findUnique).mockResolvedValue(mockPage as never);

@@ -6,6 +6,6 @@
  * @module @reftrix/webdesign-core/types
  */
 
-export * from './section.types';
-export * from './template.types';
-export * from './css-animation.types';
+export * from "./section.types";
+export * from "./template.types";
+export * from "./css-animation.types";

@@ -10,11 +10,11 @@
  * - パターン保存フローの検証
  */
 
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import {
   setMotionPersistenceServiceFactory,
   resetMotionPersistenceServiceFactory,
-} from '../../../src/tools/motion/detect.tool';
+} from "../../../src/tools/motion/detect.tool";
 import {
   MotionPatternPersistenceService,
   setMotionPersistenceEmbeddingServiceFactory,
@@ -24,7 +24,7 @@ import {
   resetMotionPersistenceService,
   type IEmbeddingService,
   type IPrismaClient,
-} from '../../../src/services/motion-persistence.service';
+} from "../../../src/services/motion-persistence.service";
 
 // モックファクトリ
 const createMockEmbeddingService = (): IEmbeddingService => ({
@@ -33,16 +33,16 @@ const createMockEmbeddingService = (): IEmbeddingService => ({
 
 const createMockPrismaClient = (): IPrismaClient => ({
   motionPattern: {
-    create: vi.fn().mockResolvedValue({ id: 'mock-pattern-id' }),
+    create: vi.fn().mockResolvedValue({ id: "mock-pattern-id" }),
   },
   motionEmbedding: {
-    create: vi.fn().mockResolvedValue({ id: 'mock-embedding-id' }),
+    create: vi.fn().mockResolvedValue({ id: "mock-embedding-id" }),
   },
   $executeRawUnsafe: vi.fn().mockResolvedValue(1),
   $transaction: vi.fn().mockImplementation((fn) => fn(createMockPrismaClient())),
 });
 
-describe('motion.detect save_to_db 機能', () => {
+describe("motion.detect save_to_db 機能", () => {
   beforeEach(() => {
     // すべてのファクトリをリセット
     resetMotionPersistenceServiceFactory();
@@ -59,15 +59,15 @@ describe('motion.detect save_to_db 機能', () => {
     resetMotionPersistenceService();
   });
 
-  describe('setMotionPersistenceServiceFactory', () => {
-    it('ファクトリを設定できる', () => {
+  describe("setMotionPersistenceServiceFactory", () => {
+    it("ファクトリを設定できる", () => {
       // ファクトリを設定してもエラーが発生しないことを確認
       expect(() => {
         setMotionPersistenceServiceFactory(() => new MotionPatternPersistenceService());
       }).not.toThrow();
     });
 
-    it('設定したファクトリから isAvailable=true のサービスを取得できる', () => {
+    it("設定したファクトリから isAvailable=true のサービスを取得できる", () => {
       // まず依存関係のファクトリを設定
       setMotionPersistenceEmbeddingServiceFactory(createMockEmbeddingService);
       setMotionPersistencePrismaClientFactory(createMockPrismaClient);
@@ -86,7 +86,7 @@ describe('motion.detect save_to_db 機能', () => {
       expect(service.isAvailable()).toBe(true);
     });
 
-    it('依存関係ファクトリが設定されていない場合、isAvailable() は false を返す', () => {
+    it("依存関係ファクトリが設定されていない場合、isAvailable() は false を返す", () => {
       // MotionPatternPersistenceService のファクトリのみ設定
       // 依存関係（EmbeddingService、PrismaClient）は設定しない
       setMotionPersistenceServiceFactory(() => new MotionPatternPersistenceService());
@@ -98,7 +98,7 @@ describe('motion.detect save_to_db 機能', () => {
     });
   });
 
-  describe('index.ts での登録順序', () => {
+  describe("index.ts での登録順序", () => {
     /**
      * index.ts での登録順序:
      * 1. setMotionPersistenceEmbeddingServiceFactory(() => embeddingService)
@@ -108,7 +108,7 @@ describe('motion.detect save_to_db 機能', () => {
      * この順序でファクトリを登録した場合、MotionPatternPersistenceService が
      * 正しく動作することを検証します。
      */
-    it('正しい順序で登録すると isAvailable() は true を返す', () => {
+    it("正しい順序で登録すると isAvailable() は true を返す", () => {
       // 1. EmbeddingService ファクトリを設定
       setMotionPersistenceEmbeddingServiceFactory(createMockEmbeddingService);
 
@@ -125,7 +125,7 @@ describe('motion.detect save_to_db 機能', () => {
       expect(service.isAvailable()).toBe(true);
     });
 
-    it('PrismaClientファクトリだけ設定すると isAvailable() は true を返す', () => {
+    it("PrismaClientファクトリだけ設定すると isAvailable() は true を返す", () => {
       // PrismaClient ファクトリのみ設定（EmbeddingService は設定しない）
       setMotionPersistencePrismaClientFactory(createMockPrismaClient);
 
@@ -136,10 +136,10 @@ describe('motion.detect save_to_db 機能', () => {
     });
   });
 
-  describe('ファクトリが例外をスローするケース', () => {
-    it('PrismaClientファクトリが例外をスローすると isAvailable() は false を返す', () => {
+  describe("ファクトリが例外をスローするケース", () => {
+    it("PrismaClientファクトリが例外をスローすると isAvailable() は false を返す", () => {
       setMotionPersistencePrismaClientFactory(() => {
-        throw new Error('PrismaClient initialization failed');
+        throw new Error("PrismaClient initialization failed");
       });
 
       const service = new MotionPatternPersistenceService();
@@ -149,8 +149,8 @@ describe('motion.detect save_to_db 機能', () => {
     });
   });
 
-  describe('実際の save_to_db フロー', () => {
-    it('ファクトリ登録後、savePatterns が成功する', async () => {
+  describe("実際の save_to_db フロー", () => {
+    it("ファクトリ登録後、savePatterns が成功する", async () => {
       const mockPrisma = createMockPrismaClient();
       const mockEmbedding = createMockEmbeddingService();
 
@@ -167,20 +167,20 @@ describe('motion.detect save_to_db 機能', () => {
       // savePatterns を呼び出す
       const result = await service.savePatterns([
         {
-          type: 'css_animation',
-          name: 'test-animation',
-          category: 'entrance',
-          trigger: 'load',
-          selector: '.test',
+          type: "css_animation",
+          name: "test-animation",
+          category: "entrance",
+          trigger: "load",
+          selector: ".test",
           animation: {
             duration: 300,
             delay: 0,
-            easing: { type: 'ease' },
+            easing: { type: "ease" },
             iterations: 1,
-            direction: 'normal',
-            fillMode: 'none',
+            direction: "normal",
+            fillMode: "none",
           },
-          properties: [{ property: 'opacity', from: '0', to: '1' }],
+          properties: [{ property: "opacity", from: "0", to: "1" }],
           keyframes: [],
         },
       ]);

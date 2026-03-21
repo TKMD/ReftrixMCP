@@ -22,7 +22,7 @@
  * @module tests/services/vision-embedding.service
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import {
   visualFeaturesToText,
   hasValidVisualFeatures,
@@ -33,12 +33,12 @@ import {
   setVisionPrismaClientFactory,
   resetVisionPrismaClientFactory,
   type VisionEmbeddingBatchItem,
-} from '../../src/services/vision-embedding.service';
+} from "../../src/services/vision-embedding.service";
 import {
   setEmbeddingServiceFactory,
   resetEmbeddingServiceFactory,
-} from '../../src/services/layout-embedding.service';
-import type { VisualFeatures } from '../../src/tools/page/schemas';
+} from "../../src/services/layout-embedding.service";
+import type { VisualFeatures } from "../../src/tools/page/schemas";
 
 // =====================================================
 // テストデータ
@@ -49,61 +49,61 @@ import type { VisualFeatures } from '../../src/tools/page/schemas';
  */
 const sampleFullVisualFeatures: VisualFeatures = {
   colors: {
-    dominant: ['#3B82F6', '#1F2937'],
-    accent: ['#10B981', '#F59E0B'],
+    dominant: ["#3B82F6", "#1F2937"],
+    accent: ["#10B981", "#F59E0B"],
     palette: [
-      { color: '#3B82F6', percentage: 35.5 },
-      { color: '#FFFFFF', percentage: 40.2 },
-      { color: '#1F2937', percentage: 15.3 },
-      { color: '#10B981', percentage: 9.0 },
+      { color: "#3B82F6", percentage: 35.5 },
+      { color: "#FFFFFF", percentage: 40.2 },
+      { color: "#1F2937", percentage: 15.3 },
+      { color: "#10B981", percentage: 9.0 },
     ],
-    source: 'deterministic',
+    source: "deterministic",
     confidence: 0.95,
   },
   theme: {
-    type: 'light',
-    backgroundColor: '#FFFFFF',
-    textColor: '#1F2937',
+    type: "light",
+    backgroundColor: "#FFFFFF",
+    textColor: "#1F2937",
     contrastRatio: 12.5,
-    source: 'deterministic',
+    source: "deterministic",
     confidence: 0.98,
   },
   density: {
     contentDensity: 0.45,
     whitespaceRatio: 0.55,
     visualBalance: 85.5,
-    source: 'deterministic',
+    source: "deterministic",
     confidence: 0.92,
   },
   gradient: {
     hasGradient: true,
-    dominantGradientType: 'linear',
+    dominantGradientType: "linear",
     gradients: [
       {
-        type: 'linear',
+        type: "linear",
         angle: 135,
         colorStops: [
-          { color: '#3B82F6', position: 0 },
-          { color: '#10B981', position: 100 },
+          { color: "#3B82F6", position: 0 },
+          { color: "#10B981", position: 100 },
         ],
       },
     ],
     confidence: 0.88,
   },
   mood: {
-    primary: 'professional',
-    secondary: 'calm',
-    source: 'vision-ai',
+    primary: "professional",
+    secondary: "calm",
+    source: "vision-ai",
     confidence: 0.75,
   },
   brandTone: {
-    primary: 'corporate',
-    secondary: 'friendly',
-    source: 'vision-ai',
+    primary: "corporate",
+    secondary: "friendly",
+    source: "vision-ai",
     confidence: 0.72,
   },
   metadata: {
-    mergedAt: '2026-01-19T10:00:00Z',
+    mergedAt: "2026-01-19T10:00:00Z",
     deterministicAvailable: true,
     visionAiAvailable: true,
     overallConfidence: 0.88,
@@ -115,10 +115,10 @@ const sampleFullVisualFeatures: VisualFeatures = {
  */
 const sampleMinimalVisualFeatures: VisualFeatures = {
   colors: {
-    dominant: ['#000000'],
+    dominant: ["#000000"],
     accent: [],
-    palette: [{ color: '#000000', percentage: 100 }],
-    source: 'deterministic',
+    palette: [{ color: "#000000", percentage: 100 }],
+    source: "deterministic",
     confidence: 0.9,
   },
 };
@@ -128,17 +128,17 @@ const sampleMinimalVisualFeatures: VisualFeatures = {
  */
 const sampleVisionOnlyFeatures: VisualFeatures = {
   mood: {
-    primary: 'playful',
-    source: 'vision-ai',
+    primary: "playful",
+    source: "vision-ai",
     confidence: 0.8,
   },
   brandTone: {
-    primary: 'creative',
-    source: 'vision-ai',
+    primary: "creative",
+    source: "vision-ai",
     confidence: 0.78,
   },
   metadata: {
-    mergedAt: '2026-01-19T10:00:00Z',
+    mergedAt: "2026-01-19T10:00:00Z",
     deterministicAvailable: false,
     visionAiAvailable: true,
     overallConfidence: 0.79,
@@ -150,13 +150,13 @@ const sampleVisionOnlyFeatures: VisualFeatures = {
  */
 const sampleNoGradientFeatures: VisualFeatures = {
   colors: {
-    dominant: ['#FFFFFF'],
-    accent: ['#000000'],
+    dominant: ["#FFFFFF"],
+    accent: ["#000000"],
     palette: [
-      { color: '#FFFFFF', percentage: 80 },
-      { color: '#000000', percentage: 20 },
+      { color: "#FFFFFF", percentage: 80 },
+      { color: "#000000", percentage: 20 },
     ],
-    source: 'deterministic',
+    source: "deterministic",
     confidence: 0.95,
   },
   gradient: {
@@ -184,72 +184,72 @@ function createMockEmbedding(seed: number = 0): number[] {
 // visualFeaturesToText テスト（8テスト）
 // =====================================================
 
-describe('visualFeaturesToText', () => {
-  it('passage: プレフィックスが付与される', () => {
+describe("visualFeaturesToText", () => {
+  it("passage: プレフィックスが付与される", () => {
     const result = visualFeaturesToText(sampleMinimalVisualFeatures);
 
-    expect(result.startsWith('passage: ')).toBe(true);
+    expect(result.startsWith("passage: ")).toBe(true);
   });
 
-  it('完全なVisualFeaturesからテキスト表現を生成する', () => {
+  it("完全なVisualFeaturesからテキスト表現を生成する", () => {
     const result = visualFeaturesToText(sampleFullVisualFeatures);
 
     // 各フィールドが含まれることを確認
-    expect(result).toContain('dominant colors');
-    expect(result).toContain('accent colors');
-    expect(result).toContain('theme');
-    expect(result).toContain('content density');
-    expect(result).toContain('gradient');
-    expect(result).toContain('mood');
-    expect(result).toContain('brand tone');
+    expect(result).toContain("dominant colors");
+    expect(result).toContain("accent colors");
+    expect(result).toContain("theme");
+    expect(result).toContain("content density");
+    expect(result).toContain("gradient");
+    expect(result).toContain("mood");
+    expect(result).toContain("brand tone");
   });
 
-  it('colors情報が正しくテキスト化される', () => {
+  it("colors情報が正しくテキスト化される", () => {
     const result = visualFeaturesToText(sampleFullVisualFeatures);
 
-    expect(result).toContain('#3B82F6');
-    expect(result).toContain('#10B981');
-    expect(result).toContain('color palette');
+    expect(result).toContain("#3B82F6");
+    expect(result).toContain("#10B981");
+    expect(result).toContain("color palette");
   });
 
-  it('theme情報が正しくテキスト化される', () => {
+  it("theme情報が正しくテキスト化される", () => {
     const result = visualFeaturesToText(sampleFullVisualFeatures);
 
-    expect(result).toContain('theme: light');
-    expect(result).toContain('background: #FFFFFF');
-    expect(result).toContain('text color: #1F2937');
-    expect(result).toContain('contrast ratio');
+    expect(result).toContain("theme: light");
+    expect(result).toContain("background: #FFFFFF");
+    expect(result).toContain("text color: #1F2937");
+    expect(result).toContain("contrast ratio");
   });
 
-  it('density情報が正しくテキスト化される', () => {
+  it("density情報が正しくテキスト化される", () => {
     const result = visualFeaturesToText(sampleFullVisualFeatures);
 
-    expect(result).toContain('content density');
-    expect(result).toContain('whitespace ratio');
-    expect(result).toContain('visual balance');
+    expect(result).toContain("content density");
+    expect(result).toContain("whitespace ratio");
+    expect(result).toContain("visual balance");
   });
 
-  it('gradient情報が正しくテキスト化される', () => {
+  it("gradient情報が正しくテキスト化される", () => {
     const result = visualFeaturesToText(sampleFullVisualFeatures);
 
-    expect(result).toContain('has gradient');
-    expect(result).toContain('gradient type: linear');
-    expect(result).toContain('gradient colors');
+    expect(result).toContain("has gradient");
+    expect(result).toContain("gradient type: linear");
+    expect(result).toContain("gradient colors");
   });
 
   it('グラデーションなしの場合 "no gradient" が含まれる', () => {
     const result = visualFeaturesToText(sampleNoGradientFeatures);
 
-    expect(result).toContain('no gradient');
+    expect(result).toContain("no gradient");
   });
 
-  it('mood/brandTone情報が正しくテキスト化される', () => {
+  it("mood/brandTone情報が正しくテキスト化される", () => {
     const result = visualFeaturesToText(sampleFullVisualFeatures);
 
-    expect(result).toContain('mood: professional');
-    expect(result).toContain('secondary mood: calm');
-    expect(result).toContain('brand tone: corporate');
-    expect(result).toContain('secondary brand tone: friendly');
+    expect(result).toContain("mood: professional");
+    expect(result).toContain("secondary mood: calm");
+    expect(result).toContain("brand tone: corporate");
+    expect(result).toContain("secondary brand tone: friendly");
   });
 });
 
@@ -257,28 +257,28 @@ describe('visualFeaturesToText', () => {
 // hasValidVisualFeatures テスト（6テスト）
 // =====================================================
 
-describe('hasValidVisualFeatures', () => {
-  it('完全なVisualFeaturesはtrue', () => {
+describe("hasValidVisualFeatures", () => {
+  it("完全なVisualFeaturesはtrue", () => {
     expect(hasValidVisualFeatures(sampleFullVisualFeatures)).toBe(true);
   });
 
-  it('colorsのみでもtrue', () => {
+  it("colorsのみでもtrue", () => {
     expect(hasValidVisualFeatures(sampleMinimalVisualFeatures)).toBe(true);
   });
 
-  it('mood/brandToneのみでもtrue', () => {
+  it("mood/brandToneのみでもtrue", () => {
     expect(hasValidVisualFeatures(sampleVisionOnlyFeatures)).toBe(true);
   });
 
-  it('空のVisualFeaturesはfalse', () => {
+  it("空のVisualFeaturesはfalse", () => {
     expect(hasValidVisualFeatures(sampleEmptyVisualFeatures)).toBe(false);
   });
 
-  it('nullはfalse', () => {
+  it("nullはfalse", () => {
     expect(hasValidVisualFeatures(null)).toBe(false);
   });
 
-  it('undefinedはfalse', () => {
+  it("undefinedはfalse", () => {
     expect(hasValidVisualFeatures(undefined)).toBe(false);
   });
 });
@@ -287,7 +287,7 @@ describe('hasValidVisualFeatures', () => {
 // VisionEmbeddingService テスト（9テスト）
 // =====================================================
 
-describe('VisionEmbeddingService', () => {
+describe("VisionEmbeddingService", () => {
   let service: VisionEmbeddingService;
 
   beforeEach(() => {
@@ -309,11 +309,11 @@ describe('VisionEmbeddingService', () => {
     vi.restoreAllMocks();
   });
 
-  it('インスタンスを作成できる', () => {
+  it("インスタンスを作成できる", () => {
     expect(service).toBeDefined();
   });
 
-  it('VisualFeaturesからEmbeddingを生成する', async () => {
+  it("VisualFeaturesからEmbeddingを生成する", async () => {
     const result = await service.generateEmbedding(sampleFullVisualFeatures);
 
     expect(result).toBeDefined();
@@ -321,51 +321,49 @@ describe('VisionEmbeddingService', () => {
     expect(Array.isArray(result.embedding)).toBe(true);
   });
 
-  it('768次元のベクトルを返す', async () => {
+  it("768次元のベクトルを返す", async () => {
     const result = await service.generateEmbedding(sampleFullVisualFeatures);
 
     expect(result.embedding.length).toBe(768);
   });
 
-  it('L2正規化されたベクトルを返す', async () => {
+  it("L2正規化されたベクトルを返す", async () => {
     const result = await service.generateEmbedding(sampleFullVisualFeatures);
 
     // L2ノルムが1に近いことを確認
-    const norm = Math.sqrt(
-      result.embedding.reduce((sum, val) => sum + val * val, 0)
-    );
+    const norm = Math.sqrt(result.embedding.reduce((sum, val) => sum + val * val, 0));
     expect(norm).toBeCloseTo(1.0, 5);
   });
 
-  it('テキスト表現を返す', async () => {
+  it("テキスト表現を返す", async () => {
     const result = await service.generateEmbedding(sampleFullVisualFeatures);
 
     expect(result.textRepresentation).toBeDefined();
-    expect(result.textRepresentation.startsWith('passage: ')).toBe(true);
+    expect(result.textRepresentation.startsWith("passage: ")).toBe(true);
   });
 
-  it('モデル名を返す', async () => {
+  it("モデル名を返す", async () => {
     const result = await service.generateEmbedding(sampleFullVisualFeatures);
 
-    expect(result.modelName).toBe('multilingual-e5-base');
+    expect(result.modelName).toBe("multilingual-e5-base");
   });
 
-  it('処理時間を返す', async () => {
+  it("処理時間を返す", async () => {
     const result = await service.generateEmbedding(sampleFullVisualFeatures);
 
     expect(result.processingTimeMs).toBeDefined();
     expect(result.processingTimeMs).toBeGreaterThanOrEqual(0);
   });
 
-  it('最小限のVisualFeaturesでもEmbeddingを生成する', async () => {
+  it("最小限のVisualFeaturesでもEmbeddingを生成する", async () => {
     const result = await service.generateEmbedding(sampleMinimalVisualFeatures);
 
     expect(result.embedding.length).toBe(768);
   });
 
-  it('無効なVisualFeaturesでエラーをスローする', async () => {
+  it("無効なVisualFeaturesでエラーをスローする", async () => {
     await expect(service.generateEmbedding(sampleEmptyVisualFeatures)).rejects.toThrow(
-      'Invalid VisualFeatures'
+      "Invalid VisualFeatures"
     );
   });
 });
@@ -374,8 +372,8 @@ describe('VisionEmbeddingService', () => {
 // saveVisionEmbedding テスト（5テスト）
 // =====================================================
 
-describe('saveVisionEmbedding', () => {
-  const mockSectionPatternId = '123e4567-e89b-12d3-a456-426614174000';
+describe("saveVisionEmbedding", () => {
+  const mockSectionPatternId = "123e4567-e89b-12d3-a456-426614174000";
   const mockEmbedding = createMockEmbedding(100);
 
   beforeEach(() => {
@@ -387,112 +385,123 @@ describe('saveVisionEmbedding', () => {
     vi.restoreAllMocks();
   });
 
-  it('新規SectionEmbeddingを作成してIDを返す', async () => {
-    const mockEmbeddingId = '123e4567-e89b-12d3-a456-426614174002';
+  it("新規SectionEmbeddingを作成してIDを返す", async () => {
+    const mockEmbeddingId = "123e4567-e89b-12d3-a456-426614174002";
 
-    setVisionPrismaClientFactory(() => ({
-      sectionEmbedding: {
-        create: vi.fn().mockResolvedValue({ id: mockEmbeddingId }),
-      },
-      $queryRawUnsafe: vi.fn().mockResolvedValue([]), // 既存レコードなし
-      $executeRawUnsafe: vi.fn().mockResolvedValue(0),
-    }) as any);
+    setVisionPrismaClientFactory(
+      () =>
+        ({
+          sectionEmbedding: {
+            create: vi.fn().mockResolvedValue({ id: mockEmbeddingId }),
+          },
+          $queryRawUnsafe: vi.fn().mockResolvedValue([]), // 既存レコードなし
+          $executeRawUnsafe: vi.fn().mockResolvedValue(0),
+        }) as any
+    );
 
     const result = await saveVisionEmbedding(
       mockSectionPatternId,
       mockEmbedding,
-      'passage: test text',
-      'multilingual-e5-base'
+      "passage: test text",
+      "multilingual-e5-base"
     );
 
     expect(result).toBe(mockEmbeddingId);
   });
 
-  it('既存SectionEmbeddingを更新する', async () => {
-    const mockQueryRaw = vi.fn().mockResolvedValue([{ id: 'existing-id' }]); // 既存レコードあり
+  it("既存SectionEmbeddingを更新する", async () => {
+    const mockQueryRaw = vi.fn().mockResolvedValue([{ id: "existing-id" }]); // 既存レコードあり
     const mockExecuteRaw = vi.fn().mockResolvedValue(1); // UPDATE
 
-    setVisionPrismaClientFactory(() => ({
-      sectionEmbedding: {
-        create: vi.fn(),
-      },
-      $queryRawUnsafe: mockQueryRaw,
-      $executeRawUnsafe: mockExecuteRaw,
-    }) as any);
+    setVisionPrismaClientFactory(
+      () =>
+        ({
+          sectionEmbedding: {
+            create: vi.fn(),
+          },
+          $queryRawUnsafe: mockQueryRaw,
+          $executeRawUnsafe: mockExecuteRaw,
+        }) as any
+    );
 
     const result = await saveVisionEmbedding(
       mockSectionPatternId,
       mockEmbedding,
-      'passage: test text'
+      "passage: test text"
     );
 
     // SELECTとUPDATEが呼ばれたことを確認
     expect(mockQueryRaw).toHaveBeenCalledTimes(1);
     expect(mockExecuteRaw).toHaveBeenCalledTimes(1);
-    expect(result).toBe('existing-id');
+    expect(result).toBe("existing-id");
   });
 
-  it('正しいベクトル形式でDBに保存する', async () => {
-    const mockQueryRaw = vi.fn().mockResolvedValue([{ id: 'existing-id' }]); // 既存レコードあり
+  it("正しいベクトル形式でDBに保存する", async () => {
+    const mockQueryRaw = vi.fn().mockResolvedValue([{ id: "existing-id" }]); // 既存レコードあり
     const mockExecuteRaw = vi.fn().mockResolvedValue(1);
-    const mockCreate = vi.fn().mockResolvedValue({ id: 'new-id' });
+    const mockCreate = vi.fn().mockResolvedValue({ id: "new-id" });
 
-    setVisionPrismaClientFactory(() => ({
-      sectionEmbedding: {
-        create: mockCreate,
-      },
-      $queryRawUnsafe: mockQueryRaw,
-      $executeRawUnsafe: mockExecuteRaw,
-    }) as any);
-
-    await saveVisionEmbedding(
-      mockSectionPatternId,
-      mockEmbedding,
-      'passage: test text'
+    setVisionPrismaClientFactory(
+      () =>
+        ({
+          sectionEmbedding: {
+            create: mockCreate,
+          },
+          $queryRawUnsafe: mockQueryRaw,
+          $executeRawUnsafe: mockExecuteRaw,
+        }) as any
     );
+
+    await saveVisionEmbedding(mockSectionPatternId, mockEmbedding, "passage: test text");
 
     // UPDATEクエリでpgvector形式が使用されることを確認
     expect(mockExecuteRaw).toHaveBeenCalledWith(
-      expect.stringContaining('::vector'),
+      expect.stringContaining("::vector"),
       expect.any(String),
       expect.any(String),
       expect.any(String)
     );
   });
 
-  it('DB接続エラーを適切に処理する', async () => {
-    setVisionPrismaClientFactory(() => ({
-      $queryRawUnsafe: vi.fn().mockRejectedValue(new Error('DB connection error')),
-      $executeRawUnsafe: vi.fn().mockRejectedValue(new Error('DB connection error')),
-    }) as any);
+  it("DB接続エラーを適切に処理する", async () => {
+    setVisionPrismaClientFactory(
+      () =>
+        ({
+          $queryRawUnsafe: vi.fn().mockRejectedValue(new Error("DB connection error")),
+          $executeRawUnsafe: vi.fn().mockRejectedValue(new Error("DB connection error")),
+        }) as any
+    );
 
-    await expect(
-      saveVisionEmbedding(mockSectionPatternId, mockEmbedding, 'test')
-    ).rejects.toThrow('DB connection error');
+    await expect(saveVisionEmbedding(mockSectionPatternId, mockEmbedding, "test")).rejects.toThrow(
+      "DB connection error"
+    );
   });
 
-  it('デフォルトモデル名が使用される', async () => {
-    const mockCreate = vi.fn().mockResolvedValue({ id: 'new-id' });
+  it("デフォルトモデル名が使用される", async () => {
+    const mockCreate = vi.fn().mockResolvedValue({ id: "new-id" });
 
-    setVisionPrismaClientFactory(() => ({
-      sectionEmbedding: {
-        create: mockCreate,
-      },
-      $queryRawUnsafe: vi.fn().mockResolvedValue([]), // 既存レコードなし
-      $executeRawUnsafe: vi.fn().mockResolvedValue(0),
-    }) as any);
+    setVisionPrismaClientFactory(
+      () =>
+        ({
+          sectionEmbedding: {
+            create: mockCreate,
+          },
+          $queryRawUnsafe: vi.fn().mockResolvedValue([]), // 既存レコードなし
+          $executeRawUnsafe: vi.fn().mockResolvedValue(0),
+        }) as any
+    );
 
     await saveVisionEmbedding(
       mockSectionPatternId,
       mockEmbedding,
-      'passage: test text'
+      "passage: test text"
       // モデル名を省略
     );
 
     expect(mockCreate).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({
-          modelVersion: 'multilingual-e5-base',
+          modelVersion: "multilingual-e5-base",
         }),
       })
     );
@@ -503,8 +512,8 @@ describe('saveVisionEmbedding', () => {
 // updateVisionEmbedding テスト（3テスト）
 // =====================================================
 
-describe('updateVisionEmbedding', () => {
-  const mockSectionEmbeddingId = '123e4567-e89b-12d3-a456-426614174002';
+describe("updateVisionEmbedding", () => {
+  const mockSectionEmbeddingId = "123e4567-e89b-12d3-a456-426614174002";
   const mockEmbedding = createMockEmbedding(200);
 
   beforeEach(() => {
@@ -516,29 +525,35 @@ describe('updateVisionEmbedding', () => {
     vi.restoreAllMocks();
   });
 
-  it('vision_embeddingを更新する', async () => {
+  it("vision_embeddingを更新する", async () => {
     const mockExecuteRaw = vi.fn().mockResolvedValue(1);
 
-    setVisionPrismaClientFactory(() => ({
-      $executeRawUnsafe: mockExecuteRaw,
-    }) as any);
+    setVisionPrismaClientFactory(
+      () =>
+        ({
+          $executeRawUnsafe: mockExecuteRaw,
+        }) as any
+    );
 
     await updateVisionEmbedding(mockSectionEmbeddingId, mockEmbedding);
 
     expect(mockExecuteRaw).toHaveBeenCalledWith(
-      expect.stringContaining('UPDATE section_embeddings'),
+      expect.stringContaining("UPDATE section_embeddings"),
       expect.any(String), // vectorString
       expect.any(String), // modelName
       mockSectionEmbeddingId
     );
   });
 
-  it('pgvector形式でベクトルを保存する', async () => {
+  it("pgvector形式でベクトルを保存する", async () => {
     const mockExecuteRaw = vi.fn().mockResolvedValue(1);
 
-    setVisionPrismaClientFactory(() => ({
-      $executeRawUnsafe: mockExecuteRaw,
-    }) as any);
+    setVisionPrismaClientFactory(
+      () =>
+        ({
+          $executeRawUnsafe: mockExecuteRaw,
+        }) as any
+    );
 
     await updateVisionEmbedding(mockSectionEmbeddingId, mockEmbedding);
 
@@ -547,19 +562,22 @@ describe('updateVisionEmbedding', () => {
     expect(vectorArg).toMatch(/^\[[\d.,-]+\]$/);
   });
 
-  it('カスタムモデル名を使用できる', async () => {
+  it("カスタムモデル名を使用できる", async () => {
     const mockExecuteRaw = vi.fn().mockResolvedValue(1);
 
-    setVisionPrismaClientFactory(() => ({
-      $executeRawUnsafe: mockExecuteRaw,
-    }) as any);
+    setVisionPrismaClientFactory(
+      () =>
+        ({
+          $executeRawUnsafe: mockExecuteRaw,
+        }) as any
+    );
 
-    await updateVisionEmbedding(mockSectionEmbeddingId, mockEmbedding, 'custom-model-v2');
+    await updateVisionEmbedding(mockSectionEmbeddingId, mockEmbedding, "custom-model-v2");
 
     expect(mockExecuteRaw).toHaveBeenCalledWith(
       expect.any(String),
       expect.any(String),
-      'custom-model-v2',
+      "custom-model-v2",
       expect.any(String)
     );
   });
@@ -569,8 +587,8 @@ describe('updateVisionEmbedding', () => {
 // generateAndSaveVisionEmbedding テスト（5テスト）
 // =====================================================
 
-describe('generateAndSaveVisionEmbedding', () => {
-  const mockSectionPatternId = '123e4567-e89b-12d3-a456-426614174000';
+describe("generateAndSaveVisionEmbedding", () => {
+  const mockSectionPatternId = "123e4567-e89b-12d3-a456-426614174000";
 
   beforeEach(() => {
     resetEmbeddingServiceFactory();
@@ -591,16 +609,19 @@ describe('generateAndSaveVisionEmbedding', () => {
     vi.restoreAllMocks();
   });
 
-  it('有効なVisualFeaturesでembeddingIdを返す', async () => {
-    const mockEmbeddingId = '123e4567-e89b-12d3-a456-426614174002';
+  it("有効なVisualFeaturesでembeddingIdを返す", async () => {
+    const mockEmbeddingId = "123e4567-e89b-12d3-a456-426614174002";
 
-    setVisionPrismaClientFactory(() => ({
-      sectionEmbedding: {
-        create: vi.fn().mockResolvedValue({ id: mockEmbeddingId }),
-      },
-      $queryRawUnsafe: vi.fn().mockResolvedValue([]), // 既存レコードなし
-      $executeRawUnsafe: vi.fn().mockResolvedValue(0),
-    }) as any);
+    setVisionPrismaClientFactory(
+      () =>
+        ({
+          sectionEmbedding: {
+            create: vi.fn().mockResolvedValue({ id: mockEmbeddingId }),
+          },
+          $queryRawUnsafe: vi.fn().mockResolvedValue([]), // 既存レコードなし
+          $executeRawUnsafe: vi.fn().mockResolvedValue(0),
+        }) as any
+    );
 
     const result = await generateAndSaveVisionEmbedding(
       mockSectionPatternId,
@@ -610,19 +631,19 @@ describe('generateAndSaveVisionEmbedding', () => {
     expect(result).toBe(mockEmbeddingId);
   });
 
-  it('nullのVisualFeaturesでnullを返す', async () => {
+  it("nullのVisualFeaturesでnullを返す", async () => {
     const result = await generateAndSaveVisionEmbedding(mockSectionPatternId, null);
 
     expect(result).toBeNull();
   });
 
-  it('undefinedのVisualFeaturesでnullを返す', async () => {
+  it("undefinedのVisualFeaturesでnullを返す", async () => {
     const result = await generateAndSaveVisionEmbedding(mockSectionPatternId, undefined);
 
     expect(result).toBeNull();
   });
 
-  it('空のVisualFeaturesでnullを返す', async () => {
+  it("空のVisualFeaturesでnullを返す", async () => {
     const result = await generateAndSaveVisionEmbedding(
       mockSectionPatternId,
       sampleEmptyVisualFeatures
@@ -631,10 +652,13 @@ describe('generateAndSaveVisionEmbedding', () => {
     expect(result).toBeNull();
   });
 
-  it('エラー発生時にnullを返す（Graceful Degradation）', async () => {
-    setVisionPrismaClientFactory(() => ({
-      $executeRawUnsafe: vi.fn().mockRejectedValue(new Error('DB error')),
-    }) as any);
+  it("エラー発生時にnullを返す（Graceful Degradation）", async () => {
+    setVisionPrismaClientFactory(
+      () =>
+        ({
+          $executeRawUnsafe: vi.fn().mockRejectedValue(new Error("DB error")),
+        }) as any
+    );
 
     const result = await generateAndSaveVisionEmbedding(
       mockSectionPatternId,
@@ -649,7 +673,7 @@ describe('generateAndSaveVisionEmbedding', () => {
 // バッチ処理テスト（6テスト）
 // =====================================================
 
-describe('VisionEmbeddingService バッチ処理', () => {
+describe("VisionEmbeddingService バッチ処理", () => {
   let service: VisionEmbeddingService;
   const mockEmbedding = createMockEmbedding(400);
 
@@ -664,13 +688,16 @@ describe('VisionEmbeddingService バッチ処理', () => {
       clearCache: vi.fn(),
     }));
 
-    setVisionPrismaClientFactory(() => ({
-      sectionEmbedding: {
-        create: vi.fn().mockResolvedValue({ id: 'new-id' }),
-      },
-      $queryRawUnsafe: vi.fn().mockResolvedValue([]), // 既存レコードなし
-      $executeRawUnsafe: vi.fn().mockResolvedValue(0),
-    }) as any);
+    setVisionPrismaClientFactory(
+      () =>
+        ({
+          sectionEmbedding: {
+            create: vi.fn().mockResolvedValue({ id: "new-id" }),
+          },
+          $queryRawUnsafe: vi.fn().mockResolvedValue([]), // 既存レコードなし
+          $executeRawUnsafe: vi.fn().mockResolvedValue(0),
+        }) as any
+    );
 
     service = new VisionEmbeddingService();
   });
@@ -681,10 +708,10 @@ describe('VisionEmbeddingService バッチ処理', () => {
     vi.restoreAllMocks();
   });
 
-  it('複数アイテムを一括処理する', async () => {
+  it("複数アイテムを一括処理する", async () => {
     const items: VisionEmbeddingBatchItem[] = [
-      { sectionPatternId: 'id-1', visualFeatures: sampleFullVisualFeatures },
-      { sectionPatternId: 'id-2', visualFeatures: sampleMinimalVisualFeatures },
+      { sectionPatternId: "id-1", visualFeatures: sampleFullVisualFeatures },
+      { sectionPatternId: "id-2", visualFeatures: sampleMinimalVisualFeatures },
     ];
 
     const result = await service.generateBatch(items);
@@ -694,7 +721,7 @@ describe('VisionEmbeddingService バッチ処理', () => {
     expect(result.results.length).toBe(2);
   });
 
-  it('空配列で空結果を返す', async () => {
+  it("空配列で空結果を返す", async () => {
     const result = await service.generateBatch([]);
 
     expect(result.successCount).toBe(0);
@@ -702,24 +729,24 @@ describe('VisionEmbeddingService バッチ処理', () => {
     expect(result.results.length).toBe(0);
   });
 
-  it('無効なデータはスキップされる', async () => {
+  it("無効なデータはスキップされる", async () => {
     const items: VisionEmbeddingBatchItem[] = [
-      { sectionPatternId: 'id-1', visualFeatures: sampleFullVisualFeatures },
-      { sectionPatternId: 'id-2', visualFeatures: sampleEmptyVisualFeatures }, // 無効
+      { sectionPatternId: "id-1", visualFeatures: sampleFullVisualFeatures },
+      { sectionPatternId: "id-2", visualFeatures: sampleEmptyVisualFeatures }, // 無効
     ];
 
     const result = await service.generateBatch(items);
 
     expect(result.successCount).toBe(1);
     expect(result.failedCount).toBe(1);
-    expect(result.results[1]?.error).toContain('No valid visual features');
+    expect(result.results[1]?.error).toContain("No valid visual features");
   });
 
-  it('進捗コールバックが呼ばれる', async () => {
+  it("進捗コールバックが呼ばれる", async () => {
     const progressCallback = vi.fn();
     const items: VisionEmbeddingBatchItem[] = [
-      { sectionPatternId: 'id-1', visualFeatures: sampleFullVisualFeatures },
-      { sectionPatternId: 'id-2', visualFeatures: sampleMinimalVisualFeatures },
+      { sectionPatternId: "id-1", visualFeatures: sampleFullVisualFeatures },
+      { sectionPatternId: "id-2", visualFeatures: sampleMinimalVisualFeatures },
     ];
 
     await service.generateBatch(items, { onProgress: progressCallback });
@@ -729,27 +756,30 @@ describe('VisionEmbeddingService バッチ処理', () => {
     expect(progressCallback).toHaveBeenCalledWith(2, 2);
   });
 
-  it('continueOnError=trueでエラー後も継続する', async () => {
+  it("continueOnError=trueでエラー後も継続する", async () => {
     // 2番目のアイテムでエラーを発生させる
     let callCount = 0;
-    setVisionPrismaClientFactory(() => ({
-      sectionEmbedding: {
-        create: vi.fn().mockImplementation(() => {
-          callCount++;
-          if (callCount === 2) {
-            throw new Error('DB error');
-          }
-          return Promise.resolve({ id: `id-${callCount}` });
-        }),
-      },
-      $queryRawUnsafe: vi.fn().mockResolvedValue([]), // 既存レコードなし
-      $executeRawUnsafe: vi.fn().mockResolvedValue(0),
-    }) as any);
+    setVisionPrismaClientFactory(
+      () =>
+        ({
+          sectionEmbedding: {
+            create: vi.fn().mockImplementation(() => {
+              callCount++;
+              if (callCount === 2) {
+                throw new Error("DB error");
+              }
+              return Promise.resolve({ id: `id-${callCount}` });
+            }),
+          },
+          $queryRawUnsafe: vi.fn().mockResolvedValue([]), // 既存レコードなし
+          $executeRawUnsafe: vi.fn().mockResolvedValue(0),
+        }) as any
+    );
 
     const items: VisionEmbeddingBatchItem[] = [
-      { sectionPatternId: 'id-1', visualFeatures: sampleFullVisualFeatures },
-      { sectionPatternId: 'id-2', visualFeatures: sampleMinimalVisualFeatures },
-      { sectionPatternId: 'id-3', visualFeatures: sampleVisionOnlyFeatures },
+      { sectionPatternId: "id-1", visualFeatures: sampleFullVisualFeatures },
+      { sectionPatternId: "id-2", visualFeatures: sampleMinimalVisualFeatures },
+      { sectionPatternId: "id-3", visualFeatures: sampleVisionOnlyFeatures },
     ];
 
     const result = await service.generateBatch(items, { continueOnError: true });
@@ -759,23 +789,26 @@ describe('VisionEmbeddingService バッチ処理', () => {
     expect(result.results.length).toBe(3);
   });
 
-  it('continueOnError=falseでエラー時に停止する', async () => {
-    setVisionPrismaClientFactory(() => ({
-      sectionEmbedding: {
-        create: vi.fn().mockRejectedValue(new Error('DB error')),
-      },
-      $queryRawUnsafe: vi.fn().mockResolvedValue([]), // 既存レコードなし
-      $executeRawUnsafe: vi.fn().mockResolvedValue(0),
-    }) as any);
+  it("continueOnError=falseでエラー時に停止する", async () => {
+    setVisionPrismaClientFactory(
+      () =>
+        ({
+          sectionEmbedding: {
+            create: vi.fn().mockRejectedValue(new Error("DB error")),
+          },
+          $queryRawUnsafe: vi.fn().mockResolvedValue([]), // 既存レコードなし
+          $executeRawUnsafe: vi.fn().mockResolvedValue(0),
+        }) as any
+    );
 
     const items: VisionEmbeddingBatchItem[] = [
-      { sectionPatternId: 'id-1', visualFeatures: sampleFullVisualFeatures },
-      { sectionPatternId: 'id-2', visualFeatures: sampleMinimalVisualFeatures },
+      { sectionPatternId: "id-1", visualFeatures: sampleFullVisualFeatures },
+      { sectionPatternId: "id-2", visualFeatures: sampleMinimalVisualFeatures },
     ];
 
-    await expect(
-      service.generateBatch(items, { continueOnError: false })
-    ).rejects.toThrow('DB error');
+    await expect(service.generateBatch(items, { continueOnError: false })).rejects.toThrow(
+      "DB error"
+    );
   });
 });
 
@@ -783,7 +816,7 @@ describe('VisionEmbeddingService バッチ処理', () => {
 // エラーハンドリングテスト（5テスト）
 // =====================================================
 
-describe('エラーハンドリング', () => {
+describe("エラーハンドリング", () => {
   beforeEach(() => {
     resetEmbeddingServiceFactory();
     resetVisionPrismaClientFactory();
@@ -795,34 +828,34 @@ describe('エラーハンドリング', () => {
     vi.restoreAllMocks();
   });
 
-  it.skip('EmbeddingService エラーをスローする', async () => {
+  it.skip("EmbeddingService エラーをスローする", async () => {
     // TODO: VisionEmbeddingServiceは直接LayoutEmbeddingServiceをインスタンス化しているため、
     // setEmbeddingServiceFactoryでのモック注入が機能しない。
     // サービス設計の変更（依存性注入）が必要。
     setEmbeddingServiceFactory(() => ({
-      generateEmbedding: vi.fn().mockRejectedValue(new Error('Model loading failed')),
-      generateBatchEmbeddings: vi.fn().mockRejectedValue(new Error('Model loading failed')),
+      generateEmbedding: vi.fn().mockRejectedValue(new Error("Model loading failed")),
+      generateBatchEmbeddings: vi.fn().mockRejectedValue(new Error("Model loading failed")),
       getCacheStats: vi.fn().mockReturnValue({ hits: 0, misses: 0, size: 0, evictions: 0 }),
       clearCache: vi.fn(),
     }));
 
     const service = new VisionEmbeddingService();
 
-    await expect(
-      service.generateEmbedding(sampleFullVisualFeatures)
-    ).rejects.toThrow('Model loading failed');
+    await expect(service.generateEmbedding(sampleFullVisualFeatures)).rejects.toThrow(
+      "Model loading failed"
+    );
   });
 
-  it('PrismaClient未設定でエラーをスローする', async () => {
+  it("PrismaClient未設定でエラーをスローする", async () => {
     resetVisionPrismaClientFactory();
     const mockEmbedding = createMockEmbedding(500);
 
-    await expect(
-      saveVisionEmbedding('test-id', mockEmbedding, 'test')
-    ).rejects.toThrow('PrismaClient not initialized');
+    await expect(saveVisionEmbedding("test-id", mockEmbedding, "test")).rejects.toThrow(
+      "PrismaClient not initialized"
+    );
   });
 
-  it('null/undefinedの入力でエラーをスローする', async () => {
+  it("null/undefinedの入力でエラーをスローする", async () => {
     setEmbeddingServiceFactory(() => ({
       generateEmbedding: vi.fn().mockResolvedValue(createMockEmbedding(1)),
       generateBatchEmbeddings: vi.fn(),
@@ -832,16 +865,14 @@ describe('エラーハンドリング', () => {
 
     const service = new VisionEmbeddingService();
 
-    await expect(
-      service.generateEmbedding(null as unknown as VisualFeatures)
-    ).rejects.toThrow();
+    await expect(service.generateEmbedding(null as unknown as VisualFeatures)).rejects.toThrow();
   });
 
-  it.skip('EmbeddingService タイムアウト時にエラーをスローする', async () => {
+  it.skip("EmbeddingService タイムアウト時にエラーをスローする", async () => {
     // TODO: VisionEmbeddingServiceは直接LayoutEmbeddingServiceをインスタンス化しているため、
     // setEmbeddingServiceFactoryでのモック注入が機能しない。
     // サービス設計の変更（依存性注入）が必要。
-    const timeoutError = new Error('Timeout');
+    const timeoutError = new Error("Timeout");
     setEmbeddingServiceFactory(() => ({
       generateEmbedding: vi.fn().mockRejectedValue(timeoutError),
       generateBatchEmbeddings: vi.fn().mockRejectedValue(timeoutError),
@@ -851,12 +882,10 @@ describe('エラーハンドリング', () => {
 
     const service = new VisionEmbeddingService();
 
-    await expect(
-      service.generateEmbedding(sampleFullVisualFeatures)
-    ).rejects.toThrow('Timeout');
+    await expect(service.generateEmbedding(sampleFullVisualFeatures)).rejects.toThrow("Timeout");
   });
 
-  it.skip('768次元のベクトルが生成される（統合テストで検証）', async () => {
+  it.skip("768次元のベクトルが生成される（統合テストで検証）", async () => {
     // NOTE: VisionEmbeddingServiceは直接LayoutEmbeddingServiceをインスタンス化するため、
     // このテストはONNXモデルが必要な統合テストとして実行する必要がある。
     // ユニットテストとしては、visualFeaturesToText関数のテストで代替。
@@ -875,7 +904,7 @@ describe('エラーハンドリング', () => {
 // 統合テスト（3テスト）
 // =====================================================
 
-describe('統合テスト', () => {
+describe("統合テスト", () => {
   beforeEach(() => {
     resetEmbeddingServiceFactory();
     resetVisionPrismaClientFactory();
@@ -888,13 +917,16 @@ describe('統合テスト', () => {
       clearCache: vi.fn(),
     }));
 
-    setVisionPrismaClientFactory(() => ({
-      sectionEmbedding: {
-        create: vi.fn().mockResolvedValue({ id: 'integrated-id' }),
-      },
-      $queryRawUnsafe: vi.fn().mockResolvedValue([]), // 既存レコードなし
-      $executeRawUnsafe: vi.fn().mockResolvedValue(0),
-    }) as any);
+    setVisionPrismaClientFactory(
+      () =>
+        ({
+          sectionEmbedding: {
+            create: vi.fn().mockResolvedValue({ id: "integrated-id" }),
+          },
+          $queryRawUnsafe: vi.fn().mockResolvedValue([]), // 既存レコードなし
+          $executeRawUnsafe: vi.fn().mockResolvedValue(0),
+        }) as any
+    );
   });
 
   afterEach(() => {
@@ -903,12 +935,12 @@ describe('統合テスト', () => {
     vi.restoreAllMocks();
   });
 
-  it('テキスト生成→Embedding生成→DB保存の完全フロー', async () => {
+  it("テキスト生成→Embedding生成→DB保存の完全フロー", async () => {
     const service = new VisionEmbeddingService();
 
     // 1. VisualFeaturesからテキスト表現を生成
     const text = visualFeaturesToText(sampleFullVisualFeatures);
-    expect(text.startsWith('passage: ')).toBe(true);
+    expect(text.startsWith("passage: ")).toBe(true);
 
     // 2. Embeddingを生成
     const embeddingResult = await service.generateEmbedding(sampleFullVisualFeatures);
@@ -916,7 +948,7 @@ describe('統合テスト', () => {
 
     // 3. DB保存
     const embeddingId = await saveVisionEmbedding(
-      'section-pattern-id',
+      "section-pattern-id",
       embeddingResult.embedding,
       embeddingResult.textRepresentation,
       embeddingResult.modelName
@@ -924,22 +956,22 @@ describe('統合テスト', () => {
     expect(embeddingId).toBeDefined();
   });
 
-  it('page.analyze統合関数の動作確認', async () => {
+  it("page.analyze統合関数の動作確認", async () => {
     const result = await generateAndSaveVisionEmbedding(
-      'section-pattern-id',
+      "section-pattern-id",
       sampleFullVisualFeatures
     );
 
-    expect(result).toBe('integrated-id');
+    expect(result).toBe("integrated-id");
   });
 
-  it('バッチ処理の完全フロー', async () => {
+  it("バッチ処理の完全フロー", async () => {
     const service = new VisionEmbeddingService();
 
     const items: VisionEmbeddingBatchItem[] = [
-      { sectionPatternId: 'id-1', visualFeatures: sampleFullVisualFeatures },
-      { sectionPatternId: 'id-2', visualFeatures: sampleVisionOnlyFeatures },
-      { sectionPatternId: 'id-3', visualFeatures: sampleNoGradientFeatures },
+      { sectionPatternId: "id-1", visualFeatures: sampleFullVisualFeatures },
+      { sectionPatternId: "id-2", visualFeatures: sampleVisionOnlyFeatures },
+      { sectionPatternId: "id-3", visualFeatures: sampleNoGradientFeatures },
     ];
 
     const result = await service.generateBatch(items);

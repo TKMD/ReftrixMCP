@@ -12,7 +12,7 @@
  * @module tests/unit/tools/page/handlers/layout-handler
  */
 
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect } from "vitest";
 
 // =========================================
 // mergeVisionDetectedSections 関数のテスト用型定義
@@ -133,7 +133,7 @@ function mergeVisionDetectedSections(
         existingSection.confidence = Math.min(1, existingSection.confidence + boostAmount);
 
         // セクションタイプがunknownの場合はVisionの結果で更新
-        if (existingSection.type === 'unknown' && visionSection.type !== 'unknown') {
+        if (existingSection.type === "unknown" && visionSection.type !== "unknown") {
           existingSection.type = visionSection.type;
         }
       }
@@ -141,7 +141,7 @@ function mergeVisionDetectedSections(
       // 新規Vision専用セクションとして追加
       const newSection: MutableSection = {
         id: `vision-${addedVisionSections}`,
-        type: visionSection.type || 'unknown',
+        type: visionSection.type || "unknown",
         positionIndex: mergedSections.length,
         confidence: visionSection.confidence * 0.85, // Vision検出は若干低めに設定
         position: {
@@ -151,13 +151,15 @@ function mergeVisionDetectedSections(
         },
         visionFeatures: {
           success: true,
-          features: [{
-            type: 'section_boundaries',
-            confidence: visionSection.confidence,
-            description: `Vision-detected ${visionSection.type} section`,
-          }],
+          features: [
+            {
+              type: "section_boundaries",
+              confidence: visionSection.confidence,
+              description: `Vision-detected ${visionSection.type} section`,
+            },
+          ],
           processingTimeMs: 0,
-          modelName: 'llama3.2-vision',
+          modelName: "llama3.2-vision",
         },
       };
 
@@ -184,17 +186,17 @@ function mergeVisionDetectedSections(
 // テストスイート
 // =========================================
 
-describe('layout-handler', () => {
-  describe('mergeVisionDetectedSections', () => {
+describe("layout-handler", () => {
+  describe("mergeVisionDetectedSections", () => {
     // =========================================
     // 1. 基本的な動作テスト
     // =========================================
-    describe('Basic Operations', () => {
-      it('should return htmlSections unchanged when visionBoundaries is undefined', () => {
+    describe("Basic Operations", () => {
+      it("should return htmlSections unchanged when visionBoundaries is undefined", () => {
         const htmlSections: MutableSection[] = [
           {
-            id: 'section-1',
-            type: 'hero',
+            id: "section-1",
+            type: "hero",
             positionIndex: 0,
             confidence: 0.8,
             position: { startY: 0, endY: 500, height: 500 },
@@ -206,11 +208,11 @@ describe('layout-handler', () => {
         expect(result.length).toBe(1);
       });
 
-      it('should return htmlSections unchanged when visionBoundaries.sections is empty', () => {
+      it("should return htmlSections unchanged when visionBoundaries.sections is empty", () => {
         const htmlSections: MutableSection[] = [
           {
-            id: 'section-1',
-            type: 'hero',
+            id: "section-1",
+            type: "hero",
             positionIndex: 0,
             confidence: 0.8,
             position: { startY: 0, endY: 500, height: 500 },
@@ -221,29 +223,27 @@ describe('layout-handler', () => {
         expect(result).toEqual(htmlSections);
       });
 
-      it('should handle empty htmlSections with vision boundaries', () => {
+      it("should handle empty htmlSections with vision boundaries", () => {
         const htmlSections: MutableSection[] = [];
         const visionBoundaries: SectionBoundariesData = {
-          sections: [
-            { type: 'hero', startY: 0, endY: 500, confidence: 0.9 },
-          ],
+          sections: [{ type: "hero", startY: 0, endY: 500, confidence: 0.9 }],
         };
 
         const result = mergeVisionDetectedSections(htmlSections, visionBoundaries);
         expect(result.length).toBe(1);
-        expect(result[0].type).toBe('hero');
+        expect(result[0].type).toBe("hero");
       });
     });
 
     // =========================================
     // 2. Vision専用セクション追加テスト
     // =========================================
-    describe('Vision-Only Section Addition', () => {
-      it('should add vision-detected section when no overlap with HTML sections', () => {
+    describe("Vision-Only Section Addition", () => {
+      it("should add vision-detected section when no overlap with HTML sections", () => {
         const htmlSections: MutableSection[] = [
           {
-            id: 'section-1',
-            type: 'hero',
+            id: "section-1",
+            type: "hero",
             positionIndex: 0,
             confidence: 0.8,
             position: { startY: 0, endY: 500, height: 500 },
@@ -251,50 +251,44 @@ describe('layout-handler', () => {
         ];
 
         const visionBoundaries: SectionBoundariesData = {
-          sections: [
-            { type: 'feature', startY: 600, endY: 1100, confidence: 0.85 },
-          ],
+          sections: [{ type: "feature", startY: 600, endY: 1100, confidence: 0.85 }],
         };
 
         const result = mergeVisionDetectedSections(htmlSections, visionBoundaries);
         expect(result.length).toBe(2);
-        expect(result[1].type).toBe('feature');
+        expect(result[1].type).toBe("feature");
         expect(result[1].position?.startY).toBe(600);
       });
 
-      it('should apply 0.85 confidence multiplier to vision-detected sections', () => {
+      it("should apply 0.85 confidence multiplier to vision-detected sections", () => {
         const htmlSections: MutableSection[] = [];
         const visionBoundaries: SectionBoundariesData = {
-          sections: [
-            { type: 'hero', startY: 0, endY: 500, confidence: 1.0 },
-          ],
+          sections: [{ type: "hero", startY: 0, endY: 500, confidence: 1.0 }],
         };
 
         const result = mergeVisionDetectedSections(htmlSections, visionBoundaries);
         expect(result[0].confidence).toBe(0.85); // 1.0 * 0.85
       });
 
-      it('should add visionFeatures to vision-detected sections', () => {
+      it("should add visionFeatures to vision-detected sections", () => {
         const htmlSections: MutableSection[] = [];
         const visionBoundaries: SectionBoundariesData = {
-          sections: [
-            { type: 'cta', startY: 0, endY: 300, confidence: 0.9 },
-          ],
+          sections: [{ type: "cta", startY: 0, endY: 300, confidence: 0.9 }],
         };
 
         const result = mergeVisionDetectedSections(htmlSections, visionBoundaries);
         expect(result[0].visionFeatures).toBeDefined();
         expect(result[0].visionFeatures?.success).toBe(true);
-        expect(result[0].visionFeatures?.modelName).toBe('llama3.2-vision');
+        expect(result[0].visionFeatures?.modelName).toBe("llama3.2-vision");
       });
 
-      it('should add multiple vision-detected sections', () => {
+      it("should add multiple vision-detected sections", () => {
         const htmlSections: MutableSection[] = [];
         const visionBoundaries: SectionBoundariesData = {
           sections: [
-            { type: 'hero', startY: 0, endY: 500, confidence: 0.9 },
-            { type: 'feature', startY: 500, endY: 1000, confidence: 0.85 },
-            { type: 'cta', startY: 1000, endY: 1300, confidence: 0.88 },
+            { type: "hero", startY: 0, endY: 500, confidence: 0.9 },
+            { type: "feature", startY: 500, endY: 1000, confidence: 0.85 },
+            { type: "cta", startY: 1000, endY: 1300, confidence: 0.88 },
           ],
         };
 
@@ -306,12 +300,12 @@ describe('layout-handler', () => {
     // =========================================
     // 3. 重複検出と信頼度ブーストテスト
     // =========================================
-    describe('Overlap Detection and Confidence Boost', () => {
-      it('should boost confidence when vision section overlaps >50% with HTML section', () => {
+    describe("Overlap Detection and Confidence Boost", () => {
+      it("should boost confidence when vision section overlaps >50% with HTML section", () => {
         const htmlSections: MutableSection[] = [
           {
-            id: 'section-1',
-            type: 'hero',
+            id: "section-1",
+            type: "hero",
             positionIndex: 0,
             confidence: 0.7,
             position: { startY: 0, endY: 500, height: 500 },
@@ -319,9 +313,7 @@ describe('layout-handler', () => {
         ];
 
         const visionBoundaries: SectionBoundariesData = {
-          sections: [
-            { type: 'hero', startY: 50, endY: 450, confidence: 0.9 },
-          ],
+          sections: [{ type: "hero", startY: 50, endY: 450, confidence: 0.9 }],
         };
 
         const result = mergeVisionDetectedSections(htmlSections, visionBoundaries);
@@ -329,11 +321,11 @@ describe('layout-handler', () => {
         expect(result[0].confidence).toBeGreaterThan(0.7); // Confidence boosted
       });
 
-      it('should cap confidence boost at 0.15', () => {
+      it("should cap confidence boost at 0.15", () => {
         const htmlSections: MutableSection[] = [
           {
-            id: 'section-1',
-            type: 'hero',
+            id: "section-1",
+            type: "hero",
             positionIndex: 0,
             confidence: 0.9,
             position: { startY: 0, endY: 500, height: 500 },
@@ -341,9 +333,7 @@ describe('layout-handler', () => {
         ];
 
         const visionBoundaries: SectionBoundariesData = {
-          sections: [
-            { type: 'hero', startY: 0, endY: 500, confidence: 1.0 },
-          ],
+          sections: [{ type: "hero", startY: 0, endY: 500, confidence: 1.0 }],
         };
 
         const result = mergeVisionDetectedSections(htmlSections, visionBoundaries);
@@ -352,11 +342,11 @@ describe('layout-handler', () => {
         expect(result[0].confidence).toBeLessThanOrEqual(1);
       });
 
-      it('should update unknown type to vision-detected type on overlap', () => {
+      it("should update unknown type to vision-detected type on overlap", () => {
         const htmlSections: MutableSection[] = [
           {
-            id: 'section-1',
-            type: 'unknown',
+            id: "section-1",
+            type: "unknown",
             positionIndex: 0,
             confidence: 0.5,
             position: { startY: 0, endY: 500, height: 500 },
@@ -364,20 +354,18 @@ describe('layout-handler', () => {
         ];
 
         const visionBoundaries: SectionBoundariesData = {
-          sections: [
-            { type: 'hero', startY: 0, endY: 500, confidence: 0.9 },
-          ],
+          sections: [{ type: "hero", startY: 0, endY: 500, confidence: 0.9 }],
         };
 
         const result = mergeVisionDetectedSections(htmlSections, visionBoundaries);
-        expect(result[0].type).toBe('hero'); // Type updated from 'unknown' to 'hero'
+        expect(result[0].type).toBe("hero"); // Type updated from 'unknown' to 'hero'
       });
 
-      it('should NOT update non-unknown type on overlap', () => {
+      it("should NOT update non-unknown type on overlap", () => {
         const htmlSections: MutableSection[] = [
           {
-            id: 'section-1',
-            type: 'feature', // Already classified
+            id: "section-1",
+            type: "feature", // Already classified
             positionIndex: 0,
             confidence: 0.8,
             position: { startY: 0, endY: 500, height: 500 },
@@ -385,20 +373,18 @@ describe('layout-handler', () => {
         ];
 
         const visionBoundaries: SectionBoundariesData = {
-          sections: [
-            { type: 'hero', startY: 0, endY: 500, confidence: 0.9 },
-          ],
+          sections: [{ type: "hero", startY: 0, endY: 500, confidence: 0.9 }],
         };
 
         const result = mergeVisionDetectedSections(htmlSections, visionBoundaries);
-        expect(result[0].type).toBe('feature'); // Type preserved
+        expect(result[0].type).toBe("feature"); // Type preserved
       });
 
-      it('should add new section when overlap is <=50%', () => {
+      it("should add new section when overlap is <=50%", () => {
         const htmlSections: MutableSection[] = [
           {
-            id: 'section-1',
-            type: 'hero',
+            id: "section-1",
+            type: "hero",
             positionIndex: 0,
             confidence: 0.8,
             position: { startY: 0, endY: 500, height: 500 },
@@ -408,7 +394,7 @@ describe('layout-handler', () => {
         const visionBoundaries: SectionBoundariesData = {
           sections: [
             // Only 200px overlap (40% of vision section, 40% of HTML section)
-            { type: 'feature', startY: 300, endY: 800, confidence: 0.85 },
+            { type: "feature", startY: 300, endY: 800, confidence: 0.85 },
           ],
         };
 
@@ -420,12 +406,12 @@ describe('layout-handler', () => {
     // =========================================
     // 4. ソートとpositionIndexテスト
     // =========================================
-    describe('Sorting and Position Index', () => {
-      it('should sort merged sections by startY', () => {
+    describe("Sorting and Position Index", () => {
+      it("should sort merged sections by startY", () => {
         const htmlSections: MutableSection[] = [
           {
-            id: 'section-2',
-            type: 'footer',
+            id: "section-2",
+            type: "footer",
             positionIndex: 0,
             confidence: 0.8,
             position: { startY: 1000, endY: 1200, height: 200 },
@@ -433,9 +419,7 @@ describe('layout-handler', () => {
         ];
 
         const visionBoundaries: SectionBoundariesData = {
-          sections: [
-            { type: 'hero', startY: 0, endY: 500, confidence: 0.9 },
-          ],
+          sections: [{ type: "hero", startY: 0, endY: 500, confidence: 0.9 }],
         };
 
         const result = mergeVisionDetectedSections(htmlSections, visionBoundaries);
@@ -443,11 +427,11 @@ describe('layout-handler', () => {
         expect(result[1].position?.startY).toBe(1000); // footer comes second
       });
 
-      it('should update positionIndex after sorting', () => {
+      it("should update positionIndex after sorting", () => {
         const htmlSections: MutableSection[] = [
           {
-            id: 'section-2',
-            type: 'footer',
+            id: "section-2",
+            type: "footer",
             positionIndex: 0,
             confidence: 0.8,
             position: { startY: 1000, endY: 1200, height: 200 },
@@ -455,9 +439,7 @@ describe('layout-handler', () => {
         ];
 
         const visionBoundaries: SectionBoundariesData = {
-          sections: [
-            { type: 'hero', startY: 0, endY: 500, confidence: 0.9 },
-          ],
+          sections: [{ type: "hero", startY: 0, endY: 500, confidence: 0.9 }],
         };
 
         const result = mergeVisionDetectedSections(htmlSections, visionBoundaries);
@@ -465,11 +447,11 @@ describe('layout-handler', () => {
         expect(result[1].positionIndex).toBe(1);
       });
 
-      it('should handle sections without position info', () => {
+      it("should handle sections without position info", () => {
         const htmlSections: MutableSection[] = [
           {
-            id: 'section-1',
-            type: 'hero',
+            id: "section-1",
+            type: "hero",
             positionIndex: 0,
             confidence: 0.8,
             // No position info
@@ -477,9 +459,7 @@ describe('layout-handler', () => {
         ];
 
         const visionBoundaries: SectionBoundariesData = {
-          sections: [
-            { type: 'feature', startY: 500, endY: 1000, confidence: 0.85 },
-          ],
+          sections: [{ type: "feature", startY: 500, endY: 1000, confidence: 0.85 }],
         };
 
         const result = mergeVisionDetectedSections(htmlSections, visionBoundaries);
@@ -492,13 +472,13 @@ describe('layout-handler', () => {
     // =========================================
     // 5. エッジケーステスト
     // =========================================
-    describe('Edge Cases', () => {
-      it('should skip vision sections with zero or negative height', () => {
+    describe("Edge Cases", () => {
+      it("should skip vision sections with zero or negative height", () => {
         const htmlSections: MutableSection[] = [];
         const visionBoundaries: SectionBoundariesData = {
           sections: [
-            { type: 'hero', startY: 100, endY: 100, confidence: 0.9 }, // Zero height
-            { type: 'feature', startY: 500, endY: 400, confidence: 0.85 }, // Negative height
+            { type: "hero", startY: 100, endY: 100, confidence: 0.9 }, // Zero height
+            { type: "feature", startY: 500, endY: 400, confidence: 0.85 }, // Negative height
           ],
         };
 
@@ -506,42 +486,38 @@ describe('layout-handler', () => {
         expect(result.length).toBe(0);
       });
 
-      it('should handle vision section with unknown type', () => {
+      it("should handle vision section with unknown type", () => {
         const htmlSections: MutableSection[] = [];
         const visionBoundaries: SectionBoundariesData = {
-          sections: [
-            { type: 'unknown', startY: 0, endY: 500, confidence: 0.7 },
-          ],
+          sections: [{ type: "unknown", startY: 0, endY: 500, confidence: 0.7 }],
         };
 
         const result = mergeVisionDetectedSections(htmlSections, visionBoundaries);
-        expect(result[0].type).toBe('unknown');
+        expect(result[0].type).toBe("unknown");
       });
 
-      it('should handle vision section with empty type', () => {
+      it("should handle vision section with empty type", () => {
         const htmlSections: MutableSection[] = [];
         const visionBoundaries: SectionBoundariesData = {
-          sections: [
-            { type: '', startY: 0, endY: 500, confidence: 0.7 },
-          ],
+          sections: [{ type: "", startY: 0, endY: 500, confidence: 0.7 }],
         };
 
         const result = mergeVisionDetectedSections(htmlSections, visionBoundaries);
-        expect(result[0].type).toBe('unknown'); // Falls back to 'unknown'
+        expect(result[0].type).toBe("unknown"); // Falls back to 'unknown'
       });
 
-      it('should prefer best overlap when multiple HTML sections overlap', () => {
+      it("should prefer best overlap when multiple HTML sections overlap", () => {
         const htmlSections: MutableSection[] = [
           {
-            id: 'section-1',
-            type: 'unknown',
+            id: "section-1",
+            type: "unknown",
             positionIndex: 0,
             confidence: 0.6,
             position: { startY: 0, endY: 400, height: 400 },
           },
           {
-            id: 'section-2',
-            type: 'unknown',
+            id: "section-2",
+            type: "unknown",
             positionIndex: 1,
             confidence: 0.6,
             position: { startY: 200, endY: 600, height: 400 },
@@ -551,41 +527,41 @@ describe('layout-handler', () => {
         const visionBoundaries: SectionBoundariesData = {
           sections: [
             // Overlaps both: 200px with section-1, 300px with section-2
-            { type: 'hero', startY: 200, endY: 500, confidence: 0.9 },
+            { type: "hero", startY: 200, endY: 500, confidence: 0.9 },
           ],
         };
 
         const result = mergeVisionDetectedSections(htmlSections, visionBoundaries);
         // Should boost section-2 (better overlap) and update its type
         expect(result.length).toBe(2); // No new section added
-        const section2 = result.find(s => s.id === 'section-2');
-        expect(section2?.type).toBe('hero');
+        const section2 = result.find((s) => s.id === "section-2");
+        expect(section2?.type).toBe("hero");
       });
     });
 
     // =========================================
     // 6. 複雑なシナリオテスト
     // =========================================
-    describe('Complex Scenarios', () => {
-      it('should handle real-world scenario with multiple HTML and Vision sections', () => {
+    describe("Complex Scenarios", () => {
+      it("should handle real-world scenario with multiple HTML and Vision sections", () => {
         const htmlSections: MutableSection[] = [
           {
-            id: 'nav-1',
-            type: 'navigation',
+            id: "nav-1",
+            type: "navigation",
             positionIndex: 0,
             confidence: 0.95,
             position: { startY: 0, endY: 80, height: 80 },
           },
           {
-            id: 'unknown-1',
-            type: 'unknown',
+            id: "unknown-1",
+            type: "unknown",
             positionIndex: 1,
             confidence: 0.4,
             position: { startY: 100, endY: 600, height: 500 },
           },
           {
-            id: 'footer-1',
-            type: 'footer',
+            id: "footer-1",
+            type: "footer",
             positionIndex: 2,
             confidence: 0.9,
             position: { startY: 2000, endY: 2200, height: 200 },
@@ -594,51 +570,51 @@ describe('layout-handler', () => {
 
         const visionBoundaries: SectionBoundariesData = {
           sections: [
-            { type: 'navigation', startY: 0, endY: 80, confidence: 0.9 },
-            { type: 'hero', startY: 80, endY: 580, confidence: 0.88 },
-            { type: 'feature', startY: 600, endY: 1200, confidence: 0.85 },
-            { type: 'testimonial', startY: 1200, endY: 1600, confidence: 0.82 },
-            { type: 'cta', startY: 1600, endY: 1900, confidence: 0.87 },
-            { type: 'footer', startY: 2000, endY: 2200, confidence: 0.92 },
+            { type: "navigation", startY: 0, endY: 80, confidence: 0.9 },
+            { type: "hero", startY: 80, endY: 580, confidence: 0.88 },
+            { type: "feature", startY: 600, endY: 1200, confidence: 0.85 },
+            { type: "testimonial", startY: 1200, endY: 1600, confidence: 0.82 },
+            { type: "cta", startY: 1600, endY: 1900, confidence: 0.87 },
+            { type: "footer", startY: 2000, endY: 2200, confidence: 0.92 },
           ],
         };
 
         const result = mergeVisionDetectedSections(htmlSections, visionBoundaries);
 
         // Navigation boosted
-        const nav = result.find(s => s.id === 'nav-1');
+        const nav = result.find((s) => s.id === "nav-1");
         expect(nav?.confidence).toBeGreaterThan(0.95);
 
         // Unknown updated to hero
-        const hero = result.find(s => s.id === 'unknown-1');
-        expect(hero?.type).toBe('hero');
+        const hero = result.find((s) => s.id === "unknown-1");
+        expect(hero?.type).toBe("hero");
 
         // Feature, testimonial, cta added
-        expect(result.some(s => s.type === 'feature')).toBe(true);
-        expect(result.some(s => s.type === 'testimonial')).toBe(true);
-        expect(result.some(s => s.type === 'cta')).toBe(true);
+        expect(result.some((s) => s.type === "feature")).toBe(true);
+        expect(result.some((s) => s.type === "testimonial")).toBe(true);
+        expect(result.some((s) => s.type === "cta")).toBe(true);
 
         // Footer boosted
-        const footer = result.find(s => s.id === 'footer-1');
+        const footer = result.find((s) => s.id === "footer-1");
         expect(footer?.confidence).toBeGreaterThan(0.9);
 
         // Total sections increased
         expect(result.length).toBeGreaterThan(3);
       });
 
-      it('should double section count when Vision detects sections missed by HTML', () => {
+      it("should double section count when Vision detects sections missed by HTML", () => {
         // Simulate scenario where HTML only detects 2 sections
         const htmlSections: MutableSection[] = [
           {
-            id: 'nav-1',
-            type: 'navigation',
+            id: "nav-1",
+            type: "navigation",
             positionIndex: 0,
             confidence: 0.9,
             position: { startY: 0, endY: 80, height: 80 },
           },
           {
-            id: 'footer-1',
-            type: 'footer',
+            id: "footer-1",
+            type: "footer",
             positionIndex: 1,
             confidence: 0.85,
             position: { startY: 2000, endY: 2200, height: 200 },
@@ -648,10 +624,10 @@ describe('layout-handler', () => {
         // Vision detects 4 additional sections
         const visionBoundaries: SectionBoundariesData = {
           sections: [
-            { type: 'hero', startY: 100, endY: 600, confidence: 0.9 },
-            { type: 'feature', startY: 600, endY: 1200, confidence: 0.85 },
-            { type: 'testimonial', startY: 1200, endY: 1600, confidence: 0.82 },
-            { type: 'cta', startY: 1600, endY: 2000, confidence: 0.88 },
+            { type: "hero", startY: 100, endY: 600, confidence: 0.9 },
+            { type: "feature", startY: 600, endY: 1200, confidence: 0.85 },
+            { type: "testimonial", startY: 1200, endY: 1600, confidence: 0.82 },
+            { type: "cta", startY: 1600, endY: 2000, confidence: 0.88 },
           ],
         };
 

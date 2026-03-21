@@ -17,9 +17,9 @@
  * @see apps/mcp-server/tests/services/vision/llama-vision-adapter.test.ts
  */
 
-import { HardwareDetector, HardwareType, type HardwareInfo } from './hardware-detector.js';
-import { ImageOptimizer, type OptimizeResult } from './image-optimizer.js';
-import { OllamaVisionClient, type HardwareDetectorLike } from './ollama-vision-client.js';
+import { HardwareDetector, HardwareType, type HardwareInfo } from "./hardware-detector.js";
+import { ImageOptimizer, type OptimizeResult } from "./image-optimizer.js";
+import { OllamaVisionClient, type HardwareDetectorLike } from "./ollama-vision-client.js";
 
 // =============================================================================
 // 型定義
@@ -116,7 +116,11 @@ interface OllamaVisionClientLike {
   generate?(image: string, prompt: string): Promise<string>;
   generateJSON?<T = unknown>(image: string, prompt: string): Promise<T>;
   generateWithImageSize(image: string, prompt: string, imageSizeBytes: number): Promise<string>;
-  generateJSONWithImageSize<T = unknown>(image: string, prompt: string, imageSizeBytes: number): Promise<T>;
+  generateJSONWithImageSize<T = unknown>(
+    image: string,
+    prompt: string,
+    imageSizeBytes: number
+  ): Promise<T>;
   isAvailable(): Promise<boolean>;
 }
 
@@ -158,15 +162,18 @@ export class LlamaVisionAdapter {
     // Reserved for future size-based preprocessing limits
 
     // 依存性注入（DI）対応
-    this.hardwareDetector = (config?.hardwareDetector as HardwareDetectorLikeInternal) ??
+    this.hardwareDetector =
+      (config?.hardwareDetector as HardwareDetectorLikeInternal) ??
       new HardwareDetector(config?.ollamaUrl ? { ollamaUrl: config.ollamaUrl } : undefined);
     this.imageOptimizer = config?.imageOptimizer ?? new ImageOptimizer();
 
     // OllamaVisionClientにはHardwareDetectorを注入（動的タイムアウト用）
-    this.ollamaClient = config?.ollamaClient ?? new OllamaVisionClient({
-      ollamaUrl: config?.ollamaUrl,
-      hardwareDetector: this.hardwareDetector,
-    });
+    this.ollamaClient =
+      config?.ollamaClient ??
+      new OllamaVisionClient({
+        ollamaUrl: config?.ollamaUrl,
+        hardwareDetector: this.hardwareDetector,
+      });
   }
 
   // ===========================================================================
@@ -302,7 +309,7 @@ export class LlamaVisionAdapter {
   } {
     if (Buffer.isBuffer(image)) {
       return {
-        imageBase64: image.toString('base64'),
+        imageBase64: image.toString("base64"),
         originalSizeBytes: image.length,
         isEmpty: image.length === 0,
       };
@@ -310,7 +317,7 @@ export class LlamaVisionAdapter {
 
     // Base64文字列の場合、デコードしてサイズを計算
     // data:image/...;base64, プレフィックスがある場合は除去
-    const base64Data = image.replace(/^data:image\/[a-z]+;base64,/, '');
+    const base64Data = image.replace(/^data:image\/[a-z]+;base64,/, "");
     const sizeBytes = Math.ceil((base64Data.length * 3) / 4);
 
     return {
@@ -328,8 +335,8 @@ export class LlamaVisionAdapter {
       return await this.hardwareDetector.detect();
     } catch (error) {
       // ハードウェア検出失敗時はCPUフォールバック
-      if (process.env.NODE_ENV === 'development') {
-        console.warn('[LlamaVisionAdapter] Hardware detection failed, falling back to CPU', {
+      if (process.env.NODE_ENV === "development") {
+        console.warn("[LlamaVisionAdapter] Hardware detection failed, falling back to CPU", {
           error: error instanceof Error ? error.message : String(error),
         });
       }
@@ -356,7 +363,7 @@ export class LlamaVisionAdapter {
     if (isEmpty) {
       return {
         applied: false,
-        error: 'Empty image provided',
+        error: "Empty image provided",
       };
     }
 
@@ -387,15 +394,15 @@ export class LlamaVisionAdapter {
       // 最適化成功
       return {
         applied: true,
-        optimizedImage: result.buffer.toString('base64'),
+        optimizedImage: result.buffer.toString("base64"),
         optimizedSizeBytes: result.optimizedSizeBytes,
         compressionRatio: result.compressionRatio,
         optimizationTimeMs: result.processingTimeMs,
       };
     } catch (error) {
       // 最適化失敗時はGraceful Degradation
-      if (process.env.NODE_ENV === 'development') {
-        console.warn('[LlamaVisionAdapter] Image optimization failed, using original image', {
+      if (process.env.NODE_ENV === "development") {
+        console.warn("[LlamaVisionAdapter] Image optimization failed, using original image", {
           error: error instanceof Error ? error.message : String(error),
         });
       }
@@ -410,10 +417,7 @@ export class LlamaVisionAdapter {
   /**
    * 最適化を実行すべきかどうかを判定
    */
-  private shouldOptimize(
-    hardwareInfo: HardwareInfo,
-    options?: VisionAnalysisOptions
-  ): boolean {
+  private shouldOptimize(hardwareInfo: HardwareInfo, options?: VisionAnalysisOptions): boolean {
     // グローバル設定で無効化されている場合
     if (!this.enableOptimization) {
       return false;
@@ -445,16 +449,16 @@ export class LlamaVisionAdapter {
     options?: VisionAnalysisOptions
   ): string | undefined {
     if (!this.enableOptimization) {
-      return 'Optimization disabled in config';
+      return "Optimization disabled in config";
     }
     if (options?.enableOptimization === false) {
-      return 'Optimization disabled by option';
+      return "Optimization disabled by option";
     }
     if (options?.forceOriginal) {
-      return 'forceOriginal option set';
+      return "forceOriginal option set";
     }
     if (hardwareInfo.type === HardwareType.GPU) {
-      return 'GPU detected, no optimization needed';
+      return "GPU detected, no optimization needed";
     }
     return undefined;
   }

@@ -17,10 +17,10 @@
  * @see docs/plans/webdesign/00-overview.md
  */
 
-import sharp from 'sharp';
-import { Logger } from '../../utils/logger';
+import sharp from "sharp";
+import { Logger } from "../../utils/logger";
 
-const logger = new Logger('LocalVisionAdapter');
+const logger = new Logger("LocalVisionAdapter");
 
 import type {
   IVisionAnalyzer,
@@ -33,7 +33,7 @@ import type {
   DensityData,
   WhitespaceData,
   SectionBoundariesData,
-} from './interface';
+} from "./interface";
 
 // =============================================================================
 // 型定義
@@ -48,7 +48,7 @@ export interface ColorExtractionOptions {
   /** 最小カバレッジ率 (デフォルト: 0.01 = 1%) */
   minCoverage?: number;
   /** 量子化方式 (デフォルト: 'histogram') */
-  quantizationMethod?: 'histogram' | 'median-cut' | 'octree';
+  quantizationMethod?: "histogram" | "median-cut" | "octree";
 }
 
 /**
@@ -113,14 +113,14 @@ interface DensityInfo {
 // 定数
 // =============================================================================
 
-const DEFAULT_FEATURES: VisionFeatureType[] = ['color_palette', 'density', 'layout_structure'];
+const DEFAULT_FEATURES: VisionFeatureType[] = ["color_palette", "density", "layout_structure"];
 
 const SUPPORTED_FEATURES: VisionFeatureType[] = [
-  'color_palette',
-  'density',
-  'whitespace',
-  'layout_structure',
-  'section_boundaries',
+  "color_palette",
+  "density",
+  "whitespace",
+  "layout_structure",
+  "section_boundaries",
 ];
 
 // 未サポートの特徴タイプ（将来の拡張用）
@@ -173,15 +173,15 @@ export class LocalVisionAdapter implements IVisionAnalyzer {
   // ---------------------------------------------------------------------------
 
   constructor(config?: LocalVisionAdapterConfig) {
-    this.name = config?.name ?? 'LocalVisionAdapter';
-    this.modelName = config?.modelName ?? 'local-sharp-1.0';
+    this.name = config?.name ?? "LocalVisionAdapter";
+    this.modelName = config?.modelName ?? "local-sharp-1.0";
     this._isAvailable = config?.isAvailable ?? true;
     this._defaultFeatures = config?.defaultFeatures ?? DEFAULT_FEATURES;
 
     this._colorExtractionOptions = {
       maxColors: config?.colorExtraction?.maxColors ?? 8,
       minCoverage: config?.colorExtraction?.minCoverage ?? 0.01,
-      quantizationMethod: config?.colorExtraction?.quantizationMethod ?? 'histogram',
+      quantizationMethod: config?.colorExtraction?.quantizationMethod ?? "histogram",
     };
 
     this._densityAnalysisOptions = {
@@ -189,8 +189,8 @@ export class LocalVisionAdapter implements IVisionAnalyzer {
       edgeThreshold: config?.densityAnalysis?.edgeThreshold ?? 30,
     };
 
-    if (process.env.NODE_ENV === 'development') {
-      logger.debug('Initialized with config', {
+    if (process.env.NODE_ENV === "development") {
+      logger.debug("Initialized with config", {
         name: this.name,
         modelName: this.modelName,
         colorExtraction: this._colorExtractionOptions,
@@ -221,7 +221,7 @@ export class LocalVisionAdapter implements IVisionAnalyzer {
       return {
         success: false,
         features: [],
-        error: 'LocalVisionAdapter is not available',
+        error: "LocalVisionAdapter is not available",
         processingTimeMs: 0,
         modelName: this.modelName,
       };
@@ -233,7 +233,7 @@ export class LocalVisionAdapter implements IVisionAnalyzer {
         return {
           success: false,
           features: [],
-          error: 'Empty image buffer provided',
+          error: "Empty image buffer provided",
           processingTimeMs: Date.now() - startTime,
           modelName: this.modelName,
         };
@@ -252,8 +252,8 @@ export class LocalVisionAdapter implements IVisionAnalyzer {
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
 
-      if (process.env.NODE_ENV === 'development') {
-        console.error('[LocalVisionAdapter] Analysis error:', errorMessage);
+      if (process.env.NODE_ENV === "development") {
+        console.error("[LocalVisionAdapter] Analysis error:", errorMessage);
       }
 
       return {
@@ -271,7 +271,7 @@ export class LocalVisionAdapter implements IVisionAnalyzer {
    */
   generateTextRepresentation(result: VisionAnalysisResult): string {
     if (!result.success || result.features.length === 0) {
-      return '';
+      return "";
     }
 
     const parts: string[] = [];
@@ -283,7 +283,7 @@ export class LocalVisionAdapter implements IVisionAnalyzer {
       }
     }
 
-    return parts.join(' ');
+    return parts.join(" ");
   }
 
   // ---------------------------------------------------------------------------
@@ -301,9 +301,10 @@ export class LocalVisionAdapter implements IVisionAnalyzer {
     const metadata = await this.getImageMetadata(options.imageBuffer);
 
     // 解析する特徴タイプを決定
-    const featureTypes = options.features && options.features.length > 0
-      ? options.features.filter((f) => SUPPORTED_FEATURES.includes(f))
-      : this._defaultFeatures;
+    const featureTypes =
+      options.features && options.features.length > 0
+        ? options.features.filter((f) => SUPPORTED_FEATURES.includes(f))
+        : this._defaultFeatures;
 
     // 各特徴を抽出
     const features: VisionFeature[] = [];
@@ -315,7 +316,7 @@ export class LocalVisionAdapter implements IVisionAnalyzer {
           features.push(feature);
         }
       } catch (error) {
-        if (process.env.NODE_ENV === 'development') {
+        if (process.env.NODE_ENV === "development") {
           console.warn(`[LocalVisionAdapter] Failed to extract feature ${featureType}:`, error);
         }
       }
@@ -332,7 +333,10 @@ export class LocalVisionAdapter implements IVisionAnalyzer {
   /**
    * タイムアウトPromiseを作成
    */
-  private createTimeoutPromise(timeoutMs: number, startTime: number): Promise<VisionAnalysisResult> {
+  private createTimeoutPromise(
+    timeoutMs: number,
+    startTime: number
+  ): Promise<VisionAnalysisResult> {
     return new Promise((resolve) => {
       setTimeout(() => {
         resolve({
@@ -363,7 +367,7 @@ export class LocalVisionAdapter implements IVisionAnalyzer {
       width,
       height,
       aspectRatio: height > 0 ? width / height : 1,
-      format: metadata.format ?? 'unknown',
+      format: metadata.format ?? "unknown",
     };
   }
 
@@ -376,19 +380,19 @@ export class LocalVisionAdapter implements IVisionAnalyzer {
     featureType: VisionFeatureType
   ): Promise<VisionFeature | null> {
     switch (featureType) {
-      case 'color_palette':
+      case "color_palette":
         return this.extractColorPalette(imageBuffer);
 
-      case 'density':
+      case "density":
         return this.extractDensity(imageBuffer, metadata);
 
-      case 'whitespace':
+      case "whitespace":
         return this.extractWhitespace(imageBuffer, metadata);
 
-      case 'layout_structure':
+      case "layout_structure":
         return this.extractLayoutStructure(metadata);
 
-      case 'section_boundaries':
+      case "section_boundaries":
         return this.extractSectionBoundaries(imageBuffer, metadata);
 
       default:
@@ -410,14 +414,14 @@ export class LocalVisionAdapter implements IVisionAnalyzer {
     const mood = this.estimateMood(colors);
 
     const data: ColorPaletteData = {
-      type: 'color_palette',
+      type: "color_palette",
       dominantColors: colors.slice(0, this._colorExtractionOptions.maxColors).map((c) => c.hex),
       mood,
       contrast,
     };
 
     return {
-      type: 'color_palette',
+      type: "color_palette",
       confidence: 0.9, // Sharpによる色抽出は信頼性が高い
       data,
     };
@@ -426,7 +430,10 @@ export class LocalVisionAdapter implements IVisionAnalyzer {
   /**
    * 密度を抽出
    */
-  private async extractDensity(imageBuffer: Buffer, metadata: ImageMetadata): Promise<VisionFeature> {
+  private async extractDensity(
+    imageBuffer: Buffer,
+    metadata: ImageMetadata
+  ): Promise<VisionFeature> {
     const densityInfo = await this.analyzeDensity(imageBuffer, metadata);
 
     // 密度レベルを判定
@@ -436,13 +443,13 @@ export class LocalVisionAdapter implements IVisionAnalyzer {
     const description = this.generateDensityDescription(level, densityInfo);
 
     const data: DensityData = {
-      type: 'density',
+      type: "density",
       level,
       description,
     };
 
     return {
-      type: 'density',
+      type: "density",
       confidence: 0.85,
       data,
     };
@@ -451,7 +458,10 @@ export class LocalVisionAdapter implements IVisionAnalyzer {
   /**
    * 余白を抽出
    */
-  private async extractWhitespace(imageBuffer: Buffer, metadata: ImageMetadata): Promise<VisionFeature> {
+  private async extractWhitespace(
+    imageBuffer: Buffer,
+    metadata: ImageMetadata
+  ): Promise<VisionFeature> {
     const densityInfo = await this.analyzeDensity(imageBuffer, metadata);
 
     // 余白量を判定（密度の逆）
@@ -461,13 +471,13 @@ export class LocalVisionAdapter implements IVisionAnalyzer {
     const distribution = this.classifyWhitespaceDistribution(densityInfo.distribution, metadata);
 
     const data: WhitespaceData = {
-      type: 'whitespace',
+      type: "whitespace",
       amount,
       distribution,
     };
 
     return {
-      type: 'whitespace',
+      type: "whitespace",
       confidence: 0.8,
       data,
     };
@@ -487,14 +497,14 @@ export class LocalVisionAdapter implements IVisionAnalyzer {
     const description = this.generateLayoutDescription(gridType, mainAreas);
 
     const data: LayoutStructureData = {
-      type: 'layout_structure',
+      type: "layout_structure",
       gridType,
       mainAreas,
       description,
     };
 
     return {
-      type: 'layout_structure',
+      type: "layout_structure",
       confidence: 0.7, // ヒューリスティックベースなので信頼度は中程度
       data,
     };
@@ -511,12 +521,12 @@ export class LocalVisionAdapter implements IVisionAnalyzer {
     const sections = await this.detectSectionBoundaries(imageBuffer, metadata);
 
     const data: SectionBoundariesData = {
-      type: 'section_boundaries',
+      type: "section_boundaries",
       sections,
     };
 
     return {
-      type: 'section_boundaries',
+      type: "section_boundaries",
       confidence: 0.6, // エッジ検出ベースなので信頼度は低め
       data,
     };
@@ -527,7 +537,7 @@ export class LocalVisionAdapter implements IVisionAnalyzer {
    */
   private createUnsupportedFeature(featureType: VisionFeatureType): VisionFeature | null {
     // 未サポートの特徴タイプはnullを返す
-    if (process.env.NODE_ENV === 'development') {
+    if (process.env.NODE_ENV === "development") {
       logger.debug(`Feature type not supported: ${featureType}`);
     }
     return null;
@@ -543,7 +553,7 @@ export class LocalVisionAdapter implements IVisionAnalyzer {
   private async extractColors(imageBuffer: Buffer): Promise<ColorInfo[]> {
     // 画像を小さくリサイズして処理を高速化
     const resized = await sharp(imageBuffer)
-      .resize(100, 100, { fit: 'inside' })
+      .resize(100, 100, { fit: "inside" })
       .raw()
       .toBuffer({ resolveWithObject: true });
 
@@ -593,16 +603,17 @@ export class LocalVisionAdapter implements IVisionAnalyzer {
    * RGB値をHEX文字列に変換
    */
   private rgbToHex(r: number, g: number, b: number): string {
-    const toHex = (n: number): string => Math.min(255, Math.max(0, n)).toString(16).padStart(2, '0');
+    const toHex = (n: number): string =>
+      Math.min(255, Math.max(0, n)).toString(16).padStart(2, "0");
     return `#${toHex(r)}${toHex(g)}${toHex(b)}`.toUpperCase();
   }
 
   /**
    * コントラストを計算
    */
-  private calculateContrast(colors: ColorInfo[]): 'high' | 'medium' | 'low' {
+  private calculateContrast(colors: ColorInfo[]): "high" | "medium" | "low" {
     if (colors.length < 2) {
-      return 'low';
+      return "low";
     }
 
     // 最も明るい色と最も暗い色の輝度差を計算
@@ -614,11 +625,11 @@ export class LocalVisionAdapter implements IVisionAnalyzer {
     const contrastRatio = (maxLuminance + 0.05) / (minLuminance + 0.05);
 
     if (contrastRatio >= 7) {
-      return 'high';
+      return "high";
     } else if (contrastRatio >= 3) {
-      return 'medium';
+      return "medium";
     } else {
-      return 'low';
+      return "low";
     }
   }
 
@@ -639,32 +650,32 @@ export class LocalVisionAdapter implements IVisionAnalyzer {
    */
   private estimateMood(colors: ColorInfo[]): string {
     if (colors.length === 0) {
-      return 'neutral';
+      return "neutral";
     }
 
     // 主要色の平均HSLを計算
     const avgColor = colors[0];
     if (!avgColor) {
-      return 'neutral';
+      return "neutral";
     }
 
     const { h, s, l } = this.rgbToHsl(avgColor.r, avgColor.g, avgColor.b);
 
     // 彩度と輝度に基づいてムードを推定
     if (l < 0.2) {
-      return 'dark and mysterious';
+      return "dark and mysterious";
     } else if (l > 0.8) {
-      return 'light and airy';
+      return "light and airy";
     } else if (s < 0.2) {
-      return 'neutral and balanced';
+      return "neutral and balanced";
     } else if (h < 30 || h > 330) {
-      return 'warm and energetic';
+      return "warm and energetic";
     } else if (h >= 180 && h <= 270) {
-      return 'cool and calm';
+      return "cool and calm";
     } else if (h >= 90 && h < 180) {
-      return 'fresh and natural';
+      return "fresh and natural";
     } else {
-      return 'vibrant and creative';
+      return "vibrant and creative";
     }
   }
 
@@ -710,12 +721,15 @@ export class LocalVisionAdapter implements IVisionAnalyzer {
   /**
    * 画像の密度を分析
    */
-  private async analyzeDensity(imageBuffer: Buffer, _metadata: ImageMetadata): Promise<DensityInfo> {
+  private async analyzeDensity(
+    imageBuffer: Buffer,
+    _metadata: ImageMetadata
+  ): Promise<DensityInfo> {
     const gridSize = this._densityAnalysisOptions.gridSize;
 
     // グレースケール変換してエッジ検出
     const edgeBuffer = await sharp(imageBuffer)
-      .resize(gridSize * 10, gridSize * 10, { fit: 'fill' })
+      .resize(gridSize * 10, gridSize * 10, { fit: "fill" })
       .grayscale()
       .convolve({
         width: 3,
@@ -767,43 +781,46 @@ export class LocalVisionAdapter implements IVisionAnalyzer {
   /**
    * 密度レベルを分類
    */
-  private classifyDensityLevel(overall: number): DensityData['level'] {
+  private classifyDensityLevel(overall: number): DensityData["level"] {
     if (overall < 0.05) {
-      return 'sparse';
+      return "sparse";
     } else if (overall < 0.15) {
-      return 'balanced';
+      return "balanced";
     } else if (overall < 0.3) {
-      return 'dense';
+      return "dense";
     } else {
-      return 'cluttered';
+      return "cluttered";
     }
   }
 
   /**
    * 密度の説明を生成
    */
-  private generateDensityDescription(level: DensityData['level'], _densityInfo: DensityInfo): string {
-    const descriptions: Record<DensityData['level'], string[]> = {
+  private generateDensityDescription(
+    level: DensityData["level"],
+    _densityInfo: DensityInfo
+  ): string {
+    const descriptions: Record<DensityData["level"], string[]> = {
       sparse: [
-        'Very clean layout with minimal visual elements',
-        'Open design with generous negative space',
+        "Very clean layout with minimal visual elements",
+        "Open design with generous negative space",
       ],
       balanced: [
-        'Well-balanced information density',
-        'Good visual rhythm with appropriate spacing',
+        "Well-balanced information density",
+        "Good visual rhythm with appropriate spacing",
       ],
       dense: [
-        'Information-rich layout with efficient use of space',
-        'Content-heavy but organized structure',
+        "Information-rich layout with efficient use of space",
+        "Content-heavy but organized structure",
       ],
       cluttered: [
-        'Very dense layout with many visual elements',
-        'High information density requiring careful navigation',
+        "Very dense layout with many visual elements",
+        "High information density requiring careful navigation",
       ],
     };
 
     const levelDescriptions = descriptions[level];
-    return levelDescriptions[Math.floor(Math.random() * levelDescriptions.length)] ?? '';
+    return levelDescriptions[Math.floor(Math.random() * levelDescriptions.length)] ?? "";
   }
 
   // ---------------------------------------------------------------------------
@@ -813,16 +830,16 @@ export class LocalVisionAdapter implements IVisionAnalyzer {
   /**
    * 余白量を分類
    */
-  private classifyWhitespaceAmount(density: number): WhitespaceData['amount'] {
+  private classifyWhitespaceAmount(density: number): WhitespaceData["amount"] {
     // 密度の逆
     if (density > 0.3) {
-      return 'minimal';
+      return "minimal";
     } else if (density > 0.15) {
-      return 'moderate';
+      return "moderate";
     } else if (density > 0.05) {
-      return 'generous';
+      return "generous";
     } else {
-      return 'extreme';
+      return "extreme";
     }
   }
 
@@ -832,14 +849,14 @@ export class LocalVisionAdapter implements IVisionAnalyzer {
   private classifyWhitespaceDistribution(
     distribution: number[],
     _metadata: ImageMetadata
-  ): WhitespaceData['distribution'] {
+  ): WhitespaceData["distribution"] {
     if (distribution.length === 0) {
-      return 'even';
+      return "even";
     }
 
     const gridSize = Math.sqrt(distribution.length);
     if (gridSize !== Math.floor(gridSize)) {
-      return 'even';
+      return "even";
     }
 
     // 上半分と下半分の平均密度を計算
@@ -882,13 +899,13 @@ export class LocalVisionAdapter implements IVisionAnalyzer {
 
     // 分布パターンを判定
     if (centerAvg > overallAvg * 1.2) {
-      return 'centered';
+      return "centered";
     } else if (topAvg > bottomAvg * 1.5) {
-      return 'top-heavy';
+      return "top-heavy";
     } else if (bottomAvg > topAvg * 1.5) {
-      return 'bottom-heavy';
+      return "bottom-heavy";
     } else {
-      return 'even';
+      return "even";
     }
   }
 
@@ -899,25 +916,25 @@ export class LocalVisionAdapter implements IVisionAnalyzer {
   /**
    * グリッドタイプを推定
    */
-  private estimateGridType(metadata: ImageMetadata): LayoutStructureData['gridType'] {
+  private estimateGridType(metadata: ImageMetadata): LayoutStructureData["gridType"] {
     const { aspectRatio } = metadata;
 
     // アスペクト比に基づいて推定
     if (aspectRatio < 0.6) {
       // 縦長
-      return 'single-column';
+      return "single-column";
     } else if (aspectRatio > 1.8) {
       // 横長
-      return 'grid';
+      return "grid";
     } else if (aspectRatio > 1.2) {
       // やや横長
-      return 'two-column';
+      return "two-column";
     } else if (aspectRatio > 0.9) {
       // ほぼ正方形
-      return 'grid';
+      return "grid";
     } else {
       // やや縦長
-      return 'single-column';
+      return "single-column";
     }
   }
 
@@ -926,18 +943,18 @@ export class LocalVisionAdapter implements IVisionAnalyzer {
    */
   private estimateMainAreas(
     metadata: ImageMetadata,
-    gridType: LayoutStructureData['gridType']
+    gridType: LayoutStructureData["gridType"]
   ): string[] {
-    const areas = ['header', 'main', 'footer'];
+    const areas = ["header", "main", "footer"];
 
-    if (gridType === 'two-column') {
-      areas.push('sidebar');
-    } else if (gridType === 'three-column') {
-      areas.push('left-sidebar', 'right-sidebar');
+    if (gridType === "two-column") {
+      areas.push("sidebar");
+    } else if (gridType === "three-column") {
+      areas.push("left-sidebar", "right-sidebar");
     }
 
     if (metadata.height > 1000) {
-      areas.push('hero', 'content');
+      areas.push("hero", "content");
     }
 
     return areas;
@@ -947,19 +964,19 @@ export class LocalVisionAdapter implements IVisionAnalyzer {
    * レイアウトの説明を生成
    */
   private generateLayoutDescription(
-    gridType: LayoutStructureData['gridType'],
+    gridType: LayoutStructureData["gridType"],
     mainAreas: string[]
   ): string {
-    const descriptions: Record<LayoutStructureData['gridType'], string> = {
-      'single-column': 'Single column layout with stacked sections',
-      'two-column': 'Two column layout with main content and sidebar',
-      'three-column': 'Three column layout for dashboard or complex content',
-      grid: 'Grid-based layout with flexible items',
-      masonry: 'Masonry layout with variable height items',
-      asymmetric: 'Asymmetric layout with intentional imbalance',
+    const descriptions: Record<LayoutStructureData["gridType"], string> = {
+      "single-column": "Single column layout with stacked sections",
+      "two-column": "Two column layout with main content and sidebar",
+      "three-column": "Three column layout for dashboard or complex content",
+      grid: "Grid-based layout with flexible items",
+      masonry: "Masonry layout with variable height items",
+      asymmetric: "Asymmetric layout with intentional imbalance",
     };
 
-    return `${descriptions[gridType]}. Main areas: ${mainAreas.join(', ')}.`;
+    return `${descriptions[gridType]}. Main areas: ${mainAreas.join(", ")}.`;
   }
 
   // ---------------------------------------------------------------------------
@@ -972,12 +989,12 @@ export class LocalVisionAdapter implements IVisionAnalyzer {
   private async detectSectionBoundaries(
     imageBuffer: Buffer,
     metadata: ImageMetadata
-  ): Promise<SectionBoundariesData['sections']> {
+  ): Promise<SectionBoundariesData["sections"]> {
     // 画像を縦方向に集約してエッジを検出
     const height = Math.min(metadata.height, 500);
 
     const edgeBuffer = await sharp(imageBuffer)
-      .resize(1, height, { fit: 'fill' })
+      .resize(1, height, { fit: "fill" })
       .grayscale()
       .raw()
       .toBuffer();
@@ -1003,13 +1020,13 @@ export class LocalVisionAdapter implements IVisionAnalyzer {
     boundaries.push(height);
 
     // セクションを生成
-    const sectionTypes = ['hero', 'content', 'features', 'testimonials', 'cta', 'footer'];
-    const sections: SectionBoundariesData['sections'] = [];
+    const sectionTypes = ["hero", "content", "features", "testimonials", "cta", "footer"];
+    const sections: SectionBoundariesData["sections"] = [];
 
     for (let i = 0; i < boundaries.length - 1 && i < sectionTypes.length; i++) {
       const startY = boundaries[i] ?? 0;
       const endY = boundaries[i + 1] ?? height;
-      const sectionType = sectionTypes[i] ?? 'content';
+      const sectionType = sectionTypes[i] ?? "content";
 
       // 実際の画像の高さにスケール
       const scaleFactor = metadata.height / height;
@@ -1036,27 +1053,27 @@ export class LocalVisionAdapter implements IVisionAnalyzer {
     const data = feature.data;
 
     switch (data.type) {
-      case 'color_palette':
-        return `Colors: ${data.dominantColors.slice(0, 5).join(', ')}. Mood: ${data.mood}. Contrast: ${data.contrast}.`;
+      case "color_palette":
+        return `Colors: ${data.dominantColors.slice(0, 5).join(", ")}. Mood: ${data.mood}. Contrast: ${data.contrast}.`;
 
-      case 'density':
+      case "density":
         return `Density: ${data.level}. ${data.description}`;
 
-      case 'whitespace':
+      case "whitespace":
         return `Whitespace: ${data.amount} amount with ${data.distribution} distribution.`;
 
-      case 'layout_structure':
+      case "layout_structure":
         return `Layout: ${data.gridType}. ${data.description}`;
 
-      case 'section_boundaries': {
+      case "section_boundaries": {
         const sectionList = data.sections
           .map((s) => `${s.type} (${s.startY}-${s.endY}px)`)
-          .join(', ');
+          .join(", ");
         return `Sections: ${sectionList}`;
       }
 
       default:
-        return '';
+        return "";
     }
   }
 }

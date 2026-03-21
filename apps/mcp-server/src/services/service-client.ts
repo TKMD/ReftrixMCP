@@ -16,30 +16,29 @@
  * - リトライ非対象: 4xx系クライアントエラー
  */
 
-import { logger, isDevelopment } from '../utils/logger';
+import { logger, isDevelopment } from "../utils/logger";
 
 /**
  * API Base URL (環境変数から取得、デフォルトはポート24000)
  */
-export const API_BASE_URL =
-  process.env.REFTRIX_API_URL || 'http://localhost:24000/api/v1';
+export const API_BASE_URL = process.env.REFTRIX_API_URL || "http://localhost:24000/api/v1";
 
 /**
  * ServiceClientエラーコード
  */
 export enum ServiceClientErrorCode {
   /** リクエストタイムアウト */
-  TIMEOUT_ERROR = 'TIMEOUT_ERROR',
+  TIMEOUT_ERROR = "TIMEOUT_ERROR",
   /** 最大リトライ回数超過 */
-  MAX_RETRIES_EXCEEDED = 'MAX_RETRIES_EXCEEDED',
+  MAX_RETRIES_EXCEEDED = "MAX_RETRIES_EXCEEDED",
   /** ネットワークエラー */
-  NETWORK_ERROR = 'NETWORK_ERROR',
+  NETWORK_ERROR = "NETWORK_ERROR",
   /** サーバーエラー (5xx) */
-  SERVER_ERROR = 'SERVER_ERROR',
+  SERVER_ERROR = "SERVER_ERROR",
   /** クライアントエラー (4xx) */
-  CLIENT_ERROR = 'CLIENT_ERROR',
+  CLIENT_ERROR = "CLIENT_ERROR",
   /** 認証エラー (401) */
-  UNAUTHORIZED = 'UNAUTHORIZED',
+  UNAUTHORIZED = "UNAUTHORIZED",
 }
 
 /**
@@ -54,10 +53,14 @@ export class ServiceClientError extends Error {
   constructor(
     code: ServiceClientErrorCode,
     message: string,
-    options?: { statusCode?: number | undefined; retryCount?: number | undefined; cause?: Error | undefined }
+    options?: {
+      statusCode?: number | undefined;
+      retryCount?: number | undefined;
+      cause?: Error | undefined;
+    }
   ) {
     super(message);
-    this.name = 'ServiceClientError';
+    this.name = "ServiceClientError";
     this.code = code;
     this.statusCode = options?.statusCode;
     this.retryCount = options?.retryCount;
@@ -114,11 +117,11 @@ export interface ProjectResponse {
  * プロジェクト一覧取得パラメータの型定義
  */
 export interface ProjectListParams {
-  status?: 'draft' | 'in_progress' | 'review' | 'completed' | 'archived' | undefined;
+  status?: "draft" | "in_progress" | "review" | "completed" | "archived" | undefined;
   limit?: number | undefined;
   offset?: number | undefined;
-  sortBy?: 'createdAt' | 'updatedAt' | 'name' | undefined;
-  sortOrder?: 'asc' | 'desc' | undefined;
+  sortBy?: "createdAt" | "updatedAt" | "name" | undefined;
+  sortOrder?: "asc" | "desc" | undefined;
 }
 
 /**
@@ -141,7 +144,7 @@ export interface ColorToken {
   oklchL: number;
   oklchC: number;
   oklchH: number;
-  role: 'primary' | 'secondary' | 'accent' | 'neutral' | 'semantic';
+  role: "primary" | "secondary" | "accent" | "neutral" | "semantic";
   semanticMeaning: string | null;
   sortOrder: number;
 }
@@ -154,7 +157,7 @@ export interface PaletteResponse {
   name: string;
   slug: string;
   description: string | null;
-  mode: 'light' | 'dark';
+  mode: "light" | "dark";
   isDefault: boolean;
   tokens: ColorToken[];
   createdAt: string;
@@ -250,7 +253,7 @@ export class ServiceClient {
       });
       return response;
     } catch (error) {
-      if (error instanceof Error && error.name === 'AbortError') {
+      if (error instanceof Error && error.name === "AbortError") {
         throw new ServiceClientError(
           ServiceClientErrorCode.TIMEOUT_ERROR,
           `Request timeout after ${timeout}ms`
@@ -282,7 +285,9 @@ export class ServiceClient {
         if (attempt > 0) {
           const delay = calculateBackoffDelay(attempt - 1, this.options.retryDelay);
           if (isDevelopment()) {
-            logger.info(`[ServiceClient] Retrying ${operationName} (attempt ${attempt}/${this.options.maxRetries}) after ${delay}ms`);
+            logger.info(
+              `[ServiceClient] Retrying ${operationName} (attempt ${attempt}/${this.options.maxRetries}) after ${delay}ms`
+            );
           }
           await sleep(delay);
         }
@@ -331,11 +336,9 @@ export class ServiceClient {
 
         // リトライ対象でない場合は即座に失敗
         if (!isRetryableError(lastError, undefined)) {
-          throw new ServiceClientError(
-            ServiceClientErrorCode.NETWORK_ERROR,
-            lastError.message,
-            { cause: lastError }
-          );
+          throw new ServiceClientError(ServiceClientErrorCode.NETWORK_ERROR, lastError.message, {
+            cause: lastError,
+          });
         }
       }
     }
@@ -353,7 +356,7 @@ export class ServiceClient {
     }
     throw new ServiceClientError(
       ServiceClientErrorCode.MAX_RETRIES_EXCEEDED,
-      `${operationName} failed after ${this.options.maxRetries} retries: ${lastError?.message ?? 'Unknown error'}`,
+      `${operationName} failed after ${this.options.maxRetries} retries: ${lastError?.message ?? "Unknown error"}`,
       errorOptions
     );
   }
@@ -368,44 +371,44 @@ export class ServiceClient {
    */
   async getProject(id: string): Promise<ProjectResponse | null> {
     if (isDevelopment()) {
-      logger.info('[ServiceClient] Calling getProject API', { id });
+      logger.info("[ServiceClient] Calling getProject API", { id });
     }
 
     // Studio APIは /api/studio/ パスを使用（baseUrlの/v1を除外）
-    const studioBaseUrl = this.baseUrl.replace('/api/v1', '/api');
+    const studioBaseUrl = this.baseUrl.replace("/api/v1", "/api");
     const url = `${studioBaseUrl}/studio/projects/${id}`;
 
     const response = await this.fetchWithRetry(
       url,
       {
-        method: 'GET',
-        headers: { Accept: 'application/json' },
+        method: "GET",
+        headers: { Accept: "application/json" },
       },
-      'getProject'
+      "getProject"
     );
 
     if (response.status === 404) {
       if (isDevelopment()) {
-        logger.warn('[ServiceClient] Project not found', { id });
+        logger.warn("[ServiceClient] Project not found", { id });
       }
       return null;
     }
 
     if (response.status === 401) {
       if (isDevelopment()) {
-        logger.warn('[ServiceClient] Unauthorized', { id });
+        logger.warn("[ServiceClient] Unauthorized", { id });
       }
       throw new ServiceClientError(
         ServiceClientErrorCode.UNAUTHORIZED,
-        'UNAUTHORIZED - Authentication required',
+        "UNAUTHORIZED - Authentication required",
         { statusCode: 401 }
       );
     }
 
     if (!response.ok) {
-      const errorText = await response.text().catch(() => 'Unknown error');
+      const errorText = await response.text().catch(() => "Unknown error");
       if (isDevelopment()) {
-        logger.error('[ServiceClient] Get Project API error', {
+        logger.error("[ServiceClient] Get Project API error", {
           status: response.status,
           error: errorText,
         });
@@ -420,7 +423,7 @@ export class ServiceClient {
     const json = await response.json();
 
     if (isDevelopment()) {
-      logger.info('[ServiceClient] Get Project response', {
+      logger.info("[ServiceClient] Get Project response", {
         hasData: !!json.data,
         id: json.data?.id,
         name: json.data?.name,
@@ -453,46 +456,46 @@ export class ServiceClient {
    */
   async listProjects(params: ProjectListParams = {}): Promise<ProjectListResponse> {
     if (isDevelopment()) {
-      logger.info('[ServiceClient] Calling listProjects API', { params });
+      logger.info("[ServiceClient] Calling listProjects API", { params });
     }
 
     // クエリパラメータを構築
     const queryParams = new URLSearchParams();
-    if (params.status) queryParams.set('status', params.status);
-    if (params.limit !== undefined) queryParams.set('limit', String(params.limit));
-    if (params.offset !== undefined) queryParams.set('offset', String(params.offset));
-    if (params.sortBy) queryParams.set('sortBy', params.sortBy);
-    if (params.sortOrder) queryParams.set('sortOrder', params.sortOrder);
+    if (params.status) queryParams.set("status", params.status);
+    if (params.limit !== undefined) queryParams.set("limit", String(params.limit));
+    if (params.offset !== undefined) queryParams.set("offset", String(params.offset));
+    if (params.sortBy) queryParams.set("sortBy", params.sortBy);
+    if (params.sortOrder) queryParams.set("sortOrder", params.sortOrder);
 
     const queryString = queryParams.toString();
     // Studio APIは /api/studio/ パスを使用（baseUrlの/v1を除外）
-    const studioBaseUrl = this.baseUrl.replace('/api/v1', '/api');
-    const url = `${studioBaseUrl}/studio/projects${queryString ? `?${queryString}` : ''}`;
+    const studioBaseUrl = this.baseUrl.replace("/api/v1", "/api");
+    const url = `${studioBaseUrl}/studio/projects${queryString ? `?${queryString}` : ""}`;
 
     const response = await this.fetchWithRetry(
       url,
       {
-        method: 'GET',
-        headers: { Accept: 'application/json' },
+        method: "GET",
+        headers: { Accept: "application/json" },
       },
-      'listProjects'
+      "listProjects"
     );
 
     if (response.status === 401) {
       if (isDevelopment()) {
-        logger.warn('[ServiceClient] Unauthorized');
+        logger.warn("[ServiceClient] Unauthorized");
       }
       throw new ServiceClientError(
         ServiceClientErrorCode.UNAUTHORIZED,
-        'UNAUTHORIZED - Authentication required',
+        "UNAUTHORIZED - Authentication required",
         { statusCode: 401 }
       );
     }
 
     if (!response.ok) {
-      const errorText = await response.text().catch(() => 'Unknown error');
+      const errorText = await response.text().catch(() => "Unknown error");
       if (isDevelopment()) {
-        logger.error('[ServiceClient] List Projects API error', {
+        logger.error("[ServiceClient] List Projects API error", {
           status: response.status,
           error: errorText,
         });
@@ -507,7 +510,7 @@ export class ServiceClient {
     const json = await response.json();
 
     if (isDevelopment()) {
-      logger.info('[ServiceClient] List Projects response', {
+      logger.info("[ServiceClient] List Projects response", {
         hasData: !!json.data,
         count: json.data?.projects?.length ?? 0,
         total: json.data?.total,
@@ -547,44 +550,44 @@ export class ServiceClient {
    */
   async getPalette(id: string): Promise<PaletteResponse | null> {
     if (isDevelopment()) {
-      logger.info('[ServiceClient] Calling getPalette API', { id });
+      logger.info("[ServiceClient] Calling getPalette API", { id });
     }
 
     // Studio APIは /api/studio/ パスを使用（baseUrlの/v1を除外）
-    const studioBaseUrl = this.baseUrl.replace('/api/v1', '/api');
+    const studioBaseUrl = this.baseUrl.replace("/api/v1", "/api");
     const url = `${studioBaseUrl}/studio/palettes/${id}`;
 
     const response = await this.fetchWithRetry(
       url,
       {
-        method: 'GET',
-        headers: { Accept: 'application/json' },
+        method: "GET",
+        headers: { Accept: "application/json" },
       },
-      'getPalette'
+      "getPalette"
     );
 
     if (response.status === 404) {
       if (isDevelopment()) {
-        logger.warn('[ServiceClient] Palette not found', { id });
+        logger.warn("[ServiceClient] Palette not found", { id });
       }
       return null;
     }
 
     if (response.status === 401) {
       if (isDevelopment()) {
-        logger.warn('[ServiceClient] Unauthorized', { id });
+        logger.warn("[ServiceClient] Unauthorized", { id });
       }
       throw new ServiceClientError(
         ServiceClientErrorCode.UNAUTHORIZED,
-        'UNAUTHORIZED - Authentication required',
+        "UNAUTHORIZED - Authentication required",
         { statusCode: 401 }
       );
     }
 
     if (!response.ok) {
-      const errorText = await response.text().catch(() => 'Unknown error');
+      const errorText = await response.text().catch(() => "Unknown error");
       if (isDevelopment()) {
-        logger.error('[ServiceClient] Get Palette API error', {
+        logger.error("[ServiceClient] Get Palette API error", {
           status: response.status,
           error: errorText,
         });
@@ -599,7 +602,7 @@ export class ServiceClient {
     const json = await response.json();
 
     if (isDevelopment()) {
-      logger.info('[ServiceClient] Get Palette response', {
+      logger.info("[ServiceClient] Get Palette response", {
         hasData: !!json.data,
         id: json.data?.id,
         name: json.data?.name,

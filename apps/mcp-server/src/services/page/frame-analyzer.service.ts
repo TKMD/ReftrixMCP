@@ -20,12 +20,12 @@
  * @module services/page/frame-analyzer.service
  */
 
-import * as fs from 'node:fs';
-import * as path from 'node:path';
-import * as os from 'node:os';
-import { spawn } from 'node:child_process';
-import sharp from 'sharp';
-import { logger, isDevelopment } from '../../utils/logger';
+import * as fs from "node:fs";
+import * as path from "node:path";
+import * as os from "node:os";
+import { spawn } from "node:child_process";
+import sharp from "sharp";
+import { logger, isDevelopment } from "../../utils/logger";
 
 // =====================================================
 // 型定義
@@ -42,7 +42,7 @@ export interface ExtractOptions {
   /** 終了時間（秒） デフォルト: 動画全長 */
   endTime?: number;
   /** 出力フォーマット デフォルト: png */
-  format?: 'png' | 'jpeg';
+  format?: "png" | "jpeg";
   /** 出力サイズ デフォルト: 動画と同じ */
   outputSize?: { width: number; height: number };
 }
@@ -114,9 +114,9 @@ export interface MotionSegment {
   /** 最大変化率 */
   maxChangeRatio: number;
   /** モーションタイプ推定 */
-  estimatedType: 'fade' | 'slide' | 'scale' | 'rotate' | 'complex' | 'unknown';
+  estimatedType: "fade" | "slide" | "scale" | "rotate" | "complex" | "unknown";
   /** 推定イージング */
-  estimatedEasing: 'linear' | 'ease-in' | 'ease-out' | 'ease-in-out' | 'unknown';
+  estimatedEasing: "linear" | "ease-in" | "ease-out" | "ease-in-out" | "unknown";
 }
 
 /**
@@ -156,7 +156,7 @@ export const DEFAULT_EXTRACT_OPTIONS: Required<ExtractOptions> = {
   fps: 10,
   startTime: 0,
   endTime: Infinity,
-  format: 'png',
+  format: "png",
   outputSize: { width: 0, height: 0 },
 };
 
@@ -179,7 +179,7 @@ export const DEFAULT_ANALYZE_OPTIONS: Required<AnalyzeOptions> = {
 export class FrameAnalyzerError extends Error {
   constructor(message: string) {
     super(message);
-    this.name = 'FrameAnalyzerError';
+    this.name = "FrameAnalyzerError";
   }
 }
 
@@ -191,7 +191,7 @@ export class FrameAnalyzerError extends Error {
  * 一時ディレクトリを作成
  */
 function createTempDir(): string {
-  return fs.mkdtempSync(path.join(os.tmpdir(), 'frame-analyzer-'));
+  return fs.mkdtempSync(path.join(os.tmpdir(), "frame-analyzer-"));
 }
 
 /**
@@ -199,9 +199,9 @@ function createTempDir(): string {
  */
 async function checkFfmpegAvailable(): Promise<boolean> {
   return new Promise((resolve) => {
-    const proc = spawn('ffmpeg', ['-version']);
-    proc.on('error', () => resolve(false));
-    proc.on('close', (code) => resolve(code === 0));
+    const proc = spawn("ffmpeg", ["-version"]);
+    proc.on("error", () => resolve(false));
+    proc.on("close", (code) => resolve(code === 0));
   });
 }
 
@@ -210,38 +210,38 @@ async function checkFfmpegAvailable(): Promise<boolean> {
  */
 async function getVideoDuration(videoPath: string): Promise<number> {
   return new Promise((resolve, reject) => {
-    const proc = spawn('ffprobe', [
-      '-v',
-      'error',
-      '-show_entries',
-      'format=duration',
-      '-of',
-      'default=noprint_wrappers=1:nokey=1',
+    const proc = spawn("ffprobe", [
+      "-v",
+      "error",
+      "-show_entries",
+      "format=duration",
+      "-of",
+      "default=noprint_wrappers=1:nokey=1",
       videoPath,
     ]);
 
-    let stdout = '';
-    let stderr = '';
+    let stdout = "";
+    let stderr = "";
 
-    proc.stdout.on('data', (data) => {
+    proc.stdout.on("data", (data) => {
       stdout += data.toString();
     });
 
-    proc.stderr.on('data', (data) => {
+    proc.stderr.on("data", (data) => {
       stderr += data.toString();
     });
 
-    proc.on('error', (err) => {
+    proc.on("error", (err) => {
       reject(new FrameAnalyzerError(`ffprobe not available: ${err.message}`));
     });
 
-    proc.on('close', (code) => {
+    proc.on("close", (code) => {
       if (code !== 0) {
         reject(new FrameAnalyzerError(`ffprobe failed: ${stderr}`));
       } else {
         const duration = parseFloat(stdout.trim());
         if (isNaN(duration)) {
-          reject(new FrameAnalyzerError('Failed to parse video duration'));
+          reject(new FrameAnalyzerError("Failed to parse video duration"));
         } else {
           resolve(duration * 1000); // 秒→ミリ秒
         }
@@ -259,56 +259,51 @@ async function extractWithFfmpeg(
   opts: Required<ExtractOptions>
 ): Promise<string[]> {
   return new Promise((resolve, reject) => {
-    const args = [
-      '-i',
-      videoPath,
-      '-vf',
-      `fps=${opts.fps}`,
-    ];
+    const args = ["-i", videoPath, "-vf", `fps=${opts.fps}`];
 
     // 開始時間
     if (opts.startTime > 0) {
-      args.unshift('-ss', opts.startTime.toString());
+      args.unshift("-ss", opts.startTime.toString());
     }
 
     // 終了時間
     if (opts.endTime !== Infinity) {
-      args.push('-t', (opts.endTime - opts.startTime).toString());
+      args.push("-t", (opts.endTime - opts.startTime).toString());
     }
 
     // 出力サイズ
     if (opts.outputSize.width > 0 && opts.outputSize.height > 0) {
-      args.push('-s', `${opts.outputSize.width}x${opts.outputSize.height}`);
+      args.push("-s", `${opts.outputSize.width}x${opts.outputSize.height}`);
     }
 
     // 出力ファイル
-    const ext = opts.format === 'jpeg' ? 'jpg' : 'png';
+    const ext = opts.format === "jpeg" ? "jpg" : "png";
     const outputPattern = path.join(outputDir, `frame_%05d.${ext}`);
     args.push(outputPattern);
 
     if (isDevelopment()) {
-      logger.debug('[FrameAnalyzerService] Running ffmpeg', { args });
+      logger.debug("[FrameAnalyzerService] Running ffmpeg", { args });
     }
 
-    const proc = spawn('ffmpeg', args);
-    let stderr = '';
+    const proc = spawn("ffmpeg", args);
+    let stderr = "";
 
-    proc.stderr.on('data', (data) => {
+    proc.stderr.on("data", (data) => {
       stderr += data.toString();
     });
 
-    proc.on('error', (err) => {
+    proc.on("error", (err) => {
       reject(new FrameAnalyzerError(`ffmpeg not available: ${err.message}`));
     });
 
-    proc.on('close', (code) => {
+    proc.on("close", (code) => {
       if (code !== 0) {
         reject(new FrameAnalyzerError(`ffmpeg failed: ${stderr}`));
       } else {
         // 抽出されたフレームファイルを取得
         const files = fs
           .readdirSync(outputDir)
-          .filter((f) => f.startsWith('frame_') && f.endsWith(`.${ext}`))
+          .filter((f) => f.startsWith("frame_") && f.endsWith(`.${ext}`))
           .sort()
           .map((f) => path.join(outputDir, f));
         resolve(files);
@@ -335,7 +330,7 @@ async function compareImages(
 
   // サイズが異なる場合はエラー
   if (info1.width !== info2.width || info1.height !== info2.height) {
-    throw new FrameAnalyzerError('Image dimensions do not match');
+    throw new FrameAnalyzerError("Image dimensions do not match");
   }
 
   const totalPixels = info1.width * info1.height;
@@ -366,9 +361,9 @@ async function compareImages(
  */
 function estimateEasing(
   changeRatios: number[]
-): 'linear' | 'ease-in' | 'ease-out' | 'ease-in-out' | 'unknown' {
+): "linear" | "ease-in" | "ease-out" | "ease-in-out" | "unknown" {
   if (changeRatios.length < 3) {
-    return 'unknown';
+    return "unknown";
   }
 
   const len = changeRatios.length;
@@ -384,13 +379,13 @@ function estimateEasing(
   const endSlow = avgLast < avgAll * 0.7;
 
   if (startSlow && endSlow) {
-    return 'ease-in-out';
+    return "ease-in-out";
   } else if (startSlow) {
-    return 'ease-in';
+    return "ease-in";
   } else if (endSlow) {
-    return 'ease-out';
+    return "ease-out";
   } else {
-    return 'linear';
+    return "linear";
   }
 }
 
@@ -400,10 +395,10 @@ function estimateEasing(
 function estimateMotionType(
   _avgChangeRatio: number,
   _maxChangeRatio: number
-): 'fade' | 'slide' | 'scale' | 'rotate' | 'complex' | 'unknown' {
+): "fade" | "slide" | "scale" | "rotate" | "complex" | "unknown" {
   // 現時点では単純化：将来的にはピクセル分布解析で判別
   // 今はcomplexまたはunknownを返す
-  return 'complex';
+  return "complex";
 }
 
 // =====================================================
@@ -424,10 +419,7 @@ export class FrameAnalyzerService {
    * @returns フレーム抽出結果
    * @throws FrameAnalyzerError
    */
-  async extractFrames(
-    videoPath: string,
-    options: ExtractOptions = {}
-  ): Promise<ExtractResult> {
+  async extractFrames(videoPath: string, options: ExtractOptions = {}): Promise<ExtractResult> {
     const startTime = Date.now();
     const opts: Required<ExtractOptions> = {
       fps: options.fps ?? DEFAULT_EXTRACT_OPTIONS.fps,
@@ -438,7 +430,7 @@ export class FrameAnalyzerService {
     };
 
     if (isDevelopment()) {
-      logger.debug('[FrameAnalyzerService] extractFrames called', {
+      logger.debug("[FrameAnalyzerService] extractFrames called", {
         videoPath,
         fps: opts.fps,
         format: opts.format,
@@ -447,10 +439,10 @@ export class FrameAnalyzerService {
 
     // バリデーション
     if (opts.fps <= 0) {
-      throw new FrameAnalyzerError('fps must be positive');
+      throw new FrameAnalyzerError("fps must be positive");
     }
     if (opts.startTime < 0) {
-      throw new FrameAnalyzerError('startTime must be non-negative');
+      throw new FrameAnalyzerError("startTime must be non-negative");
     }
     if (!fs.existsSync(videoPath)) {
       throw new FrameAnalyzerError(`Video file not found: ${videoPath}`);
@@ -458,7 +450,7 @@ export class FrameAnalyzerService {
 
     // ファイル形式チェック（簡易）
     const ext = path.extname(videoPath).toLowerCase();
-    if (!['.webm', '.mp4', '.avi', '.mov', '.mkv'].includes(ext)) {
+    if (![".webm", ".mp4", ".avi", ".mov", ".mkv"].includes(ext)) {
       throw new FrameAnalyzerError(`Unsupported video format: ${ext}`);
     }
 
@@ -466,7 +458,7 @@ export class FrameAnalyzerService {
     const ffmpegAvailable = await checkFfmpegAvailable();
     if (!ffmpegAvailable) {
       throw new FrameAnalyzerError(
-        'ffmpeg is not installed. Please install ffmpeg to use frame extraction.'
+        "ffmpeg is not installed. Please install ffmpeg to use frame extraction."
       );
     }
 
@@ -506,7 +498,7 @@ export class FrameAnalyzerService {
       const processingTimeMs = Date.now() - startTime;
 
       if (isDevelopment()) {
-        logger.debug('[FrameAnalyzerService] extractFrames completed', {
+        logger.debug("[FrameAnalyzerService] extractFrames completed", {
           videoPath,
           totalFrames: frames.length,
           processingTimeMs,
@@ -542,12 +534,13 @@ export class FrameAnalyzerService {
     const startTime = Date.now();
     const opts: Required<AnalyzeOptions> = {
       changeThreshold: options.changeThreshold ?? DEFAULT_ANALYZE_OPTIONS.changeThreshold,
-      minMotionDurationMs: options.minMotionDurationMs ?? DEFAULT_ANALYZE_OPTIONS.minMotionDurationMs,
+      minMotionDurationMs:
+        options.minMotionDurationMs ?? DEFAULT_ANALYZE_OPTIONS.minMotionDurationMs,
       gapToleranceMs: options.gapToleranceMs ?? DEFAULT_ANALYZE_OPTIONS.gapToleranceMs,
     };
 
     if (isDevelopment()) {
-      logger.debug('[FrameAnalyzerService] analyzeMotion called', {
+      logger.debug("[FrameAnalyzerService] analyzeMotion called", {
         totalFrames: extractResult.totalFrames,
         changeThreshold: opts.changeThreshold,
       });
@@ -646,14 +639,13 @@ export class FrameAnalyzerService {
     for (const segment of motionSegments) {
       totalMotionTime += segment.durationMs;
     }
-    const motionCoverage = extractResult.durationMs > 0
-      ? totalMotionTime / extractResult.durationMs
-      : 0;
+    const motionCoverage =
+      extractResult.durationMs > 0 ? totalMotionTime / extractResult.durationMs : 0;
 
     const processingTimeMs = Date.now() - startTime;
 
     if (isDevelopment()) {
-      logger.debug('[FrameAnalyzerService] analyzeMotion completed', {
+      logger.debug("[FrameAnalyzerService] analyzeMotion completed", {
         totalDiffs: diffs.length,
         motionSegments: motionSegments.length,
         motionCoverage,
@@ -698,8 +690,7 @@ export class FrameAnalyzerService {
     }
 
     const changeRatios = segmentDiffs.map((d) => d.changeRatio);
-    const avgChangeRatio =
-      changeRatios.reduce((a, b) => a + b, 0) / changeRatios.length;
+    const avgChangeRatio = changeRatios.reduce((a, b) => a + b, 0) / changeRatios.length;
     const maxChangeRatio = Math.max(...changeRatios);
 
     motionSegments.push({
@@ -734,12 +725,12 @@ export class FrameAnalyzerService {
           this.tempDirs.splice(index, 1);
         }
         if (isDevelopment()) {
-          logger.debug('[FrameAnalyzerService] cleanup: deleted dir', { dir });
+          logger.debug("[FrameAnalyzerService] cleanup: deleted dir", { dir });
         }
       }
     } catch (error) {
       if (isDevelopment()) {
-        logger.error('[FrameAnalyzerService] cleanup error', { dir, error });
+        logger.error("[FrameAnalyzerService] cleanup error", { dir, error });
       }
     }
   }

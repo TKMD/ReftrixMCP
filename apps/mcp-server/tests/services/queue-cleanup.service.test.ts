@@ -17,10 +17,10 @@
  * @module tests/services/queue-cleanup
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from "vitest";
 
 // logger をモック
-vi.mock('../../src/utils/logger', () => ({
+vi.mock("../../src/utils/logger", () => ({
   logger: {
     info: vi.fn(),
     warn: vi.fn(),
@@ -37,7 +37,7 @@ import {
   type CleanupOptions,
   type QueueAdapter,
   type JobInfo,
-} from '../../src/services/queue-cleanup.service';
+} from "../../src/services/queue-cleanup.service";
 
 // ============================================================================
 // ヘルパー: モック QueueAdapter 生成
@@ -48,7 +48,7 @@ import {
  */
 function createMockJobInfo(overrides?: Partial<JobInfo>): JobInfo {
   return {
-    id: 'job-1',
+    id: "job-1",
     processedOn: Date.now() - 60_000, // 1分前（orphanedではない）
     progress: 50,
     moveToCompleted: vi.fn().mockResolvedValue(undefined),
@@ -70,7 +70,7 @@ function createMockQueueAdapter(overrides?: Partial<QueueAdapter>): QueueAdapter
       completed: 0,
       prioritized: 0,
       paused: 0,
-      'waiting-children': 0,
+      "waiting-children": 0,
     }),
     clean: vi.fn().mockResolvedValue([]),
     getJobs: vi.fn().mockResolvedValue([]),
@@ -82,7 +82,7 @@ function createMockQueueAdapter(overrides?: Partial<QueueAdapter>): QueueAdapter
 // テストスイート
 // ============================================================================
 
-describe('QueueCleanupService', () => {
+describe("QueueCleanupService", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
@@ -91,8 +91,8 @@ describe('QueueCleanupService', () => {
   // active = 0 のケース: 選択的クリア（failed/delayed のみ）
   // ==========================================================================
 
-  describe('active job が 0件の場合', () => {
-    it('failed/delayed のみクリアし、waiting/completed は保護する', async () => {
+  describe("active job が 0件の場合", () => {
+    it("failed/delayed のみクリアし、waiting/completed は保護する", async () => {
       // Arrange
       const mockAdapter = createMockQueueAdapter({
         getJobCounts: vi.fn().mockResolvedValue({
@@ -103,11 +103,12 @@ describe('QueueCleanupService', () => {
           completed: 10,
           prioritized: 2,
           paused: 0,
-          'waiting-children': 0,
+          "waiting-children": 0,
         }),
-        clean: vi.fn()
-          .mockResolvedValueOnce(['job1', 'job2', 'job3']) // failed
-          .mockResolvedValueOnce(['job4']), // delayed
+        clean: vi
+          .fn()
+          .mockResolvedValueOnce(["job1", "job2", "job3"]) // failed
+          .mockResolvedValueOnce(["job4"]), // delayed
       });
 
       // Act
@@ -115,10 +116,10 @@ describe('QueueCleanupService', () => {
 
       // Assert: selective 戦略で failed/delayed のみクリア
       expect(result.success).toBe(true);
-      expect(result.strategy).toBe('selective');
-      expect(mockAdapter.clean).toHaveBeenCalledWith(0, 0, 'failed');
-      expect(mockAdapter.clean).toHaveBeenCalledWith(0, 0, 'delayed');
-      expect(mockAdapter.clean).not.toHaveBeenCalledWith(0, 0, 'completed');
+      expect(result.strategy).toBe("selective");
+      expect(mockAdapter.clean).toHaveBeenCalledWith(0, 0, "failed");
+      expect(mockAdapter.clean).toHaveBeenCalledWith(0, 0, "delayed");
+      expect(mockAdapter.clean).not.toHaveBeenCalledWith(0, 0, "completed");
       expect(result.totalCleaned).toBe(4); // 3 failed + 1 delayed
       expect(result.beforeCounts.waiting).toBe(5);
       expect(result.beforeCounts.failed).toBe(3);
@@ -126,7 +127,7 @@ describe('QueueCleanupService', () => {
       expect(result.beforeCounts.completed).toBe(10);
     });
 
-    it('全ステータスが0件の場合はクリーンアップをスキップする', async () => {
+    it("全ステータスが0件の場合はクリーンアップをスキップする", async () => {
       // Arrange
       const mockAdapter = createMockQueueAdapter({
         getJobCounts: vi.fn().mockResolvedValue({
@@ -137,7 +138,7 @@ describe('QueueCleanupService', () => {
           completed: 0,
           prioritized: 0,
           paused: 0,
-          'waiting-children': 0,
+          "waiting-children": 0,
         }),
       });
 
@@ -147,11 +148,11 @@ describe('QueueCleanupService', () => {
       // Assert
       expect(mockAdapter.clean).not.toHaveBeenCalled();
       expect(result.success).toBe(true);
-      expect(result.strategy).toBe('skipped');
+      expect(result.strategy).toBe("skipped");
       expect(result.totalCleaned).toBe(0);
     });
 
-    it('waiting/completed のみ存在する場合は clean を呼ばない（保護）', async () => {
+    it("waiting/completed のみ存在する場合は clean を呼ばない（保護）", async () => {
       // Arrange
       const mockAdapter = createMockQueueAdapter({
         getJobCounts: vi.fn().mockResolvedValue({
@@ -162,7 +163,7 @@ describe('QueueCleanupService', () => {
           completed: 10,
           prioritized: 0,
           paused: 0,
-          'waiting-children': 0,
+          "waiting-children": 0,
         }),
       });
 
@@ -172,7 +173,7 @@ describe('QueueCleanupService', () => {
       // Assert: waiting/completed は保護される
       expect(mockAdapter.clean).not.toHaveBeenCalled();
       expect(result.success).toBe(true);
-      expect(result.strategy).toBe('selective');
+      expect(result.strategy).toBe("selective");
       expect(result.totalCleaned).toBe(0);
     });
   });
@@ -181,8 +182,8 @@ describe('QueueCleanupService', () => {
   // active > 0 のケース: 選択的クリア
   // ==========================================================================
 
-  describe('active job が残っている場合', () => {
-    it('failed/delayed のみクリアし、active/waiting/completed は触らない', async () => {
+  describe("active job が残っている場合", () => {
+    it("failed/delayed のみクリアし、active/waiting/completed は触らない", async () => {
       // Arrange
       const mockAdapter = createMockQueueAdapter({
         getJobCounts: vi.fn().mockResolvedValue({
@@ -193,27 +194,28 @@ describe('QueueCleanupService', () => {
           completed: 8,
           prioritized: 0,
           paused: 0,
-          'waiting-children': 0,
+          "waiting-children": 0,
         }),
-        clean: vi.fn()
-          .mockResolvedValueOnce(['job1', 'job2', 'job3']) // failed
-          .mockResolvedValueOnce(['job4']), // delayed
+        clean: vi
+          .fn()
+          .mockResolvedValueOnce(["job1", "job2", "job3"]) // failed
+          .mockResolvedValueOnce(["job4"]), // delayed
       });
 
       // Act
       const result = await cleanupQueue(mockAdapter);
 
       // Assert: cleanが呼ばれる（failed, delayed のみ。completedは呼ばれない）
-      expect(mockAdapter.clean).toHaveBeenCalledWith(0, 0, 'failed');
-      expect(mockAdapter.clean).toHaveBeenCalledWith(0, 0, 'delayed');
-      expect(mockAdapter.clean).not.toHaveBeenCalledWith(0, 0, 'completed');
+      expect(mockAdapter.clean).toHaveBeenCalledWith(0, 0, "failed");
+      expect(mockAdapter.clean).toHaveBeenCalledWith(0, 0, "delayed");
+      expect(mockAdapter.clean).not.toHaveBeenCalledWith(0, 0, "completed");
 
       expect(result.success).toBe(true);
-      expect(result.strategy).toBe('selective');
+      expect(result.strategy).toBe("selective");
       expect(result.beforeCounts.active).toBe(2);
     });
 
-    it('waiting のみ存在する場合はクリーンアップをスキップする（waiting は保護）', async () => {
+    it("waiting のみ存在する場合はクリーンアップをスキップする（waiting は保護）", async () => {
       // Arrange
       const mockAdapter = createMockQueueAdapter({
         getJobCounts: vi.fn().mockResolvedValue({
@@ -224,7 +226,7 @@ describe('QueueCleanupService', () => {
           completed: 0,
           prioritized: 0,
           paused: 0,
-          'waiting-children': 0,
+          "waiting-children": 0,
         }),
       });
 
@@ -234,10 +236,10 @@ describe('QueueCleanupService', () => {
       // Assert: clean は呼ばれない
       expect(mockAdapter.clean).not.toHaveBeenCalled();
       expect(result.success).toBe(true);
-      expect(result.strategy).toBe('selective');
+      expect(result.strategy).toBe("selective");
     });
 
-    it('failed のみ存在する場合は clean(failed) のみ実行する', async () => {
+    it("failed のみ存在する場合は clean(failed) のみ実行する", async () => {
       // Arrange
       const mockAdapter = createMockQueueAdapter({
         getJobCounts: vi.fn().mockResolvedValue({
@@ -248,16 +250,16 @@ describe('QueueCleanupService', () => {
           completed: 0,
           prioritized: 0,
           paused: 0,
-          'waiting-children': 0,
+          "waiting-children": 0,
         }),
-        clean: vi.fn().mockResolvedValue(['j1', 'j2', 'j3', 'j4', 'j5']),
+        clean: vi.fn().mockResolvedValue(["j1", "j2", "j3", "j4", "j5"]),
       });
 
       // Act
       const result = await cleanupQueue(mockAdapter);
 
       // Assert
-      expect(mockAdapter.clean).toHaveBeenCalledWith(0, 0, 'failed');
+      expect(mockAdapter.clean).toHaveBeenCalledWith(0, 0, "failed");
       expect(mockAdapter.clean).toHaveBeenCalledTimes(1); // failed のみ
       expect(result.success).toBe(true);
     });
@@ -267,8 +269,8 @@ describe('QueueCleanupService', () => {
   // CleanupResult の検証
   // ==========================================================================
 
-  describe('CleanupResult', () => {
-    it('active=0 で failed/delayed あり時の結果が正しいフォーマットである', async () => {
+  describe("CleanupResult", () => {
+    it("active=0 で failed/delayed あり時の結果が正しいフォーマットである", async () => {
       // Arrange
       const mockAdapter = createMockQueueAdapter({
         getJobCounts: vi.fn().mockResolvedValue({
@@ -279,11 +281,12 @@ describe('QueueCleanupService', () => {
           completed: 20,
           prioritized: 0,
           paused: 0,
-          'waiting-children': 0,
+          "waiting-children": 0,
         }),
-        clean: vi.fn()
-          .mockResolvedValueOnce(['j1', 'j2', 'j3', 'j4', 'j5']) // failed
-          .mockResolvedValueOnce(['j6', 'j7']), // delayed
+        clean: vi
+          .fn()
+          .mockResolvedValueOnce(["j1", "j2", "j3", "j4", "j5"]) // failed
+          .mockResolvedValueOnce(["j6", "j7"]), // delayed
       });
 
       // Act
@@ -292,7 +295,7 @@ describe('QueueCleanupService', () => {
       // Assert: CleanupResult の全フィールドを検証
       expect(result).toMatchObject({
         success: true,
-        strategy: 'selective',
+        strategy: "selective",
         beforeCounts: {
           active: 0,
           waiting: 10,
@@ -302,11 +305,11 @@ describe('QueueCleanupService', () => {
         },
         totalCleaned: 7, // 5 failed + 2 delayed
       });
-      expect(typeof result.durationMs).toBe('number');
+      expect(typeof result.durationMs).toBe("number");
       expect(result.durationMs).toBeGreaterThanOrEqual(0);
     });
 
-    it('selective クリーンアップ時の結果が正しいフォーマットである', async () => {
+    it("selective クリーンアップ時の結果が正しいフォーマットである", async () => {
       // Arrange
       const mockAdapter = createMockQueueAdapter({
         getJobCounts: vi.fn().mockResolvedValue({
@@ -317,9 +320,9 @@ describe('QueueCleanupService', () => {
           completed: 0,
           prioritized: 0,
           paused: 0,
-          'waiting-children': 0,
+          "waiting-children": 0,
         }),
-        clean: vi.fn().mockResolvedValue(['j1']),
+        clean: vi.fn().mockResolvedValue(["j1"]),
       });
 
       // Act
@@ -328,7 +331,7 @@ describe('QueueCleanupService', () => {
       // Assert
       expect(result).toMatchObject({
         success: true,
-        strategy: 'selective',
+        strategy: "selective",
         beforeCounts: {
           active: 3,
           waiting: 2,
@@ -344,11 +347,11 @@ describe('QueueCleanupService', () => {
   // エラーハンドリング
   // ==========================================================================
 
-  describe('エラーハンドリング', () => {
-    it('getJobCounts がエラーを投げた場合は success: false を返す', async () => {
+  describe("エラーハンドリング", () => {
+    it("getJobCounts がエラーを投げた場合は success: false を返す", async () => {
       // Arrange
       const mockAdapter = createMockQueueAdapter({
-        getJobCounts: vi.fn().mockRejectedValue(new Error('Redis connection refused')),
+        getJobCounts: vi.fn().mockRejectedValue(new Error("Redis connection refused")),
       });
 
       // Act
@@ -356,11 +359,11 @@ describe('QueueCleanupService', () => {
 
       // Assert
       expect(result.success).toBe(false);
-      expect(result.error).toContain('Redis connection refused');
-      expect(result.strategy).toBe('none');
+      expect(result.error).toContain("Redis connection refused");
+      expect(result.strategy).toBe("none");
     });
 
-    it('clean がエラーを投げた場合は success: false を返す', async () => {
+    it("clean がエラーを投げた場合は success: false を返す", async () => {
       // Arrange
       const mockAdapter = createMockQueueAdapter({
         getJobCounts: vi.fn().mockResolvedValue({
@@ -371,9 +374,9 @@ describe('QueueCleanupService', () => {
           completed: 0,
           prioritized: 0,
           paused: 0,
-          'waiting-children': 0,
+          "waiting-children": 0,
         }),
-        clean: vi.fn().mockRejectedValue(new Error('Clean failed')),
+        clean: vi.fn().mockRejectedValue(new Error("Clean failed")),
       });
 
       // Act
@@ -381,7 +384,7 @@ describe('QueueCleanupService', () => {
 
       // Assert
       expect(result.success).toBe(false);
-      expect(result.error).toContain('Clean failed');
+      expect(result.error).toContain("Clean failed");
     });
   });
 
@@ -389,10 +392,10 @@ describe('QueueCleanupService', () => {
   // ログ出力
   // ==========================================================================
 
-  describe('ログ出力', () => {
-    it('selective 実行時（active=0）にクリーンアップ結果をログ出力する', async () => {
+  describe("ログ出力", () => {
+    it("selective 実行時（active=0）にクリーンアップ結果をログ出力する", async () => {
       // Arrange
-      const { logger } = await import('../../src/utils/logger');
+      const { logger } = await import("../../src/utils/logger");
       const mockAdapter = createMockQueueAdapter({
         getJobCounts: vi.fn().mockResolvedValue({
           active: 0,
@@ -402,9 +405,9 @@ describe('QueueCleanupService', () => {
           completed: 0,
           prioritized: 0,
           paused: 0,
-          'waiting-children': 0,
+          "waiting-children": 0,
         }),
-        clean: vi.fn().mockResolvedValue(['j1', 'j2', 'j3']),
+        clean: vi.fn().mockResolvedValue(["j1", "j2", "j3"]),
       });
 
       // Act
@@ -412,16 +415,16 @@ describe('QueueCleanupService', () => {
 
       // Assert: ログ出力が呼ばれている
       expect(logger.info).toHaveBeenCalledWith(
-        expect.stringContaining('[QueueCleanup]'),
+        expect.stringContaining("[QueueCleanup]"),
         expect.objectContaining({
-          strategy: 'selective',
+          strategy: "selective",
         })
       );
     });
 
-    it('selective 実行時（active>0）にクリーンアップ結果をログ出力する', async () => {
+    it("selective 実行時（active>0）にクリーンアップ結果をログ出力する", async () => {
       // Arrange
-      const { logger } = await import('../../src/utils/logger');
+      const { logger } = await import("../../src/utils/logger");
       const mockAdapter = createMockQueueAdapter({
         getJobCounts: vi.fn().mockResolvedValue({
           active: 2,
@@ -431,7 +434,7 @@ describe('QueueCleanupService', () => {
           completed: 0,
           prioritized: 0,
           paused: 0,
-          'waiting-children': 0,
+          "waiting-children": 0,
         }),
       });
 
@@ -440,16 +443,16 @@ describe('QueueCleanupService', () => {
 
       // Assert
       expect(logger.info).toHaveBeenCalledWith(
-        expect.stringContaining('[QueueCleanup]'),
+        expect.stringContaining("[QueueCleanup]"),
         expect.objectContaining({
-          strategy: 'selective',
+          strategy: "selective",
         })
       );
     });
 
-    it('スキップ時にもログ出力する', async () => {
+    it("スキップ時にもログ出力する", async () => {
       // Arrange
-      const { logger } = await import('../../src/utils/logger');
+      const { logger } = await import("../../src/utils/logger");
       const mockAdapter = createMockQueueAdapter();
 
       // Act
@@ -457,18 +460,18 @@ describe('QueueCleanupService', () => {
 
       // Assert
       expect(logger.info).toHaveBeenCalledWith(
-        expect.stringContaining('[QueueCleanup]'),
+        expect.stringContaining("[QueueCleanup]"),
         expect.objectContaining({
-          strategy: 'skipped',
+          strategy: "skipped",
         })
       );
     });
 
-    it('エラー時にerrorログを出力する', async () => {
+    it("エラー時にerrorログを出力する", async () => {
       // Arrange
-      const { logger } = await import('../../src/utils/logger');
+      const { logger } = await import("../../src/utils/logger");
       const mockAdapter = createMockQueueAdapter({
-        getJobCounts: vi.fn().mockRejectedValue(new Error('Connection timeout')),
+        getJobCounts: vi.fn().mockRejectedValue(new Error("Connection timeout")),
       });
 
       // Act
@@ -476,9 +479,9 @@ describe('QueueCleanupService', () => {
 
       // Assert
       expect(logger.error).toHaveBeenCalledWith(
-        expect.stringContaining('[QueueCleanup]'),
+        expect.stringContaining("[QueueCleanup]"),
         expect.objectContaining({
-          error: expect.stringContaining('Connection timeout'),
+          error: expect.stringContaining("Connection timeout"),
         })
       );
     });
@@ -488,9 +491,9 @@ describe('QueueCleanupService', () => {
   // createQueueAdapter ヘルパー
   // ==========================================================================
 
-  describe('createQueueAdapter', () => {
-    it('BullMQ Queue から QueueAdapter を生成できる', async () => {
-      const { createQueueAdapter } = await import('../../src/services/queue-cleanup.service');
+  describe("createQueueAdapter", () => {
+    it("BullMQ Queue から QueueAdapter を生成できる", async () => {
+      const { createQueueAdapter } = await import("../../src/services/queue-cleanup.service");
 
       // BullMQ Queue のモック
       const mockQueue = {
@@ -502,26 +505,28 @@ describe('QueueCleanupService', () => {
           completed: 0,
           prioritized: 0,
           paused: 0,
-          'waiting-children': 0,
+          "waiting-children": 0,
         }),
         clean: vi.fn().mockResolvedValue([]),
         getJobs: vi.fn().mockResolvedValue([]),
       };
 
       // Act
-      const adapter = createQueueAdapter(mockQueue as unknown as Parameters<typeof createQueueAdapter>[0]);
+      const adapter = createQueueAdapter(
+        mockQueue as unknown as Parameters<typeof createQueueAdapter>[0]
+      );
 
       // Assert: adapter が QueueAdapter インターフェースを満たしている
-      expect(typeof adapter.getJobCounts).toBe('function');
-      expect(typeof adapter.clean).toBe('function');
-      expect(typeof adapter.getJobs).toBe('function');
+      expect(typeof adapter.getJobCounts).toBe("function");
+      expect(typeof adapter.clean).toBe("function");
+      expect(typeof adapter.getJobs).toBe("function");
     });
 
-    it('getJobs が BullMQ Job を JobInfo にマッピングする', async () => {
-      const { createQueueAdapter } = await import('../../src/services/queue-cleanup.service');
+    it("getJobs が BullMQ Job を JobInfo にマッピングする", async () => {
+      const { createQueueAdapter } = await import("../../src/services/queue-cleanup.service");
 
       const mockJob = {
-        id: 'test-job-1',
+        id: "test-job-1",
         processedOn: 1700000000000,
         progress: 42,
         moveToCompleted: vi.fn().mockResolvedValue(undefined),
@@ -535,16 +540,18 @@ describe('QueueCleanupService', () => {
       };
 
       // Act
-      const adapter = createQueueAdapter(mockQueue as unknown as Parameters<typeof createQueueAdapter>[0]);
-      const jobs = await adapter.getJobs('active', 0, -1);
+      const adapter = createQueueAdapter(
+        mockQueue as unknown as Parameters<typeof createQueueAdapter>[0]
+      );
+      const jobs = await adapter.getJobs("active", 0, -1);
 
       // Assert
       expect(jobs).toHaveLength(1);
-      expect(jobs[0]!.id).toBe('test-job-1');
+      expect(jobs[0]!.id).toBe("test-job-1");
       expect(jobs[0]!.processedOn).toBe(1700000000000);
       expect(jobs[0]!.progress).toBe(42);
-      expect(typeof jobs[0]!.moveToCompleted).toBe('function');
-      expect(typeof jobs[0]!.moveToFailed).toBe('function');
+      expect(typeof jobs[0]!.moveToCompleted).toBe("function");
+      expect(typeof jobs[0]!.moveToFailed).toBe("function");
     });
   });
 
@@ -552,11 +559,11 @@ describe('QueueCleanupService', () => {
   // Orphaned Active Job 検出・クリーンアップ
   // ==========================================================================
 
-  describe('orphaned active job 検出', () => {
-    it('processedOn が120分以上前かつ progress < 90 の active job を failed に移動する', async () => {
+  describe("orphaned active job 検出", () => {
+    it("processedOn が120分以上前かつ progress < 90 の active job を failed に移動する", async () => {
       // Arrange
       const orphanedJob = createMockJobInfo({
-        id: 'orphaned-1',
+        id: "orphaned-1",
         processedOn: Date.now() - 8_000_000, // 120分以上前
         progress: 30,
       });
@@ -570,7 +577,7 @@ describe('QueueCleanupService', () => {
           completed: 5,
           prioritized: 0,
           paused: 0,
-          'waiting-children': 0,
+          "waiting-children": 0,
         }),
         getJobs: vi.fn().mockResolvedValue([orphanedJob]),
         clean: vi.fn().mockResolvedValue([]),
@@ -582,19 +589,19 @@ describe('QueueCleanupService', () => {
       // Assert
       expect(orphanedJob.moveToFailed).toHaveBeenCalledTimes(1);
       expect(orphanedJob.moveToFailed).toHaveBeenCalledWith(
-        expect.objectContaining({ message: expect.stringContaining('Orphaned active job') }),
-        '0',
-        false,
+        expect.objectContaining({ message: expect.stringContaining("Orphaned active job") }),
+        "0",
+        false
       );
       expect(orphanedJob.moveToCompleted).not.toHaveBeenCalled();
       expect(result.success).toBe(true);
       expect(result.orphanedActivesCleaned).toBe(1);
     });
 
-    it('progress >= 90 の orphaned active job を completed に移動する', async () => {
+    it("progress >= 90 の orphaned active job を completed に移動する", async () => {
       // Arrange
       const orphanedJobHighProgress = createMockJobInfo({
-        id: 'orphaned-high',
+        id: "orphaned-high",
         processedOn: Date.now() - 8_000_000, // 120分以上前
         progress: 95,
       });
@@ -608,7 +615,7 @@ describe('QueueCleanupService', () => {
           completed: 0,
           prioritized: 0,
           paused: 0,
-          'waiting-children': 0,
+          "waiting-children": 0,
         }),
         getJobs: vi.fn().mockResolvedValue([orphanedJobHighProgress]),
       });
@@ -620,17 +627,17 @@ describe('QueueCleanupService', () => {
       expect(orphanedJobHighProgress.moveToCompleted).toHaveBeenCalledTimes(1);
       expect(orphanedJobHighProgress.moveToCompleted).toHaveBeenCalledWith(
         { orphanRecovered: true },
-        '0',
-        false,
+        "0",
+        false
       );
       expect(orphanedJobHighProgress.moveToFailed).not.toHaveBeenCalled();
       expect(result.orphanedActivesCleaned).toBe(1);
     });
 
-    it('orphaned active job を全てクリア後も selective 戦略を維持する', async () => {
+    it("orphaned active job を全てクリア後も selective 戦略を維持する", async () => {
       // Arrange
       const orphanedJob = createMockJobInfo({
-        id: 'orphaned-only',
+        id: "orphaned-only",
         processedOn: Date.now() - 8_000_000, // 120分以上前
         progress: 20,
       });
@@ -644,27 +651,27 @@ describe('QueueCleanupService', () => {
           completed: 5,
           prioritized: 0,
           paused: 0,
-          'waiting-children': 0,
+          "waiting-children": 0,
         }),
         getJobs: vi.fn().mockResolvedValue([orphanedJob]),
-        clean: vi.fn().mockResolvedValue(['f1', 'f2']),
+        clean: vi.fn().mockResolvedValue(["f1", "f2"]),
       });
 
       // Act
       const result = await cleanupQueue(mockAdapter);
 
       // Assert: selective 戦略を維持（obliterate には切り替わらない）
-      expect(result.strategy).toBe('selective');
+      expect(result.strategy).toBe("selective");
       expect(result.orphanedActivesCleaned).toBe(1);
       // failed のみクリア、waiting/completed は保護
-      expect(mockAdapter.clean).toHaveBeenCalledWith(0, 0, 'failed');
-      expect(mockAdapter.clean).not.toHaveBeenCalledWith(0, 0, 'completed');
+      expect(mockAdapter.clean).toHaveBeenCalledWith(0, 0, "failed");
+      expect(mockAdapter.clean).not.toHaveBeenCalledWith(0, 0, "completed");
     });
 
-    it('processedOn が undefined の active job を orphaned と判定する', async () => {
+    it("processedOn が undefined の active job を orphaned と判定する", async () => {
       // Arrange
       const undefinedProcessedJob = createMockJobInfo({
-        id: 'undefined-processedOn',
+        id: "undefined-processedOn",
         processedOn: undefined,
         progress: 50,
       });
@@ -678,7 +685,7 @@ describe('QueueCleanupService', () => {
           completed: 0,
           prioritized: 0,
           paused: 0,
-          'waiting-children': 0,
+          "waiting-children": 0,
         }),
         getJobs: vi.fn().mockResolvedValue([undefinedProcessedJob]),
       });
@@ -691,10 +698,10 @@ describe('QueueCleanupService', () => {
       expect(result.orphanedActivesCleaned).toBe(1);
     });
 
-    it('processedOn が60分以内の active job は保護する（orphanedではない）', async () => {
+    it("processedOn が60分以内の active job は保護する（orphanedではない）", async () => {
       // Arrange
       const recentJob = createMockJobInfo({
-        id: 'recent-active',
+        id: "recent-active",
         processedOn: Date.now() - 60_000, // 1分前
         progress: 50,
       });
@@ -708,7 +715,7 @@ describe('QueueCleanupService', () => {
           completed: 0,
           prioritized: 0,
           paused: 0,
-          'waiting-children': 0,
+          "waiting-children": 0,
         }),
         getJobs: vi.fn().mockResolvedValue([recentJob]),
       });
@@ -720,10 +727,10 @@ describe('QueueCleanupService', () => {
       expect(recentJob.moveToFailed).not.toHaveBeenCalled();
       expect(recentJob.moveToCompleted).not.toHaveBeenCalled();
       expect(result.orphanedActivesCleaned).toBe(0);
-      expect(result.strategy).toBe('selective');
+      expect(result.strategy).toBe("selective");
     });
 
-    it('orphanedActivesCleaned が CleanupResult に含まれる', async () => {
+    it("orphanedActivesCleaned が CleanupResult に含まれる", async () => {
       // Arrange: orphaned job なし
       const mockAdapter = createMockQueueAdapter({
         getJobCounts: vi.fn().mockResolvedValue({
@@ -734,7 +741,7 @@ describe('QueueCleanupService', () => {
           completed: 0,
           prioritized: 0,
           paused: 0,
-          'waiting-children': 0,
+          "waiting-children": 0,
         }),
       });
 
@@ -742,11 +749,11 @@ describe('QueueCleanupService', () => {
       const result: CleanupResult = await cleanupQueue(mockAdapter);
 
       // Assert: orphanedActivesCleaned が常に含まれる
-      expect(result).toHaveProperty('orphanedActivesCleaned');
+      expect(result).toHaveProperty("orphanedActivesCleaned");
       expect(result.orphanedActivesCleaned).toBe(0);
     });
 
-    it('getJobs がエラーを投げた場合は orphaned 検出をスキップし既存の selective を続行する', async () => {
+    it("getJobs がエラーを投げた場合は orphaned 検出をスキップし既存の selective を続行する", async () => {
       // Arrange
       const mockAdapter = createMockQueueAdapter({
         getJobCounts: vi.fn().mockResolvedValue({
@@ -757,9 +764,9 @@ describe('QueueCleanupService', () => {
           completed: 0,
           prioritized: 0,
           paused: 0,
-          'waiting-children': 0,
+          "waiting-children": 0,
         }),
-        getJobs: vi.fn().mockRejectedValue(new Error('getJobs failed')),
+        getJobs: vi.fn().mockRejectedValue(new Error("getJobs failed")),
       });
 
       // Act
@@ -767,15 +774,15 @@ describe('QueueCleanupService', () => {
 
       // Assert: selective戦略が成功で完了する
       expect(result.success).toBe(true);
-      expect(result.strategy).toBe('selective');
+      expect(result.strategy).toBe("selective");
       expect(result.orphanedActivesCleaned).toBe(0);
     });
 
-    it('カスタム閾値（orphanThresholdMs）でorphaned判定を変更できる', async () => {
+    it("カスタム閾値（orphanThresholdMs）でorphaned判定を変更できる", async () => {
       // Arrange: 5分前のjob。デフォルト閾値(120分)ではorphanedではないが、
       // カスタム閾値(1分)ではorphanedと判定される
       const fiveMinAgoJob = createMockJobInfo({
-        id: 'custom-threshold',
+        id: "custom-threshold",
         processedOn: Date.now() - 300_000, // 5分前
         progress: 50,
       });
@@ -789,7 +796,7 @@ describe('QueueCleanupService', () => {
           completed: 0,
           prioritized: 0,
           paused: 0,
-          'waiting-children': 0,
+          "waiting-children": 0,
         }),
         getJobs: vi.fn().mockResolvedValue([fiveMinAgoJob]),
       });
@@ -802,15 +809,15 @@ describe('QueueCleanupService', () => {
       expect(result.orphanedActivesCleaned).toBe(1);
     });
 
-    it('orphaned active と non-orphaned active が混在する場合、orphanedのみクリアする', async () => {
+    it("orphaned active と non-orphaned active が混在する場合、orphanedのみクリアする", async () => {
       // Arrange
       const orphanedJob = createMockJobInfo({
-        id: 'orphaned-mix',
+        id: "orphaned-mix",
         processedOn: Date.now() - 8_000_000, // 120分以上前
         progress: 40,
       });
       const activeJob = createMockJobInfo({
-        id: 'active-mix',
+        id: "active-mix",
         processedOn: Date.now() - 60_000, // 1分前
         progress: 60,
       });
@@ -824,7 +831,7 @@ describe('QueueCleanupService', () => {
           completed: 0,
           prioritized: 0,
           paused: 0,
-          'waiting-children': 0,
+          "waiting-children": 0,
         }),
         getJobs: vi.fn().mockResolvedValue([orphanedJob, activeJob]),
       });
@@ -837,7 +844,7 @@ describe('QueueCleanupService', () => {
       expect(activeJob.moveToFailed).not.toHaveBeenCalled();
       expect(activeJob.moveToCompleted).not.toHaveBeenCalled();
       expect(result.orphanedActivesCleaned).toBe(1);
-      expect(result.strategy).toBe('selective');
+      expect(result.strategy).toBe("selective");
     });
   });
 
@@ -845,8 +852,8 @@ describe('QueueCleanupService', () => {
   // ORPHAN_THRESHOLD_MS 定数
   // ==========================================================================
 
-  describe('ORPHAN_THRESHOLD_MS', () => {
-    it('デフォルト値が 7,200,000ms（120分）である', () => {
+  describe("ORPHAN_THRESHOLD_MS", () => {
+    it("デフォルト値が 7,200,000ms（120分）である", () => {
       expect(ORPHAN_THRESHOLD_MS).toBe(7_200_000);
     });
   });

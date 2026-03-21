@@ -17,11 +17,11 @@
  * @module tools/layout/inspect/inspect.schemas
  */
 
-import { z } from 'zod';
-import { visualDecorationsResultSchema } from './visual-extractors.schemas';
-import { visionOptionsSchema } from '../../page/schemas';
+import { z } from "zod";
+import { visualDecorationsResultSchema } from "./visual-extractors.schemas";
+import { visionOptionsSchema } from "../../page/schemas";
 // Re-export VisionOptions type for consumers of this module
-export type { VisionOptions } from '../../page/schemas';
+export type { VisionOptions } from "../../page/schemas";
 
 // =====================================================
 // セクションタイプ定義
@@ -31,22 +31,22 @@ export type { VisionOptions } from '../../page/schemas';
  * 検出可能なセクションタイプの値（as const）
  */
 export const SECTION_TYPES = [
-  'hero',
-  'header',
-  'navigation',
-  'features',
-  'testimonial',
-  'pricing',
-  'cta',
-  'footer',
-  'content',
-  'gallery',
-  'about',
-  'contact',
-  'faq',
-  'team',
-  'stats',
-  'unknown',
+  "hero",
+  "header",
+  "navigation",
+  "features",
+  "testimonial",
+  "pricing",
+  "cta",
+  "footer",
+  "content",
+  "gallery",
+  "about",
+  "contact",
+  "faq",
+  "team",
+  "stats",
+  "unknown",
 ] as const;
 
 /**
@@ -95,9 +95,9 @@ export const layoutInspectOptionsSchema = z.object({
  */
 export const screenshotInputSchema = z.object({
   /** Base64エンコードされた画像データ */
-  base64: z.string().min(100, 'Image data too short'),
+  base64: z.string().min(100, "Image data too short"),
   /** 画像のMIMEタイプ */
-  mimeType: z.enum(['image/png', 'image/jpeg', 'image/webp']).default('image/png'),
+  mimeType: z.enum(["image/png", "image/jpeg", "image/webp"]).default("image/png"),
   /** 画像の幅（ピクセル、オプション） */
   width: z.number().int().positive().optional(),
   /** 画像の高さ（ピクセル、オプション） */
@@ -124,10 +124,9 @@ export const layoutInspectInputSchema = z
     options: layoutInspectOptionsSchema.optional(),
   })
   .refine(
-    (data) =>
-      data.id !== undefined || data.html !== undefined || data.screenshot !== undefined,
+    (data) => data.id !== undefined || data.html !== undefined || data.screenshot !== undefined,
     {
-      message: 'Either id, html, or screenshot must be provided',
+      message: "Either id, html, or screenshot must be provided",
     }
   );
 
@@ -298,7 +297,7 @@ export const breakpointSchema = z.object({
  */
 export const gridInfoSchema = z.object({
   /** グリッドタイプ（flex/grid/float/unknown） */
-  type: z.enum(['flex', 'grid', 'float', 'unknown']),
+  type: z.enum(["flex", "grid", "float", "unknown"]),
   /** カラム数 */
   columns: z.number().optional(),
   /** ガター幅（px） */
@@ -361,11 +360,7 @@ export const videoSourceSchema = z.object({
  * - fixed-background: position: fixed + z-index: -1（ページ全体背景）
  * - inline: 通常のインラインvideo
  */
-export const videoPositioningSchema = z.enum([
-  'absolute-background',
-  'fixed-background',
-  'inline',
-]);
+export const videoPositioningSchema = z.enum(["absolute-background", "fixed-background", "inline"]);
 
 /**
  * Video要素情報スキーマ
@@ -432,7 +427,7 @@ export const layoutInspectErrorSchema = z.object({
 /**
  * layout.inspect 出力スキーマ
  */
-export const layoutInspectOutputSchema = z.discriminatedUnion('success', [
+export const layoutInspectOutputSchema = z.discriminatedUnion("success", [
   z.object({
     success: z.literal(true),
     data: layoutInspectDataSchema,

@@ -49,20 +49,20 @@ export function normalizeUrlForStorage(url: string): string {
 
     // 2. デフォルトポートを除去 (443 for https, 80 for http)
     if (
-      (urlObj.protocol === 'https:' && urlObj.port === '443') ||
-      (urlObj.protocol === 'http:' && urlObj.port === '80')
+      (urlObj.protocol === "https:" && urlObj.port === "443") ||
+      (urlObj.protocol === "http:" && urlObj.port === "80")
     ) {
-      urlObj.port = '';
+      urlObj.port = "";
     }
 
     // 3. フラグメント（#hash）を除去
-    urlObj.hash = '';
+    urlObj.hash = "";
 
     // 4. パス正規化: 連続スラッシュを単一スラッシュに
-    urlObj.pathname = urlObj.pathname.replace(/\/+/g, '/');
+    urlObj.pathname = urlObj.pathname.replace(/\/+/g, "/");
 
     // 5. クエリパラメータをアルファベット順にソート
-    let sortedQuery = '';
+    let sortedQuery = "";
     if (urlObj.search) {
       const params = urlObj.searchParams;
       const entries = Array.from(params.entries());
@@ -83,12 +83,12 @@ export function normalizeUrlForStorage(url: string): string {
     // 6. 末尾スラッシュを除去（全てのケース）
     let normalizedPath = urlObj.pathname;
     // ルートパス "/" → 空文字列
-    if (normalizedPath === '/') {
-      normalizedPath = '';
+    if (normalizedPath === "/") {
+      normalizedPath = "";
     }
     // パスがある場合は末尾スラッシュを除去
     if (normalizedPath.length > 1) {
-      normalizedPath = normalizedPath.replace(/\/+$/, '');
+      normalizedPath = normalizedPath.replace(/\/+$/, "");
     }
 
     // 7. 結果を手動で構築（URL objectのhrefを使わない）

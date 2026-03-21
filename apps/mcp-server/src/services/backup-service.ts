@@ -8,28 +8,26 @@
  * ローカルストレージとS3ストレージの両方をサポートします。
  */
 
-import * as zlib from 'zlib';
-import { promisify } from 'util';
-import * as crypto from 'crypto';
-import { Logger } from '../utils/logger';
+import * as zlib from "zlib";
+import { promisify } from "util";
+import * as crypto from "crypto";
+import { Logger } from "../utils/logger";
 
 // セキュアなLocalStorageProviderをインポート
-import type {
-  StorageProvider as SecureStorageProvider} from './storage/local-storage.provider';
+import type { StorageProvider as SecureStorageProvider } from "./storage/local-storage.provider";
 import {
   LocalStorageProvider as SecureLocalStorageProvider,
   StorageError,
-} from './storage/local-storage.provider';
+} from "./storage/local-storage.provider";
 
 // DatabaseDumperServiceをインポート
 import {
   DatabaseDumperService,
   type DumpOptions,
   type RestoreOptions,
-} from './database-dumper.service';
+} from "./database-dumper.service";
 
-const s3StorageLogger = new Logger('S3Storage');
-const backupServiceLogger = new Logger('BackupService');
+const backupServiceLogger = new Logger("BackupService");
 
 const gzip = promisify(zlib.gzip);
 const gunzip = promisify(zlib.gunzip);
@@ -44,7 +42,7 @@ export interface BackupMetadata {
   compressed: boolean;
   checksum: string;
   storageLocation: string;
-  status: 'completed' | 'in_progress' | 'failed';
+  status: "completed" | "in_progress" | "failed";
 }
 
 /**
@@ -80,7 +78,7 @@ export class LocalStorageProvider implements StorageProvider {
   static createDefault(): LocalStorageProvider {
     const defaultProvider = SecureLocalStorageProvider.createDefault();
     // SecureLocalStorageProviderをラップして返す
-    const provider = new LocalStorageProvider('/tmp'); // 一時的なパス
+    const provider = new LocalStorageProvider("/tmp"); // 一時的なパス
     provider.provider = defaultProvider;
     return provider;
   }
@@ -122,51 +120,12 @@ export {
   RestoreError,
   ConnectionError,
   TimeoutError,
-} from './database-dumper.service';
-export type { DatabaseConnectionInfo, DumpOptions, RestoreOptions } from './database-dumper.service';
-
-/**
- * S3ストレージプロバイダー（モック実装）
- *
- * 本番環境では AWS SDK を使用して実装します。
- */
-export class S3StorageProvider implements StorageProvider {
-  private mockStorage: Map<string, Buffer> = new Map();
-  private bucket: string;
-
-  constructor(bucket: string = 'reftrix-backups') {
-    this.bucket = bucket;
-  }
-
-  async upload(filePath: string, data: Buffer): Promise<string> {
-    this.mockStorage.set(filePath, data);
-
-    s3StorageLogger.debug('Uploaded', { path: `s3://${this.bucket}/${filePath}` });
-
-    return `s3://${this.bucket}/${filePath}`;
-  }
-
-  async download(filePath: string): Promise<Buffer> {
-    const data = this.mockStorage.get(filePath);
-    if (!data) {
-      throw new Error(`File not found: ${filePath}`);
-    }
-
-    s3StorageLogger.debug('Downloaded', { path: `s3://${this.bucket}/${filePath}` });
-
-    return data;
-  }
-
-  async list(prefix: string): Promise<string[]> {
-    return Array.from(this.mockStorage.keys()).filter((key) => key.startsWith(prefix));
-  }
-
-  async delete(filePath: string): Promise<void> {
-    this.mockStorage.delete(filePath);
-
-    s3StorageLogger.debug('Deleted', { path: `s3://${this.bucket}/${filePath}` });
-  }
-}
+} from "./database-dumper.service";
+export type {
+  DatabaseConnectionInfo,
+  DumpOptions,
+  RestoreOptions,
+} from "./database-dumper.service";
 
 /**
  * データベースダンパーインターフェース
@@ -257,7 +216,7 @@ export class BackupService {
   private backupCounter = 0;
 
   constructor(storageOrConfig: StorageProvider | BackupServiceConfig) {
-    if ('upload' in storageOrConfig) {
+    if ("upload" in storageOrConfig) {
       // StorageProvider が直接渡された場合
       this.storage = storageOrConfig;
       this.databaseDumper = new DefaultDatabaseDumper();
@@ -301,7 +260,7 @@ export class BackupService {
         compressed: true,
         checksum,
         storageLocation,
-        status: 'completed',
+        status: "completed",
       };
 
       this.backups.set(id, metadata);
@@ -315,9 +274,9 @@ export class BackupService {
         timestamp,
         size: 0,
         compressed: false,
-        checksum: '',
-        storageLocation: '',
-        status: 'failed',
+        checksum: "",
+        storageLocation: "",
+        status: "failed",
       };
 
       this.backups.set(id, metadata);
@@ -358,7 +317,7 @@ export class BackupService {
     // 整合性検証
     const checksum = this.calculateChecksum(compressedData);
     if (checksum !== metadata.checksum) {
-      throw new Error('Backup checksum mismatch - corrupted data');
+      throw new Error("Backup checksum mismatch - corrupted data");
     }
 
     // 解凍
@@ -418,7 +377,9 @@ export class BackupService {
 
       const isValid = checksum === metadata.checksum;
 
-      backupServiceLogger.debug(`Verify backup ${backupId}`, { isValid: isValid ? 'valid' : 'invalid' });
+      backupServiceLogger.debug(`Verify backup ${backupId}`, {
+        isValid: isValid ? "valid" : "invalid",
+      });
 
       return isValid;
     } catch (error) {
@@ -463,7 +424,7 @@ export class BackupService {
         sum = (sum + byte) % 65536;
       }
     }
-    return sum.toString(16).padStart(4, '0');
+    return sum.toString(16).padStart(4, "0");
   }
 
   /**
@@ -472,7 +433,7 @@ export class BackupService {
    * @returns SHA-256ハッシュ値
    */
   public calculateSha256Checksum(data: Buffer): string {
-    return crypto.createHash('sha256').update(data).digest('hex');
+    return crypto.createHash("sha256").update(data).digest("hex");
   }
 }
 

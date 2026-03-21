@@ -25,15 +25,15 @@
  * - apps/mcp-server/src/services/vision-adapter/interface.ts
  */
 
-import { logger } from '../../utils/logger';
-import { z } from 'zod';
-import { VisionCache } from './vision.cache.js';
-import { OllamaVisionClient } from './ollama-vision-client.js';
-import { VisionAnalysisError } from './vision.errors.js';
+import { logger } from "../../utils/logger";
+import { z } from "zod";
+import { VisionCache } from "./vision.cache.js";
+import { OllamaVisionClient } from "./ollama-vision-client.js";
+import { VisionAnalysisError } from "./vision.errors.js";
 import {
   getBrandToneAnalysisPrompt,
   getBrandToneAnalysisWithContextPrompt,
-} from './vision.prompts.js';
+} from "./vision.prompts.js";
 
 // =============================================================================
 // 定数
@@ -43,40 +43,40 @@ import {
  * 有効なBrandToneタイプ一覧
  */
 export const VALID_BRAND_TONES = [
-  'corporate',
-  'friendly',
-  'luxury',
-  'tech-forward',
-  'creative',
-  'trustworthy',
-  'innovative',
-  'traditional',
+  "corporate",
+  "friendly",
+  "luxury",
+  "tech-forward",
+  "creative",
+  "trustworthy",
+  "innovative",
+  "traditional",
 ] as const;
 
 /**
  * Professionalism レベル
  */
-export const PROFESSIONALISM_LEVELS = ['minimal', 'moderate', 'bold'] as const;
+export const PROFESSIONALISM_LEVELS = ["minimal", "moderate", "bold"] as const;
 
 /**
  * Warmth レベル
  */
-export const WARMTH_LEVELS = ['cold', 'neutral', 'warm'] as const;
+export const WARMTH_LEVELS = ["cold", "neutral", "warm"] as const;
 
 /**
  * Modernity レベル
  */
-export const MODERNITY_LEVELS = ['classic', 'contemporary', 'futuristic'] as const;
+export const MODERNITY_LEVELS = ["classic", "contemporary", "futuristic"] as const;
 
 /**
  * Energy レベル
  */
-export const ENERGY_LEVELS = ['calm', 'balanced', 'dynamic'] as const;
+export const ENERGY_LEVELS = ["calm", "balanced", "dynamic"] as const;
 
 /**
  * Target Audience
  */
-export const TARGET_AUDIENCES = ['enterprise', 'startup', 'creative', 'consumer'] as const;
+export const TARGET_AUDIENCES = ["enterprise", "startup", "creative", "consumer"] as const;
 
 /**
  * 入力サイズ制限（5MB）
@@ -125,7 +125,7 @@ export interface BrandToneAnalysisResult {
  */
 export interface ColorContext {
   dominantColors: string[];
-  theme: 'light' | 'dark';
+  theme: "light" | "dark";
   contentDensity: number;
 }
 
@@ -202,12 +202,9 @@ export class BrandToneAnalyzer {
 
     try {
       // Ollama API呼び出し（OllamaVisionClient経由）
-      logger.info('[BrandToneAnalyzer] Ollama API call started');
+      logger.info("[BrandToneAnalyzer] Ollama API call started");
       const prompt = getBrandToneAnalysisPrompt();
-      const rawResult = await this.client.generateJSON<unknown>(
-        screenshot,
-        prompt
-      );
+      const rawResult = await this.client.generateJSON<unknown>(screenshot, prompt);
 
       // 結果のバリデーション
       const result = this.validateAndSanitizeResult(rawResult);
@@ -226,8 +223,8 @@ export class BrandToneAnalyzer {
       return result;
     } catch (error) {
       // Graceful degradation: エラー時はnullを返す
-      if (process.env.NODE_ENV === 'development') {
-        console.error('[BrandToneAnalyzer] Error:', error);
+      if (process.env.NODE_ENV === "development") {
+        console.error("[BrandToneAnalyzer] Error:", error);
       }
       return null;
     }
@@ -249,9 +246,7 @@ export class BrandToneAnalyzer {
     this.validateInput(screenshot);
 
     // キャッシュキーにカラーコンテキストを含める
-    const cacheKey = VisionCache.generateKey(
-      screenshot + JSON.stringify(colorContext)
-    );
+    const cacheKey = VisionCache.generateKey(screenshot + JSON.stringify(colorContext));
     const cached = this.cache.get(cacheKey);
     if (cached) {
       return cached;
@@ -259,12 +254,9 @@ export class BrandToneAnalyzer {
 
     try {
       // Ollama API呼び出し（OllamaVisionClient経由）
-      logger.info('[BrandToneAnalyzer] Ollama API call started');
+      logger.info("[BrandToneAnalyzer] Ollama API call started");
       const prompt = getBrandToneAnalysisWithContextPrompt(colorContext);
-      const rawResult = await this.client.generateJSON<unknown>(
-        screenshot,
-        prompt
-      );
+      const rawResult = await this.client.generateJSON<unknown>(screenshot, prompt);
 
       // 結果のバリデーション
       const result = this.validateAndSanitizeResult(rawResult);
@@ -283,8 +275,8 @@ export class BrandToneAnalyzer {
       return result;
     } catch (error) {
       // Graceful degradation: エラー時はnullを返す
-      if (process.env.NODE_ENV === 'development') {
-        console.error('[BrandToneAnalyzer] Error:', error);
+      if (process.env.NODE_ENV === "development") {
+        console.error("[BrandToneAnalyzer] Error:", error);
       }
       return null;
     }
@@ -301,31 +293,21 @@ export class BrandToneAnalyzer {
   private validateInput(screenshot: string): void {
     // 空チェック
     if (!screenshot || screenshot.length === 0) {
-      throw new VisionAnalysisError(
-        'Screenshot is required',
-        'INPUT_VALIDATION',
-        false
-      );
+      throw new VisionAnalysisError("Screenshot is required", "INPUT_VALIDATION", false);
     }
 
     // Base64バリデーション
     if (!this.isValidBase64(screenshot)) {
-      throw new VisionAnalysisError(
-        'Invalid Base64 input',
-        'INPUT_VALIDATION',
-        false
-      );
+      throw new VisionAnalysisError("Invalid Base64 input", "INPUT_VALIDATION", false);
     }
 
     // サイズチェック
-    const sizeBytes = Buffer.byteLength(screenshot, 'base64');
+    const sizeBytes = Buffer.byteLength(screenshot, "base64");
     if (sizeBytes > MAX_INPUT_SIZE_BYTES) {
-      throw new VisionAnalysisError(
-        'Input exceeds 5MB limit',
-        'INPUT_VALIDATION',
-        false,
-        { sizeBytes, maxSizeBytes: MAX_INPUT_SIZE_BYTES }
-      );
+      throw new VisionAnalysisError("Input exceeds 5MB limit", "INPUT_VALIDATION", false, {
+        sizeBytes,
+        maxSizeBytes: MAX_INPUT_SIZE_BYTES,
+      });
     }
   }
 
@@ -341,7 +323,7 @@ export class BrandToneAnalyzer {
 
     try {
       // 実際にデコードして検証
-      Buffer.from(str, 'base64');
+      Buffer.from(str, "base64");
       return true;
     } catch {
       return false;
@@ -351,11 +333,9 @@ export class BrandToneAnalyzer {
   /**
    * 結果のバリデーションとサニタイズ
    */
-  private validateAndSanitizeResult(
-    rawResult: unknown
-  ): BrandToneAnalysisResult | null {
+  private validateAndSanitizeResult(rawResult: unknown): BrandToneAnalysisResult | null {
     // 型チェック
-    if (typeof rawResult !== 'object' || rawResult === null) {
+    if (typeof rawResult !== "object" || rawResult === null) {
       return null;
     }
 
@@ -383,8 +363,8 @@ export class BrandToneAnalyzer {
    */
   private sanitizeString(str: string): string {
     return str
-      .replace(/<[^>]*>/g, '') // HTMLタグ除去
-      .replace(/[<>"'&]/g, '') // 特殊文字除去
+      .replace(/<[^>]*>/g, "") // HTMLタグ除去
+      .replace(/[<>"'&]/g, "") // 特殊文字除去
       .trim()
       .slice(0, 200); // 長さ制限
   }

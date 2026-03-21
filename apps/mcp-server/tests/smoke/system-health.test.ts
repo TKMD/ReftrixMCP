@@ -14,13 +14,10 @@
  * @see src/tools/system-health.ts
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import {
-  systemHealthHandler,
-  systemHealthToolDefinition,
-} from '../../src/tools/system-health';
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { systemHealthHandler, systemHealthToolDefinition } from "../../src/tools/system-health";
 
-describe('system.health Smoke Test', () => {
+describe("system.health Smoke Test", () => {
   let fetchMock: ReturnType<typeof vi.fn>;
   let originalFetch: typeof global.fetch;
 
@@ -30,7 +27,7 @@ describe('system.health Smoke Test', () => {
     fetchMock = vi.fn().mockResolvedValue({
       ok: true,
       status: 200,
-      json: async () => ({ status: 'ok', version: '0.1.0' }),
+      json: async () => ({ status: "ok", version: "0.1.0" }),
     });
     global.fetch = fetchMock;
   });
@@ -40,13 +37,13 @@ describe('system.health Smoke Test', () => {
     vi.restoreAllMocks();
   });
 
-  describe('ハンドラー呼び出し', () => {
-    it('systemHealthHandler が正常に呼び出し可能', async () => {
+  describe("ハンドラー呼び出し", () => {
+    it("systemHealthHandler が正常に呼び出し可能", async () => {
       const result = await systemHealthHandler();
       expect(result).toBeDefined();
     });
 
-    it('McpResponse形式で返却される', async () => {
+    it("McpResponse形式で返却される", async () => {
       const result = await systemHealthHandler();
       // McpResponse形式の検証
       expect(result.success).toBe(true);
@@ -55,46 +52,44 @@ describe('system.health Smoke Test', () => {
       expect(result.metadata.request_id).toBeDefined();
     });
 
-    it('レスポンスに status フィールドが含まれる', async () => {
+    it("レスポンスに status フィールドが含まれる", async () => {
       const result = await systemHealthHandler();
       expect(result.success).toBe(true);
       expect(result.data?.status).toBeDefined();
-      expect(['healthy', 'unhealthy', 'degraded']).toContain(result.data?.status);
+      expect(["healthy", "unhealthy", "degraded"]).toContain(result.data?.status);
     });
 
-    it('レスポンスに timestamp フィールドが含まれる', async () => {
+    it("レスポンスに timestamp フィールドが含まれる", async () => {
       const result = await systemHealthHandler();
       expect(result.success).toBe(true);
       expect(result.data?.timestamp).toBeDefined();
       expect(() => new Date(result.data!.timestamp)).not.toThrow();
     });
 
-    it('レスポンスに services オブジェクトが含まれる', async () => {
+    it("レスポンスに services オブジェクトが含まれる", async () => {
       const result = await systemHealthHandler();
       expect(result.success).toBe(true);
       expect(result.data?.services).toBeDefined();
-      expect(typeof result.data?.services).toBe('object');
+      expect(typeof result.data?.services).toBe("object");
     });
-
   });
 
-  describe('ツール定義', () => {
-    it('ツール名が system.health である', () => {
-      expect(systemHealthToolDefinition.name).toBe('system.health');
+  describe("ツール定義", () => {
+    it("ツール名が system.health である", () => {
+      expect(systemHealthToolDefinition.name).toBe("system.health");
     });
 
-    it('description が定義されている', () => {
+    it("description が定義されている", () => {
       expect(systemHealthToolDefinition.description).toBeDefined();
       expect(systemHealthToolDefinition.description.length).toBeGreaterThan(10);
     });
 
-    it('inputSchema が object 型である', () => {
-      expect(systemHealthToolDefinition.inputSchema.type).toBe('object');
+    it("inputSchema が object 型である", () => {
+      expect(systemHealthToolDefinition.inputSchema.type).toBe("object");
     });
 
-    it('必須パラメータがない（オプショナル）', () => {
+    it("必須パラメータがない（オプショナル）", () => {
       expect(systemHealthToolDefinition.inputSchema.required).toEqual([]);
     });
   });
-
 });

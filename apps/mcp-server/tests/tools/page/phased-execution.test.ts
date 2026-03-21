@@ -10,30 +10,32 @@
  * @module tests/tools/page/phased-execution.test
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import {
   PhasedExecutor,
   type PhaseResult,
   type PhasedExecutionResult,
   type PhasedExecutorOptions,
-} from '../../../src/tools/page/handlers/phased-executor';
-import { ExecutionStatusTracker } from '../../../src/tools/page/handlers/timeout-utils';
+} from "../../../src/tools/page/handlers/phased-executor";
+import { ExecutionStatusTracker } from "../../../src/tools/page/handlers/timeout-utils";
 
 // テスト用の遅延関数
-const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 // モック関数を作成
-const createMockOptions = (overrides: Partial<PhasedExecutorOptions> = {}): PhasedExecutorOptions => {
+const createMockOptions = (
+  overrides: Partial<PhasedExecutorOptions> = {}
+): PhasedExecutorOptions => {
   const tracker = new ExecutionStatusTracker({
     originalTimeoutMs: 60000,
     effectiveTimeoutMs: 60000,
-    strategy: 'progressive',
+    strategy: "progressive",
     partialResultsEnabled: true,
   });
 
   return {
-    html: '<html><body><h1>Test</h1></body></html>',
-    url: 'https://example.com',
+    html: "<html><body><h1>Test</h1></body></html>",
+    url: "https://example.com",
     features: { layout: true, motion: true, quality: true },
     tracker,
     phaseTimeouts: {
@@ -44,7 +46,7 @@ const createMockOptions = (overrides: Partial<PhasedExecutorOptions> = {}): Phas
     // デフォルトのモック分析関数
     analyzeLayout: vi.fn().mockResolvedValue({
       success: true,
-      pageId: 'test-page-id',
+      pageId: "test-page-id",
       sectionCount: 3,
       sectionTypes: { hero: 1, feature: 2 },
       processingTimeMs: 100,
@@ -61,7 +63,7 @@ const createMockOptions = (overrides: Partial<PhasedExecutorOptions> = {}): Phas
     evaluateQuality: vi.fn().mockResolvedValue({
       success: true,
       overallScore: 85,
-      grade: 'A',
+      grade: "A",
       axisScores: { originality: 80, craftsmanship: 90, contextuality: 85 },
       clicheCount: 0,
       processingTimeMs: 150,
@@ -70,7 +72,7 @@ const createMockOptions = (overrides: Partial<PhasedExecutorOptions> = {}): Phas
   };
 };
 
-describe('PhasedExecutor', () => {
+describe("PhasedExecutor", () => {
   beforeEach(() => {
     vi.useFakeTimers();
   });
@@ -80,8 +82,8 @@ describe('PhasedExecutor', () => {
     vi.clearAllMocks();
   });
 
-  describe('基本的な実行', () => {
-    it('全フェーズが成功した場合、overallSuccess=trueを返す', async () => {
+  describe("基本的な実行", () => {
+    it("全フェーズが成功した場合、overallSuccess=trueを返す", async () => {
       const options = createMockOptions();
       const executor = new PhasedExecutor(options);
 
@@ -95,14 +97,14 @@ describe('PhasedExecutor', () => {
 
       expect(result.overallSuccess).toBe(true);
       expect(result.partialSuccess).toBe(true);
-      expect(result.completedPhases).toEqual(['layout', 'motion', 'quality']);
+      expect(result.completedPhases).toEqual(["layout", "motion", "quality"]);
       expect(result.failedPhases).toEqual([]);
       expect(result.layout.success).toBe(true);
       expect(result.motion.success).toBe(true);
       expect(result.quality.success).toBe(true);
     });
 
-    it('各フェーズのdurationMsが記録される', async () => {
+    it("各フェーズのdurationMsが記録される", async () => {
       const options = createMockOptions();
       const executor = new PhasedExecutor(options);
 
@@ -116,10 +118,10 @@ describe('PhasedExecutor', () => {
     });
   });
 
-  describe('フェーズの独立性', () => {
-    it('Layoutが失敗してもMotionとQualityは実行される', async () => {
+  describe("フェーズの独立性", () => {
+    it("Layoutが失敗してもMotionとQualityは実行される", async () => {
       const options = createMockOptions({
-        analyzeLayout: vi.fn().mockRejectedValue(new Error('Layout analysis failed')),
+        analyzeLayout: vi.fn().mockRejectedValue(new Error("Layout analysis failed")),
       });
       const executor = new PhasedExecutor(options);
 
@@ -130,16 +132,16 @@ describe('PhasedExecutor', () => {
       expect(result.overallSuccess).toBe(false);
       expect(result.partialSuccess).toBe(true);
       expect(result.layout.success).toBe(false);
-      expect(result.layout.error).toBe('Layout analysis failed');
+      expect(result.layout.error).toBe("Layout analysis failed");
       expect(result.motion.success).toBe(true);
       expect(result.quality.success).toBe(true);
-      expect(result.completedPhases).toEqual(['motion', 'quality']);
-      expect(result.failedPhases).toEqual(['layout']);
+      expect(result.completedPhases).toEqual(["motion", "quality"]);
+      expect(result.failedPhases).toEqual(["layout"]);
     });
 
-    it('Motionが失敗してもLayoutとQualityは成功を維持する', async () => {
+    it("Motionが失敗してもLayoutとQualityは成功を維持する", async () => {
       const options = createMockOptions({
-        detectMotion: vi.fn().mockRejectedValue(new Error('Motion detection failed')),
+        detectMotion: vi.fn().mockRejectedValue(new Error("Motion detection failed")),
       });
       const executor = new PhasedExecutor(options);
 
@@ -151,15 +153,15 @@ describe('PhasedExecutor', () => {
       expect(result.partialSuccess).toBe(true);
       expect(result.layout.success).toBe(true);
       expect(result.motion.success).toBe(false);
-      expect(result.motion.error).toBe('Motion detection failed');
+      expect(result.motion.error).toBe("Motion detection failed");
       expect(result.quality.success).toBe(true);
-      expect(result.completedPhases).toEqual(['layout', 'quality']);
-      expect(result.failedPhases).toEqual(['motion']);
+      expect(result.completedPhases).toEqual(["layout", "quality"]);
+      expect(result.failedPhases).toEqual(["motion"]);
     });
 
-    it('Qualityが失敗してもLayoutとMotionは成功を維持する', async () => {
+    it("Qualityが失敗してもLayoutとMotionは成功を維持する", async () => {
       const options = createMockOptions({
-        evaluateQuality: vi.fn().mockRejectedValue(new Error('Quality evaluation failed')),
+        evaluateQuality: vi.fn().mockRejectedValue(new Error("Quality evaluation failed")),
       });
       const executor = new PhasedExecutor(options);
 
@@ -172,16 +174,16 @@ describe('PhasedExecutor', () => {
       expect(result.layout.success).toBe(true);
       expect(result.motion.success).toBe(true);
       expect(result.quality.success).toBe(false);
-      expect(result.quality.error).toBe('Quality evaluation failed');
-      expect(result.completedPhases).toEqual(['layout', 'motion']);
-      expect(result.failedPhases).toEqual(['quality']);
+      expect(result.quality.error).toBe("Quality evaluation failed");
+      expect(result.completedPhases).toEqual(["layout", "motion"]);
+      expect(result.failedPhases).toEqual(["quality"]);
     });
 
-    it('全フェーズが失敗した場合、partialSuccess=falseを返す', async () => {
+    it("全フェーズが失敗した場合、partialSuccess=falseを返す", async () => {
       const options = createMockOptions({
-        analyzeLayout: vi.fn().mockRejectedValue(new Error('Layout failed')),
-        detectMotion: vi.fn().mockRejectedValue(new Error('Motion failed')),
-        evaluateQuality: vi.fn().mockRejectedValue(new Error('Quality failed')),
+        analyzeLayout: vi.fn().mockRejectedValue(new Error("Layout failed")),
+        detectMotion: vi.fn().mockRejectedValue(new Error("Motion failed")),
+        evaluateQuality: vi.fn().mockRejectedValue(new Error("Quality failed")),
       });
       const executor = new PhasedExecutor(options);
 
@@ -192,12 +194,12 @@ describe('PhasedExecutor', () => {
       expect(result.overallSuccess).toBe(false);
       expect(result.partialSuccess).toBe(false);
       expect(result.completedPhases).toEqual([]);
-      expect(result.failedPhases).toEqual(['layout', 'motion', 'quality']);
+      expect(result.failedPhases).toEqual(["layout", "motion", "quality"]);
     });
   });
 
-  describe('タイムアウト処理', () => {
-    it('Layoutがタイムアウトした場合、timedOut=trueが設定される', async () => {
+  describe("タイムアウト処理", () => {
+    it("Layoutがタイムアウトした場合、timedOut=trueが設定される", async () => {
       vi.useRealTimers(); // タイムアウトテストでは実際のタイマーを使用
 
       const options = createMockOptions({
@@ -214,10 +216,10 @@ describe('PhasedExecutor', () => {
 
       expect(result.layout.success).toBe(false);
       expect(result.layout.timedOut).toBe(true);
-      expect(result.layout.error).toContain('timed out');
+      expect(result.layout.error).toContain("timed out");
     });
 
-    it('Motionがタイムアウトしても他のフェーズは正常に完了する', async () => {
+    it("Motionがタイムアウトしても他のフェーズは正常に完了する", async () => {
       vi.useRealTimers();
 
       const options = createMockOptions({
@@ -240,8 +242,8 @@ describe('PhasedExecutor', () => {
     });
   });
 
-  describe('featuresオプション', () => {
-    it('layout=falseの場合、Layoutフェーズはスキップされる', async () => {
+  describe("featuresオプション", () => {
+    it("layout=falseの場合、Layoutフェーズはスキップされる", async () => {
       const options = createMockOptions({
         features: { layout: false, motion: true, quality: true },
       });
@@ -252,15 +254,15 @@ describe('PhasedExecutor', () => {
       const result = await resultPromise;
 
       expect(result.layout.success).toBe(false);
-      expect(result.layout.error).toBe('Phase skipped');
+      expect(result.layout.error).toBe("Phase skipped");
       expect(result.motion.success).toBe(true);
       expect(result.quality.success).toBe(true);
-      expect(result.completedPhases).toEqual(['motion', 'quality']);
+      expect(result.completedPhases).toEqual(["motion", "quality"]);
       expect(result.failedPhases).toEqual([]); // スキップはfailではない
       expect(options.analyzeLayout).not.toHaveBeenCalled();
     });
 
-    it('motion=falseの場合、Motionフェーズはスキップされる', async () => {
+    it("motion=falseの場合、Motionフェーズはスキップされる", async () => {
       const options = createMockOptions({
         features: { layout: true, motion: false, quality: true },
       });
@@ -272,13 +274,13 @@ describe('PhasedExecutor', () => {
 
       expect(result.layout.success).toBe(true);
       expect(result.motion.success).toBe(false);
-      expect(result.motion.error).toBe('Phase skipped');
+      expect(result.motion.error).toBe("Phase skipped");
       expect(result.quality.success).toBe(true);
-      expect(result.completedPhases).toEqual(['layout', 'quality']);
+      expect(result.completedPhases).toEqual(["layout", "quality"]);
       expect(options.detectMotion).not.toHaveBeenCalled();
     });
 
-    it('quality=falseの場合、Qualityフェーズはスキップされる', async () => {
+    it("quality=falseの場合、Qualityフェーズはスキップされる", async () => {
       const options = createMockOptions({
         features: { layout: true, motion: true, quality: false },
       });
@@ -291,14 +293,14 @@ describe('PhasedExecutor', () => {
       expect(result.layout.success).toBe(true);
       expect(result.motion.success).toBe(true);
       expect(result.quality.success).toBe(false);
-      expect(result.quality.error).toBe('Phase skipped');
-      expect(result.completedPhases).toEqual(['layout', 'motion']);
+      expect(result.quality.error).toBe("Phase skipped");
+      expect(result.completedPhases).toEqual(["layout", "motion"]);
       expect(options.evaluateQuality).not.toHaveBeenCalled();
     });
   });
 
-  describe('onPhaseCompleteコールバック', () => {
-    it('フェーズ成功時にonPhaseCompleteが呼ばれる', async () => {
+  describe("onPhaseCompleteコールバック", () => {
+    it("フェーズ成功時にonPhaseCompleteが呼ばれる", async () => {
       const onPhaseComplete = vi.fn();
       const options = createMockOptions({ onPhaseComplete });
       const executor = new PhasedExecutor(options);
@@ -308,25 +310,37 @@ describe('PhasedExecutor', () => {
       await resultPromise;
 
       expect(onPhaseComplete).toHaveBeenCalledTimes(3);
-      expect(onPhaseComplete).toHaveBeenNthCalledWith(1, 'layout', expect.objectContaining({
-        phase: 'layout',
-        success: true,
-      }));
-      expect(onPhaseComplete).toHaveBeenNthCalledWith(2, 'motion', expect.objectContaining({
-        phase: 'motion',
-        success: true,
-      }));
-      expect(onPhaseComplete).toHaveBeenNthCalledWith(3, 'quality', expect.objectContaining({
-        phase: 'quality',
-        success: true,
-      }));
+      expect(onPhaseComplete).toHaveBeenNthCalledWith(
+        1,
+        "layout",
+        expect.objectContaining({
+          phase: "layout",
+          success: true,
+        })
+      );
+      expect(onPhaseComplete).toHaveBeenNthCalledWith(
+        2,
+        "motion",
+        expect.objectContaining({
+          phase: "motion",
+          success: true,
+        })
+      );
+      expect(onPhaseComplete).toHaveBeenNthCalledWith(
+        3,
+        "quality",
+        expect.objectContaining({
+          phase: "quality",
+          success: true,
+        })
+      );
     });
 
-    it('フェーズ失敗時にはonPhaseCompleteは呼ばれない', async () => {
+    it("フェーズ失敗時にはonPhaseCompleteは呼ばれない", async () => {
       const onPhaseComplete = vi.fn();
       const options = createMockOptions({
         onPhaseComplete,
-        detectMotion: vi.fn().mockRejectedValue(new Error('Motion failed')),
+        detectMotion: vi.fn().mockRejectedValue(new Error("Motion failed")),
       });
       const executor = new PhasedExecutor(options);
 
@@ -336,16 +350,17 @@ describe('PhasedExecutor', () => {
 
       // Layout と Quality のみ成功
       expect(onPhaseComplete).toHaveBeenCalledTimes(2);
-      expect(onPhaseComplete).toHaveBeenCalledWith('layout', expect.any(Object));
-      expect(onPhaseComplete).toHaveBeenCalledWith('quality', expect.any(Object));
+      expect(onPhaseComplete).toHaveBeenCalledWith("layout", expect.any(Object));
+      expect(onPhaseComplete).toHaveBeenCalledWith("quality", expect.any(Object));
       // Motion は呼ばれない
-      expect(onPhaseComplete).not.toHaveBeenCalledWith('motion', expect.any(Object));
+      expect(onPhaseComplete).not.toHaveBeenCalledWith("motion", expect.any(Object));
     });
 
-    it('onPhaseCompleteでエラーが発生しても処理は継続する', async () => {
-      const onPhaseComplete = vi.fn()
+    it("onPhaseCompleteでエラーが発生しても処理は継続する", async () => {
+      const onPhaseComplete = vi
+        .fn()
         .mockResolvedValueOnce(undefined)
-        .mockRejectedValueOnce(new Error('Callback error'))
+        .mockRejectedValueOnce(new Error("Callback error"))
         .mockResolvedValueOnce(undefined);
       const options = createMockOptions({ onPhaseComplete });
       const executor = new PhasedExecutor(options);
@@ -360,12 +375,12 @@ describe('PhasedExecutor', () => {
     });
   });
 
-  describe('ExecutionStatusTrackerとの連携', () => {
-    it('完了したフェーズがTrackerに記録される', async () => {
+  describe("ExecutionStatusTrackerとの連携", () => {
+    it("完了したフェーズがTrackerに記録される", async () => {
       const tracker = new ExecutionStatusTracker({
         originalTimeoutMs: 60000,
         effectiveTimeoutMs: 60000,
-        strategy: 'progressive',
+        strategy: "progressive",
         partialResultsEnabled: true,
       });
       const options = createMockOptions({ tracker });
@@ -376,21 +391,21 @@ describe('PhasedExecutor', () => {
       await resultPromise;
 
       const status = tracker.toExecutionStatus();
-      expect(status.completed_phases).toContain('layout');
-      expect(status.completed_phases).toContain('motion');
-      expect(status.completed_phases).toContain('quality');
+      expect(status.completed_phases).toContain("layout");
+      expect(status.completed_phases).toContain("motion");
+      expect(status.completed_phases).toContain("quality");
     });
 
-    it('失敗したフェーズがTrackerに記録される', async () => {
+    it("失敗したフェーズがTrackerに記録される", async () => {
       const tracker = new ExecutionStatusTracker({
         originalTimeoutMs: 60000,
         effectiveTimeoutMs: 60000,
-        strategy: 'progressive',
+        strategy: "progressive",
         partialResultsEnabled: true,
       });
       const options = createMockOptions({
         tracker,
-        detectMotion: vi.fn().mockRejectedValue(new Error('Motion failed')),
+        detectMotion: vi.fn().mockRejectedValue(new Error("Motion failed")),
       });
       const executor = new PhasedExecutor(options);
 
@@ -399,18 +414,18 @@ describe('PhasedExecutor', () => {
       await resultPromise;
 
       const status = tracker.toExecutionStatus();
-      expect(status.completed_phases).toContain('layout');
-      expect(status.failed_phases).toContain('motion');
-      expect(status.completed_phases).toContain('quality');
+      expect(status.completed_phases).toContain("layout");
+      expect(status.failed_phases).toContain("motion");
+      expect(status.completed_phases).toContain("quality");
     });
 
-    it('タイムアウト発生時はtimeout_occurred=trueが設定される', async () => {
+    it("タイムアウト発生時はtimeout_occurred=trueが設定される", async () => {
       vi.useRealTimers();
 
       const tracker = new ExecutionStatusTracker({
         originalTimeoutMs: 60000,
         effectiveTimeoutMs: 60000,
-        strategy: 'progressive',
+        strategy: "progressive",
         partialResultsEnabled: true,
       });
       const options = createMockOptions({
@@ -431,11 +446,11 @@ describe('PhasedExecutor', () => {
     });
   });
 
-  describe('データの受け渡し', () => {
-    it('各フェーズの結果データが正しく格納される', async () => {
+  describe("データの受け渡し", () => {
+    it("各フェーズの結果データが正しく格納される", async () => {
       const layoutData = {
         success: true,
-        pageId: 'test-page-123',
+        pageId: "test-page-123",
         sectionCount: 5,
         sectionTypes: { hero: 1, feature: 3, cta: 1 },
         processingTimeMs: 100,
@@ -452,7 +467,7 @@ describe('PhasedExecutor', () => {
       const qualityData = {
         success: true,
         overallScore: 92,
-        grade: 'A' as const,
+        grade: "A" as const,
         axisScores: { originality: 90, craftsmanship: 95, contextuality: 90 },
         clicheCount: 0,
         processingTimeMs: 150,
@@ -475,27 +490,42 @@ describe('PhasedExecutor', () => {
     });
   });
 
-  describe('順次実行（シーケンシャルモード）', () => {
-    it('デフォルトでは各フェーズが順次実行される', async () => {
+  describe("順次実行（シーケンシャルモード）", () => {
+    it("デフォルトでは各フェーズが順次実行される", async () => {
       const callOrder: string[] = [];
       const options = createMockOptions({
         analyzeLayout: vi.fn().mockImplementation(async () => {
-          callOrder.push('layout-start');
+          callOrder.push("layout-start");
           await Promise.resolve();
-          callOrder.push('layout-end');
+          callOrder.push("layout-end");
           return { success: true, sectionCount: 1, sectionTypes: {}, processingTimeMs: 100 };
         }),
         detectMotion: vi.fn().mockImplementation(async () => {
-          callOrder.push('motion-start');
+          callOrder.push("motion-start");
           await Promise.resolve();
-          callOrder.push('motion-end');
-          return { success: true, patternCount: 1, categoryBreakdown: {}, warningCount: 0, a11yWarningCount: 0, perfWarningCount: 0, processingTimeMs: 100 };
+          callOrder.push("motion-end");
+          return {
+            success: true,
+            patternCount: 1,
+            categoryBreakdown: {},
+            warningCount: 0,
+            a11yWarningCount: 0,
+            perfWarningCount: 0,
+            processingTimeMs: 100,
+          };
         }),
         evaluateQuality: vi.fn().mockImplementation(async () => {
-          callOrder.push('quality-start');
+          callOrder.push("quality-start");
           await Promise.resolve();
-          callOrder.push('quality-end');
-          return { success: true, overallScore: 85, grade: 'A' as const, axisScores: { originality: 85, craftsmanship: 85, contextuality: 85 }, clicheCount: 0, processingTimeMs: 100 };
+          callOrder.push("quality-end");
+          return {
+            success: true,
+            overallScore: 85,
+            grade: "A" as const,
+            axisScores: { originality: 85, craftsmanship: 85, contextuality: 85 },
+            clicheCount: 0,
+            processingTimeMs: 100,
+          };
         }),
       });
       const executor = new PhasedExecutor(options);
@@ -506,17 +536,20 @@ describe('PhasedExecutor', () => {
 
       // 順次実行されることを確認
       expect(callOrder).toEqual([
-        'layout-start', 'layout-end',
-        'motion-start', 'motion-end',
-        'quality-start', 'quality-end',
+        "layout-start",
+        "layout-end",
+        "motion-start",
+        "motion-end",
+        "quality-start",
+        "quality-end",
       ]);
     });
   });
 
-  describe('エッジケース', () => {
-    it('空のHTMLでも処理できる', async () => {
+  describe("エッジケース", () => {
+    it("空のHTMLでも処理できる", async () => {
       const options = createMockOptions({
-        html: '',
+        html: "",
       });
       const executor = new PhasedExecutor(options);
 
@@ -526,10 +559,10 @@ describe('PhasedExecutor', () => {
 
       // 分析関数が呼ばれることを確認（空でも処理される）
       // layoutOptionsはundefinedで渡される
-      expect(options.analyzeLayout).toHaveBeenCalledWith('', undefined);
+      expect(options.analyzeLayout).toHaveBeenCalledWith("", undefined);
     });
 
-    it('分析関数がundefinedを返した場合でもエラーにならない', async () => {
+    it("分析関数がundefinedを返した場合でもエラーにならない", async () => {
       const options = createMockOptions({
         analyzeLayout: vi.fn().mockResolvedValue(undefined),
       });
@@ -545,49 +578,49 @@ describe('PhasedExecutor', () => {
   });
 });
 
-describe('PhaseResult型', () => {
-  it('PhaseResultが正しい構造を持つ', () => {
+describe("PhaseResult型", () => {
+  it("PhaseResultが正しい構造を持つ", () => {
     const phaseResult: PhaseResult<{ test: string }> = {
-      phase: 'layout',
+      phase: "layout",
       success: true,
-      data: { test: 'value' },
+      data: { test: "value" },
       durationMs: 100,
       timedOut: false,
     };
 
-    expect(phaseResult.phase).toBe('layout');
+    expect(phaseResult.phase).toBe("layout");
     expect(phaseResult.success).toBe(true);
-    expect(phaseResult.data).toEqual({ test: 'value' });
+    expect(phaseResult.data).toEqual({ test: "value" });
     expect(phaseResult.durationMs).toBe(100);
     expect(phaseResult.timedOut).toBe(false);
   });
 
-  it('失敗時のPhaseResultが正しい構造を持つ', () => {
+  it("失敗時のPhaseResultが正しい構造を持つ", () => {
     const phaseResult: PhaseResult<{ test: string }> = {
-      phase: 'motion',
+      phase: "motion",
       success: false,
-      error: 'Something went wrong',
+      error: "Something went wrong",
       durationMs: 50,
       timedOut: true,
     };
 
-    expect(phaseResult.phase).toBe('motion');
+    expect(phaseResult.phase).toBe("motion");
     expect(phaseResult.success).toBe(false);
-    expect(phaseResult.error).toBe('Something went wrong');
+    expect(phaseResult.error).toBe("Something went wrong");
     expect(phaseResult.data).toBeUndefined();
     expect(phaseResult.timedOut).toBe(true);
   });
 });
 
-describe('PhasedExecutionResult型', () => {
-  it('PhasedExecutionResultが正しい構造を持つ', () => {
+describe("PhasedExecutionResult型", () => {
+  it("PhasedExecutionResultが正しい構造を持つ", () => {
     const result: PhasedExecutionResult = {
-      layout: { phase: 'layout', success: true, durationMs: 100, timedOut: false },
-      motion: { phase: 'motion', success: true, durationMs: 200, timedOut: false },
-      quality: { phase: 'quality', success: true, durationMs: 150, timedOut: false },
+      layout: { phase: "layout", success: true, durationMs: 100, timedOut: false },
+      motion: { phase: "motion", success: true, durationMs: 200, timedOut: false },
+      quality: { phase: "quality", success: true, durationMs: 150, timedOut: false },
       overallSuccess: true,
       partialSuccess: true,
-      completedPhases: ['layout', 'motion', 'quality'],
+      completedPhases: ["layout", "motion", "quality"],
       failedPhases: [],
     };
 
@@ -602,45 +635,45 @@ describe('PhasedExecutionResult型', () => {
 // Per-Phase Timeout Tests (v0.1.0)
 // =============================================================================
 
-describe('ExecutionStatusTracker - per-phase timeout tracking', () => {
-  it('タイムアウトしたフェーズを個別に追跡する', () => {
+describe("ExecutionStatusTracker - per-phase timeout tracking", () => {
+  it("タイムアウトしたフェーズを個別に追跡する", () => {
     const tracker = new ExecutionStatusTracker({
       originalTimeoutMs: 60000,
       effectiveTimeoutMs: 60000,
-      strategy: 'progressive',
+      strategy: "progressive",
       partialResultsEnabled: true,
       phaseTimeouts: { layout: 30000, motion: 120000, quality: 15000 },
     });
 
     // layoutがタイムアウト
-    tracker.markFailed('layout', true);
+    tracker.markFailed("layout", true);
     // motionは成功
-    tracker.markCompleted('motion');
+    tracker.markCompleted("motion");
     // qualityがタイムアウト
-    tracker.markFailed('quality', true);
+    tracker.markFailed("quality", true);
 
     const status = tracker.toExecutionStatus();
 
     expect(status.timeout_occurred).toBe(true);
-    expect(status.timedout_phases).toEqual(['layout', 'quality']);
-    expect(status.completed_phases).toContain('motion');
-    expect(status.failed_phases).toContain('layout');
-    expect(status.failed_phases).toContain('quality');
+    expect(status.timedout_phases).toEqual(["layout", "quality"]);
+    expect(status.completed_phases).toContain("motion");
+    expect(status.failed_phases).toContain("layout");
+    expect(status.failed_phases).toContain("quality");
   });
 
-  it('phaseTimeoutsをExecutionStatusに含める', () => {
+  it("phaseTimeoutsをExecutionStatusに含める", () => {
     const phaseTimeouts = { layout: 30000, motion: 120000, quality: 15000 };
     const tracker = new ExecutionStatusTracker({
       originalTimeoutMs: 60000,
       effectiveTimeoutMs: 60000,
-      strategy: 'progressive',
+      strategy: "progressive",
       partialResultsEnabled: true,
       phaseTimeouts,
     });
 
-    tracker.markCompleted('layout');
-    tracker.markCompleted('motion');
-    tracker.markCompleted('quality');
+    tracker.markCompleted("layout");
+    tracker.markCompleted("motion");
+    tracker.markCompleted("quality");
 
     const status = tracker.toExecutionStatus();
 
@@ -648,11 +681,11 @@ describe('ExecutionStatusTracker - per-phase timeout tracking', () => {
     expect(status.timedout_phases).toBeUndefined();
   });
 
-  it('setPhaseTimeoutsで後から設定可能', () => {
+  it("setPhaseTimeoutsで後から設定可能", () => {
     const tracker = new ExecutionStatusTracker({
       originalTimeoutMs: 60000,
       effectiveTimeoutMs: 60000,
-      strategy: 'progressive',
+      strategy: "progressive",
       partialResultsEnabled: true,
     });
 
@@ -668,54 +701,54 @@ describe('ExecutionStatusTracker - per-phase timeout tracking', () => {
     expect(status.phase_timeouts).toEqual(phaseTimeouts);
   });
 
-  it('タイムアウトフェーズは優先順位でソートされる', () => {
+  it("タイムアウトフェーズは優先順位でソートされる", () => {
     const tracker = new ExecutionStatusTracker({
       originalTimeoutMs: 60000,
       effectiveTimeoutMs: 60000,
-      strategy: 'progressive',
+      strategy: "progressive",
       partialResultsEnabled: true,
     });
 
     // 逆順でタイムアウトを記録
-    tracker.markFailed('quality', true);
-    tracker.markFailed('motion', true);
-    tracker.markFailed('layout', true);
+    tracker.markFailed("quality", true);
+    tracker.markFailed("motion", true);
+    tracker.markFailed("layout", true);
 
     const status = tracker.toExecutionStatus();
 
     // 優先順位順（layout -> motion -> quality）にソートされている
-    expect(status.timedout_phases).toEqual(['layout', 'motion', 'quality']);
+    expect(status.timedout_phases).toEqual(["layout", "motion", "quality"]);
   });
 
-  it('完了したフェーズはタイムアウトリストから削除される', () => {
+  it("完了したフェーズはタイムアウトリストから削除される", () => {
     const tracker = new ExecutionStatusTracker({
       originalTimeoutMs: 60000,
       effectiveTimeoutMs: 60000,
-      strategy: 'progressive',
+      strategy: "progressive",
       partialResultsEnabled: true,
     });
 
     // 最初にタイムアウトとして記録
-    tracker.markFailed('layout', true);
+    tracker.markFailed("layout", true);
 
     // その後成功として記録（リトライ成功など）
-    tracker.markCompleted('layout');
+    tracker.markCompleted("layout");
 
     const status = tracker.toExecutionStatus();
 
     expect(status.timedout_phases).toBeUndefined();
-    expect(status.completed_phases).toContain('layout');
-    expect(status.failed_phases).not.toContain('layout');
+    expect(status.completed_phases).toContain("layout");
+    expect(status.failed_phases).not.toContain("layout");
   });
 });
 
-describe('PhasedExecutor - per-phase timeout integration', () => {
-  it('個別のphaseTimeoutsが各フェーズに適用される', async () => {
+describe("PhasedExecutor - per-phase timeout integration", () => {
+  it("個別のphaseTimeoutsが各フェーズに適用される", async () => {
     const options = createMockOptions({
       phaseTimeouts: {
-        layout: 5000,   // レイアウトは5秒
-        motion: 10000,  // モーションは10秒
-        quality: 3000,  // 品質は3秒
+        layout: 5000, // レイアウトは5秒
+        motion: 10000, // モーションは10秒
+        quality: 3000, // 品質は3秒
       },
     });
 
@@ -726,7 +759,7 @@ describe('PhasedExecutor - per-phase timeout integration', () => {
     expect(result.completedPhases).toHaveLength(3);
   });
 
-  it('短いタイムアウトでレイアウトのみ失敗し、他のフェーズは成功', async () => {
+  it("短いタイムアウトでレイアウトのみ失敗し、他のフェーズは成功", async () => {
     const slowLayoutFn = vi.fn().mockImplementation(async () => {
       await delay(200); // 200ms遅延
       return { success: true, sectionCount: 1 };
@@ -734,7 +767,7 @@ describe('PhasedExecutor - per-phase timeout integration', () => {
 
     const options = createMockOptions({
       phaseTimeouts: {
-        layout: 50,    // 50ms - タイムアウトする
+        layout: 50, // 50ms - タイムアウトする
         motion: 10000, // 10秒 - 十分
         quality: 10000, // 10秒 - 十分
       },
@@ -755,7 +788,7 @@ describe('PhasedExecutor - per-phase timeout integration', () => {
     // 部分成功
     expect(result.partialSuccess).toBe(true);
     expect(result.overallSuccess).toBe(false);
-    expect(result.completedPhases).toEqual(['motion', 'quality']);
-    expect(result.failedPhases).toEqual(['layout']);
+    expect(result.completedPhases).toEqual(["motion", "quality"]);
+    expect(result.failedPhases).toEqual(["layout"]);
   });
 });

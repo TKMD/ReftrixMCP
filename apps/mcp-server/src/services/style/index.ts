@@ -6,5 +6,5 @@
  * style.get_palette用のサービスモジュール
  */
 
-export * from './palette-service';
-export * from './prisma-palette-repository';
+export * from "./palette-service";
+export * from "./prisma-palette-repository";

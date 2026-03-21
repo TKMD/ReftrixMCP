@@ -8,8 +8,8 @@
  * @module @reftrix/mcp-server/services/palette-service-export
  */
 
-import { styleGetPaletteHandler } from '../tools/style-get-palette';
-import type { StyleGetPaletteInput } from '../tools/schemas/style-schemas';
+import { styleGetPaletteHandler } from "../tools/style-get-palette";
+import type { StyleGetPaletteInput } from "../tools/schemas/style-schemas";
 
 /**
  * ブランドパレット取得のレスポンス型
@@ -38,9 +38,7 @@ export async function executeGetPalette(input: StyleGetPaletteInput): Promise<Ge
 }
 
 // 型エクスポート
-export type {
-  StyleGetPaletteInput as GetPaletteInput,
-} from '../tools/schemas/style-schemas';
+export type { StyleGetPaletteInput as GetPaletteInput } from "../tools/schemas/style-schemas";
 
 export type {
   GetPaletteResult,
@@ -49,4 +47,4 @@ export type {
   PaletteListItem,
   ColorTokenApi,
   GradientApi,
-} from '../services/style/palette-service';
+} from "../services/style/palette-service";

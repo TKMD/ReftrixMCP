@@ -16,16 +16,19 @@
  * @see apps/mcp-server/src/services/vision/llama-vision-adapter.ts
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import {
   LlamaVisionAdapter,
   type VisionAnalysisOptions,
   type VisionAnalysisResult,
   type LlamaVisionAdapterConfig,
-} from '../../../src/services/vision/llama-vision-adapter.js';
-import { HardwareType, type HardwareInfo } from '../../../src/services/vision/hardware-detector.js';
-import { OptimizationStrategy, type OptimizeResult } from '../../../src/services/vision/image-optimizer.js';
-import { VisionAnalysisError } from '../../../src/services/vision/vision.errors.js';
+} from "../../../src/services/vision/llama-vision-adapter.js";
+import { HardwareType, type HardwareInfo } from "../../../src/services/vision/hardware-detector.js";
+import {
+  OptimizationStrategy,
+  type OptimizeResult,
+} from "../../../src/services/vision/image-optimizer.js";
+import { VisionAnalysisError } from "../../../src/services/vision/vision.errors.js";
 
 // =============================================================================
 // Mock Types
@@ -57,7 +60,9 @@ interface MockOllamaVisionClient {
 /**
  * モックHardwareDetectorを作成
  */
-function createMockHardwareDetector(overrides?: Partial<MockHardwareDetector>): MockHardwareDetector {
+function createMockHardwareDetector(
+  overrides?: Partial<MockHardwareDetector>
+): MockHardwareDetector {
   return {
     detect: vi.fn().mockResolvedValue({
       type: HardwareType.GPU,
@@ -81,12 +86,12 @@ function createMockImageOptimizer(overrides?: Partial<MockImageOptimizer>): Mock
     compressionRatio: 1,
     processingTimeMs: 10,
     skipped: true,
-    reason: 'No optimization needed',
+    reason: "No optimization needed",
   });
 
   return {
     optimizeForCPU: vi.fn().mockImplementation(async (input: Buffer | string) => {
-      const buffer = typeof input === 'string' ? Buffer.from(input, 'base64') : input;
+      const buffer = typeof input === "string" ? Buffer.from(input, "base64") : input;
       return createOptimizeResult(buffer);
     }),
     selectStrategy: vi.fn().mockReturnValue(OptimizationStrategy.NONE),
@@ -103,12 +108,14 @@ function createMockImageOptimizer(overrides?: Partial<MockImageOptimizer>): Mock
 /**
  * モックOllamaVisionClientを作成
  */
-function createMockOllamaVisionClient(overrides?: Partial<MockOllamaVisionClient>): MockOllamaVisionClient {
+function createMockOllamaVisionClient(
+  overrides?: Partial<MockOllamaVisionClient>
+): MockOllamaVisionClient {
   return {
-    generate: vi.fn().mockResolvedValue('Analysis result text'),
-    generateJSON: vi.fn().mockResolvedValue({ result: 'json' }),
-    generateWithImageSize: vi.fn().mockResolvedValue('Analysis result text'),
-    generateJSONWithImageSize: vi.fn().mockResolvedValue({ result: 'json' }),
+    generate: vi.fn().mockResolvedValue("Analysis result text"),
+    generateJSON: vi.fn().mockResolvedValue({ result: "json" }),
+    generateWithImageSize: vi.fn().mockResolvedValue("Analysis result text"),
+    generateJSONWithImageSize: vi.fn().mockResolvedValue({ result: "json" }),
     isAvailable: vi.fn().mockResolvedValue(true),
     ...overrides,
   };
@@ -118,15 +125,15 @@ function createMockOllamaVisionClient(overrides?: Partial<MockOllamaVisionClient
  * テスト用のBase64画像を作成
  */
 function createTestBase64Image(sizeBytes: number = 1000): string {
-  const buffer = Buffer.alloc(sizeBytes, 'A');
-  return buffer.toString('base64');
+  const buffer = Buffer.alloc(sizeBytes, "A");
+  return buffer.toString("base64");
 }
 
 // =============================================================================
 // Tests
 // =============================================================================
 
-describe('LlamaVisionAdapter', () => {
+describe("LlamaVisionAdapter", () => {
   let adapter: LlamaVisionAdapter;
   let mockHardwareDetector: MockHardwareDetector;
   let mockImageOptimizer: MockImageOptimizer;
@@ -152,21 +159,21 @@ describe('LlamaVisionAdapter', () => {
   // Constructor and Configuration
   // ==========================================================================
 
-  describe('Constructor and Configuration', () => {
-    it('should create adapter with dependencies', () => {
+  describe("Constructor and Configuration", () => {
+    it("should create adapter with dependencies", () => {
       expect(adapter).toBeInstanceOf(LlamaVisionAdapter);
     });
 
-    it('should create adapter with default dependencies when not provided', () => {
+    it("should create adapter with default dependencies when not provided", () => {
       const defaultAdapter = new LlamaVisionAdapter();
       expect(defaultAdapter).toBeInstanceOf(LlamaVisionAdapter);
     });
 
-    it('should accept custom configuration', () => {
+    it("should accept custom configuration", () => {
       const customConfig: LlamaVisionAdapterConfig = {
         enableOptimization: false,
         maxImageSizeBytes: 1_000_000,
-        ollamaUrl: 'http://custom:11434',
+        ollamaUrl: "http://custom:11434",
       };
 
       const customAdapter = new LlamaVisionAdapter({
@@ -184,26 +191,26 @@ describe('LlamaVisionAdapter', () => {
   // analyze() - Core Functionality
   // ==========================================================================
 
-  describe('analyze()', () => {
-    it('should analyze image and return result', async () => {
+  describe("analyze()", () => {
+    it("should analyze image and return result", async () => {
       const image = createTestBase64Image(50_000);
-      const prompt = 'Analyze this image';
+      const prompt = "Analyze this image";
 
       const result = await adapter.analyze(image, prompt);
 
       expect(result).toBeDefined();
-      expect(result.response).toBe('Analysis result text');
+      expect(result.response).toBe("Analysis result text");
       expect(result.metrics).toBeDefined();
     });
 
-    it('should detect hardware type before analysis', async () => {
+    it("should detect hardware type before analysis", async () => {
       const image = createTestBase64Image();
-      await adapter.analyze(image, 'test prompt');
+      await adapter.analyze(image, "test prompt");
 
       expect(mockHardwareDetector.detect).toHaveBeenCalledTimes(1);
     });
 
-    it('should skip optimization on GPU', async () => {
+    it("should skip optimization on GPU", async () => {
       mockHardwareDetector.detect.mockResolvedValue({
         type: HardwareType.GPU,
         vramBytes: 8_000_000_000,
@@ -211,15 +218,15 @@ describe('LlamaVisionAdapter', () => {
       });
 
       const image = createTestBase64Image(500_000);
-      const result = await adapter.analyze(image, 'test');
+      const result = await adapter.analyze(image, "test");
 
       expect(result.metrics.hardwareType).toBe(HardwareType.GPU);
       expect(result.metrics.optimizationApplied).toBe(false);
     });
 
-    it('should use dynamic timeout based on hardware and image size', async () => {
+    it("should use dynamic timeout based on hardware and image size", async () => {
       const image = createTestBase64Image(200_000);
-      await adapter.analyze(image, 'test');
+      await adapter.analyze(image, "test");
 
       expect(mockOllamaClient.generateWithImageSize).toHaveBeenCalled();
     });
@@ -229,7 +236,7 @@ describe('LlamaVisionAdapter', () => {
   // CPU Optimization Integration
   // ==========================================================================
 
-  describe('CPU Optimization', () => {
+  describe("CPU Optimization", () => {
     beforeEach(() => {
       mockHardwareDetector.detect.mockResolvedValue({
         type: HardwareType.CPU,
@@ -238,7 +245,7 @@ describe('LlamaVisionAdapter', () => {
       });
     });
 
-    it('should optimize large images on CPU', async () => {
+    it("should optimize large images on CPU", async () => {
       const originalSize = 600_000;
       const optimizedSize = 200_000;
 
@@ -253,7 +260,7 @@ describe('LlamaVisionAdapter', () => {
       });
 
       const image = createTestBase64Image(originalSize);
-      const result = await adapter.analyze(image, 'test');
+      const result = await adapter.analyze(image, "test");
 
       expect(mockImageOptimizer.optimizeForCPU).toHaveBeenCalled();
       expect(result.metrics.optimizationApplied).toBe(true);
@@ -261,7 +268,7 @@ describe('LlamaVisionAdapter', () => {
       expect(result.metrics.optimizedSizeBytes).toBe(optimizedSize);
     });
 
-    it('should skip optimization for small images on CPU', async () => {
+    it("should skip optimization for small images on CPU", async () => {
       const smallImage = createTestBase64Image(50_000);
 
       mockImageOptimizer.optimizeForCPU.mockResolvedValue({
@@ -272,16 +279,16 @@ describe('LlamaVisionAdapter', () => {
         compressionRatio: 1,
         processingTimeMs: 1,
         skipped: true,
-        reason: 'No optimization needed',
+        reason: "No optimization needed",
       });
 
-      const result = await adapter.analyze(smallImage, 'test');
+      const result = await adapter.analyze(smallImage, "test");
 
       expect(result.metrics.optimizationApplied).toBe(false);
-      expect(result.metrics.optimizationSkipReason).toBe('No optimization needed');
+      expect(result.metrics.optimizationSkipReason).toBe("No optimization needed");
     });
 
-    it('should calculate compression ratio correctly', async () => {
+    it("should calculate compression ratio correctly", async () => {
       const originalSize = 800_000;
       const optimizedSize = 200_000;
       const expectedRatio = optimizedSize / originalSize;
@@ -296,7 +303,7 @@ describe('LlamaVisionAdapter', () => {
         skipped: false,
       });
 
-      const result = await adapter.analyze(createTestBase64Image(originalSize), 'test');
+      const result = await adapter.analyze(createTestBase64Image(originalSize), "test");
 
       expect(result.metrics.compressionRatio).toBeCloseTo(expectedRatio, 2);
     });
@@ -306,8 +313,8 @@ describe('LlamaVisionAdapter', () => {
   // Options Handling
   // ==========================================================================
 
-  describe('Options Handling', () => {
-    it('should respect enableOptimization: false option', async () => {
+  describe("Options Handling", () => {
+    it("should respect enableOptimization: false option", async () => {
       mockHardwareDetector.detect.mockResolvedValue({
         type: HardwareType.CPU,
         vramBytes: 0,
@@ -318,13 +325,13 @@ describe('LlamaVisionAdapter', () => {
         enableOptimization: false,
       };
 
-      const result = await adapter.analyze(createTestBase64Image(600_000), 'test', options);
+      const result = await adapter.analyze(createTestBase64Image(600_000), "test", options);
 
       // Should skip optimization despite large image
       expect(result.metrics.optimizationApplied).toBe(false);
     });
 
-    it('should respect forceOriginal option', async () => {
+    it("should respect forceOriginal option", async () => {
       mockHardwareDetector.detect.mockResolvedValue({
         type: HardwareType.CPU,
         vramBytes: 0,
@@ -335,12 +342,12 @@ describe('LlamaVisionAdapter', () => {
         forceOriginal: true,
       };
 
-      const result = await adapter.analyze(createTestBase64Image(600_000), 'test', options);
+      const result = await adapter.analyze(createTestBase64Image(600_000), "test", options);
 
       expect(result.metrics.optimizationApplied).toBe(false);
     });
 
-    it('should use maxImageSizeBytes option for threshold', async () => {
+    it("should use maxImageSizeBytes option for threshold", async () => {
       const adapterWithThreshold = new LlamaVisionAdapter({
         hardwareDetector: mockHardwareDetector,
         imageOptimizer: mockImageOptimizer,
@@ -364,7 +371,7 @@ describe('LlamaVisionAdapter', () => {
         skipped: false,
       });
 
-      const result = await adapterWithThreshold.analyze(createTestBase64Image(60_000), 'test');
+      const result = await adapterWithThreshold.analyze(createTestBase64Image(60_000), "test");
 
       // Should optimize because image > maxImageSizeBytes (50KB)
       expect(result.metrics.optimizationApplied).toBe(true);
@@ -375,8 +382,8 @@ describe('LlamaVisionAdapter', () => {
   // Graceful Degradation
   // ==========================================================================
 
-  describe('Graceful Degradation', () => {
-    it('should continue with original image if optimization fails', async () => {
+  describe("Graceful Degradation", () => {
+    it("should continue with original image if optimization fails", async () => {
       mockHardwareDetector.detect.mockResolvedValue({
         type: HardwareType.CPU,
         vramBytes: 0,
@@ -391,47 +398,47 @@ describe('LlamaVisionAdapter', () => {
         compressionRatio: 1,
         processingTimeMs: 5,
         skipped: true,
-        error: 'Invalid image format',
+        error: "Invalid image format",
       });
 
-      const result = await adapter.analyze(createTestBase64Image(600_000), 'test');
+      const result = await adapter.analyze(createTestBase64Image(600_000), "test");
 
       // Should still complete analysis with original image
       expect(result.response).toBeDefined();
       expect(result.metrics.optimizationApplied).toBe(false);
-      expect(result.metrics.optimizationError).toBe('Invalid image format');
+      expect(result.metrics.optimizationError).toBe("Invalid image format");
     });
 
-    it('should fallback to CPU if HardwareDetector fails', async () => {
+    it("should fallback to CPU if HardwareDetector fails", async () => {
       mockHardwareDetector.detect.mockResolvedValue({
         type: HardwareType.CPU,
         vramBytes: 0,
         isGpuAvailable: false,
-        error: 'Ollama connection failed',
+        error: "Ollama connection failed",
       });
 
-      const result = await adapter.analyze(createTestBase64Image(), 'test');
+      const result = await adapter.analyze(createTestBase64Image(), "test");
 
       expect(result.metrics.hardwareType).toBe(HardwareType.CPU);
-      expect(result.metrics.hardwareDetectionError).toBe('Ollama connection failed');
+      expect(result.metrics.hardwareDetectionError).toBe("Ollama connection failed");
     });
 
-    it('should throw VisionAnalysisError if Ollama is unavailable', async () => {
+    it("should throw VisionAnalysisError if Ollama is unavailable", async () => {
       mockOllamaClient.generateWithImageSize.mockRejectedValue(
-        new VisionAnalysisError('Cannot connect to Ollama', 'OLLAMA_UNAVAILABLE', true)
+        new VisionAnalysisError("Cannot connect to Ollama", "OLLAMA_UNAVAILABLE", true)
       );
 
-      await expect(adapter.analyze(createTestBase64Image(), 'test')).rejects.toThrow(
+      await expect(adapter.analyze(createTestBase64Image(), "test")).rejects.toThrow(
         VisionAnalysisError
       );
     });
 
-    it('should handle timeout errors gracefully', async () => {
+    it("should handle timeout errors gracefully", async () => {
       mockOllamaClient.generateWithImageSize.mockRejectedValue(
-        new VisionAnalysisError('Request timeout', 'TIMEOUT', true)
+        new VisionAnalysisError("Request timeout", "TIMEOUT", true)
       );
 
-      await expect(adapter.analyze(createTestBase64Image(), 'test')).rejects.toThrow('timeout');
+      await expect(adapter.analyze(createTestBase64Image(), "test")).rejects.toThrow("timeout");
     });
   });
 
@@ -439,9 +446,9 @@ describe('LlamaVisionAdapter', () => {
   // Metrics and Logging
   // ==========================================================================
 
-  describe('Metrics', () => {
-    it('should include all required metrics in result', async () => {
-      const result = await adapter.analyze(createTestBase64Image(), 'test');
+  describe("Metrics", () => {
+    it("should include all required metrics in result", async () => {
+      const result = await adapter.analyze(createTestBase64Image(), "test");
 
       expect(result.metrics).toMatchObject({
         hardwareType: expect.any(String),
@@ -451,7 +458,7 @@ describe('LlamaVisionAdapter', () => {
       });
     });
 
-    it('should track optimization time separately', async () => {
+    it("should track optimization time separately", async () => {
       mockHardwareDetector.detect.mockResolvedValue({
         type: HardwareType.CPU,
         vramBytes: 0,
@@ -468,12 +475,12 @@ describe('LlamaVisionAdapter', () => {
         skipped: false,
       });
 
-      const result = await adapter.analyze(createTestBase64Image(600_000), 'test');
+      const result = await adapter.analyze(createTestBase64Image(600_000), "test");
 
       expect(result.metrics.optimizationTimeMs).toBe(100);
     });
 
-    it('should include compression ratio in metrics', async () => {
+    it("should include compression ratio in metrics", async () => {
       mockHardwareDetector.detect.mockResolvedValue({
         type: HardwareType.CPU,
         vramBytes: 0,
@@ -490,7 +497,7 @@ describe('LlamaVisionAdapter', () => {
         skipped: false,
       });
 
-      const result = await adapter.analyze(createTestBase64Image(800_000), 'test');
+      const result = await adapter.analyze(createTestBase64Image(800_000), "test");
 
       expect(result.metrics.compressionRatio).toBe(0.25);
     });
@@ -500,8 +507,8 @@ describe('LlamaVisionAdapter', () => {
   // isAvailable() Delegation
   // ==========================================================================
 
-  describe('isAvailable()', () => {
-    it('should delegate to OllamaVisionClient', async () => {
+  describe("isAvailable()", () => {
+    it("should delegate to OllamaVisionClient", async () => {
       mockOllamaClient.isAvailable.mockResolvedValue(true);
 
       const result = await adapter.isAvailable();
@@ -510,7 +517,7 @@ describe('LlamaVisionAdapter', () => {
       expect(result).toBe(true);
     });
 
-    it('should return false if Ollama is unavailable', async () => {
+    it("should return false if Ollama is unavailable", async () => {
       mockOllamaClient.isAvailable.mockResolvedValue(false);
 
       const result = await adapter.isAvailable();
@@ -523,26 +530,26 @@ describe('LlamaVisionAdapter', () => {
   // JSON Analysis
   // ==========================================================================
 
-  describe('analyzeJSON()', () => {
-    it('should analyze image and return JSON result', async () => {
+  describe("analyzeJSON()", () => {
+    it("should analyze image and return JSON result", async () => {
       mockOllamaClient.generateJSONWithImageSize.mockResolvedValue({
-        mood: 'professional',
+        mood: "professional",
         confidence: 0.85,
       });
 
       const result = await adapter.analyzeJSON<{ mood: string; confidence: number }>(
         createTestBase64Image(),
-        'Analyze mood'
+        "Analyze mood"
       );
 
       expect(result.response).toEqual({
-        mood: 'professional',
+        mood: "professional",
         confidence: 0.85,
       });
       expect(result.metrics).toBeDefined();
     });
 
-    it('should optimize image before JSON analysis on CPU', async () => {
+    it("should optimize image before JSON analysis on CPU", async () => {
       mockHardwareDetector.detect.mockResolvedValue({
         type: HardwareType.CPU,
         vramBytes: 0,
@@ -560,10 +567,10 @@ describe('LlamaVisionAdapter', () => {
       });
 
       mockOllamaClient.generateJSONWithImageSize.mockResolvedValue({
-        result: 'optimized',
+        result: "optimized",
       });
 
-      const result = await adapter.analyzeJSON(createTestBase64Image(600_000), 'test');
+      const result = await adapter.analyzeJSON(createTestBase64Image(600_000), "test");
 
       expect(mockImageOptimizer.optimizeForCPU).toHaveBeenCalled();
       expect(result.metrics.optimizationApplied).toBe(true);
@@ -574,9 +581,9 @@ describe('LlamaVisionAdapter', () => {
   // Edge Cases
   // ==========================================================================
 
-  describe('Edge Cases', () => {
-    it('should handle empty image', async () => {
-      const emptyImage = '';
+  describe("Edge Cases", () => {
+    it("should handle empty image", async () => {
+      const emptyImage = "";
 
       mockImageOptimizer.optimizeForCPU.mockResolvedValue({
         buffer: Buffer.alloc(0),
@@ -586,15 +593,15 @@ describe('LlamaVisionAdapter', () => {
         compressionRatio: 1,
         processingTimeMs: 0,
         skipped: true,
-        error: 'Empty buffer',
+        error: "Empty buffer",
       });
 
-      const result = await adapter.analyze(emptyImage, 'test');
+      const result = await adapter.analyze(emptyImage, "test");
 
       expect(result.metrics.optimizationError).toBeDefined();
     });
 
-    it('should handle very large images', async () => {
+    it("should handle very large images", async () => {
       const largeImage = createTestBase64Image(10_000_000); // 10MB
 
       mockHardwareDetector.detect.mockResolvedValue({
@@ -613,14 +620,14 @@ describe('LlamaVisionAdapter', () => {
         skipped: false,
       });
 
-      const result = await adapter.analyze(largeImage, 'test');
+      const result = await adapter.analyze(largeImage, "test");
 
       expect(result.metrics.optimizationApplied).toBe(true);
       expect(result.metrics.compressionRatio).toBeCloseTo(0.05, 2);
     });
 
-    it('should handle Buffer input', async () => {
-      const bufferImage = Buffer.alloc(50_000, 'B');
+    it("should handle Buffer input", async () => {
+      const bufferImage = Buffer.alloc(50_000, "B");
 
       mockImageOptimizer.optimizeForCPU.mockResolvedValue({
         buffer: bufferImage,
@@ -630,20 +637,22 @@ describe('LlamaVisionAdapter', () => {
         compressionRatio: 1,
         processingTimeMs: 1,
         skipped: true,
-        reason: 'No optimization needed',
+        reason: "No optimization needed",
       });
 
-      const result = await adapter.analyze(bufferImage, 'test');
+      const result = await adapter.analyze(bufferImage, "test");
 
       expect(result).toBeDefined();
       expect(result.response).toBeDefined();
     });
 
-    it('should handle concurrent analysis requests', async () => {
-      const images = Array(5).fill(null).map(() => createTestBase64Image(100_000));
+    it("should handle concurrent analysis requests", async () => {
+      const images = Array(5)
+        .fill(null)
+        .map(() => createTestBase64Image(100_000));
 
       const results = await Promise.all(
-        images.map((image) => adapter.analyze(image, 'concurrent test'))
+        images.map((image) => adapter.analyze(image, "concurrent test"))
       );
 
       expect(results).toHaveLength(5);

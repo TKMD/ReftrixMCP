@@ -10,7 +10,7 @@
  * @module tools/layout/inspect/visual-extractors.schemas
  */
 
-import { z } from 'zod';
+import { z } from "zod";
 
 // =====================================================
 // CSS Variable Extractor Schemas
@@ -20,12 +20,12 @@ import { z } from 'zod';
  * CSS Variable category enumeration
  */
 export const cssVariableCategorySchema = z.enum([
-  'color',
-  'spacing',
-  'typography',
-  'sizing',
-  'animation',
-  'other',
+  "color",
+  "spacing",
+  "typography",
+  "sizing",
+  "animation",
+  "other",
 ]);
 
 /**
@@ -33,7 +33,7 @@ export const cssVariableCategorySchema = z.enum([
  */
 export const cssVariableSchema = z.object({
   /** Variable name (e.g., '--color-primary') */
-  name: z.string().startsWith('--'),
+  name: z.string().startsWith("--"),
   /** Raw CSS value */
   value: z.string(),
   /** CSS selector where defined */
@@ -80,11 +80,11 @@ export const calcExpressionSchema = z.object({
  * Design token system type
  */
 export const designTokenSystemSchema = z.enum([
-  'tailwind',
-  'open-props',
-  'css-in-js',
-  'custom',
-  'unknown',
+  "tailwind",
+  "open-props",
+  "css-in-js",
+  "custom",
+  "unknown",
 ]);
 
 /**
@@ -123,12 +123,12 @@ export const cssVariableExtractionResultSchema = z.object({
  * Font category enumeration
  */
 export const fontCategorySchema = z.enum([
-  'serif',
-  'sans-serif',
-  'monospace',
-  'display',
-  'cursive',
-  'system',
+  "serif",
+  "sans-serif",
+  "monospace",
+  "display",
+  "cursive",
+  "system",
 ]);
 
 /**
@@ -223,15 +223,15 @@ export const fontWeightRangeSchema = z.object({
  * Type scale name enumeration
  */
 export const typeScaleNameSchema = z.enum([
-  'Minor Second',
-  'Major Second',
-  'Minor Third',
-  'Major Third',
-  'Perfect Fourth',
-  'Augmented Fourth',
-  'Perfect Fifth',
-  'Golden Ratio',
-  'Custom',
+  "Minor Second",
+  "Major Second",
+  "Minor Third",
+  "Major Third",
+  "Perfect Fourth",
+  "Augmented Fourth",
+  "Perfect Fifth",
+  "Golden Ratio",
+  "Custom",
 ]);
 
 /**
@@ -272,12 +272,12 @@ export const typographyExtractionResultSchema = z.object({
  * Gradient type enumeration
  */
 export const gradientTypeSchema = z.enum([
-  'linear',
-  'radial',
-  'conic',
-  'repeating-linear',
-  'repeating-radial',
-  'repeating-conic',
+  "linear",
+  "radial",
+  "conic",
+  "repeating-linear",
+  "repeating-radial",
+  "repeating-conic",
 ]);
 
 /**
@@ -387,10 +387,10 @@ export const gradientDetectionResultSchema = z.object({
  * - glass-morphism: Glass effect from backdrop-filter
  */
 export const visualDecorationTypeSchema = z.enum([
-  'glow',
-  'gradient',
-  'animated-border',
-  'glass-morphism',
+  "glow",
+  "gradient",
+  "animated-border",
+  "glass-morphism",
 ]);
 
 /**
@@ -420,7 +420,7 @@ export const glowPropertiesSchema = z.object({
  */
 export const gradientBackgroundPropertiesSchema = z.object({
   /** Gradient type */
-  gradientType: z.enum(['linear', 'radial', 'conic']),
+  gradientType: z.enum(["linear", "radial", "conic"]),
   /** Angle in degrees (for linear gradients) */
   angle: z.number().optional(),
   /** Color stops with position */
@@ -455,7 +455,7 @@ export const animatedBorderPropertiesSchema = z.object({
   /** Animation timing function */
   timingFunction: z.string().optional(),
   /** Animation iteration count */
-  iterationCount: z.union([z.number(), z.literal('infinite')]).optional(),
+  iterationCount: z.union([z.number(), z.literal("infinite")]).optional(),
   /** Border width */
   borderWidth: z.string().optional(),
   /** Border image source (gradient, URL, etc.) */
@@ -506,7 +506,7 @@ export const visualDecorationPropertiesSchema = z.object({
   inset: z.boolean().optional(),
 
   // Gradient properties
-  gradientType: z.enum(['linear', 'radial', 'conic']).optional(),
+  gradientType: z.enum(["linear", "radial", "conic"]).optional(),
   angle: z.number().optional(),
   colorStops: z
     .array(
@@ -524,7 +524,7 @@ export const visualDecorationPropertiesSchema = z.object({
   animationName: z.string().optional(),
   duration: z.number().optional(),
   timingFunction: z.string().optional(),
-  iterationCount: z.union([z.number(), z.literal('infinite')]).optional(),
+  iterationCount: z.union([z.number(), z.literal("infinite")]).optional(),
   borderWidth: z.string().optional(),
   borderImageSource: z.string().optional(),
   borderImageSlice: z.string().optional(),

@@ -17,7 +17,7 @@
  * - apps/mcp-server/src/services/vision/brandtone.analyzer.ts
  */
 
-import { VALID_MOODS } from './mood.analyzer.js';
+import { VALID_MOODS } from "./mood.analyzer.js";
 import {
   VALID_BRAND_TONES,
   PROFESSIONALISM_LEVELS,
@@ -25,7 +25,7 @@ import {
   MODERNITY_LEVELS,
   ENERGY_LEVELS,
   TARGET_AUDIENCES,
-} from './brandtone.analyzer.js';
+} from "./brandtone.analyzer.js";
 
 // =============================================================================
 // Theme Analysis Types
@@ -34,7 +34,7 @@ import {
 /**
  * Valid theme types for analysis
  */
-export const VALID_THEMES = ['light', 'dark', 'mixed'] as const;
+export const VALID_THEMES = ["light", "dark", "mixed"] as const;
 export type ThemeType = (typeof VALID_THEMES)[number];
 
 // =============================================================================
@@ -46,7 +46,7 @@ export type ThemeType = (typeof VALID_THEMES)[number];
  */
 export interface ColorContextForPrompt {
   dominantColors: string[];
-  theme: 'light' | 'dark';
+  theme: "light" | "dark";
   contentDensity: number;
 }
 
@@ -60,7 +60,7 @@ export interface ColorContextForPrompt {
 export function getMoodAnalysisPrompt(): string {
   return `Analyze this screenshot and identify the mood/atmosphere.
 
-Valid moods: ${VALID_MOODS.join(', ')}.
+Valid moods: ${VALID_MOODS.join(", ")}.
 
 Return JSON:
 {
@@ -82,16 +82,14 @@ Guidelines:
 /**
  * カラーコンテキスト付きMood分析プロンプト
  */
-export function getMoodAnalysisWithContextPrompt(
-  colorContext: ColorContextForPrompt
-): string {
+export function getMoodAnalysisWithContextPrompt(colorContext: ColorContextForPrompt): string {
   return `Analyze this screenshot and identify the mood/atmosphere.
 Consider the following color context:
-- Dominant colors: ${colorContext.dominantColors.join(', ')}
+- Dominant colors: ${colorContext.dominantColors.join(", ")}
 - Theme: ${colorContext.theme}
 - Content density: ${colorContext.contentDensity}
 
-Valid moods: ${VALID_MOODS.join(', ')}.
+Valid moods: ${VALID_MOODS.join(", ")}.
 
 Return JSON:
 {
@@ -121,12 +119,12 @@ Guidelines:
 export function getBrandToneAnalysisPrompt(): string {
   return `Analyze this screenshot and identify the brand tone/atmosphere.
 
-Valid brand tones: ${VALID_BRAND_TONES.join(', ')}.
-Professionalism levels: ${PROFESSIONALISM_LEVELS.join(', ')}.
-Warmth levels: ${WARMTH_LEVELS.join(', ')}.
-Modernity levels: ${MODERNITY_LEVELS.join(', ')}.
-Energy levels: ${ENERGY_LEVELS.join(', ')}.
-Target audiences: ${TARGET_AUDIENCES.join(', ')}.
+Valid brand tones: ${VALID_BRAND_TONES.join(", ")}.
+Professionalism levels: ${PROFESSIONALISM_LEVELS.join(", ")}.
+Warmth levels: ${WARMTH_LEVELS.join(", ")}.
+Modernity levels: ${MODERNITY_LEVELS.join(", ")}.
+Energy levels: ${ENERGY_LEVELS.join(", ")}.
+Target audiences: ${TARGET_AUDIENCES.join(", ")}.
 
 Return JSON:
 {
@@ -155,21 +153,19 @@ Guidelines:
 /**
  * カラーコンテキスト付きBrandTone分析プロンプト
  */
-export function getBrandToneAnalysisWithContextPrompt(
-  colorContext: ColorContextForPrompt
-): string {
+export function getBrandToneAnalysisWithContextPrompt(colorContext: ColorContextForPrompt): string {
   return `Analyze this screenshot and identify the brand tone/atmosphere.
 Consider the following color context:
-- Dominant colors: ${colorContext.dominantColors.join(', ')}
+- Dominant colors: ${colorContext.dominantColors.join(", ")}
 - Theme: ${colorContext.theme}
 - Content density: ${colorContext.contentDensity}
 
-Valid brand tones: ${VALID_BRAND_TONES.join(', ')}.
-Professionalism levels: ${PROFESSIONALISM_LEVELS.join(', ')}.
-Warmth levels: ${WARMTH_LEVELS.join(', ')}.
-Modernity levels: ${MODERNITY_LEVELS.join(', ')}.
-Energy levels: ${ENERGY_LEVELS.join(', ')}.
-Target audiences: ${TARGET_AUDIENCES.join(', ')}.
+Valid brand tones: ${VALID_BRAND_TONES.join(", ")}.
+Professionalism levels: ${PROFESSIONALISM_LEVELS.join(", ")}.
+Warmth levels: ${WARMTH_LEVELS.join(", ")}.
+Modernity levels: ${MODERNITY_LEVELS.join(", ")}.
+Energy levels: ${ENERGY_LEVELS.join(", ")}.
+Target audiences: ${TARGET_AUDIENCES.join(", ")}.
 
 Return JSON:
 {
@@ -213,7 +209,7 @@ Guidelines:
  * - JSON形式で構造化された出力
  */
 export function getThemeAnalysisPrompt(): string {
-  const validThemes = VALID_THEMES.join(', ');
+  const validThemes = VALID_THEMES.join(", ");
 
   return `Analyze this web page screenshot and determine the visual theme.
 
@@ -256,15 +252,13 @@ IMPORTANT: Dark backgrounds like #0A1628 (dark navy blue) should ALWAYS be class
 /**
  * カラーコンテキスト付きTheme分析プロンプト
  */
-export function getThemeAnalysisWithContextPrompt(
-  colorContext: ColorContextForPrompt
-): string {
-  const validThemes = VALID_THEMES.join(', ');
+export function getThemeAnalysisWithContextPrompt(colorContext: ColorContextForPrompt): string {
+  const validThemes = VALID_THEMES.join(", ");
 
   return `Analyze this web page screenshot and determine the visual theme.
 
 Consider the following color context:
-- Dominant colors: ${colorContext.dominantColors.join(', ')}
+- Dominant colors: ${colorContext.dominantColors.join(", ")}
 - Pre-detected theme hint: ${colorContext.theme}
 - Content density: ${colorContext.contentDensity}
 

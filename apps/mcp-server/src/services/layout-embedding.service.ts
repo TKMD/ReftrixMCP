@@ -19,21 +19,21 @@
  * @module services/layout-embedding.service
  */
 
-import { isDevelopment, logger } from '../utils/logger';
-import { createHash } from 'crypto';
+import { isDevelopment, logger } from "../utils/logger";
+import { createHash } from "crypto";
 import {
   type PersistentCache,
   createPersistentCache,
   type PersistentCacheStats,
-} from './persistent-cache';
-import type { SectionInfo, LayoutInspectData, VisionFeatures } from '../tools/layout/inspect';
+} from "./persistent-cache";
+import type { SectionInfo, LayoutInspectData, VisionFeatures } from "../tools/layout/inspect";
 
 // =====================================================
 // 定数
 // =====================================================
 
 /** デフォルトのモデル名 */
-export const DEFAULT_MODEL_NAME = 'multilingual-e5-base';
+export const DEFAULT_MODEL_NAME = "multilingual-e5-base";
 
 /** デフォルトのEmbedding次元数 */
 export const DEFAULT_EMBEDDING_DIMENSIONS = 768;
@@ -112,7 +112,7 @@ export interface EmbeddingCacheConfig {
 /** デフォルトのEmbeddingキャッシュ設定 */
 const DEFAULT_EMBEDDING_CACHE_CONFIG: EmbeddingCacheConfig = {
   enabled: true,
-  dbPath: '/tmp/reftrix-embedding-cache',
+  dbPath: "/tmp/reftrix-embedding-cache",
   maxSize: 10000,
   ttlMs: 24 * 60 * 60 * 1000, // 24時間
 };
@@ -141,15 +141,15 @@ interface EmbeddingCacheEntry {
 export interface VisionFeatureDataForEmbedding {
   type: string;
   // WhitespaceData
-  amount?: 'minimal' | 'moderate' | 'generous' | 'extreme';
-  distribution?: 'even' | 'top-heavy' | 'bottom-heavy' | 'centered';
+  amount?: "minimal" | "moderate" | "generous" | "extreme";
+  distribution?: "even" | "top-heavy" | "bottom-heavy" | "centered";
   // DensityData
-  level?: 'sparse' | 'balanced' | 'dense' | 'cluttered';
+  level?: "sparse" | "balanced" | "dense" | "cluttered";
   // RhythmData
-  pattern?: 'regular' | 'irregular' | 'progressive' | 'alternating';
+  pattern?: "regular" | "irregular" | "progressive" | "alternating";
   // VisualHierarchyData
   focalPoints?: string[];
-  flowDirection?: 'top-to-bottom' | 'left-to-right' | 'z-pattern' | 'f-pattern';
+  flowDirection?: "top-to-bottom" | "left-to-right" | "z-pattern" | "f-pattern";
   emphasisTechniques?: string[];
   // LayoutStructureData
   gridType?: string;
@@ -216,13 +216,13 @@ export interface SectionWithVision {
  * EmbeddingServiceインターフェース
  */
 export interface IEmbeddingService {
-  generateEmbedding(text: string, type: 'query' | 'passage'): Promise<number[]>;
-  generateBatchEmbeddings(texts: string[], type: 'query' | 'passage'): Promise<number[][]>;
+  generateEmbedding(text: string, type: "query" | "passage"): Promise<number[]>;
+  generateBatchEmbeddings(texts: string[], type: "query" | "passage"): Promise<number[][]>;
   getCacheStats(): CacheStats;
   clearCache(): void;
-  switchProvider?(provider: 'cpu' | 'cuda'): Promise<boolean>;
+  switchProvider?(provider: "cpu" | "cuda"): Promise<boolean>;
   releaseGpu?(): Promise<void>;
-  getCurrentProvider?(): 'cpu' | 'cuda';
+  getCurrentProvider?(): "cpu" | "cuda";
 }
 
 // ファクトリ関数（テスト時のDI用）
@@ -308,13 +308,13 @@ function sectionToTextRepresentation(section: DetectedSection): string {
 
   // 見出し
   if (section.content.headings.length > 0) {
-    const headingTexts = section.content.headings.map((h) => h.text).join(', ');
+    const headingTexts = section.content.headings.map((h) => h.text).join(", ");
     parts.push(`with headings: ${headingTexts}`);
   }
 
   // ボタン
   if (section.content.buttons.length > 0) {
-    const buttonTexts = section.content.buttons.map((b) => b.text).join(', ');
+    const buttonTexts = section.content.buttons.map((b) => b.text).join(", ");
     parts.push(`buttons: ${buttonTexts}`);
   }
 
@@ -323,9 +323,7 @@ function sectionToTextRepresentation(section: DetectedSection): string {
     const firstParagraph = section.content.paragraphs[0];
     if (firstParagraph && firstParagraph.length > 0) {
       const truncated =
-        firstParagraph.length > 100
-          ? firstParagraph.substring(0, 100) + '...'
-          : firstParagraph;
+        firstParagraph.length > 100 ? firstParagraph.substring(0, 100) + "..." : firstParagraph;
       parts.push(`content: "${truncated}"`);
     }
   }
@@ -339,10 +337,10 @@ function sectionToTextRepresentation(section: DetectedSection): string {
     styleInfo.push(`text color ${section.style.textColor}`);
   }
   if (section.style.hasGradient) {
-    styleInfo.push('gradient');
+    styleInfo.push("gradient");
   }
   if (styleInfo.length > 0) {
-    parts.push(`style: ${styleInfo.join(', ')}`);
+    parts.push(`style: ${styleInfo.join(", ")}`);
   }
 
   // 画像
@@ -355,7 +353,7 @@ function sectionToTextRepresentation(section: DetectedSection): string {
     parts.push(`${section.content.links.length} link(s)`);
   }
 
-  return parts.join('. ') + '.';
+  return parts.join(". ") + ".";
 }
 
 /**
@@ -367,9 +365,7 @@ function sectionToTextRepresentation(section: DetectedSection): string {
  * @param features - Vision特徴配列
  * @returns 構造化データに基づくテキスト配列
  */
-function extractStructuredVisionFeatures(
-  features: VisionFeatureForEmbedding[]
-): string[] {
+function extractStructuredVisionFeatures(features: VisionFeatureForEmbedding[]): string[] {
   const structuredParts: string[] = [];
 
   for (const feature of features) {
@@ -386,16 +382,16 @@ function extractStructuredVisionFeatures(
     }
 
     switch (data.type) {
-      case 'whitespace':
+      case "whitespace":
         if (data.amount || data.distribution) {
           const wsInfo: string[] = [];
           if (data.amount) wsInfo.push(`${data.amount} whitespace`);
           if (data.distribution) wsInfo.push(`${data.distribution} distribution`);
-          structuredParts.push(wsInfo.join(' with '));
+          structuredParts.push(wsInfo.join(" with "));
         }
         break;
 
-      case 'density':
+      case "density":
         if (data.level) {
           const densityInfo = `${data.level} content density`;
           if (data.description) {
@@ -406,7 +402,7 @@ function extractStructuredVisionFeatures(
         }
         break;
 
-      case 'rhythm':
+      case "rhythm":
         if (data.pattern) {
           const rhythmInfo = `${data.pattern} visual rhythm`;
           if (data.description) {
@@ -417,35 +413,35 @@ function extractStructuredVisionFeatures(
         }
         break;
 
-      case 'visual_hierarchy': {
+      case "visual_hierarchy": {
         const hierarchyParts: string[] = [];
         if (data.focalPoints && data.focalPoints.length > 0) {
-          hierarchyParts.push(`focal points: ${data.focalPoints.join(', ')}`);
+          hierarchyParts.push(`focal points: ${data.focalPoints.join(", ")}`);
         }
         if (data.flowDirection) {
           hierarchyParts.push(`flow: ${data.flowDirection}`);
         }
         if (data.emphasisTechniques && data.emphasisTechniques.length > 0) {
-          hierarchyParts.push(`emphasis: ${data.emphasisTechniques.join(', ')}`);
+          hierarchyParts.push(`emphasis: ${data.emphasisTechniques.join(", ")}`);
         }
         if (hierarchyParts.length > 0) {
-          structuredParts.push(`visual hierarchy with ${hierarchyParts.join(', ')}`);
+          structuredParts.push(`visual hierarchy with ${hierarchyParts.join(", ")}`);
         }
         break;
       }
 
-      case 'layout_structure': {
+      case "layout_structure": {
         const layoutParts: string[] = [];
         if (data.gridType) {
           layoutParts.push(`${data.gridType} layout`);
         }
         if (data.mainAreas && data.mainAreas.length > 0) {
-          layoutParts.push(`areas: ${data.mainAreas.join(', ')}`);
+          layoutParts.push(`areas: ${data.mainAreas.join(", ")}`);
         }
         if (data.description && layoutParts.length === 0) {
           structuredParts.push(data.description);
         } else if (layoutParts.length > 0) {
-          structuredParts.push(layoutParts.join(', '));
+          structuredParts.push(layoutParts.join(", "));
         }
         break;
       }
@@ -475,21 +471,16 @@ function extractStructuredVisionFeatures(
  * @param section - Vision分析付きセクション情報
  * @returns Embedding用テキスト表現
  */
-export function sectionToTextRepresentationWithVision(
-  section: SectionWithVision
-): string {
+export function sectionToTextRepresentationWithVision(section: SectionWithVision): string {
   const parts: string[] = [];
 
   // セクションタイプ
   parts.push(`${section.type} section`);
 
   // Vision分析結果を優先（より詳細な視覚特徴）
-  if (
-    section.visionFeatures?.success &&
-    section.visionFeatures.textRepresentation
-  ) {
+  if (section.visionFeatures?.success && section.visionFeatures.textRepresentation) {
     if (isDevelopment()) {
-      logger.info('[LayoutEmbedding] Using Vision-enhanced textRepresentation', {
+      logger.info("[LayoutEmbedding] Using Vision-enhanced textRepresentation", {
         sectionType: section.type,
         hasVisionText: true,
         visionTextLength: section.visionFeatures.textRepresentation.length,
@@ -498,18 +489,13 @@ export function sectionToTextRepresentationWithVision(
     parts.push(`Visual: ${section.visionFeatures.textRepresentation}`);
 
     // Vision featuresから構造化データを抽出
-    if (
-      section.visionFeatures.features &&
-      section.visionFeatures.features.length > 0
-    ) {
-      const structuredFeatures = extractStructuredVisionFeatures(
-        section.visionFeatures.features
-      );
+    if (section.visionFeatures.features && section.visionFeatures.features.length > 0) {
+      const structuredFeatures = extractStructuredVisionFeatures(section.visionFeatures.features);
 
       if (structuredFeatures.length > 0) {
         // 最大5つの構造化特徴を追加
         const limitedFeatures = structuredFeatures.slice(0, 5);
-        parts.push(`Features: ${limitedFeatures.join(', ')}`);
+        parts.push(`Features: ${limitedFeatures.join(", ")}`);
       } else {
         // 構造化データがない場合はdescriptionにフォールバック
         const highConfidenceFeatures = section.visionFeatures.features
@@ -518,13 +504,13 @@ export function sectionToTextRepresentationWithVision(
           .map((f) => f.description);
 
         if (highConfidenceFeatures.length > 0) {
-          parts.push(`Features: ${highConfidenceFeatures.join(', ')}`);
+          parts.push(`Features: ${highConfidenceFeatures.join(", ")}`);
         }
       }
     }
   } else {
     if (isDevelopment()) {
-      logger.info('[LayoutEmbedding] Vision features not available, using HTML-only', {
+      logger.info("[LayoutEmbedding] Vision features not available, using HTML-only", {
         sectionType: section.type,
         visionSuccess: section.visionFeatures?.success ?? false,
       });
@@ -533,22 +519,19 @@ export function sectionToTextRepresentationWithVision(
 
   // HTML解析結果（補完）
   if (section.content?.headings && section.content.headings.length > 0) {
-    const headingTexts = section.content.headings.map((h) => h.text).join(', ');
+    const headingTexts = section.content.headings.map((h) => h.text).join(", ");
     parts.push(`Headings: ${headingTexts}`);
   }
 
   // ボタン情報
   if (section.content?.buttons && section.content.buttons.length > 0) {
-    const buttonTexts = section.content.buttons.map((b) => b.text).join(', ');
+    const buttonTexts = section.content.buttons.map((b) => b.text).join(", ");
     parts.push(`Buttons: ${buttonTexts}`);
   }
 
   // 段落コンテンツ（最大200文字）
   if (section.content?.paragraphs && section.content.paragraphs.length > 0) {
-    const preview = section.content.paragraphs
-      .slice(0, 2)
-      .join(' ')
-      .substring(0, 200);
+    const preview = section.content.paragraphs.slice(0, 2).join(" ").substring(0, 200);
     if (preview.length > 0) {
       parts.push(`Content: ${preview}`);
     }
@@ -564,10 +547,10 @@ export function sectionToTextRepresentationWithVision(
       styleInfo.push(`text color ${section.style.textColor}`);
     }
     if (section.style.hasGradient) {
-      styleInfo.push('gradient');
+      styleInfo.push("gradient");
     }
     if (styleInfo.length > 0) {
-      parts.push(`Style: ${styleInfo.join(', ')}`);
+      parts.push(`Style: ${styleInfo.join(", ")}`);
     }
   }
 
@@ -581,7 +564,7 @@ export function sectionToTextRepresentationWithVision(
     parts.push(`${section.content.links.length} link(s)`);
   }
 
-  return parts.join('. ') + '.';
+  return parts.join(". ") + ".";
 }
 
 /**
@@ -598,7 +581,7 @@ export function convertToVisionFeaturesForEmbedding(
   }
 
   // 型ガード: success プロパティがあるか確認
-  if (typeof visionFeatures !== 'object' || !('success' in visionFeatures)) {
+  if (typeof visionFeatures !== "object" || !("success" in visionFeatures)) {
     return undefined;
   }
 
@@ -607,18 +590,21 @@ export function convertToVisionFeaturesForEmbedding(
   };
 
   // textRepresentation があれば抽出
-  if ('textRepresentation' in visionFeatures && typeof visionFeatures.textRepresentation === 'string') {
+  if (
+    "textRepresentation" in visionFeatures &&
+    typeof visionFeatures.textRepresentation === "string"
+  ) {
     result.textRepresentation = visionFeatures.textRepresentation;
   }
 
   // features があれば変換
-  if ('features' in visionFeatures && Array.isArray(visionFeatures.features)) {
+  if ("features" in visionFeatures && Array.isArray(visionFeatures.features)) {
     result.features = visionFeatures.features
-      .filter((f): f is Record<string, unknown> => typeof f === 'object' && f !== null)
+      .filter((f): f is Record<string, unknown> => typeof f === "object" && f !== null)
       .map((f) => ({
-        type: typeof f.type === 'string' ? f.type : 'unknown',
-        confidence: typeof f.confidence === 'number' ? f.confidence : 0,
-        description: typeof f.description === 'string' ? f.description : undefined,
+        type: typeof f.type === "string" ? f.type : "unknown",
+        confidence: typeof f.confidence === "number" ? f.confidence : 0,
+        description: typeof f.description === "string" ? f.description : undefined,
       }));
   }
 
@@ -636,7 +622,7 @@ function inspectResultToTextRepresentation(result: LayoutInspectData): string {
 
   // セクションからテキスト表現を生成
   const sectionTexts = result.sections.map((s) => sectionToTextRepresentation(s));
-  return sectionTexts.join(' ');
+  return sectionTexts.join(" ");
 }
 
 /**
@@ -689,7 +675,7 @@ export function initializeEmbeddingCache(config?: Partial<EmbeddingCacheConfig>)
 
   if (!embeddingCacheConfig.enabled) {
     if (isDevelopment()) {
-      logger.info('[LayoutEmbedding] Embedding cache disabled');
+      logger.info("[LayoutEmbedding] Embedding cache disabled");
     }
     return;
   }
@@ -702,7 +688,7 @@ export function initializeEmbeddingCache(config?: Partial<EmbeddingCacheConfig>)
   });
 
   if (isDevelopment()) {
-    logger.info('[LayoutEmbedding] Embedding cache initialized', {
+    logger.info("[LayoutEmbedding] Embedding cache initialized", {
       dbPath: embeddingCacheConfig.dbPath,
       maxSize: embeddingCacheConfig.maxSize,
       ttlMs: embeddingCacheConfig.ttlMs,
@@ -743,9 +729,9 @@ export async function closeEmbeddingCache(): Promise<void> {
  * テキストからキャッシュキーを生成（SHA-256ハッシュ）
  */
 function generateCacheKey(text: string, modelName: string): string {
-  const hash = createHash('sha256');
+  const hash = createHash("sha256");
   hash.update(`${modelName}:${text}`);
-  return hash.digest('hex');
+  return hash.digest("hex");
 }
 
 // =====================================================
@@ -773,7 +759,7 @@ export class LayoutEmbeddingService {
     }
 
     if (isDevelopment()) {
-      logger.info('[LayoutEmbedding] Service created', {
+      logger.info("[LayoutEmbedding] Service created", {
         modelName: this.options.modelName,
         dimensions: this.options.dimensions,
         cacheEnabled: this.options.cacheEnabled,
@@ -796,7 +782,9 @@ export class LayoutEmbeddingService {
     }
 
     // 実際のEmbeddingServiceをインポート（動的）
-    throw new Error('EmbeddingService not initialized. Use setEmbeddingServiceFactory in production.');
+    throw new Error(
+      "EmbeddingService not initialized. Use setEmbeddingServiceFactory in production."
+    );
   }
 
   /**
@@ -806,12 +794,12 @@ export class LayoutEmbeddingService {
    * @returns Embedding結果
    */
   async generateFromText(text: string): Promise<LayoutEmbeddingResult> {
-    if (!text || typeof text !== 'string') {
-      throw new Error('Invalid input: text must be a non-empty string');
+    if (!text || typeof text !== "string") {
+      throw new Error("Invalid input: text must be a non-empty string");
     }
 
     if (text.length === 0) {
-      throw new Error('Invalid input: text cannot be empty');
+      throw new Error("Invalid input: text cannot be empty");
     }
 
     const startTime = Date.now();
@@ -826,9 +814,9 @@ export class LayoutEmbeddingService {
           const processingTimeMs = Date.now() - startTime;
 
           if (isDevelopment()) {
-            logger.info('[LayoutEmbedding] Cache HIT', {
+            logger.info("[LayoutEmbedding] Cache HIT", {
               textLength: text.length,
-              cacheKey: cacheKey.substring(0, 16) + '...',
+              cacheKey: cacheKey.substring(0, 16) + "...",
               processingTimeMs,
             });
           }
@@ -843,21 +831,21 @@ export class LayoutEmbeddingService {
       } catch (cacheError) {
         // キャッシュエラーは無視して続行
         if (isDevelopment()) {
-          logger.warn('[LayoutEmbedding] Cache read error, proceeding without cache', {
-            error: cacheError instanceof Error ? cacheError.message : 'Unknown error',
+          logger.warn("[LayoutEmbedding] Cache read error, proceeding without cache", {
+            error: cacheError instanceof Error ? cacheError.message : "Unknown error",
           });
         }
       }
     }
 
     if (isDevelopment()) {
-      logger.info('[LayoutEmbedding] Cache MISS, generating from text', {
+      logger.info("[LayoutEmbedding] Cache MISS, generating from text", {
         textLength: text.length,
       });
     }
 
     const service = this.getEmbeddingService();
-    const embedding = await service.generateEmbedding(text, 'passage');
+    const embedding = await service.generateEmbedding(text, "passage");
 
     const processingTimeMs = Date.now() - startTime;
 
@@ -873,15 +861,15 @@ export class LayoutEmbeddingService {
 
       embeddingCache.set(cacheKey, cacheEntry).catch((error) => {
         if (isDevelopment()) {
-          logger.warn('[LayoutEmbedding] Cache write error', {
-            error: error instanceof Error ? error.message : 'Unknown error',
+          logger.warn("[LayoutEmbedding] Cache write error", {
+            error: error instanceof Error ? error.message : "Unknown error",
           });
         }
       });
     }
 
     if (isDevelopment()) {
-      logger.info('[LayoutEmbedding] Generated embedding', {
+      logger.info("[LayoutEmbedding] Generated embedding", {
         dimensions: embedding.length,
         processingTimeMs,
       });
@@ -902,14 +890,14 @@ export class LayoutEmbeddingService {
    * @returns Embedding結果
    */
   async generateFromSection(section: DetectedSection): Promise<LayoutEmbeddingResult> {
-    if (!section || typeof section !== 'object') {
-      throw new Error('Invalid input: section must be a valid object');
+    if (!section || typeof section !== "object") {
+      throw new Error("Invalid input: section must be a valid object");
     }
 
     const textRepresentation = sectionToTextRepresentation(section);
 
     if (isDevelopment()) {
-      logger.info('[LayoutEmbedding] Generating from section', {
+      logger.info("[LayoutEmbedding] Generating from section", {
         sectionType: section.type,
         textLength: textRepresentation.length,
       });
@@ -927,17 +915,15 @@ export class LayoutEmbeddingService {
    * @param section - Vision分析付きセクション情報
    * @returns Embedding結果
    */
-  async generateFromSectionWithVision(
-    section: SectionWithVision
-  ): Promise<LayoutEmbeddingResult> {
-    if (!section || typeof section !== 'object') {
-      throw new Error('Invalid input: section must be a valid object');
+  async generateFromSectionWithVision(section: SectionWithVision): Promise<LayoutEmbeddingResult> {
+    if (!section || typeof section !== "object") {
+      throw new Error("Invalid input: section must be a valid object");
     }
 
     const textRepresentation = sectionToTextRepresentationWithVision(section);
 
     if (isDevelopment()) {
-      logger.info('[LayoutEmbedding] Generating from section with Vision', {
+      logger.info("[LayoutEmbedding] Generating from section with Vision", {
         sectionType: section.type,
         hasVisionFeatures: section.visionFeatures?.success ?? false,
         textLength: textRepresentation.length,
@@ -968,7 +954,7 @@ export class LayoutEmbeddingService {
     const errors: Array<{ index: number; error: Error }> = [];
 
     if (isDevelopment()) {
-      logger.info('[LayoutEmbedding] Starting batch generation with Vision', {
+      logger.info("[LayoutEmbedding] Starting batch generation with Vision", {
         count: sections.length,
         sectionsWithVision: sections.filter((s) => s.visionFeatures?.success).length,
       });
@@ -980,7 +966,7 @@ export class LayoutEmbeddingService {
     // バッチ処理を試みる
     try {
       const service = this.getEmbeddingService();
-      const embeddings = await service.generateBatchEmbeddings(texts, 'passage');
+      const embeddings = await service.generateBatchEmbeddings(texts, "passage");
 
       for (let i = 0; i < sections.length; i++) {
         const embedding = embeddings[i];
@@ -1003,9 +989,12 @@ export class LayoutEmbeddingService {
     } catch (batchError) {
       // バッチ処理が失敗した場合、個別に処理
       if (isDevelopment()) {
-        logger.warn('[LayoutEmbedding] Batch processing with Vision failed, falling back to individual', {
-          error: batchError instanceof Error ? batchError.message : 'Unknown error',
-        });
+        logger.warn(
+          "[LayoutEmbedding] Batch processing with Vision failed, falling back to individual",
+          {
+            error: batchError instanceof Error ? batchError.message : "Unknown error",
+          }
+        );
       }
 
       for (let i = 0; i < sections.length; i++) {
@@ -1019,7 +1008,7 @@ export class LayoutEmbeddingService {
           if (continueOnError) {
             errors.push({
               index: i,
-              error: error instanceof Error ? error : new Error('Unknown error'),
+              error: error instanceof Error ? error : new Error("Unknown error"),
             });
           } else {
             throw error;
@@ -1036,7 +1025,7 @@ export class LayoutEmbeddingService {
     const totalTime = Date.now() - startTime;
 
     if (isDevelopment()) {
-      logger.info('[LayoutEmbedding] Batch generation with Vision completed', {
+      logger.info("[LayoutEmbedding] Batch generation with Vision completed", {
         total: sections.length,
         successful: results.length,
         errors: errors.length,
@@ -1068,7 +1057,7 @@ export class LayoutEmbeddingService {
     const errors: Array<{ index: number; error: Error }> = [];
 
     if (isDevelopment()) {
-      logger.info('[LayoutEmbedding] Starting batch generation', {
+      logger.info("[LayoutEmbedding] Starting batch generation", {
         count: sections.length,
       });
     }
@@ -1079,7 +1068,7 @@ export class LayoutEmbeddingService {
     // バッチ処理を試みる
     try {
       const service = this.getEmbeddingService();
-      const embeddings = await service.generateBatchEmbeddings(texts, 'passage');
+      const embeddings = await service.generateBatchEmbeddings(texts, "passage");
 
       for (let i = 0; i < sections.length; i++) {
         const embedding = embeddings[i];
@@ -1102,8 +1091,8 @@ export class LayoutEmbeddingService {
     } catch (batchError) {
       // バッチ処理が失敗した場合、個別に処理
       if (isDevelopment()) {
-        logger.warn('[LayoutEmbedding] Batch processing failed, falling back to individual', {
-          error: batchError instanceof Error ? batchError.message : 'Unknown error',
+        logger.warn("[LayoutEmbedding] Batch processing failed, falling back to individual", {
+          error: batchError instanceof Error ? batchError.message : "Unknown error",
         });
       }
 
@@ -1118,7 +1107,7 @@ export class LayoutEmbeddingService {
           if (continueOnError) {
             errors.push({
               index: i,
-              error: error instanceof Error ? error : new Error('Unknown error'),
+              error: error instanceof Error ? error : new Error("Unknown error"),
             });
           } else {
             throw error;
@@ -1135,7 +1124,7 @@ export class LayoutEmbeddingService {
     const totalTime = Date.now() - startTime;
 
     if (isDevelopment()) {
-      logger.info('[LayoutEmbedding] Batch generation completed', {
+      logger.info("[LayoutEmbedding] Batch generation completed", {
         total: sections.length,
         successful: results.length,
         errors: errors.length,
@@ -1152,13 +1141,11 @@ export class LayoutEmbeddingService {
    * @param result - LayoutInspect解析結果
    * @returns Embedding結果
    */
-  async generateFromInspectResult(
-    result: LayoutInspectData
-  ): Promise<LayoutEmbeddingResult> {
+  async generateFromInspectResult(result: LayoutInspectData): Promise<LayoutEmbeddingResult> {
     const textRepresentation = inspectResultToTextRepresentation(result);
 
     if (isDevelopment()) {
-      logger.info('[LayoutEmbedding] Generating from inspect result', {
+      logger.info("[LayoutEmbedding] Generating from inspect result", {
         sectionsCount: result.sections.length,
         textLength: textRepresentation.length,
       });
@@ -1243,7 +1230,7 @@ export class LayoutEmbeddingService {
     const startTime = Date.now();
 
     if (isDevelopment()) {
-      logger.info('[LayoutEmbedding] Batch generating from texts', {
+      logger.info("[LayoutEmbedding] Batch generating from texts", {
         count: texts.length,
       });
     }
@@ -1289,7 +1276,7 @@ export class LayoutEmbeddingService {
     // 未キャッシュ分をバッチ推論
     if (uncachedTexts.length > 0) {
       const service = this.getEmbeddingService();
-      const embeddings = await service.generateBatchEmbeddings(uncachedTexts, 'passage');
+      const embeddings = await service.generateBatchEmbeddings(uncachedTexts, "passage");
 
       for (let j = 0; j < embeddings.length; j++) {
         const idx = uncachedIndices[j];
@@ -1315,7 +1302,9 @@ export class LayoutEmbeddingService {
             textHash: cacheKey,
             createdAt: Date.now(),
           };
-          embeddingCache.set(cacheKey, cacheEntry).catch(() => { /* fire-and-forget */ });
+          embeddingCache.set(cacheKey, cacheEntry).catch(() => {
+            /* fire-and-forget */
+          });
         }
       }
     }
@@ -1323,7 +1312,7 @@ export class LayoutEmbeddingService {
     const processingTimeMs = Date.now() - startTime;
 
     if (isDevelopment()) {
-      logger.info('[LayoutEmbedding] Batch generation from texts completed', {
+      logger.info("[LayoutEmbedding] Batch generation from texts completed", {
         total: texts.length,
         cachedHits: texts.length - uncachedTexts.length,
         generated: uncachedTexts.length,
@@ -1351,16 +1340,16 @@ export class LayoutEmbeddingService {
 
     // IEmbeddingServiceにdispose()がない場合でも、実体がEmbeddingServiceならdispose可能
     const service = this.embeddingService as { dispose?: () => Promise<void> };
-    if (typeof service.dispose === 'function') {
+    if (typeof service.dispose === "function") {
       try {
         await service.dispose();
         if (isDevelopment()) {
-          logger.info('[LayoutEmbedding] ONNX pipeline disposed for memory recovery');
+          logger.info("[LayoutEmbedding] ONNX pipeline disposed for memory recovery");
         }
       } catch (disposeError) {
         if (isDevelopment()) {
-          logger.warn('[LayoutEmbedding] Pipeline dispose warning', {
-            error: disposeError instanceof Error ? disposeError.message : 'Unknown error',
+          logger.warn("[LayoutEmbedding] Pipeline dispose warning", {
+            error: disposeError instanceof Error ? disposeError.message : "Unknown error",
           });
         }
       }
@@ -1373,9 +1362,9 @@ export class LayoutEmbeddingService {
    * GpuResourceManagerから呼び出され、Embedding生成時にCPU/CUDA間を切り替える。
    * 内部のEmbeddingServiceがswitchProviderをサポートしていない場合はfalseを返す。
    */
-  async switchProvider(provider: 'cpu' | 'cuda'): Promise<boolean> {
+  async switchProvider(provider: "cpu" | "cuda"): Promise<boolean> {
     const service = this.getEmbeddingService();
-    if (typeof service.switchProvider === 'function') {
+    if (typeof service.switchProvider === "function") {
       return service.switchProvider(provider);
     }
     return false;
@@ -1388,7 +1377,7 @@ export class LayoutEmbeddingService {
    */
   async releaseGpu(): Promise<void> {
     const service = this.getEmbeddingService();
-    if (typeof service.releaseGpu === 'function') {
+    if (typeof service.releaseGpu === "function") {
       await service.releaseGpu();
     }
   }
@@ -1396,12 +1385,12 @@ export class LayoutEmbeddingService {
   /**
    * 現在のONNX実行プロバイダーを取得
    */
-  getCurrentProvider(): 'cpu' | 'cuda' {
+  getCurrentProvider(): "cpu" | "cuda" {
     const service = this.getEmbeddingService();
-    if (typeof service.getCurrentProvider === 'function') {
+    if (typeof service.getCurrentProvider === "function") {
       return service.getCurrentProvider();
     }
-    return 'cpu';
+    return "cpu";
   }
 }
 
@@ -1417,7 +1406,7 @@ function getPrismaClient(): IPrismaClient {
     return prismaClientFactory();
   }
 
-  throw new Error('PrismaClient not initialized. Use setPrismaClientFactory in production.');
+  throw new Error("PrismaClient not initialized. Use setPrismaClientFactory in production.");
 }
 
 /**
@@ -1455,12 +1444,12 @@ export async function saveSectionWithEmbedding(
   webPageId: string,
   embedding: number[],
   options?: SaveSectionOptions,
-  textRepresentation: string = ''
+  textRepresentation: string = ""
 ): Promise<string> {
   const prisma = getPrismaClient();
 
   if (isDevelopment()) {
-    logger.info('[LayoutEmbedding] Saving section with embedding', {
+    logger.info("[LayoutEmbedding] Saving section with embedding", {
       sectionType: section.type,
       webPageId,
       embeddingDimensions: embedding.length,
@@ -1477,7 +1466,7 @@ export async function saveSectionWithEmbedding(
       webPageId,
       sectionType: section.type,
       ...(sectionName !== undefined && { sectionName }),
-      positionIndex: parseInt(section.id.replace('section-', ''), 10) || 0,
+      positionIndex: parseInt(section.id.replace("section-", ""), 10) || 0,
       layoutInfo: {
         position: section.position,
         style: section.style,
@@ -1515,12 +1504,12 @@ export async function saveSectionEmbedding(
   sectionPatternId: string,
   embedding: number[],
   modelName: string,
-  textRepresentation: string = ''
+  textRepresentation: string = ""
 ): Promise<string> {
   const prisma = getPrismaClient();
 
   if (isDevelopment()) {
-    logger.info('[LayoutEmbedding] Saving section embedding', {
+    logger.info("[LayoutEmbedding] Saving section embedding", {
       sectionPatternId,
       modelName,
       embeddingDimensions: embedding.length,
@@ -1539,7 +1528,7 @@ export async function saveSectionEmbedding(
   });
 
   // pgvector形式でEmbeddingを更新
-  const vectorString = `[${embedding.join(',')}]`;
+  const vectorString = `[${embedding.join(",")}]`;
   await prisma.$executeRawUnsafe(
     `UPDATE section_embeddings SET text_embedding = $1::vector WHERE id = $2::uuid`,
     vectorString,
@@ -1554,7 +1543,7 @@ export async function saveSectionEmbedding(
 // =====================================================
 
 // PersistentCacheStats型を再エクスポート（MCP-CACHE-01）
-export type { PersistentCacheStats } from './persistent-cache';
+export type { PersistentCacheStats } from "./persistent-cache";
 
 // =====================================================
 // デフォルトエクスポート

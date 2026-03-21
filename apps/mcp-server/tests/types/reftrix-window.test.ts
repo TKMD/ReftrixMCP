@@ -9,7 +9,7 @@
  * @module tests/types/reftrix-window.test
  */
 
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach } from "vitest";
 
 // TDD Green: 実際の型定義ファイルからインポート
 import type {
@@ -18,26 +18,26 @@ import type {
   ReftrixIOTriggerInfo,
   ReftrixRAFData,
   ReftrixRAFCallbackData,
-} from '../../src/types/reftrix-window';
+} from "../../src/types/reftrix-window";
 
 import {
   isReftrixIOObserverInfo,
   isReftrixRAFData,
   createEmptyRAFData,
   createRAFCallbackData,
-} from '../../src/types/reftrix-window';
+} from "../../src/types/reftrix-window";
 
-describe('Reftrix Window型拡張', () => {
-  describe('型定義の存在確認', () => {
-    it('ReftrixIOObserverInfo型が正しいプロパティを持つ', () => {
+describe("Reftrix Window型拡張", () => {
+  describe("型定義の存在確認", () => {
+    it("ReftrixIOObserverInfo型が正しいプロパティを持つ", () => {
       // 型テスト: コンパイル時に検証される
       const observerInfo: ReftrixIOObserverInfo = {
         id: 1,
         targets: [],
         threshold: [0, 0.5, 1],
-        rootMargin: '0px',
+        rootMargin: "0px",
         root: undefined,
-        targetSelectors: ['.element', '#id'],
+        targetSelectors: [".element", "#id"],
       };
 
       expect(observerInfo.id).toBe(1);
@@ -45,24 +45,24 @@ describe('Reftrix Window型拡張', () => {
       expect(observerInfo.targetSelectors).toHaveLength(2);
     });
 
-    it('ReftrixIOTriggerInfo型が正しいプロパティを持つ', () => {
+    it("ReftrixIOTriggerInfo型が正しいプロパティを持つ", () => {
       const triggerInfo: ReftrixIOTriggerInfo = {
-        selector: '.animated-element',
+        selector: ".animated-element",
         time: Date.now(),
         ratio: 0.75,
       };
 
-      expect(triggerInfo.selector).toBe('.animated-element');
-      expect(typeof triggerInfo.time).toBe('number');
+      expect(triggerInfo.selector).toBe(".animated-element");
+      expect(typeof triggerInfo.time).toBe("number");
       expect(triggerInfo.ratio).toBe(0.75);
     });
 
-    it('ReftrixRAFCallbackData型が正しいプロパティを持つ', () => {
+    it("ReftrixRAFCallbackData型が正しいプロパティを持つ", () => {
       const callbackData: ReftrixRAFCallbackData = {
         callCount: 60,
         frameTimes: [16.67, 16.5, 17.0],
         lastTime: performance.now(),
-        modifiedElements: new Set(['.element1', '.element2']),
+        modifiedElements: new Set([".element1", ".element2"]),
         isActive: true,
       };
 
@@ -72,7 +72,7 @@ describe('Reftrix Window型拡張', () => {
       expect(callbackData.isActive).toBe(true);
     });
 
-    it('ReftrixRAFData型が正しいプロパティを持つ', () => {
+    it("ReftrixRAFData型が正しいプロパティを持つ", () => {
       const rafData: ReftrixRAFData = {
         callbacks: new Map(),
         nextId: 1,
@@ -91,7 +91,7 @@ describe('Reftrix Window型拡張', () => {
     });
   });
 
-  describe('Window拡張の型安全性', () => {
+  describe("Window拡張の型安全性", () => {
     // ブラウザ環境をシミュレート
     let mockWindow: ReftrixWindow;
 
@@ -105,13 +105,13 @@ describe('Reftrix Window型拡張', () => {
       } as ReftrixWindow;
     });
 
-    it('__reftrix_io_observers に ReftrixIOObserverInfo[] を設定できる', () => {
+    it("__reftrix_io_observers に ReftrixIOObserverInfo[] を設定できる", () => {
       const observers: ReftrixIOObserverInfo[] = [
         {
           id: 1,
           targets: [],
           threshold: [0],
-          rootMargin: '0px',
+          rootMargin: "0px",
           root: undefined,
           targetSelectors: [],
         },
@@ -123,25 +123,23 @@ describe('Reftrix Window型拡張', () => {
       expect(mockWindow.__reftrix_io_observers?.[0].id).toBe(1);
     });
 
-    it('__reftrix_io_hooked は boolean 型である', () => {
+    it("__reftrix_io_hooked は boolean 型である", () => {
       mockWindow.__reftrix_io_hooked = true;
       expect(mockWindow.__reftrix_io_hooked).toBe(true);
     });
 
-    it('__reftrix_io_triggers に ReftrixIOTriggerInfo[] を設定できる', () => {
-      mockWindow.__reftrix_io_triggers = [
-        { selector: '.test', time: Date.now(), ratio: 1 },
-      ];
+    it("__reftrix_io_triggers に ReftrixIOTriggerInfo[] を設定できる", () => {
+      mockWindow.__reftrix_io_triggers = [{ selector: ".test", time: Date.now(), ratio: 1 }];
 
       expect(mockWindow.__reftrix_io_triggers).toHaveLength(1);
     });
 
-    it('__reftrix_raf_hooked は boolean 型である', () => {
+    it("__reftrix_raf_hooked は boolean 型である", () => {
       mockWindow.__reftrix_raf_hooked = true;
       expect(mockWindow.__reftrix_raf_hooked).toBe(true);
     });
 
-    it('__reftrix_raf_data に ReftrixRAFData を設定できる', () => {
+    it("__reftrix_raf_data に ReftrixRAFData を設定できる", () => {
       mockWindow.__reftrix_raf_data = {
         callbacks: new Map(),
         nextId: 1,
@@ -151,19 +149,19 @@ describe('Reftrix Window型拡張', () => {
     });
   });
 
-  describe('型ガード関数', () => {
-    it('isReftrixIOObserverInfo が正しく判定する', () => {
+  describe("型ガード関数", () => {
+    it("isReftrixIOObserverInfo が正しく判定する", () => {
       const valid: ReftrixIOObserverInfo = {
         id: 1,
         targets: [],
         threshold: [0],
-        rootMargin: '0px',
+        rootMargin: "0px",
         root: undefined,
         targetSelectors: [],
       };
 
       const invalid = {
-        id: 'string', // 無効: number であるべき
+        id: "string", // 無効: number であるべき
         targets: [],
       };
 
@@ -173,7 +171,7 @@ describe('Reftrix Window型拡張', () => {
       expect(isReftrixIOObserverInfo(undefined)).toBe(false);
     });
 
-    it('isReftrixRAFData が正しく判定する', () => {
+    it("isReftrixRAFData が正しく判定する", () => {
       const valid: ReftrixRAFData = {
         callbacks: new Map(),
         nextId: 1,
@@ -189,8 +187,8 @@ describe('Reftrix Window型拡張', () => {
     });
   });
 
-  describe('ユーティリティ関数', () => {
-    it('createEmptyRAFData が正しい初期値を返す', () => {
+  describe("ユーティリティ関数", () => {
+    it("createEmptyRAFData が正しい初期値を返す", () => {
       const rafData = createEmptyRAFData();
 
       expect(rafData.callbacks).toBeInstanceOf(Map);
@@ -198,7 +196,7 @@ describe('Reftrix Window型拡張', () => {
       expect(rafData.nextId).toBe(1);
     });
 
-    it('createRAFCallbackData が正しい初期値を返す', () => {
+    it("createRAFCallbackData が正しい初期値を返す", () => {
       const callbackData = createRAFCallbackData();
 
       expect(callbackData.callCount).toBe(0);

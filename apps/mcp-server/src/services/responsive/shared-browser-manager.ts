@@ -11,9 +11,9 @@
  * @module services/responsive/shared-browser-manager
  */
 
-import { chromium, type Browser } from 'playwright';
-import { ROBOTS_TXT } from '@reftrix/core';
-import { logger, isDevelopment } from '../../utils/logger';
+import { chromium, type Browser } from "playwright";
+import { ROBOTS_TXT } from "@reftrix/core";
+import { logger, isDevelopment } from "../../utils/logger";
 
 /**
  * ReftrixBot 識別子
@@ -28,10 +28,8 @@ const BOT_SUFFIX = `${ROBOTS_TXT.PRODUCT_TOKEN}/1.0 (+https://reftrix.dev/bot)`;
  * 末尾に ReftrixBot 識別子を付与し、robots.txt 確認時の UA と整合させる
  */
 export const USER_AGENTS = {
-  MOBILE:
-    `Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.0 Mobile/15E148 Safari/604.1 ${BOT_SUFFIX}`,
-  DESKTOP:
-    `Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 ${BOT_SUFFIX}`,
+  MOBILE: `Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.0 Mobile/15E148 Safari/604.1 ${BOT_SUFFIX}`,
+  DESKTOP: `Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 ${BOT_SUFFIX}`,
 } as const;
 
 /**
@@ -66,7 +64,7 @@ export class SharedBrowserManager {
     if (!this.browser) {
       this.browser = await chromium.launch({
         headless: true,
-        args: ['--no-sandbox', '--disable-setuid-sandbox'],
+        args: ["--no-sandbox", "--disable-setuid-sandbox"],
       });
       if (isDevelopment()) {
         logger.debug(`[${this.serviceName}] Browser launched`);
@@ -115,6 +113,6 @@ export class SharedBrowserManager {
    * @returns UserAgent文字列
    */
   static getUserAgent(viewportName: string): string {
-    return viewportName === 'mobile' ? USER_AGENTS.MOBILE : USER_AGENTS.DESKTOP;
+    return viewportName === "mobile" ? USER_AGENTS.MOBILE : USER_AGENTS.DESKTOP;
   }
 }

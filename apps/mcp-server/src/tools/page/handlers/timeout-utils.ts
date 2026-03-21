@@ -12,19 +12,19 @@
  * @module tools/page/handlers/timeout-utils
  */
 
-import { logger, isDevelopment } from '../../../utils/logger';
+import { logger, isDevelopment } from "../../../utils/logger";
 import {
   PAGE_ANALYZE_TIMEOUTS,
   PAGE_ANALYZE_ERROR_CODES,
   type AnalysisWarning,
   type TimeoutStrategy,
   type ExecutionStatus,
-} from '../schemas';
+} from "../schemas";
 import {
   VisionTimeouts,
   HardwareType,
   TimeoutCalculator,
-} from '../../../services/vision/timeout-calculator';
+} from "../../../services/vision/timeout-calculator";
 
 // Re-export for external use
 export { VisionTimeouts, HardwareType };
@@ -46,7 +46,7 @@ export class PhaseTimeoutError extends Error {
 
   constructor(phase: string, timeoutMs: number) {
     super(`${phase} timed out after ${timeoutMs}ms`);
-    this.name = 'PhaseTimeoutError';
+    this.name = "PhaseTimeoutError";
     this.phase = phase;
     this.timeoutMs = timeoutMs;
   }
@@ -100,7 +100,7 @@ export async function withTimeoutGraceful<T>(
   promise: Promise<T>,
   timeoutMs: number,
   phaseName: string,
-  feature: 'layout' | 'motion' | 'quality',
+  feature: "layout" | "motion" | "quality",
   warnings: AnalysisWarning[]
 ): Promise<T | null> {
   const startTime = Date.now();
@@ -148,11 +148,12 @@ export async function withTimeoutGraceful<T>(
     }
 
     // feature に応じたエラーコードを選択
-    const errorCode = feature === 'layout'
-      ? PAGE_ANALYZE_ERROR_CODES.LAYOUT_ANALYSIS_FAILED
-      : feature === 'motion'
-        ? PAGE_ANALYZE_ERROR_CODES.MOTION_DETECTION_FAILED
-        : PAGE_ANALYZE_ERROR_CODES.QUALITY_EVALUATION_FAILED;
+    const errorCode =
+      feature === "layout"
+        ? PAGE_ANALYZE_ERROR_CODES.LAYOUT_ANALYSIS_FAILED
+        : feature === "motion"
+          ? PAGE_ANALYZE_ERROR_CODES.MOTION_DETECTION_FAILED
+          : PAGE_ANALYZE_ERROR_CODES.QUALITY_EVALUATION_FAILED;
 
     warnings.push({
       feature,
@@ -266,7 +267,7 @@ export function calculateEffectiveTimeout(
 
   // 延長が必要
   if (isDevelopment()) {
-    logger.debug('[timeout-utils] CPU Vision timeout extension', {
+    logger.debug("[timeout-utils] CPU Vision timeout extension", {
       originalTimeout,
       calculatedTimeout,
       clampedTimeout,
@@ -322,9 +323,7 @@ export function distributeTimeout(
 
   // WebGL検出時の追加タイムアウト乗数（JSアニメーション検出有効時のみ適用）
   // WebGLサイトはPlaywright起動 + ページ読み込み + CDP検出に時間がかかるため
-  const webglMultiplier = (webglInfo?.detected && hasJsAnimation)
-    ? webglInfo.multiplier
-    : 1.0;
+  const webglMultiplier = webglInfo?.detected && hasJsAnimation ? webglInfo.multiplier : 1.0;
 
   // モーションタイムアウトを有効な機能に基づいて計算
   // v0.1.0: JSアニメーション有効時は加算方式に変更（重いWebGLサイト対応）
@@ -369,11 +368,12 @@ export function distributeTimeout(
   // 計算されたタイムアウトに最小値を適用（モーション検出のみ）
   // モーション検出は外部CSS取得を含むため、最低時間を保証
   // 優先順位: WebGL+JS > FrameCapture > CSS-only
-  const minMotionTimeout = (webglInfo?.detected && hasJsAnimation)
-    ? MIN_WEBGL_JS_MOTION_TIMEOUT
-    : hasFrameCapture
-      ? MIN_FRAME_CAPTURE_MOTION_TIMEOUT
-      : MIN_MOTION_TIMEOUT;
+  const minMotionTimeout =
+    webglInfo?.detected && hasJsAnimation
+      ? MIN_WEBGL_JS_MOTION_TIMEOUT
+      : hasFrameCapture
+        ? MIN_FRAME_CAPTURE_MOTION_TIMEOUT
+        : MIN_MOTION_TIMEOUT;
 
   const calculatedMotionTimeout = Math.max(minMotionTimeout, Math.floor(motionTimeout * ratio));
   let calculatedLayoutTimeout = Math.floor(defaults.LAYOUT_ANALYSIS * ratio);
@@ -396,7 +396,7 @@ export function distributeTimeout(
     // layoutAnalysisタイムアウトがVision必要時間より短い場合は延長
     if (calculatedLayoutTimeout < visionRequiredTimeout) {
       if (isDevelopment()) {
-        logger.debug('[timeout-utils] CPU Vision timeout extension for layoutAnalysis', {
+        logger.debug("[timeout-utils] CPU Vision timeout extension for layoutAnalysis", {
           originalLayoutTimeout: calculatedLayoutTimeout,
           visionRequiredTimeout,
           hardwareType: hardwareInfo.type,
@@ -413,7 +413,7 @@ export function distributeTimeout(
   );
 
   if (isDevelopment()) {
-    logger.debug('[timeout-utils] distributeTimeout calculated', {
+    logger.debug("[timeout-utils] distributeTimeout calculated", {
       overallTimeout,
       hasFrameCapture,
       hasJsAnimation,
@@ -470,7 +470,7 @@ export function getRemainingTimeout(
 /**
  * 分析フェーズの種類
  */
-export type AnalysisPhase = 'html' | 'screenshot' | 'layout' | 'motion' | 'quality';
+export type AnalysisPhase = "html" | "screenshot" | "layout" | "motion" | "quality";
 
 /**
  * フェーズの優先順位（低い値が高優先）
@@ -502,7 +502,7 @@ export class ExecutionStatusTracker {
   private completedPhases: Set<AnalysisPhase> = new Set();
   private failedPhases: Set<AnalysisPhase> = new Set();
   /** タイムアウトで失敗したフェーズを個別に追跡（v0.1.0） */
-  private timedoutPhases: Set<'layout' | 'motion' | 'quality'> = new Set();
+  private timedoutPhases: Set<"layout" | "motion" | "quality"> = new Set();
   private startTime: number;
   private timeoutOccurred: boolean = false;
   private webglDetected: boolean = false;
@@ -556,7 +556,7 @@ export class ExecutionStatusTracker {
     this.completedPhases.add(phase);
     this.failedPhases.delete(phase); // 完了したら失敗リストから削除
     // タイムアウトフェーズからも削除
-    if (phase === 'layout' || phase === 'motion' || phase === 'quality') {
+    if (phase === "layout" || phase === "motion" || phase === "quality") {
       this.timedoutPhases.delete(phase);
     }
   }
@@ -569,7 +569,7 @@ export class ExecutionStatusTracker {
     if (isTimeout) {
       this.timeoutOccurred = true;
       // タイムアウトで失敗したフェーズを個別に追跡（v0.1.0）
-      if (phase === 'layout' || phase === 'motion' || phase === 'quality') {
+      if (phase === "layout" || phase === "motion" || phase === "quality") {
         this.timedoutPhases.add(phase);
       }
     }
@@ -615,7 +615,7 @@ export class ExecutionStatusTracker {
     );
 
     // タイムアウトフェーズを優先順位でソート（v0.1.0）
-    const TIMEOUT_PHASE_PRIORITY: Record<'layout' | 'motion' | 'quality', number> = {
+    const TIMEOUT_PHASE_PRIORITY: Record<"layout" | "motion" | "quality", number> = {
       layout: 2,
       motion: 3,
       quality: 4,
@@ -669,7 +669,7 @@ export class ExecutionStatusTracker {
    */
   shouldReturnPartialResults(): boolean {
     // Strict戦略では部分結果を返却しない
-    if (this.strategy === 'strict') {
+    if (this.strategy === "strict") {
       return false;
     }
 
@@ -679,14 +679,14 @@ export class ExecutionStatusTracker {
     }
 
     // 少なくともHTMLが取得できていれば部分結果を返却
-    return this.completedPhases.has('html');
+    return this.completedPhases.has("html");
   }
 
   /**
    * 全フェーズが完了したかどうか
    */
   isFullyCompleted(): boolean {
-    const allPhases: AnalysisPhase[] = ['html', 'screenshot', 'layout', 'motion', 'quality'];
+    const allPhases: AnalysisPhase[] = ["html", "screenshot", "layout", "motion", "quality"];
     return allPhases.every(
       (phase) => this.completedPhases.has(phase) || !this.isPhaseEnabled(phase)
     );
@@ -777,12 +777,15 @@ export async function withTimeoutAndTracking<T>(
       }
 
       // Strict戦略の場合は例外を再スロー
-      if (tracker.getStrategy() === 'strict') {
+      if (tracker.getStrategy() === "strict") {
         throw error;
       }
 
       // Progressive戦略の場合は警告を記録してnullを返す
-      const feature = phase === 'html' || phase === 'screenshot' ? 'layout' : phase as 'layout' | 'motion' | 'quality';
+      const feature =
+        phase === "html" || phase === "screenshot"
+          ? "layout"
+          : (phase as "layout" | "motion" | "quality");
       warnings.push({
         feature,
         code: PAGE_ANALYZE_ERROR_CODES.TIMEOUT_ERROR,
@@ -805,17 +808,21 @@ export async function withTimeoutAndTracking<T>(
     }
 
     // Strict戦略の場合は例外を再スロー
-    if (tracker.getStrategy() === 'strict') {
+    if (tracker.getStrategy() === "strict") {
       throw error;
     }
 
     // Progressive戦略の場合は警告を記録してnullを返す
-    const feature = phase === 'html' || phase === 'screenshot' ? 'layout' : phase as 'layout' | 'motion' | 'quality';
-    const errorCode = feature === 'layout'
-      ? PAGE_ANALYZE_ERROR_CODES.LAYOUT_ANALYSIS_FAILED
-      : feature === 'motion'
-        ? PAGE_ANALYZE_ERROR_CODES.MOTION_DETECTION_FAILED
-        : PAGE_ANALYZE_ERROR_CODES.QUALITY_EVALUATION_FAILED;
+    const feature =
+      phase === "html" || phase === "screenshot"
+        ? "layout"
+        : (phase as "layout" | "motion" | "quality");
+    const errorCode =
+      feature === "layout"
+        ? PAGE_ANALYZE_ERROR_CODES.LAYOUT_ANALYSIS_FAILED
+        : feature === "motion"
+          ? PAGE_ANALYZE_ERROR_CODES.MOTION_DETECTION_FAILED
+          : PAGE_ANALYZE_ERROR_CODES.QUALITY_EVALUATION_FAILED;
 
     warnings.push({
       feature,

@@ -8,22 +8,19 @@
  * @module services/responsive/responsive-analysis.service
  */
 
-import type { Browser } from 'playwright';
-import { logger, isDevelopment } from '../../utils/logger';
-import {
-  multiViewportCaptureService,
-  DEFAULT_VIEWPORTS,
-} from './multi-viewport-capture.service';
-import { differenceDetectorService } from './difference-detector.service';
-import { viewportDiffService } from './viewport-diff.service';
-import sharp from 'sharp';
+import type { Browser } from "playwright";
+import { logger, isDevelopment } from "../../utils/logger";
+import { multiViewportCaptureService, DEFAULT_VIEWPORTS } from "./multi-viewport-capture.service";
+import { differenceDetectorService } from "./difference-detector.service";
+import { viewportDiffService } from "./viewport-diff.service";
+import sharp from "sharp";
 import type {
   ResponsiveViewport,
   ResponsiveAnalysisResult,
   ResponsiveAnalysisOptions,
   MultiViewportCaptureOptions,
   ViewportDiffResult,
-} from './types';
+} from "./types";
 
 /**
  * 差分計算用スクリーンショットの高さ上限（px）
@@ -63,7 +60,7 @@ export class ResponsiveAnalysisService {
     const viewports = options.viewports ?? DEFAULT_VIEWPORTS;
 
     if (isDevelopment()) {
-      logger.info('[ResponsiveAnalysis] Starting responsive analysis', {
+      logger.info("[ResponsiveAnalysis] Starting responsive analysis", {
         url,
         viewports: viewports.map((v) => v.name),
         includeScreenshotsInResponse: options.include_screenshots,
@@ -82,7 +79,7 @@ export class ResponsiveAnalysisService {
         includeScreenshots: true,
         timeout: 30000,
         fullPage: true,
-        waitUntil: 'load',
+        waitUntil: "load",
         waitForDomStable: true,
         domStableTimeout: 500,
       };
@@ -99,7 +96,7 @@ export class ResponsiveAnalysisService {
       // エラーがあった場合はログ出力
       const errors = captureResults.filter((r) => r.error);
       if (errors.length > 0 && isDevelopment()) {
-        logger.warn('[ResponsiveAnalysis] Some viewports failed to capture', {
+        logger.warn("[ResponsiveAnalysis] Some viewports failed to capture", {
           errors: errors.map((e) => ({ viewport: e.viewport.name, error: e.error })),
         });
       }
@@ -109,7 +106,7 @@ export class ResponsiveAnalysisService {
 
       if (successfulCaptures.length < 2) {
         if (isDevelopment()) {
-          logger.warn('[ResponsiveAnalysis] Not enough successful captures for comparison', {
+          logger.warn("[ResponsiveAnalysis] Not enough successful captures for comparison", {
             successCount: successfulCaptures.length,
           });
         }
@@ -122,10 +119,10 @@ export class ResponsiveAnalysisService {
       }
 
       // Step 1.5: 外部CSSからブレークポイント抽出（range/preciseモード）
-      const breakpointResolution = options.breakpoint_resolution ?? 'range';
+      const breakpointResolution = options.breakpoint_resolution ?? "range";
       let externalBreakpoints: string[] = [];
 
-      if (breakpointResolution === 'range' || breakpointResolution === 'precise') {
+      if (breakpointResolution === "range" || breakpointResolution === "precise") {
         // 最初のキャプチャ結果のHTMLを使用してCSS URLを抽出
         const firstCapture = successfulCaptures[0];
         if (firstCapture?.html) {
@@ -144,7 +141,7 @@ export class ResponsiveAnalysisService {
           }
 
           if (isDevelopment()) {
-            logger.debug('[ResponsiveAnalysis] External breakpoints merged', {
+            logger.debug("[ResponsiveAnalysis] External breakpoints merged", {
               externalCount: externalBreakpoints.length,
             });
           }
@@ -155,9 +152,9 @@ export class ResponsiveAnalysisService {
       const detectionResult = differenceDetectorService.detectDifferences(successfulCaptures);
 
       // Step 2.1: preciseモードのブレークポイント二分探索
-      if (breakpointResolution === 'precise' && detectionResult.breakpoints.length > 0) {
+      if (breakpointResolution === "precise" && detectionResult.breakpoints.length > 0) {
         const candidateValues = detectionResult.breakpoints
-          .map((bp) => parseInt(bp.replace('px', ''), 10))
+          .map((bp) => parseInt(bp.replace("px", ""), 10))
           .filter((v) => !isNaN(v))
           .sort((a, b) => a - b);
 
@@ -172,31 +169,29 @@ export class ResponsiveAnalysisService {
             );
 
             // 検証済みブレークポイントで上書き
-            const verifiedBps = preciseResults
-              .filter((r) => r.verified)
-              .map((r) => `${r.value}px`);
+            const verifiedBps = preciseResults.filter((r) => r.verified).map((r) => `${r.value}px`);
 
             if (verifiedBps.length > 0) {
               const allBps = new Set([...detectionResult.breakpoints, ...verifiedBps]);
               detectionResult.breakpoints.length = 0;
               detectionResult.breakpoints.push(
                 ...Array.from(allBps).sort((a, b) => {
-                  const numA = parseInt(a.replace('px', ''), 10);
-                  const numB = parseInt(b.replace('px', ''), 10);
+                  const numA = parseInt(a.replace("px", ""), 10);
+                  const numB = parseInt(b.replace("px", ""), 10);
                   return numA - numB;
                 })
               );
             }
 
             if (isDevelopment()) {
-              logger.info('[ResponsiveAnalysis] Precise breakpoints detected', {
+              logger.info("[ResponsiveAnalysis] Precise breakpoints detected", {
                 candidates: candidateValues.length,
                 verified: preciseResults.filter((r) => r.verified).length,
               });
             }
           } catch (error) {
             if (isDevelopment()) {
-              logger.warn('[ResponsiveAnalysis] Precise breakpoint detection failed', {
+              logger.warn("[ResponsiveAnalysis] Precise breakpoint detection failed", {
                 error: error instanceof Error ? error.message : String(error),
               });
             }
@@ -210,7 +205,7 @@ export class ResponsiveAnalysisService {
       const screenshotMap = new Map<string, Buffer>();
       for (const capture of successfulCaptures) {
         if (capture.screenshot?.screenshot?.base64) {
-          const fullBuffer = Buffer.from(capture.screenshot.screenshot.base64, 'base64');
+          const fullBuffer = Buffer.from(capture.screenshot.screenshot.base64, "base64");
           const metadata = await sharp(fullBuffer).metadata();
           const imgHeight = metadata.height ?? 0;
 
@@ -234,7 +229,7 @@ export class ResponsiveAnalysisService {
         });
 
         if (isDevelopment()) {
-          logger.debug('[ResponsiveAnalysis] Viewport diff completed', {
+          logger.debug("[ResponsiveAnalysis] Viewport diff completed", {
             pairCount: viewportDiffs.length,
           });
         }
@@ -244,20 +239,20 @@ export class ResponsiveAnalysisService {
       let filteredDifferences = detectionResult.differences;
 
       if (options.detect_navigation === false) {
-        filteredDifferences = filteredDifferences.filter((d) => d.category !== 'navigation');
+        filteredDifferences = filteredDifferences.filter((d) => d.category !== "navigation");
       }
       if (options.detect_visibility === false) {
-        filteredDifferences = filteredDifferences.filter((d) => d.category !== 'visibility');
+        filteredDifferences = filteredDifferences.filter((d) => d.category !== "visibility");
       }
       if (options.detect_layout === false) {
-        filteredDifferences = filteredDifferences.filter((d) => d.category !== 'layout');
+        filteredDifferences = filteredDifferences.filter((d) => d.category !== "layout");
       }
 
       // Step 4: 結果構築
       const analysisTimeMs = Date.now() - startTime;
 
       if (isDevelopment()) {
-        logger.info('[ResponsiveAnalysis] Responsive analysis completed', {
+        logger.info("[ResponsiveAnalysis] Responsive analysis completed", {
           url,
           viewportsAnalyzed: successfulCaptures.length,
           differencesFound: filteredDifferences.length,
@@ -291,7 +286,7 @@ export class ResponsiveAnalysisService {
       const errorMessage = error instanceof Error ? error.message : String(error);
 
       if (isDevelopment()) {
-        logger.error('[ResponsiveAnalysis] Responsive analysis failed', {
+        logger.error("[ResponsiveAnalysis] Responsive analysis failed", {
           url,
           error: errorMessage,
         });
@@ -310,8 +305,8 @@ export class ResponsiveAnalysisService {
       return sharedBrowser;
     }
     // chromium.launchを直接呼ぶ代わりに一時キャプチャでブラウザを取得
-    const { chromium } = await import('playwright');
-    return chromium.launch({ args: ['--no-sandbox', '--disable-setuid-sandbox'] });
+    const { chromium } = await import("playwright");
+    return chromium.launch({ args: ["--no-sandbox", "--disable-setuid-sandbox"] });
   }
 
   /**

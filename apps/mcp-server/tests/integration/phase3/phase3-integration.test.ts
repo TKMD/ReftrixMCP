@@ -18,17 +18,17 @@
  * @module tests/integration/phase3/phase3-integration.test
  */
 
-import { describe, it, expect, beforeEach, afterEach, vi, type Mock } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi, type Mock } from "vitest";
 
 // ============================================================================
 // モック設定
 // ============================================================================
 
 // Redisモック
-vi.mock('../../../src/config/redis', () => ({
+vi.mock("../../../src/config/redis", () => ({
   isRedisAvailable: vi.fn(),
   getRedisConfig: vi.fn(() => ({
-    host: 'localhost',
+    host: "localhost",
     port: 27379,
     maxRetriesPerRequest: 3,
     connectTimeout: 5000,
@@ -40,8 +40,8 @@ vi.mock('../../../src/config/redis', () => ({
 }));
 
 // BullMQキューモック
-vi.mock('../../../src/queues/page-analyze-queue', () => ({
-  PAGE_ANALYZE_QUEUE_NAME: 'page-analyze',
+vi.mock("../../../src/queues/page-analyze-queue", () => ({
+  PAGE_ANALYZE_QUEUE_NAME: "page-analyze",
   createPageAnalyzeQueue: vi.fn(),
   addPageAnalyzeJob: vi.fn(),
   getJobStatus: vi.fn(),
@@ -50,17 +50,13 @@ vi.mock('../../../src/queues/page-analyze-queue', () => ({
 }));
 
 // Workerモック
-vi.mock('../../../src/workers/page-analyze-worker', () => ({
+vi.mock("../../../src/workers/page-analyze-worker", () => ({
   createPageAnalyzeWorker: vi.fn(),
   processPageAnalyzeJob: vi.fn(),
 }));
 
 // インポート
-import {
-  isRedisAvailable,
-  checkRedisConnection,
-  getRedisConfig,
-} from '../../../src/config/redis';
+import { isRedisAvailable, checkRedisConnection, getRedisConfig } from "../../../src/config/redis";
 import {
   PAGE_ANALYZE_QUEUE_NAME,
   createPageAnalyzeQueue,
@@ -71,10 +67,8 @@ import {
   type PageAnalyzeJobData,
   type PageAnalyzeJobResult,
   type PageAnalyzeJobStatus,
-} from '../../../src/queues/page-analyze-queue';
-import {
-  createPageAnalyzeWorker,
-} from '../../../src/workers/page-analyze-worker';
+} from "../../../src/queues/page-analyze-queue";
+import { createPageAnalyzeWorker } from "../../../src/workers/page-analyze-worker";
 
 // ============================================================================
 // 定数
@@ -84,10 +78,10 @@ import {
 const MCP_MAX_TIMEOUT_MS = 600000;
 
 /** テスト用WebページID */
-const TEST_WEB_PAGE_ID = '01903a5b-7c8d-7000-8000-000000000001';
+const TEST_WEB_PAGE_ID = "01903a5b-7c8d-7000-8000-000000000001";
 
 /** テスト用URL */
-const TEST_URL = 'https://example.com/test-page';
+const TEST_URL = "https://example.com/test-page";
 
 // ============================================================================
 // モックデータ Factory
@@ -117,12 +111,12 @@ function createMockJobResult(overrides?: Partial<PageAnalyzeJobResult>): PageAna
     webPageId: TEST_WEB_PAGE_ID,
     success: true,
     partialSuccess: false,
-    completedPhases: ['ingest', 'layout', 'motion', 'quality'],
+    completedPhases: ["ingest", "layout", "motion", "quality"],
     failedPhases: [],
     results: {
       layout: { sectionsDetected: 5, visionUsed: true },
       motion: { patternsDetected: 10, jsAnimationsDetected: 3 },
-      quality: { overallScore: 85, grade: 'A' },
+      quality: { overallScore: 85, grade: "A" },
     },
     processingTimeMs: 5000,
     completedAt: new Date().toISOString(),
@@ -134,31 +128,31 @@ function createMockJobResult(overrides?: Partial<PageAnalyzeJobResult>): PageAna
  * モックジョブステータスを生成
  */
 function createMockJobStatus(
-  state: PageAnalyzeJobStatus['state'],
+  state: PageAnalyzeJobStatus["state"],
   overrides?: Partial<PageAnalyzeJobStatus>
 ): PageAnalyzeJobStatus {
   const base: PageAnalyzeJobStatus = {
     jobId: TEST_WEB_PAGE_ID,
     state,
-    progress: state === 'completed' ? 100 : state === 'active' ? 50 : 0,
+    progress: state === "completed" ? 100 : state === "active" ? 50 : 0,
     timestamps: {
       created: Date.now() - 60000,
     },
   };
 
-  if (state === 'active') {
-    base.currentPhase = 'layout';
+  if (state === "active") {
+    base.currentPhase = "layout";
     base.timestamps.started = Date.now() - 30000;
   }
 
-  if (state === 'completed') {
+  if (state === "completed") {
     base.result = createMockJobResult();
     base.timestamps.started = Date.now() - 30000;
     base.timestamps.completed = Date.now() - 5000;
   }
 
-  if (state === 'failed') {
-    base.error = 'Timeout: page analysis exceeded 600 seconds';
+  if (state === "failed") {
+    base.error = "Timeout: page analysis exceeded 600 seconds";
     base.timestamps.started = Date.now() - 60000;
     base.timestamps.failed = Date.now() - 5000;
   }
@@ -195,7 +189,7 @@ function createMockQueue(): {
 // Phase3-1: BullMQ + Redis基盤 テスト
 // ============================================================================
 
-describe('Phase3-1: BullMQ + Redis基盤', () => {
+describe("Phase3-1: BullMQ + Redis基盤", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
@@ -204,14 +198,14 @@ describe('Phase3-1: BullMQ + Redis基盤', () => {
     vi.restoreAllMocks();
   });
 
-  describe('Redis接続', () => {
-    it('should connect to Redis successfully', async () => {
+  describe("Redis接続", () => {
+    it("should connect to Redis successfully", async () => {
       // Arrange
       (checkRedisConnection as Mock).mockResolvedValue({
         connected: true,
         info: {
-          version: '7.0.0',
-          mode: 'standalone',
+          version: "7.0.0",
+          mode: "standalone",
           connectedClients: 1,
         },
       });
@@ -224,11 +218,11 @@ describe('Phase3-1: BullMQ + Redis基盤', () => {
       expect(status.info?.version).toBeDefined();
     });
 
-    it('should return error when Redis is unavailable', async () => {
+    it("should return error when Redis is unavailable", async () => {
       // Arrange
       (checkRedisConnection as Mock).mockResolvedValue({
         connected: false,
-        error: 'ECONNREFUSED',
+        error: "ECONNREFUSED",
       });
 
       // Act
@@ -236,10 +230,10 @@ describe('Phase3-1: BullMQ + Redis基盤', () => {
 
       // Assert
       expect(status.connected).toBe(false);
-      expect(status.error).toContain('ECONNREFUSED');
+      expect(status.error).toContain("ECONNREFUSED");
     });
 
-    it('should use port offset 27379 by default', () => {
+    it("should use port offset 27379 by default", () => {
       // Act
       const config = getRedisConfig();
 
@@ -249,8 +243,8 @@ describe('Phase3-1: BullMQ + Redis基盤', () => {
     });
   });
 
-  describe('キュー作成', () => {
-    it('should create page-analyze queue', () => {
+  describe("キュー作成", () => {
+    it("should create page-analyze queue", () => {
       // Arrange
       const mockQueue = createMockQueue();
       (createPageAnalyzeQueue as Mock).mockReturnValue(mockQueue);
@@ -263,14 +257,14 @@ describe('Phase3-1: BullMQ + Redis基盤', () => {
       expect(queue).toBeDefined();
     });
 
-    it('should use correct queue name', () => {
+    it("should use correct queue name", () => {
       // Assert
-      expect(PAGE_ANALYZE_QUEUE_NAME).toBe('page-analyze');
+      expect(PAGE_ANALYZE_QUEUE_NAME).toBe("page-analyze");
     });
   });
 
-  describe('ジョブ追加', () => {
-    it('should add job to queue', async () => {
+  describe("ジョブ追加", () => {
+    it("should add job to queue", async () => {
       // Arrange
       const mockQueue = createMockQueue();
       const mockJob = {
@@ -280,14 +274,11 @@ describe('Phase3-1: BullMQ + Redis基盤', () => {
       (addPageAnalyzeJob as Mock).mockResolvedValue(mockJob);
 
       // Act
-      const job = await addPageAnalyzeJob(
-        mockQueue as any,
-        {
-          webPageId: TEST_WEB_PAGE_ID,
-          url: TEST_URL,
-          options: { timeout: 60000 },
-        }
-      );
+      const job = await addPageAnalyzeJob(mockQueue as any, {
+        webPageId: TEST_WEB_PAGE_ID,
+        url: TEST_URL,
+        options: { timeout: 60000 },
+      });
 
       // Assert
       expect(addPageAnalyzeJob).toHaveBeenCalled();
@@ -295,7 +286,7 @@ describe('Phase3-1: BullMQ + Redis基盤', () => {
       expect(job.data.url).toBe(TEST_URL);
     });
 
-    it('should use webPageId as job ID', async () => {
+    it("should use webPageId as job ID", async () => {
       // Arrange
       const mockJob = {
         id: TEST_WEB_PAGE_ID,
@@ -315,8 +306,8 @@ describe('Phase3-1: BullMQ + Redis基盤', () => {
     });
   });
 
-  describe('ヘルスチェック', () => {
-    it('should return healthy queue status', async () => {
+  describe("ヘルスチェック", () => {
+    it("should return healthy queue status", async () => {
       // Arrange
       (checkQueueHealth as Mock).mockResolvedValue({
         healthy: true,
@@ -338,7 +329,7 @@ describe('Phase3-1: BullMQ + Redis基盤', () => {
       expect(health.stats.active).toBeGreaterThanOrEqual(0);
     });
 
-    it('should return unhealthy when Redis is unavailable', async () => {
+    it("should return unhealthy when Redis is unavailable", async () => {
       // Arrange
       (checkQueueHealth as Mock).mockResolvedValue({
         healthy: false,
@@ -349,7 +340,7 @@ describe('Phase3-1: BullMQ + Redis基盤', () => {
           failed: 0,
           delayed: 0,
         },
-        error: 'Redis connection failed',
+        error: "Redis connection failed",
       });
 
       // Act
@@ -357,7 +348,7 @@ describe('Phase3-1: BullMQ + Redis基盤', () => {
 
       // Assert
       expect(health.healthy).toBe(false);
-      expect(health.error).toContain('Redis');
+      expect(health.error).toContain("Redis");
     });
   });
 });
@@ -366,7 +357,7 @@ describe('Phase3-1: BullMQ + Redis基盤', () => {
 // Phase3-2: page.analyze 非同期モード テスト
 // ============================================================================
 
-describe('Phase3-2: page.analyze 非同期モード', () => {
+describe("Phase3-2: page.analyze 非同期モード", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
@@ -375,8 +366,8 @@ describe('Phase3-2: page.analyze 非同期モード', () => {
     vi.restoreAllMocks();
   });
 
-  describe('async=true時のジョブ投入', () => {
-    it('should queue job when async=true and Redis is available', async () => {
+  describe("async=true時のジョブ投入", () => {
+    it("should queue job when async=true and Redis is available", async () => {
       // Arrange
       (isRedisAvailable as Mock).mockResolvedValue(true);
       const mockJob = {
@@ -395,7 +386,7 @@ describe('Phase3-2: page.analyze 非同期モード', () => {
       expect(job.id).toBe(TEST_WEB_PAGE_ID);
     });
 
-    it('should return jobId in async response', async () => {
+    it("should return jobId in async response", async () => {
       // Arrange
       const mockJob = {
         id: TEST_WEB_PAGE_ID,
@@ -411,12 +402,14 @@ describe('Phase3-2: page.analyze 非同期モード', () => {
       });
 
       // Assert
-      expect(job.id).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i);
+      expect(job.id).toMatch(
+        /^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+      );
     });
   });
 
-  describe('Redis未起動時のエラーハンドリング', () => {
-    it('should return error when Redis is unavailable', async () => {
+  describe("Redis未起動時のエラーハンドリング", () => {
+    it("should return error when Redis is unavailable", async () => {
       // Arrange
       (isRedisAvailable as Mock).mockResolvedValue(false);
 
@@ -428,10 +421,10 @@ describe('Phase3-2: page.analyze 非同期モード', () => {
     });
   });
 
-  describe('page.getJobStatus', () => {
-    it('should get job status via getJobStatus', async () => {
+  describe("page.getJobStatus", () => {
+    it("should get job status via getJobStatus", async () => {
       // Arrange
-      const mockStatus = createMockJobStatus('completed');
+      const mockStatus = createMockJobStatus("completed");
       (getJobStatus as Mock).mockResolvedValue(mockStatus);
 
       // Act
@@ -440,38 +433,38 @@ describe('Phase3-2: page.analyze 非同期モード', () => {
       // Assert
       expect(status).not.toBeNull();
       expect(status?.jobId).toBe(TEST_WEB_PAGE_ID);
-      expect(status?.state).toBe('completed');
+      expect(status?.state).toBe("completed");
       expect(status?.result).toBeDefined();
     });
 
-    it('should return null when job does not exist', async () => {
+    it("should return null when job does not exist", async () => {
       // Arrange
       (getJobStatus as Mock).mockResolvedValue(null);
 
       // Act
-      const status = await getJobStatus({} as any, 'non-existent-job-id');
+      const status = await getJobStatus({} as any, "non-existent-job-id");
 
       // Assert
       expect(status).toBeNull();
     });
 
-    it('should return waiting status for queued jobs', async () => {
+    it("should return waiting status for queued jobs", async () => {
       // Arrange
-      const mockStatus = createMockJobStatus('waiting');
+      const mockStatus = createMockJobStatus("waiting");
       (getJobStatus as Mock).mockResolvedValue(mockStatus);
 
       // Act
       const status = await getJobStatus({} as any, TEST_WEB_PAGE_ID);
 
       // Assert
-      expect(status?.state).toBe('waiting');
+      expect(status?.state).toBe("waiting");
       expect(status?.progress).toBe(0);
     });
 
-    it('should return active status with currentPhase for in-progress jobs', async () => {
+    it("should return active status with currentPhase for in-progress jobs", async () => {
       // Arrange
-      const mockStatus = createMockJobStatus('active', {
-        currentPhase: 'motion',
+      const mockStatus = createMockJobStatus("active", {
+        currentPhase: "motion",
         progress: 60,
       });
       (getJobStatus as Mock).mockResolvedValue(mockStatus);
@@ -480,22 +473,22 @@ describe('Phase3-2: page.analyze 非同期モード', () => {
       const status = await getJobStatus({} as any, TEST_WEB_PAGE_ID);
 
       // Assert
-      expect(status?.state).toBe('active');
-      expect(status?.currentPhase).toBe('motion');
+      expect(status?.state).toBe("active");
+      expect(status?.currentPhase).toBe("motion");
       expect(status?.progress).toBe(60);
     });
 
-    it('should return failed status with error for failed jobs', async () => {
+    it("should return failed status with error for failed jobs", async () => {
       // Arrange
-      const mockStatus = createMockJobStatus('failed');
+      const mockStatus = createMockJobStatus("failed");
       (getJobStatus as Mock).mockResolvedValue(mockStatus);
 
       // Act
       const status = await getJobStatus({} as any, TEST_WEB_PAGE_ID);
 
       // Assert
-      expect(status?.state).toBe('failed');
-      expect(status?.error).toContain('Timeout');
+      expect(status?.state).toBe("failed");
+      expect(status?.error).toContain("Timeout");
     });
   });
 });
@@ -504,7 +497,7 @@ describe('Phase3-2: page.analyze 非同期モード', () => {
 // Phase3 Worker処理 テスト
 // ============================================================================
 
-describe('Phase3 Worker処理', () => {
+describe("Phase3 Worker処理", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
@@ -513,8 +506,8 @@ describe('Phase3 Worker処理', () => {
     vi.restoreAllMocks();
   });
 
-  describe('Worker作成', () => {
-    it('should create worker with correct concurrency', () => {
+  describe("Worker作成", () => {
+    it("should create worker with correct concurrency", () => {
       // Arrange
       const mockWorker = {
         worker: {},
@@ -535,7 +528,7 @@ describe('Phase3 Worker処理', () => {
       expect(workerInstance.isRunning()).toBe(true);
     });
 
-    it('should create worker with lockDuration=600000ms', () => {
+    it("should create worker with lockDuration=600000ms", () => {
       // Arrange
       const mockWorker = {
         worker: {},
@@ -556,26 +549,26 @@ describe('Phase3 Worker処理', () => {
     });
   });
 
-  describe('Worker処理結果', () => {
-    it('should return completed result on success', async () => {
+  describe("Worker処理結果", () => {
+    it("should return completed result on success", async () => {
       // Arrange
       const mockResult = createMockJobResult();
 
       // Assert - モックで想定される結果構造
       expect(mockResult.success).toBe(true);
-      expect(mockResult.completedPhases).toContain('layout');
-      expect(mockResult.completedPhases).toContain('motion');
-      expect(mockResult.completedPhases).toContain('quality');
+      expect(mockResult.completedPhases).toContain("layout");
+      expect(mockResult.completedPhases).toContain("motion");
+      expect(mockResult.completedPhases).toContain("quality");
       expect(mockResult.failedPhases).toEqual([]);
     });
 
-    it('should return partial success when some phases fail', async () => {
+    it("should return partial success when some phases fail", async () => {
       // Arrange
       const mockResult = createMockJobResult({
         success: false,
         partialSuccess: true,
-        completedPhases: ['ingest', 'layout'],
-        failedPhases: ['motion', 'quality'],
+        completedPhases: ["ingest", "layout"],
+        failedPhases: ["motion", "quality"],
         results: {
           layout: { sectionsDetected: 5, visionUsed: true },
         },
@@ -584,19 +577,19 @@ describe('Phase3 Worker処理', () => {
       // Assert
       expect(mockResult.success).toBe(false);
       expect(mockResult.partialSuccess).toBe(true);
-      expect(mockResult.completedPhases).toContain('layout');
-      expect(mockResult.failedPhases).toContain('motion');
+      expect(mockResult.completedPhases).toContain("layout");
+      expect(mockResult.failedPhases).toContain("motion");
     });
 
-    it('should return failed result on complete failure', async () => {
+    it("should return failed result on complete failure", async () => {
       // Arrange
       const mockResult: PageAnalyzeJobResult = {
         webPageId: TEST_WEB_PAGE_ID,
         success: false,
         partialSuccess: false,
         completedPhases: [],
-        failedPhases: ['ingest'],
-        error: 'Failed to fetch HTML content',
+        failedPhases: ["ingest"],
+        error: "Failed to fetch HTML content",
         processingTimeMs: 1000,
         completedAt: new Date().toISOString(),
       };
@@ -604,7 +597,7 @@ describe('Phase3 Worker処理', () => {
       // Assert
       expect(mockResult.success).toBe(false);
       expect(mockResult.partialSuccess).toBe(false);
-      expect(mockResult.error).toContain('Failed');
+      expect(mockResult.error).toContain("Failed");
     });
   });
 });
@@ -613,7 +606,7 @@ describe('Phase3 Worker処理', () => {
 // Phase3 エンドツーエンドフロー テスト
 // ============================================================================
 
-describe('Phase3 エンドツーエンドフロー', () => {
+describe("Phase3 エンドツーエンドフロー", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
@@ -622,8 +615,8 @@ describe('Phase3 エンドツーエンドフロー', () => {
     vi.restoreAllMocks();
   });
 
-  describe('完全非同期フロー', () => {
-    it('should complete full async analysis flow', async () => {
+  describe("完全非同期フロー", () => {
+    it("should complete full async analysis flow", async () => {
       // Arrange - ジョブ投入
       (isRedisAvailable as Mock).mockResolvedValue(true);
       const mockJob = {
@@ -641,33 +634,33 @@ describe('Phase3 エンドツーエンドフロー', () => {
       expect(job.id).toBe(TEST_WEB_PAGE_ID);
 
       // Step 2: ステータス確認（waiting）
-      (getJobStatus as Mock).mockResolvedValue(createMockJobStatus('waiting'));
+      (getJobStatus as Mock).mockResolvedValue(createMockJobStatus("waiting"));
       let status = await getJobStatus({} as any, TEST_WEB_PAGE_ID);
-      expect(status?.state).toBe('waiting');
+      expect(status?.state).toBe("waiting");
 
       // Step 3: ステータス確認（active）
-      (getJobStatus as Mock).mockResolvedValue(createMockJobStatus('active', { progress: 40 }));
+      (getJobStatus as Mock).mockResolvedValue(createMockJobStatus("active", { progress: 40 }));
       status = await getJobStatus({} as any, TEST_WEB_PAGE_ID);
-      expect(status?.state).toBe('active');
+      expect(status?.state).toBe("active");
       expect(status?.progress).toBe(40);
 
       // Step 4: ステータス確認（completed）
-      (getJobStatus as Mock).mockResolvedValue(createMockJobStatus('completed'));
+      (getJobStatus as Mock).mockResolvedValue(createMockJobStatus("completed"));
       status = await getJobStatus({} as any, TEST_WEB_PAGE_ID);
-      expect(status?.state).toBe('completed');
+      expect(status?.state).toBe("completed");
       expect(status?.result?.success).toBe(true);
     });
 
-    it('should handle partial success in async mode', async () => {
+    it("should handle partial success in async mode", async () => {
       // Arrange
       const partialResult = createMockJobResult({
         success: false,
         partialSuccess: true,
-        completedPhases: ['ingest', 'layout'],
-        failedPhases: ['motion', 'quality'],
+        completedPhases: ["ingest", "layout"],
+        failedPhases: ["motion", "quality"],
       });
 
-      const mockStatus = createMockJobStatus('completed', {
+      const mockStatus = createMockJobStatus("completed", {
         result: partialResult,
       });
       (getJobStatus as Mock).mockResolvedValue(mockStatus);
@@ -676,24 +669,24 @@ describe('Phase3 エンドツーエンドフロー', () => {
       const status = await getJobStatus({} as any, TEST_WEB_PAGE_ID);
 
       // Assert
-      expect(status?.state).toBe('completed');
+      expect(status?.state).toBe("completed");
       expect(status?.result?.success).toBe(false);
       expect(status?.result?.partialSuccess).toBe(true);
-      expect(status?.result?.completedPhases).toContain('layout');
+      expect(status?.result?.completedPhases).toContain("layout");
     });
   });
 
-  describe('MCP 600秒制限の遵守', () => {
-    it('should respect MCP 600s timeout in async mode', () => {
+  describe("MCP 600秒制限の遵守", () => {
+    it("should respect MCP 600s timeout in async mode", () => {
       // Worker設定がMCP制限と整合していることを確認
       const DEFAULT_LOCK_DURATION = 600000;
       expect(DEFAULT_LOCK_DURATION).toBe(MCP_MAX_TIMEOUT_MS);
     });
 
-    it('should calculate total processing time within MCP limit', () => {
+    it("should calculate total processing time within MCP limit", () => {
       // フェーズ別タイムアウト設定
       const PHASE_TIMEOUTS = {
-        ingest: 60000,  // 1分
+        ingest: 60000, // 1分
         layout: 120000, // 2分
         motion: 180000, // 3分
         quality: 60000, // 1分
@@ -712,9 +705,9 @@ describe('Phase3 エンドツーエンドフロー', () => {
 // キュー設定テスト
 // ============================================================================
 
-describe('キュー設定', () => {
-  describe('ジョブ保持設定', () => {
-    it('should configure 24h job retention for completed jobs', () => {
+describe("キュー設定", () => {
+  describe("ジョブ保持設定", () => {
+    it("should configure 24h job retention for completed jobs", () => {
       // 設定値の検証
       const COMPLETED_JOB_RETENTION_HOURS = 24;
       const COMPLETED_JOB_RETENTION_SECONDS = COMPLETED_JOB_RETENTION_HOURS * 60 * 60;
@@ -722,7 +715,7 @@ describe('キュー設定', () => {
       expect(COMPLETED_JOB_RETENTION_SECONDS).toBe(86400);
     });
 
-    it('should configure 7d job retention for failed jobs', () => {
+    it("should configure 7d job retention for failed jobs", () => {
       // 設定値の検証
       const FAILED_JOB_RETENTION_DAYS = 7;
       const FAILED_JOB_RETENTION_SECONDS = FAILED_JOB_RETENTION_DAYS * 24 * 60 * 60;
@@ -731,14 +724,14 @@ describe('キュー設定', () => {
     });
   });
 
-  describe('ワーカー設定', () => {
-    it('should use concurrency=2 for GPU/memory consideration', () => {
+  describe("ワーカー設定", () => {
+    it("should use concurrency=2 for GPU/memory consideration", () => {
       // GPU/メモリ負荷を考慮したconcurrency設定
       const DEFAULT_CONCURRENCY = 2;
       expect(DEFAULT_CONCURRENCY).toBe(2);
     });
 
-    it('should use attempts=1 for WebGL heavy sites', () => {
+    it("should use attempts=1 for WebGL heavy sites", () => {
       // WebGL重いサイトはリトライしない（再タイムアウトするだけ）
       const ATTEMPTS = 1;
       expect(ATTEMPTS).toBe(1);
@@ -750,9 +743,9 @@ describe('キュー設定', () => {
 // スキーマバリデーションテスト
 // ============================================================================
 
-describe('スキーマバリデーション', () => {
-  describe('async パラメータ', () => {
-    it('should accept async=true in pageAnalyzeInputSchema', () => {
+describe("スキーマバリデーション", () => {
+  describe("async パラメータ", () => {
+    it("should accept async=true in pageAnalyzeInputSchema", () => {
       // 入力データ構造の検証
       const input = {
         url: TEST_URL,
@@ -760,42 +753,42 @@ describe('スキーマバリデーション', () => {
       };
 
       expect(input.async).toBe(true);
-      expect(typeof input.async).toBe('boolean');
+      expect(typeof input.async).toBe("boolean");
     });
 
-    it('should default async=false', () => {
+    it("should default async=false", () => {
       // デフォルト値の検証
       const DEFAULT_ASYNC = false;
       expect(DEFAULT_ASYNC).toBe(false);
     });
   });
 
-  describe('layout_first パラメータ', () => {
-    it('should accept layout_first=auto in pageAnalyzeInputSchema', () => {
+  describe("layout_first パラメータ", () => {
+    it("should accept layout_first=auto in pageAnalyzeInputSchema", () => {
       const input = {
         url: TEST_URL,
-        layout_first: 'auto' as const,
+        layout_first: "auto" as const,
       };
 
-      expect(input.layout_first).toBe('auto');
+      expect(input.layout_first).toBe("auto");
     });
 
-    it('should accept layout_first=always', () => {
+    it("should accept layout_first=always", () => {
       const input = {
         url: TEST_URL,
-        layout_first: 'always' as const,
+        layout_first: "always" as const,
       };
 
-      expect(input.layout_first).toBe('always');
+      expect(input.layout_first).toBe("always");
     });
 
-    it('should accept layout_first=never', () => {
+    it("should accept layout_first=never", () => {
       const input = {
         url: TEST_URL,
-        layout_first: 'never' as const,
+        layout_first: "never" as const,
       };
 
-      expect(input.layout_first).toBe('never');
+      expect(input.layout_first).toBe("never");
     });
   });
 });
@@ -804,10 +797,10 @@ describe('スキーマバリデーション', () => {
 // パフォーマンステスト
 // ============================================================================
 
-describe('Phase3 パフォーマンス', () => {
-  it('should complete job status lookup quickly (mocked)', async () => {
+describe("Phase3 パフォーマンス", () => {
+  it("should complete job status lookup quickly (mocked)", async () => {
     // Arrange
-    const mockStatus = createMockJobStatus('completed');
+    const mockStatus = createMockJobStatus("completed");
     (getJobStatus as Mock).mockResolvedValue(mockStatus);
 
     // Act
@@ -822,7 +815,7 @@ describe('Phase3 パフォーマンス', () => {
     console.log(`[Phase3] Job status lookup 100回: ${duration.toFixed(2)}ms`);
   });
 
-  it('should handle concurrent job additions (mocked)', async () => {
+  it("should handle concurrent job additions (mocked)", async () => {
     // Arrange
     const mockJob = {
       id: TEST_WEB_PAGE_ID,
@@ -834,7 +827,7 @@ describe('Phase3 パフォーマンス', () => {
     const startTime = performance.now();
     const promises = Array.from({ length: 50 }, (_, i) =>
       addPageAnalyzeJob({} as any, {
-        webPageId: `01903a5b-7c8d-7000-8000-0000000000${String(i).padStart(2, '0')}`,
+        webPageId: `01903a5b-7c8d-7000-8000-0000000000${String(i).padStart(2, "0")}`,
         url: `https://example.com/page-${i}`,
         options: {},
       })
@@ -852,12 +845,12 @@ describe('Phase3 パフォーマンス', () => {
 // エラーハンドリングテスト
 // ============================================================================
 
-describe('Phase3 エラーハンドリング', () => {
+describe("Phase3 エラーハンドリング", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  it('should handle Redis connection failure gracefully', async () => {
+  it("should handle Redis connection failure gracefully", async () => {
     // Arrange
     (isRedisAvailable as Mock).mockResolvedValue(false);
 
@@ -868,21 +861,19 @@ describe('Phase3 エラーハンドリング', () => {
     expect(available).toBe(false);
   });
 
-  it('should handle queue creation failure gracefully', async () => {
+  it("should handle queue creation failure gracefully", async () => {
     // Arrange
     (createPageAnalyzeQueue as Mock).mockImplementation(() => {
-      throw new Error('Failed to create queue: ECONNREFUSED');
+      throw new Error("Failed to create queue: ECONNREFUSED");
     });
 
     // Act & Assert
-    expect(() => createPageAnalyzeQueue()).toThrow('ECONNREFUSED');
+    expect(() => createPageAnalyzeQueue()).toThrow("ECONNREFUSED");
   });
 
-  it('should handle job addition failure gracefully', async () => {
+  it("should handle job addition failure gracefully", async () => {
     // Arrange
-    (addPageAnalyzeJob as Mock).mockRejectedValue(
-      new Error('Failed to add job: Queue is paused')
-    );
+    (addPageAnalyzeJob as Mock).mockRejectedValue(new Error("Failed to add job: Queue is paused"));
 
     // Act & Assert
     await expect(
@@ -891,10 +882,10 @@ describe('Phase3 エラーハンドリング', () => {
         url: TEST_URL,
         options: {},
       })
-    ).rejects.toThrow('Queue is paused');
+    ).rejects.toThrow("Queue is paused");
   });
 
-  it('should handle worker shutdown gracefully', async () => {
+  it("should handle worker shutdown gracefully", async () => {
     // Arrange
     const mockWorker = {
       worker: {},

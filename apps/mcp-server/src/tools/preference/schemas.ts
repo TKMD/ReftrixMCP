@@ -13,7 +13,7 @@
  * @module tools/preference/schemas
  */
 
-import { z } from 'zod';
+import { z } from "zod";
 
 // ============================================================================
 // Error Codes / エラーコード
@@ -25,17 +25,17 @@ import { z } from 'zod';
  */
 export const PREFERENCE_MCP_ERROR_CODES = {
   /** 入力バリデーションエラー / Input validation error */
-  VALIDATION_ERROR: 'VALIDATION_ERROR',
+  VALIDATION_ERROR: "VALIDATION_ERROR",
   /** サービス未設定 / Service not available */
-  SERVICE_UNAVAILABLE: 'SERVICE_UNAVAILABLE',
+  SERVICE_UNAVAILABLE: "SERVICE_UNAVAILABLE",
   /** プロファイル未検出 / Profile not found */
-  PROFILE_NOT_FOUND: 'PROFILE_NOT_FOUND',
+  PROFILE_NOT_FOUND: "PROFILE_NOT_FOUND",
   /** Embedding生成失敗 / Embedding generation failed */
-  EMBEDDING_FAILED: 'EMBEDDING_FAILED',
+  EMBEDDING_FAILED: "EMBEDDING_FAILED",
   /** 内部エラー / Internal error */
-  INTERNAL_ERROR: 'INTERNAL_ERROR',
+  INTERNAL_ERROR: "INTERNAL_ERROR",
   /** リセット未確認 / Reset not confirmed */
-  RESET_NOT_CONFIRMED: 'RESET_NOT_CONFIRMED',
+  RESET_NOT_CONFIRMED: "RESET_NOT_CONFIRMED",
 } as const;
 
 export type PreferenceMcpErrorCode =
@@ -50,14 +50,14 @@ export type PreferenceMcpErrorCode =
  */
 export function sanitizeErrorMessage(errorCode: string): string {
   const messages: Record<string, string> = {
-    [PREFERENCE_MCP_ERROR_CODES.VALIDATION_ERROR]: 'Input validation failed',
-    [PREFERENCE_MCP_ERROR_CODES.PROFILE_NOT_FOUND]: 'Profile not found',
-    [PREFERENCE_MCP_ERROR_CODES.EMBEDDING_FAILED]: 'Embedding generation failed',
-    [PREFERENCE_MCP_ERROR_CODES.SERVICE_UNAVAILABLE]: 'Preference service is not available',
-    [PREFERENCE_MCP_ERROR_CODES.INTERNAL_ERROR]: 'An internal error occurred',
-    [PREFERENCE_MCP_ERROR_CODES.RESET_NOT_CONFIRMED]: 'Reset not confirmed',
+    [PREFERENCE_MCP_ERROR_CODES.VALIDATION_ERROR]: "Input validation failed",
+    [PREFERENCE_MCP_ERROR_CODES.PROFILE_NOT_FOUND]: "Profile not found",
+    [PREFERENCE_MCP_ERROR_CODES.EMBEDDING_FAILED]: "Embedding generation failed",
+    [PREFERENCE_MCP_ERROR_CODES.SERVICE_UNAVAILABLE]: "Preference service is not available",
+    [PREFERENCE_MCP_ERROR_CODES.INTERNAL_ERROR]: "An internal error occurred",
+    [PREFERENCE_MCP_ERROR_CODES.RESET_NOT_CONFIRMED]: "Reset not confirmed",
   };
-  return messages[errorCode] ?? 'An unexpected error occurred';
+  return messages[errorCode] ?? "An unexpected error occurred";
 }
 
 // ============================================================================
@@ -68,7 +68,7 @@ export function sanitizeErrorMessage(errorCode: string): string {
  * フィードバック評価値
  * Feedback rating values
  */
-export const feedbackRatingSchema = z.enum(['positive', 'negative', 'neutral']);
+export const feedbackRatingSchema = z.enum(["positive", "negative", "neutral"]);
 export type FeedbackRating = z.infer<typeof feedbackRatingSchema>;
 
 /**
@@ -156,6 +156,6 @@ export type PreferenceResetInput = z.infer<typeof preferenceResetInputSchema>;
  * @returns truncate済みID / Truncated ID
  */
 export function truncateId(id: string | undefined): string {
-  if (!id) return 'undefined';
-  return id.length > 8 ? id.slice(0, 8) + '...' : id;
+  if (!id) return "undefined";
+  return id.length > 8 ? id.slice(0, 8) + "..." : id;
 }

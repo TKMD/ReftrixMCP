@@ -15,7 +15,7 @@
  * @see apps/mcp-server/tests/services/vision/timeout-calculator.test.ts
  */
 
-import { HardwareType, type HardwareInfo } from './hardware-detector.js';
+import { HardwareType, type HardwareInfo } from "./hardware-detector.js";
 
 // Re-export HardwareType for convenience
 export { HardwareType };
@@ -34,9 +34,9 @@ const IMAGE_SIZE_LARGE_THRESHOLD = 500_000; // 500KB
  * 画像サイズ分類
  */
 export enum ImageSize {
-  SMALL = 'SMALL',
-  MEDIUM = 'MEDIUM',
-  LARGE = 'LARGE',
+  SMALL = "SMALL",
+  MEDIUM = "MEDIUM",
+  LARGE = "LARGE",
 }
 
 /**
@@ -104,10 +104,7 @@ export class TimeoutCalculator {
    * @param imageSizeBytes - 画像サイズ（バイト）、オプション
    * @returns タイムアウト（ミリ秒）
    */
-  calculateFromHardwareInfo(
-    info: HardwareInfo,
-    imageSizeBytes?: number
-  ): number {
+  calculateFromHardwareInfo(info: HardwareInfo, imageSizeBytes?: number): number {
     return this.calculate(info.type, imageSizeBytes);
   }
 

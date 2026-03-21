@@ -8,7 +8,7 @@
  *
  * @module services/brief/brief-parser-service
  */
-import * as fs from 'fs/promises';
+import * as fs from "fs/promises";
 import type {
   ParsedBrief,
   ParseOptions,
@@ -16,10 +16,10 @@ import type {
   OkExpression,
   ColorToken,
   RequiredAsset,
-} from './schemas/brief-parser-schemas';
-import { createLogger, isDevelopment } from '../../utils/logger';
+} from "./schemas/brief-parser-schemas";
+import { createLogger, isDevelopment } from "../../utils/logger";
 
-const logger = createLogger('BriefParserService');
+const logger = createLogger("BriefParserService");
 
 // =============================================================================
 // 定数
@@ -37,9 +37,9 @@ const MAX_FILE_SIZE = 10 * 1024 * 1024;
  */
 function stripMarkdownFormatting(text: string): string {
   return text
-    .replace(/\*\*([^*]+)\*\*/g, '$1') // bold **text**
-    .replace(/\*([^*]+)\*/g, '$1') // italic *text*
-    .replace(/`([^`]+)`/g, '$1') // code `text`
+    .replace(/\*\*([^*]+)\*\*/g, "$1") // bold **text**
+    .replace(/\*([^*]+)\*/g, "$1") // italic *text*
+    .replace(/`([^`]+)`/g, "$1") // code `text`
     .trim();
 }
 
@@ -48,7 +48,7 @@ function stripMarkdownFormatting(text: string): string {
  */
 function parseTableRow(row: string): string[] | null {
   // パイプで囲まれた行のみ処理
-  if (!row.startsWith('|') || !row.endsWith('|')) {
+  if (!row.startsWith("|") || !row.endsWith("|")) {
     return null;
   }
 
@@ -59,7 +59,7 @@ function parseTableRow(row: string): string[] | null {
 
   // 先頭と末尾のパイプを除去してセルに分割
   const inner = row.slice(1, -1);
-  const cells = inner.split('|').map((cell) => stripMarkdownFormatting(cell));
+  const cells = inner.split("|").map((cell) => stripMarkdownFormatting(cell));
 
   return cells;
 }
@@ -94,14 +94,14 @@ function parseMarkdownTable(
     : remainingContent;
 
   // テーブル行を抽出
-  const lines = sectionContent.split('\n');
+  const lines = sectionContent.split("\n");
   let foundHeader = false;
   let foundSeparator = false;
 
   for (const line of lines) {
     const trimmedLine = line.trim();
 
-    if (!trimmedLine.startsWith('|')) {
+    if (!trimmedLine.startsWith("|")) {
       continue;
     }
 
@@ -164,7 +164,7 @@ export class BriefParserService {
     const { sourcePath, strict = false } = options;
 
     if (isDevelopment()) {
-      logger.info('Parsing brief', {
+      logger.info("Parsing brief", {
         contentLength: markdownContent.length,
         strict,
       });
@@ -174,7 +174,7 @@ export class BriefParserService {
     const projectName = this.extractProjectName(markdownContent);
 
     if (strict && !projectName) {
-      throw new Error('project_name is required in strict mode');
+      throw new Error("project_name is required in strict mode");
     }
 
     // 各セクション抽出
@@ -199,7 +199,7 @@ export class BriefParserService {
     }
 
     if (isDevelopment()) {
-      logger.info('Brief parsed', {
+      logger.info("Brief parsed", {
         projectName,
         ngCount: ngExpressions.length,
         okCount: okExpressions.length,
@@ -219,20 +219,15 @@ export class BriefParserService {
    * @returns パース済みブリーフ
    * @throws ファイルが存在しない、または読み込みエラーの場合
    */
-  async parseFile(
-    filePath: string,
-    options: ParseOptions = {}
-  ): Promise<ParsedBrief> {
+  async parseFile(filePath: string, options: ParseOptions = {}): Promise<ParsedBrief> {
     try {
       // ファイルサイズチェック
       const stats = await fs.stat(filePath);
       if (stats.size > MAX_FILE_SIZE) {
-        throw new Error(
-          `ファイルサイズが上限(${MAX_FILE_SIZE / 1024 / 1024}MB)を超えています`
-        );
+        throw new Error(`ファイルサイズが上限(${MAX_FILE_SIZE / 1024 / 1024}MB)を超えています`);
       }
 
-      const content = await fs.readFile(filePath, 'utf-8');
+      const content = await fs.readFile(filePath, "utf-8");
 
       return this.parse(content, {
         ...options,
@@ -241,14 +236,12 @@ export class BriefParserService {
     } catch (error) {
       if (
         error instanceof Error &&
-        'code' in error &&
-        (error as { code?: string }).code === 'ENOENT'
+        "code" in error &&
+        (error as { code?: string }).code === "ENOENT"
       ) {
         // [SEC] H-001: 本番環境でのファイルパス露出を防止
         throw new Error(
-          isDevelopment()
-            ? `ファイルが存在しません: ${filePath}`
-            : 'ファイルが存在しません'
+          isDevelopment() ? `ファイルが存在しません: ${filePath}` : "ファイルが存在しません"
         );
       }
       throw error;
@@ -264,7 +257,7 @@ export class BriefParserService {
    */
   private extractProjectName(content: string): string {
     const h1Match = /^#\s+(.+)$/m.exec(content);
-    return h1Match?.[1]?.trim() ?? '';
+    return h1Match?.[1]?.trim() ?? "";
   }
 
   /**
@@ -275,29 +268,16 @@ export class BriefParserService {
     const expressions: NgExpression[] = [];
 
     // Pattern 1: Anti-AI Expression List (NG)
-    const antiAiTable = parseMarkdownTable(
-      content,
-      /#{1,4}\s+Anti-AI Expression List\s*\(NG\)/i
-    );
+    const antiAiTable = parseMarkdownTable(content, /#{1,4}\s+Anti-AI Expression List\s*\(NG\)/i);
 
     if (antiAiTable.headers.length > 0) {
-      const exprIndex = findColumnIndex(antiAiTable.headers, [
-        'ng expression',
-        'expression',
-      ]);
-      const reasonIndex = findColumnIndex(antiAiTable.headers, [
-        'why ng',
-        'why',
-        'reason',
-      ]);
-      const altIndex = findColumnIndex(antiAiTable.headers, [
-        'alternative',
-        'alt',
-      ]);
+      const exprIndex = findColumnIndex(antiAiTable.headers, ["ng expression", "expression"]);
+      const reasonIndex = findColumnIndex(antiAiTable.headers, ["why ng", "why", "reason"]);
+      const altIndex = findColumnIndex(antiAiTable.headers, ["alternative", "alt"]);
 
       for (const row of antiAiTable.rows) {
-        const expression = exprIndex >= 0 ? row[exprIndex] : '';
-        const reason = reasonIndex >= 0 ? row[reasonIndex] : '';
+        const expression = exprIndex >= 0 ? row[exprIndex] : "";
+        const reason = reasonIndex >= 0 ? row[reasonIndex] : "";
 
         if (expression && reason) {
           expressions.push({
@@ -310,14 +290,11 @@ export class BriefParserService {
     }
 
     // Pattern 2: NG Examples
-    const ngExamplesTable = parseMarkdownTable(
-      content,
-      /#{1,4}\s+NG Examples/i
-    );
+    const ngExamplesTable = parseMarkdownTable(content, /#{1,4}\s+NG Examples/i);
 
     if (ngExamplesTable.headers.length > 0) {
-      const ngIndex = findColumnIndex(ngExamplesTable.headers, ['ng']);
-      const whyIndex = findColumnIndex(ngExamplesTable.headers, ['why']);
+      const ngIndex = findColumnIndex(ngExamplesTable.headers, ["ng"]);
+      const whyIndex = findColumnIndex(ngExamplesTable.headers, ["why"]);
 
       for (const row of ngExamplesTable.rows) {
         const expression = ngIndex >= 0 ? row[ngIndex] : row[0];
@@ -325,9 +302,7 @@ export class BriefParserService {
 
         if (expression && reason) {
           // 重複チェック
-          const isDuplicate = expressions.some(
-            (e) => e.expression === expression
-          );
+          const isDuplicate = expressions.some((e) => e.expression === expression);
           if (!isDuplicate) {
             expressions.push({
               expression,
@@ -350,8 +325,8 @@ export class BriefParserService {
     const okTable = parseMarkdownTable(content, /#{1,4}\s+OK Examples/i);
 
     if (okTable.headers.length > 0) {
-      const okIndex = findColumnIndex(okTable.headers, ['ok']);
-      const whyIndex = findColumnIndex(okTable.headers, ['why']);
+      const okIndex = findColumnIndex(okTable.headers, ["ok"]);
+      const whyIndex = findColumnIndex(okTable.headers, ["why"]);
 
       for (const row of okTable.rows) {
         const expression = okIndex >= 0 ? row[okIndex] : row[0];
@@ -378,15 +353,15 @@ export class BriefParserService {
     const paletteTable = parseMarkdownTable(content, /#{1,4}\s+Color Palette/i);
 
     if (paletteTable.headers.length > 0) {
-      const tokenIndex = findColumnIndex(paletteTable.headers, ['token']);
-      const roleIndex = findColumnIndex(paletteTable.headers, ['role']);
-      const hexIndex = findColumnIndex(paletteTable.headers, ['hex']);
-      const oklchIndex = findColumnIndex(paletteTable.headers, ['oklch']);
-      const usageIndex = findColumnIndex(paletteTable.headers, ['usage']);
+      const tokenIndex = findColumnIndex(paletteTable.headers, ["token"]);
+      const roleIndex = findColumnIndex(paletteTable.headers, ["role"]);
+      const hexIndex = findColumnIndex(paletteTable.headers, ["hex"]);
+      const oklchIndex = findColumnIndex(paletteTable.headers, ["oklch"]);
+      const usageIndex = findColumnIndex(paletteTable.headers, ["usage"]);
 
       for (const row of paletteTable.rows) {
-        const name = tokenIndex >= 0 ? row[tokenIndex] : '';
-        const hex = hexIndex >= 0 ? row[hexIndex] : '';
+        const name = tokenIndex >= 0 ? row[tokenIndex] : "";
+        const hex = hexIndex >= 0 ? row[hexIndex] : "";
 
         // HEX値のバリデーション
         if (!name || !hex || !/^#[0-9A-Fa-f]{6}$/.test(hex)) {
@@ -424,9 +399,9 @@ export class BriefParserService {
     const assetTable = parseMarkdownTable(content, /#{1,4}\s+Asset Categories/i);
 
     if (assetTable.headers.length > 0) {
-      const categoryIndex = findColumnIndex(assetTable.headers, ['category']);
-      const sourceIndex = findColumnIndex(assetTable.headers, ['source']);
-      const usageIndex = findColumnIndex(assetTable.headers, ['usage']);
+      const categoryIndex = findColumnIndex(assetTable.headers, ["category"]);
+      const sourceIndex = findColumnIndex(assetTable.headers, ["source"]);
+      const usageIndex = findColumnIndex(assetTable.headers, ["usage"]);
 
       for (const row of assetTable.rows) {
         const category = categoryIndex >= 0 ? row[categoryIndex] : row[0];
@@ -457,4 +432,4 @@ export type {
   OkExpression,
   ColorToken,
   RequiredAsset,
-} from './schemas/brief-parser-schemas';
+} from "./schemas/brief-parser-schemas";

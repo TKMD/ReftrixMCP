@@ -10,7 +10,7 @@
  * @module tools/schemas/layout-schemas
  */
 
-import { z } from 'zod';
+import { z } from "zod";
 
 // =============================================================================
 // アンカーポイント定義
@@ -21,15 +21,15 @@ import { z } from 'zod';
  * スロット内での配置基準点を指定
  */
 export const anchorSchema = z.enum([
-  'center',
-  'top-left',
-  'top-center',
-  'top-right',
-  'middle-left',
-  'middle-right',
-  'bottom-left',
-  'bottom-center',
-  'bottom-right',
+  "center",
+  "top-left",
+  "top-center",
+  "top-right",
+  "middle-left",
+  "middle-right",
+  "bottom-left",
+  "bottom-center",
+  "bottom-right",
 ]);
 
 export type Anchor = z.infer<typeof anchorSchema>;
@@ -54,7 +54,7 @@ export const layoutSlotSchema = z.object({
   /** 高さ（パーセント or ピクセル） */
   height: z.string(),
   /** アンカーポイント（デフォルト: center） */
-  anchor: anchorSchema.optional().default('center'),
+  anchor: anchorSchema.optional().default("center"),
 });
 
 export type LayoutSlot = z.infer<typeof layoutSlotSchema>;
@@ -66,12 +66,7 @@ export type LayoutSlot = z.infer<typeof layoutSlotSchema>;
 /**
  * アライメントスキーマ
  */
-export const alignmentSchema = z.enum([
-  'left',
-  'center',
-  'right',
-  'justify',
-]);
+export const alignmentSchema = z.enum(["left", "center", "right", "justify"]);
 
 export type Alignment = z.infer<typeof alignmentSchema>;
 
@@ -81,7 +76,10 @@ export type Alignment = z.infer<typeof alignmentSchema>;
  */
 export const layoutConstraintsSchema = z.object({
   /** アスペクト比（例: '16:9', '4:3'） */
-  aspectRatio: z.string().regex(/^\d+:\d+$/).optional(),
+  aspectRatio: z
+    .string()
+    .regex(/^\d+:\d+$/)
+    .optional(),
   /** 最小幅（ピクセル） */
   minWidth: z.number().int().positive().optional(),
   /** 最大幅（ピクセル） */
@@ -127,11 +125,7 @@ export type LayoutTemplate = z.infer<typeof layoutTemplateSchema>;
 /**
  * 初期テンプレートID
  */
-export const initialTemplateIdSchema = z.enum([
-  'hero-illustration',
-  'feature-grid',
-  'icon-row',
-]);
+export const initialTemplateIdSchema = z.enum(["hero-illustration", "feature-grid", "icon-row"]);
 
 export type InitialTemplateId = z.infer<typeof initialTemplateIdSchema>;
 
@@ -140,35 +134,35 @@ export type InitialTemplateId = z.infer<typeof initialTemplateIdSchema>;
  */
 export const INITIAL_TEMPLATES: LayoutTemplate[] = [
   {
-    id: 'hero-illustration',
-    name: 'Hero Illustration',
-    description: '左テキスト＋右イラスト or 中央イラスト',
+    id: "hero-illustration",
+    name: "Hero Illustration",
+    description: "左テキスト＋右イラスト or 中央イラスト",
     slots: [
       {
-        id: 'illustration',
-        x: '60%',
-        y: '50%',
-        width: '40%',
-        height: '80%',
-        anchor: 'center',
+        id: "illustration",
+        x: "60%",
+        y: "50%",
+        width: "40%",
+        height: "80%",
+        anchor: "center",
       },
     ],
     constraints: {
-      aspectRatio: '16:9',
+      aspectRatio: "16:9",
       minWidth: 1200,
     },
   },
   {
-    id: 'feature-grid',
-    name: 'Feature Grid',
-    description: '2x2 / 3x2 のアイコン＋テキスト配置',
+    id: "feature-grid",
+    name: "Feature Grid",
+    description: "2x2 / 3x2 のアイコン＋テキスト配置",
     slots: [
-      { id: 'slot-1', x: '16.67%', y: '25%', width: '25%', height: '40%', anchor: 'center' },
-      { id: 'slot-2', x: '50%', y: '25%', width: '25%', height: '40%', anchor: 'center' },
-      { id: 'slot-3', x: '83.33%', y: '25%', width: '25%', height: '40%', anchor: 'center' },
-      { id: 'slot-4', x: '16.67%', y: '75%', width: '25%', height: '40%', anchor: 'center' },
-      { id: 'slot-5', x: '50%', y: '75%', width: '25%', height: '40%', anchor: 'center' },
-      { id: 'slot-6', x: '83.33%', y: '75%', width: '25%', height: '40%', anchor: 'center' },
+      { id: "slot-1", x: "16.67%", y: "25%", width: "25%", height: "40%", anchor: "center" },
+      { id: "slot-2", x: "50%", y: "25%", width: "25%", height: "40%", anchor: "center" },
+      { id: "slot-3", x: "83.33%", y: "25%", width: "25%", height: "40%", anchor: "center" },
+      { id: "slot-4", x: "16.67%", y: "75%", width: "25%", height: "40%", anchor: "center" },
+      { id: "slot-5", x: "50%", y: "75%", width: "25%", height: "40%", anchor: "center" },
+      { id: "slot-6", x: "83.33%", y: "75%", width: "25%", height: "40%", anchor: "center" },
     ],
     constraints: {
       columns: [2, 3],
@@ -176,19 +170,19 @@ export const INITIAL_TEMPLATES: LayoutTemplate[] = [
     },
   },
   {
-    id: 'icon-row',
-    name: 'Icon Row',
-    description: '横一列に3〜5アイコン整列',
+    id: "icon-row",
+    name: "Icon Row",
+    description: "横一列に3〜5アイコン整列",
     slots: [
-      { id: 'icon-1', x: '10%', y: '50%', width: '15%', height: '80%', anchor: 'center' },
-      { id: 'icon-2', x: '30%', y: '50%', width: '15%', height: '80%', anchor: 'center' },
-      { id: 'icon-3', x: '50%', y: '50%', width: '15%', height: '80%', anchor: 'center' },
-      { id: 'icon-4', x: '70%', y: '50%', width: '15%', height: '80%', anchor: 'center' },
-      { id: 'icon-5', x: '90%', y: '50%', width: '15%', height: '80%', anchor: 'center' },
+      { id: "icon-1", x: "10%", y: "50%", width: "15%", height: "80%", anchor: "center" },
+      { id: "icon-2", x: "30%", y: "50%", width: "15%", height: "80%", anchor: "center" },
+      { id: "icon-3", x: "50%", y: "50%", width: "15%", height: "80%", anchor: "center" },
+      { id: "icon-4", x: "70%", y: "50%", width: "15%", height: "80%", anchor: "center" },
+      { id: "icon-5", x: "90%", y: "50%", width: "15%", height: "80%", anchor: "center" },
     ],
     constraints: {
       iconCount: [3, 4, 5],
-      alignment: 'center',
+      alignment: "center",
     },
   },
 ];
@@ -208,7 +202,10 @@ export const layoutOptionsSchema = z.object({
   /** パディング（ピクセル、デフォルト: 0） */
   padding: z.number().int().min(0).optional().default(0),
   /** 背景色（HEX形式） */
-  background: z.string().regex(/^#[0-9A-Fa-f]{3,8}$/).optional(),
+  background: z
+    .string()
+    .regex(/^#[0-9A-Fa-f]{3,8}$/)
+    .optional(),
 });
 
 export type LayoutOptions = z.infer<typeof layoutOptionsSchema>;
@@ -223,12 +220,12 @@ export type LayoutOptions = z.infer<typeof layoutOptionsSchema>;
 export const composerLayoutInputSchema = z.object({
   /** アセットID配列（UUID形式、1-20件） */
   asset_ids: z
-    .array(z.string().uuid('無効なID形式です'))
-    .min(1, 'asset_idsは1つ以上指定してください')
-    .max(20, 'asset_idsは20個以下にしてください'),
+    .array(z.string().uuid("無効なID形式です"))
+    .min(1, "asset_idsは1つ以上指定してください")
+    .max(20, "asset_idsは20個以下にしてください"),
 
   /** テンプレートID */
-  template_id: z.string().min(1, 'template_idは必須です'),
+  template_id: z.string().min(1, "template_idは必須です"),
 
   /** 配置オプション */
   options: layoutOptionsSchema.optional(),
@@ -317,21 +314,21 @@ export type ComposerLayoutOutput = z.infer<typeof composerLayoutOutputSchema>;
  */
 export const LAYOUT_ERROR_CODES = {
   /** 無効なテンプレートID */
-  INVALID_TEMPLATE: 'LAYOUT_INVALID_TEMPLATE',
+  INVALID_TEMPLATE: "LAYOUT_INVALID_TEMPLATE",
   /** アセット取得失敗 */
-  ASSET_NOT_FOUND: 'LAYOUT_ASSET_NOT_FOUND',
+  ASSET_NOT_FOUND: "LAYOUT_ASSET_NOT_FOUND",
   /** アセット数がテンプレートのスロット数と合わない */
-  ASSET_COUNT_MISMATCH: 'LAYOUT_ASSET_COUNT_MISMATCH',
+  ASSET_COUNT_MISMATCH: "LAYOUT_ASSET_COUNT_MISMATCH",
   /** アセット数が不足 */
-  ASSET_COUNT_INSUFFICIENT: 'LAYOUT_ASSET_COUNT_INSUFFICIENT',
+  ASSET_COUNT_INSUFFICIENT: "LAYOUT_ASSET_COUNT_INSUFFICIENT",
   /** 無効なアセットID形式 */
-  INVALID_ASSET_ID: 'LAYOUT_INVALID_ASSET_ID',
+  INVALID_ASSET_ID: "LAYOUT_INVALID_ASSET_ID",
   /** 制約違反 */
-  CONSTRAINT_VIOLATION: 'LAYOUT_CONSTRAINT_VIOLATION',
+  CONSTRAINT_VIOLATION: "LAYOUT_CONSTRAINT_VIOLATION",
   /** パースエラー */
-  PARSE_ERROR: 'LAYOUT_PARSE_ERROR',
+  PARSE_ERROR: "LAYOUT_PARSE_ERROR",
   /** 内部エラー */
-  INTERNAL_ERROR: 'LAYOUT_INTERNAL_ERROR',
+  INTERNAL_ERROR: "LAYOUT_INTERNAL_ERROR",
 } as const;
 
 export type LayoutErrorCode = (typeof LAYOUT_ERROR_CODES)[keyof typeof LAYOUT_ERROR_CODES];

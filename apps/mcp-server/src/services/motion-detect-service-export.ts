@@ -13,9 +13,9 @@ import type {
   MotionWarning,
   MotionDetectionResult,
   MotionDetectionOptions,
-} from './page/motion-detector.service';
-import { MotionDetectorService } from './page/motion-detector.service';
-import { logger } from '../utils/logger';
+} from "./page/motion-detector.service";
+import { MotionDetectorService } from "./page/motion-detector.service";
+import { logger } from "../utils/logger";
 
 // =====================================================
 // Types
@@ -90,7 +90,7 @@ export interface MotionPatternApi {
   duration: number;
   easing: string;
   delay?: number | undefined;
-  iterations?: number | 'infinite' | undefined;
+  iterations?: number | "infinite" | undefined;
   direction?: string | undefined;
   fillMode?: string | undefined;
   properties: string[];
@@ -112,7 +112,7 @@ export interface MotionPatternApi {
  */
 export interface MotionWarningApi {
   code: string;
-  severity: 'info' | 'warning' | 'error';
+  severity: "info" | "warning" | "error";
   message: string;
   suggestion?: string | undefined;
 }
@@ -129,12 +129,7 @@ export interface MotionDetectErrorInfo {
 // Re-export types from service
 // =====================================================
 
-export type {
-  MotionPattern,
-  MotionWarning,
-  MotionDetectionResult,
-  MotionDetectionOptions,
-};
+export type { MotionPattern, MotionWarning, MotionDetectionResult, MotionDetectionOptions };
 
 // =====================================================
 // Service singleton
@@ -175,10 +170,8 @@ function getServiceInstance(): MotionDetectorService {
  * });
  * ```
  */
-export function executeMotionDetect(
-  input: MotionDetectInput
-): MotionDetectOutput {
-  logger.debug('[executeMotionDetect] Called', {
+export function executeMotionDetect(input: MotionDetectInput): MotionDetectOutput {
+  logger.debug("[executeMotionDetect] Called", {
     htmlLength: input.html.length,
     hasExternalCss: !!input.externalCss,
     options: input.options,
@@ -188,20 +181,26 @@ export function executeMotionDetect(
     const service = getServiceInstance();
 
     // undefinedプロパティを除外してMotionDetectionOptionsに変換
-    const cleanOptions: MotionDetectionOptions | undefined = input.options ? ((): MotionDetectionOptions | undefined => {
-      const opts: MotionDetectionOptions = {};
-      if (input.options!.includeInlineStyles !== undefined) opts.includeInlineStyles = input.options!.includeInlineStyles;
-      if (input.options!.includeStyleSheets !== undefined) opts.includeStyleSheets = input.options!.includeStyleSheets;
-      if (input.options!.minDuration !== undefined) opts.minDuration = input.options!.minDuration;
-      if (input.options!.maxPatterns !== undefined) opts.maxPatterns = input.options!.maxPatterns;
-      if (input.options!.verbose !== undefined) opts.verbose = input.options!.verbose;
-      return Object.keys(opts).length > 0 ? opts : undefined;
-    })() : undefined;
+    const cleanOptions: MotionDetectionOptions | undefined = input.options
+      ? ((): MotionDetectionOptions | undefined => {
+          const opts: MotionDetectionOptions = {};
+          if (input.options!.includeInlineStyles !== undefined)
+            opts.includeInlineStyles = input.options!.includeInlineStyles;
+          if (input.options!.includeStyleSheets !== undefined)
+            opts.includeStyleSheets = input.options!.includeStyleSheets;
+          if (input.options!.minDuration !== undefined)
+            opts.minDuration = input.options!.minDuration;
+          if (input.options!.maxPatterns !== undefined)
+            opts.maxPatterns = input.options!.maxPatterns;
+          if (input.options!.verbose !== undefined) opts.verbose = input.options!.verbose;
+          return Object.keys(opts).length > 0 ? opts : undefined;
+        })()
+      : undefined;
 
     const result = service.detect(input.html, cleanOptions, input.externalCss);
 
     // パターンをAPI形式に変換
-    const patternsApi: MotionPatternApi[] = result.patterns.map(p => ({
+    const patternsApi: MotionPatternApi[] = result.patterns.map((p) => ({
       id: p.id,
       name: p.name,
       type: p.type,
@@ -229,7 +228,7 @@ export function executeMotionDetect(
     }));
 
     // 警告をAPI形式に変換
-    const warningsApi: MotionWarningApi[] = result.warnings.map(w => ({
+    const warningsApi: MotionWarningApi[] = result.warnings.map((w) => ({
       code: w.code,
       severity: w.severity,
       message: w.message,
@@ -246,7 +245,7 @@ export function executeMotionDetect(
       summary,
     };
 
-    logger.debug('[executeMotionDetect] Success', {
+    logger.debug("[executeMotionDetect] Success", {
       patternCount: data.patterns.length,
       warningCount: data.warnings.length,
       processingTimeMs: data.processingTimeMs,
@@ -257,15 +256,15 @@ export function executeMotionDetect(
       data,
     };
   } catch (error) {
-    if (process.env.NODE_ENV === 'development') {
-      console.error('[executeMotionDetect] Error', error);
+    if (process.env.NODE_ENV === "development") {
+      console.error("[executeMotionDetect] Error", error);
     }
 
     return {
       success: false,
       error: {
-        code: 'MOTION_DETECTION_ERROR',
-        message: error instanceof Error ? error.message : 'Unknown error',
+        code: "MOTION_DETECTION_ERROR",
+        message: error instanceof Error ? error.message : "Unknown error",
       },
     };
   }
@@ -274,7 +273,7 @@ export function executeMotionDetect(
 /**
  * パターンのサマリを生成
  */
-function generateSummary(patterns: MotionPattern[]): MotionDetectData['summary'] {
+function generateSummary(patterns: MotionPattern[]): MotionDetectData["summary"] {
   const byType: Record<string, number> = {};
   const byCategory: Record<string, number> = {};
   const byTrigger: Record<string, number> = {};

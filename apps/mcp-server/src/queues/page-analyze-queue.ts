@@ -15,13 +15,13 @@
  * @module queues/page-analyze-queue
  */
 
-import { Queue, QueueEvents, type Job, type ConnectionOptions } from 'bullmq';
-import { getRedisConfig, type RedisConfig } from '../config/redis';
+import { Queue, QueueEvents, type Job, type ConnectionOptions } from "bullmq";
+import { getRedisConfig, type RedisConfig } from "../config/redis";
 
 /**
  * Queue name constant
  */
-export const PAGE_ANALYZE_QUEUE_NAME = 'page-analyze';
+export const PAGE_ANALYZE_QUEUE_NAME = "page-analyze";
 
 /**
  * Job data for page analysis
@@ -203,7 +203,14 @@ export interface PageAnalyzeJobResult {
 /**
  * Analysis phases
  */
-export type AnalysisPhase = 'ingest' | 'layout' | 'motion' | 'quality' | 'narrative' | 'responsive' | 'embedding';
+export type AnalysisPhase =
+  | "ingest"
+  | "layout"
+  | "motion"
+  | "quality"
+  | "narrative"
+  | "responsive"
+  | "embedding";
 
 /**
  * Job status for polling
@@ -212,7 +219,7 @@ export interface PageAnalyzeJobStatus {
   /** Job ID */
   jobId: string;
   /** Current state */
-  state: 'waiting' | 'active' | 'completed' | 'failed' | 'delayed' | 'unknown';
+  state: "waiting" | "active" | "completed" | "failed" | "delayed" | "unknown";
   /** Progress percentage (0-100) */
   progress: number;
   /** Current phase being processed */
@@ -269,7 +276,7 @@ export function createPageAnalyzeQueue(
       },
       // Backoff strategy (only relevant if attempts > 1)
       backoff: {
-        type: 'exponential',
+        type: "exponential",
         delay: 5000,
       },
     },
@@ -282,9 +289,7 @@ export function createPageAnalyzeQueue(
  * @param configOverrides - Optional Redis configuration overrides
  * @returns BullMQ QueueEvents instance
  */
-export function createQueueEvents(
-  configOverrides?: Partial<RedisConfig>
-): QueueEvents {
+export function createQueueEvents(configOverrides?: Partial<RedisConfig>): QueueEvents {
   const config = getRedisConfig(configOverrides);
 
   return new QueueEvents(PAGE_ANALYZE_QUEUE_NAME, {
@@ -302,7 +307,7 @@ export function createQueueEvents(
  */
 export async function addPageAnalyzeJob(
   queue: Queue<PageAnalyzeJobData, PageAnalyzeJobResult>,
-  data: Omit<PageAnalyzeJobData, 'createdAt'>,
+  data: Omit<PageAnalyzeJobData, "createdAt">,
   priority: number = 10
 ): Promise<Job<PageAnalyzeJobData, PageAnalyzeJobResult>> {
   const jobData: PageAnalyzeJobData = {
@@ -336,11 +341,14 @@ export async function getJobStatus(
 
   const state = await job.getState();
   // Support both numeric progress (granular per-phase) and object progress (ExecutionStatusTrackerV2)
-  const progress = typeof job.progress === 'number'
-    ? job.progress
-    : (typeof job.progress === 'object' && job.progress !== null && 'overallProgress' in job.progress)
-      ? (job.progress as { overallProgress: number }).overallProgress
-      : 0;
+  const progress =
+    typeof job.progress === "number"
+      ? job.progress
+      : typeof job.progress === "object" &&
+          job.progress !== null &&
+          "overallProgress" in job.progress
+        ? (job.progress as { overallProgress: number }).overallProgress
+        : 0;
 
   // Build timestamps object, only including defined values
   const timestamps: {
@@ -356,35 +364,43 @@ export async function getJobStatus(
   if (job.processedOn !== undefined) {
     timestamps.started = job.processedOn;
   }
-  if (state === 'completed' && job.finishedOn !== undefined) {
+  if (state === "completed" && job.finishedOn !== undefined) {
     timestamps.completed = job.finishedOn;
   }
-  if (state === 'failed' && job.finishedOn !== undefined) {
+  if (state === "failed" && job.finishedOn !== undefined) {
     timestamps.failed = job.finishedOn;
   }
 
   // Build result object, only including defined optional properties
   const status: PageAnalyzeJobStatus = {
     jobId: job.id || jobId,
-    state: state as PageAnalyzeJobStatus['state'],
+    state: state as PageAnalyzeJobStatus["state"],
     progress,
     timestamps,
   };
 
   // Determine currentPhase from job progress data (set by Worker via job.updateProgress)
   // The Worker sends an object with { overallProgress, currentPhase, phases, ... }
-  if (typeof job.progress === 'object' && job.progress !== null && 'currentPhase' in job.progress) {
+  if (typeof job.progress === "object" && job.progress !== null && "currentPhase" in job.progress) {
     const phaseFromProgress = (job.progress as { currentPhase: string }).currentPhase;
     // Validate that it's a known AnalysisPhase
-    const validPhases: readonly string[] = ['ingest', 'layout', 'motion', 'quality', 'narrative', 'responsive', 'embedding'];
+    const validPhases: readonly string[] = [
+      "ingest",
+      "layout",
+      "motion",
+      "quality",
+      "narrative",
+      "responsive",
+      "embedding",
+    ];
     if (validPhases.includes(phaseFromProgress)) {
       status.currentPhase = phaseFromProgress as AnalysisPhase;
     }
   }
-  if (state === 'completed' && job.returnvalue) {
+  if (state === "completed" && job.returnvalue) {
     status.result = job.returnvalue;
   }
-  if (state === 'failed' && job.failedReason) {
+  if (state === "failed" && job.failedReason) {
     status.error = job.failedReason;
   }
 

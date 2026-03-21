@@ -17,8 +17,8 @@
  * @module tests/tools/page/vision-options-schema.test
  */
 
-import { describe, it, expect } from 'vitest';
-import { visionOptionsSchema } from '../../../src/tools/page/schemas';
+import { describe, it, expect } from "vitest";
+import { visionOptionsSchema } from "../../../src/tools/page/schemas";
 
 // =============================================================================
 // Test Data Factories
@@ -36,9 +36,9 @@ const createValidVisionOptions = () => ({
 // visionOptionsSchema Tests
 // =============================================================================
 
-describe('visionOptionsSchema', () => {
-  describe('valid inputs', () => {
-    it('should accept valid complete options', () => {
+describe("visionOptionsSchema", () => {
+  describe("valid inputs", () => {
+    it("should accept valid complete options", () => {
       const result = visionOptionsSchema.safeParse(createValidVisionOptions());
       expect(result.success).toBe(true);
       if (result.success) {
@@ -50,7 +50,7 @@ describe('visionOptionsSchema', () => {
       }
     });
 
-    it('should accept empty object (all fields optional)', () => {
+    it("should accept empty object (all fields optional)", () => {
       const result = visionOptionsSchema.safeParse({});
       expect(result.success).toBe(true);
       if (result.success) {
@@ -61,13 +61,13 @@ describe('visionOptionsSchema', () => {
       }
     });
 
-    it('should accept undefined (optional schema)', () => {
+    it("should accept undefined (optional schema)", () => {
       const result = visionOptionsSchema.safeParse(undefined);
       expect(result.success).toBe(true);
     });
 
     // visionTimeoutMs boundary tests
-    it('should accept visionTimeoutMs at minimum (1000ms = 1秒)', () => {
+    it("should accept visionTimeoutMs at minimum (1000ms = 1秒)", () => {
       const result = visionOptionsSchema.safeParse({ visionTimeoutMs: 1000 });
       expect(result.success).toBe(true);
       if (result.success) {
@@ -75,7 +75,7 @@ describe('visionOptionsSchema', () => {
       }
     });
 
-    it('should accept visionTimeoutMs at maximum (1200000ms = 20分)', () => {
+    it("should accept visionTimeoutMs at maximum (1200000ms = 20分)", () => {
       const result = visionOptionsSchema.safeParse({ visionTimeoutMs: 1200000 });
       expect(result.success).toBe(true);
       if (result.success) {
@@ -83,23 +83,23 @@ describe('visionOptionsSchema', () => {
       }
     });
 
-    it('should accept typical GPU timeout (60000ms = 1分)', () => {
+    it("should accept typical GPU timeout (60000ms = 1分)", () => {
       const result = visionOptionsSchema.safeParse({ visionTimeoutMs: 60000 });
       expect(result.success).toBe(true);
     });
 
-    it('should accept typical CPU small timeout (180000ms = 3分)', () => {
+    it("should accept typical CPU small timeout (180000ms = 3分)", () => {
       const result = visionOptionsSchema.safeParse({ visionTimeoutMs: 180000 });
       expect(result.success).toBe(true);
     });
 
-    it('should accept typical CPU medium timeout (600000ms = 10分)', () => {
+    it("should accept typical CPU medium timeout (600000ms = 10分)", () => {
       const result = visionOptionsSchema.safeParse({ visionTimeoutMs: 600000 });
       expect(result.success).toBe(true);
     });
 
     // visionImageMaxSize boundary tests
-    it('should accept visionImageMaxSize at minimum (1024 bytes = 1KB)', () => {
+    it("should accept visionImageMaxSize at minimum (1024 bytes = 1KB)", () => {
       const result = visionOptionsSchema.safeParse({ visionImageMaxSize: 1024 });
       expect(result.success).toBe(true);
       if (result.success) {
@@ -107,7 +107,7 @@ describe('visionOptionsSchema', () => {
       }
     });
 
-    it('should accept visionImageMaxSize at maximum (10000000 bytes = 10MB)', () => {
+    it("should accept visionImageMaxSize at maximum (10000000 bytes = 10MB)", () => {
       const result = visionOptionsSchema.safeParse({ visionImageMaxSize: 10000000 });
       expect(result.success).toBe(true);
       if (result.success) {
@@ -115,18 +115,18 @@ describe('visionOptionsSchema', () => {
       }
     });
 
-    it('should accept typical small image size threshold (100000 bytes = 100KB)', () => {
+    it("should accept typical small image size threshold (100000 bytes = 100KB)", () => {
       const result = visionOptionsSchema.safeParse({ visionImageMaxSize: 100000 });
       expect(result.success).toBe(true);
     });
 
-    it('should accept typical large image size threshold (500000 bytes = 500KB)', () => {
+    it("should accept typical large image size threshold (500000 bytes = 500KB)", () => {
       const result = visionOptionsSchema.safeParse({ visionImageMaxSize: 500000 });
       expect(result.success).toBe(true);
     });
 
     // Boolean fields tests
-    it('should accept visionForceCpu: true (force CPU mode)', () => {
+    it("should accept visionForceCpu: true (force CPU mode)", () => {
       const result = visionOptionsSchema.safeParse({ visionForceCpu: true });
       expect(result.success).toBe(true);
       if (result.success) {
@@ -134,7 +134,7 @@ describe('visionOptionsSchema', () => {
       }
     });
 
-    it('should accept visionEnableProgress: true (enable progress)', () => {
+    it("should accept visionEnableProgress: true (enable progress)", () => {
       const result = visionOptionsSchema.safeParse({ visionEnableProgress: true });
       expect(result.success).toBe(true);
       if (result.success) {
@@ -142,7 +142,7 @@ describe('visionOptionsSchema', () => {
       }
     });
 
-    it('should accept visionFallbackToHtmlOnly: false (disable fallback)', () => {
+    it("should accept visionFallbackToHtmlOnly: false (disable fallback)", () => {
       const result = visionOptionsSchema.safeParse({ visionFallbackToHtmlOnly: false });
       expect(result.success).toBe(true);
       if (result.success) {
@@ -151,7 +151,7 @@ describe('visionOptionsSchema', () => {
     });
 
     // Partial options tests
-    it('should accept only timeout option', () => {
+    it("should accept only timeout option", () => {
       const result = visionOptionsSchema.safeParse({ visionTimeoutMs: 300000 });
       expect(result.success).toBe(true);
       if (result.success) {
@@ -162,7 +162,7 @@ describe('visionOptionsSchema', () => {
       }
     });
 
-    it('should accept CPU mode with custom timeout', () => {
+    it("should accept CPU mode with custom timeout", () => {
       const result = visionOptionsSchema.safeParse({
         visionForceCpu: true,
         visionTimeoutMs: 1200000, // 20分（CPU Large用）
@@ -175,89 +175,89 @@ describe('visionOptionsSchema', () => {
     });
   });
 
-  describe('invalid inputs', () => {
+  describe("invalid inputs", () => {
     // visionTimeoutMs validation errors
-    it('should reject visionTimeoutMs below minimum (< 1000ms)', () => {
+    it("should reject visionTimeoutMs below minimum (< 1000ms)", () => {
       const result = visionOptionsSchema.safeParse({ visionTimeoutMs: 999 });
       expect(result.success).toBe(false);
       if (!result.success) {
-        expect(result.error.issues[0].path).toContain('visionTimeoutMs');
+        expect(result.error.issues[0].path).toContain("visionTimeoutMs");
       }
     });
 
-    it('should reject visionTimeoutMs above maximum (> 1200000ms)', () => {
+    it("should reject visionTimeoutMs above maximum (> 1200000ms)", () => {
       const result = visionOptionsSchema.safeParse({ visionTimeoutMs: 1200001 });
       expect(result.success).toBe(false);
       if (!result.success) {
-        expect(result.error.issues[0].path).toContain('visionTimeoutMs');
+        expect(result.error.issues[0].path).toContain("visionTimeoutMs");
       }
     });
 
-    it('should reject negative visionTimeoutMs', () => {
+    it("should reject negative visionTimeoutMs", () => {
       const result = visionOptionsSchema.safeParse({ visionTimeoutMs: -1000 });
       expect(result.success).toBe(false);
     });
 
-    it('should reject zero visionTimeoutMs', () => {
+    it("should reject zero visionTimeoutMs", () => {
       const result = visionOptionsSchema.safeParse({ visionTimeoutMs: 0 });
       expect(result.success).toBe(false);
     });
 
     // visionImageMaxSize validation errors
-    it('should reject visionImageMaxSize below minimum (< 1024 bytes)', () => {
+    it("should reject visionImageMaxSize below minimum (< 1024 bytes)", () => {
       const result = visionOptionsSchema.safeParse({ visionImageMaxSize: 1023 });
       expect(result.success).toBe(false);
       if (!result.success) {
-        expect(result.error.issues[0].path).toContain('visionImageMaxSize');
+        expect(result.error.issues[0].path).toContain("visionImageMaxSize");
       }
     });
 
-    it('should reject visionImageMaxSize above maximum (> 10000000 bytes)', () => {
+    it("should reject visionImageMaxSize above maximum (> 10000000 bytes)", () => {
       const result = visionOptionsSchema.safeParse({ visionImageMaxSize: 10000001 });
       expect(result.success).toBe(false);
       if (!result.success) {
-        expect(result.error.issues[0].path).toContain('visionImageMaxSize');
+        expect(result.error.issues[0].path).toContain("visionImageMaxSize");
       }
     });
 
-    it('should reject negative visionImageMaxSize', () => {
+    it("should reject negative visionImageMaxSize", () => {
       const result = visionOptionsSchema.safeParse({ visionImageMaxSize: -1024 });
       expect(result.success).toBe(false);
     });
 
-    it('should reject zero visionImageMaxSize', () => {
+    it("should reject zero visionImageMaxSize", () => {
       const result = visionOptionsSchema.safeParse({ visionImageMaxSize: 0 });
       expect(result.success).toBe(false);
     });
 
     // Type validation errors
-    it('should reject non-number visionTimeoutMs', () => {
-      const result = visionOptionsSchema.safeParse({ visionTimeoutMs: '60000' });
+    it("should reject non-number visionTimeoutMs", () => {
+      const result = visionOptionsSchema.safeParse({ visionTimeoutMs: "60000" });
       expect(result.success).toBe(false);
     });
 
-    it('should reject non-number visionImageMaxSize', () => {
-      const result = visionOptionsSchema.safeParse({ visionImageMaxSize: '5000000' });
+    it("should reject non-number visionImageMaxSize", () => {
+      const result = visionOptionsSchema.safeParse({ visionImageMaxSize: "5000000" });
       expect(result.success).toBe(false);
     });
 
-    it('should reject non-boolean visionForceCpu', () => {
-      const result = visionOptionsSchema.safeParse({ visionForceCpu: 'true' });
+    it("should reject non-boolean visionForceCpu", () => {
+      const result = visionOptionsSchema.safeParse({ visionForceCpu: "true" });
       expect(result.success).toBe(false);
     });
 
-    it('should reject non-boolean visionEnableProgress', () => {
+    it("should reject non-boolean visionEnableProgress", () => {
       const result = visionOptionsSchema.safeParse({ visionEnableProgress: 1 });
       expect(result.success).toBe(false);
     });
 
-    it('should reject non-boolean visionFallbackToHtmlOnly', () => {
-      const result = visionOptionsSchema.safeParse({ visionFallbackToHtmlOnly: 'false' });
+    it("should reject non-boolean visionFallbackToHtmlOnly", () => {
+      const result = visionOptionsSchema.safeParse({ visionFallbackToHtmlOnly: "false" });
       expect(result.success).toBe(false);
     });
 
     // Float/decimal validation (should accept but may truncate)
-    it('should reject float visionTimeoutMs', () => {
+    it("should reject float visionTimeoutMs", () => {
       // Zodはデフォルトでfloatを許容するが、適切にintegerに変換される
       // または、厳密なint制約を追加している場合は拒否される
       const result = visionOptionsSchema.safeParse({ visionTimeoutMs: 60000.5 });
@@ -265,14 +265,14 @@ describe('visionOptionsSchema', () => {
       // このテストは実装を確認するためのもの
       if (result.success) {
         // floatを受け入れる場合
-        expect(typeof result.data.visionTimeoutMs).toBe('number');
+        expect(typeof result.data.visionTimeoutMs).toBe("number");
       }
       // 実装で厳密にintegerを要求する場合は expect(result.success).toBe(false);
     });
   });
 
-  describe('default values', () => {
-    it('should apply default false for visionForceCpu when not specified', () => {
+  describe("default values", () => {
+    it("should apply default false for visionForceCpu when not specified", () => {
       const result = visionOptionsSchema.safeParse({});
       expect(result.success).toBe(true);
       if (result.success) {
@@ -280,7 +280,7 @@ describe('visionOptionsSchema', () => {
       }
     });
 
-    it('should apply default false for visionEnableProgress when not specified', () => {
+    it("should apply default false for visionEnableProgress when not specified", () => {
       const result = visionOptionsSchema.safeParse({});
       expect(result.success).toBe(true);
       if (result.success) {
@@ -288,7 +288,7 @@ describe('visionOptionsSchema', () => {
       }
     });
 
-    it('should apply default true for visionFallbackToHtmlOnly when not specified', () => {
+    it("should apply default true for visionFallbackToHtmlOnly when not specified", () => {
       const result = visionOptionsSchema.safeParse({});
       expect(result.success).toBe(true);
       if (result.success) {
@@ -296,7 +296,7 @@ describe('visionOptionsSchema', () => {
       }
     });
 
-    it('should not apply defaults for optional numeric fields', () => {
+    it("should not apply defaults for optional numeric fields", () => {
       const result = visionOptionsSchema.safeParse({});
       expect(result.success).toBe(true);
       if (result.success) {
@@ -306,8 +306,8 @@ describe('visionOptionsSchema', () => {
     });
   });
 
-  describe('use cases', () => {
-    it('should support GPU mode with fast timeout', () => {
+  describe("use cases", () => {
+    it("should support GPU mode with fast timeout", () => {
       const result = visionOptionsSchema.safeParse({
         visionTimeoutMs: 60000, // GPU timeout
         visionForceCpu: false,
@@ -315,7 +315,7 @@ describe('visionOptionsSchema', () => {
       expect(result.success).toBe(true);
     });
 
-    it('should support CPU mode with extended timeout for large images', () => {
+    it("should support CPU mode with extended timeout for large images", () => {
       const result = visionOptionsSchema.safeParse({
         visionTimeoutMs: 1200000, // 20分（CPU Large）
         visionForceCpu: true,
@@ -324,7 +324,7 @@ describe('visionOptionsSchema', () => {
       expect(result.success).toBe(true);
     });
 
-    it('should support progress tracking for long operations', () => {
+    it("should support progress tracking for long operations", () => {
       const result = visionOptionsSchema.safeParse({
         visionTimeoutMs: 600000,
         visionEnableProgress: true,
@@ -332,14 +332,14 @@ describe('visionOptionsSchema', () => {
       expect(result.success).toBe(true);
     });
 
-    it('should support strict mode (no fallback)', () => {
+    it("should support strict mode (no fallback)", () => {
       const result = visionOptionsSchema.safeParse({
         visionFallbackToHtmlOnly: false, // Vision失敗時にエラーを返す
       });
       expect(result.success).toBe(true);
     });
 
-    it('should support graceful degradation mode (default)', () => {
+    it("should support graceful degradation mode (default)", () => {
       const result = visionOptionsSchema.safeParse({
         visionFallbackToHtmlOnly: true, // Vision失敗時にHTML解析のみで続行
       });

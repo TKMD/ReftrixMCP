@@ -9,4 +9,4 @@
  * @module config
  */
 
-export * from './redis';
+export * from "./redis";

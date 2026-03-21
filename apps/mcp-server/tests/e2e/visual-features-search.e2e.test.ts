@@ -19,9 +19,9 @@
  * @module tests/e2e/visual-features-search.e2e
  */
 
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import { PrismaClient } from '@prisma/client';
-import { v7 as uuidv7 } from 'uuid';
+import { describe, it, expect, beforeAll, afterAll } from "vitest";
+import { PrismaClient } from "@prisma/client";
+import { v7 as uuidv7 } from "uuid";
 
 // Layout Search サービス（DI設定用）
 import {
@@ -30,7 +30,7 @@ import {
   setLayoutPrismaClientFactory,
   resetLayoutPrismaClientFactory,
   createLayoutSearchServiceFactory,
-} from '../../src/services/layout-search.service';
+} from "../../src/services/layout-search.service";
 
 // Vision Embedding Search サービス
 import {
@@ -39,7 +39,7 @@ import {
   setVisionSearchPrismaClientFactory,
   resetVisionSearchPrismaClientFactory,
   createVisionEmbeddingSearchServiceFactory,
-} from '../../src/services/vision-embedding-search.service';
+} from "../../src/services/vision-embedding-search.service";
 
 // Color utilities（ΔE検証用）
 import {
@@ -47,9 +47,9 @@ import {
   isColorWithinTolerance,
   hexToLab,
   calculateDeltaE76,
-} from '../../src/utils/color';
+} from "../../src/utils/color";
 
-import { TEST_DATABASE_URL } from './test-database-url';
+import { TEST_DATABASE_URL } from "./test-database-url";
 
 // ============================================================================
 // Prisma クライアント設定
@@ -61,7 +61,7 @@ const prisma = new PrismaClient({
       url: TEST_DATABASE_URL,
     },
   },
-  log: process.env.NODE_ENV === 'development' ? ['query', 'error'] : ['error'],
+  log: process.env.NODE_ENV === "development" ? ["query", "error"] : ["error"],
 });
 
 // ============================================================================
@@ -74,24 +74,24 @@ const prisma = new PrismaClient({
 const testWebPages = {
   lightTheme: {
     id: uuidv7(),
-    url: 'https://example.com/light-theme',
-    title: 'Light Theme Test Page',
-    sourceType: 'user_provided',
-    usageScope: 'inspiration_only',
+    url: "https://example.com/light-theme",
+    title: "Light Theme Test Page",
+    sourceType: "user_provided",
+    usageScope: "inspiration_only",
   },
   darkTheme: {
     id: uuidv7(),
-    url: 'https://example.com/dark-theme',
-    title: 'Dark Theme Test Page',
-    sourceType: 'user_provided',
-    usageScope: 'inspiration_only',
+    url: "https://example.com/dark-theme",
+    title: "Dark Theme Test Page",
+    sourceType: "user_provided",
+    usageScope: "inspiration_only",
   },
   mixedTheme: {
     id: uuidv7(),
-    url: 'https://example.com/mixed-theme',
-    title: 'Mixed Theme Test Page',
-    sourceType: 'award_gallery',
-    usageScope: 'owned_asset',
+    url: "https://example.com/mixed-theme",
+    title: "Mixed Theme Test Page",
+    sourceType: "award_gallery",
+    usageScope: "owned_asset",
   },
 };
 
@@ -102,128 +102,128 @@ const testSectionPatterns = {
   lightHero: {
     id: uuidv7(),
     webPageId: testWebPages.lightTheme.id,
-    sectionType: 'hero',
-    sectionName: 'Light Hero Section',
+    sectionType: "hero",
+    sectionName: "Light Hero Section",
     htmlSnippet: '<section class="hero light">Light Hero</section>',
-    layoutInfo: { columns: 1, rows: 1, gridType: 'single' },
+    layoutInfo: { columns: 1, rows: 1, gridType: "single" },
     visualFeatures: {
       theme: {
-        type: 'light',
+        type: "light",
         confidence: 0.95,
-        backgroundColor: '#FFFFFF',
-        textColor: '#212121',
+        backgroundColor: "#FFFFFF",
+        textColor: "#212121",
         contrastRatio: 16.5,
         luminance: { background: 1.0, foreground: 0.05 },
       },
       colors: {
-        dominantColors: ['#FFFFFF', '#F5F5F5'],
-        accentColors: ['#3B82F6'],
+        dominantColors: ["#FFFFFF", "#F5F5F5"],
+        accentColors: ["#3B82F6"],
         colorPalette: [
-          { color: '#FFFFFF', percentage: 60 },
-          { color: '#F5F5F5', percentage: 25 },
-          { color: '#3B82F6', percentage: 15 },
+          { color: "#FFFFFF", percentage: 60 },
+          { color: "#F5F5F5", percentage: 25 },
+          { color: "#3B82F6", percentage: 15 },
         ],
       },
       density: {
         contentDensity: 0.35,
         whitespaceRatio: 0.65,
-        category: 'sparse',
+        category: "sparse",
       },
     },
   },
   darkHero: {
     id: uuidv7(),
     webPageId: testWebPages.darkTheme.id,
-    sectionType: 'hero',
-    sectionName: 'Dark Hero Section',
+    sectionType: "hero",
+    sectionName: "Dark Hero Section",
     htmlSnippet: '<section class="hero dark">Dark Hero</section>',
-    layoutInfo: { columns: 1, rows: 1, gridType: 'single' },
+    layoutInfo: { columns: 1, rows: 1, gridType: "single" },
     visualFeatures: {
       theme: {
-        type: 'dark',
+        type: "dark",
         confidence: 0.92,
-        backgroundColor: '#1E1E1E',
-        textColor: '#FAFAFA',
+        backgroundColor: "#1E1E1E",
+        textColor: "#FAFAFA",
         contrastRatio: 14.8,
         luminance: { background: 0.05, foreground: 0.95 },
       },
       colors: {
-        dominantColors: ['#1E1E1E', '#2D2D2D'],
-        accentColors: ['#8B5CF6'],
+        dominantColors: ["#1E1E1E", "#2D2D2D"],
+        accentColors: ["#8B5CF6"],
         colorPalette: [
-          { color: '#1E1E1E', percentage: 55 },
-          { color: '#2D2D2D', percentage: 30 },
-          { color: '#8B5CF6', percentage: 15 },
+          { color: "#1E1E1E", percentage: 55 },
+          { color: "#2D2D2D", percentage: 30 },
+          { color: "#8B5CF6", percentage: 15 },
         ],
       },
       density: {
         contentDensity: 0.55,
         whitespaceRatio: 0.45,
-        category: 'moderate',
+        category: "moderate",
       },
     },
   },
   mixedFeature: {
     id: uuidv7(),
     webPageId: testWebPages.mixedTheme.id,
-    sectionType: 'feature',
-    sectionName: 'Mixed Feature Section',
+    sectionType: "feature",
+    sectionName: "Mixed Feature Section",
     htmlSnippet: '<section class="feature mixed">Mixed Feature</section>',
-    layoutInfo: { columns: 3, rows: 1, gridType: 'grid' },
+    layoutInfo: { columns: 3, rows: 1, gridType: "grid" },
     visualFeatures: {
       theme: {
-        type: 'mixed',
+        type: "mixed",
         confidence: 0.78,
-        backgroundColor: '#808080',
-        textColor: '#FFFFFF',
+        backgroundColor: "#808080",
+        textColor: "#FFFFFF",
         contrastRatio: 4.5,
         luminance: { background: 0.5, foreground: 0.95 },
       },
       colors: {
-        dominantColors: ['#808080', '#A0A0A0'],
-        accentColors: ['#10B981'],
+        dominantColors: ["#808080", "#A0A0A0"],
+        accentColors: ["#10B981"],
         colorPalette: [
-          { color: '#808080', percentage: 40 },
-          { color: '#A0A0A0', percentage: 35 },
-          { color: '#10B981', percentage: 25 },
+          { color: "#808080", percentage: 40 },
+          { color: "#A0A0A0", percentage: 35 },
+          { color: "#10B981", percentage: 25 },
         ],
       },
       density: {
         contentDensity: 0.75,
         whitespaceRatio: 0.25,
-        category: 'dense',
+        category: "dense",
       },
     },
   },
   blueAccentCta: {
     id: uuidv7(),
     webPageId: testWebPages.lightTheme.id,
-    sectionType: 'cta',
-    sectionName: 'Blue Accent CTA',
+    sectionType: "cta",
+    sectionName: "Blue Accent CTA",
     htmlSnippet: '<section class="cta blue">Blue CTA</section>',
-    layoutInfo: { columns: 1, rows: 1, gridType: 'single' },
+    layoutInfo: { columns: 1, rows: 1, gridType: "single" },
     visualFeatures: {
       theme: {
-        type: 'light',
+        type: "light",
         confidence: 0.88,
-        backgroundColor: '#F8FAFC',
-        textColor: '#1E293B',
+        backgroundColor: "#F8FAFC",
+        textColor: "#1E293B",
         contrastRatio: 12.8,
         luminance: { background: 0.97, foreground: 0.08 },
       },
       colors: {
-        dominantColors: ['#3B82F6', '#F8FAFC'],
-        accentColors: ['#1D4ED8'],
+        dominantColors: ["#3B82F6", "#F8FAFC"],
+        accentColors: ["#1D4ED8"],
         colorPalette: [
-          { color: '#3B82F6', percentage: 45 },
-          { color: '#F8FAFC', percentage: 40 },
-          { color: '#1D4ED8', percentage: 15 },
+          { color: "#3B82F6", percentage: 45 },
+          { color: "#F8FAFC", percentage: 40 },
+          { color: "#1D4ED8", percentage: 15 },
         ],
       },
       density: {
         contentDensity: 0.4,
         whitespaceRatio: 0.6,
-        category: 'sparse',
+        category: "sparse",
       },
     },
   },
@@ -248,7 +248,7 @@ function generateMockEmbedding(seed: number): number[] {
 // E2E テストスイート: Visual Features Search
 // ============================================================================
 
-describe('Visual Features Search E2Eテスト', () => {
+describe("Visual Features Search E2Eテスト", () => {
   // ==========================================================================
   // セットアップ・クリーンアップ
   // ==========================================================================
@@ -256,33 +256,33 @@ describe('Visual Features Search E2Eテスト', () => {
   beforeAll(async () => {
     try {
       await prisma.$connect();
-      console.log('[E2E][visual-features-search] Database connected successfully');
+      console.log("[E2E][visual-features-search] Database connected successfully");
 
       // PrismaClientFactory を設定
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       setLayoutPrismaClientFactory(() => prisma as any);
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       setVisionSearchPrismaClientFactory(() => prisma as any);
-      console.log('[E2E][visual-features-search] PrismaClientFactory configured');
+      console.log("[E2E][visual-features-search] PrismaClientFactory configured");
 
       // モック EmbeddingService を設定
       const mockEmbeddingService = {
-        generateEmbedding: async (text: string, _type: 'query' | 'passage') => {
+        generateEmbedding: async (text: string, _type: "query" | "passage") => {
           // テキストからシード値を生成
-          const seed = text.split('').reduce((sum, c) => sum + c.charCodeAt(0), 0);
+          const seed = text.split("").reduce((sum, c) => sum + c.charCodeAt(0), 0);
           return generateMockEmbedding(seed);
         },
       };
 
       setLayoutEmbeddingServiceFactory(() => mockEmbeddingService);
       setVisionSearchEmbeddingServiceFactory(() => mockEmbeddingService);
-      console.log('[E2E][visual-features-search] EmbeddingService configured');
+      console.log("[E2E][visual-features-search] EmbeddingService configured");
 
       // テストデータセットアップ
       await setupTestData();
-      console.log('[E2E][visual-features-search] Test data setup complete');
+      console.log("[E2E][visual-features-search] Test data setup complete");
     } catch (error) {
-      console.error('[E2E][visual-features-search] Setup failed:', error);
+      console.error("[E2E][visual-features-search] Setup failed:", error);
       throw error;
     }
   });
@@ -291,7 +291,7 @@ describe('Visual Features Search E2Eテスト', () => {
     try {
       // テストデータクリーンアップ
       await cleanupTestData();
-      console.log('[E2E][visual-features-search] Test data cleaned up');
+      console.log("[E2E][visual-features-search] Test data cleaned up");
 
       // ファクトリリセット
       resetLayoutEmbeddingServiceFactory();
@@ -300,9 +300,9 @@ describe('Visual Features Search E2Eテスト', () => {
       resetVisionSearchPrismaClientFactory();
 
       await prisma.$disconnect();
-      console.log('[E2E][visual-features-search] Database disconnected');
+      console.log("[E2E][visual-features-search] Database disconnected");
     } catch (error) {
-      console.error('[E2E][visual-features-search] Cleanup failed:', error);
+      console.error("[E2E][visual-features-search] Cleanup failed:", error);
     }
   });
 
@@ -316,7 +316,7 @@ describe('Visual Features Search E2Eテスト', () => {
           id: page.id,
           url: page.url,
           title: page.title,
-          htmlContent: '<html><body>Test</body></html>',
+          htmlContent: "<html><body>Test</body></html>",
           sourceType: page.sourceType,
           usageScope: page.usageScope,
         },
@@ -352,7 +352,7 @@ describe('Visual Features Search E2Eテスト', () => {
         create: {
           id: embeddingId,
           sectionPatternId: section.id,
-          modelVersion: 'e5-base-v1',
+          modelVersion: "e5-base-v1",
         },
       });
 
@@ -361,8 +361,8 @@ describe('Visual Features Search E2Eテスト', () => {
         `UPDATE section_embeddings
          SET text_embedding = $1::vector, vision_embedding = $2::vector
          WHERE id = $3::uuid`,
-        `[${textEmbedding.join(',')}]`,
-        `[${visionEmbedding.join(',')}]`,
+        `[${textEmbedding.join(",")}]`,
+        `[${visionEmbedding.join(",")}]`,
         embeddingId
       );
     }
@@ -401,64 +401,64 @@ describe('Visual Features Search E2Eテスト', () => {
   // ΔE (CIE76) Color Distance テスト（ユーティリティ関数の検証）
   // ==========================================================================
 
-  describe('ΔE (CIE76) Color Distance', () => {
-    it('同一色のΔEは0であること', () => {
-      const deltaE = calculateDeltaEFromHex('#3B82F6', '#3B82F6');
+  describe("ΔE (CIE76) Color Distance", () => {
+    it("同一色のΔEは0であること", () => {
+      const deltaE = calculateDeltaEFromHex("#3B82F6", "#3B82F6");
       expect(deltaE).toBe(0);
     });
 
-    it('近い色のΔEは小さいこと（< 5）', () => {
+    it("近い色のΔEは小さいこと（< 5）", () => {
       // 非常に近い青色（わずかな明度差のみ）
       // #3B82F6 と #3D84F7 は視覚的にほぼ同一
-      const deltaE = calculateDeltaEFromHex('#3B82F6', '#3D84F7');
+      const deltaE = calculateDeltaEFromHex("#3B82F6", "#3D84F7");
       expect(deltaE).toBeLessThan(5); // 近い色はΔE < 5
       expect(deltaE).toBeGreaterThan(0);
     });
 
-    it('異なる色のΔEは大きいこと（> 30）', () => {
+    it("異なる色のΔEは大きいこと（> 30）", () => {
       // 青と赤
-      const deltaE = calculateDeltaEFromHex('#3B82F6', '#EF4444');
+      const deltaE = calculateDeltaEFromHex("#3B82F6", "#EF4444");
       expect(deltaE).toBeGreaterThan(30);
     });
 
-    it('白と黒のΔEは最大値に近いこと', () => {
-      const deltaE = calculateDeltaEFromHex('#FFFFFF', '#000000');
+    it("白と黒のΔEは最大値に近いこと", () => {
+      const deltaE = calculateDeltaEFromHex("#FFFFFF", "#000000");
       expect(deltaE).toBeGreaterThan(100);
     });
 
-    it('isColorWithinTolerance がデフォルト許容値（15）で正しく判定すること', () => {
+    it("isColorWithinTolerance がデフォルト許容値（15）で正しく判定すること", () => {
       // 同一色は常にtrue
-      expect(isColorWithinTolerance('#3B82F6', '#3B82F6')).toBe(true);
+      expect(isColorWithinTolerance("#3B82F6", "#3B82F6")).toBe(true);
 
       // 近い色
-      expect(isColorWithinTolerance('#3B82F6', '#4B8FFF', 15)).toBe(true);
+      expect(isColorWithinTolerance("#3B82F6", "#4B8FFF", 15)).toBe(true);
 
       // 遠い色
-      expect(isColorWithinTolerance('#3B82F6', '#EF4444', 15)).toBe(false);
+      expect(isColorWithinTolerance("#3B82F6", "#EF4444", 15)).toBe(false);
     });
 
-    it('カスタム許容値でisColorWithinToleranceが正しく動作すること', () => {
+    it("カスタム許容値でisColorWithinToleranceが正しく動作すること", () => {
       // 厳密な許容値（5）
-      expect(isColorWithinTolerance('#3B82F6', '#3B82F6', 5)).toBe(true);
+      expect(isColorWithinTolerance("#3B82F6", "#3B82F6", 5)).toBe(true);
 
       // 緩い許容値（50）
-      expect(isColorWithinTolerance('#3B82F6', '#2563EB', 50)).toBe(true);
+      expect(isColorWithinTolerance("#3B82F6", "#2563EB", 50)).toBe(true);
     });
 
-    it('hexToLab が正しいLAB値を返すこと', () => {
+    it("hexToLab が正しいLAB値を返すこと", () => {
       // LabColorインターフェースは小文字の l, a, b を使用
-      const whiteLab = hexToLab('#FFFFFF');
+      const whiteLab = hexToLab("#FFFFFF");
       expect(whiteLab).not.toBeNull();
       expect(whiteLab!.l).toBeCloseTo(100, 0); // L* = 100 (白)
 
-      const blackLab = hexToLab('#000000');
+      const blackLab = hexToLab("#000000");
       expect(blackLab).not.toBeNull();
       expect(blackLab!.l).toBeCloseTo(0, 0); // L* = 0 (黒)
     });
 
-    it('無効なHEXコードでnullを返すこと', () => {
-      expect(hexToLab('invalid')).toBeNull();
-      expect(hexToLab('#GGG')).toBeNull();
+    it("無効なHEXコードでnullを返すこと", () => {
+      expect(hexToLab("invalid")).toBeNull();
+      expect(hexToLab("#GGG")).toBeNull();
     });
   });
 
@@ -466,7 +466,7 @@ describe('Visual Features Search E2Eテスト', () => {
   // Visual Features Theme Filter テスト
   // ==========================================================================
 
-  describe('Visual Features Theme Filter', () => {
+  describe("Visual Features Theme Filter", () => {
     it('theme.type="light" でライトテーマのセクションのみ取得できること', async () => {
       const searchService = createLayoutSearchServiceFactory()();
       const embedding = generateMockEmbedding(123);
@@ -478,7 +478,7 @@ describe('Visual Features Search E2Eテスト', () => {
         filters: {
           visualFeatures: {
             theme: {
-              type: 'light',
+              type: "light",
             },
           },
         },
@@ -493,7 +493,7 @@ describe('Visual Features Search E2Eテスト', () => {
           theme?: { type: string };
         };
         if (visualFeatures?.theme?.type) {
-          expect(visualFeatures.theme.type).toBe('light');
+          expect(visualFeatures.theme.type).toBe("light");
         }
       }
     });
@@ -509,7 +509,7 @@ describe('Visual Features Search E2Eテスト', () => {
         filters: {
           visualFeatures: {
             theme: {
-              type: 'dark',
+              type: "dark",
             },
           },
         },
@@ -522,7 +522,7 @@ describe('Visual Features Search E2Eテスト', () => {
           theme?: { type: string };
         };
         if (visualFeatures?.theme?.type) {
-          expect(visualFeatures.theme.type).toBe('dark');
+          expect(visualFeatures.theme.type).toBe("dark");
         }
       }
     });
@@ -538,7 +538,7 @@ describe('Visual Features Search E2Eテスト', () => {
         filters: {
           visualFeatures: {
             theme: {
-              type: 'mixed',
+              type: "mixed",
             },
           },
         },
@@ -551,12 +551,12 @@ describe('Visual Features Search E2Eテスト', () => {
           theme?: { type: string };
         };
         if (visualFeatures?.theme?.type) {
-          expect(visualFeatures.theme.type).toBe('mixed');
+          expect(visualFeatures.theme.type).toBe("mixed");
         }
       }
     });
 
-    it('theme.minContrastRatio で最小コントラスト比を満たすセクションを取得できること', async () => {
+    it("theme.minContrastRatio で最小コントラスト比を満たすセクションを取得できること", async () => {
       const searchService = createLayoutSearchServiceFactory()();
       const embedding = generateMockEmbedding(101);
       const minContrastRatio = 10.0;
@@ -586,7 +586,7 @@ describe('Visual Features Search E2Eテスト', () => {
       }
     });
 
-    it('WCAG 2.1 AA基準（4.5:1）を満たすセクションを取得できること', async () => {
+    it("WCAG 2.1 AA基準（4.5:1）を満たすセクションを取得できること", async () => {
       const searchService = createLayoutSearchServiceFactory()();
       const embedding = generateMockEmbedding(202);
       const wcagAAContrastRatio = 4.5;
@@ -621,11 +621,11 @@ describe('Visual Features Search E2Eテスト', () => {
   // Visual Features Colors Filter テスト
   // ==========================================================================
 
-  describe('Visual Features Colors Filter', () => {
-    it('dominantColor でマッチする色を持つセクションを取得できること', async () => {
+  describe("Visual Features Colors Filter", () => {
+    it("dominantColor でマッチする色を持つセクションを取得できること", async () => {
       const searchService = createLayoutSearchServiceFactory()();
       const embedding = generateMockEmbedding(303);
-      const targetColor = '#3B82F6';
+      const targetColor = "#3B82F6";
       const colorTolerance = 15;
 
       const result = await searchService.searchSectionPatterns(embedding, {
@@ -645,10 +645,10 @@ describe('Visual Features Search E2Eテスト', () => {
       expect(result).not.toBeNull();
     });
 
-    it('colorTolerance が小さい場合、厳密なマッチングが行われること', async () => {
+    it("colorTolerance が小さい場合、厳密なマッチングが行われること", async () => {
       const searchService = createLayoutSearchServiceFactory()();
       const embedding = generateMockEmbedding(404);
-      const targetColor = '#3B82F6';
+      const targetColor = "#3B82F6";
       const strictTolerance = 5;
 
       const result = await searchService.searchSectionPatterns(embedding, {
@@ -668,10 +668,10 @@ describe('Visual Features Search E2Eテスト', () => {
       expect(result).not.toBeNull();
     });
 
-    it('colorTolerance が大きい場合、より多くのセクションがマッチすること', async () => {
+    it("colorTolerance が大きい場合、より多くのセクションがマッチすること", async () => {
       const searchService = createLayoutSearchServiceFactory()();
       const embedding = generateMockEmbedding(505);
-      const targetColor = '#3B82F6';
+      const targetColor = "#3B82F6";
 
       // 狭い許容値での検索
       const strictResult = await searchService.searchSectionPatterns(embedding, {
@@ -715,8 +715,8 @@ describe('Visual Features Search E2Eテスト', () => {
   // Visual Features Density Filter テスト
   // ==========================================================================
 
-  describe('Visual Features Density Filter', () => {
-    it('density.minContentDensity でコンテンツ密度の下限を設定できること', async () => {
+  describe("Visual Features Density Filter", () => {
+    it("density.minContentDensity でコンテンツ密度の下限を設定できること", async () => {
       const searchService = createLayoutSearchServiceFactory()();
       const embedding = generateMockEmbedding(606);
       const minContentDensity = 0.5;
@@ -746,7 +746,7 @@ describe('Visual Features Search E2Eテスト', () => {
       }
     });
 
-    it('density.maxContentDensity でコンテンツ密度の上限を設定できること', async () => {
+    it("density.maxContentDensity でコンテンツ密度の上限を設定できること", async () => {
       const searchService = createLayoutSearchServiceFactory()();
       const embedding = generateMockEmbedding(707);
       const maxContentDensity = 0.5;
@@ -776,7 +776,7 @@ describe('Visual Features Search E2Eテスト', () => {
       }
     });
 
-    it('density.minWhitespaceRatio でホワイトスペース比率の下限を設定できること', async () => {
+    it("density.minWhitespaceRatio でホワイトスペース比率の下限を設定できること", async () => {
       const searchService = createLayoutSearchServiceFactory()();
       const embedding = generateMockEmbedding(808);
       const minWhitespaceRatio = 0.5;
@@ -817,7 +817,7 @@ describe('Visual Features Search E2Eテスト', () => {
         filters: {
           visualFeatures: {
             density: {
-              category: 'sparse',
+              category: "sparse",
             },
           },
         },
@@ -830,7 +830,7 @@ describe('Visual Features Search E2Eテスト', () => {
           density?: { category: string };
         };
         if (visualFeatures?.density?.category) {
-          expect(visualFeatures.density.category).toBe('sparse');
+          expect(visualFeatures.density.category).toBe("sparse");
         }
       }
     });
@@ -846,7 +846,7 @@ describe('Visual Features Search E2Eテスト', () => {
         filters: {
           visualFeatures: {
             density: {
-              category: 'dense',
+              category: "dense",
             },
           },
         },
@@ -859,7 +859,7 @@ describe('Visual Features Search E2Eテスト', () => {
           density?: { category: string };
         };
         if (visualFeatures?.density?.category) {
-          expect(visualFeatures.density.category).toBe('dense');
+          expect(visualFeatures.density.category).toBe("dense");
         }
       }
     });
@@ -869,12 +869,12 @@ describe('Visual Features Search E2Eテスト', () => {
   // Vision Embedding Search (use_vision_search: true) テスト
   // ==========================================================================
 
-  describe('Vision Embedding Search (use_vision_search: true)', () => {
-    it('visionEmbeddingベースの検索が正常に動作すること', async () => {
+  describe("Vision Embedding Search (use_vision_search: true)", () => {
+    it("visionEmbeddingベースの検索が正常に動作すること", async () => {
       const visionSearchService = createVisionEmbeddingSearchServiceFactory()();
 
       const result = await visionSearchService.searchByVisionEmbedding(
-        { textQuery: 'hero section' },
+        { textQuery: "hero section" },
         { limit: 10, offset: 0 }
       );
 
@@ -882,11 +882,11 @@ describe('Visual Features Search E2Eテスト', () => {
       expect(result!.results).toBeDefined();
     });
 
-    it('minSimilarity でフィルタリングが正しく動作すること', async () => {
+    it("minSimilarity でフィルタリングが正しく動作すること", async () => {
       const visionSearchService = createVisionEmbeddingSearchServiceFactory()();
 
       const result = await visionSearchService.searchByVisionEmbedding(
-        { textQuery: 'hero section' },
+        { textQuery: "hero section" },
         { limit: 10, offset: 0, minSimilarity: 0.5 }
       );
 
@@ -897,7 +897,7 @@ describe('Visual Features Search E2Eテスト', () => {
       }
     });
 
-    it('searchSimilarSections で既存セクションからの類似検索が動作すること', async () => {
+    it("searchSimilarSections で既存セクションからの類似検索が動作すること", async () => {
       const visionSearchService = createVisionEmbeddingSearchServiceFactory()();
       const sectionId = testSectionPatterns.lightHero.id;
 
@@ -912,22 +912,22 @@ describe('Visual Features Search E2Eテスト', () => {
       }
     });
 
-    it('sectionTypeフィルタが正しく動作すること', async () => {
+    it("sectionTypeフィルタが正しく動作すること", async () => {
       const visionSearchService = createVisionEmbeddingSearchServiceFactory()();
 
       const result = await visionSearchService.searchByVisionEmbedding(
-        { textQuery: 'section' },
+        { textQuery: "section" },
         {
           limit: 10,
           offset: 0,
-          filters: { sectionType: 'hero' },
+          sectionType: "hero",
         }
       );
 
       expect(result).not.toBeNull();
 
       for (const item of result!.results) {
-        expect(item.sectionType).toBe('hero');
+        expect(item.sectionType).toBe("hero");
       }
     });
   });
@@ -936,12 +936,12 @@ describe('Visual Features Search E2Eテスト', () => {
   // RRF Hybrid Search テスト
   // ==========================================================================
 
-  describe('RRF Hybrid Search', () => {
-    it('ハイブリッド検索が正常に動作すること', async () => {
+  describe("RRF Hybrid Search", () => {
+    it("ハイブリッド検索が正常に動作すること", async () => {
       const visionSearchService = createVisionEmbeddingSearchServiceFactory()();
 
       const result = await visionSearchService.hybridSearch(
-        { textQuery: 'hero section' },
+        { textQuery: "hero section" },
         {
           limit: 10,
           offset: 0,
@@ -952,11 +952,11 @@ describe('Visual Features Search E2Eテスト', () => {
       expect(result!.results).toBeDefined();
     });
 
-    it('デフォルトの重み（60% vision, 40% text）が適用されること', async () => {
+    it("デフォルトの重み（60% vision, 40% text）が適用されること", async () => {
       const visionSearchService = createVisionEmbeddingSearchServiceFactory()();
 
       const result = await visionSearchService.hybridSearch(
-        { textQuery: 'hero section' },
+        { textQuery: "hero section" },
         {
           limit: 10,
           offset: 0,
@@ -969,11 +969,11 @@ describe('Visual Features Search E2Eテスト', () => {
       expect(result!.results).toBeDefined();
     });
 
-    it('カスタム重み（80% vision, 20% text）で検索できること', async () => {
+    it("カスタム重み（80% vision, 20% text）で検索できること", async () => {
       const visionSearchService = createVisionEmbeddingSearchServiceFactory()();
 
       const result = await visionSearchService.hybridSearch(
-        { textQuery: 'hero section' },
+        { textQuery: "hero section" },
         {
           limit: 10,
           offset: 0,
@@ -986,11 +986,11 @@ describe('Visual Features Search E2Eテスト', () => {
       expect(result!.results).toBeDefined();
     });
 
-    it('textWeight=1.0, visionWeight=0.0 でテキストのみ検索できること', async () => {
+    it("textWeight=1.0, visionWeight=0.0 でテキストのみ検索できること", async () => {
       const visionSearchService = createVisionEmbeddingSearchServiceFactory()();
 
       const result = await visionSearchService.hybridSearch(
-        { textQuery: 'hero section' },
+        { textQuery: "hero section" },
         {
           limit: 10,
           offset: 0,
@@ -1003,11 +1003,11 @@ describe('Visual Features Search E2Eテスト', () => {
       expect(result!.results).toBeDefined();
     });
 
-    it('visionWeight=1.0, textWeight=0.0 でビジョンのみ検索できること', async () => {
+    it("visionWeight=1.0, textWeight=0.0 でビジョンのみ検索できること", async () => {
       const visionSearchService = createVisionEmbeddingSearchServiceFactory()();
 
       const result = await visionSearchService.hybridSearch(
-        { textQuery: 'hero section' },
+        { textQuery: "hero section" },
         {
           limit: 10,
           offset: 0,
@@ -1020,7 +1020,7 @@ describe('Visual Features Search E2Eテスト', () => {
       expect(result!.results).toBeDefined();
     });
 
-    it('RRFスコアが正しく計算されること（k=60）', () => {
+    it("RRFスコアが正しく計算されること（k=60）", () => {
       // RRF公式: 1 / (k + rank) where k=60
       const k = 60;
 
@@ -1050,8 +1050,8 @@ describe('Visual Features Search E2Eテスト', () => {
   // 複合フィルタテスト
   // ==========================================================================
 
-  describe('複合フィルタ', () => {
-    it('theme + colors の複合フィルタが動作すること', async () => {
+  describe("複合フィルタ", () => {
+    it("theme + colors の複合フィルタが動作すること", async () => {
       const searchService = createLayoutSearchServiceFactory()();
       const embedding = generateMockEmbedding(1111);
 
@@ -1061,8 +1061,8 @@ describe('Visual Features Search E2Eテスト', () => {
         includeHtml: false,
         filters: {
           visualFeatures: {
-            theme: { type: 'light' },
-            colors: { dominantColor: '#3B82F6', colorTolerance: 30 },
+            theme: { type: "light" },
+            colors: { dominantColor: "#3B82F6", colorTolerance: 30 },
           },
         },
       });
@@ -1074,12 +1074,12 @@ describe('Visual Features Search E2Eテスト', () => {
           theme?: { type: string };
         };
         if (visualFeatures?.theme?.type) {
-          expect(visualFeatures.theme.type).toBe('light');
+          expect(visualFeatures.theme.type).toBe("light");
         }
       }
     });
 
-    it('theme + density の複合フィルタが動作すること', async () => {
+    it("theme + density の複合フィルタが動作すること", async () => {
       const searchService = createLayoutSearchServiceFactory()();
       const embedding = generateMockEmbedding(2222);
 
@@ -1089,8 +1089,8 @@ describe('Visual Features Search E2Eテスト', () => {
         includeHtml: false,
         filters: {
           visualFeatures: {
-            theme: { type: 'dark' },
-            density: { category: 'moderate' },
+            theme: { type: "dark" },
+            density: { category: "moderate" },
           },
         },
       });
@@ -1098,7 +1098,7 @@ describe('Visual Features Search E2Eテスト', () => {
       expect(result).not.toBeNull();
     });
 
-    it('theme + colors + density の全フィルタが動作すること', async () => {
+    it("theme + colors + density の全フィルタが動作すること", async () => {
       const searchService = createLayoutSearchServiceFactory()();
       const embedding = generateMockEmbedding(3333);
 
@@ -1108,8 +1108,8 @@ describe('Visual Features Search E2Eテスト', () => {
         includeHtml: false,
         filters: {
           visualFeatures: {
-            theme: { type: 'light', minContrastRatio: 4.5 },
-            colors: { dominantColor: '#FFFFFF', colorTolerance: 20 },
+            theme: { type: "light", minContrastRatio: 4.5 },
+            colors: { dominantColor: "#FFFFFF", colorTolerance: 20 },
             density: { minWhitespaceRatio: 0.5 },
           },
         },
@@ -1118,7 +1118,7 @@ describe('Visual Features Search E2Eテスト', () => {
       expect(result).not.toBeNull();
     });
 
-    it('sectionType + visualFeatures の複合フィルタが動作すること', async () => {
+    it("sectionType + visualFeatures の複合フィルタが動作すること", async () => {
       const searchService = createLayoutSearchServiceFactory()();
       const embedding = generateMockEmbedding(4444);
 
@@ -1127,9 +1127,9 @@ describe('Visual Features Search E2Eテスト', () => {
         offset: 0,
         includeHtml: false,
         filters: {
-          sectionType: 'hero',
+          sectionType: "hero",
           visualFeatures: {
-            theme: { type: 'light' },
+            theme: { type: "light" },
           },
         },
       });
@@ -1137,7 +1137,7 @@ describe('Visual Features Search E2Eテスト', () => {
       expect(result).not.toBeNull();
 
       for (const item of result!.results) {
-        expect(item.sectionType).toBe('hero');
+        expect(item.sectionType).toBe("hero");
       }
     });
   });
@@ -1146,14 +1146,14 @@ describe('Visual Features Search E2Eテスト', () => {
   // Error Handling テスト
   // ==========================================================================
 
-  describe('Error Handling', () => {
-    it('無効なHEXカラーコードでエラーハンドリングされること', () => {
+  describe("Error Handling", () => {
+    it("無効なHEXカラーコードでエラーハンドリングされること", () => {
       // 無効なHEXコードでΔE計算
-      const deltaE = calculateDeltaEFromHex('invalid', '#3B82F6');
+      const deltaE = calculateDeltaEFromHex("invalid", "#3B82F6");
       expect(deltaE).toBe(Number.POSITIVE_INFINITY);
     });
 
-    it('空のクエリでも検索が動作すること', async () => {
+    it("空のクエリでも検索が動作すること", async () => {
       const searchService = createLayoutSearchServiceFactory()();
       const embedding = generateMockEmbedding(5555);
 
@@ -1166,7 +1166,7 @@ describe('Visual Features Search E2Eテスト', () => {
       expect(result).not.toBeNull();
     });
 
-    it('存在しないセクションIDでsearchSimilarSectionsが適切に処理されること', async () => {
+    it("存在しないセクションIDでsearchSimilarSectionsが適切に処理されること", async () => {
       const visionSearchService = createVisionEmbeddingSearchServiceFactory()();
       const nonExistentId = uuidv7();
 
@@ -1184,8 +1184,8 @@ describe('Visual Features Search E2Eテスト', () => {
   // パフォーマンステスト
   // ==========================================================================
 
-  describe('Performance', () => {
-    it('Visual Features フィルタ付き検索が5秒以内に完了すること', async () => {
+  describe("Performance", () => {
+    it("Visual Features フィルタ付き検索が5秒以内に完了すること", async () => {
       const searchService = createLayoutSearchServiceFactory()();
       const embedding = generateMockEmbedding(6666);
 
@@ -1197,9 +1197,9 @@ describe('Visual Features Search E2Eテスト', () => {
         includeHtml: false,
         filters: {
           visualFeatures: {
-            theme: { type: 'light', minContrastRatio: 4.5 },
-            colors: { dominantColor: '#3B82F6', colorTolerance: 15 },
-            density: { category: 'sparse' },
+            theme: { type: "light", minContrastRatio: 4.5 },
+            colors: { dominantColor: "#3B82F6", colorTolerance: 15 },
+            density: { category: "sparse" },
           },
         },
       });
@@ -1211,13 +1211,13 @@ describe('Visual Features Search E2Eテスト', () => {
       expect(duration).toBeLessThan(5000); // 5秒以内
     });
 
-    it('RRF Hybrid検索が5秒以内に完了すること', async () => {
+    it("RRF Hybrid検索が5秒以内に完了すること", async () => {
       const visionSearchService = createVisionEmbeddingSearchServiceFactory()();
 
       const startTime = performance.now();
 
       const result = await visionSearchService.hybridSearch(
-        { textQuery: 'hero section' },
+        { textQuery: "hero section" },
         {
           limit: 10,
           offset: 0,
@@ -1233,15 +1233,12 @@ describe('Visual Features Search E2Eテスト', () => {
       expect(duration).toBeLessThan(5000); // 5秒以内
     });
 
-    it('ΔE計算が1ms以内に完了すること', () => {
+    it("ΔE計算が1ms以内に完了すること", () => {
       const iterations = 1000;
       const startTime = performance.now();
 
       for (let i = 0; i < iterations; i++) {
-        calculateDeltaE76(
-          { L: 50, a: 10, b: -20 },
-          { L: 60, a: 20, b: -10 }
-        );
+        calculateDeltaE76({ L: 50, a: 10, b: -20 }, { L: 60, a: 20, b: -10 });
       }
 
       const endTime = performance.now();

@@ -34,9 +34,9 @@
  * @module services/browser-process-manager
  */
 
-import { type Browser } from 'playwright';
-import { execSync } from 'child_process';
-import { logger, isDevelopment } from '../utils/logger';
+import { type Browser } from "playwright";
+import { execSync } from "child_process";
+import { logger, isDevelopment } from "../utils/logger";
 
 // =============================================
 // 型定義
@@ -91,7 +91,7 @@ export class BrowserProcessManager {
     this.browserPid = this.getBrowserPid();
 
     if (isDevelopment()) {
-      logger.debug('[BrowserProcessManager] Initialized', {
+      logger.debug("[BrowserProcessManager] Initialized", {
         pid: this.browserPid,
         forceKillOnTimeout: this.forceKillOnTimeout,
         killGracePeriodMs: this.killGracePeriodMs,
@@ -131,13 +131,13 @@ export class BrowserProcessManager {
       await this.browser.close();
 
       if (isDevelopment()) {
-        logger.debug('[BrowserProcessManager] browser.close() succeeded');
+        logger.debug("[BrowserProcessManager] browser.close() succeeded");
       }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
 
       if (isDevelopment()) {
-        logger.warn('[BrowserProcessManager] browser.close() failed', {
+        logger.warn("[BrowserProcessManager] browser.close() failed", {
           error: errorMessage,
           forceKillOnTimeout: this.forceKillOnTimeout,
           pid: this.browserPid,
@@ -189,7 +189,7 @@ export class BrowserProcessManager {
           clearTimeout(timeout);
 
           if (isDevelopment()) {
-            logger.debug('[BrowserProcessManager] close() completed within timeout');
+            logger.debug("[BrowserProcessManager] close() completed within timeout");
           }
 
           resolve(true);
@@ -220,7 +220,7 @@ export class BrowserProcessManager {
   async forceKill(): Promise<void> {
     if (!this.browserPid) {
       if (isDevelopment()) {
-        logger.warn('[BrowserProcessManager] No PID available for force kill');
+        logger.warn("[BrowserProcessManager] No PID available for force kill");
       }
       return;
     }
@@ -230,7 +230,7 @@ export class BrowserProcessManager {
       if (isDevelopment()) {
         logger.debug(`[BrowserProcessManager] Sending SIGTERM to PID ${this.browserPid}`);
       }
-      process.kill(this.browserPid, 'SIGTERM');
+      process.kill(this.browserPid, "SIGTERM");
 
       // グレースフルシャットダウンを待機
       await new Promise((resolve) => setTimeout(resolve, this.killGracePeriodMs));
@@ -243,7 +243,7 @@ export class BrowserProcessManager {
             `[BrowserProcessManager] SIGTERM failed, sending SIGKILL to PID ${this.browserPid}`
           );
         }
-        process.kill(this.browserPid, 'SIGKILL');
+        process.kill(this.browserPid, "SIGKILL");
       }
 
       if (isDevelopment()) {
@@ -254,9 +254,9 @@ export class BrowserProcessManager {
     } catch (error) {
       // ESRCH: プロセスが存在しない（既に終了している）
       const errnoError = error as { code?: string };
-      if (errnoError.code !== 'ESRCH') {
+      if (errnoError.code !== "ESRCH") {
         if (isDevelopment()) {
-          logger.error('[BrowserProcessManager] forceKill error', {
+          logger.error("[BrowserProcessManager] forceKill error", {
             error: error instanceof Error ? error.message : String(error),
             pid: this.browserPid,
           });
@@ -301,7 +301,7 @@ export class BrowserProcessManager {
 
     try {
       // Linuxではpkillを使用して子プロセスも終了
-      if (process.platform === 'linux') {
+      if (process.platform === "linux") {
         if (isDevelopment()) {
           logger.debug(`[BrowserProcessManager] Killing child processes of PID ${this.browserPid}`);
         }
@@ -319,12 +319,12 @@ export class BrowserProcessManager {
         execSync(`pkill -KILL -P ${this.browserPid} || true`);
 
         if (isDevelopment()) {
-          logger.debug('[BrowserProcessManager] Child processes killed');
+          logger.debug("[BrowserProcessManager] Child processes killed");
         }
       }
     } catch (error) {
       if (isDevelopment()) {
-        logger.error('[BrowserProcessManager] killAllChildren error', {
+        logger.error("[BrowserProcessManager] killAllChildren error", {
           error: error instanceof Error ? error.message : String(error),
           pid: this.browserPid,
         });

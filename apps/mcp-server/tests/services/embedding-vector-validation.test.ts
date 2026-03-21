@@ -14,12 +14,12 @@
  * @module tests/services/embedding-vector-validation.test
  */
 
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect } from "vitest";
 import {
   validateEmbeddingVector,
   EmbeddingValidationError,
   // これらは実装後にエクスポートされる予定
-} from '../../src/services/embedding-validation.service';
+} from "../../src/services/embedding-validation.service";
 
 // =====================================================
 // 定数
@@ -33,16 +33,16 @@ const createValidVector = (fill: number = 0.1): number[] =>
   new Array(EXPECTED_DIMENSIONS).fill(fill);
 
 /** NaNを含むベクトル */
-const createVectorWithNaN = (position: 'first' | 'middle' | 'last'): number[] => {
+const createVectorWithNaN = (position: "first" | "middle" | "last"): number[] => {
   const vector = createValidVector();
   switch (position) {
-    case 'first':
+    case "first":
       vector[0] = NaN;
       break;
-    case 'middle':
+    case "middle":
       vector[383] = NaN; // 中間位置
       break;
-    case 'last':
+    case "last":
       vector[767] = NaN;
       break;
   }
@@ -50,9 +50,9 @@ const createVectorWithNaN = (position: 'first' | 'middle' | 'last'): number[] =>
 };
 
 /** Infinityを含むベクトル */
-const createVectorWithInfinity = (type: 'positive' | 'negative'): number[] => {
+const createVectorWithInfinity = (type: "positive" | "negative"): number[] => {
   const vector = createValidVector();
-  vector[0] = type === 'positive' ? Infinity : -Infinity;
+  vector[0] = type === "positive" ? Infinity : -Infinity;
   return vector;
 };
 
@@ -60,12 +60,12 @@ const createVectorWithInfinity = (type: 'positive' | 'negative'): number[] => {
 // validateEmbeddingVector 関数テスト
 // =====================================================
 
-describe('validateEmbeddingVector', () => {
+describe("validateEmbeddingVector", () => {
   // -----------------------------------------------------
   // 正常系テスト
   // -----------------------------------------------------
-  describe('正常系', () => {
-    it('有効な768次元ベクトルを受け入れること', () => {
+  describe("正常系", () => {
+    it("有効な768次元ベクトルを受け入れること", () => {
       // Arrange: 有効なベクトルを作成
       const validVector = createValidVector(0.1);
 
@@ -77,7 +77,7 @@ describe('validateEmbeddingVector', () => {
       expect(result.error).toBeUndefined();
     });
 
-    it('空のベクトルを受け入れること（オプショナルなEmbedding用）', () => {
+    it("空のベクトルを受け入れること（オプショナルなEmbedding用）", () => {
       // Arrange: 空のベクトル
       const emptyVector: number[] = [];
 
@@ -89,7 +89,7 @@ describe('validateEmbeddingVector', () => {
       expect(result.error).toBeUndefined();
     });
 
-    it('正の浮動小数点数を含むベクトルを受け入れること', () => {
+    it("正の浮動小数点数を含むベクトルを受け入れること", () => {
       // Arrange: 小数点以下の値を持つベクトル
       const vector = new Array(EXPECTED_DIMENSIONS).fill(0).map((_, i) => i * 0.001);
 
@@ -100,7 +100,7 @@ describe('validateEmbeddingVector', () => {
       expect(result.isValid).toBe(true);
     });
 
-    it('負の浮動小数点数を含むベクトルを受け入れること', () => {
+    it("負の浮動小数点数を含むベクトルを受け入れること", () => {
       // Arrange: 負の値を含むベクトル
       const vector = new Array(EXPECTED_DIMENSIONS).fill(0).map((_, i) => -i * 0.001);
 
@@ -111,7 +111,7 @@ describe('validateEmbeddingVector', () => {
       expect(result.isValid).toBe(true);
     });
 
-    it('ゼロのみを含むベクトルを受け入れること', () => {
+    it("ゼロのみを含むベクトルを受け入れること", () => {
       // Arrange: すべてゼロのベクトル
       const zeroVector = createValidVector(0);
 
@@ -122,7 +122,7 @@ describe('validateEmbeddingVector', () => {
       expect(result.isValid).toBe(true);
     });
 
-    it('Number.MAX_SAFE_INTEGERに近い値を受け入れること', () => {
+    it("Number.MAX_SAFE_INTEGERに近い値を受け入れること", () => {
       // Arrange: 大きな有限値を含むベクトル
       const vector = createValidVector();
       vector[0] = Number.MAX_SAFE_INTEGER - 1;
@@ -134,7 +134,7 @@ describe('validateEmbeddingVector', () => {
       expect(result.isValid).toBe(true);
     });
 
-    it('Number.MIN_SAFE_INTEGERに近い値を受け入れること', () => {
+    it("Number.MIN_SAFE_INTEGERに近い値を受け入れること", () => {
       // Arrange: 小さな有限値を含むベクトル
       const vector = createValidVector();
       vector[0] = Number.MIN_SAFE_INTEGER + 1;
@@ -150,10 +150,10 @@ describe('validateEmbeddingVector', () => {
   // -----------------------------------------------------
   // 異常系テスト - NaN
   // -----------------------------------------------------
-  describe('異常系 - NaN', () => {
-    it('NaNを含むベクトルを拒否すること', () => {
+  describe("異常系 - NaN", () => {
+    it("NaNを含むベクトルを拒否すること", () => {
       // Arrange: 中間位置にNaNを含むベクトル
-      const vectorWithNaN = createVectorWithNaN('middle');
+      const vectorWithNaN = createVectorWithNaN("middle");
 
       // Act: バリデーションを実行
       const result = validateEmbeddingVector(vectorWithNaN);
@@ -161,13 +161,13 @@ describe('validateEmbeddingVector', () => {
       // Assert: 検証が失敗すること
       expect(result.isValid).toBe(false);
       expect(result.error).toBeDefined();
-      expect(result.error?.code).toBe('INVALID_VECTOR_ELEMENT');
-      expect(result.error?.message).toContain('NaN');
+      expect(result.error?.code).toBe("INVALID_VECTOR_ELEMENT");
+      expect(result.error?.message).toContain("NaN");
     });
 
-    it('先頭位置にNaNを含むベクトルを拒否すること', () => {
+    it("先頭位置にNaNを含むベクトルを拒否すること", () => {
       // Arrange: 先頭にNaNを含むベクトル
-      const vectorWithNaN = createVectorWithNaN('first');
+      const vectorWithNaN = createVectorWithNaN("first");
 
       // Act: バリデーションを実行
       const result = validateEmbeddingVector(vectorWithNaN);
@@ -177,9 +177,9 @@ describe('validateEmbeddingVector', () => {
       expect(result.error?.index).toBe(0);
     });
 
-    it('末尾位置にNaNを含むベクトルを拒否すること', () => {
+    it("末尾位置にNaNを含むベクトルを拒否すること", () => {
       // Arrange: 末尾にNaNを含むベクトル
-      const vectorWithNaN = createVectorWithNaN('last');
+      const vectorWithNaN = createVectorWithNaN("last");
 
       // Act: バリデーションを実行
       const result = validateEmbeddingVector(vectorWithNaN);
@@ -189,7 +189,7 @@ describe('validateEmbeddingVector', () => {
       expect(result.error?.index).toBe(767);
     });
 
-    it('複数のNaNを含むベクトルを拒否し、最初のNaN位置を報告すること', () => {
+    it("複数のNaNを含むベクトルを拒否し、最初のNaN位置を報告すること", () => {
       // Arrange: 複数位置にNaNを含むベクトル
       const vector = createValidVector();
       vector[10] = NaN;
@@ -208,33 +208,33 @@ describe('validateEmbeddingVector', () => {
   // -----------------------------------------------------
   // 異常系テスト - Infinity
   // -----------------------------------------------------
-  describe('異常系 - Infinity', () => {
-    it('正のInfinityを含むベクトルを拒否すること', () => {
+  describe("異常系 - Infinity", () => {
+    it("正のInfinityを含むベクトルを拒否すること", () => {
       // Arrange: Infinityを含むベクトル
-      const vectorWithInfinity = createVectorWithInfinity('positive');
+      const vectorWithInfinity = createVectorWithInfinity("positive");
 
       // Act: バリデーションを実行
       const result = validateEmbeddingVector(vectorWithInfinity);
 
       // Assert: 検証が失敗すること
       expect(result.isValid).toBe(false);
-      expect(result.error?.code).toBe('INVALID_VECTOR_ELEMENT');
-      expect(result.error?.message).toContain('Infinity');
+      expect(result.error?.code).toBe("INVALID_VECTOR_ELEMENT");
+      expect(result.error?.message).toContain("Infinity");
     });
 
-    it('負のInfinityを含むベクトルを拒否すること', () => {
+    it("負のInfinityを含むベクトルを拒否すること", () => {
       // Arrange: -Infinityを含むベクトル
-      const vectorWithNegativeInfinity = createVectorWithInfinity('negative');
+      const vectorWithNegativeInfinity = createVectorWithInfinity("negative");
 
       // Act: バリデーションを実行
       const result = validateEmbeddingVector(vectorWithNegativeInfinity);
 
       // Assert: 検証が失敗すること
       expect(result.isValid).toBe(false);
-      expect(result.error?.code).toBe('INVALID_VECTOR_ELEMENT');
+      expect(result.error?.code).toBe("INVALID_VECTOR_ELEMENT");
     });
 
-    it('NaNとInfinityの両方を含むベクトルを拒否すること', () => {
+    it("NaNとInfinityの両方を含むベクトルを拒否すること", () => {
       // Arrange: NaNとInfinityの両方を含むベクトル
       const vector = createValidVector();
       vector[0] = Infinity;
@@ -252,8 +252,8 @@ describe('validateEmbeddingVector', () => {
   // -----------------------------------------------------
   // 異常系テスト - 次元数
   // -----------------------------------------------------
-  describe('異常系 - 次元数', () => {
-    it('768次元未満のベクトルを拒否すること', () => {
+  describe("異常系 - 次元数", () => {
+    it("768次元未満のベクトルを拒否すること", () => {
       // Arrange: 767次元のベクトル
       const shortVector = new Array(767).fill(0.1);
 
@@ -262,11 +262,11 @@ describe('validateEmbeddingVector', () => {
 
       // Assert: 検証が失敗すること
       expect(result.isValid).toBe(false);
-      expect(result.error?.code).toBe('INVALID_DIMENSION');
-      expect(result.error?.message).toContain('768');
+      expect(result.error?.code).toBe("INVALID_DIMENSION");
+      expect(result.error?.message).toContain("768");
     });
 
-    it('768次元を超えるベクトルを拒否すること', () => {
+    it("768次元を超えるベクトルを拒否すること", () => {
       // Arrange: 769次元のベクトル
       const longVector = new Array(769).fill(0.1);
 
@@ -275,10 +275,10 @@ describe('validateEmbeddingVector', () => {
 
       // Assert: 検証が失敗すること
       expect(result.isValid).toBe(false);
-      expect(result.error?.code).toBe('INVALID_DIMENSION');
+      expect(result.error?.code).toBe("INVALID_DIMENSION");
     });
 
-    it('空ベクトルをallowEmpty=falseで拒否すること', () => {
+    it("空ベクトルをallowEmpty=falseで拒否すること", () => {
       // Arrange: 空のベクトル
       const emptyVector: number[] = [];
 
@@ -287,10 +287,10 @@ describe('validateEmbeddingVector', () => {
 
       // Assert: 検証が失敗すること
       expect(result.isValid).toBe(false);
-      expect(result.error?.code).toBe('INVALID_DIMENSION');
+      expect(result.error?.code).toBe("INVALID_DIMENSION");
     });
 
-    it('1次元のベクトルを拒否すること', () => {
+    it("1次元のベクトルを拒否すること", () => {
       // Arrange: 1次元のベクトル
       const singleElementVector = [0.1];
 
@@ -299,28 +299,28 @@ describe('validateEmbeddingVector', () => {
 
       // Assert: 検証が失敗すること
       expect(result.isValid).toBe(false);
-      expect(result.error?.code).toBe('INVALID_DIMENSION');
+      expect(result.error?.code).toBe("INVALID_DIMENSION");
     });
   });
 
   // -----------------------------------------------------
   // 異常系テスト - 型
   // -----------------------------------------------------
-  describe('異常系 - 型', () => {
-    it('文字列要素を含むベクトルを拒否すること', () => {
+  describe("異常系 - 型", () => {
+    it("文字列要素を含むベクトルを拒否すること", () => {
       // Arrange: 文字列を含むベクトル（型を偽装）
       const vectorWithString = createValidVector() as unknown[];
-      vectorWithString[0] = '0.1';
+      vectorWithString[0] = "0.1";
 
       // Act: バリデーションを実行
       const result = validateEmbeddingVector(vectorWithString as number[]);
 
       // Assert: 検証が失敗すること
       expect(result.isValid).toBe(false);
-      expect(result.error?.code).toBe('INVALID_VECTOR_TYPE');
+      expect(result.error?.code).toBe("INVALID_VECTOR_TYPE");
     });
 
-    it('null要素を含むベクトルを拒否すること', () => {
+    it("null要素を含むベクトルを拒否すること", () => {
       // Arrange: nullを含むベクトル
       const vectorWithNull = createValidVector() as unknown[];
       vectorWithNull[50] = null;
@@ -330,10 +330,10 @@ describe('validateEmbeddingVector', () => {
 
       // Assert: 検証が失敗すること
       expect(result.isValid).toBe(false);
-      expect(result.error?.code).toBe('INVALID_VECTOR_TYPE');
+      expect(result.error?.code).toBe("INVALID_VECTOR_TYPE");
     });
 
-    it('undefined要素を含むベクトルを拒否すること', () => {
+    it("undefined要素を含むベクトルを拒否すること", () => {
       // Arrange: undefinedを含むベクトル
       const vectorWithUndefined = createValidVector() as unknown[];
       vectorWithUndefined[100] = undefined;
@@ -343,10 +343,10 @@ describe('validateEmbeddingVector', () => {
 
       // Assert: 検証が失敗すること
       expect(result.isValid).toBe(false);
-      expect(result.error?.code).toBe('INVALID_VECTOR_TYPE');
+      expect(result.error?.code).toBe("INVALID_VECTOR_TYPE");
     });
 
-    it('オブジェクト要素を含むベクトルを拒否すること', () => {
+    it("オブジェクト要素を含むベクトルを拒否すること", () => {
       // Arrange: オブジェクトを含むベクトル
       const vectorWithObject = createValidVector() as unknown[];
       vectorWithObject[0] = { value: 0.1 };
@@ -356,37 +356,37 @@ describe('validateEmbeddingVector', () => {
 
       // Assert: 検証が失敗すること
       expect(result.isValid).toBe(false);
-      expect(result.error?.code).toBe('INVALID_VECTOR_TYPE');
+      expect(result.error?.code).toBe("INVALID_VECTOR_TYPE");
     });
 
-    it('nullベクトルを拒否すること', () => {
+    it("nullベクトルを拒否すること", () => {
       // Act: バリデーションを実行
       const result = validateEmbeddingVector(null as unknown as number[]);
 
       // Assert: 検証が失敗すること
       expect(result.isValid).toBe(false);
-      expect(result.error?.code).toBe('INVALID_VECTOR');
+      expect(result.error?.code).toBe("INVALID_VECTOR");
     });
 
-    it('undefinedベクトルを拒否すること', () => {
+    it("undefinedベクトルを拒否すること", () => {
       // Act: バリデーションを実行
       const result = validateEmbeddingVector(undefined as unknown as number[]);
 
       // Assert: 検証が失敗すること
       expect(result.isValid).toBe(false);
-      expect(result.error?.code).toBe('INVALID_VECTOR');
+      expect(result.error?.code).toBe("INVALID_VECTOR");
     });
 
-    it('配列でないオブジェクトを拒否すること', () => {
+    it("配列でないオブジェクトを拒否すること", () => {
       // Act: バリデーションを実行
       const result = validateEmbeddingVector({ length: 768 } as unknown as number[]);
 
       // Assert: 検証が失敗すること
       expect(result.isValid).toBe(false);
-      expect(result.error?.code).toBe('INVALID_VECTOR');
+      expect(result.error?.code).toBe("INVALID_VECTOR");
     });
 
-    it('ブール値要素を含むベクトルを拒否すること', () => {
+    it("ブール値要素を含むベクトルを拒否すること", () => {
       // Arrange: ブール値を含むベクトル
       const vectorWithBoolean = createValidVector() as unknown[];
       vectorWithBoolean[0] = true;
@@ -396,35 +396,32 @@ describe('validateEmbeddingVector', () => {
 
       // Assert: 検証が失敗すること
       expect(result.isValid).toBe(false);
-      expect(result.error?.code).toBe('INVALID_VECTOR_TYPE');
+      expect(result.error?.code).toBe("INVALID_VECTOR_TYPE");
     });
   });
 
   // -----------------------------------------------------
   // EmbeddingValidationError クラステスト
   // -----------------------------------------------------
-  describe('EmbeddingValidationError', () => {
-    it('エラーコードを含むこと', () => {
+  describe("EmbeddingValidationError", () => {
+    it("エラーコードを含むこと", () => {
       // Act: エラーを作成
       const error = new EmbeddingValidationError(
-        'INVALID_VECTOR_ELEMENT',
-        'Vector contains NaN at index 0',
+        "INVALID_VECTOR_ELEMENT",
+        "Vector contains NaN at index 0",
         0
       );
 
       // Assert: プロパティが正しいこと
-      expect(error.code).toBe('INVALID_VECTOR_ELEMENT');
-      expect(error.message).toContain('NaN');
+      expect(error.code).toBe("INVALID_VECTOR_ELEMENT");
+      expect(error.message).toContain("NaN");
       expect(error.index).toBe(0);
-      expect(error.name).toBe('EmbeddingValidationError');
+      expect(error.name).toBe("EmbeddingValidationError");
     });
 
-    it('Error を継承していること', () => {
+    it("Error を継承していること", () => {
       // Act: エラーを作成
-      const error = new EmbeddingValidationError(
-        'INVALID_DIMENSION',
-        'Expected 768 dimensions'
-      );
+      const error = new EmbeddingValidationError("INVALID_DIMENSION", "Expected 768 dimensions");
 
       // Assert: Error のインスタンスであること
       expect(error).toBeInstanceOf(Error);
@@ -436,8 +433,8 @@ describe('validateEmbeddingVector', () => {
 // パフォーマンステスト
 // =====================================================
 
-describe('validateEmbeddingVector パフォーマンス', () => {
-  it('768次元ベクトルの検証が1ms以内に完了すること', () => {
+describe("validateEmbeddingVector パフォーマンス", () => {
+  it("768次元ベクトルの検証が1ms以内に完了すること", () => {
     // Arrange: 有効なベクトル
     const vector = createValidVector();
 
@@ -453,7 +450,7 @@ describe('validateEmbeddingVector パフォーマンス', () => {
     expect(avgTime).toBeLessThan(1);
   });
 
-  it('バッチ検証が効率的に動作すること', () => {
+  it("バッチ検証が効率的に動作すること", () => {
     // Arrange: 100個のベクトル
     const vectors = Array.from({ length: 100 }, () => createValidVector());
 

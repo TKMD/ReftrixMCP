@@ -10,7 +10,7 @@
  * @module @reftrix/webdesign-core/motion-detector/motion-embedding
  */
 
-import type { MotionPattern, KeyframeStep } from './types';
+import type { MotionPattern, KeyframeStep } from "./types";
 
 // =========================================
 // Constants
@@ -32,45 +32,45 @@ const EASING_FEATURES_DIM = 16;
 const KEYFRAME_FEATURES_DIM = 16;
 
 /** GPUアクセラレーション対応プロパティ */
-const GPU_ACCELERATED_PROPERTIES = ['transform', 'opacity', 'filter'] as const;
+const GPU_ACCELERATED_PROPERTIES = ["transform", "opacity", "filter"] as const;
 
 /** レイアウトトリガープロパティ */
 const LAYOUT_TRIGGERING_PROPERTIES = [
-  'width',
-  'height',
-  'top',
-  'left',
-  'right',
-  'bottom',
-  'margin',
-  'padding',
-  'border-width',
-  'font-size',
-  'line-height',
+  "width",
+  "height",
+  "top",
+  "left",
+  "right",
+  "bottom",
+  "margin",
+  "padding",
+  "border-width",
+  "font-size",
+  "line-height",
 ] as const;
 
 /** ペイントトリガープロパティ */
 const PAINT_TRIGGERING_PROPERTIES = [
-  'color',
-  'background-color',
-  'background-image',
-  'box-shadow',
-  'text-shadow',
-  'border-radius',
-  'outline',
+  "color",
+  "background-color",
+  "background-image",
+  "box-shadow",
+  "text-shadow",
+  "border-radius",
+  "outline",
 ] as const;
 
 /** イージングキーワードとcubic-bezier値のマップ */
 const EASING_KEYWORDS: Record<string, [number, number, number, number]> = {
   linear: [0, 0, 1, 1],
   ease: [0.25, 0.1, 0.25, 1],
-  'ease-in': [0.42, 0, 1, 1],
-  'ease-out': [0, 0, 0.58, 1],
-  'ease-in-out': [0.42, 0, 0.58, 1],
+  "ease-in": [0.42, 0, 1, 1],
+  "ease-out": [0, 0, 0.58, 1],
+  "ease-in-out": [0.42, 0, 0.58, 1],
 };
 
 /** モーションタイプのインデックスマップ */
-const MOTION_TYPE_INDEX: Record<MotionPattern['type'], number> = {
+const MOTION_TYPE_INDEX: Record<MotionPattern["type"], number> = {
   animation: 0,
   transition: 1,
   transform: 2,
@@ -80,7 +80,7 @@ const MOTION_TYPE_INDEX: Record<MotionPattern['type'], number> = {
 };
 
 /** トリガータイプのインデックスマップ */
-const TRIGGER_TYPE_INDEX: Record<MotionPattern['trigger'], number> = {
+const TRIGGER_TYPE_INDEX: Record<MotionPattern["trigger"], number> = {
   load: 0,
   hover: 1,
   scroll: 2,
@@ -90,15 +90,15 @@ const TRIGGER_TYPE_INDEX: Record<MotionPattern['trigger'], number> = {
 };
 
 /** 方向タイプのインデックスマップ */
-const DIRECTION_INDEX: Record<MotionPattern['direction'], number> = {
+const DIRECTION_INDEX: Record<MotionPattern["direction"], number> = {
   normal: 0,
   reverse: 1,
   alternate: 2,
-  'alternate-reverse': 3,
+  "alternate-reverse": 3,
 };
 
 /** フィルモードのインデックスマップ */
-const FILL_MODE_INDEX: Record<MotionPattern['fillMode'], number> = {
+const FILL_MODE_INDEX: Record<MotionPattern["fillMode"], number> = {
   none: 0,
   forwards: 1,
   backwards: 2,
@@ -174,16 +174,14 @@ export class MotionFeatureExtractor {
       }
 
       // 特定プロパティタイプのフラグ
-      if (propName === 'opacity') features[4] = 1;
-      if (propName === 'transform') features[5] = 1;
-      if (propName === 'filter') features[6] = 1;
-      if (propName.includes('color')) features[7] = 1;
-      if (propName.includes('shadow')) features[8] = 1;
-      if (propName.includes('width') || propName.includes('height'))
-        features[9] = 1;
-      if (propName.includes('margin') || propName.includes('padding'))
-        features[10] = 1;
-      if (propName.includes('border')) features[11] = 1;
+      if (propName === "opacity") features[4] = 1;
+      if (propName === "transform") features[5] = 1;
+      if (propName === "filter") features[6] = 1;
+      if (propName.includes("color")) features[7] = 1;
+      if (propName.includes("shadow")) features[8] = 1;
+      if (propName.includes("width") || propName.includes("height")) features[9] = 1;
+      if (propName.includes("margin") || propName.includes("padding")) features[10] = 1;
+      if (propName.includes("border")) features[11] = 1;
     }
 
     // カウントの正規化
@@ -246,7 +244,7 @@ export class MotionFeatureExtractor {
     }
 
     // Iterations
-    if (pattern.iterations === 'infinite') {
+    if (pattern.iterations === "infinite") {
       features[3] = 1;
       features[4] = 1; // infinite flag
     } else {
@@ -261,7 +259,7 @@ export class MotionFeatureExtractor {
     features[6] = FILL_MODE_INDEX[pattern.fillMode] / 3;
 
     // Play state
-    features[7] = pattern.playState === 'running' ? 1 : 0;
+    features[7] = pattern.playState === "running" ? 1 : 0;
 
     // Trigger type encoding
     features[8] = TRIGGER_TYPE_INDEX[pattern.trigger] / 5;
@@ -274,21 +272,17 @@ export class MotionFeatureExtractor {
     features[10] = totalTime > 0 ? durationMs / totalTime : 1;
 
     // Is looping (infinite or iterations > 1)
-    features[11] =
-      pattern.iterations === 'infinite' || pattern.iterations > 1 ? 1 : 0;
+    features[11] = pattern.iterations === "infinite" || pattern.iterations > 1 ? 1 : 0;
 
     // Is delayed
     features[12] = delayMs > 0 ? 1 : 0;
 
     // Has alternate direction
     features[13] =
-      pattern.direction === 'alternate' ||
-      pattern.direction === 'alternate-reverse'
-        ? 1
-        : 0;
+      pattern.direction === "alternate" || pattern.direction === "alternate-reverse" ? 1 : 0;
 
     // Has fill mode
-    features[14] = pattern.fillMode !== 'none' ? 1 : 0;
+    features[14] = pattern.fillMode !== "none" ? 1 : 0;
 
     // Speed category (fast < 300ms, normal 300-1000ms, slow > 1000ms)
     features[15] = durationMs < 300 ? 0 : durationMs < 1000 ? 0.5 : 1;
@@ -315,12 +309,12 @@ export class MotionFeatureExtractor {
       features[3] = bezier[3]; // y2
 
       // キーワードタイプのone-hotエンコード
-      const keywords = ['linear', 'ease', 'ease-in', 'ease-out', 'ease-in-out'];
+      const keywords = ["linear", "ease", "ease-in", "ease-out", "ease-in-out"];
       const idx = keywords.indexOf(easingLower);
       if (idx >= 0 && idx < 5) {
         features[4 + idx] = 1;
       }
-    } else if (easingLower.startsWith('cubic-bezier')) {
+    } else if (easingLower.startsWith("cubic-bezier")) {
       // cubic-bezier(x1, y1, x2, y2)をパース
       const match = easingLower.match(
         /cubic-bezier\s*\(\s*([\d.-]+)\s*,\s*([\d.-]+)\s*,\s*([\d.-]+)\s*,\s*([\d.-]+)\s*\)/
@@ -332,7 +326,7 @@ export class MotionFeatureExtractor {
         features[3] = parseFloat(match[4]);
         features[9] = 1; // cubic-bezier flag
       }
-    } else if (easingLower.startsWith('steps')) {
+    } else if (easingLower.startsWith("steps")) {
       // steps(n, direction)をパース
       const match = easingLower.match(/steps\s*\(\s*(\d+)/);
       if (match && match[1]) {
@@ -341,9 +335,9 @@ export class MotionFeatureExtractor {
       }
 
       // step direction
-      if (easingLower.includes('start') || easingLower.includes('jump-start')) {
+      if (easingLower.includes("start") || easingLower.includes("jump-start")) {
         features[12] = 0;
-      } else if (easingLower.includes('end') || easingLower.includes('jump-end')) {
+      } else if (easingLower.includes("end") || easingLower.includes("jump-end")) {
         features[12] = 1;
       } else {
         features[12] = 0.5; // both or none
@@ -356,7 +350,7 @@ export class MotionFeatureExtractor {
     // 終了時の減速度（y2-x2、正なら減速）
     features[14] = features[3] - features[2];
     // 全体の非線形度（linear: 0, その他: 非0）
-    features[15] = easingLower === 'linear' ? 0 : 1;
+    features[15] = easingLower === "linear" ? 0 : 1;
 
     return features;
   }
@@ -382,9 +376,7 @@ export class MotionFeatureExtractor {
     features[2] = keyframes.some((k) => k.offset === 1) ? 1 : 0;
 
     // 中間キーフレームの数（0と1以外）
-    const middleKeyframes = keyframes.filter(
-      (k) => k.offset > 0 && k.offset < 1
-    );
+    const middleKeyframes = keyframes.filter((k) => k.offset > 0 && k.offset < 1);
     features[3] = Math.min(middleKeyframes.length / 8, 1);
 
     // オフセットの分布
@@ -393,9 +385,7 @@ export class MotionFeatureExtractor {
     // オフセットの分散
     if (offsets.length > 1) {
       const mean = offsets.reduce((a, b) => a + b, 0) / offsets.length;
-      const variance =
-        offsets.reduce((sum, o) => sum + Math.pow(o - mean, 2), 0) /
-        offsets.length;
+      const variance = offsets.reduce((sum, o) => sum + Math.pow(o - mean, 2), 0) / offsets.length;
       features[4] = Math.min(variance * 4, 1); // 分散を0-1に正規化
     }
 
@@ -419,8 +409,7 @@ export class MotionFeatureExtractor {
 
     // 各キーフレームのプロパティ数の平均
     const propCounts = keyframes.map((k) => (k.properties ? k.properties.length : 0));
-    const avgPropCount =
-      propCounts.reduce((a, b) => a + b, 0) / Math.max(propCounts.length, 1);
+    const avgPropCount = propCounts.reduce((a, b) => a + b, 0) / Math.max(propCounts.length, 1);
     features[6] = Math.min(avgPropCount / 5, 1);
 
     // タイミング関数を持つキーフレームの割合
@@ -441,8 +430,7 @@ export class MotionFeatureExtractor {
     // キーフレームの密度（前半 vs 後半）
     const firstHalf = keyframes.filter((k) => k.offset < 0.5).length;
     const secondHalf = keyframes.filter((k) => k.offset > 0.5).length;
-    features[10] =
-      (firstHalf - secondHalf) / Math.max(keyframes.length, 1) / 2 + 0.5;
+    features[10] = (firstHalf - secondHalf) / Math.max(keyframes.length, 1) / 2 + 0.5;
 
     // プロパティの一貫性（全キーフレームで同じプロパティが定義されているか）
     const firstKeyframe = keyframes[0];
@@ -496,9 +484,9 @@ export class MotionEmbedding {
   constructor() {
     this.extractor = new MotionFeatureExtractor();
 
-    if (process.env.NODE_ENV === 'development') {
+    if (process.env.NODE_ENV === "development") {
       // eslint-disable-next-line no-console -- Intentional debug log in development
-      console.log('[MotionEmbedding] Initialized with dimension:', MOTION_EMBEDDING_DIM);
+      console.log("[MotionEmbedding] Initialized with dimension:", MOTION_EMBEDDING_DIM);
     }
   }
 
@@ -509,9 +497,9 @@ export class MotionEmbedding {
    * @returns L2正規化された64次元Embeddingベクトル
    */
   public embed(pattern: MotionPattern): number[] {
-    if (process.env.NODE_ENV === 'development') {
+    if (process.env.NODE_ENV === "development") {
       // eslint-disable-next-line no-console -- Intentional debug log in development
-      console.log('[MotionEmbedding] Embedding pattern:', pattern.name);
+      console.log("[MotionEmbedding] Embedding pattern:", pattern.name);
     }
 
     // 各特徴量を抽出
@@ -552,9 +540,9 @@ export class MotionEmbedding {
    * @returns L2正規化された64次元Embeddingベクトルの配列
    */
   public embedBatch(patterns: MotionPattern[]): number[][] {
-    if (process.env.NODE_ENV === 'development') {
+    if (process.env.NODE_ENV === "development") {
       // eslint-disable-next-line no-console -- Intentional debug log in development
-      console.log('[MotionEmbedding] Batch embedding:', patterns.length, 'patterns');
+      console.log("[MotionEmbedding] Batch embedding:", patterns.length, "patterns");
     }
 
     return patterns.map((pattern) => this.embed(pattern));
@@ -569,7 +557,7 @@ export class MotionEmbedding {
    */
   public similarity(embedding1: number[], embedding2: number[]): number {
     if (embedding1.length !== embedding2.length) {
-      throw new Error('Embedding dimensions do not match');
+      throw new Error("Embedding dimensions do not match");
     }
 
     // ゼロベクトルのチェック
@@ -602,11 +590,7 @@ export class MotionEmbedding {
    * @param topK - 返却する上位K件（省略時は全件）
    * @returns 類似度順にソートされたSimilarityResult配列
    */
-  public findSimilar(
-    target: number[],
-    candidates: number[][],
-    topK?: number
-  ): SimilarityResult[] {
+  public findSimilar(target: number[], candidates: number[][], topK?: number): SimilarityResult[] {
     if (candidates.length === 0 || (topK !== undefined && topK <= 0)) {
       return [];
     }

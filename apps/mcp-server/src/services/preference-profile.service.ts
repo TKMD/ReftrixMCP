@@ -23,7 +23,7 @@
  * @module services/preference-profile.service
  */
 
-import { isDevelopment, logger } from '../utils/logger';
+import { isDevelopment, logger } from "../utils/logger";
 import type {
   IPreferenceService,
   PreferenceSample,
@@ -36,8 +36,8 @@ import type {
   SignalData,
   GetSamplesOptions,
   HearingProgress,
-} from '../tools/preference/hear.tool';
-import { truncateId, type FeedbackItem } from '../tools/preference/schemas';
+} from "../tools/preference/hear.tool";
+import { truncateId, type FeedbackItem } from "../tools/preference/schemas";
 
 // =====================================================
 // インターフェース / Interfaces
@@ -48,7 +48,7 @@ import { truncateId, type FeedbackItem } from '../tools/preference/schemas';
  * EmbeddingService interface
  */
 export interface IEmbeddingService {
-  generateEmbedding(text: string, type: 'query' | 'passage'): Promise<number[]>;
+  generateEmbedding(text: string, type: "query" | "passage"): Promise<number[]>;
 }
 
 /**
@@ -196,7 +196,7 @@ export class PreferenceProfileService implements IPreferenceService {
       return this.embeddingService;
     }
 
-    throw new Error('EmbeddingService not initialized');
+    throw new Error("EmbeddingService not initialized");
   }
 
   /**
@@ -213,7 +213,7 @@ export class PreferenceProfileService implements IPreferenceService {
       return this.prismaClient;
     }
 
-    throw new Error('PrismaClient not initialized');
+    throw new Error("PrismaClient not initialized");
   }
 
   /**
@@ -233,7 +233,7 @@ export class PreferenceProfileService implements IPreferenceService {
     const excludeIds = options?.excludeIds ?? [];
 
     if (isDevelopment()) {
-      logger.info('[PreferenceProfileService] Getting samples', {
+      logger.info("[PreferenceProfileService] Getting samples", {
         profileId: truncateId(profileId),
         limit,
         offset,
@@ -255,7 +255,7 @@ export class PreferenceProfileService implements IPreferenceService {
 
       const newProfile = newProfiles[0];
       if (!newProfile) {
-        throw new Error('Failed to create new preference profile');
+        throw new Error("Failed to create new preference profile");
       }
 
       resolvedProfileId = newProfile.id;
@@ -274,9 +274,7 @@ export class PreferenceProfileService implements IPreferenceService {
     // Build exclude_ids parameter
     // 空配列の場合は null を渡す（SQL側で IS NULL チェック）
     // Pass null for empty array (SQL side checks IS NULL)
-    const excludeParam = excludeIds.length > 0
-      ? `{${excludeIds.join(',')}}`
-      : null;
+    const excludeParam = excludeIds.length > 0 ? `{${excludeIds.join(",")}}` : null;
 
     // design_narratives から MoodCategory 多様性を保証してサンプル取得
     // 未評価カテゴリを優先し、各カテゴリから1件ずつランダムに選択
@@ -323,8 +321,8 @@ export class PreferenceProfileService implements IPreferenceService {
       id: row.id,
       url: row.wp_url,
       mood_category: row.mood_category,
-      mood_description: row.mood_description ?? '',
-      overall_tone: row.overall_tone ?? '',
+      mood_description: row.mood_description ?? "",
+      overall_tone: row.overall_tone ?? "",
       screenshot_available: row.wp_screenshot_desktop_url !== null,
     }));
 
@@ -334,7 +332,10 @@ export class PreferenceProfileService implements IPreferenceService {
       await this.calculateConfidence(resolvedProfileId);
     const estimatedRemaining = this.estimateRemaining(confidence, interactionCount);
     const remainingReason = this.getRemainingReason(
-      confidence, coveredCategories, totalCategories, interactionCount
+      confidence,
+      coveredCategories,
+      totalCategories,
+      interactionCount
     );
     const shouldContinue = confidence < CONFIDENCE_THRESHOLD && interactionCount < MAX_HEARINGS;
 
@@ -352,24 +353,24 @@ export class PreferenceProfileService implements IPreferenceService {
     const profilingNotice: ProfilingNotice | undefined = isNewProfile
       ? {
           message:
-            'This tool creates a preference profile to personalize search results. ' +
-            'Your design preferences are stored locally. ' +
-            'このツールは検索結果をパーソナライズするための嗜好プロファイルを作成します。' +
-            'デザイン嗜好はローカルに保存されます。',
+            "This tool creates a preference profile to personalize search results. " +
+            "Your design preferences are stored locally. " +
+            "このツールは検索結果をパーソナライズするための嗜好プロファイルを作成します。" +
+            "デザイン嗜好はローカルに保存されます。",
           purpose:
-            'Personalization of design search results via preference embedding / ' +
-            '嗜好embeddingによるデザイン検索結果のパーソナライズ',
+            "Personalization of design search results via preference embedding / " +
+            "嗜好embeddingによるデザイン検索結果のパーソナライズ",
           deletion_method:
-            'Use preference.reset with hard_delete: true to permanently delete all data (GDPR Right to Erasure) / ' +
-            'preference.reset で hard_delete: true を指定すると全データを完全削除できます（GDPR忘れられる権利）',
+            "Use preference.reset with hard_delete: true to permanently delete all data (GDPR Right to Erasure) / " +
+            "preference.reset で hard_delete: true を指定すると全データを完全削除できます（GDPR忘れられる権利）",
           retention_policy:
-            'Data is retained until explicitly deleted via preference.reset. No automatic expiration. / ' +
-            'preference.reset で明示的に削除するまで保持されます。自動期限切れはありません。',
+            "Data is retained until explicitly deleted via preference.reset. No automatic expiration. / " +
+            "preference.reset で明示的に削除するまで保持されます。自動期限切れはありません。",
         }
       : undefined;
 
     if (isDevelopment()) {
-      logger.info('[PreferenceProfileService] Samples retrieved', {
+      logger.info("[PreferenceProfileService] Samples retrieved", {
         profileId: truncateId(resolvedProfileId),
         sampleCount: samples.length,
         moodCategories: [...new Set(samples.map((s) => s.mood_category))],
@@ -443,12 +444,14 @@ export class PreferenceProfileService implements IPreferenceService {
     const interactionCount = Number(profiles[0]?.interaction_count ?? 0);
 
     // 2因子confidence計算 / 2-factor confidence calculation
-    const categoryCoverage = totalCategories > 0
-      ? coveredCategories / totalCategories
-      : 0;
-    const interactionSufficiency = Math.min(interactionCount / MIN_INTERACTIONS_FOR_SUFFICIENCY, 1.0);
+    const categoryCoverage = totalCategories > 0 ? coveredCategories / totalCategories : 0;
+    const interactionSufficiency = Math.min(
+      interactionCount / MIN_INTERACTIONS_FOR_SUFFICIENCY,
+      1.0
+    );
     const confidence = Math.min(
-      categoryCoverage * CATEGORY_COVERAGE_WEIGHT + interactionSufficiency * INTERACTION_SUFFICIENCY_WEIGHT,
+      categoryCoverage * CATEGORY_COVERAGE_WEIGHT +
+        interactionSufficiency * INTERACTION_SUFFICIENCY_WEIGHT,
       1.0
     );
 
@@ -486,7 +489,7 @@ export class PreferenceProfileService implements IPreferenceService {
     interactionCount: number
   ): string {
     if (confidence >= CONFIDENCE_THRESHOLD) {
-      return '嗜好プロファイルの信頼度が十分に高いため、ヒアリングを終了できます。 / Preference profile confidence is sufficient to end the hearing.';
+      return "嗜好プロファイルの信頼度が十分に高いため、ヒアリングを終了できます。 / Preference profile confidence is sufficient to end the hearing.";
     }
 
     if (interactionCount >= MAX_HEARINGS) {
@@ -514,7 +517,7 @@ export class PreferenceProfileService implements IPreferenceService {
       );
     }
 
-    return reasons.join(' / ');
+    return reasons.join(" / ");
   }
 
   /**
@@ -534,7 +537,7 @@ export class PreferenceProfileService implements IPreferenceService {
     const prisma = this.getPrismaClient();
 
     if (isDevelopment()) {
-      logger.info('[PreferenceProfileService] Processing feedback', {
+      logger.info("[PreferenceProfileService] Processing feedback", {
         profileId: truncateId(profileId),
         feedbackCount: feedback.length,
         preferenceTextLength: preferenceText.length,
@@ -546,7 +549,7 @@ export class PreferenceProfileService implements IPreferenceService {
     let embeddingVector: number[];
     try {
       const embeddingService = this.getEmbeddingService();
-      embeddingVector = await embeddingService.generateEmbedding(preferenceText, 'passage');
+      embeddingVector = await embeddingService.generateEmbedding(preferenceText, "passage");
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       throw new Error(`Embedding generation failed: ${message}`);
@@ -555,13 +558,13 @@ export class PreferenceProfileService implements IPreferenceService {
     // NaN/Infinity防御（embeddingVector検証） / NaN/Infinity defense (embeddingVector validation)
     for (const val of embeddingVector) {
       if (!Number.isFinite(val)) {
-        throw new Error('Embedding contains non-finite values (NaN or Infinity)');
+        throw new Error("Embedding contains non-finite values (NaN or Infinity)");
       }
     }
 
     // 2. preference_profiles テーブルの更新
     //    Update preference_profiles table
-    const vectorString = `[${embeddingVector.join(',')}]`;
+    const vectorString = `[${embeddingVector.join(",")}]`;
     await prisma.$executeRawUnsafe(
       `UPDATE preference_profiles
        SET preference_text = $1,
@@ -578,9 +581,8 @@ export class PreferenceProfileService implements IPreferenceService {
     //    Record each feedback to preference_signals table
     for (const item of feedback) {
       const signalType = `hearing_${item.rating}`;
-      const signalWeight = item.rating === 'positive' ? 1.0
-        : item.rating === 'negative' ? -0.5
-        : 0.0;
+      const signalWeight =
+        item.rating === "positive" ? 1.0 : item.rating === "negative" ? -0.5 : 0.0;
 
       await prisma.$executeRawUnsafe(
         `INSERT INTO preference_signals (profile_id, signal_type, signal_weight, target_type, target_id, feedback_text)
@@ -588,7 +590,7 @@ export class PreferenceProfileService implements IPreferenceService {
         profileId,
         signalType,
         signalWeight,
-        'web_page',
+        "web_page",
         item.sample_id,
         item.comment ?? null
       );
@@ -596,18 +598,15 @@ export class PreferenceProfileService implements IPreferenceService {
 
     // 4. 更新後の interaction_count を取得
     //    Get updated interaction_count
-    const updatedProfiles = await prisma.$queryRawUnsafe<Array<{ interaction_count: number | bigint }>>(
-      `SELECT interaction_count FROM preference_profiles WHERE id = $1::uuid`,
-      profileId
-    );
+    const updatedProfiles = await prisma.$queryRawUnsafe<
+      Array<{ interaction_count: number | bigint }>
+    >(`SELECT interaction_count FROM preference_profiles WHERE id = $1::uuid`, profileId);
 
     const updatedProfile = updatedProfiles[0];
-    const interactionCount = updatedProfile
-      ? Number(updatedProfile.interaction_count)
-      : 1;
+    const interactionCount = updatedProfile ? Number(updatedProfile.interaction_count) : 1;
 
     if (isDevelopment()) {
-      logger.info('[PreferenceProfileService] Feedback processed', {
+      logger.info("[PreferenceProfileService] Feedback processed", {
         profileId: truncateId(profileId),
         interactionCount,
         feedbackRecorded: feedback.length,
@@ -632,7 +631,9 @@ export class PreferenceProfileService implements IPreferenceService {
     const prisma = this.getPrismaClient();
 
     if (isDevelopment()) {
-      logger.info('[PreferenceProfileService] Getting profile', { profileId: truncateId(profileId) });
+      logger.info("[PreferenceProfileService] Getting profile", {
+        profileId: truncateId(profileId),
+      });
     }
 
     let profiles: PreferenceProfileRow[];
@@ -665,12 +666,14 @@ export class PreferenceProfileService implements IPreferenceService {
       name: profile.name,
       preference_text: profile.preference_text,
       interaction_count: Number(profile.interaction_count),
-      created_at: profile.created_at instanceof Date
-        ? profile.created_at.toISOString()
-        : String(profile.created_at),
-      updated_at: profile.updated_at instanceof Date
-        ? profile.updated_at.toISOString()
-        : String(profile.updated_at),
+      created_at:
+        profile.created_at instanceof Date
+          ? profile.created_at.toISOString()
+          : String(profile.created_at),
+      updated_at:
+        profile.updated_at instanceof Date
+          ? profile.updated_at.toISOString()
+          : String(profile.updated_at),
     };
   }
 
@@ -685,7 +688,9 @@ export class PreferenceProfileService implements IPreferenceService {
     const prisma = this.getPrismaClient();
 
     if (isDevelopment()) {
-      logger.info('[PreferenceProfileService] Resetting profile', { profileId: truncateId(profileId) });
+      logger.info("[PreferenceProfileService] Resetting profile", {
+        profileId: truncateId(profileId),
+      });
     }
 
     // プロファイル存在確認 / Check profile existence
@@ -695,7 +700,7 @@ export class PreferenceProfileService implements IPreferenceService {
     );
 
     if (existing.length === 0) {
-      throw new Error('Profile not found');
+      throw new Error("Profile not found");
     }
 
     // preference_signals は CASCADE で削除される想定
@@ -720,7 +725,9 @@ export class PreferenceProfileService implements IPreferenceService {
     );
 
     if (isDevelopment()) {
-      logger.info('[PreferenceProfileService] Profile reset completed', { profileId: truncateId(profileId) });
+      logger.info("[PreferenceProfileService] Profile reset completed", {
+        profileId: truncateId(profileId),
+      });
     }
 
     return {
@@ -741,9 +748,9 @@ export class PreferenceProfileService implements IPreferenceService {
 
     // 全環境で監査ログ出力（不可逆操作の証跡、isDevelopmentガードなし）
     // Audit log in all environments (irreversible operation trail, no isDevelopment guard)
-    logger.warn('[PreferenceProfileService] Deleting profile (hard delete / GDPR erasure)', {
+    logger.warn("[PreferenceProfileService] Deleting profile (hard delete / GDPR erasure)", {
       profileId: truncateId(profileId),
-      action: 'hard_delete',
+      action: "hard_delete",
     });
 
     // プロファイル存在確認 / Check profile existence
@@ -753,7 +760,7 @@ export class PreferenceProfileService implements IPreferenceService {
     );
 
     if (existing.length === 0) {
-      throw new Error('Profile not found');
+      throw new Error("Profile not found");
     }
 
     // シグナルを先に削除（CASCADEが設定されていない場合の安全策）
@@ -771,9 +778,9 @@ export class PreferenceProfileService implements IPreferenceService {
 
     // 全環境で監査ログ出力（不可逆操作完了の証跡）
     // Audit log in all environments (irreversible operation completion trail)
-    logger.warn('[PreferenceProfileService] Profile hard delete completed (GDPR erasure)', {
+    logger.warn("[PreferenceProfileService] Profile hard delete completed (GDPR erasure)", {
       profileId: truncateId(profileId),
-      action: 'hard_delete_completed',
+      action: "hard_delete_completed",
     });
 
     return {
@@ -793,7 +800,9 @@ export class PreferenceProfileService implements IPreferenceService {
     const prisma = this.getPrismaClient();
 
     if (isDevelopment()) {
-      logger.info('[PreferenceProfileService] Getting signals', { profileId: truncateId(profileId) });
+      logger.info("[PreferenceProfileService] Getting signals", {
+        profileId: truncateId(profileId),
+      });
     }
 
     const rows = await prisma.$queryRawUnsafe<PreferenceSignalRow[]>(
@@ -811,9 +820,8 @@ export class PreferenceProfileService implements IPreferenceService {
       target_type: row.target_type,
       target_id: row.target_id,
       feedback_text: row.feedback_text,
-      created_at: row.created_at instanceof Date
-        ? row.created_at.toISOString()
-        : String(row.created_at),
+      created_at:
+        row.created_at instanceof Date ? row.created_at.toISOString() : String(row.created_at),
     }));
   }
 }

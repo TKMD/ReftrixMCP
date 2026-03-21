@@ -18,7 +18,7 @@
  * - apps/mcp-server/src/services/vision/brandtone.analyzer.ts
  */
 
-import crypto from 'crypto';
+import crypto from "crypto";
 
 // =============================================================================
 // 型定義
@@ -101,10 +101,10 @@ export class VisionCache<K extends string = string, V = unknown> {
 
     // バリデーション
     if (mergedConfig.capacity < 1) {
-      throw new Error('Invalid capacity: must be >= 1');
+      throw new Error("Invalid capacity: must be >= 1");
     }
     if (mergedConfig.ttlMs < 1) {
-      throw new Error('Invalid TTL: must be >= 1ms');
+      throw new Error("Invalid TTL: must be >= 1ms");
     }
 
     this.capacity = mergedConfig.capacity;
@@ -123,7 +123,7 @@ export class VisionCache<K extends string = string, V = unknown> {
    * @returns SHA256ハッシュ値（64文字）
    */
   static generateKey(input: string): string {
-    return crypto.createHash('sha256').update(input).digest('hex');
+    return crypto.createHash("sha256").update(input).digest("hex");
   }
 
   // ===========================================================================
@@ -325,10 +325,7 @@ export class VisionCache<K extends string = string, V = unknown> {
       return;
     }
 
-    while (
-      this.cache.size > 0 &&
-      this.estimateMemoryUsage() > this.maxMemoryBytes
-    ) {
+    while (this.cache.size > 0 && this.estimateMemoryUsage() > this.maxMemoryBytes) {
       this.evictLRU();
     }
   }

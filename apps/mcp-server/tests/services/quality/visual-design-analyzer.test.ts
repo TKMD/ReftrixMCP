@@ -18,7 +18,7 @@
  * @module tests/services/quality/visual-design-analyzer.test
  */
 
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import {
   VisualDesignAnalyzerService,
   getVisualDesignAnalyzerService,
@@ -26,7 +26,7 @@ import {
   resetVisualDesignAnalyzerServiceFactory,
   type VisualDesignMetrics,
   type IVisualDesignAnalyzerService,
-} from '../../../src/services/quality/visual-design-analyzer.service.js';
+} from "../../../src/services/quality/visual-design-analyzer.service.js";
 
 // =============================================================================
 // テスト用HTML/CSS定義
@@ -183,7 +183,7 @@ const NO_DEPTH_CSS = `
 // テスト本体
 // =============================================================================
 
-describe('VisualDesignAnalyzerService', () => {
+describe("VisualDesignAnalyzerService", () => {
   let service: VisualDesignAnalyzerService;
 
   beforeEach(() => {
@@ -199,10 +199,10 @@ describe('VisualDesignAnalyzerService', () => {
   // 空入力・境界値
   // =========================================================================
 
-  describe('空入力処理', () => {
-    it('空文字列でall-zeroの結果を返すこと', () => {
+  describe("空入力処理", () => {
+    it("空文字列でall-zeroの結果を返すこと", () => {
       // Arrange & Act
-      const result = service.analyze('');
+      const result = service.analyze("");
 
       // Assert
       expect(result.visualDensity).toBe(0);
@@ -211,11 +211,11 @@ describe('VisualDesignAnalyzerService', () => {
       expect(result.whitespaceIntentionality).toBe(0);
       expect(result.visualDepth).toBe(0);
       expect(result.overall).toBe(0);
-      expect(result.details).toContain('No HTML content provided');
+      expect(result.details).toContain("No HTML content provided");
     });
 
-    it('空白のみの文字列でall-zeroの結果を返すこと', () => {
-      const result = service.analyze('   \n\t  ');
+    it("空白のみの文字列でall-zeroの結果を返すこと", () => {
+      const result = service.analyze("   \n\t  ");
       expect(result.overall).toBe(0);
     });
   });
@@ -224,8 +224,8 @@ describe('VisualDesignAnalyzerService', () => {
   // visualDensity
   // =========================================================================
 
-  describe('visualDensity', () => {
-    it('画像0枚のHTMLで低い視覚密度スコア(0)を返すこと', () => {
+  describe("visualDensity", () => {
+    it("画像0枚のHTMLで低い視覚密度スコア(0)を返すこと", () => {
       // Arrange & Act
       const result = service.analyze(MINIMAL_HTML);
 
@@ -233,7 +233,7 @@ describe('VisualDesignAnalyzerService', () => {
       expect(result.visualDensity).toBe(0);
     });
 
-    it('画像とSVGが含まれるHTMLで高い視覚密度スコアを返すこと', () => {
+    it("画像とSVGが含まれるHTMLで高い視覚密度スコアを返すこと", () => {
       // Arrange & Act
       const result = service.analyze(RICH_HTML);
 
@@ -249,7 +249,7 @@ describe('VisualDesignAnalyzerService', () => {
       expect(result.visualDensity).toBe(0);
     });
 
-    it('video/canvas要素もメディア要素としてカウントされること', () => {
+    it("video/canvas要素もメディア要素としてカウントされること", () => {
       // Arrange
       const htmlWithVideo = `
         <html><body>
@@ -272,10 +272,10 @@ describe('VisualDesignAnalyzerService', () => {
   // typographyContrast
   // =========================================================================
 
-  describe('typographyContrast', () => {
-    it('font-size宣言がないHTMLで低いスコアを返すこと', () => {
+  describe("typographyContrast", () => {
+    it("font-size宣言がないHTMLで低いスコアを返すこと", () => {
       // Arrange
-      const noFontHtml = '<html><body><p>Plain text</p></body></html>';
+      const noFontHtml = "<html><body><p>Plain text</p></body></html>";
 
       // Act
       const result = service.analyze(noFontHtml);
@@ -284,7 +284,7 @@ describe('VisualDesignAnalyzerService', () => {
       expect(result.typographyContrast).toBeLessThanOrEqual(10);
     });
 
-    it('単一font-sizeのみのCSSで低いスコアを返すこと', () => {
+    it("単一font-sizeのみのCSSで低いスコアを返すこと", () => {
       // Arrange
       const html = `<html><body><style>${SINGLE_FONT_CSS}</style><p>Text</p></body></html>`;
 
@@ -295,7 +295,7 @@ describe('VisualDesignAnalyzerService', () => {
       expect(result.typographyContrast).toBeLessThan(40);
     });
 
-    it('h1/h2/bodyで3段階のfont-sizeがあるCSSで高いスコアを返すこと', () => {
+    it("h1/h2/bodyで3段階のfont-sizeがあるCSSで高いスコアを返すこと", () => {
       // Arrange
       const html = `<html><body><style>${MULTI_FONT_CSS}</style>
         <h1>Title</h1><h2>Subtitle</h2><p>Body</p></body></html>`;
@@ -307,7 +307,7 @@ describe('VisualDesignAnalyzerService', () => {
       expect(result.typographyContrast).toBeGreaterThanOrEqual(60);
     });
 
-    it('font-weightバリエーションがある場合にボーナスが加算されること', () => {
+    it("font-weightバリエーションがある場合にボーナスが加算されること", () => {
       // Arrange
       const htmlWithWeights = `<html><body><style>${WEIGHT_VARIETY_CSS}</style>
         <h1>T</h1><h2>S</h2><h3>S2</h3><p>B</p></body></html>`;
@@ -322,15 +322,13 @@ describe('VisualDesignAnalyzerService', () => {
       const withoutWeights = service.analyze(htmlWithoutWeights);
 
       // Assert: weight多い方がスコア高い
-      expect(withWeights.typographyContrast).toBeGreaterThan(
-        withoutWeights.typographyContrast
-      );
+      expect(withWeights.typographyContrast).toBeGreaterThan(withoutWeights.typographyContrast);
     });
 
-    it('CSSパラメータ経由でもfont-size解析が行われること', () => {
+    it("CSSパラメータ経由でもfont-size解析が行われること", () => {
       // Arrange
-      const html = '<html><body><p>Text</p></body></html>';
-      const css = 'h1 { font-size: 48px; } p { font-size: 16px; }';
+      const html = "<html><body><p>Text</p></body></html>";
+      const css = "h1 { font-size: 48px; } p { font-size: 16px; }";
 
       // Act
       const result = service.analyze(html, css);
@@ -344,10 +342,10 @@ describe('VisualDesignAnalyzerService', () => {
   // colorVariety
   // =========================================================================
 
-  describe('colorVariety', () => {
-    it('カラー宣言がないHTMLで低いスコアを返すこと', () => {
+  describe("colorVariety", () => {
+    it("カラー宣言がないHTMLで低いスコアを返すこと", () => {
       // Arrange
-      const noColorHtml = '<html><body><p>Plain text</p></body></html>';
+      const noColorHtml = "<html><body><p>Plain text</p></body></html>";
 
       // Act
       const result = service.analyze(noColorHtml);
@@ -356,7 +354,7 @@ describe('VisualDesignAnalyzerService', () => {
       expect(result.colorVariety).toBeLessThan(20);
     });
 
-    it('3色未満のCSSで低いスコアを返すこと', () => {
+    it("3色未満のCSSで低いスコアを返すこと", () => {
       // Arrange
       const html = `<html><body><style>${FEW_COLORS_CSS}</style><p>Text</p></body></html>`;
 
@@ -367,7 +365,7 @@ describe('VisualDesignAnalyzerService', () => {
       expect(result.colorVariety).toBeLessThan(40);
     });
 
-    it('5色以上のCSSで高いスコアを返すこと', () => {
+    it("5色以上のCSSで高いスコアを返すこと", () => {
       // Arrange
       const html = `<html><body><style>${RICH_COLORS_CSS}</style><p>Text</p></body></html>`;
 
@@ -378,7 +376,7 @@ describe('VisualDesignAnalyzerService', () => {
       expect(result.colorVariety).toBeGreaterThanOrEqual(60);
     });
 
-    it('hex, rgb, hsl形式が全て認識されること', () => {
+    it("hex, rgb, hsl形式が全て認識されること", () => {
       // Arrange
       const mixedColors = `
         .a { color: #ff5733; }
@@ -394,7 +392,7 @@ describe('VisualDesignAnalyzerService', () => {
       expect(result.colorVariety).toBeGreaterThan(20);
     });
 
-    it('名前付きカラー(navy, tomato等)が認識されること', () => {
+    it("名前付きカラー(navy, tomato等)が認識されること", () => {
       // Arrange
       const namedColorCss = `
         .a { color: navy; }
@@ -417,10 +415,10 @@ describe('VisualDesignAnalyzerService', () => {
   // whitespaceIntentionality
   // =========================================================================
 
-  describe('whitespaceIntentionality', () => {
-    it('スペーシング宣言がないHTMLで低いスコアを返すこと', () => {
+  describe("whitespaceIntentionality", () => {
+    it("スペーシング宣言がないHTMLで低いスコアを返すこと", () => {
       // Arrange
-      const noSpacingHtml = '<html><body><p>Text</p></body></html>';
+      const noSpacingHtml = "<html><body><p>Text</p></body></html>";
 
       // Act
       const result = service.analyze(noSpacingHtml);
@@ -429,7 +427,7 @@ describe('VisualDesignAnalyzerService', () => {
       expect(result.whitespaceIntentionality).toBeLessThanOrEqual(10);
     });
 
-    it('clamp()やCSS変数を使用したスペーシングで高いスコアを返すこと', () => {
+    it("clamp()やCSS変数を使用したスペーシングで高いスコアを返すこと", () => {
       // Arrange
       const html = `<html><body><style>${INTENTIONAL_SPACING_CSS}</style>
         <section><p>Content</p></section></body></html>`;
@@ -441,7 +439,7 @@ describe('VisualDesignAnalyzerService', () => {
       expect(result.whitespaceIntentionality).toBeGreaterThanOrEqual(60);
     });
 
-    it('ハードコードされた一貫性のない余白で低いスコアを返すこと', () => {
+    it("ハードコードされた一貫性のない余白で低いスコアを返すこと", () => {
       // Arrange
       const html = `<html><body><style>${INCONSISTENT_SPACING_CSS}</style>
         <div>Content</div></body></html>`;
@@ -453,7 +451,7 @@ describe('VisualDesignAnalyzerService', () => {
       expect(result.whitespaceIntentionality).toBeLessThan(50);
     });
 
-    it('8pxの倍数パターンの一貫性がスコアに反映されること', () => {
+    it("8pxの倍数パターンの一貫性がスコアに反映されること", () => {
       // Arrange: 8の倍数で揃ったスペーシング
       const consistentCss = `
         .a { padding: 8px; }
@@ -477,8 +475,8 @@ describe('VisualDesignAnalyzerService', () => {
   // visualDepth
   // =========================================================================
 
-  describe('visualDepth', () => {
-    it('深度プロパティがないCSSで低いスコアを返すこと', () => {
+  describe("visualDepth", () => {
+    it("深度プロパティがないCSSで低いスコアを返すこと", () => {
       // Arrange
       const html = `<html><body><style>${NO_DEPTH_CSS}</style><p>T</p></body></html>`;
 
@@ -489,7 +487,7 @@ describe('VisualDesignAnalyzerService', () => {
       expect(result.visualDepth).toBeLessThan(30);
     });
 
-    it('box-shadow + gradient + transform使用で高いスコアを返すこと', () => {
+    it("box-shadow + gradient + transform使用で高いスコアを返すこと", () => {
       // Arrange
       const html = `<html><body><style>${DEPTH_CSS}</style><p>T</p></body></html>`;
 
@@ -500,7 +498,7 @@ describe('VisualDesignAnalyzerService', () => {
       expect(result.visualDepth).toBeGreaterThanOrEqual(60);
     });
 
-    it('backdrop-filterがスコアに加算されること', () => {
+    it("backdrop-filterがスコアに加算されること", () => {
       // Arrange
       const withBackdrop = `
         .card { box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
@@ -520,7 +518,7 @@ describe('VisualDesignAnalyzerService', () => {
       expect(resultWith.visualDepth).toBeGreaterThan(resultWithout.visualDepth);
     });
 
-    it('z-indexレイヤリングがスコアに加算されること', () => {
+    it("z-indexレイヤリングがスコアに加算されること", () => {
       // Arrange
       const withZIndex = `
         .front { z-index: 10; }
@@ -535,7 +533,7 @@ describe('VisualDesignAnalyzerService', () => {
       expect(result.visualDepth).toBeGreaterThan(0);
     });
 
-    it('疑似要素(::before/::after)の装飾利用がスコアに加算されること', () => {
+    it("疑似要素(::before/::after)の装飾利用がスコアに加算されること", () => {
       // Arrange
       const pseudoCss = `
         .deco::before { content: ""; position: absolute; background: red; border: 1px solid blue; }
@@ -555,8 +553,8 @@ describe('VisualDesignAnalyzerService', () => {
   // overall（加重平均）
   // =========================================================================
 
-  describe('overall', () => {
-    it('全メトリクスの加重平均が正しく計算されること', () => {
+  describe("overall", () => {
+    it("全メトリクスの加重平均が正しく計算されること", () => {
       // Arrange & Act
       const result = service.analyze(RICH_HTML);
 
@@ -578,41 +576,29 @@ describe('VisualDesignAnalyzerService', () => {
       expect(result.overall).toBe(expectedOverall);
     });
 
-    it('全メトリクスが0の場合overallも0であること', () => {
+    it("全メトリクスが0の場合overallも0であること", () => {
       // Arrange & Act
-      const result = service.analyze(
-        '<html><body><div>Text only, no style</div></body></html>'
-      );
+      const result = service.analyze("<html><body><div>Text only, no style</div></body></html>");
 
       // Assert: 全メトリクスが低い場合、overallも低い
       expect(result.overall).toBeLessThanOrEqual(10);
     });
 
-    it('detailsに各メトリクスの根拠が含まれること', () => {
+    it("detailsに各メトリクスの根拠が含まれること", () => {
       // Arrange & Act
       const result = service.analyze(RICH_HTML);
 
       // Assert: detailsに全5メトリクス + overall が含まれる
       expect(result.details.length).toBeGreaterThan(0);
-      expect(result.details.some((d) => d.startsWith('visualDensity:'))).toBe(
-        true
-      );
-      expect(
-        result.details.some((d) => d.startsWith('typographyContrast:'))
-      ).toBe(true);
-      expect(result.details.some((d) => d.startsWith('colorVariety:'))).toBe(
-        true
-      );
-      expect(
-        result.details.some((d) => d.startsWith('whitespaceIntentionality:'))
-      ).toBe(true);
-      expect(result.details.some((d) => d.startsWith('visualDepth:'))).toBe(
-        true
-      );
-      expect(result.details.some((d) => d.startsWith('overall:'))).toBe(true);
+      expect(result.details.some((d) => d.startsWith("visualDensity:"))).toBe(true);
+      expect(result.details.some((d) => d.startsWith("typographyContrast:"))).toBe(true);
+      expect(result.details.some((d) => d.startsWith("colorVariety:"))).toBe(true);
+      expect(result.details.some((d) => d.startsWith("whitespaceIntentionality:"))).toBe(true);
+      expect(result.details.some((d) => d.startsWith("visualDepth:"))).toBe(true);
+      expect(result.details.some((d) => d.startsWith("overall:"))).toBe(true);
     });
 
-    it('全メトリクスが0-100の範囲内であること', () => {
+    it("全メトリクスが0-100の範囲内であること", () => {
       // Arrange & Act
       const result = service.analyze(RICH_HTML);
 
@@ -636,14 +622,14 @@ describe('VisualDesignAnalyzerService', () => {
   // CSS引数の動作
   // =========================================================================
 
-  describe('外部CSS引数', () => {
-    it('CSSパラメータが<style>タグ内CSSと結合されて解析されること', () => {
+  describe("外部CSS引数", () => {
+    it("CSSパラメータが<style>タグ内CSSと結合されて解析されること", () => {
       // Arrange
       const htmlWithStyle = `<html><body>
         <style>h1 { font-size: 48px; }</style>
         <h1>Title</h1>
       </body></html>`;
-      const externalCss = 'p { font-size: 16px; font-weight: 400; }';
+      const externalCss = "p { font-size: 16px; font-weight: 400; }";
 
       // Act
       const withExternal = service.analyze(htmlWithStyle, externalCss);
@@ -660,8 +646,8 @@ describe('VisualDesignAnalyzerService', () => {
   // inline style属性の解析
   // =========================================================================
 
-  describe('inline style解析', () => {
-    it('inline style属性からCSSプロパティが抽出されること', () => {
+  describe("inline style解析", () => {
+    it("inline style属性からCSSプロパティが抽出されること", () => {
       // Arrange
       const html = `<html><body>
         <div style="font-size: 48px; font-weight: 800; color: #ff5733;">
@@ -683,17 +669,17 @@ describe('VisualDesignAnalyzerService', () => {
   // DI ファクトリパターン
   // =========================================================================
 
-  describe('DI ファクトリ', () => {
-    it('デフォルトファクトリでインスタンスが取得できること', () => {
+  describe("DI ファクトリ", () => {
+    it("デフォルトファクトリでインスタンスが取得できること", () => {
       // Arrange & Act
       const instance = getVisualDesignAnalyzerService();
 
       // Assert
       expect(instance).toBeDefined();
-      expect(typeof instance.analyze).toBe('function');
+      expect(typeof instance.analyze).toBe("function");
     });
 
-    it('カスタムファクトリを設定してインスタンスが差し替わること', () => {
+    it("カスタムファクトリを設定してインスタンスが差し替わること", () => {
       // Arrange: モックサービスを返すファクトリ
       const mockResult: VisualDesignMetrics = {
         visualDensity: 99,
@@ -702,7 +688,7 @@ describe('VisualDesignAnalyzerService', () => {
         whitespaceIntentionality: 99,
         visualDepth: 99,
         overall: 99,
-        details: ['mock'],
+        details: ["mock"],
       };
 
       const mockService: IVisualDesignAnalyzerService = {
@@ -712,14 +698,14 @@ describe('VisualDesignAnalyzerService', () => {
       // Act
       setVisualDesignAnalyzerServiceFactory(() => mockService);
       const instance = getVisualDesignAnalyzerService();
-      const result = instance.analyze('<html><body>test</body></html>');
+      const result = instance.analyze("<html><body>test</body></html>");
 
       // Assert
       expect(result.overall).toBe(99);
-      expect(result.details).toContain('mock');
+      expect(result.details).toContain("mock");
     });
 
-    it('リセットでデフォルトファクトリに戻ること', () => {
+    it("リセットでデフォルトファクトリに戻ること", () => {
       // Arrange
       const mockService: IVisualDesignAnalyzerService = {
         analyze: (): VisualDesignMetrics => ({
@@ -729,7 +715,7 @@ describe('VisualDesignAnalyzerService', () => {
           whitespaceIntentionality: 99,
           visualDepth: 99,
           overall: 99,
-          details: ['mock'],
+          details: ["mock"],
         }),
       };
       setVisualDesignAnalyzerServiceFactory(() => mockService);

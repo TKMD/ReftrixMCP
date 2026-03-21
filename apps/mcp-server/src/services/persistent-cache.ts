@@ -26,11 +26,11 @@
  * await cache.close();
  * ```
  */
-import * as fs from 'fs/promises';
-import * as path from 'path';
-import { Logger } from '../utils/logger';
+import * as fs from "fs/promises";
+import * as path from "path";
+import { Logger } from "../utils/logger";
 
-const logger = new Logger('PersistentCache');
+const logger = new Logger("PersistentCache");
 
 /**
  * 永続キャッシュエントリの型定義
@@ -106,7 +106,7 @@ export interface PersistentCacheGetOptions {
  * JSONファイルベースのディスク永続化対応LRUキャッシュ
  */
 /** 予約済みキー名（Prototype Pollution対策） */
-const RESERVED_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
+const RESERVED_KEYS = new Set(["__proto__", "constructor", "prototype"]);
 
 /** デフォルトの最大キー長 */
 const DEFAULT_MAX_KEY_LENGTH = 256;
@@ -149,7 +149,7 @@ export class PersistentCache<T> {
     this.maxKeyLength = options.maxKeyLength ?? DEFAULT_MAX_KEY_LENGTH;
     this.maxValueSize = options.maxValueSize ?? DEFAULT_MAX_VALUE_SIZE;
 
-    this.log('debug', 'PersistentCache created', {
+    this.log("debug", "PersistentCache created", {
       dbPath: this.dbPath,
       maxSize: this.maxSize,
       defaultTtlMs: this.defaultTtlMs,
@@ -163,16 +163,16 @@ export class PersistentCache<T> {
    * dbPathを検証（パストラバーサル対策）
    */
   private validateDbPath(dbPath: string): string {
-    if (!dbPath || typeof dbPath !== 'string') {
-      throw new Error('dbPath must be a non-empty string');
+    if (!dbPath || typeof dbPath !== "string") {
+      throw new Error("dbPath must be a non-empty string");
     }
 
     // パスを正規化
     const resolved = path.resolve(dbPath);
 
     // パストラバーサル検出: 元のパスに .. が含まれている場合は警告
-    if (dbPath.includes('..')) {
-      this.log('warn', 'dbPath contains path traversal sequences', { dbPath, resolved });
+    if (dbPath.includes("..")) {
+      this.log("warn", "dbPath contains path traversal sequences", { dbPath, resolved });
     }
 
     return resolved;
@@ -182,8 +182,8 @@ export class PersistentCache<T> {
    * キー名を検証
    */
   private validateKey(key: string): void {
-    if (!key || typeof key !== 'string') {
-      throw new Error('Key must be a non-empty string');
+    if (!key || typeof key !== "string") {
+      throw new Error("Key must be a non-empty string");
     }
 
     if (key.length > this.maxKeyLength) {
@@ -193,7 +193,7 @@ export class PersistentCache<T> {
     // 制御文字のチェック（セキュリティ対策として意図的に使用）
     // eslint-disable-next-line no-control-regex
     if (/[\x00-\x1f\x7f]/.test(key)) {
-      throw new Error('Key contains control characters');
+      throw new Error("Key contains control characters");
     }
 
     // 予約済みキー名のチェック（Prototype Pollution対策）
@@ -208,7 +208,9 @@ export class PersistentCache<T> {
   private validateValueSize(value: T): void {
     const serialized = JSON.stringify(value);
     if (serialized.length > this.maxValueSize) {
-      throw new Error(`Value size (${serialized.length} bytes) exceeds maximum (${this.maxValueSize} bytes)`);
+      throw new Error(
+        `Value size (${serialized.length} bytes) exceeds maximum (${this.maxValueSize} bytes)`
+      );
     }
   }
 
@@ -225,10 +227,10 @@ export class PersistentCache<T> {
       // 既存データの読み込みを試行
       await this.loadFromDisk();
       this.isInitialized = true;
-      this.log('debug', 'Initialized', { size: this.entries.size });
+      this.log("debug", "Initialized", { size: this.entries.size });
     } catch (error) {
       // 初期化エラーは警告として扱い、空の状態で開始
-      this.log('warn', 'Failed to initialize from disk, starting fresh', { error });
+      this.log("warn", "Failed to initialize from disk, starting fresh", { error });
       this.isInitialized = true;
     }
   }
@@ -238,7 +240,7 @@ export class PersistentCache<T> {
    */
   private async ensureInitialized(): Promise<void> {
     if (this.isClosed) {
-      throw new Error('Database is closed');
+      throw new Error("Database is closed");
     }
 
     if (!this.isInitialized && this.initPromise) {
@@ -260,7 +262,7 @@ export class PersistentCache<T> {
 
     if (!entry) {
       this.misses++;
-      this.log('debug', 'Miss', { key });
+      this.log("debug", "Miss", { key });
       return null;
     }
 
@@ -269,7 +271,7 @@ export class PersistentCache<T> {
       this.entries.delete(key);
       this.removeFromAccessOrder(key);
       this.misses++;
-      this.log('debug', 'Expired', { key });
+      this.log("debug", "Expired", { key });
       // 永続化は遅延実行
       this.saveToDiskDebounced();
       return null;
@@ -281,7 +283,7 @@ export class PersistentCache<T> {
     this.updateAccessOrder(key);
 
     this.hits++;
-    this.log('debug', 'Hit', { key, ignoreExpiry: options?.ignoreExpiry });
+    this.log("debug", "Hit", { key, ignoreExpiry: options?.ignoreExpiry });
 
     // 永続化は遅延実行
     this.saveToDiskDebounced();
@@ -321,7 +323,7 @@ export class PersistentCache<T> {
     this.entries.set(key, entry);
     this.updateAccessOrder(key);
 
-    this.log('debug', 'Set', {
+    this.log("debug", "Set", {
       key,
       ttl: actualTtl,
       size: this.entries.size,
@@ -366,7 +368,7 @@ export class PersistentCache<T> {
     const deleted = this.entries.delete(key);
     if (deleted) {
       this.removeFromAccessOrder(key);
-      this.log('debug', 'Delete', { key });
+      this.log("debug", "Delete", { key });
       await this.saveToDisk();
     }
     return deleted;
@@ -388,7 +390,7 @@ export class PersistentCache<T> {
     this.writeErrorCount = 0;
     this.readErrorCount = 0;
 
-    this.log('debug', 'Cleared');
+    this.log("debug", "Cleared");
     await this.saveToDisk();
   }
 
@@ -424,7 +426,7 @@ export class PersistentCache<T> {
     let diskUsageBytes = 0;
     try {
       const data = this.prepareStorageData();
-      diskUsageBytes = Buffer.byteLength(JSON.stringify(data), 'utf8');
+      diskUsageBytes = Buffer.byteLength(JSON.stringify(data), "utf8");
     } catch {
       // 計算失敗時は0
     }
@@ -460,7 +462,7 @@ export class PersistentCache<T> {
     this.entries.clear();
     this.accessOrder = [];
 
-    this.log('debug', 'Closed');
+    this.log("debug", "Closed");
   }
 
   /**
@@ -484,7 +486,7 @@ export class PersistentCache<T> {
     }
 
     if (keysToDelete.length > 0) {
-      this.log('debug', 'Compacted', { removed: keysToDelete.length });
+      this.log("debug", "Compacted", { removed: keysToDelete.length });
       await this.saveToDisk();
     }
   }
@@ -526,7 +528,7 @@ export class PersistentCache<T> {
       this.updateAccessOrder(key);
     }
 
-    this.log('debug', 'SetMany', { count: entries.length, size: this.entries.size });
+    this.log("debug", "SetMany", { count: entries.length, size: this.entries.size });
 
     // 一括保存
     await this.saveToDisk();
@@ -540,7 +542,7 @@ export class PersistentCache<T> {
    * ストレージファイルパスを取得
    */
   private getStoragePath(): string {
-    return path.join(this.dbPath, 'cache.json');
+    return path.join(this.dbPath, "cache.json");
   }
 
   /**
@@ -560,7 +562,7 @@ export class PersistentCache<T> {
     if (oldestKey) {
       this.entries.delete(oldestKey);
       this.evictionCount++;
-      this.log('debug', 'Evicted LRU', { key: oldestKey });
+      this.log("debug", "Evicted LRU", { key: oldestKey });
     }
   }
 
@@ -611,16 +613,16 @@ export class PersistentCache<T> {
     const filePath = this.getStoragePath();
 
     try {
-      const content = await fs.readFile(filePath, 'utf8');
+      const content = await fs.readFile(filePath, "utf8");
       const data = JSON.parse(content) as StorageData<T>;
 
       // データを復元（Prototype Pollution対策付き）
       this.entries.clear();
-      if (data.entries && typeof data.entries === 'object') {
+      if (data.entries && typeof data.entries === "object") {
         for (const [key, entry] of Object.entries(data.entries)) {
           // Prototype Pollution対策: 予約済みキーをスキップ
           if (RESERVED_KEYS.has(key)) {
-            this.log('warn', 'Blocked prototype pollution attempt during load', { key });
+            this.log("warn", "Blocked prototype pollution attempt during load", { key });
             continue;
           }
           // Object.prototypeから継承したプロパティをスキップ
@@ -633,7 +635,7 @@ export class PersistentCache<T> {
 
       // accessOrderも安全にフィルタリング
       this.accessOrder = Array.isArray(data.accessOrder)
-        ? data.accessOrder.filter((key) => typeof key === 'string' && !RESERVED_KEYS.has(key))
+        ? data.accessOrder.filter((key) => typeof key === "string" && !RESERVED_KEYS.has(key))
         : [];
 
       // 統計を復元
@@ -645,12 +647,12 @@ export class PersistentCache<T> {
         this.readErrorCount = data.stats.readErrorCount ?? 0;
       }
 
-      this.log('debug', 'Loaded from disk', { size: this.entries.size });
+      this.log("debug", "Loaded from disk", { size: this.entries.size });
     } catch (error) {
       // ファイルが存在しない場合は正常（初回起動）
       const errCode = (error as { code?: string }).code;
-      if (errCode === 'ENOENT') {
-        this.log('debug', 'No existing cache file, starting fresh');
+      if (errCode === "ENOENT") {
+        this.log("debug", "No existing cache file, starting fresh");
         return;
       }
 
@@ -678,14 +680,14 @@ export class PersistentCache<T> {
         // アトミック書き込み（一時ファイル経由）
         // PID + timestamp でtmpファイルを分離し、複数プロセス間の競合を防止
         const tempPath = `${filePath}.tmp.${process.pid}.${Date.now()}`;
-        await fs.writeFile(tempPath, content, 'utf8');
+        await fs.writeFile(tempPath, content, "utf8");
         await fs.rename(tempPath, filePath);
 
-        this.log('debug', 'Saved to disk', { size: this.entries.size });
+        this.log("debug", "Saved to disk", { size: this.entries.size });
         return;
       } catch (error) {
         lastError = error as Error;
-        this.log('warn', `Write attempt ${attempt + 1} failed`, { error });
+        this.log("warn", `Write attempt ${attempt + 1} failed`, { error });
 
         // 最後の試行でなければ少し待機
         if (attempt < this.writeRetries - 1) {
@@ -712,7 +714,7 @@ export class PersistentCache<T> {
 
     this.saveDebounceTimer = setTimeout(() => {
       this.saveToDisk().catch((error) => {
-        this.log('error', 'Debounced save failed', { error });
+        this.log("error", "Debounced save failed", { error });
       });
     }, 100);
   }
@@ -720,20 +722,20 @@ export class PersistentCache<T> {
   /**
    * ログ出力
    */
-  private log(level: 'debug' | 'info' | 'warn' | 'error', message: string, data?: unknown): void {
+  private log(level: "debug" | "info" | "warn" | "error", message: string, data?: unknown): void {
     if (!this.enableLogging) return;
 
     switch (level) {
-      case 'debug':
+      case "debug":
         logger.debug(message, data);
         break;
-      case 'info':
+      case "info":
         logger.info(message, data);
         break;
-      case 'warn':
+      case "warn":
         logger.warn(message, data);
         break;
-      case 'error':
+      case "error":
         logger.error(message, data);
         break;
     }

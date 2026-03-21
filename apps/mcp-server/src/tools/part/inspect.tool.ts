@@ -18,9 +18,14 @@
  * @module tools/part/inspect.tool
  */
 
-import { ZodError } from 'zod';
-import { logger, isDevelopment } from '../../utils/logger';
-import { partInspectInputSchema, truncateId, type PartInspectInput } from '../../services/part/schemas';
+import { ZodError } from "zod";
+import { logger, isDevelopment } from "../../utils/logger";
+import { sanitizeHtml } from "../../utils/html-sanitizer";
+import {
+  partInspectInputSchema,
+  truncateId,
+  type PartInspectInput,
+} from "../../services/part/schemas";
 
 // =====================================================
 // 型定義
@@ -84,10 +89,10 @@ export type PartInspectOutput =
 // =====================================================
 
 export const PART_INSPECT_ERROR_CODES = {
-  VALIDATION_ERROR: 'VALIDATION_ERROR',
-  NOT_FOUND: 'NOT_FOUND',
-  SERVICE_UNAVAILABLE: 'SERVICE_UNAVAILABLE',
-  INTERNAL_ERROR: 'INTERNAL_ERROR',
+  VALIDATION_ERROR: "VALIDATION_ERROR",
+  NOT_FOUND: "NOT_FOUND",
+  SERVICE_UNAVAILABLE: "SERVICE_UNAVAILABLE",
+  INTERNAL_ERROR: "INTERNAL_ERROR",
 } as const;
 
 // =====================================================
@@ -100,9 +105,7 @@ let prismaClientFactory: (() => PartInspectPrismaClient) | null = null;
  * PrismaClientファクトリーを設定
  * Set PrismaClient factory
  */
-export function setPartInspectPrismaClientFactory(
-  factory: () => PartInspectPrismaClient
-): void {
+export function setPartInspectPrismaClientFactory(factory: () => PartInspectPrismaClient): void {
   prismaClientFactory = factory;
 }
 
@@ -127,13 +130,16 @@ function sanitizePartInspectError(error: unknown): string {
     const prismaError = error as { code?: string };
     if (prismaError.code) {
       switch (prismaError.code) {
-        case 'P2002': return 'A record with this value already exists';
-        case 'P2025': return 'Record not found';
-        default: return 'Database operation failed';
+        case "P2002":
+          return "A record with this value already exists";
+        case "P2025":
+          return "Record not found";
+        default:
+          return "Database operation failed";
       }
     }
   }
-  return 'An internal error occurred';
+  return "An internal error occurred";
 }
 
 // =====================================================
@@ -179,11 +185,9 @@ interface PartDetailRow {
  * @param input - 入力パラメータ / Input parameters
  * @returns パーツ詳細情報 / Part detail info
  */
-export async function partInspectHandler(
-  input: unknown
-): Promise<PartInspectOutput> {
+export async function partInspectHandler(input: unknown): Promise<PartInspectOutput> {
   if (isDevelopment()) {
-    logger.info('[MCP Tool] part.inspect called', {
+    logger.info("[MCP Tool] part.inspect called", {
       partId: (input as Record<string, unknown>)?.part_id
         ? truncateId(String((input as Record<string, unknown>).part_id))
         : undefined,
@@ -196,11 +200,9 @@ export async function partInspectHandler(
     validated = partInspectInputSchema.parse(input);
   } catch (error) {
     if (error instanceof ZodError) {
-      const errorMessage = error.errors
-        .map((e) => `${e.path.join('.')}: ${e.message}`)
-        .join(', ');
+      const errorMessage = error.errors.map((e) => `${e.path.join(".")}: ${e.message}`).join(", ");
 
-      logger.warn('[MCP Tool] part.inspect validation error', {
+      logger.warn("[MCP Tool] part.inspect validation error", {
         errors: error.errors,
       });
 
@@ -221,7 +223,7 @@ export async function partInspectHandler(
       success: false,
       error: {
         code: PART_INSPECT_ERROR_CODES.SERVICE_UNAVAILABLE,
-        message: 'Part inspect service is not available',
+        message: "Part inspect service is not available",
       },
     };
   }
@@ -235,7 +237,7 @@ export async function partInspectHandler(
         cp.id,
         cp.part_type,
         cp.part_subtype,
-        ${validated.include_html ? 'cp.html_snippet,' : 'NULL AS html_snippet,'}
+        ${validated.include_html ? "cp.html_snippet," : "NULL AS html_snippet,"}
         cp.computed_styles,
         cp.bounding_box,
         cp.css_classes,
@@ -251,15 +253,19 @@ export async function partInspectHandler(
         sp.section_type,
         wp.url AS web_page_url,
         cp.created_at::text AS created_at,
-        ${validated.include_embedding
-          ? '(cpe.text_embedding IS NOT NULL) AS has_text_embedding, (cpe.visual_embedding IS NOT NULL) AS has_visual_embedding'
-          : 'FALSE AS has_text_embedding, FALSE AS has_visual_embedding'}
+        ${
+          validated.include_embedding
+            ? "(cpe.text_embedding IS NOT NULL) AS has_text_embedding, (cpe.visual_embedding IS NOT NULL) AS has_visual_embedding"
+            : "FALSE AS has_text_embedding, FALSE AS has_visual_embedding"
+        }
       FROM component_parts cp
       INNER JOIN section_patterns sp ON sp.id = cp.section_pattern_id
       INNER JOIN web_pages wp ON wp.id = cp.web_page_id
-      ${validated.include_embedding
-        ? 'LEFT JOIN component_part_embeddings cpe ON cpe.component_part_id = cp.id'
-        : ''}
+      ${
+        validated.include_embedding
+          ? "LEFT JOIN component_part_embeddings cpe ON cpe.component_part_id = cp.id"
+          : ""
+      }
       WHERE cp.id = $1
       LIMIT 1`,
       validated.part_id
@@ -291,7 +297,7 @@ export async function partInspectHandler(
       id: row.id,
       partType: row.part_type,
       partSubtype: row.part_subtype,
-      htmlSnippet: row.html_snippet,
+      htmlSnippet: row.html_snippet ? sanitizeHtml(row.html_snippet) : row.html_snippet,
       computedStyles: row.computed_styles ?? {},
       boundingBox: row.bounding_box ?? {},
       cssClasses: row.css_classes ?? [],
@@ -315,7 +321,7 @@ export async function partInspectHandler(
     }
 
     if (isDevelopment()) {
-      logger.info('[MCP Tool] part.inspect completed', {
+      logger.info("[MCP Tool] part.inspect completed", {
         partId: truncateId(validated.part_id),
         partType: detail.partType,
       });
@@ -326,7 +332,7 @@ export async function partInspectHandler(
       data: detail,
     };
   } catch (error) {
-    logger.warn('[MCP Tool] part.inspect error', {
+    logger.warn("[MCP Tool] part.inspect error", {
       error: sanitizePartInspectError(error),
       partId: truncateId(validated.part_id),
     });
@@ -350,38 +356,38 @@ export async function partInspectHandler(
  * part.inspect MCP tool definition
  */
 export const partInspectToolDefinition = {
-  name: 'part.inspect',
+  name: "part.inspect",
   description:
-    '特定のUIコンポーネントパーツの詳細情報を取得します。' +
-    'スタイル、HTML、バウンディングボックス、インタラクション情報、Embedding有無等を返します。' +
-    ' / Inspect a specific UI component part by ID. ' +
-    'Returns styles, HTML, bounding box, interaction info, embedding status, etc.',
+    "特定のUIコンポーネントパーツの詳細情報を取得します。" +
+    "スタイル、HTML、バウンディングボックス、インタラクション情報、Embedding有無等を返します。" +
+    " / Inspect a specific UI component part by ID. " +
+    "Returns styles, HTML, bounding box, interaction info, embedding status, etc.",
   annotations: {
-    title: 'Part Inspect',
+    title: "Part Inspect",
     readOnlyHint: true,
     idempotentHint: true,
     openWorldHint: false,
   },
   inputSchema: {
-    type: 'object' as const,
+    type: "object" as const,
     properties: {
       part_id: {
-        type: 'string',
-        format: 'uuid',
-        description: 'パーツID（UUID） / Part ID (UUID)',
+        type: "string",
+        format: "uuid",
+        description: "パーツID（UUID） / Part ID (UUID)",
       },
       include_html: {
-        type: 'boolean',
+        type: "boolean",
         default: false,
-        description: 'サニタイズ済みHTMLスニペットを含める / Include sanitized HTML snippet',
+        description: "サニタイズ済みHTMLスニペットを含める / Include sanitized HTML snippet",
       },
       include_embedding: {
-        type: 'boolean',
+        type: "boolean",
         default: false,
-        description: 'Embedding有無情報を含める / Include embedding availability info',
+        description: "Embedding有無情報を含める / Include embedding availability info",
       },
     },
-    required: ['part_id'],
+    required: ["part_id"],
   },
 };
 
@@ -390,5 +396,5 @@ export const partInspectToolDefinition = {
 // =====================================================
 
 if (isDevelopment()) {
-  logger.debug('[part.inspect] Tool module loaded');
+  logger.debug("[part.inspect] Tool module loaded");
 }

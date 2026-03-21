@@ -4,4 +4,4 @@
 /**
  * Utils module exports
  */
-export { logger } from './logger';
+export { logger } from "./logger";

@@ -10,6 +10,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 形式は [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) に基づき、
 [セマンティックバージョニング](https://semver.org/spec/v2.0.0.html) に準拠しています。
 
+## [0.1.7] - 2026-03-21
+
+### Refactored / リファクタリング
+
+- **God Function分割**: page-analyze-worker→7フェーズモジュール（phase-0〜phase-5 + common）に分割。analyze.tool→sync-processing抽出、evaluate.tool→evaluate-engine抽出 / **God Function splits**: page-analyze-worker → 7 phase modules (phase-0–phase-5 + common). analyze.tool → sync-processing, evaluate.tool → evaluate-engine
+- **スキーマ分割**: motion/schemas→3ファイル、page/schemas→3ファイル（re-export hub方式で後方互換性維持） / **Schema splits**: motion/schemas → 3 files, page/schemas → 3 files (re-export hub pattern for backward compatibility)
+- **llama-vision.adapter→prompts+types分割**: LLMプロンプトと型定義を分離 / **llama-vision.adapter split**: separated LLM prompts and type definitions
+- Dead code 13件削除、narrative-search重複統合、ESLint warning 27件修正 / Removed 13 dead code items, consolidated narrative-search duplicates, fixed 27 ESLint warnings
+
+### Security / セキュリティ
+
+- **SSRF・XSSサニタイズ・DOMPurifyバイパス修正**: 複数のセキュリティ脆弱性を解消 / **SSRF, XSS sanitization, and DOMPurify bypass fixes**: resolved multiple security vulnerabilities
+- **isDevelopment()ガード違反25箇所修正**: catchブロック内でのエラーサイレント吸収を防止。全環境で`logger.warn`/`logger.error`を出力するよう統一 / **Fixed 25 isDevelopment() guard violations**: prevented silent error absorption in catch blocks. Unified to output `logger.warn`/`logger.error` in all environments
+- **脆弱性解消**: flatted, effect (pnpm overrides)、undici 7.18.2→7.24.3 (High×6件)、flatted >=3.4.0 (High×1件) / **Vulnerability fixes**: flatted, effect (pnpm overrides), undici 7.18.2→7.24.3 (6 High), flatted >=3.4.0 (1 High)
+
+### Tests / テスト
+
+- デッドテスト11件削除（4,367行削減）、セキュリティテスト3件追加 / Removed 11 dead tests (4,367 lines reduced), added 3 security tests
+- テストカバレッジ拡充（Worker系、スコアリング、グラデーション検出） / Test coverage expansion (Worker, scoring, gradient detection)
+
+### Fixed / 修正
+
+- **Phase 2.5 Progress範囲逆行修正**: 35-45%→60-63%に修正。進捗バーの逆行を解消 / **Phase 2.5 progress range regression fix**: corrected from 35-45% to 60-63%, resolving progress bar reversal
+- **resolveMemoryConfig重複初期化を遅延初期化に変更**: 起動時の不要なメモリ設定計算を排除 / **resolveMemoryConfig lazy initialization**: eliminated redundant memory config computation at startup
+
+### CI/CD
+
+- **E2Eテストジョブ追加**: PostgreSQL+pgvector+Playwright+Redisを含む統合テスト環境 / **E2E test job added**: integrated test environment with PostgreSQL+pgvector+Playwright+Redis
+- `format:check`有効化、`.git-blame-ignore-revs`作成 / Enabled `format:check`, created `.git-blame-ignore-revs`
+
+### Code Style / コードスタイル
+
+- コードベース全体（1,261ファイル）にPrettier整形適用 / Applied Prettier formatting across entire codebase (1,261 files)
+
 ## [0.1.6] - 2026-03-15
 
 ### Added / 追加

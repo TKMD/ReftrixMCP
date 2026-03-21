@@ -10,27 +10,32 @@
  * @module services/page/motion-detector.service
  */
 
-import { v7 as uuidv7 } from 'uuid';
-import { logger, isDevelopment } from '../../utils/logger';
-import { getCssAnimationParser } from './css-animation-parser.service';
-import { getMotionPerformanceAnalyzer } from './motion-performance-analyzer.service';
-import { getMotionCategoryClassifier } from './motion-category-classifier.service';
+import { v7 as uuidv7 } from "uuid";
+import { logger, isDevelopment } from "../../utils/logger";
+import { getCssAnimationParser } from "./css-animation-parser.service";
+import { getMotionPerformanceAnalyzer } from "./motion-performance-analyzer.service";
+import { getMotionCategoryClassifier } from "./motion-category-classifier.service";
 
 // Re-export Types for API Compatibility
-export type { KeyframeStep, EasingConfig } from './css-animation-parser.service';
-export type { PerformanceLevel, PerformanceInfo, AccessibilityInfo, DetailedProperty } from './motion-performance-analyzer.service';
-export type { TriggerType, MotionCategory } from './motion-category-classifier.service';
+export type { KeyframeStep, EasingConfig } from "./css-animation-parser.service";
+export type {
+  PerformanceLevel,
+  PerformanceInfo,
+  AccessibilityInfo,
+  DetailedProperty,
+} from "./motion-performance-analyzer.service";
+export type { TriggerType, MotionCategory } from "./motion-category-classifier.service";
 
 // Import types for internal use
-import type { KeyframeStep } from './css-animation-parser.service';
-import type { PerformanceInfo, DetailedProperty } from './motion-performance-analyzer.service';
-import type { TriggerType, MotionCategory } from './motion-category-classifier.service';
+import type { KeyframeStep } from "./css-animation-parser.service";
+import type { PerformanceInfo, DetailedProperty } from "./motion-performance-analyzer.service";
+import type { TriggerType, MotionCategory } from "./motion-category-classifier.service";
 
 /** Motion pattern type */
-export type MotionPatternType = 'css_animation' | 'css_transition' | 'keyframes';
+export type MotionPatternType = "css_animation" | "css_transition" | "keyframes";
 
 /** Warning severity level */
-export type WarningSeverity = 'info' | 'warning' | 'error';
+export type WarningSeverity = "info" | "warning" | "error";
 
 /** Detected motion pattern */
 export interface MotionPattern {
@@ -43,7 +48,7 @@ export interface MotionPattern {
   duration: number;
   easing: string;
   delay?: number;
-  iterations?: number | 'infinite';
+  iterations?: number | "infinite";
   direction?: string;
   fillMode?: string;
   properties: string[];
@@ -79,10 +84,10 @@ export interface MotionDetectionOptions {
 }
 
 export const MOTION_WARNING_CODES = {
-  A11Y_NO_REDUCED_MOTION: 'A11Y_NO_REDUCED_MOTION',
-  A11Y_INFINITE_ANIMATION: 'A11Y_INFINITE_ANIMATION',
-  PERF_LAYOUT_TRIGGER: 'PERF_LAYOUT_TRIGGER',
-  PERF_TOO_MANY_ANIMATIONS: 'PERF_TOO_MANY_ANIMATIONS',
+  A11Y_NO_REDUCED_MOTION: "A11Y_NO_REDUCED_MOTION",
+  A11Y_INFINITE_ANIMATION: "A11Y_INFINITE_ANIMATION",
+  PERF_LAYOUT_TRIGGER: "PERF_LAYOUT_TRIGGER",
+  PERF_TOO_MANY_ANIMATIONS: "PERF_TOO_MANY_ANIMATIONS",
 } as const;
 
 export class MotionDetectorService {
@@ -105,7 +110,7 @@ export class MotionDetectorService {
     } = options;
 
     if (isDevelopment()) {
-      logger.info('[MotionDetector] Starting detection', {
+      logger.info("[MotionDetector] Starting detection", {
         htmlLength: html.length,
         hasExternalCss: !!externalCss,
         options,
@@ -124,7 +129,14 @@ export class MotionDetectorService {
     const styleRules = this.cssParser.extractStyleRules(combinedCss);
     const hasReducedMotion = /prefers-reduced-motion/i.test(combinedCss);
 
-    this.processStyleRules(styleRules, keyframesMap, patterns, hasReducedMotion, minDuration, verbose);
+    this.processStyleRules(
+      styleRules,
+      keyframesMap,
+      patterns,
+      hasReducedMotion,
+      minDuration,
+      verbose
+    );
     this.updateHoverTriggers(styleRules, patterns);
     this.addStandaloneKeyframes(keyframesMap, patterns, hasReducedMotion, verbose);
     this.generateWarnings(patterns, hasReducedMotion, warnings);
@@ -133,7 +145,7 @@ export class MotionDetectorService {
     const processingTimeMs = Date.now() - startTime;
 
     if (isDevelopment()) {
-      logger.info('[MotionDetector] Detection completed', {
+      logger.info("[MotionDetector] Detection completed", {
         patternCount: limitedPatterns.length,
         warningCount: warnings.length,
         processingTimeMs,
@@ -149,24 +161,25 @@ export class MotionDetectorService {
     includeStyleSheets: boolean,
     includeInlineStyles: boolean
   ): string {
-    let css = '';
+    let css = "";
 
     if (includeStyleSheets) {
       const styleRegex = /<style[^>]*>([\s\S]*?)<\/style>/gi;
       let match;
       while ((match = styleRegex.exec(html)) !== null) {
-        if (match[1]) css += match[1] + '\n';
+        if (match[1]) css += match[1] + "\n";
       }
     }
 
-    if (externalCss) css += externalCss + '\n';
+    if (externalCss) css += externalCss + "\n";
 
     if (includeInlineStyles) {
       const inlineRegex = /style="([^"]*)"/gi;
-      let match, count = 0;
+      let match,
+        count = 0;
       while ((match = inlineRegex.exec(html)) !== null) {
         const style = match[1];
-        if (style && (style.includes('animation') || style.includes('transition'))) {
+        if (style && (style.includes("animation") || style.includes("transition"))) {
           css += `.inline-style-${count++} { ${style} }\n`;
         }
       }
@@ -184,11 +197,27 @@ export class MotionDetectorService {
     verbose: boolean
   ): void {
     for (const [selector, styles] of styleRules) {
-      if (styles.animation || styles['animation-name']) {
-        this.processAnimation(selector, styles, keyframesMap, patterns, hasReducedMotion, minDuration, verbose);
+      if (styles.animation || styles["animation-name"]) {
+        this.processAnimation(
+          selector,
+          styles,
+          keyframesMap,
+          patterns,
+          hasReducedMotion,
+          minDuration,
+          verbose
+        );
       }
       if (styles.transition) {
-        this.processTransition(selector, styles, styleRules, patterns, hasReducedMotion, minDuration, verbose);
+        this.processTransition(
+          selector,
+          styles,
+          styleRules,
+          patterns,
+          hasReducedMotion,
+          minDuration,
+          verbose
+        );
       }
     }
   }
@@ -202,7 +231,9 @@ export class MotionDetectorService {
     minDuration: number,
     verbose: boolean
   ): void {
-    const parsed = this.cssParser.parseAnimationProperty(styles.animation || styles['animation-name'] || '');
+    const parsed = this.cssParser.parseAnimationProperty(
+      styles.animation || styles["animation-name"] || ""
+    );
     if (parsed.duration < minDuration) return;
 
     const keyframes = keyframesMap.get(parsed.name);
@@ -211,13 +242,18 @@ export class MotionDetectorService {
       ? this.perfAnalyzer.extractDetailedPropertiesFromKeyframes(keyframes)
       : undefined;
     const trigger = this.classifier.inferTriggerType(selector, properties);
-    const category = this.classifier.inferCategory(parsed.name, selector, properties, parsed.iterations);
+    const category = this.classifier.inferCategory(
+      parsed.name,
+      selector,
+      properties,
+      parsed.iterations
+    );
     const performance = this.perfAnalyzer.analyzePerformance(properties);
 
     const pattern: MotionPattern = {
       id: uuidv7(),
       name: parsed.name || `animation-${patterns.length}`,
-      type: 'css_animation',
+      type: "css_animation",
       category,
       selector,
       trigger,
@@ -250,15 +286,19 @@ export class MotionDetectorService {
     minDuration: number,
     verbose: boolean
   ): void {
-    const transitions = this.cssParser.parseTransitionProperty(styles.transition ?? '');
+    const transitions = this.cssParser.parseTransitionProperty(styles.transition ?? "");
     const validTransitions = transitions.filter((t) => t.duration >= minDuration);
     if (validTransitions.length === 0) return;
 
     const transitionProperties = validTransitions.map((t) => t.property);
-    const hasHoverRule = styleRules.has(selector + ':hover') || selector.includes(':hover');
+    const hasHoverRule = styleRules.has(selector + ":hover") || selector.includes(":hover");
 
-    const trigger: TriggerType = hasHoverRule ? 'hover' : this.classifier.inferTriggerType(selector, transitionProperties);
-    const category = hasHoverRule ? 'hover_effect' : this.classifier.inferCategory('', selector, transitionProperties, 1);
+    const trigger: TriggerType = hasHoverRule
+      ? "hover"
+      : this.classifier.inferTriggerType(selector, transitionProperties);
+    const category = hasHoverRule
+      ? "hover_effect"
+      : this.classifier.inferCategory("", selector, transitionProperties, 1);
     const performance = this.perfAnalyzer.analyzePerformance(transitionProperties);
     const maxDuration = Math.max(...validTransitions.map((t) => t.duration));
     const first = validTransitions[0];
@@ -266,13 +306,13 @@ export class MotionDetectorService {
     const pattern: MotionPattern = {
       id: uuidv7(),
       name: `transition-${patterns.length}`,
-      type: 'css_transition',
+      type: "css_transition",
       category,
       selector,
       trigger,
       duration: maxDuration,
       delay: first?.delay || 0,
-      easing: this.cssParser.formatEasing(first?.easing || { type: 'ease' }),
+      easing: this.cssParser.formatEasing(first?.easing || { type: "ease" }),
       properties: transitionProperties,
       performance,
       accessibility: { respectsReducedMotion: hasReducedMotion },
@@ -287,12 +327,12 @@ export class MotionDetectorService {
     patterns: MotionPattern[]
   ): void {
     for (const [selector] of styleRules) {
-      if (selector.includes(':hover')) {
-        const base = selector.replace(/:hover$/, '').trim();
+      if (selector.includes(":hover")) {
+        const base = selector.replace(/:hover$/, "").trim();
         for (const p of patterns) {
-          if (p.type === 'css_transition' && p.selector === base) {
-            p.trigger = 'hover';
-            p.category = 'hover_effect';
+          if (p.type === "css_transition" && p.selector === base) {
+            p.trigger = "hover";
+            p.category = "hover_effect";
           }
         }
       }
@@ -313,11 +353,11 @@ export class MotionDetectorService {
       const pattern: MotionPattern = {
         id: uuidv7(),
         name,
-        type: 'keyframes',
-        category: this.classifier.inferCategory(name, '', properties, 1),
-        trigger: 'unknown',
+        type: "keyframes",
+        category: this.classifier.inferCategory(name, "", properties, 1),
+        trigger: "unknown",
         duration: 0,
-        easing: 'ease',
+        easing: "ease",
         properties,
         propertiesDetailed,
         performance: this.perfAnalyzer.analyzePerformance(properties),
@@ -340,19 +380,20 @@ export class MotionDetectorService {
     if (!hasReducedMotion && patterns.length > 0) {
       warnings.push({
         code: MOTION_WARNING_CODES.A11Y_NO_REDUCED_MOTION,
-        severity: 'warning',
-        message: 'prefers-reduced-motion is not configured',
-        suggestion: 'Add @media (prefers-reduced-motion: reduce) to disable animations for users who prefer reduced motion',
+        severity: "warning",
+        message: "prefers-reduced-motion is not configured",
+        suggestion:
+          "Add @media (prefers-reduced-motion: reduce) to disable animations for users who prefer reduced motion",
       });
     }
 
-    const infinite = patterns.filter((p) => p.iterations === 'infinite');
+    const infinite = patterns.filter((p) => p.iterations === "infinite");
     if (infinite.length > 0) {
       warnings.push({
         code: MOTION_WARNING_CODES.A11Y_INFINITE_ANIMATION,
-        severity: 'info',
+        severity: "info",
         message: `${infinite.length} infinite animation(s) detected`,
-        suggestion: 'Consider providing a way for users to pause or stop infinite animations',
+        suggestion: "Consider providing a way for users to pause or stop infinite animations",
       });
     }
 
@@ -360,18 +401,18 @@ export class MotionDetectorService {
     if (layout.length > 0) {
       warnings.push({
         code: MOTION_WARNING_CODES.PERF_LAYOUT_TRIGGER,
-        severity: 'warning',
+        severity: "warning",
         message: `${layout.length} animation(s) trigger layout recalculation`,
-        suggestion: 'Use transform and opacity for GPU-accelerated animations',
+        suggestion: "Use transform and opacity for GPU-accelerated animations",
       });
     }
 
     if (patterns.length > 20) {
       warnings.push({
         code: MOTION_WARNING_CODES.PERF_TOO_MANY_ANIMATIONS,
-        severity: 'warning',
+        severity: "warning",
         message: `${patterns.length} animations detected`,
-        suggestion: 'Consider reducing the number of animations for better performance',
+        suggestion: "Consider reducing the number of animations for better performance",
       });
     }
   }

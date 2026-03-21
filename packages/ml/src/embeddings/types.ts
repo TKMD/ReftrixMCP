@@ -10,7 +10,7 @@
  * - 'query': For search queries (prefixed with "query: ")
  * - 'passage': For document/content (prefixed with "passage: ")
  */
-export type EmbeddingTextType = 'query' | 'passage';
+export type EmbeddingTextType = "query" | "passage";
 
 /**
  * Configuration options for EmbeddingService
@@ -31,13 +31,13 @@ export interface EmbeddingServiceConfig {
    * Device to run inference on
    * @default "cpu"
    */
-  device?: 'cpu' | 'cuda' | 'webgpu';
+  device?: "cpu" | "cuda" | "webgpu";
 
   /**
    * Data type for model precision
    * @default "fp32"
    */
-  dtype?: 'fp32' | 'fp16' | 'q8' | 'q4';
+  dtype?: "fp32" | "fp16" | "q8" | "q4";
 
   /**
    * Maximum number of entries in the embedding cache (LRU eviction)

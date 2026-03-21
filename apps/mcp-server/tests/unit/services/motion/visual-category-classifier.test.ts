@@ -21,7 +21,7 @@
  * @module @reftrix/mcp-server/tests/unit/services/motion/visual-category-classifier.test
  */
 
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach } from "vitest";
 import {
   VisualCategoryClassifier,
   type VisualMotionCategory,
@@ -36,7 +36,7 @@ import {
   type CategoryDetails,
   type CategoryClassificationResult,
   type VisualCategoryClassifierConfig,
-} from '../../../../src/services/motion/visual-category-classifier.js';
+} from "../../../../src/services/motion/visual-category-classifier.js";
 
 // Re-export types for test fixtures
 export type { VisualMotionCategory, SlideDirection, ScaleType, FadeType };
@@ -106,9 +106,7 @@ function createHorizontalSlideFrames(frameCount: number): FrameDiffResult[] {
       height: 200,
     },
     // 水平方向のモーションベクトル
-    motionVectors: [
-      { dx: speed, dy: 0, magnitude: speed },
-    ],
+    motionVectors: [{ dx: speed, dy: 0, magnitude: speed }],
   }));
 }
 
@@ -128,9 +126,7 @@ function createVerticalSlideFrames(frameCount: number): FrameDiffResult[] {
       width: 200,
       height: 200,
     },
-    motionVectors: [
-      { dx: 0, dy: speed, magnitude: speed },
-    ],
+    motionVectors: [{ dx: 0, dy: speed, magnitude: speed }],
   }));
 }
 
@@ -152,9 +148,7 @@ function createDiagonalSlideFrames(frameCount: number): FrameDiffResult[] {
       width: 200,
       height: 200,
     },
-    motionVectors: [
-      { dx: speedX, dy: speedY, magnitude },
-    ],
+    motionVectors: [{ dx: speedX, dy: speedY, magnitude }],
   }));
 }
 
@@ -253,8 +247,8 @@ function createParallaxFrames(frameCount: number): FrameDiffResult[] {
     },
     // 異なる速度のモーションベクトル（パララックスの特徴）
     motionVectors: [
-      { dx: bgSpeed, dy: 0, magnitude: bgSpeed },  // 背景
-      { dx: fgSpeed, dy: 0, magnitude: fgSpeed },  // 前景
+      { dx: bgSpeed, dy: 0, magnitude: bgSpeed }, // 背景
+      { dx: fgSpeed, dy: 0, magnitude: fgSpeed }, // 前景
     ],
   }));
 }
@@ -280,9 +274,7 @@ function createComplexFadeSlideFrames(frameCount: number): FrameDiffResult[] {
         height: 200,
       },
       // スライドのモーションベクトル
-      motionVectors: [
-        { dx: speed, dy: 0, magnitude: speed },
-      ],
+      motionVectors: [{ dx: speed, dy: 0, magnitude: speed }],
     };
   });
 }
@@ -330,7 +322,7 @@ function createAmbiguousFrames(frameCount: number): FrameDiffResult[] {
  * FrameAnalysisResultを生成
  */
 function createFrameAnalysisResult(frames: FrameDiffResult[]): FrameAnalysisResult {
-  const diffPercentages = frames.map(f => f.diffPercentage);
+  const diffPercentages = frames.map((f) => f.diffPercentage);
   return {
     frames,
     summary: {
@@ -345,17 +337,17 @@ function createFrameAnalysisResult(frames: FrameDiffResult[]): FrameAnalysisResu
 // Tests
 // =============================================================================
 
-describe('VisualCategoryClassifier', () => {
+describe("VisualCategoryClassifier", () => {
   // Note: TDD Green Phase - 実装済み
 
-  describe('constructor', () => {
-    it('should create instance with default config', () => {
+  describe("constructor", () => {
+    it("should create instance with default config", () => {
       // TDD Green: インスタンスが正常に作成される
       const classifier = new VisualCategoryClassifier();
       expect(classifier).toBeDefined();
     });
 
-    it('should accept custom config', () => {
+    it("should accept custom config", () => {
       const config: VisualCategoryClassifierConfig = {
         fade_threshold: 0.15,
         slide_consistency_threshold: 0.8,
@@ -367,9 +359,9 @@ describe('VisualCategoryClassifier', () => {
     });
   });
 
-  describe('fade detection', () => {
-    describe('fade in', () => {
-      it('should detect fade in pattern with high confidence', () => {
+  describe("fade detection", () => {
+    describe("fade in", () => {
+      it("should detect fade in pattern with high confidence", () => {
         const frames = createFadeInFrames(30);
         const input = createFrameAnalysisResult(frames);
 
@@ -378,12 +370,12 @@ describe('VisualCategoryClassifier', () => {
         const classifier = new VisualCategoryClassifier();
         const result = classifier.classify(input);
 
-        expect(result.primary_category).toBe('fade');
+        expect(result.primary_category).toBe("fade");
         expect(result.confidence).toBeGreaterThan(0.8);
-        expect(result.details?.fade?.type).toBe('in');
+        expect(result.details?.fade?.type).toBe("in");
       });
 
-      it('should calculate fade in duration correctly', () => {
+      it("should calculate fade in duration correctly", () => {
         const frames = createFadeInFrames(30);
         const input = createFrameAnalysisResult(frames);
 
@@ -393,30 +385,32 @@ describe('VisualCategoryClassifier', () => {
         expect(result.details?.fade?.duration_frames).toBe(30);
       });
 
-      it('should estimate opacity change', () => {
+      it("should estimate opacity change", () => {
         const frames = createFadeInFrames(30);
         const input = createFrameAnalysisResult(frames);
 
         const classifier = new VisualCategoryClassifier();
         const result = classifier.classify(input);
 
-        expect(result.details?.fade?.start_opacity).toBeLessThan(result.details?.fade?.end_opacity ?? 0);
+        expect(result.details?.fade?.start_opacity).toBeLessThan(
+          result.details?.fade?.end_opacity ?? 0
+        );
       });
     });
 
-    describe('fade out', () => {
-      it('should detect fade out pattern', () => {
+    describe("fade out", () => {
+      it("should detect fade out pattern", () => {
         const frames = createFadeOutFrames(30);
         const input = createFrameAnalysisResult(frames);
 
         const classifier = new VisualCategoryClassifier();
         const result = classifier.classify(input);
 
-        expect(result.primary_category).toBe('fade');
-        expect(result.details?.fade?.type).toBe('out');
+        expect(result.primary_category).toBe("fade");
+        expect(result.details?.fade?.type).toBe("out");
       });
 
-      it('should distinguish fade out from fade in', () => {
+      it("should distinguish fade out from fade in", () => {
         const fadeOutFrames = createFadeOutFrames(30);
         const fadeInFrames = createFadeInFrames(30);
 
@@ -425,15 +419,15 @@ describe('VisualCategoryClassifier', () => {
         const fadeOutResult = classifier.classify(createFrameAnalysisResult(fadeOutFrames));
         const fadeInResult = classifier.classify(createFrameAnalysisResult(fadeInFrames));
 
-        expect(fadeOutResult.details?.fade?.type).toBe('out');
-        expect(fadeInResult.details?.fade?.type).toBe('in');
+        expect(fadeOutResult.details?.fade?.type).toBe("out");
+        expect(fadeInResult.details?.fade?.type).toBe("in");
       });
     });
 
-    describe('partial fade', () => {
-      it('should detect regional fade (part of frame)', () => {
+    describe("partial fade", () => {
+      it("should detect regional fade (part of frame)", () => {
         // 部分的なフェード（フレームの一部のみ）
-        const frames = createFadeInFrames(30).map(f => ({
+        const frames = createFadeInFrames(30).map((f) => ({
           ...f,
           boundingBox: {
             x: 300,
@@ -447,26 +441,26 @@ describe('VisualCategoryClassifier', () => {
         const classifier = new VisualCategoryClassifier();
         const result = classifier.classify(input);
 
-        expect(result.primary_category).toBe('fade');
+        expect(result.primary_category).toBe("fade");
         expect(result.metrics.affected_area_ratio).toBeLessThan(0.5);
       });
     });
   });
 
-  describe('slide detection', () => {
-    describe('horizontal slide', () => {
-      it('should detect horizontal slide pattern', () => {
+  describe("slide detection", () => {
+    describe("horizontal slide", () => {
+      it("should detect horizontal slide pattern", () => {
         const frames = createHorizontalSlideFrames(30);
         const input = createFrameAnalysisResult(frames);
 
         const classifier = new VisualCategoryClassifier();
         const result = classifier.classify(input);
 
-        expect(result.primary_category).toBe('slide');
-        expect(result.details?.slide?.direction).toBe('horizontal');
+        expect(result.primary_category).toBe("slide");
+        expect(result.details?.slide?.direction).toBe("horizontal");
       });
 
-      it('should calculate horizontal movement angle', () => {
+      it("should calculate horizontal movement angle", () => {
         const frames = createHorizontalSlideFrames(30);
         const input = createFrameAnalysisResult(frames);
 
@@ -477,7 +471,7 @@ describe('VisualCategoryClassifier', () => {
         expect([0, 180]).toContain(Math.round(result.details?.slide?.angle_degrees ?? -1));
       });
 
-      it('should calculate slide distance', () => {
+      it("should calculate slide distance", () => {
         const frames = createHorizontalSlideFrames(30);
         const input = createFrameAnalysisResult(frames);
 
@@ -489,19 +483,19 @@ describe('VisualCategoryClassifier', () => {
       });
     });
 
-    describe('vertical slide', () => {
-      it('should detect vertical slide pattern', () => {
+    describe("vertical slide", () => {
+      it("should detect vertical slide pattern", () => {
         const frames = createVerticalSlideFrames(30);
         const input = createFrameAnalysisResult(frames);
 
         const classifier = new VisualCategoryClassifier();
         const result = classifier.classify(input);
 
-        expect(result.primary_category).toBe('slide');
-        expect(result.details?.slide?.direction).toBe('vertical');
+        expect(result.primary_category).toBe("slide");
+        expect(result.details?.slide?.direction).toBe("vertical");
       });
 
-      it('should calculate vertical movement angle', () => {
+      it("should calculate vertical movement angle", () => {
         const frames = createVerticalSlideFrames(30);
         const input = createFrameAnalysisResult(frames);
 
@@ -513,19 +507,19 @@ describe('VisualCategoryClassifier', () => {
       });
     });
 
-    describe('diagonal slide', () => {
-      it('should detect diagonal slide pattern', () => {
+    describe("diagonal slide", () => {
+      it("should detect diagonal slide pattern", () => {
         const frames = createDiagonalSlideFrames(30);
         const input = createFrameAnalysisResult(frames);
 
         const classifier = new VisualCategoryClassifier();
         const result = classifier.classify(input);
 
-        expect(result.primary_category).toBe('slide');
-        expect(result.details?.slide?.direction).toBe('diagonal');
+        expect(result.primary_category).toBe("slide");
+        expect(result.details?.slide?.direction).toBe("diagonal");
       });
 
-      it('should calculate diagonal angle correctly', () => {
+      it("should calculate diagonal angle correctly", () => {
         const frames = createDiagonalSlideFrames(30);
         const input = createFrameAnalysisResult(frames);
 
@@ -538,8 +532,8 @@ describe('VisualCategoryClassifier', () => {
       });
     });
 
-    describe('slide consistency', () => {
-      it('should have high confidence for consistent direction', () => {
+    describe("slide consistency", () => {
+      it("should have high confidence for consistent direction", () => {
         const frames = createHorizontalSlideFrames(30);
         const input = createFrameAnalysisResult(frames);
 
@@ -551,45 +545,49 @@ describe('VisualCategoryClassifier', () => {
     });
   });
 
-  describe('scale detection', () => {
-    describe('scale expand', () => {
-      it('should detect scale expand pattern', () => {
+  describe("scale detection", () => {
+    describe("scale expand", () => {
+      it("should detect scale expand pattern", () => {
         const frames = createScaleExpandFrames(30);
         const input = createFrameAnalysisResult(frames);
 
         const classifier = new VisualCategoryClassifier();
         const result = classifier.classify(input);
 
-        expect(result.primary_category).toBe('scale');
-        expect(result.details?.scale?.type).toBe('expand');
+        expect(result.primary_category).toBe("scale");
+        expect(result.details?.scale?.type).toBe("expand");
       });
 
-      it('should calculate scale ratio', () => {
+      it("should calculate scale ratio", () => {
         const frames = createScaleExpandFrames(30);
         const input = createFrameAnalysisResult(frames);
 
         const classifier = new VisualCategoryClassifier();
         const result = classifier.classify(input);
 
-        expect(result.details?.scale?.start_scale).toBeLessThan(result.details?.scale?.end_scale ?? 0);
+        expect(result.details?.scale?.start_scale).toBeLessThan(
+          result.details?.scale?.end_scale ?? 0
+        );
         // 100 -> 400 = 4x scale
-        expect((result.details?.scale?.end_scale ?? 0) / (result.details?.scale?.start_scale ?? 1)).toBeCloseTo(4, 0);
+        expect(
+          (result.details?.scale?.end_scale ?? 0) / (result.details?.scale?.start_scale ?? 1)
+        ).toBeCloseTo(4, 0);
       });
     });
 
-    describe('scale shrink', () => {
-      it('should detect scale shrink pattern', () => {
+    describe("scale shrink", () => {
+      it("should detect scale shrink pattern", () => {
         const frames = createScaleShrinkFrames(30);
         const input = createFrameAnalysisResult(frames);
 
         const classifier = new VisualCategoryClassifier();
         const result = classifier.classify(input);
 
-        expect(result.primary_category).toBe('scale');
-        expect(result.details?.scale?.type).toBe('shrink');
+        expect(result.primary_category).toBe("scale");
+        expect(result.details?.scale?.type).toBe("shrink");
       });
 
-      it('should distinguish shrink from expand', () => {
+      it("should distinguish shrink from expand", () => {
         const expandFrames = createScaleExpandFrames(30);
         const shrinkFrames = createScaleShrinkFrames(30);
 
@@ -598,13 +596,13 @@ describe('VisualCategoryClassifier', () => {
         const expandResult = classifier.classify(createFrameAnalysisResult(expandFrames));
         const shrinkResult = classifier.classify(createFrameAnalysisResult(shrinkFrames));
 
-        expect(expandResult.details?.scale?.type).toBe('expand');
-        expect(shrinkResult.details?.scale?.type).toBe('shrink');
+        expect(expandResult.details?.scale?.type).toBe("expand");
+        expect(shrinkResult.details?.scale?.type).toBe("shrink");
       });
     });
 
-    describe('aspect ratio', () => {
-      it('should detect aspect ratio maintained scaling', () => {
+    describe("aspect ratio", () => {
+      it("should detect aspect ratio maintained scaling", () => {
         const frames = createScaleExpandFrames(30);
         const input = createFrameAnalysisResult(frames);
 
@@ -614,7 +612,7 @@ describe('VisualCategoryClassifier', () => {
         expect(result.details?.scale?.aspect_ratio_maintained).toBe(true);
       });
 
-      it('should detect aspect ratio change', () => {
+      it("should detect aspect ratio change", () => {
         // アスペクト比が変わるスケール（幅のみ拡大、高さは固定）
         // 中心座標が固定のまま、幅だけが拡大する
         const centerX = 500;
@@ -635,10 +633,10 @@ describe('VisualCategoryClassifier', () => {
             totalPixels: 100000,
             // 中心座標を固定して、幅のみ変化
             boundingBox: {
-              x: centerX - currentWidth / 2,  // 中心Xが500になるように
-              y: centerY - fixedHeight / 2,   // 中心Yが500で固定
-              width: currentWidth,            // 100 -> 400
-              height: fixedHeight,            // 100で固定
+              x: centerX - currentWidth / 2, // 中心Xが500になるように
+              y: centerY - fixedHeight / 2, // 中心Yが500で固定
+              width: currentWidth, // 100 -> 400
+              height: fixedHeight, // 100で固定
             },
             // モーションベクトルなし（純粋なスケール）
             motionVectors: [],
@@ -654,18 +652,18 @@ describe('VisualCategoryClassifier', () => {
     });
   });
 
-  describe('parallax detection', () => {
-    it('should detect parallax pattern with multiple layers', () => {
+  describe("parallax detection", () => {
+    it("should detect parallax pattern with multiple layers", () => {
       const frames = createParallaxFrames(30);
       const input = createFrameAnalysisResult(frames);
 
       const classifier = new VisualCategoryClassifier();
       const result = classifier.classify(input);
 
-      expect(result.primary_category).toBe('parallax');
+      expect(result.primary_category).toBe("parallax");
     });
 
-    it('should calculate layer count', () => {
+    it("should calculate layer count", () => {
       const frames = createParallaxFrames(30);
       const input = createFrameAnalysisResult(frames);
 
@@ -675,7 +673,7 @@ describe('VisualCategoryClassifier', () => {
       expect(result.details?.parallax?.layer_count).toBeGreaterThanOrEqual(2);
     });
 
-    it('should calculate speed ratios between layers', () => {
+    it("should calculate speed ratios between layers", () => {
       const frames = createParallaxFrames(30);
       const input = createFrameAnalysisResult(frames);
 
@@ -686,11 +684,11 @@ describe('VisualCategoryClassifier', () => {
       expect(speedRatios.length).toBeGreaterThanOrEqual(2);
 
       // 速度比が異なることを確認
-      const uniqueRatios = new Set(speedRatios.map(r => Math.round(r * 10)));
+      const uniqueRatios = new Set(speedRatios.map((r) => Math.round(r * 10)));
       expect(uniqueRatios.size).toBeGreaterThan(1);
     });
 
-    it('should estimate depth order', () => {
+    it("should estimate depth order", () => {
       const frames = createParallaxFrames(30);
       const input = createFrameAnalysisResult(frames);
 
@@ -701,7 +699,7 @@ describe('VisualCategoryClassifier', () => {
       expect(result.details?.parallax?.depth_order?.length).toBeGreaterThanOrEqual(2);
     });
 
-    it('should distinguish parallax from simple slide', () => {
+    it("should distinguish parallax from simple slide", () => {
       const parallaxFrames = createParallaxFrames(30);
       const slideFrames = createHorizontalSlideFrames(30);
 
@@ -710,23 +708,23 @@ describe('VisualCategoryClassifier', () => {
       const parallaxResult = classifier.classify(createFrameAnalysisResult(parallaxFrames));
       const slideResult = classifier.classify(createFrameAnalysisResult(slideFrames));
 
-      expect(parallaxResult.primary_category).toBe('parallax');
-      expect(slideResult.primary_category).toBe('slide');
+      expect(parallaxResult.primary_category).toBe("parallax");
+      expect(slideResult.primary_category).toBe("slide");
     });
   });
 
-  describe('complex motion detection', () => {
-    it('should detect complex pattern (fade + slide)', () => {
+  describe("complex motion detection", () => {
+    it("should detect complex pattern (fade + slide)", () => {
       const frames = createComplexFadeSlideFrames(30);
       const input = createFrameAnalysisResult(frames);
 
       const classifier = new VisualCategoryClassifier();
       const result = classifier.classify(input);
 
-      expect(result.primary_category).toBe('complex');
+      expect(result.primary_category).toBe("complex");
     });
 
-    it('should include secondary categories for complex motion', () => {
+    it("should include secondary categories for complex motion", () => {
       const frames = createComplexFadeSlideFrames(30);
       const input = createFrameAnalysisResult(frames);
 
@@ -737,7 +735,7 @@ describe('VisualCategoryClassifier', () => {
       expect(result.secondary_categories?.length).toBeGreaterThanOrEqual(2);
     });
 
-    it('should weight secondary categories', () => {
+    it("should weight secondary categories", () => {
       const frames = createComplexFadeSlideFrames(30);
       const input = createFrameAnalysisResult(frames);
 
@@ -745,8 +743,8 @@ describe('VisualCategoryClassifier', () => {
       const result = classifier.classify(input);
 
       const categories = result.secondary_categories ?? [];
-      const hasSlide = categories.some(c => c.category === 'slide');
-      const hasFade = categories.some(c => c.category === 'fade');
+      const hasSlide = categories.some((c) => c.category === "slide");
+      const hasFade = categories.some((c) => c.category === "fade");
 
       expect(hasSlide).toBe(true);
       expect(hasFade).toBe(true);
@@ -756,7 +754,7 @@ describe('VisualCategoryClassifier', () => {
       expect(totalWeight).toBeCloseTo(1, 1);
     });
 
-    it('should calculate confidence for complex pattern', () => {
+    it("should calculate confidence for complex pattern", () => {
       const frames = createComplexFadeSlideFrames(30);
       const input = createFrameAnalysisResult(frames);
 
@@ -768,8 +766,8 @@ describe('VisualCategoryClassifier', () => {
     });
   });
 
-  describe('confidence calculation', () => {
-    it('should have high confidence (>0.8) for clear patterns', () => {
+  describe("confidence calculation", () => {
+    it("should have high confidence (>0.8) for clear patterns", () => {
       const frames = createHorizontalSlideFrames(30);
       const input = createFrameAnalysisResult(frames);
 
@@ -779,7 +777,7 @@ describe('VisualCategoryClassifier', () => {
       expect(result.confidence).toBeGreaterThan(0.8);
     });
 
-    it('should have low confidence (<0.5) for ambiguous patterns', () => {
+    it("should have low confidence (<0.5) for ambiguous patterns", () => {
       const frames = createAmbiguousFrames(30);
       const input = createFrameAnalysisResult(frames);
 
@@ -789,7 +787,7 @@ describe('VisualCategoryClassifier', () => {
       expect(result.confidence).toBeLessThan(0.5);
     });
 
-    it('should return unknown for very low confidence', () => {
+    it("should return unknown for very low confidence", () => {
       const frames = createAmbiguousFrames(30);
       const input = createFrameAnalysisResult(frames);
 
@@ -798,11 +796,11 @@ describe('VisualCategoryClassifier', () => {
 
       // 信頼度が閾値未満の場合はunknown
       if (result.confidence < 0.4) {
-        expect(result.primary_category).toBe('unknown');
+        expect(result.primary_category).toBe("unknown");
       }
     });
 
-    it('should have confidence between 0 and 1', () => {
+    it("should have confidence between 0 and 1", () => {
       const testCases = [
         createFadeInFrames(30),
         createHorizontalSlideFrames(30),
@@ -823,9 +821,9 @@ describe('VisualCategoryClassifier', () => {
     });
   });
 
-  describe('metrics calculation', () => {
-    describe('dominant_direction', () => {
-      it('should calculate dominant direction for slide', () => {
+  describe("metrics calculation", () => {
+    describe("dominant_direction", () => {
+      it("should calculate dominant direction for slide", () => {
         const frames = createHorizontalSlideFrames(30);
         const input = createFrameAnalysisResult(frames);
 
@@ -837,7 +835,7 @@ describe('VisualCategoryClassifier', () => {
         expect(result.metrics.dominant_direction).toBeCloseTo(0, 0);
       });
 
-      it('should calculate dominant direction for vertical slide', () => {
+      it("should calculate dominant direction for vertical slide", () => {
         const frames = createVerticalSlideFrames(30);
         const input = createFrameAnalysisResult(frames);
 
@@ -848,7 +846,7 @@ describe('VisualCategoryClassifier', () => {
         expect(result.metrics.dominant_direction).toBeCloseTo(90, 0);
       });
 
-      it('should not have dominant direction for fade', () => {
+      it("should not have dominant direction for fade", () => {
         const frames = createFadeInFrames(30);
         const input = createFrameAnalysisResult(frames);
 
@@ -860,8 +858,8 @@ describe('VisualCategoryClassifier', () => {
       });
     });
 
-    describe('movement_intensity', () => {
-      it('should calculate normalized movement intensity (0-1)', () => {
+    describe("movement_intensity", () => {
+      it("should calculate normalized movement intensity (0-1)", () => {
         const frames = createHorizontalSlideFrames(30);
         const input = createFrameAnalysisResult(frames);
 
@@ -872,7 +870,7 @@ describe('VisualCategoryClassifier', () => {
         expect(result.metrics.movement_intensity).toBeLessThanOrEqual(1);
       });
 
-      it('should have low intensity for static frames', () => {
+      it("should have low intensity for static frames", () => {
         const frames = createStaticFrames(30);
         const input = createFrameAnalysisResult(frames);
 
@@ -882,12 +880,12 @@ describe('VisualCategoryClassifier', () => {
         expect(result.metrics.movement_intensity).toBeLessThan(0.1);
       });
 
-      it('should have higher intensity for fast movement', () => {
+      it("should have higher intensity for fast movement", () => {
         const slowFrames = createHorizontalSlideFrames(30);
         // 速いスライド（モーションベクトルを大きく）
-        const fastFrames = createHorizontalSlideFrames(30).map(f => ({
+        const fastFrames = createHorizontalSlideFrames(30).map((f) => ({
           ...f,
-          motionVectors: f.motionVectors?.map(v => ({
+          motionVectors: f.motionVectors?.map((v) => ({
             ...v,
             dx: v.dx * 3,
             magnitude: v.magnitude * 3,
@@ -898,12 +896,14 @@ describe('VisualCategoryClassifier', () => {
         const slowResult = classifier.classify(createFrameAnalysisResult(slowFrames));
         const fastResult = classifier.classify(createFrameAnalysisResult(fastFrames));
 
-        expect(fastResult.metrics.movement_intensity).toBeGreaterThan(slowResult.metrics.movement_intensity);
+        expect(fastResult.metrics.movement_intensity).toBeGreaterThan(
+          slowResult.metrics.movement_intensity
+        );
       });
     });
 
-    describe('affected_area_ratio', () => {
-      it('should calculate affected area ratio correctly', () => {
+    describe("affected_area_ratio", () => {
+      it("should calculate affected area ratio correctly", () => {
         const frames = createHorizontalSlideFrames(30);
         const input = createFrameAnalysisResult(frames);
 
@@ -914,7 +914,7 @@ describe('VisualCategoryClassifier', () => {
         expect(result.metrics.affected_area_ratio).toBeLessThanOrEqual(1);
       });
 
-      it('should have high affected area ratio for full-frame changes', () => {
+      it("should have high affected area ratio for full-frame changes", () => {
         const frames = createFadeInFrames(30);
         const input = createFrameAnalysisResult(frames);
 
@@ -925,9 +925,9 @@ describe('VisualCategoryClassifier', () => {
         expect(result.metrics.affected_area_ratio).toBeGreaterThan(0.8);
       });
 
-      it('should have low affected area ratio for localized changes', () => {
+      it("should have low affected area ratio for localized changes", () => {
         // 小さい領域のみ変化
-        const frames = createHorizontalSlideFrames(30).map(f => ({
+        const frames = createHorizontalSlideFrames(30).map((f) => ({
           ...f,
           boundingBox: {
             x: 450,
@@ -946,8 +946,8 @@ describe('VisualCategoryClassifier', () => {
       });
     });
 
-    describe('velocity_variance', () => {
-      it('should calculate velocity variance for motion', () => {
+    describe("velocity_variance", () => {
+      it("should calculate velocity variance for motion", () => {
         const frames = createHorizontalSlideFrames(30);
         const input = createFrameAnalysisResult(frames);
 
@@ -959,11 +959,11 @@ describe('VisualCategoryClassifier', () => {
         expect(result.metrics.velocity_variance).toBeLessThan(0.1);
       });
 
-      it('should have high variance for accelerating motion', () => {
+      it("should have high variance for accelerating motion", () => {
         // 加速するスライド
         const frames = createHorizontalSlideFrames(30).map((f, i) => ({
           ...f,
-          motionVectors: f.motionVectors?.map(v => ({
+          motionVectors: f.motionVectors?.map((v) => ({
             ...v,
             dx: v.dx * (1 + i / 10), // 徐々に加速
             magnitude: v.magnitude * (1 + i / 10),
@@ -979,18 +979,18 @@ describe('VisualCategoryClassifier', () => {
     });
   });
 
-  describe('static detection', () => {
-    it('should detect static (no motion) pattern', () => {
+  describe("static detection", () => {
+    it("should detect static (no motion) pattern", () => {
       const frames = createStaticFrames(30);
       const input = createFrameAnalysisResult(frames);
 
       const classifier = new VisualCategoryClassifier();
       const result = classifier.classify(input);
 
-      expect(result.primary_category).toBe('static');
+      expect(result.primary_category).toBe("static");
     });
 
-    it('should have high confidence for truly static frames', () => {
+    it("should have high confidence for truly static frames", () => {
       const frames = createStaticFrames(30);
       const input = createFrameAnalysisResult(frames);
 
@@ -1001,8 +1001,8 @@ describe('VisualCategoryClassifier', () => {
     });
   });
 
-  describe('edge cases', () => {
-    it('should handle empty frame array', () => {
+  describe("edge cases", () => {
+    it("should handle empty frame array", () => {
       const input: FrameAnalysisResult = {
         frames: [],
         summary: {
@@ -1015,18 +1015,20 @@ describe('VisualCategoryClassifier', () => {
       const classifier = new VisualCategoryClassifier();
       const result = classifier.classify(input);
 
-      expect(result.primary_category).toBe('static');
+      expect(result.primary_category).toBe("static");
       expect(result.confidence).toBeGreaterThan(0.9);
     });
 
-    it('should handle single frame', () => {
+    it("should handle single frame", () => {
       const input: FrameAnalysisResult = {
-        frames: [{
-          frameIndex: 0,
-          diffPercentage: 0,
-          changedPixels: 0,
-          totalPixels: 100000,
-        }],
+        frames: [
+          {
+            frameIndex: 0,
+            diffPercentage: 0,
+            changedPixels: 0,
+            totalPixels: 100000,
+          },
+        ],
         summary: {
           avgDiffPercentage: 0,
           maxDiffPercentage: 0,
@@ -1037,10 +1039,10 @@ describe('VisualCategoryClassifier', () => {
       const classifier = new VisualCategoryClassifier();
       const result = classifier.classify(input);
 
-      expect(result.primary_category).toBe('static');
+      expect(result.primary_category).toBe("static");
     });
 
-    it('should handle frames without boundingBox', () => {
+    it("should handle frames without boundingBox", () => {
       const frames: FrameDiffResult[] = Array.from({ length: 30 }, (_, i) => ({
         frameIndex: i,
         diffPercentage: 0.1,
@@ -1055,7 +1057,7 @@ describe('VisualCategoryClassifier', () => {
       expect(() => classifier.classify(input)).not.toThrow();
     });
 
-    it('should handle frames without motionVectors', () => {
+    it("should handle frames without motionVectors", () => {
       const frames: FrameDiffResult[] = Array.from({ length: 30 }, (_, i) => ({
         frameIndex: i,
         diffPercentage: 0.1,
@@ -1071,7 +1073,7 @@ describe('VisualCategoryClassifier', () => {
       expect(() => classifier.classify(input)).not.toThrow();
     });
 
-    it('should handle very long frame sequences', () => {
+    it("should handle very long frame sequences", () => {
       const frames = createHorizontalSlideFrames(1000);
       const input = createFrameAnalysisResult(frames);
 
@@ -1085,19 +1087,19 @@ describe('VisualCategoryClassifier', () => {
     });
   });
 
-  describe('classifyFrameSequence method', () => {
-    it('should accept FrameDiffResult array directly', () => {
+  describe("classifyFrameSequence method", () => {
+    it("should accept FrameDiffResult array directly", () => {
       const frames = createHorizontalSlideFrames(30);
 
       const classifier = new VisualCategoryClassifier();
       const result = classifier.classifyFrameSequence(frames);
 
-      expect(result.primary_category).toBe('slide');
+      expect(result.primary_category).toBe("slide");
     });
   });
 
-  describe('processing time', () => {
-    it('should include processing time in result', () => {
+  describe("processing time", () => {
+    it("should include processing time in result", () => {
       const frames = createHorizontalSlideFrames(30);
       const input = createFrameAnalysisResult(frames);
 
@@ -1108,7 +1110,7 @@ describe('VisualCategoryClassifier', () => {
       expect(result.processing_time_ms).toBeGreaterThanOrEqual(0);
     });
 
-    it('should process 100 frames in under 1 second', () => {
+    it("should process 100 frames in under 1 second", () => {
       const frames = createHorizontalSlideFrames(100);
       const input = createFrameAnalysisResult(frames);
 
@@ -1119,9 +1121,9 @@ describe('VisualCategoryClassifier', () => {
     });
   });
 
-  describe('configuration', () => {
-    it('should respect fade_threshold config', () => {
-      const frames = createFadeInFrames(30).map(f => ({
+  describe("configuration", () => {
+    it("should respect fade_threshold config", () => {
+      const frames = createFadeInFrames(30).map((f) => ({
         ...f,
         diffPercentage: f.diffPercentage * 0.3, // 低い変化率
       }));
@@ -1136,12 +1138,12 @@ describe('VisualCategoryClassifier', () => {
       const highResult = highThresholdClassifier.classify(input);
 
       // 低い閾値の方が fade として検出される可能性が高い
-      if (lowResult.primary_category === 'fade') {
-        expect(highResult.primary_category).not.toBe('fade');
+      if (lowResult.primary_category === "fade") {
+        expect(highResult.primary_category).not.toBe("fade");
       }
     });
 
-    it('should respect min_confidence_threshold config', () => {
+    it("should respect min_confidence_threshold config", () => {
       const frames = createAmbiguousFrames(30);
       const input = createFrameAnalysisResult(frames);
 
@@ -1150,7 +1152,7 @@ describe('VisualCategoryClassifier', () => {
 
       // 閾値未満なら unknown
       if (result.confidence < 0.8) {
-        expect(result.primary_category).toBe('unknown');
+        expect(result.primary_category).toBe("unknown");
       }
     });
   });

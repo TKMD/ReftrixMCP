@@ -16,11 +16,11 @@
  * - タイミング攻撃耐性
  */
 
-import * as crypto from 'crypto';
-import { Logger } from '../utils/logger';
+import * as crypto from "crypto";
+import { Logger } from "../utils/logger";
 
-const encryptionLogger = new Logger('EncryptionService');
-const backupEncryptionLogger = new Logger('BackupEncryptionService');
+const encryptionLogger = new Logger("EncryptionService");
+const backupEncryptionLogger = new Logger("BackupEncryptionService");
 
 /**
  * 暗号化結果
@@ -94,25 +94,25 @@ export class EncryptionError extends Error {
     public readonly code: string
   ) {
     super(message);
-    this.name = 'EncryptionError';
+    this.name = "EncryptionError";
   }
 }
 
 /**
  * 定数
  */
-const ALGORITHM = 'aes-256-gcm';
+const ALGORITHM = "aes-256-gcm";
 const KEY_LENGTH = 32; // 256ビット
 const IV_LENGTH = 12; // 96ビット（GCM推奨）
 const AUTH_TAG_LENGTH = 16; // 128ビット
 const SALT_LENGTH = 16; // 128ビット
 const PBKDF2_ITERATIONS = 100000;
-const PBKDF2_DIGEST = 'sha512';
+const PBKDF2_DIGEST = "sha512";
 
 /** バックアップファイルマジックナンバー */
-const MAGIC_NUMBER = Buffer.from('VBAK', 'utf-8');
+const MAGIC_NUMBER = Buffer.from("VBAK", "utf-8");
 /** バックアップファイルバージョン */
-const FILE_VERSION = '1.0.0';
+const FILE_VERSION = "1.0.0";
 /** バージョンバイト数（メジャー.マイナー） */
 const VERSION_BYTES = 2;
 /** アルゴリズムバイト */
@@ -137,12 +137,12 @@ export class EncryptionService implements IEncryptionService {
     if (key.length !== KEY_LENGTH) {
       throw new EncryptionError(
         `Invalid key length: expected ${KEY_LENGTH} bytes, got ${key.length} bytes`,
-        'INVALID_KEY_LENGTH'
+        "INVALID_KEY_LENGTH"
       );
     }
 
     // データをBufferに変換
-    const plaintext = typeof data === 'string' ? Buffer.from(data, 'utf-8') : data;
+    const plaintext = typeof data === "string" ? Buffer.from(data, "utf-8") : data;
 
     // IVを毎回ランダム生成（再利用禁止）
     const iv = crypto.randomBytes(IV_LENGTH);
@@ -174,7 +174,7 @@ export class EncryptionService implements IEncryptionService {
     if (key.length !== KEY_LENGTH) {
       throw new EncryptionError(
         `Invalid key length: expected ${KEY_LENGTH} bytes, got ${key.length} bytes`,
-        'INVALID_KEY_LENGTH'
+        "INVALID_KEY_LENGTH"
       );
     }
 
@@ -190,8 +190,11 @@ export class EncryptionService implements IEncryptionService {
 
       return decrypted;
     } catch (error) {
-      encryptionLogger.error('Decryption failed', error);
-      throw new EncryptionError('Decryption failed: authentication error or data tampered', 'DECRYPTION_FAILED');
+      encryptionLogger.error("Decryption failed", error);
+      throw new EncryptionError(
+        "Decryption failed: authentication error or data tampered",
+        "DECRYPTION_FAILED"
+      );
     }
   }
 
@@ -201,7 +204,7 @@ export class EncryptionService implements IEncryptionService {
    * @returns 安全に生成された暗号化鍵
    */
   generateKey(): Buffer {
-    encryptionLogger.debug('Generating 256-bit random key');
+    encryptionLogger.debug("Generating 256-bit random key");
     return crypto.randomBytes(KEY_LENGTH);
   }
 
@@ -314,7 +317,7 @@ export class BackupEncryptionService extends EncryptionService {
 
     // ヘッダー構築
     const versionBuffer = Buffer.alloc(VERSION_BYTES);
-    const [major, minor] = FILE_VERSION.split('.').map(Number);
+    const [major, minor] = FILE_VERSION.split(".").map(Number);
     versionBuffer.writeUInt8(major ?? 1, 0);
     versionBuffer.writeUInt8(minor ?? 0, 1);
 
@@ -360,13 +363,13 @@ export class BackupEncryptionService extends EncryptionService {
     // 最小サイズチェック（ヘッダー + 最小暗号文）
     const headerSize = 4 + VERSION_BYTES + 1 + SALT_LENGTH + IV_LENGTH + AUTH_TAG_LENGTH;
     if (encryptedBackup.length < headerSize) {
-      throw new EncryptionError('Invalid backup file: too small', 'INVALID_BACKUP_FORMAT');
+      throw new EncryptionError("Invalid backup file: too small", "INVALID_BACKUP_FORMAT");
     }
 
     // マジックナンバー検証
     const magic = encryptedBackup.subarray(0, 4);
     if (!magic.equals(MAGIC_NUMBER)) {
-      throw new EncryptionError('Invalid backup file: wrong magic number', 'INVALID_MAGIC_NUMBER');
+      throw new EncryptionError("Invalid backup file: wrong magic number", "INVALID_MAGIC_NUMBER");
     }
 
     // ヘッダー解析
@@ -380,7 +383,7 @@ export class BackupEncryptionService extends EncryptionService {
     // アルゴリズム（1バイト）- 現在は検証のみ
     const algorithmByte = encryptedBackup.readUInt8(offset);
     if (algorithmByte !== ALGORITHM_BYTE) {
-      throw new EncryptionError('Unsupported encryption algorithm', 'UNSUPPORTED_ALGORITHM');
+      throw new EncryptionError("Unsupported encryption algorithm", "UNSUPPORTED_ALGORITHM");
     }
     offset += 1;
 
@@ -416,20 +419,13 @@ export class BackupEncryptionService extends EncryptionService {
       if (error instanceof EncryptionError) {
         throw error;
       }
-      throw new EncryptionError('Failed to restore backup: wrong password or corrupted data', 'RESTORE_FAILED');
+      throw new EncryptionError(
+        "Failed to restore backup: wrong password or corrupted data",
+        "RESTORE_FAILED"
+      );
     }
   }
 }
-
-/**
- * デフォルトの暗号化サービスインスタンス
- */
-export const encryptionService = new EncryptionService();
-
-/**
- * デフォルトのバックアップ暗号化サービスインスタンス
- */
-export const backupEncryptionService = new BackupEncryptionService();
 
 /**
  * デフォルトエクスポート

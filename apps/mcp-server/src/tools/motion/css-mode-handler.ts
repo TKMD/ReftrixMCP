@@ -13,11 +13,11 @@
  * @module tools/motion/css-mode-handler
  */
 
-import { logger, isDevelopment } from '../../utils/logger';
+import { logger, isDevelopment } from "../../utils/logger";
 import {
   getCSSAnalysisCacheService,
   type MotionAnalysisResult,
-} from '../../services/css-analysis-cache.service';
+} from "../../services/css-analysis-cache.service";
 import type {
   MotionPattern,
   MotionWarning,
@@ -27,7 +27,7 @@ import type {
   MotionSaveResult,
   MotionDetectInput,
   MotionDetectOutput,
-} from './schemas';
+} from "./schemas";
 import {
   MOTION_MCP_ERROR_CODES,
   MOTION_WARNING_CODES,
@@ -36,20 +36,16 @@ import {
   countByType,
   countByTrigger,
   countByCategory,
-} from './schemas';
-import {
-  extractCssUrls,
-  fetchAllCss,
-  isSafeUrl,
-} from '../../services/external-css-fetcher';
+} from "./schemas";
+import { extractCssUrls, fetchAllCss, isSafeUrl } from "../../services/external-css-fetcher";
 import {
   getMotionDetectServiceFactory,
   getPersistenceService,
   getPersistenceServiceFactoryExists,
   type DetectOptions,
   type DetectionResult,
-} from './di-factories';
-import { defaultDetect } from './detection-modes';
+} from "./di-factories";
+import { defaultDetect } from "./detection-modes";
 
 // =====================================================
 // 外部CSS取得
@@ -79,7 +75,7 @@ export async function fetchExternalCss(
   const externalCssUrls: string[] = [];
   const blockedUrls: string[] = [];
   const warnings: MotionWarning[] = [];
-  let externalCssContent = '';
+  let externalCssContent = "";
 
   try {
     // HTMLから<link>タグのURLを抽出
@@ -95,7 +91,7 @@ export async function fetchExternalCss(
       } else {
         blockedUrls.push(url);
         if (isDevelopment()) {
-          logger.warn('[motion.detect] External CSS URL blocked by SSRF protection', { url });
+          logger.warn("[motion.detect] External CSS URL blocked by SSRF protection", { url });
         }
       }
     }
@@ -104,7 +100,7 @@ export async function fetchExternalCss(
     if (blockedUrls.length > 0) {
       warnings.push({
         code: MOTION_WARNING_CODES.EXTERNAL_CSS_SSRF_BLOCKED,
-        severity: 'warning',
+        severity: "warning",
         message: `${blockedUrls.length}個の外部CSSがセキュリティ上の理由でブロックされました`,
       });
     }
@@ -125,7 +121,7 @@ export async function fetchExternalCss(
 
       for (const result of fetchResults) {
         if (result.content) {
-          externalCssContent += result.content + '\n';
+          externalCssContent += result.content + "\n";
           fetchedCount++;
           totalSize += result.content.length;
         } else {
@@ -134,7 +130,7 @@ export async function fetchExternalCss(
             errorMessages.push(`${result.url}: ${result.error}`);
           }
           if (isDevelopment()) {
-            logger.warn('[motion.detect] External CSS fetch failed', {
+            logger.warn("[motion.detect] External CSS fetch failed", {
               url: result.url,
               error: result.error,
             });
@@ -146,8 +142,8 @@ export async function fetchExternalCss(
       if (errorCount > 0) {
         warnings.push({
           code: MOTION_WARNING_CODES.EXTERNAL_CSS_FETCH_FAILED,
-          severity: 'warning',
-          message: `${errorCount}個の外部CSSの取得に失敗しました: ${errorMessages.join(', ')}`,
+          severity: "warning",
+          message: `${errorCount}個の外部CSSの取得に失敗しました: ${errorMessages.join(", ")}`,
         });
       }
 
@@ -178,16 +174,16 @@ export async function fetchExternalCss(
     };
   } catch (error) {
     if (isDevelopment()) {
-      logger.error('[motion.detect] External CSS processing error', { error });
+      logger.error("[motion.detect] External CSS processing error", { error });
     }
     warnings.push({
       code: MOTION_WARNING_CODES.EXTERNAL_CSS_FETCH_FAILED,
-      severity: 'warning',
-      message: error instanceof Error ? error.message : 'External CSS processing failed',
+      severity: "warning",
+      message: error instanceof Error ? error.message : "External CSS processing failed",
     });
 
     return {
-      externalCssContent: '',
+      externalCssContent: "",
       externalCssFetched: true,
       externalCssUrls: [],
       blockedUrls: [],
@@ -206,12 +202,14 @@ export interface OptimizationResult {
   truncated?: boolean | undefined;
   originalSize?: number | undefined;
   patternsTruncatedCount?: number | undefined;
-  sizeOptimization?: {
-    original_size_bytes: number;
-    optimized_size_bytes: number;
-    reduction_percent: number;
-    applied_optimizations: ('summary' | 'truncate')[];
-  } | undefined;
+  sizeOptimization?:
+    | {
+        original_size_bytes: number;
+        optimized_size_bytes: number;
+        reduction_percent: number;
+        applied_optimizations: ("summary" | "truncate")[];
+      }
+    | undefined;
 }
 
 /**
@@ -226,14 +224,14 @@ export function applyResponseOptimization(
   let truncated: boolean | undefined;
   let originalSize: number | undefined;
   let patternsTruncatedCount: number | undefined;
-  let sizeOptimization: OptimizationResult['sizeOptimization'];
+  let sizeOptimization: OptimizationResult["sizeOptimization"];
 
   // auto_optimize: レスポンスサイズに応じて自動最適化
   if (validated.auto_optimize && !validated.summary) {
     const tempResponse = JSON.stringify({ patterns: optimizedPatterns, metadata: {} });
     const currentSize = tempResponse.length;
 
-    const appliedOptimizations: ('summary' | 'truncate')[] = [];
+    const appliedOptimizations: ("summary" | "truncate")[] = [];
 
     // 100KB超で summary モードを適用
     if (currentSize > 100 * 1024) {
@@ -245,10 +243,10 @@ export function applyResponseOptimization(
         type: p.type,
       })) as MotionPattern[];
       summaryMode = true;
-      appliedOptimizations.push('summary');
+      appliedOptimizations.push("summary");
 
       if (isDevelopment()) {
-        logger.info('[motion.detect] auto_optimize applied summary mode', {
+        logger.info("[motion.detect] auto_optimize applied summary mode", {
           originalSize: currentSize,
         });
       }
@@ -265,10 +263,10 @@ export function applyResponseOptimization(
       }
       truncated = true;
       patternsTruncatedCount = originalCount - optimizedPatterns.length;
-      appliedOptimizations.push('truncate');
+      appliedOptimizations.push("truncate");
 
       if (isDevelopment()) {
-        logger.info('[motion.detect] auto_optimize applied truncate', {
+        logger.info("[motion.detect] auto_optimize applied truncate", {
           originalCount,
           finalCount: optimizedPatterns.length,
         });
@@ -298,7 +296,7 @@ export function applyResponseOptimization(
     summaryMode = true;
 
     if (isDevelopment()) {
-      logger.info('[motion.detect] summary mode applied', {
+      logger.info("[motion.detect] summary mode applied", {
         patternsCount: optimizedPatterns.length,
       });
     }
@@ -324,7 +322,7 @@ export function applyResponseOptimization(
       patternsTruncatedCount = originalCount - optimizedPatterns.length;
 
       if (isDevelopment()) {
-        logger.info('[motion.detect] truncate applied', {
+        logger.info("[motion.detect] truncate applied", {
           originalSize: currentSize,
           targetSize: validated.truncate_max_chars,
           originalCount,
@@ -361,7 +359,7 @@ export function generateSummary(
     byTrigger: countByTrigger(patterns),
     byCategory: countByCategory(patterns),
     averageDuration: calculateAverageDuration(patterns),
-    hasInfiniteAnimations: patterns.some((p) => p.animation?.iterations === 'infinite'),
+    hasInfiniteAnimations: patterns.some((p) => p.animation?.iterations === "infinite"),
     complexityScore: calculateComplexityScore(patterns),
   };
 
@@ -378,25 +376,24 @@ export function generateSummary(
 /**
  * レスポンスサイズに基づく警告を生成
  */
-export function generateSizeWarning(
-  responseSize: number
-): MotionWarning | null {
+export function generateSizeWarning(responseSize: number): MotionWarning | null {
   const SIZE_WARNING_THRESHOLD = 10 * 1024; // 10KB
   const SIZE_CRITICAL_THRESHOLD = 100 * 1024; // 100KB
 
   if (responseSize > SIZE_CRITICAL_THRESHOLD) {
     return {
-      code: 'RESPONSE_SIZE_CRITICAL',
-      severity: 'error',
+      code: "RESPONSE_SIZE_CRITICAL",
+      severity: "error",
       message: `Response size (${(responseSize / 1024).toFixed(1)}KB) exceeds critical threshold (100KB)`,
-      suggestion: 'Use summary: true, truncate_max_chars, or auto_optimize: true to reduce response size',
+      suggestion:
+        "Use summary: true, truncate_max_chars, or auto_optimize: true to reduce response size",
     };
   } else if (responseSize > SIZE_WARNING_THRESHOLD) {
     return {
-      code: 'RESPONSE_SIZE_WARNING',
-      severity: 'warning',
+      code: "RESPONSE_SIZE_WARNING",
+      severity: "warning",
       message: `Response size (${(responseSize / 1024).toFixed(1)}KB) exceeds warning threshold (10KB)`,
-      suggestion: 'Consider using summary: true or truncate_max_chars to reduce response size',
+      suggestion: "Consider using summary: true or truncate_max_chars to reduce response size",
     };
   }
 
@@ -425,13 +422,15 @@ export function generateWebglDetectionWarning(
   if (patternCount === 0 && detectJsAnimations === false) {
     return {
       code: MOTION_WARNING_CODES.WEBGL_DETECTION_DISABLED,
-      severity: 'info',
-      message: 'WebGL/Canvas animations may not be detected with current settings. Enable detect_js_animations: true for Three.js, GSAP, Lottie detection.',
-      suggestion: 'Set detect_js_animations: true to enable JavaScript animation detection via CDP + Web Animations API.',
+      severity: "info",
+      message:
+        "WebGL/Canvas animations may not be detected with current settings. Enable detect_js_animations: true for Three.js, GSAP, Lottie detection.",
+      suggestion:
+        "Set detect_js_animations: true to enable JavaScript animation detection via CDP + Web Animations API.",
       context: {
-        currentSetting: 'detect_js_animations: false',
-        recommendedSetting: 'detect_js_animations: true',
-        affectedLibraries: ['Three.js', 'GSAP', 'Framer Motion', 'anime.js', 'Lottie'],
+        currentSetting: "detect_js_animations: false",
+        recommendedSetting: "detect_js_animations: true",
+        affectedLibraries: ["Three.js", "GSAP", "Framer Motion", "anime.js", "Lottie"],
       },
     };
   }
@@ -445,12 +444,14 @@ export function generateWebglDetectionWarning(
 
 export interface SaveResultWithDebug {
   saveResult?: MotionSaveResult | undefined;
-  debugInfo?: {
-    persistenceServiceAvailable: boolean;
-    isAvailable?: boolean | undefined;
-    error?: string | undefined;
-    factoryExists?: boolean | undefined;
-  } | undefined;
+  debugInfo?:
+    | {
+        persistenceServiceAvailable: boolean;
+        isAvailable?: boolean | undefined;
+        error?: string | undefined;
+        factoryExists?: boolean | undefined;
+      }
+    | undefined;
 }
 
 /**
@@ -461,7 +462,7 @@ export async function savePatternsToDb(
   pageId: string | undefined,
   baseUrl: string | undefined
 ): Promise<SaveResultWithDebug> {
-  const debugInfo: NonNullable<SaveResultWithDebug['debugInfo']> = {
+  const debugInfo: NonNullable<SaveResultWithDebug["debugInfo"]> = {
     persistenceServiceAvailable: false,
     factoryExists: getPersistenceServiceFactoryExists(),
     isAvailable: undefined,
@@ -495,7 +496,7 @@ export async function savePatternsToDb(
       }
 
       if (isDevelopment()) {
-        logger.info('[motion.detect] DB save completed', {
+        logger.info("[motion.detect] DB save completed", {
           savedCount: saveResult.savedCount,
           patternIds: saveResult.patternIds.length,
           embeddingIds: saveResult.embeddingIds.length,
@@ -504,9 +505,9 @@ export async function savePatternsToDb(
 
       return { saveResult, debugInfo };
     } catch (saveError) {
-      const errorMessage = saveError instanceof Error ? saveError.message : 'Unknown error';
+      const errorMessage = saveError instanceof Error ? saveError.message : "Unknown error";
       if (isDevelopment()) {
-        logger.error('[motion.detect] DB save error', { error: errorMessage });
+        logger.error("[motion.detect] DB save error", { error: errorMessage });
       }
       debugInfo.error = errorMessage;
 
@@ -523,7 +524,7 @@ export async function savePatternsToDb(
     }
   } else {
     if (isDevelopment()) {
-      logger.warn('[motion.detect] persistence service not available');
+      logger.warn("[motion.detect] persistence service not available");
     }
 
     const reason = debugInfo.factoryExists
@@ -579,25 +580,42 @@ export async function handleCssMode(
 
         if (cachedResult) {
           if (isDevelopment()) {
-            logger.info('[motion.detect] cache hit', { cacheKey });
+            logger.info("[motion.detect] cache hit", { cacheKey });
           }
 
           // キャッシュから結果を復元
           // 型変換: キャッシュ型からMotionPattern型へ
           const patterns: MotionPattern[] = cachedResult.patterns.map((p, i) => ({
             id: `pattern-${i}`,
-            type: (p.type === 'keyframe' ? 'keyframes' : p.type === 'transition' ? 'css_transition' : p.type) as MotionPattern['type'],
+            type: (p.type === "keyframe"
+              ? "keyframes"
+              : p.type === "transition"
+                ? "css_transition"
+                : p.type) as MotionPattern["type"],
             name: p.name,
-            category: 'micro_interaction' as const, // キャッシュにはカテゴリ情報がないためデフォルト値
-            trigger: 'load' as const, // キャッシュにはトリガー情報がないためデフォルト値
+            category: "micro_interaction" as const, // キャッシュにはカテゴリ情報がないためデフォルト値
+            trigger: "load" as const, // キャッシュにはトリガー情報がないためデフォルト値
             animation: {
               ...(p.duration !== undefined && { duration: p.duration }),
               // easingを文字列から構造化オブジェクトに変換
               ...(p.easing !== undefined && {
                 easing: {
-                  type: (p.easing === 'ease' || p.easing === 'linear' || p.easing === 'ease-in' || p.easing === 'ease-out' || p.easing === 'ease-in-out'
+                  type: (p.easing === "ease" ||
+                  p.easing === "linear" ||
+                  p.easing === "ease-in" ||
+                  p.easing === "ease-out" ||
+                  p.easing === "ease-in-out"
                     ? p.easing
-                    : 'unknown') as 'unknown' | 'linear' | 'ease' | 'ease-in' | 'ease-out' | 'ease-in-out' | 'cubic-bezier' | 'spring' | 'steps',
+                    : "unknown") as
+                    | "unknown"
+                    | "linear"
+                    | "ease"
+                    | "ease-in"
+                    | "ease-out"
+                    | "ease-in-out"
+                    | "cubic-bezier"
+                    | "spring"
+                    | "steps",
                 },
               }),
             },
@@ -621,7 +639,7 @@ export async function handleCssMode(
           const metadata: MotionMetadata = {
             processingTimeMs: Date.now() - startTime,
             htmlSize: html.length,
-            detection_mode: 'css',
+            detection_mode: "css",
           };
 
           return {
@@ -636,13 +654,15 @@ export async function handleCssMode(
       } catch (cacheError) {
         // キャッシュエラーは無視して検出を続行
         if (isDevelopment()) {
-          logger.warn('[motion.detect] cache error, proceeding with detection', { error: cacheError });
+          logger.warn("[motion.detect] cache error, proceeding with detection", {
+            error: cacheError,
+          });
         }
       }
     }
 
     // 外部CSS取得用の変数
-    let externalCssContent = '';
+    let externalCssContent = "";
     let externalCssFetched: boolean | undefined;
     let externalCssUrls: string[] | undefined;
     let externalCssStats: ExternalCssStats | undefined;
@@ -669,7 +689,7 @@ export async function handleCssMode(
     }
 
     // css パラメータに外部CSSを追加
-    const combinedCss = [css, externalCssContent].filter(Boolean).join('\n');
+    const combinedCss = [css, externalCssContent].filter(Boolean).join("\n");
 
     const options: DetectOptions = {
       includeInlineStyles: validated.includeInlineStyles,
@@ -689,13 +709,13 @@ export async function handleCssMode(
         result = await service.detect(html, combinedCss || undefined, options);
       } catch (error) {
         if (isDevelopment()) {
-          logger.error('[motion.detect] service error', { error });
+          logger.error("[motion.detect] service error", { error });
         }
         return {
           success: false,
           error: {
             code: MOTION_MCP_ERROR_CODES.DETECTION_ERROR,
-            message: error instanceof Error ? error.message : 'Detection failed',
+            message: error instanceof Error ? error.message : "Detection failed",
           },
         };
       }
@@ -766,9 +786,9 @@ export async function handleCssMode(
       warnings.push(sizeWarning);
 
       if (isDevelopment()) {
-        logger.info('[motion.detect] size warning added', {
+        logger.info("[motion.detect] size warning added", {
           estimatedResponseSize,
-          threshold: sizeWarning.severity === 'error' ? 'critical' : 'warning',
+          threshold: sizeWarning.severity === "error" ? "critical" : "warning",
         });
       }
     }
@@ -785,7 +805,7 @@ export async function handleCssMode(
       warnings.push(webglWarning);
 
       if (isDevelopment()) {
-        logger.info('[motion.detect] WebGL detection warning added', {
+        logger.info("[motion.detect] WebGL detection warning added", {
           patternCount: patterns.length,
           detectJsAnimations: validated.detect_js_animations ?? false,
         });
@@ -794,11 +814,11 @@ export async function handleCssMode(
 
     // DB保存処理
     let saveResult: MotionSaveResult | undefined;
-    let debugInfo: SaveResultWithDebug['debugInfo'];
+    let debugInfo: SaveResultWithDebug["debugInfo"];
 
     if (validated.save_to_db && fullPatterns.length > 0) {
       if (isDevelopment()) {
-        logger.info('[motion.detect] saving to DB', {
+        logger.info("[motion.detect] saving to DB", {
           patternsCount: fullPatterns.length,
           pageId,
         });
@@ -821,7 +841,7 @@ export async function handleCssMode(
     };
 
     if (isDevelopment()) {
-      logger.info('[motion.detect] completed', {
+      logger.info("[motion.detect] completed", {
         patternsCount: patterns.length,
         warningsCount: warnings?.length ?? 0,
         processingTimeMs: metadata.processingTimeMs,
@@ -850,20 +870,25 @@ export async function handleCssMode(
           })),
           summary: {
             totalPatterns: fullPatterns.length,
-            hasAnimations: fullPatterns.some((p) => p.type === 'keyframes' || p.type === 'css_animation'),
-            hasTransitions: fullPatterns.some((p) => p.type === 'css_transition'),
+            hasAnimations: fullPatterns.some(
+              (p) => p.type === "keyframes" || p.type === "css_animation"
+            ),
+            hasTransitions: fullPatterns.some((p) => p.type === "css_transition"),
           },
           analyzedAt: Date.now(),
           cacheKey,
         };
         await cacheService.setMotionDetectResult(cacheKey, cacheResult);
         if (isDevelopment()) {
-          logger.debug('[motion.detect] result cached', { cacheKey, patternCount: fullPatterns.length });
+          logger.debug("[motion.detect] result cached", {
+            cacheKey,
+            patternCount: fullPatterns.length,
+          });
         }
       } catch (cacheError) {
         // キャッシュ保存エラーは無視
         if (isDevelopment()) {
-          logger.warn('[motion.detect] cache save error', { error: cacheError });
+          logger.warn("[motion.detect] cache save error", { error: cacheError });
         }
       }
     }
@@ -881,23 +906,33 @@ export async function handleCssMode(
         },
         saveResult,
         runtime_info: result.runtime_info,
-        ...(optimizationResult.summaryMode !== undefined ? { _summary_mode: optimizationResult.summaryMode } : {}),
-        ...(optimizationResult.truncated !== undefined ? { _truncated: optimizationResult.truncated } : {}),
-        ...(optimizationResult.originalSize !== undefined ? { _original_size: optimizationResult.originalSize } : {}),
-        ...(optimizationResult.patternsTruncatedCount !== undefined ? { _patterns_truncated_count: optimizationResult.patternsTruncatedCount } : {}),
-        ...(optimizationResult.sizeOptimization !== undefined ? { _size_optimization: optimizationResult.sizeOptimization } : {}),
+        ...(optimizationResult.summaryMode !== undefined
+          ? { _summary_mode: optimizationResult.summaryMode }
+          : {}),
+        ...(optimizationResult.truncated !== undefined
+          ? { _truncated: optimizationResult.truncated }
+          : {}),
+        ...(optimizationResult.originalSize !== undefined
+          ? { _original_size: optimizationResult.originalSize }
+          : {}),
+        ...(optimizationResult.patternsTruncatedCount !== undefined
+          ? { _patterns_truncated_count: optimizationResult.patternsTruncatedCount }
+          : {}),
+        ...(optimizationResult.sizeOptimization !== undefined
+          ? { _size_optimization: optimizationResult.sizeOptimization }
+          : {}),
         ...(isDevelopment() && debugInfo ? { _debugInfo: debugInfo } : {}),
       },
     };
   } catch (error) {
     if (isDevelopment()) {
-      logger.error('[motion.detect] error', { error });
+      logger.error("[motion.detect] error", { error });
     }
     return {
       success: false,
       error: {
         code: MOTION_MCP_ERROR_CODES.INTERNAL_ERROR,
-        message: error instanceof Error ? error.message : 'Detection failed',
+        message: error instanceof Error ? error.message : "Detection failed",
       },
     };
   }

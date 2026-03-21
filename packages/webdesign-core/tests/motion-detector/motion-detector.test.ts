@@ -16,7 +16,7 @@
  * @module @reftrix/webdesign-core/tests/motion-detector
  */
 
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach } from "vitest";
 import {
   MotionDetector,
   type MotionPattern,
@@ -26,7 +26,7 @@ import {
   type MotionDetectorOptions,
   type KeyframeDefinition,
   type CSSStyleProperties,
-} from '../../src/motion-detector';
+} from "../../src/motion-detector";
 
 // =========================================
 // Test Fixtures
@@ -346,15 +346,15 @@ const createAnimationCss = (): string => `
 // 1. 基本検出テスト (15テスト)
 // =========================================
 
-describe('MotionDetector - 基本検出', () => {
+describe("MotionDetector - 基本検出", () => {
   let detector: MotionDetector;
 
   beforeEach(() => {
     detector = new MotionDetector();
   });
 
-  describe('CSSアニメーション検出', () => {
-    it('should detect simple CSS animation from HTML', () => {
+  describe("CSSアニメーション検出", () => {
+    it("should detect simple CSS animation from HTML", () => {
       // Arrange
       const html = createSimpleAnimationHtml();
 
@@ -363,15 +363,13 @@ describe('MotionDetector - 基本検出', () => {
 
       // Assert
       expect(result.patterns.length).toBeGreaterThan(0);
-      const animationPattern = result.patterns.find(
-        (p) => p.type === 'animation'
-      );
+      const animationPattern = result.patterns.find((p) => p.type === "animation");
       expect(animationPattern).toBeDefined();
-      expect(animationPattern?.name).toBe('fadeIn');
+      expect(animationPattern?.name).toBe("fadeIn");
       expect(animationPattern?.duration).toBe(1000); // 1s = 1000ms
     });
 
-    it('should detect animation easing function', () => {
+    it("should detect animation easing function", () => {
       // Arrange
       const html = createSimpleAnimationHtml();
 
@@ -379,13 +377,11 @@ describe('MotionDetector - 基本検出', () => {
       const result = detector.detect(html);
 
       // Assert
-      const animationPattern = result.patterns.find(
-        (p) => p.type === 'animation'
-      );
-      expect(animationPattern?.easing).toBe('ease-in-out');
+      const animationPattern = result.patterns.find((p) => p.type === "animation");
+      expect(animationPattern?.easing).toBe("ease-in-out");
     });
 
-    it('should detect infinite animation iterations', () => {
+    it("should detect infinite animation iterations", () => {
       // Arrange
       const html = createComplexKeyframesHtml();
 
@@ -393,11 +389,11 @@ describe('MotionDetector - 基本検出', () => {
       const result = detector.detect(html);
 
       // Assert
-      const bouncePattern = result.patterns.find((p) => p.name === 'bounce');
-      expect(bouncePattern?.iterations).toBe('infinite');
+      const bouncePattern = result.patterns.find((p) => p.name === "bounce");
+      expect(bouncePattern?.iterations).toBe("infinite");
     });
 
-    it('should detect multiple animations on same element', () => {
+    it("should detect multiple animations on same element", () => {
       // Arrange
       const html = createComplexMultiElementHtml();
 
@@ -406,16 +402,14 @@ describe('MotionDetector - 基本検出', () => {
 
       // Assert
       // .hero has animation with fadeIn/slideUp (may be combined or separate)
-      const heroPatterns = result.patterns.filter((p) =>
-        p.selector.includes('hero')
-      );
+      const heroPatterns = result.patterns.filter((p) => p.selector.includes("hero"));
       // At least one animation detected for hero
       expect(heroPatterns.length).toBeGreaterThanOrEqual(1);
       // The animation should have properties from the keyframes
-      expect(heroPatterns[0].type).toBe('animation');
+      expect(heroPatterns[0].type).toBe("animation");
     });
 
-    it('should detect animation fill mode', () => {
+    it("should detect animation fill mode", () => {
       // Arrange
       const html = `
         <!DOCTYPE html>
@@ -434,13 +428,13 @@ describe('MotionDetector - 基本検出', () => {
       const result = detector.detect(html);
 
       // Assert
-      const pattern = result.patterns.find((p) => p.name === 'appear');
-      expect(pattern?.fillMode).toBe('forwards');
+      const pattern = result.patterns.find((p) => p.name === "appear");
+      expect(pattern?.fillMode).toBe("forwards");
     });
   });
 
-  describe('CSSトランジション検出', () => {
-    it('should detect CSS transition from HTML', () => {
+  describe("CSSトランジション検出", () => {
+    it("should detect CSS transition from HTML", () => {
       // Arrange
       const html = createTransitionHtml();
 
@@ -448,13 +442,11 @@ describe('MotionDetector - 基本検出', () => {
       const result = detector.detect(html);
 
       // Assert
-      const transitionPatterns = result.patterns.filter(
-        (p) => p.type === 'transition'
-      );
+      const transitionPatterns = result.patterns.filter((p) => p.type === "transition");
       expect(transitionPatterns.length).toBeGreaterThan(0);
     });
 
-    it('should detect multiple transition properties', () => {
+    it("should detect multiple transition properties", () => {
       // Arrange
       const html = createTransitionHtml();
 
@@ -463,12 +455,12 @@ describe('MotionDetector - 基本検出', () => {
 
       // Assert
       const transitionPattern = result.patterns.find(
-        (p) => p.type === 'transition' && p.selector.includes('button')
+        (p) => p.type === "transition" && p.selector.includes("button")
       );
       expect(transitionPattern?.properties.length).toBeGreaterThanOrEqual(2);
     });
 
-    it('should detect transition duration correctly', () => {
+    it("should detect transition duration correctly", () => {
       // Arrange
       const html = createTransitionHtml();
 
@@ -476,16 +468,14 @@ describe('MotionDetector - 基本検出', () => {
       const result = detector.detect(html);
 
       // Assert
-      const transitionPattern = result.patterns.find(
-        (p) => p.type === 'transition'
-      );
+      const transitionPattern = result.patterns.find((p) => p.type === "transition");
       expect(transitionPattern?.duration).toBeDefined();
       expect(transitionPattern?.duration).toBeGreaterThan(0);
     });
   });
 
-  describe('CSS transform検出', () => {
-    it('should detect transform property', () => {
+  describe("CSS transform検出", () => {
+    it("should detect transform property", () => {
       // Arrange
       const html = createTransformHtml();
 
@@ -494,12 +484,12 @@ describe('MotionDetector - 基本検出', () => {
 
       // Assert
       const hasTransform = result.patterns.some((p) =>
-        p.properties.some((prop) => prop.name === 'transform')
+        p.properties.some((prop) => prop.name === "transform")
       );
       expect(hasTransform).toBe(true);
     });
 
-    it('should detect complex transform values', () => {
+    it("should detect complex transform values", () => {
       // Arrange
       const html = createTransformHtml();
 
@@ -508,16 +498,14 @@ describe('MotionDetector - 基本検出', () => {
 
       // Assert
       const transformPattern = result.patterns.find((p) =>
-        p.properties.some(
-          (prop) => prop.name === 'transform' && prop.to.includes('rotate')
-        )
+        p.properties.some((prop) => prop.name === "transform" && prop.to.includes("rotate"))
       );
       expect(transformPattern).toBeDefined();
     });
   });
 
-  describe('インラインスタイル検出', () => {
-    it('should detect inline style animations', () => {
+  describe("インラインスタイル検出", () => {
+    it("should detect inline style animations", () => {
       // Arrange
       const html = createInlineStyleHtml();
 
@@ -528,7 +516,7 @@ describe('MotionDetector - 基本検出', () => {
       expect(result.patterns.length).toBeGreaterThan(0);
     });
 
-    it('should detect inline transitions', () => {
+    it("should detect inline transitions", () => {
       // Arrange
       const html = createInlineStyleHtml();
 
@@ -536,15 +524,13 @@ describe('MotionDetector - 基本検出', () => {
       const result = detector.detect(html);
 
       // Assert
-      const transitionPattern = result.patterns.find(
-        (p) => p.type === 'transition'
-      );
+      const transitionPattern = result.patterns.find((p) => p.type === "transition");
       expect(transitionPattern).toBeDefined();
     });
   });
 
-  describe('スタイルシート検出', () => {
-    it('should detect animations from separate CSS', () => {
+  describe("スタイルシート検出", () => {
+    it("should detect animations from separate CSS", () => {
       // Arrange
       const html = '<div class="animated">Content</div>';
       const css = createAnimationCss();
@@ -562,15 +548,15 @@ describe('MotionDetector - 基本検出', () => {
 // 2. キーフレーム解析テスト (15テスト)
 // =========================================
 
-describe('MotionDetector - キーフレーム解析', () => {
+describe("MotionDetector - キーフレーム解析", () => {
   let detector: MotionDetector;
 
   beforeEach(() => {
     detector = new MotionDetector();
   });
 
-  describe('@keyframes解析', () => {
-    it('should parse simple @keyframes with from/to', () => {
+  describe("@keyframes解析", () => {
+    it("should parse simple @keyframes with from/to", () => {
       // Arrange
       const css = `
         @keyframes fadeIn {
@@ -583,12 +569,12 @@ describe('MotionDetector - キーフレーム解析', () => {
       const keyframes = detector.parseKeyframes(css);
 
       // Assert
-      expect(keyframes.has('fadeIn')).toBe(true);
-      const fadeIn = keyframes.get('fadeIn');
+      expect(keyframes.has("fadeIn")).toBe(true);
+      const fadeIn = keyframes.get("fadeIn");
       expect(fadeIn?.steps.length).toBe(2);
     });
 
-    it('should parse @keyframes with percentage steps', () => {
+    it("should parse @keyframes with percentage steps", () => {
       // Arrange
       const css = `
         @keyframes bounce {
@@ -602,14 +588,14 @@ describe('MotionDetector - キーフレーム解析', () => {
       const keyframes = detector.parseKeyframes(css);
 
       // Assert
-      const bounce = keyframes.get('bounce');
+      const bounce = keyframes.get("bounce");
       expect(bounce?.steps.length).toBe(3);
       expect(bounce?.steps[0].offset).toBe(0);
       expect(bounce?.steps[1].offset).toBe(0.5);
       expect(bounce?.steps[2].offset).toBe(1);
     });
 
-    it('should parse @keyframes with multiple properties', () => {
+    it("should parse @keyframes with multiple properties", () => {
       // Arrange
       const css = `
         @keyframes complex {
@@ -630,11 +616,11 @@ describe('MotionDetector - キーフレーム解析', () => {
       const keyframes = detector.parseKeyframes(css);
 
       // Assert
-      const complex = keyframes.get('complex');
+      const complex = keyframes.get("complex");
       expect(complex?.steps[0].properties.length).toBe(3);
     });
 
-    it('should parse @keyframes with combined percentage steps', () => {
+    it("should parse @keyframes with combined percentage steps", () => {
       // Arrange
       const css = `
         @keyframes pulse {
@@ -647,14 +633,14 @@ describe('MotionDetector - キーフレーム解析', () => {
       const keyframes = detector.parseKeyframes(css);
 
       // Assert
-      const pulse = keyframes.get('pulse');
+      const pulse = keyframes.get("pulse");
       // 0% and 100% share same properties
       expect(pulse?.steps.some((s) => s.offset === 0)).toBe(true);
       expect(pulse?.steps.some((s) => s.offset === 1)).toBe(true);
       expect(pulse?.steps.some((s) => s.offset === 0.5)).toBe(true);
     });
 
-    it('should parse multiple @keyframes definitions', () => {
+    it("should parse multiple @keyframes definitions", () => {
       // Arrange
       const css = createAnimationCss();
 
@@ -666,8 +652,8 @@ describe('MotionDetector - キーフレーム解析', () => {
     });
   });
 
-  describe('キーフレームプロパティ抽出', () => {
-    it('should extract transform property values', () => {
+  describe("キーフレームプロパティ抽出", () => {
+    it("should extract transform property values", () => {
       // Arrange
       const css = `
         @keyframes slide {
@@ -680,12 +666,12 @@ describe('MotionDetector - キーフレーム解析', () => {
       const keyframes = detector.parseKeyframes(css);
 
       // Assert
-      const slide = keyframes.get('slide');
+      const slide = keyframes.get("slide");
       const fromStep = slide?.steps.find((s) => s.offset === 0);
-      expect(fromStep?.properties[0].value).toBe('translateX(-100%)');
+      expect(fromStep?.properties[0].value).toBe("translateX(-100%)");
     });
 
-    it('should extract opacity property values', () => {
+    it("should extract opacity property values", () => {
       // Arrange
       const css = `
         @keyframes fadeOut {
@@ -698,12 +684,12 @@ describe('MotionDetector - キーフレーム解析', () => {
       const keyframes = detector.parseKeyframes(css);
 
       // Assert
-      const fadeOut = keyframes.get('fadeOut');
+      const fadeOut = keyframes.get("fadeOut");
       const toStep = fadeOut?.steps.find((s) => s.offset === 1);
-      expect(toStep?.properties[0].value).toBe('0');
+      expect(toStep?.properties[0].value).toBe("0");
     });
 
-    it('should extract color property values', () => {
+    it("should extract color property values", () => {
       // Arrange
       const css = `
         @keyframes colorShift {
@@ -717,11 +703,11 @@ describe('MotionDetector - キーフレーム解析', () => {
       const keyframes = detector.parseKeyframes(css);
 
       // Assert
-      const colorShift = keyframes.get('colorShift');
+      const colorShift = keyframes.get("colorShift");
       expect(colorShift?.steps.length).toBe(3);
     });
 
-    it('should extract box-shadow property values', () => {
+    it("should extract box-shadow property values", () => {
       // Arrange
       const css = `
         @keyframes glow {
@@ -734,11 +720,11 @@ describe('MotionDetector - キーフレーム解析', () => {
       const keyframes = detector.parseKeyframes(css);
 
       // Assert
-      const glow = keyframes.get('glow');
-      expect(glow?.steps[0].properties[0].name).toBe('box-shadow');
+      const glow = keyframes.get("glow");
+      expect(glow?.steps[0].properties[0].name).toBe("box-shadow");
     });
 
-    it('should extract timing-function from keyframe steps', () => {
+    it("should extract timing-function from keyframe steps", () => {
       // Arrange
       const css = `
         @keyframes bounceStep {
@@ -758,14 +744,14 @@ describe('MotionDetector - キーフレーム解析', () => {
       const keyframes = detector.parseKeyframes(css);
 
       // Assert
-      const bounceStep = keyframes.get('bounceStep');
+      const bounceStep = keyframes.get("bounceStep");
       const firstStep = bounceStep?.steps.find((s) => s.offset === 0);
-      expect(firstStep?.timingFunction).toBe('ease-out');
+      expect(firstStep?.timingFunction).toBe("ease-out");
     });
   });
 
-  describe('特殊なキーフレーム構文', () => {
-    it('should handle vendor prefixed keyframes', () => {
+  describe("特殊なキーフレーム構文", () => {
+    it("should handle vendor prefixed keyframes", () => {
       // Arrange
       const css = `
         @-webkit-keyframes spin {
@@ -783,10 +769,10 @@ describe('MotionDetector - キーフレーム解析', () => {
 
       // Assert
       // Should merge or handle both versions
-      expect(keyframes.has('spin')).toBe(true);
+      expect(keyframes.has("spin")).toBe(true);
     });
 
-    it('should handle keyframes with nested properties', () => {
+    it("should handle keyframes with nested properties", () => {
       // Arrange
       const css = `
         @keyframes complexTransform {
@@ -799,11 +785,11 @@ describe('MotionDetector - キーフレーム解析', () => {
       const keyframes = detector.parseKeyframes(css);
 
       // Assert
-      const complexTransform = keyframes.get('complexTransform');
+      const complexTransform = keyframes.get("complexTransform");
       expect(complexTransform).toBeDefined();
     });
 
-    it('should return empty map for CSS without keyframes', () => {
+    it("should return empty map for CSS without keyframes", () => {
       // Arrange
       const css = `
         .element { color: red; }
@@ -816,7 +802,7 @@ describe('MotionDetector - キーフレーム解析', () => {
       expect(keyframes.size).toBe(0);
     });
 
-    it('should handle malformed keyframes gracefully', () => {
+    it("should handle malformed keyframes gracefully", () => {
       // Arrange
       const css = `
         @keyframes broken {
@@ -829,7 +815,7 @@ describe('MotionDetector - キーフレーム解析', () => {
       expect(() => detector.parseKeyframes(css)).not.toThrow();
     });
 
-    it('should handle empty keyframes definition', () => {
+    it("should handle empty keyframes definition", () => {
       // Arrange
       const css = `@keyframes empty { }`;
 
@@ -837,8 +823,8 @@ describe('MotionDetector - キーフレーム解析', () => {
       const keyframes = detector.parseKeyframes(css);
 
       // Assert
-      expect(keyframes.has('empty')).toBe(true);
-      expect(keyframes.get('empty')?.steps.length).toBe(0);
+      expect(keyframes.has("empty")).toBe(true);
+      expect(keyframes.get("empty")?.steps.length).toBe(0);
     });
   });
 });
@@ -847,15 +833,15 @@ describe('MotionDetector - キーフレーム解析', () => {
 // 3. トリガー検出テスト (10テスト)
 // =========================================
 
-describe('MotionDetector - トリガー検出', () => {
+describe("MotionDetector - トリガー検出", () => {
   let detector: MotionDetector;
 
   beforeEach(() => {
     detector = new MotionDetector();
   });
 
-  describe(':hover擬似クラス', () => {
-    it('should detect hover trigger for transitions', () => {
+  describe(":hover擬似クラス", () => {
+    it("should detect hover trigger for transitions", () => {
       // Arrange
       const html = createTransitionHtml();
 
@@ -863,11 +849,11 @@ describe('MotionDetector - トリガー検出', () => {
       const result = detector.detect(html);
 
       // Assert
-      const hoverPattern = result.patterns.find((p) => p.trigger === 'hover');
+      const hoverPattern = result.patterns.find((p) => p.trigger === "hover");
       expect(hoverPattern).toBeDefined();
     });
 
-    it('should detect hover trigger with transform', () => {
+    it("should detect hover trigger with transform", () => {
       // Arrange
       const html = createTransformHtml();
 
@@ -876,16 +862,14 @@ describe('MotionDetector - トリガー検出', () => {
 
       // Assert
       const hoverTransformPattern = result.patterns.find(
-        (p) =>
-          p.trigger === 'hover' &&
-          p.properties.some((prop) => prop.name === 'transform')
+        (p) => p.trigger === "hover" && p.properties.some((prop) => prop.name === "transform")
       );
       expect(hoverTransformPattern).toBeDefined();
     });
   });
 
-  describe(':focus擬似クラス', () => {
-    it('should detect focus trigger', () => {
+  describe(":focus擬似クラス", () => {
+    it("should detect focus trigger", () => {
       // Arrange
       const html = `
         <!DOCTYPE html>
@@ -910,11 +894,11 @@ describe('MotionDetector - トリガー検出', () => {
       const result = detector.detect(html);
 
       // Assert
-      const focusPattern = result.patterns.find((p) => p.trigger === 'focus');
+      const focusPattern = result.patterns.find((p) => p.trigger === "focus");
       expect(focusPattern).toBeDefined();
     });
 
-    it('should detect focus-within trigger', () => {
+    it("should detect focus-within trigger", () => {
       // Arrange
       const html = `
         <!DOCTYPE html>
@@ -939,13 +923,13 @@ describe('MotionDetector - トリガー検出', () => {
       const result = detector.detect(html);
 
       // Assert
-      const focusPattern = result.patterns.find((p) => p.trigger === 'focus');
+      const focusPattern = result.patterns.find((p) => p.trigger === "focus");
       expect(focusPattern).toBeDefined();
     });
   });
 
-  describe('scroll-linked animations', () => {
-    it('should detect scroll trigger', () => {
+  describe("scroll-linked animations", () => {
+    it("should detect scroll trigger", () => {
       // Arrange
       const html = createScrollAnimationHtml();
 
@@ -953,11 +937,11 @@ describe('MotionDetector - トリガー検出', () => {
       const result = detector.detect(html);
 
       // Assert
-      const scrollPattern = result.patterns.find((p) => p.trigger === 'scroll');
+      const scrollPattern = result.patterns.find((p) => p.trigger === "scroll");
       expect(scrollPattern).toBeDefined();
     });
 
-    it('should detect animation-timeline scroll', () => {
+    it("should detect animation-timeline scroll", () => {
       // Arrange
       const html = `
         <!DOCTYPE html>
@@ -982,13 +966,13 @@ describe('MotionDetector - トリガー検出', () => {
       const result = detector.detect(html);
 
       // Assert
-      const scrollPattern = result.patterns.find((p) => p.trigger === 'scroll');
+      const scrollPattern = result.patterns.find((p) => p.trigger === "scroll");
       expect(scrollPattern).toBeDefined();
     });
   });
 
-  describe('load時アニメーション', () => {
-    it('should detect load trigger for auto-playing animations', () => {
+  describe("load時アニメーション", () => {
+    it("should detect load trigger for auto-playing animations", () => {
       // Arrange
       const html = createSimpleAnimationHtml();
 
@@ -996,11 +980,11 @@ describe('MotionDetector - トリガー検出', () => {
       const result = detector.detect(html);
 
       // Assert
-      const loadPattern = result.patterns.find((p) => p.trigger === 'load');
+      const loadPattern = result.patterns.find((p) => p.trigger === "load");
       expect(loadPattern).toBeDefined();
     });
 
-    it('should detect load trigger for animations without interaction pseudo-class', () => {
+    it("should detect load trigger for animations without interaction pseudo-class", () => {
       // Arrange
       const html = `
         <!DOCTYPE html>
@@ -1025,14 +1009,14 @@ describe('MotionDetector - トリガー検出', () => {
 
       // Assert
       const loadPattern = result.patterns.find(
-        (p) => p.trigger === 'load' && p.name === 'entrance'
+        (p) => p.trigger === "load" && p.name === "entrance"
       );
       expect(loadPattern).toBeDefined();
     });
   });
 
-  describe('click trigger', () => {
-    it('should detect click trigger from active pseudo-class', () => {
+  describe("click trigger", () => {
+    it("should detect click trigger from active pseudo-class", () => {
       // Arrange
       const html = `
         <!DOCTYPE html>
@@ -1055,13 +1039,13 @@ describe('MotionDetector - トリガー検出', () => {
       const result = detector.detect(html);
 
       // Assert
-      const clickPattern = result.patterns.find((p) => p.trigger === 'click');
+      const clickPattern = result.patterns.find((p) => p.trigger === "click");
       expect(clickPattern).toBeDefined();
     });
   });
 
-  describe('custom trigger', () => {
-    it('should categorize unknown triggers as custom', () => {
+  describe("custom trigger", () => {
+    it("should categorize unknown triggers as custom", () => {
       // Arrange
       const html = `
         <!DOCTYPE html>
@@ -1081,7 +1065,7 @@ describe('MotionDetector - トリガー検出', () => {
       const result = detector.detect(html);
 
       // Assert
-      const customPattern = result.patterns.find((p) => p.trigger === 'custom');
+      const customPattern = result.patterns.find((p) => p.trigger === "custom");
       expect(customPattern).toBeDefined();
     });
   });
@@ -1091,15 +1075,15 @@ describe('MotionDetector - トリガー検出', () => {
 // 4. 警告生成テスト (10テスト)
 // =========================================
 
-describe('MotionDetector - 警告生成', () => {
+describe("MotionDetector - 警告生成", () => {
   let detector: MotionDetector;
 
   beforeEach(() => {
     detector = new MotionDetector();
   });
 
-  describe('パフォーマンス警告', () => {
-    it('should warn about long duration animations', () => {
+  describe("パフォーマンス警告", () => {
+    it("should warn about long duration animations", () => {
       // Arrange
       const html = createPerformanceWarningHtml();
 
@@ -1108,12 +1092,12 @@ describe('MotionDetector - 警告生成', () => {
 
       // Assert
       const perfWarning = result.warnings.find(
-        (w) => w.type === 'performance' && w.message.includes('duration')
+        (w) => w.type === "performance" && w.message.includes("duration")
       );
       expect(perfWarning).toBeDefined();
     });
 
-    it('should warn about layout-triggering animations', () => {
+    it("should warn about layout-triggering animations", () => {
       // Arrange
       const html = createPerformanceWarningHtml();
 
@@ -1123,15 +1107,15 @@ describe('MotionDetector - 警告生成', () => {
       // Assert
       const layoutWarning = result.warnings.find(
         (w) =>
-          w.type === 'performance' &&
-          (w.message.includes('width') ||
-            w.message.includes('height') ||
-            w.message.includes('layout'))
+          w.type === "performance" &&
+          (w.message.includes("width") ||
+            w.message.includes("height") ||
+            w.message.includes("layout"))
       );
       expect(layoutWarning).toBeDefined();
     });
 
-    it('should warn about box-shadow animations', () => {
+    it("should warn about box-shadow animations", () => {
       // Arrange
       const html = createPerformanceWarningHtml();
 
@@ -1140,12 +1124,12 @@ describe('MotionDetector - 警告生成', () => {
 
       // Assert
       const shadowWarning = result.warnings.find(
-        (w) => w.type === 'performance' && w.message.includes('box-shadow')
+        (w) => w.type === "performance" && w.message.includes("box-shadow")
       );
       expect(shadowWarning).toBeDefined();
     });
 
-    it('should provide suggestion for performance issues', () => {
+    it("should provide suggestion for performance issues", () => {
       // Arrange
       const html = createPerformanceWarningHtml();
 
@@ -1154,14 +1138,14 @@ describe('MotionDetector - 警告生成', () => {
 
       // Assert
       const warningWithSuggestion = result.warnings.find(
-        (w) => w.type === 'performance' && w.suggestion
+        (w) => w.type === "performance" && w.suggestion
       );
       expect(warningWithSuggestion?.suggestion).toBeDefined();
     });
   });
 
-  describe('アクセシビリティ警告', () => {
-    it('should warn about missing prefers-reduced-motion', () => {
+  describe("アクセシビリティ警告", () => {
+    it("should warn about missing prefers-reduced-motion", () => {
       // Arrange
       const html = createAccessibilityWarningHtml();
 
@@ -1170,14 +1154,12 @@ describe('MotionDetector - 警告生成', () => {
 
       // Assert
       const a11yWarning = result.warnings.find(
-        (w) =>
-          w.type === 'accessibility' &&
-          w.message.includes('prefers-reduced-motion')
+        (w) => w.type === "accessibility" && w.message.includes("prefers-reduced-motion")
       );
       expect(a11yWarning).toBeDefined();
     });
 
-    it('should warn about fast continuous animations', () => {
+    it("should warn about fast continuous animations", () => {
       // Arrange
       const html = createAccessibilityWarningHtml();
 
@@ -1187,13 +1169,12 @@ describe('MotionDetector - 警告生成', () => {
       // Assert
       const fastAnimationWarning = result.warnings.find(
         (w) =>
-          w.type === 'accessibility' &&
-          (w.message.includes('fast') || w.message.includes('rapid'))
+          w.type === "accessibility" && (w.message.includes("fast") || w.message.includes("rapid"))
       );
       expect(fastAnimationWarning).toBeDefined();
     });
 
-    it('should have high severity for accessibility warnings', () => {
+    it("should have high severity for accessibility warnings", () => {
       // Arrange
       const html = createAccessibilityWarningHtml();
 
@@ -1201,15 +1182,13 @@ describe('MotionDetector - 警告生成', () => {
       const result = detector.detect(html);
 
       // Assert
-      const a11yWarning = result.warnings.find(
-        (w) => w.type === 'accessibility'
-      );
-      expect(['medium', 'high']).toContain(a11yWarning?.severity);
+      const a11yWarning = result.warnings.find((w) => w.type === "accessibility");
+      expect(["medium", "high"]).toContain(a11yWarning?.severity);
     });
   });
 
-  describe('互換性警告', () => {
-    it('should warn about vendor prefixes', () => {
+  describe("互換性警告", () => {
+    it("should warn about vendor prefixes", () => {
       // Arrange
       const html = createVendorPrefixHtml();
 
@@ -1219,13 +1198,13 @@ describe('MotionDetector - 警告生成', () => {
       // Assert
       const compatWarning = result.warnings.find(
         (w) =>
-          w.type === 'compatibility' &&
-          (w.message.includes('vendor') || w.message.includes('prefix'))
+          w.type === "compatibility" &&
+          (w.message.includes("vendor") || w.message.includes("prefix"))
       );
       expect(compatWarning).toBeDefined();
     });
 
-    it('should warn about experimental features', () => {
+    it("should warn about experimental features", () => {
       // Arrange
       const html = createScrollAnimationHtml();
 
@@ -1235,15 +1214,15 @@ describe('MotionDetector - 警告生成', () => {
       // Assert
       const experimentalWarning = result.warnings.find(
         (w) =>
-          w.type === 'compatibility' &&
-          (w.message.includes('experimental') ||
-            w.message.includes('scroll') ||
-            w.message.includes('timeline'))
+          w.type === "compatibility" &&
+          (w.message.includes("experimental") ||
+            w.message.includes("scroll") ||
+            w.message.includes("timeline"))
       );
       expect(experimentalWarning).toBeDefined();
     });
 
-    it('should provide compatibility severity', () => {
+    it("should provide compatibility severity", () => {
       // Arrange
       const html = createVendorPrefixHtml();
 
@@ -1251,9 +1230,7 @@ describe('MotionDetector - 警告生成', () => {
       const result = detector.detect(html);
 
       // Assert
-      const compatWarning = result.warnings.find(
-        (w) => w.type === 'compatibility'
-      );
+      const compatWarning = result.warnings.find((w) => w.type === "compatibility");
       expect(compatWarning?.severity).toBeDefined();
     });
   });
@@ -1263,15 +1240,15 @@ describe('MotionDetector - 警告生成', () => {
 // 5. 複雑度計算テスト (10テスト)
 // =========================================
 
-describe('MotionDetector - 複雑度計算', () => {
+describe("MotionDetector - 複雑度計算", () => {
   let detector: MotionDetector;
 
   beforeEach(() => {
     detector = new MotionDetector();
   });
 
-  describe('単純なアニメーション', () => {
-    it('should return low complexity for simple fade', () => {
+  describe("単純なアニメーション", () => {
+    it("should return low complexity for simple fade", () => {
       // Arrange
       const html = createSimpleAnimationHtml();
       const result = detector.detect(html);
@@ -1283,23 +1260,23 @@ describe('MotionDetector - 複雑度計算', () => {
       expect(complexity).toBeLessThan(30);
     });
 
-    it('should return low complexity for single transition', () => {
+    it("should return low complexity for single transition", () => {
       // Arrange
       const patterns: MotionPattern[] = [
         {
-          id: 'test-1',
-          type: 'transition',
-          name: 'simple-transition',
-          selector: '.element',
-          properties: [{ name: 'opacity', from: '1', to: '0' }],
+          id: "test-1",
+          type: "transition",
+          name: "simple-transition",
+          selector: ".element",
+          properties: [{ name: "opacity", from: "1", to: "0" }],
           duration: 300,
           delay: 0,
-          easing: 'ease',
+          easing: "ease",
           iterations: 1,
-          direction: 'normal',
-          fillMode: 'none',
-          playState: 'running',
-          trigger: 'hover',
+          direction: "normal",
+          fillMode: "none",
+          playState: "running",
+          trigger: "hover",
           confidence: 0.9,
         },
       ];
@@ -1312,8 +1289,8 @@ describe('MotionDetector - 複雑度計算', () => {
     });
   });
 
-  describe('複雑なアニメーション', () => {
-    it('should return high complexity for multi-property animation', () => {
+  describe("複雑なアニメーション", () => {
+    it("should return high complexity for multi-property animation", () => {
       // Arrange
       const html = createComplexKeyframesHtml();
       const result = detector.detect(html);
@@ -1325,23 +1302,23 @@ describe('MotionDetector - 複雑度計算', () => {
       expect(complexity).toBeGreaterThan(30);
     });
 
-    it('should increase complexity for infinite animations', () => {
+    it("should increase complexity for infinite animations", () => {
       // Arrange
       const finitePatterns: MotionPattern[] = [
         {
-          id: 'test-1',
-          type: 'animation',
-          name: 'finite',
-          selector: '.element',
-          properties: [{ name: 'opacity', from: '0', to: '1' }],
+          id: "test-1",
+          type: "animation",
+          name: "finite",
+          selector: ".element",
+          properties: [{ name: "opacity", from: "0", to: "1" }],
           duration: 1000,
           delay: 0,
-          easing: 'ease',
+          easing: "ease",
           iterations: 1,
-          direction: 'normal',
-          fillMode: 'none',
-          playState: 'running',
-          trigger: 'load',
+          direction: "normal",
+          fillMode: "none",
+          playState: "running",
+          trigger: "load",
           confidence: 0.9,
         },
       ];
@@ -1349,7 +1326,7 @@ describe('MotionDetector - 複雑度計算', () => {
       const infinitePatterns: MotionPattern[] = [
         {
           ...finitePatterns[0],
-          iterations: 'infinite',
+          iterations: "infinite",
         },
       ];
 
@@ -1362,8 +1339,8 @@ describe('MotionDetector - 複雑度計算', () => {
     });
   });
 
-  describe('複数要素のアニメーション', () => {
-    it('should increase complexity with more animated elements', () => {
+  describe("複数要素のアニメーション", () => {
+    it("should increase complexity with more animated elements", () => {
       // Arrange
       const html = createComplexMultiElementHtml();
       const result = detector.detect(html);
@@ -1375,22 +1352,22 @@ describe('MotionDetector - 複雑度計算', () => {
       expect(complexity).toBeGreaterThan(50);
     });
 
-    it('should return moderate complexity for multiple simple animations', () => {
+    it("should return moderate complexity for multiple simple animations", () => {
       // Arrange
       const patterns: MotionPattern[] = Array.from({ length: 5 }, (_, i) => ({
         id: `test-${i}`,
-        type: 'transition' as const,
+        type: "transition" as const,
         name: `transition-${i}`,
         selector: `.element-${i}`,
-        properties: [{ name: 'opacity', from: '1', to: '0' }],
+        properties: [{ name: "opacity", from: "1", to: "0" }],
         duration: 300,
         delay: 0,
-        easing: 'ease',
+        easing: "ease",
         iterations: 1,
-        direction: 'normal' as const,
-        fillMode: 'none' as const,
-        playState: 'running' as const,
-        trigger: 'hover' as const,
+        direction: "normal" as const,
+        fillMode: "none" as const,
+        playState: "running" as const,
+        trigger: "hover" as const,
         confidence: 0.9,
       }));
 
@@ -1403,37 +1380,37 @@ describe('MotionDetector - 複雑度計算', () => {
     });
   });
 
-  describe('ネストされたアニメーション', () => {
-    it('should handle animations with multiple keyframes', () => {
+  describe("ネストされたアニメーション", () => {
+    it("should handle animations with multiple keyframes", () => {
       // Arrange
       const patterns: MotionPattern[] = [
         {
-          id: 'test-1',
-          type: 'animation',
-          name: 'complex-keyframes',
-          selector: '.element',
+          id: "test-1",
+          type: "animation",
+          name: "complex-keyframes",
+          selector: ".element",
           properties: [
             {
-              name: 'transform',
-              from: 'translateX(0)',
-              to: 'translateX(100px)',
+              name: "transform",
+              from: "translateX(0)",
+              to: "translateX(100px)",
               keyframes: [
-                { offset: 0, value: 'translateX(0)' },
-                { offset: 0.25, value: 'translateX(25px)' },
-                { offset: 0.5, value: 'translateX(50px)' },
-                { offset: 0.75, value: 'translateX(75px)' },
-                { offset: 1, value: 'translateX(100px)' },
+                { offset: 0, value: "translateX(0)" },
+                { offset: 0.25, value: "translateX(25px)" },
+                { offset: 0.5, value: "translateX(50px)" },
+                { offset: 0.75, value: "translateX(75px)" },
+                { offset: 1, value: "translateX(100px)" },
               ],
             },
           ],
           duration: 1000,
           delay: 0,
-          easing: 'ease',
+          easing: "ease",
           iterations: 1,
-          direction: 'normal',
-          fillMode: 'none',
-          playState: 'running',
-          trigger: 'load',
+          direction: "normal",
+          fillMode: "none",
+          playState: "running",
+          trigger: "load",
           confidence: 0.9,
         },
       ];
@@ -1446,39 +1423,39 @@ describe('MotionDetector - 複雑度計算', () => {
       expect(complexity).toBeGreaterThan(15);
     });
 
-    it('should increase complexity for chained animations', () => {
+    it("should increase complexity for chained animations", () => {
       // Arrange
       const patterns: MotionPattern[] = [
         {
-          id: 'test-1',
-          type: 'animation',
-          name: 'first',
-          selector: '.element',
-          properties: [{ name: 'opacity', from: '0', to: '1' }],
+          id: "test-1",
+          type: "animation",
+          name: "first",
+          selector: ".element",
+          properties: [{ name: "opacity", from: "0", to: "1" }],
           duration: 500,
           delay: 0,
-          easing: 'ease',
+          easing: "ease",
           iterations: 1,
-          direction: 'normal',
-          fillMode: 'forwards',
-          playState: 'running',
-          trigger: 'load',
+          direction: "normal",
+          fillMode: "forwards",
+          playState: "running",
+          trigger: "load",
           confidence: 0.9,
         },
         {
-          id: 'test-2',
-          type: 'animation',
-          name: 'second',
-          selector: '.element',
-          properties: [{ name: 'transform', from: 'scale(0)', to: 'scale(1)' }],
+          id: "test-2",
+          type: "animation",
+          name: "second",
+          selector: ".element",
+          properties: [{ name: "transform", from: "scale(0)", to: "scale(1)" }],
           duration: 500,
           delay: 500, // Chained after first
-          easing: 'ease',
+          easing: "ease",
           iterations: 1,
-          direction: 'normal',
-          fillMode: 'forwards',
-          playState: 'running',
-          trigger: 'load',
+          direction: "normal",
+          fillMode: "forwards",
+          playState: "running",
+          trigger: "load",
           confidence: 0.9,
         },
       ];
@@ -1492,8 +1469,8 @@ describe('MotionDetector - 複雑度計算', () => {
     });
   });
 
-  describe('エッジケース', () => {
-    it('should return 0 for empty patterns array', () => {
+  describe("エッジケース", () => {
+    it("should return 0 for empty patterns array", () => {
       // Act
       const complexity = detector.calculateComplexity([]);
 
@@ -1501,17 +1478,17 @@ describe('MotionDetector - 複雑度計算', () => {
       expect(complexity).toBe(0);
     });
 
-    it('should cap complexity at 100', () => {
+    it("should cap complexity at 100", () => {
       // Arrange - Create extremely complex pattern set
       const patterns: MotionPattern[] = Array.from({ length: 50 }, (_, i) => ({
         id: `test-${i}`,
-        type: 'animation' as const,
+        type: "animation" as const,
         name: `complex-${i}`,
         selector: `.element-${i}`,
         properties: Array.from({ length: 10 }, (_, j) => ({
           name: `property-${j}`,
-          from: '0',
-          to: '100',
+          from: "0",
+          to: "100",
           keyframes: Array.from({ length: 10 }, (_, k) => ({
             offset: k / 10,
             value: `${k * 10}`,
@@ -1519,12 +1496,12 @@ describe('MotionDetector - 複雑度計算', () => {
         })),
         duration: 5000,
         delay: i * 100,
-        easing: 'cubic-bezier(0.4, 0, 0.2, 1)',
-        iterations: 'infinite' as const,
-        direction: 'alternate' as const,
-        fillMode: 'both' as const,
-        playState: 'running' as const,
-        trigger: 'load' as const,
+        easing: "cubic-bezier(0.4, 0, 0.2, 1)",
+        iterations: "infinite" as const,
+        direction: "alternate" as const,
+        fillMode: "both" as const,
+        playState: "running" as const,
+        trigger: "load" as const,
         confidence: 0.9,
       }));
 
@@ -1541,14 +1518,14 @@ describe('MotionDetector - 複雑度計算', () => {
 // 6. サマリーと統計テスト (追加)
 // =========================================
 
-describe('MotionDetector - サマリーと統計', () => {
+describe("MotionDetector - サマリーと統計", () => {
   let detector: MotionDetector;
 
   beforeEach(() => {
     detector = new MotionDetector();
   });
 
-  it('should generate correct pattern count summary', () => {
+  it("should generate correct pattern count summary", () => {
     // Arrange
     const html = createComplexMultiElementHtml();
 
@@ -1559,7 +1536,7 @@ describe('MotionDetector - サマリーと統計', () => {
     expect(result.summary.totalPatterns).toBe(result.patterns.length);
   });
 
-  it('should categorize patterns by type', () => {
+  it("should categorize patterns by type", () => {
     // Arrange
     const html = createComplexMultiElementHtml();
 
@@ -1568,14 +1545,11 @@ describe('MotionDetector - サマリーと統計', () => {
 
     // Assert
     expect(result.summary.byType).toBeDefined();
-    const typeSum = Object.values(result.summary.byType).reduce(
-      (a, b) => a + b,
-      0
-    );
+    const typeSum = Object.values(result.summary.byType).reduce((a, b) => a + b, 0);
     expect(typeSum).toBe(result.summary.totalPatterns);
   });
 
-  it('should categorize patterns by trigger', () => {
+  it("should categorize patterns by trigger", () => {
     // Arrange
     const html = createComplexMultiElementHtml();
 
@@ -1584,14 +1558,11 @@ describe('MotionDetector - サマリーと統計', () => {
 
     // Assert
     expect(result.summary.byTrigger).toBeDefined();
-    const triggerSum = Object.values(result.summary.byTrigger).reduce(
-      (a, b) => a + b,
-      0
-    );
+    const triggerSum = Object.values(result.summary.byTrigger).reduce((a, b) => a + b, 0);
     expect(triggerSum).toBe(result.summary.totalPatterns);
   });
 
-  it('should calculate average duration', () => {
+  it("should calculate average duration", () => {
     // Arrange
     const html = createComplexMultiElementHtml();
 
@@ -1603,7 +1574,7 @@ describe('MotionDetector - サマリーと統計', () => {
     expect(result.summary.averageDuration).toBeGreaterThan(0);
   });
 
-  it('should detect presence of infinite animations', () => {
+  it("should detect presence of infinite animations", () => {
     // Arrange
     const html = createComplexKeyframesHtml();
 
@@ -1614,7 +1585,7 @@ describe('MotionDetector - サマリーと統計', () => {
     expect(result.summary.hasInfiniteAnimations).toBe(true);
   });
 
-  it('should include complexity score in summary', () => {
+  it("should include complexity score in summary", () => {
     // Arrange
     const html = createComplexMultiElementHtml();
 
@@ -1627,7 +1598,7 @@ describe('MotionDetector - サマリーと統計', () => {
     expect(result.summary.complexityScore).toBeLessThanOrEqual(100);
   });
 
-  it('should handle HTML with no animations', () => {
+  it("should handle HTML with no animations", () => {
     // Arrange
     const html = createEmptyHtml();
 
@@ -1647,8 +1618,8 @@ describe('MotionDetector - サマリーと統計', () => {
 // 7. オプションテスト (追加)
 // =========================================
 
-describe('MotionDetector - オプション', () => {
-  it('should respect includeInlineStyles option', () => {
+describe("MotionDetector - オプション", () => {
+  it("should respect includeInlineStyles option", () => {
     // Arrange
     const detector = new MotionDetector({ includeInlineStyles: false });
     const html = createInlineStyleHtml();
@@ -1661,7 +1632,7 @@ describe('MotionDetector - オプション', () => {
     expect(result.patterns.length).toBe(0);
   });
 
-  it('should respect includeStyleSheets option', () => {
+  it("should respect includeStyleSheets option", () => {
     // Arrange
     const detector = new MotionDetector({ includeStyleSheets: false });
     const html = createSimpleAnimationHtml();
@@ -1674,7 +1645,7 @@ describe('MotionDetector - オプション', () => {
     expect(result.patterns.length).toBe(0);
   });
 
-  it('should filter by minDuration', () => {
+  it("should filter by minDuration", () => {
     // Arrange
     const detector = new MotionDetector({ minDuration: 500 });
     const html = `
@@ -1703,7 +1674,7 @@ describe('MotionDetector - オプション', () => {
     expect(result.patterns.every((p) => p.duration >= 500)).toBe(true);
   });
 
-  it('should use default options when not specified', () => {
+  it("should use default options when not specified", () => {
     // Arrange
     const detector = new MotionDetector();
     const html = createSimpleAnimationHtml();
@@ -1715,7 +1686,7 @@ describe('MotionDetector - オプション', () => {
     expect(result.patterns.length).toBeGreaterThan(0);
   });
 
-  it('should handle partial options', () => {
+  it("should handle partial options", () => {
     // Arrange
     const detector = new MotionDetector({ minDuration: 100 });
     const html = createSimpleAnimationHtml();
@@ -1732,82 +1703,82 @@ describe('MotionDetector - オプション', () => {
 // 8. detectElement メソッドテスト (追加)
 // =========================================
 
-describe('MotionDetector - detectElement', () => {
+describe("MotionDetector - detectElement", () => {
   let detector: MotionDetector;
 
   beforeEach(() => {
     detector = new MotionDetector();
   });
 
-  it('should detect animation from CSSStyleProperties object', () => {
+  it("should detect animation from CSSStyleProperties object", () => {
     // Arrange
     const styles: CSSStyleProperties = {
-      animation: 'fadeIn 1s ease-in-out',
-      animationName: 'fadeIn',
-      animationDuration: '1s',
-      animationTimingFunction: 'ease-in-out',
-      animationDelay: '0s',
-      animationIterationCount: '1',
-      animationDirection: 'normal',
-      animationFillMode: 'none',
-      animationPlayState: 'running',
+      animation: "fadeIn 1s ease-in-out",
+      animationName: "fadeIn",
+      animationDuration: "1s",
+      animationTimingFunction: "ease-in-out",
+      animationDelay: "0s",
+      animationIterationCount: "1",
+      animationDirection: "normal",
+      animationFillMode: "none",
+      animationPlayState: "running",
     };
 
     // Act
-    const patterns = detector.detectElement('.element', styles);
+    const patterns = detector.detectElement(".element", styles);
 
     // Assert
     expect(patterns.length).toBeGreaterThan(0);
-    expect(patterns[0].name).toBe('fadeIn');
+    expect(patterns[0].name).toBe("fadeIn");
   });
 
-  it('should detect transition from CSSStyleProperties object', () => {
+  it("should detect transition from CSSStyleProperties object", () => {
     // Arrange
     const styles: CSSStyleProperties = {
-      transition: 'opacity 0.3s ease',
-      transitionProperty: 'opacity',
-      transitionDuration: '0.3s',
-      transitionTimingFunction: 'ease',
-      transitionDelay: '0s',
+      transition: "opacity 0.3s ease",
+      transitionProperty: "opacity",
+      transitionDuration: "0.3s",
+      transitionTimingFunction: "ease",
+      transitionDelay: "0s",
     };
 
     // Act
-    const patterns = detector.detectElement('.element', styles);
+    const patterns = detector.detectElement(".element", styles);
 
     // Assert
     expect(patterns.length).toBeGreaterThan(0);
-    expect(patterns[0].type).toBe('transition');
+    expect(patterns[0].type).toBe("transition");
   });
 
-  it('should return empty array for element without motion', () => {
+  it("should return empty array for element without motion", () => {
     // Arrange
     const styles: CSSStyleProperties = {
-      color: 'red',
-      backgroundColor: 'blue',
+      color: "red",
+      backgroundColor: "blue",
     };
 
     // Act
-    const patterns = detector.detectElement('.element', styles);
+    const patterns = detector.detectElement(".element", styles);
 
     // Assert
     expect(patterns.length).toBe(0);
   });
 
-  it('should use provided selector in pattern', () => {
+  it("should use provided selector in pattern", () => {
     // Arrange
     const styles: CSSStyleProperties = {
-      animation: 'spin 2s linear infinite',
-      animationName: 'spin',
-      animationDuration: '2s',
-      animationTimingFunction: 'linear',
-      animationIterationCount: 'infinite',
+      animation: "spin 2s linear infinite",
+      animationName: "spin",
+      animationDuration: "2s",
+      animationTimingFunction: "linear",
+      animationIterationCount: "infinite",
     };
 
     // Act
-    const patterns = detector.detectElement('.my-custom-selector', styles);
+    const patterns = detector.detectElement(".my-custom-selector", styles);
 
     // Assert
-    expect(patterns[0].selector).toBe('.my-custom-selector');
+    expect(patterns[0].selector).toBe(".my-custom-selector");
   });
 });
 
@@ -1815,33 +1786,33 @@ describe('MotionDetector - detectElement', () => {
 // 9. generateWarnings メソッドテスト (追加)
 // =========================================
 
-describe('MotionDetector - generateWarnings', () => {
+describe("MotionDetector - generateWarnings", () => {
   let detector: MotionDetector;
 
   beforeEach(() => {
     detector = new MotionDetector();
   });
 
-  it('should generate warnings for given patterns', () => {
+  it("should generate warnings for given patterns", () => {
     // Arrange
     const patterns: MotionPattern[] = [
       {
-        id: 'test-1',
-        type: 'animation',
-        name: 'expensive',
-        selector: '.element',
+        id: "test-1",
+        type: "animation",
+        name: "expensive",
+        selector: ".element",
         properties: [
-          { name: 'width', from: '100px', to: '200px' },
-          { name: 'height', from: '100px', to: '200px' },
+          { name: "width", from: "100px", to: "200px" },
+          { name: "height", from: "100px", to: "200px" },
         ],
         duration: 15000, // Very long
         delay: 0,
-        easing: 'linear',
-        iterations: 'infinite',
-        direction: 'normal',
-        fillMode: 'none',
-        playState: 'running',
-        trigger: 'load',
+        easing: "linear",
+        iterations: "infinite",
+        direction: "normal",
+        fillMode: "none",
+        playState: "running",
+        trigger: "load",
         confidence: 0.9,
       },
     ];
@@ -1853,23 +1824,23 @@ describe('MotionDetector - generateWarnings', () => {
     expect(warnings.length).toBeGreaterThan(0);
   });
 
-  it('should return empty array for performant patterns', () => {
+  it("should return empty array for performant patterns", () => {
     // Arrange
     const patterns: MotionPattern[] = [
       {
-        id: 'test-1',
-        type: 'transition',
-        name: 'simple',
-        selector: '.element',
-        properties: [{ name: 'opacity', from: '0', to: '1' }],
+        id: "test-1",
+        type: "transition",
+        name: "simple",
+        selector: ".element",
+        properties: [{ name: "opacity", from: "0", to: "1" }],
         duration: 300,
         delay: 0,
-        easing: 'ease',
+        easing: "ease",
         iterations: 1,
-        direction: 'normal',
-        fillMode: 'none',
-        playState: 'running',
-        trigger: 'hover',
+        direction: "normal",
+        fillMode: "none",
+        playState: "running",
+        trigger: "hover",
         confidence: 0.9,
       },
     ];
@@ -1882,23 +1853,23 @@ describe('MotionDetector - generateWarnings', () => {
     expect(Array.isArray(warnings)).toBe(true);
   });
 
-  it('should identify pattern in warning', () => {
+  it("should identify pattern in warning", () => {
     // Arrange
     const patterns: MotionPattern[] = [
       {
-        id: 'test-1',
-        type: 'animation',
-        name: 'problematic-animation',
-        selector: '.element',
-        properties: [{ name: 'width', from: '100px', to: '200px' }],
+        id: "test-1",
+        type: "animation",
+        name: "problematic-animation",
+        selector: ".element",
+        properties: [{ name: "width", from: "100px", to: "200px" }],
         duration: 10000,
         delay: 0,
-        easing: 'linear',
-        iterations: 'infinite',
-        direction: 'normal',
-        fillMode: 'none',
-        playState: 'running',
-        trigger: 'load',
+        easing: "linear",
+        iterations: "infinite",
+        direction: "normal",
+        fillMode: "none",
+        playState: "running",
+        trigger: "load",
         confidence: 0.9,
       },
     ];
@@ -1909,7 +1880,7 @@ describe('MotionDetector - generateWarnings', () => {
     // Assert
     const warningWithPattern = warnings.find((w) => w.pattern);
     if (warnings.length > 0) {
-      expect(warningWithPattern?.pattern).toBe('problematic-animation');
+      expect(warningWithPattern?.pattern).toBe("problematic-animation");
     }
   });
 });

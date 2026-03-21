@@ -23,8 +23,7 @@
  * - Version 7 indicated by '7' at position 13
  * - Variant bits [89ab] at position 17
  */
-const UUIDV7_PATTERN =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const UUIDV7_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 /**
  * Validates if a string is a valid UUIDv7 format
@@ -40,7 +39,7 @@ const UUIDV7_PATTERN =
  * ```
  */
 export const isValidUUIDv7 = (id: string | null | undefined): boolean => {
-  if (!id || typeof id !== 'string') {
+  if (!id || typeof id !== "string") {
     return false;
   }
   return UUIDV7_PATTERN.test(id);
@@ -74,16 +73,14 @@ export const isValidUUIDv7 = (id: string | null | undefined): boolean => {
  * // Returns: undefined
  * ```
  */
-export const resolveProjectId = (
-  inputProjectId?: string
-): string | undefined => {
+export const resolveProjectId = (inputProjectId?: string): string | undefined => {
   // Priority 1: Use explicit input if valid
   if (inputProjectId && isValidUUIDv7(inputProjectId)) {
     return inputProjectId;
   }
 
   // Handle empty string as undefined
-  if (inputProjectId === '') {
+  if (inputProjectId === "") {
     // Fall through to env var check
   } else if (inputProjectId) {
     // Input provided but invalid UUID format - still return it for backwards compatibility

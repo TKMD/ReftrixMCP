@@ -13,7 +13,7 @@
  * @module tests/services/page-ingest-adapter.wait-strategy.test
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 // モックオブジェクトを外部で定義
 const mockPage: {
@@ -64,14 +64,14 @@ const mockBrowser = {
 const mockLaunch = vi.fn();
 
 // Playwrightモジュールのモック（ホイスト）
-vi.mock('playwright', () => ({
+vi.mock("playwright", () => ({
   chromium: {
     launch: mockLaunch,
   },
 }));
 
 // loggerモック
-vi.mock('../../src/utils/logger', () => ({
+vi.mock("../../src/utils/logger", () => ({
   logger: {
     info: vi.fn(),
     error: vi.fn(),
@@ -85,10 +85,10 @@ vi.mock('../../src/utils/logger', () => ({
 // テストスイート
 // =====================================================
 
-describe('PageIngestAdapter 待機戦略最適化', () => {
+describe("PageIngestAdapter 待機戦略最適化", () => {
   let pageIngestAdapter: Awaited<
-    typeof import('../../src/services/page-ingest-adapter')
-  >['pageIngestAdapter'];
+    typeof import("../../src/services/page-ingest-adapter")
+  >["pageIngestAdapter"];
 
   beforeEach(async () => {
     vi.clearAllMocks();
@@ -97,12 +97,12 @@ describe('PageIngestAdapter 待機戦略最適化', () => {
     mockLaunch.mockResolvedValue(mockBrowser);
 
     // モックのデフォルト動作を設定
-    mockPage.url.mockReturnValue('https://example.com/');
-    mockPage.content.mockResolvedValue('<html><body>Test</body></html>');
-    mockPage.screenshot.mockResolvedValue(Buffer.from('fake-screenshot-data'));
+    mockPage.url.mockReturnValue("https://example.com/");
+    mockPage.content.mockResolvedValue("<html><body>Test</body></html>");
+    mockPage.screenshot.mockResolvedValue(Buffer.from("fake-screenshot-data"));
     mockPage.waitForSelector.mockResolvedValue(null);
     mockPage.close.mockResolvedValue(undefined);
-    mockPage.title.mockResolvedValue('Test Page');
+    mockPage.title.mockResolvedValue("Test Page");
     mockPage.mouse.move.mockResolvedValue(undefined);
     mockPage.mouse.wheel.mockResolvedValue(undefined);
     mockPage.viewportSize.mockReturnValue({ width: 1920, height: 1080 });
@@ -117,18 +117,18 @@ describe('PageIngestAdapter 待機戦略最適化', () => {
 
     // デフォルトのevaluate応答を設定
     mockPage.evaluate.mockImplementation((script: string) => {
-      if (typeof script === 'string' && script.includes('title')) {
+      if (typeof script === "string" && script.includes("title")) {
         return Promise.resolve({
-          title: 'Test Page',
-          description: 'Test description',
-          ogImage: 'https://example.com/og.png',
-          favicon: '/favicon.ico',
-          lang: 'en',
-          canonical: 'https://example.com/',
-          keywords: ['test', 'page'],
+          title: "Test Page",
+          description: "Test description",
+          ogImage: "https://example.com/og.png",
+          favicon: "/favicon.ico",
+          lang: "en",
+          canonical: "https://example.com/",
+          keywords: ["test", "page"],
         });
       }
-      if (typeof script === 'string' && script.includes('documentWidth')) {
+      if (typeof script === "string" && script.includes("documentWidth")) {
         return Promise.resolve({
           documentWidth: 1920,
           documentHeight: 3000,
@@ -138,24 +138,24 @@ describe('PageIngestAdapter 待機戦略最適化', () => {
         });
       }
       // DOM安定化待機用
-      if (typeof script === 'string' && script.includes('MutationObserver')) {
+      if (typeof script === "string" && script.includes("MutationObserver")) {
         return Promise.resolve({
           stable: true,
           mutations: 0,
           waitTime: 100,
-          reason: 'dom_stable',
+          reason: "dom_stable",
         });
       }
       // ローディング要素非表示待機用
-      if (typeof script === 'string' && script.includes('isElementHidden')) {
+      if (typeof script === "string" && script.includes("isElementHidden")) {
         return Promise.resolve({
           hidden: true,
           waitTime: 100,
-          reason: 'already_hidden',
+          reason: "already_hidden",
         });
       }
       // WebGL検出用
-      if (typeof script === 'string' && script.includes('canvases')) {
+      if (typeof script === "string" && script.includes("canvases")) {
         return Promise.resolve({
           detected: false,
           canvasCount: 0,
@@ -165,13 +165,13 @@ describe('PageIngestAdapter 待機戦略最適化', () => {
         });
       }
       // フレームレート安定化待機用
-      if (typeof script === 'string' && script.includes('requestAnimationFrame')) {
+      if (typeof script === "string" && script.includes("requestAnimationFrame")) {
         return Promise.resolve({
           stable: true,
           waitTimeMs: 100,
           frameRateStable: true,
           lastFrameRate: 60,
-          reason: 'stable',
+          reason: "stable",
         });
       }
       return Promise.resolve({});
@@ -185,7 +185,7 @@ describe('PageIngestAdapter 待機戦略最適化', () => {
 
     // モジュールをリセットして新しいシングルトンを取得
     vi.resetModules();
-    const module = await import('../../src/services/page-ingest-adapter');
+    const module = await import("../../src/services/page-ingest-adapter");
     pageIngestAdapter = module.pageIngestAdapter;
   });
 
@@ -202,27 +202,27 @@ describe('PageIngestAdapter 待機戦略最適化', () => {
   // =====================================================
   // 1. waitForWebGLオプションの動作テスト
   // =====================================================
-  describe('waitForWebGLオプション', () => {
-    it('waitForWebGL: trueでdomcontentloadedが使用される', async () => {
+  describe("waitForWebGLオプション", () => {
+    it("waitForWebGL: trueでdomcontentloadedが使用される", async () => {
       await pageIngestAdapter.ingest({
-        url: 'https://webgl-site.com',
+        url: "https://webgl-site.com",
         waitForWebGL: true,
       });
 
       // page.gotoの呼び出しを検証
       expect(mockPage.goto).toHaveBeenCalledWith(
-        'https://webgl-site.com',
+        "https://webgl-site.com",
         expect.objectContaining({
-          waitUntil: 'domcontentloaded',
+          waitUntil: "domcontentloaded",
         })
       );
     });
 
-    it('waitForWebGL: falseでは通常のwaitUntilが使用される', async () => {
+    it("waitForWebGL: falseでは通常のwaitUntilが使用される", async () => {
       await pageIngestAdapter.ingest({
-        url: 'https://normal-site.com',
+        url: "https://normal-site.com",
         waitForWebGL: false,
-        waitUntil: 'networkidle',
+        waitUntil: "networkidle",
       });
 
       // adaptiveWebGLWait: falseを明示しないとdomcontentloadedにフォールバックされるため、
@@ -230,44 +230,46 @@ describe('PageIngestAdapter 待機戦略最適化', () => {
       expect(mockPage.goto).toHaveBeenCalled();
     });
 
-    it('waitForWebGL未指定（デフォルトfalse）では通常動作', async () => {
+    it("waitForWebGL未指定（デフォルトfalse）では通常動作", async () => {
       await pageIngestAdapter.ingest({
-        url: 'https://normal-site.com',
+        url: "https://normal-site.com",
         adaptiveWebGLWait: false, // 既存の適応的待機も無効化
-        waitUntil: 'load',
+        waitUntil: "load",
       });
 
       expect(mockPage.goto).toHaveBeenCalledWith(
-        'https://normal-site.com',
+        "https://normal-site.com",
         expect.objectContaining({
-          waitUntil: 'load',
+          waitUntil: "load",
         })
       );
     });
 
-    it('waitForWebGL: trueでCanvasセレクターの待機が行われる', async () => {
+    it("waitForWebGL: trueでCanvasセレクターの待機が行われる", async () => {
       await pageIngestAdapter.ingest({
-        url: 'https://webgl-site.com',
+        url: "https://webgl-site.com",
         waitForWebGL: true,
       });
 
       // waitForSelectorでcanvasを待機することを確認
-      expect(mockPage.waitForSelector).toHaveBeenCalledWith('canvas', expect.any(Object));
+      expect(mockPage.waitForSelector).toHaveBeenCalledWith("canvas", expect.any(Object));
     });
 
-    it('waitForWebGL: trueでCanvas検出後に固定待機が行われる', async () => {
+    it("waitForWebGL: trueでCanvas検出後に固定待機が行われる", async () => {
       // Canvas要素が見つかった場合のモック
-      mockPage.waitForSelector.mockResolvedValueOnce({ /* canvas element */ });
+      mockPage.waitForSelector.mockResolvedValueOnce({
+        /* canvas element */
+      });
 
       // WebGLコンテキスト確認用
       mockPage.evaluate.mockImplementation((script: string) => {
-        if (typeof script === 'string' && script.includes('title')) {
+        if (typeof script === "string" && script.includes("title")) {
           return Promise.resolve({
-            title: 'Test Page',
-            description: 'Test description',
+            title: "Test Page",
+            description: "Test description",
           });
         }
-        if (typeof script === 'string' && script.includes('documentWidth')) {
+        if (typeof script === "string" && script.includes("documentWidth")) {
           return Promise.resolve({
             documentWidth: 1920,
             documentHeight: 3000,
@@ -276,20 +278,20 @@ describe('PageIngestAdapter 待機戦略最適化', () => {
             scrollHeight: 3000,
           });
         }
-        if (typeof script === 'string' && script.includes('MutationObserver')) {
+        if (typeof script === "string" && script.includes("MutationObserver")) {
           return Promise.resolve({
             stable: true,
             mutations: 0,
             waitTime: 100,
-            reason: 'dom_stable',
+            reason: "dom_stable",
           });
         }
         // WebGLコンテキスト確認（waitForWebGLモード用）
-        if (typeof script === 'string' && script.includes('canvas.getContext')) {
+        if (typeof script === "string" && script.includes("canvas.getContext")) {
           return Promise.resolve(true); // WebGLコンテキストあり
         }
         // WebGL検出（adaptiveWebGLWaitモード用）
-        if (typeof script === 'string' && script.includes('canvases')) {
+        if (typeof script === "string" && script.includes("canvases")) {
           return Promise.resolve({
             detected: true,
             canvasCount: 1,
@@ -299,20 +301,20 @@ describe('PageIngestAdapter 待機戦略最適化', () => {
           });
         }
         // フレームレート安定化待機用
-        if (typeof script === 'string' && script.includes('requestAnimationFrame')) {
+        if (typeof script === "string" && script.includes("requestAnimationFrame")) {
           return Promise.resolve({
             stable: true,
             waitTimeMs: 100,
             frameRateStable: true,
             lastFrameRate: 60,
-            reason: 'stable',
+            reason: "stable",
           });
         }
         return Promise.resolve({});
       });
 
       await pageIngestAdapter.ingest({
-        url: 'https://webgl-site.com',
+        url: "https://webgl-site.com",
         waitForWebGL: true,
       });
 
@@ -320,12 +322,12 @@ describe('PageIngestAdapter 待機戦略最適化', () => {
       expect(mockPage.waitForTimeout).toHaveBeenCalled();
     });
 
-    it('waitForWebGL: trueでCanvas未検出時でもエラーにならない', async () => {
+    it("waitForWebGL: trueでCanvas未検出時でもエラーにならない", async () => {
       // Canvas要素が見つからない場合（タイムアウト）
-      mockPage.waitForSelector.mockRejectedValueOnce(new Error('Timeout'));
+      mockPage.waitForSelector.mockRejectedValueOnce(new Error("Timeout"));
 
       const result = await pageIngestAdapter.ingest({
-        url: 'https://no-canvas-site.com',
+        url: "https://no-canvas-site.com",
         waitForWebGL: true,
       });
 
@@ -337,17 +339,19 @@ describe('PageIngestAdapter 待機戦略最適化', () => {
   // =====================================================
   // 2. webglWaitMsオプションのテスト
   // =====================================================
-  describe('webglWaitMsオプション', () => {
-    it('webglWaitMs: 5000でCanvas検出後5秒待機', async () => {
+  describe("webglWaitMsオプション", () => {
+    it("webglWaitMs: 5000でCanvas検出後5秒待機", async () => {
       // Canvas要素が見つかった場合のモック
-      mockPage.waitForSelector.mockResolvedValueOnce({ /* canvas element */ });
+      mockPage.waitForSelector.mockResolvedValueOnce({
+        /* canvas element */
+      });
 
       // WebGLコンテキスト確認用
       mockPage.evaluate.mockImplementation((script: string) => {
-        if (typeof script === 'string' && script.includes('title')) {
-          return Promise.resolve({ title: 'Test' });
+        if (typeof script === "string" && script.includes("title")) {
+          return Promise.resolve({ title: "Test" });
         }
-        if (typeof script === 'string' && script.includes('documentWidth')) {
+        if (typeof script === "string" && script.includes("documentWidth")) {
           return Promise.resolve({
             documentWidth: 1920,
             documentHeight: 3000,
@@ -356,13 +360,13 @@ describe('PageIngestAdapter 待機戦略最適化', () => {
             scrollHeight: 3000,
           });
         }
-        if (typeof script === 'string' && script.includes('MutationObserver')) {
+        if (typeof script === "string" && script.includes("MutationObserver")) {
           return Promise.resolve({ stable: true, mutations: 0, waitTime: 100 });
         }
-        if (typeof script === 'string' && script.includes('canvas.getContext')) {
+        if (typeof script === "string" && script.includes("canvas.getContext")) {
           return Promise.resolve(true);
         }
-        if (typeof script === 'string' && script.includes('canvases')) {
+        if (typeof script === "string" && script.includes("canvases")) {
           return Promise.resolve({
             detected: true,
             canvasCount: 1,
@@ -371,20 +375,20 @@ describe('PageIngestAdapter 待機戦略最適化', () => {
             threeJsDetected: false,
           });
         }
-        if (typeof script === 'string' && script.includes('requestAnimationFrame')) {
+        if (typeof script === "string" && script.includes("requestAnimationFrame")) {
           return Promise.resolve({
             stable: true,
             waitTimeMs: 100,
             frameRateStable: true,
             lastFrameRate: 60,
-            reason: 'stable',
+            reason: "stable",
           });
         }
         return Promise.resolve({});
       });
 
       await pageIngestAdapter.ingest({
-        url: 'https://webgl-site.com',
+        url: "https://webgl-site.com",
         waitForWebGL: true,
         webglWaitMs: 5000,
       });
@@ -393,16 +397,18 @@ describe('PageIngestAdapter 待機戦略最適化', () => {
       expect(mockPage.waitForTimeout).toHaveBeenCalledWith(5000);
     });
 
-    it('webglWaitMsデフォルト値は3000ms', async () => {
+    it("webglWaitMsデフォルト値は3000ms", async () => {
       // Canvas要素が見つかった場合のモック
-      mockPage.waitForSelector.mockResolvedValueOnce({ /* canvas element */ });
+      mockPage.waitForSelector.mockResolvedValueOnce({
+        /* canvas element */
+      });
 
       // WebGLコンテキスト確認用
       mockPage.evaluate.mockImplementation((script: string) => {
-        if (typeof script === 'string' && script.includes('title')) {
-          return Promise.resolve({ title: 'Test' });
+        if (typeof script === "string" && script.includes("title")) {
+          return Promise.resolve({ title: "Test" });
         }
-        if (typeof script === 'string' && script.includes('documentWidth')) {
+        if (typeof script === "string" && script.includes("documentWidth")) {
           return Promise.resolve({
             documentWidth: 1920,
             documentHeight: 3000,
@@ -411,13 +417,13 @@ describe('PageIngestAdapter 待機戦略最適化', () => {
             scrollHeight: 3000,
           });
         }
-        if (typeof script === 'string' && script.includes('MutationObserver')) {
+        if (typeof script === "string" && script.includes("MutationObserver")) {
           return Promise.resolve({ stable: true, mutations: 0, waitTime: 100 });
         }
-        if (typeof script === 'string' && script.includes('canvas.getContext')) {
+        if (typeof script === "string" && script.includes("canvas.getContext")) {
           return Promise.resolve(true);
         }
-        if (typeof script === 'string' && script.includes('canvases')) {
+        if (typeof script === "string" && script.includes("canvases")) {
           return Promise.resolve({
             detected: true,
             canvasCount: 1,
@@ -426,20 +432,20 @@ describe('PageIngestAdapter 待機戦略最適化', () => {
             threeJsDetected: false,
           });
         }
-        if (typeof script === 'string' && script.includes('requestAnimationFrame')) {
+        if (typeof script === "string" && script.includes("requestAnimationFrame")) {
           return Promise.resolve({
             stable: true,
             waitTimeMs: 100,
             frameRateStable: true,
             lastFrameRate: 60,
-            reason: 'stable',
+            reason: "stable",
           });
         }
         return Promise.resolve({});
       });
 
       await pageIngestAdapter.ingest({
-        url: 'https://webgl-site.com',
+        url: "https://webgl-site.com",
         waitForWebGL: true,
         // webglWaitMs未指定
       });
@@ -448,16 +454,18 @@ describe('PageIngestAdapter 待機戦略最適化', () => {
       expect(mockPage.waitForTimeout).toHaveBeenCalledWith(3000);
     });
 
-    it('webglWaitMs: 0で待機をスキップ', async () => {
+    it("webglWaitMs: 0で待機をスキップ", async () => {
       // Canvas要素が見つかった場合のモック
-      mockPage.waitForSelector.mockResolvedValueOnce({ /* canvas element */ });
+      mockPage.waitForSelector.mockResolvedValueOnce({
+        /* canvas element */
+      });
 
       // WebGLコンテキスト確認用
       mockPage.evaluate.mockImplementation((script: string) => {
-        if (typeof script === 'string' && script.includes('title')) {
-          return Promise.resolve({ title: 'Test' });
+        if (typeof script === "string" && script.includes("title")) {
+          return Promise.resolve({ title: "Test" });
         }
-        if (typeof script === 'string' && script.includes('documentWidth')) {
+        if (typeof script === "string" && script.includes("documentWidth")) {
           return Promise.resolve({
             documentWidth: 1920,
             documentHeight: 3000,
@@ -466,13 +474,13 @@ describe('PageIngestAdapter 待機戦略最適化', () => {
             scrollHeight: 3000,
           });
         }
-        if (typeof script === 'string' && script.includes('MutationObserver')) {
+        if (typeof script === "string" && script.includes("MutationObserver")) {
           return Promise.resolve({ stable: true, mutations: 0, waitTime: 100 });
         }
-        if (typeof script === 'string' && script.includes('canvas.getContext')) {
+        if (typeof script === "string" && script.includes("canvas.getContext")) {
           return Promise.resolve(true);
         }
-        if (typeof script === 'string' && script.includes('canvases')) {
+        if (typeof script === "string" && script.includes("canvases")) {
           return Promise.resolve({
             detected: true,
             canvasCount: 1,
@@ -481,13 +489,13 @@ describe('PageIngestAdapter 待機戦略最適化', () => {
             threeJsDetected: false,
           });
         }
-        if (typeof script === 'string' && script.includes('requestAnimationFrame')) {
+        if (typeof script === "string" && script.includes("requestAnimationFrame")) {
           return Promise.resolve({
             stable: true,
             waitTimeMs: 100,
             frameRateStable: true,
             lastFrameRate: 60,
-            reason: 'stable',
+            reason: "stable",
           });
         }
         return Promise.resolve({});
@@ -497,7 +505,7 @@ describe('PageIngestAdapter 待機戦略最適化', () => {
       mockPage.waitForTimeout.mockClear();
 
       await pageIngestAdapter.ingest({
-        url: 'https://webgl-site.com',
+        url: "https://webgl-site.com",
         waitForWebGL: true,
         webglWaitMs: 0,
       });
@@ -506,7 +514,7 @@ describe('PageIngestAdapter 待機戦略最適化', () => {
       // ただし、他の用途（adaptiveWebGLWait等）で呼ばれる可能性があるため、
       // 0msでは呼ばれないことを確認
       const calls = mockPage.waitForTimeout.mock.calls;
-      const zeroMsCalls = calls.filter(call => call[0] === 0);
+      const zeroMsCalls = calls.filter((call) => call[0] === 0);
       // webglWaitMs: 0の場合は0msで呼ばれない（スキップされる）
       expect(zeroMsCalls.length).toBe(0);
     });
@@ -515,55 +523,57 @@ describe('PageIngestAdapter 待機戦略最適化', () => {
   // =====================================================
   // 3. 既存オプションとの互換性テスト
   // =====================================================
-  describe('既存オプションとの互換性', () => {
-    it('waitForWebGLとwaitUntilの組み合わせ: waitForWebGLが優先', async () => {
+  describe("既存オプションとの互換性", () => {
+    it("waitForWebGLとwaitUntilの組み合わせ: waitForWebGLが優先", async () => {
       await pageIngestAdapter.ingest({
-        url: 'https://webgl-site.com',
+        url: "https://webgl-site.com",
         waitForWebGL: true,
-        waitUntil: 'networkidle', // 通常これが使われるが...
+        waitUntil: "networkidle", // 通常これが使われるが...
       });
 
       // waitForWebGL: trueなのでdomcontentloadedが使用される
       expect(mockPage.goto).toHaveBeenCalledWith(
-        'https://webgl-site.com',
+        "https://webgl-site.com",
         expect.objectContaining({
-          waitUntil: 'domcontentloaded',
+          waitUntil: "domcontentloaded",
         })
       );
     });
 
-    it('waitForWebGLとenableGPUの組み合わせ', async () => {
+    it("waitForWebGLとenableGPUの組み合わせ", async () => {
       await pageIngestAdapter.ingest({
-        url: 'https://webgl-site.com',
+        url: "https://webgl-site.com",
         waitForWebGL: true,
         enableGPU: true,
       });
 
       // 両方のオプションが正しく動作することを確認
       expect(mockPage.goto).toHaveBeenCalledWith(
-        'https://webgl-site.com',
+        "https://webgl-site.com",
         expect.objectContaining({
-          waitUntil: 'domcontentloaded',
+          waitUntil: "domcontentloaded",
         })
       );
 
       // GPU有効化ブラウザが起動されること
       expect(mockLaunch).toHaveBeenCalledWith(
         expect.objectContaining({
-          args: expect.arrayContaining(['--use-angle=gl']),
+          args: expect.arrayContaining(["--use-angle=gl"]),
         })
       );
     });
 
-    it('waitForWebGLとadaptiveWebGLWaitの組み合わせ: 両方動作', async () => {
+    it("waitForWebGLとadaptiveWebGLWaitの組み合わせ: 両方動作", async () => {
       // Canvas要素が見つかった場合のモック
-      mockPage.waitForSelector.mockResolvedValueOnce({ /* canvas element */ });
+      mockPage.waitForSelector.mockResolvedValueOnce({
+        /* canvas element */
+      });
 
       mockPage.evaluate.mockImplementation((script: string) => {
-        if (typeof script === 'string' && script.includes('title')) {
-          return Promise.resolve({ title: 'Test' });
+        if (typeof script === "string" && script.includes("title")) {
+          return Promise.resolve({ title: "Test" });
         }
-        if (typeof script === 'string' && script.includes('documentWidth')) {
+        if (typeof script === "string" && script.includes("documentWidth")) {
           return Promise.resolve({
             documentWidth: 1920,
             documentHeight: 3000,
@@ -572,14 +582,14 @@ describe('PageIngestAdapter 待機戦略最適化', () => {
             scrollHeight: 3000,
           });
         }
-        if (typeof script === 'string' && script.includes('MutationObserver')) {
+        if (typeof script === "string" && script.includes("MutationObserver")) {
           return Promise.resolve({ stable: true, mutations: 0, waitTime: 100 });
         }
-        if (typeof script === 'string' && script.includes('canvas.getContext')) {
+        if (typeof script === "string" && script.includes("canvas.getContext")) {
           return Promise.resolve(true);
         }
         // WebGL検出（adaptiveWebGLWait用）
-        if (typeof script === 'string' && script.includes('canvases')) {
+        if (typeof script === "string" && script.includes("canvases")) {
           return Promise.resolve({
             detected: true,
             canvasCount: 1,
@@ -589,43 +599,45 @@ describe('PageIngestAdapter 待機戦略最適化', () => {
           });
         }
         // フレームレート安定化待機用
-        if (typeof script === 'string' && script.includes('requestAnimationFrame')) {
+        if (typeof script === "string" && script.includes("requestAnimationFrame")) {
           return Promise.resolve({
             stable: true,
             waitTimeMs: 100,
             frameRateStable: true,
             lastFrameRate: 60,
-            reason: 'stable',
+            reason: "stable",
           });
         }
         return Promise.resolve({});
       });
 
       const result = await pageIngestAdapter.ingest({
-        url: 'https://webgl-site.com',
+        url: "https://webgl-site.com",
         waitForWebGL: true,
         adaptiveWebGLWait: true, // 両方有効
       });
 
       expect(result.success).toBe(true);
       // Canvas待機が行われること（waitForWebGL）
-      expect(mockPage.waitForSelector).toHaveBeenCalledWith('canvas', expect.any(Object));
+      expect(mockPage.waitForSelector).toHaveBeenCalledWith("canvas", expect.any(Object));
     });
   });
 
   // =====================================================
   // 4. WebGLコンテキスト確認テスト
   // =====================================================
-  describe('WebGLコンテキスト確認', () => {
-    it('Canvas検出後にWebGLコンテキストを確認する', async () => {
-      mockPage.waitForSelector.mockResolvedValueOnce({ /* canvas element */ });
+  describe("WebGLコンテキスト確認", () => {
+    it("Canvas検出後にWebGLコンテキストを確認する", async () => {
+      mockPage.waitForSelector.mockResolvedValueOnce({
+        /* canvas element */
+      });
 
       let webglContextCheckCalled = false;
       mockPage.evaluate.mockImplementation((script: string) => {
-        if (typeof script === 'string' && script.includes('title')) {
-          return Promise.resolve({ title: 'Test' });
+        if (typeof script === "string" && script.includes("title")) {
+          return Promise.resolve({ title: "Test" });
         }
-        if (typeof script === 'string' && script.includes('documentWidth')) {
+        if (typeof script === "string" && script.includes("documentWidth")) {
           return Promise.resolve({
             documentWidth: 1920,
             documentHeight: 3000,
@@ -634,15 +646,15 @@ describe('PageIngestAdapter 待機戦略最適化', () => {
             scrollHeight: 3000,
           });
         }
-        if (typeof script === 'string' && script.includes('MutationObserver')) {
+        if (typeof script === "string" && script.includes("MutationObserver")) {
           return Promise.resolve({ stable: true, mutations: 0, waitTime: 100 });
         }
         // WebGLコンテキスト確認
-        if (typeof script === 'string' && script.includes('canvas.getContext')) {
+        if (typeof script === "string" && script.includes("canvas.getContext")) {
           webglContextCheckCalled = true;
           return Promise.resolve(true);
         }
-        if (typeof script === 'string' && script.includes('canvases')) {
+        if (typeof script === "string" && script.includes("canvases")) {
           return Promise.resolve({
             detected: true,
             canvasCount: 1,
@@ -651,20 +663,20 @@ describe('PageIngestAdapter 待機戦略最適化', () => {
             threeJsDetected: false,
           });
         }
-        if (typeof script === 'string' && script.includes('requestAnimationFrame')) {
+        if (typeof script === "string" && script.includes("requestAnimationFrame")) {
           return Promise.resolve({
             stable: true,
             waitTimeMs: 100,
             frameRateStable: true,
             lastFrameRate: 60,
-            reason: 'stable',
+            reason: "stable",
           });
         }
         return Promise.resolve({});
       });
 
       await pageIngestAdapter.ingest({
-        url: 'https://webgl-site.com',
+        url: "https://webgl-site.com",
         waitForWebGL: true,
       });
 
@@ -672,14 +684,16 @@ describe('PageIngestAdapter 待機戦略最適化', () => {
       expect(webglContextCheckCalled).toBe(true);
     });
 
-    it('WebGLコンテキストがない場合は固定待機をスキップ', async () => {
-      mockPage.waitForSelector.mockResolvedValueOnce({ /* canvas element */ });
+    it("WebGLコンテキストがない場合は固定待機をスキップ", async () => {
+      mockPage.waitForSelector.mockResolvedValueOnce({
+        /* canvas element */
+      });
 
       mockPage.evaluate.mockImplementation((script: string) => {
-        if (typeof script === 'string' && script.includes('title')) {
-          return Promise.resolve({ title: 'Test' });
+        if (typeof script === "string" && script.includes("title")) {
+          return Promise.resolve({ title: "Test" });
         }
-        if (typeof script === 'string' && script.includes('documentWidth')) {
+        if (typeof script === "string" && script.includes("documentWidth")) {
           return Promise.resolve({
             documentWidth: 1920,
             documentHeight: 3000,
@@ -688,14 +702,14 @@ describe('PageIngestAdapter 待機戦略最適化', () => {
             scrollHeight: 3000,
           });
         }
-        if (typeof script === 'string' && script.includes('MutationObserver')) {
+        if (typeof script === "string" && script.includes("MutationObserver")) {
           return Promise.resolve({ stable: true, mutations: 0, waitTime: 100 });
         }
         // WebGLコンテキストなし（2D Canvasのみ）
-        if (typeof script === 'string' && script.includes('canvas.getContext')) {
+        if (typeof script === "string" && script.includes("canvas.getContext")) {
           return Promise.resolve(false);
         }
-        if (typeof script === 'string' && script.includes('canvases')) {
+        if (typeof script === "string" && script.includes("canvases")) {
           return Promise.resolve({
             detected: false,
             canvasCount: 1, // Canvasはあるが
@@ -704,13 +718,13 @@ describe('PageIngestAdapter 待機戦略最適化', () => {
             threeJsDetected: false,
           });
         }
-        if (typeof script === 'string' && script.includes('requestAnimationFrame')) {
+        if (typeof script === "string" && script.includes("requestAnimationFrame")) {
           return Promise.resolve({
             stable: true,
             waitTimeMs: 100,
             frameRateStable: true,
             lastFrameRate: 60,
-            reason: 'stable',
+            reason: "stable",
           });
         }
         return Promise.resolve({});
@@ -720,14 +734,14 @@ describe('PageIngestAdapter 待機戦略最適化', () => {
       mockPage.waitForTimeout.mockClear();
 
       await pageIngestAdapter.ingest({
-        url: 'https://2d-canvas-site.com',
+        url: "https://2d-canvas-site.com",
         waitForWebGL: true,
         adaptiveWebGLWait: false, // 他の待機を無効化
       });
 
       // WebGLコンテキストがないので3000msの待機は行われない
       const calls = mockPage.waitForTimeout.mock.calls;
-      const webglWaitCalls = calls.filter(call => call[0] === 3000);
+      const webglWaitCalls = calls.filter((call) => call[0] === 3000);
       expect(webglWaitCalls.length).toBe(0);
     });
   });
@@ -735,12 +749,12 @@ describe('PageIngestAdapter 待機戦略最適化', () => {
   // =====================================================
   // 5. エラーハンドリングテスト
   // =====================================================
-  describe('エラーハンドリング', () => {
-    it('Canvas待機タイムアウトでもエラーにならない', async () => {
-      mockPage.waitForSelector.mockRejectedValueOnce(new Error('Timeout waiting for selector'));
+  describe("エラーハンドリング", () => {
+    it("Canvas待機タイムアウトでもエラーにならない", async () => {
+      mockPage.waitForSelector.mockRejectedValueOnce(new Error("Timeout waiting for selector"));
 
       const result = await pageIngestAdapter.ingest({
-        url: 'https://no-canvas-site.com',
+        url: "https://no-canvas-site.com",
         waitForWebGL: true,
       });
 
@@ -748,14 +762,16 @@ describe('PageIngestAdapter 待機戦略最適化', () => {
       expect(result.html).toBeDefined();
     });
 
-    it('WebGLコンテキスト確認エラーでもエラーにならない', async () => {
-      mockPage.waitForSelector.mockResolvedValueOnce({ /* canvas element */ });
+    it("WebGLコンテキスト確認エラーでもエラーにならない", async () => {
+      mockPage.waitForSelector.mockResolvedValueOnce({
+        /* canvas element */
+      });
 
       mockPage.evaluate.mockImplementation((script: string) => {
-        if (typeof script === 'string' && script.includes('title')) {
-          return Promise.resolve({ title: 'Test' });
+        if (typeof script === "string" && script.includes("title")) {
+          return Promise.resolve({ title: "Test" });
         }
-        if (typeof script === 'string' && script.includes('documentWidth')) {
+        if (typeof script === "string" && script.includes("documentWidth")) {
           return Promise.resolve({
             documentWidth: 1920,
             documentHeight: 3000,
@@ -764,14 +780,14 @@ describe('PageIngestAdapter 待機戦略最適化', () => {
             scrollHeight: 3000,
           });
         }
-        if (typeof script === 'string' && script.includes('MutationObserver')) {
+        if (typeof script === "string" && script.includes("MutationObserver")) {
           return Promise.resolve({ stable: true, mutations: 0, waitTime: 100 });
         }
         // WebGLコンテキスト確認でエラー
-        if (typeof script === 'string' && script.includes('canvas.getContext')) {
-          return Promise.reject(new Error('Evaluate failed'));
+        if (typeof script === "string" && script.includes("canvas.getContext")) {
+          return Promise.reject(new Error("Evaluate failed"));
         }
-        if (typeof script === 'string' && script.includes('canvases')) {
+        if (typeof script === "string" && script.includes("canvases")) {
           return Promise.resolve({
             detected: false,
             canvasCount: 0,
@@ -784,7 +800,7 @@ describe('PageIngestAdapter 待機戦略最適化', () => {
       });
 
       const result = await pageIngestAdapter.ingest({
-        url: 'https://error-site.com',
+        url: "https://error-site.com",
         waitForWebGL: true,
       });
 
@@ -796,16 +812,16 @@ describe('PageIngestAdapter 待機戦略最適化', () => {
   // =====================================================
   // 6. タイムアウト設定テスト
   // =====================================================
-  describe('タイムアウト設定', () => {
-    it('Canvas待機タイムアウトは10秒', async () => {
+  describe("タイムアウト設定", () => {
+    it("Canvas待機タイムアウトは10秒", async () => {
       await pageIngestAdapter.ingest({
-        url: 'https://webgl-site.com',
+        url: "https://webgl-site.com",
         waitForWebGL: true,
       });
 
       // waitForSelectorがtimeout: 10000で呼ばれること
       expect(mockPage.waitForSelector).toHaveBeenCalledWith(
-        'canvas',
+        "canvas",
         expect.objectContaining({
           timeout: 10000,
         })

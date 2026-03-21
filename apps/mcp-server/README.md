@@ -23,15 +23,15 @@ Reftrix MCP Server provides web design layout analysis, motion detection, and qu
 
 ### 技術スタック / Tech Stack
 
-| 技術 / Technology | バージョン / Version | 用途 / Purpose |
-|------|-----------|------|
-| MCP SDK | 1.26.x | Model Context Protocol実装 |
-| Node.js | 20.x LTS | ランタイム |
-| TypeScript | 5.x | 型安全な開発 |
-| Zod | 3.24.x | 入力バリデーション |
-| BullMQ | 5.66.x | 非同期ジョブキュー（page.analyze） |
-| Redis | - | BullMQジョブキューのバックエンド（ポート: 27379） |
-| ONNX Runtime | 1.21.x | ML推論（Embedding生成、Worker Thread化） |
+| 技術 / Technology | バージョン / Version | 用途 / Purpose                                    |
+| ----------------- | -------------------- | ------------------------------------------------- |
+| MCP SDK           | 1.26.x               | Model Context Protocol実装                        |
+| Node.js           | 20.x LTS             | ランタイム                                        |
+| TypeScript        | 5.x                  | 型安全な開発                                      |
+| Zod               | 3.24.x               | 入力バリデーション                                |
+| BullMQ            | 5.66.x               | 非同期ジョブキュー（page.analyze）                |
+| Redis             | -                    | BullMQジョブキューのバックエンド（ポート: 27379） |
+| ONNX Runtime      | 1.21.x               | ML推論（Embedding生成、Worker Thread化）          |
 
 ## インストール / Installation
 
@@ -227,7 +227,7 @@ Webページからモーション/アニメーションパターンを検出・�
     totalPatterns: number;
     byType: Record<string, number>;
     avgDuration: number;
-  };
+  }
   warnings: Array<{ type: string; severity: string; message: string }>;
 }
 ```
@@ -337,7 +337,7 @@ Webデザインの品質を3軸（独自性・技巧・文脈適合性）で評�
 
 ```typescript
 {
-  job_id: string;           // ジョブID（UUID形式、必須）
+  job_id: string; // ジョブID（UUID形式、必須）
 }
 ```
 
@@ -431,7 +431,7 @@ Performs unified Layout + Motion + Quality analysis for a given URL. Uses BullMQ
 
 ```typescript
 {
-  job_id: string;           // ジョブID（UUID形式、必須）
+  job_id: string; // ジョブID（UUID形式、必須）
 }
 ```
 
@@ -637,13 +637,13 @@ OOM（メモリ不足）クラッシュを防ぐために、ワーカープロ�
 
 ### BullMQ Queue 設定 / BullMQ Queue Configuration
 
-| パラメータ / Parameter | 値 / Value | 説明 / Description |
-|-----------|-----|------|
-| Queue名 | `page-analyze` | BullMQキュー名 |
-| concurrency | 1 | シングルトンブラウザとの競合防止 |
-| lockDuration | 2,400,000ms（40分） | CPU負荷の高いEmbeddingフェーズ対応 |
-| stalledInterval | `max(60000, lockDuration/4)` | stall検出間隔 |
-| maxStalledCount | 3 | stall許容回数 |
+| パラメータ / Parameter | 値 / Value                   | 説明 / Description                 |
+| ---------------------- | ---------------------------- | ---------------------------------- |
+| Queue名                | `page-analyze`               | BullMQキュー名                     |
+| concurrency            | 1                            | シングルトンブラウザとの競合防止   |
+| lockDuration           | 2,400,000ms（40分）          | CPU負荷の高いEmbeddingフェーズ対応 |
+| stalledInterval        | `max(60000, lockDuration/4)` | stall検出間隔                      |
+| maxStalledCount        | 3                            | stall許容回数                      |
 
 ### Worker Thread ONNX
 
@@ -676,11 +676,11 @@ pnpm backfill:embeddings
 
 ワーカー起動時に前回クラッシュで孤立したジョブを自動回復します。 / Automatically recovers orphaned jobs from previous crashes at worker startup.
 
-| progress | カテゴリ / Category | アクション / Action |
-|---------|---------|-----------|
-| = 0% | never_started | failed → retry（waiting に戻す） |
-| 0〜90% | processing_interrupted | failed に遷移 |
-| >= 90% | db_saved_but_stuck | completed に遷移 |
+| progress | カテゴリ / Category    | アクション / Action              |
+| -------- | ---------------------- | -------------------------------- |
+| = 0%     | never_started          | failed → retry（waiting に戻す） |
+| 0〜90%   | processing_interrupted | failed に遷移                    |
+| >= 90%   | db_saved_but_stuck     | completed に遷移                 |
 
 ---
 
@@ -688,16 +688,16 @@ pnpm backfill:embeddings
 
 ### エラーコード一覧 / Error Code List
 
-| コード / Code | 説明 / Description |
-|--------|------|
-| `INTERNAL_ERROR` | サーバー内部エラー |
-| `VALIDATION_ERROR` | 入力バリデーションエラー |
-| `TOOL_NOT_FOUND` | 指定されたツールが存在しない |
-| `PAGE_NOT_FOUND` | 指定されたページが存在しない |
-| `TRANSFORM_FAILED` | 変換処理失敗 |
-| `INVALID_QUERY` | 無効な検索クエリ |
-| `NO_RESULTS` | 検索結果なし |
-| `RATE_LIMIT_EXCEEDED` | レート制限超過 |
+| コード / Code         | 説明 / Description           |
+| --------------------- | ---------------------------- |
+| `INTERNAL_ERROR`      | サーバー内部エラー           |
+| `VALIDATION_ERROR`    | 入力バリデーションエラー     |
+| `TOOL_NOT_FOUND`      | 指定されたツールが存在しない |
+| `PAGE_NOT_FOUND`      | 指定されたページが存在しない |
+| `TRANSFORM_FAILED`    | 変換処理失敗                 |
+| `INVALID_QUERY`       | 無効な検索クエリ             |
+| `NO_RESULTS`          | 検索結果なし                 |
+| `RATE_LIMIT_EXCEEDED` | レート制限超過               |
 
 ---
 
@@ -727,12 +727,12 @@ pnpm backfill:embeddings
 
 ### パフォーマンス目標 / Performance Targets
 
-| 指標 / Metric | 目標値 / Target |
-|------|--------|
-| ツールレスポンス（P95） | < 5秒 |
-| サーバー起動時間 | < 2秒 |
-| 検索レスポンス（キャッシュヒット） | < 100ms |
-| ベクトル検索速度 | < 500ms for 10K items |
+| 指標 / Metric                      | 目標値 / Target       |
+| ---------------------------------- | --------------------- |
+| ツールレスポンス（P95）            | < 5秒                 |
+| サーバー起動時間                   | < 2秒                 |
+| 検索レスポンス（キャッシュヒット） | < 100ms               |
+| ベクトル検索速度                   | < 500ms for 10K items |
 
 ---
 
@@ -779,7 +779,7 @@ import {
   executeLayoutGenerateCode,
   type LayoutToCodeInput,
   type LayoutToCodeOutput,
-} from '@reftrix/mcp-server';
+} from "@reftrix/mcp-server";
 ```
 
 ### 使用例 / Usage Examples
@@ -788,7 +788,7 @@ import {
 
 ```typescript
 const result = await executePageAnalyze({
-  url: 'https://example.com',
+  url: "https://example.com",
   summary: true,
   timeout: 60000,
   features: {
@@ -799,9 +799,9 @@ const result = await executePageAnalyze({
 });
 
 if (result.ok) {
-  console.log('Analysis result:', result.data);
+  console.log("Analysis result:", result.data);
 } else {
-  console.error('Analysis failed:', result.error);
+  console.error("Analysis failed:", result.error);
 }
 ```
 
@@ -809,20 +809,20 @@ if (result.ok) {
 
 ```typescript
 const result = await executeLayoutSearch({
-  query: 'modern hero section with gradient',
+  query: "modern hero section with gradient",
   filters: {
-    sectionType: 'hero',
-    sourceType: 'award_gallery',
+    sectionType: "hero",
+    sourceType: "award_gallery",
   },
   limit: 10,
   offset: 0,
 });
 
 if (result.success) {
-  console.log('Search results:', result.data.results);
-  console.log('Total:', result.data.total);
+  console.log("Search results:", result.data.results);
+  console.log("Total:", result.data.total);
 } else {
-  console.error('Search failed:', result.error);
+  console.error("Search failed:", result.error);
 }
 ```
 
@@ -830,10 +830,10 @@ if (result.success) {
 
 ```typescript
 const result = await executeMotionSearch({
-  query: 'smooth fade in animation',
+  query: "smooth fade in animation",
   filters: {
-    type: 'animation',
-    trigger: 'scroll',
+    type: "animation",
+    trigger: "scroll",
     minDuration: 200,
     maxDuration: 1000,
   },
@@ -842,9 +842,9 @@ const result = await executeMotionSearch({
 });
 
 if (result.success) {
-  console.log('Motion patterns:', result.data.results);
+  console.log("Motion patterns:", result.data.results);
 } else {
-  console.error('Search failed:', result.error);
+  console.error("Search failed:", result.error);
 }
 ```
 
@@ -852,10 +852,10 @@ if (result.success) {
 
 ```typescript
 const result = await executeQualityEvaluate({
-  html: '<div>...</div>',
+  html: "<div>...</div>",
   options: {
     strict: true,
-    targetIndustry: 'technology',
+    targetIndustry: "technology",
     includeRecommendations: true,
     weights: {
       originality: 0.4,
@@ -866,12 +866,12 @@ const result = await executeQualityEvaluate({
 });
 
 if (result.success) {
-  console.log('Overall score:', result.data.overallScore);
-  console.log('Grade:', result.data.grade);
-  console.log('Axis scores:', result.data.axisScores);
-  console.log('Cliche count:', result.data.clicheCount);
+  console.log("Overall score:", result.data.overallScore);
+  console.log("Grade:", result.data.grade);
+  console.log("Axis scores:", result.data.axisScores);
+  console.log("Cliche count:", result.data.clicheCount);
 } else {
-  console.error('Evaluation failed:', result.error);
+  console.error("Evaluation failed:", result.error);
 }
 ```
 
@@ -879,21 +879,21 @@ if (result.success) {
 
 ```typescript
 const result = await executeLayoutGenerateCode({
-  patternId: '11111111-1111-1111-1111-111111111111',
+  patternId: "11111111-1111-1111-1111-111111111111",
   options: {
-    framework: 'react',
+    framework: "react",
     typescript: true,
     tailwind: true,
-    componentName: 'HeroSection',
+    componentName: "HeroSection",
   },
 });
 
 if (result.success) {
-  console.log('Generated code:', result.data.code);
-  console.log('Framework:', result.data.framework);
-  console.log('Component name:', result.data.componentName);
+  console.log("Generated code:", result.data.code);
+  console.log("Framework:", result.data.framework);
+  console.log("Component name:", result.data.componentName);
 } else {
-  console.error('Generation failed:', result.error);
+  console.error("Generation failed:", result.error);
 }
 ```
 
@@ -1004,51 +1004,51 @@ apps/mcp-server/
 
 ### 基本設定 / Basic Settings
 
-| 変数名 / Variable | 説明 / Description | デフォルト値 / Default | 必須 / Required |
-|--------|------|-------------|------|
-| `NODE_ENV` | 環境（development/test/production） | - | Yes |
-| `DATABASE_URL` | PostgreSQL接続URL（ポート: 26432） | - | Yes |
-| `MCP_AUTH_ENABLED` | API認証有効化（本番ではtrueを強く推奨） | `false` | No |
-| `MCP_API_KEYS` | APIキー（`MCP_AUTH_ENABLED=true`時に必須、JSON配列形式）。例: `'[{"key":"reftrix_...","role":"ADMIN","userId":"user-1"}]'`。各キーに `role`（ADMIN/USER/VIEWER）、`userId`、オプションで `expiresAt`（ISO 8601）を指定。レガシー互換: `MCP_API_KEY`（単一キー文字列、環境変数フォールバック）も使用可 / API keys (required when `MCP_AUTH_ENABLED=true`, JSON array format). Example: `'[{"key":"reftrix_...","role":"ADMIN","userId":"user-1"}]'`. Each key specifies `role` (ADMIN/USER/VIEWER), `userId`, and optional `expiresAt` (ISO 8601). Legacy compat: `MCP_API_KEY` (single key string, env var fallback) also supported | - | Conditional |
-| `REDIS_URL` | Redis接続URL | - | Conditional |
-| `REDIS_HOST` | Redisホスト | `localhost` | No |
-| `REDIS_PORT` | Redisポート（ポートオフセット: 21000） | `27379` | No |
+| 変数名 / Variable  | 説明 / Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  | デフォルト値 / Default | 必須 / Required |
+| ------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------- | --------------- |
+| `NODE_ENV`         | 環境（development/test/production）                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 | -                      | Yes             |
+| `DATABASE_URL`     | PostgreSQL接続URL（ポート: 26432）                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  | -                      | Yes             |
+| `MCP_AUTH_ENABLED` | API認証有効化（本番ではtrueを強く推奨）                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             | `false`                | No              |
+| `MCP_API_KEYS`     | APIキー（`MCP_AUTH_ENABLED=true`時に必須、JSON配列形式）。例: `'[{"key":"reftrix_...","role":"ADMIN","userId":"user-1"}]'`。各キーに `role`（ADMIN/USER/VIEWER）、`userId`、オプションで `expiresAt`（ISO 8601）を指定。レガシー互換: `MCP_API_KEY`（単一キー文字列、環境変数フォールバック）も使用可 / API keys (required when `MCP_AUTH_ENABLED=true`, JSON array format). Example: `'[{"key":"reftrix_...","role":"ADMIN","userId":"user-1"}]'`. Each key specifies `role` (ADMIN/USER/VIEWER), `userId`, and optional `expiresAt` (ISO 8601). Legacy compat: `MCP_API_KEY` (single key string, env var fallback) also supported | -                      | Conditional     |
+| `REDIS_URL`        | Redis接続URL                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        | -                      | Conditional     |
+| `REDIS_HOST`       | Redisホスト                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         | `localhost`            | No              |
+| `REDIS_PORT`       | Redisポート（ポートオフセット: 21000）                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              | `27379`                | No              |
 
 ### WorkerSupervisor設定 / WorkerSupervisor Settings
 
-| 変数名 / Variable | 説明 / Description | デフォルト値 / Default |
-|--------|------|-------------|
-| `WORKER_MAX_JOBS_BEFORE_RESTART` | N件完了後にワーカーを再起動（OOM防止） | `1` |
-| `WORKER_RESTART_DELAY_MS` | 再起動間の最小間隔（ms） | `3000` |
-| `WORKER_MAX_RESTART_ATTEMPTS` | クラッシュ時の最大再起動試行回数 | `10` |
-| `WORKER_SHUTDOWN_TIMEOUT_MS` | graceful shutdownタイムアウト（ms） | `10000` |
-| `WORKER_SCRIPT_PATH` | ワーカースクリプトの絶対パス（未設定時は自動解決） | - |
+| 変数名 / Variable                | 説明 / Description                                 | デフォルト値 / Default |
+| -------------------------------- | -------------------------------------------------- | ---------------------- |
+| `WORKER_MAX_JOBS_BEFORE_RESTART` | N件完了後にワーカーを再起動（OOM防止）             | `1`                    |
+| `WORKER_RESTART_DELAY_MS`        | 再起動間の最小間隔（ms）                           | `3000`                 |
+| `WORKER_MAX_RESTART_ATTEMPTS`    | クラッシュ時の最大再起動試行回数                   | `10`                   |
+| `WORKER_SHUTDOWN_TIMEOUT_MS`     | graceful shutdownタイムアウト（ms）                | `10000`                |
+| `WORKER_SCRIPT_PATH`             | ワーカースクリプトの絶対パス（未設定時は自動解決） | -                      |
 
 ### BullMQ / ワーカー設定 / BullMQ / Worker Settings
 
-| 変数名 / Variable | 説明 / Description | デフォルト値 / Default |
-|--------|------|-------------|
-| `BULLMQ_LOCK_DURATION` | ジョブロック時間（ms、最小60秒） | `2400000`（40分） |
-| `BULLMQ_LOCK_EXTEND_INTERVAL_MS` | ロック延長間隔（ms、最小10秒） | `300000`（5分） |
-| `PAGE_WORKER_CONCURRENCY` | PageAnalyzeWorkerの並列数 | `1` |
-| `WORKER_CONCURRENCY` | BatchQualityWorkerの並列数 | `3` |
+| 変数名 / Variable                | 説明 / Description               | デフォルト値 / Default |
+| -------------------------------- | -------------------------------- | ---------------------- |
+| `BULLMQ_LOCK_DURATION`           | ジョブロック時間（ms、最小60秒） | `2400000`（40分）      |
+| `BULLMQ_LOCK_EXTEND_INTERVAL_MS` | ロック延長間隔（ms、最小10秒）   | `300000`（5分）        |
+| `PAGE_WORKER_CONCURRENCY`        | PageAnalyzeWorkerの並列数        | `1`                    |
+| `WORKER_CONCURRENCY`             | BatchQualityWorkerの並列数       | `3`                    |
 
 ### ML / GPU設定 / ML / GPU Settings
 
-| 変数名 / Variable | 説明 / Description | デフォルト値 / Default |
-|--------|------|-------------|
-| `ONNX_EXECUTION_PROVIDER` | ONNX実行プロバイダ（`cuda`/`rocm`/未設定でCPU） | - |
-| `EMBEDDING_WORKER_THREAD` | Worker Thread ONNX推論を有効化 | `true` |
-| `LD_LIBRARY_PATH` | CUDA 12ライブラリパス（自動検出される） | - |
+| 変数名 / Variable         | 説明 / Description                              | デフォルト値 / Default |
+| ------------------------- | ----------------------------------------------- | ---------------------- |
+| `ONNX_EXECUTION_PROVIDER` | ONNX実行プロバイダ（`cuda`/`rocm`/未設定でCPU） | -                      |
+| `EMBEDDING_WORKER_THREAD` | Worker Thread ONNX推論を有効化                  | `true`                 |
+| `LD_LIBRARY_PATH`         | CUDA 12ライブラリパス（自動検出される）         | -                      |
 
 ### メモリ管理設定 / Memory Management Settings
 
-| 変数名 / Variable | 説明 / Description | デフォルト値 / Default |
-|--------|------|-------------|
-| `WORKER_MEMORY_CRITICAL_MB` | クリティカルRSS閾値（MB）、超過でDB保存フェーズにスキップ | `14336`（14GB） |
-| `WORKER_MEMORY_DEGRADATION_MB` | デグレードRSS閾値（MB）、超過でnarrative/vision無効化 | `12288`（12GB） |
-| `WORKER_HTML_LARGE_BYTES` | Vision LLM無効化HTMLサイズ閾値（バイト） | `5000000`（5MB） |
-| `WORKER_HTML_HUGE_BYTES` | narrative+vision無効化HTMLサイズ閾値（バイト） | `10000000`（10MB） |
+| 変数名 / Variable              | 説明 / Description                                        | デフォルト値 / Default |
+| ------------------------------ | --------------------------------------------------------- | ---------------------- |
+| `WORKER_MEMORY_CRITICAL_MB`    | クリティカルRSS閾値（MB）、超過でDB保存フェーズにスキップ | `14336`（14GB）        |
+| `WORKER_MEMORY_DEGRADATION_MB` | デグレードRSS閾値（MB）、超過でnarrative/vision無効化     | `12288`（12GB）        |
+| `WORKER_HTML_LARGE_BYTES`      | Vision LLM無効化HTMLサイズ閾値（バイト）                  | `5000000`（5MB）       |
+| `WORKER_HTML_HUGE_BYTES`       | narrative+vision無効化HTMLサイズ閾値（バイト）            | `10000000`（10MB）     |
 
 ### セキュリティに関する重要な注意事項 / Important Security Notes
 

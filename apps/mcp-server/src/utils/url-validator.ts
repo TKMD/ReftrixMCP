@@ -12,8 +12,7 @@
  * @see SEC監査指摘対応
  */
 
-import { z } from 'zod';
-import { logger, isDevelopment } from './logger';
+import { logger, isDevelopment } from "./logger";
 
 // =============================================
 // 型定義
@@ -41,22 +40,22 @@ export interface UrlValidationResult {
  */
 export const BLOCKED_HOSTS: readonly string[] = [
   // ローカルホスト
-  'localhost',
-  '127.0.0.1',
-  '0.0.0.0',
+  "localhost",
+  "127.0.0.1",
+  "0.0.0.0",
   // IPv6 localhost
-  '::1',
-  '[::1]',
+  "::1",
+  "[::1]",
   // AWS EC2 メタデータサービス
-  '169.254.169.254',
+  "169.254.169.254",
   // GCP メタデータサービス
-  'metadata.google.internal',
+  "metadata.google.internal",
   // Azure メタデータサービス
-  '169.254.169.254',
+  "169.254.169.254",
   // Link-local addresses
-  '169.254.0.0',
+  "169.254.0.0",
   // Kubernetes
-  'kubernetes.default.svc',
+  "kubernetes.default.svc",
 ] as const;
 
 /**
@@ -108,7 +107,7 @@ export const BLOCKED_IPV6_PATTERNS = {
 /**
  * 許可されるプロトコル
  */
-const ALLOWED_PROTOCOLS = ['http:', 'https:'] as const;
+const ALLOWED_PROTOCOLS = ["http:", "https:"] as const;
 
 // =============================================
 // ヘルパー関数
@@ -139,17 +138,16 @@ function isIPv4Address(host: string): boolean {
  */
 function isIPv6Address(host: string): boolean {
   // 角括弧を除去
-  const cleaned = host.replace(/^\[|\]$/g, '');
+  const cleaned = host.replace(/^\[|\]$/g, "");
 
   // IPv6形式の判定
   // - コロンを含む必要がある
-  if (!cleaned.includes(':')) return false;
+  if (!cleaned.includes(":")) return false;
 
   // IPv4マップドIPv6 (::ffff:x.x.x.x) または IPv4互換IPv6 (::x.x.x.x)
-  if (cleaned.includes('.')) {
+  if (cleaned.includes(".")) {
     // ::ffff:192.168.1.1 形式
-    const ipv4MappedRegex =
-      /^(::ffff:|::)(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/i;
+    const ipv4MappedRegex = /^(::ffff:|::)(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/i;
     if (ipv4MappedRegex.test(cleaned)) {
       return true;
     }
@@ -163,10 +161,10 @@ function isIPv6Address(host: string): boolean {
 
   // 基本的な構造チェック
   // セグメントは最大8つ（::を使用する場合は少なくなる）
-  const segments = cleaned.split(':');
+  const segments = cleaned.split(":");
 
   // :: が含まれているか
-  const hasDoubleColon = cleaned.includes('::');
+  const hasDoubleColon = cleaned.includes("::");
 
   // :: は1回のみ許可
   const doubleColonCount = (cleaned.match(/::/g) || []).length;
@@ -175,7 +173,7 @@ function isIPv6Address(host: string): boolean {
   // セグメント数のチェック
   if (hasDoubleColon) {
     // :: を使用する場合、残りのセグメントは8未満
-    const nonEmptySegments = segments.filter((s) => s !== '').length;
+    const nonEmptySegments = segments.filter((s) => s !== "").length;
     if (nonEmptySegments > 7) return false;
   } else {
     // :: を使用しない場合、セグメントは正確に8つ
@@ -185,10 +183,10 @@ function isIPv6Address(host: string): boolean {
   // 各セグメントが有効な16進数（0-4桁）か、空文字（::の一部）かチェック
   for (const segment of segments) {
     // 空のセグメントは :: の一部として許容
-    if (segment === '') continue;
+    if (segment === "") continue;
 
     // IPv4部分のチェック（最後のセグメントの場合）
-    if (segment.includes('.')) {
+    if (segment.includes(".")) {
       const ipv4Regex = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/;
       if (!ipv4Regex.test(segment)) return false;
       continue;
@@ -207,24 +205,27 @@ function isIPv6Address(host: string): boolean {
  */
 function expandIPv6(ipv6: string): string {
   // IPv4マップド/互換形式は特別処理
-  if (ipv6.includes('.')) {
+  if (ipv6.includes(".")) {
     return ipv6; // そのまま返す
   }
 
-  let parts = ipv6.split(':');
+  let parts = ipv6.split(":");
 
   // :: の展開
-  const doubleColonIndex = ipv6.indexOf('::');
+  const doubleColonIndex = ipv6.indexOf("::");
   if (doubleColonIndex !== -1) {
-    const before = ipv6.slice(0, doubleColonIndex).split(':').filter(Boolean);
-    const after = ipv6.slice(doubleColonIndex + 2).split(':').filter(Boolean);
+    const before = ipv6.slice(0, doubleColonIndex).split(":").filter(Boolean);
+    const after = ipv6
+      .slice(doubleColonIndex + 2)
+      .split(":")
+      .filter(Boolean);
     const zerosNeeded = 8 - before.length - after.length;
-    const zeros = Array(Math.max(0, zerosNeeded)).fill('0000');
+    const zeros = Array(Math.max(0, zerosNeeded)).fill("0000");
     parts = [...before, ...zeros, ...after];
   }
 
   // 各パートを4桁にパディング
-  return parts.map((p) => p.padStart(4, '0')).join(':');
+  return parts.map((p) => p.padStart(4, "0")).join(":");
 }
 
 /**
@@ -234,7 +235,7 @@ function expandIPv6(ipv6: string): string {
  * @returns ブロックされている場合 true
  */
 export function isBlockedIPv6Range(ipv6: string): boolean {
-  const cleaned = ipv6.toLowerCase().replace(/^\[|\]$/g, '');
+  const cleaned = ipv6.toLowerCase().replace(/^\[|\]$/g, "");
 
   // IPv6形式でない場合はfalse
   if (!isIPv6Address(cleaned)) {
@@ -252,9 +253,7 @@ export function isBlockedIPv6Range(ipv6: string): boolean {
   }
 
   // IPv4マップドIPv6 (::ffff:x.x.x.x) のチェック
-  const ipv4MappedMatch = cleaned.match(
-    /^::ffff:(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})$/i
-  );
+  const ipv4MappedMatch = cleaned.match(/^::ffff:(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})$/i);
   if (ipv4MappedMatch && ipv4MappedMatch[1]) {
     // 埋め込まれたIPv4がブロック対象かチェック
     if (isBlockedHost(ipv4MappedMatch[1]) || isBlockedIPv4Range(ipv4MappedMatch[1])) {
@@ -263,9 +262,7 @@ export function isBlockedIPv6Range(ipv6: string): boolean {
   }
 
   // IPv4互換IPv6 (::x.x.x.x) のチェック
-  const ipv4CompatMatch = cleaned.match(
-    /^::(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})$/
-  );
+  const ipv4CompatMatch = cleaned.match(/^::(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})$/);
   if (ipv4CompatMatch && ipv4CompatMatch[1]) {
     if (isBlockedHost(ipv4CompatMatch[1]) || isBlockedIPv4Range(ipv4CompatMatch[1])) {
       return true;
@@ -273,9 +270,7 @@ export function isBlockedIPv6Range(ipv6: string): boolean {
   }
 
   // 16進数形式のIPv4マップドIPv6 (::ffff:7f00:1) のチェック
-  const hexMappedMatch = cleaned.match(
-    /^::ffff:([0-9a-f]{1,4}):([0-9a-f]{1,4})$/i
-  );
+  const hexMappedMatch = cleaned.match(/^::ffff:([0-9a-f]{1,4}):([0-9a-f]{1,4})$/i);
   if (hexMappedMatch && hexMappedMatch[1] && hexMappedMatch[2]) {
     const high = parseInt(hexMappedMatch[1], 16);
     const low = parseInt(hexMappedMatch[2], 16);
@@ -287,9 +282,7 @@ export function isBlockedIPv6Range(ipv6: string): boolean {
 
   // IPv4互換IPv6の16進数形式 (::c0a8:101 = ::192.168.1.1) のチェック
   // URL APIがIPv4互換IPv6を16進数形式に変換する場合に対応
-  const hexCompatMatch = cleaned.match(
-    /^::([0-9a-f]{1,4}):([0-9a-f]{1,4})$/i
-  );
+  const hexCompatMatch = cleaned.match(/^::([0-9a-f]{1,4}):([0-9a-f]{1,4})$/i);
   if (hexCompatMatch && hexCompatMatch[1] && hexCompatMatch[2]) {
     const high = parseInt(hexCompatMatch[1], 16);
     const low = parseInt(hexCompatMatch[2], 16);
@@ -331,7 +324,7 @@ function isBlockedIPv4Range(ip: string): boolean {
  * @returns ブロックされている場合 true
  */
 export function isBlockedHost(host: string): boolean {
-  const normalizedHost = host.toLowerCase().replace(/^\[|\]$/g, '');
+  const normalizedHost = host.toLowerCase().replace(/^\[|\]$/g, "");
 
   // 直接一致チェック
   if (BLOCKED_HOSTS.includes(normalizedHost)) {
@@ -339,7 +332,7 @@ export function isBlockedHost(host: string): boolean {
   }
 
   // メタデータサービスの部分一致チェック
-  if (normalizedHost.includes('metadata.google.internal')) {
+  if (normalizedHost.includes("metadata.google.internal")) {
     return true;
   }
 
@@ -385,20 +378,20 @@ export function normalizeUrlForValidation(url: string): string {
 
     // 2. デフォルトポートを除去 (443 for https, 80 for http)
     if (
-      (urlObj.protocol === 'https:' && urlObj.port === '443') ||
-      (urlObj.protocol === 'http:' && urlObj.port === '80')
+      (urlObj.protocol === "https:" && urlObj.port === "443") ||
+      (urlObj.protocol === "http:" && urlObj.port === "80")
     ) {
-      urlObj.port = '';
+      urlObj.port = "";
     }
 
     // 3. フラグメント（#hash）を除去
-    urlObj.hash = '';
+    urlObj.hash = "";
 
     // 4. パス正規化: 連続スラッシュを単一スラッシュに
-    urlObj.pathname = urlObj.pathname.replace(/\/+/g, '/');
+    urlObj.pathname = urlObj.pathname.replace(/\/+/g, "/");
 
     // 5. クエリパラメータをアルファベット順にソート
-    let sortedQuery = '';
+    let sortedQuery = "";
     if (urlObj.search) {
       const params = urlObj.searchParams;
       const entries = Array.from(params.entries());
@@ -419,12 +412,12 @@ export function normalizeUrlForValidation(url: string): string {
 
     // 6. パスを正規化（ルートパス "/" のみの場合は空に）
     let normalizedPath = urlObj.pathname;
-    if (normalizedPath === '/') {
-      normalizedPath = '';
+    if (normalizedPath === "/") {
+      normalizedPath = "";
     }
     // 末尾スラッシュを除去（パスがある場合のみ）
     if (normalizedPath.length > 1) {
-      normalizedPath = normalizedPath.replace(/\/+$/, '');
+      normalizedPath = normalizedPath.replace(/\/+$/, "");
     }
 
     // 7. 結果を手動で構築（URL objectのhrefを使わない）
@@ -477,20 +470,20 @@ export function normalizeUrlForValidation(url: string): string {
  */
 export function validateExternalUrl(url: string): UrlValidationResult {
   // 空チェック
-  if (!url || url.trim() === '') {
+  if (!url || url.trim() === "") {
     return {
       valid: false,
-      error: 'URL is empty: URL cannot be empty or whitespace only',
+      error: "URL is empty: URL cannot be empty or whitespace only",
     };
   }
 
   const trimmedUrl = url.trim();
 
   // プロトコルチェック（プロトコルなしの場合）
-  if (!trimmedUrl.includes('://')) {
+  if (!trimmedUrl.includes("://")) {
     return {
       valid: false,
-      error: 'Invalid protocol: URL must start with http:// or https://',
+      error: "Invalid protocol: URL must start with http:// or https://",
     };
   }
 
@@ -500,16 +493,16 @@ export function validateExternalUrl(url: string): UrlValidationResult {
     urlObj = new URL(trimmedUrl);
   } catch {
     if (isDevelopment()) {
-      logger.debug('[url-validator] Failed to parse URL', { url: trimmedUrl });
+      logger.debug("[url-validator] Failed to parse URL", { url: trimmedUrl });
     }
     return {
       valid: false,
-      error: 'Invalid URL format: unable to parse URL',
+      error: "Invalid URL format: unable to parse URL",
     };
   }
 
   // プロトコル検証
-  if (!ALLOWED_PROTOCOLS.includes(urlObj.protocol as 'http:' | 'https:')) {
+  if (!ALLOWED_PROTOCOLS.includes(urlObj.protocol as "http:" | "https:")) {
     return {
       valid: false,
       error: `Invalid protocol: only http and https are allowed, got ${urlObj.protocol}`,
@@ -520,10 +513,10 @@ export function validateExternalUrl(url: string): UrlValidationResult {
   const hostname = urlObj.hostname.toLowerCase();
 
   // 空のホスト名チェック
-  if (!hostname || hostname === '' || hostname === '.' || hostname === '..') {
+  if (!hostname || hostname === "" || hostname === "." || hostname === "..") {
     return {
       valid: false,
-      error: 'Invalid URL format: hostname is empty or invalid',
+      error: "Invalid URL format: hostname is empty or invalid",
     };
   }
 
@@ -531,14 +524,14 @@ export function validateExternalUrl(url: string): UrlValidationResult {
   if (/^\.+$/.test(hostname)) {
     return {
       valid: false,
-      error: 'Invalid URL format: hostname contains only dots',
+      error: "Invalid URL format: hostname contains only dots",
     };
   }
 
   // ブロックホストチェック
   if (isBlockedHost(hostname)) {
     if (isDevelopment()) {
-      logger.warn('[url-validator] Blocked host detected', { hostname });
+      logger.warn("[url-validator] Blocked host detected", { hostname });
     }
     return {
       valid: false,
@@ -550,7 +543,7 @@ export function validateExternalUrl(url: string): UrlValidationResult {
   if (isIPv4Address(hostname)) {
     if (isBlockedIpRange(hostname)) {
       if (isDevelopment()) {
-        logger.warn('[url-validator] Blocked IP range detected', { hostname });
+        logger.warn("[url-validator] Blocked IP range detected", { hostname });
       }
       return {
         valid: false,
@@ -565,7 +558,7 @@ export function validateExternalUrl(url: string): UrlValidationResult {
   if (isIPv6Address(hostname)) {
     if (isBlockedIPv6Range(hostname)) {
       if (isDevelopment()) {
-        logger.warn('[url-validator] Blocked IPv6 range detected', { hostname });
+        logger.warn("[url-validator] Blocked IPv6 range detected", { hostname });
       }
       return {
         valid: false,
@@ -577,15 +570,15 @@ export function validateExternalUrl(url: string): UrlValidationResult {
   // URLエンコードされた危険なパターンのチェック
   const decodedUrl = decodeURIComponent(trimmedUrl).toLowerCase();
   if (
-    decodedUrl.includes('localhost') ||
-    decodedUrl.includes('127.0.0.1') ||
-    decodedUrl.includes('169.254.169.254')
+    decodedUrl.includes("localhost") ||
+    decodedUrl.includes("127.0.0.1") ||
+    decodedUrl.includes("169.254.169.254")
   ) {
     // 実際のホスト名とデコード後で異なる場合は疑わしい
-    if (!hostname.includes('localhost') && !hostname.includes('127.0.0.1')) {
+    if (!hostname.includes("localhost") && !hostname.includes("127.0.0.1")) {
       return {
         valid: false,
-        error: 'URL is blocked: suspicious URL encoding detected',
+        error: "URL is blocked: suspicious URL encoding detected",
       };
     }
   }
@@ -594,7 +587,7 @@ export function validateExternalUrl(url: string): UrlValidationResult {
   const normalizedUrl = normalizeUrlForValidation(trimmedUrl);
 
   if (isDevelopment()) {
-    logger.debug('[url-validator] URL validated successfully', {
+    logger.debug("[url-validator] URL validated successfully", {
       original: trimmedUrl,
       normalized: normalizedUrl,
     });
@@ -610,27 +603,12 @@ export function validateExternalUrl(url: string): UrlValidationResult {
 // Zodスキーマ（オプション）
 // =============================================
 
-/**
- * 安全なURL検証用Zodスキーマ
- * バリデーション時にSSRFチェックを行う
- */
-export const safeUrlSchema = z.string().refine(
-  (url) => {
-    const result = validateExternalUrl(url);
-    return result.valid;
-  },
-  (url) => {
-    const result = validateExternalUrl(url);
-    return { message: result.error ?? 'Invalid URL' };
-  }
-);
-
 // =============================================
 // 開発環境ログ
 // =============================================
 
 if (isDevelopment()) {
-  logger.debug('[url-validator] Module loaded', {
+  logger.debug("[url-validator] Module loaded", {
     blockedHostsCount: BLOCKED_HOSTS.length,
     blockedIpRangesCount: BLOCKED_IP_RANGES.length,
   });

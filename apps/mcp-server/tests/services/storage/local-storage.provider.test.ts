@@ -17,21 +17,24 @@
  * - ディレクトリ自動作成
  */
 
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import * as fs from 'fs/promises';
-import * as path from 'path';
-import * as os from 'os';
+import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import * as fs from "fs/promises";
+import * as path from "path";
+import * as os from "os";
 
 // テスト対象
-import { LocalStorageProvider, StorageError } from '@/services/storage/local-storage.provider';
+import { LocalStorageProvider, StorageError } from "@/services/storage/local-storage.provider";
 
-describe('LocalStorageProvider', () => {
+describe("LocalStorageProvider", () => {
   let provider: LocalStorageProvider;
   let testDir: string;
 
   beforeEach(async () => {
     // テスト用の一時ディレクトリを作成
-    testDir = path.join(os.tmpdir(), `reftrix-test-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`);
+    testDir = path.join(
+      os.tmpdir(),
+      `reftrix-test-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`
+    );
     await fs.mkdir(testDir, { recursive: true });
     provider = new LocalStorageProvider(testDir);
   });
@@ -45,24 +48,24 @@ describe('LocalStorageProvider', () => {
     }
   });
 
-  describe('constructor', () => {
-    it('ベースディレクトリを設定できること', () => {
-      const provider = new LocalStorageProvider('/tmp/test-storage');
+  describe("constructor", () => {
+    it("ベースディレクトリを設定できること", () => {
+      const provider = new LocalStorageProvider("/tmp/test-storage");
       expect(provider).toBeInstanceOf(LocalStorageProvider);
     });
 
-    it('環境変数からデフォルトパスを使用できること', async () => {
+    it("環境変数からデフォルトパスを使用できること", async () => {
       // 環境変数が設定されていない場合、デフォルトパスを使用
       const defaultProvider = LocalStorageProvider.createDefault();
       expect(defaultProvider).toBeInstanceOf(LocalStorageProvider);
     });
   });
 
-  describe('upload', () => {
-    it('ファイルを保存できること', async () => {
+  describe("upload", () => {
+    it("ファイルを保存できること", async () => {
       // Arrange
-      const key = 'test-file.txt';
-      const data = Buffer.from('Hello, World!');
+      const key = "test-file.txt";
+      const data = Buffer.from("Hello, World!");
 
       // Act
       const result = await provider.upload(key, data);
@@ -74,13 +77,13 @@ describe('LocalStorageProvider', () => {
       // ファイルが実際に存在することを確認
       const filePath = path.join(testDir, key);
       const fileContent = await fs.readFile(filePath);
-      expect(fileContent.toString()).toBe('Hello, World!');
+      expect(fileContent.toString()).toBe("Hello, World!");
     });
 
-    it('サブディレクトリを自動作成すること', async () => {
+    it("サブディレクトリを自動作成すること", async () => {
       // Arrange
-      const key = 'subdir/nested/file.txt';
-      const data = Buffer.from('Nested content');
+      const key = "subdir/nested/file.txt";
+      const data = Buffer.from("Nested content");
 
       // Act
       await provider.upload(key, data);
@@ -88,12 +91,12 @@ describe('LocalStorageProvider', () => {
       // Assert
       const filePath = path.join(testDir, key);
       const fileContent = await fs.readFile(filePath);
-      expect(fileContent.toString()).toBe('Nested content');
+      expect(fileContent.toString()).toBe("Nested content");
     });
 
-    it('バイナリデータを保存できること', async () => {
+    it("バイナリデータを保存できること", async () => {
       // Arrange
-      const key = 'binary-file.bin';
+      const key = "binary-file.bin";
       const data = Buffer.from([0x00, 0x01, 0x02, 0xff, 0xfe, 0xfd]);
 
       // Act
@@ -105,10 +108,10 @@ describe('LocalStorageProvider', () => {
       expect(fileContent).toEqual(data);
     });
 
-    it('大きなファイルを保存できること', async () => {
+    it("大きなファイルを保存できること", async () => {
       // Arrange
-      const key = 'large-file.bin';
-      const data = Buffer.alloc(1024 * 1024, 'x'); // 1MB
+      const key = "large-file.bin";
+      const data = Buffer.alloc(1024 * 1024, "x"); // 1MB
 
       // Act
       await provider.upload(key, data);
@@ -120,31 +123,31 @@ describe('LocalStorageProvider', () => {
     });
   });
 
-  describe('download', () => {
-    it('保存したファイルを読み込めること', async () => {
+  describe("download", () => {
+    it("保存したファイルを読み込めること", async () => {
       // Arrange
-      const key = 'download-test.txt';
-      const originalData = Buffer.from('Test content for download');
+      const key = "download-test.txt";
+      const originalData = Buffer.from("Test content for download");
       await provider.upload(key, originalData);
 
       // Act
       const result = await provider.download(key);
 
       // Assert
-      expect(result.toString()).toBe('Test content for download');
+      expect(result.toString()).toBe("Test content for download");
     });
 
-    it('存在しないファイルでエラーをスローすること', async () => {
+    it("存在しないファイルでエラーをスローすること", async () => {
       // Arrange
-      const key = 'non-existent.txt';
+      const key = "non-existent.txt";
 
       // Act & Assert
       await expect(provider.download(key)).rejects.toThrow();
     });
 
-    it('バイナリデータを正確に読み込めること', async () => {
+    it("バイナリデータを正確に読み込めること", async () => {
       // Arrange
-      const key = 'binary-download.bin';
+      const key = "binary-download.bin";
       const originalData = Buffer.from([0x00, 0x01, 0x02, 0xff, 0xfe, 0xfd]);
       await provider.upload(key, originalData);
 
@@ -156,11 +159,11 @@ describe('LocalStorageProvider', () => {
     });
   });
 
-  describe('delete', () => {
-    it('ファイルを削除できること', async () => {
+  describe("delete", () => {
+    it("ファイルを削除できること", async () => {
       // Arrange
-      const key = 'delete-test.txt';
-      await provider.upload(key, Buffer.from('To be deleted'));
+      const key = "delete-test.txt";
+      await provider.upload(key, Buffer.from("To be deleted"));
 
       // Act
       await provider.delete(key);
@@ -170,20 +173,20 @@ describe('LocalStorageProvider', () => {
       await expect(fs.access(filePath)).rejects.toThrow();
     });
 
-    it('存在しないファイルの削除でエラーをスローすること', async () => {
+    it("存在しないファイルの削除でエラーをスローすること", async () => {
       // Arrange
-      const key = 'non-existent-delete.txt';
+      const key = "non-existent-delete.txt";
 
       // Act & Assert
       await expect(provider.delete(key)).rejects.toThrow();
     });
   });
 
-  describe('exists', () => {
-    it('存在するファイルでtrueを返すこと', async () => {
+  describe("exists", () => {
+    it("存在するファイルでtrueを返すこと", async () => {
       // Arrange
-      const key = 'exists-test.txt';
-      await provider.upload(key, Buffer.from('Exists'));
+      const key = "exists-test.txt";
+      await provider.upload(key, Buffer.from("Exists"));
 
       // Act
       const result = await provider.exists(key);
@@ -192,9 +195,9 @@ describe('LocalStorageProvider', () => {
       expect(result).toBe(true);
     });
 
-    it('存在しないファイルでfalseを返すこと', async () => {
+    it("存在しないファイルでfalseを返すこと", async () => {
       // Arrange
-      const key = 'not-exists.txt';
+      const key = "not-exists.txt";
 
       // Act
       const result = await provider.exists(key);
@@ -203,53 +206,53 @@ describe('LocalStorageProvider', () => {
       expect(result).toBe(false);
     });
 
-    it('ディレクトリに対してfalseを返すこと', async () => {
+    it("ディレクトリに対してfalseを返すこと", async () => {
       // Arrange
-      const dirPath = path.join(testDir, 'test-dir');
+      const dirPath = path.join(testDir, "test-dir");
       await fs.mkdir(dirPath, { recursive: true });
 
       // Act
-      const result = await provider.exists('test-dir');
+      const result = await provider.exists("test-dir");
 
       // Assert
       expect(result).toBe(false);
     });
   });
 
-  describe('list', () => {
-    it('ファイル一覧を取得できること', async () => {
+  describe("list", () => {
+    it("ファイル一覧を取得できること", async () => {
       // Arrange
-      await provider.upload('file1.txt', Buffer.from('1'));
-      await provider.upload('file2.txt', Buffer.from('2'));
-      await provider.upload('file3.txt', Buffer.from('3'));
+      await provider.upload("file1.txt", Buffer.from("1"));
+      await provider.upload("file2.txt", Buffer.from("2"));
+      await provider.upload("file3.txt", Buffer.from("3"));
 
       // Act
       const result = await provider.list();
 
       // Assert
       expect(result).toHaveLength(3);
-      expect(result).toContain('file1.txt');
-      expect(result).toContain('file2.txt');
-      expect(result).toContain('file3.txt');
+      expect(result).toContain("file1.txt");
+      expect(result).toContain("file2.txt");
+      expect(result).toContain("file3.txt");
     });
 
-    it('プレフィックスでフィルタできること', async () => {
+    it("プレフィックスでフィルタできること", async () => {
       // Arrange
-      await provider.upload('backup/file1.txt', Buffer.from('1'));
-      await provider.upload('backup/file2.txt', Buffer.from('2'));
-      await provider.upload('other/file3.txt', Buffer.from('3'));
+      await provider.upload("backup/file1.txt", Buffer.from("1"));
+      await provider.upload("backup/file2.txt", Buffer.from("2"));
+      await provider.upload("other/file3.txt", Buffer.from("3"));
 
       // Act
-      const result = await provider.list('backup');
+      const result = await provider.list("backup");
 
       // Assert
       expect(result).toHaveLength(2);
-      expect(result).toContain('backup/file1.txt');
-      expect(result).toContain('backup/file2.txt');
-      expect(result).not.toContain('other/file3.txt');
+      expect(result).toContain("backup/file1.txt");
+      expect(result).toContain("backup/file2.txt");
+      expect(result).not.toContain("other/file3.txt");
     });
 
-    it('空のディレクトリで空配列を返すこと', async () => {
+    it("空のディレクトリで空配列を返すこと", async () => {
       // Act
       const result = await provider.list();
 
@@ -257,152 +260,152 @@ describe('LocalStorageProvider', () => {
       expect(result).toEqual([]);
     });
 
-    it('存在しないプレフィックスで空配列を返すこと', async () => {
+    it("存在しないプレフィックスで空配列を返すこと", async () => {
       // Arrange
-      await provider.upload('file1.txt', Buffer.from('1'));
+      await provider.upload("file1.txt", Buffer.from("1"));
 
       // Act
-      const result = await provider.list('nonexistent');
+      const result = await provider.list("nonexistent");
 
       // Assert
       expect(result).toEqual([]);
     });
 
-    it('ネストしたファイルも一覧に含むこと', async () => {
+    it("ネストしたファイルも一覧に含むこと", async () => {
       // Arrange
-      await provider.upload('level1/level2/file.txt', Buffer.from('nested'));
+      await provider.upload("level1/level2/file.txt", Buffer.from("nested"));
 
       // Act
-      const result = await provider.list('level1');
+      const result = await provider.list("level1");
 
       // Assert
-      expect(result).toContain('level1/level2/file.txt');
+      expect(result).toContain("level1/level2/file.txt");
     });
   });
 
-  describe('セキュリティ: パストラバーサル防止', () => {
-    it('../を含むキーを拒否すること', async () => {
+  describe("セキュリティ: パストラバーサル防止", () => {
+    it("../を含むキーを拒否すること", async () => {
       // Arrange
-      const maliciousKey = '../etc/passwd';
-      const data = Buffer.from('malicious');
+      const maliciousKey = "../etc/passwd";
+      const data = Buffer.from("malicious");
 
       // Act & Assert
       try {
         await provider.upload(maliciousKey, data);
-        expect.fail('Should have thrown');
+        expect.fail("Should have thrown");
       } catch (error) {
         expect(error).toBeInstanceOf(StorageError);
-        expect((error as StorageError).code).toBe('PATH_TRAVERSAL');
+        expect((error as StorageError).code).toBe("PATH_TRAVERSAL");
       }
     });
 
-    it('./を含むキーを拒否すること', async () => {
+    it("./を含むキーを拒否すること", async () => {
       // Arrange
-      const maliciousKey = './hidden';
-      const data = Buffer.from('malicious');
+      const maliciousKey = "./hidden";
+      const data = Buffer.from("malicious");
 
       // Act & Assert
       try {
         await provider.upload(maliciousKey, data);
-        expect.fail('Should have thrown');
+        expect.fail("Should have thrown");
       } catch (error) {
         expect(error).toBeInstanceOf(StorageError);
-        expect((error as StorageError).code).toBe('PATH_TRAVERSAL');
+        expect((error as StorageError).code).toBe("PATH_TRAVERSAL");
       }
     });
 
-    it('絶対パスを拒否すること', async () => {
+    it("絶対パスを拒否すること", async () => {
       // Arrange
-      const maliciousKey = '/etc/passwd';
-      const data = Buffer.from('malicious');
+      const maliciousKey = "/etc/passwd";
+      const data = Buffer.from("malicious");
 
       // Act & Assert
       try {
         await provider.upload(maliciousKey, data);
-        expect.fail('Should have thrown');
+        expect.fail("Should have thrown");
       } catch (error) {
         expect(error).toBeInstanceOf(StorageError);
-        expect((error as StorageError).code).toBe('PATH_TRAVERSAL');
+        expect((error as StorageError).code).toBe("PATH_TRAVERSAL");
       }
     });
 
-    it('エンコードされたパストラバーサルを拒否すること', async () => {
+    it("エンコードされたパストラバーサルを拒否すること", async () => {
       // Arrange
-      const maliciousKey = '..%2F..%2Fetc%2Fpasswd';
-      const data = Buffer.from('malicious');
+      const maliciousKey = "..%2F..%2Fetc%2Fpasswd";
+      const data = Buffer.from("malicious");
 
       // Act & Assert
       try {
         await provider.upload(maliciousKey, data);
-        expect.fail('Should have thrown');
+        expect.fail("Should have thrown");
       } catch (error) {
         expect(error).toBeInstanceOf(StorageError);
-        expect((error as StorageError).code).toBe('PATH_TRAVERSAL');
+        expect((error as StorageError).code).toBe("PATH_TRAVERSAL");
       }
     });
 
-    it('download時もパストラバーサルを拒否すること', async () => {
+    it("download時もパストラバーサルを拒否すること", async () => {
       // Arrange
-      const maliciousKey = '../etc/passwd';
+      const maliciousKey = "../etc/passwd";
 
       // Act & Assert
       try {
         await provider.download(maliciousKey);
-        expect.fail('Should have thrown');
+        expect.fail("Should have thrown");
       } catch (error) {
         expect(error).toBeInstanceOf(StorageError);
-        expect((error as StorageError).code).toBe('PATH_TRAVERSAL');
+        expect((error as StorageError).code).toBe("PATH_TRAVERSAL");
       }
     });
 
-    it('delete時もパストラバーサルを拒否すること', async () => {
+    it("delete時もパストラバーサルを拒否すること", async () => {
       // Arrange
-      const maliciousKey = '../etc/passwd';
+      const maliciousKey = "../etc/passwd";
 
       // Act & Assert
       try {
         await provider.delete(maliciousKey);
-        expect.fail('Should have thrown');
+        expect.fail("Should have thrown");
       } catch (error) {
         expect(error).toBeInstanceOf(StorageError);
-        expect((error as StorageError).code).toBe('PATH_TRAVERSAL');
+        expect((error as StorageError).code).toBe("PATH_TRAVERSAL");
       }
     });
 
-    it('exists時もパストラバーサルを拒否すること', async () => {
+    it("exists時もパストラバーサルを拒否すること", async () => {
       // Arrange
-      const maliciousKey = '../etc/passwd';
+      const maliciousKey = "../etc/passwd";
 
       // Act & Assert
       try {
         await provider.exists(maliciousKey);
-        expect.fail('Should have thrown');
+        expect.fail("Should have thrown");
       } catch (error) {
         expect(error).toBeInstanceOf(StorageError);
-        expect((error as StorageError).code).toBe('PATH_TRAVERSAL');
+        expect((error as StorageError).code).toBe("PATH_TRAVERSAL");
       }
     });
 
-    it('list時もパストラバーサルを拒否すること', async () => {
+    it("list時もパストラバーサルを拒否すること", async () => {
       // Arrange
-      const maliciousPrefix = '../etc';
+      const maliciousPrefix = "../etc";
 
       // Act & Assert
       try {
         await provider.list(maliciousPrefix);
-        expect.fail('Should have thrown');
+        expect.fail("Should have thrown");
       } catch (error) {
         expect(error).toBeInstanceOf(StorageError);
-        expect((error as StorageError).code).toBe('PATH_TRAVERSAL');
+        expect((error as StorageError).code).toBe("PATH_TRAVERSAL");
       }
     });
   });
 
-  describe('ファイルパーミッション', () => {
-    it('作成されたファイルが適切なパーミッションを持つこと', async () => {
+  describe("ファイルパーミッション", () => {
+    it("作成されたファイルが適切なパーミッションを持つこと", async () => {
       // Arrange
-      const key = 'permission-test.txt';
-      const data = Buffer.from('Permission test');
+      const key = "permission-test.txt";
+      const data = Buffer.from("Permission test");
 
       // Act
       await provider.upload(key, data);
@@ -418,16 +421,16 @@ describe('LocalStorageProvider', () => {
     });
   });
 
-  describe('エラーハンドリング', () => {
-    it('書き込み権限がない場合にエラーをスローすること', async () => {
+  describe("エラーハンドリング", () => {
+    it("書き込み権限がない場合にエラーをスローすること", async () => {
       // Arrange: 読み取り専用ディレクトリを作成
-      const readOnlyDir = path.join(testDir, 'readonly');
+      const readOnlyDir = path.join(testDir, "readonly");
       await fs.mkdir(readOnlyDir);
       await fs.chmod(readOnlyDir, 0o444);
 
       const readOnlyProvider = new LocalStorageProvider(readOnlyDir);
-      const key = 'test.txt';
-      const data = Buffer.from('test');
+      const key = "test.txt";
+      const data = Buffer.from("test");
 
       // Act & Assert
       await expect(readOnlyProvider.upload(key, data)).rejects.toThrow();
@@ -436,41 +439,41 @@ describe('LocalStorageProvider', () => {
       await fs.chmod(readOnlyDir, 0o755);
     });
 
-    it('空のキーを拒否すること', async () => {
+    it("空のキーを拒否すること", async () => {
       // Arrange
-      const emptyKey = '';
-      const data = Buffer.from('test');
+      const emptyKey = "";
+      const data = Buffer.from("test");
 
       // Act & Assert
       try {
         await provider.upload(emptyKey, data);
-        expect.fail('Should have thrown');
+        expect.fail("Should have thrown");
       } catch (error) {
         expect(error).toBeInstanceOf(StorageError);
-        expect((error as StorageError).code).toBe('INVALID_KEY');
+        expect((error as StorageError).code).toBe("INVALID_KEY");
       }
     });
 
-    it('空白のみのキーを拒否すること', async () => {
+    it("空白のみのキーを拒否すること", async () => {
       // Arrange
-      const whitespaceKey = '   ';
-      const data = Buffer.from('test');
+      const whitespaceKey = "   ";
+      const data = Buffer.from("test");
 
       // Act & Assert
       try {
         await provider.upload(whitespaceKey, data);
-        expect.fail('Should have thrown');
+        expect.fail("Should have thrown");
       } catch (error) {
         expect(error).toBeInstanceOf(StorageError);
-        expect((error as StorageError).code).toBe('INVALID_KEY');
+        expect((error as StorageError).code).toBe("INVALID_KEY");
       }
     });
   });
 
-  describe('統合シナリオ', () => {
-    it('完全なCRUDフローが動作すること', async () => {
-      const key = 'crud-test.txt';
-      const data = Buffer.from('CRUD test data');
+  describe("統合シナリオ", () => {
+    it("完全なCRUDフローが動作すること", async () => {
+      const key = "crud-test.txt";
+      const data = Buffer.from("CRUD test data");
 
       // Create
       await provider.upload(key, data);
@@ -478,26 +481,26 @@ describe('LocalStorageProvider', () => {
 
       // Read
       const readData = await provider.download(key);
-      expect(readData.toString()).toBe('CRUD test data');
+      expect(readData.toString()).toBe("CRUD test data");
 
       // Update (overwrite)
-      const updatedData = Buffer.from('Updated data');
+      const updatedData = Buffer.from("Updated data");
       await provider.upload(key, updatedData);
       const readUpdated = await provider.download(key);
-      expect(readUpdated.toString()).toBe('Updated data');
+      expect(readUpdated.toString()).toBe("Updated data");
 
       // Delete
       await provider.delete(key);
       expect(await provider.exists(key)).toBe(false);
     });
 
-    it('複数ファイルの管理ができること', async () => {
+    it("複数ファイルの管理ができること", async () => {
       // 複数ファイルを作成
       const files = [
-        { key: 'backups/2024/01/backup1.sql.gz', data: Buffer.from('backup1') },
-        { key: 'backups/2024/01/backup2.sql.gz', data: Buffer.from('backup2') },
-        { key: 'backups/2024/02/backup3.sql.gz', data: Buffer.from('backup3') },
-        { key: 'exports/data.json', data: Buffer.from('export') },
+        { key: "backups/2024/01/backup1.sql.gz", data: Buffer.from("backup1") },
+        { key: "backups/2024/01/backup2.sql.gz", data: Buffer.from("backup2") },
+        { key: "backups/2024/02/backup3.sql.gz", data: Buffer.from("backup3") },
+        { key: "exports/data.json", data: Buffer.from("export") },
       ];
 
       for (const file of files) {
@@ -509,10 +512,10 @@ describe('LocalStorageProvider', () => {
       expect(allFiles).toHaveLength(4);
 
       // プレフィックスでフィルタ
-      const jan2024 = await provider.list('backups/2024/01');
+      const jan2024 = await provider.list("backups/2024/01");
       expect(jan2024).toHaveLength(2);
 
-      const backups = await provider.list('backups');
+      const backups = await provider.list("backups");
       expect(backups).toHaveLength(3);
 
       // 個別ファイルを読み込み

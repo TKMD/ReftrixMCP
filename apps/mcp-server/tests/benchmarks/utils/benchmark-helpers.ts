@@ -7,7 +7,7 @@
  * ベンチマーク実行用のヘルパー関数とユーティリティ
  */
 
-import { vi } from 'vitest';
+import { vi } from "vitest";
 
 // ============================================================================
 // SLO Definitions
@@ -20,11 +20,11 @@ import { vi } from 'vitest';
  * P99: 99%のリクエストがこの時間内に完了すべき（異常検知閾値）
  */
 export const SLO = {
-  'svg.search': { p95: 500, p99: 1000 },
-  'svg.transform': { p95: 200, p99: 500 },
-  'svg.search_and_get': { p95: 800, p99: 1500 },
-  'motion.detect': { p95: 300, p99: 600 },
-  'layout.ingest': { p95: 5000, p99: 10000 },
+  "svg.search": { p95: 500, p99: 1000 },
+  "svg.transform": { p95: 200, p99: 500 },
+  "svg.search_and_get": { p95: 800, p99: 1500 },
+  "motion.detect": { p95: 300, p99: 600 },
+  "layout.ingest": { p95: 5000, p99: 10000 },
 } as const;
 
 export type ToolName = keyof typeof SLO;
@@ -87,7 +87,7 @@ export const TEST_SVG_COMPLEX = `
       { length: 20 },
       (_, i) =>
         `<circle cx="${50 + (i % 5) * 25}" cy="${50 + Math.floor(i / 5) * 25}" r="${5 + (i % 3) * 2}" fill="#fff" opacity="${0.3 + (i % 5) * 0.1}"/>`
-    ).join('\n    ')}
+    ).join("\n    ")}
   </g>
   <g filter="url(#shadow)">
     <path d="M60 100 Q100 60 140 100 Q100 140 60 100" fill="#fff" opacity="0.8"/>
@@ -282,9 +282,9 @@ export function generateMockSearchResults(count: number) {
     id: `mock-svg-${i + 1}`,
     name: `Test SVG ${i + 1}`,
     similarity: 0.95 - i * 0.02,
-    license_spdx: 'MIT',
-    style: 'flat' as const,
-    purpose: 'icon' as const,
+    license_spdx: "MIT",
+    style: "flat" as const,
+    purpose: "icon" as const,
   }));
 }
 
@@ -303,8 +303,8 @@ export function createMockSvgSearchRepository(resultCount = 10) {
         id,
         name: `SVG ${id}`,
         svg_content: TEST_SVG_MEDIUM,
-        license_spdx: 'MIT',
-        viewbox: '0 0 100 100',
+        license_spdx: "MIT",
+        viewbox: "0 0 100 100",
         created_at: new Date().toISOString(),
       })
     ),
@@ -318,13 +318,13 @@ export function createMockTransformService() {
   return {
     optimize: vi.fn().mockImplementation((svg: string) =>
       Promise.resolve({
-        svg: svg.replace(/\s+/g, ' ').trim(),
+        svg: svg.replace(/\s+/g, " ").trim(),
         stats: { originalSize: svg.length, optimizedSize: svg.length * 0.8 },
       })
     ),
     recolor: vi.fn().mockImplementation((svg: string) =>
       Promise.resolve({
-        svg: svg.replace(/#[0-9A-Fa-f]{6}/g, '#FF0000'),
+        svg: svg.replace(/#[0-9A-Fa-f]{6}/g, "#FF0000"),
         colorsReplaced: 3,
       })
     ),
@@ -336,8 +336,8 @@ export function createMockTransformService() {
     ),
     toReact: vi.fn().mockImplementation((svg: string, options?: { componentName?: string }) =>
       Promise.resolve({
-        code: `export const ${options?.componentName || 'SvgIcon'} = () => (${svg});`,
-        componentName: options?.componentName || 'SvgIcon',
+        code: `export const ${options?.componentName || "SvgIcon"} = () => (${svg});`,
+        componentName: options?.componentName || "SvgIcon",
       })
     ),
   };
@@ -351,8 +351,8 @@ export function createMockLayoutIngestService() {
     ingest: vi.fn().mockImplementation((url: string) =>
       Promise.resolve({
         url,
-        title: 'Test Page',
-        html: '<html><body>Test</body></html>',
+        title: "Test Page",
+        html: "<html><body>Test</body></html>",
         screenshot: null,
         sections_analyzed: 5,
         ingestedAt: new Date().toISOString(),
@@ -360,7 +360,7 @@ export function createMockLayoutIngestService() {
     ),
     validateUrl: vi.fn().mockImplementation((url: string) => {
       // SSRF検証シミュレーション
-      const blocked = ['127.0.0.1', 'localhost', '192.168.', '10.', '169.254.'];
+      const blocked = ["127.0.0.1", "localhost", "192.168.", "10.", "169.254."];
       return !blocked.some((b) => url.includes(b));
     }),
   };
@@ -375,33 +375,33 @@ export function createMockMotionDetectService() {
       Promise.resolve({
         patterns: [
           {
-            id: 'pattern-1',
-            type: 'css_animation',
-            name: 'fadeIn',
-            category: 'entrance',
-            trigger: 'load',
+            id: "pattern-1",
+            type: "css_animation",
+            name: "fadeIn",
+            category: "entrance",
+            trigger: "load",
             animation: {
               duration: 600,
-              easing: 'ease-out',
+              easing: "ease-out",
               iterations: 1,
             },
-            properties: ['opacity', 'transform'],
-            performance: { level: 'good', usesTransform: true, usesOpacity: true },
+            properties: ["opacity", "transform"],
+            performance: { level: "good", usesTransform: true, usesOpacity: true },
             accessibility: { respectsReducedMotion: true },
           },
           {
-            id: 'pattern-2',
-            type: 'css_transition',
-            name: 'hover-effect',
-            category: 'hover_effect',
-            trigger: 'hover',
+            id: "pattern-2",
+            type: "css_transition",
+            name: "hover-effect",
+            category: "hover_effect",
+            trigger: "hover",
             animation: {
               duration: 300,
-              easing: 'ease',
+              easing: "ease",
               iterations: 1,
             },
-            properties: ['transform', 'box-shadow'],
-            performance: { level: 'good', usesTransform: true, usesOpacity: false },
+            properties: ["transform", "box-shadow"],
+            performance: { level: "good", usesTransform: true, usesOpacity: false },
             accessibility: { respectsReducedMotion: false },
           },
         ],
@@ -537,7 +537,9 @@ export function delay(ms: number): Promise<void> {
 /**
  * 時間計測ラッパー
  */
-export async function measureTime<T>(fn: () => Promise<T>): Promise<{ result: T; durationMs: number }> {
+export async function measureTime<T>(
+  fn: () => Promise<T>
+): Promise<{ result: T; durationMs: number }> {
   const start = performance.now();
   const result = await fn();
   const durationMs = performance.now() - start;

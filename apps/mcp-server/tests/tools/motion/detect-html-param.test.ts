@@ -18,7 +18,7 @@
  * @module tests/tools/motion/detect-html-param.test
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 // =====================================================
 // インポート
@@ -29,12 +29,9 @@ import {
   setMotionDetectServiceFactory,
   resetMotionDetectServiceFactory,
   type IMotionDetectService,
-} from '../../../src/tools/motion/detect.tool';
+} from "../../../src/tools/motion/detect.tool";
 
-import {
-  motionDetectInputSchema,
-  type MotionDetectInput,
-} from '../../../src/tools/motion/schemas';
+import { motionDetectInputSchema, type MotionDetectInput } from "../../../src/tools/motion/schemas";
 
 // =====================================================
 // テストデータ
@@ -176,13 +173,13 @@ const externalCss = `
 }
 `;
 
-const validUUID = '123e4567-e89b-12d3-a456-426614174000';
+const validUUID = "123e4567-e89b-12d3-a456-426614174000";
 
 // =====================================================
 // html パラメータテスト
 // =====================================================
 
-describe('motion.detect html パラメータ', () => {
+describe("motion.detect html パラメータ", () => {
   beforeEach(() => {
     resetMotionDetectServiceFactory();
   });
@@ -191,12 +188,12 @@ describe('motion.detect html パラメータ', () => {
     vi.restoreAllMocks();
   });
 
-  describe('html パラメータのみでの動作', () => {
-    it('html パラメータのみで CSS アニメーションを検出する', async () => {
+  describe("html パラメータのみでの動作", () => {
+    it("html パラメータのみで CSS アニメーションを検出する", async () => {
       // Arrange
       const input: MotionDetectInput = {
         html: htmlWithCssAnimation,
-        detection_mode: 'css' as const,
+        detection_mode: "css" as const,
       };
 
       // Act
@@ -210,16 +207,16 @@ describe('motion.detect html パラメータ', () => {
 
       // fadeIn アニメーションが検出されることを確認
       const fadeInPattern = result.data?.patterns.find(
-        (p) => p.name === 'fadeIn' || p.type === 'css_animation'
+        (p) => p.name === "fadeIn" || p.type === "css_animation"
       );
       expect(fadeInPattern).toBeDefined();
     });
 
-    it('html パラメータのみで CSS トランジションを検出する', async () => {
+    it("html パラメータのみで CSS トランジションを検出する", async () => {
       // Arrange
       const input: MotionDetectInput = {
         html: htmlWithCssTransition,
-        detection_mode: 'css' as const,
+        detection_mode: "css" as const,
       };
 
       // Act
@@ -230,17 +227,15 @@ describe('motion.detect html パラメータ', () => {
       expect(result.data?.patterns).toBeDefined();
 
       // トランジションが検出されることを確認
-      const transitionPattern = result.data?.patterns.find(
-        (p) => p.type === 'css_transition'
-      );
+      const transitionPattern = result.data?.patterns.find((p) => p.type === "css_transition");
       expect(transitionPattern).toBeDefined();
     });
 
-    it('html パラメータで複数のアニメーション/トランジションを検出する', async () => {
+    it("html パラメータで複数のアニメーション/トランジションを検出する", async () => {
       // Arrange
       const input: MotionDetectInput = {
         html: htmlWithMultipleAnimations,
-        detection_mode: 'css' as const,
+        detection_mode: "css" as const,
         includeSummary: true,
       };
 
@@ -259,11 +254,11 @@ describe('motion.detect html パラメータ', () => {
       expect(result.data?.summary?.totalPatterns).toBeGreaterThanOrEqual(3);
     });
 
-    it('html パラメータと css パラメータを組み合わせて検出する', async () => {
+    it("html パラメータと css パラメータを組み合わせて検出する", async () => {
       // Arrange
       const input: MotionDetectInput = {
         html: htmlWithCssAnimation,
-        detection_mode: 'css' as const,
+        detection_mode: "css" as const,
         css: externalCss,
       };
 
@@ -275,20 +270,16 @@ describe('motion.detect html パラメータ', () => {
       expect(result.data?.patterns).toBeDefined();
 
       // 内部と外部両方のアニメーションが検出されることを確認
-      const fadeInPattern = result.data?.patterns.find(
-        (p) => p.name === 'fadeIn'
-      );
-      const externalPattern = result.data?.patterns.find(
-        (p) => p.name === 'externalFade'
-      );
+      const fadeInPattern = result.data?.patterns.find((p) => p.name === "fadeIn");
+      const externalPattern = result.data?.patterns.find((p) => p.name === "externalFade");
 
       expect(fadeInPattern).toBeDefined();
       expect(externalPattern).toBeDefined();
     });
   });
 
-  describe('html と pageId の優先順位', () => {
-    it('html と pageId の両方が指定された場合、html が優先される', async () => {
+  describe("html と pageId の優先順位", () => {
+    it("html と pageId の両方が指定された場合、html が優先される", async () => {
       // Arrange: DB モックを設定
       const mockGetPageById = vi.fn().mockResolvedValue({
         id: validUUID,
@@ -302,7 +293,7 @@ describe('motion.detect html パラメータ', () => {
 
       const input: MotionDetectInput = {
         html: htmlWithCssAnimation,
-        detection_mode: 'css' as const,
+        detection_mode: "css" as const,
         pageId: validUUID,
       };
 
@@ -316,19 +307,15 @@ describe('motion.detect html パラメータ', () => {
       expect(mockGetPageById).not.toHaveBeenCalled();
 
       // html パラメータのアニメーションが検出されることを確認
-      const fadeInPattern = result.data?.patterns.find(
-        (p) => p.name === 'fadeIn'
-      );
+      const fadeInPattern = result.data?.patterns.find((p) => p.name === "fadeIn");
       expect(fadeInPattern).toBeDefined();
 
       // DB からのアニメーション（dbAnimation）が検出されないことを確認
-      const dbPattern = result.data?.patterns.find(
-        (p) => p.name === 'dbAnimation'
-      );
+      const dbPattern = result.data?.patterns.find((p) => p.name === "dbAnimation");
       expect(dbPattern).toBeUndefined();
     });
 
-    it('pageId のみ指定の場合は DB から取得する', async () => {
+    it("pageId のみ指定の場合は DB から取得する", async () => {
       // Arrange: DB モックを設定
       const mockGetPageById = vi.fn().mockResolvedValue({
         id: validUUID,
@@ -341,7 +328,7 @@ describe('motion.detect html パラメータ', () => {
       }));
 
       const input: MotionDetectInput = {
-        detection_mode: 'css' as const,
+        detection_mode: "css" as const,
         pageId: validUUID,
       };
 
@@ -355,13 +342,11 @@ describe('motion.detect html パラメータ', () => {
       expect(mockGetPageById).toHaveBeenCalledWith(validUUID);
 
       // DB からのアニメーションが検出されることを確認
-      const dbPattern = result.data?.patterns.find(
-        (p) => p.name === 'dbAnimation'
-      );
+      const dbPattern = result.data?.patterns.find((p) => p.name === "dbAnimation");
       expect(dbPattern).toBeDefined();
     });
 
-    it('html が空でない場合、pageId があっても DB アクセスしない', async () => {
+    it("html が空でない場合、pageId があっても DB アクセスしない", async () => {
       // Arrange: DB モックを設定
       const mockGetPageById = vi.fn().mockResolvedValue({
         id: validUUID,
@@ -376,7 +361,7 @@ describe('motion.detect html パラメータ', () => {
       // html パラメータを明示的に指定
       const input: MotionDetectInput = {
         html: htmlWithMultipleAnimations,
-        detection_mode: 'css' as const,
+        detection_mode: "css" as const,
         pageId: validUUID,
       };
 
@@ -388,15 +373,13 @@ describe('motion.detect html パラメータ', () => {
       expect(mockGetPageById).not.toHaveBeenCalled();
 
       // html パラメータのアニメーションが検出されることを確認
-      const slideInPattern = result.data?.patterns.find(
-        (p) => p.name === 'slideIn'
-      );
+      const slideInPattern = result.data?.patterns.find((p) => p.name === "slideIn");
       expect(slideInPattern).toBeDefined();
     });
   });
 
-  describe('html パラメータでのオプション動作', () => {
-    it('includeInlineStyles オプションが html パラメータで動作する', async () => {
+  describe("html パラメータでのオプション動作", () => {
+    it("includeInlineStyles オプションが html パラメータで動作する", async () => {
       // Arrange: インラインスタイルを含む HTML
       const htmlWithInlineAnimation = `<!DOCTYPE html>
 <html>
@@ -408,7 +391,7 @@ describe('motion.detect html パラメータ', () => {
 
       const input: MotionDetectInput = {
         html: htmlWithInlineAnimation,
-        detection_mode: 'css' as const,
+        detection_mode: "css" as const,
         includeInlineStyles: true,
       };
 
@@ -421,11 +404,11 @@ describe('motion.detect html パラメータ', () => {
       // （実装によっては検出されない場合もある）
     });
 
-    it('minDuration オプションが html パラメータで動作する', async () => {
+    it("minDuration オプションが html パラメータで動作する", async () => {
       // Arrange
       const input: MotionDetectInput = {
         html: htmlWithMultipleAnimations,
-        detection_mode: 'css' as const,
+        detection_mode: "css" as const,
         minDuration: 1000, // 1秒以上のアニメーションのみ
       };
 
@@ -445,11 +428,11 @@ describe('motion.detect html パラメータ', () => {
       }
     });
 
-    it('maxPatterns オプションが html パラメータで動作する', async () => {
+    it("maxPatterns オプションが html パラメータで動作する", async () => {
       // Arrange
       const input: MotionDetectInput = {
         html: htmlWithMultipleAnimations,
-        detection_mode: 'css' as const,
+        detection_mode: "css" as const,
         maxPatterns: 2,
       };
 
@@ -461,11 +444,11 @@ describe('motion.detect html パラメータ', () => {
       expect(result.data?.patterns.length).toBeLessThanOrEqual(2);
     });
 
-    it('verbose オプションが html パラメータで動作する', async () => {
+    it("verbose オプションが html パラメータで動作する", async () => {
       // Arrange
       const input: MotionDetectInput = {
         html: htmlWithCssAnimation,
-        detection_mode: 'css' as const,
+        detection_mode: "css" as const,
         verbose: true,
       };
 
@@ -476,15 +459,13 @@ describe('motion.detect html パラメータ', () => {
       expect(result.success).toBe(true);
 
       // verbose モードでは rawCss が含まれる
-      const animationPattern = result.data?.patterns.find(
-        (p) => p.type === 'css_animation'
-      );
+      const animationPattern = result.data?.patterns.find((p) => p.type === "css_animation");
       if (animationPattern) {
         expect(animationPattern.rawCss).toBeDefined();
       }
     });
 
-    it('includeWarnings オプションが html パラメータで動作する', async () => {
+    it("includeWarnings オプションが html パラメータで動作する", async () => {
       // Arrange: reduced-motion なしの HTML
       const htmlNoReducedMotion = `<!DOCTYPE html>
 <html>
@@ -504,7 +485,7 @@ describe('motion.detect html パラメータ', () => {
 
       const input: MotionDetectInput = {
         html: htmlNoReducedMotion,
-        detection_mode: 'css' as const,
+        detection_mode: "css" as const,
         includeWarnings: true,
       };
 
@@ -518,26 +499,26 @@ describe('motion.detect html パラメータ', () => {
     });
   });
 
-  describe('html パラメータのバリデーション', () => {
-    it('空の html は拒否される', () => {
+  describe("html パラメータのバリデーション", () => {
+    it("空の html は拒否される", () => {
       // Arrange & Act & Assert
       expect(() => {
-        motionDetectInputSchema.parse({ html: '' });
+        motionDetectInputSchema.parse({ html: "" });
       }).toThrow();
     });
 
-    it('html も pageId もない場合は拒否される', () => {
+    it("html も pageId もない場合は拒否される", () => {
       // Arrange & Act & Assert
       expect(() => {
         motionDetectInputSchema.parse({});
       }).toThrow();
     });
 
-    it('有効な html は受け入れられる', () => {
+    it("有効な html は受け入れられる", () => {
       // Arrange & Act
       const result = motionDetectInputSchema.parse({
         html: htmlWithCssAnimation,
-        detection_mode: 'css' as const,
+        detection_mode: "css" as const,
       });
 
       // Assert
@@ -545,14 +526,14 @@ describe('motion.detect html パラメータ', () => {
     });
   });
 
-  describe('サービス未接続時の html パラメータ', () => {
-    it('サービス未接続でも html パラメータで動作する', async () => {
+  describe("サービス未接続時の html パラメータ", () => {
+    it("サービス未接続でも html パラメータで動作する", async () => {
       // Arrange: サービスファクトリをリセット（未接続状態）
       resetMotionDetectServiceFactory();
 
       const input: MotionDetectInput = {
         html: htmlWithCssAnimation,
-        detection_mode: 'css' as const,
+        detection_mode: "css" as const,
       };
 
       // Act
@@ -563,18 +544,16 @@ describe('motion.detect html パラメータ', () => {
       expect(result.data?.patterns).toBeDefined();
 
       // アニメーションが検出されることを確認
-      const fadeInPattern = result.data?.patterns.find(
-        (p) => p.name === 'fadeIn'
-      );
+      const fadeInPattern = result.data?.patterns.find((p) => p.name === "fadeIn");
       expect(fadeInPattern).toBeDefined();
     });
 
-    it('サービス未接続で pageId のみの場合はエラーを返す', async () => {
+    it("サービス未接続で pageId のみの場合はエラーを返す", async () => {
       // Arrange: サービスファクトリをリセット（未接続状態）
       resetMotionDetectServiceFactory();
 
       const input: MotionDetectInput = {
-        detection_mode: 'css' as const,
+        detection_mode: "css" as const,
         pageId: validUUID,
       };
 
@@ -584,16 +563,16 @@ describe('motion.detect html パラメータ', () => {
       // Assert
       expect(result.success).toBe(false);
       expect(result.error).toBeDefined();
-      expect(result.error?.code).toBe('SERVICE_UNAVAILABLE');
+      expect(result.error?.code).toBe("SERVICE_UNAVAILABLE");
     });
   });
 
-  describe('メタデータの検証', () => {
-    it('html パラメータ使用時に htmlSize がメタデータに含まれる', async () => {
+  describe("メタデータの検証", () => {
+    it("html パラメータ使用時に htmlSize がメタデータに含まれる", async () => {
       // Arrange
       const input: MotionDetectInput = {
         html: htmlWithCssAnimation,
-        detection_mode: 'css' as const,
+        detection_mode: "css" as const,
       };
 
       // Act
@@ -605,11 +584,11 @@ describe('motion.detect html パラメータ', () => {
       expect(result.data?.metadata.htmlSize).toBe(htmlWithCssAnimation.length);
     });
 
-    it('html + css パラメータ使用時に cssSize がメタデータに含まれる', async () => {
+    it("html + css パラメータ使用時に cssSize がメタデータに含まれる", async () => {
       // Arrange
       const input: MotionDetectInput = {
         html: htmlWithCssAnimation,
-        detection_mode: 'css' as const,
+        detection_mode: "css" as const,
         css: externalCss,
       };
 
@@ -623,11 +602,11 @@ describe('motion.detect html パラメータ', () => {
       expect(result.data?.metadata.cssSize).toBeDefined();
     });
 
-    it('処理時間がメタデータに含まれる', async () => {
+    it("処理時間がメタデータに含まれる", async () => {
       // Arrange
       const input: MotionDetectInput = {
         html: htmlWithCssAnimation,
-        detection_mode: 'css' as const,
+        detection_mode: "css" as const,
       };
 
       // Act

@@ -23,10 +23,10 @@
  * @module tests/e2e/motion/analyze-frames.e2e.test
  */
 
-import { describe, it, expect, beforeAll, afterAll, beforeEach, afterEach } from 'vitest';
-import * as fs from 'node:fs/promises';
-import * as path from 'node:path';
-import sharp from 'sharp';
+import { describe, it, expect, beforeAll, afterAll, beforeEach, afterEach } from "vitest";
+import * as fs from "node:fs/promises";
+import * as path from "node:path";
+import sharp from "sharp";
 
 import {
   motionAnalyzeFramesHandler,
@@ -35,12 +35,12 @@ import {
   type IFrameAnalysisService,
   type FrameAnalysisServiceInput,
   type FrameAnalysisServiceOutput,
-} from '../../../src/tools/motion/analyze-frames.handler';
+} from "../../../src/tools/motion/analyze-frames.handler";
 
 import {
   ANALYZE_FRAMES_ERROR_CODES,
   type AnalysisType,
-} from '../../../src/tools/motion/analyze-frames.schema';
+} from "../../../src/tools/motion/analyze-frames.schema";
 
 // ============================================================================
 // テスト設定
@@ -49,7 +49,7 @@ import {
 /**
  * テスト用一時ディレクトリのベースパス
  */
-const TEST_TEMP_BASE = '/tmp/reftrix-e2e-frames';
+const TEST_TEMP_BASE = "/tmp/reftrix-e2e-frames";
 
 /**
  * テスト用フレームのデフォルトサイズ
@@ -249,15 +249,15 @@ async function createLayoutShiftFrame(
  * @param suffix - ディレクトリ名のサフィックス
  * @returns 作成されたディレクトリパス
  */
-async function createTestFrameDir(suffix: string = ''): Promise<string> {
+async function createTestFrameDir(suffix: string = ""): Promise<string> {
   const timestamp = Date.now();
   const random = Math.random().toString(36).substring(2, 8);
-  const dirName = `test-frames-${timestamp}-${random}${suffix ? `-${suffix}` : ''}`;
+  const dirName = `test-frames-${timestamp}-${random}${suffix ? `-${suffix}` : ""}`;
   const dirPath = path.join(TEST_TEMP_BASE, dirName);
 
   await fs.mkdir(dirPath, { recursive: true });
 
-  if (process.env.NODE_ENV === 'development') {
+  if (process.env.NODE_ENV === "development") {
     console.log(`[E2E Test] Created test directory: ${dirPath}`);
   }
 
@@ -272,7 +272,7 @@ async function createTestFrameDir(suffix: string = ''): Promise<string> {
 async function cleanupTestDir(dirPath: string): Promise<void> {
   try {
     await fs.rm(dirPath, { recursive: true, force: true });
-    if (process.env.NODE_ENV === 'development') {
+    if (process.env.NODE_ENV === "development") {
       console.log(`[E2E Test] Cleaned up: ${dirPath}`);
     }
   } catch (error) {
@@ -292,12 +292,12 @@ async function cleanupTestDir(dirPath: string): Promise<void> {
 async function saveFrames(
   dirPath: string,
   frames: Buffer[],
-  pattern: string = 'frame-'
+  pattern: string = "frame-"
 ): Promise<string[]> {
   const filePaths: string[] = [];
 
   for (let i = 0; i < frames.length; i++) {
-    const filename = `${pattern}${String(i).padStart(4, '0')}.png`;
+    const filename = `${pattern}${String(i).padStart(4, "0")}.png`;
     const filepath = path.join(dirPath, filename);
     await fs.writeFile(filepath, frames[i]);
     filePaths.push(filepath);
@@ -332,7 +332,7 @@ function createE2EFrameAnalysisService(): IFrameAnalysisService {
       // 解析結果を生成
       const analysisResults: Record<string, unknown> = {};
 
-      if (analysis_types.includes('frame_diff')) {
+      if (analysis_types.includes("frame_diff")) {
         analysisResults.frame_diff = {
           total_comparisons: frameCount - 1,
           avg_change_ratio: 0.08,
@@ -357,7 +357,7 @@ function createE2EFrameAnalysisService(): IFrameAnalysisService {
         };
       }
 
-      if (analysis_types.includes('layout_shift')) {
+      if (analysis_types.includes("layout_shift")) {
         // シミュレートされたレイアウトシフト検出
         const shiftCount = Math.floor(Math.random() * 3);
         analysisResults.layout_shift = {
@@ -368,33 +368,36 @@ function createE2EFrameAnalysisService(): IFrameAnalysisService {
             frame_index: 3 + i * 5,
             shift_start_ms: ((3 + i * 5) / ASSUMED_FPS) * 1000,
             impact_score: 0.05 + Math.random() * 0.1,
-            affected_regions: [
-              { x: 100, y: 100, width: 400, height: 200 },
-            ],
-            estimated_cause: 'dynamic_content' as const,
-            shift_direction: 'vertical' as const,
+            affected_regions: [{ x: 100, y: 100, width: 400, height: 200 }],
+            estimated_cause: "dynamic_content" as const,
+            shift_direction: "vertical" as const,
             shift_distance: 30 + Math.floor(Math.random() * 50),
           })),
         };
       }
 
-      if (analysis_types.includes('color_change')) {
+      if (analysis_types.includes("color_change")) {
         analysisResults.color_change = {
           events: [
             {
               start_frame: 0,
               end_frame: 5,
-              change_type: 'fade_in' as const,
-              affected_region: { x: 0, y: 0, width: DEFAULT_FRAME_WIDTH, height: DEFAULT_FRAME_HEIGHT },
-              from_color: '#000000',
-              to_color: '#3B82F6',
+              change_type: "fade_in" as const,
+              affected_region: {
+                x: 0,
+                y: 0,
+                width: DEFAULT_FRAME_WIDTH,
+                height: DEFAULT_FRAME_HEIGHT,
+              },
+              from_color: "#000000",
+              to_color: "#3B82F6",
               estimated_duration_ms: (5 / ASSUMED_FPS) * 1000,
             },
           ],
         };
       }
 
-      if (analysis_types.includes('motion_vector')) {
+      if (analysis_types.includes("motion_vector")) {
         analysisResults.motion_vector = {
           primary_direction: 270, // 下方向
           avg_speed: 5.5,
@@ -402,20 +405,20 @@ function createE2EFrameAnalysisService(): IFrameAnalysisService {
             frame_index: i + 1,
             primary_direction: 270 + Math.random() * 20 - 10,
             estimated_speed: 5 + Math.random() * 2,
-            motion_type: 'linear' as const,
+            motion_type: "linear" as const,
             confidence: 0.85 + Math.random() * 0.1,
           })),
         };
       }
 
-      if (analysis_types.includes('element_visibility')) {
+      if (analysis_types.includes("element_visibility")) {
         analysisResults.element_visibility = {
           events: [
             {
-              type: 'appear' as const,
+              type: "appear" as const,
               frame_index: 3,
               region: { x: 100, y: 100, width: 200, height: 150 },
-              animation_hint: 'fade' as const,
+              animation_hint: "fade" as const,
             },
           ],
         };
@@ -437,7 +440,7 @@ function createE2EFrameAnalysisService(): IFrameAnalysisService {
 // E2Eテストスイート
 // ============================================================================
 
-describe('motion.analyze_frames E2E Tests', () => {
+describe("motion.analyze_frames E2E Tests", () => {
   let testDir: string;
 
   beforeAll(async () => {
@@ -474,10 +477,10 @@ describe('motion.analyze_frames E2E Tests', () => {
   // 正常系テスト
   // ==========================================================================
 
-  describe('Normal Cases', () => {
-    it('should analyze frames from directory successfully', async () => {
+  describe("Normal Cases", () => {
+    it("should analyze frames from directory successfully", async () => {
       // テストディレクトリを作成
-      testDir = await createTestFrameDir('basic');
+      testDir = await createTestFrameDir("basic");
 
       // 5フレームのスクロールアニメーションを生成
       const frames: Buffer[] = [];
@@ -490,8 +493,8 @@ describe('motion.analyze_frames E2E Tests', () => {
       // ハンドラーを呼び出し
       const result = await motionAnalyzeFramesHandler({
         frame_dir: testDir,
-        frame_pattern: 'frame-*.png',
-        analysis_types: ['frame_diff', 'layout_shift'],
+        frame_pattern: "frame-*.png",
+        analysis_types: ["frame_diff", "layout_shift"],
       });
 
       // 結果を検証
@@ -506,8 +509,8 @@ describe('motion.analyze_frames E2E Tests', () => {
       }
     });
 
-    it('should perform frame_diff analysis correctly', async () => {
-      testDir = await createTestFrameDir('frame-diff');
+    it("should perform frame_diff analysis correctly", async () => {
+      testDir = await createTestFrameDir("frame-diff");
 
       // 色が変化するフレームを生成
       const frames: Buffer[] = [];
@@ -529,7 +532,7 @@ describe('motion.analyze_frames E2E Tests', () => {
 
       const result = await motionAnalyzeFramesHandler({
         frame_dir: testDir,
-        analysis_types: ['frame_diff'],
+        analysis_types: ["frame_diff"],
       });
 
       expect(result.success).toBe(true);
@@ -543,8 +546,8 @@ describe('motion.analyze_frames E2E Tests', () => {
       }
     });
 
-    it('should perform layout_shift analysis correctly', async () => {
-      testDir = await createTestFrameDir('layout-shift');
+    it("should perform layout_shift analysis correctly", async () => {
+      testDir = await createTestFrameDir("layout-shift");
 
       // レイアウトシフトをシミュレートするフレームを生成
       const frames: Buffer[] = [];
@@ -563,21 +566,21 @@ describe('motion.analyze_frames E2E Tests', () => {
 
       const result = await motionAnalyzeFramesHandler({
         frame_dir: testDir,
-        analysis_types: ['layout_shift'],
+        analysis_types: ["layout_shift"],
       });
 
       expect(result.success).toBe(true);
       if (result.success) {
         const layoutShift = result.data?.analysis_results?.layout_shift;
         expect(layoutShift).toBeDefined();
-        expect(typeof layoutShift?.total_shifts).toBe('number');
-        expect(typeof layoutShift?.max_impact_score).toBe('number');
-        expect(typeof layoutShift?.cumulative_shift_score).toBe('number');
+        expect(typeof layoutShift?.total_shifts).toBe("number");
+        expect(typeof layoutShift?.max_impact_score).toBe("number");
+        expect(typeof layoutShift?.cumulative_shift_score).toBe("number");
       }
     });
 
-    it('should perform color_change analysis correctly', async () => {
-      testDir = await createTestFrameDir('color-change');
+    it("should perform color_change analysis correctly", async () => {
+      testDir = await createTestFrameDir("color-change");
 
       // フェードインをシミュレートするフレームを生成
       const frames: Buffer[] = [];
@@ -596,7 +599,7 @@ describe('motion.analyze_frames E2E Tests', () => {
 
       const result = await motionAnalyzeFramesHandler({
         frame_dir: testDir,
-        analysis_types: ['color_change'],
+        analysis_types: ["color_change"],
       });
 
       expect(result.success).toBe(true);
@@ -608,8 +611,8 @@ describe('motion.analyze_frames E2E Tests', () => {
       }
     });
 
-    it('should perform all analysis types simultaneously', async () => {
-      testDir = await createTestFrameDir('all-types');
+    it("should perform all analysis types simultaneously", async () => {
+      testDir = await createTestFrameDir("all-types");
 
       // 多様な変化を含むフレームを生成
       const frames: Buffer[] = [];
@@ -620,11 +623,11 @@ describe('motion.analyze_frames E2E Tests', () => {
       await saveFrames(testDir, frames);
 
       const allAnalysisTypes: AnalysisType[] = [
-        'frame_diff',
-        'layout_shift',
-        'color_change',
-        'motion_vector',
-        'element_visibility',
+        "frame_diff",
+        "layout_shift",
+        "color_change",
+        "motion_vector",
+        "element_visibility",
       ];
 
       const result = await motionAnalyzeFramesHandler({
@@ -642,23 +645,23 @@ describe('motion.analyze_frames E2E Tests', () => {
       }
     });
 
-    it('should generate timeline output correctly', async () => {
-      testDir = await createTestFrameDir('timeline');
+    it("should generate timeline output correctly", async () => {
+      testDir = await createTestFrameDir("timeline");
 
       const frames: Buffer[] = [];
       for (let i = 0; i < 8; i++) {
-        const frame = await createSolidColorFrame(
-          DEFAULT_FRAME_WIDTH,
-          DEFAULT_FRAME_HEIGHT,
-          { r: i * 30, g: i * 30, b: i * 30 }
-        );
+        const frame = await createSolidColorFrame(DEFAULT_FRAME_WIDTH, DEFAULT_FRAME_HEIGHT, {
+          r: i * 30,
+          g: i * 30,
+          b: i * 30,
+        });
         frames.push(frame);
       }
       await saveFrames(testDir, frames);
 
       const result = await motionAnalyzeFramesHandler({
         frame_dir: testDir,
-        analysis_types: ['frame_diff'],
+        analysis_types: ["frame_diff"],
       });
 
       expect(result.success).toBe(true);
@@ -671,32 +674,32 @@ describe('motion.analyze_frames E2E Tests', () => {
         // タイムラインエントリの構造を検証
         timeline?.forEach((entry, index) => {
           expect(entry.frame_index).toBe(index);
-          expect(typeof entry.timestamp_ms).toBe('number');
+          expect(typeof entry.timestamp_ms).toBe("number");
           expect(entry.timestamp_ms).toBeGreaterThanOrEqual(0);
-          expect(typeof entry.has_motion).toBe('boolean');
+          expect(typeof entry.has_motion).toBe("boolean");
         });
       }
     });
 
-    it('should respect diff_threshold option', async () => {
-      testDir = await createTestFrameDir('threshold');
+    it("should respect diff_threshold option", async () => {
+      testDir = await createTestFrameDir("threshold");
 
       // 微細な変化のフレームを生成
       const frames: Buffer[] = [];
       for (let i = 0; i < 5; i++) {
         const shade = 128 + i; // わずかな変化
-        const frame = await createSolidColorFrame(
-          DEFAULT_FRAME_WIDTH,
-          DEFAULT_FRAME_HEIGHT,
-          { r: shade, g: shade, b: shade }
-        );
+        const frame = await createSolidColorFrame(DEFAULT_FRAME_WIDTH, DEFAULT_FRAME_HEIGHT, {
+          r: shade,
+          g: shade,
+          b: shade,
+        });
         frames.push(frame);
       }
       await saveFrames(testDir, frames);
 
       const result = await motionAnalyzeFramesHandler({
         frame_dir: testDir,
-        analysis_types: ['frame_diff'],
+        analysis_types: ["frame_diff"],
         options: {
           diff_threshold: 0.01, // 低い閾値
         },
@@ -708,24 +711,24 @@ describe('motion.analyze_frames E2E Tests', () => {
       }
     });
 
-    it('should respect max_frames limit', async () => {
-      testDir = await createTestFrameDir('max-frames');
+    it("should respect max_frames limit", async () => {
+      testDir = await createTestFrameDir("max-frames");
 
       // 20フレームを生成
       const frames: Buffer[] = [];
       for (let i = 0; i < 20; i++) {
-        const frame = await createSolidColorFrame(
-          DEFAULT_FRAME_WIDTH,
-          DEFAULT_FRAME_HEIGHT,
-          { r: i * 10, g: i * 10, b: i * 10 }
-        );
+        const frame = await createSolidColorFrame(DEFAULT_FRAME_WIDTH, DEFAULT_FRAME_HEIGHT, {
+          r: i * 10,
+          g: i * 10,
+          b: i * 10,
+        });
         frames.push(frame);
       }
       await saveFrames(testDir, frames);
 
       const result = await motionAnalyzeFramesHandler({
         frame_dir: testDir,
-        analysis_types: ['frame_diff'],
+        analysis_types: ["frame_diff"],
         options: {
           max_frames: 10, // 10フレームに制限
         },
@@ -743,50 +746,50 @@ describe('motion.analyze_frames E2E Tests', () => {
   // エラーハンドリングテスト
   // ==========================================================================
 
-  describe('Error Handling', () => {
-    it('should return error for non-existent directory', async () => {
+  describe("Error Handling", () => {
+    it("should return error for non-existent directory", async () => {
       const result = await motionAnalyzeFramesHandler({
-        frame_dir: '/nonexistent/path/to/frames',
-        analysis_types: ['frame_diff'],
+        frame_dir: "/nonexistent/path/to/frames",
+        analysis_types: ["frame_diff"],
       });
 
       expect(result.success).toBe(false);
       if (!result.success) {
         expect(result.error?.code).toBe(ANALYZE_FRAMES_ERROR_CODES.DIRECTORY_NOT_FOUND);
-        expect(result.error?.message).toContain('見つかりません');
+        expect(result.error?.message).toContain("見つかりません");
       }
     });
 
-    it('should return error for insufficient frames (less than 2)', async () => {
-      testDir = await createTestFrameDir('insufficient');
+    it("should return error for insufficient frames (less than 2)", async () => {
+      testDir = await createTestFrameDir("insufficient");
 
       // 1フレームのみ作成
-      const frame = await createSolidColorFrame(
-        DEFAULT_FRAME_WIDTH,
-        DEFAULT_FRAME_HEIGHT,
-        { r: 128, g: 128, b: 128 }
-      );
+      const frame = await createSolidColorFrame(DEFAULT_FRAME_WIDTH, DEFAULT_FRAME_HEIGHT, {
+        r: 128,
+        g: 128,
+        b: 128,
+      });
       await saveFrames(testDir, [frame]);
 
       const result = await motionAnalyzeFramesHandler({
         frame_dir: testDir,
-        analysis_types: ['frame_diff'],
+        analysis_types: ["frame_diff"],
       });
 
       expect(result.success).toBe(false);
       if (!result.success) {
         expect(result.error?.code).toBe(ANALYZE_FRAMES_ERROR_CODES.INSUFFICIENT_FRAMES);
-        expect(result.error?.message).toContain('最低');
+        expect(result.error?.message).toContain("最低");
       }
     });
 
-    it('should return error for empty directory', async () => {
-      testDir = await createTestFrameDir('empty');
+    it("should return error for empty directory", async () => {
+      testDir = await createTestFrameDir("empty");
       // フレームを作成しない（空のディレクトリ）
 
       const result = await motionAnalyzeFramesHandler({
         frame_dir: testDir,
-        analysis_types: ['frame_diff'],
+        analysis_types: ["frame_diff"],
       });
 
       expect(result.success).toBe(false);
@@ -795,27 +798,27 @@ describe('motion.analyze_frames E2E Tests', () => {
       }
     });
 
-    it('should return error for pattern mismatch', async () => {
-      testDir = await createTestFrameDir('pattern-mismatch');
+    it("should return error for pattern mismatch", async () => {
+      testDir = await createTestFrameDir("pattern-mismatch");
 
       // 異なるパターンでファイルを作成
       const frames: Buffer[] = [];
       for (let i = 0; i < 5; i++) {
-        const frame = await createSolidColorFrame(
-          DEFAULT_FRAME_WIDTH,
-          DEFAULT_FRAME_HEIGHT,
-          { r: 128, g: 128, b: 128 }
-        );
+        const frame = await createSolidColorFrame(DEFAULT_FRAME_WIDTH, DEFAULT_FRAME_HEIGHT, {
+          r: 128,
+          g: 128,
+          b: 128,
+        });
         frames.push(frame);
       }
       // "image-" パターンで保存
-      await saveFrames(testDir, frames, 'image-');
+      await saveFrames(testDir, frames, "image-");
 
       // "frame-" パターンで検索
       const result = await motionAnalyzeFramesHandler({
         frame_dir: testDir,
-        frame_pattern: 'frame-*.png',
-        analysis_types: ['frame_diff'],
+        frame_pattern: "frame-*.png",
+        analysis_types: ["frame_diff"],
       });
 
       expect(result.success).toBe(false);
@@ -824,16 +827,16 @@ describe('motion.analyze_frames E2E Tests', () => {
       }
     });
 
-    it('should return validation error for invalid diff_threshold', async () => {
-      testDir = await createTestFrameDir('invalid-threshold');
+    it("should return validation error for invalid diff_threshold", async () => {
+      testDir = await createTestFrameDir("invalid-threshold");
 
       const frames: Buffer[] = [];
       for (let i = 0; i < 5; i++) {
-        const frame = await createSolidColorFrame(
-          DEFAULT_FRAME_WIDTH,
-          DEFAULT_FRAME_HEIGHT,
-          { r: 128, g: 128, b: 128 }
-        );
+        const frame = await createSolidColorFrame(DEFAULT_FRAME_WIDTH, DEFAULT_FRAME_HEIGHT, {
+          r: 128,
+          g: 128,
+          b: 128,
+        });
         frames.push(frame);
       }
       await saveFrames(testDir, frames);
@@ -851,23 +854,23 @@ describe('motion.analyze_frames E2E Tests', () => {
       }
     });
 
-    it('should return validation error for invalid analysis_types', async () => {
-      testDir = await createTestFrameDir('invalid-types');
+    it("should return validation error for invalid analysis_types", async () => {
+      testDir = await createTestFrameDir("invalid-types");
 
       const frames: Buffer[] = [];
       for (let i = 0; i < 5; i++) {
-        const frame = await createSolidColorFrame(
-          DEFAULT_FRAME_WIDTH,
-          DEFAULT_FRAME_HEIGHT,
-          { r: 128, g: 128, b: 128 }
-        );
+        const frame = await createSolidColorFrame(DEFAULT_FRAME_WIDTH, DEFAULT_FRAME_HEIGHT, {
+          r: 128,
+          g: 128,
+          b: 128,
+        });
         frames.push(frame);
       }
       await saveFrames(testDir, frames);
 
       const result = await motionAnalyzeFramesHandler({
         frame_dir: testDir,
-        analysis_types: ['invalid_type' as AnalysisType], // 無効な解析タイプ
+        analysis_types: ["invalid_type" as AnalysisType], // 無効な解析タイプ
       });
 
       expect(result.success).toBe(false);
@@ -876,30 +879,30 @@ describe('motion.analyze_frames E2E Tests', () => {
       }
     });
 
-    it('should return validation error for path traversal attempt', async () => {
+    it("should return validation error for path traversal attempt", async () => {
       const result = await motionAnalyzeFramesHandler({
-        frame_dir: '../../../etc/passwd',
-        analysis_types: ['frame_diff'],
+        frame_dir: "../../../etc/passwd",
+        analysis_types: ["frame_diff"],
       });
 
       expect(result.success).toBe(false);
       if (!result.success) {
         expect(result.error?.code).toBe(ANALYZE_FRAMES_ERROR_CODES.VALIDATION_ERROR);
-        expect(result.error?.message).toContain('パストラバーサル');
+        expect(result.error?.message).toContain("パストラバーサル");
       }
     });
 
-    it('should handle file access errors gracefully', async () => {
-      testDir = await createTestFrameDir('access-error');
+    it("should handle file access errors gracefully", async () => {
+      testDir = await createTestFrameDir("access-error");
 
       // フレームを作成
       const frames: Buffer[] = [];
       for (let i = 0; i < 5; i++) {
-        const frame = await createSolidColorFrame(
-          DEFAULT_FRAME_WIDTH,
-          DEFAULT_FRAME_HEIGHT,
-          { r: 128, g: 128, b: 128 }
-        );
+        const frame = await createSolidColorFrame(DEFAULT_FRAME_WIDTH, DEFAULT_FRAME_HEIGHT, {
+          r: 128,
+          g: 128,
+          b: 128,
+        });
         frames.push(frame);
       }
       await saveFrames(testDir, frames);
@@ -913,13 +916,13 @@ describe('motion.analyze_frames E2E Tests', () => {
       resetFrameAnalysisServiceFactory();
       setFrameAnalysisServiceFactory(() => ({
         analyzeFrames: async () => {
-          throw new Error('File access denied');
+          throw new Error("File access denied");
         },
       }));
 
       const result = await motionAnalyzeFramesHandler({
         frame_dir: testDir,
-        analysis_types: ['frame_diff'],
+        analysis_types: ["frame_diff"],
       });
 
       expect(result.success).toBe(false);
@@ -933,9 +936,9 @@ describe('motion.analyze_frames E2E Tests', () => {
   // パフォーマンステスト
   // ==========================================================================
 
-  describe('Performance Tests', () => {
-    it('should analyze 30 frames in less than 3 seconds', async () => {
-      testDir = await createTestFrameDir('performance-30');
+  describe("Performance Tests", () => {
+    it("should analyze 30 frames in less than 3 seconds", async () => {
+      testDir = await createTestFrameDir("performance-30");
 
       // 30フレームを生成
       const frames: Buffer[] = [];
@@ -949,7 +952,7 @@ describe('motion.analyze_frames E2E Tests', () => {
 
       const result = await motionAnalyzeFramesHandler({
         frame_dir: testDir,
-        analysis_types: ['frame_diff', 'layout_shift', 'color_change'],
+        analysis_types: ["frame_diff", "layout_shift", "color_change"],
       });
 
       const endTime = performance.now();
@@ -963,22 +966,22 @@ describe('motion.analyze_frames E2E Tests', () => {
       // 3秒以内に完了すること
       expect(elapsedMs).toBeLessThan(3000);
 
-      if (process.env.NODE_ENV === 'development') {
+      if (process.env.NODE_ENV === "development") {
         console.log(`[Performance] 30 frames analyzed in ${elapsedMs.toFixed(2)}ms`);
       }
     });
 
-    it('should handle parallel processing efficiently', async () => {
-      testDir = await createTestFrameDir('parallel');
+    it("should handle parallel processing efficiently", async () => {
+      testDir = await createTestFrameDir("parallel");
 
       // 20フレームを生成
       const frames: Buffer[] = [];
       for (let i = 0; i < 20; i++) {
-        const frame = await createSolidColorFrame(
-          DEFAULT_FRAME_WIDTH,
-          DEFAULT_FRAME_HEIGHT,
-          { r: i * 10, g: i * 10, b: i * 10 }
-        );
+        const frame = await createSolidColorFrame(DEFAULT_FRAME_WIDTH, DEFAULT_FRAME_HEIGHT, {
+          r: i * 10,
+          g: i * 10,
+          b: i * 10,
+        });
         frames.push(frame);
       }
       await saveFrames(testDir, frames);
@@ -986,7 +989,7 @@ describe('motion.analyze_frames E2E Tests', () => {
       // parallel=true での実行
       const parallelResult = await motionAnalyzeFramesHandler({
         frame_dir: testDir,
-        analysis_types: ['frame_diff'],
+        analysis_types: ["frame_diff"],
         options: {
           parallel: true,
         },
@@ -999,24 +1002,24 @@ describe('motion.analyze_frames E2E Tests', () => {
       }
     });
 
-    it('should report processing time accurately', async () => {
-      testDir = await createTestFrameDir('timing');
+    it("should report processing time accurately", async () => {
+      testDir = await createTestFrameDir("timing");
 
       // 10フレームを生成
       const frames: Buffer[] = [];
       for (let i = 0; i < 10; i++) {
-        const frame = await createSolidColorFrame(
-          DEFAULT_FRAME_WIDTH,
-          DEFAULT_FRAME_HEIGHT,
-          { r: 128, g: 128, b: 128 }
-        );
+        const frame = await createSolidColorFrame(DEFAULT_FRAME_WIDTH, DEFAULT_FRAME_HEIGHT, {
+          r: 128,
+          g: 128,
+          b: 128,
+        });
         frames.push(frame);
       }
       await saveFrames(testDir, frames);
 
       const result = await motionAnalyzeFramesHandler({
         frame_dir: testDir,
-        analysis_types: ['frame_diff'],
+        analysis_types: ["frame_diff"],
       });
 
       expect(result.success).toBe(true);
@@ -1033,19 +1036,27 @@ describe('motion.analyze_frames E2E Tests', () => {
   // エッジケーステスト
   // ==========================================================================
 
-  describe('Edge Cases', () => {
-    it('should handle exactly 2 frames (minimum required)', async () => {
-      testDir = await createTestFrameDir('minimum');
+  describe("Edge Cases", () => {
+    it("should handle exactly 2 frames (minimum required)", async () => {
+      testDir = await createTestFrameDir("minimum");
 
       const frames = [
-        await createSolidColorFrame(DEFAULT_FRAME_WIDTH, DEFAULT_FRAME_HEIGHT, { r: 0, g: 0, b: 0 }),
-        await createSolidColorFrame(DEFAULT_FRAME_WIDTH, DEFAULT_FRAME_HEIGHT, { r: 255, g: 255, b: 255 }),
+        await createSolidColorFrame(DEFAULT_FRAME_WIDTH, DEFAULT_FRAME_HEIGHT, {
+          r: 0,
+          g: 0,
+          b: 0,
+        }),
+        await createSolidColorFrame(DEFAULT_FRAME_WIDTH, DEFAULT_FRAME_HEIGHT, {
+          r: 255,
+          g: 255,
+          b: 255,
+        }),
       ];
       await saveFrames(testDir, frames);
 
       const result = await motionAnalyzeFramesHandler({
         frame_dir: testDir,
-        analysis_types: ['frame_diff'],
+        analysis_types: ["frame_diff"],
       });
 
       expect(result.success).toBe(true);
@@ -1055,30 +1066,30 @@ describe('motion.analyze_frames E2E Tests', () => {
       }
     });
 
-    it('should handle frames with mixed file types in directory', async () => {
-      testDir = await createTestFrameDir('mixed-files');
+    it("should handle frames with mixed file types in directory", async () => {
+      testDir = await createTestFrameDir("mixed-files");
 
       // PNGフレームを作成
       const frames: Buffer[] = [];
       for (let i = 0; i < 5; i++) {
-        const frame = await createSolidColorFrame(
-          DEFAULT_FRAME_WIDTH,
-          DEFAULT_FRAME_HEIGHT,
-          { r: 128, g: 128, b: 128 }
-        );
+        const frame = await createSolidColorFrame(DEFAULT_FRAME_WIDTH, DEFAULT_FRAME_HEIGHT, {
+          r: 128,
+          g: 128,
+          b: 128,
+        });
         frames.push(frame);
       }
       await saveFrames(testDir, frames);
 
       // 他のファイルタイプも追加
-      await fs.writeFile(path.join(testDir, 'readme.txt'), 'Test file');
-      await fs.writeFile(path.join(testDir, 'config.json'), '{}');
-      await fs.writeFile(path.join(testDir, 'thumbnail.jpg'), Buffer.alloc(100));
+      await fs.writeFile(path.join(testDir, "readme.txt"), "Test file");
+      await fs.writeFile(path.join(testDir, "config.json"), "{}");
+      await fs.writeFile(path.join(testDir, "thumbnail.jpg"), Buffer.alloc(100));
 
       const result = await motionAnalyzeFramesHandler({
         frame_dir: testDir,
-        frame_pattern: 'frame-*.png',
-        analysis_types: ['frame_diff'],
+        frame_pattern: "frame-*.png",
+        analysis_types: ["frame_diff"],
       });
 
       expect(result.success).toBe(true);
@@ -1088,22 +1099,22 @@ describe('motion.analyze_frames E2E Tests', () => {
       }
     });
 
-    it('should handle frames with no motion detected', async () => {
-      testDir = await createTestFrameDir('no-motion');
+    it("should handle frames with no motion detected", async () => {
+      testDir = await createTestFrameDir("no-motion");
 
       // 全く同じ内容のフレームを生成
-      const staticFrame = await createSolidColorFrame(
-        DEFAULT_FRAME_WIDTH,
-        DEFAULT_FRAME_HEIGHT,
-        { r: 128, g: 128, b: 128 }
-      );
+      const staticFrame = await createSolidColorFrame(DEFAULT_FRAME_WIDTH, DEFAULT_FRAME_HEIGHT, {
+        r: 128,
+        g: 128,
+        b: 128,
+      });
 
       const frames = Array(5).fill(staticFrame);
       await saveFrames(testDir, frames);
 
       const result = await motionAnalyzeFramesHandler({
         frame_dir: testDir,
-        analysis_types: ['frame_diff', 'layout_shift'],
+        analysis_types: ["frame_diff", "layout_shift"],
       });
 
       expect(result.success).toBe(true);
@@ -1114,30 +1125,30 @@ describe('motion.analyze_frames E2E Tests', () => {
       }
     });
 
-    it('should handle custom frame pattern', async () => {
-      testDir = await createTestFrameDir('custom-pattern');
+    it("should handle custom frame pattern", async () => {
+      testDir = await createTestFrameDir("custom-pattern");
 
       // カスタムパターンでフレームを作成
       const frames: Buffer[] = [];
       for (let i = 0; i < 5; i++) {
-        const frame = await createSolidColorFrame(
-          DEFAULT_FRAME_WIDTH,
-          DEFAULT_FRAME_HEIGHT,
-          { r: i * 50, g: i * 50, b: i * 50 }
-        );
+        const frame = await createSolidColorFrame(DEFAULT_FRAME_WIDTH, DEFAULT_FRAME_HEIGHT, {
+          r: i * 50,
+          g: i * 50,
+          b: i * 50,
+        });
         frames.push(frame);
       }
 
       // カスタムパターンで保存
       for (let i = 0; i < frames.length; i++) {
-        const filename = `screenshot_${String(i).padStart(4, '0')}.png`;
+        const filename = `screenshot_${String(i).padStart(4, "0")}.png`;
         await fs.writeFile(path.join(testDir, filename), frames[i]);
       }
 
       const result = await motionAnalyzeFramesHandler({
         frame_dir: testDir,
-        frame_pattern: 'screenshot_*.png',
-        analysis_types: ['frame_diff'],
+        frame_pattern: "screenshot_*.png",
+        analysis_types: ["frame_diff"],
       });
 
       expect(result.success).toBe(true);
@@ -1146,8 +1157,8 @@ describe('motion.analyze_frames E2E Tests', () => {
       }
     });
 
-    it('should handle JPEG format frames', async () => {
-      testDir = await createTestFrameDir('jpeg');
+    it("should handle JPEG format frames", async () => {
+      testDir = await createTestFrameDir("jpeg");
 
       // JPEGフレームを生成
       for (let i = 0; i < 5; i++) {
@@ -1162,14 +1173,14 @@ describe('motion.analyze_frames E2E Tests', () => {
           .jpeg({ quality: 90 })
           .toBuffer();
 
-        const filename = `frame-${String(i).padStart(4, '0')}.jpg`;
+        const filename = `frame-${String(i).padStart(4, "0")}.jpg`;
         await fs.writeFile(path.join(testDir, filename), jpegBuffer);
       }
 
       const result = await motionAnalyzeFramesHandler({
         frame_dir: testDir,
-        frame_pattern: 'frame-*.jpg',
-        analysis_types: ['frame_diff'],
+        frame_pattern: "frame-*.jpg",
+        analysis_types: ["frame_diff"],
       });
 
       expect(result.success).toBe(true);
@@ -1197,13 +1208,13 @@ describe('motion.analyze_frames E2E Tests', () => {
 export async function generateFixtureFrames(outputDir: string): Promise<void> {
   await fs.mkdir(outputDir, { recursive: true });
 
-  const scrollDir = path.join(outputDir, 'sample-scroll');
+  const scrollDir = path.join(outputDir, "sample-scroll");
   await fs.mkdir(scrollDir, { recursive: true });
 
   // スクロールアニメーションフレームを生成
   for (let i = 0; i < 10; i++) {
     const frame = await createScrollFrame(800, 600, i * 30);
-    const filename = `frame-${String(i).padStart(4, '0')}.png`;
+    const filename = `frame-${String(i).padStart(4, "0")}.png`;
     await fs.writeFile(path.join(scrollDir, filename), frame);
   }
 

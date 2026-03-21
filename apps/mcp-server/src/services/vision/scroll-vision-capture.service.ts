@@ -18,17 +18,16 @@
  * @module services/vision/scroll-vision-capture.service
  */
 
-/* eslint-disable no-undef -- page.evaluate() runs in browser context where window/document exist */
-import type { Browser, BrowserContext, Page } from 'playwright';
-import { chromium } from 'playwright';
-import { validateExternalUrl } from '../../utils/url-validator.js';
-import { createLogger } from '../../utils/logger.js';
+import type { Browser, BrowserContext, Page } from "playwright";
+import { chromium } from "playwright";
+import { validateExternalUrl } from "../../utils/url-validator.js";
+import { createLogger } from "../../utils/logger.js";
 
 // =============================================================================
 // 定数
 // =============================================================================
 
-const LOG_PREFIX = 'ScrollVisionCapture';
+const LOG_PREFIX = "ScrollVisionCapture";
 
 /**
  * デフォルト最大キャプチャ数
@@ -159,9 +158,7 @@ export function computeScrollPositions(
   const maxScrollY = Math.max(0, totalScrollHeight - viewportHeight);
 
   // ページトップを追加
-  const positions: MergedScrollPosition[] = [
-    { scrollY: 0, sectionIndex: -1 },
-  ];
+  const positions: MergedScrollPosition[] = [{ scrollY: 0, sectionIndex: -1 }];
 
   // 各セクション境界のstartYを追加
   for (const boundary of boundaries) {
@@ -177,9 +174,7 @@ export function computeScrollPositions(
     const lastBoundary = boundaries[boundaries.length - 1];
     positions.push({
       scrollY: maxScrollY,
-      sectionIndex: lastBoundary !== undefined
-        ? lastBoundary.sectionIndex + 1
-        : 0,
+      sectionIndex: lastBoundary !== undefined ? lastBoundary.sectionIndex + 1 : 0,
     });
   }
 
@@ -265,12 +260,14 @@ export async function captureScrollPositions(
   const viewport = options?.viewport ?? DEFAULT_VIEWPORT;
   const timeout = options?.timeout ?? DEFAULT_TIMEOUT_MS;
 
-  logger.info('Starting scroll capture', { url, boundaryCount: boundaries.length, maxCaptures });
+  logger.info("Starting scroll capture", { url, boundaryCount: boundaries.length, maxCaptures });
 
   // SSRF検証
   const urlValidation = validateExternalUrl(url);
   if (!urlValidation.valid) {
-    throw new Error(`SSRF blocked: ${urlValidation.error ?? 'URL is blocked for security reasons'}`);
+    throw new Error(
+      `SSRF blocked: ${urlValidation.error ?? "URL is blocked for security reasons"}`
+    );
   }
 
   const usingSharedBrowser = !!options?.sharedBrowser;
@@ -282,15 +279,15 @@ export async function captureScrollPositions(
     // 共有ブラウザが提供されている場合はそれを使用、なければ新規起動
     if (usingSharedBrowser) {
       browser = options!.sharedBrowser!;
-      logger.info('Using shared browser instance', { url });
+      logger.info("Using shared browser instance", { url });
     } else {
       browser = await chromium.launch({
         headless: true,
         args: [
-          '--no-sandbox',
-          '--disable-setuid-sandbox',
-          '--disable-dev-shm-usage',
-          '--disable-gpu',
+          "--no-sandbox",
+          "--disable-setuid-sandbox",
+          "--disable-dev-shm-usage",
+          "--disable-gpu",
         ],
       });
     }
@@ -299,7 +296,7 @@ export async function captureScrollPositions(
     context = await browser.newContext({
       viewport,
       userAgent:
-        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 Reftrix/0.1.0',
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 Reftrix/0.1.0",
       javaScriptEnabled: true,
       bypassCSP: false,
     });
@@ -308,7 +305,7 @@ export async function captureScrollPositions(
 
     // ナビゲーション
     const response = await page.goto(url, {
-      waitUntil: 'domcontentloaded',
+      waitUntil: "domcontentloaded",
       timeout,
     });
 
@@ -328,16 +325,12 @@ export async function captureScrollPositions(
     });
 
     // スクロール位置を算出
-    let scrollPositions = computeScrollPositions(
-      boundaries,
-      totalScrollHeight,
-      viewport.height
-    );
+    let scrollPositions = computeScrollPositions(boundaries, totalScrollHeight, viewport.height);
 
     // maxCaptures制限
     scrollPositions = samplePositions(scrollPositions, maxCaptures);
 
-    logger.info('Scroll positions computed', {
+    logger.info("Scroll positions computed", {
       totalScrollHeight,
       positionCount: scrollPositions.length,
     });
@@ -348,7 +341,7 @@ export async function captureScrollPositions(
     for (const pos of scrollPositions) {
       // スクロール実行
       await page.evaluate((y: number): void => {
-        window.scrollTo({ top: y, behavior: 'instant' });
+        window.scrollTo({ top: y, behavior: "instant" });
       }, pos.scrollY);
 
       // スクロール後のアニメーション待機
@@ -356,7 +349,7 @@ export async function captureScrollPositions(
 
       // ビューポートスクリーンショット取得
       const screenshot = await page.screenshot({
-        type: 'png',
+        type: "png",
         fullPage: false,
       });
 
@@ -368,7 +361,7 @@ export async function captureScrollPositions(
         timestamp: Date.now(),
       });
 
-      logger.debug('Captured scroll position', {
+      logger.debug("Captured scroll position", {
         scrollY: pos.scrollY,
         sectionIndex: pos.sectionIndex,
         screenshotSize: screenshot.length,
@@ -377,7 +370,7 @@ export async function captureScrollPositions(
 
     const captureTimeMs = Date.now() - startTime;
 
-    logger.info('Scroll capture completed', {
+    logger.info("Scroll capture completed", {
       url,
       captureCount: captures.length,
       captureTimeMs,
@@ -392,19 +385,25 @@ export async function captureScrollPositions(
     };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    logger.error('Scroll capture failed', { url, error: errorMessage });
+    logger.error("Scroll capture failed", { url, error: errorMessage });
     throw error;
   } finally {
     // リソースクリーンアップ
     if (page) {
-      await page.close().catch(() => { /* ignore */ });
+      await page.close().catch(() => {
+        /* ignore */
+      });
     }
     if (context) {
-      await context.close().catch(() => { /* ignore */ });
+      await context.close().catch(() => {
+        /* ignore */
+      });
     }
     // 共有ブラウザの場合はブラウザを閉じない（呼び出し元が管理）
     if (browser && !usingSharedBrowser) {
-      await browser.close().catch(() => { /* ignore */ });
+      await browser.close().catch(() => {
+        /* ignore */
+      });
     }
   }
 }

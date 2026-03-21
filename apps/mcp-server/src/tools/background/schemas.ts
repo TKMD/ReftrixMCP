@@ -8,7 +8,7 @@
  * @module tools/background/schemas
  */
 
-import { z } from 'zod';
+import { z } from "zod";
 
 // ============================================================================
 // Enum Schemas
@@ -19,20 +19,20 @@ import { z } from 'zod';
  * Prisma enum BackgroundDesignType に基づく14種類
  */
 export const backgroundDesignTypeSchema = z.enum([
-  'solid_color',
-  'linear_gradient',
-  'radial_gradient',
-  'conic_gradient',
-  'mesh_gradient',
-  'image_background',
-  'pattern_background',
-  'video_background',
-  'animated_gradient',
-  'glassmorphism',
-  'noise_texture',
-  'svg_background',
-  'multi_layer',
-  'unknown',
+  "solid_color",
+  "linear_gradient",
+  "radial_gradient",
+  "conic_gradient",
+  "mesh_gradient",
+  "image_background",
+  "pattern_background",
+  "video_background",
+  "animated_gradient",
+  "glassmorphism",
+  "noise_texture",
+  "svg_background",
+  "multi_layer",
+  "unknown",
 ]);
 
 export type BackgroundDesignType = z.infer<typeof backgroundDesignTypeSchema>;
@@ -45,11 +45,11 @@ export type BackgroundDesignType = z.infer<typeof backgroundDesignTypeSchema>;
  * background.search MCPエラーコード
  */
 export const BACKGROUND_MCP_ERROR_CODES = {
-  VALIDATION_ERROR: 'VALIDATION_ERROR',
-  SEARCH_FAILED: 'SEARCH_FAILED',
-  EMBEDDING_FAILED: 'EMBEDDING_FAILED',
-  SERVICE_UNAVAILABLE: 'SERVICE_UNAVAILABLE',
-  INTERNAL_ERROR: 'INTERNAL_ERROR',
+  VALIDATION_ERROR: "VALIDATION_ERROR",
+  SEARCH_FAILED: "SEARCH_FAILED",
+  EMBEDDING_FAILED: "EMBEDDING_FAILED",
+  SERVICE_UNAVAILABLE: "SERVICE_UNAVAILABLE",
+  INTERNAL_ERROR: "INTERNAL_ERROR",
 } as const;
 
 export type BackgroundMcpErrorCode =
@@ -62,10 +62,12 @@ export type BackgroundMcpErrorCode =
 /**
  * background.search 検索フィルター
  */
-export const backgroundSearchFiltersSchema = z.object({
-  designType: backgroundDesignTypeSchema.optional(),
-  webPageId: z.string().optional(),
-}).optional();
+export const backgroundSearchFiltersSchema = z
+  .object({
+    designType: backgroundDesignTypeSchema.optional(),
+    webPageId: z.string().optional(),
+  })
+  .optional();
 
 export type BackgroundSearchFilters = z.infer<typeof backgroundSearchFiltersSchema>;
 

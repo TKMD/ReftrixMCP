@@ -8,30 +8,24 @@
  * 認証ミドルウェア統合対応
  */
 
-import { Server } from '@modelcontextprotocol/sdk/server/index.js';
-import {
-  CallToolRequestSchema,
-  ListToolsRequestSchema,
-} from '@modelcontextprotocol/sdk/types.js';
-import type { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
-import type { CallToolRequest, ProgressNotification } from '@modelcontextprotocol/sdk/types.js';
-import { logger } from './utils/logger';
-import { handleToolCall, type ProgressContext } from './router';
-import { McpError } from './utils/errors';
-import { allToolDefinitions, getToolDefinition } from './tools';
-import { responseSizeWarning } from './middleware';
-import {
-  generateRequestId,
-  createErrorResponseWithRequestId,
-} from './utils/mcp-response';
-import { coerceArgs } from './middleware/args-type-coercion';
+import { Server } from "@modelcontextprotocol/sdk/server/index.js";
+import { CallToolRequestSchema, ListToolsRequestSchema } from "@modelcontextprotocol/sdk/types.js";
+import type { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+import type { CallToolRequest, ProgressNotification } from "@modelcontextprotocol/sdk/types.js";
+import { logger } from "./utils/logger";
+import { handleToolCall, type ProgressContext } from "./router";
+import { McpError } from "./utils/errors";
+import { allToolDefinitions, getToolDefinition } from "./tools";
+import { responseSizeWarning } from "./middleware";
+import { generateRequestId, createErrorResponseWithRequestId } from "./utils/mcp-response";
+import { coerceArgs } from "./middleware/args-type-coercion";
 
 /**
  * ツールレスポンスがエラーかどうかを判定
  * 標準形式: { success: false, error: {...} }
  */
 function isToolErrorResponse(result: unknown): boolean {
-  if (typeof result !== 'object' || result === null) {
+  if (typeof result !== "object" || result === null) {
     return false;
   }
   const obj = result as Record<string, unknown>;
@@ -50,14 +44,14 @@ function isToolErrorResponse(result: unknown): boolean {
  */
 function injectRequestIdIfMissing(result: unknown, requestId: string): unknown {
   // オブジェクトでない場合はそのまま返す
-  if (typeof result !== 'object' || result === null) {
+  if (typeof result !== "object" || result === null) {
     return result;
   }
 
   const obj = result as Record<string, unknown>;
 
   // McpResponse形式かチェック（successフィールドを持つ）
-  if (typeof obj.success !== 'boolean') {
+  if (typeof obj.success !== "boolean") {
     return result;
   }
 
@@ -83,8 +77,8 @@ function injectRequestIdIfMissing(result: unknown, requestId: string): unknown {
  * サーバー設定
  */
 export const SERVER_CONFIG = {
-  name: 'reftrix-mcp-server',
-  version: '0.1.3',
+  name: "reftrix-mcp-server",
+  version: "0.1.3",
 } as const;
 
 /**
@@ -111,19 +105,19 @@ export function getApiKeyFromRequest(request: CallToolRequest): string | undefin
   };
   const meta = params._meta;
 
-  if (meta?.apiKey && typeof meta.apiKey === 'string') {
-    logger.debug('[Server] API key found in request _meta');
+  if (meta?.apiKey && typeof meta.apiKey === "string") {
+    logger.debug("[Server] API key found in request _meta");
     return meta.apiKey;
   }
 
   // フォールバック: 環境変数
   const envApiKey = process.env.MCP_API_KEY;
   if (envApiKey) {
-    logger.debug('[Server] API key found in environment variable');
+    logger.debug("[Server] API key found in environment variable");
     return envApiKey;
   }
 
-  logger.debug('[Server] No API key found');
+  logger.debug("[Server] No API key found");
   return undefined;
 }
 
@@ -158,7 +152,7 @@ export function createServer(): Server {
 
   // ListToolsRequestハンドラー
   server.setRequestHandler(ListToolsRequestSchema, async () => {
-    logger.debug('Handling ListToolsRequest');
+    logger.debug("Handling ListToolsRequest");
 
     return {
       tools: allToolDefinitions,
@@ -179,7 +173,8 @@ export function createServer(): Server {
     // クライアントが_meta.progressTokenを提供した場合のみ進捗報告が有効
     const progressContext: ProgressContext | undefined = extra.sendNotification
       ? {
-          progressToken: (request.params as { _meta?: { progressToken?: string | number } })._meta?.progressToken,
+          progressToken: (request.params as { _meta?: { progressToken?: string | number } })._meta
+            ?.progressToken,
           sendNotification: async (notification: ProgressNotification): Promise<void> => {
             await extra.sendNotification(notification);
           },
@@ -220,7 +215,7 @@ export function createServer(): Server {
       return {
         content: [
           {
-            type: 'text' as const,
+            type: "text" as const,
             text: JSON.stringify(enrichedResult, null, 2),
           },
         ],
@@ -229,15 +224,14 @@ export function createServer(): Server {
     } catch (error) {
       // RESP-10: 統一エラーレスポンス形式
       // { success: false, error: { code, message }, metadata: { request_id } }
-      const errorCode = error instanceof McpError
-        ? error.code
-        : error instanceof Error
-          ? 'INTERNAL_ERROR'
-          : 'UNKNOWN_ERROR';
+      const errorCode =
+        error instanceof McpError
+          ? error.code
+          : error instanceof Error
+            ? "INTERNAL_ERROR"
+            : "UNKNOWN_ERROR";
 
-      const errorMessage = error instanceof Error
-        ? error.message
-        : 'Unknown error occurred';
+      const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
 
       logger.debug(`[Server] Tool call error: ${name}`, {
         error: errorMessage,
@@ -257,7 +251,7 @@ export function createServer(): Server {
       return {
         content: [
           {
-            type: 'text' as const,
+            type: "text" as const,
             text: JSON.stringify(errorResponse, null, 2),
           },
         ],
@@ -266,7 +260,7 @@ export function createServer(): Server {
     }
   });
 
-  logger.info('Server created successfully');
+  logger.info("Server created successfully");
 
   return server;
 }
@@ -274,26 +268,23 @@ export function createServer(): Server {
 /**
  * サーバーを起動
  */
-export async function start(
-  server: Server,
-  transport: StdioServerTransport
-): Promise<void> {
-  logger.info('Starting server...');
+export async function start(server: Server, transport: StdioServerTransport): Promise<void> {
+  logger.info("Starting server...");
 
   await server.connect(transport);
 
-  logger.info('Server started successfully');
+  logger.info("Server started successfully");
 }
 
 /**
  * サーバーを停止
  */
 export async function close(server: Server): Promise<void> {
-  logger.info('Closing server...');
+  logger.info("Closing server...");
 
   await server.close();
 
-  logger.info('Server closed successfully');
+  logger.info("Server closed successfully");
 }
 
 export { Server };

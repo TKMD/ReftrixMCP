@@ -70,8 +70,8 @@ const MEMORY_LIMITS = {
  * motion.search: P95 < 500ms, P99 < 1000ms
  */
 const DEFAULT_SLO_DEFINITIONS: Record<string, SLODefinition> = {
-  'layout.search': { p95: 500, p99: 1000 },
-  'motion.search': { p95: 500, p99: 1000 },
+  "layout.search": { p95: 500, p99: 1000 },
+  "motion.search": { p95: 500, p99: 1000 },
 };
 
 /**
@@ -118,7 +118,7 @@ export class SearchPerformanceService {
     if (!toolMetrics) {
       if (this.metrics.size >= MEMORY_LIMITS.MAX_TOOL_ENTRIES) {
         // 上限に達した場合は警告のみで記録しない
-        if (process.env.NODE_ENV === 'development') {
+        if (process.env.NODE_ENV === "development") {
           console.warn(
             `[SearchPerformanceService] Max tool entries reached (${MEMORY_LIMITS.MAX_TOOL_ENTRIES}). ` +
               `Ignoring new tool: ${toolName}`

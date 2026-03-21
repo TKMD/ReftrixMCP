@@ -47,7 +47,7 @@ export {
   type BriefValidateOutput,
   type BriefMcpErrorCode,
   type BriefMcpToolName,
-} from './schemas';
+} from "./schemas";
 
 // Service exports
 export {
@@ -60,7 +60,7 @@ export {
   FIELD_WEIGHTS,
   // Interface
   type IBriefValidateService,
-} from './validate.service';
+} from "./validate.service";
 
 // Handler exports
 export {
@@ -73,4 +73,4 @@ export {
   resetBriefValidateServiceFactory,
   // Types
   type IBriefValidateServiceFactory,
-} from './validate.handler';
+} from "./validate.handler";

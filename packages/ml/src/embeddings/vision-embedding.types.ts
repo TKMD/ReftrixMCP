@@ -15,7 +15,7 @@
  * - varied: 変化のあるリズム（意図的な強弱）
  * - asymmetric: 非対称なリズム（アシンメトリック）
  */
-export type VisionRhythm = 'regular' | 'varied' | 'asymmetric';
+export type VisionRhythm = "regular" | "varied" | "asymmetric";
 
 /**
  * コンテンツ密度の種類
@@ -23,7 +23,7 @@ export type VisionRhythm = 'regular' | 'varied' | 'asymmetric';
  * - moderate: 中程度
  * - dense: 密集（コンテンツが多い）
  */
-export type VisionDensity = 'sparse' | 'moderate' | 'dense';
+export type VisionDensity = "sparse" | "moderate" | "dense";
 
 /**
  * 視覚的重心の位置
@@ -33,7 +33,7 @@ export type VisionDensity = 'sparse' | 'moderate' | 'dense';
  * - left: 左側
  * - right: 右側
  */
-export type VisionGravity = 'top' | 'center' | 'bottom' | 'left' | 'right';
+export type VisionGravity = "top" | "center" | "bottom" | "left" | "right";
 
 /**
  * カラーテーマの種類
@@ -41,7 +41,7 @@ export type VisionGravity = 'top' | 'center' | 'bottom' | 'left' | 'right';
  * - dark: ダークテーマ
  * - mixed: 混合テーマ
  */
-export type VisionTheme = 'light' | 'dark' | 'mixed';
+export type VisionTheme = "light" | "dark" | "mixed";
 
 /**
  * 視覚特徴量インターフェース

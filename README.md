@@ -45,15 +45,15 @@ AIエージェントと統合するプラットフォームです。
 
 ## Why ReftrixMCP
 
-| | |
-|---|---|
-| **Layout-aware** | Sections, grids, and typography extracted as structured data -- not just screenshots |
-| **Motion-aware** | CSS static analysis + frame-by-frame video capture for real animation behavior |
-| **Quality-aware** | Three-axis scoring with actionable improvement suggestions |
-| **Searchable** | 768-dim multilingual embeddings (e5-base) with HNSW index and hybrid RRF ranking |
-| **Preference-aware** | User preference profiling with feedback-driven reranking across all search tools |
-| **Part-aware** | 16 UI part types extracted with DINOv2 visual embeddings for cross-site component comparison |
-| **MCP-native** | 26 tools purpose-built for Claude Desktop and MCP Client CLI |
+|                      |                                                                                              |
+| -------------------- | -------------------------------------------------------------------------------------------- |
+| **Layout-aware**     | Sections, grids, and typography extracted as structured data -- not just screenshots         |
+| **Motion-aware**     | CSS static analysis + frame-by-frame video capture for real animation behavior               |
+| **Quality-aware**    | Three-axis scoring with actionable improvement suggestions                                   |
+| **Searchable**       | 768-dim multilingual embeddings (e5-base) with HNSW index and hybrid RRF ranking             |
+| **Preference-aware** | User preference profiling with feedback-driven reranking across all search tools             |
+| **Part-aware**       | 16 UI part types extracted with DINOv2 visual embeddings for cross-site component comparison |
+| **MCP-native**       | 26 tools purpose-built for Claude Desktop and MCP Client CLI                                 |
 
 ## Quickstart
 
@@ -154,12 +154,12 @@ MCP Client (Claude Desktop / Code)  --stdio-->  MCP Server (26 tools, Zod)
 
 ## Documentation
 
-| Guide | Description |
-|-------|-------------|
-| [Getting Started](docs/users-guide/01-getting-started.md) | Installation, setup, and first analysis |
-| [MCP Tools Guide](docs/users-guide/02-mcp-tools-guide.md) | All 26 tools with usage examples |
+| Guide                                                                   | Description                             |
+| ----------------------------------------------------------------------- | --------------------------------------- |
+| [Getting Started](docs/users-guide/01-getting-started.md)               | Installation, setup, and first analysis |
+| [MCP Tools Guide](docs/users-guide/02-mcp-tools-guide.md)               | All 26 tools with usage examples        |
 | [page.analyze Deep Dive](docs/users-guide/03-page-analyze-deep-dive.md) | Async analysis flow and data structures |
-| [Troubleshooting](docs/users-guide/04-troubleshooting.md) | Common issues and solutions |
+| [Troubleshooting](docs/users-guide/04-troubleshooting.md)               | Common issues and solutions             |
 
 ## Known limitations
 

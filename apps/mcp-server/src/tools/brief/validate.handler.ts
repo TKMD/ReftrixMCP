@@ -16,7 +16,7 @@
  * @module tools/brief/validate.handler
  */
 
-import { logger, isDevelopment } from '../../utils/logger';
+import { logger, isDevelopment } from "../../utils/logger";
 
 import {
   briefValidateInputSchema,
@@ -24,12 +24,9 @@ import {
   type BriefValidateInput,
   type BriefValidateOutput,
   type BriefValidationResult,
-} from './schemas';
+} from "./schemas";
 
-import {
-  BriefValidateService,
-  type IBriefValidateService,
-} from './validate.service';
+import { BriefValidateService, type IBriefValidateService } from "./validate.service";
 
 // =====================================================
 // 型定義
@@ -53,9 +50,7 @@ let serviceFactory: IBriefValidateServiceFactory | null = null;
  * カスタムサービスファクトリを設定
  * @param factory - サービスファクトリ関数
  */
-export function setBriefValidateServiceFactory(
-  factory: IBriefValidateServiceFactory
-): void {
+export function setBriefValidateServiceFactory(factory: IBriefValidateServiceFactory): void {
   serviceFactory = factory;
 }
 
@@ -88,11 +83,9 @@ function getService(): IBriefValidateService {
  * @param input - 入力（brief, strictMode）
  * @returns BriefValidateOutput - Response Objectパターン
  */
-export async function briefValidateHandler(
-  input: unknown
-): Promise<BriefValidateOutput> {
+export async function briefValidateHandler(input: unknown): Promise<BriefValidateOutput> {
   if (isDevelopment()) {
-    logger.info('[MCP Tool] brief.validate called', {
+    logger.info("[MCP Tool] brief.validate called", {
       hasInput: input !== null && input !== undefined,
     });
   }
@@ -103,13 +96,13 @@ export async function briefValidateHandler(
     validated = briefValidateInputSchema.parse(input);
   } catch (error) {
     if (isDevelopment()) {
-      logger.error('[MCP Tool] brief.validate validation error', { error });
+      logger.error("[MCP Tool] brief.validate validation error", { error });
     }
     return {
       success: false,
       error: {
         code: BRIEF_MCP_ERROR_CODES.VALIDATION_ERROR,
-        message: error instanceof Error ? error.message : 'Invalid input',
+        message: error instanceof Error ? error.message : "Invalid input",
       },
     };
   }
@@ -123,7 +116,7 @@ export async function briefValidateHandler(
     );
 
     if (isDevelopment()) {
-      logger.info('[MCP Tool] brief.validate completed', {
+      logger.info("[MCP Tool] brief.validate completed", {
         isValid: result.isValid,
         completenessScore: result.completenessScore,
         issueCount: result.issues.length,
@@ -137,13 +130,13 @@ export async function briefValidateHandler(
     };
   } catch (error) {
     if (isDevelopment()) {
-      logger.error('[MCP Tool] brief.validate error', { error });
+      logger.error("[MCP Tool] brief.validate error", { error });
     }
     return {
       success: false,
       error: {
         code: BRIEF_MCP_ERROR_CODES.INTERNAL_ERROR,
-        message: error instanceof Error ? error.message : 'Validation failed',
+        message: error instanceof Error ? error.message : "Validation failed",
       },
     };
   }
@@ -158,129 +151,128 @@ export async function briefValidateHandler(
  * MCP Server登録用
  */
 export const briefValidateToolDefinition = {
-  name: 'brief.validate' as const,
-  description:
-    'Validate design brief and return completeness score with improvement suggestions.',
+  name: "brief.validate" as const,
+  description: "Validate design brief and return completeness score with improvement suggestions.",
   annotations: {
-    title: 'Brief Validate',
+    title: "Brief Validate",
     readOnlyHint: true,
     idempotentHint: true,
     openWorldHint: false,
   },
   inputSchema: {
-    type: 'object' as const,
+    type: "object" as const,
     properties: {
       brief: {
-        type: 'object' as const,
-        description: 'Design brief to validate',
+        type: "object" as const,
+        description: "Design brief to validate",
         properties: {
           projectName: {
-            type: 'string',
+            type: "string",
             minLength: 1,
             maxLength: 200,
-            description: 'Project name (required, 1-200 chars)',
+            description: "Project name (required, 1-200 chars)",
           },
           description: {
-            type: 'string',
+            type: "string",
             maxLength: 2000,
-            description: 'Project description (optional, max 2000 chars)',
+            description: "Project description (optional, max 2000 chars)",
           },
           targetAudience: {
-            type: 'string',
+            type: "string",
             maxLength: 500,
-            description: 'Target audience (optional, max 500 chars)',
+            description: "Target audience (optional, max 500 chars)",
           },
           industry: {
-            type: 'string',
+            type: "string",
             maxLength: 100,
-            description: 'Industry/field (optional, max 100 chars)',
+            description: "Industry/field (optional, max 100 chars)",
           },
           tone: {
-            type: 'array',
+            type: "array",
             items: {
-              type: 'string',
+              type: "string",
               enum: [
-                'professional',
-                'playful',
-                'minimal',
-                'bold',
-                'elegant',
-                'friendly',
-                'corporate',
-                'creative',
+                "professional",
+                "playful",
+                "minimal",
+                "bold",
+                "elegant",
+                "friendly",
+                "corporate",
+                "creative",
               ],
             },
             description:
-              'Design tone (optional): professional, playful, minimal, bold, elegant, friendly, corporate, creative',
+              "Design tone (optional): professional, playful, minimal, bold, elegant, friendly, corporate, creative",
           },
           colorPreferences: {
-            type: 'object',
-            description: 'Color settings (optional)',
+            type: "object",
+            description: "Color settings (optional)",
             properties: {
               primary: {
-                type: 'string',
-                pattern: '^#[0-9A-Fa-f]{6}$',
-                description: 'Primary color (HEX: #RRGGBB)',
+                type: "string",
+                pattern: "^#[0-9A-Fa-f]{6}$",
+                description: "Primary color (HEX: #RRGGBB)",
               },
               secondary: {
-                type: 'string',
-                pattern: '^#[0-9A-Fa-f]{6}$',
-                description: 'Secondary color (HEX: #RRGGBB)',
+                type: "string",
+                pattern: "^#[0-9A-Fa-f]{6}$",
+                description: "Secondary color (HEX: #RRGGBB)",
               },
               accent: {
-                type: 'string',
-                pattern: '^#[0-9A-Fa-f]{6}$',
-                description: 'Accent color (HEX: #RRGGBB)',
+                type: "string",
+                pattern: "^#[0-9A-Fa-f]{6}$",
+                description: "Accent color (HEX: #RRGGBB)",
               },
             },
           },
           references: {
-            type: 'array',
+            type: "array",
             maxItems: 10,
-            description: 'Reference sites (optional, max 10)',
+            description: "Reference sites (optional, max 10)",
             items: {
-              type: 'object',
+              type: "object",
               properties: {
                 url: {
-                  type: 'string',
-                  format: 'uri',
-                  description: 'Reference site URL',
+                  type: "string",
+                  format: "uri",
+                  description: "Reference site URL",
                 },
                 note: {
-                  type: 'string',
+                  type: "string",
                   maxLength: 200,
-                  description: 'Note (max 200 chars)',
+                  description: "Note (max 200 chars)",
                 },
               },
-              required: ['url'],
+              required: ["url"],
             },
           },
           constraints: {
-            type: 'object',
-            description: 'Constraints (optional)',
+            type: "object",
+            description: "Constraints (optional)",
             properties: {
               mustHave: {
-                type: 'array',
-                items: { type: 'string' },
-                description: 'Required elements',
+                type: "array",
+                items: { type: "string" },
+                description: "Required elements",
               },
               mustAvoid: {
-                type: 'array',
-                items: { type: 'string' },
-                description: 'Elements to avoid',
+                type: "array",
+                items: { type: "string" },
+                description: "Elements to avoid",
               },
             },
           },
         },
-        required: ['projectName'],
+        required: ["projectName"],
       },
       strictMode: {
-        type: 'boolean',
+        type: "boolean",
         default: false,
         description:
-          'Strict mode: require description, tone, colorPreferences, references (2+) (default: false)',
+          "Strict mode: require description, tone, colorPreferences, references (2+) (default: false)",
       },
     },
-    required: ['brief'],
+    required: ["brief"],
   },
 };

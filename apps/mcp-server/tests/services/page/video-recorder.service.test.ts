@@ -20,10 +20,10 @@
  * @module tests/services/page/video-recorder.service
  */
 
-import { describe, it, expect, afterAll, beforeEach, afterEach, vi } from 'vitest';
-import * as fs from 'node:fs';
-import * as path from 'node:path';
-import * as os from 'node:os';
+import { describe, it, expect, afterAll, beforeEach, afterEach, vi } from "vitest";
+import * as fs from "node:fs";
+import * as path from "node:path";
+import * as os from "node:os";
 
 // =====================================================
 // Playwrightモック定義（ホイスト必須）
@@ -59,7 +59,7 @@ const mockBrowser = {
 };
 
 // Playwrightモジュールのモック（ホイスト）
-vi.mock('playwright', () => ({
+vi.mock("playwright", () => ({
   chromium: {
     launch: vi.fn().mockResolvedValue({
       newContext: vi.fn(),
@@ -69,7 +69,7 @@ vi.mock('playwright', () => ({
 }));
 
 // loggerモック
-vi.mock('../../../src/utils/logger', () => ({
+vi.mock("../../../src/utils/logger", () => ({
   logger: {
     info: vi.fn(),
     error: vi.fn(),
@@ -80,13 +80,13 @@ vi.mock('../../../src/utils/logger', () => ({
 }));
 
 // fsモック（部分的）
-vi.mock('node:fs', async () => {
-  const actual = await vi.importActual<typeof import('node:fs')>('node:fs');
+vi.mock("node:fs", async () => {
+  const actual = await vi.importActual<typeof import("node:fs")>("node:fs");
   return {
     ...actual,
     existsSync: vi.fn().mockImplementation((path: string) => {
       // テスト用のモックパスの場合はtrueを返す
-      if (typeof path === 'string' && path.includes('video-recorder-')) {
+      if (typeof path === "string" && path.includes("video-recorder-")) {
         return true;
       }
       // その他のパスは実際の実装を使用
@@ -94,7 +94,7 @@ vi.mock('node:fs', async () => {
     }),
     statSync: vi.fn().mockImplementation((path: string) => {
       // テスト用のモックパスの場合はモックstatsを返す
-      if (typeof path === 'string' && path.includes('video-recorder-')) {
+      if (typeof path === "string" && path.includes("video-recorder-")) {
         return { size: 102400 }; // 100KB
       }
       // その他のパスは実際の実装を使用
@@ -116,26 +116,26 @@ vi.mock('node:fs', async () => {
 // =====================================================
 
 // Playwrightのchromiumを取得してモックを設定
-import { chromium } from 'playwright';
+import { chromium } from "playwright";
 
 // =====================================================
 // Unit Tests - ネットワークアクセス不要
 // =====================================================
 
-describe('VideoRecorderService - Unit Tests', () => {
+describe("VideoRecorderService - Unit Tests", () => {
   // サービスモジュールのインポート
-  let VideoRecorderService: typeof import('../../../src/services/page/video-recorder.service').VideoRecorderService;
-  let recordPage: typeof import('../../../src/services/page/video-recorder.service').recordPage;
-  let closeSharedRecorder: typeof import('../../../src/services/page/video-recorder.service').closeSharedRecorder;
-  let DEFAULT_RECORD_OPTIONS: typeof import('../../../src/services/page/video-recorder.service').DEFAULT_RECORD_OPTIONS;
-  let RecordError: typeof import('../../../src/services/page/video-recorder.service').RecordError;
+  let VideoRecorderService: typeof import("../../../src/services/page/video-recorder.service").VideoRecorderService;
+  let recordPage: typeof import("../../../src/services/page/video-recorder.service").recordPage;
+  let closeSharedRecorder: typeof import("../../../src/services/page/video-recorder.service").closeSharedRecorder;
+  let DEFAULT_RECORD_OPTIONS: typeof import("../../../src/services/page/video-recorder.service").DEFAULT_RECORD_OPTIONS;
+  let RecordError: typeof import("../../../src/services/page/video-recorder.service").RecordError;
 
   beforeEach(async () => {
     vi.clearAllMocks();
     vi.resetModules();
 
     // モジュールをリロード
-    const module = await import('../../../src/services/page/video-recorder.service');
+    const module = await import("../../../src/services/page/video-recorder.service");
     VideoRecorderService = module.VideoRecorderService;
     recordPage = module.recordPage;
     closeSharedRecorder = module.closeSharedRecorder;
@@ -143,133 +143,135 @@ describe('VideoRecorderService - Unit Tests', () => {
     RecordError = module.RecordError;
   });
 
-  describe('Module Exports', () => {
-    it('VideoRecorderService クラスがエクスポートされていること', () => {
+  describe("Module Exports", () => {
+    it("VideoRecorderService クラスがエクスポートされていること", () => {
       expect(VideoRecorderService).toBeDefined();
-      expect(typeof VideoRecorderService).toBe('function');
+      expect(typeof VideoRecorderService).toBe("function");
     });
 
-    it('recordPage 関数がエクスポートされていること', () => {
+    it("recordPage 関数がエクスポートされていること", () => {
       expect(recordPage).toBeDefined();
-      expect(typeof recordPage).toBe('function');
+      expect(typeof recordPage).toBe("function");
     });
 
-    it('closeSharedRecorder 関数がエクスポートされていること', () => {
+    it("closeSharedRecorder 関数がエクスポートされていること", () => {
       expect(closeSharedRecorder).toBeDefined();
-      expect(typeof closeSharedRecorder).toBe('function');
+      expect(typeof closeSharedRecorder).toBe("function");
     });
 
-    it('DEFAULT_RECORD_OPTIONS がエクスポートされていること', () => {
+    it("DEFAULT_RECORD_OPTIONS がエクスポートされていること", () => {
       expect(DEFAULT_RECORD_OPTIONS).toBeDefined();
     });
 
-    it('RecordError エラークラスがエクスポートされていること', () => {
+    it("RecordError エラークラスがエクスポートされていること", () => {
       expect(RecordError).toBeDefined();
     });
   });
 
-  describe('DEFAULT_RECORD_OPTIONS', () => {
-    it('デフォルトタイムアウトが30000msであること', () => {
+  describe("DEFAULT_RECORD_OPTIONS", () => {
+    it("デフォルトタイムアウトが30000msであること", () => {
       expect(DEFAULT_RECORD_OPTIONS.timeout).toBe(30000);
     });
 
-    it('デフォルトviewportが1280x720であること', () => {
+    it("デフォルトviewportが1280x720であること", () => {
       expect(DEFAULT_RECORD_OPTIONS.viewport).toEqual({ width: 1280, height: 720 });
     });
 
-    it('デフォルトrecordSizeが1280x720であること', () => {
+    it("デフォルトrecordSizeが1280x720であること", () => {
       expect(DEFAULT_RECORD_OPTIONS.recordSize).toEqual({ width: 1280, height: 720 });
     });
 
-    it('デフォルトwaitUntilがdomcontentloadedであること（WebGL/3Dサイト対応）', () => {
+    it("デフォルトwaitUntilがdomcontentloadedであること（WebGL/3Dサイト対応）", () => {
       // WebGL/3Dサイトでは'load'イベントが非常に遅いため、'domcontentloaded'をデフォルトに変更
-      expect(DEFAULT_RECORD_OPTIONS.waitUntil).toBe('domcontentloaded');
+      expect(DEFAULT_RECORD_OPTIONS.waitUntil).toBe("domcontentloaded");
     });
 
-    it('デフォルトrecordDurationが5000msであること', () => {
+    it("デフォルトrecordDurationが5000msであること", () => {
       expect(DEFAULT_RECORD_OPTIONS.recordDuration).toBe(5000);
     });
 
-    it('デフォルトscrollPageがtrueであること', () => {
+    it("デフォルトscrollPageがtrueであること", () => {
       expect(DEFAULT_RECORD_OPTIONS.scrollPage).toBe(true);
     });
 
-    it('デフォルトmoveMouseRandomlyがtrueであること', () => {
+    it("デフォルトmoveMouseRandomlyがtrueであること", () => {
       expect(DEFAULT_RECORD_OPTIONS.moveMouseRandomly).toBe(true);
     });
   });
 
-  describe('VideoRecorderService Class', () => {
-    it('インスタンスを作成できること', () => {
+  describe("VideoRecorderService Class", () => {
+    it("インスタンスを作成できること", () => {
       const service = new VideoRecorderService();
       expect(service).toBeInstanceOf(VideoRecorderService);
     });
 
-    it('recordメソッドが存在すること', () => {
+    it("recordメソッドが存在すること", () => {
       const service = new VideoRecorderService();
-      expect(typeof service.record).toBe('function');
+      expect(typeof service.record).toBe("function");
     });
 
-    it('closeメソッドが存在すること', () => {
+    it("closeメソッドが存在すること", () => {
       const service = new VideoRecorderService();
-      expect(typeof service.close).toBe('function');
+      expect(typeof service.close).toBe("function");
     });
 
-    it('cleanupメソッドが存在すること（一時ファイル削除用）', () => {
+    it("cleanupメソッドが存在すること（一時ファイル削除用）", () => {
       const service = new VideoRecorderService();
-      expect(typeof service.cleanup).toBe('function');
+      expect(typeof service.cleanup).toBe("function");
     });
   });
 
-  describe('RecordError Class', () => {
-    it('RecordError が正しい名前を持つこと', () => {
-      const error = new RecordError('test error message');
-      expect(error.name).toBe('RecordError');
-      expect(error.message).toBe('test error message');
+  describe("RecordError Class", () => {
+    it("RecordError が正しい名前を持つこと", () => {
+      const error = new RecordError("test error message");
+      expect(error.name).toBe("RecordError");
+      expect(error.message).toBe("test error message");
     });
 
-    it('RecordError が Error を継承すること', () => {
-      const error = new RecordError('test');
+    it("RecordError が Error を継承すること", () => {
+      const error = new RecordError("test");
       expect(error).toBeInstanceOf(Error);
     });
 
-    it('RecordError がstatusCodeを持てること', () => {
-      const error = new RecordError('test', 404);
+    it("RecordError がstatusCodeを持てること", () => {
+      const error = new RecordError("test", 404);
       expect(error.statusCode).toBe(404);
     });
   });
 
-  describe('Input Validation', () => {
-    it('空のURLでエラーをスローすること', async () => {
-      await expect(recordPage('')).rejects.toThrow(RecordError);
+  describe("Input Validation", () => {
+    it("空のURLでエラーをスローすること", async () => {
+      await expect(recordPage("")).rejects.toThrow(RecordError);
     });
 
-    it('無効なURLでエラーをスローすること', async () => {
-      await expect(recordPage('not-a-valid-url')).rejects.toThrow(RecordError);
+    it("無効なURLでエラーをスローすること", async () => {
+      await expect(recordPage("not-a-valid-url")).rejects.toThrow(RecordError);
     });
 
-    it('プロトコルなしのURLでエラーをスローすること', async () => {
-      await expect(recordPage('example.com')).rejects.toThrow(RecordError);
+    it("プロトコルなしのURLでエラーをスローすること", async () => {
+      await expect(recordPage("example.com")).rejects.toThrow(RecordError);
     });
 
-    it('fileプロトコルがブロックされること', async () => {
-      await expect(recordPage('file:///etc/passwd')).rejects.toThrow(RecordError);
+    it("fileプロトコルがブロックされること", async () => {
+      await expect(recordPage("file:///etc/passwd")).rejects.toThrow(RecordError);
     });
 
-    it('localhostがブロックされること（SSRF対策）', async () => {
-      await expect(recordPage('http://localhost:3000')).rejects.toThrow(RecordError);
+    it("localhostがブロックされること（SSRF対策）", async () => {
+      await expect(recordPage("http://localhost:3000")).rejects.toThrow(RecordError);
     });
 
-    it('プライベートIPがブロックされること（SSRF対策）', async () => {
-      await expect(recordPage('http://192.168.1.1')).rejects.toThrow(RecordError);
+    it("プライベートIPがブロックされること（SSRF対策）", async () => {
+      await expect(recordPage("http://192.168.1.1")).rejects.toThrow(RecordError);
     });
 
-    it('リンクローカル (169.254.x.x) がブロックされること', async () => {
-      await expect(recordPage('http://169.254.1.1')).rejects.toThrow(RecordError);
+    it("リンクローカル (169.254.x.x) がブロックされること", async () => {
+      await expect(recordPage("http://169.254.1.1")).rejects.toThrow(RecordError);
     });
 
-    it('AWSメタデータサービス (169.254.169.254) がブロックされること', async () => {
-      await expect(recordPage('http://169.254.169.254/latest/meta-data/')).rejects.toThrow(RecordError);
+    it("AWSメタデータサービス (169.254.169.254) がブロックされること", async () => {
+      await expect(recordPage("http://169.254.169.254/latest/meta-data/")).rejects.toThrow(
+        RecordError
+      );
     });
   });
 });
@@ -278,12 +280,12 @@ describe('VideoRecorderService - Unit Tests', () => {
 // Integration Tests - Playwrightモック使用
 // =====================================================
 
-describe('VideoRecorderService - Integration Tests (Mocked)', () => {
+describe("VideoRecorderService - Integration Tests (Mocked)", () => {
   // サービスモジュールのインポート
-  let VideoRecorderService: typeof import('../../../src/services/page/video-recorder.service').VideoRecorderService;
-  let recordPage: typeof import('../../../src/services/page/video-recorder.service').recordPage;
-  let closeSharedRecorder: typeof import('../../../src/services/page/video-recorder.service').closeSharedRecorder;
-  let RecordError: typeof import('../../../src/services/page/video-recorder.service').RecordError;
+  let VideoRecorderService: typeof import("../../../src/services/page/video-recorder.service").VideoRecorderService;
+  let recordPage: typeof import("../../../src/services/page/video-recorder.service").recordPage;
+  let closeSharedRecorder: typeof import("../../../src/services/page/video-recorder.service").closeSharedRecorder;
+  let RecordError: typeof import("../../../src/services/page/video-recorder.service").RecordError;
 
   // テスト用の一時ディレクトリ
   let tempDir: string;
@@ -295,8 +297,8 @@ describe('VideoRecorderService - Integration Tests (Mocked)', () => {
     vi.resetModules();
 
     // 一時ディレクトリのパスを設定
-    tempDir = path.join(os.tmpdir(), 'video-recorder-mock-12345');
-    mockVideoPath = path.join(tempDir, 'video.webm');
+    tempDir = path.join(os.tmpdir(), "video-recorder-mock-12345");
+    mockVideoPath = path.join(tempDir, "video.webm");
 
     // mockVideoのpath()をモック
     mockVideo.path.mockResolvedValue(mockVideoPath);
@@ -306,7 +308,7 @@ describe('VideoRecorderService - Integration Tests (Mocked)', () => {
       status: vi.fn().mockReturnValue(200),
       ok: vi.fn().mockReturnValue(true),
     });
-    mockPage.title.mockResolvedValue('Example Domain');
+    mockPage.title.mockResolvedValue("Example Domain");
     mockPage.close.mockResolvedValue(undefined);
     mockPage.video.mockReturnValue(mockVideo);
     mockPage.evaluate.mockResolvedValue(undefined);
@@ -321,10 +323,12 @@ describe('VideoRecorderService - Integration Tests (Mocked)', () => {
     mockBrowser.close.mockResolvedValue(undefined);
 
     // chromium.launchのモック設定
-    vi.mocked(chromium.launch).mockResolvedValue(mockBrowser as unknown as import('playwright').Browser);
+    vi.mocked(chromium.launch).mockResolvedValue(
+      mockBrowser as unknown as import("playwright").Browser
+    );
 
     // モジュールをリロード
-    const module = await import('../../../src/services/page/video-recorder.service');
+    const module = await import("../../../src/services/page/video-recorder.service");
     VideoRecorderService = module.VideoRecorderService;
     recordPage = module.recordPage;
     closeSharedRecorder = module.closeSharedRecorder;
@@ -343,27 +347,27 @@ describe('VideoRecorderService - Integration Tests (Mocked)', () => {
   afterAll(async () => {
     // 共有サービスのクリーンアップ
     try {
-      const module = await import('../../../src/services/page/video-recorder.service');
+      const module = await import("../../../src/services/page/video-recorder.service");
       await module.closeSharedRecorder();
     } catch {
       // モジュールが存在しない場合は無視
     }
   });
 
-  describe('Basic Recording', () => {
-    it('example.comから動画を録画できること', async () => {
+  describe("Basic Recording", () => {
+    it("example.comから動画を録画できること", async () => {
       // テスト: 動画録画の基本フロー
-      const result = await recordPage('https://example.com', {
+      const result = await recordPage("https://example.com", {
         timeout: 30000,
         recordDuration: 100, // 短い録画時間（テスト高速化）
         scrollPage: false,
         moveMouseRandomly: false,
       });
 
-      expect(result).toHaveProperty('videoPath');
-      expect(result).toHaveProperty('durationMs');
-      expect(result).toHaveProperty('sizeBytes');
-      expect(result).toHaveProperty('processingTimeMs');
+      expect(result).toHaveProperty("videoPath");
+      expect(result).toHaveProperty("durationMs");
+      expect(result).toHaveProperty("sizeBytes");
+      expect(result).toHaveProperty("processingTimeMs");
 
       // 動画パスが正しいこと
       expect(result.videoPath).toBe(mockVideoPath);
@@ -375,8 +379,8 @@ describe('VideoRecorderService - Integration Tests (Mocked)', () => {
       expect(result.durationMs).toBe(100);
     }, 10000);
 
-    it('録画結果にページタイトルが含まれること', async () => {
-      const result = await recordPage('https://example.com', {
+    it("録画結果にページタイトルが含まれること", async () => {
+      const result = await recordPage("https://example.com", {
         timeout: 30000,
         recordDuration: 100,
         scrollPage: false,
@@ -384,12 +388,12 @@ describe('VideoRecorderService - Integration Tests (Mocked)', () => {
       });
 
       expect(result.title).toBeDefined();
-      expect(typeof result.title).toBe('string');
-      expect(result.title?.toLowerCase()).toContain('example');
+      expect(typeof result.title).toBe("string");
+      expect(result.title?.toLowerCase()).toContain("example");
     }, 10000);
 
-    it('webm形式で録画されること', async () => {
-      const result = await recordPage('https://example.com', {
+    it("webm形式で録画されること", async () => {
+      const result = await recordPage("https://example.com", {
         timeout: 30000,
         recordDuration: 100,
         scrollPage: false,
@@ -397,13 +401,13 @@ describe('VideoRecorderService - Integration Tests (Mocked)', () => {
       });
 
       // ファイル拡張子がwebmであること
-      expect(result.videoPath.endsWith('.webm')).toBe(true);
+      expect(result.videoPath.endsWith(".webm")).toBe(true);
     }, 10000);
   });
 
-  describe('Options Handling', () => {
-    it('カスタムviewportが適用されること', async () => {
-      const result = await recordPage('https://example.com', {
+  describe("Options Handling", () => {
+    it("カスタムviewportが適用されること", async () => {
+      const result = await recordPage("https://example.com", {
         timeout: 30000,
         viewport: { width: 1920, height: 1080 },
         recordDuration: 100,
@@ -411,7 +415,7 @@ describe('VideoRecorderService - Integration Tests (Mocked)', () => {
         moveMouseRandomly: false,
       });
 
-      expect(result).toHaveProperty('videoPath');
+      expect(result).toHaveProperty("videoPath");
       expect(result.videoPath).toBe(mockVideoPath);
 
       // viewportが設定されたことを確認
@@ -422,8 +426,8 @@ describe('VideoRecorderService - Integration Tests (Mocked)', () => {
       );
     }, 10000);
 
-    it('カスタムrecordSizeが適用されること', async () => {
-      const result = await recordPage('https://example.com', {
+    it("カスタムrecordSizeが適用されること", async () => {
+      const result = await recordPage("https://example.com", {
         timeout: 30000,
         viewport: { width: 1920, height: 1080 },
         recordSize: { width: 640, height: 480 }, // 異なるサイズで録画
@@ -432,7 +436,7 @@ describe('VideoRecorderService - Integration Tests (Mocked)', () => {
         moveMouseRandomly: false,
       });
 
-      expect(result).toHaveProperty('videoPath');
+      expect(result).toHaveProperty("videoPath");
       expect(result.videoPath).toBe(mockVideoPath);
 
       // recordSizeが設定されたことを確認
@@ -445,95 +449,95 @@ describe('VideoRecorderService - Integration Tests (Mocked)', () => {
       );
     }, 10000);
 
-    it('waitUntil: networkidleオプションが適用されること', async () => {
-      const result = await recordPage('https://example.com', {
+    it("waitUntil: networkidleオプションが適用されること", async () => {
+      const result = await recordPage("https://example.com", {
         timeout: 30000,
-        waitUntil: 'networkidle',
+        waitUntil: "networkidle",
         recordDuration: 100,
         scrollPage: false,
         moveMouseRandomly: false,
       });
 
-      expect(result).toHaveProperty('videoPath');
+      expect(result).toHaveProperty("videoPath");
 
       // waitUntilが設定されたことを確認
       expect(mockPage.goto).toHaveBeenCalledWith(
-        'https://example.com',
+        "https://example.com",
         expect.objectContaining({
-          waitUntil: 'networkidle',
+          waitUntil: "networkidle",
         })
       );
     }, 10000);
 
-    it('scrollPage: falseで録画できること', async () => {
-      const result = await recordPage('https://example.com', {
+    it("scrollPage: falseで録画できること", async () => {
+      const result = await recordPage("https://example.com", {
         timeout: 30000,
         scrollPage: false,
         recordDuration: 100,
         moveMouseRandomly: false,
       });
 
-      expect(result).toHaveProperty('videoPath');
+      expect(result).toHaveProperty("videoPath");
       // scrollPageがfalseなのでevaluate（スクロール）は呼ばれない
       expect(mockPage.evaluate).not.toHaveBeenCalled();
     }, 10000);
 
-    it('moveMouseRandomly: falseで録画できること', async () => {
-      const result = await recordPage('https://example.com', {
+    it("moveMouseRandomly: falseで録画できること", async () => {
+      const result = await recordPage("https://example.com", {
         timeout: 30000,
         moveMouseRandomly: false,
         recordDuration: 100,
         scrollPage: false,
       });
 
-      expect(result).toHaveProperty('videoPath');
+      expect(result).toHaveProperty("videoPath");
       // moveMouseRandomlyがfalseなのでmouse.moveは呼ばれない
       expect(mockPage.mouse.move).not.toHaveBeenCalled();
     }, 10000);
   });
 
-  describe('Error Handling', () => {
-    it('タイムアウト時にRecordErrorをスローすること', async () => {
+  describe("Error Handling", () => {
+    it("タイムアウト時にRecordErrorをスローすること", async () => {
       // gotoでタイムアウトエラーをシミュレート
-      mockPage.goto.mockRejectedValueOnce(new Error('Timeout exceeded: 1ms'));
+      mockPage.goto.mockRejectedValueOnce(new Error("Timeout exceeded: 1ms"));
 
-      await expect(
-        recordPage('https://example.com', { timeout: 1 })
-      ).rejects.toThrow(RecordError);
+      await expect(recordPage("https://example.com", { timeout: 1 })).rejects.toThrow(RecordError);
     }, 10000);
 
-    it('存在しないドメインでRecordErrorをスローすること', async () => {
+    it("存在しないドメインでRecordErrorをスローすること", async () => {
       // DNS解決エラーをシミュレート
-      mockPage.goto.mockRejectedValueOnce(new Error('net::ERR_NAME_NOT_RESOLVED'));
+      mockPage.goto.mockRejectedValueOnce(new Error("net::ERR_NAME_NOT_RESOLVED"));
 
       await expect(
-        recordPage('https://this-domain-definitely-does-not-exist-12345.com', {
+        recordPage("https://this-domain-definitely-does-not-exist-12345.com", {
           timeout: 10000,
         })
       ).rejects.toThrow(RecordError);
     }, 10000);
 
-    it('404レスポンスでRecordErrorをスローすること', async () => {
+    it("404レスポンスでRecordErrorをスローすること", async () => {
       // 404レスポンスをシミュレート
       mockPage.goto.mockResolvedValueOnce({
         status: vi.fn().mockReturnValue(404),
         ok: vi.fn().mockReturnValue(false),
       });
 
-      await expect(
-        recordPage('https://httpstat.us/404', { timeout: 30000 })
-      ).rejects.toThrow(RecordError);
+      await expect(recordPage("https://httpstat.us/404", { timeout: 30000 })).rejects.toThrow(
+        RecordError
+      );
     }, 10000);
   });
 
-  describe('Resource Cleanup', () => {
-    it('録画後に一時ファイルが残らないこと（cleanup呼び出し後）', async () => {
+  describe("Resource Cleanup", () => {
+    it("録画後に一時ファイルが残らないこと（cleanup呼び出し後）", async () => {
       const service = new VideoRecorderService();
 
       // ブラウザとコンテキストのモックを設定
-      vi.mocked(chromium.launch).mockResolvedValue(mockBrowser as unknown as import('playwright').Browser);
+      vi.mocked(chromium.launch).mockResolvedValue(
+        mockBrowser as unknown as import("playwright").Browser
+      );
 
-      const result = await service.record('https://example.com', {
+      const result = await service.record("https://example.com", {
         timeout: 30000,
         recordDuration: 100,
         scrollPage: false,
@@ -550,13 +554,15 @@ describe('VideoRecorderService - Integration Tests (Mocked)', () => {
       expect(fs.unlinkSync).toHaveBeenCalledWith(videoPath);
     }, 10000);
 
-    it('closeメソッドが正常に動作すること', async () => {
+    it("closeメソッドが正常に動作すること", async () => {
       const service = new VideoRecorderService();
 
       // ブラウザとコンテキストのモックを設定
-      vi.mocked(chromium.launch).mockResolvedValue(mockBrowser as unknown as import('playwright').Browser);
+      vi.mocked(chromium.launch).mockResolvedValue(
+        mockBrowser as unknown as import("playwright").Browser
+      );
 
-      await service.record('https://example.com', {
+      await service.record("https://example.com", {
         timeout: 30000,
         recordDuration: 100,
         scrollPage: false,
@@ -570,24 +576,26 @@ describe('VideoRecorderService - Integration Tests (Mocked)', () => {
     }, 10000);
   });
 
-  describe('VideoRecorderService Instance', () => {
-    it('インスタンスメソッドで録画できること', async () => {
+  describe("VideoRecorderService Instance", () => {
+    it("インスタンスメソッドで録画できること", async () => {
       const service = new VideoRecorderService();
 
       // ブラウザとコンテキストのモックを設定
-      vi.mocked(chromium.launch).mockResolvedValue(mockBrowser as unknown as import('playwright').Browser);
+      vi.mocked(chromium.launch).mockResolvedValue(
+        mockBrowser as unknown as import("playwright").Browser
+      );
 
-      const result = await service.record('https://example.com', {
+      const result = await service.record("https://example.com", {
         timeout: 30000,
         recordDuration: 100,
         scrollPage: false,
         moveMouseRandomly: false,
       });
 
-      expect(result).toHaveProperty('videoPath');
-      expect(result).toHaveProperty('durationMs');
-      expect(result).toHaveProperty('sizeBytes');
-      expect(result).toHaveProperty('processingTimeMs');
+      expect(result).toHaveProperty("videoPath");
+      expect(result).toHaveProperty("durationMs");
+      expect(result).toHaveProperty("sizeBytes");
+      expect(result).toHaveProperty("processingTimeMs");
 
       await service.close();
     }, 10000);
@@ -598,10 +606,10 @@ describe('VideoRecorderService - Integration Tests (Mocked)', () => {
 // RecordResult Schema Validation Tests
 // =====================================================
 
-describe('RecordResult Schema (Mocked)', () => {
+describe("RecordResult Schema (Mocked)", () => {
   // サービスモジュールのインポート
-  let recordPage: typeof import('../../../src/services/page/video-recorder.service').recordPage;
-  let closeSharedRecorder: typeof import('../../../src/services/page/video-recorder.service').closeSharedRecorder;
+  let recordPage: typeof import("../../../src/services/page/video-recorder.service").recordPage;
+  let closeSharedRecorder: typeof import("../../../src/services/page/video-recorder.service").closeSharedRecorder;
 
   // テスト用の一時ディレクトリ
   let tempDir: string;
@@ -613,8 +621,8 @@ describe('RecordResult Schema (Mocked)', () => {
     vi.resetModules();
 
     // 一時ディレクトリのパスを設定
-    tempDir = path.join(os.tmpdir(), 'video-recorder-mock-12345');
-    mockVideoPath = path.join(tempDir, 'video.webm');
+    tempDir = path.join(os.tmpdir(), "video-recorder-mock-12345");
+    mockVideoPath = path.join(tempDir, "video.webm");
 
     // mockVideoのpath()をモック
     mockVideo.path.mockResolvedValue(mockVideoPath);
@@ -624,7 +632,7 @@ describe('RecordResult Schema (Mocked)', () => {
       status: vi.fn().mockReturnValue(200),
       ok: vi.fn().mockReturnValue(true),
     });
-    mockPage.title.mockResolvedValue('Example Domain');
+    mockPage.title.mockResolvedValue("Example Domain");
     mockPage.close.mockResolvedValue(undefined);
     mockPage.video.mockReturnValue(mockVideo);
     mockPage.evaluate.mockResolvedValue(undefined);
@@ -639,10 +647,12 @@ describe('RecordResult Schema (Mocked)', () => {
     mockBrowser.close.mockResolvedValue(undefined);
 
     // chromium.launchのモック設定
-    vi.mocked(chromium.launch).mockResolvedValue(mockBrowser as unknown as import('playwright').Browser);
+    vi.mocked(chromium.launch).mockResolvedValue(
+      mockBrowser as unknown as import("playwright").Browser
+    );
 
     // モジュールをリロード
-    const module = await import('../../../src/services/page/video-recorder.service');
+    const module = await import("../../../src/services/page/video-recorder.service");
     recordPage = module.recordPage;
     closeSharedRecorder = module.closeSharedRecorder;
   });
@@ -655,8 +665,8 @@ describe('RecordResult Schema (Mocked)', () => {
     }
   });
 
-  it('RecordResultが必須フィールドを持つこと', async () => {
-    const result = await recordPage('https://example.com', {
+  it("RecordResultが必須フィールドを持つこと", async () => {
+    const result = await recordPage("https://example.com", {
       timeout: 30000,
       recordDuration: 100,
       scrollPage: false,
@@ -664,10 +674,10 @@ describe('RecordResult Schema (Mocked)', () => {
     });
 
     // 必須フィールドの検証
-    expect(typeof result.videoPath).toBe('string');
-    expect(typeof result.durationMs).toBe('number');
-    expect(typeof result.sizeBytes).toBe('number');
-    expect(typeof result.processingTimeMs).toBe('number');
+    expect(typeof result.videoPath).toBe("string");
+    expect(typeof result.durationMs).toBe("number");
+    expect(typeof result.sizeBytes).toBe("number");
+    expect(typeof result.processingTimeMs).toBe("number");
 
     // 値の妥当性
     expect(result.videoPath.length).toBeGreaterThan(0);
@@ -676,8 +686,8 @@ describe('RecordResult Schema (Mocked)', () => {
     expect(result.processingTimeMs).toBeGreaterThan(0);
   }, 10000);
 
-  it('titleがオプショナルであること', async () => {
-    const result = await recordPage('https://example.com', {
+  it("titleがオプショナルであること", async () => {
+    const result = await recordPage("https://example.com", {
       timeout: 30000,
       recordDuration: 100,
       scrollPage: false,
@@ -686,7 +696,7 @@ describe('RecordResult Schema (Mocked)', () => {
 
     // titleは存在すれば文字列、存在しなければundefined
     if (result.title !== undefined) {
-      expect(typeof result.title).toBe('string');
+      expect(typeof result.title).toBe("string");
     }
   }, 10000);
 });
@@ -695,10 +705,10 @@ describe('RecordResult Schema (Mocked)', () => {
 // Performance Tests
 // =====================================================
 
-describe('VideoRecorderService - Performance (Mocked)', () => {
+describe("VideoRecorderService - Performance (Mocked)", () => {
   // サービスモジュールのインポート
-  let recordPage: typeof import('../../../src/services/page/video-recorder.service').recordPage;
-  let closeSharedRecorder: typeof import('../../../src/services/page/video-recorder.service').closeSharedRecorder;
+  let recordPage: typeof import("../../../src/services/page/video-recorder.service").recordPage;
+  let closeSharedRecorder: typeof import("../../../src/services/page/video-recorder.service").closeSharedRecorder;
 
   // テスト用の一時ディレクトリ
   let tempDir: string;
@@ -710,8 +720,8 @@ describe('VideoRecorderService - Performance (Mocked)', () => {
     vi.resetModules();
 
     // 一時ディレクトリのパスを設定
-    tempDir = path.join(os.tmpdir(), 'video-recorder-mock-12345');
-    mockVideoPath = path.join(tempDir, 'video.webm');
+    tempDir = path.join(os.tmpdir(), "video-recorder-mock-12345");
+    mockVideoPath = path.join(tempDir, "video.webm");
 
     // mockVideoのpath()をモック
     mockVideo.path.mockResolvedValue(mockVideoPath);
@@ -721,7 +731,7 @@ describe('VideoRecorderService - Performance (Mocked)', () => {
       status: vi.fn().mockReturnValue(200),
       ok: vi.fn().mockReturnValue(true),
     });
-    mockPage.title.mockResolvedValue('Example Domain');
+    mockPage.title.mockResolvedValue("Example Domain");
     mockPage.close.mockResolvedValue(undefined);
     mockPage.video.mockReturnValue(mockVideo);
     mockPage.evaluate.mockResolvedValue(undefined);
@@ -736,10 +746,12 @@ describe('VideoRecorderService - Performance (Mocked)', () => {
     mockBrowser.close.mockResolvedValue(undefined);
 
     // chromium.launchのモック設定
-    vi.mocked(chromium.launch).mockResolvedValue(mockBrowser as unknown as import('playwright').Browser);
+    vi.mocked(chromium.launch).mockResolvedValue(
+      mockBrowser as unknown as import("playwright").Browser
+    );
 
     // モジュールをリロード
-    const module = await import('../../../src/services/page/video-recorder.service');
+    const module = await import("../../../src/services/page/video-recorder.service");
     recordPage = module.recordPage;
     closeSharedRecorder = module.closeSharedRecorder;
   });
@@ -752,9 +764,9 @@ describe('VideoRecorderService - Performance (Mocked)', () => {
     }
   });
 
-  it('短い録画（100ms）が5秒以内に完了すること', async () => {
+  it("短い録画（100ms）が5秒以内に完了すること", async () => {
     const startTime = Date.now();
-    await recordPage('https://example.com', {
+    await recordPage("https://example.com", {
       timeout: 30000,
       recordDuration: 100,
       scrollPage: false,
@@ -766,9 +778,9 @@ describe('VideoRecorderService - Performance (Mocked)', () => {
     expect(elapsed).toBeLessThan(5000);
   }, 10000);
 
-  it('processingTimeMsが実際の処理時間を反映すること', async () => {
+  it("processingTimeMsが実際の処理時間を反映すること", async () => {
     const startTime = Date.now();
-    const result = await recordPage('https://example.com', {
+    const result = await recordPage("https://example.com", {
       timeout: 30000,
       recordDuration: 100,
       scrollPage: false,
@@ -787,10 +799,10 @@ describe('VideoRecorderService - Performance (Mocked)', () => {
 // Concurrent Recording Tests
 // =====================================================
 
-describe('VideoRecorderService - Concurrent Recording (Mocked)', () => {
+describe("VideoRecorderService - Concurrent Recording (Mocked)", () => {
   // サービスモジュールのインポート
-  let recordPage: typeof import('../../../src/services/page/video-recorder.service').recordPage;
-  let closeSharedRecorder: typeof import('../../../src/services/page/video-recorder.service').closeSharedRecorder;
+  let recordPage: typeof import("../../../src/services/page/video-recorder.service").recordPage;
+  let closeSharedRecorder: typeof import("../../../src/services/page/video-recorder.service").closeSharedRecorder;
 
   // テスト用の一時ディレクトリ
   let tempDir: string;
@@ -802,8 +814,8 @@ describe('VideoRecorderService - Concurrent Recording (Mocked)', () => {
     vi.resetModules();
 
     // 一時ディレクトリのパスを設定
-    tempDir = path.join(os.tmpdir(), 'video-recorder-mock-12345');
-    mockVideoPath = path.join(tempDir, 'video.webm');
+    tempDir = path.join(os.tmpdir(), "video-recorder-mock-12345");
+    mockVideoPath = path.join(tempDir, "video.webm");
 
     // mockVideoのpath()をモック
     mockVideo.path.mockResolvedValue(mockVideoPath);
@@ -813,7 +825,7 @@ describe('VideoRecorderService - Concurrent Recording (Mocked)', () => {
       status: vi.fn().mockReturnValue(200),
       ok: vi.fn().mockReturnValue(true),
     });
-    mockPage.title.mockResolvedValue('Example Domain');
+    mockPage.title.mockResolvedValue("Example Domain");
     mockPage.close.mockResolvedValue(undefined);
     mockPage.video.mockReturnValue(mockVideo);
     mockPage.evaluate.mockResolvedValue(undefined);
@@ -828,10 +840,12 @@ describe('VideoRecorderService - Concurrent Recording (Mocked)', () => {
     mockBrowser.close.mockResolvedValue(undefined);
 
     // chromium.launchのモック設定
-    vi.mocked(chromium.launch).mockResolvedValue(mockBrowser as unknown as import('playwright').Browser);
+    vi.mocked(chromium.launch).mockResolvedValue(
+      mockBrowser as unknown as import("playwright").Browser
+    );
 
     // モジュールをリロード
-    const module = await import('../../../src/services/page/video-recorder.service');
+    const module = await import("../../../src/services/page/video-recorder.service");
     recordPage = module.recordPage;
     closeSharedRecorder = module.closeSharedRecorder;
   });
@@ -844,8 +858,8 @@ describe('VideoRecorderService - Concurrent Recording (Mocked)', () => {
     }
   });
 
-  it('複数の録画を並行実行できること', async () => {
-    const urls = ['https://example.com', 'https://example.org'];
+  it("複数の録画を並行実行できること", async () => {
+    const urls = ["https://example.com", "https://example.org"];
 
     const results = await Promise.all(
       urls.map((url) =>
@@ -860,8 +874,8 @@ describe('VideoRecorderService - Concurrent Recording (Mocked)', () => {
 
     expect(results).toHaveLength(2);
     for (const result of results) {
-      expect(result).toHaveProperty('videoPath');
-      expect(result.videoPath).toContain('video-recorder-');
+      expect(result).toHaveProperty("videoPath");
+      expect(result.videoPath).toContain("video-recorder-");
     }
   }, 10000);
 });

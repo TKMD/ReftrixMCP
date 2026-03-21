@@ -14,24 +14,24 @@
  * @module tests/unit/tools/motion/css-mode-handler.test.ts
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import type { MotionPattern, MotionDetectInput } from '../../../../src/tools/motion/schemas';
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import type { MotionPattern, MotionDetectInput } from "../../../../src/tools/motion/schemas";
 import {
   applyResponseOptimization,
   generateSummary,
   generateSizeWarning,
   generateWebglDetectionWarning,
   type OptimizationResult,
-} from '../../../../src/tools/motion/css-mode-handler';
-import { MOTION_WARNING_CODES } from '../../../../src/tools/motion/schemas';
+} from "../../../../src/tools/motion/css-mode-handler";
+import { MOTION_WARNING_CODES } from "../../../../src/tools/motion/schemas";
 
 // =====================================================
 // モック
 // =====================================================
 
 // logger モック
-vi.mock('../../../../src/utils/logger', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('../../../../src/utils/logger')>();
+vi.mock("../../../../src/utils/logger", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../../../../src/utils/logger")>();
   return {
     ...actual,
     logger: {
@@ -62,15 +62,15 @@ vi.mock('../../../../src/utils/logger', async (importOriginal) => {
 function createMockPattern(overrides: Partial<MotionPattern> = {}): MotionPattern {
   return {
     id: `pattern-${Math.random().toString(36).substring(7)}`,
-    type: 'keyframes',
-    name: 'fadeIn',
-    category: 'micro_interaction',
-    trigger: 'load',
+    type: "keyframes",
+    name: "fadeIn",
+    category: "micro_interaction",
+    trigger: "load",
     properties: [],
     animation: {
       duration: 300,
       easing: {
-        type: 'ease',
+        type: "ease",
       },
     },
     ...overrides,
@@ -82,7 +82,7 @@ function createMockPattern(overrides: Partial<MotionPattern> = {}): MotionPatter
  */
 function createMockInput(overrides: Partial<MotionDetectInput> = {}): MotionDetectInput {
   return {
-    html: '<div></div>',
+    html: "<div></div>",
     includeInlineStyles: true,
     includeStyleSheets: true,
     minDuration: 0,
@@ -92,7 +92,7 @@ function createMockInput(overrides: Partial<MotionDetectInput> = {}): MotionDete
     verbose: false,
     fetchExternalCss: false,
     save_to_db: false,
-    min_severity: 'info',
+    min_severity: "info",
     ...overrides,
   };
 }
@@ -108,7 +108,7 @@ function createPatternsOfSize(targetSizeKB: number): MotionPattern[] {
   while (currentSize < targetSize) {
     const pattern = createMockPattern({
       id: `pattern-${patterns.length}`,
-      name: `animation-${patterns.length}-${'x'.repeat(100)}`, // 長めの名前でサイズ増加
+      name: `animation-${patterns.length}-${"x".repeat(100)}`, // 長めの名前でサイズ増加
       rawCss: `@keyframes anim-${patterns.length} { 0% { opacity: 0; } 100% { opacity: 1; } }`,
     });
     patterns.push(pattern);
@@ -122,7 +122,7 @@ function createPatternsOfSize(targetSizeKB: number): MotionPattern[] {
 // テストスイート
 // =====================================================
 
-describe('css-mode-handler', () => {
+describe("css-mode-handler", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
@@ -134,13 +134,13 @@ describe('css-mode-handler', () => {
   // =====================================================
   // applyResponseOptimization
   // =====================================================
-  describe('applyResponseOptimization', () => {
-    describe('No Optimization', () => {
-      it('should return patterns unchanged when no optimization flags are set', () => {
+  describe("applyResponseOptimization", () => {
+    describe("No Optimization", () => {
+      it("should return patterns unchanged when no optimization flags are set", () => {
         // Arrange
         const patterns = [
-          createMockPattern({ id: 'p1', name: 'anim1' }),
-          createMockPattern({ id: 'p2', name: 'anim2' }),
+          createMockPattern({ id: "p1", name: "anim1" }),
+          createMockPattern({ id: "p2", name: "anim2" }),
         ];
         const input = createMockInput();
 
@@ -156,15 +156,15 @@ describe('css-mode-handler', () => {
       });
     });
 
-    describe('Summary Mode', () => {
-      it('should apply summary mode when summary: true', () => {
+    describe("Summary Mode", () => {
+      it("should apply summary mode when summary: true", () => {
         // Arrange
         const patterns = [
           createMockPattern({
-            id: 'p1',
-            name: 'anim1',
-            rawCss: '@keyframes { ... }',
-            properties: [{ name: 'opacity', from: '0', to: '1' }],
+            id: "p1",
+            name: "anim1",
+            rawCss: "@keyframes { ... }",
+            properties: [{ name: "opacity", from: "0", to: "1" }],
           }),
         ];
         const input = createMockInput({ summary: true });
@@ -175,30 +175,30 @@ describe('css-mode-handler', () => {
         // Assert
         expect(result.summaryMode).toBe(true);
         expect(result.patterns[0]).toEqual({
-          id: 'p1',
-          name: 'anim1',
-          category: 'micro_interaction',
-          trigger: 'load',
-          type: 'keyframes',
+          id: "p1",
+          name: "anim1",
+          category: "micro_interaction",
+          trigger: "load",
+          type: "keyframes",
         });
         // rawCss, properties, animation が削除されている
-        expect(result.patterns[0]).not.toHaveProperty('rawCss');
-        expect(result.patterns[0]).not.toHaveProperty('properties');
-        expect(result.patterns[0]).not.toHaveProperty('animation');
+        expect(result.patterns[0]).not.toHaveProperty("rawCss");
+        expect(result.patterns[0]).not.toHaveProperty("properties");
+        expect(result.patterns[0]).not.toHaveProperty("animation");
       });
 
-      it('should keep only essential fields in summary mode', () => {
+      it("should keep only essential fields in summary mode", () => {
         // Arrange
         const patterns = [
           createMockPattern({
-            id: 'test-id',
-            name: 'test-name',
-            category: 'entrance',
-            trigger: 'scroll',
-            type: 'css_animation',
-            rawCss: 'some css',
+            id: "test-id",
+            name: "test-name",
+            category: "entrance",
+            trigger: "scroll",
+            type: "css_animation",
+            rawCss: "some css",
             animation: { duration: 500 },
-            properties: [{ name: 'transform' }],
+            properties: [{ name: "transform" }],
           }),
         ];
         const input = createMockInput({ summary: true });
@@ -208,12 +208,12 @@ describe('css-mode-handler', () => {
 
         // Assert
         const summaryPattern = result.patterns[0];
-        expect(Object.keys(summaryPattern)).toEqual(['id', 'name', 'category', 'trigger', 'type']);
+        expect(Object.keys(summaryPattern)).toEqual(["id", "name", "category", "trigger", "type"]);
       });
     });
 
-    describe('Truncate', () => {
-      it('should truncate patterns when truncate_max_chars is exceeded', () => {
+    describe("Truncate", () => {
+      it("should truncate patterns when truncate_max_chars is exceeded", () => {
         // Arrange
         const patterns = createPatternsOfSize(10); // 10KB
         const input = createMockInput({ truncate_max_chars: 1000 }); // 1KB制限
@@ -228,7 +228,7 @@ describe('css-mode-handler', () => {
         expect(result.originalSize).toBeDefined();
       });
 
-      it('should not truncate when under truncate_max_chars limit', () => {
+      it("should not truncate when under truncate_max_chars limit", () => {
         // Arrange
         const patterns = [createMockPattern()]; // 小さいデータ
         const input = createMockInput({ truncate_max_chars: 100000 }); // 100KB制限
@@ -242,8 +242,8 @@ describe('css-mode-handler', () => {
       });
     });
 
-    describe('Auto Optimize', () => {
-      it('should apply summary mode when auto_optimize and size > 100KB', () => {
+    describe("Auto Optimize", () => {
+      it("should apply summary mode when auto_optimize and size > 100KB", () => {
         // Arrange
         const patterns = createPatternsOfSize(120); // 120KB
         const input = createMockInput({ auto_optimize: true });
@@ -254,10 +254,10 @@ describe('css-mode-handler', () => {
         // Assert
         expect(result.summaryMode).toBe(true);
         expect(result.sizeOptimization).toBeDefined();
-        expect(result.sizeOptimization?.applied_optimizations).toContain('summary');
+        expect(result.sizeOptimization?.applied_optimizations).toContain("summary");
       });
 
-      it('should not apply auto_optimize when summary is already true', () => {
+      it("should not apply auto_optimize when summary is already true", () => {
         // Arrange
         const patterns = createPatternsOfSize(120); // 120KB
         const input = createMockInput({ auto_optimize: true, summary: true });
@@ -271,7 +271,7 @@ describe('css-mode-handler', () => {
         expect(result.sizeOptimization).toBeUndefined();
       });
 
-      it('should not apply any optimization when size is small', () => {
+      it("should not apply any optimization when size is small", () => {
         // Arrange
         const patterns = [createMockPattern()]; // 小さいデータ
         const input = createMockInput({ auto_optimize: true });
@@ -285,8 +285,8 @@ describe('css-mode-handler', () => {
       });
     });
 
-    describe('Combined Optimizations', () => {
-      it('should apply summary first, then truncate if still too large', () => {
+    describe("Combined Optimizations", () => {
+      it("should apply summary first, then truncate if still too large", () => {
         // Arrange: 大量のパターン
         const patterns = createPatternsOfSize(600); // 600KB（500KB超）
         const input = createMockInput({ auto_optimize: true });
@@ -305,15 +305,11 @@ describe('css-mode-handler', () => {
   // =====================================================
   // generateSummary
   // =====================================================
-  describe('generateSummary', () => {
-    describe('Basic Summary', () => {
-      it('should generate summary with correct totalPatterns', () => {
+  describe("generateSummary", () => {
+    describe("Basic Summary", () => {
+      it("should generate summary with correct totalPatterns", () => {
         // Arrange
-        const patterns = [
-          createMockPattern(),
-          createMockPattern(),
-          createMockPattern(),
-        ];
+        const patterns = [createMockPattern(), createMockPattern(), createMockPattern()];
 
         // Act
         const summary = generateSummary(patterns);
@@ -322,12 +318,12 @@ describe('css-mode-handler', () => {
         expect(summary.totalPatterns).toBe(3);
       });
 
-      it('should count patterns by type', () => {
+      it("should count patterns by type", () => {
         // Arrange
         const patterns = [
-          createMockPattern({ type: 'keyframes' }),
-          createMockPattern({ type: 'keyframes' }),
-          createMockPattern({ type: 'css_transition' }),
+          createMockPattern({ type: "keyframes" }),
+          createMockPattern({ type: "keyframes" }),
+          createMockPattern({ type: "css_transition" }),
         ];
 
         // Act
@@ -335,16 +331,16 @@ describe('css-mode-handler', () => {
 
         // Assert
         expect(summary.byType).toBeDefined();
-        expect(summary.byType['keyframes']).toBe(2);
-        expect(summary.byType['css_transition']).toBe(1);
+        expect(summary.byType["keyframes"]).toBe(2);
+        expect(summary.byType["css_transition"]).toBe(1);
       });
 
-      it('should count patterns by trigger', () => {
+      it("should count patterns by trigger", () => {
         // Arrange
         const patterns = [
-          createMockPattern({ trigger: 'load' }),
-          createMockPattern({ trigger: 'scroll' }),
-          createMockPattern({ trigger: 'scroll' }),
+          createMockPattern({ trigger: "load" }),
+          createMockPattern({ trigger: "scroll" }),
+          createMockPattern({ trigger: "scroll" }),
         ];
 
         // Act
@@ -352,16 +348,16 @@ describe('css-mode-handler', () => {
 
         // Assert
         expect(summary.byTrigger).toBeDefined();
-        expect(summary.byTrigger['load']).toBe(1);
-        expect(summary.byTrigger['scroll']).toBe(2);
+        expect(summary.byTrigger["load"]).toBe(1);
+        expect(summary.byTrigger["scroll"]).toBe(2);
       });
 
-      it('should count patterns by category', () => {
+      it("should count patterns by category", () => {
         // Arrange
         const patterns = [
-          createMockPattern({ category: 'micro_interaction' }),
-          createMockPattern({ category: 'entrance' }),
-          createMockPattern({ category: 'entrance' }),
+          createMockPattern({ category: "micro_interaction" }),
+          createMockPattern({ category: "entrance" }),
+          createMockPattern({ category: "entrance" }),
         ];
 
         // Act
@@ -369,13 +365,13 @@ describe('css-mode-handler', () => {
 
         // Assert
         expect(summary.byCategory).toBeDefined();
-        expect(summary.byCategory['micro_interaction']).toBe(1);
-        expect(summary.byCategory['entrance']).toBe(2);
+        expect(summary.byCategory["micro_interaction"]).toBe(1);
+        expect(summary.byCategory["entrance"]).toBe(2);
       });
     });
 
-    describe('Duration Calculations', () => {
-      it('should calculate average duration', () => {
+    describe("Duration Calculations", () => {
+      it("should calculate average duration", () => {
         // Arrange
         const patterns = [
           createMockPattern({ animation: { duration: 100 } }),
@@ -390,7 +386,7 @@ describe('css-mode-handler', () => {
         expect(summary.averageDuration).toBe(200); // (100+200+300)/3
       });
 
-      it('should handle patterns without duration', () => {
+      it("should handle patterns without duration", () => {
         // Arrange
         const patterns = [
           createMockPattern({ animation: { duration: 100 } }),
@@ -406,7 +402,7 @@ describe('css-mode-handler', () => {
         expect(summary.averageDuration).toBe(150); // (100+200)/2
       });
 
-      it('should return 0 for average duration when no patterns have duration', () => {
+      it("should return 0 for average duration when no patterns have duration", () => {
         // Arrange
         const patterns = [
           createMockPattern({ animation: {} }),
@@ -421,12 +417,10 @@ describe('css-mode-handler', () => {
       });
     });
 
-    describe('Infinite Animations', () => {
-      it('should detect infinite animations', () => {
+    describe("Infinite Animations", () => {
+      it("should detect infinite animations", () => {
         // Arrange
-        const patterns = [
-          createMockPattern({ animation: { iterations: 'infinite' } }),
-        ];
+        const patterns = [createMockPattern({ animation: { iterations: "infinite" } })];
 
         // Act
         const summary = generateSummary(patterns);
@@ -435,7 +429,7 @@ describe('css-mode-handler', () => {
         expect(summary.hasInfiniteAnimations).toBe(true);
       });
 
-      it('should return false when no infinite animations', () => {
+      it("should return false when no infinite animations", () => {
         // Arrange
         const patterns = [
           createMockPattern({ animation: { iterations: 1 } }),
@@ -450,30 +444,27 @@ describe('css-mode-handler', () => {
       });
     });
 
-    describe('Complexity Score', () => {
-      it('should calculate complexity score', () => {
+    describe("Complexity Score", () => {
+      it("should calculate complexity score", () => {
         // Arrange
-        const patterns = [
-          createMockPattern(),
-          createMockPattern(),
-        ];
+        const patterns = [createMockPattern(), createMockPattern()];
 
         // Act
         const summary = generateSummary(patterns);
 
         // Assert
         expect(summary.complexityScore).toBeDefined();
-        expect(typeof summary.complexityScore).toBe('number');
+        expect(typeof summary.complexityScore).toBe("number");
       });
     });
 
-    describe('Merge with Service Summary', () => {
-      it('should merge with serviceSummary overrides', () => {
+    describe("Merge with Service Summary", () => {
+      it("should merge with serviceSummary overrides", () => {
         // Arrange
         const patterns = [createMockPattern()];
         const serviceSummary = {
           totalPatterns: 999, // オーバーライド
-          extraField: 'custom',
+          extraField: "custom",
         };
 
         // Act
@@ -481,12 +472,12 @@ describe('css-mode-handler', () => {
 
         // Assert
         expect(summary.totalPatterns).toBe(999); // オーバーライドされる
-        expect((summary as Record<string, unknown>)['extraField']).toBe('custom');
+        expect((summary as Record<string, unknown>)["extraField"]).toBe("custom");
       });
     });
 
-    describe('Empty Patterns', () => {
-      it('should handle empty patterns array', () => {
+    describe("Empty Patterns", () => {
+      it("should handle empty patterns array", () => {
         // Arrange
         const patterns: MotionPattern[] = [];
 
@@ -504,9 +495,9 @@ describe('css-mode-handler', () => {
   // =====================================================
   // generateSizeWarning
   // =====================================================
-  describe('generateSizeWarning', () => {
-    describe('No Warning', () => {
-      it('should return null when size is under 10KB', () => {
+  describe("generateSizeWarning", () => {
+    describe("No Warning", () => {
+      it("should return null when size is under 10KB", () => {
         // Arrange
         const responseSize = 5 * 1024; // 5KB
 
@@ -517,7 +508,7 @@ describe('css-mode-handler', () => {
         expect(warning).toBeNull();
       });
 
-      it('should return null for exactly 10KB', () => {
+      it("should return null for exactly 10KB", () => {
         // Arrange
         const responseSize = 10 * 1024; // 10KB
 
@@ -529,8 +520,8 @@ describe('css-mode-handler', () => {
       });
     });
 
-    describe('Warning Level', () => {
-      it('should return warning when size is between 10KB and 100KB', () => {
+    describe("Warning Level", () => {
+      it("should return warning when size is between 10KB and 100KB", () => {
         // Arrange
         const responseSize = 50 * 1024; // 50KB
 
@@ -539,13 +530,13 @@ describe('css-mode-handler', () => {
 
         // Assert
         expect(warning).not.toBeNull();
-        expect(warning?.severity).toBe('warning');
-        expect(warning?.code).toBe('RESPONSE_SIZE_WARNING');
-        expect(warning?.message).toContain('50.0KB');
+        expect(warning?.severity).toBe("warning");
+        expect(warning?.code).toBe("RESPONSE_SIZE_WARNING");
+        expect(warning?.message).toContain("50.0KB");
         expect(warning?.suggestion).toBeDefined();
       });
 
-      it('should return warning for 10KB + 1 byte', () => {
+      it("should return warning for 10KB + 1 byte", () => {
         // Arrange
         const responseSize = 10 * 1024 + 1;
 
@@ -553,12 +544,12 @@ describe('css-mode-handler', () => {
         const warning = generateSizeWarning(responseSize);
 
         // Assert
-        expect(warning?.severity).toBe('warning');
+        expect(warning?.severity).toBe("warning");
       });
     });
 
-    describe('Critical Level', () => {
-      it('should return error when size exceeds 100KB', () => {
+    describe("Critical Level", () => {
+      it("should return error when size exceeds 100KB", () => {
         // Arrange
         const responseSize = 150 * 1024; // 150KB
 
@@ -567,13 +558,13 @@ describe('css-mode-handler', () => {
 
         // Assert
         expect(warning).not.toBeNull();
-        expect(warning?.severity).toBe('error');
-        expect(warning?.code).toBe('RESPONSE_SIZE_CRITICAL');
-        expect(warning?.message).toContain('150.0KB');
-        expect(warning?.suggestion).toContain('auto_optimize');
+        expect(warning?.severity).toBe("error");
+        expect(warning?.code).toBe("RESPONSE_SIZE_CRITICAL");
+        expect(warning?.message).toContain("150.0KB");
+        expect(warning?.suggestion).toContain("auto_optimize");
       });
 
-      it('should return error for 100KB + 1 byte', () => {
+      it("should return error for 100KB + 1 byte", () => {
         // Arrange
         const responseSize = 100 * 1024 + 1;
 
@@ -581,10 +572,10 @@ describe('css-mode-handler', () => {
         const warning = generateSizeWarning(responseSize);
 
         // Assert
-        expect(warning?.severity).toBe('error');
+        expect(warning?.severity).toBe("error");
       });
 
-      it('should handle very large sizes', () => {
+      it("should handle very large sizes", () => {
         // Arrange
         const responseSize = 10 * 1024 * 1024; // 10MB
 
@@ -592,13 +583,13 @@ describe('css-mode-handler', () => {
         const warning = generateSizeWarning(responseSize);
 
         // Assert
-        expect(warning?.severity).toBe('error');
-        expect(warning?.message).toContain('10240.0KB');
+        expect(warning?.severity).toBe("error");
+        expect(warning?.message).toContain("10240.0KB");
       });
     });
 
-    describe('Edge Cases', () => {
-      it('should handle zero size', () => {
+    describe("Edge Cases", () => {
+      it("should handle zero size", () => {
         // Arrange
         const responseSize = 0;
 
@@ -609,7 +600,7 @@ describe('css-mode-handler', () => {
         expect(warning).toBeNull();
       });
 
-      it('should handle negative size (edge case)', () => {
+      it("should handle negative size (edge case)", () => {
         // Arrange
         const responseSize = -100;
 
@@ -625,9 +616,9 @@ describe('css-mode-handler', () => {
   // =====================================================
   // generateWebglDetectionWarning
   // =====================================================
-  describe('generateWebglDetectionWarning', () => {
-    describe('Warning Generation', () => {
-      it('should return warning when patternCount is 0 and detect_js_animations is false', () => {
+  describe("generateWebglDetectionWarning", () => {
+    describe("Warning Generation", () => {
+      it("should return warning when patternCount is 0 and detect_js_animations is false", () => {
         // Arrange
         const patternCount = 0;
         const detectJsAnimations = false;
@@ -638,30 +629,30 @@ describe('css-mode-handler', () => {
         // Assert
         expect(warning).not.toBeNull();
         expect(warning?.code).toBe(MOTION_WARNING_CODES.WEBGL_DETECTION_DISABLED);
-        expect(warning?.severity).toBe('info');
-        expect(warning?.message).toContain('WebGL/Canvas animations may not be detected');
-        expect(warning?.message).toContain('detect_js_animations: true');
-        expect(warning?.suggestion).toContain('detect_js_animations: true');
+        expect(warning?.severity).toBe("info");
+        expect(warning?.message).toContain("WebGL/Canvas animations may not be detected");
+        expect(warning?.message).toContain("detect_js_animations: true");
+        expect(warning?.suggestion).toContain("detect_js_animations: true");
         expect(warning?.context).toBeDefined();
-        expect(warning?.context?.affectedLibraries).toContain('Three.js');
-        expect(warning?.context?.affectedLibraries).toContain('GSAP');
-        expect(warning?.context?.affectedLibraries).toContain('Framer Motion');
-        expect(warning?.context?.affectedLibraries).toContain('anime.js');
-        expect(warning?.context?.affectedLibraries).toContain('Lottie');
+        expect(warning?.context?.affectedLibraries).toContain("Three.js");
+        expect(warning?.context?.affectedLibraries).toContain("GSAP");
+        expect(warning?.context?.affectedLibraries).toContain("Framer Motion");
+        expect(warning?.context?.affectedLibraries).toContain("anime.js");
+        expect(warning?.context?.affectedLibraries).toContain("Lottie");
       });
 
-      it('should include correct context fields', () => {
+      it("should include correct context fields", () => {
         // Arrange & Act
         const warning = generateWebglDetectionWarning(0, false);
 
         // Assert
-        expect(warning?.context?.currentSetting).toBe('detect_js_animations: false');
-        expect(warning?.context?.recommendedSetting).toBe('detect_js_animations: true');
+        expect(warning?.context?.currentSetting).toBe("detect_js_animations: false");
+        expect(warning?.context?.recommendedSetting).toBe("detect_js_animations: true");
       });
     });
 
-    describe('No Warning', () => {
-      it('should return null when patternCount is greater than 0', () => {
+    describe("No Warning", () => {
+      it("should return null when patternCount is greater than 0", () => {
         // Arrange
         const patternCount = 5;
         const detectJsAnimations = false;
@@ -673,7 +664,7 @@ describe('css-mode-handler', () => {
         expect(warning).toBeNull();
       });
 
-      it('should return null when detect_js_animations is true', () => {
+      it("should return null when detect_js_animations is true", () => {
         // Arrange
         const patternCount = 0;
         const detectJsAnimations = true;
@@ -685,7 +676,7 @@ describe('css-mode-handler', () => {
         expect(warning).toBeNull();
       });
 
-      it('should return null when both patternCount > 0 and detect_js_animations is true', () => {
+      it("should return null when both patternCount > 0 and detect_js_animations is true", () => {
         // Arrange
         const patternCount = 10;
         const detectJsAnimations = true;
@@ -697,7 +688,7 @@ describe('css-mode-handler', () => {
         expect(warning).toBeNull();
       });
 
-      it('should return null when patternCount is 1 and detect_js_animations is false', () => {
+      it("should return null when patternCount is 1 and detect_js_animations is false", () => {
         // Arrange
         const patternCount = 1;
         const detectJsAnimations = false;
@@ -710,8 +701,8 @@ describe('css-mode-handler', () => {
       });
     });
 
-    describe('Edge Cases', () => {
-      it('should handle large pattern count', () => {
+    describe("Edge Cases", () => {
+      it("should handle large pattern count", () => {
         // Arrange
         const patternCount = 1000;
         const detectJsAnimations = false;
@@ -723,7 +714,7 @@ describe('css-mode-handler', () => {
         expect(warning).toBeNull();
       });
 
-      it('should treat patternCount=0 strictly (not falsy)', () => {
+      it("should treat patternCount=0 strictly (not falsy)", () => {
         // パターン数が0の場合のみ警告を出す（undefined/nullではない）
         const warning = generateWebglDetectionWarning(0, false);
         expect(warning).not.toBeNull();
@@ -734,8 +725,8 @@ describe('css-mode-handler', () => {
   // =====================================================
   // Type Safety and Interface Tests
   // =====================================================
-  describe('OptimizationResult Interface', () => {
-    it('should have correct structure', () => {
+  describe("OptimizationResult Interface", () => {
+    it("should have correct structure", () => {
       // Arrange
       const patterns = [createMockPattern()];
       const input = createMockInput();
@@ -744,11 +735,11 @@ describe('css-mode-handler', () => {
       const result: OptimizationResult = applyResponseOptimization(patterns, input);
 
       // Assert
-      expect(result).toHaveProperty('patterns');
+      expect(result).toHaveProperty("patterns");
       expect(Array.isArray(result.patterns)).toBe(true);
     });
 
-    it('should have optional fields as undefined when not set', () => {
+    it("should have optional fields as undefined when not set", () => {
       // Arrange
       const patterns = [createMockPattern()];
       const input = createMockInput();

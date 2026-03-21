@@ -17,12 +17,8 @@
  * @module @reftrix/mcp-server/services/motion/analyzers/motion-vector.estimator
  */
 
-import sharp from 'sharp';
-import type {
-  IMotionVectorEstimator,
-  MotionVectorResult,
-  MotionType,
-} from '../types.js';
+import sharp from "sharp";
+import type { IMotionVectorEstimator, MotionVectorResult, MotionType } from "../types.js";
 
 // ============================================================================
 // 型定義
@@ -94,16 +90,13 @@ export class MotionVectorEstimator implements IMotionVectorEstimator {
    * @param frame2 - Second frame buffer (raw RGBA)
    * @returns MotionVectorResult with direction, speed, and motion type
    */
-  async estimateFlow(
-    frame1: Buffer,
-    frame2: Buffer
-  ): Promise<MotionVectorResult> {
+  async estimateFlow(frame1: Buffer, frame2: Buffer): Promise<MotionVectorResult> {
     // Validate input
     if (!frame1 || frame1.length === 0) {
-      throw new Error('Invalid frame1: empty buffer');
+      throw new Error("Invalid frame1: empty buffer");
     }
     if (!frame2 || frame2.length === 0) {
-      throw new Error('Invalid frame2: empty buffer');
+      throw new Error("Invalid frame2: empty buffer");
     }
 
     // Get frame dimensions and raw data
@@ -121,21 +114,13 @@ export class MotionVectorEstimator implements IMotionVectorEstimator {
     const height = info1.height;
 
     // Calculate motion vectors using block matching
-    const blockMotions = this.calculateBlockMotions(
-      data1,
-      data2,
-      width,
-      height
-    );
+    const blockMotions = this.calculateBlockMotions(data1, data2, width, height);
 
     // Aggregate motion vectors
     const aggregated = this.aggregateMotions(blockMotions);
 
     // Determine motion type based on aggregated vectors
-    const motionType = this.classifyMotionFromAggregate(
-      aggregated,
-      blockMotions
-    );
+    const motionType = this.classifyMotionFromAggregate(aggregated, blockMotions);
 
     // Increment frame index for next call
     const currentFrameIndex = this.frameIndex++;
@@ -158,7 +143,7 @@ export class MotionVectorEstimator implements IMotionVectorEstimator {
    */
   classifyMotion(vectors: MotionVectorResult[]): MotionType {
     if (vectors.length === 0) {
-      return 'static';
+      return "static";
     }
 
     // Count motion types weighted by confidence
@@ -170,23 +155,20 @@ export class MotionVectorEstimator implements IMotionVectorEstimator {
     }
 
     // Check if all static
-    const staticScore = typeScores.get('static') ?? 0;
-    const totalScore = Array.from(typeScores.values()).reduce(
-      (a, b) => a + b,
-      0
-    );
+    const staticScore = typeScores.get("static") ?? 0;
+    const totalScore = Array.from(typeScores.values()).reduce((a, b) => a + b, 0);
 
     if (staticScore === totalScore) {
-      return 'static';
+      return "static";
     }
 
     // Find dominant type (excluding static)
     let maxScore = 0;
-    let dominantType: MotionType = 'static';
+    let dominantType: MotionType = "static";
     let secondMaxScore = 0;
 
     for (const [type, score] of typeScores.entries()) {
-      if (type !== 'static') {
+      if (type !== "static") {
         if (score > maxScore) {
           secondMaxScore = maxScore;
           maxScore = score;
@@ -199,34 +181,28 @@ export class MotionVectorEstimator implements IMotionVectorEstimator {
 
     // Check for complex motion (multiple significant types)
     const nonStaticTypes = Array.from(typeScores.entries()).filter(
-      ([type, score]) => type !== 'static' && score > 0
+      ([type, score]) => type !== "static" && score > 0
     );
 
     if (nonStaticTypes.length >= 3) {
       // Check if scores are relatively close (complex motion)
       const avgNonStaticScore =
-        nonStaticTypes.reduce((sum, [, score]) => sum + score, 0) /
-        nonStaticTypes.length;
+        nonStaticTypes.reduce((sum, [, score]) => sum + score, 0) / nonStaticTypes.length;
       const allSimilar = nonStaticTypes.every(
-        ([, score]) =>
-          score >= avgNonStaticScore * 0.5 && score <= avgNonStaticScore * 2
+        ([, score]) => score >= avgNonStaticScore * 0.5 && score <= avgNonStaticScore * 2
       );
 
       if (allSimilar) {
-        return 'complex';
+        return "complex";
       }
     }
 
     // If second score is close to max, consider complex
-    if (
-      secondMaxScore > 0 &&
-      secondMaxScore >= maxScore * 0.7 &&
-      nonStaticTypes.length >= 2
-    ) {
+    if (secondMaxScore > 0 && secondMaxScore >= maxScore * 0.7 && nonStaticTypes.length >= 2) {
       // Different directions suggest complex motion
       const types = nonStaticTypes.map(([t]) => t);
       if (this.areOppositeDirections(types)) {
-        return 'complex';
+        return "complex";
       }
     }
 
@@ -250,14 +226,11 @@ export class MotionVectorEstimator implements IMotionVectorEstimator {
     const height = metadata.height ?? 0;
 
     if (width === 0 || height === 0) {
-      throw new Error('Invalid frame dimensions');
+      throw new Error("Invalid frame dimensions");
     }
 
     // Convert to raw RGBA
-    const { data, info } = await image
-      .ensureAlpha()
-      .raw()
-      .toBuffer({ resolveWithObject: true });
+    const { data, info } = await image.ensureAlpha().raw().toBuffer({ resolveWithObject: true });
 
     return {
       data: new Uint8Array(data),
@@ -275,10 +248,7 @@ export class MotionVectorEstimator implements IMotionVectorEstimator {
     height: number
   ): BlockMotion[] {
     const blockSize = Math.min(this.options.blockSize, Math.min(width, height));
-    const searchRange = Math.min(
-      this.options.searchRange,
-      Math.min(width, height) / 2
-    );
+    const searchRange = Math.min(this.options.searchRange, Math.min(width, height) / 2);
 
     const motions: BlockMotion[] = [];
 
@@ -480,8 +450,7 @@ export class MotionVectorEstimator implements IMotionVectorEstimator {
 
     // Calculate overall confidence
     const avgConfidence =
-      significantMotions.reduce((sum, m) => sum + m.confidence, 0) /
-      significantMotions.length;
+      significantMotions.reduce((sum, m) => sum + m.confidence, 0) / significantMotions.length;
     const coverageRatio = significantMotions.length / motions.length;
     const confidence = avgConfidence * coverageRatio;
 
@@ -510,7 +479,7 @@ export class MotionVectorEstimator implements IMotionVectorEstimator {
       aggregated.avgSpeed < this.options.minMotionThreshold ||
       aggregated.confidence < this.options.confidenceThreshold
     ) {
-      return 'static';
+      return "static";
     }
 
     // Check for zoom (radial motion)
@@ -529,26 +498,22 @@ export class MotionVectorEstimator implements IMotionVectorEstimator {
     const dir = aggregated.dominantDirection;
 
     if (this.isInRange(dir, DIRECTION_RANGES.right)) {
-      return 'slide_right';
+      return "slide_right";
     }
     if (this.isInRange(dir, DIRECTION_RANGES.down)) {
-      return 'slide_down';
+      return "slide_down";
     }
     if (
       this.isInRange(dir, DIRECTION_RANGES.left) ||
-      this.isInRangeAlt(
-        dir,
-        DIRECTION_RANGES.left.minAlt!,
-        DIRECTION_RANGES.left.maxAlt!
-      )
+      this.isInRangeAlt(dir, DIRECTION_RANGES.left.minAlt!, DIRECTION_RANGES.left.maxAlt!)
     ) {
-      return 'slide_left';
+      return "slide_left";
     }
     if (this.isInRange(dir, DIRECTION_RANGES.up)) {
-      return 'slide_up';
+      return "slide_up";
     }
 
-    return 'complex';
+    return "complex";
   }
 
   /**
@@ -618,10 +583,10 @@ export class MotionVectorEstimator implements IMotionVectorEstimator {
     const threshold = significantMotions.length * 0.5;
 
     if (zoomInCount >= threshold) {
-      return 'zoom_in';
+      return "zoom_in";
     }
     if (zoomOutCount >= threshold) {
-      return 'zoom_out';
+      return "zoom_out";
     }
 
     return null;
@@ -684,7 +649,7 @@ export class MotionVectorEstimator implements IMotionVectorEstimator {
     const threshold = significantMotions.length * 0.5;
 
     if (clockwiseCount >= threshold || counterClockwiseCount >= threshold) {
-      return 'rotation';
+      return "rotation";
     }
 
     return null;
@@ -693,10 +658,7 @@ export class MotionVectorEstimator implements IMotionVectorEstimator {
   /**
    * Check if direction is in specified range
    */
-  private isInRange(
-    direction: number,
-    range: { min: number; max: number }
-  ): boolean {
+  private isInRange(direction: number, range: { min: number; max: number }): boolean {
     return direction >= range.min && direction <= range.max;
   }
 
@@ -711,18 +673,14 @@ export class MotionVectorEstimator implements IMotionVectorEstimator {
    * Check if motion types include opposite directions
    */
   private areOppositeDirections(types: MotionType[]): boolean {
-    const hasLeft = types.includes('slide_left');
-    const hasRight = types.includes('slide_right');
-    const hasUp = types.includes('slide_up');
-    const hasDown = types.includes('slide_down');
-    const hasZoomIn = types.includes('zoom_in');
-    const hasZoomOut = types.includes('zoom_out');
+    const hasLeft = types.includes("slide_left");
+    const hasRight = types.includes("slide_right");
+    const hasUp = types.includes("slide_up");
+    const hasDown = types.includes("slide_down");
+    const hasZoomIn = types.includes("zoom_in");
+    const hasZoomOut = types.includes("zoom_out");
 
-    return (
-      (hasLeft && hasRight) ||
-      (hasUp && hasDown) ||
-      (hasZoomIn && hasZoomOut)
-    );
+    return (hasLeft && hasRight) || (hasUp && hasDown) || (hasZoomIn && hasZoomOut);
   }
 }
 

@@ -16,7 +16,7 @@
  * @module services/vision-embedding-search.service
  */
 
-import { isDevelopment, logger } from '../utils/logger';
+import { isDevelopment, logger } from "../utils/logger";
 
 // =====================================================
 // 型定義
@@ -95,7 +95,7 @@ export interface VisionSearchServiceResult {
    * 実際に使用された検索モード
    * 'text_only' | 'vision_only' | 'combined'
    */
-  actualSearchMode?: 'text_only' | 'vision_only' | 'combined';
+  actualSearchMode?: "text_only" | "vision_only" | "combined";
   /**
    * vision_embeddingのカバレッジ率
    * vision_embeddingを持つ結果の割合（0-1）
@@ -139,7 +139,7 @@ export interface HybridSearchOptions extends VisionSearchOptions {
  * EmbeddingServiceインターフェース
  */
 export interface IVisionSearchEmbeddingService {
-  generateEmbedding(text: string, type: 'query' | 'passage'): Promise<number[] | null>;
+  generateEmbedding(text: string, type: "query" | "passage"): Promise<number[] | null>;
 }
 
 /**
@@ -214,9 +214,7 @@ export function resetVisionSearchEmbeddingServiceFactory(): void {
 /**
  * PrismaClientファクトリを設定
  */
-export function setVisionSearchPrismaClientFactory(
-  factory: () => IVisionSearchPrismaClient
-): void {
+export function setVisionSearchPrismaClientFactory(factory: () => IVisionSearchPrismaClient): void {
   prismaClientFactory = factory;
 }
 
@@ -269,7 +267,7 @@ function queryToText(query: VisionSearchQuery): string {
       parts.push(`theme: ${vf.theme}`);
     }
     if (vf.colors && vf.colors.length > 0) {
-      parts.push(`colors: ${vf.colors.join(', ')}`);
+      parts.push(`colors: ${vf.colors.join(", ")}`);
     }
     if (vf.density) {
       parts.push(`content density: ${vf.density}`);
@@ -285,7 +283,7 @@ function queryToText(query: VisionSearchQuery): string {
     }
   }
 
-  return parts.join('. ');
+  return parts.join(". ");
 }
 
 /**
@@ -293,12 +291,12 @@ function queryToText(query: VisionSearchQuery): string {
  */
 function recordToResult(r: VectorSearchRecord): VisionSearchResult {
   const layoutInfo =
-    typeof r.layout_info === 'object' && r.layout_info !== null
+    typeof r.layout_info === "object" && r.layout_info !== null
       ? (r.layout_info as Record<string, unknown>)
       : {};
 
   const visualFeatures =
-    typeof r.visual_features === 'object' && r.visual_features !== null
+    typeof r.visual_features === "object" && r.visual_features !== null
       ? (r.visual_features as Record<string, unknown>)
       : {};
 
@@ -371,7 +369,7 @@ function buildFilterClause(
   }
 
   return {
-    clause: conditions.length > 0 ? conditions.join(' AND ') : '',
+    clause: conditions.length > 0 ? conditions.join(" AND ") : "",
     params,
     paramOffset: paramIndex - 1,
   };
@@ -402,7 +400,7 @@ export class VisionEmbeddingSearchService implements IVisionEmbeddingSearchServi
     }
 
     if (isDevelopment()) {
-      logger.warn('[VisionEmbeddingSearchService] EmbeddingService not available');
+      logger.warn("[VisionEmbeddingSearchService] EmbeddingService not available");
     }
     return null;
   }
@@ -421,7 +419,7 @@ export class VisionEmbeddingSearchService implements IVisionEmbeddingSearchServi
     }
 
     if (isDevelopment()) {
-      logger.warn('[VisionEmbeddingSearchService] PrismaClient not available');
+      logger.warn("[VisionEmbeddingSearchService] PrismaClient not available");
     }
     return null;
   }
@@ -436,7 +434,7 @@ export class VisionEmbeddingSearchService implements IVisionEmbeddingSearchServi
     const startTime = Date.now();
 
     if (isDevelopment()) {
-      logger.info('[VisionEmbeddingSearchService] searchByVisionEmbedding', {
+      logger.info("[VisionEmbeddingSearchService] searchByVisionEmbedding", {
         hasTextQuery: !!query.textQuery,
         hasVisualFeatures: !!query.visualFeatures,
         limit: options.limit,
@@ -448,7 +446,7 @@ export class VisionEmbeddingSearchService implements IVisionEmbeddingSearchServi
     const queryText = queryToText(query);
     if (!queryText) {
       if (isDevelopment()) {
-        logger.warn('[VisionEmbeddingSearchService] Empty query, returning null');
+        logger.warn("[VisionEmbeddingSearchService] Empty query, returning null");
       }
       return null;
     }
@@ -467,10 +465,10 @@ export class VisionEmbeddingSearchService implements IVisionEmbeddingSearchServi
 
     try {
       // クエリからEmbedding生成
-      const embedding = await embeddingService.generateEmbedding(queryText, 'query');
+      const embedding = await embeddingService.generateEmbedding(queryText, "query");
       if (!embedding) {
         if (isDevelopment()) {
-          logger.warn('[VisionEmbeddingSearchService] Embedding generation returned null');
+          logger.warn("[VisionEmbeddingSearchService] Embedding generation returned null");
         }
         return null;
       }
@@ -479,14 +477,14 @@ export class VisionEmbeddingSearchService implements IVisionEmbeddingSearchServi
       return await this.executeVisionSearch(prisma, embedding, options);
     } catch (error) {
       if (isDevelopment()) {
-        logger.error('[VisionEmbeddingSearchService] searchByVisionEmbedding error', {
-          error: error instanceof Error ? error.message : 'Unknown error',
+        logger.error("[VisionEmbeddingSearchService] searchByVisionEmbedding error", {
+          error: error instanceof Error ? error.message : "Unknown error",
         });
       }
       return null;
     } finally {
       if (isDevelopment()) {
-        logger.info('[VisionEmbeddingSearchService] searchByVisionEmbedding completed', {
+        logger.info("[VisionEmbeddingSearchService] searchByVisionEmbedding completed", {
           processingTimeMs: Date.now() - startTime,
         });
       }
@@ -503,7 +501,7 @@ export class VisionEmbeddingSearchService implements IVisionEmbeddingSearchServi
     const startTime = Date.now();
 
     if (isDevelopment()) {
-      logger.info('[VisionEmbeddingSearchService] searchSimilarSections', {
+      logger.info("[VisionEmbeddingSearchService] searchSimilarSections", {
         sectionPatternId,
         limit: options.limit,
       });
@@ -512,7 +510,7 @@ export class VisionEmbeddingSearchService implements IVisionEmbeddingSearchServi
     // UUID検証
     if (!isValidUUID(sectionPatternId)) {
       if (isDevelopment()) {
-        logger.warn('[VisionEmbeddingSearchService] Invalid UUID format', { sectionPatternId });
+        logger.warn("[VisionEmbeddingSearchService] Invalid UUID format", { sectionPatternId });
       }
       return null;
     }
@@ -527,7 +525,7 @@ export class VisionEmbeddingSearchService implements IVisionEmbeddingSearchServi
       const existingEmbedding = await this.getExistingVisionEmbedding(prisma, sectionPatternId);
       if (!existingEmbedding) {
         if (isDevelopment()) {
-          logger.warn('[VisionEmbeddingSearchService] No vision_embedding found for section', {
+          logger.warn("[VisionEmbeddingSearchService] No vision_embedding found for section", {
             sectionPatternId,
           });
         }
@@ -538,14 +536,14 @@ export class VisionEmbeddingSearchService implements IVisionEmbeddingSearchServi
       return await this.executeVisionSearch(prisma, existingEmbedding, options, sectionPatternId);
     } catch (error) {
       if (isDevelopment()) {
-        logger.error('[VisionEmbeddingSearchService] searchSimilarSections error', {
-          error: error instanceof Error ? error.message : 'Unknown error',
+        logger.error("[VisionEmbeddingSearchService] searchSimilarSections error", {
+          error: error instanceof Error ? error.message : "Unknown error",
         });
       }
       return null;
     } finally {
       if (isDevelopment()) {
-        logger.info('[VisionEmbeddingSearchService] searchSimilarSections completed', {
+        logger.info("[VisionEmbeddingSearchService] searchSimilarSections completed", {
           processingTimeMs: Date.now() - startTime,
         });
       }
@@ -566,7 +564,7 @@ export class VisionEmbeddingSearchService implements IVisionEmbeddingSearchServi
     const warnings: string[] = [];
 
     if (isDevelopment()) {
-      logger.info('[VisionEmbeddingSearchService] hybridSearch', {
+      logger.info("[VisionEmbeddingSearchService] hybridSearch", {
         visionWeight: originalVisionWeight,
         textWeight: originalTextWeight,
         limit: options.limit,
@@ -576,7 +574,7 @@ export class VisionEmbeddingSearchService implements IVisionEmbeddingSearchServi
     const queryText = queryToText(query);
     if (!queryText) {
       if (isDevelopment()) {
-        logger.warn('[VisionEmbeddingSearchService] Empty query for hybrid search');
+        logger.warn("[VisionEmbeddingSearchService] Empty query for hybrid search");
       }
       return null;
     }
@@ -593,7 +591,7 @@ export class VisionEmbeddingSearchService implements IVisionEmbeddingSearchServi
 
     try {
       // クエリからEmbedding生成
-      const embedding = await embeddingService.generateEmbedding(queryText, 'query');
+      const embedding = await embeddingService.generateEmbedding(queryText, "query");
       if (!embedding) {
         return null;
       }
@@ -609,11 +607,11 @@ export class VisionEmbeddingSearchService implements IVisionEmbeddingSearchServi
 
       // Graceful Degradation - 両方とも結果がない場合
       if (textResultCount === 0 && visionResultCount === 0) {
-        const fallbackReason = 'No results from both text and vision search';
-        warnings.push('No results found: returning empty result set');
+        const fallbackReason = "No results from both text and vision search";
+        warnings.push("No results found: returning empty result set");
 
         if (isDevelopment()) {
-          logger.warn('[VisionEmbeddingSearchService] No results from hybrid search', {
+          logger.warn("[VisionEmbeddingSearchService] No results from hybrid search", {
             reason: fallbackReason,
           });
         }
@@ -624,7 +622,7 @@ export class VisionEmbeddingSearchService implements IVisionEmbeddingSearchServi
           fallbackToTextOnly: true,
           fallbackReason,
           warnings,
-          actualSearchMode: 'text_only',
+          actualSearchMode: "text_only",
           visionCoverageRatio: 0,
           adjustedWeights: {
             textWeight: 1.0,
@@ -635,11 +633,11 @@ export class VisionEmbeddingSearchService implements IVisionEmbeddingSearchServi
 
       // Graceful Degradation - vision_embeddingが空の場合
       if (visionResultCount === 0 && textResultCount > 0) {
-        const fallbackReason = 'vision_embedding not available for any results';
-        warnings.push('Fallback to text_only search: no vision_embedding found');
+        const fallbackReason = "vision_embedding not available for any results";
+        warnings.push("Fallback to text_only search: no vision_embedding found");
 
         if (isDevelopment()) {
-          logger.warn('[VisionEmbeddingSearchService] Graceful Degradation to text_only', {
+          logger.warn("[VisionEmbeddingSearchService] Graceful Degradation to text_only", {
             reason: fallbackReason,
           });
         }
@@ -656,7 +654,7 @@ export class VisionEmbeddingSearchService implements IVisionEmbeddingSearchServi
           fallbackToTextOnly: true,
           fallbackReason,
           warnings,
-          actualSearchMode: 'text_only',
+          actualSearchMode: "text_only",
           visionCoverageRatio: 0,
           adjustedWeights: {
             textWeight: 1.0,
@@ -686,7 +684,7 @@ export class VisionEmbeddingSearchService implements IVisionEmbeddingSearchServi
         );
 
         if (isDevelopment()) {
-          logger.info('[VisionEmbeddingSearchService] RRF weight adjustment', {
+          logger.info("[VisionEmbeddingSearchService] RRF weight adjustment", {
             visionCoverageRatio,
             originalWeights: { text: originalTextWeight, vision: originalVisionWeight },
             adjustedWeights: { text: adjustedTextWeight, vision: adjustedVisionWeight },
@@ -712,7 +710,7 @@ export class VisionEmbeddingSearchService implements IVisionEmbeddingSearchServi
         results: paginatedResults,
         total,
         fallbackToTextOnly: false,
-        actualSearchMode: 'combined',
+        actualSearchMode: "combined",
         visionCoverageRatio,
         adjustedWeights: {
           textWeight: adjustedTextWeight,
@@ -722,8 +720,8 @@ export class VisionEmbeddingSearchService implements IVisionEmbeddingSearchServi
       };
     } catch (error) {
       if (isDevelopment()) {
-        logger.error('[VisionEmbeddingSearchService] hybridSearch error', {
-          error: error instanceof Error ? error.message : 'Unknown error',
+        logger.error("[VisionEmbeddingSearchService] hybridSearch error", {
+          error: error instanceof Error ? error.message : "Unknown error",
         });
       }
       // エラー時は空の結果を返す（Graceful Degradation）
@@ -731,9 +729,9 @@ export class VisionEmbeddingSearchService implements IVisionEmbeddingSearchServi
         results: [],
         total: 0,
         fallbackToTextOnly: true,
-        fallbackReason: `Search error: ${error instanceof Error ? error.message : 'Unknown error'}`,
-        warnings: ['Search failed, returning empty results'],
-        actualSearchMode: 'text_only',
+        fallbackReason: `Search error: ${error instanceof Error ? error.message : "Unknown error"}`,
+        warnings: ["Search failed, returning empty results"],
+        actualSearchMode: "text_only",
         visionCoverageRatio: 0,
         adjustedWeights: {
           textWeight: 1.0,
@@ -742,7 +740,7 @@ export class VisionEmbeddingSearchService implements IVisionEmbeddingSearchServi
       };
     } finally {
       if (isDevelopment()) {
-        logger.info('[VisionEmbeddingSearchService] hybridSearch completed', {
+        logger.info("[VisionEmbeddingSearchService] hybridSearch completed", {
           processingTimeMs: Date.now() - startTime,
         });
       }
@@ -762,11 +760,12 @@ export class VisionEmbeddingSearchService implements IVisionEmbeddingSearchServi
     options: VisionSearchOptions,
     excludeId?: string
   ): Promise<VisionSearchServiceResult> {
-    const vectorString = `[${embedding.join(',')}]`;
-    const { clause: filterClause, params: filterParams, paramOffset } = buildFilterClause(
-      options,
-      excludeId
-    );
+    const vectorString = `[${embedding.join(",")}]`;
+    const {
+      clause: filterClause,
+      params: filterParams,
+      paramOffset,
+    } = buildFilterClause(options, excludeId);
 
     // パラメータインデックス計算
     const vectorParamIndex = paramOffset + 1;
@@ -774,7 +773,7 @@ export class VisionEmbeddingSearchService implements IVisionEmbeddingSearchServi
     const offsetParamIndex = paramOffset + 3;
 
     // WHERE句構築
-    let whereClause = 'WHERE se.vision_embedding IS NOT NULL';
+    let whereClause = "WHERE se.vision_embedding IS NOT NULL";
     if (filterClause) {
       whereClause += ` AND ${filterClause}`;
     }
@@ -840,8 +839,8 @@ export class VisionEmbeddingSearchService implements IVisionEmbeddingSearchServi
       };
     } catch (error) {
       if (isDevelopment()) {
-        logger.error('[VisionEmbeddingSearchService] executeVisionSearch error', {
-          error: error instanceof Error ? error.message : 'Unknown error',
+        logger.error("[VisionEmbeddingSearchService] executeVisionSearch error", {
+          error: error instanceof Error ? error.message : "Unknown error",
         });
       }
       return { results: [], total: 0 };
@@ -856,14 +855,14 @@ export class VisionEmbeddingSearchService implements IVisionEmbeddingSearchServi
     embedding: number[],
     options: VisionSearchOptions
   ): Promise<VisionSearchServiceResult> {
-    const vectorString = `[${embedding.join(',')}]`;
+    const vectorString = `[${embedding.join(",")}]`;
     const { clause: filterClause, params: filterParams, paramOffset } = buildFilterClause(options);
 
     const vectorParamIndex = paramOffset + 1;
     const limitParamIndex = paramOffset + 2;
     const offsetParamIndex = paramOffset + 3;
 
-    let whereClause = 'WHERE se.text_embedding IS NOT NULL';
+    let whereClause = "WHERE se.text_embedding IS NOT NULL";
     if (filterClause) {
       whereClause += ` AND ${filterClause}`;
     }
@@ -908,8 +907,8 @@ export class VisionEmbeddingSearchService implements IVisionEmbeddingSearchServi
       };
     } catch (error) {
       if (isDevelopment()) {
-        logger.error('[VisionEmbeddingSearchService] executeTextSearch error', {
-          error: error instanceof Error ? error.message : 'Unknown error',
+        logger.error("[VisionEmbeddingSearchService] executeTextSearch error", {
+          error: error instanceof Error ? error.message : "Unknown error",
         });
       }
       return { results: [], total: 0 };
@@ -944,14 +943,14 @@ export class VisionEmbeddingSearchService implements IVisionEmbeddingSearchServi
       const vectorStr = result[0].vision_embedding;
       const numbers = vectorStr
         .slice(1, -1) // "[" と "]" を除去
-        .split(',')
+        .split(",")
         .map(Number);
 
       return numbers;
     } catch (error) {
       if (isDevelopment()) {
-        logger.error('[VisionEmbeddingSearchService] getExistingVisionEmbedding error', {
-          error: error instanceof Error ? error.message : 'Unknown error',
+        logger.error("[VisionEmbeddingSearchService] getExistingVisionEmbedding error", {
+          error: error instanceof Error ? error.message : "Unknown error",
         });
       }
       return null;
@@ -1010,10 +1009,10 @@ export class VisionEmbeddingSearchService implements IVisionEmbeddingSearchServi
     embedding: number[],
     options: VisionSearchOptions
   ): Promise<number> {
-    const vectorString = `[${embedding.join(',')}]`;
+    const vectorString = `[${embedding.join(",")}]`;
     const { clause: filterClause, params: filterParams } = buildFilterClause(options);
 
-    let whereClause = 'WHERE (se.text_embedding IS NOT NULL OR se.vision_embedding IS NOT NULL)';
+    let whereClause = "WHERE (se.text_embedding IS NOT NULL OR se.vision_embedding IS NOT NULL)";
     if (filterClause) {
       whereClause += ` AND ${filterClause}`;
     }

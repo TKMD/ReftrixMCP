@@ -19,7 +19,7 @@
  * @module tests/tools/quality/originality-evaluation.test
  */
 
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect } from "vitest";
 
 // =====================================================
 // テスト用HTML定義
@@ -109,13 +109,12 @@ const AI_CLICHE_HTML = `
 // テスト: Originality評価の基本動作
 // =====================================================
 
-describe('Originality評価ロジック改善', () => {
-  describe('デフォルトスコア', () => {
-    it('クリシェなし・特徴なしのHTMLでも100点にならない（80点が基準）', async () => {
+describe("Originality評価ロジック改善", () => {
+  describe("デフォルトスコア", () => {
+    it("クリシェなし・特徴なしのHTMLでも100点にならない（80点が基準）", async () => {
       // 動的インポートでevaluateOriginality関数をテスト
-      const { evaluateOriginality, detectCliches } = await import(
-        '../../../src/tools/quality/evaluate.tool'
-      );
+      const { evaluateOriginality, detectCliches } =
+        await import("../../../src/tools/quality/evaluate.tool");
 
       const cliches = detectCliches(MINIMAL_HTML, false);
       const result = evaluateOriginality(MINIMAL_HTML, cliches, false);
@@ -125,10 +124,9 @@ describe('Originality評価ロジック改善', () => {
       expect(result.score).toBeGreaterThanOrEqual(75);
     });
 
-    it('標準的なHTMLのスコアは80前後', async () => {
-      const { evaluateOriginality, detectCliches } = await import(
-        '../../../src/tools/quality/evaluate.tool'
-      );
+    it("標準的なHTMLのスコアは80前後", async () => {
+      const { evaluateOriginality, detectCliches } =
+        await import("../../../src/tools/quality/evaluate.tool");
 
       const cliches = detectCliches(STANDARD_HTML, false);
       const result = evaluateOriginality(STANDARD_HTML, cliches, false);
@@ -139,11 +137,10 @@ describe('Originality評価ロジック改善', () => {
     });
   });
 
-  describe('details（評価根拠）の必須出力', () => {
-    it('detailsは必ず1つ以上の項目を含む（undefinedにならない）', async () => {
-      const { evaluateOriginality, detectCliches } = await import(
-        '../../../src/tools/quality/evaluate.tool'
-      );
+  describe("details（評価根拠）の必須出力", () => {
+    it("detailsは必ず1つ以上の項目を含む（undefinedにならない）", async () => {
+      const { evaluateOriginality, detectCliches } =
+        await import("../../../src/tools/quality/evaluate.tool");
 
       const cliches = detectCliches(MINIMAL_HTML, false);
       const result = evaluateOriginality(MINIMAL_HTML, cliches, false);
@@ -154,10 +151,9 @@ describe('Originality評価ロジック改善', () => {
       expect(result.details!.length).toBeGreaterThanOrEqual(1);
     });
 
-    it('標準的なHTMLでもdetailsが空にならない', async () => {
-      const { evaluateOriginality, detectCliches } = await import(
-        '../../../src/tools/quality/evaluate.tool'
-      );
+    it("標準的なHTMLでもdetailsが空にならない", async () => {
+      const { evaluateOriginality, detectCliches } =
+        await import("../../../src/tools/quality/evaluate.tool");
 
       const cliches = detectCliches(STANDARD_HTML, false);
       const result = evaluateOriginality(STANDARD_HTML, cliches, false);
@@ -166,64 +162,59 @@ describe('Originality評価ロジック改善', () => {
       expect(result.details!.length).toBeGreaterThanOrEqual(1);
     });
 
-    it('評価根拠には「基準スコア」の説明が含まれる', async () => {
-      const { evaluateOriginality, detectCliches } = await import(
-        '../../../src/tools/quality/evaluate.tool'
-      );
+    it("評価根拠には「基準スコア」の説明が含まれる", async () => {
+      const { evaluateOriginality, detectCliches } =
+        await import("../../../src/tools/quality/evaluate.tool");
 
       const cliches = detectCliches(MINIMAL_HTML, false);
       const result = evaluateOriginality(MINIMAL_HTML, cliches, false);
 
       // 基準スコアの説明が含まれる
       const hasBaseScoreExplanation = result.details!.some(
-        (d) => d.includes('基準') || d.includes('ベース') || d.includes('標準')
+        (d) => d.includes("基準") || d.includes("ベース") || d.includes("標準")
       );
       expect(hasBaseScoreExplanation).toBe(true);
     });
   });
 
-  describe('ボーナス評価の強化', () => {
-    it('カスタムカラーパレット使用でボーナス加点', async () => {
-      const { evaluateOriginality, detectCliches } = await import(
-        '../../../src/tools/quality/evaluate.tool'
-      );
+  describe("ボーナス評価の強化", () => {
+    it("カスタムカラーパレット使用でボーナス加点", async () => {
+      const { evaluateOriginality, detectCliches } =
+        await import("../../../src/tools/quality/evaluate.tool");
 
       const cliches = detectCliches(CUSTOM_STYLE_HTML, false);
       const result = evaluateOriginality(CUSTOM_STYLE_HTML, cliches, false);
 
       // カスタムスタイル使用でボーナス
       expect(result.score).toBeGreaterThan(80);
-      expect(result.details).toContain('独自のカラーパレット使用');
+      expect(result.details).toContain("独自のカラーパレット使用");
     });
 
-    it('カスタムアニメーション使用でボーナス加点', async () => {
-      const { evaluateOriginality, detectCliches } = await import(
-        '../../../src/tools/quality/evaluate.tool'
-      );
+    it("カスタムアニメーション使用でボーナス加点", async () => {
+      const { evaluateOriginality, detectCliches } =
+        await import("../../../src/tools/quality/evaluate.tool");
 
       const cliches = detectCliches(CUSTOM_STYLE_HTML, false);
       const result = evaluateOriginality(CUSTOM_STYLE_HTML, cliches, false);
 
-      expect(result.details).toContain('カスタムアニメーション使用');
+      expect(result.details).toContain("カスタムアニメーション使用");
     });
 
-    it('CSS変数活用でボーナス加点', async () => {
-      const { evaluateOriginality, detectCliches } = await import(
-        '../../../src/tools/quality/evaluate.tool'
-      );
+    it("CSS変数活用でボーナス加点", async () => {
+      const { evaluateOriginality, detectCliches } =
+        await import("../../../src/tools/quality/evaluate.tool");
 
       const cliches = detectCliches(CUSTOM_STYLE_HTML, false);
       const result = evaluateOriginality(CUSTOM_STYLE_HTML, cliches, false);
 
-      expect(result.details).toContain('CSS変数を活用');
+      expect(result.details).toContain("CSS変数を活用");
     });
   });
 
-  describe('クリシェ検出によるペナルティ', () => {
-    it('AIクリシェ検出で減点される', async () => {
-      const { evaluateOriginality, detectCliches } = await import(
-        '../../../src/tools/quality/evaluate.tool'
-      );
+  describe("クリシェ検出によるペナルティ", () => {
+    it("AIクリシェ検出で減点される", async () => {
+      const { evaluateOriginality, detectCliches } =
+        await import("../../../src/tools/quality/evaluate.tool");
 
       const cliches = detectCliches(AI_CLICHE_HTML, false);
       const result = evaluateOriginality(AI_CLICHE_HTML, cliches, false);
@@ -234,10 +225,9 @@ describe('Originality評価ロジック改善', () => {
       expect(cliches.count).toBeGreaterThan(0);
     });
 
-    it('strictモードでより厳しく減点される', async () => {
-      const { evaluateOriginality, detectCliches } = await import(
-        '../../../src/tools/quality/evaluate.tool'
-      );
+    it("strictモードでより厳しく減点される", async () => {
+      const { evaluateOriginality, detectCliches } =
+        await import("../../../src/tools/quality/evaluate.tool");
 
       const clichesNormal = detectCliches(AI_CLICHE_HTML, false);
       const clichesStrict = detectCliches(AI_CLICHE_HTML, true);
@@ -249,45 +239,42 @@ describe('Originality評価ロジック改善', () => {
       expect(resultStrict.score).toBeLessThan(resultNormal.score);
     });
 
-    it('クリシェ検出時はdetailsに検出理由が含まれる', async () => {
-      const { evaluateOriginality, detectCliches } = await import(
-        '../../../src/tools/quality/evaluate.tool'
-      );
+    it("クリシェ検出時はdetailsに検出理由が含まれる", async () => {
+      const { evaluateOriginality, detectCliches } =
+        await import("../../../src/tools/quality/evaluate.tool");
 
       const cliches = detectCliches(AI_CLICHE_HTML, true);
       const result = evaluateOriginality(AI_CLICHE_HTML, cliches, true);
 
       // クリシェの検出理由がdetailsに含まれる
-      const hasClicheDetail = result.details!.some((d) => d.includes('クリシェ'));
+      const hasClicheDetail = result.details!.some((d) => d.includes("クリシェ"));
       expect(hasClicheDetail).toBe(true);
     });
   });
 
-  describe('グレード判定', () => {
-    it('スコア90以上でグレードA', async () => {
-      const { evaluateOriginality, detectCliches } = await import(
-        '../../../src/tools/quality/evaluate.tool'
-      );
+  describe("グレード判定", () => {
+    it("スコア90以上でグレードA", async () => {
+      const { evaluateOriginality, detectCliches } =
+        await import("../../../src/tools/quality/evaluate.tool");
 
       // カスタムスタイル（ボーナス多い）でAグレードを狙う
       const cliches = detectCliches(CUSTOM_STYLE_HTML, false);
       const result = evaluateOriginality(CUSTOM_STYLE_HTML, cliches, false);
 
       if (result.score >= 90) {
-        expect(result.grade).toBe('A');
+        expect(result.grade).toBe("A");
       }
     });
 
-    it('スコア80-89でグレードB', async () => {
-      const { evaluateOriginality, detectCliches } = await import(
-        '../../../src/tools/quality/evaluate.tool'
-      );
+    it("スコア80-89でグレードB", async () => {
+      const { evaluateOriginality, detectCliches } =
+        await import("../../../src/tools/quality/evaluate.tool");
 
       const cliches = detectCliches(STANDARD_HTML, false);
       const result = evaluateOriginality(STANDARD_HTML, cliches, false);
 
       if (result.score >= 80 && result.score < 90) {
-        expect(result.grade).toBe('B');
+        expect(result.grade).toBe("B");
       }
     });
   });

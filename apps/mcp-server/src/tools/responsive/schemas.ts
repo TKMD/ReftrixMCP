@@ -8,7 +8,7 @@
  * @module tools/responsive/schemas
  */
 
-import { z } from 'zod';
+import { z } from "zod";
 
 // ============================================================================
 // Enum Schemas
@@ -18,14 +18,14 @@ import { z } from 'zod';
  * レスポンシブ差異カテゴリ
  */
 export const responsiveDiffCategorySchema = z.enum([
-  'layout',
-  'typography',
-  'spacing',
-  'visibility',
-  'navigation',
-  'image',
-  'interaction',
-  'animation',
+  "layout",
+  "typography",
+  "spacing",
+  "visibility",
+  "navigation",
+  "image",
+  "interaction",
+  "animation",
 ]);
 
 export type ResponsiveDiffCategory = z.infer<typeof responsiveDiffCategorySchema>;
@@ -33,11 +33,7 @@ export type ResponsiveDiffCategory = z.infer<typeof responsiveDiffCategorySchema
 /**
  * ビューポートペア
  */
-export const viewportPairSchema = z.enum([
-  'desktop-tablet',
-  'desktop-mobile',
-  'tablet-mobile',
-]);
+export const viewportPairSchema = z.enum(["desktop-tablet", "desktop-mobile", "tablet-mobile"]);
 
 export type ViewportPair = z.infer<typeof viewportPairSchema>;
 
@@ -46,11 +42,11 @@ export type ViewportPair = z.infer<typeof viewportPairSchema>;
 // ============================================================================
 
 export const RESPONSIVE_MCP_ERROR_CODES = {
-  VALIDATION_ERROR: 'VALIDATION_ERROR',
-  SEARCH_FAILED: 'SEARCH_FAILED',
-  EMBEDDING_FAILED: 'EMBEDDING_FAILED',
-  SERVICE_UNAVAILABLE: 'SERVICE_UNAVAILABLE',
-  INTERNAL_ERROR: 'INTERNAL_ERROR',
+  VALIDATION_ERROR: "VALIDATION_ERROR",
+  SEARCH_FAILED: "SEARCH_FAILED",
+  EMBEDDING_FAILED: "EMBEDDING_FAILED",
+  SERVICE_UNAVAILABLE: "SERVICE_UNAVAILABLE",
+  INTERNAL_ERROR: "INTERNAL_ERROR",
 } as const;
 
 export type ResponsiveMcpErrorCode =
@@ -63,21 +59,25 @@ export type ResponsiveMcpErrorCode =
 /**
  * responsive.search 検索フィルター
  */
-export const responsiveSearchFiltersSchema = z.object({
-  /** 差異カテゴリフィルタ */
-  diffCategory: responsiveDiffCategorySchema.optional(),
-  /** ビューポートペアフィルタ */
-  viewportPair: viewportPairSchema.optional(),
-  /** ブレークポイント範囲フィルタ */
-  breakpointRange: z.object({
-    min: z.number().int().min(0).optional(),
-    max: z.number().int().max(10000).optional(),
-  }).optional(),
-  /** 最小スクリーンショット差分パーセンテージ */
-  minDiffPercentage: z.number().min(0).max(100).optional(),
-  /** WebページIDフィルタ */
-  webPageId: z.string().uuid().optional(),
-}).optional();
+export const responsiveSearchFiltersSchema = z
+  .object({
+    /** 差異カテゴリフィルタ */
+    diffCategory: responsiveDiffCategorySchema.optional(),
+    /** ビューポートペアフィルタ */
+    viewportPair: viewportPairSchema.optional(),
+    /** ブレークポイント範囲フィルタ */
+    breakpointRange: z
+      .object({
+        min: z.number().int().min(0).optional(),
+        max: z.number().int().max(10000).optional(),
+      })
+      .optional(),
+    /** 最小スクリーンショット差分パーセンテージ */
+    minDiffPercentage: z.number().min(0).max(100).optional(),
+    /** WebページIDフィルタ */
+    webPageId: z.string().uuid().optional(),
+  })
+  .optional();
 
 export type ResponsiveSearchFilters = z.infer<typeof responsiveSearchFiltersSchema>;
 

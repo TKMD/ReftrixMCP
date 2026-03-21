@@ -20,7 +20,7 @@
  * @module tests/tools/quality/evaluate.tool.test
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 // =====================================================
 // インポート
@@ -32,7 +32,7 @@ import {
   setQualityEvaluateServiceFactory,
   resetQualityEvaluateServiceFactory,
   type IQualityEvaluateService,
-} from '../../../src/tools/quality/evaluate.tool';
+} from "../../../src/tools/quality/evaluate.tool";
 
 import {
   qualityEvaluateInputSchema,
@@ -45,7 +45,7 @@ import {
   type Weights,
   type Grade,
   QUALITY_MCP_ERROR_CODES,
-} from '../../../src/tools/quality/schemas';
+} from "../../../src/tools/quality/schemas";
 
 // =====================================================
 // テストデータ
@@ -222,16 +222,16 @@ const sampleHtmlPoorAccessibility = `<!DOCTYPE html>
 </body>
 </html>`;
 
-const validUUID = '123e4567-e89b-12d3-a456-426614174000';
-const invalidUUID = 'invalid-uuid';
+const validUUID = "123e4567-e89b-12d3-a456-426614174000";
+const invalidUUID = "invalid-uuid";
 
 // =====================================================
 // 入力スキーマテスト（15+ tests）
 // =====================================================
 
-describe('qualityEvaluateInputSchema', () => {
-  describe('有効な入力', () => {
-    it('html のみの入力を受け付ける', () => {
+describe("qualityEvaluateInputSchema", () => {
+  describe("有効な入力", () => {
+    it("html のみの入力を受け付ける", () => {
       const input = { html: sampleHtmlGood };
       const result = qualityEvaluateInputSchema.parse(input);
       expect(result.html).toBe(sampleHtmlGood);
@@ -239,13 +239,13 @@ describe('qualityEvaluateInputSchema', () => {
       expect(result.strict).toBe(false); // デフォルト
     });
 
-    it('pageId のみの入力を受け付ける', () => {
+    it("pageId のみの入力を受け付ける", () => {
       const input = { pageId: validUUID };
       const result = qualityEvaluateInputSchema.parse(input);
       expect(result.pageId).toBe(validUUID);
     });
 
-    it('weights オプションを受け付ける（デフォルト重み）', () => {
+    it("weights オプションを受け付ける（デフォルト重み）", () => {
       const input = {
         html: sampleHtmlGood,
         weights: { originality: 0.35, craftsmanship: 0.4, contextuality: 0.25 },
@@ -256,7 +256,7 @@ describe('qualityEvaluateInputSchema', () => {
       expect(result.weights?.contextuality).toBe(0.25);
     });
 
-    it('カスタム重みを受け付ける（合計1.0）', () => {
+    it("カスタム重みを受け付ける（合計1.0）", () => {
       const input = {
         html: sampleHtmlGood,
         weights: { originality: 0.5, craftsmanship: 0.3, contextuality: 0.2 },
@@ -265,25 +265,25 @@ describe('qualityEvaluateInputSchema', () => {
       expect(result.weights?.originality).toBe(0.5);
     });
 
-    it('targetIndustry オプションを受け付ける', () => {
+    it("targetIndustry オプションを受け付ける", () => {
       const input = {
         html: sampleHtmlGood,
-        targetIndustry: 'technology',
+        targetIndustry: "technology",
       };
       const result = qualityEvaluateInputSchema.parse(input);
-      expect(result.targetIndustry).toBe('technology');
+      expect(result.targetIndustry).toBe("technology");
     });
 
-    it('targetAudience オプションを受け付ける', () => {
+    it("targetAudience オプションを受け付ける", () => {
       const input = {
         html: sampleHtmlGood,
-        targetAudience: 'enterprise',
+        targetAudience: "enterprise",
       };
       const result = qualityEvaluateInputSchema.parse(input);
-      expect(result.targetAudience).toBe('enterprise');
+      expect(result.targetAudience).toBe("enterprise");
     });
 
-    it('includeRecommendations=false を受け付ける', () => {
+    it("includeRecommendations=false を受け付ける", () => {
       const input = {
         html: sampleHtmlGood,
         includeRecommendations: false,
@@ -292,7 +292,7 @@ describe('qualityEvaluateInputSchema', () => {
       expect(result.includeRecommendations).toBe(false);
     });
 
-    it('strict=true を受け付ける', () => {
+    it("strict=true を受け付ける", () => {
       const input = {
         html: sampleHtmlGood,
         strict: true,
@@ -301,32 +301,32 @@ describe('qualityEvaluateInputSchema', () => {
       expect(result.strict).toBe(true);
     });
 
-    it('全オプション指定の入力を受け付ける', () => {
+    it("全オプション指定の入力を受け付ける", () => {
       const input: QualityEvaluateInput = {
         html: sampleHtmlGood,
         weights: { originality: 0.4, craftsmanship: 0.35, contextuality: 0.25 },
-        targetIndustry: 'healthcare',
-        targetAudience: 'professionals',
+        targetIndustry: "healthcare",
+        targetAudience: "professionals",
         includeRecommendations: true,
         strict: true,
       };
       const result = qualityEvaluateInputSchema.parse(input);
       expect(result.html).toBeDefined();
       expect(result.weights?.originality).toBe(0.4);
-      expect(result.targetIndustry).toBe('healthcare');
-      expect(result.targetAudience).toBe('professionals');
+      expect(result.targetIndustry).toBe("healthcare");
+      expect(result.targetAudience).toBe("professionals");
       expect(result.includeRecommendations).toBe(true);
       expect(result.strict).toBe(true);
     });
   });
 
-  describe('無効な入力', () => {
-    it('pageId も html もない場合エラー', () => {
+  describe("無効な入力", () => {
+    it("pageId も html もない場合エラー", () => {
       const input = {};
       expect(() => qualityEvaluateInputSchema.parse(input)).toThrow();
     });
 
-    it('pageId と html の両方が指定された場合エラー', () => {
+    it("pageId と html の両方が指定された場合エラー", () => {
       const input = {
         pageId: validUUID,
         html: sampleHtmlGood,
@@ -334,17 +334,17 @@ describe('qualityEvaluateInputSchema', () => {
       expect(() => qualityEvaluateInputSchema.parse(input)).toThrow();
     });
 
-    it('pageId が無効なUUID形式の場合エラー', () => {
+    it("pageId が無効なUUID形式の場合エラー", () => {
       const input = { pageId: invalidUUID };
       expect(() => qualityEvaluateInputSchema.parse(input)).toThrow();
     });
 
-    it('html が空文字の場合エラー', () => {
-      const input = { html: '' };
+    it("html が空文字の場合エラー", () => {
+      const input = { html: "" };
       expect(() => qualityEvaluateInputSchema.parse(input)).toThrow();
     });
 
-    it('weights の合計が1.0でない場合エラー', () => {
+    it("weights の合計が1.0でない場合エラー", () => {
       const input = {
         html: sampleHtmlGood,
         weights: { originality: 0.5, craftsmanship: 0.5, contextuality: 0.5 },
@@ -352,18 +352,18 @@ describe('qualityEvaluateInputSchema', () => {
       expect(() => qualityEvaluateInputSchema.parse(input)).toThrow();
     });
 
-    it('targetIndustry が100文字を超える場合エラー', () => {
+    it("targetIndustry が100文字を超える場合エラー", () => {
       const input = {
         html: sampleHtmlGood,
-        targetIndustry: 'a'.repeat(101),
+        targetIndustry: "a".repeat(101),
       };
       expect(() => qualityEvaluateInputSchema.parse(input)).toThrow();
     });
 
-    it('targetAudience が100文字を超える場合エラー', () => {
+    it("targetAudience が100文字を超える場合エラー", () => {
       const input = {
         html: sampleHtmlGood,
-        targetAudience: 'a'.repeat(101),
+        targetAudience: "a".repeat(101),
       };
       expect(() => qualityEvaluateInputSchema.parse(input)).toThrow();
     });
@@ -374,8 +374,8 @@ describe('qualityEvaluateInputSchema', () => {
 // weightsスキーマテスト（5+ tests）
 // =====================================================
 
-describe('weightsSchema', () => {
-  it('デフォルト重みを受け付ける', () => {
+describe("weightsSchema", () => {
+  it("デフォルト重みを受け付ける", () => {
     const weights = { originality: 0.35, craftsmanship: 0.4, contextuality: 0.25 };
     const result = weightsSchema.parse(weights);
     expect(result.originality).toBe(0.35);
@@ -383,28 +383,28 @@ describe('weightsSchema', () => {
     expect(result.contextuality).toBe(0.25);
   });
 
-  it('合計が1.0の場合受け付ける', () => {
+  it("合計が1.0の場合受け付ける", () => {
     const weights = { originality: 0.33, craftsmanship: 0.34, contextuality: 0.33 };
     const result = weightsSchema.parse(weights);
     expect(result.originality + result.craftsmanship + result.contextuality).toBeCloseTo(1.0);
   });
 
-  it('合計が1.0でない場合エラー', () => {
+  it("合計が1.0でない場合エラー", () => {
     const weights = { originality: 0.3, craftsmanship: 0.3, contextuality: 0.3 };
     expect(() => weightsSchema.parse(weights)).toThrow();
   });
 
-  it('重みが0未満の場合エラー', () => {
+  it("重みが0未満の場合エラー", () => {
     const weights = { originality: -0.1, craftsmanship: 0.6, contextuality: 0.5 };
     expect(() => weightsSchema.parse(weights)).toThrow();
   });
 
-  it('重みが1を超える場合エラー', () => {
+  it("重みが1を超える場合エラー", () => {
     const weights = { originality: 1.5, craftsmanship: 0, contextuality: -0.5 };
     expect(() => weightsSchema.parse(weights)).toThrow();
   });
 
-  it('浮動小数点誤差を許容する（0.99-1.01）', () => {
+  it("浮動小数点誤差を許容する（0.99-1.01）", () => {
     const weights = { originality: 0.333, craftsmanship: 0.333, contextuality: 0.334 };
     const result = weightsSchema.parse(weights);
     expect(result).toBeDefined();
@@ -415,70 +415,70 @@ describe('weightsSchema', () => {
 // ユーティリティ関数テスト（10+ tests）
 // =====================================================
 
-describe('scoreToGrade', () => {
-  it('90以上はA', () => {
-    expect(scoreToGrade(90)).toBe('A');
-    expect(scoreToGrade(100)).toBe('A');
-    expect(scoreToGrade(95)).toBe('A');
+describe("scoreToGrade", () => {
+  it("90以上はA", () => {
+    expect(scoreToGrade(90)).toBe("A");
+    expect(scoreToGrade(100)).toBe("A");
+    expect(scoreToGrade(95)).toBe("A");
   });
 
-  it('80-89はB', () => {
-    expect(scoreToGrade(80)).toBe('B');
-    expect(scoreToGrade(89)).toBe('B');
-    expect(scoreToGrade(85)).toBe('B');
+  it("80-89はB", () => {
+    expect(scoreToGrade(80)).toBe("B");
+    expect(scoreToGrade(89)).toBe("B");
+    expect(scoreToGrade(85)).toBe("B");
   });
 
-  it('70-79はC', () => {
-    expect(scoreToGrade(70)).toBe('C');
-    expect(scoreToGrade(79)).toBe('C');
-    expect(scoreToGrade(75)).toBe('C');
+  it("70-79はC", () => {
+    expect(scoreToGrade(70)).toBe("C");
+    expect(scoreToGrade(79)).toBe("C");
+    expect(scoreToGrade(75)).toBe("C");
   });
 
-  it('60-69はD', () => {
-    expect(scoreToGrade(60)).toBe('D');
-    expect(scoreToGrade(69)).toBe('D');
-    expect(scoreToGrade(65)).toBe('D');
+  it("60-69はD", () => {
+    expect(scoreToGrade(60)).toBe("D");
+    expect(scoreToGrade(69)).toBe("D");
+    expect(scoreToGrade(65)).toBe("D");
   });
 
-  it('59以下はF', () => {
-    expect(scoreToGrade(59)).toBe('F');
-    expect(scoreToGrade(0)).toBe('F');
-    expect(scoreToGrade(50)).toBe('F');
+  it("59以下はF", () => {
+    expect(scoreToGrade(59)).toBe("F");
+    expect(scoreToGrade(0)).toBe("F");
+    expect(scoreToGrade(50)).toBe("F");
   });
 });
 
-describe('calculateWeightedScore', () => {
-  it('デフォルト重みで計算する', () => {
+describe("calculateWeightedScore", () => {
+  it("デフォルト重みで計算する", () => {
     const weights: Weights = { originality: 0.35, craftsmanship: 0.4, contextuality: 0.25 };
     const result = calculateWeightedScore(80, 90, 70, weights);
     // 80*0.35 + 90*0.4 + 70*0.25 = 28 + 36 + 17.5 = 81.5
     expect(result).toBe(81.5);
   });
 
-  it('カスタム重みで計算する', () => {
+  it("カスタム重みで計算する", () => {
     const weights: Weights = { originality: 0.5, craftsmanship: 0.3, contextuality: 0.2 };
     const result = calculateWeightedScore(100, 80, 60, weights);
     // 100*0.5 + 80*0.3 + 60*0.2 = 50 + 24 + 12 = 86
     expect(result).toBe(86);
   });
 
-  it('全て100の場合100を返す', () => {
+  it("全て100の場合100を返す", () => {
     const weights: Weights = { originality: 0.35, craftsmanship: 0.4, contextuality: 0.25 };
     const result = calculateWeightedScore(100, 100, 100, weights);
     expect(result).toBe(100);
   });
 
-  it('全て0の場合0を返す', () => {
+  it("全て0の場合0を返す", () => {
     const weights: Weights = { originality: 0.35, craftsmanship: 0.4, contextuality: 0.25 };
     const result = calculateWeightedScore(0, 0, 0, weights);
     expect(result).toBe(0);
   });
 
-  it('小数点2桁で丸める', () => {
+  it("小数点2桁で丸める", () => {
     const weights: Weights = { originality: 0.333, craftsmanship: 0.333, contextuality: 0.334 };
     const result = calculateWeightedScore(77, 88, 99, weights);
     // 結果が小数点2桁で丸められる
-    expect(result.toString().split('.')[1]?.length || 0).toBeLessThanOrEqual(2);
+    expect(result.toString().split(".")[1]?.length || 0).toBeLessThanOrEqual(2);
   });
 });
 
@@ -486,49 +486,49 @@ describe('calculateWeightedScore', () => {
 // 出力スキーマテスト（5+ tests）
 // =====================================================
 
-describe('qualityEvaluateOutputSchema', () => {
-  it('成功時の基本レスポンスをバリデート', () => {
+describe("qualityEvaluateOutputSchema", () => {
+  it("成功時の基本レスポンスをバリデート", () => {
     const output: QualityEvaluateOutput = {
       success: true,
       data: {
         overall: 85,
-        grade: 'B',
-        originality: { score: 80, grade: 'B' },
-        craftsmanship: { score: 90, grade: 'A' },
-        contextuality: { score: 85, grade: 'B' },
+        grade: "B",
+        originality: { score: 80, grade: "B" },
+        craftsmanship: { score: 90, grade: "A" },
+        contextuality: { score: 85, grade: "B" },
         evaluatedAt: new Date().toISOString(),
       },
     };
     expect(() => qualityEvaluateOutputSchema.parse(output)).not.toThrow();
   });
 
-  it('エラー時のレスポンスをバリデート', () => {
+  it("エラー時のレスポンスをバリデート", () => {
     const output = {
       success: false,
       error: {
-        code: 'VALIDATION_ERROR',
-        message: 'Invalid input',
+        code: "VALIDATION_ERROR",
+        message: "Invalid input",
       },
     };
     expect(() => qualityEvaluateOutputSchema.parse(output)).not.toThrow();
   });
 
-  it('推奨事項を含むレスポンスをバリデート', () => {
+  it("推奨事項を含むレスポンスをバリデート", () => {
     const output: QualityEvaluateOutput = {
       success: true,
       data: {
         overall: 75,
-        grade: 'C',
-        originality: { score: 70, grade: 'C' },
-        craftsmanship: { score: 80, grade: 'B' },
-        contextuality: { score: 75, grade: 'C' },
+        grade: "C",
+        originality: { score: 70, grade: "C" },
+        craftsmanship: { score: 80, grade: "B" },
+        contextuality: { score: 75, grade: "C" },
         recommendations: [
           {
-            id: 'rec-1',
-            category: 'originality',
-            priority: 'high',
-            title: 'AIクリシェを回避する',
-            description: '一般的なグラデーションパターンを独自のものに置き換えてください',
+            id: "rec-1",
+            category: "originality",
+            priority: "high",
+            title: "AIクリシェを回避する",
+            description: "一般的なグラデーションパターンを独自のものに置き換えてください",
             impact: 15,
           },
         ],
@@ -538,24 +538,24 @@ describe('qualityEvaluateOutputSchema', () => {
     expect(() => qualityEvaluateOutputSchema.parse(output)).not.toThrow();
   });
 
-  it('クリシェ検出結果を含むレスポンスをバリデート', () => {
+  it("クリシェ検出結果を含むレスポンスをバリデート", () => {
     const output: QualityEvaluateOutput = {
       success: true,
       data: {
         overall: 65,
-        grade: 'D',
-        originality: { score: 50, grade: 'F' },
-        craftsmanship: { score: 75, grade: 'C' },
-        contextuality: { score: 70, grade: 'C' },
+        grade: "D",
+        originality: { score: 50, grade: "F" },
+        craftsmanship: { score: 75, grade: "C" },
+        contextuality: { score: 70, grade: "C" },
         clicheDetection: {
           detected: true,
           count: 3,
           patterns: [
             {
-              type: 'gradient',
-              description: 'AI典型のパープル-ピンクグラデーション',
-              severity: 'high',
-              location: '.hero',
+              type: "gradient",
+              description: "AI典型のパープル-ピンクグラデーション",
+              severity: "high",
+              location: ".hero",
             },
           ],
         },
@@ -565,27 +565,27 @@ describe('qualityEvaluateOutputSchema', () => {
     expect(() => qualityEvaluateOutputSchema.parse(output)).not.toThrow();
   });
 
-  it('全フィールドを含むレスポンスをバリデート', () => {
+  it("全フィールドを含むレスポンスをバリデート", () => {
     const output: QualityEvaluateOutput = {
       success: true,
       data: {
         pageId: validUUID,
         overall: 88,
-        grade: 'B',
+        grade: "B",
         originality: {
           score: 85,
-          grade: 'B',
-          details: ['独自のカラーパレット', 'カスタムアニメーション'],
+          grade: "B",
+          details: ["独自のカラーパレット", "カスタムアニメーション"],
         },
         craftsmanship: {
           score: 92,
-          grade: 'A',
-          details: ['アクセシビリティ対応', 'レスポンシブデザイン'],
+          grade: "A",
+          details: ["アクセシビリティ対応", "レスポンシブデザイン"],
         },
         contextuality: {
           score: 87,
-          grade: 'B',
-          details: ['業界標準に適合', 'ターゲット層に適切'],
+          grade: "B",
+          details: ["業界標準に適合", "ターゲット層に適切"],
         },
         clicheDetection: {
           detected: false,
@@ -595,8 +595,8 @@ describe('qualityEvaluateOutputSchema', () => {
         recommendations: [],
         evaluatedAt: new Date().toISOString(),
         weights: { originality: 0.35, craftsmanship: 0.4, contextuality: 0.25 },
-        targetIndustry: 'technology',
-        targetAudience: 'enterprise',
+        targetIndustry: "technology",
+        targetAudience: "enterprise",
       },
     };
     expect(() => qualityEvaluateOutputSchema.parse(output)).not.toThrow();
@@ -607,38 +607,38 @@ describe('qualityEvaluateOutputSchema', () => {
 // ツール定義テスト（5+ tests）
 // =====================================================
 
-describe('qualityEvaluateToolDefinition', () => {
-  it('正しいツール名を持つ', () => {
-    expect(qualityEvaluateToolDefinition.name).toBe('quality.evaluate');
+describe("qualityEvaluateToolDefinition", () => {
+  it("正しいツール名を持つ", () => {
+    expect(qualityEvaluateToolDefinition.name).toBe("quality.evaluate");
   });
 
-  it('description が設定されている', () => {
+  it("description が設定されている", () => {
     expect(qualityEvaluateToolDefinition.description).toBeDefined();
-    expect(typeof qualityEvaluateToolDefinition.description).toBe('string');
+    expect(typeof qualityEvaluateToolDefinition.description).toBe("string");
     expect(qualityEvaluateToolDefinition.description.length).toBeGreaterThan(0);
   });
 
-  it('inputSchema が object 型', () => {
-    expect(qualityEvaluateToolDefinition.inputSchema.type).toBe('object');
+  it("inputSchema が object 型", () => {
+    expect(qualityEvaluateToolDefinition.inputSchema.type).toBe("object");
   });
 
-  it('properties に必要なフィールドを含む', () => {
+  it("properties に必要なフィールドを含む", () => {
     const { properties } = qualityEvaluateToolDefinition.inputSchema;
-    expect(properties).toHaveProperty('pageId');
-    expect(properties).toHaveProperty('html');
-    expect(properties).toHaveProperty('weights');
-    expect(properties).toHaveProperty('targetIndustry');
-    expect(properties).toHaveProperty('targetAudience');
-    expect(properties).toHaveProperty('includeRecommendations');
-    expect(properties).toHaveProperty('strict');
+    expect(properties).toHaveProperty("pageId");
+    expect(properties).toHaveProperty("html");
+    expect(properties).toHaveProperty("weights");
+    expect(properties).toHaveProperty("targetIndustry");
+    expect(properties).toHaveProperty("targetAudience");
+    expect(properties).toHaveProperty("includeRecommendations");
+    expect(properties).toHaveProperty("strict");
   });
 
-  it('weights の properties を含む', () => {
+  it("weights の properties を含む", () => {
     const { properties } = qualityEvaluateToolDefinition.inputSchema;
     const weightsProps = properties.weights?.properties;
-    expect(weightsProps).toHaveProperty('originality');
-    expect(weightsProps).toHaveProperty('craftsmanship');
-    expect(weightsProps).toHaveProperty('contextuality');
+    expect(weightsProps).toHaveProperty("originality");
+    expect(weightsProps).toHaveProperty("craftsmanship");
+    expect(weightsProps).toHaveProperty("contextuality");
   });
 });
 
@@ -646,7 +646,7 @@ describe('qualityEvaluateToolDefinition', () => {
 // 品質評価テスト（15+ tests）
 // =====================================================
 
-describe('品質評価', () => {
+describe("品質評価", () => {
   beforeEach(() => {
     resetQualityEvaluateServiceFactory();
   });
@@ -655,8 +655,8 @@ describe('品質評価', () => {
     vi.restoreAllMocks();
   });
 
-  describe('HTML直接評価', () => {
-    it('HTMLコンテンツを評価できる', async () => {
+  describe("HTML直接評価", () => {
+    it("HTMLコンテンツを評価できる", async () => {
       const input: QualityEvaluateInput = {
         html: sampleHtmlGood,
       };
@@ -670,7 +670,7 @@ describe('品質評価', () => {
       }
     });
 
-    it('3軸のスコアを返す', async () => {
+    it("3軸のスコアを返す", async () => {
       const input: QualityEvaluateInput = {
         html: sampleHtmlGood,
       };
@@ -692,7 +692,7 @@ describe('品質評価', () => {
       }
     });
 
-    it('各軸にグレードを返す', async () => {
+    it("各軸にグレードを返す", async () => {
       const input: QualityEvaluateInput = {
         html: sampleHtmlGood,
       };
@@ -700,13 +700,13 @@ describe('品質評価', () => {
 
       expect(result.success).toBe(true);
       if (result.success) {
-        expect(['A', 'B', 'C', 'D', 'F']).toContain(result.data.originality.grade);
-        expect(['A', 'B', 'C', 'D', 'F']).toContain(result.data.craftsmanship.grade);
-        expect(['A', 'B', 'C', 'D', 'F']).toContain(result.data.contextuality.grade);
+        expect(["A", "B", "C", "D", "F"]).toContain(result.data.originality.grade);
+        expect(["A", "B", "C", "D", "F"]).toContain(result.data.craftsmanship.grade);
+        expect(["A", "B", "C", "D", "F"]).toContain(result.data.contextuality.grade);
       }
     });
 
-    it('evaluatedAt タイムスタンプを返す', async () => {
+    it("evaluatedAt タイムスタンプを返す", async () => {
       const input: QualityEvaluateInput = {
         html: sampleHtmlGood,
       };
@@ -715,13 +715,13 @@ describe('品質評価', () => {
       expect(result.success).toBe(true);
       if (result.success) {
         expect(result.data.evaluatedAt).toBeDefined();
-        expect(new Date(result.data.evaluatedAt).toString()).not.toBe('Invalid Date');
+        expect(new Date(result.data.evaluatedAt).toString()).not.toBe("Invalid Date");
       }
     });
   });
 
-  describe('pageId評価', () => {
-    it('pageIdでページを取得して評価する', async () => {
+  describe("pageId評価", () => {
+    it("pageIdでページを取得して評価する", async () => {
       setQualityEvaluateServiceFactory(() => ({
         getPageById: vi.fn().mockResolvedValue({
           id: validUUID,
@@ -740,7 +740,7 @@ describe('品質評価', () => {
       }
     });
 
-    it('存在しないpageIdの場合エラーを返す', async () => {
+    it("存在しないpageIdの場合エラーを返す", async () => {
       setQualityEvaluateServiceFactory(() => ({
         getPageById: vi.fn().mockResolvedValue(null),
       }));
@@ -757,8 +757,8 @@ describe('品質評価', () => {
     });
   });
 
-  describe('カスタム重み評価', () => {
-    it('カスタム重みで評価する', async () => {
+  describe("カスタム重み評価", () => {
+    it("カスタム重みで評価する", async () => {
       const customWeights: Weights = {
         originality: 0.5,
         craftsmanship: 0.3,
@@ -776,7 +776,7 @@ describe('品質評価', () => {
       }
     });
 
-    it('重みがレスポンスに含まれる', async () => {
+    it("重みがレスポンスに含まれる", async () => {
       const input: QualityEvaluateInput = {
         html: sampleHtmlGood,
         weights: { originality: 0.4, craftsmanship: 0.35, contextuality: 0.25 },
@@ -790,45 +790,45 @@ describe('品質評価', () => {
     });
   });
 
-  describe('業界・オーディエンス指定評価', () => {
-    it('targetIndustry を指定して評価する', async () => {
+  describe("業界・オーディエンス指定評価", () => {
+    it("targetIndustry を指定して評価する", async () => {
       const input: QualityEvaluateInput = {
         html: sampleHtmlGood,
-        targetIndustry: 'healthcare',
+        targetIndustry: "healthcare",
       };
       const result = await qualityEvaluateHandler(input);
 
       expect(result.success).toBe(true);
       if (result.success) {
-        expect(result.data.targetIndustry).toBe('healthcare');
+        expect(result.data.targetIndustry).toBe("healthcare");
       }
     });
 
-    it('targetAudience を指定して評価する', async () => {
+    it("targetAudience を指定して評価する", async () => {
       const input: QualityEvaluateInput = {
         html: sampleHtmlGood,
-        targetAudience: 'professionals',
+        targetAudience: "professionals",
       };
       const result = await qualityEvaluateHandler(input);
 
       expect(result.success).toBe(true);
       if (result.success) {
-        expect(result.data.targetAudience).toBe('professionals');
+        expect(result.data.targetAudience).toBe("professionals");
       }
     });
 
-    it('業界とオーディエンス両方を指定して評価する', async () => {
+    it("業界とオーディエンス両方を指定して評価する", async () => {
       const input: QualityEvaluateInput = {
         html: sampleHtmlGood,
-        targetIndustry: 'finance',
-        targetAudience: 'enterprise',
+        targetIndustry: "finance",
+        targetAudience: "enterprise",
       };
       const result = await qualityEvaluateHandler(input);
 
       expect(result.success).toBe(true);
       if (result.success) {
-        expect(result.data.targetIndustry).toBe('finance');
-        expect(result.data.targetAudience).toBe('enterprise');
+        expect(result.data.targetIndustry).toBe("finance");
+        expect(result.data.targetAudience).toBe("enterprise");
       }
     });
   });
@@ -838,7 +838,7 @@ describe('品質評価', () => {
 // AIクリシェ検出テスト（10+ tests）
 // =====================================================
 
-describe('AIクリシェ検出', () => {
+describe("AIクリシェ検出", () => {
   beforeEach(() => {
     resetQualityEvaluateServiceFactory();
   });
@@ -847,7 +847,7 @@ describe('AIクリシェ検出', () => {
     vi.restoreAllMocks();
   });
 
-  it('クリシェを含むHTMLで検出結果を返す', async () => {
+  it("クリシェを含むHTMLで検出結果を返す", async () => {
     const input: QualityEvaluateInput = {
       html: sampleHtmlWithCliches,
     };
@@ -860,7 +860,7 @@ describe('AIクリシェ検出', () => {
     }
   });
 
-  it('クリシェカウントを返す', async () => {
+  it("クリシェカウントを返す", async () => {
     const input: QualityEvaluateInput = {
       html: sampleHtmlWithCliches,
     };
@@ -872,7 +872,7 @@ describe('AIクリシェ検出', () => {
     }
   });
 
-  it('検出されたクリシェパターンを返す', async () => {
+  it("検出されたクリシェパターンを返す", async () => {
     const input: QualityEvaluateInput = {
       html: sampleHtmlWithCliches,
     };
@@ -881,13 +881,13 @@ describe('AIクリシェ検出', () => {
     expect(result.success).toBe(true);
     if (result.success && result.data.clicheDetection?.detected) {
       expect(result.data.clicheDetection.patterns.length).toBeGreaterThan(0);
-      expect(result.data.clicheDetection.patterns[0]).toHaveProperty('type');
-      expect(result.data.clicheDetection.patterns[0]).toHaveProperty('description');
-      expect(result.data.clicheDetection.patterns[0]).toHaveProperty('severity');
+      expect(result.data.clicheDetection.patterns[0]).toHaveProperty("type");
+      expect(result.data.clicheDetection.patterns[0]).toHaveProperty("description");
+      expect(result.data.clicheDetection.patterns[0]).toHaveProperty("severity");
     }
   });
 
-  it('クリシェがないHTMLでは detected=false', async () => {
+  it("クリシェがないHTMLでは detected=false", async () => {
     const input: QualityEvaluateInput = {
       html: sampleHtmlGood,
     };
@@ -900,7 +900,7 @@ describe('AIクリシェ検出', () => {
     }
   });
 
-  it('strictモードでより厳しく検出する', async () => {
+  it("strictモードでより厳しく検出する", async () => {
     const inputNormal: QualityEvaluateInput = {
       html: sampleHtmlWithCliches,
       strict: false,
@@ -924,7 +924,7 @@ describe('AIクリシェ検出', () => {
     }
   });
 
-  it('グラデーションクリシェを検出する', async () => {
+  it("グラデーションクリシェを検出する", async () => {
     const htmlWithGradientCliche = `<!DOCTYPE html>
 <html>
 <head>
@@ -946,13 +946,13 @@ describe('AIクリシェ検出', () => {
     expect(result.success).toBe(true);
     if (result.success && result.data.clicheDetection?.detected) {
       const gradientCliche = result.data.clicheDetection.patterns.find(
-        (p) => p.type === 'gradient' || p.type.includes('gradient')
+        (p) => p.type === "gradient" || p.type.includes("gradient")
       );
       expect(gradientCliche).toBeDefined();
     }
   });
 
-  it('テキストクリシェを検出する', async () => {
+  it("テキストクリシェを検出する", async () => {
     const htmlWithTextCliche = `<!DOCTYPE html>
 <html>
 <body>
@@ -969,13 +969,13 @@ describe('AIクリシェ検出', () => {
     expect(result.success).toBe(true);
     if (result.success && result.data.clicheDetection?.detected) {
       const textCliche = result.data.clicheDetection.patterns.find(
-        (p) => p.type === 'text' || p.type.includes('text') || p.type.includes('phrase')
+        (p) => p.type === "text" || p.type.includes("text") || p.type.includes("phrase")
       );
       expect(textCliche).toBeDefined();
     }
   });
 
-  it('ボタンスタイルクリシェを検出する', async () => {
+  it("ボタンスタイルクリシェを検出する", async () => {
     const htmlWithButtonCliche = `<!DOCTYPE html>
 <html>
 <head>
@@ -999,16 +999,16 @@ describe('AIクリシェ検出', () => {
     if (result.success && result.data.clicheDetection?.detected) {
       const buttonCliche = result.data.clicheDetection.patterns.find(
         (p) =>
-          p.type === 'button' ||
-          p.type.includes('button') ||
-          p.type.includes('cta') ||
-          p.type.includes('gradient')
+          p.type === "button" ||
+          p.type.includes("button") ||
+          p.type.includes("cta") ||
+          p.type.includes("gradient")
       );
       expect(buttonCliche).toBeDefined();
     }
   });
 
-  it('クリシェ検出結果が originality スコアに影響する', async () => {
+  it("クリシェ検出結果が originality スコアに影響する", async () => {
     const inputGood: QualityEvaluateInput = {
       html: sampleHtmlGood,
     };
@@ -1024,13 +1024,11 @@ describe('AIクリシェ検出', () => {
 
     if (resultGood.success && resultCliche.success) {
       // クリシェを含むHTMLは originality スコアが低くなる
-      expect(resultCliche.data.originality.score).toBeLessThan(
-        resultGood.data.originality.score
-      );
+      expect(resultCliche.data.originality.score).toBeLessThan(resultGood.data.originality.score);
     }
   });
 
-  it('クリシェパターンに severity を含む', async () => {
+  it("クリシェパターンに severity を含む", async () => {
     const input: QualityEvaluateInput = {
       html: sampleHtmlWithCliches,
     };
@@ -1039,7 +1037,7 @@ describe('AIクリシェ検出', () => {
     expect(result.success).toBe(true);
     if (result.success && result.data.clicheDetection?.patterns.length) {
       result.data.clicheDetection.patterns.forEach((pattern) => {
-        expect(['high', 'medium', 'low']).toContain(pattern.severity);
+        expect(["high", "medium", "low"]).toContain(pattern.severity);
       });
     }
   });
@@ -1049,7 +1047,7 @@ describe('AIクリシェ検出', () => {
 // 推奨事項生成テスト（5+ tests）
 // =====================================================
 
-describe('推奨事項生成', () => {
+describe("推奨事項生成", () => {
   beforeEach(() => {
     resetQualityEvaluateServiceFactory();
   });
@@ -1058,7 +1056,7 @@ describe('推奨事項生成', () => {
     vi.restoreAllMocks();
   });
 
-  it('includeRecommendations=true で推奨事項を返す', async () => {
+  it("includeRecommendations=true で推奨事項を返す", async () => {
     const input: QualityEvaluateInput = {
       html: sampleHtmlWithCliches,
       includeRecommendations: true,
@@ -1072,7 +1070,7 @@ describe('推奨事項生成', () => {
     }
   });
 
-  it('includeRecommendations=false で推奨事項を返さない', async () => {
+  it("includeRecommendations=false で推奨事項を返さない", async () => {
     const input: QualityEvaluateInput = {
       html: sampleHtmlWithCliches,
       includeRecommendations: false,
@@ -1085,7 +1083,7 @@ describe('推奨事項生成', () => {
     }
   });
 
-  it('推奨事項に必須フィールドを含む', async () => {
+  it("推奨事項に必須フィールドを含む", async () => {
     const input: QualityEvaluateInput = {
       html: sampleHtmlPoorAccessibility,
       includeRecommendations: true,
@@ -1095,15 +1093,15 @@ describe('推奨事項生成', () => {
     expect(result.success).toBe(true);
     if (result.success && result.data.recommendations?.length) {
       const rec = result.data.recommendations[0];
-      expect(rec).toHaveProperty('id');
-      expect(rec).toHaveProperty('category');
-      expect(rec).toHaveProperty('priority');
-      expect(rec).toHaveProperty('title');
-      expect(rec).toHaveProperty('description');
+      expect(rec).toHaveProperty("id");
+      expect(rec).toHaveProperty("category");
+      expect(rec).toHaveProperty("priority");
+      expect(rec).toHaveProperty("title");
+      expect(rec).toHaveProperty("description");
     }
   });
 
-  it('推奨事項は優先度順にソートされている', async () => {
+  it("推奨事項は優先度順にソートされている", async () => {
     const input: QualityEvaluateInput = {
       html: sampleHtmlPoorAccessibility,
       includeRecommendations: true,
@@ -1121,7 +1119,7 @@ describe('推奨事項生成', () => {
     }
   });
 
-  it('推奨事項の数は制限される（最大10件）', async () => {
+  it("推奨事項の数は制限される（最大10件）", async () => {
     const input: QualityEvaluateInput = {
       html: sampleHtmlPoorAccessibility,
       includeRecommendations: true,
@@ -1134,7 +1132,7 @@ describe('推奨事項生成', () => {
     }
   });
 
-  it('高品質HTMLでは推奨事項が少ない', async () => {
+  it("高品質HTMLでは推奨事項が少ない", async () => {
     const inputGood: QualityEvaluateInput = {
       html: sampleHtmlGood,
       includeRecommendations: true,
@@ -1162,7 +1160,7 @@ describe('推奨事項生成', () => {
 // エラーハンドリングテスト（10+ tests）
 // =====================================================
 
-describe('エラーハンドリング', () => {
+describe("エラーハンドリング", () => {
   beforeEach(() => {
     resetQualityEvaluateServiceFactory();
   });
@@ -1171,7 +1169,7 @@ describe('エラーハンドリング', () => {
     vi.restoreAllMocks();
   });
 
-  it('入力がnullの場合エラー', async () => {
+  it("入力がnullの場合エラー", async () => {
     const result = await qualityEvaluateHandler(null);
     expect(result.success).toBe(false);
     if (!result.success) {
@@ -1179,7 +1177,7 @@ describe('エラーハンドリング', () => {
     }
   });
 
-  it('入力がundefinedの場合エラー', async () => {
+  it("入力がundefinedの場合エラー", async () => {
     const result = await qualityEvaluateHandler(undefined);
     expect(result.success).toBe(false);
     if (!result.success) {
@@ -1187,7 +1185,7 @@ describe('エラーハンドリング', () => {
     }
   });
 
-  it('空オブジェクトの場合エラー', async () => {
+  it("空オブジェクトの場合エラー", async () => {
     const result = await qualityEvaluateHandler({});
     expect(result.success).toBe(false);
     if (!result.success) {
@@ -1195,15 +1193,15 @@ describe('エラーハンドリング', () => {
     }
   });
 
-  it('空文字HTMLの場合エラー', async () => {
-    const result = await qualityEvaluateHandler({ html: '' });
+  it("空文字HTMLの場合エラー", async () => {
+    const result = await qualityEvaluateHandler({ html: "" });
     expect(result.success).toBe(false);
     if (!result.success) {
       expect(result.error.code).toBe(QUALITY_MCP_ERROR_CODES.VALIDATION_ERROR);
     }
   });
 
-  it('無効なUUIDの場合エラー', async () => {
+  it("無効なUUIDの場合エラー", async () => {
     const result = await qualityEvaluateHandler({ pageId: invalidUUID });
     expect(result.success).toBe(false);
     if (!result.success) {
@@ -1211,7 +1209,7 @@ describe('エラーハンドリング', () => {
     }
   });
 
-  it('pageIdとhtml両方指定の場合エラー', async () => {
+  it("pageIdとhtml両方指定の場合エラー", async () => {
     const result = await qualityEvaluateHandler({
       pageId: validUUID,
       html: sampleHtmlGood,
@@ -1222,7 +1220,7 @@ describe('エラーハンドリング', () => {
     }
   });
 
-  it('無効な重み（合計≠1.0）の場合エラー', async () => {
+  it("無効な重み（合計≠1.0）の場合エラー", async () => {
     const result = await qualityEvaluateHandler({
       html: sampleHtmlGood,
       weights: { originality: 0.5, craftsmanship: 0.5, contextuality: 0.5 },
@@ -1233,9 +1231,9 @@ describe('エラーハンドリング', () => {
     }
   });
 
-  it('DB接続エラーの場合適切なエラーを返す', async () => {
+  it("DB接続エラーの場合適切なエラーを返す", async () => {
     setQualityEvaluateServiceFactory(() => ({
-      getPageById: vi.fn().mockRejectedValue(new Error('DB connection failed')),
+      getPageById: vi.fn().mockRejectedValue(new Error("DB connection failed")),
     }));
 
     const input: QualityEvaluateInput = {
@@ -1249,7 +1247,7 @@ describe('エラーハンドリング', () => {
     }
   });
 
-  it('サービス未設定時のpageId評価はエラー', async () => {
+  it("サービス未設定時のpageId評価はエラー", async () => {
     // サービスファクトリを設定しない
     resetQualityEvaluateServiceFactory();
 
@@ -1264,7 +1262,7 @@ describe('エラーハンドリング', () => {
     }
   });
 
-  it('エラーメッセージを含む', async () => {
+  it("エラーメッセージを含む", async () => {
     const result = await qualityEvaluateHandler(null);
     expect(result.success).toBe(false);
     if (!result.success) {
@@ -1273,8 +1271,8 @@ describe('エラーハンドリング', () => {
     }
   });
 
-  it('非常に大きなHTMLでもタイムアウトしない', async () => {
-    const largeHtml = `<!DOCTYPE html><html lang="en"><body>${'<div>Content</div>'.repeat(10000)}</body></html>`;
+  it("非常に大きなHTMLでもタイムアウトしない", async () => {
+    const largeHtml = `<!DOCTYPE html><html lang="en"><body>${"<div>Content</div>".repeat(10000)}</body></html>`;
     const input: QualityEvaluateInput = {
       html: largeHtml,
     };
@@ -1296,7 +1294,7 @@ describe('エラーハンドリング', () => {
 // DB連携テスト（5+ tests）
 // =====================================================
 
-describe('DB連携（モック）', () => {
+describe("DB連携（モック）", () => {
   beforeEach(() => {
     resetQualityEvaluateServiceFactory();
   });
@@ -1305,7 +1303,7 @@ describe('DB連携（モック）', () => {
     vi.restoreAllMocks();
   });
 
-  it('サービス経由でページを取得する', async () => {
+  it("サービス経由でページを取得する", async () => {
     const mockGetPageById = vi.fn().mockResolvedValue({
       id: validUUID,
       htmlContent: sampleHtmlGood,
@@ -1323,7 +1321,7 @@ describe('DB連携（モック）', () => {
     expect(mockGetPageById).toHaveBeenCalledWith(validUUID);
   });
 
-  it('ページ取得結果のHTMLを評価する', async () => {
+  it("ページ取得結果のHTMLを評価する", async () => {
     setQualityEvaluateServiceFactory(() => ({
       getPageById: vi.fn().mockResolvedValue({
         id: validUUID,
@@ -1342,7 +1340,7 @@ describe('DB連携（モック）', () => {
     }
   });
 
-  it('ページが存在しない場合 PAGE_NOT_FOUND エラー', async () => {
+  it("ページが存在しない場合 PAGE_NOT_FOUND エラー", async () => {
     setQualityEvaluateServiceFactory(() => ({
       getPageById: vi.fn().mockResolvedValue(null),
     }));
@@ -1358,7 +1356,7 @@ describe('DB連携（モック）', () => {
     }
   });
 
-  it('評価結果の保存を呼び出す（オプション）', async () => {
+  it("評価結果の保存を呼び出す（オプション）", async () => {
     const mockSaveEvaluation = vi.fn().mockResolvedValue(true);
     setQualityEvaluateServiceFactory(() => ({
       saveEvaluation: mockSaveEvaluation,
@@ -1373,7 +1371,7 @@ describe('DB連携（モック）', () => {
     // 現在の仕様では自動保存しない
   });
 
-  it('複数回の呼び出しで独立した結果を返す', async () => {
+  it("複数回の呼び出しで独立した結果を返す", async () => {
     const input1: QualityEvaluateInput = { html: sampleHtmlGood };
     const input2: QualityEvaluateInput = { html: sampleHtmlWithCliches };
 
@@ -1395,7 +1393,7 @@ describe('DB連携（モック）', () => {
 // 統合テスト（5+ tests）
 // =====================================================
 
-describe('統合テスト', () => {
+describe("統合テスト", () => {
   beforeEach(() => {
     resetQualityEvaluateServiceFactory();
   });
@@ -1404,12 +1402,12 @@ describe('統合テスト', () => {
     vi.restoreAllMocks();
   });
 
-  it('全オプション指定でフル評価が可能', async () => {
+  it("全オプション指定でフル評価が可能", async () => {
     const input: QualityEvaluateInput = {
       html: sampleHtmlGood,
       weights: { originality: 0.4, craftsmanship: 0.35, contextuality: 0.25 },
-      targetIndustry: 'technology',
-      targetAudience: 'enterprise',
+      targetIndustry: "technology",
+      targetAudience: "enterprise",
       includeRecommendations: true,
       strict: true,
     };
@@ -1429,12 +1427,12 @@ describe('統合テスト', () => {
         expect(Array.isArray(result.data.recommendations)).toBe(true);
       }
       expect(result.data.weights).toBeDefined();
-      expect(result.data.targetIndustry).toBe('technology');
-      expect(result.data.targetAudience).toBe('enterprise');
+      expect(result.data.targetIndustry).toBe("technology");
+      expect(result.data.targetAudience).toBe("enterprise");
     }
   });
 
-  it('デフォルトオプションで評価が動作する', async () => {
+  it("デフォルトオプションで評価が動作する", async () => {
     const input: QualityEvaluateInput = {
       html: sampleHtmlMinimal,
     };
@@ -1447,18 +1445,18 @@ describe('統合テスト', () => {
     }
   });
 
-  it('ツール定義とハンドラーが一致する', () => {
+  it("ツール定義とハンドラーが一致する", () => {
     const { properties } = qualityEvaluateToolDefinition.inputSchema;
-    expect(properties).toHaveProperty('pageId');
-    expect(properties).toHaveProperty('html');
-    expect(properties).toHaveProperty('weights');
-    expect(properties).toHaveProperty('targetIndustry');
-    expect(properties).toHaveProperty('targetAudience');
-    expect(properties).toHaveProperty('includeRecommendations');
-    expect(properties).toHaveProperty('strict');
+    expect(properties).toHaveProperty("pageId");
+    expect(properties).toHaveProperty("html");
+    expect(properties).toHaveProperty("weights");
+    expect(properties).toHaveProperty("targetIndustry");
+    expect(properties).toHaveProperty("targetAudience");
+    expect(properties).toHaveProperty("includeRecommendations");
+    expect(properties).toHaveProperty("strict");
   });
 
-  it('エラーコードが定義通りに使われる', async () => {
+  it("エラーコードが定義通りに使われる", async () => {
     // VALIDATION_ERROR
     const result1 = await qualityEvaluateHandler({});
     expect(result1.success).toBe(false);
@@ -1477,7 +1475,7 @@ describe('統合テスト', () => {
     }
   });
 
-  it('スコアとグレードの整合性', async () => {
+  it("スコアとグレードの整合性", async () => {
     const input: QualityEvaluateInput = {
       html: sampleHtmlGood,
     };
@@ -1500,7 +1498,7 @@ describe('統合テスト', () => {
 // Craftsmanship評価ロジックテスト（v0.1.0）
 // =====================================================
 
-describe('Craftsmanship評価ロジック（v0.1.0 改善版）', () => {
+describe("Craftsmanship評価ロジック（v0.1.0 改善版）", () => {
   beforeEach(() => {
     resetQualityEvaluateServiceFactory();
   });
@@ -1509,8 +1507,8 @@ describe('Craftsmanship評価ロジック（v0.1.0 改善版）', () => {
     vi.restoreAllMocks();
   });
 
-  describe('モダンCSS機能へのポジティブ評価', () => {
-    it('CSS Grid使用で加点される', async () => {
+  describe("モダンCSS機能へのポジティブ評価", () => {
+    it("CSS Grid使用で加点される", async () => {
       const htmlWithGrid = `<!DOCTYPE html>
 <html lang="ja">
 <head><title>Grid Test</title>
@@ -1537,11 +1535,11 @@ describe('Craftsmanship評価ロジック（v0.1.0 改善版）', () => {
       const result = await qualityEvaluateHandler({ html: htmlWithGrid });
       expect(result.success).toBe(true);
       if (result.success) {
-        expect(result.data.craftsmanship.details).toContain('CSS Grid使用');
+        expect(result.data.craftsmanship.details).toContain("CSS Grid使用");
       }
     });
 
-    it('Flexbox使用で加点される', async () => {
+    it("Flexbox使用で加点される", async () => {
       const htmlWithFlex = `<!DOCTYPE html>
 <html lang="ja">
 <head><title>Flex Test</title>
@@ -1568,11 +1566,11 @@ describe('Craftsmanship評価ロジック（v0.1.0 改善版）', () => {
       const result = await qualityEvaluateHandler({ html: htmlWithFlex });
       expect(result.success).toBe(true);
       if (result.success) {
-        expect(result.data.craftsmanship.details).toContain('Flexbox使用');
+        expect(result.data.craftsmanship.details).toContain("Flexbox使用");
       }
     });
 
-    it('Container Queries使用で加点される', async () => {
+    it("Container Queries使用で加点される", async () => {
       const htmlWithContainerQueries = `<!DOCTYPE html>
 <html lang="ja">
 <head><title>Container Queries Test</title>
@@ -1598,11 +1596,13 @@ describe('Craftsmanship評価ロジック（v0.1.0 改善版）', () => {
       const result = await qualityEvaluateHandler({ html: htmlWithContainerQueries });
       expect(result.success).toBe(true);
       if (result.success) {
-        expect(result.data.craftsmanship.details.some(d => d.includes('Container Queries'))).toBe(true);
+        expect(result.data.craftsmanship.details.some((d) => d.includes("Container Queries"))).toBe(
+          true
+        );
       }
     });
 
-    it('CSS clamp関数使用で加点される', async () => {
+    it("CSS clamp関数使用で加点される", async () => {
       const htmlWithClamp = `<!DOCTYPE html>
 <html lang="ja">
 <head><title>Clamp Test</title>
@@ -1622,11 +1622,11 @@ describe('Craftsmanship評価ロジック（v0.1.0 改善版）', () => {
       const result = await qualityEvaluateHandler({ html: htmlWithClamp });
       expect(result.success).toBe(true);
       if (result.success) {
-        expect(result.data.craftsmanship.details.some(d => d.includes('clamp'))).toBe(true);
+        expect(result.data.craftsmanship.details.some((d) => d.includes("clamp"))).toBe(true);
       }
     });
 
-    it('aspect-ratio使用で加点される', async () => {
+    it("aspect-ratio使用で加点される", async () => {
       const htmlWithAspectRatio = `<!DOCTYPE html>
 <html lang="ja">
 <head><title>Aspect Ratio Test</title>
@@ -1649,11 +1649,13 @@ describe('Craftsmanship評価ロジック（v0.1.0 改善版）', () => {
       const result = await qualityEvaluateHandler({ html: htmlWithAspectRatio });
       expect(result.success).toBe(true);
       if (result.success) {
-        expect(result.data.craftsmanship.details.some(d => d.includes('aspect-ratio'))).toBe(true);
+        expect(result.data.craftsmanship.details.some((d) => d.includes("aspect-ratio"))).toBe(
+          true
+        );
       }
     });
 
-    it('CSS gapプロパティ使用で加点される', async () => {
+    it("CSS gapプロパティ使用で加点される", async () => {
       const htmlWithGap = `<!DOCTYPE html>
 <html lang="ja">
 <head><title>Gap Test</title>
@@ -1674,13 +1676,13 @@ describe('Craftsmanship評価ロジック（v0.1.0 改善版）', () => {
       const result = await qualityEvaluateHandler({ html: htmlWithGap });
       expect(result.success).toBe(true);
       if (result.success) {
-        expect(result.data.craftsmanship.details.some(d => d.includes('gap'))).toBe(true);
+        expect(result.data.craftsmanship.details.some((d) => d.includes("gap"))).toBe(true);
       }
     });
   });
 
-  describe('アクセシビリティ対応へのポジティブ評価', () => {
-    it('skip link使用で加点される', async () => {
+  describe("アクセシビリティ対応へのポジティブ評価", () => {
+    it("skip link使用で加点される", async () => {
       const htmlWithSkipLink = `<!DOCTYPE html>
 <html lang="ja">
 <head><title>Skip Link Test</title>
@@ -1708,11 +1710,13 @@ describe('Craftsmanship評価ロジック（v0.1.0 改善版）', () => {
       const result = await qualityEvaluateHandler({ html: htmlWithSkipLink });
       expect(result.success).toBe(true);
       if (result.success) {
-        expect(result.data.craftsmanship.details.some(d => d.includes('スキップリンク'))).toBe(true);
+        expect(result.data.craftsmanship.details.some((d) => d.includes("スキップリンク"))).toBe(
+          true
+        );
       }
     });
 
-    it('focus-visible使用で加点される', async () => {
+    it("focus-visible使用で加点される", async () => {
       const htmlWithFocusVisible = `<!DOCTYPE html>
 <html lang="ja">
 <head><title>Focus Visible Test</title>
@@ -1733,11 +1737,13 @@ describe('Craftsmanship評価ロジック（v0.1.0 改善版）', () => {
       const result = await qualityEvaluateHandler({ html: htmlWithFocusVisible });
       expect(result.success).toBe(true);
       if (result.success) {
-        expect(result.data.craftsmanship.details.some(d => d.includes('focus-visible'))).toBe(true);
+        expect(result.data.craftsmanship.details.some((d) => d.includes("focus-visible"))).toBe(
+          true
+        );
       }
     });
 
-    it('prefers-color-scheme対応で加点される', async () => {
+    it("prefers-color-scheme対応で加点される", async () => {
       const htmlWithColorScheme = `<!DOCTYPE html>
 <html lang="ja">
 <head><title>Color Scheme Test</title>
@@ -1757,11 +1763,13 @@ describe('Craftsmanship評価ロジック（v0.1.0 改善版）', () => {
       const result = await qualityEvaluateHandler({ html: htmlWithColorScheme });
       expect(result.success).toBe(true);
       if (result.success) {
-        expect(result.data.craftsmanship.details.some(d => d.includes('prefers-color-scheme'))).toBe(true);
+        expect(
+          result.data.craftsmanship.details.some((d) => d.includes("prefers-color-scheme"))
+        ).toBe(true);
       }
     });
 
-    it('prefers-reduced-motion対応で加点される', async () => {
+    it("prefers-reduced-motion対応で加点される", async () => {
       const htmlWithReducedMotion = `<!DOCTYPE html>
 <html lang="ja">
 <head><title>Reduced Motion Test</title>
@@ -1782,12 +1790,14 @@ describe('Craftsmanship評価ロジック（v0.1.0 改善版）', () => {
       const result = await qualityEvaluateHandler({ html: htmlWithReducedMotion });
       expect(result.success).toBe(true);
       if (result.success) {
-        expect(result.data.craftsmanship.details.some(d => d.includes('モーション軽減'))).toBe(true);
+        expect(result.data.craftsmanship.details.some((d) => d.includes("モーション軽減"))).toBe(
+          true
+        );
       }
     });
   });
 
-  describe('パフォーマンス最適化へのポジティブ評価', () => {
+  describe("パフォーマンス最適化へのポジティブ評価", () => {
     it('loading="lazy"使用で加点される', async () => {
       const htmlWithLazyLoading = `<!DOCTYPE html>
 <html lang="ja">
@@ -1805,11 +1815,13 @@ describe('Craftsmanship評価ロジック（v0.1.0 改善版）', () => {
       const result = await qualityEvaluateHandler({ html: htmlWithLazyLoading });
       expect(result.success).toBe(true);
       if (result.success) {
-        expect(result.data.craftsmanship.details.some(d => d.includes('loading="lazy"'))).toBe(true);
+        expect(result.data.craftsmanship.details.some((d) => d.includes('loading="lazy"'))).toBe(
+          true
+        );
       }
     });
 
-    it('preload/prefetch使用で加点される', async () => {
+    it("preload/prefetch使用で加点される", async () => {
       const htmlWithPreload = `<!DOCTYPE html>
 <html lang="ja">
 <head>
@@ -1828,11 +1840,15 @@ describe('Craftsmanship評価ロジック（v0.1.0 改善版）', () => {
       const result = await qualityEvaluateHandler({ html: htmlWithPreload });
       expect(result.success).toBe(true);
       if (result.success) {
-        expect(result.data.craftsmanship.details.some(d => d.includes('preload') || d.includes('prefetch'))).toBe(true);
+        expect(
+          result.data.craftsmanship.details.some(
+            (d) => d.includes("preload") || d.includes("prefetch")
+          )
+        ).toBe(true);
       }
     });
 
-    it('font-display使用で加点される', async () => {
+    it("font-display使用で加点される", async () => {
       const htmlWithFontDisplay = `<!DOCTYPE html>
 <html lang="ja">
 <head><title>Font Display Test</title>
@@ -1854,11 +1870,13 @@ describe('Craftsmanship評価ロジック（v0.1.0 改善版）', () => {
       const result = await qualityEvaluateHandler({ html: htmlWithFontDisplay });
       expect(result.success).toBe(true);
       if (result.success) {
-        expect(result.data.craftsmanship.details.some(d => d.includes('font-display'))).toBe(true);
+        expect(result.data.craftsmanship.details.some((d) => d.includes("font-display"))).toBe(
+          true
+        );
       }
     });
 
-    it('画像のwidth/height属性指定で加点される', async () => {
+    it("画像のwidth/height属性指定で加点される", async () => {
       const htmlWithImageDimensions = `<!DOCTYPE html>
 <html lang="ja">
 <head><title>Image Dimensions Test</title></head>
@@ -1874,13 +1892,15 @@ describe('Craftsmanship評価ロジック（v0.1.0 改善版）', () => {
       const result = await qualityEvaluateHandler({ html: htmlWithImageDimensions });
       expect(result.success).toBe(true);
       if (result.success) {
-        expect(result.data.craftsmanship.details.some(d => d.includes('画像サイズ属性'))).toBe(true);
+        expect(result.data.craftsmanship.details.some((d) => d.includes("画像サイズ属性"))).toBe(
+          true
+        );
       }
     });
   });
 
-  describe('高品質サイトの適切な評価', () => {
-    it('多くの良い実装パターンを持つサイトは高スコア（80以上）を得る', async () => {
+  describe("高品質サイトの適切な評価", () => {
+    it("多くの良い実装パターンを持つサイトは高スコア（80以上）を得る", async () => {
       const highQualityHtml = `<!DOCTYPE html>
 <html lang="ja">
 <head>
@@ -1986,11 +2006,11 @@ describe('Craftsmanship評価ロジック（v0.1.0 改善版）', () => {
         // 高品質サイトは Craftsmanship スコア 80以上を期待
         expect(result.data.craftsmanship.score).toBeGreaterThanOrEqual(80);
         // グレードは B 以上
-        expect(['A', 'B']).toContain(result.data.craftsmanship.grade);
+        expect(["A", "B"]).toContain(result.data.craftsmanship.grade);
       }
     });
 
-    it('基本的なセマンティックHTMLのみでも適切なベーススコアを得る', async () => {
+    it("基本的なセマンティックHTMLのみでも適切なベーススコアを得る", async () => {
       const basicSemanticHtml = `<!DOCTYPE html>
 <html lang="ja">
 <head>
@@ -2023,8 +2043,8 @@ describe('Craftsmanship評価ロジック（v0.1.0 改善版）', () => {
     });
   });
 
-  describe('detailsフィールドに評価根拠が含まれる', () => {
-    it('detailsに検出された良い実装パターンが列挙される', async () => {
+  describe("detailsフィールドに評価根拠が含まれる", () => {
+    it("detailsに検出された良い実装パターンが列挙される", async () => {
       const result = await qualityEvaluateHandler({ html: sampleHtmlGood });
       expect(result.success).toBe(true);
       if (result.success) {

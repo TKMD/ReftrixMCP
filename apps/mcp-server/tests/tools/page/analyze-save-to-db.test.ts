@@ -14,11 +14,11 @@
  * @module tests/tools/page/analyze-save-to-db.test
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 // Narrative handler をモックしてOllama Vision接続タイムアウト（35秒）を回避
-vi.mock('../../../src/tools/page/handlers/narrative-handler', async () => {
-  const actual = await vi.importActual('../../../src/tools/page/handlers/narrative-handler');
+vi.mock("../../../src/tools/page/handlers/narrative-handler", async () => {
+  const actual = await vi.importActual("../../../src/tools/page/handlers/narrative-handler");
   return {
     ...(actual as Record<string, unknown>),
     handleNarrativeAnalysis: async () => ({ success: true, skipped: true }),
@@ -26,11 +26,11 @@ vi.mock('../../../src/tools/page/handlers/narrative-handler', async () => {
 });
 
 // Redis可用性チェックをモック: Vision自動asyncモード（v0.1.0）を無効化
-vi.mock('../../../src/config/redis', () => ({
+vi.mock("../../../src/config/redis", () => ({
   isRedisAvailable: async () => false,
 }));
 
-import { v7 as uuidv7 } from 'uuid';
+import { v7 as uuidv7 } from "uuid";
 
 import {
   pageAnalyzeHandler,
@@ -40,11 +40,9 @@ import {
   setPageAnalyzePrismaClientFactory,
   resetPageAnalyzePrismaClientFactory,
   type IPageAnalyzePrismaClient,
-} from '../../../src/tools/page/analyze.tool';
+} from "../../../src/tools/page/analyze.tool";
 
-import {
-  PAGE_ANALYZE_ERROR_CODES,
-} from '../../../src/tools/page/schemas';
+import { PAGE_ANALYZE_ERROR_CODES } from "../../../src/tools/page/schemas";
 
 // =====================================================
 // モック用ヘルパー
@@ -68,17 +66,13 @@ function createMockPrismaClient(): IPageAnalyzePrismaClient {
       upsert: vi.fn().mockResolvedValue({ id: mockWebPageId }),
     },
     sectionPattern: {
-      create: vi.fn().mockImplementation(() =>
-        Promise.resolve({ id: mockSectionPatternIds[0] })
-      ),
+      create: vi.fn().mockImplementation(() => Promise.resolve({ id: mockSectionPatternIds[0] })),
       createMany: vi.fn().mockResolvedValue({ count: 3 }),
       // deleteMany: 再分析時に既存のSectionPatternを削除
       deleteMany: vi.fn().mockResolvedValue({ count: 0 }),
     },
     motionPattern: {
-      create: vi.fn().mockImplementation(() =>
-        Promise.resolve({ id: mockMotionPatternIds[0] })
-      ),
+      create: vi.fn().mockImplementation(() => Promise.resolve({ id: mockMotionPatternIds[0] })),
       createMany: vi.fn().mockResolvedValue({ count: 2 }),
     },
     qualityEvaluation: {
@@ -125,8 +119,8 @@ function createMockPageAnalyzeServiceWithSaveToDb(): IPageAnalyzeService {
 </body>
 </html>`,
         title: `Mock Page - ${url}`,
-        description: 'Mock description for testing',
-        screenshot: 'mock-screenshot-base64-data',
+        description: "Mock description for testing",
+        screenshot: "mock-screenshot-base64-data",
       };
     }),
 
@@ -139,11 +133,44 @@ function createMockPageAnalyzeServiceWithSaveToDb(): IPageAnalyzeService {
         sectionTypes: { hero: 1, features: 1, cta: 1, navigation: 1, footer: 1 },
         processingTimeMs: 50,
         sections: [
-          { id: uuidv7(), type: 'navigation', positionIndex: 0, confidence: 0.95, htmlSnippet: '<nav>...</nav>' },
-          { id: uuidv7(), type: 'hero', positionIndex: 1, heading: 'Hero Section', confidence: 0.98, htmlSnippet: '<section class="hero">...</section>' },
-          { id: uuidv7(), type: 'features', positionIndex: 2, heading: 'Features', confidence: 0.92, htmlSnippet: '<section class="features">...</section>' },
-          { id: uuidv7(), type: 'cta', positionIndex: 3, heading: 'Call to Action', confidence: 0.88, htmlSnippet: '<section class="cta">...</section>' },
-          { id: uuidv7(), type: 'footer', positionIndex: 4, confidence: 0.96, htmlSnippet: '<footer>...</footer>' },
+          {
+            id: uuidv7(),
+            type: "navigation",
+            positionIndex: 0,
+            confidence: 0.95,
+            htmlSnippet: "<nav>...</nav>",
+          },
+          {
+            id: uuidv7(),
+            type: "hero",
+            positionIndex: 1,
+            heading: "Hero Section",
+            confidence: 0.98,
+            htmlSnippet: '<section class="hero">...</section>',
+          },
+          {
+            id: uuidv7(),
+            type: "features",
+            positionIndex: 2,
+            heading: "Features",
+            confidence: 0.92,
+            htmlSnippet: '<section class="features">...</section>',
+          },
+          {
+            id: uuidv7(),
+            type: "cta",
+            positionIndex: 3,
+            heading: "Call to Action",
+            confidence: 0.88,
+            htmlSnippet: '<section class="cta">...</section>',
+          },
+          {
+            id: uuidv7(),
+            type: "footer",
+            positionIndex: 4,
+            confidence: 0.96,
+            htmlSnippet: "<footer>...</footer>",
+          },
         ],
       };
     }),
@@ -159,37 +186,37 @@ function createMockPageAnalyzeServiceWithSaveToDb(): IPageAnalyzeService {
         processingTimeMs: 30,
         patterns: [
           {
-            id: 'pattern-001',
-            name: 'fadeIn',
-            type: 'css_animation' as const,
-            category: 'entrance',
-            trigger: 'load',
+            id: "pattern-001",
+            name: "fadeIn",
+            type: "css_animation" as const,
+            category: "entrance",
+            trigger: "load",
             duration: 500,
-            easing: 'ease-in-out',
-            properties: ['opacity'],
-            rawCss: '@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }',
-            performance: { level: 'good' as const, usesTransform: false, usesOpacity: true },
+            easing: "ease-in-out",
+            properties: ["opacity"],
+            rawCss: "@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }",
+            performance: { level: "good" as const, usesTransform: false, usesOpacity: true },
             accessibility: { respectsReducedMotion: false },
           },
           {
-            id: 'pattern-002',
-            name: 'button-hover',
-            type: 'css_transition' as const,
-            category: 'hover_effect',
-            trigger: 'hover',
+            id: "pattern-002",
+            name: "button-hover",
+            type: "css_transition" as const,
+            category: "hover_effect",
+            trigger: "hover",
             duration: 300,
-            easing: 'ease',
-            properties: ['background-color'],
-            rawCss: '.button { transition: background-color 0.3s ease; }',
-            performance: { level: 'good' as const, usesTransform: false, usesOpacity: false },
+            easing: "ease",
+            properties: ["background-color"],
+            rawCss: ".button { transition: background-color 0.3s ease; }",
+            performance: { level: "good" as const, usesTransform: false, usesOpacity: false },
             accessibility: { respectsReducedMotion: true },
           },
         ],
         warnings: [
           {
-            code: 'A11Y_NO_REDUCED_MOTION',
-            severity: 'warning' as const,
-            message: 'Animation does not respect prefers-reduced-motion',
+            code: "A11Y_NO_REDUCED_MOTION",
+            severity: "warning" as const,
+            message: "Animation does not respect prefers-reduced-motion",
           },
         ],
       };
@@ -199,7 +226,7 @@ function createMockPageAnalyzeServiceWithSaveToDb(): IPageAnalyzeService {
       return {
         success: true,
         overallScore: 78.5,
-        grade: 'C' as const,
+        grade: "C" as const,
         axisScores: {
           originality: 72,
           craftsmanship: 85,
@@ -208,24 +235,24 @@ function createMockPageAnalyzeServiceWithSaveToDb(): IPageAnalyzeService {
         clicheCount: 1,
         processingTimeMs: 25,
         axisGrades: {
-          originality: 'C' as const,
-          craftsmanship: 'B' as const,
-          contextuality: 'C' as const,
+          originality: "C" as const,
+          craftsmanship: "B" as const,
+          contextuality: "C" as const,
         },
         cliches: [
           {
-            type: 'gradient_sphere',
-            description: 'Abstract gradient sphere detected in hero section',
-            severity: 'low' as const,
+            type: "gradient_sphere",
+            description: "Abstract gradient sphere detected in hero section",
+            severity: "low" as const,
           },
         ],
         recommendations: [
           {
-            id: 'rec-001',
-            category: 'accessibility',
-            priority: 'high' as const,
-            title: 'Add reduced motion support',
-            description: 'Add prefers-reduced-motion media query to animations',
+            id: "rec-001",
+            category: "accessibility",
+            priority: "high" as const,
+            title: "Add reduced motion support",
+            description: "Add prefers-reduced-motion media query to animations",
           },
         ],
       };
@@ -237,7 +264,7 @@ function createMockPageAnalyzeServiceWithSaveToDb(): IPageAnalyzeService {
 // テストデータ
 // =====================================================
 
-const validUrl = 'https://example.com';
+const validUrl = "https://example.com";
 
 /**
  * 共通テスト入力のベース
@@ -253,7 +280,7 @@ const syncTestBase = {
 // saveToDb機能テスト - WebPage保存
 // =====================================================
 
-describe('saveToDb機能 - WebPage保存', () => {
+describe("saveToDb機能 - WebPage保存", () => {
   let mockPrismaClient: ReturnType<typeof createMockPrismaClient>;
 
   beforeEach(() => {
@@ -269,7 +296,7 @@ describe('saveToDb機能 - WebPage保存', () => {
     resetPageAnalyzePrismaClientFactory();
   });
 
-  it('saveToDb=true でWebPageを保存する', async () => {
+  it("saveToDb=true でWebPageを保存する", async () => {
     const input = {
       url: validUrl,
       ...syncTestBase,
@@ -283,7 +310,7 @@ describe('saveToDb機能 - WebPage保存', () => {
     }
   });
 
-  it('WebPage保存時にURL、title、htmlContentが含まれる', async () => {
+  it("WebPage保存時にURL、title、htmlContentが含まれる", async () => {
     const input = {
       url: validUrl,
       ...syncTestBase,
@@ -299,16 +326,16 @@ describe('saveToDb機能 - WebPage保存', () => {
       const createData = upsertCall[0]?.create;
       expect(createData?.url).toBe(validUrl);
       expect(createData?.htmlContent).toBeDefined();
-      expect(createData?.sourceType).toBe('user_provided');
-      expect(createData?.usageScope).toBe('inspiration_only');
+      expect(createData?.sourceType).toBe("user_provided");
+      expect(createData?.usageScope).toBe("inspiration_only");
     }
   });
 
-  it('sourceType=award_galleryが正しく保存される', async () => {
+  it("sourceType=award_galleryが正しく保存される", async () => {
     const input = {
       url: validUrl,
       ...syncTestBase,
-      sourceType: 'award_gallery' as const,
+      sourceType: "award_gallery" as const,
     };
 
     await pageAnalyzeHandler(input);
@@ -316,15 +343,15 @@ describe('saveToDb機能 - WebPage保存', () => {
     const upsertCall = vi.mocked(mockPrismaClient.webPage.upsert).mock.calls[0];
     if (upsertCall) {
       const createData = upsertCall[0]?.create;
-      expect(createData?.sourceType).toBe('award_gallery');
+      expect(createData?.sourceType).toBe("award_gallery");
     }
   });
 
-  it('usageScope=owned_assetが正しく保存される', async () => {
+  it("usageScope=owned_assetが正しく保存される", async () => {
     const input = {
       url: validUrl,
       ...syncTestBase,
-      usageScope: 'owned_asset' as const,
+      usageScope: "owned_asset" as const,
     };
 
     await pageAnalyzeHandler(input);
@@ -332,15 +359,15 @@ describe('saveToDb機能 - WebPage保存', () => {
     const upsertCall = vi.mocked(mockPrismaClient.webPage.upsert).mock.calls[0];
     if (upsertCall) {
       const createData = upsertCall[0]?.create;
-      expect(createData?.usageScope).toBe('owned_asset');
+      expect(createData?.usageScope).toBe("owned_asset");
     }
   });
 
-  it('saveToDb=false でWebPageを保存しない', async () => {
+  it("saveToDb=false でWebPageを保存しない", async () => {
     const input = {
       url: validUrl,
       async: false as const,
-      layoutOptions: { saveToDb: false, useVision: false }
+      layoutOptions: { saveToDb: false, useVision: false },
     };
 
     await pageAnalyzeHandler(input);
@@ -348,12 +375,12 @@ describe('saveToDb機能 - WebPage保存', () => {
     expect(mockPrismaClient.webPage.upsert).not.toHaveBeenCalled();
   });
 
-  it('デフォルト（saveToDb未指定 = true）でWebPageを保存する', async () => {
+  it("デフォルト（saveToDb未指定 = true）でWebPageを保存する", async () => {
     // layoutOptions を空オブジェクトで指定すると、内部のsaveToDbはデフォルトtrueになる
     const input = {
       url: validUrl,
       async: false as const,
-      layoutOptions: { useVision: false }
+      layoutOptions: { useVision: false },
     };
 
     await pageAnalyzeHandler(input);
@@ -367,7 +394,7 @@ describe('saveToDb機能 - WebPage保存', () => {
 // saveToDb機能テスト - SectionPattern保存
 // =====================================================
 
-describe('saveToDb機能 - SectionPattern保存', () => {
+describe("saveToDb機能 - SectionPattern保存", () => {
   let mockPrismaClient: ReturnType<typeof createMockPrismaClient>;
 
   beforeEach(() => {
@@ -383,7 +410,7 @@ describe('saveToDb機能 - SectionPattern保存', () => {
     resetPageAnalyzePrismaClientFactory();
   });
 
-  it('saveToDb=true でSectionPatternを保存する', async () => {
+  it("saveToDb=true でSectionPatternを保存する", async () => {
     const input = {
       url: validUrl,
       ...syncTestBase,
@@ -392,12 +419,13 @@ describe('saveToDb機能 - SectionPattern保存', () => {
     await pageAnalyzeHandler(input);
 
     // createManyまたは複数のcreateが呼ばれる
-    const createManyCalled = vi.mocked(mockPrismaClient.sectionPattern.createMany).mock.calls.length > 0;
+    const createManyCalled =
+      vi.mocked(mockPrismaClient.sectionPattern.createMany).mock.calls.length > 0;
     const createCalled = vi.mocked(mockPrismaClient.sectionPattern.create).mock.calls.length > 0;
     expect(createManyCalled || createCalled).toBe(true);
   });
 
-  it('SectionPatternにwebPageIdが設定される', async () => {
+  it("SectionPatternにwebPageIdが設定される", async () => {
     const input = {
       url: validUrl,
       ...syncTestBase,
@@ -410,7 +438,7 @@ describe('saveToDb機能 - SectionPattern保存', () => {
     expect(transactionCall.length).toBeGreaterThan(0);
   });
 
-  it('各セクションのtype、positionIndex、confidenceが保存される', async () => {
+  it("各セクションのtype、positionIndex、confidenceが保存される", async () => {
     const input = {
       url: validUrl,
       ...syncTestBase,
@@ -428,7 +456,7 @@ describe('saveToDb機能 - SectionPattern保存', () => {
 // saveToDb機能テスト - MotionPattern保存
 // =====================================================
 
-describe('saveToDb機能 - MotionPattern保存', () => {
+describe("saveToDb機能 - MotionPattern保存", () => {
   let mockPrismaClient: ReturnType<typeof createMockPrismaClient>;
 
   beforeEach(() => {
@@ -444,26 +472,27 @@ describe('saveToDb機能 - MotionPattern保存', () => {
     resetPageAnalyzePrismaClientFactory();
   });
 
-  it('saveToDb=true でMotionPatternを保存する', async () => {
+  it("saveToDb=true でMotionPatternを保存する", async () => {
     const input = {
       url: validUrl,
       ...syncTestBase,
-      motionOptions: { saveToDb: true }
+      motionOptions: { saveToDb: true },
     };
 
     await pageAnalyzeHandler(input);
 
     // createManyまたは複数のcreateが呼ばれる
-    const createManyCalled = vi.mocked(mockPrismaClient.motionPattern.createMany).mock.calls.length > 0;
+    const createManyCalled =
+      vi.mocked(mockPrismaClient.motionPattern.createMany).mock.calls.length > 0;
     const createCalled = vi.mocked(mockPrismaClient.motionPattern.create).mock.calls.length > 0;
     expect(createManyCalled || createCalled).toBe(true);
   });
 
-  it('MotionPatternにwebPageIdが設定される', async () => {
+  it("MotionPatternにwebPageIdが設定される", async () => {
     const input = {
       url: validUrl,
       ...syncTestBase,
-      motionOptions: { saveToDb: true }
+      motionOptions: { saveToDb: true },
     };
 
     await pageAnalyzeHandler(input);
@@ -473,11 +502,11 @@ describe('saveToDb機能 - MotionPattern保存', () => {
     expect(transactionCall.length).toBeGreaterThan(0);
   });
 
-  it('各パターンのtype、category、trigger、rawCssが保存される', async () => {
+  it("各パターンのtype、category、trigger、rawCssが保存される", async () => {
     const input = {
       url: validUrl,
       ...syncTestBase,
-      motionOptions: { saveToDb: true }
+      motionOptions: { saveToDb: true },
     };
 
     await pageAnalyzeHandler(input);
@@ -487,11 +516,11 @@ describe('saveToDb機能 - MotionPattern保存', () => {
     expect(transactionCalled).toBe(true);
   });
 
-  it('motionOptions.saveToDb=false でMotionPatternを保存しない', async () => {
+  it("motionOptions.saveToDb=false でMotionPatternを保存しない", async () => {
     const input = {
       url: validUrl,
       ...syncTestBase,
-      motionOptions: { saveToDb: false }
+      motionOptions: { saveToDb: false },
     };
 
     await pageAnalyzeHandler(input);
@@ -506,7 +535,7 @@ describe('saveToDb機能 - MotionPattern保存', () => {
 // saveToDb機能テスト - QualityEvaluation保存
 // =====================================================
 
-describe('saveToDb機能 - QualityEvaluation保存', () => {
+describe("saveToDb機能 - QualityEvaluation保存", () => {
   let mockPrismaClient: ReturnType<typeof createMockPrismaClient>;
 
   beforeEach(() => {
@@ -522,7 +551,7 @@ describe('saveToDb機能 - QualityEvaluation保存', () => {
     resetPageAnalyzePrismaClientFactory();
   });
 
-  it('saveToDb=true でQualityEvaluationを保存する', async () => {
+  it("saveToDb=true でQualityEvaluationを保存する", async () => {
     const input = {
       url: validUrl,
       ...syncTestBase,
@@ -533,7 +562,7 @@ describe('saveToDb機能 - QualityEvaluation保存', () => {
     expect(mockPrismaClient.qualityEvaluation.create).toHaveBeenCalled();
   });
 
-  it('QualityEvaluationにwebPageIdが設定される（targetType=web_page）', async () => {
+  it("QualityEvaluationにwebPageIdが設定される（targetType=web_page）", async () => {
     const input = {
       url: validUrl,
       ...syncTestBase,
@@ -546,7 +575,7 @@ describe('saveToDb機能 - QualityEvaluation保存', () => {
     expect(transactionCall.length).toBeGreaterThan(0);
   });
 
-  it('overallScore、grade、axisScoresが保存される', async () => {
+  it("overallScore、grade、axisScoresが保存される", async () => {
     const input = {
       url: validUrl,
       ...syncTestBase,
@@ -564,7 +593,7 @@ describe('saveToDb機能 - QualityEvaluation保存', () => {
 // saveToDb機能テスト - トランザクション管理
 // =====================================================
 
-describe('saveToDb機能 - トランザクション管理', () => {
+describe("saveToDb機能 - トランザクション管理", () => {
   let mockPrismaClient: ReturnType<typeof createMockPrismaClient>;
 
   beforeEach(() => {
@@ -580,11 +609,11 @@ describe('saveToDb機能 - トランザクション管理', () => {
     resetPageAnalyzePrismaClientFactory();
   });
 
-  it('全保存がトランザクション内で実行される', async () => {
+  it("全保存がトランザクション内で実行される", async () => {
     const input = {
       url: validUrl,
       ...syncTestBase,
-      motionOptions: { saveToDb: true }
+      motionOptions: { saveToDb: true },
     };
 
     await pageAnalyzeHandler(input);
@@ -592,7 +621,7 @@ describe('saveToDb機能 - トランザクション管理', () => {
     expect(mockPrismaClient.$transaction).toHaveBeenCalled();
   });
 
-  it('トランザクションが成功するとwebPageIdを返す', async () => {
+  it("トランザクションが成功するとwebPageIdを返す", async () => {
     const input = {
       url: validUrl,
       ...syncTestBase,
@@ -604,13 +633,15 @@ describe('saveToDb機能 - トランザクション管理', () => {
     if (result.success && result.data.layout?.success) {
       expect(result.data.layout.pageId).toBeDefined();
       // UUIDv7形式の確認
-      expect(result.data.layout.pageId).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i);
+      expect(result.data.layout.pageId).toMatch(
+        /^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+      );
     }
   });
 
-  it('トランザクション内でエラーが発生したら全てロールバック', async () => {
+  it("トランザクション内でエラーが発生したら全てロールバック", async () => {
     // トランザクションがエラーを返すようにモック
-    mockPrismaClient.$transaction = vi.fn().mockRejectedValue(new Error('Transaction failed'));
+    mockPrismaClient.$transaction = vi.fn().mockRejectedValue(new Error("Transaction failed"));
 
     const input = {
       url: validUrl,
@@ -634,7 +665,7 @@ describe('saveToDb機能 - トランザクション管理', () => {
 // saveToDb機能テスト - Graceful Degradation
 // =====================================================
 
-describe('saveToDb機能 - Graceful Degradation', () => {
+describe("saveToDb機能 - Graceful Degradation", () => {
   let mockPrismaClient: ReturnType<typeof createMockPrismaClient>;
 
   beforeEach(() => {
@@ -650,8 +681,8 @@ describe('saveToDb機能 - Graceful Degradation', () => {
     resetPageAnalyzePrismaClientFactory();
   });
 
-  it('WebPage保存失敗時も分析結果は返す', async () => {
-    mockPrismaClient.webPage.upsert = vi.fn().mockRejectedValue(new Error('DB error'));
+  it("WebPage保存失敗時も分析結果は返す", async () => {
+    mockPrismaClient.webPage.upsert = vi.fn().mockRejectedValue(new Error("DB error"));
 
     const input = {
       url: validUrl,
@@ -669,8 +700,8 @@ describe('saveToDb機能 - Graceful Degradation', () => {
     }
   });
 
-  it('DB保存失敗時にwarningsに記録される', async () => {
-    mockPrismaClient.$transaction = vi.fn().mockRejectedValue(new Error('Transaction failed'));
+  it("DB保存失敗時にwarningsに記録される", async () => {
+    mockPrismaClient.$transaction = vi.fn().mockRejectedValue(new Error("Transaction failed"));
 
     const input = {
       url: validUrl,
@@ -681,18 +712,20 @@ describe('saveToDb機能 - Graceful Degradation', () => {
 
     expect(result.success).toBe(true);
     if (result.success && result.data.warnings) {
-      const dbWarning = result.data.warnings.find(w => w.code === PAGE_ANALYZE_ERROR_CODES.DB_SAVE_FAILED);
+      const dbWarning = result.data.warnings.find(
+        (w) => w.code === PAGE_ANALYZE_ERROR_CODES.DB_SAVE_FAILED
+      );
       expect(dbWarning).toBeDefined();
     }
   });
 
-  it('PrismaClientが未設定の場合はDB保存をスキップ', async () => {
+  it("PrismaClientが未設定の場合はDB保存をスキップ", async () => {
     resetPageAnalyzePrismaClientFactory();
 
     const input = {
       url: validUrl,
       async: false as const,
-      layoutOptions: { saveToDb: true, useVision: false }
+      layoutOptions: { saveToDb: true, useVision: false },
     };
 
     const result = await pageAnalyzeHandler(input);
@@ -704,8 +737,8 @@ describe('saveToDb機能 - Graceful Degradation', () => {
     }
   });
 
-  it('DB接続エラーでも分析結果を返す', async () => {
-    mockPrismaClient.$transaction = vi.fn().mockRejectedValue(new Error('Connection refused'));
+  it("DB接続エラーでも分析結果を返す", async () => {
+    mockPrismaClient.$transaction = vi.fn().mockRejectedValue(new Error("Connection refused"));
 
     const input = {
       url: validUrl,
@@ -726,7 +759,7 @@ describe('saveToDb機能 - Graceful Degradation', () => {
 // saveToDb機能テスト - UUIDv7使用
 // =====================================================
 
-describe('saveToDb機能 - UUIDv7使用', () => {
+describe("saveToDb機能 - UUIDv7使用", () => {
   let mockPrismaClient: ReturnType<typeof createMockPrismaClient>;
 
   beforeEach(() => {
@@ -742,7 +775,7 @@ describe('saveToDb機能 - UUIDv7使用', () => {
     resetPageAnalyzePrismaClientFactory();
   });
 
-  it('WebPage IDがUUIDv7形式', async () => {
+  it("WebPage IDがUUIDv7形式", async () => {
     const input = {
       url: validUrl,
       ...syncTestBase,
@@ -758,7 +791,7 @@ describe('saveToDb機能 - UUIDv7使用', () => {
     }
   });
 
-  it('SectionPattern IDがUUIDv7形式', async () => {
+  it("SectionPattern IDがUUIDv7形式", async () => {
     const input = {
       url: validUrl,
       ...syncTestBase,
@@ -770,11 +803,11 @@ describe('saveToDb機能 - UUIDv7使用', () => {
     expect(mockPrismaClient.$transaction).toHaveBeenCalled();
   });
 
-  it('MotionPattern IDがUUIDv7形式', async () => {
+  it("MotionPattern IDがUUIDv7形式", async () => {
     const input = {
       url: validUrl,
       ...syncTestBase,
-      motionOptions: { saveToDb: true }
+      motionOptions: { saveToDb: true },
     };
 
     await pageAnalyzeHandler(input);
@@ -783,7 +816,7 @@ describe('saveToDb機能 - UUIDv7使用', () => {
     expect(mockPrismaClient.$transaction).toHaveBeenCalled();
   });
 
-  it('QualityEvaluation IDがUUIDv7形式', async () => {
+  it("QualityEvaluation IDがUUIDv7形式", async () => {
     const input = {
       url: validUrl,
       ...syncTestBase,
@@ -800,7 +833,7 @@ describe('saveToDb機能 - UUIDv7使用', () => {
 // saveToDb機能テスト - 統合テスト
 // =====================================================
 
-describe('saveToDb機能 - 統合テスト', () => {
+describe("saveToDb機能 - 統合テスト", () => {
   let mockPrismaClient: ReturnType<typeof createMockPrismaClient>;
 
   beforeEach(() => {
@@ -816,13 +849,13 @@ describe('saveToDb機能 - 統合テスト', () => {
     resetPageAnalyzePrismaClientFactory();
   });
 
-  it('全オプション有効で全てのデータが保存される', async () => {
+  it("全オプション有効で全てのデータが保存される", async () => {
     const input = {
       url: validUrl,
       ...syncTestBase,
-      sourceType: 'award_gallery' as const,
-      usageScope: 'owned_asset' as const,
-      motionOptions: { saveToDb: true }
+      sourceType: "award_gallery" as const,
+      usageScope: "owned_asset" as const,
+      motionOptions: { saveToDb: true },
     };
 
     const result = await pageAnalyzeHandler(input);
@@ -835,7 +868,7 @@ describe('saveToDb機能 - 統合テスト', () => {
     }
   });
 
-  it('保存成功時にレスポンスにpageIdが含まれる', async () => {
+  it("保存成功時にレスポンスにpageIdが含まれる", async () => {
     const input = {
       url: validUrl,
       ...syncTestBase,
@@ -849,7 +882,7 @@ describe('saveToDb機能 - 統合テスト', () => {
     }
   });
 
-  it('複数回呼び出しで異なるIDが生成される', { timeout: 120000 }, async () => {
+  it("複数回呼び出しで異なるIDが生成される", { timeout: 120000 }, async () => {
     const input = {
       url: validUrl,
       ...syncTestBase,

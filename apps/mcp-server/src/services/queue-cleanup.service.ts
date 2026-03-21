@@ -25,9 +25,9 @@
  * @module services/queue-cleanup
  */
 
-import { logger } from '../utils/logger';
-import type { Queue } from 'bullmq';
-import { isOrphanedByElapsedTime, isDbSavedProgress } from './orphaned-job-utils';
+import { logger } from "../utils/logger";
+import type { Queue } from "bullmq";
+import { isOrphanedByElapsedTime, isDbSavedProgress } from "./orphaned-job-utils";
 
 // ============================================================================
 // Constants
@@ -90,7 +90,7 @@ export interface QueueAdapter {
  * - skipped: 全ステータスが0件
  * - none: エラー発生時
  */
-export type CleanupStrategy = 'selective' | 'skipped' | 'none';
+export type CleanupStrategy = "selective" | "skipped" | "none";
 
 /**
  * クリーンアップ実行前のジョブ数
@@ -153,19 +153,15 @@ function isOrphanedActiveJob(job: JobInfo, thresholdMs: number): boolean {
 async function cleanOrphanedJob(job: JobInfo): Promise<boolean> {
   try {
     if (isDbSavedProgress(job.progress)) {
-      await job.moveToCompleted({ orphanRecovered: true }, '0', false);
-      logger.info('[QueueCleanup] Orphaned active job moved to completed', {
+      await job.moveToCompleted({ orphanRecovered: true }, "0", false);
+      logger.info("[QueueCleanup] Orphaned active job moved to completed", {
         jobId: job.id,
         progress: job.progress,
         processedOn: job.processedOn,
       });
     } else {
-      await job.moveToFailed(
-        new Error('Orphaned active job cleaned up'),
-        '0',
-        false,
-      );
-      logger.warn('[QueueCleanup] Orphaned active job moved to failed', {
+      await job.moveToFailed(new Error("Orphaned active job cleaned up"), "0", false);
+      logger.warn("[QueueCleanup] Orphaned active job moved to failed", {
         jobId: job.id,
         progress: job.progress,
         processedOn: job.processedOn,
@@ -174,7 +170,7 @@ async function cleanOrphanedJob(job: JobInfo): Promise<boolean> {
     return true;
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
-    logger.error('[QueueCleanup] Failed to clean orphaned job', {
+    logger.error("[QueueCleanup] Failed to clean orphaned job", {
       jobId: job.id,
       error: msg,
     });
@@ -195,14 +191,14 @@ async function cleanOrphanedJob(job: JobInfo): Promise<boolean> {
  */
 export async function cleanupQueue(
   adapter: QueueAdapter,
-  options?: CleanupOptions,
+  options?: CleanupOptions
 ): Promise<CleanupResult> {
   const startTime = Date.now();
   const thresholdMs = options?.orphanThresholdMs ?? ORPHAN_THRESHOLD_MS;
 
   const emptyResult: CleanupResult = {
     success: false,
-    strategy: 'none',
+    strategy: "none",
     beforeCounts: { active: 0, waiting: 0, failed: 0, delayed: 0, completed: 0 },
     totalCleaned: 0,
     orphanedActivesCleaned: 0,
@@ -214,28 +210,33 @@ export async function cleanupQueue(
     const rawCounts = await adapter.getJobCounts();
 
     const beforeCounts: JobCounts = {
-      active: rawCounts['active'] ?? 0,
-      waiting: rawCounts['waiting'] ?? 0,
-      failed: rawCounts['failed'] ?? 0,
-      delayed: rawCounts['delayed'] ?? 0,
-      completed: rawCounts['completed'] ?? 0,
+      active: rawCounts["active"] ?? 0,
+      waiting: rawCounts["waiting"] ?? 0,
+      failed: rawCounts["failed"] ?? 0,
+      delayed: rawCounts["delayed"] ?? 0,
+      completed: rawCounts["completed"] ?? 0,
     };
 
-    const prioritized = rawCounts['prioritized'] ?? 0;
-    const totalNonActive = beforeCounts.waiting + beforeCounts.failed + beforeCounts.delayed + beforeCounts.completed + prioritized;
+    const prioritized = rawCounts["prioritized"] ?? 0;
+    const totalNonActive =
+      beforeCounts.waiting +
+      beforeCounts.failed +
+      beforeCounts.delayed +
+      beforeCounts.completed +
+      prioritized;
 
     // Step 2: 全ステータスが0件ならスキップ
     if (beforeCounts.active === 0 && totalNonActive === 0) {
       const result: CleanupResult = {
         success: true,
-        strategy: 'skipped',
+        strategy: "skipped",
         beforeCounts,
         totalCleaned: 0,
         orphanedActivesCleaned: 0,
         durationMs: Date.now() - startTime,
       };
 
-      logger.info('[QueueCleanup] Queue is already clean, skipping', {
+      logger.info("[QueueCleanup] Queue is already clean, skipping", {
         strategy: result.strategy,
         beforeCounts,
       });
@@ -251,7 +252,7 @@ export async function cleanupQueue(
     let remainingActiveCount = beforeCounts.active;
 
     try {
-      const activeJobs = await adapter.getJobs('active', 0, -1);
+      const activeJobs = await adapter.getJobs("active", 0, -1);
 
       for (const job of activeJobs) {
         if (isOrphanedActiveJob(job, thresholdMs)) {
@@ -265,7 +266,7 @@ export async function cleanupQueue(
     } catch (err) {
       // getJobs がエラーを投げた場合は orphaned 検出をスキップし既存の selective を続行
       const msg = err instanceof Error ? err.message : String(err);
-      logger.warn('[QueueCleanup] Failed to detect orphaned active jobs, skipping', {
+      logger.warn("[QueueCleanup] Failed to detect orphaned active jobs, skipping", {
         error: msg,
       });
     }
@@ -279,26 +280,26 @@ export async function cleanupQueue(
 
     // failed ジョブをクリア
     if (beforeCounts.failed > 0) {
-      const cleaned = await adapter.clean(0, 0, 'failed');
+      const cleaned = await adapter.clean(0, 0, "failed");
       cleanedCount += cleaned.length;
     }
 
     // delayed ジョブをクリア
     if (beforeCounts.delayed > 0) {
-      const cleaned = await adapter.clean(0, 0, 'delayed');
+      const cleaned = await adapter.clean(0, 0, "delayed");
       cleanedCount += cleaned.length;
     }
 
     const result: CleanupResult = {
       success: true,
-      strategy: 'selective',
+      strategy: "selective",
       beforeCounts,
       totalCleaned: cleanedCount + orphanedActivesCleaned,
       orphanedActivesCleaned,
       durationMs: Date.now() - startTime,
     };
 
-    logger.info('[QueueCleanup] Selective cleanup completed', {
+    logger.info("[QueueCleanup] Selective cleanup completed", {
       strategy: result.strategy,
       beforeCounts,
       totalCleaned: result.totalCleaned,
@@ -308,11 +309,10 @@ export async function cleanupQueue(
     });
 
     return result;
-
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
 
-    logger.error('[QueueCleanup] Cleanup failed', {
+    logger.error("[QueueCleanup] Cleanup failed", {
       error: errorMessage,
     });
 
@@ -340,18 +340,26 @@ export function createQueueAdapter(queue: Queue): QueueAdapter {
   return {
     getJobCounts: (): Promise<Record<string, number>> => queue.getJobCounts(),
     clean: (grace: number, limit: number, status: string): Promise<string[]> =>
-      queue.clean(grace, limit, status as 'completed' | 'wait' | 'active' | 'paused' | 'delayed' | 'failed'),
+      queue.clean(
+        grace,
+        limit,
+        status as "completed" | "wait" | "active" | "paused" | "delayed" | "failed"
+      ),
     getJobs: async (status: string, start: number, end: number): Promise<JobInfo[]> => {
       const jobs = await queue.getJobs(
-        [status as 'completed' | 'wait' | 'active' | 'paused' | 'delayed' | 'failed'],
+        [status as "completed" | "wait" | "active" | "paused" | "delayed" | "failed"],
         start,
-        end,
+        end
       );
       return jobs.map((job) => {
         const info: JobInfo = {
-          id: job.id ?? '',
-          progress: typeof job.progress === 'number' ? job.progress : 0,
-          moveToCompleted: async (returnValue: unknown, token: string, fetchNext?: boolean): Promise<void> => {
+          id: job.id ?? "",
+          progress: typeof job.progress === "number" ? job.progress : 0,
+          moveToCompleted: async (
+            returnValue: unknown,
+            token: string,
+            fetchNext?: boolean
+          ): Promise<void> => {
             await job.moveToCompleted(returnValue, token, fetchNext);
           },
           moveToFailed: async (err: Error, token: string, fetchNext?: boolean): Promise<void> => {

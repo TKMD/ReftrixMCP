@@ -20,7 +20,7 @@
  * Initialize the ONNX pipeline in the worker thread.
  */
 export interface WorkerInitMessage {
-  type: 'init';
+  type: "init";
   requestId: string;
   config: {
     modelId: string;
@@ -36,7 +36,7 @@ export interface WorkerInitMessage {
  * The main thread is responsible for adding E5 prefix before sending.
  */
 export interface WorkerGenerateMessage {
-  type: 'generate';
+  type: "generate";
   requestId: string;
   text: string;
 }
@@ -46,7 +46,7 @@ export interface WorkerGenerateMessage {
  * The main thread is responsible for adding E5 prefix before sending.
  */
 export interface WorkerGenerateBatchMessage {
-  type: 'generateBatch';
+  type: "generateBatch";
   requestId: string;
   texts: string[];
 }
@@ -55,7 +55,7 @@ export interface WorkerGenerateBatchMessage {
  * Dispose the ONNX pipeline to free native memory.
  */
 export interface WorkerDisposeMessage {
-  type: 'dispose';
+  type: "dispose";
   requestId: string;
 }
 
@@ -63,7 +63,7 @@ export interface WorkerDisposeMessage {
  * Terminate the worker thread gracefully.
  */
 export interface WorkerTerminateMessage {
-  type: 'terminate';
+  type: "terminate";
   requestId: string;
 }
 
@@ -72,9 +72,9 @@ export interface WorkerTerminateMessage {
  * Disposes the current pipeline and re-initializes with the new provider.
  */
 export interface WorkerSwitchProviderMessage {
-  type: 'switch-provider';
+  type: "switch-provider";
   requestId: string;
-  provider: 'cpu' | 'cuda';
+  provider: "cpu" | "cuda";
 }
 
 /**
@@ -82,7 +82,7 @@ export interface WorkerSwitchProviderMessage {
  * Safe to call even if already on CPU — acts as a no-op dispose.
  */
 export interface WorkerReleaseGpuMessage {
-  type: 'release-gpu';
+  type: "release-gpu";
   requestId: string;
 }
 
@@ -103,7 +103,7 @@ export type WorkerMessage =
  * Successful response from init.
  */
 export interface WorkerInitResponse {
-  type: 'init';
+  type: "init";
   requestId: string;
   success: true;
   loadTimeMs: number;
@@ -116,7 +116,7 @@ export interface WorkerInitResponse {
  * Embedding is a plain number[] (structured clone compatible).
  */
 export interface WorkerGenerateResponse {
-  type: 'generate';
+  type: "generate";
   requestId: string;
   success: true;
   embedding: number[];
@@ -127,7 +127,7 @@ export interface WorkerGenerateResponse {
  * Successful response from generateBatch.
  */
 export interface WorkerGenerateBatchResponse {
-  type: 'generateBatch';
+  type: "generateBatch";
   requestId: string;
   success: true;
   embeddings: number[][];
@@ -138,7 +138,7 @@ export interface WorkerGenerateBatchResponse {
  * Successful response from dispose.
  */
 export interface WorkerDisposeResponse {
-  type: 'dispose';
+  type: "dispose";
   requestId: string;
   success: true;
 }
@@ -147,7 +147,7 @@ export interface WorkerDisposeResponse {
  * Successful response from terminate (sent just before process.exit).
  */
 export interface WorkerTerminateResponse {
-  type: 'terminate';
+  type: "terminate";
   requestId: string;
   success: true;
 }
@@ -156,18 +156,18 @@ export interface WorkerTerminateResponse {
  * Successful response from switch-provider.
  */
 export interface WorkerSwitchProviderResponse {
-  type: 'switch-provider';
+  type: "switch-provider";
   requestId: string;
   success: true;
   /** The provider now in effect after the switch. */
-  provider: 'cpu' | 'cuda';
+  provider: "cpu" | "cuda";
 }
 
 /**
  * Successful response from release-gpu.
  */
 export interface WorkerReleaseGpuResponse {
-  type: 'release-gpu';
+  type: "release-gpu";
   requestId: string;
   success: true;
 }
@@ -176,11 +176,11 @@ export interface WorkerReleaseGpuResponse {
  * Error response for any message type.
  */
 export interface WorkerErrorResponse {
-  type: 'error';
+  type: "error";
   requestId: string;
   success: false;
   error: string;
-  originalType: WorkerMessage['type'];
+  originalType: WorkerMessage["type"];
 }
 
 export type WorkerResponse =

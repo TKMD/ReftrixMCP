@@ -17,8 +17,8 @@
  * @module tests/tools/mcp-tool-annotations
  */
 
-import { describe, it, expect } from 'vitest';
-import { allToolDefinitions } from '../../src/tools';
+import { describe, it, expect } from "vitest";
+import { allToolDefinitions } from "../../src/tools";
 
 // =============================================================================
 // 型定義
@@ -54,18 +54,18 @@ interface ToolDefinitionWithAnnotations {
  * 検索・取得・解析系のツール
  */
 const READ_ONLY_TOOLS = [
-  'style.get_palette',
-  'system.health',
-  'layout.inspect',
-  'layout.search',
-  'quality.evaluate',
-  'motion.detect',
-  'motion.search',
-  'brief.validate',
-  'project.get',
-  'project.list',
-  'page.analyze',
-  'background.search',
+  "style.get_palette",
+  "system.health",
+  "layout.inspect",
+  "layout.search",
+  "quality.evaluate",
+  "motion.detect",
+  "motion.search",
+  "brief.validate",
+  "project.get",
+  "project.list",
+  "page.analyze",
+  "background.search",
 ];
 
 /**
@@ -76,37 +76,31 @@ const IDEMPOTENT_TOOLS = [
   // 読み取り専用ツールはすべて冪等
   ...READ_ONLY_TOOLS,
   // 変換系（同じ入力→同じ出力）
-  'layout.generate_code',
+  "layout.generate_code",
   // narrative.search はアノテーション未設定のため別途対応
 ];
 
 /**
  * openWorldHint: true のツール（外部エンティティと相互作用）
  */
-const OPEN_WORLD_TOOLS = [
-  'layout.ingest',
-  'quality.batch_evaluate',
-  'page.analyze',
-];
+const OPEN_WORLD_TOOLS = ["layout.ingest", "quality.batch_evaluate", "page.analyze"];
 
 /**
  * アノテーション未設定のツール（今後追加予定）
  * narrative.search はアノテーション未設定のため、全ツール検証から除外
  */
-const TOOLS_WITHOUT_ANNOTATIONS = [
-  'narrative.search',
-];
+const TOOLS_WITHOUT_ANNOTATIONS = ["narrative.search"];
 
 // =============================================================================
 // テスト
 // =============================================================================
 
-describe('MCP Tool Annotations', () => {
+describe("MCP Tool Annotations", () => {
   // =========================================================================
   // 基本検証: 全ツールにannotationsプロパティが存在
   // =========================================================================
-  describe('アノテーション存在確認', () => {
-    it('アノテーション対象の全ツールにannotationsプロパティが存在すること', () => {
+  describe("アノテーション存在確認", () => {
+    it("アノテーション対象の全ツールにannotationsプロパティが存在すること", () => {
       const toolsWithoutAnnotations: string[] = [];
 
       for (const tool of allToolDefinitions) {
@@ -122,11 +116,11 @@ describe('MCP Tool Annotations', () => {
 
       expect(
         toolsWithoutAnnotations,
-        `以下のツールにannotationsが未設定: ${toolsWithoutAnnotations.join(', ')}`
+        `以下のツールにannotationsが未設定: ${toolsWithoutAnnotations.join(", ")}`
       ).toHaveLength(0);
     });
 
-    it('全ツールのannotationsがオブジェクト型であること', () => {
+    it("全ツールのannotationsがオブジェクト型であること", () => {
       for (const tool of allToolDefinitions) {
         if (TOOLS_WITHOUT_ANNOTATIONS.includes(tool.name)) continue;
         const toolWithAnnotations = tool as ToolDefinitionWithAnnotations;
@@ -134,7 +128,7 @@ describe('MCP Tool Annotations', () => {
           expect(
             typeof toolWithAnnotations.annotations,
             `${tool.name}: annotationsがオブジェクトでない`
-          ).toBe('object');
+          ).toBe("object");
         }
       }
     });
@@ -143,22 +137,19 @@ describe('MCP Tool Annotations', () => {
   // =========================================================================
   // readOnlyHint 検証
   // =========================================================================
-  describe('readOnlyHint', () => {
-    it.each(READ_ONLY_TOOLS)(
-      '%s は readOnlyHint: true であること',
-      (toolName) => {
-        const tool = allToolDefinitions.find((t) => t.name === toolName);
-        expect(tool, `ツール ${toolName} が見つかりません`).toBeDefined();
+  describe("readOnlyHint", () => {
+    it.each(READ_ONLY_TOOLS)("%s は readOnlyHint: true であること", (toolName) => {
+      const tool = allToolDefinitions.find((t) => t.name === toolName);
+      expect(tool, `ツール ${toolName} が見つかりません`).toBeDefined();
 
-        const toolWithAnnotations = tool as ToolDefinitionWithAnnotations;
-        expect(
-          toolWithAnnotations.annotations?.readOnlyHint,
-          `${toolName}: readOnlyHint should be true`
-        ).toBe(true);
-      }
-    );
+      const toolWithAnnotations = tool as ToolDefinitionWithAnnotations;
+      expect(
+        toolWithAnnotations.annotations?.readOnlyHint,
+        `${toolName}: readOnlyHint should be true`
+      ).toBe(true);
+    });
 
-    it('readOnlyHint: true のツールは destructiveHint を持たないこと', () => {
+    it("readOnlyHint: true のツールは destructiveHint を持たないこと", () => {
       for (const toolName of READ_ONLY_TOOLS) {
         const tool = allToolDefinitions.find((t) => t.name === toolName);
         if (!tool) continue; // Skip if tool doesn't exist
@@ -177,46 +168,40 @@ describe('MCP Tool Annotations', () => {
   // =========================================================================
   // idempotentHint 検証
   // =========================================================================
-  describe('idempotentHint', () => {
-    it.each(IDEMPOTENT_TOOLS)(
-      '%s は idempotentHint: true であること',
-      (toolName) => {
-        const tool = allToolDefinitions.find((t) => t.name === toolName);
-        expect(tool, `ツール ${toolName} が見つかりません`).toBeDefined();
+  describe("idempotentHint", () => {
+    it.each(IDEMPOTENT_TOOLS)("%s は idempotentHint: true であること", (toolName) => {
+      const tool = allToolDefinitions.find((t) => t.name === toolName);
+      expect(tool, `ツール ${toolName} が見つかりません`).toBeDefined();
 
-        const toolWithAnnotations = tool as ToolDefinitionWithAnnotations;
-        expect(
-          toolWithAnnotations.annotations?.idempotentHint,
-          `${toolName}: idempotentHint should be true`
-        ).toBe(true);
-      }
-    );
+      const toolWithAnnotations = tool as ToolDefinitionWithAnnotations;
+      expect(
+        toolWithAnnotations.annotations?.idempotentHint,
+        `${toolName}: idempotentHint should be true`
+      ).toBe(true);
+    });
   });
 
   // =========================================================================
   // openWorldHint 検証
   // =========================================================================
-  describe('openWorldHint', () => {
-    it.each(OPEN_WORLD_TOOLS)(
-      '%s は openWorldHint: true であること',
-      (toolName) => {
-        const tool = allToolDefinitions.find((t) => t.name === toolName);
-        expect(tool, `ツール ${toolName} が見つかりません`).toBeDefined();
+  describe("openWorldHint", () => {
+    it.each(OPEN_WORLD_TOOLS)("%s は openWorldHint: true であること", (toolName) => {
+      const tool = allToolDefinitions.find((t) => t.name === toolName);
+      expect(tool, `ツール ${toolName} が見つかりません`).toBeDefined();
 
-        const toolWithAnnotations = tool as ToolDefinitionWithAnnotations;
-        expect(
-          toolWithAnnotations.annotations?.openWorldHint,
-          `${toolName}: openWorldHint should be true`
-        ).toBe(true);
-      }
-    );
+      const toolWithAnnotations = tool as ToolDefinitionWithAnnotations;
+      expect(
+        toolWithAnnotations.annotations?.openWorldHint,
+        `${toolName}: openWorldHint should be true`
+      ).toBe(true);
+    });
   });
 
   // =========================================================================
   // title 検証
   // =========================================================================
-  describe('title', () => {
-    it('全ツールにtitleが設定されていること', () => {
+  describe("title", () => {
+    it("全ツールにtitleが設定されていること", () => {
       const toolsWithoutTitle: string[] = [];
 
       for (const tool of allToolDefinitions) {
@@ -229,11 +214,11 @@ describe('MCP Tool Annotations', () => {
 
       expect(
         toolsWithoutTitle,
-        `以下のツールにtitleが未設定: ${toolsWithoutTitle.join(', ')}`
+        `以下のツールにtitleが未設定: ${toolsWithoutTitle.join(", ")}`
       ).toHaveLength(0);
     });
 
-    it('titleは非空文字列であること', () => {
+    it("titleは非空文字列であること", () => {
       for (const tool of allToolDefinitions) {
         const toolWithAnnotations = tool as ToolDefinitionWithAnnotations;
         if (toolWithAnnotations.annotations?.title) {
@@ -249,8 +234,8 @@ describe('MCP Tool Annotations', () => {
   // =========================================================================
   // 整合性検証
   // =========================================================================
-  describe('アノテーション整合性', () => {
-    it('readOnlyHint: false のツールはopenWorldHintまたはdestructiveHintを持つこと', () => {
+  describe("アノテーション整合性", () => {
+    it("readOnlyHint: false のツールはopenWorldHintまたはdestructiveHintを持つこと", () => {
       const inconsistentTools: string[] = [];
 
       for (const tool of allToolDefinitions) {
@@ -259,10 +244,7 @@ describe('MCP Tool Annotations', () => {
 
         if (annotations && annotations.readOnlyHint === false) {
           // 書き込み可能なツールは外部相互作用か破壊的操作のいずれかを示すべき
-          if (
-            annotations.openWorldHint !== true &&
-            annotations.destructiveHint !== true
-          ) {
+          if (annotations.openWorldHint !== true && annotations.destructiveHint !== true) {
             inconsistentTools.push(tool.name);
           }
         }
@@ -271,7 +253,7 @@ describe('MCP Tool Annotations', () => {
       // 注: これは警告として機能し、厳密な要件ではない
       if (inconsistentTools.length > 0) {
         console.warn(
-          `readOnlyHint=false だが openWorldHint/destructiveHint が未設定: ${inconsistentTools.join(', ')}`
+          `readOnlyHint=false だが openWorldHint/destructiveHint が未設定: ${inconsistentTools.join(", ")}`
         );
       }
     });
@@ -285,8 +267,8 @@ describe('MCP Tool Annotations', () => {
   // narrative.search, background.search ツール追加
   // preference.hear, preference.get, preference.reset ツール追加
   // =========================================================================
-  describe('ツール数', () => {
-    it('allToolDefinitionsが26ツール（WebDesign専用）を含むこと', () => {
+  describe("ツール数", () => {
+    it("allToolDefinitionsが26ツール（WebDesign専用）を含むこと", () => {
       expect(allToolDefinitions).toHaveLength(26);
     });
   });

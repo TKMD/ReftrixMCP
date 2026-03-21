@@ -20,8 +20,8 @@
  *
  * NOTE: TDD RED Phase - 実装ファイルが存在しないためテストは失敗する
  */
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { z } from 'zod';
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { z } from "zod";
 
 // =============================================================================
 // 型定義（テスト用）
@@ -41,16 +41,16 @@ import { z } from 'zod';
  * - luxurious: 高級感
  */
 const VALID_MOODS = [
-  'professional',
-  'playful',
-  'minimal',
-  'bold',
-  'elegant',
-  'modern',
-  'classic',
-  'energetic',
-  'calm',
-  'luxurious',
+  "professional",
+  "playful",
+  "minimal",
+  "bold",
+  "elegant",
+  "modern",
+  "classic",
+  "energetic",
+  "calm",
+  "luxurious",
 ] as const;
 
 /**
@@ -75,14 +75,14 @@ function createTestBase64Image(sizeBytes = 1000): string {
   // 最小限のPNG画像ヘッダー + ランダムデータ
   const header = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
   const data = Buffer.alloc(Math.max(0, sizeBytes - header.length));
-  return Buffer.concat([header, data]).toString('base64');
+  return Buffer.concat([header, data]).toString("base64");
 }
 
 /**
  * 無効なBase64文字列を生成
  */
 function createInvalidBase64(): string {
-  return '!!!not-valid-base64!!!@#$%^&*()';
+  return "!!!not-valid-base64!!!@#$%^&*()";
 }
 
 /**
@@ -90,7 +90,7 @@ function createInvalidBase64(): string {
  */
 function createOversizedBase64(): string {
   const largeBuffer = Buffer.alloc(10 * 1024 * 1024); // 10MB
-  return largeBuffer.toString('base64');
+  return largeBuffer.toString("base64");
 }
 
 // =============================================================================
@@ -104,7 +104,7 @@ global.fetch = mockFetch;
 // テストケース
 // =============================================================================
 
-describe('MoodAnalyzer', () => {
+describe("MoodAnalyzer", () => {
   beforeEach(() => {
     // 各テスト前にモックをリセット
     mockFetch.mockReset();
@@ -112,20 +112,20 @@ describe('MoodAnalyzer', () => {
   });
 
   // 実装存在確認テスト（TDD GREEN Phase）
-  it('should have MoodAnalyzer implementation', async () => {
+  it("should have MoodAnalyzer implementation", async () => {
     // TDD GREEN Phase: 実装が存在することを確認
-    const module = await import('@/services/vision/mood.analyzer');
+    const module = await import("@/services/vision/mood.analyzer");
     expect(module.MoodAnalyzer).toBeDefined();
-    expect(typeof module.MoodAnalyzer).toBe('function');
+    expect(typeof module.MoodAnalyzer).toBe("function");
   });
 
   // ===========================================================================
   // Mood抽出テスト
   // ===========================================================================
 
-  describe('mood extraction', () => {
-    it('should extract primary mood from screenshot', async () => {
-      const { MoodAnalyzer } = await import('@/services/vision/mood.analyzer');
+  describe("mood extraction", () => {
+    it("should extract primary mood from screenshot", async () => {
+      const { MoodAnalyzer } = await import("@/services/vision/mood.analyzer");
       const analyzer = new MoodAnalyzer();
       const screenshot = createTestBase64Image();
 
@@ -134,10 +134,10 @@ describe('MoodAnalyzer', () => {
         ok: true,
         json: async () => ({
           response: JSON.stringify({
-            primaryMood: 'professional',
-            secondaryMood: 'minimal',
+            primaryMood: "professional",
+            secondaryMood: "minimal",
             confidence: 0.85,
-            indicators: ['clean typography', 'neutral colors'],
+            indicators: ["clean typography", "neutral colors"],
             colorContextUsed: false,
           }),
         }),
@@ -150,8 +150,8 @@ describe('MoodAnalyzer', () => {
       expect(VALID_MOODS).toContain(result?.primaryMood);
     });
 
-    it('should extract secondary mood from screenshot', async () => {
-      const { MoodAnalyzer } = await import('@/services/vision/mood.analyzer');
+    it("should extract secondary mood from screenshot", async () => {
+      const { MoodAnalyzer } = await import("@/services/vision/mood.analyzer");
       const analyzer = new MoodAnalyzer();
       const screenshot = createTestBase64Image();
 
@@ -159,10 +159,10 @@ describe('MoodAnalyzer', () => {
         ok: true,
         json: async () => ({
           response: JSON.stringify({
-            primaryMood: 'professional',
-            secondaryMood: 'elegant',
+            primaryMood: "professional",
+            secondaryMood: "elegant",
             confidence: 0.85,
-            indicators: ['refined design'],
+            indicators: ["refined design"],
             colorContextUsed: false,
           }),
         }),
@@ -176,8 +176,8 @@ describe('MoodAnalyzer', () => {
       }
     });
 
-    it('should return confidence score between 0.6 and 1', async () => {
-      const { MoodAnalyzer } = await import('@/services/vision/mood.analyzer');
+    it("should return confidence score between 0.6 and 1", async () => {
+      const { MoodAnalyzer } = await import("@/services/vision/mood.analyzer");
       const analyzer = new MoodAnalyzer();
       const screenshot = createTestBase64Image();
 
@@ -185,9 +185,9 @@ describe('MoodAnalyzer', () => {
         ok: true,
         json: async () => ({
           response: JSON.stringify({
-            primaryMood: 'modern',
+            primaryMood: "modern",
             confidence: 0.78,
-            indicators: ['contemporary style'],
+            indicators: ["contemporary style"],
             colorContextUsed: false,
           }),
         }),
@@ -199,8 +199,8 @@ describe('MoodAnalyzer', () => {
       expect(result?.confidence).toBeLessThanOrEqual(1);
     });
 
-    it('should return indicators array', async () => {
-      const { MoodAnalyzer } = await import('@/services/vision/mood.analyzer');
+    it("should return indicators array", async () => {
+      const { MoodAnalyzer } = await import("@/services/vision/mood.analyzer");
       const analyzer = new MoodAnalyzer();
       const screenshot = createTestBase64Image();
 
@@ -208,9 +208,9 @@ describe('MoodAnalyzer', () => {
         ok: true,
         json: async () => ({
           response: JSON.stringify({
-            primaryMood: 'playful',
+            primaryMood: "playful",
             confidence: 0.82,
-            indicators: ['bright colors', 'fun typography', 'dynamic layout'],
+            indicators: ["bright colors", "fun typography", "dynamic layout"],
             colorContextUsed: false,
           }),
         }),
@@ -222,8 +222,8 @@ describe('MoodAnalyzer', () => {
       expect(Array.isArray(result?.indicators)).toBe(true);
     });
 
-    it('should conform to MoodAnalysisResult schema', async () => {
-      const { MoodAnalyzer } = await import('@/services/vision/mood.analyzer');
+    it("should conform to MoodAnalysisResult schema", async () => {
+      const { MoodAnalyzer } = await import("@/services/vision/mood.analyzer");
       const analyzer = new MoodAnalyzer();
       const screenshot = createTestBase64Image();
 
@@ -231,10 +231,10 @@ describe('MoodAnalyzer', () => {
         ok: true,
         json: async () => ({
           response: JSON.stringify({
-            primaryMood: 'elegant',
-            secondaryMood: 'luxurious',
+            primaryMood: "elegant",
+            secondaryMood: "luxurious",
             confidence: 0.9,
-            indicators: ['sophisticated palette', 'refined typography'],
+            indicators: ["sophisticated palette", "refined typography"],
             colorContextUsed: false,
           }),
         }),
@@ -252,9 +252,9 @@ describe('MoodAnalyzer', () => {
   // 信頼度閾値テスト
   // ===========================================================================
 
-  describe('confidence threshold', () => {
-    it('should return null if confidence < 0.6', async () => {
-      const { MoodAnalyzer } = await import('@/services/vision/mood.analyzer');
+  describe("confidence threshold", () => {
+    it("should return null if confidence < 0.6", async () => {
+      const { MoodAnalyzer } = await import("@/services/vision/mood.analyzer");
       const analyzer = new MoodAnalyzer();
 
       // 低信頼度レスポンスをモック
@@ -262,10 +262,10 @@ describe('MoodAnalyzer', () => {
         ok: true,
         json: async () => ({
           response: JSON.stringify({
-            primaryMood: 'playful',
-            secondaryMood: 'creative',
+            primaryMood: "playful",
+            secondaryMood: "creative",
             confidence: 0.45, // 閾値以下
-            indicators: ['test'],
+            indicators: ["test"],
             colorContextUsed: false,
           }),
         }),
@@ -277,18 +277,18 @@ describe('MoodAnalyzer', () => {
       expect(result).toBeNull();
     });
 
-    it('should return result if confidence >= 0.6', async () => {
-      const { MoodAnalyzer } = await import('@/services/vision/mood.analyzer');
+    it("should return result if confidence >= 0.6", async () => {
+      const { MoodAnalyzer } = await import("@/services/vision/mood.analyzer");
       const analyzer = new MoodAnalyzer();
 
       mockFetch.mockResolvedValueOnce({
         ok: true,
         json: async () => ({
           response: JSON.stringify({
-            primaryMood: 'professional',
-            secondaryMood: 'minimal',
+            primaryMood: "professional",
+            secondaryMood: "minimal",
             confidence: 0.75,
-            indicators: ['clean typography', 'neutral colors'],
+            indicators: ["clean typography", "neutral colors"],
             colorContextUsed: false,
           }),
         }),
@@ -306,12 +306,12 @@ describe('MoodAnalyzer', () => {
   // エラーハンドリングテスト
   // ===========================================================================
 
-  describe('error handling', () => {
-    it('should return null if Ollama unavailable', async () => {
-      const { MoodAnalyzer } = await import('@/services/vision/mood.analyzer');
+  describe("error handling", () => {
+    it("should return null if Ollama unavailable", async () => {
+      const { MoodAnalyzer } = await import("@/services/vision/mood.analyzer");
       const analyzer = new MoodAnalyzer();
 
-      mockFetch.mockRejectedValueOnce(new Error('Connection refused'));
+      mockFetch.mockRejectedValueOnce(new Error("Connection refused"));
 
       const screenshot = createTestBase64Image();
       const result = await analyzer.analyze(screenshot);
@@ -319,29 +319,27 @@ describe('MoodAnalyzer', () => {
       expect(result).toBeNull();
     });
 
-    it('should timeout after 30 seconds', async () => {
-      const { MoodAnalyzer } = await import('@/services/vision/mood.analyzer');
+    it("should timeout after 30 seconds", async () => {
+      const { MoodAnalyzer } = await import("@/services/vision/mood.analyzer");
       // リトライを無効化してタイムアウト動作を正確にテスト
       const analyzer = new MoodAnalyzer({ enableRetry: false });
 
       // AbortSignalを尊重するモック（タイムアウトをシミュレート）
-      mockFetch.mockImplementation(
-        (_url: string, options?: { signal?: AbortSignal }) => {
-          return new Promise((_resolve, reject) => {
-            const timeoutId = setTimeout(() => {
-              reject(new DOMException('The operation was aborted.', 'AbortError'));
-            }, 35000);
+      mockFetch.mockImplementation((_url: string, options?: { signal?: AbortSignal }) => {
+        return new Promise((_resolve, reject) => {
+          const timeoutId = setTimeout(() => {
+            reject(new DOMException("The operation was aborted.", "AbortError"));
+          }, 35000);
 
-            // AbortSignalがabortされたらreject
-            if (options?.signal) {
-              options.signal.addEventListener('abort', () => {
-                clearTimeout(timeoutId);
-                reject(new DOMException('The operation was aborted.', 'AbortError'));
-              });
-            }
-          });
-        }
-      );
+          // AbortSignalがabortされたらreject
+          if (options?.signal) {
+            options.signal.addEventListener("abort", () => {
+              clearTimeout(timeoutId);
+              reject(new DOMException("The operation was aborted.", "AbortError"));
+            });
+          }
+        });
+      });
 
       const screenshot = createTestBase64Image();
       const startTime = Date.now();
@@ -353,8 +351,8 @@ describe('MoodAnalyzer', () => {
       expect(elapsed).toBeLessThan(40000);
     }, 40000);
 
-    it('should validate Base64 input', async () => {
-      const { MoodAnalyzer } = await import('@/services/vision/mood.analyzer');
+    it("should validate Base64 input", async () => {
+      const { MoodAnalyzer } = await import("@/services/vision/mood.analyzer");
       const analyzer = new MoodAnalyzer();
       const invalidBase64 = createInvalidBase64();
 
@@ -363,15 +361,15 @@ describe('MoodAnalyzer', () => {
       }).rejects.toThrow();
     });
 
-    it('should handle HTTP 500 errors gracefully', async () => {
-      const { MoodAnalyzer } = await import('@/services/vision/mood.analyzer');
+    it("should handle HTTP 500 errors gracefully", async () => {
+      const { MoodAnalyzer } = await import("@/services/vision/mood.analyzer");
       // リトライを無効化してエラーハンドリングを正確にテスト
       const analyzer = new MoodAnalyzer({ enableRetry: false });
 
       mockFetch.mockResolvedValueOnce({
         ok: false,
         status: 500,
-        statusText: 'Internal Server Error',
+        statusText: "Internal Server Error",
       });
 
       const screenshot = createTestBase64Image();
@@ -380,14 +378,14 @@ describe('MoodAnalyzer', () => {
       expect(result).toBeNull();
     });
 
-    it('should handle malformed JSON response', async () => {
-      const { MoodAnalyzer } = await import('@/services/vision/mood.analyzer');
+    it("should handle malformed JSON response", async () => {
+      const { MoodAnalyzer } = await import("@/services/vision/mood.analyzer");
       const analyzer = new MoodAnalyzer();
 
       mockFetch.mockResolvedValueOnce({
         ok: true,
         json: async () => ({
-          response: 'not a valid json object',
+          response: "not a valid json object",
         }),
       });
 
@@ -402,9 +400,9 @@ describe('MoodAnalyzer', () => {
   // キャッシュテスト
   // ===========================================================================
 
-  describe('caching', () => {
-    it('should cache results for identical screenshots', async () => {
-      const { MoodAnalyzer } = await import('@/services/vision/mood.analyzer');
+  describe("caching", () => {
+    it("should cache results for identical screenshots", async () => {
+      const { MoodAnalyzer } = await import("@/services/vision/mood.analyzer");
       const analyzer = new MoodAnalyzer();
       const screenshot = createTestBase64Image();
 
@@ -413,10 +411,10 @@ describe('MoodAnalyzer', () => {
         ok: true,
         json: async () => ({
           response: JSON.stringify({
-            primaryMood: 'minimal',
-            secondaryMood: 'calm',
+            primaryMood: "minimal",
+            secondaryMood: "calm",
             confidence: 0.85,
-            indicators: ['whitespace', 'simple typography'],
+            indicators: ["whitespace", "simple typography"],
             colorContextUsed: false,
           }),
         }),
@@ -429,25 +427,25 @@ describe('MoodAnalyzer', () => {
       expect(mockFetch).toHaveBeenCalledTimes(1);
     });
 
-    it('should return cached result faster', async () => {
-      const { MoodAnalyzer } = await import('@/services/vision/mood.analyzer');
+    it("should return cached result faster", async () => {
+      const { MoodAnalyzer } = await import("@/services/vision/mood.analyzer");
       const analyzer = new MoodAnalyzer();
       const screenshot = createTestBase64Image();
 
       // 100msの遅延を持つモック
       mockFetch.mockImplementationOnce(
         () =>
-          new Promise(resolve =>
+          new Promise((resolve) =>
             setTimeout(
               () =>
                 resolve({
                   ok: true,
                   json: async () => ({
                     response: JSON.stringify({
-                      primaryMood: 'bold',
-                      secondaryMood: 'energetic',
+                      primaryMood: "bold",
+                      secondaryMood: "energetic",
                       confidence: 0.8,
-                      indicators: ['strong colors'],
+                      indicators: ["strong colors"],
                       colorContextUsed: false,
                     }),
                   }),
@@ -468,8 +466,8 @@ describe('MoodAnalyzer', () => {
       expect(secondDuration).toBeLessThan(firstDuration / 2);
     });
 
-    it('should use different cache keys for different screenshots', async () => {
-      const { MoodAnalyzer } = await import('@/services/vision/mood.analyzer');
+    it("should use different cache keys for different screenshots", async () => {
+      const { MoodAnalyzer } = await import("@/services/vision/mood.analyzer");
       const analyzer = new MoodAnalyzer();
       const screenshot1 = createTestBase64Image(1000);
       const screenshot2 = createTestBase64Image(2000);
@@ -479,7 +477,7 @@ describe('MoodAnalyzer', () => {
         ok: true,
         json: async () => ({
           response: JSON.stringify({
-            primaryMood: 'elegant',
+            primaryMood: "elegant",
             confidence: 0.9,
             indicators: [],
             colorContextUsed: false,
@@ -490,7 +488,7 @@ describe('MoodAnalyzer', () => {
         ok: true,
         json: async () => ({
           response: JSON.stringify({
-            primaryMood: 'elegant',
+            primaryMood: "elegant",
             confidence: 0.9,
             indicators: [],
             colorContextUsed: false,
@@ -509,28 +507,28 @@ describe('MoodAnalyzer', () => {
   // セキュリティテスト
   // ===========================================================================
 
-  describe('security', () => {
-    it('should reject oversized Base64 input (> 5MB)', async () => {
-      const { MoodAnalyzer } = await import('@/services/vision/mood.analyzer');
+  describe("security", () => {
+    it("should reject oversized Base64 input (> 5MB)", async () => {
+      const { MoodAnalyzer } = await import("@/services/vision/mood.analyzer");
       const analyzer = new MoodAnalyzer();
       const largeBase64 = createOversizedBase64();
 
       await expect(async () => {
         await analyzer.analyze(largeBase64);
-      }).rejects.toThrow('Input exceeds 5MB limit');
+      }).rejects.toThrow("Input exceeds 5MB limit");
     });
 
-    it('should log all Ollama API calls for audit', async () => {
-      const { MoodAnalyzer } = await import('@/services/vision/mood.analyzer');
-      const { logger } = await import('@/utils/logger');
+    it("should log all Ollama API calls for audit", async () => {
+      const { MoodAnalyzer } = await import("@/services/vision/mood.analyzer");
+      const { logger } = await import("@/utils/logger");
       const analyzer = new MoodAnalyzer();
-      const loggerSpy = vi.spyOn(logger, 'info');
+      const loggerSpy = vi.spyOn(logger, "info");
       const screenshot = createTestBase64Image();
       mockFetch.mockResolvedValueOnce({
         ok: true,
         json: async () => ({
           response: JSON.stringify({
-            primaryMood: 'professional',
+            primaryMood: "professional",
             confidence: 0.8,
             indicators: [],
             colorContextUsed: false,
@@ -541,12 +539,12 @@ describe('MoodAnalyzer', () => {
       await analyzer.analyze(screenshot);
 
       expect(loggerSpy).toHaveBeenCalledWith(
-        expect.stringContaining('[MoodAnalyzer] Ollama API call')
+        expect.stringContaining("[MoodAnalyzer] Ollama API call")
       );
     });
 
-    it('should sanitize Ollama response for injection attacks', async () => {
-      const { MoodAnalyzer } = await import('@/services/vision/mood.analyzer');
+    it("should sanitize Ollama response for injection attacks", async () => {
+      const { MoodAnalyzer } = await import("@/services/vision/mood.analyzer");
       const analyzer = new MoodAnalyzer();
       const maliciousResponse = '"; DROP TABLE sections; --';
       mockFetch.mockResolvedValueOnce({
@@ -554,7 +552,7 @@ describe('MoodAnalyzer', () => {
         json: async () => ({
           response: JSON.stringify({
             primaryMood: maliciousResponse,
-            secondaryMood: 'creative',
+            secondaryMood: "creative",
             confidence: 0.8,
             indicators: [],
             colorContextUsed: false,
@@ -568,14 +566,14 @@ describe('MoodAnalyzer', () => {
       expect(result).toBeNull();
     });
 
-    it('should reject XSS in indicators', async () => {
-      const { MoodAnalyzer } = await import('@/services/vision/mood.analyzer');
+    it("should reject XSS in indicators", async () => {
+      const { MoodAnalyzer } = await import("@/services/vision/mood.analyzer");
       const analyzer = new MoodAnalyzer();
       mockFetch.mockResolvedValueOnce({
         ok: true,
         json: async () => ({
           response: JSON.stringify({
-            primaryMood: 'professional',
+            primaryMood: "professional",
             confidence: 0.8,
             indicators: ['<script>alert("xss")</script>'],
             colorContextUsed: false,
@@ -587,8 +585,8 @@ describe('MoodAnalyzer', () => {
       const result = await analyzer.analyze(screenshot);
 
       if (result?.indicators) {
-        result.indicators.forEach(indicator => {
-          expect(indicator).not.toContain('<script>');
+        result.indicators.forEach((indicator) => {
+          expect(indicator).not.toContain("<script>");
         });
       }
     });
@@ -598,14 +596,14 @@ describe('MoodAnalyzer', () => {
   // カラーコンテキスト統合テスト
   // ===========================================================================
 
-  describe('color context integration', () => {
-    it('should accept color context for enhanced analysis', async () => {
-      const { MoodAnalyzer } = await import('@/services/vision/mood.analyzer');
+  describe("color context integration", () => {
+    it("should accept color context for enhanced analysis", async () => {
+      const { MoodAnalyzer } = await import("@/services/vision/mood.analyzer");
       const analyzer = new MoodAnalyzer();
       const screenshot = createTestBase64Image();
       const colorContext = {
-        dominantColors: ['#1a1a2e', '#16213e', '#0f3460'],
-        theme: 'dark' as const,
+        dominantColors: ["#1a1a2e", "#16213e", "#0f3460"],
+        theme: "dark" as const,
         contentDensity: 0.4,
       };
 
@@ -613,10 +611,10 @@ describe('MoodAnalyzer', () => {
         ok: true,
         json: async () => ({
           response: JSON.stringify({
-            primaryMood: 'elegant',
-            secondaryMood: 'luxurious',
+            primaryMood: "elegant",
+            secondaryMood: "luxurious",
             confidence: 0.9,
-            indicators: ['dark theme', 'low density'],
+            indicators: ["dark theme", "low density"],
             colorContextUsed: true,
           }),
         }),
@@ -627,15 +625,15 @@ describe('MoodAnalyzer', () => {
       expect(result?.colorContextUsed).toBe(true);
     });
 
-    it('should work without color context', async () => {
-      const { MoodAnalyzer } = await import('@/services/vision/mood.analyzer');
+    it("should work without color context", async () => {
+      const { MoodAnalyzer } = await import("@/services/vision/mood.analyzer");
       const analyzer = new MoodAnalyzer();
       const screenshot = createTestBase64Image();
       mockFetch.mockResolvedValueOnce({
         ok: true,
         json: async () => ({
           response: JSON.stringify({
-            primaryMood: 'minimal',
+            primaryMood: "minimal",
             confidence: 0.75,
             indicators: [],
             colorContextUsed: false,
@@ -653,28 +651,30 @@ describe('MoodAnalyzer', () => {
   // エッジケーステスト
   // ===========================================================================
 
-  describe('edge cases', () => {
-    it('should handle empty screenshot gracefully', async () => {
-      const { MoodAnalyzer } = await import('@/services/vision/mood.analyzer');
+  describe("edge cases", () => {
+    it("should handle empty screenshot gracefully", async () => {
+      const { MoodAnalyzer } = await import("@/services/vision/mood.analyzer");
       const analyzer = new MoodAnalyzer();
-      const emptyBase64 = '';
+      const emptyBase64 = "";
 
       await expect(async () => {
         await analyzer.analyze(emptyBase64);
       }).rejects.toThrow();
     });
 
-    it('should handle concurrent requests', async () => {
-      const { MoodAnalyzer } = await import('@/services/vision/mood.analyzer');
+    it("should handle concurrent requests", async () => {
+      const { MoodAnalyzer } = await import("@/services/vision/mood.analyzer");
       const analyzer = new MoodAnalyzer();
-      const screenshots = Array(5).fill(null).map((_, i) => createTestBase64Image(1000 + i * 100));
+      const screenshots = Array(5)
+        .fill(null)
+        .map((_, i) => createTestBase64Image(1000 + i * 100));
       // Mock fetch for multiple concurrent calls
       mockFetch.mockImplementation(() =>
         Promise.resolve({
           ok: true,
           json: async () => ({
             response: JSON.stringify({
-              primaryMood: 'professional',
+              primaryMood: "professional",
               confidence: 0.8,
               indicators: [],
               colorContextUsed: false,
@@ -683,27 +683,25 @@ describe('MoodAnalyzer', () => {
         })
       );
 
-      const results = await Promise.all(
-        screenshots.map(s => analyzer.analyze(s))
-      );
+      const results = await Promise.all(screenshots.map((s) => analyzer.analyze(s)));
 
-      results.forEach(result => {
+      results.forEach((result) => {
         expect(result).not.toBeNull();
       });
     });
 
-    it('should return consistent results for identical input', async () => {
-      const { MoodAnalyzer } = await import('@/services/vision/mood.analyzer');
+    it("should return consistent results for identical input", async () => {
+      const { MoodAnalyzer } = await import("@/services/vision/mood.analyzer");
       const analyzer = new MoodAnalyzer();
       const screenshot = createTestBase64Image();
       mockFetch.mockResolvedValueOnce({
         ok: true,
         json: async () => ({
           response: JSON.stringify({
-            primaryMood: 'bold',
-            secondaryMood: 'energetic',
+            primaryMood: "bold",
+            secondaryMood: "energetic",
             confidence: 0.85,
-            indicators: ['vibrant colors'],
+            indicators: ["vibrant colors"],
             colorContextUsed: false,
           }),
         }),
@@ -721,9 +719,9 @@ describe('MoodAnalyzer', () => {
 // 統合テスト
 // =============================================================================
 
-describe('MoodAnalyzer Integration', () => {
-  it('should complete full workflow: analyze -> validate -> cache', async () => {
-    const { MoodAnalyzer } = await import('@/services/vision/mood.analyzer');
+describe("MoodAnalyzer Integration", () => {
+  it("should complete full workflow: analyze -> validate -> cache", async () => {
+    const { MoodAnalyzer } = await import("@/services/vision/mood.analyzer");
     const analyzer = new MoodAnalyzer();
     const screenshot = createTestBase64Image();
 
@@ -731,10 +729,10 @@ describe('MoodAnalyzer Integration', () => {
       ok: true,
       json: async () => ({
         response: JSON.stringify({
-          primaryMood: 'professional',
-          secondaryMood: 'elegant',
+          primaryMood: "professional",
+          secondaryMood: "elegant",
           confidence: 0.88,
-          indicators: ['clean layout', 'subtle colors', 'professional typography'],
+          indicators: ["clean layout", "subtle colors", "professional typography"],
           colorContextUsed: false,
         }),
       }),
@@ -743,8 +741,8 @@ describe('MoodAnalyzer Integration', () => {
     const result1 = await analyzer.analyze(screenshot);
 
     expect(result1).not.toBeNull();
-    expect(result1?.primaryMood).toBe('professional');
-    expect(result1?.secondaryMood).toBe('elegant');
+    expect(result1?.primaryMood).toBe("professional");
+    expect(result1?.secondaryMood).toBe("elegant");
     expect(result1?.confidence).toBe(0.88);
     expect(result1?.indicators).toHaveLength(3);
 

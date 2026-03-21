@@ -14,11 +14,8 @@
  * - layout.generate_code: パターンからReact/Vue/HTMLコードを生成
  * - layout.batch_ingest: 複数URLを一括取得しレイアウト解析用データを準備
  */
-import { z } from 'zod';
-import {
-  moodFilterSchema,
-  brandToneFilterSchema,
-} from '../../schemas/mood-brandtone-filters';
+import { z } from "zod";
+import { moodFilterSchema, brandToneFilterSchema } from "../../schemas/mood-brandtone-filters";
 
 // ============================================================================
 // Enum Schemas
@@ -29,7 +26,7 @@ import {
  * - award_gallery: アワードサイトからの収集
  * - user_provided: ユーザーが提供
  */
-export const sourceTypeSchema = z.enum(['award_gallery', 'user_provided']);
+export const sourceTypeSchema = z.enum(["award_gallery", "user_provided"]);
 export type SourceType = z.infer<typeof sourceTypeSchema>;
 
 /**
@@ -37,7 +34,7 @@ export type SourceType = z.infer<typeof sourceTypeSchema>;
  * - inspiration_only: インスピレーションのみ（商用利用不可）
  * - owned_asset: 所有アセット（商用利用可）
  */
-export const usageScopeSchema = z.enum(['inspiration_only', 'owned_asset']);
+export const usageScopeSchema = z.enum(["inspiration_only", "owned_asset"]);
 export type UsageScope = z.infer<typeof usageScopeSchema>;
 
 /**
@@ -68,25 +65,25 @@ export type UsageScope = z.infer<typeof usageScopeSchema>;
  */
 export const sectionTypeForSearchSchema = z.enum([
   // 基本タイプ（10種）
-  'hero',
-  'feature',
-  'cta',
-  'testimonial',
-  'pricing',
-  'footer',
-  'navigation',
-  'about',
-  'contact',
-  'gallery',
+  "hero",
+  "feature",
+  "cta",
+  "testimonial",
+  "pricing",
+  "footer",
+  "navigation",
+  "about",
+  "contact",
+  "gallery",
   // 拡張タイプ（8種）
-  'partners',
-  'portfolio',
-  'team',
-  'stories',
-  'research',
-  'subscribe',
-  'stats',
-  'faq',
+  "partners",
+  "portfolio",
+  "team",
+  "stories",
+  "research",
+  "subscribe",
+  "stats",
+  "faq",
 ]);
 export type SectionTypeForSearch = z.infer<typeof sectionTypeForSearchSchema>;
 
@@ -94,19 +91,19 @@ export type SectionTypeForSearch = z.infer<typeof sectionTypeForSearchSchema>;
  * フレームワーク
  * コード生成時のターゲットフレームワーク
  */
-export const frameworkSchema = z.enum(['react', 'vue', 'html']);
+export const frameworkSchema = z.enum(["react", "vue", "html"]);
 export type Framework = z.infer<typeof frameworkSchema>;
 
 /**
  * ソート対象フィールド
  */
-export const sortBySchema = z.enum(['createdAt', 'usageCount', 'quality']);
+export const sortBySchema = z.enum(["createdAt", "usageCount", "quality"]);
 export type SortBy = z.infer<typeof sortBySchema>;
 
 /**
  * ソート順序
  */
-export const sortOrderSchema = z.enum(['asc', 'desc']);
+export const sortOrderSchema = z.enum(["asc", "desc"]);
 export type SortOrder = z.infer<typeof sortOrderSchema>;
 
 // ============================================================================
@@ -122,14 +119,14 @@ export type SortOrder = z.infer<typeof sortOrderSchema>;
 export const viewportSchema = z.object({
   width: z
     .number()
-    .int({ message: 'widthは整数である必要があります' })
-    .min(320, { message: 'widthは320以上4096以下である必要があります' })
-    .max(4096, { message: 'widthは320以上4096以下である必要があります' }),
+    .int({ message: "widthは整数である必要があります" })
+    .min(320, { message: "widthは320以上4096以下である必要があります" })
+    .max(4096, { message: "widthは320以上4096以下である必要があります" }),
   height: z
     .number()
-    .int({ message: 'heightは整数である必要があります' })
-    .min(240, { message: 'heightは240以上16384以下である必要があります' })
-    .max(16384, { message: 'heightは240以上16384以下である必要があります' }),
+    .int({ message: "heightは整数である必要があります" })
+    .min(240, { message: "heightは240以上16384以下である必要があります" })
+    .max(16384, { message: "heightは240以上16384以下である必要があります" }),
 });
 export type Viewport = z.infer<typeof viewportSchema>;
 
@@ -148,18 +145,18 @@ export type Viewport = z.infer<typeof viewportSchema>;
 export const responsiveViewportSchema = z.object({
   name: z
     .string()
-    .min(1, { message: 'nameは1文字以上必要です' })
-    .max(50, { message: 'nameは50文字以下にしてください' }),
+    .min(1, { message: "nameは1文字以上必要です" })
+    .max(50, { message: "nameは50文字以下にしてください" }),
   width: z
     .number()
-    .int({ message: 'widthは整数である必要があります' })
-    .min(320, { message: 'widthは320以上4096以下である必要があります' })
-    .max(4096, { message: 'widthは320以上4096以下である必要があります' }),
+    .int({ message: "widthは整数である必要があります" })
+    .min(320, { message: "widthは320以上4096以下である必要があります" })
+    .max(4096, { message: "widthは320以上4096以下である必要があります" }),
   height: z
     .number()
-    .int({ message: 'heightは整数である必要があります' })
-    .min(240, { message: 'heightは240以上16384以下である必要があります' })
-    .max(16384, { message: 'heightは240以上16384以下である必要があります' }),
+    .int({ message: "heightは整数である必要があります" })
+    .min(240, { message: "heightは240以上16384以下である必要があります" })
+    .max(16384, { message: "heightは240以上16384以下である必要があります" }),
 });
 export type ResponsiveViewport = z.infer<typeof responsiveViewportSchema>;
 
@@ -170,9 +167,9 @@ export type ResponsiveViewport = z.infer<typeof responsiveViewportSchema>;
  * - mobile: 375x667 (iPhone SE)
  */
 export const DEFAULT_VIEWPORTS: ResponsiveViewport[] = [
-  { name: 'desktop', width: 1920, height: 1080 },
-  { name: 'tablet', width: 768, height: 1024 },
-  { name: 'mobile', width: 375, height: 667 },
+  { name: "desktop", width: 1920, height: 1080 },
+  { name: "tablet", width: 768, height: 1024 },
+  { name: "mobile", width: 375, height: 667 },
 ];
 
 /**
@@ -180,13 +177,13 @@ export const DEFAULT_VIEWPORTS: ResponsiveViewport[] = [
  * レスポンシブデザインでのナビゲーション表示パターン
  */
 export const navigationTypeSchema = z.enum([
-  'horizontal-menu',   // 水平メニュー（デスクトップ向け）
-  'hamburger-menu',    // ハンバーガーメニュー（モバイル向け）
-  'drawer',            // ドロワーメニュー
-  'bottom-nav',        // ボトムナビゲーション
-  'tab-bar',           // タブバー
-  'hidden',            // 非表示
-  'other',             // その他
+  "horizontal-menu", // 水平メニュー（デスクトップ向け）
+  "hamburger-menu", // ハンバーガーメニュー（モバイル向け）
+  "drawer", // ドロワーメニュー
+  "bottom-nav", // ボトムナビゲーション
+  "tab-bar", // タブバー
+  "hidden", // 非表示
+  "other", // その他
 ]);
 export type NavigationType = z.infer<typeof navigationTypeSchema>;
 
@@ -213,13 +210,13 @@ export const responsiveDifferenceSchema = z.object({
   element: z.string(),
   description: z.string().optional(),
   category: z.enum([
-    'visibility',       // 表示/非表示の変化
-    'layout',           // レイアウト構造の変化
-    'navigation',       // ナビゲーションパターンの変化
-    'typography',       // タイポグラフィの変化
-    'spacing',          // 間隔の変化
-    'order',            // 要素順序の変化
-    'other',            // その他
+    "visibility", // 表示/非表示の変化
+    "layout", // レイアウト構造の変化
+    "navigation", // ナビゲーションパターンの変化
+    "typography", // タイポグラフィの変化
+    "spacing", // 間隔の変化
+    "order", // 要素順序の変化
+    "other", // その他
   ]),
   desktop: z.record(z.unknown()).optional(),
   tablet: z.record(z.unknown()).optional(),
@@ -234,12 +231,14 @@ export const viewportScreenshotSchema = z.object({
   name: z.string(),
   width: z.number().int().positive(),
   height: z.number().int().positive(),
-  screenshot: z.object({
-    base64: z.string(),
-    format: z.enum(['png', 'jpeg']),
-    width: z.number().int().positive(),
-    height: z.number().int().positive(),
-  }).optional(),
+  screenshot: z
+    .object({
+      base64: z.string(),
+      format: z.enum(["png", "jpeg"]),
+      width: z.number().int().positive(),
+      height: z.number().int().positive(),
+    })
+    .optional(),
 });
 export type ViewportScreenshot = z.infer<typeof viewportScreenshotSchema>;
 
@@ -277,8 +276,8 @@ export const responsiveAnalysisOptionsSchema = z.object({
   enabled: z.boolean().optional().default(false),
   viewports: z
     .array(responsiveViewportSchema)
-    .min(1, { message: 'viewportsは1つ以上指定してください' })
-    .max(10, { message: 'viewportsは10個以下にしてください' })
+    .min(1, { message: "viewportsは1つ以上指定してください" })
+    .max(10, { message: "viewportsは10個以下にしてください" })
     .optional(),
   include_screenshots: z.boolean().optional().default(true),
   /** ビューポート差分画像を結果に含めるか（デフォルトfalse） */
@@ -317,34 +316,31 @@ export const layoutIngestOptionsSchema = z.object({
   full_page: z.boolean().optional().default(true),
   viewport: viewportSchema.optional(),
   wait_for_selector: z.string().optional(),
-  wait_until: z
-    .enum(['load', 'domcontentloaded', 'networkidle'])
-    .optional()
-    .default('load'),
+  wait_until: z.enum(["load", "domcontentloaded", "networkidle"]).optional().default("load"),
   /** DOM安定化待機（React/Vue/Next.js対応、デフォルトtrue） */
   wait_for_dom_stable: z.boolean().optional().default(true),
   /** DOM安定化判定の無変更時間（ms）（デフォルト500） */
   dom_stable_timeout: z
     .number()
-    .int({ message: 'dom_stable_timeoutは整数である必要があります' })
-    .min(100, { message: 'dom_stable_timeoutは100以上5000以下である必要があります' })
-    .max(5000, { message: 'dom_stable_timeoutは100以上5000以下である必要があります' })
+    .int({ message: "dom_stable_timeoutは整数である必要があります" })
+    .min(100, { message: "dom_stable_timeoutは100以上5000以下である必要があります" })
+    .max(5000, { message: "dom_stable_timeoutは100以上5000以下である必要があります" })
     .optional()
     .default(500),
   /** ローディング完了後の追加待機時間（ms）（0-30000） */
   wait_for_timeout: z
     .number()
-    .int({ message: 'wait_for_timeoutは整数である必要があります' })
-    .min(0, { message: 'wait_for_timeoutは0以上30000以下である必要があります' })
-    .max(30000, { message: 'wait_for_timeoutは0以上30000以下である必要があります' })
+    .int({ message: "wait_for_timeoutは整数である必要があります" })
+    .min(0, { message: "wait_for_timeoutは0以上30000以下である必要があります" })
+    .max(30000, { message: "wait_for_timeoutは0以上30000以下である必要があります" })
     .optional(),
   /** 非表示待機セレクター（ローディング要素など） */
   wait_for_selector_hidden: z.string().optional(),
   timeout: z
     .number()
-    .int({ message: 'timeoutは整数である必要があります' })
-    .min(1000, { message: 'timeoutは1000以上120000以下である必要があります' })
-    .max(120000, { message: 'timeoutは1000以上120000以下である必要があります' })
+    .int({ message: "timeoutは整数である必要があります" })
+    .min(1000, { message: "timeoutは1000以上120000以下である必要があります" })
+    .max(120000, { message: "timeoutは1000以上120000以下である必要があります" })
     .optional()
     .default(30000),
   disable_javascript: z.boolean().optional().default(false),
@@ -353,35 +349,35 @@ export const layoutIngestOptionsSchema = z.object({
   include_screenshot: z.boolean().optional().default(false),
   truncate_html_bytes: z
     .number()
-    .int({ message: 'truncate_html_bytesは整数である必要があります' })
-    .min(100, { message: 'truncate_html_bytesは100以上10000000以下である必要があります' })
-    .max(10000000, { message: 'truncate_html_bytesは100以上10000000以下である必要があります' })
+    .int({ message: "truncate_html_bytesは整数である必要があります" })
+    .min(100, { message: "truncate_html_bytesは100以上10000000以下である必要があります" })
+    .max(10000000, { message: "truncate_html_bytesは100以上10000000以下である必要があります" })
     .optional(),
-  screenshot_format: z.enum(['png', 'jpeg']).optional().default('png'),
+  screenshot_format: z.enum(["png", "jpeg"]).optional().default("png"),
   screenshot_quality: z
     .number()
-    .int({ message: 'screenshot_qualityは整数である必要があります' })
-    .min(1, { message: 'screenshot_qualityは1以上100以下である必要があります' })
-    .max(100, { message: 'screenshot_qualityは1以上100以下である必要があります' })
+    .int({ message: "screenshot_qualityは整数である必要があります" })
+    .min(1, { message: "screenshot_qualityは1以上100以下である必要があります" })
+    .max(100, { message: "screenshot_qualityは1以上100以下である必要があります" })
     .optional(),
   screenshot_max_width: z
     .number()
-    .int({ message: 'screenshot_max_widthは整数である必要があります' })
-    .min(1, { message: 'screenshot_max_widthは1以上16384以下である必要があります' })
-    .max(16384, { message: 'screenshot_max_widthは1以上16384以下である必要があります' })
+    .int({ message: "screenshot_max_widthは整数である必要があります" })
+    .min(1, { message: "screenshot_max_widthは1以上16384以下である必要があります" })
+    .max(16384, { message: "screenshot_max_widthは1以上16384以下である必要があります" })
     .optional(),
   screenshot_max_height: z
     .number()
-    .int({ message: 'screenshot_max_heightは整数である必要があります' })
-    .min(1, { message: 'screenshot_max_heightは1以上16384以下である必要があります' })
-    .max(16384, { message: 'screenshot_max_heightは1以上16384以下である必要があります' })
+    .int({ message: "screenshot_max_heightは整数である必要があります" })
+    .min(1, { message: "screenshot_max_heightは1以上16384以下である必要があります" })
+    .max(16384, { message: "screenshot_max_heightは1以上16384以下である必要があります" })
     .optional(),
   auto_optimize: z.boolean().optional().default(false),
   response_size_limit: z
     .number()
-    .int({ message: 'response_size_limitは整数である必要があります' })
-    .min(10000, { message: 'response_size_limitは10000以上50000000以下である必要があります' })
-    .max(50000000, { message: 'response_size_limitは10000以上50000000以下である必要があります' })
+    .int({ message: "response_size_limitは整数である必要があります" })
+    .min(10000, { message: "response_size_limitは10000以上50000000以下である必要があります" })
+    .max(50000000, { message: "response_size_limitは10000以上50000000以下である必要があります" })
     .optional(),
   // DB保存オプション（DB-first: デフォルトで保存）
   save_to_db: z.boolean().optional().default(true),
@@ -395,33 +391,33 @@ export const layoutIngestOptionsSchema = z.object({
   /** 外部CSS取得のタイムアウト（ミリ秒、デフォルト: 5000） */
   external_css_timeout: z
     .number()
-    .int({ message: 'external_css_timeoutは整数である必要があります' })
-    .min(1000, { message: 'external_css_timeoutは1000以上30000以下である必要があります' })
-    .max(30000, { message: 'external_css_timeoutは1000以上30000以下である必要があります' })
+    .int({ message: "external_css_timeoutは整数である必要があります" })
+    .min(1000, { message: "external_css_timeoutは1000以上30000以下である必要があります" })
+    .max(30000, { message: "external_css_timeoutは1000以上30000以下である必要があります" })
     .optional()
     .default(5000),
   /** 外部CSS1ファイルあたりの最大サイズ（バイト、デフォルト: 5MB） */
   external_css_max_size: z
     .number()
-    .int({ message: 'external_css_max_sizeは整数である必要があります' })
-    .min(1024, { message: 'external_css_max_sizeは1024以上10485760以下である必要があります' })
-    .max(10485760, { message: 'external_css_max_sizeは1024以上10485760以下である必要があります' })
+    .int({ message: "external_css_max_sizeは整数である必要があります" })
+    .min(1024, { message: "external_css_max_sizeは1024以上10485760以下である必要があります" })
+    .max(10485760, { message: "external_css_max_sizeは1024以上10485760以下である必要があります" })
     .optional()
     .default(5242880),
   /** 外部CSS取得の最大並列数（デフォルト: 5） */
   external_css_max_concurrent: z
     .number()
-    .int({ message: 'external_css_max_concurrentは整数である必要があります' })
-    .min(1, { message: 'external_css_max_concurrentは1以上10以下である必要があります' })
-    .max(10, { message: 'external_css_max_concurrentは1以上10以下である必要があります' })
+    .int({ message: "external_css_max_concurrentは整数である必要があります" })
+    .min(1, { message: "external_css_max_concurrentは1以上10以下である必要があります" })
+    .max(10, { message: "external_css_max_concurrentは1以上10以下である必要があります" })
     .optional()
     .default(5),
   /** 外部CSS取得の最大ファイル数（デフォルト: 20） */
   external_css_max_files: z
     .number()
-    .int({ message: 'external_css_max_filesは整数である必要があります' })
-    .min(1, { message: 'external_css_max_filesは1以上50以下である必要があります' })
-    .max(50, { message: 'external_css_max_filesは1以上50以下である必要があります' })
+    .int({ message: "external_css_max_filesは整数である必要があります" })
+    .min(1, { message: "external_css_max_filesは1以上50以下である必要があります" })
+    .max(50, { message: "external_css_max_filesは1以上50以下である必要があります" })
     .optional()
     .default(20),
   /**
@@ -455,9 +451,9 @@ export type LayoutIngestOptions = z.infer<typeof layoutIngestOptionsSchema>;
  * @property options - オプション設定（オプション）
  */
 export const layoutIngestInputSchema = z.object({
-  url: z.string().url({ message: '有効なURL形式を指定してください' }),
-  source_type: sourceTypeSchema.optional().default('user_provided'),
-  usage_scope: usageScopeSchema.optional().default('inspiration_only'),
+  url: z.string().url({ message: "有効なURL形式を指定してください" }),
+  source_type: sourceTypeSchema.optional().default("user_provided"),
+  usage_scope: usageScopeSchema.optional().default("inspiration_only"),
   options: layoutIngestOptionsSchema.optional(),
   /** robots.txtを尊重するかどうか（RFC 9309）。falseで無視 */
   respect_robots_txt: z.boolean().optional(),
@@ -469,7 +465,7 @@ export type LayoutIngestInput = z.infer<typeof layoutIngestInputSchema>;
  */
 export const screenshotInfoSchema = z.object({
   base64: z.string(),
-  format: z.enum(['png', 'jpeg']),
+  format: z.enum(["png", "jpeg"]),
   width: z.number().int().positive(),
   height: z.number().int().positive(),
 });
@@ -638,7 +634,7 @@ export const layoutIngestErrorOutputSchema = z.object({
 /**
  * layout.ingest 出力スキーマ（統合）
  */
-export const layoutIngestOutputSchema = z.discriminatedUnion('success', [
+export const layoutIngestOutputSchema = z.discriminatedUnion("success", [
   layoutIngestSuccessOutputSchema,
   layoutIngestErrorOutputSchema,
 ]);
@@ -690,11 +686,11 @@ export type LayoutInspectOptions = z.infer<typeof layoutInspectOptionsSchema>;
  */
 export const layoutInspectInputSchema = z
   .object({
-    id: z.string().uuid({ message: '有効なUUID形式のIDを指定してください' }).optional(),
+    id: z.string().uuid({ message: "有効なUUID形式のIDを指定してください" }).optional(),
     html: z
       .string()
-      .min(1, { message: 'HTMLコンテンツは1文字以上必要です' })
-      .max(10_000_000, { message: 'HTMLコンテンツは10MB以下にしてください' })
+      .min(1, { message: "HTMLコンテンツは1文字以上必要です" })
+      .max(10_000_000, { message: "HTMLコンテンツは10MB以下にしてください" })
       .optional(),
     options: layoutInspectOptionsSchema.optional(),
   })
@@ -706,7 +702,7 @@ export const layoutInspectInputSchema = z
       return (hasId || hasHtml) && !(hasId && hasHtml);
     },
     {
-      message: 'idまたはhtmlのいずれか一方のみを指定してください',
+      message: "idまたはhtmlのいずれか一方のみを指定してください",
     }
   );
 export type LayoutInspectInput = z.infer<typeof layoutInspectInputSchema>;
@@ -775,11 +771,11 @@ const hexColorPattern = /^#[0-9A-Fa-f]{6}$/;
  * @property minContrastRatio - 最小コントラスト比（1-21、WCAG基準）
  */
 export const visualFeaturesThemeFilterSchema = z.object({
-  type: z.enum(['light', 'dark', 'mixed']).optional(),
+  type: z.enum(["light", "dark", "mixed"]).optional(),
   minContrastRatio: z
     .number()
-    .min(1, { message: 'minContrastRatioは1以上21以下である必要があります' })
-    .max(21, { message: 'minContrastRatioは1以上21以下である必要があります' })
+    .min(1, { message: "minContrastRatioは1以上21以下である必要があります" })
+    .max(21, { message: "minContrastRatioは1以上21以下である必要があります" })
     .optional(),
 });
 export type VisualFeaturesThemeFilter = z.infer<typeof visualFeaturesThemeFilterSchema>;
@@ -795,13 +791,13 @@ export const visualFeaturesColorsFilterSchema = z.object({
   dominantColor: z
     .string()
     .regex(hexColorPattern, {
-      message: 'dominantColorは#RRGGBB形式である必要があります',
+      message: "dominantColorは#RRGGBB形式である必要があります",
     })
     .optional(),
   colorTolerance: z
     .number()
-    .min(0, { message: 'colorToleranceは0以上100以下である必要があります' })
-    .max(100, { message: 'colorToleranceは0以上100以下である必要があります' })
+    .min(0, { message: "colorToleranceは0以上100以下である必要があります" })
+    .max(100, { message: "colorToleranceは0以上100以下である必要があります" })
     .default(15)
     .optional(),
 });
@@ -818,18 +814,18 @@ export type VisualFeaturesColorsFilter = z.infer<typeof visualFeaturesColorsFilt
 export const visualFeaturesDensityFilterSchema = z.object({
   minContentDensity: z
     .number()
-    .min(0, { message: 'minContentDensityは0以上1以下である必要があります' })
-    .max(1, { message: 'minContentDensityは0以上1以下である必要があります' })
+    .min(0, { message: "minContentDensityは0以上1以下である必要があります" })
+    .max(1, { message: "minContentDensityは0以上1以下である必要があります" })
     .optional(),
   maxContentDensity: z
     .number()
-    .min(0, { message: 'maxContentDensityは0以上1以下である必要があります' })
-    .max(1, { message: 'maxContentDensityは0以上1以下である必要があります' })
+    .min(0, { message: "maxContentDensityは0以上1以下である必要があります" })
+    .max(1, { message: "maxContentDensityは0以上1以下である必要があります" })
     .optional(),
   minWhitespaceRatio: z
     .number()
-    .min(0, { message: 'minWhitespaceRatioは0以上1以下である必要があります' })
-    .max(1, { message: 'minWhitespaceRatioは0以上1以下である必要があります' })
+    .min(0, { message: "minWhitespaceRatioは0以上1以下である必要があります" })
+    .max(1, { message: "minWhitespaceRatioは0以上1以下である必要があります" })
     .optional(),
 });
 export type VisualFeaturesDensityFilter = z.infer<typeof visualFeaturesDensityFilterSchema>;
@@ -881,13 +877,10 @@ export type LayoutSearchFilters = z.infer<typeof layoutSearchFiltersSchema>;
  */
 export const projectContextOptionsSchema = z.object({
   enabled: z.boolean().optional().default(true),
-  project_path: z
-    .string()
-    .min(1, { message: 'project_pathは空文字列にできません' })
-    .optional(),
+  project_path: z.string().min(1, { message: "project_pathは空文字列にできません" }).optional(),
   design_tokens_path: z
     .string()
-    .min(1, { message: 'design_tokens_pathは空文字列にできません' })
+    .min(1, { message: "design_tokens_pathは空文字列にできません" })
     .optional(),
 });
 export type ProjectContextOptions = z.infer<typeof projectContextOptionsSchema>;
@@ -919,7 +912,7 @@ export type IntegrationHints = z.infer<typeof integrationHintsSchema>;
  * - vision_only: vision_embeddingのみを使用
  * - combined: 両方を使用してRRF統合
  */
-export const searchModeSchema = z.enum(['text_only', 'vision_only', 'combined']);
+export const searchModeSchema = z.enum(["text_only", "vision_only", "combined"]);
 export type SearchMode = z.infer<typeof searchModeSchema>;
 
 /**
@@ -933,21 +926,21 @@ export type SearchMode = z.infer<typeof searchModeSchema>;
 export const multimodalOptionsSchema = z.object({
   textWeight: z
     .number()
-    .min(0, { message: 'textWeightは0以上1以下である必要があります' })
-    .max(1, { message: 'textWeightは0以上1以下である必要があります' })
+    .min(0, { message: "textWeightは0以上1以下である必要があります" })
+    .max(1, { message: "textWeightは0以上1以下である必要があります" })
     .optional()
     .default(0.6),
   visionWeight: z
     .number()
-    .min(0, { message: 'visionWeightは0以上1以下である必要があります' })
-    .max(1, { message: 'visionWeightは0以上1以下である必要があります' })
+    .min(0, { message: "visionWeightは0以上1以下である必要があります" })
+    .max(1, { message: "visionWeightは0以上1以下である必要があります" })
     .optional()
     .default(0.4),
   rrfK: z
     .number()
-    .int({ message: 'rrfKは整数である必要があります' })
-    .min(1, { message: 'rrfKは1以上100以下である必要があります' })
-    .max(100, { message: 'rrfKは1以上100以下である必要があります' })
+    .int({ message: "rrfKは整数である必要があります" })
+    .min(1, { message: "rrfKは1以上100以下である必要があります" })
+    .max(100, { message: "rrfKは1以上100以下である必要があります" })
     .optional()
     .default(60),
 });
@@ -989,13 +982,13 @@ export type VisionSearchVisualFeatures = z.infer<typeof visionSearchVisualFeatur
 export const visionSearchQuerySchema = z.object({
   textQuery: z
     .string()
-    .min(1, { message: 'textQueryは1文字以上必要です' })
-    .max(500, { message: 'textQueryは500文字以下にしてください' })
+    .min(1, { message: "textQueryは1文字以上必要です" })
+    .max(500, { message: "textQueryは500文字以下にしてください" })
     .optional(),
   visualFeatures: visionSearchVisualFeaturesSchema.optional(),
   sectionPatternId: z
     .string()
-    .uuid({ message: '有効なUUID形式のsectionPatternIdを指定してください' })
+    .uuid({ message: "有効なUUID形式のsectionPatternIdを指定してください" })
     .optional(),
 });
 export type VisionSearchQuery = z.infer<typeof visionSearchQuerySchema>;
@@ -1010,20 +1003,20 @@ export type VisionSearchQuery = z.infer<typeof visionSearchQuerySchema>;
 export const visionSearchOptionsSchema = z.object({
   minSimilarity: z
     .number()
-    .min(0, { message: 'minSimilarityは0以上1以下である必要があります' })
-    .max(1, { message: 'minSimilarityは0以上1以下である必要があります' })
+    .min(0, { message: "minSimilarityは0以上1以下である必要があります" })
+    .max(1, { message: "minSimilarityは0以上1以下である必要があります" })
     .optional()
     .default(0.5),
   visionWeight: z
     .number()
-    .min(0, { message: 'visionWeightは0以上1以下である必要があります' })
-    .max(1, { message: 'visionWeightは0以上1以下である必要があります' })
+    .min(0, { message: "visionWeightは0以上1以下である必要があります" })
+    .max(1, { message: "visionWeightは0以上1以下である必要があります" })
     .optional()
     .default(0.6),
   textWeight: z
     .number()
-    .min(0, { message: 'textWeightは0以上1以下である必要があります' })
-    .max(1, { message: 'textWeightは0以上1以下である必要があります' })
+    .min(0, { message: "textWeightは0以上1以下である必要があります" })
+    .max(1, { message: "textWeightは0以上1以下である必要があります" })
     .optional()
     .default(0.4),
 });
@@ -1052,20 +1045,20 @@ export type VisionSearchOptions = z.infer<typeof visionSearchOptionsSchema>;
 export const layoutSearchInputSchema = z.object({
   query: z
     .string()
-    .min(1, { message: 'クエリは1文字以上必要です' })
-    .max(500, { message: 'クエリは500文字以下にしてください' }),
+    .min(1, { message: "クエリは1文字以上必要です" })
+    .max(500, { message: "クエリは500文字以下にしてください" }),
   filters: layoutSearchFiltersSchema.optional(),
   limit: z
     .number()
-    .int({ message: 'limitは整数である必要があります' })
-    .min(1, { message: 'limitは1以上50以下である必要があります' })
-    .max(50, { message: 'limitは1以上50以下である必要があります' })
+    .int({ message: "limitは整数である必要があります" })
+    .min(1, { message: "limitは1以上50以下である必要があります" })
+    .max(50, { message: "limitは1以上50以下である必要があります" })
     .optional()
     .default(10),
   offset: z
     .number()
-    .int({ message: 'offsetは整数である必要があります' })
-    .min(0, { message: 'offsetは0以上である必要があります' })
+    .int({ message: "offsetは整数である必要があります" })
+    .min(0, { message: "offsetは0以上である必要があります" })
     .optional()
     .default(0),
   // MCP-RESP-03: snake_case正式形式（新規オプション推奨形式）
@@ -1077,9 +1070,9 @@ export const layoutSearchInputSchema = z.object({
   include_preview: z.boolean().optional().default(true),
   preview_max_length: z
     .number()
-    .int({ message: 'preview_max_lengthは整数である必要があります' })
-    .min(100, { message: 'preview_max_lengthは100以上1000以下である必要があります' })
-    .max(1000, { message: 'preview_max_lengthは100以上1000以下である必要があります' })
+    .int({ message: "preview_max_lengthは整数である必要があります" })
+    .min(100, { message: "preview_max_lengthは100以上1000以下である必要があります" })
+    .max(1000, { message: "preview_max_lengthは100以上1000以下である必要があります" })
     .optional()
     .default(500),
   project_context: projectContextOptionsSchema.optional(),
@@ -1102,7 +1095,7 @@ export const layoutSearchInputSchema = z.object({
    * - combined: 両方を使用してRRF統合
    * @default 'text_only'
    */
-  search_mode: searchModeSchema.optional().default('text_only'),
+  search_mode: searchModeSchema.optional().default("text_only"),
   /**
    * マルチモーダルオプション
    * search_mode='combined'時のRRF統合パラメータ
@@ -1177,14 +1170,18 @@ export const layoutSearchResultItemSchema = z.object({
   previewLength: z.number().int().nonnegative().optional(), // htmlPreviewの元の文字数
   visionAnalysis: visionAnalysisSchema.optional(), // Vision分析結果
   // Mood/BrandTone search results (optional, when mood/brandTone filters applied)
-  moodInfo: z.object({
-    primary: z.string(),
-    secondary: z.string().optional(),
-  }).optional(),
-  brandToneInfo: z.object({
-    primary: z.string(),
-    secondary: z.string().optional(),
-  }).optional(),
+  moodInfo: z
+    .object({
+      primary: z.string(),
+      secondary: z.string().optional(),
+    })
+    .optional(),
+  brandToneInfo: z
+    .object({
+      primary: z.string(),
+      secondary: z.string().optional(),
+    })
+    .optional(),
   // Project Context Adaptation fields (optional, when project_context.enabled=true)
   adaptability_score: z.number().int().min(0).max(100).optional(), // 0-100
   integration_hints: integrationHintsSchema.optional(),
@@ -1306,7 +1303,7 @@ export const layoutSearchErrorOutputSchema = z.object({
 /**
  * layout.search 出力スキーマ（統合）
  */
-export const layoutSearchOutputSchema = z.discriminatedUnion('success', [
+export const layoutSearchOutputSchema = z.discriminatedUnion("success", [
   layoutSearchSuccessOutputSchema,
   layoutSearchErrorOutputSchema,
 ]);
@@ -1327,18 +1324,15 @@ export type LayoutSearchOutput = z.infer<typeof layoutSearchOutputSchema>;
  * @property splitComponents - HTMLを意味のあるサブコンポーネントに分割するか（デフォルトfalse）
  */
 export const layoutToCodeOptionsSchema = z.object({
-  framework: frameworkSchema.optional().default('react'),
+  framework: frameworkSchema.optional().default("react"),
   typescript: z.boolean().optional().default(true),
   tailwind: z.boolean().optional().default(true),
-  paletteId: z
-    .string()
-    .uuid({ message: '有効なUUID形式のpaletteIdを指定してください' })
-    .optional(),
+  paletteId: z.string().uuid({ message: "有効なUUID形式のpaletteIdを指定してください" }).optional(),
   componentName: z
     .string()
-    .min(1, { message: 'コンポーネント名は1文字以上必要です' })
+    .min(1, { message: "コンポーネント名は1文字以上必要です" })
     .regex(/^[A-Z][a-zA-Z0-9]*$/, {
-      message: 'コンポーネント名はPascalCase形式である必要があります',
+      message: "コンポーネント名はPascalCase形式である必要があります",
     })
     .optional(),
   splitComponents: z.boolean().optional().default(false),
@@ -1359,7 +1353,7 @@ export type LayoutToCodeOptions = z.infer<typeof layoutToCodeOptionsSchema>;
  * @property options - オプション設定（オプション）
  */
 export const layoutToCodeInputSchema = z.object({
-  patternId: z.string().uuid({ message: '有効なUUID形式のpatternIdを指定してください' }),
+  patternId: z.string().uuid({ message: "有効なUUID形式のpatternIdを指定してください" }),
   options: layoutToCodeOptionsSchema.optional(),
 });
 export type LayoutToCodeInput = z.infer<typeof layoutToCodeInputSchema>;
@@ -1407,7 +1401,7 @@ export const layoutToCodeErrorOutputSchema = z.object({
 /**
  * layout.generate_code 出力スキーマ（統合）
  */
-export const layoutToCodeOutputSchema = z.discriminatedUnion('success', [
+export const layoutToCodeOutputSchema = z.discriminatedUnion("success", [
   layoutToCodeSuccessOutputSchema,
   layoutToCodeErrorOutputSchema,
 ]);
@@ -1436,19 +1430,19 @@ export const layoutPatternsInputSchema = z.object({
   sectionType: sectionTypeForSearchSchema.optional(),
   limit: z
     .number()
-    .int({ message: 'limitは整数である必要があります' })
-    .min(1, { message: 'limitは1以上100以下である必要があります' })
-    .max(100, { message: 'limitは1以上100以下である必要があります' })
+    .int({ message: "limitは整数である必要があります" })
+    .min(1, { message: "limitは1以上100以下である必要があります" })
+    .max(100, { message: "limitは1以上100以下である必要があります" })
     .optional()
     .default(20),
   offset: z
     .number()
-    .int({ message: 'offsetは整数である必要があります' })
-    .min(0, { message: 'offsetは0以上である必要があります' })
+    .int({ message: "offsetは整数である必要があります" })
+    .min(0, { message: "offsetは0以上である必要があります" })
     .optional()
     .default(0),
-  sortBy: sortBySchema.optional().default('createdAt'),
-  sortOrder: sortOrderSchema.optional().default('desc'),
+  sortBy: sortBySchema.optional().default("createdAt"),
+  sortOrder: sortOrderSchema.optional().default("desc"),
 });
 export type LayoutPatternsInput = z.infer<typeof layoutPatternsInputSchema>;
 
@@ -1492,15 +1486,12 @@ export type LayoutPatternsOutput = z.infer<typeof layoutPatternsOutputSchema>;
 export const layoutBatchIngestOptionsSchema = z.object({
   concurrency: z
     .number()
-    .int({ message: 'concurrencyは整数である必要があります' })
-    .min(1, { message: 'concurrencyは1以上10以下である必要があります' })
-    .max(10, { message: 'concurrencyは1以上10以下である必要があります' })
+    .int({ message: "concurrencyは整数である必要があります" })
+    .min(1, { message: "concurrencyは1以上10以下である必要があります" })
+    .max(10, { message: "concurrencyは1以上10以下である必要があります" })
     .optional()
     .default(5),
-  on_error: z
-    .enum(['skip', 'abort'])
-    .optional()
-    .default('skip'),
+  on_error: z.enum(["skip", "abort"]).optional().default("skip"),
   save_to_db: z.boolean().optional().default(true),
   auto_analyze: z.boolean().optional().default(true),
 });
@@ -1514,9 +1505,9 @@ export type LayoutBatchIngestOptions = z.infer<typeof layoutBatchIngestOptionsSc
  */
 export const layoutBatchIngestInputSchema = z.object({
   urls: z
-    .array(z.string().url({ message: '有効なURL形式を指定してください' }))
-    .min(1, { message: 'URLは1件以上100件以下で指定してください' })
-    .max(100, { message: 'URLは1件以上100件以下で指定してください' }),
+    .array(z.string().url({ message: "有効なURL形式を指定してください" }))
+    .min(1, { message: "URLは1件以上100件以下で指定してください" })
+    .max(100, { message: "URLは1件以上100件以下で指定してください" }),
   options: layoutBatchIngestOptionsSchema.optional(),
   /** robots.txtを尊重するかどうか（RFC 9309）。falseで無視 */
   respect_robots_txt: z.boolean().optional(),
@@ -1528,7 +1519,7 @@ export type LayoutBatchIngestInput = z.infer<typeof layoutBatchIngestInputSchema
  */
 export const batchIngestResultItemSchema = z.object({
   url: z.string().url(),
-  status: z.enum(['success', 'failed']),
+  status: z.enum(["success", "failed"]),
   page_id: z.string().uuid().optional(),
   error: z.string().optional(),
   patterns_extracted: z.number().int().nonnegative().optional(),
@@ -1587,7 +1578,7 @@ export const layoutBatchIngestErrorOutputSchema = z.object({
 /**
  * layout.batch_ingest 出力スキーマ（統合）
  */
-export const layoutBatchIngestOutputSchema = z.discriminatedUnion('success', [
+export const layoutBatchIngestOutputSchema = z.discriminatedUnion("success", [
   layoutBatchIngestSuccessOutputSchema,
   layoutBatchIngestErrorOutputSchema,
 ]);
@@ -1602,42 +1593,43 @@ export type LayoutBatchIngestOutput = z.infer<typeof layoutBatchIngestOutputSche
  */
 export const LAYOUT_MCP_ERROR_CODES = {
   /** レイアウトが見つからない */
-  LAYOUT_NOT_FOUND: 'LAYOUT_NOT_FOUND',
+  LAYOUT_NOT_FOUND: "LAYOUT_NOT_FOUND",
   /** インジェスト失敗 */
-  INGEST_FAILED: 'INGEST_FAILED',
+  INGEST_FAILED: "INGEST_FAILED",
   /** 検査失敗 */
-  INSPECT_FAILED: 'INSPECT_FAILED',
+  INSPECT_FAILED: "INSPECT_FAILED",
   /** 検索失敗 */
-  SEARCH_FAILED: 'SEARCH_FAILED',
+  SEARCH_FAILED: "SEARCH_FAILED",
   /** コード生成失敗 */
-  CODE_GENERATION_FAILED: 'CODE_GENERATION_FAILED',
+  CODE_GENERATION_FAILED: "CODE_GENERATION_FAILED",
   /** バリデーションエラー */
-  VALIDATION_ERROR: 'VALIDATION_ERROR',
+  VALIDATION_ERROR: "VALIDATION_ERROR",
   /** タイムアウト */
-  TIMEOUT: 'TIMEOUT',
+  TIMEOUT: "TIMEOUT",
   /** HTMLサイズ超過 */
-  HTML_TOO_LARGE: 'HTML_TOO_LARGE',
+  HTML_TOO_LARGE: "HTML_TOO_LARGE",
   /** パターンが見つからない */
-  PATTERN_NOT_FOUND: 'PATTERN_NOT_FOUND',
+  PATTERN_NOT_FOUND: "PATTERN_NOT_FOUND",
   /** SSRF対策によりブロック */
-  SSRF_BLOCKED: 'SSRF_BLOCKED',
+  SSRF_BLOCKED: "SSRF_BLOCKED",
   /** タイムアウトエラー */
-  TIMEOUT_ERROR: 'TIMEOUT_ERROR',
+  TIMEOUT_ERROR: "TIMEOUT_ERROR",
   /** ネットワークエラー */
-  NETWORK_ERROR: 'NETWORK_ERROR',
+  NETWORK_ERROR: "NETWORK_ERROR",
   /** ブラウザエラー */
-  BROWSER_ERROR: 'BROWSER_ERROR',
+  BROWSER_ERROR: "BROWSER_ERROR",
   /** 内部エラー */
-  INTERNAL_ERROR: 'INTERNAL_ERROR',
+  INTERNAL_ERROR: "INTERNAL_ERROR",
   /** HTTPエラー */
-  HTTP_ERROR: 'HTTP_ERROR',
+  HTTP_ERROR: "HTTP_ERROR",
   /** DB保存失敗 */
-  DB_SAVE_FAILED: 'DB_SAVE_FAILED',
+  DB_SAVE_FAILED: "DB_SAVE_FAILED",
   /** バッチ処理中止 */
-  BATCH_ABORTED: 'BATCH_ABORTED',
+  BATCH_ABORTED: "BATCH_ABORTED",
 } as const;
 
-export type LayoutMcpErrorCode = (typeof LAYOUT_MCP_ERROR_CODES)[keyof typeof LAYOUT_MCP_ERROR_CODES];
+export type LayoutMcpErrorCode =
+  (typeof LAYOUT_MCP_ERROR_CODES)[keyof typeof LAYOUT_MCP_ERROR_CODES];
 
 // ============================================================================
 // MCP Tool Definitions
@@ -1648,29 +1640,29 @@ export type LayoutMcpErrorCode = (typeof LAYOUT_MCP_ERROR_CODES)[keyof typeof LA
  * MCPプロトコル準拠のツール定義
  */
 export const layoutMcpTools = {
-  'layout.ingest': {
-    name: 'layout.ingest',
-    description: 'URLからWebページを取得し、レイアウト解析用データを準備します',
+  "layout.ingest": {
+    name: "layout.ingest",
+    description: "URLからWebページを取得し、レイアウト解析用データを準備します",
     inputSchema: layoutIngestInputSchema,
   },
-  'layout.inspect': {
-    name: 'layout.inspect',
-    description: 'HTMLを解析し、セクション・グリッド・タイポグラフィを抽出します',
+  "layout.inspect": {
+    name: "layout.inspect",
+    description: "HTMLを解析し、セクション・グリッド・タイポグラフィを抽出します",
     inputSchema: layoutInspectInputSchema,
   },
-  'layout.search': {
-    name: 'layout.search',
-    description: 'レイアウトパターンをセマンティック検索します',
+  "layout.search": {
+    name: "layout.search",
+    description: "レイアウトパターンをセマンティック検索します",
     inputSchema: layoutSearchInputSchema,
   },
-  'layout.generate_code': {
-    name: 'layout.generate_code',
-    description: 'パターンからReact/Vue/HTMLコードを生成します',
+  "layout.generate_code": {
+    name: "layout.generate_code",
+    description: "パターンからReact/Vue/HTMLコードを生成します",
     inputSchema: layoutToCodeInputSchema,
   },
-  'layout.batch_ingest': {
-    name: 'layout.batch_ingest',
-    description: '複数URLを一括取得しレイアウト解析用データを準備します',
+  "layout.batch_ingest": {
+    name: "layout.batch_ingest",
+    description: "複数URLを一括取得しレイアウト解析用データを準備します",
     inputSchema: layoutBatchIngestInputSchema,
   },
 } as const;

@@ -12,8 +12,8 @@
  * @module services/vision/vram-utils
  */
 
-import { execFile } from 'child_process';
-import { promisify } from 'util';
+import { execFile } from "child_process";
+import { promisify } from "util";
 
 const execFileAsync = promisify(execFile);
 
@@ -43,19 +43,23 @@ export interface VramInfo {
  */
 export async function queryVram(): Promise<VramInfo | null> {
   try {
-    const { stdout } = await execFileAsync('nvidia-smi', [
-      '--query-gpu=memory.used,memory.total,memory.free,utilization.gpu',
-      '--format=csv,noheader,nounits',
-    ], {
-      timeout: NVIDIA_SMI_TIMEOUT_MS,
-    });
+    const { stdout } = await execFileAsync(
+      "nvidia-smi",
+      [
+        "--query-gpu=memory.used,memory.total,memory.free,utilization.gpu",
+        "--format=csv,noheader,nounits",
+      ],
+      {
+        timeout: NVIDIA_SMI_TIMEOUT_MS,
+      }
+    );
 
-    const line = stdout.trim().split('\n')[0];
+    const line = stdout.trim().split("\n")[0];
     if (!line) {
       return null;
     }
 
-    const parts = line.split(',').map((s) => s.trim());
+    const parts = line.split(",").map((s) => s.trim());
     if (parts.length < 4) {
       return null;
     }

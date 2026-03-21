@@ -15,9 +15,9 @@
  * @module tools/layout/search.tool
  */
 
-import { ZodError } from 'zod';
-import { logger, isDevelopment } from '../../utils/logger';
-import { sanitizeHtml } from '../../utils/html-sanitizer';
+import { ZodError } from "zod";
+import { logger, isDevelopment } from "../../utils/logger";
+import { sanitizeHtml } from "../../utils/html-sanitizer";
 import {
   layoutSearchInputSchema,
   LAYOUT_MCP_ERROR_CODES,
@@ -28,32 +28,27 @@ import {
   type ProjectContextOptions,
   type IntegrationHints,
   type InferredContextOutput,
-} from './schemas';
+} from "./schemas";
 import {
   getQueryContextAnalyzer,
   calculateContextBoost,
   type InferredContext,
-} from '../../services/query-context-analyzer';
-import { applyPreferenceReranking } from '../../services/preference-rerank.helper';
-import type { IPrismaClient } from '../../services/preference-profile.service';
+} from "../../services/query-context-analyzer";
+import { applyPreferenceReranking } from "../../services/preference-rerank.helper";
+import type { IPrismaClient } from "../../services/preference-profile.service";
 import {
   ProjectContextAnalyzer,
   type ProjectPatterns,
-} from '../../services/project-context-analyzer';
+} from "../../services/project-context-analyzer";
 import type {
   VisionSearchQuery as VisionSearchQueryService,
   VisionSearchOptions as VisionSearchOptionsService,
   HybridSearchOptions,
   VisionSearchResult,
   VisionSearchServiceResult,
-} from '../../services/vision-embedding-search.service';
-import type {
-  MoodBrandToneSearchService,
-} from '../../services/search/mood-brandtone-search.service';
-import type {
-  Mood,
-  BrandTone,
-} from '../../schemas/mood-brandtone-filters';
+} from "../../services/vision-embedding-search.service";
+import type { MoodBrandToneSearchService } from "../../services/search/mood-brandtone-search.service";
+import type { Mood, BrandTone } from "../../schemas/mood-brandtone-filters";
 
 // =====================================================
 // 型定義
@@ -102,7 +97,7 @@ export interface VisionAnalysisResult {
  * VisualFeatures テーマ情報
  */
 export interface VisualFeaturesTheme {
-  type: 'light' | 'dark' | 'mixed';
+  type: "light" | "dark" | "mixed";
   backgroundColor?: string;
   textColor?: string;
   contrastRatio?: number;
@@ -266,9 +261,7 @@ function getProjectContextAnalyzer(): ProjectContextAnalyzer {
 /**
  * サービスファクトリーを設定
  */
-export function setLayoutSearchServiceFactory(
-  factory: () => ILayoutSearchService
-): void {
+export function setLayoutSearchServiceFactory(factory: () => ILayoutSearchService): void {
   serviceFactory = factory;
 }
 
@@ -283,9 +276,7 @@ export function resetLayoutSearchServiceFactory(): void {
  * VisionSearchサービスファクトリーを設定
  * Phase 4-2: visionEmbeddingベースの検索
  */
-export function setVisionSearchServiceFactory(
-  factory: () => IVisionSearchService
-): void {
+export function setVisionSearchServiceFactory(factory: () => IVisionSearchService): void {
   visionSearchServiceFactory = factory;
 }
 
@@ -338,9 +329,7 @@ let prismaClientFactory: (() => IPrismaClient) | null = null;
  * PrismaClientファクトリーを設定（嗜好リランキング用）
  * Set PrismaClient factory (for preference reranking)
  */
-export function setLayoutSearchPrismaClientFactory(
-  factory: () => IPrismaClient
-): void {
+export function setLayoutSearchPrismaClientFactory(factory: () => IPrismaClient): void {
   prismaClientFactory = factory;
 }
 
@@ -367,13 +356,13 @@ export function resetLayoutSearchPrismaClientFactory(): void {
  */
 export function preprocessQuery(query: string): string {
   // 1. 全角スペースを半角に変換
-  let normalized = query.replace(/\u3000/g, ' ');
+  let normalized = query.replace(/\u3000/g, " ");
 
   // 2. 改行・タブを空白に変換
-  normalized = normalized.replace(/[\n\t\r]/g, ' ');
+  normalized = normalized.replace(/[\n\t\r]/g, " ");
 
   // 3. 連続する空白を1つに正規化
-  normalized = normalized.replace(/\s+/g, ' ');
+  normalized = normalized.replace(/\s+/g, " ");
 
   // 4. 前後の空白を除去
   normalized = normalized.trim();
@@ -390,29 +379,29 @@ export function preprocessQuery(query: string): string {
  * エラーからエラーコードを判定
  */
 function determineErrorCode(error: Error | string): string {
-  const message = typeof error === 'string' ? error : error.message;
+  const message = typeof error === "string" ? error : error.message;
   const lowerMessage = message.toLowerCase();
 
   // Embeddingエラー
   if (
-    lowerMessage.includes('embedding') ||
-    lowerMessage.includes('model') ||
-    lowerMessage.includes('tensor')
+    lowerMessage.includes("embedding") ||
+    lowerMessage.includes("model") ||
+    lowerMessage.includes("tensor")
   ) {
-    return 'EMBEDDING_ERROR';
+    return "EMBEDDING_ERROR";
   }
 
   // データベースエラー
   if (
-    lowerMessage.includes('database') ||
-    lowerMessage.includes('prisma') ||
-    lowerMessage.includes('connection')
+    lowerMessage.includes("database") ||
+    lowerMessage.includes("prisma") ||
+    lowerMessage.includes("connection")
   ) {
     return LAYOUT_MCP_ERROR_CODES.SEARCH_FAILED;
   }
 
   // タイムアウトエラー
-  if (lowerMessage.includes('timeout')) {
+  if (lowerMessage.includes("timeout")) {
     return LAYOUT_MCP_ERROR_CODES.TIMEOUT;
   }
 
@@ -467,8 +456,8 @@ function generateHtmlPreview(
 
     // 開いているタグを検出して閉じる試み
     // 簡易的に最後の不完全なタグを除去
-    const lastOpenTagIndex = htmlPreview.lastIndexOf('<');
-    const lastCloseTagIndex = htmlPreview.lastIndexOf('>');
+    const lastOpenTagIndex = htmlPreview.lastIndexOf("<");
+    const lastCloseTagIndex = htmlPreview.lastIndexOf(">");
 
     if (lastOpenTagIndex > lastCloseTagIndex) {
       // 不完全なタグがある場合、その前まで切り詰め
@@ -476,7 +465,7 @@ function generateHtmlPreview(
     }
 
     // 省略記号を追加
-    htmlPreview = htmlPreview.trimEnd() + '...';
+    htmlPreview = htmlPreview.trimEnd() + "...";
   }
 
   return { htmlPreview, previewLength };
@@ -511,7 +500,7 @@ function mapSearchResult(
   previewOptions?: PreviewOptions,
   contextBoost?: number
 ): LayoutSearchResultItem {
-  const preview: LayoutSearchResultItem['preview'] = {};
+  const preview: LayoutSearchResultItem["preview"] = {};
 
   // プレビュー情報を抽出
   if (result.layoutInfo) {
@@ -536,14 +525,14 @@ function mapSearchResult(
     preview,
     source: {
       url: result.webPage.url,
-      type: result.webPage.sourceType as 'award_gallery' | 'user_provided',
-      usageScope: result.webPage.usageScope as 'inspiration_only' | 'owned_asset',
+      type: result.webPage.sourceType as "award_gallery" | "user_provided",
+      usageScope: result.webPage.usageScope as "inspiration_only" | "owned_asset",
     },
   };
 
   // HTMLを含める場合
   if (include_html && result.htmlSnippet) {
-    item.html = result.htmlSnippet;
+    item.html = sanitizeHtml(result.htmlSnippet);
   }
 
   // HTMLプレビューを含める場合（デフォルト有効）
@@ -551,10 +540,7 @@ function mapSearchResult(
   const maxLength = previewOptions?.maxLength ?? 500;
 
   if (shouldIncludePreview && result.htmlSnippet) {
-    const { htmlPreview, previewLength } = generateHtmlPreview(
-      result.htmlSnippet,
-      maxLength
-    );
+    const { htmlPreview, previewLength } = generateHtmlPreview(result.htmlSnippet, maxLength);
     item.htmlPreview = htmlPreview;
     item.previewLength = previewLength;
   }
@@ -623,24 +609,24 @@ function mapVisionResultToSearchResult(visionResult: VisionSearchResult): Search
   // layoutInfo: 存在する場合にオブジェクトを構築
   if (visionResult.layoutInfo !== undefined) {
     const layoutInfoSrc = visionResult.layoutInfo;
-    const layoutInfo: NonNullable<SearchResult['layoutInfo']> = {};
-    if (typeof layoutInfoSrc['type'] === 'string') {
-      layoutInfo.type = layoutInfoSrc['type'];
+    const layoutInfo: NonNullable<SearchResult["layoutInfo"]> = {};
+    if (typeof layoutInfoSrc["type"] === "string") {
+      layoutInfo.type = layoutInfoSrc["type"];
     }
-    if (typeof layoutInfoSrc['heading'] === 'string') {
-      layoutInfo.heading = layoutInfoSrc['heading'];
+    if (typeof layoutInfoSrc["heading"] === "string") {
+      layoutInfo.heading = layoutInfoSrc["heading"];
     }
-    if (typeof layoutInfoSrc['description'] === 'string') {
-      layoutInfo.description = layoutInfoSrc['description'];
+    if (typeof layoutInfoSrc["description"] === "string") {
+      layoutInfo.description = layoutInfoSrc["description"];
     }
-    if (layoutInfoSrc['grid'] !== undefined) {
-      layoutInfo.grid = layoutInfoSrc['grid'];
+    if (layoutInfoSrc["grid"] !== undefined) {
+      layoutInfo.grid = layoutInfoSrc["grid"];
     }
-    if (layoutInfoSrc['visionAnalysis'] !== undefined) {
-      layoutInfo.visionAnalysis = layoutInfoSrc['visionAnalysis'] as VisionAnalysisResult;
+    if (layoutInfoSrc["visionAnalysis"] !== undefined) {
+      layoutInfo.visionAnalysis = layoutInfoSrc["visionAnalysis"] as VisionAnalysisResult;
     }
-    if (layoutInfoSrc['visualFeatures'] !== undefined) {
-      layoutInfo.visualFeatures = layoutInfoSrc['visualFeatures'] as VisualFeatures;
+    if (layoutInfoSrc["visualFeatures"] !== undefined) {
+      layoutInfo.visualFeatures = layoutInfoSrc["visualFeatures"] as VisualFeatures;
     }
     result.layoutInfo = layoutInfo;
   }
@@ -650,16 +636,16 @@ function mapVisionResultToSearchResult(visionResult: VisionSearchResult): Search
     const vfSrc = visionResult.visualFeatures;
     const visualFeatures: VisualFeatures = {};
     // theme: VisualFeaturesTheme型（type, backgroundColor, textColor, contrastRatio, luminance, source, confidence）
-    if (vfSrc['theme'] !== undefined && typeof vfSrc['theme'] === 'object') {
-      visualFeatures.theme = vfSrc['theme'] as VisualFeaturesTheme;
+    if (vfSrc["theme"] !== undefined && typeof vfSrc["theme"] === "object") {
+      visualFeatures.theme = vfSrc["theme"] as VisualFeaturesTheme;
     }
     // colors: VisualFeaturesColors型（dominant?, accent?, palette?）
-    if (vfSrc['colors'] !== undefined && typeof vfSrc['colors'] === 'object') {
-      visualFeatures.colors = vfSrc['colors'] as VisualFeaturesColors;
+    if (vfSrc["colors"] !== undefined && typeof vfSrc["colors"] === "object") {
+      visualFeatures.colors = vfSrc["colors"] as VisualFeaturesColors;
     }
     // density: VisualFeaturesDensity型（contentDensity?, whitespaceRatio?, visualBalance?）
-    if (vfSrc['density'] !== undefined && typeof vfSrc['density'] === 'object') {
-      visualFeatures.density = vfSrc['density'] as VisualFeaturesDensity;
+    if (vfSrc["density"] !== undefined && typeof vfSrc["density"] === "object") {
+      visualFeatures.density = vfSrc["density"] as VisualFeaturesDensity;
     }
     result.visualFeatures = visualFeatures;
   }
@@ -703,15 +689,18 @@ async function executeVisionSearch(
   // VisionSearchサービスチェック
   if (!visionSearchServiceFactory) {
     if (isDevelopment()) {
-      logger.warn('[MCP Tool] layout.search vision search service not available, falling back to text search');
+      logger.warn(
+        "[MCP Tool] layout.search vision search service not available, falling back to text search"
+      );
     }
 
     // フォールバック: 通常の検索を実行（サービスがない場合）
     return {
       success: false,
       error: {
-        code: 'VISION_SEARCH_UNAVAILABLE',
-        message: 'Vision search service is not available. Set use_vision_search=false to use text-only search.',
+        code: "VISION_SEARCH_UNAVAILABLE",
+        message:
+          "Vision search service is not available. Set use_vision_search=false to use text-only search.",
       },
     };
   }
@@ -726,7 +715,7 @@ async function executeVisionSearch(
   // visualFeaturesが定義されている場合のみ追加
   if (validated.vision_search_query?.visualFeatures) {
     const vf = validated.vision_search_query.visualFeatures;
-    const visualFeatures: NonNullable<VisionSearchQueryService['visualFeatures']> = {};
+    const visualFeatures: NonNullable<VisionSearchQueryService["visualFeatures"]> = {};
 
     if (vf.theme) visualFeatures.theme = vf.theme;
     if (vf.colors) visualFeatures.colors = vf.colors;
@@ -764,7 +753,7 @@ async function executeVisionSearch(
   }
 
   if (isDevelopment()) {
-    logger.debug('[MCP Tool] layout.search executing vision search', {
+    logger.debug("[MCP Tool] layout.search executing vision search", {
       visionQuery,
       visionOptions,
     });
@@ -812,7 +801,7 @@ async function executeVisionSearch(
     const searchTimeMs = Date.now() - startTime;
 
     if (isDevelopment()) {
-      logger.info('[MCP Tool] layout.search vision search completed', {
+      logger.info("[MCP Tool] layout.search vision search completed", {
         query: validated.query,
         use_vision_search: true,
         resultCount: mappedResults.length,
@@ -836,7 +825,7 @@ async function executeVisionSearch(
     const errorCode = determineErrorCode(error instanceof Error ? error : errorMessage);
 
     if (isDevelopment()) {
-      logger.error('[MCP Tool] layout.search vision search error', {
+      logger.error("[MCP Tool] layout.search vision search error", {
         code: errorCode,
         error: errorMessage,
       });
@@ -888,35 +877,35 @@ export function calculateRrfScore(
  * @returns 実際の検索モードと警告メッセージ
  */
 export function determineSearchMode(
-  requestedMode: 'text_only' | 'vision_only' | 'combined',
+  requestedMode: "text_only" | "vision_only" | "combined",
   hasVisionService: boolean,
   hasVisionEmbeddings: boolean = true
-): { actualMode: 'text_only' | 'vision_only' | 'combined'; warnings: string[] } {
+): { actualMode: "text_only" | "vision_only" | "combined"; warnings: string[] } {
   const warnings: string[] = [];
 
   // text_only は常にそのまま
-  if (requestedMode === 'text_only') {
-    return { actualMode: 'text_only', warnings };
+  if (requestedMode === "text_only") {
+    return { actualMode: "text_only", warnings };
   }
 
   // VisionSearchServiceが利用不可
   if (!hasVisionService) {
-    if (requestedMode === 'vision_only') {
-      warnings.push('VisionSearchService unavailable, falling back to text_only');
-    } else if (requestedMode === 'combined') {
-      warnings.push('VisionSearchService unavailable, falling back to text_only');
+    if (requestedMode === "vision_only") {
+      warnings.push("VisionSearchService unavailable, falling back to text_only");
+    } else if (requestedMode === "combined") {
+      warnings.push("VisionSearchService unavailable, falling back to text_only");
     }
-    return { actualMode: 'text_only', warnings };
+    return { actualMode: "text_only", warnings };
   }
 
   // vision_embeddingが存在しない
   if (!hasVisionEmbeddings) {
-    if (requestedMode === 'vision_only') {
-      warnings.push('vision_embedding not available, falling back to text_only');
-    } else if (requestedMode === 'combined') {
-      warnings.push('No vision embeddings available, falling back to text_only');
+    if (requestedMode === "vision_only") {
+      warnings.push("vision_embedding not available, falling back to text_only");
+    } else if (requestedMode === "combined") {
+      warnings.push("No vision embeddings available, falling back to text_only");
     }
-    return { actualMode: 'text_only', warnings };
+    return { actualMode: "text_only", warnings };
   }
 
   // 要求されたモードをそのまま使用
@@ -931,7 +920,7 @@ async function executeMultimodalSearch(
   service: ILayoutSearchService,
   startTime: number
 ): Promise<LayoutSearchOutput> {
-  const searchMode = validated.search_mode ?? 'text_only';
+  const searchMode = validated.search_mode ?? "text_only";
   const multimodalOptions = validated.multimodal_options;
   const textWeight = multimodalOptions?.textWeight ?? 0.6;
   const visionWeight = multimodalOptions?.visionWeight ?? 0.4;
@@ -941,13 +930,10 @@ async function executeMultimodalSearch(
   const hasVisionService = !!visionSearchServiceFactory;
 
   // 検索モードを決定（Graceful Degradation）
-  const { actualMode, warnings } = determineSearchMode(
-    searchMode,
-    hasVisionService
-  );
+  const { actualMode, warnings } = determineSearchMode(searchMode, hasVisionService);
 
   if (isDevelopment()) {
-    logger.debug('[MCP Tool] layout.search multimodal mode', {
+    logger.debug("[MCP Tool] layout.search multimodal mode", {
       requestedMode: searchMode,
       actualMode,
       warnings,
@@ -955,7 +941,7 @@ async function executeMultimodalSearch(
   }
 
   // text_only モード
-  if (actualMode === 'text_only') {
+  if (actualMode === "text_only") {
     const processedQuery = preprocessQuery(validated.query);
     const queryEmbedding = await service.generateQueryEmbedding(processedQuery);
 
@@ -985,15 +971,8 @@ async function executeMultimodalSearch(
 
     // ハイブリッド検索（vector + fulltext RRF）が利用可能な場合はそちらを使用
     const searchResult = service.searchSectionPatternsHybrid
-      ? await service.searchSectionPatternsHybrid(
-          validated.query,
-          queryEmbedding,
-          searchOptions
-        )
-      : await service.searchSectionPatterns(
-          queryEmbedding,
-          searchOptions
-        );
+      ? await service.searchSectionPatternsHybrid(validated.query, queryEmbedding, searchOptions)
+      : await service.searchSectionPatterns(queryEmbedding, searchOptions);
 
     if (!searchResult) {
       return {
@@ -1048,8 +1027,8 @@ async function executeMultimodalSearch(
     return {
       success: false,
       error: {
-        code: 'VISION_SEARCH_UNAVAILABLE',
-        message: 'Vision search service is not available.',
+        code: "VISION_SEARCH_UNAVAILABLE",
+        message: "Vision search service is not available.",
       },
     };
   }
@@ -1057,7 +1036,7 @@ async function executeMultimodalSearch(
   const visionService = visionSearchServiceFactory();
 
   // vision_only モード
-  if (actualMode === 'vision_only') {
+  if (actualMode === "vision_only") {
     try {
       const visionQuery: VisionSearchQueryService = {
         textQuery: validated.vision_search_query?.textQuery ?? validated.query,
@@ -1076,10 +1055,7 @@ async function executeMultimodalSearch(
       }
 
       // searchByVisionEmbeddingを呼び出し（vision_onlyモード）
-      const visionResult = await visionService.searchByVisionEmbedding(
-        visionQuery,
-        visionOptions
-      );
+      const visionResult = await visionService.searchByVisionEmbedding(visionQuery, visionOptions);
 
       if (!visionResult) {
         return {
@@ -1099,7 +1075,7 @@ async function executeMultimodalSearch(
 
       // Graceful Degradation - fallbackToTextOnly処理
       if (visionResult.fallbackToTextOnly) {
-        warnings.push('vision_embedding not available, falling back to text_only');
+        warnings.push("vision_embedding not available, falling back to text_only");
         // text_onlyで再検索（警告を保持したまま）
         const processedQuery = preprocessQuery(validated.query);
         const queryEmbedding = await service.generateQueryEmbedding(processedQuery);
@@ -1114,7 +1090,7 @@ async function executeMultimodalSearch(
               filters: validated.filters ?? {},
               searchTimeMs: Date.now() - startTime,
               searchMode: searchMode,
-              actualSearchMode: 'text_only', // フォールバック後
+              actualSearchMode: "text_only", // フォールバック後
               warnings: warnings,
             },
           };
@@ -1128,10 +1104,7 @@ async function executeMultimodalSearch(
           project_context: validated.project_context,
         };
 
-        const searchResult = await service.searchSectionPatterns(
-          queryEmbedding,
-          searchOptions
-        );
+        const searchResult = await service.searchSectionPatterns(queryEmbedding, searchOptions);
 
         const previewOptionsForFallback: PreviewOptions = {
           includePreview: validated.include_preview,
@@ -1157,7 +1130,7 @@ async function executeMultimodalSearch(
             filters: validated.filters ?? {},
             searchTimeMs: Date.now() - startTime,
             searchMode: searchMode,
-            actualSearchMode: 'text_only', // フォールバック後
+            actualSearchMode: "text_only", // フォールバック後
             warnings: warnings,
           },
         };
@@ -1194,7 +1167,9 @@ async function executeMultimodalSearch(
       };
     } catch (error) {
       // エラー時はtext_onlyにフォールバック（警告を保持）
-      warnings.push(`Vision search error: ${error instanceof Error ? error.message : String(error)}, falling back to text_only`);
+      warnings.push(
+        `Vision search error: ${error instanceof Error ? error.message : String(error)}, falling back to text_only`
+      );
 
       const processedQuery = preprocessQuery(validated.query);
       const queryEmbedding = await service.generateQueryEmbedding(processedQuery);
@@ -1209,7 +1184,7 @@ async function executeMultimodalSearch(
             filters: validated.filters ?? {},
             searchTimeMs: Date.now() - startTime,
             searchMode: searchMode,
-            actualSearchMode: 'text_only',
+            actualSearchMode: "text_only",
             warnings: warnings,
           },
         };
@@ -1223,10 +1198,7 @@ async function executeMultimodalSearch(
         project_context: validated.project_context,
       };
 
-      const searchResult = await service.searchSectionPatterns(
-        queryEmbedding,
-        searchOptions
-      );
+      const searchResult = await service.searchSectionPatterns(queryEmbedding, searchOptions);
 
       const previewOptionsForError: PreviewOptions = {
         includePreview: validated.include_preview,
@@ -1234,13 +1206,7 @@ async function executeMultimodalSearch(
       };
       const includeHtmlValueForError = getIncludeHtml(validated);
       const mappedResultsForError = (searchResult?.results ?? []).map((sr) =>
-        mapSearchResult(
-          sr,
-          includeHtmlValueForError,
-          undefined,
-          undefined,
-          previewOptionsForError
-        )
+        mapSearchResult(sr, includeHtmlValueForError, undefined, undefined, previewOptionsForError)
       );
 
       return {
@@ -1252,7 +1218,7 @@ async function executeMultimodalSearch(
           filters: validated.filters ?? {},
           searchTimeMs: Date.now() - startTime,
           searchMode: searchMode,
-          actualSearchMode: 'text_only',
+          actualSearchMode: "text_only",
           warnings: warnings,
         },
       };
@@ -1260,7 +1226,7 @@ async function executeMultimodalSearch(
   }
 
   // combined モード（RRF統合検索）
-  if (actualMode === 'combined') {
+  if (actualMode === "combined") {
     const rrfStartTime = Date.now();
 
     try {
@@ -1318,7 +1284,7 @@ async function executeMultimodalSearch(
       // Graceful Degradation - fallbackToTextOnly処理
       if (hybridResult.fallbackToTextOnly) {
         // フォールバック発生時は actualSearchMode を text_only に変更
-        const fallbackReason = hybridResult.fallbackReason ?? 'No vision embeddings available';
+        const fallbackReason = hybridResult.fallbackReason ?? "No vision embeddings available";
         warnings.push(fallbackReason);
 
         const previewOptions: PreviewOptions = {
@@ -1346,7 +1312,7 @@ async function executeMultimodalSearch(
             filters: validated.filters ?? {},
             searchTimeMs: Date.now() - startTime,
             searchMode: searchMode,
-            actualSearchMode: 'text_only', // フォールバック後のモード
+            actualSearchMode: "text_only", // フォールバック後のモード
             warnings: warnings.length > 0 ? warnings : undefined,
             fallbackReason: fallbackReason,
           },
@@ -1392,9 +1358,11 @@ async function executeMultimodalSearch(
         },
       };
     } catch (error) {
-      warnings.push(`Combined search error: ${error instanceof Error ? error.message : String(error)}, falling back to text_only`);
+      warnings.push(
+        `Combined search error: ${error instanceof Error ? error.message : String(error)}, falling back to text_only`
+      );
       return executeMultimodalSearch(
-        { ...validated, search_mode: 'text_only' },
+        { ...validated, search_mode: "text_only" },
         service,
         startTime
       );
@@ -1405,7 +1373,7 @@ async function executeMultimodalSearch(
   return {
     success: false,
     error: {
-      code: 'INTERNAL_ERROR',
+      code: "INTERNAL_ERROR",
       message: `Unexpected search mode: ${actualMode}`,
     },
   };
@@ -1434,14 +1402,12 @@ async function executeMultimodalSearch(
  * });
  * ```
  */
-export async function layoutSearchHandler(
-  input: unknown
-): Promise<LayoutSearchOutput> {
+export async function layoutSearchHandler(input: unknown): Promise<LayoutSearchOutput> {
   const startTime = Date.now();
 
   // 開発環境でのログ出力
   if (isDevelopment()) {
-    logger.info('[MCP Tool] layout.search called', {
+    logger.info("[MCP Tool] layout.search called", {
       query: (input as Record<string, unknown>)?.query,
     });
   }
@@ -1452,12 +1418,10 @@ export async function layoutSearchHandler(
     validated = layoutSearchInputSchema.parse(input);
   } catch (error) {
     if (error instanceof ZodError) {
-      const errorMessage = error.errors
-        .map((e) => `${e.path.join('.')}: ${e.message}`)
-        .join(', ');
+      const errorMessage = error.errors.map((e) => `${e.path.join(".")}: ${e.message}`).join(", ");
 
       if (isDevelopment()) {
-        logger.error('[MCP Tool] layout.search validation error', {
+        logger.error("[MCP Tool] layout.search validation error", {
           errors: error.errors,
         });
       }
@@ -1476,14 +1440,14 @@ export async function layoutSearchHandler(
   // サービスファクトリーチェック
   if (!serviceFactory) {
     if (isDevelopment()) {
-      logger.error('[MCP Tool] layout.search service factory not set');
+      logger.error("[MCP Tool] layout.search service factory not set");
     }
 
     return {
       success: false,
       error: {
-        code: 'SERVICE_UNAVAILABLE',
-        message: 'Search service is not available',
+        code: "SERVICE_UNAVAILABLE",
+        message: "Search service is not available",
       },
     };
   }
@@ -1493,7 +1457,7 @@ export async function layoutSearchHandler(
   try {
     // search_mode ベースのルーティング（text_only以外の場合）
     // search_mode が明示的に指定され、text_only以外の場合はマルチモーダル検索を実行
-    if (validated.search_mode && validated.search_mode !== 'text_only') {
+    if (validated.search_mode && validated.search_mode !== "text_only") {
       return executeMultimodalSearch(validated, service, startTime);
     }
 
@@ -1508,7 +1472,7 @@ export async function layoutSearchHandler(
     const processedQuery = preprocessQuery(validated.query);
 
     if (isDevelopment()) {
-      logger.debug('[MCP Tool] layout.search processed query', {
+      logger.debug("[MCP Tool] layout.search processed query", {
         original: validated.query,
         processed: processedQuery,
       });
@@ -1520,7 +1484,7 @@ export async function layoutSearchHandler(
     // EmbeddingServiceが利用できない場合は空の結果を返す
     if (queryEmbedding === null) {
       if (isDevelopment()) {
-        logger.warn('[MCP Tool] layout.search embedding not available, returning empty results');
+        logger.warn("[MCP Tool] layout.search embedding not available, returning empty results");
       }
 
       return {
@@ -1547,15 +1511,8 @@ export async function layoutSearchHandler(
 
     // 検索実行: ハイブリッド検索（vector + fulltext RRF）が利用可能な場合はそちらを使用
     const searchResult = service.searchSectionPatternsHybrid
-      ? await service.searchSectionPatternsHybrid(
-          validated.query,
-          queryEmbedding,
-          searchOptions
-        )
-      : await service.searchSectionPatterns(
-          queryEmbedding,
-          searchOptions
-        );
+      ? await service.searchSectionPatternsHybrid(validated.query, queryEmbedding, searchOptions)
+      : await service.searchSectionPatterns(queryEmbedding, searchOptions);
 
     // nullチェック
     if (!searchResult) {
@@ -1591,12 +1548,10 @@ export async function layoutSearchHandler(
     // mood フィルターが提供されている場合、セマンティック検索を実行
     if (moodBrandToneService && validated.filters?.mood) {
       try {
-        const moodResults = await moodBrandToneService.searchByMood(
-          validated.filters.mood
-        );
+        const moodResults = await moodBrandToneService.searchByMood(validated.filters.mood);
 
         if (isDevelopment()) {
-          logger.debug('[MCP Tool] layout.search mood search completed', {
+          logger.debug("[MCP Tool] layout.search mood search completed", {
             resultCount: moodResults.length,
             mood: validated.filters.mood.primary,
           });
@@ -1613,7 +1568,7 @@ export async function layoutSearchHandler(
         }
       } catch (error) {
         if (isDevelopment()) {
-          logger.warn('[MCP Tool] layout.search mood search failed', {
+          logger.warn("[MCP Tool] layout.search mood search failed", {
             error: error instanceof Error ? error.message : String(error),
           });
         }
@@ -1629,7 +1584,7 @@ export async function layoutSearchHandler(
         );
 
         if (isDevelopment()) {
-          logger.debug('[MCP Tool] layout.search brandTone search completed', {
+          logger.debug("[MCP Tool] layout.search brandTone search completed", {
             resultCount: brandToneResults.length,
             brandTone: validated.filters.brandTone.primary,
           });
@@ -1646,7 +1601,7 @@ export async function layoutSearchHandler(
         }
       } catch (error) {
         if (isDevelopment()) {
-          logger.warn('[MCP Tool] layout.search brandTone search failed', {
+          logger.warn("[MCP Tool] layout.search brandTone search failed", {
             error: error instanceof Error ? error.message : String(error),
           });
         }
@@ -1662,12 +1617,10 @@ export async function layoutSearchHandler(
     if (isProjectContextEnabled && projectContextOptions?.project_path) {
       try {
         const analyzer = getProjectContextAnalyzer();
-        projectPatterns = await analyzer.detectProjectPatterns(
-          projectContextOptions.project_path
-        );
+        projectPatterns = await analyzer.detectProjectPatterns(projectContextOptions.project_path);
 
         if (isDevelopment()) {
-          logger.debug('[MCP Tool] layout.search project patterns detected', {
+          logger.debug("[MCP Tool] layout.search project patterns detected", {
             stylesCount: projectPatterns.designTokens.styles.length,
             hooksCount: projectPatterns.hooks.length,
             cssFramework: projectPatterns.cssFramework,
@@ -1676,7 +1629,7 @@ export async function layoutSearchHandler(
         }
       } catch (error) {
         if (isDevelopment()) {
-          logger.warn('[MCP Tool] layout.search project context analysis failed', {
+          logger.warn("[MCP Tool] layout.search project context analysis failed", {
             error: error instanceof Error ? error.message : String(error),
           });
         }
@@ -1700,7 +1653,7 @@ export async function layoutSearchHandler(
         inferredContext = queryAnalyzer.inferContext(validated.query);
 
         if (isDevelopment()) {
-          logger.debug('[MCP Tool] layout.search context inferred', {
+          logger.debug("[MCP Tool] layout.search context inferred", {
             query: validated.query,
             industry: inferredContext.industry,
             style: inferredContext.style,
@@ -1715,7 +1668,7 @@ export async function layoutSearchHandler(
         }
       } catch (error) {
         if (isDevelopment()) {
-          logger.warn('[MCP Tool] layout.search context inference failed', {
+          logger.warn("[MCP Tool] layout.search context inference failed", {
             error: error instanceof Error ? error.message : String(error),
           });
         }
@@ -1740,7 +1693,7 @@ export async function layoutSearchHandler(
           };
         } catch (error) {
           if (isDevelopment()) {
-            logger.warn('[MCP Tool] layout.search adaptability calculation failed', {
+            logger.warn("[MCP Tool] layout.search adaptability calculation failed", {
               resultId: r.id,
               error: error instanceof Error ? error.message : String(error),
             });
@@ -1766,7 +1719,14 @@ export async function layoutSearchHandler(
         });
       }
 
-      return mapSearchResult(r, getIncludeHtml(validated), adaptabilityInfo, semanticInfo, previewOptions, contextBoost);
+      return mapSearchResult(
+        r,
+        getIncludeHtml(validated),
+        adaptabilityInfo,
+        semanticInfo,
+        previewOptions,
+        contextBoost
+      );
     });
 
     // REFTRIX-LAYOUT-02: ブースト適用時は再ソート（similarity + boost で降順）
@@ -1791,27 +1751,27 @@ export async function layoutSearchHandler(
     const filtersApplied: string[] = [];
     if (validated.filters) {
       if (validated.filters.mood) {
-        filtersApplied.push('mood');
+        filtersApplied.push("mood");
       }
       if (validated.filters.brandTone) {
-        filtersApplied.push('brandTone');
+        filtersApplied.push("brandTone");
       }
       if (validated.filters.visualFeatures) {
-        filtersApplied.push('visualFeatures');
+        filtersApplied.push("visualFeatures");
       }
       if (validated.filters.sectionType) {
-        filtersApplied.push('sectionType');
+        filtersApplied.push("sectionType");
       }
       if (validated.filters.sourceType) {
-        filtersApplied.push('sourceType');
+        filtersApplied.push("sourceType");
       }
       if (validated.filters.usageScope) {
-        filtersApplied.push('usageScope');
+        filtersApplied.push("usageScope");
       }
     }
 
     if (isDevelopment()) {
-      logger.info('[MCP Tool] layout.search completed', {
+      logger.info("[MCP Tool] layout.search completed", {
         query: validated.query,
         resultCount: mappedResults.length,
         total: searchResult.total,
@@ -1822,7 +1782,13 @@ export async function layoutSearchHandler(
     }
 
     // 嗜好プロファイルによるリランキング / Preference profile reranking
-    mappedResults = await applyPreferenceReranking(mappedResults, validated.profile_id, prismaClientFactory, 'layout', 'layout.search');
+    mappedResults = await applyPreferenceReranking(
+      mappedResults,
+      validated.profile_id,
+      prismaClientFactory,
+      "layout",
+      "layout.search"
+    );
 
     // REFTRIX-LAYOUT-02: Build inferred_context output
     let inferredContextOutput: InferredContextOutput | undefined;
@@ -1853,7 +1819,7 @@ export async function layoutSearchHandler(
     const errorCode = determineErrorCode(error instanceof Error ? error : errorMessage);
 
     if (isDevelopment()) {
-      logger.error('[MCP Tool] layout.search error', {
+      logger.error("[MCP Tool] layout.search error", {
         code: errorCode,
         error: errorMessage,
       });
@@ -1878,228 +1844,238 @@ export async function layoutSearchHandler(
  * MCP Protocol用のツール定義オブジェクト
  */
 export const layoutSearchToolDefinition = {
-  name: 'layout.search',
+  name: "layout.search",
   description:
-    'セクションパターンを自然言語クエリでセマンティック検索します。' +
-    '日本語・英語の両方に対応しています。' +
-    'hero、feature、cta、testimonial、pricing、footer等のセクションタイプでフィルタリングできます。' +
-    'use_vision_search=trueでvision_embeddingを使用したハイブリッド検索（RRF: 60% vision + 40% text）が可能です。',
+    "セクションパターンを自然言語クエリでセマンティック検索します。" +
+    "日本語・英語の両方に対応しています。" +
+    "hero、feature、cta、testimonial、pricing、footer等のセクションタイプでフィルタリングできます。" +
+    "use_vision_search=trueでvision_embeddingを使用したハイブリッド検索（RRF: 60% vision + 40% text）が可能です。",
   annotations: {
-    title: 'Layout Search',
+    title: "Layout Search",
     readOnlyHint: true,
     idempotentHint: true,
     openWorldHint: false,
   },
   inputSchema: {
-    type: 'object' as const,
+    type: "object" as const,
     properties: {
       query: {
-        type: 'string',
-        description: '検索クエリ（日本語または英語、1-500文字）',
+        type: "string",
+        description: "検索クエリ（日本語または英語、1-500文字）",
         minLength: 1,
         maxLength: 500,
       },
       filters: {
-        type: 'object',
-        description: '検索フィルター',
+        type: "object",
+        description: "検索フィルター",
         properties: {
           sectionType: {
-            type: 'string',
+            type: "string",
             enum: [
-              'hero',
-              'feature',
-              'cta',
-              'testimonial',
-              'pricing',
-              'footer',
-              'navigation',
-              'about',
-              'contact',
-              'gallery',
+              "hero",
+              "feature",
+              "cta",
+              "testimonial",
+              "pricing",
+              "footer",
+              "navigation",
+              "about",
+              "contact",
+              "gallery",
             ],
-            description: 'セクションタイプでフィルター',
+            description: "セクションタイプでフィルター",
           },
           sourceType: {
-            type: 'string',
-            enum: ['award_gallery', 'user_provided'],
-            description: 'ソースタイプでフィルター（award_gallery: アワードサイト、user_provided: ユーザー提供）',
+            type: "string",
+            enum: ["award_gallery", "user_provided"],
+            description:
+              "ソースタイプでフィルター（award_gallery: アワードサイト、user_provided: ユーザー提供）",
           },
           usageScope: {
-            type: 'string',
-            enum: ['inspiration_only', 'owned_asset'],
-            description: '利用範囲でフィルター（inspiration_only: インスピレーションのみ、owned_asset: 所有アセット）',
+            type: "string",
+            enum: ["inspiration_only", "owned_asset"],
+            description:
+              "利用範囲でフィルター（inspiration_only: インスピレーションのみ、owned_asset: 所有アセット）",
           },
         },
       },
       limit: {
-        type: 'number',
-        description: '取得件数（1-50、デフォルト: 10）',
+        type: "number",
+        description: "取得件数（1-50、デフォルト: 10）",
         minimum: 1,
         maximum: 50,
         default: 10,
       },
       offset: {
-        type: 'number',
-        description: 'オフセット（0以上、デフォルト: 0）',
+        type: "number",
+        description: "オフセット（0以上、デフォルト: 0）",
         minimum: 0,
         default: 0,
       },
       // MCP-RESP-03: snake_case正式形式（新規オプション推奨形式）
       include_html: {
-        type: 'boolean',
-        description: 'HTMLスニペットを含めるか（デフォルト: false）- snake_case正式形式',
+        type: "boolean",
+        description: "HTMLスニペットを含めるか（デフォルト: false）- snake_case正式形式",
         default: false,
       },
       // レガシー互換: camelCaseは後方互換として維持
       includeHtml: {
-        type: 'boolean',
-        description: 'HTMLスニペットを含めるか（デフォルト: false）- レガシー互換、include_html推奨',
+        type: "boolean",
+        description:
+          "HTMLスニペットを含めるか（デフォルト: false）- レガシー互換、include_html推奨",
         default: false,
       },
       include_preview: {
-        type: 'boolean',
-        description: 'サニタイズ済みHTMLプレビューを含めるか（デフォルト: true）',
+        type: "boolean",
+        description: "サニタイズ済みHTMLプレビューを含めるか（デフォルト: true）",
         default: true,
       },
       preview_max_length: {
-        type: 'number',
-        description: 'HTMLプレビューの最大文字数（100-1000、デフォルト: 500）',
+        type: "number",
+        description: "HTMLプレビューの最大文字数（100-1000、デフォルト: 500）",
         minimum: 100,
         maximum: 1000,
         default: 500,
       },
       project_context: {
-        type: 'object',
-        description: 'プロジェクトコンテキスト解析オプション。プロジェクトのデザインパターンを検出し、検索結果の適合度を評価します。',
+        type: "object",
+        description:
+          "プロジェクトコンテキスト解析オプション。プロジェクトのデザインパターンを検出し、検索結果の適合度を評価します。",
         properties: {
           enabled: {
-            type: 'boolean',
-            description: 'プロジェクトコンテキスト解析を有効化（デフォルト: true）',
+            type: "boolean",
+            description: "プロジェクトコンテキスト解析を有効化（デフォルト: true）",
             default: true,
           },
           project_path: {
-            type: 'string',
-            description: 'スキャン対象のプロジェクトパス（例: /home/user/my-project）',
+            type: "string",
+            description: "スキャン対象のプロジェクトパス（例: /home/user/my-project）",
           },
           design_tokens_path: {
-            type: 'string',
-            description: 'デザイントークンファイルの特定パス（オプション）',
+            type: "string",
+            description: "デザイントークンファイルの特定パス（オプション）",
           },
         },
       },
       // Phase 4-3: Auto Context Detection
       auto_detect_context: {
-        type: 'boolean',
+        type: "boolean",
         description:
-          'クエリから業界・スタイルコンテキストを自動推論し、結果をブーストします。推論されたコンテキスト（業界: technology/ecommerce/healthcare等、スタイル: minimal/bold/corporate等）にマッチする結果の類似度スコアが最大0.15ブーストされます（デフォルト: true）',
+          "クエリから業界・スタイルコンテキストを自動推論し、結果をブーストします。推論されたコンテキスト（業界: technology/ecommerce/healthcare等、スタイル: minimal/bold/corporate等）にマッチする結果の類似度スコアが最大0.15ブーストされます（デフォルト: true）",
         default: true,
       },
       // Phase 4-2: Vision Search Parameters
       use_vision_search: {
-        type: 'boolean',
-        description: 'Vision検索を有効化。vision_embeddingを使用したセマンティック検索を行います（デフォルト: false）',
+        type: "boolean",
+        description:
+          "Vision検索を有効化。vision_embeddingを使用したセマンティック検索を行います（デフォルト: false）",
         default: false,
       },
       vision_search_query: {
-        type: 'object',
-        description: 'Vision検索クエリ（use_vision_search=true時に使用）',
+        type: "object",
+        description: "Vision検索クエリ（use_vision_search=true時に使用）",
         properties: {
           textQuery: {
-            type: 'string',
-            description: 'テキストクエリ（視覚的特徴を自然言語で記述）',
+            type: "string",
+            description: "テキストクエリ（視覚的特徴を自然言語で記述）",
           },
           visualFeatures: {
-            type: 'object',
-            description: '構造化された視覚的特徴条件',
+            type: "object",
+            description: "構造化された視覚的特徴条件",
             properties: {
-              theme: { type: 'string', description: 'テーマ（light/dark/mixed）' },
-              colors: { type: 'array', items: { type: 'string' }, description: '色指定（HEX形式配列）' },
-              density: { type: 'string', description: '密度（sparse/moderate/dense）' },
-              gradient: { type: 'string', description: 'グラデーション（none/subtle/prominent）' },
-              mood: { type: 'string', description: '雰囲気（professional/playful/minimal等）' },
-              brandTone: { type: 'string', description: 'ブランドトーン' },
+              theme: { type: "string", description: "テーマ（light/dark/mixed）" },
+              colors: {
+                type: "array",
+                items: { type: "string" },
+                description: "色指定（HEX形式配列）",
+              },
+              density: { type: "string", description: "密度（sparse/moderate/dense）" },
+              gradient: { type: "string", description: "グラデーション（none/subtle/prominent）" },
+              mood: { type: "string", description: "雰囲気（professional/playful/minimal等）" },
+              brandTone: { type: "string", description: "ブランドトーン" },
             },
           },
           sectionPatternId: {
-            type: 'string',
-            format: 'uuid',
-            description: '既存セクションIDで類似検索',
+            type: "string",
+            format: "uuid",
+            description: "既存セクションIDで類似検索",
           },
         },
       },
       vision_search_options: {
-        type: 'object',
-        description: 'Vision検索オプション（use_vision_search=true時に使用）',
+        type: "object",
+        description: "Vision検索オプション（use_vision_search=true時に使用）",
         properties: {
           minSimilarity: {
-            type: 'number',
+            type: "number",
             minimum: 0,
             maximum: 1,
             default: 0.5,
-            description: '最小類似度（0-1、デフォルト: 0.5）',
+            description: "最小類似度（0-1、デフォルト: 0.5）",
           },
           visionWeight: {
-            type: 'number',
+            type: "number",
             minimum: 0,
             maximum: 1,
             default: 0.6,
-            description: 'RRFでのvision_embeddingの重み（0-1、デフォルト: 0.6）',
+            description: "RRFでのvision_embeddingの重み（0-1、デフォルト: 0.6）",
           },
           textWeight: {
-            type: 'number',
+            type: "number",
             minimum: 0,
             maximum: 1,
             default: 0.4,
-            description: 'RRFでのtext_embeddingの重み（0-1、デフォルト: 0.4）',
+            description: "RRFでのtext_embeddingの重み（0-1、デフォルト: 0.4）",
           },
         },
       },
       // Multimodal Search Parameters
       search_mode: {
-        type: 'string',
-        enum: ['text_only', 'vision_only', 'combined'],
-        default: 'text_only',
+        type: "string",
+        enum: ["text_only", "vision_only", "combined"],
+        default: "text_only",
         description:
-          '検索モード。' +
-          'text_only: text_embeddingのみを使用（デフォルト）。' +
-          'vision_only: vision_embeddingのみを使用。' +
-          'combined: 両方を使用してRRF統合検索。',
+          "検索モード。" +
+          "text_only: text_embeddingのみを使用（デフォルト）。" +
+          "vision_only: vision_embeddingのみを使用。" +
+          "combined: 両方を使用してRRF統合検索。",
       },
       multimodal_options: {
-        type: 'object',
-        description: 'マルチモーダルオプション。search_mode=\'combined\'時のRRF統合パラメータ。',
+        type: "object",
+        description: "マルチモーダルオプション。search_mode='combined'時のRRF統合パラメータ。",
         properties: {
           textWeight: {
-            type: 'number',
+            type: "number",
             minimum: 0,
             maximum: 1,
             default: 0.6,
-            description: 'text_embeddingの重み（0-1、デフォルト: 0.6）',
+            description: "text_embeddingの重み（0-1、デフォルト: 0.6）",
           },
           visionWeight: {
-            type: 'number',
+            type: "number",
             minimum: 0,
             maximum: 1,
             default: 0.4,
-            description: 'vision_embeddingの重み（0-1、デフォルト: 0.4）',
+            description: "vision_embeddingの重み（0-1、デフォルト: 0.4）",
           },
           rrfK: {
-            type: 'number',
+            type: "number",
             minimum: 1,
             maximum: 100,
             default: 60,
-            description: 'RRFのkパラメータ（1-100、デフォルト: 60）',
+            description: "RRFのkパラメータ（1-100、デフォルト: 60）",
           },
         },
       },
       // Preference reranking
       profile_id: {
-        type: 'string',
-        format: 'uuid',
-        description: '嗜好プロファイルID（検索結果のリランキングに使用） / Preference profile ID (used for search result reranking)',
+        type: "string",
+        format: "uuid",
+        description:
+          "嗜好プロファイルID（検索結果のリランキングに使用） / Preference profile ID (used for search result reranking)",
       },
     },
-    required: ['query'],
+    required: ["query"],
   },
 };
 
@@ -2108,5 +2084,5 @@ export const layoutSearchToolDefinition = {
 // =====================================================
 
 if (isDevelopment()) {
-  logger.debug('[layout.search] Tool module loaded');
+  logger.debug("[layout.search] Tool module loaded");
 }

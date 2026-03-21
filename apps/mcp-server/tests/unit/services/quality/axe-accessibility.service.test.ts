@@ -10,15 +10,15 @@
  * @module tests/unit/services/quality/axe-accessibility.service.test
  */
 
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach } from "vitest";
 import {
   AxeAccessibilityService,
   type AxeAccessibilityResult,
   type AxeViolation,
   type AxeServiceOptions,
-} from '../../../../src/services/quality/axe-accessibility.service';
+} from "../../../../src/services/quality/axe-accessibility.service";
 
-describe('AxeAccessibilityService', () => {
+describe("AxeAccessibilityService", () => {
   let service: AxeAccessibilityService;
 
   beforeEach(() => {
@@ -29,12 +29,12 @@ describe('AxeAccessibilityService', () => {
   // 基本機能テスト
   // =====================================================
 
-  describe('Basic Functionality', () => {
-    it('should create service instance', () => {
+  describe("Basic Functionality", () => {
+    it("should create service instance", () => {
       expect(service).toBeInstanceOf(AxeAccessibilityService);
     });
 
-    it('should analyze valid HTML without errors', async () => {
+    it("should analyze valid HTML without errors", async () => {
       const html = `
         <!DOCTYPE html>
         <html lang="en">
@@ -61,17 +61,17 @@ describe('AxeAccessibilityService', () => {
       expect(result.score).toBeLessThanOrEqual(100);
       expect(result.wcagLevel).toBeDefined();
       expect(Array.isArray(result.violations)).toBe(true);
-      expect(typeof result.passes).toBe('number');
+      expect(typeof result.passes).toBe("number");
     });
 
-    it('should return proper result structure', async () => {
-      const html = '<html><body><p>Test</p></body></html>';
+    it("should return proper result structure", async () => {
+      const html = "<html><body><p>Test</p></body></html>";
       const result = await service.analyze(html);
 
-      expect(result).toHaveProperty('violations');
-      expect(result).toHaveProperty('passes');
-      expect(result).toHaveProperty('score');
-      expect(result).toHaveProperty('wcagLevel');
+      expect(result).toHaveProperty("violations");
+      expect(result).toHaveProperty("passes");
+      expect(result).toHaveProperty("score");
+      expect(result).toHaveProperty("wcagLevel");
     });
   });
 
@@ -79,8 +79,8 @@ describe('AxeAccessibilityService', () => {
   // 違反検出テスト
   // =====================================================
 
-  describe('Violation Detection', () => {
-    it('should detect missing alt attribute on images', async () => {
+  describe("Violation Detection", () => {
+    it("should detect missing alt attribute on images", async () => {
       const html = `
         <html lang="en">
         <body>
@@ -93,12 +93,12 @@ describe('AxeAccessibilityService', () => {
 
       expect(result.violations.length).toBeGreaterThan(0);
       const altViolation = result.violations.find(
-        (v) => v.id === 'image-alt' || v.description.toLowerCase().includes('alt')
+        (v) => v.id === "image-alt" || v.description.toLowerCase().includes("alt")
       );
       expect(altViolation).toBeDefined();
     });
 
-    it('should detect missing form labels', async () => {
+    it("should detect missing form labels", async () => {
       const html = `
         <html lang="en">
         <body>
@@ -114,12 +114,12 @@ describe('AxeAccessibilityService', () => {
 
       expect(result.violations.length).toBeGreaterThan(0);
       const labelViolation = result.violations.find(
-        (v) => v.id === 'label' || v.description.toLowerCase().includes('label')
+        (v) => v.id === "label" || v.description.toLowerCase().includes("label")
       );
       expect(labelViolation).toBeDefined();
     });
 
-    it('should detect insufficient color contrast', async () => {
+    it("should detect insufficient color contrast", async () => {
       const html = `
         <html lang="en">
         <body>
@@ -136,7 +136,7 @@ describe('AxeAccessibilityService', () => {
       expect(Array.isArray(result.violations)).toBe(true);
     });
 
-    it('should detect missing document language', async () => {
+    it("should detect missing document language", async () => {
       const html = `
         <html>
         <body>
@@ -148,12 +148,12 @@ describe('AxeAccessibilityService', () => {
       const result = await service.analyze(html);
 
       const langViolation = result.violations.find(
-        (v) => v.id === 'html-has-lang' || v.description.toLowerCase().includes('lang')
+        (v) => v.id === "html-has-lang" || v.description.toLowerCase().includes("lang")
       );
       expect(langViolation).toBeDefined();
     });
 
-    it('should detect empty buttons', async () => {
+    it("should detect empty buttons", async () => {
       const html = `
         <html lang="en">
         <body>
@@ -165,12 +165,12 @@ describe('AxeAccessibilityService', () => {
       const result = await service.analyze(html);
 
       const buttonViolation = result.violations.find(
-        (v) => v.id === 'button-name' || v.description.toLowerCase().includes('button')
+        (v) => v.id === "button-name" || v.description.toLowerCase().includes("button")
       );
       expect(buttonViolation).toBeDefined();
     });
 
-    it('should detect missing heading structure', async () => {
+    it("should detect missing heading structure", async () => {
       const html = `
         <html lang="en">
         <body>
@@ -184,13 +184,13 @@ describe('AxeAccessibilityService', () => {
       const result = await service.analyze(html);
 
       const headingViolation = result.violations.find(
-        (v) => v.id === 'heading-order' || v.description.toLowerCase().includes('heading')
+        (v) => v.id === "heading-order" || v.description.toLowerCase().includes("heading")
       );
       // Heading order violations may or may not be detected depending on aXe rules
       expect(Array.isArray(result.violations)).toBe(true);
     });
 
-    it('should detect empty links', async () => {
+    it("should detect empty links", async () => {
       const html = `
         <html lang="en">
         <body>
@@ -202,12 +202,12 @@ describe('AxeAccessibilityService', () => {
       const result = await service.analyze(html);
 
       const linkViolation = result.violations.find(
-        (v) => v.id === 'link-name' || v.description.toLowerCase().includes('link')
+        (v) => v.id === "link-name" || v.description.toLowerCase().includes("link")
       );
       expect(linkViolation).toBeDefined();
     });
 
-    it('should detect duplicate IDs', async () => {
+    it("should detect duplicate IDs", async () => {
       const html = `
         <html lang="en">
         <body>
@@ -225,7 +225,7 @@ describe('AxeAccessibilityService', () => {
       expect(Array.isArray(result.violations)).toBe(true);
     });
 
-    it('should detect missing landmark regions', async () => {
+    it("should detect missing landmark regions", async () => {
       const html = `
         <html lang="en">
         <body>
@@ -240,7 +240,7 @@ describe('AxeAccessibilityService', () => {
       expect(Array.isArray(result.violations)).toBe(true);
     });
 
-    it('should detect aria-hidden on focusable elements', async () => {
+    it("should detect aria-hidden on focusable elements", async () => {
       const html = `
         <html lang="en">
         <body>
@@ -257,8 +257,7 @@ describe('AxeAccessibilityService', () => {
       expect(Array.isArray(result.violations)).toBe(true);
       // If detected, it should be reported correctly
       const ariaViolation = result.violations.find(
-        (v) =>
-          v.id === 'aria-hidden-focus' || v.description.toLowerCase().includes('aria-hidden')
+        (v) => v.id === "aria-hidden-focus" || v.description.toLowerCase().includes("aria-hidden")
       );
       if (ariaViolation) {
         expect(ariaViolation.impact).toBeDefined();
@@ -270,50 +269,48 @@ describe('AxeAccessibilityService', () => {
   // 違反の詳細情報テスト
   // =====================================================
 
-  describe('Violation Details', () => {
-    it('should provide violation id', async () => {
+  describe("Violation Details", () => {
+    it("should provide violation id", async () => {
       const html = `<html><body><img src="test.jpg"></body></html>`;
       const result = await service.analyze(html);
 
       if (result.violations.length > 0) {
         expect(result.violations[0].id).toBeDefined();
-        expect(typeof result.violations[0].id).toBe('string');
+        expect(typeof result.violations[0].id).toBe("string");
       }
     });
 
-    it('should provide violation impact level', async () => {
+    it("should provide violation impact level", async () => {
       const html = `<html><body><img src="test.jpg"></body></html>`;
       const result = await service.analyze(html);
 
       if (result.violations.length > 0) {
         expect(result.violations[0].impact).toBeDefined();
-        expect(['minor', 'moderate', 'serious', 'critical']).toContain(
-          result.violations[0].impact
-        );
+        expect(["minor", "moderate", "serious", "critical"]).toContain(result.violations[0].impact);
       }
     });
 
-    it('should provide violation description', async () => {
+    it("should provide violation description", async () => {
       const html = `<html><body><img src="test.jpg"></body></html>`;
       const result = await service.analyze(html);
 
       if (result.violations.length > 0) {
         expect(result.violations[0].description).toBeDefined();
-        expect(typeof result.violations[0].description).toBe('string');
+        expect(typeof result.violations[0].description).toBe("string");
       }
     });
 
-    it('should provide help text', async () => {
+    it("should provide help text", async () => {
       const html = `<html><body><img src="test.jpg"></body></html>`;
       const result = await service.analyze(html);
 
       if (result.violations.length > 0) {
         expect(result.violations[0].help).toBeDefined();
-        expect(typeof result.violations[0].help).toBe('string');
+        expect(typeof result.violations[0].help).toBe("string");
       }
     });
 
-    it('should provide help URL', async () => {
+    it("should provide help URL", async () => {
       const html = `<html><body><img src="test.jpg"></body></html>`;
       const result = await service.analyze(html);
 
@@ -323,7 +320,7 @@ describe('AxeAccessibilityService', () => {
       }
     });
 
-    it('should provide affected node count', async () => {
+    it("should provide affected node count", async () => {
       const html = `
         <html lang="en">
         <body>
@@ -335,7 +332,7 @@ describe('AxeAccessibilityService', () => {
       `;
       const result = await service.analyze(html);
 
-      const imgViolation = result.violations.find((v) => v.id === 'image-alt');
+      const imgViolation = result.violations.find((v) => v.id === "image-alt");
       if (imgViolation) {
         expect(imgViolation.nodes).toBeGreaterThanOrEqual(1);
       }
@@ -346,8 +343,8 @@ describe('AxeAccessibilityService', () => {
   // スコア計算テスト
   // =====================================================
 
-  describe('Score Calculation', () => {
-    it('should return high score for accessible HTML', async () => {
+  describe("Score Calculation", () => {
+    it("should return high score for accessible HTML", async () => {
       const html = `
         <!DOCTYPE html>
         <html lang="en">
@@ -379,7 +376,7 @@ describe('AxeAccessibilityService', () => {
       expect(result.score).toBeGreaterThanOrEqual(80);
     });
 
-    it('should return lower score for inaccessible HTML', async () => {
+    it("should return lower score for inaccessible HTML", async () => {
       const html = `
         <html>
         <body>
@@ -397,7 +394,7 @@ describe('AxeAccessibilityService', () => {
       expect(result.score).toBeLessThan(80);
     });
 
-    it('should apply critical violation penalty correctly', async () => {
+    it("should apply critical violation penalty correctly", async () => {
       const html = `
         <html lang="en">
         <body>
@@ -408,14 +405,14 @@ describe('AxeAccessibilityService', () => {
 
       const result = await service.analyze(html);
 
-      const criticalViolation = result.violations.find((v) => v.impact === 'critical');
+      const criticalViolation = result.violations.find((v) => v.impact === "critical");
       if (criticalViolation) {
         // Critical violations should significantly reduce score
         expect(result.score).toBeLessThan(90);
       }
     });
 
-    it('should apply serious violation penalty correctly', async () => {
+    it("should apply serious violation penalty correctly", async () => {
       const html = `
         <html lang="en">
         <body>
@@ -426,16 +423,16 @@ describe('AxeAccessibilityService', () => {
 
       const result = await service.analyze(html);
 
-      const seriousViolation = result.violations.find((v) => v.impact === 'serious');
+      const seriousViolation = result.violations.find((v) => v.impact === "serious");
       if (seriousViolation) {
         // Serious violations should reduce score
         expect(result.score).toBeLessThan(95);
       }
     });
 
-    it('should return score between 0 and 100', async () => {
+    it("should return score between 0 and 100", async () => {
       const htmls = [
-        '<html><body></body></html>',
+        "<html><body></body></html>",
         '<html lang="en"><body><p>Test</p></body></html>',
         '<html><body><img src="x.jpg"><button></button><a href="#"></a></body></html>',
       ];
@@ -452,8 +449,8 @@ describe('AxeAccessibilityService', () => {
   // WCAG レベルテスト
   // =====================================================
 
-  describe('WCAG Level Determination', () => {
-    it('should return AAA for perfect accessibility', async () => {
+  describe("WCAG Level Determination", () => {
+    it("should return AAA for perfect accessibility", async () => {
       const html = `
         <!DOCTYPE html>
         <html lang="en">
@@ -488,10 +485,10 @@ describe('AxeAccessibilityService', () => {
       `;
 
       const result = await service.analyze(html);
-      expect(['AA', 'AAA']).toContain(result.wcagLevel);
+      expect(["AA", "AAA"]).toContain(result.wcagLevel);
     });
 
-    it('should return A for basic accessibility', async () => {
+    it("should return A for basic accessibility", async () => {
       const html = `
         <html lang="en">
         <body>
@@ -503,10 +500,10 @@ describe('AxeAccessibilityService', () => {
       `;
 
       const result = await service.analyze(html);
-      expect(['A', 'AA', 'AAA']).toContain(result.wcagLevel);
+      expect(["A", "AA", "AAA"]).toContain(result.wcagLevel);
     });
 
-    it('should correctly identify AA level compliance', async () => {
+    it("should correctly identify AA level compliance", async () => {
       const html = `
         <!DOCTYPE html>
         <html lang="en">
@@ -525,7 +522,7 @@ describe('AxeAccessibilityService', () => {
       `;
 
       const result = await service.analyze(html);
-      expect(['A', 'AA', 'AAA']).toContain(result.wcagLevel);
+      expect(["A", "AA", "AAA"]).toContain(result.wcagLevel);
     });
   });
 
@@ -533,11 +530,11 @@ describe('AxeAccessibilityService', () => {
   // オプション設定テスト
   // =====================================================
 
-  describe('Service Options', () => {
-    it('should support custom WCAG level targeting', async () => {
+  describe("Service Options", () => {
+    it("should support custom WCAG level targeting", async () => {
       const html = '<html lang="en"><body><p>Test</p></body></html>';
       const options: AxeServiceOptions = {
-        wcagLevel: 'AA',
+        wcagLevel: "AA",
       };
 
       const customService = new AxeAccessibilityService(options);
@@ -547,10 +544,10 @@ describe('AxeAccessibilityService', () => {
       expect(result.wcagLevel).toBeDefined();
     });
 
-    it('should support AAA level targeting', async () => {
+    it("should support AAA level targeting", async () => {
       const html = '<html lang="en"><body><p>Test</p></body></html>';
       const options: AxeServiceOptions = {
-        wcagLevel: 'AAA',
+        wcagLevel: "AAA",
       };
 
       const customService = new AxeAccessibilityService(options);
@@ -559,11 +556,11 @@ describe('AxeAccessibilityService', () => {
       expect(result).toBeDefined();
     });
 
-    it('should support custom rules configuration', async () => {
+    it("should support custom rules configuration", async () => {
       const html = '<html lang="en"><body><img src="test.jpg"></body></html>';
       const options: AxeServiceOptions = {
         rules: {
-          'image-alt': { enabled: false },
+          "image-alt": { enabled: false },
         },
       };
 
@@ -571,17 +568,17 @@ describe('AxeAccessibilityService', () => {
       const result = await customService.analyze(html);
 
       // With image-alt disabled, it should not appear in violations
-      const imageAltViolation = result.violations.find((v) => v.id === 'image-alt');
+      const imageAltViolation = result.violations.find((v) => v.id === "image-alt");
       expect(imageAltViolation).toBeUndefined();
     });
 
-    it('should use default options when none provided', async () => {
+    it("should use default options when none provided", async () => {
       const defaultService = new AxeAccessibilityService();
       const html = '<html lang="en"><body><p>Test</p></body></html>';
       const result = await defaultService.analyze(html);
 
       expect(result).toBeDefined();
-      expect(result.wcagLevel).toBe('AA'); // Default level
+      expect(result.wcagLevel).toBe("AA"); // Default level
     });
   });
 
@@ -589,40 +586,40 @@ describe('AxeAccessibilityService', () => {
   // エッジケーステスト
   // =====================================================
 
-  describe('Edge Cases', () => {
-    it('should handle empty HTML', async () => {
-      const result = await service.analyze('');
+  describe("Edge Cases", () => {
+    it("should handle empty HTML", async () => {
+      const result = await service.analyze("");
       expect(result).toBeDefined();
       expect(result.score).toBeGreaterThanOrEqual(0);
     });
 
-    it('should handle minimal HTML', async () => {
-      const result = await service.analyze('<html></html>');
+    it("should handle minimal HTML", async () => {
+      const result = await service.analyze("<html></html>");
       expect(result).toBeDefined();
     });
 
-    it('should handle HTML with only whitespace', async () => {
-      const result = await service.analyze('   \n\t   ');
+    it("should handle HTML with only whitespace", async () => {
+      const result = await service.analyze("   \n\t   ");
       expect(result).toBeDefined();
     });
 
-    it('should handle malformed HTML gracefully', async () => {
-      const html = '<html><body><div><p>Unclosed tags';
+    it("should handle malformed HTML gracefully", async () => {
+      const html = "<html><body><div><p>Unclosed tags";
       const result = await service.analyze(html);
 
       expect(result).toBeDefined();
       expect(result.score).toBeGreaterThanOrEqual(0);
     });
 
-    it('should handle very large HTML', async () => {
-      const repeatedContent = '<p>Content</p>'.repeat(1000);
+    it("should handle very large HTML", async () => {
+      const repeatedContent = "<p>Content</p>".repeat(1000);
       const html = `<html lang="en"><body>${repeatedContent}</body></html>`;
 
       const result = await service.analyze(html);
       expect(result).toBeDefined();
     });
 
-    it('should handle HTML with special characters', async () => {
+    it("should handle HTML with special characters", async () => {
       const html = `
         <html lang="en">
         <body>
@@ -636,7 +633,7 @@ describe('AxeAccessibilityService', () => {
       expect(result).toBeDefined();
     });
 
-    it('should handle HTML with inline SVG', async () => {
+    it("should handle HTML with inline SVG", async () => {
       const html = `
         <html lang="en">
         <body>
@@ -651,7 +648,7 @@ describe('AxeAccessibilityService', () => {
       expect(result).toBeDefined();
     });
 
-    it('should handle HTML with iframes', async () => {
+    it("should handle HTML with iframes", async () => {
       const html = `
         <html lang="en">
         <body>
@@ -669,8 +666,8 @@ describe('AxeAccessibilityService', () => {
   // パス（合格）カウントテスト
   // =====================================================
 
-  describe('Passes Count', () => {
-    it('should count passed rules', async () => {
+  describe("Passes Count", () => {
+    it("should count passed rules", async () => {
       const html = `
         <!DOCTYPE html>
         <html lang="en">
@@ -688,7 +685,7 @@ describe('AxeAccessibilityService', () => {
       expect(result.passes).toBeGreaterThanOrEqual(0);
     });
 
-    it('should have higher passes for accessible HTML', async () => {
+    it("should have higher passes for accessible HTML", async () => {
       const accessibleHtml = `
         <!DOCTYPE html>
         <html lang="en">
@@ -717,126 +714,126 @@ describe('AxeAccessibilityService', () => {
   // 統合テスト用メソッドテスト
   // =====================================================
 
-  describe('Integration Methods', () => {
-    it('should provide score adjustment values for craftsmanship', async () => {
+  describe("Integration Methods", () => {
+    it("should provide score adjustment values for craftsmanship", async () => {
       const html = `<html><body><img src="test.jpg"></body></html>`;
       const result = await service.analyze(html);
 
       // Calculate expected penalty based on violations
       const penalty = service.calculateScorePenalty(result);
 
-      expect(typeof penalty).toBe('number');
+      expect(typeof penalty).toBe("number");
       expect(penalty).toBeLessThanOrEqual(0);
     });
 
-    it('should calculate correct penalty for critical violations', async () => {
+    it("should calculate correct penalty for critical violations", async () => {
       // Create mock result with critical violation
       const mockResult: AxeAccessibilityResult = {
         violations: [
           {
-            id: 'test',
-            impact: 'critical',
-            description: 'Test',
-            help: 'Test',
-            helpUrl: 'https://test.com',
+            id: "test",
+            impact: "critical",
+            description: "Test",
+            help: "Test",
+            helpUrl: "https://test.com",
             nodes: 1,
           },
         ],
         passes: 0,
         score: 80,
-        wcagLevel: 'AA',
+        wcagLevel: "AA",
       };
 
       const penalty = service.calculateScorePenalty(mockResult);
       expect(penalty).toBe(-20);
     });
 
-    it('should calculate correct penalty for serious violations', async () => {
+    it("should calculate correct penalty for serious violations", async () => {
       const mockResult: AxeAccessibilityResult = {
         violations: [
           {
-            id: 'test',
-            impact: 'serious',
-            description: 'Test',
-            help: 'Test',
-            helpUrl: 'https://test.com',
+            id: "test",
+            impact: "serious",
+            description: "Test",
+            help: "Test",
+            helpUrl: "https://test.com",
             nodes: 1,
           },
         ],
         passes: 0,
         score: 90,
-        wcagLevel: 'AA',
+        wcagLevel: "AA",
       };
 
       const penalty = service.calculateScorePenalty(mockResult);
       expect(penalty).toBe(-10);
     });
 
-    it('should calculate correct penalty for moderate violations', async () => {
+    it("should calculate correct penalty for moderate violations", async () => {
       const mockResult: AxeAccessibilityResult = {
         violations: [
           {
-            id: 'test',
-            impact: 'moderate',
-            description: 'Test',
-            help: 'Test',
-            helpUrl: 'https://test.com',
+            id: "test",
+            impact: "moderate",
+            description: "Test",
+            help: "Test",
+            helpUrl: "https://test.com",
             nodes: 1,
           },
         ],
         passes: 0,
         score: 95,
-        wcagLevel: 'AA',
+        wcagLevel: "AA",
       };
 
       const penalty = service.calculateScorePenalty(mockResult);
       expect(penalty).toBe(-5);
     });
 
-    it('should calculate correct penalty for minor violations', async () => {
+    it("should calculate correct penalty for minor violations", async () => {
       const mockResult: AxeAccessibilityResult = {
         violations: [
           {
-            id: 'test',
-            impact: 'minor',
-            description: 'Test',
-            help: 'Test',
-            helpUrl: 'https://test.com',
+            id: "test",
+            impact: "minor",
+            description: "Test",
+            help: "Test",
+            helpUrl: "https://test.com",
             nodes: 1,
           },
         ],
         passes: 0,
         score: 98,
-        wcagLevel: 'AA',
+        wcagLevel: "AA",
       };
 
       const penalty = service.calculateScorePenalty(mockResult);
       expect(penalty).toBe(-2);
     });
 
-    it('should calculate cumulative penalty for multiple violations', async () => {
+    it("should calculate cumulative penalty for multiple violations", async () => {
       const mockResult: AxeAccessibilityResult = {
         violations: [
           {
-            id: 'critical-test',
-            impact: 'critical',
-            description: 'Critical',
-            help: 'Help',
-            helpUrl: 'https://test.com',
+            id: "critical-test",
+            impact: "critical",
+            description: "Critical",
+            help: "Help",
+            helpUrl: "https://test.com",
             nodes: 1,
           },
           {
-            id: 'serious-test',
-            impact: 'serious',
-            description: 'Serious',
-            help: 'Help',
-            helpUrl: 'https://test.com',
+            id: "serious-test",
+            impact: "serious",
+            description: "Serious",
+            help: "Help",
+            helpUrl: "https://test.com",
             nodes: 1,
           },
         ],
         passes: 0,
         score: 70,
-        wcagLevel: 'AA',
+        wcagLevel: "AA",
       };
 
       const penalty = service.calculateScorePenalty(mockResult);

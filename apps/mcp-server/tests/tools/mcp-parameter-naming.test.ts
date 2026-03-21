@@ -16,15 +16,15 @@
  * @module tests/tools/mcp-parameter-naming
  */
 
-import { describe, it, expect } from 'vitest';
-import { allToolDefinitions } from '../../src/tools';
+import { describe, it, expect } from "vitest";
+import { allToolDefinitions } from "../../src/tools";
 
 // =============================================================================
 // 型定義
 // =============================================================================
 
 interface ToolInputSchema {
-  type: 'object';
+  type: "object";
   properties?: Record<string, { type: string; description?: string }>;
   required?: string[];
 }
@@ -77,13 +77,10 @@ function extractParameterNames(tool: ToolDefinitionWithSchema): string[] {
 /**
  * ネストされたオブジェクトのプロパティ名も再帰的に抽出
  */
-function extractAllParameterNamesDeep(
-  schema: Record<string, unknown>,
-  prefix = ''
-): string[] {
+function extractAllParameterNamesDeep(schema: Record<string, unknown>, prefix = ""): string[] {
   const names: string[] = [];
 
-  if (typeof schema !== 'object' || schema === null) return names;
+  if (typeof schema !== "object" || schema === null) return names;
 
   const properties = schema.properties as Record<string, unknown> | undefined;
   if (properties) {
@@ -93,30 +90,22 @@ function extractAllParameterNamesDeep(
 
       // ネストされたobjectの場合は再帰
       if (
-        typeof value === 'object' &&
+        typeof value === "object" &&
         value !== null &&
-        (value as Record<string, unknown>).type === 'object'
+        (value as Record<string, unknown>).type === "object"
       ) {
-        names.push(
-          ...extractAllParameterNamesDeep(
-            value as Record<string, unknown>,
-            fullName
-          )
-        );
+        names.push(...extractAllParameterNamesDeep(value as Record<string, unknown>, fullName));
       }
 
       // items内のobjectも検査（配列の要素型）
       const items = (value as Record<string, unknown>)?.items;
       if (
-        typeof items === 'object' &&
+        typeof items === "object" &&
         items !== null &&
-        (items as Record<string, unknown>).type === 'object'
+        (items as Record<string, unknown>).type === "object"
       ) {
         names.push(
-          ...extractAllParameterNamesDeep(
-            items as Record<string, unknown>,
-            `${fullName}[]`
-          )
+          ...extractAllParameterNamesDeep(items as Record<string, unknown>, `${fullName}[]`)
         );
       }
     }
@@ -136,57 +125,56 @@ function extractAllParameterNamesDeep(
  */
 const DEPRECATED_CAMEL_CASE_PARAMS: Record<string, string[]> = {
   // Layout ツール
-  'layout.generate_code': ['patternId'],
-  'layout.search': ['includeHtml', 'sectionType', 'sourceType', 'usageScope'],
+  "layout.generate_code": ["patternId"],
+  "layout.search": ["includeHtml", "sectionType", "sourceType", "usageScope"],
 
   // Page ツール
-  'page.analyze': [
-    'sourceType',
-    'usageScope',
-    'layoutOptions',
-    'motionOptions',
-    'qualityOptions',
-    'responsiveOptions',
-    'waitUntil',
+  "page.analyze": [
+    "sourceType",
+    "usageScope",
+    "layoutOptions",
+    "motionOptions",
+    "qualityOptions",
+    "responsiveOptions",
+    "waitUntil",
   ],
-
 
   // Motion ツール
-  'motion.detect': [
-    'includeInlineStyles',
-    'includeStyleSheets',
-    'includeSummary',
-    'includeWarnings',
-    'fetchExternalCss',
-    'baseUrl',
-    'minDuration',
-    'maxPatterns',
-    'pageId',
-    'externalCssOptions',
+  "motion.detect": [
+    "includeInlineStyles",
+    "includeStyleSheets",
+    "includeSummary",
+    "includeWarnings",
+    "fetchExternalCss",
+    "baseUrl",
+    "minDuration",
+    "maxPatterns",
+    "pageId",
+    "externalCssOptions",
   ],
-  'motion.search': [
-    'includeVendorPrefixes',
-    'includeReducedMotion',
-    'minSimilarity',
-    'samplePattern',
-    'minDuration',
-    'maxDuration',
+  "motion.search": [
+    "includeVendorPrefixes",
+    "includeReducedMotion",
+    "minSimilarity",
+    "samplePattern",
+    "minDuration",
+    "maxDuration",
   ],
 
   // Quality ツール
-  'quality.evaluate': [
-    'includeRecommendations',
-    'targetIndustry',
-    'targetAudience',
-    'pageId',
-    'patternComparison',  // v0.1.0で追加、pattern_comparisonへの移行予定
+  "quality.evaluate": [
+    "includeRecommendations",
+    "targetIndustry",
+    "targetAudience",
+    "pageId",
+    "patternComparison", // v0.1.0で追加、pattern_comparisonへの移行予定
   ],
 
   // Brief ツール
-  'brief.validate': ['strictMode'],
+  "brief.validate": ["strictMode"],
 
   // Project ツール
-  'project.list': ['sortBy', 'sortOrder'],
+  "project.list": ["sortBy", "sortOrder"],
 };
 
 /**
@@ -198,12 +186,12 @@ const TOOLS_WITH_COMPACT_PARAM: string[] = [];
 // テスト
 // =============================================================================
 
-describe('MCP Parameter Naming Convention', () => {
+describe("MCP Parameter Naming Convention", () => {
   // =========================================================================
   // 基本検証: snake_case一貫性
   // =========================================================================
-  describe('snake_case一貫性', () => {
-    it('全ツールのトップレベルパラメータがsnake_caseであること', () => {
+  describe("snake_case一貫性", () => {
+    it("全ツールのトップレベルパラメータがsnake_caseであること", () => {
       const violations: Array<{
         tool: string;
         param: string;
@@ -223,10 +211,7 @@ describe('MCP Parameter Naming Convention', () => {
 
           if (isCamelCase(param)) {
             // camelCase → snake_case 変換提案
-            const suggestion = param.replace(
-              /([A-Z])/g,
-              (match) => `_${match.toLowerCase()}`
-            );
+            const suggestion = param.replace(/([A-Z])/g, (match) => `_${match.toLowerCase()}`);
             violations.push({
               tool: tool.name,
               param,
@@ -239,11 +224,11 @@ describe('MCP Parameter Naming Convention', () => {
       // v0.1.0で0件になるべき（現在は移行中のため許容）
       expect(
         violations,
-        `以下のパラメータがcamelCaseです（snake_caseに変換が必要）:\n${violations.map((v) => `  ${v.tool}: ${v.param} → ${v.suggestion}`).join('\n')}`
+        `以下のパラメータがcamelCaseです（snake_caseに変換が必要）:\n${violations.map((v) => `  ${v.tool}: ${v.param} → ${v.suggestion}`).join("\n")}`
       ).toHaveLength(0);
     });
 
-    it('snake_caseパラメータは有効な形式であること', () => {
+    it("snake_caseパラメータは有効な形式であること", () => {
       const invalidSnakeCase: Array<{ tool: string; param: string }> = [];
 
       for (const tool of allToolDefinitions) {
@@ -266,7 +251,7 @@ describe('MCP Parameter Naming Convention', () => {
 
       expect(
         invalidSnakeCase,
-        `以下のパラメータが無効な形式です:\n${invalidSnakeCase.map((v) => `  ${v.tool}: ${v.param}`).join('\n')}`
+        `以下のパラメータが無効な形式です:\n${invalidSnakeCase.map((v) => `  ${v.tool}: ${v.param}`).join("\n")}`
       ).toHaveLength(0);
     });
   });
@@ -274,8 +259,8 @@ describe('MCP Parameter Naming Convention', () => {
   // =========================================================================
   // includeパラメータ検証
   // =========================================================================
-  describe('include_* パラメータ命名', () => {
-    it('Boolean includeパラメータはinclude_{resource}形式であること', () => {
+  describe("include_* パラメータ命名", () => {
+    it("Boolean includeパラメータはinclude_{resource}形式であること", () => {
       const violations: Array<{
         tool: string;
         param: string;
@@ -289,10 +274,7 @@ describe('MCP Parameter Naming Convention', () => {
 
         for (const [param, definition] of Object.entries(schema.properties)) {
           // boolean型でincludeを含む名前のパラメータを検査
-          if (
-            definition.type === 'boolean' &&
-            param.toLowerCase().includes('include')
-          ) {
+          if (definition.type === "boolean" && param.toLowerCase().includes("include")) {
             // 既知の非推奨パラメータはスキップ
             const deprecatedParams = DEPRECATED_CAMEL_CASE_PARAMS[tool.name];
             if (deprecatedParams?.includes(param)) {
@@ -300,7 +282,7 @@ describe('MCP Parameter Naming Convention', () => {
             }
 
             // include_{resource} 形式でなければ違反
-            if (!param.startsWith('include_')) {
+            if (!param.startsWith("include_")) {
               const expected = param.replace(
                 /include([A-Z])/,
                 (_, char) => `include_${char.toLowerCase()}`
@@ -313,7 +295,7 @@ describe('MCP Parameter Naming Convention', () => {
 
       expect(
         violations,
-        `以下のパラメータがinclude_{resource}形式ではありません:\n${violations.map((v) => `  ${v.tool}: ${v.param} → ${v.expected}`).join('\n')}`
+        `以下のパラメータがinclude_{resource}形式ではありません:\n${violations.map((v) => `  ${v.tool}: ${v.param} → ${v.expected}`).join("\n")}`
       ).toHaveLength(0);
     });
   });
@@ -321,8 +303,8 @@ describe('MCP Parameter Naming Convention', () => {
   // =========================================================================
   // summary vs compact検証
   // =========================================================================
-  describe('summary パラメータ統一', () => {
-    it('軽量レスポンスモードはsummaryパラメータを使用すること', () => {
+  describe("summary パラメータ統一", () => {
+    it("軽量レスポンスモードはsummaryパラメータを使用すること", () => {
       const toolsWithCompact: string[] = [];
 
       for (const tool of allToolDefinitions) {
@@ -331,7 +313,7 @@ describe('MCP Parameter Naming Convention', () => {
         if (!schema.properties) continue;
 
         // compactパラメータを持つツールを検出
-        if ('compact' in schema.properties) {
+        if ("compact" in schema.properties) {
           toolsWithCompact.push(tool.name);
         }
       }
@@ -344,17 +326,13 @@ describe('MCP Parameter Naming Convention', () => {
 
       expect(
         unexpectedCompact,
-        `以下のツールで予期しないcompactパラメータが検出されました:\n${unexpectedCompact.join('\n')}`
+        `以下のツールで予期しないcompactパラメータが検出されました:\n${unexpectedCompact.join("\n")}`
       ).toHaveLength(0);
     });
 
-    it('summaryパラメータを持つべきツールが持っていること', () => {
+    it("summaryパラメータを持つべきツールが持っていること", () => {
       // 検索・取得系のツールはsummaryを持つべき (WebDesign専用)
-      const toolsShouldHaveSummary = [
-        'project.get',
-        'project.list',
-        'page.analyze',
-      ];
+      const toolsShouldHaveSummary = ["project.get", "project.list", "page.analyze"];
 
       const toolsWithoutSummary: string[] = [];
 
@@ -365,14 +343,14 @@ describe('MCP Parameter Naming Convention', () => {
         const toolWithSchema = tool as ToolDefinitionWithSchema;
         const schema = toolWithSchema.inputSchema;
 
-        if (!schema.properties || !('summary' in schema.properties)) {
+        if (!schema.properties || !("summary" in schema.properties)) {
           toolsWithoutSummary.push(expectedTool);
         }
       }
 
       expect(
         toolsWithoutSummary,
-        `以下のツールにsummaryパラメータがありません:\n${toolsWithoutSummary.join('\n')}`
+        `以下のツールにsummaryパラメータがありません:\n${toolsWithoutSummary.join("\n")}`
       ).toHaveLength(0);
     });
   });
@@ -380,8 +358,8 @@ describe('MCP Parameter Naming Convention', () => {
   // =========================================================================
   // IDパラメータ検証
   // =========================================================================
-  describe('IDパラメータ命名', () => {
-    it('IDパラメータはid または {resource}_id形式であること', () => {
+  describe("IDパラメータ命名", () => {
+    it("IDパラメータはid または {resource}_id形式であること", () => {
       const violations: Array<{ tool: string; param: string }> = [];
       const validIdPatterns = [
         /^id$/, // プライマリID
@@ -398,8 +376,8 @@ describe('MCP Parameter Naming Convention', () => {
           // IDを含む名前のstringパラメータを検査
           const paramLower = param.toLowerCase();
           if (
-            (paramLower.includes('id') || paramLower.endsWith('id')) &&
-            definition.type === 'string'
+            (paramLower.includes("id") || paramLower.endsWith("id")) &&
+            definition.type === "string"
           ) {
             // 既知の非推奨パラメータはスキップ
             const deprecatedParams = DEPRECATED_CAMEL_CASE_PARAMS[tool.name];
@@ -408,9 +386,7 @@ describe('MCP Parameter Naming Convention', () => {
             }
 
             // 有効なIDパターンかチェック
-            const isValidIdPattern = validIdPatterns.some((pattern) =>
-              pattern.test(param)
-            );
+            const isValidIdPattern = validIdPatterns.some((pattern) => pattern.test(param));
 
             if (!isValidIdPattern) {
               violations.push({ tool: tool.name, param });
@@ -421,7 +397,7 @@ describe('MCP Parameter Naming Convention', () => {
 
       expect(
         violations,
-        `以下のIDパラメータが無効な形式です（id または {resource}_id が必要）:\n${violations.map((v) => `  ${v.tool}: ${v.param}`).join('\n')}`
+        `以下のIDパラメータが無効な形式です（id または {resource}_id が必要）:\n${violations.map((v) => `  ${v.tool}: ${v.param}`).join("\n")}`
       ).toHaveLength(0);
     });
   });
@@ -429,18 +405,16 @@ describe('MCP Parameter Naming Convention', () => {
   // =========================================================================
   // 非推奨パラメータの警告テスト（将来実装）
   // =========================================================================
-  describe('非推奨パラメータ', () => {
-    it.skip('非推奨パラメータ使用時に警告が出力されること', () => {
+  describe("非推奨パラメータ", () => {
+    it.skip("非推奨パラメータ使用時に警告が出力されること", () => {
       // v0.1.0で実装予定
       // 非推奨camelCaseパラメータを使用した場合、
       // _deprecated_parameter_warning が出力されることを検証
     });
 
-    it('非推奨パラメータリストが正しく定義されていること', () => {
+    it("非推奨パラメータリストが正しく定義されていること", () => {
       // 非推奨パラメータリストにあるパラメータが実際に存在するか確認
-      for (const [toolName, params] of Object.entries(
-        DEPRECATED_CAMEL_CASE_PARAMS
-      )) {
+      for (const [toolName, params] of Object.entries(DEPRECATED_CAMEL_CASE_PARAMS)) {
         const tool = allToolDefinitions.find((t) => t.name === toolName);
 
         // ツールが存在しない場合はスキップ（削除された可能性）
@@ -453,8 +427,8 @@ describe('MCP Parameter Naming Convention', () => {
 
         // トップレベルのパラメータ名のみ抽出
         const topLevelParams = allParams
-          .filter((p) => !p.includes('.'))
-          .map((p) => p.replace('[]', ''));
+          .filter((p) => !p.includes("."))
+          .map((p) => p.replace("[]", ""));
 
         for (const deprecatedParam of params) {
           // 非推奨パラメータがまだ存在することを確認
@@ -485,8 +459,8 @@ describe('MCP Parameter Naming Convention', () => {
   // narrative.search, background.search ツール追加
   // preference.hear, preference.get, preference.reset ツール追加
   // =========================================================================
-  describe('ツール数', () => {
-    it('allToolDefinitionsが26ツール（WebDesign専用）を含むこと', () => {
+  describe("ツール数", () => {
+    it("allToolDefinitionsが26ツール（WebDesign専用）を含むこと", () => {
       expect(allToolDefinitions).toHaveLength(26);
     });
   });
@@ -494,8 +468,8 @@ describe('MCP Parameter Naming Convention', () => {
   // =========================================================================
   // 移行進捗トラッキング
   // =========================================================================
-  describe('移行進捗', () => {
-    it('非推奨camelCaseパラメータ数をトラッキング', () => {
+  describe("移行進捗", () => {
+    it("非推奨camelCaseパラメータ数をトラッキング", () => {
       // 現在の非推奨パラメータ総数を計算
       const totalDeprecated = Object.values(DEPRECATED_CAMEL_CASE_PARAMS).reduce(
         (sum, params) => sum + params.length,
@@ -505,9 +479,7 @@ describe('MCP Parameter Naming Convention', () => {
       // v0.1.0で0になるべき
       // 現在は移行期間中なので、数をトラッキングのみ
       console.log(`[INFO] 非推奨camelCaseパラメータ総数: ${totalDeprecated}`);
-      console.log(
-        `[INFO] 対象ツール数: ${Object.keys(DEPRECATED_CAMEL_CASE_PARAMS).length}`
-      );
+      console.log(`[INFO] 対象ツール数: ${Object.keys(DEPRECATED_CAMEL_CASE_PARAMS).length}`);
 
       // 現在の期待値（移行完了時に0になる）
       // この値は移行が進むにつれて減少する
@@ -517,7 +489,7 @@ describe('MCP Parameter Naming Convention', () => {
       // expect(totalDeprecated).toBe(0);
     });
 
-    it('compactパラメータ数をトラッキング', () => {
+    it("compactパラメータ数をトラッキング", () => {
       const compactCount = TOOLS_WITH_COMPACT_PARAM.length;
 
       console.log(`[INFO] compactパラメータを持つツール数: ${compactCount}`);

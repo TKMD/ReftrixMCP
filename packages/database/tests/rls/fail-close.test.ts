@@ -73,158 +73,156 @@ describe.skipIf(!DATABASE_URL || !ADMIN_DATABASE_URL)(
       await prisma.$disconnect();
     });
 
-  describe("when userId is null", () => {
-    it("should return empty result set (fail-close)", async () => {
-      const projects = await withRlsContext(prisma, null, async (tx) => {
-        return tx.$queryRaw<{ id: string }[]>`SELECT id::text FROM projects`;
+    describe("when userId is null", () => {
+      it("should return empty result set (fail-close)", async () => {
+        const projects = await withRlsContext(prisma, null, async (tx) => {
+          return tx.$queryRaw<{ id: string }[]>`SELECT id::text FROM projects`;
+        });
+
+        // Fail-close: empty result set
+        expect(projects).toHaveLength(0);
       });
 
-      // Fail-close: empty result set
-      expect(projects).toHaveLength(0);
-    });
+      it("should NOT return all rows (fail-open is NOT acceptable)", async () => {
+        const projects = await withRlsContext(prisma, null, async (tx) => {
+          return tx.$queryRaw<{ id: string }[]>`SELECT id::text FROM projects`;
+        });
 
-    it("should NOT return all rows (fail-open is NOT acceptable)", async () => {
-      const projects = await withRlsContext(prisma, null, async (tx) => {
-        return tx.$queryRaw<{ id: string }[]>`SELECT id::text FROM projects`;
+        // Fail-open check: test project should NOT be visible
+        const ids = projects.map((p) => p.id);
+        expect(ids).not.toContain(testProjectId);
       });
 
-      // Fail-open check: test project should NOT be visible
-      const ids = projects.map((p) => p.id);
-      expect(ids).not.toContain(testProjectId);
-    });
-
-    it("should block INSERT operations", async () => {
-      // Attempting to insert with null context should fail
-      // The WITH CHECK clause will reject the insert
-      await expect(
-        withRlsContext(prisma, null, async (tx) => {
-          return tx.$executeRaw`
+      it("should block INSERT operations", async () => {
+        // Attempting to insert with null context should fail
+        // The WITH CHECK clause will reject the insert
+        await expect(
+          withRlsContext(prisma, null, async (tx) => {
+            return tx.$executeRaw`
             INSERT INTO projects (id, user_id, name, slug, status, created_at, updated_at)
             VALUES (gen_random_uuid(), ${testUserId}::uuid, 'Should Fail', 'should-fail', 'draft', NOW(), NOW())
           `;
-        })
-      ).rejects.toThrow();
-    });
+          })
+        ).rejects.toThrow();
+      });
 
-    it("should block UPDATE operations on existing data", async () => {
-      const result = await withRlsContext(prisma, null, async (tx) => {
-        return tx.$executeRaw`
+      it("should block UPDATE operations on existing data", async () => {
+        const result = await withRlsContext(prisma, null, async (tx) => {
+          return tx.$executeRaw`
           UPDATE projects SET name = 'Hacked' WHERE id = ${testProjectId}::uuid
         `;
+        });
+
+        // No rows should be updated (RLS blocks access)
+        expect(result).toBe(0);
       });
 
-      // No rows should be updated (RLS blocks access)
-      expect(result).toBe(0);
-    });
-
-    it("should block DELETE operations on existing data", async () => {
-      const result = await withRlsContext(prisma, null, async (tx) => {
-        return tx.$executeRaw`
+      it("should block DELETE operations on existing data", async () => {
+        const result = await withRlsContext(prisma, null, async (tx) => {
+          return tx.$executeRaw`
           DELETE FROM projects WHERE id = ${testProjectId}::uuid
         `;
+        });
+
+        // No rows should be deleted (RLS blocks access)
+        expect(result).toBe(0);
       });
-
-      // No rows should be deleted (RLS blocks access)
-      expect(result).toBe(0);
-    });
-  });
-
-  describe("when userId is empty string", () => {
-    it("should return empty result set (fail-close)", async () => {
-      const projects = await withRlsContext(prisma, "", async (tx) => {
-        return tx.$queryRaw<{ id: string }[]>`SELECT id::text FROM projects`;
-      });
-
-      expect(projects).toHaveLength(0);
     });
 
-    it("should NOT return the test project", async () => {
-      const projects = await withRlsContext(prisma, "", async (tx) => {
-        return tx.$queryRaw<{ id: string }[]>`
+    describe("when userId is empty string", () => {
+      it("should return empty result set (fail-close)", async () => {
+        const projects = await withRlsContext(prisma, "", async (tx) => {
+          return tx.$queryRaw<{ id: string }[]>`SELECT id::text FROM projects`;
+        });
+
+        expect(projects).toHaveLength(0);
+      });
+
+      it("should NOT return the test project", async () => {
+        const projects = await withRlsContext(prisma, "", async (tx) => {
+          return tx.$queryRaw<{ id: string }[]>`
           SELECT id::text FROM projects WHERE id = ${testProjectId}::uuid
         `;
+        });
+
+        expect(projects).toHaveLength(0);
       });
-
-      expect(projects).toHaveLength(0);
     });
-  });
 
-  describe("when userId is undefined", () => {
-    it("should return empty result set (fail-close)", async () => {
-      const projects = await withRlsContext(prisma, undefined, async (tx) => {
-        return tx.$queryRaw<{ id: string }[]>`SELECT id::text FROM projects`;
+    describe("when userId is undefined", () => {
+      it("should return empty result set (fail-close)", async () => {
+        const projects = await withRlsContext(prisma, undefined, async (tx) => {
+          return tx.$queryRaw<{ id: string }[]>`SELECT id::text FROM projects`;
+        });
+
+        expect(projects).toHaveLength(0);
       });
-
-      expect(projects).toHaveLength(0);
     });
-  });
 
-  describe("when SET LOCAL is not called (direct transaction)", () => {
-    it("should return empty result set due to NULL current_user_id", async () => {
-      // This simulates a scenario where code forgets to call withRlsContext
-      // and directly uses a transaction without setting the context
-      const projects = await prisma.$transaction(async (tx) => {
-        // Intentionally NOT calling SET LOCAL
-        return tx.$queryRaw<{ id: string }[]>`SELECT id::text FROM projects`;
+    describe("when SET LOCAL is not called (direct transaction)", () => {
+      it("should return empty result set due to NULL current_user_id", async () => {
+        // This simulates a scenario where code forgets to call withRlsContext
+        // and directly uses a transaction without setting the context
+        const projects = await prisma.$transaction(async (tx) => {
+          // Intentionally NOT calling SET LOCAL
+          return tx.$queryRaw<{ id: string }[]>`SELECT id::text FROM projects`;
+        });
+
+        // Fail-close: NULL user context means no access
+        expect(projects).toHaveLength(0);
       });
-
-      // Fail-close: NULL user context means no access
-      expect(projects).toHaveLength(0);
     });
-  });
 
-  describe("SQL-level verification of get_current_user_id()", () => {
-    it("should return NULL when context is not set", async () => {
-      const result = await prisma.$queryRaw<{ is_null: boolean }[]>`
+    describe("SQL-level verification of get_current_user_id()", () => {
+      it("should return NULL when context is not set", async () => {
+        const result = await prisma.$queryRaw<{ is_null: boolean }[]>`
         SELECT get_current_user_id() IS NULL AS is_null
       `;
 
-      expect(result[0]?.is_null).toBe(true);
-    });
+        expect(result[0]?.is_null).toBe(true);
+      });
 
-    it("should return NULL when context is empty string", async () => {
-      const result = await prisma.$transaction(async (tx) => {
-        await tx.$executeRaw`SET LOCAL app.current_user_id = ''`;
-        return tx.$queryRaw<{ is_null: boolean }[]>`
+      it("should return NULL when context is empty string", async () => {
+        const result = await prisma.$transaction(async (tx) => {
+          await tx.$executeRaw`SET LOCAL app.current_user_id = ''`;
+          return tx.$queryRaw<{ is_null: boolean }[]>`
           SELECT get_current_user_id() IS NULL AS is_null
         `;
+        });
+
+        expect(result[0]?.is_null).toBe(true);
       });
 
-      expect(result[0]?.is_null).toBe(true);
-    });
-
-    it("should return the user ID when properly set", async () => {
-      const result = await prisma.$transaction(async (tx) => {
-        // Note: SET LOCAL doesn't support parameter binding, use $executeRawUnsafe
-        // This is safe here as testUserId is a constant defined in tests
-        await tx.$executeRawUnsafe(
-          `SET LOCAL app.current_user_id = '${testUserId}'`
-        );
-        return tx.$queryRaw<{ user_id: string }[]>`
+      it("should return the user ID when properly set", async () => {
+        const result = await prisma.$transaction(async (tx) => {
+          // Note: SET LOCAL doesn't support parameter binding, use $executeRawUnsafe
+          // This is safe here as testUserId is a constant defined in tests
+          await tx.$executeRawUnsafe(`SET LOCAL app.current_user_id = '${testUserId}'`);
+          return tx.$queryRaw<{ user_id: string }[]>`
           SELECT get_current_user_id() AS user_id
         `;
+        });
+
+        expect(result[0]?.user_id).toBe(testUserId);
       });
-
-      expect(result[0]?.user_id).toBe(testUserId);
     });
-  });
 
-  // [Phase 1] Cross-table fail-close verification removed
-  // accounts, sessions tables deleted in Phase 1
-  // [DELETED OSS] api_keys table deleted in OSS cleanup
+    // [Phase 1] Cross-table fail-close verification removed
+    // accounts, sessions tables deleted in Phase 1
+    // [DELETED OSS] api_keys table deleted in OSS cleanup
 
-  describe("Authorized access verification", () => {
-    it("should allow access with valid user context", async () => {
-      const projects = await withRlsContext(prisma, testUserId, async (tx) => {
-        return tx.$queryRaw<{ id: string }[]>`
+    describe("Authorized access verification", () => {
+      it("should allow access with valid user context", async () => {
+        const projects = await withRlsContext(prisma, testUserId, async (tx) => {
+          return tx.$queryRaw<{ id: string }[]>`
           SELECT id::text FROM projects WHERE id = ${testProjectId}::uuid
         `;
-      });
+        });
 
-      // With valid context, user should see their project
-      expect(projects).toHaveLength(1);
-      expect(projects[0]?.id).toBe(testProjectId);
+        // With valid context, user should see their project
+        expect(projects).toHaveLength(1);
+        expect(projects[0]?.id).toBe(testProjectId);
+      });
     });
-  });
   }
 );

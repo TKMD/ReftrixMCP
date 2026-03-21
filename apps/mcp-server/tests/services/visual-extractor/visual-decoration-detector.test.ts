@@ -13,32 +13,32 @@
  * @module tests/services/visual-extractor/visual-decoration-detector.test
  */
 
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach } from "vitest";
 import {
   VisualDecorationDetectorService,
   visualDecorationDetector,
-} from '../../../src/services/visual-extractor/visual-decoration-detector.service';
+} from "../../../src/services/visual-extractor/visual-decoration-detector.service";
 import type {
   VisualDecoration,
   VisualDecorationsResult,
-} from '../../../src/tools/layout/inspect/visual-extractors.schemas';
+} from "../../../src/tools/layout/inspect/visual-extractors.schemas";
 
-describe('VisualDecorationDetectorService', () => {
+describe("VisualDecorationDetectorService", () => {
   let detector: VisualDecorationDetectorService;
 
   beforeEach(() => {
     detector = new VisualDecorationDetectorService();
   });
 
-  describe('Singleton instance', () => {
-    it('should export a singleton visualDecorationDetector', () => {
+  describe("Singleton instance", () => {
+    it("should export a singleton visualDecorationDetector", () => {
       expect(visualDecorationDetector).toBeInstanceOf(VisualDecorationDetectorService);
     });
   });
 
-  describe('detectFromCSS', () => {
-    describe('Glow Effects', () => {
-      it('should detect basic glow effect from box-shadow', () => {
+  describe("detectFromCSS", () => {
+    describe("Glow Effects", () => {
+      it("should detect basic glow effect from box-shadow", () => {
         const css = `
           .glowing-ring {
             box-shadow: 0 0 20px rgba(255, 100, 50, 0.5);
@@ -47,14 +47,14 @@ describe('VisualDecorationDetectorService', () => {
         const result = detector.detectFromCSS(css);
 
         expect(result.decorations.length).toBeGreaterThan(0);
-        const glow = result.decorations.find((d) => d.type === 'glow');
+        const glow = result.decorations.find((d) => d.type === "glow");
         expect(glow).toBeDefined();
         expect(glow?.properties.blur).toBe(20);
         expect(glow?.confidence).toBeGreaterThanOrEqual(0.7);
         expect(result.summary.glowCount).toBe(1);
       });
 
-      it('should detect glow with hex color', () => {
+      it("should detect glow with hex color", () => {
         const css = `
           .element {
             box-shadow: 0 0 30px #ff6432;
@@ -62,12 +62,12 @@ describe('VisualDecorationDetectorService', () => {
         `;
         const result = detector.detectFromCSS(css);
 
-        const glow = result.decorations.find((d) => d.type === 'glow');
+        const glow = result.decorations.find((d) => d.type === "glow");
         expect(glow).toBeDefined();
         expect(glow?.properties.color).toMatch(/^#[0-9a-fA-F]{6}$/i);
       });
 
-      it('should detect multiple glow effects', () => {
+      it("should detect multiple glow effects", () => {
         const css = `
           .glow1 { box-shadow: 0 0 10px red; }
           .glow2 { box-shadow: 0 0 15px blue; }
@@ -77,7 +77,7 @@ describe('VisualDecorationDetectorService', () => {
         expect(result.summary.glowCount).toBe(2);
       });
 
-      it('should not detect regular drop shadow as glow', () => {
+      it("should not detect regular drop shadow as glow", () => {
         const css = `
           .shadow {
             box-shadow: 5px 5px 10px rgba(0, 0, 0, 0.3);
@@ -88,7 +88,7 @@ describe('VisualDecorationDetectorService', () => {
         expect(result.summary.glowCount).toBe(0);
       });
 
-      it('should detect glow with spread radius', () => {
+      it("should detect glow with spread radius", () => {
         const css = `
           .glow {
             box-shadow: 0 0 20px 5px rgba(100, 200, 255, 0.6);
@@ -96,12 +96,12 @@ describe('VisualDecorationDetectorService', () => {
         `;
         const result = detector.detectFromCSS(css);
 
-        const glow = result.decorations.find((d) => d.type === 'glow');
+        const glow = result.decorations.find((d) => d.type === "glow");
         expect(glow).toBeDefined();
         expect(glow?.properties.spread).toBe(5);
       });
 
-      it('should handle inset box-shadow (not glow)', () => {
+      it("should handle inset box-shadow (not glow)", () => {
         const css = `
           .inset {
             box-shadow: inset 0 0 20px rgba(255, 0, 0, 0.5);
@@ -114,8 +114,8 @@ describe('VisualDecorationDetectorService', () => {
       });
     });
 
-    describe('Gradient Backgrounds', () => {
-      it('should detect linear-gradient', () => {
+    describe("Gradient Backgrounds", () => {
+      it("should detect linear-gradient", () => {
         const css = `
           .gradient {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -124,13 +124,13 @@ describe('VisualDecorationDetectorService', () => {
         const result = detector.detectFromCSS(css);
 
         expect(result.summary.gradientCount).toBeGreaterThan(0);
-        const gradient = result.decorations.find((d) => d.type === 'gradient');
+        const gradient = result.decorations.find((d) => d.type === "gradient");
         expect(gradient).toBeDefined();
-        expect(gradient?.properties.gradientType).toBe('linear');
+        expect(gradient?.properties.gradientType).toBe("linear");
         expect(gradient?.properties.angle).toBe(135);
       });
 
-      it('should detect radial-gradient', () => {
+      it("should detect radial-gradient", () => {
         const css = `
           .radial {
             background: radial-gradient(circle, #fff 0%, #000 100%);
@@ -138,12 +138,12 @@ describe('VisualDecorationDetectorService', () => {
         `;
         const result = detector.detectFromCSS(css);
 
-        const gradient = result.decorations.find((d) => d.type === 'gradient');
+        const gradient = result.decorations.find((d) => d.type === "gradient");
         expect(gradient).toBeDefined();
-        expect(gradient?.properties.gradientType).toBe('radial');
+        expect(gradient?.properties.gradientType).toBe("radial");
       });
 
-      it('should detect conic-gradient', () => {
+      it("should detect conic-gradient", () => {
         const css = `
           .conic {
             background: conic-gradient(from 0deg, red, yellow, green, blue, red);
@@ -151,12 +151,12 @@ describe('VisualDecorationDetectorService', () => {
         `;
         const result = detector.detectFromCSS(css);
 
-        const gradient = result.decorations.find((d) => d.type === 'gradient');
+        const gradient = result.decorations.find((d) => d.type === "gradient");
         expect(gradient).toBeDefined();
-        expect(gradient?.properties.gradientType).toBe('conic');
+        expect(gradient?.properties.gradientType).toBe("conic");
       });
 
-      it('should extract color stops', () => {
+      it("should extract color stops", () => {
         const css = `
           .gradient {
             background: linear-gradient(90deg, #ff0000 0%, #00ff00 50%, #0000ff 100%);
@@ -164,12 +164,12 @@ describe('VisualDecorationDetectorService', () => {
         `;
         const result = detector.detectFromCSS(css);
 
-        const gradient = result.decorations.find((d) => d.type === 'gradient');
+        const gradient = result.decorations.find((d) => d.type === "gradient");
         expect(gradient?.properties.colorStops).toBeDefined();
         expect(gradient?.properties.colorStops?.length).toBe(3);
       });
 
-      it('should handle gradient with direction keywords', () => {
+      it("should handle gradient with direction keywords", () => {
         const css = `
           .gradient {
             background: linear-gradient(to right, #000, #fff);
@@ -177,14 +177,14 @@ describe('VisualDecorationDetectorService', () => {
         `;
         const result = detector.detectFromCSS(css);
 
-        const gradient = result.decorations.find((d) => d.type === 'gradient');
+        const gradient = result.decorations.find((d) => d.type === "gradient");
         expect(gradient).toBeDefined();
         expect(gradient?.properties.angle).toBe(90); // "to right" = 90deg
       });
     });
 
-    describe('Animated Borders', () => {
-      it('should detect border-image gradient', () => {
+    describe("Animated Borders", () => {
+      it("should detect border-image gradient", () => {
         const css = `
           .border-gradient {
             border-image: linear-gradient(90deg, red, blue) 1;
@@ -192,12 +192,12 @@ describe('VisualDecorationDetectorService', () => {
         `;
         const result = detector.detectFromCSS(css);
 
-        const animatedBorder = result.decorations.find((d) => d.type === 'animated-border');
+        const animatedBorder = result.decorations.find((d) => d.type === "animated-border");
         expect(animatedBorder).toBeDefined();
         expect(result.summary.animatedBorderCount).toBeGreaterThan(0);
       });
 
-      it('should detect animation on border properties', () => {
+      it("should detect animation on border properties", () => {
         const css = `
           @keyframes borderPulse {
             0% { border-color: red; }
@@ -209,12 +209,12 @@ describe('VisualDecorationDetectorService', () => {
         `;
         const result = detector.detectFromCSS(css);
 
-        const animatedBorder = result.decorations.find((d) => d.type === 'animated-border');
+        const animatedBorder = result.decorations.find((d) => d.type === "animated-border");
         expect(animatedBorder).toBeDefined();
-        expect(animatedBorder?.properties.animationName).toBe('borderPulse');
+        expect(animatedBorder?.properties.animationName).toBe("borderPulse");
       });
 
-      it('should detect glowing border (box-shadow + border-radius)', () => {
+      it("should detect glowing border (box-shadow + border-radius)", () => {
         const css = `
           .glowing-border {
             border-radius: 10px;
@@ -228,8 +228,8 @@ describe('VisualDecorationDetectorService', () => {
       });
     });
 
-    describe('Glass Morphism', () => {
-      it('should detect backdrop-filter blur', () => {
+    describe("Glass Morphism", () => {
+      it("should detect backdrop-filter blur", () => {
         const css = `
           .glass {
             backdrop-filter: blur(10px);
@@ -238,12 +238,12 @@ describe('VisualDecorationDetectorService', () => {
         const result = detector.detectFromCSS(css);
 
         expect(result.summary.glassMorphismCount).toBeGreaterThan(0);
-        const glass = result.decorations.find((d) => d.type === 'glass-morphism');
+        const glass = result.decorations.find((d) => d.type === "glass-morphism");
         expect(glass).toBeDefined();
         expect(glass?.properties.blur).toBe(10);
       });
 
-      it('should detect -webkit-backdrop-filter', () => {
+      it("should detect -webkit-backdrop-filter", () => {
         const css = `
           .glass {
             -webkit-backdrop-filter: blur(20px);
@@ -254,7 +254,7 @@ describe('VisualDecorationDetectorService', () => {
         expect(result.summary.glassMorphismCount).toBeGreaterThan(0);
       });
 
-      it('should detect backdrop-filter with multiple functions', () => {
+      it("should detect backdrop-filter with multiple functions", () => {
         const css = `
           .glass {
             backdrop-filter: blur(10px) saturate(180%);
@@ -262,14 +262,14 @@ describe('VisualDecorationDetectorService', () => {
         `;
         const result = detector.detectFromCSS(css);
 
-        const glass = result.decorations.find((d) => d.type === 'glass-morphism');
+        const glass = result.decorations.find((d) => d.type === "glass-morphism");
         expect(glass).toBeDefined();
       });
     });
   });
 
-  describe('detectFromHTML', () => {
-    it('should extract CSS from style tags', () => {
+  describe("detectFromHTML", () => {
+    it("should extract CSS from style tags", () => {
       const html = `
         <html>
         <head>
@@ -287,7 +287,7 @@ describe('VisualDecorationDetectorService', () => {
       expect(result.summary.glowCount).toBeGreaterThan(0);
     });
 
-    it('should extract inline styles', () => {
+    it("should extract inline styles", () => {
       const html = `
         <div style="backdrop-filter: blur(15px); background: rgba(255,255,255,0.1);">
           Glass card
@@ -298,7 +298,7 @@ describe('VisualDecorationDetectorService', () => {
       expect(result.summary.glassMorphismCount).toBeGreaterThan(0);
     });
 
-    it('should combine style tags and inline styles', () => {
+    it("should combine style tags and inline styles", () => {
       const html = `
         <html>
         <head>
@@ -318,8 +318,8 @@ describe('VisualDecorationDetectorService', () => {
       expect(result.summary.glowCount).toBeGreaterThan(0);
     });
 
-    it('should handle empty HTML', () => {
-      const result = detector.detectFromHTML('');
+    it("should handle empty HTML", () => {
+      const result = detector.detectFromHTML("");
 
       expect(result.decorations).toEqual([]);
       expect(result.summary.glowCount).toBe(0);
@@ -328,7 +328,7 @@ describe('VisualDecorationDetectorService', () => {
       expect(result.summary.glassMorphismCount).toBe(0);
     });
 
-    it('should handle HTML without styles', () => {
+    it("should handle HTML without styles", () => {
       const html = `
         <html>
         <body>
@@ -342,8 +342,8 @@ describe('VisualDecorationDetectorService', () => {
     });
   });
 
-  describe('E&A Financial style detection', () => {
-    it('should detect glowing ring effect', () => {
+  describe("E&A Financial style detection", () => {
+    it("should detect glowing ring effect", () => {
       const css = `
         .hero-ring {
           position: absolute;
@@ -364,11 +364,11 @@ describe('VisualDecorationDetectorService', () => {
       const result = detector.detectFromCSS(css);
 
       expect(result.summary.glowCount).toBeGreaterThan(0);
-      const glow = result.decorations.find((d) => d.type === 'glow');
+      const glow = result.decorations.find((d) => d.type === "glow");
       expect(glow).toBeDefined();
     });
 
-    it('should detect premium gradient background', () => {
+    it("should detect premium gradient background", () => {
       const css = `
         .hero {
           background: linear-gradient(
@@ -382,12 +382,12 @@ describe('VisualDecorationDetectorService', () => {
       const result = detector.detectFromCSS(css);
 
       expect(result.summary.gradientCount).toBeGreaterThan(0);
-      const gradient = result.decorations.find((d) => d.type === 'gradient');
-      expect(gradient?.properties.gradientType).toBe('linear');
+      const gradient = result.decorations.find((d) => d.type === "gradient");
+      expect(gradient?.properties.gradientType).toBe("linear");
       expect(gradient?.properties.angle).toBe(135);
     });
 
-    it('should detect glass morphism card', () => {
+    it("should detect glass morphism card", () => {
       const css = `
         .glass-card {
           background: rgba(255, 255, 255, 0.05);
@@ -399,13 +399,13 @@ describe('VisualDecorationDetectorService', () => {
       const result = detector.detectFromCSS(css);
 
       expect(result.summary.glassMorphismCount).toBeGreaterThan(0);
-      const glass = result.decorations.find((d) => d.type === 'glass-morphism');
+      const glass = result.decorations.find((d) => d.type === "glass-morphism");
       expect(glass?.properties.blur).toBe(20);
     });
   });
 
-  describe('Processing time tracking', () => {
-    it('should track processing time', () => {
+  describe("Processing time tracking", () => {
+    it("should track processing time", () => {
       const css = `
         .element {
           box-shadow: 0 0 20px red;
@@ -419,8 +419,8 @@ describe('VisualDecorationDetectorService', () => {
     });
   });
 
-  describe('Confidence scoring', () => {
-    it('should have higher confidence for clear glow patterns', () => {
+  describe("Confidence scoring", () => {
+    it("should have higher confidence for clear glow patterns", () => {
       const css = `
         .clear-glow {
           box-shadow: 0 0 30px rgba(255, 100, 50, 0.8);
@@ -428,11 +428,11 @@ describe('VisualDecorationDetectorService', () => {
       `;
       const result = detector.detectFromCSS(css);
 
-      const glow = result.decorations.find((d) => d.type === 'glow');
+      const glow = result.decorations.find((d) => d.type === "glow");
       expect(glow?.confidence).toBeGreaterThanOrEqual(0.8);
     });
 
-    it('should have lower confidence for ambiguous patterns', () => {
+    it("should have lower confidence for ambiguous patterns", () => {
       const css = `
         .ambiguous {
           box-shadow: 0 0 5px rgba(128, 128, 128, 0.3);
@@ -440,15 +440,15 @@ describe('VisualDecorationDetectorService', () => {
       `;
       const result = detector.detectFromCSS(css);
 
-      const glow = result.decorations.find((d) => d.type === 'glow');
+      const glow = result.decorations.find((d) => d.type === "glow");
       if (glow) {
         expect(glow.confidence).toBeLessThan(0.9);
       }
     });
   });
 
-  describe('Edge cases', () => {
-    it('should handle CSS with syntax errors gracefully', () => {
+  describe("Edge cases", () => {
+    it("should handle CSS with syntax errors gracefully", () => {
       const css = `
         .broken {
           box-shadow: 0 0 20px
@@ -463,16 +463,14 @@ describe('VisualDecorationDetectorService', () => {
       expect(result.summary.gradientCount).toBeGreaterThan(0);
     });
 
-    it('should handle very long CSS', () => {
-      const css = Array(100)
-        .fill('.element { box-shadow: 0 0 10px red; }')
-        .join('\n');
+    it("should handle very long CSS", () => {
+      const css = Array(100).fill(".element { box-shadow: 0 0 10px red; }").join("\n");
       const result = detector.detectFromCSS(css);
 
       expect(result.summary.glowCount).toBeGreaterThan(0);
     });
 
-    it('should handle CSS with nested functions', () => {
+    it("should handle CSS with nested functions", () => {
       const css = `
         .complex {
           background: linear-gradient(
@@ -488,7 +486,7 @@ describe('VisualDecorationDetectorService', () => {
       expect(result).toBeDefined();
     });
 
-    it('should handle multiple shadows in one declaration', () => {
+    it("should handle multiple shadows in one declaration", () => {
       const css = `
         .multi-shadow {
           box-shadow:

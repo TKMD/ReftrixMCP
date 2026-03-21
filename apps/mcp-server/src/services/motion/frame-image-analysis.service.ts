@@ -15,12 +15,12 @@
  * 4. タイムライン生成
  */
 
-import * as fs from 'fs';
-import * as path from 'path';
+import * as fs from "fs";
+import * as path from "path";
 
-import { FrameLoader } from './infrastructure/frame-loader';
-import { FrameWorkerPool } from './frame-worker-pool.service';
-import type { WorkerTask } from './frame-worker-pool.service';
+import { FrameLoader } from "./infrastructure/frame-loader";
+import { FrameWorkerPool } from "./frame-worker-pool.service";
+import type { WorkerTask } from "./frame-worker-pool.service";
 import type {
   FrameAnalysisInput,
   FrameAnalysisResult,
@@ -36,13 +36,8 @@ import type {
   ViewportSize,
   IFrameImageAnalysisService,
   FrameAnalysisErrorCode,
-} from './types';
-import {
-  FrameAnalysisError,
-  FrameAnalysisErrorCodes,
-  DEFAULTS,
-  LIMITS,
-} from './types';
+} from "./types";
+import { FrameAnalysisError, FrameAnalysisErrorCodes, DEFAULTS, LIMITS } from "./types";
 
 // ============================================================================
 // 設定インターフェース
@@ -77,9 +72,9 @@ export class FrameImageAnalysisService implements IFrameImageAnalysisService {
       cacheSize: config.cacheSize ?? DEFAULTS.CACHE_SIZE,
     };
 
-    if (process.env.NODE_ENV === 'development') {
+    if (process.env.NODE_ENV === "development") {
       // eslint-disable-next-line no-console -- Intentional debug log in development
-      console.log('[FrameImageAnalysisService] Initialized:', this.config);
+      console.log("[FrameImageAnalysisService] Initialized:", this.config);
     }
   }
 
@@ -99,7 +94,7 @@ export class FrameImageAnalysisService implements IFrameImageAnalysisService {
       if (frames.length === 0) {
         return this.createErrorResult(
           FrameAnalysisErrorCodes.MISSING_FRAMES,
-          'No valid frames found in the specified location'
+          "No valid frames found in the specified location"
         );
       }
 
@@ -166,9 +161,9 @@ export class FrameImageAnalysisService implements IFrameImageAnalysisService {
       const elapsedMs = performance.now() - startTime;
       result.data!.processingTimeMs = Math.max(1, Math.round(elapsedMs));
 
-      if (process.env.NODE_ENV === 'development') {
+      if (process.env.NODE_ENV === "development") {
         // eslint-disable-next-line no-console -- Intentional debug log in development
-        console.log('[FrameImageAnalysisService] Analysis complete:', {
+        console.log("[FrameImageAnalysisService] Analysis complete:", {
           totalFrames: result.data!.totalFrames,
           processingTimeMs: result.data!.processingTimeMs,
         });
@@ -181,7 +176,7 @@ export class FrameImageAnalysisService implements IFrameImageAnalysisService {
       }
       return this.createErrorResult(
         FrameAnalysisErrorCodes.INTERNAL_ERROR,
-        error instanceof Error ? error.message : 'Unknown error occurred'
+        error instanceof Error ? error.message : "Unknown error occurred"
       );
     }
   }
@@ -215,9 +210,9 @@ export class FrameImageAnalysisService implements IFrameImageAnalysisService {
 
     this.disposed = true;
 
-    if (process.env.NODE_ENV === 'development') {
+    if (process.env.NODE_ENV === "development") {
       // eslint-disable-next-line no-console -- Intentional debug log in development
-      console.log('[FrameImageAnalysisService] Disposed');
+      console.log("[FrameImageAnalysisService] Disposed");
     }
   }
 
@@ -233,7 +228,7 @@ export class FrameImageAnalysisService implements IFrameImageAnalysisService {
     if (!input.frameDir && !input.framePaths && !input.extractResult) {
       throw new FrameAnalysisError(
         FrameAnalysisErrorCodes.INVALID_INPUT,
-        'Either frameDir, framePaths, or extractResult is required as input source'
+        "Either frameDir, framePaths, or extractResult is required as input source"
       );
     }
 
@@ -244,10 +239,10 @@ export class FrameImageAnalysisService implements IFrameImageAnalysisService {
     if (input.extractResult?.frameDir) pathsToCheck.push(input.extractResult.frameDir);
 
     for (const p of pathsToCheck) {
-      if (p.includes('..')) {
+      if (p.includes("..")) {
         throw new FrameAnalysisError(
           FrameAnalysisErrorCodes.PATH_TRAVERSAL,
-          'Path traversal detected in input path'
+          "Path traversal detected in input path"
         );
       }
     }
@@ -291,7 +286,7 @@ export class FrameImageAnalysisService implements IFrameImageAnalysisService {
     }
 
     // フレームディレクトリを許可ディレクトリに追加したFrameLoaderを作成
-    const frameDir = path.dirname(framePaths[0] ?? '');
+    const frameDir = path.dirname(framePaths[0] ?? "");
     const loader = new FrameLoader({
       allowedDirectories: [frameDir],
       maxFileSize: LIMITS.MAX_FILE_SIZE,
@@ -316,18 +311,21 @@ export class FrameImageAnalysisService implements IFrameImageAnalysisService {
           path: framePath,
         });
 
-        if (process.env.NODE_ENV === 'development') {
+        if (process.env.NODE_ENV === "development") {
           // eslint-disable-next-line no-console -- Intentional debug log in development
-          console.log(`[FrameImageAnalysisService] Loaded frame ${index + 1}/${framePaths.length}:`, {
-            path: framePath,
-            width: frameData.metadata.width,
-            height: frameData.metadata.height,
-            bufferSize: frameData.buffer.length,
-          });
+          console.log(
+            `[FrameImageAnalysisService] Loaded frame ${index + 1}/${framePaths.length}:`,
+            {
+              path: framePath,
+              width: frameData.metadata.width,
+              height: frameData.metadata.height,
+              bufferSize: frameData.buffer.length,
+            }
+          );
         }
       } catch (error) {
         // ファイル読み込みエラーはスキップして続行（エラーログ出力）
-        if (process.env.NODE_ENV === 'development') {
+        if (process.env.NODE_ENV === "development") {
           console.warn(`[FrameImageAnalysisService] Failed to load frame: ${framePath}`, error);
         }
       }
@@ -506,7 +504,7 @@ export class FrameImageAnalysisService implements IFrameImageAnalysisService {
           });
         } else {
           // ワーカー失敗時はフレームインデックス付きの空結果を追加
-          if (process.env.NODE_ENV === 'development') {
+          if (process.env.NODE_ENV === "development") {
             console.warn(
               `[FrameImageAnalysisService] Worker failed for pair ${idx + 1}:`,
               taskResult.error
@@ -523,10 +521,10 @@ export class FrameImageAnalysisService implements IFrameImageAnalysisService {
         }
       }
 
-      if (process.env.NODE_ENV === 'development') {
+      if (process.env.NODE_ENV === "development") {
         const stats = workerPool.getStats();
         // eslint-disable-next-line no-console -- Intentional debug log in development
-        console.log('[FrameImageAnalysisService] Parallel diff analysis complete:', {
+        console.log("[FrameImageAnalysisService] Parallel diff analysis complete:", {
           totalPairs: tasks.length,
           completedTasks: stats.completedTasks,
           failedTasks: stats.failedTasks,
@@ -536,9 +534,9 @@ export class FrameImageAnalysisService implements IFrameImageAnalysisService {
       return results;
     } catch (error) {
       // Worker Pool初期化/処理失敗時は逐次処理にフォールバック
-      if (process.env.NODE_ENV === 'development') {
+      if (process.env.NODE_ENV === "development") {
         console.warn(
-          '[FrameImageAnalysisService] Parallel processing failed, falling back to sequential:',
+          "[FrameImageAnalysisService] Parallel processing failed, falling back to sequential:",
           error instanceof Error ? error.message : String(error)
         );
       }
@@ -742,10 +740,7 @@ export class FrameImageAnalysisService implements IFrameImageAnalysisService {
           shiftDirection = 0;
         }
 
-        const distanceFraction = Math.max(
-          0,
-          Math.min(1, shiftDistance / maxViewportDimension)
-        );
+        const distanceFraction = Math.max(0, Math.min(1, shiftDistance / maxViewportDimension));
 
         // CLS impact score = impact fraction * distance fraction
         const impactScore = impactFraction * distanceFraction;
@@ -756,11 +751,7 @@ export class FrameImageAnalysisService implements IFrameImageAnalysisService {
         }
 
         // シフト原因の推定
-        const estimatedCause = this.estimateShiftCause(
-          region,
-          diffResult.changeRatio,
-          viewport
-        );
+        const estimatedCause = this.estimateShiftCause(region, diffResult.changeRatio, viewport);
 
         results.push({
           frameIndex: i + 1,
@@ -787,7 +778,7 @@ export class FrameImageAnalysisService implements IFrameImageAnalysisService {
     region: BoundingBox,
     changeRatio: number,
     viewport: ViewportSize
-  ): LayoutShiftResult['estimatedCause'] {
+  ): LayoutShiftResult["estimatedCause"] {
     const regionArea = region.width * region.height;
     const viewportArea = viewport.width * viewport.height;
     const areaRatio = viewportArea > 0 ? regionArea / viewportArea : 0;
@@ -795,20 +786,20 @@ export class FrameImageAnalysisService implements IFrameImageAnalysisService {
     // 大きな矩形領域の変化 -> 画像読み込み
     const aspectRatio = region.width > 0 ? region.height / region.width : 0;
     if (areaRatio > 0.05 && aspectRatio > 0.3 && aspectRatio < 3.0) {
-      return 'image_load';
+      return "image_load";
     }
 
     // 幅広で高さが小さい変化 -> フォントスワップ
     if (region.width > viewport.width * 0.3 && region.height < viewport.height * 0.1) {
-      return 'font_swap';
+      return "font_swap";
     }
 
     // 変化率が低い場合 -> 動的コンテンツ
     if (changeRatio < 0.05) {
-      return 'dynamic_content';
+      return "dynamic_content";
     }
 
-    return 'unknown';
+    return "unknown";
   }
 
   /**
@@ -910,7 +901,7 @@ export class FrameImageAnalysisService implements IFrameImageAnalysisService {
     }
 
     // 各領域ごとにフレーム間の色変化を追跡してイベントを検出
-    const events: ColorChangeResult['events'] = [];
+    const events: ColorChangeResult["events"] = [];
 
     for (let regionIdx = 0; regionIdx < TOTAL_REGIONS; regionIdx++) {
       const col = regionIdx % GRID_COLS;
@@ -943,8 +934,7 @@ export class FrameImageAnalysisService implements IFrameImageAnalysisService {
         let hueDelta = Math.abs(curr.hue - prev.hue);
         if (hueDelta > 180) hueDelta = 360 - hueDelta;
 
-        const hasSignificantChange =
-          absLuminanceDelta > 0.02 || hueDelta > 5;
+        const hasSignificantChange = absLuminanceDelta > 0.02 || hueDelta > 5;
 
         if (hasSignificantChange) {
           if (eventStartFrame === null) {
@@ -1015,22 +1005,22 @@ export class FrameImageAnalysisService implements IFrameImageAnalysisService {
 
     for (const event of events) {
       switch (event.changeType) {
-        case 'fade_in':
+        case "fade_in":
           fadeInCount++;
           break;
-        case 'fade_out':
+        case "fade_out":
           fadeOutCount++;
           break;
-        case 'color_transition':
+        case "color_transition":
           transitionCount++;
           break;
         // brightness_change はどのカウントにも含めない
       }
     }
 
-    if (process.env.NODE_ENV === 'development') {
+    if (process.env.NODE_ENV === "development") {
       // eslint-disable-next-line no-console -- Intentional debug log in development
-      console.log('[FrameImageAnalysisService] Color change detection:', {
+      console.log("[FrameImageAnalysisService] Color change detection:", {
         totalEvents: events.length,
         fadeInCount,
         fadeOutCount,
@@ -1045,7 +1035,7 @@ export class FrameImageAnalysisService implements IFrameImageAnalysisService {
    * 色変化イベントを確定してリストに追加
    */
   private finalizeColorEvent(
-    events: ColorChangeResult['events'],
+    events: ColorChangeResult["events"],
     eventStartFrame: number,
     lastSignificantFrame: number,
     startColor: { r: number; g: number; b: number; luminance: number; hue: number } | null,
@@ -1075,22 +1065,16 @@ export class FrameImageAnalysisService implements IFrameImageAnalysisService {
     const absLuminanceDelta = Math.abs(accumulatedLuminanceDelta);
 
     // 変化タイプの判定
-    let changeType: ColorChangeResult['events'][number]['changeType'];
+    let changeType: ColorChangeResult["events"][number]["changeType"];
 
-    if (
-      startColor.luminance < darkThreshold &&
-      endColor.luminance > lightThreshold
-    ) {
-      changeType = 'fade_in';
-    } else if (
-      startColor.luminance > lightThreshold &&
-      endColor.luminance < darkThreshold
-    ) {
-      changeType = 'fade_out';
+    if (startColor.luminance < darkThreshold && endColor.luminance > lightThreshold) {
+      changeType = "fade_in";
+    } else if (startColor.luminance > lightThreshold && endColor.luminance < darkThreshold) {
+      changeType = "fade_out";
     } else if (accumulatedHueDelta > hueChangeThreshold) {
-      changeType = 'color_transition';
+      changeType = "color_transition";
     } else if (absLuminanceDelta > luminanceChangeThreshold) {
-      changeType = 'brightness_change';
+      changeType = "brightness_change";
     } else {
       // 閾値未満の変化は無視
       return;
@@ -1188,7 +1172,7 @@ export class FrameImageAnalysisService implements IFrameImageAnalysisService {
     const toHex = (value: number): string =>
       Math.round(Math.max(0, Math.min(255, value)))
         .toString(16)
-        .padStart(2, '0');
+        .padStart(2, "0");
     return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
   }
 
@@ -1200,7 +1184,7 @@ export class FrameImageAnalysisService implements IFrameImageAnalysisService {
    * タイムラインを生成
    */
   private generateTimeline(
-    data: NonNullable<FrameAnalysisResult['data']>,
+    data: NonNullable<FrameAnalysisResult["data"]>,
     fps: number
   ): TimelineEvent[] {
     const events: TimelineEvent[] = [];
@@ -1213,7 +1197,7 @@ export class FrameImageAnalysisService implements IFrameImageAnalysisService {
           events.push({
             timestampMs: (result.frameIndex / fps) * 1000,
             frameIndex: result.frameIndex,
-            type: 'motion_start',
+            type: "motion_start",
             details: { changeRatio: result.changeRatio },
           });
           motionStarted = true;
@@ -1221,7 +1205,7 @@ export class FrameImageAnalysisService implements IFrameImageAnalysisService {
           events.push({
             timestampMs: (result.frameIndex / fps) * 1000,
             frameIndex: result.frameIndex,
-            type: 'motion_end',
+            type: "motion_end",
             details: {},
           });
           motionStarted = false;
@@ -1235,7 +1219,7 @@ export class FrameImageAnalysisService implements IFrameImageAnalysisService {
         events.push({
           timestampMs: shift.shiftStartMs,
           frameIndex: shift.frameIndex,
-          type: 'layout_shift',
+          type: "layout_shift",
           details: { impactScore: shift.impactScore },
         });
       }
@@ -1259,7 +1243,7 @@ export class FrameImageAnalysisService implements IFrameImageAnalysisService {
     message: string,
     details?: Record<string, unknown>
   ): FrameAnalysisResult {
-    const error: FrameAnalysisResult['error'] = {
+    const error: FrameAnalysisResult["error"] = {
       code,
       message,
     };

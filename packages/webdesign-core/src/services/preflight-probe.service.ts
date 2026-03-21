@@ -10,7 +10,7 @@
  * @module @reftrix/webdesign-core/services/preflight-probe
  */
 
-import { isUrlAllowedByRobotsTxt, ROBOTS_TXT } from '@reftrix/core';
+import { isUrlAllowedByRobotsTxt, ROBOTS_TXT } from "@reftrix/core";
 
 // =============================================================================
 // Constants
@@ -44,7 +44,7 @@ export const MAX_HTML_FETCH_SIZE = 102400; // 100KB
 /**
  * Probeサービスバージョン
  */
-export const PROBE_VERSION = '0.1.0';
+export const PROBE_VERSION = "0.1.0";
 
 // =============================================================================
 // Types
@@ -138,14 +138,14 @@ export interface IPreflightProbeService {
  * ブロックするホスト名一覧
  */
 const BLOCKED_HOSTS: readonly string[] = [
-  'localhost',
-  '127.0.0.1',
-  '0.0.0.0',
-  '::1',
-  '[::1]',
-  '169.254.169.254',
-  'metadata.google.internal',
-  'kubernetes.default.svc',
+  "localhost",
+  "127.0.0.1",
+  "0.0.0.0",
+  "::1",
+  "[::1]",
+  "169.254.169.254",
+  "metadata.google.internal",
+  "kubernetes.default.svc",
 ];
 
 /**
@@ -158,6 +158,27 @@ const BLOCKED_IP_RANGES: readonly RegExp[] = [
   /^127\./,
   /^0\./,
   /^169\.254\./,
+];
+
+/**
+ * ブロックするIPv6パターン
+ * ループバック、リンクローカル、ユニークローカル、トンネリングなど
+ */
+const BLOCKED_IPV6_PATTERNS: readonly RegExp[] = [
+  // ループバック ::1
+  /^(0{0,4}:){7}0{0,3}1$|^::1$/i,
+  // リンクローカル fe80::/10
+  /^fe[89ab][0-9a-f]:/i,
+  // ユニークローカル fc00::/7
+  /^f[cd][0-9a-f]{2}:/i,
+  // 未指定アドレス ::
+  /^(0{0,4}:){7}0{0,4}$|^::0?$|^0::0?$/i,
+  // マルチキャスト ff00::/8
+  /^ff[0-9a-f]{2}:/i,
+  // Teredo 2001:0::/32
+  /^2001:0{1,4}:/i,
+  // 6to4 2002::/16
+  /^2002:/i,
 ];
 
 /**
@@ -174,10 +195,8 @@ function validateUrlForSSRF(url: string): void {
   }
 
   // プロトコル検証
-  if (urlObj.protocol !== 'http:' && urlObj.protocol !== 'https:') {
-    throw new Error(
-      `Invalid protocol: only http and https are allowed, got ${urlObj.protocol}`
-    );
+  if (urlObj.protocol !== "http:" && urlObj.protocol !== "https:") {
+    throw new Error(`Invalid protocol: only http and https are allowed, got ${urlObj.protocol}`);
   }
 
   const hostname = urlObj.hostname.toLowerCase();
@@ -187,12 +206,24 @@ function validateUrlForSSRF(url: string): void {
     throw new Error(`URL is blocked: ${hostname} is not allowed (SSRF protection)`);
   }
 
-  // プライベートIPレンジチェック
+  // プライベートIPv4レンジチェック
   for (const range of BLOCKED_IP_RANGES) {
     if (range.test(hostname)) {
       throw new Error(
         `URL is blocked: private IP range ${hostname} is not allowed (SSRF protection)`
       );
+    }
+  }
+
+  // IPv6チェック（角括弧除去）
+  const cleanedHostname = hostname.replace(/^\[|\]$/g, "");
+  if (cleanedHostname.includes(":")) {
+    for (const pattern of BLOCKED_IPV6_PATTERNS) {
+      if (pattern.test(cleanedHostname)) {
+        throw new Error(
+          `URL is blocked: private IPv6 address ${hostname} is not allowed (SSRF protection)`
+        );
+      }
     }
   }
 }
@@ -258,17 +289,17 @@ function detectWebGL(html: string): boolean {
 
   // WebGLライブラリの検出
   const webglLibraries = [
-    'three.js',
-    'three.min.js',
-    'three.module.js',
-    'babylon.js',
-    'babylon.min.js',
-    'pixi.js',
-    'pixi.min.js',
-    'webgl',
-    'gl-matrix',
-    'regl',
-    'twgl',
+    "three.js",
+    "three.min.js",
+    "three.module.js",
+    "babylon.js",
+    "babylon.min.js",
+    "pixi.js",
+    "pixi.min.js",
+    "webgl",
+    "gl-matrix",
+    "regl",
+    "twgl",
   ];
 
   for (const lib of webglLibraries) {
@@ -349,20 +380,20 @@ function detectHeavyFramework(html: string): boolean {
   const lowerHtml = html.toLowerCase();
 
   const heavyFrameworks = [
-    'gsap',
-    'greensock',
-    'tweenmax',
-    'tweenlite',
-    'anime.js',
-    'anime.min.js',
-    'animejs',
-    'framer-motion',
-    'lottie',
-    'bodymovin',
-    'scrollmagic',
-    'locomotive-scroll',
-    'scrolltrigger',
-    'motion.div',
+    "gsap",
+    "greensock",
+    "tweenmax",
+    "tweenlite",
+    "anime.js",
+    "anime.min.js",
+    "animejs",
+    "framer-motion",
+    "lottie",
+    "bodymovin",
+    "scrollmagic",
+    "locomotive-scroll",
+    "scrolltrigger",
+    "motion.div",
   ];
 
   for (const framework of heavyFrameworks) {
@@ -404,10 +435,7 @@ export function analyzeComplexity(html: string): ComplexityAnalysis {
  * @param responseTimeMs - 応答時間（ミリ秒）
  * @returns タイムアウト乗数
  */
-export function calculateMultiplier(
-  metrics: ComplexityAnalysis,
-  responseTimeMs: number
-): number {
+export function calculateMultiplier(metrics: ComplexityAnalysis, responseTimeMs: number): number {
   let multiplier = 1.0;
 
   // 応答時間による調整
@@ -450,10 +478,7 @@ export function calculateMultiplier(
 /**
  * 複雑度スコアを計算（0-100）
  */
-function calculateComplexityScore(
-  metrics: ComplexityAnalysis,
-  responseTimeMs: number
-): number {
+function calculateComplexityScore(metrics: ComplexityAnalysis, responseTimeMs: number): number {
   let score = 0;
 
   // スクリプト数（最大25点）
@@ -509,8 +534,8 @@ export class PreflightProbeService implements IPreflightProbeService {
     if (!robotsResult.allowed) {
       throw new Error(
         `Blocked by robots.txt: ${url} (domain: ${robotsResult.domain}, reason: ${robotsResult.reason}). ` +
-        `Use respect_robots_txt: false to override. ` +
-        `Note: Overriding robots.txt may have legal implications depending on jurisdiction (e.g., EU DSM Directive Article 4).`,
+          `Use respect_robots_txt: false to override. ` +
+          `Note: Overriding robots.txt may have legal implications depending on jurisdiction (e.g., EU DSM Directive Article 4).`
       );
     }
 
@@ -527,10 +552,7 @@ export class PreflightProbeService implements IPreflightProbeService {
       const multiplier = calculateMultiplier(complexity, responseTimeMs);
 
       // Phase 4: タイムアウト計算
-      const calculatedTimeoutMs = Math.min(
-        Math.round(BASE_TIMEOUT * multiplier),
-        MAX_TIMEOUT
-      );
+      const calculatedTimeoutMs = Math.min(Math.round(BASE_TIMEOUT * multiplier), MAX_TIMEOUT);
 
       // 複雑度スコア計算
       const complexityScore = calculateComplexityScore(complexity, responseTimeMs);
@@ -550,8 +572,8 @@ export class PreflightProbeService implements IPreflightProbeService {
       };
     } catch (error) {
       // エラー時はデフォルト値を返す
-      if (process.env.NODE_ENV === 'development') {
-        console.warn('[PreflightProbeService] Probe failed, using default timeout:', error);
+      if (process.env.NODE_ENV === "development") {
+        console.warn("[PreflightProbeService] Probe failed, using default timeout:", error);
       }
 
       return this.createDefaultResult(probedAt);
@@ -579,6 +601,9 @@ export class PreflightProbeService implements IPreflightProbeService {
   private async fetchWithTiming(
     url: string
   ): Promise<{ responseTimeMs: number; html: string; htmlSizeBytes: number }> {
+    // Defense-in-depth: fetchWithTimingが直接呼ばれた場合のSSRF防御
+    validateUrlForSSRF(url);
+
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), PROBE_TIMEOUT);
 
@@ -587,11 +612,10 @@ export class PreflightProbeService implements IPreflightProbeService {
 
       // まずHEADリクエストで応答時間を計測
       const headResponse = await fetch(url, {
-        method: 'HEAD',
+        method: "HEAD",
         signal: controller.signal,
         headers: {
-          'User-Agent':
-            ROBOTS_TXT.USER_AGENT,
+          "User-Agent": ROBOTS_TXT.USER_AGENT,
         },
       });
 
@@ -600,11 +624,10 @@ export class PreflightProbeService implements IPreflightProbeService {
 
       // HTMLを取得（最初の100KB程度）
       const getResponse = await fetch(url, {
-        method: 'GET',
+        method: "GET",
         signal: controller.signal,
         headers: {
-          'User-Agent':
-            ROBOTS_TXT.USER_AGENT,
+          "User-Agent": ROBOTS_TXT.USER_AGENT,
           Range: `bytes=0-${MAX_HTML_FETCH_SIZE - 1}`,
         },
       });

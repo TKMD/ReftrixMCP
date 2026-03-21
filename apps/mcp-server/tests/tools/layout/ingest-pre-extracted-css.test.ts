@@ -19,7 +19,7 @@
  * @module tests/tools/layout/ingest-pre-extracted-css.test
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 // vi.hoistedでモック関数を先に定義（ホイスティング対策）
 const {
@@ -43,7 +43,7 @@ const {
 }));
 
 // Prismaモック
-vi.mock('@reftrix/database', () => ({
+vi.mock("@reftrix/database", () => ({
   prisma: {
     webPage: {
       upsert: mockUpsert,
@@ -52,7 +52,7 @@ vi.mock('@reftrix/database', () => ({
 }));
 
 // loggerモック
-vi.mock('../../../src/utils/logger', () => ({
+vi.mock("../../../src/utils/logger", () => ({
   logger: {
     info: vi.fn(),
     warn: vi.fn(),
@@ -69,24 +69,24 @@ vi.mock('../../../src/utils/logger', () => ({
 }));
 
 // url-validatorモック
-vi.mock('../../../src/utils/url-validator', () => ({
+vi.mock("../../../src/utils/url-validator", () => ({
   validateExternalUrl: mockValidateExternalUrl,
 }));
 
 // html-sanitizerモック（サニタイズで<link>タグを除去）
-vi.mock('../../../src/utils/html-sanitizer', () => ({
+vi.mock("../../../src/utils/html-sanitizer", () => ({
   sanitizeHtml: mockSanitizeHtml,
 }));
 
 // page-ingest-adapterモック
-vi.mock('../../../src/services/page-ingest-adapter', () => ({
+vi.mock("../../../src/services/page-ingest-adapter", () => ({
   pageIngestAdapter: {
     ingest: mockIngest,
   },
 }));
 
 // LayoutAnalyzerServiceモック
-vi.mock('../../../src/services/page/layout-analyzer.service', () => ({
+vi.mock("../../../src/services/page/layout-analyzer.service", () => ({
   getLayoutAnalyzerService: vi.fn(() => ({
     analyze: mockAnalyze,
   })),
@@ -96,7 +96,7 @@ import {
   layoutIngestHandler,
   setLayoutIngestServiceFactory,
   resetLayoutIngestServiceFactory,
-} from '../../../src/tools/layout/ingest.tool';
+} from "../../../src/tools/layout/ingest.tool";
 
 // テスト用のHTML（<link>タグを含む）
 const HTML_WITH_EXTERNAL_CSS = `
@@ -131,14 +131,14 @@ const SANITIZED_HTML_WITHOUT_LINK_TAGS = `
 </html>
 `;
 
-describe('layout.ingest 外部CSS URL事前抽出', () => {
+describe("layout.ingest 外部CSS URL事前抽出", () => {
   beforeEach(() => {
     vi.clearAllMocks();
 
     // デフォルトモック設定
     mockValidateExternalUrl.mockReturnValue({
       valid: true,
-      normalizedUrl: 'https://example.com/',
+      normalizedUrl: "https://example.com/",
     });
 
     // サニタイズで<link>タグを除去するモック
@@ -151,32 +151,34 @@ describe('layout.ingest 外部CSS URL事前抽出', () => {
       html: HTML_WITH_EXTERNAL_CSS,
       screenshots: [],
       metadata: {
-        title: 'Test Page',
-        description: 'Test description',
-        favicon: 'https://example.com/favicon.ico',
+        title: "Test Page",
+        description: "Test description",
+        favicon: "https://example.com/favicon.ico",
       },
       source: {
-        type: 'user_provided',
-        usageScope: 'inspiration_only',
+        type: "user_provided",
+        usageScope: "inspiration_only",
       },
-      ingestedAt: new Date('2025-01-01T00:00:00Z'),
+      ingestedAt: new Date("2025-01-01T00:00:00Z"),
     });
 
     // DB保存モック
-    mockUpsert.mockResolvedValue({ id: 'test-web-page-id' });
+    mockUpsert.mockResolvedValue({ id: "test-web-page-id" });
 
     // LayoutAnalyzerServiceモック
     mockAnalyze.mockResolvedValue({
       success: true,
-      sections: [{
-        id: 'section-1',
-        type: 'hero',
-        confidence: 0.95,
-        position: { startY: 0, endY: 100, height: 100 },
-        content: {
-          headings: [{ level: 1, text: 'Welcome' }],
+      sections: [
+        {
+          id: "section-1",
+          type: "hero",
+          confidence: 0.95,
+          position: { startY: 0, endY: 100, height: 100 },
+          content: {
+            headings: [{ level: 1, text: "Welcome" }],
+          },
         },
-      }],
+      ],
       sectionCount: 1,
       sectionTypes: { hero: 1 },
       processingTimeMs: 100,
@@ -191,18 +193,20 @@ describe('layout.ingest 外部CSS URL事前抽出', () => {
 
     // analyzeHtmlモック（IngestServiceFactory経由）
     mockAnalyzeHtml.mockResolvedValue({
-      sections: [{
-        id: 'section-1',
-        type: 'hero',
-        confidence: 0.95,
-        position: { startY: 0, endY: 100, height: 100 },
-      }],
+      sections: [
+        {
+          id: "section-1",
+          type: "hero",
+          confidence: 0.95,
+          position: { startY: 0, endY: 100, height: 100 },
+        },
+      ],
       sectionCount: 1,
       sectionTypes: { hero: 1 },
     });
 
     mockGenerateEmbedding.mockResolvedValue(Array(768).fill(0.1));
-    mockSaveSectionWithEmbedding.mockResolvedValue('section-embed-id');
+    mockSaveSectionWithEmbedding.mockResolvedValue("section-embed-id");
 
     // IngestServiceFactoryを設定
     // auto_analyze: trueの場合、このファクトリが返すサービスが使用される
@@ -218,15 +222,15 @@ describe('layout.ingest 外部CSS URL事前抽出', () => {
     resetLayoutIngestServiceFactory();
   });
 
-  describe('外部CSS URL抽出タイミング', () => {
-    it('サニタイズ前に外部CSS URLを抽出すること', async () => {
+  describe("外部CSS URL抽出タイミング", () => {
+    it("サニタイズ前に外部CSS URLを抽出すること", async () => {
       // TDD Red Phase:
       // 現在の実装ではサニタイズ後にLayoutAnalyzerService.analyze()が呼ばれるため、
       // <link>タグが除去されてしまいCSS URLを抽出できない
       // この テストは実装が修正されるまで失敗する
 
       const result = await layoutIngestHandler({
-        url: 'https://example.com',
+        url: "https://example.com",
         options: {
           save_to_db: true,
           auto_analyze: true,
@@ -248,12 +252,12 @@ describe('layout.ingest 外部CSS URL事前抽出', () => {
       expect(analyzeOptions?.externalCss?.preExtractedUrls?.length).toBeGreaterThan(0);
     });
 
-    it('抽出されたURLが正しく絶対URLに解決されていること', async () => {
+    it("抽出されたURLが正しく絶対URLに解決されていること", async () => {
       // TDD Red Phase:
       // 相対URLも含めて、すべて絶対URLに変換されていることを確認
 
       const result = await layoutIngestHandler({
-        url: 'https://example.com',
+        url: "https://example.com",
         options: {
           save_to_db: true,
           auto_analyze: true,
@@ -268,35 +272,37 @@ describe('layout.ingest 外部CSS URL事前抽出', () => {
       const preExtractedUrls = analyzeOptions?.externalCss?.preExtractedUrls;
 
       // 期待されるURL（相対URLは絶対URLに変換）
-      expect(preExtractedUrls).toContain('https://example.com/styles/main.css');
-      expect(preExtractedUrls).toContain('https://example.com/theme.css');
-      expect(preExtractedUrls).toContain('https://example.com/relative/path.css');
+      expect(preExtractedUrls).toContain("https://example.com/styles/main.css");
+      expect(preExtractedUrls).toContain("https://example.com/theme.css");
+      expect(preExtractedUrls).toContain("https://example.com/relative/path.css");
     });
 
-    it('外部CSS取得が成功すること', async () => {
+    it("外部CSS取得が成功すること", async () => {
       // TDD Red Phase:
       // preExtractedUrlsを使用して外部CSSが正しく取得されることを確認
 
       mockAnalyze.mockResolvedValue({
         success: true,
-        sections: [{
-          id: 'section-1',
-          type: 'hero',
-          confidence: 0.95,
-          position: { startY: 0, endY: 100, height: 100 },
-        }],
+        sections: [
+          {
+            id: "section-1",
+            type: "hero",
+            confidence: 0.95,
+            position: { startY: 0, endY: 100, height: 100 },
+          },
+        ],
         sectionCount: 1,
         sectionTypes: { hero: 1 },
         processingTimeMs: 100,
-        externalCssContent: '/* main.css content */',
+        externalCssContent: "/* main.css content */",
         externalCssMeta: {
           fetchedCount: 3,
           failedCount: 0,
           totalSize: 1024,
           urls: [
-            { url: 'https://example.com/styles/main.css', size: 500, success: true },
-            { url: 'https://example.com/theme.css', size: 300, success: true },
-            { url: 'https://example.com/relative/path.css', size: 224, success: true },
+            { url: "https://example.com/styles/main.css", size: 500, success: true },
+            { url: "https://example.com/theme.css", size: 300, success: true },
+            { url: "https://example.com/relative/path.css", size: 224, success: true },
           ],
           fetchedAt: new Date().toISOString(),
         },
@@ -310,7 +316,7 @@ describe('layout.ingest 外部CSS URL事前抽出', () => {
       });
 
       const result = await layoutIngestHandler({
-        url: 'https://example.com',
+        url: "https://example.com",
         options: {
           save_to_db: true,
           auto_analyze: true,
@@ -333,8 +339,8 @@ describe('layout.ingest 外部CSS URL事前抽出', () => {
     });
   });
 
-  describe('エッジケース', () => {
-    it('HTMLに<link>タグがない場合でも正常に動作すること', async () => {
+  describe("エッジケース", () => {
+    it("HTMLに<link>タグがない場合でも正常に動作すること", async () => {
       // <link>タグのないHTML
       const htmlWithoutLinkTags = `
 <!DOCTYPE html>
@@ -353,15 +359,15 @@ describe('layout.ingest 外部CSS URL事前抽出', () => {
         success: true,
         html: htmlWithoutLinkTags,
         screenshots: [],
-        metadata: { title: 'No External CSS' },
-        source: { type: 'user_provided', usageScope: 'inspiration_only' },
+        metadata: { title: "No External CSS" },
+        source: { type: "user_provided", usageScope: "inspiration_only" },
         ingestedAt: new Date(),
       });
 
       mockSanitizeHtml.mockImplementationOnce(() => htmlWithoutLinkTags);
 
       const result = await layoutIngestHandler({
-        url: 'https://example.com',
+        url: "https://example.com",
         options: {
           save_to_db: true,
           auto_analyze: true,
@@ -378,7 +384,7 @@ describe('layout.ingest 外部CSS URL事前抽出', () => {
       expect(preExtractedUrls === undefined || preExtractedUrls?.length === 0).toBe(true);
     });
 
-    it('相対パスのみの<link>タグが正しく絶対URLに変換されること', async () => {
+    it("相対パスのみの<link>タグが正しく絶対URLに変換されること", async () => {
       const htmlWithRelativeUrls = `
 <!DOCTYPE html>
 <html>
@@ -394,23 +400,23 @@ describe('layout.ingest 外部CSS URL事前抽出', () => {
       // 相対パス用にURL検証結果を更新
       mockValidateExternalUrl.mockReturnValue({
         valid: true,
-        normalizedUrl: 'https://example.com/pages/index.html',
+        normalizedUrl: "https://example.com/pages/index.html",
       });
 
       mockIngest.mockResolvedValueOnce({
         success: true,
         html: htmlWithRelativeUrls,
         screenshots: [],
-        metadata: { title: 'Relative URLs Test' },
-        source: { type: 'user_provided', usageScope: 'inspiration_only' },
+        metadata: { title: "Relative URLs Test" },
+        source: { type: "user_provided", usageScope: "inspiration_only" },
         ingestedAt: new Date(),
       });
 
       // サニタイズで<link>タグが除去される
-      mockSanitizeHtml.mockImplementationOnce(() => '<html><body></body></html>');
+      mockSanitizeHtml.mockImplementationOnce(() => "<html><body></body></html>");
 
       const result = await layoutIngestHandler({
-        url: 'https://example.com/pages/index.html',
+        url: "https://example.com/pages/index.html",
         options: {
           save_to_db: true,
           auto_analyze: true,
@@ -428,14 +434,14 @@ describe('layout.ingest 外部CSS URL事前抽出', () => {
       expect(preExtractedUrls).toBeDefined();
       expect(preExtractedUrls?.length).toBe(3);
       // 絶対URLの形式であること（プロトコルで始まる）
-      preExtractedUrls?.forEach(url => {
+      preExtractedUrls?.forEach((url) => {
         expect(url).toMatch(/^https?:\/\//);
       });
     });
 
-    it('fetch_external_css: false の場合はexternalCssオプションがないこと', async () => {
+    it("fetch_external_css: false の場合はexternalCssオプションがないこと", async () => {
       const result = await layoutIngestHandler({
-        url: 'https://example.com',
+        url: "https://example.com",
         options: {
           save_to_db: true,
           auto_analyze: true,
@@ -451,9 +457,9 @@ describe('layout.ingest 外部CSS URL事前抽出', () => {
       expect(analyzeOptions?.externalCss).toBeUndefined();
     });
 
-    it('auto_analyze: false の場合はLayoutAnalyzerService.analyzeが呼ばれないこと', async () => {
+    it("auto_analyze: false の場合はLayoutAnalyzerService.analyzeが呼ばれないこと", async () => {
       const result = await layoutIngestHandler({
-        url: 'https://example.com',
+        url: "https://example.com",
         options: {
           save_to_db: true,
           auto_analyze: false,
@@ -464,7 +470,7 @@ describe('layout.ingest 外部CSS URL事前抽出', () => {
       expect(mockAnalyze).not.toHaveBeenCalled();
     });
 
-    it('無効なURL形式の<link>タグがあっても他のURLは正常に抽出されること', async () => {
+    it("無効なURL形式の<link>タグがあっても他のURLは正常に抽出されること", async () => {
       const htmlWithInvalidUrl = `
 <!DOCTYPE html>
 <html>
@@ -483,15 +489,15 @@ describe('layout.ingest 外部CSS URL事前抽出', () => {
         success: true,
         html: htmlWithInvalidUrl,
         screenshots: [],
-        metadata: { title: 'Invalid URL Test' },
-        source: { type: 'user_provided', usageScope: 'inspiration_only' },
+        metadata: { title: "Invalid URL Test" },
+        source: { type: "user_provided", usageScope: "inspiration_only" },
         ingestedAt: new Date(),
       });
 
-      mockSanitizeHtml.mockImplementationOnce(() => '<html><body></body></html>');
+      mockSanitizeHtml.mockImplementationOnce(() => "<html><body></body></html>");
 
       const result = await layoutIngestHandler({
-        url: 'https://example.com',
+        url: "https://example.com",
         options: {
           save_to_db: true,
           auto_analyze: true,
@@ -509,15 +515,15 @@ describe('layout.ingest 外部CSS URL事前抽出', () => {
       expect(preExtractedUrls).toBeDefined();
       // 少なくとも有効なURL 2つは抽出される
       expect(preExtractedUrls?.length).toBeGreaterThanOrEqual(2);
-      expect(preExtractedUrls).toContain('https://valid.com/style.css');
-      expect(preExtractedUrls).toContain('https://example.com/valid/path.css');
+      expect(preExtractedUrls).toContain("https://valid.com/style.css");
+      expect(preExtractedUrls).toContain("https://example.com/valid/path.css");
       // javascript: URLは含まれないこと
-      expect(preExtractedUrls?.some(url => url.includes('javascript:'))).toBe(false);
+      expect(preExtractedUrls?.some((url) => url.includes("javascript:"))).toBe(false);
     });
   });
 
-  describe('URLサニタイズとの連携', () => {
-    it('sanitizeHtml呼び出し前に必ずURL抽出が行われること', async () => {
+  describe("URLサニタイズとの連携", () => {
+    it("sanitizeHtml呼び出し前に必ずURL抽出が行われること", async () => {
       // このテストは呼び出し順序を検証する
       // 期待される順序:
       // 1. mockIngest（生のHTMLを取得）
@@ -528,37 +534,39 @@ describe('layout.ingest 外部CSS URL事前抽出', () => {
       const callOrder: string[] = [];
 
       mockIngest.mockImplementationOnce(async () => {
-        callOrder.push('ingest');
+        callOrder.push("ingest");
         return {
           success: true,
           html: HTML_WITH_EXTERNAL_CSS,
           screenshots: [],
-          metadata: { title: 'Test' },
-          source: { type: 'user_provided', usageScope: 'inspiration_only' },
+          metadata: { title: "Test" },
+          source: { type: "user_provided", usageScope: "inspiration_only" },
           ingestedAt: new Date(),
         };
       });
 
       mockSanitizeHtml.mockImplementationOnce(() => {
-        callOrder.push('sanitize');
+        callOrder.push("sanitize");
         return SANITIZED_HTML_WITHOUT_LINK_TAGS;
       });
 
       mockAnalyze.mockImplementationOnce(async (html, options) => {
-        callOrder.push('analyze');
+        callOrder.push("analyze");
         // このテストでは、preExtractedUrlsが渡されていることが重要
         // サニタイズ前に抽出されていれば、URLが存在するはず
         if (options?.externalCss?.preExtractedUrls?.length) {
-          callOrder.push('analyze-with-urls');
+          callOrder.push("analyze-with-urls");
         }
         return {
           success: true,
-          sections: [{
-            id: 'section-1',
-            type: 'hero',
-            confidence: 0.95,
-            position: { startY: 0, endY: 100, height: 100 },
-          }],
+          sections: [
+            {
+              id: "section-1",
+              type: "hero",
+              confidence: 0.95,
+              position: { startY: 0, endY: 100, height: 100 },
+            },
+          ],
           sectionCount: 1,
           sectionTypes: { hero: 1 },
           processingTimeMs: 100,
@@ -566,7 +574,7 @@ describe('layout.ingest 外部CSS URL事前抽出', () => {
       });
 
       await layoutIngestHandler({
-        url: 'https://example.com',
+        url: "https://example.com",
         options: {
           save_to_db: true,
           auto_analyze: true,
@@ -576,21 +584,21 @@ describe('layout.ingest 外部CSS URL事前抽出', () => {
 
       // 呼び出し順序を検証
       // 'analyze-with-urls'が存在すれば、サニタイズ前に抽出されている
-      expect(callOrder).toContain('ingest');
-      expect(callOrder).toContain('sanitize');
-      expect(callOrder).toContain('analyze');
+      expect(callOrder).toContain("ingest");
+      expect(callOrder).toContain("sanitize");
+      expect(callOrder).toContain("analyze");
       // 重要: preExtractedUrlsが渡されていることを確認
       // 現在の実装では渡されていないため、このテストは失敗する
-      expect(callOrder).toContain('analyze-with-urls');
+      expect(callOrder).toContain("analyze-with-urls");
     });
   });
 
-  describe('save_to_db: false でのauto_analyze', () => {
-    it('save_to_db: false の場合、auto_analyzeが無視されること', async () => {
+  describe("save_to_db: false でのauto_analyze", () => {
+    it("save_to_db: false の場合、auto_analyzeが無視されること", async () => {
       // save_to_db: false の場合は persistedId が undefined になるため、
       // auto_analyze: true でも LayoutAnalyzerService.analyze() は呼ばれない
       const result = await layoutIngestHandler({
-        url: 'https://example.com',
+        url: "https://example.com",
         options: {
           save_to_db: false,
           auto_analyze: true,

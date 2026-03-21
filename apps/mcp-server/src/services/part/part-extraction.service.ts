@@ -14,10 +14,10 @@
  * @module services/part/part-extraction.service
  */
 
-import { JSDOM } from 'jsdom';
-import createDOMPurify from 'dompurify';
-import sharp from 'sharp';
-import { createHash } from 'crypto';
+import { JSDOM } from "jsdom";
+import createDOMPurify from "dompurify";
+import sharp from "sharp";
+import { createHash } from "crypto";
 
 import {
   type PartType,
@@ -31,8 +31,8 @@ import {
   CLASS_PATTERNS,
   ROLE_TO_PART_TYPE,
   ALL_PART_TYPES,
-} from './types';
-import { logger, isDevelopment } from '../../utils/logger';
+} from "./types";
+import { logger, isDevelopment } from "../../utils/logger";
 
 // ============================================================================
 // Constants / 定数
@@ -42,7 +42,7 @@ import { logger, isDevelopment } from '../../utils/logger';
  * PIIリスクが 'high' となるパーツタイプ
  * Part types classified as 'high' PII risk
  */
-const HIGH_PII_TYPES: ReadonlySet<PartType> = new Set(['avatar']);
+const HIGH_PII_TYPES: ReadonlySet<PartType> = new Set(["avatar"]);
 
 // NOTE: form/input のPII判定は classifyPiiRisk() 内で直接処理
 // form/input PII classification is handled directly in classifyPiiRisk()
@@ -51,7 +51,8 @@ const HIGH_PII_TYPES: ReadonlySet<PartType> = new Set(['avatar']);
  * ユーザーデータを示すフィールド名パターン（input の PII 判定用）
  * Field name patterns indicating user data (for input PII classification)
  */
-const USER_DATA_FIELD_PATTERNS = /\b(email|password|name|phone|tel|address|username|login|user|account)\b/i;
+const USER_DATA_FIELD_PATTERNS =
+  /\b(email|password|name|phone|tel|address|username|login|user|account)\b/i;
 
 /**
  * 検索用フィールド名パターン（PIIとみなさない）
@@ -72,7 +73,8 @@ const EMAIL_PATTERN = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g;
  * Only matches numbers containing at least one separator (hyphen, dot, space).
  * Plain digit sequences (e.g., "12345") are not considered phone numbers.
  */
-const PHONE_PATTERN = /(\+?\d{1,4}[-.\s])\(?\d{1,4}\)?[-.\s]?\d{1,4}[-.\s]?\d{1,9}|\(?\d{2,4}\)?[-.\s]\d{1,4}[-.\s]\d{1,9}/g;
+const PHONE_PATTERN =
+  /(\+?\d{1,4}[-.\s])\(?\d{1,4}\)?[-.\s]?\d{1,4}[-.\s]?\d{1,9}|\(?\d{2,4}\)?[-.\s]\d{1,4}[-.\s]\d{1,9}/g;
 
 /**
  * コアパーツタイプのセット（高速ルックアップ用）
@@ -91,19 +93,50 @@ const CORE_PART_TYPE_SET: ReadonlySet<string> = new Set(ALL_PART_TYPES);
  * html-sanitizer.ts のグローバルインスタンスとは独立して使用。
  * パーツHTMLは小さいためバイパス不要。
  */
-const purifyWindow = new JSDOM('').window;
+const purifyWindow = new JSDOM("").window;
 const DOMPurify = createDOMPurify(purifyWindow);
 
 const PART_DOMPURIFY_CONFIG = {
-  FORBID_TAGS: ['script', 'noscript', 'iframe', 'frame', 'frameset',
-    'object', 'embed', 'applet', 'meta', 'link', 'base', 'title'] as string[],
+  FORBID_TAGS: [
+    "script",
+    "noscript",
+    "iframe",
+    "frame",
+    "frameset",
+    "object",
+    "embed",
+    "applet",
+    "meta",
+    "link",
+    "base",
+    "title",
+  ] as string[],
   FORBID_ATTR: [
-    'onclick', 'ondblclick', 'onmousedown', 'onmouseup', 'onmouseover',
-    'onmousemove', 'onmouseout', 'onmouseenter', 'onmouseleave',
-    'onkeydown', 'onkeypress', 'onkeyup', 'onfocus', 'onblur',
-    'onchange', 'onsubmit', 'onreset', 'onload', 'onunload',
-    'onerror', 'onabort', 'onresize', 'onscroll', 'oncontextmenu',
-    'formaction',
+    "onclick",
+    "ondblclick",
+    "onmousedown",
+    "onmouseup",
+    "onmouseover",
+    "onmousemove",
+    "onmouseout",
+    "onmouseenter",
+    "onmouseleave",
+    "onkeydown",
+    "onkeypress",
+    "onkeyup",
+    "onfocus",
+    "onblur",
+    "onchange",
+    "onsubmit",
+    "onreset",
+    "onload",
+    "onunload",
+    "onerror",
+    "onabort",
+    "onresize",
+    "onscroll",
+    "oncontextmenu",
+    "formaction",
   ] as string[],
   ALLOW_UNKNOWN_PROTOCOLS: false,
   ALLOW_DATA_ATTR: true,
@@ -134,17 +167,11 @@ export async function extractPartsFromSection(params: {
   sourceUrl?: string | null;
 }): Promise<PartExtractionResult> {
   const startTime = Date.now();
-  const {
-    sectionHtml,
-    config,
-    computedStylesMap,
-    sectionBoundingBox,
-    fullScreenshot,
-    sourceUrl,
-  } = params;
+  const { sectionHtml, config, computedStylesMap, sectionBoundingBox, fullScreenshot, sourceUrl } =
+    params;
 
   // 空入力 / Empty input guard
-  if (!sectionHtml || typeof sectionHtml !== 'string' || sectionHtml.trim() === '') {
+  if (!sectionHtml || typeof sectionHtml !== "string" || sectionHtml.trim() === "") {
     return { parts: [], skippedCount: 0, durationMs: 0 };
   }
 
@@ -154,7 +181,7 @@ export async function extractPartsFromSection(params: {
   const body = document.body;
 
   // 全要素を走査してパーツ候補を収集 / Walk all elements to collect part candidates
-  const allElements = body.querySelectorAll('*');
+  const allElements = body.querySelectorAll("*");
   const candidates: Array<{ element: Element; partType: PartType }> = [];
 
   for (const element of allElements) {
@@ -166,7 +193,8 @@ export async function extractPartsFromSection(params: {
 
   // タイプ別サンプリング / Per-type sampling
   const typeCounters = new Map<PartType, number>();
-  const sampledCandidates: Array<{ element: Element; partType: PartType; sampleIndex: number }> = [];
+  const sampledCandidates: Array<{ element: Element; partType: PartType; sampleIndex: number }> =
+    [];
   let skippedCount = 0;
 
   for (const candidate of candidates) {
@@ -217,7 +245,7 @@ export async function extractPartsFromSection(params: {
     }
 
     // 計算済みスタイル / Computed styles
-    const elementId = element.id || element.getAttribute('data-part-id') || '';
+    const elementId = element.id || element.getAttribute("data-part-id") || "";
     const computedStyles = computedStylesMap.get(elementId) ?? {};
 
     // バウンディングボックス（セクション相対）/ Bounding box (section-relative)
@@ -236,8 +264,13 @@ export async function extractPartsFromSection(params: {
     let cropBuffer: Buffer | null = null;
     let visualSignature: string | null = null;
 
-    if (fullScreenshot && !isLogo && piiRiskLevel !== 'high' &&
-        boundingBox.width > 0 && boundingBox.height > 0) {
+    if (
+      fullScreenshot &&
+      !isLogo &&
+      piiRiskLevel !== "high" &&
+      boundingBox.width > 0 &&
+      boundingBox.height > 0
+    ) {
       try {
         cropBuffer = await cropAndResizePart(
           fullScreenshot,
@@ -247,11 +280,11 @@ export async function extractPartsFromSection(params: {
             width: boundingBox.width,
             height: boundingBox.height,
           },
-          config.cropSize,
+          config.cropSize
         );
         visualSignature = computeVisualSignature(cropBuffer);
       } catch (error) {
-        logger.warn('[part-extraction] Failed to crop part image', {
+        logger.warn("[part-extraction] Failed to crop part image", {
           partType,
           error: (error as Error).message,
         });
@@ -285,8 +318,8 @@ export async function extractPartsFromSection(params: {
       tags,
       metadata,
       sourceUrl: sourceUrl ?? null,
-      usageScope: 'inspiration_only',
-      cropBuffer: piiRiskLevel === 'high' ? null : cropBuffer,
+      usageScope: "inspiration_only",
+      cropBuffer: piiRiskLevel === "high" ? null : cropBuffer,
     };
 
     parts.push(extractedPart);
@@ -295,7 +328,7 @@ export async function extractPartsFromSection(params: {
   const durationMs = Date.now() - startTime;
 
   if (isDevelopment()) {
-    logger.info('[part-extraction] Extraction completed', {
+    logger.info("[part-extraction] Extraction completed", {
       sectionIndex: params.sectionIndex,
       totalCandidates: candidates.length,
       extractedParts: parts.length,
@@ -327,7 +360,7 @@ export function identifyPartType(element: Element): PartType | null {
 
   // 2. クラスパターン検出 / Class pattern detection
   // SVG要素のclassNameはSVGAnimatedStringのためgetAttribute('class')を使用
-  const classAttrValue = element.getAttribute('class') ?? '';
+  const classAttrValue = element.getAttribute("class") ?? "";
   if (classAttrValue.length > 0) {
     for (const { pattern, type } of CLASS_PATTERNS) {
       if (pattern.test(classAttrValue)) {
@@ -337,7 +370,7 @@ export function identifyPartType(element: Element): PartType | null {
   }
 
   // 3. ARIA role検出 / ARIA role detection
-  const role = element.getAttribute('role');
+  const role = element.getAttribute("role");
   if (role) {
     const roleType = ROLE_TO_PART_TYPE[role];
     if (roleType !== undefined && CORE_PART_TYPE_SET.has(roleType)) {
@@ -359,33 +392,33 @@ export function identifyPartType(element: Element): PartType | null {
 export function classifyPiiRisk(partType: PartType, element: Element): PiiRiskLevel {
   // avatar → high
   if (HIGH_PII_TYPES.has(partType)) {
-    return 'high';
+    return "high";
   }
 
   // form → low（常にユーザーデータを含む可能性がある）
-  if (partType === 'form') {
-    return 'low';
+  if (partType === "form") {
+    return "low";
   }
 
   // input → フィールド名に応じて判定
-  if (partType === 'input') {
-    const nameAttr = element.getAttribute('name') ?? '';
-    const typeAttr = element.getAttribute('type') ?? '';
+  if (partType === "input") {
+    const nameAttr = element.getAttribute("name") ?? "";
+    const typeAttr = element.getAttribute("type") ?? "";
 
     // 検索フィールドは PII とみなさない
-    if (SEARCH_FIELD_PATTERNS.test(nameAttr) || typeAttr === 'search') {
-      return 'none';
+    if (SEARCH_FIELD_PATTERNS.test(nameAttr) || typeAttr === "search") {
+      return "none";
     }
 
     // ユーザーデータフィールドの場合は low
     if (USER_DATA_FIELD_PATTERNS.test(nameAttr) || USER_DATA_FIELD_PATTERNS.test(typeAttr)) {
-      return 'low';
+      return "low";
     }
 
-    return 'none';
+    return "none";
   }
 
-  return 'none';
+  return "none";
 }
 
 /**
@@ -395,14 +428,12 @@ export function classifyPiiRisk(partType: PartType, element: Element): PiiRiskLe
  * @param attributes - HTML属性 / HTML attributes
  * @returns マスク済み属性 / Masked attributes
  */
-export function maskPiiInAttributes(
-  attributes: Record<string, string>,
-): Record<string, string> {
+export function maskPiiInAttributes(attributes: Record<string, string>): Record<string, string> {
   const masked: Record<string, string> = {};
   for (const [key, value] of Object.entries(attributes)) {
     let maskedValue = value;
-    maskedValue = maskedValue.replace(EMAIL_PATTERN, '***@***.***');
-    maskedValue = maskedValue.replace(PHONE_PATTERN, '***-****-****');
+    maskedValue = maskedValue.replace(EMAIL_PATTERN, "***@***.***");
+    maskedValue = maskedValue.replace(PHONE_PATTERN, "***-****-****");
     masked[key] = maskedValue;
   }
   return masked;
@@ -420,7 +451,7 @@ export function maskPiiInAttributes(
 export async function cropAndResizePart(
   fullScreenshot: Buffer,
   boundingBox: BoundingBox,
-  cropSize: number,
+  cropSize: number
 ): Promise<Buffer> {
   if (boundingBox.width <= 0 || boundingBox.height <= 0) {
     throw new Error(
@@ -435,20 +466,14 @@ export async function cropAndResizePart(
   // クロップ領域を画像範囲内にクランプ / Clamp crop region within image bounds
   const left = Math.max(0, Math.round(boundingBox.x));
   const top = Math.max(0, Math.round(boundingBox.y));
-  const width = Math.min(
-    Math.round(boundingBox.width),
-    Math.max(1, imgWidth - left),
-  );
-  const height = Math.min(
-    Math.round(boundingBox.height),
-    Math.max(1, imgHeight - top),
-  );
+  const width = Math.min(Math.round(boundingBox.width), Math.max(1, imgWidth - left));
+  const height = Math.min(Math.round(boundingBox.height), Math.max(1, imgHeight - top));
 
   return sharp(fullScreenshot)
     .extract({ left, top, width, height })
-    .resize(cropSize, cropSize, { fit: 'cover', kernel: 'cubic' })
+    .resize(cropSize, cropSize, { fit: "cover", kernel: "cubic" })
     .removeAlpha()
-    .toColorspace('srgb')
+    .toColorspace("srgb")
     .toBuffer();
 }
 
@@ -460,7 +485,7 @@ export async function cropAndResizePart(
  * @returns SHA-256ハッシュ文字列（64文字hex） / SHA-256 hash string (64 char hex)
  */
 export function computeVisualSignature(imageBuffer: Buffer): string {
-  return createHash('sha256').update(imageBuffer).digest('hex');
+  return createHash("sha256").update(imageBuffer).digest("hex");
 }
 
 /**
@@ -475,7 +500,7 @@ export function computeVisualSignature(imageBuffer: Buffer): string {
  */
 export function isLogoElement(element: Element): boolean {
   // header内でない場合はロゴではない / Not a logo if not inside header
-  const header = element.closest('header');
+  const header = element.closest("header");
   if (!header) {
     return false;
   }
@@ -487,12 +512,11 @@ export function isLogoElement(element: Element): boolean {
   // getAttribute('class') を使用する
   // SVG element className is SVGAnimatedString (not a string),
   // so use getAttribute('class') instead
-  const classString = element.getAttribute('class') ?? '';
+  const classString = element.getAttribute("class") ?? "";
 
-  const hasLogoClass = /\blogo\b/i.test(classString) ||
-    classString.toLowerCase().includes('logo');
+  const hasLogoClass = /\blogo\b/i.test(classString) || classString.toLowerCase().includes("logo");
 
-  if (tagName === 'svg' && hasLogoClass) {
+  if (tagName === "svg" && hasLogoClass) {
     return true;
   }
 
@@ -514,13 +538,13 @@ export function isLogoElement(element: Element): boolean {
  */
 function extractInteractionInfo(
   element: Element,
-  computedStyles: Record<string, string>,
+  computedStyles: Record<string, string>
 ): InteractionInfo {
   const tagName = element.tagName.toLowerCase();
-  const isInteractive = ['button', 'a', 'input', 'select', 'textarea'].includes(tagName);
+  const isInteractive = ["button", "a", "input", "select", "textarea"].includes(tagName);
 
-  const transitionValue = computedStyles['transition'] ?? '';
-  const hasTransition = transitionValue !== '' && transitionValue !== 'none';
+  const transitionValue = computedStyles["transition"] ?? "";
+  const hasTransition = transitionValue !== "" && transitionValue !== "none";
 
   return {
     hasHover: isInteractive,
@@ -536,28 +560,28 @@ function extractInteractionInfo(
  * Infer part subtype from element attributes and classes
  */
 function inferPartSubtype(partType: PartType, element: Element): string | null {
-  const classList = element.getAttribute('class') ?? '';
+  const classList = element.getAttribute("class") ?? "";
 
   switch (partType) {
-    case 'button': {
-      if (/\bprimary\b/i.test(classList)) return 'primary_button';
-      if (/\bsecondary\b/i.test(classList)) return 'secondary_button';
-      if (/\bicon\b/i.test(classList)) return 'icon_button';
-      if (/\bghost\b/i.test(classList)) return 'ghost_button';
-      const typeAttr = element.getAttribute('type');
-      if (typeAttr === 'submit') return 'submit_button';
+    case "button": {
+      if (/\bprimary\b/i.test(classList)) return "primary_button";
+      if (/\bsecondary\b/i.test(classList)) return "secondary_button";
+      if (/\bicon\b/i.test(classList)) return "icon_button";
+      if (/\bghost\b/i.test(classList)) return "ghost_button";
+      const typeAttr = element.getAttribute("type");
+      if (typeAttr === "submit") return "submit_button";
       return null;
     }
-    case 'input': {
-      const typeAttr = element.getAttribute('type') ?? 'text';
+    case "input": {
+      const typeAttr = element.getAttribute("type") ?? "text";
       return `${typeAttr}_input`;
     }
-    case 'heading': {
+    case "heading": {
       const tagName = element.tagName.toLowerCase();
       return tagName; // h1, h2, h3, etc.
     }
-    case 'image': {
-      if (element.getAttribute('loading') === 'lazy') return 'lazy_image';
+    case "image": {
+      if (element.getAttribute("loading") === "lazy") return "lazy_image";
       return null;
     }
     default:
@@ -569,11 +593,7 @@ function inferPartSubtype(partType: PartType, element: Element): string | null {
  * パーツタグを生成する
  * Generate tags for a part
  */
-function generatePartTags(
-  partType: PartType,
-  element: Element,
-  cssClasses: string[],
-): string[] {
+function generatePartTags(partType: PartType, element: Element, cssClasses: string[]): string[] {
   const tags: string[] = [partType];
   const tagName = element.tagName.toLowerCase();
 

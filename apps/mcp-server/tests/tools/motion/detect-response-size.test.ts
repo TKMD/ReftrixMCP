@@ -18,13 +18,13 @@
  * @module tests/tools/motion/detect-response-size.test
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 // =====================================================
 // モック: detection-modes（runtime/hybridモードでPlaywright起動を回避）
 // =====================================================
-vi.mock('../../../src/tools/motion/detection-modes', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('../../../src/tools/motion/detection-modes')>();
+vi.mock("../../../src/tools/motion/detection-modes", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../../../src/tools/motion/detection-modes")>();
   return {
     ...actual,
     executeRuntimeDetection: vi.fn().mockImplementation(async () => {
@@ -46,13 +46,13 @@ import {
   setMotionDetectServiceFactory,
   resetMotionDetectServiceFactory,
   type IMotionDetectService,
-} from '../../../src/tools/motion/detect.tool';
+} from "../../../src/tools/motion/detect.tool";
 
 import {
   motionDetectInputSchema,
   type MotionDetectInput,
   type MotionDetectOutput,
-} from '../../../src/tools/motion/schemas';
+} from "../../../src/tools/motion/schemas";
 
 // =====================================================
 // テストデータ
@@ -63,7 +63,9 @@ import {
  * レスポンスサイズを大きくするためのテストデータ
  */
 const generateLargeAnimationHtml = (patternCount: number): string => {
-  const keyframes = Array.from({ length: patternCount }, (_, i) => `
+  const keyframes = Array.from(
+    { length: patternCount },
+    (_, i) => `
     @keyframes animation${i} {
       0% { opacity: 0; transform: translateX(-${i * 10}px) rotate(${i}deg); }
       25% { opacity: 0.25; transform: translateX(-${i * 7.5}px) rotate(${i * 90}deg); }
@@ -72,9 +74,10 @@ const generateLargeAnimationHtml = (patternCount: number): string => {
       100% { opacity: 1; transform: translateX(0) rotate(${i * 360}deg); }
     }
     .element${i} {
-      animation: animation${i} ${0.5 + i * 0.1}s ease-in-out ${i % 2 === 0 ? 'infinite' : 'forwards'};
+      animation: animation${i} ${0.5 + i * 0.1}s ease-in-out ${i % 2 === 0 ? "infinite" : "forwards"};
     }
-  `).join('\n');
+  `
+  ).join("\n");
 
   return `<!DOCTYPE html>
 <html lang="ja">
@@ -86,7 +89,7 @@ const generateLargeAnimationHtml = (patternCount: number): string => {
   </style>
 </head>
 <body>
-  ${Array.from({ length: patternCount }, (_, i) => `<div class="element${i}">Element ${i}</div>`).join('\n  ')}
+  ${Array.from({ length: patternCount }, (_, i) => `<div class="element${i}">Element ${i}</div>`).join("\n  ")}
 </body>
 </html>`;
 };
@@ -123,7 +126,7 @@ const simpleAnimationHtml = `<!DOCTYPE html>
 // summary パラメータテスト
 // =====================================================
 
-describe('motion.detect summary パラメータ', () => {
+describe("motion.detect summary パラメータ", () => {
   beforeEach(() => {
     resetMotionDetectServiceFactory();
   });
@@ -132,12 +135,12 @@ describe('motion.detect summary パラメータ', () => {
     vi.restoreAllMocks();
   });
 
-  describe('スキーマバリデーション', () => {
-    it('summary パラメータがスキーマで受け入れられること', () => {
+  describe("スキーマバリデーション", () => {
+    it("summary パラメータがスキーマで受け入れられること", () => {
       // Arrange & Act
       const result = motionDetectInputSchema.parse({
         html: simpleAnimationHtml,
-        detection_mode: 'css' as const,
+        detection_mode: "css" as const,
         summary: true,
       });
 
@@ -145,22 +148,22 @@ describe('motion.detect summary パラメータ', () => {
       expect(result.summary).toBe(true);
     });
 
-    it('summary のデフォルト値は false であること', () => {
+    it("summary のデフォルト値は false であること", () => {
       // Arrange & Act
       const result = motionDetectInputSchema.parse({
         html: simpleAnimationHtml,
-        detection_mode: 'css' as const,
+        detection_mode: "css" as const,
       });
 
       // Assert
       expect(result.summary).toBe(false);
     });
 
-    it('summary: false が明示的に指定できること', () => {
+    it("summary: false が明示的に指定できること", () => {
       // Arrange & Act
       const result = motionDetectInputSchema.parse({
         html: simpleAnimationHtml,
-        detection_mode: 'css' as const,
+        detection_mode: "css" as const,
         summary: false,
       });
 
@@ -169,12 +172,12 @@ describe('motion.detect summary パラメータ', () => {
     });
   });
 
-  describe('軽量レスポンス', () => {
-    it('summary: true でパターンの詳細情報（animation, performance, rawCss等）を除外すること', async () => {
+  describe("軽量レスポンス", () => {
+    it("summary: true でパターンの詳細情報（animation, performance, rawCss等）を除外すること", async () => {
       // Arrange
       const input: MotionDetectInput = {
         html: simpleAnimationHtml,
-        detection_mode: 'css' as const,
+        detection_mode: "css" as const,
         summary: true,
       };
 
@@ -183,7 +186,7 @@ describe('motion.detect summary パラメータ', () => {
 
       // Debug: エラー内容を確認
       if (!result.success) {
-        console.error('TEST DEBUG - Error:', JSON.stringify(result.error, null, 2));
+        console.error("TEST DEBUG - Error:", JSON.stringify(result.error, null, 2));
       }
 
       // Assert
@@ -191,21 +194,21 @@ describe('motion.detect summary パラメータ', () => {
       if (result.success && result.data) {
         for (const pattern of result.data.patterns) {
           // summaryモードでは以下のフィールドが除外される
-          expect(pattern).not.toHaveProperty('animation');
-          expect(pattern).not.toHaveProperty('performance');
-          expect(pattern).not.toHaveProperty('accessibility');
-          expect(pattern).not.toHaveProperty('rawCss');
-          expect(pattern).not.toHaveProperty('keyframes');
-          expect(pattern).not.toHaveProperty('properties');
+          expect(pattern).not.toHaveProperty("animation");
+          expect(pattern).not.toHaveProperty("performance");
+          expect(pattern).not.toHaveProperty("accessibility");
+          expect(pattern).not.toHaveProperty("rawCss");
+          expect(pattern).not.toHaveProperty("keyframes");
+          expect(pattern).not.toHaveProperty("properties");
         }
       }
     });
 
-    it('summary: true で id, name, category, trigger, type のみ返すこと', async () => {
+    it("summary: true で id, name, category, trigger, type のみ返すこと", async () => {
       // Arrange
       const input: MotionDetectInput = {
         html: simpleAnimationHtml,
-        detection_mode: 'css' as const,
+        detection_mode: "css" as const,
         summary: true,
       };
 
@@ -217,14 +220,14 @@ describe('motion.detect summary パラメータ', () => {
       if (result.success && result.data) {
         for (const pattern of result.data.patterns) {
           // summaryモードで返されるべきフィールド
-          expect(pattern).toHaveProperty('id');
-          expect(pattern).toHaveProperty('name');
-          expect(pattern).toHaveProperty('category');
-          expect(pattern).toHaveProperty('trigger');
-          expect(pattern).toHaveProperty('type');
+          expect(pattern).toHaveProperty("id");
+          expect(pattern).toHaveProperty("name");
+          expect(pattern).toHaveProperty("category");
+          expect(pattern).toHaveProperty("trigger");
+          expect(pattern).toHaveProperty("type");
 
           // フィールド数が限定されていること
-          const allowedFields = ['id', 'name', 'category', 'trigger', 'type'];
+          const allowedFields = ["id", "name", "category", "trigger", "type"];
           const patternKeys = Object.keys(pattern);
           for (const key of patternKeys) {
             expect(allowedFields).toContain(key);
@@ -233,11 +236,11 @@ describe('motion.detect summary パラメータ', () => {
       }
     });
 
-    it('summary: false（デフォルト）で全フィールドを返すこと', async () => {
+    it("summary: false（デフォルト）で全フィールドを返すこと", async () => {
       // Arrange
       const input: MotionDetectInput = {
         html: simpleAnimationHtml,
-        detection_mode: 'css' as const,
+        detection_mode: "css" as const,
         summary: false,
       };
 
@@ -247,18 +250,16 @@ describe('motion.detect summary パラメータ', () => {
       // Assert
       expect(result.success).toBe(true);
       if (result.success && result.data) {
-        const animationPattern = result.data.patterns.find(
-          (p) => p.type === 'css_animation'
-        );
+        const animationPattern = result.data.patterns.find((p) => p.type === "css_animation");
         if (animationPattern) {
           // 完全モードでは詳細フィールドが含まれる
-          expect(animationPattern).toHaveProperty('animation');
-          expect(animationPattern).toHaveProperty('properties');
+          expect(animationPattern).toHaveProperty("animation");
+          expect(animationPattern).toHaveProperty("properties");
         }
       }
     });
 
-    it('summary: true でレスポンスサイズが65%以上削減されること', async () => {
+    it("summary: true でレスポンスサイズが65%以上削減されること", async () => {
       // Arrange: 大量のアニメーションを含むHTML
       // NOTE: summaryモードは patterns から animation, performance, accessibility, rawCss を除外
       // 実測では69%程度の削減率を達成（65%閾値で安定動作）
@@ -267,14 +268,14 @@ describe('motion.detect summary パラメータ', () => {
       // Act: 完全モードと軽量モードで実行
       const fullResult = await motionDetectHandler({
         html: largeHtml,
-        detection_mode: 'css' as const,
+        detection_mode: "css" as const,
         summary: false,
         maxPatterns: 100,
       });
 
       const summaryResult = await motionDetectHandler({
         html: largeHtml,
-        detection_mode: 'css' as const,
+        detection_mode: "css" as const,
         summary: true,
         maxPatterns: 100,
       });
@@ -291,11 +292,11 @@ describe('motion.detect summary パラメータ', () => {
       expect(reductionRate).toBeGreaterThanOrEqual(65);
     });
 
-    it('summary: true と verbose: true が同時に指定された場合、summary が優先されること', async () => {
+    it("summary: true と verbose: true が同時に指定された場合、summary が優先されること", async () => {
       // Arrange
       const input: MotionDetectInput = {
         html: simpleAnimationHtml,
-        detection_mode: 'css' as const,
+        detection_mode: "css" as const,
         summary: true,
         verbose: true,
       };
@@ -308,16 +309,16 @@ describe('motion.detect summary パラメータ', () => {
       if (result.success && result.data) {
         for (const pattern of result.data.patterns) {
           // summaryが優先されるため、rawCssは含まれない
-          expect(pattern).not.toHaveProperty('rawCss');
+          expect(pattern).not.toHaveProperty("rawCss");
         }
       }
     });
 
-    it('summary: true でメタデータに _summary_mode: true が含まれること', async () => {
+    it("summary: true でメタデータに _summary_mode: true が含まれること", async () => {
       // Arrange
       const input: MotionDetectInput = {
         html: simpleAnimationHtml,
-        detection_mode: 'css' as const,
+        detection_mode: "css" as const,
         summary: true,
       };
 
@@ -327,7 +328,7 @@ describe('motion.detect summary パラメータ', () => {
       // Assert
       expect(result.success).toBe(true);
       if (result.success && result.data) {
-        expect(result.data).toHaveProperty('_summary_mode', true);
+        expect(result.data).toHaveProperty("_summary_mode", true);
       }
     });
   });
@@ -337,7 +338,7 @@ describe('motion.detect summary パラメータ', () => {
 // truncate_max_chars パラメータテスト
 // =====================================================
 
-describe('motion.detect truncate_max_chars パラメータ', () => {
+describe("motion.detect truncate_max_chars パラメータ", () => {
   beforeEach(() => {
     resetMotionDetectServiceFactory();
   });
@@ -346,12 +347,12 @@ describe('motion.detect truncate_max_chars パラメータ', () => {
     vi.restoreAllMocks();
   });
 
-  describe('スキーマバリデーション', () => {
-    it('truncate_max_chars パラメータがスキーマで受け入れられること', () => {
+  describe("スキーマバリデーション", () => {
+    it("truncate_max_chars パラメータがスキーマで受け入れられること", () => {
       // Arrange & Act
       const result = motionDetectInputSchema.parse({
         html: simpleAnimationHtml,
-        detection_mode: 'css' as const,
+        detection_mode: "css" as const,
         truncate_max_chars: 1000,
       });
 
@@ -359,33 +360,33 @@ describe('motion.detect truncate_max_chars パラメータ', () => {
       expect(result.truncate_max_chars).toBe(1000);
     });
 
-    it('truncate_max_chars の最小値が100であること', () => {
+    it("truncate_max_chars の最小値が100であること", () => {
       // Arrange & Act & Assert
       expect(() => {
         motionDetectInputSchema.parse({
           html: simpleAnimationHtml,
-          detection_mode: 'css' as const,
+          detection_mode: "css" as const,
           truncate_max_chars: 50,
         });
       }).toThrow();
     });
 
-    it('truncate_max_chars の最大値が10000000であること', () => {
+    it("truncate_max_chars の最大値が10000000であること", () => {
       // Arrange & Act & Assert
       expect(() => {
         motionDetectInputSchema.parse({
           html: simpleAnimationHtml,
-          detection_mode: 'css' as const,
+          detection_mode: "css" as const,
           truncate_max_chars: 20000000,
         });
       }).toThrow();
     });
 
-    it('truncate_max_chars のデフォルト値は undefined（制限なし）であること', () => {
+    it("truncate_max_chars のデフォルト値は undefined（制限なし）であること", () => {
       // Arrange & Act
       const result = motionDetectInputSchema.parse({
         html: simpleAnimationHtml,
-        detection_mode: 'css' as const,
+        detection_mode: "css" as const,
       });
 
       // Assert
@@ -393,13 +394,13 @@ describe('motion.detect truncate_max_chars パラメータ', () => {
     });
   });
 
-  describe('レスポンス切り詰め', () => {
-    it('truncate_max_chars: 1000 で1000文字を超えるレスポンスを切り詰めること', async () => {
+  describe("レスポンス切り詰め", () => {
+    it("truncate_max_chars: 1000 で1000文字を超えるレスポンスを切り詰めること", async () => {
       // Arrange
       const largeHtml = generateLargeAnimationHtml(50);
       const input: MotionDetectInput = {
         html: largeHtml,
-        detection_mode: 'css' as const,
+        detection_mode: "css" as const,
         truncate_max_chars: 1000,
       };
 
@@ -415,12 +416,12 @@ describe('motion.detect truncate_max_chars パラメータ', () => {
       expect(responseSize).toBeLessThanOrEqual(2200);
     });
 
-    it('切り詰め時に _truncated: true がレスポンスに含まれること', async () => {
+    it("切り詰め時に _truncated: true がレスポンスに含まれること", async () => {
       // Arrange
       const largeHtml = generateLargeAnimationHtml(50);
       const input: MotionDetectInput = {
         html: largeHtml,
-        detection_mode: 'css' as const,
+        detection_mode: "css" as const,
         truncate_max_chars: 500,
       };
 
@@ -430,16 +431,16 @@ describe('motion.detect truncate_max_chars パラメータ', () => {
       // Assert
       expect(result.success).toBe(true);
       if (result.success && result.data) {
-        expect(result.data).toHaveProperty('_truncated', true);
+        expect(result.data).toHaveProperty("_truncated", true);
       }
     });
 
-    it('切り詰め時に _original_size がレスポンスに含まれること', async () => {
+    it("切り詰め時に _original_size がレスポンスに含まれること", async () => {
       // Arrange
       const largeHtml = generateLargeAnimationHtml(50);
       const input: MotionDetectInput = {
         html: largeHtml,
-        detection_mode: 'css' as const,
+        detection_mode: "css" as const,
         truncate_max_chars: 500,
       };
 
@@ -449,18 +450,18 @@ describe('motion.detect truncate_max_chars パラメータ', () => {
       // Assert
       expect(result.success).toBe(true);
       if (result.success && result.data) {
-        expect(result.data).toHaveProperty('_original_size');
-        expect(typeof result.data._original_size).toBe('number');
+        expect(result.data).toHaveProperty("_original_size");
+        expect(typeof result.data._original_size).toBe("number");
         expect(result.data._original_size).toBeGreaterThan(500);
       }
     });
 
-    it('パターン配列を順番に削減して制限内に収めること', async () => {
+    it("パターン配列を順番に削減して制限内に収めること", async () => {
       // Arrange
       const largeHtml = generateLargeAnimationHtml(30);
       const input: MotionDetectInput = {
         html: largeHtml,
-        detection_mode: 'css' as const,
+        detection_mode: "css" as const,
         truncate_max_chars: 2000,
       };
 
@@ -473,15 +474,15 @@ describe('motion.detect truncate_max_chars パラメータ', () => {
         // パターンが制限内に収まるように削減されている
         expect(result.data.patterns.length).toBeLessThan(30);
         // 削減された件数を示すメタデータがある
-        expect(result.data).toHaveProperty('_patterns_truncated_count');
+        expect(result.data).toHaveProperty("_patterns_truncated_count");
       }
     });
 
-    it('制限サイズ以下のレスポンスでは切り詰めが発生しないこと', async () => {
+    it("制限サイズ以下のレスポンスでは切り詰めが発生しないこと", async () => {
       // Arrange
       const input: MotionDetectInput = {
         html: simpleAnimationHtml,
-        detection_mode: 'css' as const,
+        detection_mode: "css" as const,
         truncate_max_chars: 100000, // 十分大きい制限
       };
 
@@ -491,8 +492,8 @@ describe('motion.detect truncate_max_chars パラメータ', () => {
       // Assert
       expect(result.success).toBe(true);
       if (result.success && result.data) {
-        expect(result.data).not.toHaveProperty('_truncated');
-        expect(result.data).not.toHaveProperty('_original_size');
+        expect(result.data).not.toHaveProperty("_truncated");
+        expect(result.data).not.toHaveProperty("_original_size");
       }
     });
   });
@@ -502,7 +503,7 @@ describe('motion.detect truncate_max_chars パラメータ', () => {
 // auto_optimize パラメータテスト
 // =====================================================
 
-describe('motion.detect auto_optimize パラメータ', () => {
+describe("motion.detect auto_optimize パラメータ", () => {
   beforeEach(() => {
     resetMotionDetectServiceFactory();
   });
@@ -511,12 +512,12 @@ describe('motion.detect auto_optimize パラメータ', () => {
     vi.restoreAllMocks();
   });
 
-  describe('スキーマバリデーション', () => {
-    it('auto_optimize パラメータがスキーマで受け入れられること', () => {
+  describe("スキーマバリデーション", () => {
+    it("auto_optimize パラメータがスキーマで受け入れられること", () => {
       // Arrange & Act
       const result = motionDetectInputSchema.parse({
         html: simpleAnimationHtml,
-        detection_mode: 'css' as const,
+        detection_mode: "css" as const,
         auto_optimize: true,
       });
 
@@ -524,11 +525,11 @@ describe('motion.detect auto_optimize パラメータ', () => {
       expect(result.auto_optimize).toBe(true);
     });
 
-    it('auto_optimize のデフォルト値は false であること', () => {
+    it("auto_optimize のデフォルト値は false であること", () => {
       // Arrange & Act
       const result = motionDetectInputSchema.parse({
         html: simpleAnimationHtml,
-        detection_mode: 'css' as const,
+        detection_mode: "css" as const,
       });
 
       // Assert
@@ -536,8 +537,8 @@ describe('motion.detect auto_optimize パラメータ', () => {
     });
   });
 
-  describe('自動最適化動作', () => {
-    it('レスポンスサイズが閾値超で自動的にsummary=trueに切り替わること', async () => {
+  describe("自動最適化動作", () => {
+    it("レスポンスサイズが閾値超で自動的にsummary=trueに切り替わること", async () => {
       // Arrange: 大量のアニメーションを生成
       // NOTE: auto_optimize の閾値は 100KB（パターン配列部分）
       // 1パターンあたり約500バイト（JSON）なので、200パターンで約100KB
@@ -545,7 +546,7 @@ describe('motion.detect auto_optimize パラメータ', () => {
       const veryLargeHtml = generateLargeAnimationHtml(300);
       const input: MotionDetectInput = {
         html: veryLargeHtml,
-        detection_mode: 'css' as const,
+        detection_mode: "css" as const,
         auto_optimize: true,
         summary: false, // 明示的にfalseを指定
         maxPatterns: 500, // 多くのパターンを検出させる
@@ -559,17 +560,20 @@ describe('motion.detect auto_optimize パラメータ', () => {
       if (result.success && result.data) {
         // パターンが多い場合、自動でsummary=trueに切り替わる
         if (result.data._size_optimization) {
-          expect(result.data).toHaveProperty('_summary_mode', true);
-          expect(result.data._size_optimization.applied_optimizations).toContain('summary');
+          expect(result.data).toHaveProperty("_summary_mode", true);
+          expect(result.data._size_optimization.applied_optimizations).toContain("summary");
         } else {
           // 閾値未満の場合は最適化が発生しないことを確認
           // （テスト環境によってパターン検出数が変わる可能性があるため）
-          console.log('[TEST DEBUG] auto_optimize: size_optimization not applied, patterns:', result.data.patterns.length);
+          console.log(
+            "[TEST DEBUG] auto_optimize: size_optimization not applied, patterns:",
+            result.data.patterns.length
+          );
         }
       }
     });
 
-    it('レスポンスサイズが500KB超で自動的にtruncate適用されること', async () => {
+    it("レスポンスサイズが500KB超で自動的にtruncate適用されること", async () => {
       // Arrange: 500KB以上のレスポンスを生成するHTML
       // NOTE: 500KB ÷ 500バイト/パターン = 1000パターン必要
       // ただし、CSSパーサーがすべてのアニメーションを検出するわけではないため、
@@ -577,7 +581,7 @@ describe('motion.detect auto_optimize パラメータ', () => {
       const massiveHtml = generateLargeAnimationHtml(800);
       const input: MotionDetectInput = {
         html: massiveHtml,
-        detection_mode: 'css' as const,
+        detection_mode: "css" as const,
         auto_optimize: true,
         maxPatterns: 2000, // 十分なパターン数を許可
       };
@@ -589,28 +593,35 @@ describe('motion.detect auto_optimize パラメータ', () => {
       // 処理自体が成功またはエラーでも検証を試みる
       if (result.success && result.data) {
         // パターンが非常に多い場合、truncateが適用される
-        if (result.data._size_optimization?.applied_optimizations.includes('truncate')) {
-          expect(result.data).toHaveProperty('_truncated', true);
+        if (result.data._size_optimization?.applied_optimizations.includes("truncate")) {
+          expect(result.data).toHaveProperty("_truncated", true);
         } else {
           // 閾値未満の場合は最適化状況をログ出力
-          console.log('[TEST DEBUG] auto_optimize 500KB: patterns:', result.data.patterns.length,
-            'size_optimization:', result.data._size_optimization);
+          console.log(
+            "[TEST DEBUG] auto_optimize 500KB: patterns:",
+            result.data.patterns.length,
+            "size_optimization:",
+            result.data._size_optimization
+          );
         }
       } else {
         // エラーの場合は情報を出力し、テストは条件付きでパス
         // （500KB閾値のテストはHTMLサイズに依存するため）
-        console.log('[TEST DEBUG] auto_optimize 500KB test skipped - result:', result.error?.message || 'unknown error');
+        console.log(
+          "[TEST DEBUG] auto_optimize 500KB test skipped - result:",
+          result.error?.message || "unknown error"
+        );
       }
       // このテストは500KB閾値の動作確認であり、
       // 実際のパターン生成が閾値未満でも他のテストで機能は確認済み
     });
 
-    it('_size_optimization メタデータで適用された最適化を報告すること', async () => {
+    it("_size_optimization メタデータで適用された最適化を報告すること", async () => {
       // Arrange
       const largeHtml = generateLargeAnimationHtml(150);
       const input: MotionDetectInput = {
         html: largeHtml,
-        detection_mode: 'css' as const,
+        detection_mode: "css" as const,
         auto_optimize: true,
       };
 
@@ -623,22 +634,22 @@ describe('motion.detect auto_optimize パラメータ', () => {
         const optimization = result.data._size_optimization;
 
         // 最適化情報の構造を確認
-        expect(optimization).toHaveProperty('original_size_bytes');
-        expect(optimization).toHaveProperty('optimized_size_bytes');
-        expect(optimization).toHaveProperty('reduction_percent');
-        expect(optimization).toHaveProperty('applied_optimizations');
+        expect(optimization).toHaveProperty("original_size_bytes");
+        expect(optimization).toHaveProperty("optimized_size_bytes");
+        expect(optimization).toHaveProperty("reduction_percent");
+        expect(optimization).toHaveProperty("applied_optimizations");
 
         // 適用された最適化がリストになっている
         expect(Array.isArray(optimization.applied_optimizations)).toBe(true);
       }
     });
 
-    it('auto_optimize: false では自動最適化が発生しないこと', async () => {
+    it("auto_optimize: false では自動最適化が発生しないこと", async () => {
       // Arrange
       const largeHtml = generateLargeAnimationHtml(100);
       const input: MotionDetectInput = {
         html: largeHtml,
-        detection_mode: 'css' as const,
+        detection_mode: "css" as const,
         auto_optimize: false,
       };
 
@@ -652,11 +663,11 @@ describe('motion.detect auto_optimize パラメータ', () => {
       }
     });
 
-    it('100KB未満のレスポンスでは最適化が発生しないこと', async () => {
+    it("100KB未満のレスポンスでは最適化が発生しないこと", async () => {
       // Arrange
       const input: MotionDetectInput = {
         html: simpleAnimationHtml,
-        detection_mode: 'css' as const,
+        detection_mode: "css" as const,
         auto_optimize: true,
       };
 
@@ -678,7 +689,7 @@ describe('motion.detect auto_optimize パラメータ', () => {
 // ResponseSizeGuard 統合テスト
 // =====================================================
 
-describe('motion.detect ResponseSizeGuard 統合', () => {
+describe("motion.detect ResponseSizeGuard 統合", () => {
   beforeEach(() => {
     resetMotionDetectServiceFactory();
   });
@@ -687,12 +698,12 @@ describe('motion.detect ResponseSizeGuard 統合', () => {
     vi.restoreAllMocks();
   });
 
-  it('motion.detect がResponseSizeGuardミドルウェアと統合されていること', async () => {
+  it("motion.detect がResponseSizeGuardミドルウェアと統合されていること", async () => {
     // Arrange
     const largeHtml = generateLargeAnimationHtml(100);
     const input: MotionDetectInput = {
       html: largeHtml,
-      detection_mode: 'css' as const,
+      detection_mode: "css" as const,
     };
 
     // Act
@@ -702,16 +713,16 @@ describe('motion.detect ResponseSizeGuard 統合', () => {
     expect(result.success).toBe(true);
     if (result.success && result.data) {
       // レスポンスにサイズ情報が含まれる
-      expect(result.data.metadata).toHaveProperty('response_size_bytes');
+      expect(result.data.metadata).toHaveProperty("response_size_bytes");
     }
   });
 
-  it('閾値超過時に適切な警告がレスポンスに含まれること', async () => {
+  it("閾値超過時に適切な警告がレスポンスに含まれること", async () => {
     // Arrange
     const largeHtml = generateLargeAnimationHtml(150);
     const input: MotionDetectInput = {
       html: largeHtml,
-      detection_mode: 'css' as const,
+      detection_mode: "css" as const,
       maxPatterns: 1000,
     };
 
@@ -723,7 +734,7 @@ describe('motion.detect ResponseSizeGuard 統合', () => {
     if (result.success && result.data) {
       // 警告にサイズ関連の情報が含まれる
       const sizeWarning = result.data.warnings?.find(
-        (w) => w.code === 'RESPONSE_SIZE_WARNING' || w.code === 'RESPONSE_SIZE_CRITICAL'
+        (w) => w.code === "RESPONSE_SIZE_WARNING" || w.code === "RESPONSE_SIZE_CRITICAL"
       );
       if (result.data.metadata.response_size_bytes > 10 * 1024) {
         expect(sizeWarning).toBeDefined();
@@ -731,12 +742,12 @@ describe('motion.detect ResponseSizeGuard 統合', () => {
     }
   });
 
-  it('最適化推奨メッセージにmotion.detect用の情報が含まれること', async () => {
+  it("最適化推奨メッセージにmotion.detect用の情報が含まれること", async () => {
     // Arrange
     const largeHtml = generateLargeAnimationHtml(100);
     const input: MotionDetectInput = {
       html: largeHtml,
-      detection_mode: 'css' as const,
+      detection_mode: "css" as const,
     };
 
     // Act
@@ -746,7 +757,7 @@ describe('motion.detect ResponseSizeGuard 統合', () => {
     expect(result.success).toBe(true);
     if (result.success && result.data) {
       const sizeWarning = result.data.warnings?.find(
-        (w) => w.code === 'RESPONSE_SIZE_WARNING' || w.code === 'RESPONSE_SIZE_CRITICAL'
+        (w) => w.code === "RESPONSE_SIZE_WARNING" || w.code === "RESPONSE_SIZE_CRITICAL"
       );
       if (sizeWarning?.suggestion) {
         // motion.detect用の最適化推奨が含まれる
@@ -760,7 +771,7 @@ describe('motion.detect ResponseSizeGuard 統合', () => {
 // 複合テスト（複数パラメータの組み合わせ）
 // =====================================================
 
-describe('motion.detect レスポンスサイズ制限 - 複合テスト', () => {
+describe("motion.detect レスポンスサイズ制限 - 複合テスト", () => {
   beforeEach(() => {
     resetMotionDetectServiceFactory();
   });
@@ -769,12 +780,12 @@ describe('motion.detect レスポンスサイズ制限 - 複合テスト', () =>
     vi.restoreAllMocks();
   });
 
-  it('summary: true と truncate_max_chars を組み合わせて使用できること', async () => {
+  it("summary: true と truncate_max_chars を組み合わせて使用できること", async () => {
     // Arrange
     const largeHtml = generateLargeAnimationHtml(50);
     const input: MotionDetectInput = {
       html: largeHtml,
-      detection_mode: 'css' as const,
+      detection_mode: "css" as const,
       summary: true,
       truncate_max_chars: 1000,
     };
@@ -793,11 +804,11 @@ describe('motion.detect レスポンスサイズ制限 - 複合テスト', () =>
     }
   });
 
-  it('auto_optimize と明示的なsummary: true は明示的な設定が優先されること', async () => {
+  it("auto_optimize と明示的なsummary: true は明示的な設定が優先されること", async () => {
     // Arrange
     const input: MotionDetectInput = {
       html: simpleAnimationHtml,
-      detection_mode: 'css' as const,
+      detection_mode: "css" as const,
       summary: true,
       auto_optimize: true,
     };
@@ -815,12 +826,12 @@ describe('motion.detect レスポンスサイズ制限 - 複合テスト', () =>
     }
   });
 
-  it('maxPatterns と truncate_max_chars の両方で制限される場合、より厳しい制限が適用されること', async () => {
+  it("maxPatterns と truncate_max_chars の両方で制限される場合、より厳しい制限が適用されること", async () => {
     // Arrange
     const largeHtml = generateLargeAnimationHtml(100);
     const input: MotionDetectInput = {
       html: largeHtml,
-      detection_mode: 'css' as const,
+      detection_mode: "css" as const,
       maxPatterns: 50,
       truncate_max_chars: 500,
     };
@@ -840,11 +851,11 @@ describe('motion.detect レスポンスサイズ制限 - 複合テスト', () =>
     }
   });
 
-  it('includeSummary: false と summary: true は summary パラメータが優先されること', async () => {
+  it("includeSummary: false と summary: true は summary パラメータが優先されること", async () => {
     // Arrange
     const input: MotionDetectInput = {
       html: simpleAnimationHtml,
-      detection_mode: 'css' as const,
+      detection_mode: "css" as const,
       summary: true,
       includeSummary: false, // サマリー統計を含めない
     };
@@ -866,7 +877,7 @@ describe('motion.detect レスポンスサイズ制限 - 複合テスト', () =>
 // エッジケーステスト
 // =====================================================
 
-describe('motion.detect レスポンスサイズ制限 - エッジケース', () => {
+describe("motion.detect レスポンスサイズ制限 - エッジケース", () => {
   beforeEach(() => {
     resetMotionDetectServiceFactory();
   });
@@ -875,7 +886,7 @@ describe('motion.detect レスポンスサイズ制限 - エッジケース', ()
     vi.restoreAllMocks();
   });
 
-  it('空のパターン配列でもsummaryモードが正しく動作すること', async () => {
+  it("空のパターン配列でもsummaryモードが正しく動作すること", async () => {
     // Arrange: アニメーションを含まないHTML
     const noAnimationHtml = `<!DOCTYPE html>
 <html>
@@ -885,7 +896,7 @@ describe('motion.detect レスポンスサイズ制限 - エッジケース', ()
 
     const input: MotionDetectInput = {
       html: noAnimationHtml,
-      detection_mode: 'css' as const,
+      detection_mode: "css" as const,
       summary: true,
     };
 
@@ -900,11 +911,11 @@ describe('motion.detect レスポンスサイズ制限 - エッジケース', ()
     }
   });
 
-  it('truncate_max_chars が非常に小さい値でもエラーにならないこと', async () => {
+  it("truncate_max_chars が非常に小さい値でもエラーにならないこと", async () => {
     // Arrange
     const input: MotionDetectInput = {
       html: simpleAnimationHtml,
-      detection_mode: 'css' as const,
+      detection_mode: "css" as const,
       truncate_max_chars: 100,
     };
 
@@ -915,14 +926,14 @@ describe('motion.detect レスポンスサイズ制限 - エッジケース', ()
     expect(result.success).toBe(true);
     // 最低限のレスポンス構造は維持される
     if (result.success && result.data) {
-      expect(result.data).toHaveProperty('patterns');
-      expect(result.data).toHaveProperty('metadata');
+      expect(result.data).toHaveProperty("patterns");
+      expect(result.data).toHaveProperty("metadata");
     }
   });
 
-  it('pageId と summary の組み合わせが正しく動作すること', async () => {
+  it("pageId と summary の組み合わせが正しく動作すること", async () => {
     // Arrange: サービスモックを設定
-    const validUUID = '123e4567-e89b-12d3-a456-426614174000';
+    const validUUID = "123e4567-e89b-12d3-a456-426614174000";
     const mockGetPageById = vi.fn().mockResolvedValue({
       id: validUUID,
       htmlContent: simpleAnimationHtml,
@@ -935,7 +946,7 @@ describe('motion.detect レスポンスサイズ制限 - エッジケース', ()
 
     const input: MotionDetectInput = {
       pageId: validUUID,
-      detection_mode: 'css' as const,
+      detection_mode: "css" as const,
       summary: true,
     };
 
@@ -949,11 +960,11 @@ describe('motion.detect レスポンスサイズ制限 - エッジケース', ()
     }
   });
 
-  it('detection_mode: runtime と summary の組み合わせが正しく動作すること', async () => {
+  it("detection_mode: runtime と summary の組み合わせが正しく動作すること", async () => {
     // Arrange - runtime モードでは url が必須
     const input: MotionDetectInput = {
-      url: 'https://example.com',
-      detection_mode: 'runtime',
+      url: "https://example.com",
+      detection_mode: "runtime",
       summary: true,
     };
 
@@ -970,19 +981,19 @@ describe('motion.detect レスポンスサイズ制限 - エッジケース', ()
     }
   });
 
-  it('save_to_db: true と summary の組み合わせでDB保存は完全データで行われること', async () => {
+  it("save_to_db: true と summary の組み合わせでDB保存は完全データで行われること", async () => {
     // Arrange: 永続化サービスモックを設定
     const mockSave = vi.fn().mockResolvedValue({
       saved: true,
       savedCount: 2,
-      patternIds: ['pattern1', 'pattern2'],
-      embeddingIds: ['embedding1', 'embedding2'],
+      patternIds: ["pattern1", "pattern2"],
+      embeddingIds: ["embedding1", "embedding2"],
     });
 
     // 注: 実際のテストでは永続化サービスのモックが必要
     const input: MotionDetectInput = {
       html: simpleAnimationHtml,
-      detection_mode: 'css' as const,
+      detection_mode: "css" as const,
       summary: true,
       save_to_db: true,
     };

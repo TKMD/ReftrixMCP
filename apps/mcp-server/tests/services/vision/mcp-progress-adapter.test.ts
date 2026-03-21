@@ -12,7 +12,7 @@
  * @see apps/mcp-server/src/services/vision/mcp-progress-adapter.ts
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 // 実装予定のモジュールをインポート
 import {
@@ -20,11 +20,11 @@ import {
   createMCPProgressCallback,
   type MCPProgressOptions,
   type SendNotificationFn,
-} from '../../../src/services/vision/mcp-progress-adapter.js';
+} from "../../../src/services/vision/mcp-progress-adapter.js";
 
-import type { ProgressEvent } from '../../../src/services/vision/progress-reporter.js';
+import type { ProgressEvent } from "../../../src/services/vision/progress-reporter.js";
 
-describe('MCPProgressAdapter', () => {
+describe("MCPProgressAdapter", () => {
   // モックのsendNotification関数
   let mockSendNotification: SendNotificationFn;
 
@@ -42,27 +42,27 @@ describe('MCPProgressAdapter', () => {
   // コンストラクタ・初期化テスト
   // ===========================================================================
 
-  describe('constructor', () => {
-    it('should create adapter with valid progressToken and sendNotification', () => {
+  describe("constructor", () => {
+    it("should create adapter with valid progressToken and sendNotification", () => {
       const adapter = new MCPProgressAdapter({
-        progressToken: 'test-token-123',
+        progressToken: "test-token-123",
         sendNotification: mockSendNotification,
       });
 
       expect(adapter).toBeDefined();
-      expect(adapter.getProgressToken()).toBe('test-token-123');
+      expect(adapter.getProgressToken()).toBe("test-token-123");
     });
 
-    it('should accept string progressToken', () => {
+    it("should accept string progressToken", () => {
       const adapter = new MCPProgressAdapter({
-        progressToken: 'string-token',
+        progressToken: "string-token",
         sendNotification: mockSendNotification,
       });
 
-      expect(adapter.getProgressToken()).toBe('string-token');
+      expect(adapter.getProgressToken()).toBe("string-token");
     });
 
-    it('should accept number progressToken', () => {
+    it("should accept number progressToken", () => {
       const adapter = new MCPProgressAdapter({
         progressToken: 12345,
         sendNotification: mockSendNotification,
@@ -71,22 +71,22 @@ describe('MCPProgressAdapter', () => {
       expect(adapter.getProgressToken()).toBe(12345);
     });
 
-    it('should throw error if progressToken is undefined', () => {
+    it("should throw error if progressToken is undefined", () => {
       expect(() => {
         new MCPProgressAdapter({
           progressToken: undefined as unknown as string,
           sendNotification: mockSendNotification,
         });
-      }).toThrow('progressToken is required');
+      }).toThrow("progressToken is required");
     });
 
-    it('should throw error if sendNotification is undefined', () => {
+    it("should throw error if sendNotification is undefined", () => {
       expect(() => {
         new MCPProgressAdapter({
-          progressToken: 'test-token',
+          progressToken: "test-token",
           sendNotification: undefined as unknown as SendNotificationFn,
         });
-      }).toThrow('sendNotification is required');
+      }).toThrow("sendNotification is required");
     });
   });
 
@@ -94,66 +94,66 @@ describe('MCPProgressAdapter', () => {
   // sendProgress テスト
   // ===========================================================================
 
-  describe('sendProgress', () => {
-    it('should send progress notification with correct format', async () => {
+  describe("sendProgress", () => {
+    it("should send progress notification with correct format", async () => {
       const adapter = new MCPProgressAdapter({
-        progressToken: 'test-token',
+        progressToken: "test-token",
         sendNotification: mockSendNotification,
       });
 
       // メッセージにphase情報が含まれている場合
       const event: ProgressEvent = {
-        phase: 'analyzing',
+        phase: "analyzing",
         progress: 50,
         estimatedRemainingMs: 30000,
-        message: 'analyzing: Vision AI 推論を実行しています...',
+        message: "analyzing: Vision AI 推論を実行しています...",
       };
 
       await adapter.sendProgress(event);
 
       expect(mockSendNotification).toHaveBeenCalledTimes(1);
       expect(mockSendNotification).toHaveBeenCalledWith({
-        method: 'notifications/progress',
+        method: "notifications/progress",
         params: {
-          progressToken: 'test-token',
+          progressToken: "test-token",
           progress: 50,
           total: 100,
-          message: 'analyzing: Vision AI 推論を実行しています...',
+          message: "analyzing: Vision AI 推論を実行しています...",
         },
       });
     });
 
-    it('should include phase in message if not already present', async () => {
+    it("should include phase in message if not already present", async () => {
       const adapter = new MCPProgressAdapter({
-        progressToken: 'test-token',
+        progressToken: "test-token",
         sendNotification: mockSendNotification,
       });
 
       const event: ProgressEvent = {
-        phase: 'preparing',
+        phase: "preparing",
         progress: 5,
         estimatedRemainingMs: 60000,
-        message: '画像を読み込んでいます',
+        message: "画像を読み込んでいます",
       };
 
       await adapter.sendProgress(event);
 
       // メッセージにphase情報が含まれることを確認
       const call = mockSendNotification.mock.calls[0][0];
-      expect(call.params.message).toContain('preparing');
+      expect(call.params.message).toContain("preparing");
     });
 
-    it('should handle progress value at 0%', async () => {
+    it("should handle progress value at 0%", async () => {
       const adapter = new MCPProgressAdapter({
-        progressToken: 'test-token',
+        progressToken: "test-token",
         sendNotification: mockSendNotification,
       });
 
       const event: ProgressEvent = {
-        phase: 'preparing',
+        phase: "preparing",
         progress: 0,
         estimatedRemainingMs: 120000,
-        message: '開始中...',
+        message: "開始中...",
       };
 
       await adapter.sendProgress(event);
@@ -163,17 +163,17 @@ describe('MCPProgressAdapter', () => {
       expect(call.params.total).toBe(100);
     });
 
-    it('should handle progress value at 100%', async () => {
+    it("should handle progress value at 100%", async () => {
       const adapter = new MCPProgressAdapter({
-        progressToken: 'test-token',
+        progressToken: "test-token",
         sendNotification: mockSendNotification,
       });
 
       const event: ProgressEvent = {
-        phase: 'completing',
+        phase: "completing",
         progress: 100,
         estimatedRemainingMs: 0,
-        message: '完了しました',
+        message: "完了しました",
       };
 
       await adapter.sendProgress(event);
@@ -183,17 +183,17 @@ describe('MCPProgressAdapter', () => {
       expect(call.params.total).toBe(100);
     });
 
-    it('should clamp progress value above 100 to 100', async () => {
+    it("should clamp progress value above 100 to 100", async () => {
       const adapter = new MCPProgressAdapter({
-        progressToken: 'test-token',
+        progressToken: "test-token",
         sendNotification: mockSendNotification,
       });
 
       const event: ProgressEvent = {
-        phase: 'completing',
+        phase: "completing",
         progress: 150,
         estimatedRemainingMs: 0,
-        message: 'テスト',
+        message: "テスト",
       };
 
       await adapter.sendProgress(event);
@@ -202,17 +202,17 @@ describe('MCPProgressAdapter', () => {
       expect(call.params.progress).toBe(100);
     });
 
-    it('should clamp progress value below 0 to 0', async () => {
+    it("should clamp progress value below 0 to 0", async () => {
       const adapter = new MCPProgressAdapter({
-        progressToken: 'test-token',
+        progressToken: "test-token",
         sendNotification: mockSendNotification,
       });
 
       const event: ProgressEvent = {
-        phase: 'preparing',
+        phase: "preparing",
         progress: -10,
         estimatedRemainingMs: 0,
-        message: 'テスト',
+        message: "テスト",
       };
 
       await adapter.sendProgress(event);
@@ -226,47 +226,47 @@ describe('MCPProgressAdapter', () => {
   // エラーハンドリング テスト
   // ===========================================================================
 
-  describe('error handling', () => {
-    it('should not throw when sendNotification fails', async () => {
-      const failingNotification = vi.fn().mockRejectedValue(new Error('Network error'));
+  describe("error handling", () => {
+    it("should not throw when sendNotification fails", async () => {
+      const failingNotification = vi.fn().mockRejectedValue(new Error("Network error"));
 
       const adapter = new MCPProgressAdapter({
-        progressToken: 'test-token',
+        progressToken: "test-token",
         sendNotification: failingNotification,
       });
 
       const event: ProgressEvent = {
-        phase: 'analyzing',
+        phase: "analyzing",
         progress: 50,
         estimatedRemainingMs: 30000,
-        message: 'テスト',
+        message: "テスト",
       };
 
       // エラーがスローされないことを確認（Graceful Degradation）
       await expect(adapter.sendProgress(event)).resolves.not.toThrow();
     });
 
-    it('should log warning when sendNotification fails', async () => {
-      const consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
-      const failingNotification = vi.fn().mockRejectedValue(new Error('Network error'));
+    it("should log warning when sendNotification fails", async () => {
+      const consoleWarnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+      const failingNotification = vi.fn().mockRejectedValue(new Error("Network error"));
 
       const adapter = new MCPProgressAdapter({
-        progressToken: 'test-token',
+        progressToken: "test-token",
         sendNotification: failingNotification,
         enableLogging: true,
       });
 
       const event: ProgressEvent = {
-        phase: 'analyzing',
+        phase: "analyzing",
         progress: 50,
         estimatedRemainingMs: 30000,
-        message: 'テスト',
+        message: "テスト",
       };
 
       await adapter.sendProgress(event);
 
       expect(consoleWarnSpy).toHaveBeenCalledWith(
-        expect.stringContaining('[MCPProgressAdapter]'),
+        expect.stringContaining("[MCPProgressAdapter]"),
         expect.any(Error)
       );
 
@@ -278,27 +278,27 @@ describe('MCPProgressAdapter', () => {
   // createMCPProgressCallback ファクトリ関数テスト
   // ===========================================================================
 
-  describe('createMCPProgressCallback', () => {
-    it('should return a ProgressCallback function', () => {
+  describe("createMCPProgressCallback", () => {
+    it("should return a ProgressCallback function", () => {
       const callback = createMCPProgressCallback({
-        progressToken: 'test-token',
+        progressToken: "test-token",
         sendNotification: mockSendNotification,
       });
 
-      expect(typeof callback).toBe('function');
+      expect(typeof callback).toBe("function");
     });
 
-    it('should call sendNotification when callback is invoked', async () => {
+    it("should call sendNotification when callback is invoked", async () => {
       const callback = createMCPProgressCallback({
-        progressToken: 'test-token',
+        progressToken: "test-token",
         sendNotification: mockSendNotification,
       });
 
       const event: ProgressEvent = {
-        phase: 'analyzing',
+        phase: "analyzing",
         progress: 50,
         estimatedRemainingMs: 30000,
-        message: '分析中...',
+        message: "分析中...",
       };
 
       callback(event);
@@ -309,7 +309,7 @@ describe('MCPProgressAdapter', () => {
       expect(mockSendNotification).toHaveBeenCalledTimes(1);
     });
 
-    it('should return null if progressToken is not provided', () => {
+    it("should return null if progressToken is not provided", () => {
       const callback = createMCPProgressCallback({
         progressToken: undefined,
         sendNotification: mockSendNotification,
@@ -318,9 +318,9 @@ describe('MCPProgressAdapter', () => {
       expect(callback).toBeNull();
     });
 
-    it('should return null if sendNotification is not provided', () => {
+    it("should return null if sendNotification is not provided", () => {
       const callback = createMCPProgressCallback({
-        progressToken: 'test-token',
+        progressToken: "test-token",
         sendNotification: undefined,
       });
 
@@ -332,10 +332,10 @@ describe('MCPProgressAdapter', () => {
   // isProgressEnabled ユーティリティテスト
   // ===========================================================================
 
-  describe('isProgressEnabled', () => {
-    it('should return true when progressToken and sendNotification are provided', () => {
+  describe("isProgressEnabled", () => {
+    it("should return true when progressToken and sendNotification are provided", () => {
       const adapter = new MCPProgressAdapter({
-        progressToken: 'test-token',
+        progressToken: "test-token",
         sendNotification: mockSendNotification,
       });
 
@@ -347,19 +347,19 @@ describe('MCPProgressAdapter', () => {
   // 統合テスト: ProgressReporterとの連携
   // ===========================================================================
 
-  describe('integration with ProgressReporter', () => {
-    it('should work as ProgressReporter callback', async () => {
+  describe("integration with ProgressReporter", () => {
+    it("should work as ProgressReporter callback", async () => {
       const callback = createMCPProgressCallback({
-        progressToken: 'test-token',
+        progressToken: "test-token",
         sendNotification: mockSendNotification,
       });
 
       // ProgressReporterに渡すのと同じ形式でコールバックを呼び出し
       const events: ProgressEvent[] = [
-        { phase: 'preparing', progress: 5, estimatedRemainingMs: 60000, message: '準備中' },
-        { phase: 'optimizing', progress: 20, estimatedRemainingMs: 50000, message: '最適化中' },
-        { phase: 'analyzing', progress: 50, estimatedRemainingMs: 30000, message: '分析中' },
-        { phase: 'completing', progress: 100, estimatedRemainingMs: 0, message: '完了' },
+        { phase: "preparing", progress: 5, estimatedRemainingMs: 60000, message: "準備中" },
+        { phase: "optimizing", progress: 20, estimatedRemainingMs: 50000, message: "最適化中" },
+        { phase: "analyzing", progress: 50, estimatedRemainingMs: 30000, message: "分析中" },
+        { phase: "completing", progress: 100, estimatedRemainingMs: 0, message: "完了" },
       ];
 
       for (const event of events) {

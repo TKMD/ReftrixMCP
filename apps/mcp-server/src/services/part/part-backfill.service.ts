@@ -25,13 +25,13 @@
  * @module services/part/part-backfill.service
  */
 
-import type { PrismaClient } from '@prisma/client';
-import { logger } from '../../utils/logger';
-import { truncateId } from './schemas';
-import { extractPartsFromSection } from './part-extraction.service';
-import { saveExtractedParts } from './part-db.service';
-import { DEFAULT_PART_EXTRACTION_CONFIG } from './types';
-import type { PartExtractionConfig } from './types';
+import type { PrismaClient } from "@prisma/client";
+import { logger } from "../../utils/logger";
+import { truncateId } from "./schemas";
+import { extractPartsFromSection } from "./part-extraction.service";
+import { saveExtractedParts } from "./part-db.service";
+import { DEFAULT_PART_EXTRACTION_CONFIG } from "./types";
+import type { PartExtractionConfig } from "./types";
 
 // ============================================================================
 // Types / 型定義
@@ -107,7 +107,7 @@ const DEFAULT_BACKFILL_OPTIONS: BackfillOptions = {
  */
 export async function backfillPartEmbeddings(
   prisma: PrismaClient,
-  userOptions?: Partial<BackfillOptions>,
+  userOptions?: Partial<BackfillOptions>
 ): Promise<BackfillResult> {
   const options: BackfillOptions = {
     ...DEFAULT_BACKFILL_OPTIONS,
@@ -124,23 +124,23 @@ export async function backfillPartEmbeddings(
     durationMs: 0,
   };
 
-  logger.info('[part-backfill] Starting backfill', {
+  logger.info("[part-backfill] Starting backfill", {
     chunkSize: options.chunkSize,
     dryRun: options.dryRun,
     skipExisting: options.skipExisting,
-    webPageId: options.webPageId ? truncateId(options.webPageId) : 'all',
+    webPageId: options.webPageId ? truncateId(options.webPageId) : "all",
   });
 
   try {
     // セクション一覧を取得 / Get section list
     const sections = await fetchSections(prisma, options);
 
-    logger.info('[part-backfill] Sections to process', {
+    logger.info("[part-backfill] Sections to process", {
       totalSections: sections.length,
     });
 
     if (sections.length === 0) {
-      logger.info('[part-backfill] No sections to process');
+      logger.info("[part-backfill] No sections to process");
       result.durationMs = Date.now() - startTime;
       return result;
     }
@@ -161,7 +161,7 @@ export async function backfillPartEmbeddings(
           processedPageIds.add(section.webPageId);
 
           if (!section.htmlContent) {
-            logger.info('[part-backfill] Section has no HTML content, skipping', {
+            logger.info("[part-backfill] Section has no HTML content, skipping", {
               sectionId: truncateId(section.id),
             });
             continue;
@@ -169,7 +169,7 @@ export async function backfillPartEmbeddings(
 
           if (options.dryRun) {
             // ドライラン: カウントのみ / Dry-run: count only
-            logger.info('[part-backfill] [DRY RUN] Would process section', {
+            logger.info("[part-backfill] [DRY RUN] Would process section", {
               sectionId: truncateId(section.id),
               sectionType: section.sectionType,
               webPageUrl: section.webPageUrl,
@@ -195,12 +195,12 @@ export async function backfillPartEmbeddings(
               section.webPageId,
               section.id,
               extractionResult.parts,
-              section.webPageUrl,
+              section.webPageUrl
             );
 
             result.partsExtracted += saveResult.savedCount;
 
-            logger.info('[part-backfill] Section processed', {
+            logger.info("[part-backfill] Section processed", {
               sectionId: truncateId(section.id),
               partsExtracted: extractionResult.parts.length,
               savedCount: saveResult.savedCount,
@@ -211,10 +211,8 @@ export async function backfillPartEmbeddings(
           result.sectionsProcessed++;
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : String(error);
-          result.errors.push(
-            `Section ${truncateId(section.id)}: ${errorMessage}`
-          );
-          logger.warn('[part-backfill] Section processing error', {
+          result.errors.push(`Section ${truncateId(section.id)}: ${errorMessage}`);
+          logger.warn("[part-backfill] Section processing error", {
             sectionId: truncateId(section.id),
             error: errorMessage,
           });
@@ -226,12 +224,12 @@ export async function backfillPartEmbeddings(
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     result.errors.push(`Fatal: ${errorMessage}`);
-    logger.error('[part-backfill] Fatal error', { error: errorMessage });
+    logger.error("[part-backfill] Fatal error", { error: errorMessage });
   }
 
   result.durationMs = Date.now() - startTime;
 
-  logger.info('[part-backfill] Backfill completed', {
+  logger.info("[part-backfill] Backfill completed", {
     pagesProcessed: result.pagesProcessed,
     sectionsProcessed: result.sectionsProcessed,
     partsExtracted: result.partsExtracted,
@@ -257,12 +255,10 @@ export async function backfillPartEmbeddings(
  */
 async function fetchSections(
   prisma: PrismaClient,
-  options: BackfillOptions,
+  options: BackfillOptions
 ): Promise<SectionRow[]> {
   // WebページIDフィルタ / Web page ID filter
-  const webPageFilter = options.webPageId
-    ? { webPageId: options.webPageId }
-    : {};
+  const webPageFilter = options.webPageId ? { webPageId: options.webPageId } : {};
 
   if (options.skipExisting) {
     // パーツが存在しないセクションのみ取得
@@ -278,7 +274,7 @@ async function fetchSections(
         sectionType: true,
         webPage: { select: { url: true, htmlContent: true } },
       },
-      orderBy: { webPageId: 'asc' },
+      orderBy: { webPageId: "asc" },
     });
 
     return sections.map((s) => ({
@@ -299,7 +295,7 @@ async function fetchSections(
       sectionType: true,
       webPage: { select: { url: true, htmlContent: true } },
     },
-    orderBy: { webPageId: 'asc' },
+    orderBy: { webPageId: "asc" },
   });
 
   return sections.map((s) => ({

@@ -17,8 +17,8 @@
  * @module tools/narrative/analyze.tool
  */
 
-import { ZodError } from 'zod';
-import { logger, isDevelopment } from '../../utils/logger';
+import { ZodError } from "zod";
+import { logger, isDevelopment } from "../../utils/logger";
 import {
   narrativeAnalyzeInputSchema,
   NARRATIVE_MCP_ERROR_CODES,
@@ -26,12 +26,12 @@ import {
   type NarrativeAnalyzeOutput,
   type NarrativeAnalyzeData,
   type NarrativeAnalyzeWarning,
-} from './schemas';
+} from "./schemas";
 import type {
   INarrativeAnalysisService,
   NarrativeAnalysisInput,
   NarrativeAnalysisResult,
-} from '../../services/narrative/types/narrative.types';
+} from "../../services/narrative/types/narrative.types";
 
 // ============================================================================
 // Types
@@ -55,9 +55,7 @@ let narrativeAnalyzeServiceFactory: INarrativeAnalyzeServiceFactory | null = nul
  * サービスファクトリーを設定
  * @param factory - サービスファクトリー
  */
-export function setNarrativeAnalyzeServiceFactory(
-  factory: INarrativeAnalyzeServiceFactory
-): void {
+export function setNarrativeAnalyzeServiceFactory(factory: INarrativeAnalyzeServiceFactory): void {
   narrativeAnalyzeServiceFactory = factory;
 }
 
@@ -80,8 +78,8 @@ async function getNarrativeAnalysisService(): Promise<INarrativeAnalysisService>
   // NOTE: NarrativeAnalysisServiceはTask #2で実装予定
   // 現在は未実装のため、サービスファクトリ経由でのみ使用可能
   throw new Error(
-    'NarrativeAnalysisService is not yet implemented. ' +
-      'Please use setNarrativeAnalyzeServiceFactory() to provide a service instance.'
+    "NarrativeAnalysisService is not yet implemented. " +
+      "Please use setNarrativeAnalyzeServiceFactory() to provide a service instance."
   );
 }
 
@@ -178,7 +176,7 @@ function convertToMcpResponse(
     analysisTimeMs: result.metadata.analysisTimeMs,
     visionUsed: result.metadata.visionUsed,
     fallbackReason: result.metadata.fallbackReason,
-    analyzerVersion: '0.1.0',
+    analyzerVersion: "0.1.0",
   };
 }
 
@@ -210,14 +208,12 @@ function convertToMcpResponse(
  * });
  * ```
  */
-export async function narrativeAnalyzeHandler(
-  input: unknown
-): Promise<NarrativeAnalyzeOutput> {
+export async function narrativeAnalyzeHandler(input: unknown): Promise<NarrativeAnalyzeOutput> {
   const startTime = Date.now();
   const warnings: NarrativeAnalyzeWarning[] = [];
 
   if (isDevelopment()) {
-    logger.info('[narrative.analyze] Handler called', {
+    logger.info("[narrative.analyze] Handler called", {
       inputType: typeof input,
     });
   }
@@ -227,7 +223,7 @@ export async function narrativeAnalyzeHandler(
     const validatedInput = narrativeAnalyzeInputSchema.parse(input);
 
     if (isDevelopment()) {
-      logger.info('[narrative.analyze] Input validated', {
+      logger.info("[narrative.analyze] Input validated", {
         hasUrl: !!validatedInput.url,
         hasHtml: !!validatedInput.html,
         hasScreenshot: !!validatedInput.screenshot,
@@ -241,7 +237,7 @@ export async function narrativeAnalyzeHandler(
         success: false,
         error: {
           code: NARRATIVE_MCP_ERROR_CODES.VALIDATION_ERROR,
-          message: 'urlまたはhtmlのいずれかを指定してください',
+          message: "urlまたはhtmlのいずれかを指定してください",
         },
       };
     }
@@ -253,7 +249,7 @@ export async function narrativeAnalyzeHandler(
     const timeout = validatedInput.options?.timeout;
     const screenshot = validatedInput.screenshot;
     const analysisInput: NarrativeAnalysisInput = {
-      html: validatedInput.html || '', // URL指定時はサービス内でHTML取得
+      html: validatedInput.html || "", // URL指定時はサービス内でHTML取得
       ...(screenshot !== undefined && { screenshot }),
       options: {
         forceVision: false,
@@ -293,13 +289,13 @@ export async function narrativeAnalyzeHandler(
     // Vision未使用時の警告
     if (!result.metadata.visionUsed && validatedInput.options?.include_vision !== false) {
       warnings.push({
-        code: 'VISION_FALLBACK',
-        message: `Vision分析が使用されませんでした: ${result.metadata.fallbackReason || 'unknown'}`,
+        code: "VISION_FALLBACK",
+        message: `Vision分析が使用されませんでした: ${result.metadata.fallbackReason || "unknown"}`,
       });
     }
 
     if (isDevelopment()) {
-      logger.info('[narrative.analyze] Analysis completed', {
+      logger.info("[narrative.analyze] Analysis completed", {
         moodCategory: data.worldView.moodCategory,
         gridType: data.layoutStructure.gridSystem.type,
         confidence: data.confidence.overall,
@@ -318,19 +314,19 @@ export async function narrativeAnalyzeHandler(
     // エラーハンドリング
     if (error instanceof ZodError) {
       const details = error.errors.map((e) => ({
-        path: e.path.join('.'),
+        path: e.path.join("."),
         message: e.message,
       }));
 
       if (isDevelopment()) {
-        logger.warn('[narrative.analyze] Validation error', { details });
+        logger.warn("[narrative.analyze] Validation error", { details });
       }
 
       return {
         success: false,
         error: {
           code: NARRATIVE_MCP_ERROR_CODES.VALIDATION_ERROR,
-          message: 'バリデーションエラー',
+          message: "バリデーションエラー",
           details,
         },
       };
@@ -341,7 +337,7 @@ export async function narrativeAnalyzeHandler(
       const errorCode = mapErrorToCode(error);
 
       if (isDevelopment()) {
-        logger.error('[narrative.analyze] Error', {
+        logger.error("[narrative.analyze] Error", {
           code: errorCode,
           message: error.message,
           stack: error.stack,
@@ -358,13 +354,13 @@ export async function narrativeAnalyzeHandler(
     }
 
     // 未知のエラー
-    logger.error('[narrative.analyze] Unknown error', { error });
+    logger.error("[narrative.analyze] Unknown error", { error });
 
     return {
       success: false,
       error: {
         code: NARRATIVE_MCP_ERROR_CODES.INTERNAL_ERROR,
-        message: '内部エラーが発生しました',
+        message: "内部エラーが発生しました",
       },
     };
   }
@@ -376,25 +372,25 @@ export async function narrativeAnalyzeHandler(
 function mapErrorToCode(error: Error): string {
   const message = error.message.toLowerCase();
 
-  if (message.includes('timeout')) {
+  if (message.includes("timeout")) {
     return NARRATIVE_MCP_ERROR_CODES.TIMEOUT;
   }
-  if (message.includes('ssrf') || message.includes('blocked')) {
+  if (message.includes("ssrf") || message.includes("blocked")) {
     return NARRATIVE_MCP_ERROR_CODES.SSRF_BLOCKED;
   }
-  if (message.includes('network') || message.includes('fetch')) {
+  if (message.includes("network") || message.includes("fetch")) {
     return NARRATIVE_MCP_ERROR_CODES.NETWORK_ERROR;
   }
-  if (message.includes('vision')) {
+  if (message.includes("vision")) {
     return NARRATIVE_MCP_ERROR_CODES.VISION_ANALYSIS_FAILED;
   }
-  if (message.includes('embedding')) {
+  if (message.includes("embedding")) {
     return NARRATIVE_MCP_ERROR_CODES.EMBEDDING_FAILED;
   }
-  if (message.includes('db') || message.includes('database') || message.includes('save')) {
+  if (message.includes("db") || message.includes("database") || message.includes("save")) {
     return NARRATIVE_MCP_ERROR_CODES.DB_SAVE_FAILED;
   }
-  if (message.includes('not found')) {
+  if (message.includes("not found")) {
     return NARRATIVE_MCP_ERROR_CODES.PAGE_NOT_FOUND;
   }
 
@@ -410,52 +406,52 @@ function mapErrorToCode(error: Error): string {
  * MCP Server初期化時に使用
  */
 export const narrativeAnalyzeToolDefinition = {
-  name: 'narrative.analyze',
+  name: "narrative.analyze",
   description:
-    'URLまたはHTMLからWebデザインの世界観（WorldView）とレイアウト構成（LayoutStructure）を分析します。' +
-    'Vision LLMとCSS静的分析を組み合わせ、ムードカテゴリ・色彩印象・グリッドシステム・視覚的階層等を抽出します。' +
-    'DB-first設計: デフォルトでDB保存し、最小レスポンスを返却。',
+    "URLまたはHTMLからWebデザインの世界観（WorldView）とレイアウト構成（LayoutStructure）を分析します。" +
+    "Vision LLMとCSS静的分析を組み合わせ、ムードカテゴリ・色彩印象・グリッドシステム・視覚的階層等を抽出します。" +
+    "DB-first設計: デフォルトでDB保存し、最小レスポンスを返却。",
   inputSchema: {
-    type: 'object',
+    type: "object",
     properties: {
       url: {
-        type: 'string',
-        format: 'uri',
-        description: '分析対象URL（urlまたはhtmlのいずれか必須）',
+        type: "string",
+        format: "uri",
+        description: "分析対象URL（urlまたはhtmlのいずれか必須）",
       },
       html: {
-        type: 'string',
-        description: '分析対象HTML（urlまたはhtmlのいずれか必須、最大10MB）',
+        type: "string",
+        description: "分析対象HTML（urlまたはhtmlのいずれか必須、最大10MB）",
       },
       screenshot: {
-        type: 'string',
-        description: 'Base64エンコードスクリーンショット（urlなし + include_vision時に必須）',
+        type: "string",
+        description: "Base64エンコードスクリーンショット（urlなし + include_vision時に必須）",
       },
       options: {
-        type: 'object',
+        type: "object",
         properties: {
           save_to_db: {
-            type: 'boolean',
+            type: "boolean",
             default: true,
-            description: '分析結果をDBに保存するか',
+            description: "分析結果をDBに保存するか",
           },
           include_vision: {
-            type: 'boolean',
+            type: "boolean",
             default: true,
-            description: 'Vision LLM分析を使用するか',
+            description: "Vision LLM分析を使用するか",
           },
           css_variables: {
-            type: 'object',
-            description: '既存CSS変数分析結果（page.analyzeからの再利用）',
+            type: "object",
+            description: "既存CSS変数分析結果（page.analyzeからの再利用）",
           },
           motion_patterns: {
-            type: 'array',
-            description: '既存モーション分析結果（page.analyzeからの再利用）',
+            type: "array",
+            description: "既存モーション分析結果（page.analyzeからの再利用）",
           },
           timeout: {
-            type: 'number',
+            type: "number",
             default: 60000,
-            description: '分析タイムアウト（ms）',
+            description: "分析タイムアウト（ms）",
           },
         },
       },

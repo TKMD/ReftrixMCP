@@ -15,8 +15,8 @@
  * @module services/quality/benchmark.service
  */
 
-import type { PrismaClient } from '@prisma/client';
-import { logger, isDevelopment } from '../../utils/logger';
+import type { PrismaClient } from "@prisma/client";
+import { logger, isDevelopment } from "../../utils/logger";
 
 // =====================================================
 // Types
@@ -123,10 +123,7 @@ export interface IBenchmarkService {
    * @param limit - 最大取得件数 (デフォルト: 5)
    * @returns ベンチマーク配列（スコア降順）
    */
-  getBenchmarksByType(
-    sectionType: string,
-    limit?: number
-  ): Promise<BenchmarkMatch[]>;
+  getBenchmarksByType(sectionType: string, limit?: number): Promise<BenchmarkMatch[]>;
 
   /**
    * 業界別平均スコアを取得
@@ -152,10 +149,7 @@ export interface IBenchmarkService {
    * @param metadata - ベンチマークメタデータ
    * @returns 登録されたベンチマークID (UUID)
    */
-  registerBenchmark(
-    sectionPatternId: string,
-    metadata: BenchmarkMetadata
-  ): Promise<string>;
+  registerBenchmark(sectionPatternId: string, metadata: BenchmarkMetadata): Promise<string>;
 }
 
 // =====================================================
@@ -186,14 +180,10 @@ export class BenchmarkService implements IBenchmarkService {
     embedding: number[],
     options: FindSimilarBenchmarksOptions = {}
   ): Promise<BenchmarkMatch[]> {
-    const {
-      sectionType,
-      minSimilarity = 0.7,
-      limit = 5,
-    } = options;
+    const { sectionType, minSimilarity = 0.7, limit = 5 } = options;
 
     if (isDevelopment()) {
-      logger.debug('[BenchmarkService] findSimilarBenchmarks', {
+      logger.debug("[BenchmarkService] findSimilarBenchmarks", {
         embeddingDim: embedding.length,
         sectionType,
         minSimilarity,
@@ -203,7 +193,7 @@ export class BenchmarkService implements IBenchmarkService {
 
     try {
       // Embedding配列を文字列に変換（PostgreSQL vector型用）
-      const embeddingStr = `[${embedding.join(',')}]`;
+      const embeddingStr = `[${embedding.join(",")}]`;
 
       // HNSWベクトル検索クエリ
       // QualityBenchmarkテーブルが存在しない場合は空配列を返す
@@ -220,7 +210,7 @@ export class BenchmarkService implements IBenchmarkService {
         FROM quality_benchmarks qb
         LEFT JOIN web_pages wp ON wp.id = qb.web_page_id
         WHERE qb.embedding IS NOT NULL
-          ${sectionType ? `AND qb.section_type = $4` : ''}
+          ${sectionType ? `AND qb.section_type = $4` : ""}
           AND 1 - (qb.embedding <=> $1::vector) >= $2
         ORDER BY similarity DESC
         LIMIT $3
@@ -240,7 +230,7 @@ export class BenchmarkService implements IBenchmarkService {
       }>;
 
       if (isDevelopment()) {
-        logger.debug('[BenchmarkService] findSimilarBenchmarks result', {
+        logger.debug("[BenchmarkService] findSimilarBenchmarks result", {
           count: results.length,
         });
       }
@@ -266,7 +256,9 @@ export class BenchmarkService implements IBenchmarkService {
         error.message.includes('relation "quality_benchmarks" does not exist')
       ) {
         if (isDevelopment()) {
-          logger.warn('[BenchmarkService] quality_benchmarks table not found, returning empty array');
+          logger.warn(
+            "[BenchmarkService] quality_benchmarks table not found, returning empty array"
+          );
         }
         return [];
       }
@@ -279,12 +271,9 @@ export class BenchmarkService implements IBenchmarkService {
    *
    * スコア降順でソートして返す
    */
-  async getBenchmarksByType(
-    sectionType: string,
-    limit: number = 5
-  ): Promise<BenchmarkMatch[]> {
+  async getBenchmarksByType(sectionType: string, limit: number = 5): Promise<BenchmarkMatch[]> {
     if (isDevelopment()) {
-      logger.debug('[BenchmarkService] getBenchmarksByType', {
+      logger.debug("[BenchmarkService] getBenchmarksByType", {
         sectionType,
         limit,
       });
@@ -318,7 +307,7 @@ export class BenchmarkService implements IBenchmarkService {
       }>;
 
       if (isDevelopment()) {
-        logger.debug('[BenchmarkService] getBenchmarksByType result', {
+        logger.debug("[BenchmarkService] getBenchmarksByType result", {
           count: results.length,
         });
       }
@@ -344,7 +333,9 @@ export class BenchmarkService implements IBenchmarkService {
         error.message.includes('relation "quality_benchmarks" does not exist')
       ) {
         if (isDevelopment()) {
-          logger.warn('[BenchmarkService] quality_benchmarks table not found, returning empty array');
+          logger.warn(
+            "[BenchmarkService] quality_benchmarks table not found, returning empty array"
+          );
         }
         return [];
       }
@@ -359,7 +350,7 @@ export class BenchmarkService implements IBenchmarkService {
    */
   async getIndustryAverages(industry: string): Promise<IndustryAverages | null> {
     if (isDevelopment()) {
-      logger.debug('[BenchmarkService] getIndustryAverages', { industry });
+      logger.debug("[BenchmarkService] getIndustryAverages", { industry });
     }
 
     try {
@@ -388,7 +379,7 @@ export class BenchmarkService implements IBenchmarkService {
 
       if (results.length === 0) {
         if (isDevelopment()) {
-          logger.debug('[BenchmarkService] getIndustryAverages - not found', { industry });
+          logger.debug("[BenchmarkService] getIndustryAverages - not found", { industry });
         }
         return null;
       }
@@ -420,7 +411,7 @@ export class BenchmarkService implements IBenchmarkService {
         error.message.includes('relation "mv_industry_quality_averages" does not exist')
       ) {
         if (isDevelopment()) {
-          logger.warn('[BenchmarkService] mv_industry_quality_averages view not found');
+          logger.warn("[BenchmarkService] mv_industry_quality_averages view not found");
         }
         return null;
       }
@@ -435,7 +426,7 @@ export class BenchmarkService implements IBenchmarkService {
    */
   async calculatePercentile(score: number, sectionType?: string): Promise<number> {
     if (isDevelopment()) {
-      logger.debug('[BenchmarkService] calculatePercentile', { score, sectionType });
+      logger.debug("[BenchmarkService] calculatePercentile", { score, sectionType });
     }
 
     try {
@@ -451,7 +442,7 @@ export class BenchmarkService implements IBenchmarkService {
                 2
               )
             FROM quality_evaluations
-            ${sectionType ? `WHERE section_type = $2` : ''}
+            ${sectionType ? `WHERE section_type = $2` : ""}
             ),
             50.0
           ) AS percentile
@@ -463,7 +454,7 @@ export class BenchmarkService implements IBenchmarkService {
       const percentile = results[0]?.percentile ?? 50;
 
       if (isDevelopment()) {
-        logger.debug('[BenchmarkService] calculatePercentile result', { percentile });
+        logger.debug("[BenchmarkService] calculatePercentile result", { percentile });
       }
 
       return percentile;
@@ -474,7 +465,7 @@ export class BenchmarkService implements IBenchmarkService {
         error.message.includes('relation "quality_evaluations" does not exist')
       ) {
         if (isDevelopment()) {
-          logger.warn('[BenchmarkService] quality_evaluations table not found, returning 50');
+          logger.warn("[BenchmarkService] quality_evaluations table not found, returning 50");
         }
         return 50;
       }
@@ -487,12 +478,9 @@ export class BenchmarkService implements IBenchmarkService {
    *
    * SectionPatternから高品質パターンをベンチマークとして登録
    */
-  async registerBenchmark(
-    sectionPatternId: string,
-    metadata: BenchmarkMetadata
-  ): Promise<string> {
+  async registerBenchmark(sectionPatternId: string, metadata: BenchmarkMetadata): Promise<string> {
     if (isDevelopment()) {
-      logger.debug('[BenchmarkService] registerBenchmark', {
+      logger.debug("[BenchmarkService] registerBenchmark", {
         sectionPatternId,
         overallScore: metadata.overallScore,
         grade: metadata.grade,
@@ -501,9 +489,7 @@ export class BenchmarkService implements IBenchmarkService {
 
     // 品質スコアの検証（85以上のみ登録可能）
     if (metadata.overallScore < 85) {
-      throw new Error(
-        `Benchmark requires overallScore >= 85, got ${metadata.overallScore}`
-      );
+      throw new Error(`Benchmark requires overallScore >= 85, got ${metadata.overallScore}`);
     }
 
     try {
@@ -543,7 +529,7 @@ export class BenchmarkService implements IBenchmarkService {
         sp.web_page_id
       )) as Array<{ url: string }>;
 
-      const sourceUrl = webPageResults[0]?.url ?? 'unknown';
+      const sourceUrl = webPageResults[0]?.url ?? "unknown";
 
       // ベンチマーク登録（embeddingの有無で別クエリ）
       let result: Array<{ id: string }>;
@@ -631,11 +617,11 @@ export class BenchmarkService implements IBenchmarkService {
       const benchmarkId = result[0]?.id;
 
       if (!benchmarkId) {
-        throw new Error('Failed to create benchmark');
+        throw new Error("Failed to create benchmark");
       }
 
       if (isDevelopment()) {
-        logger.info('[BenchmarkService] registerBenchmark success', {
+        logger.info("[BenchmarkService] registerBenchmark success", {
           benchmarkId,
           sectionType: sp.section_type,
           overallScore: metadata.overallScore,
@@ -649,9 +635,7 @@ export class BenchmarkService implements IBenchmarkService {
         error instanceof Error &&
         error.message.includes('relation "quality_benchmarks" does not exist')
       ) {
-        throw new Error(
-          'quality_benchmarks table does not exist. Please run migrations.'
-        );
+        throw new Error("quality_benchmarks table does not exist. Please run migrations.");
       }
       throw error;
     }

@@ -15,24 +15,30 @@
  * @module tests/e2e/js-animation-detection
  */
 
-import { describe, it, expect, beforeAll, afterAll, beforeEach, afterEach } from 'vitest';
-import { chromium, type Browser, type BrowserContext, type Page, type CDPSession } from 'playwright';
-import * as fs from 'fs';
-import * as path from 'path';
-import * as http from 'http';
+import { describe, it, expect, beforeAll, afterAll, beforeEach, afterEach } from "vitest";
+import {
+  chromium,
+  type Browser,
+  type BrowserContext,
+  type Page,
+  type CDPSession,
+} from "playwright";
+import * as fs from "fs";
+import * as path from "path";
+import * as http from "http";
 
 // =====================================================
 // テストフィクスチャと設定
 // =====================================================
 
-const FIXTURES_DIR = path.resolve(__dirname, '../fixtures/js-animations');
+const FIXTURES_DIR = path.resolve(__dirname, "../fixtures/js-animations");
 
 /**
  * フィクスチャHTMLを読み込む
  */
 function loadFixture(filename: string): string {
   const filePath = path.join(FIXTURES_DIR, filename);
-  return fs.readFileSync(filePath, 'utf-8');
+  return fs.readFileSync(filePath, "utf-8");
 }
 
 /**
@@ -47,31 +53,31 @@ let testServerPort = 0;
 async function startTestServer(): Promise<number> {
   return new Promise((resolve, reject) => {
     testServer = http.createServer((req, res) => {
-      const url = req.url || '/';
-      const filename = url === '/' ? 'mixed-animations-test.html' : url.slice(1);
+      const url = req.url || "/";
+      const filename = url === "/" ? "mixed-animations-test.html" : url.slice(1);
       const filePath = path.join(FIXTURES_DIR, filename);
 
       try {
-        const content = fs.readFileSync(filePath, 'utf-8');
-        res.writeHead(200, { 'Content-Type': 'text/html' });
+        const content = fs.readFileSync(filePath, "utf-8");
+        res.writeHead(200, { "Content-Type": "text/html" });
         res.end(content);
       } catch {
         res.writeHead(404);
-        res.end('Not Found');
+        res.end("Not Found");
       }
     });
 
     testServer.listen(0, () => {
       const addr = testServer!.address();
-      if (addr && typeof addr === 'object') {
+      if (addr && typeof addr === "object") {
         testServerPort = addr.port;
         resolve(testServerPort);
       } else {
-        reject(new Error('Failed to get server address'));
+        reject(new Error("Failed to get server address"));
       }
     });
 
-    testServer.on('error', reject);
+    testServer.on("error", reject);
   });
 }
 
@@ -95,7 +101,7 @@ async function stopTestServer(): Promise<void> {
 // CDP Animation ドメインテスト
 // =====================================================
 
-describe('E2E: CDP Animation ドメイン', () => {
+describe("E2E: CDP Animation ドメイン", () => {
   let browser: Browser;
   let context: BrowserContext;
   let page: Page;
@@ -117,7 +123,7 @@ describe('E2E: CDP Animation ドメイン', () => {
     // CDPセッションを作成
     cdpSession = await page.context().newCDPSession(page);
     // Animation ドメインを有効化
-    await cdpSession.send('Animation.enable');
+    await cdpSession.send("Animation.enable");
   });
 
   afterEach(async () => {
@@ -126,10 +132,10 @@ describe('E2E: CDP Animation ドメイン', () => {
     await context?.close().catch(() => {});
   });
 
-  it('Animation.animationCreatedイベントをキャプチャする', async () => {
+  it("Animation.animationCreatedイベントをキャプチャする", async () => {
     const createdAnimations: string[] = [];
 
-    cdpSession.on('Animation.animationCreated', (event) => {
+    cdpSession.on("Animation.animationCreated", (event) => {
       createdAnimations.push(event.id);
     });
 
@@ -154,7 +160,7 @@ describe('E2E: CDP Animation ドメイン', () => {
     expect(createdAnimations.length).toBeGreaterThan(0);
   });
 
-  it('Animation.animationStartedイベントでタイミング情報を取得する', async () => {
+  it("Animation.animationStartedイベントでタイミング情報を取得する", async () => {
     interface AnimationStartedData {
       id: string;
       type: string;
@@ -164,7 +170,7 @@ describe('E2E: CDP Animation ドメイン', () => {
 
     const startedAnimations: AnimationStartedData[] = [];
 
-    cdpSession.on('Animation.animationStarted', (event) => {
+    cdpSession.on("Animation.animationStarted", (event) => {
       startedAnimations.push({
         id: event.animation.id,
         type: event.animation.type,
@@ -196,11 +202,11 @@ describe('E2E: CDP Animation ドメイン', () => {
     expect(startedAnimations.length).toBeGreaterThan(0);
 
     const animation = startedAnimations[0];
-    expect(animation.type).toBe('CSSAnimation');
+    expect(animation.type).toBe("CSSAnimation");
     expect(animation.duration).toBe(500);
   });
 
-  it('CSS Transition をキャプチャする', async () => {
+  it("CSS Transition をキャプチャする", async () => {
     interface AnimationData {
       id: string;
       type: string;
@@ -208,7 +214,7 @@ describe('E2E: CDP Animation ドメイン', () => {
 
     const animations: AnimationData[] = [];
 
-    cdpSession.on('Animation.animationStarted', (event) => {
+    cdpSession.on("Animation.animationStarted", (event) => {
       animations.push({
         id: event.animation.id,
         type: event.animation.type,
@@ -238,14 +244,14 @@ describe('E2E: CDP Animation ドメイン', () => {
     `);
 
     // ホバーをシミュレート
-    await page.hover('#box');
+    await page.hover("#box");
     await page.waitForTimeout(500);
 
-    const transitions = animations.filter((a) => a.type === 'CSSTransition');
+    const transitions = animations.filter((a) => a.type === "CSSTransition");
     expect(transitions.length).toBeGreaterThan(0);
   });
 
-  it('WebAnimation タイプを識別する', async () => {
+  it("WebAnimation タイプを識別する", async () => {
     interface AnimationData {
       id: string;
       type: string;
@@ -254,11 +260,11 @@ describe('E2E: CDP Animation ドメイン', () => {
 
     const animations: AnimationData[] = [];
 
-    cdpSession.on('Animation.animationStarted', (event) => {
+    cdpSession.on("Animation.animationStarted", (event) => {
       animations.push({
         id: event.animation.id,
         type: event.animation.type,
-        name: event.animation.name || '',
+        name: event.animation.name || "",
       });
     });
 
@@ -282,17 +288,17 @@ describe('E2E: CDP Animation ドメイン', () => {
 
     await page.waitForTimeout(500);
 
-    const webAnimations = animations.filter((a) => a.type === 'WebAnimation');
+    const webAnimations = animations.filter((a) => a.type === "WebAnimation");
     expect(webAnimations.length).toBeGreaterThan(0);
 
     // WebAnimationは通常名前が空
-    expect(webAnimations[0].name).toBe('');
+    expect(webAnimations[0].name).toBe("");
   });
 
-  it('複数の同時アニメーションを追跡する', async () => {
+  it("複数の同時アニメーションを追跡する", async () => {
     const animationIds = new Set<string>();
 
-    cdpSession.on('Animation.animationStarted', (event) => {
+    cdpSession.on("Animation.animationStarted", (event) => {
       animationIds.add(event.animation.id);
     });
 
@@ -328,7 +334,7 @@ describe('E2E: CDP Animation ドメイン', () => {
 // Web Animations API E2Eテスト
 // =====================================================
 
-describe('E2E: Web Animations API', () => {
+describe("E2E: Web Animations API", () => {
   let browser: Browser;
   let context: BrowserContext;
   let page: Page;
@@ -351,7 +357,7 @@ describe('E2E: Web Animations API', () => {
     await context?.close().catch(() => {});
   });
 
-  it('document.getAnimations()でアクティブなアニメーションを取得する', async () => {
+  it("document.getAnimations()でアクティブなアニメーションを取得する", async () => {
     await page.setContent(`
       <!DOCTYPE html>
       <html>
@@ -387,12 +393,12 @@ describe('E2E: Web Animations API', () => {
     expect(animations.length).toBeGreaterThanOrEqual(2);
 
     for (const anim of animations) {
-      expect(anim.playState).toBe('running');
+      expect(anim.playState).toBe("running");
       expect(anim.iterations).toBe(Infinity);
     }
   });
 
-  it('キーフレーム情報を抽出する', async () => {
+  it("キーフレーム情報を抽出する", async () => {
     await page.setContent(`
       <!DOCTYPE html>
       <html>
@@ -435,7 +441,7 @@ describe('E2E: Web Animations API', () => {
     expect(keyframes[2].offset).toBe(1);
   });
 
-  it('アニメーションの一時停止と再開を検出する', async () => {
+  it("アニメーションの一時停止と再開を検出する", async () => {
     await page.setContent(`
       <!DOCTYPE html>
       <html>
@@ -455,21 +461,21 @@ describe('E2E: Web Animations API', () => {
 
     // 初期状態: running
     let state = await page.evaluate(() => document.getAnimations()[0]?.playState);
-    expect(state).toBe('running');
+    expect(state).toBe("running");
 
     // 一時停止
     await page.evaluate(() => {
       (window as { testAnimation: Animation }).testAnimation.pause();
     });
     state = await page.evaluate(() => document.getAnimations()[0]?.playState);
-    expect(state).toBe('paused');
+    expect(state).toBe("paused");
 
     // 再開
     await page.evaluate(() => {
       (window as { testAnimation: Animation }).testAnimation.play();
     });
     state = await page.evaluate(() => document.getAnimations()[0]?.playState);
-    expect(state).toBe('running');
+    expect(state).toBe("running");
   });
 });
 
@@ -477,7 +483,7 @@ describe('E2E: Web Animations API', () => {
 // ライブラリ検出 E2Eテスト
 // =====================================================
 
-describe('E2E: JSアニメーションライブラリ検出', () => {
+describe("E2E: JSアニメーションライブラリ検出", () => {
   let browser: Browser;
   let context: BrowserContext;
   let page: Page;
@@ -502,17 +508,18 @@ describe('E2E: JSアニメーションライブラリ検出', () => {
     await context?.close().catch(() => {});
   });
 
-  it('GSAPグローバルオブジェクトを検出する', async () => {
-    const html = loadFixture('gsap-test.html');
+  it("GSAPグローバルオブジェクトを検出する", async () => {
+    const html = loadFixture("gsap-test.html");
     await page.setContent(html);
 
     // CDNからGSAPがロードされるのを待つ
-    await page.waitForFunction(
-      () => (window as unknown as { gsap?: unknown }).gsap !== undefined,
-      { timeout: 10000 }
-    ).catch(() => {
-      // GSAPがロードされなかった場合はスキップ
-    });
+    await page
+      .waitForFunction(() => (window as unknown as { gsap?: unknown }).gsap !== undefined, {
+        timeout: 10000,
+      })
+      .catch(() => {
+        // GSAPがロードされなかった場合はスキップ
+      });
 
     const hasGsap = await page.evaluate(() => {
       return (window as unknown as { gsap?: { version?: string } }).gsap !== undefined;
@@ -527,23 +534,23 @@ describe('E2E: JSアニメーションライブラリ検出', () => {
     }
   });
 
-  it('Framer Motionマーカーを検出する', async () => {
-    const html = loadFixture('framer-motion-test.html');
+  it("Framer Motionマーカーを検出する", async () => {
+    const html = loadFixture("framer-motion-test.html");
     await page.setContent(html);
 
     const hasFramerMotion = await page.evaluate(() => {
       return (
         (window as unknown as { __FRAMER_MOTION__?: unknown }).__FRAMER_MOTION__ !== undefined ||
-        document.querySelector('[data-framer-component-type]') !== null ||
-        document.querySelector('[data-framer-appear-id]') !== null
+        document.querySelector("[data-framer-component-type]") !== null ||
+        document.querySelector("[data-framer-appear-id]") !== null
       );
     });
 
     expect(hasFramerMotion).toBe(true);
   });
 
-  it('Lottieグローバルを検出する', async () => {
-    const html = loadFixture('lottie-test.html');
+  it("Lottieグローバルを検出する", async () => {
+    const html = loadFixture("lottie-test.html");
     await page.setContent(html);
 
     const hasLottie = await page.evaluate(() => {
@@ -554,8 +561,8 @@ describe('E2E: JSアニメーションライブラリ検出', () => {
     expect(hasLottie).toBe(true);
   });
 
-  it('Three.jsマーカーを検出する', async () => {
-    const html = loadFixture('three-js-test.html');
+  it("Three.jsマーカーを検出する", async () => {
+    const html = loadFixture("three-js-test.html");
     await page.setContent(html);
 
     const hasThree = await page.evaluate(() => {
@@ -566,7 +573,7 @@ describe('E2E: JSアニメーションライブラリ検出', () => {
     expect(hasThree).toBe(true);
   });
 
-  it('複数ライブラリを同時に検出する', async () => {
+  it("複数ライブラリを同時に検出する", async () => {
     await page.setContent(`
       <!DOCTYPE html>
       <html>
@@ -591,18 +598,18 @@ describe('E2E: JSアニメーションライブラリ検出', () => {
         __FRAMER_MOTION__?: unknown;
       };
 
-      if (win.gsap) libs.push('gsap');
-      if (win.anime) libs.push('anime');
-      if (win.THREE) libs.push('three');
-      if (win.lottie) libs.push('lottie');
-      if (win.__FRAMER_MOTION__) libs.push('framer_motion');
+      if (win.gsap) libs.push("gsap");
+      if (win.anime) libs.push("anime");
+      if (win.THREE) libs.push("three");
+      if (win.lottie) libs.push("lottie");
+      if (win.__FRAMER_MOTION__) libs.push("framer_motion");
 
       return libs;
     });
 
-    expect(detectedLibraries).toContain('gsap');
-    expect(detectedLibraries).toContain('three');
-    expect(detectedLibraries).toContain('lottie');
+    expect(detectedLibraries).toContain("gsap");
+    expect(detectedLibraries).toContain("three");
+    expect(detectedLibraries).toContain("lottie");
   });
 });
 
@@ -610,7 +617,7 @@ describe('E2E: JSアニメーションライブラリ検出', () => {
 // スクロールトリガーアニメーション E2Eテスト
 // =====================================================
 
-describe('E2E: スクロールトリガーアニメーション', () => {
+describe("E2E: スクロールトリガーアニメーション", () => {
   let browser: Browser;
   let context: BrowserContext;
   let page: Page;
@@ -633,7 +640,7 @@ describe('E2E: スクロールトリガーアニメーション', () => {
     await context?.close().catch(() => {});
   });
 
-  it('IntersectionObserverによるアニメーショントリガーを検出する', async () => {
+  it("IntersectionObserverによるアニメーショントリガーを検出する", async () => {
     await page.setContent(`
       <!DOCTYPE html>
       <html>
@@ -678,14 +685,14 @@ describe('E2E: スクロールトリガーアニメーション', () => {
 
     // 初期状態を確認
     let isVisible = await page.evaluate(() => {
-      return document.getElementById('target')?.classList.contains('visible');
+      return document.getElementById("target")?.classList.contains("visible");
     });
     expect(isVisible).toBe(false);
 
     // スクロールしてターゲットを表示
     await page.evaluate(() => {
-      const target = document.getElementById('target');
-      target?.scrollIntoView({ behavior: 'instant' });
+      const target = document.getElementById("target");
+      target?.scrollIntoView({ behavior: "instant" });
     });
 
     await page.waitForTimeout(100);
@@ -698,12 +705,12 @@ describe('E2E: スクロールトリガーアニメーション', () => {
 
     // 要素がvisibleになったことを確認
     isVisible = await page.evaluate(() => {
-      return document.getElementById('target')?.classList.contains('visible');
+      return document.getElementById("target")?.classList.contains("visible");
     });
     expect(isVisible).toBe(true);
   });
 
-  it('スクロール位置に応じたアニメーション状態を追跡する', async () => {
+  it("スクロール位置に応じたアニメーション状態を追跡する", async () => {
     await page.setContent(`
       <!DOCTYPE html>
       <html>
@@ -760,13 +767,11 @@ describe('E2E: スクロールトリガーアニメーション', () => {
 
     // 初期位置（Section 1）
     let visibleElements = await page.evaluate(() => {
-      return Array.from(document.querySelectorAll('.animated-element.in-view')).map(
-        (el) => el.id
-      );
+      return Array.from(document.querySelectorAll(".animated-element.in-view")).map((el) => el.id);
     });
 
     // el1は表示されているはず
-    expect(visibleElements).toContain('el1');
+    expect(visibleElements).toContain("el1");
 
     // Section 2にスクロール
     await page.evaluate(() => {
@@ -775,13 +780,11 @@ describe('E2E: スクロールトリガーアニメーション', () => {
     await page.waitForTimeout(200);
 
     visibleElements = await page.evaluate(() => {
-      return Array.from(document.querySelectorAll('.animated-element.in-view')).map(
-        (el) => el.id
-      );
+      return Array.from(document.querySelectorAll(".animated-element.in-view")).map((el) => el.id);
     });
 
     // el2が表示されているはず
-    expect(visibleElements).toContain('el2');
+    expect(visibleElements).toContain("el2");
 
     // Section 3にスクロール
     await page.evaluate(() => {
@@ -790,13 +793,11 @@ describe('E2E: スクロールトリガーアニメーション', () => {
     await page.waitForTimeout(200);
 
     visibleElements = await page.evaluate(() => {
-      return Array.from(document.querySelectorAll('.animated-element.in-view')).map(
-        (el) => el.id
-      );
+      return Array.from(document.querySelectorAll(".animated-element.in-view")).map((el) => el.id);
     });
 
     // el3が表示されているはず
-    expect(visibleElements).toContain('el3');
+    expect(visibleElements).toContain("el3");
   });
 });
 
@@ -804,7 +805,7 @@ describe('E2E: スクロールトリガーアニメーション', () => {
 // パフォーマンステスト
 // =====================================================
 
-describe('E2E: パフォーマンス', () => {
+describe("E2E: パフォーマンス", () => {
   let browser: Browser;
   let context: BrowserContext;
   let page: Page;
@@ -827,18 +828,24 @@ describe('E2E: パフォーマンス', () => {
     await context?.close().catch(() => {});
   });
 
-  it('多数のアニメーション（50+）を効率的に検出する', async () => {
+  it("多数のアニメーション（50+）を効率的に検出する", async () => {
     // 50個のアニメーション要素を生成
-    const elementsHtml = Array.from({ length: 50 }, (_, i) => `
+    const elementsHtml = Array.from(
+      { length: 50 },
+      (_, i) => `
       <div id="box${i}" style="width: 20px; height: 20px; background: hsl(${i * 7}, 70%, 50%); display: inline-block;"></div>
-    `).join('');
+    `
+    ).join("");
 
-    const animationScript = Array.from({ length: 50 }, (_, i) => `
+    const animationScript = Array.from(
+      { length: 50 },
+      (_, i) => `
       document.getElementById('box${i}').animate(
         [{ opacity: 0 }, { opacity: 1 }],
         { duration: ${1000 + i * 10}, iterations: Infinity }
       );
-    `).join('');
+    `
+    ).join("");
 
     await page.setContent(`
       <!DOCTYPE html>
@@ -862,27 +869,33 @@ describe('E2E: パフォーマンス', () => {
     expect(elapsed).toBeLessThan(1000); // 1秒以内に完了
   });
 
-  it('CDP Animation ドメインで多数のイベントを処理する', async () => {
+  it("CDP Animation ドメインで多数のイベントを処理する", async () => {
     const cdpSession = await page.context().newCDPSession(page);
-    await cdpSession.send('Animation.enable');
+    await cdpSession.send("Animation.enable");
 
     const animationIds = new Set<string>();
 
-    cdpSession.on('Animation.animationStarted', (event) => {
+    cdpSession.on("Animation.animationStarted", (event) => {
       animationIds.add(event.animation.id);
     });
 
     // 30個のアニメーションを生成
-    const elementsHtml = Array.from({ length: 30 }, (_, i) => `
+    const elementsHtml = Array.from(
+      { length: 30 },
+      (_, i) => `
       <div id="box${i}" style="width: 10px; height: 10px; background: red;"></div>
-    `).join('');
+    `
+    ).join("");
 
-    const animationScript = Array.from({ length: 30 }, (_, i) => `
+    const animationScript = Array.from(
+      { length: 30 },
+      (_, i) => `
       document.getElementById('box${i}').animate(
         [{ transform: 'rotate(0deg)' }, { transform: 'rotate(360deg)' }],
         { duration: 1000 + ${i * 50} }
       );
-    `).join('');
+    `
+    ).join("");
 
     const startTime = Date.now();
 

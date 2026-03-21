@@ -9,7 +9,7 @@
  * @module @reftrix/webdesign-core/tests/services/element-visibility-detector
  */
 
-import { describe, test, expect, beforeEach } from 'vitest';
+import { describe, test, expect, beforeEach } from "vitest";
 import {
   ElementVisibilityDetector,
   createElementVisibilityDetector,
@@ -18,7 +18,7 @@ import {
   type ElementVisibilityResult,
   type FrameData,
   type BoundingBox,
-} from '../../src/services/element-visibility-detector';
+} from "../../src/services/element-visibility-detector";
 
 // =============================================================================
 // テストフィクスチャ
@@ -37,7 +37,7 @@ function createMockFrameData(
   const buffer = Buffer.alloc(width * height * 4);
   for (let i = 0; i < width * height; i++) {
     const offset = i * 4;
-    buffer[offset] = fillColor.r;     // R
+    buffer[offset] = fillColor.r; // R
     buffer[offset + 1] = fillColor.g; // G
     buffer[offset + 2] = fillColor.b; // B
     buffer[offset + 3] = fillColor.a; // A
@@ -47,7 +47,7 @@ function createMockFrameData(
     width,
     height,
     index,
-    path: `/tmp/frame-${String(index).padStart(4, '0')}.png`,
+    path: `/tmp/frame-${String(index).padStart(4, "0")}.png`,
   };
 }
 
@@ -76,7 +76,7 @@ function drawRectOnFrame(
 // ElementVisibilityDetector Unit Tests
 // =============================================================================
 
-describe('ElementVisibilityDetector', () => {
+describe("ElementVisibilityDetector", () => {
   let detector: ElementVisibilityDetector;
 
   beforeEach(() => {
@@ -87,13 +87,13 @@ describe('ElementVisibilityDetector', () => {
   // 初期化テスト
   // ===========================================================================
 
-  describe('initialization', () => {
-    test('should create instance with default options', () => {
+  describe("initialization", () => {
+    test("should create instance with default options", () => {
       expect(detector).toBeDefined();
       expect(detector).toBeInstanceOf(ElementVisibilityDetector);
     });
 
-    test('should create instance with custom options', () => {
+    test("should create instance with custom options", () => {
       const customDetector = createElementVisibilityDetector({
         minElementSize: 50,
         edgeDetectionThreshold: 0.2,
@@ -102,17 +102,17 @@ describe('ElementVisibilityDetector', () => {
       expect(customDetector).toBeInstanceOf(ElementVisibilityDetector);
     });
 
-    test('should validate options - minElementSize must be positive', () => {
+    test("should validate options - minElementSize must be positive", () => {
       expect(() => createElementVisibilityDetector({ minElementSize: 0 })).toThrow();
       expect(() => createElementVisibilityDetector({ minElementSize: -1 })).toThrow();
     });
 
-    test('should validate options - edgeDetectionThreshold must be 0-1', () => {
+    test("should validate options - edgeDetectionThreshold must be 0-1", () => {
       expect(() => createElementVisibilityDetector({ edgeDetectionThreshold: -0.1 })).toThrow();
       expect(() => createElementVisibilityDetector({ edgeDetectionThreshold: 1.5 })).toThrow();
     });
 
-    test('should validate options - minContrastRatio must be 0-1', () => {
+    test("should validate options - minContrastRatio must be 0-1", () => {
       expect(() => createElementVisibilityDetector({ minContrastRatio: -0.1 })).toThrow();
       expect(() => createElementVisibilityDetector({ minContrastRatio: 1.5 })).toThrow();
     });
@@ -122,8 +122,8 @@ describe('ElementVisibilityDetector', () => {
   // 要素出現検出テスト
   // ===========================================================================
 
-  describe('element appearance detection', () => {
-    test('should detect element appearing in frame sequence', async () => {
+  describe("element appearance detection", () => {
+    test("should detect element appearing in frame sequence", async () => {
       // フレーム0: 空白
       const frame0 = createMockFrameData(100, 100, 0);
 
@@ -138,17 +138,25 @@ describe('ElementVisibilityDetector', () => {
 
       expect(result.success).toBe(true);
       expect(result.events.length).toBeGreaterThan(0);
-      expect(result.events.some(e => e.eventType === 'appear')).toBe(true);
+      expect(result.events.some((e) => e.eventType === "appear")).toBe(true);
       expect(result.appearanceCount).toBe(1);
     });
 
-    test('should detect multiple elements appearing', async () => {
+    test("should detect multiple elements appearing", async () => {
       const frame0 = createMockFrameData(200, 200, 0);
 
       // 2つの矩形要素が出現
       let frame1 = createMockFrameData(200, 200, 1);
-      frame1 = drawRectOnFrame(frame1, { x: 10, y: 10, width: 40, height: 40 }, { r: 255, g: 0, b: 0, a: 255 });
-      frame1 = drawRectOnFrame(frame1, { x: 100, y: 100, width: 50, height: 50 }, { r: 0, g: 255, b: 0, a: 255 });
+      frame1 = drawRectOnFrame(
+        frame1,
+        { x: 10, y: 10, width: 40, height: 40 },
+        { r: 255, g: 0, b: 0, a: 255 }
+      );
+      frame1 = drawRectOnFrame(
+        frame1,
+        { x: 100, y: 100, width: 50, height: 50 },
+        { r: 0, g: 255, b: 0, a: 255 }
+      );
 
       const result = await detector.detect([frame0, frame1]);
 
@@ -156,7 +164,7 @@ describe('ElementVisibilityDetector', () => {
       expect(result.appearanceCount).toBe(2);
     });
 
-    test('should provide bounding box for appeared element', async () => {
+    test("should provide bounding box for appeared element", async () => {
       const frame0 = createMockFrameData(100, 100, 0);
       const frame1 = drawRectOnFrame(
         createMockFrameData(100, 100, 1),
@@ -165,7 +173,7 @@ describe('ElementVisibilityDetector', () => {
       );
 
       const result = await detector.detect([frame0, frame1]);
-      const appearEvent = result.events.find(e => e.eventType === 'appear');
+      const appearEvent = result.events.find((e) => e.eventType === "appear");
 
       expect(appearEvent).toBeDefined();
       expect(appearEvent?.region).toBeDefined();
@@ -173,7 +181,7 @@ describe('ElementVisibilityDetector', () => {
       expect(appearEvent?.region.y).toBeGreaterThanOrEqual(30);
     });
 
-    test('should calculate element size correctly', async () => {
+    test("should calculate element size correctly", async () => {
       const frame0 = createMockFrameData(100, 100, 0);
       const frame1 = drawRectOnFrame(
         createMockFrameData(100, 100, 1),
@@ -182,10 +190,10 @@ describe('ElementVisibilityDetector', () => {
       );
 
       const result = await detector.detect([frame0, frame1]);
-      const appearEvent = result.events.find(e => e.eventType === 'appear');
+      const appearEvent = result.events.find((e) => e.eventType === "appear");
 
       expect(appearEvent?.elementSize).toBeGreaterThanOrEqual(30 * 40 * 0.8); // 80%許容
-      expect(appearEvent?.elementSize).toBeLessThanOrEqual(30 * 40 * 1.2);    // 120%許容
+      expect(appearEvent?.elementSize).toBeLessThanOrEqual(30 * 40 * 1.2); // 120%許容
     });
   });
 
@@ -193,8 +201,8 @@ describe('ElementVisibilityDetector', () => {
   // 要素消失検出テスト
   // ===========================================================================
 
-  describe('element disappearance detection', () => {
-    test('should detect element disappearing from frame sequence', async () => {
+  describe("element disappearance detection", () => {
+    test("should detect element disappearing from frame sequence", async () => {
       // フレーム0: 矩形要素が存在
       const frame0 = drawRectOnFrame(
         createMockFrameData(100, 100, 0),
@@ -208,15 +216,23 @@ describe('ElementVisibilityDetector', () => {
       const result = await detector.detect([frame0, frame1]);
 
       expect(result.success).toBe(true);
-      expect(result.events.some(e => e.eventType === 'disappear')).toBe(true);
+      expect(result.events.some((e) => e.eventType === "disappear")).toBe(true);
       expect(result.disappearanceCount).toBe(1);
     });
 
-    test('should detect multiple elements disappearing', async () => {
+    test("should detect multiple elements disappearing", async () => {
       // フレーム0: 2つの矩形
       let frame0 = createMockFrameData(200, 200, 0);
-      frame0 = drawRectOnFrame(frame0, { x: 10, y: 10, width: 40, height: 40 }, { r: 255, g: 0, b: 0, a: 255 });
-      frame0 = drawRectOnFrame(frame0, { x: 100, y: 100, width: 50, height: 50 }, { r: 0, g: 255, b: 0, a: 255 });
+      frame0 = drawRectOnFrame(
+        frame0,
+        { x: 10, y: 10, width: 40, height: 40 },
+        { r: 255, g: 0, b: 0, a: 255 }
+      );
+      frame0 = drawRectOnFrame(
+        frame0,
+        { x: 100, y: 100, width: 50, height: 50 },
+        { r: 0, g: 255, b: 0, a: 255 }
+      );
 
       // フレーム1: 空白
       const frame1 = createMockFrameData(200, 200, 1);
@@ -227,7 +243,7 @@ describe('ElementVisibilityDetector', () => {
       expect(result.disappearanceCount).toBe(2);
     });
 
-    test('should provide frame index for disappearance event', async () => {
+    test("should provide frame index for disappearance event", async () => {
       const frame0 = drawRectOnFrame(
         createMockFrameData(100, 100, 0),
         { x: 10, y: 10, width: 20, height: 20 },
@@ -236,7 +252,7 @@ describe('ElementVisibilityDetector', () => {
       const frame1 = createMockFrameData(100, 100, 1);
 
       const result = await detector.detect([frame0, frame1]);
-      const disappearEvent = result.events.find(e => e.eventType === 'disappear');
+      const disappearEvent = result.events.find((e) => e.eventType === "disappear");
 
       expect(disappearEvent?.frameIndex).toBe(1);
     });
@@ -246,8 +262,8 @@ describe('ElementVisibilityDetector', () => {
   // 輪郭検出アルゴリズムテスト
   // ===========================================================================
 
-  describe('edge detection algorithm', () => {
-    test('should detect edges with high contrast', async () => {
+  describe("edge detection algorithm", () => {
+    test("should detect edges with high contrast", async () => {
       // 黒背景に白い矩形
       const frame0 = createMockFrameData(100, 100, 0, { r: 0, g: 0, b: 0, a: 255 });
       const frame1 = drawRectOnFrame(
@@ -262,7 +278,7 @@ describe('ElementVisibilityDetector', () => {
       expect(result.events.length).toBeGreaterThan(0);
     });
 
-    test('should not detect elements below minElementSize threshold', async () => {
+    test("should not detect elements below minElementSize threshold", async () => {
       const customDetector = createElementVisibilityDetector({ minElementSize: 500 });
 
       const frame0 = createMockFrameData(100, 100, 0);
@@ -279,7 +295,7 @@ describe('ElementVisibilityDetector', () => {
       expect(result.appearanceCount).toBe(0);
     });
 
-    test('should not detect elements with low contrast below threshold', async () => {
+    test("should not detect elements with low contrast below threshold", async () => {
       const customDetector = createElementVisibilityDetector({ minContrastRatio: 0.5 });
 
       // 低コントラスト: 白背景に薄いグレー
@@ -296,7 +312,7 @@ describe('ElementVisibilityDetector', () => {
       expect(result.events.length).toBeLessThanOrEqual(1);
     });
 
-    test('should use Sobel operator for edge detection', async () => {
+    test("should use Sobel operator for edge detection", async () => {
       const frame0 = createMockFrameData(100, 100, 0);
       const frame1 = drawRectOnFrame(
         createMockFrameData(100, 100, 1),
@@ -317,26 +333,30 @@ describe('ElementVisibilityDetector', () => {
   // 連続フレーム処理テスト
   // ===========================================================================
 
-  describe('sequential frame processing', () => {
-    test('should process multiple frame pairs', async () => {
+  describe("sequential frame processing", () => {
+    test("should process multiple frame pairs", async () => {
       const frames: FrameData[] = [];
 
       // フレーム0: 空白
       frames.push(createMockFrameData(100, 100, 0));
 
       // フレーム1: 要素出現
-      frames.push(drawRectOnFrame(
-        createMockFrameData(100, 100, 1),
-        { x: 10, y: 10, width: 30, height: 30 },
-        { r: 255, g: 0, b: 0, a: 255 }
-      ));
+      frames.push(
+        drawRectOnFrame(
+          createMockFrameData(100, 100, 1),
+          { x: 10, y: 10, width: 30, height: 30 },
+          { r: 255, g: 0, b: 0, a: 255 }
+        )
+      );
 
       // フレーム2: 要素が移動（同じ場所にある）
-      frames.push(drawRectOnFrame(
-        createMockFrameData(100, 100, 2),
-        { x: 10, y: 10, width: 30, height: 30 },
-        { r: 255, g: 0, b: 0, a: 255 }
-      ));
+      frames.push(
+        drawRectOnFrame(
+          createMockFrameData(100, 100, 2),
+          { x: 10, y: 10, width: 30, height: 30 },
+          { r: 255, g: 0, b: 0, a: 255 }
+        )
+      );
 
       // フレーム3: 要素消失
       frames.push(createMockFrameData(100, 100, 3));
@@ -348,18 +368,20 @@ describe('ElementVisibilityDetector', () => {
       expect(result.disappearanceCount).toBe(1);
     });
 
-    test('should track element across frames', async () => {
+    test("should track element across frames", async () => {
       const frames: FrameData[] = [];
 
       // 5フレームのシーケンス
       for (let i = 0; i < 5; i++) {
         if (i >= 1 && i <= 3) {
           // フレーム1-3: 要素あり
-          frames.push(drawRectOnFrame(
-            createMockFrameData(100, 100, i),
-            { x: 20, y: 20, width: 40, height: 40 },
-            { r: 0, g: 100, b: 200, a: 255 }
-          ));
+          frames.push(
+            drawRectOnFrame(
+              createMockFrameData(100, 100, i),
+              { x: 20, y: 20, width: 40, height: 40 },
+              { r: 0, g: 100, b: 200, a: 255 }
+            )
+          );
         } else {
           // フレーム0, 4: 空白
           frames.push(createMockFrameData(100, 100, i));
@@ -373,11 +395,11 @@ describe('ElementVisibilityDetector', () => {
       expect(result.disappearanceCount).toBe(1);
 
       // 出現はフレーム1で発生
-      const appearEvent = result.events.find(e => e.eventType === 'appear');
+      const appearEvent = result.events.find((e) => e.eventType === "appear");
       expect(appearEvent?.frameIndex).toBe(1);
 
       // 消失はフレーム4で発生
-      const disappearEvent = result.events.find(e => e.eventType === 'disappear');
+      const disappearEvent = result.events.find((e) => e.eventType === "disappear");
       expect(disappearEvent?.frameIndex).toBe(4);
     });
   });
@@ -386,34 +408,34 @@ describe('ElementVisibilityDetector', () => {
   // エラーハンドリングテスト
   // ===========================================================================
 
-  describe('error handling', () => {
-    test('should handle empty frame array', async () => {
+  describe("error handling", () => {
+    test("should handle empty frame array", async () => {
       const result = await detector.detect([]);
 
       expect(result.success).toBe(false);
       expect(result.error).toBeDefined();
-      expect(result.error?.code).toBe('ELEMENT_VISIBILITY_NO_FRAMES');
+      expect(result.error?.code).toBe("ELEMENT_VISIBILITY_NO_FRAMES");
     });
 
-    test('should handle single frame', async () => {
+    test("should handle single frame", async () => {
       const frame = createMockFrameData(100, 100, 0);
       const result = await detector.detect([frame]);
 
       expect(result.success).toBe(false);
-      expect(result.error?.code).toBe('ELEMENT_VISIBILITY_INSUFFICIENT_FRAMES');
+      expect(result.error?.code).toBe("ELEMENT_VISIBILITY_INSUFFICIENT_FRAMES");
     });
 
-    test('should handle dimension mismatch', async () => {
+    test("should handle dimension mismatch", async () => {
       const frame0 = createMockFrameData(100, 100, 0);
       const frame1 = createMockFrameData(200, 200, 1);
 
       const result = await detector.detect([frame0, frame1]);
 
       expect(result.success).toBe(false);
-      expect(result.error?.code).toBe('ELEMENT_VISIBILITY_DIMENSION_MISMATCH');
+      expect(result.error?.code).toBe("ELEMENT_VISIBILITY_DIMENSION_MISMATCH");
     });
 
-    test('should handle corrupted buffer', async () => {
+    test("should handle corrupted buffer", async () => {
       const frame0 = createMockFrameData(100, 100, 0);
       const corruptedFrame: FrameData = {
         buffer: Buffer.alloc(10), // サイズ不一致
@@ -425,7 +447,7 @@ describe('ElementVisibilityDetector', () => {
       const result = await detector.detect([frame0, corruptedFrame]);
 
       expect(result.success).toBe(false);
-      expect(result.error?.code).toBe('ELEMENT_VISIBILITY_BUFFER_MISMATCH');
+      expect(result.error?.code).toBe("ELEMENT_VISIBILITY_BUFFER_MISMATCH");
     });
   });
 
@@ -433,8 +455,8 @@ describe('ElementVisibilityDetector', () => {
   // パフォーマンステスト
   // ===========================================================================
 
-  describe('performance', () => {
-    test('should complete within time limit for 100x100 frames', async () => {
+  describe("performance", () => {
+    test("should complete within time limit for 100x100 frames", async () => {
       const frame0 = createMockFrameData(100, 100, 0);
       const frame1 = drawRectOnFrame(
         createMockFrameData(100, 100, 1),
@@ -450,17 +472,19 @@ describe('ElementVisibilityDetector', () => {
       expect(elapsedTime).toBeLessThan(100);
     });
 
-    test('should process 10 frames under 500ms', async () => {
+    test("should process 10 frames under 500ms", async () => {
       const frames: FrameData[] = [];
       for (let i = 0; i < 10; i++) {
         if (i % 2 === 0) {
           frames.push(createMockFrameData(200, 200, i));
         } else {
-          frames.push(drawRectOnFrame(
-            createMockFrameData(200, 200, i),
-            { x: 50, y: 50, width: 100, height: 100 },
-            { r: i * 25, g: 128, b: 255 - i * 25, a: 255 }
-          ));
+          frames.push(
+            drawRectOnFrame(
+              createMockFrameData(200, 200, i),
+              { x: 50, y: 50, width: 100, height: 100 },
+              { r: i * 25, g: 128, b: 255 - i * 25, a: 255 }
+            )
+          );
         }
       }
 
@@ -477,8 +501,8 @@ describe('ElementVisibilityDetector', () => {
   // 結果フォーマットテスト
   // ===========================================================================
 
-  describe('result format', () => {
-    test('should return correct result structure', async () => {
+  describe("result format", () => {
+    test("should return correct result structure", async () => {
       const frame0 = createMockFrameData(100, 100, 0);
       const frame1 = drawRectOnFrame(
         createMockFrameData(100, 100, 1),
@@ -489,14 +513,14 @@ describe('ElementVisibilityDetector', () => {
       const result = await detector.detect([frame0, frame1]);
 
       // 基本構造の検証
-      expect(result).toHaveProperty('success');
-      expect(result).toHaveProperty('events');
-      expect(result).toHaveProperty('appearanceCount');
-      expect(result).toHaveProperty('disappearanceCount');
+      expect(result).toHaveProperty("success");
+      expect(result).toHaveProperty("events");
+      expect(result).toHaveProperty("appearanceCount");
+      expect(result).toHaveProperty("disappearanceCount");
       expect(Array.isArray(result.events)).toBe(true);
     });
 
-    test('should include all event properties', async () => {
+    test("should include all event properties", async () => {
       const frame0 = createMockFrameData(100, 100, 0);
       const frame1 = drawRectOnFrame(
         createMockFrameData(100, 100, 1),
@@ -507,15 +531,15 @@ describe('ElementVisibilityDetector', () => {
       const result = await detector.detect([frame0, frame1]);
       const event = result.events[0];
 
-      expect(event).toHaveProperty('frameIndex');
-      expect(event).toHaveProperty('eventType');
-      expect(event).toHaveProperty('region');
-      expect(event).toHaveProperty('elementSize');
+      expect(event).toHaveProperty("frameIndex");
+      expect(event).toHaveProperty("eventType");
+      expect(event).toHaveProperty("region");
+      expect(event).toHaveProperty("elementSize");
 
-      expect(event?.region).toHaveProperty('x');
-      expect(event?.region).toHaveProperty('y');
-      expect(event?.region).toHaveProperty('width');
-      expect(event?.region).toHaveProperty('height');
+      expect(event?.region).toHaveProperty("x");
+      expect(event?.region).toHaveProperty("y");
+      expect(event?.region).toHaveProperty("width");
+      expect(event?.region).toHaveProperty("height");
     });
   });
 });
@@ -524,8 +548,8 @@ describe('ElementVisibilityDetector', () => {
 // 統合テスト
 // =============================================================================
 
-describe('ElementVisibilityDetector Integration', () => {
-  test('should integrate with FrameImageAnalysisService types', async () => {
+describe("ElementVisibilityDetector Integration", () => {
+  test("should integrate with FrameImageAnalysisService types", async () => {
     const detector = createElementVisibilityDetector();
 
     // FrameDataインターフェースとの互換性確認
@@ -534,7 +558,7 @@ describe('ElementVisibilityDetector Integration', () => {
       width: 100,
       height: 100,
       index: 0,
-      path: '/tmp/test-frame.png',
+      path: "/tmp/test-frame.png",
     };
 
     // 互換性のあるFrameDataで呼び出し可能

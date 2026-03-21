@@ -26,20 +26,17 @@ export {
   styleGetPaletteInputSchema,
   paletteModeSchema,
   type StyleGetPaletteInput,
-} from './schemas/style-schemas';
+} from "./schemas/style-schemas";
 
 // style.get_palette ツール（MCP Creative Tools）
-export {
-  styleGetPaletteHandler,
-  styleGetPaletteToolDefinition,
-} from './style-get-palette';
+export { styleGetPaletteHandler, styleGetPaletteToolDefinition } from "./style-get-palette";
 
 // system.health ツール（MCPサーバーヘルスチェック）
 export {
   systemHealthHandler,
   systemHealthToolDefinition,
   type SystemHealthResponse,
-} from './system-health';
+} from "./system-health";
 
 // layout.inspect ツール（Phase 2-4 Webページレイアウト解析）
 export {
@@ -56,13 +53,10 @@ export {
   type ColorPaletteInfo,
   type TypographyInfo,
   type GridInfo,
-} from './layout/inspect';
+} from "./layout/inspect";
 
 // layout.ingest ツール（Phase 2-1 Webページインジェスト）
-export {
-  layoutIngestHandler,
-  layoutIngestToolDefinition,
-} from './layout/ingest.tool';
+export { layoutIngestHandler, layoutIngestToolDefinition } from "./layout/ingest.tool";
 
 // layout.search ツール（Phase 2-5 レイアウトセマンティック検索）
 export {
@@ -73,7 +67,7 @@ export {
   type ILayoutSearchService,
   type LayoutSearchInput,
   type LayoutSearchOutput,
-} from './layout/search.tool';
+} from "./layout/search.tool";
 
 // layout.generate_code ツール（Phase 2-6 レイアウトコード生成）
 // v0.1.0: layout.to_code から layout.generate_code にリネーム
@@ -88,7 +82,7 @@ export {
   type ILayoutToCodeService,
   type LayoutToCodeInput,
   type LayoutToCodeOutput,
-} from './layout/to-code.tool';
+} from "./layout/to-code.tool";
 
 // layout.batch_ingest ツール（Phase 2-7 バッチインジェスト）
 export {
@@ -96,7 +90,7 @@ export {
   layoutBatchIngestToolDefinition,
   type LayoutBatchIngestInput,
   type LayoutBatchIngestOutput,
-} from './layout/batch-ingest.tool';
+} from "./layout/batch-ingest.tool";
 
 // quality.evaluate ツール（Phase 3-3 品質評価）
 export {
@@ -105,7 +99,7 @@ export {
   setQualityEvaluateServiceFactory,
   resetQualityEvaluateServiceFactory,
   type IQualityEvaluateService,
-} from './quality/evaluate.tool';
+} from "./quality/evaluate.tool";
 
 // [DELETED v0.1.0] quality.suggest_improvements は quality.evaluate に統合されました
 
@@ -123,7 +117,7 @@ export {
   type BatchQualityEvaluateInput,
   type BatchQualityEvaluateOutput,
   type BatchQualityJobStatus,
-} from './quality/batch-evaluate.tool';
+} from "./quality/batch-evaluate.tool";
 
 // quality.getJobStatus ツール（Phase 3-5 一括評価ジョブステータス確認）
 export {
@@ -132,7 +126,7 @@ export {
   GET_QUALITY_JOB_STATUS_ERROR_CODES,
   type QualityGetJobStatusInput,
   type QualityGetJobStatusOutput,
-} from './quality/get-job-status.tool';
+} from "./quality/get-job-status.tool";
 
 // motion.detect ツール（Phase 3-6 モーション検出）
 export {
@@ -141,7 +135,7 @@ export {
   setMotionDetectServiceFactory,
   resetMotionDetectServiceFactory,
   type IMotionDetectService,
-} from './motion/detect.tool';
+} from "./motion/detect.tool";
 
 // motion.search ツール（Phase 3-6 モーション検索）
 export {
@@ -152,7 +146,7 @@ export {
   type IMotionSearchService,
   type MotionSearchInput,
   type MotionSearchOutput,
-} from './motion/search.tool';
+} from "./motion/search.tool";
 
 // [DELETED v0.1.0] motion.get_implementation は motion.search に統合されました
 
@@ -178,7 +172,7 @@ export {
   type ClicheDetection,
   type Recommendation,
   type QualityMcpErrorCode,
-} from './quality/schemas';
+} from "./quality/schemas";
 
 // motion.* スキーマのエクスポート
 export {
@@ -217,7 +211,7 @@ export {
   type MotionWarning,
   type MotionMcpErrorCode,
   type MotionWarningCode,
-} from './motion/schemas';
+} from "./motion/schemas";
 
 // layout.* スキーマのエクスポート
 export {
@@ -242,7 +236,7 @@ export {
   type PageMetadataOutput,
   type SourceInfoOutput,
   type LayoutMcpErrorCode,
-} from './layout/schemas';
+} from "./layout/schemas";
 
 // brief.* スキーマのエクスポート（Phase 4 Design Brief）
 export {
@@ -283,7 +277,7 @@ export {
   type BriefValidateOutput,
   type BriefMcpErrorCode,
   type BriefMcpToolName,
-} from './brief';
+} from "./brief";
 
 // brief.validate ツール（Phase 4-3 Design Brief Validation）
 export {
@@ -292,19 +286,13 @@ export {
   setBriefValidateServiceFactory,
   resetBriefValidateServiceFactory,
   type IBriefValidateServiceFactory,
-} from './brief';
+} from "./brief";
 
 // project.get ツール（Studio プロジェクト取得）
-export {
-  projectGetHandler,
-  projectGetToolDefinition,
-} from './project-get';
+export { projectGetHandler, projectGetToolDefinition } from "./project-get";
 
 // project.list ツール（Studio プロジェクト一覧）
-export {
-  projectListHandler,
-  projectListToolDefinition,
-} from './project-list';
+export { projectListHandler, projectListToolDefinition } from "./project-list";
 
 // page.analyze ツール（統合Web分析）
 export {
@@ -315,14 +303,14 @@ export {
   type IPageAnalyzeService,
   type PageAnalyzeInput,
   type PageAnalyzeOutput,
-} from './page';
+} from "./page";
 
 // page.getJobStatus ツール（非同期ジョブステータス確認 Phase3-2）
 export {
   pageGetJobStatusHandler,
   pageGetJobStatusToolDefinition,
   GET_JOB_STATUS_ERROR_CODES,
-} from './page';
+} from "./page";
 
 // narrative.search ツール（世界観・レイアウト構成セマンティック検索）
 export {
@@ -330,7 +318,7 @@ export {
   narrativeSearchToolDefinition,
   setNarrativeSearchServiceFactory,
   resetNarrativeSearchServiceFactory,
-} from './narrative/search.tool';
+} from "./narrative/search.tool";
 
 // background.search ツール（BackgroundDesignセマンティック検索）
 export {
@@ -344,7 +332,7 @@ export {
   type BackgroundSearchInput,
   type BackgroundSearchOutput,
   type BackgroundSearchResultItem,
-} from './background/search.tool';
+} from "./background/search.tool";
 
 // background.* スキーマのエクスポート
 export {
@@ -353,7 +341,7 @@ export {
   BACKGROUND_MCP_ERROR_CODES,
   type BackgroundDesignType,
   type BackgroundMcpErrorCode,
-} from './background/schemas';
+} from "./background/schemas";
 
 // responsive.search ツール（レスポンシブ分析セマンティック検索）
 export {
@@ -367,7 +355,7 @@ export {
   type ResponsiveSearchInput,
   type ResponsiveSearchOutput,
   type ResponsiveSearchResultItem,
-} from './responsive/search.tool';
+} from "./responsive/search.tool";
 
 // responsive.* スキーマのエクスポート
 export {
@@ -378,7 +366,7 @@ export {
   type ResponsiveDiffCategory,
   type ViewportPair,
   type ResponsiveMcpErrorCode,
-} from './responsive/schemas';
+} from "./responsive/schemas";
 
 // preference.hear ツール（ユーザー嗜好ヒアリングセッション）
 export {
@@ -393,7 +381,7 @@ export {
   type ProfileData,
   type ResetResult,
   type PreferenceHearOutput,
-} from './preference';
+} from "./preference";
 
 // preference.get ツール（プロファイル取得）
 export {
@@ -402,7 +390,7 @@ export {
   setPreferenceGetServiceFactory,
   resetPreferenceGetServiceFactory,
   type PreferenceGetOutput,
-} from './preference';
+} from "./preference";
 
 // preference.reset ツール（プロファイルリセット）
 export {
@@ -411,7 +399,7 @@ export {
   setPreferenceResetServiceFactory,
   resetPreferenceResetServiceFactory,
   type PreferenceResetOutput,
-} from './preference';
+} from "./preference";
 
 // preference.* スキーマのエクスポート
 export {
@@ -427,7 +415,7 @@ export {
   type FeedbackRating,
   type FeedbackItem,
   type PreferenceMcpErrorCode,
-} from './preference';
+} from "./preference";
 
 // part.search ツール（パーツセマンティック検索）
 export {
@@ -436,7 +424,7 @@ export {
   PART_SEARCH_ERROR_CODES,
   type PartSearchOutput,
   type PartSearchMcpResultItem,
-} from './part/search.tool';
+} from "./part/search.tool";
 
 // part.inspect ツール（パーツ詳細情報取得）
 export {
@@ -448,7 +436,7 @@ export {
   type PartInspectOutput,
   type PartInspectDetail,
   type PartInspectPrismaClient,
-} from './part/inspect.tool';
+} from "./part/inspect.tool";
 
 // part.compare ツール（パーツ並列比較）
 export {
@@ -456,7 +444,7 @@ export {
   partCompareToolDefinition,
   PART_COMPARE_ERROR_CODES,
   type PartCompareOutput,
-} from './part/compare.tool';
+} from "./part/compare.tool";
 
 // project.* スキーマのエクスポート
 export {
@@ -486,35 +474,39 @@ export {
   type ProjectStatus,
   type ProjectSortBy,
   type ProjectSortOrder,
-} from './schemas/project-schemas';
+} from "./schemas/project-schemas";
 
 /**
  * 全ツール定義の配列
  * MCP Server初期化時に使用
  */
-import { styleGetPaletteToolDefinition } from './style-get-palette';
-import { systemHealthToolDefinition } from './system-health';
-import { layoutInspectToolDefinition } from './layout/inspect';
-import { layoutIngestToolDefinition } from './layout/ingest.tool';
-import { layoutSearchToolDefinition } from './layout/search.tool';
-import { layoutGenerateCodeToolDefinition } from './layout/to-code.tool';
-import { layoutBatchIngestToolDefinition } from './layout/batch-ingest.tool';
-import { qualityEvaluateToolDefinition } from './quality/evaluate.tool';
-import { batchQualityEvaluateToolDefinition } from './quality/batch-evaluate.tool';
-import { qualityGetJobStatusToolDefinition } from './quality/get-job-status.tool';
-import { motionDetectToolDefinition } from './motion/detect.tool';
-import { motionSearchToolDefinition } from './motion/search.tool';
-import { briefValidateToolDefinition } from './brief';
-import { projectGetToolDefinition } from './project-get';
-import { projectListToolDefinition } from './project-list';
-import { pageAnalyzeToolDefinition, pageGetJobStatusToolDefinition } from './page';
-import { narrativeSearchToolDefinition } from './narrative/search.tool';
-import { backgroundSearchToolDefinition } from './background/search.tool';
-import { responsiveSearchToolDefinition } from './responsive/search.tool';
-import { preferenceHearToolDefinition, preferenceGetToolDefinition, preferenceResetToolDefinition } from './preference';
-import { partSearchToolDefinition } from './part/search.tool';
-import { partInspectToolDefinition } from './part/inspect.tool';
-import { partCompareToolDefinition } from './part/compare.tool';
+import { styleGetPaletteToolDefinition } from "./style-get-palette";
+import { systemHealthToolDefinition } from "./system-health";
+import { layoutInspectToolDefinition } from "./layout/inspect";
+import { layoutIngestToolDefinition } from "./layout/ingest.tool";
+import { layoutSearchToolDefinition } from "./layout/search.tool";
+import { layoutGenerateCodeToolDefinition } from "./layout/to-code.tool";
+import { layoutBatchIngestToolDefinition } from "./layout/batch-ingest.tool";
+import { qualityEvaluateToolDefinition } from "./quality/evaluate.tool";
+import { batchQualityEvaluateToolDefinition } from "./quality/batch-evaluate.tool";
+import { qualityGetJobStatusToolDefinition } from "./quality/get-job-status.tool";
+import { motionDetectToolDefinition } from "./motion/detect.tool";
+import { motionSearchToolDefinition } from "./motion/search.tool";
+import { briefValidateToolDefinition } from "./brief";
+import { projectGetToolDefinition } from "./project-get";
+import { projectListToolDefinition } from "./project-list";
+import { pageAnalyzeToolDefinition, pageGetJobStatusToolDefinition } from "./page";
+import { narrativeSearchToolDefinition } from "./narrative/search.tool";
+import { backgroundSearchToolDefinition } from "./background/search.tool";
+import { responsiveSearchToolDefinition } from "./responsive/search.tool";
+import {
+  preferenceHearToolDefinition,
+  preferenceGetToolDefinition,
+  preferenceResetToolDefinition,
+} from "./preference";
+import { partSearchToolDefinition } from "./part/search.tool";
+import { partInspectToolDefinition } from "./part/inspect.tool";
+import { partCompareToolDefinition } from "./part/compare.tool";
 
 export const allToolDefinitions = [
   // style.get_palette（ブランドパレット取得）
@@ -575,87 +567,84 @@ export const allToolDefinitions = [
 /**
  * ツール名からハンドラーを取得するマップ
  */
-import { styleGetPaletteHandler } from './style-get-palette';
-import { systemHealthHandler } from './system-health';
-import { layoutInspectHandler } from './layout/inspect';
-import { layoutIngestHandler } from './layout/ingest.tool';
-import { layoutSearchHandler } from './layout/search.tool';
-import { layoutGenerateCodeHandler } from './layout/to-code.tool';
-import { layoutBatchIngestHandler } from './layout/batch-ingest.tool';
-import { qualityEvaluateHandler } from './quality/evaluate.tool';
-import { batchQualityEvaluateHandler } from './quality/batch-evaluate.tool';
-import { qualityGetJobStatusHandler } from './quality/get-job-status.tool';
-import { motionDetectHandler } from './motion/detect.tool';
-import { motionSearchHandler } from './motion/search.tool';
-import { briefValidateHandler } from './brief';
-import { projectGetHandler } from './project-get';
-import { projectListHandler } from './project-list';
-import { pageAnalyzeHandler, pageGetJobStatusHandler } from './page';
-import { narrativeSearchHandler } from './narrative/search.tool';
-import { backgroundSearchHandler } from './background/search.tool';
-import { responsiveSearchHandler } from './responsive/search.tool';
-import { preferenceHearHandler, preferenceGetHandler, preferenceResetHandler } from './preference';
-import { partSearchHandler } from './part/search.tool';
-import { partInspectHandler } from './part/inspect.tool';
-import { partCompareHandler } from './part/compare.tool';
+import { styleGetPaletteHandler } from "./style-get-palette";
+import { systemHealthHandler } from "./system-health";
+import { layoutInspectHandler } from "./layout/inspect";
+import { layoutIngestHandler } from "./layout/ingest.tool";
+import { layoutSearchHandler } from "./layout/search.tool";
+import { layoutGenerateCodeHandler } from "./layout/to-code.tool";
+import { layoutBatchIngestHandler } from "./layout/batch-ingest.tool";
+import { qualityEvaluateHandler } from "./quality/evaluate.tool";
+import { batchQualityEvaluateHandler } from "./quality/batch-evaluate.tool";
+import { qualityGetJobStatusHandler } from "./quality/get-job-status.tool";
+import { motionDetectHandler } from "./motion/detect.tool";
+import { motionSearchHandler } from "./motion/search.tool";
+import { briefValidateHandler } from "./brief";
+import { projectGetHandler } from "./project-get";
+import { projectListHandler } from "./project-list";
+import { pageAnalyzeHandler, pageGetJobStatusHandler } from "./page";
+import { narrativeSearchHandler } from "./narrative/search.tool";
+import { backgroundSearchHandler } from "./background/search.tool";
+import { responsiveSearchHandler } from "./responsive/search.tool";
+import { preferenceHearHandler, preferenceGetHandler, preferenceResetHandler } from "./preference";
+import { partSearchHandler } from "./part/search.tool";
+import { partInspectHandler } from "./part/inspect.tool";
+import { partCompareHandler } from "./part/compare.tool";
 
-export const toolHandlers: Record<
-  string,
-  (input: unknown) => Promise<unknown>
-> = {
+export const toolHandlers: Record<string, (input: unknown) => Promise<unknown>> = {
   // style.get_palette（ブランドパレット取得）
-  'style.get_palette': styleGetPaletteHandler,
+  "style.get_palette": styleGetPaletteHandler,
   // system.health（MCPサーバーヘルスチェック）
-  'system.health': systemHealthHandler,
+  "system.health": systemHealthHandler,
   // layout.inspect（Phase 2-4 Webページレイアウト解析）
-  'layout.inspect': layoutInspectHandler,
+  "layout.inspect": layoutInspectHandler,
   // layout.ingest（Phase 2-1 Webページインジェスト）
-  'layout.ingest': layoutIngestHandler,
+  "layout.ingest": layoutIngestHandler,
   // layout.search（Phase 2-5 レイアウトセマンティック検索）
-  'layout.search': layoutSearchHandler,
+  "layout.search": layoutSearchHandler,
   // layout.generate_code（Phase 2-6 レイアウトコード生成）
   // v0.1.0: layout.to_code から layout.generate_code にリネーム
-  'layout.generate_code': layoutGenerateCodeHandler,
+  "layout.generate_code": layoutGenerateCodeHandler,
   // layout.batch_ingest（Phase 2-7 バッチインジェスト）
-  'layout.batch_ingest': layoutBatchIngestHandler,
+  "layout.batch_ingest": layoutBatchIngestHandler,
   // quality.evaluate（Phase 3-3 品質評価）
-  'quality.evaluate': qualityEvaluateHandler,
+  "quality.evaluate": qualityEvaluateHandler,
   // quality.batch_evaluate（Phase 3-5 一括品質評価）
-  'quality.batch_evaluate': batchQualityEvaluateHandler,
+  "quality.batch_evaluate": batchQualityEvaluateHandler,
   // quality.getJobStatus（Phase 3-5 一括評価ジョブステータス確認）
-  'quality.getJobStatus': qualityGetJobStatusHandler,
+  "quality.getJobStatus": qualityGetJobStatusHandler,
   // motion.detect（Phase 3-6 モーション検出）
-  'motion.detect': motionDetectHandler,
+  "motion.detect": motionDetectHandler,
   // motion.search（Phase 3-6 モーション検索）
-  'motion.search': motionSearchHandler,
+  "motion.search": motionSearchHandler,
   // brief.validate（Phase 4-3 Design Brief Validation）
-  'brief.validate': briefValidateHandler,
+  "brief.validate": briefValidateHandler,
   // project.get（Studio プロジェクト取得）
-  'project.get': projectGetHandler,
+  "project.get": projectGetHandler,
   // project.list（Studio プロジェクト一覧）
-  'project.list': projectListHandler,
+  "project.list": projectListHandler,
   // page.analyze（統合Web分析）
-  'page.analyze': pageAnalyzeHandler,
+  "page.analyze": pageAnalyzeHandler,
   // page.getJobStatus（非同期ジョブステータス確認 Phase3-2）
-  'page.getJobStatus': pageGetJobStatusHandler,
+  "page.getJobStatus": pageGetJobStatusHandler,
   // narrative.search（世界観・レイアウト構成セマンティック検索）
-  'narrative.search': narrativeSearchHandler,
+  "narrative.search": narrativeSearchHandler,
   // background.search（BackgroundDesignセマンティック検索）
-  'background.search': backgroundSearchHandler,
+  "background.search": backgroundSearchHandler,
   // responsive.search（レスポンシブ分析セマンティック検索）
-  'responsive.search': responsiveSearchHandler,
+  "responsive.search": responsiveSearchHandler,
   // preference.hear（ユーザー嗜好ヒアリングセッション）
-  'preference.hear': preferenceHearHandler,
+  "preference.hear": preferenceHearHandler,
   // preference.get（プロファイル取得）
-  'preference.get': preferenceGetHandler,
+  "preference.get": preferenceGetHandler,
   // preference.reset（プロファイルリセット）
-  'preference.reset': preferenceResetHandler,
+  "preference.reset": preferenceResetHandler,
   // part.search（パーツセマンティック検索）
-  'part.search': partSearchHandler,
+  "part.search": partSearchHandler,
   // part.inspect（パーツ詳細情報取得）
-  'part.inspect': partInspectHandler,
+  "part.inspect": partInspectHandler,
   // part.compare（パーツ並列比較）
-  'part.compare': partCompareHandler,
+  "part.compare": partCompareHandler,
 };
 
 /**
@@ -721,12 +710,8 @@ export function checkToolConsistency(): ToolConsistencyCheckResult {
   const definedTools = allToolDefinitions.map((t) => t.name);
   const handlerTools = Object.keys(toolHandlers);
 
-  const missingHandlers = definedTools.filter(
-    (t) => !handlerTools.includes(t)
-  );
-  const extraHandlers = handlerTools.filter(
-    (t) => !definedTools.includes(t)
-  );
+  const missingHandlers = definedTools.filter((t) => !handlerTools.includes(t));
+  const extraHandlers = handlerTools.filter((t) => !definedTools.includes(t));
 
   return {
     isConsistent: missingHandlers.length === 0 && extraHandlers.length === 0,

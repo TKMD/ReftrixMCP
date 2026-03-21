@@ -8,10 +8,10 @@
  * @module services/responsive/viewport-diff.service
  */
 
-import pixelmatch from 'pixelmatch';
-import sharp from 'sharp';
-import { logger, isDevelopment } from '../../utils/logger';
-import type { ViewportDiffResult } from './types';
+import pixelmatch from "pixelmatch";
+import sharp from "sharp";
+import { logger, isDevelopment } from "../../utils/logger";
+import type { ViewportDiffResult } from "./types";
 
 /**
  * ViewportDiff オプション
@@ -58,7 +58,7 @@ export class ViewportDiffService {
     const includeDiffImage = options?.includeDiffImage ?? false;
 
     if (isDevelopment()) {
-      logger.debug('[ViewportDiff] Comparing pair', {
+      logger.debug("[ViewportDiff] Comparing pair", {
         viewport1: viewport1Name,
         viewport2: viewport2Name,
         threshold,
@@ -95,12 +95,10 @@ export class ViewportDiffService {
       { threshold }
     );
 
-    const diffPercentage = totalPixels > 0
-      ? (diffPixelCount / totalPixels) * 100
-      : 0;
+    const diffPercentage = totalPixels > 0 ? (diffPixelCount / totalPixels) * 100 : 0;
 
     if (isDevelopment()) {
-      logger.debug('[ViewportDiff] Comparison completed', {
+      logger.debug("[ViewportDiff] Comparison completed", {
         viewport1: viewport1Name,
         viewport2: viewport2Name,
         diffPercentage: diffPercentage.toFixed(2),
@@ -111,11 +109,7 @@ export class ViewportDiffService {
 
     // exactOptionalPropertyTypes対応: 条件付きで返す
     if (includeDiffImage) {
-      const diffImageBuffer = await this.bufferToPng(
-        diffBuffer,
-        resized1.width,
-        resized1.height
-      );
+      const diffImageBuffer = await this.bufferToPng(diffBuffer, resized1.width, resized1.height);
       return {
         viewport1: viewport1Name,
         viewport2: viewport2Name,
@@ -155,7 +149,7 @@ export class ViewportDiffService {
 
     if (entries.length < 2) {
       if (isDevelopment()) {
-        logger.debug('[ViewportDiff] Not enough screenshots for comparison', {
+        logger.debug("[ViewportDiff] Not enough screenshots for comparison", {
           count: entries.length,
         });
       }
@@ -167,23 +161,18 @@ export class ViewportDiffService {
       for (let j = i + 1; j < entries.length; j++) {
         const [name1, buffer1] = entries[i]!;
         const [name2, buffer2] = entries[j]!;
-        const result = await this.comparePair(
-          buffer1,
-          buffer2,
-          name1,
-          name2,
-          options
-        );
+        const result = await this.comparePair(buffer1, buffer2, name1, name2, options);
         results.push(result);
       }
     }
 
     if (isDevelopment()) {
-      logger.info('[ViewportDiff] All comparisons completed', {
+      logger.info("[ViewportDiff] All comparisons completed", {
         pairCount: results.length,
-        avgDiffPercentage: results.length > 0
-          ? (results.reduce((sum, r) => sum + r.diffPercentage, 0) / results.length).toFixed(2)
-          : '0',
+        avgDiffPercentage:
+          results.length > 0
+            ? (results.reduce((sum, r) => sum + r.diffPercentage, 0) / results.length).toFixed(2)
+            : "0",
       });
     }
 
@@ -194,10 +183,7 @@ export class ViewportDiffService {
    * 画像データをRGBA形式で取得
    */
   private async getImageData(buffer: Buffer): Promise<ImageData> {
-    const result = await sharp(buffer)
-      .ensureAlpha()
-      .raw()
-      .toBuffer({ resolveWithObject: true });
+    const result = await sharp(buffer).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
 
     return {
       data: result.data,
@@ -216,8 +202,8 @@ export class ViewportDiffService {
   ): Promise<ImageData> {
     const result = await sharp(buffer)
       .resize(targetWidth, targetHeight, {
-        fit: 'cover',
-        position: 'top',
+        fit: "cover",
+        position: "top",
       })
       .ensureAlpha()
       .raw()
@@ -233,11 +219,7 @@ export class ViewportDiffService {
   /**
    * RGBAバッファをPNG画像に変換
    */
-  private async bufferToPng(
-    buffer: Buffer,
-    width: number,
-    height: number
-  ): Promise<Buffer> {
+  private async bufferToPng(buffer: Buffer, width: number, height: number): Promise<Buffer> {
     return sharp(buffer, {
       raw: {
         width,

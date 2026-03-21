@@ -18,7 +18,7 @@
  * @module services/background/background-design-embedding
  */
 
-import { isDevelopment, logger } from '../../utils/logger';
+import { isDevelopment, logger } from "../../utils/logger";
 
 // =====================================================
 // 型定義
@@ -38,34 +38,42 @@ export interface BackgroundDesignForText {
   /** CSSセレクタ（例: ".hero"） */
   selector?: string | undefined;
   /** 色彩情報 */
-  colorInfo?: {
-    dominantColors?: string[];
-    colorCount?: number;
-    hasAlpha?: boolean;
-    colorSpace?: string;
-  } | undefined;
+  colorInfo?:
+    | {
+        dominantColors?: string[];
+        colorCount?: number;
+        hasAlpha?: boolean;
+        colorSpace?: string;
+      }
+    | undefined;
   /** グラデーション情報 */
-  gradientInfo?: {
-    type?: string;
-    angle?: number;
-    stops?: Array<{ color: string; position: number }>;
-    repeating?: boolean;
-  } | undefined;
+  gradientInfo?:
+    | {
+        type?: string;
+        angle?: number;
+        stops?: Array<{ color: string; position: number }>;
+        repeating?: boolean;
+      }
+    | undefined;
   /** 視覚プロパティ */
-  visualProperties?: {
-    blurRadius?: number;
-    opacity?: number;
-    blendMode?: string;
-    hasOverlay?: boolean;
-    layers?: number;
-  } | undefined;
+  visualProperties?:
+    | {
+        blurRadius?: number;
+        opacity?: number;
+        blendMode?: string;
+        hasOverlay?: boolean;
+        layers?: number;
+      }
+    | undefined;
   /** アニメーション情報 */
-  animationInfo?: {
-    isAnimated?: boolean;
-    animationName?: string;
-    duration?: string;
-    easing?: string;
-  } | undefined;
+  animationInfo?:
+    | {
+        isAnimated?: boolean;
+        animationName?: string;
+        duration?: string;
+        easing?: string;
+      }
+    | undefined;
 }
 
 /**
@@ -184,9 +192,7 @@ let backgroundPrismaClientFactory: (() => IBackgroundPrismaClient) | null = null
 /**
  * PrismaClient ファクトリを設定（テスト用）
  */
-export function setBackgroundPrismaClientFactory(
-  factory: () => IBackgroundPrismaClient
-): void {
+export function setBackgroundPrismaClientFactory(factory: () => IBackgroundPrismaClient): void {
   backgroundPrismaClientFactory = factory;
 }
 
@@ -209,7 +215,7 @@ function getEmbeddingService(): IBackgroundEmbeddingService {
     return backgroundEmbeddingServiceFactory();
   }
   throw new Error(
-    'BackgroundEmbeddingService not initialized. Use setBackgroundEmbeddingServiceFactory.'
+    "BackgroundEmbeddingService not initialized. Use setBackgroundEmbeddingServiceFactory."
   );
 }
 
@@ -220,9 +226,7 @@ function getPrismaClient(): IBackgroundPrismaClient {
   if (backgroundPrismaClientFactory) {
     return backgroundPrismaClientFactory();
   }
-  throw new Error(
-    'BackgroundPrismaClient not initialized. Use setBackgroundPrismaClientFactory.'
-  );
+  throw new Error("BackgroundPrismaClient not initialized. Use setBackgroundPrismaClientFactory.");
 }
 
 // =====================================================
@@ -238,13 +242,11 @@ function getPrismaClient(): IBackgroundPrismaClient {
  * @param bg - 背景デザインデータ
  * @returns passage: プレフィックス付きテキスト表現
  */
-export function generateBackgroundDesignTextRepresentation(
-  bg: BackgroundDesignForText
-): string {
+export function generateBackgroundDesignTextRepresentation(bg: BackgroundDesignForText): string {
   const parts: string[] = [];
 
   // デザインタイプ（アンダースコアをスペースに変換）
-  const designTypeReadable = bg.designType.replace(/_/g, ' ');
+  const designTypeReadable = bg.designType.replace(/_/g, " ");
   parts.push(`Background design type: ${designTypeReadable}`);
 
   // デザイン名
@@ -257,7 +259,7 @@ export function generateBackgroundDesignTextRepresentation(
 
   // 色彩情報
   if (bg.colorInfo?.dominantColors && bg.colorInfo.dominantColors.length > 0) {
-    parts.push(`Colors: ${bg.colorInfo.dominantColors.join(', ')}`);
+    parts.push(`Colors: ${bg.colorInfo.dominantColors.join(", ")}`);
   }
 
   // グラデーション情報
@@ -274,11 +276,11 @@ export function generateBackgroundDesignTextRepresentation(
       gradientParts.push(`${bg.gradientInfo.stops.length} color stops`);
     }
     if (bg.gradientInfo.repeating) {
-      gradientParts.push('repeating');
+      gradientParts.push("repeating");
     }
 
     if (gradientParts.length > 0) {
-      parts.push(`Gradient: ${gradientParts.join(', ')}`);
+      parts.push(`Gradient: ${gradientParts.join(", ")}`);
     }
   }
 
@@ -292,7 +294,7 @@ export function generateBackgroundDesignTextRepresentation(
     }
 
     // blendMode が 'normal' でない場合のみ表示
-    if (bg.visualProperties.blendMode && bg.visualProperties.blendMode !== 'normal') {
+    if (bg.visualProperties.blendMode && bg.visualProperties.blendMode !== "normal") {
       vizParts.push(`Blend mode: ${bg.visualProperties.blendMode}`);
     }
 
@@ -302,7 +304,7 @@ export function generateBackgroundDesignTextRepresentation(
     }
 
     if (vizParts.length > 0) {
-      parts.push(vizParts.join('. '));
+      parts.push(vizParts.join(". "));
     }
   }
 
@@ -321,11 +323,11 @@ export function generateBackgroundDesignTextRepresentation(
     }
 
     if (animParts.length > 0) {
-      parts.push(animParts.join('. '));
+      parts.push(animParts.join(". "));
     }
   }
 
-  return `passage: ${parts.join('. ')}.`;
+  return `passage: ${parts.join(". ")}.`;
 }
 
 // =====================================================
@@ -353,7 +355,7 @@ export async function generateBackgroundDesignEmbeddings(
   backgrounds: BackgroundDesignForText[],
   idMapping: Map<string, string>,
   backgroundDesignIds?: string[],
-  onProgress?: (completed: number, total: number) => void,
+  onProgress?: (completed: number, total: number) => void
 ): Promise<BackgroundDesignEmbeddingResult> {
   const result: BackgroundDesignEmbeddingResult = {
     success: true,
@@ -370,17 +372,20 @@ export async function generateBackgroundDesignEmbeddings(
   // backgroundDesignIds が指定されている場合、配列長の一致を検証
   if (backgroundDesignIds && backgroundDesignIds.length !== backgrounds.length) {
     if (isDevelopment()) {
-      logger.warn('[BackgroundDesignEmbedding] backgroundDesignIds length mismatch, falling back to idMapping', {
-        backgroundsLength: backgrounds.length,
-        idsLength: backgroundDesignIds.length,
-      });
+      logger.warn(
+        "[BackgroundDesignEmbedding] backgroundDesignIds length mismatch, falling back to idMapping",
+        {
+          backgroundsLength: backgrounds.length,
+          idsLength: backgroundDesignIds.length,
+        }
+      );
     }
     // 長さ不一致の場合は安全のためidMappingにフォールバック
     backgroundDesignIds = undefined;
   }
 
   if (isDevelopment()) {
-    logger.info('[BackgroundDesignEmbedding] Starting embedding generation', {
+    logger.info("[BackgroundDesignEmbedding] Starting embedding generation", {
       backgroundCount: backgrounds.length,
       idMappingSize: idMapping.size,
       usingDirectIds: backgroundDesignIds !== undefined,
@@ -393,7 +398,7 @@ export async function generateBackgroundDesignEmbeddings(
   for (let i = 0; i < backgrounds.length; i++) {
     // Periodic GC to prevent V8 heap pressure during batch processing
     // (matches MotionEmbedding's 10-item GC interval in embedding-handler.ts)
-    if (i > 0 && i % 10 === 0 && typeof global.gc === 'function') {
+    if (i > 0 && i % 10 === 0 && typeof global.gc === "function") {
       global.gc();
     }
 
@@ -412,10 +417,10 @@ export async function generateBackgroundDesignEmbeddings(
       });
 
       if (isDevelopment()) {
-        logger.warn('[BackgroundDesignEmbedding] ID not found, skipping', {
+        logger.warn("[BackgroundDesignEmbedding] ID not found, skipping", {
           name: bg.name,
           index: i,
-          lookupMethod: backgroundDesignIds ? 'directIds' : 'idMapping',
+          lookupMethod: backgroundDesignIds ? "directIds" : "idMapping",
         });
       }
       continue;
@@ -438,7 +443,7 @@ export async function generateBackgroundDesignEmbeddings(
       });
 
       // 4. pgvector 形式で embedding を更新
-      const vectorString = `[${embeddingResult.embedding.join(',')}]`;
+      const vectorString = `[${embeddingResult.embedding.join(",")}]`;
       await prisma.$executeRawUnsafe(
         `UPDATE background_design_embeddings SET embedding = $1::vector WHERE id = $2::uuid`,
         vectorString,
@@ -448,7 +453,7 @@ export async function generateBackgroundDesignEmbeddings(
       result.generatedCount++;
 
       if (isDevelopment()) {
-        logger.info('[BackgroundDesignEmbedding] Embedding saved', {
+        logger.info("[BackgroundDesignEmbedding] Embedding saved", {
           name: bg.name,
           backgroundDesignId,
           embeddingId: createdRecord.id,
@@ -458,14 +463,14 @@ export async function generateBackgroundDesignEmbeddings(
       }
     } catch (error) {
       result.failedCount++;
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      const errorMessage = error instanceof Error ? error.message : "Unknown error";
       result.errors.push({
         name: bg.name,
         error: errorMessage,
       });
 
       if (isDevelopment()) {
-        logger.warn('[BackgroundDesignEmbedding] Embedding generation failed', {
+        logger.warn("[BackgroundDesignEmbedding] Embedding generation failed", {
           name: bg.name,
           backgroundDesignId,
           error: errorMessage,
@@ -474,11 +479,15 @@ export async function generateBackgroundDesignEmbeddings(
     }
 
     // Granular progress: report after each background design (fire-and-forget)
-    try { onProgress?.(result.generatedCount + result.failedCount, backgrounds.length); } catch { /* fire-and-forget */ }
+    try {
+      onProgress?.(result.generatedCount + result.failedCount, backgrounds.length);
+    } catch {
+      /* fire-and-forget */
+    }
   }
 
   if (isDevelopment()) {
-    logger.info('[BackgroundDesignEmbedding] Generation completed', {
+    logger.info("[BackgroundDesignEmbedding] Generation completed", {
       generatedCount: result.generatedCount,
       failedCount: result.failedCount,
       errorCount: result.errors.length,
@@ -514,7 +523,7 @@ export async function searchSimilarBackgroundDesigns(
   const limit = options.limit ?? 10;
 
   if (isDevelopment()) {
-    logger.info('[BackgroundDesignEmbedding] Starting semantic search', {
+    logger.info("[BackgroundDesignEmbedding] Starting semantic search", {
       query,
       designType: options.designType,
       limit,
@@ -528,7 +537,7 @@ export async function searchSimilarBackgroundDesigns(
 
   // 2. pgvector cosine similarity 検索
   const prisma = getPrismaClient();
-  const vectorString = `[${embeddingResult.embedding.join(',')}]`;
+  const vectorString = `[${embeddingResult.embedding.join(",")}]`;
 
   let sql: string;
   let params: unknown[];
@@ -579,7 +588,7 @@ export async function searchSimilarBackgroundDesigns(
   const rows = await prisma.$queryRawUnsafe<BackgroundDesignSearchResult[]>(sql, ...params);
 
   if (isDevelopment()) {
-    logger.info('[BackgroundDesignEmbedding] Search completed', {
+    logger.info("[BackgroundDesignEmbedding] Search completed", {
       query,
       resultCount: rows.length,
       topSimilarity: rows.length > 0 ? rows[0]?.similarity : null,

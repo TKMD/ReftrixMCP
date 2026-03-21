@@ -8,11 +8,8 @@
  * @module @reftrix/mcp-server/services/motion-search-service
  */
 
-import { motionSearchHandler } from '../tools/motion/search.tool';
-import type {
-  MotionSearchInput,
-  MotionSearchOutput,
-} from '../tools/motion';
+import { motionSearchHandler } from "../tools/motion/search.tool";
+import type { MotionSearchInput, MotionSearchOutput } from "../tools/motion";
 
 /**
  * モーションパターン検索を実行
@@ -38,4 +35,4 @@ export type {
   MotionSearchTrigger,
   MotionSearchSource,
   MotionSearchQueryInfo,
-} from '../tools/motion';
+} from "../tools/motion";

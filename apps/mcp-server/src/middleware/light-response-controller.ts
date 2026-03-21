@@ -52,7 +52,7 @@ export interface LightResponseResult<T> {
  */
 export interface ArrayLimitWarning {
   /** 警告タイプ */
-  type: 'LIMIT_EXCEEDED';
+  type: "LIMIT_EXCEEDED";
   /** ユーザーが指定した値 */
   requestedLimit: number;
   /** 実際に適用された値 */
@@ -67,10 +67,10 @@ export interface ArrayLimitWarning {
  * page.analyze, layout.ingest等で使用されるネストオプションのみ許可
  */
 const ALLOWED_NESTED_OPTION_KEYS = [
-  'options',        // 共通ネスト
-  'layoutOptions',  // page.analyze
-  'motionOptions',  // page.analyze
-  'qualityOptions', // page.analyze
+  "options", // 共通ネスト
+  "layoutOptions", // page.analyze
+  "motionOptions", // page.analyze
+  "qualityOptions", // page.analyze
 ] as const;
 
 /**
@@ -86,15 +86,15 @@ function extractBooleanFromNested(
   snakeKey: string,
   camelKey: string
 ): boolean | undefined {
-  if (typeof obj !== 'object' || obj === null) {
+  if (typeof obj !== "object" || obj === null) {
     return undefined;
   }
   // snake_case優先
-  if (typeof obj[snakeKey] === 'boolean') {
+  if (typeof obj[snakeKey] === "boolean") {
     return obj[snakeKey] as boolean;
   }
   // camelCaseフォールバック
-  if (typeof obj[camelKey] === 'boolean') {
+  if (typeof obj[camelKey] === "boolean") {
     return obj[camelKey] as boolean;
   }
   return undefined;
@@ -116,21 +116,19 @@ function extractBooleanFromNested(
  * @param args - MCPツール引数
  * @returns 正規化されたLightResponseOptions
  */
-export function extractLightResponseOptions(
-  args: Record<string, unknown>
-): LightResponseOptions {
+export function extractLightResponseOptions(args: Record<string, unknown>): LightResponseOptions {
   const options: LightResponseOptions = {};
 
   // summary: snake_case (summary) - 直接対応
-  if (typeof args.summary === 'boolean') {
+  if (typeof args.summary === "boolean") {
     options.summary = args.summary;
   }
 
   // === include_html ===
   // 1. トップレベル（最優先）
-  if (typeof args.include_html === 'boolean') {
+  if (typeof args.include_html === "boolean") {
     options.include_html = args.include_html;
-  } else if (typeof args.includeHtml === 'boolean') {
+  } else if (typeof args.includeHtml === "boolean") {
     options.include_html = args.includeHtml;
   }
 
@@ -138,7 +136,7 @@ export function extractLightResponseOptions(
   if (options.include_html === undefined) {
     for (const nestedKey of ALLOWED_NESTED_OPTION_KEYS) {
       const nestedObj = args[nestedKey] as Record<string, unknown> | undefined;
-      const value = extractBooleanFromNested(nestedObj, 'include_html', 'includeHtml');
+      const value = extractBooleanFromNested(nestedObj, "include_html", "includeHtml");
       if (value !== undefined) {
         options.include_html = value;
         break; // 最初に見つかった値を採用
@@ -148,9 +146,9 @@ export function extractLightResponseOptions(
 
   // === include_screenshot ===
   // 1. トップレベル（最優先）
-  if (typeof args.include_screenshot === 'boolean') {
+  if (typeof args.include_screenshot === "boolean") {
     options.include_screenshot = args.include_screenshot;
-  } else if (typeof args.includeScreenshot === 'boolean') {
+  } else if (typeof args.includeScreenshot === "boolean") {
     options.include_screenshot = args.includeScreenshot;
   }
 
@@ -158,7 +156,7 @@ export function extractLightResponseOptions(
   if (options.include_screenshot === undefined) {
     for (const nestedKey of ALLOWED_NESTED_OPTION_KEYS) {
       const nestedObj = args[nestedKey] as Record<string, unknown> | undefined;
-      const value = extractBooleanFromNested(nestedObj, 'include_screenshot', 'includeScreenshot');
+      const value = extractBooleanFromNested(nestedObj, "include_screenshot", "includeScreenshot");
       if (value !== undefined) {
         options.include_screenshot = value;
         break;
@@ -168,9 +166,9 @@ export function extractLightResponseOptions(
 
   // === include_rawCss ===
   // 1. トップレベル
-  if (typeof args.include_rawCss === 'boolean') {
+  if (typeof args.include_rawCss === "boolean") {
     options.include_rawCss = args.include_rawCss;
-  } else if (typeof args.includeRawCss === 'boolean') {
+  } else if (typeof args.includeRawCss === "boolean") {
     options.include_rawCss = args.includeRawCss;
   }
 
@@ -178,7 +176,7 @@ export function extractLightResponseOptions(
   if (options.include_rawCss === undefined) {
     for (const nestedKey of ALLOWED_NESTED_OPTION_KEYS) {
       const nestedObj = args[nestedKey] as Record<string, unknown> | undefined;
-      const value = extractBooleanFromNested(nestedObj, 'include_rawCss', 'includeRawCss');
+      const value = extractBooleanFromNested(nestedObj, "include_rawCss", "includeRawCss");
       if (value !== undefined) {
         options.include_rawCss = value;
         break;
@@ -187,15 +185,15 @@ export function extractLightResponseOptions(
   }
 
   // verbose=trueの場合はrawCssを含める（motion.detectの互換性）
-  if (typeof args.verbose === 'boolean' && args.verbose) {
+  if (typeof args.verbose === "boolean" && args.verbose) {
     options.include_rawCss = true;
   }
 
   // === include_external_css ===
   // 1. トップレベル
-  if (typeof args.include_external_css === 'boolean') {
+  if (typeof args.include_external_css === "boolean") {
     options.include_external_css = args.include_external_css;
-  } else if (typeof args.includeExternalCss === 'boolean') {
+  } else if (typeof args.includeExternalCss === "boolean") {
     options.include_external_css = args.includeExternalCss;
   }
 
@@ -203,7 +201,11 @@ export function extractLightResponseOptions(
   if (options.include_external_css === undefined) {
     for (const nestedKey of ALLOWED_NESTED_OPTION_KEYS) {
       const nestedObj = args[nestedKey] as Record<string, unknown> | undefined;
-      const value = extractBooleanFromNested(nestedObj, 'include_external_css', 'includeExternalCss');
+      const value = extractBooleanFromNested(
+        nestedObj,
+        "include_external_css",
+        "includeExternalCss"
+      );
       if (value !== undefined) {
         options.include_external_css = value;
         break;
@@ -213,7 +215,7 @@ export function extractLightResponseOptions(
 
   // === limit ===
   // 1. トップレベル（最優先）
-  if (typeof args.limit === 'number' && args.limit > 0) {
+  if (typeof args.limit === "number" && args.limit > 0) {
     options.limit = args.limit;
   }
 
@@ -221,8 +223,8 @@ export function extractLightResponseOptions(
   if (options.limit === undefined) {
     for (const nestedKey of ALLOWED_NESTED_OPTION_KEYS) {
       const nestedObj = args[nestedKey] as Record<string, unknown> | undefined;
-      if (typeof nestedObj === 'object' && nestedObj !== null) {
-        if (typeof nestedObj.limit === 'number' && nestedObj.limit > 0) {
+      if (typeof nestedObj === "object" && nestedObj !== null) {
+        if (typeof nestedObj.limit === "number" && nestedObj.limit > 0) {
           options.limit = nestedObj.limit;
           break;
         }
@@ -267,13 +269,13 @@ export const MAX_ARRAY_LIMIT = 1000;
 export const DEFAULT_LIGHT_RESPONSE_CONFIG: Required<LightResponseControllerOptions> = {
   maxArrayItems: 10,
   excludeFields: [
-    'html',
-    'screenshot',
-    'rawCss',
-    'raw_css',
-    'html_snippet',
-    'css_snippet',
-    'external_css_content',
+    "html",
+    "screenshot",
+    "rawCss",
+    "raw_css",
+    "html_snippet",
+    "css_snippet",
+    "external_css_content",
   ],
 };
 
@@ -281,42 +283,49 @@ export const DEFAULT_LIGHT_RESPONSE_CONFIG: Required<LightResponseControllerOpti
  * ツール別のフィールド設定
  */
 export const TOOL_FIELD_CONFIGS: Record<string, ToolFieldConfig> = {
-  'layout.ingest': {
-    excludeFields: ['html', 'screenshot', 'external_css_content', 'css_content', 'html_snippet', 'css_snippet'],
+  "layout.ingest": {
+    excludeFields: [
+      "html",
+      "screenshot",
+      "external_css_content",
+      "css_content",
+      "html_snippet",
+      "css_snippet",
+    ],
     arrayLimits: {
       sections: 10,
     },
     nestedConfigs: {
       sections: {
-        excludeFields: ['html', 'css', 'html_snippet', 'css_snippet'],
+        excludeFields: ["html", "css", "html_snippet", "css_snippet"],
         arrayLimits: {},
       },
     },
   },
-  'layout.search': {
-    excludeFields: ['html', 'html_snippet', 'css_snippet'],
+  "layout.search": {
+    excludeFields: ["html", "html_snippet", "css_snippet"],
     arrayLimits: {
       results: 10,
     },
   },
-  'layout.inspect': {
-    excludeFields: ['html', 'rawStyles'],
+  "layout.inspect": {
+    excludeFields: ["html", "rawStyles"],
     arrayLimits: {
       sections: 10,
       grids: 5,
     },
   },
-  'quality.evaluate': {
+  "quality.evaluate": {
     excludeFields: [],
     arrayLimits: {
       recommendations: 3,
       contextualRecommendations: 3,
       violations: 5,
-      'patternAnalysis.similarSections': 3,
-      'patternAnalysis.similarMotions': 3,
-      'patternAnalysis.benchmarksUsed': 3,
-      'axeAccessibility.violations': 5,
-      'clicheDetection.patterns': 3,
+      "patternAnalysis.similarSections": 3,
+      "patternAnalysis.similarMotions": 3,
+      "patternAnalysis.benchmarksUsed": 3,
+      "axeAccessibility.violations": 5,
+      "clicheDetection.patterns": 3,
     },
     nestedConfigs: {
       patternAnalysis: {
@@ -341,37 +350,37 @@ export const TOOL_FIELD_CONFIGS: Record<string, ToolFieldConfig> = {
       },
     },
   },
-  'motion.detect': {
-    excludeFields: ['rawCss', 'raw_css'],
+  "motion.detect": {
+    excludeFields: ["rawCss", "raw_css"],
     arrayLimits: {
       patterns: 20,
       warnings: 5,
-      'js_animations.cdpAnimations': 10,
-      'js_animations.webAnimations': 10,
+      "js_animations.cdpAnimations": 10,
+      "js_animations.webAnimations": 10,
     },
   },
-  'motion.search': {
-    excludeFields: ['rawCss'],
+  "motion.search": {
+    excludeFields: ["rawCss"],
     arrayLimits: {
       results: 10,
     },
   },
-  'page.analyze': {
-    excludeFields: ['html', 'screenshot'],
+  "page.analyze": {
+    excludeFields: ["html", "screenshot"],
     arrayLimits: {
-      'layout.sections': 10,
-      'motion.patterns': 20,
-      'quality.recommendations': 5,
+      "layout.sections": 10,
+      "motion.patterns": 20,
+      "quality.recommendations": 5,
     },
     nestedConfigs: {
       layout: {
-        excludeFields: ['html', 'screenshot'],
+        excludeFields: ["html", "screenshot"],
         arrayLimits: {
           sections: 10,
         },
       },
       motion: {
-        excludeFields: ['rawCss'],
+        excludeFields: ["rawCss"],
         arrayLimits: {
           patterns: 20,
         },
@@ -417,11 +426,7 @@ export class LightResponseController {
    * @param options - light responseオプション
    * @returns 変換後のレスポンス
    */
-  apply<T>(
-    toolName: string,
-    response: T,
-    options: LightResponseOptions = {}
-  ): T {
+  apply<T>(toolName: string, response: T, options: LightResponseOptions = {}): T {
     // 警告をリセット
     this.currentWarnings = [];
 
@@ -446,7 +451,7 @@ export class LightResponseController {
     // RESP-14: ユーザー指定limitがMAX_ARRAY_LIMITを超えている場合は警告を追加
     if (options.limit !== undefined && options.limit > MAX_ARRAY_LIMIT) {
       this.currentWarnings.push({
-        type: 'LIMIT_EXCEEDED',
+        type: "LIMIT_EXCEEDED",
         requestedLimit: options.limit,
         appliedLimit: MAX_ARRAY_LIMIT,
         message: `Requested limit (${options.limit}) exceeds maximum allowed (${MAX_ARRAY_LIMIT}). Applied limit: ${MAX_ARRAY_LIMIT}`,
@@ -483,7 +488,7 @@ export class LightResponseController {
       response: transformedResponse,
     };
     if (this.currentWarnings.length > 0) {
-      result.warnings = this.currentWarnings.map(w => w.message);
+      result.warnings = this.currentWarnings.map((w) => w.message);
     }
     return result;
   }
@@ -501,7 +506,7 @@ export class LightResponseController {
    * エラーレスポンスかどうかを判定
    */
   private isErrorResponse(response: unknown): boolean {
-    if (typeof response !== 'object' || response === null) {
+    if (typeof response !== "object" || response === null) {
       return false;
     }
     const resp = response as Record<string, unknown>;
@@ -516,19 +521,15 @@ export class LightResponseController {
     config: ToolFieldConfig,
     options: LightResponseOptions
   ): T {
-    if (typeof response !== 'object' || response === null) {
+    if (typeof response !== "object" || response === null) {
       return response;
     }
 
     const result = { ...response } as Record<string, unknown>;
 
     // dataフィールドがある場合はその中を変換
-    if ('data' in result && typeof result.data === 'object' && result.data !== null) {
-      result.data = this.transformData(
-        result.data as Record<string, unknown>,
-        config,
-        options
-      );
+    if ("data" in result && typeof result.data === "object" && result.data !== null) {
+      result.data = this.transformData(result.data as Record<string, unknown>, config, options);
     }
 
     return result as T;
@@ -579,16 +580,12 @@ export class LightResponseController {
             // 配列の場合は各要素を変換して制限を適用
             const limit = this.getArrayLimit(key, config, options);
             result[key] = value.slice(0, limit).map((item) => {
-              if (typeof item === 'object' && item !== null) {
-                return this.transformData(
-                  item as Record<string, unknown>,
-                  nestedConfig,
-                  options
-                );
+              if (typeof item === "object" && item !== null) {
+                return this.transformData(item as Record<string, unknown>, nestedConfig, options);
               }
               return item;
             });
-          } else if (typeof value === 'object' && value !== null) {
+          } else if (typeof value === "object" && value !== null) {
             result[key] = this.transformData(
               value as Record<string, unknown>,
               nestedConfig,
@@ -604,7 +601,7 @@ export class LightResponseController {
           result[key] = value.slice(0, limit);
         }
         // オブジェクトの場合は再帰的に処理（ネスト設定がない場合）
-        else if (typeof value === 'object' && value !== null) {
+        else if (typeof value === "object" && value !== null) {
           result[key] = this.transformNestedObject(
             value as Record<string, unknown>,
             key,
@@ -643,14 +640,13 @@ export class LightResponseController {
         if (options.limit !== undefined && options.limit > 0) {
           limit = Math.min(options.limit, MAX_ARRAY_LIMIT);
         } else {
-          limit = config.arrayLimits[fullKey] ||
-            config.arrayLimits[key] ||
-            this.config.maxArrayItems;
+          limit =
+            config.arrayLimits[fullKey] || config.arrayLimits[key] || this.config.maxArrayItems;
         }
         result[key] = value.slice(0, limit);
       }
       // オブジェクトの場合は再帰処理（深さ制限あり）
-      else if (typeof value === 'object' && value !== null) {
+      else if (typeof value === "object" && value !== null) {
         // 簡易的なコピー（深いネストは制限）
         result[key] = value;
       }

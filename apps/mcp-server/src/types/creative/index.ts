@@ -19,4 +19,4 @@ export type {
   GradientDefinition,
   PaletteMetadata,
   BrandPalette,
-} from './palette';
+} from "./palette";

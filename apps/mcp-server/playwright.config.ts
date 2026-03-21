@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2026 TKMD and Reftrix Contributors
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import { defineConfig, devices } from '@playwright/test';
+import { defineConfig, devices } from "@playwright/test";
 
 /**
  * Playwright Configuration for Reftrix MCP Server E2E Tests
@@ -17,7 +17,7 @@ import { defineConfig, devices } from '@playwright/test';
  */
 export default defineConfig({
   // テストファイルの配置場所
-  testDir: './tests/e2e/playwright',
+  testDir: "./tests/e2e/playwright",
 
   // テスト実行の並列度
   fullyParallel: false, // MCPツールテストは順序依存があるため
@@ -29,19 +29,19 @@ export default defineConfig({
 
   // レポーター設定
   reporter: process.env.CI
-    ? [['github'], ['html', { open: 'never' }]]
-    : [['list'], ['html', { open: 'on-failure' }]],
+    ? [["github"], ["html", { open: "never" }]]
+    : [["list"], ["html", { open: "on-failure" }]],
 
   // グローバル設定
   use: {
     // E2E test target
-    baseURL: 'http://localhost:24001',
+    baseURL: "http://localhost:24001",
 
     // トレース収集（失敗時のみ）
-    trace: 'on-first-retry',
+    trace: "on-first-retry",
 
     // スクリーンショット（失敗時のみ）
-    screenshot: 'only-on-failure',
+    screenshot: "only-on-failure",
 
     // ヘッドレスモード（CI環境）
     headless: true,
@@ -62,18 +62,18 @@ export default defineConfig({
   // プロジェクト（ブラウザ）設定
   projects: [
     {
-      name: 'chromium',
+      name: "chromium",
       use: {
-        ...devices['Desktop Chrome'],
+        ...devices["Desktop Chrome"],
       },
     },
     // CI環境では複数ブラウザをテスト
     ...(process.env.CI
       ? [
           {
-            name: 'firefox',
+            name: "firefox",
             use: {
-              ...devices['Desktop Firefox'],
+              ...devices["Desktop Firefox"],
             },
           },
         ]
@@ -81,7 +81,7 @@ export default defineConfig({
   ],
 
   // 出力ディレクトリ
-  outputDir: './tests/e2e/playwright/test-results',
+  outputDir: "./tests/e2e/playwright/test-results",
 
   // グローバルセットアップ/ティアダウン（必要に応じて）
   // globalSetup: './tests/e2e/playwright/global-setup.ts',

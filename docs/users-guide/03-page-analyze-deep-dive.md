@@ -31,15 +31,15 @@ This document explains the detailed flow, analysis content, and database data st
 
 `page.analyze` is the unified web analysis tool provided by the Reftrix MCP server. From a single URL input, it **sequentially executes** 7 phases to comprehensively analyze web page structure, motion, and quality:
 
-| Phase | 名称 / Name | 進捗 / Progress | 主な出力 / Main Output |
-|-------|------|------|---------|
-| 1 | **INGEST** | 0-15% | ページ取得・HTML取得（web_pages） |
-| 2 | **LAYOUT** | 15-35% | セクション構造解析（section_patterns） |
-| 3 | **SCROLL_VISION** | 35-45% | スクロールキャプチャ（Phase 1.5: キャプチャのみ） |
-| 4 | **MOTION** | 45-65% | CSS/JSアニメーション検出（motion_patterns） |
-| 5 | **QUALITY** | 65-80% | デザイン品質スコアリング（quality_evaluations） |
-| 6 | **NARRATIVE** | 80-90% | ナラティブ分析（Ollama Vision、Phase 2.5） |
-| 7 | **EMBEDDING** | 90-100% | Embedding生成（multilingual-e5-base） |
+| Phase | 名称 / Name       | 進捗 / Progress | 主な出力 / Main Output                            |
+| ----- | ----------------- | --------------- | ------------------------------------------------- |
+| 1     | **INGEST**        | 0-15%           | ページ取得・HTML取得（web_pages）                 |
+| 2     | **LAYOUT**        | 15-35%          | セクション構造解析（section_patterns）            |
+| 3     | **SCROLL_VISION** | 35-45%          | スクロールキャプチャ（Phase 1.5: キャプチャのみ） |
+| 4     | **MOTION**        | 45-65%          | CSS/JSアニメーション検出（motion_patterns）       |
+| 5     | **QUALITY**       | 65-80%          | デザイン品質スコアリング（quality_evaluations）   |
+| 6     | **NARRATIVE**     | 80-90%          | ナラティブ分析（Ollama Vision、Phase 2.5）        |
+| 7     | **EMBEDDING**     | 90-100%         | Embedding生成（multilingual-e5-base）             |
 
 > **Note**: ブラウザはMOTIONフェーズ完了後にクローズされます。SCROLL_VISION分析（Phase 2.5）はブラウザクローズ後にNARRATIVEフェーズ内で実行されます。
 
@@ -190,7 +190,7 @@ HTMLを解析し、以下のセレクタでセクションを検出：
 
 ```javascript
 const SECTION_SELECTORS = [
-  'section',
+  "section",
   '[class*="section"]',
   '[class*="hero"]',
   '[class*="feature"]',
@@ -202,8 +202,8 @@ const SECTION_SELECTORS = [
   '[class*="gallery"]',
   '[class*="about"]',
   '[class*="contact"]',
-  '[data-section]',
-  '[data-component]',
+  "[data-section]",
+  "[data-component]",
   // ... 他多数
 ];
 ```
@@ -214,18 +214,18 @@ const SECTION_SELECTORS = [
 
 Detected sections are classified into the following types:
 
-| タイプ / Type | 検出ロジック / Detection Logic |
-|-------|-------------|
-| `hero` | 最初のセクション、大きな見出し、CTA要素 |
-| `navigation` | nav要素、ヘッダー内のリンク集合 |
-| `feature` | アイコン+テキストのグリッド |
-| `testimonial` | 引用、顔写真、会社ロゴ |
-| `pricing` | 価格表示、プランカード |
-| `cta` | ボタン、フォーム、アクション誘導 |
-| `gallery` | 画像グリッド |
-| `footer` | ページ末尾、著作権表示 |
-| `contact` | フォーム、連絡先情報 |
-| `unknown` | 分類不能 |
+| タイプ / Type | 検出ロジック / Detection Logic          |
+| ------------- | --------------------------------------- |
+| `hero`        | 最初のセクション、大きな見出し、CTA要素 |
+| `navigation`  | nav要素、ヘッダー内のリンク集合         |
+| `feature`     | アイコン+テキストのグリッド             |
+| `testimonial` | 引用、顔写真、会社ロゴ                  |
+| `pricing`     | 価格表示、プランカード                  |
+| `cta`         | ボタン、フォーム、アクション誘導        |
+| `gallery`     | 画像グリッド                            |
+| `footer`      | ページ末尾、著作権表示                  |
+| `contact`     | フォーム、連絡先情報                    |
+| `unknown`     | 分類不能                                |
 
 ### 4.3 Vision分析（Ollama llama3.2-vision） / Vision Analysis (Ollama llama3.2-vision)
 
@@ -238,9 +238,9 @@ Analyze screenshots with AI to visually detect section structure:
   "visionAnalysis": {
     "success": true,
     "features": [
-      {"type": "layout_structure", "confidence": 0.8, "description": "grid-type layout"},
-      {"type": "color_palette", "confidence": 0.8},
-      {"type": "section_boundaries", "confidence": 0.7}
+      { "type": "layout_structure", "confidence": 0.8, "description": "grid-type layout" },
+      { "type": "color_palette", "confidence": 0.8 },
+      { "type": "section_boundaries", "confidence": 0.7 }
     ],
     "modelName": "llama3.2-vision",
     "processingTimeMs": 15348,
@@ -253,11 +253,11 @@ Analyze screenshots with AI to visually detect section structure:
 
 ```javascript
 const CSS_FRAMEWORKS = {
-  'tailwind': ['class*="flex"', 'class*="grid"', 'class*="p-"', 'class*="m-"'],
-  'bootstrap': ['class*="container"', 'class*="row"', 'class*="col-"'],
-  'css_modules': ['class*="_"', 'class*="__"'],  // BEM-like patterns
-  'styled_components': ['class*="sc-"'],
-  'vanilla': []  // デフォルト
+  tailwind: ['class*="flex"', 'class*="grid"', 'class*="p-"', 'class*="m-"'],
+  bootstrap: ['class*="container"', 'class*="row"', 'class*="col-"'],
+  css_modules: ['class*="_"', 'class*="__"'], // BEM-like patterns
+  styled_components: ['class*="sc-"'],
+  vanilla: [], // デフォルト
 };
 ```
 
@@ -295,9 +295,9 @@ INSERT INTO section_patterns (
   "visionAnalysis": {
     "success": true,
     "features": [
-      {"type": "layout_structure", "confidence": 0.8, "description": "grid-type layout"},
-      {"type": "color_palette", "confidence": 0.8},
-      {"type": "section_boundaries", "confidence": 0.7}
+      { "type": "layout_structure", "confidence": 0.8, "description": "grid-type layout" },
+      { "type": "color_palette", "confidence": 0.8 },
+      { "type": "section_boundaries", "confidence": 0.7 }
     ],
     "modelName": "llama3.2-vision",
     "processingTimeMs": 15348,
@@ -407,7 +407,7 @@ Playwright経由でブラウザ内のJSアニメーションを検出：
 
 ```javascript
 // Animation.animationStarted イベントを購読
-cdpSession.on('Animation.animationStarted', (event) => {
+cdpSession.on("Animation.animationStarted", (event) => {
   // CSS Animation, CSS Transition, Web Animation を検出
 });
 ```
@@ -417,25 +417,25 @@ cdpSession.on('Animation.animationStarted', (event) => {
 ```javascript
 // document.getAnimations() でアクティブなアニメーションを取得
 const animations = await page.evaluate(() => {
-  return document.getAnimations().map(anim => ({
+  return document.getAnimations().map((anim) => ({
     id: anim.id,
     playState: anim.playState,
     target: anim.effect?.target?.className,
     timing: anim.effect?.getTiming(),
-    keyframes: anim.effect?.getKeyframes()
+    keyframes: anim.effect?.getKeyframes(),
   }));
 });
 ```
 
 #### ライブラリ検出
 
-| ライブラリ | 検出方法 |
-|-----------|---------|
-| GSAP | `window.gsap`, `window.TweenMax` |
-| Framer Motion | `data-framer-*` 属性 |
-| anime.js | `window.anime` |
-| Three.js | `window.THREE` |
-| Lottie | `window.lottie`, `window.bodymovin` |
+| ライブラリ    | 検出方法                            |
+| ------------- | ----------------------------------- |
+| GSAP          | `window.gsap`, `window.TweenMax`    |
+| Framer Motion | `data-framer-*` 属性                |
+| anime.js      | `window.anime`                      |
+| Three.js      | `window.THREE`                      |
+| Lottie        | `window.lottie`, `window.bodymovin` |
 
 ### 6.3 motion_patterns テーブルへの保存
 
@@ -497,11 +497,11 @@ INSERT INTO motion_embeddings (
 
 ### 7.1 評価軸
 
-| 軸 | 重み | 評価内容 |
-|----|------|---------|
-| **Originality** | 35% | 独自性、AIクリシェ回避 |
-| **Craftsmanship** | 40% | アクセシビリティ、セマンティックHTML、パフォーマンス |
-| **Contextuality** | 25% | 業界適合性、ターゲットオーディエンス適合性 |
+| 軸                | 重み | 評価内容                                             |
+| ----------------- | ---- | ---------------------------------------------------- |
+| **Originality**   | 35%  | 独自性、AIクリシェ回避                               |
+| **Craftsmanship** | 40%  | アクセシビリティ、セマンティックHTML、パフォーマンス |
+| **Contextuality** | 25%  | 業界適合性、ターゲットオーディエンス適合性           |
 
 ### 7.2 評価フロー
 
@@ -532,17 +532,14 @@ const calculateScore = (staticScore, patternAnalysis) => {
     craftsmanship += Math.min(10, (patternAnalysis.benchmarkSimilarity - 0.8) * 50);
   }
 
-  const overall =
-    originality * 0.35 +
-    craftsmanship * 0.40 +
-    contextuality * 0.25;
+  const overall = originality * 0.35 + craftsmanship * 0.4 + contextuality * 0.25;
 
   return {
     overall: Math.round(overall),
-    grade: overall >= 90 ? 'A' : overall >= 80 ? 'B' : overall >= 70 ? 'C' : 'D',
+    grade: overall >= 90 ? "A" : overall >= 80 ? "B" : overall >= 70 ? "C" : "D",
     originality,
     craftsmanship,
-    contextuality
+    contextuality,
   };
 };
 ```
@@ -610,12 +607,14 @@ const calculateScore = (staticScore, patternAnalysis) => {
 > **VRAM競合回避**: ブラウザクローズ後に実行するため、ChromiumとOllamaのVRAM競合が発生しません（RTX 3060 12GB環境）。GPU Resource Managerが`acquireForVision()`でVRAM確保を管理します。
 
 > **Ollama Vision アンロード（v0.1.2）**: Phase 6 内で2箇所のアンロードが実行されます:
+>
 > 1. **ScrollVision分析（Phase 2.5）完了後**: スクロールVision分析が終わった直後にVisionモデルをアンロード。後続のナラティブ分析でのメモリ圧迫を防止。
 > 2. **ナラティブ分析（Phase 4相当の処理）完了後**: Phase 6 全体の完了時にVisionモデルをアンロード。Phase 7（Embedding生成）でのOOMを防止。
 >
 > いずれも `keep_alive: "0"` でアンロード。CPU-only 環境で約10.6GBを解放。冪等（Vision未ロード時は no-op）。SSRF対策として `validateOllamaLocalhostUrl()` で localhost 限定。
 >
 > **Ollama Vision Unload (v0.1.2)**: Two unload points within Phase 6:
+>
 > 1. **After ScrollVision analysis (Phase 2.5)**: Unloads Vision model immediately after scroll Vision analysis to prevent memory pressure in subsequent narrative analysis.
 > 2. **After narrative analysis completion**: Unloads Vision model at Phase 6 completion to prevent OOM in Phase 7 (Embedding generation).
 >
@@ -647,20 +646,20 @@ const calculateScore = (staticScore, patternAnalysis) => {
 
 ### 9.3 プレフィックス（e5モデル要件）
 
-| 用途 | プレフィックス |
-|------|---------------|
-| 保存時（passage） | `passage: ` |
-| 検索時（query） | `query: ` |
+| 用途              | プレフィックス |
+| ----------------- | -------------- |
+| 保存時（passage） | `passage: `    |
+| 検索時（query）   | `query: `      |
 
 ### 9.4 保存先テーブル
 
-| 入力 | 保存先テーブル | インデックス |
-|------|---------------|-------------|
-| section_patterns | section_embeddings | HNSW (m=16, ef_construction=64) |
-| motion_patterns | motion_embeddings | HNSW |
-| background_designs | background_design_embeddings | HNSW |
-| js_animations | js_animation_embeddings | HNSW |
-| responsive_analyses | responsive_analysis_embeddings | HNSW |
+| 入力                | 保存先テーブル                 | インデックス                    |
+| ------------------- | ------------------------------ | ------------------------------- |
+| section_patterns    | section_embeddings             | HNSW (m=16, ef_construction=64) |
+| motion_patterns     | motion_embeddings              | HNSW                            |
+| background_designs  | background_design_embeddings   | HNSW                            |
+| js_animations       | js_animation_embeddings        | HNSW                            |
+| responsive_analyses | responsive_analysis_embeddings | HNSW                            |
 
 > **Note**: progress >= 90% のジョブはDB保存済みとみなされます（`DB_SAVED_PROGRESS_THRESHOLD = 90`）。Stall Recovery時、progress >= 90のジョブは`moveToCompleted`で回復されます。
 
@@ -712,18 +711,18 @@ const calculateScore = (staticScore, patternAnalysis) => {
 
 ### 10.2 インデックス構成
 
-| テーブル | インデックス | タイプ | 用途 |
-|---------|-------------|-------|------|
-| section_patterns | web_page_id | B-tree | FK検索 |
-| section_patterns | section_type | B-tree | タイプ別フィルタ |
-| section_patterns | css_framework | B-tree | フレームワーク別検索 |
-| section_embeddings | text_embedding | HNSW | ベクトル類似検索 |
-| section_embeddings | vision_embedding | HNSW | Vision類似検索 |
-| section_embeddings | combined_embedding | HNSW | 統合類似検索 |
-| motion_patterns | category | B-tree | カテゴリ別フィルタ |
-| motion_patterns | type | B-tree | モーションタイプ別フィルタ |
-| motion_patterns | trigger_type | B-tree | トリガー別検索 |
-| motion_embeddings | embedding | HNSW | ベクトル類似検索 |
+| テーブル           | インデックス       | タイプ | 用途                       |
+| ------------------ | ------------------ | ------ | -------------------------- |
+| section_patterns   | web_page_id        | B-tree | FK検索                     |
+| section_patterns   | section_type       | B-tree | タイプ別フィルタ           |
+| section_patterns   | css_framework      | B-tree | フレームワーク別検索       |
+| section_embeddings | text_embedding     | HNSW   | ベクトル類似検索           |
+| section_embeddings | vision_embedding   | HNSW   | Vision類似検索             |
+| section_embeddings | combined_embedding | HNSW   | 統合類似検索               |
+| motion_patterns    | category           | B-tree | カテゴリ別フィルタ         |
+| motion_patterns    | type               | B-tree | モーションタイプ別フィルタ |
+| motion_patterns    | trigger_type       | B-tree | トリガー別検索             |
+| motion_embeddings  | embedding          | HNSW   | ベクトル類似検索           |
 
 ---
 
@@ -736,9 +735,9 @@ const calculateScore = (staticScore, patternAnalysis) => {
 const results = await mcp.layout.search({
   query: "モダンなダークテーマのヒーローセクション",
   filters: {
-    sectionType: "hero"
+    sectionType: "hero",
   },
-  limit: 10
+  limit: 10,
 });
 
 // 結果例
@@ -747,9 +746,9 @@ const results = await mcp.layout.search({
     id: "019ba63b-df29-7754-999d-4acf1a49c734",
     sectionType: "hero",
     similarity: 0.89,
-    sourceUrl: "https://www.spaceandtime.io/"
-  }
-]
+    sourceUrl: "https://www.spaceandtime.io/",
+  },
+];
 ```
 
 ### 11.2 コード生成（layout.generate_code）
@@ -761,8 +760,8 @@ const code = await mcp.layout.generate_code({
   options: {
     framework: "react",
     typescript: true,
-    tailwind: true
-  }
+    tailwind: true,
+  },
 });
 
 // 出力例
@@ -792,7 +791,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
     </section>
   );
 };
-`
+`;
 ```
 
 ### 11.3 モーション検索（motion.search）
@@ -802,9 +801,9 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
 const results = await mcp.motion.search({
   query: "スムーズなホバーエフェクト",
   filters: {
-    trigger: "hover"
+    trigger: "hover",
   },
-  include_js_animations: true
+  include_js_animations: true,
 });
 ```
 
@@ -814,13 +813,13 @@ const results = await mcp.motion.search({
 
 ### 12.1 分析サマリー
 
-| 項目 | 値 |
-|------|-----|
-| URL | https://www.spaceandtime.io/ |
-| Title | Space and Time \| The Data Blockchain Securing Onchain Finance |
-| 分析時間 | 403,828ms（約6分47秒） |
-| CSS Framework | vanilla (confidence: 0.3) |
-| Quality Score | 88/100 (Grade B) |
+| 項目          | 値                                                             |
+| ------------- | -------------------------------------------------------------- |
+| URL           | https://www.spaceandtime.io/                                   |
+| Title         | Space and Time \| The Data Blockchain Securing Onchain Finance |
+| 分析時間      | 403,828ms（約6分47秒）                                         |
+| CSS Framework | vanilla (confidence: 0.3)                                      |
+| Quality Score | 88/100 (Grade B)                                               |
 
 ### 12.2 実際のページレイアウト（ASCII Art表現）
 
@@ -932,6 +931,7 @@ spaceandtime.ioの実際のページ構造を視覚化したものです。検�
 ```
 
 **検出されたセクション総数: 388件**
+
 - navigation: 262件（ネストされたナビゲーション要素、サブメニュー含む）
 - hero: 25件（メインヒーロー + 各セクションのヒーロー風レイアウト）
 - testimonial: 42件（顧客事例、レビュー要素）
@@ -1130,6 +1130,7 @@ spaceandtime.ioの実際のページ構造を視覚化したものです。検�
 ```
 
 **HNSW Indexの利点**:
+
 - **高速検索**: 線形検索（O(n)）に対し、O(log n)で近似最近傍探索
 - **高精度**: ef_construction=64により、真の最近傍を高確率で発見
 - **スケーラビリティ**: 数百万ベクトルでも10ms以下でクエリ可能
@@ -1138,33 +1139,33 @@ spaceandtime.ioの実際のページ構造を視覚化したものです。検�
 
 #### web_pages テーブル
 
-| カラム | 値 |
-|--------|-----|
-| id | `019ba63b-ddfe-701a-9295-6fe1d64b0d0e` |
-| url | `https://www.spaceandtime.io/` |
-| title | `Space and Time \| The Data Blockchain Securing Onchain Finance` |
-| source_type | `user_provided` |
-| usage_scope | `inspiration_only` |
+| カラム      | 値                                                               |
+| ----------- | ---------------------------------------------------------------- |
+| id          | `019ba63b-ddfe-701a-9295-6fe1d64b0d0e`                           |
+| url         | `https://www.spaceandtime.io/`                                   |
+| title       | `Space and Time \| The Data Blockchain Securing Onchain Finance` |
+| source_type | `user_provided`                                                  |
+| usage_scope | `inspiration_only`                                               |
 
 #### section_patterns テーブル（388件）
 
-| セクションタイプ | 件数 | 説明 |
-|-----------------|------|------|
-| navigation | 262 | ナビゲーション要素 |
-| testimonial | 42 | 証言・レビュー |
-| footer | 41 | フッター要素 |
-| hero | 25 | ヒーローセクション |
-| feature | 11 | 機能紹介 |
-| gallery | 5 | ギャラリー |
-| cta | 1 | CTA要素 |
-| unknown | 1 | 分類不能 |
+| セクションタイプ | 件数 | 説明               |
+| ---------------- | ---- | ------------------ |
+| navigation       | 262  | ナビゲーション要素 |
+| testimonial      | 42   | 証言・レビュー     |
+| footer           | 41   | フッター要素       |
+| hero             | 25   | ヒーローセクション |
+| feature          | 11   | 機能紹介           |
+| gallery          | 5    | ギャラリー         |
+| cta              | 1    | CTA要素            |
+| unknown          | 1    | 分類不能           |
 
 #### motion_patterns テーブル（4件）
 
-| 名前 | カテゴリ | トリガー | Duration |
-|------|---------|---------|----------|
-| transition-0 | hover_effect | hover | 5000000ms |
-| transition-1 | unknown | load | - |
+| 名前         | カテゴリ     | トリガー | Duration  |
+| ------------ | ------------ | -------- | --------- |
+| transition-0 | hover_effect | hover    | 5000000ms |
+| transition-1 | unknown      | load     | -         |
 
 #### section_embeddings テーブル（388件）
 
@@ -1202,12 +1203,12 @@ spaceandtime.ioの実際のページ構造を視覚化したものです。検�
 
 ### 12.7 品質評価結果
 
-| 軸 | スコア |
-|----|--------|
-| Originality | 100/100 |
-| Craftsmanship | 84/100 |
-| Contextuality | 78/100 |
-| **Overall** | **88/100 (Grade B)** |
+| 軸            | スコア               |
+| ------------- | -------------------- |
+| Originality   | 100/100              |
+| Craftsmanship | 84/100               |
+| Contextuality | 78/100               |
+| **Overall**   | **88/100 (Grade B)** |
 
 AIクリシェ検出: 0件（クリーン）
 
@@ -1263,19 +1264,19 @@ AIクリシェ検出: 0件（クリーン）
 
 The response includes a `visionUsed: boolean` field that accurately indicates whether Ollama Vision was actually used. Prior to v0.1.2, this returned the `layoutOptions.useVision` config value as-is; v0.1.2 fixed it to reflect actual usage.
 
-| 状況 / Scenario | `visionUsed` |
-|------|------|
-| Ollama起動中、Vision分析成功 / Ollama running, Vision analysis succeeded | `true` |
-| Ollama未起動（Graceful Degradation） / Ollama not running (Graceful Degradation) | `false` |
-| `layoutOptions.useVision: false` 指定時 / When `useVision: false` specified | `false` |
+| 状況 / Scenario                                                                  | `visionUsed` |
+| -------------------------------------------------------------------------------- | ------------ |
+| Ollama起動中、Vision分析成功 / Ollama running, Vision analysis succeeded         | `true`       |
+| Ollama未起動（Graceful Degradation） / Ollama not running (Graceful Degradation) | `false`      |
+| `layoutOptions.useVision: false` 指定時 / When `useVision: false` specified      | `false`      |
 
 ### 環境別タイムアウト動作（v0.1.2+） / Environment-specific Timeout Behavior (v0.1.2+)
 
-| 環境 / Environment | GPU検出 / GPU Detection | タイムアウト / Timeout |
-|------|------|------|
-| Apple Silicon（Metal GPU） | 自動検出 / Auto-detected | 60秒（GPU用） / 60s (GPU) |
-| NVIDIA GPU | VRAM容量ベース / VRAM-based | 60秒（GPU用） / 60s (GPU) |
-| CPU-only | N/A | `calculateEffectiveTimeout()` で自動延長（最大25分） / Auto-extended (up to 25 min) |
+| 環境 / Environment         | GPU検出 / GPU Detection     | タイムアウト / Timeout                                                              |
+| -------------------------- | --------------------------- | ----------------------------------------------------------------------------------- |
+| Apple Silicon（Metal GPU） | 自動検出 / Auto-detected    | 60秒（GPU用） / 60s (GPU)                                                           |
+| NVIDIA GPU                 | VRAM容量ベース / VRAM-based | 60秒（GPU用） / 60s (GPU)                                                           |
+| CPU-only                   | N/A                         | `calculateEffectiveTimeout()` で自動延長（最大25分） / Auto-extended (up to 25 min) |
 
 > **Apple Silicon Metal GPU検出（v0.1.2）**: macOS環境では `system_profiler SPDisplaysDataType` を使用してMetal GPUを自動検出します。検出された場合、GPU用タイムアウト（60秒）が適用されます。手動設定は不要です。
 >
@@ -1287,11 +1288,11 @@ OOM防止のため、Visionモデルは以下の3箇所で `keep_alive: "0"` に
 
 To prevent OOM, the Vision model is unloaded at 3 points via `keep_alive: "0"`. Frees ~10.6GB on CPU-only (16GB RAM). Idempotent (no-op when not loaded).
 
-| アンロードポイント / Unload Point | 目的 / Purpose |
-|------|------|
-| Phase 2（Layout Analysis）完了後 / After Phase 2 | Phase 3 Readiness Probe の VRAM 閾値クリア / Clear Phase 3 Readiness Probe VRAM threshold |
-| Phase 2.5（ScrollVision分析）完了後 / After Phase 2.5 | ナラティブ分析でのメモリ圧迫防止 / Prevent memory pressure in narrative analysis |
-| Phase 4（Narrative）完了後 / After Phase 4 | Phase 7（Embedding生成）での OOM 防止 / Prevent OOM in Phase 7 (Embedding generation) |
+| アンロードポイント / Unload Point                     | 目的 / Purpose                                                                            |
+| ----------------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| Phase 2（Layout Analysis）完了後 / After Phase 2      | Phase 3 Readiness Probe の VRAM 閾値クリア / Clear Phase 3 Readiness Probe VRAM threshold |
+| Phase 2.5（ScrollVision分析）完了後 / After Phase 2.5 | ナラティブ分析でのメモリ圧迫防止 / Prevent memory pressure in narrative analysis          |
+| Phase 4（Narrative）完了後 / After Phase 4            | Phase 7（Embedding生成）での OOM 防止 / Prevent OOM in Phase 7 (Embedding generation)     |
 
 ---
 

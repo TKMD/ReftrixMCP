@@ -15,8 +15,8 @@
  * @module @reftrix/mcp-server/services/section-screenshot.service
  */
 
-import sharp from 'sharp';
-import { createLogger, type ILogger } from '../utils/logger';
+import sharp from "sharp";
+import { createLogger, type ILogger } from "../utils/logger";
 
 // ============================================================================
 // 型定義
@@ -81,7 +81,7 @@ export interface MultiSectionResult {
  */
 export interface SectionScreenshotOptions {
   /** 出力フォーマット（デフォルト: png） */
-  format?: 'png' | 'jpeg' | 'webp';
+  format?: "png" | "jpeg" | "webp";
   /** JPEG/WebP品質（1-100、デフォルト: 90） */
   quality?: number;
   /** 並列処理の最大同時実行数（デフォルト: 5） */
@@ -92,11 +92,11 @@ export interface SectionScreenshotOptions {
  * エラーコード
  */
 export type SectionScreenshotErrorCode =
-  | 'INVALID_INPUT'
-  | 'INVALID_BOUNDS'
-  | 'OUT_OF_BOUNDS'
-  | 'EXTRACTION_FAILED'
-  | 'IMAGE_PROCESSING_ERROR';
+  | "INVALID_INPUT"
+  | "INVALID_BOUNDS"
+  | "OUT_OF_BOUNDS"
+  | "EXTRACTION_FAILED"
+  | "IMAGE_PROCESSING_ERROR";
 
 // ============================================================================
 // エラークラス
@@ -115,7 +115,7 @@ export class SectionScreenshotServiceError extends Error {
     details?: Record<string, unknown>
   ) {
     super(message);
-    this.name = 'SectionScreenshotServiceError';
+    this.name = "SectionScreenshotServiceError";
     this.code = code;
     this.details = details;
   }
@@ -126,7 +126,7 @@ export class SectionScreenshotServiceError extends Error {
 // ============================================================================
 
 const DEFAULT_OPTIONS: Required<SectionScreenshotOptions> = {
-  format: 'png',
+  format: "png",
   quality: 90,
   maxConcurrency: 5,
 };
@@ -168,14 +168,14 @@ export class SectionScreenshotService {
    * @param options - サービスオプション
    */
   constructor(options: SectionScreenshotOptions = {}) {
-    this.logger = createLogger('SectionScreenshot');
+    this.logger = createLogger("SectionScreenshot");
     this.options = {
       format: options.format ?? DEFAULT_OPTIONS.format,
       quality: options.quality ?? DEFAULT_OPTIONS.quality,
       maxConcurrency: options.maxConcurrency ?? DEFAULT_OPTIONS.maxConcurrency,
     };
 
-    this.logger.debug('Service initialized', {
+    this.logger.debug("Service initialized", {
       format: this.options.format,
       quality: this.options.quality,
       maxConcurrency: this.options.maxConcurrency,
@@ -202,7 +202,7 @@ export class SectionScreenshotService {
     sectionId: string,
     options?: SectionScreenshotOptions
   ): Promise<SectionScreenshotResult> {
-    this.logger.debug('extractSection called', {
+    this.logger.debug("extractSection called", {
       sectionId,
       bounds,
     });
@@ -229,7 +229,7 @@ export class SectionScreenshotService {
       options
     );
 
-    this.logger.debug('extractSection completed', {
+    this.logger.debug("extractSection completed", {
       sectionId,
       width: result.width,
       height: result.height,
@@ -252,7 +252,7 @@ export class SectionScreenshotService {
     sections: Array<{ id: string; bounds: SectionBounds }>,
     options?: SectionScreenshotOptions
   ): Promise<MultiSectionResult> {
-    this.logger.debug('extractMultipleSections called', {
+    this.logger.debug("extractMultipleSections called", {
       sectionCount: sections.length,
     });
 
@@ -261,23 +261,18 @@ export class SectionScreenshotService {
     }
 
     // 入力バリデーション
-    this.validateInput(fullPageBase64, 'batch');
+    this.validateInput(fullPageBase64, "batch");
 
     // Base64をBufferに変換（一度だけ）
     const imageBuffer = this.base64ToBuffer(fullPageBase64);
 
     // 画像メタデータを取得（一度だけ）
-    const metadata = await this.getImageMetadata(imageBuffer, 'batch');
+    const metadata = await this.getImageMetadata(imageBuffer, "batch");
 
     // 並列処理の実行
-    const results = await this.processInBatches(
-      sections,
-      imageBuffer,
-      metadata,
-      options
-    );
+    const results = await this.processInBatches(sections, imageBuffer, metadata, options);
 
-    this.logger.debug('extractMultipleSections completed', {
+    this.logger.debug("extractMultipleSections completed", {
       successCount: results.successes.length,
       errorCount: results.errors.length,
     });
@@ -293,24 +288,22 @@ export class SectionScreenshotService {
    * 入力のバリデーション
    */
   private validateInput(fullPageBase64: string, sectionId: string): void {
-    if (!fullPageBase64 || typeof fullPageBase64 !== 'string') {
+    if (!fullPageBase64 || typeof fullPageBase64 !== "string") {
       throw new SectionScreenshotServiceError(
-        'INVALID_INPUT',
-        'fullPageBase64 must be a non-empty string',
+        "INVALID_INPUT",
+        "fullPageBase64 must be a non-empty string",
         { sectionId }
       );
     }
 
     // Base64の基本形式チェック
     // data:image/... プレフィックスがある場合は除去
-    const base64Data = fullPageBase64.includes(',')
-      ? fullPageBase64.split(',')[1]
-      : fullPageBase64;
+    const base64Data = fullPageBase64.includes(",") ? fullPageBase64.split(",")[1] : fullPageBase64;
 
     if (!base64Data || base64Data.length === 0) {
       throw new SectionScreenshotServiceError(
-        'INVALID_INPUT',
-        'Invalid Base64 data: empty after removing prefix',
+        "INVALID_INPUT",
+        "Invalid Base64 data: empty after removing prefix",
         { sectionId }
       );
     }
@@ -322,7 +315,7 @@ export class SectionScreenshotService {
   private validateBounds(bounds: SectionBounds, sectionId: string): void {
     if (bounds.startY < 0) {
       throw new SectionScreenshotServiceError(
-        'INVALID_BOUNDS',
+        "INVALID_BOUNDS",
         `startY must be >= 0, got ${bounds.startY}`,
         { sectionId, bounds }
       );
@@ -330,7 +323,7 @@ export class SectionScreenshotService {
 
     if (bounds.endY <= bounds.startY) {
       throw new SectionScreenshotServiceError(
-        'INVALID_BOUNDS',
+        "INVALID_BOUNDS",
         `endY (${bounds.endY}) must be greater than startY (${bounds.startY})`,
         { sectionId, bounds }
       );
@@ -338,7 +331,7 @@ export class SectionScreenshotService {
 
     if (bounds.height <= 0) {
       throw new SectionScreenshotServiceError(
-        'INVALID_BOUNDS',
+        "INVALID_BOUNDS",
         `height must be > 0, got ${bounds.height}`,
         { sectionId, bounds }
       );
@@ -348,7 +341,7 @@ export class SectionScreenshotService {
     const calculatedHeight = bounds.endY - bounds.startY;
     if (Math.abs(calculatedHeight - bounds.height) > 1) {
       // 1ピクセルの許容誤差
-      this.logger.warn('Height mismatch detected, using calculated height', {
+      this.logger.warn("Height mismatch detected, using calculated height", {
         sectionId,
         providedHeight: bounds.height,
         calculatedHeight,
@@ -366,7 +359,7 @@ export class SectionScreenshotService {
   ): void {
     if (bounds.startY >= imageHeight) {
       throw new SectionScreenshotServiceError(
-        'OUT_OF_BOUNDS',
+        "OUT_OF_BOUNDS",
         `startY (${bounds.startY}) is outside image height (${imageHeight})`,
         { sectionId, bounds, imageHeight }
       );
@@ -374,7 +367,7 @@ export class SectionScreenshotService {
 
     if (bounds.endY > imageHeight) {
       throw new SectionScreenshotServiceError(
-        'OUT_OF_BOUNDS',
+        "OUT_OF_BOUNDS",
         `endY (${bounds.endY}) exceeds image height (${imageHeight})`,
         { sectionId, bounds, imageHeight }
       );
@@ -390,16 +383,14 @@ export class SectionScreenshotService {
    */
   private base64ToBuffer(base64String: string): Buffer {
     // data:image/... プレフィックスがある場合は除去
-    const base64Data = base64String.includes(',')
-      ? base64String.split(',')[1]
-      : base64String;
+    const base64Data = base64String.includes(",") ? base64String.split(",")[1] : base64String;
 
     try {
-      return Buffer.from(base64Data!, 'base64');
+      return Buffer.from(base64Data!, "base64");
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Unknown error';
+      const message = error instanceof Error ? error.message : "Unknown error";
       throw new SectionScreenshotServiceError(
-        'INVALID_INPUT',
+        "INVALID_INPUT",
         `Failed to decode Base64: ${message}`,
         { originalError: message }
       );
@@ -418,8 +409,8 @@ export class SectionScreenshotService {
 
       if (!metadata.width || !metadata.height) {
         throw new SectionScreenshotServiceError(
-          'IMAGE_PROCESSING_ERROR',
-          'Could not determine image dimensions',
+          "IMAGE_PROCESSING_ERROR",
+          "Could not determine image dimensions",
           { sectionId }
         );
       }
@@ -432,9 +423,9 @@ export class SectionScreenshotService {
       if (error instanceof SectionScreenshotServiceError) {
         throw error;
       }
-      const message = error instanceof Error ? error.message : 'Unknown error';
+      const message = error instanceof Error ? error.message : "Unknown error";
       throw new SectionScreenshotServiceError(
-        'IMAGE_PROCESSING_ERROR',
+        "IMAGE_PROCESSING_ERROR",
         `Failed to read image metadata: ${message}`,
         { sectionId, originalError: message }
       );
@@ -468,28 +459,24 @@ export class SectionScreenshotService {
 
       // フォーマット変換
       switch (format) {
-        case 'jpeg':
+        case "jpeg":
           sharpInstance = sharpInstance.jpeg({ quality });
           break;
-        case 'webp':
+        case "webp":
           sharpInstance = sharpInstance.webp({ quality });
           break;
-        case 'png':
+        case "png":
         default:
           sharpInstance = sharpInstance.png();
           break;
       }
 
       const outputBuffer = await sharpInstance.toBuffer();
-      const base64Output = outputBuffer.toString('base64');
+      const base64Output = outputBuffer.toString("base64");
 
       // data URIプレフィックスを付与
       const mimeType =
-        format === 'jpeg'
-          ? 'image/jpeg'
-          : format === 'webp'
-            ? 'image/webp'
-            : 'image/png';
+        format === "jpeg" ? "image/jpeg" : format === "webp" ? "image/webp" : "image/png";
       const base64WithPrefix = `data:${mimeType};base64,${base64Output}`;
 
       return {
@@ -501,9 +488,9 @@ export class SectionScreenshotService {
         height: extractHeight,
       };
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Unknown error';
+      const message = error instanceof Error ? error.message : "Unknown error";
       throw new SectionScreenshotServiceError(
-        'EXTRACTION_FAILED',
+        "EXTRACTION_FAILED",
         `Failed to extract section: ${message}`,
         { sectionId, bounds, originalError: message }
       );
@@ -522,8 +509,7 @@ export class SectionScreenshotService {
     const successes: SectionScreenshotResult[] = [];
     const errors: SectionScreenshotError[] = [];
 
-    const maxConcurrency =
-      options?.maxConcurrency ?? this.options.maxConcurrency;
+    const maxConcurrency = options?.maxConcurrency ?? this.options.maxConcurrency;
 
     // バッチに分割して処理
     for (let i = 0; i < sections.length; i += maxConcurrency) {
@@ -533,11 +519,7 @@ export class SectionScreenshotService {
         try {
           // 境界バリデーション
           this.validateBounds(section.bounds, section.id);
-          this.validateBoundsAgainstImage(
-            section.bounds,
-            metadata.height,
-            section.id
-          );
+          this.validateBoundsAgainstImage(section.bounds, metadata.height, section.id);
 
           // 切り出し
           const result = await this.extractFromBuffer(
@@ -572,10 +554,7 @@ export class SectionScreenshotService {
   /**
    * エラー情報を作成
    */
-  private createErrorInfo(
-    sectionId: string,
-    error: unknown
-  ): SectionScreenshotError {
+  private createErrorInfo(sectionId: string, error: unknown): SectionScreenshotError {
     if (error instanceof SectionScreenshotServiceError) {
       return {
         sectionId,
@@ -585,10 +564,10 @@ export class SectionScreenshotService {
       };
     }
 
-    const message = error instanceof Error ? error.message : 'Unknown error';
+    const message = error instanceof Error ? error.message : "Unknown error";
     return {
       sectionId,
-      errorCode: 'EXTRACTION_FAILED',
+      errorCode: "EXTRACTION_FAILED",
       errorMessage: message,
       details: { originalError: message },
     };

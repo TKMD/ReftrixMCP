@@ -15,22 +15,22 @@
  * - 成功: { success: true, data: {...}, metadata: { request_id, ... } }
  * - エラー: { success: false, error: { code, message }, metadata: { request_id, ... } }
  */
-import { ZodError } from 'zod';
+import { ZodError } from "zod";
 import {
   projectGetInputSchema,
   type ProjectGetInput,
   type ProjectGetOutput,
   type ProjectGetSummaryOutput,
-} from './schemas/project-schemas';
-import { serviceClient } from '../services/service-client';
-import { logger, isDevelopment } from '../utils/logger';
-import { ErrorCode } from '../utils/errors';
+} from "./schemas/project-schemas";
+import { serviceClient } from "../services/service-client";
+import { logger, isDevelopment } from "../utils/logger";
+import { ErrorCode } from "../utils/errors";
 import {
   type McpResponse,
   generateRequestId,
   createSuccessResponseWithRequestId,
   createErrorResponseWithRequestId,
-} from '../utils/mcp-response';
+} from "../utils/mcp-response";
 
 /** project.get ハンドラーの戻り値型 */
 export type ProjectGetResponse = McpResponse<ProjectGetOutput | ProjectGetSummaryOutput>;
@@ -41,17 +41,15 @@ export type ProjectGetResponse = McpResponse<ProjectGetOutput | ProjectGetSummar
  * @param input - 取得入力パラメータ
  * @returns 統一レスポンス形式（success: true/false + data/error + metadata.request_id）
  */
-export async function projectGetHandler(
-  input: unknown
-): Promise<ProjectGetResponse> {
+export async function projectGetHandler(input: unknown): Promise<ProjectGetResponse> {
   // router.tsから注入された_request_idを使用、フォールバックとして自動生成
   const requestId =
-    (input as Record<string, unknown> | null)?._request_id as string | undefined ??
+    ((input as Record<string, unknown> | null)?._request_id as string | undefined) ??
     generateRequestId();
 
   // 開発環境でのログ出力
   if (isDevelopment()) {
-    logger.info('[MCP Tool] project.get called', { input, requestId });
+    logger.info("[MCP Tool] project.get called", { input, requestId });
   }
 
   // 入力バリデーション
@@ -60,12 +58,10 @@ export async function projectGetHandler(
     validated = projectGetInputSchema.parse(input);
   } catch (error) {
     if (error instanceof ZodError) {
-      const errorMessage = error.errors
-        .map((e) => `${e.path.join('.')}: ${e.message}`)
-        .join(', ');
+      const errorMessage = error.errors.map((e) => `${e.path.join(".")}: ${e.message}`).join(", ");
 
       if (isDevelopment()) {
-        logger.error('[MCP Tool] project.get validation error', {
+        logger.error("[MCP Tool] project.get validation error", {
           errors: error.errors,
           requestId,
         });
@@ -81,7 +77,7 @@ export async function projectGetHandler(
     // 予期せぬエラー
     return createErrorResponseWithRequestId(
       ErrorCode.INTERNAL_ERROR,
-      '入力処理中に予期せぬエラーが発生しました',
+      "入力処理中に予期せぬエラーが発生しました",
       requestId
     );
   }
@@ -93,7 +89,7 @@ export async function projectGetHandler(
     // 存在しないIDの場合（ServiceClientでnullを返す）
     if (result === null) {
       if (isDevelopment()) {
-        logger.warn('[MCP Tool] project.get - Project not found', {
+        logger.warn("[MCP Tool] project.get - Project not found", {
           id: validated.id,
           requestId,
         });
@@ -107,7 +103,7 @@ export async function projectGetHandler(
     }
 
     if (isDevelopment()) {
-      logger.info('[MCP Tool] project.get completed', {
+      logger.info("[MCP Tool] project.get completed", {
         id: validated.id,
         name: result.name,
         summary: validated.summary,
@@ -125,7 +121,7 @@ export async function projectGetHandler(
       };
 
       if (isDevelopment()) {
-        logger.info('[MCP Tool] project.get returning summary response', {
+        logger.info("[MCP Tool] project.get returning summary response", {
           id: result.id,
           requestId,
         });
@@ -149,21 +145,17 @@ export async function projectGetHandler(
     return createSuccessResponseWithRequestId(fullData, requestId);
   } catch (error) {
     if (isDevelopment()) {
-      logger.error('[MCP Tool] project.get API error', { error, requestId });
+      logger.error("[MCP Tool] project.get API error", { error, requestId });
     }
 
     // 認証エラーのチェック
-    if (error instanceof Error && error.message.includes('UNAUTHORIZED')) {
-      return createErrorResponseWithRequestId(
-        ErrorCode.UNAUTHORIZED,
-        '認証が必要です',
-        requestId
-      );
+    if (error instanceof Error && error.message.includes("UNAUTHORIZED")) {
+      return createErrorResponseWithRequestId(ErrorCode.UNAUTHORIZED, "認証が必要です", requestId);
     }
 
     return createErrorResponseWithRequestId(
       ErrorCode.INTERNAL_ERROR,
-      'プロジェクト取得中にエラーが発生しました',
+      "プロジェクト取得中にエラーが発生しました",
       requestId,
       error instanceof Error ? error.message : undefined
     );
@@ -175,29 +167,28 @@ export async function projectGetHandler(
  * MCP Protocol用のツール定義オブジェクト
  */
 export const projectGetToolDefinition = {
-  name: 'project.get',
-  description: 'Get project details by ID.',
+  name: "project.get",
+  description: "Get project details by ID.",
   annotations: {
-    title: 'Project Get',
+    title: "Project Get",
     readOnlyHint: true,
     idempotentHint: true,
     openWorldHint: false,
   },
   inputSchema: {
-    type: 'object' as const,
+    type: "object" as const,
     properties: {
       id: {
-        type: 'string',
-        format: 'uuid',
-        description: 'Project ID (UUID)',
+        type: "string",
+        format: "uuid",
+        description: "Project ID (UUID)",
       },
       summary: {
-        type: 'boolean',
-        description:
-          'Lightweight mode: returns id, name, status only (default: true)',
+        type: "boolean",
+        description: "Lightweight mode: returns id, name, status only (default: true)",
         default: true,
       },
     },
-    required: ['id'],
+    required: ["id"],
   },
 };

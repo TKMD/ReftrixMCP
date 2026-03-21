@@ -8,7 +8,7 @@
  * 代替ツールへの移行を促すための機能を提供します。
  */
 
-import { isDevelopment } from './logger';
+import { isDevelopment } from "./logger";
 
 // =============================================================================
 // 型定義
@@ -30,16 +30,6 @@ export interface DeprecationWarning {
   message: string;
 }
 
-/**
- * 非推奨警告を含むレスポンスの型定義
- */
-export interface DeprecatedToolResponse<T> {
-  /** 実際のレスポンスデータ */
-  data: T;
-  /** 非推奨警告 */
-  deprecation_warning: DeprecationWarning;
-}
-
 // =============================================================================
 // 定数
 // =============================================================================
@@ -47,12 +37,12 @@ export interface DeprecatedToolResponse<T> {
 /**
  * 移行ガイドのベースURL
  */
-const MIGRATION_GUIDE_BASE_URL = 'https://docs.reftrix.dev/docs/migration';
+const MIGRATION_GUIDE_BASE_URL = "https://docs.reftrix.dev/docs/migration";
 
 /**
  * デフォルトの削除予定バージョン
  */
-const DEFAULT_REMOVAL_VERSION = 'v1.0.0';
+const DEFAULT_REMOVAL_VERSION = "v1.0.0";
 
 // =============================================================================
 // ヘルパー関数
@@ -92,7 +82,7 @@ export function createDeprecationWarning(
 export function logDeprecationWarning(warning: DeprecationWarning): void {
   // 開発環境でのみログ出力
   if (isDevelopment()) {
-    console.warn('[MCP] DEPRECATION', {
+    console.warn("[MCP] DEPRECATION", {
       tool: warning.deprecated_tool,
       replacement: warning.replacement,
       removal_version: warning.removal_version,
@@ -111,16 +101,6 @@ export function logDeprecationWarning(warning: DeprecationWarning): void {
  * @param warning - 非推奨警告オブジェクト
  * @returns 非推奨警告を含むレスポンス
  */
-export function wrapResponseWithDeprecation<T>(
-  data: T,
-  warning: DeprecationWarning
-): DeprecatedToolResponse<T> {
-  return {
-    data,
-    deprecation_warning: warning,
-  };
-}
-
 // =============================================================================
 // 低使用率ツール用非推奨警告
 // =============================================================================
@@ -129,15 +109,13 @@ export function wrapResponseWithDeprecation<T>(
  * 低使用率ツールの非推奨情報
  * WebDesign専用ツール
  */
-const LOW_USAGE_TOOL_DEPRECATIONS: Record<
-  string,
-  { replacement: string; migrationPath: string }
-> = {
-  'quality.batch_evaluate': {
-    replacement: 'Loop with quality.evaluate',
-    migrationPath: 'quality-batch',
-  },
-};
+const LOW_USAGE_TOOL_DEPRECATIONS: Record<string, { replacement: string; migrationPath: string }> =
+  {
+    "quality.batch_evaluate": {
+      replacement: "Loop with quality.evaluate",
+      migrationPath: "quality-batch",
+    },
+  };
 
 /**
  * 低使用率ツール用の非推奨警告を作成する
@@ -148,9 +126,7 @@ const LOW_USAGE_TOOL_DEPRECATIONS: Record<
  * @returns 非推奨警告オブジェクト
  * @throws Error ツール名が未登録の場合
  */
-export function createLowUsageToolDeprecationWarning(
-  toolName: string
-): DeprecationWarning {
+export function createLowUsageToolDeprecationWarning(toolName: string): DeprecationWarning {
   const info = LOW_USAGE_TOOL_DEPRECATIONS[toolName];
 
   if (!info) {

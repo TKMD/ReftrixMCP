@@ -13,11 +13,8 @@
  * @module services/quality/pattern-matcher.service
  */
 
-import { isDevelopment, logger } from '../../utils/logger';
-import {
-  validateEmbeddingVector,
-  EmbeddingValidationError,
-} from '../embedding-validation.service';
+import { isDevelopment, logger } from "../../utils/logger";
+import { validateEmbeddingVector, EmbeddingValidationError } from "../embedding-validation.service";
 
 // =====================================================
 // Constants
@@ -168,10 +165,7 @@ export interface IPatternMatcherService {
    * @param sectionType - Optional section type filter
    * @returns Uniqueness score (0-1, higher = more unique)
    */
-  calculateUniquenessScore(
-    embedding: number[],
-    sectionType?: string
-  ): Promise<number>;
+  calculateUniquenessScore(embedding: number[], sectionType?: string): Promise<number>;
 
   /**
    * Compare two patterns and return similarity metrics
@@ -179,10 +173,7 @@ export interface IPatternMatcherService {
    * @param embeddingB - Second embedding vector
    * @returns Pattern comparison result
    */
-  comparePatterns(
-    embeddingA: number[],
-    embeddingB: number[]
-  ): PatternComparison;
+  comparePatterns(embeddingA: number[], embeddingB: number[]): PatternComparison;
 }
 
 // =====================================================
@@ -236,9 +227,7 @@ let prismaClientFactory: (() => IPrismaClient) | null = null;
 /**
  * Set PrismaClient factory for DI
  */
-export function setPatternMatcherPrismaClientFactory(
-  factory: () => IPrismaClient
-): void {
+export function setPatternMatcherPrismaClientFactory(factory: () => IPrismaClient): void {
   prismaClientFactory = factory;
 }
 
@@ -292,22 +281,22 @@ function calculateCosineSimilarity(a: number[], b: number[]): number {
  * @returns Overall score (0-100) or undefined
  */
 function extractOverallQualityScore(qualityScore: unknown): number | undefined {
-  if (!qualityScore || typeof qualityScore !== 'object') {
+  if (!qualityScore || typeof qualityScore !== "object") {
     return undefined;
   }
 
   const qs = qualityScore as Record<string, unknown>;
 
   // Try anti_ai_cliche.overall first
-  if (qs.anti_ai_cliche && typeof qs.anti_ai_cliche === 'object') {
+  if (qs.anti_ai_cliche && typeof qs.anti_ai_cliche === "object") {
     const antiAi = qs.anti_ai_cliche as Record<string, unknown>;
-    if (typeof antiAi.overall === 'number') {
+    if (typeof antiAi.overall === "number") {
       return antiAi.overall;
     }
   }
 
   // Try overall directly
-  if (typeof qs.overall === 'number') {
+  if (typeof qs.overall === "number") {
     return qs.overall;
   }
 
@@ -323,29 +312,34 @@ function parseHtmlToText(html: string): string {
   const parts: string[] = [];
 
   // Extract tag structure hints
-  const tagMatches = html.match(/<(section|header|footer|nav|main|article|aside|div)[^>]*class="([^"]*)"[^>]*>/gi);
+  const tagMatches = html.match(
+    /<(section|header|footer|nav|main|article|aside|div)[^>]*class="([^"]*)"[^>]*>/gi
+  );
   if (tagMatches) {
     const classNames = new Set<string>();
     for (const match of tagMatches) {
       const classMatch = match.match(/class="([^"]*)"/i);
       if (classMatch?.[1]) {
         // Extract meaningful class names (skip utility classes)
-        const classes = classMatch[1].split(/\s+/).filter(c =>
-          c.length > 3 &&
-          !c.startsWith('flex') &&
-          !c.startsWith('grid') &&
-          !c.startsWith('p-') &&
-          !c.startsWith('m-') &&
-          !c.startsWith('w-') &&
-          !c.startsWith('h-') &&
-          !c.startsWith('text-') &&
-          !c.startsWith('bg-')
-        );
-        classes.forEach(c => classNames.add(c));
+        const classes = classMatch[1]
+          .split(/\s+/)
+          .filter(
+            (c) =>
+              c.length > 3 &&
+              !c.startsWith("flex") &&
+              !c.startsWith("grid") &&
+              !c.startsWith("p-") &&
+              !c.startsWith("m-") &&
+              !c.startsWith("w-") &&
+              !c.startsWith("h-") &&
+              !c.startsWith("text-") &&
+              !c.startsWith("bg-")
+          );
+        classes.forEach((c) => classNames.add(c));
       }
     }
     if (classNames.size > 0) {
-      parts.push(`Structure: ${Array.from(classNames).slice(0, 10).join(', ')}`);
+      parts.push(`Structure: ${Array.from(classNames).slice(0, 10).join(", ")}`);
     }
   }
 
@@ -360,7 +354,7 @@ function parseHtmlToText(html: string): string {
       }
     }
     if (ariaLabels.length > 0) {
-      parts.push(`Accessibility: ${ariaLabels.slice(0, 5).join(', ')}`);
+      parts.push(`Accessibility: ${ariaLabels.slice(0, 5).join(", ")}`);
     }
   }
 
@@ -370,13 +364,13 @@ function parseHtmlToText(html: string): string {
     const headings: string[] = [];
     for (const match of headingMatches) {
       // Remove tags and trim
-      const text = match.replace(/<[^>]*>/g, '').trim();
+      const text = match.replace(/<[^>]*>/g, "").trim();
       if (text.length > 0 && text.length < 200) {
         headings.push(text);
       }
     }
     if (headings.length > 0) {
-      parts.push(`Headings: ${headings.slice(0, 5).join(', ')}`);
+      parts.push(`Headings: ${headings.slice(0, 5).join(", ")}`);
     }
   }
 
@@ -385,13 +379,13 @@ function parseHtmlToText(html: string): string {
   if (buttonMatches) {
     const buttons: string[] = [];
     for (const match of buttonMatches) {
-      const text = match.replace(/<[^>]*>/g, '').trim();
+      const text = match.replace(/<[^>]*>/g, "").trim();
       if (text.length > 0 && text.length < 100) {
         buttons.push(text);
       }
     }
     if (buttons.length > 0) {
-      parts.push(`Buttons: ${buttons.slice(0, 5).join(', ')}`);
+      parts.push(`Buttons: ${buttons.slice(0, 5).join(", ")}`);
     }
   }
 
@@ -400,13 +394,13 @@ function parseHtmlToText(html: string): string {
   if (anchorMatches) {
     const links: string[] = [];
     for (const match of anchorMatches) {
-      const text = match.replace(/<[^>]*>/g, '').trim();
+      const text = match.replace(/<[^>]*>/g, "").trim();
       if (text.length > 0 && text.length < 100) {
         links.push(text);
       }
     }
     if (links.length > 0) {
-      parts.push(`Links: ${links.slice(0, 5).join(', ')}`);
+      parts.push(`Links: ${links.slice(0, 5).join(", ")}`);
     }
   }
 
@@ -415,13 +409,13 @@ function parseHtmlToText(html: string): string {
   if (paragraphMatches) {
     const paragraphs: string[] = [];
     for (const match of paragraphMatches) {
-      const text = match.replace(/<[^>]*>/g, '').trim();
+      const text = match.replace(/<[^>]*>/g, "").trim();
       if (text.length > 10 && text.length < 500) {
         paragraphs.push(text);
       }
     }
     if (paragraphs.length > 0) {
-      const combined = paragraphs.slice(0, 3).join(' ').substring(0, 500);
+      const combined = paragraphs.slice(0, 3).join(" ").substring(0, 500);
       parts.push(`Content: ${combined}`);
     }
   }
@@ -437,12 +431,12 @@ function parseHtmlToText(html: string): string {
       }
     }
     if (altTexts.length > 0) {
-      parts.push(`Images: ${altTexts.slice(0, 5).join(', ')}`);
+      parts.push(`Images: ${altTexts.slice(0, 5).join(", ")}`);
     }
   }
 
   // Join all parts
-  return parts.join('. ') + '.';
+  return parts.join(". ") + ".";
 }
 
 // =====================================================
@@ -468,7 +462,7 @@ export class PatternMatcherService implements IPatternMatcherService {
       return this.prismaClient;
     }
 
-    throw new Error('PrismaClient not initialized. Use setPatternMatcherPrismaClientFactory.');
+    throw new Error("PrismaClient not initialized. Use setPatternMatcherPrismaClientFactory.");
   }
 
   /**
@@ -479,9 +473,10 @@ export class PatternMatcherService implements IPatternMatcherService {
     const validation = validateEmbeddingVector(embedding);
     if (!validation.isValid) {
       const error = validation.error;
-      const errorMessage = error?.index !== undefined
-        ? `${error.message} at index ${error.index}`
-        : error?.message ?? 'Unknown validation error';
+      const errorMessage =
+        error?.index !== undefined
+          ? `${error.message} at index ${error.index}`
+          : (error?.message ?? "Unknown validation error");
 
       if (isDevelopment()) {
         logger.error(`[PatternMatcher] Embedding validation failed: ${context}`, {
@@ -491,7 +486,7 @@ export class PatternMatcherService implements IPatternMatcherService {
       }
 
       throw new EmbeddingValidationError(
-        error?.code ?? 'INVALID_VECTOR',
+        error?.code ?? "INVALID_VECTOR",
         errorMessage,
         error?.index
       );
@@ -502,12 +497,12 @@ export class PatternMatcherService implements IPatternMatcherService {
    * Extract text representation from HTML for embedding
    */
   extractTextRepresentation(html: string): string {
-    if (!html || typeof html !== 'string') {
-      return '';
+    if (!html || typeof html !== "string") {
+      return "";
     }
 
     if (isDevelopment()) {
-      logger.info('[PatternMatcher] Extracting text representation', {
+      logger.info("[PatternMatcher] Extracting text representation", {
         htmlLength: html.length,
       });
     }
@@ -515,7 +510,7 @@ export class PatternMatcherService implements IPatternMatcherService {
     const textRepresentation = parseHtmlToText(html);
 
     if (isDevelopment()) {
-      logger.info('[PatternMatcher] Text representation extracted', {
+      logger.info("[PatternMatcher] Text representation extracted", {
         textLength: textRepresentation.length,
       });
     }
@@ -533,14 +528,14 @@ export class PatternMatcherService implements IPatternMatcherService {
     const startTime = Date.now();
 
     if (isDevelopment()) {
-      logger.info('[PatternMatcher] Finding similar section patterns', {
+      logger.info("[PatternMatcher] Finding similar section patterns", {
         embeddingDimensions: embedding.length,
         options,
       });
     }
 
     // Validate embedding
-    this.validateEmbedding(embedding, 'findSimilarSectionPatterns');
+    this.validateEmbedding(embedding, "findSimilarSectionPatterns");
 
     const {
       sectionType,
@@ -556,19 +551,19 @@ export class PatternMatcherService implements IPatternMatcherService {
       prisma = this.getPrismaClient();
     } catch {
       if (isDevelopment()) {
-        logger.warn('[PatternMatcher] PrismaClient not available, returning empty results');
+        logger.warn("[PatternMatcher] PrismaClient not available, returning empty results");
       }
       return [];
     }
 
     try {
       // Build WHERE conditions
-      const conditions: string[] = ['se.text_embedding IS NOT NULL'];
+      const conditions: string[] = ["se.text_embedding IS NOT NULL"];
       const params: unknown[] = [];
       let paramIndex = 1;
 
       // Minimum similarity filter (vector distance)
-      const vectorString = `[${embedding.join(',')}]`;
+      const vectorString = `[${embedding.join(",")}]`;
       conditions.push(`1 - (se.text_embedding <=> $${paramIndex}::vector) >= $${paramIndex + 1}`);
       params.push(vectorString, minSimilarity);
       paramIndex += 2;
@@ -582,7 +577,7 @@ export class PatternMatcherService implements IPatternMatcherService {
 
       // Exclude IDs filter
       if (excludeIds.length > 0) {
-        conditions.push(`sp.id NOT IN (${excludeIds.map(() => `$${paramIndex++}`).join(', ')})`);
+        conditions.push(`sp.id NOT IN (${excludeIds.map(() => `$${paramIndex++}`).join(", ")})`);
         params.push(...excludeIds);
       }
 
@@ -593,28 +588,28 @@ export class PatternMatcherService implements IPatternMatcherService {
         paramIndex++;
       }
 
-      const whereClause = conditions.join(' AND ');
+      const whereClause = conditions.join(" AND ");
 
       // Build SELECT columns
       const selectColumns = [
-        'sp.id',
-        'sp.web_page_id',
-        'sp.section_type',
+        "sp.id",
+        "sp.web_page_id",
+        "sp.section_type",
         `1 - (se.text_embedding <=> $1::vector) as similarity`,
-        'sp.quality_score',
-        'wp.url as source_url',
+        "sp.quality_score",
+        "wp.url as source_url",
       ];
 
       if (includeHtml) {
-        selectColumns.push('sp.html_snippet');
+        selectColumns.push("sp.html_snippet");
       } else {
-        selectColumns.push('NULL as html_snippet');
+        selectColumns.push("NULL as html_snippet");
       }
 
       // Vector search query with JOIN
       const query = `
         SELECT
-          ${selectColumns.join(',\n          ')}
+          ${selectColumns.join(",\n          ")}
         FROM section_patterns sp
         LEFT JOIN section_embeddings se ON se.section_pattern_id = sp.id
         LEFT JOIN web_pages wp ON wp.id = sp.web_page_id
@@ -625,10 +620,7 @@ export class PatternMatcherService implements IPatternMatcherService {
 
       params.push(limit);
 
-      const results = await prisma.$queryRawUnsafe<SectionPatternDbResult[]>(
-        query,
-        ...params
-      );
+      const results = await prisma.$queryRawUnsafe<SectionPatternDbResult[]>(query, ...params);
 
       // Map results
       const matches: SectionPatternMatch[] = results.map((r) => {
@@ -658,7 +650,7 @@ export class PatternMatcherService implements IPatternMatcherService {
       const processingTimeMs = Date.now() - startTime;
 
       if (isDevelopment()) {
-        logger.info('[PatternMatcher] Section pattern search completed', {
+        logger.info("[PatternMatcher] Section pattern search completed", {
           resultsCount: matches.length,
           processingTimeMs,
         });
@@ -667,8 +659,8 @@ export class PatternMatcherService implements IPatternMatcherService {
       return matches;
     } catch (error) {
       if (isDevelopment()) {
-        logger.error('[PatternMatcher] Section pattern search failed', {
-          error: error instanceof Error ? error.message : 'Unknown error',
+        logger.error("[PatternMatcher] Section pattern search failed", {
+          error: error instanceof Error ? error.message : "Unknown error",
         });
       }
       throw error;
@@ -685,14 +677,14 @@ export class PatternMatcherService implements IPatternMatcherService {
     const startTime = Date.now();
 
     if (isDevelopment()) {
-      logger.info('[PatternMatcher] Finding similar motion patterns', {
+      logger.info("[PatternMatcher] Finding similar motion patterns", {
         embeddingDimensions: embedding.length,
         options,
       });
     }
 
     // Validate embedding
-    this.validateEmbedding(embedding, 'findSimilarMotionPatterns');
+    this.validateEmbedding(embedding, "findSimilarMotionPatterns");
 
     const {
       motionType,
@@ -707,19 +699,19 @@ export class PatternMatcherService implements IPatternMatcherService {
       prisma = this.getPrismaClient();
     } catch {
       if (isDevelopment()) {
-        logger.warn('[PatternMatcher] PrismaClient not available, returning empty results');
+        logger.warn("[PatternMatcher] PrismaClient not available, returning empty results");
       }
       return [];
     }
 
     try {
       // Build WHERE conditions
-      const conditions: string[] = ['me.embedding IS NOT NULL'];
+      const conditions: string[] = ["me.embedding IS NOT NULL"];
       const params: unknown[] = [];
       let paramIndex = 1;
 
       // Minimum similarity filter (vector distance)
-      const vectorString = `[${embedding.join(',')}]`;
+      const vectorString = `[${embedding.join(",")}]`;
       conditions.push(`1 - (me.embedding <=> $${paramIndex}::vector) >= $${paramIndex + 1}`);
       params.push(vectorString, minSimilarity);
       paramIndex += 2;
@@ -738,15 +730,15 @@ export class PatternMatcherService implements IPatternMatcherService {
         paramIndex++;
       }
 
-      const whereClause = conditions.join(' AND ');
+      const whereClause = conditions.join(" AND ");
 
       // Build SELECT columns
       const selectColumns = [
-        'mp.id',
-        'mp.web_page_id',
-        'mp.name',
-        'mp.category',
-        'mp.trigger_type',
+        "mp.id",
+        "mp.web_page_id",
+        "mp.name",
+        "mp.category",
+        "mp.trigger_type",
         `1 - (me.embedding <=> $1::vector) as similarity`,
         `(mp.animation->>'duration')::float as duration`,
       ];
@@ -754,13 +746,13 @@ export class PatternMatcherService implements IPatternMatcherService {
       if (includeRawCss) {
         selectColumns.push(`mp.implementation->>'css' as raw_css`);
       } else {
-        selectColumns.push('NULL as raw_css');
+        selectColumns.push("NULL as raw_css");
       }
 
       // Vector search query
       const query = `
         SELECT
-          ${selectColumns.join(',\n          ')}
+          ${selectColumns.join(",\n          ")}
         FROM motion_patterns mp
         LEFT JOIN motion_embeddings me ON me.motion_pattern_id = mp.id
         WHERE ${whereClause}
@@ -770,10 +762,7 @@ export class PatternMatcherService implements IPatternMatcherService {
 
       params.push(limit);
 
-      const results = await prisma.$queryRawUnsafe<MotionPatternDbResult[]>(
-        query,
-        ...params
-      );
+      const results = await prisma.$queryRawUnsafe<MotionPatternDbResult[]>(query, ...params);
 
       // Map results
       const matches: MotionPatternMatch[] = results.map((r) => {
@@ -800,7 +789,7 @@ export class PatternMatcherService implements IPatternMatcherService {
       const processingTimeMs = Date.now() - startTime;
 
       if (isDevelopment()) {
-        logger.info('[PatternMatcher] Motion pattern search completed', {
+        logger.info("[PatternMatcher] Motion pattern search completed", {
           resultsCount: matches.length,
           processingTimeMs,
         });
@@ -809,8 +798,8 @@ export class PatternMatcherService implements IPatternMatcherService {
       return matches;
     } catch (error) {
       if (isDevelopment()) {
-        logger.error('[PatternMatcher] Motion pattern search failed', {
-          error: error instanceof Error ? error.message : 'Unknown error',
+        logger.error("[PatternMatcher] Motion pattern search failed", {
+          error: error instanceof Error ? error.message : "Unknown error",
         });
       }
       throw error;
@@ -820,19 +809,16 @@ export class PatternMatcherService implements IPatternMatcherService {
   /**
    * Calculate uniqueness score (inverse of max similarity)
    */
-  async calculateUniquenessScore(
-    embedding: number[],
-    sectionType?: string
-  ): Promise<number> {
+  async calculateUniquenessScore(embedding: number[], sectionType?: string): Promise<number> {
     if (isDevelopment()) {
-      logger.info('[PatternMatcher] Calculating uniqueness score', {
+      logger.info("[PatternMatcher] Calculating uniqueness score", {
         embeddingDimensions: embedding.length,
         sectionType,
       });
     }
 
     // Validate embedding
-    this.validateEmbedding(embedding, 'calculateUniquenessScore');
+    this.validateEmbedding(embedding, "calculateUniquenessScore");
 
     try {
       // Find the most similar pattern (limit = 1)
@@ -851,7 +837,7 @@ export class PatternMatcherService implements IPatternMatcherService {
       // If no matches found, the pattern is completely unique
       if (matches.length === 0) {
         if (isDevelopment()) {
-          logger.info('[PatternMatcher] No similar patterns found, uniqueness = 1.0');
+          logger.info("[PatternMatcher] No similar patterns found, uniqueness = 1.0");
         }
         return 1.0;
       }
@@ -861,7 +847,7 @@ export class PatternMatcherService implements IPatternMatcherService {
       const uniquenessScore = 1 - maxSimilarity;
 
       if (isDevelopment()) {
-        logger.info('[PatternMatcher] Uniqueness score calculated', {
+        logger.info("[PatternMatcher] Uniqueness score calculated", {
           maxSimilarity,
           uniquenessScore,
         });
@@ -871,8 +857,8 @@ export class PatternMatcherService implements IPatternMatcherService {
     } catch (error) {
       // If search fails, return moderate uniqueness
       if (isDevelopment()) {
-        logger.warn('[PatternMatcher] Uniqueness calculation failed, returning default', {
-          error: error instanceof Error ? error.message : 'Unknown error',
+        logger.warn("[PatternMatcher] Uniqueness calculation failed, returning default", {
+          error: error instanceof Error ? error.message : "Unknown error",
         });
       }
       return 0.5;
@@ -884,15 +870,15 @@ export class PatternMatcherService implements IPatternMatcherService {
    */
   comparePatterns(embeddingA: number[], embeddingB: number[]): PatternComparison {
     if (isDevelopment()) {
-      logger.info('[PatternMatcher] Comparing patterns', {
+      logger.info("[PatternMatcher] Comparing patterns", {
         embeddingADimensions: embeddingA.length,
         embeddingBDimensions: embeddingB.length,
       });
     }
 
     // Validate both embeddings
-    this.validateEmbedding(embeddingA, 'comparePatterns:embeddingA');
-    this.validateEmbedding(embeddingB, 'comparePatterns:embeddingB');
+    this.validateEmbedding(embeddingA, "comparePatterns:embeddingA");
+    this.validateEmbedding(embeddingB, "comparePatterns:embeddingB");
 
     // Calculate cosine similarity
     const cosineSimilarity = calculateCosineSimilarity(embeddingA, embeddingB);
@@ -905,7 +891,7 @@ export class PatternMatcherService implements IPatternMatcherService {
     const isLowMatch = cosineSimilarity < MEDIUM_SIMILARITY_THRESHOLD;
 
     if (isDevelopment()) {
-      logger.info('[PatternMatcher] Pattern comparison completed', {
+      logger.info("[PatternMatcher] Pattern comparison completed", {
         cosineSimilarity,
         isHighMatch,
         isMediumMatch,

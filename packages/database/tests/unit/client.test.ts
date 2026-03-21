@@ -11,10 +11,10 @@
  * - グローバル変数へのキャッシュ
  */
 
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 
 // PrismaClientのモック
-vi.mock('@prisma/client', () => {
+vi.mock("@prisma/client", () => {
   const mockPrismaClient = vi.fn(() => ({
     $connect: vi.fn(),
     $disconnect: vi.fn(),
@@ -28,7 +28,7 @@ vi.mock('@prisma/client', () => {
   };
 });
 
-describe('Prisma Client Singleton', () => {
+describe("Prisma Client Singleton", () => {
   // 各テスト前に環境をリセット
   beforeEach(() => {
     vi.resetModules();
@@ -43,16 +43,16 @@ describe('Prisma Client Singleton', () => {
     vi.restoreAllMocks();
   });
 
-  describe('開発環境での動作', () => {
-    it('開発環境ではPrismaClientにquery, error, warnログが設定されること', async () => {
+  describe("開発環境での動作", () => {
+    it("開発環境ではPrismaClientにquery, error, warnログが設定されること", async () => {
       // 開発環境を設定
-      vi.stubEnv('NODE_ENV', 'development');
+      vi.stubEnv("NODE_ENV", "development");
 
       // モジュールを動的にインポート
-      const { PrismaClient } = await import('@prisma/client');
+      const { PrismaClient } = await import("@prisma/client");
 
       // client.tsを再インポートしてPrismaClientが呼ばれることを確認
-      await import('../../src/client');
+      await import("../../src/client");
 
       // PrismaClientが呼ばれたことを確認
       expect(PrismaClient).toHaveBeenCalled();
@@ -60,13 +60,13 @@ describe('Prisma Client Singleton', () => {
       // 呼び出し時の引数を確認
       const callArgs = (PrismaClient as unknown as ReturnType<typeof vi.fn>).mock.calls[0]?.[0];
       expect(callArgs).toBeDefined();
-      expect(callArgs.log).toEqual(['query', 'error', 'warn']);
+      expect(callArgs.log).toEqual(["query", "error", "warn"]);
     });
 
-    it('開発環境ではglobalThisにprismaがキャッシュされること', async () => {
-      vi.stubEnv('NODE_ENV', 'development');
+    it("開発環境ではglobalThisにprismaがキャッシュされること", async () => {
+      vi.stubEnv("NODE_ENV", "development");
 
-      const { prisma } = await import('../../src/client');
+      const { prisma } = await import("../../src/client");
 
       const globalForPrisma = globalThis as unknown as {
         prisma: unknown | undefined;
@@ -77,25 +77,25 @@ describe('Prisma Client Singleton', () => {
     });
   });
 
-  describe('本番環境での動作', () => {
-    it('本番環境ではPrismaClientにerrorログのみが設定されること', async () => {
-      vi.stubEnv('NODE_ENV', 'production');
+  describe("本番環境での動作", () => {
+    it("本番環境ではPrismaClientにerrorログのみが設定されること", async () => {
+      vi.stubEnv("NODE_ENV", "production");
 
-      const { PrismaClient } = await import('@prisma/client');
+      const { PrismaClient } = await import("@prisma/client");
 
-      await import('../../src/client');
+      await import("../../src/client");
 
       expect(PrismaClient).toHaveBeenCalled();
 
       const callArgs = (PrismaClient as unknown as ReturnType<typeof vi.fn>).mock.calls[0]?.[0];
       expect(callArgs).toBeDefined();
-      expect(callArgs.log).toEqual(['error']);
+      expect(callArgs.log).toEqual(["error"]);
     });
 
-    it('本番環境ではglobalThisにprismaがキャッシュされないこと', async () => {
-      vi.stubEnv('NODE_ENV', 'production');
+    it("本番環境ではglobalThisにprismaがキャッシュされないこと", async () => {
+      vi.stubEnv("NODE_ENV", "production");
 
-      await import('../../src/client');
+      await import("../../src/client");
 
       const globalForPrisma = globalThis as unknown as {
         prisma: unknown | undefined;
@@ -107,19 +107,19 @@ describe('Prisma Client Singleton', () => {
     });
   });
 
-  describe('シングルトンパターン', () => {
-    it('同一モジュールからの複数インポートで同じインスタンスが返されること', async () => {
-      vi.stubEnv('NODE_ENV', 'development');
+  describe("シングルトンパターン", () => {
+    it("同一モジュールからの複数インポートで同じインスタンスが返されること", async () => {
+      vi.stubEnv("NODE_ENV", "development");
 
-      const { prisma: prisma1 } = await import('../../src/client');
-      const { prisma: prisma2 } = await import('../../src/client');
+      const { prisma: prisma1 } = await import("../../src/client");
+      const { prisma: prisma2 } = await import("../../src/client");
 
       // 同一インスタンスであることを確認
       expect(prisma1).toBe(prisma2);
     });
 
-    it('globalThis.prismaが既に存在する場合は再利用されること', async () => {
-      vi.stubEnv('NODE_ENV', 'development');
+    it("globalThis.prismaが既に存在する場合は再利用されること", async () => {
+      vi.stubEnv("NODE_ENV", "development");
 
       // グローバルに既存のprismaインスタンスを設定
       const existingPrisma = { existing: true };
@@ -128,23 +128,23 @@ describe('Prisma Client Singleton', () => {
       };
       globalForPrisma.prisma = existingPrisma;
 
-      const { prisma } = await import('../../src/client');
+      const { prisma } = await import("../../src/client");
 
       // 既存のインスタンスが再利用されることを確認
       expect(prisma).toBe(existingPrisma);
     });
   });
 
-  describe('エクスポート', () => {
-    it('PrismaClient型がエクスポートされていること', async () => {
-      const clientModule = await import('../../src/client');
+  describe("エクスポート", () => {
+    it("PrismaClient型がエクスポートされていること", async () => {
+      const clientModule = await import("../../src/client");
 
       // Prismaもエクスポートされていることを確認
       expect(clientModule.Prisma).toBeDefined();
     });
 
-    it('prismaインスタンスがエクスポートされていること', async () => {
-      const { prisma } = await import('../../src/client');
+    it("prismaインスタンスがエクスポートされていること", async () => {
+      const { prisma } = await import("../../src/client");
 
       expect(prisma).toBeDefined();
     });

@@ -17,13 +17,13 @@
  * @module services/page/video-recorder.service
  */
 
-import type { Browser, Page, BrowserContext } from 'playwright';
-import { chromium } from 'playwright';
-import * as fs from 'node:fs';
-import * as path from 'node:path';
-import * as os from 'node:os';
-import { validateExternalUrl } from '../../utils/url-validator';
-import { logger, isDevelopment } from '../../utils/logger';
+import type { Browser, Page, BrowserContext } from "playwright";
+import { chromium } from "playwright";
+import * as fs from "node:fs";
+import * as path from "node:path";
+import * as os from "node:os";
+import { validateExternalUrl } from "../../utils/url-validator";
+import { logger, isDevelopment } from "../../utils/logger";
 
 // =====================================================
 // 型定義
@@ -40,7 +40,7 @@ export interface RecordOptions {
   /** 録画解像度 デフォルト: viewportと同じ */
   recordSize?: { width: number; height: number };
   /** ページ読み込み完了の判定方法 デフォルト: 'load' */
-  waitUntil?: 'load' | 'domcontentloaded' | 'networkidle';
+  waitUntil?: "load" | "domcontentloaded" | "networkidle";
   /** 録画時間（ミリ秒） デフォルト: 5000 */
   recordDuration?: number;
   /** スクロール操作を行うか デフォルト: true */
@@ -73,7 +73,7 @@ export const DEFAULT_RECORD_OPTIONS: Required<RecordOptions> = {
   viewport: { width: 1280, height: 720 },
   recordSize: { width: 1280, height: 720 },
   // WebGL/3Dサイト対応: domcontentloadedをデフォルトに（loadは3Dサイトで非常に時間がかかる）
-  waitUntil: 'domcontentloaded',
+  waitUntil: "domcontentloaded",
   recordDuration: 5000,
   scrollPage: true,
   moveMouseRandomly: true,
@@ -91,7 +91,7 @@ export class RecordError extends Error {
 
   constructor(message: string, statusCode?: number | undefined) {
     super(message);
-    this.name = 'RecordError';
+    this.name = "RecordError";
     this.statusCode = statusCode;
   }
 }
@@ -104,7 +104,7 @@ export class RecordError extends Error {
  * URLのプロトコルを検証
  */
 function validateProtocol(url: string): void {
-  const allowedProtocols = ['http:', 'https:'];
+  const allowedProtocols = ["http:", "https:"];
 
   try {
     const urlObj = new URL(url);
@@ -127,7 +127,7 @@ function validateProtocol(url: string): void {
 function validateUrlForSSRF(url: string): void {
   const result = validateExternalUrl(url);
   if (!result.valid) {
-    throw new RecordError(result.error ?? 'URL is blocked for security reasons');
+    throw new RecordError(result.error ?? "URL is blocked for security reasons");
   }
 }
 
@@ -135,7 +135,7 @@ function validateUrlForSSRF(url: string): void {
  * 一時ディレクトリを作成
  */
 function createTempDir(): string {
-  return fs.mkdtempSync(path.join(os.tmpdir(), 'video-recorder-'));
+  return fs.mkdtempSync(path.join(os.tmpdir(), "video-recorder-"));
 }
 
 /**
@@ -169,15 +169,15 @@ export class VideoRecorderService {
   private async ensureBrowser(): Promise<Browser> {
     if (!this.browser) {
       if (isDevelopment()) {
-        logger.debug('[VideoRecorderService] Launching browser');
+        logger.debug("[VideoRecorderService] Launching browser");
       }
       this.browser = await chromium.launch({
         headless: true,
         args: [
-          '--no-sandbox',
-          '--disable-setuid-sandbox',
-          '--disable-dev-shm-usage',
-          '--disable-gpu',
+          "--no-sandbox",
+          "--disable-setuid-sandbox",
+          "--disable-dev-shm-usage",
+          "--disable-gpu",
         ],
       });
     }
@@ -199,7 +199,6 @@ export class VideoRecorderService {
       // スクロール操作
       if (scrollPage) {
         const scrollY = randomDelay(100, 300);
-        // eslint-disable-next-line no-undef -- window is browser context
         await page.evaluate((y) => window.scrollBy(0, y), scrollY);
         await sleep(randomDelay(200, 500));
       }
@@ -236,7 +235,7 @@ export class VideoRecorderService {
     };
 
     if (isDevelopment()) {
-      logger.debug('[VideoRecorderService] record called', {
+      logger.debug("[VideoRecorderService] record called", {
         url,
         timeout: opts.timeout,
         viewport: opts.viewport,
@@ -270,7 +269,7 @@ export class VideoRecorderService {
           size: opts.recordSize,
         },
         userAgent:
-          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 Reftrix/0.1.0',
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 Reftrix/0.1.0",
         javaScriptEnabled: true,
         bypassCSP: false,
       });
@@ -279,7 +278,7 @@ export class VideoRecorderService {
 
       // ナビゲーション（WebGL/3Dサイト対応: domcontentloadedをデフォルトに）
       const response = await page.goto(url, {
-        waitUntil: opts.waitUntil ?? 'domcontentloaded',
+        waitUntil: opts.waitUntil ?? "domcontentloaded",
         timeout: opts.timeout ?? 30000,
       });
 
@@ -306,7 +305,7 @@ export class VideoRecorderService {
       // ページを閉じる前に動画を取得する準備
       const video = page.video();
       if (!video) {
-        throw new RecordError('Failed to start video recording');
+        throw new RecordError("Failed to start video recording");
       }
 
       // ページとコンテキストを閉じて動画ファイルを確定
@@ -318,7 +317,7 @@ export class VideoRecorderService {
       // 動画ファイルのパスを取得
       const videoPath = await video.path();
       if (!videoPath) {
-        throw new RecordError('Failed to get video path');
+        throw new RecordError("Failed to get video path");
       }
 
       // 動画ファイルのサイズを取得
@@ -328,7 +327,7 @@ export class VideoRecorderService {
       const processingTimeMs = Date.now() - startTime;
 
       if (isDevelopment()) {
-        logger.debug('[VideoRecorderService] record completed', {
+        logger.debug("[VideoRecorderService] record completed", {
           url,
           videoPath,
           sizeBytes,
@@ -346,7 +345,7 @@ export class VideoRecorderService {
       };
     } catch (error) {
       if (isDevelopment()) {
-        logger.error('[VideoRecorderService] record error', { url, error });
+        logger.error("[VideoRecorderService] record error", { url, error });
       }
 
       // 既知のエラータイプは再スロー
@@ -356,24 +355,24 @@ export class VideoRecorderService {
 
       // Playwrightのタイムアウトエラー
       if (error instanceof Error) {
-        if (error.message.includes('Timeout') || error.message.includes('timeout')) {
+        if (error.message.includes("Timeout") || error.message.includes("timeout")) {
           throw new RecordError(`Timeout: page load exceeded ${opts.timeout}ms`);
         }
 
         // DNS/ネットワークエラー
         if (
-          error.message.includes('net::ERR_NAME_NOT_RESOLVED') ||
-          error.message.includes('DNS') ||
-          error.message.includes('ENOTFOUND')
+          error.message.includes("net::ERR_NAME_NOT_RESOLVED") ||
+          error.message.includes("DNS") ||
+          error.message.includes("ENOTFOUND")
         ) {
           throw new RecordError(`Network error: unable to resolve DNS for ${url}`);
         }
 
         // その他のネットワークエラー
         if (
-          error.message.includes('net::') ||
-          error.message.includes('Network') ||
-          error.message.includes('ECONNREFUSED')
+          error.message.includes("net::") ||
+          error.message.includes("Network") ||
+          error.message.includes("ECONNREFUSED")
         ) {
           throw new RecordError(`Network error: ${error.message}`);
         }
@@ -381,7 +380,7 @@ export class VideoRecorderService {
 
       // 不明なエラー
       throw new RecordError(
-        `Record failed: ${error instanceof Error ? error.message : 'Unknown error'}`
+        `Record failed: ${error instanceof Error ? error.message : "Unknown error"}`
       );
     } finally {
       // リソースクリーンアップ
@@ -408,7 +407,7 @@ export class VideoRecorderService {
       if (fs.existsSync(videoPath)) {
         fs.unlinkSync(videoPath);
         if (isDevelopment()) {
-          logger.debug('[VideoRecorderService] cleanup: deleted video', { videoPath });
+          logger.debug("[VideoRecorderService] cleanup: deleted video", { videoPath });
         }
       }
 
@@ -424,13 +423,13 @@ export class VideoRecorderService {
             this.tempDirs.splice(index, 1);
           }
           if (isDevelopment()) {
-            logger.debug('[VideoRecorderService] cleanup: deleted temp dir', { dir });
+            logger.debug("[VideoRecorderService] cleanup: deleted temp dir", { dir });
           }
         }
       }
     } catch (error) {
       if (isDevelopment()) {
-        logger.error('[VideoRecorderService] cleanup error', { videoPath, error });
+        logger.error("[VideoRecorderService] cleanup error", { videoPath, error });
       }
       // クリーンアップエラーは無視（ベストエフォート）
     }
@@ -455,7 +454,7 @@ export class VideoRecorderService {
     // ブラウザを閉じる
     if (this.browser) {
       if (isDevelopment()) {
-        logger.debug('[VideoRecorderService] Closing browser');
+        logger.debug("[VideoRecorderService] Closing browser");
       }
       await this.browser.close();
       this.browser = null;
@@ -501,10 +500,7 @@ function getSharedService(): VideoRecorderService {
  * console.log(result.sizeBytes);
  * ```
  */
-export async function recordPage(
-  url: string,
-  options: RecordOptions = {}
-): Promise<RecordResult> {
+export async function recordPage(url: string, options: RecordOptions = {}): Promise<RecordResult> {
   const service = getSharedService();
   return service.record(url, options);
 }

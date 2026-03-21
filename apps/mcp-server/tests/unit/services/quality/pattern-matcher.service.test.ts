@@ -7,7 +7,7 @@
  * @module tests/unit/services/quality/pattern-matcher.service.test
  */
 
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import {
   PatternMatcherService,
   setPatternMatcherPrismaClientFactory,
@@ -23,10 +23,10 @@ import {
   DEFAULT_SEARCH_LIMIT,
   HIGH_SIMILARITY_THRESHOLD,
   MEDIUM_SIMILARITY_THRESHOLD,
-} from '../../../../src/services/quality/pattern-matcher.service';
-import { EmbeddingValidationError } from '../../../../src/services/embedding-validation.service';
+} from "../../../../src/services/quality/pattern-matcher.service";
+import { EmbeddingValidationError } from "../../../../src/services/embedding-validation.service";
 
-describe('PatternMatcherService', () => {
+describe("PatternMatcherService", () => {
   let mockPrismaClient: IPrismaClient;
 
   /**
@@ -67,29 +67,29 @@ describe('PatternMatcherService', () => {
   // Factory and Singleton Tests
   // =====================================================
 
-  describe('createPatternMatcherServiceFactory', () => {
-    it('should return a factory function that creates IPatternMatcherService', () => {
+  describe("createPatternMatcherServiceFactory", () => {
+    it("should return a factory function that creates IPatternMatcherService", () => {
       const factory = createPatternMatcherServiceFactory();
       const service = factory();
 
       expect(service).toBeDefined();
-      expect(typeof service.extractTextRepresentation).toBe('function');
-      expect(typeof service.findSimilarSectionPatterns).toBe('function');
-      expect(typeof service.findSimilarMotionPatterns).toBe('function');
-      expect(typeof service.calculateUniquenessScore).toBe('function');
-      expect(typeof service.comparePatterns).toBe('function');
+      expect(typeof service.extractTextRepresentation).toBe("function");
+      expect(typeof service.findSimilarSectionPatterns).toBe("function");
+      expect(typeof service.findSimilarMotionPatterns).toBe("function");
+      expect(typeof service.calculateUniquenessScore).toBe("function");
+      expect(typeof service.comparePatterns).toBe("function");
     });
   });
 
-  describe('getPatternMatcherService', () => {
-    it('should return singleton instance', () => {
+  describe("getPatternMatcherService", () => {
+    it("should return singleton instance", () => {
       const service1 = getPatternMatcherService();
       const service2 = getPatternMatcherService();
 
       expect(service1).toBe(service2);
     });
 
-    it('should return new instance after reset', () => {
+    it("should return new instance after reset", () => {
       const service1 = getPatternMatcherService();
       resetPatternMatcherService();
       const service2 = getPatternMatcherService();
@@ -102,103 +102,106 @@ describe('PatternMatcherService', () => {
   // extractTextRepresentation Tests
   // =====================================================
 
-  describe('extractTextRepresentation', () => {
-    it('should extract text from HTML with headings', () => {
+  describe("extractTextRepresentation", () => {
+    it("should extract text from HTML with headings", () => {
       const service = new PatternMatcherService();
-      const html = '<h1>Welcome to Our Site</h1><h2>Features</h2>';
+      const html = "<h1>Welcome to Our Site</h1><h2>Features</h2>";
 
       const result = service.extractTextRepresentation(html);
 
-      expect(result).toContain('Headings:');
-      expect(result).toContain('Welcome to Our Site');
-      expect(result).toContain('Features');
+      expect(result).toContain("Headings:");
+      expect(result).toContain("Welcome to Our Site");
+      expect(result).toContain("Features");
     });
 
-    it('should extract button text', () => {
+    it("should extract button text", () => {
       const service = new PatternMatcherService();
-      const html = '<button>Sign Up</button><button>Learn More</button>';
+      const html = "<button>Sign Up</button><button>Learn More</button>";
 
       const result = service.extractTextRepresentation(html);
 
-      expect(result).toContain('Buttons:');
-      expect(result).toContain('Sign Up');
-      expect(result).toContain('Learn More');
+      expect(result).toContain("Buttons:");
+      expect(result).toContain("Sign Up");
+      expect(result).toContain("Learn More");
     });
 
-    it('should extract link text', () => {
+    it("should extract link text", () => {
       const service = new PatternMatcherService();
       const html = '<a href="/about">About Us</a><a href="/contact">Contact</a>';
 
       const result = service.extractTextRepresentation(html);
 
-      expect(result).toContain('Links:');
-      expect(result).toContain('About Us');
-      expect(result).toContain('Contact');
+      expect(result).toContain("Links:");
+      expect(result).toContain("About Us");
+      expect(result).toContain("Contact");
     });
 
-    it('should extract paragraph content', () => {
+    it("should extract paragraph content", () => {
       const service = new PatternMatcherService();
-      const html = '<p>This is a paragraph with some important content about our services.</p>';
+      const html = "<p>This is a paragraph with some important content about our services.</p>";
 
       const result = service.extractTextRepresentation(html);
 
-      expect(result).toContain('Content:');
-      expect(result).toContain('important content');
+      expect(result).toContain("Content:");
+      expect(result).toContain("important content");
     });
 
-    it('should extract image alt text', () => {
+    it("should extract image alt text", () => {
       const service = new PatternMatcherService();
-      const html = '<img src="hero.jpg" alt="Hero banner image"><img src="logo.png" alt="Company logo">';
+      const html =
+        '<img src="hero.jpg" alt="Hero banner image"><img src="logo.png" alt="Company logo">';
 
       const result = service.extractTextRepresentation(html);
 
-      expect(result).toContain('Images:');
-      expect(result).toContain('Hero banner image');
-      expect(result).toContain('Company logo');
+      expect(result).toContain("Images:");
+      expect(result).toContain("Hero banner image");
+      expect(result).toContain("Company logo");
     });
 
-    it('should extract ARIA labels', () => {
+    it("should extract ARIA labels", () => {
       const service = new PatternMatcherService();
-      const html = '<nav aria-label="Main navigation"><button aria-label="Close menu">X</button></nav>';
+      const html =
+        '<nav aria-label="Main navigation"><button aria-label="Close menu">X</button></nav>';
 
       const result = service.extractTextRepresentation(html);
 
-      expect(result).toContain('Accessibility:');
-      expect(result).toContain('Main navigation');
-      expect(result).toContain('Close menu');
+      expect(result).toContain("Accessibility:");
+      expect(result).toContain("Main navigation");
+      expect(result).toContain("Close menu");
     });
 
-    it('should extract meaningful class names', () => {
+    it("should extract meaningful class names", () => {
       const service = new PatternMatcherService();
-      const html = '<section class="hero-section primary-content"><div class="feature-card"></div></section>';
+      const html =
+        '<section class="hero-section primary-content"><div class="feature-card"></div></section>';
 
       const result = service.extractTextRepresentation(html);
 
-      expect(result).toContain('Structure:');
-      expect(result).toContain('hero-section');
+      expect(result).toContain("Structure:");
+      expect(result).toContain("hero-section");
     });
 
-    it('should skip utility class names', () => {
+    it("should skip utility class names", () => {
       const service = new PatternMatcherService();
       const html = '<div class="flex p-4 m-2 w-full bg-white text-gray-900"></div>';
 
       const result = service.extractTextRepresentation(html);
 
       // Should not contain Tailwind utility classes
-      expect(result).not.toContain('flex');
-      expect(result).not.toContain('p-4');
-      expect(result).not.toContain('m-2');
+      expect(result).not.toContain("flex");
+      expect(result).not.toContain("p-4");
+      expect(result).not.toContain("m-2");
     });
 
-    it('should return empty string for invalid input', () => {
+    it("should return empty string for invalid input", () => {
       const service = new PatternMatcherService();
 
-      expect(service.extractTextRepresentation('')).toBe('');
-      expect(service.extractTextRepresentation(null as unknown as string)).toBe('');
-      expect(service.extractTextRepresentation(undefined as unknown as string)).toBe('');
+      expect(service.extractTextRepresentation("")).toBe("");
+      expect(service.extractTextRepresentation(null as unknown as string)).toBe("");
+      expect(service.extractTextRepresentation(undefined as unknown as string)).toBe("");
     });
 
-    it('should handle complex HTML with multiple elements', () => {
+    it("should handle complex HTML with multiple elements", () => {
       const service = new PatternMatcherService();
       const html = `
         <section class="hero-section" aria-label="Hero">
@@ -211,12 +214,12 @@ describe('PatternMatcherService', () => {
 
       const result = service.extractTextRepresentation(html);
 
-      expect(result).toContain('Headings:');
-      expect(result).toContain('Welcome');
-      expect(result).toContain('Buttons:');
-      expect(result).toContain('Get Started');
-      expect(result).toContain('Images:');
-      expect(result).toContain('Hero illustration');
+      expect(result).toContain("Headings:");
+      expect(result).toContain("Welcome");
+      expect(result).toContain("Buttons:");
+      expect(result).toContain("Get Started");
+      expect(result).toContain("Images:");
+      expect(result).toContain("Hero illustration");
     });
   });
 
@@ -224,10 +227,10 @@ describe('PatternMatcherService', () => {
   // findSimilarSectionPatterns Tests
   // =====================================================
 
-  describe('findSimilarSectionPatterns', () => {
+  describe("findSimilarSectionPatterns", () => {
     const mockEmbedding = createValidEmbedding();
 
-    it('should return empty array when PrismaClient is not set', async () => {
+    it("should return empty array when PrismaClient is not set", async () => {
       const service = new PatternMatcherService();
 
       const result = await service.findSimilarSectionPatterns(mockEmbedding);
@@ -235,40 +238,40 @@ describe('PatternMatcherService', () => {
       expect(result).toEqual([]);
     });
 
-    it('should throw EmbeddingValidationError for invalid embedding', async () => {
+    it("should throw EmbeddingValidationError for invalid embedding", async () => {
       setPatternMatcherPrismaClientFactory(() => mockPrismaClient);
       const service = new PatternMatcherService();
 
       // Wrong dimensions
-      await expect(
-        service.findSimilarSectionPatterns([1, 2, 3])
-      ).rejects.toThrow(EmbeddingValidationError);
+      await expect(service.findSimilarSectionPatterns([1, 2, 3])).rejects.toThrow(
+        EmbeddingValidationError
+      );
 
       // Contains NaN
       const nanEmbedding = createValidEmbedding();
       nanEmbedding[0] = NaN;
-      await expect(
-        service.findSimilarSectionPatterns(nanEmbedding)
-      ).rejects.toThrow(EmbeddingValidationError);
+      await expect(service.findSimilarSectionPatterns(nanEmbedding)).rejects.toThrow(
+        EmbeddingValidationError
+      );
 
       // Contains Infinity
       const infEmbedding = createValidEmbedding();
       infEmbedding[0] = Infinity;
-      await expect(
-        service.findSimilarSectionPatterns(infEmbedding)
-      ).rejects.toThrow(EmbeddingValidationError);
+      await expect(service.findSimilarSectionPatterns(infEmbedding)).rejects.toThrow(
+        EmbeddingValidationError
+      );
     });
 
-    it('should execute vector search with PrismaClient', async () => {
+    it("should execute vector search with PrismaClient", async () => {
       const mockResults = [
         {
-          id: 'section-1',
-          web_page_id: 'page-1',
-          section_type: 'hero',
-          html_snippet: '<section>Hero</section>',
+          id: "section-1",
+          web_page_id: "page-1",
+          section_type: "hero",
+          html_snippet: "<section>Hero</section>",
           similarity: 0.92,
           quality_score: { anti_ai_cliche: { overall: 85 } },
-          source_url: 'https://example.com',
+          source_url: "https://example.com",
         },
       ];
       mockPrismaClient.$queryRawUnsafe = vi.fn().mockResolvedValue(mockResults);
@@ -279,41 +282,41 @@ describe('PatternMatcherService', () => {
 
       expect(result).toHaveLength(1);
       expect(result[0]).toMatchObject({
-        id: 'section-1',
-        webPageId: 'page-1',
-        sectionType: 'hero',
+        id: "section-1",
+        webPageId: "page-1",
+        sectionType: "hero",
         similarity: 0.92,
         qualityScore: 85,
-        sourceUrl: 'https://example.com',
+        sourceUrl: "https://example.com",
       });
       expect(mockPrismaClient.$queryRawUnsafe).toHaveBeenCalled();
     });
 
-    it('should apply sectionType filter', async () => {
+    it("should apply sectionType filter", async () => {
       setPatternMatcherPrismaClientFactory(() => mockPrismaClient);
       const service = new PatternMatcherService();
 
       await service.findSimilarSectionPatterns(mockEmbedding, {
-        sectionType: 'hero',
+        sectionType: "hero",
       });
 
       const query = (mockPrismaClient.$queryRawUnsafe as ReturnType<typeof vi.fn>).mock.calls[0][0];
-      expect(query).toContain('sp.section_type');
+      expect(query).toContain("sp.section_type");
     });
 
-    it('should apply excludeIds filter', async () => {
+    it("should apply excludeIds filter", async () => {
       setPatternMatcherPrismaClientFactory(() => mockPrismaClient);
       const service = new PatternMatcherService();
 
       await service.findSimilarSectionPatterns(mockEmbedding, {
-        excludeIds: ['exclude-1', 'exclude-2'],
+        excludeIds: ["exclude-1", "exclude-2"],
       });
 
       const query = (mockPrismaClient.$queryRawUnsafe as ReturnType<typeof vi.fn>).mock.calls[0][0];
-      expect(query).toContain('NOT IN');
+      expect(query).toContain("NOT IN");
     });
 
-    it('should apply minQualityScore filter', async () => {
+    it("should apply minQualityScore filter", async () => {
       setPatternMatcherPrismaClientFactory(() => mockPrismaClient);
       const service = new PatternMatcherService();
 
@@ -322,10 +325,10 @@ describe('PatternMatcherService', () => {
       });
 
       const query = (mockPrismaClient.$queryRawUnsafe as ReturnType<typeof vi.fn>).mock.calls[0][0];
-      expect(query).toContain('quality_score');
+      expect(query).toContain("quality_score");
     });
 
-    it('should use default options when not provided', async () => {
+    it("should use default options when not provided", async () => {
       setPatternMatcherPrismaClientFactory(() => mockPrismaClient);
       const service = new PatternMatcherService();
 
@@ -338,12 +341,12 @@ describe('PatternMatcherService', () => {
       expect(callArgs).toContain(DEFAULT_MIN_SIMILARITY);
     });
 
-    it('should not include HTML snippet when includeHtml is false', async () => {
+    it("should not include HTML snippet when includeHtml is false", async () => {
       const mockResults = [
         {
-          id: 'section-1',
-          web_page_id: 'page-1',
-          section_type: 'hero',
+          id: "section-1",
+          web_page_id: "page-1",
+          section_type: "hero",
           html_snippet: null,
           similarity: 0.92,
           quality_score: null,
@@ -366,10 +369,10 @@ describe('PatternMatcherService', () => {
   // findSimilarMotionPatterns Tests
   // =====================================================
 
-  describe('findSimilarMotionPatterns', () => {
+  describe("findSimilarMotionPatterns", () => {
     const mockEmbedding = createValidEmbedding();
 
-    it('should return empty array when PrismaClient is not set', async () => {
+    it("should return empty array when PrismaClient is not set", async () => {
       const service = new PatternMatcherService();
 
       const result = await service.findSimilarMotionPatterns(mockEmbedding);
@@ -377,23 +380,23 @@ describe('PatternMatcherService', () => {
       expect(result).toEqual([]);
     });
 
-    it('should throw EmbeddingValidationError for invalid embedding', async () => {
+    it("should throw EmbeddingValidationError for invalid embedding", async () => {
       setPatternMatcherPrismaClientFactory(() => mockPrismaClient);
       const service = new PatternMatcherService();
 
-      await expect(
-        service.findSimilarMotionPatterns([1, 2, 3])
-      ).rejects.toThrow(EmbeddingValidationError);
+      await expect(service.findSimilarMotionPatterns([1, 2, 3])).rejects.toThrow(
+        EmbeddingValidationError
+      );
     });
 
-    it('should execute vector search with PrismaClient', async () => {
+    it("should execute vector search with PrismaClient", async () => {
       const mockResults = [
         {
-          id: 'motion-1',
-          web_page_id: 'page-1',
-          name: 'fadeIn',
-          category: 'scroll_trigger',
-          trigger_type: 'scroll',
+          id: "motion-1",
+          web_page_id: "page-1",
+          name: "fadeIn",
+          category: "scroll_trigger",
+          trigger_type: "scroll",
           similarity: 0.88,
           duration: 600,
           raw_css: null,
@@ -407,51 +410,51 @@ describe('PatternMatcherService', () => {
 
       expect(result).toHaveLength(1);
       expect(result[0]).toMatchObject({
-        id: 'motion-1',
-        webPageId: 'page-1',
-        name: 'fadeIn',
-        type: 'scroll_trigger',
-        trigger: 'scroll',
+        id: "motion-1",
+        webPageId: "page-1",
+        name: "fadeIn",
+        type: "scroll_trigger",
+        trigger: "scroll",
         similarity: 0.88,
         duration: 600,
       });
     });
 
-    it('should apply motionType filter', async () => {
+    it("should apply motionType filter", async () => {
       setPatternMatcherPrismaClientFactory(() => mockPrismaClient);
       const service = new PatternMatcherService();
 
       await service.findSimilarMotionPatterns(mockEmbedding, {
-        motionType: 'hover_effect',
+        motionType: "hover_effect",
       });
 
       const query = (mockPrismaClient.$queryRawUnsafe as ReturnType<typeof vi.fn>).mock.calls[0][0];
-      expect(query).toContain('mp.category');
+      expect(query).toContain("mp.category");
     });
 
-    it('should apply trigger filter', async () => {
+    it("should apply trigger filter", async () => {
       setPatternMatcherPrismaClientFactory(() => mockPrismaClient);
       const service = new PatternMatcherService();
 
       await service.findSimilarMotionPatterns(mockEmbedding, {
-        trigger: 'hover',
+        trigger: "hover",
       });
 
       const query = (mockPrismaClient.$queryRawUnsafe as ReturnType<typeof vi.fn>).mock.calls[0][0];
-      expect(query).toContain('mp.trigger_type');
+      expect(query).toContain("mp.trigger_type");
     });
 
-    it('should include raw CSS when requested', async () => {
+    it("should include raw CSS when requested", async () => {
       const mockResults = [
         {
-          id: 'motion-1',
+          id: "motion-1",
           web_page_id: null,
-          name: 'fadeIn',
-          category: 'scroll_trigger',
-          trigger_type: 'scroll',
+          name: "fadeIn",
+          category: "scroll_trigger",
+          trigger_type: "scroll",
           similarity: 0.88,
           duration: null,
-          raw_css: '.fadeIn { opacity: 0 -> 1 }',
+          raw_css: ".fadeIn { opacity: 0 -> 1 }",
         },
       ];
       mockPrismaClient.$queryRawUnsafe = vi.fn().mockResolvedValue(mockResults);
@@ -462,7 +465,7 @@ describe('PatternMatcherService', () => {
         includeRawCss: true,
       });
 
-      expect(result[0]?.rawCss).toBe('.fadeIn { opacity: 0 -> 1 }');
+      expect(result[0]?.rawCss).toBe(".fadeIn { opacity: 0 -> 1 }");
     });
   });
 
@@ -470,10 +473,10 @@ describe('PatternMatcherService', () => {
   // calculateUniquenessScore Tests
   // =====================================================
 
-  describe('calculateUniquenessScore', () => {
+  describe("calculateUniquenessScore", () => {
     const mockEmbedding = createValidEmbedding();
 
-    it('should return 1.0 when no similar patterns found', async () => {
+    it("should return 1.0 when no similar patterns found", async () => {
       mockPrismaClient.$queryRawUnsafe = vi.fn().mockResolvedValue([]);
       setPatternMatcherPrismaClientFactory(() => mockPrismaClient);
 
@@ -483,12 +486,12 @@ describe('PatternMatcherService', () => {
       expect(result).toBe(1.0);
     });
 
-    it('should return inverse of max similarity', async () => {
+    it("should return inverse of max similarity", async () => {
       const mockResults = [
         {
-          id: 'section-1',
-          web_page_id: 'page-1',
-          section_type: 'hero',
+          id: "section-1",
+          web_page_id: "page-1",
+          section_type: "hero",
           html_snippet: null,
           similarity: 0.8,
           quality_score: null,
@@ -505,8 +508,8 @@ describe('PatternMatcherService', () => {
       expect(result).toBeCloseTo(0.2, 5);
     });
 
-    it('should return 0.5 when search fails', async () => {
-      mockPrismaClient.$queryRawUnsafe = vi.fn().mockRejectedValue(new Error('DB error'));
+    it("should return 0.5 when search fails", async () => {
+      mockPrismaClient.$queryRawUnsafe = vi.fn().mockRejectedValue(new Error("DB error"));
       setPatternMatcherPrismaClientFactory(() => mockPrismaClient);
 
       const service = new PatternMatcherService();
@@ -515,24 +518,24 @@ describe('PatternMatcherService', () => {
       expect(result).toBe(0.5);
     });
 
-    it('should apply sectionType filter', async () => {
+    it("should apply sectionType filter", async () => {
       mockPrismaClient.$queryRawUnsafe = vi.fn().mockResolvedValue([]);
       setPatternMatcherPrismaClientFactory(() => mockPrismaClient);
 
       const service = new PatternMatcherService();
-      await service.calculateUniquenessScore(mockEmbedding, 'hero');
+      await service.calculateUniquenessScore(mockEmbedding, "hero");
 
       const query = (mockPrismaClient.$queryRawUnsafe as ReturnType<typeof vi.fn>).mock.calls[0][0];
-      expect(query).toContain('sp.section_type');
+      expect(query).toContain("sp.section_type");
     });
 
-    it('should throw EmbeddingValidationError for invalid embedding', async () => {
+    it("should throw EmbeddingValidationError for invalid embedding", async () => {
       setPatternMatcherPrismaClientFactory(() => mockPrismaClient);
       const service = new PatternMatcherService();
 
-      await expect(
-        service.calculateUniquenessScore([1, 2, 3])
-      ).rejects.toThrow(EmbeddingValidationError);
+      await expect(service.calculateUniquenessScore([1, 2, 3])).rejects.toThrow(
+        EmbeddingValidationError
+      );
     });
   });
 
@@ -540,8 +543,8 @@ describe('PatternMatcherService', () => {
   // comparePatterns Tests
   // =====================================================
 
-  describe('comparePatterns', () => {
-    it('should calculate cosine similarity correctly', () => {
+  describe("comparePatterns", () => {
+    it("should calculate cosine similarity correctly", () => {
       const service = new PatternMatcherService();
 
       // Same vector should have similarity 1
@@ -554,7 +557,7 @@ describe('PatternMatcherService', () => {
       expect(result.isLowMatch).toBe(false);
     });
 
-    it('should detect high match (> 0.85)', () => {
+    it("should detect high match (> 0.85)", () => {
       const service = new PatternMatcherService();
 
       // Create two similar embeddings
@@ -569,27 +572,27 @@ describe('PatternMatcherService', () => {
       expect(result.isLowMatch).toBe(false);
     });
 
-    it('should detect medium match (0.7 - 0.85)', () => {
+    it("should detect medium match (0.7 - 0.85)", () => {
       const service = new PatternMatcherService();
 
       // Create embeddings with moderate similarity
       const embeddingA = createValidEmbedding(0.1);
-      const embeddingB = new Array(768).fill(0).map((_, i) =>
-        i < 600 ? 0.1 : -0.05
-      );
+      const embeddingB = new Array(768).fill(0).map((_, i) => (i < 600 ? 0.1 : -0.05));
 
       const result = service.comparePatterns(embeddingA, embeddingB);
 
       // This should give medium similarity
-      if (result.cosineSimilarity >= MEDIUM_SIMILARITY_THRESHOLD &&
-          result.cosineSimilarity <= HIGH_SIMILARITY_THRESHOLD) {
+      if (
+        result.cosineSimilarity >= MEDIUM_SIMILARITY_THRESHOLD &&
+        result.cosineSimilarity <= HIGH_SIMILARITY_THRESHOLD
+      ) {
         expect(result.isMediumMatch).toBe(true);
         expect(result.isHighMatch).toBe(false);
         expect(result.isLowMatch).toBe(false);
       }
     });
 
-    it('should detect low match (< 0.7)', () => {
+    it("should detect low match (< 0.7)", () => {
       const service = new PatternMatcherService();
 
       // Create very different embeddings
@@ -604,25 +607,25 @@ describe('PatternMatcherService', () => {
       expect(result.isMediumMatch).toBe(false);
     });
 
-    it('should throw EmbeddingValidationError for invalid embeddingA', () => {
+    it("should throw EmbeddingValidationError for invalid embeddingA", () => {
       const service = new PatternMatcherService();
       const validEmbedding = createValidEmbedding();
 
-      expect(() =>
-        service.comparePatterns([1, 2, 3], validEmbedding)
-      ).toThrow(EmbeddingValidationError);
+      expect(() => service.comparePatterns([1, 2, 3], validEmbedding)).toThrow(
+        EmbeddingValidationError
+      );
     });
 
-    it('should throw EmbeddingValidationError for invalid embeddingB', () => {
+    it("should throw EmbeddingValidationError for invalid embeddingB", () => {
       const service = new PatternMatcherService();
       const validEmbedding = createValidEmbedding();
 
-      expect(() =>
-        service.comparePatterns(validEmbedding, [1, 2, 3])
-      ).toThrow(EmbeddingValidationError);
+      expect(() => service.comparePatterns(validEmbedding, [1, 2, 3])).toThrow(
+        EmbeddingValidationError
+      );
     });
 
-    it('should handle zero vectors', () => {
+    it("should handle zero vectors", () => {
       const service = new PatternMatcherService();
       const zeroEmbedding = new Array(768).fill(0);
       const validEmbedding = createValidEmbedding();
@@ -641,8 +644,8 @@ describe('PatternMatcherService', () => {
   // Constants Tests
   // =====================================================
 
-  describe('Constants', () => {
-    it('should have correct default values', () => {
+  describe("Constants", () => {
+    it("should have correct default values", () => {
       expect(DEFAULT_MIN_SIMILARITY).toBe(0.7);
       expect(DEFAULT_SEARCH_LIMIT).toBe(10);
       expect(HIGH_SIMILARITY_THRESHOLD).toBe(0.85);
@@ -654,27 +657,27 @@ describe('PatternMatcherService', () => {
   // Error Handling Tests
   // =====================================================
 
-  describe('Error Handling', () => {
-    it('should handle database errors gracefully in findSimilarSectionPatterns', async () => {
-      mockPrismaClient.$queryRawUnsafe = vi.fn().mockRejectedValue(new Error('Connection failed'));
+  describe("Error Handling", () => {
+    it("should handle database errors gracefully in findSimilarSectionPatterns", async () => {
+      mockPrismaClient.$queryRawUnsafe = vi.fn().mockRejectedValue(new Error("Connection failed"));
       setPatternMatcherPrismaClientFactory(() => mockPrismaClient);
 
       const service = new PatternMatcherService();
 
-      await expect(
-        service.findSimilarSectionPatterns(createValidEmbedding())
-      ).rejects.toThrow('Connection failed');
+      await expect(service.findSimilarSectionPatterns(createValidEmbedding())).rejects.toThrow(
+        "Connection failed"
+      );
     });
 
-    it('should handle database errors gracefully in findSimilarMotionPatterns', async () => {
-      mockPrismaClient.$queryRawUnsafe = vi.fn().mockRejectedValue(new Error('Connection failed'));
+    it("should handle database errors gracefully in findSimilarMotionPatterns", async () => {
+      mockPrismaClient.$queryRawUnsafe = vi.fn().mockRejectedValue(new Error("Connection failed"));
       setPatternMatcherPrismaClientFactory(() => mockPrismaClient);
 
       const service = new PatternMatcherService();
 
-      await expect(
-        service.findSimilarMotionPatterns(createValidEmbedding())
-      ).rejects.toThrow('Connection failed');
+      await expect(service.findSimilarMotionPatterns(createValidEmbedding())).rejects.toThrow(
+        "Connection failed"
+      );
     });
   });
 });

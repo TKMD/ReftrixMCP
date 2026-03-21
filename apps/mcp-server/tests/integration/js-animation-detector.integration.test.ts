@@ -14,34 +14,34 @@
  * @module tests/integration/js-animation-detector
  */
 
-import { describe, it, expect, beforeAll, afterAll, beforeEach, afterEach } from 'vitest';
-import { chromium, type Browser, type Page, type BrowserContext } from 'playwright';
-import * as fs from 'fs';
-import * as path from 'path';
+import { describe, it, expect, beforeAll, afterAll, beforeEach, afterEach } from "vitest";
+import { chromium, type Browser, type Page, type BrowserContext } from "playwright";
+import * as fs from "fs";
+import * as path from "path";
 import {
   JSAnimationDetectorService,
   type JSAnimationResult,
-} from '../../src/services/motion/js-animation-detector';
+} from "../../src/services/motion/js-animation-detector";
 
 // =====================================================
 // テストフィクスチャのパス
 // =====================================================
 
-const FIXTURES_DIR = path.resolve(__dirname, '../fixtures/js-animations');
+const FIXTURES_DIR = path.resolve(__dirname, "../fixtures/js-animations");
 
 /**
  * フィクスチャHTMLを読み込む
  */
 function loadFixture(filename: string): string {
   const filePath = path.join(FIXTURES_DIR, filename);
-  return fs.readFileSync(filePath, 'utf-8');
+  return fs.readFileSync(filePath, "utf-8");
 }
 
 // =====================================================
 // テストスイート: JSAnimationDetectorService 統合テスト
 // =====================================================
 
-describe('JSAnimationDetectorService 統合テスト', () => {
+describe("JSAnimationDetectorService 統合テスト", () => {
   let browser: Browser;
   let context: BrowserContext;
   let page: Page;
@@ -50,11 +50,7 @@ describe('JSAnimationDetectorService 統合テスト', () => {
   beforeAll(async () => {
     browser = await chromium.launch({
       headless: true,
-      args: [
-        '--no-sandbox',
-        '--disable-setuid-sandbox',
-        '--disable-dev-shm-usage',
-      ],
+      args: ["--no-sandbox", "--disable-setuid-sandbox", "--disable-dev-shm-usage"],
     });
     context = await browser.newContext({
       viewport: { width: 1280, height: 720 },
@@ -80,14 +76,14 @@ describe('JSAnimationDetectorService 統合テスト', () => {
   // CDP Animation 検出テスト
   // =====================================================
 
-  describe('CDP Animation 検出', () => {
+  describe("CDP Animation 検出", () => {
     /**
      * 注意: CDP Animation イベントは page.setContent() で設定されたコンテンツでは
      * 信頼性が低い場合があります。これはChrome DevTools Protocolの設計上の制限です。
      * 実際のページナビゲーション（page.goto）ではより安定して動作します。
      */
 
-    it('CSSアニメーションをCDP経由で検出する（page.setContent使用時は検出されない場合がある）', async () => {
+    it("CSSアニメーションをCDP経由で検出する（page.setContent使用時は検出されない場合がある）", async () => {
       const html = `
         <!DOCTYPE html>
         <html>
@@ -122,7 +118,7 @@ describe('JSAnimationDetectorService 統合テスト', () => {
       expect(Array.isArray(result.cdpAnimations)).toBe(true);
     });
 
-    it('CSS Transitionを検出する', async () => {
+    it("CSS Transitionを検出する", async () => {
       const html = `
         <!DOCTYPE html>
         <html>
@@ -162,7 +158,7 @@ describe('JSAnimationDetectorService 統合テスト', () => {
       expect(result.cdpAnimations).toBeDefined();
     });
 
-    it('CDP初期化とイベントリスナー設定が正常に動作する', async () => {
+    it("CDP初期化とイベントリスナー設定が正常に動作する", async () => {
       const html = `
         <!DOCTYPE html>
         <html>
@@ -204,9 +200,9 @@ describe('JSAnimationDetectorService 統合テスト', () => {
   // Web Animations API 検出テスト
   // =====================================================
 
-  describe('Web Animations API 検出', () => {
-    it('Element.animate()で作成されたアニメーションを検出する', async () => {
-      const html = loadFixture('web-animations-test.html');
+  describe("Web Animations API 検出", () => {
+    it("Element.animate()で作成されたアニメーションを検出する", async () => {
+      const html = loadFixture("web-animations-test.html");
       await page.setContent(html);
       await page.waitForTimeout(200);
 
@@ -227,7 +223,7 @@ describe('JSAnimationDetectorService 統合テスト', () => {
       expect(animation.timing.duration).toBeGreaterThan(0);
     });
 
-    it('アニメーションのタイミング情報を正確に取得する', async () => {
+    it("アニメーションのタイミング情報を正確に取得する", async () => {
       const html = `
         <!DOCTYPE html>
         <html>
@@ -268,12 +264,12 @@ describe('JSAnimationDetectorService 統合テスト', () => {
       const animation = result.webAnimations[0];
       expect(animation.timing.duration).toBe(2000);
       expect(animation.timing.iterations).toBe(5);
-      expect(animation.timing.easing).toBe('ease-in-out');
-      expect(animation.timing.direction).toBe('alternate');
-      expect(animation.timing.fill).toBe('forwards');
+      expect(animation.timing.easing).toBe("ease-in-out");
+      expect(animation.timing.direction).toBe("alternate");
+      expect(animation.timing.fill).toBe("forwards");
     });
 
-    it('無限ループアニメーションを正しく検出する', async () => {
+    it("無限ループアニメーションを正しく検出する", async () => {
       const html = `
         <!DOCTYPE html>
         <html>
@@ -307,7 +303,7 @@ describe('JSAnimationDetectorService 統合テスト', () => {
       expect(result.webAnimations[0].timing.iterations).toBe(-1);
     });
 
-    it('キーフレームを取得する', async () => {
+    it("キーフレームを取得する", async () => {
       const html = `
         <!DOCTYPE html>
         <html>
@@ -346,9 +342,9 @@ describe('JSAnimationDetectorService 統合テスト', () => {
   // ライブラリ検出テスト
   // =====================================================
 
-  describe('ライブラリ検出', () => {
-    it('GSAPグローバルを検出する', async () => {
-      const html = loadFixture('mixed-animations-test.html');
+  describe("ライブラリ検出", () => {
+    it("GSAPグローバルを検出する", async () => {
+      const html = loadFixture("mixed-animations-test.html");
       await page.setContent(html);
 
       const result = await detector.detect(page, {
@@ -359,11 +355,11 @@ describe('JSAnimationDetectorService 統合テスト', () => {
       });
 
       expect(result.libraries.gsap.detected).toBe(true);
-      expect(result.libraries.gsap.version).toBe('3.12.2');
+      expect(result.libraries.gsap.version).toBe("3.12.2");
     });
 
-    it('Framer Motion要素を検出する', async () => {
-      const html = loadFixture('framer-motion-test.html');
+    it("Framer Motion要素を検出する", async () => {
+      const html = loadFixture("framer-motion-test.html");
       await page.setContent(html);
 
       const result = await detector.detect(page, {
@@ -377,8 +373,8 @@ describe('JSAnimationDetectorService 統合テスト', () => {
       expect(result.libraries.framerMotion.elements).toBeGreaterThan(0);
     });
 
-    it('Lottie要素を検出する', async () => {
-      const html = loadFixture('lottie-test.html');
+    it("Lottie要素を検出する", async () => {
+      const html = loadFixture("lottie-test.html");
       await page.setContent(html);
 
       const result = await detector.detect(page, {
@@ -391,7 +387,7 @@ describe('JSAnimationDetectorService 統合テスト', () => {
       expect(result.libraries.lottie.detected).toBe(true);
     });
 
-    it('複数のライブラリを同時に検出する', async () => {
+    it("複数のライブラリを同時に検出する", async () => {
       const html = `
         <!DOCTYPE html>
         <html>
@@ -426,9 +422,9 @@ describe('JSAnimationDetectorService 統合テスト', () => {
   // 統合検出テスト（CDP + Web Animations + Library）
   // =====================================================
 
-  describe('統合検出（全モード有効）', () => {
-    it('CSS + Web Animations + ライブラリを同時に検出する', async () => {
-      const html = loadFixture('mixed-animations-test.html');
+  describe("統合検出（全モード有効）", () => {
+    it("CSS + Web Animations + ライブラリを同時に検出する", async () => {
+      const html = loadFixture("mixed-animations-test.html");
       await page.setContent(html);
 
       const result = await detector.detect(page, {
@@ -453,8 +449,8 @@ describe('JSAnimationDetectorService 統合テスト', () => {
       expect(result.libraries.gsap.detected).toBe(true);
     });
 
-    it('web-animations-test.htmlでCDPとWeb Animationsの両方を検出する', async () => {
-      const html = loadFixture('web-animations-test.html');
+    it("web-animations-test.htmlでCDPとWeb Animationsの両方を検出する", async () => {
+      const html = loadFixture("web-animations-test.html");
       await page.setContent(html);
       await page.waitForTimeout(200);
 
@@ -474,9 +470,9 @@ describe('JSAnimationDetectorService 統合テスト', () => {
   // オプション設定テスト
   // =====================================================
 
-  describe('オプション設定', () => {
-    it('CDPのみ有効時、他の検出はスキップされる', async () => {
-      const html = loadFixture('web-animations-test.html');
+  describe("オプション設定", () => {
+    it("CDPのみ有効時、他の検出はスキップされる", async () => {
+      const html = loadFixture("web-animations-test.html");
       await page.setContent(html);
 
       const result = await detector.detect(page, {
@@ -494,7 +490,7 @@ describe('JSAnimationDetectorService 統合テスト', () => {
       expect(result.libraries.lottie.detected).toBe(false);
     });
 
-    it('waitTimeが検出結果に影響する', async () => {
+    it("waitTimeが検出結果に影響する", async () => {
       const html = `
         <!DOCTYPE html>
         <html>
@@ -543,9 +539,9 @@ describe('JSAnimationDetectorService 統合テスト', () => {
   // クリーンアップテスト
   // =====================================================
 
-  describe('クリーンアップ', () => {
-    it('cleanup後にcdpAnimationsがクリアされる', async () => {
-      const html = loadFixture('web-animations-test.html');
+  describe("クリーンアップ", () => {
+    it("cleanup後にcdpAnimationsがクリアされる", async () => {
+      const html = loadFixture("web-animations-test.html");
       await page.setContent(html);
 
       await detector.detect(page, {
@@ -559,7 +555,7 @@ describe('JSAnimationDetectorService 統合テスト', () => {
 
       // 同じインスタンスで再度detectすると、以前の結果は含まれない
       const newPage = await context.newPage();
-      await newPage.setContent('<html><body>Empty</body></html>');
+      await newPage.setContent("<html><body>Empty</body></html>");
 
       const result = await detector.detect(newPage, {
         enableCDP: true,
@@ -574,8 +570,8 @@ describe('JSAnimationDetectorService 統合テスト', () => {
       await newPage.close();
     });
 
-    it('複数回cleanupを呼んでもエラーにならない', async () => {
-      const html = loadFixture('web-animations-test.html');
+    it("複数回cleanupを呼んでもエラーにならない", async () => {
+      const html = loadFixture("web-animations-test.html");
       await page.setContent(html);
 
       await detector.detect(page, {
@@ -595,9 +591,9 @@ describe('JSAnimationDetectorService 統合テスト', () => {
   // エラーハンドリングテスト
   // =====================================================
 
-  describe('エラーハンドリング', () => {
-    it('閉じたページで検出してもエラーにならない', async () => {
-      const html = loadFixture('web-animations-test.html');
+  describe("エラーハンドリング", () => {
+    it("閉じたページで検出してもエラーにならない", async () => {
+      const html = loadFixture("web-animations-test.html");
       await page.setContent(html);
       await page.close();
 
@@ -618,7 +614,7 @@ describe('JSAnimationDetectorService 統合テスト', () => {
       page = await context.newPage();
     });
 
-    it('JavaScriptエラーがあるページでも検出を継続する', async () => {
+    it("JavaScriptエラーがあるページでも検出を継続する", async () => {
       const html = `
         <!DOCTYPE html>
         <html>
@@ -657,9 +653,9 @@ describe('JSAnimationDetectorService 統合テスト', () => {
   // パフォーマンステスト
   // =====================================================
 
-  describe('パフォーマンス', () => {
-    it('検出処理は3秒以内に完了する', async () => {
-      const html = loadFixture('mixed-animations-test.html');
+  describe("パフォーマンス", () => {
+    it("検出処理は3秒以内に完了する", async () => {
+      const html = loadFixture("mixed-animations-test.html");
       await page.setContent(html);
 
       const startTime = Date.now();
@@ -678,8 +674,8 @@ describe('JSAnimationDetectorService 統合テスト', () => {
       expect(result.detectionTimeMs).toBeLessThan(3000);
     });
 
-    it('detectionTimeMsが正確に記録される', async () => {
-      const html = loadFixture('web-animations-test.html');
+    it("detectionTimeMsが正確に記録される", async () => {
+      const html = loadFixture("web-animations-test.html");
       await page.setContent(html);
 
       const waitTime = 200;
@@ -702,19 +698,19 @@ describe('JSAnimationDetectorService 統合テスト', () => {
 // CDP Animation タイプ検証（型安全性テスト）
 // =====================================================
 
-describe('CDP Animation 型検証', () => {
-  it('CDPAnimationSourceの構造が正しい', () => {
+describe("CDP Animation 型検証", () => {
+  it("CDPAnimationSourceの構造が正しい", () => {
     const source = {
       duration: 1000,
       delay: 100,
       iterations: 3,
-      direction: 'alternate',
-      easing: 'ease-in-out',
+      direction: "alternate",
+      easing: "ease-in-out",
       keyframesRule: {
-        name: 'fadeIn',
+        name: "fadeIn",
         keyframes: [
-          { offset: '0', easing: 'ease', style: 'opacity: 0;' },
-          { offset: '1', easing: 'ease', style: 'opacity: 1;' },
+          { offset: "0", easing: "ease", style: "opacity: 0;" },
+          { offset: "1", easing: "ease", style: "opacity: 1;" },
         ],
       },
     };
@@ -722,12 +718,12 @@ describe('CDP Animation 型検証', () => {
     expect(source.duration).toBe(1000);
     expect(source.delay).toBe(100);
     expect(source.iterations).toBe(3);
-    expect(source.direction).toBe('alternate');
-    expect(source.easing).toBe('ease-in-out');
+    expect(source.direction).toBe("alternate");
+    expect(source.easing).toBe("ease-in-out");
     expect(source.keyframesRule?.keyframes).toHaveLength(2);
   });
 
-  it('JSAnimationResultの構造が正しい', () => {
+  it("JSAnimationResultの構造が正しい", () => {
     const result: JSAnimationResult = {
       cdpAnimations: [],
       webAnimations: [],

@@ -18,7 +18,7 @@
  * @module tests/tools/layout/inspect-service-factory.test
  */
 
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 
 // =====================================================
 // インポート
@@ -29,22 +29,22 @@ import {
   setLayoutInspectServiceFactory,
   resetLayoutInspectServiceFactory,
   type ILayoutInspectService,
-} from '../../../src/tools/layout/inspect';
+} from "../../../src/tools/layout/inspect";
 
 // MCPサーバーのエントリポイントからエクスポートされているもの
 import {
   setLayoutSearchServiceFactory,
   setLayoutToCodeServiceFactory,
-} from '../../../src/tools/layout';
+} from "../../../src/tools/layout";
 
 // webPageServiceのモック用
-import { webPageService } from '../../../src/services/web-page.service';
+import { webPageService } from "../../../src/services/web-page.service";
 
 // =====================================================
 // テストデータ
 // =====================================================
 
-const TEST_UUID = '01234567-89ab-cdef-0123-456789abcdef';
+const TEST_UUID = "01234567-89ab-cdef-0123-456789abcdef";
 
 const TEST_HTML = `<!DOCTYPE html>
 <html>
@@ -73,7 +73,7 @@ const MOCK_WEB_PAGE = {
 // サービスファクトリ登録のテスト
 // =====================================================
 
-describe('layout.inspect サービスファクトリ登録', () => {
+describe("layout.inspect サービスファクトリ登録", () => {
   beforeEach(() => {
     // テスト前にサービスファクトリをリセット
     resetLayoutInspectServiceFactory();
@@ -85,7 +85,7 @@ describe('layout.inspect サービスファクトリ登録', () => {
     vi.restoreAllMocks();
   });
 
-  describe('index.ts でのサービスファクトリ登録確認', () => {
+  describe("index.ts でのサービスファクトリ登録確認", () => {
     /**
      * TDD Red: このテストは現状で失敗する
      *
@@ -97,12 +97,12 @@ describe('layout.inspect サービスファクトリ登録', () => {
      * - index.ts で setLayoutInspectServiceFactory() が呼び出される
      * - webPageService.getPageById を使用して WebPage を取得できる
      */
-    it('MCPサーバー初期化後に layout.inspect が id パラメータで動作すること', async () => {
+    it("MCPサーバー初期化後に layout.inspect が id パラメータで動作すること", async () => {
       // 1. MCPサーバーの index.ts が行うべきサービスファクトリ登録をシミュレート
       //    TDD-Green: index.ts に登録が追加されたので、同等の登録をテスト内で行う
 
       // webPageService.getPageById をモック
-      vi.spyOn(webPageService, 'getPageById').mockResolvedValue({
+      vi.spyOn(webPageService, "getPageById").mockResolvedValue({
         id: TEST_UUID,
         htmlContent: TEST_HTML,
       });
@@ -130,7 +130,7 @@ describe('layout.inspect サービスファクトリ登録', () => {
      * TDD Red: サービスファクトリが登録されていない状態を検証
      * このテストは現状で通過する（バグの存在を確認）
      */
-    it('サービスファクトリ未登録時に id パラメータで SERVICE_UNAVAILABLE エラーが返ること', async () => {
+    it("サービスファクトリ未登録時に id パラメータで SERVICE_UNAVAILABLE エラーが返ること", async () => {
       // サービスファクトリをリセット（未登録状態）
       resetLayoutInspectServiceFactory();
 
@@ -142,17 +142,17 @@ describe('layout.inspect サービスファクトリ登録', () => {
       // 現状: SERVICE_UNAVAILABLE エラーが返される
       expect(result.success).toBe(false);
       expect(result.error).toBeDefined();
-      expect(result.error?.code).toBe('SERVICE_UNAVAILABLE');
-      expect(result.error?.message).toContain('html');
+      expect(result.error?.code).toBe("SERVICE_UNAVAILABLE");
+      expect(result.error?.message).toContain("html");
     });
   });
 
-  describe('サービスファクトリ正常登録時の動作', () => {
+  describe("サービスファクトリ正常登録時の動作", () => {
     /**
      * サービスファクトリが正しく登録された場合の動作確認
      * このテストは通過する（正しい実装のリファレンス）
      */
-    it('サービスファクトリ登録後に id パラメータで WebPage を取得できること', async () => {
+    it("サービスファクトリ登録後に id パラメータで WebPage を取得できること", async () => {
       // サービスファクトリを登録
       const mockGetWebPageById = vi.fn().mockResolvedValue(MOCK_WEB_PAGE);
 
@@ -175,7 +175,7 @@ describe('layout.inspect サービスファクトリ登録', () => {
     /**
      * 存在しないIDの場合のエラーハンドリング
      */
-    it('存在しない id の場合に NOT_FOUND エラーが返ること', async () => {
+    it("存在しない id の場合に NOT_FOUND エラーが返ること", async () => {
       // サービスファクトリを登録（null を返す）
       const mockGetWebPageById = vi.fn().mockResolvedValue(null);
 
@@ -184,23 +184,23 @@ describe('layout.inspect サービスファクトリ登録', () => {
       }));
 
       // 存在しない id でハンドラーを呼び出す（有効なUUID形式を使用）
-      const nonExistentUuid = '99999999-9999-9999-9999-999999999999';
+      const nonExistentUuid = "99999999-9999-9999-9999-999999999999";
       const result = await layoutInspectHandler({
         id: nonExistentUuid,
       });
 
       // 検証
       expect(result.success).toBe(false);
-      expect(result.error?.code).toBe('NOT_FOUND');
+      expect(result.error?.code).toBe("NOT_FOUND");
       expect(mockGetWebPageById).toHaveBeenCalledWith(nonExistentUuid);
     });
 
     /**
      * DB接続エラーの場合のエラーハンドリング
      */
-    it('DB接続エラーの場合に DB_ERROR が返ること', async () => {
+    it("DB接続エラーの場合に DB_ERROR が返ること", async () => {
       // サービスファクトリを登録（エラーをスロー）
-      const mockGetWebPageById = vi.fn().mockRejectedValue(new Error('Connection refused'));
+      const mockGetWebPageById = vi.fn().mockRejectedValue(new Error("Connection refused"));
 
       setLayoutInspectServiceFactory(() => ({
         getWebPageById: mockGetWebPageById,
@@ -213,30 +213,32 @@ describe('layout.inspect サービスファクトリ登録', () => {
 
       // 検証
       expect(result.success).toBe(false);
-      expect(result.error?.code).toBe('DB_ERROR');
+      expect(result.error?.code).toBe("DB_ERROR");
     });
   });
 
-  describe('他のlayoutツールとの一貫性', () => {
+  describe("他のlayoutツールとの一貫性", () => {
     /**
      * layout.search と layout.to_code はサービスファクトリがエクスポートされている
      * layout.inspect も同様にエクスポートされるべき
      */
-    it('setLayoutInspectServiceFactory が layout/index.ts からエクスポートされていること', async () => {
+    it("setLayoutInspectServiceFactory が layout/index.ts からエクスポートされていること", async () => {
       // layout/index.ts からのインポートを試みる
       // 注意: 現状では layout/index.ts に setLayoutInspectServiceFactory がエクスポートされていない
       try {
         // 動的インポートで確認
-        const layoutModule = await import('../../../src/tools/layout');
+        const layoutModule = await import("../../../src/tools/layout");
 
         // setLayoutSearchServiceFactory と setLayoutToCodeServiceFactory は存在する
-        expect(typeof setLayoutSearchServiceFactory).toBe('function');
-        expect(typeof setLayoutToCodeServiceFactory).toBe('function');
+        expect(typeof setLayoutSearchServiceFactory).toBe("function");
+        expect(typeof setLayoutToCodeServiceFactory).toBe("function");
 
         // setLayoutInspectServiceFactory も存在すべき
         // 現状: この行で undefined になる（バグ）
         // 修正後: function になる
-        expect(typeof (layoutModule as Record<string, unknown>).setLayoutInspectServiceFactory).toBe('function');
+        expect(
+          typeof (layoutModule as Record<string, unknown>).setLayoutInspectServiceFactory
+        ).toBe("function");
       } catch (error) {
         // インポートエラーの場合は失敗
         expect(error).toBeUndefined();
@@ -244,7 +246,7 @@ describe('layout.inspect サービスファクトリ登録', () => {
     });
   });
 
-  describe('webPageService との統合', () => {
+  describe("webPageService との統合", () => {
     /**
      * TDD Red: index.ts で webPageService を使用したサービスファクトリが登録されること
      *
@@ -255,9 +257,9 @@ describe('layout.inspect サービスファクトリ登録', () => {
      * }));
      * ```
      */
-    it('webPageService.getPageById と統合されたサービスファクトリが動作すること', async () => {
+    it("webPageService.getPageById と統合されたサービスファクトリが動作すること", async () => {
       // webPageService のモックを設定
-      vi.spyOn(webPageService, 'getPageById').mockResolvedValue({
+      vi.spyOn(webPageService, "getPageById").mockResolvedValue({
         id: TEST_UUID,
         htmlContent: TEST_HTML,
       });
@@ -284,7 +286,7 @@ describe('layout.inspect サービスファクトリ登録', () => {
 // サービスファクトリ登録パターンの検証
 // =====================================================
 
-describe('サービスファクトリ登録パターン', () => {
+describe("サービスファクトリ登録パターン", () => {
   beforeEach(() => {
     resetLayoutInspectServiceFactory();
   });
@@ -311,7 +313,7 @@ describe('サービスファクトリ登録パターン', () => {
    * }));
    * ```
    */
-  it('motion.detect と同様のサービスファクトリパターンが適用されること', async () => {
+  it("motion.detect と同様のサービスファクトリパターンが適用されること", async () => {
     // motion.detect で使用されているパターンと同じ形式
     const serviceFactory = () => ({
       getWebPageById: async (id: string) => {
@@ -321,7 +323,7 @@ describe('サービスファクトリ登録パターン', () => {
     });
 
     // webPageService のモックを設定
-    vi.spyOn(webPageService, 'getPageById').mockResolvedValue({
+    vi.spyOn(webPageService, "getPageById").mockResolvedValue({
       id: TEST_UUID,
       htmlContent: TEST_HTML,
     });
@@ -342,12 +344,12 @@ describe('サービスファクトリ登録パターン', () => {
   /**
    * Vision API 連携も含めたフルサービスファクトリ
    */
-  it('Vision API 連携を含むフルサービスファクトリが動作すること', async () => {
+  it("Vision API 連携を含むフルサービスファクトリが動作すること", async () => {
     const mockVisionResult = {
       success: true,
       features: [],
       processingTimeMs: 100,
-      modelName: 'test-vision-model',
+      modelName: "test-vision-model",
     };
 
     const fullServiceFactory: () => ILayoutInspectService = () => ({
@@ -360,7 +362,7 @@ describe('サービスファクトリ登録パターン', () => {
     });
 
     // webPageService のモックを設定
-    vi.spyOn(webPageService, 'getPageById').mockResolvedValue({
+    vi.spyOn(webPageService, "getPageById").mockResolvedValue({
       id: TEST_UUID,
       htmlContent: TEST_HTML,
     });
@@ -385,7 +387,7 @@ describe('サービスファクトリ登録パターン', () => {
 // 回帰テスト: html パラメータは引き続き動作すること
 // =====================================================
 
-describe('回帰テスト: html パラメータの動作', () => {
+describe("回帰テスト: html パラメータの動作", () => {
   beforeEach(() => {
     // サービスファクトリが未登録でも html パラメータは動作すべき
     resetLayoutInspectServiceFactory();
@@ -398,7 +400,7 @@ describe('回帰テスト: html パラメータの動作', () => {
   /**
    * サービスファクトリが未登録でも html パラメータは動作すること
    */
-  it('サービスファクトリ未登録でも html パラメータで解析できること', async () => {
+  it("サービスファクトリ未登録でも html パラメータで解析できること", async () => {
     const result = await layoutInspectHandler({
       html: TEST_HTML,
     });
@@ -411,7 +413,7 @@ describe('回帰テスト: html パラメータの動作', () => {
   /**
    * id と html の両方が指定された場合、html が優先されること
    */
-  it('id と html 両方指定時に html が優先されること', async () => {
+  it("id と html 両方指定時に html が優先されること", async () => {
     // サービスファクトリは未登録
     // id が指定されていても html があれば html を使用
 

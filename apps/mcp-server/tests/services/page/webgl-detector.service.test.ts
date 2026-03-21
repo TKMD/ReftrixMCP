@@ -10,14 +10,14 @@
  * @module tests/services/page/webgl-detector.service
  */
 
-import { describe, it, expect, beforeEach, vi } from 'vitest';
-import type { Page } from 'playwright';
+import { describe, it, expect, beforeEach, vi } from "vitest";
+import type { Page } from "playwright";
 import {
   WebGLDetectorService,
   type WebGLDetectionResult,
   type WebGLLibrary,
   WEBGL_DETECTION_DEFAULTS,
-} from '../../../src/services/page/webgl-detector.service';
+} from "../../../src/services/page/webgl-detector.service";
 
 // =====================================================
 // Test Fixtures
@@ -34,7 +34,7 @@ function createMockPage(evaluateResult: Partial<WebGLDetectionResult> = {}): Pag
     detectedLibraries: [],
     webglVersion: null,
     isHeavySite: false,
-    recommendedWaitStrategy: 'standard',
+    recommendedWaitStrategy: "standard",
     recommendedTimeout: WEBGL_DETECTION_DEFAULTS.standardTimeout,
     detectionTimeMs: 10,
     ...evaluateResult,
@@ -49,22 +49,22 @@ function createMockPage(evaluateResult: Partial<WebGLDetectionResult> = {}): Pag
 // Test Suites
 // =====================================================
 
-describe('WebGLDetectorService', () => {
+describe("WebGLDetectorService", () => {
   let service: WebGLDetectorService;
 
   beforeEach(() => {
     service = new WebGLDetectorService();
   });
 
-  describe('constructor', () => {
-    it('should create service instance', () => {
+  describe("constructor", () => {
+    it("should create service instance", () => {
       expect(service).toBeInstanceOf(WebGLDetectorService);
     });
   });
 
-  describe('detect()', () => {
-    describe('Basic Detection', () => {
-      it('should detect page without WebGL', async () => {
+  describe("detect()", () => {
+    describe("Basic Detection", () => {
+      it("should detect page without WebGL", async () => {
         const mockPage = createMockPage({
           hasWebGL: false,
           hasCanvas: false,
@@ -82,7 +82,7 @@ describe('WebGLDetectorService', () => {
         expect(result.webglVersion).toBeNull();
       });
 
-      it('should detect page with Canvas but no WebGL', async () => {
+      it("should detect page with Canvas but no WebGL", async () => {
         const mockPage = createMockPage({
           hasWebGL: false,
           hasCanvas: true,
@@ -98,7 +98,7 @@ describe('WebGLDetectorService', () => {
         expect(result.canvasCount).toBe(2);
       });
 
-      it('should detect WebGL 1 context', async () => {
+      it("should detect WebGL 1 context", async () => {
         const mockPage = createMockPage({
           hasWebGL: true,
           hasCanvas: true,
@@ -112,7 +112,7 @@ describe('WebGLDetectorService', () => {
         expect(result.webglVersion).toBe(1);
       });
 
-      it('should detect WebGL 2 context', async () => {
+      it("should detect WebGL 2 context", async () => {
         const mockPage = createMockPage({
           hasWebGL: true,
           hasCanvas: true,
@@ -127,115 +127,115 @@ describe('WebGLDetectorService', () => {
       });
     });
 
-    describe('Library Detection', () => {
-      it('should detect Three.js', async () => {
+    describe("Library Detection", () => {
+      it("should detect Three.js", async () => {
         const mockPage = createMockPage({
           hasWebGL: true,
           hasCanvas: true,
           canvasCount: 1,
-          detectedLibraries: ['three.js'],
+          detectedLibraries: ["three.js"],
           webglVersion: 2,
         });
 
         const result = await service.detect(mockPage);
 
-        expect(result.detectedLibraries).toContain('three.js');
+        expect(result.detectedLibraries).toContain("three.js");
       });
 
-      it('should detect Babylon.js', async () => {
+      it("should detect Babylon.js", async () => {
         const mockPage = createMockPage({
           hasWebGL: true,
           hasCanvas: true,
           canvasCount: 1,
-          detectedLibraries: ['babylon.js'],
+          detectedLibraries: ["babylon.js"],
           webglVersion: 2,
         });
 
         const result = await service.detect(mockPage);
 
-        expect(result.detectedLibraries).toContain('babylon.js');
+        expect(result.detectedLibraries).toContain("babylon.js");
       });
 
-      it('should detect PixiJS', async () => {
+      it("should detect PixiJS", async () => {
         const mockPage = createMockPage({
           hasWebGL: true,
           hasCanvas: true,
           canvasCount: 1,
-          detectedLibraries: ['pixi.js'],
+          detectedLibraries: ["pixi.js"],
           webglVersion: 2,
         });
 
         const result = await service.detect(mockPage);
 
-        expect(result.detectedLibraries).toContain('pixi.js');
+        expect(result.detectedLibraries).toContain("pixi.js");
       });
 
-      it('should detect A-Frame', async () => {
+      it("should detect A-Frame", async () => {
         const mockPage = createMockPage({
           hasWebGL: true,
           hasCanvas: true,
           canvasCount: 1,
-          detectedLibraries: ['a-frame'],
+          detectedLibraries: ["a-frame"],
           webglVersion: 2,
         });
 
         const result = await service.detect(mockPage);
 
-        expect(result.detectedLibraries).toContain('a-frame');
+        expect(result.detectedLibraries).toContain("a-frame");
       });
 
-      it('should detect p5.js', async () => {
+      it("should detect p5.js", async () => {
         const mockPage = createMockPage({
           hasWebGL: true,
           hasCanvas: true,
           canvasCount: 1,
-          detectedLibraries: ['p5.js'],
+          detectedLibraries: ["p5.js"],
           webglVersion: 1,
         });
 
         const result = await service.detect(mockPage);
 
-        expect(result.detectedLibraries).toContain('p5.js');
+        expect(result.detectedLibraries).toContain("p5.js");
       });
 
-      it('should detect PlayCanvas', async () => {
+      it("should detect PlayCanvas", async () => {
         const mockPage = createMockPage({
           hasWebGL: true,
           hasCanvas: true,
           canvasCount: 1,
-          detectedLibraries: ['playcanvas'],
+          detectedLibraries: ["playcanvas"],
           webglVersion: 2,
         });
 
         const result = await service.detect(mockPage);
 
-        expect(result.detectedLibraries).toContain('playcanvas');
+        expect(result.detectedLibraries).toContain("playcanvas");
       });
 
-      it('should detect multiple libraries', async () => {
+      it("should detect multiple libraries", async () => {
         const mockPage = createMockPage({
           hasWebGL: true,
           hasCanvas: true,
           canvasCount: 2,
-          detectedLibraries: ['three.js', 'gsap'],
+          detectedLibraries: ["three.js", "gsap"],
           webglVersion: 2,
         });
 
         const result = await service.detect(mockPage);
 
-        expect(result.detectedLibraries).toContain('three.js');
-        expect(result.detectedLibraries).toContain('gsap');
+        expect(result.detectedLibraries).toContain("three.js");
+        expect(result.detectedLibraries).toContain("gsap");
         expect(result.detectedLibraries).toHaveLength(2);
       });
     });
 
-    describe('Heavy Site Detection', () => {
-      it('should detect heavy site with many canvases', async () => {
+    describe("Heavy Site Detection", () => {
+      it("should detect heavy site with many canvases", async () => {
         const mockPage = createMockPage({
           hasWebGL: true,
           hasCanvas: true,
           canvasCount: 5,
-          detectedLibraries: ['three.js'],
+          detectedLibraries: ["three.js"],
           webglVersion: 2,
           isHeavySite: true,
         });
@@ -245,12 +245,12 @@ describe('WebGLDetectorService', () => {
         expect(result.isHeavySite).toBe(true);
       });
 
-      it('should detect heavy site with WebGL 2 + 3D library', async () => {
+      it("should detect heavy site with WebGL 2 + 3D library", async () => {
         const mockPage = createMockPage({
           hasWebGL: true,
           hasCanvas: true,
           canvasCount: 1,
-          detectedLibraries: ['three.js'],
+          detectedLibraries: ["three.js"],
           webglVersion: 2,
           isHeavySite: true,
         });
@@ -260,7 +260,7 @@ describe('WebGLDetectorService', () => {
         expect(result.isHeavySite).toBe(true);
       });
 
-      it('should not mark simple 2D canvas as heavy', async () => {
+      it("should not mark simple 2D canvas as heavy", async () => {
         const mockPage = createMockPage({
           hasWebGL: false,
           hasCanvas: true,
@@ -276,62 +276,62 @@ describe('WebGLDetectorService', () => {
       });
     });
 
-    describe('Wait Strategy Recommendation', () => {
-      it('should recommend standard strategy for non-WebGL pages', async () => {
+    describe("Wait Strategy Recommendation", () => {
+      it("should recommend standard strategy for non-WebGL pages", async () => {
         const mockPage = createMockPage({
           hasWebGL: false,
           hasCanvas: false,
           canvasCount: 0,
-          recommendedWaitStrategy: 'standard',
+          recommendedWaitStrategy: "standard",
           recommendedTimeout: WEBGL_DETECTION_DEFAULTS.standardTimeout,
         });
 
         const result = await service.detect(mockPage);
 
-        expect(result.recommendedWaitStrategy).toBe('standard');
+        expect(result.recommendedWaitStrategy).toBe("standard");
         expect(result.recommendedTimeout).toBe(WEBGL_DETECTION_DEFAULTS.standardTimeout);
       });
 
-      it('should recommend webgl-extended strategy for WebGL pages', async () => {
+      it("should recommend webgl-extended strategy for WebGL pages", async () => {
         const mockPage = createMockPage({
           hasWebGL: true,
           hasCanvas: true,
           canvasCount: 1,
-          detectedLibraries: ['three.js'],
+          detectedLibraries: ["three.js"],
           webglVersion: 2,
-          recommendedWaitStrategy: 'webgl-extended',
+          recommendedWaitStrategy: "webgl-extended",
           recommendedTimeout: WEBGL_DETECTION_DEFAULTS.webglTimeout,
         });
 
         const result = await service.detect(mockPage);
 
-        expect(result.recommendedWaitStrategy).toBe('webgl-extended');
+        expect(result.recommendedWaitStrategy).toBe("webgl-extended");
         expect(result.recommendedTimeout).toBe(WEBGL_DETECTION_DEFAULTS.webglTimeout);
       });
 
-      it('should recommend networkidle for heavy sites', async () => {
+      it("should recommend networkidle for heavy sites", async () => {
         const mockPage = createMockPage({
           hasWebGL: true,
           hasCanvas: true,
           canvasCount: 10,
-          detectedLibraries: ['three.js', 'gsap'],
+          detectedLibraries: ["three.js", "gsap"],
           webglVersion: 2,
           isHeavySite: true,
-          recommendedWaitStrategy: 'networkidle',
+          recommendedWaitStrategy: "networkidle",
           recommendedTimeout: WEBGL_DETECTION_DEFAULTS.heavySiteTimeout,
         });
 
         const result = await service.detect(mockPage);
 
-        expect(result.recommendedWaitStrategy).toBe('networkidle');
+        expect(result.recommendedWaitStrategy).toBe("networkidle");
         expect(result.recommendedTimeout).toBe(WEBGL_DETECTION_DEFAULTS.heavySiteTimeout);
       });
     });
 
-    describe('Error Handling', () => {
-      it('should handle page.evaluate errors gracefully', async () => {
+    describe("Error Handling", () => {
+      it("should handle page.evaluate errors gracefully", async () => {
         const mockPage = {
-          evaluate: vi.fn().mockRejectedValue(new Error('Evaluation failed')),
+          evaluate: vi.fn().mockRejectedValue(new Error("Evaluation failed")),
         } as unknown as Page;
 
         const result = await service.detect(mockPage);
@@ -340,25 +340,27 @@ describe('WebGLDetectorService', () => {
         expect(result.hasWebGL).toBe(false);
         expect(result.hasCanvas).toBe(false);
         expect(result.detectedLibraries).toEqual([]);
-        expect(result.recommendedWaitStrategy).toBe('standard');
+        expect(result.recommendedWaitStrategy).toBe("standard");
       });
 
-      it('should handle timeout during detection', async () => {
+      it("should handle timeout during detection", async () => {
         const mockPage = {
-          evaluate: vi.fn().mockImplementation(
-            () => new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 100))
-          ),
+          evaluate: vi
+            .fn()
+            .mockImplementation(
+              () => new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout")), 100))
+            ),
         } as unknown as Page;
 
         const result = await service.detect(mockPage);
 
         expect(result.hasWebGL).toBe(false);
-        expect(result.recommendedWaitStrategy).toBe('standard');
+        expect(result.recommendedWaitStrategy).toBe("standard");
       });
     });
 
-    describe('Detection Timing', () => {
-      it('should include detection time in result', async () => {
+    describe("Detection Timing", () => {
+      it("should include detection time in result", async () => {
         const mockPage = createMockPage({
           detectionTimeMs: 15,
         });
@@ -370,19 +372,19 @@ describe('WebGLDetectorService', () => {
     });
   });
 
-  describe('getDetectionScript()', () => {
-    it('should return a valid JavaScript function string', () => {
+  describe("getDetectionScript()", () => {
+    it("should return a valid JavaScript function string", () => {
       const script = service.getDetectionScript();
 
-      expect(typeof script).toBe('string');
+      expect(typeof script).toBe("string");
       expect(script.length).toBeGreaterThan(0);
       // Should start with opening parenthesis (IIFE or arrow function)
-      expect(script.startsWith('(')).toBe(true);
+      expect(script.startsWith("(")).toBe(true);
     });
   });
 
-  describe('WEBGL_DETECTION_DEFAULTS', () => {
-    it('should have reasonable timeout values', () => {
+  describe("WEBGL_DETECTION_DEFAULTS", () => {
+    it("should have reasonable timeout values", () => {
       expect(WEBGL_DETECTION_DEFAULTS.standardTimeout).toBeGreaterThan(0);
       expect(WEBGL_DETECTION_DEFAULTS.webglTimeout).toBeGreaterThan(
         WEBGL_DETECTION_DEFAULTS.standardTimeout
@@ -392,42 +394,42 @@ describe('WebGLDetectorService', () => {
       );
     });
 
-    it('should have valid canvas count thresholds', () => {
+    it("should have valid canvas count thresholds", () => {
       expect(WEBGL_DETECTION_DEFAULTS.heavyCanvasThreshold).toBeGreaterThan(0);
     });
   });
 });
 
-describe('WebGLDetectorService Integration Scenarios', () => {
+describe("WebGLDetectorService Integration Scenarios", () => {
   let service: WebGLDetectorService;
 
   beforeEach(() => {
     service = new WebGLDetectorService();
   });
 
-  describe('Real-world Site Patterns', () => {
-    it('should handle lbproject.dev-like site (Three.js + heavy assets)', async () => {
+  describe("Real-world Site Patterns", () => {
+    it("should handle lbproject.dev-like site (Three.js + heavy assets)", async () => {
       const mockPage = createMockPage({
         hasWebGL: true,
         hasCanvas: true,
         canvasCount: 1,
-        detectedLibraries: ['three.js', 'gsap'],
+        detectedLibraries: ["three.js", "gsap"],
         webglVersion: 2,
         isHeavySite: true,
-        recommendedWaitStrategy: 'networkidle',
+        recommendedWaitStrategy: "networkidle",
         recommendedTimeout: WEBGL_DETECTION_DEFAULTS.heavySiteTimeout,
       });
 
       const result = await service.detect(mockPage);
 
       expect(result.hasWebGL).toBe(true);
-      expect(result.detectedLibraries).toContain('three.js');
+      expect(result.detectedLibraries).toContain("three.js");
       expect(result.isHeavySite).toBe(true);
-      expect(result.recommendedWaitStrategy).toBe('networkidle');
+      expect(result.recommendedWaitStrategy).toBe("networkidle");
       expect(result.recommendedTimeout).toBeGreaterThanOrEqual(120000);
     });
 
-    it('should handle simple portfolio site with basic Canvas', async () => {
+    it("should handle simple portfolio site with basic Canvas", async () => {
       const mockPage = createMockPage({
         hasWebGL: false,
         hasCanvas: true,
@@ -435,7 +437,7 @@ describe('WebGLDetectorService Integration Scenarios', () => {
         detectedLibraries: [],
         webglVersion: null,
         isHeavySite: false,
-        recommendedWaitStrategy: 'standard',
+        recommendedWaitStrategy: "standard",
         recommendedTimeout: WEBGL_DETECTION_DEFAULTS.standardTimeout,
       });
 
@@ -444,44 +446,44 @@ describe('WebGLDetectorService Integration Scenarios', () => {
       expect(result.hasWebGL).toBe(false);
       expect(result.hasCanvas).toBe(true);
       expect(result.isHeavySite).toBe(false);
-      expect(result.recommendedWaitStrategy).toBe('standard');
+      expect(result.recommendedWaitStrategy).toBe("standard");
     });
 
-    it('should handle A-Frame VR site', async () => {
+    it("should handle A-Frame VR site", async () => {
       const mockPage = createMockPage({
         hasWebGL: true,
         hasCanvas: true,
         canvasCount: 1,
-        detectedLibraries: ['a-frame', 'three.js'],
+        detectedLibraries: ["a-frame", "three.js"],
         webglVersion: 2,
         isHeavySite: true,
-        recommendedWaitStrategy: 'networkidle',
+        recommendedWaitStrategy: "networkidle",
         recommendedTimeout: WEBGL_DETECTION_DEFAULTS.heavySiteTimeout,
       });
 
       const result = await service.detect(mockPage);
 
-      expect(result.detectedLibraries).toContain('a-frame');
-      expect(result.detectedLibraries).toContain('three.js');
+      expect(result.detectedLibraries).toContain("a-frame");
+      expect(result.detectedLibraries).toContain("three.js");
       expect(result.isHeavySite).toBe(true);
     });
 
-    it('should handle PixiJS game site', async () => {
+    it("should handle PixiJS game site", async () => {
       const mockPage = createMockPage({
         hasWebGL: true,
         hasCanvas: true,
         canvasCount: 1,
-        detectedLibraries: ['pixi.js'],
+        detectedLibraries: ["pixi.js"],
         webglVersion: 2,
         isHeavySite: false,
-        recommendedWaitStrategy: 'webgl-extended',
+        recommendedWaitStrategy: "webgl-extended",
         recommendedTimeout: WEBGL_DETECTION_DEFAULTS.webglTimeout,
       });
 
       const result = await service.detect(mockPage);
 
-      expect(result.detectedLibraries).toContain('pixi.js');
-      expect(result.recommendedWaitStrategy).toBe('webgl-extended');
+      expect(result.detectedLibraries).toContain("pixi.js");
+      expect(result.recommendedWaitStrategy).toBe("webgl-extended");
     });
   });
 });

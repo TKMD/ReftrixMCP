@@ -17,7 +17,7 @@
  * - apps/mcp-server/src/services/vision/mood.analyzer.ts
  * - apps/mcp-server/src/services/vision/brandtone.analyzer.ts
  */
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 // =============================================================================
 // VisionCache インポート（動的インポートで TDD RED Phase を実現）
@@ -49,7 +49,7 @@ interface CacheStats {
 // テストケース
 // =============================================================================
 
-describe('VisionCache', () => {
+describe("VisionCache", () => {
   beforeEach(() => {
     vi.useFakeTimers();
   });
@@ -63,12 +63,12 @@ describe('VisionCache', () => {
   // 実装存在確認テスト（TDD GREEN Phase）
   // ===========================================================================
 
-  describe('implementation verification', () => {
-    it('should have VisionCache implementation', async () => {
+  describe("implementation verification", () => {
+    it("should have VisionCache implementation", async () => {
       // TDD GREEN Phase: 実装が存在することを確認
-      const module = await import('@/services/vision/vision.cache');
+      const module = await import("@/services/vision/vision.cache");
       expect(module.VisionCache).toBeDefined();
-      expect(typeof module.VisionCache).toBe('function');
+      expect(typeof module.VisionCache).toBe("function");
     });
   });
 
@@ -76,16 +76,16 @@ describe('VisionCache', () => {
   // 基本操作テスト
   // ===========================================================================
 
-  describe('basic operations', () => {
-    it('should store and retrieve cached results', async () => {
+  describe("basic operations", () => {
+    it("should store and retrieve cached results", async () => {
       // Arrange
-      const { VisionCache } = await import('@/services/vision/vision.cache');
+      const { VisionCache } = await import("@/services/vision/vision.cache");
       const cache = new VisionCache<string, unknown>({
         capacity: 100,
         ttlMs: 5 * 60 * 1000,
       });
-      const key = 'test-key-1';
-      const value = { mood: 'professional', confidence: 0.85 };
+      const key = "test-key-1";
+      const value = { mood: "professional", confidence: 0.85 };
 
       // Act
       cache.set(key, value);
@@ -95,14 +95,14 @@ describe('VisionCache', () => {
       expect(retrieved).toEqual(value);
     });
 
-    it('should return undefined for non-existent keys', async () => {
+    it("should return undefined for non-existent keys", async () => {
       // Arrange
-      const { VisionCache } = await import('@/services/vision/vision.cache');
+      const { VisionCache } = await import("@/services/vision/vision.cache");
       const cache = new VisionCache<string, unknown>({
         capacity: 100,
         ttlMs: 5 * 60 * 1000,
       });
-      const key = 'non-existent-key';
+      const key = "non-existent-key";
 
       // Act
       const result = cache.get(key);
@@ -111,16 +111,16 @@ describe('VisionCache', () => {
       expect(result).toBeUndefined();
     });
 
-    it('should overwrite existing values', async () => {
+    it("should overwrite existing values", async () => {
       // Arrange
-      const { VisionCache } = await import('@/services/vision/vision.cache');
+      const { VisionCache } = await import("@/services/vision/vision.cache");
       const cache = new VisionCache<string, unknown>({
         capacity: 100,
         ttlMs: 5 * 60 * 1000,
       });
-      const key = 'test-key';
-      const value1 = { mood: 'playful' };
-      const value2 = { mood: 'elegant' };
+      const key = "test-key";
+      const value1 = { mood: "playful" };
+      const value2 = { mood: "elegant" };
 
       // Act
       cache.set(key, value1);
@@ -131,15 +131,15 @@ describe('VisionCache', () => {
       expect(result).toEqual(value2);
     });
 
-    it('should delete entries', async () => {
+    it("should delete entries", async () => {
       // Arrange
-      const { VisionCache } = await import('@/services/vision/vision.cache');
+      const { VisionCache } = await import("@/services/vision/vision.cache");
       const cache = new VisionCache<string, unknown>({
         capacity: 100,
         ttlMs: 5 * 60 * 1000,
       });
-      const key = 'test-key';
-      const value = { mood: 'minimal' };
+      const key = "test-key";
+      const value = { mood: "minimal" };
       cache.set(key, value);
 
       // Act
@@ -151,14 +151,14 @@ describe('VisionCache', () => {
       expect(result).toBeUndefined();
     });
 
-    it('should return false when deleting non-existent key', async () => {
+    it("should return false when deleting non-existent key", async () => {
       // Arrange
-      const { VisionCache } = await import('@/services/vision/vision.cache');
+      const { VisionCache } = await import("@/services/vision/vision.cache");
       const cache = new VisionCache<string, unknown>({
         capacity: 100,
         ttlMs: 5 * 60 * 1000,
       });
-      const key = 'non-existent';
+      const key = "non-existent";
 
       // Act
       const result = cache.delete(key);
@@ -167,56 +167,56 @@ describe('VisionCache', () => {
       expect(result).toBe(false);
     });
 
-    it('should clear all entries', async () => {
+    it("should clear all entries", async () => {
       // Arrange
-      const { VisionCache } = await import('@/services/vision/vision.cache');
+      const { VisionCache } = await import("@/services/vision/vision.cache");
       const cache = new VisionCache<string, unknown>({
         capacity: 100,
         ttlMs: 5 * 60 * 1000,
       });
-      cache.set('key1', { value: 1 });
-      cache.set('key2', { value: 2 });
-      cache.set('key3', { value: 3 });
+      cache.set("key1", { value: 1 });
+      cache.set("key2", { value: 2 });
+      cache.set("key3", { value: 3 });
 
       // Act
       cache.clear();
 
       // Assert
-      expect(cache.get('key1')).toBeUndefined();
-      expect(cache.get('key2')).toBeUndefined();
-      expect(cache.get('key3')).toBeUndefined();
+      expect(cache.get("key1")).toBeUndefined();
+      expect(cache.get("key2")).toBeUndefined();
+      expect(cache.get("key3")).toBeUndefined();
       expect(cache.size).toBe(0);
     });
 
-    it('should report correct size', async () => {
+    it("should report correct size", async () => {
       // Arrange
-      const { VisionCache } = await import('@/services/vision/vision.cache');
+      const { VisionCache } = await import("@/services/vision/vision.cache");
       const cache = new VisionCache<string, unknown>({
         capacity: 100,
         ttlMs: 5 * 60 * 1000,
       });
 
       // Act
-      cache.set('key1', { value: 1 });
-      cache.set('key2', { value: 2 });
-      cache.set('key3', { value: 3 });
+      cache.set("key1", { value: 1 });
+      cache.set("key2", { value: 2 });
+      cache.set("key3", { value: 3 });
 
       // Assert
       expect(cache.size).toBe(3);
     });
 
-    it('should check if key exists', async () => {
+    it("should check if key exists", async () => {
       // Arrange
-      const { VisionCache } = await import('@/services/vision/vision.cache');
+      const { VisionCache } = await import("@/services/vision/vision.cache");
       const cache = new VisionCache<string, unknown>({
         capacity: 100,
         ttlMs: 5 * 60 * 1000,
       });
-      cache.set('existing-key', { value: 'test' });
+      cache.set("existing-key", { value: "test" });
 
       // Act & Assert
-      expect(cache.has('existing-key')).toBe(true);
-      expect(cache.has('non-existing-key')).toBe(false);
+      expect(cache.has("existing-key")).toBe(true);
+      expect(cache.has("non-existing-key")).toBe(false);
     });
   });
 
@@ -224,92 +224,92 @@ describe('VisionCache', () => {
   // LRU Eviction テスト
   // ===========================================================================
 
-  describe('LRU eviction', () => {
-    it('should evict least recently used item when capacity exceeded', async () => {
+  describe("LRU eviction", () => {
+    it("should evict least recently used item when capacity exceeded", async () => {
       // Arrange: 容量3のキャッシュ
-      const { VisionCache } = await import('@/services/vision/vision.cache');
+      const { VisionCache } = await import("@/services/vision/vision.cache");
       const smallCache = new VisionCache<string, number>({
         capacity: 3,
         ttlMs: 60000,
       });
 
       // Act: 4つのアイテムを追加
-      smallCache.set('key1', 1); // 最古
-      smallCache.set('key2', 2);
-      smallCache.set('key3', 3);
-      smallCache.set('key4', 4); // 追加 -> key1が削除される
+      smallCache.set("key1", 1); // 最古
+      smallCache.set("key2", 2);
+      smallCache.set("key3", 3);
+      smallCache.set("key4", 4); // 追加 -> key1が削除される
 
       // Assert
-      expect(smallCache.get('key1')).toBeUndefined(); // 削除された
-      expect(smallCache.get('key2')).toBe(2);
-      expect(smallCache.get('key3')).toBe(3);
-      expect(smallCache.get('key4')).toBe(4);
+      expect(smallCache.get("key1")).toBeUndefined(); // 削除された
+      expect(smallCache.get("key2")).toBe(2);
+      expect(smallCache.get("key3")).toBe(3);
+      expect(smallCache.get("key4")).toBe(4);
       expect(smallCache.size).toBe(3);
     });
 
-    it('should update access order on get', async () => {
+    it("should update access order on get", async () => {
       // Arrange
-      const { VisionCache } = await import('@/services/vision/vision.cache');
+      const { VisionCache } = await import("@/services/vision/vision.cache");
       const smallCache = new VisionCache<string, number>({
         capacity: 3,
         ttlMs: 60000,
       });
-      smallCache.set('key1', 1);
-      smallCache.set('key2', 2);
-      smallCache.set('key3', 3);
+      smallCache.set("key1", 1);
+      smallCache.set("key2", 2);
+      smallCache.set("key3", 3);
 
       // Act: key1にアクセス -> key1が最新になる
-      smallCache.get('key1');
-      smallCache.set('key4', 4); // key2が削除される
+      smallCache.get("key1");
+      smallCache.set("key4", 4); // key2が削除される
 
       // Assert
-      expect(smallCache.get('key1')).toBe(1); // 存在する
-      expect(smallCache.get('key2')).toBeUndefined(); // 削除された
-      expect(smallCache.get('key3')).toBe(3);
-      expect(smallCache.get('key4')).toBe(4);
+      expect(smallCache.get("key1")).toBe(1); // 存在する
+      expect(smallCache.get("key2")).toBeUndefined(); // 削除された
+      expect(smallCache.get("key3")).toBe(3);
+      expect(smallCache.get("key4")).toBe(4);
     });
 
-    it('should update access order on set (update)', async () => {
+    it("should update access order on set (update)", async () => {
       // Arrange
-      const { VisionCache } = await import('@/services/vision/vision.cache');
+      const { VisionCache } = await import("@/services/vision/vision.cache");
       const smallCache = new VisionCache<string, number>({
         capacity: 3,
         ttlMs: 60000,
       });
-      smallCache.set('key1', 1);
-      smallCache.set('key2', 2);
-      smallCache.set('key3', 3);
+      smallCache.set("key1", 1);
+      smallCache.set("key2", 2);
+      smallCache.set("key3", 3);
 
       // Act: key1を更新 -> key1が最新になる
-      smallCache.set('key1', 100);
-      smallCache.set('key4', 4); // key2が削除される
+      smallCache.set("key1", 100);
+      smallCache.set("key4", 4); // key2が削除される
 
       // Assert
-      expect(smallCache.get('key1')).toBe(100);
-      expect(smallCache.get('key2')).toBeUndefined();
-      expect(smallCache.get('key3')).toBe(3);
-      expect(smallCache.get('key4')).toBe(4);
+      expect(smallCache.get("key1")).toBe(100);
+      expect(smallCache.get("key2")).toBeUndefined();
+      expect(smallCache.get("key3")).toBe(3);
+      expect(smallCache.get("key4")).toBe(4);
     });
 
-    it('should evict multiple items if needed', async () => {
+    it("should evict multiple items if needed", async () => {
       // Arrange
-      const { VisionCache } = await import('@/services/vision/vision.cache');
+      const { VisionCache } = await import("@/services/vision/vision.cache");
       const smallCache = new VisionCache<string, number>({
         capacity: 2,
         ttlMs: 60000,
       });
-      smallCache.set('key1', 1);
-      smallCache.set('key2', 2);
+      smallCache.set("key1", 1);
+      smallCache.set("key2", 2);
 
       // Act: 2つ追加 -> 2つ削除
-      smallCache.set('key3', 3); // key1削除
-      smallCache.set('key4', 4); // key2削除
+      smallCache.set("key3", 3); // key1削除
+      smallCache.set("key4", 4); // key2削除
 
       // Assert
-      expect(smallCache.get('key1')).toBeUndefined();
-      expect(smallCache.get('key2')).toBeUndefined();
-      expect(smallCache.get('key3')).toBe(3);
-      expect(smallCache.get('key4')).toBe(4);
+      expect(smallCache.get("key1")).toBeUndefined();
+      expect(smallCache.get("key2")).toBeUndefined();
+      expect(smallCache.get("key3")).toBe(3);
+      expect(smallCache.get("key4")).toBe(4);
     });
   });
 
@@ -317,99 +317,99 @@ describe('VisionCache', () => {
   // TTL (Time To Live) テスト
   // ===========================================================================
 
-  describe('TTL expiration', () => {
-    it('should return undefined for expired cache entries', async () => {
+  describe("TTL expiration", () => {
+    it("should return undefined for expired cache entries", async () => {
       // Arrange: TTL 1秒
-      const { VisionCache } = await import('@/services/vision/vision.cache');
+      const { VisionCache } = await import("@/services/vision/vision.cache");
       const shortTtlCache = new VisionCache<string, string>({
         capacity: 100,
         ttlMs: 1000, // 1秒
       });
-      shortTtlCache.set('key1', 'value1');
+      shortTtlCache.set("key1", "value1");
 
       // Act: 1秒経過
       vi.advanceTimersByTime(1001);
-      const result = shortTtlCache.get('key1');
+      const result = shortTtlCache.get("key1");
 
       // Assert
       expect(result).toBeUndefined();
     });
 
-    it('should return value before TTL expiration', async () => {
+    it("should return value before TTL expiration", async () => {
       // Arrange: TTL 5秒
-      const { VisionCache } = await import('@/services/vision/vision.cache');
+      const { VisionCache } = await import("@/services/vision/vision.cache");
       const cache = new VisionCache<string, string>({
         capacity: 100,
         ttlMs: 5000,
       });
-      cache.set('key1', 'value1');
+      cache.set("key1", "value1");
 
       // Act: 4秒経過（期限内）
       vi.advanceTimersByTime(4000);
-      const result = cache.get('key1');
+      const result = cache.get("key1");
 
       // Assert
-      expect(result).toBe('value1');
+      expect(result).toBe("value1");
     });
 
-    it('should refresh TTL on set (update)', async () => {
+    it("should refresh TTL on set (update)", async () => {
       // Arrange
-      const { VisionCache } = await import('@/services/vision/vision.cache');
+      const { VisionCache } = await import("@/services/vision/vision.cache");
       const cache = new VisionCache<string, string>({
         capacity: 100,
         ttlMs: 3000, // 3秒
       });
-      cache.set('key1', 'value1');
+      cache.set("key1", "value1");
 
       // Act: 2秒後に更新
       vi.advanceTimersByTime(2000);
-      cache.set('key1', 'value1-updated');
+      cache.set("key1", "value1-updated");
 
       // Act: さらに2秒経過（合計4秒、更新後は2秒）
       vi.advanceTimersByTime(2000);
-      const result = cache.get('key1');
+      const result = cache.get("key1");
 
       // Assert: まだ有効
-      expect(result).toBe('value1-updated');
+      expect(result).toBe("value1-updated");
     });
 
-    it('should not refresh TTL on get', async () => {
+    it("should not refresh TTL on get", async () => {
       // Arrange
-      const { VisionCache } = await import('@/services/vision/vision.cache');
+      const { VisionCache } = await import("@/services/vision/vision.cache");
       const cache = new VisionCache<string, string>({
         capacity: 100,
         ttlMs: 3000, // 3秒
       });
-      cache.set('key1', 'value1');
+      cache.set("key1", "value1");
 
       // Act: 2秒後にget
       vi.advanceTimersByTime(2000);
-      cache.get('key1');
+      cache.get("key1");
 
       // Act: さらに2秒経過（合計4秒、TTL超過）
       vi.advanceTimersByTime(2000);
-      const result = cache.get('key1');
+      const result = cache.get("key1");
 
       // Assert: 期限切れ
       expect(result).toBeUndefined();
     });
 
-    it('should not count expired entries in size', async () => {
+    it("should not count expired entries in size", async () => {
       // Arrange
-      const { VisionCache } = await import('@/services/vision/vision.cache');
+      const { VisionCache } = await import("@/services/vision/vision.cache");
       const cache = new VisionCache<string, string>({
         capacity: 100,
         ttlMs: 1000,
       });
-      cache.set('key1', 'value1');
-      cache.set('key2', 'value2');
+      cache.set("key1", "value1");
+      cache.set("key2", "value2");
 
       // 初期サイズ
       expect(cache.size).toBe(2);
 
       // Act: 期限切れ + アクセス（クリーンアップトリガー）
       vi.advanceTimersByTime(1001);
-      cache.get('key1'); // 期限切れエントリへのアクセスでクリーンアップ
+      cache.get("key1"); // 期限切れエントリへのアクセスでクリーンアップ
 
       // Assert
       expect(cache.size).toBeLessThanOrEqual(2);
@@ -420,23 +420,23 @@ describe('VisionCache', () => {
   // キャッシュ統計テスト
   // ===========================================================================
 
-  describe('cache statistics', () => {
-    it('should calculate cache hit rate', async () => {
+  describe("cache statistics", () => {
+    it("should calculate cache hit rate", async () => {
       // Arrange
-      const { VisionCache } = await import('@/services/vision/vision.cache');
+      const { VisionCache } = await import("@/services/vision/vision.cache");
       const cache = new VisionCache<string, unknown>({
         capacity: 100,
         ttlMs: 5 * 60 * 1000,
       });
-      cache.set('key1', { value: 1 });
-      cache.set('key2', { value: 2 });
+      cache.set("key1", { value: 1 });
+      cache.set("key2", { value: 2 });
 
       // Act: 5回アクセス（3 hit, 2 miss）
-      cache.get('key1'); // hit
-      cache.get('key1'); // hit
-      cache.get('key2'); // hit
-      cache.get('key3'); // miss
-      cache.get('key4'); // miss
+      cache.get("key1"); // hit
+      cache.get("key1"); // hit
+      cache.get("key2"); // hit
+      cache.get("key3"); // miss
+      cache.get("key4"); // miss
 
       // Assert
       const stats = cache.getStats();
@@ -445,14 +445,14 @@ describe('VisionCache', () => {
       expect(stats.hitRate).toBeCloseTo(0.6, 2); // 3/5 = 0.6
     });
 
-    it('should return 0 hit rate when no accesses', async () => {
+    it("should return 0 hit rate when no accesses", async () => {
       // Arrange
-      const { VisionCache } = await import('@/services/vision/vision.cache');
+      const { VisionCache } = await import("@/services/vision/vision.cache");
       const cache = new VisionCache<string, unknown>({
         capacity: 100,
         ttlMs: 5 * 60 * 1000,
       });
-      cache.set('key1', { value: 1 });
+      cache.set("key1", { value: 1 });
 
       // Act
       const stats = cache.getStats();
@@ -461,16 +461,16 @@ describe('VisionCache', () => {
       expect(stats.hitRate).toBe(0);
     });
 
-    it('should track total entries', async () => {
+    it("should track total entries", async () => {
       // Arrange
-      const { VisionCache } = await import('@/services/vision/vision.cache');
+      const { VisionCache } = await import("@/services/vision/vision.cache");
       const cache = new VisionCache<string, unknown>({
         capacity: 100,
         ttlMs: 5 * 60 * 1000,
       });
-      cache.set('key1', { value: 1 });
-      cache.set('key2', { value: 2 });
-      cache.set('key3', { value: 3 });
+      cache.set("key1", { value: 1 });
+      cache.set("key2", { value: 2 });
+      cache.set("key3", { value: 3 });
 
       // Act
       const stats = cache.getStats();
@@ -479,16 +479,16 @@ describe('VisionCache', () => {
       expect(stats.entries).toBe(3);
     });
 
-    it('should reset stats', async () => {
+    it("should reset stats", async () => {
       // Arrange
-      const { VisionCache } = await import('@/services/vision/vision.cache');
+      const { VisionCache } = await import("@/services/vision/vision.cache");
       const cache = new VisionCache<string, unknown>({
         capacity: 100,
         ttlMs: 5 * 60 * 1000,
       });
-      cache.set('key1', { value: 1 });
-      cache.get('key1'); // hit
-      cache.get('key2'); // miss
+      cache.set("key1", { value: 1 });
+      cache.get("key1"); // hit
+      cache.get("key2"); // miss
 
       // Act
       cache.resetStats();
@@ -500,9 +500,9 @@ describe('VisionCache', () => {
       expect(stats.hitRate).toBe(0);
     });
 
-    it('should report capacity', async () => {
+    it("should report capacity", async () => {
       // Arrange
-      const { VisionCache } = await import('@/services/vision/vision.cache');
+      const { VisionCache } = await import("@/services/vision/vision.cache");
       const customCache = new VisionCache<string, number>({
         capacity: 50,
         ttlMs: 60000,
@@ -515,15 +515,15 @@ describe('VisionCache', () => {
       expect(stats.capacity).toBe(50);
     });
 
-    it('should report memory usage estimation', async () => {
+    it("should report memory usage estimation", async () => {
       // Arrange
-      const { VisionCache } = await import('@/services/vision/vision.cache');
+      const { VisionCache } = await import("@/services/vision/vision.cache");
       const cache = new VisionCache<string, unknown>({
         capacity: 100,
         ttlMs: 5 * 60 * 1000,
       });
-      cache.set('key1', { largeData: 'x'.repeat(1000) });
-      cache.set('key2', { largeData: 'y'.repeat(2000) });
+      cache.set("key1", { largeData: "x".repeat(1000) });
+      cache.set("key2", { largeData: "y".repeat(2000) });
 
       // Act
       const stats = cache.getStats();
@@ -537,34 +537,34 @@ describe('VisionCache', () => {
   // スレッドセーフテスト（同時アクセス）
   // ===========================================================================
 
-  describe('concurrent access', () => {
-    it('should handle concurrent reads safely', async () => {
+  describe("concurrent access", () => {
+    it("should handle concurrent reads safely", async () => {
       // Arrange
       vi.useRealTimers(); // Promise使用時は実タイマー
-      const { VisionCache } = await import('@/services/vision/vision.cache');
+      const { VisionCache } = await import("@/services/vision/vision.cache");
       const cache = new VisionCache<string, unknown>({
         capacity: 100,
         ttlMs: 5 * 60 * 1000,
       });
-      cache.set('key1', { value: 'test' });
+      cache.set("key1", { value: "test" });
 
       // Act: 100の同時読み取り
       const promises = Array(100)
         .fill(null)
-        .map(() => Promise.resolve(cache.get('key1')));
+        .map(() => Promise.resolve(cache.get("key1")));
 
       const results = await Promise.all(promises);
 
       // Assert: すべて同じ値
-      results.forEach(result => {
-        expect(result).toEqual({ value: 'test' });
+      results.forEach((result) => {
+        expect(result).toEqual({ value: "test" });
       });
     });
 
-    it('should handle concurrent writes safely', async () => {
+    it("should handle concurrent writes safely", async () => {
       // Arrange
       vi.useRealTimers();
-      const { VisionCache } = await import('@/services/vision/vision.cache');
+      const { VisionCache } = await import("@/services/vision/vision.cache");
       const cache = new VisionCache<string, unknown>({
         capacity: 100,
         ttlMs: 5 * 60 * 1000,
@@ -581,29 +581,29 @@ describe('VisionCache', () => {
       expect(cache.size).toBeLessThanOrEqual(100);
     });
 
-    it('should handle mixed read/write operations', async () => {
+    it("should handle mixed read/write operations", async () => {
       // Arrange
       vi.useRealTimers();
-      const { VisionCache } = await import('@/services/vision/vision.cache');
+      const { VisionCache } = await import("@/services/vision/vision.cache");
       const cache = new VisionCache<string, unknown>({
         capacity: 100,
         ttlMs: 5 * 60 * 1000,
       });
-      cache.set('shared-key', { counter: 0 });
+      cache.set("shared-key", { counter: 0 });
 
       // Act: 読み取りと書き込みの混合
       const operations = Array(50)
         .fill(null)
         .map((_, i) =>
           i % 2 === 0
-            ? Promise.resolve(cache.get('shared-key'))
+            ? Promise.resolve(cache.get("shared-key"))
             : Promise.resolve(cache.set(`key${i}`, { value: i }))
         );
 
       await Promise.all(operations);
 
       // Assert: エラーなく完了
-      expect(cache.get('shared-key')).toBeDefined();
+      expect(cache.get("shared-key")).toBeDefined();
     });
   });
 
@@ -611,10 +611,10 @@ describe('VisionCache', () => {
   // 設定テスト
   // ===========================================================================
 
-  describe('configuration', () => {
-    it('should accept custom configuration', async () => {
+  describe("configuration", () => {
+    it("should accept custom configuration", async () => {
       // Arrange
-      const { VisionCache } = await import('@/services/vision/vision.cache');
+      const { VisionCache } = await import("@/services/vision/vision.cache");
       const config: VisionCacheConfig = {
         capacity: 500,
         ttlMs: 10 * 60 * 1000, // 10分
@@ -627,9 +627,9 @@ describe('VisionCache', () => {
       expect(customCache.getStats().capacity).toBe(500);
     });
 
-    it('should use default configuration', async () => {
+    it("should use default configuration", async () => {
       // Arrange & Act
-      const { VisionCache } = await import('@/services/vision/vision.cache');
+      const { VisionCache } = await import("@/services/vision/vision.cache");
       const defaultCache = new VisionCache<string, unknown>();
 
       // Assert: デフォルト値
@@ -637,9 +637,9 @@ describe('VisionCache', () => {
       expect(stats.capacity).toBeGreaterThan(0);
     });
 
-    it('should reject invalid capacity (< 1)', async () => {
+    it("should reject invalid capacity (< 1)", async () => {
       // Arrange
-      const { VisionCache } = await import('@/services/vision/vision.cache');
+      const { VisionCache } = await import("@/services/vision/vision.cache");
 
       // Act & Assert
       expect(() => {
@@ -650,9 +650,9 @@ describe('VisionCache', () => {
       }).toThrow();
     });
 
-    it('should reject invalid TTL (< 1ms)', async () => {
+    it("should reject invalid TTL (< 1ms)", async () => {
       // Arrange
-      const { VisionCache } = await import('@/services/vision/vision.cache');
+      const { VisionCache } = await import("@/services/vision/vision.cache");
 
       // Act & Assert
       expect(() => {
@@ -668,11 +668,11 @@ describe('VisionCache', () => {
   // キーのハッシュ化テスト
   // ===========================================================================
 
-  describe('key hashing', () => {
-    it('should generate consistent hash for same input', async () => {
+  describe("key hashing", () => {
+    it("should generate consistent hash for same input", async () => {
       // Arrange
-      const { VisionCache } = await import('@/services/vision/vision.cache');
-      const input = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk';
+      const { VisionCache } = await import("@/services/vision/vision.cache");
+      const input = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk";
 
       // Act
       const key1 = VisionCache.generateKey(input);
@@ -682,11 +682,11 @@ describe('VisionCache', () => {
       expect(key1).toBe(key2);
     });
 
-    it('should generate different hash for different input', async () => {
+    it("should generate different hash for different input", async () => {
       // Arrange
-      const { VisionCache } = await import('@/services/vision/vision.cache');
-      const input1 = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk';
-      const input2 = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNl';
+      const { VisionCache } = await import("@/services/vision/vision.cache");
+      const input1 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk";
+      const input2 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNl";
 
       // Act
       const key1 = VisionCache.generateKey(input1);
@@ -696,10 +696,10 @@ describe('VisionCache', () => {
       expect(key1).not.toBe(key2);
     });
 
-    it('should generate short hash for large input', async () => {
+    it("should generate short hash for large input", async () => {
       // Arrange: 1MBの入力
-      const { VisionCache } = await import('@/services/vision/vision.cache');
-      const largeInput = 'x'.repeat(1024 * 1024);
+      const { VisionCache } = await import("@/services/vision/vision.cache");
+      const largeInput = "x".repeat(1024 * 1024);
 
       // Act
       const key = VisionCache.generateKey(largeInput);
@@ -713,10 +713,10 @@ describe('VisionCache', () => {
   // メモリ管理テスト
   // ===========================================================================
 
-  describe('memory management', () => {
-    it('should respect memory limit', async () => {
+  describe("memory management", () => {
+    it("should respect memory limit", async () => {
       // Arrange: メモリ制限付きキャッシュ
-      const { VisionCache } = await import('@/services/vision/vision.cache');
+      const { VisionCache } = await import("@/services/vision/vision.cache");
       const memoryLimitedCache = new VisionCache<string, unknown>({
         capacity: 1000,
         ttlMs: 60000,
@@ -725,7 +725,7 @@ describe('VisionCache', () => {
 
       // Act: 大きなデータを追加
       for (let i = 0; i < 100; i++) {
-        memoryLimitedCache.set(`key${i}`, { data: 'x'.repeat(50000) }); // 50KBずつ
+        memoryLimitedCache.set(`key${i}`, { data: "x".repeat(50000) }); // 50KBずつ
       }
 
       // Assert: メモリ制限を超えない
@@ -739,11 +739,11 @@ describe('VisionCache', () => {
 // 統合テスト
 // =============================================================================
 
-describe('VisionCache Integration', () => {
-  it('should work with MoodAnalyzer-like workflow', async () => {
+describe("VisionCache Integration", () => {
+  it("should work with MoodAnalyzer-like workflow", async () => {
     // Arrange
     vi.useRealTimers();
-    const { VisionCache } = await import('@/services/vision/vision.cache');
+    const { VisionCache } = await import("@/services/vision/vision.cache");
     const cache = new VisionCache<string, { mood: string; confidence: number }>({
       capacity: 100,
       ttlMs: 5 * 60 * 1000,
@@ -758,8 +758,8 @@ describe('VisionCache Integration', () => {
       }
 
       // シミュレートされた分析
-      await new Promise(resolve => setTimeout(resolve, 10));
-      const result = { mood: 'professional', confidence: 0.85 };
+      await new Promise((resolve) => setTimeout(resolve, 10));
+      const result = { mood: "professional", confidence: 0.85 };
 
       // キャッシュに保存
       cache.set(key, result);
@@ -767,7 +767,7 @@ describe('VisionCache Integration', () => {
     };
 
     // Act
-    const screenshot = 'test-screenshot-base64';
+    const screenshot = "test-screenshot-base64";
     const result1 = await mockAnalyze(screenshot);
     const result2 = await mockAnalyze(screenshot); // キャッシュヒット
 

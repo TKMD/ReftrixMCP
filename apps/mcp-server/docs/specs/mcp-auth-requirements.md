@@ -15,11 +15,11 @@ SEC監査において「MCP Server認証機構の欠如」がHigh優先度で指
 
 The SEC audit flagged "Missing MCP Server authentication mechanism" as a High priority issue.
 
-| 項目 / Item | 値 / Value |
-|------|-----|
-| CVSS Score | 7.5 (High) |
-| CWE | CWE-306 (Missing Authentication for Critical Function) |
-| 対象ファイル / Target Files | `src/router.ts`, `src/index.ts` |
+| 項目 / Item                 | 値 / Value                                             |
+| --------------------------- | ------------------------------------------------------ |
+| CVSS Score                  | 7.5 (High)                                             |
+| CWE                         | CWE-306 (Missing Authentication for Critical Function) |
+| 対象ファイル / Target Files | `src/router.ts`, `src/index.ts`                        |
 
 ### 1.2 現状の問題 / Current Problem
 
@@ -37,6 +37,7 @@ export async function handleToolCall(
 ```
 
 **問題点 / Issues**:
+
 - `handleToolCall()`が認証なしでツールを直接呼び出している / `handleToolCall()` invokes tools directly without authentication
 - ネットワーク経由アクセス時に不正なツール実行リスクがある / Risk of unauthorized tool execution when accessed over the network
 - ツール別のアクセス制御が存在しない / No per-tool access control exists
@@ -48,6 +49,7 @@ export async function handleToolCall(
 ### 2.1 採用: APIキー認証 / Adopted: API Key Authentication
 
 **Phase 1: APIキー認証（即座に実装可能） / Phase 1: API Key Authentication (immediately implementable)**
+
 - シンプルな環境変数ベースの認証 / Simple environment variable-based authentication
 - MCPプロトコルのヘッダー拡張で対応 / Handled via MCP protocol header extensions
 - 即座にセキュリティリスクを軽減 / Immediately mitigates security risk
@@ -61,35 +63,35 @@ export async function handleToolCall(
 ```typescript
 export const PERMISSIONS = {
   // システム系 / System
-  SYSTEM_READ: 'system:read',
-  SYSTEM_HEALTH: 'system:health',
-  SYSTEM_ADMIN: 'system:admin',
+  SYSTEM_READ: "system:read",
+  SYSTEM_HEALTH: "system:health",
+  SYSTEM_ADMIN: "system:admin",
   // レイアウト系 / Layout
-  LAYOUT_READ: 'layout:read',
-  LAYOUT_WRITE: 'layout:write',
-  LAYOUT_TRANSFORM: 'layout:transform',
+  LAYOUT_READ: "layout:read",
+  LAYOUT_WRITE: "layout:write",
+  LAYOUT_TRANSFORM: "layout:transform",
   // モーション系 / Motion
-  MOTION_READ: 'motion:read',
-  MOTION_TRANSFORM: 'motion:transform',
+  MOTION_READ: "motion:read",
+  MOTION_TRANSFORM: "motion:transform",
   // 品質系 / Quality
-  QUALITY_READ: 'quality:read',
-  QUALITY_WRITE: 'quality:write',
+  QUALITY_READ: "quality:read",
+  QUALITY_WRITE: "quality:write",
   // プロジェクト系 / Project
-  PROJECT_READ: 'project:read',
+  PROJECT_READ: "project:read",
   // デザイン系 / Design
-  DESIGN_REVIEW: 'design:review',
-  DESIGN_WRITE: 'design:write',
+  DESIGN_REVIEW: "design:review",
+  DESIGN_WRITE: "design:write",
   // スタイル系 / Style
-  STYLE_READ: 'style:read',
+  STYLE_READ: "style:read",
   // ナラティブ系 / Narrative
-  NARRATIVE_READ: 'narrative:read',
+  NARRATIVE_READ: "narrative:read",
   // バックグラウンド系 / Background
-  BACKGROUND_READ: 'background:read',
+  BACKGROUND_READ: "background:read",
   // レスポンシブ系 / Responsive
-  RESPONSIVE_READ: 'responsive:read',
+  RESPONSIVE_READ: "responsive:read",
   // 嗜好プロファイリング系 / Preference Profiling
-  PREFERENCE_READ: 'preference:read',
-  PREFERENCE_WRITE: 'preference:write',
+  PREFERENCE_READ: "preference:read",
+  PREFERENCE_WRITE: "preference:write",
 } as const;
 ```
 
@@ -98,51 +100,51 @@ export const PERMISSIONS = {
 ```typescript
 export const TOOL_PERMISSIONS: Record<string, Permission[]> = {
   // スタイル系 / Style
-  'style.get_palette': [PERMISSIONS.STYLE_READ],
+  "style.get_palette": [PERMISSIONS.STYLE_READ],
 
   // レイアウト系 / Layout
-  'layout.inspect': [PERMISSIONS.LAYOUT_READ],
-  'layout.search': [PERMISSIONS.LAYOUT_READ],
-  'layout.ingest': [PERMISSIONS.LAYOUT_WRITE],
-  'layout.generate_code': [PERMISSIONS.LAYOUT_TRANSFORM],
-  'layout.batch_ingest': [PERMISSIONS.LAYOUT_WRITE],
+  "layout.inspect": [PERMISSIONS.LAYOUT_READ],
+  "layout.search": [PERMISSIONS.LAYOUT_READ],
+  "layout.ingest": [PERMISSIONS.LAYOUT_WRITE],
+  "layout.generate_code": [PERMISSIONS.LAYOUT_TRANSFORM],
+  "layout.batch_ingest": [PERMISSIONS.LAYOUT_WRITE],
 
   // 品質系 / Quality
-  'quality.evaluate': [PERMISSIONS.QUALITY_READ],
-  'quality.batch_evaluate': [PERMISSIONS.QUALITY_READ],
-  'quality.getJobStatus': [PERMISSIONS.QUALITY_READ],
+  "quality.evaluate": [PERMISSIONS.QUALITY_READ],
+  "quality.batch_evaluate": [PERMISSIONS.QUALITY_READ],
+  "quality.getJobStatus": [PERMISSIONS.QUALITY_READ],
 
   // モーション系 / Motion
-  'motion.detect': [PERMISSIONS.MOTION_READ],
-  'motion.search': [PERMISSIONS.MOTION_READ],
+  "motion.detect": [PERMISSIONS.MOTION_READ],
+  "motion.search": [PERMISSIONS.MOTION_READ],
 
   // ナラティブ系（セマンティック検索） / Narrative (Semantic Search)
-  'narrative.search': [PERMISSIONS.NARRATIVE_READ],
+  "narrative.search": [PERMISSIONS.NARRATIVE_READ],
 
   // バックグラウンド系（セマンティック検索） / Background (Semantic Search)
-  'background.search': [PERMISSIONS.BACKGROUND_READ],
+  "background.search": [PERMISSIONS.BACKGROUND_READ],
 
   // レスポンシブ系（セマンティック検索） / Responsive (Semantic Search)
-  'responsive.search': [PERMISSIONS.RESPONSIVE_READ],
+  "responsive.search": [PERMISSIONS.RESPONSIVE_READ],
 
   // 嗜好プロファイリング系 / Preference Profiling
-  'preference.hear': [PERMISSIONS.PREFERENCE_WRITE],
-  'preference.get': [PERMISSIONS.PREFERENCE_READ],
-  'preference.reset': [PERMISSIONS.PREFERENCE_WRITE],
+  "preference.hear": [PERMISSIONS.PREFERENCE_WRITE],
+  "preference.get": [PERMISSIONS.PREFERENCE_READ],
+  "preference.reset": [PERMISSIONS.PREFERENCE_WRITE],
 
   // ブリーフ系（デザインレビュー） / Brief (Design Review)
-  'brief.validate': [PERMISSIONS.DESIGN_REVIEW],
+  "brief.validate": [PERMISSIONS.DESIGN_REVIEW],
 
   // プロジェクト系 / Project
-  'project.get': [PERMISSIONS.PROJECT_READ],
-  'project.list': [PERMISSIONS.PROJECT_READ],
+  "project.get": [PERMISSIONS.PROJECT_READ],
+  "project.list": [PERMISSIONS.PROJECT_READ],
 
   // ページ系（統合Web分析） / Page (Unified Web Analysis)
-  'page.analyze': [PERMISSIONS.LAYOUT_READ, PERMISSIONS.MOTION_READ, PERMISSIONS.QUALITY_READ],
-  'page.getJobStatus': [PERMISSIONS.LAYOUT_READ],
+  "page.analyze": [PERMISSIONS.LAYOUT_READ, PERMISSIONS.MOTION_READ, PERMISSIONS.QUALITY_READ],
+  "page.getJobStatus": [PERMISSIONS.LAYOUT_READ],
 
   // システム系（公開ツール） / System (Public Tools)
-  'system.health': [PERMISSIONS.SYSTEM_HEALTH],
+  "system.health": [PERMISSIONS.SYSTEM_HEALTH],
 };
 ```
 

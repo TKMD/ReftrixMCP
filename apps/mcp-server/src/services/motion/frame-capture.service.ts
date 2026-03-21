@@ -1,8 +1,6 @@
 // SPDX-FileCopyrightText: 2026 TKMD and Reftrix Contributors
 // SPDX-License-Identifier: AGPL-3.0-only
 
-/* eslint-env browser */
-/* eslint-disable no-undef */
 /**
  * FrameCaptureService
  *
@@ -22,10 +20,10 @@
  * @module @reftrix/mcp-server/services/motion/frame-capture.service
  */
 
-import type { Page, PageScreenshotOptions } from 'playwright';
-import * as path from 'path';
-import * as os from 'os';
-import * as fs from 'fs/promises';
+import type { Page, PageScreenshotOptions } from "playwright";
+import * as path from "path";
+import * as os from "os";
+import * as fs from "fs/promises";
 
 // ============================================================================
 // 型定義
@@ -45,7 +43,7 @@ export interface FrameCaptureServiceOptions {
   output_dir: string;
 
   /** 出力形式。デフォルト: 'png' */
-  output_format?: 'png' | 'jpeg';
+  output_format?: "png" | "jpeg";
 
   /** ファイル名パターン。デフォルト: 'frame-{0000}.png' */
   filename_pattern?: string;
@@ -91,7 +89,7 @@ export interface FrameFileInfo {
 export interface FrameCaptureConfig {
   scroll_px_per_frame: number;
   frame_interval_ms: number;
-  output_format: 'png' | 'jpeg';
+  output_format: "png" | "jpeg";
   output_dir: string;
   filename_pattern: string;
 }
@@ -115,7 +113,7 @@ export interface FrameCaptureServiceResult {
   truncated?: boolean;
 
   /** 制限理由 */
-  truncation_reason?: 'max_frames' | 'max_page_height' | 'timeout';
+  truncation_reason?: "max_frames" | "max_page_height" | "timeout";
 
   /** 元のページ高さ（制限適用前） */
   original_page_height?: number;
@@ -132,10 +130,10 @@ const DEFAULT_SCROLL_PX_PER_FRAME = 15;
 const DEFAULT_FRAME_INTERVAL_MS = 33;
 
 /** デフォルト: 出力形式 */
-const DEFAULT_OUTPUT_FORMAT: 'png' | 'jpeg' = 'png';
+const DEFAULT_OUTPUT_FORMAT: "png" | "jpeg" = "png";
 
 /** デフォルト: ファイル名パターン */
-const DEFAULT_FILENAME_PATTERN = 'frame-{0000}.png';
+const DEFAULT_FILENAME_PATTERN = "frame-{0000}.png";
 
 /** デフォルト: 最大フレーム数 - 大きなページでのタイムアウト対策 */
 const DEFAULT_MAX_FRAMES = 1000;
@@ -147,11 +145,7 @@ const DEFAULT_MAX_PAGE_HEIGHT = 50000;
 const DEFAULT_TIMEOUT_MS = 90000;
 
 /** 許可されたベースディレクトリ */
-const ALLOWED_BASE_DIRS = [
-  process.cwd(),
-  '/tmp',
-  os.tmpdir(),
-];
+const ALLOWED_BASE_DIRS = [process.cwd(), "/tmp", os.tmpdir()];
 
 /** セキュリティ: Path Traversal パターン */
 const PATH_TRAVERSAL_PATTERN = /\.\./;
@@ -169,11 +163,11 @@ export class FrameCaptureService {
   private readonly isDevelopment: boolean;
 
   constructor() {
-    this.isDevelopment = process.env.NODE_ENV === 'development';
+    this.isDevelopment = process.env.NODE_ENV === "development";
 
     if (this.isDevelopment) {
       // eslint-disable-next-line no-console -- Intentional debug log in development
-      console.log('[FrameCaptureService] Initialized');
+      console.log("[FrameCaptureService] Initialized");
     }
   }
 
@@ -210,7 +204,7 @@ export class FrameCaptureService {
 
     if (this.isDevelopment) {
       // eslint-disable-next-line no-console -- Intentional debug log in development
-      console.log('[FrameCaptureService] Starting capture:', {
+      console.log("[FrameCaptureService] Starting capture:", {
         scrollPxPerFrame,
         frameIntervalMs,
         outputFormat,
@@ -229,51 +223,49 @@ export class FrameCaptureService {
     await this.clearFrameDirectory(outputDir);
 
     // ページ寸法を取得
-    const originalPageHeight = options.page_height_px ?? await this.getPageHeight(page);
+    const originalPageHeight = options.page_height_px ?? (await this.getPageHeight(page));
     const viewportHeight = await this.getViewportHeight(page);
 
     // v0.1.0: ページ高さ制限を適用
     let pageHeight = originalPageHeight;
     let truncated = false;
-    let truncationReason: 'max_frames' | 'max_page_height' | 'timeout' | undefined;
+    let truncationReason: "max_frames" | "max_page_height" | "timeout" | undefined;
 
     if (pageHeight > maxPageHeight) {
       if (this.isDevelopment) {
         // eslint-disable-next-line no-console -- Intentional debug log in development
-        console.log('[FrameCaptureService] Page height exceeds limit, truncating:', {
+        console.log("[FrameCaptureService] Page height exceeds limit, truncating:", {
           originalPageHeight,
           maxPageHeight,
         });
       }
       pageHeight = maxPageHeight;
       truncated = true;
-      truncationReason = 'max_page_height';
+      truncationReason = "max_page_height";
     }
 
     const maxScroll = Math.max(0, pageHeight - viewportHeight);
 
     // total_frames 計算
-    let totalFrames = maxScroll > 0
-      ? Math.ceil(maxScroll / scrollPxPerFrame) + 1
-      : 1;
+    let totalFrames = maxScroll > 0 ? Math.ceil(maxScroll / scrollPxPerFrame) + 1 : 1;
 
     // v0.1.0: フレーム数制限を適用
     if (totalFrames > maxFrames) {
       if (this.isDevelopment) {
         // eslint-disable-next-line no-console -- Intentional debug log in development
-        console.log('[FrameCaptureService] Frame count exceeds limit, truncating:', {
+        console.log("[FrameCaptureService] Frame count exceeds limit, truncating:", {
           originalFrameCount: totalFrames,
           maxFrames,
         });
       }
       totalFrames = maxFrames;
       truncated = true;
-      truncationReason = 'max_frames';
+      truncationReason = "max_frames";
     }
 
     if (this.isDevelopment) {
       // eslint-disable-next-line no-console -- Intentional debug log in development
-      console.log('[FrameCaptureService] Page dimensions:', {
+      console.log("[FrameCaptureService] Page dimensions:", {
         originalPageHeight,
         pageHeight,
         viewportHeight,
@@ -300,7 +292,7 @@ export class FrameCaptureService {
       if (elapsed >= timeoutMs) {
         if (this.isDevelopment) {
           // eslint-disable-next-line no-console -- Intentional debug log in development
-          console.log('[FrameCaptureService] Timeout reached, stopping capture:', {
+          console.log("[FrameCaptureService] Timeout reached, stopping capture:", {
             capturedFrames: i,
             totalFrames,
             elapsedMs: elapsed,
@@ -308,7 +300,7 @@ export class FrameCaptureService {
           });
         }
         truncated = true;
-        truncationReason = 'timeout';
+        truncationReason = "timeout";
         break;
       }
 
@@ -321,12 +313,7 @@ export class FrameCaptureService {
       await page.waitForTimeout(frameIntervalMs);
 
       // ファイルパス生成
-      const filePath = this.generateFilePath(
-        outputDir,
-        filenamePattern,
-        i,
-        outputFormat
-      );
+      const filePath = this.generateFilePath(outputDir, filenamePattern, i, outputFormat);
 
       // スクリーンショット
       if (saveScreenshots) {
@@ -357,7 +344,7 @@ export class FrameCaptureService {
 
     if (this.isDevelopment) {
       // eslint-disable-next-line no-console -- Intentional debug log in development
-      console.log('[FrameCaptureService] Capture complete:', {
+      console.log("[FrameCaptureService] Capture complete:", {
         capturedFrames: files.length,
         totalFrames,
         durationMs: `${durationMs}ms`,
@@ -419,7 +406,7 @@ export class FrameCaptureService {
 
     if (this.isDevelopment) {
       // eslint-disable-next-line no-console -- Intentional debug log in development
-      console.log('[FrameCaptureService] Initial page metrics:', {
+      console.log("[FrameCaptureService] Initial page metrics:", {
         ...initialMetrics,
         maxHeight: currentHeight,
       });
@@ -430,7 +417,7 @@ export class FrameCaptureService {
     if (currentHeight <= viewportHeight) {
       if (this.isDevelopment) {
         // eslint-disable-next-line no-console -- Intentional debug log in development
-        console.log('[FrameCaptureService] Page height equals viewport, waiting for JS render...');
+        console.log("[FrameCaptureService] Page height equals viewport, waiting for JS render...");
       }
 
       // JavaScript レンダリング完了を待つ
@@ -450,7 +437,7 @@ export class FrameCaptureService {
 
       if (this.isDevelopment) {
         // eslint-disable-next-line no-console -- Intentional debug log in development
-        console.log('[FrameCaptureService] After JS wait:', {
+        console.log("[FrameCaptureService] After JS wait:", {
           ...afterWaitMetrics,
           maxHeight: currentHeight,
         });
@@ -462,7 +449,6 @@ export class FrameCaptureService {
     let attempts = 0;
 
     while (attempts < maxAttempts) {
-
       // 最下部へスクロール
       await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
 
@@ -481,7 +467,7 @@ export class FrameCaptureService {
       if (newHeight > currentHeight) {
         if (this.isDevelopment) {
           // eslint-disable-next-line no-console -- Intentional debug log in development
-          console.log('[FrameCaptureService] Page height increased:', {
+          console.log("[FrameCaptureService] Page height increased:", {
             from: currentHeight,
             to: newHeight,
             attempt: attempts,
@@ -492,7 +478,7 @@ export class FrameCaptureService {
         // 高さが変わらなくなったら終了
         if (this.isDevelopment) {
           // eslint-disable-next-line no-console -- Intentional debug log in development
-          console.log('[FrameCaptureService] Page height stabilized at attempt:', attempts);
+          console.log("[FrameCaptureService] Page height stabilized at attempt:", attempts);
         }
         break;
       }
@@ -504,7 +490,7 @@ export class FrameCaptureService {
 
     if (this.isDevelopment) {
       // eslint-disable-next-line no-console -- Intentional debug log in development
-      console.log('[FrameCaptureService] Final page height:', {
+      console.log("[FrameCaptureService] Final page height:", {
         finalHeight: currentHeight,
         viewportHeight,
         scrollableHeight: currentHeight - viewportHeight,
@@ -533,13 +519,15 @@ export class FrameCaptureService {
       await fs.mkdir(dir, { recursive: true });
       if (this.isDevelopment) {
         // eslint-disable-next-line no-console -- Intentional debug log in development
-        console.log('[FrameCaptureService] Ensured directory exists:', dir);
+        console.log("[FrameCaptureService] Ensured directory exists:", dir);
       }
     } catch (err) {
       const error = err as { code?: string; message?: string };
       // EEXIST以外のエラーは再スロー（既存ディレクトリはOK）
-      if (error.code !== 'EEXIST') {
-        throw new Error(`Failed to create output directory: ${dir} - ${error.message ?? 'Unknown error'}`);
+      if (error.code !== "EEXIST") {
+        throw new Error(
+          `Failed to create output directory: ${dir} - ${error.message ?? "Unknown error"}`
+        );
       }
     }
   }
@@ -555,25 +543,29 @@ export class FrameCaptureService {
   private async clearFrameDirectory(dir: string): Promise<void> {
     try {
       const files = await fs.readdir(dir);
-      const frameFiles = files.filter((f) => f.startsWith('frame-') && f.endsWith('.png'));
+      const frameFiles = files.filter((f) => f.startsWith("frame-") && f.endsWith(".png"));
 
       if (frameFiles.length > 0) {
         if (this.isDevelopment) {
           // eslint-disable-next-line no-console -- Intentional debug log in development
-          console.log(`[FrameCaptureService] Clearing ${frameFiles.length} old frame files from ${dir}`);
+          console.log(
+            `[FrameCaptureService] Clearing ${frameFiles.length} old frame files from ${dir}`
+          );
         }
 
         await Promise.all(
-          frameFiles.map((file) => fs.unlink(`${dir}/${file}`).catch(() => {
-            // ファイル削除エラーは無視（既に削除されている可能性）
-          }))
+          frameFiles.map((file) =>
+            fs.unlink(`${dir}/${file}`).catch(() => {
+              // ファイル削除エラーは無視（既に削除されている可能性）
+            })
+          )
         );
       }
     } catch {
       // ディレクトリ読み取りエラーは無視（空のディレクトリなど）
       if (this.isDevelopment) {
         // eslint-disable-next-line no-console -- Intentional debug log in development
-        console.log('[FrameCaptureService] Could not clear directory (may be empty):', dir);
+        console.log("[FrameCaptureService] Could not clear directory (may be empty):", dir);
       }
     }
   }
@@ -591,7 +583,7 @@ export class FrameCaptureService {
   private validateAndNormalizeOutputDir(dir: string): string {
     // P1: Path Traversal 検出
     if (PATH_TRAVERSAL_PATTERN.test(dir)) {
-      throw new Error('Security: Path traversal detected in output_dir');
+      throw new Error("Security: Path traversal detected in output_dir");
     }
 
     // 絶対パスに解決
@@ -606,12 +598,12 @@ export class FrameCaptureService {
     if (!isAllowed) {
       throw new Error(
         `Security: output_dir is outside allowed directories. ` +
-        `Allowed: ${ALLOWED_BASE_DIRS.join(', ')}`
+          `Allowed: ${ALLOWED_BASE_DIRS.join(", ")}`
       );
     }
 
     // 末尾スラッシュを保証
-    return resolved.endsWith('/') ? resolved : `${resolved}/`;
+    return resolved.endsWith("/") ? resolved : `${resolved}/`;
   }
 
   /**
@@ -625,12 +617,12 @@ export class FrameCaptureService {
     outputDir: string,
     pattern: string,
     frameNumber: number,
-    format: 'png' | 'jpeg'
+    format: "png" | "jpeg"
   ): string {
     // パターン置換: {0000} -> 0001, {000} -> 001
     let filename = pattern.replace(/\{(\d+)\}/g, (_, digits) => {
       const padLength = digits.length;
-      return String(frameNumber).padStart(padLength, '0');
+      return String(frameNumber).padStart(padLength, "0");
     });
 
     // 拡張子の置換

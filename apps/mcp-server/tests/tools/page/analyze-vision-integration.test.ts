@@ -19,11 +19,11 @@
  * @module tests/tools/page/analyze-vision-integration.test
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 // Narrative handler をモックしてOllama Vision接続タイムアウト（35秒）を回避
-vi.mock('../../../src/tools/page/handlers/narrative-handler', async () => {
-  const actual = await vi.importActual('../../../src/tools/page/handlers/narrative-handler');
+vi.mock("../../../src/tools/page/handlers/narrative-handler", async () => {
+  const actual = await vi.importActual("../../../src/tools/page/handlers/narrative-handler");
   return {
     ...(actual as Record<string, unknown>),
     handleNarrativeAnalysis: async () => ({ success: true, skipped: true }),
@@ -31,7 +31,7 @@ vi.mock('../../../src/tools/page/handlers/narrative-handler', async () => {
 });
 
 // Redis可用性チェックをモック: Vision自動asyncモード（v0.1.0）を無効化
-vi.mock('../../../src/config/redis', () => ({
+vi.mock("../../../src/config/redis", () => ({
   isRedisAvailable: async () => false,
 }));
 
@@ -40,19 +40,19 @@ import {
   setPageAnalyzeServiceFactory,
   resetPageAnalyzeServiceFactory,
   type IPageAnalyzeService,
-} from '../../../src/tools/page/analyze.tool';
+} from "../../../src/tools/page/analyze.tool";
 
 import {
   pageAnalyzeInputSchema,
   layoutOptionsSchema,
   type PageAnalyzeInput,
-} from '../../../src/tools/page/schemas';
+} from "../../../src/tools/page/schemas";
 
 // =====================================================
 // テストデータ
 // =====================================================
 
-const validUrl = 'https://example.com';
+const validUrl = "https://example.com";
 
 const sampleHtml = `<!DOCTYPE html>
 <html lang="ja">
@@ -70,7 +70,8 @@ const sampleHtml = `<!DOCTYPE html>
 </body>
 </html>`;
 
-const sampleScreenshotBase64 = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
+const sampleScreenshotBase64 =
+  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==";
 
 // =====================================================
 // モック用ヘルパー
@@ -89,8 +90,8 @@ function createMockServiceWithVision(options?: {
   return {
     fetchHtml: vi.fn().mockResolvedValue({
       html: sampleHtml,
-      title: 'Test Page',
-      description: 'Test description',
+      title: "Test Page",
+      description: "Test description",
       screenshot: hasScreenshot ? sampleScreenshotBase64 : undefined,
     }),
     analyzeLayout: vi.fn().mockResolvedValue({
@@ -111,7 +112,7 @@ function createMockServiceWithVision(options?: {
     evaluateQuality: vi.fn().mockResolvedValue({
       success: true,
       overallScore: 75,
-      grade: 'C' as const,
+      grade: "C" as const,
       axisScores: { originality: 70, craftsmanship: 80, contextuality: 75 },
       clicheCount: 0,
       processingTimeMs: 80,
@@ -123,20 +124,20 @@ function createMockServiceWithVision(options?: {
 // スキーマテスト
 // =====================================================
 
-describe('layoutOptionsSchema - useVisionオプション', () => {
-  it('useVisionオプションを受け付ける（true）', () => {
+describe("layoutOptionsSchema - useVisionオプション", () => {
+  it("useVisionオプションを受け付ける（true）", () => {
     const input = { url: validUrl, layoutOptions: { useVision: true } };
     const result = pageAnalyzeInputSchema.parse(input);
     expect(result.layoutOptions?.useVision).toBe(true);
   });
 
-  it('useVisionオプションを受け付ける（false）', () => {
+  it("useVisionオプションを受け付ける（false）", () => {
     const input = { url: validUrl, layoutOptions: { useVision: false } };
     const result = pageAnalyzeInputSchema.parse(input);
     expect(result.layoutOptions?.useVision).toBe(false);
   });
 
-  it('useVisionのデフォルト値はtrue（Ollamaがない場合はgraceful degradation）', () => {
+  it("useVisionのデフォルト値はtrue（Ollamaがない場合はgraceful degradation）", () => {
     const input = { url: validUrl, layoutOptions: {} };
     const result = pageAnalyzeInputSchema.parse(input);
     // デフォルト値が適用されるか（useVision=true）
@@ -145,7 +146,7 @@ describe('layoutOptionsSchema - useVisionオプション', () => {
     expect(result.layoutOptions?.useVision).toBe(true);
   });
 
-  it('useVisionと他のオプションを組み合わせられる', () => {
+  it("useVisionと他のオプションを組み合わせられる", () => {
     const input = {
       url: validUrl,
       layoutOptions: {
@@ -161,12 +162,12 @@ describe('layoutOptionsSchema - useVisionオプション', () => {
     expect(result.layoutOptions?.includeScreenshot).toBe(true);
   });
 
-  it('useVisionに無効な型（文字列）を渡すとエラー', () => {
-    const input = { url: validUrl, layoutOptions: { useVision: 'true' } };
+  it("useVisionに無効な型（文字列）を渡すとエラー", () => {
+    const input = { url: validUrl, layoutOptions: { useVision: "true" } };
     expect(() => pageAnalyzeInputSchema.parse(input)).toThrow();
   });
 
-  it('useVisionに無効な型（数値）を渡すとエラー', () => {
+  it("useVisionに無効な型（数値）を渡すとエラー", () => {
     const input = { url: validUrl, layoutOptions: { useVision: 1 } };
     expect(() => pageAnalyzeInputSchema.parse(input)).toThrow();
   });
@@ -176,7 +177,7 @@ describe('layoutOptionsSchema - useVisionオプション', () => {
 // ハンドラーテスト - useVision: true
 // =====================================================
 
-describe('pageAnalyzeHandler - useVision: true', () => {
+describe("pageAnalyzeHandler - useVision: true", () => {
   beforeEach(() => {
     vi.resetAllMocks();
     resetPageAnalyzeServiceFactory();
@@ -186,7 +187,7 @@ describe('pageAnalyzeHandler - useVision: true', () => {
     vi.restoreAllMocks();
   });
 
-  it('useVision: true でスクリーンショット解析を実行する', async () => {
+  it("useVision: true でスクリーンショット解析を実行する", async () => {
     const mockService = createMockServiceWithVision({ visionSuccess: true, hasScreenshot: true });
     setPageAnalyzeServiceFactory(() => mockService);
 
@@ -205,7 +206,7 @@ describe('pageAnalyzeHandler - useVision: true', () => {
     }
   });
 
-  it('useVision: true でvisionFeaturesがレスポンスに含まれる', async () => {
+  it("useVision: true でvisionFeaturesがレスポンスに含まれる", async () => {
     const mockService = createMockServiceWithVision({ visionSuccess: true, hasScreenshot: true });
 
     // analyzeLayoutをVision対応モックに差し替え
@@ -217,12 +218,16 @@ describe('pageAnalyzeHandler - useVision: true', () => {
       visionFeatures: {
         success: true,
         features: [
-          { type: 'hero_section', confidence: 0.95, description: 'Large hero with gradient background' },
+          {
+            type: "hero_section",
+            confidence: 0.95,
+            description: "Large hero with gradient background",
+          },
         ],
         processingTimeMs: 100,
-        modelName: 'llama3.2-vision',
+        modelName: "llama3.2-vision",
       },
-      textRepresentation: 'Hero section with gradient background, Feature grid, Footer',
+      textRepresentation: "Hero section with gradient background, Feature grid, Footer",
     });
 
     setPageAnalyzeServiceFactory(() => mockService);
@@ -250,11 +255,11 @@ describe('pageAnalyzeHandler - useVision: true', () => {
       };
       expect(layoutFull.visionFeatures).toBeDefined();
       expect(layoutFull.visionFeatures?.success).toBe(true);
-      expect(layoutFull.visionFeatures?.modelName).toBe('llama3.2-vision');
+      expect(layoutFull.visionFeatures?.modelName).toBe("llama3.2-vision");
     }
   });
 
-  it('useVision: true でtextRepresentationが生成される', async () => {
+  it("useVision: true でtextRepresentationが生成される", async () => {
     const mockService = createMockServiceWithVision({ visionSuccess: true, hasScreenshot: true });
 
     mockService.analyzeLayout = vi.fn().mockResolvedValue({
@@ -262,7 +267,8 @@ describe('pageAnalyzeHandler - useVision: true', () => {
       sectionCount: 3,
       sectionTypes: { hero: 1, features: 1, footer: 1 },
       processingTimeMs: 150,
-      textRepresentation: 'Modern hero section with call-to-action, Feature cards in grid layout, Minimal footer',
+      textRepresentation:
+        "Modern hero section with call-to-action, Feature cards in grid layout, Minimal footer",
     });
 
     setPageAnalyzeServiceFactory(() => mockService);
@@ -281,7 +287,7 @@ describe('pageAnalyzeHandler - useVision: true', () => {
         textRepresentation?: string;
       };
       expect(layoutFull.textRepresentation).toBeDefined();
-      expect(layoutFull.textRepresentation).toContain('hero');
+      expect(layoutFull.textRepresentation).toContain("hero");
     }
   });
 });
@@ -290,7 +296,7 @@ describe('pageAnalyzeHandler - useVision: true', () => {
 // ハンドラーテスト - useVision: false（デフォルト）
 // =====================================================
 
-describe('pageAnalyzeHandler - useVision: false（デフォルト）', () => {
+describe("pageAnalyzeHandler - useVision: false（デフォルト）", () => {
   beforeEach(() => {
     vi.resetAllMocks();
     resetPageAnalyzeServiceFactory();
@@ -300,7 +306,7 @@ describe('pageAnalyzeHandler - useVision: false（デフォルト）', () => {
     vi.restoreAllMocks();
   });
 
-  it('useVision: false では従来のHTML解析を使用する', async () => {
+  it("useVision: false では従来のHTML解析を使用する", async () => {
     const mockService = createMockServiceWithVision({ hasScreenshot: true });
     setPageAnalyzeServiceFactory(() => mockService);
 
@@ -318,7 +324,7 @@ describe('pageAnalyzeHandler - useVision: false（デフォルト）', () => {
     }
   });
 
-  it('layoutOptions未指定（デフォルト）では従来のHTML解析を使用する', async () => {
+  it("layoutOptions未指定（デフォルト）では従来のHTML解析を使用する", async () => {
     const mockService = createMockServiceWithVision({ hasScreenshot: true });
     setPageAnalyzeServiceFactory(() => mockService);
 
@@ -335,7 +341,7 @@ describe('pageAnalyzeHandler - useVision: false（デフォルト）', () => {
     }
   });
 
-  it('useVision未指定でもスクリーンショートがあっても従来解析を使用', async () => {
+  it("useVision未指定でもスクリーンショートがあっても従来解析を使用", async () => {
     const mockService = createMockServiceWithVision({ hasScreenshot: true });
     setPageAnalyzeServiceFactory(() => mockService);
 
@@ -354,7 +360,7 @@ describe('pageAnalyzeHandler - useVision: false（デフォルト）', () => {
 // ハンドラーテスト - スクリーンショットがない場合
 // =====================================================
 
-describe('pageAnalyzeHandler - スクリーンショートがない場合のフォールバック', () => {
+describe("pageAnalyzeHandler - スクリーンショートがない場合のフォールバック", () => {
   beforeEach(() => {
     vi.resetAllMocks();
     resetPageAnalyzeServiceFactory();
@@ -364,7 +370,7 @@ describe('pageAnalyzeHandler - スクリーンショートがない場合のフ�
     vi.restoreAllMocks();
   });
 
-  it('useVision: true でもスクリーンショットがなければHTML解析にフォールバック', async () => {
+  it("useVision: true でもスクリーンショットがなければHTML解析にフォールバック", async () => {
     const mockService = createMockServiceWithVision({ visionSuccess: true, hasScreenshot: false });
     setPageAnalyzeServiceFactory(() => mockService);
 
@@ -383,7 +389,7 @@ describe('pageAnalyzeHandler - スクリーンショートがない場合のフ�
     }
   });
 
-  it('スクリーンショートなしでフォールバック時にwarningsに記録される', async () => {
+  it("スクリーンショートなしでフォールバック時にwarningsに記録される", async () => {
     const mockService = createMockServiceWithVision({ visionSuccess: true, hasScreenshot: false });
     setPageAnalyzeServiceFactory(() => mockService);
 
@@ -398,8 +404,8 @@ describe('pageAnalyzeHandler - スクリーンショートがない場合のフ�
       // warningsにVisionフォールバック情報が含まれることを確認
       // 注意: 実装によってwarningsの形式が異なる可能性
       if (result.data.warnings && result.data.warnings.length > 0) {
-        const visionWarning = result.data.warnings.find(w =>
-          w.feature === 'layout' && w.code.includes('VISION')
+        const visionWarning = result.data.warnings.find(
+          (w) => w.feature === "layout" && w.code.includes("VISION")
         );
         // フォールバックが発生した場合のみwarningが存在
         if (visionWarning) {
@@ -414,7 +420,7 @@ describe('pageAnalyzeHandler - スクリーンショートがない場合のフ�
 // layout.inspect統合テスト
 // =====================================================
 
-describe('pageAnalyzeHandler - layout.inspect統合', () => {
+describe("pageAnalyzeHandler - layout.inspect統合", () => {
   beforeEach(() => {
     vi.resetAllMocks();
     resetPageAnalyzeServiceFactory();
@@ -424,7 +430,7 @@ describe('pageAnalyzeHandler - layout.inspect統合', () => {
     vi.restoreAllMocks();
   });
 
-  it('layout.inspectのscreenshotモードに正しいパラメータを渡す', async () => {
+  it("layout.inspectのscreenshotモードに正しいパラメータを渡す", async () => {
     const mockService = createMockServiceWithVision({ visionSuccess: true, hasScreenshot: true });
 
     // analyzeLayoutがscreenshotパラメータを受け取ることを確認
@@ -455,7 +461,7 @@ describe('pageAnalyzeHandler - layout.inspect統合', () => {
     expect(calls.length).toBeGreaterThan(0);
   });
 
-  it('layout.inspectの結果をpage.analyzeのレスポンス形式に変換する', async () => {
+  it("layout.inspectの結果をpage.analyzeのレスポンス形式に変換する", async () => {
     const mockService = createMockServiceWithVision({ visionSuccess: true, hasScreenshot: true });
 
     mockService.analyzeLayout = vi.fn().mockResolvedValue({
@@ -466,13 +472,13 @@ describe('pageAnalyzeHandler - layout.inspect統合', () => {
       visionFeatures: {
         success: true,
         features: [
-          { type: 'hero', confidence: 0.92 },
-          { type: 'feature_grid', confidence: 0.88 },
+          { type: "hero", confidence: 0.92 },
+          { type: "feature_grid", confidence: 0.88 },
         ],
         processingTimeMs: 100,
-        modelName: 'llama3.2-vision',
+        modelName: "llama3.2-vision",
       },
-      textRepresentation: 'Hero with CTA, Feature grid, Footer',
+      textRepresentation: "Hero with CTA, Feature grid, Footer",
     });
 
     setPageAnalyzeServiceFactory(() => mockService);
@@ -498,7 +504,7 @@ describe('pageAnalyzeHandler - layout.inspect統合', () => {
 // Vision解析エラーハンドリング
 // =====================================================
 
-describe('pageAnalyzeHandler - Vision解析エラーハンドリング', () => {
+describe("pageAnalyzeHandler - Vision解析エラーハンドリング", () => {
   beforeEach(() => {
     vi.resetAllMocks();
     resetPageAnalyzeServiceFactory();
@@ -508,12 +514,13 @@ describe('pageAnalyzeHandler - Vision解析エラーハンドリング', () => {
     vi.restoreAllMocks();
   });
 
-  it('Vision解析失敗時にHTML解析にフォールバックする', async () => {
+  it("Vision解析失敗時にHTML解析にフォールバックする", async () => {
     const mockService = createMockServiceWithVision({ hasScreenshot: true });
 
     // Vision解析が失敗するモック
-    mockService.analyzeLayout = vi.fn()
-      .mockRejectedValueOnce(new Error('Vision API connection failed'))
+    mockService.analyzeLayout = vi
+      .fn()
+      .mockRejectedValueOnce(new Error("Vision API connection failed"))
       .mockResolvedValueOnce({
         success: true,
         sectionCount: 3,
@@ -534,7 +541,7 @@ describe('pageAnalyzeHandler - Vision解析エラーハンドリング', () => {
     expect(result.success).toBe(true);
   });
 
-  it('Vision解析タイムアウト時にwarningsに記録される', async () => {
+  it("Vision解析タイムアウト時にwarningsに記録される", async () => {
     const mockService = createMockServiceWithVision({ hasScreenshot: true });
 
     mockService.analyzeLayout = vi.fn().mockResolvedValue({
@@ -545,9 +552,9 @@ describe('pageAnalyzeHandler - Vision解析エラーハンドリング', () => {
       visionFeatures: {
         success: false,
         features: [],
-        error: 'Vision API timeout',
+        error: "Vision API timeout",
         processingTimeMs: 5000,
-        modelName: 'llama3.2-vision',
+        modelName: "llama3.2-vision",
       },
     });
 
@@ -576,7 +583,7 @@ describe('pageAnalyzeHandler - Vision解析エラーハンドリング', () => {
     }
   });
 
-  it('Ollama未起動時にエラーメッセージが明確', async () => {
+  it("Ollama未起動時にエラーメッセージが明確", async () => {
     const mockService = createMockServiceWithVision({ hasScreenshot: true });
 
     mockService.analyzeLayout = vi.fn().mockResolvedValue({
@@ -587,9 +594,10 @@ describe('pageAnalyzeHandler - Vision解析エラーハンドリング', () => {
       visionFeatures: {
         success: false,
         features: [],
-        error: 'Ollama service unavailable. Please ensure Ollama is running with llama3.2-vision model.',
+        error:
+          "Ollama service unavailable. Please ensure Ollama is running with llama3.2-vision model.",
         processingTimeMs: 0,
-        modelName: 'llama3.2-vision',
+        modelName: "llama3.2-vision",
       },
     });
 
@@ -611,7 +619,7 @@ describe('pageAnalyzeHandler - Vision解析エラーハンドリング', () => {
         };
       };
       if (layoutFull.visionFeatures && !layoutFull.visionFeatures.success) {
-        expect(layoutFull.visionFeatures.error).toContain('Ollama');
+        expect(layoutFull.visionFeatures.error).toContain("Ollama");
       }
     }
   });
@@ -621,7 +629,7 @@ describe('pageAnalyzeHandler - Vision解析エラーハンドリング', () => {
 // summaryモードとの統合
 // =====================================================
 
-describe('pageAnalyzeHandler - Vision統合とsummaryモード', () => {
+describe("pageAnalyzeHandler - Vision統合とsummaryモード", () => {
   beforeEach(() => {
     vi.resetAllMocks();
     resetPageAnalyzeServiceFactory();
@@ -631,7 +639,7 @@ describe('pageAnalyzeHandler - Vision統合とsummaryモード', () => {
     vi.restoreAllMocks();
   });
 
-  it('summary: true でもuseVision: trueでVision解析を実行する', async () => {
+  it("summary: true でもuseVision: trueでVision解析を実行する", async () => {
     const mockService = createMockServiceWithVision({ visionSuccess: true, hasScreenshot: true });
 
     mockService.analyzeLayout = vi.fn().mockResolvedValue({
@@ -639,7 +647,7 @@ describe('pageAnalyzeHandler - Vision統合とsummaryモード', () => {
       sectionCount: 3,
       sectionTypes: { hero: 1, features: 1, footer: 1 },
       processingTimeMs: 150,
-      textRepresentation: 'Vision-analyzed layout',
+      textRepresentation: "Vision-analyzed layout",
     });
 
     setPageAnalyzeServiceFactory(() => mockService);
@@ -659,7 +667,7 @@ describe('pageAnalyzeHandler - Vision統合とsummaryモード', () => {
     }
   });
 
-  it('summary: false でvisionFeaturesの全詳細が含まれる', async () => {
+  it("summary: false でvisionFeaturesの全詳細が含まれる", async () => {
     const mockService = createMockServiceWithVision({ visionSuccess: true, hasScreenshot: true });
 
     mockService.analyzeLayout = vi.fn().mockResolvedValue({
@@ -670,13 +678,17 @@ describe('pageAnalyzeHandler - Vision統合とsummaryモード', () => {
       visionFeatures: {
         success: true,
         features: [
-          { type: 'hero', confidence: 0.95, boundingBox: { x: 0, y: 0, width: 1440, height: 600 } },
-          { type: 'feature_grid', confidence: 0.90, boundingBox: { x: 0, y: 600, width: 1440, height: 400 } },
+          { type: "hero", confidence: 0.95, boundingBox: { x: 0, y: 0, width: 1440, height: 600 } },
+          {
+            type: "feature_grid",
+            confidence: 0.9,
+            boundingBox: { x: 0, y: 600, width: 1440, height: 400 },
+          },
         ],
         processingTimeMs: 150,
-        modelName: 'llama3.2-vision',
+        modelName: "llama3.2-vision",
       },
-      textRepresentation: 'Full hero section with gradient, Feature cards, Footer links',
+      textRepresentation: "Full hero section with gradient, Feature cards, Footer links",
     });
 
     setPageAnalyzeServiceFactory(() => mockService);
@@ -711,21 +723,29 @@ describe('pageAnalyzeHandler - Vision統合とsummaryモード', () => {
 // ツール定義テスト
 // =====================================================
 
-describe('pageAnalyzeToolDefinition - useVisionオプション', () => {
-  it('layoutOptions.useVisionがツール定義に含まれる', async () => {
+describe("pageAnalyzeToolDefinition - useVisionオプション", () => {
+  it("layoutOptions.useVisionがツール定義に含まれる", async () => {
     // ツール定義のインポート
-    const { pageAnalyzeToolDefinition } = await import('../../../src/tools/page/analyze.tool');
+    const { pageAnalyzeToolDefinition } = await import("../../../src/tools/page/analyze.tool");
 
     const layoutOptionsProps = pageAnalyzeToolDefinition.inputSchema.properties?.layoutOptions;
     expect(layoutOptionsProps).toBeDefined();
 
     // layoutOptions.propertiesにuseVisionが含まれることを確認
-    if (layoutOptionsProps && typeof layoutOptionsProps === 'object' && 'properties' in layoutOptionsProps) {
+    if (
+      layoutOptionsProps &&
+      typeof layoutOptionsProps === "object" &&
+      "properties" in layoutOptionsProps
+    ) {
       const properties = layoutOptionsProps.properties as Record<string, unknown>;
-      expect(properties).toHaveProperty('useVision');
+      expect(properties).toHaveProperty("useVision");
 
-      const useVisionProp = properties.useVision as { type?: string; default?: boolean; description?: string };
-      expect(useVisionProp.type).toBe('boolean');
+      const useVisionProp = properties.useVision as {
+        type?: string;
+        default?: boolean;
+        description?: string;
+      };
+      expect(useVisionProp.type).toBe("boolean");
       expect(useVisionProp.default).toBe(true);
       expect(useVisionProp.description).toBeDefined();
     }

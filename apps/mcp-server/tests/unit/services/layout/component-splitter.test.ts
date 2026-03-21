@@ -9,42 +9,42 @@
  * @module tests/unit/services/layout/component-splitter
  */
 
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect } from "vitest";
 import {
   splitIntoComponents,
   type SplitResult,
   type SplitOptions,
-} from '../../../../src/services/layout/component-splitter';
+} from "../../../../src/services/layout/component-splitter";
 
-describe('component-splitter', () => {
-  describe('splitIntoComponents', () => {
+describe("component-splitter", () => {
+  describe("splitIntoComponents", () => {
     // ==========================================================
     // 基本機能テスト
     // ==========================================================
 
-    describe('基本機能', () => {
-      it('空のHTMLの場合はメインコンポーネントのみを返す', () => {
-        const result = splitIntoComponents('');
+    describe("基本機能", () => {
+      it("空のHTMLの場合はメインコンポーネントのみを返す", () => {
+        const result = splitIntoComponents("");
 
-        expect(result.mainComponent.name).toBe('MainComponent');
-        expect(result.mainComponent.jsx).toBe('');
+        expect(result.mainComponent.name).toBe("MainComponent");
+        expect(result.mainComponent.jsx).toBe("");
         expect(result.mainComponent.imports).toHaveLength(0);
         expect(result.subComponents).toHaveLength(0);
       });
 
-      it('単純なHTMLの場合は分割せずメインコンポーネントに含める', () => {
-        const html = '<div><p>Hello World</p></div>';
+      it("単純なHTMLの場合は分割せずメインコンポーネントに含める", () => {
+        const html = "<div><p>Hello World</p></div>";
         const result = splitIntoComponents(html);
 
-        expect(result.mainComponent.jsx).toContain('Hello World');
+        expect(result.mainComponent.jsx).toContain("Hello World");
         expect(result.subComponents).toHaveLength(0);
       });
 
-      it('カスタムコンポーネント名を指定できる', () => {
-        const html = '<div><p>Content</p></div>';
-        const result = splitIntoComponents(html, { mainComponentName: 'HeroSection' });
+      it("カスタムコンポーネント名を指定できる", () => {
+        const html = "<div><p>Content</p></div>";
+        const result = splitIntoComponents(html, { mainComponentName: "HeroSection" });
 
-        expect(result.mainComponent.name).toBe('HeroSection');
+        expect(result.mainComponent.name).toBe("HeroSection");
       });
     });
 
@@ -52,8 +52,8 @@ describe('component-splitter', () => {
     // セマンティックHTML要素の検出と分割
     // ==========================================================
 
-    describe('セマンティックHTML要素の検出と分割', () => {
-      it('header要素をHeaderSectionとして分割する', () => {
+    describe("セマンティックHTML要素の検出と分割", () => {
+      it("header要素をHeaderSectionとして分割する", () => {
         const html = `
           <div>
             <header>
@@ -67,12 +67,12 @@ describe('component-splitter', () => {
         `;
         const result = splitIntoComponents(html);
 
-        const headerComponent = result.subComponents.find(c => c.name === 'HeaderSection');
+        const headerComponent = result.subComponents.find((c) => c.name === "HeaderSection");
         expect(headerComponent).toBeDefined();
-        expect(headerComponent?.jsx).toContain('Site Title');
+        expect(headerComponent?.jsx).toContain("Site Title");
       });
 
-      it('nav要素をNavigationとして分割する', () => {
+      it("nav要素をNavigationとして分割する", () => {
         const html = `
           <div>
             <nav>
@@ -87,13 +87,13 @@ describe('component-splitter', () => {
         `;
         const result = splitIntoComponents(html);
 
-        const navComponent = result.subComponents.find(c => c.name === 'Navigation');
+        const navComponent = result.subComponents.find((c) => c.name === "Navigation");
         expect(navComponent).toBeDefined();
-        expect(navComponent?.jsx).toContain('Home');
-        expect(navComponent?.jsx).toContain('About');
+        expect(navComponent?.jsx).toContain("Home");
+        expect(navComponent?.jsx).toContain("About");
       });
 
-      it('main要素をMainContentとして分割する', () => {
+      it("main要素をMainContentとして分割する", () => {
         const html = `
           <div>
             <header><h1>Title</h1></header>
@@ -107,12 +107,12 @@ describe('component-splitter', () => {
         `;
         const result = splitIntoComponents(html);
 
-        const mainComponent = result.subComponents.find(c => c.name === 'MainContent');
+        const mainComponent = result.subComponents.find((c) => c.name === "MainContent");
         expect(mainComponent).toBeDefined();
-        expect(mainComponent?.jsx).toContain('Article Title');
+        expect(mainComponent?.jsx).toContain("Article Title");
       });
 
-      it('section要素をSectionとして分割する', () => {
+      it("section要素をSectionとして分割する", () => {
         const html = `
           <div>
             <section>
@@ -127,11 +127,11 @@ describe('component-splitter', () => {
         `;
         const result = splitIntoComponents(html);
 
-        const sections = result.subComponents.filter(c => c.name.includes('Section'));
+        const sections = result.subComponents.filter((c) => c.name.includes("Section"));
         expect(sections.length).toBeGreaterThanOrEqual(2);
       });
 
-      it('article要素をArticleとして分割する', () => {
+      it("article要素をArticleとして分割する", () => {
         const html = `
           <main>
             <article>
@@ -143,12 +143,12 @@ describe('component-splitter', () => {
         `;
         const result = splitIntoComponents(html);
 
-        const articleComponent = result.subComponents.find(c => c.name === 'Article');
+        const articleComponent = result.subComponents.find((c) => c.name === "Article");
         expect(articleComponent).toBeDefined();
-        expect(articleComponent?.jsx).toContain('Blog Post Title');
+        expect(articleComponent?.jsx).toContain("Blog Post Title");
       });
 
-      it('aside要素をAsideとして分割する', () => {
+      it("aside要素をAsideとして分割する", () => {
         const html = `
           <div>
             <main><p>Main content</p></main>
@@ -160,12 +160,12 @@ describe('component-splitter', () => {
         `;
         const result = splitIntoComponents(html);
 
-        const asideComponent = result.subComponents.find(c => c.name === 'Aside');
+        const asideComponent = result.subComponents.find((c) => c.name === "Aside");
         expect(asideComponent).toBeDefined();
-        expect(asideComponent?.jsx).toContain('Related Links');
+        expect(asideComponent?.jsx).toContain("Related Links");
       });
 
-      it('footer要素をFooterSectionとして分割する', () => {
+      it("footer要素をFooterSectionとして分割する", () => {
         const html = `
           <div>
             <main><p>Content</p></main>
@@ -177,9 +177,9 @@ describe('component-splitter', () => {
         `;
         const result = splitIntoComponents(html);
 
-        const footerComponent = result.subComponents.find(c => c.name === 'FooterSection');
+        const footerComponent = result.subComponents.find((c) => c.name === "FooterSection");
         expect(footerComponent).toBeDefined();
-        expect(footerComponent?.jsx).toContain('Copyright 2024');
+        expect(footerComponent?.jsx).toContain("Copyright 2024");
       });
     });
 
@@ -187,8 +187,8 @@ describe('component-splitter', () => {
     // クラスパターンによる分割
     // ==========================================================
 
-    describe('クラスパターンによる分割', () => {
-      it('*-header クラスパターンを検出して分割する', () => {
+    describe("クラスパターンによる分割", () => {
+      it("*-header クラスパターンを検出して分割する", () => {
         const html = `
           <div>
             <div class="site-header">
@@ -203,12 +203,12 @@ describe('component-splitter', () => {
         `;
         const result = splitIntoComponents(html);
 
-        const headerComponent = result.subComponents.find(c => c.name === 'SiteHeader');
+        const headerComponent = result.subComponents.find((c) => c.name === "SiteHeader");
         expect(headerComponent).toBeDefined();
-        expect(headerComponent?.jsx).toContain('Site Name');
+        expect(headerComponent?.jsx).toContain("Site Name");
       });
 
-      it('*-nav クラスパターンを検出して分割する', () => {
+      it("*-nav クラスパターンを検出して分割する", () => {
         const html = `
           <div>
             <div class="main-nav">
@@ -219,11 +219,11 @@ describe('component-splitter', () => {
         `;
         const result = splitIntoComponents(html);
 
-        const navComponent = result.subComponents.find(c => c.name === 'MainNav');
+        const navComponent = result.subComponents.find((c) => c.name === "MainNav");
         expect(navComponent).toBeDefined();
       });
 
-      it('*-card クラスパターンを検出して分割する', () => {
+      it("*-card クラスパターンを検出して分割する", () => {
         const html = `
           <div>
             <div class="feature-card">
@@ -234,12 +234,12 @@ describe('component-splitter', () => {
         `;
         const result = splitIntoComponents(html);
 
-        const cardComponent = result.subComponents.find(c => c.name === 'FeatureCard');
+        const cardComponent = result.subComponents.find((c) => c.name === "FeatureCard");
         expect(cardComponent).toBeDefined();
-        expect(cardComponent?.jsx).toContain('Feature 1');
+        expect(cardComponent?.jsx).toContain("Feature 1");
       });
 
-      it('*-item クラスパターンを検出して分割する', () => {
+      it("*-item クラスパターンを検出して分割する", () => {
         const html = `
           <ul>
             <li class="menu-item">
@@ -252,11 +252,11 @@ describe('component-splitter', () => {
         `;
         const result = splitIntoComponents(html);
 
-        const itemComponent = result.subComponents.find(c => c.name === 'MenuItem');
+        const itemComponent = result.subComponents.find((c) => c.name === "MenuItem");
         expect(itemComponent).toBeDefined();
       });
 
-      it('*-list クラスパターンを検出して分割する', () => {
+      it("*-list クラスパターンを検出して分割する", () => {
         const html = `
           <div>
             <ul class="product-list">
@@ -268,7 +268,7 @@ describe('component-splitter', () => {
         `;
         const result = splitIntoComponents(html);
 
-        const listComponent = result.subComponents.find(c => c.name === 'ProductList');
+        const listComponent = result.subComponents.find((c) => c.name === "ProductList");
         expect(listComponent).toBeDefined();
       });
     });
@@ -277,8 +277,8 @@ describe('component-splitter', () => {
     // data属性による分割
     // ==========================================================
 
-    describe('data属性による分割', () => {
-      it('data-component属性を検出して分割する', () => {
+    describe("data属性による分割", () => {
+      it("data-component属性を検出して分割する", () => {
         const html = `
           <div>
             <div data-component="hero-banner">
@@ -289,12 +289,12 @@ describe('component-splitter', () => {
         `;
         const result = splitIntoComponents(html);
 
-        const heroComponent = result.subComponents.find(c => c.name === 'HeroBanner');
+        const heroComponent = result.subComponents.find((c) => c.name === "HeroBanner");
         expect(heroComponent).toBeDefined();
-        expect(heroComponent?.jsx).toContain('Welcome');
+        expect(heroComponent?.jsx).toContain("Welcome");
       });
 
-      it('data-section属性を検出して分割する', () => {
+      it("data-section属性を検出して分割する", () => {
         const html = `
           <div>
             <div data-section="pricing-table">
@@ -306,11 +306,11 @@ describe('component-splitter', () => {
         `;
         const result = splitIntoComponents(html);
 
-        const pricingComponent = result.subComponents.find(c => c.name === 'PricingTable');
+        const pricingComponent = result.subComponents.find((c) => c.name === "PricingTable");
         expect(pricingComponent).toBeDefined();
       });
 
-      it('data-component属性の値をPascalCaseコンポーネント名に変換する', () => {
+      it("data-component属性の値をPascalCaseコンポーネント名に変換する", () => {
         const html = `
           <div data-component="user-profile-card">
             <img src="avatar.jpg" alt="Avatar" />
@@ -319,7 +319,7 @@ describe('component-splitter', () => {
         `;
         const result = splitIntoComponents(html);
 
-        const component = result.subComponents.find(c => c.name === 'UserProfileCard');
+        const component = result.subComponents.find((c) => c.name === "UserProfileCard");
         expect(component).toBeDefined();
       });
     });
@@ -328,8 +328,8 @@ describe('component-splitter', () => {
     // 繰り返し構造の検出
     // ==========================================================
 
-    describe('繰り返し構造の検出', () => {
-      it('同じクラスを持つ複数の要素を1つのサブコンポーネントにまとめる', () => {
+    describe("繰り返し構造の検出", () => {
+      it("同じクラスを持つ複数の要素を1つのサブコンポーネントにまとめる", () => {
         const html = `
           <div class="cards">
             <div class="card">
@@ -348,14 +348,14 @@ describe('component-splitter', () => {
         `;
         const result = splitIntoComponents(html);
 
-        const cardComponent = result.subComponents.find(c => c.name === 'Card');
+        const cardComponent = result.subComponents.find((c) => c.name === "Card");
         expect(cardComponent).toBeDefined();
         // propsにtitle, descriptionが含まれる
-        expect(cardComponent?.props.some(p => p.name === 'title')).toBe(true);
-        expect(cardComponent?.props.some(p => p.name === 'description')).toBe(true);
+        expect(cardComponent?.props.some((p) => p.name === "title")).toBe(true);
+        expect(cardComponent?.props.some((p) => p.name === "description")).toBe(true);
       });
 
-      it('リストアイテムを検出して繰り返しコンポーネントを作成する', () => {
+      it("リストアイテムを検出して繰り返しコンポーネントを作成する", () => {
         const html = `
           <ul class="features">
             <li class="feature">
@@ -370,11 +370,11 @@ describe('component-splitter', () => {
         `;
         const result = splitIntoComponents(html);
 
-        const featureComponent = result.subComponents.find(c => c.name === 'Feature');
+        const featureComponent = result.subComponents.find((c) => c.name === "Feature");
         expect(featureComponent).toBeDefined();
       });
 
-      it('繰り返し要素のメインコンポーネントにはマップ構文を含む', () => {
+      it("繰り返し要素のメインコンポーネントにはマップ構文を含む", () => {
         const html = `
           <div class="team">
             <div class="team-member">
@@ -390,7 +390,7 @@ describe('component-splitter', () => {
         const result = splitIntoComponents(html);
 
         // メインコンポーネントには {items.map(...)} 形式が含まれる
-        expect(result.mainComponent.jsx).toContain('.map(');
+        expect(result.mainComponent.jsx).toContain(".map(");
       });
     });
 
@@ -398,8 +398,8 @@ describe('component-splitter', () => {
     // ネストされた構造の分割
     // ==========================================================
 
-    describe('ネストされた構造の分割', () => {
-      it('ネストレベル1まで分割する', () => {
+    describe("ネストされた構造の分割", () => {
+      it("ネストレベル1まで分割する", () => {
         const html = `
           <div>
             <section class="hero-section">
@@ -414,11 +414,13 @@ describe('component-splitter', () => {
         const result = splitIntoComponents(html);
 
         // section要素はセマンティック要素として分割される
-        const heroSection = result.subComponents.find(c => c.name === 'Section' || c.name === 'HeroSection');
+        const heroSection = result.subComponents.find(
+          (c) => c.name === "Section" || c.name === "HeroSection"
+        );
         expect(heroSection).toBeDefined();
       });
 
-      it('ネストレベル2以上は分割しない（デフォルト設定）', () => {
+      it("ネストレベル2以上は分割しない（デフォルト設定）", () => {
         const html = `
           <div>
             <section class="hero-section">
@@ -435,11 +437,11 @@ describe('component-splitter', () => {
         const result = splitIntoComponents(html);
 
         // hero-title-wrapperはネストレベル2なので分割されない（デフォルトmaxNestLevel=2）
-        const titleWrapper = result.subComponents.find(c => c.name === 'HeroTitleWrapper');
+        const titleWrapper = result.subComponents.find((c) => c.name === "HeroTitleWrapper");
         expect(titleWrapper).toBeUndefined();
       });
 
-      it('maxNestLevelオプションで分割深度を変更できる', () => {
+      it("maxNestLevelオプションで分割深度を変更できる", () => {
         const html = `
           <div>
             <section class="hero-section">
@@ -455,7 +457,7 @@ describe('component-splitter', () => {
         `;
         const result = splitIntoComponents(html, { maxNestLevel: 3 });
 
-        const titleWrapper = result.subComponents.find(c => c.name === 'HeroTitleWrapper');
+        const titleWrapper = result.subComponents.find((c) => c.name === "HeroTitleWrapper");
         expect(titleWrapper).toBeDefined();
       });
     });
@@ -464,8 +466,8 @@ describe('component-splitter', () => {
     // 小さすぎる要素の分割スキップ
     // ==========================================================
 
-    describe('小さすぎる要素の分割スキップ', () => {
-      it('要素数が最小サイズ未満の場合は分割しない', () => {
+    describe("小さすぎる要素の分割スキップ", () => {
+      it("要素数が最小サイズ未満の場合は分割しない", () => {
         const html = `
           <div>
             <section class="tiny">
@@ -476,11 +478,11 @@ describe('component-splitter', () => {
         const result = splitIntoComponents(html);
 
         // 要素数が少ないので分割されない
-        const tinySection = result.subComponents.find(c => c.name === 'Tiny');
+        const tinySection = result.subComponents.find((c) => c.name === "Tiny");
         expect(tinySection).toBeUndefined();
       });
 
-      it('3要素以上で分割される', () => {
+      it("3要素以上で分割される", () => {
         const html = `
           <div>
             <section class="feature-section">
@@ -493,11 +495,13 @@ describe('component-splitter', () => {
         const result = splitIntoComponents(html);
 
         // section要素は常にセマンティック要素として分割される
-        const featuresSection = result.subComponents.find(c => c.name === 'Section' || c.name === 'FeatureSection');
+        const featuresSection = result.subComponents.find(
+          (c) => c.name === "Section" || c.name === "FeatureSection"
+        );
         expect(featuresSection).toBeDefined();
       });
 
-      it('minElementsオプションで最小サイズを変更できる', () => {
+      it("minElementsオプションで最小サイズを変更できる", () => {
         const html = `
           <div>
             <section class="small-section">
@@ -508,7 +512,9 @@ describe('component-splitter', () => {
         const result = splitIntoComponents(html, { minElements: 1 });
 
         // section要素はセマンティック要素として分割
-        const smallSection = result.subComponents.find(c => c.name === 'Section' || c.name === 'SmallSection');
+        const smallSection = result.subComponents.find(
+          (c) => c.name === "Section" || c.name === "SmallSection"
+        );
         expect(smallSection).toBeDefined();
       });
     });
@@ -517,8 +523,8 @@ describe('component-splitter', () => {
     // コンポーネント名の自動生成
     // ==========================================================
 
-    describe('コンポーネント名の自動生成', () => {
-      it('クラス名からPascalCaseコンポーネント名を生成する', () => {
+    describe("コンポーネント名の自動生成", () => {
+      it("クラス名からPascalCaseコンポーネント名を生成する", () => {
         const html = `
           <div class="user-profile-card">
             <img src="avatar.jpg" />
@@ -528,11 +534,11 @@ describe('component-splitter', () => {
         `;
         const result = splitIntoComponents(html);
 
-        const component = result.subComponents.find(c => c.name === 'UserProfileCard');
+        const component = result.subComponents.find((c) => c.name === "UserProfileCard");
         expect(component).toBeDefined();
       });
 
-      it('ハイフン区切りのクラス名をPascalCaseに変換する', () => {
+      it("ハイフン区切りのクラス名をPascalCaseに変換する", () => {
         const html = `
           <div class="main-navigation-bar">
             <a href="/">Home</a>
@@ -542,11 +548,11 @@ describe('component-splitter', () => {
         `;
         const result = splitIntoComponents(html);
 
-        const component = result.subComponents.find(c => c.name === 'MainNavigationBar');
+        const component = result.subComponents.find((c) => c.name === "MainNavigationBar");
         expect(component).toBeDefined();
       });
 
-      it('アンダースコア区切りのクラス名をPascalCaseに変換する', () => {
+      it("アンダースコア区切りのクラス名をPascalCaseに変換する", () => {
         const html = `
           <div class="product_detail_section">
             <h2>Product</h2>
@@ -556,11 +562,11 @@ describe('component-splitter', () => {
         `;
         const result = splitIntoComponents(html);
 
-        const component = result.subComponents.find(c => c.name === 'ProductDetailSection');
+        const component = result.subComponents.find((c) => c.name === "ProductDetailSection");
         expect(component).toBeDefined();
       });
 
-      it('同名のコンポーネントには連番を付ける', () => {
+      it("同名のコンポーネントには連番を付ける", () => {
         const html = `
           <div>
             <section>
@@ -578,10 +584,10 @@ describe('component-splitter', () => {
         const result = splitIntoComponents(html);
 
         // 2つのsection要素が別々のコンポーネントとして分割される
-        const sections = result.subComponents.filter(c => c.name.startsWith('Section'));
+        const sections = result.subComponents.filter((c) => c.name.startsWith("Section"));
         expect(sections.length).toBe(2);
-        expect(sections.some(c => c.name === 'Section')).toBe(true);
-        expect(sections.some(c => c.name === 'Section2')).toBe(true);
+        expect(sections.some((c) => c.name === "Section")).toBe(true);
+        expect(sections.some((c) => c.name === "Section2")).toBe(true);
       });
     });
 
@@ -589,8 +595,8 @@ describe('component-splitter', () => {
     // props検出
     // ==========================================================
 
-    describe('props検出', () => {
-      it('className propsを検出する', () => {
+    describe("props検出", () => {
+      it("className propsを検出する", () => {
         const html = `
           <section class="hero-section custom-class">
             <h1>Title</h1>
@@ -601,12 +607,14 @@ describe('component-splitter', () => {
         const result = splitIntoComponents(html);
 
         // section要素はセマンティック要素として分割される
-        const heroComponent = result.subComponents.find(c => c.name === 'Section' || c.name === 'HeroSection');
+        const heroComponent = result.subComponents.find(
+          (c) => c.name === "Section" || c.name === "HeroSection"
+        );
         expect(heroComponent).toBeDefined();
-        expect(heroComponent?.props.some(p => p.name === 'className')).toBe(true);
+        expect(heroComponent?.props.some((p) => p.name === "className")).toBe(true);
       });
 
-      it('children propsを検出する', () => {
+      it("children propsを検出する", () => {
         const html = `
           <div class="container">
             <header>
@@ -619,13 +627,13 @@ describe('component-splitter', () => {
         const result = splitIntoComponents(html);
 
         // コンテナコンポーネントにはchildren propsがある
-        const containerComponent = result.subComponents.find(c => c.name === 'Container');
+        const containerComponent = result.subComponents.find((c) => c.name === "Container");
         if (containerComponent) {
-          expect(containerComponent.props.some(p => p.name === 'children')).toBe(true);
+          expect(containerComponent.props.some((p) => p.name === "children")).toBe(true);
         }
       });
 
-      it('繰り返し要素からpropsを抽出する', () => {
+      it("繰り返し要素からpropsを抽出する", () => {
         const html = `
           <ul class="items">
             <li class="item">
@@ -640,14 +648,16 @@ describe('component-splitter', () => {
         `;
         const result = splitIntoComponents(html);
 
-        const itemComponent = result.subComponents.find(c => c.name === 'Item');
+        const itemComponent = result.subComponents.find((c) => c.name === "Item");
         if (itemComponent) {
-          expect(itemComponent.props.some(p => p.name === 'title')).toBe(true);
-          expect(itemComponent.props.some(p => p.name === 'description' || p.name === 'desc')).toBe(true);
+          expect(itemComponent.props.some((p) => p.name === "title")).toBe(true);
+          expect(
+            itemComponent.props.some((p) => p.name === "description" || p.name === "desc")
+          ).toBe(true);
         }
       });
 
-      it('props型を正しく推論する', () => {
+      it("props型を正しく推論する", () => {
         const html = `
           <div class="profile-card">
             <img class="avatar" src="image.jpg" alt="User" />
@@ -657,10 +667,10 @@ describe('component-splitter', () => {
         `;
         const result = splitIntoComponents(html);
 
-        const profileCard = result.subComponents.find(c => c.name === 'ProfileCard');
+        const profileCard = result.subComponents.find((c) => c.name === "ProfileCard");
         if (profileCard) {
-          const srcProp = profileCard.props.find(p => p.name === 'src' || p.name === 'avatarSrc');
-          expect(srcProp?.type).toBe('string');
+          const srcProp = profileCard.props.find((p) => p.name === "src" || p.name === "avatarSrc");
+          expect(srcProp?.type).toBe("string");
         }
       });
     });
@@ -669,8 +679,8 @@ describe('component-splitter', () => {
     // import文の生成
     // ==========================================================
 
-    describe('import文の生成', () => {
-      it('分割されたサブコンポーネントのimport文を生成する', () => {
+    describe("import文の生成", () => {
+      it("分割されたサブコンポーネントのimport文を生成する", () => {
         const html = `
           <div>
             <header>
@@ -688,10 +698,12 @@ describe('component-splitter', () => {
         const result = splitIntoComponents(html);
 
         expect(result.mainComponent.imports.length).toBeGreaterThan(0);
-        expect(result.mainComponent.imports.some(imp => imp.includes('HeaderSection'))).toBe(true);
+        expect(result.mainComponent.imports.some((imp) => imp.includes("HeaderSection"))).toBe(
+          true
+        );
       });
 
-      it('import文はファイルパスを含む', () => {
+      it("import文はファイルパスを含む", () => {
         const html = `
           <section class="hero-section">
             <h1>Welcome</h1>
@@ -702,10 +714,12 @@ describe('component-splitter', () => {
         const result = splitIntoComponents(html);
 
         // section要素はセマンティック要素として分割される
-        const sectionComponent = result.subComponents.find(c => c.name === 'Section' || c.name === 'HeroSection');
+        const sectionComponent = result.subComponents.find(
+          (c) => c.name === "Section" || c.name === "HeroSection"
+        );
         if (sectionComponent) {
-          const sectionImport = result.mainComponent.imports.find(imp => imp.includes('Section'));
-          expect(sectionImport).toContain('./');
+          const sectionImport = result.mainComponent.imports.find((imp) => imp.includes("Section"));
+          expect(sectionImport).toContain("./");
         }
       });
     });
@@ -714,8 +728,8 @@ describe('component-splitter', () => {
     // 統合テスト
     // ==========================================================
 
-    describe('統合テスト', () => {
-      it('複雑なLPレイアウトを適切に分割する', () => {
+    describe("統合テスト", () => {
+      it("複雑なLPレイアウトを適切に分割する", () => {
         const html = `
           <div class="landing-page">
             <header class="site-header">
@@ -760,16 +774,16 @@ describe('component-splitter', () => {
         const result = splitIntoComponents(html, { maxNestLevel: 3 });
 
         // 主要なセクションが分割されている
-        expect(result.subComponents.some(c => c.name.includes('Header'))).toBe(true);
-        expect(result.subComponents.some(c => c.name.includes('Hero'))).toBe(true);
-        expect(result.subComponents.some(c => c.name.includes('Feature'))).toBe(true);
-        expect(result.subComponents.some(c => c.name.includes('Footer'))).toBe(true);
+        expect(result.subComponents.some((c) => c.name.includes("Header"))).toBe(true);
+        expect(result.subComponents.some((c) => c.name.includes("Hero"))).toBe(true);
+        expect(result.subComponents.some((c) => c.name.includes("Feature"))).toBe(true);
+        expect(result.subComponents.some((c) => c.name.includes("Footer"))).toBe(true);
 
         // import文が生成されている
         expect(result.mainComponent.imports.length).toBeGreaterThan(0);
       });
 
-      it('オプションを組み合わせて使用できる', () => {
+      it("オプションを組み合わせて使用できる", () => {
         const html = `
           <div>
             <div class="content-section">
@@ -779,15 +793,15 @@ describe('component-splitter', () => {
           </div>
         `;
         const options: SplitOptions = {
-          mainComponentName: 'MyPage',
+          mainComponentName: "MyPage",
           minElements: 2,
           maxNestLevel: 1,
         };
         const result = splitIntoComponents(html, options);
 
-        expect(result.mainComponent.name).toBe('MyPage');
+        expect(result.mainComponent.name).toBe("MyPage");
         // content-sectionクラスがPascalCase変換されてContentSectionになる
-        expect(result.subComponents.some(c => c.name === 'ContentSection')).toBe(true);
+        expect(result.subComponents.some((c) => c.name === "ContentSection")).toBe(true);
       });
     });
   });

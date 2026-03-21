@@ -13,9 +13,9 @@
  * @module @reftrix/mcp-server/services/motion/infrastructure/frame-loader
  */
 
-import * as fs from 'node:fs';
-import * as path from 'node:path';
-import sharp from 'sharp';
+import * as fs from "node:fs";
+import * as path from "node:path";
+import sharp from "sharp";
 import {
   FrameLoaderError,
   type FrameLoaderData,
@@ -24,7 +24,7 @@ import {
   type FramePair,
   type PathValidationResult,
   LIMITS,
-} from '../types';
+} from "../types";
 
 // ============================================================================
 // 定数
@@ -77,9 +77,9 @@ export class FrameLoader {
       this.maxHeight = options.maxHeight;
     }
 
-    if (process.env.NODE_ENV === 'development') {
+    if (process.env.NODE_ENV === "development") {
       // eslint-disable-next-line no-console -- Intentional debug log in development
-      console.log('[FrameLoader] Initialized with options:', {
+      console.log("[FrameLoader] Initialized with options:", {
         allowedDirectories: this.allowedDirectories,
         maxFileSize: this.maxFileSize,
         optimizeMemory: this.optimizeMemory,
@@ -104,11 +104,11 @@ export class FrameLoader {
 
     // パストラバーサルパターン
     const traversalPatterns = [
-      '..', // 親ディレクトリ参照
-      '%2e%2e', // URLエンコードされた ..
-      '%2E%2E', // 大文字版
-      '..\\', // Windows形式
-      '../', // Unix形式
+      "..", // 親ディレクトリ参照
+      "%2e%2e", // URLエンコードされた ..
+      "%2E%2E", // 大文字版
+      "..\\", // Windows形式
+      "../", // Unix形式
     ];
 
     for (const pattern of traversalPatterns) {
@@ -119,7 +119,7 @@ export class FrameLoader {
 
     // 正規化後のパスが元のパスと同じディレクトリ構造を持つか確認
     const normalized = path.normalize(filePath);
-    if (normalized.includes('..')) {
+    if (normalized.includes("..")) {
       return true;
     }
 
@@ -180,8 +180,8 @@ export class FrameLoader {
     if (this.detectPathTraversal(filePath)) {
       return {
         isValid: false,
-        errorCode: 'PATH_TRAVERSAL',
-        errorMessage: 'Path traversal detected: access denied',
+        errorCode: "PATH_TRAVERSAL",
+        errorMessage: "Path traversal detected: access denied",
       };
     }
 
@@ -189,8 +189,8 @@ export class FrameLoader {
     if (!this.isWithinAllowedDirectories(filePath)) {
       return {
         isValid: false,
-        errorCode: 'OUTSIDE_ALLOWED_DIR',
-        errorMessage: 'File is outside allowed directories',
+        errorCode: "OUTSIDE_ALLOWED_DIR",
+        errorMessage: "File is outside allowed directories",
       };
     }
 
@@ -198,8 +198,8 @@ export class FrameLoader {
     if (!this.hasValidExtension(filePath)) {
       return {
         isValid: false,
-        errorCode: 'INVALID_EXTENSION',
-        errorMessage: `Invalid file extension. Allowed: ${ALLOWED_EXTENSIONS.join(', ')}`,
+        errorCode: "INVALID_EXTENSION",
+        errorMessage: `Invalid file extension. Allowed: ${ALLOWED_EXTENSIONS.join(", ")}`,
       };
     }
 
@@ -211,8 +211,8 @@ export class FrameLoader {
       if (!stats.isFile()) {
         return {
           isValid: false,
-          errorCode: 'NOT_A_FILE',
-          errorMessage: 'Path is not a file',
+          errorCode: "NOT_A_FILE",
+          errorMessage: "Path is not a file",
         };
       }
 
@@ -220,24 +220,24 @@ export class FrameLoader {
       if (stats.size > this.maxFileSize) {
         return {
           isValid: false,
-          errorCode: 'FILE_TOO_LARGE',
+          errorCode: "FILE_TOO_LARGE",
           errorMessage: `File size (${stats.size} bytes) exceeds limit (${this.maxFileSize} bytes)`,
         };
       }
     } catch (error: unknown) {
       const errno = error as { code?: string };
-      if (errno.code === 'ENOENT') {
+      if (errno.code === "ENOENT") {
         return {
           isValid: false,
-          errorCode: 'FILE_NOT_FOUND',
-          errorMessage: 'File not found',
+          errorCode: "FILE_NOT_FOUND",
+          errorMessage: "File not found",
         };
       }
-      if (errno.code === 'EACCES') {
+      if (errno.code === "EACCES") {
         return {
           isValid: false,
-          errorCode: 'PERMISSION_DENIED',
-          errorMessage: 'Permission denied',
+          errorCode: "PERMISSION_DENIED",
+          errorMessage: "Permission denied",
         };
       }
       throw error;
@@ -263,10 +263,7 @@ export class FrameLoader {
     // パス検証
     const validation = await this.validateFramePath(filePath);
     if (!validation.isValid) {
-      throw new FrameLoaderError(
-        validation.errorCode!,
-        validation.errorMessage!
-      );
+      throw new FrameLoaderError(validation.errorCode!, validation.errorMessage!);
     }
 
     try {
@@ -277,14 +274,14 @@ export class FrameLoader {
       const sharpMetadata = await sharp(filePath).metadata();
 
       // フォーマットを判定
-      let format: 'png' | 'jpeg';
-      if (sharpMetadata.format === 'png') {
-        format = 'png';
-      } else if (sharpMetadata.format === 'jpeg') {
-        format = 'jpeg';
+      let format: "png" | "jpeg";
+      if (sharpMetadata.format === "png") {
+        format = "png";
+      } else if (sharpMetadata.format === "jpeg") {
+        format = "jpeg";
       } else {
         throw new FrameLoaderError(
-          'INVALID_EXTENSION',
+          "INVALID_EXTENSION",
           `Unsupported format: ${sharpMetadata.format}`
         );
       }
@@ -304,7 +301,7 @@ export class FrameLoader {
       if (error instanceof FrameLoaderError) {
         throw error;
       }
-      throw new FrameLoaderError('LOAD_FAILED', `Failed to read metadata: ${error}`, {
+      throw new FrameLoaderError("LOAD_FAILED", `Failed to read metadata: ${error}`, {
         originalError: String(error),
       });
     }
@@ -324,10 +321,7 @@ export class FrameLoader {
     // パス検証
     const validation = await this.validateFramePath(filePath);
     if (!validation.isValid) {
-      throw new FrameLoaderError(
-        validation.errorCode!,
-        validation.errorMessage!
-      );
+      throw new FrameLoaderError(validation.errorCode!, validation.errorMessage!);
     }
 
     try {
@@ -340,7 +334,7 @@ export class FrameLoader {
       // メモリ最適化: リサイズ
       if (this.optimizeMemory && (this.maxWidth || this.maxHeight)) {
         sharpInstance = sharpInstance.resize(this.maxWidth, this.maxHeight, {
-          fit: 'inside',
+          fit: "inside",
           withoutEnlargement: true,
         });
       }
@@ -353,13 +347,13 @@ export class FrameLoader {
 
       // フォーマットを判定
       const sharpMetadata = await sharp(filePath).metadata();
-      let format: 'png' | 'jpeg';
-      if (sharpMetadata.format === 'png') {
-        format = 'png';
-      } else if (sharpMetadata.format === 'jpeg') {
-        format = 'jpeg';
+      let format: "png" | "jpeg";
+      if (sharpMetadata.format === "png") {
+        format = "png";
+      } else if (sharpMetadata.format === "jpeg") {
+        format = "jpeg";
       } else {
-        format = 'png'; // デフォルト
+        format = "png"; // デフォルト
       }
 
       const metadata: FrameLoaderMetadata = {
@@ -371,9 +365,9 @@ export class FrameLoader {
         format,
       };
 
-      if (process.env.NODE_ENV === 'development') {
+      if (process.env.NODE_ENV === "development") {
         // eslint-disable-next-line no-console -- Intentional debug log in development
-        console.log('[FrameLoader] Loaded frame:', {
+        console.log("[FrameLoader] Loaded frame:", {
           path: filePath,
           width: info.width,
           height: info.height,
@@ -389,7 +383,7 @@ export class FrameLoader {
       if (error instanceof FrameLoaderError) {
         throw error;
       }
-      throw new FrameLoaderError('LOAD_FAILED', `Failed to load frame: ${error}`, {
+      throw new FrameLoaderError("LOAD_FAILED", `Failed to load frame: ${error}`, {
         path: filePath,
         originalError: String(error),
       });
@@ -411,10 +405,7 @@ export class FrameLoader {
    */
   async loadFramePair(path1: string, path2: string): Promise<FramePair> {
     // 並列で両フレームを読み込み
-    const [frame1, frame2] = await Promise.all([
-      this.loadFrame(path1),
-      this.loadFrame(path2),
-    ]);
+    const [frame1, frame2] = await Promise.all([this.loadFrame(path1), this.loadFrame(path2)]);
 
     // サイズ一致確認
     if (
@@ -422,7 +413,7 @@ export class FrameLoader {
       frame1.metadata.height !== frame2.metadata.height
     ) {
       throw new FrameLoaderError(
-        'DIMENSION_MISMATCH',
+        "DIMENSION_MISMATCH",
         `Frame size mismatch: ${frame1.metadata.width}x${frame1.metadata.height} vs ${frame2.metadata.width}x${frame2.metadata.height}`,
         {
           frame1: {
@@ -439,9 +430,9 @@ export class FrameLoader {
       );
     }
 
-    if (process.env.NODE_ENV === 'development') {
+    if (process.env.NODE_ENV === "development") {
       // eslint-disable-next-line no-console -- Intentional debug log in development
-      console.log('[FrameLoader] Loaded frame pair:', {
+      console.log("[FrameLoader] Loaded frame pair:", {
         frame1: path1,
         frame2: path2,
         size: `${frame1.metadata.width}x${frame1.metadata.height}`,

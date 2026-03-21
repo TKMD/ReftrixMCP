@@ -24,15 +24,12 @@
  * - apps/mcp-server/src/services/vision-adapter/interface.ts
  */
 
-import { logger } from '../../utils/logger';
-import { z } from 'zod';
-import { VisionCache } from './vision.cache.js';
-import { OllamaVisionClient } from './ollama-vision-client.js';
-import { VisionAnalysisError } from './vision.errors.js';
-import {
-  getMoodAnalysisPrompt,
-  getMoodAnalysisWithContextPrompt,
-} from './vision.prompts.js';
+import { logger } from "../../utils/logger";
+import { z } from "zod";
+import { VisionCache } from "./vision.cache.js";
+import { OllamaVisionClient } from "./ollama-vision-client.js";
+import { VisionAnalysisError } from "./vision.errors.js";
+import { getMoodAnalysisPrompt, getMoodAnalysisWithContextPrompt } from "./vision.prompts.js";
 
 // =============================================================================
 // 定数
@@ -42,16 +39,16 @@ import {
  * 有効なMoodタイプ一覧
  */
 export const VALID_MOODS = [
-  'professional',
-  'playful',
-  'minimal',
-  'bold',
-  'elegant',
-  'modern',
-  'classic',
-  'energetic',
-  'calm',
-  'luxurious',
+  "professional",
+  "playful",
+  "minimal",
+  "bold",
+  "elegant",
+  "modern",
+  "classic",
+  "energetic",
+  "calm",
+  "luxurious",
 ] as const;
 
 /**
@@ -91,7 +88,7 @@ export interface MoodAnalysisResult {
  */
 export interface ColorContext {
   dominantColors: string[];
-  theme: 'light' | 'dark';
+  theme: "light" | "dark";
   contentDensity: number;
 }
 
@@ -163,12 +160,9 @@ export class MoodAnalyzer {
 
     try {
       // Ollama API呼び出し（OllamaVisionClient経由）
-      logger.info('[MoodAnalyzer] Ollama API call started');
+      logger.info("[MoodAnalyzer] Ollama API call started");
       const prompt = getMoodAnalysisPrompt();
-      const rawResult = await this.client.generateJSON<unknown>(
-        screenshot,
-        prompt
-      );
+      const rawResult = await this.client.generateJSON<unknown>(screenshot, prompt);
 
       // 結果のバリデーション
       const result = this.validateAndSanitizeResult(rawResult);
@@ -187,8 +181,8 @@ export class MoodAnalyzer {
       return result;
     } catch (error) {
       // Graceful degradation: エラー時はnullを返す
-      if (process.env.NODE_ENV === 'development') {
-        console.error('[MoodAnalyzer] Error:', error);
+      if (process.env.NODE_ENV === "development") {
+        console.error("[MoodAnalyzer] Error:", error);
       }
       return null;
     }
@@ -210,9 +204,7 @@ export class MoodAnalyzer {
     this.validateInput(screenshot);
 
     // キャッシュキーにカラーコンテキストを含める
-    const cacheKey = VisionCache.generateKey(
-      screenshot + JSON.stringify(colorContext)
-    );
+    const cacheKey = VisionCache.generateKey(screenshot + JSON.stringify(colorContext));
     const cached = this.cache.get(cacheKey);
     if (cached) {
       return cached;
@@ -220,12 +212,9 @@ export class MoodAnalyzer {
 
     try {
       // Ollama API呼び出し（OllamaVisionClient経由）
-      logger.info('[MoodAnalyzer] Ollama API call started');
+      logger.info("[MoodAnalyzer] Ollama API call started");
       const prompt = getMoodAnalysisWithContextPrompt(colorContext);
-      const rawResult = await this.client.generateJSON<unknown>(
-        screenshot,
-        prompt
-      );
+      const rawResult = await this.client.generateJSON<unknown>(screenshot, prompt);
 
       // 結果のバリデーション
       const result = this.validateAndSanitizeResult(rawResult);
@@ -244,8 +233,8 @@ export class MoodAnalyzer {
       return result;
     } catch (error) {
       // Graceful degradation: エラー時はnullを返す
-      if (process.env.NODE_ENV === 'development') {
-        console.error('[MoodAnalyzer] Error:', error);
+      if (process.env.NODE_ENV === "development") {
+        console.error("[MoodAnalyzer] Error:", error);
       }
       return null;
     }
@@ -262,31 +251,21 @@ export class MoodAnalyzer {
   private validateInput(screenshot: string): void {
     // 空チェック
     if (!screenshot || screenshot.length === 0) {
-      throw new VisionAnalysisError(
-        'Screenshot is required',
-        'INPUT_VALIDATION',
-        false
-      );
+      throw new VisionAnalysisError("Screenshot is required", "INPUT_VALIDATION", false);
     }
 
     // Base64バリデーション
     if (!this.isValidBase64(screenshot)) {
-      throw new VisionAnalysisError(
-        'Invalid Base64 input',
-        'INPUT_VALIDATION',
-        false
-      );
+      throw new VisionAnalysisError("Invalid Base64 input", "INPUT_VALIDATION", false);
     }
 
     // サイズチェック
-    const sizeBytes = Buffer.byteLength(screenshot, 'base64');
+    const sizeBytes = Buffer.byteLength(screenshot, "base64");
     if (sizeBytes > MAX_INPUT_SIZE_BYTES) {
-      throw new VisionAnalysisError(
-        'Input exceeds 5MB limit',
-        'INPUT_VALIDATION',
-        false,
-        { sizeBytes, maxSizeBytes: MAX_INPUT_SIZE_BYTES }
-      );
+      throw new VisionAnalysisError("Input exceeds 5MB limit", "INPUT_VALIDATION", false, {
+        sizeBytes,
+        maxSizeBytes: MAX_INPUT_SIZE_BYTES,
+      });
     }
   }
 
@@ -302,7 +281,7 @@ export class MoodAnalyzer {
 
     try {
       // 実際にデコードして検証
-      Buffer.from(str, 'base64');
+      Buffer.from(str, "base64");
       return true;
     } catch {
       return false;
@@ -312,19 +291,17 @@ export class MoodAnalyzer {
   /**
    * 結果のバリデーションとサニタイズ
    */
-  private validateAndSanitizeResult(
-    rawResult: unknown
-  ): MoodAnalysisResult | null {
+  private validateAndSanitizeResult(rawResult: unknown): MoodAnalysisResult | null {
     // 型チェック
-    if (typeof rawResult !== 'object' || rawResult === null) {
+    if (typeof rawResult !== "object" || rawResult === null) {
       return null;
     }
 
     // Zodでバリデーション
     const parseResult = MoodAnalysisResultSchema.safeParse(rawResult);
     if (!parseResult.success) {
-      if (process.env.NODE_ENV === 'development') {
-        console.warn('[MoodAnalyzer] Validation failed:', parseResult.error);
+      if (process.env.NODE_ENV === "development") {
+        console.warn("[MoodAnalyzer] Validation failed:", parseResult.error);
       }
       return null;
     }
@@ -347,8 +324,8 @@ export class MoodAnalyzer {
    */
   private sanitizeString(str: string): string {
     return str
-      .replace(/<[^>]*>/g, '') // HTMLタグ除去
-      .replace(/[<>"'&]/g, '') // 特殊文字除去
+      .replace(/<[^>]*>/g, "") // HTMLタグ除去
+      .replace(/[<>"'&]/g, "") // 特殊文字除去
       .trim()
       .slice(0, 200); // 長さ制限
   }

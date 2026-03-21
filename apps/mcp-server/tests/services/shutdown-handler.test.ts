@@ -15,7 +15,7 @@
  * @module tests/services/shutdown-handler
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 // ============================================================================
 // モック設定
@@ -27,7 +27,7 @@ const mockGetWorkerSupervisor = vi.fn().mockReturnValue({
   shutdown: mockShutdown,
 });
 
-vi.mock('../../src/services/worker-supervisor.service', () => ({
+vi.mock("../../src/services/worker-supervisor.service", () => ({
   getWorkerSupervisor: (): unknown => mockGetWorkerSupervisor(),
   resetWorkerSupervisor: vi.fn(),
 }));
@@ -37,7 +37,7 @@ const mockLoggerInfo = vi.fn();
 const mockLoggerWarn = vi.fn();
 const mockLoggerError = vi.fn();
 
-vi.mock('../../src/utils/logger', () => ({
+vi.mock("../../src/utils/logger", () => ({
   logger: {
     info: (...args: unknown[]): void => mockLoggerInfo(...args),
     warn: (...args: unknown[]): void => mockLoggerWarn(...args),
@@ -45,14 +45,14 @@ vi.mock('../../src/utils/logger', () => ({
     debug: vi.fn(),
   },
   isDevelopment: vi.fn().mockReturnValue(false),
-  validateEnvironment: vi.fn().mockReturnValue('test'),
+  validateEnvironment: vi.fn().mockReturnValue("test"),
 }));
 
 // ============================================================================
 // テストスイート
 // ============================================================================
 
-describe('Shutdown Handler - WorkerSupervisor統合', () => {
+describe("Shutdown Handler - WorkerSupervisor統合", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
@@ -61,7 +61,7 @@ describe('Shutdown Handler - WorkerSupervisor統合', () => {
     vi.restoreAllMocks();
   });
 
-  it('handleShutdownがWorkerSupervisor.shutdown()を呼び出す', async () => {
+  it("handleShutdownがWorkerSupervisor.shutdown()を呼び出す", async () => {
     // Arrange: handleShutdownの動作をシミュレート
     // index.tsの handleShutdown ロジックを直接テスト
     const serverCloseMock = vi.fn().mockResolvedValue(undefined);
@@ -71,12 +71,14 @@ describe('Shutdown Handler - WorkerSupervisor統合', () => {
     const handleShutdown = async (): Promise<void> => {
       try {
         try {
-          const { getWorkerSupervisor } = await import('../../src/services/worker-supervisor.service');
+          const { getWorkerSupervisor } =
+            await import("../../src/services/worker-supervisor.service");
           const supervisor = getWorkerSupervisor();
           await supervisor.shutdown();
         } catch (supervisorError: unknown) {
-          mockLoggerWarn('WorkerSupervisor shutdown skipped or failed', {
-            error: supervisorError instanceof Error ? supervisorError.message : String(supervisorError),
+          mockLoggerWarn("WorkerSupervisor shutdown skipped or failed", {
+            error:
+              supervisorError instanceof Error ? supervisorError.message : String(supervisorError),
           });
         }
 
@@ -102,10 +104,10 @@ describe('Shutdown Handler - WorkerSupervisor統合', () => {
     expect(processExitMock).toHaveBeenCalledWith(0);
   });
 
-  it('WorkerSupervisor未初期化時はエラーなしでserver.close()まで進む', async () => {
+  it("WorkerSupervisor未初期化時はエラーなしでserver.close()まで進む", async () => {
     // Arrange: getWorkerSupervisorがエラーをスロー（未初期化）
     mockGetWorkerSupervisor.mockImplementationOnce(() => {
-      throw new Error('WorkerSupervisor not initialized');
+      throw new Error("WorkerSupervisor not initialized");
     });
 
     const serverCloseMock = vi.fn().mockResolvedValue(undefined);
@@ -114,12 +116,14 @@ describe('Shutdown Handler - WorkerSupervisor統合', () => {
     const handleShutdown = async (): Promise<void> => {
       try {
         try {
-          const { getWorkerSupervisor } = await import('../../src/services/worker-supervisor.service');
+          const { getWorkerSupervisor } =
+            await import("../../src/services/worker-supervisor.service");
           const supervisor = getWorkerSupervisor();
           await supervisor.shutdown();
         } catch (supervisorError: unknown) {
-          mockLoggerWarn('WorkerSupervisor shutdown skipped or failed', {
-            error: supervisorError instanceof Error ? supervisorError.message : String(supervisorError),
+          mockLoggerWarn("WorkerSupervisor shutdown skipped or failed", {
+            error:
+              supervisorError instanceof Error ? supervisorError.message : String(supervisorError),
           });
         }
 
@@ -136,18 +140,18 @@ describe('Shutdown Handler - WorkerSupervisor統合', () => {
     // Assert: supervisor.shutdown()は呼ばれないが、server.close()は実行される
     expect(mockShutdown).not.toHaveBeenCalled();
     expect(mockLoggerWarn).toHaveBeenCalledWith(
-      'WorkerSupervisor shutdown skipped or failed',
+      "WorkerSupervisor shutdown skipped or failed",
       expect.objectContaining({
-        error: 'WorkerSupervisor not initialized',
+        error: "WorkerSupervisor not initialized",
       })
     );
     expect(serverCloseMock).toHaveBeenCalledTimes(1);
     expect(processExitMock).toHaveBeenCalledWith(0);
   });
 
-  it('WorkerSupervisor.shutdown()失敗時もserver.close()は実行される', async () => {
+  it("WorkerSupervisor.shutdown()失敗時もserver.close()は実行される", async () => {
     // Arrange: shutdown()がエラーをスロー
-    mockShutdown.mockRejectedValueOnce(new Error('shutdown failed'));
+    mockShutdown.mockRejectedValueOnce(new Error("shutdown failed"));
 
     const serverCloseMock = vi.fn().mockResolvedValue(undefined);
     const processExitMock = vi.fn();
@@ -155,12 +159,14 @@ describe('Shutdown Handler - WorkerSupervisor統合', () => {
     const handleShutdown = async (): Promise<void> => {
       try {
         try {
-          const { getWorkerSupervisor } = await import('../../src/services/worker-supervisor.service');
+          const { getWorkerSupervisor } =
+            await import("../../src/services/worker-supervisor.service");
           const supervisor = getWorkerSupervisor();
           await supervisor.shutdown();
         } catch (supervisorError: unknown) {
-          mockLoggerWarn('WorkerSupervisor shutdown skipped or failed', {
-            error: supervisorError instanceof Error ? supervisorError.message : String(supervisorError),
+          mockLoggerWarn("WorkerSupervisor shutdown skipped or failed", {
+            error:
+              supervisorError instanceof Error ? supervisorError.message : String(supervisorError),
           });
         }
 
@@ -177,9 +183,9 @@ describe('Shutdown Handler - WorkerSupervisor統合', () => {
     // Assert: shutdown失敗してもserver.close()は実行される
     expect(mockShutdown).toHaveBeenCalledTimes(1);
     expect(mockLoggerWarn).toHaveBeenCalledWith(
-      'WorkerSupervisor shutdown skipped or failed',
+      "WorkerSupervisor shutdown skipped or failed",
       expect.objectContaining({
-        error: 'shutdown failed',
+        error: "shutdown failed",
       })
     );
     expect(serverCloseMock).toHaveBeenCalledTimes(1);

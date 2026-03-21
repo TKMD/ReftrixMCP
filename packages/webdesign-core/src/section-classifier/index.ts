@@ -16,15 +16,15 @@ import type {
   SectionContent,
   SectionStyle,
   PositionInfo,
-} from '../types/section.types';
+} from "../types/section.types";
 import type {
   ClassificationRule,
   ClassificationCondition,
   ClassificationResult,
   ContextualClassificationResult,
   RangeValue,
-} from './rules';
-import { defaultRules } from './rules';
+} from "./rules";
+import { defaultRules } from "./rules";
 
 // Re-export types
 export type {
@@ -33,7 +33,7 @@ export type {
   ClassificationResult,
   ContextualClassificationResult,
   RangeValue,
-} from './rules';
+} from "./rules";
 
 // =========================================
 // Helper Functions
@@ -51,9 +51,9 @@ function isRegExp(value: unknown): value is RegExp {
  */
 function isRangeValue(value: unknown): value is RangeValue {
   return (
-    typeof value === 'object' &&
+    typeof value === "object" &&
     value !== null &&
-    ('startY' in value || 'endY' in value || 'height' in value)
+    ("startY" in value || "endY" in value || "height" in value)
   );
 }
 
@@ -61,7 +61,7 @@ function isRangeValue(value: unknown): value is RangeValue {
  * 配列かどうかを判定
  */
 function isStringArray(value: unknown): value is string[] {
-  return Array.isArray(value) && value.every((v) => typeof v === 'string');
+  return Array.isArray(value) && value.every((v) => typeof v === "string");
 }
 
 /**
@@ -69,37 +69,39 @@ function isStringArray(value: unknown): value is string[] {
  */
 function checkContentHas(content: SectionContent, key: string): boolean {
   switch (key) {
-    case 'h1':
+    case "h1":
       return content.headings.some((h) => h.level === 1);
-    case 'h2':
+    case "h2":
       return content.headings.some((h) => h.level === 2);
-    case 'button':
+    case "button":
       return content.buttons.length > 0;
-    case 'links':
+    case "links":
       return content.links.length > 0;
-    case 'images':
+    case "images":
       return content.images.length > 0;
-    case 'headings':
+    case "headings":
       return content.headings.length > 0;
-    case 'paragraphs':
+    case "paragraphs":
       return content.paragraphs.length > 0;
-    case 'multipleHeadings':
+    case "multipleHeadings":
       return content.headings.length >= 2;
-    case 'multipleImages':
+    case "multipleImages":
       return content.images.length >= 2;
-    case 'manyImages':
+    case "manyImages":
       return content.images.length >= 4;
-    case 'logo':
+    case "logo":
       return content.images.some(
-        (img) => img.alt?.toLowerCase().includes('logo') || img.src.toLowerCase().includes('logo')
+        (img) => img.alt?.toLowerCase().includes("logo") || img.src.toLowerCase().includes("logo")
       );
-    case 'copyright':
+    case "copyright":
       return content.paragraphs.some(
         (p) =>
-          p.includes('©') || p.toLowerCase().includes('copyright') || p.toLowerCase().includes('all rights reserved')
+          p.includes("©") ||
+          p.toLowerCase().includes("copyright") ||
+          p.toLowerCase().includes("all rights reserved")
       );
-    case 'email':
-      return content.paragraphs.some((p) => p.includes('@') || p.toLowerCase().includes('email'));
+    case "email":
+      return content.paragraphs.some((p) => p.includes("@") || p.toLowerCase().includes("email"));
     default:
       return false;
   }
@@ -110,13 +112,13 @@ function checkContentHas(content: SectionContent, key: string): boolean {
  */
 function checkStyleHas(style: SectionStyle, key: string): boolean {
   switch (key) {
-    case 'backgroundImage':
+    case "backgroundImage":
       return style.hasImage === true;
-    case 'gradient':
+    case "gradient":
       return style.hasGradient === true;
-    case 'backgroundColor':
+    case "backgroundColor":
       return !!style.backgroundColor;
-    case 'textColor':
+    case "textColor":
       return !!style.textColor;
     default:
       return false;
@@ -160,27 +162,27 @@ function evaluateCondition(
   let matches = false;
 
   switch (field) {
-    case 'tagName':
-      if (operator === 'equals' && typeof value === 'string') {
+    case "tagName":
+      if (operator === "equals" && typeof value === "string") {
         matches = section.element.tagName.toLowerCase() === value.toLowerCase();
-      } else if (operator === 'matches' && isRegExp(value)) {
+      } else if (operator === "matches" && isRegExp(value)) {
         matches = value.test(section.element.tagName);
       }
       break;
 
-    case 'classes': {
-      const classString = section.element.classes.join(' ');
-      if (operator === 'contains' && typeof value === 'string') {
+    case "classes": {
+      const classString = section.element.classes.join(" ");
+      if (operator === "contains" && typeof value === "string") {
         matches = section.element.classes.some((c) =>
           c.toLowerCase().includes(value.toLowerCase())
         );
-      } else if (operator === 'matches' && isRegExp(value)) {
+      } else if (operator === "matches" && isRegExp(value)) {
         matches = value.test(classString);
-      } else if (operator === 'hasAny' && isStringArray(value)) {
+      } else if (operator === "hasAny" && isStringArray(value)) {
         matches = value.some((v) =>
           section.element.classes.some((c) => c.toLowerCase().includes(v.toLowerCase()))
         );
-      } else if (operator === 'hasAll' && isStringArray(value)) {
+      } else if (operator === "hasAll" && isStringArray(value)) {
         matches = value.every((v) =>
           section.element.classes.some((c) => c.toLowerCase().includes(v.toLowerCase()))
         );
@@ -188,36 +190,36 @@ function evaluateCondition(
       break;
     }
 
-    case 'id':
+    case "id":
       if (section.element.id) {
-        if (operator === 'equals' && typeof value === 'string') {
+        if (operator === "equals" && typeof value === "string") {
           matches = section.element.id.toLowerCase() === value.toLowerCase();
-        } else if (operator === 'matches' && isRegExp(value)) {
+        } else if (operator === "matches" && isRegExp(value)) {
           matches = value.test(section.element.id);
-        } else if (operator === 'contains' && typeof value === 'string') {
+        } else if (operator === "contains" && typeof value === "string") {
           matches = section.element.id.toLowerCase().includes(value.toLowerCase());
         }
       }
       break;
 
-    case 'content':
-      if (operator === 'hasAny' && isStringArray(value)) {
+    case "content":
+      if (operator === "hasAny" && isStringArray(value)) {
         matches = value.some((v) => checkContentHas(section.content, v));
-      } else if (operator === 'hasAll' && isStringArray(value)) {
+      } else if (operator === "hasAll" && isStringArray(value)) {
         matches = value.every((v) => checkContentHas(section.content, v));
       }
       break;
 
-    case 'position':
-      if (operator === 'range' && isRangeValue(value)) {
+    case "position":
+      if (operator === "range" && isRangeValue(value)) {
         matches = checkPositionInRange(section.position, value);
       }
       break;
 
-    case 'style':
-      if (operator === 'hasAny' && isStringArray(value)) {
+    case "style":
+      if (operator === "hasAny" && isStringArray(value)) {
         matches = value.some((v) => checkStyleHas(section.style, v));
-      } else if (operator === 'hasAll' && isStringArray(value)) {
+      } else if (operator === "hasAll" && isStringArray(value)) {
         matches = value.every((v) => checkStyleHas(section.style, v));
       }
       break;
@@ -313,7 +315,7 @@ export class SectionClassifier {
 
     // 結果がない場合は unknown を返す
     if (results.length === 0) {
-      return { type: 'unknown', confidence: 0 };
+      return { type: "unknown", confidence: 0 };
     }
 
     // 優先度 -> 信頼度 の順でソートして最良の結果を取得
@@ -326,7 +328,7 @@ export class SectionClassifier {
 
     const best = results[0];
     if (!best) {
-      return { type: 'unknown', confidence: 0 };
+      return { type: "unknown", confidence: 0 };
     }
 
     return { type: best.type, confidence: best.confidence };
@@ -335,9 +337,7 @@ export class SectionClassifier {
   /**
    * 複数セクションをコンテキストを考慮して分類
    */
-  classifyWithContext(
-    sections: DetectedSection[]
-  ): ContextualClassificationResult[] {
+  classifyWithContext(sections: DetectedSection[]): ContextualClassificationResult[] {
     if (sections.length === 0) {
       return [];
     }
@@ -375,10 +375,10 @@ export class SectionClassifier {
 
       // 1. 先頭セクションのナビゲーション/ヒーロー補正
       if (i === 0) {
-        if (result.type === 'unknown' || result.confidence < 0.5) {
+        if (result.type === "unknown" || result.confidence < 0.5) {
           // リンクが多い場合はナビゲーション
           if (section.content.links.length >= 3) {
-            result.type = 'navigation';
+            result.type = "navigation";
             result.confidence = Math.max(result.confidence, 0.6);
           }
           // h1とボタンがある場合はヒーロー
@@ -386,51 +386,51 @@ export class SectionClassifier {
             section.content.headings.some((h) => h.level === 1) &&
             section.content.buttons.length > 0
           ) {
-            result.type = 'hero';
+            result.type = "hero";
             result.confidence = Math.max(result.confidence, 0.6);
           }
         }
         // すでにナビゲーションかヒーローの場合は信頼度ブースト
-        if (result.type === 'navigation' || result.type === 'hero') {
+        if (result.type === "navigation" || result.type === "hero") {
           result.confidence = Math.min(result.confidence * 1.1, 1);
         }
       }
 
       // 2. 2番目のセクションがヒーローの可能性（最初がナビゲーションの場合）
       const firstResult = boostedResults[0];
-      if (i === 1 && firstResult && firstResult.type === 'navigation') {
+      if (i === 1 && firstResult && firstResult.type === "navigation") {
         if (
-          result.type === 'unknown' &&
+          result.type === "unknown" &&
           section.content.headings.some((h) => h.level === 1) &&
           section.content.buttons.length > 0
         ) {
-          result.type = 'hero';
+          result.type = "hero";
           result.confidence = Math.max(result.confidence, 0.7);
         }
       }
 
       // 3. 末尾セクションのフッター補正
       if (i === totalSections - 1) {
-        if (result.type === 'unknown' || result.confidence < 0.5) {
+        if (result.type === "unknown" || result.confidence < 0.5) {
           // 著作権テキストがある場合
           const hasCopyright = section.content.paragraphs.some(
             (p) =>
-              p.includes('©') ||
-              p.toLowerCase().includes('copyright') ||
-              p.toLowerCase().includes('all rights reserved')
+              p.includes("©") ||
+              p.toLowerCase().includes("copyright") ||
+              p.toLowerCase().includes("all rights reserved")
           );
           if (hasCopyright) {
-            result.type = 'footer';
+            result.type = "footer";
             result.confidence = Math.max(result.confidence, 0.8);
           }
           // フッター要素がある場合
-          else if (section.element.tagName === 'footer') {
-            result.type = 'footer';
+          else if (section.element.tagName === "footer") {
+            result.type = "footer";
             result.confidence = Math.max(result.confidence, 0.9);
           }
         }
         // すでにフッターの場合は信頼度ブースト
-        if (result.type === 'footer') {
+        if (result.type === "footer") {
           result.confidence = Math.min(result.confidence * 1.1, 1);
         }
       }
@@ -439,14 +439,11 @@ export class SectionClassifier {
       if (i > 0 && i < totalSections - 1) {
         const prevResult = boostedResults[i - 1];
         // 前のセクションがフィーチャーで、現在も似た構造の場合
-        if (prevResult && prevResult.type === 'feature') {
+        if (prevResult && prevResult.type === "feature") {
           // 同様のコンテンツ構造（見出し+画像）を持つ場合
-          if (
-            section.content.headings.length >= 2 ||
-            section.content.images.length >= 2
-          ) {
-            if (result.type === 'unknown' || result.confidence < 0.5) {
-              result.type = 'feature';
+          if (section.content.headings.length >= 2 || section.content.images.length >= 2) {
+            if (result.type === "unknown" || result.confidence < 0.5) {
+              result.type = "feature";
               result.confidence = Math.max(result.confidence, 0.6);
             }
           }
@@ -474,14 +471,14 @@ export class SectionClassifier {
     if (!result) return;
 
     // 現在の位置に基づいて期待されるタイプを推測
-    if (result.type === 'unknown' && result.confidence < 0.3) {
+    if (result.type === "unknown" && result.confidence < 0.3) {
       const normalizedPosition = currentIndex / (results.length - 1 || 1);
 
       // 先頭付近（0-0.15）
       if (normalizedPosition <= 0.15) {
         // ナビゲーションかヒーローの可能性が高い
         if (result.section.content.links.length >= 2) {
-          result.type = 'navigation';
+          result.type = "navigation";
           result.confidence = 0.4;
         }
       }
@@ -492,7 +489,7 @@ export class SectionClassifier {
           result.section.content.headings.some((h) => h.level === 1) &&
           result.section.content.buttons.length > 0
         ) {
-          result.type = 'hero';
+          result.type = "hero";
           result.confidence = 0.5;
         }
       }
@@ -500,7 +497,7 @@ export class SectionClassifier {
       else if (normalizedPosition <= 0.7) {
         // フィーチャー、テスティモニアル、プライシングの可能性
         if (result.section.content.images.length >= 3) {
-          result.type = 'feature';
+          result.type = "feature";
           result.confidence = 0.4;
         }
       }
@@ -508,7 +505,7 @@ export class SectionClassifier {
       else if (normalizedPosition <= 0.9) {
         // CTAの可能性
         if (result.section.content.buttons.length > 0) {
-          result.type = 'cta';
+          result.type = "cta";
           result.confidence = 0.4;
         }
       }
@@ -517,12 +514,12 @@ export class SectionClassifier {
         // フッターの可能性が高い
         const hasCopyright = result.section.content.paragraphs.some(
           (p) =>
-            p.includes('©') ||
-            p.toLowerCase().includes('copyright') ||
-            p.toLowerCase().includes('all rights reserved')
+            p.includes("©") ||
+            p.toLowerCase().includes("copyright") ||
+            p.toLowerCase().includes("all rights reserved")
         );
-        if (hasCopyright || result.section.element.tagName === 'footer') {
-          result.type = 'footer';
+        if (hasCopyright || result.section.element.tagName === "footer") {
+          result.type = "footer";
           result.confidence = 0.6;
         }
       }

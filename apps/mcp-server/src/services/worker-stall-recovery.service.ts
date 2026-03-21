@@ -22,12 +22,12 @@
  * @module services/worker-stall-recovery
  */
 
-import { logger } from '../utils/logger';
+import { logger } from "../utils/logger";
 import {
   isOrphanedByLockExpiry,
   categorizeByProgress,
   type OrphanedJobCategory as OrphanedJobCategoryFromUtils,
-} from './orphaned-job-utils';
+} from "./orphaned-job-utils";
 
 // ============================================================================
 // Types
@@ -77,7 +77,7 @@ export interface RecoveryResult {
   details: Array<{
     jobId: string;
     category: OrphanedJobCategory;
-    action: 'moved_to_failed' | 'moved_to_waiting' | 'completed' | 'skipped';
+    action: "moved_to_failed" | "moved_to_waiting" | "completed" | "skipped";
     error?: string;
   }>;
 }
@@ -93,7 +93,7 @@ export interface StalledJobRecoveryResult {
   /** ジョブのカテゴリ（判定可能な場合） */
   category: OrphanedJobCategory | null;
   /** 実行されたアクション */
-  action: 'moved_to_failed' | 'completed' | 'skipped' | 'not_found';
+  action: "moved_to_failed" | "completed" | "skipped" | "not_found";
   /** エラーメッセージ（失敗時） */
   error?: string;
 }
@@ -194,7 +194,7 @@ export async function recoverOrphanedJobs(
   try {
     const activeJobs = await getActiveJobs();
 
-    logger.info('[StallRecovery] Checking for orphaned active jobs', {
+    logger.info("[StallRecovery] Checking for orphaned active jobs", {
       activeJobCount: activeJobs.length,
       lockDurationMs,
     });
@@ -206,7 +206,7 @@ export async function recoverOrphanedJobs(
 
       const category = categorizeOrphanedJob(jobInfo);
 
-      logger.warn('[StallRecovery] Orphaned job detected', {
+      logger.warn("[StallRecovery] Orphaned job detected", {
         jobId: jobInfo.jobId,
         category,
         progress: jobInfo.progress,
@@ -217,19 +217,19 @@ export async function recoverOrphanedJobs(
 
       try {
         switch (category) {
-          case 'db_saved_but_stuck': {
+          case "db_saved_but_stuck": {
             // DB保存済み: completedに遷移
             await moveToCompleted(jobInfo.jobId);
             result.details.push({
               jobId: jobInfo.jobId,
               category,
-              action: 'completed',
+              action: "completed",
             });
             result.recoveredCount++;
             break;
           }
 
-          case 'processing_interrupted': {
+          case "processing_interrupted": {
             // 処理中断: failedに遷移（再実行可能）
             await moveToFailed(
               jobInfo.jobId,
@@ -238,30 +238,31 @@ export async function recoverOrphanedJobs(
             result.details.push({
               jobId: jobInfo.jobId,
               category,
-              action: 'moved_to_failed',
+              action: "moved_to_failed",
             });
             result.recoveredCount++;
             break;
           }
 
-          case 'never_started': {
+          case "never_started": {
             // 未開始: failedに遷移（ユーザーが再試行を判断）
             await moveToFailed(
               jobInfo.jobId,
-              'Worker restarted before processing started. Job was orphaned and recovered by stall recovery.'
+              "Worker restarted before processing started. Job was orphaned and recovered by stall recovery."
             );
             result.details.push({
               jobId: jobInfo.jobId,
               category,
-              action: 'moved_to_failed',
+              action: "moved_to_failed",
             });
             result.recoveredCount++;
             break;
           }
         }
       } catch (recoveryError) {
-        const errorMessage = recoveryError instanceof Error ? recoveryError.message : String(recoveryError);
-        logger.error('[StallRecovery] Failed to recover orphaned job', {
+        const errorMessage =
+          recoveryError instanceof Error ? recoveryError.message : String(recoveryError);
+        logger.error("[StallRecovery] Failed to recover orphaned job", {
           jobId: jobInfo.jobId,
           category,
           error: errorMessage,
@@ -269,7 +270,7 @@ export async function recoverOrphanedJobs(
         result.details.push({
           jobId: jobInfo.jobId,
           category,
-          action: 'skipped',
+          action: "skipped",
           error: errorMessage,
         });
         result.failedCount++;
@@ -277,14 +278,14 @@ export async function recoverOrphanedJobs(
     }
 
     if (result.recoveredCount > 0 || result.failedCount > 0) {
-      logger.info('[StallRecovery] Recovery complete', {
+      logger.info("[StallRecovery] Recovery complete", {
         recoveredCount: result.recoveredCount,
         failedCount: result.failedCount,
       });
     }
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    logger.error('[StallRecovery] Recovery process failed', {
+    logger.error("[StallRecovery] Recovery process failed", {
       error: errorMessage,
     });
     result.success = false;
@@ -314,27 +315,29 @@ export async function recoverOrphanedJobs(
  */
 export async function handleStalledJob(
   jobId: string,
-  accessor: StalledJobAccessor,
+  accessor: StalledJobAccessor
 ): Promise<StalledJobRecoveryResult> {
-  logger.warn('[StallRecovery] Handling stalled job event', { jobId });
+  logger.warn("[StallRecovery] Handling stalled job event", { jobId });
 
   try {
     const job = await accessor.getJob(jobId);
 
     if (!job) {
-      logger.warn('[StallRecovery] Stalled job not found (already removed or completed)', { jobId });
+      logger.warn("[StallRecovery] Stalled job not found (already removed or completed)", {
+        jobId,
+      });
       return {
         success: true,
         jobId,
         category: null,
-        action: 'not_found',
+        action: "not_found",
       };
     }
 
     const state = await job.getState();
-    const progress = typeof job.progress === 'number' ? job.progress : 0;
+    const progress = typeof job.progress === "number" ? job.progress : 0;
 
-    logger.info('[StallRecovery] Stalled job state', {
+    logger.info("[StallRecovery] Stalled job state", {
       jobId,
       state,
       progress,
@@ -345,22 +348,22 @@ export async function handleStalledJob(
 
     // BullMQ may have already moved the job to failed (maxStalledCount exceeded)
     // or back to waiting (stall retry). Only act on active/waiting jobs.
-    if (state === 'completed') {
+    if (state === "completed") {
       return {
         success: true,
         jobId,
         category: null,
-        action: 'skipped',
+        action: "skipped",
       };
     }
 
     // Determine category based on progress
     const category = categorizeByProgress(progress, job.processedOn);
 
-    if (category === 'db_saved_but_stuck') {
+    if (category === "db_saved_but_stuck") {
       // DB保存済み: completedに遷移
       // token '0' は orphaned (lock-expired) ジョブの遷移に使用する慣例
-      logger.info('[StallRecovery] Moving DB-saved stalled job to completed', {
+      logger.info("[StallRecovery] Moving DB-saved stalled job to completed", {
         jobId,
         progress,
         webPageId: job.data.webPageId,
@@ -375,40 +378,37 @@ export async function handleStalledJob(
           processingTimeMs: 0,
           completedAt: new Date().toISOString(),
         },
-        '0',
-        false,
+        "0",
+        false
       );
       return {
         success: true,
         jobId,
         category,
-        action: 'completed',
+        action: "completed",
       };
     }
 
     // For processing_interrupted and never_started:
     // BullMQ's built-in stall handler already moves to failed after maxStalledCount.
     // If the job is still active/waiting, force it to failed for visibility.
-    if (state === 'active' || state === 'waiting') {
-      const reason = category === 'processing_interrupted'
-        ? `worker_restart_during_processing (progress: ${progress}%)`
-        : 'worker_restart_before_processing';
-      logger.info('[StallRecovery] Moving stalled job to failed', {
+    if (state === "active" || state === "waiting") {
+      const reason =
+        category === "processing_interrupted"
+          ? `worker_restart_during_processing (progress: ${progress}%)`
+          : "worker_restart_before_processing";
+      logger.info("[StallRecovery] Moving stalled job to failed", {
         jobId,
         category,
         progress,
         reason,
       });
-      await job.moveToFailed(
-        new Error(`Stall recovery: ${reason}`),
-        '0',
-        false,
-      );
+      await job.moveToFailed(new Error(`Stall recovery: ${reason}`), "0", false);
       return {
         success: true,
         jobId,
         category,
-        action: 'moved_to_failed',
+        action: "moved_to_failed",
       };
     }
 
@@ -417,11 +417,11 @@ export async function handleStalledJob(
       success: true,
       jobId,
       category,
-      action: 'skipped',
+      action: "skipped",
     };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    logger.error('[StallRecovery] Failed to handle stalled job', {
+    logger.error("[StallRecovery] Failed to handle stalled job", {
       jobId,
       error: errorMessage,
     });
@@ -429,7 +429,7 @@ export async function handleStalledJob(
       success: false,
       jobId,
       category: null,
-      action: 'skipped',
+      action: "skipped",
       error: errorMessage,
     };
   }
@@ -456,21 +456,22 @@ export function createPeriodicStallCheck(
   getActiveJobs: () => Promise<OrphanedJobInfo[]>,
   moveToFailed: (jobId: string, reason: string) => Promise<void>,
   moveToCompleted: (jobId: string) => Promise<void>,
-  config: PeriodicStallCheckConfig,
+  config: PeriodicStallCheckConfig
 ): { stop: () => void } {
   const intervalMs = config.intervalMs ?? DEFAULT_PERIODIC_CHECK_INTERVAL_MS;
 
-  logger.info('[StallRecovery] Starting periodic stall check', {
+  logger.info("[StallRecovery] Starting periodic stall check", {
     intervalMs,
     lockDurationMs: config.lockDurationMs,
   });
 
   const timerId = setInterval(() => {
-    recoverOrphanedJobs(getActiveJobs, moveToFailed, moveToCompleted, config.lockDurationMs)
-      .catch((error: unknown) => {
+    recoverOrphanedJobs(getActiveJobs, moveToFailed, moveToCompleted, config.lockDurationMs).catch(
+      (error: unknown) => {
         const errorMessage = error instanceof Error ? error.message : String(error);
-        logger.error('[StallRecovery] Periodic stall check failed', { error: errorMessage });
-      });
+        logger.error("[StallRecovery] Periodic stall check failed", { error: errorMessage });
+      }
+    );
   }, intervalMs);
 
   // unref() so the timer doesn't prevent process exit
@@ -479,8 +480,7 @@ export function createPeriodicStallCheck(
   return {
     stop: (): void => {
       clearInterval(timerId);
-      logger.info('[StallRecovery] Periodic stall check stopped');
+      logger.info("[StallRecovery] Periodic stall check stopped");
     },
   };
 }
-

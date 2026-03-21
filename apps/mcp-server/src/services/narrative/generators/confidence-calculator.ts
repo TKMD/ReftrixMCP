@@ -14,7 +14,7 @@ import type {
   ExistingAnalysisResults,
   WorldViewResult,
   LayoutStructureResult,
-} from '../types/narrative.types';
+} from "../types/narrative.types";
 
 // =============================================================================
 // Constants
@@ -49,7 +49,7 @@ export const CONFIDENCE_THRESHOLDS = {
 /**
  * 信頼度レベル
  */
-export type ConfidenceLevel = 'high' | 'medium' | 'low' | 'insufficient';
+export type ConfidenceLevel = "high" | "medium" | "low" | "insufficient";
 
 // =============================================================================
 // Types
@@ -88,7 +88,7 @@ export function calculateConfidence(
   worldView?: WorldViewResult,
   layoutStructure?: LayoutStructureResult
 ): ConfidenceScore {
-  const breakdown: ConfidenceScore['breakdown'] = {
+  const breakdown: ConfidenceScore["breakdown"] = {
     visionAnalysis: 0,
     cssStaticAnalysis: 0,
     htmlStructureAnalysis: 0,
@@ -113,10 +113,11 @@ export function calculateConfidence(
   }, 0);
 
   // WorldView信頼度（Vision重視）
-  const worldViewConfidence = (breakdown.visionAnalysis * 0.6 + breakdown.cssStaticAnalysis * 0.4);
+  const worldViewConfidence = breakdown.visionAnalysis * 0.6 + breakdown.cssStaticAnalysis * 0.4;
 
   // LayoutStructure信頼度（HTML構造重視）
-  const layoutConfidence = (breakdown.htmlStructureAnalysis * 0.7 + breakdown.cssStaticAnalysis * 0.3);
+  const layoutConfidence =
+    breakdown.htmlStructureAnalysis * 0.7 + breakdown.cssStaticAnalysis * 0.3;
 
   return {
     overall: Math.min(1, Math.max(0, overall)),
@@ -168,26 +169,53 @@ function calculateWorldViewCompleteness(worldView: WorldViewResult): number {
   let total = 0;
 
   // 必須フィールド
-  if (worldView.moodCategory) { score += 1; } total += 1;
-  if (worldView.moodDescription && worldView.moodDescription.length > 10) { score += 1; } total += 1;
+  if (worldView.moodCategory) {
+    score += 1;
+  }
+  total += 1;
+  if (worldView.moodDescription && worldView.moodDescription.length > 10) {
+    score += 1;
+  }
+  total += 1;
 
   // Color Impression
   if (worldView.colorImpression) {
-    if (worldView.colorImpression.overall) { score += 0.5; } total += 0.5;
-    if (worldView.colorImpression.dominantEmotion) { score += 0.5; } total += 0.5;
+    if (worldView.colorImpression.overall) {
+      score += 0.5;
+    }
+    total += 0.5;
+    if (worldView.colorImpression.dominantEmotion) {
+      score += 0.5;
+    }
+    total += 0.5;
   }
 
   // Typography Personality
   if (worldView.typographyPersonality) {
-    if (worldView.typographyPersonality.style) { score += 0.5; } total += 0.5;
-    if (worldView.typographyPersonality.readability) { score += 0.5; } total += 0.5;
+    if (worldView.typographyPersonality.style) {
+      score += 0.5;
+    }
+    total += 0.5;
+    if (worldView.typographyPersonality.readability) {
+      score += 0.5;
+    }
+    total += 0.5;
   }
 
   // Overall Tone
   if (worldView.overallTone) {
-    if (worldView.overallTone.primary) { score += 0.5; } total += 0.5;
-    if (typeof worldView.overallTone.formality === 'number') { score += 0.25; } total += 0.25;
-    if (typeof worldView.overallTone.energy === 'number') { score += 0.25; } total += 0.25;
+    if (worldView.overallTone.primary) {
+      score += 0.5;
+    }
+    total += 0.5;
+    if (typeof worldView.overallTone.formality === "number") {
+      score += 0.25;
+    }
+    total += 0.25;
+    if (typeof worldView.overallTone.energy === "number") {
+      score += 0.25;
+    }
+    total += 0.25;
   }
 
   return total > 0 ? score / total : 0;
@@ -230,7 +258,7 @@ function calculateHtmlConfidence(
   const sectionScore = Math.min(1, sectionCount / 10) * 0.5;
 
   // セクションタイプの多様性
-  const sectionTypes = new Set(analysisResults.sections?.map(s => s.type) ?? []);
+  const sectionTypes = new Set(analysisResults.sections?.map((s) => s.type) ?? []);
   const diversityScore = Math.min(1, sectionTypes.size / 5) * 0.2;
 
   // LayoutStructureの充実度
@@ -255,7 +283,7 @@ function calculateLayoutStructureCompleteness(layoutStructure: LayoutStructureRe
 
   // Grid System
   if (layoutStructure.gridSystem) {
-    if (layoutStructure.gridSystem.type && layoutStructure.gridSystem.type !== 'none') {
+    if (layoutStructure.gridSystem.type && layoutStructure.gridSystem.type !== "none") {
       score += 1;
     }
     total += 1;
@@ -263,20 +291,38 @@ function calculateLayoutStructureCompleteness(layoutStructure: LayoutStructureRe
 
   // Visual Hierarchy
   if (layoutStructure.visualHierarchy) {
-    if (layoutStructure.visualHierarchy.primaryElements.length > 0) { score += 0.5; } total += 0.5;
-    if (layoutStructure.visualHierarchy.sectionFlow) { score += 0.5; } total += 0.5;
+    if (layoutStructure.visualHierarchy.primaryElements.length > 0) {
+      score += 0.5;
+    }
+    total += 0.5;
+    if (layoutStructure.visualHierarchy.sectionFlow) {
+      score += 0.5;
+    }
+    total += 0.5;
   }
 
   // Spacing Rhythm
   if (layoutStructure.spacingRhythm) {
-    if (layoutStructure.spacingRhythm.baseUnit) { score += 0.5; } total += 0.5;
-    if (layoutStructure.spacingRhythm.scaleName) { score += 0.5; } total += 0.5;
+    if (layoutStructure.spacingRhythm.baseUnit) {
+      score += 0.5;
+    }
+    total += 0.5;
+    if (layoutStructure.spacingRhythm.scaleName) {
+      score += 0.5;
+    }
+    total += 0.5;
   }
 
   // Graphic Elements
   if (layoutStructure.graphicElements) {
-    if (layoutStructure.graphicElements.visualBalance) { score += 0.5; } total += 0.5;
-    if (layoutStructure.graphicElements.imageLayout?.pattern) { score += 0.5; } total += 0.5;
+    if (layoutStructure.graphicElements.visualBalance) {
+      score += 0.5;
+    }
+    total += 0.5;
+    if (layoutStructure.graphicElements.imageLayout?.pattern) {
+      score += 0.5;
+    }
+    total += 0.5;
   }
 
   return total > 0 ? score / total : 0;
@@ -304,13 +350,13 @@ function calculateMotionConfidence(analysisResults: ExistingAnalysisResults): nu
 
   // アクセシビリティ対応の有無
   const hasReducedMotion = motionPatterns.patterns.every(
-    p => p.accessibility.respectsReducedMotion
+    (p) => p.accessibility.respectsReducedMotion
   );
   const accessibilityScore = hasReducedMotion ? 0.2 : 0;
 
   // パフォーマンス情報の充実度
   const hasPerformanceInfo = motionPatterns.patterns.every(
-    p => p.performance && typeof p.performance.level === 'string'
+    (p) => p.performance && typeof p.performance.level === "string"
   );
   const performanceScore = hasPerformanceInfo ? 0.2 : 0;
 
@@ -332,25 +378,25 @@ function calculateMotionConfidence(analysisResults: ExistingAnalysisResults): nu
  */
 export function getConfidenceLevel(score: number): ConfidenceLevel {
   if (score >= CONFIDENCE_THRESHOLDS.HIGH) {
-    return 'high';
+    return "high";
   }
   if (score >= CONFIDENCE_THRESHOLDS.MEDIUM) {
-    return 'medium';
+    return "medium";
   }
   if (score >= CONFIDENCE_THRESHOLDS.LOW) {
-    return 'low';
+    return "low";
   }
-  return 'insufficient';
+  return "insufficient";
 }
 
 /**
  * 信頼度レベルの日本語ラベル
  */
 export const CONFIDENCE_LEVEL_LABELS: Record<ConfidenceLevel, string> = {
-  high: '高信頼',
-  medium: '中信頼',
-  low: '低信頼',
-  insufficient: '不十分',
+  high: "高信頼",
+  medium: "中信頼",
+  low: "低信頼",
+  insufficient: "不十分",
 };
 
 /**
@@ -361,13 +407,13 @@ export const CONFIDENCE_LEVEL_LABELS: Record<ConfidenceLevel, string> = {
  */
 export function getRecommendedAction(level: ConfidenceLevel): string {
   switch (level) {
-    case 'high':
-      return 'そのまま保存';
-    case 'medium':
-      return '警告付きで保存';
-    case 'low':
-      return '要レビューフラグを設定';
-    case 'insufficient':
-      return '再分析を推奨';
+    case "high":
+      return "そのまま保存";
+    case "medium":
+      return "警告付きで保存";
+    case "low":
+      return "要レビューフラグを設定";
+    case "insufficient":
+      return "再分析を推奨";
   }
 }

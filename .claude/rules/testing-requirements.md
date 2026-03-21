@@ -2,14 +2,14 @@
 
 ## 評価メトリクス / Evaluation Metrics
 
-| メトリクス / Metric | 定義 / Definition | 目標 / Target | 評価方法 / Evaluation Method |
-|----------|------|------|---------|
-| `pass@1` | 初回試行で成功 / Pass on first attempt | ≥ 85% | 自動（Vitest + CI） |
-| `pass^3` | 3回連続成功（一貫性必須） / 3 consecutive passes (consistency required) | ≥ 70% | 自動（Vitest + CI） |
-| Statement Coverage | ステートメントカバレッジ | > 80% | 自動（Vitest --coverage） |
-| Branch Coverage | 分岐カバレッジ | > 70% | 自動（Vitest --coverage） |
-| Function Coverage | 関数カバレッジ | > 85% | 自動（Vitest --coverage） |
-| E2E Success Rate | E2Eテスト成功率 | 100% | 自動（Playwright + CI） |
+| メトリクス / Metric | 定義 / Definition                                                       | 目標 / Target | 評価方法 / Evaluation Method |
+| ------------------- | ----------------------------------------------------------------------- | ------------- | ---------------------------- |
+| `pass@1`            | 初回試行で成功 / Pass on first attempt                                  | ≥ 85%         | 自動（Vitest + CI）          |
+| `pass^3`            | 3回連続成功（一貫性必須） / 3 consecutive passes (consistency required) | ≥ 70%         | 自動（Vitest + CI）          |
+| Statement Coverage  | ステートメントカバレッジ                                                | > 80%         | 自動（Vitest --coverage）    |
+| Branch Coverage     | 分岐カバレッジ                                                          | > 70%         | 自動（Vitest --coverage）    |
+| Function Coverage   | 関数カバレッジ                                                          | > 85%         | 自動（Vitest --coverage）    |
+| E2E Success Rate    | E2Eテスト成功率                                                         | 100%          | 自動（Playwright + CI）      |
 
 ## TDD必須 / TDD Required
 
@@ -34,6 +34,7 @@
 ### TDD検証方法 / TDD Verification
 
 **自動検証（Git履歴） / Automated Verification (Git History)**:
+
 ```bash
 # テストファイルが実装ファイルより先にコミットされていることを確認
 git log --follow --format="%H %ai" -- tests/search.test.ts
@@ -41,6 +42,7 @@ git log --follow --format="%H %ai" -- src/search.ts
 ```
 
 **CI環境での検証 / CI Verification**:
+
 - プルリクエストの各コミットでテスト実行
 - 初期コミットでテストが失敗→後続コミットで成功の流れを確認
 
@@ -48,19 +50,19 @@ git log --follow --format="%H %ai" -- src/search.ts
 
 ## カバレッジ目標 / Coverage Targets
 
-| 指標 / Indicator | 目標 / Target |
-|------|------|
-| ステートメント / Statement | > 80% |
-| ブランチ / Branch | > 70% |
-| 関数 / Function | > 85% |
-| E2E | 主要フロー100% / All major flows 100% |
+| 指標 / Indicator           | 目標 / Target                         |
+| -------------------------- | ------------------------------------- |
+| ステートメント / Statement | > 80%                                 |
+| ブランチ / Branch          | > 70%                                 |
+| 関数 / Function            | > 85%                                 |
+| E2E                        | 主要フロー100% / All major flows 100% |
 
 ## テストフレームワーク / Test Frameworks
 
-| 種別 / Type | ツール / Tool | バージョン / Version |
-|------|--------|-----------|
-| Unit/Integration | Vitest | 4.x（mcp-server, ml, core, webdesign-core）/ 3.2.x（database） |
-| E2E | Playwright | 1.57.0 |
+| 種別 / Type      | ツール / Tool | バージョン / Version                                           |
+| ---------------- | ------------- | -------------------------------------------------------------- |
+| Unit/Integration | Vitest        | 4.x（mcp-server, ml, core, webdesign-core）/ 3.2.x（database） |
+| E2E              | Playwright    | 1.57.0                                                         |
 
 ## Vitest設定 / Vitest Configuration
 
@@ -75,26 +77,20 @@ pnpm test --maxWorkers=3
 ### vitest.config.ts推奨設定 / Recommended vitest.config.ts
 
 ```typescript
-import { defineConfig } from 'vitest/config';
+import { defineConfig } from "vitest/config";
 
 export default defineConfig({
   test: {
     globals: true,
-    environment: 'node',
-    pool: 'forks',
+    environment: "node",
+    pool: "forks",
     maxWorkers: 3, // 各ワーカー約3.5GB消費
-    include: ['tests/**/*.test.ts'],
+    include: ["tests/**/*.test.ts"],
     coverage: {
-      provider: 'v8',
-      reporter: ['text', 'json', 'html', 'lcov'],
-      include: ['src/**/*.ts'],
-      exclude: [
-        'src/**/*.d.ts',
-        'src/**/index.ts',
-        'src/**/*.test.ts',
-        'node_modules/',
-        'dist/',
-      ],
+      provider: "v8",
+      reporter: ["text", "json", "html", "lcov"],
+      include: ["src/**/*.ts"],
+      exclude: ["src/**/*.d.ts", "src/**/index.ts", "src/**/*.test.ts", "node_modules/", "dist/"],
       thresholds: {
         statements: 80,
         branches: 70,
@@ -111,6 +107,7 @@ export default defineConfig({
 ### ✅ PASS基準（pass@1: 初回成功率 100%） / PASS Criteria (pass@1: 100% first-attempt success rate)
 
 **必須要件 / Required**:
+
 - ✅ Playwright + Chromium使用 / Use Playwright + Chromium
 - ✅ スクリーンショット撮影・目視確認 / Screenshot capture and visual verification
 - ✅ 保存先: Playwrightの設定に従う（デフォルト: `test-results/`） / Save location follows Playwright config (default: `test-results/`)
@@ -119,10 +116,16 @@ export default defineConfig({
 **主要フロー（E2E 100%必須） / Major Flows (E2E 100% required)**:
 
 **MCPサーバー向け / For MCP Server**:
+
 1. ✅ MCPツール実行（layout.ingest, motion.detect, quality.evaluate） / MCP tool execution
 2. ✅ Embedding生成・ベクトル検索 / Embedding generation and vector search
 3. ✅ HTMLサニタイゼーション・SSRF対策 / HTML sanitization and SSRF protection
 4. ✅ エラーハンドリング（無効入力、タイムアウト） / Error handling (invalid input, timeout)
+
+1. ✅ ページ表示・ナビゲーション / Page rendering and navigation
+2. ✅ アクセシビリティ検証（WCAG 2.1 AA） / Accessibility verification (WCAG 2.1 AA)
+3. ✅ レスポンシブデザイン確認 / Responsive design verification
+4. ✅ エラーページ表示 / Error page display
 
 ### ❌ FAIL基準 / FAIL Criteria
 
@@ -134,23 +137,25 @@ export default defineConfig({
 ### 環境設計（重要） / Environment Design (Important)
 
 **各試行が清潔な環境から開始 / Each trial starts from a clean environment**:
+
 ```typescript
 // ✅ 良い例: 各テストで独立した状態
 test.beforeEach(async ({ page, context }) => {
   // ローカルストレージ・Cookie・キャッシュをクリア
   await context.clearCookies();
   await page.evaluate(() => localStorage.clear());
-  await page.goto('http://localhost:YOUR_APP_PORT');
+  await page.goto("http://localhost:YOUR_APP_PORT");
 });
 
 // ❌ 悪い例: 状態が残る
-test('test 1', async ({ page }) => {
-  await page.fill('#input', 'value1');
+test("test 1", async ({ page }) => {
+  await page.fill("#input", "value1");
   // 次のテストに状態が漏れる可能性
 });
 ```
 
 **テスト対象 / Test Targets**:
+
 - 新規ページ作成時 / When creating new pages
 - UIコンポーネントの重要な変更 / Significant UI component changes
 - ユーザーフロー / User flows
@@ -177,10 +182,10 @@ Phase 3（セキュリティ監査修復）で追加されたテストスイー�
 
 Test suites added during Phase 3 (security audit remediation):
 
-| テストファイル / Test File | テスト数 / Tests | 対象 / Coverage |
-|--------------------------|-----------------|----------------|
-| `tests/services/preference-profile.service.test.ts` | 29 | サービス層ユニットテスト: getSamples, processFeedback, getProfile, resetProfile, deleteProfile, getSignals, confidence計算, DI/ファクトリー / Service layer unit tests: getSamples, processFeedback, getProfile, resetProfile, deleteProfile, getSignals, confidence calculation, DI/factory |
-| `tests/tools/preference/security.test.ts` | 13 | セキュリティテスト: SQLインジェクション防御, 不正UUID, 超長文字列, エラーメッセージサニタイズ / Security tests: SQL injection defense, invalid UUID, oversized strings, error message sanitization |
+| テストファイル / Test File                          | テスト数 / Tests | 対象 / Coverage                                                                                                                                                                                                                                                                              |
+| --------------------------------------------------- | ---------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `tests/services/preference-profile.service.test.ts` | 29               | サービス層ユニットテスト: getSamples, processFeedback, getProfile, resetProfile, deleteProfile, getSignals, confidence計算, DI/ファクトリー / Service layer unit tests: getSamples, processFeedback, getProfile, resetProfile, deleteProfile, getSignals, confidence calculation, DI/factory |
+| `tests/tools/preference/security.test.ts`           | 13               | セキュリティテスト: SQLインジェクション防御, 不正UUID, 超長文字列, エラーメッセージサニタイズ / Security tests: SQL injection defense, invalid UUID, oversized strings, error message sanitization                                                                                           |
 
 ## 品質ゲート（CI必須） / Quality Gates (CI Required)
 

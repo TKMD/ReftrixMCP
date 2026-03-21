@@ -9,18 +9,22 @@
  * @module @reftrix/mcp-server/tests/unit/services/motion/cls-calculator.service.test
  */
 
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach } from "vitest";
 
 import type {
   CLSCalculatorConfig,
   FrameSequenceCLSResult,
   CLSSessionWindow,
-} from '../../../../src/services/motion/cls-calculator.service';
+} from "../../../../src/services/motion/cls-calculator.service";
 import {
   CLSCalculator,
   CLS_THRESHOLDS,
-} from '../../../../src/services/motion/cls-calculator.service';
-import type { FrameDiffResult, BoundingBox, ViewportSize } from '../../../../src/services/motion/types';
+} from "../../../../src/services/motion/cls-calculator.service";
+import type {
+  FrameDiffResult,
+  BoundingBox,
+  ViewportSize,
+} from "../../../../src/services/motion/types";
 
 // =============================================================================
 // Test Fixtures
@@ -55,7 +59,7 @@ function createBox(x: number, y: number, width: number, height: number): Boundin
 // Tests
 // =============================================================================
 
-describe('CLSCalculator', () => {
+describe("CLSCalculator", () => {
   let calculator: CLSCalculator;
   const defaultViewport: ViewportSize = { width: 1920, height: 1080 };
 
@@ -63,12 +67,12 @@ describe('CLSCalculator', () => {
     calculator = new CLSCalculator();
   });
 
-  describe('constructor', () => {
-    it('should create instance with default config', () => {
+  describe("constructor", () => {
+    it("should create instance with default config", () => {
       expect(calculator).toBeInstanceOf(CLSCalculator);
     });
 
-    it('should accept custom config', () => {
+    it("should accept custom config", () => {
       const config: CLSCalculatorConfig = {
         sessionWindowDurationMs: 10000,
         gapThresholdMs: 2000,
@@ -79,17 +83,17 @@ describe('CLSCalculator', () => {
     });
   });
 
-  describe('calculateFramePairCLS', () => {
-    it('should return 0 for empty regions', () => {
+  describe("calculateFramePairCLS", () => {
+    it("should return 0 for empty regions", () => {
       const diffResult = createMockDiffResult(1, [], 0);
       const result = calculator.calculateFramePairCLS(diffResult, defaultViewport);
 
       expect(result.cls).toBe(0);
-      expect(result.classification).toBe('good');
+      expect(result.classification).toBe("good");
       expect(result.shifts).toHaveLength(0);
     });
 
-    it('should calculate CLS for single region', () => {
+    it("should calculate CLS for single region", () => {
       // 10% of viewport area, 5% distance
       const regions = [createBox(100, 100, 192, 108)]; // 192*108 = 20736 = 1% of 1920*1080
       const diffResult = createMockDiffResult(1, regions, 0.01);
@@ -102,16 +106,16 @@ describe('CLSCalculator', () => {
       expect(result.shifts).toHaveLength(1);
     });
 
-    it('should classify CLS as good when < 0.1', () => {
+    it("should classify CLS as good when < 0.1", () => {
       const regions = [createBox(100, 100, 50, 50)]; // small region
       const diffResult = createMockDiffResult(1, regions, 0.001);
 
       const result = calculator.calculateFramePairCLS(diffResult, defaultViewport);
 
-      expect(result.classification).toBe('good');
+      expect(result.classification).toBe("good");
     });
 
-    it('should classify CLS as needs-improvement when >= 0.1 and < 0.25', () => {
+    it("should classify CLS as needs-improvement when >= 0.1 and < 0.25", () => {
       // Create regions that will result in CLS between 0.1 and 0.25
       // Large region (30% of viewport) with significant movement
       const regions = [createBox(500, 500, 576, 324)]; // ~10% of viewport
@@ -123,11 +127,11 @@ describe('CLSCalculator', () => {
 
       // Force the classification check with explicit threshold
       if (result.cls >= CLS_THRESHOLDS.GOOD && result.cls < CLS_THRESHOLDS.NEEDS_IMPROVEMENT) {
-        expect(result.classification).toBe('needs-improvement');
+        expect(result.classification).toBe("needs-improvement");
       }
     });
 
-    it('should classify CLS as poor when >= 0.25', () => {
+    it("should classify CLS as poor when >= 0.25", () => {
       // Very large region with huge movement
       const regions = [createBox(1000, 800, 960, 540)]; // ~25% of viewport
       const diffResult = createMockDiffResult(1, regions, 0.25);
@@ -137,22 +141,22 @@ describe('CLSCalculator', () => {
       });
 
       if (result.cls >= CLS_THRESHOLDS.NEEDS_IMPROVEMENT) {
-        expect(result.classification).toBe('poor');
+        expect(result.classification).toBe("poor");
       }
     });
   });
 
-  describe('calculateSequenceCLS', () => {
-    it('should handle empty sequence', () => {
+  describe("calculateSequenceCLS", () => {
+    it("should handle empty sequence", () => {
       const result = calculator.calculateSequenceCLS([], defaultViewport);
 
       expect(result.totalCLS).toBe(0);
       expect(result.maxSessionCLS).toBe(0);
-      expect(result.classification).toBe('good');
+      expect(result.classification).toBe("good");
       expect(result.sessionWindows).toHaveLength(0);
     });
 
-    it('should calculate cumulative CLS for sequence', () => {
+    it("should calculate cumulative CLS for sequence", () => {
       const diffResults: FrameDiffResult[] = [
         createMockDiffResult(1, [createBox(100, 100, 100, 100)], 0.01),
         createMockDiffResult(2, [createBox(150, 150, 100, 100)], 0.01),
@@ -165,7 +169,7 @@ describe('CLSCalculator', () => {
       expect(result.shiftCount).toBeGreaterThanOrEqual(0);
     });
 
-    it('should detect session windows correctly', () => {
+    it("should detect session windows correctly", () => {
       // Create shifts with gaps to trigger window detection
       const diffResults: FrameDiffResult[] = [];
 
@@ -190,7 +194,7 @@ describe('CLSCalculator', () => {
       expect(result.sessionWindows.length).toBeGreaterThanOrEqual(1);
     });
 
-    it('should use maxSessionCLS for Core Web Vitals compliance', () => {
+    it("should use maxSessionCLS for Core Web Vitals compliance", () => {
       // Core Web Vitals uses the largest session window's CLS
       const diffResults: FrameDiffResult[] = [
         createMockDiffResult(1, [createBox(100, 100, 200, 200)], 0.1),
@@ -203,15 +207,15 @@ describe('CLSCalculator', () => {
     });
   });
 
-  describe('CLS_THRESHOLDS', () => {
-    it('should have correct Core Web Vitals thresholds', () => {
+  describe("CLS_THRESHOLDS", () => {
+    it("should have correct Core Web Vitals thresholds", () => {
       expect(CLS_THRESHOLDS.GOOD).toBe(0.1);
       expect(CLS_THRESHOLDS.NEEDS_IMPROVEMENT).toBe(0.25);
     });
   });
 
-  describe('calculateImpactFraction', () => {
-    it('should calculate impact fraction correctly', () => {
+  describe("calculateImpactFraction", () => {
+    it("should calculate impact fraction correctly", () => {
       const region = createBox(0, 0, 192, 108); // 1% of 1920x1080
       const viewport = defaultViewport;
 
@@ -220,17 +224,17 @@ describe('CLSCalculator', () => {
       expect(impact).toBeCloseTo(0.01, 2);
     });
 
-    it('should handle regions outside viewport', () => {
+    it("should handle regions outside viewport", () => {
       const region = createBox(-100, -100, 200, 200);
       const viewport = defaultViewport;
 
       const impact = calculator.calculateImpactFraction(region, viewport);
 
       // Only visible part should count
-      expect(impact).toBeLessThan(200 * 200 / (1920 * 1080));
+      expect(impact).toBeLessThan((200 * 200) / (1920 * 1080));
     });
 
-    it('should return 0 for completely outside regions', () => {
+    it("should return 0 for completely outside regions", () => {
       const region = createBox(-200, -200, 100, 100);
       const viewport = defaultViewport;
 
@@ -240,8 +244,8 @@ describe('CLSCalculator', () => {
     });
   });
 
-  describe('calculateDistanceFraction', () => {
-    it('should calculate distance fraction based on movement', () => {
+  describe("calculateDistanceFraction", () => {
+    it("should calculate distance fraction based on movement", () => {
       const currentRegion = createBox(200, 200, 100, 100);
       const previousRegion = createBox(100, 100, 100, 100);
       const viewport = defaultViewport;
@@ -259,7 +263,7 @@ describe('CLSCalculator', () => {
       expect(distance).toBeLessThan(1);
     });
 
-    it('should return 0 for no movement', () => {
+    it("should return 0 for no movement", () => {
       const region = createBox(100, 100, 100, 100);
       const viewport = defaultViewport;
 
@@ -268,7 +272,7 @@ describe('CLSCalculator', () => {
       expect(distance).toBe(0);
     });
 
-    it('should estimate distance when no previous region', () => {
+    it("should estimate distance when no previous region", () => {
       const region = createBox(100, 100, 100, 100);
       const viewport = defaultViewport;
 
@@ -279,12 +283,12 @@ describe('CLSCalculator', () => {
     });
   });
 
-  describe('performance', () => {
-    it('should process 100 frames in reasonable time', async () => {
+  describe("performance", () => {
+    it("should process 100 frames in reasonable time", async () => {
       const diffResults: FrameDiffResult[] = [];
       for (let i = 1; i <= 100; i++) {
         diffResults.push(
-          createMockDiffResult(i, [createBox(i * 10 % 1800, i * 5 % 900, 100, 100)], 0.01)
+          createMockDiffResult(i, [createBox((i * 10) % 1800, (i * 5) % 900, 100, 100)], 0.01)
         );
       }
 
@@ -297,8 +301,8 @@ describe('CLSCalculator', () => {
     });
   });
 
-  describe('edge cases', () => {
-    it('should handle invalid viewport gracefully', () => {
+  describe("edge cases", () => {
+    it("should handle invalid viewport gracefully", () => {
       const diffResult = createMockDiffResult(1, [createBox(100, 100, 100, 100)], 0.01);
 
       expect(() => {
@@ -306,7 +310,7 @@ describe('CLSCalculator', () => {
       }).toThrow();
     });
 
-    it('should handle negative coordinates in regions', () => {
+    it("should handle negative coordinates in regions", () => {
       const regions = [createBox(-50, -50, 200, 200)];
       const diffResult = createMockDiffResult(1, regions, 0.01);
 
@@ -317,7 +321,7 @@ describe('CLSCalculator', () => {
       expect(result.cls).toBeGreaterThanOrEqual(0);
     });
 
-    it('should handle very large regions', () => {
+    it("should handle very large regions", () => {
       const regions = [createBox(0, 0, 3840, 2160)]; // 4K region in 1080p viewport
       const diffResult = createMockDiffResult(1, regions, 0.5);
 

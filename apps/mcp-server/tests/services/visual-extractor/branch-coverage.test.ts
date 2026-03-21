@@ -14,19 +14,19 @@
  * @module tests/services/visual-extractor/branch-coverage.test
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import sharp from 'sharp';
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import sharp from "sharp";
 import {
   parseImageInput,
   parseAndValidateImageInput,
   logSecurityEvent,
   isSharpImageError,
   wrapSharpError,
-} from '../../../src/services/visual-extractor/image-utils';
-import { createColorExtractorService } from '../../../src/services/visual-extractor/color-extractor.service';
-import { createThemeDetectorService } from '../../../src/services/visual-extractor/theme-detector.service';
-import { createDensityCalculatorService } from '../../../src/services/visual-extractor/density-calculator.service';
-import { logger } from '../../../src/utils/logger';
+} from "../../../src/services/visual-extractor/image-utils";
+import { createColorExtractorService } from "../../../src/services/visual-extractor/color-extractor.service";
+import { createThemeDetectorService } from "../../../src/services/visual-extractor/theme-detector.service";
+import { createDensityCalculatorService } from "../../../src/services/visual-extractor/density-calculator.service";
+import { logger } from "../../../src/utils/logger";
 
 // Helper to create valid image
 async function createValidImage(width = 100, height = 100): Promise<Buffer> {
@@ -42,71 +42,67 @@ async function createValidImage(width = 100, height = 100): Promise<Buffer> {
     .toBuffer();
 }
 
-describe('Branch Coverage Tests', () => {
-  describe('image-utils.ts branch coverage', () => {
-    describe('parseImageInput - empty base64 decode branch (line 201-202)', () => {
-      it('should throw for base64 that decodes to empty buffer', () => {
+describe("Branch Coverage Tests", () => {
+  describe("image-utils.ts branch coverage", () => {
+    describe("parseImageInput - empty base64 decode branch (line 201-202)", () => {
+      it("should throw for base64 that decodes to empty buffer", () => {
         // An empty string encoded in base64 would be empty
         // However, we need a valid base64 that decodes to empty
         // The closest is a very short valid base64 that produces minimal output
         // Actually, empty string after removing prefix should fail regex first
         // Let's test with whitespace-only base64
-        expect(() => parseImageInput('')).toThrow('Image input is required');
+        expect(() => parseImageInput("")).toThrow("Image input is required");
       });
 
-      it('should throw for base64 with only data URL prefix', () => {
+      it("should throw for base64 with only data URL prefix", () => {
         // data URL prefix without actual content
         // After split, parts[1] would be empty string
-        const dataUrlOnly = 'data:image/png;base64,';
+        const dataUrlOnly = "data:image/png;base64,";
         expect(() => parseImageInput(dataUrlOnly)).toThrow();
       });
     });
 
-    describe('parseAndValidateImageInput - empty base64 decode branch (line 102-104)', () => {
-      it('should throw for base64 with only data URL prefix (with validation)', () => {
-        const dataUrlOnly = 'data:image/png;base64,';
+    describe("parseAndValidateImageInput - empty base64 decode branch (line 102-104)", () => {
+      it("should throw for base64 with only data URL prefix (with validation)", () => {
+        const dataUrlOnly = "data:image/png;base64,";
         expect(() => parseAndValidateImageInput(dataUrlOnly)).toThrow();
       });
     });
 
-    describe('logSecurityEvent - development mode branch (line 158)', () => {
+    describe("logSecurityEvent - development mode branch (line 158)", () => {
       let loggerSpy: ReturnType<typeof vi.spyOn>;
 
       beforeEach(() => {
-        loggerSpy = vi.spyOn(logger, 'debug').mockImplementation(() => {});
+        loggerSpy = vi.spyOn(logger, "debug").mockImplementation(() => {});
       });
 
       afterEach(() => {
         loggerSpy.mockRestore();
       });
 
-      it('should log in development mode', () => {
-        logSecurityEvent('TestService', 'Test event', { key: 'value' });
+      it("should log in development mode", () => {
+        logSecurityEvent("TestService", "Test event", { key: "value" });
 
-        expect(loggerSpy).toHaveBeenCalledWith(
-          '[Security:TestService] Test event',
-          { key: 'value' }
-        );
+        expect(loggerSpy).toHaveBeenCalledWith("[Security:TestService] Test event", {
+          key: "value",
+        });
       });
 
-      it('should log with empty details in development mode', () => {
-        logSecurityEvent('TestService', 'Test event');
+      it("should log with empty details in development mode", () => {
+        logSecurityEvent("TestService", "Test event");
 
-        expect(loggerSpy).toHaveBeenCalledWith(
-          '[Security:TestService] Test event',
-          ''
-        );
+        expect(loggerSpy).toHaveBeenCalledWith("[Security:TestService] Test event", "");
       });
     });
   });
 
-  describe('color-extractor.service.ts branch coverage', () => {
-    describe('development mode logging (line 325)', () => {
+  describe("color-extractor.service.ts branch coverage", () => {
+    describe("development mode logging (line 325)", () => {
       let loggerSpy: ReturnType<typeof vi.spyOn>;
       let service: ReturnType<typeof createColorExtractorService>;
 
       beforeEach(() => {
-        loggerSpy = vi.spyOn(logger, 'debug').mockImplementation(() => {});
+        loggerSpy = vi.spyOn(logger, "debug").mockImplementation(() => {});
         service = createColorExtractorService();
       });
 
@@ -114,21 +110,21 @@ describe('Branch Coverage Tests', () => {
         loggerSpy.mockRestore();
       });
 
-      it('should log extraction details in development mode', async () => {
+      it("should log extraction details in development mode", async () => {
         const image = await createValidImage();
 
         await service.extractColors(image);
 
         // logger.debug が [ColorExtractor] プレフィックス付きで呼ばれることを確認
         expect(loggerSpy).toHaveBeenCalledWith(
-          expect.stringContaining('[ColorExtractor]'),
+          expect.stringContaining("[ColorExtractor]"),
           expect.any(Object)
         );
       });
     });
 
-    describe('error handling for non-sharp errors (lines 350-352)', () => {
-      it('should rethrow non-sharp errors', async () => {
+    describe("error handling for non-sharp errors (lines 350-352)", () => {
+      it("should rethrow non-sharp errors", async () => {
         const service = createColorExtractorService();
         // Pass completely invalid data that won't be caught as sharp error
         const invalidData = Buffer.from([0x00, 0x01, 0x02, 0x03]);
@@ -136,23 +132,23 @@ describe('Branch Coverage Tests', () => {
         await expect(service.extractColors(invalidData)).rejects.toThrow();
       });
 
-      it('should handle sharp vips errors', async () => {
+      it("should handle sharp vips errors", async () => {
         const service = createColorExtractorService();
         // Create a buffer that looks like an image but isn't valid
-        const corruptedImage = Buffer.from('PNG\r\n\x1a\nIHDR corrupted data');
+        const corruptedImage = Buffer.from("PNG\r\n\x1a\nIHDR corrupted data");
 
         await expect(service.extractColors(corruptedImage)).rejects.toThrow();
       });
     });
   });
 
-  describe('theme-detector.service.ts branch coverage', () => {
-    describe('empty colorPalette handling (lines 305-308)', () => {
-      it('should handle empty color palette with dominantColors fallback', () => {
+  describe("theme-detector.service.ts branch coverage", () => {
+    describe("empty colorPalette handling (lines 305-308)", () => {
+      it("should handle empty color palette with dominantColors fallback", () => {
         const service = createThemeDetectorService();
 
         const result = service.detectThemeFromColors({
-          dominantColors: ['#FFFFFF'],
+          dominantColors: ["#FFFFFF"],
           accentColors: [],
           colorPalette: [],
         });
@@ -161,7 +157,7 @@ describe('Branch Coverage Tests', () => {
         expect(result.theme).toBeDefined();
       });
 
-      it('should handle empty colorPalette and empty dominantColors', () => {
+      it("should handle empty colorPalette and empty dominantColors", () => {
         const service = createThemeDetectorService();
 
         const result = service.detectThemeFromColors({
@@ -173,22 +169,22 @@ describe('Branch Coverage Tests', () => {
         // Should use defaults
         expect(result).toBeDefined();
         expect(result.theme).toBeDefined();
-        expect(result.backgroundColor).toBe('#808080'); // Default gray
+        expect(result.backgroundColor).toBe("#808080"); // Default gray
       });
     });
 
-    describe('development mode logging (line 328)', () => {
+    describe("development mode logging (line 328)", () => {
       let loggerSpy: ReturnType<typeof vi.spyOn>;
 
       beforeEach(() => {
-        loggerSpy = vi.spyOn(logger, 'debug').mockImplementation(() => {});
+        loggerSpy = vi.spyOn(logger, "debug").mockImplementation(() => {});
       });
 
       afterEach(() => {
         loggerSpy.mockRestore();
       });
 
-      it('should log theme detection details in development mode', async () => {
+      it("should log theme detection details in development mode", async () => {
         const service = createThemeDetectorService();
         const image = await createValidImage();
 
@@ -196,26 +192,26 @@ describe('Branch Coverage Tests', () => {
 
         // logger.debug が [ThemeDetector] プレフィックス付きで呼ばれることを確認
         expect(loggerSpy).toHaveBeenCalledWith(
-          expect.stringContaining('[ThemeDetector]'),
+          expect.stringContaining("[ThemeDetector]"),
           expect.any(Object)
         );
       });
     });
   });
 
-  describe('density-calculator.service.ts branch coverage', () => {
-    describe('development mode logging', () => {
+  describe("density-calculator.service.ts branch coverage", () => {
+    describe("development mode logging", () => {
       let loggerSpy: ReturnType<typeof vi.spyOn>;
 
       beforeEach(() => {
-        loggerSpy = vi.spyOn(logger, 'debug').mockImplementation(() => {});
+        loggerSpy = vi.spyOn(logger, "debug").mockImplementation(() => {});
       });
 
       afterEach(() => {
         loggerSpy.mockRestore();
       });
 
-      it('should log density calculation details in development mode', async () => {
+      it("should log density calculation details in development mode", async () => {
         const service = createDensityCalculatorService();
         const image = await createValidImage();
 
@@ -223,24 +219,24 @@ describe('Branch Coverage Tests', () => {
 
         // logger.debug が [DensityCalculator] プレフィックス付きで呼ばれることを確認
         expect(loggerSpy).toHaveBeenCalledWith(
-          expect.stringContaining('[DensityCalculator]'),
+          expect.stringContaining("[DensityCalculator]"),
           expect.any(Object)
         );
       });
 
-      it('should return whitespace ratio as number', async () => {
+      it("should return whitespace ratio as number", async () => {
         const service = createDensityCalculatorService();
         const image = await createValidImage();
 
         const result = await service.calculateWhitespace(image);
 
         // calculateWhitespace returns a number directly, not an object
-        expect(typeof result).toBe('number');
+        expect(typeof result).toBe("number");
         expect(result).toBeGreaterThanOrEqual(0);
         expect(result).toBeLessThanOrEqual(1);
       });
 
-      it('should return region array', async () => {
+      it("should return region array", async () => {
         const service = createDensityCalculatorService();
         const image = await createValidImage();
 
@@ -250,15 +246,15 @@ describe('Branch Coverage Tests', () => {
         expect(Array.isArray(result)).toBe(true);
         expect(result.length).toBeGreaterThan(0);
         // Each region should have row, col, density, dominantColor
-        expect(result[0]).toHaveProperty('row');
-        expect(result[0]).toHaveProperty('col');
-        expect(result[0]).toHaveProperty('density');
-        expect(result[0]).toHaveProperty('dominantColor');
+        expect(result[0]).toHaveProperty("row");
+        expect(result[0]).toHaveProperty("col");
+        expect(result[0]).toHaveProperty("density");
+        expect(result[0]).toHaveProperty("dominantColor");
       });
     });
 
-    describe('edge cases for coverage', () => {
-      it('should handle very small images', async () => {
+    describe("edge cases for coverage", () => {
+      it("should handle very small images", async () => {
         const service = createDensityCalculatorService();
         const smallImage = await sharp({
           create: {
@@ -276,7 +272,7 @@ describe('Branch Coverage Tests', () => {
         expect(result.contentDensity).toBeDefined();
       });
 
-      it('should handle uniform color images for whitespace', async () => {
+      it("should handle uniform color images for whitespace", async () => {
         const service = createDensityCalculatorService();
         const whiteImage = await sharp({
           create: {
@@ -291,11 +287,11 @@ describe('Branch Coverage Tests', () => {
 
         // calculateWhitespace returns a number directly (0-1)
         const result = await service.calculateWhitespace(whiteImage);
-        expect(typeof result).toBe('number');
+        expect(typeof result).toBe("number");
         expect(result).toBeGreaterThan(0.5);
       });
 
-      it('should handle images with regions', async () => {
+      it("should handle images with regions", async () => {
         const service = createDensityCalculatorService();
         // Create a simple gradient image
         const width = 100;
@@ -327,33 +323,33 @@ describe('Branch Coverage Tests', () => {
     });
   });
 
-  describe('Additional edge cases for coverage', () => {
-    describe('parseImageInput edge cases', () => {
-      it('should handle buffer input type check', () => {
+  describe("Additional edge cases for coverage", () => {
+    describe("parseImageInput edge cases", () => {
+      it("should handle buffer input type check", () => {
         const validBuffer = Buffer.from([0x89, 0x50, 0x4e, 0x47]);
         const result = parseImageInput(validBuffer);
         expect(result).toEqual(validBuffer);
       });
 
-      it('should handle string with data URL prefix for multiple MIME types', () => {
+      it("should handle string with data URL prefix for multiple MIME types", () => {
         const original = Buffer.from([0x89, 0x50, 0x4e, 0x47]);
 
         // Test with image/png
-        const pngDataUrl = `data:image/png;base64,${original.toString('base64')}`;
+        const pngDataUrl = `data:image/png;base64,${original.toString("base64")}`;
         expect(parseImageInput(pngDataUrl)).toEqual(original);
 
         // Test with image/jpeg
-        const jpegDataUrl = `data:image/jpeg;base64,${original.toString('base64')}`;
+        const jpegDataUrl = `data:image/jpeg;base64,${original.toString("base64")}`;
         expect(parseImageInput(jpegDataUrl)).toEqual(original);
 
         // Test with image/gif
-        const gifDataUrl = `data:image/gif;base64,${original.toString('base64')}`;
+        const gifDataUrl = `data:image/gif;base64,${original.toString("base64")}`;
         expect(parseImageInput(gifDataUrl)).toEqual(original);
       });
     });
 
-    describe('Color extractor with minimal colors', () => {
-      it('should handle single pixel image', async () => {
+    describe("Color extractor with minimal colors", () => {
+      it("should handle single pixel image", async () => {
         const service = createColorExtractorService();
         const singlePixel = await sharp({
           create: {
@@ -371,7 +367,7 @@ describe('Branch Coverage Tests', () => {
         expect(result.dominantColors.length).toBeGreaterThan(0);
       });
 
-      it('should handle image with many similar colors', async () => {
+      it("should handle image with many similar colors", async () => {
         const service = createColorExtractorService();
         const width = 100;
         const height = 100;
@@ -382,9 +378,9 @@ describe('Branch Coverage Tests', () => {
         for (let y = 0; y < height; y++) {
           for (let x = 0; x < width; x++) {
             const pixelIndex = (y * width + x) * channels;
-            data[pixelIndex] = 200 + (x % 10);     // R: 200-209
+            data[pixelIndex] = 200 + (x % 10); // R: 200-209
             data[pixelIndex + 1] = 100 + (y % 10); // G: 100-109
-            data[pixelIndex + 2] = 50;              // B: 50
+            data[pixelIndex + 2] = 50; // B: 50
           }
         }
 
@@ -400,29 +396,29 @@ describe('Branch Coverage Tests', () => {
       });
     });
 
-    describe('Theme detector edge cases', () => {
-      it('should handle colorPalette with single color', () => {
+    describe("Theme detector edge cases", () => {
+      it("should handle colorPalette with single color", () => {
         const service = createThemeDetectorService();
 
         const result = service.detectThemeFromColors({
-          dominantColors: ['#000000'],
+          dominantColors: ["#000000"],
           accentColors: [],
-          colorPalette: [{ color: '#000000', percentage: 100 }],
+          colorPalette: [{ color: "#000000", percentage: 100 }],
         });
 
-        expect(result.theme).toBe('dark');
+        expect(result.theme).toBe("dark");
         expect(result.confidence).toBeGreaterThan(0);
       });
 
-      it('should handle very low percentages', () => {
+      it("should handle very low percentages", () => {
         const service = createThemeDetectorService();
 
         const result = service.detectThemeFromColors({
-          dominantColors: ['#FFFFFF', '#000000'],
+          dominantColors: ["#FFFFFF", "#000000"],
           accentColors: [],
           colorPalette: [
-            { color: '#FFFFFF', percentage: 0.1 },
-            { color: '#000000', percentage: 0.1 },
+            { color: "#FFFFFF", percentage: 0.1 },
+            { color: "#000000", percentage: 0.1 },
           ],
         });
 
@@ -432,86 +428,86 @@ describe('Branch Coverage Tests', () => {
     });
   });
 
-  describe('isSharpImageError and wrapSharpError coverage', () => {
-    describe('isSharpImageError', () => {
-      it('should return true for Input buffer error', () => {
-        const error = new Error('Input buffer contains unsupported image format');
+  describe("isSharpImageError and wrapSharpError coverage", () => {
+    describe("isSharpImageError", () => {
+      it("should return true for Input buffer error", () => {
+        const error = new Error("Input buffer contains unsupported image format");
         expect(isSharpImageError(error)).toBe(true);
       });
 
-      it('should return true for unsupported image format error', () => {
-        const error = new Error('unsupported image format');
+      it("should return true for unsupported image format error", () => {
+        const error = new Error("unsupported image format");
         expect(isSharpImageError(error)).toBe(true);
       });
 
-      it('should return true for Input file error', () => {
-        const error = new Error('Input file is missing');
+      it("should return true for Input file error", () => {
+        const error = new Error("Input file is missing");
         expect(isSharpImageError(error)).toBe(true);
       });
 
-      it('should return true for VipsJpeg error', () => {
-        const error = new Error('VipsJpeg: Invalid data');
+      it("should return true for VipsJpeg error", () => {
+        const error = new Error("VipsJpeg: Invalid data");
         expect(isSharpImageError(error)).toBe(true);
       });
 
-      it('should return true for vips error', () => {
-        const error = new Error('vips error during processing');
+      it("should return true for vips error", () => {
+        const error = new Error("vips error during processing");
         expect(isSharpImageError(error)).toBe(true);
       });
 
-      it('should return false for non-Sharp errors', () => {
-        const error = new Error('Network connection failed');
+      it("should return false for non-Sharp errors", () => {
+        const error = new Error("Network connection failed");
         expect(isSharpImageError(error)).toBe(false);
       });
 
-      it('should return false for generic errors', () => {
-        const error = new Error('Something went wrong');
+      it("should return false for generic errors", () => {
+        const error = new Error("Something went wrong");
         expect(isSharpImageError(error)).toBe(false);
       });
     });
 
-    describe('wrapSharpError', () => {
-      it('should wrap Sharp errors as Invalid image data', () => {
-        const error = new Error('Input buffer contains unsupported image format');
+    describe("wrapSharpError", () => {
+      it("should wrap Sharp errors as Invalid image data", () => {
+        const error = new Error("Input buffer contains unsupported image format");
         const wrapped = wrapSharpError(error);
-        expect(wrapped.message).toBe('Invalid image data');
+        expect(wrapped.message).toBe("Invalid image data");
       });
 
-      it('should wrap vips errors as Invalid image data', () => {
-        const error = new Error('vips error during processing');
+      it("should wrap vips errors as Invalid image data", () => {
+        const error = new Error("vips error during processing");
         const wrapped = wrapSharpError(error);
-        expect(wrapped.message).toBe('Invalid image data');
+        expect(wrapped.message).toBe("Invalid image data");
       });
 
-      it('should return original error for non-Sharp errors', () => {
-        const error = new Error('Network connection failed');
+      it("should return original error for non-Sharp errors", () => {
+        const error = new Error("Network connection failed");
         const wrapped = wrapSharpError(error);
-        expect(wrapped.message).toBe('Network connection failed');
+        expect(wrapped.message).toBe("Network connection failed");
       });
 
-      it('should handle non-Error objects', () => {
-        const wrapped = wrapSharpError('string error');
-        expect(wrapped.message).toBe('Unknown image processing error');
+      it("should handle non-Error objects", () => {
+        const wrapped = wrapSharpError("string error");
+        expect(wrapped.message).toBe("Unknown image processing error");
       });
 
-      it('should handle null', () => {
+      it("should handle null", () => {
         const wrapped = wrapSharpError(null);
-        expect(wrapped.message).toBe('Unknown image processing error');
+        expect(wrapped.message).toBe("Unknown image processing error");
       });
 
-      it('should handle undefined', () => {
+      it("should handle undefined", () => {
         const wrapped = wrapSharpError(undefined);
-        expect(wrapped.message).toBe('Unknown image processing error');
+        expect(wrapped.message).toBe("Unknown image processing error");
       });
 
-      it('should handle numbers', () => {
+      it("should handle numbers", () => {
         const wrapped = wrapSharpError(42);
-        expect(wrapped.message).toBe('Unknown image processing error');
+        expect(wrapped.message).toBe("Unknown image processing error");
       });
 
-      it('should handle objects', () => {
-        const wrapped = wrapSharpError({ foo: 'bar' });
-        expect(wrapped.message).toBe('Unknown image processing error');
+      it("should handle objects", () => {
+        const wrapped = wrapSharpError({ foo: "bar" });
+        expect(wrapped.message).toBe("Unknown image processing error");
       });
     });
   });

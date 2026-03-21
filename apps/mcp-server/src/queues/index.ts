@@ -9,5 +9,5 @@
  * @module queues
  */
 
-export * from './page-analyze-queue';
-export * from './batch-quality-queue';
+export * from "./page-analyze-queue";
+export * from "./batch-quality-queue";

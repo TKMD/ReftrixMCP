@@ -8,7 +8,7 @@
  * Note: Some tests are skipped when Redis is not available
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach, beforeAll, afterAll } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach, beforeAll, afterAll } from "vitest";
 import {
   PAGE_ANALYZE_QUEUE_NAME,
   createPageAnalyzeQueue,
@@ -20,22 +20,22 @@ import {
   type PageAnalyzeJobData,
   type PageAnalyzeJobResult,
   type PageAnalyzeJobOptions,
-} from '../../src/queues/page-analyze-queue';
-import { isRedisAvailable } from '../../src/config/redis';
-import type { Queue } from 'bullmq';
+} from "../../src/queues/page-analyze-queue";
+import { isRedisAvailable } from "../../src/config/redis";
+import type { Queue } from "bullmq";
 
-describe('Page Analyze Queue', () => {
-  describe('Constants and Types', () => {
-    it('should have correct queue name', () => {
-      expect(PAGE_ANALYZE_QUEUE_NAME).toBe('page-analyze');
+describe("Page Analyze Queue", () => {
+  describe("Constants and Types", () => {
+    it("should have correct queue name", () => {
+      expect(PAGE_ANALYZE_QUEUE_NAME).toBe("page-analyze");
     });
   });
 
-  describe('PageAnalyzeJobData interface', () => {
-    it('should accept valid job data structure', () => {
+  describe("PageAnalyzeJobData interface", () => {
+    it("should accept valid job data structure", () => {
       const jobData: PageAnalyzeJobData = {
-        webPageId: '019bc123-4567-7890-abcd-ef1234567890',
-        url: 'https://example.com',
+        webPageId: "019bc123-4567-7890-abcd-ef1234567890",
+        url: "https://example.com",
         options: {
           timeout: 60000,
           features: {
@@ -53,22 +53,22 @@ describe('Page Analyze Queue', () => {
       expect(jobData.createdAt).toBeDefined();
     });
 
-    it('should accept optional requestId', () => {
+    it("should accept optional requestId", () => {
       const jobData: PageAnalyzeJobData = {
-        webPageId: '019bc123-4567-7890-abcd-ef1234567890',
-        url: 'https://example.com',
+        webPageId: "019bc123-4567-7890-abcd-ef1234567890",
+        url: "https://example.com",
         options: {},
         createdAt: new Date().toISOString(),
-        requestId: 'req-12345',
+        requestId: "req-12345",
       };
 
-      expect(jobData.requestId).toBe('req-12345');
+      expect(jobData.requestId).toBe("req-12345");
     });
 
-    it('should accept minimal options', () => {
+    it("should accept minimal options", () => {
       const jobData: PageAnalyzeJobData = {
-        webPageId: '019bc123-4567-7890-abcd-ef1234567890',
-        url: 'https://example.com',
+        webPageId: "019bc123-4567-7890-abcd-ef1234567890",
+        url: "https://example.com",
         options: {},
         createdAt: new Date().toISOString(),
       };
@@ -77,8 +77,8 @@ describe('Page Analyze Queue', () => {
     });
   });
 
-  describe('PageAnalyzeJobOptions interface', () => {
-    it('should accept full options structure', () => {
+  describe("PageAnalyzeJobOptions interface", () => {
+    it("should accept full options structure", () => {
       const options: PageAnalyzeJobOptions = {
         timeout: 120000,
         features: {
@@ -106,8 +106,8 @@ describe('Page Analyze Queue', () => {
             craftsmanship: 0.4,
             contextuality: 0.25,
           },
-          targetIndustry: 'technology',
-          targetAudience: 'enterprise',
+          targetIndustry: "technology",
+          targetAudience: "enterprise",
         },
       };
 
@@ -119,13 +119,13 @@ describe('Page Analyze Queue', () => {
     });
   });
 
-  describe('PageAnalyzeJobResult interface', () => {
-    it('should accept success result structure', () => {
+  describe("PageAnalyzeJobResult interface", () => {
+    it("should accept success result structure", () => {
       const result: PageAnalyzeJobResult = {
-        webPageId: '019bc123-4567-7890-abcd-ef1234567890',
+        webPageId: "019bc123-4567-7890-abcd-ef1234567890",
         success: true,
         partialSuccess: false,
-        completedPhases: ['ingest', 'layout', 'motion', 'quality'],
+        completedPhases: ["ingest", "layout", "motion", "quality"],
         failedPhases: [],
         results: {
           layout: {
@@ -138,7 +138,7 @@ describe('Page Analyze Queue', () => {
           },
           quality: {
             overallScore: 85,
-            grade: 'A',
+            grade: "A",
           },
         },
         processingTimeMs: 15000,
@@ -150,14 +150,14 @@ describe('Page Analyze Queue', () => {
       expect(result.results?.layout?.sectionsDetected).toBe(5);
     });
 
-    it('should accept failure result structure', () => {
+    it("should accept failure result structure", () => {
       const result: PageAnalyzeJobResult = {
-        webPageId: '019bc123-4567-7890-abcd-ef1234567890',
+        webPageId: "019bc123-4567-7890-abcd-ef1234567890",
         success: false,
         partialSuccess: true,
-        completedPhases: ['ingest', 'layout'],
-        failedPhases: ['motion', 'quality'],
-        error: 'Timeout during motion detection',
+        completedPhases: ["ingest", "layout"],
+        failedPhases: ["motion", "quality"],
+        error: "Timeout during motion detection",
         processingTimeMs: 60000,
       };
 
@@ -167,7 +167,7 @@ describe('Page Analyze Queue', () => {
     });
   });
 
-  describe('createPageAnalyzeQueue', () => {
+  describe("createPageAnalyzeQueue", () => {
     let queue: Queue<PageAnalyzeJobData, PageAnalyzeJobResult> | null = null;
 
     afterEach(async () => {
@@ -177,23 +177,23 @@ describe('Page Analyze Queue', () => {
       }
     });
 
-    it('should create a queue with correct name', () => {
+    it("should create a queue with correct name", () => {
       queue = createPageAnalyzeQueue();
 
       expect(queue.name).toBe(PAGE_ANALYZE_QUEUE_NAME);
     });
 
-    it('should create a queue with default job options', () => {
+    it("should create a queue with default job options", () => {
       queue = createPageAnalyzeQueue();
 
       // Check that queue was created (defaultJobOptions are internal)
       expect(queue).toBeDefined();
-      expect(queue.name).toBe('page-analyze');
+      expect(queue.name).toBe("page-analyze");
     });
 
-    it('should accept custom Redis config', () => {
+    it("should accept custom Redis config", () => {
       queue = createPageAnalyzeQueue({
-        host: 'custom-host',
+        host: "custom-host",
         port: 12345,
       });
 
@@ -201,13 +201,13 @@ describe('Page Analyze Queue', () => {
     });
   });
 
-  describe('createQueueEvents', () => {
-    it('should create queue events instance', async () => {
+  describe("createQueueEvents", () => {
+    it("should create queue events instance", async () => {
       // Redisが利用可能かチェック
       const redisAvailable = await isRedisAvailable();
       if (!redisAvailable) {
         // Redisが利用できない場合はスキップ
-        console.log('Skipping test: Redis not available');
+        console.log("Skipping test: Redis not available");
         return;
       }
 
@@ -219,12 +219,12 @@ describe('Page Analyze Queue', () => {
       await events.close();
     }, 10000); // 10秒タイムアウト
 
-    it('should accept custom Redis config (creation only)', () => {
+    it("should accept custom Redis config (creation only)", () => {
       // Note: We only test creation, not connection, to avoid timeout issues
       // with invalid hostnames. The QueueEvents object will try to connect
       // but we don't wait for it.
       const events = createQueueEvents({
-        host: '127.0.0.1', // Use localhost to avoid DNS lookup issues
+        host: "127.0.0.1", // Use localhost to avoid DNS lookup issues
         port: 12345, // Invalid port, but won't cause DNS issues
       });
 
@@ -238,7 +238,7 @@ describe('Page Analyze Queue', () => {
   });
 
   // Integration tests that require Redis
-  describe('Queue Operations (requires Redis)', () => {
+  describe("Queue Operations (requires Redis)", () => {
     let queue: Queue<PageAnalyzeJobData, PageAnalyzeJobResult> | null = null;
     let redisAvailable = false;
 
@@ -261,12 +261,12 @@ describe('Page Analyze Queue', () => {
       }
     });
 
-    it.skipIf(!redisAvailable)('should add a job to the queue', async () => {
+    it.skipIf(!redisAvailable)("should add a job to the queue", async () => {
       if (!queue) return;
 
       const job = await addPageAnalyzeJob(queue, {
-        webPageId: '019bc123-4567-7890-abcd-ef1234567890',
-        url: 'https://example.com',
+        webPageId: "019bc123-4567-7890-abcd-ef1234567890",
+        url: "https://example.com",
         options: {
           timeout: 60000,
           features: {
@@ -278,19 +278,19 @@ describe('Page Analyze Queue', () => {
       });
 
       expect(job).toBeDefined();
-      expect(job.id).toBe('019bc123-4567-7890-abcd-ef1234567890');
-      expect(job.data.url).toBe('https://example.com');
+      expect(job.id).toBe("019bc123-4567-7890-abcd-ef1234567890");
+      expect(job.data.url).toBe("https://example.com");
       expect(job.data.createdAt).toBeDefined();
     });
 
-    it.skipIf(!redisAvailable)('should add a job with priority', async () => {
+    it.skipIf(!redisAvailable)("should add a job with priority", async () => {
       if (!queue) return;
 
       const job = await addPageAnalyzeJob(
         queue,
         {
-          webPageId: '019bc123-4567-7890-abcd-ef1234567891',
-          url: 'https://example.com/priority',
+          webPageId: "019bc123-4567-7890-abcd-ef1234567891",
+          url: "https://example.com/priority",
           options: {},
         },
         5 // Higher priority (lower number)
@@ -300,14 +300,14 @@ describe('Page Analyze Queue', () => {
       expect(job.opts.priority).toBe(5);
     });
 
-    it.skipIf(!redisAvailable)('should get job status', async () => {
+    it.skipIf(!redisAvailable)("should get job status", async () => {
       if (!queue) return;
 
-      const webPageId = '019bc123-4567-7890-abcd-ef1234567892';
+      const webPageId = "019bc123-4567-7890-abcd-ef1234567892";
 
       await addPageAnalyzeJob(queue, {
         webPageId,
-        url: 'https://example.com/status',
+        url: "https://example.com/status",
         options: {},
       });
 
@@ -315,38 +315,38 @@ describe('Page Analyze Queue', () => {
 
       expect(status).not.toBeNull();
       expect(status?.jobId).toBe(webPageId);
-      expect(status?.state).toBe('waiting');
+      expect(status?.state).toBe("waiting");
       expect(status?.progress).toBe(0);
     });
 
-    it.skipIf(!redisAvailable)('should return null for non-existent job', async () => {
+    it.skipIf(!redisAvailable)("should return null for non-existent job", async () => {
       if (!queue) return;
 
-      const status = await getJobStatus(queue, 'non-existent-job-id');
+      const status = await getJobStatus(queue, "non-existent-job-id");
 
       expect(status).toBeNull();
     });
 
-    it.skipIf(!redisAvailable)('should check queue health', async () => {
+    it.skipIf(!redisAvailable)("should check queue health", async () => {
       if (!queue) return;
 
       const health = await checkQueueHealth(queue);
 
       expect(health.healthy).toBe(true);
       expect(health.stats).toBeDefined();
-      expect(typeof health.stats.waiting).toBe('number');
-      expect(typeof health.stats.active).toBe('number');
-      expect(typeof health.stats.completed).toBe('number');
-      expect(typeof health.stats.failed).toBe('number');
-      expect(typeof health.stats.delayed).toBe('number');
+      expect(typeof health.stats.waiting).toBe("number");
+      expect(typeof health.stats.active).toBe("number");
+      expect(typeof health.stats.completed).toBe("number");
+      expect(typeof health.stats.failed).toBe("number");
+      expect(typeof health.stats.delayed).toBe("number");
     });
 
-    it.skipIf(!redisAvailable)('should serialize/deserialize job data correctly', async () => {
+    it.skipIf(!redisAvailable)("should serialize/deserialize job data correctly", async () => {
       if (!queue) return;
 
       const originalData = {
-        webPageId: '019bc123-4567-7890-abcd-ef1234567893',
-        url: 'https://example.com/serialization',
+        webPageId: "019bc123-4567-7890-abcd-ef1234567893",
+        url: "https://example.com/serialization",
         options: {
           timeout: 120000,
           features: {
@@ -358,7 +358,7 @@ describe('Page Analyze Queue', () => {
             viewport: { width: 1920, height: 1080 },
           },
         },
-        requestId: 'test-request-123',
+        requestId: "test-request-123",
       };
 
       const job = await addPageAnalyzeJob(queue, originalData);
@@ -371,26 +371,26 @@ describe('Page Analyze Queue', () => {
       expect(retrievedJob?.data.options.timeout).toBe(120000);
       expect(retrievedJob?.data.options.features?.motion).toBe(false);
       expect(retrievedJob?.data.options.layoutOptions?.viewport?.width).toBe(1920);
-      expect(retrievedJob?.data.requestId).toBe('test-request-123');
+      expect(retrievedJob?.data.requestId).toBe("test-request-123");
     });
 
-    it.skipIf(!redisAvailable)('should handle multiple jobs', async () => {
+    it.skipIf(!redisAvailable)("should handle multiple jobs", async () => {
       if (!queue) return;
 
       const jobs = await Promise.all([
         addPageAnalyzeJob(queue, {
-          webPageId: '019bc123-4567-7890-abcd-ef1234567894',
-          url: 'https://example.com/page1',
+          webPageId: "019bc123-4567-7890-abcd-ef1234567894",
+          url: "https://example.com/page1",
           options: {},
         }),
         addPageAnalyzeJob(queue, {
-          webPageId: '019bc123-4567-7890-abcd-ef1234567895',
-          url: 'https://example.com/page2',
+          webPageId: "019bc123-4567-7890-abcd-ef1234567895",
+          url: "https://example.com/page2",
           options: {},
         }),
         addPageAnalyzeJob(queue, {
-          webPageId: '019bc123-4567-7890-abcd-ef1234567896',
-          url: 'https://example.com/page3',
+          webPageId: "019bc123-4567-7890-abcd-ef1234567896",
+          url: "https://example.com/page3",
           options: {},
         }),
       ]);
@@ -402,32 +402,32 @@ describe('Page Analyze Queue', () => {
     });
   });
 
-  describe('getJobStatus currentPhase logic', () => {
-    it('should extract currentPhase from object progress data', async () => {
+  describe("getJobStatus currentPhase logic", () => {
+    it("should extract currentPhase from object progress data", async () => {
       // getJobStatus requires a real queue, but we can verify the logic
       // by testing with a mock queue that returns a job with object progress
       const redisAvailable = await isRedisAvailable();
       if (!redisAvailable) {
-        console.log('Skipping test: Redis not available');
+        console.log("Skipping test: Redis not available");
         return;
       }
 
       const queue = createPageAnalyzeQueue();
       try {
-        const webPageId = '019bc999-0001-7000-a000-000000000001';
+        const webPageId = "019bc999-0001-7000-a000-000000000001";
         const job = await addPageAnalyzeJob(queue, {
           webPageId,
-          url: 'https://example.com/phase-test',
+          url: "https://example.com/phase-test",
           options: { features: { layout: true } },
         });
 
         // Simulate Worker updating progress with object data (as ExecutionStatusTrackerV2 does)
         await job.updateProgress({
           overallProgress: 35,
-          currentPhase: 'motion',
+          currentPhase: "motion",
           phases: {},
           webPageId,
-          url: 'https://example.com/phase-test',
+          url: "https://example.com/phase-test",
           startedAt: new Date().toISOString(),
           lastUpdatedAt: new Date().toISOString(),
         });
@@ -435,7 +435,7 @@ describe('Page Analyze Queue', () => {
         const status = await getJobStatus(queue, webPageId);
 
         expect(status).not.toBeNull();
-        expect(status?.currentPhase).toBe('motion');
+        expect(status?.currentPhase).toBe("motion");
         expect(status?.progress).toBe(35);
       } finally {
         await queue.obliterate({ force: true });
@@ -443,19 +443,19 @@ describe('Page Analyze Queue', () => {
       }
     });
 
-    it('should not set currentPhase when progress is numeric (no phase info)', async () => {
+    it("should not set currentPhase when progress is numeric (no phase info)", async () => {
       const redisAvailable = await isRedisAvailable();
       if (!redisAvailable) {
-        console.log('Skipping test: Redis not available');
+        console.log("Skipping test: Redis not available");
         return;
       }
 
       const queue = createPageAnalyzeQueue();
       try {
-        const webPageId = '019bc999-0002-7000-a000-000000000002';
+        const webPageId = "019bc999-0002-7000-a000-000000000002";
         const job = await addPageAnalyzeJob(queue, {
           webPageId,
-          url: 'https://example.com/numeric-progress',
+          url: "https://example.com/numeric-progress",
           options: { features: { layout: true } },
         });
 
@@ -473,29 +473,29 @@ describe('Page Analyze Queue', () => {
       }
     });
 
-    it('should ignore invalid currentPhase values from progress data', async () => {
+    it("should ignore invalid currentPhase values from progress data", async () => {
       const redisAvailable = await isRedisAvailable();
       if (!redisAvailable) {
-        console.log('Skipping test: Redis not available');
+        console.log("Skipping test: Redis not available");
         return;
       }
 
       const queue = createPageAnalyzeQueue();
       try {
-        const webPageId = '019bc999-0003-7000-a000-000000000003';
+        const webPageId = "019bc999-0003-7000-a000-000000000003";
         const job = await addPageAnalyzeJob(queue, {
           webPageId,
-          url: 'https://example.com/invalid-phase',
+          url: "https://example.com/invalid-phase",
           options: {},
         });
 
         // Simulate progress with an invalid phase name
         await job.updateProgress({
           overallProgress: 20,
-          currentPhase: 'nonexistent_phase',
+          currentPhase: "nonexistent_phase",
           phases: {},
           webPageId,
-          url: 'https://example.com/invalid-phase',
+          url: "https://example.com/invalid-phase",
           startedAt: new Date().toISOString(),
           lastUpdatedAt: new Date().toISOString(),
         });
@@ -511,12 +511,12 @@ describe('Page Analyze Queue', () => {
     });
   });
 
-  describe('Graceful Degradation', () => {
-    it('should handle queue creation when Redis is unavailable', () => {
+  describe("Graceful Degradation", () => {
+    it("should handle queue creation when Redis is unavailable", () => {
       // This should not throw - queue creation is lazy
       // Use localhost to avoid DNS issues, just an unlikely port
       const queue = createPageAnalyzeQueue({
-        host: '127.0.0.1',
+        host: "127.0.0.1",
         port: 59999,
       });
 
@@ -535,7 +535,7 @@ describe('Page Analyze Queue', () => {
     // 1. isRedisAvailable() check before queue operations
     // 2. Connection timeouts at infrastructure level
     // 3. Monitoring and alerting on queue health metrics
-    it.skip('should report unhealthy when Redis connection fails', async () => {
+    it.skip("should report unhealthy when Redis connection fails", async () => {
       // This test is skipped because BullMQ queue operations
       // don't have configurable timeouts and will wait for connection
     });

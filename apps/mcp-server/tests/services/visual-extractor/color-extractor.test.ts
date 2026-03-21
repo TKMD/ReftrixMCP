@@ -10,19 +10,18 @@
  * @module tests/services/visual-extractor/color-extractor.test
  */
 
-import { describe, it, expect, beforeAll } from 'vitest';
-import * as fs from 'node:fs';
-import * as path from 'node:path';
-import sharp from 'sharp';
-import type {
-  ColorExtractorService} from '../../../src/services/visual-extractor/color-extractor.service';
+import { describe, it, expect, beforeAll } from "vitest";
+import * as fs from "node:fs";
+import * as path from "node:path";
+import sharp from "sharp";
+import type { ColorExtractorService } from "../../../src/services/visual-extractor/color-extractor.service";
 import {
   ColorExtractionResult,
   createColorExtractorService,
-} from '../../../src/services/visual-extractor/color-extractor.service';
+} from "../../../src/services/visual-extractor/color-extractor.service";
 
 // Test fixtures paths
-const FIXTURES_DIR = path.join(__dirname, '../../fixtures/images');
+const FIXTURES_DIR = path.join(__dirname, "../../fixtures/images");
 
 // Helper to create test images
 async function createTestImage(
@@ -98,16 +97,16 @@ function isValidHexColor(color: string): boolean {
   return /^#[0-9A-Fa-f]{6}$/.test(color);
 }
 
-describe('ColorExtractorService', () => {
+describe("ColorExtractorService", () => {
   let service: ColorExtractorService;
 
   beforeAll(() => {
     service = createColorExtractorService();
   });
 
-  describe('extractColors', () => {
-    describe('1. Extract dominant colors from image', () => {
-      it('should extract dominant colors from a solid color image', async () => {
+  describe("extractColors", () => {
+    describe("1. Extract dominant colors from image", () => {
+      it("should extract dominant colors from a solid color image", async () => {
         // Create a solid red image
         const redImage = await createTestImage(100, 100, { r: 255, g: 0, b: 0 });
 
@@ -120,12 +119,12 @@ describe('ColorExtractorService', () => {
         expect(result.dominantColors.length).toBeLessThanOrEqual(5);
       });
 
-      it('should extract up to 5 dominant colors from multi-color image', async () => {
+      it("should extract up to 5 dominant colors from multi-color image", async () => {
         // Create image with multiple colors
         const multiColorImage = await createGradientImage(500, 100, [
-          { r: 255, g: 0, b: 0 },   // Red
-          { r: 0, g: 255, b: 0 },   // Green
-          { r: 0, g: 0, b: 255 },   // Blue
+          { r: 255, g: 0, b: 0 }, // Red
+          { r: 0, g: 255, b: 0 }, // Green
+          { r: 0, g: 0, b: 255 }, // Blue
           { r: 255, g: 255, b: 0 }, // Yellow
           { r: 255, g: 0, b: 255 }, // Magenta
           { r: 0, g: 255, b: 255 }, // Cyan
@@ -138,12 +137,12 @@ describe('ColorExtractorService', () => {
       });
     });
 
-    describe('2. Extract accent colors from image', () => {
-      it('should extract accent colors from multi-color image', async () => {
+    describe("2. Extract accent colors from image", () => {
+      it("should extract accent colors from multi-color image", async () => {
         const multiColorImage = await createGradientImage(300, 100, [
-          { r: 50, g: 50, b: 50 },   // Dark gray (dominant)
-          { r: 50, g: 50, b: 50 },   // Dark gray (dominant)
-          { r: 255, g: 100, b: 0 },  // Orange (accent)
+          { r: 50, g: 50, b: 50 }, // Dark gray (dominant)
+          { r: 50, g: 50, b: 50 }, // Dark gray (dominant)
+          { r: 255, g: 100, b: 0 }, // Orange (accent)
         ]);
 
         const result = await service.extractColors(multiColorImage);
@@ -154,7 +153,7 @@ describe('ColorExtractorService', () => {
         expect(result.accentColors.length).toBeLessThanOrEqual(3);
       });
 
-      it('should return empty accent colors for monochrome image', async () => {
+      it("should return empty accent colors for monochrome image", async () => {
         const grayImage = await createTestImage(100, 100, { r: 128, g: 128, b: 128 });
 
         const result = await service.extractColors(grayImage);
@@ -165,8 +164,8 @@ describe('ColorExtractorService', () => {
       });
     });
 
-    describe('3. Colors are returned in HEX format (#RRGGBB)', () => {
-      it('should return dominant colors in HEX format', async () => {
+    describe("3. Colors are returned in HEX format (#RRGGBB)", () => {
+      it("should return dominant colors in HEX format", async () => {
         const image = await createTestImage(100, 100, { r: 255, g: 128, b: 64 });
 
         const result = await service.extractColors(image);
@@ -176,7 +175,7 @@ describe('ColorExtractorService', () => {
         });
       });
 
-      it('should return accent colors in HEX format', async () => {
+      it("should return accent colors in HEX format", async () => {
         const multiColorImage = await createGradientImage(200, 100, [
           { r: 100, g: 100, b: 100 },
           { r: 255, g: 0, b: 128 },
@@ -189,7 +188,7 @@ describe('ColorExtractorService', () => {
         });
       });
 
-      it('should return color palette colors in HEX format', async () => {
+      it("should return color palette colors in HEX format", async () => {
         const image = await createGradientImage(300, 100, [
           { r: 255, g: 0, b: 0 },
           { r: 0, g: 255, b: 0 },
@@ -202,15 +201,15 @@ describe('ColorExtractorService', () => {
         expect(Array.isArray(result.colorPalette)).toBe(true);
         result.colorPalette.forEach((item) => {
           expect(isValidHexColor(item.color)).toBe(true);
-          expect(typeof item.percentage).toBe('number');
+          expect(typeof item.percentage).toBe("number");
           expect(item.percentage).toBeGreaterThanOrEqual(0);
           expect(item.percentage).toBeLessThanOrEqual(100);
         });
       });
     });
 
-    describe('4. Handle transparent images properly', () => {
-      it('should handle fully transparent images gracefully', async () => {
+    describe("4. Handle transparent images properly", () => {
+      it("should handle fully transparent images gracefully", async () => {
         const transparentImage = await createTransparentImage(100, 100, 0);
 
         const result = await service.extractColors(transparentImage);
@@ -221,7 +220,7 @@ describe('ColorExtractorService', () => {
         expect(result.colorPalette).toBeDefined();
       });
 
-      it('should handle semi-transparent images', async () => {
+      it("should handle semi-transparent images", async () => {
         const semiTransparentImage = await createTransparentImage(100, 100, 0.5);
 
         const result = await service.extractColors(semiTransparentImage);
@@ -230,7 +229,7 @@ describe('ColorExtractorService', () => {
         expect(result.dominantColors.length).toBeGreaterThanOrEqual(0);
       });
 
-      it('should handle images with transparent regions', async () => {
+      it("should handle images with transparent regions", async () => {
         // Create an image with mixed transparency
         const channels = 4;
         const width = 100;
@@ -269,8 +268,8 @@ describe('ColorExtractorService', () => {
       });
     });
 
-    describe('5. Handle monochrome images properly', () => {
-      it('should handle pure black image', async () => {
+    describe("5. Handle monochrome images properly", () => {
+      it("should handle pure black image", async () => {
         const blackImage = await createTestImage(100, 100, { r: 0, g: 0, b: 0 });
 
         const result = await service.extractColors(blackImage);
@@ -281,7 +280,7 @@ describe('ColorExtractorService', () => {
         expect(result.dominantColors[0]).toMatch(/^#[0-3][0-3][0-3][0-3][0-3][0-3]$/);
       });
 
-      it('should handle pure white image', async () => {
+      it("should handle pure white image", async () => {
         const whiteImage = await createTestImage(100, 100, { r: 255, g: 255, b: 255 });
 
         const result = await service.extractColors(whiteImage);
@@ -289,10 +288,12 @@ describe('ColorExtractorService', () => {
         expect(result).toBeDefined();
         expect(result.dominantColors.length).toBeGreaterThanOrEqual(1);
         // White should be close to #FFFFFF
-        expect(result.dominantColors[0]).toMatch(/^#[Ff][0-9A-Fa-f][Ff][0-9A-Fa-f][Ff][0-9A-Fa-f]$/);
+        expect(result.dominantColors[0]).toMatch(
+          /^#[Ff][0-9A-Fa-f][Ff][0-9A-Fa-f][Ff][0-9A-Fa-f]$/
+        );
       });
 
-      it('should handle grayscale image', async () => {
+      it("should handle grayscale image", async () => {
         const grayscaleImage = await createGradientImage(100, 100, [
           { r: 50, g: 50, b: 50 },
           { r: 100, g: 100, b: 100 },
@@ -317,33 +318,33 @@ describe('ColorExtractorService', () => {
       });
     });
 
-    describe('6. Throw error for invalid image input', () => {
-      it('should throw error for null input', async () => {
+    describe("6. Throw error for invalid image input", () => {
+      it("should throw error for null input", async () => {
         await expect(service.extractColors(null as unknown as Buffer)).rejects.toThrow();
       });
 
-      it('should throw error for undefined input', async () => {
+      it("should throw error for undefined input", async () => {
         await expect(service.extractColors(undefined as unknown as Buffer)).rejects.toThrow();
       });
 
-      it('should throw error for empty buffer', async () => {
+      it("should throw error for empty buffer", async () => {
         const emptyBuffer = Buffer.alloc(0);
         await expect(service.extractColors(emptyBuffer)).rejects.toThrow();
       });
 
-      it('should throw error for invalid image data', async () => {
-        const invalidData = Buffer.from('not an image');
+      it("should throw error for invalid image data", async () => {
+        const invalidData = Buffer.from("not an image");
         await expect(service.extractColors(invalidData)).rejects.toThrow();
       });
 
-      it('should throw error for invalid base64 string', async () => {
-        const invalidBase64 = 'not-valid-base64!!!';
+      it("should throw error for invalid base64 string", async () => {
+        const invalidBase64 = "not-valid-base64!!!";
         await expect(service.extractColors(invalidBase64)).rejects.toThrow();
       });
 
-      it('should accept valid base64 encoded image', async () => {
+      it("should accept valid base64 encoded image", async () => {
         const image = await createTestImage(100, 100, { r: 100, g: 150, b: 200 });
-        const base64Image = image.toString('base64');
+        const base64Image = image.toString("base64");
 
         const result = await service.extractColors(base64Image);
 
@@ -351,9 +352,9 @@ describe('ColorExtractorService', () => {
         expect(result.dominantColors.length).toBeGreaterThanOrEqual(1);
       });
 
-      it('should accept base64 with data URL prefix', async () => {
+      it("should accept base64 with data URL prefix", async () => {
         const image = await createTestImage(100, 100, { r: 100, g: 150, b: 200 });
-        const base64WithPrefix = `data:image/png;base64,${image.toString('base64')}`;
+        const base64WithPrefix = `data:image/png;base64,${image.toString("base64")}`;
 
         const result = await service.extractColors(base64WithPrefix);
 
@@ -362,8 +363,8 @@ describe('ColorExtractorService', () => {
       });
     });
 
-    describe('Performance', () => {
-      it('should process a 1920x1080 image in less than 500ms', async () => {
+    describe("Performance", () => {
+      it("should process a 1920x1080 image in less than 500ms", async () => {
         // Create a large image
         const largeImage = await createGradientImage(1920, 1080, [
           { r: 255, g: 0, b: 0 },
@@ -381,14 +382,14 @@ describe('ColorExtractorService', () => {
         expect(result).toBeDefined();
         expect(processingTime).toBeLessThan(500);
 
-        if (process.env.NODE_ENV === 'development') {
+        if (process.env.NODE_ENV === "development") {
           console.log(`[ColorExtractor] Processing time: ${processingTime.toFixed(2)}ms`);
         }
       });
     });
 
-    describe('Color accuracy', () => {
-      it('should correctly identify red as dominant color', async () => {
+    describe("Color accuracy", () => {
+      it("should correctly identify red as dominant color", async () => {
         const redImage = await createTestImage(100, 100, { r: 255, g: 0, b: 0 });
 
         const result = await service.extractColors(redImage);
@@ -404,7 +405,7 @@ describe('ColorExtractorService', () => {
         expect(b).toBeLessThan(50);
       });
 
-      it('should correctly identify blue as dominant color', async () => {
+      it("should correctly identify blue as dominant color", async () => {
         const blueImage = await createTestImage(100, 100, { r: 0, g: 0, b: 255 });
 
         const result = await service.extractColors(blueImage);

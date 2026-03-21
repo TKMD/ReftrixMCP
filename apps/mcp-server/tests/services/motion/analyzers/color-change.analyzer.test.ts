@@ -15,8 +15,8 @@
  * 仕様: docs/specs/frame-image-analysis-spec.md FR-4
  */
 
-import { describe, it, expect, beforeEach } from 'vitest';
-import { resolve } from 'path';
+import { describe, it, expect, beforeEach } from "vitest";
+import { resolve } from "path";
 import {
   ColorChangeAnalyzer,
   // 型定義
@@ -32,7 +32,7 @@ import {
   hslToRgb,
   hexToRgb,
   rgbToHex,
-} from '../../../../src/services/motion/analyzers/color-change.analyzer';
+} from "../../../../src/services/motion/analyzers/color-change.analyzer";
 
 // ============================================================================
 // テストヘルパー
@@ -47,7 +47,7 @@ function createMockDominantColor(overrides: Partial<DominantColor> = {}): Domina
     g: 0,
     b: 0,
     a: 255,
-    hex: '#ff0000',
+    hex: "#ff0000",
     percentage: 0.5,
     ...overrides,
   };
@@ -70,22 +70,22 @@ function createMockBoundingBox(overrides: Partial<BoundingBox> = {}): BoundingBo
 // 色距離計算テスト
 // ============================================================================
 
-describe('ColorChangeAnalyzer - calculateColorDistance', () => {
-  describe('基本的な色距離計算', () => {
-    it('同一色の距離は0である', () => {
+describe("ColorChangeAnalyzer - calculateColorDistance", () => {
+  describe("基本的な色距離計算", () => {
+    it("同一色の距離は0である", () => {
       const color = { r: 128, g: 128, b: 128 };
       const distance = calculateColorDistance(color, color);
       expect(distance).toBe(0);
     });
 
-    it('黒と白の距離は1である', () => {
+    it("黒と白の距離は1である", () => {
       const black = { r: 0, g: 0, b: 0 };
       const white = { r: 255, g: 255, b: 255 };
       const distance = calculateColorDistance(black, white);
       expect(distance).toBe(1);
     });
 
-    it('純粋な赤と純粋な青の距離を計算できる', () => {
+    it("純粋な赤と純粋な青の距離を計算できる", () => {
       const red = { r: 255, g: 0, b: 0 };
       const blue = { r: 0, g: 0, b: 255 };
       const distance = calculateColorDistance(red, blue);
@@ -94,7 +94,7 @@ describe('ColorChangeAnalyzer - calculateColorDistance', () => {
       expect(distance).toBeLessThanOrEqual(1);
     });
 
-    it('距離は対称的である', () => {
+    it("距離は対称的である", () => {
       const color1 = { r: 100, g: 150, b: 200 };
       const color2 = { r: 50, g: 100, b: 150 };
       const distance1 = calculateColorDistance(color1, color2);
@@ -102,7 +102,7 @@ describe('ColorChangeAnalyzer - calculateColorDistance', () => {
       expect(distance1).toBeCloseTo(distance2, 10);
     });
 
-    it('距離は0から1の範囲内である', () => {
+    it("距離は0から1の範囲内である", () => {
       const testColors = [
         { r: 0, g: 0, b: 0 },
         { r: 255, g: 255, b: 255 },
@@ -125,42 +125,42 @@ describe('ColorChangeAnalyzer - calculateColorDistance', () => {
 // 色変換ユーティリティテスト
 // ============================================================================
 
-describe('ColorChangeAnalyzer - 色変換ユーティリティ', () => {
-  describe('rgbToHsl', () => {
-    it('赤をHSLに変換できる', () => {
+describe("ColorChangeAnalyzer - 色変換ユーティリティ", () => {
+  describe("rgbToHsl", () => {
+    it("赤をHSLに変換できる", () => {
       const hsl = rgbToHsl(255, 0, 0);
       expect(hsl.h).toBeCloseTo(0, 1);
       expect(hsl.s).toBeCloseTo(100, 1);
       expect(hsl.l).toBeCloseTo(50, 1);
     });
 
-    it('緑をHSLに変換できる', () => {
+    it("緑をHSLに変換できる", () => {
       const hsl = rgbToHsl(0, 255, 0);
       expect(hsl.h).toBeCloseTo(120, 1);
       expect(hsl.s).toBeCloseTo(100, 1);
       expect(hsl.l).toBeCloseTo(50, 1);
     });
 
-    it('青をHSLに変換できる', () => {
+    it("青をHSLに変換できる", () => {
       const hsl = rgbToHsl(0, 0, 255);
       expect(hsl.h).toBeCloseTo(240, 1);
       expect(hsl.s).toBeCloseTo(100, 1);
       expect(hsl.l).toBeCloseTo(50, 1);
     });
 
-    it('白をHSLに変換できる', () => {
+    it("白をHSLに変換できる", () => {
       const hsl = rgbToHsl(255, 255, 255);
       expect(hsl.s).toBeCloseTo(0, 1);
       expect(hsl.l).toBeCloseTo(100, 1);
     });
 
-    it('黒をHSLに変換できる', () => {
+    it("黒をHSLに変換できる", () => {
       const hsl = rgbToHsl(0, 0, 0);
       expect(hsl.s).toBeCloseTo(0, 1);
       expect(hsl.l).toBeCloseTo(0, 1);
     });
 
-    it('グレーをHSLに変換できる', () => {
+    it("グレーをHSLに変換できる", () => {
       const hsl = rgbToHsl(128, 128, 128);
       expect(hsl.s).toBeCloseTo(0, 1);
       // 128/255 = 0.5019... → L = 50.19...
@@ -168,29 +168,29 @@ describe('ColorChangeAnalyzer - 色変換ユーティリティ', () => {
     });
   });
 
-  describe('hslToRgb', () => {
-    it('赤のHSLをRGBに変換できる', () => {
+  describe("hslToRgb", () => {
+    it("赤のHSLをRGBに変換できる", () => {
       const rgb = hslToRgb(0, 100, 50);
       expect(rgb.r).toBeCloseTo(255, 0);
       expect(rgb.g).toBeCloseTo(0, 0);
       expect(rgb.b).toBeCloseTo(0, 0);
     });
 
-    it('緑のHSLをRGBに変換できる', () => {
+    it("緑のHSLをRGBに変換できる", () => {
       const rgb = hslToRgb(120, 100, 50);
       expect(rgb.r).toBeCloseTo(0, 0);
       expect(rgb.g).toBeCloseTo(255, 0);
       expect(rgb.b).toBeCloseTo(0, 0);
     });
 
-    it('青のHSLをRGBに変換できる', () => {
+    it("青のHSLをRGBに変換できる", () => {
       const rgb = hslToRgb(240, 100, 50);
       expect(rgb.r).toBeCloseTo(0, 0);
       expect(rgb.g).toBeCloseTo(0, 0);
       expect(rgb.b).toBeCloseTo(255, 0);
     });
 
-    it('RGBからHSLへ変換し、再びRGBへ変換すると元の値に戻る', () => {
+    it("RGBからHSLへ変換し、再びRGBへ変換すると元の値に戻る", () => {
       const original = { r: 100, g: 150, b: 200 };
       const hsl = rgbToHsl(original.r, original.g, original.b);
       const rgb = hslToRgb(hsl.h, hsl.s, hsl.l);
@@ -200,43 +200,43 @@ describe('ColorChangeAnalyzer - 色変換ユーティリティ', () => {
     });
   });
 
-  describe('hexToRgb', () => {
-    it('#rrggbb形式を変換できる', () => {
-      const rgb = hexToRgb('#ff0000');
+  describe("hexToRgb", () => {
+    it("#rrggbb形式を変換できる", () => {
+      const rgb = hexToRgb("#ff0000");
       expect(rgb).toEqual({ r: 255, g: 0, b: 0 });
     });
 
-    it('#rrggbbaa形式を変換できる', () => {
-      const rgb = hexToRgb('#ff0000ff');
+    it("#rrggbbaa形式を変換できる", () => {
+      const rgb = hexToRgb("#ff0000ff");
       expect(rgb).toEqual({ r: 255, g: 0, b: 0, a: 255 });
     });
 
-    it('#rgb形式を変換できる', () => {
-      const rgb = hexToRgb('#f00');
+    it("#rgb形式を変換できる", () => {
+      const rgb = hexToRgb("#f00");
       expect(rgb).toEqual({ r: 255, g: 0, b: 0 });
     });
 
-    it('#なしの形式を変換できる', () => {
-      const rgb = hexToRgb('00ff00');
+    it("#なしの形式を変換できる", () => {
+      const rgb = hexToRgb("00ff00");
       expect(rgb).toEqual({ r: 0, g: 255, b: 0 });
     });
   });
 
-  describe('rgbToHex', () => {
-    it('RGBをHEXに変換できる', () => {
+  describe("rgbToHex", () => {
+    it("RGBをHEXに変換できる", () => {
       const hex = rgbToHex(255, 0, 0);
-      expect(hex).toBe('#ff0000');
+      expect(hex).toBe("#ff0000");
     });
 
-    it('小数を含むRGBを変換できる', () => {
+    it("小数を含むRGBを変換できる", () => {
       const hex = rgbToHex(128.5, 64.3, 192.9);
       // Math.round(128.5) = 129, Math.round(64.3) = 64, Math.round(192.9) = 193
-      expect(hex).toBe('#8140c1');
+      expect(hex).toBe("#8140c1");
     });
 
-    it('アルファ値を含むRGBを変換できる', () => {
+    it("アルファ値を含むRGBを変換できる", () => {
       const hex = rgbToHex(255, 0, 0, 128);
-      expect(hex).toBe('#ff000080');
+      expect(hex).toBe("#ff000080");
     });
   });
 });
@@ -245,23 +245,23 @@ describe('ColorChangeAnalyzer - 色変換ユーティリティ', () => {
 // ドミナントカラー抽出テスト
 // ============================================================================
 
-describe('ColorChangeAnalyzer - extractDominantColors', () => {
+describe("ColorChangeAnalyzer - extractDominantColors", () => {
   let analyzer: ColorChangeAnalyzer;
 
   beforeEach(() => {
     analyzer = new ColorChangeAnalyzer();
   });
 
-  describe('基本機能', () => {
-    it('Bufferからドミナントカラーを抽出できる', async () => {
+  describe("基本機能", () => {
+    it("Bufferからドミナントカラーを抽出できる", async () => {
       // 赤一色の10x10画像を作成（Sharp形式: raw RGBA buffer）
       const width = 10;
       const height = 10;
       const buffer = Buffer.alloc(width * height * 4);
       for (let i = 0; i < width * height; i++) {
-        buffer[i * 4] = 255;     // R
-        buffer[i * 4 + 1] = 0;   // G
-        buffer[i * 4 + 2] = 0;   // B
+        buffer[i * 4] = 255; // R
+        buffer[i * 4 + 1] = 0; // G
+        buffer[i * 4 + 2] = 0; // B
         buffer[i * 4 + 3] = 255; // A
       }
 
@@ -276,7 +276,7 @@ describe('ColorChangeAnalyzer - extractDominantColors', () => {
       expect(dominantColor.b).toBeCloseTo(0, 10);
     });
 
-    it('抽出する色数を指定できる', async () => {
+    it("抽出する色数を指定できる", async () => {
       const width = 10;
       const height = 10;
       const buffer = Buffer.alloc(width * height * 4);
@@ -285,9 +285,13 @@ describe('ColorChangeAnalyzer - extractDominantColors', () => {
         for (let x = 0; x < width; x++) {
           const i = (y * width + x) * 4;
           if (y < height / 2) {
-            buffer[i] = 255; buffer[i + 1] = 0; buffer[i + 2] = 0;
+            buffer[i] = 255;
+            buffer[i + 1] = 0;
+            buffer[i + 2] = 0;
           } else {
-            buffer[i] = 0; buffer[i + 1] = 0; buffer[i + 2] = 255;
+            buffer[i] = 0;
+            buffer[i + 1] = 0;
+            buffer[i + 2] = 255;
           }
           buffer[i + 3] = 255;
         }
@@ -298,12 +302,15 @@ describe('ColorChangeAnalyzer - extractDominantColors', () => {
       expect(result.colors.length).toBe(2);
     });
 
-    it('各色の占有率を返す', async () => {
+    it("各色の占有率を返す", async () => {
       const width = 10;
       const height = 10;
       const buffer = Buffer.alloc(width * height * 4);
       for (let i = 0; i < width * height; i++) {
-        buffer[i * 4] = 0; buffer[i * 4 + 1] = 255; buffer[i * 4 + 2] = 0; buffer[i * 4 + 3] = 255;
+        buffer[i * 4] = 0;
+        buffer[i * 4 + 1] = 255;
+        buffer[i * 4 + 2] = 0;
+        buffer[i * 4 + 3] = 255;
       }
 
       const result = await analyzer.extractDominantColors(buffer, width, height);
@@ -312,12 +319,15 @@ describe('ColorChangeAnalyzer - extractDominantColors', () => {
       expect(result.colors[0].percentage).toBeLessThanOrEqual(1);
     });
 
-    it('HEX形式の色を返す', async () => {
+    it("HEX形式の色を返す", async () => {
       const width = 10;
       const height = 10;
       const buffer = Buffer.alloc(width * height * 4);
       for (let i = 0; i < width * height; i++) {
-        buffer[i * 4] = 0; buffer[i * 4 + 1] = 0; buffer[i * 4 + 2] = 255; buffer[i * 4 + 3] = 255;
+        buffer[i * 4] = 0;
+        buffer[i * 4 + 1] = 0;
+        buffer[i * 4 + 2] = 255;
+        buffer[i * 4 + 3] = 255;
       }
 
       const result = await analyzer.extractDominantColors(buffer, width, height);
@@ -326,13 +336,13 @@ describe('ColorChangeAnalyzer - extractDominantColors', () => {
     });
   });
 
-  describe('エラーハンドリング', () => {
-    it('空のBufferでエラーをスローする', async () => {
+  describe("エラーハンドリング", () => {
+    it("空のBufferでエラーをスローする", async () => {
       const emptyBuffer = Buffer.alloc(0);
       await expect(analyzer.extractDominantColors(emptyBuffer, 0, 0)).rejects.toThrow();
     });
 
-    it('不正なサイズでエラーをスローする', async () => {
+    it("不正なサイズでエラーをスローする", async () => {
       const buffer = Buffer.alloc(100);
       await expect(analyzer.extractDominantColors(buffer, -1, 10)).rejects.toThrow();
     });
@@ -343,17 +353,21 @@ describe('ColorChangeAnalyzer - extractDominantColors', () => {
 // 色変化解析テスト
 // ============================================================================
 
-describe('ColorChangeAnalyzer - analyzeColorChange', () => {
+describe("ColorChangeAnalyzer - analyzeColorChange", () => {
   let analyzer: ColorChangeAnalyzer;
 
   beforeEach(() => {
     analyzer = new ColorChangeAnalyzer();
   });
 
-  describe('基本機能', () => {
-    it('2つの色配列間の変化を解析できる', () => {
-      const colors1 = [createMockDominantColor({ r: 255, g: 0, b: 0, hex: '#ff0000', percentage: 0.8 })];
-      const colors2 = [createMockDominantColor({ r: 0, g: 0, b: 255, hex: '#0000ff', percentage: 0.8 })];
+  describe("基本機能", () => {
+    it("2つの色配列間の変化を解析できる", () => {
+      const colors1 = [
+        createMockDominantColor({ r: 255, g: 0, b: 0, hex: "#ff0000", percentage: 0.8 }),
+      ];
+      const colors2 = [
+        createMockDominantColor({ r: 0, g: 0, b: 255, hex: "#0000ff", percentage: 0.8 }),
+      ];
 
       const result = analyzer.analyzeColorChange(colors1, colors2);
 
@@ -361,7 +375,7 @@ describe('ColorChangeAnalyzer - analyzeColorChange', () => {
       expect(result.colorShift).toBeLessThanOrEqual(1);
     });
 
-    it('同一色間の変化量は0に近い', () => {
+    it("同一色間の変化量は0に近い", () => {
       const colors = [createMockDominantColor({ r: 128, g: 128, b: 128 })];
 
       const result = analyzer.analyzeColorChange(colors, colors);
@@ -369,7 +383,7 @@ describe('ColorChangeAnalyzer - analyzeColorChange', () => {
       expect(result.colorShift).toBeCloseTo(0, 5);
     });
 
-    it('色相の変化量を度数で返す', () => {
+    it("色相の変化量を度数で返す", () => {
       const colors1 = [createMockDominantColor({ r: 255, g: 0, b: 0 })]; // 赤: H=0
       const colors2 = [createMockDominantColor({ r: 0, g: 255, b: 0 })]; // 緑: H=120
 
@@ -378,8 +392,8 @@ describe('ColorChangeAnalyzer - analyzeColorChange', () => {
       expect(result.hueChange).toBeCloseTo(120, 5);
     });
 
-    it('彩度の変化量を返す', () => {
-      const colors1 = [createMockDominantColor({ r: 255, g: 0, b: 0 })];    // 高彩度
+    it("彩度の変化量を返す", () => {
+      const colors1 = [createMockDominantColor({ r: 255, g: 0, b: 0 })]; // 高彩度
       const colors2 = [createMockDominantColor({ r: 128, g: 128, b: 128 })]; // 無彩色
 
       const result = analyzer.analyzeColorChange(colors1, colors2);
@@ -387,9 +401,9 @@ describe('ColorChangeAnalyzer - analyzeColorChange', () => {
       expect(result.saturationChange).not.toBe(0);
     });
 
-    it('明度の変化量を返す', () => {
+    it("明度の変化量を返す", () => {
       const colors1 = [createMockDominantColor({ r: 255, g: 255, b: 255 })]; // 白
-      const colors2 = [createMockDominantColor({ r: 0, g: 0, b: 0 })];       // 黒
+      const colors2 = [createMockDominantColor({ r: 0, g: 0, b: 0 })]; // 黒
 
       const result = analyzer.analyzeColorChange(colors1, colors2);
 
@@ -397,8 +411,8 @@ describe('ColorChangeAnalyzer - analyzeColorChange', () => {
     });
   });
 
-  describe('重み付き解析', () => {
-    it('占有率の高い色ほど変化量に大きく寄与する', () => {
+  describe("重み付き解析", () => {
+    it("占有率の高い色ほど変化量に大きく寄与する", () => {
       const colors1 = [
         createMockDominantColor({ r: 255, g: 0, b: 0, percentage: 0.9 }),
         createMockDominantColor({ r: 0, g: 255, b: 0, percentage: 0.1 }),
@@ -420,21 +434,26 @@ describe('ColorChangeAnalyzer - analyzeColorChange', () => {
 // フェード効果検出テスト
 // ============================================================================
 
-describe('ColorChangeAnalyzer - detectFade', () => {
+describe("ColorChangeAnalyzer - detectFade", () => {
   let analyzer: ColorChangeAnalyzer;
 
   beforeEach(() => {
     analyzer = new ColorChangeAnalyzer();
   });
 
-  describe('フェードイン検出', () => {
-    it('黒から明るい色へのフェードインを検出できる', async () => {
+  describe("フェードイン検出", () => {
+    it("黒から明るい色へのフェードインを検出できる", async () => {
       // 5フレームで黒から白へ遷移
       const frames = Array.from({ length: 5 }, (_, i) => {
         const brightness = Math.round((i / 4) * 255);
         return {
           dominantColors: [
-            createMockDominantColor({ r: brightness, g: brightness, b: brightness, percentage: 1.0 }),
+            createMockDominantColor({
+              r: brightness,
+              g: brightness,
+              b: brightness,
+              percentage: 1.0,
+            }),
           ],
         };
       });
@@ -442,21 +461,26 @@ describe('ColorChangeAnalyzer - detectFade', () => {
       const result = await analyzer.detectFade(frames);
 
       expect(result.fadeEffects.length).toBeGreaterThan(0);
-      const fadeIn = result.fadeEffects.find((f) => f.change_type === 'fade_in');
+      const fadeIn = result.fadeEffects.find((f) => f.change_type === "fade_in");
       expect(fadeIn).toBeDefined();
       expect(fadeIn?.start_frame).toBe(0);
       expect(fadeIn?.end_frame).toBe(4);
     });
   });
 
-  describe('フェードアウト検出', () => {
-    it('明るい色から黒へのフェードアウトを検出できる', async () => {
+  describe("フェードアウト検出", () => {
+    it("明るい色から黒へのフェードアウトを検出できる", async () => {
       // 5フレームで白から黒へ遷移
       const frames = Array.from({ length: 5 }, (_, i) => {
         const brightness = Math.round((1 - i / 4) * 255);
         return {
           dominantColors: [
-            createMockDominantColor({ r: brightness, g: brightness, b: brightness, percentage: 1.0 }),
+            createMockDominantColor({
+              r: brightness,
+              g: brightness,
+              b: brightness,
+              percentage: 1.0,
+            }),
           ],
         };
       });
@@ -464,41 +488,37 @@ describe('ColorChangeAnalyzer - detectFade', () => {
       const result = await analyzer.detectFade(frames);
 
       expect(result.fadeEffects.length).toBeGreaterThan(0);
-      const fadeOut = result.fadeEffects.find((f) => f.change_type === 'fade_out');
+      const fadeOut = result.fadeEffects.find((f) => f.change_type === "fade_out");
       expect(fadeOut).toBeDefined();
     });
   });
 
-  describe('色遷移検出', () => {
-    it('色相変化による色遷移を検出できる', async () => {
+  describe("色遷移検出", () => {
+    it("色相変化による色遷移を検出できる", async () => {
       // 5フレームで赤から青へ遷移
       const frames = Array.from({ length: 5 }, (_, i) => {
         const red = Math.round((1 - i / 4) * 255);
         const blue = Math.round((i / 4) * 255);
         return {
-          dominantColors: [
-            createMockDominantColor({ r: red, g: 0, b: blue, percentage: 1.0 }),
-          ],
+          dominantColors: [createMockDominantColor({ r: red, g: 0, b: blue, percentage: 1.0 })],
         };
       });
 
       const result = await analyzer.detectFade(frames);
 
       expect(result.fadeEffects.length).toBeGreaterThan(0);
-      const colorTransition = result.fadeEffects.find((f) => f.change_type === 'color_transition');
+      const colorTransition = result.fadeEffects.find((f) => f.change_type === "color_transition");
       expect(colorTransition).toBeDefined();
     });
   });
 
-  describe('明度変化検出', () => {
-    it('同一色相での明度変化を検出できる', async () => {
+  describe("明度変化検出", () => {
+    it("同一色相での明度変化を検出できる", async () => {
       // 5フレームで暗い赤から明るい赤へ遷移
       const frames = Array.from({ length: 5 }, (_, i) => {
         const value = 50 + Math.round((i / 4) * 205); // 50-255
         return {
-          dominantColors: [
-            createMockDominantColor({ r: value, g: 0, b: 0, percentage: 1.0 }),
-          ],
+          dominantColors: [createMockDominantColor({ r: value, g: 0, b: 0, percentage: 1.0 })],
         };
       });
 
@@ -507,18 +527,20 @@ describe('ColorChangeAnalyzer - detectFade', () => {
       expect(result.fadeEffects.length).toBeGreaterThan(0);
       // 明度増加はfade_inまたはbrightness_changeとして検出される
       const effect = result.fadeEffects.find(
-        (f) => f.change_type === 'brightness_change' || f.change_type === 'fade_in'
+        (f) => f.change_type === "brightness_change" || f.change_type === "fade_in"
       );
       expect(effect).toBeDefined();
     });
   });
 
-  describe('出力形式', () => {
-    it('開始・終了フレームインデックスを含む', async () => {
+  describe("出力形式", () => {
+    it("開始・終了フレームインデックスを含む", async () => {
       const frames = Array.from({ length: 5 }, (_, i) => {
         const brightness = Math.round((i / 4) * 255);
         return {
-          dominantColors: [createMockDominantColor({ r: brightness, g: brightness, b: brightness })],
+          dominantColors: [
+            createMockDominantColor({ r: brightness, g: brightness, b: brightness }),
+          ],
         };
       });
 
@@ -529,10 +551,10 @@ describe('ColorChangeAnalyzer - detectFade', () => {
       expect(result.fadeEffects[0].end_frame).toBeGreaterThan(result.fadeEffects[0].start_frame);
     });
 
-    it('変化前後の主要色をHEXで返す', async () => {
+    it("変化前後の主要色をHEXで返す", async () => {
       const frames = [
-        { dominantColors: [createMockDominantColor({ r: 0, g: 0, b: 0, hex: '#000000' })] },
-        { dominantColors: [createMockDominantColor({ r: 255, g: 255, b: 255, hex: '#ffffff' })] },
+        { dominantColors: [createMockDominantColor({ r: 0, g: 0, b: 0, hex: "#000000" })] },
+        { dominantColors: [createMockDominantColor({ r: 255, g: 255, b: 255, hex: "#ffffff" })] },
       ];
 
       const result = await analyzer.detectFade(frames);
@@ -543,11 +565,13 @@ describe('ColorChangeAnalyzer - detectFade', () => {
       }
     });
 
-    it('推定duration(ms)を返す', async () => {
+    it("推定duration(ms)を返す", async () => {
       const frames = Array.from({ length: 5 }, (_, i) => {
         const brightness = Math.round((i / 4) * 255);
         return {
-          dominantColors: [createMockDominantColor({ r: brightness, g: brightness, b: brightness })],
+          dominantColors: [
+            createMockDominantColor({ r: brightness, g: brightness, b: brightness }),
+          ],
         };
       });
 
@@ -560,12 +584,14 @@ describe('ColorChangeAnalyzer - detectFade', () => {
     });
   });
 
-  describe('設定オプション', () => {
-    it('閾値を設定できる', async () => {
+  describe("設定オプション", () => {
+    it("閾値を設定できる", async () => {
       const frames = Array.from({ length: 5 }, (_, i) => {
         const brightness = 128 + Math.round((i / 4) * 10); // 微小な変化
         return {
-          dominantColors: [createMockDominantColor({ r: brightness, g: brightness, b: brightness })],
+          dominantColors: [
+            createMockDominantColor({ r: brightness, g: brightness, b: brightness }),
+          ],
         };
       });
 
@@ -578,11 +604,13 @@ describe('ColorChangeAnalyzer - detectFade', () => {
       expect(result2.fadeEffects.length).toBeGreaterThan(0);
     });
 
-    it('fpsを設定できる', async () => {
+    it("fpsを設定できる", async () => {
       const frames = Array.from({ length: 5 }, (_, i) => {
         const brightness = Math.round((i / 4) * 255);
         return {
-          dominantColors: [createMockDominantColor({ r: brightness, g: brightness, b: brightness })],
+          dominantColors: [
+            createMockDominantColor({ r: brightness, g: brightness, b: brightness }),
+          ],
         };
       });
 
@@ -603,15 +631,15 @@ describe('ColorChangeAnalyzer - detectFade', () => {
 // 統合分析テスト
 // ============================================================================
 
-describe('ColorChangeAnalyzer - analyze (統合)', () => {
+describe("ColorChangeAnalyzer - analyze (統合)", () => {
   let analyzer: ColorChangeAnalyzer;
 
   beforeEach(() => {
     analyzer = new ColorChangeAnalyzer();
   });
 
-  describe('フレームシーケンス全体の解析', () => {
-    it('複数フレームのドミナントカラーと変化を返す', async () => {
+  describe("フレームシーケンス全体の解析", () => {
+    it("複数フレームのドミナントカラーと変化を返す", async () => {
       // 3フレームで黒→グレー→白
       const frameBuffers = Array.from({ length: 3 }, (_, i) => {
         const width = 10;
@@ -634,7 +662,7 @@ describe('ColorChangeAnalyzer - analyze (統合)', () => {
       expect(result.averageColorShift).toBeGreaterThan(0);
     });
 
-    it('フェード効果を検出して返す', async () => {
+    it("フェード効果を検出して返す", async () => {
       // 5フレームでフェードイン
       const frameBuffers = Array.from({ length: 5 }, (_, i) => {
         const width = 10;
@@ -655,7 +683,7 @@ describe('ColorChangeAnalyzer - analyze (統合)', () => {
       expect(result.fadeEffects.length).toBeGreaterThan(0);
     });
 
-    it('平均色変化量を計算する', async () => {
+    it("平均色変化量を計算する", async () => {
       const frameBuffers = Array.from({ length: 3 }, (_, i) => {
         const width = 10;
         const height = 10;
@@ -677,8 +705,8 @@ describe('ColorChangeAnalyzer - analyze (統合)', () => {
     });
   });
 
-  describe('出力形式の検証', () => {
-    it('ColorChangeResult形式を返す', async () => {
+  describe("出力形式の検証", () => {
+    it("ColorChangeResult形式を返す", async () => {
       const frameBuffers = [
         { buffer: createTestBuffer(10, 10, { r: 0, g: 0, b: 0 }), width: 10, height: 10 },
         { buffer: createTestBuffer(10, 10, { r: 255, g: 255, b: 255 }), width: 10, height: 10 },
@@ -706,15 +734,19 @@ describe('ColorChangeAnalyzer - analyze (統合)', () => {
       expect(Array.isArray(result.fadeEffects)).toBe(true);
 
       // averageColorShift
-      expect(typeof result.averageColorShift).toBe('number');
+      expect(typeof result.averageColorShift).toBe("number");
     });
   });
 
-  describe('パフォーマンス要件', () => {
-    it('10フレームを3秒以内に処理できる', async () => {
+  describe("パフォーマンス要件", () => {
+    it("10フレームを3秒以内に処理できる", async () => {
       const frameBuffers = Array.from({ length: 10 }, () => {
         return {
-          buffer: createTestBuffer(100, 100, { r: Math.random() * 255, g: Math.random() * 255, b: Math.random() * 255 }),
+          buffer: createTestBuffer(100, 100, {
+            r: Math.random() * 255,
+            g: Math.random() * 255,
+            b: Math.random() * 255,
+          }),
           width: 100,
           height: 100,
         };
@@ -728,12 +760,12 @@ describe('ColorChangeAnalyzer - analyze (統合)', () => {
     });
   });
 
-  describe('エラーハンドリング', () => {
-    it('空のフレーム配列でエラーをスローする', async () => {
+  describe("エラーハンドリング", () => {
+    it("空のフレーム配列でエラーをスローする", async () => {
       await expect(analyzer.analyze([])).rejects.toThrow();
     });
 
-    it('1フレームのみの場合はchangesが空', async () => {
+    it("1フレームのみの場合はchangesが空", async () => {
       const frameBuffers = [
         { buffer: createTestBuffer(10, 10, { r: 128, g: 128, b: 128 }), width: 10, height: 10 },
       ];

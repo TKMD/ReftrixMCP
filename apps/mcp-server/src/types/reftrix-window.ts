@@ -104,16 +104,14 @@ export interface ReftrixWindow {
  * @param value - 検証対象の値
  * @returns ReftrixIOObserverInfo型かどうか
  */
-export function isReftrixIOObserverInfo(
-  value: unknown
-): value is ReftrixIOObserverInfo {
-  if (!value || typeof value !== 'object') return false;
+export function isReftrixIOObserverInfo(value: unknown): value is ReftrixIOObserverInfo {
+  if (!value || typeof value !== "object") return false;
   const obj = value as Record<string, unknown>;
   return (
-    typeof obj.id === 'number' &&
+    typeof obj.id === "number" &&
     Array.isArray(obj.targets) &&
     Array.isArray(obj.threshold) &&
-    typeof obj.rootMargin === 'string' &&
+    typeof obj.rootMargin === "string" &&
     Array.isArray(obj.targetSelectors)
   );
 }
@@ -125,9 +123,9 @@ export function isReftrixIOObserverInfo(
  * @returns ReftrixRAFData型かどうか
  */
 export function isReftrixRAFData(value: unknown): value is ReftrixRAFData {
-  if (!value || typeof value !== 'object') return false;
+  if (!value || typeof value !== "object") return false;
   const obj = value as Record<string, unknown>;
-  return obj.callbacks instanceof Map && typeof obj.nextId === 'number';
+  return obj.callbacks instanceof Map && typeof obj.nextId === "number";
 }
 
 // ============================================================================

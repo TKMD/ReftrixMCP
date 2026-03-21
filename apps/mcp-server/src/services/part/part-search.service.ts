@@ -24,15 +24,15 @@
  * @module services/part/part-search.service
  */
 
-import { isDevelopment, logger } from '../../utils/logger';
+import { isDevelopment, logger } from "../../utils/logger";
 import {
   executeHybridSearch,
   buildFulltextConditions,
   buildFulltextRankExpression,
   toRankedItems,
-} from '@reftrix/ml';
-import type { RankedItem } from '@reftrix/ml';
-import { truncateId } from './schemas';
+} from "@reftrix/ml";
+import type { RankedItem } from "@reftrix/ml";
+import { truncateId } from "./schemas";
 
 // =====================================================
 // インターフェース / Interfaces
@@ -43,7 +43,7 @@ import { truncateId } from './schemas';
  * EmbeddingService interface
  */
 export interface PartSearchEmbeddingService {
-  generateEmbedding(text: string, type: 'query' | 'passage'): Promise<number[]>;
+  generateEmbedding(text: string, type: "query" | "passage"): Promise<number[]>;
 }
 
 /**
@@ -72,7 +72,7 @@ export interface PartSearchOptions {
   /** CSSフレームワークフィルタ（section_patterns.css_framework） / CSS framework filter */
   cssFramework?: string;
   /** 検索モード / Search mode (default 'hybrid') */
-  searchMode: 'visual' | 'text' | 'hybrid';
+  searchMode: "visual" | "text" | "hybrid";
 }
 
 /**
@@ -170,9 +170,7 @@ export function resetPartSearchEmbeddingServiceFactory(): void {
  * PrismaClientファクトリを設定
  * Set PrismaClient factory
  */
-export function setPartSearchPrismaClientFactory(
-  factory: () => PartSearchPrismaClient
-): void {
+export function setPartSearchPrismaClientFactory(factory: () => PartSearchPrismaClient): void {
   prismaClientFactory = factory;
 }
 
@@ -203,7 +201,7 @@ interface BuildWhereResult {
  * Convert filter conditions to WHERE clause
  */
 export function buildPartSearchWhereClause(
-  options: Pick<PartSearchOptions, 'partType' | 'sectionType' | 'cssFramework'>,
+  options: Pick<PartSearchOptions, "partType" | "sectionType" | "cssFramework">,
   startIndex: number = 1
 ): BuildWhereResult {
   const conditions: string[] = [];
@@ -229,7 +227,7 @@ export function buildPartSearchWhereClause(
   }
 
   return {
-    clause: conditions.length > 0 ? conditions.join(' AND ') : '',
+    clause: conditions.length > 0 ? conditions.join(" AND ") : "",
     params,
     nextIndex: paramIndex,
   };
@@ -271,13 +269,16 @@ function sanitizeErrorMessage(error: unknown): string {
     const prismaError = error as { code?: string };
     if (prismaError.code) {
       switch (prismaError.code) {
-        case 'P2002': return 'A record with this value already exists';
-        case 'P2025': return 'Record not found';
-        default: return 'Database operation failed';
+        case "P2002":
+          return "A record with this value already exists";
+        case "P2025":
+          return "Record not found";
+        default:
+          return "Database operation failed";
       }
     }
   }
-  return 'An internal error occurred';
+  return "An internal error occurred";
 }
 
 // =====================================================
@@ -309,7 +310,7 @@ export class PartSearchService implements PartSearchServiceInterface {
       return this.embeddingService;
     }
 
-    throw new Error('EmbeddingService not initialized');
+    throw new Error("EmbeddingService not initialized");
   }
 
   /**
@@ -326,7 +327,7 @@ export class PartSearchService implements PartSearchServiceInterface {
       return this.prismaClient;
     }
 
-    throw new Error('PrismaClient not initialized');
+    throw new Error("PrismaClient not initialized");
   }
 
   /**
@@ -338,24 +339,24 @@ export class PartSearchService implements PartSearchServiceInterface {
    */
   async generateQueryEmbedding(query: string): Promise<number[] | null> {
     if (isDevelopment()) {
-      logger.info('[PartSearchService] Generating query embedding', {
+      logger.info("[PartSearchService] Generating query embedding", {
         queryLength: query.length,
       });
     }
 
     if (!embeddingServiceFactory) {
       if (isDevelopment()) {
-        logger.warn('[PartSearchService] EmbeddingService not available, returning null');
+        logger.warn("[PartSearchService] EmbeddingService not available, returning null");
       }
       return null;
     }
 
     try {
       const service = this.getEmbeddingService();
-      return await service.generateEmbedding(query, 'query');
+      return await service.generateEmbedding(query, "query");
     } catch (error) {
-      logger.warn('[PartSearchService] Embedding generation failed, returning null', {
-        error: error instanceof Error ? error.message : 'Unknown error',
+      logger.warn("[PartSearchService] Embedding generation failed, returning null", {
+        error: error instanceof Error ? error.message : "Unknown error",
       });
       return null;
     }
@@ -365,14 +366,11 @@ export class PartSearchService implements PartSearchServiceInterface {
    * テキストベクトル検索（e5-base text_embedding）
    * Text vector search (e5-base text_embedding)
    */
-  async searchParts(
-    embedding: number[],
-    options: PartSearchOptions
-  ): Promise<PartSearchResult> {
+  async searchParts(embedding: number[], options: PartSearchOptions): Promise<PartSearchResult> {
     const startTime = Date.now();
 
     if (isDevelopment()) {
-      logger.info('[PartSearchService] Starting text vector search', {
+      logger.info("[PartSearchService] Starting text vector search", {
         embeddingDimensions: embedding.length,
         limit: options.limit,
         offset: options.offset,
@@ -384,18 +382,20 @@ export class PartSearchService implements PartSearchServiceInterface {
     try {
       prisma = this.getPrismaClient();
     } catch {
-      logger.warn('[PartSearchService] PrismaClient not available');
+      logger.warn("[PartSearchService] PrismaClient not available");
       return { results: [], total: 0, query: {} };
     }
 
     try {
-      const { clause: filterClause, params: filterParams, nextIndex } =
-        buildPartSearchWhereClause(options, 1);
+      const {
+        clause: filterClause,
+        params: filterParams,
+        nextIndex,
+      } = buildPartSearchWhereClause(options, 1);
 
-      const vectorString = `[${embedding.join(',')}]`;
-      const embeddingColumn = options.searchMode === 'visual'
-        ? 'cpe.visual_embedding'
-        : 'cpe.text_embedding';
+      const vectorString = `[${embedding.join(",")}]`;
+      const embeddingColumn =
+        options.searchMode === "visual" ? "cpe.visual_embedding" : "cpe.text_embedding";
 
       const vectorParamIndex = nextIndex;
       const limitParamIndex = nextIndex + 1;
@@ -435,8 +435,8 @@ export class PartSearchService implements PartSearchServiceInterface {
           options.offset
         );
       } catch (dbError) {
-        logger.warn('[PartSearchService] Vector search query failed', {
-          error: dbError instanceof Error ? dbError.message : 'Unknown error',
+        logger.warn("[PartSearchService] Vector search query failed", {
+          error: dbError instanceof Error ? dbError.message : "Unknown error",
         });
         return { results: [], total: 0, query: {} };
       }
@@ -448,7 +448,7 @@ export class PartSearchService implements PartSearchServiceInterface {
       const processingTimeMs = Date.now() - startTime;
 
       if (isDevelopment()) {
-        logger.info('[PartSearchService] Text vector search completed', {
+        logger.info("[PartSearchService] Text vector search completed", {
           resultsCount: results.length,
           processingTimeMs,
         });
@@ -460,7 +460,7 @@ export class PartSearchService implements PartSearchServiceInterface {
         query: {},
       };
     } catch (error) {
-      logger.warn('[PartSearchService] searchParts error', {
+      logger.warn("[PartSearchService] searchParts error", {
         error: sanitizeErrorMessage(error),
       });
       return { results: [], total: 0, query: {} };
@@ -485,7 +485,7 @@ export class PartSearchService implements PartSearchServiceInterface {
     const startTime = Date.now();
 
     if (isDevelopment()) {
-      logger.info('[PartSearchService] Starting hybrid search (vector + fulltext)', {
+      logger.info("[PartSearchService] Starting hybrid search (vector + fulltext)", {
         queryTextLength: queryText.length,
         embeddingDimensions: embedding.length,
         limit: options.limit,
@@ -497,24 +497,27 @@ export class PartSearchService implements PartSearchServiceInterface {
     try {
       prisma = this.getPrismaClient();
     } catch {
-      logger.warn('[PartSearchService] PrismaClient not available');
+      logger.warn("[PartSearchService] PrismaClient not available");
       return { results: [], total: 0, query: { text: queryText } };
     }
 
     try {
-      const { clause: filterClause, params: filterParams, nextIndex } =
-        buildPartSearchWhereClause(options, 1);
+      const {
+        clause: filterClause,
+        params: filterParams,
+        nextIndex,
+      } = buildPartSearchWhereClause(options, 1);
 
       // RRFマージ用に多めに取得
       const fetchLimit = Math.min(options.limit * 3, 150);
 
       // ベクトル検索関数
       const vectorSearchFn = async (): Promise<RankedItem[]> => {
-        const vectorString = `[${embedding.join(',')}]`;
+        const vectorString = `[${embedding.join(",")}]`;
         const vecParamIdx = nextIndex;
         const vecLimitIdx = nextIndex + 1;
 
-        const embeddingNotNull = 'cpe.text_embedding IS NOT NULL';
+        const embeddingNotNull = "cpe.text_embedding IS NOT NULL";
         const whereClause = filterClause
           ? `WHERE ${filterClause} AND ${embeddingNotNull}`
           : `WHERE ${embeddingNotNull}`;
@@ -551,8 +554,8 @@ export class PartSearchService implements PartSearchServiceInterface {
           const ftQueryIdx = nextIndex;
           const ftLimitIdx = nextIndex + 1;
 
-          const ftConditions = buildFulltextConditions('cpe.search_vector', ftQueryIdx);
-          const ftRank = buildFulltextRankExpression('cpe.search_vector', ftQueryIdx);
+          const ftConditions = buildFulltextConditions("cpe.search_vector", ftQueryIdx);
+          const ftRank = buildFulltextRankExpression("cpe.search_vector", ftQueryIdx);
 
           const whereClause = filterClause
             ? `WHERE ${filterClause} AND ${ftConditions}`
@@ -583,24 +586,18 @@ export class PartSearchService implements PartSearchServiceInterface {
 
           return toRankedItems(rows);
         } catch (ftError) {
-          logger.warn('[PartSearchService] Full-text search failed, using vector only', {
-            error: ftError instanceof Error ? ftError.message : 'Unknown error',
+          logger.warn("[PartSearchService] Full-text search failed, using vector only", {
+            error: ftError instanceof Error ? ftError.message : "Unknown error",
           });
           return [];
         }
       };
 
       // RRFハイブリッド検索を実行（並列）
-      const hybridResults = await executeHybridSearch(
-        vectorSearchFn,
-        fulltextSearchFn
-      );
+      const hybridResults = await executeHybridSearch(vectorSearchFn, fulltextSearchFn);
 
       // offset/limitを適用
-      const paginatedResults = hybridResults.slice(
-        options.offset,
-        options.offset + options.limit
-      );
+      const paginatedResults = hybridResults.slice(options.offset, options.offset + options.limit);
 
       // HybridSearchResult を PartSearchResultItem に変換
       const results: PartSearchResultItem[] = paginatedResults
@@ -616,7 +613,7 @@ export class PartSearchService implements PartSearchServiceInterface {
       const processingTimeMs = Date.now() - startTime;
 
       if (isDevelopment()) {
-        logger.info('[PartSearchService] Hybrid search completed', {
+        logger.info("[PartSearchService] Hybrid search completed", {
           totalMerged: hybridResults.length,
           resultsCount: results.length,
           processingTimeMs,
@@ -629,8 +626,8 @@ export class PartSearchService implements PartSearchServiceInterface {
         query: { text: queryText },
       };
     } catch (error) {
-      logger.warn('[PartSearchService] Hybrid search error, falling back to vector only', {
-        error: error instanceof Error ? error.message : 'Unknown error',
+      logger.warn("[PartSearchService] Hybrid search error, falling back to vector only", {
+        error: error instanceof Error ? error.message : "Unknown error",
       });
       // フォールバック: ベクトル検索のみ
       return this.searchParts(embedding, options);
@@ -654,7 +651,7 @@ export class PartSearchService implements PartSearchServiceInterface {
     const startTime = Date.now();
 
     if (isDevelopment()) {
-      logger.info('[PartSearchService] Starting visual search by reference part', {
+      logger.info("[PartSearchService] Starting visual search by reference part", {
         referencePartId: truncateId(referencePartId),
         limit: options.limit,
       });
@@ -664,7 +661,7 @@ export class PartSearchService implements PartSearchServiceInterface {
     try {
       prisma = this.getPrismaClient();
     } catch {
-      logger.warn('[PartSearchService] PrismaClient not available');
+      logger.warn("[PartSearchService] PrismaClient not available");
       return { results: [], total: 0, query: { referencePartId } };
     }
 
@@ -681,7 +678,7 @@ export class PartSearchService implements PartSearchServiceInterface {
 
       if (refRows.length === 0) {
         if (isDevelopment()) {
-          logger.warn('[PartSearchService] Reference part visual embedding not found', {
+          logger.warn("[PartSearchService] Reference part visual embedding not found", {
             referencePartId: truncateId(referencePartId),
           });
         }
@@ -696,14 +693,17 @@ export class PartSearchService implements PartSearchServiceInterface {
       const vectorString = refRow.visual_embedding;
 
       // 2. ビジュアル類似検索を実行
-      const { clause: filterClause, params: filterParams, nextIndex } =
-        buildPartSearchWhereClause(options, 1);
+      const {
+        clause: filterClause,
+        params: filterParams,
+        nextIndex,
+      } = buildPartSearchWhereClause(options, 1);
 
       const vectorParamIndex = nextIndex;
       const limitParamIndex = nextIndex + 1;
       const offsetParamIndex = nextIndex + 2;
 
-      const embeddingNotNull = 'cpe.visual_embedding IS NOT NULL';
+      const embeddingNotNull = "cpe.visual_embedding IS NOT NULL";
       // 自分自身を除外
       const selfExclusion = `cp.id != $${vectorParamIndex + 3}`;
       let whereClause: string;
@@ -750,7 +750,7 @@ export class PartSearchService implements PartSearchServiceInterface {
       const processingTimeMs = Date.now() - startTime;
 
       if (isDevelopment()) {
-        logger.info('[PartSearchService] Visual search completed', {
+        logger.info("[PartSearchService] Visual search completed", {
           resultsCount: results.length,
           processingTimeMs,
         });
@@ -762,7 +762,7 @@ export class PartSearchService implements PartSearchServiceInterface {
         query: { referencePartId },
       };
     } catch (error) {
-      logger.warn('[PartSearchService] Visual search error', {
+      logger.warn("[PartSearchService] Visual search error", {
         error: sanitizeErrorMessage(error),
       });
       return { results: [], total: 0, query: { referencePartId } };

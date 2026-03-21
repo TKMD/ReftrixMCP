@@ -6,8 +6,8 @@
  * StdioServerTransportのラッパー
  */
 
-import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
-import { logger, isDevelopment } from './utils/logger';
+import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+import { logger, isDevelopment } from "./utils/logger";
 
 /**
  * StdIOトランスポートを作成
@@ -15,13 +15,13 @@ import { logger, isDevelopment } from './utils/logger';
  */
 export function createTransport(): StdioServerTransport {
   if (isDevelopment()) {
-    logger.info('Creating StdIO transport');
+    logger.info("Creating StdIO transport");
   }
 
   const transport = new StdioServerTransport();
 
   if (isDevelopment()) {
-    logger.info('StdIO transport created successfully');
+    logger.info("StdIO transport created successfully");
   }
 
   return transport;

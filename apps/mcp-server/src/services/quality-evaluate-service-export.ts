@@ -12,9 +12,9 @@ import type {
   QualityEvaluatorService,
   QualityEvaluatorOptions,
   QualityEvaluatorResult,
-} from './page/quality-evaluator.service';
-import { getQualityEvaluatorService } from './page/quality-evaluator.service';
-import { logger } from '../utils/logger';
+} from "./page/quality-evaluator.service";
+import { getQualityEvaluatorService } from "./page/quality-evaluator.service";
+import { logger } from "../utils/logger";
 
 // =====================================================
 // Types
@@ -27,11 +27,13 @@ export interface QualityEvaluateOptions {
   /** strictモード */
   strict?: boolean | undefined;
   /** 重み付け */
-  weights?: {
-    originality?: number | undefined;
-    craftsmanship?: number | undefined;
-    contextuality?: number | undefined;
-  } | undefined;
+  weights?:
+    | {
+        originality?: number | undefined;
+        craftsmanship?: number | undefined;
+        contextuality?: number | undefined;
+      }
+    | undefined;
   /** 業界 */
   targetIndustry?: string | undefined;
   /** ターゲットオーディエンス */
@@ -91,13 +93,13 @@ export interface QualityEvaluateData {
   cliches?: Array<{
     type: string;
     description: string;
-    severity: 'high' | 'medium' | 'low';
+    severity: "high" | "medium" | "low";
   }>;
   /** 推奨事項 */
   recommendations?: Array<{
     id: string;
     category: string;
-    priority: 'high' | 'medium' | 'low';
+    priority: "high" | "medium" | "low";
     title: string;
     description: string;
   }>;
@@ -117,10 +119,7 @@ export interface QualityEvaluateErrorInfo {
 // Re-export types from service
 // =====================================================
 
-export type {
-  QualityEvaluatorOptions,
-  QualityEvaluatorResult,
-};
+export type { QualityEvaluatorOptions, QualityEvaluatorResult };
 
 // =====================================================
 // Service singleton
@@ -165,7 +164,7 @@ function getServiceInstance(): QualityEvaluatorService {
 export async function executeQualityEvaluate(
   input: QualityEvaluateInput
 ): Promise<QualityEvaluateOutput> {
-  logger.debug('[executeQualityEvaluate] Called', {
+  logger.debug("[executeQualityEvaluate] Called", {
     htmlLength: input.html.length,
     options: input.options,
   });
@@ -174,21 +173,29 @@ export async function executeQualityEvaluate(
     const service = getServiceInstance();
 
     // undefinedプロパティを除外してQualityEvaluatorOptionsに変換
-    const cleanOptions: QualityEvaluatorOptions | undefined = input.options ? ((): QualityEvaluatorOptions | undefined => {
-      const opts: QualityEvaluatorOptions = {};
-      if (input.options!.strict !== undefined) opts.strict = input.options!.strict;
-      if (input.options!.includeRecommendations !== undefined) opts.includeRecommendations = input.options!.includeRecommendations;
-      if (input.options!.targetIndustry !== undefined) opts.targetIndustry = input.options!.targetIndustry;
-      if (input.options!.targetAudience !== undefined) opts.targetAudience = input.options!.targetAudience;
-      if (input.options!.weights !== undefined) {
-        const w: NonNullable<QualityEvaluatorOptions['weights']> = {};
-        if (input.options!.weights.originality !== undefined) w.originality = input.options!.weights.originality;
-        if (input.options!.weights.craftsmanship !== undefined) w.craftsmanship = input.options!.weights.craftsmanship;
-        if (input.options!.weights.contextuality !== undefined) w.contextuality = input.options!.weights.contextuality;
-        if (Object.keys(w).length > 0) opts.weights = w;
-      }
-      return Object.keys(opts).length > 0 ? opts : undefined;
-    })() : undefined;
+    const cleanOptions: QualityEvaluatorOptions | undefined = input.options
+      ? ((): QualityEvaluatorOptions | undefined => {
+          const opts: QualityEvaluatorOptions = {};
+          if (input.options!.strict !== undefined) opts.strict = input.options!.strict;
+          if (input.options!.includeRecommendations !== undefined)
+            opts.includeRecommendations = input.options!.includeRecommendations;
+          if (input.options!.targetIndustry !== undefined)
+            opts.targetIndustry = input.options!.targetIndustry;
+          if (input.options!.targetAudience !== undefined)
+            opts.targetAudience = input.options!.targetAudience;
+          if (input.options!.weights !== undefined) {
+            const w: NonNullable<QualityEvaluatorOptions["weights"]> = {};
+            if (input.options!.weights.originality !== undefined)
+              w.originality = input.options!.weights.originality;
+            if (input.options!.weights.craftsmanship !== undefined)
+              w.craftsmanship = input.options!.weights.craftsmanship;
+            if (input.options!.weights.contextuality !== undefined)
+              w.contextuality = input.options!.weights.contextuality;
+            if (Object.keys(w).length > 0) opts.weights = w;
+          }
+          return Object.keys(opts).length > 0 ? opts : undefined;
+        })()
+      : undefined;
 
     const result = await service.evaluate(input.html, cleanOptions);
 
@@ -196,8 +203,8 @@ export async function executeQualityEvaluate(
       return {
         success: false,
         error: result.error ?? {
-          code: 'QUALITY_EVALUATION_FAILED',
-          message: 'Quality evaluation failed',
+          code: "QUALITY_EVALUATION_FAILED",
+          message: "Quality evaluation failed",
         },
       };
     }
@@ -228,7 +235,7 @@ export async function executeQualityEvaluate(
       data.recommendations = result.recommendations;
     }
 
-    logger.debug('[executeQualityEvaluate] Success', {
+    logger.debug("[executeQualityEvaluate] Success", {
       overallScore: data.overallScore,
       grade: data.grade,
       clicheCount: data.clicheCount,
@@ -239,15 +246,15 @@ export async function executeQualityEvaluate(
       data,
     };
   } catch (error) {
-    if (process.env.NODE_ENV === 'development') {
-      console.error('[executeQualityEvaluate] Error', error);
+    if (process.env.NODE_ENV === "development") {
+      console.error("[executeQualityEvaluate] Error", error);
     }
 
     return {
       success: false,
       error: {
-        code: 'QUALITY_EVALUATION_ERROR',
-        message: error instanceof Error ? error.message : 'Unknown error',
+        code: "QUALITY_EVALUATION_ERROR",
+        message: error instanceof Error ? error.message : "Unknown error",
       },
     };
   }

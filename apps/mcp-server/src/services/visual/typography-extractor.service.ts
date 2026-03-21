@@ -18,7 +18,7 @@
  * @module services/visual/typography-extractor.service
  */
 
-import { logger } from '../../utils/logger';
+import { logger } from "../../utils/logger";
 
 /**
  * Font family information
@@ -31,7 +31,7 @@ export interface FontFamily {
   /** Fallback fonts */
   fallbacks: string[];
   /** Font category */
-  category: 'serif' | 'sans-serif' | 'monospace' | 'display' | 'cursive' | 'system';
+  category: "serif" | "sans-serif" | "monospace" | "display" | "cursive" | "system";
   /** Whether it's a system font stack */
   isSystemFont?: boolean;
   /** Whether it's a Google Font */
@@ -164,30 +164,66 @@ export interface TypographyExtractorService {
 
 // Common Google Fonts list for detection
 const GOOGLE_FONTS = new Set([
-  'Roboto', 'Open Sans', 'Lato', 'Montserrat', 'Oswald', 'Source Sans Pro',
-  'Raleway', 'PT Sans', 'Merriweather', 'Ubuntu', 'Playfair Display', 'Poppins',
-  'Noto Sans', 'Nunito', 'Rubik', 'Work Sans', 'Fira Sans', 'Inter', 'Mukta',
-  'Quicksand', 'Libre Franklin', 'Karla', 'Josefin Sans', 'Cabin', 'Barlow',
-  'DM Sans', 'Manrope', 'Space Grotesk', 'Plus Jakarta Sans', 'Outfit',
-  'JetBrains Mono', 'Fira Code', 'Source Code Pro', 'IBM Plex Mono',
+  "Roboto",
+  "Open Sans",
+  "Lato",
+  "Montserrat",
+  "Oswald",
+  "Source Sans Pro",
+  "Raleway",
+  "PT Sans",
+  "Merriweather",
+  "Ubuntu",
+  "Playfair Display",
+  "Poppins",
+  "Noto Sans",
+  "Nunito",
+  "Rubik",
+  "Work Sans",
+  "Fira Sans",
+  "Inter",
+  "Mukta",
+  "Quicksand",
+  "Libre Franklin",
+  "Karla",
+  "Josefin Sans",
+  "Cabin",
+  "Barlow",
+  "DM Sans",
+  "Manrope",
+  "Space Grotesk",
+  "Plus Jakarta Sans",
+  "Outfit",
+  "JetBrains Mono",
+  "Fira Code",
+  "Source Code Pro",
+  "IBM Plex Mono",
 ]);
 
 // System font stacks
 const SYSTEM_FONTS = new Set([
-  'system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI',
-  'Helvetica Neue', 'Arial', 'Noto Sans', 'sans-serif', 'serif', 'monospace',
+  "system-ui",
+  "-apple-system",
+  "BlinkMacSystemFont",
+  "Segoe UI",
+  "Helvetica Neue",
+  "Arial",
+  "Noto Sans",
+  "sans-serif",
+  "serif",
+  "monospace",
 ]);
 
 // Type scale names and ratios
 const TYPE_SCALES: Array<{ name: string; ratio: number }> = [
-  { name: 'Minor Second', ratio: 1.067 },
-  { name: 'Major Second', ratio: 1.125 },
-  { name: 'Minor Third', ratio: 1.2 },
-  { name: 'Major Third', ratio: 1.25 },
-  { name: 'Perfect Fourth', ratio: 1.333 },
-  { name: 'Augmented Fourth', ratio: 1.414 },
-  { name: 'Perfect Fifth', ratio: 1.5 },
-  { name: 'Golden Ratio', ratio: 1.618 },
+  { name: "Minor Second", ratio: 1.067 },
+  { name: "Major Second", ratio: 1.125 },
+  { name: "Minor Third", ratio: 1.2 },
+  { name: "Major Third", ratio: 1.25 },
+  { name: "Perfect Fourth", ratio: 1.333 },
+  { name: "Augmented Fourth", ratio: 1.414 },
+  { name: "Perfect Fifth", ratio: 1.5 },
+  { name: "Golden Ratio", ratio: 1.618 },
 ];
 
 // Regex patterns
@@ -204,28 +240,30 @@ const CSS_FONT_VARIABLE_PATTERN = /--(font-[a-zA-Z0-9-]+)\s*:\s*([^;]+)/gi;
 /**
  * Parse font family string to extract primary and fallbacks
  */
-function parseFontFamily(fontFamilyValue: string): { primary: string; fallbacks: string[]; category: FontFamily['category'] } {
-  const fonts = fontFamilyValue
-    .split(',')
-    .map(f => f.trim().replace(/^['"]|['"]$/g, ''));
+function parseFontFamily(fontFamilyValue: string): {
+  primary: string;
+  fallbacks: string[];
+  category: FontFamily["category"];
+} {
+  const fonts = fontFamilyValue.split(",").map((f) => f.trim().replace(/^['"]|['"]$/g, ""));
 
-  const primary = fonts[0] ?? '';
+  const primary = fonts[0] ?? "";
   const fallbacks = fonts.slice(1);
 
   // Determine category from last fallback (generic family) or primary
-  const lastFont = fonts[fonts.length - 1]?.toLowerCase() ?? '';
-  let category: FontFamily['category'] = 'sans-serif';
+  const lastFont = fonts[fonts.length - 1]?.toLowerCase() ?? "";
+  let category: FontFamily["category"] = "sans-serif";
 
-  if (lastFont === 'serif') {
-    category = 'serif';
-  } else if (lastFont === 'monospace') {
-    category = 'monospace';
-  } else if (lastFont === 'cursive') {
-    category = 'cursive';
-  } else if (lastFont === 'fantasy' || lastFont === 'display') {
-    category = 'display';
-  } else if (lastFont === 'system-ui' || primary.toLowerCase() === 'system-ui') {
-    category = 'system';
+  if (lastFont === "serif") {
+    category = "serif";
+  } else if (lastFont === "monospace") {
+    category = "monospace";
+  } else if (lastFont === "cursive") {
+    category = "cursive";
+  } else if (lastFont === "fantasy" || lastFont === "display") {
+    category = "display";
+  } else if (lastFont === "system-ui" || primary.toLowerCase() === "system-ui") {
+    category = "system";
   }
 
   return { primary, fallbacks, category };
@@ -265,11 +303,13 @@ function parseSizeToRem(size: string): number | null {
 /**
  * Detect type scale from font sizes
  */
-function detectTypeScale(hierarchy: FontSizeHierarchy): { ratio: number; name: string } | undefined {
+function detectTypeScale(
+  hierarchy: FontSizeHierarchy
+): { ratio: number; name: string } | undefined {
   const sizes: number[] = [];
 
   // Extract sizes in order from h6 to h1
-  const sizeOrder = ['h6', 'h5', 'h4', 'h3', 'h2', 'h1'] as const;
+  const sizeOrder = ["h6", "h5", "h4", "h3", "h2", "h1"] as const;
 
   for (const key of sizeOrder) {
     const size = hierarchy[key];
@@ -317,7 +357,7 @@ function detectTypeScale(hierarchy: FontSizeHierarchy): { ratio: number; name: s
     return { ratio: closest.ratio, name: closest.name };
   }
 
-  return { ratio: avgRatio, name: 'Custom' };
+  return { ratio: avgRatio, name: "Custom" };
 }
 
 /**
@@ -327,7 +367,7 @@ class TypographyExtractorServiceImpl implements TypographyExtractorService {
   extractFromCSS(css: string): TypographyExtractionResult {
     const startTime = Date.now();
 
-    if (!css || typeof css !== 'string') {
+    if (!css || typeof css !== "string") {
       return this.emptyResult(Date.now() - startTime);
     }
 
@@ -339,11 +379,11 @@ class TypographyExtractorServiceImpl implements TypographyExtractorService {
     let fontWeightRange: FontWeightRange | undefined;
 
     // Extract @font-face for variable fonts
-    const fontFaceRegex = new RegExp(FONT_FACE_PATTERN.source, 'gi');
+    const fontFaceRegex = new RegExp(FONT_FACE_PATTERN.source, "gi");
     let fontFaceMatch;
 
     while ((fontFaceMatch = fontFaceRegex.exec(css)) !== null) {
-      const block = fontFaceMatch[1] ?? '';
+      const block = fontFaceMatch[1] ?? "";
 
       // Get font family name
       const familyMatch = block.match(/font-family\s*:\s*['"]?([^'";]+)/i);
@@ -363,18 +403,18 @@ class TypographyExtractorServiceImpl implements TypographyExtractorService {
     }
 
     // Extract CSS blocks
-    const selectorBlockRegex = new RegExp(CSS_SELECTOR_BLOCK_PATTERN.source, 'g');
+    const selectorBlockRegex = new RegExp(CSS_SELECTOR_BLOCK_PATTERN.source, "g");
     let blockMatch;
 
     while ((blockMatch = selectorBlockRegex.exec(css)) !== null) {
-      const selector = blockMatch[1]?.trim() ?? '';
-      const block = blockMatch[2] ?? '';
+      const selector = blockMatch[1]?.trim() ?? "";
+      const block = blockMatch[2] ?? "";
 
       const style: TypographyStyle = { selector };
 
       // Extract font-family from CSS custom properties (e.g., --font-sans: 'Inter', sans-serif)
       // This handles :root { --font-sans: 'Inter', system-ui, sans-serif; }
-      const fontVariableRegex = new RegExp(CSS_FONT_VARIABLE_PATTERN.source, 'gi');
+      const fontVariableRegex = new RegExp(CSS_FONT_VARIABLE_PATTERN.source, "gi");
       let fontVarMatch;
       while ((fontVarMatch = fontVariableRegex.exec(block)) !== null) {
         const varValue = fontVarMatch[2]?.trim();
@@ -433,28 +473,32 @@ class TypographyExtractorServiceImpl implements TypographyExtractorService {
         if (clampMatch) {
           responsiveTypography.push({
             selector,
-            min: clampMatch[1]?.trim() ?? '',
-            preferred: clampMatch[2]?.trim() ?? '',
-            max: clampMatch[3]?.trim() ?? '',
+            min: clampMatch[1]?.trim() ?? "",
+            preferred: clampMatch[2]?.trim() ?? "",
+            max: clampMatch[3]?.trim() ?? "",
             isResponsive: true,
           });
         }
 
         // Update hierarchy for heading/body selectors
         const selectorLower = selector.toLowerCase();
-        if (selectorLower === 'h1' || selectorLower.startsWith('h1,') || selectorLower.includes(' h1')) {
+        if (
+          selectorLower === "h1" ||
+          selectorLower.startsWith("h1,") ||
+          selectorLower.includes(" h1")
+        ) {
           fontSizeHierarchy.h1 = value;
-        } else if (selectorLower === 'h2' || selectorLower.startsWith('h2,')) {
+        } else if (selectorLower === "h2" || selectorLower.startsWith("h2,")) {
           fontSizeHierarchy.h2 = value;
-        } else if (selectorLower === 'h3' || selectorLower.startsWith('h3,')) {
+        } else if (selectorLower === "h3" || selectorLower.startsWith("h3,")) {
           fontSizeHierarchy.h3 = value;
-        } else if (selectorLower === 'h4' || selectorLower.startsWith('h4,')) {
+        } else if (selectorLower === "h4" || selectorLower.startsWith("h4,")) {
           fontSizeHierarchy.h4 = value;
-        } else if (selectorLower === 'h5' || selectorLower.startsWith('h5,')) {
+        } else if (selectorLower === "h5" || selectorLower.startsWith("h5,")) {
           fontSizeHierarchy.h5 = value;
-        } else if (selectorLower === 'h6' || selectorLower.startsWith('h6,')) {
+        } else if (selectorLower === "h6" || selectorLower.startsWith("h6,")) {
           fontSizeHierarchy.h6 = value;
-        } else if (selectorLower === 'body' || selectorLower === 'p' || selectorLower === 'html') {
+        } else if (selectorLower === "body" || selectorLower === "p" || selectorLower === "html") {
           fontSizeHierarchy.body = value;
         }
       }
@@ -478,8 +522,13 @@ class TypographyExtractorServiceImpl implements TypographyExtractorService {
       }
 
       // Only add to styles if we found any typography properties
-      if (style.fontFamily || style.fontSize || style.fontWeight ||
-          style.lineHeight || style.letterSpacing) {
+      if (
+        style.fontFamily ||
+        style.fontSize ||
+        style.fontWeight ||
+        style.lineHeight ||
+        style.letterSpacing
+      ) {
         styles.push(style);
       }
     }
@@ -487,7 +536,7 @@ class TypographyExtractorServiceImpl implements TypographyExtractorService {
     // Detect type scale
     const scaleInfo = detectTypeScale(fontSizeHierarchy);
 
-    logger.debug('[TypographyExtractor] extractFromCSS:', {
+    logger.debug("[TypographyExtractor] extractFromCSS:", {
       fontFamiliesCount: fontFamilies.length,
       stylesCount: styles.length,
       responsiveCount: responsiveTypography.length,
@@ -523,31 +572,31 @@ class TypographyExtractorServiceImpl implements TypographyExtractorService {
   extractFromHTML(html: string): TypographyExtractionResult {
     const startTime = Date.now();
 
-    if (!html || typeof html !== 'string') {
+    if (!html || typeof html !== "string") {
       return this.emptyResult(Date.now() - startTime);
     }
 
-    let combinedCss = '';
+    let combinedCss = "";
     const inlineStyles: InlineTypographyStyle[] = [];
     const googleFontsUsed: string[] = [];
     const googleFontsWeights: Record<string, string[]> = {};
 
     // Extract CSS from <style> tags
-    const styleTagRegex = new RegExp(STYLE_TAG_PATTERN.source, 'gi');
+    const styleTagRegex = new RegExp(STYLE_TAG_PATTERN.source, "gi");
     let styleMatch;
 
     while ((styleMatch = styleTagRegex.exec(html)) !== null) {
       if (styleMatch[1]) {
-        combinedCss += styleMatch[1] + '\n';
+        combinedCss += styleMatch[1] + "\n";
       }
     }
 
     // Extract inline styles
-    const inlineRegex = new RegExp(INLINE_STYLE_PATTERN.source, 'gi');
+    const inlineRegex = new RegExp(INLINE_STYLE_PATTERN.source, "gi");
     let inlineMatch;
 
     while ((inlineMatch = inlineRegex.exec(html)) !== null) {
-      const styleValue = inlineMatch[1] ?? '';
+      const styleValue = inlineMatch[1] ?? "";
 
       const inlineStyle: InlineTypographyStyle = {};
 
@@ -577,7 +626,7 @@ class TypographyExtractorServiceImpl implements TypographyExtractorService {
     }
 
     // Detect Google Fonts from <link> tags
-    const googleFontsRegex = new RegExp(GOOGLE_FONTS_LINK_PATTERN.source, 'gi');
+    const googleFontsRegex = new RegExp(GOOGLE_FONTS_LINK_PATTERN.source, "gi");
     let googleMatch;
 
     while ((googleMatch = googleFontsRegex.exec(html)) !== null) {
@@ -585,19 +634,19 @@ class TypographyExtractorServiceImpl implements TypographyExtractorService {
       if (fontSpec) {
         // Parse font family and weights from URL
         // Format: family=Inter:wght@400;500;600;700
-        const families = decodeURIComponent(fontSpec).split('&family=');
+        const families = decodeURIComponent(fontSpec).split("&family=");
 
         for (const family of families) {
-          const [name, weightSpec] = family.split(':');
+          const [name, weightSpec] = family.split(":");
           if (name) {
-            const fontName = name.replace(/\+/g, ' ');
+            const fontName = name.replace(/\+/g, " ");
             googleFontsUsed.push(fontName);
 
             // Extract weights
             if (weightSpec) {
               const weightsMatch = weightSpec.match(/wght@([\d;]+)/);
               if (weightsMatch?.[1]) {
-                googleFontsWeights[fontName] = weightsMatch[1].split(';');
+                googleFontsWeights[fontName] = weightsMatch[1].split(";");
               }
             }
           }
@@ -626,7 +675,7 @@ class TypographyExtractorServiceImpl implements TypographyExtractorService {
   extract(html: string, externalCss?: string): TypographyExtractionResult {
     const startTime = Date.now();
 
-    const htmlResult = this.extractFromHTML(html ?? '');
+    const htmlResult = this.extractFromHTML(html ?? "");
     const cssResult = externalCss ? this.extractFromCSS(externalCss) : this.emptyResult(0);
 
     // Merge font families
@@ -666,10 +715,7 @@ class TypographyExtractorServiceImpl implements TypographyExtractorService {
       fontFamilies: [...fontFamilyMap.values()],
       fontSizeHierarchy: mergedHierarchy,
       styles: [...styleMap.values()],
-      responsiveTypography: [
-        ...htmlResult.responsiveTypography,
-        ...cssResult.responsiveTypography,
-      ],
+      responsiveTypography: [...htmlResult.responsiveTypography, ...cssResult.responsiveTypography],
       inlineStyles: htmlResult.inlineStyles,
       variableFonts: [...new Set([...htmlResult.variableFonts, ...cssResult.variableFonts])],
       googleFontsUsed: htmlResult.googleFontsUsed,

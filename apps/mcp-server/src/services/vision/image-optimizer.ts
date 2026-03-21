@@ -15,8 +15,8 @@
  * @see apps/mcp-server/tests/services/vision/image-optimizer.test.ts
  */
 
-import sharp from 'sharp';
-import { HardwareType } from './hardware-detector.js';
+import sharp from "sharp";
+import { HardwareType } from "./hardware-detector.js";
 
 // =============================================================================
 // 定数
@@ -37,11 +37,11 @@ export const IMAGE_SIZE_THRESHOLDS = {
  */
 export enum OptimizationStrategy {
   /** 最適化なし */
-  NONE = 'NONE',
+  NONE = "NONE",
   /** 中程度の最適化（1024x1024、品質80%） */
-  MEDIUM = 'MEDIUM',
+  MEDIUM = "MEDIUM",
   /** 積極的な最適化（768x768、品質70%） */
-  AGGRESSIVE = 'AGGRESSIVE',
+  AGGRESSIVE = "AGGRESSIVE",
 }
 
 /**
@@ -91,7 +91,7 @@ export interface OptimizeOptions {
   /** 戦略を強制（自動選択をスキップ） */
   forceStrategy?: OptimizationStrategy;
   /** 出力フォーマット（デフォルト: jpeg） */
-  outputFormat?: 'jpeg' | 'png';
+  outputFormat?: "jpeg" | "png";
 }
 
 /**
@@ -178,10 +178,7 @@ export class ImageOptimizer {
    * @param imageSizeBytes - 画像サイズ（バイト）
    * @returns 最適化戦略
    */
-  selectStrategy(
-    hardwareType: HardwareType,
-    imageSizeBytes: number
-  ): OptimizationStrategy {
+  selectStrategy(hardwareType: HardwareType, imageSizeBytes: number): OptimizationStrategy {
     // GPUは最適化不要
     if (hardwareType === HardwareType.GPU) {
       return OptimizationStrategy.NONE;
@@ -206,10 +203,7 @@ export class ImageOptimizer {
    * @param hardwareType - ハードウェアタイプ（GPU/CPU）
    * @returns 推定される最適サイズと戦略
    */
-  estimateOptimalSize(
-    imageSizeBytes: number,
-    hardwareType: HardwareType
-  ): ImageDimensions {
+  estimateOptimalSize(imageSizeBytes: number, hardwareType: HardwareType): ImageDimensions {
     const strategy = this.selectStrategy(hardwareType, imageSizeBytes);
     const config = OPTIMIZATION_CONFIGS[strategy];
 
@@ -228,10 +222,7 @@ export class ImageOptimizer {
    * @param options - 最適化オプション
    * @returns 最適化結果
    */
-  async optimizeForCPU(
-    input: Buffer | string,
-    options: OptimizeOptions
-  ): Promise<OptimizeResult> {
+  async optimizeForCPU(input: Buffer | string, options: OptimizeOptions): Promise<OptimizeResult> {
     const startTime = performance.now();
 
     // 入力をBufferに変換
@@ -240,7 +231,7 @@ export class ImageOptimizer {
       inputBuffer = this.toBuffer(input);
     } catch (error) {
       return this.createErrorResult(
-        typeof input === 'string' ? Buffer.from(input) : input,
+        typeof input === "string" ? Buffer.from(input) : input,
         startTime,
         `Invalid input: ${error instanceof Error ? error.message : String(error)}`
       );
@@ -250,7 +241,7 @@ export class ImageOptimizer {
 
     // 空のバッファをチェック
     if (originalSize === 0) {
-      return this.createErrorResult(inputBuffer, startTime, 'Empty buffer');
+      return this.createErrorResult(inputBuffer, startTime, "Empty buffer");
     }
 
     // 戦略を決定
@@ -259,7 +250,7 @@ export class ImageOptimizer {
 
     // 最適化不要の場合はスキップ
     if (strategy === OptimizationStrategy.NONE) {
-      return this.createSkippedResult(inputBuffer, startTime, 'No optimization needed');
+      return this.createSkippedResult(inputBuffer, startTime, "No optimization needed");
     }
 
     // 最適化を実行
@@ -267,7 +258,7 @@ export class ImageOptimizer {
       const optimized = await this.applyOptimization(
         inputBuffer,
         strategy,
-        options.outputFormat ?? 'jpeg'
+        options.outputFormat ?? "jpeg"
       );
       const endTime = performance.now();
 
@@ -306,8 +297,8 @@ export class ImageOptimizer {
 
     // Base64文字列として解釈
     // data:image/...;base64, プレフィックスを除去
-    const base64Data = input.replace(/^data:image\/[a-z]+;base64,/, '');
-    return Buffer.from(base64Data, 'base64');
+    const base64Data = input.replace(/^data:image\/[a-z]+;base64,/, "");
+    return Buffer.from(base64Data, "base64");
   }
 
   /**
@@ -316,7 +307,7 @@ export class ImageOptimizer {
   private async applyOptimization(
     buffer: Buffer,
     strategy: OptimizationStrategy,
-    outputFormat: 'jpeg' | 'png'
+    outputFormat: "jpeg" | "png"
   ): Promise<{ buffer: Buffer; width: number; height: number }> {
     const config = OPTIMIZATION_CONFIGS[strategy];
 
@@ -325,13 +316,13 @@ export class ImageOptimizer {
     // リサイズ（アスペクト比を維持）
     if (config.maxWidth && config.maxHeight) {
       pipeline = pipeline.resize(config.maxWidth, config.maxHeight, {
-        fit: 'inside',
+        fit: "inside",
         withoutEnlargement: true,
       });
     }
 
     // 出力フォーマットと品質を設定
-    if (outputFormat === 'jpeg') {
+    if (outputFormat === "jpeg") {
       pipeline = pipeline.jpeg({ quality: config.quality ?? 80 });
     } else {
       pipeline = pipeline.png({ compressionLevel: 6 });
@@ -351,11 +342,7 @@ export class ImageOptimizer {
   /**
    * スキップ結果を作成
    */
-  private createSkippedResult(
-    buffer: Buffer,
-    startTime: number,
-    reason: string
-  ): OptimizeResult {
+  private createSkippedResult(buffer: Buffer, startTime: number, reason: string): OptimizeResult {
     const endTime = performance.now();
 
     return {
@@ -373,11 +360,7 @@ export class ImageOptimizer {
   /**
    * エラー結果を作成（Graceful Degradation）
    */
-  private createErrorResult(
-    buffer: Buffer,
-    startTime: number,
-    error: string
-  ): OptimizeResult {
+  private createErrorResult(buffer: Buffer, startTime: number, error: string): OptimizeResult {
     const endTime = performance.now();
 
     return {

@@ -14,7 +14,13 @@
  * @module tests/tools/layout-search.test
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+
+// html-sanitizer をモック（JSDOM/DOMPurify初期化が重くCIでタイムアウトするため）
+vi.mock("../../src/utils/html-sanitizer", () => ({
+  sanitizeHtml: vi.fn((html: string) => html),
+  sanitizeHtmlWholeDocument: vi.fn((html: string) => html),
+}));
 
 import {
   layoutSearchHandler,
@@ -22,9 +28,9 @@ import {
   resetLayoutSearchServiceFactory,
   type LayoutSearchInput,
   type ILayoutSearchService,
-} from '../../src/tools/layout/search.tool';
+} from "../../src/tools/layout/search.tool";
 
-import { layoutSearchInputSchema } from '../../src/tools/layout/schemas';
+import { layoutSearchInputSchema } from "../../src/tools/layout/schemas";
 
 // =====================================================
 // テストデータ
@@ -54,7 +60,7 @@ const LARGE_HTML_SNIPPET = `
     </div>
   </div>
   <!-- 大きなHTMLを模擬するための繰り返しコンテンツ -->
-  ${Array(500).fill('<div class="spacer" style="padding: 10px; margin: 5px; border: 1px solid #ccc;">Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.</div>').join('\n')}
+  ${Array(500).fill('<div class="spacer" style="padding: 10px; margin: 5px; border: 1px solid #ccc;">Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.</div>').join("\n")}
 </section>
 `.trim();
 
@@ -70,20 +76,20 @@ const createMockResultWithHtml = (id: string, sectionType: string) => ({
   similarity: 0.95,
   layoutInfo: {
     type: sectionType,
-    heading: 'Test Heading',
-    description: 'Test description for this section',
-    grid: { columns: 2, gap: '24px' },
+    heading: "Test Heading",
+    description: "Test description for this section",
+    grid: { columns: 2, gap: "24px" },
   },
   visualFeatures: {
-    colors: { dominant: '#3B82F6', background: '#FFFFFF' },
+    colors: { dominant: "#3B82F6", background: "#FFFFFF" },
   },
   htmlSnippet: LARGE_HTML_SNIPPET,
   webPage: {
     id: `wp-${id}`,
     url: `https://example.com/page-${id}`,
     title: `Example Page ${id}`,
-    sourceType: 'award_gallery',
-    usageScope: 'inspiration_only',
+    sourceType: "award_gallery",
+    usageScope: "inspiration_only",
     screenshotDesktopUrl: `https://example.com/screenshot-${id}.png`,
   },
 });
@@ -100,19 +106,19 @@ const createMockResultWithoutHtml = (id: string, sectionType: string) => ({
   similarity: 0.95,
   layoutInfo: {
     type: sectionType,
-    heading: 'Test Heading',
-    description: 'Test description for this section',
+    heading: "Test Heading",
+    description: "Test description for this section",
   },
   visualFeatures: {
-    colors: { dominant: '#3B82F6' },
+    colors: { dominant: "#3B82F6" },
   },
   // htmlSnippet は含まない
   webPage: {
     id: `wp-${id}`,
     url: `https://example.com/page-${id}`,
     title: `Example Page ${id}`,
-    sourceType: 'award_gallery',
-    usageScope: 'inspiration_only',
+    sourceType: "award_gallery",
+    usageScope: "inspiration_only",
     screenshotDesktopUrl: null,
   },
 });
@@ -134,12 +140,12 @@ function createMockService(overrides?: Partial<ILayoutSearchService>): ILayoutSe
       const includeHtml = options.include_html ?? false;
       const results = includeHtml
         ? [
-            createMockResultWithHtml('11111111-1111-1111-1111-111111111111', 'hero'),
-            createMockResultWithHtml('22222222-2222-2222-2222-222222222222', 'feature'),
+            createMockResultWithHtml("11111111-1111-1111-1111-111111111111", "hero"),
+            createMockResultWithHtml("22222222-2222-2222-2222-222222222222", "feature"),
           ]
         : [
-            createMockResultWithoutHtml('11111111-1111-1111-1111-111111111111', 'hero'),
-            createMockResultWithoutHtml('22222222-2222-2222-2222-222222222222', 'feature'),
+            createMockResultWithoutHtml("11111111-1111-1111-1111-111111111111", "hero"),
+            createMockResultWithoutHtml("22222222-2222-2222-2222-222222222222", "feature"),
           ];
 
       return Promise.resolve({
@@ -155,7 +161,7 @@ function createMockService(overrides?: Partial<ILayoutSearchService>): ILayoutSe
 // includeHtml デフォルト値テスト
 // =====================================================
 
-describe('layout.search - includeHtml デフォルト値', { timeout: 180000 }, () => {
+describe("layout.search - includeHtml デフォルト値", { timeout: 180000 }, () => {
   beforeEach(() => {
     resetLayoutSearchServiceFactory();
   });
@@ -164,10 +170,10 @@ describe('layout.search - includeHtml デフォルト値', { timeout: 180000 }, 
     resetLayoutSearchServiceFactory();
   });
 
-  describe('スキーマレベルのデフォルト値', () => {
-    it('include_html/includeHtml を指定しない場合、スキーマレベルでは undefined（ハンドラーで false として扱われる）', () => {
+  describe("スキーマレベルのデフォルト値", () => {
+    it("include_html/includeHtml を指定しない場合、スキーマレベルでは undefined（ハンドラーで false として扱われる）", () => {
       // クエリのみを指定した入力
-      const input = { query: 'hero section' };
+      const input = { query: "hero section" };
       const result = layoutSearchInputSchema.safeParse(input);
 
       expect(result.success).toBe(true);
@@ -178,8 +184,8 @@ describe('layout.search - includeHtml デフォルト値', { timeout: 180000 }, 
       }
     });
 
-    it('include_html: undefined の場合、スキーマレベルでは undefined', () => {
-      const input = { query: 'feature grid', include_html: undefined };
+    it("include_html: undefined の場合、スキーマレベルでは undefined", () => {
+      const input = { query: "feature grid", include_html: undefined };
       const result = layoutSearchInputSchema.safeParse(input);
 
       expect(result.success).toBe(true);
@@ -188,8 +194,8 @@ describe('layout.search - includeHtml デフォルト値', { timeout: 180000 }, 
       }
     });
 
-    it('include_html: true を明示的に指定した場合、true になる', () => {
-      const input = { query: 'cta section', include_html: true };
+    it("include_html: true を明示的に指定した場合、true になる", () => {
+      const input = { query: "cta section", include_html: true };
       const result = layoutSearchInputSchema.safeParse(input);
 
       expect(result.success).toBe(true);
@@ -198,8 +204,8 @@ describe('layout.search - includeHtml デフォルト値', { timeout: 180000 }, 
       }
     });
 
-    it('include_html: false を明示的に指定した場合、false になる', () => {
-      const input = { query: 'footer section', include_html: false };
+    it("include_html: false を明示的に指定した場合、false になる", () => {
+      const input = { query: "footer section", include_html: false };
       const result = layoutSearchInputSchema.safeParse(input);
 
       expect(result.success).toBe(true);
@@ -208,8 +214,8 @@ describe('layout.search - includeHtml デフォルト値', { timeout: 180000 }, 
       }
     });
 
-    it('includeHtml: true（レガシー形式）を指定した場合、true になる', () => {
-      const input = { query: 'cta section', includeHtml: true };
+    it("includeHtml: true（レガシー形式）を指定した場合、true になる", () => {
+      const input = { query: "cta section", includeHtml: true };
       const result = layoutSearchInputSchema.safeParse(input);
 
       expect(result.success).toBe(true);
@@ -219,12 +225,12 @@ describe('layout.search - includeHtml デフォルト値', { timeout: 180000 }, 
     });
   });
 
-  describe('ハンドラーレベルのデフォルト動作', () => {
-    it('include_html を指定しない場合、サービスに include_html: false が渡される', async () => {
+  describe("ハンドラーレベルのデフォルト動作", () => {
+    it("include_html を指定しない場合、サービスに include_html: false が渡される", async () => {
       const mockService = createMockService();
       setLayoutSearchServiceFactory(() => mockService);
 
-      const input: LayoutSearchInput = { query: 'hero section' };
+      const input: LayoutSearchInput = { query: "hero section" };
       await layoutSearchHandler(input);
 
       // MCP-RESP-03: サービスに include_html: false が渡されることを検証
@@ -236,11 +242,11 @@ describe('layout.search - includeHtml デフォルト値', { timeout: 180000 }, 
       );
     });
 
-    it('include_html: false の場合、結果に html フィールドが含まれない', async () => {
+    it("include_html: false の場合、結果に html フィールドが含まれない", async () => {
       const mockService = createMockService();
       setLayoutSearchServiceFactory(() => mockService);
 
-      const input: LayoutSearchInput = { query: 'hero section', include_html: false };
+      const input: LayoutSearchInput = { query: "hero section", include_html: false };
       const result = await layoutSearchHandler(input);
 
       expect(result.success).toBe(true);
@@ -252,11 +258,11 @@ describe('layout.search - includeHtml デフォルト値', { timeout: 180000 }, 
       }
     });
 
-    it('include_html: true の場合、結果に html フィールドが含まれる', async () => {
+    it("include_html: true の場合、結果に html フィールドが含まれる", async () => {
       const mockService = createMockService();
       setLayoutSearchServiceFactory(() => mockService);
 
-      const input: LayoutSearchInput = { query: 'hero section', include_html: true };
+      const input: LayoutSearchInput = { query: "hero section", include_html: true };
       const result = await layoutSearchHandler(input);
 
       expect(result.success).toBe(true);
@@ -267,11 +273,11 @@ describe('layout.search - includeHtml デフォルト値', { timeout: 180000 }, 
       }
     });
 
-    it('includeHtml: true（レガシー形式）の場合も、結果に html フィールドが含まれる', async () => {
+    it("includeHtml: true（レガシー形式）の場合も、結果に html フィールドが含まれる", async () => {
       const mockService = createMockService();
       setLayoutSearchServiceFactory(() => mockService);
 
-      const input: LayoutSearchInput = { query: 'hero section', includeHtml: true };
+      const input: LayoutSearchInput = { query: "hero section", includeHtml: true };
       const result = await layoutSearchHandler(input);
 
       expect(result.success).toBe(true);
@@ -288,7 +294,7 @@ describe('layout.search - includeHtml デフォルト値', { timeout: 180000 }, 
 // レスポンスサイズテスト
 // =====================================================
 
-describe('layout.search - レスポンスサイズ', { timeout: 120000 }, () => {
+describe("layout.search - レスポンスサイズ", { timeout: 120000 }, () => {
   beforeEach(() => {
     resetLayoutSearchServiceFactory();
   });
@@ -303,15 +309,15 @@ describe('layout.search - レスポンスサイズ', { timeout: 120000 }, () => 
    */
   const calculateResponseSize = (response: unknown): number => {
     const jsonString = JSON.stringify(response);
-    return Buffer.byteLength(jsonString, 'utf8');
+    return Buffer.byteLength(jsonString, "utf8");
   };
 
-  describe('include_html: false の場合のサイズ制限', () => {
-    it('各結果のサイズが 5KB 未満である', async () => {
+  describe("include_html: false の場合のサイズ制限", () => {
+    it("各結果のサイズが 5KB 未満である", async () => {
       const mockService = createMockService();
       setLayoutSearchServiceFactory(() => mockService);
 
-      const input: LayoutSearchInput = { query: 'hero section', include_html: false };
+      const input: LayoutSearchInput = { query: "hero section", include_html: false };
       const result = await layoutSearchHandler(input);
 
       expect(result.success).toBe(true);
@@ -324,19 +330,22 @@ describe('layout.search - レスポンスサイズ', { timeout: 120000 }, () => 
       }
     });
 
-    it('10件の結果の合計サイズが 50KB 未満である', async () => {
+    it("10件の結果の合計サイズが 50KB 未満である", async () => {
       // 10件の結果を返すモックサービス
       const mockService = createMockService({
         searchSectionPatterns: vi.fn().mockResolvedValue({
           results: Array.from({ length: 10 }, (_, i) =>
-            createMockResultWithoutHtml(`${i}`.padStart(8, '0') + '-0000-0000-0000-000000000000', 'hero')
+            createMockResultWithoutHtml(
+              `${i}`.padStart(8, "0") + "-0000-0000-0000-000000000000",
+              "hero"
+            )
           ),
           total: 10,
         }),
       });
       setLayoutSearchServiceFactory(() => mockService);
 
-      const input: LayoutSearchInput = { query: 'hero section', include_html: false, limit: 10 };
+      const input: LayoutSearchInput = { query: "hero section", include_html: false, limit: 10 };
       const result = await layoutSearchHandler(input);
 
       expect(result.success).toBe(true);
@@ -347,12 +356,12 @@ describe('layout.search - レスポンスサイズ', { timeout: 120000 }, () => 
       }
     });
 
-    it('デフォルト（include_html 未指定）でも 5KB 未満である', async () => {
+    it("デフォルト（include_html 未指定）でも 5KB 未満である", async () => {
       const mockService = createMockService();
       setLayoutSearchServiceFactory(() => mockService);
 
       // include_html を指定しない（デフォルト動作）
-      const input: LayoutSearchInput = { query: 'hero section' };
+      const input: LayoutSearchInput = { query: "hero section" };
       const result = await layoutSearchHandler(input);
 
       expect(result.success).toBe(true);
@@ -366,12 +375,12 @@ describe('layout.search - レスポンスサイズ', { timeout: 120000 }, () => 
     });
   });
 
-  describe('include_html: true の場合のサイズ', () => {
-    it('各結果のサイズが 5KB 以上になり得る', async () => {
+  describe("include_html: true の場合のサイズ", () => {
+    it("各結果のサイズが 5KB 以上になり得る", async () => {
       const mockService = createMockService();
       setLayoutSearchServiceFactory(() => mockService);
 
-      const input: LayoutSearchInput = { query: 'hero section', include_html: true };
+      const input: LayoutSearchInput = { query: "hero section", include_html: true };
       const result = await layoutSearchHandler(input);
 
       expect(result.success).toBe(true);
@@ -385,16 +394,16 @@ describe('layout.search - レスポンスサイズ', { timeout: 120000 }, () => 
       }
     });
 
-    it('サイズ差が顕著である（include_html: true vs false）', async () => {
+    it("サイズ差が顕著である（include_html: true vs false）", async () => {
       const mockService = createMockService();
       setLayoutSearchServiceFactory(() => mockService);
 
       // include_html: false
-      const inputWithoutHtml: LayoutSearchInput = { query: 'hero section', include_html: false };
+      const inputWithoutHtml: LayoutSearchInput = { query: "hero section", include_html: false };
       const resultWithoutHtml = await layoutSearchHandler(inputWithoutHtml);
 
       // include_html: true
-      const inputWithHtml: LayoutSearchInput = { query: 'hero section', include_html: true };
+      const inputWithHtml: LayoutSearchInput = { query: "hero section", include_html: true };
       const resultWithHtml = await layoutSearchHandler(inputWithHtml);
 
       expect(resultWithoutHtml.success).toBe(true);
@@ -416,7 +425,7 @@ describe('layout.search - レスポンスサイズ', { timeout: 120000 }, () => 
 // htmlSnippet フィールドテスト
 // =====================================================
 
-describe('layout.search - htmlSnippet フィールド', { timeout: 120000 }, () => {
+describe("layout.search - htmlSnippet フィールド", { timeout: 120000 }, () => {
   beforeEach(() => {
     resetLayoutSearchServiceFactory();
   });
@@ -425,11 +434,11 @@ describe('layout.search - htmlSnippet フィールド', { timeout: 120000 }, () 
     resetLayoutSearchServiceFactory();
   });
 
-  it('include_html: false の場合、htmlSnippet は結果に含まれない', async () => {
+  it("include_html: false の場合、htmlSnippet は結果に含まれない", async () => {
     const mockService = createMockService();
     setLayoutSearchServiceFactory(() => mockService);
 
-    const input: LayoutSearchInput = { query: 'hero section', include_html: false };
+    const input: LayoutSearchInput = { query: "hero section", include_html: false };
     const result = await layoutSearchHandler(input);
 
     expect(result.success).toBe(true);
@@ -438,16 +447,16 @@ describe('layout.search - htmlSnippet フィールド', { timeout: 120000 }, () 
         // html フィールドが undefined であることを検証
         expect(item.html).toBeUndefined();
         // レスポンスに 'html' キーが存在しないことを検証
-        expect('html' in item).toBe(false);
+        expect("html" in item).toBe(false);
       }
     }
   });
 
-  it('include_html: true の場合、htmlSnippet が結果に含まれる', async () => {
+  it("include_html: true の場合、htmlSnippet が結果に含まれる", async () => {
     const mockService = createMockService();
     setLayoutSearchServiceFactory(() => mockService);
 
-    const input: LayoutSearchInput = { query: 'hero section', include_html: true };
+    const input: LayoutSearchInput = { query: "hero section", include_html: true };
     const result = await layoutSearchHandler(input);
 
     expect(result.success).toBe(true);
@@ -460,12 +469,12 @@ describe('layout.search - htmlSnippet フィールド', { timeout: 120000 }, () 
     }
   });
 
-  it('デフォルト（include_html 未指定）で htmlSnippet は含まれない', async () => {
+  it("デフォルト（include_html 未指定）で htmlSnippet は含まれない", async () => {
     const mockService = createMockService();
     setLayoutSearchServiceFactory(() => mockService);
 
     // include_html を指定しない（デフォルト動作）
-    const input: LayoutSearchInput = { query: 'hero section' };
+    const input: LayoutSearchInput = { query: "hero section" };
     const result = await layoutSearchHandler(input);
 
     expect(result.success).toBe(true);
@@ -477,14 +486,14 @@ describe('layout.search - htmlSnippet フィールド', { timeout: 120000 }, () 
     }
   });
 
-  it('空の htmlSnippet は結果に含まれない', async () => {
+  it("空の htmlSnippet は結果に含まれない", async () => {
     // 空の htmlSnippet を持つ結果を返すモックサービス
     const mockService = createMockService({
       searchSectionPatterns: vi.fn().mockResolvedValue({
         results: [
           {
-            ...createMockResultWithHtml('11111111-1111-1111-1111-111111111111', 'hero'),
-            htmlSnippet: '', // 空文字列
+            ...createMockResultWithHtml("11111111-1111-1111-1111-111111111111", "hero"),
+            htmlSnippet: "", // 空文字列
           },
         ],
         total: 1,
@@ -492,7 +501,7 @@ describe('layout.search - htmlSnippet フィールド', { timeout: 120000 }, () 
     });
     setLayoutSearchServiceFactory(() => mockService);
 
-    const input: LayoutSearchInput = { query: 'hero section', include_html: true };
+    const input: LayoutSearchInput = { query: "hero section", include_html: true };
     const result = await layoutSearchHandler(input);
 
     expect(result.success).toBe(true);
@@ -501,7 +510,7 @@ describe('layout.search - htmlSnippet フィールド', { timeout: 120000 }, () 
       const firstResult = result.data.results[0];
       // 空文字列の場合は含まれないか、含まれても空であることを検証
       if (firstResult.html !== undefined) {
-        expect(firstResult.html).toBe('');
+        expect(firstResult.html).toBe("");
       }
     }
   });
@@ -511,7 +520,7 @@ describe('layout.search - htmlSnippet フィールド', { timeout: 120000 }, () 
 // 後方互換性テスト
 // =====================================================
 
-describe('layout.search - 後方互換性', { timeout: 120000 }, () => {
+describe("layout.search - 後方互換性", { timeout: 120000 }, () => {
   beforeEach(() => {
     resetLayoutSearchServiceFactory();
   });
@@ -520,11 +529,11 @@ describe('layout.search - 後方互換性', { timeout: 120000 }, () => {
     resetLayoutSearchServiceFactory();
   });
 
-  it('明示的に include_html: true を指定すれば HTML を取得できる', async () => {
+  it("明示的に include_html: true を指定すれば HTML を取得できる", async () => {
     const mockService = createMockService();
     setLayoutSearchServiceFactory(() => mockService);
 
-    const input: LayoutSearchInput = { query: 'hero section', include_html: true };
+    const input: LayoutSearchInput = { query: "hero section", include_html: true };
     const result = await layoutSearchHandler(input);
 
     expect(result.success).toBe(true);
@@ -537,11 +546,11 @@ describe('layout.search - 後方互換性', { timeout: 120000 }, () => {
     }
   });
 
-  it('includeHtml: true（レガシー形式）を指定しても HTML を取得できる', async () => {
+  it("includeHtml: true（レガシー形式）を指定しても HTML を取得できる", async () => {
     const mockService = createMockService();
     setLayoutSearchServiceFactory(() => mockService);
 
-    const input: LayoutSearchInput = { query: 'hero section', includeHtml: true };
+    const input: LayoutSearchInput = { query: "hero section", includeHtml: true };
     const result = await layoutSearchHandler(input);
 
     expect(result.success).toBe(true);
@@ -554,16 +563,16 @@ describe('layout.search - 後方互換性', { timeout: 120000 }, () => {
     }
   });
 
-  it('必須フィールドは include_html の値に関わらず常に含まれる', async () => {
+  it("必須フィールドは include_html の値に関わらず常に含まれる", async () => {
     const mockService = createMockService();
     setLayoutSearchServiceFactory(() => mockService);
 
     // include_html: false
-    const inputFalse: LayoutSearchInput = { query: 'hero section', include_html: false };
+    const inputFalse: LayoutSearchInput = { query: "hero section", include_html: false };
     const resultFalse = await layoutSearchHandler(inputFalse);
 
     // include_html: true
-    const inputTrue: LayoutSearchInput = { query: 'hero section', include_html: true };
+    const inputTrue: LayoutSearchInput = { query: "hero section", include_html: true };
     const resultTrue = await layoutSearchHandler(inputTrue);
 
     expect(resultFalse.success).toBe(true);
@@ -585,15 +594,15 @@ describe('layout.search - 後方互換性', { timeout: 120000 }, () => {
     }
   });
 
-  it('フィルタリングと include_html を組み合わせて使用できる', async () => {
+  it("フィルタリングと include_html を組み合わせて使用できる", async () => {
     const mockService = createMockService();
     setLayoutSearchServiceFactory(() => mockService);
 
     const input: LayoutSearchInput = {
-      query: 'hero section',
+      query: "hero section",
       filters: {
-        sectionType: 'hero',
-        sourceType: 'award_gallery',
+        sectionType: "hero",
+        sourceType: "award_gallery",
       },
       include_html: false,
     };
@@ -603,8 +612,8 @@ describe('layout.search - 後方互換性', { timeout: 120000 }, () => {
     if (result.success) {
       // フィルタリングが適用されていることを検証
       expect(result.data.filters).toEqual({
-        sectionType: 'hero',
-        sourceType: 'award_gallery',
+        sectionType: "hero",
+        sourceType: "award_gallery",
       });
       // HTML が含まれていないことを検証
       for (const item of result.data.results) {
@@ -618,8 +627,8 @@ describe('layout.search - 後方互換性', { timeout: 120000 }, () => {
 // テストカウント確認
 // =====================================================
 
-describe('layout.search includeHtml テスト - カウント確認', () => {
-  it('このファイルには 15 以上のテストケースが存在する', () => {
+describe("layout.search includeHtml テスト - カウント確認", () => {
+  it("このファイルには 15 以上のテストケースが存在する", () => {
     // このテストはテスト数を確認するためのプレースホルダー
     // 実際のテスト数は上記の describe ブロック内の it の数
     expect(true).toBe(true);

@@ -10,8 +10,8 @@
  * @module @reftrix/webdesign-core/template-engine
  */
 
-import type { Template, TemplateContext } from '../types/template.types';
-import type { SectionType } from '../types/section.types';
+import type { Template, TemplateContext } from "../types/template.types";
+import type { SectionType } from "../types/section.types";
 
 /**
  * テンプレートエンジン
@@ -107,9 +107,9 @@ export class TemplateEngine {
       ...context,
     };
 
-    if (process.env.NODE_ENV === 'development') {
+    if (process.env.NODE_ENV === "development") {
       // eslint-disable-next-line no-console -- Intentional debug log in development
-      console.log('[TemplateEngine] Rendering:', {
+      console.log("[TemplateEngine] Rendering:", {
         templateId: template.id,
         sectionType: template.sectionType,
         framework: template.framework,
@@ -140,11 +140,7 @@ export class TemplateEngine {
    * @returns レンダリング結果
    * @throws テンプレートが存在しない場合
    */
-  renderByType(
-    sectionType: SectionType,
-    framework: string,
-    context: TemplateContext
-  ): string {
+  renderByType(sectionType: SectionType, framework: string, context: TemplateContext): string {
     const template = this.get(sectionType, framework);
     if (!template) {
       throw new Error(
@@ -175,7 +171,7 @@ export class TemplateEngine {
     // {{! ... }} 形式のコメントを削除
     // コメント内のネストした {{ }} も考慮
     let result = content;
-    const commentStart = '{{!';
+    const commentStart = "{{!";
     let pos = 0;
 
     while ((pos = result.indexOf(commentStart, pos)) !== -1) {
@@ -185,10 +181,10 @@ export class TemplateEngine {
 
       // バランスの取れた }} を探す
       while (i < result.length && depth > 0) {
-        if (result.substr(i, 2) === '{{') {
+        if (result.substr(i, 2) === "{{") {
           depth++;
           i += 2;
-        } else if (result.substr(i, 2) === '}}') {
+        } else if (result.substr(i, 2) === "}}") {
           depth--;
           i += 2;
         } else {
@@ -224,28 +220,28 @@ export class TemplateEngine {
 
       // デフォルト値の処理
       let variableKey = trimmedKey;
-      let defaultValue = '';
+      let defaultValue = "";
 
-      if (trimmedKey.includes('|')) {
-        const parts = trimmedKey.split('|');
+      if (trimmedKey.includes("|")) {
+        const parts = trimmedKey.split("|");
         variableKey = parts[0].trim();
-        defaultValue = parts.slice(1).join('|').trim();
+        defaultValue = parts.slice(1).join("|").trim();
       }
 
       // 特殊変数（@index等）の処理
-      if (variableKey.startsWith('@')) {
+      if (variableKey.startsWith("@")) {
         const value = context[variableKey];
         if (value !== undefined && value !== null) {
           return String(value);
         }
-        return '';
+        return "";
       }
 
       // ネストしたプロパティの取得
       const value = this.getNestedProperty(context, variableKey);
 
       // 値が存在しないか空文字の場合、デフォルト値を使用
-      if (value === undefined || value === null || value === '') {
+      if (value === undefined || value === null || value === "") {
         return defaultValue;
       }
 
@@ -264,7 +260,7 @@ export class TemplateEngine {
     // {{#if condition}}...{{/if}} 形式の条件分岐を処理
     // ネストした条件分岐に対応するため、最も内側から処理
     let result = content;
-    let prevResult = '';
+    let prevResult = "";
     let iterations = 0;
     const maxIterations = 100; // 無限ループ防止
 
@@ -278,7 +274,7 @@ export class TemplateEngine {
           const value = this.getNestedProperty(context, condition);
           const isTruthy = this.isTruthy(value);
 
-          return isTruthy ? block : '';
+          return isTruthy ? block : "";
         }
       );
     }
@@ -316,12 +312,12 @@ export class TemplateEngine {
       // バランスの取れた {{/each}} を探す
       let depth = 1;
       let pos = startPos + headerLength;
-      let blockContent = '';
+      let blockContent = "";
 
       while (pos < result.length && depth > 0) {
-        if (result.substr(pos, 7) === '{{#each') {
+        if (result.substr(pos, 7) === "{{#each") {
           depth++;
-        } else if (result.substr(pos, 9) === '{{/each}}') {
+        } else if (result.substr(pos, 9) === "{{/each}}") {
           depth--;
           if (depth === 0) {
             blockContent = result.substring(startPos + headerLength, pos);
@@ -348,13 +344,13 @@ export class TemplateEngine {
           // ループ内のコンテキストを作成
           const loopContext: TemplateContext = {
             ...context,
-            '@index': index,
-            '@first': index === 0,
-            '@last': index === array.length - 1,
+            "@index": index,
+            "@first": index === 0,
+            "@last": index === array.length - 1,
           };
 
           // itemがオブジェクトの場合、プロパティをコンテキストに追加
-          if (typeof item === 'object' && item !== null) {
+          if (typeof item === "object" && item !== null) {
             Object.assign(loopContext, item);
           } else {
             // プリミティブ値の場合、{{this}}でアクセス可能にする
@@ -370,7 +366,7 @@ export class TemplateEngine {
 
           return itemResult;
         })
-        .join('');
+        .join("");
 
       result = result.substring(0, startPos) + expanded + result.substring(pos + 9);
     }
@@ -386,7 +382,7 @@ export class TemplateEngine {
    * @returns プロパティ値
    */
   private getNestedProperty(obj: Record<string, unknown>, path: string): unknown {
-    const keys = path.split('.');
+    const keys = path.split(".");
     let current: unknown = obj;
 
     for (const key of keys) {
@@ -394,7 +390,7 @@ export class TemplateEngine {
         return undefined;
       }
 
-      if (typeof current === 'object' && current !== null && key in current) {
+      if (typeof current === "object" && current !== null && key in current) {
         current = (current as Record<string, unknown>)[key];
       } else {
         return undefined;
@@ -415,16 +411,16 @@ export class TemplateEngine {
       return false;
     }
 
-    if (typeof value === 'boolean') {
+    if (typeof value === "boolean") {
       return value;
     }
 
-    if (typeof value === 'number') {
+    if (typeof value === "number") {
       return value !== 0;
     }
 
-    if (typeof value === 'string') {
-      return value !== '';
+    if (typeof value === "string") {
+      return value !== "";
     }
 
     if (Array.isArray(value)) {

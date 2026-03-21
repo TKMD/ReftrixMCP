@@ -8,9 +8,9 @@
  * @module services/responsive/responsive-persistence.service
  */
 
-import { prisma, Prisma } from '@reftrix/database';
-import { isDevelopment, logger } from '../../utils/logger';
-import type { ResponsiveAnalysisResult, ViewportDiffResult } from './types';
+import { prisma, Prisma } from "@reftrix/database";
+import { isDevelopment, logger } from "../../utils/logger";
+import type { ResponsiveAnalysisResult, ViewportDiffResult } from "./types";
 
 /**
  * DB保存用の入力型
@@ -49,7 +49,7 @@ export class ResponsivePersistenceService {
    */
   async save(webPageId: string, result: ResponsiveAnalysisResult): Promise<string> {
     if (isDevelopment()) {
-      logger.info('[ResponsivePersistence] Saving responsive analysis', {
+      logger.info("[ResponsivePersistence] Saving responsive analysis", {
         webPageId,
         viewportsAnalyzed: result.viewportsAnalyzed.length,
         differencesFound: result.differences.length,
@@ -76,7 +76,7 @@ export class ResponsivePersistenceService {
     });
 
     if (isDevelopment() && deleted.count > 0) {
-      logger.info('[ResponsivePersistence] Deleted existing records (clean-slate)', {
+      logger.info("[ResponsivePersistence] Deleted existing records (clean-slate)", {
         webPageId,
         deletedCount: deleted.count,
       });
@@ -104,7 +104,7 @@ export class ResponsivePersistenceService {
     });
 
     if (isDevelopment()) {
-      logger.info('[ResponsivePersistence] Responsive analysis saved', {
+      logger.info("[ResponsivePersistence] Responsive analysis saved", {
         id: record.id,
         webPageId,
       });
@@ -122,7 +122,7 @@ export class ResponsivePersistenceService {
   async findByWebPageId(webPageId: string): Promise<ResponsiveAnalysisRecord | null> {
     const record = await prisma.responsiveAnalysis.findFirst({
       where: { webPageId },
-      orderBy: { createdAt: 'desc' },
+      orderBy: { createdAt: "desc" },
     });
 
     return record;

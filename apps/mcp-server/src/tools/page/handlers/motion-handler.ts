@@ -13,22 +13,22 @@
  * @module tools/page/handlers/motion-handler
  */
 
-import type { Browser } from 'playwright';
-import { logger, isDevelopment } from '../../../utils/logger';
+import type { Browser } from "playwright";
+import { logger, isDevelopment } from "../../../utils/logger";
 import {
   getMotionDetectorService,
   type MotionDetectionResult,
-} from '../../../services/page/motion-detector.service';
+} from "../../../services/page/motion-detector.service";
 import {
   extractCssUrls,
   fetchAllCss,
   type FetchAllCssOptions,
-} from '../../../services/external-css-fetcher';
+} from "../../../services/external-css-fetcher";
 import {
   PAGE_ANALYZE_ERROR_CODES,
   type PageAnalyzeInput,
   type MotionDetectionMode,
-} from '../schemas';
+} from "../schemas";
 import {
   type MotionServiceResult,
   type MotionDetectionContext,
@@ -36,34 +36,39 @@ import {
   type MotionPatternData,
   type WebGLAnimationSummaryResult,
   type WebGLAnimationFullResult,
-} from './types';
-import { executeVideoMode } from './video-handler';
-import { executeJSAnimationMode, checkPlaywrightAvailability, type JSAnimationContext } from './js-animation-handler';
-import type { MotionCandidatesData } from '../../../services/vision-adapter/interface';
-import { executeWebGLAnimationDetection, type WebGLAnimationContext } from './webgl-animation-handler';
-// detection_mode: video/runtime/hybrid用のインポート
+} from "./types";
+import { executeVideoMode } from "./video-handler";
 import {
-  executeVideoDetection,
-  executeRuntimeDetection,
-} from '../../motion/detection-modes';
+  executeJSAnimationMode,
+  checkPlaywrightAvailability,
+  type JSAnimationContext,
+} from "./js-animation-handler";
+import type { MotionCandidatesData } from "../../../services/vision-adapter/interface";
+import {
+  executeWebGLAnimationDetection,
+  type WebGLAnimationContext,
+} from "./webgl-animation-handler";
+// detection_mode: video/runtime/hybrid用のインポート
+import { executeVideoDetection, executeRuntimeDetection } from "../../motion/detection-modes";
 
 // MotionDetectionContext/ExtendedContextを再エクスポート（他のモジュールからの参照用）
-export type { MotionDetectionContext, MotionDetectionExtendedContext } from './types';
+export type { MotionDetectionContext, MotionDetectionExtendedContext } from "./types";
 
 /**
  * Vision motion候補をwarnings形式に変換
  */
 function convertVisionCandidatesToWarnings(
   visionCandidates: MotionCandidatesData
-): Array<{ code: string; severity: 'info' | 'warning' | 'error'; message: string }> {
-  const warnings: Array<{ code: string; severity: 'info' | 'warning' | 'error'; message: string }> = [];
+): Array<{ code: string; severity: "info" | "warning" | "error"; message: string }> {
+  const warnings: Array<{ code: string; severity: "info" | "warning" | "error"; message: string }> =
+    [];
 
   // アニメーション候補を情報として追加
   if (visionCandidates.likelyAnimations && visionCandidates.likelyAnimations.length > 0) {
     for (const anim of visionCandidates.likelyAnimations) {
       warnings.push({
-        code: 'VISION_MOTION_CANDIDATE',
-        severity: 'info',
+        code: "VISION_MOTION_CANDIDATE",
+        severity: "info",
         message: `Vision detected potential ${anim.animationType} animation on: ${anim.element} (confidence: ${(anim.confidence * 100).toFixed(0)}%)`,
       });
     }
@@ -72,18 +77,18 @@ function convertVisionCandidatesToWarnings(
   // インタラクティブ要素を情報として追加
   if (visionCandidates.interactiveElements && visionCandidates.interactiveElements.length > 0) {
     warnings.push({
-      code: 'VISION_INTERACTIVE_ELEMENTS',
-      severity: 'info',
-      message: `Vision detected ${visionCandidates.interactiveElements.length} interactive elements: ${visionCandidates.interactiveElements.slice(0, 5).join(', ')}${visionCandidates.interactiveElements.length > 5 ? '...' : ''}`,
+      code: "VISION_INTERACTIVE_ELEMENTS",
+      severity: "info",
+      message: `Vision detected ${visionCandidates.interactiveElements.length} interactive elements: ${visionCandidates.interactiveElements.slice(0, 5).join(", ")}${visionCandidates.interactiveElements.length > 5 ? "..." : ""}`,
     });
   }
 
   // スクロールトリガーを情報として追加
   if (visionCandidates.scrollTriggers && visionCandidates.scrollTriggers.length > 0) {
     warnings.push({
-      code: 'VISION_SCROLL_TRIGGERS',
-      severity: 'info',
-      message: `Vision detected ${visionCandidates.scrollTriggers.length} scroll-triggered sections: ${visionCandidates.scrollTriggers.slice(0, 3).join(', ')}${visionCandidates.scrollTriggers.length > 3 ? '...' : ''}`,
+      code: "VISION_SCROLL_TRIGGERS",
+      severity: "info",
+      message: `Vision detected ${visionCandidates.scrollTriggers.length} scroll-triggered sections: ${visionCandidates.scrollTriggers.slice(0, 3).join(", ")}${visionCandidates.scrollTriggers.length > 3 ? "..." : ""}`,
     });
   }
 
@@ -107,18 +112,18 @@ function convertVisionCandidatesToWarnings(
 export async function defaultDetectMotion(
   html: string,
   url: string,
-  options?: PageAnalyzeInput['motionOptions'],
+  options?: PageAnalyzeInput["motionOptions"],
   dbContext?: MotionDetectionContext,
   extendedContext?: MotionDetectionExtendedContext,
   preExtractedCssUrls?: string[],
   sharedBrowser?: Browser
 ): Promise<MotionServiceResult> {
   const startTime = Date.now();
-  const detectionMode: MotionDetectionMode = options?.detection_mode ?? 'css';
+  const detectionMode: MotionDetectionMode = options?.detection_mode ?? "css";
 
   try {
     if (isDevelopment()) {
-      logger.info('[page.analyze] Starting motion detection', {
+      logger.info("[page.analyze] Starting motion detection", {
         htmlLength: html.length,
         url,
         detection_mode: detectionMode,
@@ -133,18 +138,27 @@ export async function defaultDetectMotion(
     // =====================================================
 
     // Video Mode: motion.detectと同等の動画録画+フレーム解析
-    if (detectionMode === 'video') {
+    if (detectionMode === "video") {
       return await executeVideoModeDetection(url, options, startTime, extendedContext);
     }
 
     // Runtime Mode: Playwrightでランタイムアニメーション検出
-    if (detectionMode === 'runtime') {
+    if (detectionMode === "runtime") {
       return await executeRuntimeModeDetection(url, options, startTime, extendedContext);
     }
 
     // Hybrid Mode: CSS静的解析 + ランタイム検出
-    if (detectionMode === 'hybrid') {
-      return await executeHybridModeDetection(html, url, options, dbContext, extendedContext, preExtractedCssUrls, startTime, sharedBrowser);
+    if (detectionMode === "hybrid") {
+      return await executeHybridModeDetection(
+        html,
+        url,
+        options,
+        dbContext,
+        extendedContext,
+        preExtractedCssUrls,
+        startTime,
+        sharedBrowser
+      );
     }
 
     // CSS Mode (default): CSS静的解析
@@ -166,7 +180,7 @@ export async function defaultDetectMotion(
         if (preExtractedCssUrls && preExtractedCssUrls.length > 0) {
           cssUrlsToFetch = preExtractedCssUrls;
           if (isDevelopment()) {
-            logger.info('[page.analyze] Using pre-extracted CSS URLs (before sanitization)', {
+            logger.info("[page.analyze] Using pre-extracted CSS URLs (before sanitization)", {
               urlCount: cssUrlsToFetch.length,
             });
           }
@@ -174,13 +188,15 @@ export async function defaultDetectMotion(
           const extractedUrls = extractCssUrls(html, url);
           cssUrlsToFetch = extractedUrls.map((u) => u.url);
           if (isDevelopment() && cssUrlsToFetch.length === 0) {
-            logger.warn('[page.analyze] No CSS URLs extracted from HTML - this may be due to HTML sanitization removing <link> tags');
+            logger.warn(
+              "[page.analyze] No CSS URLs extracted from HTML - this may be due to HTML sanitization removing <link> tags"
+            );
           }
         }
 
         if (cssUrlsToFetch.length > 0) {
           if (isDevelopment()) {
-            logger.info('[page.analyze] Fetching external CSS', {
+            logger.info("[page.analyze] Fetching external CSS", {
               urlCount: cssUrlsToFetch.length,
               urls: cssUrlsToFetch,
             });
@@ -197,7 +213,11 @@ export async function defaultDetectMotion(
             fetchAllCss(cssUrlsToFetch, fetchOptions),
             new Promise<never>((_, reject) => {
               setTimeout(() => {
-                reject(new Error(`External CSS fetch overall timeout after ${EXTERNAL_CSS_OVERALL_TIMEOUT_MS}ms`));
+                reject(
+                  new Error(
+                    `External CSS fetch overall timeout after ${EXTERNAL_CSS_OVERALL_TIMEOUT_MS}ms`
+                  )
+                );
               }, EXTERNAL_CSS_OVERALL_TIMEOUT_MS);
             }),
           ]);
@@ -208,9 +228,9 @@ export async function defaultDetectMotion(
             .map((r) => r.content as string);
 
           if (fetchedContents.length > 0) {
-            externalCss = fetchedContents.join('\n');
+            externalCss = fetchedContents.join("\n");
             if (isDevelopment()) {
-              logger.info('[page.analyze] External CSS fetched', {
+              logger.info("[page.analyze] External CSS fetched", {
                 successCount: fetchedContents.length,
                 totalCount: cssUrlsToFetch.length,
                 externalCssLength: externalCss.length,
@@ -221,9 +241,12 @@ export async function defaultDetectMotion(
       } catch (fetchError) {
         // 外部CSS取得失敗（タイムアウト含む）は警告のみ、インラインCSSのみで分析を継続
         if (isDevelopment()) {
-          logger.warn('[page.analyze] Failed to fetch external CSS (graceful degradation: using inline CSS only)', {
-            error: fetchError instanceof Error ? fetchError.message : String(fetchError),
-          });
+          logger.warn(
+            "[page.analyze] Failed to fetch external CSS (graceful degradation: using inline CSS only)",
+            {
+              error: fetchError instanceof Error ? fetchError.message : String(fetchError),
+            }
+          );
         }
       }
     }
@@ -253,48 +276,45 @@ export async function defaultDetectMotion(
     let a11yWarningCount = 0;
     let perfWarningCount = 0;
     for (const warning of detectionResult.warnings) {
-      if (warning.code.startsWith('A11Y_')) {
+      if (warning.code.startsWith("A11Y_")) {
         a11yWarningCount++;
-      } else if (warning.code.startsWith('PERF_')) {
+      } else if (warning.code.startsWith("PERF_")) {
         perfWarningCount++;
       }
     }
 
     // パターンをMotionServiceResult形式に変換
-    const patterns: MotionServiceResult['patterns'] = detectionResult.patterns.map(
-      (p) => ({
-        id: p.id,
-        name: p.name,
-        type: p.type,
-        category: p.category,
-        trigger: p.trigger,
-        duration: p.duration,
-        easing: p.easing,
-        properties: p.properties,
-        propertiesDetailed: p.propertiesDetailed?.map(prop => ({
+    const patterns: MotionServiceResult["patterns"] = detectionResult.patterns.map((p) => ({
+      id: p.id,
+      name: p.name,
+      type: p.type,
+      category: p.category,
+      trigger: p.trigger,
+      duration: p.duration,
+      easing: p.easing,
+      properties: p.properties,
+      propertiesDetailed:
+        p.propertiesDetailed?.map((prop) => ({
           property: prop.property,
-          from: prop.from ?? '',
-          to: prop.to ?? '',
+          from: prop.from ?? "",
+          to: prop.to ?? "",
         })) ?? [],
-        performance: {
-          level: p.performance.level,
-          usesTransform: p.performance.usesTransform,
-          usesOpacity: p.performance.usesOpacity,
-        },
-        accessibility: {
-          respectsReducedMotion: p.accessibility.respectsReducedMotion,
-        },
-      })
-    );
+      performance: {
+        level: p.performance.level,
+        usesTransform: p.performance.usesTransform,
+        usesOpacity: p.performance.usesOpacity,
+      },
+      accessibility: {
+        respectsReducedMotion: p.accessibility.respectsReducedMotion,
+      },
+    }));
 
     // 警告をMotionServiceResult形式に変換
-    const warnings: MotionServiceResult['warnings'] = detectionResult.warnings.map(
-      (w) => ({
-        code: w.code,
-        severity: w.severity,
-        message: w.message,
-      })
-    );
+    const warnings: MotionServiceResult["warnings"] = detectionResult.warnings.map((w) => ({
+      code: w.code,
+      severity: w.severity,
+      message: w.message,
+    }));
 
     const result: MotionServiceResult = {
       success: true,
@@ -356,16 +376,20 @@ export async function defaultDetectMotion(
       if (!isPlaywrightAvailable) {
         // Playwright未インストール時は明示的な警告を出力
         if (isDevelopment()) {
-          logger.warn('[motion-handler] Playwright not available, skipping JS animation detection', {
-            url,
-            hint: 'Run "pnpm exec playwright install chromium" to enable JS animation detection',
-          });
+          logger.warn(
+            "[motion-handler] Playwright not available, skipping JS animation detection",
+            {
+              url,
+              hint: 'Run "pnpm exec playwright install chromium" to enable JS animation detection',
+            }
+          );
         }
 
         jsAnimationResult = {
           js_animation_error: {
-            code: 'PLAYWRIGHT_NOT_AVAILABLE',
-            message: 'Playwright is not installed or chromium browser is not available. JS animation detection requires Playwright. Run "pnpm exec playwright install chromium" to install.',
+            code: "PLAYWRIGHT_NOT_AVAILABLE",
+            message:
+              'Playwright is not installed or chromium browser is not available. JS animation detection requires Playwright. Run "pnpm exec playwright install chromium" to install.',
           },
         };
       } else {
@@ -389,7 +413,7 @@ export async function defaultDetectMotion(
     } else {
       // JS検出が無効化されている場合
       if (isDevelopment()) {
-        logger.info('[motion-handler] JS animation detection disabled by options', { url });
+        logger.info("[motion-handler] JS animation detection disabled by options", { url });
       }
     }
 
@@ -425,16 +449,20 @@ export async function defaultDetectMotion(
 
       if (!isPlaywrightAvailable) {
         if (isDevelopment()) {
-          logger.warn('[motion-handler] Playwright not available, skipping WebGL animation detection', {
-            url,
-            hint: 'Run "pnpm exec playwright install chromium" to enable WebGL animation detection',
-          });
+          logger.warn(
+            "[motion-handler] Playwright not available, skipping WebGL animation detection",
+            {
+              url,
+              hint: 'Run "pnpm exec playwright install chromium" to enable WebGL animation detection',
+            }
+          );
         }
 
         webglAnimationResult = {
           webgl_animation_error: {
-            code: 'PLAYWRIGHT_NOT_AVAILABLE',
-            message: 'Playwright is not installed or chromium browser is not available. WebGL animation detection requires Playwright.',
+            code: "PLAYWRIGHT_NOT_AVAILABLE",
+            message:
+              "Playwright is not installed or chromium browser is not available. WebGL animation detection requires Playwright.",
           },
         };
       } else {
@@ -459,12 +487,12 @@ export async function defaultDetectMotion(
     } else if (webglDetectionRequested && !url) {
       // URLがない場合はWebGL検出をスキップ
       if (isDevelopment()) {
-        logger.info('[motion-handler] WebGL animation detection skipped: URL not provided', {});
+        logger.info("[motion-handler] WebGL animation detection skipped: URL not provided", {});
       }
     } else {
       // WebGL検出が無効化されている場合
       if (isDevelopment()) {
-        logger.info('[motion-handler] WebGL animation detection disabled by options', { url });
+        logger.info("[motion-handler] WebGL animation detection disabled by options", { url });
       }
     }
 
@@ -486,26 +514,28 @@ export async function defaultDetectMotion(
     // layout_firstモードが有効な場合の警告追加
     if (extendedContext?.layoutFirstModeEnabled) {
       warnings.push({
-        code: 'LAYOUT_FIRST_MODE_ENABLED',
-        severity: 'info',
-        message: 'layout_first mode is enabled for this WebGL/3D site. Motion detection is limited to library detection only. Set layout_first: "never" for full motion detection.',
+        code: "LAYOUT_FIRST_MODE_ENABLED",
+        severity: "info",
+        message:
+          'layout_first mode is enabled for this WebGL/3D site. Motion detection is limited to library detection only. Set layout_first: "never" for full motion detection.',
       });
     }
 
     // CSS検出結果が0件の場合の警告追加
     if (patterns.length === 0) {
       warnings.push({
-        code: 'CSS_NO_ANIMATIONS_DETECTED',
-        severity: 'warning',
-        message: 'No CSS animations or transitions detected. This may indicate: (1) JavaScript-only animations (GSAP, Framer Motion, etc.), (2) Inline styles not captured, or (3) The site uses minimal animations.',
+        code: "CSS_NO_ANIMATIONS_DETECTED",
+        severity: "warning",
+        message:
+          "No CSS animations or transitions detected. This may indicate: (1) JavaScript-only animations (GSAP, Framer Motion, etc.), (2) Inline styles not captured, or (3) The site uses minimal animations.",
       });
     }
 
     // JS検出失敗時の警告追加（エラーがある場合）
     if (jsAnimationResult.js_animation_error) {
       warnings.push({
-        code: 'JS_ANIMATION_DETECTION_FAILED',
-        severity: 'warning',
+        code: "JS_ANIMATION_DETECTION_FAILED",
+        severity: "warning",
         message: `JS animation detection failed: ${jsAnimationResult.js_animation_error.message}. CSS static analysis results are still available.`,
       });
     }
@@ -517,9 +547,10 @@ export async function defaultDetectMotion(
       (jsAnimationResult.js_animation_summary?.totalDetected ?? 0) === 0
     ) {
       warnings.push({
-        code: 'JS_NO_ANIMATIONS_DETECTED',
-        severity: 'info',
-        message: 'No JS animations detected (CDP/Web Animations API/Libraries). The site may use CSS-only animations or static content.',
+        code: "JS_NO_ANIMATIONS_DETECTED",
+        severity: "info",
+        message:
+          "No JS animations detected (CDP/Web Animations API/Libraries). The site may use CSS-only animations or static content.",
       });
     }
 
@@ -528,9 +559,10 @@ export async function defaultDetectMotion(
     const totalPatternCount = patterns.length + jsPatternCount;
     if (totalPatternCount === 0 && !extendedContext?.layoutFirstModeEnabled) {
       warnings.push({
-        code: 'MOTION_DETECTION_LIMITED',
-        severity: 'info',
-        message: 'Motion detection found 0 patterns. For better results, set detect_js_animations: true and detection_mode: "hybrid" or "video". WebGL/3D sites may have layout_first mode enabled which limits motion detection.',
+        code: "MOTION_DETECTION_LIMITED",
+        severity: "info",
+        message:
+          'Motion detection found 0 patterns. For better results, set detect_js_animations: true and detection_mode: "hybrid" or "video". WebGL/3D sites may have layout_first mode enabled which limits motion detection.',
       });
     }
 
@@ -542,27 +574,26 @@ export async function defaultDetectMotion(
     if (extendedContext?.screenshot) {
       try {
         // LlamaVisionAdapterを動的インポート（layout-handler.tsと同じパターン）
-        const { LlamaVisionAdapter } = await import(
-          '../../../services/vision-adapter/index.js'
-        );
+        const { LlamaVisionAdapter } = await import("../../../services/vision-adapter/index.js");
         const visionAdapter = new LlamaVisionAdapter();
 
         // Ollama利用可能性チェック
         const isVisionAvailable = await visionAdapter.isAvailable();
         if (!isVisionAvailable) {
           if (isDevelopment()) {
-            logger.info('[page.analyze] Vision motion detection skipped (Ollama not available)', {
+            logger.info("[page.analyze] Vision motion detection skipped (Ollama not available)", {
               url,
             });
           }
           warnings.push({
-            code: 'VISION_NOT_AVAILABLE',
-            severity: 'info',
-            message: 'Vision motion detection skipped: Ollama is not running or llama3.2-vision model not available',
+            code: "VISION_NOT_AVAILABLE",
+            severity: "info",
+            message:
+              "Vision motion detection skipped: Ollama is not running or llama3.2-vision model not available",
           });
         } else {
           if (isDevelopment()) {
-            logger.info('[page.analyze] Starting Vision motion candidates detection', {
+            logger.info("[page.analyze] Starting Vision motion candidates detection", {
               url,
               hasCssPatterns: patterns.length,
               hasJsAnimations: jsAnimationResult.js_animation_summary?.totalDetected ?? 0,
@@ -570,7 +601,7 @@ export async function defaultDetectMotion(
           }
 
           // Vision motion候補検出
-          const imageBuffer = Buffer.from(extendedContext.screenshot.base64, 'base64');
+          const imageBuffer = Buffer.from(extendedContext.screenshot.base64, "base64");
           const visionResult = await visionAdapter.detectMotionCandidates({
             imageBuffer,
             mimeType: extendedContext.screenshot.mimeType,
@@ -584,7 +615,7 @@ export async function defaultDetectMotion(
             warnings.push(...visionWarnings);
 
             if (isDevelopment()) {
-              logger.info('[page.analyze] Vision motion candidates detected', {
+              logger.info("[page.analyze] Vision motion candidates detected", {
                 likelyAnimations: visionMotionCandidates.likelyAnimations?.length ?? 0,
                 interactiveElements: visionMotionCandidates.interactiveElements?.length ?? 0,
                 scrollTriggers: visionMotionCandidates.scrollTriggers?.length ?? 0,
@@ -594,13 +625,13 @@ export async function defaultDetectMotion(
           } else if (visionResult.error) {
             // Vision検出失敗は警告のみ（非クリティカル）
             if (isDevelopment()) {
-              logger.warn('[page.analyze] Vision motion candidates detection failed', {
+              logger.warn("[page.analyze] Vision motion candidates detection failed", {
                 error: visionResult.error,
               });
             }
             warnings.push({
-              code: 'VISION_MOTION_DETECTION_FAILED',
-              severity: 'info',
+              code: "VISION_MOTION_DETECTION_FAILED",
+              severity: "info",
               message: `Vision motion detection skipped: ${visionResult.error}`,
             });
           }
@@ -608,14 +639,14 @@ export async function defaultDetectMotion(
       } catch (visionError) {
         // Vision検出エラーは警告のみ、処理は継続
         if (isDevelopment()) {
-          logger.warn('[page.analyze] Vision motion candidates detection error', {
-            error: visionError instanceof Error ? visionError.message : 'Unknown error',
+          logger.warn("[page.analyze] Vision motion candidates detection error", {
+            error: visionError instanceof Error ? visionError.message : "Unknown error",
           });
         }
         warnings.push({
-          code: 'VISION_MOTION_DETECTION_ERROR',
-          severity: 'info',
-          message: 'Vision motion detection unavailable (Ollama may not be running)',
+          code: "VISION_MOTION_DETECTION_ERROR",
+          severity: "info",
+          message: "Vision motion detection unavailable (Ollama may not be running)",
         });
       }
     }
@@ -630,7 +661,7 @@ export async function defaultDetectMotion(
     result.processingTimeMs = Date.now() - startTime;
 
     if (isDevelopment()) {
-      logger.info('[page.analyze] Motion detection completed', {
+      logger.info("[page.analyze] Motion detection completed", {
         patternCount: patterns.length,
         warningCount: warnings.length,
         processingTimeMs: result.processingTimeMs,
@@ -647,7 +678,7 @@ export async function defaultDetectMotion(
     return result;
   } catch (error) {
     if (isDevelopment()) {
-      logger.error('[page.analyze] Motion detection failed', { error });
+      logger.error("[page.analyze] Motion detection failed", { error });
     }
 
     return {
@@ -660,7 +691,7 @@ export async function defaultDetectMotion(
       processingTimeMs: Date.now() - startTime,
       error: {
         code: PAGE_ANALYZE_ERROR_CODES.MOTION_DETECTION_FAILED,
-        message: error instanceof Error ? error.message : 'Motion detection failed',
+        message: error instanceof Error ? error.message : "Motion detection failed",
       },
     };
   }
@@ -672,7 +703,7 @@ export async function defaultDetectMotion(
 // =====================================================
 async function executeVideoModeDetection(
   url: string,
-  options: PageAnalyzeInput['motionOptions'] | undefined,
+  options: PageAnalyzeInput["motionOptions"] | undefined,
   startTime: number,
   extendedContext?: MotionDetectionExtendedContext
 ): Promise<MotionServiceResult> {
@@ -686,7 +717,7 @@ async function executeVideoModeDetection(
       perfWarningCount: 0,
       processingTimeMs: Date.now() - startTime,
       error: {
-        code: 'MOTION_VIDEO_MODE_URL_REQUIRED',
+        code: "MOTION_VIDEO_MODE_URL_REQUIRED",
         message: 'detection_mode="video" requires a URL. Please provide a valid URL.',
       },
     };
@@ -694,7 +725,7 @@ async function executeVideoModeDetection(
 
   try {
     if (isDevelopment()) {
-      logger.info('[page.analyze] Executing Video Mode detection (motion.detect equivalent)', {
+      logger.info("[page.analyze] Executing Video Mode detection (motion.detect equivalent)", {
         url,
         video_options: options?.video_options,
       });
@@ -709,20 +740,21 @@ async function executeVideoModeDetection(
     // properties: MotionPattern.propertiesはオブジェクト配列なので、property名のみ抽出してstring[]に変換
     const patterns: MotionPatternData[] = videoResult.patterns.map((p) => ({
       id: p.id,
-      name: p.name ?? 'unnamed',
+      name: p.name ?? "unnamed",
       type: p.type,
-      category: p.category ?? 'uncategorized',
-      trigger: p.trigger ?? 'load',
+      category: p.category ?? "uncategorized",
+      trigger: p.trigger ?? "load",
       duration: p.animation?.duration,
-      easing: p.animation?.easing?.type ?? 'linear',
+      easing: p.animation?.easing?.type ?? "linear",
       properties: p.properties?.map((prop) => prop.property) ?? [],
-      propertiesDetailed: p.properties?.map(prop => ({
-        property: prop.property,
-        from: String(prop.from ?? ''),
-        to: String(prop.to ?? ''),
-      })) ?? [],
+      propertiesDetailed:
+        p.properties?.map((prop) => ({
+          property: prop.property,
+          from: String(prop.from ?? ""),
+          to: String(prop.to ?? ""),
+        })) ?? [],
       performance: {
-        level: 'high' as const,
+        level: "high" as const,
         usesTransform: false,
         usesOpacity: false,
       },
@@ -731,7 +763,7 @@ async function executeVideoModeDetection(
       },
     }));
 
-    const warnings: MotionServiceResult['warnings'] = videoResult.warnings.map((w) => ({
+    const warnings: MotionServiceResult["warnings"] = videoResult.warnings.map((w) => ({
       code: w.code,
       severity: w.severity,
       message: w.message,
@@ -740,9 +772,10 @@ async function executeVideoModeDetection(
     // layout_firstモードの警告追加
     if (extendedContext?.layoutFirstModeEnabled) {
       warnings.push({
-        code: 'LAYOUT_FIRST_MODE_ENABLED',
-        severity: 'info',
-        message: 'layout_first mode is enabled. Using video detection mode instead of limited motion detection.',
+        code: "LAYOUT_FIRST_MODE_ENABLED",
+        severity: "info",
+        message:
+          "layout_first mode is enabled. Using video detection mode instead of limited motion detection.",
       });
     }
 
@@ -768,7 +801,7 @@ async function executeVideoModeDetection(
     };
 
     if (isDevelopment()) {
-      logger.info('[page.analyze] Video Mode detection completed', {
+      logger.info("[page.analyze] Video Mode detection completed", {
         patternCount: patterns.length,
         warningCount: warnings.length,
         processingTimeMs: result.processingTimeMs,
@@ -779,7 +812,7 @@ async function executeVideoModeDetection(
     return result;
   } catch (error) {
     if (isDevelopment()) {
-      logger.error('[page.analyze] Video Mode detection failed', { error, url });
+      logger.error("[page.analyze] Video Mode detection failed", { error, url });
     }
 
     return {
@@ -791,8 +824,8 @@ async function executeVideoModeDetection(
       perfWarningCount: 0,
       processingTimeMs: Date.now() - startTime,
       error: {
-        code: 'MOTION_VIDEO_MODE_FAILED',
-        message: error instanceof Error ? error.message : 'Video mode detection failed',
+        code: "MOTION_VIDEO_MODE_FAILED",
+        message: error instanceof Error ? error.message : "Video mode detection failed",
       },
     };
   }
@@ -804,7 +837,7 @@ async function executeVideoModeDetection(
 // =====================================================
 async function executeRuntimeModeDetection(
   url: string,
-  options: PageAnalyzeInput['motionOptions'] | undefined,
+  options: PageAnalyzeInput["motionOptions"] | undefined,
   startTime: number,
   extendedContext?: MotionDetectionExtendedContext
 ): Promise<MotionServiceResult> {
@@ -818,7 +851,7 @@ async function executeRuntimeModeDetection(
       perfWarningCount: 0,
       processingTimeMs: Date.now() - startTime,
       error: {
-        code: 'MOTION_RUNTIME_MODE_URL_REQUIRED',
+        code: "MOTION_RUNTIME_MODE_URL_REQUIRED",
         message: 'detection_mode="runtime" requires a URL. Please provide a valid URL.',
       },
     };
@@ -826,7 +859,7 @@ async function executeRuntimeModeDetection(
 
   try {
     if (isDevelopment()) {
-      logger.info('[page.analyze] Executing Runtime Mode detection', {
+      logger.info("[page.analyze] Executing Runtime Mode detection", {
         url,
         runtime_options: options?.runtime_options,
       });
@@ -841,20 +874,21 @@ async function executeRuntimeModeDetection(
     // properties: MotionPattern.propertiesはオブジェクト配列なので、property名のみ抽出してstring[]に変換
     const patterns: MotionPatternData[] = runtimeResult.patterns.map((p) => ({
       id: p.id,
-      name: p.name ?? 'unnamed',
+      name: p.name ?? "unnamed",
       type: p.type,
-      category: p.category ?? 'runtime',
-      trigger: p.trigger ?? 'load',
+      category: p.category ?? "runtime",
+      trigger: p.trigger ?? "load",
       duration: p.animation?.duration,
-      easing: p.animation?.easing?.type ?? 'linear',
+      easing: p.animation?.easing?.type ?? "linear",
       properties: p.properties?.map((prop) => prop.property) ?? [],
-      propertiesDetailed: p.properties?.map(prop => ({
-        property: prop.property,
-        from: String(prop.from ?? ''),
-        to: String(prop.to ?? ''),
-      })) ?? [],
+      propertiesDetailed:
+        p.properties?.map((prop) => ({
+          property: prop.property,
+          from: String(prop.from ?? ""),
+          to: String(prop.to ?? ""),
+        })) ?? [],
       performance: {
-        level: 'high' as const,
+        level: "high" as const,
         usesTransform: false,
         usesOpacity: false,
       },
@@ -863,7 +897,7 @@ async function executeRuntimeModeDetection(
       },
     }));
 
-    const warnings: MotionServiceResult['warnings'] = runtimeResult.warnings.map((w) => ({
+    const warnings: MotionServiceResult["warnings"] = runtimeResult.warnings.map((w) => ({
       code: w.code,
       severity: w.severity,
       message: w.message,
@@ -872,9 +906,9 @@ async function executeRuntimeModeDetection(
     // layout_firstモードの警告追加
     if (extendedContext?.layoutFirstModeEnabled) {
       warnings.push({
-        code: 'LAYOUT_FIRST_MODE_ENABLED',
-        severity: 'info',
-        message: 'layout_first mode is enabled. Using runtime detection mode.',
+        code: "LAYOUT_FIRST_MODE_ENABLED",
+        severity: "info",
+        message: "layout_first mode is enabled. Using runtime detection mode.",
       });
     }
 
@@ -900,7 +934,7 @@ async function executeRuntimeModeDetection(
     };
 
     if (isDevelopment()) {
-      logger.info('[page.analyze] Runtime Mode detection completed', {
+      logger.info("[page.analyze] Runtime Mode detection completed", {
         patternCount: patterns.length,
         warningCount: warnings.length,
         processingTimeMs: result.processingTimeMs,
@@ -911,7 +945,7 @@ async function executeRuntimeModeDetection(
     return result;
   } catch (error) {
     if (isDevelopment()) {
-      logger.error('[page.analyze] Runtime Mode detection failed', { error, url });
+      logger.error("[page.analyze] Runtime Mode detection failed", { error, url });
     }
 
     return {
@@ -923,8 +957,8 @@ async function executeRuntimeModeDetection(
       perfWarningCount: 0,
       processingTimeMs: Date.now() - startTime,
       error: {
-        code: 'MOTION_RUNTIME_MODE_FAILED',
-        message: error instanceof Error ? error.message : 'Runtime mode detection failed',
+        code: "MOTION_RUNTIME_MODE_FAILED",
+        message: error instanceof Error ? error.message : "Runtime mode detection failed",
       },
     };
   }
@@ -937,7 +971,7 @@ async function executeRuntimeModeDetection(
 async function executeHybridModeDetection(
   html: string,
   url: string,
-  options: PageAnalyzeInput['motionOptions'] | undefined,
+  options: PageAnalyzeInput["motionOptions"] | undefined,
   dbContext: MotionDetectionContext | undefined,
   extendedContext: MotionDetectionExtendedContext | undefined,
   preExtractedCssUrls: string[] | undefined,
@@ -954,7 +988,7 @@ async function executeHybridModeDetection(
       perfWarningCount: 0,
       processingTimeMs: Date.now() - startTime,
       error: {
-        code: 'MOTION_HYBRID_MODE_URL_REQUIRED',
+        code: "MOTION_HYBRID_MODE_URL_REQUIRED",
         message: 'detection_mode="hybrid" requires a URL. Please provide a valid URL.',
       },
     };
@@ -962,7 +996,7 @@ async function executeHybridModeDetection(
 
   try {
     if (isDevelopment()) {
-      logger.info('[page.analyze] Executing Hybrid Mode detection (CSS + Runtime)', {
+      logger.info("[page.analyze] Executing Hybrid Mode detection (CSS + Runtime)", {
         url,
         htmlLength: html.length,
       });
@@ -970,14 +1004,25 @@ async function executeHybridModeDetection(
 
     // 並列でCSS静的解析とランタイム検出を実行
     // Note: optionsはすでにZod解析済みでデフォルト値が適用されているため、型アサーションは安全
-    const cssOptionsForHybrid = { ...options, detection_mode: 'css' as const } as typeof options;
+    const cssOptionsForHybrid = { ...options, detection_mode: "css" as const } as typeof options;
     const [cssResult, runtimeResult] = await Promise.all([
       // CSS静的解析（既存の処理を呼び出し）
-      defaultDetectMotion(html, url, cssOptionsForHybrid, dbContext, extendedContext, preExtractedCssUrls, sharedBrowser),
+      defaultDetectMotion(
+        html,
+        url,
+        cssOptionsForHybrid,
+        dbContext,
+        extendedContext,
+        preExtractedCssUrls,
+        sharedBrowser
+      ),
       // ランタイム検出
       executeRuntimeDetection(url, options?.runtime_options).catch((err) => {
         if (isDevelopment()) {
-          logger.warn('[page.analyze] Runtime detection failed in hybrid mode, using CSS results only', { error: err });
+          logger.warn(
+            "[page.analyze] Runtime detection failed in hybrid mode, using CSS results only",
+            { error: err }
+          );
         }
         return null;
       }),
@@ -992,20 +1037,21 @@ async function executeHybridModeDetection(
     if (runtimeResult) {
       const runtimePatterns: MotionPatternData[] = runtimeResult.patterns.map((p) => ({
         id: p.id,
-        name: p.name ?? 'unnamed',
+        name: p.name ?? "unnamed",
         type: p.type,
-        category: p.category ?? 'runtime',
-        trigger: p.trigger ?? 'load',
+        category: p.category ?? "runtime",
+        trigger: p.trigger ?? "load",
         duration: p.animation?.duration,
-        easing: p.animation?.easing?.type ?? 'linear',
+        easing: p.animation?.easing?.type ?? "linear",
         properties: p.properties?.map((prop) => prop.property) ?? [],
-        propertiesDetailed: p.properties?.map(prop => ({
-          property: prop.property,
-          from: String(prop.from ?? ''),
-          to: String(prop.to ?? ''),
-        })) ?? [],
+        propertiesDetailed:
+          p.properties?.map((prop) => ({
+            property: prop.property,
+            from: String(prop.from ?? ""),
+            to: String(prop.to ?? ""),
+          })) ?? [],
         performance: {
-          level: 'high' as const,
+          level: "high" as const,
           usesTransform: false,
           usesOpacity: false,
         },
@@ -1023,18 +1069,19 @@ async function executeHybridModeDetection(
       mergedWarnings.push(...runtimeWarnings);
     } else {
       mergedWarnings.push({
-        code: 'HYBRID_RUNTIME_DETECTION_SKIPPED',
-        severity: 'warning',
-        message: 'Runtime detection failed in hybrid mode. Only CSS static analysis results are included.',
+        code: "HYBRID_RUNTIME_DETECTION_SKIPPED",
+        severity: "warning",
+        message:
+          "Runtime detection failed in hybrid mode. Only CSS static analysis results are included.",
       });
     }
 
     // layout_firstモードの警告追加
     if (extendedContext?.layoutFirstModeEnabled) {
       mergedWarnings.push({
-        code: 'LAYOUT_FIRST_MODE_ENABLED',
-        severity: 'info',
-        message: 'layout_first mode is enabled. Hybrid detection may be limited.',
+        code: "LAYOUT_FIRST_MODE_ENABLED",
+        severity: "info",
+        message: "layout_first mode is enabled. Hybrid detection may be limited.",
       });
     }
 
@@ -1060,18 +1107,24 @@ async function executeHybridModeDetection(
       // CSS結果からの追加情報（undefinedの場合は設定しない）
       ...(cssResult.frame_capture && { frame_capture: cssResult.frame_capture }),
       ...(cssResult.frame_analysis && { frame_analysis: cssResult.frame_analysis }),
-      ...(cssResult.js_animation_summary && { js_animation_summary: cssResult.js_animation_summary }),
+      ...(cssResult.js_animation_summary && {
+        js_animation_summary: cssResult.js_animation_summary,
+      }),
       ...(cssResult.js_animations && { js_animations: cssResult.js_animations }),
       // WebGL検出結果（CSS modeで実行され、結果がここでマージされる）
-      ...(cssResult.webgl_animation_summary && { webgl_animation_summary: cssResult.webgl_animation_summary }),
+      ...(cssResult.webgl_animation_summary && {
+        webgl_animation_summary: cssResult.webgl_animation_summary,
+      }),
       ...(cssResult.webgl_animations && { webgl_animations: cssResult.webgl_animations }),
-      ...(cssResult.webgl_animation_error && { webgl_animation_error: cssResult.webgl_animation_error }),
+      ...(cssResult.webgl_animation_error && {
+        webgl_animation_error: cssResult.webgl_animation_error,
+      }),
       // ランタイム情報（undefinedの場合は設定しない）
       ...(runtimeResult?.runtime_info && { runtime_info: runtimeResult.runtime_info }),
     };
 
     if (isDevelopment()) {
-      logger.info('[page.analyze] Hybrid Mode detection completed', {
+      logger.info("[page.analyze] Hybrid Mode detection completed", {
         cssPatternCount: cssResult.patternCount,
         runtimePatternCount: runtimeResult?.patterns.length ?? 0,
         webglPatternCount: cssResult.webgl_animation_summary?.totalPatterns ?? 0,
@@ -1083,7 +1136,7 @@ async function executeHybridModeDetection(
     return result;
   } catch (error) {
     if (isDevelopment()) {
-      logger.error('[page.analyze] Hybrid Mode detection failed', { error, url });
+      logger.error("[page.analyze] Hybrid Mode detection failed", { error, url });
     }
 
     return {
@@ -1095,8 +1148,8 @@ async function executeHybridModeDetection(
       perfWarningCount: 0,
       processingTimeMs: Date.now() - startTime,
       error: {
-        code: 'MOTION_HYBRID_MODE_FAILED',
-        message: error instanceof Error ? error.message : 'Hybrid mode detection failed',
+        code: "MOTION_HYBRID_MODE_FAILED",
+        message: error instanceof Error ? error.message : "Hybrid mode detection failed",
       },
     };
   }

@@ -20,24 +20,24 @@
  * @module dinov2/worker-thread
  */
 
-import { parentPort } from 'node:worker_threads';
+import { parentPort } from "node:worker_threads";
 import type {
   DINOv2WorkerMessage,
   DINOv2WorkerResponse,
   DINOv2WorkerErrorResponse,
-} from './worker-thread-types.js';
+} from "./worker-thread-types.js";
 
 // =====================================================
 // Dynamic import of onnxruntime-node
 // =====================================================
 
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
-type OrtModule = typeof import('onnxruntime-node');
+type OrtModule = typeof import("onnxruntime-node");
 let ort: OrtModule | null = null;
 
 async function getOrt(): Promise<OrtModule> {
   if (!ort) {
-    ort = await import('onnxruntime-node');
+    ort = await import("onnxruntime-node");
   }
   return ort;
 }
@@ -51,7 +51,9 @@ async function getOrt(): Promise<OrtModule> {
  * We avoid InstanceType<> on InferenceSession because it's a factory, not a class.
  */
 interface OrtSession {
-  run(feeds: Record<string, unknown>): Promise<Record<string, { data: Float32Array; dims: readonly number[] }>>;
+  run(
+    feeds: Record<string, unknown>
+  ): Promise<Record<string, { data: Float32Array; dims: readonly number[] }>>;
   release(): Promise<void>;
 }
 
@@ -122,7 +124,7 @@ function l2Normalize(vec: Float32Array): Float32Array {
   }
   norm = Math.sqrt(norm);
   if (norm === 0) {
-    throw new Error('Zero vector: L2 norm is 0');
+    throw new Error("Zero vector: L2 norm is 0");
   }
   const result = new Float32Array(vec.length);
   for (let i = 0; i < vec.length; i++) {
@@ -139,12 +141,12 @@ async function initializeSession(modelPath: string): Promise<void> {
   if (session) return;
 
   const ortModule = await getOrt();
-  session = await ortModule.InferenceSession.create(modelPath, {
-    executionProviders: ['cpu'],
-  }) as unknown as OrtSession;
+  session = (await ortModule.InferenceSession.create(modelPath, {
+    executionProviders: ["cpu"],
+  })) as unknown as OrtSession;
 
   // eslint-disable-next-line no-console
-  console.log('[DINOv2Worker] Session initialized:', modelPath);
+  console.log("[DINOv2Worker] Session initialized:", modelPath);
 }
 
 async function disposeSession(): Promise<void> {
@@ -169,10 +171,10 @@ async function disposeSession(): Promise<void> {
 async function runInference(
   rawPixels: ArrayBuffer,
   width: number,
-  height: number,
+  height: number
 ): Promise<number[]> {
   if (!session) {
-    throw new Error('DINOv2 session not initialized');
+    throw new Error("DINOv2 session not initialized");
   }
 
   const ortModule = await getOrt();
@@ -181,7 +183,7 @@ async function runInference(
   const inputData = preprocessImage(rawPixels, width, height);
 
   // Create input tensor [1, 3, height, width]
-  const inputTensor = new ortModule.Tensor('float32', inputData, [1, 3, height, width]);
+  const inputTensor = new ortModule.Tensor("float32", inputData, [1, 3, height, width]);
 
   // Run inference
   const output = await session.run({ pixel_values: inputTensor });
@@ -189,7 +191,7 @@ async function runInference(
   // Extract CLS token from last_hidden_state [1, 257, 768]
   const lastHiddenState = output.last_hidden_state;
   if (!lastHiddenState) {
-    throw new Error('Model output missing last_hidden_state');
+    throw new Error("Model output missing last_hidden_state");
   }
 
   const data = lastHiddenState.data as Float32Array;
@@ -198,7 +200,7 @@ async function runInference(
   // Validate output shape: [1, 257, 768]
   if (dims.length !== 3 || dims[2] !== DINOV2_EMBEDDING_DIMENSION) {
     throw new Error(
-      `Unexpected output shape: [${dims.join(', ')}], expected [1, 257, ${DINOV2_EMBEDDING_DIMENSION}]`,
+      `Unexpected output shape: [${dims.join(", ")}], expected [1, 257, ${DINOV2_EMBEDDING_DIMENSION}]`
     );
   }
 
@@ -223,10 +225,14 @@ function sendResponse(response: DINOv2WorkerResponse): void {
   parentPort?.postMessage(response);
 }
 
-function sendError(requestId: string, originalType: DINOv2WorkerMessage['type'], error: unknown): void {
+function sendError(
+  requestId: string,
+  originalType: DINOv2WorkerMessage["type"],
+  error: unknown
+): void {
   const errorMessage = error instanceof Error ? error.message : String(error);
   const response: DINOv2WorkerErrorResponse = {
-    type: 'error',
+    type: "error",
     requestId,
     success: false,
     error: errorMessage,
@@ -237,11 +243,11 @@ function sendError(requestId: string, originalType: DINOv2WorkerMessage['type'],
 
 async function handleMessage(message: DINOv2WorkerMessage): Promise<void> {
   switch (message.type) {
-    case 'init': {
+    case "init": {
       const startTime = Date.now();
       await initializeSession(message.modelPath);
       sendResponse({
-        type: 'init',
+        type: "init",
         requestId: message.requestId,
         success: true,
         loadTimeMs: Date.now() - startTime,
@@ -249,11 +255,11 @@ async function handleMessage(message: DINOv2WorkerMessage): Promise<void> {
       break;
     }
 
-    case 'infer': {
+    case "infer": {
       const startTime = Date.now();
       const embedding = await runInference(message.imageBuffer, message.width, message.height);
       sendResponse({
-        type: 'infer',
+        type: "infer",
         requestId: message.requestId,
         success: true,
         embedding,
@@ -262,10 +268,10 @@ async function handleMessage(message: DINOv2WorkerMessage): Promise<void> {
       break;
     }
 
-    case 'dispose': {
+    case "dispose": {
       await disposeSession();
       sendResponse({
-        type: 'dispose',
+        type: "dispose",
         requestId: message.requestId,
         success: true,
       });
@@ -274,11 +280,11 @@ async function handleMessage(message: DINOv2WorkerMessage): Promise<void> {
 
     default: {
       // SEC-M2: Reject unknown message types for defense-in-depth
-      const unknownType = (message as Record<string, unknown>).type ?? 'unknown';
+      const unknownType = (message as Record<string, unknown>).type ?? "unknown";
       sendError(
-        (message as Record<string, unknown>).requestId as string ?? 'unknown',
-        unknownType as DINOv2WorkerMessage['type'],
-        new Error(`Unknown worker message type: ${String(unknownType)}`),
+        ((message as Record<string, unknown>).requestId as string) ?? "unknown",
+        unknownType as DINOv2WorkerMessage["type"],
+        new Error(`Unknown worker message type: ${String(unknownType)}`)
       );
       break;
     }
@@ -290,10 +296,10 @@ async function handleMessage(message: DINOv2WorkerMessage): Promise<void> {
 // =====================================================
 
 if (!parentPort) {
-  throw new Error('dinov2/worker-thread.ts must be run as a Worker Thread (no parentPort)');
+  throw new Error("dinov2/worker-thread.ts must be run as a Worker Thread (no parentPort)");
 }
 
-parentPort.on('message', (message: DINOv2WorkerMessage) => {
+parentPort.on("message", (message: DINOv2WorkerMessage) => {
   handleMessage(message).catch((error) => {
     sendError(message.requestId, message.type, error);
   });

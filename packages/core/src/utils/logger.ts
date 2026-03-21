@@ -11,8 +11,8 @@
  * @see CONTRIBUTING.md
  */
 
-const isDev = process.env.NODE_ENV === 'development';
-const isTest = process.env.NODE_ENV === 'test';
+const isDev = process.env.NODE_ENV === "development";
+const isTest = process.env.NODE_ENV === "test";
 
 /**
  * Logger instance with environment-aware methods
@@ -24,7 +24,7 @@ export const logger = {
   info: (...args: unknown[]): void => {
     if (isDev) {
       // eslint-disable-next-line no-console -- Logger utility intentionally uses console
-      console.log('[INFO]', ...args);
+      console.log("[INFO]", ...args);
     }
   },
 
@@ -33,7 +33,7 @@ export const logger = {
    */
   warn: (...args: unknown[]): void => {
     if (isDev) {
-      console.warn('[WARN]', ...args);
+      console.warn("[WARN]", ...args);
     }
   },
 
@@ -42,7 +42,7 @@ export const logger = {
    */
   error: (...args: unknown[]): void => {
     if (!isTest) {
-      console.error('[ERROR]', ...args);
+      console.error("[ERROR]", ...args);
     }
   },
 
@@ -52,7 +52,7 @@ export const logger = {
   debug: (...args: unknown[]): void => {
     if (isDev) {
       // eslint-disable-next-line no-console -- Logger utility intentionally uses console
-      console.log('[DEBUG]', ...args);
+      console.log("[DEBUG]", ...args);
     }
   },
 };

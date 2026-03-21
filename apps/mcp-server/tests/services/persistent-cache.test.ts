@@ -3,10 +3,9 @@
 
 /**
  * Persistent Cache Service テスト
- * TDD Red フェーズ: オフライン対応の永続キャッシュテスト
  *
  * 目的:
- * - LevelDBベースのディスク永続化
+ * - JSONファイルベースのディスク永続化
  * - TTL対応（有効期限管理）
  * - LRUエビクション（最大サイズ制限）
  * - 非同期API
@@ -14,81 +13,32 @@
  * - プロセス再起動後のデータ復元
  * - 同時アクセス（並行性）
  *
- * 注意: このテストはTDD Redフェーズであり、実装がまだ存在しないため
- * インポートエラーが発生することが期待されます。
- *
- * TDD Red フェーズ確認方法:
- * 1. 下記のインポート行のコメントを解除
- * 2. `pnpm test tests/services/persistent-cache.test.ts` を実行
- * 3. インポートエラーが発生することを確認（実装が存在しないため）
- *
- * 実装完了後:
- * 1. `apps/mcp-server/src/services/persistent-cache.ts` を作成
- * 2. PersistentCache クラスをエクスポート
- * 3. テストが全てパスすることを確認
+ * 構成:
+ * - 'Persistent Cache Service': モックベースの動作仕様テスト
+ * - 'PersistentCache 実装テスト': 実装クラスを使用した統合テスト
  */
-import { describe, it, expect, beforeEach, afterEach, vi, type Mock } from 'vitest';
+import {
+  describe,
+  it,
+  expect,
+  beforeAll,
+  afterAll,
+  beforeEach,
+  afterEach,
+  vi,
+  type Mock,
+} from "vitest";
+import type {
+  PersistentCacheEntry,
+  PersistentCacheOptions,
+  PersistentCacheStats,
+} from "@/services/persistent-cache";
 
 // ============================================================
-// TDD Red: 実際の実装をインポート（まだ存在しない）
-// 下記のコメントを解除すると、実装が存在しないためエラーになる
+// モックキャッシュ用インターフェース（非同期API）
+// 実装クラス PersistentCache の公開メソッドと同一シグネチャ
 // ============================================================
-// import { PersistentCache } from '@/services/persistent-cache';
-// import type { PersistentCacheOptions, PersistentCacheStats } from '@/services/persistent-cache';
-
-// ============================================================
-// 型定義（実装はまだ存在しない - TDD Red）
-// ============================================================
-
-/**
- * 永続キャッシュエントリの型定義
- */
-interface PersistentCacheEntry<T> {
-  value: T;
-  createdAt: number;
-  expiresAt: number;
-  lastAccessedAt: number;
-  accessCount: number;
-}
-
-/**
- * 永続キャッシュの設定オプション
- * 注意: この型は実装時に使用される。現在はTDD Redフェーズのためテスト内で直接参照されていない。
- */
-interface _PersistentCacheOptions {
-  /** キャッシュ保存ディレクトリパス */
-  dbPath: string;
-  /** 最大エントリ数 */
-  maxSize: number;
-  /** デフォルトTTL（ミリ秒） */
-  defaultTtlMs: number;
-  /** エビクションチェック間隔（ミリ秒） */
-  evictionIntervalMs?: number;
-  /** ディスク書き込み失敗時のリトライ回数 */
-  writeRetries?: number;
-  /** ログ有効化 */
-  enableLogging?: boolean;
-}
-
-/**
- * 永続キャッシュ統計情報
- */
-interface PersistentCacheStats {
-  hits: number;
-  misses: number;
-  hitRate: number;
-  size: number;
-  maxSize: number;
-  diskUsageBytes: number;
-  evictionCount: number;
-  writeErrorCount: number;
-  readErrorCount: number;
-}
-
-/**
- * 永続キャッシュのインターフェース（非同期API）
- */
-interface PersistentCache<T> {
+interface MockPersistentCache<T> {
   get: (key: string) => Promise<T | null>;
   set: (key: string, value: T, ttlMs?: number) => Promise<void>;
   has: (key: string) => Promise<boolean>;
@@ -119,7 +69,7 @@ interface MockLevelDB {
 // テストスイート
 // ============================================================
 
-describe('Persistent Cache Service', () => {
+describe("Persistent Cache Service", () => {
   /**
    * LevelDBモックファクトリ
    * 実際のディスクI/Oなしにテスト可能にする
@@ -131,7 +81,7 @@ describe('Persistent Cache Service', () => {
       get: vi.fn((key: string) => {
         const value = storage.get(key);
         if (value === undefined) {
-          throw new Error('NotFoundError: Key not found');
+          throw new Error("NotFoundError: Key not found");
         }
         return Promise.resolve(value);
       }),
@@ -158,12 +108,12 @@ describe('Persistent Cache Service', () => {
       })),
       close: vi.fn(() => Promise.resolve()),
       open: vi.fn(() => Promise.resolve()),
-      status: 'open',
+      status: "open",
     };
   };
 
-  describe('基本CRUD操作', () => {
-    let cache: PersistentCache<string>;
+  describe("基本CRUD操作", () => {
+    let cache: MockPersistentCache<string>;
     let _mockDb: MockLevelDB;
 
     beforeEach(() => {
@@ -253,10 +203,10 @@ describe('Persistent Cache Service', () => {
       await cache.close();
     });
 
-    it('値を保存して取得できること (set/get)', async () => {
+    it("値を保存して取得できること (set/get)", async () => {
       // Arrange
-      const key = 'test-key';
-      const value = 'test-value';
+      const key = "test-key";
+      const value = "test-value";
 
       // Act
       await cache.set(key, value);
@@ -267,98 +217,98 @@ describe('Persistent Cache Service', () => {
       // TDD Red: PersistentCacheクラスの実装がないため失敗
     });
 
-    it('存在しないキーでnullを返すこと', async () => {
+    it("存在しないキーでnullを返すこと", async () => {
       // Act
-      const result = await cache.get('nonexistent-key');
+      const result = await cache.get("nonexistent-key");
 
       // Assert
       expect(result).toBeNull();
       // TDD Red: 存在チェックの実装がないため失敗
     });
 
-    it('has()でキーの存在を確認できること', async () => {
+    it("has()でキーの存在を確認できること", async () => {
       // Arrange
-      await cache.set('existing-key', 'value');
+      await cache.set("existing-key", "value");
 
       // Act & Assert
-      expect(await cache.has('existing-key')).toBe(true);
-      expect(await cache.has('nonexistent-key')).toBe(false);
+      expect(await cache.has("existing-key")).toBe(true);
+      expect(await cache.has("nonexistent-key")).toBe(false);
       // TDD Red: has()の実装がないため失敗
     });
 
-    it('delete()でエントリを削除できること', async () => {
+    it("delete()でエントリを削除できること", async () => {
       // Arrange
-      await cache.set('key-to-delete', 'value');
+      await cache.set("key-to-delete", "value");
 
       // Act
-      const deleted = await cache.delete('key-to-delete');
+      const deleted = await cache.delete("key-to-delete");
 
       // Assert
       expect(deleted).toBe(true);
-      expect(await cache.has('key-to-delete')).toBe(false);
-      expect(await cache.get('key-to-delete')).toBeNull();
+      expect(await cache.has("key-to-delete")).toBe(false);
+      expect(await cache.get("key-to-delete")).toBeNull();
       // TDD Red: delete()の実装がないため失敗
     });
 
-    it('存在しないキーの削除でfalseを返すこと', async () => {
+    it("存在しないキーの削除でfalseを返すこと", async () => {
       // Act
-      const deleted = await cache.delete('nonexistent-key');
+      const deleted = await cache.delete("nonexistent-key");
 
       // Assert
       expect(deleted).toBe(false);
       // TDD Red: 削除結果の実装がないため失敗
     });
 
-    it('clear()で全エントリを削除できること', async () => {
+    it("clear()で全エントリを削除できること", async () => {
       // Arrange
-      await cache.set('key1', 'value1');
-      await cache.set('key2', 'value2');
-      await cache.set('key3', 'value3');
+      await cache.set("key1", "value1");
+      await cache.set("key2", "value2");
+      await cache.set("key3", "value3");
 
       // Act
       await cache.clear();
 
       // Assert
       expect(await cache.size()).toBe(0);
-      expect(await cache.get('key1')).toBeNull();
-      expect(await cache.get('key2')).toBeNull();
-      expect(await cache.get('key3')).toBeNull();
+      expect(await cache.get("key1")).toBeNull();
+      expect(await cache.get("key2")).toBeNull();
+      expect(await cache.get("key3")).toBeNull();
       // TDD Red: clear()の実装がないため失敗
     });
 
-    it('size()で現在のエントリ数を取得できること', async () => {
+    it("size()で現在のエントリ数を取得できること", async () => {
       // Arrange & Act
       expect(await cache.size()).toBe(0);
 
-      await cache.set('key1', 'value1');
+      await cache.set("key1", "value1");
       expect(await cache.size()).toBe(1);
 
-      await cache.set('key2', 'value2');
+      await cache.set("key2", "value2");
       expect(await cache.size()).toBe(2);
 
-      await cache.delete('key1');
+      await cache.delete("key1");
       expect(await cache.size()).toBe(1);
       // TDD Red: size()の実装がないため失敗
     });
 
-    it('keys()で全キーを取得できること', async () => {
+    it("keys()で全キーを取得できること", async () => {
       // Arrange
-      await cache.set('key1', 'value1');
-      await cache.set('key2', 'value2');
-      await cache.set('key3', 'value3');
+      await cache.set("key1", "value1");
+      await cache.set("key2", "value2");
+      await cache.set("key3", "value3");
 
       // Act
       const keys = await cache.keys();
 
       // Assert
       expect(keys).toHaveLength(3);
-      expect(keys).toContain('key1');
-      expect(keys).toContain('key2');
-      expect(keys).toContain('key3');
+      expect(keys).toContain("key1");
+      expect(keys).toContain("key2");
+      expect(keys).toContain("key3");
       // TDD Red: keys()の実装がないため失敗
     });
 
-    it('JSONオブジェクトを保存・取得できること', async () => {
+    it("JSONオブジェクトを保存・取得できること", async () => {
       // Arrange
       interface TestData {
         id: string;
@@ -367,16 +317,16 @@ describe('Persistent Cache Service', () => {
       }
 
       // 型キャストでオブジェクト対応を確認
-      const objCache = cache as unknown as PersistentCache<TestData>;
+      const objCache = cache as unknown as MockPersistentCache<TestData>;
       const testData: TestData = {
-        id: '123',
-        name: 'test',
+        id: "123",
+        name: "test",
         metadata: { count: 42 },
       };
 
       // Act
-      await objCache.set('object-key', testData);
-      const result = await objCache.get('object-key');
+      await objCache.set("object-key", testData);
+      const result = await objCache.get("object-key");
 
       // Assert
       expect(result).toEqual(testData);
@@ -384,14 +334,14 @@ describe('Persistent Cache Service', () => {
       // TDD Red: JSON シリアライズ/デシリアライズの実装がないため失敗
     });
 
-    it('配列データを保存・取得できること', async () => {
+    it("配列データを保存・取得できること", async () => {
       // Arrange
-      const arrayCache = cache as unknown as PersistentCache<number[]>;
+      const arrayCache = cache as unknown as MockPersistentCache<number[]>;
       const testArray = [1, 2, 3, 4, 5];
 
       // Act
-      await arrayCache.set('array-key', testArray);
-      const result = await arrayCache.get('array-key');
+      await arrayCache.set("array-key", testArray);
+      const result = await arrayCache.get("array-key");
 
       // Assert
       expect(result).toEqual(testArray);
@@ -400,8 +350,8 @@ describe('Persistent Cache Service', () => {
     });
   });
 
-  describe('TTL期限切れテスト', () => {
-    let cache: PersistentCache<string>;
+  describe("TTL期限切れテスト", () => {
+    let cache: MockPersistentCache<string>;
 
     beforeEach(() => {
       vi.useFakeTimers();
@@ -483,76 +433,76 @@ describe('Persistent Cache Service', () => {
       vi.useRealTimers();
     });
 
-    it('TTL期限内は値を取得できること', async () => {
+    it("TTL期限内は値を取得できること", async () => {
       // Arrange
-      await cache.set('key', 'value', 5000); // 5秒TTL
+      await cache.set("key", "value", 5000); // 5秒TTL
 
       // Act
       vi.advanceTimersByTime(3000); // 3秒経過
-      const result = await cache.get('key');
+      const result = await cache.get("key");
 
       // Assert
-      expect(result).toBe('value');
+      expect(result).toBe("value");
       // TDD Red: TTL管理の実装がないため失敗
     });
 
-    it('TTL期限切れ後はnullを返すこと', async () => {
+    it("TTL期限切れ後はnullを返すこと", async () => {
       // Arrange
-      await cache.set('key', 'value', 5000); // 5秒TTL
+      await cache.set("key", "value", 5000); // 5秒TTL
 
       // Act
       vi.advanceTimersByTime(6000); // 6秒経過
-      const result = await cache.get('key');
+      const result = await cache.get("key");
 
       // Assert
       expect(result).toBeNull();
       // TDD Red: TTL期限切れチェックの実装がないため失敗
     });
 
-    it('TTL期限切れ後はhas()がfalseを返すこと', async () => {
+    it("TTL期限切れ後はhas()がfalseを返すこと", async () => {
       // Arrange
-      await cache.set('key', 'value', 5000);
+      await cache.set("key", "value", 5000);
 
       // Act & Assert
-      expect(await cache.has('key')).toBe(true);
+      expect(await cache.has("key")).toBe(true);
 
       vi.advanceTimersByTime(6000);
-      expect(await cache.has('key')).toBe(false);
+      expect(await cache.has("key")).toBe(false);
       // TDD Red: TTL期限切れ時のhas()実装がないため失敗
     });
 
-    it('個別のTTLを指定できること', async () => {
+    it("個別のTTLを指定できること", async () => {
       // Arrange
-      await cache.set('short-ttl', 'value1', 1000); // 1秒
-      await cache.set('long-ttl', 'value2', 10000); // 10秒
+      await cache.set("short-ttl", "value1", 1000); // 1秒
+      await cache.set("long-ttl", "value2", 10000); // 10秒
 
       // Act
       vi.advanceTimersByTime(2000); // 2秒経過
 
       // Assert
-      expect(await cache.get('short-ttl')).toBeNull(); // 期限切れ
-      expect(await cache.get('long-ttl')).toBe('value2'); // まだ有効
+      expect(await cache.get("short-ttl")).toBeNull(); // 期限切れ
+      expect(await cache.get("long-ttl")).toBe("value2"); // まだ有効
       // TDD Red: 個別TTLの実装がないため失敗
     });
 
-    it('デフォルトTTLが適用されること', async () => {
+    it("デフォルトTTLが適用されること", async () => {
       // Arrange - デフォルトTTL 5分（300000ms）を想定
-      await cache.set('default-ttl-key', 'value');
+      await cache.set("default-ttl-key", "value");
 
       // Act
       vi.advanceTimersByTime(299000); // 4分59秒
-      expect(await cache.get('default-ttl-key')).toBe('value');
+      expect(await cache.get("default-ttl-key")).toBe("value");
 
       vi.advanceTimersByTime(2000); // +2秒 = 5分1秒
-      expect(await cache.get('default-ttl-key')).toBeNull();
+      expect(await cache.get("default-ttl-key")).toBeNull();
       // TDD Red: デフォルトTTLの実装がないため失敗
     });
 
-    it('compact()で期限切れエントリを削除できること', async () => {
+    it("compact()で期限切れエントリを削除できること", async () => {
       // Arrange
-      await cache.set('expired1', 'value1', 1000);
-      await cache.set('expired2', 'value2', 2000);
-      await cache.set('valid', 'value3', 10000);
+      await cache.set("expired1", "value1", 1000);
+      await cache.set("expired2", "value2", 2000);
+      await cache.set("valid", "value3", 10000);
 
       vi.advanceTimersByTime(3000); // 3秒経過
 
@@ -561,27 +511,27 @@ describe('Persistent Cache Service', () => {
 
       // Assert
       expect(await cache.size()).toBe(1);
-      expect(await cache.has('valid')).toBe(true);
-      expect(await cache.has('expired1')).toBe(false);
-      expect(await cache.has('expired2')).toBe(false);
+      expect(await cache.has("valid")).toBe(true);
+      expect(await cache.has("expired1")).toBe(false);
+      expect(await cache.has("expired2")).toBe(false);
       // TDD Red: compact()の実装がないため失敗
     });
 
-    it('TTL 0で即座に期限切れになること', async () => {
+    it("TTL 0で即座に期限切れになること", async () => {
       // Arrange & Act
-      await cache.set('instant-expire', 'value', 0);
+      await cache.set("instant-expire", "value", 0);
 
       // TTL=0 は即座に期限切れ
       vi.advanceTimersByTime(1);
 
       // Assert
-      expect(await cache.get('instant-expire')).toBeNull();
+      expect(await cache.get("instant-expire")).toBeNull();
       // TDD Red: TTL=0の実装がないため失敗
     });
   });
 
-  describe('LRU eviction テスト', () => {
-    let cache: PersistentCache<string>;
+  describe("LRU eviction テスト", () => {
+    let cache: MockPersistentCache<string>;
     let evictionCount: number;
 
     beforeEach(() => {
@@ -678,53 +628,53 @@ describe('Persistent Cache Service', () => {
       };
     });
 
-    it('最大サイズを超えると最も古いエントリが削除されること', async () => {
+    it("最大サイズを超えると最も古いエントリが削除されること", async () => {
       // Arrange
-      await cache.set('key1', 'value1');
-      await cache.set('key2', 'value2');
-      await cache.set('key3', 'value3');
+      await cache.set("key1", "value1");
+      await cache.set("key2", "value2");
+      await cache.set("key3", "value3");
 
       // Act
-      await cache.set('key4', 'value4'); // key1が削除される
+      await cache.set("key4", "value4"); // key1が削除される
 
       // Assert
       expect(await cache.size()).toBe(3);
-      expect(await cache.has('key1')).toBe(false); // 最も古い
-      expect(await cache.has('key2')).toBe(true);
-      expect(await cache.has('key3')).toBe(true);
-      expect(await cache.has('key4')).toBe(true);
+      expect(await cache.has("key1")).toBe(false); // 最も古い
+      expect(await cache.has("key2")).toBe(true);
+      expect(await cache.has("key3")).toBe(true);
+      expect(await cache.has("key4")).toBe(true);
       // TDD Red: LRU evictionの実装がないため失敗
     });
 
-    it('アクセスされたエントリは削除優先度が下がること', async () => {
+    it("アクセスされたエントリは削除優先度が下がること", async () => {
       // Arrange
-      await cache.set('key1', 'value1');
-      await cache.set('key2', 'value2');
-      await cache.set('key3', 'value3');
+      await cache.set("key1", "value1");
+      await cache.set("key2", "value2");
+      await cache.set("key3", "value3");
 
       // key1にアクセス（最後に移動）
-      await cache.get('key1');
+      await cache.get("key1");
 
       // Act
-      await cache.set('key4', 'value4'); // key2が削除される（key1は最近アクセス）
+      await cache.set("key4", "value4"); // key2が削除される（key1は最近アクセス）
 
       // Assert
-      expect(await cache.has('key1')).toBe(true); // 最近アクセス
-      expect(await cache.has('key2')).toBe(false); // 最も古い
-      expect(await cache.has('key3')).toBe(true);
-      expect(await cache.has('key4')).toBe(true);
+      expect(await cache.has("key1")).toBe(true); // 最近アクセス
+      expect(await cache.has("key2")).toBe(false); // 最も古い
+      expect(await cache.has("key3")).toBe(true);
+      expect(await cache.has("key4")).toBe(true);
       // TDD Red: アクセス順序更新の実装がないため失敗
     });
 
-    it('evictionCountが正しくカウントされること', async () => {
+    it("evictionCountが正しくカウントされること", async () => {
       // Arrange
-      await cache.set('key1', 'value1');
-      await cache.set('key2', 'value2');
-      await cache.set('key3', 'value3');
+      await cache.set("key1", "value1");
+      await cache.set("key2", "value2");
+      await cache.set("key3", "value3");
 
       // Act
-      await cache.set('key4', 'value4'); // 1回eviction
-      await cache.set('key5', 'value5'); // 2回eviction
+      await cache.set("key4", "value4"); // 1回eviction
+      await cache.set("key5", "value5"); // 2回eviction
 
       // Assert
       const stats = await cache.getStats();
@@ -732,39 +682,39 @@ describe('Persistent Cache Service', () => {
       // TDD Red: evictionCountの実装がないため失敗
     });
 
-    it('同じキーの更新はevictionをトリガーしないこと', async () => {
+    it("同じキーの更新はevictionをトリガーしないこと", async () => {
       // Arrange
-      await cache.set('key1', 'value1');
-      await cache.set('key2', 'value2');
-      await cache.set('key3', 'value3');
+      await cache.set("key1", "value1");
+      await cache.set("key2", "value2");
+      await cache.set("key3", "value3");
 
       // Act
-      await cache.set('key1', 'updated-value1'); // 更新
+      await cache.set("key1", "updated-value1"); // 更新
 
       // Assert
       expect(await cache.size()).toBe(3);
-      expect(await cache.get('key1')).toBe('updated-value1');
+      expect(await cache.get("key1")).toBe("updated-value1");
 
       const stats = await cache.getStats();
       expect(stats.evictionCount).toBe(0);
       // TDD Red: 更新時のeviction防止の実装がないため失敗
     });
 
-    it('削除されたエントリが正しく解放されること', async () => {
+    it("削除されたエントリが正しく解放されること", async () => {
       // Arrange
-      await cache.set('key1', 'value1');
-      await cache.set('key2', 'value2');
-      await cache.set('key3', 'value3');
+      await cache.set("key1", "value1");
+      await cache.set("key2", "value2");
+      await cache.set("key3", "value3");
 
       // Act
-      await cache.delete('key2'); // 手動削除
-      await cache.set('key4', 'value4'); // evictionなしで追加可能
+      await cache.delete("key2"); // 手動削除
+      await cache.set("key4", "value4"); // evictionなしで追加可能
 
       // Assert
       expect(await cache.size()).toBe(3);
-      expect(await cache.has('key1')).toBe(true);
-      expect(await cache.has('key3')).toBe(true);
-      expect(await cache.has('key4')).toBe(true);
+      expect(await cache.has("key1")).toBe(true);
+      expect(await cache.has("key3")).toBe(true);
+      expect(await cache.has("key4")).toBe(true);
 
       const stats = await cache.getStats();
       expect(stats.evictionCount).toBe(0);
@@ -772,20 +722,20 @@ describe('Persistent Cache Service', () => {
     });
   });
 
-  describe('ディスク永続化テスト（プロセス再起動シミュレーション）', () => {
+  describe("ディスク永続化テスト（プロセス再起動シミュレーション）", () => {
     let _dbPath: string;
     let _mockDb: MockLevelDB;
 
     beforeEach(() => {
-      _dbPath = '/tmp/test-cache-db';
+      _dbPath = "/tmp/test-cache-db";
       _mockDb = createMockLevelDB();
     });
 
-    it('保存したデータがディスクに永続化されること', async () => {
+    it("保存したデータがディスクに永続化されること", async () => {
       // Arrange
       const persistedStorage = new Map<string, string>();
 
-      const cache: PersistentCache<string> = {
+      const cache: MockPersistentCache<string> = {
         get: async (key: string) => {
           const value = persistedStorage.get(key);
           return value ? JSON.parse(value).value : null;
@@ -821,21 +771,21 @@ describe('Persistent Cache Service', () => {
       };
 
       // Act - データを保存
-      await cache.set('persistent-key', 'persistent-value');
+      await cache.set("persistent-key", "persistent-value");
 
       // Assert - ディスクに書き込まれていることを確認
-      expect(persistedStorage.has('persistent-key')).toBe(true);
-      const stored = JSON.parse(persistedStorage.get('persistent-key')!);
-      expect(stored.value).toBe('persistent-value');
+      expect(persistedStorage.has("persistent-key")).toBe(true);
+      const stored = JSON.parse(persistedStorage.get("persistent-key")!);
+      expect(stored.value).toBe("persistent-value");
       // TDD Red: ディスク永続化の実装がないため失敗
     });
 
-    it('プロセス再起動後もデータが復元されること', async () => {
+    it("プロセス再起動後もデータが復元されること", async () => {
       // Arrange - 永続ストレージをシミュレート
       const persistedStorage = new Map<string, string>();
 
       // 最初のキャッシュインスタンス（プロセス1）
-      const createCache = (): PersistentCache<string> => ({
+      const createCache = (): MockPersistentCache<string> => ({
         get: async (key: string) => {
           const value = persistedStorage.get(key);
           if (!value) return null;
@@ -878,8 +828,8 @@ describe('Persistent Cache Service', () => {
 
       // プロセス1: データ保存
       const cache1 = createCache();
-      await cache1.set('key1', 'value1');
-      await cache1.set('key2', 'value2');
+      await cache1.set("key1", "value1");
+      await cache1.set("key2", "value2");
       await cache1.close();
 
       // プロセス再起動シミュレーション
@@ -889,44 +839,44 @@ describe('Persistent Cache Service', () => {
       const cache2 = createCache();
 
       // Assert
-      expect(await cache2.get('key1')).toBe('value1');
-      expect(await cache2.get('key2')).toBe('value2');
+      expect(await cache2.get("key1")).toBe("value1");
+      expect(await cache2.get("key2")).toBe("value2");
       // TDD Red: プロセス再起動後の復元の実装がないため失敗
     });
 
-    it('close()後は操作できないこと', async () => {
+    it("close()後は操作できないこと", async () => {
       // Arrange
       let isClosed = false;
 
-      const cache: PersistentCache<string> = {
+      const cache: MockPersistentCache<string> = {
         get: async () => {
-          if (isClosed) throw new Error('Database is closed');
+          if (isClosed) throw new Error("Database is closed");
           return null;
         },
         set: async () => {
-          if (isClosed) throw new Error('Database is closed');
+          if (isClosed) throw new Error("Database is closed");
         },
         has: async () => {
-          if (isClosed) throw new Error('Database is closed');
+          if (isClosed) throw new Error("Database is closed");
           return false;
         },
         delete: async () => {
-          if (isClosed) throw new Error('Database is closed');
+          if (isClosed) throw new Error("Database is closed");
           return false;
         },
         clear: async () => {
-          if (isClosed) throw new Error('Database is closed');
+          if (isClosed) throw new Error("Database is closed");
         },
         size: async () => {
-          if (isClosed) throw new Error('Database is closed');
+          if (isClosed) throw new Error("Database is closed");
           return 0;
         },
         keys: async () => {
-          if (isClosed) throw new Error('Database is closed');
+          if (isClosed) throw new Error("Database is closed");
           return [];
         },
         getStats: async () => {
-          if (isClosed) throw new Error('Database is closed');
+          if (isClosed) throw new Error("Database is closed");
           return {
             hits: 0,
             misses: 0,
@@ -943,26 +893,26 @@ describe('Persistent Cache Service', () => {
           isClosed = true;
         },
         compact: async () => {
-          if (isClosed) throw new Error('Database is closed');
+          if (isClosed) throw new Error("Database is closed");
         },
       };
 
       // Act
-      await cache.set('key', 'value');
+      await cache.set("key", "value");
       await cache.close();
 
       // Assert
-      await expect(cache.get('key')).rejects.toThrow('Database is closed');
-      await expect(cache.set('key', 'value')).rejects.toThrow('Database is closed');
+      await expect(cache.get("key")).rejects.toThrow("Database is closed");
+      await expect(cache.set("key", "value")).rejects.toThrow("Database is closed");
       // TDD Red: close後の状態管理の実装がないため失敗
     });
 
-    it('複数キーを一括で保存できること（バッチ操作）', async () => {
+    it("複数キーを一括で保存できること（バッチ操作）", async () => {
       // Arrange
       const persistedStorage = new Map<string, string>();
-      const batchOperations: Array<{ type: 'put' | 'del'; key: string; value?: string }> = [];
+      const batchOperations: Array<{ type: "put" | "del"; key: string; value?: string }> = [];
 
-      const cache: PersistentCache<string> & {
+      const cache: MockPersistentCache<string> & {
         setMany: (entries: Array<{ key: string; value: string; ttlMs?: number }>) => Promise<void>;
       } = {
         get: async (key: string) => {
@@ -988,7 +938,7 @@ describe('Persistent Cache Service', () => {
               lastAccessedAt: Date.now(),
               accessCount: 0,
             };
-            batchOperations.push({ type: 'put', key, value: JSON.stringify(entry) });
+            batchOperations.push({ type: "put", key, value: JSON.stringify(entry) });
             persistedStorage.set(key, JSON.stringify(entry));
           }
         },
@@ -1014,27 +964,27 @@ describe('Persistent Cache Service', () => {
 
       // Act
       await cache.setMany([
-        { key: 'batch-key1', value: 'batch-value1' },
-        { key: 'batch-key2', value: 'batch-value2' },
-        { key: 'batch-key3', value: 'batch-value3' },
+        { key: "batch-key1", value: "batch-value1" },
+        { key: "batch-key2", value: "batch-value2" },
+        { key: "batch-key3", value: "batch-value3" },
       ]);
 
       // Assert
       expect(await cache.size()).toBe(3);
-      expect(await cache.get('batch-key1')).toBe('batch-value1');
-      expect(await cache.get('batch-key2')).toBe('batch-value2');
-      expect(await cache.get('batch-key3')).toBe('batch-value3');
+      expect(await cache.get("batch-key1")).toBe("batch-value1");
+      expect(await cache.get("batch-key2")).toBe("batch-value2");
+      expect(await cache.get("batch-key3")).toBe("batch-value3");
       // TDD Red: バッチ操作の実装がないため失敗
     });
   });
 
-  describe('エラーハンドリング（ディスク障害シミュレーション）', () => {
-    it('ディスク書き込み失敗時にエラーをスローすること', async () => {
+  describe("エラーハンドリング（ディスク障害シミュレーション）", () => {
+    it("ディスク書き込み失敗時にエラーをスローすること", async () => {
       // Arrange
-      const cache: PersistentCache<string> = {
+      const cache: MockPersistentCache<string> = {
         get: async () => null,
         set: async () => {
-          throw new Error('ENOSPC: no space left on device');
+          throw new Error("ENOSPC: no space left on device");
         },
         has: async () => false,
         delete: async () => false,
@@ -1057,15 +1007,15 @@ describe('Persistent Cache Service', () => {
       };
 
       // Act & Assert
-      await expect(cache.set('key', 'value')).rejects.toThrow('ENOSPC');
+      await expect(cache.set("key", "value")).rejects.toThrow("ENOSPC");
       // TDD Red: ディスク書き込みエラーハンドリングの実装がないため失敗
     });
 
-    it('ディスク読み取り失敗時にnullを返すこと（graceful degradation）', async () => {
+    it("ディスク読み取り失敗時にnullを返すこと（graceful degradation）", async () => {
       // Arrange
       let readErrorCount = 0;
 
-      const cache: PersistentCache<string> = {
+      const cache: MockPersistentCache<string> = {
         get: async () => {
           readErrorCount++;
           // graceful degradation: エラー時はnullを返す
@@ -1093,7 +1043,7 @@ describe('Persistent Cache Service', () => {
       };
 
       // Act
-      const result = await cache.get('key');
+      const result = await cache.get("key");
 
       // Assert
       expect(result).toBeNull();
@@ -1102,17 +1052,17 @@ describe('Persistent Cache Service', () => {
       // TDD Red: graceful degradationの実装がないため失敗
     });
 
-    it('書き込みリトライが設定回数まで実行されること', async () => {
+    it("書き込みリトライが設定回数まで実行されること", async () => {
       // Arrange
       let attemptCount = 0;
       const maxRetries = 3;
 
-      const cache: PersistentCache<string> = {
+      const cache: MockPersistentCache<string> = {
         get: async () => null,
         set: async () => {
           attemptCount++;
           if (attemptCount <= maxRetries) {
-            throw new Error('Temporary write error');
+            throw new Error("Temporary write error");
           }
           // リトライ後に成功
         },
@@ -1139,19 +1089,19 @@ describe('Persistent Cache Service', () => {
       // Act & Assert
       // 最初の3回は失敗、4回目で成功することを期待
       // ただし、現在のモック実装では毎回エラーをスロー
-      await expect(cache.set('key', 'value')).rejects.toThrow('Temporary write error');
+      await expect(cache.set("key", "value")).rejects.toThrow("Temporary write error");
       expect(attemptCount).toBe(1);
       // TDD Red: リトライロジックの実装がないため失敗
     });
 
-    it('破損したデータの読み取り時にnullを返すこと', async () => {
+    it("破損したデータの読み取り時にnullを返すこと", async () => {
       // Arrange
-      const cache: PersistentCache<string> = {
+      const cache: MockPersistentCache<string> = {
         get: async () => {
           // 破損したJSONをパースしようとしてエラー
           try {
-            JSON.parse('invalid json{{{');
-            return 'value';
+            JSON.parse("invalid json{{{");
+            return "value";
           } catch {
             return null; // graceful degradation
           }
@@ -1178,22 +1128,22 @@ describe('Persistent Cache Service', () => {
       };
 
       // Act
-      const result = await cache.get('corrupted-key');
+      const result = await cache.get("corrupted-key");
 
       // Assert
       expect(result).toBeNull();
       // TDD Red: 破損データハンドリングの実装がないため失敗
     });
 
-    it('writeErrorCountが正しくカウントされること', async () => {
+    it("writeErrorCountが正しくカウントされること", async () => {
       // Arrange
       let writeErrorCount = 0;
 
-      const cache: PersistentCache<string> = {
+      const cache: MockPersistentCache<string> = {
         get: async () => null,
         set: async () => {
           writeErrorCount++;
-          throw new Error('Write error');
+          throw new Error("Write error");
         },
         has: async () => false,
         delete: async () => false,
@@ -1217,12 +1167,12 @@ describe('Persistent Cache Service', () => {
 
       // Act
       try {
-        await cache.set('key1', 'value1');
+        await cache.set("key1", "value1");
       } catch {
         // ignore
       }
       try {
-        await cache.set('key2', 'value2');
+        await cache.set("key2", "value2");
       } catch {
         // ignore
       }
@@ -1233,14 +1183,14 @@ describe('Persistent Cache Service', () => {
       // TDD Red: writeErrorCountの実装がないため失敗
     });
 
-    it('データベース接続エラー時に適切なエラーメッセージを返すこと', async () => {
+    it("データベース接続エラー時に適切なエラーメッセージを返すこと", async () => {
       // Arrange
-      const cache: PersistentCache<string> = {
+      const cache: MockPersistentCache<string> = {
         get: async () => {
-          throw new Error('ECONNREFUSED: database connection refused');
+          throw new Error("ECONNREFUSED: database connection refused");
         },
         set: async () => {
-          throw new Error('ECONNREFUSED: database connection refused');
+          throw new Error("ECONNREFUSED: database connection refused");
         },
         has: async () => false,
         delete: async () => false,
@@ -1263,19 +1213,19 @@ describe('Persistent Cache Service', () => {
       };
 
       // Act & Assert
-      await expect(cache.get('key')).rejects.toThrow('ECONNREFUSED');
-      await expect(cache.set('key', 'value')).rejects.toThrow('ECONNREFUSED');
+      await expect(cache.get("key")).rejects.toThrow("ECONNREFUSED");
+      await expect(cache.set("key", "value")).rejects.toThrow("ECONNREFUSED");
       // TDD Red: データベース接続エラーの実装がないため失敗
     });
   });
 
-  describe('同時アクセステスト（並行性）', () => {
-    it('同時書き込みが正しく処理されること', async () => {
+  describe("同時アクセステスト（並行性）", () => {
+    it("同時書き込みが正しく処理されること", async () => {
       // Arrange
       const storage = new Map<string, PersistentCacheEntry<string>>();
       let writeCount = 0;
 
-      const cache: PersistentCache<string> = {
+      const cache: MockPersistentCache<string> = {
         get: async (key: string) => {
           const entry = storage.get(key);
           return entry ? entry.value : null;
@@ -1330,11 +1280,11 @@ describe('Persistent Cache Service', () => {
       // TDD Red: 同時書き込みの実装がないため失敗
     });
 
-    it('同時読み書きが正しく処理されること', async () => {
+    it("同時読み書きが正しく処理されること", async () => {
       // Arrange
       const storage = new Map<string, PersistentCacheEntry<string>>();
 
-      const cache: PersistentCache<string> = {
+      const cache: MockPersistentCache<string> = {
         get: async (key: string) => {
           await new Promise((resolve) => setTimeout(resolve, Math.random() * 5));
           const entry = storage.get(key);
@@ -1372,32 +1322,32 @@ describe('Persistent Cache Service', () => {
       };
 
       // 初期データを設定
-      await cache.set('shared-key', 'initial-value');
+      await cache.set("shared-key", "initial-value");
 
       // Act - 同時に読み書き
       const operations = [
-        cache.get('shared-key'),
-        cache.set('shared-key', 'updated-value-1'),
-        cache.get('shared-key'),
-        cache.set('shared-key', 'updated-value-2'),
-        cache.get('shared-key'),
+        cache.get("shared-key"),
+        cache.set("shared-key", "updated-value-1"),
+        cache.get("shared-key"),
+        cache.set("shared-key", "updated-value-2"),
+        cache.get("shared-key"),
       ];
 
       const _results = await Promise.all(operations);
 
       // Assert - 最終的な値が保存されていること
-      const finalValue = await cache.get('shared-key');
+      const finalValue = await cache.get("shared-key");
       expect(finalValue).toBeDefined();
       // 最後の書き込みが反映されているはず
-      expect(['updated-value-1', 'updated-value-2']).toContain(finalValue);
+      expect(["updated-value-1", "updated-value-2"]).toContain(finalValue);
       // TDD Red: 同時読み書きの実装がないため失敗
     });
 
-    it('同時削除が正しく処理されること', async () => {
+    it("同時削除が正しく処理されること", async () => {
       // Arrange
       const storage = new Map<string, PersistentCacheEntry<string>>();
 
-      const cache: PersistentCache<string> = {
+      const cache: MockPersistentCache<string> = {
         get: async (key: string) => {
           const entry = storage.get(key);
           return entry ? entry.value : null;
@@ -1450,12 +1400,12 @@ describe('Persistent Cache Service', () => {
       // TDD Red: 同時削除の実装がないため失敗
     });
 
-    it('高負荷時でもデータ整合性が保たれること', async () => {
+    it("高負荷時でもデータ整合性が保たれること", async () => {
       // Arrange
       const storage = new Map<string, PersistentCacheEntry<string>>();
       const operationLog: string[] = [];
 
-      const cache: PersistentCache<string> = {
+      const cache: MockPersistentCache<string> = {
         get: async (key: string) => {
           operationLog.push(`get:${key}`);
           const entry = storage.get(key);
@@ -1522,8 +1472,8 @@ describe('Persistent Cache Service', () => {
     });
   });
 
-  describe('統計情報テスト', () => {
-    let cache: PersistentCache<string>;
+  describe("統計情報テスト", () => {
+    let cache: MockPersistentCache<string>;
 
     beforeEach(() => {
       const storage = new Map<string, PersistentCacheEntry<string>>();
@@ -1575,15 +1525,15 @@ describe('Persistent Cache Service', () => {
       };
     });
 
-    it('ヒット率が正しく計算されること', async () => {
+    it("ヒット率が正しく計算されること", async () => {
       // Arrange
-      await cache.set('key1', 'value1');
-      await cache.set('key2', 'value2');
+      await cache.set("key1", "value1");
+      await cache.set("key2", "value2");
 
       // Act - 2 hits, 1 miss
-      await cache.get('key1'); // hit
-      await cache.get('key2'); // hit
-      await cache.get('nonexistent'); // miss
+      await cache.get("key1"); // hit
+      await cache.get("key2"); // hit
+      await cache.get("nonexistent"); // miss
 
       // Assert
       const stats = await cache.getStats();
@@ -1593,7 +1543,7 @@ describe('Persistent Cache Service', () => {
       // TDD Red: ヒット率計算の実装がないため失敗
     });
 
-    it('初期状態でヒット率0を返すこと', async () => {
+    it("初期状態でヒット率0を返すこと", async () => {
       // Act
       const stats = await cache.getStats();
 
@@ -1602,10 +1552,10 @@ describe('Persistent Cache Service', () => {
       // TDD Red: 初期状態の実装がないため失敗
     });
 
-    it('diskUsageBytesが概算されること', async () => {
+    it("diskUsageBytesが概算されること", async () => {
       // Arrange
-      await cache.set('key1', 'value1');
-      await cache.set('key2', 'value2-longer');
+      await cache.set("key1", "value1");
+      await cache.set("key2", "value2-longer");
 
       // Act
       const stats = await cache.getStats();
@@ -1615,11 +1565,11 @@ describe('Persistent Cache Service', () => {
       // TDD Red: diskUsageBytes計算の実装がないため失敗
     });
 
-    it('clear()後に統計がリセットされること', async () => {
+    it("clear()後に統計がリセットされること", async () => {
       // Arrange
-      await cache.set('key1', 'value1');
-      await cache.get('key1'); // hit
-      await cache.get('nonexistent'); // miss
+      await cache.set("key1", "value1");
+      await cache.get("key1"); // hit
+      await cache.get("nonexistent"); // miss
 
       // Act
       await cache.clear();
@@ -1634,7 +1584,7 @@ describe('Persistent Cache Service', () => {
     });
   });
 
-  describe('ServiceClient フォールバック統合テスト', () => {
+  describe("ServiceClient フォールバック統合テスト", () => {
     /**
      * ServiceClientがネットワーク障害時に永続キャッシュから
      * フォールバック応答を返すシナリオのテスト
@@ -1643,7 +1593,7 @@ describe('Persistent Cache Service', () => {
     // ServiceClientConfig: 実装時に使用される型定義
     interface _ServiceClientConfig {
       baseUrl: string;
-      cache: PersistentCache<unknown>;
+      cache: MockPersistentCache<unknown>;
       timeout: number;
     }
 
@@ -1653,13 +1603,13 @@ describe('Persistent Cache Service', () => {
       cachedAt?: number;
     }
 
-    it('ネットワーク障害時にキャッシュからフォールバックすること', async () => {
+    it("ネットワーク障害時にキャッシュからフォールバックすること", async () => {
       // Arrange
-      const cachedData = { id: '123', name: 'cached-item' };
+      const cachedData = { id: "123", name: "cached-item" };
       let isNetworkAvailable = true;
 
       const storage = new Map<string, PersistentCacheEntry<unknown>>();
-      storage.set('api:/items/123', {
+      storage.set("api:/items/123", {
         value: cachedData,
         createdAt: Date.now(),
         expiresAt: Date.now() + 300000,
@@ -1679,12 +1629,12 @@ describe('Persistent Cache Service', () => {
                 cachedAt: entry.createdAt,
               };
             }
-            throw new Error('Network error and no cache available');
+            throw new Error("Network error and no cache available");
           }
 
           // 通常のネットワークレスポンス
           return {
-            data: { id: '123', name: 'fresh-item' } as T,
+            data: { id: "123", name: "fresh-item" } as T,
             fromCache: false,
           };
         },
@@ -1692,7 +1642,7 @@ describe('Persistent Cache Service', () => {
 
       // Act - ネットワーク障害をシミュレート
       isNetworkAvailable = false;
-      const result = await mockServiceClient.fetch<typeof cachedData>('/items/123');
+      const result = await mockServiceClient.fetch<typeof cachedData>("/items/123");
 
       // Assert
       expect(result.fromCache).toBe(true);
@@ -1701,7 +1651,7 @@ describe('Persistent Cache Service', () => {
       // TDD Red: ServiceClientフォールバックの実装がないため失敗
     });
 
-    it('オンライン復帰時にキャッシュが更新されること', async () => {
+    it("オンライン復帰時にキャッシュが更新されること", async () => {
       // Arrange
       const storage = new Map<string, PersistentCacheEntry<unknown>>();
       let isNetworkAvailable = true;
@@ -1717,10 +1667,10 @@ describe('Persistent Cache Service', () => {
                 cachedAt: entry.createdAt,
               };
             }
-            throw new Error('Network error');
+            throw new Error("Network error");
           }
 
-          const freshData = { id: '123', name: 'fresh-item', updatedAt: Date.now() };
+          const freshData = { id: "123", name: "fresh-item", updatedAt: Date.now() };
 
           // キャッシュを更新
           const now = Date.now();
@@ -1740,9 +1690,9 @@ describe('Persistent Cache Service', () => {
       };
 
       // オフライン状態でキャッシュを使用
-      const oldData = { id: '123', name: 'old-item' };
+      const oldData = { id: "123", name: "old-item" };
       const now = Date.now();
-      storage.set('api:/items/123', {
+      storage.set("api:/items/123", {
         value: oldData,
         createdAt: now - 60000,
         expiresAt: now + 240000,
@@ -1751,25 +1701,25 @@ describe('Persistent Cache Service', () => {
       });
 
       isNetworkAvailable = false;
-      const offlineResult = await mockServiceClient.fetch('/items/123');
+      const offlineResult = await mockServiceClient.fetch("/items/123");
       expect(offlineResult.fromCache).toBe(true);
       expect(offlineResult.data).toEqual(oldData);
 
       // オンライン復帰
       isNetworkAvailable = true;
-      const onlineResult = await mockServiceClient.fetch('/items/123');
+      const onlineResult = await mockServiceClient.fetch("/items/123");
 
       // Assert
       expect(onlineResult.fromCache).toBe(false);
-      expect((onlineResult.data as { name: string }).name).toBe('fresh-item');
+      expect((onlineResult.data as { name: string }).name).toBe("fresh-item");
 
       // キャッシュが更新されていることを確認
-      const cachedEntry = storage.get('api:/items/123');
-      expect((cachedEntry?.value as { name: string }).name).toBe('fresh-item');
+      const cachedEntry = storage.get("api:/items/123");
+      expect((cachedEntry?.value as { name: string }).name).toBe("fresh-item");
       // TDD Red: オンライン復帰時のキャッシュ更新の実装がないため失敗
     });
 
-    it('キャッシュミス時はエラーをスローすること', async () => {
+    it("キャッシュミス時はエラーをスローすること", async () => {
       // Arrange
       const storage = new Map<string, PersistentCacheEntry<unknown>>();
 
@@ -1778,7 +1728,7 @@ describe('Persistent Cache Service', () => {
           // ネットワーク障害 & キャッシュなし
           const entry = storage.get(`api:${url}`);
           if (!entry) {
-            throw new Error('Network error and no cache available');
+            throw new Error("Network error and no cache available");
           }
           return {
             data: entry.value as T,
@@ -1788,22 +1738,22 @@ describe('Persistent Cache Service', () => {
       };
 
       // Act & Assert
-      await expect(mockServiceClient.fetch('/items/unknown')).rejects.toThrow(
-        'Network error and no cache available'
+      await expect(mockServiceClient.fetch("/items/unknown")).rejects.toThrow(
+        "Network error and no cache available"
       );
       // TDD Red: キャッシュミス時のエラーハンドリングの実装がないため失敗
     });
 
-    it('期限切れキャッシュでもフォールバックとして使用すること（stale-while-error）', async () => {
+    it("期限切れキャッシュでもフォールバックとして使用すること（stale-while-error）", async () => {
       // Arrange
       vi.useFakeTimers();
 
       const storage = new Map<string, PersistentCacheEntry<unknown>>();
-      const staleData = { id: '123', name: 'stale-item' };
+      const staleData = { id: "123", name: "stale-item" };
       const now = Date.now();
 
       // 期限切れのキャッシュ
-      storage.set('api:/items/123', {
+      storage.set("api:/items/123", {
         value: staleData,
         createdAt: now - 600000, // 10分前
         expiresAt: now - 300000, // 5分前に期限切れ
@@ -1822,12 +1772,12 @@ describe('Persistent Cache Service', () => {
               cachedAt: entry.createdAt,
             };
           }
-          throw new Error('Network error');
+          throw new Error("Network error");
         },
       };
 
       // Act
-      const result = await mockServiceClient.fetchWithStaleCache('/items/123');
+      const result = await mockServiceClient.fetchWithStaleCache("/items/123");
 
       // Assert
       expect(result.fromCache).toBe(true);
@@ -1846,77 +1796,13 @@ describe('Persistent Cache Service', () => {
 // ============================================================
 
 /**
- * 実装完了後に有効化するテストスイート
- *
- * 使用方法:
- * 1. apps/mcp-server/src/services/persistent-cache.ts を作成
- * 2. 下記の describe.skip を describe に変更
- * 3. テストを実行して全てパスすることを確認
- */
-describe.skip('PersistentCache - 実装テスト（TDD Green フェーズで有効化）', () => {
-  // import { PersistentCache } from '@/services/persistent-cache';
-  // import type { PersistentCacheOptions } from '@/services/persistent-cache';
-
-  const _testDbPath = '/tmp/test-persistent-cache-db';
-  // let cache: PersistentCache<string>;
-
-  beforeEach(async () => {
-    // cache = new PersistentCache<string>({
-    //   dbPath: testDbPath,
-    //   maxSize: 100,
-    //   defaultTtlMs: 300000, // 5分
-    //   enableLogging: false,
-    // });
-  });
-
-  afterEach(async () => {
-    // await cache.clear();
-    // await cache.close();
-  });
-
-  it('PersistentCache クラスがインスタンス化できること', () => {
-    // TDD Red: このテストは実装が存在しないため失敗する
-    // expect(cache).toBeDefined();
-    // expect(cache).toBeInstanceOf(PersistentCache);
-    expect(true).toBe(true); // プレースホルダー
-  });
-
-  it('基本的なCRUD操作が動作すること', async () => {
-    // TDD Red: 実装が存在しないため失敗する
-    // await cache.set('test-key', 'test-value');
-    // const result = await cache.get('test-key');
-    // expect(result).toBe('test-value');
-    expect(true).toBe(true); // プレースホルダー
-  });
-
-  it('LevelDBにデータが永続化されること', async () => {
-    // TDD Red: 実装が存在しないため失敗する
-    // await cache.set('persistent-key', 'persistent-value');
-    // await cache.close();
-    //
-    // // 新しいインスタンスを作成
-    // const newCache = new PersistentCache<string>({
-    //   dbPath: testDbPath,
-    //   maxSize: 100,
-    //   defaultTtlMs: 300000,
-    // });
-    //
-    // const result = await newCache.get('persistent-key');
-    // expect(result).toBe('persistent-value');
-    //
-    // await newCache.close();
-    expect(true).toBe(true); // プレースホルダー
-  });
-});
-
-/**
  * TDD Green フェーズ検証用のテスト
  *
  * このテストは実装が存在することを確認するためのもの
  * TDD Redフェーズから移行後に更新
  */
-describe('TDD Green フェーズ検証', () => {
-  it('persistent-cache.ts が存在し、正しくインポートできること', async () => {
+describe("TDD Green フェーズ検証", () => {
+  it("persistent-cache.ts が存在し、正しくインポートできること", async () => {
     // このテストは実装ファイルが存在することを確認する
     // TDD Greenフェーズ: 実装が完了したため、インポートが成功するはず
 
@@ -1925,7 +1811,7 @@ describe('TDD Green フェーズ検証', () => {
 
     try {
       // 動的インポートを試みる
-      module = await import('@/services/persistent-cache');
+      module = await import("../../src/services/persistent-cache");
     } catch (error) {
       importError = error as Error;
     }
@@ -1943,7 +1829,7 @@ describe('TDD Green フェーズ検証', () => {
     expect(createPersistentCache).toBeDefined();
   });
 
-  it('PersistentCacheOptions の型定義が期待通りであること', () => {
+  it("PersistentCacheOptions の型定義が期待通りであること", () => {
     // 型レベルのテスト（コンパイル時にチェック）
     interface ExpectedOptions {
       dbPath: string;
@@ -1957,17 +1843,17 @@ describe('TDD Green フェーズ検証', () => {
 
     // 型の互換性チェック（コンパイルエラーがなければOK）
     const options: ExpectedOptions = {
-      dbPath: '/tmp/cache',
+      dbPath: "/tmp/cache",
       maxSize: 1000,
       defaultTtlMs: 300000,
     };
 
-    expect(options.dbPath).toBe('/tmp/cache');
+    expect(options.dbPath).toBe("/tmp/cache");
     expect(options.maxSize).toBe(1000);
     expect(options.defaultTtlMs).toBe(300000);
   });
 
-  it('PersistentCacheStats の型定義が期待通りであること', () => {
+  it("PersistentCacheStats の型定義が期待通りであること", () => {
     // 型レベルのテスト
     interface ExpectedStats {
       hits: number;
@@ -2002,11 +1888,11 @@ describe('TDD Green フェーズ検証', () => {
 // 実装テスト: 実際の PersistentCache クラスを使用するテストスイート
 // TDA指摘対応: モック実装ではなく、実際の実装をテスト
 // ============================================================
-describe('PersistentCache 実装テスト', () => {
+describe("PersistentCache 実装テスト", () => {
   // 実際の実装をインポート
-  let PersistentCache: typeof import('@/services/persistent-cache').PersistentCache;
-  let createPersistentCache: typeof import('@/services/persistent-cache').createPersistentCache;
-  const testDbBasePath = '/tmp/test-persistent-cache';
+  let PersistentCache: typeof import("../../src/services/persistent-cache").PersistentCache;
+  let createPersistentCache: typeof import("../../src/services/persistent-cache").createPersistentCache;
+  const testDbBasePath = "/tmp/test-persistent-cache";
 
   // 各テストで一意のパスを生成するヘルパー
   let testCounter = 0;
@@ -2016,20 +1902,20 @@ describe('PersistentCache 実装テスト', () => {
   };
 
   beforeAll(async () => {
-    const module = await import('@/services/persistent-cache');
+    const module = await import("../../src/services/persistent-cache");
     PersistentCache = module.PersistentCache;
     createPersistentCache = module.createPersistentCache;
   });
 
   afterAll(async () => {
     // テスト用ディレクトリのクリーンアップ
-    const fs = await import('fs/promises');
-    const path = await import('path');
+    const fs = await import("fs/promises");
+    const path = await import("path");
     try {
       const tmpDir = path.dirname(testDbBasePath);
       const files = await fs.readdir(tmpDir);
       for (const file of files) {
-        if (file.startsWith('test-persistent-cache')) {
+        if (file.startsWith("test-persistent-cache")) {
           await fs.rm(path.join(tmpDir, file), { recursive: true, force: true }).catch(() => {});
         }
       }
@@ -2038,12 +1924,12 @@ describe('PersistentCache 実装テスト', () => {
     }
   });
 
-  describe('基本CRUD操作（実装）', () => {
+  describe("基本CRUD操作（実装）", () => {
     let cache: InstanceType<typeof PersistentCache<string>>;
 
     beforeEach(async () => {
       cache = new PersistentCache<string>({
-        dbPath: getUniqueTestPath('crud'),
+        dbPath: getUniqueTestPath("crud"),
         maxSize: 100,
         defaultTtlMs: 300000, // 5分
         enableLogging: false,
@@ -2054,9 +1940,9 @@ describe('PersistentCache 実装テスト', () => {
       await cache.close();
     });
 
-    it('値を保存して取得できること (set/get)', async () => {
-      const key = 'test-key';
-      const value = 'test-value';
+    it("値を保存して取得できること (set/get)", async () => {
+      const key = "test-key";
+      const value = "test-value";
 
       await cache.set(key, value);
       const result = await cache.get(key);
@@ -2064,78 +1950,78 @@ describe('PersistentCache 実装テスト', () => {
       expect(result).toBe(value);
     });
 
-    it('存在しないキーでnullを返すこと', async () => {
-      const result = await cache.get('nonexistent-key');
+    it("存在しないキーでnullを返すこと", async () => {
+      const result = await cache.get("nonexistent-key");
       expect(result).toBeNull();
     });
 
-    it('has()でキーの存在を確認できること', async () => {
-      await cache.set('existing-key', 'value');
+    it("has()でキーの存在を確認できること", async () => {
+      await cache.set("existing-key", "value");
 
-      expect(await cache.has('existing-key')).toBe(true);
-      expect(await cache.has('nonexistent-key')).toBe(false);
+      expect(await cache.has("existing-key")).toBe(true);
+      expect(await cache.has("nonexistent-key")).toBe(false);
     });
 
-    it('delete()でエントリを削除できること', async () => {
-      await cache.set('key-to-delete', 'value');
+    it("delete()でエントリを削除できること", async () => {
+      await cache.set("key-to-delete", "value");
 
-      const deleted = await cache.delete('key-to-delete');
+      const deleted = await cache.delete("key-to-delete");
 
       expect(deleted).toBe(true);
-      expect(await cache.has('key-to-delete')).toBe(false);
-      expect(await cache.get('key-to-delete')).toBeNull();
+      expect(await cache.has("key-to-delete")).toBe(false);
+      expect(await cache.get("key-to-delete")).toBeNull();
     });
 
-    it('存在しないキーの削除でfalseを返すこと', async () => {
-      const deleted = await cache.delete('nonexistent-key');
+    it("存在しないキーの削除でfalseを返すこと", async () => {
+      const deleted = await cache.delete("nonexistent-key");
       expect(deleted).toBe(false);
     });
 
-    it('clear()で全エントリを削除できること', async () => {
-      await cache.set('key1', 'value1');
-      await cache.set('key2', 'value2');
-      await cache.set('key3', 'value3');
+    it("clear()で全エントリを削除できること", async () => {
+      await cache.set("key1", "value1");
+      await cache.set("key2", "value2");
+      await cache.set("key3", "value3");
 
       await cache.clear();
 
       expect(await cache.size()).toBe(0);
-      expect(await cache.get('key1')).toBeNull();
+      expect(await cache.get("key1")).toBeNull();
     });
 
-    it('size()で現在のエントリ数を取得できること', async () => {
+    it("size()で現在のエントリ数を取得できること", async () => {
       expect(await cache.size()).toBe(0);
 
-      await cache.set('key1', 'value1');
+      await cache.set("key1", "value1");
       expect(await cache.size()).toBe(1);
 
-      await cache.set('key2', 'value2');
+      await cache.set("key2", "value2");
       expect(await cache.size()).toBe(2);
 
-      await cache.delete('key1');
+      await cache.delete("key1");
       expect(await cache.size()).toBe(1);
     });
 
-    it('keys()で全キーを取得できること', async () => {
-      await cache.set('key1', 'value1');
-      await cache.set('key2', 'value2');
-      await cache.set('key3', 'value3');
+    it("keys()で全キーを取得できること", async () => {
+      await cache.set("key1", "value1");
+      await cache.set("key2", "value2");
+      await cache.set("key3", "value3");
 
       const keys = await cache.keys();
 
       expect(keys).toHaveLength(3);
-      expect(keys).toContain('key1');
-      expect(keys).toContain('key2');
-      expect(keys).toContain('key3');
+      expect(keys).toContain("key1");
+      expect(keys).toContain("key2");
+      expect(keys).toContain("key3");
     });
   });
 
-  describe('TTL期限切れテスト（実装）', () => {
+  describe("TTL期限切れテスト（実装）", () => {
     let cache: InstanceType<typeof PersistentCache<string>>;
 
     beforeEach(async () => {
       vi.useFakeTimers();
       cache = new PersistentCache<string>({
-        dbPath: getUniqueTestPath('ttl'),
+        dbPath: getUniqueTestPath("ttl"),
         maxSize: 100,
         defaultTtlMs: 300000,
         enableLogging: false,
@@ -2147,41 +2033,41 @@ describe('PersistentCache 実装テスト', () => {
       await cache.close();
     });
 
-    it('TTL期限内は値を取得できること', async () => {
-      await cache.set('key', 'value', 5000); // 5秒TTL
+    it("TTL期限内は値を取得できること", async () => {
+      await cache.set("key", "value", 5000); // 5秒TTL
 
       vi.advanceTimersByTime(3000); // 3秒経過
-      const result = await cache.get('key');
+      const result = await cache.get("key");
 
-      expect(result).toBe('value');
+      expect(result).toBe("value");
     });
 
-    it('TTL期限切れ後はnullを返すこと', async () => {
-      await cache.set('key', 'value', 5000); // 5秒TTL
+    it("TTL期限切れ後はnullを返すこと", async () => {
+      await cache.set("key", "value", 5000); // 5秒TTL
 
       vi.advanceTimersByTime(6000); // 6秒経過
-      const result = await cache.get('key');
+      const result = await cache.get("key");
 
       expect(result).toBeNull();
     });
 
-    it('個別のTTLを指定できること', async () => {
-      await cache.set('short-ttl', 'value1', 1000); // 1秒
-      await cache.set('long-ttl', 'value2', 10000); // 10秒
+    it("個別のTTLを指定できること", async () => {
+      await cache.set("short-ttl", "value1", 1000); // 1秒
+      await cache.set("long-ttl", "value2", 10000); // 10秒
 
       vi.advanceTimersByTime(2000); // 2秒経過
 
-      expect(await cache.get('short-ttl')).toBeNull(); // 期限切れ
-      expect(await cache.get('long-ttl')).toBe('value2'); // まだ有効
+      expect(await cache.get("short-ttl")).toBeNull(); // 期限切れ
+      expect(await cache.get("long-ttl")).toBe("value2"); // まだ有効
     });
   });
 
-  describe('LRU eviction テスト（実装）', () => {
+  describe("LRU eviction テスト（実装）", () => {
     let cache: InstanceType<typeof PersistentCache<string>>;
 
     beforeEach(async () => {
       cache = new PersistentCache<string>({
-        dbPath: getUniqueTestPath('lru'),
+        dbPath: getUniqueTestPath("lru"),
         maxSize: 3, // テスト用に小さいサイズ
         defaultTtlMs: 300000,
         enableLogging: false,
@@ -2192,55 +2078,55 @@ describe('PersistentCache 実装テスト', () => {
       await cache.close();
     });
 
-    it('最大サイズを超えると最も古いエントリが削除されること', async () => {
-      await cache.set('key1', 'value1');
-      await cache.set('key2', 'value2');
-      await cache.set('key3', 'value3');
+    it("最大サイズを超えると最も古いエントリが削除されること", async () => {
+      await cache.set("key1", "value1");
+      await cache.set("key2", "value2");
+      await cache.set("key3", "value3");
 
-      await cache.set('key4', 'value4'); // key1が削除される
+      await cache.set("key4", "value4"); // key1が削除される
 
       expect(await cache.size()).toBe(3);
-      expect(await cache.has('key1')).toBe(false); // 最も古い
-      expect(await cache.has('key2')).toBe(true);
-      expect(await cache.has('key3')).toBe(true);
-      expect(await cache.has('key4')).toBe(true);
+      expect(await cache.has("key1")).toBe(false); // 最も古い
+      expect(await cache.has("key2")).toBe(true);
+      expect(await cache.has("key3")).toBe(true);
+      expect(await cache.has("key4")).toBe(true);
     });
 
-    it('アクセスされたエントリは削除優先度が下がること', async () => {
-      await cache.set('key1', 'value1');
-      await cache.set('key2', 'value2');
-      await cache.set('key3', 'value3');
+    it("アクセスされたエントリは削除優先度が下がること", async () => {
+      await cache.set("key1", "value1");
+      await cache.set("key2", "value2");
+      await cache.set("key3", "value3");
 
       // key1にアクセス（最後に移動）
-      await cache.get('key1');
+      await cache.get("key1");
 
-      await cache.set('key4', 'value4'); // key2が削除される（key1は最近アクセス）
+      await cache.set("key4", "value4"); // key2が削除される（key1は最近アクセス）
 
-      expect(await cache.has('key1')).toBe(true); // 最近アクセス
-      expect(await cache.has('key2')).toBe(false); // 最も古い
-      expect(await cache.has('key3')).toBe(true);
-      expect(await cache.has('key4')).toBe(true);
+      expect(await cache.has("key1")).toBe(true); // 最近アクセス
+      expect(await cache.has("key2")).toBe(false); // 最も古い
+      expect(await cache.has("key3")).toBe(true);
+      expect(await cache.has("key4")).toBe(true);
     });
 
-    it('evictionCountが正しくカウントされること', async () => {
-      await cache.set('key1', 'value1');
-      await cache.set('key2', 'value2');
-      await cache.set('key3', 'value3');
+    it("evictionCountが正しくカウントされること", async () => {
+      await cache.set("key1", "value1");
+      await cache.set("key2", "value2");
+      await cache.set("key3", "value3");
 
-      await cache.set('key4', 'value4'); // 1回eviction
-      await cache.set('key5', 'value5'); // 2回eviction
+      await cache.set("key4", "value4"); // 1回eviction
+      await cache.set("key5", "value5"); // 2回eviction
 
       const stats = await cache.getStats();
       expect(stats.evictionCount).toBe(2);
     });
   });
 
-  describe('セキュリティテスト（SEC対応）', () => {
+  describe("セキュリティテスト（SEC対応）", () => {
     let cache: InstanceType<typeof PersistentCache<string>>;
 
     beforeEach(async () => {
       cache = new PersistentCache<string>({
-        dbPath: getUniqueTestPath('security'),
+        dbPath: getUniqueTestPath("security"),
         maxSize: 100,
         defaultTtlMs: 300000,
         enableLogging: false,
@@ -2253,46 +2139,48 @@ describe('PersistentCache 実装テスト', () => {
       await cache.close();
     });
 
-    it('空のキーでエラーをスローすること', async () => {
-      await expect(cache.set('', 'value')).rejects.toThrow('Key must be a non-empty string');
+    it("空のキーでエラーをスローすること", async () => {
+      await expect(cache.set("", "value")).rejects.toThrow("Key must be a non-empty string");
     });
 
-    it('長すぎるキーでエラーをスローすること', async () => {
-      const longKey = 'a'.repeat(300);
-      await expect(cache.set(longKey, 'value')).rejects.toThrow('Key length');
+    it("長すぎるキーでエラーをスローすること", async () => {
+      const longKey = "a".repeat(300);
+      await expect(cache.set(longKey, "value")).rejects.toThrow("Key length");
     });
 
-    it('Prototype Pollution対策: __proto__ キーを拒否すること', async () => {
-      await expect(cache.set('__proto__', 'value')).rejects.toThrow("Key name '__proto__' is reserved");
+    it("Prototype Pollution対策: __proto__ キーを拒否すること", async () => {
+      await expect(cache.set("__proto__", "value")).rejects.toThrow(
+        "Key name '__proto__' is reserved"
+      );
     });
 
-    it('Prototype Pollution対策: constructor キーを拒否すること', async () => {
-      await expect(cache.set('constructor', 'value')).rejects.toThrow(
+    it("Prototype Pollution対策: constructor キーを拒否すること", async () => {
+      await expect(cache.set("constructor", "value")).rejects.toThrow(
         "Key name 'constructor' is reserved"
       );
     });
 
-    it('Prototype Pollution対策: prototype キーを拒否すること', async () => {
-      await expect(cache.set('prototype', 'value')).rejects.toThrow(
+    it("Prototype Pollution対策: prototype キーを拒否すること", async () => {
+      await expect(cache.set("prototype", "value")).rejects.toThrow(
         "Key name 'prototype' is reserved"
       );
     });
 
-    it('制御文字を含むキーを拒否すること', async () => {
-      await expect(cache.set('key\x00value', 'value')).rejects.toThrow(
-        'Key contains control characters'
+    it("制御文字を含むキーを拒否すること", async () => {
+      await expect(cache.set("key\x00value", "value")).rejects.toThrow(
+        "Key contains control characters"
       );
     });
 
-    it('大きすぎる値を拒否すること', async () => {
-      const largeValue = 'a'.repeat(2000);
-      await expect(cache.set('key', largeValue)).rejects.toThrow('Value size');
+    it("大きすぎる値を拒否すること", async () => {
+      const largeValue = "a".repeat(2000);
+      await expect(cache.set("key", largeValue)).rejects.toThrow("Value size");
     });
   });
 
-  describe('ディスク永続化テスト（実装）', () => {
-    it('プロセス再起動後もデータが復元されること', async () => {
-      const sharedDbPath = getUniqueTestPath('persist');
+  describe("ディスク永続化テスト（実装）", () => {
+    it("プロセス再起動後もデータが復元されること", async () => {
+      const sharedDbPath = getUniqueTestPath("persist");
 
       // プロセス1: データ保存
       const cache1 = new PersistentCache<string>({
@@ -2302,8 +2190,8 @@ describe('PersistentCache 実装テスト', () => {
         enableLogging: false,
       });
 
-      await cache1.set('key1', 'value1');
-      await cache1.set('key2', 'value2');
+      await cache1.set("key1", "value1");
+      await cache1.set("key2", "value2");
       await cache1.close();
 
       // プロセス再起動シミュレーション
@@ -2315,34 +2203,34 @@ describe('PersistentCache 実装テスト', () => {
       });
 
       // データが復元されていることを確認
-      expect(await cache2.get('key1')).toBe('value1');
-      expect(await cache2.get('key2')).toBe('value2');
+      expect(await cache2.get("key1")).toBe("value1");
+      expect(await cache2.get("key2")).toBe("value2");
 
       await cache2.close();
     });
 
-    it('close()後は操作できないこと', async () => {
+    it("close()後は操作できないこと", async () => {
       const cache = new PersistentCache<string>({
-        dbPath: getUniqueTestPath('close'),
+        dbPath: getUniqueTestPath("close"),
         maxSize: 100,
         defaultTtlMs: 300000,
         enableLogging: false,
       });
 
-      await cache.set('key', 'value');
+      await cache.set("key", "value");
       await cache.close();
 
-      await expect(cache.get('key')).rejects.toThrow('Database is closed');
-      await expect(cache.set('key', 'value')).rejects.toThrow('Database is closed');
+      await expect(cache.get("key")).rejects.toThrow("Database is closed");
+      await expect(cache.set("key", "value")).rejects.toThrow("Database is closed");
     });
   });
 
-  describe('統計情報テスト（実装）', () => {
+  describe("統計情報テスト（実装）", () => {
     let cache: InstanceType<typeof PersistentCache<string>>;
 
     beforeEach(async () => {
       cache = new PersistentCache<string>({
-        dbPath: getUniqueTestPath('stats'),
+        dbPath: getUniqueTestPath("stats"),
         maxSize: 100,
         defaultTtlMs: 300000,
         enableLogging: false,
@@ -2353,13 +2241,13 @@ describe('PersistentCache 実装テスト', () => {
       await cache.close();
     });
 
-    it('ヒット率が正しく計算されること', async () => {
-      await cache.set('key1', 'value1');
-      await cache.set('key2', 'value2');
+    it("ヒット率が正しく計算されること", async () => {
+      await cache.set("key1", "value1");
+      await cache.set("key2", "value2");
 
-      await cache.get('key1'); // hit
-      await cache.get('key2'); // hit
-      await cache.get('nonexistent'); // miss
+      await cache.get("key1"); // hit
+      await cache.get("key2"); // hit
+      await cache.get("nonexistent"); // miss
 
       const stats = await cache.getStats();
       expect(stats.hits).toBe(2);
@@ -2367,26 +2255,26 @@ describe('PersistentCache 実装テスト', () => {
       expect(stats.hitRate).toBeCloseTo(2 / 3, 2);
     });
 
-    it('初期状態でヒット率0を返すこと', async () => {
+    it("初期状態でヒット率0を返すこと", async () => {
       const stats = await cache.getStats();
       expect(stats.hitRate).toBe(0);
     });
 
-    it('diskUsageBytesが概算されること', async () => {
-      await cache.set('key1', 'value1');
-      await cache.set('key2', 'value2-longer');
+    it("diskUsageBytesが概算されること", async () => {
+      await cache.set("key1", "value1");
+      await cache.set("key2", "value2-longer");
 
       const stats = await cache.getStats();
       expect(stats.diskUsageBytes).toBeGreaterThan(0);
     });
   });
 
-  describe('バッチ操作テスト（実装）', () => {
+  describe("バッチ操作テスト（実装）", () => {
     let cache: InstanceType<typeof PersistentCache<string>>;
 
     beforeEach(async () => {
       cache = new PersistentCache<string>({
-        dbPath: getUniqueTestPath('batch'),
+        dbPath: getUniqueTestPath("batch"),
         maxSize: 100,
         defaultTtlMs: 300000,
         enableLogging: false,
@@ -2397,25 +2285,25 @@ describe('PersistentCache 実装テスト', () => {
       await cache.close();
     });
 
-    it('setMany()で複数エントリを一括設定できること', async () => {
+    it("setMany()で複数エントリを一括設定できること", async () => {
       await cache.setMany([
-        { key: 'batch-key1', value: 'batch-value1' },
-        { key: 'batch-key2', value: 'batch-value2' },
-        { key: 'batch-key3', value: 'batch-value3' },
+        { key: "batch-key1", value: "batch-value1" },
+        { key: "batch-key2", value: "batch-value2" },
+        { key: "batch-key3", value: "batch-value3" },
       ]);
 
       expect(await cache.size()).toBe(3);
-      expect(await cache.get('batch-key1')).toBe('batch-value1');
-      expect(await cache.get('batch-key2')).toBe('batch-value2');
-      expect(await cache.get('batch-key3')).toBe('batch-value3');
+      expect(await cache.get("batch-key1")).toBe("batch-value1");
+      expect(await cache.get("batch-key2")).toBe("batch-value2");
+      expect(await cache.get("batch-key3")).toBe("batch-value3");
     });
 
-    it('setMany()でバリデーションエラーが発生した場合は全体が中止されること', async () => {
+    it("setMany()でバリデーションエラーが発生した場合は全体が中止されること", async () => {
       await expect(
         cache.setMany([
-          { key: 'valid-key', value: 'value' },
-          { key: '__proto__', value: 'malicious' }, // 不正なキー
-          { key: 'another-valid', value: 'value' },
+          { key: "valid-key", value: "value" },
+          { key: "__proto__", value: "malicious" }, // 不正なキー
+          { key: "another-valid", value: "value" },
         ])
       ).rejects.toThrow("Key name '__proto__' is reserved");
 
@@ -2424,10 +2312,10 @@ describe('PersistentCache 実装テスト', () => {
     });
   });
 
-  describe('ファクトリ関数テスト', () => {
-    it('createPersistentCache()でインスタンスを作成できること', async () => {
+  describe("ファクトリ関数テスト", () => {
+    it("createPersistentCache()でインスタンスを作成できること", async () => {
       const cache = createPersistentCache<string>({
-        dbPath: getUniqueTestPath('factory'),
+        dbPath: getUniqueTestPath("factory"),
         maxSize: 100,
         defaultTtlMs: 300000,
         enableLogging: false,
@@ -2435,8 +2323,8 @@ describe('PersistentCache 実装テスト', () => {
 
       expect(cache).toBeInstanceOf(PersistentCache);
 
-      await cache.set('key', 'value');
-      expect(await cache.get('key')).toBe('value');
+      await cache.set("key", "value");
+      expect(await cache.get("key")).toBe("value");
 
       await cache.close();
     });

@@ -83,7 +83,7 @@ export interface LayoutShiftResult {
   /** 累積レイアウトシフトスコア (0-1+) */
   cls: number;
   /** 分類 */
-  classification: 'good' | 'needs-improvement' | 'poor';
+  classification: "good" | "needs-improvement" | "poor";
   /** 検出されたシフト一覧 */
   shifts: LayoutShift[];
   /** 全体の影響割合 */
@@ -204,15 +204,15 @@ export class LayoutShiftDetector {
    * @param cls - CLSスコア
    * @returns 分類結果 ('good' | 'needs-improvement' | 'poor')
    */
-  classifyShift(cls: number): 'good' | 'needs-improvement' | 'poor' {
+  classifyShift(cls: number): "good" | "needs-improvement" | "poor" {
     // 負の値は 'good' として扱う
     if (cls < CLS_THRESHOLDS.GOOD) {
-      return 'good';
+      return "good";
     }
     if (cls < CLS_THRESHOLDS.NEEDS_IMPROVEMENT) {
-      return 'needs-improvement';
+      return "needs-improvement";
     }
-    return 'poor';
+    return "poor";
   }
 
   /**
@@ -267,7 +267,7 @@ export class LayoutShiftDetector {
    */
   private validateViewport(viewport: Viewport): void {
     if (viewport.width <= 0 || viewport.height <= 0) {
-      throw new Error('Invalid viewport: width and height must be positive');
+      throw new Error("Invalid viewport: width and height must be positive");
     }
   }
 

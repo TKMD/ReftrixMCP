@@ -59,6 +59,7 @@ Reftrix（https://github.com/TKMD/ReftrixMCP）およびその関連するすべ
 - **再ライセンス権を含む（Sublicensable）**: プロジェクト管理者は第三者に再ライセンス可能
 
 **ライセンスの対象となる行為:**
+
 - 複製（Reproduction）
 - 派生著作物の作成（Derivative Works）
 - 公衆送信・配布（Public Communication and Distribution）
@@ -98,6 +99,7 @@ Reftrix（https://github.com/TKMD/ReftrixMCP）およびその関連するすべ
 **4.1 オリジナル著作物**
 
 あなたの貢献は、あなた自身のオリジナル著作物であり、以下のいずれかの条件を満たします:
+
 - 貢献全体があなた自身が創作したもの
 - 第三者のオープンソースライセンス（MIT、Apache-2.0、BSD-3-Clause等）の著作物を含む場合、その旨を明示している
 
@@ -185,6 +187,7 @@ git commit -s -m "feat(search): implement semantic search"
 ```
 
 DCOは以下を証明します:
+
 - あなたが著作権を持つ著作物を提出していること
 - プロジェクトのライセンスで提出する権限があること
 - 他のすべての証明の事実に同意していること
@@ -228,7 +231,7 @@ DCOの詳細は https://developercertificate.org/ を参照してください。
 
 ---
 
-*本CLAに関するご質問は、GitHub Issues またはプロジェクト管理者にお問い合わせください。*
+_本CLAに関するご質問は、GitHub Issues またはプロジェクト管理者にお問い合わせください。_
 
 ---
 
@@ -285,6 +288,7 @@ By agreeing to this CLA, you grant to the current and future Maintainers a licen
 - **Sublicensable**: Maintainers may sublicense to third parties
 
 **Licensed Activities:**
+
 - Reproduction
 - Creation of Derivative Works
 - Public Communication and Distribution
@@ -322,6 +326,7 @@ By agreeing to this CLA, you represent and warrant that:
 **4.1 Original Work**
 
 Your Contribution is an original work, satisfying one of the following:
+
 - The entire Contribution was created by you
 - Where your Contribution includes third-party open-source works (MIT, Apache-2.0, BSD-3-Clause, etc.), you have clearly indicated this
 
@@ -406,6 +411,7 @@ git commit -s -m "feat(search): implement semantic search"
 ```
 
 The DCO certifies that:
+
 - You created the work or have the right to submit it under the project's license
 - You understand and agree that the project and contribution are public
 - You agree to all assertions made in the DCO
@@ -449,7 +455,7 @@ Amendments that materially alter Section 2 (Copyright License Grant), Section 3 
 
 ---
 
-*For questions about this CLA, please contact the project maintainers via GitHub Issues.*
+_For questions about this CLA, please contact the project maintainers via GitHub Issues._
 
 ---
 
@@ -462,5 +468,5 @@ CLAへの署名は以下の方法で記録されます / CLA signatures are reco
 
 ---
 
-*Reftrix Contributor License Agreement v1.0.0*
-*Based on Apache ICLA, MongoDB CLA, and HashiCorp CLA best practices*
+_Reftrix Contributor License Agreement v1.0.0_
+_Based on Apache ICLA, MongoDB CLA, and HashiCorp CLA best practices_

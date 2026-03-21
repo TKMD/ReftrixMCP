@@ -23,17 +23,16 @@
  * @module tests/services/browser-process-manager.test
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import type { Browser } from 'playwright';
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import type { Browser } from "playwright";
 
 // モックの設定
 const mockProcessKill = vi.fn();
 const mockExecSync = vi.fn();
 
 // child_processモジュールをモック
-vi.mock('child_process', () => ({
-  execSync: (...args: Parameters<typeof import('child_process').execSync>) =>
-    mockExecSync(...args),
+vi.mock("child_process", () => ({
+  execSync: (...args: Parameters<typeof import("child_process").execSync>) => mockExecSync(...args),
   spawn: vi.fn(),
 }));
 
@@ -48,7 +47,7 @@ afterEach(() => {
 });
 
 // loggerモック
-vi.mock('../../src/utils/logger', () => ({
+vi.mock("../../src/utils/logger", () => ({
   logger: {
     info: vi.fn(),
     error: vi.fn(),
@@ -62,15 +61,17 @@ vi.mock('../../src/utils/logger', () => ({
 // テストスイート
 // =====================================================
 
-describe('BrowserProcessManager', () => {
-  let BrowserProcessManager: typeof import('../../src/services/browser-process-manager').BrowserProcessManager;
+describe("BrowserProcessManager", () => {
+  let BrowserProcessManager: typeof import("../../src/services/browser-process-manager").BrowserProcessManager;
 
   // モックブラウザオブジェクト
-  const createMockBrowser = (options: {
-    pid?: number | null;
-    closeResolves?: boolean;
-    closeError?: Error;
-  } = {}): Browser => {
+  const createMockBrowser = (
+    options: {
+      pid?: number | null;
+      closeResolves?: boolean;
+      closeError?: Error;
+    } = {}
+  ): Browser => {
     const { pid = 12345, closeResolves = true, closeError } = options;
 
     const mockBrowser = {
@@ -97,7 +98,7 @@ describe('BrowserProcessManager', () => {
 
     // モジュールを再インポート（モック状態をリセット）
     vi.resetModules();
-    const module = await import('../../src/services/browser-process-manager');
+    const module = await import("../../src/services/browser-process-manager");
     BrowserProcessManager = module.BrowserProcessManager;
   });
 
@@ -105,8 +106,8 @@ describe('BrowserProcessManager', () => {
   // 1. getBrowserPid テスト
   // =====================================================
 
-  describe('getBrowserPid', () => {
-    it('should extract PID from browser process', () => {
+  describe("getBrowserPid", () => {
+    it("should extract PID from browser process", () => {
       const mockBrowser = createMockBrowser({ pid: 12345 });
       const manager = new BrowserProcessManager({
         browser: mockBrowser,
@@ -118,7 +119,7 @@ describe('BrowserProcessManager', () => {
       expect(manager.browserPid).toBe(12345);
     });
 
-    it('should return null if PID is not available', () => {
+    it("should return null if PID is not available", () => {
       const mockBrowser = createMockBrowser({ pid: null });
       const manager = new BrowserProcessManager({
         browser: mockBrowser,
@@ -129,7 +130,7 @@ describe('BrowserProcessManager', () => {
       expect(manager.browserPid).toBeNull();
     });
 
-    it('should handle browser without internal API gracefully', () => {
+    it("should handle browser without internal API gracefully", () => {
       const mockBrowser = {
         close: vi.fn().mockResolvedValue(undefined),
         isConnected: vi.fn().mockReturnValue(true),
@@ -150,8 +151,8 @@ describe('BrowserProcessManager', () => {
   // 2-4. safeClose テスト
   // =====================================================
 
-  describe('safeClose', () => {
-    it('should call browser.close() on normal termination', async () => {
+  describe("safeClose", () => {
+    it("should call browser.close() on normal termination", async () => {
       const mockBrowser = createMockBrowser();
       const manager = new BrowserProcessManager({
         browser: mockBrowser,
@@ -164,10 +165,10 @@ describe('BrowserProcessManager', () => {
       expect(mockProcessKill).not.toHaveBeenCalled();
     });
 
-    it('should call forceKill when close() fails and forceKillOnTimeout=true', async () => {
+    it("should call forceKill when close() fails and forceKillOnTimeout=true", async () => {
       const mockBrowser = createMockBrowser({
         pid: 12345,
-        closeError: new Error('Browser close failed'),
+        closeError: new Error("Browser close failed"),
       });
       const manager = new BrowserProcessManager({
         browser: mockBrowser,
@@ -180,21 +181,21 @@ describe('BrowserProcessManager', () => {
         .mockImplementationOnce(() => {}) // SIGTERM成功
         .mockImplementationOnce(() => {
           // signal 0でプロセス確認 - ESRCHを投げる
-          const error = new Error('No such process') as NodeJS.ErrnoException;
-          error.code = 'ESRCH';
+          const error = new Error("No such process") as NodeJS.ErrnoException;
+          error.code = "ESRCH";
           throw error;
         });
 
       await manager.safeClose();
 
       expect(mockBrowser.close).toHaveBeenCalledTimes(1);
-      expect(mockProcessKill).toHaveBeenCalledWith(12345, 'SIGTERM');
+      expect(mockProcessKill).toHaveBeenCalledWith(12345, "SIGTERM");
     });
 
-    it('should NOT call forceKill when close() fails and forceKillOnTimeout=false', async () => {
+    it("should NOT call forceKill when close() fails and forceKillOnTimeout=false", async () => {
       const mockBrowser = createMockBrowser({
         pid: 12345,
-        closeError: new Error('Browser close failed'),
+        closeError: new Error("Browser close failed"),
       });
       const manager = new BrowserProcessManager({
         browser: mockBrowser,
@@ -212,8 +213,8 @@ describe('BrowserProcessManager', () => {
   // 5-6. closeWithTimeout テスト
   // =====================================================
 
-  describe('closeWithTimeout', () => {
-    it('should return true when close completes before timeout', async () => {
+  describe("closeWithTimeout", () => {
+    it("should return true when close completes before timeout", async () => {
       const mockBrowser = createMockBrowser();
       const manager = new BrowserProcessManager({
         browser: mockBrowser,
@@ -227,7 +228,7 @@ describe('BrowserProcessManager', () => {
       expect(mockProcessKill).not.toHaveBeenCalled();
     });
 
-    it('should call forceKill and return false when close times out', async () => {
+    it("should call forceKill and return false when close times out", async () => {
       // close()が永続的にpendingするブラウザをモック
       const mockBrowser = createMockBrowser({ pid: 12345, closeResolves: false });
       const manager = new BrowserProcessManager({
@@ -238,18 +239,18 @@ describe('BrowserProcessManager', () => {
 
       // forceKill用のモック: SIGTERM後にプロセスがいない
       mockProcessKill.mockImplementation(() => {
-        const error = new Error('No such process') as NodeJS.ErrnoException;
-        error.code = 'ESRCH';
+        const error = new Error("No such process") as NodeJS.ErrnoException;
+        error.code = "ESRCH";
         throw error;
       });
 
       const result = await manager.closeWithTimeout(100); // 100ms タイムアウト
 
       expect(result).toBe(false);
-      expect(mockProcessKill).toHaveBeenCalledWith(12345, 'SIGTERM');
+      expect(mockProcessKill).toHaveBeenCalledWith(12345, "SIGTERM");
     }, 10000); // 10秒タイムアウト
 
-    it('should not call forceKill when forceKillOnTimeout=false', async () => {
+    it("should not call forceKill when forceKillOnTimeout=false", async () => {
       const mockBrowser = createMockBrowser({ pid: 12345, closeResolves: false });
       const manager = new BrowserProcessManager({
         browser: mockBrowser,
@@ -267,8 +268,8 @@ describe('BrowserProcessManager', () => {
   // 7-8. forceKill テスト
   // =====================================================
 
-  describe('forceKill', () => {
-    it('should send SIGTERM to browser process', async () => {
+  describe("forceKill", () => {
+    it("should send SIGTERM to browser process", async () => {
       const mockBrowser = createMockBrowser({ pid: 12345 });
       const manager = new BrowserProcessManager({
         browser: mockBrowser,
@@ -280,17 +281,17 @@ describe('BrowserProcessManager', () => {
       mockProcessKill
         .mockImplementationOnce(() => {}) // SIGTERM成功
         .mockImplementationOnce(() => {
-          const error = new Error('No such process') as NodeJS.ErrnoException;
-          error.code = 'ESRCH';
+          const error = new Error("No such process") as NodeJS.ErrnoException;
+          error.code = "ESRCH";
           throw error;
         });
 
       await manager.forceKill();
 
-      expect(mockProcessKill).toHaveBeenCalledWith(12345, 'SIGTERM');
+      expect(mockProcessKill).toHaveBeenCalledWith(12345, "SIGTERM");
     });
 
-    it('should send SIGKILL if process is still alive after SIGTERM', async () => {
+    it("should send SIGKILL if process is still alive after SIGTERM", async () => {
       const mockBrowser = createMockBrowser({ pid: 12345 });
       const manager = new BrowserProcessManager({
         browser: mockBrowser,
@@ -306,12 +307,12 @@ describe('BrowserProcessManager', () => {
 
       await manager.forceKill();
 
-      expect(mockProcessKill).toHaveBeenCalledWith(12345, 'SIGTERM');
+      expect(mockProcessKill).toHaveBeenCalledWith(12345, "SIGTERM");
       expect(mockProcessKill).toHaveBeenCalledWith(12345, 0); // isProcessAlive確認
-      expect(mockProcessKill).toHaveBeenCalledWith(12345, 'SIGKILL');
+      expect(mockProcessKill).toHaveBeenCalledWith(12345, "SIGKILL");
     });
 
-    it('should not send SIGKILL if process terminates after SIGTERM', async () => {
+    it("should not send SIGKILL if process terminates after SIGTERM", async () => {
       const mockBrowser = createMockBrowser({ pid: 12345 });
       const manager = new BrowserProcessManager({
         browser: mockBrowser,
@@ -323,20 +324,20 @@ describe('BrowserProcessManager', () => {
       mockProcessKill
         .mockImplementationOnce(() => {}) // SIGTERM成功
         .mockImplementationOnce(() => {
-          const error = new Error('No such process') as NodeJS.ErrnoException;
-          error.code = 'ESRCH';
+          const error = new Error("No such process") as NodeJS.ErrnoException;
+          error.code = "ESRCH";
           throw error;
         });
 
       await manager.forceKill();
 
-      expect(mockProcessKill).toHaveBeenCalledWith(12345, 'SIGTERM');
+      expect(mockProcessKill).toHaveBeenCalledWith(12345, "SIGTERM");
       expect(mockProcessKill).toHaveBeenCalledWith(12345, 0);
       // SIGKILLは呼ばれない
-      expect(mockProcessKill).not.toHaveBeenCalledWith(12345, 'SIGKILL');
+      expect(mockProcessKill).not.toHaveBeenCalledWith(12345, "SIGKILL");
     });
 
-    it('should handle no PID gracefully', async () => {
+    it("should handle no PID gracefully", async () => {
       const mockBrowser = createMockBrowser({ pid: null });
       const manager = new BrowserProcessManager({
         browser: mockBrowser,
@@ -348,7 +349,7 @@ describe('BrowserProcessManager', () => {
       expect(mockProcessKill).not.toHaveBeenCalled();
     });
 
-    it('should handle ESRCH error gracefully (process already terminated)', async () => {
+    it("should handle ESRCH error gracefully (process already terminated)", async () => {
       const mockBrowser = createMockBrowser({ pid: 12345 });
       const manager = new BrowserProcessManager({
         browser: mockBrowser,
@@ -357,8 +358,8 @@ describe('BrowserProcessManager', () => {
 
       // 最初のSIGTERMでESRCH（プロセスが既に存在しない）
       mockProcessKill.mockImplementationOnce(() => {
-        const error = new Error('No such process') as NodeJS.ErrnoException;
-        error.code = 'ESRCH';
+        const error = new Error("No such process") as NodeJS.ErrnoException;
+        error.code = "ESRCH";
         throw error;
       });
 
@@ -371,8 +372,8 @@ describe('BrowserProcessManager', () => {
   // 9. isProcessAlive テスト
   // =====================================================
 
-  describe('isProcessAlive', () => {
-    it('should return true if process exists', () => {
+  describe("isProcessAlive", () => {
+    it("should return true if process exists", () => {
       const mockBrowser = createMockBrowser({ pid: 12345 });
       const manager = new BrowserProcessManager({
         browser: mockBrowser,
@@ -389,7 +390,7 @@ describe('BrowserProcessManager', () => {
       expect(mockProcessKill).toHaveBeenCalledWith(12345, 0);
     });
 
-    it('should return false if process does not exist', () => {
+    it("should return false if process does not exist", () => {
       const mockBrowser = createMockBrowser({ pid: 12345 });
       const manager = new BrowserProcessManager({
         browser: mockBrowser,
@@ -398,8 +399,8 @@ describe('BrowserProcessManager', () => {
 
       // signal 0でESRCH = プロセス不在
       mockProcessKill.mockImplementation(() => {
-        const error = new Error('No such process') as NodeJS.ErrnoException;
-        error.code = 'ESRCH';
+        const error = new Error("No such process") as NodeJS.ErrnoException;
+        error.code = "ESRCH";
         throw error;
       });
 
@@ -409,7 +410,7 @@ describe('BrowserProcessManager', () => {
       expect(result).toBe(false);
     });
 
-    it('should return false if PID is null', () => {
+    it("should return false if PID is null", () => {
       const mockBrowser = createMockBrowser({ pid: null });
       const manager = new BrowserProcessManager({
         browser: mockBrowser,
@@ -428,8 +429,8 @@ describe('BrowserProcessManager', () => {
   // 10. killAllChildren テスト
   // =====================================================
 
-  describe('killAllChildren', () => {
-    it('should call pkill on Linux', async () => {
+  describe("killAllChildren", () => {
+    it("should call pkill on Linux", async () => {
       const mockBrowser = createMockBrowser({ pid: 12345 });
       const manager = new BrowserProcessManager({
         browser: mockBrowser,
@@ -438,21 +439,21 @@ describe('BrowserProcessManager', () => {
 
       // process.platformをLinuxに設定
       const originalPlatform = process.platform;
-      Object.defineProperty(process, 'platform', { value: 'linux' });
+      Object.defineProperty(process, "platform", { value: "linux" });
 
-      mockExecSync.mockImplementation(() => Buffer.from(''));
+      mockExecSync.mockImplementation(() => Buffer.from(""));
 
       await manager.killAllChildren();
 
       // pkill -TERM と pkill -KILL が呼ばれる
-      expect(mockExecSync).toHaveBeenCalledWith('pkill -TERM -P 12345 || true');
-      expect(mockExecSync).toHaveBeenCalledWith('pkill -KILL -P 12345 || true');
+      expect(mockExecSync).toHaveBeenCalledWith("pkill -TERM -P 12345 || true");
+      expect(mockExecSync).toHaveBeenCalledWith("pkill -KILL -P 12345 || true");
 
       // プラットフォームを元に戻す
-      Object.defineProperty(process, 'platform', { value: originalPlatform });
+      Object.defineProperty(process, "platform", { value: originalPlatform });
     });
 
-    it('should do nothing if no PID', async () => {
+    it("should do nothing if no PID", async () => {
       const mockBrowser = createMockBrowser({ pid: null });
       const manager = new BrowserProcessManager({
         browser: mockBrowser,
@@ -464,7 +465,7 @@ describe('BrowserProcessManager', () => {
       expect(mockExecSync).not.toHaveBeenCalled();
     });
 
-    it('should handle pkill errors gracefully', async () => {
+    it("should handle pkill errors gracefully", async () => {
       const mockBrowser = createMockBrowser({ pid: 12345 });
       const manager = new BrowserProcessManager({
         browser: mockBrowser,
@@ -472,16 +473,16 @@ describe('BrowserProcessManager', () => {
       });
 
       const originalPlatform = process.platform;
-      Object.defineProperty(process, 'platform', { value: 'linux' });
+      Object.defineProperty(process, "platform", { value: "linux" });
 
       mockExecSync.mockImplementation(() => {
-        throw new Error('pkill failed');
+        throw new Error("pkill failed");
       });
 
       // エラーなしで完了するはず
       await expect(manager.killAllChildren()).resolves.toBeUndefined();
 
-      Object.defineProperty(process, 'platform', { value: originalPlatform });
+      Object.defineProperty(process, "platform", { value: originalPlatform });
     });
   });
 
@@ -489,8 +490,8 @@ describe('BrowserProcessManager', () => {
   // 統合テスト
   // =====================================================
 
-  describe('Integration', () => {
-    it('should use custom killGracePeriodMs', async () => {
+  describe("Integration", () => {
+    it("should use custom killGracePeriodMs", async () => {
       const mockBrowser = createMockBrowser({ pid: 12345 });
       const manager = new BrowserProcessManager({
         browser: mockBrowser,
@@ -502,7 +503,7 @@ describe('BrowserProcessManager', () => {
       expect(manager.killGracePeriodMs).toBe(1000);
     });
 
-    it('should default killGracePeriodMs to 5000ms', () => {
+    it("should default killGracePeriodMs to 5000ms", () => {
       const mockBrowser = createMockBrowser({ pid: 12345 });
       const manager = new BrowserProcessManager({
         browser: mockBrowser,

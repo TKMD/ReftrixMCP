@@ -10,10 +10,10 @@
  * @module services/quality-search.service
  */
 
-import { logger } from '../utils/logger';
-import { isDevelopmentEnvironment } from './production-guard';
-import type { IQualityEvaluateService } from './quality/quality-evaluate.service.interface';
-import type { QualityEvaluateData } from '../tools/quality/schemas';
+import { logger } from "../utils/logger";
+import { isDevelopmentEnvironment } from "./production-guard";
+import type { IQualityEvaluateService } from "./quality/quality-evaluate.service.interface";
+import type { QualityEvaluateData } from "../tools/quality/schemas";
 
 // =====================================================
 // PrismaClient インターフェース（DI用）
@@ -28,7 +28,7 @@ export interface IQualitySearchPrismaClient {
 // =====================================================
 
 export interface IQualitySearchEmbeddingService {
-  generateEmbedding: (text: string, type: 'query' | 'passage') => Promise<number[]>;
+  generateEmbedding: (text: string, type: "query" | "passage") => Promise<number[]>;
 }
 
 // =====================================================
@@ -91,7 +91,9 @@ export interface QualitySearchServiceConfig {
   webPageService?: IQualitySearchWebPageService | undefined;
 }
 
-export function createQualitySearchService(config: QualitySearchServiceConfig): IQualityEvaluateService {
+export function createQualitySearchService(
+  config: QualitySearchServiceConfig
+): IQualityEvaluateService {
   const { prisma, embeddingService, webPageService } = config;
 
   const qualityService: IQualityEvaluateService = {
@@ -104,7 +106,7 @@ export function createQualitySearchService(config: QualitySearchServiceConfig): 
         if (!result) return null;
         return {
           id: result.id,
-          htmlContent: result.htmlContent ?? '',
+          htmlContent: result.htmlContent ?? "",
         };
       }
       return null;
@@ -116,7 +118,7 @@ export function createQualitySearchService(config: QualitySearchServiceConfig): 
     saveEvaluation: async (_evaluation: QualityEvaluateData): Promise<boolean> => {
       // TODO: QualityEvaluationテーブルへの保存を実装
       if (isDevelopmentEnvironment()) {
-        logger.debug('[QualitySearchService] saveEvaluation called (not yet implemented)');
+        logger.debug("[QualitySearchService] saveEvaluation called (not yet implemented)");
       }
       return true;
     },
@@ -125,7 +127,7 @@ export function createQualitySearchService(config: QualitySearchServiceConfig): 
     // generateEmbedding
     // -----------------------------------------------
     generateEmbedding: async (textRepresentation: string): Promise<number[]> => {
-      return embeddingService.generateEmbedding(textRepresentation, 'passage');
+      return embeddingService.generateEmbedding(textRepresentation, "passage");
     },
 
     // -----------------------------------------------
@@ -135,7 +137,7 @@ export function createQualitySearchService(config: QualitySearchServiceConfig): 
       const { sectionType, limit = 10, minSimilarity = 0.7, minQualityScore = 0 } = options;
 
       try {
-        const embeddingStr = `[${embedding.join(',')}]`;
+        const embeddingStr = `[${embedding.join(",")}]`;
 
         // Dynamic parameter index management ($1=embedding, $2=minSimilarity, $3=minQualityScore, $4=limit)
         let paramIndex = 5;
@@ -162,7 +164,7 @@ export function createQualitySearchService(config: QualitySearchServiceConfig): 
           JOIN section_embeddings se ON se.section_pattern_id = sp.id
           LEFT JOIN web_pages wp ON wp.id = sp.web_page_id
           WHERE 1 - (se.text_embedding <=> $1::vector) >= $2
-            ${optionalConditions.join('\n            ')}
+            ${optionalConditions.join("\n            ")}
             AND COALESCE((sp.quality_score->>'overall')::numeric, 0) >= $3
           ORDER BY similarity DESC
           LIMIT $4
@@ -198,7 +200,7 @@ export function createQualitySearchService(config: QualitySearchServiceConfig): 
         });
       } catch (error) {
         if (isDevelopmentEnvironment()) {
-          logger.error('[QualitySearchService] findSimilarSections error', { error });
+          logger.error("[QualitySearchService] findSimilarSections error", { error });
         }
         return [];
       }
@@ -211,7 +213,7 @@ export function createQualitySearchService(config: QualitySearchServiceConfig): 
       const { motionType, limit = 10, minSimilarity = 0.7, trigger } = options;
 
       try {
-        const embeddingStr = `[${embedding.join(',')}]`;
+        const embeddingStr = `[${embedding.join(",")}]`;
 
         // Dynamic parameter index management ($1=embedding, $2=minSimilarity, $3=limit)
         let paramIndex = 4;
@@ -243,7 +245,7 @@ export function createQualitySearchService(config: QualitySearchServiceConfig): 
           JOIN motion_embeddings me ON me.motion_pattern_id = mp.id
           LEFT JOIN web_pages wp ON wp.id = mp.web_page_id
           WHERE 1 - (me.embedding <=> $1::vector) >= $2
-            ${optionalConditions.join('\n            ')}
+            ${optionalConditions.join("\n            ")}
           ORDER BY similarity DESC
           LIMIT $3
           `,
@@ -273,7 +275,7 @@ export function createQualitySearchService(config: QualitySearchServiceConfig): 
         });
       } catch (error) {
         if (isDevelopmentEnvironment()) {
-          logger.error('[QualitySearchService] findSimilarMotions error', { error });
+          logger.error("[QualitySearchService] findSimilarMotions error", { error });
         }
         return [];
       }
@@ -316,7 +318,7 @@ export function createQualitySearchService(config: QualitySearchServiceConfig): 
             sectionPatternId?: string;
             sectionType: string;
             overallScore: number;
-            grade: 'A' | 'B';
+            grade: "A" | "B";
             characteristics: string[];
             axisScores: {
               originality: number;
@@ -332,7 +334,7 @@ export function createQualitySearchService(config: QualitySearchServiceConfig): 
             id: row.id,
             sectionType: row.section_type,
             overallScore: row.overall_score,
-            grade: row.grade as 'A' | 'B',
+            grade: row.grade as "A" | "B",
             characteristics: row.characteristics ?? [],
             axisScores: JSON.parse(row.axis_scores) as {
               originality: number;
@@ -350,7 +352,7 @@ export function createQualitySearchService(config: QualitySearchServiceConfig): 
         });
       } catch (error) {
         if (isDevelopmentEnvironment()) {
-          logger.error('[QualitySearchService] getHighQualityBenchmarks error', { error });
+          logger.error("[QualitySearchService] getHighQualityBenchmarks error", { error });
         }
         return [];
       }
@@ -390,10 +392,10 @@ export function createQualitySearchService(config: QualitySearchServiceConfig): 
           new Date(evaluation.evaluatedAt)
         )) as EvaluationInsertRow[];
 
-        return results[0]?.id ?? '';
+        return results[0]?.id ?? "";
       } catch (error) {
         if (isDevelopmentEnvironment()) {
-          logger.error('[QualitySearchService] saveEvaluationWithPatterns error', { error });
+          logger.error("[QualitySearchService] saveEvaluationWithPatterns error", { error });
         }
         throw error;
       }

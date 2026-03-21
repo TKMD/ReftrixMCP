@@ -21,12 +21,12 @@
  * - `--gpu-sandbox-start-early`: GPUサンドボックスの早期起動（セキュリティ強化）
  */
 export const GPU_BROWSER_BASE_ARGS: readonly string[] = [
-  '--use-angle=gl',
-  '--enable-gpu-rasterization',
-  '--ignore-gpu-blocklist',
-  '--disable-dev-shm-usage',
-  '--disable-setuid-sandbox',
-  '--gpu-sandbox-start-early',
+  "--use-angle=gl",
+  "--enable-gpu-rasterization",
+  "--ignore-gpu-blocklist",
+  "--disable-dev-shm-usage",
+  "--disable-setuid-sandbox",
+  "--gpu-sandbox-start-early",
 ] as const;
 
 /**
@@ -37,5 +37,5 @@ export const GPU_BROWSER_BASE_ARGS: readonly string[] = [
  */
 export const WEBGL_BROWSER_ARGS: readonly string[] = [
   ...GPU_BROWSER_BASE_ARGS,
-  '--enable-webgl',
+  "--enable-webgl",
 ] as const;

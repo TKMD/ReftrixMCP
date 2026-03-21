@@ -29,21 +29,19 @@ import type {
   INarrativeAnalysisService,
   NarrativeSearchOptions,
   NarrativeSearchResult,
-} from './types/narrative.types';
-import { WorldViewAnalyzer, type WorldViewAnalysisOutput } from './analyzers/worldview.analyzer';
-import { LayoutStructureAnalyzer, type LayoutStructureAnalysisOutput } from './analyzers/layout-structure.analyzer';
+} from "./types/narrative.types";
+import { WorldViewAnalyzer, type WorldViewAnalysisOutput } from "./analyzers/worldview.analyzer";
 import {
-  generateTextRepresentation,
-} from './generators/text-representation.generator';
-import {
-  calculateConfidence,
-  type AnalysisMetadata,
-} from './generators/confidence-calculator';
-import { LayoutEmbeddingService } from '../layout-embedding.service';
-import { NarrativeSearchService } from './narrative-search.service';
-import { isDevelopment, logger } from '../../utils/logger';
-import { prisma } from '@reftrix/database';
-import type { MoodCategory as PrismaMoodCategory } from '@prisma/client';
+  LayoutStructureAnalyzer,
+  type LayoutStructureAnalysisOutput,
+} from "./analyzers/layout-structure.analyzer";
+import { generateTextRepresentation } from "./generators/text-representation.generator";
+import { calculateConfidence, type AnalysisMetadata } from "./generators/confidence-calculator";
+import { LayoutEmbeddingService } from "../layout-embedding.service";
+import { NarrativeSearchService } from "./narrative-search.service";
+import { isDevelopment, logger } from "../../utils/logger";
+import { prisma } from "@reftrix/database";
+import type { MoodCategory as PrismaMoodCategory } from "@prisma/client";
 
 // =============================================================================
 // Types
@@ -77,9 +75,10 @@ export class NarrativeAnalysisService implements INarrativeAnalysisService {
 
   constructor(config?: NarrativeAnalysisServiceConfig) {
     // visionTimeoutMsが指定されている場合のみオプションを渡す（exactOptionalPropertyTypes対応）
-    const worldViewOptions = config?.visionTimeoutMs !== undefined
-      ? { visionTimeoutMs: config.visionTimeoutMs }
-      : undefined;
+    const worldViewOptions =
+      config?.visionTimeoutMs !== undefined
+        ? { visionTimeoutMs: config.visionTimeoutMs }
+        : undefined;
     this.worldViewAnalyzer = new WorldViewAnalyzer(worldViewOptions);
     this.layoutStructureAnalyzer = new LayoutStructureAnalyzer();
     this.config = {
@@ -88,7 +87,7 @@ export class NarrativeAnalysisService implements INarrativeAnalysisService {
     };
 
     if (isDevelopment()) {
-      logger.info('[NarrativeAnalysisService] Initialized', {
+      logger.info("[NarrativeAnalysisService] Initialized", {
         visionTimeoutMs: this.config.visionTimeoutMs,
         enableEmbedding: this.config.enableEmbedding,
       });
@@ -105,7 +104,7 @@ export class NarrativeAnalysisService implements INarrativeAnalysisService {
     const startTime = Date.now();
 
     if (isDevelopment()) {
-      logger.info('[NarrativeAnalysisService] Starting analysis', {
+      logger.info("[NarrativeAnalysisService] Starting analysis", {
         hasScreenshot: !!input.screenshot,
         hasHtml: !!input.html,
         hasExistingAnalysis: !!input.existingAnalysis,
@@ -139,7 +138,7 @@ export class NarrativeAnalysisService implements INarrativeAnalysisService {
         embedding = await this.generateEmbedding(textRepresentation);
       } catch (error) {
         if (isDevelopment()) {
-          logger.warn('[NarrativeAnalysisService] Embedding generation failed', {
+          logger.warn("[NarrativeAnalysisService] Embedding generation failed", {
             error: error instanceof Error ? error.message : String(error),
           });
         }
@@ -172,7 +171,7 @@ export class NarrativeAnalysisService implements INarrativeAnalysisService {
     };
 
     if (isDevelopment()) {
-      logger.info('[NarrativeAnalysisService] Analysis complete', {
+      logger.info("[NarrativeAnalysisService] Analysis complete", {
         analysisTimeMs,
         visionUsed: worldViewOutput.metadata.visionUsed,
         moodCategory: worldViewOutput.result.moodCategory,
@@ -192,12 +191,9 @@ export class NarrativeAnalysisService implements INarrativeAnalysisService {
    * @param result - 分析結果
    * @returns 保存済みNarrative
    */
-  async save(
-    webPageId: string,
-    result: NarrativeAnalysisResult
-  ): Promise<SavedNarrative> {
+  async save(webPageId: string, result: NarrativeAnalysisResult): Promise<SavedNarrative> {
     if (isDevelopment()) {
-      logger.info('[NarrativeAnalysisService] Saving narrative to DB', {
+      logger.info("[NarrativeAnalysisService] Saving narrative to DB", {
         webPageId,
         moodCategory: result.worldView.moodCategory,
         hasEmbedding: !!result.metadata.embedding,
@@ -254,7 +250,7 @@ export class NarrativeAnalysisService implements INarrativeAnalysisService {
           graphicElements,
           confidence: result.metadata.confidence.overall,
           analyzedAt: new Date(),
-          analyzerVersion: '0.1.0',
+          analyzerVersion: "0.1.0",
         },
         update: {
           moodCategory,
@@ -270,12 +266,12 @@ export class NarrativeAnalysisService implements INarrativeAnalysisService {
           graphicElements,
           confidence: result.metadata.confidence.overall,
           analyzedAt: new Date(),
-          analyzerVersion: '0.1.0',
+          analyzerVersion: "0.1.0",
         },
       });
 
       if (isDevelopment()) {
-        logger.info('[NarrativeAnalysisService] Narrative saved successfully', {
+        logger.info("[NarrativeAnalysisService] Narrative saved successfully", {
           id: saved.id,
           webPageId: saved.webPageId,
         });
@@ -300,7 +296,7 @@ export class NarrativeAnalysisService implements INarrativeAnalysisService {
       };
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
-      logger.error('[NarrativeAnalysisService] Failed to save narrative', {
+      logger.error("[NarrativeAnalysisService] Failed to save narrative", {
         webPageId,
         error: errorMessage,
       });
@@ -332,16 +328,16 @@ export class NarrativeAnalysisService implements INarrativeAnalysisService {
         create: {
           designNarrativeId,
           textRepresentation,
-          modelVersion: 'multilingual-e5-base',
+          modelVersion: "multilingual-e5-base",
         },
         update: {
           textRepresentation,
-          modelVersion: 'multilingual-e5-base',
+          modelVersion: "multilingual-e5-base",
         },
       });
 
       // 2. pgvector 形式で Embedding ベクトルを更新
-      const vectorString = `[${embedding.join(',')}]`;
+      const vectorString = `[${embedding.join(",")}]`;
       await prisma.$executeRawUnsafe(
         `UPDATE design_narrative_embeddings SET embedding = $1::vector WHERE id = $2::uuid`,
         vectorString,
@@ -349,7 +345,7 @@ export class NarrativeAnalysisService implements INarrativeAnalysisService {
       );
 
       if (isDevelopment()) {
-        logger.info('[NarrativeAnalysisService] Narrative embedding saved', {
+        logger.info("[NarrativeAnalysisService] Narrative embedding saved", {
           designNarrativeId,
           embeddingId: embeddingRecord.id,
           embeddingDimensions: embedding.length,
@@ -362,7 +358,7 @@ export class NarrativeAnalysisService implements INarrativeAnalysisService {
       // Graceful Degradation: Embedding保存失敗はNarrative保存全体を失敗させない
       const errorMessage = error instanceof Error ? error.message : String(error);
       if (isDevelopment()) {
-        logger.warn('[NarrativeAnalysisService] Failed to save narrative embedding (non-fatal)', {
+        logger.warn("[NarrativeAnalysisService] Failed to save narrative embedding (non-fatal)", {
           designNarrativeId,
           error: errorMessage,
         });
@@ -376,44 +372,42 @@ export class NarrativeAnalysisService implements INarrativeAnalysisService {
    */
   private mapMoodCategoryToDb(category: string): PrismaMoodCategory {
     const mapping: Record<string, PrismaMoodCategory> = {
-      professional: 'professional',
-      playful: 'playful',
-      premium: 'premium',
-      tech: 'tech',
-      organic: 'organic',
-      minimal: 'minimalist',
-      minimalist: 'minimalist',
-      bold: 'bold',
-      elegant: 'elegant',
-      friendly: 'warm',
-      warm: 'warm',
-      artistic: 'artistic',
-      trustworthy: 'trustworthy',
-      innovative: 'innovative',
-      energetic: 'energetic',
-      mysterious: 'mysterious',
-      serene: 'serene',
+      professional: "professional",
+      playful: "playful",
+      premium: "premium",
+      tech: "tech",
+      organic: "organic",
+      minimal: "minimalist",
+      minimalist: "minimalist",
+      bold: "bold",
+      elegant: "elegant",
+      friendly: "warm",
+      warm: "warm",
+      artistic: "artistic",
+      trustworthy: "trustworthy",
+      innovative: "innovative",
+      energetic: "energetic",
+      mysterious: "mysterious",
+      serene: "serene",
     };
 
-    return mapping[category.toLowerCase()] ?? 'other';
+    return mapping[category.toLowerCase()] ?? "other";
   }
 
   /**
    * オブジェクトを人間が読める文字列に変換
    */
   private serializeToString(obj: unknown): string {
-    if (typeof obj === 'string') {
+    if (typeof obj === "string") {
       return obj;
     }
     if (obj === null || obj === undefined) {
-      return '';
+      return "";
     }
     // オブジェクトの場合、人間が読める形式に変換
-    if (typeof obj === 'object') {
+    if (typeof obj === "object") {
       const entries = Object.entries(obj as Record<string, unknown>);
-      return entries
-        .map(([key, value]) => `${key}: ${value}`)
-        .join(', ');
+      return entries.map(([key, value]) => `${key}: ${value}`).join(", ");
     }
     return String(obj);
   }
@@ -428,7 +422,7 @@ export class NarrativeAnalysisService implements INarrativeAnalysisService {
     const result = await this.analyze(input);
 
     if (!input.webPageId) {
-      throw new Error('webPageId is required for saving');
+      throw new Error("webPageId is required for saving");
     }
 
     return this.save(input.webPageId, result);
@@ -445,7 +439,7 @@ export class NarrativeAnalysisService implements INarrativeAnalysisService {
    */
   async search(options: NarrativeSearchOptions): Promise<NarrativeSearchResult[]> {
     if (isDevelopment()) {
-      logger.info('[NarrativeAnalysisService] Delegating search to NarrativeSearchService', {
+      logger.info("[NarrativeAnalysisService] Delegating search to NarrativeSearchService", {
         query: options.query,
         limit: options.limit,
       });
@@ -458,8 +452,8 @@ export class NarrativeAnalysisService implements INarrativeAnalysisService {
       return await this.searchService.search(options);
     } catch (error) {
       if (isDevelopment()) {
-        logger.warn('[NarrativeAnalysisService] Search delegation failed, returning empty', {
-          error: error instanceof Error ? error.message : 'Unknown error',
+        logger.warn("[NarrativeAnalysisService] Search delegation failed, returning empty", {
+          error: error instanceof Error ? error.message : "Unknown error",
         });
       }
       // Graceful Degradation: DI未設定時は空配列を返す
@@ -481,9 +475,7 @@ export class NarrativeAnalysisService implements INarrativeAnalysisService {
   /**
    * WorldView分析
    */
-  private async analyzeWorldView(
-    input: NarrativeAnalysisInput
-  ): Promise<WorldViewAnalysisOutput> {
+  private async analyzeWorldView(input: NarrativeAnalysisInput): Promise<WorldViewAnalysisOutput> {
     // exactOptionalPropertyTypes対応: undefinedのプロパティは含めない
     const analysisInput: Parameters<typeof this.worldViewAnalyzer.analyze>[0] = {
       options: {
@@ -514,9 +506,7 @@ export class NarrativeAnalysisService implements INarrativeAnalysisService {
   /**
    * LayoutStructure分析
    */
-  private analyzeLayoutStructure(
-    input: NarrativeAnalysisInput
-  ): LayoutStructureAnalysisOutput {
+  private analyzeLayoutStructure(input: NarrativeAnalysisInput): LayoutStructureAnalysisOutput {
     // exactOptionalPropertyTypes対応: undefinedのプロパティは含めない
     const analysisInput: Parameters<typeof this.layoutStructureAnalyzer.analyze>[0] = {
       html: input.html,
@@ -549,7 +539,7 @@ export class NarrativeAnalysisService implements INarrativeAnalysisService {
       worldView,
       layoutStructure,
       metadata: {
-        textRepresentation: '', // 生成中なので空
+        textRepresentation: "", // 生成中なので空
         confidence: {
           overall: 0,
           worldView: 0,
@@ -579,7 +569,8 @@ export class NarrativeAnalysisService implements INarrativeAnalysisService {
     // exactOptionalPropertyTypes対応: undefinedのプロパティは含めない
     const metadata: AnalysisMetadata = {
       visionUsed: worldViewOutput.metadata.visionUsed,
-      visionFallback: !worldViewOutput.metadata.visionUsed &&
+      visionFallback:
+        !worldViewOutput.metadata.visionUsed &&
         worldViewOutput.metadata.fallbackReason !== undefined,
     };
 

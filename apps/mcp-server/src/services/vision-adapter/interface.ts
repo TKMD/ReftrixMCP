@@ -11,7 +11,7 @@
  * @see docs/plans/webdesign/00-overview.md (ビジョン解析アダプタ セクション)
  */
 
-import { z } from 'zod';
+import { z } from "zod";
 
 // =============================================================================
 // 特徴タイプ定義
@@ -21,35 +21,35 @@ import { z } from 'zod';
  * 抽出する特徴の種類
  */
 export type VisionFeatureType =
-  | 'layout_structure' // レイアウト構造
-  | 'color_palette' // カラーパレット
-  | 'typography' // タイポグラフィ
-  | 'visual_hierarchy' // 視覚的階層
-  | 'whitespace' // 余白・スペーシング
-  | 'density' // 情報密度
-  | 'rhythm' // 視覚的リズム
-  | 'section_boundaries' // セクション境界
+  | "layout_structure" // レイアウト構造
+  | "color_palette" // カラーパレット
+  | "typography" // タイポグラフィ
+  | "visual_hierarchy" // 視覚的階層
+  | "whitespace" // 余白・スペーシング
+  | "density" // 情報密度
+  | "rhythm" // 視覚的リズム
+  | "section_boundaries" // セクション境界
   // Reftrix専用Feature Types
-  | 'motion_candidates' // アニメーション候補（Vision検出）
-  | 'brand_tone' // ブランドトーン分析
-  | 'ai_cliches'; // AIクリシェ検出
+  | "motion_candidates" // アニメーション候補（Vision検出）
+  | "brand_tone" // ブランドトーン分析
+  | "ai_cliches"; // AIクリシェ検出
 
 /**
  * VisionFeatureType の Zod スキーマ
  */
 export const visionFeatureTypeSchema = z.enum([
-  'layout_structure',
-  'color_palette',
-  'typography',
-  'visual_hierarchy',
-  'whitespace',
-  'density',
-  'rhythm',
-  'section_boundaries',
+  "layout_structure",
+  "color_palette",
+  "typography",
+  "visual_hierarchy",
+  "whitespace",
+  "density",
+  "rhythm",
+  "section_boundaries",
   // Reftrix専用Feature Types
-  'motion_candidates',
-  'brand_tone',
-  'ai_cliches',
+  "motion_candidates",
+  "brand_tone",
+  "ai_cliches",
 ]);
 
 // =============================================================================
@@ -63,7 +63,7 @@ export interface VisionAnalysisOptions {
   /** 解析対象の画像バッファ */
   imageBuffer: Buffer;
   /** 画像のMIMEタイプ */
-  mimeType: 'image/png' | 'image/jpeg' | 'image/webp';
+  mimeType: "image/png" | "image/jpeg" | "image/webp";
   /** 解析プロンプト（オプション） */
   prompt?: string;
   /** 抽出する特徴の種類 */
@@ -77,7 +77,7 @@ export interface VisionAnalysisOptions {
  */
 export const visionAnalysisOptionsSchema = z.object({
   imageBuffer: z.instanceof(Buffer),
-  mimeType: z.enum(['image/png', 'image/jpeg', 'image/webp']),
+  mimeType: z.enum(["image/png", "image/jpeg", "image/webp"]),
   prompt: z.string().optional(),
   features: z.array(visionFeatureTypeSchema).optional(),
   timeout: z.number().int().positive().optional(),
@@ -91,14 +91,8 @@ export const visionAnalysisOptionsSchema = z.object({
  * レイアウト構造データ
  */
 export interface LayoutStructureData {
-  type: 'layout_structure';
-  gridType:
-    | 'single-column'
-    | 'two-column'
-    | 'three-column'
-    | 'grid'
-    | 'masonry'
-    | 'asymmetric';
+  type: "layout_structure";
+  gridType: "single-column" | "two-column" | "three-column" | "grid" | "masonry" | "asymmetric";
   mainAreas: string[];
   description: string;
 }
@@ -107,17 +101,17 @@ export interface LayoutStructureData {
  * カラーパレットデータ
  */
 export interface ColorPaletteData {
-  type: 'color_palette';
+  type: "color_palette";
   dominantColors: string[]; // HEX colors
   mood: string;
-  contrast: 'high' | 'medium' | 'low';
+  contrast: "high" | "medium" | "low";
 }
 
 /**
  * タイポグラフィデータ
  */
 export interface TypographyData {
-  type: 'typography';
+  type: "typography";
   headingStyle: string;
   bodyStyle: string;
   hierarchy: string[];
@@ -127,9 +121,9 @@ export interface TypographyData {
  * 視覚的階層データ
  */
 export interface VisualHierarchyData {
-  type: 'visual_hierarchy';
+  type: "visual_hierarchy";
   focalPoints: string[];
-  flowDirection: 'top-to-bottom' | 'left-to-right' | 'z-pattern' | 'f-pattern';
+  flowDirection: "top-to-bottom" | "left-to-right" | "z-pattern" | "f-pattern";
   emphasisTechniques: string[];
 }
 
@@ -137,17 +131,17 @@ export interface VisualHierarchyData {
  * 余白データ
  */
 export interface WhitespaceData {
-  type: 'whitespace';
-  amount: 'minimal' | 'moderate' | 'generous' | 'extreme';
-  distribution: 'even' | 'top-heavy' | 'bottom-heavy' | 'centered';
+  type: "whitespace";
+  amount: "minimal" | "moderate" | "generous" | "extreme";
+  distribution: "even" | "top-heavy" | "bottom-heavy" | "centered";
 }
 
 /**
  * 情報密度データ
  */
 export interface DensityData {
-  type: 'density';
-  level: 'sparse' | 'balanced' | 'dense' | 'cluttered';
+  type: "density";
+  level: "sparse" | "balanced" | "dense" | "cluttered";
   description: string;
 }
 
@@ -155,8 +149,8 @@ export interface DensityData {
  * 視覚的リズムデータ
  */
 export interface RhythmData {
-  type: 'rhythm';
-  pattern: 'regular' | 'irregular' | 'progressive' | 'alternating';
+  type: "rhythm";
+  pattern: "regular" | "irregular" | "progressive" | "alternating";
   description: string;
 }
 
@@ -164,7 +158,7 @@ export interface RhythmData {
  * セクション境界データ
  */
 export interface SectionBoundariesData {
-  type: 'section_boundaries';
+  type: "section_boundaries";
   sections: Array<{
     type: string;
     startY: number;
@@ -184,11 +178,19 @@ export interface SectionBoundariesData {
  * CSS/JS静的解析の補完として使用。
  */
 export interface MotionCandidatesData {
-  type: 'motion_candidates';
+  type: "motion_candidates";
   /** 推定されるアニメーション */
   likelyAnimations: Array<{
     element: string;
-    animationType: 'fade-in' | 'slide' | 'scale' | 'rotate' | 'hover-scale' | 'hover-lift' | 'parallax' | 'other';
+    animationType:
+      | "fade-in"
+      | "slide"
+      | "scale"
+      | "rotate"
+      | "hover-scale"
+      | "hover-lift"
+      | "parallax"
+      | "other";
     confidence: number;
   }>;
   /** インタラクティブ要素 */
@@ -203,17 +205,17 @@ export interface MotionCandidatesData {
  * デザインの視覚的トーンとブランドパーソナリティ分析結果。
  */
 export interface BrandToneData {
-  type: 'brand_tone';
+  type: "brand_tone";
   /** プロフェッショナリズム */
-  professionalism: 'minimal' | 'moderate' | 'bold';
+  professionalism: "minimal" | "moderate" | "bold";
   /** 温かみ */
-  warmth: 'cold' | 'neutral' | 'warm';
+  warmth: "cold" | "neutral" | "warm";
   /** モダンさ */
-  modernity: 'classic' | 'contemporary' | 'futuristic';
+  modernity: "classic" | "contemporary" | "futuristic";
   /** エネルギー */
-  energy: 'calm' | 'balanced' | 'dynamic';
+  energy: "calm" | "balanced" | "dynamic";
   /** ターゲットオーディエンス */
-  targetAudience: 'enterprise' | 'startup' | 'creative' | 'consumer';
+  targetAudience: "enterprise" | "startup" | "creative" | "consumer";
   /** 視覚的指標 */
   indicators: string[];
 }
@@ -225,17 +227,30 @@ export interface BrandToneData {
  * quality.evaluateのOriginality評価に活用。
  */
 export interface AiClichesData {
-  type: 'ai_cliches';
+  type: "ai_cliches";
   /** 検出されたクリシェ */
   clichesDetected: Array<{
-    clicheType: 'gradient_orbs' | 'generic_isometric' | 'meaningless_patterns' | 'oversaturated_gradients' | 'ai_generated_people' | 'floating_ui' | 'generic_hero' | 'symmetrical_layout' | 'other';
+    clicheType:
+      | "gradient_orbs"
+      | "generic_isometric"
+      | "meaningless_patterns"
+      | "oversaturated_gradients"
+      | "ai_generated_people"
+      | "floating_ui"
+      | "generic_hero"
+      | "symmetrical_layout"
+      | "other";
     location: string;
-    severity: 'low' | 'medium' | 'high';
+    severity: "low" | "medium" | "high";
   }>;
   /** オリジナリティスコア (0-100) */
   originalityScore: number;
   /** 評価 */
-  assessment: 'highly-original' | 'mostly-original' | 'moderate-ai-influence' | 'heavy-ai-influence';
+  assessment:
+    | "highly-original"
+    | "mostly-original"
+    | "moderate-ai-influence"
+    | "heavy-ai-influence";
   /** 改善提案 */
   suggestions: string[];
 }
@@ -262,60 +277,60 @@ export type VisionFeatureData =
 // =============================================================================
 
 const layoutStructureDataSchema = z.object({
-  type: z.literal('layout_structure'),
+  type: z.literal("layout_structure"),
   gridType: z.enum([
-    'single-column',
-    'two-column',
-    'three-column',
-    'grid',
-    'masonry',
-    'asymmetric',
+    "single-column",
+    "two-column",
+    "three-column",
+    "grid",
+    "masonry",
+    "asymmetric",
   ]),
   mainAreas: z.array(z.string()),
   description: z.string(),
 });
 
 const colorPaletteDataSchema = z.object({
-  type: z.literal('color_palette'),
+  type: z.literal("color_palette"),
   dominantColors: z.array(z.string()),
   mood: z.string(),
-  contrast: z.enum(['high', 'medium', 'low']),
+  contrast: z.enum(["high", "medium", "low"]),
 });
 
 const typographyDataSchema = z.object({
-  type: z.literal('typography'),
+  type: z.literal("typography"),
   headingStyle: z.string(),
   bodyStyle: z.string(),
   hierarchy: z.array(z.string()),
 });
 
 const visualHierarchyDataSchema = z.object({
-  type: z.literal('visual_hierarchy'),
+  type: z.literal("visual_hierarchy"),
   focalPoints: z.array(z.string()),
-  flowDirection: z.enum(['top-to-bottom', 'left-to-right', 'z-pattern', 'f-pattern']),
+  flowDirection: z.enum(["top-to-bottom", "left-to-right", "z-pattern", "f-pattern"]),
   emphasisTechniques: z.array(z.string()),
 });
 
 const whitespaceDataSchema = z.object({
-  type: z.literal('whitespace'),
-  amount: z.enum(['minimal', 'moderate', 'generous', 'extreme']),
-  distribution: z.enum(['even', 'top-heavy', 'bottom-heavy', 'centered']),
+  type: z.literal("whitespace"),
+  amount: z.enum(["minimal", "moderate", "generous", "extreme"]),
+  distribution: z.enum(["even", "top-heavy", "bottom-heavy", "centered"]),
 });
 
 const densityDataSchema = z.object({
-  type: z.literal('density'),
-  level: z.enum(['sparse', 'balanced', 'dense', 'cluttered']),
+  type: z.literal("density"),
+  level: z.enum(["sparse", "balanced", "dense", "cluttered"]),
   description: z.string(),
 });
 
 const rhythmDataSchema = z.object({
-  type: z.literal('rhythm'),
-  pattern: z.enum(['regular', 'irregular', 'progressive', 'alternating']),
+  type: z.literal("rhythm"),
+  pattern: z.enum(["regular", "irregular", "progressive", "alternating"]),
   description: z.string(),
 });
 
 const sectionBoundariesDataSchema = z.object({
-  type: z.literal('section_boundaries'),
+  type: z.literal("section_boundaries"),
   sections: z.array(
     z.object({
       type: z.string(),
@@ -328,19 +343,19 @@ const sectionBoundariesDataSchema = z.object({
 
 // Reftrix専用スキーマ
 const motionCandidatesDataSchema = z.object({
-  type: z.literal('motion_candidates'),
+  type: z.literal("motion_candidates"),
   likelyAnimations: z.array(
     z.object({
       element: z.string(),
       animationType: z.enum([
-        'fade-in',
-        'slide',
-        'scale',
-        'rotate',
-        'hover-scale',
-        'hover-lift',
-        'parallax',
-        'other',
+        "fade-in",
+        "slide",
+        "scale",
+        "rotate",
+        "hover-scale",
+        "hover-lift",
+        "parallax",
+        "other",
       ]),
       confidence: z.number().min(0).max(1),
     })
@@ -350,45 +365,45 @@ const motionCandidatesDataSchema = z.object({
 });
 
 const brandToneDataSchema = z.object({
-  type: z.literal('brand_tone'),
-  professionalism: z.enum(['minimal', 'moderate', 'bold']),
-  warmth: z.enum(['cold', 'neutral', 'warm']),
-  modernity: z.enum(['classic', 'contemporary', 'futuristic']),
-  energy: z.enum(['calm', 'balanced', 'dynamic']),
-  targetAudience: z.enum(['enterprise', 'startup', 'creative', 'consumer']),
+  type: z.literal("brand_tone"),
+  professionalism: z.enum(["minimal", "moderate", "bold"]),
+  warmth: z.enum(["cold", "neutral", "warm"]),
+  modernity: z.enum(["classic", "contemporary", "futuristic"]),
+  energy: z.enum(["calm", "balanced", "dynamic"]),
+  targetAudience: z.enum(["enterprise", "startup", "creative", "consumer"]),
   indicators: z.array(z.string()),
 });
 
 const aiClichesDataSchema = z.object({
-  type: z.literal('ai_cliches'),
+  type: z.literal("ai_cliches"),
   clichesDetected: z.array(
     z.object({
       clicheType: z.enum([
-        'gradient_orbs',
-        'generic_isometric',
-        'meaningless_patterns',
-        'oversaturated_gradients',
-        'ai_generated_people',
-        'floating_ui',
-        'generic_hero',
-        'symmetrical_layout',
-        'other',
+        "gradient_orbs",
+        "generic_isometric",
+        "meaningless_patterns",
+        "oversaturated_gradients",
+        "ai_generated_people",
+        "floating_ui",
+        "generic_hero",
+        "symmetrical_layout",
+        "other",
       ]),
       location: z.string(),
-      severity: z.enum(['low', 'medium', 'high']),
+      severity: z.enum(["low", "medium", "high"]),
     })
   ),
   originalityScore: z.number().min(0).max(100),
   assessment: z.enum([
-    'highly-original',
-    'mostly-original',
-    'moderate-ai-influence',
-    'heavy-ai-influence',
+    "highly-original",
+    "mostly-original",
+    "moderate-ai-influence",
+    "heavy-ai-influence",
   ]),
   suggestions: z.array(z.string()),
 });
 
-const visionFeatureDataSchema = z.discriminatedUnion('type', [
+const visionFeatureDataSchema = z.discriminatedUnion("type", [
   layoutStructureDataSchema,
   colorPaletteDataSchema,
   typographyDataSchema,
@@ -469,69 +484,57 @@ export const visionAnalysisResultSchema = z.object({
 /**
  * LayoutStructureDataかどうかを判定する型ガード
  */
-export function isLayoutStructureData(
-  data: VisionFeatureData
-): data is LayoutStructureData {
-  return data.type === 'layout_structure';
+export function isLayoutStructureData(data: VisionFeatureData): data is LayoutStructureData {
+  return data.type === "layout_structure";
 }
 
 /**
  * ColorPaletteDataかどうかを判定する型ガード
  */
-export function isColorPaletteData(
-  data: VisionFeatureData
-): data is ColorPaletteData {
-  return data.type === 'color_palette';
+export function isColorPaletteData(data: VisionFeatureData): data is ColorPaletteData {
+  return data.type === "color_palette";
 }
 
 /**
  * TypographyDataかどうかを判定する型ガード
  */
-export function isTypographyData(
-  data: VisionFeatureData
-): data is TypographyData {
-  return data.type === 'typography';
+export function isTypographyData(data: VisionFeatureData): data is TypographyData {
+  return data.type === "typography";
 }
 
 /**
  * VisualHierarchyDataかどうかを判定する型ガード
  */
-export function isVisualHierarchyData(
-  data: VisionFeatureData
-): data is VisualHierarchyData {
-  return data.type === 'visual_hierarchy';
+export function isVisualHierarchyData(data: VisionFeatureData): data is VisualHierarchyData {
+  return data.type === "visual_hierarchy";
 }
 
 /**
  * WhitespaceDataかどうかを判定する型ガード
  */
-export function isWhitespaceData(
-  data: VisionFeatureData
-): data is WhitespaceData {
-  return data.type === 'whitespace';
+export function isWhitespaceData(data: VisionFeatureData): data is WhitespaceData {
+  return data.type === "whitespace";
 }
 
 /**
  * DensityDataかどうかを判定する型ガード
  */
 export function isDensityData(data: VisionFeatureData): data is DensityData {
-  return data.type === 'density';
+  return data.type === "density";
 }
 
 /**
  * RhythmDataかどうかを判定する型ガード
  */
 export function isRhythmData(data: VisionFeatureData): data is RhythmData {
-  return data.type === 'rhythm';
+  return data.type === "rhythm";
 }
 
 /**
  * SectionBoundariesDataかどうかを判定する型ガード
  */
-export function isSectionBoundariesData(
-  data: VisionFeatureData
-): data is SectionBoundariesData {
-  return data.type === 'section_boundaries';
+export function isSectionBoundariesData(data: VisionFeatureData): data is SectionBoundariesData {
+  return data.type === "section_boundaries";
 }
 
 // =============================================================================
@@ -541,28 +544,22 @@ export function isSectionBoundariesData(
 /**
  * MotionCandidatesDataかどうかを判定する型ガード
  */
-export function isMotionCandidatesData(
-  data: VisionFeatureData
-): data is MotionCandidatesData {
-  return data.type === 'motion_candidates';
+export function isMotionCandidatesData(data: VisionFeatureData): data is MotionCandidatesData {
+  return data.type === "motion_candidates";
 }
 
 /**
  * BrandToneDataかどうかを判定する型ガード
  */
-export function isBrandToneData(
-  data: VisionFeatureData
-): data is BrandToneData {
-  return data.type === 'brand_tone';
+export function isBrandToneData(data: VisionFeatureData): data is BrandToneData {
+  return data.type === "brand_tone";
 }
 
 /**
  * AiClichesDataかどうかを判定する型ガード
  */
-export function isAiClichesData(
-  data: VisionFeatureData
-): data is AiClichesData {
-  return data.type === 'ai_cliches';
+export function isAiClichesData(data: VisionFeatureData): data is AiClichesData {
+  return data.type === "ai_cliches";
 }
 
 // =============================================================================
@@ -691,17 +688,17 @@ export type VisionAdapterFactory = () => IVisionAnalyzer;
  * Includes 'neutral' as fallback value for low-confidence or unavailable Vision AI results
  */
 export type MoodType =
-  | 'professional'
-  | 'playful'
-  | 'minimal'
-  | 'bold'
-  | 'elegant'
-  | 'modern'
-  | 'classic'
-  | 'energetic'
-  | 'calm'
-  | 'luxurious'
-  | 'neutral';
+  | "professional"
+  | "playful"
+  | "minimal"
+  | "bold"
+  | "elegant"
+  | "modern"
+  | "classic"
+  | "energetic"
+  | "calm"
+  | "luxurious"
+  | "neutral";
 
 /**
  * Brand tone type for enhanced analysis
@@ -710,15 +707,15 @@ export type MoodType =
  * Includes 'neutral' as fallback value for low-confidence or unavailable Vision AI results
  */
 export type BrandToneType =
-  | 'corporate'
-  | 'friendly'
-  | 'luxury'
-  | 'tech-forward'
-  | 'creative'
-  | 'trustworthy'
-  | 'innovative'
-  | 'traditional'
-  | 'neutral';
+  | "corporate"
+  | "friendly"
+  | "luxury"
+  | "tech-forward"
+  | "creative"
+  | "trustworthy"
+  | "innovative"
+  | "traditional"
+  | "neutral";
 
 /**
  * Color context from Phase 1 deterministic extraction
@@ -731,7 +728,7 @@ export interface ColorContextInput {
   /** Accent colors in HEX format */
   accentColors?: string[];
   /** Theme: light, dark, or mixed */
-  theme?: 'light' | 'dark' | 'mixed';
+  theme?: "light" | "dark" | "mixed";
   /** Theme confidence (0-1) */
   themeConfidence?: number;
   /** Background color in HEX format */
@@ -779,15 +776,15 @@ export interface EnhancedBrandToneResult {
   /** Confidence score (0-1) */
   confidence: number;
   /** Professionalism level */
-  professionalism: 'minimal' | 'moderate' | 'bold';
+  professionalism: "minimal" | "moderate" | "bold";
   /** Warmth level */
-  warmth: 'cold' | 'neutral' | 'warm';
+  warmth: "cold" | "neutral" | "warm";
   /** Modernity level */
-  modernity: 'classic' | 'contemporary' | 'futuristic';
+  modernity: "classic" | "contemporary" | "futuristic";
   /** Energy level */
-  energy: 'calm' | 'balanced' | 'dynamic';
+  energy: "calm" | "balanced" | "dynamic";
   /** Target audience */
-  targetAudience: 'enterprise' | 'startup' | 'creative' | 'consumer';
+  targetAudience: "enterprise" | "startup" | "creative" | "consumer";
   /** Visual indicators */
   indicators: string[];
   /** Whether color context was used in analysis */
@@ -813,7 +810,7 @@ export interface EnhancedAnalysisResult {
   /** Color context summary (if used) */
   colorContext?: {
     dominantColors: string[];
-    theme: 'light' | 'dark' | 'mixed';
+    theme: "light" | "dark" | "mixed";
     density: number;
   };
   /**
@@ -847,12 +844,12 @@ export interface VisionAnalysisWarning {
  * Warning codes for Vision analysis (v0.1.0)
  */
 export type VisionWarningCode =
-  | 'LOW_CONFIDENCE_MOOD'
-  | 'LOW_CONFIDENCE_BRAND_TONE'
-  | 'MOOD_FALLBACK_USED'
-  | 'BRAND_TONE_FALLBACK_USED'
-  | 'MISSING_INDICATORS'
-  | 'PARSE_WARNING';
+  | "LOW_CONFIDENCE_MOOD"
+  | "LOW_CONFIDENCE_BRAND_TONE"
+  | "MOOD_FALLBACK_USED"
+  | "BRAND_TONE_FALLBACK_USED"
+  | "MISSING_INDICATORS"
+  | "PARSE_WARNING";
 
 /**
  * Low confidence threshold for warnings (v0.1.0)
@@ -863,9 +860,9 @@ export const LOW_CONFIDENCE_THRESHOLD = 0.5;
  * Default fallback values for mood analysis (v0.1.0)
  */
 export const DEFAULT_MOOD_FALLBACK: MoodAnalysisResult = {
-  primaryMood: 'professional',
+  primaryMood: "professional",
   confidence: 0.3,
-  indicators: ['fallback_value'],
+  indicators: ["fallback_value"],
   colorContextUsed: false,
 };
 
@@ -873,14 +870,14 @@ export const DEFAULT_MOOD_FALLBACK: MoodAnalysisResult = {
  * Default fallback values for brand tone analysis (v0.1.0)
  */
 export const DEFAULT_BRAND_TONE_FALLBACK: EnhancedBrandToneResult = {
-  primaryTone: 'corporate',
+  primaryTone: "corporate",
   confidence: 0.3,
-  professionalism: 'moderate',
-  warmth: 'neutral',
-  modernity: 'contemporary',
-  energy: 'balanced',
-  targetAudience: 'consumer',
-  indicators: ['fallback_value'],
+  professionalism: "moderate",
+  warmth: "neutral",
+  modernity: "contemporary",
+  energy: "balanced",
+  targetAudience: "consumer",
+  indicators: ["fallback_value"],
   colorContextUsed: false,
 };
 
@@ -888,77 +885,27 @@ export const DEFAULT_BRAND_TONE_FALLBACK: EnhancedBrandToneResult = {
  * Zod schemas for enhanced types
  */
 export const moodTypeSchema = z.enum([
-  'professional',
-  'playful',
-  'minimal',
-  'bold',
-  'elegant',
-  'modern',
-  'classic',
-  'energetic',
-  'calm',
-  'luxurious',
-  'neutral',
+  "professional",
+  "playful",
+  "minimal",
+  "bold",
+  "elegant",
+  "modern",
+  "classic",
+  "energetic",
+  "calm",
+  "luxurious",
+  "neutral",
 ]);
 
 export const brandToneTypeSchema = z.enum([
-  'corporate',
-  'friendly',
-  'luxury',
-  'tech-forward',
-  'creative',
-  'trustworthy',
-  'innovative',
-  'traditional',
-  'neutral',
+  "corporate",
+  "friendly",
+  "luxury",
+  "tech-forward",
+  "creative",
+  "trustworthy",
+  "innovative",
+  "traditional",
+  "neutral",
 ]);
-
-export const colorContextInputSchema = z.object({
-  dominantColors: z.array(z.string()).optional(),
-  accentColors: z.array(z.string()).optional(),
-  theme: z.enum(['light', 'dark', 'mixed']).optional(),
-  themeConfidence: z.number().min(0).max(1).optional(),
-  backgroundColor: z.string().optional(),
-  contentDensity: z.number().min(0).max(1).optional(),
-  whitespaceRatio: z.number().min(0).max(1).optional(),
-});
-
-export const enhancedVisionAnalysisOptionsSchema = visionAnalysisOptionsSchema.extend({
-  includeColorContext: z.boolean().optional(),
-  colorContext: colorContextInputSchema.optional(),
-});
-
-export const moodAnalysisResultSchema = z.object({
-  primaryMood: moodTypeSchema,
-  secondaryMood: moodTypeSchema.optional(),
-  confidence: z.number().min(0).max(1),
-  indicators: z.array(z.string()),
-  colorContextUsed: z.boolean(),
-});
-
-export const enhancedBrandToneResultSchema = z.object({
-  primaryTone: brandToneTypeSchema,
-  secondaryTone: brandToneTypeSchema.optional(),
-  confidence: z.number().min(0).max(1),
-  professionalism: z.enum(['minimal', 'moderate', 'bold']),
-  warmth: z.enum(['cold', 'neutral', 'warm']),
-  modernity: z.enum(['classic', 'contemporary', 'futuristic']),
-  energy: z.enum(['calm', 'balanced', 'dynamic']),
-  targetAudience: z.enum(['enterprise', 'startup', 'creative', 'consumer']),
-  indicators: z.array(z.string()),
-  colorContextUsed: z.boolean(),
-});
-
-export const enhancedAnalysisResultSchema = z.object({
-  success: z.boolean(),
-  mood: moodAnalysisResultSchema.optional(),
-  brandTone: enhancedBrandToneResultSchema.optional(),
-  error: z.string().optional(),
-  processingTimeMs: z.number(),
-  modelName: z.string(),
-  colorContext: z.object({
-    dominantColors: z.array(z.string()),
-    theme: z.enum(['light', 'dark', 'mixed']),
-    density: z.number(),
-  }).optional(),
-});

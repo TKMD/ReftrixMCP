@@ -8,7 +8,7 @@
  * 参照: docs/plans/mcptools/01/04-data-models.md
  */
 
-import { z } from 'zod';
+import { z } from "zod";
 
 // =============================================================================
 // OKLCH 色空間スキーマ
@@ -37,18 +37,18 @@ export type OklchColorOutput = z.output<typeof oklchColorSchema>;
  * トークン用途スキーマ
  */
 export const tokenUsageSchema = z.enum([
-  'background',
-  'foreground',
-  'border',
-  'accent',
-  'cta',
-  'link',
-  'error',
-  'success',
-  'warning',
-  'info',
-  'highlight',
-  'divider',
+  "background",
+  "foreground",
+  "border",
+  "accent",
+  "cta",
+  "link",
+  "error",
+  "success",
+  "warning",
+  "info",
+  "highlight",
+  "divider",
 ]);
 
 export type TokenUsageInput = z.input<typeof tokenUsageSchema>;
@@ -84,7 +84,7 @@ export const colorTokenSchema = z.object({
   name: z.string().min(1).max(50),
   description: z.string().max(200).optional(),
   oklch: oklchColorSchema,
-  hex: z.string().regex(hexColorRegex, 'HEX color must be in #RRGGBB format'),
+  hex: z.string().regex(hexColorRegex, "HEX color must be in #RRGGBB format"),
   usage: z.array(tokenUsageSchema).optional(),
   contrastWith: z.array(contrastRequirementSchema).optional(),
   overrides: z
@@ -115,7 +115,7 @@ export type ColorTokenOutput = z.output<typeof colorTokenSchema>;
 /**
  * パレットモードスキーマ
  */
-export const paletteModeSchema = z.enum(['light', 'dark', 'both']);
+export const paletteModeSchema = z.enum(["light", "dark", "both"]);
 
 export type PaletteModeInput = z.input<typeof paletteModeSchema>;
 
@@ -142,7 +142,7 @@ export const gradientDefinitionSchema = z.object({
   id: z.string().min(1),
   name: z.string().min(1),
   description: z.string().optional(),
-  type: z.enum(['linear', 'radial']),
+  type: z.enum(["linear", "radial"]),
   angle: z.number().min(0).max(360).optional(),
   centerX: z.number().min(0).max(1).optional(),
   centerY: z.number().min(0).max(1).optional(),
@@ -179,7 +179,7 @@ export const brandPaletteSchema = z.object({
   brandId: z.string().min(1).max(100),
   brandName: z.string().min(1).max(200),
   description: z.string().max(1000).optional(),
-  mode: paletteModeSchema.default('both'),
+  mode: paletteModeSchema.default("both"),
   tokens: z.record(colorTokenSchema),
   gradients: z.array(gradientDefinitionSchema).optional(),
   metadata: paletteMetadataSchema.optional(),

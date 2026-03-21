@@ -20,6 +20,7 @@ export async function seedPalettes(prisma: PrismaClient): Promise<{
   standardPalette: { id: string; name: string };
   darkPalette: { id: string; name: string };
 }> {
+  // eslint-disable-next-line no-console -- CLI seed script: stdout is intentional
   console.log("[Seed:Palettes] ブランドパレットのシード開始...");
 
   // ============================================================================
@@ -136,6 +137,7 @@ export async function seedPalettes(prisma: PrismaClient): Promise<{
     });
   }
 
+  // eslint-disable-next-line no-console -- CLI seed script: stdout is intentional
   console.log(`  [CREATE/UPDATE] ${standardPalette.name} (${standardTokens.length} tokens)`);
 
   // ============================================================================
@@ -252,13 +254,17 @@ export async function seedPalettes(prisma: PrismaClient): Promise<{
     });
   }
 
+  // eslint-disable-next-line no-console -- CLI seed script: stdout is intentional
   console.log(`  [CREATE/UPDATE] ${darkPalette.name} (${darkTokens.length} tokens)`);
 
   // ============================================================================
   // サマリー表示
   // ============================================================================
+  // eslint-disable-next-line no-console -- CLI seed script: stdout is intentional
   console.log("[Seed:Palettes] 完了:");
+  // eslint-disable-next-line no-console -- CLI seed script: stdout is intentional
   console.log(`  - パレット数: 2`);
+  // eslint-disable-next-line no-console -- CLI seed script: stdout is intentional
   console.log(`  - トークン総数: ${standardTokens.length + darkTokens.length}`);
 
   return { standardPalette, darkPalette };

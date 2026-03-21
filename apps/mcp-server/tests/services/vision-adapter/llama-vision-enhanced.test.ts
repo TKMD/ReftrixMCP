@@ -20,7 +20,7 @@
  * @module tests/services/vision-adapter/llama-vision-enhanced.test
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import type {
   VisionAnalysisOptions,
   // Phase 2 Enhanced Types
@@ -31,18 +31,18 @@ import type {
   EnhancedBrandToneResult,
   EnhancedAnalysisResult,
   ColorContextInput,
-} from '@/services/vision-adapter/interface';
+} from "@/services/vision-adapter/interface";
 
 // Import the adapter (will be enhanced)
 import {
   LlamaVisionAdapter,
   type LlamaVisionAdapterConfig,
-} from '@/services/vision-adapter/llama-vision.adapter';
+} from "@/services/vision-adapter/llama-vision.adapter";
 
 // Import Phase 1 services for context integration
-import type { ColorExtractionResult } from '@/services/visual-extractor/color-extractor.service';
-import type { ThemeDetectionResult } from '@/services/visual-extractor/theme-detector.service';
-import type { DensityCalculationResult } from '@/services/visual-extractor/density-calculator.service';
+import type { ColorExtractionResult } from "@/services/visual-extractor/color-extractor.service";
+import type { ThemeDetectionResult } from "@/services/visual-extractor/theme-detector.service";
+import type { DensityCalculationResult } from "@/services/visual-extractor/density-calculator.service";
 
 // =============================================================================
 // Mocks
@@ -87,7 +87,7 @@ function createGenerateResponse(response: string, totalDuration = 5000000000) {
   return {
     ok: true,
     json: async () => ({
-      model: 'llama3.2-vision',
+      model: "llama3.2-vision",
       response,
       done: true,
       total_duration: totalDuration,
@@ -101,13 +101,13 @@ function createGenerateResponse(response: string, totalDuration = 5000000000) {
  */
 function createMockColorExtractionResult(): ColorExtractionResult {
   return {
-    dominantColors: ['#3B82F6', '#1D4ED8', '#FFFFFF'],
-    accentColors: ['#F59E0B'],
+    dominantColors: ["#3B82F6", "#1D4ED8", "#FFFFFF"],
+    accentColors: ["#F59E0B"],
     colorPalette: [
-      { color: '#3B82F6', percentage: 40 },
-      { color: '#FFFFFF', percentage: 35 },
-      { color: '#1D4ED8', percentage: 15 },
-      { color: '#F59E0B', percentage: 10 },
+      { color: "#3B82F6", percentage: 40 },
+      { color: "#FFFFFF", percentage: 35 },
+      { color: "#1D4ED8", percentage: 15 },
+      { color: "#F59E0B", percentage: 10 },
     ],
   };
 }
@@ -117,10 +117,10 @@ function createMockColorExtractionResult(): ColorExtractionResult {
  */
 function createMockThemeDetectionResult(): ThemeDetectionResult {
   return {
-    theme: 'light',
+    theme: "light",
     confidence: 0.92,
-    backgroundColor: '#FFFFFF',
-    textColor: '#212121',
+    backgroundColor: "#FFFFFF",
+    textColor: "#212121",
     contrastRatio: 14.5,
     luminance: {
       background: 0.95,
@@ -154,30 +154,30 @@ function createMockDensityCalculationResult(): DensityCalculationResult {
 function createEnhancedAnalysisJson() {
   return JSON.stringify({
     mood: {
-      primaryMood: 'professional',
-      secondaryMood: 'modern',
+      primaryMood: "professional",
+      secondaryMood: "modern",
       confidence: 0.87,
       indicators: [
-        'blue color scheme',
-        'high whitespace ratio',
-        'clean typography',
-        'structured grid layout',
+        "blue color scheme",
+        "high whitespace ratio",
+        "clean typography",
+        "structured grid layout",
       ],
     },
     brandTone: {
-      primaryTone: 'tech-forward',
-      secondaryTone: 'trustworthy',
+      primaryTone: "tech-forward",
+      secondaryTone: "trustworthy",
       confidence: 0.82,
-      professionalism: 'moderate',
-      warmth: 'neutral',
-      modernity: 'contemporary',
-      energy: 'balanced',
-      targetAudience: 'startup',
+      professionalism: "moderate",
+      warmth: "neutral",
+      modernity: "contemporary",
+      energy: "balanced",
+      targetAudience: "startup",
       indicators: [
-        'blue primary color (trust)',
-        'generous whitespace',
-        'modern sans-serif typography',
-        'structured hero section',
+        "blue primary color (trust)",
+        "generous whitespace",
+        "modern sans-serif typography",
+        "structured hero section",
       ],
     },
   });
@@ -189,30 +189,30 @@ function createEnhancedAnalysisJson() {
 function createEnhancedAnalysisWithContextJson() {
   return JSON.stringify({
     mood: {
-      primaryMood: 'minimal',
-      secondaryMood: 'elegant',
+      primaryMood: "minimal",
+      secondaryMood: "elegant",
       confidence: 0.91,
       indicators: [
-        'light theme detected (0.95 luminance)',
-        '65% whitespace ratio',
-        'cool blue dominant colors (#3B82F6)',
-        'high contrast ratio (14.5)',
+        "light theme detected (0.95 luminance)",
+        "65% whitespace ratio",
+        "cool blue dominant colors (#3B82F6)",
+        "high contrast ratio (14.5)",
       ],
     },
     brandTone: {
-      primaryTone: 'corporate',
-      secondaryTone: 'innovative',
+      primaryTone: "corporate",
+      secondaryTone: "innovative",
       confidence: 0.88,
-      professionalism: 'bold',
-      warmth: 'cold',
-      modernity: 'contemporary',
-      energy: 'calm',
-      targetAudience: 'enterprise',
+      professionalism: "bold",
+      warmth: "cold",
+      modernity: "contemporary",
+      energy: "calm",
+      targetAudience: "enterprise",
       indicators: [
-        'light theme with high-contrast text',
-        'balanced content density (35%)',
-        'professional blue palette',
-        'ample breathing room',
+        "light theme with high-contrast text",
+        "balanced content density (35%)",
+        "professional blue palette",
+        "ample breathing room",
       ],
     },
   });
@@ -222,7 +222,7 @@ function createEnhancedAnalysisWithContextJson() {
 // Test Cases
 // =============================================================================
 
-describe('LlamaVisionAdapter Enhanced (Phase 2: Mood & Brand Tone)', () => {
+describe("LlamaVisionAdapter Enhanced (Phase 2: Mood & Brand Tone)", () => {
   let adapter: LlamaVisionAdapter;
 
   beforeEach(() => {
@@ -238,78 +238,78 @@ describe('LlamaVisionAdapter Enhanced (Phase 2: Mood & Brand Tone)', () => {
   // Enhanced Mood Detection Tests
   // ===========================================================================
 
-  describe('Enhanced Mood Detection', () => {
-    describe('analyzeWithColorContext method', () => {
-      it('should be defined on the adapter', () => {
+  describe("Enhanced Mood Detection", () => {
+    describe("analyzeWithColorContext method", () => {
+      it("should be defined on the adapter", () => {
         // TDD Red Phase: Method does not exist yet
-        expect(typeof (adapter as any).analyzeWithColorContext).toBe('function');
+        expect(typeof (adapter as any).analyzeWithColorContext).toBe("function");
       });
 
-      it('should return MoodAnalysisResult with primaryMood and confidence', async () => {
-        mockFetch.mockResolvedValueOnce(
-          createGenerateResponse(createEnhancedAnalysisJson())
-        );
+      it("should return MoodAnalysisResult with primaryMood and confidence", async () => {
+        mockFetch.mockResolvedValueOnce(createGenerateResponse(createEnhancedAnalysisJson()));
 
         const options: EnhancedVisionAnalysisOptions = {
           imageBuffer: createTestImageBuffer(),
-          mimeType: 'image/png',
+          mimeType: "image/png",
           includeColorContext: false,
         };
 
-        const result: EnhancedAnalysisResult = await (adapter as any).analyzeWithColorContext(options);
+        const result: EnhancedAnalysisResult = await (adapter as any).analyzeWithColorContext(
+          options
+        );
 
         expect(result.success).toBe(true);
         expect(result.mood).toBeDefined();
-        expect(result.mood?.primaryMood).toBe('professional');
+        expect(result.mood?.primaryMood).toBe("professional");
         expect(result.mood?.confidence).toBeGreaterThanOrEqual(0);
         expect(result.mood?.confidence).toBeLessThanOrEqual(1);
         expect(result.mood?.colorContextUsed).toBe(false);
       });
 
-      it('should include secondaryMood when applicable', async () => {
-        mockFetch.mockResolvedValueOnce(
-          createGenerateResponse(createEnhancedAnalysisJson())
-        );
+      it("should include secondaryMood when applicable", async () => {
+        mockFetch.mockResolvedValueOnce(createGenerateResponse(createEnhancedAnalysisJson()));
 
         const options: EnhancedVisionAnalysisOptions = {
           imageBuffer: createTestImageBuffer(),
-          mimeType: 'image/png',
+          mimeType: "image/png",
         };
 
-        const result: EnhancedAnalysisResult = await (adapter as any).analyzeWithColorContext(options);
+        const result: EnhancedAnalysisResult = await (adapter as any).analyzeWithColorContext(
+          options
+        );
 
-        expect(result.mood?.secondaryMood).toBe('modern');
+        expect(result.mood?.secondaryMood).toBe("modern");
       });
 
-      it('should include mood indicators', async () => {
-        mockFetch.mockResolvedValueOnce(
-          createGenerateResponse(createEnhancedAnalysisJson())
-        );
+      it("should include mood indicators", async () => {
+        mockFetch.mockResolvedValueOnce(createGenerateResponse(createEnhancedAnalysisJson()));
 
         const options: EnhancedVisionAnalysisOptions = {
           imageBuffer: createTestImageBuffer(),
-          mimeType: 'image/png',
+          mimeType: "image/png",
         };
 
-        const result: EnhancedAnalysisResult = await (adapter as any).analyzeWithColorContext(options);
+        const result: EnhancedAnalysisResult = await (adapter as any).analyzeWithColorContext(
+          options
+        );
 
         expect(result.mood?.indicators).toBeDefined();
         expect(Array.isArray(result.mood?.indicators)).toBe(true);
         expect(result.mood?.indicators.length).toBeGreaterThan(0);
       });
 
-      it('should detect all mood types correctly', async () => {
+      it("should detect all mood types correctly", async () => {
         const moodTypes: MoodType[] = [
-          'professional',
-          'playful',
-          'minimal',
-          'bold',
-          'elegant',
-          'modern',
-          'classic',
-          'energetic',
-          'calm',
-          'luxurious',
+          "professional",
+          "playful",
+          "minimal",
+          "bold",
+          "elegant",
+          "modern",
+          "classic",
+          "energetic",
+          "calm",
+          "luxurious",
         ];
 
         for (const mood of moodTypes) {
@@ -320,13 +320,13 @@ describe('LlamaVisionAdapter Enhanced (Phase 2: Mood & Brand Tone)', () => {
               indicators: [`${mood} design detected`],
             },
             brandTone: {
-              primaryTone: 'corporate',
+              primaryTone: "corporate",
               confidence: 0.8,
-              professionalism: 'moderate',
-              warmth: 'neutral',
-              modernity: 'contemporary',
-              energy: 'balanced',
-              targetAudience: 'startup',
+              professionalism: "moderate",
+              warmth: "neutral",
+              modernity: "contemporary",
+              energy: "balanced",
+              targetAudience: "startup",
               indicators: [],
             },
           });
@@ -335,7 +335,7 @@ describe('LlamaVisionAdapter Enhanced (Phase 2: Mood & Brand Tone)', () => {
 
           const result: EnhancedAnalysisResult = await (adapter as any).analyzeWithColorContext({
             imageBuffer: createTestImageBuffer(),
-            mimeType: 'image/png',
+            mimeType: "image/png",
           });
 
           expect(result.mood?.primaryMood).toBe(mood);
@@ -343,58 +343,60 @@ describe('LlamaVisionAdapter Enhanced (Phase 2: Mood & Brand Tone)', () => {
       });
     });
 
-    describe('includeColorContext option', () => {
-      it('should use Phase 1 results when includeColorContext is true', async () => {
+    describe("includeColorContext option", () => {
+      it("should use Phase 1 results when includeColorContext is true", async () => {
         mockFetch.mockResolvedValueOnce(
           createGenerateResponse(createEnhancedAnalysisWithContextJson())
         );
 
         // ColorContextInput is a flattened structure from Phase 1 results
         const colorContext: ColorContextInput = {
-          dominantColors: ['#3B82F6', '#1D4ED8', '#FFFFFF'],
-          accentColors: ['#F59E0B'],
-          theme: 'light',
+          dominantColors: ["#3B82F6", "#1D4ED8", "#FFFFFF"],
+          accentColors: ["#F59E0B"],
+          theme: "light",
           themeConfidence: 0.92,
-          backgroundColor: '#FFFFFF',
+          backgroundColor: "#FFFFFF",
           contentDensity: 0.35,
           whitespaceRatio: 0.65,
         };
 
         const options: EnhancedVisionAnalysisOptions = {
           imageBuffer: createTestImageBuffer(),
-          mimeType: 'image/png',
+          mimeType: "image/png",
           includeColorContext: true,
           colorContext,
         };
 
-        const result: EnhancedAnalysisResult = await (adapter as any).analyzeWithColorContext(options);
+        const result: EnhancedAnalysisResult = await (adapter as any).analyzeWithColorContext(
+          options
+        );
 
         expect(result.success).toBe(true);
         expect(result.mood?.colorContextUsed).toBe(true);
         expect(result.colorContext).toBeDefined();
-        expect(result.colorContext?.dominantColors).toEqual(['#3B82F6', '#1D4ED8', '#FFFFFF']);
-        expect(result.colorContext?.theme).toBe('light');
+        expect(result.colorContext?.dominantColors).toEqual(["#3B82F6", "#1D4ED8", "#FFFFFF"]);
+        expect(result.colorContext?.theme).toBe("light");
         expect(result.colorContext?.density).toBeCloseTo(0.35, 2);
       });
 
-      it('should include color context in the prompt when enabled', async () => {
+      it("should include color context in the prompt when enabled", async () => {
         mockFetch.mockResolvedValueOnce(
           createGenerateResponse(createEnhancedAnalysisWithContextJson())
         );
 
         const colorContext: ColorContextInput = {
-          dominantColors: ['#3B82F6', '#1D4ED8', '#FFFFFF'],
-          accentColors: ['#F59E0B'],
-          theme: 'light',
+          dominantColors: ["#3B82F6", "#1D4ED8", "#FFFFFF"],
+          accentColors: ["#F59E0B"],
+          theme: "light",
           themeConfidence: 0.92,
-          backgroundColor: '#FFFFFF',
+          backgroundColor: "#FFFFFF",
           contentDensity: 0.35,
           whitespaceRatio: 0.65,
         };
 
         const options: EnhancedVisionAnalysisOptions = {
           imageBuffer: createTestImageBuffer(),
-          mimeType: 'image/png',
+          mimeType: "image/png",
           includeColorContext: true,
           colorContext,
         };
@@ -406,55 +408,59 @@ describe('LlamaVisionAdapter Enhanced (Phase 2: Mood & Brand Tone)', () => {
         const body = JSON.parse(callArgs[1].body);
 
         // Template uses "Dominant colors" (lowercase c)
-        expect(body.prompt).toContain('Dominant colors');
-        expect(body.prompt).toContain('#3B82F6');
-        expect(body.prompt).toContain('light');
-        expect(body.prompt).toContain('0.65'); // whitespace ratio
+        expect(body.prompt).toContain("Dominant colors");
+        expect(body.prompt).toContain("#3B82F6");
+        expect(body.prompt).toContain("light");
+        expect(body.prompt).toContain("0.65"); // whitespace ratio
       });
 
-      it('should work without colorContext when includeColorContext is false', async () => {
-        mockFetch.mockResolvedValueOnce(
-          createGenerateResponse(createEnhancedAnalysisJson())
-        );
+      it("should work without colorContext when includeColorContext is false", async () => {
+        mockFetch.mockResolvedValueOnce(createGenerateResponse(createEnhancedAnalysisJson()));
 
         const options: EnhancedVisionAnalysisOptions = {
           imageBuffer: createTestImageBuffer(),
-          mimeType: 'image/png',
+          mimeType: "image/png",
           includeColorContext: false,
         };
 
-        const result: EnhancedAnalysisResult = await (adapter as any).analyzeWithColorContext(options);
+        const result: EnhancedAnalysisResult = await (adapter as any).analyzeWithColorContext(
+          options
+        );
 
         expect(result.success).toBe(true);
         expect(result.mood?.colorContextUsed).toBe(false);
         expect(result.colorContext).toBeUndefined();
       });
 
-      it('should improve confidence when using color context', async () => {
+      it("should improve confidence when using color context", async () => {
         // Without color context
         mockFetch.mockResolvedValueOnce(
-          createGenerateResponse(JSON.stringify({
-            mood: {
-              primaryMood: 'professional',
-              confidence: 0.75,
-              indicators: ['blue colors', 'clean layout'],
-            },
-            brandTone: {
-              primaryTone: 'corporate',
-              confidence: 0.70,
-              professionalism: 'moderate',
-              warmth: 'neutral',
-              modernity: 'contemporary',
-              energy: 'balanced',
-              targetAudience: 'startup',
-              indicators: [],
-            },
-          }))
+          createGenerateResponse(
+            JSON.stringify({
+              mood: {
+                primaryMood: "professional",
+                confidence: 0.75,
+                indicators: ["blue colors", "clean layout"],
+              },
+              brandTone: {
+                primaryTone: "corporate",
+                confidence: 0.7,
+                professionalism: "moderate",
+                warmth: "neutral",
+                modernity: "contemporary",
+                energy: "balanced",
+                targetAudience: "startup",
+                indicators: [],
+              },
+            })
+          )
         );
 
-        const resultWithout: EnhancedAnalysisResult = await (adapter as any).analyzeWithColorContext({
+        const resultWithout: EnhancedAnalysisResult = await (
+          adapter as any
+        ).analyzeWithColorContext({
           imageBuffer: createTestImageBuffer(),
-          mimeType: 'image/png',
+          mimeType: "image/png",
           includeColorContext: false,
         });
 
@@ -464,18 +470,18 @@ describe('LlamaVisionAdapter Enhanced (Phase 2: Mood & Brand Tone)', () => {
         );
 
         const colorContext: ColorContextInput = {
-          dominantColors: ['#3B82F6', '#1D4ED8', '#FFFFFF'],
-          accentColors: ['#F59E0B'],
-          theme: 'light',
+          dominantColors: ["#3B82F6", "#1D4ED8", "#FFFFFF"],
+          accentColors: ["#F59E0B"],
+          theme: "light",
           themeConfidence: 0.92,
-          backgroundColor: '#FFFFFF',
+          backgroundColor: "#FFFFFF",
           contentDensity: 0.35,
           whitespaceRatio: 0.65,
         };
 
         const resultWith: EnhancedAnalysisResult = await (adapter as any).analyzeWithColorContext({
           imageBuffer: createTestImageBuffer(),
-          mimeType: 'image/png',
+          mimeType: "image/png",
           includeColorContext: true,
           colorContext,
         });
@@ -490,65 +496,63 @@ describe('LlamaVisionAdapter Enhanced (Phase 2: Mood & Brand Tone)', () => {
   // Enhanced Brand Tone Tests
   // ===========================================================================
 
-  describe('Enhanced Brand Tone Detection', () => {
-    it('should return EnhancedBrandToneResult with primaryTone and confidence', async () => {
-      mockFetch.mockResolvedValueOnce(
-        createGenerateResponse(createEnhancedAnalysisJson())
-      );
+  describe("Enhanced Brand Tone Detection", () => {
+    it("should return EnhancedBrandToneResult with primaryTone and confidence", async () => {
+      mockFetch.mockResolvedValueOnce(createGenerateResponse(createEnhancedAnalysisJson()));
 
       const options: EnhancedVisionAnalysisOptions = {
         imageBuffer: createTestImageBuffer(),
-        mimeType: 'image/png',
+        mimeType: "image/png",
       };
 
-      const result: EnhancedAnalysisResult = await (adapter as any).analyzeWithColorContext(options);
+      const result: EnhancedAnalysisResult = await (adapter as any).analyzeWithColorContext(
+        options
+      );
 
       expect(result.brandTone).toBeDefined();
-      expect(result.brandTone?.primaryTone).toBe('tech-forward');
+      expect(result.brandTone?.primaryTone).toBe("tech-forward");
       expect(result.brandTone?.confidence).toBeGreaterThanOrEqual(0);
       expect(result.brandTone?.confidence).toBeLessThanOrEqual(1);
     });
 
-    it('should include secondaryTone when applicable', async () => {
-      mockFetch.mockResolvedValueOnce(
-        createGenerateResponse(createEnhancedAnalysisJson())
-      );
+    it("should include secondaryTone when applicable", async () => {
+      mockFetch.mockResolvedValueOnce(createGenerateResponse(createEnhancedAnalysisJson()));
 
       const result: EnhancedAnalysisResult = await (adapter as any).analyzeWithColorContext({
         imageBuffer: createTestImageBuffer(),
-        mimeType: 'image/png',
+        mimeType: "image/png",
       });
 
-      expect(result.brandTone?.secondaryTone).toBe('trustworthy');
+      expect(result.brandTone?.secondaryTone).toBe("trustworthy");
     });
 
-    it('should detect all brand tone types correctly', async () => {
+    it("should detect all brand tone types correctly", async () => {
       const toneTypes: BrandToneType[] = [
-        'corporate',
-        'friendly',
-        'luxury',
-        'tech-forward',
-        'creative',
-        'trustworthy',
-        'innovative',
-        'traditional',
+        "corporate",
+        "friendly",
+        "luxury",
+        "tech-forward",
+        "creative",
+        "trustworthy",
+        "innovative",
+        "traditional",
       ];
 
       for (const tone of toneTypes) {
         const response = JSON.stringify({
           mood: {
-            primaryMood: 'professional',
+            primaryMood: "professional",
             confidence: 0.85,
             indicators: [],
           },
           brandTone: {
             primaryTone: tone,
             confidence: 0.85,
-            professionalism: 'moderate',
-            warmth: 'neutral',
-            modernity: 'contemporary',
-            energy: 'balanced',
-            targetAudience: 'startup',
+            professionalism: "moderate",
+            warmth: "neutral",
+            modernity: "contemporary",
+            energy: "balanced",
+            targetAudience: "startup",
             indicators: [`${tone} tone detected`],
           },
         });
@@ -557,38 +561,34 @@ describe('LlamaVisionAdapter Enhanced (Phase 2: Mood & Brand Tone)', () => {
 
         const result: EnhancedAnalysisResult = await (adapter as any).analyzeWithColorContext({
           imageBuffer: createTestImageBuffer(),
-          mimeType: 'image/png',
+          mimeType: "image/png",
         });
 
         expect(result.brandTone?.primaryTone).toBe(tone);
       }
     });
 
-    it('should include all dimension values', async () => {
-      mockFetch.mockResolvedValueOnce(
-        createGenerateResponse(createEnhancedAnalysisJson())
-      );
+    it("should include all dimension values", async () => {
+      mockFetch.mockResolvedValueOnce(createGenerateResponse(createEnhancedAnalysisJson()));
 
       const result: EnhancedAnalysisResult = await (adapter as any).analyzeWithColorContext({
         imageBuffer: createTestImageBuffer(),
-        mimeType: 'image/png',
+        mimeType: "image/png",
       });
 
-      expect(result.brandTone?.professionalism).toBe('moderate');
-      expect(result.brandTone?.warmth).toBe('neutral');
-      expect(result.brandTone?.modernity).toBe('contemporary');
-      expect(result.brandTone?.energy).toBe('balanced');
-      expect(result.brandTone?.targetAudience).toBe('startup');
+      expect(result.brandTone?.professionalism).toBe("moderate");
+      expect(result.brandTone?.warmth).toBe("neutral");
+      expect(result.brandTone?.modernity).toBe("contemporary");
+      expect(result.brandTone?.energy).toBe("balanced");
+      expect(result.brandTone?.targetAudience).toBe("startup");
     });
 
-    it('should include brand tone indicators', async () => {
-      mockFetch.mockResolvedValueOnce(
-        createGenerateResponse(createEnhancedAnalysisJson())
-      );
+    it("should include brand tone indicators", async () => {
+      mockFetch.mockResolvedValueOnce(createGenerateResponse(createEnhancedAnalysisJson()));
 
       const result: EnhancedAnalysisResult = await (adapter as any).analyzeWithColorContext({
         imageBuffer: createTestImageBuffer(),
-        mimeType: 'image/png',
+        mimeType: "image/png",
       });
 
       expect(result.brandTone?.indicators).toBeDefined();
@@ -596,24 +596,24 @@ describe('LlamaVisionAdapter Enhanced (Phase 2: Mood & Brand Tone)', () => {
       expect(result.brandTone?.indicators.length).toBeGreaterThan(0);
     });
 
-    it('should use color context in brand tone analysis when enabled', async () => {
+    it("should use color context in brand tone analysis when enabled", async () => {
       mockFetch.mockResolvedValueOnce(
         createGenerateResponse(createEnhancedAnalysisWithContextJson())
       );
 
       const colorContext: ColorContextInput = {
-        dominantColors: ['#3B82F6', '#1D4ED8', '#FFFFFF'],
-        accentColors: ['#F59E0B'],
-        theme: 'light',
+        dominantColors: ["#3B82F6", "#1D4ED8", "#FFFFFF"],
+        accentColors: ["#F59E0B"],
+        theme: "light",
         themeConfidence: 0.92,
-        backgroundColor: '#FFFFFF',
+        backgroundColor: "#FFFFFF",
         contentDensity: 0.35,
         whitespaceRatio: 0.65,
       };
 
       const result: EnhancedAnalysisResult = await (adapter as any).analyzeWithColorContext({
         imageBuffer: createTestImageBuffer(),
-        mimeType: 'image/png',
+        mimeType: "image/png",
         includeColorContext: true,
         colorContext,
       });
@@ -628,88 +628,92 @@ describe('LlamaVisionAdapter Enhanced (Phase 2: Mood & Brand Tone)', () => {
   // Backward Compatibility Tests
   // ===========================================================================
 
-  describe('Backward Compatibility', () => {
-    it('should maintain existing analyze() method functionality', async () => {
+  describe("Backward Compatibility", () => {
+    it("should maintain existing analyze() method functionality", async () => {
       mockFetch.mockResolvedValueOnce(
-        createGenerateResponse(JSON.stringify({
-          features: [
-            {
-              type: 'layout_structure',
-              confidence: 0.85,
-              data: {
-                type: 'layout_structure',
-                gridType: 'two-column',
-                mainAreas: ['header', 'main'],
-                description: 'Two column layout',
+        createGenerateResponse(
+          JSON.stringify({
+            features: [
+              {
+                type: "layout_structure",
+                confidence: 0.85,
+                data: {
+                  type: "layout_structure",
+                  gridType: "two-column",
+                  mainAreas: ["header", "main"],
+                  description: "Two column layout",
+                },
               },
-            },
-          ],
-          summary: 'Test analysis',
-        }))
+            ],
+            summary: "Test analysis",
+          })
+        )
       );
 
       const result = await adapter.analyze({
         imageBuffer: createTestImageBuffer(),
-        mimeType: 'image/png',
+        mimeType: "image/png",
       });
 
       expect(result.success).toBe(true);
       expect(result.features.length).toBeGreaterThan(0);
-      expect(result.modelName).toBe('llama3.2-vision');
+      expect(result.modelName).toBe("llama3.2-vision");
     });
 
-    it('should maintain existing detectBrandTone() method functionality', async () => {
+    it("should maintain existing detectBrandTone() method functionality", async () => {
       mockFetch.mockResolvedValueOnce(
-        createGenerateResponse(JSON.stringify({
-          features: [
-            {
-              type: 'brand_tone',
-              confidence: 0.85,
-              data: {
-                type: 'brand_tone',
-                professionalism: 'moderate',
-                warmth: 'neutral',
-                modernity: 'contemporary',
-                energy: 'balanced',
-                targetAudience: 'startup',
-                indicators: ['test indicator'],
+        createGenerateResponse(
+          JSON.stringify({
+            features: [
+              {
+                type: "brand_tone",
+                confidence: 0.85,
+                data: {
+                  type: "brand_tone",
+                  professionalism: "moderate",
+                  warmth: "neutral",
+                  modernity: "contemporary",
+                  energy: "balanced",
+                  targetAudience: "startup",
+                  indicators: ["test indicator"],
+                },
               },
-            },
-          ],
-        }))
+            ],
+          })
+        )
       );
 
       const result = await adapter.detectBrandTone({
         imageBuffer: createTestImageBuffer(),
-        mimeType: 'image/png',
+        mimeType: "image/png",
       });
 
       expect(result.success).toBe(true);
       expect(result.data).toBeDefined();
-      expect(result.data?.professionalism).toBe('moderate');
+      expect(result.data?.professionalism).toBe("moderate");
     });
 
-    it('should maintain existing generateTextRepresentation() method', () => {
+    it("should maintain existing generateTextRepresentation() method", () => {
       const text = adapter.generateTextRepresentation({
         success: true,
         features: [
           {
-            type: 'layout_structure',
+            type: "layout_structure",
             confidence: 0.9,
             data: {
-              type: 'layout_structure',
-              gridType: 'two-column',
-              mainAreas: ['header', 'main'],
-              description: 'Two column layout',
+              type: "layout_structure",
+              gridType: "two-column",
+              mainAreas: ["header", "main"],
+              description: "Two column layout",
             },
           },
         ],
         processingTimeMs: 100,
-        modelName: 'llama3.2-vision',
+        modelName: "llama3.2-vision",
       });
 
-      expect(text).toContain('Layout');
-      expect(text).toContain('two-column');
+      expect(text).toContain("Layout");
+      expect(text).toContain("two-column");
     });
   });
 
@@ -717,13 +721,13 @@ describe('LlamaVisionAdapter Enhanced (Phase 2: Mood & Brand Tone)', () => {
   // Error Handling Tests
   // ===========================================================================
 
-  describe('Error Handling', () => {
-    it('should handle connection errors gracefully', async () => {
-      mockFetch.mockRejectedValueOnce(new Error('ECONNREFUSED'));
+  describe("Error Handling", () => {
+    it("should handle connection errors gracefully", async () => {
+      mockFetch.mockRejectedValueOnce(new Error("ECONNREFUSED"));
 
       const result: EnhancedAnalysisResult = await (adapter as any).analyzeWithColorContext({
         imageBuffer: createTestImageBuffer(),
-        mimeType: 'image/png',
+        mimeType: "image/png",
       });
 
       expect(result.success).toBe(false);
@@ -733,116 +737,118 @@ describe('LlamaVisionAdapter Enhanced (Phase 2: Mood & Brand Tone)', () => {
     });
 
     // v0.1.0: Invalid JSON now returns success=true with fallback values
-    it('should handle invalid JSON response gracefully', async () => {
-      mockFetch.mockResolvedValueOnce(
-        createGenerateResponse('This is not valid JSON')
-      );
+    it("should handle invalid JSON response gracefully", async () => {
+      mockFetch.mockResolvedValueOnce(createGenerateResponse("This is not valid JSON"));
 
       const result: EnhancedAnalysisResult = await (adapter as any).analyzeWithColorContext({
         imageBuffer: createTestImageBuffer(),
-        mimeType: 'image/png',
+        mimeType: "image/png",
       });
 
       // v0.1.0: Returns success with fallback values instead of error
       expect(result.success).toBe(true);
       expect(result.fallbackUsed).toBe(true);
       expect(result.mood).toBeDefined();
-      expect(result.mood?.primaryMood).toBe('professional'); // fallback value
+      expect(result.mood?.primaryMood).toBe("professional"); // fallback value
       expect(result.brandTone).toBeDefined();
-      expect(result.brandTone?.primaryTone).toBe('corporate'); // fallback value
-      expect(result.warnings?.some(w => w.code === 'PARSE_WARNING')).toBe(true);
+      expect(result.brandTone?.primaryTone).toBe("corporate"); // fallback value
+      expect(result.warnings?.some((w) => w.code === "PARSE_WARNING")).toBe(true);
     });
 
     // v0.1.0: Missing mood now returns fallback value instead of undefined
-    it('should handle missing mood data in response', async () => {
+    it("should handle missing mood data in response", async () => {
       mockFetch.mockResolvedValueOnce(
-        createGenerateResponse(JSON.stringify({
-          brandTone: {
-            primaryTone: 'corporate',
-            confidence: 0.85,
-            professionalism: 'moderate',
-            warmth: 'neutral',
-            modernity: 'contemporary',
-            energy: 'balanced',
-            targetAudience: 'startup',
-            indicators: ['clean design'],
-          },
-        }))
+        createGenerateResponse(
+          JSON.stringify({
+            brandTone: {
+              primaryTone: "corporate",
+              confidence: 0.85,
+              professionalism: "moderate",
+              warmth: "neutral",
+              modernity: "contemporary",
+              energy: "balanced",
+              targetAudience: "startup",
+              indicators: ["clean design"],
+            },
+          })
+        )
       );
 
       const result: EnhancedAnalysisResult = await (adapter as any).analyzeWithColorContext({
         imageBuffer: createTestImageBuffer(),
-        mimeType: 'image/png',
+        mimeType: "image/png",
       });
 
       expect(result.success).toBe(true);
       // v0.1.0: Uses fallback value for mood
       expect(result.mood).toBeDefined();
-      expect(result.mood?.primaryMood).toBe('professional'); // fallback value
+      expect(result.mood?.primaryMood).toBe("professional"); // fallback value
       expect(result.mood?.confidence).toBe(0.3); // fallback confidence
       expect(result.fallbackUsed).toBe(true);
-      expect(result.warnings?.some(w => w.code === 'MOOD_FALLBACK_USED')).toBe(true);
+      expect(result.warnings?.some((w) => w.code === "MOOD_FALLBACK_USED")).toBe(true);
       // brandTone from response
       expect(result.brandTone).toBeDefined();
-      expect(result.brandTone?.primaryTone).toBe('corporate');
+      expect(result.brandTone?.primaryTone).toBe("corporate");
     });
 
     // v0.1.0: Missing brandTone now returns fallback value instead of undefined
-    it('should handle missing brandTone data in response', async () => {
+    it("should handle missing brandTone data in response", async () => {
       mockFetch.mockResolvedValueOnce(
-        createGenerateResponse(JSON.stringify({
-          mood: {
-            primaryMood: 'professional',
-            confidence: 0.85,
-            indicators: ['clean layout'],
-          },
-        }))
+        createGenerateResponse(
+          JSON.stringify({
+            mood: {
+              primaryMood: "professional",
+              confidence: 0.85,
+              indicators: ["clean layout"],
+            },
+          })
+        )
       );
 
       const result: EnhancedAnalysisResult = await (adapter as any).analyzeWithColorContext({
         imageBuffer: createTestImageBuffer(),
-        mimeType: 'image/png',
+        mimeType: "image/png",
       });
 
       expect(result.success).toBe(true);
       // mood from response
       expect(result.mood).toBeDefined();
-      expect(result.mood?.primaryMood).toBe('professional');
+      expect(result.mood?.primaryMood).toBe("professional");
       // v0.1.0: Uses fallback value for brandTone
       expect(result.brandTone).toBeDefined();
-      expect(result.brandTone?.primaryTone).toBe('corporate'); // fallback value
+      expect(result.brandTone?.primaryTone).toBe("corporate"); // fallback value
       expect(result.brandTone?.confidence).toBe(0.3); // fallback confidence
       expect(result.fallbackUsed).toBe(true);
-      expect(result.warnings?.some(w => w.code === 'BRAND_TONE_FALLBACK_USED')).toBe(true);
+      expect(result.warnings?.some((w) => w.code === "BRAND_TONE_FALLBACK_USED")).toBe(true);
     });
 
-    it('should handle empty image buffer', async () => {
+    it("should handle empty image buffer", async () => {
       const result: EnhancedAnalysisResult = await (adapter as any).analyzeWithColorContext({
         imageBuffer: Buffer.alloc(0),
-        mimeType: 'image/png',
+        mimeType: "image/png",
       });
 
       expect(result.success).toBe(false);
       expect(result.error).toBeDefined();
     });
 
-    it('should handle timeout gracefully', async () => {
+    it("should handle timeout gracefully", async () => {
       const timeoutAdapter = new LlamaVisionAdapter({
         requestTimeout: 50,
         maxRetries: 0,
       });
 
-      const abortError = new Error('Timeout');
-      abortError.name = 'AbortError';
+      const abortError = new Error("Timeout");
+      abortError.name = "AbortError";
       mockFetch.mockRejectedValueOnce(abortError);
 
       const result: EnhancedAnalysisResult = await (timeoutAdapter as any).analyzeWithColorContext({
         imageBuffer: createTestImageBuffer(),
-        mimeType: 'image/png',
+        mimeType: "image/png",
       });
 
       expect(result.success).toBe(false);
-      expect(result.error?.toLowerCase()).toContain('timeout');
+      expect(result.error?.toLowerCase()).toContain("timeout");
     });
   });
 
@@ -850,44 +856,42 @@ describe('LlamaVisionAdapter Enhanced (Phase 2: Mood & Brand Tone)', () => {
   // Prompt Construction Tests
   // ===========================================================================
 
-  describe('Prompt Construction', () => {
-    it('should construct enhanced mood/brandTone prompt', async () => {
-      mockFetch.mockResolvedValueOnce(
-        createGenerateResponse(createEnhancedAnalysisJson())
-      );
+  describe("Prompt Construction", () => {
+    it("should construct enhanced mood/brandTone prompt", async () => {
+      mockFetch.mockResolvedValueOnce(createGenerateResponse(createEnhancedAnalysisJson()));
 
       await (adapter as any).analyzeWithColorContext({
         imageBuffer: createTestImageBuffer(),
-        mimeType: 'image/png',
+        mimeType: "image/png",
       });
 
       const callArgs = mockFetch.mock.calls[0];
       const body = JSON.parse(callArgs[1].body);
 
       // Should include mood-related keywords
-      expect(body.prompt).toContain('mood');
+      expect(body.prompt).toContain("mood");
       // Should include brand tone keywords
-      expect(body.prompt).toContain('brand');
+      expect(body.prompt).toContain("brand");
     });
 
-    it('should include color context section in prompt when enabled', async () => {
+    it("should include color context section in prompt when enabled", async () => {
       mockFetch.mockResolvedValueOnce(
         createGenerateResponse(createEnhancedAnalysisWithContextJson())
       );
 
       const colorContext: ColorContextInput = {
-        dominantColors: ['#3B82F6', '#1D4ED8', '#FFFFFF'],
-        accentColors: ['#F59E0B'],
-        theme: 'light',
+        dominantColors: ["#3B82F6", "#1D4ED8", "#FFFFFF"],
+        accentColors: ["#F59E0B"],
+        theme: "light",
         themeConfidence: 0.92,
-        backgroundColor: '#FFFFFF',
+        backgroundColor: "#FFFFFF",
         contentDensity: 0.35,
         whitespaceRatio: 0.65,
       };
 
       await (adapter as any).analyzeWithColorContext({
         imageBuffer: createTestImageBuffer(),
-        mimeType: 'image/png',
+        mimeType: "image/png",
         includeColorContext: true,
         colorContext,
       });
@@ -896,9 +900,9 @@ describe('LlamaVisionAdapter Enhanced (Phase 2: Mood & Brand Tone)', () => {
       const body = JSON.parse(callArgs[1].body);
 
       // Check for color context section (template uses lowercase)
-      expect(body.prompt).toContain('Dominant colors');
-      expect(body.prompt).toContain('Theme');
-      expect(body.prompt).toContain('Whitespace');
+      expect(body.prompt).toContain("Dominant colors");
+      expect(body.prompt).toContain("Theme");
+      expect(body.prompt).toContain("Whitespace");
     });
   });
 
@@ -906,31 +910,27 @@ describe('LlamaVisionAdapter Enhanced (Phase 2: Mood & Brand Tone)', () => {
   // Processing Time Tests
   // ===========================================================================
 
-  describe('Processing Time', () => {
-    it('should record processing time', async () => {
-      mockFetch.mockResolvedValueOnce(
-        createGenerateResponse(createEnhancedAnalysisJson())
-      );
+  describe("Processing Time", () => {
+    it("should record processing time", async () => {
+      mockFetch.mockResolvedValueOnce(createGenerateResponse(createEnhancedAnalysisJson()));
 
       const result: EnhancedAnalysisResult = await (adapter as any).analyzeWithColorContext({
         imageBuffer: createTestImageBuffer(),
-        mimeType: 'image/png',
+        mimeType: "image/png",
       });
 
       expect(result.processingTimeMs).toBeGreaterThanOrEqual(0);
     });
 
-    it('should include model name in result', async () => {
-      mockFetch.mockResolvedValueOnce(
-        createGenerateResponse(createEnhancedAnalysisJson())
-      );
+    it("should include model name in result", async () => {
+      mockFetch.mockResolvedValueOnce(createGenerateResponse(createEnhancedAnalysisJson()));
 
       const result: EnhancedAnalysisResult = await (adapter as any).analyzeWithColorContext({
         imageBuffer: createTestImageBuffer(),
-        mimeType: 'image/png',
+        mimeType: "image/png",
       });
 
-      expect(result.modelName).toBe('llama3.2-vision');
+      expect(result.modelName).toBe("llama3.2-vision");
     });
   });
 });
@@ -939,7 +939,7 @@ describe('LlamaVisionAdapter Enhanced (Phase 2: Mood & Brand Tone)', () => {
 // Integration Tests (Phase 1 + Phase 2)
 // =============================================================================
 
-describe('LlamaVisionAdapter Phase 1 + Phase 2 Integration', () => {
+describe("LlamaVisionAdapter Phase 1 + Phase 2 Integration", () => {
   let adapter: LlamaVisionAdapter;
 
   beforeEach(() => {
@@ -951,9 +951,9 @@ describe('LlamaVisionAdapter Phase 1 + Phase 2 Integration', () => {
     vi.restoreAllMocks();
   });
 
-  it('should complete full workflow with color context integration', async () => {
+  it("should complete full workflow with color context integration", async () => {
     // Step 1: Check availability
-    mockFetch.mockResolvedValueOnce(createTagsResponse(['llama3.2-vision']));
+    mockFetch.mockResolvedValueOnce(createTagsResponse(["llama3.2-vision"]));
     const isAvailable = await adapter.isAvailable();
     expect(isAvailable).toBe(true);
 
@@ -963,18 +963,18 @@ describe('LlamaVisionAdapter Phase 1 + Phase 2 Integration', () => {
     );
 
     const colorContext: ColorContextInput = {
-      dominantColors: ['#3B82F6', '#1D4ED8', '#FFFFFF'],
-      accentColors: ['#F59E0B'],
-      theme: 'light',
+      dominantColors: ["#3B82F6", "#1D4ED8", "#FFFFFF"],
+      accentColors: ["#F59E0B"],
+      theme: "light",
       themeConfidence: 0.92,
-      backgroundColor: '#FFFFFF',
+      backgroundColor: "#FFFFFF",
       contentDensity: 0.35,
       whitespaceRatio: 0.65,
     };
 
     const result: EnhancedAnalysisResult = await (adapter as any).analyzeWithColorContext({
       imageBuffer: createTestImageBuffer(),
-      mimeType: 'image/png',
+      mimeType: "image/png",
       includeColorContext: true,
       colorContext,
     });
@@ -987,18 +987,16 @@ describe('LlamaVisionAdapter Phase 1 + Phase 2 Integration', () => {
     expect(result.brandTone?.colorContextUsed).toBe(true);
   });
 
-  it('should gracefully degrade when Phase 1 data is unavailable', async () => {
-    mockFetch.mockResolvedValueOnce(createTagsResponse(['llama3.2-vision']));
+  it("should gracefully degrade when Phase 1 data is unavailable", async () => {
+    mockFetch.mockResolvedValueOnce(createTagsResponse(["llama3.2-vision"]));
     await adapter.isAvailable();
 
     // Run without color context
-    mockFetch.mockResolvedValueOnce(
-      createGenerateResponse(createEnhancedAnalysisJson())
-    );
+    mockFetch.mockResolvedValueOnce(createGenerateResponse(createEnhancedAnalysisJson()));
 
     const result: EnhancedAnalysisResult = await (adapter as any).analyzeWithColorContext({
       imageBuffer: createTestImageBuffer(),
-      mimeType: 'image/png',
+      mimeType: "image/png",
       includeColorContext: false,
     });
 
@@ -1014,7 +1012,7 @@ describe('LlamaVisionAdapter Phase 1 + Phase 2 Integration', () => {
 // Validation, Fallback, and Warning Tests (v0.1.0)
 // =============================================================================
 
-describe('LlamaVisionAdapter Validation and Warnings (v0.1.0)', () => {
+describe("LlamaVisionAdapter Validation and Warnings (v0.1.0)", () => {
   let adapter: LlamaVisionAdapter;
 
   beforeEach(() => {
@@ -1026,20 +1024,20 @@ describe('LlamaVisionAdapter Validation and Warnings (v0.1.0)', () => {
     vi.restoreAllMocks();
   });
 
-  describe('Fallback values', () => {
-    it('should use fallback mood when extraction fails', async () => {
+  describe("Fallback values", () => {
+    it("should use fallback mood when extraction fails", async () => {
       // Response with invalid mood data
       const invalidMoodResponse = JSON.stringify({
-        mood: { invalid: 'data' },
+        mood: { invalid: "data" },
         brandTone: {
-          primaryTone: 'corporate',
+          primaryTone: "corporate",
           confidence: 0.8,
-          professionalism: 'moderate',
-          warmth: 'neutral',
-          modernity: 'contemporary',
-          energy: 'balanced',
-          targetAudience: 'enterprise',
-          indicators: ['clean design'],
+          professionalism: "moderate",
+          warmth: "neutral",
+          modernity: "contemporary",
+          energy: "balanced",
+          targetAudience: "enterprise",
+          indicators: ["clean design"],
         },
       });
 
@@ -1047,25 +1045,25 @@ describe('LlamaVisionAdapter Validation and Warnings (v0.1.0)', () => {
 
       const result: EnhancedAnalysisResult = await (adapter as any).analyzeWithColorContext({
         imageBuffer: createTestImageBuffer(),
-        mimeType: 'image/png',
+        mimeType: "image/png",
       });
 
       expect(result.success).toBe(true);
       expect(result.mood).toBeDefined();
-      expect(result.mood?.primaryMood).toBe('professional'); // Fallback value
+      expect(result.mood?.primaryMood).toBe("professional"); // Fallback value
       expect(result.mood?.confidence).toBe(0.3); // Low fallback confidence
       expect(result.fallbackUsed).toBe(true);
       expect(result.warnings).toBeDefined();
-      expect(result.warnings?.some(w => w.code === 'MOOD_FALLBACK_USED')).toBe(true);
+      expect(result.warnings?.some((w) => w.code === "MOOD_FALLBACK_USED")).toBe(true);
     });
 
-    it('should use fallback brandTone when extraction fails', async () => {
+    it("should use fallback brandTone when extraction fails", async () => {
       // Response with invalid brandTone data
       const invalidBrandToneResponse = JSON.stringify({
         mood: {
-          primaryMood: 'professional',
+          primaryMood: "professional",
           confidence: 0.85,
-          indicators: ['clean layout'],
+          indicators: ["clean layout"],
         },
         brandTone: null,
       });
@@ -1074,53 +1072,53 @@ describe('LlamaVisionAdapter Validation and Warnings (v0.1.0)', () => {
 
       const result: EnhancedAnalysisResult = await (adapter as any).analyzeWithColorContext({
         imageBuffer: createTestImageBuffer(),
-        mimeType: 'image/png',
+        mimeType: "image/png",
       });
 
       expect(result.success).toBe(true);
       expect(result.brandTone).toBeDefined();
-      expect(result.brandTone?.primaryTone).toBe('corporate'); // Fallback value
+      expect(result.brandTone?.primaryTone).toBe("corporate"); // Fallback value
       expect(result.brandTone?.confidence).toBe(0.3); // Low fallback confidence
       expect(result.fallbackUsed).toBe(true);
-      expect(result.warnings?.some(w => w.code === 'BRAND_TONE_FALLBACK_USED')).toBe(true);
+      expect(result.warnings?.some((w) => w.code === "BRAND_TONE_FALLBACK_USED")).toBe(true);
     });
 
-    it('should use fallback values when JSON parsing fails', async () => {
+    it("should use fallback values when JSON parsing fails", async () => {
       // Invalid JSON response
-      mockFetch.mockResolvedValueOnce(createGenerateResponse('This is not valid JSON'));
+      mockFetch.mockResolvedValueOnce(createGenerateResponse("This is not valid JSON"));
 
       const result: EnhancedAnalysisResult = await (adapter as any).analyzeWithColorContext({
         imageBuffer: createTestImageBuffer(),
-        mimeType: 'image/png',
+        mimeType: "image/png",
       });
 
       expect(result.success).toBe(true);
       expect(result.mood).toBeDefined();
       expect(result.brandTone).toBeDefined();
-      expect(result.mood?.primaryMood).toBe('professional');
-      expect(result.brandTone?.primaryTone).toBe('corporate');
+      expect(result.mood?.primaryMood).toBe("professional");
+      expect(result.brandTone?.primaryTone).toBe("corporate");
       expect(result.fallbackUsed).toBe(true);
-      expect(result.warnings?.some(w => w.code === 'PARSE_WARNING')).toBe(true);
+      expect(result.warnings?.some((w) => w.code === "PARSE_WARNING")).toBe(true);
     });
   });
 
-  describe('Low confidence warnings', () => {
-    it('should warn when mood confidence is below threshold', async () => {
+  describe("Low confidence warnings", () => {
+    it("should warn when mood confidence is below threshold", async () => {
       const lowConfidenceResponse = JSON.stringify({
         mood: {
-          primaryMood: 'professional',
+          primaryMood: "professional",
           confidence: 0.3, // Below threshold (0.5)
-          indicators: ['some indicator'],
+          indicators: ["some indicator"],
         },
         brandTone: {
-          primaryTone: 'corporate',
+          primaryTone: "corporate",
           confidence: 0.9, // Above threshold
-          professionalism: 'moderate',
-          warmth: 'neutral',
-          modernity: 'contemporary',
-          energy: 'balanced',
-          targetAudience: 'enterprise',
-          indicators: ['clean design'],
+          professionalism: "moderate",
+          warmth: "neutral",
+          modernity: "contemporary",
+          energy: "balanced",
+          targetAudience: "enterprise",
+          indicators: ["clean design"],
         },
       });
 
@@ -1128,31 +1126,31 @@ describe('LlamaVisionAdapter Validation and Warnings (v0.1.0)', () => {
 
       const result: EnhancedAnalysisResult = await (adapter as any).analyzeWithColorContext({
         imageBuffer: createTestImageBuffer(),
-        mimeType: 'image/png',
+        mimeType: "image/png",
       });
 
       expect(result.success).toBe(true);
       expect(result.warnings).toBeDefined();
-      expect(result.warnings?.some(w => w.code === 'LOW_CONFIDENCE_MOOD')).toBe(true);
-      expect(result.warnings?.find(w => w.code === 'LOW_CONFIDENCE_MOOD')?.threshold).toBe(0.5);
+      expect(result.warnings?.some((w) => w.code === "LOW_CONFIDENCE_MOOD")).toBe(true);
+      expect(result.warnings?.find((w) => w.code === "LOW_CONFIDENCE_MOOD")?.threshold).toBe(0.5);
     });
 
-    it('should warn when brandTone confidence is below threshold', async () => {
+    it("should warn when brandTone confidence is below threshold", async () => {
       const lowConfidenceResponse = JSON.stringify({
         mood: {
-          primaryMood: 'professional',
+          primaryMood: "professional",
           confidence: 0.9, // Above threshold
-          indicators: ['clean layout'],
+          indicators: ["clean layout"],
         },
         brandTone: {
-          primaryTone: 'corporate',
+          primaryTone: "corporate",
           confidence: 0.4, // Below threshold (0.5)
-          professionalism: 'moderate',
-          warmth: 'neutral',
-          modernity: 'contemporary',
-          energy: 'balanced',
-          targetAudience: 'enterprise',
-          indicators: ['minimal decoration'],
+          professionalism: "moderate",
+          warmth: "neutral",
+          modernity: "contemporary",
+          energy: "balanced",
+          targetAudience: "enterprise",
+          indicators: ["minimal decoration"],
         },
       });
 
@@ -1160,32 +1158,32 @@ describe('LlamaVisionAdapter Validation and Warnings (v0.1.0)', () => {
 
       const result: EnhancedAnalysisResult = await (adapter as any).analyzeWithColorContext({
         imageBuffer: createTestImageBuffer(),
-        mimeType: 'image/png',
+        mimeType: "image/png",
       });
 
       expect(result.success).toBe(true);
       expect(result.warnings).toBeDefined();
-      expect(result.warnings?.some(w => w.code === 'LOW_CONFIDENCE_BRAND_TONE')).toBe(true);
+      expect(result.warnings?.some((w) => w.code === "LOW_CONFIDENCE_BRAND_TONE")).toBe(true);
     });
   });
 
-  describe('Missing indicators warnings', () => {
-    it('should warn when mood indicators are empty', async () => {
+  describe("Missing indicators warnings", () => {
+    it("should warn when mood indicators are empty", async () => {
       const emptyIndicatorsResponse = JSON.stringify({
         mood: {
-          primaryMood: 'professional',
+          primaryMood: "professional",
           confidence: 0.8,
           indicators: [], // Empty indicators
         },
         brandTone: {
-          primaryTone: 'corporate',
+          primaryTone: "corporate",
           confidence: 0.8,
-          professionalism: 'moderate',
-          warmth: 'neutral',
-          modernity: 'contemporary',
-          energy: 'balanced',
-          targetAudience: 'enterprise',
-          indicators: ['clean design'],
+          professionalism: "moderate",
+          warmth: "neutral",
+          modernity: "contemporary",
+          energy: "balanced",
+          targetAudience: "enterprise",
+          indicators: ["clean design"],
         },
       });
 
@@ -1193,31 +1191,33 @@ describe('LlamaVisionAdapter Validation and Warnings (v0.1.0)', () => {
 
       const result: EnhancedAnalysisResult = await (adapter as any).analyzeWithColorContext({
         imageBuffer: createTestImageBuffer(),
-        mimeType: 'image/png',
+        mimeType: "image/png",
       });
 
       expect(result.success).toBe(true);
       expect(result.warnings).toBeDefined();
-      expect(result.warnings?.some(
-        w => w.code === 'MISSING_INDICATORS' && w.field === 'mood.indicators'
-      )).toBe(true);
+      expect(
+        result.warnings?.some(
+          (w) => w.code === "MISSING_INDICATORS" && w.field === "mood.indicators"
+        )
+      ).toBe(true);
     });
 
-    it('should warn when brandTone indicators are empty', async () => {
+    it("should warn when brandTone indicators are empty", async () => {
       const emptyIndicatorsResponse = JSON.stringify({
         mood: {
-          primaryMood: 'professional',
+          primaryMood: "professional",
           confidence: 0.8,
-          indicators: ['clean layout'],
+          indicators: ["clean layout"],
         },
         brandTone: {
-          primaryTone: 'corporate',
+          primaryTone: "corporate",
           confidence: 0.8,
-          professionalism: 'moderate',
-          warmth: 'neutral',
-          modernity: 'contemporary',
-          energy: 'balanced',
-          targetAudience: 'enterprise',
+          professionalism: "moderate",
+          warmth: "neutral",
+          modernity: "contemporary",
+          energy: "balanced",
+          targetAudience: "enterprise",
           indicators: [], // Empty indicators
         },
       });
@@ -1226,33 +1226,35 @@ describe('LlamaVisionAdapter Validation and Warnings (v0.1.0)', () => {
 
       const result: EnhancedAnalysisResult = await (adapter as any).analyzeWithColorContext({
         imageBuffer: createTestImageBuffer(),
-        mimeType: 'image/png',
+        mimeType: "image/png",
       });
 
       expect(result.success).toBe(true);
       expect(result.warnings).toBeDefined();
-      expect(result.warnings?.some(
-        w => w.code === 'MISSING_INDICATORS' && w.field === 'brandTone.indicators'
-      )).toBe(true);
+      expect(
+        result.warnings?.some(
+          (w) => w.code === "MISSING_INDICATORS" && w.field === "brandTone.indicators"
+        )
+      ).toBe(true);
     });
   });
 
-  describe('Combined scenarios', () => {
-    it('should return multiple warnings when multiple issues present', async () => {
+  describe("Combined scenarios", () => {
+    it("should return multiple warnings when multiple issues present", async () => {
       const multipleIssuesResponse = JSON.stringify({
         mood: {
-          primaryMood: 'professional',
+          primaryMood: "professional",
           confidence: 0.3, // Low confidence
           indicators: [], // Empty indicators
         },
         brandTone: {
-          primaryTone: 'corporate',
+          primaryTone: "corporate",
           confidence: 0.4, // Low confidence
-          professionalism: 'moderate',
-          warmth: 'neutral',
-          modernity: 'contemporary',
-          energy: 'balanced',
-          targetAudience: 'enterprise',
+          professionalism: "moderate",
+          warmth: "neutral",
+          modernity: "contemporary",
+          energy: "balanced",
+          targetAudience: "enterprise",
           indicators: [], // Empty indicators
         },
       });
@@ -1261,7 +1263,7 @@ describe('LlamaVisionAdapter Validation and Warnings (v0.1.0)', () => {
 
       const result: EnhancedAnalysisResult = await (adapter as any).analyzeWithColorContext({
         imageBuffer: createTestImageBuffer(),
-        mimeType: 'image/png',
+        mimeType: "image/png",
       });
 
       expect(result.success).toBe(true);
@@ -1269,24 +1271,24 @@ describe('LlamaVisionAdapter Validation and Warnings (v0.1.0)', () => {
       expect(result.warnings?.length).toBeGreaterThanOrEqual(4); // 2 low confidence + 2 missing indicators
     });
 
-    it('should return no warnings when all data is valid and high confidence', async () => {
+    it("should return no warnings when all data is valid and high confidence", async () => {
       const validResponse = JSON.stringify({
         mood: {
-          primaryMood: 'professional',
-          secondaryMood: 'minimal',
+          primaryMood: "professional",
+          secondaryMood: "minimal",
           confidence: 0.85,
-          indicators: ['clean layout', 'generous whitespace', 'professional colors'],
+          indicators: ["clean layout", "generous whitespace", "professional colors"],
         },
         brandTone: {
-          primaryTone: 'corporate',
-          secondaryTone: 'trustworthy',
+          primaryTone: "corporate",
+          secondaryTone: "trustworthy",
           confidence: 0.9,
-          professionalism: 'bold',
-          warmth: 'neutral',
-          modernity: 'contemporary',
-          energy: 'balanced',
-          targetAudience: 'enterprise',
-          indicators: ['structured layout', 'professional typography', 'corporate color palette'],
+          professionalism: "bold",
+          warmth: "neutral",
+          modernity: "contemporary",
+          energy: "balanced",
+          targetAudience: "enterprise",
+          indicators: ["structured layout", "professional typography", "corporate color palette"],
         },
       });
 
@@ -1294,7 +1296,7 @@ describe('LlamaVisionAdapter Validation and Warnings (v0.1.0)', () => {
 
       const result: EnhancedAnalysisResult = await (adapter as any).analyzeWithColorContext({
         imageBuffer: createTestImageBuffer(),
-        mimeType: 'image/png',
+        mimeType: "image/png",
       });
 
       expect(result.success).toBe(true);

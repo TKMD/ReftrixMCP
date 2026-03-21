@@ -14,7 +14,7 @@
  * @module tools/layout/inspect/inspect.utils
  */
 
-import { JSDOM } from 'jsdom';
+import { JSDOM } from "jsdom";
 import type {
   SectionInfo,
   SectionType,
@@ -25,9 +25,9 @@ import type {
   MediaElements,
   VideoInfo,
   VideoPositioning,
-} from './inspect.schemas';
-import type { VisualDecorationsResult } from './visual-extractors.schemas';
-import { VisualDecorationDetectorService } from '../../../services/visual-extractor/visual-decoration-detector.service';
+} from "./inspect.schemas";
+import type { VisualDecorationsResult } from "./visual-extractors.schemas";
+import { VisualDecorationDetectorService } from "../../../services/visual-extractor/visual-decoration-detector.service";
 
 // =====================================================
 // セクション検出パターン定義
@@ -47,21 +47,21 @@ interface SectionPattern {
  * 優先度順に並べられている
  */
 const SECTION_PATTERNS: SectionPattern[] = [
-  { pattern: /<header[^>]*>/i, type: 'header', confidence: 0.95 },
-  { pattern: /<nav[^>]*>/i, type: 'navigation', confidence: 0.9 },
-  { pattern: /class="[^"]*hero[^"]*"/i, type: 'hero', confidence: 0.9 },
-  { pattern: /<section[^>]*class="[^"]*hero[^"]*"/i, type: 'hero', confidence: 0.95 },
-  { pattern: /class="[^"]*features?[^"]*"/i, type: 'features', confidence: 0.85 },
-  { pattern: /class="[^"]*testimonial[^"]*"/i, type: 'testimonial', confidence: 0.9 },
-  { pattern: /<blockquote/i, type: 'testimonial', confidence: 0.7 },
-  { pattern: /class="[^"]*pricing[^"]*"/i, type: 'pricing', confidence: 0.9 },
-  { pattern: /class="[^"]*cta[^"]*"/i, type: 'cta', confidence: 0.85 },
-  { pattern: /<footer[^>]*>/i, type: 'footer', confidence: 0.95 },
-  { pattern: /class="[^"]*gallery[^"]*"/i, type: 'gallery', confidence: 0.85 },
-  { pattern: /class="[^"]*about[^"]*"/i, type: 'about', confidence: 0.8 },
-  { pattern: /class="[^"]*contact[^"]*"/i, type: 'contact', confidence: 0.85 },
-  { pattern: /class="[^"]*faq[^"]*"/i, type: 'faq', confidence: 0.85 },
-  { pattern: /class="[^"]*team[^"]*"/i, type: 'team', confidence: 0.8 },
+  { pattern: /<header[^>]*>/i, type: "header", confidence: 0.95 },
+  { pattern: /<nav[^>]*>/i, type: "navigation", confidence: 0.9 },
+  { pattern: /class="[^"]*hero[^"]*"/i, type: "hero", confidence: 0.9 },
+  { pattern: /<section[^>]*class="[^"]*hero[^"]*"/i, type: "hero", confidence: 0.95 },
+  { pattern: /class="[^"]*features?[^"]*"/i, type: "features", confidence: 0.85 },
+  { pattern: /class="[^"]*testimonial[^"]*"/i, type: "testimonial", confidence: 0.9 },
+  { pattern: /<blockquote/i, type: "testimonial", confidence: 0.7 },
+  { pattern: /class="[^"]*pricing[^"]*"/i, type: "pricing", confidence: 0.9 },
+  { pattern: /class="[^"]*cta[^"]*"/i, type: "cta", confidence: 0.85 },
+  { pattern: /<footer[^>]*>/i, type: "footer", confidence: 0.95 },
+  { pattern: /class="[^"]*gallery[^"]*"/i, type: "gallery", confidence: 0.85 },
+  { pattern: /class="[^"]*about[^"]*"/i, type: "about", confidence: 0.8 },
+  { pattern: /class="[^"]*contact[^"]*"/i, type: "contact", confidence: 0.85 },
+  { pattern: /class="[^"]*faq[^"]*"/i, type: "faq", confidence: 0.85 },
+  { pattern: /class="[^"]*team[^"]*"/i, type: "team", confidence: 0.8 },
 ];
 
 /**
@@ -76,21 +76,66 @@ interface SectionSelector {
 }
 
 const SECTION_SELECTORS: SectionSelector[] = [
-  { selector: 'header', type: 'header', confidence: 0.95 },
-  { selector: 'nav', type: 'navigation', confidence: 0.9 },
-  { selector: 'section[class*="hero"], div[class*="hero"], [class*="hero"]', type: 'hero', confidence: 0.9 },
-  { selector: 'section[class*="feature"], div[class*="feature"], [class*="feature"]', type: 'features', confidence: 0.85 },
-  { selector: 'section[class*="testimonial"], div[class*="testimonial"], [class*="testimonial"]', type: 'testimonial', confidence: 0.9 },
-  { selector: 'section[class*="pricing"], div[class*="pricing"], [class*="pricing"]', type: 'pricing', confidence: 0.9 },
-  { selector: 'section[class*="cta"], div[class*="cta"], [class*="cta"]', type: 'cta', confidence: 0.85 },
-  { selector: 'footer', type: 'footer', confidence: 0.95 },
-  { selector: 'section[class*="gallery"], div[class*="gallery"], [class*="gallery"]', type: 'gallery', confidence: 0.85 },
-  { selector: 'section[class*="about"], div[class*="about"], [class*="about"]', type: 'about', confidence: 0.8 },
-  { selector: 'section[class*="contact"], div[class*="contact"], [class*="contact"]', type: 'contact', confidence: 0.85 },
-  { selector: 'section[class*="faq"], div[class*="faq"], [class*="faq"]', type: 'faq', confidence: 0.85 },
-  { selector: 'section[class*="team"], div[class*="team"], [class*="team"]', type: 'team', confidence: 0.8 },
+  { selector: "header", type: "header", confidence: 0.95 },
+  { selector: "nav", type: "navigation", confidence: 0.9 },
+  {
+    selector: 'section[class*="hero"], div[class*="hero"], [class*="hero"]',
+    type: "hero",
+    confidence: 0.9,
+  },
+  {
+    selector: 'section[class*="feature"], div[class*="feature"], [class*="feature"]',
+    type: "features",
+    confidence: 0.85,
+  },
+  {
+    selector: 'section[class*="testimonial"], div[class*="testimonial"], [class*="testimonial"]',
+    type: "testimonial",
+    confidence: 0.9,
+  },
+  {
+    selector: 'section[class*="pricing"], div[class*="pricing"], [class*="pricing"]',
+    type: "pricing",
+    confidence: 0.9,
+  },
+  {
+    selector: 'section[class*="cta"], div[class*="cta"], [class*="cta"]',
+    type: "cta",
+    confidence: 0.85,
+  },
+  { selector: "footer", type: "footer", confidence: 0.95 },
+  {
+    selector: 'section[class*="gallery"], div[class*="gallery"], [class*="gallery"]',
+    type: "gallery",
+    confidence: 0.85,
+  },
+  {
+    selector: 'section[class*="about"], div[class*="about"], [class*="about"]',
+    type: "about",
+    confidence: 0.8,
+  },
+  {
+    selector: 'section[class*="contact"], div[class*="contact"], [class*="contact"]',
+    type: "contact",
+    confidence: 0.85,
+  },
+  {
+    selector: 'section[class*="faq"], div[class*="faq"], [class*="faq"]',
+    type: "faq",
+    confidence: 0.85,
+  },
+  {
+    selector: 'section[class*="team"], div[class*="team"], [class*="team"]',
+    type: "team",
+    confidence: 0.8,
+  },
   // WordPress / DigitalSilk block wrappers: treat each wrapper as a distinct content section
-  { selector: 'div[class*="dst-wrapper"], div[class*="ds-blocks-dst-wrapper"]', type: 'content', confidence: 0.65, multi: true },
+  {
+    selector: 'div[class*="dst-wrapper"], div[class*="ds-blocks-dst-wrapper"]',
+    type: "content",
+    confidence: 0.65,
+    multi: true,
+  },
 ];
 
 /**
@@ -244,14 +289,14 @@ function extractSectionHtmlByPattern(html: string, type: SectionType): string | 
 
   // タイプに応じたセレクターでセクションを取得
   const selectorMap: Record<SectionType, string> = {
-    header: 'header',
-    navigation: 'nav',
+    header: "header",
+    navigation: "nav",
     hero: '[class*="hero"], section[class*="hero"]',
     features: '[class*="feature"], section[class*="feature"]',
     testimonial: '[class*="testimonial"], section[class*="testimonial"]',
     pricing: '[class*="pricing"], section[class*="pricing"]',
     cta: '[class*="cta"]:not(button), section[class*="cta"]',
-    footer: 'footer',
+    footer: "footer",
     content: '[class*="content"], section[class*="content"], main',
     gallery: '[class*="gallery"], section[class*="gallery"]',
     about: '[class*="about"], section[class*="about"]',
@@ -259,7 +304,7 @@ function extractSectionHtmlByPattern(html: string, type: SectionType): string | 
     faq: '[class*="faq"], section[class*="faq"]',
     team: '[class*="team"], section[class*="team"]',
     stats: '[class*="stats"], section[class*="stats"]',
-    unknown: '',
+    unknown: "",
   };
 
   const selector = selectorMap[type];
@@ -285,17 +330,17 @@ function extractSectionHtmlByPattern(html: string, type: SectionType): string | 
 export function extractSectionContent(
   html: string,
   sectionType: SectionType
-): SectionInfo['content'] {
+): SectionInfo["content"] {
   // セクションタイプに対応するセレクター
   const selectorMap: Record<SectionType, string> = {
-    header: 'header',
-    navigation: 'nav',
+    header: "header",
+    navigation: "nav",
     hero: '[class*="hero"], section[class*="hero"]',
     features: '[class*="feature"], section[class*="feature"]',
     testimonial: '[class*="testimonial"], section[class*="testimonial"]',
     pricing: '[class*="pricing"], section[class*="pricing"]',
     cta: 'section[class*="cta"], div[class*="cta"]:not(button)',
-    footer: 'footer',
+    footer: "footer",
     content: '[class*="content"], section[class*="content"], main',
     gallery: '[class*="gallery"], section[class*="gallery"]',
     about: '[class*="about"], section[class*="about"]',
@@ -303,7 +348,7 @@ export function extractSectionContent(
     faq: '[class*="faq"], section[class*="faq"]',
     team: '[class*="team"], section[class*="team"]',
     stats: '[class*="stats"], section[class*="stats"]',
-    unknown: '',
+    unknown: "",
   };
 
   // JSDOMでHTMLをパース
@@ -333,55 +378,55 @@ export function extractSectionContent(
  * @param element - 対象のDOM要素
  * @returns セクションコンテンツ情報
  */
-function extractContentFromElement(element: Element): SectionInfo['content'] {
-  const headings: SectionInfo['content']['headings'] = [];
+function extractContentFromElement(element: Element): SectionInfo["content"] {
+  const headings: SectionInfo["content"]["headings"] = [];
   const paragraphs: string[] = [];
-  const links: SectionInfo['content']['links'] = [];
-  const images: SectionInfo['content']['images'] = [];
-  const buttons: SectionInfo['content']['buttons'] = [];
+  const links: SectionInfo["content"]["links"] = [];
+  const images: SectionInfo["content"]["images"] = [];
+  const buttons: SectionInfo["content"]["buttons"] = [];
 
   // 見出し抽出（h1-h6）
-  const headingElements = element.querySelectorAll('h1, h2, h3, h4, h5, h6');
+  const headingElements = element.querySelectorAll("h1, h2, h3, h4, h5, h6");
   for (const h of headingElements) {
     const level = parseInt(h.tagName.charAt(1), 10);
-    const text = h.textContent?.trim() ?? '';
+    const text = h.textContent?.trim() ?? "";
     if (text) {
       headings.push({ level, text });
     }
   }
 
   // 段落抽出
-  const paragraphElements = element.querySelectorAll('p');
+  const paragraphElements = element.querySelectorAll("p");
   for (const p of paragraphElements) {
-    const text = p.textContent?.trim() ?? '';
+    const text = p.textContent?.trim() ?? "";
     if (text) {
       paragraphs.push(text);
     }
   }
 
   // リンク抽出
-  const linkElements = element.querySelectorAll('a[href]');
+  const linkElements = element.querySelectorAll("a[href]");
   for (const a of linkElements) {
-    const href = a.getAttribute('href') ?? '';
-    const text = a.textContent?.trim() ?? '';
+    const href = a.getAttribute("href") ?? "";
+    const text = a.textContent?.trim() ?? "";
     links.push({ href, text });
   }
 
   // 画像抽出
-  const imageElements = element.querySelectorAll('img[src]');
+  const imageElements = element.querySelectorAll("img[src]");
   for (const img of imageElements) {
-    const src = img.getAttribute('src') ?? '';
-    const alt = img.getAttribute('alt') ?? undefined;
+    const src = img.getAttribute("src") ?? "";
+    const alt = img.getAttribute("alt") ?? undefined;
     images.push({ src, alt });
   }
 
   // ボタン抽出
-  const buttonElements = element.querySelectorAll('button');
+  const buttonElements = element.querySelectorAll("button");
   for (const btn of buttonElements) {
-    const text = btn.textContent?.trim() ?? '';
-    const className = btn.getAttribute('class') ?? '';
+    const text = btn.textContent?.trim() ?? "";
+    const className = btn.getAttribute("class") ?? "";
     const type =
-      className.includes('cta') || className.includes('primary') ? 'primary' : 'secondary';
+      className.includes("cta") || className.includes("primary") ? "primary" : "secondary";
     buttons.push({ text, type });
   }
 
@@ -398,14 +443,14 @@ function extractContentFromElement(element: Element): SectionInfo['content'] {
  * @param sectionType - セクションタイプ（heroの場合は特別処理）
  * @returns セクションスタイル情報
  */
-export function extractSectionStyle(html: string, sectionType: SectionType): SectionInfo['style'] {
-  const style: SectionInfo['style'] = {};
+export function extractSectionStyle(html: string, sectionType: SectionType): SectionInfo["style"] {
+  const style: SectionInfo["style"] = {};
 
   // 背景色の検出
   const bgColorMatch = html.match(/background(?:-color)?:\s*([#\w]+)/i);
   if (bgColorMatch) {
     const color = bgColorMatch[1];
-    if (color?.startsWith('#')) {
+    if (color?.startsWith("#")) {
       style.backgroundColor = color;
     }
   }
@@ -414,7 +459,7 @@ export function extractSectionStyle(html: string, sectionType: SectionType): Sec
   const textColorMatch = html.match(/(?:^|\s)color:\s*([#\w]+)/i);
   if (textColorMatch) {
     const color = textColorMatch[1];
-    if (color?.startsWith('#')) {
+    if (color?.startsWith("#")) {
       style.textColor = color;
     }
   }
@@ -426,21 +471,21 @@ export function extractSectionStyle(html: string, sectionType: SectionType): Sec
   style.hasImage = /background(?:-image)?:\s*url/i.test(html);
 
   // heroセクションは特別な処理
-  if (sectionType === 'hero') {
+  if (sectionType === "hero") {
     const heroStyleMatch = html.match(/\.hero\s*\{([^}]*)\}/i);
     if (heroStyleMatch) {
-      const heroStyle = heroStyleMatch[1] ?? '';
+      const heroStyle = heroStyleMatch[1] ?? "";
       const heroBgMatch = heroStyle.match(/background(?:-color)?:\s*([^;]+)/i);
       if (heroBgMatch) {
-        const bgValue = heroBgMatch[1]?.trim() ?? '';
-        if (bgValue.includes('gradient')) {
+        const bgValue = heroBgMatch[1]?.trim() ?? "";
+        if (bgValue.includes("gradient")) {
           style.hasGradient = true;
           // グラデーションから最初の色を抽出
           const colorMatch = bgValue.match(/#[0-9a-fA-F]{6}/);
           if (colorMatch) {
             style.backgroundColor = colorMatch[0];
           }
-        } else if (bgValue.startsWith('#')) {
+        } else if (bgValue.startsWith("#")) {
           style.backgroundColor = bgValue;
         }
       }
@@ -481,16 +526,16 @@ export function extractColors(html: string): ColorPaletteInfo {
   // HEXカラーを抽出
   const hexMatches = html.matchAll(/#([0-9a-fA-F]{6})\b/g);
   for (const match of hexMatches) {
-    const hex = `#${(match[1] ?? '').toUpperCase()}`;
+    const hex = `#${(match[1] ?? "").toUpperCase()}`;
     colorCounts.set(hex, (colorCounts.get(hex) ?? 0) + 1);
   }
 
   // rgb/rgbaカラーを抽出しHEXに変換
   const rgbMatches = html.matchAll(/rgb\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*\)/gi);
   for (const match of rgbMatches) {
-    const r = parseInt(match[1] ?? '0', 10);
-    const g = parseInt(match[2] ?? '0', 10);
-    const b = parseInt(match[3] ?? '0', 10);
+    const r = parseInt(match[1] ?? "0", 10);
+    const g = parseInt(match[2] ?? "0", 10);
+    const b = parseInt(match[3] ?? "0", 10);
     const hex = rgbToHex(r, g, b);
     colorCounts.set(hex, (colorCounts.get(hex) ?? 0) + 1);
   }
@@ -507,13 +552,14 @@ export function extractColors(html: string): ColorPaletteInfo {
   });
 
   // ドミナント、背景、テキスト色の決定
-  const dominant = palette.find((c) => c.role === 'primary')?.hex ??
-    palette.find((c) => c.role !== 'background' && c.role !== 'text')?.hex ??
-    '#000000';
+  const dominant =
+    palette.find((c) => c.role === "primary")?.hex ??
+    palette.find((c) => c.role !== "background" && c.role !== "text")?.hex ??
+    "#000000";
 
-  const background = palette.find((c) => c.role === 'background')?.hex ?? '#FFFFFF';
-  const text = palette.find((c) => c.role === 'text')?.hex ?? '#000000';
-  const accent = palette.find((c) => c.role === 'secondary')?.hex;
+  const background = palette.find((c) => c.role === "background")?.hex ?? "#FFFFFF";
+  const text = palette.find((c) => c.role === "text")?.hex ?? "#000000";
+  const accent = palette.find((c) => c.role === "secondary")?.hex;
 
   return {
     palette,
@@ -533,7 +579,7 @@ export function extractColors(html: string): ColorPaletteInfo {
  * @returns HEX形式の色コード（大文字）
  */
 function rgbToHex(r: number, g: number, b: number): string {
-  return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`.toUpperCase();
+  return `#${r.toString(16).padStart(2, "0")}${g.toString(16).padStart(2, "0")}${b.toString(16).padStart(2, "0")}`.toUpperCase();
 }
 
 /**
@@ -552,40 +598,41 @@ export function inferColorRole(
   const hexLower = hex.toLowerCase();
 
   // 白系
-  if (hexLower === '#ffffff' || hexLower === '#fff') {
-    return 'background';
+  if (hexLower === "#ffffff" || hexLower === "#fff") {
+    return "background";
   }
   // 黒系（ダークモードのテキストやボディカラー）
   if (
-    hexLower === '#000000' ||
-    hexLower === '#1a1a1a' ||
-    hexLower === '#1f2937' ||
-    hexLower === '#111827'
+    hexLower === "#000000" ||
+    hexLower === "#1a1a1a" ||
+    hexLower === "#1f2937" ||
+    hexLower === "#111827"
   ) {
-    return 'text';
+    return "text";
   }
 
   // 白・黒以外の色で役割を決定
   // 白・黒を除いたインデックスを計算
-  const colorIndex = sortedColors.slice(0, index + 1).filter((c) => {
-    const h = c.hex.toLowerCase();
-    return (
-      h !== '#ffffff' &&
-      h !== '#fff' &&
-      h !== '#000000' &&
-      h !== '#1a1a1a' &&
-      h !== '#1f2937' &&
-      h !== '#111827'
-    );
-  }).length - 1;
+  const colorIndex =
+    sortedColors.slice(0, index + 1).filter((c) => {
+      const h = c.hex.toLowerCase();
+      return (
+        h !== "#ffffff" &&
+        h !== "#fff" &&
+        h !== "#000000" &&
+        h !== "#1a1a1a" &&
+        h !== "#1f2937" &&
+        h !== "#111827"
+      );
+    }).length - 1;
 
   // 最も使われている色（白・黒以外で最初）
   if (colorIndex === 0) {
-    return 'primary';
+    return "primary";
   }
   // 2番目に使われている色
   if (colorIndex === 1) {
-    return 'secondary';
+    return "secondary";
   }
 
   return undefined;
@@ -611,16 +658,16 @@ export function inferColorRole(
  * ```
  */
 export function analyzeTypography(html: string): TypographyInfo {
-  const fonts: TypographyInfo['fonts'] = [];
+  const fonts: TypographyInfo["fonts"] = [];
   const fontFamilies = new Map<string, Set<number>>();
 
   // font-familyを抽出
   const fontFamilyMatches = html.matchAll(/font-family:\s*([^;]+)/gi);
   for (const match of fontFamilyMatches) {
-    const familyString = match[1] ?? '';
+    const familyString = match[1] ?? "";
     // 最初のフォントを取得
-    const firstFont = familyString.split(',')[0]?.trim().replace(/['"]/g, '');
-    if (firstFont && !firstFont.startsWith('-apple-system')) {
+    const firstFont = familyString.split(",")[0]?.trim().replace(/['"]/g, "");
+    if (firstFont && !firstFont.startsWith("-apple-system")) {
       if (!fontFamilies.has(firstFont)) {
         fontFamilies.set(firstFont, new Set());
       }
@@ -630,7 +677,7 @@ export function analyzeTypography(html: string): TypographyInfo {
   // font-weightを抽出
   const fontWeightMatches = html.matchAll(/font-weight:\s*(\d+|bold|normal)/gi);
   for (const match of fontWeightMatches) {
-    const weightStr = match[1] ?? '400';
+    const weightStr = match[1] ?? "400";
     const weight = parseWeight(weightStr);
 
     // すべてのフォントに適用
@@ -649,7 +696,7 @@ export function analyzeTypography(html: string): TypographyInfo {
 
   // デフォルトフォントがない場合
   if (fonts.length === 0) {
-    fonts.push({ family: 'sans-serif', weights: [400] });
+    fonts.push({ family: "sans-serif", weights: [400] });
   }
 
   // 見出しスケールを抽出
@@ -673,8 +720,8 @@ export function analyzeTypography(html: string): TypographyInfo {
  * font-weight文字列を数値に変換
  */
 function parseWeight(weightStr: string): number {
-  if (weightStr === 'bold') return 700;
-  if (weightStr === 'normal') return 400;
+  if (weightStr === "bold") return 700;
+  if (weightStr === "normal") return 400;
   return parseInt(weightStr, 10);
 }
 
@@ -687,19 +734,19 @@ function extractHeadingScale(html: string): number[] {
   const headingScale: number[] = [];
   for (let i = 1; i <= 6; i++) {
     // <style>タグ内のCSSブロック形式
-    let sizeMatch = html.match(new RegExp(`h${i}[^{]*\\{[^}]*font-size:\\s*(\\d+)`, 'i'));
+    let sizeMatch = html.match(new RegExp(`h${i}[^{]*\\{[^}]*font-size:\\s*(\\d+)`, "i"));
 
     // インラインスタイル形式: <h1 style="font-size: 64px;">
     if (!sizeMatch) {
-      sizeMatch = html.match(new RegExp(`<h${i}[^>]*style="[^"]*font-size:\\s*(\\d+)`, 'i'));
+      sizeMatch = html.match(new RegExp(`<h${i}[^>]*style="[^"]*font-size:\\s*(\\d+)`, "i"));
     }
     // シングルクォート版
     if (!sizeMatch) {
-      sizeMatch = html.match(new RegExp(`<h${i}[^>]*style='[^']*font-size:\\s*(\\d+)`, 'i'));
+      sizeMatch = html.match(new RegExp(`<h${i}[^>]*style='[^']*font-size:\\s*(\\d+)`, "i"));
     }
 
     if (sizeMatch) {
-      headingScale.push(parseInt(sizeMatch[1] ?? '16', 10));
+      headingScale.push(parseInt(sizeMatch[1] ?? "16", 10));
     }
   }
 
@@ -720,18 +767,18 @@ function extractBodySize(html: string): number {
   // <style>タグ内のCSSブロック形式
   let bodySizeMatch = html.match(/(?:body|p)[^{]*\{[^}]*font-size:\s*(\d+)/i);
   if (bodySizeMatch) {
-    return parseInt(bodySizeMatch[1] ?? '16', 10);
+    return parseInt(bodySizeMatch[1] ?? "16", 10);
   }
 
   // インラインスタイル: <p style="font-size: 18px;">
   bodySizeMatch = html.match(/<p[^>]*style="[^"]*font-size:\s*(\d+)/i);
   if (bodySizeMatch) {
-    return parseInt(bodySizeMatch[1] ?? '16', 10);
+    return parseInt(bodySizeMatch[1] ?? "16", 10);
   }
   // シングルクォート版
   bodySizeMatch = html.match(/<p[^>]*style='[^']*font-size:\s*(\d+)/i);
   if (bodySizeMatch) {
-    return parseInt(bodySizeMatch[1] ?? '16', 10);
+    return parseInt(bodySizeMatch[1] ?? "16", 10);
   }
 
   return 16;
@@ -743,7 +790,7 @@ function extractBodySize(html: string): number {
 function extractLineHeight(html: string): number {
   const lineHeightMatch = html.match(/line-height:\s*([\d.]+)/i);
   if (lineHeightMatch) {
-    return parseFloat(lineHeightMatch[1] ?? '1.5');
+    return parseFloat(lineHeightMatch[1] ?? "1.5");
   }
   return 1.5;
 }
@@ -784,34 +831,34 @@ export function detectGrid(html: string): GridInfo {
   // Floatの検出
   const floatMatch = html.match(/float:\s*(left|right)/i);
   if (floatMatch) {
-    return { type: 'float' };
+    return { type: "float" };
   }
 
-  return { type: 'unknown' };
+  return { type: "unknown" };
 }
 
 /**
  * CSS Gridスタイルを解析
  */
 function parseGridStyles(html: string): GridInfo {
-  const grid: GridInfo = { type: 'grid' };
+  const grid: GridInfo = { type: "grid" };
 
   // カラム数
   const columnsMatch = html.match(/grid-template-columns:\s*repeat\(\s*(\d+)/i);
   if (columnsMatch) {
-    grid.columns = parseInt(columnsMatch[1] ?? '1', 10);
+    grid.columns = parseInt(columnsMatch[1] ?? "1", 10);
   }
 
   // ガター幅
   const gapMatch = html.match(/gap:\s*(\d+)/i);
   if (gapMatch) {
-    grid.gutterWidth = parseInt(gapMatch[1] ?? '0', 10);
+    grid.gutterWidth = parseInt(gapMatch[1] ?? "0", 10);
   }
 
   // max-width
   const maxWidthMatch = html.match(/max-width:\s*(\d+)/i);
   if (maxWidthMatch) {
-    grid.maxWidth = parseInt(maxWidthMatch[1] ?? '0', 10);
+    grid.maxWidth = parseInt(maxWidthMatch[1] ?? "0", 10);
   }
 
   // ブレイクポイント
@@ -827,12 +874,12 @@ function parseGridStyles(html: string): GridInfo {
  * Flexboxスタイルを解析
  */
 function parseFlexStyles(html: string): GridInfo {
-  const grid: GridInfo = { type: 'flex' };
+  const grid: GridInfo = { type: "flex" };
 
   // ガター幅
   const gapMatch = html.match(/gap:\s*(\d+)/i);
   if (gapMatch) {
-    grid.gutterWidth = parseInt(gapMatch[1] ?? '0', 10);
+    grid.gutterWidth = parseInt(gapMatch[1] ?? "0", 10);
   }
 
   return grid;
@@ -841,17 +888,17 @@ function parseFlexStyles(html: string): GridInfo {
 /**
  * ブレイクポイントを解析
  */
-function parseBreakpoints(html: string): NonNullable<GridInfo['breakpoints']> {
-  const breakpoints: NonNullable<GridInfo['breakpoints']> = [];
+function parseBreakpoints(html: string): NonNullable<GridInfo["breakpoints"]> {
+  const breakpoints: NonNullable<GridInfo["breakpoints"]> = [];
   const mediaMatches = html.matchAll(/@media[^{]*\((?:max|min)-width:\s*(\d+)px\)/gi);
 
   for (const match of mediaMatches) {
-    const width = parseInt(match[1] ?? '0', 10);
-    let name = 'sm';
-    if (width >= 1024) name = 'lg';
-    else if (width >= 768) name = 'md';
-    else if (width >= 480) name = 'sm';
-    else name = 'xs';
+    const width = parseInt(match[1] ?? "0", 10);
+    let name = "sm";
+    if (width >= 1024) name = "lg";
+    else if (width >= 768) name = "md";
+    else if (width >= 480) name = "sm";
+    else name = "xs";
 
     breakpoints.push({ name, minWidth: width });
   }
@@ -884,24 +931,24 @@ export function generateTextRepresentation(data: LayoutInspectData): string {
 
   // セクション情報
   if (data.sections.length > 0) {
-    const sectionTypes = data.sections.map((s) => s.type).join(', ');
+    const sectionTypes = data.sections.map((s) => s.type).join(", ");
     parts.push(`Layout with ${data.sections.length} sections: ${sectionTypes}.`);
 
     // heroセクションの詳細
-    const hero = data.sections.find((s) => s.type === 'hero');
+    const hero = data.sections.find((s) => s.type === "hero");
     if (hero) {
       const heading = hero.content.headings[0];
       if (heading) {
         parts.push(`Hero section with heading '${heading.text}'.`);
       }
       if (hero.content.buttons.length > 0) {
-        const buttonTexts = hero.content.buttons.map((b) => b.text).join(', ');
+        const buttonTexts = hero.content.buttons.map((b) => b.text).join(", ");
         parts.push(`CTA buttons: ${buttonTexts}.`);
       }
     }
 
     // featuresセクション
-    const features = data.sections.find((s) => s.type === 'features');
+    const features = data.sections.find((s) => s.type === "features");
     if (features) {
       const imageCount = features.content.images.length;
       if (imageCount > 0) {
@@ -911,16 +958,18 @@ export function generateTextRepresentation(data: LayoutInspectData): string {
   }
 
   // 色情報
-  parts.push(`Color palette: ${data.colors.dominant} dominant, ${data.colors.background} background.`);
+  parts.push(
+    `Color palette: ${data.colors.dominant} dominant, ${data.colors.background} background.`
+  );
 
   // タイポグラフィ情報
   if (data.typography.fonts.length > 0) {
-    const fontNames = data.typography.fonts.map((f) => f.family).join(', ');
+    const fontNames = data.typography.fonts.map((f) => f.family).join(", ");
     parts.push(`Typography: ${fontNames} font.`);
   }
 
   // グリッド情報
-  if (data.grid.type !== 'unknown') {
+  if (data.grid.type !== "unknown") {
     let gridDesc = `${data.grid.type} layout`;
     if (data.grid.columns) {
       gridDesc += ` with ${data.grid.columns} columns`;
@@ -940,7 +989,7 @@ export function generateTextRepresentation(data: LayoutInspectData): string {
     }
   }
 
-  return parts.join(' ');
+  return parts.join(" ");
 }
 
 // =====================================================
@@ -955,9 +1004,9 @@ export function generateTextRepresentation(data: LayoutInspectData): string {
 export function getDefaultColorPalette(): ColorPaletteInfo {
   return {
     palette: [],
-    dominant: '#000000',
-    background: '#FFFFFF',
-    text: '#000000',
+    dominant: "#000000",
+    background: "#FFFFFF",
+    text: "#000000",
   };
 }
 
@@ -981,7 +1030,7 @@ export function getDefaultTypography(): TypographyInfo {
  * @returns デフォルトのGridInfo
  */
 export function getDefaultGrid(): GridInfo {
-  return { type: 'unknown' };
+  return { type: "unknown" };
 }
 
 // =====================================================
@@ -1011,29 +1060,37 @@ function analyzeVideoPositioning(element: Element, style: string): VideoPosition
   const styleLower = style.toLowerCase();
 
   // 親要素のスタイルもチェック
-  const parentStyle = element.parentElement?.getAttribute('style')?.toLowerCase() ?? '';
+  const parentStyle = element.parentElement?.getAttribute("style")?.toLowerCase() ?? "";
 
   // position: fixed + z-index: -1 パターン（ページ全体背景）
   if (
-    (styleLower.includes('position: fixed') || styleLower.includes('position:fixed') ||
-     parentStyle.includes('position: fixed') || parentStyle.includes('position:fixed')) &&
-    (styleLower.includes('z-index: -1') || styleLower.includes('z-index:-1') ||
-     parentStyle.includes('z-index: -1') || parentStyle.includes('z-index:-1'))
+    (styleLower.includes("position: fixed") ||
+      styleLower.includes("position:fixed") ||
+      parentStyle.includes("position: fixed") ||
+      parentStyle.includes("position:fixed")) &&
+    (styleLower.includes("z-index: -1") ||
+      styleLower.includes("z-index:-1") ||
+      parentStyle.includes("z-index: -1") ||
+      parentStyle.includes("z-index:-1"))
   ) {
-    return 'fixed-background';
+    return "fixed-background";
   }
 
   // position: absolute + z-index: -1 パターン（セクション背景）
   if (
-    (styleLower.includes('position: absolute') || styleLower.includes('position:absolute') ||
-     parentStyle.includes('position: absolute') || parentStyle.includes('position:absolute')) &&
-    (styleLower.includes('z-index: -1') || styleLower.includes('z-index:-1') ||
-     parentStyle.includes('z-index: -1') || parentStyle.includes('z-index:-1'))
+    (styleLower.includes("position: absolute") ||
+      styleLower.includes("position:absolute") ||
+      parentStyle.includes("position: absolute") ||
+      parentStyle.includes("position:absolute")) &&
+    (styleLower.includes("z-index: -1") ||
+      styleLower.includes("z-index:-1") ||
+      parentStyle.includes("z-index: -1") ||
+      parentStyle.includes("z-index:-1"))
   ) {
-    return 'absolute-background';
+    return "absolute-background";
   }
 
-  return 'inline';
+  return "inline";
 }
 
 /**
@@ -1051,19 +1108,19 @@ function generateVideoSelector(element: Element, index: number): string {
   const maxDepth = 3;
 
   while (parent && depth < maxDepth) {
-    const parentClass = parent.getAttribute('class');
-    const parentId = parent.getAttribute('id');
+    const parentClass = parent.getAttribute("class");
+    const parentId = parent.getAttribute("id");
     const parentTag = parent.tagName.toLowerCase();
 
     if (parentId) {
       parentClasses.unshift(`#${parentId}`);
       break;
     } else if (parentClass) {
-      const firstClass = parentClass.split(' ').filter(c => c.trim())[0];
+      const firstClass = parentClass.split(" ").filter((c) => c.trim())[0];
       if (firstClass) {
         parentClasses.unshift(`.${firstClass}`);
       }
-    } else if (parentTag === 'section' || parentTag === 'header' || parentTag === 'footer') {
+    } else if (parentTag === "section" || parentTag === "header" || parentTag === "footer") {
       parentClasses.unshift(parentTag);
     }
 
@@ -1073,11 +1130,11 @@ function generateVideoSelector(element: Element, index: number): string {
 
   // セレクタを構築
   if (parentClasses.length > 0) {
-    return `${parentClasses.join(' ')} video`;
+    return `${parentClasses.join(" ")} video`;
   }
 
   // フォールバック: インデックスベース
-  return index === 0 ? 'video' : `video:nth-of-type(${index + 1})`;
+  return index === 0 ? "video" : `video:nth-of-type(${index + 1})`;
 }
 
 /**
@@ -1107,7 +1164,7 @@ export function detectVideos(html: string): MediaElements {
   const document = dom.window.document;
 
   // video要素を検出
-  const videoElements = document.querySelectorAll('video');
+  const videoElements = document.querySelectorAll("video");
 
   videoElements.forEach((videoElement, index) => {
     const videoInfo: VideoInfo = {
@@ -1115,18 +1172,18 @@ export function detectVideos(html: string): MediaElements {
     };
 
     // src属性
-    const src = videoElement.getAttribute('src');
+    const src = videoElement.getAttribute("src");
     if (src) {
       videoInfo.src = src;
     }
 
     // source子要素
-    const sourceElements = videoElement.querySelectorAll('source');
+    const sourceElements = videoElement.querySelectorAll("source");
     if (sourceElements.length > 0) {
       videoInfo.sources = [];
       sourceElements.forEach((sourceElement) => {
-        const sourceSrc = sourceElement.getAttribute('src');
-        const sourceType = sourceElement.getAttribute('type');
+        const sourceSrc = sourceElement.getAttribute("src");
+        const sourceType = sourceElement.getAttribute("type");
         if (sourceSrc) {
           const sourceInfo: { src: string; type?: string } = { src: sourceSrc };
           if (sourceType) {
@@ -1138,22 +1195,22 @@ export function detectVideos(html: string): MediaElements {
     }
 
     // poster属性
-    const poster = videoElement.getAttribute('poster');
+    const poster = videoElement.getAttribute("poster");
     if (poster) {
       videoInfo.poster = poster;
     }
 
     // 再生制御属性
     videoInfo.attributes = {
-      autoplay: videoElement.hasAttribute('autoplay'),
-      loop: videoElement.hasAttribute('loop'),
-      muted: videoElement.hasAttribute('muted'),
-      playsinline: videoElement.hasAttribute('playsinline'),
-      controls: videoElement.hasAttribute('controls'),
+      autoplay: videoElement.hasAttribute("autoplay"),
+      loop: videoElement.hasAttribute("loop"),
+      muted: videoElement.hasAttribute("muted"),
+      playsinline: videoElement.hasAttribute("playsinline"),
+      controls: videoElement.hasAttribute("controls"),
     };
 
     // 配置パターン解析
-    const style = videoElement.getAttribute('style') ?? '';
+    const style = videoElement.getAttribute("style") ?? "";
     videoInfo.positioning = analyzeVideoPositioning(videoElement, style);
 
     videos.push(videoInfo);
@@ -1161,7 +1218,7 @@ export function detectVideos(html: string): MediaElements {
 
   // 背景動画のフィルタ
   const backgroundVideos = videos.filter(
-    (v) => v.positioning === 'absolute-background' || v.positioning === 'fixed-background'
+    (v) => v.positioning === "absolute-background" || v.positioning === "fixed-background"
   );
 
   return {

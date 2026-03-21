@@ -17,7 +17,7 @@ export type {
   QualityBenchmark,
   FindSimilarSectionsOptions,
   FindSimilarMotionsOptions,
-} from './quality-evaluate.service.interface';
+} from "./quality-evaluate.service.interface";
 
 // Benchmark Service exports
 export type {
@@ -26,12 +26,9 @@ export type {
   IndustryAverages,
   BenchmarkMetadata,
   FindSimilarBenchmarksOptions,
-} from './benchmark.service';
+} from "./benchmark.service";
 
-export {
-  BenchmarkService,
-  createBenchmarkService,
-} from './benchmark.service';
+export { BenchmarkService, createBenchmarkService } from "./benchmark.service";
 
 // aXe Accessibility Service exports
 export type {
@@ -40,9 +37,9 @@ export type {
   AxeServiceOptions,
   ViolationImpact,
   WcagLevel,
-} from './axe-accessibility.service';
+} from "./axe-accessibility.service";
 
 export {
   AxeAccessibilityService,
   createAxeAccessibilityService,
-} from './axe-accessibility.service';
+} from "./axe-accessibility.service";

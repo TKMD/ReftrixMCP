@@ -15,22 +15,22 @@
  * @module tests/integration/service-factory-initialization.test
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 // モジュールモック - 外部依存を分離
-vi.mock('../../src/server', () => ({
+vi.mock("../../src/server", () => ({
   createServer: vi.fn(() => ({
     close: vi.fn().mockResolvedValue(undefined),
   })),
   start: vi.fn().mockResolvedValue(undefined),
-  SERVER_CONFIG: { name: 'test', version: '0.1.0' },
+  SERVER_CONFIG: { name: "test", version: "0.1.0" },
 }));
 
-vi.mock('../../src/transport', () => ({
+vi.mock("../../src/transport", () => ({
   createTransport: vi.fn(() => ({})),
 }));
 
-vi.mock('../../src/utils/logger', () => ({
+vi.mock("../../src/utils/logger", () => ({
   logger: {
     info: vi.fn(),
     warn: vi.fn(),
@@ -43,57 +43,57 @@ vi.mock('../../src/utils/logger', () => ({
     error: vi.fn(),
     debug: vi.fn(),
   })),
-  validateEnvironment: vi.fn(() => 'test'),
+  validateEnvironment: vi.fn(() => "test"),
   isDevelopment: () => true,
 }));
 
-vi.mock('../../src/router', () => ({
+vi.mock("../../src/router", () => ({
   registerTool: vi.fn(),
   setAuthMiddleware: vi.fn(),
 }));
 
-vi.mock('../../src/tools', () => ({
+vi.mock("../../src/tools", () => ({
   toolHandlers: {},
 }));
 
-vi.mock('../../src/services/web-page.service', () => ({
+vi.mock("../../src/services/web-page.service", () => ({
   webPageService: {
     getPageById: vi.fn(),
   },
 }));
 
-vi.mock('../../src/services/service-client', () => ({
+vi.mock("../../src/services/service-client", () => ({
   serviceClient: {},
 }));
 
-vi.mock('../../src/services/repositories/service-client-svg-repository', () => ({
+vi.mock("../../src/services/repositories/service-client-svg-repository", () => ({
   ServiceClientSvgRepository: vi.fn(),
 }));
 
-vi.mock('../../src/services/motion-search.service', () => ({
+vi.mock("../../src/services/motion-search.service", () => ({
   createMotionSearchServiceFactory: vi.fn(() => vi.fn()),
 }));
 
-vi.mock('../../src/services/layout-search.service', () => ({
+vi.mock("../../src/services/layout-search.service", () => ({
   createLayoutSearchServiceFactory: vi.fn(() => vi.fn()),
 }));
 
-vi.mock('../../src/services/layout-to-code.service', () => ({
+vi.mock("../../src/services/layout-to-code.service", () => ({
   createLayoutToCodeServiceFactory: vi.fn(() => vi.fn()),
 }));
 
-vi.mock('../../src/middleware/auth', () => ({
+vi.mock("../../src/middleware/auth", () => ({
   createAuthMiddleware: vi.fn(),
   PUBLIC_TOOLS: [],
 }));
 
-vi.mock('@reftrix/ml', () => ({
+vi.mock("@reftrix/ml", () => ({
   embeddingService: {
     generateEmbedding: vi.fn().mockResolvedValue(new Array(768).fill(0.1)),
   },
 }));
 
-vi.mock('@reftrix/database', () => ({
+vi.mock("@reftrix/database", () => ({
   prisma: {
     webPage: { findUnique: vi.fn() },
     sectionPattern: { create: vi.fn() },
@@ -111,7 +111,7 @@ const mockSetMotionPersistenceServiceFactory = vi.fn();
 const mockSetMotionPersistenceEmbeddingServiceFactory = vi.fn();
 const mockSetMotionPersistencePrismaClientFactory = vi.fn();
 
-vi.mock('../../src/tools/layout', () => ({
+vi.mock("../../src/tools/layout", () => ({
   setMotionDetectServiceFactory: vi.fn(),
   setMotionSearchServiceFactory: vi.fn(),
   setLayoutSearchServiceFactory: vi.fn(),
@@ -120,33 +120,33 @@ vi.mock('../../src/tools/layout', () => ({
   setLayoutIngestServiceFactory: mockSetLayoutIngestServiceFactory,
 }));
 
-vi.mock('../../src/tools/motion', () => ({
+vi.mock("../../src/tools/motion", () => ({
   setMotionDetectServiceFactory: vi.fn(),
   setMotionSearchServiceFactory: vi.fn(),
   setMotionPersistenceServiceFactory: mockSetMotionPersistenceServiceFactory,
   resetMotionPersistenceServiceFactory: vi.fn(),
 }));
 
-vi.mock('../../src/services/motion-persistence.service', () => ({
+vi.mock("../../src/services/motion-persistence.service", () => ({
   setMotionPersistenceEmbeddingServiceFactory: mockSetMotionPersistenceEmbeddingServiceFactory,
   setMotionPersistencePrismaClientFactory: mockSetMotionPersistencePrismaClientFactory,
   getMotionPersistenceService: vi.fn(),
   MotionPatternPersistenceService: vi.fn(),
 }));
 
-describe('サービスファクトリ初期化テスト', () => {
+describe("サービスファクトリ初期化テスト", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     // 環境変数をテスト用に設定
-    process.env.NODE_ENV = 'test';
+    process.env.NODE_ENV = "test";
   });
 
   afterEach(() => {
     vi.resetModules();
   });
 
-  describe('layout.ingest auto_analyze サービスファクトリ', () => {
-    it('index.ts で setLayoutIngestServiceFactory が呼び出される', async () => {
+  describe("layout.ingest auto_analyze サービスファクトリ", () => {
+    it("index.ts で setLayoutIngestServiceFactory が呼び出される", async () => {
       // テストを実行するために、index.ts の main 関数相当のロジックを確認
       // 現在の実装では setLayoutIngestServiceFactory は呼び出されていない
 
@@ -154,7 +154,7 @@ describe('サービスファクトリ初期化テスト', () => {
       // 現実: 呼び出されない（これがバグ）
 
       // このテストは現在失敗するはず（TDD Red）
-      const { setLayoutIngestServiceFactory } = await import('../../src/tools/layout');
+      const { setLayoutIngestServiceFactory } = await import("../../src/tools/layout");
 
       // index.ts を直接インポートすると main() が実行されるため、
       // ファクトリ設定のエクスポート関数を確認
@@ -164,8 +164,8 @@ describe('サービスファクトリ初期化テスト', () => {
       // 現在はまだ設定されていないことを確認
     });
 
-    it('ILayoutIngestService インターフェースが正しく定義されている', async () => {
-      const { ILayoutIngestService } = await import('../../src/tools/layout/ingest.tool');
+    it("ILayoutIngestService インターフェースが正しく定義されている", async () => {
+      const { ILayoutIngestService } = await import("../../src/tools/layout/ingest.tool");
 
       // TypeScript レベルの型チェックでインターフェースの存在を確認
       // ランタイムでは直接確認できないが、エクスポートされていることを確認
@@ -173,8 +173,8 @@ describe('サービスファクトリ初期化テスト', () => {
     });
   });
 
-  describe('motion.detect save_to_db サービスファクトリ', () => {
-    it('index.ts で motion persistence サービスファクトリが設定される', async () => {
+  describe("motion.detect save_to_db サービスファクトリ", () => {
+    it("index.ts で motion persistence サービスファクトリが設定される", async () => {
       // 期待: setMotionPersistenceEmbeddingServiceFactory と
       //       setMotionPersistencePrismaClientFactory が呼び出される
       // 現実: 呼び出されない（これがバグ）
@@ -182,25 +182,27 @@ describe('サービスファクトリ初期化テスト', () => {
       const {
         setMotionPersistenceEmbeddingServiceFactory,
         setMotionPersistencePrismaClientFactory,
-      } = await import('../../src/services/motion-persistence.service');
+      } = await import("../../src/services/motion-persistence.service");
 
       expect(setMotionPersistenceEmbeddingServiceFactory).toBeDefined();
       expect(setMotionPersistencePrismaClientFactory).toBeDefined();
     });
 
-    it('MotionPatternPersistenceService が利用可能である', async () => {
-      const { MotionPatternPersistenceService } = await import('../../src/services/motion-persistence.service');
+    it("MotionPatternPersistenceService が利用可能である", async () => {
+      const { MotionPatternPersistenceService } =
+        await import("../../src/services/motion-persistence.service");
 
       expect(MotionPatternPersistenceService).toBeDefined();
     });
   });
 
-  describe('サービスファクトリの機能テスト（現状確認）', () => {
-    it('layout.ingest auto_analyze でサービスが null の場合、警告ログが出力される', async () => {
+  describe("サービスファクトリの機能テスト（現状確認）", () => {
+    it("layout.ingest auto_analyze でサービスが null の場合、警告ログが出力される", async () => {
       // 現在の動作: サービスファクトリ未設定 → service が null → 処理スキップ
       // これはバグ状態を確認するテスト
 
-      const { resetLayoutIngestServiceFactory } = await import('../../src/tools/layout/ingest.tool');
+      const { resetLayoutIngestServiceFactory } =
+        await import("../../src/tools/layout/ingest.tool");
 
       // ファクトリをリセット（未設定状態に）
       resetLayoutIngestServiceFactory();
@@ -209,11 +211,11 @@ describe('サービスファクトリ初期化テスト', () => {
       expect(true).toBe(true);
     });
 
-    it('motion.detect save_to_db で persistence service が null の場合、saved: false が返る', async () => {
+    it("motion.detect save_to_db で persistence service が null の場合、saved: false が返る", async () => {
       // 現在の動作: ファクトリ未設定 → getPersistenceService() が null → saved: false
       // これはバグ状態を確認するテスト
 
-      const { resetMotionPersistenceServiceFactory } = await import('../../src/tools/motion');
+      const { resetMotionPersistenceServiceFactory } = await import("../../src/tools/motion");
 
       // ファクトリをリセット（未設定状態に）
       resetMotionPersistenceServiceFactory();
@@ -224,19 +226,19 @@ describe('サービスファクトリ初期化テスト', () => {
   });
 });
 
-describe('修正後の期待動作テスト', () => {
+describe("修正後の期待動作テスト", () => {
   /**
    * 以下のテストは、修正後に GREEN になるべきテスト
    * index.ts でサービスファクトリが正しく設定されていることを検証
    */
 
-  describe('layout.ingest auto_analyze 修正後', () => {
-    it('setLayoutIngestServiceFactory が関数としてエクスポートされている', async () => {
-      const { setLayoutIngestServiceFactory } = await import('../../src/tools/layout/ingest.tool');
-      expect(typeof setLayoutIngestServiceFactory).toBe('function');
+  describe("layout.ingest auto_analyze 修正後", () => {
+    it("setLayoutIngestServiceFactory が関数としてエクスポートされている", async () => {
+      const { setLayoutIngestServiceFactory } = await import("../../src/tools/layout/ingest.tool");
+      expect(typeof setLayoutIngestServiceFactory).toBe("function");
     });
 
-    it('ILayoutIngestService に必要なメソッドが定義されている', async () => {
+    it("ILayoutIngestService に必要なメソッドが定義されている", async () => {
       // インターフェースの構造を間接的に検証
       // サービスファクトリに渡すオブジェクトが正しい構造を持つことを確認
       const mockService = {
@@ -245,9 +247,9 @@ describe('修正後の期待動作テスト', () => {
           typography: {},
           grid: {},
           colors: {},
-          textRepresentation: '',
+          textRepresentation: "",
         }),
-        saveSectionWithEmbedding: vi.fn().mockResolvedValue('test-id'),
+        saveSectionWithEmbedding: vi.fn().mockResolvedValue("test-id"),
         generateEmbedding: vi.fn().mockResolvedValue(new Array(768).fill(0.1)),
       };
 
@@ -257,26 +259,27 @@ describe('修正後の期待動作テスト', () => {
     });
   });
 
-  describe('motion.detect save_to_db 修正後', () => {
-    it('setMotionPersistenceServiceFactory が関数としてエクスポートされている', async () => {
-      const { setMotionPersistenceServiceFactory } = await import('../../src/tools/motion');
-      expect(typeof setMotionPersistenceServiceFactory).toBe('function');
+  describe("motion.detect save_to_db 修正後", () => {
+    it("setMotionPersistenceServiceFactory が関数としてエクスポートされている", async () => {
+      const { setMotionPersistenceServiceFactory } = await import("../../src/tools/motion");
+      expect(typeof setMotionPersistenceServiceFactory).toBe("function");
     });
 
-    it('MotionPatternPersistenceService がクラスとしてエクスポートされている', async () => {
-      const { MotionPatternPersistenceService } = await import('../../src/services/motion-persistence.service');
+    it("MotionPatternPersistenceService がクラスとしてエクスポートされている", async () => {
+      const { MotionPatternPersistenceService } =
+        await import("../../src/services/motion-persistence.service");
       expect(MotionPatternPersistenceService).toBeDefined();
-      expect(typeof MotionPatternPersistenceService).toBe('function'); // コンストラクタ
+      expect(typeof MotionPatternPersistenceService).toBe("function"); // コンストラクタ
     });
 
-    it('IPrismaClient に $transaction メソッドが含まれている', async () => {
+    it("IPrismaClient に $transaction メソッドが含まれている", async () => {
       // モック実装が正しい構造を持つことを確認
       const mockPrismaClient = {
         motionPattern: {
-          create: vi.fn().mockResolvedValue({ id: 'test-id' }),
+          create: vi.fn().mockResolvedValue({ id: "test-id" }),
         },
         motionEmbedding: {
-          create: vi.fn().mockResolvedValue({ id: 'test-id' }),
+          create: vi.fn().mockResolvedValue({ id: "test-id" }),
         },
         $executeRawUnsafe: vi.fn(),
         $transaction: vi.fn().mockImplementation(async (fn) => fn({})),

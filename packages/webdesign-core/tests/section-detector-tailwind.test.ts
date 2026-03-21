@@ -15,9 +15,9 @@
  * @module @reftrix/webdesign-core/tests/section-detector-tailwind
  */
 
-import { describe, it, expect, beforeEach } from 'vitest';
-import { SectionDetector } from '../src/section-detector';
-import type { DetectedSection, SectionType } from '../src/types/section.types';
+import { describe, it, expect, beforeEach } from "vitest";
+import { SectionDetector } from "../src/section-detector";
+import type { DetectedSection, SectionType } from "../src/types/section.types";
 
 // =========================================
 // Test Fixtures: Tailwind CSS Only HTML
@@ -373,13 +373,13 @@ const TAILWIND_FULL_PAGE_HTML = createTailwindHtml(`
  * 7. footer - フッター
  */
 const EXPECTED_SECTIONS: SectionType[] = [
-  'navigation',
-  'hero',
-  'feature',
-  'cta',
-  'testimonial',
-  'pricing',
-  'footer',
+  "navigation",
+  "hero",
+  "feature",
+  "cta",
+  "testimonial",
+  "pricing",
+  "footer",
 ];
 
 // =========================================
@@ -427,21 +427,21 @@ function calculateDetectionRate(
 // Test Suite
 // =========================================
 
-describe('SectionDetector - Tailwind CSS Sites', () => {
+describe("SectionDetector - Tailwind CSS Sites", () => {
   let detector: SectionDetector;
 
   beforeEach(() => {
     detector = new SectionDetector();
   });
 
-  describe('Baseline Detection Rate (Current State)', () => {
+  describe("Baseline Detection Rate (Current State)", () => {
     /**
      * ベースライン測定テスト
      *
      * 目的: 現在のSectionDetectorでTailwind CSSサイトの検出率を記録
      * 期待: 検出率は33%程度（Mevvy Network実測値に基づく）
      */
-    it('should measure current detection rate for Tailwind-only HTML', async () => {
+    it("should measure current detection rate for Tailwind-only HTML", async () => {
       // Arrange: Tailwind CSSのみを使用したHTMLをセットアップ
       const html = TAILWIND_FULL_PAGE_HTML;
 
@@ -452,16 +452,20 @@ describe('SectionDetector - Tailwind CSS Sites', () => {
       const result = calculateDetectionRate(sections, EXPECTED_SECTIONS);
 
       // デバッグ情報を出力（テスト結果の分析用）
-      console.log('\n=== Tailwind CSS Site Detection Baseline ===');
+      console.log("\n=== Tailwind CSS Site Detection Baseline ===");
       console.log(`Total sections detected: ${sections.length}`);
-      console.log(`Detection rate: ${result.rate}% (${result.detectedCount}/${result.expectedCount})`);
-      console.log(`Detected types: ${getDetectedTypes(sections).join(', ')}`);
-      console.log(`Missed types: ${result.missedTypes.join(', ')}`);
-      console.log('\nDetailed sections:');
+      console.log(
+        `Detection rate: ${result.rate}% (${result.detectedCount}/${result.expectedCount})`
+      );
+      console.log(`Detected types: ${getDetectedTypes(sections).join(", ")}`);
+      console.log(`Missed types: ${result.missedTypes.join(", ")}`);
+      console.log("\nDetailed sections:");
       sections.forEach((s, i) => {
-        console.log(`  ${i + 1}. [${s.type}] confidence: ${s.confidence.toFixed(2)}, selector: ${s.element.selector}`);
+        console.log(
+          `  ${i + 1}. [${s.type}] confidence: ${s.confidence.toFixed(2)}, selector: ${s.element.selector}`
+        );
       });
-      console.log('===========================================\n');
+      console.log("===========================================\n");
 
       // ベースライン検証: 現在の検出率を記録（改善前の状態を記録）
       // 注意: この値は現状の制約を示すもので、改善後に更新する
@@ -470,14 +474,14 @@ describe('SectionDetector - Tailwind CSS Sites', () => {
       // 少なくともnavigation/footerは検出されることを期待
       // （セマンティックタグ<nav>/<footer>が使用されているため）
       const detectedTypes = getDetectedTypes(sections);
-      expect(detectedTypes).toContain('navigation');
-      expect(detectedTypes).toContain('footer');
+      expect(detectedTypes).toContain("navigation");
+      expect(detectedTypes).toContain("footer");
     });
 
     /**
      * 各セクションタイプの検出状況を個別に記録
      */
-    it('should record detection status for each expected section type', async () => {
+    it("should record detection status for each expected section type", async () => {
       const sections = await detector.detect(TAILWIND_FULL_PAGE_HTML);
       const detectedTypes = new Set(getDetectedTypes(sections));
 
@@ -488,20 +492,20 @@ describe('SectionDetector - Tailwind CSS Sites', () => {
         section: sections.find((s) => s.type === type),
       }));
 
-      console.log('\n=== Per-Section Detection Status ===');
+      console.log("\n=== Per-Section Detection Status ===");
       detectionStatus.forEach(({ type, detected, section }) => {
-        const status = detected ? '[DETECTED]' : '[MISSED]  ';
-        const confidence = section ? ` (confidence: ${section.confidence.toFixed(2)})` : '';
+        const status = detected ? "[DETECTED]" : "[MISSED]  ";
+        const confidence = section ? ` (confidence: ${section.confidence.toFixed(2)})` : "";
         console.log(`${status} ${type}${confidence}`);
       });
-      console.log('====================================\n');
+      console.log("====================================\n");
 
       // 検出ステータスの構造が正しいことを検証
       expect(detectionStatus).toHaveLength(EXPECTED_SECTIONS.length);
     });
   });
 
-  describe('Detection Analysis (Root Cause)', () => {
+  describe("Detection Analysis (Root Cause)", () => {
     /**
      * Heroセクション検出の失敗原因分析
      *
@@ -513,7 +517,7 @@ describe('SectionDetector - Tailwind CSS Sites', () => {
      * - class="pt-24 pb-16 sm:pt-32 sm:pb-24 bg-gradient-to-br..." にはheroキーワードなし
      * - <section>タグは汎用的で、heroとして認識されない
      */
-    it('should analyze why hero section detection fails for Tailwind HTML', async () => {
+    it("should analyze why hero section detection fails for Tailwind HTML", async () => {
       const heroOnlyHtml = createTailwindHtml(`
         <section class="pt-24 pb-16 bg-gradient-to-br from-indigo-50 to-white">
           <div class="max-w-7xl mx-auto px-4">
@@ -532,19 +536,19 @@ describe('SectionDetector - Tailwind CSS Sites', () => {
 
       const sections = await detector.detect(heroOnlyHtml);
 
-      console.log('\n=== Hero Detection Analysis ===');
-      console.log('Input: Tailwind-only hero section (no semantic class names)');
+      console.log("\n=== Hero Detection Analysis ===");
+      console.log("Input: Tailwind-only hero section (no semantic class names)");
       console.log(`Sections detected: ${sections.length}`);
       sections.forEach((s) => {
         console.log(`  Type: ${s.type}, Confidence: ${s.confidence.toFixed(2)}`);
-        console.log(`  Classes: ${s.element.classes.join(' ')}`);
+        console.log(`  Classes: ${s.element.classes.join(" ")}`);
         console.log(`  Has H1: ${s.content.headings.some((h) => h.level === 1)}`);
         console.log(`  Has buttons: ${s.content.buttons.length}`);
       });
-      console.log('===============================\n');
+      console.log("===============================\n");
 
       // コンテンツベースの検出（H1 + ボタン）が機能するか確認
-      const heroSection = sections.find((s) => s.type === 'hero');
+      const heroSection = sections.find((s) => s.type === "hero");
 
       // 発見: hero-contentルール（H1 + button + ページ上部）で検出される
       // 信頼度は0.85（positionConditionsによる+0.1ブースト後）
@@ -560,7 +564,7 @@ describe('SectionDetector - Tailwind CSS Sites', () => {
     /**
      * Featuresセクション検出の失敗原因分析
      */
-    it('should analyze why feature section detection fails for Tailwind HTML', async () => {
+    it("should analyze why feature section detection fails for Tailwind HTML", async () => {
       const featureOnlyHtml = createTailwindHtml(`
         <section class="py-16 bg-white">
           <div class="max-w-7xl mx-auto px-4">
@@ -585,20 +589,20 @@ describe('SectionDetector - Tailwind CSS Sites', () => {
 
       const sections = await detector.detect(featureOnlyHtml);
 
-      console.log('\n=== Feature Detection Analysis ===');
-      console.log('Input: Tailwind-only feature section with 3-column grid');
+      console.log("\n=== Feature Detection Analysis ===");
+      console.log("Input: Tailwind-only feature section with 3-column grid");
       console.log(`Sections detected: ${sections.length}`);
       sections.forEach((s) => {
         console.log(`  Type: ${s.type}, Confidence: ${s.confidence.toFixed(2)}`);
-        console.log(`  Classes: ${s.element.classes.slice(0, 5).join(' ')}`);
+        console.log(`  Classes: ${s.element.classes.slice(0, 5).join(" ")}`);
         console.log(`  Has images: ${s.content.images.length}`);
         console.log(`  Has headings: ${s.content.headings.length}`);
       });
-      console.log('==================================\n');
+      console.log("==================================\n");
 
       // Tailwindのgrid-cols-*パターンが検出されるか確認
       // 現状: feature-gridルール（md:grid-cols-3）で検出される可能性あり
-      const featureSection = sections.find((s) => s.type === 'feature');
+      const featureSection = sections.find((s) => s.type === "feature");
       if (featureSection) {
         // 検出された場合は低〜中程度の信頼度
         expect(featureSection.confidence).toBeLessThanOrEqual(0.85);
@@ -608,7 +612,7 @@ describe('SectionDetector - Tailwind CSS Sites', () => {
     /**
      * CTAセクション検出の失敗原因分析
      */
-    it('should analyze why cta section detection fails for Tailwind HTML', async () => {
+    it("should analyze why cta section detection fails for Tailwind HTML", async () => {
       const ctaOnlyHtml = createTailwindHtml(`
         <section class="py-16 bg-indigo-700">
           <div class="max-w-7xl mx-auto px-4 text-center">
@@ -628,25 +632,25 @@ describe('SectionDetector - Tailwind CSS Sites', () => {
 
       const sections = await detector.detect(ctaOnlyHtml);
 
-      console.log('\n=== CTA Detection Analysis ===');
-      console.log('Input: Tailwind-only CTA section (colored background + buttons)');
+      console.log("\n=== CTA Detection Analysis ===");
+      console.log("Input: Tailwind-only CTA section (colored background + buttons)");
       console.log(`Sections detected: ${sections.length}`);
       sections.forEach((s) => {
         console.log(`  Type: ${s.type}, Confidence: ${s.confidence.toFixed(2)}`);
-        console.log(`  Classes: ${s.element.classes.slice(0, 5).join(' ')}`);
+        console.log(`  Classes: ${s.element.classes.slice(0, 5).join(" ")}`);
         console.log(`  Has buttons: ${s.content.buttons.length}`);
       });
-      console.log('==============================\n');
+      console.log("==============================\n");
 
       // cta-contentルール（requiresButton: true）で検出される可能性
-      const ctaSection = sections.find((s) => s.type === 'cta');
+      const ctaSection = sections.find((s) => s.type === "cta");
       if (ctaSection) {
         expect(ctaSection.content.buttons.length).toBeGreaterThan(0);
       }
     });
   });
 
-  describe('Target Detection Rate (Future Improvements)', () => {
+  describe("Target Detection Rate (Future Improvements)", () => {
     /**
      * 目標検出率テスト（改善後に有効化）
      *
@@ -658,7 +662,7 @@ describe('SectionDetector - Tailwind CSS Sites', () => {
      * 3. 視覚的特徴検出（背景色クラス: bg-indigo-*, bg-slate-*）
      * 4. テキスト分析による意図推定（「料金」「お問い合わせ」等のキーワード）
      */
-    it.skip('should achieve 80%+ detection rate after improvements', async () => {
+    it.skip("should achieve 80%+ detection rate after improvements", async () => {
       const sections = await detector.detect(TAILWIND_FULL_PAGE_HTML);
       const result = calculateDetectionRate(sections, EXPECTED_SECTIONS);
 
@@ -667,10 +671,10 @@ describe('SectionDetector - Tailwind CSS Sites', () => {
 
       // 主要セクションがすべて検出されること
       const detectedTypes = new Set(getDetectedTypes(sections));
-      expect(detectedTypes).toContain('hero');
-      expect(detectedTypes).toContain('feature');
-      expect(detectedTypes).toContain('cta');
-      expect(detectedTypes).toContain('footer');
+      expect(detectedTypes).toContain("hero");
+      expect(detectedTypes).toContain("feature");
+      expect(detectedTypes).toContain("cta");
+      expect(detectedTypes).toContain("footer");
     });
 
     /**
@@ -678,11 +682,11 @@ describe('SectionDetector - Tailwind CSS Sites', () => {
      *
      * 目標: 検出されたセクションの平均信頼度が0.7以上
      */
-    it.skip('should achieve average confidence >= 0.7 after improvements', async () => {
+    it.skip("should achieve average confidence >= 0.7 after improvements", async () => {
       const sections = await detector.detect(TAILWIND_FULL_PAGE_HTML);
 
       // 有意なセクション（unknownを除く）のみで計算
-      const meaningfulSections = sections.filter((s) => s.type !== 'unknown');
+      const meaningfulSections = sections.filter((s) => s.type !== "unknown");
       const avgConfidence =
         meaningfulSections.reduce((sum, s) => sum + s.confidence, 0) / meaningfulSections.length;
 
@@ -690,39 +694,39 @@ describe('SectionDetector - Tailwind CSS Sites', () => {
     });
   });
 
-  describe('Semantic Tag Fallback', () => {
+  describe("Semantic Tag Fallback", () => {
     /**
      * セマンティックタグによる検出（現在も機能する）
      *
      * Tailwindサイトでも<nav>, <footer>, <section>などの
      * セマンティックタグは使用されるため、これらは検出可能
      */
-    it('should detect navigation via <nav> semantic tag', async () => {
+    it("should detect navigation via <nav> semantic tag", async () => {
       const sections = await detector.detect(TAILWIND_FULL_PAGE_HTML);
-      const navSections = findSectionsByType(sections, 'navigation');
+      const navSections = findSectionsByType(sections, "navigation");
 
       // <nav>タグは検出されるはず
       expect(navSections.length).toBeGreaterThanOrEqual(1);
-      expect(navSections[0].element.tagName).toBe('nav');
+      expect(navSections[0].element.tagName).toBe("nav");
     });
 
-    it('should detect footer via <footer> semantic tag', async () => {
+    it("should detect footer via <footer> semantic tag", async () => {
       const sections = await detector.detect(TAILWIND_FULL_PAGE_HTML);
-      const footerSections = findSectionsByType(sections, 'footer');
+      const footerSections = findSectionsByType(sections, "footer");
 
       // <footer>タグは検出されるはず
       expect(footerSections.length).toBeGreaterThanOrEqual(1);
-      expect(footerSections[0].element.tagName).toBe('footer');
+      expect(footerSections[0].element.tagName).toBe("footer");
     });
   });
 
-  describe('Content-Based Detection (Existing Capability)', () => {
+  describe("Content-Based Detection (Existing Capability)", () => {
     /**
      * blockquoteによるtestimonial検出
      */
-    it('should detect testimonial via <blockquote> element', async () => {
+    it("should detect testimonial via <blockquote> element", async () => {
       const sections = await detector.detect(TAILWIND_FULL_PAGE_HTML);
-      const testimonialSections = findSectionsByType(sections, 'testimonial');
+      const testimonialSections = findSectionsByType(sections, "testimonial");
 
       // blockquoteがある場合、testimonialとして検出される可能性
       // （現状のclassifySectionTypeでblockquote検出ロジックあり）
@@ -742,7 +746,7 @@ describe('SectionDetector - Tailwind CSS Sites', () => {
      * Tailwind CSSのinput要素では name="email" が必要（classではなく）
      * これはTailwindサイトでの追加の検出課題を示す
      */
-    it('should detect contact section if form is present', async () => {
+    it("should detect contact section if form is present", async () => {
       const htmlWithForm = createTailwindHtml(`
         <section class="py-16 bg-white">
           <div class="max-w-lg mx-auto">
@@ -757,7 +761,7 @@ describe('SectionDetector - Tailwind CSS Sites', () => {
       `);
 
       const sections = await detector.detect(htmlWithForm);
-      const contactSections = findSectionsByType(sections, 'contact');
+      const contactSections = findSectionsByType(sections, "contact");
 
       // 現状の動作を記録
       // 発見: formがあってもTailwind CSSサイトではcontactとして検出されない場合がある
@@ -781,19 +785,19 @@ describe('SectionDetector - Tailwind CSS Sites', () => {
 // Tailwind Pattern Dictionary Tests (P2 Enhancement)
 // =========================================
 
-describe('SectionDetector - Tailwind Pattern Dictionary (P2)', () => {
+describe("SectionDetector - Tailwind Pattern Dictionary (P2)", () => {
   let detector: SectionDetector;
 
   beforeEach(() => {
     detector = new SectionDetector();
   });
 
-  describe('Flexbox Patterns', () => {
+  describe("Flexbox Patterns", () => {
     /**
      * フレックスボックスレイアウトパターンの検出
      * - flex, flex-col, items-center, justify-between 等
      */
-    it('should detect feature section with flex layout pattern', async () => {
+    it("should detect feature section with flex layout pattern", async () => {
       const html = createTailwindHtml(`
         <section class="py-16 bg-white">
           <div class="max-w-7xl mx-auto px-4">
@@ -817,14 +821,14 @@ describe('SectionDetector - Tailwind Pattern Dictionary (P2)', () => {
       `);
 
       const sections = await detector.detect(html);
-      const featureSections = findSectionsByType(sections, 'feature');
+      const featureSections = findSectionsByType(sections, "feature");
 
       // flex + flex-wrap パターンで feature として検出されることを期待
       expect(featureSections.length).toBeGreaterThanOrEqual(1);
       expect(featureSections[0].confidence).toBeGreaterThanOrEqual(0.6);
     });
 
-    it('should detect section with flex-col layout', async () => {
+    it("should detect section with flex-col layout", async () => {
       const html = createTailwindHtml(`
         <section class="py-12 bg-slate-100">
           <div class="max-w-3xl mx-auto px-4">
@@ -851,11 +855,11 @@ describe('SectionDetector - Tailwind Pattern Dictionary (P2)', () => {
       // flex-col + space-y-* パターンで検出されることを期待
       expect(sections.length).toBeGreaterThanOrEqual(1);
       // 3つのカード構造があるためfeatureとして検出されることを期待
-      const featureSections = findSectionsByType(sections, 'feature');
+      const featureSections = findSectionsByType(sections, "feature");
       expect(featureSections.length).toBeGreaterThanOrEqual(1);
     });
 
-    it('should detect navigation-like section with flex items-center justify-between', async () => {
+    it("should detect navigation-like section with flex items-center justify-between", async () => {
       const html = createTailwindHtml(`
         <header class="py-4 bg-white shadow-sm">
           <div class="max-w-7xl mx-auto px-4 flex items-center justify-between">
@@ -877,12 +881,12 @@ describe('SectionDetector - Tailwind Pattern Dictionary (P2)', () => {
     });
   });
 
-  describe('Spacing Patterns (space-y, space-x, gap)', () => {
+  describe("Spacing Patterns (space-y, space-x, gap)", () => {
     /**
      * スペーシングユーティリティパターンの検出
      * - space-y-*, space-x-*, gap-* の各バリエーション
      */
-    it('should detect section with space-y spacing pattern', async () => {
+    it("should detect section with space-y spacing pattern", async () => {
       const html = createTailwindHtml(`
         <section class="py-16">
           <div class="max-w-4xl mx-auto space-y-8">
@@ -907,7 +911,7 @@ describe('SectionDetector - Tailwind Pattern Dictionary (P2)', () => {
       expect(sections.length).toBeGreaterThanOrEqual(1);
     });
 
-    it('should detect feature section with gap-* pattern', async () => {
+    it("should detect feature section with gap-* pattern", async () => {
       const html = createTailwindHtml(`
         <section class="py-20 bg-gray-50">
           <div class="container mx-auto px-4">
@@ -931,19 +935,19 @@ describe('SectionDetector - Tailwind Pattern Dictionary (P2)', () => {
       `);
 
       const sections = await detector.detect(html);
-      const featureSections = findSectionsByType(sections, 'feature');
+      const featureSections = findSectionsByType(sections, "feature");
 
       // gap-6, lg:gap-10 パターンで feature として検出されることを期待
       expect(featureSections.length).toBeGreaterThanOrEqual(1);
     });
   });
 
-  describe('Responsive Prefix Patterns', () => {
+  describe("Responsive Prefix Patterns", () => {
     /**
      * レスポンシブプレフィックスパターンの検出
      * - sm:, md:, lg:, xl:, 2xl: プレフィックス付きクラス
      */
-    it('should detect section with responsive grid patterns', async () => {
+    it("should detect section with responsive grid patterns", async () => {
       const html = createTailwindHtml(`
         <section class="py-16 bg-white">
           <div class="max-w-7xl mx-auto px-4">
@@ -967,13 +971,13 @@ describe('SectionDetector - Tailwind Pattern Dictionary (P2)', () => {
       // ロゴ画像が4つ以上あるため gallery または partners として検出される可能性
       const detectedTypes = getDetectedTypes(sections);
       expect(
-        detectedTypes.includes('gallery') ||
-        detectedTypes.includes('partners') ||
-        detectedTypes.includes('feature')
+        detectedTypes.includes("gallery") ||
+          detectedTypes.includes("partners") ||
+          detectedTypes.includes("feature")
       ).toBe(true);
     });
 
-    it('should detect section with responsive flex patterns', async () => {
+    it("should detect section with responsive flex patterns", async () => {
       const html = createTailwindHtml(`
         <section class="py-12">
           <div class="max-w-6xl mx-auto px-4">
@@ -999,12 +1003,12 @@ describe('SectionDetector - Tailwind Pattern Dictionary (P2)', () => {
     });
   });
 
-  describe('Container Patterns (container, max-w, mx-auto)', () => {
+  describe("Container Patterns (container, max-w, mx-auto)", () => {
     /**
      * コンテナパターンの検出
      * - container, max-w-*, mx-auto の組み合わせ
      */
-    it('should detect section with container class', async () => {
+    it("should detect section with container class", async () => {
       const html = createTailwindHtml(`
         <section class="py-20">
           <div class="container mx-auto px-4">
@@ -1035,11 +1039,11 @@ describe('SectionDetector - Tailwind Pattern Dictionary (P2)', () => {
       // container + mx-auto パターンで検出
       expect(sections.length).toBeGreaterThanOrEqual(1);
       // 3つのカード構造があるため feature として検出
-      const featureSections = findSectionsByType(sections, 'feature');
+      const featureSections = findSectionsByType(sections, "feature");
       expect(featureSections.length).toBeGreaterThanOrEqual(1);
     });
 
-    it('should detect hero section with max-w-7xl mx-auto pattern', async () => {
+    it("should detect hero section with max-w-7xl mx-auto pattern", async () => {
       const html = createTailwindHtml(`
         <section class="pt-32 pb-20 bg-gradient-to-b from-blue-50 to-white">
           <div class="max-w-7xl mx-auto px-4 text-center">
@@ -1062,7 +1066,7 @@ describe('SectionDetector - Tailwind Pattern Dictionary (P2)', () => {
       `);
 
       const sections = await detector.detect(html);
-      const heroSections = findSectionsByType(sections, 'hero');
+      const heroSections = findSectionsByType(sections, "hero");
 
       // H1 + ボタン + ページ上部の条件でheroとして検出
       expect(heroSections.length).toBeGreaterThanOrEqual(1);
@@ -1070,12 +1074,12 @@ describe('SectionDetector - Tailwind Pattern Dictionary (P2)', () => {
     });
   });
 
-  describe('Background Color Patterns (bg-* for CTA/Pricing)', () => {
+  describe("Background Color Patterns (bg-* for CTA/Pricing)", () => {
     /**
      * 背景色パターンによるCTA/Pricing検出
      * - bg-indigo-*, bg-blue-*, bg-slate-* 等の背景色クラス
      */
-    it('should detect CTA section with colored background pattern', async () => {
+    it("should detect CTA section with colored background pattern", async () => {
       const html = createTailwindHtml(`
         <section class="py-20 bg-gradient-to-r from-purple-600 to-indigo-600">
           <div class="max-w-4xl mx-auto px-4 text-center">
@@ -1093,14 +1097,14 @@ describe('SectionDetector - Tailwind Pattern Dictionary (P2)', () => {
       `);
 
       const sections = await detector.detect(html);
-      const ctaSections = findSectionsByType(sections, 'cta');
+      const ctaSections = findSectionsByType(sections, "cta");
 
       // 色付き背景 + ボタン + 短いテキストでCTAとして検出
       expect(ctaSections.length).toBeGreaterThanOrEqual(1);
       expect(ctaSections[0].confidence).toBeGreaterThanOrEqual(0.6);
     });
 
-    it('should detect pricing section with bg-slate/gray patterns', async () => {
+    it("should detect pricing section with bg-slate/gray patterns", async () => {
       const html = createTailwindHtml(`
         <section class="py-24 bg-slate-50">
           <div class="max-w-6xl mx-auto px-4">
@@ -1128,19 +1132,19 @@ describe('SectionDetector - Tailwind Pattern Dictionary (P2)', () => {
       `);
 
       const sections = await detector.detect(html);
-      const pricingSections = findSectionsByType(sections, 'pricing');
+      const pricingSections = findSectionsByType(sections, "pricing");
 
       // 価格表示（¥/月）+ グリッドレイアウト で pricing として検出
       expect(pricingSections.length).toBeGreaterThanOrEqual(1);
     });
   });
 
-  describe('Combined Pattern Detection', () => {
+  describe("Combined Pattern Detection", () => {
     /**
      * 複合パターンの検出テスト
      * 複数のTailwindパターンを組み合わせたセクションの検出
      */
-    it('should detect feature section with multiple Tailwind patterns', async () => {
+    it("should detect feature section with multiple Tailwind patterns", async () => {
       const html = createTailwindHtml(`
         <section class="py-24 bg-gradient-to-b from-gray-50 to-white">
           <div class="container mx-auto px-4 sm:px-6 lg:px-8">
@@ -1182,30 +1186,32 @@ describe('SectionDetector - Tailwind Pattern Dictionary (P2)', () => {
       `);
 
       const sections = await detector.detect(html);
-      const featureSections = findSectionsByType(sections, 'feature');
+      const featureSections = findSectionsByType(sections, "feature");
 
       // container + mx-auto + grid + flex-col + items-center の複合パターン
       expect(featureSections.length).toBeGreaterThanOrEqual(1);
       expect(featureSections[0].confidence).toBeGreaterThanOrEqual(0.65);
     });
 
-    it('should correctly identify section types in a full Tailwind page', async () => {
+    it("should correctly identify section types in a full Tailwind page", async () => {
       // 既存のTAILWIND_FULL_PAGE_HTMLを使用
       const sections = await detector.detect(TAILWIND_FULL_PAGE_HTML);
       const detectedTypes = getDetectedTypes(sections);
 
-      console.log('\n=== Full Tailwind Page Detection (After P2 Enhancement) ===');
+      console.log("\n=== Full Tailwind Page Detection (After P2 Enhancement) ===");
       console.log(`Total sections: ${sections.length}`);
-      console.log(`Detected types: ${detectedTypes.join(', ')}`);
+      console.log(`Detected types: ${detectedTypes.join(", ")}`);
 
       sections.forEach((s, i) => {
-        console.log(`  ${i + 1}. [${s.type}] confidence: ${s.confidence.toFixed(2)}, classes: ${s.element.classes.slice(0, 3).join(' ')}...`);
+        console.log(
+          `  ${i + 1}. [${s.type}] confidence: ${s.confidence.toFixed(2)}, classes: ${s.element.classes.slice(0, 3).join(" ")}...`
+        );
       });
-      console.log('============================================================\n');
+      console.log("============================================================\n");
 
       // 基本的なセクションタイプが検出されることを確認
-      expect(detectedTypes).toContain('navigation');
-      expect(detectedTypes).toContain('footer');
+      expect(detectedTypes).toContain("navigation");
+      expect(detectedTypes).toContain("footer");
 
       // P2改善後、hero/feature/cta/pricing も検出されることを期待
       const result = calculateDetectionRate(sections, EXPECTED_SECTIONS);

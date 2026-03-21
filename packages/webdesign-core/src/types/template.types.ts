@@ -9,8 +9,8 @@
  * @module @reftrix/webdesign-core/types/template
  */
 
-import { z } from 'zod';
-import type { DetectedSection, SectionType } from './section.types';
+import { z } from "zod";
+import type { DetectedSection, SectionType } from "./section.types";
 
 // =====================================
 // Framework Types
@@ -19,17 +19,17 @@ import type { DetectedSection, SectionType } from './section.types';
 /**
  * サポートするフレームワーク
  */
-export const FrameworkSchema = z.enum(['react', 'nextjs', 'html']);
+export const FrameworkSchema = z.enum(["react", "nextjs", "html"]);
 export type Framework = z.infer<typeof FrameworkSchema>;
 
 /**
  * スタイリング方法
  */
 export const StylingMethodSchema = z.enum([
-  'tailwind',
-  'css-modules',
-  'styled-components',
-  'css-vars',
+  "tailwind",
+  "css-modules",
+  "styled-components",
+  "css-vars",
 ]);
 export type StylingMethod = z.infer<typeof StylingMethodSchema>;
 
@@ -46,7 +46,7 @@ export const CodeGeneratorOptionsSchema = z.object({
   /** TypeScript使用 */
   typescript: z.boolean().optional().default(true),
   /** スタイリング方法 */
-  styling: StylingMethodSchema.optional().default('tailwind'),
+  styling: StylingMethodSchema.optional().default("tailwind"),
   /** コンポーネント名 */
   componentName: z.string().optional(),
   /** コメント含む */
@@ -61,7 +61,7 @@ export type CodeGeneratorOptions = z.infer<typeof CodeGeneratorOptionsSchema>;
 /**
  * 色使用方法
  */
-export const ColorUsageSchema = z.enum(['background', 'text', 'border', 'accent']);
+export const ColorUsageSchema = z.enum(["background", "text", "border", "accent"]);
 export type ColorUsage = z.infer<typeof ColorUsageSchema>;
 
 /**

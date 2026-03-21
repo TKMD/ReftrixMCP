@@ -20,20 +20,20 @@
  * @see apps/mcp-server/src/services/vision/timeout-calculator.ts
  */
 
-import { describe, it, expect, beforeEach, beforeAll } from 'vitest';
-import sharp from 'sharp';
+import { describe, it, expect, beforeEach, beforeAll } from "vitest";
+import sharp from "sharp";
 import {
   ImageOptimizer,
   OptimizationStrategy,
   IMAGE_SIZE_THRESHOLDS,
   type OptimizeResult,
-} from '../../../src/services/vision/image-optimizer.js';
+} from "../../../src/services/vision/image-optimizer.js";
 import {
   TimeoutCalculator,
   VisionTimeouts,
   ImageSize,
   HardwareType,
-} from '../../../src/services/vision/timeout-calculator.js';
+} from "../../../src/services/vision/timeout-calculator.js";
 
 // =============================================================================
 // 定数
@@ -88,7 +88,7 @@ const QUALITY_TARGETS = {
 async function createTestImage(
   width: number,
   height: number,
-  options?: { quality?: number; format?: 'jpeg' | 'png' }
+  options?: { quality?: number; format?: "jpeg" | "png" }
 ): Promise<Buffer> {
   // ランダムノイズを生成（圧縮しにくいデータ）
   const noiseBuffer = Buffer.alloc(width * height * 3);
@@ -104,7 +104,7 @@ async function createTestImage(
     },
   });
 
-  if (options?.format === 'png') {
+  if (options?.format === "png") {
     return pipeline.png().toBuffer();
   }
 
@@ -117,10 +117,7 @@ async function createTestImage(
  * @param targetBytes - 目標サイズ（バイト）
  * @param tolerance - 許容誤差（0-1、デフォルト0.3）
  */
-async function createImageNearSize(
-  targetBytes: number,
-  tolerance: number = 0.3
-): Promise<Buffer> {
+async function createImageNearSize(targetBytes: number, tolerance: number = 0.3): Promise<Buffer> {
   // ピクセル数を推定（ノイズ画像なので圧縮率は低い）
   // JPEG品質90で約1-2 bytes/pixel程度
   const bytesPerPixel = 1.5;
@@ -183,7 +180,7 @@ async function measureOptimization(
 // テスト
 // =============================================================================
 
-describe('CPU Inference Performance', () => {
+describe("CPU Inference Performance", () => {
   let optimizer: ImageOptimizer;
   let calculator: TimeoutCalculator;
 
@@ -209,7 +206,7 @@ describe('CPU Inference Performance', () => {
 
     // 生成された画像サイズをログ出力（デバッグ用）
     if (process.env.DEBUG) {
-      console.log('[Performance Test] Generated test images:');
+      console.log("[Performance Test] Generated test images:");
       console.log(`  Small: ${smallImage.length} bytes (target: ${TEST_IMAGE_SIZES.SMALL})`);
       console.log(`  Medium: ${mediumImage.length} bytes (target: ${TEST_IMAGE_SIZES.MEDIUM})`);
       console.log(`  Large: ${largeImage.length} bytes (target: ${TEST_IMAGE_SIZES.LARGE})`);
@@ -226,8 +223,8 @@ describe('CPU Inference Performance', () => {
   // ImageOptimizer Performance
   // ===========================================================================
 
-  describe('ImageOptimizer Performance', () => {
-    it('should optimize small image in < 100ms', async () => {
+  describe("ImageOptimizer Performance", () => {
+    it("should optimize small image in < 100ms", async () => {
       const { durationMs, result } = await measureOptimization(optimizer, smallImage, {
         hardwareType: HardwareType.CPU,
         // 小画像は自動でスキップされるが、強制的に最適化をテスト
@@ -249,7 +246,7 @@ describe('CPU Inference Performance', () => {
       }
     });
 
-    it('should optimize medium image in < 500ms', async () => {
+    it("should optimize medium image in < 500ms", async () => {
       const { durationMs, result } = await measureOptimization(optimizer, mediumImage, {
         hardwareType: HardwareType.CPU,
         forceStrategy: OptimizationStrategy.MEDIUM,
@@ -270,7 +267,7 @@ describe('CPU Inference Performance', () => {
       }
     });
 
-    it('should optimize large image in < 1000ms', async () => {
+    it("should optimize large image in < 1000ms", async () => {
       const { durationMs, result } = await measureOptimization(optimizer, largeImage, {
         hardwareType: HardwareType.CPU,
         forceStrategy: OptimizationStrategy.AGGRESSIVE,
@@ -294,7 +291,7 @@ describe('CPU Inference Performance', () => {
       }
     });
 
-    it('should skip optimization for GPU hardware in < 10ms', async () => {
+    it("should skip optimization for GPU hardware in < 10ms", async () => {
       const { durationMs, result } = await measureOptimization(optimizer, largeImage, {
         hardwareType: HardwareType.GPU,
       });
@@ -302,7 +299,7 @@ describe('CPU Inference Performance', () => {
       // GPU時はほぼ即座にスキップ
       expect(durationMs).toBeLessThan(10);
       expect(result.skipped).toBe(true);
-      expect(result.reason).toBe('No optimization needed');
+      expect(result.reason).toBe("No optimization needed");
 
       if (process.env.DEBUG) {
         console.log(`[Performance] GPU skip: ${durationMs.toFixed(2)}ms`);
@@ -314,8 +311,8 @@ describe('CPU Inference Performance', () => {
   // Timeout Adequacy
   // ===========================================================================
 
-  describe('Timeout Adequacy', () => {
-    it('CPU_SMALL timeout (180s) should be sufficient for small images', async () => {
+  describe("Timeout Adequacy", () => {
+    it("CPU_SMALL timeout (180s) should be sufficient for small images", async () => {
       const timeout = calculator.calculate(HardwareType.CPU, TEST_IMAGE_SIZES.SMALL);
 
       // タイムアウト値の確認
@@ -340,7 +337,7 @@ describe('CPU Inference Performance', () => {
       }
     });
 
-    it('CPU_MEDIUM timeout (600s) should be sufficient for medium images', async () => {
+    it("CPU_MEDIUM timeout (600s) should be sufficient for medium images", async () => {
       const timeout = calculator.calculate(HardwareType.CPU, TEST_IMAGE_SIZES.MEDIUM);
 
       // タイムアウト値の確認
@@ -365,7 +362,7 @@ describe('CPU Inference Performance', () => {
       }
     });
 
-    it('CPU_LARGE timeout (1200s) should be sufficient for large images', async () => {
+    it("CPU_LARGE timeout (1200s) should be sufficient for large images", async () => {
       const timeout = calculator.calculate(HardwareType.CPU, TEST_IMAGE_SIZES.LARGE);
 
       // タイムアウト値の確認
@@ -390,7 +387,7 @@ describe('CPU Inference Performance', () => {
       }
     });
 
-    it('should correctly classify image sizes', () => {
+    it("should correctly classify image sizes", () => {
       // 閾値境界のテスト
       expect(calculator.classifyImageSize(99_999)).toBe(ImageSize.SMALL);
       expect(calculator.classifyImageSize(100_000)).toBe(ImageSize.MEDIUM);
@@ -403,15 +400,17 @@ describe('CPU Inference Performance', () => {
   // Optimization Impact
   // ===========================================================================
 
-  describe('Optimization Impact', () => {
-    it('should reduce image size by at least 50% for large images', async () => {
+  describe("Optimization Impact", () => {
+    it("should reduce image size by at least 50% for large images", async () => {
       const result = await optimizer.optimizeForCPU(largeImage, {
         hardwareType: HardwareType.CPU,
         forceStrategy: OptimizationStrategy.AGGRESSIVE,
       });
 
       // 圧縮率チェック（50%以上削減 = compressionRatio < 0.5）
-      expect(result.compressionRatio).toBeLessThanOrEqual(QUALITY_TARGETS.MIN_LARGE_COMPRESSION_RATIO);
+      expect(result.compressionRatio).toBeLessThanOrEqual(
+        QUALITY_TARGETS.MIN_LARGE_COMPRESSION_RATIO
+      );
 
       if (process.env.DEBUG) {
         console.log(`[Impact] Large image compression:`);
@@ -421,7 +420,7 @@ describe('CPU Inference Performance', () => {
       }
     });
 
-    it('should reduce medium images with MEDIUM strategy', async () => {
+    it("should reduce medium images with MEDIUM strategy", async () => {
       const result = await optimizer.optimizeForCPU(mediumImage, {
         hardwareType: HardwareType.CPU,
         forceStrategy: OptimizationStrategy.MEDIUM,
@@ -439,7 +438,7 @@ describe('CPU Inference Performance', () => {
       }
     });
 
-    it('should maintain acceptable quality after optimization', async () => {
+    it("should maintain acceptable quality after optimization", async () => {
       // 大きな画像を作成
       const originalBuffer = await createTestImage(2000, 2000, { quality: 95 });
 
@@ -454,7 +453,7 @@ describe('CPU Inference Performance', () => {
       // 基本的な品質チェック
       expect(metadata.width).toBeLessThanOrEqual(768);
       expect(metadata.height).toBeLessThanOrEqual(768);
-      expect(metadata.format).toBe('jpeg');
+      expect(metadata.format).toBe("jpeg");
 
       // 画像が破損していないことを確認（メタデータが取得できる）
       expect(metadata.width).toBeGreaterThan(0);
@@ -469,7 +468,7 @@ describe('CPU Inference Performance', () => {
       }
     });
 
-    it('should preserve aspect ratio during optimization', async () => {
+    it("should preserve aspect ratio during optimization", async () => {
       // 横長画像を作成（3:1 aspect ratio）
       const wideImage = await createTestImage(1500, 500, { quality: 90 });
 
@@ -497,8 +496,8 @@ describe('CPU Inference Performance', () => {
   // Stress Tests
   // ===========================================================================
 
-  describe('Stress Tests', () => {
-    it('should handle concurrent optimization requests', async () => {
+  describe("Stress Tests", () => {
+    it("should handle concurrent optimization requests", async () => {
       const concurrentCount = 5;
       const buffers = await Promise.all(
         Array.from({ length: concurrentCount }, () =>
@@ -537,7 +536,7 @@ describe('CPU Inference Performance', () => {
       }
     });
 
-    it('should handle rapid sequential optimization', async () => {
+    it("should handle rapid sequential optimization", async () => {
       const sequentialCount = 10;
       const durations: number[] = [];
 
@@ -571,8 +570,8 @@ describe('CPU Inference Performance', () => {
   // Memory Usage (Optional)
   // ===========================================================================
 
-  describe('Memory Usage', () => {
-    it('should not leak memory during repeated optimizations', async () => {
+  describe("Memory Usage", () => {
+    it("should not leak memory during repeated optimizations", async () => {
       const iterations = 20;
 
       // 初期メモリ使用量
@@ -617,12 +616,12 @@ describe('CPU Inference Performance', () => {
   // Integration: Timeout + Optimization
   // ===========================================================================
 
-  describe('Integration: Timeout + Optimization', () => {
-    it('should optimize and calculate timeout consistently', async () => {
+  describe("Integration: Timeout + Optimization", () => {
+    it("should optimize and calculate timeout consistently", async () => {
       const testCases = [
-        { name: 'Small', buffer: smallImage, expectedImageSize: ImageSize.SMALL },
-        { name: 'Medium', buffer: mediumImage, expectedImageSize: ImageSize.MEDIUM },
-        { name: 'Large', buffer: largeImage, expectedImageSize: ImageSize.LARGE },
+        { name: "Small", buffer: smallImage, expectedImageSize: ImageSize.SMALL },
+        { name: "Medium", buffer: mediumImage, expectedImageSize: ImageSize.MEDIUM },
+        { name: "Large", buffer: largeImage, expectedImageSize: ImageSize.LARGE },
       ];
 
       for (const { name, buffer, expectedImageSize } of testCases) {
@@ -657,17 +656,33 @@ describe('CPU Inference Performance', () => {
       }
     });
 
-    it('should use consistent size thresholds across modules', () => {
+    it("should use consistent size thresholds across modules", () => {
       // ImageOptimizerとTimeoutCalculatorで同じ閾値を使用していること
       expect(IMAGE_SIZE_THRESHOLDS.SMALL).toBe(100_000);
       expect(IMAGE_SIZE_THRESHOLDS.LARGE).toBe(500_000);
 
       // 境界値でのテスト
       const boundaryTests = [
-        { size: 99_999, expectedImageSize: ImageSize.SMALL, expectedStrategy: OptimizationStrategy.NONE },
-        { size: 100_000, expectedImageSize: ImageSize.MEDIUM, expectedStrategy: OptimizationStrategy.MEDIUM },
-        { size: 499_999, expectedImageSize: ImageSize.MEDIUM, expectedStrategy: OptimizationStrategy.MEDIUM },
-        { size: 500_000, expectedImageSize: ImageSize.LARGE, expectedStrategy: OptimizationStrategy.AGGRESSIVE },
+        {
+          size: 99_999,
+          expectedImageSize: ImageSize.SMALL,
+          expectedStrategy: OptimizationStrategy.NONE,
+        },
+        {
+          size: 100_000,
+          expectedImageSize: ImageSize.MEDIUM,
+          expectedStrategy: OptimizationStrategy.MEDIUM,
+        },
+        {
+          size: 499_999,
+          expectedImageSize: ImageSize.MEDIUM,
+          expectedStrategy: OptimizationStrategy.MEDIUM,
+        },
+        {
+          size: 500_000,
+          expectedImageSize: ImageSize.LARGE,
+          expectedStrategy: OptimizationStrategy.AGGRESSIVE,
+        },
       ];
 
       for (const { size, expectedImageSize, expectedStrategy } of boundaryTests) {

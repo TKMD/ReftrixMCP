@@ -20,17 +20,17 @@
  * @module tests/integration/phase4/full-pipeline.test
  */
 
-import { describe, it, expect, beforeEach, afterEach, vi, type Mock } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi, type Mock } from "vitest";
 
 // ============================================================================
 // モック設定
 // ============================================================================
 
 // Redisモック
-vi.mock('../../../src/config/redis', () => ({
+vi.mock("../../../src/config/redis", () => ({
   isRedisAvailable: vi.fn(),
   getRedisConfig: vi.fn(() => ({
-    host: 'localhost',
+    host: "localhost",
     port: 27379,
     maxRetriesPerRequest: 3,
     connectTimeout: 5000,
@@ -42,8 +42,8 @@ vi.mock('../../../src/config/redis', () => ({
 }));
 
 // BullMQキューモック
-vi.mock('../../../src/queues/page-analyze-queue', () => ({
-  PAGE_ANALYZE_QUEUE_NAME: 'page-analyze',
+vi.mock("../../../src/queues/page-analyze-queue", () => ({
+  PAGE_ANALYZE_QUEUE_NAME: "page-analyze",
   createPageAnalyzeQueue: vi.fn(),
   addPageAnalyzeJob: vi.fn(),
   getJobStatus: vi.fn(),
@@ -52,7 +52,7 @@ vi.mock('../../../src/queues/page-analyze-queue', () => ({
 }));
 
 // Workerモック
-vi.mock('../../../src/workers/page-analyze-worker', () => ({
+vi.mock("../../../src/workers/page-analyze-worker", () => ({
   createPageAnalyzeWorker: vi.fn(),
   processPageAnalyzeJob: vi.fn(),
 }));
@@ -61,35 +61,25 @@ vi.mock('../../../src/workers/page-analyze-worker', () => ({
 // 実際のモジュールをインポート（WebGL関連はモックなし）
 // ============================================================================
 
-import {
-  isRedisAvailable,
-  checkRedisConnection,
-} from '../../../src/config/redis';
+import { isRedisAvailable, checkRedisConnection } from "../../../src/config/redis";
 import {
   addPageAnalyzeJob,
   getJobStatus,
   type PageAnalyzeJobData,
   type PageAnalyzeJobResult,
   type PageAnalyzeJobStatus,
-} from '../../../src/queues/page-analyze-queue';
+} from "../../../src/queues/page-analyze-queue";
 
-import {
-  WebGLDetector,
-} from '../../../src/tools/page/handlers/webgl-detector';
+import { WebGLDetector } from "../../../src/tools/page/handlers/webgl-detector";
 
 import {
   preDetectWebGL,
   detectSiteTier,
-} from '../../../src/tools/page/handlers/webgl-pre-detector';
+} from "../../../src/tools/page/handlers/webgl-pre-detector";
 
-import {
-  getRetryStrategy,
-  type SiteTier,
-} from '../../../src/tools/page/handlers/retry-strategy';
+import { getRetryStrategy, type SiteTier } from "../../../src/tools/page/handlers/retry-strategy";
 
-import {
-  getDomainEntry,
-} from '../../../src/tools/page/handlers/webgl-domains';
+import { getDomainEntry } from "../../../src/tools/page/handlers/webgl-domains";
 
 // ============================================================================
 // 定数
@@ -99,14 +89,14 @@ import {
 const MCP_MAX_TIMEOUT_MS = 600000;
 
 /** テスト用WebページID */
-const TEST_WEB_PAGE_ID = '01903a5b-7c8d-7000-8000-000000000001';
+const TEST_WEB_PAGE_ID = "01903a5b-7c8d-7000-8000-000000000001";
 
 /** Phase別タイムアウト設定 */
 const PHASE_TIMEOUTS = {
-  ingest: 60000,   // 1分
-  layout: 120000,  // 2分
-  motion: 180000,  // 3分
-  quality: 60000,  // 1分
+  ingest: 60000, // 1分
+  layout: 120000, // 2分
+  motion: 180000, // 3分
+  quality: 60000, // 1分
 };
 
 // ============================================================================
@@ -116,7 +106,10 @@ const PHASE_TIMEOUTS = {
 /**
  * モックジョブデータを生成
  */
-function createMockJobData(url: string, overrides?: Partial<PageAnalyzeJobData>): PageAnalyzeJobData {
+function createMockJobData(
+  url: string,
+  overrides?: Partial<PageAnalyzeJobData>
+): PageAnalyzeJobData {
   return {
     webPageId: TEST_WEB_PAGE_ID,
     url,
@@ -137,12 +130,12 @@ function createMockJobResult(overrides?: Partial<PageAnalyzeJobResult>): PageAna
     webPageId: TEST_WEB_PAGE_ID,
     success: true,
     partialSuccess: false,
-    completedPhases: ['ingest', 'layout', 'motion', 'quality'],
+    completedPhases: ["ingest", "layout", "motion", "quality"],
     failedPhases: [],
     results: {
       layout: { sectionsDetected: 5, visionUsed: true },
       motion: { patternsDetected: 10, jsAnimationsDetected: 3 },
-      quality: { overallScore: 85, grade: 'A' },
+      quality: { overallScore: 85, grade: "A" },
     },
     processingTimeMs: 5000,
     completedAt: new Date().toISOString(),
@@ -154,31 +147,31 @@ function createMockJobResult(overrides?: Partial<PageAnalyzeJobResult>): PageAna
  * モックジョブステータスを生成
  */
 function createMockJobStatus(
-  state: PageAnalyzeJobStatus['state'],
+  state: PageAnalyzeJobStatus["state"],
   overrides?: Partial<PageAnalyzeJobStatus>
 ): PageAnalyzeJobStatus {
   const base: PageAnalyzeJobStatus = {
     jobId: TEST_WEB_PAGE_ID,
     state,
-    progress: state === 'completed' ? 100 : state === 'active' ? 50 : 0,
+    progress: state === "completed" ? 100 : state === "active" ? 50 : 0,
     timestamps: {
       created: Date.now() - 60000,
     },
   };
 
-  if (state === 'active') {
-    base.currentPhase = 'layout';
+  if (state === "active") {
+    base.currentPhase = "layout";
     base.timestamps.started = Date.now() - 30000;
   }
 
-  if (state === 'completed') {
+  if (state === "completed") {
     base.result = createMockJobResult();
     base.timestamps.started = Date.now() - 30000;
     base.timestamps.completed = Date.now() - 5000;
   }
 
-  if (state === 'failed') {
-    base.error = 'Timeout: page analysis exceeded 600 seconds';
+  if (state === "failed") {
+    base.error = "Timeout: page analysis exceeded 600 seconds";
     base.timestamps.started = Date.now() - 60000;
     base.timestamps.failed = Date.now() - 5000;
   }
@@ -229,7 +222,7 @@ function simulateWebGLSiteAnalysis(url: string): {
 // Full Pipeline 統合テスト
 // ============================================================================
 
-describe('Full Pipeline Integration: Phase1-4', () => {
+describe("Full Pipeline Integration: Phase1-4", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
@@ -242,17 +235,17 @@ describe('Full Pipeline Integration: Phase1-4', () => {
   // シナリオ1: WebGL重いサイト分析（同期モード）
   // ==========================================================================
 
-  describe('WebGL重いサイト分析シナリオ（同期モード）', () => {
-    it('should analyze ultra-heavy WebGL site with correct settings', () => {
+  describe("WebGL重いサイト分析シナリオ（同期モード）", () => {
+    it("should analyze ultra-heavy WebGL site with correct settings", () => {
       // Arrange
-      const url = 'https://resn.co.nz';
+      const url = "https://resn.co.nz";
 
       // Act
       const analysis = simulateWebGLSiteAnalysis(url);
 
       // Assert
       expect(analysis.preDetection.isWebGL).toBe(true);
-      expect(analysis.siteTier).toBe('ultra-heavy');
+      expect(analysis.siteTier).toBe("ultra-heavy");
       expect(analysis.preDetection.recommendedConfig.enableGPU).toBe(true);
       expect(analysis.preDetection.recommendedConfig.forceKillOnTimeout).toBe(true);
       expect(analysis.recommendedTimeout).toBe(180000); // 3分
@@ -261,47 +254,47 @@ describe('Full Pipeline Integration: Phase1-4', () => {
       expect(analysis.canCompleteWithinMCPLimit).toBe(true);
     });
 
-    it('should analyze heavy WebGL site (vercel.com) with correct settings', () => {
+    it("should analyze heavy WebGL site (vercel.com) with correct settings", () => {
       // Arrange
-      const url = 'https://vercel.com';
+      const url = "https://vercel.com";
 
       // Act
       const analysis = simulateWebGLSiteAnalysis(url);
 
       // Assert
       expect(analysis.preDetection.isWebGL).toBe(true);
-      expect(['heavy', 'ultra-heavy']).toContain(analysis.siteTier);
+      expect(["heavy", "ultra-heavy"]).toContain(analysis.siteTier);
       expect(analysis.preDetection.recommendedConfig.enableGPU).toBe(true);
       expect(analysis.canCompleteWithinMCPLimit).toBe(true);
     });
 
-    it('should analyze user-reported timeout site (linear.app) with correct settings', () => {
+    it("should analyze user-reported timeout site (linear.app) with correct settings", () => {
       // Arrange
-      const url = 'https://linear.app';
+      const url = "https://linear.app";
 
       // Act
       const analysis = simulateWebGLSiteAnalysis(url);
 
       // Assert
       expect(analysis.preDetection.isWebGL).toBe(true);
-      expect(analysis.siteTier).toBe('ultra-heavy');
+      expect(analysis.siteTier).toBe("ultra-heavy");
 
       // ユーザー報告サイトはドメインリストに登録されている
-      const domainEntry = getDomainEntry('linear.app');
+      const domainEntry = getDomainEntry("linear.app");
       expect(domainEntry).toBeDefined();
-      expect(domainEntry?.notes).toContain('ユーザー報告');
+      expect(domainEntry?.notes).toContain("ユーザー報告");
     });
 
-    it('should analyze normal site with minimal overhead', () => {
+    it("should analyze normal site with minimal overhead", () => {
       // Arrange
-      const url = 'https://example.com';
+      const url = "https://example.com";
 
       // Act
       const analysis = simulateWebGLSiteAnalysis(url);
 
       // Assert
       expect(analysis.preDetection.isWebGL).toBe(false);
-      expect(analysis.siteTier).toBe('normal');
+      expect(analysis.siteTier).toBe("normal");
       expect(analysis.preDetection.recommendedConfig.enableGPU).toBe(false);
       expect(analysis.preDetection.recommendedConfig.forceKillOnTimeout).toBe(false);
       expect(analysis.recommendedTimeout).toBe(60000); // 1分
@@ -313,20 +306,20 @@ describe('Full Pipeline Integration: Phase1-4', () => {
   // シナリオ2: WebGL重いサイト分析（非同期モード）
   // ==========================================================================
 
-  describe('WebGL重いサイト分析シナリオ（非同期モード）', () => {
-    it('should queue heavy WebGL site in async mode', async () => {
+  describe("WebGL重いサイト分析シナリオ（非同期モード）", () => {
+    it("should queue heavy WebGL site in async mode", async () => {
       // Arrange
       (isRedisAvailable as Mock).mockResolvedValue(true);
       const mockJob = {
         id: TEST_WEB_PAGE_ID,
-        data: createMockJobData('https://resn.co.nz'),
+        data: createMockJobData("https://resn.co.nz"),
       };
       (addPageAnalyzeJob as Mock).mockResolvedValue(mockJob);
 
       // Act
       const job = await addPageAnalyzeJob({} as unknown, {
         webPageId: TEST_WEB_PAGE_ID,
-        url: 'https://resn.co.nz',
+        url: "https://resn.co.nz",
         options: {
           async: true,
         },
@@ -337,15 +330,15 @@ describe('Full Pipeline Integration: Phase1-4', () => {
       expect(job.id).toBe(TEST_WEB_PAGE_ID);
     });
 
-    it('should track async job progress through phases', async () => {
+    it("should track async job progress through phases", async () => {
       // Arrange - 各フェーズの進捗を順番にモック
-      const phases = ['ingest', 'layout', 'motion', 'quality'];
+      const phases = ["ingest", "layout", "motion", "quality"];
       const progressValues = [10, 40, 70, 100];
 
       // Act & Assert - 各フェーズの進捗を確認
       for (let i = 0; i < phases.length; i++) {
         (getJobStatus as Mock).mockResolvedValue(
-          createMockJobStatus('active', {
+          createMockJobStatus("active", {
             currentPhase: phases[i],
             progress: progressValues[i],
           })
@@ -357,19 +350,19 @@ describe('Full Pipeline Integration: Phase1-4', () => {
       }
     });
 
-    it('should complete async job and return results', async () => {
+    it("should complete async job and return results", async () => {
       // Arrange
-      (getJobStatus as Mock).mockResolvedValue(createMockJobStatus('completed'));
+      (getJobStatus as Mock).mockResolvedValue(createMockJobStatus("completed"));
 
       // Act
       const status = await getJobStatus({} as unknown, TEST_WEB_PAGE_ID);
 
       // Assert
-      expect(status?.state).toBe('completed');
+      expect(status?.state).toBe("completed");
       expect(status?.result?.success).toBe(true);
-      expect(status?.result?.completedPhases).toContain('layout');
-      expect(status?.result?.completedPhases).toContain('motion');
-      expect(status?.result?.completedPhases).toContain('quality');
+      expect(status?.result?.completedPhases).toContain("layout");
+      expect(status?.result?.completedPhases).toContain("motion");
+      expect(status?.result?.completedPhases).toContain("quality");
     });
   });
 
@@ -377,15 +370,15 @@ describe('Full Pipeline Integration: Phase1-4', () => {
   // シナリオ3: MCP 600秒制限遵守
   // ==========================================================================
 
-  describe('MCP 600秒制限遵守', () => {
-    it('should respect MCP 600s timeout for all site tiers', () => {
+  describe("MCP 600秒制限遵守", () => {
+    it("should respect MCP 600s timeout for all site tiers", () => {
       // Arrange
-      const siteTiers: SiteTier[] = ['normal', 'webgl', 'heavy', 'ultra-heavy'];
+      const siteTiers: SiteTier[] = ["normal", "webgl", "heavy", "ultra-heavy"];
       const tierTimeouts: Record<SiteTier, number> = {
-        'normal': 60000,
-        'webgl': 90000,
-        'heavy': 120000,
-        'ultra-heavy': 180000,
+        normal: 60000,
+        webgl: 90000,
+        heavy: 120000,
+        "ultra-heavy": 180000,
       };
 
       // Act & Assert
@@ -406,7 +399,7 @@ describe('Full Pipeline Integration: Phase1-4', () => {
       }
     });
 
-    it('should calculate sequential phase execution time within limit', () => {
+    it("should calculate sequential phase execution time within limit", () => {
       // Arrange
       const totalPhaseTime = Object.values(PHASE_TIMEOUTS).reduce((a, b) => a + b, 0);
 
@@ -415,7 +408,7 @@ describe('Full Pipeline Integration: Phase1-4', () => {
       console.log(`[MCP Limit] Sequential phases: ${(totalPhaseTime / 1000).toFixed(1)}s / 600s`);
     });
 
-    it('should have lockDuration matching MCP limit for async processing', () => {
+    it("should have lockDuration matching MCP limit for async processing", () => {
       // Arrange
       const WORKER_LOCK_DURATION = 600000; // Worker設定値
 
@@ -428,21 +421,21 @@ describe('Full Pipeline Integration: Phase1-4', () => {
   // シナリオ4: 部分成功時の結果保存
   // ==========================================================================
 
-  describe('部分成功時の結果保存', () => {
-    it('should save partial results when layout succeeds but motion fails', async () => {
+  describe("部分成功時の結果保存", () => {
+    it("should save partial results when layout succeeds but motion fails", async () => {
       // Arrange
       const partialResult = createMockJobResult({
         success: false,
         partialSuccess: true,
-        completedPhases: ['ingest', 'layout'],
-        failedPhases: ['motion', 'quality'],
+        completedPhases: ["ingest", "layout"],
+        failedPhases: ["motion", "quality"],
         results: {
           layout: { sectionsDetected: 5, visionUsed: true },
         },
-        error: 'Motion detection timeout',
+        error: "Motion detection timeout",
       });
 
-      const mockStatus = createMockJobStatus('completed', {
+      const mockStatus = createMockJobStatus("completed", {
         result: partialResult,
       });
       (getJobStatus as Mock).mockResolvedValue(mockStatus);
@@ -451,28 +444,28 @@ describe('Full Pipeline Integration: Phase1-4', () => {
       const status = await getJobStatus({} as unknown, TEST_WEB_PAGE_ID);
 
       // Assert
-      expect(status?.state).toBe('completed');
+      expect(status?.state).toBe("completed");
       expect(status?.result?.success).toBe(false);
       expect(status?.result?.partialSuccess).toBe(true);
-      expect(status?.result?.completedPhases).toContain('ingest');
-      expect(status?.result?.completedPhases).toContain('layout');
-      expect(status?.result?.failedPhases).toContain('motion');
+      expect(status?.result?.completedPhases).toContain("ingest");
+      expect(status?.result?.completedPhases).toContain("layout");
+      expect(status?.result?.failedPhases).toContain("motion");
       expect(status?.result?.results?.layout).toBeDefined();
       expect(status?.result?.results?.motion).toBeUndefined();
     });
 
-    it('should save partial results when ingest succeeds but all analysis fails', async () => {
+    it("should save partial results when ingest succeeds but all analysis fails", async () => {
       // Arrange
       const partialResult = createMockJobResult({
         success: false,
         partialSuccess: true,
-        completedPhases: ['ingest'],
-        failedPhases: ['layout', 'motion', 'quality'],
+        completedPhases: ["ingest"],
+        failedPhases: ["layout", "motion", "quality"],
         results: {},
-        error: 'All analysis phases failed due to WebGL timeout',
+        error: "All analysis phases failed due to WebGL timeout",
       });
 
-      const mockStatus = createMockJobStatus('completed', {
+      const mockStatus = createMockJobStatus("completed", {
         result: partialResult,
       });
       (getJobStatus as Mock).mockResolvedValue(mockStatus);
@@ -483,23 +476,23 @@ describe('Full Pipeline Integration: Phase1-4', () => {
       // Assert
       expect(status?.result?.partialSuccess).toBe(true);
       expect(status?.result?.completedPhases).toHaveLength(1);
-      expect(status?.result?.completedPhases).toContain('ingest');
+      expect(status?.result?.completedPhases).toContain("ingest");
     });
 
-    it('should mark complete failure when ingest fails', async () => {
+    it("should mark complete failure when ingest fails", async () => {
       // Arrange
       const failureResult: PageAnalyzeJobResult = {
         webPageId: TEST_WEB_PAGE_ID,
         success: false,
         partialSuccess: false,
         completedPhases: [],
-        failedPhases: ['ingest'],
-        error: 'Failed to fetch HTML: ECONNREFUSED',
+        failedPhases: ["ingest"],
+        error: "Failed to fetch HTML: ECONNREFUSED",
         processingTimeMs: 5000,
         completedAt: new Date().toISOString(),
       };
 
-      const mockStatus = createMockJobStatus('completed', {
+      const mockStatus = createMockJobStatus("completed", {
         result: failureResult,
       });
       (getJobStatus as Mock).mockResolvedValue(mockStatus);
@@ -511,7 +504,7 @@ describe('Full Pipeline Integration: Phase1-4', () => {
       expect(status?.result?.success).toBe(false);
       expect(status?.result?.partialSuccess).toBe(false);
       expect(status?.result?.completedPhases).toHaveLength(0);
-      expect(status?.result?.error).toContain('ECONNREFUSED');
+      expect(status?.result?.error).toContain("ECONNREFUSED");
     });
   });
 
@@ -519,8 +512,8 @@ describe('Full Pipeline Integration: Phase1-4', () => {
   // シナリオ5: エラーハンドリング
   // ==========================================================================
 
-  describe('エンドツーエンドのエラーハンドリング', () => {
-    it('should handle Redis unavailable gracefully for async mode', async () => {
+  describe("エンドツーエンドのエラーハンドリング", () => {
+    it("should handle Redis unavailable gracefully for async mode", async () => {
       // Arrange
       (isRedisAvailable as Mock).mockResolvedValue(false);
 
@@ -531,21 +524,21 @@ describe('Full Pipeline Integration: Phase1-4', () => {
       expect(available).toBe(false);
     });
 
-    it('should handle job not found', async () => {
+    it("should handle job not found", async () => {
       // Arrange
       (getJobStatus as Mock).mockResolvedValue(null);
 
       // Act
-      const status = await getJobStatus({} as unknown, 'non-existent-job');
+      const status = await getJobStatus({} as unknown, "non-existent-job");
 
       // Assert
       expect(status).toBeNull();
     });
 
-    it('should handle job failure with error message', async () => {
+    it("should handle job failure with error message", async () => {
       // Arrange
-      const mockStatus = createMockJobStatus('failed', {
-        error: 'Browser process timed out and was force killed',
+      const mockStatus = createMockJobStatus("failed", {
+        error: "Browser process timed out and was force killed",
       });
       (getJobStatus as Mock).mockResolvedValue(mockStatus);
 
@@ -553,8 +546,8 @@ describe('Full Pipeline Integration: Phase1-4', () => {
       const status = await getJobStatus({} as unknown, TEST_WEB_PAGE_ID);
 
       // Assert
-      expect(status?.state).toBe('failed');
-      expect(status?.error).toContain('force killed');
+      expect(status?.state).toBe("failed");
+      expect(status?.error).toContain("force killed");
     });
   });
 
@@ -562,10 +555,10 @@ describe('Full Pipeline Integration: Phase1-4', () => {
   // Phase間の連携テスト
   // ==========================================================================
 
-  describe('Phase間の連携', () => {
-    it('should use Phase4 WebGL detection to configure Phase1 GPU settings', () => {
+  describe("Phase間の連携", () => {
+    it("should use Phase4 WebGL detection to configure Phase1 GPU settings", () => {
       // Step 1: Phase4 - WebGL検出
-      const webglResult = WebGLDetector.preDetect('https://resn.co.nz');
+      const webglResult = WebGLDetector.preDetect("https://resn.co.nz");
       expect(webglResult.isWebGL).toBe(true);
 
       // Step 2: Phase1 - GPU設定の決定
@@ -576,10 +569,10 @@ describe('Full Pipeline Integration: Phase1-4', () => {
       expect(config.enableGPU).toBe(true);
     });
 
-    it('should use Phase4 SiteTier to configure Phase1 retry strategy', () => {
+    it("should use Phase4 SiteTier to configure Phase1 retry strategy", () => {
       // Step 1: Phase4 - SiteTier判定
-      const siteTier = detectSiteTier('https://resn.co.nz');
-      expect(siteTier).toBe('ultra-heavy');
+      const siteTier = detectSiteTier("https://resn.co.nz");
+      expect(siteTier).toBe("ultra-heavy");
 
       // Step 2: Phase1 - リトライ戦略の決定
       const strategy = getRetryStrategy(siteTier);
@@ -590,15 +583,15 @@ describe('Full Pipeline Integration: Phase1-4', () => {
       expect(strategy.retryOnlyOnNetworkError).toBe(true);
     });
 
-    it('should integrate Phase2 partial results with Phase3 async job status', async () => {
+    it("should integrate Phase2 partial results with Phase3 async job status", async () => {
       // Step 1: Phase3 - 非同期ジョブのステータス取得
       const partialResult = createMockJobResult({
         partialSuccess: true,
-        completedPhases: ['ingest', 'layout'],
-        failedPhases: ['motion'],
+        completedPhases: ["ingest", "layout"],
+        failedPhases: ["motion"],
       });
       (getJobStatus as Mock).mockResolvedValue(
-        createMockJobStatus('completed', { result: partialResult })
+        createMockJobStatus("completed", { result: partialResult })
       );
 
       // Step 2: ステータス確認
@@ -606,8 +599,8 @@ describe('Full Pipeline Integration: Phase1-4', () => {
 
       // Step 3: Phase2 - 部分結果が正しく保存されている
       expect(status?.result?.partialSuccess).toBe(true);
-      expect(status?.result?.completedPhases).toContain('layout');
-      expect(status?.result?.failedPhases).toContain('motion');
+      expect(status?.result?.completedPhases).toContain("layout");
+      expect(status?.result?.failedPhases).toContain("motion");
     });
   });
 
@@ -615,17 +608,17 @@ describe('Full Pipeline Integration: Phase1-4', () => {
   // パフォーマンス検証
   // ==========================================================================
 
-  describe('パフォーマンス検証', () => {
-    it('should complete full detection pipeline quickly', () => {
+  describe("パフォーマンス検証", () => {
+    it("should complete full detection pipeline quickly", () => {
       // Arrange
       const urls = [
-        'https://resn.co.nz',
-        'https://linear.app',
-        'https://vercel.com',
-        'https://notion.so',
-        'https://stripe.com',
-        'https://example.com',
-        'https://google.com',
+        "https://resn.co.nz",
+        "https://linear.app",
+        "https://vercel.com",
+        "https://notion.so",
+        "https://stripe.com",
+        "https://example.com",
+        "https://google.com",
       ];
 
       // Act
@@ -648,37 +641,37 @@ describe('Full Pipeline Integration: Phase1-4', () => {
 // 回帰テスト
 // ============================================================================
 
-describe('回帰テスト: Phase1-4', () => {
-  it('should maintain Phase1 GPU enablement for WebGL sites', () => {
+describe("回帰テスト: Phase1-4", () => {
+  it("should maintain Phase1 GPU enablement for WebGL sites", () => {
     // Phase1の機能が維持されていることを確認
-    const result = WebGLDetector.preDetect('https://threejs.org');
+    const result = WebGLDetector.preDetect("https://threejs.org");
     expect(result.recommendedConfig.enableGPU).toBe(true);
   });
 
-  it('should maintain Phase2 partial result tracking', () => {
+  it("should maintain Phase2 partial result tracking", () => {
     // Phase2の部分結果追跡が維持されていることを確認
     const partialResult = createMockJobResult({
       partialSuccess: true,
-      completedPhases: ['ingest'],
-      failedPhases: ['layout'],
+      completedPhases: ["ingest"],
+      failedPhases: ["layout"],
     });
     expect(partialResult.partialSuccess).toBe(true);
-    expect(partialResult.completedPhases).toContain('ingest');
+    expect(partialResult.completedPhases).toContain("ingest");
   });
 
-  it('should maintain Phase3 async mode functionality', async () => {
+  it("should maintain Phase3 async mode functionality", async () => {
     // Phase3の非同期モード機能が維持されていることを確認
     (isRedisAvailable as Mock).mockResolvedValue(true);
-    (getJobStatus as Mock).mockResolvedValue(createMockJobStatus('waiting'));
+    (getJobStatus as Mock).mockResolvedValue(createMockJobStatus("waiting"));
 
     const status = await getJobStatus({} as unknown, TEST_WEB_PAGE_ID);
-    expect(status?.state).toBe('waiting');
+    expect(status?.state).toBe("waiting");
   });
 
-  it('should maintain Phase4 domain list integrity', () => {
+  it("should maintain Phase4 domain list integrity", () => {
     // Phase4のドメインリストが維持されていることを確認
-    const entry = getDomainEntry('linear.app');
+    const entry = getDomainEntry("linear.app");
     expect(entry).toBeDefined();
-    expect(entry?.tier).toBe('ultra-heavy');
+    expect(entry?.tier).toBe("ultra-heavy");
   });
 });

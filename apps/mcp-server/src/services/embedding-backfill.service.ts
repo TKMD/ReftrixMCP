@@ -21,24 +21,24 @@
  * @module services/embedding-backfill
  */
 
-import { prisma } from '@reftrix/database';
-import os from 'node:os';
-import { LayoutEmbeddingService, saveSectionEmbedding } from './layout-embedding.service';
-import { saveMotionEmbedding } from './motion/frame-embedding.service';
+import { prisma } from "@reftrix/database";
+import os from "node:os";
+import { LayoutEmbeddingService, saveSectionEmbedding } from "./layout-embedding.service";
+import { saveMotionEmbedding } from "./motion/frame-embedding.service";
 import {
   generateBackgroundDesignTextRepresentation,
   type BackgroundDesignForText,
-} from './background/background-design-embedding.service';
+} from "./background/background-design-embedding.service";
 import {
   generateSectionTextRepresentation,
   generateMotionTextRepresentation,
   type SectionPatternInput,
-} from '../tools/page/handlers/embedding-handler';
-import type { MotionPatternForEmbedding } from '../tools/page/handlers/types';
+} from "../tools/page/handlers/embedding-handler";
+import type { MotionPatternForEmbedding } from "../tools/page/handlers/types";
 import {
   generateResponsiveAnalysisTextRepresentation,
   type ResponsiveAnalysisForText,
-} from './responsive/responsive-analysis-embedding.service';
+} from "./responsive/responsive-analysis-embedding.service";
 
 // =====================================================
 // Constants
@@ -48,10 +48,10 @@ import {
 const DEFAULT_BACKFILL_CHUNK_SIZE = 30;
 
 /** Model name for embedding generation */
-const MODEL_NAME = 'multilingual-e5-base';
+const MODEL_NAME = "multilingual-e5-base";
 
 /** Default memory ratio: 70% of total system memory */
-const DEFAULT_MEMORY_RATIO = 0.70;
+const DEFAULT_MEMORY_RATIO = 0.7;
 
 /** Memory recovery wait time (ms) */
 const MEMORY_RECOVERY_WAIT_MS = 3000;
@@ -99,7 +99,12 @@ export interface BackfillOptions {
   /** Memory ratio (0.0-1.0) for auto-detect threshold. Default: 0.70 */
   memoryRatio?: number;
   onProgress?: (type: string, done: number, total: number) => void;
-  onMemoryPressure?: (type: string, rssGB: number, thresholdGB: number, action: 'dispose' | 'skip') => void;
+  onMemoryPressure?: (
+    type: string,
+    rssGB: number,
+    thresholdGB: number,
+    action: "dispose" | "skip"
+  ) => void;
 }
 
 // =====================================================
@@ -185,11 +190,11 @@ function getRssBytes(): number {
 }
 
 function toGB(bytes: number): number {
-  return Math.round(bytes / 1024 / 1024 / 1024 * 10) / 10;
+  return Math.round((bytes / 1024 / 1024 / 1024) * 10) / 10;
 }
 
 function tryGarbageCollect(): void {
-  if (typeof global.gc === 'function') {
+  if (typeof global.gc === "function") {
     global.gc();
   }
 }
@@ -204,16 +209,16 @@ async function checkMemoryPressure(
   threshold: number,
   embeddingService: LayoutEmbeddingService,
   type: string,
-  onMemoryPressure?: BackfillOptions['onMemoryPressure']
-): Promise<'ok' | 'recovered' | 'exceeded'> {
-  if (threshold <= 0) return 'ok';
+  onMemoryPressure?: BackfillOptions["onMemoryPressure"]
+): Promise<"ok" | "recovered" | "exceeded"> {
+  if (threshold <= 0) return "ok";
 
   const rss = getRssBytes();
-  if (rss <= threshold) return 'ok';
+  if (rss <= threshold) return "ok";
 
   // Memory pressure detected — try to recover
   const thresholdGB = toGB(threshold);
-  onMemoryPressure?.(type, toGB(rss), thresholdGB, 'dispose');
+  onMemoryPressure?.(type, toGB(rss), thresholdGB, "dispose");
 
   await embeddingService.disposeEmbeddingPipeline();
   tryGarbageCollect();
@@ -224,13 +229,13 @@ async function checkMemoryPressure(
 
     const currentRss = getRssBytes();
     if (currentRss <= threshold) {
-      return 'recovered';
+      return "recovered";
     }
   }
 
   // Still above threshold after recovery attempts
-  onMemoryPressure?.(type, toGB(getRssBytes()), thresholdGB, 'skip');
-  return 'exceeded';
+  onMemoryPressure?.(type, toGB(getRssBytes()), thresholdGB, "skip");
+  return "exceeded";
 }
 
 // =====================================================
@@ -241,11 +246,11 @@ function extractHeadingFromComponents(components: unknown): string | undefined {
   if (!Array.isArray(components)) return undefined;
   for (const comp of components) {
     if (
-      typeof comp === 'object' &&
+      typeof comp === "object" &&
       comp !== null &&
-      'type' in comp &&
-      (comp as { type: string }).type === 'heading' &&
-      'text' in comp
+      "type" in comp &&
+      (comp as { type: string }).type === "heading" &&
+      "text" in comp
     ) {
       return String((comp as { text: unknown }).text);
     }
@@ -258,17 +263,17 @@ function dbMotionToEmbeddingInput(row: MissingMotionRow): MotionPatternForEmbedd
   const properties = row.properties as Array<{ property: string }> | string[] | null;
 
   let duration: number | undefined;
-  if (animation && typeof animation.duration === 'number') {
+  if (animation && typeof animation.duration === "number") {
     duration = animation.duration;
   }
 
-  let easing = 'ease';
+  let easing = "ease";
   if (animation) {
-    if (typeof animation.easing === 'string') {
+    if (typeof animation.easing === "string") {
       easing = animation.easing;
-    } else if (typeof animation.easing === 'object' && animation.easing !== null) {
+    } else if (typeof animation.easing === "object" && animation.easing !== null) {
       const easingObj = animation.easing as Record<string, unknown>;
-      if (typeof easingObj.type === 'string') {
+      if (typeof easingObj.type === "string") {
         easing = easingObj.type;
       }
     }
@@ -276,15 +281,21 @@ function dbMotionToEmbeddingInput(row: MissingMotionRow): MotionPatternForEmbedd
 
   let propertyNames: string[] = [];
   if (Array.isArray(properties)) {
-    propertyNames = properties.map((p) =>
-      typeof p === 'string' ? p : (typeof p === 'object' && p !== null && 'property' in p ? String(p.property) : '')
-    ).filter(Boolean);
+    propertyNames = properties
+      .map((p) =>
+        typeof p === "string"
+          ? p
+          : typeof p === "object" && p !== null && "property" in p
+            ? String(p.property)
+            : ""
+      )
+      .filter(Boolean);
   }
 
   return {
     id: row.id,
     name: row.name,
-    type: (row.type as MotionPatternForEmbedding['type']) ?? 'css_animation',
+    type: (row.type as MotionPatternForEmbedding["type"]) ?? "css_animation",
     category: row.category,
     trigger: row.trigger_type,
     duration,
@@ -292,7 +303,7 @@ function dbMotionToEmbeddingInput(row: MissingMotionRow): MotionPatternForEmbedd
     properties: propertyNames,
     propertiesDetailed: undefined,
     performance: {
-      level: 'good',
+      level: "good",
       usesTransform: false,
       usesOpacity: false,
     },
@@ -307,10 +318,10 @@ function dbBackgroundToTextInput(row: MissingBackgroundRow): BackgroundDesignFor
     name: row.name,
     designType: row.design_type,
     selector: row.selector ?? undefined,
-    colorInfo: row.color_info as BackgroundDesignForText['colorInfo'],
-    gradientInfo: row.gradient_info as BackgroundDesignForText['gradientInfo'],
-    visualProperties: row.visual_properties as BackgroundDesignForText['visualProperties'],
-    animationInfo: row.animation_info as BackgroundDesignForText['animationInfo'],
+    colorInfo: row.color_info as BackgroundDesignForText["colorInfo"],
+    gradientInfo: row.gradient_info as BackgroundDesignForText["gradientInfo"],
+    visualProperties: row.visual_properties as BackgroundDesignForText["visualProperties"],
+    animationInfo: row.animation_info as BackgroundDesignForText["animationInfo"],
   };
 }
 
@@ -335,26 +346,26 @@ function generateJsAnimationTextFromDb(row: MissingJsAnimationRow): string {
   if (Array.isArray(props) && props.length > 0) {
     const propNames = props
       .map((p: unknown) => {
-        if (typeof p === 'string') return p;
-        if (typeof p === 'object' && p !== null && 'property' in p) {
+        if (typeof p === "string") return p;
+        if (typeof p === "object" && p !== null && "property" in p) {
           return String((p as { property: unknown }).property);
         }
-        return '';
+        return "";
       })
       .filter(Boolean);
     if (propNames.length > 0) {
-      parts.push(`Properties: ${propNames.join(', ')}`);
+      parts.push(`Properties: ${propNames.join(", ")}`);
     }
   }
 
-  if (row.library_type && row.library_type !== 'unknown') {
+  if (row.library_type && row.library_type !== "unknown") {
     const libraryLabels: Record<string, string> = {
-      gsap: 'GSAP',
-      framer_motion: 'Framer Motion',
-      anime_js: 'anime.js',
-      three_js: 'Three.js',
-      lottie: 'Lottie',
-      web_animations_api: 'Web Animations API',
+      gsap: "GSAP",
+      framer_motion: "Framer Motion",
+      anime_js: "anime.js",
+      three_js: "Three.js",
+      lottie: "Lottie",
+      web_animations_api: "Web Animations API",
     };
     const label = libraryLabels[row.library_type] ?? row.library_type;
     parts.push(`Library: ${label}`);
@@ -364,7 +375,7 @@ function generateJsAnimationTextFromDb(row: MissingJsAnimationRow): string {
     parts.push(`Trigger: ${row.trigger_type}`);
   }
 
-  return `passage: ${parts.join('. ')}.`;
+  return `passage: ${parts.join(". ")}.`;
 }
 
 // =====================================================
@@ -402,7 +413,9 @@ async function getMissingBackgroundEmbeddings(webPageId: string): Promise<Missin
   );
 }
 
-async function getMissingJsAnimationEmbeddings(webPageId: string): Promise<MissingJsAnimationRow[]> {
+async function getMissingJsAnimationEmbeddings(
+  webPageId: string
+): Promise<MissingJsAnimationRow[]> {
   return prisma.$queryRawUnsafe<MissingJsAnimationRow[]>(
     `SELECT jap.id, jap.name, jap.library_type, jap.animation_type,
             jap.description, jap.duration_ms, jap.easing, jap.trigger_type,
@@ -431,7 +444,7 @@ export async function checkWebPageEmbeddingCoverage(
     where: { sectionPattern: { webPageId } },
   });
   results.push({
-    type: 'section',
+    type: "section",
     total: sectionTotal,
     embedded: sectionEmbedded,
     missing: sectionTotal - sectionEmbedded,
@@ -442,7 +455,7 @@ export async function checkWebPageEmbeddingCoverage(
     where: { motionPattern: { webPageId } },
   });
   results.push({
-    type: 'motion',
+    type: "motion",
     total: motionTotal,
     embedded: motionEmbedded,
     missing: motionTotal - motionEmbedded,
@@ -453,7 +466,7 @@ export async function checkWebPageEmbeddingCoverage(
     where: { backgroundDesign: { webPageId } },
   });
   results.push({
-    type: 'background',
+    type: "background",
     total: bgTotal,
     embedded: bgEmbedded,
     missing: bgTotal - bgEmbedded,
@@ -464,7 +477,7 @@ export async function checkWebPageEmbeddingCoverage(
     where: { jsAnimationPattern: { webPageId } },
   });
   results.push({
-    type: 'jsAnimation',
+    type: "jsAnimation",
     total: jsTotal,
     embedded: jsEmbedded,
     missing: jsTotal - jsEmbedded,
@@ -475,7 +488,7 @@ export async function checkWebPageEmbeddingCoverage(
     where: { responsiveAnalysis: { webPageId } },
   });
   results.push({
-    type: 'responsive',
+    type: "responsive",
     total: responsiveTotal,
     embedded: responsiveEmbedded,
     missing: responsiveTotal - responsiveEmbedded,
@@ -560,35 +573,75 @@ export async function backfillWebPageEmbeddings(
   try {
     const missingSections = await getMissingSectionEmbeddings(webPageId);
     if (missingSections.length > 0) {
-      const r = await backfillSections(missingSections, embeddingService, chunkSize, rssThreshold, result.errors, onProgress, onMemoryPressure);
+      const r = await backfillSections(
+        missingSections,
+        embeddingService,
+        chunkSize,
+        rssThreshold,
+        result.errors,
+        onProgress,
+        onMemoryPressure
+      );
       result.sectionBackfilled = r.backfilled;
       result.memorySkips += r.memorySkips;
     }
 
     const missingMotions = await getMissingMotionEmbeddings(webPageId);
     if (missingMotions.length > 0) {
-      const r = await backfillMotions(missingMotions, embeddingService, chunkSize, rssThreshold, result.errors, onProgress, onMemoryPressure);
+      const r = await backfillMotions(
+        missingMotions,
+        embeddingService,
+        chunkSize,
+        rssThreshold,
+        result.errors,
+        onProgress,
+        onMemoryPressure
+      );
       result.motionBackfilled = r.backfilled;
       result.memorySkips += r.memorySkips;
     }
 
     const missingBackgrounds = await getMissingBackgroundEmbeddings(webPageId);
     if (missingBackgrounds.length > 0) {
-      const r = await backfillBackgrounds(missingBackgrounds, embeddingService, chunkSize, rssThreshold, result.errors, onProgress, onMemoryPressure);
+      const r = await backfillBackgrounds(
+        missingBackgrounds,
+        embeddingService,
+        chunkSize,
+        rssThreshold,
+        result.errors,
+        onProgress,
+        onMemoryPressure
+      );
       result.backgroundBackfilled = r.backfilled;
       result.memorySkips += r.memorySkips;
     }
 
     const missingJsAnimations = await getMissingJsAnimationEmbeddings(webPageId);
     if (missingJsAnimations.length > 0) {
-      const r = await backfillJsAnimations(missingJsAnimations, embeddingService, chunkSize, rssThreshold, result.errors, onProgress, onMemoryPressure);
+      const r = await backfillJsAnimations(
+        missingJsAnimations,
+        embeddingService,
+        chunkSize,
+        rssThreshold,
+        result.errors,
+        onProgress,
+        onMemoryPressure
+      );
       result.jsAnimationBackfilled = r.backfilled;
       result.memorySkips += r.memorySkips;
     }
 
     const missingResponsive = await getMissingResponsiveEmbeddings(webPageId);
     if (missingResponsive.length > 0) {
-      const r = await backfillResponsive(missingResponsive, embeddingService, chunkSize, rssThreshold, result.errors, onProgress, onMemoryPressure);
+      const r = await backfillResponsive(
+        missingResponsive,
+        embeddingService,
+        chunkSize,
+        rssThreshold,
+        result.errors,
+        onProgress,
+        onMemoryPressure
+      );
       result.responsiveBackfilled = r.backfilled;
       result.memorySkips += r.memorySkips;
     }
@@ -622,15 +675,23 @@ async function backfillSections(
   chunkSize: number,
   rssThreshold: number,
   errors: string[],
-  onProgress?: BackfillOptions['onProgress'],
-  onMemoryPressure?: BackfillOptions['onMemoryPressure']
+  onProgress?: BackfillOptions["onProgress"],
+  onMemoryPressure?: BackfillOptions["onMemoryPressure"]
 ): Promise<ChunkResult> {
   let backfilled = 0;
   let memorySkips = 0;
 
   for (let offset = 0; offset < rows.length; offset += chunkSize) {
-    const memStatus = await checkMemoryPressure(rssThreshold, embeddingService, 'section', onMemoryPressure);
-    if (memStatus === 'exceeded') { memorySkips++; break; }
+    const memStatus = await checkMemoryPressure(
+      rssThreshold,
+      embeddingService,
+      "section",
+      onMemoryPressure
+    );
+    if (memStatus === "exceeded") {
+      memorySkips++;
+      break;
+    }
 
     const chunk = rows.slice(offset, offset + chunkSize);
 
@@ -651,11 +712,13 @@ async function backfillSections(
         await saveSectionEmbedding(row.id, embedding, MODEL_NAME, text);
         backfilled++;
       } catch (error) {
-        errors.push(`section[${row.id}]: ${error instanceof Error ? error.message : String(error)}`);
+        errors.push(
+          `section[${row.id}]: ${error instanceof Error ? error.message : String(error)}`
+        );
       }
     }
 
-    onProgress?.('section', Math.min(offset + chunkSize, rows.length), rows.length);
+    onProgress?.("section", Math.min(offset + chunkSize, rows.length), rows.length);
     await new Promise<void>((resolve) => setImmediate(resolve));
   }
 
@@ -668,15 +731,23 @@ async function backfillMotions(
   chunkSize: number,
   rssThreshold: number,
   errors: string[],
-  onProgress?: BackfillOptions['onProgress'],
-  onMemoryPressure?: BackfillOptions['onMemoryPressure']
+  onProgress?: BackfillOptions["onProgress"],
+  onMemoryPressure?: BackfillOptions["onMemoryPressure"]
 ): Promise<ChunkResult> {
   let backfilled = 0;
   let memorySkips = 0;
 
   for (let offset = 0; offset < rows.length; offset += chunkSize) {
-    const memStatus = await checkMemoryPressure(rssThreshold, embeddingService, 'motion', onMemoryPressure);
-    if (memStatus === 'exceeded') { memorySkips++; break; }
+    const memStatus = await checkMemoryPressure(
+      rssThreshold,
+      embeddingService,
+      "motion",
+      onMemoryPressure
+    );
+    if (memStatus === "exceeded") {
+      memorySkips++;
+      break;
+    }
 
     const chunk = rows.slice(offset, offset + chunkSize);
 
@@ -692,7 +763,7 @@ async function backfillMotions(
       }
     }
 
-    onProgress?.('motion', Math.min(offset + chunkSize, rows.length), rows.length);
+    onProgress?.("motion", Math.min(offset + chunkSize, rows.length), rows.length);
     await new Promise<void>((resolve) => setImmediate(resolve));
   }
 
@@ -705,15 +776,23 @@ async function backfillBackgrounds(
   chunkSize: number,
   rssThreshold: number,
   errors: string[],
-  onProgress?: BackfillOptions['onProgress'],
-  onMemoryPressure?: BackfillOptions['onMemoryPressure']
+  onProgress?: BackfillOptions["onProgress"],
+  onMemoryPressure?: BackfillOptions["onMemoryPressure"]
 ): Promise<ChunkResult> {
   let backfilled = 0;
   let memorySkips = 0;
 
   for (let offset = 0; offset < rows.length; offset += chunkSize) {
-    const memStatus = await checkMemoryPressure(rssThreshold, embeddingService, 'background', onMemoryPressure);
-    if (memStatus === 'exceeded') { memorySkips++; break; }
+    const memStatus = await checkMemoryPressure(
+      rssThreshold,
+      embeddingService,
+      "background",
+      onMemoryPressure
+    );
+    if (memStatus === "exceeded") {
+      memorySkips++;
+      break;
+    }
 
     const chunk = rows.slice(offset, offset + chunkSize);
 
@@ -731,7 +810,7 @@ async function backfillBackgrounds(
           },
         });
 
-        const vectorString = `[${embeddingResult.embedding.join(',')}]`;
+        const vectorString = `[${embeddingResult.embedding.join(",")}]`;
         await prisma.$executeRawUnsafe(
           `UPDATE background_design_embeddings SET embedding = $1::vector WHERE id = $2::uuid`,
           vectorString,
@@ -740,11 +819,13 @@ async function backfillBackgrounds(
 
         backfilled++;
       } catch (error) {
-        errors.push(`background[${row.id}]: ${error instanceof Error ? error.message : String(error)}`);
+        errors.push(
+          `background[${row.id}]: ${error instanceof Error ? error.message : String(error)}`
+        );
       }
     }
 
-    onProgress?.('background', Math.min(offset + chunkSize, rows.length), rows.length);
+    onProgress?.("background", Math.min(offset + chunkSize, rows.length), rows.length);
     await new Promise<void>((resolve) => setImmediate(resolve));
   }
 
@@ -757,15 +838,23 @@ async function backfillJsAnimations(
   chunkSize: number,
   rssThreshold: number,
   errors: string[],
-  onProgress?: BackfillOptions['onProgress'],
-  onMemoryPressure?: BackfillOptions['onMemoryPressure']
+  onProgress?: BackfillOptions["onProgress"],
+  onMemoryPressure?: BackfillOptions["onMemoryPressure"]
 ): Promise<ChunkResult> {
   let backfilled = 0;
   let memorySkips = 0;
 
   for (let offset = 0; offset < rows.length; offset += chunkSize) {
-    const memStatus = await checkMemoryPressure(rssThreshold, embeddingService, 'jsAnimation', onMemoryPressure);
-    if (memStatus === 'exceeded') { memorySkips++; break; }
+    const memStatus = await checkMemoryPressure(
+      rssThreshold,
+      embeddingService,
+      "jsAnimation",
+      onMemoryPressure
+    );
+    if (memStatus === "exceeded") {
+      memorySkips++;
+      break;
+    }
 
     const chunk = rows.slice(offset, offset + chunkSize);
 
@@ -785,7 +874,9 @@ async function backfillJsAnimations(
           embedding: embeddingResult.embedding,
         });
       } catch (error) {
-        errors.push(`jsAnimation[${row.id}]: ${error instanceof Error ? error.message : String(error)}`);
+        errors.push(
+          `jsAnimation[${row.id}]: ${error instanceof Error ? error.message : String(error)}`
+        );
       }
     }
 
@@ -803,11 +894,11 @@ async function backfillJsAnimations(
         if (vectorUpdates.length > 0) {
           const valuesClause = vectorUpdates
             .map((_, idx) => `($${idx * 2 + 1}::vector, $${idx * 2 + 2}::uuid)`)
-            .join(', ');
+            .join(", ");
 
           const params: unknown[] = [];
           for (const item of vectorUpdates) {
-            params.push(`[${item.embedding.join(',')}]`);
+            params.push(`[${item.embedding.join(",")}]`);
             params.push(item.dbId);
           }
 
@@ -823,7 +914,7 @@ async function backfillJsAnimations(
       }
     }
 
-    onProgress?.('jsAnimation', Math.min(offset + chunkSize, rows.length), rows.length);
+    onProgress?.("jsAnimation", Math.min(offset + chunkSize, rows.length), rows.length);
     await new Promise<void>((resolve) => setImmediate(resolve));
   }
 
@@ -835,14 +926,17 @@ async function backfillJsAnimations(
 // =====================================================
 
 async function getMissingResponsiveEmbeddings(webPageId: string): Promise<MissingResponsiveRow[]> {
-  return prisma.$queryRawUnsafe<MissingResponsiveRow[]>(`
+  return prisma.$queryRawUnsafe<MissingResponsiveRow[]>(
+    `
     SELECT ra.id, ra.web_page_id, wp.url,
            ra.viewports_analyzed, ra.differences, ra.breakpoints, ra.screenshot_diffs
     FROM responsive_analyses ra
     LEFT JOIN responsive_analysis_embeddings rae ON ra.id = rae.responsive_analysis_id
     JOIN web_pages wp ON ra.web_page_id = wp.id
     WHERE rae.id IS NULL AND ra.web_page_id = $1::uuid
-  `, webPageId);
+  `,
+    webPageId
+  );
 }
 
 function convertResponsiveRowToTextInput(row: MissingResponsiveRow): ResponsiveAnalysisForText {
@@ -850,13 +944,22 @@ function convertResponsiveRowToTextInput(row: MissingResponsiveRow): ResponsiveA
     ? (row.viewports_analyzed as Array<{ name: string; width: number; height: number }>)
     : [];
   const differences = Array.isArray(row.differences)
-    ? (row.differences as Array<{ category: string; selector?: string; description: string; viewports?: string[] }>)
+    ? (row.differences as Array<{
+        category: string;
+        selector?: string;
+        description: string;
+        viewports?: string[];
+      }>)
     : [];
   const breakpoints = Array.isArray(row.breakpoints)
     ? (row.breakpoints as Array<{ width: number; type?: string }>)
     : undefined;
   const screenshotDiffs = Array.isArray(row.screenshot_diffs)
-    ? (row.screenshot_diffs as Array<{ viewport1: string; viewport2: string; diffPercentage: number }>)
+    ? (row.screenshot_diffs as Array<{
+        viewport1: string;
+        viewport2: string;
+        diffPercentage: number;
+      }>)
     : undefined;
 
   return {
@@ -875,18 +978,27 @@ async function backfillResponsive(
   chunkSize: number,
   rssThreshold: number,
   errors: string[],
-  onProgress?: BackfillOptions['onProgress'],
-  onMemoryPressure?: BackfillOptions['onMemoryPressure']
+  onProgress?: BackfillOptions["onProgress"],
+  onMemoryPressure?: BackfillOptions["onMemoryPressure"]
 ): Promise<ChunkResult> {
   let backfilled = 0;
   let memorySkips = 0;
 
   for (let offset = 0; offset < rows.length; offset += chunkSize) {
-    const memStatus = await checkMemoryPressure(rssThreshold, embeddingService, 'responsive', onMemoryPressure);
-    if (memStatus === 'exceeded') { memorySkips++; break; }
+    const memStatus = await checkMemoryPressure(
+      rssThreshold,
+      embeddingService,
+      "responsive",
+      onMemoryPressure
+    );
+    if (memStatus === "exceeded") {
+      memorySkips++;
+      break;
+    }
 
     const chunk = rows.slice(offset, offset + chunkSize);
-    const embeddingItems: Array<{ dbId: string; textRepresentation: string; embedding: number[] }> = [];
+    const embeddingItems: Array<{ dbId: string; textRepresentation: string; embedding: number[] }> =
+      [];
 
     for (const row of chunk) {
       try {
@@ -895,7 +1007,9 @@ async function backfillResponsive(
         const { embedding } = await embeddingService.generateFromText(textRepresentation);
         embeddingItems.push({ dbId: row.id, textRepresentation, embedding });
       } catch (error) {
-        errors.push(`responsive-${row.id}: ${error instanceof Error ? error.message : String(error)}`);
+        errors.push(
+          `responsive-${row.id}: ${error instanceof Error ? error.message : String(error)}`
+        );
       }
     }
 
@@ -913,11 +1027,11 @@ async function backfillResponsive(
         if (vectorUpdates.length > 0) {
           const valuesClause = vectorUpdates
             .map((_, idx) => `($${idx * 2 + 1}::vector, $${idx * 2 + 2}::uuid)`)
-            .join(', ');
+            .join(", ");
 
           const params: unknown[] = [];
           for (const item of vectorUpdates) {
-            params.push(`[${item.embedding.join(',')}]`);
+            params.push(`[${item.embedding.join(",")}]`);
             params.push(item.dbId);
           }
 
@@ -933,7 +1047,7 @@ async function backfillResponsive(
       }
     }
 
-    onProgress?.('responsive', Math.min(offset + chunkSize, rows.length), rows.length);
+    onProgress?.("responsive", Math.min(offset + chunkSize, rows.length), rows.length);
     await new Promise<void>((resolve) => setImmediate(resolve));
   }
 

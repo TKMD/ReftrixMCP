@@ -4,8 +4,8 @@
 /**
  * Debug test for mevvynetwork.com section detection
  */
-import { describe, it, expect } from 'vitest';
-import { SectionDetector } from '../src/section-detector';
+import { describe, it, expect } from "vitest";
+import { SectionDetector } from "../src/section-detector";
 
 // Minimal HTML structure from mevvynetwork.com
 const MEVVY_HTML = `
@@ -84,8 +84,8 @@ const MEVVY_HTML = `
 </html>
 `;
 
-describe('SectionDetector - mevvynetwork.com style HTML', () => {
-  it('should detect sections with removeNestedSections=true (default)', async () => {
+describe("SectionDetector - mevvynetwork.com style HTML", () => {
+  it("should detect sections with removeNestedSections=true (default)", async () => {
     const detector = new SectionDetector({
       removeNestedSections: true,
       detectLandmarks: true,
@@ -95,19 +95,19 @@ describe('SectionDetector - mevvynetwork.com style HTML', () => {
 
     const sections = await detector.detect(MEVVY_HTML);
 
-    console.log('\\n=== Test 1: removeNestedSections=true ===');
-    console.log('Total sections:', sections.length);
+    console.log("\\n=== Test 1: removeNestedSections=true ===");
+    console.log("Total sections:", sections.length);
     for (const section of sections) {
       console.log(`- Type: ${section.type}, Confidence: ${section.confidence.toFixed(2)}`);
-      console.log(`  Tag: ${section.element.tagName}, ID: ${section.element.id || 'none'}`);
-      console.log(`  Classes: ${section.element.classes.slice(0, 5).join(', ')}`);
+      console.log(`  Tag: ${section.element.tagName}, ID: ${section.element.id || "none"}`);
+      console.log(`  Classes: ${section.element.classes.slice(0, 5).join(", ")}`);
     }
 
     // Expect at least 5 sections (there are 5 sections + 1 footer + 1 header)
     expect(sections.length).toBeGreaterThanOrEqual(1);
   });
 
-  it('should detect more sections with removeNestedSections=false', async () => {
+  it("should detect more sections with removeNestedSections=false", async () => {
     const detector = new SectionDetector({
       removeNestedSections: false,
       detectLandmarks: true,
@@ -117,8 +117,8 @@ describe('SectionDetector - mevvynetwork.com style HTML', () => {
 
     const sections = await detector.detect(MEVVY_HTML);
 
-    console.log('\\n=== Test 2: removeNestedSections=false ===');
-    console.log('Total sections:', sections.length);
+    console.log("\\n=== Test 2: removeNestedSections=false ===");
+    console.log("Total sections:", sections.length);
     for (const section of sections) {
       console.log(`- Type: ${section.type}, Confidence: ${section.confidence.toFixed(2)}`);
       console.log(`  Tag: ${section.element.tagName}`);
@@ -128,7 +128,7 @@ describe('SectionDetector - mevvynetwork.com style HTML', () => {
     expect(sections.length).toBeGreaterThanOrEqual(5);
   });
 
-  it('should detect semantic tags only', async () => {
+  it("should detect semantic tags only", async () => {
     const detector = new SectionDetector({
       removeNestedSections: false,
       detectLandmarks: false,
@@ -138,16 +138,16 @@ describe('SectionDetector - mevvynetwork.com style HTML', () => {
 
     const sections = await detector.detect(MEVVY_HTML);
 
-    console.log('\\n=== Test 3: detectSemanticTags only ===');
-    console.log('Total sections (semantic only):', sections.length);
+    console.log("\\n=== Test 3: detectSemanticTags only ===");
+    console.log("Total sections (semantic only):", sections.length);
     for (const section of sections) {
       console.log(`- Tag: ${section.element.tagName}, Type: ${section.type}`);
     }
 
     // Should detect: 5 section tags + 1 header + 1 footer + 1 nav (nested)
-    const sectionTagCount = sections.filter(s => s.element.tagName === 'section').length;
-    const headerTagCount = sections.filter(s => s.element.tagName === 'header').length;
-    const footerTagCount = sections.filter(s => s.element.tagName === 'footer').length;
+    const sectionTagCount = sections.filter((s) => s.element.tagName === "section").length;
+    const headerTagCount = sections.filter((s) => s.element.tagName === "header").length;
+    const footerTagCount = sections.filter((s) => s.element.tagName === "footer").length;
 
     console.log(`\\nSemantic tag breakdown:`);
     console.log(`  section: ${sectionTagCount}`);

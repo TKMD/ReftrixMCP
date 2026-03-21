@@ -18,13 +18,13 @@
  * @module tests/utils/prisma-wrapper-factory
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import {
   createTableWrapper,
   createPrismaWrapper,
   type SupportedTableName,
   type PrismaWrapperConfig,
-} from '../../src/utils/prisma-wrapper-factory';
+} from "../../src/utils/prisma-wrapper-factory";
 
 // =============================================================================
 // モック用型定義
@@ -71,12 +71,12 @@ interface MockPrismaClient {
  */
 function createMockTable(): MockTable {
   return {
-    create: vi.fn().mockResolvedValue({ id: 'mock-id-123' }),
+    create: vi.fn().mockResolvedValue({ id: "mock-id-123" }),
     createMany: vi.fn().mockResolvedValue({ count: 5 }),
-    upsert: vi.fn().mockResolvedValue({ id: 'mock-upsert-id' }),
+    upsert: vi.fn().mockResolvedValue({ id: "mock-upsert-id" }),
     deleteMany: vi.fn().mockResolvedValue({ count: 3 }),
-    findUnique: vi.fn().mockResolvedValue({ id: 'mock-id', name: 'test' }),
-    findMany: vi.fn().mockResolvedValue([{ id: 'item-1' }, { id: 'item-2' }]),
+    findUnique: vi.fn().mockResolvedValue({ id: "mock-id", name: "test" }),
+    findMany: vi.fn().mockResolvedValue([{ id: "item-1" }, { id: "item-2" }]),
   };
 }
 
@@ -85,7 +85,7 @@ function createMockTable(): MockTable {
  */
 function createMinimalMockTable(): MockTable {
   return {
-    create: vi.fn().mockResolvedValue({ id: 'minimal-id' }),
+    create: vi.fn().mockResolvedValue({ id: "minimal-id" }),
   };
 }
 
@@ -102,7 +102,7 @@ function createMockPrismaClient(options?: {
   };
 
   // デフォルトテーブル
-  const tables = options?.tables ?? ['sectionPattern', 'sectionEmbedding'];
+  const tables = options?.tables ?? ["sectionPattern", "sectionEmbedding"];
   tables.forEach((tableName) => {
     (client as Record<string, unknown>)[tableName] = createMockTable();
   });
@@ -123,32 +123,32 @@ function createMockPrismaClient(options?: {
 // createTableWrapper テスト
 // =============================================================================
 
-describe('createTableWrapper - 単一テーブルラッパー生成', () => {
-  describe('正常系', () => {
-    it('createメソッドが正しくラップされること', async () => {
+describe("createTableWrapper - 単一テーブルラッパー生成", () => {
+  describe("正常系", () => {
+    it("createメソッドが正しくラップされること", async () => {
       // Arrange
-      const mockClient = createMockPrismaClient({ tables: ['sectionPattern'] });
-      const tableName: SupportedTableName = 'sectionPattern';
+      const mockClient = createMockPrismaClient({ tables: ["sectionPattern"] });
+      const tableName: SupportedTableName = "sectionPattern";
 
       // Act
       const wrapper = createTableWrapper(mockClient, tableName);
-      const result = await wrapper.create({ data: { name: 'test' } });
+      const result = await wrapper.create({ data: { name: "test" } });
 
       // Assert
-      expect(result).toEqual({ id: 'mock-id-123' });
+      expect(result).toEqual({ id: "mock-id-123" });
       expect(mockClient.sectionPattern?.create).toHaveBeenCalledWith({
-        data: { name: 'test' },
+        data: { name: "test" },
       });
     });
 
-    it('createManyメソッドが正しくラップされること', async () => {
+    it("createManyメソッドが正しくラップされること", async () => {
       // Arrange
-      const mockClient = createMockPrismaClient({ tables: ['motionPattern'] });
+      const mockClient = createMockPrismaClient({ tables: ["motionPattern"] });
 
       // Act
-      const wrapper = createTableWrapper(mockClient, 'motionPattern');
+      const wrapper = createTableWrapper(mockClient, "motionPattern");
       const result = await wrapper.createMany?.({
-        data: [{ name: 'item1' }, { name: 'item2' }],
+        data: [{ name: "item1" }, { name: "item2" }],
       });
 
       // Assert
@@ -156,33 +156,33 @@ describe('createTableWrapper - 単一テーブルラッパー生成', () => {
       expect(mockClient.motionPattern?.createMany).toHaveBeenCalled();
     });
 
-    it('upsertメソッドが正しくラップされること', async () => {
+    it("upsertメソッドが正しくラップされること", async () => {
       // Arrange
-      const mockClient = createMockPrismaClient({ tables: ['webPage'] });
+      const mockClient = createMockPrismaClient({ tables: ["webPage"] });
 
       // Act
-      const wrapper = createTableWrapper(mockClient, 'webPage');
+      const wrapper = createTableWrapper(mockClient, "webPage");
       const result = await wrapper.upsert?.({
-        where: { id: 'existing-id' },
-        create: { url: 'https://example.com' },
-        update: { url: 'https://updated.com' },
+        where: { id: "existing-id" },
+        create: { url: "https://example.com" },
+        update: { url: "https://updated.com" },
       });
 
       // Assert
-      expect(result).toEqual({ id: 'mock-upsert-id' });
+      expect(result).toEqual({ id: "mock-upsert-id" });
       expect(mockClient.webPage?.upsert).toHaveBeenCalled();
     });
 
-    it('deleteManyメソッドが正しくラップされること', async () => {
+    it("deleteManyメソッドが正しくラップされること", async () => {
       // Arrange
       const mockClient = createMockPrismaClient({
-        tables: ['qualityEvaluation'],
+        tables: ["qualityEvaluation"],
       });
 
       // Act
-      const wrapper = createTableWrapper(mockClient, 'qualityEvaluation');
+      const wrapper = createTableWrapper(mockClient, "qualityEvaluation");
       const result = await wrapper.deleteMany?.({
-        where: { webPageId: 'page-id' },
+        where: { webPageId: "page-id" },
       });
 
       // Assert
@@ -190,54 +190,54 @@ describe('createTableWrapper - 単一テーブルラッパー生成', () => {
       expect(mockClient.qualityEvaluation?.deleteMany).toHaveBeenCalled();
     });
 
-    it('findUniqueメソッドが正しくラップされること', async () => {
+    it("findUniqueメソッドが正しくラップされること", async () => {
       // Arrange
       const mockClient = createMockPrismaClient({
-        tables: ['qualityBenchmark'],
+        tables: ["qualityBenchmark"],
       });
 
       // Act
-      const wrapper = createTableWrapper(mockClient, 'qualityBenchmark');
+      const wrapper = createTableWrapper(mockClient, "qualityBenchmark");
       const result = await wrapper.findUnique?.({
-        where: { id: 'benchmark-id' },
+        where: { id: "benchmark-id" },
       });
 
       // Assert
-      expect(result).toEqual({ id: 'mock-id', name: 'test' });
+      expect(result).toEqual({ id: "mock-id", name: "test" });
       expect(mockClient.qualityBenchmark?.findUnique).toHaveBeenCalled();
     });
 
-    it('findManyメソッドが正しくラップされること', async () => {
+    it("findManyメソッドが正しくラップされること", async () => {
       // Arrange
       const mockClient = createMockPrismaClient({
-        tables: ['jSAnimationPattern'],
+        tables: ["jSAnimationPattern"],
       });
 
       // Act
-      const wrapper = createTableWrapper(mockClient, 'jSAnimationPattern');
+      const wrapper = createTableWrapper(mockClient, "jSAnimationPattern");
       const result = await wrapper.findMany?.({
-        where: { libraryType: 'gsap' },
+        where: { libraryType: "gsap" },
       });
 
       // Assert
-      expect(result).toEqual([{ id: 'item-1' }, { id: 'item-2' }]);
+      expect(result).toEqual([{ id: "item-1" }, { id: "item-2" }]);
       expect(mockClient.jSAnimationPattern?.findMany).toHaveBeenCalled();
     });
   });
 
-  describe('サポートされているテーブル', () => {
+  describe("サポートされているテーブル", () => {
     const supportedTables: SupportedTableName[] = [
-      'sectionPattern',
-      'sectionEmbedding',
-      'motionPattern',
-      'motionEmbedding',
-      'motionAnalysisResult',
-      'motionAnalysisEmbedding',
-      'webPage',
-      'qualityEvaluation',
-      'qualityBenchmark',
-      'jSAnimationPattern',
-      'jSAnimationEmbedding',
+      "sectionPattern",
+      "sectionEmbedding",
+      "motionPattern",
+      "motionEmbedding",
+      "motionAnalysisResult",
+      "motionAnalysisEmbedding",
+      "webPage",
+      "qualityEvaluation",
+      "qualityBenchmark",
+      "jSAnimationPattern",
+      "jSAnimationEmbedding",
     ];
 
     supportedTables.forEach((tableName) => {
@@ -251,8 +251,8 @@ describe('createTableWrapper - 単一テーブルラッパー生成', () => {
     });
   });
 
-  describe('最小構成テーブル', () => {
-    it('createのみのテーブルでもラッパーが作成できること', async () => {
+  describe("最小構成テーブル", () => {
+    it("createのみのテーブルでもラッパーが作成できること", async () => {
       // Arrange
       const mockClient: MockPrismaClient = {
         sectionPattern: createMinimalMockTable(),
@@ -261,26 +261,26 @@ describe('createTableWrapper - 単一テーブルラッパー生成', () => {
       };
 
       // Act
-      const wrapper = createTableWrapper(mockClient, 'sectionPattern');
-      const result = await wrapper.create({ data: { name: 'test' } });
+      const wrapper = createTableWrapper(mockClient, "sectionPattern");
+      const result = await wrapper.create({ data: { name: "test" } });
 
       // Assert
-      expect(result).toEqual({ id: 'minimal-id' });
+      expect(result).toEqual({ id: "minimal-id" });
       expect(wrapper.createMany).toBeUndefined();
       expect(wrapper.upsert).toBeUndefined();
       expect(wrapper.deleteMany).toBeUndefined();
     });
   });
 
-  describe('異常系', () => {
-    it('存在しないテーブルでエラーがスローされること', () => {
+  describe("異常系", () => {
+    it("存在しないテーブルでエラーがスローされること", () => {
       // Arrange
-      const mockClient = createMockPrismaClient({ tables: ['sectionPattern'] });
+      const mockClient = createMockPrismaClient({ tables: ["sectionPattern"] });
 
       // Act & Assert
-      expect(() =>
-        createTableWrapper(mockClient, 'motionPattern')
-      ).toThrowError("Table 'motionPattern' not found in PrismaClient");
+      expect(() => createTableWrapper(mockClient, "motionPattern")).toThrowError(
+        "Table 'motionPattern' not found in PrismaClient"
+      );
     });
   });
 });
@@ -289,15 +289,15 @@ describe('createTableWrapper - 単一テーブルラッパー生成', () => {
 // createPrismaWrapper テスト
 // =============================================================================
 
-describe('createPrismaWrapper - IPrismaClient互換ラッパー生成', () => {
-  describe('正常系', () => {
-    it('複数テーブルのラッパーが生成されること', () => {
+describe("createPrismaWrapper - IPrismaClient互換ラッパー生成", () => {
+  describe("正常系", () => {
+    it("複数テーブルのラッパーが生成されること", () => {
       // Arrange
       const mockClient = createMockPrismaClient({
-        tables: ['sectionPattern', 'sectionEmbedding', 'motionPattern'],
+        tables: ["sectionPattern", "sectionEmbedding", "motionPattern"],
       });
       const config: PrismaWrapperConfig = {
-        tables: ['sectionPattern', 'sectionEmbedding', 'motionPattern'],
+        tables: ["sectionPattern", "sectionEmbedding", "motionPattern"],
         supportsTransaction: false,
       };
 
@@ -310,55 +310,45 @@ describe('createPrismaWrapper - IPrismaClient互換ラッパー生成', () => {
       expect(wrapper.motionPattern).toBeDefined();
     });
 
-    it('$executeRawUnsafeがバインドされること', async () => {
+    it("$executeRawUnsafeがバインドされること", async () => {
       // Arrange
-      const mockClient = createMockPrismaClient({ tables: ['sectionPattern'] });
+      const mockClient = createMockPrismaClient({ tables: ["sectionPattern"] });
       const config: PrismaWrapperConfig = {
-        tables: ['sectionPattern'],
+        tables: ["sectionPattern"],
         supportsTransaction: false,
       };
 
       // Act
       const wrapper = createPrismaWrapper(mockClient, config);
-      await (wrapper.$executeRawUnsafe as Function)(
-        'SELECT 1',
-        'param1',
-        'param2'
-      );
+      await (wrapper.$executeRawUnsafe as Function)("SELECT 1", "param1", "param2");
 
       // Assert
-      expect(mockClient.$executeRawUnsafe).toHaveBeenCalledWith(
-        'SELECT 1',
-        'param1',
-        'param2'
-      );
+      expect(mockClient.$executeRawUnsafe).toHaveBeenCalledWith("SELECT 1", "param1", "param2");
     });
 
-    it('$queryRawUnsafeがバインドされること', async () => {
+    it("$queryRawUnsafeがバインドされること", async () => {
       // Arrange
-      const mockClient = createMockPrismaClient({ tables: ['sectionPattern'] });
+      const mockClient = createMockPrismaClient({ tables: ["sectionPattern"] });
       const config: PrismaWrapperConfig = {
-        tables: ['sectionPattern'],
+        tables: ["sectionPattern"],
         supportsTransaction: false,
       };
 
       // Act
       const wrapper = createPrismaWrapper(mockClient, config);
-      await (wrapper.$queryRawUnsafe as Function)('SELECT * FROM test');
+      await (wrapper.$queryRawUnsafe as Function)("SELECT * FROM test");
 
       // Assert
-      expect(mockClient.$queryRawUnsafe).toHaveBeenCalledWith(
-        'SELECT * FROM test'
-      );
+      expect(mockClient.$queryRawUnsafe).toHaveBeenCalledWith("SELECT * FROM test");
     });
   });
 
-  describe('トランザクションサポート', () => {
-    it('supportsTransaction=falseの場合、$transactionが存在しないこと', () => {
+  describe("トランザクションサポート", () => {
+    it("supportsTransaction=falseの場合、$transactionが存在しないこと", () => {
       // Arrange
-      const mockClient = createMockPrismaClient({ tables: ['sectionPattern'] });
+      const mockClient = createMockPrismaClient({ tables: ["sectionPattern"] });
       const config: PrismaWrapperConfig = {
-        tables: ['sectionPattern'],
+        tables: ["sectionPattern"],
         supportsTransaction: false,
       };
 
@@ -369,14 +359,14 @@ describe('createPrismaWrapper - IPrismaClient互換ラッパー生成', () => {
       expect(wrapper.$transaction).toBeUndefined();
     });
 
-    it('supportsTransaction=trueの場合、$transactionが存在すること', () => {
+    it("supportsTransaction=trueの場合、$transactionが存在すること", () => {
       // Arrange
       const mockClient = createMockPrismaClient({
-        tables: ['motionPattern'],
+        tables: ["motionPattern"],
         withTransaction: true,
       });
       const config: PrismaWrapperConfig = {
-        tables: ['motionPattern'],
+        tables: ["motionPattern"],
         supportsTransaction: true,
       };
 
@@ -385,17 +375,17 @@ describe('createPrismaWrapper - IPrismaClient互換ラッパー生成', () => {
 
       // Assert
       expect(wrapper.$transaction).toBeDefined();
-      expect(typeof wrapper.$transaction).toBe('function');
+      expect(typeof wrapper.$transaction).toBe("function");
     });
 
-    it('トランザクション内でテーブル操作ができること', async () => {
+    it("トランザクション内でテーブル操作ができること", async () => {
       // Arrange
       const mockClient = createMockPrismaClient({
-        tables: ['motionPattern', 'motionEmbedding'],
+        tables: ["motionPattern", "motionEmbedding"],
         withTransaction: true,
       });
       const config: PrismaWrapperConfig = {
-        tables: ['motionPattern', 'motionEmbedding'],
+        tables: ["motionPattern", "motionEmbedding"],
         supportsTransaction: true,
       };
 
@@ -405,7 +395,7 @@ describe('createPrismaWrapper - IPrismaClient互換ラッパー生成', () => {
 
       await (wrapper.$transaction as Function)(async (txWrapper: Record<string, unknown>) => {
         txWrapperReceived = txWrapper;
-        return 'transaction-result';
+        return "transaction-result";
       });
 
       // Assert
@@ -416,14 +406,14 @@ describe('createPrismaWrapper - IPrismaClient互換ラッパー生成', () => {
       expect(txWrapperReceived!.$queryRawUnsafe).toBeDefined();
     });
 
-    it('ネストされたトランザクションがエラーになること', async () => {
+    it("ネストされたトランザクションがエラーになること", async () => {
       // Arrange
       const mockClient = createMockPrismaClient({
-        tables: ['sectionPattern'],
+        tables: ["sectionPattern"],
         withTransaction: true,
       });
       const config: PrismaWrapperConfig = {
-        tables: ['sectionPattern'],
+        tables: ["sectionPattern"],
         supportsTransaction: true,
       };
 
@@ -432,13 +422,13 @@ describe('createPrismaWrapper - IPrismaClient互換ラッパー生成', () => {
 
       // Assert
       await (wrapper.$transaction as Function)(async (txWrapper: Record<string, unknown>) => {
-        await expect(
-          (txWrapper.$transaction as Function)(async () => {})
-        ).rejects.toThrowError('Nested transactions not supported');
+        await expect((txWrapper.$transaction as Function)(async () => {})).rejects.toThrowError(
+          "Nested transactions not supported"
+        );
       });
     });
 
-    it('$transaction非対応クライアントでエラーがスローされること', async () => {
+    it("$transaction非対応クライアントでエラーがスローされること", async () => {
       // Arrange
       const mockClient: MockPrismaClient = {
         sectionPattern: createMockTable(),
@@ -447,7 +437,7 @@ describe('createPrismaWrapper - IPrismaClient互換ラッパー生成', () => {
         // $transactionが存在しない
       };
       const config: PrismaWrapperConfig = {
-        tables: ['sectionPattern'],
+        tables: ["sectionPattern"],
         supportsTransaction: true,
       };
 
@@ -455,20 +445,20 @@ describe('createPrismaWrapper - IPrismaClient互換ラッパー生成', () => {
       const wrapper = createPrismaWrapper(mockClient, config);
 
       // Assert
-      await expect(
-        (wrapper.$transaction as Function)(async () => {})
-      ).rejects.toThrowError('PrismaClient does not support transactions');
+      await expect((wrapper.$transaction as Function)(async () => {})).rejects.toThrowError(
+        "PrismaClient does not support transactions"
+      );
     });
   });
 
-  describe('Layout用設定（トランザクションなし）', () => {
-    it('Layout用ラッパーが正しく生成されること', async () => {
+  describe("Layout用設定（トランザクションなし）", () => {
+    it("Layout用ラッパーが正しく生成されること", async () => {
       // Arrange
       const mockClient = createMockPrismaClient({
-        tables: ['sectionPattern', 'sectionEmbedding'],
+        tables: ["sectionPattern", "sectionEmbedding"],
       });
       const config: PrismaWrapperConfig = {
-        tables: ['sectionPattern', 'sectionEmbedding'],
+        tables: ["sectionPattern", "sectionEmbedding"],
         supportsTransaction: false,
       };
 
@@ -481,24 +471,22 @@ describe('createPrismaWrapper - IPrismaClient互換ラッパー生成', () => {
       expect(wrapper.$transaction).toBeUndefined();
 
       // テーブル操作
-      const createResult = await (
-        wrapper.sectionPattern as { create: Function }
-      ).create({
-        data: { type: 'hero', html_snippet: '<div>' },
+      const createResult = await (wrapper.sectionPattern as { create: Function }).create({
+        data: { type: "hero", html_snippet: "<div>" },
       });
-      expect(createResult).toEqual({ id: 'mock-id-123' });
+      expect(createResult).toEqual({ id: "mock-id-123" });
     });
   });
 
-  describe('Motion用設定（トランザクションあり）', () => {
-    it('Motion用ラッパーが正しく生成されること', async () => {
+  describe("Motion用設定（トランザクションあり）", () => {
+    it("Motion用ラッパーが正しく生成されること", async () => {
       // Arrange
       const mockClient = createMockPrismaClient({
-        tables: ['motionPattern', 'motionEmbedding'],
+        tables: ["motionPattern", "motionEmbedding"],
         withTransaction: true,
       });
       const config: PrismaWrapperConfig = {
-        tables: ['motionPattern', 'motionEmbedding'],
+        tables: ["motionPattern", "motionEmbedding"],
         supportsTransaction: true,
       };
 
@@ -512,15 +500,15 @@ describe('createPrismaWrapper - IPrismaClient互換ラッパー生成', () => {
     });
   });
 
-  describe('JSAnimationPattern用設定', () => {
-    it('JSAnimation用ラッパーが正しく生成されること', async () => {
+  describe("JSAnimationPattern用設定", () => {
+    it("JSAnimation用ラッパーが正しく生成されること", async () => {
       // Arrange
       const mockClient = createMockPrismaClient({
-        tables: ['jSAnimationPattern', 'jSAnimationEmbedding'],
+        tables: ["jSAnimationPattern", "jSAnimationEmbedding"],
         withTransaction: true,
       });
       const config: PrismaWrapperConfig = {
-        tables: ['jSAnimationPattern', 'jSAnimationEmbedding'],
+        tables: ["jSAnimationPattern", "jSAnimationEmbedding"],
         supportsTransaction: true,
       };
 
@@ -538,55 +526,51 @@ describe('createPrismaWrapper - IPrismaClient互換ラッパー生成', () => {
 // 統合テスト: 実際のユースケース
 // =============================================================================
 
-describe('実際のユースケース', () => {
-  describe('セクション保存フロー', () => {
-    it('SectionPatternとSectionEmbeddingを連続して保存できること', async () => {
+describe("実際のユースケース", () => {
+  describe("セクション保存フロー", () => {
+    it("SectionPatternとSectionEmbeddingを連続して保存できること", async () => {
       // Arrange
       const mockClient = createMockPrismaClient({
-        tables: ['sectionPattern', 'sectionEmbedding'],
+        tables: ["sectionPattern", "sectionEmbedding"],
       });
       const config: PrismaWrapperConfig = {
-        tables: ['sectionPattern', 'sectionEmbedding'],
+        tables: ["sectionPattern", "sectionEmbedding"],
         supportsTransaction: false,
       };
       const wrapper = createPrismaWrapper(mockClient, config);
 
       // Act
-      const patternResult = await (
-        wrapper.sectionPattern as { create: Function }
-      ).create({
+      const patternResult = await (wrapper.sectionPattern as { create: Function }).create({
         data: {
-          type: 'hero',
+          type: "hero",
           html_snippet: '<section class="hero">...</section>',
-          web_page_id: 'page-123',
+          web_page_id: "page-123",
         },
       });
 
-      const embeddingResult = await (
-        wrapper.sectionEmbedding as { create: Function }
-      ).create({
+      const embeddingResult = await (wrapper.sectionEmbedding as { create: Function }).create({
         data: {
           section_pattern_id: patternResult.id,
           embedding: Array(768).fill(0.1),
-          text_representation: 'hero section with...',
+          text_representation: "hero section with...",
         },
       });
 
       // Assert
-      expect(patternResult.id).toBe('mock-id-123');
-      expect(embeddingResult.id).toBe('mock-id-123');
+      expect(patternResult.id).toBe("mock-id-123");
+      expect(embeddingResult.id).toBe("mock-id-123");
     });
   });
 
-  describe('モーション保存フロー（トランザクション）', () => {
-    it('トランザクション内でMotionPatternとEmbeddingを保存できること', async () => {
+  describe("モーション保存フロー（トランザクション）", () => {
+    it("トランザクション内でMotionPatternとEmbeddingを保存できること", async () => {
       // Arrange
       const mockClient = createMockPrismaClient({
-        tables: ['motionPattern', 'motionEmbedding'],
+        tables: ["motionPattern", "motionEmbedding"],
         withTransaction: true,
       });
       const config: PrismaWrapperConfig = {
-        tables: ['motionPattern', 'motionEmbedding'],
+        tables: ["motionPattern", "motionEmbedding"],
         supportsTransaction: true,
       };
       const wrapper = createPrismaWrapper(mockClient, config);
@@ -596,8 +580,8 @@ describe('実際のユースケース', () => {
         async (tx: Record<string, unknown>) => {
           const pattern = await (tx.motionPattern as { create: Function }).create({
             data: {
-              name: 'fadeIn',
-              type: 'keyframe',
+              name: "fadeIn",
+              type: "keyframe",
               duration: 300,
             },
           });
@@ -619,19 +603,19 @@ describe('実際のユースケース', () => {
     });
   });
 
-  describe('ベクトル検索クエリ', () => {
-    it('$queryRawUnsafeでベクトル検索ができること', async () => {
+  describe("ベクトル検索クエリ", () => {
+    it("$queryRawUnsafeでベクトル検索ができること", async () => {
       // Arrange
       const mockClient = createMockPrismaClient({
-        tables: ['sectionPattern', 'sectionEmbedding'],
+        tables: ["sectionPattern", "sectionEmbedding"],
       });
       mockClient.$queryRawUnsafe.mockResolvedValue([
-        { id: 'result-1', similarity: 0.95 },
-        { id: 'result-2', similarity: 0.89 },
+        { id: "result-1", similarity: 0.95 },
+        { id: "result-2", similarity: 0.89 },
       ]);
 
       const config: PrismaWrapperConfig = {
-        tables: ['sectionPattern', 'sectionEmbedding'],
+        tables: ["sectionPattern", "sectionEmbedding"],
         supportsTransaction: false,
       };
       const wrapper = createPrismaWrapper(mockClient, config);
@@ -652,27 +636,25 @@ describe('実際のユースケース', () => {
     });
   });
 
-  describe('RLS設定', () => {
-    it('$executeRawUnsafeでRLSコンテキストを設定できること', async () => {
+  describe("RLS設定", () => {
+    it("$executeRawUnsafeでRLSコンテキストを設定できること", async () => {
       // Arrange
       const mockClient = createMockPrismaClient({
-        tables: ['sectionPattern'],
+        tables: ["sectionPattern"],
         withTransaction: true,
       });
       const config: PrismaWrapperConfig = {
-        tables: ['sectionPattern'],
+        tables: ["sectionPattern"],
         supportsTransaction: true,
       };
       const wrapper = createPrismaWrapper(mockClient, config);
 
       // Act
       await (wrapper.$transaction as Function)(async (tx: Record<string, unknown>) => {
-        await (tx.$executeRawUnsafe as Function)(
-          `SET LOCAL app.current_project = 'project-uuid'`
-        );
+        await (tx.$executeRawUnsafe as Function)(`SET LOCAL app.current_project = 'project-uuid'`);
 
         await (tx.sectionPattern as { create: Function }).create({
-          data: { type: 'feature' },
+          data: { type: "feature" },
         });
       });
 
@@ -686,8 +668,8 @@ describe('実際のユースケース', () => {
 // エッジケース
 // =============================================================================
 
-describe('エッジケース', () => {
-  it('空のテーブル配列でもラッパーが生成できること', () => {
+describe("エッジケース", () => {
+  it("空のテーブル配列でもラッパーが生成できること", () => {
     // Arrange
     const mockClient: MockPrismaClient = {
       $executeRawUnsafe: vi.fn(),
@@ -706,7 +688,7 @@ describe('エッジケース', () => {
     expect(wrapper.$queryRawUnsafe).toBeDefined();
   });
 
-  it('createがnullを返した場合でも処理されること', async () => {
+  it("createがnullを返した場合でも処理されること", async () => {
     // Arrange
     const mockClient: MockPrismaClient = {
       sectionPattern: {
@@ -717,27 +699,25 @@ describe('エッジケース', () => {
     };
 
     // Act
-    const wrapper = createTableWrapper(mockClient, 'sectionPattern');
+    const wrapper = createTableWrapper(mockClient, "sectionPattern");
     const result = await wrapper.create({ data: {} });
 
     // Assert
     expect(result).toEqual({ id: null });
   });
 
-  it('createがエラーをスローした場合、エラーが伝播すること', async () => {
+  it("createがエラーをスローした場合、エラーが伝播すること", async () => {
     // Arrange
     const mockClient: MockPrismaClient = {
       sectionPattern: {
-        create: vi.fn().mockRejectedValue(new Error('Database error')),
+        create: vi.fn().mockRejectedValue(new Error("Database error")),
       },
       $executeRawUnsafe: vi.fn(),
       $queryRawUnsafe: vi.fn(),
     };
 
     // Act & Assert
-    const wrapper = createTableWrapper(mockClient, 'sectionPattern');
-    await expect(wrapper.create({ data: {} })).rejects.toThrowError(
-      'Database error'
-    );
+    const wrapper = createTableWrapper(mockClient, "sectionPattern");
+    await expect(wrapper.create({ data: {} })).rejects.toThrowError("Database error");
   });
 });

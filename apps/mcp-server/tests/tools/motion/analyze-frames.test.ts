@@ -18,9 +18,9 @@
  * @module tests/tools/motion/analyze-frames.test
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import * as fs from 'node:fs/promises';
-import * as path from 'node:path';
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import * as fs from "node:fs/promises";
+import * as path from "node:path";
 
 // =====================================================
 // インポート
@@ -32,7 +32,7 @@ import {
   setFrameAnalysisServiceFactory,
   resetFrameAnalysisServiceFactory,
   type IFrameAnalysisService,
-} from '../../../src/tools/motion/analyze-frames.handler';
+} from "../../../src/tools/motion/analyze-frames.handler";
 
 import {
   analyzeFramesInputSchema,
@@ -44,7 +44,7 @@ import {
   type ColorChangeResult,
   type BoundingBox,
   ANALYZE_FRAMES_ERROR_CODES,
-} from '../../../src/tools/motion/analyze-frames.schema';
+} from "../../../src/tools/motion/analyze-frames.schema";
 
 // =====================================================
 // テストヘルパー
@@ -54,7 +54,7 @@ import {
  * テスト用の一時ディレクトリを作成
  */
 async function createTempFrameDir(): Promise<string> {
-  const tempDir = path.join('/tmp', `reftrix-test-frames-${Date.now()}`);
+  const tempDir = path.join("/tmp", `reftrix-test-frames-${Date.now()}`);
   await fs.mkdir(tempDir, { recursive: true });
   return tempDir;
 }
@@ -65,7 +65,7 @@ async function createTempFrameDir(): Promise<string> {
 async function createMockFrames(dir: string, count: number): Promise<string[]> {
   const files: string[] = [];
   for (let i = 0; i < count; i++) {
-    const filename = `frame-${String(i).padStart(4, '0')}.png`;
+    const filename = `frame-${String(i).padStart(4, "0")}.png`;
     const filepath = path.join(dir, filename);
     // 空のファイルを作成（実際の画像処理はモックで行う）
     await fs.writeFile(filepath, Buffer.alloc(100));
@@ -128,8 +128,8 @@ function createMockFrameAnalysisService(
       shift_start_ms: 166,
       impact_score: 0.08,
       affected_regions: [],
-      estimated_cause: 'dynamic_content',
-      shift_direction: 'vertical',
+      estimated_cause: "dynamic_content",
+      shift_direction: "vertical",
       shift_distance: 20,
     }),
     detectColorChange: vi.fn().mockResolvedValue({
@@ -143,127 +143,127 @@ function createMockFrameAnalysisService(
 // 入力バリデーションテスト
 // =====================================================
 
-describe('motion.analyze_frames Input Validation', () => {
-  describe('frame_dir validation', () => {
-    it('should require frame_dir parameter', () => {
+describe("motion.analyze_frames Input Validation", () => {
+  describe("frame_dir validation", () => {
+    it("should require frame_dir parameter", () => {
       const result = analyzeFramesInputSchema.safeParse({});
       expect(result.success).toBe(false);
       if (!result.success) {
-        expect(result.error.issues.some((i) => i.path.includes('frame_dir'))).toBe(true);
+        expect(result.error.issues.some((i) => i.path.includes("frame_dir"))).toBe(true);
       }
     });
 
-    it('should reject empty frame_dir', () => {
+    it("should reject empty frame_dir", () => {
       const result = analyzeFramesInputSchema.safeParse({
-        frame_dir: '',
+        frame_dir: "",
       });
       expect(result.success).toBe(false);
     });
 
-    it('should reject path traversal attempts', () => {
+    it("should reject path traversal attempts", () => {
       const result = analyzeFramesInputSchema.safeParse({
-        frame_dir: '../../../etc/passwd',
+        frame_dir: "../../../etc/passwd",
       });
       expect(result.success).toBe(false);
     });
 
-    it('should accept valid directory path', () => {
+    it("should accept valid directory path", () => {
       const result = analyzeFramesInputSchema.safeParse({
-        frame_dir: '/tmp/frames',
+        frame_dir: "/tmp/frames",
       });
       expect(result.success).toBe(true);
     });
   });
 
-  describe('frame_pattern validation', () => {
-    it('should use default pattern when not specified', () => {
+  describe("frame_pattern validation", () => {
+    it("should use default pattern when not specified", () => {
       const result = analyzeFramesInputSchema.safeParse({
-        frame_dir: '/tmp/frames',
+        frame_dir: "/tmp/frames",
       });
       expect(result.success).toBe(true);
       if (result.success) {
-        expect(result.data.frame_pattern).toBe('frame-*.png');
+        expect(result.data.frame_pattern).toBe("frame-*.png");
       }
     });
 
-    it('should accept custom pattern', () => {
+    it("should accept custom pattern", () => {
       const result = analyzeFramesInputSchema.safeParse({
-        frame_dir: '/tmp/frames',
-        frame_pattern: 'img-*.jpg',
+        frame_dir: "/tmp/frames",
+        frame_pattern: "img-*.jpg",
       });
       expect(result.success).toBe(true);
       if (result.success) {
-        expect(result.data.frame_pattern).toBe('img-*.jpg');
+        expect(result.data.frame_pattern).toBe("img-*.jpg");
       }
     });
   });
 
-  describe('analysis_types validation', () => {
-    it('should use default analysis types when not specified', () => {
+  describe("analysis_types validation", () => {
+    it("should use default analysis types when not specified", () => {
       const result = analyzeFramesInputSchema.safeParse({
-        frame_dir: '/tmp/frames',
+        frame_dir: "/tmp/frames",
       });
       expect(result.success).toBe(true);
       if (result.success) {
-        expect(result.data.analysis_types).toEqual(['frame_diff', 'layout_shift']);
+        expect(result.data.analysis_types).toEqual(["frame_diff", "layout_shift"]);
       }
     });
 
-    it('should accept valid analysis types', () => {
+    it("should accept valid analysis types", () => {
       const result = analyzeFramesInputSchema.safeParse({
-        frame_dir: '/tmp/frames',
-        analysis_types: ['frame_diff', 'color_change', 'motion_vector'],
+        frame_dir: "/tmp/frames",
+        analysis_types: ["frame_diff", "color_change", "motion_vector"],
       });
       expect(result.success).toBe(true);
     });
 
-    it('should reject invalid analysis type', () => {
+    it("should reject invalid analysis type", () => {
       const result = analyzeFramesInputSchema.safeParse({
-        frame_dir: '/tmp/frames',
-        analysis_types: ['invalid_type'],
+        frame_dir: "/tmp/frames",
+        analysis_types: ["invalid_type"],
       });
       expect(result.success).toBe(false);
     });
   });
 
-  describe('options validation', () => {
-    it('should validate diff_threshold range (0-1)', () => {
+  describe("options validation", () => {
+    it("should validate diff_threshold range (0-1)", () => {
       const validResult = analyzeFramesInputSchema.safeParse({
-        frame_dir: '/tmp/frames',
+        frame_dir: "/tmp/frames",
         options: { diff_threshold: 0.5 },
       });
       expect(validResult.success).toBe(true);
 
       const invalidResult = analyzeFramesInputSchema.safeParse({
-        frame_dir: '/tmp/frames',
+        frame_dir: "/tmp/frames",
         options: { diff_threshold: 1.5 },
       });
       expect(invalidResult.success).toBe(false);
     });
 
-    it('should validate max_frames range (2-3600)', () => {
+    it("should validate max_frames range (2-3600)", () => {
       const validResult = analyzeFramesInputSchema.safeParse({
-        frame_dir: '/tmp/frames',
+        frame_dir: "/tmp/frames",
         options: { max_frames: 100 },
       });
       expect(validResult.success).toBe(true);
 
       const invalidLow = analyzeFramesInputSchema.safeParse({
-        frame_dir: '/tmp/frames',
+        frame_dir: "/tmp/frames",
         options: { max_frames: 1 },
       });
       expect(invalidLow.success).toBe(false);
 
       const invalidHigh = analyzeFramesInputSchema.safeParse({
-        frame_dir: '/tmp/frames',
+        frame_dir: "/tmp/frames",
         options: { max_frames: 4000 },
       });
       expect(invalidHigh.success).toBe(false);
     });
 
-    it('should use default option values', () => {
+    it("should use default option values", () => {
       const result = analyzeFramesInputSchema.safeParse({
-        frame_dir: '/tmp/frames',
+        frame_dir: "/tmp/frames",
         options: {},
       });
       expect(result.success).toBe(true);
@@ -281,7 +281,7 @@ describe('motion.analyze_frames Input Validation', () => {
 // ハンドラーテスト
 // =====================================================
 
-describe('motion.analyze_frames Handler', () => {
+describe("motion.analyze_frames Handler", () => {
   let tempDir: string;
 
   beforeEach(async () => {
@@ -294,23 +294,23 @@ describe('motion.analyze_frames Handler', () => {
     await cleanupTempDir(tempDir);
   });
 
-  describe('Tool Definition', () => {
-    it('should have correct tool name', () => {
-      expect(motionAnalyzeFramesToolDefinition.name).toBe('motion.analyze_frames');
+  describe("Tool Definition", () => {
+    it("should have correct tool name", () => {
+      expect(motionAnalyzeFramesToolDefinition.name).toBe("motion.analyze_frames");
     });
 
-    it('should have description', () => {
+    it("should have description", () => {
       expect(motionAnalyzeFramesToolDefinition.description).toBeTruthy();
       expect(motionAnalyzeFramesToolDefinition.description.length).toBeGreaterThan(10);
     });
 
-    it('should have inputSchema', () => {
+    it("should have inputSchema", () => {
       expect(motionAnalyzeFramesToolDefinition.inputSchema).toBeDefined();
     });
   });
 
-  describe('Basic Execution', () => {
-    it('should return success for valid input with mock service', async () => {
+  describe("Basic Execution", () => {
+    it("should return success for valid input with mock service", async () => {
       await createMockFrames(tempDir, 10);
       const mockService = createMockFrameAnalysisService();
       setFrameAnalysisServiceFactory(() => mockService);
@@ -326,9 +326,9 @@ describe('motion.analyze_frames Handler', () => {
       }
     });
 
-    it('should return error for non-existent directory', async () => {
+    it("should return error for non-existent directory", async () => {
       const result = await motionAnalyzeFramesHandler({
-        frame_dir: '/nonexistent/path/to/frames',
+        frame_dir: "/nonexistent/path/to/frames",
       });
 
       expect(result.success).toBe(false);
@@ -337,7 +337,7 @@ describe('motion.analyze_frames Handler', () => {
       }
     });
 
-    it('should return error for empty directory', async () => {
+    it("should return error for empty directory", async () => {
       // tempDir is empty
       const result = await motionAnalyzeFramesHandler({
         frame_dir: tempDir,
@@ -349,7 +349,7 @@ describe('motion.analyze_frames Handler', () => {
       }
     });
 
-    it('should return error when too few frames (minimum 2)', async () => {
+    it("should return error when too few frames (minimum 2)", async () => {
       await createMockFrames(tempDir, 1);
 
       const result = await motionAnalyzeFramesHandler({
@@ -363,15 +363,15 @@ describe('motion.analyze_frames Handler', () => {
     });
   });
 
-  describe('Frame Diff Analysis', () => {
-    it('should perform frame diff analysis by default', async () => {
+  describe("Frame Diff Analysis", () => {
+    it("should perform frame diff analysis by default", async () => {
       await createMockFrames(tempDir, 10);
       const mockService = createMockFrameAnalysisService();
       setFrameAnalysisServiceFactory(() => mockService);
 
       const result = await motionAnalyzeFramesHandler({
         frame_dir: tempDir,
-        analysis_types: ['frame_diff'],
+        analysis_types: ["frame_diff"],
       });
 
       expect(result.success).toBe(true);
@@ -381,14 +381,14 @@ describe('motion.analyze_frames Handler', () => {
       }
     });
 
-    it('should respect diff_threshold option', async () => {
+    it("should respect diff_threshold option", async () => {
       await createMockFrames(tempDir, 10);
       const mockService = createMockFrameAnalysisService();
       setFrameAnalysisServiceFactory(() => mockService);
 
       const result = await motionAnalyzeFramesHandler({
         frame_dir: tempDir,
-        analysis_types: ['frame_diff'],
+        analysis_types: ["frame_diff"],
         options: { diff_threshold: 0.05 },
       });
 
@@ -402,7 +402,7 @@ describe('motion.analyze_frames Handler', () => {
       );
     });
 
-    it('should return change_regions for frame diff', async () => {
+    it("should return change_regions for frame diff", async () => {
       await createMockFrames(tempDir, 5);
       const mockService = createMockFrameAnalysisService({
         analyzeFrames: vi.fn().mockResolvedValue({
@@ -420,9 +420,7 @@ describe('motion.analyze_frames Handler', () => {
                   change_ratio: 0.1,
                   changed_pixels: 10000,
                   total_pixels: 100000,
-                  change_regions: [
-                    { x: 100, y: 200, width: 50, height: 30 },
-                  ],
+                  change_regions: [{ x: 100, y: 200, width: 50, height: 30 }],
                   has_change: true,
                 },
               ],
@@ -436,7 +434,7 @@ describe('motion.analyze_frames Handler', () => {
 
       const result = await motionAnalyzeFramesHandler({
         frame_dir: tempDir,
-        analysis_types: ['frame_diff'],
+        analysis_types: ["frame_diff"],
       });
 
       expect(result.success).toBe(true);
@@ -450,8 +448,8 @@ describe('motion.analyze_frames Handler', () => {
     });
   });
 
-  describe('Layout Shift Analysis', () => {
-    it('should detect layout shifts', async () => {
+  describe("Layout Shift Analysis", () => {
+    it("should detect layout shifts", async () => {
       await createMockFrames(tempDir, 10);
       const mockService = createMockFrameAnalysisService({
         analyzeFrames: vi.fn().mockResolvedValue({
@@ -467,8 +465,8 @@ describe('motion.analyze_frames Handler', () => {
                   shift_start_ms: 100,
                   impact_score: 0.1,
                   affected_regions: [{ x: 0, y: 100, width: 1920, height: 200 }],
-                  estimated_cause: 'image_load',
-                  shift_direction: 'vertical',
+                  estimated_cause: "image_load",
+                  shift_direction: "vertical",
                   shift_distance: 50,
                 },
               ],
@@ -482,7 +480,7 @@ describe('motion.analyze_frames Handler', () => {
 
       const result = await motionAnalyzeFramesHandler({
         frame_dir: tempDir,
-        analysis_types: ['layout_shift'],
+        analysis_types: ["layout_shift"],
       });
 
       expect(result.success).toBe(true);
@@ -493,7 +491,7 @@ describe('motion.analyze_frames Handler', () => {
       }
     });
 
-    it('should calculate CLS-equivalent score', async () => {
+    it("should calculate CLS-equivalent score", async () => {
       await createMockFrames(tempDir, 30);
       const mockService = createMockFrameAnalysisService({
         analyzeFrames: vi.fn().mockResolvedValue({
@@ -514,22 +512,22 @@ describe('motion.analyze_frames Handler', () => {
 
       const result = await motionAnalyzeFramesHandler({
         frame_dir: tempDir,
-        analysis_types: ['layout_shift'],
+        analysis_types: ["layout_shift"],
       });
 
       expect(result.success).toBe(true);
       if (result.success) {
         const clsScore = result.data?.analysis_results?.layout_shift?.cumulative_shift_score;
         expect(clsScore).toBeDefined();
-        expect(typeof clsScore).toBe('number');
+        expect(typeof clsScore).toBe("number");
         // CLS should be 0-1 range typically
         expect(clsScore).toBeGreaterThanOrEqual(0);
       }
     });
   });
 
-  describe('Color Change Analysis', () => {
-    it('should detect color changes when requested', async () => {
+  describe("Color Change Analysis", () => {
+    it("should detect color changes when requested", async () => {
       await createMockFrames(tempDir, 20);
       const mockService = createMockFrameAnalysisService({
         analyzeFrames: vi.fn().mockResolvedValue({
@@ -540,10 +538,10 @@ describe('motion.analyze_frames Handler', () => {
                 {
                   start_frame: 5,
                   end_frame: 10,
-                  change_type: 'fade_in',
+                  change_type: "fade_in",
                   affected_region: { x: 100, y: 100, width: 200, height: 200 },
-                  from_color: '#000000',
-                  to_color: '#FFFFFF',
+                  from_color: "#000000",
+                  to_color: "#FFFFFF",
                   estimated_duration_ms: 166,
                 },
               ],
@@ -557,7 +555,7 @@ describe('motion.analyze_frames Handler', () => {
 
       const result = await motionAnalyzeFramesHandler({
         frame_dir: tempDir,
-        analysis_types: ['color_change'],
+        analysis_types: ["color_change"],
       });
 
       expect(result.success).toBe(true);
@@ -567,7 +565,7 @@ describe('motion.analyze_frames Handler', () => {
       }
     });
 
-    it('should identify fade in/out effects', async () => {
+    it("should identify fade in/out effects", async () => {
       await createMockFrames(tempDir, 15);
       const mockService = createMockFrameAnalysisService({
         analyzeFrames: vi.fn().mockResolvedValue({
@@ -578,19 +576,19 @@ describe('motion.analyze_frames Handler', () => {
                 {
                   start_frame: 0,
                   end_frame: 5,
-                  change_type: 'fade_in',
+                  change_type: "fade_in",
                   affected_region: { x: 0, y: 0, width: 1920, height: 1080 },
-                  from_color: '#000000',
-                  to_color: '#FFFFFF',
+                  from_color: "#000000",
+                  to_color: "#FFFFFF",
                   estimated_duration_ms: 166,
                 },
                 {
                   start_frame: 10,
                   end_frame: 14,
-                  change_type: 'fade_out',
+                  change_type: "fade_out",
                   affected_region: { x: 0, y: 0, width: 1920, height: 1080 },
-                  from_color: '#FFFFFF',
-                  to_color: '#000000',
+                  from_color: "#FFFFFF",
+                  to_color: "#000000",
                   estimated_duration_ms: 133,
                 },
               ],
@@ -604,23 +602,23 @@ describe('motion.analyze_frames Handler', () => {
 
       const result = await motionAnalyzeFramesHandler({
         frame_dir: tempDir,
-        analysis_types: ['color_change'],
+        analysis_types: ["color_change"],
       });
 
       expect(result.success).toBe(true);
       if (result.success) {
         const events = result.data?.analysis_results?.color_change?.events;
         expect(events).toBeDefined();
-        const fadeIn = events?.find((e) => e.change_type === 'fade_in');
-        const fadeOut = events?.find((e) => e.change_type === 'fade_out');
+        const fadeIn = events?.find((e) => e.change_type === "fade_in");
+        const fadeOut = events?.find((e) => e.change_type === "fade_out");
         expect(fadeIn).toBeDefined();
         expect(fadeOut).toBeDefined();
       }
     });
   });
 
-  describe('Multiple Analysis Types', () => {
-    it('should perform multiple analysis types simultaneously', async () => {
+  describe("Multiple Analysis Types", () => {
+    it("should perform multiple analysis types simultaneously", async () => {
       await createMockFrames(tempDir, 30);
       const mockService = createMockFrameAnalysisService({
         analyzeFrames: vi.fn().mockResolvedValue({
@@ -643,10 +641,10 @@ describe('motion.analyze_frames Handler', () => {
                 {
                   start_frame: 10,
                   end_frame: 15,
-                  change_type: 'fade_in',
+                  change_type: "fade_in",
                   affected_region: { x: 0, y: 0, width: 100, height: 100 },
-                  from_color: '#000',
-                  to_color: '#FFF',
+                  from_color: "#000",
+                  to_color: "#FFF",
                   estimated_duration_ms: 166,
                 },
               ],
@@ -660,7 +658,7 @@ describe('motion.analyze_frames Handler', () => {
 
       const result = await motionAnalyzeFramesHandler({
         frame_dir: tempDir,
-        analysis_types: ['frame_diff', 'layout_shift', 'color_change'],
+        analysis_types: ["frame_diff", "layout_shift", "color_change"],
       });
 
       expect(result.success).toBe(true);
@@ -672,8 +670,8 @@ describe('motion.analyze_frames Handler', () => {
     });
   });
 
-  describe('Timeline Output', () => {
-    it('should include timeline data', async () => {
+  describe("Timeline Output", () => {
+    it("should include timeline data", async () => {
       await createMockFrames(tempDir, 10);
       const mockService = createMockFrameAnalysisService({
         analyzeFrames: vi.fn().mockResolvedValue({
@@ -709,8 +707,8 @@ describe('motion.analyze_frames Handler', () => {
     });
   });
 
-  describe('Performance', () => {
-    it('should include processing_time_ms in response', async () => {
+  describe("Performance", () => {
+    it("should include processing_time_ms in response", async () => {
       await createMockFrames(tempDir, 10);
       const mockService = createMockFrameAnalysisService();
       setFrameAnalysisServiceFactory(() => mockService);
@@ -722,12 +720,12 @@ describe('motion.analyze_frames Handler', () => {
       expect(result.success).toBe(true);
       if (result.success) {
         expect(result.data?.processing_time_ms).toBeDefined();
-        expect(typeof result.data?.processing_time_ms).toBe('number');
+        expect(typeof result.data?.processing_time_ms).toBe("number");
         expect(result.data?.processing_time_ms).toBeGreaterThanOrEqual(0);
       }
     });
 
-    it('should respect max_frames limit', async () => {
+    it("should respect max_frames limit", async () => {
       await createMockFrames(tempDir, 100);
       const mockService = createMockFrameAnalysisService();
       setFrameAnalysisServiceFactory(() => mockService);
@@ -748,8 +746,8 @@ describe('motion.analyze_frames Handler', () => {
     });
   });
 
-  describe('DI Pattern', () => {
-    it('should use injected service factory', async () => {
+  describe("DI Pattern", () => {
+    it("should use injected service factory", async () => {
       await createMockFrames(tempDir, 5);
       const customService = createMockFrameAnalysisService({
         analyzeFrames: vi.fn().mockResolvedValue({
@@ -779,14 +777,14 @@ describe('motion.analyze_frames Handler', () => {
       }
     });
 
-    it('should reset to default service factory', async () => {
+    it("should reset to default service factory", async () => {
       const customService = createMockFrameAnalysisService();
       setFrameAnalysisServiceFactory(() => customService);
       resetFrameAnalysisServiceFactory();
 
       // After reset, calling without frames should still return appropriate error
       const result = await motionAnalyzeFramesHandler({
-        frame_dir: '/nonexistent/path',
+        frame_dir: "/nonexistent/path",
       });
 
       expect(result.success).toBe(false);
@@ -795,11 +793,11 @@ describe('motion.analyze_frames Handler', () => {
     });
   });
 
-  describe('Error Handling', () => {
-    it('should handle service errors gracefully', async () => {
+  describe("Error Handling", () => {
+    it("should handle service errors gracefully", async () => {
       await createMockFrames(tempDir, 10);
       const errorService = createMockFrameAnalysisService({
-        analyzeFrames: vi.fn().mockRejectedValue(new Error('Analysis failed')),
+        analyzeFrames: vi.fn().mockRejectedValue(new Error("Analysis failed")),
       });
       setFrameAnalysisServiceFactory(() => errorService);
 
@@ -810,11 +808,11 @@ describe('motion.analyze_frames Handler', () => {
       expect(result.success).toBe(false);
       if (!result.success) {
         expect(result.error?.code).toBe(ANALYZE_FRAMES_ERROR_CODES.ANALYSIS_ERROR);
-        expect(result.error?.message).toContain('Analysis failed');
+        expect(result.error?.message).toContain("Analysis failed");
       }
     });
 
-    it('should handle validation errors', async () => {
+    it("should handle validation errors", async () => {
       const result = await motionAnalyzeFramesHandler({
         frame_dir: tempDir,
         options: { diff_threshold: 5 }, // Invalid: should be 0-1
@@ -832,8 +830,8 @@ describe('motion.analyze_frames Handler', () => {
 // 出力スキーマバリデーションテスト
 // =====================================================
 
-describe('motion.analyze_frames Output Schema', () => {
-  it('should validate success response', () => {
+describe("motion.analyze_frames Output Schema", () => {
+  it("should validate success response", () => {
     const successResponse = {
       success: true,
       data: {
@@ -855,12 +853,12 @@ describe('motion.analyze_frames Output Schema', () => {
     expect(result.success).toBe(true);
   });
 
-  it('should validate error response', () => {
+  it("should validate error response", () => {
     const errorResponse = {
       success: false,
       error: {
-        code: 'DIRECTORY_NOT_FOUND',
-        message: 'Frame directory not found',
+        code: "DIRECTORY_NOT_FOUND",
+        message: "Frame directory not found",
       },
     };
 
@@ -868,7 +866,7 @@ describe('motion.analyze_frames Output Schema', () => {
     expect(result.success).toBe(true);
   });
 
-  it('should validate frame_diff result structure', () => {
+  it("should validate frame_diff result structure", () => {
     const frameDiffResult: FrameDiffResult = {
       from_index: 0,
       to_index: 1,
@@ -884,38 +882,38 @@ describe('motion.analyze_frames Output Schema', () => {
     expect(frameDiffResult.change_regions.length).toBe(1);
   });
 
-  it('should validate layout_shift result structure', () => {
+  it("should validate layout_shift result structure", () => {
     const layoutShiftResult: LayoutShiftResult = {
       frame_index: 5,
       shift_start_ms: 166,
       impact_score: 0.08,
       affected_regions: [{ x: 0, y: 100, width: 1920, height: 200 }],
-      estimated_cause: 'image_load',
-      shift_direction: 'vertical',
+      estimated_cause: "image_load",
+      shift_direction: "vertical",
       shift_distance: 50,
     };
 
-    expect(layoutShiftResult.estimated_cause).toBe('image_load');
-    expect(layoutShiftResult.shift_direction).toBe('vertical');
+    expect(layoutShiftResult.estimated_cause).toBe("image_load");
+    expect(layoutShiftResult.shift_direction).toBe("vertical");
   });
 
-  it('should validate color_change result structure', () => {
+  it("should validate color_change result structure", () => {
     const colorChangeResult: ColorChangeResult = {
       events: [
         {
           start_frame: 5,
           end_frame: 10,
-          change_type: 'fade_in',
+          change_type: "fade_in",
           affected_region: { x: 100, y: 100, width: 200, height: 200 },
-          from_color: '#000000',
-          to_color: '#FFFFFF',
+          from_color: "#000000",
+          to_color: "#FFFFFF",
           estimated_duration_ms: 166,
         },
       ],
     };
 
     expect(colorChangeResult.events.length).toBe(1);
-    expect(colorChangeResult.events[0].change_type).toBe('fade_in');
+    expect(colorChangeResult.events[0].change_type).toBe("fade_in");
   });
 });
 
@@ -923,7 +921,7 @@ describe('motion.analyze_frames Output Schema', () => {
 // エッジケーステスト
 // =====================================================
 
-describe('motion.analyze_frames Edge Cases', () => {
+describe("motion.analyze_frames Edge Cases", () => {
   let tempDir: string;
 
   beforeEach(async () => {
@@ -936,7 +934,7 @@ describe('motion.analyze_frames Edge Cases', () => {
     await cleanupTempDir(tempDir);
   });
 
-  it('should handle exactly 2 frames (minimum)', async () => {
+  it("should handle exactly 2 frames (minimum)", async () => {
     await createMockFrames(tempDir, 2);
     const mockService = createMockFrameAnalysisService({
       analyzeFrames: vi.fn().mockResolvedValue({
@@ -968,7 +966,7 @@ describe('motion.analyze_frames Edge Cases', () => {
     }
   });
 
-  it('should handle max_frames limit (3600)', async () => {
+  it("should handle max_frames limit (3600)", async () => {
     const result = analyzeFramesInputSchema.safeParse({
       frame_dir: tempDir,
       options: { max_frames: 3600 },
@@ -980,7 +978,7 @@ describe('motion.analyze_frames Edge Cases', () => {
     }
   });
 
-  it('should handle frames with no motion detected', async () => {
+  it("should handle frames with no motion detected", async () => {
     await createMockFrames(tempDir, 10);
     const mockService = createMockFrameAnalysisService({
       analyzeFrames: vi.fn().mockResolvedValue({
@@ -1020,11 +1018,11 @@ describe('motion.analyze_frames Edge Cases', () => {
     }
   });
 
-  it('should handle mixed file types in directory', async () => {
+  it("should handle mixed file types in directory", async () => {
     // Create both PNG and other files
     await createMockFrames(tempDir, 5);
-    await fs.writeFile(path.join(tempDir, 'readme.txt'), 'test file');
-    await fs.writeFile(path.join(tempDir, 'config.json'), '{}');
+    await fs.writeFile(path.join(tempDir, "readme.txt"), "test file");
+    await fs.writeFile(path.join(tempDir, "config.json"), "{}");
 
     const mockService = createMockFrameAnalysisService({
       analyzeFrames: vi.fn().mockResolvedValue({
@@ -1045,7 +1043,7 @@ describe('motion.analyze_frames Edge Cases', () => {
 
     const result = await motionAnalyzeFramesHandler({
       frame_dir: tempDir,
-      frame_pattern: 'frame-*.png',
+      frame_pattern: "frame-*.png",
     });
 
     expect(result.success).toBe(true);
@@ -1055,7 +1053,7 @@ describe('motion.analyze_frames Edge Cases', () => {
     }
   });
 
-  it('should handle parallel=false option', async () => {
+  it("should handle parallel=false option", async () => {
     await createMockFrames(tempDir, 10);
     const mockService = createMockFrameAnalysisService();
     setFrameAnalysisServiceFactory(() => mockService);
@@ -1075,7 +1073,7 @@ describe('motion.analyze_frames Edge Cases', () => {
     );
   });
 
-  it('should handle output_diff_images option', async () => {
+  it("should handle output_diff_images option", async () => {
     await createMockFrames(tempDir, 5);
     const mockService = createMockFrameAnalysisService();
     setFrameAnalysisServiceFactory(() => mockService);
@@ -1095,14 +1093,24 @@ describe('motion.analyze_frames Edge Cases', () => {
     );
   });
 
-  it('should handle all analysis types together', async () => {
+  it("should handle all analysis types together", async () => {
     await createMockFrames(tempDir, 20);
     const mockService = createMockFrameAnalysisService({
       analyzeFrames: vi.fn().mockResolvedValue({
         frame_count: 20,
         analysis_results: {
-          frame_diff: { total_comparisons: 19, avg_change_ratio: 0.1, max_change_ratio: 0.3, motion_frame_count: 15 },
-          layout_shift: { total_shifts: 2, max_impact_score: 0.1, cumulative_shift_score: 0.15, results: [] },
+          frame_diff: {
+            total_comparisons: 19,
+            avg_change_ratio: 0.1,
+            max_change_ratio: 0.3,
+            motion_frame_count: 15,
+          },
+          layout_shift: {
+            total_shifts: 2,
+            max_impact_score: 0.1,
+            cumulative_shift_score: 0.15,
+            results: [],
+          },
           color_change: { events: [] },
           motion_vector: { primary_direction: 90, avg_speed: 5, vectors: [] },
           element_visibility: { events: [] },
@@ -1115,7 +1123,13 @@ describe('motion.analyze_frames Edge Cases', () => {
 
     const result = await motionAnalyzeFramesHandler({
       frame_dir: tempDir,
-      analysis_types: ['frame_diff', 'layout_shift', 'color_change', 'motion_vector', 'element_visibility'],
+      analysis_types: [
+        "frame_diff",
+        "layout_shift",
+        "color_change",
+        "motion_vector",
+        "element_visibility",
+      ],
     });
 
     expect(result.success).toBe(true);

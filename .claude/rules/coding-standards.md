@@ -2,13 +2,13 @@
 
 ## 評価方法 / Evaluation Criteria
 
-| 検証項目 / Item | 評価方法 / Method | ツール / Tool | 目標 / Target |
-|---------|---------|-------|------|
-| TypeScript strict mode | 自動（Code） / Auto | tsc --noEmit | エラー 0件 / 0 errors |
-| any型の使用 / `any` type usage | 自動（Code） / Auto | ESLint @typescript-eslint/no-explicit-any | 違反 0件 / 0 violations |
-| 戻り値型の明示 / Explicit return types | 自動（Code） / Auto | ESLint @typescript-eslint/explicit-function-return-type | 警告 0件（warn） / 0 warnings |
-| 命名規則 / Naming conventions | 手動（Human） / Manual | コードレビュー（naming-conventionルール未設定） / Code review (naming-convention rule not configured) | 規約準拠 / Compliant |
-| コンソールログ分離 / Console log separation | 自動（Code） / Auto | ESLint no-console（全環境でwarn、console.warn/errorは許可。テストファイルではoff） / ESLint no-console (warn in all envs, console.warn/error allowed, off in test files) | 本番ビルドでログ0件 / 0 logs in production |
+| 検証項目 / Item                             | 評価方法 / Method      | ツール / Tool                                                                                                                                                            | 目標 / Target                              |
+| ------------------------------------------- | ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------ |
+| TypeScript strict mode                      | 自動（Code） / Auto    | tsc --noEmit                                                                                                                                                             | エラー 0件 / 0 errors                      |
+| any型の使用 / `any` type usage              | 自動（Code） / Auto    | ESLint @typescript-eslint/no-explicit-any                                                                                                                                | 違反 0件 / 0 violations                    |
+| 戻り値型の明示 / Explicit return types      | 自動（Code） / Auto    | ESLint @typescript-eslint/explicit-function-return-type                                                                                                                  | 警告 0件（warn） / 0 warnings              |
+| 命名規則 / Naming conventions               | 手動（Human） / Manual | コードレビュー（naming-conventionルール未設定） / Code review (naming-convention rule not configured)                                                                    | 規約準拠 / Compliant                       |
+| コンソールログ分離 / Console log separation | 自動（Code） / Auto    | ESLint no-console（全環境でwarn、console.warn/errorは許可。テストファイルではoff） / ESLint no-console (warn in all envs, console.warn/error allowed, off in test files) | 本番ビルドでログ0件 / 0 logs in production |
 
 ## TypeScript
 
@@ -29,6 +29,7 @@
 ### 具体例 / Examples
 
 **✅ 良い例 / Good example**:
+
 ```typescript
 // 戻り値型明示、unknown使用
 function parseJSON(input: string): unknown {
@@ -42,12 +43,7 @@ interface User {
 }
 
 function isUser(value: unknown): value is User {
-  return (
-    typeof value === 'object' &&
-    value !== null &&
-    'id' in value &&
-    'name' in value
-  );
+  return typeof value === "object" && value !== null && "id" in value && "name" in value;
 }
 
 const data = parseJSON(jsonString);
@@ -57,6 +53,7 @@ if (isUser(data)) {
 ```
 
 **❌ 悪い例 / Bad example**:
+
 ```typescript
 // any型使用、戻り値型省略
 function parseJSON(input: string) {
@@ -64,7 +61,8 @@ function parseJSON(input: string) {
 }
 
 // Iプレフィックス
-interface IUser { // ❌ I不要
+interface IUser {
+  // ❌ I不要
   id: string;
 }
 ```
@@ -77,30 +75,31 @@ interface IUser { // ❌ I不要
 >
 > The `@typescript-eslint/naming-convention` rule is not yet configured in the ESLint config, so manual verification is performed during code review.
 
-| 種別 / Type | 規則 / Rule | ✅ 良い例 / Good | ❌ 悪い例 / Bad |
-|------|------|----------|----------|
-| ファイル名 / File name | kebab-case | `search-service.ts` | `SearchService.ts`, `search_service.ts` |
-| クラス / Class | PascalCase | `SearchService` | `searchService`, `search_service` |
-| 関数 / Function | camelCase | `handleSearch` | `HandleSearch`, `handle_search` |
-| 定数 / Constant | SCREAMING_SNAKE_CASE | `MAX_RESULTS` | `maxResults`, `max-results` |
-| 型・インターフェース / Type/Interface | PascalCase | `SearchResult` | `searchResult`, `ISearchResult` |
-| Zodスキーマ / Zod schema | camelCase + Schema | `searchQuerySchema` | `SearchQuerySchema`, `search_query_schema` |
+| 種別 / Type                           | 規則 / Rule          | ✅ 良い例 / Good    | ❌ 悪い例 / Bad                            |
+| ------------------------------------- | -------------------- | ------------------- | ------------------------------------------ |
+| ファイル名 / File name                | kebab-case           | `search-service.ts`   | `SearchService.ts`, `search_service.ts`        |
+| クラス / Class            | PascalCase           | `SearchService`        | `searchService`, `search_service`                |
+| 関数 / Function                       | camelCase            | `handleSearch`      | `HandleSearch`, `handle_search`            |
+| 定数 / Constant                       | SCREAMING_SNAKE_CASE | `MAX_RESULTS`       | `maxResults`, `max-results`                |
+| 型・インターフェース / Type/Interface | PascalCase           | `SearchResult`      | `searchResult`, `ISearchResult`            |
+| Zodスキーマ / Zod schema              | camelCase + Schema   | `searchQuerySchema` | `SearchQuerySchema`, `search_query_schema` |
 
 ### 検証方法 / Verification Method
 
 **手動検証（コードレビュー時） / Manual verification (during code review)**:
+
 - ファイル名が kebab-case であることを確認 / Verify file names use kebab-case
 - コンポーネントファイル名とコンポーネント名が一致（`SearchService.ts` → `export function SearchForm()`） / Class/module file name matches export name
 - インターフェース名に `I` プレフィックスがないことを確認（`@typescript-eslint/no-explicit-any` は自動検証済み） / Verify no `I` prefix on interface names
 
 ## 技術スタック（2026-03時点） / Tech Stack (as of 2026-03)
 
-| カテゴリ / Category | 技術 / Technology | バージョン / Version |
-|---------|------|-----------|
-| Backend | Node.js | 20.x LTS (>=20.19.0) |
-| Database | PostgreSQL + pgvector | 18.x + 0.8.x |
-| Testing | Vitest | 4.x（mcp-server, ml, core, webdesign-core）/ 3.2.x（database） |
-| Testing | Playwright | 1.57.0 |
+| カテゴリ / Category | 技術 / Technology     | バージョン / Version                                           |
+| ------------------- | --------------------- | -------------------------------------------------------------- |
+| Backend             | Node.js               | 20.x LTS (>=20.19.0)                                           |
+| Database            | PostgreSQL + pgvector | 18.x + 0.8.x                                                   |
+| Testing             | Vitest                | 4.x（mcp-server, ml, core, webdesign-core）/ 3.2.x（database） |
+| Testing             | Playwright            | 1.57.0                                                         |
 
 ## コンソールログ / Console Logging
 
@@ -108,8 +107,8 @@ interface IUser { // ❌ I不要
 
 ```tsx
 // 推奨パターン
-if (process.env.NODE_ENV === 'development') {
-  console.log('[Hero] isVisible:', isVisible);
+if (process.env.NODE_ENV === "development") {
+  console.log("[Hero] isVisible:", isVisible);
 }
 ```
 

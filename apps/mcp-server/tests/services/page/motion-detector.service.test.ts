@@ -10,12 +10,12 @@
  * @module tests/services/page/motion-detector.service
  */
 
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach } from "vitest";
 import {
   MotionDetectorService,
   type MotionDetectionResult,
   type MotionDetectionOptions,
-} from '../../../src/services/page/motion-detector.service';
+} from "../../../src/services/page/motion-detector.service";
 
 // =====================================================
 // Test CSS/HTML Fixtures
@@ -368,7 +368,7 @@ const HTML_WITH_INLINE_STYLES = `
 
 // Generate large CSS for performance testing
 function generateLargeCss(animationCount: number): string {
-  let css = '';
+  let css = "";
   for (let i = 0; i < animationCount; i++) {
     css += `
       @keyframes animation${i} {
@@ -388,7 +388,7 @@ function generateLargeCss(animationCount: number): string {
 // Test Suites
 // =====================================================
 
-describe('MotionDetectorService', () => {
+describe("MotionDetectorService", () => {
   let service: MotionDetectorService;
 
   beforeEach(() => {
@@ -399,8 +399,8 @@ describe('MotionDetectorService', () => {
   // Basic Detection Tests
   // =====================================================
 
-  describe('Basic Detection', () => {
-    it('should return empty patterns for HTML without animations', () => {
+  describe("Basic Detection", () => {
+    it("should return empty patterns for HTML without animations", () => {
       const result = service.detect(MINIMAL_HTML);
 
       expect(result.patterns).toHaveLength(0);
@@ -408,86 +408,86 @@ describe('MotionDetectorService', () => {
       expect(result.processingTimeMs).toBeGreaterThanOrEqual(0);
     });
 
-    it('should detect @keyframes animations', () => {
+    it("should detect @keyframes animations", () => {
       const result = service.detect(HTML_WITH_KEYFRAMES);
 
       expect(result.patterns.length).toBeGreaterThan(0);
 
       // Find fadeIn animation
-      const fadeIn = result.patterns.find((p) => p.name === 'fadeIn');
+      const fadeIn = result.patterns.find((p) => p.name === "fadeIn");
       expect(fadeIn).toBeDefined();
-      expect(fadeIn?.type).toBe('css_animation');
+      expect(fadeIn?.type).toBe("css_animation");
       expect(fadeIn?.duration).toBe(300); // 0.3s = 300ms
-      expect(fadeIn?.easing).toBe('ease-out');
-      expect(fadeIn?.properties).toContain('opacity');
+      expect(fadeIn?.easing).toBe("ease-out");
+      expect(fadeIn?.properties).toContain("opacity");
 
       // Find slideUp animation
-      const slideUp = result.patterns.find((p) => p.name === 'slideUp');
+      const slideUp = result.patterns.find((p) => p.name === "slideUp");
       expect(slideUp).toBeDefined();
       expect(slideUp?.duration).toBe(500); // 0.5s
-      expect(slideUp?.properties).toContain('transform');
-      expect(slideUp?.properties).toContain('opacity');
+      expect(slideUp?.properties).toContain("transform");
+      expect(slideUp?.properties).toContain("opacity");
     });
 
-    it('should populate propertiesDetailed with from/to values for keyframe animations', () => {
+    it("should populate propertiesDetailed with from/to values for keyframe animations", () => {
       const result = service.detect(HTML_WITH_KEYFRAMES);
 
       // fadeIn: from { opacity: 0 } to { opacity: 1 }
-      const fadeIn = result.patterns.find((p) => p.name === 'fadeIn');
+      const fadeIn = result.patterns.find((p) => p.name === "fadeIn");
       expect(fadeIn).toBeDefined();
       expect(fadeIn?.propertiesDetailed).toBeDefined();
       expect(fadeIn?.propertiesDetailed).toHaveLength(1);
 
-      const opacityProp = fadeIn?.propertiesDetailed?.find((p) => p.property === 'opacity');
+      const opacityProp = fadeIn?.propertiesDetailed?.find((p) => p.property === "opacity");
       expect(opacityProp).toBeDefined();
-      expect(opacityProp?.from).toBe('0');
-      expect(opacityProp?.to).toBe('1');
+      expect(opacityProp?.from).toBe("0");
+      expect(opacityProp?.to).toBe("1");
 
       // slideUp: 0% { transform: translateY(20px); opacity: 0 } 100% { transform: translateY(0); opacity: 1 }
-      const slideUp = result.patterns.find((p) => p.name === 'slideUp');
+      const slideUp = result.patterns.find((p) => p.name === "slideUp");
       expect(slideUp).toBeDefined();
       expect(slideUp?.propertiesDetailed).toBeDefined();
       expect(slideUp?.propertiesDetailed).toHaveLength(2);
 
-      const transformProp = slideUp?.propertiesDetailed?.find((p) => p.property === 'transform');
+      const transformProp = slideUp?.propertiesDetailed?.find((p) => p.property === "transform");
       expect(transformProp).toBeDefined();
-      expect(transformProp?.from).toBe('translateY(20px)');
-      expect(transformProp?.to).toBe('translateY(0)');
+      expect(transformProp?.from).toBe("translateY(20px)");
+      expect(transformProp?.to).toBe("translateY(0)");
 
-      const slideOpacity = slideUp?.propertiesDetailed?.find((p) => p.property === 'opacity');
+      const slideOpacity = slideUp?.propertiesDetailed?.find((p) => p.property === "opacity");
       expect(slideOpacity).toBeDefined();
-      expect(slideOpacity?.from).toBe('0');
-      expect(slideOpacity?.to).toBe('1');
+      expect(slideOpacity?.from).toBe("0");
+      expect(slideOpacity?.to).toBe("1");
     });
 
-    it('should not have propertiesDetailed for css_transition patterns', () => {
+    it("should not have propertiesDetailed for css_transition patterns", () => {
       const result = service.detect(HTML_WITH_TRANSITIONS);
 
-      const transitionPattern = result.patterns.find((p) => p.type === 'css_transition');
+      const transitionPattern = result.patterns.find((p) => p.type === "css_transition");
       expect(transitionPattern).toBeDefined();
       // Transitions don't have keyframe steps, so propertiesDetailed should be undefined
       expect(transitionPattern?.propertiesDetailed).toBeUndefined();
     });
 
-    it('should detect CSS transitions', () => {
+    it("should detect CSS transitions", () => {
       const result = service.detect(HTML_WITH_TRANSITIONS);
 
       expect(result.patterns.length).toBeGreaterThan(0);
 
       // Find button transition
       const buttonPattern = result.patterns.find(
-        (p) => p.type === 'css_transition' && p.selector?.includes('button')
+        (p) => p.type === "css_transition" && p.selector?.includes("button")
       );
       expect(buttonPattern).toBeDefined();
-      expect(buttonPattern?.properties).toContain('background-color');
-      expect(buttonPattern?.properties).toContain('transform');
+      expect(buttonPattern?.properties).toContain("background-color");
+      expect(buttonPattern?.properties).toContain("transform");
 
       // Find card transition
       const cardPattern = result.patterns.find(
-        (p) => p.type === 'css_transition' && p.selector?.includes('card')
+        (p) => p.type === "css_transition" && p.selector?.includes("card")
       );
       expect(cardPattern).toBeDefined();
-      expect(cardPattern?.properties).toContain('box-shadow');
+      expect(cardPattern?.properties).toContain("box-shadow");
     });
   });
 
@@ -495,31 +495,31 @@ describe('MotionDetectorService', () => {
   // Easing Function Tests
   // =====================================================
 
-  describe('Easing Functions', () => {
-    it('should parse cubic-bezier easing', () => {
+  describe("Easing Functions", () => {
+    it("should parse cubic-bezier easing", () => {
       const result = service.detect(HTML_WITH_CUBIC_BEZIER);
 
-      const bouncePattern = result.patterns.find((p) => p.name === 'bounce');
+      const bouncePattern = result.patterns.find((p) => p.name === "bounce");
       expect(bouncePattern).toBeDefined();
-      expect(bouncePattern?.easing).toBe('cubic-bezier(0.68, -0.55, 0.265, 1.55)');
+      expect(bouncePattern?.easing).toBe("cubic-bezier(0.68, -0.55, 0.265, 1.55)");
     });
 
-    it('should parse steps() easing', () => {
+    it("should parse steps() easing", () => {
       const result = service.detect(HTML_WITH_STEPS_EASING);
 
-      const typewriterPattern = result.patterns.find((p) => p.name === 'typewriter');
+      const typewriterPattern = result.patterns.find((p) => p.name === "typewriter");
       expect(typewriterPattern).toBeDefined();
-      expect(typewriterPattern?.easing).toBe('steps(20, end)');
+      expect(typewriterPattern?.easing).toBe("steps(20, end)");
     });
 
-    it('should parse standard easing keywords', () => {
+    it("should parse standard easing keywords", () => {
       const result = service.detect(HTML_WITH_KEYFRAMES);
 
-      const fadeIn = result.patterns.find((p) => p.name === 'fadeIn');
-      expect(fadeIn?.easing).toBe('ease-out');
+      const fadeIn = result.patterns.find((p) => p.name === "fadeIn");
+      expect(fadeIn?.easing).toBe("ease-out");
 
-      const slideUp = result.patterns.find((p) => p.name === 'slideUp');
-      expect(slideUp?.easing).toBe('ease-in-out');
+      const slideUp = result.patterns.find((p) => p.name === "slideUp");
+      expect(slideUp?.easing).toBe("ease-in-out");
     });
   });
 
@@ -527,45 +527,43 @@ describe('MotionDetectorService', () => {
   // Performance Analysis Tests
   // =====================================================
 
-  describe('Performance Analysis', () => {
-    it('should identify GPU-accelerated animations as good performance', () => {
+  describe("Performance Analysis", () => {
+    it("should identify GPU-accelerated animations as good performance", () => {
       const result = service.detect(HTML_WITH_KEYFRAMES);
 
       // fadeIn uses only opacity (GPU-accelerated)
-      const fadeIn = result.patterns.find((p) => p.name === 'fadeIn');
-      expect(fadeIn?.performance.level).toBe('good');
+      const fadeIn = result.patterns.find((p) => p.name === "fadeIn");
+      expect(fadeIn?.performance.level).toBe("good");
       expect(fadeIn?.performance.usesOpacity).toBe(true);
       expect(fadeIn?.performance.usesTransform).toBe(false);
 
       // slideUp uses transform and opacity (GPU-accelerated)
-      const slideUp = result.patterns.find((p) => p.name === 'slideUp');
-      expect(slideUp?.performance.level).toBe('good');
+      const slideUp = result.patterns.find((p) => p.name === "slideUp");
+      expect(slideUp?.performance.level).toBe("good");
       expect(slideUp?.performance.usesTransform).toBe(true);
       expect(slideUp?.performance.usesOpacity).toBe(true);
     });
 
-    it('should identify layout-triggering animations as poor performance', () => {
+    it("should identify layout-triggering animations as poor performance", () => {
       const result = service.detect(HTML_WITH_LAYOUT_TRIGGERS);
 
       // Animations with width/height/padding should trigger layout
-      const layoutPatterns = result.patterns.filter((p) => p.performance.level === 'poor');
+      const layoutPatterns = result.patterns.filter((p) => p.performance.level === "poor");
       expect(layoutPatterns.length).toBeGreaterThan(0);
 
-      const widthPattern = result.patterns.find((p) => p.name === 'widthChange');
-      expect(widthPattern?.performance.level).toBe('poor');
+      const widthPattern = result.patterns.find((p) => p.name === "widthChange");
+      expect(widthPattern?.performance.level).toBe("poor");
 
-      const heightPattern = result.patterns.find((p) => p.name === 'heightChange');
-      expect(heightPattern?.performance.level).toBe('poor');
+      const heightPattern = result.patterns.find((p) => p.name === "heightChange");
+      expect(heightPattern?.performance.level).toBe("poor");
     });
 
-    it('should include performance warning for layout-triggering animations', () => {
+    it("should include performance warning for layout-triggering animations", () => {
       const result = service.detect(HTML_WITH_LAYOUT_TRIGGERS);
 
-      const layoutWarning = result.warnings.find(
-        (w) => w.code === 'PERF_LAYOUT_TRIGGER'
-      );
+      const layoutWarning = result.warnings.find((w) => w.code === "PERF_LAYOUT_TRIGGER");
       expect(layoutWarning).toBeDefined();
-      expect(layoutWarning?.severity).toBe('warning');
+      expect(layoutWarning?.severity).toBe("warning");
     });
   });
 
@@ -573,42 +571,38 @@ describe('MotionDetectorService', () => {
   // Accessibility Tests
   // =====================================================
 
-  describe('Accessibility Detection', () => {
-    it('should detect prefers-reduced-motion support', () => {
+  describe("Accessibility Detection", () => {
+    it("should detect prefers-reduced-motion support", () => {
       const result = service.detect(HTML_WITH_REDUCED_MOTION);
 
-      const pattern = result.patterns.find((p) => p.name === 'fadeIn');
+      const pattern = result.patterns.find((p) => p.name === "fadeIn");
       expect(pattern?.accessibility.respectsReducedMotion).toBe(true);
     });
 
-    it('should warn when prefers-reduced-motion is not supported', () => {
+    it("should warn when prefers-reduced-motion is not supported", () => {
       const result = service.detect(HTML_WITH_KEYFRAMES);
 
-      const a11yWarning = result.warnings.find(
-        (w) => w.code === 'A11Y_NO_REDUCED_MOTION'
-      );
+      const a11yWarning = result.warnings.find((w) => w.code === "A11Y_NO_REDUCED_MOTION");
       expect(a11yWarning).toBeDefined();
-      expect(a11yWarning?.severity).toBe('warning');
+      expect(a11yWarning?.severity).toBe("warning");
     });
 
-    it('should detect infinite animations', () => {
+    it("should detect infinite animations", () => {
       const result = service.detect(HTML_WITH_INFINITE_ANIMATION);
 
-      const spinner = result.patterns.find((p) => p.name === 'spin');
-      expect(spinner?.iterations).toBe('infinite');
+      const spinner = result.patterns.find((p) => p.name === "spin");
+      expect(spinner?.iterations).toBe("infinite");
 
-      const pulse = result.patterns.find((p) => p.name === 'pulse');
-      expect(pulse?.iterations).toBe('infinite');
+      const pulse = result.patterns.find((p) => p.name === "pulse");
+      expect(pulse?.iterations).toBe("infinite");
     });
 
-    it('should include info warning for infinite animations', () => {
+    it("should include info warning for infinite animations", () => {
       const result = service.detect(HTML_WITH_INFINITE_ANIMATION);
 
-      const infiniteWarning = result.warnings.find(
-        (w) => w.code === 'A11Y_INFINITE_ANIMATION'
-      );
+      const infiniteWarning = result.warnings.find((w) => w.code === "A11Y_INFINITE_ANIMATION");
       expect(infiniteWarning).toBeDefined();
-      expect(infiniteWarning?.severity).toBe('info');
+      expect(infiniteWarning?.severity).toBe("info");
     });
   });
 
@@ -616,50 +610,48 @@ describe('MotionDetectorService', () => {
   // Category Classification Tests
   // =====================================================
 
-  describe('Category Classification', () => {
-    it('should classify hover effects correctly', () => {
+  describe("Category Classification", () => {
+    it("should classify hover effects correctly", () => {
       const result = service.detect(HTML_WITH_HOVER_EFFECTS);
 
-      const hoverPatterns = result.patterns.filter(
-        (p) => p.category === 'hover_effect'
-      );
+      const hoverPatterns = result.patterns.filter((p) => p.category === "hover_effect");
       expect(hoverPatterns.length).toBeGreaterThan(0);
 
       // Patterns with :hover selectors or triggers should be classified
       for (const pattern of hoverPatterns) {
-        expect(pattern.trigger).toBe('hover');
+        expect(pattern.trigger).toBe("hover");
       }
     });
 
-    it('should classify scroll-triggered animations', () => {
+    it("should classify scroll-triggered animations", () => {
       const result = service.detect(HTML_WITH_SCROLL_TRIGGER);
 
       // fadeInUp pattern should be classified as 'reveal' (v0.1.0: new category)
       // v0.1.0: fadeIn/slideUp patterns are now classified as 'reveal' for better specificity
-      const fadeInUp = result.patterns.find((p) => p.name === 'fadeInUp');
+      const fadeInUp = result.patterns.find((p) => p.name === "fadeInUp");
       expect(fadeInUp).toBeDefined();
-      expect(fadeInUp?.category).toBe('reveal');
+      expect(fadeInUp?.category).toBe("reveal");
     });
 
-    it('should classify loading state animations', () => {
+    it("should classify loading state animations", () => {
       const result = service.detect(HTML_WITH_LOADING_ANIMATIONS);
 
       // Skeleton loader should be loading_state
-      const skeleton = result.patterns.find((p) => p.name === 'skeleton');
+      const skeleton = result.patterns.find((p) => p.name === "skeleton");
       expect(skeleton).toBeDefined();
-      expect(skeleton?.category).toBe('loading_state');
+      expect(skeleton?.category).toBe("loading_state");
 
       // Loading dots should be loading_state
-      const loadingDots = result.patterns.find((p) => p.name === 'loading-dots');
+      const loadingDots = result.patterns.find((p) => p.name === "loading-dots");
       expect(loadingDots).toBeDefined();
-      expect(loadingDots?.category).toBe('loading_state');
+      expect(loadingDots?.category).toBe("loading_state");
     });
 
-    it('should classify infinite rotating animations as loading_state', () => {
+    it("should classify infinite rotating animations as loading_state", () => {
       const result = service.detect(HTML_WITH_INFINITE_ANIMATION);
 
-      const spinner = result.patterns.find((p) => p.name === 'spin');
-      expect(spinner?.category).toBe('loading_state');
+      const spinner = result.patterns.find((p) => p.name === "spin");
+      expect(spinner?.category).toBe("loading_state");
     });
   });
 
@@ -667,23 +659,23 @@ describe('MotionDetectorService', () => {
   // Trigger Detection Tests
   // =====================================================
 
-  describe('Trigger Detection', () => {
-    it('should detect hover triggers', () => {
+  describe("Trigger Detection", () => {
+    it("should detect hover triggers", () => {
       const result = service.detect(HTML_WITH_HOVER_EFFECTS);
 
-      const hoverPatterns = result.patterns.filter((p) => p.trigger === 'hover');
+      const hoverPatterns = result.patterns.filter((p) => p.trigger === "hover");
       expect(hoverPatterns.length).toBeGreaterThan(0);
     });
 
-    it('should detect load triggers for entrance animations', () => {
+    it("should detect load triggers for entrance animations", () => {
       const result = service.detect(HTML_WITH_KEYFRAMES);
 
       // Standard fade-in animations are typically load-triggered
-      const fadeIn = result.patterns.find((p) => p.name === 'fadeIn');
-      expect(fadeIn?.trigger).toBe('load');
+      const fadeIn = result.patterns.find((p) => p.name === "fadeIn");
+      expect(fadeIn?.trigger).toBe("load");
     });
 
-    it('should detect unknown trigger when not determinable', () => {
+    it("should detect unknown trigger when not determinable", () => {
       // When we can't determine the trigger, it should default to 'unknown'
       const html = `
         <style>
@@ -696,9 +688,9 @@ describe('MotionDetectorService', () => {
       `;
       const result = service.detect(html);
 
-      const custom = result.patterns.find((p) => p.name === 'customAnimation');
+      const custom = result.patterns.find((p) => p.name === "customAnimation");
       // Could be unknown or load depending on implementation
-      expect(['unknown', 'load']).toContain(custom?.trigger);
+      expect(["unknown", "load"]).toContain(custom?.trigger);
     });
   });
 
@@ -706,29 +698,29 @@ describe('MotionDetectorService', () => {
   // Property Extraction Tests
   // =====================================================
 
-  describe('Property Extraction', () => {
-    it('should extract all animated properties from keyframes', () => {
+  describe("Property Extraction", () => {
+    it("should extract all animated properties from keyframes", () => {
       const result = service.detect(HTML_WITH_MULTIPLE_PROPERTIES);
 
-      const complex = result.patterns.find((p) => p.name === 'complexAnimation');
+      const complex = result.patterns.find((p) => p.name === "complexAnimation");
       expect(complex).toBeDefined();
-      expect(complex?.properties).toContain('opacity');
-      expect(complex?.properties).toContain('transform');
-      expect(complex?.properties).toContain('background-color');
+      expect(complex?.properties).toContain("opacity");
+      expect(complex?.properties).toContain("transform");
+      expect(complex?.properties).toContain("background-color");
     });
 
-    it('should extract from/to values for properties', () => {
+    it("should extract from/to values for properties", () => {
       const result = service.detect(HTML_WITH_KEYFRAMES);
 
-      const fadeIn = result.patterns.find((p) => p.name === 'fadeIn');
-      expect(fadeIn?.properties).toContain('opacity');
+      const fadeIn = result.patterns.find((p) => p.name === "fadeIn");
+      expect(fadeIn?.properties).toContain("opacity");
     });
 
-    it('should extract transition properties', () => {
+    it("should extract transition properties", () => {
       const result = service.detect(HTML_WITH_TRANSITIONS);
 
       const buttonPattern = result.patterns.find(
-        (p) => p.type === 'css_transition' && p.selector?.includes('button')
+        (p) => p.type === "css_transition" && p.selector?.includes("button")
       );
       expect(buttonPattern?.properties.length).toBeGreaterThanOrEqual(2);
     });
@@ -738,8 +730,8 @@ describe('MotionDetectorService', () => {
   // Options Tests
   // =====================================================
 
-  describe('Options', () => {
-    it('should filter by minDuration', () => {
+  describe("Options", () => {
+    it("should filter by minDuration", () => {
       const result = service.detect(HTML_WITH_TRANSITIONS, {
         minDuration: 250, // Filter out animations shorter than 250ms
       });
@@ -751,7 +743,7 @@ describe('MotionDetectorService', () => {
       }
     });
 
-    it('should limit patterns with maxPatterns', () => {
+    it("should limit patterns with maxPatterns", () => {
       const largeCss = generateLargeCss(100);
       const html = `<style>${largeCss}</style>`;
 
@@ -760,7 +752,7 @@ describe('MotionDetectorService', () => {
       expect(result.patterns.length).toBeLessThanOrEqual(10);
     });
 
-    it('should include inline styles when option is enabled', () => {
+    it("should include inline styles when option is enabled", () => {
       const result = service.detect(HTML_WITH_INLINE_STYLES, {
         includeInlineStyles: true,
       });
@@ -769,7 +761,7 @@ describe('MotionDetectorService', () => {
       expect(result.patterns.length).toBeGreaterThan(0);
     });
 
-    it('should exclude inline styles when option is disabled', () => {
+    it("should exclude inline styles when option is disabled", () => {
       const htmlWithOnlyInline = `
         <html>
         <body>
@@ -791,8 +783,8 @@ describe('MotionDetectorService', () => {
   // External CSS Tests
   // =====================================================
 
-  describe('External CSS', () => {
-    it('should process additional CSS content', () => {
+  describe("External CSS", () => {
+    it("should process additional CSS content", () => {
       const externalCss = `
         @keyframes externalFade {
           from { opacity: 0; }
@@ -806,12 +798,12 @@ describe('MotionDetectorService', () => {
 
       const result = service.detect(MINIMAL_HTML, {}, externalCss);
 
-      const externalPattern = result.patterns.find((p) => p.name === 'externalFade');
+      const externalPattern = result.patterns.find((p) => p.name === "externalFade");
       expect(externalPattern).toBeDefined();
       expect(externalPattern?.duration).toBe(400);
     });
 
-    it('should merge external CSS with inline styles', () => {
+    it("should merge external CSS with inline styles", () => {
       const externalCss = `
         @keyframes externalSlide {
           from { transform: translateX(-100%); }
@@ -822,8 +814,8 @@ describe('MotionDetectorService', () => {
       const result = service.detect(HTML_WITH_KEYFRAMES, {}, externalCss);
 
       // Should have both inline and external animations
-      const fadeIn = result.patterns.find((p) => p.name === 'fadeIn');
-      const externalSlide = result.patterns.find((p) => p.name === 'externalSlide');
+      const fadeIn = result.patterns.find((p) => p.name === "fadeIn");
+      const externalSlide = result.patterns.find((p) => p.name === "externalSlide");
 
       expect(fadeIn).toBeDefined();
       expect(externalSlide).toBeDefined();
@@ -834,35 +826,29 @@ describe('MotionDetectorService', () => {
   // Warning Count Tests
   // =====================================================
 
-  describe('Warning Generation', () => {
-    it('should count a11y warnings correctly', () => {
+  describe("Warning Generation", () => {
+    it("should count a11y warnings correctly", () => {
       const result = service.detect(HTML_WITH_INFINITE_ANIMATION);
 
       // Should have A11Y_NO_REDUCED_MOTION and A11Y_INFINITE_ANIMATION
-      const a11yWarnings = result.warnings.filter(
-        (w) => w.code.startsWith('A11Y_')
-      );
+      const a11yWarnings = result.warnings.filter((w) => w.code.startsWith("A11Y_"));
       expect(a11yWarnings.length).toBeGreaterThanOrEqual(1);
     });
 
-    it('should count perf warnings correctly', () => {
+    it("should count perf warnings correctly", () => {
       const result = service.detect(HTML_WITH_LAYOUT_TRIGGERS);
 
-      const perfWarnings = result.warnings.filter(
-        (w) => w.code.startsWith('PERF_')
-      );
+      const perfWarnings = result.warnings.filter((w) => w.code.startsWith("PERF_"));
       expect(perfWarnings.length).toBeGreaterThanOrEqual(1);
     });
 
-    it('should warn about too many animations', () => {
+    it("should warn about too many animations", () => {
       const largeCss = generateLargeCss(50);
       const html = `<style>${largeCss}</style>`;
 
       const result = service.detect(html, { maxPatterns: 100 });
 
-      const tooManyWarning = result.warnings.find(
-        (w) => w.code === 'PERF_TOO_MANY_ANIMATIONS'
-      );
+      const tooManyWarning = result.warnings.find((w) => w.code === "PERF_TOO_MANY_ANIMATIONS");
       expect(tooManyWarning).toBeDefined();
     });
   });
@@ -871,15 +857,15 @@ describe('MotionDetectorService', () => {
   // Edge Cases and Error Handling
   // =====================================================
 
-  describe('Edge Cases', () => {
-    it('should handle empty HTML', () => {
-      const result = service.detect('');
+  describe("Edge Cases", () => {
+    it("should handle empty HTML", () => {
+      const result = service.detect("");
 
       expect(result.patterns).toHaveLength(0);
       expect(result.warnings).toHaveLength(0);
     });
 
-    it('should handle malformed CSS', () => {
+    it("should handle malformed CSS", () => {
       const malformedHtml = `
         <style>
           @keyframes broken {
@@ -900,7 +886,7 @@ describe('MotionDetectorService', () => {
       expect(result).toBeDefined();
     });
 
-    it('should handle CSS without animations', () => {
+    it("should handle CSS without animations", () => {
       const staticCss = `
         <style>
           .static {
@@ -915,7 +901,7 @@ describe('MotionDetectorService', () => {
       expect(result.patterns).toHaveLength(0);
     });
 
-    it('should handle nested @keyframes in @media queries', () => {
+    it("should handle nested @keyframes in @media queries", () => {
       const nestedKeyframes = `
         <style>
           @media (min-width: 768px) {
@@ -941,8 +927,8 @@ describe('MotionDetectorService', () => {
   // Performance Tests
   // =====================================================
 
-  describe('Performance', () => {
-    it('should process large CSS within 300ms', () => {
+  describe("Performance", () => {
+    it("should process large CSS within 300ms", () => {
       const largeCss = generateLargeCss(100);
       const html = `<style>${largeCss}</style>`;
 
@@ -955,7 +941,7 @@ describe('MotionDetectorService', () => {
       expect(result.processingTimeMs).toBeLessThan(300);
     });
 
-    it('should handle 50KB+ CSS without errors', () => {
+    it("should handle 50KB+ CSS without errors", () => {
       // Generate approximately 50KB of CSS (need ~250 animations for 50KB+)
       const largeCss = generateLargeCss(250);
       const html = `<style>${largeCss}</style>`;
@@ -972,46 +958,46 @@ describe('MotionDetectorService', () => {
   // Output Format Tests
   // =====================================================
 
-  describe('Output Format', () => {
-    it('should return correct structure for MotionServiceResult', () => {
+  describe("Output Format", () => {
+    it("should return correct structure for MotionServiceResult", () => {
       const result = service.detect(HTML_WITH_KEYFRAMES);
 
       // Check required fields
-      expect(result).toHaveProperty('patterns');
-      expect(result).toHaveProperty('warnings');
-      expect(result).toHaveProperty('processingTimeMs');
+      expect(result).toHaveProperty("patterns");
+      expect(result).toHaveProperty("warnings");
+      expect(result).toHaveProperty("processingTimeMs");
 
       // Check pattern structure
       for (const pattern of result.patterns) {
-        expect(pattern).toHaveProperty('id');
-        expect(pattern).toHaveProperty('name');
-        expect(pattern).toHaveProperty('type');
-        expect(pattern).toHaveProperty('category');
-        expect(pattern).toHaveProperty('trigger');
-        expect(pattern).toHaveProperty('duration');
-        expect(pattern).toHaveProperty('easing');
-        expect(pattern).toHaveProperty('properties');
-        expect(pattern).toHaveProperty('performance');
-        expect(pattern).toHaveProperty('accessibility');
+        expect(pattern).toHaveProperty("id");
+        expect(pattern).toHaveProperty("name");
+        expect(pattern).toHaveProperty("type");
+        expect(pattern).toHaveProperty("category");
+        expect(pattern).toHaveProperty("trigger");
+        expect(pattern).toHaveProperty("duration");
+        expect(pattern).toHaveProperty("easing");
+        expect(pattern).toHaveProperty("properties");
+        expect(pattern).toHaveProperty("performance");
+        expect(pattern).toHaveProperty("accessibility");
 
         // Check performance structure
-        expect(pattern.performance).toHaveProperty('level');
-        expect(pattern.performance).toHaveProperty('usesTransform');
-        expect(pattern.performance).toHaveProperty('usesOpacity');
+        expect(pattern.performance).toHaveProperty("level");
+        expect(pattern.performance).toHaveProperty("usesTransform");
+        expect(pattern.performance).toHaveProperty("usesOpacity");
 
         // Check accessibility structure
-        expect(pattern.accessibility).toHaveProperty('respectsReducedMotion');
+        expect(pattern.accessibility).toHaveProperty("respectsReducedMotion");
       }
     });
 
-    it('should return warning with correct structure', () => {
+    it("should return warning with correct structure", () => {
       const result = service.detect(HTML_WITH_KEYFRAMES);
 
       for (const warning of result.warnings) {
-        expect(warning).toHaveProperty('code');
-        expect(warning).toHaveProperty('severity');
-        expect(warning).toHaveProperty('message');
-        expect(['info', 'warning', 'error']).toContain(warning.severity);
+        expect(warning).toHaveProperty("code");
+        expect(warning).toHaveProperty("severity");
+        expect(warning).toHaveProperty("message");
+        expect(["info", "warning", "error"]).toContain(warning.severity);
       }
     });
   });
@@ -1021,30 +1007,30 @@ describe('MotionDetectorService', () => {
 // Integration Tests
 // =====================================================
 
-describe('MotionDetectorService Integration', () => {
-  it('should work with page.analyze expected output format', () => {
+describe("MotionDetectorService Integration", () => {
+  it("should work with page.analyze expected output format", () => {
     const service = new MotionDetectorService();
     const result = service.detect(HTML_WITH_KEYFRAMES);
 
     // Validate against page/schemas.ts patternDetailSchema expectations
     for (const pattern of result.patterns) {
-      expect(typeof pattern.id).toBe('string');
-      expect(typeof pattern.name).toBe('string');
-      expect(['css_animation', 'css_transition', 'keyframes']).toContain(pattern.type);
-      expect(typeof pattern.category).toBe('string');
-      expect(typeof pattern.trigger).toBe('string');
-      expect(typeof pattern.duration).toBe('number');
+      expect(typeof pattern.id).toBe("string");
+      expect(typeof pattern.name).toBe("string");
+      expect(["css_animation", "css_transition", "keyframes"]).toContain(pattern.type);
+      expect(typeof pattern.category).toBe("string");
+      expect(typeof pattern.trigger).toBe("string");
+      expect(typeof pattern.duration).toBe("number");
       expect(pattern.duration).toBeGreaterThanOrEqual(0);
-      expect(typeof pattern.easing).toBe('string');
+      expect(typeof pattern.easing).toBe("string");
       expect(Array.isArray(pattern.properties)).toBe(true);
-      expect(['good', 'acceptable', 'poor']).toContain(pattern.performance.level);
-      expect(typeof pattern.performance.usesTransform).toBe('boolean');
-      expect(typeof pattern.performance.usesOpacity).toBe('boolean');
-      expect(typeof pattern.accessibility.respectsReducedMotion).toBe('boolean');
+      expect(["good", "acceptable", "poor"]).toContain(pattern.performance.level);
+      expect(typeof pattern.performance.usesTransform).toBe("boolean");
+      expect(typeof pattern.performance.usesOpacity).toBe("boolean");
+      expect(typeof pattern.accessibility.respectsReducedMotion).toBe("boolean");
     }
   });
 
-  it('should handle real-world CSS patterns', () => {
+  it("should handle real-world CSS patterns", () => {
     const realWorldHtml = `
       <!DOCTYPE html>
       <html>
@@ -1083,11 +1069,11 @@ describe('MotionDetectorService Integration', () => {
     expect(result.patterns.length).toBeGreaterThan(0);
 
     // Check for known animations
-    const spinAnimation = result.patterns.find((p) => p.name === 'spin');
+    const spinAnimation = result.patterns.find((p) => p.name === "spin");
     expect(spinAnimation).toBeDefined();
-    expect(spinAnimation?.iterations).toBe('infinite');
+    expect(spinAnimation?.iterations).toBe("infinite");
 
-    const pulseAnimation = result.patterns.find((p) => p.name === 'pulse');
+    const pulseAnimation = result.patterns.find((p) => p.name === "pulse");
     expect(pulseAnimation).toBeDefined();
   });
 });

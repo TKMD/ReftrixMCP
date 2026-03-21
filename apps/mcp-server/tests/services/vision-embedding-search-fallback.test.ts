@@ -15,7 +15,7 @@
  * @module tests/services/vision-embedding-search-fallback.test
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import {
   VisionEmbeddingSearchService,
   setVisionSearchEmbeddingServiceFactory,
@@ -28,7 +28,7 @@ import {
   type IVisionSearchEmbeddingService,
   type IVisionSearchPrismaClient,
   type VisionSearchServiceResult,
-} from '../../src/services/vision-embedding-search.service';
+} from "../../src/services/vision-embedding-search.service";
 
 // =====================================================
 // テストヘルパー
@@ -46,37 +46,39 @@ function createMockEmbedding(seed: number = 0): number[] {
 /**
  * モックDBレコード生成
  */
-function createMockVisionSearchRecord(overrides: Partial<{
-  id: string;
-  web_page_id: string;
-  section_type: string;
-  section_name: string | null;
-  layout_info: unknown;
-  visual_features: unknown;
-  html_snippet: string | null;
-  similarity: number;
-  wp_id: string;
-  wp_url: string;
-  wp_title: string | null;
-  wp_source_type: string;
-  wp_usage_scope: string;
-  wp_screenshot_desktop_url: string | null;
-  has_vision_embedding: boolean;
-}> = {}) {
+function createMockVisionSearchRecord(
+  overrides: Partial<{
+    id: string;
+    web_page_id: string;
+    section_type: string;
+    section_name: string | null;
+    layout_info: unknown;
+    visual_features: unknown;
+    html_snippet: string | null;
+    similarity: number;
+    wp_id: string;
+    wp_url: string;
+    wp_title: string | null;
+    wp_source_type: string;
+    wp_usage_scope: string;
+    wp_screenshot_desktop_url: string | null;
+    has_vision_embedding: boolean;
+  }> = {}
+) {
   return {
-    id: overrides.id ?? 'section-id-1',
-    web_page_id: overrides.web_page_id ?? 'page-id-1',
-    section_type: overrides.section_type ?? 'hero',
-    section_name: overrides.section_name ?? 'Hero Section',
-    layout_info: overrides.layout_info ?? { type: 'hero' },
-    visual_features: overrides.visual_features ?? { theme: { type: 'light' } },
-    html_snippet: overrides.html_snippet ?? '<section>...</section>',
+    id: overrides.id ?? "section-id-1",
+    web_page_id: overrides.web_page_id ?? "page-id-1",
+    section_type: overrides.section_type ?? "hero",
+    section_name: overrides.section_name ?? "Hero Section",
+    layout_info: overrides.layout_info ?? { type: "hero" },
+    visual_features: overrides.visual_features ?? { theme: { type: "light" } },
+    html_snippet: overrides.html_snippet ?? "<section>...</section>",
     similarity: overrides.similarity ?? 0.92,
-    wp_id: overrides.wp_id ?? 'page-id-1',
-    wp_url: overrides.wp_url ?? 'https://example.com',
-    wp_title: overrides.wp_title ?? 'Example Site',
-    wp_source_type: overrides.wp_source_type ?? 'user_provided',
-    wp_usage_scope: overrides.wp_usage_scope ?? 'inspiration_only',
+    wp_id: overrides.wp_id ?? "page-id-1",
+    wp_url: overrides.wp_url ?? "https://example.com",
+    wp_title: overrides.wp_title ?? "Example Site",
+    wp_source_type: overrides.wp_source_type ?? "user_provided",
+    wp_usage_scope: overrides.wp_usage_scope ?? "inspiration_only",
     wp_screenshot_desktop_url: overrides.wp_screenshot_desktop_url ?? null,
     has_vision_embedding: overrides.has_vision_embedding ?? true,
   };
@@ -86,7 +88,7 @@ function createMockVisionSearchRecord(overrides: Partial<{
 // Graceful Degradation テスト（6テスト）
 // =====================================================
 
-describe('Graceful Degradation: vision_embedding null時のフォールバック', () => {
+describe("Graceful Degradation: vision_embedding null時のフォールバック", () => {
   let mockEmbeddingService: IVisionSearchEmbeddingService;
   let mockPrismaClient: IVisionSearchPrismaClient;
   let service: VisionEmbeddingSearchService;
@@ -119,27 +121,24 @@ describe('Graceful Degradation: vision_embedding null時のフォールバック
     vi.clearAllMocks();
   });
 
-  it('vision_embeddingがすべてnullの場合、fallbackToTextOnly: trueを返す', async () => {
+  it("vision_embeddingがすべてnullの場合、fallbackToTextOnly: trueを返す", async () => {
     // vision検索結果が空（vision_embeddingがすべてnull）
-    const textResults = [createMockVisionSearchRecord({ id: 'text-1', similarity: 0.9 })];
+    const textResults = [createMockVisionSearchRecord({ id: "text-1", similarity: 0.9 })];
 
     (mockPrismaClient.$queryRawUnsafe as ReturnType<typeof vi.fn>)
       .mockResolvedValueOnce(textResults) // text検索結果
       .mockResolvedValueOnce([]) // vision検索結果（空 = すべてnull）
       .mockResolvedValueOnce([{ total: 1n }]);
 
-    const result = await service.hybridSearch(
-      { textQuery: 'test' },
-      { limit: 10, offset: 0 }
-    );
+    const result = await service.hybridSearch({ textQuery: "test" }, { limit: 10, offset: 0 });
 
     expect(result).not.toBeNull();
     expect(result?.fallbackToTextOnly).toBe(true);
-    expect(result?.fallbackReason).toContain('vision_embedding');
+    expect(result?.fallbackReason).toContain("vision_embedding");
   });
 
-  it('combined検索要求時にvision_embeddingがない場合、text_onlyにフォールバック', async () => {
-    const textResults = [createMockVisionSearchRecord({ id: 'text-1', similarity: 0.85 })];
+  it("combined検索要求時にvision_embeddingがない場合、text_onlyにフォールバック", async () => {
+    const textResults = [createMockVisionSearchRecord({ id: "text-1", similarity: 0.85 })];
 
     (mockPrismaClient.$queryRawUnsafe as ReturnType<typeof vi.fn>)
       .mockResolvedValueOnce(textResults) // text検索結果
@@ -147,7 +146,7 @@ describe('Graceful Degradation: vision_embedding null時のフォールバック
       .mockResolvedValueOnce([{ total: 1n }]);
 
     const result = await service.hybridSearch(
-      { textQuery: 'modern hero section' },
+      { textQuery: "modern hero section" },
       { limit: 10, offset: 0, visionWeight: 0.6, textWeight: 0.4 }
     );
 
@@ -156,27 +155,24 @@ describe('Graceful Degradation: vision_embedding null時のフォールバック
     expect(result?.fallbackToTextOnly).toBe(true);
     // 結果はtext検索のみから得られる
     expect(result?.results.length).toBe(1);
-    expect(result?.results[0]?.id).toBe('text-1');
+    expect(result?.results[0]?.id).toBe("text-1");
   });
 
-  it('フォールバック時にfallbackReasonが設定される', async () => {
-    const textResults = [createMockVisionSearchRecord({ id: 'text-1', similarity: 0.9 })];
+  it("フォールバック時にfallbackReasonが設定される", async () => {
+    const textResults = [createMockVisionSearchRecord({ id: "text-1", similarity: 0.9 })];
 
     (mockPrismaClient.$queryRawUnsafe as ReturnType<typeof vi.fn>)
       .mockResolvedValueOnce(textResults)
       .mockResolvedValueOnce([]) // vision結果なし
       .mockResolvedValueOnce([{ total: 1n }]);
 
-    const result = await service.hybridSearch(
-      { textQuery: 'test' },
-      { limit: 10, offset: 0 }
-    );
+    const result = await service.hybridSearch({ textQuery: "test" }, { limit: 10, offset: 0 });
 
     expect(result?.fallbackReason).toBeDefined();
     expect(result?.fallbackReason).toMatch(/vision_embedding.*not available|no vision_embedding/i);
   });
 
-  it('vision_only検索でvision_embeddingがない場合、fallbackToTextOnly: trueを返す', async () => {
+  it("vision_only検索でvision_embeddingがない場合、fallbackToTextOnly: trueを返す", async () => {
     // vision_only検索を模擬（visionWeight=1.0, textWeight=0）
     (mockPrismaClient.$queryRawUnsafe as ReturnType<typeof vi.fn>)
       .mockResolvedValueOnce([]) // text検索（weight=0でも実行される可能性）
@@ -184,7 +180,7 @@ describe('Graceful Degradation: vision_embedding null時のフォールバック
       .mockResolvedValueOnce([{ total: 0n }]);
 
     const result = await service.hybridSearch(
-      { textQuery: 'test' },
+      { textQuery: "test" },
       { limit: 10, offset: 0, visionWeight: 1.0, textWeight: 0 }
     );
 
@@ -193,10 +189,10 @@ describe('Graceful Degradation: vision_embedding null時のフォールバック
     expect(result?.results).toEqual([]);
   });
 
-  it('フォールバック時でも結果の形式は正常に維持される', async () => {
+  it("フォールバック時でも結果の形式は正常に維持される", async () => {
     const textResults = [
-      createMockVisionSearchRecord({ id: 'text-1', similarity: 0.95 }),
-      createMockVisionSearchRecord({ id: 'text-2', similarity: 0.85 }),
+      createMockVisionSearchRecord({ id: "text-1", similarity: 0.95 }),
+      createMockVisionSearchRecord({ id: "text-2", similarity: 0.85 }),
     ];
 
     (mockPrismaClient.$queryRawUnsafe as ReturnType<typeof vi.fn>)
@@ -204,10 +200,7 @@ describe('Graceful Degradation: vision_embedding null時のフォールバック
       .mockResolvedValueOnce([]) // vision結果なし
       .mockResolvedValueOnce([{ total: 2n }]);
 
-    const result = await service.hybridSearch(
-      { textQuery: 'test' },
-      { limit: 10, offset: 0 }
-    );
+    const result = await service.hybridSearch({ textQuery: "test" }, { limit: 10, offset: 0 });
 
     expect(result).not.toBeNull();
     expect(result?.results).toHaveLength(2);
@@ -220,14 +213,14 @@ describe('Graceful Degradation: vision_embedding null時のフォールバック
     });
   });
 
-  it('text検索もvision検索も結果がない場合、空配列を返す', async () => {
+  it("text検索もvision検索も結果がない場合、空配列を返す", async () => {
     (mockPrismaClient.$queryRawUnsafe as ReturnType<typeof vi.fn>)
       .mockResolvedValueOnce([]) // text検索結果なし
       .mockResolvedValueOnce([]) // vision検索結果なし
       .mockResolvedValueOnce([{ total: 0n }]);
 
     const result = await service.hybridSearch(
-      { textQuery: 'non-existent' },
+      { textQuery: "non-existent" },
       { limit: 10, offset: 0 }
     );
 
@@ -243,7 +236,7 @@ describe('Graceful Degradation: vision_embedding null時のフォールバック
 // Partial Vision Embedding テスト（5テスト）
 // =====================================================
 
-describe('Partial Vision Embedding: 一部のみvision_embedding存在時のRRFウェイト調整', () => {
+describe("Partial Vision Embedding: 一部のみvision_embedding存在時のRRFウェイト調整", () => {
   let mockEmbeddingService: IVisionSearchEmbeddingService;
   let mockPrismaClient: IVisionSearchPrismaClient;
   let service: VisionEmbeddingSearchService;
@@ -276,15 +269,15 @@ describe('Partial Vision Embedding: 一部のみvision_embedding存在時のRRF�
     vi.clearAllMocks();
   });
 
-  it('一部のセクションのみvision_embedding存在時、その割合に基づきRRFウェイトを調整する', async () => {
+  it("一部のセクションのみvision_embedding存在時、その割合に基づきRRFウェイトを調整する", async () => {
     // 10件中3件のみvision_embeddingあり（30%）
     const textResults = Array.from({ length: 10 }, (_, i) =>
       createMockVisionSearchRecord({ id: `section-${i}`, similarity: 0.9 - i * 0.02 })
     );
     const visionResults = [
-      createMockVisionSearchRecord({ id: 'section-0', similarity: 0.95 }),
-      createMockVisionSearchRecord({ id: 'section-3', similarity: 0.88 }),
-      createMockVisionSearchRecord({ id: 'section-5', similarity: 0.82 }),
+      createMockVisionSearchRecord({ id: "section-0", similarity: 0.95 }),
+      createMockVisionSearchRecord({ id: "section-3", similarity: 0.88 }),
+      createMockVisionSearchRecord({ id: "section-5", similarity: 0.82 }),
     ];
 
     (mockPrismaClient.$queryRawUnsafe as ReturnType<typeof vi.fn>)
@@ -293,7 +286,7 @@ describe('Partial Vision Embedding: 一部のみvision_embedding存在時のRRF�
       .mockResolvedValueOnce([{ total: 10n }]);
 
     const result = await service.hybridSearch(
-      { textQuery: 'test' },
+      { textQuery: "test" },
       { limit: 10, offset: 0, visionWeight: 0.6, textWeight: 0.4 }
     );
 
@@ -303,14 +296,14 @@ describe('Partial Vision Embedding: 一部のみvision_embedding存在時のRRF�
     expect(result?.visionCoverageRatio).toBeCloseTo(0.3, 1);
   });
 
-  it('vision_embeddingカバー率が低い場合（<50%）、textWeightを増加させる', async () => {
+  it("vision_embeddingカバー率が低い場合（<50%）、textWeightを増加させる", async () => {
     const textResults = Array.from({ length: 10 }, (_, i) =>
       createMockVisionSearchRecord({ id: `section-${i}`, similarity: 0.9 - i * 0.01 })
     );
     // 20%のみvision_embedding存在
     const visionResults = [
-      createMockVisionSearchRecord({ id: 'section-0', similarity: 0.92 }),
-      createMockVisionSearchRecord({ id: 'section-5', similarity: 0.85 }),
+      createMockVisionSearchRecord({ id: "section-0", similarity: 0.92 }),
+      createMockVisionSearchRecord({ id: "section-5", similarity: 0.85 }),
     ];
 
     (mockPrismaClient.$queryRawUnsafe as ReturnType<typeof vi.fn>)
@@ -319,7 +312,7 @@ describe('Partial Vision Embedding: 一部のみvision_embedding存在時のRRF�
       .mockResolvedValueOnce([{ total: 10n }]);
 
     const result = await service.hybridSearch(
-      { textQuery: 'test' },
+      { textQuery: "test" },
       { limit: 10, offset: 0, visionWeight: 0.6, textWeight: 0.4 }
     );
 
@@ -332,7 +325,7 @@ describe('Partial Vision Embedding: 一部のみvision_embedding存在時のRRF�
     expect(result?.adjustedWeights?.visionWeight).toBeLessThan(0.6);
   });
 
-  it('vision_embeddingカバー率が高い場合（>=80%）、ウェイト調整なし', async () => {
+  it("vision_embeddingカバー率が高い場合（>=80%）、ウェイト調整なし", async () => {
     const textResults = Array.from({ length: 10 }, (_, i) =>
       createMockVisionSearchRecord({ id: `section-${i}`, similarity: 0.9 - i * 0.01 })
     );
@@ -347,7 +340,7 @@ describe('Partial Vision Embedding: 一部のみvision_embedding存在時のRRF�
       .mockResolvedValueOnce([{ total: 10n }]);
 
     const result = await service.hybridSearch(
-      { textQuery: 'test' },
+      { textQuery: "test" },
       { limit: 10, offset: 0, visionWeight: 0.6, textWeight: 0.4 }
     );
 
@@ -359,13 +352,13 @@ describe('Partial Vision Embedding: 一部のみvision_embedding存在時のRRF�
     }
   });
 
-  it('ウェイト調整後もRRFスコア計算が正しく行われる', async () => {
+  it("ウェイト調整後もRRFスコア計算が正しく行われる", async () => {
     const textResults = [
-      createMockVisionSearchRecord({ id: 'id-1', similarity: 0.95 }), // textで1位
-      createMockVisionSearchRecord({ id: 'id-2', similarity: 0.85 }), // textで2位
+      createMockVisionSearchRecord({ id: "id-1", similarity: 0.95 }), // textで1位
+      createMockVisionSearchRecord({ id: "id-2", similarity: 0.85 }), // textで2位
     ];
     const visionResults = [
-      createMockVisionSearchRecord({ id: 'id-2', similarity: 0.92 }), // visionで1位
+      createMockVisionSearchRecord({ id: "id-2", similarity: 0.92 }), // visionで1位
     ];
 
     (mockPrismaClient.$queryRawUnsafe as ReturnType<typeof vi.fn>)
@@ -374,24 +367,22 @@ describe('Partial Vision Embedding: 一部のみvision_embedding存在時のRRF�
       .mockResolvedValueOnce([{ total: 2n }]);
 
     const result = await service.hybridSearch(
-      { textQuery: 'test' },
+      { textQuery: "test" },
       { limit: 10, offset: 0, visionWeight: 0.6, textWeight: 0.4 }
     );
 
     expect(result).not.toBeNull();
     expect(result?.results.length).toBe(2);
     // id-2はvisionで1位なので、調整後もRRFスコアに反映されるべき
-    const id2Result = result?.results.find((r) => r.id === 'id-2');
+    const id2Result = result?.results.find((r) => r.id === "id-2");
     expect(id2Result).toBeDefined();
   });
 
-  it('adjustedWeightsが常にtextWeight + visionWeight = 1.0を維持する', async () => {
+  it("adjustedWeightsが常にtextWeight + visionWeight = 1.0を維持する", async () => {
     const textResults = Array.from({ length: 5 }, (_, i) =>
       createMockVisionSearchRecord({ id: `section-${i}`, similarity: 0.9 - i * 0.05 })
     );
-    const visionResults = [
-      createMockVisionSearchRecord({ id: 'section-0', similarity: 0.95 }),
-    ];
+    const visionResults = [createMockVisionSearchRecord({ id: "section-0", similarity: 0.95 })];
 
     (mockPrismaClient.$queryRawUnsafe as ReturnType<typeof vi.fn>)
       .mockResolvedValueOnce(textResults)
@@ -399,7 +390,7 @@ describe('Partial Vision Embedding: 一部のみvision_embedding存在時のRRF�
       .mockResolvedValueOnce([{ total: 5n }]);
 
     const result = await service.hybridSearch(
-      { textQuery: 'test' },
+      { textQuery: "test" },
       { limit: 10, offset: 0, visionWeight: 0.6, textWeight: 0.4 }
     );
 
@@ -414,7 +405,7 @@ describe('Partial Vision Embedding: 一部のみvision_embedding存在時のRRF�
 // フォールバック通知テスト（5テスト）
 // =====================================================
 
-describe('フォールバック通知: warnings, actualSearchMode, fallbackReason', () => {
+describe("フォールバック通知: warnings, actualSearchMode, fallbackReason", () => {
   let mockEmbeddingService: IVisionSearchEmbeddingService;
   let mockPrismaClient: IVisionSearchPrismaClient;
   let service: VisionEmbeddingSearchService;
@@ -447,45 +438,41 @@ describe('フォールバック通知: warnings, actualSearchMode, fallbackReaso
     vi.clearAllMocks();
   });
 
-  it('フォールバック時にwarnings配列に警告メッセージが追加される', async () => {
-    const textResults = [createMockVisionSearchRecord({ id: 'text-1', similarity: 0.9 })];
+  it("フォールバック時にwarnings配列に警告メッセージが追加される", async () => {
+    const textResults = [createMockVisionSearchRecord({ id: "text-1", similarity: 0.9 })];
 
     (mockPrismaClient.$queryRawUnsafe as ReturnType<typeof vi.fn>)
       .mockResolvedValueOnce(textResults)
       .mockResolvedValueOnce([]) // vision結果なし
       .mockResolvedValueOnce([{ total: 1n }]);
 
-    const result = await service.hybridSearch(
-      { textQuery: 'test' },
-      { limit: 10, offset: 0 }
-    );
+    const result = await service.hybridSearch({ textQuery: "test" }, { limit: 10, offset: 0 });
 
     expect(result?.warnings).toBeDefined();
     expect(Array.isArray(result?.warnings)).toBe(true);
     expect(result?.warnings?.length).toBeGreaterThan(0);
-    expect(result?.warnings?.some((w) => w.includes('fallback') || w.includes('vision'))).toBe(true);
+    expect(result?.warnings?.some((w) => w.includes("fallback") || w.includes("vision"))).toBe(
+      true
+    );
   });
 
-  it('フォールバックなしの場合、warningsは空配列', async () => {
-    const textResults = [createMockVisionSearchRecord({ id: 'shared-1', similarity: 0.9 })];
-    const visionResults = [createMockVisionSearchRecord({ id: 'shared-1', similarity: 0.88 })];
+  it("フォールバックなしの場合、warningsは空配列", async () => {
+    const textResults = [createMockVisionSearchRecord({ id: "shared-1", similarity: 0.9 })];
+    const visionResults = [createMockVisionSearchRecord({ id: "shared-1", similarity: 0.88 })];
 
     (mockPrismaClient.$queryRawUnsafe as ReturnType<typeof vi.fn>)
       .mockResolvedValueOnce(textResults)
       .mockResolvedValueOnce(visionResults)
       .mockResolvedValueOnce([{ total: 1n }]);
 
-    const result = await service.hybridSearch(
-      { textQuery: 'test' },
-      { limit: 10, offset: 0 }
-    );
+    const result = await service.hybridSearch({ textQuery: "test" }, { limit: 10, offset: 0 });
 
     expect(result?.fallbackToTextOnly).toBeFalsy();
     expect(result?.warnings).toEqual([]);
   });
 
-  it('actualSearchModeがフォールバック時にtext_onlyを返す', async () => {
-    const textResults = [createMockVisionSearchRecord({ id: 'text-1', similarity: 0.9 })];
+  it("actualSearchModeがフォールバック時にtext_onlyを返す", async () => {
+    const textResults = [createMockVisionSearchRecord({ id: "text-1", similarity: 0.9 })];
 
     (mockPrismaClient.$queryRawUnsafe as ReturnType<typeof vi.fn>)
       .mockResolvedValueOnce(textResults)
@@ -493,42 +480,36 @@ describe('フォールバック通知: warnings, actualSearchMode, fallbackReaso
       .mockResolvedValueOnce([{ total: 1n }]);
 
     const result = await service.hybridSearch(
-      { textQuery: 'test' },
+      { textQuery: "test" },
       { limit: 10, offset: 0, visionWeight: 0.6, textWeight: 0.4 }
     );
 
-    expect(result?.actualSearchMode).toBe('text_only');
+    expect(result?.actualSearchMode).toBe("text_only");
   });
 
-  it('フォールバックなしの場合、actualSearchModeがcombinedを返す', async () => {
-    const textResults = [createMockVisionSearchRecord({ id: 'shared-1', similarity: 0.9 })];
-    const visionResults = [createMockVisionSearchRecord({ id: 'shared-1', similarity: 0.92 })];
+  it("フォールバックなしの場合、actualSearchModeがcombinedを返す", async () => {
+    const textResults = [createMockVisionSearchRecord({ id: "shared-1", similarity: 0.9 })];
+    const visionResults = [createMockVisionSearchRecord({ id: "shared-1", similarity: 0.92 })];
 
     (mockPrismaClient.$queryRawUnsafe as ReturnType<typeof vi.fn>)
       .mockResolvedValueOnce(textResults)
       .mockResolvedValueOnce(visionResults)
       .mockResolvedValueOnce([{ total: 1n }]);
 
-    const result = await service.hybridSearch(
-      { textQuery: 'test' },
-      { limit: 10, offset: 0 }
-    );
+    const result = await service.hybridSearch({ textQuery: "test" }, { limit: 10, offset: 0 });
 
-    expect(result?.actualSearchMode).toBe('combined');
+    expect(result?.actualSearchMode).toBe("combined");
   });
 
-  it('fallbackReasonに具体的な理由が含まれる', async () => {
-    const textResults = [createMockVisionSearchRecord({ id: 'text-1', similarity: 0.9 })];
+  it("fallbackReasonに具体的な理由が含まれる", async () => {
+    const textResults = [createMockVisionSearchRecord({ id: "text-1", similarity: 0.9 })];
 
     (mockPrismaClient.$queryRawUnsafe as ReturnType<typeof vi.fn>)
       .mockResolvedValueOnce(textResults)
       .mockResolvedValueOnce([]) // vision結果なし
       .mockResolvedValueOnce([{ total: 1n }]);
 
-    const result = await service.hybridSearch(
-      { textQuery: 'test' },
-      { limit: 10, offset: 0 }
-    );
+    const result = await service.hybridSearch({ textQuery: "test" }, { limit: 10, offset: 0 });
 
     expect(result?.fallbackReason).toBeDefined();
     // 具体的な理由が含まれている
@@ -542,7 +523,7 @@ describe('フォールバック通知: warnings, actualSearchMode, fallbackReaso
 // 統合シナリオテスト（4テスト）
 // =====================================================
 
-describe('統合シナリオ', () => {
+describe("統合シナリオ", () => {
   let mockEmbeddingService: IVisionSearchEmbeddingService;
   let mockPrismaClient: IVisionSearchPrismaClient;
   let service: VisionEmbeddingSearchService;
@@ -575,11 +556,11 @@ describe('統合シナリオ', () => {
     vi.clearAllMocks();
   });
 
-  it('新規インジェスト直後（vision_embeddingなし）のセクションを検索できる', async () => {
+  it("新規インジェスト直後（vision_embeddingなし）のセクションを検索できる", async () => {
     // 新規インジェスト直後はtext_embeddingのみ存在
     const textResults = [
-      createMockVisionSearchRecord({ id: 'new-section-1', similarity: 0.88 }),
-      createMockVisionSearchRecord({ id: 'new-section-2', similarity: 0.82 }),
+      createMockVisionSearchRecord({ id: "new-section-1", similarity: 0.88 }),
+      createMockVisionSearchRecord({ id: "new-section-2", similarity: 0.82 }),
     ];
 
     (mockPrismaClient.$queryRawUnsafe as ReturnType<typeof vi.fn>)
@@ -588,7 +569,7 @@ describe('統合シナリオ', () => {
       .mockResolvedValueOnce([{ total: 2n }]);
 
     const result = await service.hybridSearch(
-      { textQuery: 'モダンなヒーローセクション' },
+      { textQuery: "モダンなヒーローセクション" },
       { limit: 10, offset: 0 }
     );
 
@@ -598,14 +579,14 @@ describe('統合シナリオ', () => {
     expect(result?.warnings).toBeDefined();
   });
 
-  it('古いデータ（vision_embeddingなし）と新しいデータ（vision_embeddingあり）の混在検索', async () => {
+  it("古いデータ（vision_embeddingなし）と新しいデータ（vision_embeddingあり）の混在検索", async () => {
     const textResults = [
-      createMockVisionSearchRecord({ id: 'old-section', similarity: 0.9 }),
-      createMockVisionSearchRecord({ id: 'new-section', similarity: 0.85 }),
+      createMockVisionSearchRecord({ id: "old-section", similarity: 0.9 }),
+      createMockVisionSearchRecord({ id: "new-section", similarity: 0.85 }),
     ];
     const visionResults = [
       // 新しいセクションのみvision_embeddingあり
-      createMockVisionSearchRecord({ id: 'new-section', similarity: 0.92 }),
+      createMockVisionSearchRecord({ id: "new-section", similarity: 0.92 }),
     ];
 
     (mockPrismaClient.$queryRawUnsafe as ReturnType<typeof vi.fn>)
@@ -613,59 +594,50 @@ describe('統合シナリオ', () => {
       .mockResolvedValueOnce(visionResults)
       .mockResolvedValueOnce([{ total: 2n }]);
 
-    const result = await service.hybridSearch(
-      { textQuery: 'test' },
-      { limit: 10, offset: 0 }
-    );
+    const result = await service.hybridSearch({ textQuery: "test" }, { limit: 10, offset: 0 });
 
     expect(result).not.toBeNull();
     expect(result?.results.length).toBe(2);
     // 両方のセクションが結果に含まれる
     const ids = result?.results.map((r) => r.id);
-    expect(ids).toContain('old-section');
-    expect(ids).toContain('new-section');
+    expect(ids).toContain("old-section");
+    expect(ids).toContain("new-section");
     // カバー率が50%であることを確認
     expect(result?.visionCoverageRatio).toBeCloseTo(0.5, 1);
   });
 
-  it('DBエラー発生時でもGraceful Degradationで空結果を返す', async () => {
+  it("DBエラー発生時でもGraceful Degradationで空結果を返す", async () => {
     (mockPrismaClient.$queryRawUnsafe as ReturnType<typeof vi.fn>)
-      .mockRejectedValueOnce(new Error('Connection timeout'))
-      .mockRejectedValueOnce(new Error('Connection timeout'));
+      .mockRejectedValueOnce(new Error("Connection timeout"))
+      .mockRejectedValueOnce(new Error("Connection timeout"));
 
-    const result = await service.hybridSearch(
-      { textQuery: 'test' },
-      { limit: 10, offset: 0 }
-    );
+    const result = await service.hybridSearch({ textQuery: "test" }, { limit: 10, offset: 0 });
 
     expect(result).not.toBeNull();
     expect(result?.results).toEqual([]);
     expect(result?.total).toBe(0);
   });
 
-  it('レスポンス形式がVisionSearchServiceResult型に準拠する', async () => {
-    const textResults = [createMockVisionSearchRecord({ id: 'text-1', similarity: 0.9 })];
+  it("レスポンス形式がVisionSearchServiceResult型に準拠する", async () => {
+    const textResults = [createMockVisionSearchRecord({ id: "text-1", similarity: 0.9 })];
 
     (mockPrismaClient.$queryRawUnsafe as ReturnType<typeof vi.fn>)
       .mockResolvedValueOnce(textResults)
       .mockResolvedValueOnce([])
       .mockResolvedValueOnce([{ total: 1n }]);
 
-    const result = await service.hybridSearch(
-      { textQuery: 'test' },
-      { limit: 10, offset: 0 }
-    );
+    const result = await service.hybridSearch({ textQuery: "test" }, { limit: 10, offset: 0 });
 
     // VisionSearchServiceResultの必須フィールド
-    expect(result).toHaveProperty('results');
-    expect(result).toHaveProperty('total');
+    expect(result).toHaveProperty("results");
+    expect(result).toHaveProperty("total");
 
     // フォールバック関連フィールド
-    expect(result).toHaveProperty('fallbackToTextOnly');
-    expect(result).toHaveProperty('fallbackReason');
-    expect(result).toHaveProperty('warnings');
-    expect(result).toHaveProperty('actualSearchMode');
-    expect(result).toHaveProperty('visionCoverageRatio');
-    expect(result).toHaveProperty('adjustedWeights');
+    expect(result).toHaveProperty("fallbackToTextOnly");
+    expect(result).toHaveProperty("fallbackReason");
+    expect(result).toHaveProperty("warnings");
+    expect(result).toHaveProperty("actualSearchMode");
+    expect(result).toHaveProperty("visionCoverageRatio");
+    expect(result).toHaveProperty("adjustedWeights");
   });
 });

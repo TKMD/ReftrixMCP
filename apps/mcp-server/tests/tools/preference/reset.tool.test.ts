@@ -13,7 +13,7 @@
  * @module tests/tools/preference/reset.tool.test
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 import {
   preferenceResetHandler,
@@ -21,17 +21,15 @@ import {
   setPreferenceServiceFactory,
   resetPreferenceServiceFactory,
   type IPreferenceService,
-} from '../../../src/tools/preference/reset.tool';
+} from "../../../src/tools/preference/reset.tool";
 
-import {
-  PREFERENCE_MCP_ERROR_CODES,
-} from '../../../src/tools/preference/schemas';
+import { PREFERENCE_MCP_ERROR_CODES } from "../../../src/tools/preference/schemas";
 
 // =====================================================
 // テストデータ
 // =====================================================
 
-const MOCK_PROFILE_ID = '01234567-89ab-cdef-0123-456789abcdef';
+const MOCK_PROFILE_ID = "01234567-89ab-cdef-0123-456789abcdef";
 
 // =====================================================
 // モックサービス
@@ -50,11 +48,11 @@ function createMockService(overrides?: Partial<IPreferenceService>): IPreference
     }),
     getProfile: vi.fn().mockResolvedValue({
       profile_id: MOCK_PROFILE_ID,
-      name: 'default',
+      name: "default",
       preference_text: null,
       interaction_count: 0,
-      created_at: '2026-03-07T00:00:00Z',
-      updated_at: '2026-03-07T00:00:00Z',
+      created_at: "2026-03-07T00:00:00Z",
+      updated_at: "2026-03-07T00:00:00Z",
     }),
     resetProfile: vi.fn().mockResolvedValue({
       reset: true,
@@ -73,7 +71,7 @@ function createMockService(overrides?: Partial<IPreferenceService>): IPreference
 // テスト
 // =====================================================
 
-describe('preference.reset MCPツール', () => {
+describe("preference.reset MCPツール", () => {
   beforeEach(() => {
     resetPreferenceServiceFactory();
   });
@@ -86,22 +84,22 @@ describe('preference.reset MCPツール', () => {
   // ツール定義テスト
   // =====================================================
 
-  describe('ツール定義', () => {
-    it('正しいツール名が設定されている', () => {
-      expect(preferenceResetToolDefinition.name).toBe('preference.reset');
+  describe("ツール定義", () => {
+    it("正しいツール名が設定されている", () => {
+      expect(preferenceResetToolDefinition.name).toBe("preference.reset");
     });
 
-    it('descriptionが設定されている', () => {
+    it("descriptionが設定されている", () => {
       expect(preferenceResetToolDefinition.description).toBeTruthy();
-      expect(typeof preferenceResetToolDefinition.description).toBe('string');
+      expect(typeof preferenceResetToolDefinition.description).toBe("string");
     });
 
-    it('inputSchemaが設定されている', () => {
+    it("inputSchemaが設定されている", () => {
       expect(preferenceResetToolDefinition.inputSchema).toBeDefined();
-      expect(preferenceResetToolDefinition.inputSchema.type).toBe('object');
+      expect(preferenceResetToolDefinition.inputSchema.type).toBe("object");
     });
 
-    it('annotationsが設定されている', () => {
+    it("annotationsが設定されている", () => {
       expect(preferenceResetToolDefinition.annotations).toBeDefined();
     });
   });
@@ -110,8 +108,8 @@ describe('preference.reset MCPツール', () => {
   // 正常系テスト
   // =====================================================
 
-  describe('正常系', () => {
-    it('confirm: true でプロファイルをリセットする', async () => {
+  describe("正常系", () => {
+    it("confirm: true でプロファイルをリセットする", async () => {
       const mockService = createMockService();
       setPreferenceServiceFactory(() => mockService);
 
@@ -120,14 +118,14 @@ describe('preference.reset MCPツール', () => {
         confirm: true,
       });
 
-      expect(result).toHaveProperty('success', true);
+      expect(result).toHaveProperty("success", true);
       const data = (result as { success: true; data: { reset: boolean; profile_id: string } }).data;
       expect(data.reset).toBe(true);
       expect(data.profile_id).toBe(MOCK_PROFILE_ID);
       expect(mockService.resetProfile).toHaveBeenCalledWith(MOCK_PROFILE_ID);
     });
 
-    it('confirm: false でリセットを拒否する', async () => {
+    it("confirm: false でリセットを拒否する", async () => {
       const mockService = createMockService();
       setPreferenceServiceFactory(() => mockService);
 
@@ -136,13 +134,13 @@ describe('preference.reset MCPツール', () => {
         confirm: false,
       });
 
-      expect(result).toHaveProperty('success', false);
+      expect(result).toHaveProperty("success", false);
       const error = (result as { success: false; error: { code: string } }).error;
       expect(error.code).toBe(PREFERENCE_MCP_ERROR_CODES.RESET_NOT_CONFIRMED);
       expect(mockService.resetProfile).not.toHaveBeenCalled();
     });
 
-    it('hard_delete: true でプロファイルを完全削除する（GDPR忘れられる権利）', async () => {
+    it("hard_delete: true でプロファイルを完全削除する（GDPR忘れられる権利）", async () => {
       const mockService = createMockService();
       setPreferenceServiceFactory(() => mockService);
 
@@ -152,7 +150,7 @@ describe('preference.reset MCPツール', () => {
         hard_delete: true,
       });
 
-      expect(result).toHaveProperty('success', true);
+      expect(result).toHaveProperty("success", true);
       const data = (result as { success: true; data: { reset: boolean; profile_id: string } }).data;
       expect(data.reset).toBe(true);
       expect(data.profile_id).toBe(MOCK_PROFILE_ID);
@@ -160,7 +158,7 @@ describe('preference.reset MCPツール', () => {
       expect(mockService.resetProfile).not.toHaveBeenCalled();
     });
 
-    it('hard_delete: false でソフトリセットを実行する', async () => {
+    it("hard_delete: false でソフトリセットを実行する", async () => {
       const mockService = createMockService();
       setPreferenceServiceFactory(() => mockService);
 
@@ -170,7 +168,7 @@ describe('preference.reset MCPツール', () => {
         hard_delete: false,
       });
 
-      expect(result).toHaveProperty('success', true);
+      expect(result).toHaveProperty("success", true);
       expect(mockService.resetProfile).toHaveBeenCalledWith(MOCK_PROFILE_ID);
       expect(mockService.deleteProfile).not.toHaveBeenCalled();
     });
@@ -180,8 +178,8 @@ describe('preference.reset MCPツール', () => {
   // バリデーションエラーテスト
   // =====================================================
 
-  describe('バリデーションエラー', () => {
-    it('profile_idが必須', async () => {
+  describe("バリデーションエラー", () => {
+    it("profile_idが必須", async () => {
       const mockService = createMockService();
       setPreferenceServiceFactory(() => mockService);
 
@@ -189,12 +187,12 @@ describe('preference.reset MCPツール', () => {
         confirm: true,
       });
 
-      expect(result).toHaveProperty('success', false);
+      expect(result).toHaveProperty("success", false);
       const error = (result as { success: false; error: { code: string } }).error;
       expect(error.code).toBe(PREFERENCE_MCP_ERROR_CODES.VALIDATION_ERROR);
     });
 
-    it('confirmが必須', async () => {
+    it("confirmが必須", async () => {
       const mockService = createMockService();
       setPreferenceServiceFactory(() => mockService);
 
@@ -202,21 +200,21 @@ describe('preference.reset MCPツール', () => {
         profile_id: MOCK_PROFILE_ID,
       });
 
-      expect(result).toHaveProperty('success', false);
+      expect(result).toHaveProperty("success", false);
       const error = (result as { success: false; error: { code: string } }).error;
       expect(error.code).toBe(PREFERENCE_MCP_ERROR_CODES.VALIDATION_ERROR);
     });
 
-    it('無効なprofile_idでエラーを返す', async () => {
+    it("無効なprofile_idでエラーを返す", async () => {
       const mockService = createMockService();
       setPreferenceServiceFactory(() => mockService);
 
       const result = await preferenceResetHandler({
-        profile_id: 'invalid',
+        profile_id: "invalid",
         confirm: true,
       });
 
-      expect(result).toHaveProperty('success', false);
+      expect(result).toHaveProperty("success", false);
       const error = (result as { success: false; error: { code: string } }).error;
       expect(error.code).toBe(PREFERENCE_MCP_ERROR_CODES.VALIDATION_ERROR);
     });
@@ -226,14 +224,14 @@ describe('preference.reset MCPツール', () => {
   // サービス未設定テスト
   // =====================================================
 
-  describe('サービス未設定', () => {
-    it('サービスファクトリ未設定でエラーを返す', async () => {
+  describe("サービス未設定", () => {
+    it("サービスファクトリ未設定でエラーを返す", async () => {
       const result = await preferenceResetHandler({
         profile_id: MOCK_PROFILE_ID,
         confirm: true,
       });
 
-      expect(result).toHaveProperty('success', false);
+      expect(result).toHaveProperty("success", false);
       const error = (result as { success: false; error: { code: string } }).error;
       expect(error.code).toBe(PREFERENCE_MCP_ERROR_CODES.SERVICE_UNAVAILABLE);
     });
@@ -243,10 +241,10 @@ describe('preference.reset MCPツール', () => {
   // サービスエラーテスト
   // =====================================================
 
-  describe('サービスエラー', () => {
-    it('resetProfileでエラーが発生した場合、エラーレスポンスを返す', async () => {
+  describe("サービスエラー", () => {
+    it("resetProfileでエラーが発生した場合、エラーレスポンスを返す", async () => {
       const mockService = createMockService({
-        resetProfile: vi.fn().mockRejectedValue(new Error('Database connection failed')),
+        resetProfile: vi.fn().mockRejectedValue(new Error("Database connection failed")),
       });
       setPreferenceServiceFactory(() => mockService);
 
@@ -255,24 +253,24 @@ describe('preference.reset MCPツール', () => {
         confirm: true,
       });
 
-      expect(result).toHaveProperty('success', false);
+      expect(result).toHaveProperty("success", false);
       const error = (result as { success: false; error: { code: string; message: string } }).error;
       expect(error.code).toBe(PREFERENCE_MCP_ERROR_CODES.INTERNAL_ERROR);
-      expect(error.message).toBe('An internal error occurred');
+      expect(error.message).toBe("An internal error occurred");
     });
 
-    it('プロファイルが存在しない場合、PROFILE_NOT_FOUNDエラーを返す', async () => {
+    it("プロファイルが存在しない場合、PROFILE_NOT_FOUNDエラーを返す", async () => {
       const mockService = createMockService({
-        resetProfile: vi.fn().mockRejectedValue(new Error('Profile not found')),
+        resetProfile: vi.fn().mockRejectedValue(new Error("Profile not found")),
       });
       setPreferenceServiceFactory(() => mockService);
 
       const result = await preferenceResetHandler({
-        profile_id: '99999999-9999-9999-9999-999999999999',
+        profile_id: "99999999-9999-9999-9999-999999999999",
         confirm: true,
       });
 
-      expect(result).toHaveProperty('success', false);
+      expect(result).toHaveProperty("success", false);
       const error = (result as { success: false; error: { code: string } }).error;
       expect(error.code).toBe(PREFERENCE_MCP_ERROR_CODES.PROFILE_NOT_FOUND);
     });

@@ -14,7 +14,7 @@
  * @module @reftrix/mcp-server/utils/error-messages
  */
 
-import { ZodError, type ZodIssue, ZodIssueCode } from 'zod';
+import { ZodError, type ZodIssue, ZodIssueCode } from "zod";
 
 // ============================================================================
 // 型定義
@@ -38,25 +38,25 @@ export interface McpToolError {
 /**
  * サポートされるロケール
  */
-export type ErrorLocale = 'en' | 'ja';
+export type ErrorLocale = "en" | "ja";
 
 /**
  * エラーコード定義
  */
 export const ERROR_CODES = {
-  INVALID_UUID: 'INVALID_UUID',
-  REQUIRED_FIELD: 'REQUIRED_FIELD',
-  OUT_OF_RANGE: 'OUT_OF_RANGE',
-  INVALID_ENUM: 'INVALID_ENUM',
-  STRING_TOO_SHORT: 'STRING_TOO_SHORT',
-  STRING_TOO_LONG: 'STRING_TOO_LONG',
-  INVALID_TYPE: 'INVALID_TYPE',
-  INVALID_FORMAT: 'INVALID_FORMAT',
-  ARRAY_TOO_LONG: 'ARRAY_TOO_LONG',
-  ARRAY_TOO_SHORT: 'ARRAY_TOO_SHORT',
-  CUSTOM_ERROR: 'CUSTOM_ERROR',
-  UNKNOWN_ERROR: 'UNKNOWN_ERROR',
-  SERVICE_UNAVAILABLE: 'SERVICE_UNAVAILABLE',
+  INVALID_UUID: "INVALID_UUID",
+  REQUIRED_FIELD: "REQUIRED_FIELD",
+  OUT_OF_RANGE: "OUT_OF_RANGE",
+  INVALID_ENUM: "INVALID_ENUM",
+  STRING_TOO_SHORT: "STRING_TOO_SHORT",
+  STRING_TOO_LONG: "STRING_TOO_LONG",
+  INVALID_TYPE: "INVALID_TYPE",
+  INVALID_FORMAT: "INVALID_FORMAT",
+  ARRAY_TOO_LONG: "ARRAY_TOO_LONG",
+  ARRAY_TOO_SHORT: "ARRAY_TOO_SHORT",
+  CUSTOM_ERROR: "CUSTOM_ERROR",
+  UNKNOWN_ERROR: "UNKNOWN_ERROR",
+  SERVICE_UNAVAILABLE: "SERVICE_UNAVAILABLE",
 } as const;
 
 export type ErrorCodeType = (typeof ERROR_CODES)[keyof typeof ERROR_CODES];
@@ -85,19 +85,19 @@ const englishMessages = {
     return `Value ${value} is out of range`;
   },
   INVALID_ENUM: (value: string, options: string[]): string =>
-    `Invalid value '${value}'. Expected one of: ${options.join(', ')}`,
+    `Invalid value '${value}'. Expected one of: ${options.join(", ")}`,
   STRING_TOO_SHORT: (field: string, min: number): string =>
-    `Field '${field}' must have at least ${min} character${min === 1 ? '' : 's'}`,
+    `Field '${field}' must have at least ${min} character${min === 1 ? "" : "s"}`,
   STRING_TOO_LONG: (field: string, max: number): string =>
-    `Field '${field}' must have at most ${max} character${max === 1 ? '' : 's'}`,
+    `Field '${field}' must have at most ${max} character${max === 1 ? "" : "s"}`,
   INVALID_TYPE: (expected: string, received: string): string =>
     `Expected ${expected}, but received ${received}`,
   INVALID_FORMAT: (field: string, format: string): string =>
     `Field '${field}' does not match the required format: ${format}`,
   ARRAY_TOO_LONG: (field: string, max: number): string =>
-    `Array '${field}' must have at most ${max} item${max === 1 ? '' : 's'}`,
+    `Array '${field}' must have at most ${max} item${max === 1 ? "" : "s"}`,
   ARRAY_TOO_SHORT: (field: string, min: number): string =>
-    `Array '${field}' must have at least ${min} item${min === 1 ? '' : 's'}`,
+    `Array '${field}' must have at least ${min} item${min === 1 ? "" : "s"}`,
   CUSTOM_ERROR: (message: string): string => message,
   UNKNOWN_ERROR: (message: string): string => `Validation error: ${message}`,
 };
@@ -108,8 +108,7 @@ const englishMessages = {
 const japaneseMessages = {
   INVALID_UUID: (_field: string): string =>
     `UUID形式が無効です。期待される形式: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx`,
-  REQUIRED_FIELD: (field: string): string =>
-    `必須フィールド '${field}' が指定されていません`,
+  REQUIRED_FIELD: (field: string): string => `必須フィールド '${field}' が指定されていません`,
   OUT_OF_RANGE: (value: number, min?: number, max?: number): string => {
     if (min !== undefined && max !== undefined) {
       return `値 ${value} は範囲外です (最小: ${min}, 最大: ${max})`;
@@ -123,7 +122,7 @@ const japaneseMessages = {
     return `値 ${value} は範囲外です`;
   },
   INVALID_ENUM: (value: string, options: string[]): string =>
-    `値 '${value}' は無効です。次のいずれかを指定してください: ${options.join(', ')}`,
+    `値 '${value}' は無効です。次のいずれかを指定してください: ${options.join(", ")}`,
   STRING_TOO_SHORT: (field: string, min: number): string =>
     `フィールド '${field}' は${min}文字以上で入力してください`,
   STRING_TOO_LONG: (field: string, max: number): string =>
@@ -181,8 +180,7 @@ export const ErrorMessages = {
 /**
  * 現在のロケール（デフォルトは英語、環境変数で上書き可能）
  */
-let currentLocale: ErrorLocale =
-  (process.env.MCP_ERROR_LOCALE as ErrorLocale) ?? 'en';
+let currentLocale: ErrorLocale = (process.env.MCP_ERROR_LOCALE as ErrorLocale) ?? "en";
 
 /**
  * 現在のロケールを取得
@@ -203,7 +201,7 @@ export function setErrorMessageLocale(locale: ErrorLocale): void {
  * 現在のロケールに対応するメッセージ関数を取得
  */
 function getMessages(): typeof englishMessages {
-  return currentLocale === 'ja' ? japaneseMessages : englishMessages;
+  return currentLocale === "ja" ? japaneseMessages : englishMessages;
 }
 
 // ============================================================================
@@ -214,7 +212,7 @@ function getMessages(): typeof englishMessages {
  * ZodIssueからフィールドパスを取得
  */
 function getFieldPath(issue: ZodIssue): string {
-  return issue.path.join('.');
+  return issue.path.join(".");
 }
 
 /**
@@ -247,19 +245,15 @@ function convertIssueToError(issue: ZodIssue): McpToolError {
   switch (issue.code) {
     case ZodIssueCode.invalid_string: {
       // UUID形式エラーを検出
-      if (issue.validation === 'uuid') {
-        return createMcpToolError(
-          ERROR_CODES.INVALID_UUID,
-          messages.INVALID_UUID(field),
-          field
-        );
+      if (issue.validation === "uuid") {
+        return createMcpToolError(ERROR_CODES.INVALID_UUID, messages.INVALID_UUID(field), field);
       }
       // その他の文字列フォーマットエラー
       return createMcpToolError(
         ERROR_CODES.INVALID_FORMAT,
         messages.INVALID_FORMAT(
           field,
-          typeof issue.validation === 'string' ? issue.validation : 'unknown'
+          typeof issue.validation === "string" ? issue.validation : "unknown"
         ),
         field
       );
@@ -267,7 +261,7 @@ function convertIssueToError(issue: ZodIssue): McpToolError {
 
     case ZodIssueCode.invalid_type: {
       // 必須フィールド欠落（undefined）
-      if (issue.received === 'undefined') {
+      if (issue.received === "undefined") {
         return createMcpToolError(
           ERROR_CODES.REQUIRED_FIELD,
           messages.REQUIRED_FIELD(field),
@@ -288,13 +282,13 @@ function convertIssueToError(issue: ZodIssue): McpToolError {
 
     case ZodIssueCode.too_small: {
       // 数値の範囲チェック
-      if (issue.type === 'number') {
+      if (issue.type === "number") {
         // minimum値を検出するためにパス情報を使用
         // issueにはmin/maxの完全な情報がないため、minimumのみ返す
         return createMcpToolError(
           ERROR_CODES.OUT_OF_RANGE,
           messages.OUT_OF_RANGE(
-            (issue as unknown as { received?: number }).received ?? issue.minimum as number,
+            (issue as unknown as { received?: number }).received ?? (issue.minimum as number),
             issue.minimum as number,
             undefined // maxはこのissueからは取得できない
           ),
@@ -306,7 +300,7 @@ function convertIssueToError(issue: ZodIssue): McpToolError {
         );
       }
       // 文字列の最小長
-      if (issue.type === 'string') {
+      if (issue.type === "string") {
         return createMcpToolError(
           ERROR_CODES.STRING_TOO_SHORT,
           messages.STRING_TOO_SHORT(field, issue.minimum as number),
@@ -315,7 +309,7 @@ function convertIssueToError(issue: ZodIssue): McpToolError {
         );
       }
       // 配列の最小長
-      if (issue.type === 'array') {
+      if (issue.type === "array") {
         return createMcpToolError(
           ERROR_CODES.ARRAY_TOO_SHORT,
           messages.ARRAY_TOO_SHORT(field, issue.minimum as number),
@@ -328,11 +322,11 @@ function convertIssueToError(issue: ZodIssue): McpToolError {
 
     case ZodIssueCode.too_big: {
       // 数値の範囲チェック
-      if (issue.type === 'number') {
+      if (issue.type === "number") {
         return createMcpToolError(
           ERROR_CODES.OUT_OF_RANGE,
           messages.OUT_OF_RANGE(
-            (issue as unknown as { received?: number }).received ?? issue.maximum as number,
+            (issue as unknown as { received?: number }).received ?? (issue.maximum as number),
             undefined,
             issue.maximum as number
           ),
@@ -344,7 +338,7 @@ function convertIssueToError(issue: ZodIssue): McpToolError {
         );
       }
       // 文字列の最大長
-      if (issue.type === 'string') {
+      if (issue.type === "string") {
         return createMcpToolError(
           ERROR_CODES.STRING_TOO_LONG,
           messages.STRING_TOO_LONG(field, issue.maximum as number),
@@ -353,7 +347,7 @@ function convertIssueToError(issue: ZodIssue): McpToolError {
         );
       }
       // 配列の最大長
-      if (issue.type === 'array') {
+      if (issue.type === "array") {
         return createMcpToolError(
           ERROR_CODES.ARRAY_TOO_LONG,
           messages.ARRAY_TOO_LONG(field, issue.maximum as number),
@@ -367,10 +361,7 @@ function convertIssueToError(issue: ZodIssue): McpToolError {
     case ZodIssueCode.invalid_enum_value: {
       return createMcpToolError(
         ERROR_CODES.INVALID_ENUM,
-        messages.INVALID_ENUM(
-          String(issue.received),
-          issue.options.map(String)
-        ),
+        messages.INVALID_ENUM(String(issue.received), issue.options.map(String)),
         field,
         {
           received: issue.received,
@@ -382,7 +373,7 @@ function convertIssueToError(issue: ZodIssue): McpToolError {
     case ZodIssueCode.custom: {
       return createMcpToolError(
         ERROR_CODES.CUSTOM_ERROR,
-        messages.CUSTOM_ERROR(issue.message ?? 'Custom validation failed'),
+        messages.CUSTOM_ERROR(issue.message ?? "Custom validation failed"),
         field
       );
     }
@@ -419,7 +410,7 @@ function convertIssueToError(issue: ZodIssue): McpToolError {
  */
 export function formatZodError(zodError: ZodError): McpToolError[] {
   if (!(zodError instanceof ZodError)) {
-    throw new Error('formatZodError requires a ZodError instance');
+    throw new Error("formatZodError requires a ZodError instance");
   }
 
   if (zodError.issues.length === 0) {
@@ -431,7 +422,7 @@ export function formatZodError(zodError: ZodError): McpToolError[] {
 
   for (const issue of zodError.issues) {
     const error = convertIssueToError(issue);
-    const key = `${error.field ?? ''}:${error.code}`;
+    const key = `${error.field ?? ""}:${error.code}`;
 
     if (!errorMap.has(key)) {
       errorMap.set(key, error);
@@ -483,7 +474,7 @@ export function createValidationError(zodError: ZodError): McpToolError[] {
  * @returns フォーマットされたエラー文字列
  */
 export function formatSingleError(error: McpToolError): string {
-  const fieldPart = error.field ? `[${error.field}] ` : '';
+  const fieldPart = error.field ? `[${error.field}] ` : "";
   return `${fieldPart}${error.message}`;
 }
 
@@ -494,10 +485,7 @@ export function formatSingleError(error: McpToolError): string {
  * @param separator - 区切り文字（デフォルト: ', '）
  * @returns 結合されたエラーメッセージ
  */
-export function formatMultipleErrors(
-  errors: McpToolError[],
-  separator: string = ', '
-): string {
+export function formatMultipleErrors(errors: McpToolError[], separator: string = ", "): string {
   return errors.map(formatSingleError).join(separator);
 }
 
@@ -537,24 +525,18 @@ export interface ValidationErrorWithHints {
 /**
  * フィールドに基づいてヒントメッセージを生成
  */
-function generateHintForField(
-  field: string,
-  code: string,
-  locale: ErrorLocale
-): string {
+function generateHintForField(field: string, code: string, locale: ErrorLocale): string {
   const hints: Record<ErrorLocale, Record<string, Record<string, string>>> = {
     en: {
       html: {
-        [ERROR_CODES.REQUIRED_FIELD]:
-          "Provide html content as a string, e.g., '<html>...</html>'",
+        [ERROR_CODES.REQUIRED_FIELD]: "Provide html content as a string, e.g., '<html>...</html>'",
         [ERROR_CODES.STRING_TOO_SHORT]:
           "HTML content must not be empty. Provide valid HTML markup.",
       },
       name: {
-        [ERROR_CODES.REQUIRED_FIELD]:
-          "Provide a name for the asset, e.g., 'landing-page'",
-        [ERROR_CODES.STRING_TOO_SHORT]: 'Name must be at least 1 character.',
-        [ERROR_CODES.STRING_TOO_LONG]: 'Name must be at most 200 characters.',
+        [ERROR_CODES.REQUIRED_FIELD]: "Provide a name for the asset, e.g., 'landing-page'",
+        [ERROR_CODES.STRING_TOO_SHORT]: "Name must be at least 1 character.",
+        [ERROR_CODES.STRING_TOO_LONG]: "Name must be at most 200 characters.",
       },
       url: {
         [ERROR_CODES.INVALID_FORMAT]:
@@ -568,15 +550,15 @@ function generateHintForField(
       },
       id: {
         [ERROR_CODES.INVALID_UUID]:
-          'Provide a valid UUID in format: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx',
+          "Provide a valid UUID in format: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
       },
       pageId: {
         [ERROR_CODES.INVALID_UUID]:
-          'Provide a valid UUID for pageId in format: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx',
+          "Provide a valid UUID for pageId in format: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
       },
       design_system_id: {
         [ERROR_CODES.INVALID_UUID]:
-          'Provide a valid UUID for design_system_id in format: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx',
+          "Provide a valid UUID for design_system_id in format: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
       },
     },
     ja: {
@@ -584,13 +566,12 @@ function generateHintForField(
         [ERROR_CODES.REQUIRED_FIELD]:
           "htmlコンテンツを文字列として指定してください。例: '<html>...</html>'",
         [ERROR_CODES.STRING_TOO_SHORT]:
-          'HTMLコンテンツは空にできません。有効なHTMLマークアップを指定してください。',
+          "HTMLコンテンツは空にできません。有効なHTMLマークアップを指定してください。",
       },
       name: {
-        [ERROR_CODES.REQUIRED_FIELD]:
-          "アセットの名前を指定してください。例: 'landing-page'",
-        [ERROR_CODES.STRING_TOO_SHORT]: '名前は1文字以上にしてください。',
-        [ERROR_CODES.STRING_TOO_LONG]: '名前は200文字以下にしてください。',
+        [ERROR_CODES.REQUIRED_FIELD]: "アセットの名前を指定してください。例: 'landing-page'",
+        [ERROR_CODES.STRING_TOO_SHORT]: "名前は1文字以上にしてください。",
+        [ERROR_CODES.STRING_TOO_LONG]: "名前は200文字以下にしてください。",
       },
       url: {
         [ERROR_CODES.INVALID_FORMAT]:
@@ -602,21 +583,21 @@ function generateHintForField(
       },
       id: {
         [ERROR_CODES.INVALID_UUID]:
-          'UUIDを以下の形式で指定してください: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx',
+          "UUIDを以下の形式で指定してください: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
       },
       pageId: {
         [ERROR_CODES.INVALID_UUID]:
-          'pageIdには有効なUUIDを指定してください: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx',
+          "pageIdには有効なUUIDを指定してください: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
       },
       design_system_id: {
         [ERROR_CODES.INVALID_UUID]:
-          'design_system_idには有効なUUIDを指定してください: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx',
+          "design_system_idには有効なUUIDを指定してください: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
       },
     },
   };
 
   // フィールド名の最後の部分を取得（ネストされたパス対応）
-  const fieldName = field.split('.').pop() ?? field;
+  const fieldName = field.split(".").pop() ?? field;
 
   const localeHints = hints[locale];
   const fieldHints = localeHints[fieldName];
@@ -632,11 +613,7 @@ function generateHintForField(
 /**
  * 汎用ヒントを生成
  */
-function generateGenericHint(
-  field: string,
-  code: string,
-  locale: ErrorLocale
-): string {
+function generateGenericHint(field: string, code: string, locale: ErrorLocale): string {
   const templates: Record<ErrorLocale, Record<string, string>> = {
     en: {
       [ERROR_CODES.REQUIRED_FIELD]: `Provide a value for '${field}'.`,
@@ -671,7 +648,10 @@ function generateGenericHint(
     return template;
   }
   // デフォルトのテンプレート
-  return templates[locale][ERROR_CODES.CUSTOM_ERROR] ?? `Check the validation requirements for '${field}'.`;
+  return (
+    templates[locale][ERROR_CODES.CUSTOM_ERROR] ??
+    `Check the validation requirements for '${field}'.`
+  );
 }
 
 /**
@@ -688,24 +668,23 @@ function generateToolSpecificHint(
   if (code === ERROR_CODES.CUSTOM_ERROR) {
     // motion.detect の排他制御
     if (
-      toolName === 'motion.detect' &&
-      (originalMessage.includes('pageId') || originalMessage.includes('html'))
+      toolName === "motion.detect" &&
+      (originalMessage.includes("pageId") || originalMessage.includes("html"))
     ) {
-      return locale === 'ja'
+      return locale === "ja"
         ? "pageId または html のいずれか一方を指定してください。両方を指定することはできません。"
         : "Specify either pageId or html, but not both.";
     }
 
     // layout.inspect の排他制御
     if (
-      toolName === 'layout.inspect' &&
-      (originalMessage.includes('id') || originalMessage.includes('html'))
+      toolName === "layout.inspect" &&
+      (originalMessage.includes("id") || originalMessage.includes("html"))
     ) {
-      return locale === 'ja'
+      return locale === "ja"
         ? "id または html のいずれか一方を指定してください。"
         : "Specify either id or html, not both.";
     }
-
   }
 
   // フィールド固有のヒント
@@ -728,21 +707,18 @@ function extractDetailedError(issue: ZodIssue): DetailedValidationError {
 
   switch (issue.code) {
     case ZodIssueCode.invalid_type: {
-      code =
-        issue.received === 'undefined'
-          ? ERROR_CODES.REQUIRED_FIELD
-          : ERROR_CODES.INVALID_TYPE;
+      code = issue.received === "undefined" ? ERROR_CODES.REQUIRED_FIELD : ERROR_CODES.INVALID_TYPE;
       expected = issue.expected;
       received = issue.received;
       break;
     }
     case ZodIssueCode.invalid_string: {
-      if (issue.validation === 'uuid') {
+      if (issue.validation === "uuid") {
         code = ERROR_CODES.INVALID_UUID;
-        expected = 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx';
-      } else if (issue.validation === 'url') {
+        expected = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx";
+      } else if (issue.validation === "url") {
         code = ERROR_CODES.INVALID_FORMAT;
-        expected = 'https://example.com';
+        expected = "https://example.com";
       } else {
         code = ERROR_CODES.INVALID_FORMAT;
         expected = String(issue.validation);
@@ -751,9 +727,9 @@ function extractDetailedError(issue: ZodIssue): DetailedValidationError {
     }
     case ZodIssueCode.too_small: {
       code =
-        issue.type === 'string'
+        issue.type === "string"
           ? ERROR_CODES.STRING_TOO_SHORT
-          : issue.type === 'array'
+          : issue.type === "array"
             ? ERROR_CODES.ARRAY_TOO_SHORT
             : ERROR_CODES.OUT_OF_RANGE;
       expected = `>= ${issue.minimum}`;
@@ -763,9 +739,9 @@ function extractDetailedError(issue: ZodIssue): DetailedValidationError {
     }
     case ZodIssueCode.too_big: {
       code =
-        issue.type === 'string'
+        issue.type === "string"
           ? ERROR_CODES.STRING_TOO_LONG
-          : issue.type === 'array'
+          : issue.type === "array"
             ? ERROR_CODES.ARRAY_TOO_LONG
             : ERROR_CODES.OUT_OF_RANGE;
       expected = `<= ${issue.maximum}`;
@@ -773,13 +749,13 @@ function extractDetailedError(issue: ZodIssue): DetailedValidationError {
     }
     case ZodIssueCode.invalid_enum_value: {
       code = ERROR_CODES.INVALID_ENUM;
-      expected = issue.options.map(String).join(', ');
+      expected = issue.options.map(String).join(", ");
       received = String(issue.received);
       break;
     }
     case ZodIssueCode.custom: {
       code = ERROR_CODES.CUSTOM_ERROR;
-      message = issue.message ?? 'Custom validation failed';
+      message = issue.message ?? "Custom validation failed";
       break;
     }
   }
@@ -789,11 +765,11 @@ function extractDetailedError(issue: ZodIssue): DetailedValidationError {
   message = mcpError.message;
 
   // ヒントを生成
-  const hint = generateHintForField(field || 'root', code, locale);
+  const hint = generateHintForField(field || "root", code, locale);
 
   // exactOptionalPropertyTypes対応: undefinedを明示的に除外
   const result: DetailedValidationError = {
-    field: field || 'root',
+    field: field || "root",
     code,
     message,
     hint,
@@ -830,7 +806,7 @@ export function formatDetailedValidationError(zodError: ZodError): {
   errors: DetailedValidationError[];
 } {
   if (!(zodError instanceof ZodError)) {
-    throw new Error('formatDetailedValidationError requires a ZodError instance');
+    throw new Error("formatDetailedValidationError requires a ZodError instance");
   }
 
   const errors = zodError.issues.map(extractDetailedError);
@@ -858,7 +834,7 @@ export function createValidationErrorWithHints(
   toolName: string
 ): ValidationErrorWithHints {
   if (!(zodError instanceof ZodError)) {
-    throw new Error('createValidationErrorWithHints requires a ZodError instance');
+    throw new Error("createValidationErrorWithHints requires a ZodError instance");
   }
 
   const locale = currentLocale;
@@ -905,32 +881,32 @@ export function formatDetailedError(error: DetailedValidationError): string {
 
   // ヘッダー
   lines.push(
-    locale === 'ja'
+    locale === "ja"
       ? `バリデーションエラー: ${error.message}`
       : `Validation Error: ${error.message}`
   );
 
   // フィールド
   if (error.field) {
-    lines.push(`  ${locale === 'ja' ? 'フィールド' : 'Field'}: ${error.field}`);
+    lines.push(`  ${locale === "ja" ? "フィールド" : "Field"}: ${error.field}`);
   }
 
   // 期待値
   if (error.expected) {
-    lines.push(`  ${locale === 'ja' ? '期待値' : 'Expected'}: ${error.expected}`);
+    lines.push(`  ${locale === "ja" ? "期待値" : "Expected"}: ${error.expected}`);
   }
 
   // 受信値
   if (error.received !== undefined) {
-    lines.push(`  ${locale === 'ja' ? '受信値' : 'Received'}: ${error.received}`);
+    lines.push(`  ${locale === "ja" ? "受信値" : "Received"}: ${error.received}`);
   }
 
   // ヒント
   if (error.hint) {
-    lines.push(`  ${locale === 'ja' ? 'ヒント' : 'Hint'}: ${error.hint}`);
+    lines.push(`  ${locale === "ja" ? "ヒント" : "Hint"}: ${error.hint}`);
   }
 
-  return lines.join('\n');
+  return lines.join("\n");
 }
 
 /**
@@ -938,7 +914,7 @@ export function formatDetailedError(error: DetailedValidationError): string {
  */
 export function formatMultipleDetailedErrors(
   errors: DetailedValidationError[],
-  separator: string = '\n\n'
+  separator: string = "\n\n"
 ): string {
   return errors.map(formatDetailedError).join(separator);
 }
@@ -950,22 +926,19 @@ export function formatMultipleDetailedErrors(
 /**
  * ツール固有のエラーメッセージ定義
  */
-const toolErrorMessages: Record<
-  ErrorLocale,
-  Record<string, Record<string, string>>
-> = {
+const toolErrorMessages: Record<ErrorLocale, Record<string, Record<string, string>>> = {
   en: {
-    'layout.inspect': {
+    "layout.inspect": {
       SERVICE_UNAVAILABLE:
         'WebPage service is not available. Please use the "html" parameter to provide HTML content directly instead of using "id".',
-      NOT_FOUND: 'WebPage not found with the specified ID.',
+      NOT_FOUND: "WebPage not found with the specified ID.",
     },
   },
   ja: {
-    'layout.inspect': {
+    "layout.inspect": {
       SERVICE_UNAVAILABLE:
         'WebPageサービスが利用できません。"id"パラメータの代わりに"html"パラメータを使用して、HTMLコンテンツを直接指定してください。',
-      NOT_FOUND: '指定されたIDのWebPageが見つかりません。',
+      NOT_FOUND: "指定されたIDのWebPageが見つかりません。",
     },
   },
 };
@@ -984,10 +957,7 @@ const toolErrorMessages: Record<
  * // ja: 'WebPageサービスが利用できません...'
  * ```
  */
-export function getToolErrorMessage(
-  toolName: string,
-  code: string
-): string | undefined {
+export function getToolErrorMessage(toolName: string, code: string): string | undefined {
   const locale = currentLocale;
   const localeMessages = toolErrorMessages[locale];
   const toolMessages = localeMessages[toolName];

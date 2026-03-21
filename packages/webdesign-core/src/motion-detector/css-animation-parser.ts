@@ -7,8 +7,8 @@
  * @module @reftrix/webdesign-core/motion-detector/css-animation-parser
  */
 
-import postcss, { type AtRule, type Declaration } from 'postcss';
-import valueParser from 'postcss-value-parser';
+import postcss, { type AtRule, type Declaration } from "postcss";
+import valueParser from "postcss-value-parser";
 
 import type {
   AnimationDirection,
@@ -20,7 +20,7 @@ import type {
   StepsJumpTerm,
   TimingFunctionInfo,
   TransitionDefinition,
-} from '../types/css-animation.types';
+} from "../types/css-animation.types";
 
 import {
   ANIMATION_DIRECTION_VALUES,
@@ -30,10 +30,10 @@ import {
   CSS_TRANSITION_DEFAULTS,
   TIMING_FUNCTION_KEYWORDS,
   VENDOR_PREFIXES,
-} from '../types/css-animation.types';
+} from "../types/css-animation.types";
 
 // 開発環境ログ出力フラグ
-const isDev = process.env.NODE_ENV === 'development';
+const isDev = process.env.NODE_ENV === "development";
 
 /**
  * CSSアニメーション解析パーサー
@@ -53,12 +53,12 @@ export class CSSAnimationParser {
       root.walkAtRules((atRule: AtRule) => {
         // @keyframesまたは@-webkit-keyframesなどを処理
         const ruleName = this.normalizeVendorPrefix(atRule.name);
-        if (ruleName !== 'keyframes') {
+        if (ruleName !== "keyframes") {
           return;
         }
 
         // アニメーション名を取得（クォートを除去）
-        const name = atRule.params.replace(/^["']|["']$/g, '');
+        const name = atRule.params.replace(/^["']|["']$/g, "");
         const keyframes: KeyframeStep[] = [];
 
         // キーフレームルールを解析
@@ -97,7 +97,7 @@ export class CSSAnimationParser {
     } catch (error) {
       // パースエラーでもクラッシュしない
       if (isDev) {
-        console.warn('[CSSAnimationParser] Failed to parse CSS:', error);
+        console.warn("[CSSAnimationParser] Failed to parse CSS:", error);
       }
     }
 
@@ -110,15 +110,15 @@ export class CSSAnimationParser {
    * @returns オフセット値の配列（0-1）
    */
   private parseKeyframeSelectors(selector: string): number[] {
-    const parts = selector.split(',').map((s) => s.trim());
+    const parts = selector.split(",").map((s) => s.trim());
     const offsets: number[] = [];
 
     for (const part of parts) {
-      if (part === 'from') {
+      if (part === "from") {
         offsets.push(0);
-      } else if (part === 'to') {
+      } else if (part === "to") {
         offsets.push(1);
-      } else if (part.endsWith('%')) {
+      } else if (part.endsWith("%")) {
         const value = parseFloat(part);
         if (!isNaN(value)) {
           offsets.push(value / 100);
@@ -137,14 +137,14 @@ export class CSSAnimationParser {
   parseAnimationShorthand(value: string): AnimationShorthand {
     const result: AnimationShorthand = { ...CSS_ANIMATION_DEFAULTS };
 
-    if (!value || value.trim() === '') {
+    if (!value || value.trim() === "") {
       return result;
     }
 
     // 複数アニメーションの場合は最初のもののみ処理
     // カンマで分割するときに関数内のカンマを無視する
     const animations = this.splitByComma(value);
-    const firstAnimation = animations[0]?.trim() ?? '';
+    const firstAnimation = animations[0]?.trim() ?? "";
     if (!firstAnimation) {
       return result;
     }
@@ -156,7 +156,7 @@ export class CSSAnimationParser {
     let nameSet = false;
 
     parsed.walk((node) => {
-      if (node.type === 'word') {
+      if (node.type === "word") {
         const word = node.value;
 
         // 時間値かどうか確認
@@ -172,8 +172,8 @@ export class CSSAnimationParser {
         }
 
         // infiniteまたは数値のiteration-count
-        if (word === 'infinite') {
-          result.iterationCount = 'infinite';
+        if (word === "infinite") {
+          result.iterationCount = "infinite";
           return;
         }
 
@@ -212,11 +212,11 @@ export class CSSAnimationParser {
           result.name = word;
           nameSet = true;
         }
-      } else if (node.type === 'function') {
+      } else if (node.type === "function") {
         // cubic-bezier()やsteps()
         const funcValue = valueParser.stringify(node);
 
-        if (node.value === 'cubic-bezier' || node.value === 'steps') {
+        if (node.value === "cubic-bezier" || node.value === "steps") {
           result.timingFunction = funcValue;
         }
       }
@@ -224,7 +224,7 @@ export class CSSAnimationParser {
 
     if (isDev) {
       // eslint-disable-next-line no-console -- Intentional debug log in development
-      console.log('[CSSAnimationParser] Parsed animation shorthand:', result);
+      console.log("[CSSAnimationParser] Parsed animation shorthand:", result);
     }
 
     return result;
@@ -246,30 +246,30 @@ export class CSSAnimationParser {
     }
 
     // animation-name
-    if (normalizedStyles['animation-name']) {
-      result.name = normalizedStyles['animation-name'];
+    if (normalizedStyles["animation-name"]) {
+      result.name = normalizedStyles["animation-name"];
     }
 
     // animation-duration
-    if (normalizedStyles['animation-duration']) {
-      result.duration = this.parseDuration(normalizedStyles['animation-duration']);
+    if (normalizedStyles["animation-duration"]) {
+      result.duration = this.parseDuration(normalizedStyles["animation-duration"]);
     }
 
     // animation-timing-function
-    if (normalizedStyles['animation-timing-function']) {
-      result.timingFunction = normalizedStyles['animation-timing-function'];
+    if (normalizedStyles["animation-timing-function"]) {
+      result.timingFunction = normalizedStyles["animation-timing-function"];
     }
 
     // animation-delay
-    if (normalizedStyles['animation-delay']) {
-      result.delay = this.parseDuration(normalizedStyles['animation-delay']);
+    if (normalizedStyles["animation-delay"]) {
+      result.delay = this.parseDuration(normalizedStyles["animation-delay"]);
     }
 
     // animation-iteration-count
-    if (normalizedStyles['animation-iteration-count']) {
-      const count = normalizedStyles['animation-iteration-count'];
-      if (count === 'infinite') {
-        result.iterationCount = 'infinite';
+    if (normalizedStyles["animation-iteration-count"]) {
+      const count = normalizedStyles["animation-iteration-count"];
+      if (count === "infinite") {
+        result.iterationCount = "infinite";
       } else {
         const num = parseFloat(count);
         if (!isNaN(num)) {
@@ -279,24 +279,24 @@ export class CSSAnimationParser {
     }
 
     // animation-direction
-    if (normalizedStyles['animation-direction']) {
-      const dir = normalizedStyles['animation-direction'] as AnimationDirection;
+    if (normalizedStyles["animation-direction"]) {
+      const dir = normalizedStyles["animation-direction"] as AnimationDirection;
       if (ANIMATION_DIRECTION_VALUES.includes(dir)) {
         result.direction = dir;
       }
     }
 
     // animation-fill-mode
-    if (normalizedStyles['animation-fill-mode']) {
-      const fill = normalizedStyles['animation-fill-mode'] as AnimationFillMode;
+    if (normalizedStyles["animation-fill-mode"]) {
+      const fill = normalizedStyles["animation-fill-mode"] as AnimationFillMode;
       if (ANIMATION_FILL_MODE_VALUES.includes(fill)) {
         result.fillMode = fill;
       }
     }
 
     // animation-play-state
-    if (normalizedStyles['animation-play-state']) {
-      const state = normalizedStyles['animation-play-state'] as AnimationPlayState;
+    if (normalizedStyles["animation-play-state"]) {
+      const state = normalizedStyles["animation-play-state"] as AnimationPlayState;
       if (ANIMATION_PLAY_STATE_VALUES.includes(state)) {
         result.playState = state;
       }
@@ -313,7 +313,7 @@ export class CSSAnimationParser {
   parseTransitionShorthand(value: string): TransitionDefinition[] {
     const result: TransitionDefinition[] = [];
 
-    if (!value || value.trim() === '') {
+    if (!value || value.trim() === "") {
       return result;
     }
 
@@ -328,7 +328,7 @@ export class CSSAnimationParser {
       let propertySet = false;
 
       parsed.walk((node) => {
-        if (node.type === 'word') {
+        if (node.type === "word") {
           const word = node.value;
 
           // 時間値
@@ -354,9 +354,9 @@ export class CSSAnimationParser {
             def.property = word;
             propertySet = true;
           }
-        } else if (node.type === 'function') {
+        } else if (node.type === "function") {
           // cubic-bezier()
-          if (node.value === 'cubic-bezier') {
+          if (node.value === "cubic-bezier") {
             def.timingFunction = valueParser.stringify(node);
           }
         }
@@ -367,7 +367,7 @@ export class CSSAnimationParser {
 
     if (isDev) {
       // eslint-disable-next-line no-console -- Intentional debug log in development
-      console.log('[CSSAnimationParser] Parsed transition shorthand:', result);
+      console.log("[CSSAnimationParser] Parsed transition shorthand:", result);
     }
 
     return result;
@@ -387,21 +387,21 @@ export class CSSAnimationParser {
     }
 
     // transition-propertyがなければ空配列
-    if (!normalizedStyles['transition-property']) {
+    if (!normalizedStyles["transition-property"]) {
       return [];
     }
 
     // 各プロパティをカンマで分割
-    const properties = this.splitByComma(normalizedStyles['transition-property']);
-    const durations = normalizedStyles['transition-duration']
-      ? this.splitByComma(normalizedStyles['transition-duration'])
-      : ['0s'];
-    const timingFunctions = normalizedStyles['transition-timing-function']
-      ? this.splitByComma(normalizedStyles['transition-timing-function'])
-      : ['ease'];
-    const delays = normalizedStyles['transition-delay']
-      ? this.splitByComma(normalizedStyles['transition-delay'])
-      : ['0s'];
+    const properties = this.splitByComma(normalizedStyles["transition-property"]);
+    const durations = normalizedStyles["transition-duration"]
+      ? this.splitByComma(normalizedStyles["transition-duration"])
+      : ["0s"];
+    const timingFunctions = normalizedStyles["transition-timing-function"]
+      ? this.splitByComma(normalizedStyles["transition-timing-function"])
+      : ["ease"];
+    const delays = normalizedStyles["transition-delay"]
+      ? this.splitByComma(normalizedStyles["transition-delay"])
+      : ["0s"];
 
     const result: TransitionDefinition[] = [];
 
@@ -428,28 +428,28 @@ export class CSSAnimationParser {
     const trimmed = value.trim();
 
     // step-start / step-end
-    if (trimmed === 'step-start') {
+    if (trimmed === "step-start") {
       return {
-        type: 'steps',
+        type: "steps",
         value: trimmed,
         steps: 1,
-        jumpTerm: 'start',
+        jumpTerm: "start",
       };
     }
 
-    if (trimmed === 'step-end') {
+    if (trimmed === "step-end") {
       return {
-        type: 'steps',
+        type: "steps",
         value: trimmed,
         steps: 1,
-        jumpTerm: 'end',
+        jumpTerm: "end",
       };
     }
 
     // キーワード
     if (TIMING_FUNCTION_KEYWORDS[trimmed]) {
       return {
-        type: 'keyword',
+        type: "keyword",
         value: trimmed,
         controlPoints: TIMING_FUNCTION_KEYWORDS[trimmed],
       };
@@ -460,11 +460,11 @@ export class CSSAnimationParser {
     let result: TimingFunctionInfo | null = null;
 
     parsed.walk((node) => {
-      if (node.type === 'function') {
-        if (node.value === 'cubic-bezier') {
+      if (node.type === "function") {
+        if (node.value === "cubic-bezier") {
           const args: number[] = [];
           node.nodes.forEach((n) => {
-            if (n.type === 'word') {
+            if (n.type === "word") {
               const num = parseFloat(n.value);
               if (!isNaN(num)) {
                 args.push(num);
@@ -474,15 +474,15 @@ export class CSSAnimationParser {
 
           if (args.length === 4) {
             result = {
-              type: 'cubic-bezier',
+              type: "cubic-bezier",
               value: valueParser.stringify(node),
               controlPoints: args as [number, number, number, number],
             };
           }
-        } else if (node.value === 'steps') {
+        } else if (node.value === "steps") {
           const args: (number | string)[] = [];
           node.nodes.forEach((n) => {
-            if (n.type === 'word') {
+            if (n.type === "word") {
               const num = parseInt(n.value, 10);
               if (!isNaN(num)) {
                 args.push(num);
@@ -492,15 +492,15 @@ export class CSSAnimationParser {
             }
           });
 
-          const steps = typeof args[0] === 'number' ? args[0] : 1;
-          let jumpTerm: StepsJumpTerm = 'end'; // デフォルト
+          const steps = typeof args[0] === "number" ? args[0] : 1;
+          let jumpTerm: StepsJumpTerm = "end"; // デフォルト
 
-          if (args.length > 1 && typeof args[1] === 'string') {
+          if (args.length > 1 && typeof args[1] === "string") {
             jumpTerm = args[1] as StepsJumpTerm;
           }
 
           result = {
-            type: 'steps',
+            type: "steps",
             value: valueParser.stringify(node),
             steps,
             jumpTerm,
@@ -515,7 +515,7 @@ export class CSSAnimationParser {
 
     // 不明な値はkeywordとして返す
     return {
-      type: 'keyword',
+      type: "keyword",
       value: trimmed,
     };
   }
@@ -528,12 +528,12 @@ export class CSSAnimationParser {
   parseDuration(value: string): number {
     const trimmed = value.trim();
 
-    if (trimmed.endsWith('ms')) {
+    if (trimmed.endsWith("ms")) {
       const num = parseFloat(trimmed);
       return isNaN(num) ? 0 : num;
     }
 
-    if (trimmed.endsWith('s')) {
+    if (trimmed.endsWith("s")) {
       const num = parseFloat(trimmed);
       return isNaN(num) ? 0 : num * 1000;
     }
@@ -572,19 +572,19 @@ export class CSSAnimationParser {
    */
   private splitByComma(value: string): string[] {
     const result: string[] = [];
-    let current = '';
+    let current = "";
     let depth = 0;
 
     for (const char of value) {
-      if (char === '(') {
+      if (char === "(") {
         depth++;
         current += char;
-      } else if (char === ')') {
+      } else if (char === ")") {
         depth--;
         current += char;
-      } else if (char === ',' && depth === 0) {
+      } else if (char === "," && depth === 0) {
         result.push(current.trim());
-        current = '';
+        current = "";
       } else {
         current += char;
       }
@@ -605,8 +605,8 @@ export class CSSAnimationParser {
    */
   private getValueAtIndex(arr: string[], index: number): string {
     if (index < arr.length) {
-      return arr[index] ?? '';
+      return arr[index] ?? "";
     }
-    return arr[arr.length - 1] ?? '';
+    return arr[arr.length - 1] ?? "";
   }
 }

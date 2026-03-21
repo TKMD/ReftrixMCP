@@ -2,14 +2,14 @@
 
 ## 評価方法 / Evaluation Criteria
 
-| 検証項目 / Check Item | 評価方法 / Method | 目標 / Target |
-|---------|---------|------|
-| ブランチ命名規則 / Branch naming convention | 自動（Code） | 100%準拠 / 100% compliance |
-| コミットメッセージ形式 / Commit message format | 自動（Code） | Conventional Commits 100% |
-| lint/typecheck通過 / lint/typecheck pass | 自動（Code） | エラー 0件 / 0 errors |
-| テスト通過（推奨） / Test pass (recommended) | 自動（Code） | 0 failed（CI検証前提） |
-| PRサイズ / PR size | 自動（Code） | 800行以下 / 800 lines or less |
-| 自動コミット適用 / Auto-commit applied | 自動（Code） | 機能実装・修正完了時 / On feature/fix completion |
+| 検証項目 / Check Item                          | 評価方法 / Method | 目標 / Target                                    |
+| ---------------------------------------------- | ----------------- | ------------------------------------------------ |
+| ブランチ命名規則 / Branch naming convention    | 自動（Code）      | 100%準拠 / 100% compliance                       |
+| コミットメッセージ形式 / Commit message format | 自動（Code）      | Conventional Commits 100%                        |
+| lint/typecheck通過 / lint/typecheck pass       | 自動（Code）      | エラー 0件 / 0 errors                            |
+| テスト通過（推奨） / Test pass (recommended)   | 自動（Code）      | 0 failed（CI検証前提）                           |
+| PRサイズ / PR size                             | 自動（Code）      | 800行以下 / 800 lines or less                    |
+| 自動コミット適用 / Auto-commit applied         | 自動（Code）      | 機能実装・修正完了時 / On feature/fix completion |
 
 ---
 
@@ -23,15 +23,15 @@
 
 ### Type一覧 / Type List
 
-| Type | 用途 / Purpose | 例 / Example |
-|------|------|-----|
-| `feature/` | 新機能開発 / New feature | `feature/semantic-search` |
-| `fix/` | バグ修正 / Bug fix | `fix/login-error` |
-| `chore/` | 設定・依存関係更新 / Config/dependency updates | `chore/update-deps` |
-| `hotfix/` | 緊急本番修正 / Emergency production fix | `hotfix/critical-auth-bug` |
-| `docs/` | ドキュメント更新 / Documentation updates | `docs/api-reference` |
-| `test/` | テスト追加・修正 / Test additions/fixes | `test/search-unit-tests` |
-| `refactor/` | リファクタリング / Refactoring | `refactor/auth-module` |
+| Type        | 用途 / Purpose                                 | 例 / Example               |
+| ----------- | ---------------------------------------------- | -------------------------- |
+| `feature/`  | 新機能開発 / New feature                       | `feature/semantic-search`  |
+| `fix/`      | バグ修正 / Bug fix                             | `fix/login-error`          |
+| `chore/`    | 設定・依存関係更新 / Config/dependency updates | `chore/update-deps`        |
+| `hotfix/`   | 緊急本番修正 / Emergency production fix        | `hotfix/critical-auth-bug` |
+| `docs/`     | ドキュメント更新 / Documentation updates       | `docs/api-reference`       |
+| `test/`     | テスト追加・修正 / Test additions/fixes        | `test/search-unit-tests`   |
+| `refactor/` | リファクタリング / Refactoring                 | `refactor/auth-module`     |
 
 ### 命名ルール / Naming Rules
 
@@ -59,17 +59,17 @@ Commits during branch work are flexible:
 
 ### Conventional Commits形式 / Conventional Commits Format
 
-| Prefix | 用途 / Purpose |
-|--------|------|
-| `feat:` | 新機能 / New feature |
-| `fix:` | バグ修正 / Bug fix |
-| `test:` | テスト / Tests |
-| `docs:` | ドキュメント / Documentation |
+| Prefix      | 用途 / Purpose                 |
+| ----------- | ------------------------------ |
+| `feat:`     | 新機能 / New feature           |
+| `fix:`      | バグ修正 / Bug fix             |
+| `test:`     | テスト / Tests                 |
+| `docs:`     | ドキュメント / Documentation   |
 | `refactor:` | リファクタリング / Refactoring |
-| `style:` | コードスタイル / Code style |
-| `chore:` | ビルド・設定 / Build/config |
-| `perf:` | パフォーマンス / Performance |
-| `hotfix:` | 緊急修正 / Emergency fix |
+| `style:`    | コードスタイル / Code style    |
+| `chore:`    | ビルド・設定 / Build/config    |
+| `perf:`     | パフォーマンス / Performance   |
+| `hotfix:`   | 緊急修正 / Emergency fix       |
 
 ---
 
@@ -78,18 +78,21 @@ Commits during branch work are flexible:
 ### ✅ PASS基準（自動コミット許可条件） / PASS Criteria (Auto-commit Conditions)
 
 **以下の場合は自動コミット可能 / Auto-commit allowed when**:
+
 - ✅ 機能実装完了時（feat） / Feature implementation complete
 - ✅ バグ修正完了時（fix） / Bug fix complete
 - ✅ Enhancement完了時（refactor, perf） / Enhancement complete
 - ✅ ユーザーが明示的に依頼した場合（「コミットして」「変更をコミット」等） / User explicitly requests commit
 
 **コミット判断の基準 / Commit criteria**:
+
 - 実装が完了し、論理的な区切りがついている / Implementation complete with logical breakpoint
 - Pre-commit検証（lint, typecheck）が通過している / Pre-commit checks (lint, typecheck) pass
 
 ### ❌ FAIL基準（コミット禁止） / FAIL Criteria (Commit Prohibited)
 
 以下の場合は**コミットしない** / Do **NOT** commit when:
+
 - ❌ 実装が未完了（WIP状態） / Implementation incomplete (WIP)
 - ❌ lint/typecheckエラーが存在 / lint/typecheck errors exist
 - ❌ ユーザーが明示的に「コミットしないで」と指示した場合 / User explicitly says "don't commit"
@@ -97,9 +100,11 @@ Commits during branch work are flexible:
 ### コミット時の必須事項（3ステップ） / Required Commit Steps (3 Steps)
 
 1. **Pre-commit検証 / Pre-commit Verification**:
+
    ```bash
    pnpm lint && pnpm typecheck
    ```
+
    - ✅ lint/typecheckが成功（exit code 0） / lint/typecheck succeed (exit code 0)
    - ❌ いずれかが失敗した場合、ユーザーに報告してコミット中止 / If either fails, report to user and abort commit
    - **注**: テストは推奨だが必須ではない（CI環境で検証される前提） / Note: Tests recommended but not required (verified in CI)
@@ -110,10 +115,12 @@ Commits during branch work are flexible:
    - Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com> 追加
 
 3. **Post-commit確認 / Post-commit Verification**:
+
    ```bash
    git status
    git log -1 --stat
    ```
+
    - コミット成功を確認してユーザーに報告 / Verify commit success and report to user
 
 ---
@@ -133,11 +140,11 @@ PR title is used as the **final squash commit message subject**:
 
 ### PRサイズ制限 / PR Size Limits
 
-| 状態 / Status | 差分行数 / Diff Lines | アクション / Action |
-|------|---------|-----------|
-| ✅ 適切 / Appropriate | 400行以下 / 400 or less | そのままレビュー / Review as-is |
-| ⚠️ 要検討 / Needs review | 400-800行 / 400-800 | 分割を検討 / Consider splitting |
-| ❌ 分割必須 / Must split | 800行超 / Over 800 | 必ず分割する / Must split |
+| 状態 / Status            | 差分行数 / Diff Lines   | アクション / Action             |
+| ------------------------ | ----------------------- | ------------------------------- |
+| ✅ 適切 / Appropriate    | 400行以下 / 400 or less | そのままレビュー / Review as-is |
+| ⚠️ 要検討 / Needs review | 400-800行 / 400-800     | 分割を検討 / Consider splitting |
+| ❌ 分割必須 / Must split | 800行超 / Over 800      | 必ず分割する / Must split       |
 
 **例外 / Exceptions**: 自動生成ファイル、ロックファイル、大規模リファクタリング（事前承認済み） / Auto-generated files, lock files, large refactoring (pre-approved)
 
@@ -160,11 +167,11 @@ pnpm lint && pnpm typecheck && pnpm test
 
 ### マージ方法（Squash and Merge のみ） / Merge Method (Squash and Merge Only)
 
-| 方法 / Method | 許可 / Allowed | 理由 / Reason |
-|------|------|------|
-| **Squash and Merge** | ✅ | 履歴がクリーン / Clean history |
-| Merge Commit | ❌ 禁止 / Prohibited | 履歴が複雑になる / History becomes complex |
-| Rebase and Merge | ❌ 禁止 / Prohibited | 一貫性のため / For consistency |
+| 方法 / Method        | 許可 / Allowed       | 理由 / Reason                              |
+| -------------------- | -------------------- | ------------------------------------------ |
+| **Squash and Merge** | ✅                   | 履歴がクリーン / Clean history             |
+| Merge Commit         | ❌ 禁止 / Prohibited | 履歴が複雑になる / History becomes complex |
+| Rebase and Merge     | ❌ 禁止 / Prohibited | 一貫性のため / For consistency             |
 
 ### Squashコミットメッセージ / Squash Commit Message
 
@@ -210,8 +217,43 @@ Push only after user approval.
 
 ---
 
+## CHANGELOG管理ルール / CHANGELOG Management Rules
+
+### 2つのCHANGELOG / Two CHANGELOGs
+
+| ファイル / File              | 用途 / Purpose                                                                                                                                                                    | OSS同期 / OSS Sync      |
+| ---------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------- |
+| `CHANGELOG.md`（ルート）     | **OSS公開用** — OSSリポジトリに同期される変更のみ記載 / **OSS-facing** — only changes synced to OSS repo                                                                          | ✅ 同期対象             |
+| ` | **内部完全版** — プロジェクト全変更を記載（エージェント・スキル・内部ドキュメント含む） / **Internal full version** — all project changes including agents, skills, internal docs | ❌ 除外（`.ossfilter`） |
+
+### ルート CHANGELOG.md に記載しない内容 / Do NOT include in root CHANGELOG.md
+
+以下は `.ossfilter` でOSS同期から除外されるため、ルートCHANGELOGに記載不要:
+
+The following are excluded from OSS sync via `.ossfilter` and should NOT appear in root CHANGELOG:
+
+- ❌ `.claude/agents/` — エージェント定義の変更 / Agent definition changes
+- ❌ ` — 内部仕様ドキュメント変更 / Internal spec document changes
+- ❌ `.claude/skills/` — スキル定義の変更 / Skill definition changes
+- ❌ `.claude/commands/` — コマンド定義の変更 / Command definition changes
+- ❌ `example/` — LP・実験アプリの変更 / LP and experimental app changes
+- ❌ 内部ドキュメント整合性修正 / Internal documentation consistency fixes
+
+### ルート CHANGELOG.md に記載する内容 / Include in root CHANGELOG.md
+
+- ✅ MCPサーバーのコード変更（リファクタリング、バグ修正、機能追加） / MCP server code changes
+- ✅ セキュリティ修正・脆弱性解消 / Security fixes and vulnerability resolution
+- ✅ テスト改善 / Test improvements
+- ✅ CI/CD変更 / CI/CD changes
+- ✅ 依存関係更新 / Dependency updates
+- ✅ パフォーマンス改善 / Performance improvements
+- ✅ コードスタイル変更（Prettier等） / Code style changes
+
+---
+
 ## 関連ドキュメント / Related Documents
 
 - **詳細なルール / Detailed rules**: `CONTRIBUTING.md`
 - **PRテンプレート / PR template**: `.github/pull_request_template.md`
 - **コードオーナー / Code owners**: `CODEOWNERS`
+- **内部CHANGELOG / Internal CHANGELOG**: `

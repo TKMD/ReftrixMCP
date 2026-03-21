@@ -19,10 +19,10 @@
  * @module tests/tools/part/part-compare.test
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 // Prisma をモック / Mock Prisma
-vi.mock('@reftrix/database', () => ({
+vi.mock("@reftrix/database", () => ({
   prisma: {
     componentPart: {
       findMany: vi.fn(),
@@ -30,24 +30,24 @@ vi.mock('@reftrix/database', () => ({
   },
 }));
 
-import { prisma } from '@reftrix/database';
+import { prisma } from "@reftrix/database";
 import {
   partCompareHandler,
   partCompareToolDefinition,
   PART_COMPARE_ERROR_CODES,
   type PartCompareOutput,
-} from '../../../src/tools/part/compare.tool';
+} from "../../../src/tools/part/compare.tool";
 
 // =====================================================
 // テストデータ / Test data
 // =====================================================
 
-const UUID_A = '01234567-89ab-cdef-0123-456789abcde0';
-const UUID_B = '01234567-89ab-cdef-0123-456789abcde1';
-const UUID_C = '01234567-89ab-cdef-0123-456789abcde2';
-const UUID_D = '01234567-89ab-cdef-0123-456789abcde3';
-const UUID_E = '01234567-89ab-cdef-0123-456789abcde4';
-const UUID_MISSING = '01234567-89ab-cdef-0123-456789abcde9';
+const UUID_A = "01234567-89ab-cdef-0123-456789abcde0";
+const UUID_B = "01234567-89ab-cdef-0123-456789abcde1";
+const UUID_C = "01234567-89ab-cdef-0123-456789abcde2";
+const UUID_D = "01234567-89ab-cdef-0123-456789abcde3";
+const UUID_E = "01234567-89ab-cdef-0123-456789abcde4";
+const UUID_MISSING = "01234567-89ab-cdef-0123-456789abcde9";
 
 /**
  * モックパーツデータを生成
@@ -67,15 +67,15 @@ function createMockPart(
 ): Record<string, unknown> {
   return {
     id,
-    partType: overrides?.partType ?? 'button',
-    partSubtype: 'primary_button',
-    htmlSnippet: '<button>Submit</button>',
+    partType: overrides?.partType ?? "button",
+    partSubtype: "primary_button",
+    htmlSnippet: "<button>Submit</button>",
     computedStyles: overrides?.computedStyles ?? {
-      backgroundColor: '#2563eb',
-      color: '#ffffff',
-      fontSize: '16px',
-      borderRadius: '8px',
-      padding: '12px 24px',
+      backgroundColor: "#2563eb",
+      color: "#ffffff",
+      fontSize: "16px",
+      borderRadius: "8px",
+      padding: "12px 24px",
     },
     boundingBox: overrides?.boundingBox ?? {
       x: 50,
@@ -83,27 +83,27 @@ function createMockPart(
       width: 200,
       height: 48,
     },
-    cssClasses: ['btn-primary'],
+    cssClasses: ["btn-primary"],
     attributes: overrides?.attributes ?? {
-      type: 'submit',
-      role: 'button',
+      type: "submit",
+      role: "button",
     },
     interactionInfo: overrides?.interactionInfo ?? {
       hasHover: true,
       hasFocus: true,
       hasActive: true,
       hasTransition: true,
-      transitionDuration: '0.2s',
+      transitionDuration: "0.2s",
     },
-    visualSignature: 'sha256-abc123',
+    visualSignature: "sha256-abc123",
     sampleIndex: 0,
-    piiRiskLevel: 'none',
-    tags: ['button', 'cta'],
+    piiRiskLevel: "none",
+    tags: ["button", "cta"],
     metadata: {},
-    sourceUrl: 'https://example.com',
-    usageScope: 'inspiration_only',
-    webPage: { url: overrides?.webPageUrl ?? 'https://example.com' },
-    sectionPattern: { sectionType: overrides?.sectionType ?? 'hero' },
+    sourceUrl: "https://example.com",
+    usageScope: "inspiration_only",
+    webPage: { url: overrides?.webPageUrl ?? "https://example.com" },
+    sectionPattern: { sectionType: overrides?.sectionType ?? "hero" },
   };
 }
 
@@ -111,7 +111,7 @@ function createMockPart(
 // テスト / Tests
 // =====================================================
 
-describe('part.compare MCPツール', () => {
+describe("part.compare MCPツール", () => {
   const mockFindMany = vi.mocked(prisma.componentPart.findMany);
 
   beforeEach(() => {
@@ -126,27 +126,27 @@ describe('part.compare MCPツール', () => {
   // ツール定義テスト / Tool definition tests
   // =====================================================
 
-  describe('ツール定義 / Tool definition', () => {
-    it('正しいツール名を持つこと', () => {
-      expect(partCompareToolDefinition.name).toBe('part.compare');
+  describe("ツール定義 / Tool definition", () => {
+    it("正しいツール名を持つこと", () => {
+      expect(partCompareToolDefinition.name).toBe("part.compare");
     });
 
-    it('説明文が存在すること', () => {
+    it("説明文が存在すること", () => {
       expect(partCompareToolDefinition.description).toBeTruthy();
       expect(partCompareToolDefinition.description.length).toBeGreaterThan(10);
     });
 
-    it('MCP annotationsが存在すること', () => {
+    it("MCP annotationsが存在すること", () => {
       expect(partCompareToolDefinition.annotations).toBeDefined();
       expect(partCompareToolDefinition.annotations.readOnlyHint).toBe(true);
       expect(partCompareToolDefinition.annotations.idempotentHint).toBe(true);
     });
 
-    it('inputSchemaが正しいフォーマットであること', () => {
-      expect(partCompareToolDefinition.inputSchema.type).toBe('object');
+    it("inputSchemaが正しいフォーマットであること", () => {
+      expect(partCompareToolDefinition.inputSchema.type).toBe("object");
       expect(partCompareToolDefinition.inputSchema.properties.part_ids).toBeDefined();
       expect(partCompareToolDefinition.inputSchema.properties.compare_aspects).toBeDefined();
-      expect(partCompareToolDefinition.inputSchema.required).toContain('part_ids');
+      expect(partCompareToolDefinition.inputSchema.required).toContain("part_ids");
     });
   });
 
@@ -154,35 +154,35 @@ describe('part.compare MCPツール', () => {
   // 入力バリデーションテスト / Input validation tests
   // =====================================================
 
-  describe('入力バリデーション / Input validation', () => {
-    it('2未満パーツでバリデーションエラーになること', async () => {
-      const result = await partCompareHandler({
+  describe("入力バリデーション / Input validation", () => {
+    it("2未満パーツでバリデーションエラーになること", async () => {
+      const result = (await partCompareHandler({
         part_ids: [UUID_A],
-      }) as PartCompareOutput;
+      })) as PartCompareOutput;
 
       expect(result.success).toBe(false);
       if (!result.success) {
         expect(result.error.code).toBe(PART_COMPARE_ERROR_CODES.VALIDATION_ERROR);
-        expect(result.error.message).toContain('Validation error');
+        expect(result.error.message).toContain("Validation error");
       }
     });
 
-    it('5超過パーツでバリデーションエラーになること', async () => {
-      const result = await partCompareHandler({
+    it("5超過パーツでバリデーションエラーになること", async () => {
+      const result = (await partCompareHandler({
         part_ids: [UUID_A, UUID_B, UUID_C, UUID_D, UUID_E, UUID_MISSING],
-      }) as PartCompareOutput;
+      })) as PartCompareOutput;
 
       expect(result.success).toBe(false);
       if (!result.success) {
         expect(result.error.code).toBe(PART_COMPARE_ERROR_CODES.VALIDATION_ERROR);
-        expect(result.error.message).toContain('Validation error');
+        expect(result.error.message).toContain("Validation error");
       }
     });
 
-    it('不正なUUID形式でバリデーションエラーになること', async () => {
-      const result = await partCompareHandler({
-        part_ids: ['not-a-uuid', UUID_B],
-      }) as PartCompareOutput;
+    it("不正なUUID形式でバリデーションエラーになること", async () => {
+      const result = (await partCompareHandler({
+        part_ids: ["not-a-uuid", UUID_B],
+      })) as PartCompareOutput;
 
       expect(result.success).toBe(false);
       if (!result.success) {
@@ -190,8 +190,8 @@ describe('part.compare MCPツール', () => {
       }
     });
 
-    it('part_ids未指定でバリデーションエラーになること', async () => {
-      const result = await partCompareHandler({}) as PartCompareOutput;
+    it("part_ids未指定でバリデーションエラーになること", async () => {
+      const result = (await partCompareHandler({})) as PartCompareOutput;
 
       expect(result.success).toBe(false);
       if (!result.success) {
@@ -204,20 +204,20 @@ describe('part.compare MCPツール', () => {
   // 正常系テスト / Success cases
   // =====================================================
 
-  describe('正常系 / Success cases', () => {
-    it('2パーツ比較でstyles比較結果を返すこと', async () => {
+  describe("正常系 / Success cases", () => {
+    it("2パーツ比較でstyles比較結果を返すこと", async () => {
       const partA = createMockPart(UUID_A, {
-        computedStyles: { backgroundColor: '#2563eb', color: '#ffffff', fontSize: '16px' },
+        computedStyles: { backgroundColor: "#2563eb", color: "#ffffff", fontSize: "16px" },
       });
       const partB = createMockPart(UUID_B, {
-        computedStyles: { backgroundColor: '#dc2626', color: '#ffffff', fontSize: '14px' },
+        computedStyles: { backgroundColor: "#dc2626", color: "#ffffff", fontSize: "14px" },
       });
 
       mockFindMany.mockResolvedValueOnce([partA, partB] as never);
 
-      const result = await partCompareHandler({
+      const result = (await partCompareHandler({
         part_ids: [UUID_A, UUID_B],
-      }) as PartCompareOutput;
+      })) as PartCompareOutput;
 
       expect(result.success).toBe(true);
       if (result.success) {
@@ -227,22 +227,20 @@ describe('part.compare MCPツール', () => {
 
         // styles比較のプロパティを確認
         const stylesComp = result.data.comparisons.styles;
-        expect(stylesComp.aspect).toBe('styles');
+        expect(stylesComp.aspect).toBe("styles");
         expect(stylesComp.properties.length).toBeGreaterThan(0);
       }
     });
 
-    it('5パーツ比較で全観点の結果を返すこと', async () => {
-      const parts = [UUID_A, UUID_B, UUID_C, UUID_D, UUID_E].map((id) =>
-        createMockPart(id)
-      );
+    it("5パーツ比較で全観点の結果を返すこと", async () => {
+      const parts = [UUID_A, UUID_B, UUID_C, UUID_D, UUID_E].map((id) => createMockPart(id));
 
       mockFindMany.mockResolvedValueOnce(parts as never);
 
-      const result = await partCompareHandler({
+      const result = (await partCompareHandler({
         part_ids: [UUID_A, UUID_B, UUID_C, UUID_D, UUID_E],
-        compare_aspects: ['styles', 'layout', 'interaction', 'accessibility'],
-      }) as PartCompareOutput;
+        compare_aspects: ["styles", "layout", "interaction", "accessibility"],
+      })) as PartCompareOutput;
 
       expect(result.success).toBe(true);
       if (result.success) {
@@ -254,42 +252,42 @@ describe('part.compare MCPツール', () => {
       }
     });
 
-    it('デフォルトcompare_aspectsがstyles,layoutであること', async () => {
+    it("デフォルトcompare_aspectsがstyles,layoutであること", async () => {
       const parts = [UUID_A, UUID_B].map((id) => createMockPart(id));
       mockFindMany.mockResolvedValueOnce(parts as never);
 
-      const result = await partCompareHandler({
+      const result = (await partCompareHandler({
         part_ids: [UUID_A, UUID_B],
-      }) as PartCompareOutput;
+      })) as PartCompareOutput;
 
       expect(result.success).toBe(true);
       if (result.success) {
-        expect(Object.keys(result.data.comparisons)).toEqual(['styles', 'layout']);
+        expect(Object.keys(result.data.comparisons)).toEqual(["styles", "layout"]);
       }
     });
 
-    it('パーツ情報にwebPageUrlとsectionTypeが含まれること', async () => {
+    it("パーツ情報にwebPageUrlとsectionTypeが含まれること", async () => {
       const partA = createMockPart(UUID_A, {
-        webPageUrl: 'https://example.com/page-a',
-        sectionType: 'hero',
+        webPageUrl: "https://example.com/page-a",
+        sectionType: "hero",
       });
       const partB = createMockPart(UUID_B, {
-        webPageUrl: 'https://example.com/page-b',
-        sectionType: 'footer',
+        webPageUrl: "https://example.com/page-b",
+        sectionType: "footer",
       });
 
       mockFindMany.mockResolvedValueOnce([partA, partB] as never);
 
-      const result = await partCompareHandler({
+      const result = (await partCompareHandler({
         part_ids: [UUID_A, UUID_B],
-      }) as PartCompareOutput;
+      })) as PartCompareOutput;
 
       expect(result.success).toBe(true);
       if (result.success) {
-        expect(result.data.parts[0]?.webPageUrl).toBe('https://example.com/page-a');
-        expect(result.data.parts[0]?.sectionType).toBe('hero');
-        expect(result.data.parts[1]?.webPageUrl).toBe('https://example.com/page-b');
-        expect(result.data.parts[1]?.sectionType).toBe('footer');
+        expect(result.data.parts[0]?.webPageUrl).toBe("https://example.com/page-a");
+        expect(result.data.parts[0]?.sectionType).toBe("hero");
+        expect(result.data.parts[1]?.webPageUrl).toBe("https://example.com/page-b");
+        expect(result.data.parts[1]?.sectionType).toBe("footer");
       }
     });
   });
@@ -298,54 +296,54 @@ describe('part.compare MCPツール', () => {
   // スタイル比較テスト / Style comparison tests
   // =====================================================
 
-  describe('styles比較 / Styles comparison', () => {
-    it('同一値でisIdentical=trueを返すこと', async () => {
-      const sameStyles = { backgroundColor: '#2563eb', color: '#ffffff', fontSize: '16px' };
+  describe("styles比較 / Styles comparison", () => {
+    it("同一値でisIdentical=trueを返すこと", async () => {
+      const sameStyles = { backgroundColor: "#2563eb", color: "#ffffff", fontSize: "16px" };
       const partA = createMockPart(UUID_A, { computedStyles: sameStyles });
       const partB = createMockPart(UUID_B, { computedStyles: sameStyles });
 
       mockFindMany.mockResolvedValueOnce([partA, partB] as never);
 
-      const result = await partCompareHandler({
+      const result = (await partCompareHandler({
         part_ids: [UUID_A, UUID_B],
-        compare_aspects: ['styles'],
-      }) as PartCompareOutput;
+        compare_aspects: ["styles"],
+      })) as PartCompareOutput;
 
       expect(result.success).toBe(true);
       if (result.success) {
         const bgProp = result.data.comparisons.styles.properties.find(
-          (p) => p.property === 'backgroundColor'
+          (p) => p.property === "backgroundColor"
         );
         expect(bgProp).toBeDefined();
         expect(bgProp?.isIdentical).toBe(true);
       }
     });
 
-    it('異なる値でisIdentical=falseを返すこと', async () => {
+    it("異なる値でisIdentical=falseを返すこと", async () => {
       const partA = createMockPart(UUID_A, {
-        computedStyles: { backgroundColor: '#2563eb' },
+        computedStyles: { backgroundColor: "#2563eb" },
       });
       const partB = createMockPart(UUID_B, {
-        computedStyles: { backgroundColor: '#dc2626' },
+        computedStyles: { backgroundColor: "#dc2626" },
       });
 
       mockFindMany.mockResolvedValueOnce([partA, partB] as never);
 
-      const result = await partCompareHandler({
+      const result = (await partCompareHandler({
         part_ids: [UUID_A, UUID_B],
-        compare_aspects: ['styles'],
-      }) as PartCompareOutput;
+        compare_aspects: ["styles"],
+      })) as PartCompareOutput;
 
       expect(result.success).toBe(true);
       if (result.success) {
         const bgProp = result.data.comparisons.styles.properties.find(
-          (p) => p.property === 'backgroundColor'
+          (p) => p.property === "backgroundColor"
         );
         expect(bgProp).toBeDefined();
         expect(bgProp?.isIdentical).toBe(false);
         expect(bgProp?.values).toHaveLength(2);
-        expect(bgProp?.values[0]?.value).toBe('#2563eb');
-        expect(bgProp?.values[1]?.value).toBe('#dc2626');
+        expect(bgProp?.values[0]?.value).toBe("#2563eb");
+        expect(bgProp?.values[1]?.value).toBe("#dc2626");
       }
     });
   });
@@ -354,8 +352,8 @@ describe('part.compare MCPツール', () => {
   // レイアウト比較テスト / Layout comparison tests
   // =====================================================
 
-  describe('layout比較 / Layout comparison', () => {
-    it('アスペクト比が計算されること', async () => {
+  describe("layout比較 / Layout comparison", () => {
+    it("アスペクト比が計算されること", async () => {
       const partA = createMockPart(UUID_A, {
         boundingBox: { x: 0, y: 0, width: 200, height: 100 },
       });
@@ -365,15 +363,15 @@ describe('part.compare MCPツール', () => {
 
       mockFindMany.mockResolvedValueOnce([partA, partB] as never);
 
-      const result = await partCompareHandler({
+      const result = (await partCompareHandler({
         part_ids: [UUID_A, UUID_B],
-        compare_aspects: ['layout'],
-      }) as PartCompareOutput;
+        compare_aspects: ["layout"],
+      })) as PartCompareOutput;
 
       expect(result.success).toBe(true);
       if (result.success) {
         const aspectRatio = result.data.comparisons.layout.properties.find(
-          (p) => p.property === 'aspectRatio'
+          (p) => p.property === "aspectRatio"
         );
         expect(aspectRatio).toBeDefined();
         expect(aspectRatio?.values[0]?.value).toBe(2);
@@ -387,51 +385,53 @@ describe('part.compare MCPツール', () => {
   // エラーケーステスト / Error cases
   // =====================================================
 
-  describe('エラーケース / Error cases', () => {
-    it('パーツが見つからない場合エラーを返すこと', async () => {
+  describe("エラーケース / Error cases", () => {
+    it("パーツが見つからない場合エラーを返すこと", async () => {
       mockFindMany.mockResolvedValueOnce([createMockPart(UUID_A)] as never);
 
-      const result = await partCompareHandler({
+      const result = (await partCompareHandler({
         part_ids: [UUID_A, UUID_MISSING],
-      }) as PartCompareOutput;
+      })) as PartCompareOutput;
 
       expect(result.success).toBe(false);
       if (!result.success) {
         expect(result.error.code).toBe(PART_COMPARE_ERROR_CODES.PARTS_NOT_FOUND);
-        expect(result.error.message).toContain('not found');
+        expect(result.error.message).toContain("not found");
       }
     });
 
-    it('DB例外時にsanitizeErrorMessageで内部詳細が漏洩しないこと', async () => {
-      const prismaError = new Error('Column "internal_column" not found in table "component_parts"');
-      (prismaError as unknown as { code: string }).code = 'P2010';
+    it("DB例外時にsanitizeErrorMessageで内部詳細が漏洩しないこと", async () => {
+      const prismaError = new Error(
+        'Column "internal_column" not found in table "component_parts"'
+      );
+      (prismaError as unknown as { code: string }).code = "P2010";
       mockFindMany.mockRejectedValueOnce(prismaError);
 
-      const result = await partCompareHandler({
+      const result = (await partCompareHandler({
         part_ids: [UUID_A, UUID_B],
-      }) as PartCompareOutput;
+      })) as PartCompareOutput;
 
       expect(result.success).toBe(false);
       if (!result.success) {
         expect(result.error.code).toBe(PART_COMPARE_ERROR_CODES.INTERNAL_ERROR);
         // 内部構造の漏洩がないこと / No internal structure leakage
-        expect(result.error.message).not.toContain('internal_column');
-        expect(result.error.message).not.toContain('component_parts');
-        expect(result.error.message).toBe('Database operation failed');
+        expect(result.error.message).not.toContain("internal_column");
+        expect(result.error.message).not.toContain("component_parts");
+        expect(result.error.message).toBe("Database operation failed");
       }
     });
 
-    it('一般的な例外時にサニタイズされたメッセージを返すこと', async () => {
-      mockFindMany.mockRejectedValueOnce(new Error('Unexpected server error'));
+    it("一般的な例外時にサニタイズされたメッセージを返すこと", async () => {
+      mockFindMany.mockRejectedValueOnce(new Error("Unexpected server error"));
 
-      const result = await partCompareHandler({
+      const result = (await partCompareHandler({
         part_ids: [UUID_A, UUID_B],
-      }) as PartCompareOutput;
+      })) as PartCompareOutput;
 
       expect(result.success).toBe(false);
       if (!result.success) {
         expect(result.error.code).toBe(PART_COMPARE_ERROR_CODES.INTERNAL_ERROR);
-        expect(result.error.message).toBe('An internal error occurred');
+        expect(result.error.message).toBe("An internal error occurred");
       }
     });
   });

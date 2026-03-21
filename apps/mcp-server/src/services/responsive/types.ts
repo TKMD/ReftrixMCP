@@ -21,25 +21,25 @@ export interface ResponsiveViewport {
  * ナビゲーションタイプ
  */
 export type NavigationType =
-  | 'horizontal-menu'
-  | 'hamburger-menu'
-  | 'drawer'
-  | 'bottom-nav'
-  | 'tab-bar'
-  | 'hidden'
-  | 'other';
+  | "horizontal-menu"
+  | "hamburger-menu"
+  | "drawer"
+  | "bottom-nav"
+  | "tab-bar"
+  | "hidden"
+  | "other";
 
 /**
  * 差異カテゴリ
  */
 export type DifferenceCategory =
-  | 'visibility'
-  | 'layout'
-  | 'navigation'
-  | 'typography'
-  | 'spacing'
-  | 'order'
-  | 'other';
+  | "visibility"
+  | "layout"
+  | "navigation"
+  | "typography"
+  | "spacing"
+  | "order"
+  | "other";
 
 /**
  * 要素の可視性情報
@@ -76,7 +76,7 @@ export interface SemanticElementInfo {
 /**
  * ブレークポイント解像度モード
  */
-export type BreakpointResolution = 'range' | 'precise';
+export type BreakpointResolution = "range" | "precise";
 
 /**
  * レスポンシブ差異アイテム
@@ -99,7 +99,7 @@ export interface ViewportScreenshot {
   height: number;
   screenshot?: {
     base64: string;
-    format: 'png' | 'jpeg';
+    format: "png" | "jpeg";
     width: number;
     height: number;
   };
@@ -221,7 +221,7 @@ export interface MultiViewportCaptureOptions {
   /** フルページスクリーンショット */
   fullPage?: boolean;
   /** ページ読み込み完了判定 */
-  waitUntil?: 'load' | 'domcontentloaded' | 'networkidle';
+  waitUntil?: "load" | "domcontentloaded" | "networkidle";
   /** DOM安定化待機 */
   waitForDomStable?: boolean;
   /** DOM安定化タイムアウト */

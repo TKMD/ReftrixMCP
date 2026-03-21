@@ -20,16 +20,13 @@
  * - ファイルサイズ上限チェック（10MB）
  */
 
-import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
-import * as fs from 'node:fs';
-import * as path from 'node:path';
-import * as os from 'node:os';
-import sharp from 'sharp';
-import { FrameLoader } from '../../../src/services/motion/infrastructure/frame-loader';
-import {
-  FrameLoaderError,
-  type FrameLoaderOptions,
-} from '../../../src/services/motion/types';
+import { describe, it, expect, beforeAll, afterAll, beforeEach } from "vitest";
+import * as fs from "node:fs";
+import * as path from "node:path";
+import * as os from "node:os";
+import sharp from "sharp";
+import { FrameLoader } from "../../../src/services/motion/infrastructure/frame-loader";
+import { FrameLoaderError, type FrameLoaderOptions } from "../../../src/services/motion/types";
 
 // ============================================================================
 // テストフィクスチャ
@@ -47,11 +44,11 @@ let outsideFilePath: string;
 
 beforeAll(async () => {
   // 一時ディレクトリを作成
-  testDir = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'frame-loader-test-'));
-  outsideDir = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'outside-test-'));
+  testDir = await fs.promises.mkdtemp(path.join(os.tmpdir(), "frame-loader-test-"));
+  outsideDir = await fs.promises.mkdtemp(path.join(os.tmpdir(), "outside-test-"));
 
   // テスト用PNG画像を作成（100x100、赤色）
-  testPngPath = path.join(testDir, 'frame_001.png');
+  testPngPath = path.join(testDir, "frame_001.png");
   await sharp({
     create: {
       width: 100,
@@ -64,7 +61,7 @@ beforeAll(async () => {
     .toFile(testPngPath);
 
   // 2つ目のテスト用PNG画像（100x100、青色）
-  testPng2Path = path.join(testDir, 'frame_002.png');
+  testPng2Path = path.join(testDir, "frame_002.png");
   await sharp({
     create: {
       width: 100,
@@ -77,7 +74,7 @@ beforeAll(async () => {
     .toFile(testPng2Path);
 
   // テスト用JPEG画像を作成
-  testJpegPath = path.join(testDir, 'frame_001.jpg');
+  testJpegPath = path.join(testDir, "frame_001.jpg");
   await sharp({
     create: {
       width: 100,
@@ -90,7 +87,7 @@ beforeAll(async () => {
     .toFile(testJpegPath);
 
   // 許可ディレクトリ外のファイル
-  outsideFilePath = path.join(outsideDir, 'outside.png');
+  outsideFilePath = path.join(outsideDir, "outside.png");
   await sharp({
     create: {
       width: 50,
@@ -117,15 +114,15 @@ afterAll(async () => {
 // validateFramePath テスト
 // ============================================================================
 
-describe('FrameLoader - validateFramePath', () => {
+describe("FrameLoader - validateFramePath", () => {
   let loader: FrameLoader;
 
   beforeEach(() => {
     loader = new FrameLoader({ allowedDirectories: [testDir] });
   });
 
-  describe('正常系', () => {
-    it('有効なPNGパスを検証できる', async () => {
+  describe("正常系", () => {
+    it("有効なPNGパスを検証できる", async () => {
       const result = await loader.validateFramePath(testPngPath);
 
       expect(result.isValid).toBe(true);
@@ -134,7 +131,7 @@ describe('FrameLoader - validateFramePath', () => {
       expect(result.errorMessage).toBeUndefined();
     });
 
-    it('有効なJPEGパスを検証できる', async () => {
+    it("有効なJPEGパスを検証できる", async () => {
       const result = await loader.validateFramePath(testJpegPath);
 
       expect(result.isValid).toBe(true);
@@ -142,75 +139,75 @@ describe('FrameLoader - validateFramePath', () => {
     });
   });
 
-  describe('パストラバーサル検出', () => {
-    it('../ を含むパスを拒否する', async () => {
+  describe("パストラバーサル検出", () => {
+    it("../ を含むパスを拒否する", async () => {
       // path.joinではなく文字列連結を使用（path.joinは自動正規化してしまうため）
-      const maliciousPath = testDir + '/../etc/passwd';
+      const maliciousPath = testDir + "/../etc/passwd";
       const result = await loader.validateFramePath(maliciousPath);
 
       expect(result.isValid).toBe(false);
-      expect(result.errorCode).toBe('PATH_TRAVERSAL');
-      expect(result.errorMessage).toContain('traversal');
+      expect(result.errorCode).toBe("PATH_TRAVERSAL");
+      expect(result.errorMessage).toContain("traversal");
     });
 
-    it('..\\（Windows形式）を含むパスを拒否する', async () => {
-      const maliciousPath = testDir + '\\..\\etc\\passwd';
+    it("..\\（Windows形式）を含むパスを拒否する", async () => {
+      const maliciousPath = testDir + "\\..\\etc\\passwd";
       const result = await loader.validateFramePath(maliciousPath);
 
       expect(result.isValid).toBe(false);
-      expect(result.errorCode).toBe('PATH_TRAVERSAL');
+      expect(result.errorCode).toBe("PATH_TRAVERSAL");
     });
 
-    it('URLエンコードされた..を拒否する', async () => {
-      const maliciousPath = path.join(testDir, '%2e%2e', 'etc', 'passwd');
+    it("URLエンコードされた..を拒否する", async () => {
+      const maliciousPath = path.join(testDir, "%2e%2e", "etc", "passwd");
       const result = await loader.validateFramePath(maliciousPath);
 
       expect(result.isValid).toBe(false);
-      expect(result.errorCode).toBe('PATH_TRAVERSAL');
+      expect(result.errorCode).toBe("PATH_TRAVERSAL");
     });
   });
 
-  describe('許可ディレクトリ検証', () => {
-    it('許可ディレクトリ外のパスを拒否する', async () => {
+  describe("許可ディレクトリ検証", () => {
+    it("許可ディレクトリ外のパスを拒否する", async () => {
       const result = await loader.validateFramePath(outsideFilePath);
 
       expect(result.isValid).toBe(false);
-      expect(result.errorCode).toBe('OUTSIDE_ALLOWED_DIR');
-      expect(result.errorMessage).toContain('allowed');
+      expect(result.errorCode).toBe("OUTSIDE_ALLOWED_DIR");
+      expect(result.errorMessage).toContain("allowed");
     });
   });
 
-  describe('拡張子検証', () => {
-    it('サポートされていない拡張子を拒否する', async () => {
-      const invalidPath = path.join(testDir, 'file.gif');
+  describe("拡張子検証", () => {
+    it("サポートされていない拡張子を拒否する", async () => {
+      const invalidPath = path.join(testDir, "file.gif");
       const result = await loader.validateFramePath(invalidPath);
 
       expect(result.isValid).toBe(false);
-      expect(result.errorCode).toBe('INVALID_EXTENSION');
-      expect(result.errorMessage).toContain('extension');
+      expect(result.errorCode).toBe("INVALID_EXTENSION");
+      expect(result.errorMessage).toContain("extension");
     });
 
-    it('.txt 拡張子を拒否する', async () => {
-      const invalidPath = path.join(testDir, 'file.txt');
+    it(".txt 拡張子を拒否する", async () => {
+      const invalidPath = path.join(testDir, "file.txt");
       const result = await loader.validateFramePath(invalidPath);
 
       expect(result.isValid).toBe(false);
-      expect(result.errorCode).toBe('INVALID_EXTENSION');
+      expect(result.errorCode).toBe("INVALID_EXTENSION");
     });
   });
 
-  describe('ファイル存在確認', () => {
-    it('存在しないファイルを検出する', async () => {
-      const nonExistentPath = path.join(testDir, 'nonexistent.png');
+  describe("ファイル存在確認", () => {
+    it("存在しないファイルを検出する", async () => {
+      const nonExistentPath = path.join(testDir, "nonexistent.png");
       const result = await loader.validateFramePath(nonExistentPath);
 
       expect(result.isValid).toBe(false);
-      expect(result.errorCode).toBe('FILE_NOT_FOUND');
+      expect(result.errorCode).toBe("FILE_NOT_FOUND");
     });
   });
 
-  describe('ファイルサイズ検証', () => {
-    it('サイズ上限を超えるファイルを拒否する', async () => {
+  describe("ファイルサイズ検証", () => {
+    it("サイズ上限を超えるファイルを拒否する", async () => {
       // 小さいmaxFileSizeで新しいloaderを作成
       const smallLoader = new FrameLoader({
         allowedDirectories: [testDir],
@@ -220,8 +217,8 @@ describe('FrameLoader - validateFramePath', () => {
       const result = await smallLoader.validateFramePath(testPngPath);
 
       expect(result.isValid).toBe(false);
-      expect(result.errorCode).toBe('FILE_TOO_LARGE');
-      expect(result.errorMessage).toContain('size');
+      expect(result.errorCode).toBe("FILE_TOO_LARGE");
+      expect(result.errorMessage).toContain("size");
     });
   });
 });
@@ -230,53 +227,49 @@ describe('FrameLoader - validateFramePath', () => {
 // getFrameMetadata テスト
 // ============================================================================
 
-describe('FrameLoader - getFrameMetadata', () => {
+describe("FrameLoader - getFrameMetadata", () => {
   let loader: FrameLoader;
 
   beforeEach(() => {
     loader = new FrameLoader({ allowedDirectories: [testDir] });
   });
 
-  describe('正常系', () => {
-    it('PNGファイルのメタデータを取得できる', async () => {
+  describe("正常系", () => {
+    it("PNGファイルのメタデータを取得できる", async () => {
       const metadata = await loader.getFrameMetadata(testPngPath);
 
       expect(metadata.path).toBe(testPngPath);
       expect(metadata.width).toBe(100);
       expect(metadata.height).toBe(100);
       expect(metadata.channels).toBe(4); // RGBA
-      expect(metadata.format).toBe('png');
+      expect(metadata.format).toBe("png");
       expect(metadata.fileSize).toBeGreaterThan(0);
     });
 
-    it('JPEGファイルのメタデータを取得できる', async () => {
+    it("JPEGファイルのメタデータを取得できる", async () => {
       const metadata = await loader.getFrameMetadata(testJpegPath);
 
       expect(metadata.path).toBe(testJpegPath);
       expect(metadata.width).toBe(100);
       expect(metadata.height).toBe(100);
       expect(metadata.channels).toBe(3); // RGB
-      expect(metadata.format).toBe('jpeg');
+      expect(metadata.format).toBe("jpeg");
       expect(metadata.fileSize).toBeGreaterThan(0);
     });
   });
 
-  describe('エラー系', () => {
-    it('無効なパスでエラーをスローする', async () => {
+  describe("エラー系", () => {
+    it("無効なパスでエラーをスローする", async () => {
       // path.joinではなく文字列連結を使用（path.joinは自動正規化してしまうため）
-      const invalidPath = testDir + '/../etc/passwd';
+      const invalidPath = testDir + "/../etc/passwd";
 
-      await expect(loader.getFrameMetadata(invalidPath)).rejects.toThrow(
-        FrameLoaderError
-      );
+      await expect(loader.getFrameMetadata(invalidPath)).rejects.toThrow(FrameLoaderError);
     });
 
-    it('存在しないファイルでエラーをスローする', async () => {
-      const nonExistentPath = path.join(testDir, 'nonexistent.png');
+    it("存在しないファイルでエラーをスローする", async () => {
+      const nonExistentPath = path.join(testDir, "nonexistent.png");
 
-      await expect(loader.getFrameMetadata(nonExistentPath)).rejects.toThrow(
-        FrameLoaderError
-      );
+      await expect(loader.getFrameMetadata(nonExistentPath)).rejects.toThrow(FrameLoaderError);
     });
   });
 });
@@ -285,39 +278,39 @@ describe('FrameLoader - getFrameMetadata', () => {
 // loadFrame テスト
 // ============================================================================
 
-describe('FrameLoader - loadFrame', () => {
+describe("FrameLoader - loadFrame", () => {
   let loader: FrameLoader;
 
   beforeEach(() => {
     loader = new FrameLoader({ allowedDirectories: [testDir] });
   });
 
-  describe('正常系', () => {
-    it('PNGフレームを読み込める', async () => {
+  describe("正常系", () => {
+    it("PNGフレームを読み込める", async () => {
       const frameData = await loader.loadFrame(testPngPath);
 
       expect(frameData.metadata.path).toBe(testPngPath);
       expect(frameData.metadata.width).toBe(100);
       expect(frameData.metadata.height).toBe(100);
-      expect(frameData.metadata.format).toBe('png');
+      expect(frameData.metadata.format).toBe("png");
       expect(frameData.buffer).toBeInstanceOf(Buffer);
       // 100x100 * 4チャンネル = 40000バイト
       expect(frameData.buffer.length).toBe(100 * 100 * 4);
     });
 
-    it('JPEGフレームを読み込める', async () => {
+    it("JPEGフレームを読み込める", async () => {
       const frameData = await loader.loadFrame(testJpegPath);
 
       expect(frameData.metadata.path).toBe(testJpegPath);
       expect(frameData.metadata.width).toBe(100);
       expect(frameData.metadata.height).toBe(100);
-      expect(frameData.metadata.format).toBe('jpeg');
+      expect(frameData.metadata.format).toBe("jpeg");
       expect(frameData.buffer).toBeInstanceOf(Buffer);
       // JPEGもRGBAに変換される
       expect(frameData.buffer.length).toBe(100 * 100 * 4);
     });
 
-    it('ピクセルデータが正しい（赤色PNG）', async () => {
+    it("ピクセルデータが正しい（赤色PNG）", async () => {
       const frameData = await loader.loadFrame(testPngPath);
 
       // 最初のピクセルをチェック（RGBA: 赤）
@@ -328,27 +321,27 @@ describe('FrameLoader - loadFrame', () => {
     });
   });
 
-  describe('エラー系', () => {
-    it('パストラバーサルでエラーをスローする', async () => {
+  describe("エラー系", () => {
+    it("パストラバーサルでエラーをスローする", async () => {
       // path.joinではなく文字列連結を使用（path.joinは自動正規化してしまうため）
-      const maliciousPath = testDir + '/../etc/passwd';
+      const maliciousPath = testDir + "/../etc/passwd";
 
       await expect(loader.loadFrame(maliciousPath)).rejects.toThrow(FrameLoaderError);
       await expect(loader.loadFrame(maliciousPath)).rejects.toThrow(/traversal/i);
     });
 
-    it('許可ディレクトリ外でエラーをスローする', async () => {
+    it("許可ディレクトリ外でエラーをスローする", async () => {
       await expect(loader.loadFrame(outsideFilePath)).rejects.toThrow(FrameLoaderError);
       await expect(loader.loadFrame(outsideFilePath)).rejects.toThrow(/allowed/i);
     });
 
-    it('存在しないファイルでエラーをスローする', async () => {
-      const nonExistentPath = path.join(testDir, 'nonexistent.png');
+    it("存在しないファイルでエラーをスローする", async () => {
+      const nonExistentPath = path.join(testDir, "nonexistent.png");
 
       await expect(loader.loadFrame(nonExistentPath)).rejects.toThrow(FrameLoaderError);
     });
 
-    it('サイズ上限超過でエラーをスローする', async () => {
+    it("サイズ上限超過でエラーをスローする", async () => {
       const smallLoader = new FrameLoader({
         allowedDirectories: [testDir],
         maxFileSize: 100,
@@ -359,10 +352,10 @@ describe('FrameLoader - loadFrame', () => {
     });
   });
 
-  describe('メモリ最適化オプション', () => {
-    it('最大幅を超える画像をリサイズする', async () => {
+  describe("メモリ最適化オプション", () => {
+    it("最大幅を超える画像をリサイズする", async () => {
       // 大きな画像を作成
-      const largePath = path.join(testDir, 'large_frame.png');
+      const largePath = path.join(testDir, "large_frame.png");
       await sharp({
         create: {
           width: 4000,
@@ -397,15 +390,15 @@ describe('FrameLoader - loadFrame', () => {
 // loadFramePair テスト
 // ============================================================================
 
-describe('FrameLoader - loadFramePair', () => {
+describe("FrameLoader - loadFramePair", () => {
   let loader: FrameLoader;
 
   beforeEach(() => {
     loader = new FrameLoader({ allowedDirectories: [testDir] });
   });
 
-  describe('正常系', () => {
-    it('2つのフレームをペアで読み込める', async () => {
+  describe("正常系", () => {
+    it("2つのフレームをペアで読み込める", async () => {
       const pair = await loader.loadFramePair(testPngPath, testPng2Path);
 
       expect(pair.frame1.metadata.path).toBe(testPngPath);
@@ -413,7 +406,7 @@ describe('FrameLoader - loadFramePair', () => {
       expect(pair.frame1.buffer.length).toBe(pair.frame2.buffer.length);
     });
 
-    it('フレーム1が赤、フレーム2が青であることを確認', async () => {
+    it("フレーム1が赤、フレーム2が青であることを確認", async () => {
       const pair = await loader.loadFramePair(testPngPath, testPng2Path);
 
       // フレーム1: 赤
@@ -427,7 +420,7 @@ describe('FrameLoader - loadFramePair', () => {
       expect(pair.frame2.buffer[2]).toBe(255); // B
     });
 
-    it('同じサイズのフレームであることを確認', async () => {
+    it("同じサイズのフレームであることを確認", async () => {
       const pair = await loader.loadFramePair(testPngPath, testPng2Path);
 
       expect(pair.frame1.metadata.width).toBe(pair.frame2.metadata.width);
@@ -435,28 +428,28 @@ describe('FrameLoader - loadFramePair', () => {
     });
   });
 
-  describe('エラー系', () => {
-    it('パス1が無効な場合エラーをスローする', async () => {
+  describe("エラー系", () => {
+    it("パス1が無効な場合エラーをスローする", async () => {
       // path.joinではなく文字列連結を使用（path.joinは自動正規化してしまうため）
-      const invalidPath = testDir + '/../etc/passwd';
+      const invalidPath = testDir + "/../etc/passwd";
 
       await expect(loader.loadFramePair(invalidPath, testPng2Path)).rejects.toThrow(
         FrameLoaderError
       );
     });
 
-    it('パス2が無効な場合エラーをスローする', async () => {
+    it("パス2が無効な場合エラーをスローする", async () => {
       // path.joinではなく文字列連結を使用（path.joinは自動正規化してしまうため）
-      const invalidPath = testDir + '/../etc/passwd';
+      const invalidPath = testDir + "/../etc/passwd";
 
       await expect(loader.loadFramePair(testPngPath, invalidPath)).rejects.toThrow(
         FrameLoaderError
       );
     });
 
-    it('サイズが異なるフレームでエラーをスローする', async () => {
+    it("サイズが異なるフレームでエラーをスローする", async () => {
       // 異なるサイズの画像を作成
-      const differentSizePath = path.join(testDir, 'different_size.png');
+      const differentSizePath = path.join(testDir, "different_size.png");
       await sharp({
         create: {
           width: 200,
@@ -468,12 +461,10 @@ describe('FrameLoader - loadFramePair', () => {
         .png()
         .toFile(differentSizePath);
 
-      await expect(
-        loader.loadFramePair(testPngPath, differentSizePath)
-      ).rejects.toThrow(FrameLoaderError);
-      await expect(
-        loader.loadFramePair(testPngPath, differentSizePath)
-      ).rejects.toThrow(/size/i);
+      await expect(loader.loadFramePair(testPngPath, differentSizePath)).rejects.toThrow(
+        FrameLoaderError
+      );
+      await expect(loader.loadFramePair(testPngPath, differentSizePath)).rejects.toThrow(/size/i);
 
       // クリーンアップ
       await fs.promises.unlink(differentSizePath);
@@ -485,17 +476,17 @@ describe('FrameLoader - loadFramePair', () => {
 // FrameLoaderError テスト
 // ============================================================================
 
-describe('FrameLoaderError', () => {
-  it('エラーコードとメッセージを持つ', () => {
-    const error = new FrameLoaderError('PATH_TRAVERSAL', 'Path traversal detected');
+describe("FrameLoaderError", () => {
+  it("エラーコードとメッセージを持つ", () => {
+    const error = new FrameLoaderError("PATH_TRAVERSAL", "Path traversal detected");
 
-    expect(error.code).toBe('PATH_TRAVERSAL');
-    expect(error.message).toBe('Path traversal detected');
-    expect(error.name).toBe('FrameLoaderError');
+    expect(error.code).toBe("PATH_TRAVERSAL");
+    expect(error.message).toBe("Path traversal detected");
+    expect(error.name).toBe("FrameLoaderError");
   });
 
-  it('Errorを継承している', () => {
-    const error = new FrameLoaderError('FILE_NOT_FOUND', 'File not found');
+  it("Errorを継承している", () => {
+    const error = new FrameLoaderError("FILE_NOT_FOUND", "File not found");
 
     expect(error).toBeInstanceOf(Error);
     expect(error).toBeInstanceOf(FrameLoaderError);
@@ -506,16 +497,16 @@ describe('FrameLoaderError', () => {
 // FrameLoader オプション テスト
 // ============================================================================
 
-describe('FrameLoader - オプション設定', () => {
-  it('デフォルトオプションで初期化できる', () => {
+describe("FrameLoader - オプション設定", () => {
+  it("デフォルトオプションで初期化できる", () => {
     const loader = new FrameLoader();
 
     expect(loader).toBeInstanceOf(FrameLoader);
   });
 
-  it('カスタムオプションで初期化できる', () => {
+  it("カスタムオプションで初期化できる", () => {
     const options: FrameLoaderOptions = {
-      allowedDirectories: ['/custom/path'],
+      allowedDirectories: ["/custom/path"],
       maxFileSize: 5 * 1024 * 1024, // 5MB
       optimizeMemory: true,
       maxWidth: 1280,
@@ -527,7 +518,7 @@ describe('FrameLoader - オプション設定', () => {
     expect(loader).toBeInstanceOf(FrameLoader);
   });
 
-  it('複数の許可ディレクトリを設定できる', async () => {
+  it("複数の許可ディレクトリを設定できる", async () => {
     const loader = new FrameLoader({
       allowedDirectories: [testDir, outsideDir],
     });

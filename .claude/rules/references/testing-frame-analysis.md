@@ -6,13 +6,13 @@
 
 ### Reftrix Default Specification
 
-| 項目 / Item | デフォルト値 / Default | 説明 / Description |
-|------|-------------|------|
-| Scroll Per Frame | **15px** | 基準値（アニメーション検出に最適化） / Baseline (optimized for animation detection) |
-| Total Frames | totalScrollHeight / 15 | 例: 3000px → 200 frames / Example: 3000px → 200 frames |
-| Frame Interval | 33ms | 30fps等価（1000ms/30） / 30fps equivalent (1000ms/30) |
-| 出力フォーマット / Output Format | png | PNG推奨（ロスレス） / PNG recommended (lossless) |
-| ファイル名パターン / Filename Pattern | `frame-{0000}.png` | ゼロパディング4桁 / Zero-padded 4 digits |
+| 項目 / Item                           | デフォルト値 / Default | 説明 / Description                                                                  |
+| ------------------------------------- | ---------------------- | ----------------------------------------------------------------------------------- |
+| Scroll Per Frame                      | **15px**               | 基準値（アニメーション検出に最適化） / Baseline (optimized for animation detection) |
+| Total Frames                          | totalScrollHeight / 15 | 例: 3000px → 200 frames / Example: 3000px → 200 frames                              |
+| Frame Interval                        | 33ms                   | 30fps等価（1000ms/30） / 30fps equivalent (1000ms/30)                               |
+| 出力フォーマット / Output Format      | png                    | PNG推奨（ロスレス） / PNG recommended (lossless)                                    |
+| ファイル名パターン / Filename Pattern | `frame-{0000}.png`     | ゼロパディング4桁 / Zero-padded 4 digits                                            |
 
 ### 15px/frame の根拠 / Rationale for 15px/frame
 
@@ -26,11 +26,11 @@ Balanced between 60fps-equivalent scrolling (3.6px) and 50px/frame; ensures reli
 ### video mode 使用例 / video mode Usage Examples
 
 ```typescript
-import { test, expect } from '@playwright/test';
+import { test, expect } from "@playwright/test";
 
 // video mode（デフォルト設定で使用）
-test('モーションパターン検出（video mode）', async ({ page }) => {
-  await page.goto('http://localhost:YOUR_APP_PORT');
+test("モーションパターン検出（video mode）", async ({ page }) => {
+  await page.goto("http://localhost:YOUR_APP_PORT");
 
   // motion.detectはデフォルトでvideo mode有効
   // enable_frame_capture: true（デフォルト）
@@ -38,8 +38,8 @@ test('モーションパターン検出（video mode）', async ({ page }) => {
 });
 
 // video modeを無効化する場合
-test('静的解析のみ（video mode無効）', async ({ page }) => {
-  await page.goto('http://localhost:YOUR_APP_PORT');
+test("静的解析のみ（video mode無効）", async ({ page }) => {
+  await page.goto("http://localhost:YOUR_APP_PORT");
 
   // video modeを無効化
   // await motion.detect({ html: content, enable_frame_capture: false });
@@ -49,10 +49,10 @@ test('静的解析のみ（video mode無効）', async ({ page }) => {
 ### スクロールアニメーション検証（15px/frame） / Scroll Animation Verification (15px/frame)
 
 ```typescript
-import { test, expect } from '@playwright/test';
+import { test, expect } from "@playwright/test";
 
-test('スクロールアニメーション検証（15px/frame）', async ({ page }) => {
-  await page.goto('http://localhost:YOUR_APP_PORT');
+test("スクロールアニメーション検証（15px/frame）", async ({ page }) => {
+  await page.goto("http://localhost:YOUR_APP_PORT");
 
   // 1. 最初にtotalScrollHeightを取得
   const totalScrollHeight = await page.evaluate(() => document.documentElement.scrollHeight);
@@ -68,7 +68,7 @@ test('スクロールアニメーション検証（15px/frame）', async ({ page
     await page.evaluate((y) => window.scrollTo(0, y), scrollY);
     await page.waitForTimeout(33); // 33ms間隔（30fps等価）
     await page.screenshot({
-      path: `/tmp/reftrix-frames/frame-${String(i).padStart(4, '0')}.png`
+      path: `/tmp/reftrix-frames/frame-${String(i).padStart(4, "0")}.png`,
     });
   }
 });
@@ -103,10 +103,10 @@ Analyzes actual animation behavior that CSS static analysis cannot capture.
 ### 使用例（E2Eテスト内） / Usage Example (in E2E Tests)
 
 ```typescript
-import { test } from '@playwright/test';
+import { test } from "@playwright/test";
 
-test('フレーム画像分析（CLS検出）', async ({ page }) => {
-  await page.goto('http://localhost:YOUR_APP_PORT');
+test("フレーム画像分析（CLS検出）", async ({ page }) => {
+  await page.goto("http://localhost:YOUR_APP_PORT");
 
   // フレームキャプチャ実行
   const totalScrollHeight = await page.evaluate(() => document.documentElement.scrollHeight);
@@ -119,7 +119,7 @@ test('フレーム画像分析（CLS検出）', async ({ page }) => {
     const scrollY = Math.min(i * scrollStep, maxScroll);
     await page.evaluate((y) => window.scrollTo(0, y), scrollY);
     await page.waitForTimeout(33);
-    await page.screenshot({ path: `/tmp/reftrix-frames/frame-${String(i).padStart(4, '0')}.png` });
+    await page.screenshot({ path: `/tmp/reftrix-frames/frame-${String(i).padStart(4, "0")}.png` });
   }
 
   // フレーム画像分析はmotion.detect MCPツールで実行

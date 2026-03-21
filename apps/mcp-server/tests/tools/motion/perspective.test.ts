@@ -19,22 +19,19 @@
  * @module tests/tools/motion/perspective.test
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 // =====================================================
 // インポート
 // =====================================================
 
-import {
-  motionDetectInputSchema,
-  type MotionDetectInput,
-} from '../../../src/tools/motion/schemas';
+import { motionDetectInputSchema, type MotionDetectInput } from "../../../src/tools/motion/schemas";
 
 import {
   motionDetectHandler,
   setMotionDetectServiceFactory,
   resetMotionDetectServiceFactory,
-} from '../../../src/tools/motion/detect.tool';
+} from "../../../src/tools/motion/detect.tool";
 
 // =====================================================
 // テストデータ
@@ -220,22 +217,22 @@ const sampleHtmlWithComplex3D = `<!DOCTYPE html>
 // include_perspective スキーマバリデーションテスト
 // =====================================================
 
-describe('motionDetectInputSchema include_perspective', () => {
-  describe('有効な入力', () => {
-    it('include_perspective を指定しない場合、デフォルトで false になる', () => {
+describe("motionDetectInputSchema include_perspective", () => {
+  describe("有効な入力", () => {
+    it("include_perspective を指定しない場合、デフォルトで false になる", () => {
       // v0.1.0 新機能: include_perspective パラメータのデフォルト値
-      const input = { html: sampleHtmlWith3DTransforms, detection_mode: 'css' };
+      const input = { html: sampleHtmlWith3DTransforms, detection_mode: "css" };
       const result = motionDetectInputSchema.parse(input);
 
       // デフォルト値 false が設定されることを期待
       expect(result.include_perspective).toBe(false);
     });
 
-    it('include_perspective: true を受け付ける', () => {
+    it("include_perspective: true を受け付ける", () => {
       // v0.1.0 新機能: 3D効果検出を有効化
       const input = {
         html: sampleHtmlWith3DTransforms,
-        detection_mode: 'css',
+        detection_mode: "css",
         include_perspective: true,
       };
       const result = motionDetectInputSchema.parse(input);
@@ -243,11 +240,11 @@ describe('motionDetectInputSchema include_perspective', () => {
       expect(result.include_perspective).toBe(true);
     });
 
-    it('include_perspective: false を受け付ける', () => {
+    it("include_perspective: false を受け付ける", () => {
       // v0.1.0: 明示的に無効化
       const input = {
         html: sampleHtmlWith3DTransforms,
-        detection_mode: 'css',
+        detection_mode: "css",
         include_perspective: false,
       };
       const result = motionDetectInputSchema.parse(input);
@@ -255,25 +252,25 @@ describe('motionDetectInputSchema include_perspective', () => {
       expect(result.include_perspective).toBe(false);
     });
 
-    it('include_perspective と detection_mode を組み合わせて使用できる', () => {
+    it("include_perspective と detection_mode を組み合わせて使用できる", () => {
       // v0.1.0: 複数の新パラメータを併用
       // hybrid モードでは url が必須
       const input = {
-        url: 'https://example.com',
+        url: "https://example.com",
         include_perspective: true,
-        detection_mode: 'hybrid',
+        detection_mode: "hybrid",
       };
       const result = motionDetectInputSchema.parse(input);
 
       expect(result.include_perspective).toBe(true);
-      expect(result.detection_mode).toBe('hybrid');
+      expect(result.detection_mode).toBe("hybrid");
     });
 
-    it('include_perspective と他のオプションを組み合わせて使用できる', () => {
+    it("include_perspective と他のオプションを組み合わせて使用できる", () => {
       // v0.1.0: 既存オプションとの組み合わせ
       const input = {
         html: sampleHtmlWith3DTransforms,
-        detection_mode: 'css',
+        detection_mode: "css",
         include_perspective: true,
         verbose: true,
         maxPatterns: 50,
@@ -287,21 +284,21 @@ describe('motionDetectInputSchema include_perspective', () => {
     });
   });
 
-  describe('無効な入力', () => {
-    it('include_perspective が文字列の場合エラー', () => {
+  describe("無効な入力", () => {
+    it("include_perspective が文字列の場合エラー", () => {
       const input = {
         html: sampleHtmlWith3DTransforms,
-        detection_mode: 'css',
-        include_perspective: 'true',
+        detection_mode: "css",
+        include_perspective: "true",
       };
 
       expect(() => motionDetectInputSchema.parse(input)).toThrow();
     });
 
-    it('include_perspective が数値の場合エラー', () => {
+    it("include_perspective が数値の場合エラー", () => {
       const input = {
         html: sampleHtmlWith3DTransforms,
-        detection_mode: 'css',
+        detection_mode: "css",
         include_perspective: 1,
       };
 
@@ -314,7 +311,7 @@ describe('motionDetectInputSchema include_perspective', () => {
 // include_perspective 機能テスト
 // =====================================================
 
-describe('include_perspective 機能テスト', () => {
+describe("include_perspective 機能テスト", () => {
   beforeEach(() => {
     resetMotionDetectServiceFactory();
   });
@@ -323,19 +320,19 @@ describe('include_perspective 機能テスト', () => {
     vi.restoreAllMocks();
   });
 
-  describe('include_perspective: false (デフォルト)', () => {
-    it('3D効果を含むアニメーションでも perspective 情報は含まれない', async () => {
+  describe("include_perspective: false (デフォルト)", () => {
+    it("3D効果を含むアニメーションでも perspective 情報は含まれない", async () => {
       // v0.1.0: デフォルトでは3D情報は検出対象外（後方互換性）
       const mockDetect = vi.fn().mockResolvedValue({
         patterns: [
           {
-            id: 'pattern-1',
-            type: 'css_animation',
-            name: 'flip3D',
-            category: 'micro_interaction',
-            trigger: 'load',
-            animation: { duration: 1000, easing: { type: 'ease-in-out' } },
-            properties: [{ property: 'transform' }],
+            id: "pattern-1",
+            type: "css_animation",
+            name: "flip3D",
+            category: "micro_interaction",
+            trigger: "load",
+            animation: { duration: 1000, easing: { type: "ease-in-out" } },
+            properties: [{ property: "transform" }],
             // perspective 情報は含まれない
           },
         ],
@@ -350,7 +347,7 @@ describe('include_perspective 機能テスト', () => {
 
       const input: MotionDetectInput = {
         html: sampleHtmlWith3DTransforms,
-        detection_mode: 'css' as const,
+        detection_mode: "css" as const,
         include_perspective: false,
       };
 
@@ -364,21 +361,18 @@ describe('include_perspective 機能テスト', () => {
       }
     });
 
-    it('2Dアニメーションのみの場合、通常通り検出される', async () => {
+    it("2Dアニメーションのみの場合、通常通り検出される", async () => {
       // v0.1.0: 2Dアニメーションは include_perspective に関係なく検出
       const mockDetect = vi.fn().mockResolvedValue({
         patterns: [
           {
-            id: 'pattern-1',
-            type: 'css_animation',
-            name: 'slideIn',
-            category: 'entrance',
-            trigger: 'load',
+            id: "pattern-1",
+            type: "css_animation",
+            name: "slideIn",
+            category: "entrance",
+            trigger: "load",
             animation: { duration: 500 },
-            properties: [
-              { property: 'transform' },
-              { property: 'opacity' },
-            ],
+            properties: [{ property: "transform" }, { property: "opacity" }],
           },
         ],
         warnings: [],
@@ -392,7 +386,7 @@ describe('include_perspective 機能テスト', () => {
 
       const input: MotionDetectInput = {
         html: sampleHtmlWith2DOnly,
-        detection_mode: 'css' as const,
+        detection_mode: "css" as const,
         include_perspective: false,
       };
 
@@ -405,23 +399,23 @@ describe('include_perspective 機能テスト', () => {
     });
   });
 
-  describe('include_perspective: true', () => {
-    it('rotateX/Y/Z を含むアニメーションで perspective 情報が含まれる', async () => {
+  describe("include_perspective: true", () => {
+    it("rotateX/Y/Z を含むアニメーションで perspective 情報が含まれる", async () => {
       // v0.1.0 新機能: 3D回転の検出
       const mockDetect = vi.fn().mockResolvedValue({
         patterns: [
           {
-            id: 'pattern-1',
-            type: 'css_animation',
-            name: 'flip3D',
-            category: 'micro_interaction',
-            trigger: 'load',
-            animation: { duration: 1000, easing: { type: 'ease-in-out' } },
-            properties: [{ property: 'transform' }],
+            id: "pattern-1",
+            type: "css_animation",
+            name: "flip3D",
+            category: "micro_interaction",
+            trigger: "load",
+            animation: { duration: 1000, easing: { type: "ease-in-out" } },
+            properties: [{ property: "transform" }],
             // v0.1.0: perspective 情報
             perspective: {
-              type: '3d_rotation',
-              axes: ['X'],
+              type: "3d_rotation",
+              axes: ["X"],
               rotationRange: { min: 0, max: 180 },
               uses3DTransform: true,
             },
@@ -443,7 +437,7 @@ describe('include_perspective 機能テスト', () => {
 
       const input: MotionDetectInput = {
         html: sampleHtmlWith3DTransforms,
-        detection_mode: 'css' as const,
+        detection_mode: "css" as const,
         include_perspective: true,
       };
 
@@ -458,21 +452,21 @@ describe('include_perspective 機能テスト', () => {
       }
     });
 
-    it('translateZ を含むアニメーションで z軸移動情報が検出される', async () => {
+    it("translateZ を含むアニメーションで z軸移動情報が検出される", async () => {
       // v0.1.0 新機能: Z軸移動の検出
       const mockDetect = vi.fn().mockResolvedValue({
         patterns: [
           {
-            id: 'pattern-1',
-            type: 'css_animation',
-            name: 'zoomIn',
-            category: 'entrance',
-            trigger: 'load',
-            animation: { duration: 500, easing: { type: 'ease-out' } },
-            properties: [{ property: 'transform' }],
+            id: "pattern-1",
+            type: "css_animation",
+            name: "zoomIn",
+            category: "entrance",
+            trigger: "load",
+            animation: { duration: 500, easing: { type: "ease-out" } },
+            properties: [{ property: "transform" }],
             perspective: {
-              type: 'z_translation',
-              axes: ['Z'],
+              type: "z_translation",
+              axes: ["Z"],
               translationRange: { min: -100, max: 0 },
               uses3DTransform: true,
             },
@@ -489,7 +483,7 @@ describe('include_perspective 機能テスト', () => {
 
       const input: MotionDetectInput = {
         html: sampleHtmlWithTranslateZ,
-        detection_mode: 'css' as const,
+        detection_mode: "css" as const,
         include_perspective: true,
       };
 
@@ -498,27 +492,27 @@ describe('include_perspective 機能テスト', () => {
       expect(result.success).toBe(true);
       if (result.success) {
         expect(result.data.patterns.length).toBeGreaterThan(0);
-        expect(result.data.patterns[0].perspective?.type).toBe('z_translation');
-        expect(result.data.patterns[0].perspective?.axes).toContain('Z');
+        expect(result.data.patterns[0].perspective?.type).toBe("z_translation");
+        expect(result.data.patterns[0].perspective?.axes).toContain("Z");
       }
     });
 
-    it('perspective() 関数を含むアニメーションが検出される', async () => {
+    it("perspective() 関数を含むアニメーションが検出される", async () => {
       // v0.1.0 新機能: perspective() transform関数の検出
       const mockDetect = vi.fn().mockResolvedValue({
         patterns: [
           {
-            id: 'pattern-1',
-            type: 'css_animation',
-            name: 'perspectiveRotate',
-            category: 'micro_interaction',
-            trigger: 'load',
-            animation: { duration: 2000, iterations: 'infinite' },
-            properties: [{ property: 'transform' }],
+            id: "pattern-1",
+            type: "css_animation",
+            name: "perspectiveRotate",
+            category: "micro_interaction",
+            trigger: "load",
+            animation: { duration: 2000, iterations: "infinite" },
+            properties: [{ property: "transform" }],
             perspective: {
-              type: 'perspective_function',
+              type: "perspective_function",
               perspectiveValue: 500,
-              axes: ['X'],
+              axes: ["X"],
               uses3DTransform: true,
             },
           },
@@ -534,7 +528,7 @@ describe('include_perspective 機能テスト', () => {
 
       const input: MotionDetectInput = {
         html: sampleHtmlWithPerspectiveFunction,
-        detection_mode: 'css' as const,
+        detection_mode: "css" as const,
         include_perspective: true,
       };
 
@@ -543,29 +537,29 @@ describe('include_perspective 機能テスト', () => {
       expect(result.success).toBe(true);
       if (result.success) {
         expect(result.data.patterns.length).toBeGreaterThan(0);
-        expect(result.data.patterns[0].perspective?.type).toBe('perspective_function');
+        expect(result.data.patterns[0].perspective?.type).toBe("perspective_function");
         expect(result.data.patterns[0].perspective?.perspectiveValue).toBe(500);
       }
     });
 
-    it('perspective CSS プロパティが検出される', async () => {
+    it("perspective CSS プロパティが検出される", async () => {
       // v0.1.0 新機能: perspective CSSプロパティの検出
       const mockDetect = vi.fn().mockResolvedValue({
         patterns: [
           {
-            id: 'pattern-1',
-            type: 'css_animation',
-            name: 'flip3D',
-            category: 'micro_interaction',
-            trigger: 'hover',
-            animation: { duration: 600, easing: { type: 'ease' } },
-            properties: [{ property: 'transform' }],
+            id: "pattern-1",
+            type: "css_animation",
+            name: "flip3D",
+            category: "micro_interaction",
+            trigger: "hover",
+            animation: { duration: 600, easing: { type: "ease" } },
+            properties: [{ property: "transform" }],
             perspective: {
-              type: '3d_rotation',
+              type: "3d_rotation",
               parentPerspective: 1000, // perspective プロパティの値
-              axes: ['Y'],
+              axes: ["Y"],
               uses3DTransform: true,
-              transformStyle: 'preserve-3d',
+              transformStyle: "preserve-3d",
             },
           },
         ],
@@ -580,7 +574,7 @@ describe('include_perspective 機能テスト', () => {
 
       const input: MotionDetectInput = {
         html: sampleHtmlWith3DTransforms,
-        detection_mode: 'css' as const,
+        detection_mode: "css" as const,
         include_perspective: true,
       };
 
@@ -590,27 +584,27 @@ describe('include_perspective 機能テスト', () => {
       if (result.success) {
         expect(result.data.patterns.length).toBeGreaterThan(0);
         expect(result.data.patterns[0].perspective?.parentPerspective).toBe(1000);
-        expect(result.data.patterns[0].perspective?.transformStyle).toBe('preserve-3d');
+        expect(result.data.patterns[0].perspective?.transformStyle).toBe("preserve-3d");
       }
     });
 
-    it('transform-style: preserve-3d が検出される', async () => {
+    it("transform-style: preserve-3d が検出される", async () => {
       // v0.1.0 新機能: transform-style の検出
       const mockDetect = vi.fn().mockResolvedValue({
         patterns: [
           {
-            id: 'pattern-1',
-            type: 'css_animation',
-            name: 'rotateCube',
-            category: 'attention_grabber',
-            trigger: 'load',
-            animation: { duration: 10000, iterations: 'infinite' },
-            properties: [{ property: 'transform' }],
+            id: "pattern-1",
+            type: "css_animation",
+            name: "rotateCube",
+            category: "attention_grabber",
+            trigger: "load",
+            animation: { duration: 10000, iterations: "infinite" },
+            properties: [{ property: "transform" }],
             perspective: {
-              type: 'complex_3d',
-              axes: ['X', 'Y', 'Z'],
+              type: "complex_3d",
+              axes: ["X", "Y", "Z"],
               uses3DTransform: true,
-              transformStyle: 'preserve-3d',
+              transformStyle: "preserve-3d",
               parentPerspective: 600,
               hasBackfaceVisibility: true,
             },
@@ -627,7 +621,7 @@ describe('include_perspective 機能テスト', () => {
 
       const input: MotionDetectInput = {
         html: sampleHtmlWithComplex3D,
-        detection_mode: 'css' as const,
+        detection_mode: "css" as const,
         include_perspective: true,
       };
 
@@ -636,25 +630,25 @@ describe('include_perspective 機能テスト', () => {
       expect(result.success).toBe(true);
       if (result.success) {
         expect(result.data.patterns.length).toBeGreaterThan(0);
-        expect(result.data.patterns[0].perspective?.transformStyle).toBe('preserve-3d');
+        expect(result.data.patterns[0].perspective?.transformStyle).toBe("preserve-3d");
       }
     });
 
-    it('複合3D変換（複数軸の回転）が検出される', async () => {
+    it("複合3D変換（複数軸の回転）が検出される", async () => {
       // v0.1.0 新機能: 複数軸を使った3D変換の検出
       const mockDetect = vi.fn().mockResolvedValue({
         patterns: [
           {
-            id: 'pattern-1',
-            type: 'css_animation',
-            name: 'rotateCube',
-            category: 'attention_grabber',
-            trigger: 'load',
-            animation: { duration: 10000, iterations: 'infinite' },
-            properties: [{ property: 'transform' }],
+            id: "pattern-1",
+            type: "css_animation",
+            name: "rotateCube",
+            category: "attention_grabber",
+            trigger: "load",
+            animation: { duration: 10000, iterations: "infinite" },
+            properties: [{ property: "transform" }],
             perspective: {
-              type: 'complex_3d',
-              axes: ['X', 'Y', 'Z'],
+              type: "complex_3d",
+              axes: ["X", "Y", "Z"],
               rotationAngles: {
                 X: { from: 0, to: 360 },
                 Y: { from: 0, to: 360 },
@@ -675,7 +669,7 @@ describe('include_perspective 機能テスト', () => {
 
       const input: MotionDetectInput = {
         html: sampleHtmlWithComplex3D,
-        detection_mode: 'css' as const,
+        detection_mode: "css" as const,
         include_perspective: true,
       };
 
@@ -685,37 +679,37 @@ describe('include_perspective 機能テスト', () => {
       if (result.success) {
         expect(result.data.patterns.length).toBeGreaterThan(0);
         const perspective = result.data.patterns[0].perspective;
-        expect(perspective?.axes).toContain('X');
-        expect(perspective?.axes).toContain('Y');
-        expect(perspective?.axes).toContain('Z');
+        expect(perspective?.axes).toContain("X");
+        expect(perspective?.axes).toContain("Y");
+        expect(perspective?.axes).toContain("Z");
         expect(perspective?.axes?.length).toBe(3);
       }
     });
   });
 
-  describe('サマリー情報', () => {
-    it('include_perspective: true の場合、サマリーに3D効果情報が含まれる', async () => {
+  describe("サマリー情報", () => {
+    it("include_perspective: true の場合、サマリーに3D効果情報が含まれる", async () => {
       // v0.1.0 新機能: サマリーへの3D情報追加
       const mockDetect = vi.fn().mockResolvedValue({
         patterns: [
           {
-            id: 'pattern-1',
-            type: 'css_animation',
-            name: 'flip3D',
-            category: 'micro_interaction',
-            trigger: 'load',
+            id: "pattern-1",
+            type: "css_animation",
+            name: "flip3D",
+            category: "micro_interaction",
+            trigger: "load",
             animation: { duration: 1000 },
-            properties: [{ property: 'transform' }],
-            perspective: { type: '3d_rotation', uses3DTransform: true },
+            properties: [{ property: "transform" }],
+            perspective: { type: "3d_rotation", uses3DTransform: true },
           },
           {
-            id: 'pattern-2',
-            type: 'css_animation',
-            name: 'slideIn',
-            category: 'entrance',
-            trigger: 'load',
+            id: "pattern-2",
+            type: "css_animation",
+            name: "slideIn",
+            category: "entrance",
+            trigger: "load",
             animation: { duration: 500 },
-            properties: [{ property: 'transform' }],
+            properties: [{ property: "transform" }],
             // 2Dのみ
           },
         ],
@@ -740,7 +734,7 @@ describe('include_perspective 機能テスト', () => {
 
       const input: MotionDetectInput = {
         html: sampleHtmlWith3DTransforms,
-        detection_mode: 'css' as const,
+        detection_mode: "css" as const,
         include_perspective: true,
         includeSummary: true,
       };
@@ -756,28 +750,28 @@ describe('include_perspective 機能テスト', () => {
     });
   });
 
-  describe('警告', () => {
-    it('3Dエフェクトがある場合、パフォーマンス警告が出る場合がある', async () => {
+  describe("警告", () => {
+    it("3Dエフェクトがある場合、パフォーマンス警告が出る場合がある", async () => {
       // v0.1.0: 3D効果のパフォーマンス警告
       const mockDetect = vi.fn().mockResolvedValue({
         patterns: [
           {
-            id: 'pattern-1',
-            type: 'css_animation',
-            name: 'rotateCube',
-            category: 'attention_grabber',
-            trigger: 'load',
-            animation: { duration: 10000, iterations: 'infinite' },
-            properties: [{ property: 'transform' }],
-            perspective: { type: 'complex_3d', axes: ['X', 'Y', 'Z'], uses3DTransform: true },
+            id: "pattern-1",
+            type: "css_animation",
+            name: "rotateCube",
+            category: "attention_grabber",
+            trigger: "load",
+            animation: { duration: 10000, iterations: "infinite" },
+            properties: [{ property: "transform" }],
+            perspective: { type: "complex_3d", axes: ["X", "Y", "Z"], uses3DTransform: true },
           },
         ],
         warnings: [
           {
-            code: 'PERF_3D_TRANSFORM',
-            severity: 'info',
-            message: '3D transforms detected. Ensure hardware acceleration is enabled.',
-            suggestion: 'Use will-change: transform for better performance',
+            code: "PERF_3D_TRANSFORM",
+            severity: "info",
+            message: "3D transforms detected. Ensure hardware acceleration is enabled.",
+            suggestion: "Use will-change: transform for better performance",
           },
         ],
         summary: { totalPatterns: 1, has3DEffects: true },
@@ -790,7 +784,7 @@ describe('include_perspective 機能テスト', () => {
 
       const input: MotionDetectInput = {
         html: sampleHtmlWithComplex3D,
-        detection_mode: 'css' as const,
+        detection_mode: "css" as const,
         include_perspective: true,
         includeWarnings: true,
       };
@@ -800,7 +794,7 @@ describe('include_perspective 機能テスト', () => {
       expect(result.success).toBe(true);
       if (result.success) {
         expect(result.data.warnings).toBeDefined();
-        expect(result.data.warnings?.some(w => w.code === 'PERF_3D_TRANSFORM')).toBe(true);
+        expect(result.data.warnings?.some((w) => w.code === "PERF_3D_TRANSFORM")).toBe(true);
       }
     });
   });
@@ -810,7 +804,7 @@ describe('include_perspective 機能テスト', () => {
 // 後方互換性テスト
 // =====================================================
 
-describe('include_perspective 後方互換性', () => {
+describe("include_perspective 後方互換性", () => {
   beforeEach(() => {
     resetMotionDetectServiceFactory();
   });
@@ -819,18 +813,18 @@ describe('include_perspective 後方互換性', () => {
     vi.restoreAllMocks();
   });
 
-  it('include_perspective を指定しない場合、既存の出力形式と互換', async () => {
+  it("include_perspective を指定しない場合、既存の出力形式と互換", async () => {
     // v0.1.0: デフォルト false は既存動作と完全互換
     const mockDetect = vi.fn().mockResolvedValue({
       patterns: [
         {
-          id: 'pattern-1',
-          type: 'css_animation',
-          name: 'flip3D',
-          category: 'micro_interaction',
-          trigger: 'load',
-          animation: { duration: 1000, easing: { type: 'ease-in-out' } },
-          properties: [{ property: 'transform' }],
+          id: "pattern-1",
+          type: "css_animation",
+          name: "flip3D",
+          category: "micro_interaction",
+          trigger: "load",
+          animation: { duration: 1000, easing: { type: "ease-in-out" } },
+          properties: [{ property: "transform" }],
           // perspective フィールドなし（既存形式）
         },
       ],
@@ -849,7 +843,7 @@ describe('include_perspective 後方互換性', () => {
     // include_perspective を指定しない（既存のAPI）
     const input: MotionDetectInput = {
       html: sampleHtmlWith3DTransforms,
-      detection_mode: 'css' as const,
+      detection_mode: "css" as const,
     };
 
     const result = await motionDetectHandler(input);

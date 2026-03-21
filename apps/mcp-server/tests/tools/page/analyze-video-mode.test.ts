@@ -15,11 +15,11 @@
  * @module tests/tools/page/analyze-video-mode.test
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 // Narrative handler をモックしてOllama Vision接続タイムアウト（35秒）を回避
-vi.mock('../../../src/tools/page/handlers/narrative-handler', async () => {
-  const actual = await vi.importActual('../../../src/tools/page/handlers/narrative-handler');
+vi.mock("../../../src/tools/page/handlers/narrative-handler", async () => {
+  const actual = await vi.importActual("../../../src/tools/page/handlers/narrative-handler");
   return {
     ...(actual as Record<string, unknown>),
     handleNarrativeAnalysis: async () => ({ success: true, skipped: true }),
@@ -27,7 +27,7 @@ vi.mock('../../../src/tools/page/handlers/narrative-handler', async () => {
 });
 
 // Redis可用性チェックをモック: Vision自動asyncモード（v0.1.0）を無効化
-vi.mock('../../../src/config/redis', () => ({
+vi.mock("../../../src/config/redis", () => ({
   isRedisAvailable: async () => false,
 }));
 
@@ -36,7 +36,7 @@ import {
   setPageAnalyzeServiceFactory,
   resetPageAnalyzeServiceFactory,
   type IPageAnalyzeService,
-} from '../../../src/tools/page/analyze.tool';
+} from "../../../src/tools/page/analyze.tool";
 
 import {
   pageAnalyzeInputSchema,
@@ -44,13 +44,13 @@ import {
   type PageAnalyzeInput,
   type PageAnalyzeOutput,
   PAGE_ANALYZE_ERROR_CODES,
-} from '../../../src/tools/page/schemas';
+} from "../../../src/tools/page/schemas";
 
 // =====================================================
 // テストデータ
 // =====================================================
 
-const validUrl = 'https://example.com';
+const validUrl = "https://example.com";
 
 // サンプルHTML（テスト用）
 const sampleHtml = `<!DOCTYPE html>
@@ -93,17 +93,27 @@ function createMockMotionServiceWithVideoMode() {
       // video mode 結果
       frame_capture: {
         total_frames: 100,
-        output_dir: '/tmp/reftrix-frames/',
+        output_dir: "/tmp/reftrix-frames/",
         config: {
           scroll_px_per_frame: 15,
           frame_interval_ms: 33,
-          output_format: 'png',
-          output_dir: '/tmp/reftrix-frames/',
-          filename_pattern: 'frame-{0000}.png',
+          output_format: "png",
+          output_dir: "/tmp/reftrix-frames/",
+          filename_pattern: "frame-{0000}.png",
         },
         files: [
-          { frame_number: 0, scroll_position_px: 0, timestamp_ms: 0, file_path: '/tmp/reftrix-frames/frame-0000.png' },
-          { frame_number: 1, scroll_position_px: 15, timestamp_ms: 33, file_path: '/tmp/reftrix-frames/frame-0001.png' },
+          {
+            frame_number: 0,
+            scroll_position_px: 0,
+            timestamp_ms: 0,
+            file_path: "/tmp/reftrix-frames/frame-0000.png",
+          },
+          {
+            frame_number: 1,
+            scroll_position_px: 15,
+            timestamp_ms: 33,
+            file_path: "/tmp/reftrix-frames/frame-0001.png",
+          },
         ],
         duration_ms: 3300,
       },
@@ -130,8 +140,8 @@ function createMockPageAnalyzeService(): IPageAnalyzeService {
   return {
     fetchHtml: vi.fn().mockResolvedValue({
       html: sampleHtml,
-      title: 'Test Page',
-      description: 'Test description',
+      title: "Test Page",
+      description: "Test description",
     }),
     analyzeLayout: vi.fn().mockResolvedValue({
       success: true,
@@ -143,7 +153,7 @@ function createMockPageAnalyzeService(): IPageAnalyzeService {
     evaluateQuality: vi.fn().mockResolvedValue({
       success: true,
       overallScore: 80,
-      grade: 'B',
+      grade: "B",
       axisScores: { originality: 80, craftsmanship: 80, contextuality: 80 },
       clicheCount: 0,
       processingTimeMs: 50,
@@ -155,9 +165,9 @@ function createMockPageAnalyzeService(): IPageAnalyzeService {
 // 入力スキーマテスト - video mode パラメータ
 // =====================================================
 
-describe('motionOptionsSchema - video mode パラメータ', () => {
-  describe('enable_frame_capture オプション', () => {
-    it('enable_frame_capture オプションを受け付ける', () => {
+describe("motionOptionsSchema - video mode パラメータ", () => {
+  describe("enable_frame_capture オプション", () => {
+    it("enable_frame_capture オプションを受け付ける", () => {
       const input = {
         url: validUrl,
         motionOptions: { enable_frame_capture: true },
@@ -166,7 +176,7 @@ describe('motionOptionsSchema - video mode パラメータ', () => {
       expect(result.motionOptions?.enable_frame_capture).toBe(true);
     });
 
-    it('enable_frame_capture のデフォルト値は false（v0.1.0: タイムアウト問題回避）', () => {
+    it("enable_frame_capture のデフォルト値は false（v0.1.0: タイムアウト問題回避）", () => {
       // v0.1.0: タイムアウト問題回避のためデフォルト無効化
       // 有効化する場合は明示的に true を指定
       const input = { url: validUrl, motionOptions: {} };
@@ -174,7 +184,7 @@ describe('motionOptionsSchema - video mode パラメータ', () => {
       expect(result.motionOptions?.enable_frame_capture).toBe(false);
     });
 
-    it('enable_frame_capture=false を明示的に指定できる', () => {
+    it("enable_frame_capture=false を明示的に指定できる", () => {
       const input = {
         url: validUrl,
         motionOptions: { enable_frame_capture: false },
@@ -184,8 +194,8 @@ describe('motionOptionsSchema - video mode パラメータ', () => {
     });
   });
 
-  describe('frame_capture_options オプション', () => {
-    it('frame_capture_options を受け付ける', () => {
+  describe("frame_capture_options オプション", () => {
+    it("frame_capture_options を受け付ける", () => {
       const input = {
         url: validUrl,
         motionOptions: {
@@ -193,8 +203,8 @@ describe('motionOptionsSchema - video mode パラメータ', () => {
           frame_capture_options: {
             frame_rate: 30,
             scroll_px_per_frame: 15,
-            output_format: 'png' as const,
-            output_dir: '/tmp/test-frames/',
+            output_format: "png" as const,
+            output_dir: "/tmp/test-frames/",
           },
         },
       };
@@ -204,7 +214,7 @@ describe('motionOptionsSchema - video mode パラメータ', () => {
       expect(result.motionOptions?.frame_capture_options?.scroll_px_per_frame).toBe(15);
     });
 
-    it('frame_capture_options のデフォルト値が適用される', () => {
+    it("frame_capture_options のデフォルト値が適用される", () => {
       const input = {
         url: validUrl,
         motionOptions: {
@@ -217,26 +227,26 @@ describe('motionOptionsSchema - video mode パラメータ', () => {
       expect(result.motionOptions?.frame_capture_options).toBeDefined();
     });
 
-    it('output_dir にパストラバーサル文字を含む場合エラー', () => {
+    it("output_dir にパストラバーサル文字を含む場合エラー", () => {
       const input = {
         url: validUrl,
         motionOptions: {
           enable_frame_capture: true,
           frame_capture_options: {
-            output_dir: '/tmp/../etc/',
+            output_dir: "/tmp/../etc/",
           },
         },
       };
       expect(() => pageAnalyzeInputSchema.parse(input)).toThrow();
     });
 
-    it('filename_pattern にパス区切り文字を含む場合エラー', () => {
+    it("filename_pattern にパス区切り文字を含む場合エラー", () => {
       const input = {
         url: validUrl,
         motionOptions: {
           enable_frame_capture: true,
           frame_capture_options: {
-            filename_pattern: '../frame-{0000}.png',
+            filename_pattern: "../frame-{0000}.png",
           },
         },
       };
@@ -244,8 +254,8 @@ describe('motionOptionsSchema - video mode パラメータ', () => {
     });
   });
 
-  describe('analyze_frames オプション', () => {
-    it('analyze_frames オプションを受け付ける', () => {
+  describe("analyze_frames オプション", () => {
+    it("analyze_frames オプションを受け付ける", () => {
       const input = {
         url: validUrl,
         motionOptions: {
@@ -257,7 +267,7 @@ describe('motionOptionsSchema - video mode パラメータ', () => {
       expect(result.motionOptions?.analyze_frames).toBe(true);
     });
 
-    it('analyze_frames のデフォルト値は false（v0.1.0: タイムアウト問題回避）', () => {
+    it("analyze_frames のデフォルト値は false（v0.1.0: タイムアウト問題回避）", () => {
       // v0.1.0: タイムアウト問題回避のためデフォルト無効化
       // 有効化する場合は明示的に true を指定
       const input = {
@@ -268,7 +278,7 @@ describe('motionOptionsSchema - video mode パラメータ', () => {
       expect(result.motionOptions?.analyze_frames).toBe(false);
     });
 
-    it('analyze_frames を明示的に false に設定できる', () => {
+    it("analyze_frames を明示的に false に設定できる", () => {
       // パフォーマンス最適化のため無効化する場合
       const input = {
         url: validUrl,
@@ -279,8 +289,8 @@ describe('motionOptionsSchema - video mode パラメータ', () => {
     });
   });
 
-  describe('frame_analysis_options オプション', () => {
-    it('frame_analysis_options を受け付ける', () => {
+  describe("frame_analysis_options オプション", () => {
+    it("frame_analysis_options を受け付ける", () => {
       const input = {
         url: validUrl,
         motionOptions: {
@@ -298,7 +308,7 @@ describe('motionOptionsSchema - video mode パラメータ', () => {
       expect(result.motionOptions?.frame_analysis_options?.sample_interval).toBe(5);
     });
 
-    it('frame_analysis_options のデフォルト値が適用される', () => {
+    it("frame_analysis_options のデフォルト値が適用される", () => {
       const input = {
         url: validUrl,
         motionOptions: {
@@ -317,7 +327,7 @@ describe('motionOptionsSchema - video mode パラメータ', () => {
 // 正常系テスト - video mode 統合
 // =====================================================
 
-describe('正常系 - video mode 統合', () => {
+describe("正常系 - video mode 統合", () => {
   beforeEach(() => {
     vi.resetAllMocks();
     resetPageAnalyzeServiceFactory();
@@ -328,7 +338,7 @@ describe('正常系 - video mode 統合', () => {
     resetPageAnalyzeServiceFactory();
   });
 
-  it('enable_frame_capture=true でフレームキャプチャ結果を返す', async () => {
+  it("enable_frame_capture=true でフレームキャプチャ結果を返す", async () => {
     const mockService = createMockPageAnalyzeService();
     setPageAnalyzeServiceFactory(() => mockService);
 
@@ -349,7 +359,7 @@ describe('正常系 - video mode 統合', () => {
     }
   });
 
-  it('フレームキャプチャ結果に必要なフィールドが含まれる', async () => {
+  it("フレームキャプチャ結果に必要なフィールドが含まれる", async () => {
     const mockService = createMockPageAnalyzeService();
     setPageAnalyzeServiceFactory(() => mockService);
 
@@ -374,7 +384,7 @@ describe('正常系 - video mode 統合', () => {
     }
   });
 
-  it('analyze_frames=true でフレーム画像分析結果を返す', async () => {
+  it("analyze_frames=true でフレーム画像分析結果を返す", async () => {
     const mockService = createMockPageAnalyzeService();
     setPageAnalyzeServiceFactory(() => mockService);
 
@@ -395,7 +405,7 @@ describe('正常系 - video mode 統合', () => {
     }
   });
 
-  it('フレーム画像分析結果に timeline と summary が含まれる', async () => {
+  it("フレーム画像分析結果に timeline と summary が含まれる", async () => {
     const mockService = createMockPageAnalyzeService();
     setPageAnalyzeServiceFactory(() => mockService);
 
@@ -414,9 +424,9 @@ describe('正常系 - video mode 統合', () => {
       // timeline の検証
       expect(fa.timeline).toBeInstanceOf(Array);
       if (fa.timeline.length > 0) {
-        expect(fa.timeline[0]).toHaveProperty('frame_index');
-        expect(fa.timeline[0]).toHaveProperty('diff_percentage');
-        expect(fa.timeline[0]).toHaveProperty('layout_shift_score');
+        expect(fa.timeline[0]).toHaveProperty("frame_index");
+        expect(fa.timeline[0]).toHaveProperty("diff_percentage");
+        expect(fa.timeline[0]).toHaveProperty("layout_shift_score");
       }
       // summary の検証
       expect(fa.summary.max_diff).toBeDefined();
@@ -425,7 +435,7 @@ describe('正常系 - video mode 統合', () => {
     }
   });
 
-  it('CSS静的解析とvideo modeの結果が両方含まれる', async () => {
+  it("CSS静的解析とvideo modeの結果が両方含まれる", async () => {
     const mockService = createMockPageAnalyzeService();
     setPageAnalyzeServiceFactory(() => mockService);
 
@@ -452,7 +462,7 @@ describe('正常系 - video mode 統合', () => {
 // デフォルト設定テスト
 // =====================================================
 
-describe('デフォルト設定', () => {
+describe("デフォルト設定", () => {
   beforeEach(() => {
     vi.resetAllMocks();
     resetPageAnalyzeServiceFactory();
@@ -465,7 +475,7 @@ describe('デフォルト設定', () => {
     resetPageAnalyzeServiceFactory();
   });
 
-  it('enable_frame_capture のデフォルトは false（v0.1.0: タイムアウト問題回避）', async () => {
+  it("enable_frame_capture のデフォルトは false（v0.1.0: タイムアウト問題回避）", async () => {
     // v0.1.0: タイムアウト問題回避のためデフォルト無効化
     // モックをframe_capture無しで上書き（デフォルトenable_frame_capture=false時の挙動を再現）
     const mockService = createMockPageAnalyzeService();
@@ -493,7 +503,7 @@ describe('デフォルト設定', () => {
     }
   });
 
-  it('motionOptions.enable_frame_capture=false で video mode 無効', async () => {
+  it("motionOptions.enable_frame_capture=false で video mode 無効", async () => {
     const mockService = createMockPageAnalyzeService();
     // video mode 無効時のモック
     mockService.detectMotion = vi.fn().mockResolvedValue({
@@ -528,8 +538,8 @@ describe('デフォルト設定', () => {
 // motion.detect との差分テスト
 // =====================================================
 
-describe('motion.detect との差分', () => {
-  it('page.analyze の video mode デフォルトは false（v0.1.0: タイムアウト問題回避）', () => {
+describe("motion.detect との差分", () => {
+  it("page.analyze の video mode デフォルトは false（v0.1.0: タイムアウト問題回避）", () => {
     // v0.1.0: タイムアウト問題回避のためデフォルト無効化
     // 有効化する場合は明示的に enable_frame_capture: true を指定
     const pageAnalyzeInput = { url: validUrl, motionOptions: {} };
@@ -540,14 +550,14 @@ describe('motion.detect との差分', () => {
     // page.analyze: v0.1.0 でデフォルト無効化（タイムアウト問題回避）
   });
 
-  it('video mode を明示的に無効化できる', () => {
+  it("video mode を明示的に無効化できる", () => {
     // パフォーマンス最適化のため無効化する場合
     const pageAnalyzeInput = { url: validUrl, motionOptions: { enable_frame_capture: false } };
     const pageResult = pageAnalyzeInputSchema.parse(pageAnalyzeInput);
     expect(pageResult.motionOptions?.enable_frame_capture).toBe(false);
   });
 
-  it('frame_capture_options はそのまま引き継がれる', () => {
+  it("frame_capture_options はそのまま引き継がれる", () => {
     const input = {
       url: validUrl,
       motionOptions: {
@@ -555,14 +565,14 @@ describe('motion.detect との差分', () => {
         frame_capture_options: {
           frame_rate: 60,
           scroll_px_per_frame: 10,
-          output_format: 'jpeg' as const,
+          output_format: "jpeg" as const,
         },
       },
     };
     const result = pageAnalyzeInputSchema.parse(input);
     expect(result.motionOptions?.frame_capture_options?.frame_rate).toBe(60);
     expect(result.motionOptions?.frame_capture_options?.scroll_px_per_frame).toBe(10);
-    expect(result.motionOptions?.frame_capture_options?.output_format).toBe('jpeg');
+    expect(result.motionOptions?.frame_capture_options?.output_format).toBe("jpeg");
   });
 });
 
@@ -570,7 +580,7 @@ describe('motion.detect との差分', () => {
 // エラーハンドリングテスト
 // =====================================================
 
-describe('エラーハンドリング - video mode', () => {
+describe("エラーハンドリング - video mode", () => {
   beforeEach(() => {
     vi.resetAllMocks();
     resetPageAnalyzeServiceFactory();
@@ -581,7 +591,7 @@ describe('エラーハンドリング - video mode', () => {
     resetPageAnalyzeServiceFactory();
   });
 
-  it('video mode 失敗時も CSS 解析結果は返す（Graceful Degradation）', async () => {
+  it("video mode 失敗時も CSS 解析結果は返す（Graceful Degradation）", async () => {
     const mockService = createMockPageAnalyzeService();
     // video mode は失敗するが CSS 解析は成功
     mockService.detectMotion = vi.fn().mockResolvedValue({
@@ -594,8 +604,8 @@ describe('エラーハンドリング - video mode', () => {
       processingTimeMs: 100,
       // frame_capture_error を含む
       frame_capture_error: {
-        code: 'FRAME_CAPTURE_FAILED',
-        message: 'Failed to capture frames',
+        code: "FRAME_CAPTURE_FAILED",
+        message: "Failed to capture frames",
       },
     });
     setPageAnalyzeServiceFactory(() => mockService);
@@ -616,7 +626,7 @@ describe('エラーハンドリング - video mode', () => {
     }
   });
 
-  it('フレーム画像分析失敗時も フレームキャプチャ結果は返す', async () => {
+  it("フレーム画像分析失敗時も フレームキャプチャ結果は返す", async () => {
     const mockService = createMockPageAnalyzeService();
     mockService.detectMotion = vi.fn().mockResolvedValue({
       success: true,
@@ -629,21 +639,21 @@ describe('エラーハンドリング - video mode', () => {
       // frame_capture は成功
       frame_capture: {
         total_frames: 50,
-        output_dir: '/tmp/reftrix-frames/',
+        output_dir: "/tmp/reftrix-frames/",
         config: {
           scroll_px_per_frame: 15,
           frame_interval_ms: 33,
-          output_format: 'png',
-          output_dir: '/tmp/reftrix-frames/',
-          filename_pattern: 'frame-{0000}.png',
+          output_format: "png",
+          output_dir: "/tmp/reftrix-frames/",
+          filename_pattern: "frame-{0000}.png",
         },
         files: [],
         duration_ms: 1650,
       },
       // frame_analysis_error
       frame_analysis_error: {
-        code: 'FRAME_ANALYSIS_FAILED',
-        message: 'Failed to analyze frames',
+        code: "FRAME_ANALYSIS_FAILED",
+        message: "Failed to analyze frames",
       },
     });
     setPageAnalyzeServiceFactory(() => mockService);
@@ -671,7 +681,7 @@ describe('エラーハンドリング - video mode', () => {
 // 並列処理テスト
 // =====================================================
 
-describe('並列処理 - video mode', () => {
+describe("並列処理 - video mode", () => {
   beforeEach(() => {
     vi.resetAllMocks();
     resetPageAnalyzeServiceFactory();
@@ -682,7 +692,7 @@ describe('並列処理 - video mode', () => {
     resetPageAnalyzeServiceFactory();
   });
 
-  it('layout/motion(video mode)/quality が並列実行される', async () => {
+  it("layout/motion(video mode)/quality が並列実行される", async () => {
     const mockService = createMockPageAnalyzeService();
     setPageAnalyzeServiceFactory(() => mockService);
 
@@ -711,10 +721,10 @@ describe('並列処理 - video mode', () => {
 // ツール定義テスト
 // =====================================================
 
-describe('ツール定義 - video mode パラメータ', () => {
+describe("ツール定義 - video mode パラメータ", () => {
   // Note: ツール定義の更新は実装フェーズで行う
   // ここではスキーマベースのテストのみ
-  it('motionOptions スキーマに video mode パラメータが含まれる', () => {
+  it("motionOptions スキーマに video mode パラメータが含まれる", () => {
     const schema = motionOptionsSchema;
     expect(schema).toBeDefined();
     // スキーマが video mode パラメータを受け付けることを確認
@@ -732,7 +742,7 @@ describe('ツール定義 - video mode パラメータ', () => {
 // 出力スキーマテスト
 // =====================================================
 
-describe('MotionResult 型 - video mode フィールド', () => {
+describe("MotionResult 型 - video mode フィールド", () => {
   beforeEach(() => {
     vi.resetAllMocks();
     resetPageAnalyzeServiceFactory();
@@ -743,7 +753,7 @@ describe('MotionResult 型 - video mode フィールド', () => {
     resetPageAnalyzeServiceFactory();
   });
 
-  it('frame_capture フィールドを含む MotionResult をバリデート', async () => {
+  it("frame_capture フィールドを含む MotionResult をバリデート", async () => {
     const mockService = createMockPageAnalyzeService();
     setPageAnalyzeServiceFactory(() => mockService);
 
@@ -758,14 +768,14 @@ describe('MotionResult 型 - video mode フィールド', () => {
     expect(result.success).toBe(true);
     if (result.success && result.data.motion?.frame_capture) {
       const fc = result.data.motion.frame_capture;
-      expect(typeof fc.total_frames).toBe('number');
-      expect(typeof fc.output_dir).toBe('string');
-      expect(fc.config).toHaveProperty('scroll_px_per_frame');
+      expect(typeof fc.total_frames).toBe("number");
+      expect(typeof fc.output_dir).toBe("string");
+      expect(fc.config).toHaveProperty("scroll_px_per_frame");
       expect(Array.isArray(fc.files)).toBe(true);
     }
   });
 
-  it('frame_analysis フィールドを含む MotionResult をバリデート', async () => {
+  it("frame_analysis フィールドを含む MotionResult をバリデート", async () => {
     const mockService = createMockPageAnalyzeService();
     setPageAnalyzeServiceFactory(() => mockService);
 
@@ -782,9 +792,9 @@ describe('MotionResult 型 - video mode フィールド', () => {
     if (result.success && result.data.motion?.frame_analysis) {
       const fa = result.data.motion.frame_analysis;
       expect(Array.isArray(fa.timeline)).toBe(true);
-      expect(typeof fa.summary.max_diff).toBe('number');
-      expect(typeof fa.summary.avg_diff).toBe('number');
-      expect(typeof fa.summary.cls_total).toBe('number');
+      expect(typeof fa.summary.max_diff).toBe("number");
+      expect(typeof fa.summary.avg_diff).toBe("number");
+      expect(typeof fa.summary.cls_total).toBe("number");
     }
   });
 });

@@ -9,7 +9,7 @@
  * @module @reftrix/webdesign-core/types/section
  */
 
-import { z } from 'zod';
+import { z } from "zod";
 
 // =========================================
 // Section Type Enum
@@ -44,26 +44,26 @@ import { z } from 'zod';
  */
 export const SectionTypeSchema = z.enum([
   // 基本タイプ（11種）
-  'hero',
-  'feature',
-  'cta',
-  'testimonial',
-  'pricing',
-  'footer',
-  'navigation',
-  'about',
-  'contact',
-  'gallery',
-  'unknown',
+  "hero",
+  "feature",
+  "cta",
+  "testimonial",
+  "pricing",
+  "footer",
+  "navigation",
+  "about",
+  "contact",
+  "gallery",
+  "unknown",
   // 拡張タイプ（8種）
-  'partners',
-  'portfolio',
-  'team',
-  'stories',
-  'research',
-  'subscribe',
-  'stats',
-  'faq',
+  "partners",
+  "portfolio",
+  "team",
+  "stories",
+  "research",
+  "subscribe",
+  "stats",
+  "faq",
 ]);
 export type SectionType = z.infer<typeof SectionTypeSchema>;
 
@@ -74,7 +74,7 @@ export type SectionType = z.infer<typeof SectionTypeSchema>;
 /**
  * ボタンタイプ
  */
-export const ButtonTypeSchema = z.enum(['primary', 'secondary', 'link']);
+export const ButtonTypeSchema = z.enum(["primary", "secondary", "link"]);
 export type ButtonType = z.infer<typeof ButtonTypeSchema>;
 
 // =========================================
@@ -379,14 +379,14 @@ export interface SectionClassificationRule {
  * WAI-ARIAランドマークロール
  */
 export const ARIA_LANDMARK_ROLES = [
-  'banner',
-  'navigation',
-  'main',
-  'complementary',
-  'contentinfo',
-  'search',
-  'form',
-  'region',
+  "banner",
+  "navigation",
+  "main",
+  "complementary",
+  "contentinfo",
+  "search",
+  "form",
+  "region",
 ] as const;
 
 export type AriaLandmarkRole = (typeof ARIA_LANDMARK_ROLES)[number];
@@ -399,13 +399,13 @@ export type AriaLandmarkRole = (typeof ARIA_LANDMARK_ROLES)[number];
  * HTML5セマンティックタグ
  */
 export const SEMANTIC_TAGS = [
-  'header',
-  'nav',
-  'main',
-  'section',
-  'article',
-  'aside',
-  'footer',
+  "header",
+  "nav",
+  "main",
+  "section",
+  "article",
+  "aside",
+  "footer",
 ] as const;
 
 export type SemanticTag = (typeof SEMANTIC_TAGS)[number];
@@ -425,16 +425,16 @@ export const SECTION_TYPE_MAPPINGS: Record<
   }
 > = {
   // WAI-ARIA Landmarks
-  banner: { sectionType: 'navigation', confidence: 0.9 },
-  navigation: { sectionType: 'navigation', confidence: 0.95 },
-  main: { sectionType: 'unknown', confidence: 0.5 },
-  contentinfo: { sectionType: 'footer', confidence: 0.9 },
-  complementary: { sectionType: 'unknown', confidence: 0.4 },
+  banner: { sectionType: "navigation", confidence: 0.9 },
+  navigation: { sectionType: "navigation", confidence: 0.95 },
+  main: { sectionType: "unknown", confidence: 0.5 },
+  contentinfo: { sectionType: "footer", confidence: 0.9 },
+  complementary: { sectionType: "unknown", confidence: 0.4 },
   // HTML5 Semantic Tags
-  header: { sectionType: 'navigation', confidence: 0.8 },
-  nav: { sectionType: 'navigation', confidence: 0.95 },
-  footer: { sectionType: 'footer', confidence: 0.95 },
-  article: { sectionType: 'unknown', confidence: 0.5 },
-  aside: { sectionType: 'unknown', confidence: 0.4 },
-  section: { sectionType: 'unknown', confidence: 0.3 },
+  header: { sectionType: "navigation", confidence: 0.8 },
+  nav: { sectionType: "navigation", confidence: 0.95 },
+  footer: { sectionType: "footer", confidence: 0.95 },
+  article: { sectionType: "unknown", confidence: 0.5 },
+  aside: { sectionType: "unknown", confidence: 0.4 },
+  section: { sectionType: "unknown", confidence: 0.3 },
 };

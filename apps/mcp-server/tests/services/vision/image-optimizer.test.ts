@@ -13,15 +13,15 @@
  * - CPU Large (>= 500KB): 最大768x768にリサイズ、品質70%
  */
 
-import { describe, it, expect, beforeEach } from 'vitest';
-import sharp from 'sharp';
+import { describe, it, expect, beforeEach } from "vitest";
+import sharp from "sharp";
 import {
   ImageOptimizer,
   OptimizationStrategy,
   IMAGE_SIZE_THRESHOLDS,
   OPTIMIZATION_CONFIGS,
-} from '../../../src/services/vision/image-optimizer.js';
-import { HardwareType } from '../../../src/services/vision/timeout-calculator.js';
+} from "../../../src/services/vision/image-optimizer.js";
+import { HardwareType } from "../../../src/services/vision/timeout-calculator.js";
 
 // =============================================================================
 // Test Helpers
@@ -33,7 +33,7 @@ import { HardwareType } from '../../../src/services/vision/timeout-calculator.js
 async function createTestImage(
   width: number,
   height: number,
-  options?: { quality?: number; format?: 'jpeg' | 'png' }
+  options?: { quality?: number; format?: "jpeg" | "png" }
 ): Promise<Buffer> {
   // ノイズを追加して圧縮率を下げる（より大きなファイルサイズを生成）
   const noiseBuffer = Buffer.alloc(width * height * 3);
@@ -49,7 +49,7 @@ async function createTestImage(
     },
   });
 
-  if (options?.format === 'png') {
+  if (options?.format === "png") {
     return pipeline.png().toBuffer();
   }
 
@@ -78,7 +78,7 @@ async function createImageNearSize(targetBytes: number): Promise<Buffer> {
 // Tests
 // =============================================================================
 
-describe('ImageOptimizer', () => {
+describe("ImageOptimizer", () => {
   let optimizer: ImageOptimizer;
 
   beforeEach(() => {
@@ -89,13 +89,13 @@ describe('ImageOptimizer', () => {
   // Constants and Configuration
   // ==========================================================================
 
-  describe('Constants', () => {
-    it('should export correct size thresholds', () => {
+  describe("Constants", () => {
+    it("should export correct size thresholds", () => {
       expect(IMAGE_SIZE_THRESHOLDS.SMALL).toBe(100_000); // 100KB
       expect(IMAGE_SIZE_THRESHOLDS.LARGE).toBe(500_000); // 500KB
     });
 
-    it('should export optimization configurations', () => {
+    it("should export optimization configurations", () => {
       expect(OPTIMIZATION_CONFIGS.NONE).toBeDefined();
       expect(OPTIMIZATION_CONFIGS.MEDIUM).toBeDefined();
       expect(OPTIMIZATION_CONFIGS.AGGRESSIVE).toBeDefined();
@@ -111,10 +111,10 @@ describe('ImageOptimizer', () => {
       expect(OPTIMIZATION_CONFIGS.AGGRESSIVE.quality).toBe(70);
     });
 
-    it('should export OptimizationStrategy enum', () => {
-      expect(OptimizationStrategy.NONE).toBe('NONE');
-      expect(OptimizationStrategy.MEDIUM).toBe('MEDIUM');
-      expect(OptimizationStrategy.AGGRESSIVE).toBe('AGGRESSIVE');
+    it("should export OptimizationStrategy enum", () => {
+      expect(OptimizationStrategy.NONE).toBe("NONE");
+      expect(OptimizationStrategy.MEDIUM).toBe("MEDIUM");
+      expect(OptimizationStrategy.AGGRESSIVE).toBe("AGGRESSIVE");
     });
   });
 
@@ -122,32 +122,36 @@ describe('ImageOptimizer', () => {
   // Strategy Selection
   // ==========================================================================
 
-  describe('selectStrategy', () => {
-    it('should return NONE for GPU', () => {
+  describe("selectStrategy", () => {
+    it("should return NONE for GPU", () => {
       const strategy = optimizer.selectStrategy(HardwareType.GPU, 1_000_000);
       expect(strategy).toBe(OptimizationStrategy.NONE);
     });
 
-    it('should return NONE for GPU regardless of image size', () => {
+    it("should return NONE for GPU regardless of image size", () => {
       expect(optimizer.selectStrategy(HardwareType.GPU, 50_000)).toBe(OptimizationStrategy.NONE);
       expect(optimizer.selectStrategy(HardwareType.GPU, 200_000)).toBe(OptimizationStrategy.NONE);
       expect(optimizer.selectStrategy(HardwareType.GPU, 1_000_000)).toBe(OptimizationStrategy.NONE);
     });
 
-    it('should return NONE for CPU small images (< 100KB)', () => {
+    it("should return NONE for CPU small images (< 100KB)", () => {
       expect(optimizer.selectStrategy(HardwareType.CPU, 50_000)).toBe(OptimizationStrategy.NONE);
       expect(optimizer.selectStrategy(HardwareType.CPU, 99_999)).toBe(OptimizationStrategy.NONE);
     });
 
-    it('should return MEDIUM for CPU medium images (100KB - 500KB)', () => {
+    it("should return MEDIUM for CPU medium images (100KB - 500KB)", () => {
       expect(optimizer.selectStrategy(HardwareType.CPU, 100_000)).toBe(OptimizationStrategy.MEDIUM);
       expect(optimizer.selectStrategy(HardwareType.CPU, 300_000)).toBe(OptimizationStrategy.MEDIUM);
       expect(optimizer.selectStrategy(HardwareType.CPU, 499_999)).toBe(OptimizationStrategy.MEDIUM);
     });
 
-    it('should return AGGRESSIVE for CPU large images (>= 500KB)', () => {
-      expect(optimizer.selectStrategy(HardwareType.CPU, 500_000)).toBe(OptimizationStrategy.AGGRESSIVE);
-      expect(optimizer.selectStrategy(HardwareType.CPU, 1_000_000)).toBe(OptimizationStrategy.AGGRESSIVE);
+    it("should return AGGRESSIVE for CPU large images (>= 500KB)", () => {
+      expect(optimizer.selectStrategy(HardwareType.CPU, 500_000)).toBe(
+        OptimizationStrategy.AGGRESSIVE
+      );
+      expect(optimizer.selectStrategy(HardwareType.CPU, 1_000_000)).toBe(
+        OptimizationStrategy.AGGRESSIVE
+      );
     });
   });
 
@@ -155,8 +159,8 @@ describe('ImageOptimizer', () => {
   // Optimal Size Estimation
   // ==========================================================================
 
-  describe('estimateOptimalSize', () => {
-    it('should return original dimensions for GPU', () => {
+  describe("estimateOptimalSize", () => {
+    it("should return original dimensions for GPU", () => {
       const result = optimizer.estimateOptimalSize(1_000_000, HardwareType.GPU);
       expect(result.maxWidth).toBeUndefined();
       expect(result.maxHeight).toBeUndefined();
@@ -164,7 +168,7 @@ describe('ImageOptimizer', () => {
       expect(result.strategy).toBe(OptimizationStrategy.NONE);
     });
 
-    it('should return original dimensions for small images', () => {
+    it("should return original dimensions for small images", () => {
       const result = optimizer.estimateOptimalSize(50_000, HardwareType.CPU);
       expect(result.maxWidth).toBeUndefined();
       expect(result.maxHeight).toBeUndefined();
@@ -172,7 +176,7 @@ describe('ImageOptimizer', () => {
       expect(result.strategy).toBe(OptimizationStrategy.NONE);
     });
 
-    it('should return medium optimization for medium images', () => {
+    it("should return medium optimization for medium images", () => {
       const result = optimizer.estimateOptimalSize(300_000, HardwareType.CPU);
       expect(result.maxWidth).toBe(1024);
       expect(result.maxHeight).toBe(1024);
@@ -180,7 +184,7 @@ describe('ImageOptimizer', () => {
       expect(result.strategy).toBe(OptimizationStrategy.MEDIUM);
     });
 
-    it('should return aggressive optimization for large images', () => {
+    it("should return aggressive optimization for large images", () => {
       const result = optimizer.estimateOptimalSize(600_000, HardwareType.CPU);
       expect(result.maxWidth).toBe(768);
       expect(result.maxHeight).toBe(768);
@@ -193,8 +197,8 @@ describe('ImageOptimizer', () => {
   // Image Optimization
   // ==========================================================================
 
-  describe('optimizeForCPU', () => {
-    it('should return original buffer when no optimization needed', async () => {
+  describe("optimizeForCPU", () => {
+    it("should return original buffer when no optimization needed", async () => {
       const originalBuffer = await createTestImage(100, 100);
       const result = await optimizer.optimizeForCPU(originalBuffer, {
         hardwareType: HardwareType.GPU,
@@ -205,10 +209,10 @@ describe('ImageOptimizer', () => {
       expect(result.optimizedSizeBytes).toBe(originalBuffer.length);
       expect(result.compressionRatio).toBe(1);
       expect(result.skipped).toBe(true);
-      expect(result.reason).toBe('No optimization needed');
+      expect(result.reason).toBe("No optimization needed");
     });
 
-    it('should optimize medium-sized images', async () => {
+    it("should optimize medium-sized images", async () => {
       // Create a large image that will trigger optimization
       const originalBuffer = await createTestImage(2000, 2000);
 
@@ -225,7 +229,7 @@ describe('ImageOptimizer', () => {
       expect(result.processingTimeMs).toBeGreaterThanOrEqual(0);
     });
 
-    it('should optimize large images with aggressive settings', async () => {
+    it("should optimize large images with aggressive settings", async () => {
       const originalBuffer = await createTestImage(2000, 2000);
 
       const result = await optimizer.optimizeForCPU(originalBuffer, {
@@ -238,7 +242,7 @@ describe('ImageOptimizer', () => {
       expect(result.compressionRatio).toBeLessThan(1);
     });
 
-    it('should maintain aspect ratio during resize', async () => {
+    it("should maintain aspect ratio during resize", async () => {
       // Create a wide image (2000x1000)
       const originalBuffer = await createTestImage(2000, 1000);
 
@@ -254,9 +258,9 @@ describe('ImageOptimizer', () => {
       expect(result.dimensions.height).toBeLessThanOrEqual(1024);
     });
 
-    it('should handle Base64 input', async () => {
+    it("should handle Base64 input", async () => {
       const originalBuffer = await createTestImage(2000, 2000);
-      const base64 = originalBuffer.toString('base64');
+      const base64 = originalBuffer.toString("base64");
 
       const result = await optimizer.optimizeForCPU(base64, {
         hardwareType: HardwareType.CPU,
@@ -267,7 +271,7 @@ describe('ImageOptimizer', () => {
       expect(result.skipped).toBe(false);
     });
 
-    it('should record processing time', async () => {
+    it("should record processing time", async () => {
       const originalBuffer = await createTestImage(1000, 1000);
 
       const result = await optimizer.optimizeForCPU(originalBuffer, {
@@ -276,7 +280,7 @@ describe('ImageOptimizer', () => {
       });
 
       expect(result.processingTimeMs).toBeGreaterThanOrEqual(0);
-      expect(typeof result.processingTimeMs).toBe('number');
+      expect(typeof result.processingTimeMs).toBe("number");
     });
   });
 
@@ -284,8 +288,8 @@ describe('ImageOptimizer', () => {
   // Auto Strategy Selection
   // ==========================================================================
 
-  describe('Auto Strategy Selection', () => {
-    it('should auto-select strategy based on image size when not forced', async () => {
+  describe("Auto Strategy Selection", () => {
+    it("should auto-select strategy based on image size when not forced", async () => {
       // Create a noisy image large enough to trigger MEDIUM optimization (>= 100KB)
       // With noise, compression is less effective, resulting in larger files
       const largeBuffer = await createTestImage(500, 500, { quality: 95 });
@@ -302,7 +306,7 @@ describe('ImageOptimizer', () => {
       expect(result.skipped).toBe(false);
     });
 
-    it('should skip optimization for small images', async () => {
+    it("should skip optimization for small images", async () => {
       // Create a small image (< 100KB) - even with noise, small dimensions = small file
       const smallBuffer = await createTestImage(50, 50, { quality: 50 });
 
@@ -316,7 +320,7 @@ describe('ImageOptimizer', () => {
 
       // Should be skipped for small images
       expect(result.skipped).toBe(true);
-      expect(result.reason).toBe('No optimization needed');
+      expect(result.reason).toBe("No optimization needed");
     });
   });
 
@@ -324,9 +328,9 @@ describe('ImageOptimizer', () => {
   // Error Handling / Graceful Degradation
   // ==========================================================================
 
-  describe('Error Handling', () => {
-    it('should return original buffer on invalid image data (graceful degradation)', async () => {
-      const invalidBuffer = Buffer.from('not a valid image');
+  describe("Error Handling", () => {
+    it("should return original buffer on invalid image data (graceful degradation)", async () => {
+      const invalidBuffer = Buffer.from("not a valid image");
 
       const result = await optimizer.optimizeForCPU(invalidBuffer, {
         hardwareType: HardwareType.CPU,
@@ -340,7 +344,7 @@ describe('ImageOptimizer', () => {
       expect(result.compressionRatio).toBe(1);
     });
 
-    it('should handle empty buffer', async () => {
+    it("should handle empty buffer", async () => {
       const emptyBuffer = Buffer.alloc(0);
 
       const result = await optimizer.optimizeForCPU(emptyBuffer, {
@@ -352,8 +356,8 @@ describe('ImageOptimizer', () => {
       expect(result.error).toBeDefined();
     });
 
-    it('should handle invalid Base64 string gracefully', async () => {
-      const invalidBase64 = 'not-valid-base64!!!';
+    it("should handle invalid Base64 string gracefully", async () => {
+      const invalidBase64 = "not-valid-base64!!!";
 
       const result = await optimizer.optimizeForCPU(invalidBase64, {
         hardwareType: HardwareType.CPU,
@@ -369,8 +373,8 @@ describe('ImageOptimizer', () => {
   // Output Format
   // ==========================================================================
 
-  describe('Output Format', () => {
-    it('should output JPEG by default', async () => {
+  describe("Output Format", () => {
+    it("should output JPEG by default", async () => {
       const originalBuffer = await createTestImage(1000, 1000);
 
       const result = await optimizer.optimizeForCPU(originalBuffer, {
@@ -384,13 +388,13 @@ describe('ImageOptimizer', () => {
       expect(result.buffer[2]).toBe(0xff);
     });
 
-    it('should support PNG output when specified', async () => {
+    it("should support PNG output when specified", async () => {
       const originalBuffer = await createTestImage(1000, 1000);
 
       const result = await optimizer.optimizeForCPU(originalBuffer, {
         hardwareType: HardwareType.CPU,
         forceStrategy: OptimizationStrategy.MEDIUM,
-        outputFormat: 'png',
+        outputFormat: "png",
       });
 
       // PNG magic bytes: 89 50 4E 47
@@ -405,8 +409,8 @@ describe('ImageOptimizer', () => {
   // Integration with ImageSize enum
   // ==========================================================================
 
-  describe('Integration with ImageSize enum', () => {
-    it('should align with TimeoutCalculator ImageSize classification', () => {
+  describe("Integration with ImageSize enum", () => {
+    it("should align with TimeoutCalculator ImageSize classification", () => {
       // Small images (< 100KB) should not be optimized
       expect(optimizer.selectStrategy(HardwareType.CPU, 50_000)).toBe(OptimizationStrategy.NONE);
 
@@ -414,7 +418,9 @@ describe('ImageOptimizer', () => {
       expect(optimizer.selectStrategy(HardwareType.CPU, 200_000)).toBe(OptimizationStrategy.MEDIUM);
 
       // Large images (>= 500KB) should use AGGRESSIVE optimization
-      expect(optimizer.selectStrategy(HardwareType.CPU, 600_000)).toBe(OptimizationStrategy.AGGRESSIVE);
+      expect(optimizer.selectStrategy(HardwareType.CPU, 600_000)).toBe(
+        OptimizationStrategy.AGGRESSIVE
+      );
     });
   });
 
@@ -422,8 +428,8 @@ describe('ImageOptimizer', () => {
   // Concurrency Control
   // ==========================================================================
 
-  describe('Concurrency Control', () => {
-    it('should handle concurrent optimization requests', async () => {
+  describe("Concurrency Control", () => {
+    it("should handle concurrent optimization requests", async () => {
       const buffers = await Promise.all([
         createTestImage(1000, 1000),
         createTestImage(1000, 1000),

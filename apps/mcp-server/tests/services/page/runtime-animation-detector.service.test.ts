@@ -16,9 +16,9 @@
  * @module tests/services/page/runtime-animation-detector.service
  */
 
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import type { Page, Browser, BrowserContext } from 'playwright';
-import { chromium } from 'playwright';
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import type { Page, Browser, BrowserContext } from "playwright";
+import { chromium } from "playwright";
 import {
   RuntimeAnimationDetectorService,
   type RuntimeAnimationResult,
@@ -26,7 +26,7 @@ import {
   type AnimationInfo,
   type IntersectionObserverInfo,
   type RAFInfo,
-} from '../../../src/services/page/runtime-animation-detector.service';
+} from "../../../src/services/page/runtime-animation-detector.service";
 
 // =====================================================
 // Test HTML Fixtures
@@ -219,7 +219,7 @@ const HTML_WITHOUT_ANIMATIONS = `
 // Test Suite: RuntimeAnimationDetectorService
 // =====================================================
 
-describe('RuntimeAnimationDetectorService', () => {
+describe("RuntimeAnimationDetectorService", () => {
   let browser: Browser;
   let context: BrowserContext;
   let page: Page;
@@ -242,13 +242,13 @@ describe('RuntimeAnimationDetectorService', () => {
   // 基本機能テスト
   // =====================================================
 
-  describe('Basic Functionality', () => {
-    it('should instantiate with default options', () => {
+  describe("Basic Functionality", () => {
+    it("should instantiate with default options", () => {
       expect(service).toBeDefined();
       expect(service).toBeInstanceOf(RuntimeAnimationDetectorService);
     });
 
-    it('should detect no animations on static page', async () => {
+    it("should detect no animations on static page", async () => {
       await page.setContent(HTML_WITHOUT_ANIMATIONS);
 
       const result = await service.detect(page);
@@ -260,24 +260,24 @@ describe('RuntimeAnimationDetectorService', () => {
       expect(result.totalDetected).toBe(0);
     });
 
-    it('should return RuntimeAnimationResult structure', async () => {
+    it("should return RuntimeAnimationResult structure", async () => {
       await page.setContent(HTML_WITHOUT_ANIMATIONS);
 
       const result = await service.detect(page);
 
       // Required fields
-      expect(result).toHaveProperty('animations');
-      expect(result).toHaveProperty('intersectionObservers');
-      expect(result).toHaveProperty('rafCallbacks');
-      expect(result).toHaveProperty('totalDetected');
-      expect(result).toHaveProperty('detectionTimeMs');
+      expect(result).toHaveProperty("animations");
+      expect(result).toHaveProperty("intersectionObservers");
+      expect(result).toHaveProperty("rafCallbacks");
+      expect(result).toHaveProperty("totalDetected");
+      expect(result).toHaveProperty("detectionTimeMs");
 
       // Type checks
       expect(Array.isArray(result.animations)).toBe(true);
       expect(Array.isArray(result.intersectionObservers)).toBe(true);
       expect(Array.isArray(result.rafCallbacks)).toBe(true);
-      expect(typeof result.totalDetected).toBe('number');
-      expect(typeof result.detectionTimeMs).toBe('number');
+      expect(typeof result.totalDetected).toBe("number");
+      expect(typeof result.detectionTimeMs).toBe("number");
     });
   });
 
@@ -285,8 +285,8 @@ describe('RuntimeAnimationDetectorService', () => {
   // Web Animations API 検出テスト
   // =====================================================
 
-  describe('Web Animations API Detection', () => {
-    it('should detect Element.animate() animations', async () => {
+  describe("Web Animations API Detection", () => {
+    it("should detect Element.animate() animations", async () => {
       await page.setContent(HTML_WITH_WEB_ANIMATIONS_API);
       await page.waitForTimeout(100); // アニメーション開始を待つ
 
@@ -295,15 +295,15 @@ describe('RuntimeAnimationDetectorService', () => {
       expect(result.animations.length).toBeGreaterThan(0);
 
       const animation = result.animations[0];
-      expect(animation).toHaveProperty('id');
-      expect(animation).toHaveProperty('playState');
-      expect(animation).toHaveProperty('duration');
-      expect(animation).toHaveProperty('iterations');
-      expect(animation).toHaveProperty('easing');
-      expect(animation).toHaveProperty('targetSelector');
+      expect(animation).toHaveProperty("id");
+      expect(animation).toHaveProperty("playState");
+      expect(animation).toHaveProperty("duration");
+      expect(animation).toHaveProperty("iterations");
+      expect(animation).toHaveProperty("easing");
+      expect(animation).toHaveProperty("targetSelector");
     });
 
-    it('should capture animation properties correctly', async () => {
+    it("should capture animation properties correctly", async () => {
       await page.setContent(HTML_WITH_WEB_ANIMATIONS_API);
       await page.waitForTimeout(100);
 
@@ -314,11 +314,11 @@ describe('RuntimeAnimationDetectorService', () => {
       const animation = result.animations[0];
       expect(animation.duration).toBe(1000);
       expect(animation.iterations).toBe(Infinity);
-      expect(animation.easing).toBe('ease-in-out');
-      expect(animation.playState).toBe('running');
+      expect(animation.easing).toBe("ease-in-out");
+      expect(animation.playState).toBe("running");
     });
 
-    it('should detect CSS animations via getAnimations()', async () => {
+    it("should detect CSS animations via getAnimations()", async () => {
       const htmlWithCssAnimation = `
         <!DOCTYPE html>
         <html>
@@ -344,8 +344,8 @@ describe('RuntimeAnimationDetectorService', () => {
 
       expect(result.animations.length).toBeGreaterThan(0);
 
-      const animation = result.animations.find(a =>
-        a.animationName === 'bounce' || a.targetSelector?.includes('bouncer')
+      const animation = result.animations.find(
+        (a) => a.animationName === "bounce" || a.targetSelector?.includes("bouncer")
       );
       expect(animation).toBeDefined();
     });
@@ -355,13 +355,13 @@ describe('RuntimeAnimationDetectorService', () => {
   // IntersectionObserver 検出テスト
   // =====================================================
 
-  describe('IntersectionObserver Detection', () => {
+  describe("IntersectionObserver Detection", () => {
     /**
      * Note: IntersectionObserverのフックはページコンテンツ設定後に注入されるため、
      * 既に作成済みのオブザーバーはキャプチャできない制限がある。
      * この制限を回避するには、ページナビゲーション前にフックを注入する必要がある。
      */
-    it('should detect IntersectionObserver usage when created after hook injection', async () => {
+    it("should detect IntersectionObserver usage when created after hook injection", async () => {
       // フックを先に注入
       await page.setContent(`
         <!DOCTYPE html>
@@ -373,8 +373,8 @@ describe('RuntimeAnimationDetectorService', () => {
 
       // その後にIOを使用するスクリプトを追加
       await page.evaluate(() => {
-        const target = document.createElement('div');
-        target.id = 'newTarget';
+        const target = document.createElement("div");
+        target.id = "newTarget";
         document.body.appendChild(target);
 
         const observer = new IntersectionObserver(() => {}, { threshold: 0.5 });
@@ -387,7 +387,7 @@ describe('RuntimeAnimationDetectorService', () => {
       expect(result.intersectionObservers.length).toBeGreaterThan(0);
     });
 
-    it('should capture IntersectionObserver target count when created after hook', async () => {
+    it("should capture IntersectionObserver target count when created after hook", async () => {
       await page.setContent(`<!DOCTYPE html><html><head></head><body></body></html>`);
 
       // 最初の呼び出しでフックを注入
@@ -395,10 +395,10 @@ describe('RuntimeAnimationDetectorService', () => {
 
       // IOを作成して複数要素を監視
       await page.evaluate(() => {
-        const target1 = document.createElement('div');
-        target1.id = 'ioTarget1';
-        const target2 = document.createElement('div');
-        target2.id = 'ioTarget2';
+        const target1 = document.createElement("div");
+        target1.id = "ioTarget1";
+        const target2 = document.createElement("div");
+        target2.id = "ioTarget2";
         document.body.appendChild(target1);
         document.body.appendChild(target2);
 
@@ -413,18 +413,18 @@ describe('RuntimeAnimationDetectorService', () => {
       expect(result.intersectionObservers[0].targetCount).toBe(2);
     });
 
-    it('should capture IntersectionObserver options', async () => {
+    it("should capture IntersectionObserver options", async () => {
       await page.setContent(`<!DOCTYPE html><html><head></head><body></body></html>`);
 
       await service.detect(page);
 
       await page.evaluate(() => {
-        const target = document.createElement('div');
+        const target = document.createElement("div");
         document.body.appendChild(target);
 
         const observer = new IntersectionObserver(() => {}, {
           threshold: [0.1, 0.5, 1.0],
-          rootMargin: '10px',
+          rootMargin: "10px",
         });
         observer.observe(target);
       });
@@ -434,12 +434,12 @@ describe('RuntimeAnimationDetectorService', () => {
       expect(result.intersectionObservers.length).toBeGreaterThan(0);
 
       const observer = result.intersectionObservers[0];
-      expect(observer).toHaveProperty('options');
-      expect(observer.options).toHaveProperty('threshold');
+      expect(observer).toHaveProperty("options");
+      expect(observer.options).toHaveProperty("threshold");
       expect(observer.options.threshold).toContain(0.1);
     });
 
-    it('should track scroll position results structure', async () => {
+    it("should track scroll position results structure", async () => {
       await page.setContent(HTML_WITH_INTERSECTION_OBSERVER);
 
       const result = await service.detect(page, {
@@ -448,14 +448,14 @@ describe('RuntimeAnimationDetectorService', () => {
 
       // スクロール位置ごとの結果構造が存在することを確認
       expect(result.scrollPositionResults).toBeDefined();
-      expect(result.scrollPositionResults).toHaveProperty('0');
-      expect(result.scrollPositionResults).toHaveProperty('50');
-      expect(result.scrollPositionResults).toHaveProperty('100');
+      expect(result.scrollPositionResults).toHaveProperty("0");
+      expect(result.scrollPositionResults).toHaveProperty("50");
+      expect(result.scrollPositionResults).toHaveProperty("100");
 
       // 各位置の結果構造を確認
-      const pos0Result = result.scrollPositionResults!['0'];
-      expect(pos0Result).toHaveProperty('animationCount');
-      expect(pos0Result).toHaveProperty('triggeredAnimations');
+      const pos0Result = result.scrollPositionResults!["0"];
+      expect(pos0Result).toHaveProperty("animationCount");
+      expect(pos0Result).toHaveProperty("triggeredAnimations");
     });
   });
 
@@ -463,8 +463,8 @@ describe('RuntimeAnimationDetectorService', () => {
   // requestAnimationFrame 検出テスト
   // =====================================================
 
-  describe('requestAnimationFrame Detection', () => {
-    it('should detect active RAF callbacks', async () => {
+  describe("requestAnimationFrame Detection", () => {
+    it("should detect active RAF callbacks", async () => {
       await page.setContent(HTML_WITH_RAF);
       await page.waitForTimeout(200); // RAFが複数回呼ばれるのを待つ
 
@@ -473,7 +473,7 @@ describe('RuntimeAnimationDetectorService', () => {
       expect(result.rafCallbacks.length).toBeGreaterThan(0);
     });
 
-    it('should capture RAF callback frequency', async () => {
+    it("should capture RAF callback frequency", async () => {
       await page.setContent(HTML_WITH_RAF);
 
       const result = await service.detect(page, {
@@ -483,12 +483,12 @@ describe('RuntimeAnimationDetectorService', () => {
       expect(result.rafCallbacks.length).toBeGreaterThan(0);
 
       const rafInfo = result.rafCallbacks[0];
-      expect(rafInfo).toHaveProperty('callCount');
-      expect(rafInfo).toHaveProperty('avgFrameTime');
+      expect(rafInfo).toHaveProperty("callCount");
+      expect(rafInfo).toHaveProperty("avgFrameTime");
       expect(rafInfo.callCount).toBeGreaterThan(0);
     });
 
-    it('should identify elements modified by RAF', async () => {
+    it("should identify elements modified by RAF", async () => {
       await page.setContent(HTML_WITH_RAF);
       await page.waitForTimeout(200);
 
@@ -497,8 +497,8 @@ describe('RuntimeAnimationDetectorService', () => {
       expect(result.rafCallbacks.length).toBeGreaterThan(0);
 
       const rafInfo = result.rafCallbacks[0];
-      expect(rafInfo).toHaveProperty('modifiedElements');
-      expect(rafInfo.modifiedElements).toContain('#spinner');
+      expect(rafInfo).toHaveProperty("modifiedElements");
+      expect(rafInfo.modifiedElements).toContain("#spinner");
     });
   });
 
@@ -506,8 +506,8 @@ describe('RuntimeAnimationDetectorService', () => {
   // 複合アニメーション検出テスト
   // =====================================================
 
-  describe('Multiple Animation Types Detection', () => {
-    it('should detect all animation types simultaneously', async () => {
+  describe("Multiple Animation Types Detection", () => {
+    it("should detect all animation types simultaneously", async () => {
       await page.setContent(HTML_WITH_MULTIPLE_ANIMATION_TYPES);
       await page.waitForTimeout(200);
 
@@ -522,24 +522,22 @@ describe('RuntimeAnimationDetectorService', () => {
 
       // 合計が正しいことを確認
       expect(result.totalDetected).toBe(
-        result.animations.length +
-        result.rafCallbacks.length +
-        result.intersectionObservers.length
+        result.animations.length + result.rafCallbacks.length + result.intersectionObservers.length
       );
     });
 
-    it('should categorize animations by type', async () => {
+    it("should categorize animations by type", async () => {
       await page.setContent(HTML_WITH_MULTIPLE_ANIMATION_TYPES);
       await page.waitForTimeout(200);
 
       const result = await service.detect(page);
 
       // CSS animationが検出されていることを確認
-      const cssAnimation = result.animations.find(a => a.type === 'css_animation');
+      const cssAnimation = result.animations.find((a) => a.type === "css_animation");
       expect(cssAnimation).toBeDefined();
 
       // Web Animations API が検出されていることを確認
-      const wapiAnimation = result.animations.find(a => a.type === 'web_animations_api');
+      const wapiAnimation = result.animations.find((a) => a.type === "web_animations_api");
       expect(wapiAnimation).toBeDefined();
     });
   });
@@ -548,21 +546,21 @@ describe('RuntimeAnimationDetectorService', () => {
   // スクロール位置検出テスト
   // =====================================================
 
-  describe('Scroll Position Detection', () => {
-    it('should detect animations at different scroll positions', async () => {
+  describe("Scroll Position Detection", () => {
+    it("should detect animations at different scroll positions", async () => {
       await page.setContent(HTML_WITH_INTERSECTION_OBSERVER);
 
       const result = await service.detect(page, {
         scroll_positions: [0, 50, 100],
       });
 
-      expect(result).toHaveProperty('scrollPositionResults');
-      expect(result.scrollPositionResults).toHaveProperty('0');
-      expect(result.scrollPositionResults).toHaveProperty('50');
-      expect(result.scrollPositionResults).toHaveProperty('100');
+      expect(result).toHaveProperty("scrollPositionResults");
+      expect(result.scrollPositionResults).toHaveProperty("0");
+      expect(result.scrollPositionResults).toHaveProperty("50");
+      expect(result.scrollPositionResults).toHaveProperty("100");
     });
 
-    it('should respect default scroll positions', async () => {
+    it("should respect default scroll positions", async () => {
       await page.setContent(HTML_WITH_INTERSECTION_OBSERVER);
 
       const result = await service.detect(page);
@@ -576,8 +574,8 @@ describe('RuntimeAnimationDetectorService', () => {
   // オプション設定テスト
   // =====================================================
 
-  describe('Options', () => {
-    it('should respect wait_for_animations option', async () => {
+  describe("Options", () => {
+    it("should respect wait_for_animations option", async () => {
       await page.setContent(HTML_WITH_RAF);
 
       const shortWait = await service.detect(page, {
@@ -596,7 +594,7 @@ describe('RuntimeAnimationDetectorService', () => {
       }
     });
 
-    it('should handle invalid options gracefully', async () => {
+    it("should handle invalid options gracefully", async () => {
       await page.setContent(HTML_WITHOUT_ANIMATIONS);
 
       // 負の値は無視されるべき
@@ -614,8 +612,8 @@ describe('RuntimeAnimationDetectorService', () => {
   // エラーハンドリングテスト
   // =====================================================
 
-  describe('Error Handling', () => {
-    it('should handle page navigation during detection', async () => {
+  describe("Error Handling", () => {
+    it("should handle page navigation during detection", async () => {
       await page.setContent(HTML_WITH_RAF);
 
       // 検出中にページがナビゲートした場合のエラーハンドリング
@@ -625,7 +623,7 @@ describe('RuntimeAnimationDetectorService', () => {
 
       // 100ms後にページをナビゲート
       setTimeout(() => {
-        page.goto('about:blank').catch(() => {});
+        page.goto("about:blank").catch(() => {});
       }, 100);
 
       // エラーではなく、途中までの結果を返すべき
@@ -633,7 +631,7 @@ describe('RuntimeAnimationDetectorService', () => {
       expect(result).toBeDefined();
     });
 
-    it('should handle closed page gracefully', async () => {
+    it("should handle closed page gracefully", async () => {
       await page.setContent(HTML_WITHOUT_ANIMATIONS);
       await page.close();
 
@@ -643,7 +641,7 @@ describe('RuntimeAnimationDetectorService', () => {
       expect(result.animations).toHaveLength(0);
     });
 
-    it('should handle JavaScript errors in page gracefully', async () => {
+    it("should handle JavaScript errors in page gracefully", async () => {
       const htmlWithError = `
         <!DOCTYPE html>
         <html>
@@ -668,8 +666,8 @@ describe('RuntimeAnimationDetectorService', () => {
   // パフォーマンステスト
   // =====================================================
 
-  describe('Performance', () => {
-    it('should complete detection within reasonable time', async () => {
+  describe("Performance", () => {
+    it("should complete detection within reasonable time", async () => {
       await page.setContent(HTML_WITH_MULTIPLE_ANIMATION_TYPES);
 
       const start = Date.now();
@@ -683,7 +681,7 @@ describe('RuntimeAnimationDetectorService', () => {
       expect(result.detectionTimeMs).toBeLessThan(2000);
     });
 
-    it('should report accurate detection time', async () => {
+    it("should report accurate detection time", async () => {
       await page.setContent(HTML_WITHOUT_ANIMATIONS);
 
       const result = await service.detect(page);
@@ -698,46 +696,46 @@ describe('RuntimeAnimationDetectorService', () => {
 // Type Definition Tests
 // =====================================================
 
-describe('Type Definitions', () => {
-  it('AnimationInfo should have required properties', () => {
+describe("Type Definitions", () => {
+  it("AnimationInfo should have required properties", () => {
     const animationInfo: AnimationInfo = {
-      id: 'test-id',
-      type: 'web_animations_api',
-      playState: 'running',
+      id: "test-id",
+      type: "web_animations_api",
+      playState: "running",
       duration: 1000,
       iterations: 1,
-      easing: 'ease',
-      targetSelector: '#element',
-      animationName: 'test',
-      properties: ['transform', 'opacity'],
+      easing: "ease",
+      targetSelector: "#element",
+      animationName: "test",
+      properties: ["transform", "opacity"],
     };
 
     expect(animationInfo.id).toBeDefined();
-    expect(animationInfo.type).toBe('web_animations_api');
+    expect(animationInfo.type).toBe("web_animations_api");
     expect(animationInfo.duration).toBe(1000);
   });
 
-  it('IntersectionObserverInfo should have required properties', () => {
+  it("IntersectionObserverInfo should have required properties", () => {
     const observerInfo: IntersectionObserverInfo = {
-      id: 'observer-1',
+      id: "observer-1",
       targetCount: 5,
       options: {
         threshold: [0, 0.5, 1],
-        rootMargin: '0px',
+        rootMargin: "0px",
       },
-      targetSelectors: ['.item'],
+      targetSelectors: [".item"],
     };
 
     expect(observerInfo.targetCount).toBe(5);
     expect(observerInfo.options.threshold).toHaveLength(3);
   });
 
-  it('RAFInfo should have required properties', () => {
+  it("RAFInfo should have required properties", () => {
     const rafInfo: RAFInfo = {
-      id: 'raf-1',
+      id: "raf-1",
       callCount: 60,
       avgFrameTime: 16.67,
-      modifiedElements: ['#element'],
+      modifiedElements: ["#element"],
       isActive: true,
     };
 
@@ -746,7 +744,7 @@ describe('Type Definitions', () => {
     expect(rafInfo.isActive).toBe(true);
   });
 
-  it('RuntimeAnimationResult should have all required fields', () => {
+  it("RuntimeAnimationResult should have all required fields", () => {
     const result: RuntimeAnimationResult = {
       animations: [],
       intersectionObservers: [],

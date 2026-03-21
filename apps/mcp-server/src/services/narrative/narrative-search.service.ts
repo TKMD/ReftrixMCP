@@ -23,15 +23,15 @@ import type {
   NarrativeSearchOptions,
   NarrativeSearchResult,
   MoodCategory,
-} from './types/narrative.types';
+} from "./types/narrative.types";
 import {
   executeHybridSearch,
   buildFulltextConditions,
   buildFulltextRankExpression,
   toRankedItems,
-} from '@reftrix/ml';
-import type { RankedItem } from '@reftrix/ml';
-import { isDevelopment, logger } from '../../utils/logger';
+} from "@reftrix/ml";
+import type { RankedItem } from "@reftrix/ml";
+import { isDevelopment, logger } from "../../utils/logger";
 
 // =============================================================================
 // Constants
@@ -55,7 +55,7 @@ const DEFAULT_SEARCH_CONFIG = {
  * EmbeddingServiceインターフェース（DI用）
  */
 export interface IEmbeddingService {
-  generateEmbedding(text: string, type: 'query' | 'passage'): Promise<number[]>;
+  generateEmbedding(text: string, type: "query" | "passage"): Promise<number[]>;
 }
 
 /**
@@ -142,10 +142,10 @@ export function resetNarrativePrismaClientFactory(): void {
  * @returns WHERE句構成要素
  */
 function buildWhereClause(
-  filters: NarrativeSearchOptions['filters'],
+  filters: NarrativeSearchOptions["filters"],
   startParamIndex: number
 ): { conditions: string[]; params: unknown[]; nextParamIndex: number } {
-  const conditions: string[] = ['dne.embedding IS NOT NULL'];
+  const conditions: string[] = ["dne.embedding IS NOT NULL"];
   const params: unknown[] = [];
   let paramIndex = startParamIndex;
 
@@ -179,7 +179,7 @@ function mapRowToResult(row: VectorSearchRow): NarrativeSearchResult {
     vectorScore: row.similarity,
     fulltextScore: 0,
     moodCategory: row.mood_category as MoodCategory,
-    moodDescription: row.mood_description ?? '',
+    moodDescription: row.mood_description ?? "",
     confidence: row.confidence ?? 0,
   };
 }
@@ -207,7 +207,7 @@ export class NarrativeSearchService {
     };
 
     if (isDevelopment()) {
-      logger.info('[NarrativeSearchService] Initialized', {
+      logger.info("[NarrativeSearchService] Initialized", {
         defaultLimit: this.config.defaultLimit,
         vectorWeight: this.config.vectorWeight,
         fulltextWeight: this.config.fulltextWeight,
@@ -232,7 +232,9 @@ export class NarrativeSearchService {
       return this.embeddingService;
     }
 
-    throw new Error('EmbeddingService not initialized. Call setNarrativeEmbeddingServiceFactory() first.');
+    throw new Error(
+      "EmbeddingService not initialized. Call setNarrativeEmbeddingServiceFactory() first."
+    );
   }
 
   /**
@@ -248,7 +250,7 @@ export class NarrativeSearchService {
       return this.prismaClient;
     }
 
-    throw new Error('PrismaClient not initialized. Call setNarrativePrismaClientFactory() first.');
+    throw new Error("PrismaClient not initialized. Call setNarrativePrismaClientFactory() first.");
   }
 
   // ===========================================================================
@@ -268,7 +270,7 @@ export class NarrativeSearchService {
     const limit = options.limit ?? this.config.defaultLimit;
 
     if (isDevelopment()) {
-      logger.info('[NarrativeSearchService] Starting search', {
+      logger.info("[NarrativeSearchService] Starting search", {
         query: options.query,
         limit,
         filters: options.filters,
@@ -278,15 +280,19 @@ export class NarrativeSearchService {
     try {
       // 1. クエリからEmbeddingを生成
       const queryEmbedding = await this.generateQueryEmbedding(options.query);
-      const vectorString = `[${queryEmbedding.join(',')}]`;
+      const vectorString = `[${queryEmbedding.join(",")}]`;
 
       // 2. フィルター条件を構築（$1 = vectorString）
-      const { conditions, params: filterParams, nextParamIndex } = buildWhereClause(
+      const {
+        conditions,
+        params: filterParams,
+        nextParamIndex,
+      } = buildWhereClause(
         options.filters,
         2 // $1 is reserved for vectorString
       );
 
-      const whereClause = `WHERE ${conditions.join(' AND ')}`;
+      const whereClause = `WHERE ${conditions.join(" AND ")}`;
 
       // 3. pgvector HNSW cosine similarity検索
       const sql = `
@@ -312,7 +318,7 @@ export class NarrativeSearchService {
 
       const processingTimeMs = Date.now() - startTime;
       if (isDevelopment()) {
-        logger.info('[NarrativeSearchService] Search complete', {
+        logger.info("[NarrativeSearchService] Search complete", {
           processingTimeMs,
           resultCount: results.length,
         });
@@ -321,8 +327,8 @@ export class NarrativeSearchService {
       return results;
     } catch (error) {
       if (isDevelopment()) {
-        logger.error('[NarrativeSearchService] Search error', {
-          error: error instanceof Error ? error.message : 'Unknown error',
+        logger.error("[NarrativeSearchService] Search error", {
+          error: error instanceof Error ? error.message : "Unknown error",
           query: options.query,
         });
       }
@@ -345,7 +351,7 @@ export class NarrativeSearchService {
     const queryText = options.query;
 
     if (isDevelopment()) {
-      logger.info('[NarrativeSearchService] Starting hybrid search (vector + fulltext)', {
+      logger.info("[NarrativeSearchService] Starting hybrid search (vector + fulltext)", {
         query: queryText,
         limit,
         vectorWeight: options.vectorWeight ?? this.config.vectorWeight,
@@ -359,7 +365,7 @@ export class NarrativeSearchService {
       prisma = this.getPrismaClient();
     } catch {
       if (isDevelopment()) {
-        logger.warn('[NarrativeSearchService] PrismaClient not available, returning empty');
+        logger.warn("[NarrativeSearchService] PrismaClient not available, returning empty");
       }
       return [];
     }
@@ -367,13 +373,16 @@ export class NarrativeSearchService {
     try {
       // 1. クエリEmbedding生成
       const queryEmbedding = await this.generateQueryEmbedding(queryText);
-      const vectorString = `[${queryEmbedding.join(',')}]`;
+      const vectorString = `[${queryEmbedding.join(",")}]`;
       const fetchLimit = Math.min(limit * 3, 150);
 
       // フィルター条件を構築（パラメータインデックスは1から開始）
-      const { conditions: baseConditions, params: baseParams, nextParamIndex: paramIndex } =
-        buildWhereClause(options.filters, 1);
-      const baseWhereClause = `WHERE ${baseConditions.join(' AND ')}`;
+      const {
+        conditions: baseConditions,
+        params: baseParams,
+        nextParamIndex: paramIndex,
+      } = buildWhereClause(options.filters, 1);
+      const baseWhereClause = `WHERE ${baseConditions.join(" AND ")}`;
 
       // 2. ベクトル検索関数
       const vectorSearchFn = async (): Promise<RankedItem[]> => {
@@ -402,16 +411,18 @@ export class NarrativeSearchService {
           fetchLimit
         );
 
-        return toRankedItems(rows.map((r) => ({
-          id: r.id,
-          web_page_id: r.web_page_id,
-          mood_category: r.mood_category,
-          mood_description: r.mood_description,
-          confidence: r.confidence,
-          similarity: r.similarity,
-          wp_url: r.wp_url,
-          wp_title: r.wp_title,
-        })));
+        return toRankedItems(
+          rows.map((r) => ({
+            id: r.id,
+            web_page_id: r.web_page_id,
+            mood_category: r.mood_category,
+            mood_description: r.mood_description,
+            confidence: r.confidence,
+            similarity: r.similarity,
+            wp_url: r.wp_url,
+            wp_title: r.wp_title,
+          }))
+        );
       };
 
       // 3. 全文検索関数
@@ -420,11 +431,11 @@ export class NarrativeSearchService {
           const ftQueryIdx = paramIndex;
           const ftLimitIdx = paramIndex + 1;
 
-          const ftCond = buildFulltextConditions('dne.search_vector', ftQueryIdx);
-          const ftRank = buildFulltextRankExpression('dne.search_vector', ftQueryIdx);
+          const ftCond = buildFulltextConditions("dne.search_vector", ftQueryIdx);
+          const ftRank = buildFulltextRankExpression("dne.search_vector", ftQueryIdx);
 
           // ベースフィルター条件を取得（WHERE を除去してANDで連結）
-          const baseConditionsPart = baseWhereClause.replace(/^WHERE\s+/i, '');
+          const baseConditionsPart = baseWhereClause.replace(/^WHERE\s+/i, "");
           const ftWhereClause = `WHERE ${baseConditionsPart} AND ${ftCond}`;
 
           const ftSql = `
@@ -449,21 +460,23 @@ export class NarrativeSearchService {
             fetchLimit
           );
 
-          return toRankedItems(rows.map((r) => ({
-            id: r.id,
-            web_page_id: r.web_page_id,
-            mood_category: r.mood_category,
-            mood_description: r.mood_description,
-            confidence: r.confidence,
-            similarity: r.similarity,
-            wp_url: r.wp_url,
-            wp_title: r.wp_title,
-          })));
+          return toRankedItems(
+            rows.map((r) => ({
+              id: r.id,
+              web_page_id: r.web_page_id,
+              mood_category: r.mood_category,
+              mood_description: r.mood_description,
+              confidence: r.confidence,
+              similarity: r.similarity,
+              wp_url: r.wp_url,
+              wp_title: r.wp_title,
+            }))
+          );
         } catch (ftError) {
           // 全文検索の失敗はハイブリッド検索全体をブロックしない
           if (isDevelopment()) {
-            logger.warn('[NarrativeSearchService] Full-text search failed, using vector only', {
-              error: ftError instanceof Error ? ftError.message : 'Unknown error',
+            logger.warn("[NarrativeSearchService] Full-text search failed, using vector only", {
+              error: ftError instanceof Error ? ftError.message : "Unknown error",
             });
           }
           return [];
@@ -478,19 +491,19 @@ export class NarrativeSearchService {
         const data = hr.data as Record<string, unknown>;
         return {
           id: String(data.id ?? hr.id),
-          webPageId: String(data.web_page_id ?? ''),
+          webPageId: String(data.web_page_id ?? ""),
           score: hr.similarity,
           vectorScore: hr.similarity,
           fulltextScore: 0, // RRFスコアに統合済み
-          moodCategory: String(data.mood_category ?? '') as MoodCategory,
-          moodDescription: String(data.mood_description ?? ''),
+          moodCategory: String(data.mood_category ?? "") as MoodCategory,
+          moodDescription: String(data.mood_description ?? ""),
           confidence: Number(data.confidence ?? 0),
         };
       });
 
       const processingTimeMs = Date.now() - startTime;
       if (isDevelopment()) {
-        logger.info('[NarrativeSearchService] Hybrid search completed', {
+        logger.info("[NarrativeSearchService] Hybrid search completed", {
           totalMerged: hybridResults.length,
           resultsCount: results.length,
           processingTimeMs,
@@ -500,10 +513,13 @@ export class NarrativeSearchService {
       return results;
     } catch (error) {
       if (isDevelopment()) {
-        logger.error('[NarrativeSearchService] Hybrid search error, falling back to vector search', {
-          error: error instanceof Error ? error.message : 'Unknown error',
-          query: queryText,
-        });
+        logger.error(
+          "[NarrativeSearchService] Hybrid search error, falling back to vector search",
+          {
+            error: error instanceof Error ? error.message : "Unknown error",
+            query: queryText,
+          }
+        );
       }
       // フォールバック: ベクトル検索のみ
       return this.search(options);
@@ -523,13 +539,13 @@ export class NarrativeSearchService {
     embedding: number[],
     limit?: number,
     minSimilarity?: number,
-    filters?: NarrativeSearchOptions['filters']
+    filters?: NarrativeSearchOptions["filters"]
   ): Promise<NarrativeSearchResult[]> {
     const effectiveLimit = limit ?? this.config.defaultLimit;
     const effectiveMinSimilarity = minSimilarity ?? DEFAULT_SEARCH_CONFIG.minSimilarity;
 
     if (isDevelopment()) {
-      logger.info('[NarrativeSearchService] Vector search', {
+      logger.info("[NarrativeSearchService] Vector search", {
         embeddingDimensions: embedding.length,
         limit: effectiveLimit,
         minSimilarity: effectiveMinSimilarity,
@@ -541,16 +557,20 @@ export class NarrativeSearchService {
       prisma = this.getPrismaClient();
     } catch {
       if (isDevelopment()) {
-        logger.warn('[NarrativeSearchService] PrismaClient not available for vector search');
+        logger.warn("[NarrativeSearchService] PrismaClient not available for vector search");
       }
       return [];
     }
 
     try {
-      const vectorString = `[${embedding.join(',')}]`;
+      const vectorString = `[${embedding.join(",")}]`;
 
       // フィルター条件を構築（$1 = vectorString, $2 = minSimilarity）
-      const { conditions, params: filterParams, nextParamIndex } = buildWhereClause(
+      const {
+        conditions,
+        params: filterParams,
+        nextParamIndex,
+      } = buildWhereClause(
         filters,
         3 // $1 = vectorString, $2 = minSimilarity
       );
@@ -558,7 +578,7 @@ export class NarrativeSearchService {
       // 最小類似度フィルターを追加
       conditions.push(`1 - (dne.embedding <=> $1::vector) >= $2`);
 
-      const whereClause = `WHERE ${conditions.join(' AND ')}`;
+      const whereClause = `WHERE ${conditions.join(" AND ")}`;
 
       const sql = `
         SELECT
@@ -581,8 +601,8 @@ export class NarrativeSearchService {
       return rows.map(mapRowToResult);
     } catch (error) {
       if (isDevelopment()) {
-        logger.error('[NarrativeSearchService] Vector search error', {
-          error: error instanceof Error ? error.message : 'Unknown error',
+        logger.error("[NarrativeSearchService] Vector search error", {
+          error: error instanceof Error ? error.message : "Unknown error",
         });
       }
       throw error;
@@ -606,7 +626,7 @@ export class NarrativeSearchService {
     const effectiveLimit = limit ?? this.config.defaultLimit;
 
     if (isDevelopment()) {
-      logger.info('[NarrativeSearchService] MoodCategory search', {
+      logger.info("[NarrativeSearchService] MoodCategory search", {
         moodCategories,
         limit: effectiveLimit,
       });
@@ -621,7 +641,7 @@ export class NarrativeSearchService {
       prisma = this.getPrismaClient();
     } catch {
       if (isDevelopment()) {
-        logger.warn('[NarrativeSearchService] PrismaClient not available for mood search');
+        logger.warn("[NarrativeSearchService] PrismaClient not available for mood search");
       }
       return [];
     }
@@ -649,8 +669,8 @@ export class NarrativeSearchService {
       return rows.map(mapRowToResult);
     } catch (error) {
       if (isDevelopment()) {
-        logger.error('[NarrativeSearchService] MoodCategory search error', {
-          error: error instanceof Error ? error.message : 'Unknown error',
+        logger.error("[NarrativeSearchService] MoodCategory search error", {
+          error: error instanceof Error ? error.message : "Unknown error",
           moodCategories,
         });
       }
@@ -670,7 +690,7 @@ export class NarrativeSearchService {
 
     // NOTE: generateEmbedding() が内部で E5 prefix ("query: " / "passage: ") を
     // 自動付与するため、ここではプレフィックスなしのテキストを渡す。
-    return embeddingService.generateEmbedding(query, 'query');
+    return embeddingService.generateEmbedding(query, "query");
   }
 }
 

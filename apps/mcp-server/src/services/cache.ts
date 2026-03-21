@@ -11,10 +11,10 @@
  * - キャッシュヒット率の追跡
  * - メモリ効率を考慮した実装
  */
-import { createHash } from 'crypto';
-import { Logger } from '../utils/logger';
+import { createHash } from "crypto";
+import { Logger } from "../utils/logger";
 
-const logger = new Logger('Cache');
+const logger = new Logger("Cache");
 
 /**
  * キャッシュエントリの型定義
@@ -59,7 +59,7 @@ export class LRUCache<T> {
     this.maxSize = options.maxSize;
     this.defaultTTL = options.ttlMs;
 
-    logger.debug('LRUCache initialized', {
+    logger.debug("LRUCache initialized", {
       maxSize: this.maxSize,
       defaultTTL: this.defaultTTL,
     });
@@ -75,7 +75,7 @@ export class LRUCache<T> {
 
     if (!entry) {
       this.misses++;
-      logger.debug('Miss', { key });
+      logger.debug("Miss", { key });
       return undefined;
     }
 
@@ -83,7 +83,7 @@ export class LRUCache<T> {
     if (this.isExpired(entry)) {
       this.cache.delete(key);
       this.misses++;
-      logger.debug('Expired', { key });
+      logger.debug("Expired", { key });
       return undefined;
     }
 
@@ -93,7 +93,7 @@ export class LRUCache<T> {
     this.cache.set(key, entry);
 
     this.hits++;
-    logger.debug('Hit', { key });
+    logger.debug("Hit", { key });
     return entry.value;
   }
 
@@ -120,7 +120,7 @@ export class LRUCache<T> {
     this.cache.delete(key);
     this.cache.set(key, entry);
 
-    logger.debug('Set', {
+    logger.debug("Set", {
       key,
       ttl: ttlMs ?? this.defaultTTL,
       size: this.cache.size,
@@ -153,7 +153,7 @@ export class LRUCache<T> {
   delete(key: string): boolean {
     const deleted = this.cache.delete(key);
     if (deleted) {
-      logger.debug('Delete', { key });
+      logger.debug("Delete", { key });
     }
     return deleted;
   }
@@ -165,7 +165,7 @@ export class LRUCache<T> {
     this.cache.clear();
     this.hits = 0;
     this.misses = 0;
-    logger.debug('Cleared');
+    logger.debug("Cleared");
   }
 
   /**
@@ -207,7 +207,7 @@ export class LRUCache<T> {
     const firstKey = this.cache.keys().next().value;
     if (firstKey !== undefined) {
       this.cache.delete(firstKey);
-      logger.debug('Evicted LRU', { key: firstKey });
+      logger.debug("Evicted LRU", { key: firstKey });
     }
   }
 
@@ -236,12 +236,12 @@ export interface SearchResult {
  * 検索結果キャッシュクラス
  * クエリとフィルターからキーを生成
  */
-const searchLogger = new Logger('SearchCache');
+const searchLogger = new Logger("SearchCache");
 
 export class SearchCache extends LRUCache<SearchResult[]> {
   constructor(options: LRUCacheOptions) {
     super(options);
-    searchLogger.debug('Initialized');
+    searchLogger.debug("Initialized");
   }
 
   /**
@@ -252,7 +252,7 @@ export class SearchCache extends LRUCache<SearchResult[]> {
    */
   generateKey(query: string, filters?: Record<string, unknown>): string {
     const input = JSON.stringify({ query, filters: filters ?? {} });
-    const hash = createHash('sha256').update(input).digest('hex');
+    const hash = createHash("sha256").update(input).digest("hex");
     return `search:${hash.substring(0, 16)}`;
   }
 }
@@ -261,12 +261,12 @@ export class SearchCache extends LRUCache<SearchResult[]> {
  * Embeddingキャッシュクラス
  * テキストからキーを生成してベクトルをキャッシュ
  */
-const embeddingLogger = new Logger('EmbeddingCache');
+const embeddingLogger = new Logger("EmbeddingCache");
 
 export class EmbeddingCache extends LRUCache<number[]> {
   constructor(options: LRUCacheOptions) {
     super(options);
-    embeddingLogger.debug('Initialized');
+    embeddingLogger.debug("Initialized");
   }
 
   /**
@@ -275,7 +275,7 @@ export class EmbeddingCache extends LRUCache<number[]> {
    * @returns ハッシュ化されたキー
    */
   generateKey(text: string): string {
-    const hash = createHash('sha256').update(text).digest('hex');
+    const hash = createHash("sha256").update(text).digest("hex");
     return `embedding:${hash.substring(0, 16)}`;
   }
 }

@@ -16,22 +16,25 @@
  * - 配線漏れ検出（必須サービス未初期化の警告）
  */
 
-import { createServer, start, SERVER_CONFIG } from './server';
-import { createTransport } from './transport';
-import { logger, validateEnvironment } from './utils/logger';
-import { registerTool, setAuthMiddleware } from './router';
-import { toolHandlers, checkToolConsistency } from './tools';
-import { createAuthMiddleware, PUBLIC_TOOLS } from './middleware/auth';
+import { createServer, start, SERVER_CONFIG } from "./server";
+import { createTransport } from "./transport";
+import { logger, validateEnvironment } from "./utils/logger";
+import { registerTool, setAuthMiddleware } from "./router";
+import { toolHandlers, checkToolConsistency } from "./tools";
+import { createAuthMiddleware, PUBLIC_TOOLS } from "./middleware/auth";
 import {
   assertProductionAuthEnabled,
   ProductionAuthRequiredError,
   isProductionEnvironment,
-} from './services/production-guard';
-import { embeddingService } from '@reftrix/ml';
-import { prisma } from '@reftrix/database';
-import { webPageService } from './services/web-page.service';
-import { initializeAllServices, type ServiceInitializerConfig } from './services/service-initializer';
-import { getWorkerSupervisor } from './services/worker-supervisor.service';
+} from "./services/production-guard";
+import { embeddingService } from "@reftrix/ml";
+import { prisma } from "@reftrix/database";
+import { webPageService } from "./services/web-page.service";
+import {
+  initializeAllServices,
+  type ServiceInitializerConfig,
+} from "./services/service-initializer";
+import { getWorkerSupervisor } from "./services/worker-supervisor.service";
 
 /**
  * メイン関数
@@ -43,7 +46,7 @@ async function main(): Promise<void> {
   const environment = validateEnvironment();
   logger.info(`Environment validated: ${environment}`);
 
-  logger.info('Reftrix MCP Server starting...');
+  logger.info("Reftrix MCP Server starting...");
   logger.info(`Server: ${SERVER_CONFIG.name} v${SERVER_CONFIG.version}`);
 
   try {
@@ -62,11 +65,11 @@ async function main(): Promise<void> {
     const initResult = initializeAllServices(serviceConfig);
 
     if (!initResult.success) {
-      logger.error('[Main] Service initialization failed', { error: initResult.error });
+      logger.error("[Main] Service initialization failed", { error: initResult.error });
       throw new Error(`Service initialization failed: ${initResult.error}`);
     }
 
-    logger.info('[Main] Service factories registered via initializeAllServices()');
+    logger.info("[Main] Service factories registered via initializeAllServices()");
 
     // 本番環境では認証を強制（MCP-AUTH-01）
     // NODE_ENV=production かつ MCP_AUTH_ENABLED!==true の場合、起動を失敗させる
@@ -74,17 +77,19 @@ async function main(): Promise<void> {
     assertProductionAuthEnabled();
 
     // 認証ミドルウェアを設定（環境変数で制御）
-    const authEnabled = process.env.MCP_AUTH_ENABLED === 'true';
+    const authEnabled = process.env.MCP_AUTH_ENABLED === "true";
     if (authEnabled) {
       const authMiddleware = createAuthMiddleware({
         enabled: true,
         publicTools: PUBLIC_TOOLS,
       });
       setAuthMiddleware(authMiddleware);
-      logger.info('[Main] Authentication middleware enabled');
-      logger.info(`[Main] Public tools: ${PUBLIC_TOOLS.join(', ')}`);
+      logger.info("[Main] Authentication middleware enabled");
+      logger.info(`[Main] Public tools: ${PUBLIC_TOOLS.join(", ")}`);
     } else {
-      logger.info('[Main] Authentication middleware disabled (set MCP_AUTH_ENABLED=true to enable)');
+      logger.info(
+        "[Main] Authentication middleware disabled (set MCP_AUTH_ENABLED=true to enable)"
+      );
     }
 
     // =====================================================
@@ -94,18 +99,14 @@ async function main(): Promise<void> {
     // 手動二重管理による登録漏れを起動時に検出
     const toolCheck = checkToolConsistency();
     if (!toolCheck.isConsistent) {
-      const errorMsgParts: string[] = ['Tool definition mismatch detected:'];
+      const errorMsgParts: string[] = ["Tool definition mismatch detected:"];
       if (toolCheck.missingHandlers.length > 0) {
-        errorMsgParts.push(
-          `Missing handlers: ${toolCheck.missingHandlers.join(', ')}`
-        );
+        errorMsgParts.push(`Missing handlers: ${toolCheck.missingHandlers.join(", ")}`);
       }
       if (toolCheck.extraHandlers.length > 0) {
-        errorMsgParts.push(
-          `Extra handlers: ${toolCheck.extraHandlers.join(', ')}`
-        );
+        errorMsgParts.push(`Extra handlers: ${toolCheck.extraHandlers.join(", ")}`);
       }
-      const errorMsg = errorMsgParts.join(' ');
+      const errorMsg = errorMsgParts.join(" ");
 
       if (isProductionEnvironment()) {
         logger.error(`FATAL: ${errorMsg}`);
@@ -134,12 +135,12 @@ async function main(): Promise<void> {
     // サーバーを起動（StdIO）
     await start(server, transport);
 
-    logger.info('StdIO transport is ready to accept connections');
-    logger.info('MCP Server is ready (StdIO Mode)');
+    logger.info("StdIO transport is ready to accept connections");
+    logger.info("MCP Server is ready (StdIO Mode)");
 
     // プロセス終了シグナルのハンドリング
     const handleShutdown = async (): Promise<void> => {
-      logger.info('Shutting down server...');
+      logger.info("Shutting down server...");
 
       try {
         // WorkerSupervisor を先にシャットダウン（3-Phase Shutdown Protocol）
@@ -147,50 +148,51 @@ async function main(): Promise<void> {
         try {
           const supervisor = getWorkerSupervisor();
           await supervisor.shutdown();
-          logger.info('WorkerSupervisor shutdown complete');
+          logger.info("WorkerSupervisor shutdown complete");
         } catch (supervisorError: unknown) {
           // WorkerSupervisor が未初期化（page.analyze未実行）の場合はエラーではない
-          logger.warn('WorkerSupervisor shutdown skipped or failed', {
-            error: supervisorError instanceof Error ? supervisorError.message : String(supervisorError),
+          logger.warn("WorkerSupervisor shutdown skipped or failed", {
+            error:
+              supervisorError instanceof Error ? supervisorError.message : String(supervisorError),
           });
         }
 
         // StdIO Serverを停止
         await server.close();
-        logger.info('StdIO transport shutdown complete');
+        logger.info("StdIO transport shutdown complete");
 
-        logger.info('MCP Server shutdown complete');
+        logger.info("MCP Server shutdown complete");
         process.exit(0);
       } catch (error) {
-        logger.error('Error during shutdown', error);
+        logger.error("Error during shutdown", error);
         process.exit(1);
       }
     };
 
-    process.on('SIGINT', handleShutdown);
-    process.on('SIGTERM', handleShutdown);
+    process.on("SIGINT", handleShutdown);
+    process.on("SIGTERM", handleShutdown);
   } catch (error) {
     // ProductionAuthRequiredErrorの場合は既にログ出力済み
     if (error instanceof ProductionAuthRequiredError) {
       process.exit(1);
     }
-    logger.error('Failed to start MCP server', error);
+    logger.error("Failed to start MCP server", error);
     process.exit(1);
   }
 }
 
 // エントリポイント
 main().catch((error) => {
-  logger.error('Unhandled error in main', error);
+  logger.error("Unhandled error in main", error);
   process.exit(1);
 });
 
 // 公開API
-export { createServer, start } from './server';
-export { createTransport } from './transport';
-export { ErrorCode, McpError } from './utils/errors';
-export { Logger, logger, createLogger } from './utils/logger';
-export type { ILogger } from './utils/logger';
+export { createServer, start } from "./server";
+export { createTransport } from "./transport";
+export { ErrorCode, McpError } from "./utils/errors";
+export { Logger, logger, createLogger } from "./utils/logger";
+export type { ILogger } from "./utils/logger";
 export {
   registerTool,
   handleToolCall,
@@ -200,8 +202,8 @@ export {
   getAuthMiddleware,
   TOOL_NAMES,
   ALL_TOOL_NAMES,
-} from './router';
-export type { ToolHandler, ToolCallResult } from './router';
+} from "./router";
+export type { ToolHandler, ToolCallResult } from "./router";
 export {
   createAuthMiddleware,
   validateApiKey,
@@ -210,19 +212,15 @@ export {
   ROLES,
   TOOL_PERMISSIONS,
   PUBLIC_TOOLS,
-} from './middleware/auth';
+} from "./middleware/auth";
 export type {
   AuthContext,
   AuthMiddlewareOptions,
   AuthResult,
   AuthMiddlewareInstance,
   Role,
-} from './middleware/auth';
-export {
-  ServiceClient,
-  serviceClient,
-  API_BASE_URL,
-} from './services/service-client';
+} from "./middleware/auth";
+export { ServiceClient, serviceClient, API_BASE_URL } from "./services/service-client";
 export type {
   ProjectBrandSettingInfo,
   ProjectResponse,
@@ -230,15 +228,9 @@ export type {
   ProjectListResponse,
   ColorToken,
   PaletteResponse,
-} from './services/service-client';
-export {
-  webPageService,
-  createWebPageService,
-} from './services/web-page.service';
-export type {
-  IWebPageService,
-  WebPageResult,
-} from './services/web-page.service';
+} from "./services/service-client";
+export { webPageService, createWebPageService } from "./services/web-page.service";
+export type { IWebPageService, WebPageResult } from "./services/web-page.service";
 export {
   assertProductionAuthEnabled,
   isMcpAuthEnabled,
@@ -246,7 +238,7 @@ export {
   isProductionEnvironment,
   ProductionAuthRequiredError,
   ProductionGuardError,
-} from './services/production-guard';
+} from "./services/production-guard";
 
 // ====================================================
 // Service Export Layer（外部モジュールから利用可能）
@@ -350,7 +342,7 @@ export {
   type LayoutToCodeOptions,
   type LayoutToCodeErrorInfo,
   type Framework,
-} from './services';
+} from "./services";
 
 // ====================================================
 // Service Initializer Export（統合初期化API）
@@ -365,4 +357,4 @@ export {
   type IEmbeddingService,
   type IWebPageService as IWebPageServiceInitializer,
   type IPrismaClientMinimal,
-} from './services/service-initializer';
+} from "./services/service-initializer";

@@ -14,7 +14,7 @@
  * - モーションベクトル推定 (motion_vector)
  * - 要素出現/消失検出 (element_visibility)
  */
-import { z } from 'zod';
+import { z } from "zod";
 
 // ============================================================================
 // Constants
@@ -41,23 +41,23 @@ export const MIN_ANALYSIS_FRAMES = 2;
  */
 export const ANALYZE_FRAMES_ERROR_CODES = {
   /** バリデーションエラー */
-  VALIDATION_ERROR: 'VALIDATION_ERROR',
+  VALIDATION_ERROR: "VALIDATION_ERROR",
   /** ディレクトリが見つからない */
-  DIRECTORY_NOT_FOUND: 'DIRECTORY_NOT_FOUND',
+  DIRECTORY_NOT_FOUND: "DIRECTORY_NOT_FOUND",
   /** フレームが見つからない */
-  NO_FRAMES_FOUND: 'NO_FRAMES_FOUND',
+  NO_FRAMES_FOUND: "NO_FRAMES_FOUND",
   /** フレーム数不足 */
-  INSUFFICIENT_FRAMES: 'INSUFFICIENT_FRAMES',
+  INSUFFICIENT_FRAMES: "INSUFFICIENT_FRAMES",
   /** 解析エラー */
-  ANALYSIS_ERROR: 'ANALYSIS_ERROR',
+  ANALYSIS_ERROR: "ANALYSIS_ERROR",
   /** 画像読み込みエラー */
-  IMAGE_READ_ERROR: 'IMAGE_READ_ERROR',
+  IMAGE_READ_ERROR: "IMAGE_READ_ERROR",
   /** メモリ不足 */
-  OUT_OF_MEMORY: 'OUT_OF_MEMORY',
+  OUT_OF_MEMORY: "OUT_OF_MEMORY",
   /** タイムアウト */
-  TIMEOUT: 'TIMEOUT',
+  TIMEOUT: "TIMEOUT",
   /** 内部エラー */
-  INTERNAL_ERROR: 'INTERNAL_ERROR',
+  INTERNAL_ERROR: "INTERNAL_ERROR",
 } as const;
 
 export type AnalyzeFramesErrorCode =
@@ -101,11 +101,11 @@ export type ChangeRegion = z.infer<typeof changeRegionSchema>;
  * 解析タイプ
  */
 export const analysisTypeSchema = z.enum([
-  'frame_diff',
-  'layout_shift',
-  'color_change',
-  'motion_vector',
-  'element_visibility',
+  "frame_diff",
+  "layout_shift",
+  "color_change",
+  "motion_vector",
+  "element_visibility",
 ]);
 export type AnalysisType = z.infer<typeof analysisTypeSchema>;
 
@@ -120,14 +120,16 @@ export const analyzeOptionsSchema = z.object({
   /** 変化検出閾値 (0-1, デフォルト: 0.1) */
   diff_threshold: z
     .number()
-    .min(0, { message: 'diff_thresholdは0以上である必要があります' })
-    .max(1, { message: 'diff_thresholdは1以下である必要があります' })
+    .min(0, { message: "diff_thresholdは0以上である必要があります" })
+    .max(1, { message: "diff_thresholdは1以下である必要があります" })
     .default(0.1),
   /** 最大フレーム数 (2-3600, デフォルト: 300) */
   max_frames: z
     .number()
     .int()
-    .min(MIN_ANALYSIS_FRAMES, { message: `max_framesは${MIN_ANALYSIS_FRAMES}以上である必要があります` })
+    .min(MIN_ANALYSIS_FRAMES, {
+      message: `max_framesは${MIN_ANALYSIS_FRAMES}以上である必要があります`,
+    })
     .max(MAX_ANALYSIS_FRAMES, { message: `max_framesは${MAX_ANALYSIS_FRAMES}以下にしてください` })
     .default(300),
   /** 並列処理を使用するか (デフォルト: true) */
@@ -144,21 +146,20 @@ export const analyzeFramesInputSchema = z.object({
   /** フレーム画像ディレクトリパス (必須) */
   frame_dir: z
     .string()
-    .min(1, { message: 'frame_dirは1文字以上必要です' })
-    .refine(
-      (dir) => !dir.includes('..'),
-      { message: 'frame_dirにパストラバーサル文字(..)は使用できません' }
-    ),
+    .min(1, { message: "frame_dirは1文字以上必要です" })
+    .refine((dir) => !dir.includes(".."), {
+      message: "frame_dirにパストラバーサル文字(..)は使用できません",
+    }),
   /** ファイル名パターン (デフォルト: frame-*.png) */
   frame_pattern: z
     .string()
-    .min(1, { message: 'frame_patternは1文字以上必要です' })
-    .default('frame-*.png'),
+    .min(1, { message: "frame_patternは1文字以上必要です" })
+    .default("frame-*.png"),
   /** 解析タイプの配列 (デフォルト: ['frame_diff', 'layout_shift']) */
   analysis_types: z
     .array(analysisTypeSchema)
-    .min(1, { message: '最低1つの解析タイプが必要です' })
-    .default(['frame_diff', 'layout_shift']),
+    .min(1, { message: "最低1つの解析タイプが必要です" })
+    .default(["frame_diff", "layout_shift"]),
   /** 解析オプション */
   options: analyzeOptionsSchema.optional(),
 });
@@ -210,21 +211,17 @@ export type FrameDiffSummary = z.infer<typeof frameDiffSummarySchema>;
  * レイアウトシフト原因
  */
 export const layoutShiftCauseSchema = z.enum([
-  'image_load',
-  'font_swap',
-  'dynamic_content',
-  'unknown',
+  "image_load",
+  "font_swap",
+  "dynamic_content",
+  "unknown",
 ]);
 export type LayoutShiftCause = z.infer<typeof layoutShiftCauseSchema>;
 
 /**
  * シフト方向
  */
-export const shiftDirectionSchema = z.enum([
-  'horizontal',
-  'vertical',
-  'both',
-]);
+export const shiftDirectionSchema = z.enum(["horizontal", "vertical", "both"]);
 export type ShiftDirection = z.infer<typeof shiftDirectionSchema>;
 
 /**
@@ -267,10 +264,10 @@ export type LayoutShiftSummary = z.infer<typeof layoutShiftSummarySchema>;
  * 色変化タイプ
  */
 export const colorChangeTypeSchema = z.enum([
-  'fade_in',
-  'fade_out',
-  'color_transition',
-  'brightness_change',
+  "fade_in",
+  "fade_out",
+  "color_transition",
+  "brightness_change",
 ]);
 export type ColorChangeType = z.infer<typeof colorChangeTypeSchema>;
 
@@ -307,12 +304,7 @@ export type ColorChangeResult = z.infer<typeof colorChangeResultSchema>;
 /**
  * モーションタイプ
  */
-export const motionTypeEnumSchema = z.enum([
-  'linear',
-  'curved',
-  'oscillating',
-  'complex',
-]);
+export const motionTypeEnumSchema = z.enum(["linear", "curved", "oscillating", "complex"]);
 export type MotionTypeEnum = z.infer<typeof motionTypeEnumSchema>;
 
 /**
@@ -348,13 +340,7 @@ export type MotionVectorSummary = z.infer<typeof motionVectorSummarySchema>;
 /**
  * 要素アニメーションヒント
  */
-export const animationHintSchema = z.enum([
-  'instant',
-  'fade',
-  'slide',
-  'scale',
-  'unknown',
-]);
+export const animationHintSchema = z.enum(["instant", "fade", "slide", "scale", "unknown"]);
 export type AnimationHint = z.infer<typeof animationHintSchema>;
 
 /**
@@ -362,7 +348,7 @@ export type AnimationHint = z.infer<typeof animationHintSchema>;
  */
 export const visibilityEventSchema = z.object({
   /** イベントタイプ */
-  type: z.enum(['appear', 'disappear']),
+  type: z.enum(["appear", "disappear"]),
   /** 発生フレームインデックス */
   frame_index: z.number().int().nonnegative(),
   /** 要素領域 */
@@ -468,7 +454,7 @@ export const analyzeFramesErrorOutputSchema = z.object({
 /**
  * motion.analyze_frames 出力スキーマ（統合）
  */
-export const analyzeFramesOutputSchema = z.discriminatedUnion('success', [
+export const analyzeFramesOutputSchema = z.discriminatedUnion("success", [
   analyzeFramesSuccessOutputSchema,
   analyzeFramesErrorOutputSchema,
 ]);
@@ -482,7 +468,7 @@ export type AnalyzeFramesOutput = z.infer<typeof analyzeFramesOutputSchema>;
  * MCP Tool definition for motion.analyze_frames
  */
 export const analyzeFramesMcpTool = {
-  name: 'motion.analyze_frames',
+  name: "motion.analyze_frames",
   description: `フレーム画像（PNG/JPEG連番）を解析し、モーション/アニメーションパターンを検出します。
 
 対応する解析タイプ:

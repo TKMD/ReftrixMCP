@@ -26,7 +26,7 @@
  * @module services/page/section-postprocessor
  */
 
-import { isDevelopment, logger } from '../../utils/logger';
+import { isDevelopment, logger } from "../../utils/logger";
 
 // =====================================================
 // 定数 / Constants
@@ -48,17 +48,17 @@ const MIN_CONSECUTIVE_COUNT = 3;
  * cta was added in v0.1.8 (3+ consecutive CTA over-segmentation confirmed in production data).
  */
 const MERGEABLE_TYPES = new Set([
-  'unknown',
-  'feature',
-  'testimonial',
-  'gallery',
-  'partners',
-  'portfolio',
-  'team',
-  'stories',
-  'stats',
-  'faq',
-  'cta',
+  "unknown",
+  "feature",
+  "testimonial",
+  "gallery",
+  "partners",
+  "portfolio",
+  "team",
+  "stories",
+  "stats",
+  "faq",
+  "cta",
 ]);
 
 /**
@@ -112,7 +112,7 @@ const MAX_SPLIT_COUNT = 20;
  * Feature flag for large section split (runtime evaluation)
  */
 function isSectionSplitEnabled(): boolean {
-  return process.env['ENABLE_SECTION_SPLIT_POSTPROCESSOR'] !== 'false';
+  return process.env["ENABLE_SECTION_SPLIT_POSTPROCESSOR"] !== "false";
 }
 
 // =====================================================
@@ -178,9 +178,7 @@ const SPLIT_POINT_REGEX = /<(?:section|article|h[1-3])[\s>]/gi;
  * @returns 分割後のセクション配列、分割統計、分割されたセクションIDのSet
  *          Split sections, split statistics, and Set of split section IDs
  */
-function splitOversizedSections(
-  sections: PostProcessableSection[]
-): {
+function splitOversizedSections(sections: PostProcessableSection[]): {
   sections: PostProcessableSection[];
   splitCount: number;
   splitSectionsGenerated: number;
@@ -254,7 +252,7 @@ function trySplitByHtml(section: PostProcessableSection): PostProcessableSection
   // SEC-07: HTML parsing for split point detection only. Not used for output.
   const matches: number[] = [];
   let match: RegExpExecArray | null;
-  const regex = new RegExp(SPLIT_POINT_REGEX.source, 'gi');
+  const regex = new RegExp(SPLIT_POINT_REGEX.source, "gi");
   while ((match = regex.exec(section.htmlSnippet)) !== null) {
     matches.push(match.index);
   }
@@ -282,16 +280,18 @@ function trySplitByHtml(section: PostProcessableSection): PostProcessableSection
   const splits: PostProcessableSection[] = [];
   for (let i = 0; i < splitPositions.length; i++) {
     const ratioStart = splitPositions[i]! / totalLength;
-    const ratioEnd = i + 1 < splitPositions.length
-      ? splitPositions[i + 1]! / totalLength
-      : 1;
+    const ratioEnd = i + 1 < splitPositions.length ? splitPositions[i + 1]! / totalLength : 1;
 
     const splitStartY = startY + height * ratioStart;
     const splitEndY = startY + height * ratioEnd;
     const splitHeight = splitEndY - splitStartY;
 
     // SEC-08: NaN/Infinity防御 / SEC-08: NaN/Infinity defense
-    if (!Number.isFinite(splitStartY) || !Number.isFinite(splitEndY) || !Number.isFinite(splitHeight)) {
+    if (
+      !Number.isFinite(splitStartY) ||
+      !Number.isFinite(splitEndY) ||
+      !Number.isFinite(splitHeight)
+    ) {
       continue;
     }
 
@@ -355,13 +355,18 @@ function trySplitEqually(section: PostProcessableSection): PostProcessableSectio
   const splits: PostProcessableSection[] = [];
   for (let i = 0; i < splitCount; i++) {
     const splitStartY = startY + splitHeight * i;
-    const splitEndY = i === splitCount - 1
-      ? startY + height  // 最後の分割は元の endY を使用 / Last split uses original endY
-      : startY + splitHeight * (i + 1);
+    const splitEndY =
+      i === splitCount - 1
+        ? startY + height // 最後の分割は元の endY を使用 / Last split uses original endY
+        : startY + splitHeight * (i + 1);
     const actualHeight = splitEndY - splitStartY;
 
     // SEC-08: NaN/Infinity防御 / SEC-08: NaN/Infinity defense
-    if (!Number.isFinite(splitStartY) || !Number.isFinite(splitEndY) || !Number.isFinite(actualHeight)) {
+    if (
+      !Number.isFinite(splitStartY) ||
+      !Number.isFinite(splitEndY) ||
+      !Number.isFinite(actualHeight)
+    ) {
       continue;
     }
 
@@ -437,7 +442,11 @@ function mergeConsecutiveSameType(
     // Collect consecutive sections of the same type (excluding excludeIds)
     const group: PostProcessableSection[] = [current];
     let j = i + 1;
-    while (j < sections.length && sections[j]!.type === current.type && !excludeIds.has(sections[j]!.id)) {
+    while (
+      j < sections.length &&
+      sections[j]!.type === current.type &&
+      !excludeIds.has(sections[j]!.id)
+    ) {
       group.push(sections[j]!);
       j++;
     }
@@ -473,29 +482,32 @@ function mergeGroup(group: PostProcessableSection[]): PostProcessableSection {
   // position再計算（NaN/Infinity防御付き）
   // Recalculate position with NaN/Infinity defense
   let mergedPosition = first.position;
-  if (group.some(s => s.position)) {
-    const positions = group.filter(s => s.position).map(s => s.position!);
-    const newStartY = Math.min(...positions.map(p => p.startY));
-    const newEndY = Math.max(...positions.map(p => p.endY));
+  if (group.some((s) => s.position)) {
+    const positions = group.filter((s) => s.position).map((s) => s.position!);
+    const newStartY = Math.min(...positions.map((p) => p.startY));
+    const newEndY = Math.max(...positions.map((p) => p.endY));
     const newHeight = newEndY - newStartY;
 
     if (Number.isFinite(newStartY) && Number.isFinite(newEndY) && Number.isFinite(newHeight)) {
       mergedPosition = { startY: newStartY, endY: newEndY, height: newHeight };
     } else {
-      logger.warn('[section-postprocessor] Invalid position after merge, using first section position', {
-        groupSize: group.length,
-      });
+      logger.warn(
+        "[section-postprocessor] Invalid position after merge, using first section position",
+        {
+          groupSize: group.length,
+        }
+      );
       mergedPosition = first.position;
     }
   }
 
   // heading: 最初の非nullなheadingを使用
   // heading: use first non-null heading
-  const headingSection = group.find(s => s.heading);
+  const headingSection = group.find((s) => s.heading);
 
   // confidence: グループ内の最大値
   // confidence: max in group
-  const confidence = Math.max(...group.map(s => s.confidence));
+  const confidence = Math.max(...group.map((s) => s.confidence));
 
   // 先頭セクションをベースにマージ結果を構築（追加プロパティ保持のためスプレッド）
   // Build merged result from first section as base (spread to preserve additional properties)
@@ -606,9 +618,10 @@ function mergeConsecutiveSameHeading(
  * @param sections - 入力セクション配列 / Input section array
  * @returns 吸収後のセクション配列と吸収数 / Absorbed sections and count
  */
-function absorbEmptyContentSections(
-  sections: PostProcessableSection[]
-): { sections: PostProcessableSection[]; absorbedCount: number } {
+function absorbEmptyContentSections(sections: PostProcessableSection[]): {
+  sections: PostProcessableSection[];
+  absorbedCount: number;
+} {
   if (sections.length <= 1) {
     return { sections, absorbedCount: 0 };
   }
@@ -627,7 +640,7 @@ function absorbEmptyContentSections(
 
     // 明確なタイプを持つセクションは保持（unknownのみ吸収対象）
     // Keep sections with definite types (only unknown is eligible for absorption)
-    if (section.type !== 'unknown') {
+    if (section.type !== "unknown") {
       continue;
     }
 
@@ -703,7 +716,7 @@ function isEmptyContent(section: PostProcessableSection): boolean {
 
   // HTMLタグ除去後のtextContentで判定（SEC: 判定のみ、出力には使用しない）
   // Determine by textContent after HTML tag removal (SEC: detection only, not used for output)
-  const textContent = section.htmlSnippet.replace(/<[^>]*>/g, '').trim();
+  const textContent = section.htmlSnippet.replace(/<[^>]*>/g, "").trim();
   if (textContent.length < TEXT_CONTENT_EMPTY_THRESHOLD) {
     return true;
   }
@@ -749,9 +762,7 @@ function findNextKept(keep: boolean[], current: number, length: number): number 
  * @param sections - 入力セクション配列 / Input section array
  * @returns ポストプロセス結果 / Post-process result
  */
-export function postProcessSections(
-  sections: PostProcessableSection[]
-): PostProcessResult {
+export function postProcessSections(sections: PostProcessableSection[]): PostProcessResult {
   const inputCount = sections.length;
   const emptyStats = {
     inputCount,
@@ -764,9 +775,9 @@ export function postProcessSections(
   };
 
   // Feature flag チェック / Feature flag check
-  if (process.env['ENABLE_SECTION_MERGE_POSTPROCESSOR'] === 'false') {
+  if (process.env["ENABLE_SECTION_MERGE_POSTPROCESSOR"] === "false") {
     if (isDevelopment()) {
-      logger.debug('[section-postprocessor] Disabled via feature flag');
+      logger.debug("[section-postprocessor] Disabled via feature flag");
     }
     return { sections, stats: emptyStats };
   }
@@ -781,7 +792,7 @@ export function postProcessSections(
 
   // 安全上限チェック / Safety limit check
   if (sections.length > MAX_INPUT_SECTIONS) {
-    logger.warn('[section-postprocessor] Input exceeds safety limit, skipping post-processing', {
+    logger.warn("[section-postprocessor] Input exceeds safety limit, skipping post-processing", {
       sectionCount: sections.length,
       limit: MAX_INPUT_SECTIONS,
     });
@@ -794,10 +805,13 @@ export function postProcessSections(
 
     // SEC-09: Rule 4出力後の安全上限チェック / SEC-09: Safety limit check after Rule 4 output
     if (rule4Result.sections.length > MAX_INPUT_SECTIONS) {
-      logger.warn('[section-postprocessor] Post-Rule 4 output exceeds safety limit, returning Rule 4 result only', {
-        sectionCount: rule4Result.sections.length,
-        limit: MAX_INPUT_SECTIONS,
-      });
+      logger.warn(
+        "[section-postprocessor] Post-Rule 4 output exceeds safety limit, returning Rule 4 result only",
+        {
+          sectionCount: rule4Result.sections.length,
+          limit: MAX_INPUT_SECTIONS,
+        }
+      );
       // positionIndex を再採番 / Re-number positionIndex
       for (let i = 0; i < rule4Result.sections.length; i++) {
         rule4Result.sections[i]!.positionIndex = i;
@@ -819,7 +833,10 @@ export function postProcessSections(
 
     // Rule 3: 同名隣接マージ（Rule 4分割セクション除外）
     // Rule 3: Same-heading adjacent merge (exclude Rule 4 split sections)
-    const rule3Result = mergeConsecutiveSameHeading(rule1Result.sections, rule4Result.splitSectionIds);
+    const rule3Result = mergeConsecutiveSameHeading(
+      rule1Result.sections,
+      rule4Result.splitSectionIds
+    );
 
     // Rule 2: コンテンツ空セクション吸収 / Empty content absorption
     const rule2Result = absorbEmptyContentSections(rule3Result.sections);
@@ -841,14 +858,14 @@ export function postProcessSections(
     };
 
     if (isDevelopment()) {
-      logger.info('[section-postprocessor] Post-processing complete', stats);
+      logger.info("[section-postprocessor] Post-processing complete", stats);
     }
 
     return { sections: processed, stats };
   } catch (error) {
     // Graceful Degradation: 失敗時は元のセクション配列をそのまま返す
     // Graceful Degradation: return original sections on failure
-    logger.warn('[section-postprocessor] Post-processing failed, returning original sections', {
+    logger.warn("[section-postprocessor] Post-processing failed, returning original sections", {
       error: (error as Error).message,
       sectionCount: sections.length,
     });

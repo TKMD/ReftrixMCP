@@ -10,8 +10,8 @@
  * @module tests/tools/page/handlers/execution-status-tracker.test
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { v7 as uuidv7 } from 'uuid';
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { v7 as uuidv7 } from "uuid";
 import {
   ExecutionStatusTrackerV2,
   type AnalysisPhaseV2,
@@ -19,7 +19,7 @@ import {
   type ExecutionStatusV2,
   type ExecutionStatusTrackerV2Options,
   PHASE_WEIGHTS,
-} from '../../../../src/tools/page/handlers/execution-status-tracker';
+} from "../../../../src/tools/page/handlers/execution-status-tracker";
 
 // =====================================================
 // テストヘルパー
@@ -31,7 +31,7 @@ import {
 function createDefaultOptions(): ExecutionStatusTrackerV2Options {
   return {
     webPageId: uuidv7(),
-    url: 'https://example.com/test-page',
+    url: "https://example.com/test-page",
   };
 }
 
@@ -46,10 +46,10 @@ function advanceTime(ms: number): void {
 // テストスイート
 // =====================================================
 
-describe('ExecutionStatusTrackerV2', () => {
+describe("ExecutionStatusTrackerV2", () => {
   beforeEach(() => {
     vi.useFakeTimers();
-    vi.setSystemTime(new Date('2026-01-17T10:00:00.000Z'));
+    vi.setSystemTime(new Date("2026-01-17T10:00:00.000Z"));
   });
 
   afterEach(() => {
@@ -60,40 +60,40 @@ describe('ExecutionStatusTrackerV2', () => {
   // ---------------------------------------------------
   // initialize() テスト
   // ---------------------------------------------------
-  describe('initialize()', () => {
-    it('初期化時に全フェーズがpending状態になる', () => {
+  describe("initialize()", () => {
+    it("初期化時に全フェーズがpending状態になる", () => {
       const tracker = new ExecutionStatusTrackerV2(createDefaultOptions());
       tracker.initialize();
 
       const status = tracker.getStatus();
 
-      expect(status.phases.initializing.status).toBe('pending');
-      expect(status.phases.layout.status).toBe('pending');
-      expect(status.phases.motion.status).toBe('pending');
-      expect(status.phases.quality.status).toBe('pending');
-      expect(status.phases.narrative.status).toBe('pending');
-      expect(status.phases.finalizing.status).toBe('pending');
+      expect(status.phases.initializing.status).toBe("pending");
+      expect(status.phases.layout.status).toBe("pending");
+      expect(status.phases.motion.status).toBe("pending");
+      expect(status.phases.quality.status).toBe("pending");
+      expect(status.phases.narrative.status).toBe("pending");
+      expect(status.phases.finalizing.status).toBe("pending");
     });
 
-    it('初期化時にstartedAtが設定される', () => {
+    it("初期化時にstartedAtが設定される", () => {
       const tracker = new ExecutionStatusTrackerV2(createDefaultOptions());
       tracker.initialize();
 
       const status = tracker.getStatus();
 
-      expect(status.startedAt).toEqual(new Date('2026-01-17T10:00:00.000Z'));
+      expect(status.startedAt).toEqual(new Date("2026-01-17T10:00:00.000Z"));
     });
 
-    it('初期化時にcurrentPhaseがinitializingになる', () => {
+    it("初期化時にcurrentPhaseがinitializingになる", () => {
       const tracker = new ExecutionStatusTrackerV2(createDefaultOptions());
       tracker.initialize();
 
       const status = tracker.getStatus();
 
-      expect(status.currentPhase).toBe('initializing');
+      expect(status.currentPhase).toBe("initializing");
     });
 
-    it('初期化時にoverallProgressが0になる', () => {
+    it("初期化時にoverallProgressが0になる", () => {
       const tracker = new ExecutionStatusTrackerV2(createDefaultOptions());
       tracker.initialize();
 
@@ -102,7 +102,7 @@ describe('ExecutionStatusTrackerV2', () => {
       expect(status.overallProgress).toBe(0);
     });
 
-    it('初期化時にwebPageIdとurlが正しく設定される', () => {
+    it("初期化時にwebPageIdとurlが正しく設定される", () => {
       const options = createDefaultOptions();
       const tracker = new ExecutionStatusTrackerV2(options);
       tracker.initialize();
@@ -113,73 +113,73 @@ describe('ExecutionStatusTrackerV2', () => {
       expect(status.url).toBe(options.url);
     });
 
-    it('初期化時にlastUpdatedAtが設定される', () => {
+    it("初期化時にlastUpdatedAtが設定される", () => {
       const tracker = new ExecutionStatusTrackerV2(createDefaultOptions());
       tracker.initialize();
 
       const status = tracker.getStatus();
 
-      expect(status.lastUpdatedAt).toEqual(new Date('2026-01-17T10:00:00.000Z'));
+      expect(status.lastUpdatedAt).toEqual(new Date("2026-01-17T10:00:00.000Z"));
     });
   });
 
   // ---------------------------------------------------
   // startPhase() テスト
   // ---------------------------------------------------
-  describe('startPhase()', () => {
-    it('フェーズ開始時にcurrentPhaseが更新される', () => {
+  describe("startPhase()", () => {
+    it("フェーズ開始時にcurrentPhaseが更新される", () => {
       const tracker = new ExecutionStatusTrackerV2(createDefaultOptions());
       tracker.initialize();
 
-      tracker.startPhase('layout');
+      tracker.startPhase("layout");
 
       const status = tracker.getStatus();
-      expect(status.currentPhase).toBe('layout');
+      expect(status.currentPhase).toBe("layout");
     });
 
-    it('フェーズ開始時にstatusがrunningになる', () => {
+    it("フェーズ開始時にstatusがrunningになる", () => {
       const tracker = new ExecutionStatusTrackerV2(createDefaultOptions());
       tracker.initialize();
 
-      tracker.startPhase('layout');
+      tracker.startPhase("layout");
 
       const status = tracker.getStatus();
-      expect(status.phases.layout.status).toBe('running');
+      expect(status.phases.layout.status).toBe("running");
     });
 
-    it('フェーズ開始時にstartedAtが設定される', () => {
+    it("フェーズ開始時にstartedAtが設定される", () => {
       const tracker = new ExecutionStatusTrackerV2(createDefaultOptions());
       tracker.initialize();
 
       advanceTime(1000); // 1秒後
-      tracker.startPhase('layout');
+      tracker.startPhase("layout");
 
       const status = tracker.getStatus();
-      expect(status.phases.layout.startedAt).toEqual(new Date('2026-01-17T10:00:01.000Z'));
+      expect(status.phases.layout.startedAt).toEqual(new Date("2026-01-17T10:00:01.000Z"));
     });
 
-    it('フェーズ開始時にprogressが0になる', () => {
+    it("フェーズ開始時にprogressが0になる", () => {
       const tracker = new ExecutionStatusTrackerV2(createDefaultOptions());
       tracker.initialize();
 
-      tracker.startPhase('layout');
+      tracker.startPhase("layout");
 
       const status = tracker.getStatus();
       expect(status.phases.layout.progress).toBe(0);
     });
 
-    it('フェーズ開始時にlastUpdatedAtが更新される', () => {
+    it("フェーズ開始時にlastUpdatedAtが更新される", () => {
       const tracker = new ExecutionStatusTrackerV2(createDefaultOptions());
       tracker.initialize();
 
       advanceTime(1000);
-      tracker.startPhase('layout');
+      tracker.startPhase("layout");
 
       const status = tracker.getStatus();
-      expect(status.lastUpdatedAt).toEqual(new Date('2026-01-17T10:00:01.000Z'));
+      expect(status.lastUpdatedAt).toEqual(new Date("2026-01-17T10:00:01.000Z"));
     });
 
-    it('フェーズ開始時にonStatusChangeが呼び出される', () => {
+    it("フェーズ開始時にonStatusChangeが呼び出される", () => {
       const onStatusChange = vi.fn();
       const tracker = new ExecutionStatusTrackerV2({
         ...createDefaultOptions(),
@@ -187,85 +187,85 @@ describe('ExecutionStatusTrackerV2', () => {
       });
       tracker.initialize();
 
-      tracker.startPhase('layout');
+      tracker.startPhase("layout");
 
       expect(onStatusChange).toHaveBeenCalled();
       const calledStatus = onStatusChange.mock.calls[onStatusChange.mock.calls.length - 1][0];
-      expect(calledStatus.currentPhase).toBe('layout');
+      expect(calledStatus.currentPhase).toBe("layout");
     });
   });
 
   // ---------------------------------------------------
   // updatePhaseProgress() テスト
   // ---------------------------------------------------
-  describe('updatePhaseProgress()', () => {
-    it('進捗更新時にprogressが更新される', () => {
+  describe("updatePhaseProgress()", () => {
+    it("進捗更新時にprogressが更新される", () => {
       const tracker = new ExecutionStatusTrackerV2(createDefaultOptions());
       tracker.initialize();
-      tracker.startPhase('layout');
+      tracker.startPhase("layout");
 
-      tracker.updatePhaseProgress('layout', 50);
+      tracker.updatePhaseProgress("layout", 50);
 
       const status = tracker.getStatus();
       expect(status.phases.layout.progress).toBe(50);
     });
 
-    it('進捗更新時にlastUpdatedAtが更新される', () => {
+    it("進捗更新時にlastUpdatedAtが更新される", () => {
       const tracker = new ExecutionStatusTrackerV2(createDefaultOptions());
       tracker.initialize();
-      tracker.startPhase('layout');
+      tracker.startPhase("layout");
 
       advanceTime(500);
-      tracker.updatePhaseProgress('layout', 50);
+      tracker.updatePhaseProgress("layout", 50);
 
       const status = tracker.getStatus();
-      expect(status.lastUpdatedAt).toEqual(new Date('2026-01-17T10:00:00.500Z'));
+      expect(status.lastUpdatedAt).toEqual(new Date("2026-01-17T10:00:00.500Z"));
     });
 
-    it('進捗更新時にonStatusChangeが呼び出される', () => {
+    it("進捗更新時にonStatusChangeが呼び出される", () => {
       const onStatusChange = vi.fn();
       const tracker = new ExecutionStatusTrackerV2({
         ...createDefaultOptions(),
         onStatusChange,
       });
       tracker.initialize();
-      tracker.startPhase('layout');
+      tracker.startPhase("layout");
       onStatusChange.mockClear();
 
-      tracker.updatePhaseProgress('layout', 75);
+      tracker.updatePhaseProgress("layout", 75);
 
       expect(onStatusChange).toHaveBeenCalled();
     });
 
-    it('0-100の範囲外の値は丸められる（0未満は0）', () => {
+    it("0-100の範囲外の値は丸められる（0未満は0）", () => {
       const tracker = new ExecutionStatusTrackerV2(createDefaultOptions());
       tracker.initialize();
-      tracker.startPhase('layout');
+      tracker.startPhase("layout");
 
-      tracker.updatePhaseProgress('layout', -10);
+      tracker.updatePhaseProgress("layout", -10);
 
       const status = tracker.getStatus();
       expect(status.phases.layout.progress).toBe(0);
     });
 
-    it('0-100の範囲外の値は丸められる（100超は100）', () => {
+    it("0-100の範囲外の値は丸められる（100超は100）", () => {
       const tracker = new ExecutionStatusTrackerV2(createDefaultOptions());
       tracker.initialize();
-      tracker.startPhase('layout');
+      tracker.startPhase("layout");
 
-      tracker.updatePhaseProgress('layout', 150);
+      tracker.updatePhaseProgress("layout", 150);
 
       const status = tracker.getStatus();
       expect(status.phases.layout.progress).toBe(100);
     });
 
-    it('overallProgressが正しく計算される', () => {
+    it("overallProgressが正しく計算される", () => {
       const tracker = new ExecutionStatusTrackerV2(createDefaultOptions());
       tracker.initialize();
-      tracker.startPhase('layout');
+      tracker.startPhase("layout");
 
       // layout は重み 40%
-      tracker.updatePhaseProgress('layout', 50);
+      tracker.updatePhaseProgress("layout", 50);
 
       const status = tracker.getStatus();
       // initializing (5%) + layout (40% * 50% = 20%) = 25%... ではなく
@@ -278,64 +278,64 @@ describe('ExecutionStatusTrackerV2', () => {
   // ---------------------------------------------------
   // completePhase() テスト
   // ---------------------------------------------------
-  describe('completePhase()', () => {
-    it('フェーズ完了時にstatusがcompletedになる', () => {
+  describe("completePhase()", () => {
+    it("フェーズ完了時にstatusがcompletedになる", () => {
       const tracker = new ExecutionStatusTrackerV2(createDefaultOptions());
       tracker.initialize();
-      tracker.startPhase('layout');
+      tracker.startPhase("layout");
 
-      tracker.completePhase('layout');
+      tracker.completePhase("layout");
 
       const status = tracker.getStatus();
-      expect(status.phases.layout.status).toBe('completed');
+      expect(status.phases.layout.status).toBe("completed");
     });
 
-    it('フェーズ完了時にcompletedAtが設定される', () => {
+    it("フェーズ完了時にcompletedAtが設定される", () => {
       const tracker = new ExecutionStatusTrackerV2(createDefaultOptions());
       tracker.initialize();
-      tracker.startPhase('layout');
+      tracker.startPhase("layout");
 
       advanceTime(2000);
-      tracker.completePhase('layout');
+      tracker.completePhase("layout");
 
       const status = tracker.getStatus();
-      expect(status.phases.layout.completedAt).toEqual(new Date('2026-01-17T10:00:02.000Z'));
+      expect(status.phases.layout.completedAt).toEqual(new Date("2026-01-17T10:00:02.000Z"));
     });
 
-    it('フェーズ完了時にprogressが100になる', () => {
+    it("フェーズ完了時にprogressが100になる", () => {
       const tracker = new ExecutionStatusTrackerV2(createDefaultOptions());
       tracker.initialize();
-      tracker.startPhase('layout');
+      tracker.startPhase("layout");
 
-      tracker.completePhase('layout');
+      tracker.completePhase("layout");
 
       const status = tracker.getStatus();
       expect(status.phases.layout.progress).toBe(100);
     });
 
-    it('フェーズ完了時にlastUpdatedAtが更新される', () => {
+    it("フェーズ完了時にlastUpdatedAtが更新される", () => {
       const tracker = new ExecutionStatusTrackerV2(createDefaultOptions());
       tracker.initialize();
-      tracker.startPhase('layout');
+      tracker.startPhase("layout");
 
       advanceTime(1500);
-      tracker.completePhase('layout');
+      tracker.completePhase("layout");
 
       const status = tracker.getStatus();
-      expect(status.lastUpdatedAt).toEqual(new Date('2026-01-17T10:00:01.500Z'));
+      expect(status.lastUpdatedAt).toEqual(new Date("2026-01-17T10:00:01.500Z"));
     });
 
-    it('フェーズ完了時にonStatusChangeが呼び出される', () => {
+    it("フェーズ完了時にonStatusChangeが呼び出される", () => {
       const onStatusChange = vi.fn();
       const tracker = new ExecutionStatusTrackerV2({
         ...createDefaultOptions(),
         onStatusChange,
       });
       tracker.initialize();
-      tracker.startPhase('layout');
+      tracker.startPhase("layout");
       onStatusChange.mockClear();
 
-      tracker.completePhase('layout');
+      tracker.completePhase("layout");
 
       expect(onStatusChange).toHaveBeenCalled();
     });
@@ -344,64 +344,64 @@ describe('ExecutionStatusTrackerV2', () => {
   // ---------------------------------------------------
   // failPhase() テスト
   // ---------------------------------------------------
-  describe('failPhase()', () => {
-    it('フェーズ失敗時にstatusがfailedになる', () => {
+  describe("failPhase()", () => {
+    it("フェーズ失敗時にstatusがfailedになる", () => {
       const tracker = new ExecutionStatusTrackerV2(createDefaultOptions());
       tracker.initialize();
-      tracker.startPhase('motion');
+      tracker.startPhase("motion");
 
-      tracker.failPhase('motion', 'Timeout occurred');
+      tracker.failPhase("motion", "Timeout occurred");
 
       const status = tracker.getStatus();
-      expect(status.phases.motion.status).toBe('failed');
+      expect(status.phases.motion.status).toBe("failed");
     });
 
-    it('フェーズ失敗時にerrorが設定される', () => {
+    it("フェーズ失敗時にerrorが設定される", () => {
       const tracker = new ExecutionStatusTrackerV2(createDefaultOptions());
       tracker.initialize();
-      tracker.startPhase('motion');
+      tracker.startPhase("motion");
 
-      tracker.failPhase('motion', 'WebGL detection failed');
+      tracker.failPhase("motion", "WebGL detection failed");
 
       const status = tracker.getStatus();
-      expect(status.phases.motion.error).toBe('WebGL detection failed');
+      expect(status.phases.motion.error).toBe("WebGL detection failed");
     });
 
-    it('フェーズ失敗時にcompletedAtが設定される', () => {
+    it("フェーズ失敗時にcompletedAtが設定される", () => {
       const tracker = new ExecutionStatusTrackerV2(createDefaultOptions());
       tracker.initialize();
-      tracker.startPhase('motion');
+      tracker.startPhase("motion");
 
       advanceTime(3000);
-      tracker.failPhase('motion', 'Error');
+      tracker.failPhase("motion", "Error");
 
       const status = tracker.getStatus();
-      expect(status.phases.motion.completedAt).toEqual(new Date('2026-01-17T10:00:03.000Z'));
+      expect(status.phases.motion.completedAt).toEqual(new Date("2026-01-17T10:00:03.000Z"));
     });
 
-    it('フェーズ失敗時にlastUpdatedAtが更新される', () => {
+    it("フェーズ失敗時にlastUpdatedAtが更新される", () => {
       const tracker = new ExecutionStatusTrackerV2(createDefaultOptions());
       tracker.initialize();
-      tracker.startPhase('motion');
+      tracker.startPhase("motion");
 
       advanceTime(2500);
-      tracker.failPhase('motion', 'Error');
+      tracker.failPhase("motion", "Error");
 
       const status = tracker.getStatus();
-      expect(status.lastUpdatedAt).toEqual(new Date('2026-01-17T10:00:02.500Z'));
+      expect(status.lastUpdatedAt).toEqual(new Date("2026-01-17T10:00:02.500Z"));
     });
 
-    it('フェーズ失敗時にonStatusChangeが呼び出される', () => {
+    it("フェーズ失敗時にonStatusChangeが呼び出される", () => {
       const onStatusChange = vi.fn();
       const tracker = new ExecutionStatusTrackerV2({
         ...createDefaultOptions(),
         onStatusChange,
       });
       tracker.initialize();
-      tracker.startPhase('motion');
+      tracker.startPhase("motion");
       onStatusChange.mockClear();
 
-      tracker.failPhase('motion', 'Error');
+      tracker.failPhase("motion", "Error");
 
       expect(onStatusChange).toHaveBeenCalled();
     });
@@ -410,49 +410,49 @@ describe('ExecutionStatusTrackerV2', () => {
   // ---------------------------------------------------
   // skipPhase() テスト
   // ---------------------------------------------------
-  describe('skipPhase()', () => {
-    it('フェーズスキップ時にstatusがskippedになる', () => {
+  describe("skipPhase()", () => {
+    it("フェーズスキップ時にstatusがskippedになる", () => {
       const tracker = new ExecutionStatusTrackerV2(createDefaultOptions());
       tracker.initialize();
 
-      tracker.skipPhase('motion');
+      tracker.skipPhase("motion");
 
       const status = tracker.getStatus();
-      expect(status.phases.motion.status).toBe('skipped');
+      expect(status.phases.motion.status).toBe("skipped");
     });
 
-    it('スキップ理由が指定された場合はerrorに設定される', () => {
+    it("スキップ理由が指定された場合はerrorに設定される", () => {
       const tracker = new ExecutionStatusTrackerV2(createDefaultOptions());
       tracker.initialize();
 
-      tracker.skipPhase('motion', 'Feature disabled by user');
+      tracker.skipPhase("motion", "Feature disabled by user");
 
       const status = tracker.getStatus();
-      expect(status.phases.motion.error).toBe('Feature disabled by user');
+      expect(status.phases.motion.error).toBe("Feature disabled by user");
     });
 
-    it('スキップ理由なしでもエラーにならない', () => {
+    it("スキップ理由なしでもエラーにならない", () => {
       const tracker = new ExecutionStatusTrackerV2(createDefaultOptions());
       tracker.initialize();
 
-      expect(() => tracker.skipPhase('motion')).not.toThrow();
+      expect(() => tracker.skipPhase("motion")).not.toThrow();
 
       const status = tracker.getStatus();
       expect(status.phases.motion.error).toBeUndefined();
     });
 
-    it('フェーズスキップ時にlastUpdatedAtが更新される', () => {
+    it("フェーズスキップ時にlastUpdatedAtが更新される", () => {
       const tracker = new ExecutionStatusTrackerV2(createDefaultOptions());
       tracker.initialize();
 
       advanceTime(500);
-      tracker.skipPhase('motion');
+      tracker.skipPhase("motion");
 
       const status = tracker.getStatus();
-      expect(status.lastUpdatedAt).toEqual(new Date('2026-01-17T10:00:00.500Z'));
+      expect(status.lastUpdatedAt).toEqual(new Date("2026-01-17T10:00:00.500Z"));
     });
 
-    it('フェーズスキップ時にonStatusChangeが呼び出される', () => {
+    it("フェーズスキップ時にonStatusChangeが呼び出される", () => {
       const onStatusChange = vi.fn();
       const tracker = new ExecutionStatusTrackerV2({
         ...createDefaultOptions(),
@@ -461,7 +461,7 @@ describe('ExecutionStatusTrackerV2', () => {
       tracker.initialize();
       onStatusChange.mockClear();
 
-      tracker.skipPhase('motion');
+      tracker.skipPhase("motion");
 
       expect(onStatusChange).toHaveBeenCalled();
     });
@@ -470,8 +470,8 @@ describe('ExecutionStatusTrackerV2', () => {
   // ---------------------------------------------------
   // getStatus() テスト
   // ---------------------------------------------------
-  describe('getStatus()', () => {
-    it('正しいステータスが返される', () => {
+  describe("getStatus()", () => {
+    it("正しいステータスが返される", () => {
       const options = createDefaultOptions();
       const tracker = new ExecutionStatusTrackerV2(options);
       tracker.initialize();
@@ -481,7 +481,7 @@ describe('ExecutionStatusTrackerV2', () => {
       expect(status).toMatchObject({
         webPageId: options.webPageId,
         url: options.url,
-        currentPhase: 'initializing',
+        currentPhase: "initializing",
         overallProgress: 0,
       });
       expect(status.phases).toBeDefined();
@@ -489,32 +489,32 @@ describe('ExecutionStatusTrackerV2', () => {
       expect(status.lastUpdatedAt).toBeDefined();
     });
 
-    it('複数フェーズの進行状況が正しく反映される', () => {
+    it("複数フェーズの進行状況が正しく反映される", () => {
       const tracker = new ExecutionStatusTrackerV2(createDefaultOptions());
       tracker.initialize();
 
       // initializingを完了
-      tracker.startPhase('initializing');
-      tracker.completePhase('initializing');
+      tracker.startPhase("initializing");
+      tracker.completePhase("initializing");
 
       // layoutを開始
-      tracker.startPhase('layout');
-      tracker.updatePhaseProgress('layout', 50);
+      tracker.startPhase("layout");
+      tracker.updatePhaseProgress("layout", 50);
 
       const status = tracker.getStatus();
 
-      expect(status.phases.initializing.status).toBe('completed');
-      expect(status.phases.layout.status).toBe('running');
+      expect(status.phases.initializing.status).toBe("completed");
+      expect(status.phases.layout.status).toBe("running");
       expect(status.phases.layout.progress).toBe(50);
-      expect(status.currentPhase).toBe('layout');
+      expect(status.currentPhase).toBe("layout");
     });
   });
 
   // ---------------------------------------------------
   // calculateOverallProgress() テスト（内部メソッドの動作確認）
   // ---------------------------------------------------
-  describe('overallProgress計算（重み付き）', () => {
-    it('PHASE_WEIGHTSが正しく定義されている', () => {
+  describe("overallProgress計算（重み付き）", () => {
+    it("PHASE_WEIGHTSが正しく定義されている", () => {
       expect(PHASE_WEIGHTS.initializing).toBe(5);
       expect(PHASE_WEIGHTS.layout).toBe(30);
       expect(PHASE_WEIGHTS.motion).toBe(20);
@@ -528,35 +528,43 @@ describe('ExecutionStatusTrackerV2', () => {
       expect(total).toBe(100);
     });
 
-    it('initializingのみ完了時のoverallProgressが正しい', () => {
+    it("initializingのみ完了時のoverallProgressが正しい", () => {
       const tracker = new ExecutionStatusTrackerV2(createDefaultOptions());
       tracker.initialize();
-      tracker.startPhase('initializing');
-      tracker.completePhase('initializing');
+      tracker.startPhase("initializing");
+      tracker.completePhase("initializing");
 
       const status = tracker.getStatus();
       expect(status.overallProgress).toBe(5); // initializing = 5%
     });
 
-    it('initializing + layout完了時のoverallProgressが正しい', () => {
+    it("initializing + layout完了時のoverallProgressが正しい", () => {
       const tracker = new ExecutionStatusTrackerV2(createDefaultOptions());
       tracker.initialize();
 
-      tracker.startPhase('initializing');
-      tracker.completePhase('initializing');
-      tracker.startPhase('layout');
-      tracker.completePhase('layout');
+      tracker.startPhase("initializing");
+      tracker.completePhase("initializing");
+      tracker.startPhase("layout");
+      tracker.completePhase("layout");
 
       const status = tracker.getStatus();
       expect(status.overallProgress).toBe(35); // 5 + 30 = 35%
     });
 
-    it('全フェーズ完了時のoverallProgressが100', () => {
+    it("全フェーズ完了時のoverallProgressが100", () => {
       const tracker = new ExecutionStatusTrackerV2(createDefaultOptions());
       tracker.initialize();
 
       // 全フェーズを完了
-      const phases: AnalysisPhaseV2[] = ['initializing', 'layout', 'motion', 'quality', 'narrative', 'responsive', 'finalizing'];
+      const phases: AnalysisPhaseV2[] = [
+        "initializing",
+        "layout",
+        "motion",
+        "quality",
+        "narrative",
+        "responsive",
+        "finalizing",
+      ];
       for (const phase of phases) {
         tracker.startPhase(phase);
         tracker.completePhase(phase);
@@ -566,36 +574,36 @@ describe('ExecutionStatusTrackerV2', () => {
       expect(status.overallProgress).toBe(100);
     });
 
-    it('スキップされたフェーズは完了として扱われる', () => {
+    it("スキップされたフェーズは完了として扱われる", () => {
       const tracker = new ExecutionStatusTrackerV2(createDefaultOptions());
       tracker.initialize();
 
-      tracker.startPhase('initializing');
-      tracker.completePhase('initializing');
-      tracker.startPhase('layout');
-      tracker.completePhase('layout');
-      tracker.skipPhase('motion'); // motionをスキップ
-      tracker.startPhase('quality');
-      tracker.completePhase('quality');
-      tracker.startPhase('narrative');
-      tracker.completePhase('narrative');
-      tracker.startPhase('responsive');
-      tracker.completePhase('responsive');
-      tracker.startPhase('finalizing');
-      tracker.completePhase('finalizing');
+      tracker.startPhase("initializing");
+      tracker.completePhase("initializing");
+      tracker.startPhase("layout");
+      tracker.completePhase("layout");
+      tracker.skipPhase("motion"); // motionをスキップ
+      tracker.startPhase("quality");
+      tracker.completePhase("quality");
+      tracker.startPhase("narrative");
+      tracker.completePhase("narrative");
+      tracker.startPhase("responsive");
+      tracker.completePhase("responsive");
+      tracker.startPhase("finalizing");
+      tracker.completePhase("finalizing");
 
       const status = tracker.getStatus();
       expect(status.overallProgress).toBe(100); // スキップも完了扱い
     });
 
-    it('進行中のフェーズの進捗が反映される', () => {
+    it("進行中のフェーズの進捗が反映される", () => {
       const tracker = new ExecutionStatusTrackerV2(createDefaultOptions());
       tracker.initialize();
 
-      tracker.startPhase('initializing');
-      tracker.completePhase('initializing'); // +5%
-      tracker.startPhase('layout');
-      tracker.updatePhaseProgress('layout', 50); // +30% * 50% = +15%
+      tracker.startPhase("initializing");
+      tracker.completePhase("initializing"); // +5%
+      tracker.startPhase("layout");
+      tracker.updatePhaseProgress("layout", 50); // +30% * 50% = +15%
 
       const status = tracker.getStatus();
       expect(status.overallProgress).toBe(20); // 5 + 15 = 20
@@ -605,8 +613,8 @@ describe('ExecutionStatusTrackerV2', () => {
   // ---------------------------------------------------
   // estimateCompletion() テスト（完了予測時間計算）
   // ---------------------------------------------------
-  describe('estimatedCompletion計算', () => {
-    it('十分なフェーズ履歴がない場合はundefined', () => {
+  describe("estimatedCompletion計算", () => {
+    it("十分なフェーズ履歴がない場合はundefined", () => {
       const tracker = new ExecutionStatusTrackerV2(createDefaultOptions());
       tracker.initialize();
 
@@ -614,38 +622,38 @@ describe('ExecutionStatusTrackerV2', () => {
       expect(status.estimatedCompletion).toBeUndefined();
     });
 
-    it('複数フェーズ完了後に完了予測時間が計算される', () => {
+    it("複数フェーズ完了後に完了予測時間が計算される", () => {
       const tracker = new ExecutionStatusTrackerV2(createDefaultOptions());
       tracker.initialize();
 
       // initializing: 1秒
-      tracker.startPhase('initializing');
+      tracker.startPhase("initializing");
       advanceTime(1000);
-      tracker.completePhase('initializing');
+      tracker.completePhase("initializing");
 
       // layout: 10秒
-      tracker.startPhase('layout');
+      tracker.startPhase("layout");
       advanceTime(10000);
-      tracker.completePhase('layout');
+      tracker.completePhase("layout");
 
       const status = tracker.getStatus();
       // 2フェーズ完了後は予測可能
       expect(status.estimatedCompletion).toBeDefined();
     });
 
-    it('完了予測時間は現在時刻より後', () => {
+    it("完了予測時間は現在時刻より後", () => {
       const tracker = new ExecutionStatusTrackerV2(createDefaultOptions());
       tracker.initialize();
 
-      tracker.startPhase('initializing');
+      tracker.startPhase("initializing");
       advanceTime(1000);
-      tracker.completePhase('initializing');
+      tracker.completePhase("initializing");
 
-      tracker.startPhase('layout');
+      tracker.startPhase("layout");
       advanceTime(10000);
-      tracker.completePhase('layout');
+      tracker.completePhase("layout");
 
-      tracker.startPhase('motion');
+      tracker.startPhase("motion");
 
       const status = tracker.getStatus();
       const now = new Date();
@@ -659,8 +667,8 @@ describe('ExecutionStatusTrackerV2', () => {
   // ---------------------------------------------------
   // onStatusChangeコールバックテスト
   // ---------------------------------------------------
-  describe('onStatusChangeコールバック', () => {
-    it('initialize時にonStatusChangeが呼び出される', () => {
+  describe("onStatusChangeコールバック", () => {
+    it("initialize時にonStatusChangeが呼び出される", () => {
       const onStatusChange = vi.fn();
       const tracker = new ExecutionStatusTrackerV2({
         ...createDefaultOptions(),
@@ -672,22 +680,22 @@ describe('ExecutionStatusTrackerV2', () => {
       expect(onStatusChange).toHaveBeenCalled();
     });
 
-    it('複数回の状態変更で毎回呼び出される', () => {
+    it("複数回の状態変更で毎回呼び出される", () => {
       const onStatusChange = vi.fn();
       const tracker = new ExecutionStatusTrackerV2({
         ...createDefaultOptions(),
         onStatusChange,
       });
 
-      tracker.initialize();          // 1回目
-      tracker.startPhase('layout');  // 2回目
-      tracker.updatePhaseProgress('layout', 50); // 3回目
-      tracker.completePhase('layout'); // 4回目
+      tracker.initialize(); // 1回目
+      tracker.startPhase("layout"); // 2回目
+      tracker.updatePhaseProgress("layout", 50); // 3回目
+      tracker.completePhase("layout"); // 4回目
 
       expect(onStatusChange).toHaveBeenCalledTimes(4);
     });
 
-    it('コールバックが同期的に呼び出される（非同期処理をブロックしない）', () => {
+    it("コールバックが同期的に呼び出される（非同期処理をブロックしない）", () => {
       const onStatusChange = vi.fn().mockImplementation((_status) => {
         // 非同期処理をシミュレート（Promiseを返す）
         return new Promise((resolve) => setTimeout(resolve, 100));
@@ -699,16 +707,16 @@ describe('ExecutionStatusTrackerV2', () => {
       });
 
       tracker.initialize();
-      tracker.startPhase('layout');
+      tracker.startPhase("layout");
 
       // コールバックが同期的に呼び出されることを確認
       // （非同期処理の完了を待たずに次の操作が実行される）
       expect(onStatusChange).toHaveBeenCalledTimes(2);
     });
 
-    it('コールバックでエラーが発生してもトラッカーは動作を継続', () => {
+    it("コールバックでエラーが発生してもトラッカーは動作を継続", () => {
       const onStatusChange = vi.fn().mockImplementation(() => {
-        throw new Error('Callback error');
+        throw new Error("Callback error");
       });
 
       const tracker = new ExecutionStatusTrackerV2({
@@ -719,66 +727,66 @@ describe('ExecutionStatusTrackerV2', () => {
       // エラーがスローされてもトラッカーは動作を継続
       expect(() => {
         tracker.initialize();
-        tracker.startPhase('layout');
+        tracker.startPhase("layout");
       }).not.toThrow();
 
       const status = tracker.getStatus();
-      expect(status.currentPhase).toBe('layout');
+      expect(status.currentPhase).toBe("layout");
     });
   });
 
   // ---------------------------------------------------
   // エッジケーステスト
   // ---------------------------------------------------
-  describe('エッジケース', () => {
-    it('初期化前にgetStatusを呼び出してもエラーにならない', () => {
+  describe("エッジケース", () => {
+    it("初期化前にgetStatusを呼び出してもエラーにならない", () => {
       const tracker = new ExecutionStatusTrackerV2(createDefaultOptions());
 
       // 初期化前
       expect(() => tracker.getStatus()).not.toThrow();
     });
 
-    it('同じフェーズを複数回startしても問題ない', () => {
+    it("同じフェーズを複数回startしても問題ない", () => {
       const tracker = new ExecutionStatusTrackerV2(createDefaultOptions());
       tracker.initialize();
 
-      tracker.startPhase('layout');
-      tracker.startPhase('layout'); // 再度開始
+      tracker.startPhase("layout");
+      tracker.startPhase("layout"); // 再度開始
 
       const status = tracker.getStatus();
-      expect(status.phases.layout.status).toBe('running');
+      expect(status.phases.layout.status).toBe("running");
     });
 
-    it('完了済みフェーズを再度完了しても問題ない', () => {
+    it("完了済みフェーズを再度完了しても問題ない", () => {
       const tracker = new ExecutionStatusTrackerV2(createDefaultOptions());
       tracker.initialize();
-      tracker.startPhase('layout');
-      tracker.completePhase('layout');
+      tracker.startPhase("layout");
+      tracker.completePhase("layout");
 
       // 再度完了
-      tracker.completePhase('layout');
+      tracker.completePhase("layout");
 
       const status = tracker.getStatus();
-      expect(status.phases.layout.status).toBe('completed');
+      expect(status.phases.layout.status).toBe("completed");
     });
 
-    it('開始していないフェーズを完了してもstatusがcompletedになる', () => {
+    it("開始していないフェーズを完了してもstatusがcompletedになる", () => {
       const tracker = new ExecutionStatusTrackerV2(createDefaultOptions());
       tracker.initialize();
 
       // 開始せずに完了
-      tracker.completePhase('layout');
+      tracker.completePhase("layout");
 
       const status = tracker.getStatus();
-      expect(status.phases.layout.status).toBe('completed');
+      expect(status.phases.layout.status).toBe("completed");
     });
   });
 
   // ---------------------------------------------------
   // 統合シナリオテスト
   // ---------------------------------------------------
-  describe('統合シナリオ', () => {
-    it('フル分析フロー：全フェーズ成功', () => {
+  describe("統合シナリオ", () => {
+    it("フル分析フロー：全フェーズ成功", () => {
       const onStatusChange = vi.fn();
       const tracker = new ExecutionStatusTrackerV2({
         ...createDefaultOptions(),
@@ -788,133 +796,133 @@ describe('ExecutionStatusTrackerV2', () => {
       tracker.initialize();
 
       // Initializing
-      tracker.startPhase('initializing');
+      tracker.startPhase("initializing");
       advanceTime(500);
-      tracker.completePhase('initializing');
+      tracker.completePhase("initializing");
 
       // Layout
-      tracker.startPhase('layout');
+      tracker.startPhase("layout");
       advanceTime(2000);
-      tracker.updatePhaseProgress('layout', 50);
+      tracker.updatePhaseProgress("layout", 50);
       advanceTime(2000);
-      tracker.completePhase('layout');
+      tracker.completePhase("layout");
 
       // Motion
-      tracker.startPhase('motion');
+      tracker.startPhase("motion");
       advanceTime(3000);
-      tracker.completePhase('motion');
+      tracker.completePhase("motion");
 
       // Quality
-      tracker.startPhase('quality');
+      tracker.startPhase("quality");
       advanceTime(1500);
-      tracker.completePhase('quality');
+      tracker.completePhase("quality");
 
       // Narrative
-      tracker.startPhase('narrative');
+      tracker.startPhase("narrative");
       advanceTime(1000);
-      tracker.completePhase('narrative');
+      tracker.completePhase("narrative");
 
       // Responsive
-      tracker.startPhase('responsive');
+      tracker.startPhase("responsive");
       advanceTime(800);
-      tracker.completePhase('responsive');
+      tracker.completePhase("responsive");
 
       // Finalizing
-      tracker.startPhase('finalizing');
+      tracker.startPhase("finalizing");
       advanceTime(300);
-      tracker.completePhase('finalizing');
+      tracker.completePhase("finalizing");
 
       const status = tracker.getStatus();
 
-      expect(status.currentPhase).toBe('finalizing');
+      expect(status.currentPhase).toBe("finalizing");
       expect(status.overallProgress).toBe(100);
-      expect(status.phases.initializing.status).toBe('completed');
-      expect(status.phases.layout.status).toBe('completed');
-      expect(status.phases.motion.status).toBe('completed');
-      expect(status.phases.quality.status).toBe('completed');
-      expect(status.phases.narrative.status).toBe('completed');
-      expect(status.phases.responsive.status).toBe('completed');
-      expect(status.phases.finalizing.status).toBe('completed');
+      expect(status.phases.initializing.status).toBe("completed");
+      expect(status.phases.layout.status).toBe("completed");
+      expect(status.phases.motion.status).toBe("completed");
+      expect(status.phases.quality.status).toBe("completed");
+      expect(status.phases.narrative.status).toBe("completed");
+      expect(status.phases.responsive.status).toBe("completed");
+      expect(status.phases.finalizing.status).toBe("completed");
     });
 
-    it('部分成功フロー：Motion失敗', () => {
+    it("部分成功フロー：Motion失敗", () => {
       const tracker = new ExecutionStatusTrackerV2(createDefaultOptions());
       tracker.initialize();
 
       // Initializing成功
-      tracker.startPhase('initializing');
-      tracker.completePhase('initializing');
+      tracker.startPhase("initializing");
+      tracker.completePhase("initializing");
 
       // Layout成功
-      tracker.startPhase('layout');
-      tracker.completePhase('layout');
+      tracker.startPhase("layout");
+      tracker.completePhase("layout");
 
       // Motion失敗
-      tracker.startPhase('motion');
+      tracker.startPhase("motion");
       advanceTime(5000);
-      tracker.failPhase('motion', 'WebGL detection timeout');
+      tracker.failPhase("motion", "WebGL detection timeout");
 
       // Quality成功
-      tracker.startPhase('quality');
-      tracker.completePhase('quality');
+      tracker.startPhase("quality");
+      tracker.completePhase("quality");
 
       // Narrative成功
-      tracker.startPhase('narrative');
-      tracker.completePhase('narrative');
+      tracker.startPhase("narrative");
+      tracker.completePhase("narrative");
 
       // Responsive成功
-      tracker.startPhase('responsive');
-      tracker.completePhase('responsive');
+      tracker.startPhase("responsive");
+      tracker.completePhase("responsive");
 
       // Finalizing成功
-      tracker.startPhase('finalizing');
-      tracker.completePhase('finalizing');
+      tracker.startPhase("finalizing");
+      tracker.completePhase("finalizing");
 
       const status = tracker.getStatus();
 
-      expect(status.phases.initializing.status).toBe('completed');
-      expect(status.phases.layout.status).toBe('completed');
-      expect(status.phases.motion.status).toBe('failed');
-      expect(status.phases.motion.error).toBe('WebGL detection timeout');
-      expect(status.phases.quality.status).toBe('completed');
-      expect(status.phases.narrative.status).toBe('completed');
-      expect(status.phases.responsive.status).toBe('completed');
-      expect(status.phases.finalizing.status).toBe('completed');
+      expect(status.phases.initializing.status).toBe("completed");
+      expect(status.phases.layout.status).toBe("completed");
+      expect(status.phases.motion.status).toBe("failed");
+      expect(status.phases.motion.error).toBe("WebGL detection timeout");
+      expect(status.phases.quality.status).toBe("completed");
+      expect(status.phases.narrative.status).toBe("completed");
+      expect(status.phases.responsive.status).toBe("completed");
+      expect(status.phases.finalizing.status).toBe("completed");
 
       // 失敗したフェーズがあっても完了した分は計算される
       // initializing(5) + layout(30) + motion(0, failed) + quality(15) + narrative(10) + responsive(15) + finalizing(5) = 80%
       expect(status.overallProgress).toBe(80);
     });
 
-    it('スキップフロー：Motion無効化', () => {
+    it("スキップフロー：Motion無効化", () => {
       const tracker = new ExecutionStatusTrackerV2(createDefaultOptions());
       tracker.initialize();
 
-      tracker.startPhase('initializing');
-      tracker.completePhase('initializing');
+      tracker.startPhase("initializing");
+      tracker.completePhase("initializing");
 
-      tracker.startPhase('layout');
-      tracker.completePhase('layout');
+      tracker.startPhase("layout");
+      tracker.completePhase("layout");
 
       // Motionをスキップ
-      tracker.skipPhase('motion', 'features.motion = false');
+      tracker.skipPhase("motion", "features.motion = false");
 
-      tracker.startPhase('quality');
-      tracker.completePhase('quality');
+      tracker.startPhase("quality");
+      tracker.completePhase("quality");
 
-      tracker.startPhase('narrative');
-      tracker.completePhase('narrative');
+      tracker.startPhase("narrative");
+      tracker.completePhase("narrative");
 
-      tracker.startPhase('responsive');
-      tracker.completePhase('responsive');
+      tracker.startPhase("responsive");
+      tracker.completePhase("responsive");
 
-      tracker.startPhase('finalizing');
-      tracker.completePhase('finalizing');
+      tracker.startPhase("finalizing");
+      tracker.completePhase("finalizing");
 
       const status = tracker.getStatus();
 
-      expect(status.phases.motion.status).toBe('skipped');
-      expect(status.phases.motion.error).toBe('features.motion = false');
+      expect(status.phases.motion.status).toBe("skipped");
+      expect(status.phases.motion.error).toBe("features.motion = false");
       expect(status.overallProgress).toBe(100); // スキップは完了扱い
     });
   });

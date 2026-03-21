@@ -22,7 +22,7 @@
  * @module tests/services/page/fallback-analyzer.test
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 // =====================================================
 // TDD Red Phase: インポート（実装はまだ存在しない）
@@ -36,7 +36,7 @@ import {
   FALLBACK_LEVELS,
   createFallbackAnalyzerService,
   resetFallbackAnalyzerService,
-} from '../../../src/services/page/fallback-analyzer.service';
+} from "../../../src/services/page/fallback-analyzer.service";
 
 // =====================================================
 // モックヘルパー
@@ -64,49 +64,53 @@ function createMockPageAnalyzeService(
   let callCount = 0;
 
   return {
-    analyze: vi.fn().mockImplementation(async (options: FallbackAnalyzeOptions & { level: FallbackLevel }) => {
-      callCount++;
+    analyze: vi
+      .fn()
+      .mockImplementation(async (options: FallbackAnalyzeOptions & { level: FallbackLevel }) => {
+        callCount++;
 
-      if (process.env.NODE_ENV === 'development') {
-        console.log('[Test Mock] analyze called', { level: options.level, callCount });
-      }
-
-      // Level 1の呼び出し
-      if (options.level === 1) {
-        if (levelResults.level1) {
-          return levelResults.level1;
+        if (process.env.NODE_ENV === "development") {
+          console.log("[Test Mock] analyze called", { level: options.level, callCount });
         }
-        throw new Error('Level 1 analysis timeout');
-      }
 
-      // Level 2の呼び出し
-      if (options.level === 2) {
-        if (levelResults.level2) {
-          return levelResults.level2;
+        // Level 1の呼び出し
+        if (options.level === 1) {
+          if (levelResults.level1) {
+            return levelResults.level1;
+          }
+          throw new Error("Level 1 analysis timeout");
         }
-        throw new Error('Level 2 analysis timeout');
-      }
 
-      // Level 3の呼び出し
-      if (options.level === 3) {
-        if (levelResults.level3) {
-          return levelResults.level3;
+        // Level 2の呼び出し
+        if (options.level === 2) {
+          if (levelResults.level2) {
+            return levelResults.level2;
+          }
+          throw new Error("Level 2 analysis timeout");
         }
-        throw new Error('Level 3 analysis timeout');
-      }
 
-      throw new Error(`Unknown level: ${options.level}`);
-    }),
+        // Level 3の呼び出し
+        if (options.level === 3) {
+          if (levelResults.level3) {
+            return levelResults.level3;
+          }
+          throw new Error("Level 3 analysis timeout");
+        }
+
+        throw new Error(`Unknown level: ${options.level}`);
+      }),
   };
 }
 
 /**
  * 成功結果を作成
  */
-function createSuccessResult(overrides: Partial<FallbackAnalyzeResult> = {}): FallbackAnalyzeResult {
+function createSuccessResult(
+  overrides: Partial<FallbackAnalyzeResult> = {}
+): FallbackAnalyzeResult {
   return {
     success: true,
-    webPageId: '01941234-5678-7abc-def0-123456789abc',
+    webPageId: "01941234-5678-7abc-def0-123456789abc",
     layout: {
       success: true,
       sectionCount: 5,
@@ -123,7 +127,7 @@ function createSuccessResult(overrides: Partial<FallbackAnalyzeResult> = {}): Fa
     quality: {
       success: true,
       overallScore: 85,
-      grade: 'B',
+      grade: "B",
       axisScores: { originality: 80, craftsmanship: 88, contextuality: 85 },
       processingTimeMs: 30,
     },
@@ -136,18 +140,20 @@ function createSuccessResult(overrides: Partial<FallbackAnalyzeResult> = {}): Fa
 /**
  * 部分結果を作成（一部の機能が失敗）
  */
-function createPartialResult(overrides: Partial<FallbackAnalyzeResult> = {}): FallbackAnalyzeResult {
+function createPartialResult(
+  overrides: Partial<FallbackAnalyzeResult> = {}
+): FallbackAnalyzeResult {
   return {
     success: true,
     partial: true,
     warnings: [
       {
-        code: 'MOTION_DETECTION_SKIPPED',
-        message: 'Motion detection was skipped due to WebGL timeout',
-        level: 'warning',
+        code: "MOTION_DETECTION_SKIPPED",
+        message: "Motion detection was skipped due to WebGL timeout",
+        level: "warning",
       },
     ],
-    webPageId: '01941234-5678-7abc-def0-123456789abc',
+    webPageId: "01941234-5678-7abc-def0-123456789abc",
     layout: {
       success: true,
       sectionCount: 3,
@@ -158,7 +164,7 @@ function createPartialResult(overrides: Partial<FallbackAnalyzeResult> = {}): Fa
     quality: {
       success: true,
       overallScore: 75,
-      grade: 'C',
+      grade: "C",
       axisScores: { originality: 70, craftsmanship: 80, contextuality: 75 },
       processingTimeMs: 25,
     },
@@ -172,14 +178,14 @@ function createPartialResult(overrides: Partial<FallbackAnalyzeResult> = {}): Fa
 // テスト定数
 // =====================================================
 
-const VALID_URL = 'https://example.com';
-const HEAVY_WEBGL_URL = 'https://lbproject.dev';
+const VALID_URL = "https://example.com";
+const HEAVY_WEBGL_URL = "https://lbproject.dev";
 
 // =====================================================
 // テストスイート
 // =====================================================
 
-describe('FallbackAnalyzerService', () => {
+describe("FallbackAnalyzerService", () => {
   let service: FallbackAnalyzerService;
 
   beforeEach(() => {
@@ -196,18 +202,18 @@ describe('FallbackAnalyzerService', () => {
   // コンストラクタテスト
   // =====================================================
 
-  describe('constructor', () => {
-    it('サービスインスタンスを作成できる', () => {
+  describe("constructor", () => {
+    it("サービスインスタンスを作成できる", () => {
       expect(service).toBeInstanceOf(FallbackAnalyzerService);
     });
 
-    it('シングルトンパターンで同一インスタンスを返す', () => {
+    it("シングルトンパターンで同一インスタンスを返す", () => {
       const instance1 = createFallbackAnalyzerService();
       const instance2 = createFallbackAnalyzerService();
       expect(instance1).toBe(instance2);
     });
 
-    it('resetFallbackAnalyzerService()でインスタンスをリセットできる', () => {
+    it("resetFallbackAnalyzerService()でインスタンスをリセットできる", () => {
       const instance1 = createFallbackAnalyzerService();
       resetFallbackAnalyzerService();
       const instance2 = createFallbackAnalyzerService();
@@ -219,41 +225,41 @@ describe('FallbackAnalyzerService', () => {
   // FALLBACK_LEVELS定数テスト
   // =====================================================
 
-  describe('FALLBACK_LEVELS', () => {
-    it('Level 1の設定が正しい（標準分析）', () => {
+  describe("FALLBACK_LEVELS", () => {
+    it("Level 1の設定が正しい（標準分析）", () => {
       expect(FALLBACK_LEVELS[1]).toEqual({
         level: 1,
         timeout: 30000,
-        waitUntil: 'load',
+        waitUntil: "load",
         disableJavaScript: false,
         disableWebGL: false,
-        description: 'Standard analysis',
+        description: "Standard analysis",
       });
     });
 
-    it('Level 2の設定が正しい（軽量分析）', () => {
+    it("Level 2の設定が正しい（軽量分析）", () => {
       expect(FALLBACK_LEVELS[2]).toEqual({
         level: 2,
         timeout: 60000,
-        waitUntil: 'domcontentloaded',
+        waitUntil: "domcontentloaded",
         disableJavaScript: true,
         disableWebGL: false,
-        description: 'Lightweight analysis (JavaScript disabled)',
+        description: "Lightweight analysis (JavaScript disabled)",
       });
     });
 
-    it('Level 3の設定が正しい（最小分析）', () => {
+    it("Level 3の設定が正しい（最小分析）", () => {
       expect(FALLBACK_LEVELS[3]).toEqual({
         level: 3,
         timeout: 120000,
-        waitUntil: 'domcontentloaded',
+        waitUntil: "domcontentloaded",
         disableJavaScript: true,
         disableWebGL: true,
-        description: 'Minimal analysis (WebGL disabled)',
+        description: "Minimal analysis (WebGL disabled)",
       });
     });
 
-    it('全レベルのタイムアウトが昇順', () => {
+    it("全レベルのタイムアウトが昇順", () => {
       expect(FALLBACK_LEVELS[1].timeout).toBeLessThan(FALLBACK_LEVELS[2].timeout);
       expect(FALLBACK_LEVELS[2].timeout).toBeLessThan(FALLBACK_LEVELS[3].timeout);
     });
@@ -263,8 +269,8 @@ describe('FallbackAnalyzerService', () => {
   // analyzeWithFallback - Level 1成功テスト
   // =====================================================
 
-  describe('analyzeWithFallback - Level 1成功時', () => {
-    it('Level 1で成功した場合、即座に結果を返す', async () => {
+  describe("analyzeWithFallback - Level 1成功時", () => {
+    it("Level 1で成功した場合、即座に結果を返す", async () => {
       const expectedResult = createSuccessResult();
       const mockService = createMockPageAnalyzeService({
         level1: expectedResult,
@@ -281,7 +287,7 @@ describe('FallbackAnalyzerService', () => {
       expect(mockService.analyze).toHaveBeenCalledTimes(1);
     });
 
-    it('Level 1成功時はLevel 2, 3を呼び出さない', async () => {
+    it("Level 1成功時はLevel 2, 3を呼び出さない", async () => {
       const expectedResult = createSuccessResult();
       const mockService = createMockPageAnalyzeService({
         level1: expectedResult,
@@ -293,14 +299,12 @@ describe('FallbackAnalyzerService', () => {
 
       // Level 1のみ呼び出される
       expect(mockService.analyze).toHaveBeenCalledTimes(1);
-      expect(mockService.analyze).toHaveBeenCalledWith(
-        expect.objectContaining({ level: 1 })
-      );
+      expect(mockService.analyze).toHaveBeenCalledWith(expect.objectContaining({ level: 1 }));
     });
 
-    it('Level 1成功時の結果にwebPageIdが含まれる', async () => {
+    it("Level 1成功時の結果にwebPageIdが含まれる", async () => {
       const expectedResult = createSuccessResult({
-        webPageId: '01941234-5678-7abc-def0-987654321fed',
+        webPageId: "01941234-5678-7abc-def0-987654321fed",
       });
       const mockService = createMockPageAnalyzeService({
         level1: expectedResult,
@@ -312,11 +316,11 @@ describe('FallbackAnalyzerService', () => {
 
       expect(result.success).toBe(true);
       if (result.success) {
-        expect(result.webPageId).toBe('01941234-5678-7abc-def0-987654321fed');
+        expect(result.webPageId).toBe("01941234-5678-7abc-def0-987654321fed");
       }
     });
 
-    it('Level 1成功時、適用されたレベル情報が含まれる', async () => {
+    it("Level 1成功時、適用されたレベル情報が含まれる", async () => {
       const expectedResult = createSuccessResult();
       const mockService = createMockPageAnalyzeService({
         level1: expectedResult,
@@ -329,7 +333,7 @@ describe('FallbackAnalyzerService', () => {
       expect(result.success).toBe(true);
       if (result.success) {
         expect(result.appliedLevel).toBe(1);
-        expect(result.appliedLevelDescription).toBe('Standard analysis');
+        expect(result.appliedLevelDescription).toBe("Standard analysis");
       }
     });
   });
@@ -338,8 +342,8 @@ describe('FallbackAnalyzerService', () => {
   // analyzeWithFallback - Level 2成功テスト
   // =====================================================
 
-  describe('analyzeWithFallback - Level 1失敗、Level 2成功時', () => {
-    it('Level 1失敗後、Level 2で成功した場合にLevel 2の結果を返す', async () => {
+  describe("analyzeWithFallback - Level 1失敗、Level 2成功時", () => {
+    it("Level 1失敗後、Level 2で成功した場合にLevel 2の結果を返す", async () => {
       const expectedResult = createSuccessResult();
       const mockService = createMockPageAnalyzeService({
         level1: undefined, // Level 1失敗
@@ -356,7 +360,7 @@ describe('FallbackAnalyzerService', () => {
       expect(mockService.analyze).toHaveBeenCalledTimes(2);
     });
 
-    it('Level 2成功時、適用されたレベル情報が2になる', async () => {
+    it("Level 2成功時、適用されたレベル情報が2になる", async () => {
       const expectedResult = createSuccessResult();
       const mockService = createMockPageAnalyzeService({
         level1: undefined,
@@ -372,11 +376,11 @@ describe('FallbackAnalyzerService', () => {
       expect(result.success).toBe(true);
       if (result.success) {
         expect(result.appliedLevel).toBe(2);
-        expect(result.appliedLevelDescription).toBe('Lightweight analysis (JavaScript disabled)');
+        expect(result.appliedLevelDescription).toBe("Lightweight analysis (JavaScript disabled)");
       }
     });
 
-    it('Level 2ではJavaScriptが無効化されて呼び出される', async () => {
+    it("Level 2ではJavaScriptが無効化されて呼び出される", async () => {
       const expectedResult = createSuccessResult();
       const mockService = createMockPageAnalyzeService({
         level1: undefined,
@@ -392,13 +396,13 @@ describe('FallbackAnalyzerService', () => {
         expect.objectContaining({
           level: 2,
           disableJavaScript: true,
-          waitUntil: 'domcontentloaded',
+          waitUntil: "domcontentloaded",
           timeout: 60000,
         })
       );
     });
 
-    it('Level 1失敗の警告がwarningsに含まれる', async () => {
+    it("Level 1失敗の警告がwarningsに含まれる", async () => {
       const expectedResult = createSuccessResult();
       const mockService = createMockPageAnalyzeService({
         level1: undefined,
@@ -415,8 +419,8 @@ describe('FallbackAnalyzerService', () => {
       if (result.success && result.warnings) {
         expect(result.warnings).toContainEqual(
           expect.objectContaining({
-            code: 'LEVEL_1_FAILED',
-            level: 'info',
+            code: "LEVEL_1_FAILED",
+            level: "info",
           })
         );
       }
@@ -427,8 +431,8 @@ describe('FallbackAnalyzerService', () => {
   // analyzeWithFallback - Level 3成功テスト
   // =====================================================
 
-  describe('analyzeWithFallback - Level 1-2失敗、Level 3成功時', () => {
-    it('Level 1, 2失敗後、Level 3で成功した場合にLevel 3の結果を返す', async () => {
+  describe("analyzeWithFallback - Level 1-2失敗、Level 3成功時", () => {
+    it("Level 1, 2失敗後、Level 3で成功した場合にLevel 3の結果を返す", async () => {
       const expectedResult = createPartialResult();
       const mockService = createMockPageAnalyzeService({
         level1: undefined,
@@ -446,7 +450,7 @@ describe('FallbackAnalyzerService', () => {
       expect(mockService.analyze).toHaveBeenCalledTimes(3);
     });
 
-    it('Level 3成功時、適用されたレベル情報が3になる', async () => {
+    it("Level 3成功時、適用されたレベル情報が3になる", async () => {
       const expectedResult = createPartialResult();
       const mockService = createMockPageAnalyzeService({
         level1: undefined,
@@ -463,11 +467,11 @@ describe('FallbackAnalyzerService', () => {
       expect(result.success).toBe(true);
       if (result.success) {
         expect(result.appliedLevel).toBe(3);
-        expect(result.appliedLevelDescription).toBe('Minimal analysis (WebGL disabled)');
+        expect(result.appliedLevelDescription).toBe("Minimal analysis (WebGL disabled)");
       }
     });
 
-    it('Level 3ではWebGLが無効化されて呼び出される', async () => {
+    it("Level 3ではWebGLが無効化されて呼び出される", async () => {
       const expectedResult = createPartialResult();
       const mockService = createMockPageAnalyzeService({
         level1: undefined,
@@ -485,13 +489,13 @@ describe('FallbackAnalyzerService', () => {
           level: 3,
           disableJavaScript: true,
           disableWebGL: true,
-          waitUntil: 'domcontentloaded',
+          waitUntil: "domcontentloaded",
           timeout: 120000,
         })
       );
     });
 
-    it('Level 1, 2失敗の警告がwarningsに含まれる', async () => {
+    it("Level 1, 2失敗の警告がwarningsに含まれる", async () => {
       const expectedResult = createPartialResult();
       const mockService = createMockPageAnalyzeService({
         level1: undefined,
@@ -507,12 +511,8 @@ describe('FallbackAnalyzerService', () => {
 
       expect(result.success).toBe(true);
       if (result.success && result.warnings) {
-        expect(result.warnings).toContainEqual(
-          expect.objectContaining({ code: 'LEVEL_1_FAILED' })
-        );
-        expect(result.warnings).toContainEqual(
-          expect.objectContaining({ code: 'LEVEL_2_FAILED' })
-        );
+        expect(result.warnings).toContainEqual(expect.objectContaining({ code: "LEVEL_1_FAILED" }));
+        expect(result.warnings).toContainEqual(expect.objectContaining({ code: "LEVEL_2_FAILED" }));
       }
     });
   });
@@ -521,8 +521,8 @@ describe('FallbackAnalyzerService', () => {
   // analyzeWithFallback - 全レベル失敗テスト
   // =====================================================
 
-  describe('analyzeWithFallback - 全レベル失敗時', () => {
-    it('全レベル失敗でもsuccess: trueを返す', async () => {
+  describe("analyzeWithFallback - 全レベル失敗時", () => {
+    it("全レベル失敗でもsuccess: trueを返す", async () => {
       const mockService = createMockPageAnalyzeService({
         level1: undefined,
         level2: undefined,
@@ -539,7 +539,7 @@ describe('FallbackAnalyzerService', () => {
       expect(result.partial).toBe(true);
     });
 
-    it('全レベル失敗時、partial: trueが設定される', async () => {
+    it("全レベル失敗時、partial: trueが設定される", async () => {
       const mockService = createMockPageAnalyzeService({
         level1: undefined,
         level2: undefined,
@@ -555,7 +555,7 @@ describe('FallbackAnalyzerService', () => {
       expect(result.partial).toBe(true);
     });
 
-    it('全レベル失敗時、warningsにすべての失敗情報が含まれる', async () => {
+    it("全レベル失敗時、warningsにすべての失敗情報が含まれる", async () => {
       const mockService = createMockPageAnalyzeService({
         level1: undefined,
         level2: undefined,
@@ -571,19 +571,13 @@ describe('FallbackAnalyzerService', () => {
       expect(result.success).toBe(true);
       if (result.success && result.warnings) {
         expect(result.warnings.length).toBeGreaterThanOrEqual(3);
-        expect(result.warnings).toContainEqual(
-          expect.objectContaining({ code: 'LEVEL_1_FAILED' })
-        );
-        expect(result.warnings).toContainEqual(
-          expect.objectContaining({ code: 'LEVEL_2_FAILED' })
-        );
-        expect(result.warnings).toContainEqual(
-          expect.objectContaining({ code: 'LEVEL_3_FAILED' })
-        );
+        expect(result.warnings).toContainEqual(expect.objectContaining({ code: "LEVEL_1_FAILED" }));
+        expect(result.warnings).toContainEqual(expect.objectContaining({ code: "LEVEL_2_FAILED" }));
+        expect(result.warnings).toContainEqual(expect.objectContaining({ code: "LEVEL_3_FAILED" }));
       }
     });
 
-    it('全レベル失敗時、ALL_LEVELS_FAILED警告が含まれる', async () => {
+    it("全レベル失敗時、ALL_LEVELS_FAILED警告が含まれる", async () => {
       const mockService = createMockPageAnalyzeService({
         level1: undefined,
         level2: undefined,
@@ -600,15 +594,15 @@ describe('FallbackAnalyzerService', () => {
       if (result.success && result.warnings) {
         expect(result.warnings).toContainEqual(
           expect.objectContaining({
-            code: 'ALL_LEVELS_FAILED',
-            level: 'error',
-            message: expect.stringContaining('All fallback levels failed'),
+            code: "ALL_LEVELS_FAILED",
+            level: "error",
+            message: expect.stringContaining("All fallback levels failed"),
           })
         );
       }
     });
 
-    it('全レベル失敗時、メタデータのみの部分結果を返す', async () => {
+    it("全レベル失敗時、メタデータのみの部分結果を返す", async () => {
       const mockService = createMockPageAnalyzeService({
         level1: undefined,
         level2: undefined,
@@ -634,7 +628,7 @@ describe('FallbackAnalyzerService', () => {
       }
     });
 
-    it('全レベル失敗時、appliedLevelは0', async () => {
+    it("全レベル失敗時、appliedLevelは0", async () => {
       const mockService = createMockPageAnalyzeService({
         level1: undefined,
         level2: undefined,
@@ -650,7 +644,7 @@ describe('FallbackAnalyzerService', () => {
       expect(result.success).toBe(true);
       if (result.success) {
         expect(result.appliedLevel).toBe(0);
-        expect(result.appliedLevelDescription).toBe('All levels failed');
+        expect(result.appliedLevelDescription).toBe("All levels failed");
       }
     });
   });
@@ -659,8 +653,8 @@ describe('FallbackAnalyzerService', () => {
   // タイムアウト設定テスト
   // =====================================================
 
-  describe('タイムアウト設定', () => {
-    it('Level 1のタイムアウトは30秒', async () => {
+  describe("タイムアウト設定", () => {
+    it("Level 1のタイムアウトは30秒", async () => {
       const mockService = createMockPageAnalyzeService({
         level1: createSuccessResult(),
       });
@@ -677,7 +671,7 @@ describe('FallbackAnalyzerService', () => {
       );
     });
 
-    it('Level 2のタイムアウトは60秒', async () => {
+    it("Level 2のタイムアウトは60秒", async () => {
       const mockService = createMockPageAnalyzeService({
         level1: undefined,
         level2: createSuccessResult(),
@@ -695,7 +689,7 @@ describe('FallbackAnalyzerService', () => {
       );
     });
 
-    it('Level 3のタイムアウトは120秒', async () => {
+    it("Level 3のタイムアウトは120秒", async () => {
       const mockService = createMockPageAnalyzeService({
         level1: undefined,
         level2: undefined,
@@ -714,7 +708,7 @@ describe('FallbackAnalyzerService', () => {
       );
     });
 
-    it('カスタムタイムアウト係数を指定できる', async () => {
+    it("カスタムタイムアウト係数を指定できる", async () => {
       const mockService = createMockPageAnalyzeService({
         level1: createSuccessResult(),
       });
@@ -738,8 +732,8 @@ describe('FallbackAnalyzerService', () => {
   // waitUntil設定テスト
   // =====================================================
 
-  describe('waitUntil設定', () => {
-    it('Level 1のwaitUntilはload', async () => {
+  describe("waitUntil設定", () => {
+    it("Level 1のwaitUntilはload", async () => {
       const mockService = createMockPageAnalyzeService({
         level1: createSuccessResult(),
       });
@@ -751,12 +745,12 @@ describe('FallbackAnalyzerService', () => {
       expect(mockService.analyze).toHaveBeenCalledWith(
         expect.objectContaining({
           level: 1,
-          waitUntil: 'load',
+          waitUntil: "load",
         })
       );
     });
 
-    it('Level 2のwaitUntilはdomcontentloaded', async () => {
+    it("Level 2のwaitUntilはdomcontentloaded", async () => {
       const mockService = createMockPageAnalyzeService({
         level1: undefined,
         level2: createSuccessResult(),
@@ -769,12 +763,12 @@ describe('FallbackAnalyzerService', () => {
       expect(mockService.analyze).toHaveBeenCalledWith(
         expect.objectContaining({
           level: 2,
-          waitUntil: 'domcontentloaded',
+          waitUntil: "domcontentloaded",
         })
       );
     });
 
-    it('Level 3のwaitUntilはdomcontentloaded', async () => {
+    it("Level 3のwaitUntilはdomcontentloaded", async () => {
       const mockService = createMockPageAnalyzeService({
         level1: undefined,
         level2: undefined,
@@ -788,7 +782,7 @@ describe('FallbackAnalyzerService', () => {
       expect(mockService.analyze).toHaveBeenCalledWith(
         expect.objectContaining({
           level: 3,
-          waitUntil: 'domcontentloaded',
+          waitUntil: "domcontentloaded",
         })
       );
     });
@@ -798,8 +792,8 @@ describe('FallbackAnalyzerService', () => {
   // featuresオプションテスト
   // =====================================================
 
-  describe('featuresオプション', () => {
-    it('featuresオプションが各レベルに渡される', async () => {
+  describe("featuresオプション", () => {
+    it("featuresオプションが各レベルに渡される", async () => {
       const mockService = createMockPageAnalyzeService({
         level1: createSuccessResult(),
       });
@@ -818,7 +812,7 @@ describe('FallbackAnalyzerService', () => {
       );
     });
 
-    it('Level 3ではmotionがデフォルトで無効化される', async () => {
+    it("Level 3ではmotionがデフォルトで無効化される", async () => {
       const mockService = createMockPageAnalyzeService({
         level1: undefined,
         level2: undefined,
@@ -848,41 +842,41 @@ describe('FallbackAnalyzerService', () => {
   // エラーハンドリングテスト
   // =====================================================
 
-  describe('エラーハンドリング', () => {
-    it('URLが空の場合エラー', async () => {
+  describe("エラーハンドリング", () => {
+    it("URLが空の場合エラー", async () => {
       const result = await service.analyzeWithFallback({
-        url: '',
+        url: "",
       });
 
       expect(result.success).toBe(false);
       if (!result.success) {
-        expect(result.error.code).toBe('VALIDATION_ERROR');
+        expect(result.error.code).toBe("VALIDATION_ERROR");
       }
     });
 
-    it('無効なURLの場合エラー', async () => {
+    it("無効なURLの場合エラー", async () => {
       const result = await service.analyzeWithFallback({
-        url: 'not-a-valid-url',
+        url: "not-a-valid-url",
       });
 
       expect(result.success).toBe(false);
       if (!result.success) {
-        expect(result.error.code).toBe('VALIDATION_ERROR');
+        expect(result.error.code).toBe("VALIDATION_ERROR");
       }
     });
 
-    it('SSRFブロックされた場合エラー', async () => {
+    it("SSRFブロックされた場合エラー", async () => {
       const result = await service.analyzeWithFallback({
-        url: 'http://localhost',
+        url: "http://localhost",
       });
 
       expect(result.success).toBe(false);
       if (!result.success) {
-        expect(result.error.code).toBe('SSRF_BLOCKED');
+        expect(result.error.code).toBe("SSRF_BLOCKED");
       }
     });
 
-    it('ページ分析サービスが設定されていない場合エラー', async () => {
+    it("ページ分析サービスが設定されていない場合エラー", async () => {
       // サービスをリセットして未設定状態にする
       resetFallbackAnalyzerService();
       const freshService = new FallbackAnalyzerService();
@@ -893,7 +887,7 @@ describe('FallbackAnalyzerService', () => {
 
       expect(result.success).toBe(false);
       if (!result.success) {
-        expect(result.error.code).toBe('SERVICE_NOT_CONFIGURED');
+        expect(result.error.code).toBe("SERVICE_NOT_CONFIGURED");
       }
     });
   });
@@ -902,13 +896,13 @@ describe('FallbackAnalyzerService', () => {
   // ログ出力テスト
   // =====================================================
 
-  describe('ログ出力', () => {
-    it('開発環境でのみログを出力する', async () => {
-      const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+  describe("ログ出力", () => {
+    it("開発環境でのみログを出力する", async () => {
+      const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
       const originalNodeEnv = process.env.NODE_ENV;
 
       try {
-        process.env.NODE_ENV = 'development';
+        process.env.NODE_ENV = "development";
 
         const mockService = createMockPageAnalyzeService({
           level1: createSuccessResult(),
@@ -924,12 +918,12 @@ describe('FallbackAnalyzerService', () => {
       }
     });
 
-    it('本番環境ではログを出力しない', async () => {
-      const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+    it("本番環境ではログを出力しない", async () => {
+      const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
       const originalNodeEnv = process.env.NODE_ENV;
 
       try {
-        process.env.NODE_ENV = 'production';
+        process.env.NODE_ENV = "production";
 
         const mockService = createMockPageAnalyzeService({
           level1: createSuccessResult(),
@@ -951,8 +945,8 @@ describe('FallbackAnalyzerService', () => {
   // パフォーマンステスト
   // =====================================================
 
-  describe('パフォーマンス', () => {
-    it('totalProcessingTimeMsが返される', async () => {
+  describe("パフォーマンス", () => {
+    it("totalProcessingTimeMsが返される", async () => {
       const mockService = createMockPageAnalyzeService({
         level1: createSuccessResult({ totalProcessingTimeMs: 500 }),
       });
@@ -967,7 +961,7 @@ describe('FallbackAnalyzerService', () => {
       }
     });
 
-    it('各レベルの処理時間がトラッキングされる', async () => {
+    it("各レベルの処理時間がトラッキングされる", async () => {
       const mockService = createMockPageAnalyzeService({
         level1: undefined,
         level2: createSuccessResult(),
@@ -1004,8 +998,8 @@ describe('FallbackAnalyzerService', () => {
   // 入力バリデーションテスト
   // =====================================================
 
-  describe('入力バリデーション', () => {
-    it('optionsがundefinedでもエラーにならない', async () => {
+  describe("入力バリデーション", () => {
+    it("optionsがundefinedでもエラーにならない", async () => {
       const mockService = createMockPageAnalyzeService({
         level1: createSuccessResult(),
       });
@@ -1020,7 +1014,7 @@ describe('FallbackAnalyzerService', () => {
       expect(result.success).toBe(true);
     });
 
-    it('featuresオプションがundefinedでもデフォルト値が適用される', async () => {
+    it("featuresオプションがundefinedでもデフォルト値が適用される", async () => {
       const mockService = createMockPageAnalyzeService({
         level1: createSuccessResult(),
       });
@@ -1046,7 +1040,7 @@ describe('FallbackAnalyzerService', () => {
 // 統合シナリオテスト
 // =====================================================
 
-describe('FallbackAnalyzerService - 統合シナリオ', () => {
+describe("FallbackAnalyzerService - 統合シナリオ", () => {
   let service: FallbackAnalyzerService;
 
   beforeEach(() => {
@@ -1059,8 +1053,8 @@ describe('FallbackAnalyzerService - 統合シナリオ', () => {
     vi.restoreAllMocks();
   });
 
-  describe('WebGL重いサイト（lbproject.dev類似）', () => {
-    it('Level 1タイムアウト → Level 2成功のシナリオ', async () => {
+  describe("WebGL重いサイト（lbproject.dev類似）", () => {
+    it("Level 1タイムアウト → Level 2成功のシナリオ", async () => {
       const expectedResult = createSuccessResult();
       const mockService = createMockPageAnalyzeService({
         level1: undefined, // タイムアウト
@@ -1070,19 +1064,17 @@ describe('FallbackAnalyzerService - 統合シナリオ', () => {
       service.setPageAnalyzeService(mockService);
 
       const result = await service.analyzeWithFallback({
-        url: 'https://lbproject.dev',
+        url: "https://lbproject.dev",
       });
 
       expect(result.success).toBe(true);
       if (result.success) {
         expect(result.appliedLevel).toBe(2);
-        expect(result.warnings).toContainEqual(
-          expect.objectContaining({ code: 'LEVEL_1_FAILED' })
-        );
+        expect(result.warnings).toContainEqual(expect.objectContaining({ code: "LEVEL_1_FAILED" }));
       }
     });
 
-    it('Level 1, 2タイムアウト → Level 3で部分結果のシナリオ', async () => {
+    it("Level 1, 2タイムアウト → Level 3で部分結果のシナリオ", async () => {
       const partialResult = createPartialResult();
       const mockService = createMockPageAnalyzeService({
         level1: undefined,
@@ -1093,7 +1085,7 @@ describe('FallbackAnalyzerService - 統合シナリオ', () => {
       service.setPageAnalyzeService(mockService);
 
       const result = await service.analyzeWithFallback({
-        url: 'https://heavy-webgl-site.com',
+        url: "https://heavy-webgl-site.com",
       });
 
       expect(result.success).toBe(true);
@@ -1104,8 +1096,8 @@ describe('FallbackAnalyzerService - 統合シナリオ', () => {
     });
   });
 
-  describe('通常サイト', () => {
-    it('Level 1で即座に成功するシナリオ', async () => {
+  describe("通常サイト", () => {
+    it("Level 1で即座に成功するシナリオ", async () => {
       const expectedResult = createSuccessResult();
       const mockService = createMockPageAnalyzeService({
         level1: expectedResult,
@@ -1114,7 +1106,7 @@ describe('FallbackAnalyzerService - 統合シナリオ', () => {
       service.setPageAnalyzeService(mockService);
 
       const result = await service.analyzeWithFallback({
-        url: 'https://example.com',
+        url: "https://example.com",
       });
 
       expect(result.success).toBe(true);
@@ -1125,8 +1117,8 @@ describe('FallbackAnalyzerService - 統合シナリオ', () => {
     });
   });
 
-  describe('完全に到達不能なサイト', () => {
-    it('全レベル失敗でも部分結果を返すシナリオ', async () => {
+  describe("完全に到達不能なサイト", () => {
+    it("全レベル失敗でも部分結果を返すシナリオ", async () => {
       const mockService = createMockPageAnalyzeService({
         level1: undefined,
         level2: undefined,
@@ -1136,7 +1128,7 @@ describe('FallbackAnalyzerService - 統合シナリオ', () => {
       service.setPageAnalyzeService(mockService);
 
       const result = await service.analyzeWithFallback({
-        url: 'https://unreachable-site.invalid',
+        url: "https://unreachable-site.invalid",
       });
 
       expect(result.success).toBe(true);
@@ -1144,7 +1136,7 @@ describe('FallbackAnalyzerService - 統合シナリオ', () => {
       if (result.success) {
         expect(result.appliedLevel).toBe(0);
         expect(result.warnings).toContainEqual(
-          expect.objectContaining({ code: 'ALL_LEVELS_FAILED' })
+          expect.objectContaining({ code: "ALL_LEVELS_FAILED" })
         );
       }
     });
@@ -1155,10 +1147,10 @@ describe('FallbackAnalyzerService - 統合シナリオ', () => {
 // 型定義テスト（コンパイル時チェック）
 // =====================================================
 
-describe('型定義', () => {
-  it('FallbackAnalyzeOptions型が正しく定義されている', () => {
+describe("型定義", () => {
+  it("FallbackAnalyzeOptions型が正しく定義されている", () => {
     const options: FallbackAnalyzeOptions = {
-      url: 'https://example.com',
+      url: "https://example.com",
       features: { layout: true, motion: true, quality: true },
       timeoutMultiplier: 1.5,
     };
@@ -1166,13 +1158,13 @@ describe('型定義', () => {
     expect(options.url).toBeDefined();
   });
 
-  it('FallbackAnalyzeResult型が正しく定義されている', () => {
+  it("FallbackAnalyzeResult型が正しく定義されている", () => {
     const successResult: FallbackAnalyzeResult = {
       success: true,
-      webPageId: 'test-id',
-      url: 'https://example.com',
+      webPageId: "test-id",
+      url: "https://example.com",
       appliedLevel: 1,
-      appliedLevelDescription: 'Standard analysis',
+      appliedLevelDescription: "Standard analysis",
       layout: {
         success: true,
         sectionCount: 1,
@@ -1186,7 +1178,7 @@ describe('型定義', () => {
     expect(successResult.success).toBe(true);
   });
 
-  it('FallbackLevel型が1, 2, 3のユニオンである', () => {
+  it("FallbackLevel型が1, 2, 3のユニオンである", () => {
     const level1: FallbackLevel = 1;
     const level2: FallbackLevel = 2;
     const level3: FallbackLevel = 3;

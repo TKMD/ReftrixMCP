@@ -30,32 +30,32 @@ Reftrixは、AGPL-3.0-onlyライセンスのもとで提供されるオープン
 
 #### 1.1 クロール対象ページのコンテンツデータ
 
-| データ種別 | 内容 | 保存形式 |
-|-----------|------|---------|
-| HTML | 対象ページのHTMLソースコード（DOMPurifyによるサニタイズ済み） | テキスト |
-| CSS | 対象ページのスタイルシート情報 | テキスト |
-| JavaScript | 対象ページのアニメーション・インタラクション関連コード | テキスト |
-| スクリーンショット | Playwrightにより取得された対象ページの画面キャプチャ | PNG画像 |
+| データ種別         | 内容                                                          | 保存形式 |
+| ------------------ | ------------------------------------------------------------- | -------- |
+| HTML               | 対象ページのHTMLソースコード（DOMPurifyによるサニタイズ済み） | テキスト |
+| CSS                | 対象ページのスタイルシート情報                                | テキスト |
+| JavaScript         | 対象ページのアニメーション・インタラクション関連コード        | テキスト |
+| スクリーンショット | Playwrightにより取得された対象ページの画面キャプチャ          | PNG画像  |
 
 #### 1.2 メタデータ
 
-| データ種別 | 内容 |
-|-----------|------|
-| URL | クロール対象ページのURL |
-| ページタイトル | HTMLの`<title>`タグから取得 |
-| ドメイン名 | URLから抽出されたドメイン情報 |
-| OGP情報 | Open Graph Protocolメタタグ（og:title, og:description, og:image等） |
-| クロール日時 | データ取得時のタイムスタンプ |
+| データ種別     | 内容                                                                |
+| -------------- | ------------------------------------------------------------------- |
+| URL            | クロール対象ページのURL                                             |
+| ページタイトル | HTMLの`<title>`タグから取得                                         |
+| ドメイン名     | URLから抽出されたドメイン情報                                       |
+| OGP情報        | Open Graph Protocolメタタグ（og:title, og:description, og:image等） |
+| クロール日時   | データ取得時のタイムスタンプ                                        |
 
 #### 1.3 分析結果データ
 
-| データ種別 | 内容 |
-|-----------|------|
+| データ種別         | 内容                                                                 |
+| ------------------ | -------------------------------------------------------------------- |
 | レイアウトパターン | ページのレイアウト構造の分析結果（セクション構成、グリッド、配色等） |
-| モーションパターン | CSSアニメーション・トランジション・スクロール連動要素の検出結果 |
-| 品質スコア | デザイン品質の評価スコア（独自性、技巧性、文脈適合性等） |
-| ナラティブ分析 | ページの視覚的なストーリーテリング要素の分析結果 |
-| 背景デザイン | 背景画像・パターン・グラデーション等の検出結果 |
+| モーションパターン | CSSアニメーション・トランジション・スクロール連動要素の検出結果      |
+| 品質スコア         | デザイン品質の評価スコア（独自性、技巧性、文脈適合性等）             |
+| ナラティブ分析     | ページの視覚的なストーリーテリング要素の分析結果                     |
+| 背景デザイン       | 背景画像・パターン・グラデーション等の検出結果                       |
 
 #### 1.4 Embeddingベクトルデータ
 
@@ -82,12 +82,12 @@ Ollama（llama3.2-vision）を使用したスクリーンショットの視覚�
 
 本ソフトウェアのPreference Profiling機能（`preference.hear` / `preference.get` / `preference.reset`）を使用した場合、以下のデータが処理されます。この機能はオプトインであり、ユーザーが明示的に`preference.hear`を呼び出さない限り、嗜好データは収集されません。
 
-| データ種別 | 内容 | 保存形式 |
-|-----------|------|---------|
-| 嗜好テキスト | ユーザーのデザインフィードバックから生成された嗜好サマリ | テキスト（10-1000文字） |
-| 嗜好ベクトル | 嗜好テキストから生成された768次元Embeddingベクトル | float配列（pgvector） |
-| フィードバック記録 | 個別のデザイン評価（positive/negative/neutral）、コメント | JSONB |
-| フィードバック回数 | 累積フィードバック回数 | 整数 |
+| データ種別         | 内容                                                      | 保存形式                |
+| ------------------ | --------------------------------------------------------- | ----------------------- |
+| 嗜好テキスト       | ユーザーのデザインフィードバックから生成された嗜好サマリ  | テキスト（10-1000文字） |
+| 嗜好ベクトル       | 嗜好テキストから生成された768次元Embeddingベクトル        | float配列（pgvector）   |
+| フィードバック記録 | 個別のデザイン評価（positive/negative/neutral）、コメント | JSONB                   |
+| フィードバック回数 | 累積フィードバック回数                                    | 整数                    |
 
 詳細は [`apps/mcp-server/PRIVACY.md`](../../apps/mcp-server/PRIVACY.md)（プロファイリングプライバシーポリシー）および [`apps/mcp-server/DATA_RETENTION.md`](../../apps/mcp-server/DATA_RETENTION.md)（データ保持ポリシー）を参照してください。
 
@@ -119,10 +119,10 @@ Ollama（llama3.2-vision）を使用したスクリーンショットの視覚�
 
 本ソフトウェアは、以下の外部通信を行います。
 
-| 通信先 | 目的 | データ内容 |
-|--------|------|-----------|
+| 通信先                                                                                                         | 目的                                            | データ内容                                                                                                                                                                            |
+| -------------------------------------------------------------------------------------------------------------- | ----------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | クロール対象Webサイトおよび当該ページが参照する第三者ドメイン（CDN、外部フォントサービス、画像ホスティング等） | Webページの取得・レンダリング（Playwright経由） | HTTPリクエスト（User-Agentヘッダー含む）。ページのレンダリングに必要なサブリソース（CSS、JavaScript、画像、フォント等）の取得、DNSの名前解決、TLS接続の確立、リダイレクトの追従を含む |
-| Ollamaサーバー | Vision AI分析 | スクリーンショット画像 |
+| Ollamaサーバー                                                                                                 | Vision AI分析                                   | スクリーンショット画像                                                                                                                                                                |
 
 **クロール対象サイトへの情報露出**: クローリング時には、運用者サーバーの送信元IPアドレスおよびUser-Agent文字列（デフォルト: `Reftrix/0.1.0`を含む識別子）がクロール対象サイトおよび第三者リソースの提供元に観測されます。
 
@@ -157,6 +157,7 @@ Ollama（llama3.2-vision）を使用したスクリーンショットの視覚�
 EDPB（欧州データ保護委員会）は2024年12月17日にOpinion 28/2024を公表し、AIモデル開発におけるデータ保護の見解を示しました。同意見書は、公開されているデータであってもGDPRの保護対象であること、Webスクレイピングによる個人データの無差別収集は「正当利益」の均衡テストにおいて不利に評価される可能性があることを明確にしています。
 
 また、2025年には以下のエンフォースメント事例が報告されています。
+
 - フランスCNIL: KASPRに対し20万ユーロの罰金（データスクレイピング関連、アクセス権侵害）
 - オランダDPA: Clearview AIに対し3,050万ユーロの罰金（同意なきWeb画像スクレイピング）
 - ポーランドDPA: データブローカーに対し22万ユーロの罰金（公開レジストリのスクレイピング）
@@ -210,10 +211,10 @@ EDPB（欧州データ保護委員会）は2024年12月17日にOpinion 28/2024�
 
 Preference Profiling機能で収集されたデータは、以下のMCPツールにより削除できます。
 
-| 方法 | MCPツール | 動作 |
-|------|----------|------|
-| ソフトリセット | `preference.reset(profile_id, confirm: true)` | 嗜好テキスト・ベクトルをクリアし、フィードバック記録をCASCADE削除。プロファイル枠は残存 |
-| 完全削除（GDPR Art. 17対応） | `preference.reset(profile_id, confirm: true, hard_delete: true)` | プロファイルおよび全関連データを完全に物理削除。不可逆 |
+| 方法                         | MCPツール                                                        | 動作                                                                                    |
+| ---------------------------- | ---------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
+| ソフトリセット               | `preference.reset(profile_id, confirm: true)`                    | 嗜好テキスト・ベクトルをクリアし、フィードバック記録をCASCADE削除。プロファイル枠は残存 |
+| 完全削除（GDPR Art. 17対応） | `preference.reset(profile_id, confirm: true, hard_delete: true)` | プロファイルおよび全関連データを完全に物理削除。不可逆                                  |
 
 詳細は [`apps/mcp-server/DATA_RETENTION.md`](../../apps/mcp-server/DATA_RETENTION.md) を参照してください。
 
@@ -223,13 +224,13 @@ Preference Profiling機能で収集されたデータは、以下のMCPツール
 
 本ソフトウェアは、取り扱うデータの安全性を確保するために、以下のセキュリティ対策を実装しています。
 
-| 対策 | 内容 | 実装技術 |
-|------|------|---------|
-| HTMLサニタイゼーション | 取得したHTMLからXSS攻撃ベクトルを除去 | DOMPurify 3.3.x |
-| SSRF対策 | プライベートIP・メタデータサービスへのアクセスをブロック | URLバリデーション + IPアドレスフィルタリング |
-| 入力バリデーション | すべてのMCPツール入力をスキーマで検証 | Zod |
-| SQLインジェクション対策 | パラメータ化クエリによるデータベースアクセス | Prisma ORM |
-| データベースアクセス制御 | Row Level Security（RLS）によるデータ分離をサポート（主要テーブルに対しマイグレーションで段階的に有効化。全テーブルへの適用状況は運用者が確認してください） | PostgreSQL 18.x |
+| 対策                     | 内容                                                                                                                                                        | 実装技術                                     |
+| ------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------- |
+| HTMLサニタイゼーション   | 取得したHTMLからXSS攻撃ベクトルを除去                                                                                                                       | DOMPurify 3.3.x                              |
+| SSRF対策                 | プライベートIP・メタデータサービスへのアクセスをブロック                                                                                                    | URLバリデーション + IPアドレスフィルタリング |
+| 入力バリデーション       | すべてのMCPツール入力をスキーマで検証                                                                                                                       | Zod                                          |
+| SQLインジェクション対策  | パラメータ化クエリによるデータベースアクセス                                                                                                                | Prisma ORM                                   |
+| データベースアクセス制御 | Row Level Security（RLS）によるデータ分離をサポート（主要テーブルに対しマイグレーションで段階的に有効化。全テーブルへの適用状況は運用者が確認してください） | PostgreSQL 18.x                              |
 
 運用者は、RLSポリシーの有効化状況を自身の環境で確認するとともに、追加的なセキュリティ対策（ファイアウォール設定、TLS/SSL暗号化、データベースアクセス認証の強化等）を自身の責任で実施することを推奨します。
 
@@ -276,12 +277,12 @@ Preference Profiling機能で収集されたデータは、以下のMCPツール
 
 ただし、AI規制の解釈は急速に発展しており、最終的な分類は各国の監督当局の判断に依存します。EU AI Actの段階的施行スケジュールは以下のとおりです。
 
-| 施行日 | 内容 |
-|--------|------|
-| 2025年2月2日 | 禁止されるAI行為、AI リテラシー義務 |
-| 2025年8月2日 | 汎用AIモデル（GPAI）の義務、国家監督機関の指定 |
+| 施行日       | 内容                                                        |
+| ------------ | ----------------------------------------------------------- |
+| 2025年2月2日 | 禁止されるAI行為、AI リテラシー義務                         |
+| 2025年8月2日 | 汎用AIモデル（GPAI）の義務、国家監督機関の指定              |
 | 2026年8月2日 | 高リスクAIシステム（Annex III）の義務、透明性義務（第50条） |
-| 2027年8月2日 | 規制製品に組み込まれた高リスクAIシステムの義務 |
+| 2027年8月2日 | 規制製品に組み込まれた高リスクAIシステムの義務              |
 
 運用者は、自身のAI利用形態が各法域のAI規制に該当するかどうかを確認し、必要な対応を行ってください。
 
@@ -334,6 +335,7 @@ CCPA/CPRA（カリフォルニア州消費者プライバシー法/カリフォ�
 **自動意思決定技術（ADMT）義務**（2027年1月1日より遵守開始）: ADMTを用いた「重要な意思決定」（金融・住宅・教育・雇用・医療に影響を与える決定）を行う事業者には、消費者への事前通知義務、オプトアウト権の付与、およびADMTの論理・結果に関するアクセス権の保障が求められます。2027年4月1日以降、ADMT使用に関するリスクアセスメントの実施義務も適用されます。
 
 **サイバーセキュリティ監査義務**（売上規模により段階適用）: 個人情報の販売・共有から収益の50%以上を得る事業者、または年間売上2,500万ドル以上かつ25万人以上の消費者データ等を処理する事業者は、年次のサイバーセキュリティ監査を実施し、CPPAに証明書を提出する義務があります。提出期限は売上規模により異なります。
+
 - 2026年売上1億ドル超の事業者: 2028年4月1日
 - 2027年売上5,000万ドル-1億ドルの事業者: 2029年4月1日
 - 2028年売上5,000万ドル未満の事業者: 2030年4月1日
@@ -348,12 +350,12 @@ CCPA/CPRA（カリフォルニア州消費者プライバシー法/カリフォ�
 
 個人情報保護法第33条から第39条に基づき、保有個人データの本人は以下の権利を有します。
 
-| 権利 | 条文 | 内容 |
-|------|------|------|
-| 開示請求権 | 第33条 | 保有個人データの開示を請求する権利 |
-| 訂正等請求権 | 第34条 | 内容が事実でない場合に訂正・追加・削除を請求する権利 |
-| 利用停止等請求権 | 第35条 | 利用目的外利用・不正取得の場合に利用停止・消去を請求する権利 |
-| 第三者提供停止請求権 | 第35条第5項 | 第三者提供の停止を請求する権利 |
+| 権利                 | 条文        | 内容                                                         |
+| -------------------- | ----------- | ------------------------------------------------------------ |
+| 開示請求権           | 第33条      | 保有個人データの開示を請求する権利                           |
+| 訂正等請求権         | 第34条      | 内容が事実でない場合に訂正・追加・削除を請求する権利         |
+| 利用停止等請求権     | 第35条      | 利用目的外利用・不正取得の場合に利用停止・消去を請求する権利 |
+| 第三者提供停止請求権 | 第35条第5項 | 第三者提供の停止を請求する権利                               |
 
 本ソフトウェアはセルフホスト型であるため、これらの権利行使への対応は運用者の責任です。運用者は、本人からの請求に対して適切に対応できる体制を整備してください。
 
@@ -361,14 +363,14 @@ CCPA/CPRA（カリフォルニア州消費者プライバシー法/カリフォ�
 
 GDPR第15条から第22条に基づき、データ主体は以下の権利を有します。
 
-| 権利 | 条文 | 内容 |
-|------|------|------|
-| アクセス権 | 第15条 | 自己の個人データへのアクセスおよびコピーを取得する権利 |
-| 訂正権 | 第16条 | 不正確な個人データの訂正を求める権利 |
-| 消去権（忘れられる権利） | 第17条 | 個人データの消去を求める権利 |
-| 処理制限権 | 第18条 | 個人データの処理の制限を求める権利 |
-| データポータビリティ権 | 第20条 | 構造化された一般的に使用される機械可読形式でデータを受け取る権利 |
-| 異議申立権 | 第21条 | 個人データの処理に対して異議を申し立てる権利 |
+| 権利                     | 条文   | 内容                                                                   |
+| ------------------------ | ------ | ---------------------------------------------------------------------- |
+| アクセス権               | 第15条 | 自己の個人データへのアクセスおよびコピーを取得する権利                 |
+| 訂正権                   | 第16条 | 不正確な個人データの訂正を求める権利                                   |
+| 消去権（忘れられる権利） | 第17条 | 個人データの消去を求める権利                                           |
+| 処理制限権               | 第18条 | 個人データの処理の制限を求める権利                                     |
+| データポータビリティ権   | 第20条 | 構造化された一般的に使用される機械可読形式でデータを受け取る権利       |
+| 異議申立権               | 第21条 | 個人データの処理に対して異議を申し立てる権利                           |
 | 自動意思決定に関する権利 | 第22条 | プロファイリングを含む自動処理のみに基づく意思決定の対象とならない権利 |
 
 運用者がEU/EEA域内の個人のデータを処理する場合は、これらの権利行使に対応できる技術的・組織的措置を講じる必要があります。
@@ -377,14 +379,14 @@ GDPR第15条から第22条に基づき、データ主体は以下の権利を有
 
 CCPA/CPRA（カリフォルニア州民法典第1798.100条以下）に基づき、カリフォルニア州の消費者は以下の権利を有します。
 
-| 権利 | 内容 |
-|------|------|
-| 知る権利 | 収集された個人情報のカテゴリ、目的、第三者への開示等を知る権利 |
-| 削除権 | 収集された個人情報の削除を要求する権利 |
-| 訂正権 | 不正確な個人情報の訂正を要求する権利 |
-| オプトアウト権 | 個人情報の販売・共有のオプトアウトを要求する権利 |
-| 非差別権 | プライバシー権の行使を理由とする差別を受けない権利 |
-| 個人情報の利用・開示の制限権 | 機微個人情報の利用・開示を制限する権利 |
+| 権利                         | 内容                                                           |
+| ---------------------------- | -------------------------------------------------------------- |
+| 知る権利                     | 収集された個人情報のカテゴリ、目的、第三者への開示等を知る権利 |
+| 削除権                       | 収集された個人情報の削除を要求する権利                         |
+| 訂正権                       | 不正確な個人情報の訂正を要求する権利                           |
+| オプトアウト権               | 個人情報の販売・共有のオプトアウトを要求する権利               |
+| 非差別権                     | プライバシー権の行使を理由とする差別を受けない権利             |
+| 個人情報の利用・開示の制限権 | 機微個人情報の利用・開示を制限する権利                         |
 
 2026年1月1日発効の改正CCPA規則により、リスクアセスメント義務（2026年1月1日開始）およびADMT関連義務（2027年1月1日から遵守開始）が新たに導入されています。
 
@@ -444,6 +446,7 @@ CCPA/CPRA（カリフォルニア州民法典第1798.100条以下）に基づき
 - **Issue**: https://github.com/TKMD/ReftrixMCP/issues
 
 ---
+
 ---
 
 ## English Version
@@ -472,32 +475,32 @@ The Software processes the following information as part of its functionality. T
 
 #### 1.1 Crawled Page Content Data
 
-| Data Type | Description | Storage Format |
-|-----------|-------------|----------------|
-| HTML | HTML source code of the target page (sanitized with DOMPurify) | Text |
-| CSS | Stylesheet information from the target page | Text |
-| JavaScript | Animation and interaction-related code from the target page | Text |
-| Screenshots | Screen captures of the target page obtained via Playwright | PNG images |
+| Data Type   | Description                                                    | Storage Format |
+| ----------- | -------------------------------------------------------------- | -------------- |
+| HTML        | HTML source code of the target page (sanitized with DOMPurify) | Text           |
+| CSS         | Stylesheet information from the target page                    | Text           |
+| JavaScript  | Animation and interaction-related code from the target page    | Text           |
+| Screenshots | Screen captures of the target page obtained via Playwright     | PNG images     |
 
 #### 1.2 Metadata
 
-| Data Type | Description |
-|-----------|-------------|
-| URL | URL of the crawled page |
-| Page Title | Extracted from the HTML `<title>` tag |
-| Domain Name | Domain information extracted from the URL |
+| Data Type       | Description                                                              |
+| --------------- | ------------------------------------------------------------------------ |
+| URL             | URL of the crawled page                                                  |
+| Page Title      | Extracted from the HTML `<title>` tag                                    |
+| Domain Name     | Domain information extracted from the URL                                |
 | OGP Information | Open Graph Protocol meta tags (og:title, og:description, og:image, etc.) |
-| Crawl Timestamp | Timestamp of when the data was retrieved |
+| Crawl Timestamp | Timestamp of when the data was retrieved                                 |
 
 #### 1.3 Analysis Result Data
 
-| Data Type | Description |
-|-----------|-------------|
-| Layout Patterns | Analysis results of the page's layout structure (section composition, grid, color scheme, etc.) |
-| Motion Patterns | Detection results of CSS animations, transitions, and scroll-linked elements |
-| Quality Scores | Design quality evaluation scores (originality, craftsmanship, contextuality, etc.) |
-| Narrative Analysis | Analysis results of the page's visual storytelling elements |
-| Background Design | Detection results of background images, patterns, gradients, etc. |
+| Data Type          | Description                                                                                     |
+| ------------------ | ----------------------------------------------------------------------------------------------- |
+| Layout Patterns    | Analysis results of the page's layout structure (section composition, grid, color scheme, etc.) |
+| Motion Patterns    | Detection results of CSS animations, transitions, and scroll-linked elements                    |
+| Quality Scores     | Design quality evaluation scores (originality, craftsmanship, contextuality, etc.)              |
+| Narrative Analysis | Analysis results of the page's visual storytelling elements                                     |
+| Background Design  | Detection results of background images, patterns, gradients, etc.                               |
 
 #### 1.4 Embedding Vector Data
 
@@ -524,12 +527,12 @@ The Reftrix project does not centrally collect the following information from th
 
 When the Software's Preference Profiling feature (`preference.hear` / `preference.get` / `preference.reset`) is used, the following data is processed. This feature is opt-in; preference data is not collected unless the user explicitly invokes `preference.hear`.
 
-| Data Type | Description | Storage Format |
-|-----------|-------------|----------------|
-| Preference text | Preference summary generated from user's design feedback | Text (10-1000 chars) |
+| Data Type            | Description                                                     | Storage Format         |
+| -------------------- | --------------------------------------------------------------- | ---------------------- |
+| Preference text      | Preference summary generated from user's design feedback        | Text (10-1000 chars)   |
 | Preference embedding | 768-dimensional embedding vector generated from preference text | float array (pgvector) |
-| Feedback records | Individual design ratings (positive/negative/neutral), comments | JSONB |
-| Interaction count | Cumulative feedback count | Integer |
+| Feedback records     | Individual design ratings (positive/negative/neutral), comments | JSONB                  |
+| Interaction count    | Cumulative feedback count                                       | Integer                |
 
 For details, see [`apps/mcp-server/PRIVACY.md`](../../apps/mcp-server/PRIVACY.md) (Profiling Privacy Policy) and [`apps/mcp-server/DATA_RETENTION.md`](../../apps/mcp-server/DATA_RETENTION.md) (Data Retention Policy).
 
@@ -561,10 +564,10 @@ Whether the user provides their data to third parties is at the user's sole disc
 
 The Software makes the following external communications:
 
-| Destination | Purpose | Data Content |
-|-------------|---------|--------------|
+| Destination                                                                                                            | Purpose                                           | Data Content                                                                                                                                                                                                                    |
+| ---------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Crawled websites and third-party domains referenced by those pages (CDNs, external font services, image hosting, etc.) | Web page retrieval and rendering (via Playwright) | HTTP requests (including User-Agent header). Includes retrieval of sub-resources (CSS, JavaScript, images, fonts, etc.) necessary for page rendering, DNS name resolution, TLS connection establishment, and redirect following |
-| Ollama Server | Vision AI analysis | Screenshot images |
+| Ollama Server                                                                                                          | Vision AI analysis                                | Screenshot images                                                                                                                                                                                                               |
 
 **Information exposed to crawled sites**: During crawling, the operator server's source IP address and User-Agent string (default: an identifier including `Reftrix/0.1.0`) are observable by the crawled target sites and third-party resource providers.
 
@@ -599,6 +602,7 @@ The Software is designed for web design pattern analysis and does not intend to 
 The European Data Protection Board (EDPB) published Opinion 28/2024 on December 17, 2024, providing guidance on data protection aspects of AI model development. The opinion clarifies that publicly available data remains subject to GDPR protection and that indiscriminate collection of personal data through web scraping may be assessed unfavorably in the legitimate interest balancing test.
 
 Additionally, the following enforcement cases were reported in 2025:
+
 - French CNIL: EUR 200,000 fine against KASPR (data scraping, breach of right of access)
 - Dutch DPA: EUR 30.5 million fine against Clearview AI (web image scraping without consent)
 - Polish DPA: EUR 220,000 fine against a data broker (scraping of public registries)
@@ -652,10 +656,10 @@ Data can be deleted through direct operations on the PostgreSQL database. Deleti
 
 Data collected through the Preference Profiling feature can be deleted using the following MCP tools:
 
-| Method | MCP Tool | Behavior |
-|--------|----------|----------|
-| Soft reset | `preference.reset(profile_id, confirm: true)` | Clears preference text and embedding, CASCADE deletes feedback records. Profile shell remains |
-| Hard delete (GDPR Art. 17) | `preference.reset(profile_id, confirm: true, hard_delete: true)` | Permanently deletes profile and all associated data. Irreversible |
+| Method                     | MCP Tool                                                         | Behavior                                                                                      |
+| -------------------------- | ---------------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
+| Soft reset                 | `preference.reset(profile_id, confirm: true)`                    | Clears preference text and embedding, CASCADE deletes feedback records. Profile shell remains |
+| Hard delete (GDPR Art. 17) | `preference.reset(profile_id, confirm: true, hard_delete: true)` | Permanently deletes profile and all associated data. Irreversible                             |
 
 For details, see [`apps/mcp-server/DATA_RETENTION.md`](../../apps/mcp-server/DATA_RETENTION.md).
 
@@ -665,13 +669,13 @@ For details, see [`apps/mcp-server/DATA_RETENTION.md`](../../apps/mcp-server/DAT
 
 The Software implements the following security measures to ensure the safety of processed data:
 
-| Measure | Description | Implementation |
-|---------|-------------|----------------|
-| HTML Sanitization | Remove XSS attack vectors from retrieved HTML | DOMPurify 3.3.x |
-| SSRF Prevention | Block access to private IPs and metadata services | URL validation + IP address filtering |
-| Input Validation | Validate all MCP tool inputs against schemas | Zod |
-| SQL Injection Prevention | Database access via parameterized queries | Prisma ORM |
-| Database Access Control | Support data isolation through Row Level Security (RLS), progressively enabled via migrations on key tables. Operators should verify the RLS enablement status for all tables in their environment | PostgreSQL 18.x |
+| Measure                  | Description                                                                                                                                                                                        | Implementation                        |
+| ------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------- |
+| HTML Sanitization        | Remove XSS attack vectors from retrieved HTML                                                                                                                                                      | DOMPurify 3.3.x                       |
+| SSRF Prevention          | Block access to private IPs and metadata services                                                                                                                                                  | URL validation + IP address filtering |
+| Input Validation         | Validate all MCP tool inputs against schemas                                                                                                                                                       | Zod                                   |
+| SQL Injection Prevention | Database access via parameterized queries                                                                                                                                                          | Prisma ORM                            |
+| Database Access Control  | Support data isolation through Row Level Security (RLS), progressively enabled via migrations on key tables. Operators should verify the RLS enablement status for all tables in their environment | PostgreSQL 18.x                       |
 
 Operators are recommended to verify the RLS policy enablement status in their own environment and to implement additional security measures (firewall configuration, TLS/SSL encryption, database access authentication hardening, etc.) at their own responsibility.
 
@@ -718,12 +722,12 @@ The Software includes AI functionalities such as embedding generation using ONNX
 
 However, the interpretation of AI regulations is rapidly evolving, and the final classification depends on the judgment of supervisory authorities in each country. The phased enforcement schedule of the EU AI Act is as follows:
 
-| Effective Date | Content |
-|----------------|---------|
-| February 2, 2025 | Prohibited AI practices, AI literacy obligations |
-| August 2, 2025 | General-purpose AI model (GPAI) obligations, designation of national supervisory authorities |
-| August 2, 2026 | High-risk AI system (Annex III) obligations, transparency obligations (Article 50) |
-| August 2, 2027 | Obligations for high-risk AI systems embedded in regulated products |
+| Effective Date   | Content                                                                                      |
+| ---------------- | -------------------------------------------------------------------------------------------- |
+| February 2, 2025 | Prohibited AI practices, AI literacy obligations                                             |
+| August 2, 2025   | General-purpose AI model (GPAI) obligations, designation of national supervisory authorities |
+| August 2, 2026   | High-risk AI system (Annex III) obligations, transparency obligations (Article 50)           |
+| August 2, 2027   | Obligations for high-risk AI systems embedded in regulated products                          |
 
 Operators should verify whether their use of AI falls under AI regulations in their respective jurisdictions and take necessary measures.
 
@@ -776,6 +780,7 @@ The CCPA/CPRA (California Consumer Privacy Act/California Privacy Rights Act) do
 **Automated Decision-Making Technology (ADMT) Obligations** (compliance begins January 1, 2027): Businesses using ADMT for "significant decisions" (decisions affecting finances, housing, education, employment, or healthcare) are required to provide pre-use notices to consumers, offer opt-out rights, and ensure consumer access to explanations of ADMT logic and outcomes. ADMT-specific risk assessments must also be conducted beginning April 1, 2027.
 
 **Cybersecurity Audit Obligations** (phased by revenue): Businesses meeting the applicable thresholds (deriving 50%+ revenue from selling/sharing personal information, or having $25M+ revenue and processing data of 250,000+ consumers or sensitive data of 50,000+ consumers) must conduct annual independent cybersecurity audits. The first certification submission deadlines are tiered by revenue:
+
 - Businesses with over $100 million in 2026 revenue: April 1, 2028
 - Businesses with $50 million to $100 million in 2027 revenue: April 1, 2029
 - Businesses with less than $50 million in 2028 revenue: April 1, 2030
@@ -790,12 +795,12 @@ The CCPA/CPRA (California Consumer Privacy Act/California Privacy Rights Act) do
 
 Under Articles 33 through 39 of the APPI, data subjects have the following rights regarding retained personal data:
 
-| Right | Article | Description |
-|-------|---------|-------------|
-| Right to Disclosure | Art. 33 | Right to request disclosure of retained personal data |
-| Right to Correction | Art. 34 | Right to request correction, addition, or deletion when content is inaccurate |
-| Right to Cease Use | Art. 35 | Right to request cessation of use or deletion in cases of unauthorized use or acquisition |
-| Right to Stop Third-Party Provision | Art. 35(5) | Right to request cessation of third-party provision |
+| Right                               | Article    | Description                                                                               |
+| ----------------------------------- | ---------- | ----------------------------------------------------------------------------------------- |
+| Right to Disclosure                 | Art. 33    | Right to request disclosure of retained personal data                                     |
+| Right to Correction                 | Art. 34    | Right to request correction, addition, or deletion when content is inaccurate             |
+| Right to Cease Use                  | Art. 35    | Right to request cessation of use or deletion in cases of unauthorized use or acquisition |
+| Right to Stop Third-Party Provision | Art. 35(5) | Right to request cessation of third-party provision                                       |
 
 As the Software is self-hosted, responding to these rights is the responsibility of the operator. Operators should establish systems to appropriately respond to requests from data subjects.
 
@@ -803,14 +808,14 @@ As the Software is self-hosted, responding to these rights is the responsibility
 
 Under Articles 15 through 22 of the GDPR, data subjects have the following rights:
 
-| Right | Article | Description |
-|-------|---------|-------------|
-| Right of Access | Art. 15 | Right to access and obtain a copy of personal data |
-| Right to Rectification | Art. 16 | Right to request rectification of inaccurate personal data |
-| Right to Erasure (Right to be Forgotten) | Art. 17 | Right to request erasure of personal data |
-| Right to Restriction of Processing | Art. 18 | Right to request restriction of processing of personal data |
-| Right to Data Portability | Art. 20 | Right to receive data in a structured, commonly used, machine-readable format |
-| Right to Object | Art. 21 | Right to object to the processing of personal data |
+| Right                                      | Article | Description                                                                                    |
+| ------------------------------------------ | ------- | ---------------------------------------------------------------------------------------------- |
+| Right of Access                            | Art. 15 | Right to access and obtain a copy of personal data                                             |
+| Right to Rectification                     | Art. 16 | Right to request rectification of inaccurate personal data                                     |
+| Right to Erasure (Right to be Forgotten)   | Art. 17 | Right to request erasure of personal data                                                      |
+| Right to Restriction of Processing         | Art. 18 | Right to request restriction of processing of personal data                                    |
+| Right to Data Portability                  | Art. 20 | Right to receive data in a structured, commonly used, machine-readable format                  |
+| Right to Object                            | Art. 21 | Right to object to the processing of personal data                                             |
 | Right Related to Automated Decision-Making | Art. 22 | Right not to be subject to decisions based solely on automated processing, including profiling |
 
 When the operator processes data of individuals within the EU/EEA, technical and organizational measures must be implemented to respond to the exercise of these rights.
@@ -819,14 +824,14 @@ When the operator processes data of individuals within the EU/EEA, technical and
 
 Under the CCPA/CPRA (California Civil Code Section 1798.100 et seq.), California consumers have the following rights:
 
-| Right | Description |
-|-------|-------------|
-| Right to Know | Right to know the categories of personal information collected, purposes, and disclosures to third parties |
-| Right to Delete | Right to request deletion of collected personal information |
-| Right to Correct | Right to request correction of inaccurate personal information |
-| Right to Opt-Out | Right to opt out of the sale or sharing of personal information |
-| Right to Non-Discrimination | Right not to be discriminated against for exercising privacy rights |
-| Right to Limit Use and Disclosure | Right to limit the use and disclosure of sensitive personal information |
+| Right                             | Description                                                                                                |
+| --------------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| Right to Know                     | Right to know the categories of personal information collected, purposes, and disclosures to third parties |
+| Right to Delete                   | Right to request deletion of collected personal information                                                |
+| Right to Correct                  | Right to request correction of inaccurate personal information                                             |
+| Right to Opt-Out                  | Right to opt out of the sale or sharing of personal information                                            |
+| Right to Non-Discrimination       | Right not to be discriminated against for exercising privacy rights                                        |
+| Right to Limit Use and Disclosure | Right to limit the use and disclosure of sensitive personal information                                    |
 
 The amended CCPA regulations, effective January 1, 2026, introduce risk assessment obligations and ADMT-related obligations on a phased timeline.
 
@@ -886,6 +891,7 @@ For inquiries regarding this Privacy Policy, please contact us through the GitHu
 - **Issues**: https://github.com/TKMD/ReftrixMCP/issues
 
 ---
+
 ---
 
 ## 法的調査の参考資料 / Legal Research References
@@ -895,6 +901,7 @@ For inquiries regarding this Privacy Policy, please contact us through the GitHu
 ### 参照した法令・ガイドライン / Statutes and Guidelines Referenced
 
 **[JP] 日本法**
+
 - 個人情報の保護に関する法律（個人情報保護法 / APPI）-- 令和5年改正を含む最新版
   - 第2条（定義）、第17条（利用目的の特定）、第21条（取得に際しての利用目的の通知等）
   - 第28条（外国にある第三者への提供の制限）
@@ -910,6 +917,7 @@ For inquiries regarding this Privacy Policy, please contact us through the GitHu
 - 著作権法 -- 第30条の4（著作物に表現された思想又は感情の享受を目的としない利用）
 
 **[EU] EU法**
+
 - General Data Protection Regulation (GDPR) -- Regulation (EU) 2016/679
   - Articles 5-6 (Principles, Lawful Basis)
   - Articles 12-14 (Transparency, Information)
@@ -926,6 +934,7 @@ For inquiries regarding this Privacy Policy, please contact us through the GitHu
   - Phase 4: 2027年8月2日（規制製品組み込みAI義務）
 
 **[US] 米国法**
+
 - California Consumer Privacy Act (CCPA) -- Cal. Civ. Code Sec. 1798.100 et seq.
 - California Privacy Rights Act (CPRA) -- 2020年11月投票承認
 - CCPA/CPRA改正規則 -- 2025年9月22日OAL承認、2026年1月1日発効
@@ -947,6 +956,7 @@ For inquiries regarding this Privacy Policy, please contact us through the GitHu
 ### 参照したWebリソース / Web Resources Referenced
 
 **APPI / 個人情報保護法**
+
 - [Data Protection Laws and Regulations 2025-2026 Japan (ICLG)](https://iclg.com/practice-areas/data-protection-laws-and-regulations/japan)
 - [Japan's DPA publishes interim summary of amendments (IAPP)](https://iapp.org/news/a/japan-s-dpa-publishes-interim-summary-of-amendments-to-data-protection-regulations)
 - [個人情報保護法 いわゆる3年ごと見直しについて（個人情報保護委員会）](https://www.ppc.go.jp/personalinfo/3nengotominaoshi/)
@@ -957,6 +967,7 @@ For inquiries regarding this Privacy Policy, please contact us through the GitHu
 - [Upcoming Amendments to the APPI in 2025 (Anderson Mori & Tomotsune)](https://www.amt-law.com/en/insights/others/publication_0029311_en_001/)
 
 **GDPR / EU法**
+
 - [Web Scraping Under GDPR and CCPA: Compliance Guide for 2026](https://iswebscrapinglegal.com/blog/gdpr-ccpa-web-scraping/)
 - [The state of web scraping in the EU (IAPP)](https://iapp.org/news/a/the-state-of-web-scraping-in-the-eu)
 - [GDPR Chapter 3 - Rights of the data subject](https://gdpr-info.eu/chapter-3/)
@@ -968,12 +979,14 @@ For inquiries regarding this Privacy Policy, please contact us through the GitHu
 - [EDPB releases opinion on personal data use in AI model development (IAPP)](https://iapp.org/news/a/edpb-opinion-sheds-light-on-lawful-ai-training-dpa-discretion)
 
 **EU AI Act**
+
 - [EU AI Act Implementation Timeline](https://artificialintelligenceact.eu/implementation-timeline/)
 - [EU AI Act Timeline: Key Compliance Dates & Deadlines (DataGuard)](https://www.dataguard.com/eu-ai-act/timeline)
 - [Latest wave of obligations under the EU AI Act (DLA Piper)](https://www.dlapiper.com/en-us/insights/publications/2025/08/latest-wave-of-obligations-under-the-eu-ai-act-take-effect)
 - [The EU AI Act: 6 Steps to Take Before 2 August 2026 (Orrick)](https://www.orrick.com/en/Insights/2025/11/The-EU-AI-Act-6-Steps-to-Take-Before-2-August-2026)
 
 **CCPA/CPRA**
+
 - [California Finalizes Regulations (CPPA)](https://cppa.ca.gov/announcements/2025/20250923.html)
 - [CCPA Updates, Cybersecurity Audits, Risk Assessments, ADMT, and Insurance Regulations (CPPA)](https://cppa.ca.gov/regulations/ccpa_updates.html)
 - [California Finalizes CCPA Regulations for ADMT (Skadden)](https://www.skadden.com/insights/publications/2025/10/california-finalizes-cppa-regulations)
@@ -986,17 +999,20 @@ For inquiries regarding this Privacy Policy, please contact us through the GitHu
 - [CCPA/CPRA amended regulations approved and effective January 1, 2026 (FMG Law)](https://www.fmglaw.com/cyber-privacy-security/ccpa-cpra-amended-regulations-approved-and-effective-january-1-2026/)
 
 **COPPA**
+
 - [Children's Online Privacy in 2025: The Amended COPPA Rule (Loeb & Loeb)](https://www.loeb.com/en/insights/publications/2025/05/childrens-online-privacy-in-2025-the-amended-coppa-rule)
 - [FTC's 2025 COPPA Final Rule Amendments (Securiti)](https://securiti.ai/ftc-coppa-final-rule-amendments/)
 - [Children's Online Privacy Protection Rule (FTC)](https://www.ftc.gov/legal-library/browse/rules/childrens-online-privacy-protection-rule-coppa)
 
 **電気通信事業法**
+
 - [スクレイピングの法律的注意点 (IT弁護士 中野秀俊)](https://it-bengosi.com/blog/scraping/)
 - [改正電気通信事業法 Cookie規制 (Priv Lab)](https://privtech.co.jp/blog/law/revised-telecommunications-business-law-cookie.html)
 - [外部送信規律 法令・ガイドライン（総務省）](https://www.soumu.go.jp/main_sosiki/joho_tsusin/d_syohi/gaibusoushin_kiritsu_00001.html)
 - [外部送信規律FAQ（総務省）](https://www.soumu.go.jp/main_sosiki/joho_tsusin/d_syohi/gaibusoushin_kiritsu_00002.html)
 
 **IPアドレスの個人情報該当性**
+
 - [IPアドレスの個人情報該当性 (IT弁護士 中野秀俊)](https://it-bengosi.com/blog/address/)
 - [IPアドレスの個人情報該当性 (實原隆志, 長崎大学リポジトリ)](https://reposit.sun.ac.jp/dspace/bitstream/10561/1110/1/v15p17_jitsuhara.pdf)
 - [GDPR and IP Addresses (ipdetect.org)](https://ipdetect.org/articles/gdpr-ip-addresses)

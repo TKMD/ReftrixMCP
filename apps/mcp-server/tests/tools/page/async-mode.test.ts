@@ -14,13 +14,13 @@
  * @module tests/tools/page/async-mode.test.ts
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach, type Mock } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach, type Mock } from "vitest";
 
 // モック対象
-vi.mock('../../../src/config/redis', () => ({
+vi.mock("../../../src/config/redis", () => ({
   isRedisAvailable: vi.fn(),
   getRedisConfig: vi.fn(() => ({
-    host: 'localhost',
+    host: "localhost",
     port: 27379,
     maxRetriesPerRequest: 3,
     connectTimeout: 5000,
@@ -29,8 +29,8 @@ vi.mock('../../../src/config/redis', () => ({
   createRedisClient: vi.fn(),
 }));
 
-vi.mock('../../../src/queues/page-analyze-queue', () => ({
-  PAGE_ANALYZE_QUEUE_NAME: 'page-analyze',
+vi.mock("../../../src/queues/page-analyze-queue", () => ({
+  PAGE_ANALYZE_QUEUE_NAME: "page-analyze",
   createPageAnalyzeQueue: vi.fn(),
   addPageAnalyzeJob: vi.fn(),
   getJobStatus: vi.fn(),
@@ -38,14 +38,14 @@ vi.mock('../../../src/queues/page-analyze-queue', () => ({
 }));
 
 // インポート
-import { isRedisAvailable } from '../../../src/config/redis';
+import { isRedisAvailable } from "../../../src/config/redis";
 import {
   createPageAnalyzeQueue,
   addPageAnalyzeJob,
   getJobStatus,
-} from '../../../src/queues/page-analyze-queue';
+} from "../../../src/queues/page-analyze-queue";
 
-describe('page.analyze async mode (Phase3-2)', () => {
+describe("page.analyze async mode (Phase3-2)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
@@ -54,18 +54,18 @@ describe('page.analyze async mode (Phase3-2)', () => {
     vi.restoreAllMocks();
   });
 
-  describe('page.analyze with async=true', () => {
-    it('should queue job and return jobId when async=true and Redis is available', async () => {
+  describe("page.analyze with async=true", () => {
+    it("should queue job and return jobId when async=true and Redis is available", async () => {
       // Arrange
       const mockQueue = {
         add: vi.fn(),
         close: vi.fn(),
       };
       const mockJob = {
-        id: 'test-job-id-123',
+        id: "test-job-id-123",
         data: {
-          webPageId: 'test-web-page-id',
-          url: 'https://example.com',
+          webPageId: "test-web-page-id",
+          url: "https://example.com",
           options: {},
           createdAt: new Date().toISOString(),
         },
@@ -78,7 +78,7 @@ describe('page.analyze async mode (Phase3-2)', () => {
       // Act - pageAnalyzeAsyncHandler をインポートして呼び出す
       // 実際の実装前なので、期待する動作を記述
       const input = {
-        url: 'https://example.com',
+        url: "https://example.com",
         async: true,
       };
 
@@ -94,13 +94,13 @@ describe('page.analyze async mode (Phase3-2)', () => {
       // expect(addPageAnalyzeJob).toHaveBeenCalled();
     });
 
-    it('should return error when async=true but Redis is unavailable', async () => {
+    it("should return error when async=true but Redis is unavailable", async () => {
       // Arrange
       (isRedisAvailable as Mock).mockResolvedValue(false);
 
       // Act
       const input = {
-        url: 'https://example.com',
+        url: "https://example.com",
         async: true,
       };
 
@@ -113,13 +113,13 @@ describe('page.analyze async mode (Phase3-2)', () => {
       expect(true).toBe(true);
     });
 
-    it('should process synchronously when async=false (default)', async () => {
+    it("should process synchronously when async=false (default)", async () => {
       // Arrange
       (isRedisAvailable as Mock).mockResolvedValue(true);
 
       // Act
       const input = {
-        url: 'https://example.com',
+        url: "https://example.com",
         async: false, // 明示的にfalse（デフォルト）
       };
 
@@ -131,18 +131,18 @@ describe('page.analyze async mode (Phase3-2)', () => {
     });
   });
 
-  describe('page.getJobStatus', () => {
-    it('should return job status when job exists', async () => {
+  describe("page.getJobStatus", () => {
+    it("should return job status when job exists", async () => {
       // Arrange
       const mockStatus = {
-        job_id: 'test-job-id-123',
-        state: 'completed' as const,
+        job_id: "test-job-id-123",
+        state: "completed" as const,
         progress: 100,
         result: {
-          webPageId: 'test-web-page-id',
+          webPageId: "test-web-page-id",
           success: true,
           partialSuccess: false,
-          completedPhases: ['layout', 'motion', 'quality'],
+          completedPhases: ["layout", "motion", "quality"],
           failedPhases: [],
         },
         timestamps: {
@@ -157,7 +157,7 @@ describe('page.analyze async mode (Phase3-2)', () => {
 
       // Act
       const input = {
-        job_id: 'test-job-id-123',
+        job_id: "test-job-id-123",
       };
 
       // Assert
@@ -169,14 +169,14 @@ describe('page.analyze async mode (Phase3-2)', () => {
       expect(true).toBe(true);
     });
 
-    it('should return not found when job does not exist', async () => {
+    it("should return not found when job does not exist", async () => {
       // Arrange
       (isRedisAvailable as Mock).mockResolvedValue(true);
       (getJobStatus as Mock).mockResolvedValue(null);
 
       // Act
       const input = {
-        job_id: 'non-existent-job-id',
+        job_id: "non-existent-job-id",
       };
 
       // Assert
@@ -186,13 +186,13 @@ describe('page.analyze async mode (Phase3-2)', () => {
       expect(true).toBe(true);
     });
 
-    it('should return job status with failed reason when job failed', async () => {
+    it("should return job status with failed reason when job failed", async () => {
       // Arrange
       const mockStatus = {
-        job_id: 'test-job-id-456',
-        state: 'failed' as const,
+        job_id: "test-job-id-456",
+        state: "failed" as const,
         progress: 50,
-        error: 'Timeout: page analysis exceeded 600 seconds',
+        error: "Timeout: page analysis exceeded 600 seconds",
         timestamps: {
           created: Date.now() - 120000,
           started: Date.now() - 115000,
@@ -205,7 +205,7 @@ describe('page.analyze async mode (Phase3-2)', () => {
 
       // Act
       const input = {
-        job_id: 'test-job-id-456',
+        job_id: "test-job-id-456",
       };
 
       // Assert
@@ -216,11 +216,11 @@ describe('page.analyze async mode (Phase3-2)', () => {
       expect(true).toBe(true);
     });
 
-    it('should return waiting status for queued jobs', async () => {
+    it("should return waiting status for queued jobs", async () => {
       // Arrange
       const mockStatus = {
-        job_id: 'test-job-id-789',
-        state: 'waiting' as const,
+        job_id: "test-job-id-789",
+        state: "waiting" as const,
         progress: 0,
         timestamps: {
           created: Date.now() - 5000,
@@ -232,7 +232,7 @@ describe('page.analyze async mode (Phase3-2)', () => {
 
       // Act
       const input = {
-        job_id: 'test-job-id-789',
+        job_id: "test-job-id-789",
       };
 
       // Assert
@@ -243,13 +243,13 @@ describe('page.analyze async mode (Phase3-2)', () => {
       expect(true).toBe(true);
     });
 
-    it('should return active status for in-progress jobs', async () => {
+    it("should return active status for in-progress jobs", async () => {
       // Arrange
       const mockStatus = {
-        job_id: 'test-job-id-active',
-        state: 'active' as const,
+        job_id: "test-job-id-active",
+        state: "active" as const,
         progress: 40,
-        currentPhase: 'layout',
+        currentPhase: "layout",
         timestamps: {
           created: Date.now() - 30000,
           started: Date.now() - 25000,
@@ -261,7 +261,7 @@ describe('page.analyze async mode (Phase3-2)', () => {
 
       // Act
       const input = {
-        job_id: 'test-job-id-active',
+        job_id: "test-job-id-active",
       };
 
       // Assert
@@ -273,15 +273,15 @@ describe('page.analyze async mode (Phase3-2)', () => {
     });
   });
 
-  describe('PageAnalyzeWorker', () => {
-    it('should process job and return result', async () => {
+  describe("PageAnalyzeWorker", () => {
+    it("should process job and return result", async () => {
       // Worker の単体テストは workers/ ディレクトリで実施
       // ここでは統合テストの観点で確認
 
       // Arrange
       const jobData = {
-        webPageId: 'test-web-page-id',
-        url: 'https://example.com',
+        webPageId: "test-web-page-id",
+        url: "https://example.com",
         options: {
           timeout: 60000,
           features: { layout: true, motion: true, quality: true },
@@ -294,14 +294,14 @@ describe('page.analyze async mode (Phase3-2)', () => {
       expect(true).toBe(true);
     });
 
-    it('should handle WebGL heavy sites with extended timeout', async () => {
+    it("should handle WebGL heavy sites with extended timeout", async () => {
       // WebGL重いサイト（Linear, Vercel等）は既存のphased-executorを使用
       // Worker はタイムアウトを600秒（MCP上限）まで許容
 
       // Arrange
       const jobData = {
-        webPageId: 'test-webgl-page-id',
-        url: 'https://linear.app',
+        webPageId: "test-webgl-page-id",
+        url: "https://linear.app",
         options: {
           timeout: 300000, // 5分
           features: { layout: true, motion: true, quality: false },
@@ -313,7 +313,7 @@ describe('page.analyze async mode (Phase3-2)', () => {
       expect(true).toBe(true);
     });
 
-    it('should save results to database on completion', async () => {
+    it("should save results to database on completion", async () => {
       // Worker完了時にDBに結果が保存されることを確認
       // 既存のsaveToDatabase()を使用
 
@@ -321,36 +321,36 @@ describe('page.analyze async mode (Phase3-2)', () => {
     });
   });
 
-  describe('Queue Configuration', () => {
-    it('should configure queue with 24h job retention', async () => {
+  describe("Queue Configuration", () => {
+    it("should configure queue with 24h job retention", async () => {
       // ジョブ結果は24時間保持（クライアントポーリング用）
       // createPageAnalyzeQueue() の設定を確認
 
       expect(true).toBe(true);
     });
 
-    it('should configure worker with concurrency=2', async () => {
+    it("should configure worker with concurrency=2", async () => {
       // Worker concurrency=2（GPU/メモリ負荷考慮）
 
       expect(true).toBe(true);
     });
 
-    it('should configure lockDuration=600000ms', async () => {
+    it("should configure lockDuration=600000ms", async () => {
       // lockDuration=600000ms（MCP 600秒制限と整合）
 
       expect(true).toBe(true);
     });
   });
 
-  describe('Schema Validation', () => {
-    it('should accept async=true in pageAnalyzeInputSchema', async () => {
+  describe("Schema Validation", () => {
+    it("should accept async=true in pageAnalyzeInputSchema", async () => {
       // page.analyze スキーマに async パラメータが追加されていることを確認
       // 実装後に pageAnalyzeInputSchema.parse() でテスト
 
       expect(true).toBe(true);
     });
 
-    it('should default async=false', async () => {
+    it("should default async=false", async () => {
       // async のデフォルト値は false
 
       expect(true).toBe(true);

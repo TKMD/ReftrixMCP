@@ -28,20 +28,30 @@
 
 /* eslint-disable no-console */
 
-import fs from 'node:fs';
-import path from 'node:path';
-import { computeMemoryProfile, logMemoryProfile } from '../services/worker-memory-profile';
-import { createPageAnalyzeWorker, type PageAnalyzeWorkerInstance } from '../workers/page-analyze-worker';
-import { createBatchQualityWorker, setQualityEvaluatorService, type BatchQualityWorkerInstance } from '../workers/batch-quality-worker';
-import { checkRedisConnection, getRedisConfig } from '../config/redis';
-import { embeddingService } from '@reftrix/ml';
-import { prisma } from '@reftrix/database';
-import { webPageService } from '../services/web-page.service';
-import { initializeAllServices, type ServiceInitializerConfig } from '../services/service-initializer';
-import { executeQualityEvaluate } from '../services';
-import type { Grade } from '../tools/quality/schemas';
-import { createPageAnalyzeQueue } from '../queues/page-analyze-queue';
-import { categorizeByProgress } from '../services/orphaned-job-utils';
+import fs from "node:fs";
+import path from "node:path";
+import { computeMemoryProfile, logMemoryProfile } from "../services/worker-memory-profile";
+import {
+  createPageAnalyzeWorker,
+  type PageAnalyzeWorkerInstance,
+} from "../workers/page-analyze-worker";
+import {
+  createBatchQualityWorker,
+  setQualityEvaluatorService,
+  type BatchQualityWorkerInstance,
+} from "../workers/batch-quality-worker";
+import { checkRedisConnection, getRedisConfig } from "../config/redis";
+import { embeddingService } from "@reftrix/ml";
+import { prisma } from "@reftrix/database";
+import { webPageService } from "../services/web-page.service";
+import {
+  initializeAllServices,
+  type ServiceInitializerConfig,
+} from "../services/service-initializer";
+import { executeQualityEvaluate } from "../services";
+import type { Grade } from "../tools/quality/schemas";
+import { createPageAnalyzeQueue } from "../queues/page-analyze-queue";
+import { categorizeByProgress } from "../services/orphaned-job-utils";
 // NOTE: Startup embedding backfill was removed (caused 33GB RSS bloat blocking Worker init).
 // Missing embeddings are repaired via:
 //   1. Post-Embedding Backfill in page-analyze-worker.ts (per-job, after Phase 5)
@@ -52,12 +62,12 @@ import { categorizeByProgress } from '../services/orphaned-job-utils';
 // ============================================================================
 
 const WORKER_TYPES = {
-  PAGE_ANALYZE: 'page-analyze',
-  BATCH_QUALITY: 'batch-quality',
-  ALL: 'all',
+  PAGE_ANALYZE: "page-analyze",
+  BATCH_QUALITY: "batch-quality",
+  ALL: "all",
 } as const;
 
-type WorkerType = typeof WORKER_TYPES[keyof typeof WORKER_TYPES];
+type WorkerType = (typeof WORKER_TYPES)[keyof typeof WORKER_TYPES];
 
 // ============================================================================
 // Worker Instances
@@ -73,18 +83,21 @@ let batchQualityWorker: BatchQualityWorkerInstance | null = null;
 function loadEnvLocal(): void {
   let dir = process.cwd();
   while (true) {
-    const candidate = path.join(dir, '.env.local');
+    const candidate = path.join(dir, ".env.local");
     if (fs.existsSync(candidate)) {
-      const raw = fs.readFileSync(candidate, 'utf8');
+      const raw = fs.readFileSync(candidate, "utf8");
       raw.split(/\r?\n/).forEach((line) => {
         const trimmed = line.trim();
-        if (!trimmed || trimmed.startsWith('#')) return;
-        const normalized = trimmed.startsWith('export ') ? trimmed.slice(7) : trimmed;
-        const eqIndex = normalized.indexOf('=');
+        if (!trimmed || trimmed.startsWith("#")) return;
+        const normalized = trimmed.startsWith("export ") ? trimmed.slice(7) : trimmed;
+        const eqIndex = normalized.indexOf("=");
         if (eqIndex === -1) return;
         const key = normalized.slice(0, eqIndex).trim();
         let value = normalized.slice(eqIndex + 1).trim();
-        if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
+        if (
+          (value.startsWith('"') && value.endsWith('"')) ||
+          (value.startsWith("'") && value.endsWith("'"))
+        ) {
           value = value.slice(1, -1);
         }
         if (!process.env[key]) {
@@ -104,7 +117,7 @@ function loadEnvLocal(): void {
  * Initialize services required by workers
  */
 async function initializeServices(): Promise<void> {
-  console.log('[WorkerStartup] Initializing services...');
+  console.log("[WorkerStartup] Initializing services...");
 
   // Initialize all services (same as MCP server)
   const serviceConfig: ServiceInitializerConfig = {
@@ -132,7 +145,7 @@ async function initializeServices(): Promise<void> {
       });
 
       if (!result.success || !result.data) {
-        throw new Error(result.error?.message ?? 'Quality evaluation failed');
+        throw new Error(result.error?.message ?? "Quality evaluation failed");
       }
 
       // Transform service-export format to schemas.ts QualityEvaluateData format
@@ -153,11 +166,14 @@ async function initializeServices(): Promise<void> {
           grade: (data.axisGrades?.contextuality ?? data.grade) as Grade,
         },
         evaluatedAt: new Date().toISOString(),
-        clicheDetection: data.clicheCount !== undefined ? {
-          count: data.clicheCount,
-          detected: data.clicheCount > 0,
-          patterns: [],
-        } : undefined,
+        clicheDetection:
+          data.clicheCount !== undefined
+            ? {
+                count: data.clicheCount,
+                detected: data.clicheCount > 0,
+                patterns: [],
+              }
+            : undefined,
       };
     },
     getPageById: async (pageId) => {
@@ -169,7 +185,7 @@ async function initializeServices(): Promise<void> {
     },
   });
 
-  console.log('[WorkerStartup] Services initialized successfully');
+  console.log("[WorkerStartup] Services initialized successfully");
 }
 
 /**
@@ -185,7 +201,7 @@ async function checkRedis(): Promise<void> {
     throw new Error(`Redis connection failed: ${status.error}`);
   }
 
-  console.log(`[WorkerStartup] Redis connected (version: ${status.info?.version ?? 'unknown'})`);
+  console.log(`[WorkerStartup] Redis connected (version: ${status.info?.version ?? "unknown"})`);
 }
 
 // ============================================================================
@@ -198,7 +214,7 @@ async function checkRedis(): Promise<void> {
 function startPageAnalyzeWorker(): PageAnalyzeWorkerInstance {
   // Default concurrency = 1 to avoid race condition with singleton Playwright browser
   // BullMQ Worker + singleton browser causes "Target page, context or browser has been closed" errors
-  const concurrency = parseInt(process.env.PAGE_WORKER_CONCURRENCY ?? '1', 10);
+  const concurrency = parseInt(process.env.PAGE_WORKER_CONCURRENCY ?? "1", 10);
 
   console.log(`[WorkerStartup] Starting PageAnalyzeWorker (concurrency: ${concurrency})...`);
 
@@ -208,10 +224,10 @@ function startPageAnalyzeWorker(): PageAnalyzeWorkerInstance {
   });
 
   worker.worker.run().catch((error: Error) => {
-    worker.worker.emit('error', error);
+    worker.worker.emit("error", error);
   });
 
-  console.log('[WorkerStartup] PageAnalyzeWorker started successfully');
+  console.log("[WorkerStartup] PageAnalyzeWorker started successfully");
   return worker;
 }
 
@@ -219,7 +235,7 @@ function startPageAnalyzeWorker(): PageAnalyzeWorkerInstance {
  * Start BatchQualityWorker
  */
 function startBatchQualityWorker(): BatchQualityWorkerInstance {
-  const concurrency = parseInt(process.env.WORKER_CONCURRENCY ?? '3', 10);
+  const concurrency = parseInt(process.env.WORKER_CONCURRENCY ?? "3", 10);
 
   console.log(`[WorkerStartup] Starting BatchQualityWorker (concurrency: ${concurrency})...`);
 
@@ -228,7 +244,7 @@ function startBatchQualityWorker(): BatchQualityWorkerInstance {
     verbose: true,
   });
 
-  console.log('[WorkerStartup] BatchQualityWorker started successfully');
+  console.log("[WorkerStartup] BatchQualityWorker started successfully");
   return worker;
 }
 
@@ -249,14 +265,14 @@ function startBatchQualityWorker(): BatchQualityWorkerInstance {
  * - never_started (progress = 0): waitingに戻す（failed → retry）
  */
 async function recoverOrphanedPageAnalyzeJobs(): Promise<void> {
-  console.log('[WorkerStartup] Checking for orphaned active jobs...');
+  console.log("[WorkerStartup] Checking for orphaned active jobs...");
 
   try {
     const queue = createPageAnalyzeQueue();
-    const activeJobs = await queue.getJobs(['active'], 0, 100);
+    const activeJobs = await queue.getJobs(["active"], 0, 100);
 
     if (activeJobs.length === 0) {
-      console.log('[WorkerStartup] No orphaned jobs found');
+      console.log("[WorkerStartup] No orphaned jobs found");
       await queue.close();
       return;
     }
@@ -272,9 +288,9 @@ async function recoverOrphanedPageAnalyzeJobs(): Promise<void> {
     for (const job of activeJobs) {
       if (job.id === undefined) continue;
 
-      const progress = typeof job.progress === 'number' ? job.progress : 0;
+      const progress = typeof job.progress === "number" ? job.progress : 0;
       const category = categorizeByProgress(progress, job.processedOn);
-      const url = job.data?.url ?? 'unknown';
+      const url = job.data?.url ?? "unknown";
 
       console.log(
         `[WorkerStartup]   Job ${job.id}: progress=${progress}%, category=${category}, url=${url}`
@@ -282,11 +298,11 @@ async function recoverOrphanedPageAnalyzeJobs(): Promise<void> {
 
       try {
         switch (category) {
-          case 'db_saved_but_stuck': {
+          case "db_saved_but_stuck": {
             // DB保存済み（progress >= 90%）: completedに遷移
             await job.moveToCompleted(
               {
-                webPageId: job.data?.webPageId ?? '',
+                webPageId: job.data?.webPageId ?? "",
                 success: true,
                 partialSuccess: true,
                 completedPhases: [],
@@ -294,7 +310,7 @@ async function recoverOrphanedPageAnalyzeJobs(): Promise<void> {
                 processingTimeMs: 0,
                 completedAt: new Date().toISOString(),
               },
-              '0',
+              "0",
               false
             );
             console.log(`[WorkerStartup]     -> completed (DB already saved)`);
@@ -302,14 +318,14 @@ async function recoverOrphanedPageAnalyzeJobs(): Promise<void> {
             break;
           }
 
-          case 'processing_interrupted': {
+          case "processing_interrupted": {
             // 処理中断（0 < progress < 90%）: failedに遷移
             await job.moveToFailed(
               new Error(
                 `Worker restarted during processing (progress: ${progress}%). ` +
-                'Job orphaned at startup recovery.'
+                  "Job orphaned at startup recovery."
               ),
-              '0',
+              "0",
               false
             );
             console.log(`[WorkerStartup]     -> failed (processing interrupted)`);
@@ -317,18 +333,18 @@ async function recoverOrphanedPageAnalyzeJobs(): Promise<void> {
             break;
           }
 
-          case 'never_started': {
+          case "never_started": {
             // 未開始（progress = 0）: waitingに戻す
             // BullMQ API: active → failed → retry → waiting
             await job.moveToFailed(
               new Error(
-                'Worker restarted before processing started. Job will be retried automatically.'
+                "Worker restarted before processing started. Job will be retried automatically."
               ),
-              '0',
+              "0",
               false
             );
             try {
-              await job.retry('failed');
+              await job.retry("failed");
               console.log(`[WorkerStartup]     -> waiting (retried, will be processed)`);
               retriedCount++;
             } catch (retryError) {
@@ -359,7 +375,7 @@ async function recoverOrphanedPageAnalyzeJobs(): Promise<void> {
   } catch (error) {
     // 回復失敗はワーカー起動を妨げない（Graceful Degradation）
     console.warn(
-      '[WorkerStartup] Orphaned job recovery failed (non-fatal):',
+      "[WorkerStartup] Orphaned job recovery failed (non-fatal):",
       error instanceof Error ? error.message : error
     );
   }
@@ -373,12 +389,8 @@ async function recoverOrphanedPageAnalyzeJobs(): Promise<void> {
  * close()完了後にプロセスを終了する。
  */
 function setupIpcShutdownHandler(): void {
-  process.on('message', async (message: unknown) => {
-    if (
-      typeof message === 'object' &&
-      message !== null &&
-      'type' in message
-    ) {
+  process.on("message", async (message: unknown) => {
+    if (typeof message === "object" && message !== null && "type" in message) {
       const msgType = (message as { type: string }).type;
 
       // Note: Phase 0 (IPC pause) は削除済み。
@@ -386,14 +398,14 @@ function setupIpcShutdownHandler(): void {
       // BullMQ moveToCompleted の fetchNext=false が保証されている。
 
       // Phase 1: shutdown — BullMQ Worker.close() でロック解放後にプロセス終了
-      if (msgType === 'shutdown') {
-        console.log('[WorkerStartup] Received IPC shutdown message, closing BullMQ workers...');
+      if (msgType === "shutdown") {
+        console.log("[WorkerStartup] Received IPC shutdown message, closing BullMQ workers...");
 
         try {
           await shutdownWorkers();
         } catch (error) {
           console.error(
-            '[WorkerStartup] Error during IPC-triggered shutdown:',
+            "[WorkerStartup] Error during IPC-triggered shutdown:",
             error instanceof Error ? error.message : error
           );
           process.exit(1);
@@ -438,15 +450,15 @@ async function startWorkers(type: WorkerType): Promise<void> {
   // Setup IPC shutdown handler (for WorkerSupervisor graceful shutdown)
   setupIpcShutdownHandler();
 
-  console.log('[WorkerStartup] All requested workers are running');
-  console.log('[WorkerStartup] Press Ctrl+C to stop');
+  console.log("[WorkerStartup] All requested workers are running");
+  console.log("[WorkerStartup] Press Ctrl+C to stop");
 }
 
 /**
  * Gracefully shutdown workers
  */
 async function shutdownWorkers(): Promise<void> {
-  console.log('\n[WorkerStartup] Shutting down workers...');
+  console.log("\n[WorkerStartup] Shutting down workers...");
 
   const shutdownPromises: Promise<void>[] = [];
 
@@ -460,7 +472,7 @@ async function shutdownWorkers(): Promise<void> {
 
   await Promise.all(shutdownPromises);
 
-  console.log('[WorkerStartup] Workers shutdown complete');
+  console.log("[WorkerStartup] Workers shutdown complete");
   process.exit(0);
 }
 
@@ -473,8 +485,8 @@ async function main(): Promise<void> {
 
   // Validate environment
   if (!process.env.NODE_ENV) {
-    process.env.NODE_ENV = 'development';
-    console.warn('[WorkerStartup] NODE_ENV not set, defaulting to development');
+    process.env.NODE_ENV = "development";
+    console.warn("[WorkerStartup] NODE_ENV not set, defaulting to development");
   }
 
   console.log(`[WorkerStartup] Starting workers (NODE_ENV: ${process.env.NODE_ENV})`);
@@ -487,15 +499,15 @@ async function main(): Promise<void> {
   const args = process.argv.slice(2);
   let workerType: WorkerType = WORKER_TYPES.ALL;
 
-  if (args.includes('--page') || args.includes('-p')) {
+  if (args.includes("--page") || args.includes("-p")) {
     workerType = WORKER_TYPES.PAGE_ANALYZE;
-  } else if (args.includes('--quality') || args.includes('-q')) {
+  } else if (args.includes("--quality") || args.includes("-q")) {
     workerType = WORKER_TYPES.BATCH_QUALITY;
   }
 
   // Setup signal handlers
-  process.on('SIGINT', shutdownWorkers);
-  process.on('SIGTERM', shutdownWorkers);
+  process.on("SIGINT", shutdownWorkers);
+  process.on("SIGTERM", shutdownWorkers);
 
   // Common fatal error handler to prevent silent worker death
   function handleFatalError(label: string, error: unknown): void {
@@ -503,41 +515,46 @@ async function main(): Promise<void> {
     const stack = error instanceof Error ? error.stack : undefined;
     console.error(`[WorkerStartup] ${label}:`, message);
     if (stack) {
-      console.error('[WorkerStartup] Stack:', stack);
+      console.error("[WorkerStartup] Stack:", stack);
     }
     // Attempt graceful shutdown with 10s timeout
     const shutdownTimeout = setTimeout(() => {
-      console.error('[WorkerStartup] Graceful shutdown timed out after 10s, forcing exit');
+      console.error("[WorkerStartup] Graceful shutdown timed out after 10s, forcing exit");
       process.exit(1);
     }, 10000);
     shutdownTimeout.unref();
-    shutdownWorkers().catch(() => {
-      // shutdown errors are non-fatal at this point
-    }).finally(() => {
-      clearTimeout(shutdownTimeout);
-      process.exit(1);
-    });
+    shutdownWorkers()
+      .catch(() => {
+        // shutdown errors are non-fatal at this point
+      })
+      .finally(() => {
+        clearTimeout(shutdownTimeout);
+        process.exit(1);
+      });
   }
 
   // Setup uncaught error handlers
-  process.on('uncaughtException', (error: Error) => {
-    handleFatalError('Uncaught exception', error);
+  process.on("uncaughtException", (error: Error) => {
+    handleFatalError("Uncaught exception", error);
   });
 
-  process.on('unhandledRejection', (reason: unknown) => {
-    handleFatalError('Unhandled rejection', reason);
+  process.on("unhandledRejection", (reason: unknown) => {
+    handleFatalError("Unhandled rejection", reason);
   });
 
   try {
     await startWorkers(workerType);
   } catch (error) {
-    console.error('[WorkerStartup] Failed to start workers:', error instanceof Error ? error.message : error);
+    console.error(
+      "[WorkerStartup] Failed to start workers:",
+      error instanceof Error ? error.message : error
+    );
     process.exit(1);
   }
 }
 
 // Entry point
 main().catch((error) => {
-  console.error('[WorkerStartup] Unhandled error:', error);
+  console.error("[WorkerStartup] Unhandled error:", error);
   process.exit(1);
 });

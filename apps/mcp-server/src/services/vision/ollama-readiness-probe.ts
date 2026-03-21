@@ -17,9 +17,9 @@
  * @see apps/mcp-server/src/services/vision/scroll-vision.analyzer.ts
  */
 
-import { queryVram } from './vram-utils.js';
-import type { VramInfo } from './vram-utils.js';
-import { HardwareDetector } from './hardware-detector.js';
+import { queryVram } from "./vram-utils.js";
+import type { VramInfo } from "./vram-utils.js";
+import { HardwareDetector } from "./hardware-detector.js";
 
 // =============================================================================
 // 定数
@@ -53,7 +53,7 @@ const OLLAMA_API_TIMEOUT_MS = 5000;
 // =============================================================================
 
 // VramInfo は vram-utils.ts から re-export（後方互換性のため）
-export type { VramInfo } from './vram-utils.js';
+export type { VramInfo } from "./vram-utils.js";
 
 /**
  * Readiness Probe結果
@@ -121,7 +121,7 @@ export class OllamaReadinessProbe {
   private readonly skipVramCheck: boolean;
 
   constructor(config?: OllamaReadinessProbeConfig) {
-    this.ollamaUrl = config?.ollamaUrl ?? 'http://localhost:11434';
+    this.ollamaUrl = config?.ollamaUrl ?? "http://localhost:11434";
     this.minVramFreeMb = config?.minVramFreeMb ?? MIN_VRAM_FREE_MB;
     this.maxWaitRetries = config?.maxWaitRetries ?? MAX_WAIT_RETRIES;
     this.waitBaseDelayMs = config?.waitBaseDelayMs ?? WAIT_BASE_DELAY_MS;
@@ -154,7 +154,7 @@ export class OllamaReadinessProbe {
         ollamaAvailable: false,
         waitRetries: 0,
         totalWaitMs: Date.now() - startTime,
-        reason: 'Ollama service is not available',
+        reason: "Ollama service is not available",
       };
     }
 
@@ -182,8 +182,8 @@ export class OllamaReadinessProbe {
           waitRetries: 0,
           totalWaitMs: Date.now() - startTime,
           reason: HardwareDetector.isAppleSilicon()
-            ? 'Apple Silicon detected: Metal GPU manages memory natively (nvidia-smi not applicable)'
-            : 'nvidia-smi not available, assuming CPU mode (no VRAM check)',
+            ? "Apple Silicon detected: Metal GPU manages memory natively (nvidia-smi not applicable)"
+            : "nvidia-smi not available, assuming CPU mode (no VRAM check)",
         };
       }
 
@@ -223,7 +223,7 @@ export class OllamaReadinessProbe {
       ollamaAvailable: true,
       waitRetries,
       totalWaitMs: Date.now() - startTime,
-      reason: 'Unexpected: exceeded retry loop',
+      reason: "Unexpected: exceeded retry loop",
     };
   }
 
@@ -250,7 +250,7 @@ export class OllamaReadinessProbe {
 
       try {
         const response = await fetch(`${this.ollamaUrl}/api/tags`, {
-          method: 'GET',
+          method: "GET",
           signal: controller.signal,
         });
         return response.ok;

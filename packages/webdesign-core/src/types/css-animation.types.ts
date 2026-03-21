@@ -41,7 +41,7 @@ export interface AnimationShorthand {
   /** 遅延時間（ミリ秒） */
   delay: number;
   /** 繰り返し回数（'infinite'は無限） */
-  iterationCount: number | 'infinite';
+  iterationCount: number | "infinite";
   /** 再生方向 */
   direction: AnimationDirection;
   /** フィルモード */
@@ -53,17 +53,17 @@ export interface AnimationShorthand {
 /**
  * animation-direction値
  */
-export type AnimationDirection = 'normal' | 'reverse' | 'alternate' | 'alternate-reverse';
+export type AnimationDirection = "normal" | "reverse" | "alternate" | "alternate-reverse";
 
 /**
  * animation-fill-mode値
  */
-export type AnimationFillMode = 'none' | 'forwards' | 'backwards' | 'both';
+export type AnimationFillMode = "none" | "forwards" | "backwards" | "both";
 
 /**
  * animation-play-state値
  */
-export type AnimationPlayState = 'running' | 'paused';
+export type AnimationPlayState = "running" | "paused";
 
 /**
  * transition定義を表す型
@@ -82,7 +82,7 @@ export interface TransitionDefinition {
 /**
  * タイミング関数の種類
  */
-export type TimingFunctionType = 'keyword' | 'cubic-bezier' | 'steps';
+export type TimingFunctionType = "keyword" | "cubic-bezier" | "steps";
 
 /**
  * タイミング関数の詳細情報
@@ -103,29 +103,37 @@ export interface TimingFunctionInfo {
 /**
  * steps()のジャンプ項
  */
-export type StepsJumpTerm = 'start' | 'end' | 'none' | 'both' | 'jump-start' | 'jump-end' | 'jump-none' | 'jump-both';
+export type StepsJumpTerm =
+  | "start"
+  | "end"
+  | "none"
+  | "both"
+  | "jump-start"
+  | "jump-end"
+  | "jump-none"
+  | "jump-both";
 
 /**
  * CSSAnimationParserのデフォルト値
  */
 export const CSS_ANIMATION_DEFAULTS: Readonly<AnimationShorthand> = {
-  name: 'none',
+  name: "none",
   duration: 0,
-  timingFunction: 'ease',
+  timingFunction: "ease",
   delay: 0,
   iterationCount: 1,
-  direction: 'normal',
-  fillMode: 'none',
-  playState: 'running',
+  direction: "normal",
+  fillMode: "none",
+  playState: "running",
 };
 
 /**
  * TransitionDefinitionのデフォルト値
  */
 export const CSS_TRANSITION_DEFAULTS: Readonly<TransitionDefinition> = {
-  property: 'all',
+  property: "all",
   duration: 0,
-  timingFunction: 'ease',
+  timingFunction: "ease",
   delay: 0,
 };
 
@@ -133,42 +141,40 @@ export const CSS_TRANSITION_DEFAULTS: Readonly<TransitionDefinition> = {
  * animation-directionの有効値
  */
 export const ANIMATION_DIRECTION_VALUES: readonly AnimationDirection[] = [
-  'normal',
-  'reverse',
-  'alternate',
-  'alternate-reverse',
+  "normal",
+  "reverse",
+  "alternate",
+  "alternate-reverse",
 ];
 
 /**
  * animation-fill-modeの有効値
  */
 export const ANIMATION_FILL_MODE_VALUES: readonly AnimationFillMode[] = [
-  'none',
-  'forwards',
-  'backwards',
-  'both',
+  "none",
+  "forwards",
+  "backwards",
+  "both",
 ];
 
 /**
  * animation-play-stateの有効値
  */
-export const ANIMATION_PLAY_STATE_VALUES: readonly AnimationPlayState[] = [
-  'running',
-  'paused',
-];
+export const ANIMATION_PLAY_STATE_VALUES: readonly AnimationPlayState[] = ["running", "paused"];
 
 /**
  * タイミング関数キーワードとcubic-bezier値のマップ
  */
-export const TIMING_FUNCTION_KEYWORDS: Readonly<Record<string, [number, number, number, number]>> = {
-  'ease': [0.25, 0.1, 0.25, 1],
-  'linear': [0, 0, 1, 1],
-  'ease-in': [0.42, 0, 1, 1],
-  'ease-out': [0, 0, 0.58, 1],
-  'ease-in-out': [0.42, 0, 0.58, 1],
-};
+export const TIMING_FUNCTION_KEYWORDS: Readonly<Record<string, [number, number, number, number]>> =
+  {
+    ease: [0.25, 0.1, 0.25, 1],
+    linear: [0, 0, 1, 1],
+    "ease-in": [0.42, 0, 1, 1],
+    "ease-out": [0, 0, 0.58, 1],
+    "ease-in-out": [0.42, 0, 0.58, 1],
+  };
 
 /**
  * ベンダープレフィックス
  */
-export const VENDOR_PREFIXES = ['-webkit-', '-moz-', '-ms-', '-o-'] as const;
+export const VENDOR_PREFIXES = ["-webkit-", "-moz-", "-ms-", "-o-"] as const;

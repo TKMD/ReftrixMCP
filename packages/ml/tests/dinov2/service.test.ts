@@ -9,12 +9,12 @@
  * in-process fallback path and standalone utility functions.
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import {
   DINOv2Service,
   DINOV2_EMBEDDING_DIMENSION,
   DINOV2_INPUT_SIZE,
-} from '../../src/dinov2/service.js';
+} from "../../src/dinov2/service.js";
 
 // =====================================================
 // Preprocessing / L2 normalization tests (extracted logic)
@@ -58,7 +58,7 @@ function l2Normalize(vec: Float32Array): Float32Array {
   }
   norm = Math.sqrt(norm);
   if (norm === 0) {
-    throw new Error('Zero vector: L2 norm is 0');
+    throw new Error("Zero vector: L2 norm is 0");
   }
   const result = new Float32Array(vec.length);
   for (let i = 0; i < vec.length; i++) {
@@ -67,8 +67,8 @@ function l2Normalize(vec: Float32Array): Float32Array {
   return result;
 }
 
-describe('DINOv2 preprocessImage', () => {
-  it('should convert HWC uint8 to CHW float32 with ImageNet normalization', () => {
+describe("DINOv2 preprocessImage", () => {
+  it("should convert HWC uint8 to CHW float32 with ImageNet normalization", () => {
     // 2x2 image, all pixels = [128, 128, 128]
     const width = 2;
     const height = 2;
@@ -88,12 +88,12 @@ describe('DINOv2 preprocessImage', () => {
     expect(result[8]).toBeCloseTo(expectedB, 5);
   });
 
-  it('should throw on invalid buffer size', () => {
+  it("should throw on invalid buffer size", () => {
     const smallBuffer = new ArrayBuffer(10);
-    expect(() => preprocessImage(smallBuffer, 224, 224)).toThrow('Invalid buffer size');
+    expect(() => preprocessImage(smallBuffer, 224, 224)).toThrow("Invalid buffer size");
   });
 
-  it('should handle all-zero pixels (black image)', () => {
+  it("should handle all-zero pixels (black image)", () => {
     const width = 2;
     const height = 2;
     const pixels = new Uint8Array(width * height * 3).fill(0);
@@ -104,7 +104,7 @@ describe('DINOv2 preprocessImage', () => {
     expect(result[0]).toBeCloseTo(expectedR, 5);
   });
 
-  it('should handle all-255 pixels (white image)', () => {
+  it("should handle all-255 pixels (white image)", () => {
     const width = 2;
     const height = 2;
     const pixels = new Uint8Array(width * height * 3).fill(255);
@@ -116,8 +116,8 @@ describe('DINOv2 preprocessImage', () => {
   });
 });
 
-describe('DINOv2 l2Normalize', () => {
-  it('should normalize a vector to unit length', () => {
+describe("DINOv2 l2Normalize", () => {
+  it("should normalize a vector to unit length", () => {
     const vec = new Float32Array([3, 4]);
     const result = l2Normalize(vec);
     expect(result[0]).toBeCloseTo(0.6, 5);
@@ -128,27 +128,27 @@ describe('DINOv2 l2Normalize', () => {
     expect(norm).toBeCloseTo(1.0, 5);
   });
 
-  it('should throw on zero vector', () => {
+  it("should throw on zero vector", () => {
     const vec = new Float32Array([0, 0, 0]);
-    expect(() => l2Normalize(vec)).toThrow('Zero vector: L2 norm is 0');
+    expect(() => l2Normalize(vec)).toThrow("Zero vector: L2 norm is 0");
   });
 
-  it('should throw on NaN values', () => {
+  it("should throw on NaN values", () => {
     const vec = new Float32Array([1, NaN, 3]);
-    expect(() => l2Normalize(vec)).toThrow('NaN/Infinity detected at index 1');
+    expect(() => l2Normalize(vec)).toThrow("NaN/Infinity detected at index 1");
   });
 
-  it('should throw on Infinity values', () => {
+  it("should throw on Infinity values", () => {
     const vec = new Float32Array([1, Infinity, 3]);
-    expect(() => l2Normalize(vec)).toThrow('NaN/Infinity detected at index 1');
+    expect(() => l2Normalize(vec)).toThrow("NaN/Infinity detected at index 1");
   });
 
-  it('should throw on -Infinity values', () => {
+  it("should throw on -Infinity values", () => {
     const vec = new Float32Array([1, -Infinity, 3]);
-    expect(() => l2Normalize(vec)).toThrow('NaN/Infinity detected at index 1');
+    expect(() => l2Normalize(vec)).toThrow("NaN/Infinity detected at index 1");
   });
 
-  it('should produce unit-length 768D vector', () => {
+  it("should produce unit-length 768D vector", () => {
     // Simulate a realistic 768D vector
     const vec = new Float32Array(768);
     for (let i = 0; i < 768; i++) {
@@ -172,24 +172,24 @@ describe('DINOv2 l2Normalize', () => {
 // Service configuration and lifecycle tests
 // =====================================================
 
-describe('DINOv2Service', () => {
-  it('should export correct embedding dimension', () => {
+describe("DINOv2Service", () => {
+  it("should export correct embedding dimension", () => {
     expect(DINOV2_EMBEDDING_DIMENSION).toBe(768);
   });
 
-  it('should export correct input size', () => {
+  it("should export correct input size", () => {
     expect(DINOV2_INPUT_SIZE).toBe(224);
   });
 
-  it('should create service with config', () => {
-    const service = new DINOv2Service({ modelPath: '/tmp/test-model.onnx' });
+  it("should create service with config", () => {
+    const service = new DINOv2Service({ modelPath: "/tmp/test-model.onnx" });
     expect(service.initialized).toBe(false);
     expect(service.getWorkerRestartCount()).toBe(0);
   });
 
-  it('should reject invalid buffer size in generateEmbedding', async () => {
+  it("should reject invalid buffer size in generateEmbedding", async () => {
     // Mock onnxruntime-node to avoid model loading
-    vi.doMock('onnxruntime-node', () => ({
+    vi.doMock("onnxruntime-node", () => ({
       InferenceSession: {
         create: vi.fn().mockResolvedValue({
           run: vi.fn(),
@@ -199,25 +199,23 @@ describe('DINOv2Service', () => {
       Tensor: vi.fn(),
     }));
 
-    const service = new DINOv2Service({ modelPath: '/tmp/test-model.onnx' });
+    const service = new DINOv2Service({ modelPath: "/tmp/test-model.onnx" });
 
     // Force in-process mode (VITEST=true already does this)
     const tooSmall = Buffer.alloc(100);
-    await expect(service.generateEmbedding(tooSmall)).rejects.toThrow(
-      'Invalid image buffer size',
-    );
+    await expect(service.generateEmbedding(tooSmall)).rejects.toThrow("Invalid image buffer size");
 
-    vi.doUnmock('onnxruntime-node');
+    vi.doUnmock("onnxruntime-node");
   });
 
-  it('should use in-process mode when VITEST=true', () => {
-    const service = new DINOv2Service({ modelPath: '/tmp/test-model.onnx' });
+  it("should use in-process mode when VITEST=true", () => {
+    const service = new DINOv2Service({ modelPath: "/tmp/test-model.onnx" });
     // In test environment, worker thread should be disabled
     expect(service.isUsingWorkerThread()).toBe(false);
   });
 });
 
-describe('DINOv2Service with mocked ONNX', () => {
+describe("DINOv2Service with mocked ONNX", () => {
   let mockSession: {
     run: ReturnType<typeof vi.fn>;
     release: ReturnType<typeof vi.fn>;
@@ -241,7 +239,7 @@ describe('DINOv2Service with mocked ONNX', () => {
       release: vi.fn().mockResolvedValue(undefined),
     };
 
-    vi.doMock('onnxruntime-node', () => ({
+    vi.doMock("onnxruntime-node", () => ({
       InferenceSession: {
         create: vi.fn().mockResolvedValue(mockSession),
       },
@@ -259,14 +257,14 @@ describe('DINOv2Service with mocked ONNX', () => {
   });
 
   afterEach(() => {
-    vi.doUnmock('onnxruntime-node');
+    vi.doUnmock("onnxruntime-node");
     vi.restoreAllMocks();
   });
 
-  it('should initialize and generate embedding', async () => {
+  it("should initialize and generate embedding", async () => {
     // Re-import to pick up mocked module
-    const { DINOv2Service: MockedService } = await import('../../src/dinov2/service.js');
-    const service = new MockedService({ modelPath: '/tmp/test-model.onnx' });
+    const { DINOv2Service: MockedService } = await import("../../src/dinov2/service.js");
+    const service = new MockedService({ modelPath: "/tmp/test-model.onnx" });
 
     await service.initialize();
     expect(service.initialized).toBe(true);
@@ -288,9 +286,9 @@ describe('DINOv2Service with mocked ONNX', () => {
     expect(mockSession.release).toHaveBeenCalled();
   });
 
-  it('should generate batch embeddings sequentially', async () => {
-    const { DINOv2Service: MockedService } = await import('../../src/dinov2/service.js');
-    const service = new MockedService({ modelPath: '/tmp/test-model.onnx' });
+  it("should generate batch embeddings sequentially", async () => {
+    const { DINOv2Service: MockedService } = await import("../../src/dinov2/service.js");
+    const service = new MockedService({ modelPath: "/tmp/test-model.onnx" });
     await service.initialize();
 
     const buffers = [
@@ -311,9 +309,9 @@ describe('DINOv2Service with mocked ONNX', () => {
     await service.terminate();
   });
 
-  it('should handle dispose and re-initialize', async () => {
-    const { DINOv2Service: MockedService } = await import('../../src/dinov2/service.js');
-    const service = new MockedService({ modelPath: '/tmp/test-model.onnx' });
+  it("should handle dispose and re-initialize", async () => {
+    const { DINOv2Service: MockedService } = await import("../../src/dinov2/service.js");
+    const service = new MockedService({ modelPath: "/tmp/test-model.onnx" });
 
     await service.initialize();
     expect(service.initialized).toBe(true);
@@ -330,22 +328,22 @@ describe('DINOv2Service with mocked ONNX', () => {
     await service.terminate();
   });
 
-  it('should throw when model output is missing last_hidden_state', async () => {
+  it("should throw when model output is missing last_hidden_state", async () => {
     mockSession.run.mockResolvedValueOnce({ some_other_output: {} });
 
-    const { DINOv2Service: MockedService } = await import('../../src/dinov2/service.js');
-    const service = new MockedService({ modelPath: '/tmp/test-model.onnx' });
+    const { DINOv2Service: MockedService } = await import("../../src/dinov2/service.js");
+    const service = new MockedService({ modelPath: "/tmp/test-model.onnx" });
     await service.initialize();
 
     const imageBuffer = Buffer.alloc(224 * 224 * 3, 128);
     await expect(service.generateEmbedding(imageBuffer)).rejects.toThrow(
-      'Model output missing last_hidden_state',
+      "Model output missing last_hidden_state"
     );
 
     await service.terminate();
   });
 
-  it('should throw on NaN in model output', async () => {
+  it("should throw on NaN in model output", async () => {
     const nanOutput = new Float32Array(257 * 768);
     nanOutput[0] = NaN; // CLS token first element is NaN
 
@@ -356,19 +354,17 @@ describe('DINOv2Service with mocked ONNX', () => {
       },
     });
 
-    const { DINOv2Service: MockedService } = await import('../../src/dinov2/service.js');
-    const service = new MockedService({ modelPath: '/tmp/test-model.onnx' });
+    const { DINOv2Service: MockedService } = await import("../../src/dinov2/service.js");
+    const service = new MockedService({ modelPath: "/tmp/test-model.onnx" });
     await service.initialize();
 
     const imageBuffer = Buffer.alloc(224 * 224 * 3, 128);
-    await expect(service.generateEmbedding(imageBuffer)).rejects.toThrow(
-      'NaN/Infinity detected',
-    );
+    await expect(service.generateEmbedding(imageBuffer)).rejects.toThrow("NaN/Infinity detected");
 
     await service.terminate();
   });
 
-  it('should throw on zero vector output', async () => {
+  it("should throw on zero vector output", async () => {
     // All zeros in CLS token
     const zeroOutput = new Float32Array(257 * 768).fill(0);
 
@@ -379,13 +375,13 @@ describe('DINOv2Service with mocked ONNX', () => {
       },
     });
 
-    const { DINOv2Service: MockedService } = await import('../../src/dinov2/service.js');
-    const service = new MockedService({ modelPath: '/tmp/test-model.onnx' });
+    const { DINOv2Service: MockedService } = await import("../../src/dinov2/service.js");
+    const service = new MockedService({ modelPath: "/tmp/test-model.onnx" });
     await service.initialize();
 
     const imageBuffer = Buffer.alloc(224 * 224 * 3, 128);
     await expect(service.generateEmbedding(imageBuffer)).rejects.toThrow(
-      'Zero vector: L2 norm is 0',
+      "Zero vector: L2 norm is 0"
     );
 
     await service.terminate();

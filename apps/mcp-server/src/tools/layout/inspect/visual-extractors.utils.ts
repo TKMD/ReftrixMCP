@@ -13,22 +13,22 @@
 import {
   createCSSVariableExtractorService,
   type CSSVariableExtractionResult,
-} from '../../../services/visual/css-variable-extractor.service';
+} from "../../../services/visual/css-variable-extractor.service";
 import {
   createTypographyExtractorService,
   type TypographyExtractionResult,
-} from '../../../services/visual/typography-extractor.service';
+} from "../../../services/visual/typography-extractor.service";
 import {
   createGradientDetectorService,
   type GradientDetectionResult,
-} from '../../../services/visual-extractor/gradient-detector.service';
-import { createLogger, isDevelopment } from '../../../utils/logger';
+} from "../../../services/visual-extractor/gradient-detector.service";
+import { createLogger, isDevelopment } from "../../../utils/logger";
 
 // =====================================================
 // Logger
 // =====================================================
 
-const logger = createLogger('visual-extractors');
+const logger = createLogger("visual-extractors");
 
 // =====================================================
 // Service instances (lazy initialization)
@@ -148,14 +148,14 @@ export async function extractVisualFeatures(
             : extractor.extractFromHTML(html);
 
           if (isDevelopment()) {
-            logger.debug('CSS Variables extracted', {
+            logger.debug("CSS Variables extracted", {
               count: result.cssVariables.variables.length,
               timeMs: result.cssVariables.processingTimeMs,
             });
           }
         } catch (error) {
           if (isDevelopment()) {
-            logger.error('CSS Variable extraction failed', { error });
+            logger.error("CSS Variable extraction failed", { error });
           }
         }
       })()
@@ -173,7 +173,7 @@ export async function extractVisualFeatures(
             : extractor.extractFromHTML(html);
 
           if (isDevelopment()) {
-            logger.debug('Typography extracted', {
+            logger.debug("Typography extracted", {
               fontFamilies: result.typography.fontFamilies.length,
               styles: result.typography.styles.length,
               timeMs: result.typography.processingTimeMs,
@@ -181,7 +181,7 @@ export async function extractVisualFeatures(
           }
         } catch (error) {
           if (isDevelopment()) {
-            logger.error('Typography extraction failed', { error });
+            logger.error("Typography extraction failed", { error });
           }
         }
       })()
@@ -195,18 +195,18 @@ export async function extractVisualFeatures(
         try {
           const detector = getGradientDetector();
           // Extract CSS from HTML for gradient detection
-          const css = extractCSSFromHTML(html) + (externalCss ?? '');
+          const css = extractCSSFromHTML(html) + (externalCss ?? "");
           result.gradients = detector.detectGradientFromCSS(css);
 
           if (isDevelopment()) {
-            logger.debug('Gradients detected', {
+            logger.debug("Gradients detected", {
               hasGradient: result.gradients.hasGradient,
               count: result.gradients.gradients.length,
             });
           }
         } catch (error) {
           if (isDevelopment()) {
-            logger.error('Gradient detection failed', { error });
+            logger.error("Gradient detection failed", { error });
           }
         }
       })()
@@ -219,7 +219,7 @@ export async function extractVisualFeatures(
   result.totalProcessingTimeMs = Date.now() - startTime;
 
   if (isDevelopment()) {
-    logger.info('Visual extraction completed', {
+    logger.info("Visual extraction completed", {
       totalTimeMs: result.totalProcessingTimeMs,
       cssVariables: result.cssVariables?.variables.length ?? 0,
       typography: result.typography?.fontFamilies.length ?? 0,
@@ -242,9 +242,7 @@ export function extractCSSVariables(
   externalCss?: string
 ): CSSVariableExtractionResult {
   const extractor = getCSSVariableExtractor();
-  return externalCss
-    ? extractor.extract(html, externalCss)
-    : extractor.extractFromHTML(html);
+  return externalCss ? extractor.extract(html, externalCss) : extractor.extractFromHTML(html);
 }
 
 /**
@@ -259,9 +257,7 @@ export function extractTypographyFeatures(
   externalCss?: string
 ): TypographyExtractionResult {
   const extractor = getTypographyExtractor();
-  return externalCss
-    ? extractor.extract(html, externalCss)
-    : extractor.extractFromHTML(html);
+  return externalCss ? extractor.extract(html, externalCss) : extractor.extractFromHTML(html);
 }
 
 /**
@@ -300,11 +296,11 @@ export async function detectGradientsFromImage(
  */
 function extractCSSFromHTML(html: string): string {
   const styleTagPattern = /<style[^>]*>([\s\S]*?)<\/style>/gi;
-  let css = '';
+  let css = "";
   let match;
 
   while ((match = styleTagPattern.exec(html)) !== null) {
-    css += match[1] + '\n';
+    css += match[1] + "\n";
   }
 
   return css;
@@ -327,6 +323,6 @@ export function resetVisualExtractorServices(): void {
 // Re-exports
 // =====================================================
 
-export type { CSSVariableExtractionResult } from '../../../services/visual/css-variable-extractor.service';
-export type { TypographyExtractionResult } from '../../../services/visual/typography-extractor.service';
-export type { GradientDetectionResult } from '../../../services/visual-extractor/gradient-detector.service';
+export type { CSSVariableExtractionResult } from "../../../services/visual/css-variable-extractor.service";
+export type { TypographyExtractionResult } from "../../../services/visual/typography-extractor.service";
+export type { GradientDetectionResult } from "../../../services/visual-extractor/gradient-detector.service";

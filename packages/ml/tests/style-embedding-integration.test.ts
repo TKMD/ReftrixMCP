@@ -12,12 +12,12 @@
  * @see packages/ml/src/embeddings/style-embedding.service.ts
  */
 
-import { describe, it, expect, beforeAll } from 'vitest';
-import { StyleEmbeddingService } from '../src/embeddings/style-embedding.service';
+import { describe, it, expect, beforeAll } from "vitest";
+import { StyleEmbeddingService } from "../src/embeddings/style-embedding.service";
 
 // このテストではサンプルテキストを直接使用して統合フローをシミュレートします
 
-describe('Style Embedding Integration', () => {
+describe("Style Embedding Integration", () => {
   let embeddingService: StyleEmbeddingService;
 
   beforeAll(() => {
@@ -27,10 +27,11 @@ describe('Style Embedding Integration', () => {
   // ==========================================================================
   // フルフロー統合テスト（シミュレーション）
   // ==========================================================================
-  describe('full flow simulation', () => {
-    it('should generate embedding from simulated style text (thin stroke icon)', async () => {
+  describe("full flow simulation", () => {
+    it("should generate embedding from simulated style text (thin stroke icon)", async () => {
       // StyleFeaturesToTextで生成されるようなテキストをシミュレート
-      const styleText = 'Design style: thin stroke (1px) consistent outlined simple complexity 1 paths square';
+      const styleText =
+        "Design style: thin stroke (1px) consistent outlined simple complexity 1 paths square";
 
       const embedding = await embeddingService.generateEmbedding(styleText);
 
@@ -40,16 +41,16 @@ describe('Style Embedding Integration', () => {
       expect(l2Norm).toBeCloseTo(1.0, 4);
     });
 
-    it('should generate embedding from simulated style text (filled icon)', async () => {
-      const styleText = 'Design style: filled simple complexity 1 paths square';
+    it("should generate embedding from simulated style text (filled icon)", async () => {
+      const styleText = "Design style: filled simple complexity 1 paths square";
 
       const embedding = await embeddingService.generateEmbedding(styleText);
 
       expect(embedding.length).toBe(768);
     });
 
-    it('should generate embedding from simulated style text (complex illustration)', async () => {
-      const styleText = 'Design style: mixed complex complexity 30 paths detailed wide';
+    it("should generate embedding from simulated style text (complex illustration)", async () => {
+      const styleText = "Design style: mixed complex complexity 30 paths detailed wide";
 
       const embedding = await embeddingService.generateEmbedding(styleText);
 
@@ -60,15 +61,19 @@ describe('Style Embedding Integration', () => {
   // ==========================================================================
   // 類似デザイン検索シナリオ
   // ==========================================================================
-  describe('similar design search scenarios', () => {
-    it('should find similar icons by style (thin stroke family)', async () => {
+  describe("similar design search scenarios", () => {
+    it("should find similar icons by style (thin stroke family)", async () => {
       // Thin stroke アイコンファミリー
-      const thinArrow = 'Design style: thin stroke (1px) consistent outlined simple complexity 1 paths square';
-      const thinHome = 'Design style: thin stroke (0.75px) consistent outlined simple complexity 3 paths square';
-      const thinSearch = 'Design style: thin stroke (0.5px) consistent outlined simple complexity 2 paths square';
+      const thinArrow =
+        "Design style: thin stroke (1px) consistent outlined simple complexity 1 paths square";
+      const thinHome =
+        "Design style: thin stroke (0.75px) consistent outlined simple complexity 3 paths square";
+      const thinSearch =
+        "Design style: thin stroke (0.5px) consistent outlined simple complexity 2 paths square";
 
       // 太い stroke の異なるスタイル
-      const thickIcon = 'Design style: thick stroke (3px) consistent outlined medium complexity 5 paths square';
+      const thickIcon =
+        "Design style: thick stroke (3px) consistent outlined medium complexity 5 paths square";
 
       // 埋め込み生成
       const [embThinArrow, embThinHome, embThinSearch, embThickIcon] = await Promise.all([
@@ -92,10 +97,11 @@ describe('Style Embedding Integration', () => {
       expect(simArrowThick).toBeLessThan(simArrowHome);
     });
 
-    it('should distinguish filled vs outlined icons', async () => {
-      const filledHeart = 'Design style: filled simple complexity 1 paths square';
-      const outlinedHeart = 'Design style: thin stroke (1.5px) consistent outlined simple complexity 1 paths square';
-      const filledStar = 'Design style: filled simple complexity 1 paths square';
+    it("should distinguish filled vs outlined icons", async () => {
+      const filledHeart = "Design style: filled simple complexity 1 paths square";
+      const outlinedHeart =
+        "Design style: thin stroke (1.5px) consistent outlined simple complexity 1 paths square";
+      const filledStar = "Design style: filled simple complexity 1 paths square";
 
       const [embFilledHeart, embOutlinedHeart, embFilledStar] = await Promise.all([
         embeddingService.generateEmbedding(filledHeart),
@@ -114,9 +120,10 @@ describe('Style Embedding Integration', () => {
       expect(simFilledOutlined).toBeLessThan(simFilledHeartStar);
     });
 
-    it('should distinguish simple vs complex icons', async () => {
-      const simpleIcon = 'Design style: thin stroke (1px) outlined simple complexity 1 paths square';
-      const complexIllustration = 'Design style: mixed complex complexity 30 paths detailed wide';
+    it("should distinguish simple vs complex icons", async () => {
+      const simpleIcon =
+        "Design style: thin stroke (1px) outlined simple complexity 1 paths square";
+      const complexIllustration = "Design style: mixed complex complexity 30 paths detailed wide";
 
       const [embSimple, embComplex] = await Promise.all([
         embeddingService.generateEmbedding(simpleIcon),
@@ -136,12 +143,13 @@ describe('Style Embedding Integration', () => {
   // ==========================================================================
   // パフォーマンス統合テスト
   // ==========================================================================
-  describe('performance requirements', () => {
-    it('should complete full embedding generation in under 150ms (after warm-up)', async () => {
+  describe("performance requirements", () => {
+    it("should complete full embedding generation in under 150ms (after warm-up)", async () => {
       // ウォームアップ
-      await embeddingService.generateEmbedding('warmup text');
+      await embeddingService.generateEmbedding("warmup text");
 
-      const styleText = 'Design style: thin stroke (1px) consistent outlined simple complexity 5 paths square';
+      const styleText =
+        "Design style: thin stroke (1px) consistent outlined simple complexity 5 paths square";
 
       const startTime = performance.now();
       await embeddingService.generateEmbedding(styleText);
@@ -151,21 +159,21 @@ describe('Style Embedding Integration', () => {
       expect(elapsed).toBeLessThan(150);
     });
 
-    it('should complete batch of 10 embeddings in under 1 second (after warm-up)', async () => {
+    it("should complete batch of 10 embeddings in under 1 second (after warm-up)", async () => {
       // ウォームアップ
-      await embeddingService.generateBatchEmbeddings(['warmup']);
+      await embeddingService.generateBatchEmbeddings(["warmup"]);
 
       const styleTexts = [
-        'Design style: thin stroke outlined simple',
-        'Design style: medium stroke outlined medium complexity',
-        'Design style: thick stroke outlined complex',
-        'Design style: filled simple square',
-        'Design style: mixed medium complexity',
-        'Design style: thin stroke filled simple',
-        'Design style: thick stroke filled complex',
-        'Design style: outlined simple rounded',
-        'Design style: filled complex detailed',
-        'Design style: mixed simple square',
+        "Design style: thin stroke outlined simple",
+        "Design style: medium stroke outlined medium complexity",
+        "Design style: thick stroke outlined complex",
+        "Design style: filled simple square",
+        "Design style: mixed medium complexity",
+        "Design style: thin stroke filled simple",
+        "Design style: thick stroke filled complex",
+        "Design style: outlined simple rounded",
+        "Design style: filled complex detailed",
+        "Design style: mixed simple square",
       ];
 
       const startTime = performance.now();
@@ -180,23 +188,25 @@ describe('Style Embedding Integration', () => {
   // ==========================================================================
   // クエリ埋め込みテスト
   // ==========================================================================
-  describe('query embedding for search', () => {
-    it('should generate query embedding for user search', async () => {
-      const userQuery = 'thin stroke icon simple';
+  describe("query embedding for search", () => {
+    it("should generate query embedding for user search", async () => {
+      const userQuery = "thin stroke icon simple";
 
       const queryEmbedding = await embeddingService.generateQueryEmbedding(userQuery);
 
       expect(queryEmbedding.length).toBe(768);
     });
 
-    it('should find relevant icons using query embedding', async () => {
+    it("should find relevant icons using query embedding", async () => {
       // ドキュメント（スタイルテキスト）の埋め込み
-      const thinIcon = 'Design style: thin stroke (1px) consistent outlined simple complexity 1 paths square';
-      const thickIcon = 'Design style: thick stroke (3px) consistent outlined complex complexity 20 paths wide';
-      const filledIcon = 'Design style: filled medium complexity 10 paths square';
+      const thinIcon =
+        "Design style: thin stroke (1px) consistent outlined simple complexity 1 paths square";
+      const thickIcon =
+        "Design style: thick stroke (3px) consistent outlined complex complexity 20 paths wide";
+      const filledIcon = "Design style: filled medium complexity 10 paths square";
 
       // クエリ埋め込み
-      const query = 'thin stroke simple icon';
+      const query = "thin stroke simple icon";
 
       const [embThin, embThick, embFilled, embQuery] = await Promise.all([
         embeddingService.generateEmbedding(thinIcon),
@@ -226,7 +236,7 @@ describe('Style Embedding Integration', () => {
  */
 function cosineSimilarity(a: number[], b: number[]): number {
   if (a.length !== b.length) {
-    throw new Error('Vectors must have the same dimension');
+    throw new Error("Vectors must have the same dimension");
   }
 
   let dotProduct = 0;

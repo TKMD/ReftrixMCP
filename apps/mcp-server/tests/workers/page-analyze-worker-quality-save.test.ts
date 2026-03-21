@@ -14,92 +14,98 @@
  * @module tests/workers/page-analyze-worker-quality-save
  */
 
-import { describe, it, expect, beforeAll } from 'vitest';
-import * as fs from 'node:fs';
-import * as path from 'node:path';
+import { describe, it, expect, beforeAll } from "vitest";
+import * as fs from "node:fs";
+import * as path from "node:path";
 
-describe('PageAnalyzeWorker - Quality DB Save', () => {
-  const workerSourcePath = path.resolve(
-    __dirname,
-    '../../src/workers/page-analyze-worker.ts'
-  );
+describe("PageAnalyzeWorker - Quality DB Save", () => {
+  const orchestratorPath = path.resolve(__dirname, "../../src/workers/page-analyze-worker.ts");
+  const phase3Path = path.resolve(__dirname, "../../src/workers/phases/phase-3-quality.ts");
+  const phase4Path = path.resolve(__dirname, "../../src/workers/phases/phase-4-narrative.ts");
 
   let workerSource: string;
 
   beforeAll(() => {
-    workerSource = fs.readFileSync(workerSourcePath, 'utf8');
+    workerSource =
+      fs.readFileSync(orchestratorPath, "utf8") +
+      "\n" +
+      fs.readFileSync(phase3Path, "utf8") +
+      "\n" +
+      fs.readFileSync(phase4Path, "utf8");
   });
 
-  describe('Import', () => {
-    it('should import saveQualityEvaluation from worker-db-save.service', () => {
-      expect(workerSource).toContain('saveQualityEvaluation');
+  describe("Import", () => {
+    it("should import saveQualityEvaluation from worker-db-save.service", () => {
+      expect(workerSource).toContain("saveQualityEvaluation");
       // Verify import statement
-      expect(workerSource).toMatch(/import\s+\{[^}]*saveQualityEvaluation[^}]*\}\s+from\s+['"]\.\.\/services\/worker-db-save\.service['"]/);
+      expect(workerSource).toMatch(
+        /import\s+\{[^}]*saveQualityEvaluation[^}]*\}\s+from\s+['"]\.\.\/services\/worker-db-save\.service['"]/
+      );
     });
 
-    it('should import QualityEvaluationPrismaClient type', () => {
-      expect(workerSource).toContain('QualityEvaluationPrismaClient');
+    it("should import QualityEvaluationPrismaClient type", () => {
+      expect(workerSource).toContain("QualityEvaluationPrismaClient");
     });
   });
 
-  describe('Quality DB Save Call', () => {
-    it('should call saveQualityEvaluation after quality evaluation completes', () => {
+  describe("Quality DB Save Call", () => {
+    it("should call saveQualityEvaluation after quality evaluation completes", () => {
       // saveQualityEvaluation should be called within the quality phase section
-      const qualityPhaseStart = workerSource.indexOf('Phase 3: Quality Evaluation');
-      const qualityPhaseEnd = workerSource.indexOf('Phase 4: Narrative Analysis');
+      const qualityPhaseStart = workerSource.indexOf("Phase 3: Quality Evaluation");
+      const qualityPhaseEnd = workerSource.indexOf("Phase 4: Narrative Analysis");
       expect(qualityPhaseStart).toBeGreaterThan(-1);
       expect(qualityPhaseEnd).toBeGreaterThan(-1);
 
       const qualitySection = workerSource.slice(qualityPhaseStart, qualityPhaseEnd);
-      expect(qualitySection).toContain('saveQualityEvaluation');
+      expect(qualitySection).toContain("saveQualityEvaluation");
     });
 
-    it('should guard save with actualWebPageId check', () => {
-      const qualityPhaseStart = workerSource.indexOf('Phase 3: Quality Evaluation');
-      const qualityPhaseEnd = workerSource.indexOf('Phase 4: Narrative Analysis');
+    it("should guard save with actualWebPageId check", () => {
+      const qualityPhaseStart = workerSource.indexOf("Phase 3: Quality Evaluation");
+      const qualityPhaseEnd = workerSource.indexOf("Phase 4: Narrative Analysis");
       const qualitySection = workerSource.slice(qualityPhaseStart, qualityPhaseEnd);
 
-      expect(qualitySection).toContain('actualWebPageId');
+      expect(qualitySection).toContain("actualWebPageId");
       // Should check actualWebPageId before calling save
       expect(qualitySection).toMatch(/actualWebPageId.*saveQualityEvaluation/s);
     });
 
-    it('should pass prisma as QualityEvaluationPrismaClient', () => {
-      const qualityPhaseStart = workerSource.indexOf('Phase 3: Quality Evaluation');
-      const qualityPhaseEnd = workerSource.indexOf('Phase 4: Narrative Analysis');
+    it("should pass prisma as QualityEvaluationPrismaClient", () => {
+      const qualityPhaseStart = workerSource.indexOf("Phase 3: Quality Evaluation");
+      const qualityPhaseEnd = workerSource.indexOf("Phase 4: Narrative Analysis");
       const qualitySection = workerSource.slice(qualityPhaseStart, qualityPhaseEnd);
 
-      expect(qualitySection).toContain('QualityEvaluationPrismaClient');
+      expect(qualitySection).toContain("QualityEvaluationPrismaClient");
     });
 
-    it('should have try-catch around saveQualityEvaluation for graceful degradation', () => {
-      const qualityPhaseStart = workerSource.indexOf('Phase 3: Quality Evaluation');
-      const qualityPhaseEnd = workerSource.indexOf('Phase 4: Narrative Analysis');
+    it("should have try-catch around saveQualityEvaluation for graceful degradation", () => {
+      const qualityPhaseStart = workerSource.indexOf("Phase 3: Quality Evaluation");
+      const qualityPhaseEnd = workerSource.indexOf("Phase 4: Narrative Analysis");
       const qualitySection = workerSource.slice(qualityPhaseStart, qualityPhaseEnd);
 
       // Should have a separate try-catch for the save operation
-      expect(qualitySection).toContain('QualityEvaluation save failed');
+      expect(qualitySection).toContain("QualityEvaluation save failed");
     });
 
-    it('should pass quality options (strict, targetIndustry, targetAudience) to save', () => {
-      const qualityPhaseStart = workerSource.indexOf('Phase 3: Quality Evaluation');
-      const qualityPhaseEnd = workerSource.indexOf('Phase 4: Narrative Analysis');
+    it("should pass quality options (strict, targetIndustry, targetAudience) to save", () => {
+      const qualityPhaseStart = workerSource.indexOf("Phase 3: Quality Evaluation");
+      const qualityPhaseEnd = workerSource.indexOf("Phase 4: Narrative Analysis");
       const qualitySection = workerSource.slice(qualityPhaseStart, qualityPhaseEnd);
 
       // Should pass options to saveQualityEvaluation
-      expect(qualitySection).toContain('qualityOptions');
+      expect(qualitySection).toContain("qualityOptions");
     });
   });
 
-  describe('Graceful Degradation', () => {
-    it('should not throw from quality save failure (job continues)', () => {
-      const qualityPhaseStart = workerSource.indexOf('Phase 3: Quality Evaluation');
-      const qualityPhaseEnd = workerSource.indexOf('Phase 4: Narrative Analysis');
+  describe("Graceful Degradation", () => {
+    it("should not throw from quality save failure (job continues)", () => {
+      const qualityPhaseStart = workerSource.indexOf("Phase 3: Quality Evaluation");
+      const qualityPhaseEnd = workerSource.indexOf("Phase 4: Narrative Analysis");
       const qualitySection = workerSource.slice(qualityPhaseStart, qualityPhaseEnd);
 
       // The save error should be caught and logged, not re-thrown
       // Verify the catch block contains a warn log, not a throw
-      expect(qualitySection).toContain('qualitySaveError');
+      expect(qualitySection).toContain("qualitySaveError");
     });
   });
 });

@@ -14,18 +14,15 @@
  * @module services/motion/js-animation-embedding.service
  */
 
-import { isDevelopment, logger } from '../../utils/logger';
-import type {
-  JSAnimationLibraryType,
-  JSAnimationTypeEnum,
-} from '../../tools/page/handlers/types';
+import { isDevelopment, logger } from "../../utils/logger";
+import type { JSAnimationLibraryType, JSAnimationTypeEnum } from "../../tools/page/handlers/types";
 
 // =====================================================
 // 定数
 // =====================================================
 
 /** デフォルトのモデル名 */
-export const DEFAULT_MODEL_NAME = 'multilingual-e5-base';
+export const DEFAULT_MODEL_NAME = "multilingual-e5-base";
 
 /** デフォルトのEmbedding次元数 */
 export const DEFAULT_EMBEDDING_DIMENSIONS = 768;
@@ -79,8 +76,8 @@ export interface JSAnimationEmbeddingResult {
  * EmbeddingServiceインターフェース（DI用）
  */
 export interface IEmbeddingService {
-  generateEmbedding(text: string, type: 'query' | 'passage'): Promise<number[]>;
-  generateBatchEmbeddings(texts: string[], type: 'query' | 'passage'): Promise<number[][]>;
+  generateEmbedding(text: string, type: "query" | "passage"): Promise<number[]>;
+  generateBatchEmbeddings(texts: string[], type: "query" | "passage"): Promise<number[][]>;
   getCacheStats(): { hits: number; misses: number; size: number; evictions: number };
   clearCache(): void;
 }
@@ -157,7 +154,7 @@ export function generateJSAnimationTextRepresentation(
 
   // Iterations（オプション）
   if (pattern.iterations != null) {
-    const iterStr = pattern.iterations === -1 ? 'infinite' : `${pattern.iterations}`;
+    const iterStr = pattern.iterations === -1 ? "infinite" : `${pattern.iterations}`;
     parts.push(`Iterations: ${iterStr}`);
   }
 
@@ -174,7 +171,7 @@ export function generateJSAnimationTextRepresentation(
   // プロパティ（オプション）
   const properties = extractProperties(pattern.properties);
   if (properties.length > 0) {
-    parts.push(`Properties: ${properties.join(', ')}`);
+    parts.push(`Properties: ${properties.join(", ")}`);
   }
 
   // キーフレーム情報（オプション、要約のみ）
@@ -189,7 +186,7 @@ export function generateJSAnimationTextRepresentation(
   }
 
   // E5モデル用プレフィックス付きで返す
-  return `passage: ${parts.join('. ')}.`;
+  return `passage: ${parts.join(". ")}.`;
 }
 
 /**
@@ -203,12 +200,14 @@ function extractProperties(properties: unknown): string[] {
   // 配列の場合
   if (Array.isArray(properties)) {
     // string[] の場合
-    if (properties.length > 0 && typeof properties[0] === 'string') {
+    if (properties.length > 0 && typeof properties[0] === "string") {
       return properties as string[];
     }
     // { property: string } オブジェクトの配列の場合
     return properties
-      .filter((p): p is { property: string } => typeof p === 'object' && p !== null && 'property' in p)
+      .filter(
+        (p): p is { property: string } => typeof p === "object" && p !== null && "property" in p
+      )
       .map((p) => p.property);
   }
 
@@ -236,14 +235,14 @@ function summarizeKeyframes(keyframes: unknown): string | null {
 
   // アニメーション対象プロパティを抽出（offset, easing, compositeを除外）
   const animatedProps = Object.keys(firstKf).filter(
-    (k) => !['offset', 'easing', 'composite', 'computedOffset'].includes(k)
+    (k) => !["offset", "easing", "composite", "computedOffset"].includes(k)
   );
 
   if (animatedProps.length === 0) {
     return `${count} keyframes`;
   }
 
-  return `${count} keyframes animating ${animatedProps.join(', ')}`;
+  return `${count} keyframes animating ${animatedProps.join(", ")}`;
 }
 
 // =====================================================
@@ -265,7 +264,7 @@ export class JSAnimationEmbeddingService {
     }
 
     if (isDevelopment()) {
-      logger.info('[JSAnimationEmbedding] Service created', {
+      logger.info("[JSAnimationEmbedding] Service created", {
         modelName: this.modelName,
       });
     }
@@ -280,7 +279,7 @@ export class JSAnimationEmbeddingService {
     }
 
     throw new Error(
-      'EmbeddingService not initialized. Provide embeddingService in constructor options.'
+      "EmbeddingService not initialized. Provide embeddingService in constructor options."
     );
   }
 
@@ -294,18 +293,18 @@ export class JSAnimationEmbeddingService {
     pattern: JSAnimationPatternForEmbedding
   ): Promise<JSAnimationEmbeddingResult> {
     // バリデーション
-    if (!pattern || typeof pattern !== 'object') {
-      throw new Error('Invalid pattern: must be a valid object');
+    if (!pattern || typeof pattern !== "object") {
+      throw new Error("Invalid pattern: must be a valid object");
     }
 
     if (!pattern.libraryType || !pattern.name || !pattern.animationType) {
-      throw new Error('Invalid pattern: libraryType, name, and animationType are required');
+      throw new Error("Invalid pattern: libraryType, name, and animationType are required");
     }
 
     const startTime = Date.now();
 
     if (isDevelopment()) {
-      logger.info('[JSAnimationEmbedding] Generating embedding', {
+      logger.info("[JSAnimationEmbedding] Generating embedding", {
         patternId: pattern.id,
         libraryType: pattern.libraryType,
         animationType: pattern.animationType,
@@ -317,12 +316,12 @@ export class JSAnimationEmbeddingService {
 
     // Embedding生成
     const service = this.getEmbeddingService();
-    const embedding = await service.generateEmbedding(textRepresentation, 'passage');
+    const embedding = await service.generateEmbedding(textRepresentation, "passage");
 
     const processingTimeMs = Date.now() - startTime;
 
     if (isDevelopment()) {
-      logger.info('[JSAnimationEmbedding] Generated embedding', {
+      logger.info("[JSAnimationEmbedding] Generated embedding", {
         patternId: pattern.id,
         dimensions: embedding.length,
         processingTimeMs,
@@ -353,31 +352,29 @@ export class JSAnimationEmbeddingService {
     const startTime = Date.now();
 
     if (isDevelopment()) {
-      logger.info('[JSAnimationEmbedding] Starting batch generation', {
+      logger.info("[JSAnimationEmbedding] Starting batch generation", {
         count: patterns.length,
       });
     }
 
     // テキスト表現を生成
-    const textRepresentations = patterns.map((p) =>
-      generateJSAnimationTextRepresentation(p)
-    );
+    const textRepresentations = patterns.map((p) => generateJSAnimationTextRepresentation(p));
 
     // バッチEmbedding生成
     const service = this.getEmbeddingService();
-    const embeddings = await service.generateBatchEmbeddings(textRepresentations, 'passage');
+    const embeddings = await service.generateBatchEmbeddings(textRepresentations, "passage");
 
     const processingTimeMs = Date.now() - startTime;
 
     // 結果を組み立て
     const results: JSAnimationEmbeddingResult[] = patterns.map((_pattern, index) => ({
       embedding: embeddings[index] ?? [],
-      textRepresentation: textRepresentations[index] ?? '',
+      textRepresentation: textRepresentations[index] ?? "",
       modelVersion: this.modelName,
     }));
 
     if (isDevelopment()) {
-      logger.info('[JSAnimationEmbedding] Batch generation completed', {
+      logger.info("[JSAnimationEmbedding] Batch generation completed", {
         count: patterns.length,
         totalProcessingTimeMs: processingTimeMs,
         avgTimeMs: processingTimeMs / patterns.length,
@@ -397,9 +394,7 @@ let embeddingServiceFactory: (() => IEmbeddingService) | null = null;
 /**
  * EmbeddingServiceファクトリを設定
  */
-export function setJSAnimationEmbeddingServiceFactory(
-  factory: () => IEmbeddingService
-): void {
+export function setJSAnimationEmbeddingServiceFactory(factory: () => IEmbeddingService): void {
   embeddingServiceFactory = factory;
 }
 

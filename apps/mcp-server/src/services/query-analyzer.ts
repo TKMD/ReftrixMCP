@@ -14,9 +14,9 @@
  * - 最適化提案
  */
 
-import { Logger } from '../utils/logger';
+import { Logger } from "../utils/logger";
 
-const logger = new Logger('QueryAnalyzer');
+const logger = new Logger("QueryAnalyzer");
 
 /**
  * クエリメトリクスの型定義
@@ -56,11 +56,11 @@ export interface HourlyStats {
  * 最適化提案の型定義
  */
 export interface OptimizationSuggestion {
-  type: 'index' | 'rewrite' | 'caching';
+  type: "index" | "rewrite" | "caching";
   pattern: string;
   suggestion: string;
   expectedImprovement: string;
-  priority: 'low' | 'medium' | 'high';
+  priority: "low" | "medium" | "high";
 }
 
 /**
@@ -75,7 +75,7 @@ export class QueryAnalyzer {
     this.slowQueryThreshold = options?.slowQueryThresholdMs ?? 100;
     this.maxMetricsHistory = options?.maxMetricsHistory ?? 10000;
 
-    logger.debug('Initialized', {
+    logger.debug("Initialized", {
       slowQueryThreshold: this.slowQueryThreshold,
       maxMetricsHistory: this.maxMetricsHistory,
     });
@@ -90,7 +90,7 @@ export class QueryAnalyzer {
   recordQuery(
     pattern: string,
     executionTimeMs: number,
-    metadata?: Partial<Pick<QueryMetrics, 'rowsExamined' | 'indexUsed'>>
+    metadata?: Partial<Pick<QueryMetrics, "rowsExamined" | "indexUsed">>
   ): void {
     const metric: QueryMetrics = {
       queryPattern: pattern,
@@ -107,7 +107,7 @@ export class QueryAnalyzer {
     }
 
     const isSlow = executionTimeMs > this.slowQueryThreshold;
-    logger.debug('Query recorded', {
+    logger.debug("Query recorded", {
       pattern,
       executionTimeMs,
       isSlow,
@@ -124,7 +124,7 @@ export class QueryAnalyzer {
     const threshold = thresholdMs ?? this.slowQueryThreshold;
     const slowQueries = this.metrics.filter((m) => m.executionTimeMs > threshold);
 
-    logger.debug('Slow queries', {
+    logger.debug("Slow queries", {
       threshold,
       count: slowQueries.length,
     });
@@ -163,7 +163,7 @@ export class QueryAnalyzer {
       });
     }
 
-    logger.debug('Stats by pattern', {
+    logger.debug("Stats by pattern", {
       patternCount: stats.length,
     });
 
@@ -200,7 +200,7 @@ export class QueryAnalyzer {
     // 時間順にソート
     stats.sort((a, b) => a.hour - b.hour);
 
-    logger.debug('Hourly stats', {
+    logger.debug("Hourly stats", {
       hourCount: stats.length,
     });
 
@@ -233,33 +233,33 @@ export class QueryAnalyzer {
       // P95が100msを超えるパターンにはインデックス提案
       if (stat.p95Ms > 100) {
         suggestions.push({
-          type: 'index',
+          type: "index",
           pattern: stat.pattern,
           suggestion: `Consider adding an index for pattern: ${stat.pattern}. P95 is ${stat.p95Ms.toFixed(2)}ms.`,
-          expectedImprovement: 'Reduce P95 latency by 50-70%',
-          priority: stat.p95Ms > 200 ? 'high' : 'medium',
+          expectedImprovement: "Reduce P95 latency by 50-70%",
+          priority: stat.p95Ms > 200 ? "high" : "medium",
         });
       }
 
       // P99が500msを超えるパターンにはクエリ書き換え提案
       if (stat.p99Ms > 500) {
         suggestions.push({
-          type: 'rewrite',
+          type: "rewrite",
           pattern: stat.pattern,
           suggestion: `Consider rewriting query for pattern: ${stat.pattern}. P99 is ${stat.p99Ms.toFixed(2)}ms.`,
-          expectedImprovement: 'Reduce P99 latency by 30-50%',
-          priority: 'high',
+          expectedImprovement: "Reduce P99 latency by 30-50%",
+          priority: "high",
         });
       }
 
       // 頻繁に呼ばれるパターンにはキャッシング提案
       if (stat.count > 100 && stat.avgTimeMs > 50) {
         suggestions.push({
-          type: 'caching',
+          type: "caching",
           pattern: stat.pattern,
           suggestion: `Consider caching results for pattern: ${stat.pattern}. Called ${stat.count} times with avg ${stat.avgTimeMs.toFixed(2)}ms.`,
-          expectedImprovement: 'Reduce load by 80-90%',
-          priority: stat.count > 500 ? 'high' : 'medium',
+          expectedImprovement: "Reduce load by 80-90%",
+          priority: stat.count > 500 ? "high" : "medium",
         });
       }
     }
@@ -268,7 +268,7 @@ export class QueryAnalyzer {
     const priorityOrder = { high: 0, medium: 1, low: 2 };
     suggestions.sort((a, b) => priorityOrder[a.priority] - priorityOrder[b.priority]);
 
-    logger.debug('Optimization suggestions', {
+    logger.debug("Optimization suggestions", {
       count: suggestions.length,
     });
 
@@ -280,7 +280,7 @@ export class QueryAnalyzer {
    */
   clear(): void {
     this.metrics = [];
-    logger.debug('Metrics cleared');
+    logger.debug("Metrics cleared");
   }
 
   /**

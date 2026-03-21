@@ -16,21 +16,21 @@
  * @module services/motion/webgl-animation-detector.service
  */
 
-import type { Page } from 'playwright';
-import { createLogger, isDevelopment } from '../../utils/logger';
-import { FrameCaptureService } from './frame-capture.service';
-import { FrameImageAnalysisService } from './frame-image-analysis.service';
-import type { FrameAnalysisResult, DiffAnalysisSummary } from './types';
+import type { Page } from "playwright";
+import { createLogger, isDevelopment } from "../../utils/logger";
+import { FrameCaptureService } from "./frame-capture.service";
+import { FrameImageAnalysisService } from "./frame-image-analysis.service";
+import type { FrameAnalysisResult, DiffAnalysisSummary } from "./types";
 import {
   WebGLMotionAnalyzer,
   type WebGLMotionAnalysisResult,
-} from './analyzers/webgl-motion-analyzer';
+} from "./analyzers/webgl-motion-analyzer";
 import {
   WebGLAnimationCategorizer,
   type WebGLAnimationCategory,
   type CategorizationResult,
-} from './webgl-animation-categorizer';
-import { WebGLDetectorService, type WebGLDetectionResult } from '../page/webgl-detector.service';
+} from "./webgl-animation-categorizer";
+import { WebGLDetectorService, type WebGLDetectionResult } from "../page/webgl-detector.service";
 
 // =====================================================
 // 型定義
@@ -143,16 +143,16 @@ export interface WebGLAnimationDetectionResult {
 // 定数
 // =====================================================
 
-const logger = createLogger('WebGLAnimationDetector');
+const logger = createLogger("WebGLAnimationDetector");
 
 /** デフォルトオプション */
-const DEFAULT_OPTIONS: Required<Omit<WebGLAnimationDetectionOptions, 'webglDetection'>> = {
+const DEFAULT_OPTIONS: Required<Omit<WebGLAnimationDetectionOptions, "webglDetection">> = {
   sampleFrames: 20,
   sampleIntervalMs: 100,
   changeThreshold: 0.01,
   timeoutMs: 30000,
   saveToDb: true,
-  outputDir: '/tmp/reftrix-webgl-frames/',
+  outputDir: "/tmp/reftrix-webgl-frames/",
 };
 
 // =====================================================
@@ -174,7 +174,7 @@ export class WebGLAnimationDetectorService {
 
   constructor() {
     if (isDevelopment()) {
-      logger.debug('[WebGLAnimationDetector] Initialized');
+      logger.debug("[WebGLAnimationDetector] Initialized");
     }
   }
 
@@ -195,7 +195,7 @@ export class WebGLAnimationDetectorService {
 
     try {
       if (isDevelopment()) {
-        logger.debug('[WebGLAnimationDetector] Starting detection', {
+        logger.debug("[WebGLAnimationDetector] Starting detection", {
           sampleFrames: opts.sampleFrames,
           sampleIntervalMs: opts.sampleIntervalMs,
           changeThreshold: opts.changeThreshold,
@@ -206,18 +206,17 @@ export class WebGLAnimationDetectorService {
       this.ensureServicesInitialized();
 
       // WebGL検出（既存の結果がなければ実行）
-      const webglDetection =
-        options?.webglDetection ?? (await this.webglDetector!.detect(page));
+      const webglDetection = options?.webglDetection ?? (await this.webglDetector!.detect(page));
 
       if (!webglDetection.hasCanvas) {
-        return this.createEmptyResult(startTime, ['No canvas elements found on page']);
+        return this.createEmptyResult(startTime, ["No canvas elements found on page"]);
       }
 
       // canvas要素の情報を取得
       const canvasInfos = await this.getCanvasInfos(page);
 
       if (canvasInfos.length === 0) {
-        return this.createEmptyResult(startTime, ['No valid canvas elements found']);
+        return this.createEmptyResult(startTime, ["No valid canvas elements found"]);
       }
 
       // 各canvasに対してアニメーション検出を実行
@@ -246,10 +245,10 @@ export class WebGLAnimationDetectorService {
             patterns.push(pattern);
           }
         } catch (error) {
-          const message = error instanceof Error ? error.message : 'Unknown error';
+          const message = error instanceof Error ? error.message : "Unknown error";
           warnings.push(`Failed to detect animation for canvas ${i}: ${message}`);
           if (isDevelopment()) {
-            logger.warn('[WebGLAnimationDetector] Canvas detection failed', {
+            logger.warn("[WebGLAnimationDetector] Canvas detection failed", {
               canvasIndex: i,
               error: message,
             });
@@ -261,7 +260,7 @@ export class WebGLAnimationDetectorService {
       const summary = this.calculateSummary(patterns, startTime);
 
       if (isDevelopment()) {
-        logger.info('[WebGLAnimationDetector] Detection complete', {
+        logger.info("[WebGLAnimationDetector] Detection complete", {
           totalPatterns: patterns.length,
           detectionTimeMs: summary.detectionTimeMs,
         });
@@ -278,9 +277,9 @@ export class WebGLAnimationDetectorService {
 
       return result;
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Unknown error';
+      const message = error instanceof Error ? error.message : "Unknown error";
       if (isDevelopment()) {
-        logger.error('[WebGLAnimationDetector] Detection failed', { error: message });
+        logger.error("[WebGLAnimationDetector] Detection failed", { error: message });
       }
       return this.createEmptyResult(startTime, [`Detection failed: ${message}`]);
     }
@@ -301,7 +300,7 @@ export class WebGLAnimationDetectorService {
     this.webglDetector = null;
 
     if (isDevelopment()) {
-      logger.debug('[WebGLAnimationDetector] Cleanup completed');
+      logger.debug("[WebGLAnimationDetector] Cleanup completed");
     }
   }
 
@@ -314,7 +313,7 @@ export class WebGLAnimationDetectorService {
    */
   private mergeOptions(
     options?: WebGLAnimationDetectionOptions
-  ): Required<Omit<WebGLAnimationDetectionOptions, 'webglDetection'>> {
+  ): Required<Omit<WebGLAnimationDetectionOptions, "webglDetection">> {
     return {
       sampleFrames: options?.sampleFrames ?? DEFAULT_OPTIONS.sampleFrames,
       sampleIntervalMs: options?.sampleIntervalMs ?? DEFAULT_OPTIONS.sampleIntervalMs,
@@ -353,10 +352,9 @@ export class WebGLAnimationDetectorService {
   /**
    * ページ上のcanvas要素の情報を取得
    */
-  /* eslint-disable no-undef -- page.evaluate() runs in browser context */
   private async getCanvasInfos(page: Page): Promise<CanvasInfo[]> {
     return page.evaluate(() => {
-      const canvases = document.querySelectorAll('canvas');
+      const canvases = document.querySelectorAll("canvas");
       const results: Array<{
         selector: string;
         width: number;
@@ -369,11 +367,11 @@ export class WebGLAnimationDetectorService {
         // WebGLコンテキストを確認
         let webglVersion = 0;
         try {
-          const gl2 = canvas.getContext('webgl2');
+          const gl2 = canvas.getContext("webgl2");
           if (gl2) {
             webglVersion = 2;
           } else {
-            const gl1 = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+            const gl1 = canvas.getContext("webgl") || canvas.getContext("experimental-webgl");
             if (gl1) {
               webglVersion = 1;
             }
@@ -389,11 +387,11 @@ export class WebGLAnimationDetectorService {
           // v0.1.0: CSSセレクタサニタイズ - 特殊文字をエスケープ
           // CSS.escape()が利用可能な場合は使用、そうでなければフォールバック
           const escapeCss = (value: string): string => {
-            if (typeof CSS !== 'undefined' && CSS.escape) {
+            if (typeof CSS !== "undefined" && CSS.escape) {
               return CSS.escape(value);
             }
             // フォールバック: CSS特殊文字をエスケープ
-            return value.replace(/[!"#$%&'()*+,./:;<=>?@[\\\]^`{|}~\s]/g, '\\$&');
+            return value.replace(/[!"#$%&'()*+,./:;<=>?@[\\\]^`{|}~\s]/g, "\\$&");
           };
 
           // セレクタを生成（:nth-of-type を優先して安全性を確保）
@@ -404,11 +402,11 @@ export class WebGLAnimationDetectorService {
             if (escapedId && !/[<>]/.test(canvas.id)) {
               selector = `#${escapedId}`;
             }
-          } else if (canvas.className && typeof canvas.className === 'string') {
+          } else if (canvas.className && typeof canvas.className === "string") {
             // classNameが安全な場合のみ使用
             const classes = canvas.className.trim().split(/\s+/).filter(Boolean);
-            if (classes.length > 0 && classes.every(c => !/[<>]/.test(c))) {
-              const escapedClasses = classes.map(c => escapeCss(c)).join('.');
+            if (classes.length > 0 && classes.every((c) => !/[<>]/.test(c))) {
+              const escapedClasses = classes.map((c) => escapeCss(c)).join(".");
               selector = `canvas.${escapedClasses}`;
             }
           }
@@ -431,7 +429,6 @@ export class WebGLAnimationDetectorService {
       return results;
     });
   }
-  /* eslint-enable no-undef */
 
   // =====================================================
   // プライベートメソッド: アニメーション検出
@@ -444,11 +441,11 @@ export class WebGLAnimationDetectorService {
     page: Page,
     canvasInfo: CanvasInfo,
     webglDetection: WebGLDetectionResult,
-    options: Required<Omit<WebGLAnimationDetectionOptions, 'webglDetection'>>,
+    options: Required<Omit<WebGLAnimationDetectionOptions, "webglDetection">>,
     canvasIndex: number
   ): Promise<WebGLAnimationPatternData | null> {
     if (isDevelopment()) {
-      logger.debug('[WebGLAnimationDetector] Detecting canvas animation', {
+      logger.debug("[WebGLAnimationDetector] Detecting canvas animation", {
         selector: canvasInfo.selector,
         width: canvasInfo.width,
         height: canvasInfo.height,
@@ -456,15 +453,11 @@ export class WebGLAnimationDetectorService {
     }
 
     // フレームをキャプチャ（canvas要素のスクリーンショット）
-    const frameResult = await this.captureCanvasFrames(
-      page,
-      canvasInfo,
-      options
-    );
+    const frameResult = await this.captureCanvasFrames(page, canvasInfo, options);
 
     if (!frameResult.success || !frameResult.data) {
       if (isDevelopment()) {
-        logger.debug('[WebGLAnimationDetector] Frame capture failed or no data', {
+        logger.debug("[WebGLAnimationDetector] Frame capture failed or no data", {
           selector: canvasInfo.selector,
           error: frameResult.error,
         });
@@ -483,7 +476,7 @@ export class WebGLAnimationDetectorService {
     const avgChangeRatio = changeRatios.reduce((a, b) => a + b, 0) / changeRatios.length;
     if (avgChangeRatio < options.changeThreshold) {
       if (isDevelopment()) {
-        logger.debug('[WebGLAnimationDetector] Skipping static canvas', {
+        logger.debug("[WebGLAnimationDetector] Skipping static canvas", {
           selector: canvasInfo.selector,
           avgChangeRatio,
         });
@@ -498,10 +491,7 @@ export class WebGLAnimationDetectorService {
     const categorization = this.categorizer!.categorize(changeRatios);
 
     // ビジュアル特徴を構築
-    const visualFeatures = this.buildVisualFeatures(
-      motionAnalysis,
-      categorization
-    );
+    const visualFeatures = this.buildVisualFeatures(motionAnalysis, categorization);
 
     // フレーム分析結果を構築
     const frameAnalysis: FrameAnalysisResultData = {
@@ -535,7 +525,7 @@ export class WebGLAnimationDetectorService {
   private async captureCanvasFrames(
     page: Page,
     canvasInfo: CanvasInfo,
-    options: Required<Omit<WebGLAnimationDetectionOptions, 'webglDetection'>>
+    options: Required<Omit<WebGLAnimationDetectionOptions, "webglDetection">>
   ): Promise<FrameAnalysisResult> {
     const framePaths: string[] = [];
     const outputDir = `${options.outputDir}${Date.now()}/`;
@@ -546,12 +536,12 @@ export class WebGLAnimationDetectorService {
 
       // 複数フレームをキャプチャ
       for (let i = 0; i < options.sampleFrames; i++) {
-        const framePath = `${outputDir}frame-${String(i).padStart(4, '0')}.png`;
+        const framePath = `${outputDir}frame-${String(i).padStart(4, "0")}.png`;
 
         // canvasのスクリーンショットを取得
         await canvasElement.screenshot({
           path: framePath,
-          type: 'png',
+          type: "png",
         });
 
         framePaths.push(framePath);
@@ -577,11 +567,11 @@ export class WebGLAnimationDetectorService {
 
       return analysisResult;
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Unknown error';
+      const message = error instanceof Error ? error.message : "Unknown error";
       return {
         success: false,
         error: {
-          code: 'FRAME_ANALYSIS_INTERNAL_ERROR',
+          code: "FRAME_ANALYSIS_INTERNAL_ERROR",
           message: `Frame capture failed: ${message}`,
         },
       };
@@ -616,7 +606,9 @@ export class WebGLAnimationDetectorService {
   /**
    * スコアから特徴を推定
    */
-  private extractFeaturesFromScores(categorization: CategorizationResult): { dynamicFrameRatio: number } {
+  private extractFeaturesFromScores(categorization: CategorizationResult): {
+    dynamicFrameRatio: number;
+  } {
     // 動的フレーム割合を推定（スコアから逆算）
     const fadeScore = categorization.scores.fade;
     const particleScore = categorization.scores.particle;
@@ -632,14 +624,14 @@ export class WebGLAnimationDetectorService {
    */
   private generatePatternName(category: WebGLAnimationCategory, index: number): string {
     const categoryNames: Record<WebGLAnimationCategory, string> = {
-      fade: 'Fade',
-      pulse: 'Pulse',
-      wave: 'Wave',
-      particle: 'Particle',
-      rotation: 'Rotation',
-      parallax: 'Parallax',
-      noise: 'Noise',
-      complex: 'Complex',
+      fade: "Fade",
+      pulse: "Pulse",
+      wave: "Wave",
+      particle: "Particle",
+      rotation: "Rotation",
+      parallax: "Parallax",
+      noise: "Noise",
+      complex: "Complex",
     };
 
     return `WebGL ${categoryNames[category]} Animation #${index + 1}`;
@@ -653,17 +645,17 @@ export class WebGLAnimationDetectorService {
     canvasInfo: CanvasInfo
   ): string {
     const categoryDescriptions: Record<WebGLAnimationCategory, string> = {
-      fade: 'Gradual opacity or intensity change',
-      pulse: 'Rhythmic pulsating effect',
-      wave: 'Flowing wave-like motion',
-      particle: 'Particle system with scattered motion',
-      rotation: 'Rotating or spinning animation',
-      parallax: 'Depth-based parallax effect',
-      noise: 'Procedural noise animation',
-      complex: 'Complex multi-pattern animation',
+      fade: "Gradual opacity or intensity change",
+      pulse: "Rhythmic pulsating effect",
+      wave: "Flowing wave-like motion",
+      particle: "Particle system with scattered motion",
+      rotation: "Rotating or spinning animation",
+      parallax: "Depth-based parallax effect",
+      noise: "Procedural noise animation",
+      complex: "Complex multi-pattern animation",
     };
 
-    const reasons = categorization.reasons.join('. ');
+    const reasons = categorization.reasons.join(". ");
 
     return `${categoryDescriptions[categorization.category]} on ${canvasInfo.width}x${canvasInfo.height} canvas. ${reasons}`;
   }
@@ -674,7 +666,7 @@ export class WebGLAnimationDetectorService {
   private calculateSummary(
     patterns: WebGLAnimationPatternData[],
     startTime: number
-  ): WebGLAnimationDetectionResult['summary'] {
+  ): WebGLAnimationDetectionResult["summary"] {
     const categories: Record<string, number> = {};
 
     let totalChangeRatio = 0;
@@ -695,10 +687,7 @@ export class WebGLAnimationDetectorService {
   /**
    * 空の結果を作成
    */
-  private createEmptyResult(
-    startTime: number,
-    warnings: string[]
-  ): WebGLAnimationDetectionResult {
+  private createEmptyResult(startTime: number, warnings: string[]): WebGLAnimationDetectionResult {
     return {
       patterns: [],
       summary: {

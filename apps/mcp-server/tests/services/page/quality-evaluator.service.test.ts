@@ -11,15 +11,14 @@
  * @module tests/services/page/quality-evaluator.service.test
  */
 
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import type {
-  QualityEvaluatorService} from '../../../src/services/page/quality-evaluator.service';
+import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import type { QualityEvaluatorService } from "../../../src/services/page/quality-evaluator.service";
 import {
   getQualityEvaluatorService,
   resetQualityEvaluatorService,
   type QualityEvaluatorOptions,
   type QualityEvaluatorResult,
-} from '../../../src/services/page/quality-evaluator.service';
+} from "../../../src/services/page/quality-evaluator.service";
 
 // =============================================================================
 // テスト用HTML定義
@@ -316,7 +315,7 @@ function generateLargeHTML(sizeKB: number): string {
 // テストスイート
 // =============================================================================
 
-describe('QualityEvaluatorService', () => {
+describe("QualityEvaluatorService", () => {
   let service: QualityEvaluatorService;
 
   beforeEach(() => {
@@ -332,14 +331,14 @@ describe('QualityEvaluatorService', () => {
   // Part 1: 基本機能テスト
   // ===========================================================================
 
-  describe('基本機能', () => {
-    it('基本的なHTMLを評価できる', async () => {
+  describe("基本機能", () => {
+    it("基本的なHTMLを評価できる", async () => {
       const result = await service.evaluate(BASIC_HTML);
 
       expect(result.success).toBe(true);
       expect(result.overallScore).toBeGreaterThanOrEqual(0);
       expect(result.overallScore).toBeLessThanOrEqual(100);
-      expect(['A', 'B', 'C', 'D', 'F']).toContain(result.grade);
+      expect(["A", "B", "C", "D", "F"]).toContain(result.grade);
       expect(result.axisScores).toBeDefined();
       expect(result.axisScores.originality).toBeGreaterThanOrEqual(0);
       expect(result.axisScores.craftsmanship).toBeGreaterThanOrEqual(0);
@@ -348,25 +347,25 @@ describe('QualityEvaluatorService', () => {
       expect(result.processingTimeMs).toBeGreaterThanOrEqual(0);
     });
 
-    it('空のHTMLでも成功する（低スコア）', async () => {
-      const result = await service.evaluate('');
+    it("空のHTMLでも成功する（低スコア）", async () => {
+      const result = await service.evaluate("");
 
       expect(result.success).toBe(true);
       expect(result.overallScore).toBeGreaterThanOrEqual(0);
     });
 
-    it('最小限のHTMLでも評価できる', async () => {
-      const result = await service.evaluate('<html><body><h1>Hello</h1></body></html>');
+    it("最小限のHTMLでも評価できる", async () => {
+      const result = await service.evaluate("<html><body><h1>Hello</h1></body></html>");
 
       expect(result.success).toBe(true);
       expect(result.overallScore).toBeGreaterThanOrEqual(0);
     });
 
-    it('処理時間をミリ秒で返す', async () => {
+    it("処理時間をミリ秒で返す", async () => {
       const result = await service.evaluate(BASIC_HTML);
 
       expect(result.processingTimeMs).toBeGreaterThanOrEqual(0);
-      expect(typeof result.processingTimeMs).toBe('number');
+      expect(typeof result.processingTimeMs).toBe("number");
     });
   });
 
@@ -374,17 +373,17 @@ describe('QualityEvaluatorService', () => {
   // Part 2: AIクリシェ検出テスト
   // ===========================================================================
 
-  describe('AIクリシェ検出', () => {
-    it('パープル-ピンクグラデーションを検出する', async () => {
+  describe("AIクリシェ検出", () => {
+    it("パープル-ピンクグラデーションを検出する", async () => {
       const result = await service.evaluate(AI_CLICHE_HTML);
 
       expect(result.success).toBe(true);
       expect(result.clicheCount).toBeGreaterThan(0);
       expect(result.cliches).toBeDefined();
-      expect(result.cliches!.some((c) => c.type === 'gradient')).toBe(true);
+      expect(result.cliches!.some((c) => c.type === "gradient")).toBe(true);
     });
 
-    it('オレンジ-ピンクグラデーションを検出する', async () => {
+    it("オレンジ-ピンクグラデーションを検出する", async () => {
       const html = `
         <style>
           .cta { background: linear-gradient(to right, #f857a6, #ff5858); }
@@ -392,41 +391,47 @@ describe('QualityEvaluatorService', () => {
       `;
       const result = await service.evaluate(html);
 
-      expect(result.cliches!.some((c) => c.description.includes('ピンク-オレンジ') || c.description.includes('f857a6'))).toBe(true);
-    });
-
-    it('AI典型フレーズを検出する', async () => {
-      const result = await service.evaluate(AI_CLICHE_HTML);
-
-      expect(result.cliches!.some((c) => c.type === 'text')).toBe(true);
-      // 以下のフレーズのいずれかが検出される
-      const textPatterns = [
-        'Transform Your Business',
-        'Unlock the power',
-        'cutting-edge',
-        'seamless',
-        'Get Started Today',
-        'Scale effortlessly',
-      ];
       expect(
-        result.cliches!.some((c) => textPatterns.some((p) => c.description.includes(p)))
+        result.cliches!.some(
+          (c) => c.description.includes("ピンク-オレンジ") || c.description.includes("f857a6")
+        )
       ).toBe(true);
     });
 
-    it('ピル型ボタン（border-radius: 9999px）を検出する', async () => {
+    it("AI典型フレーズを検出する", async () => {
       const result = await service.evaluate(AI_CLICHE_HTML);
 
-      expect(result.cliches!.some((c) => c.type === 'button' || c.description.includes('9999px'))).toBe(true);
+      expect(result.cliches!.some((c) => c.type === "text")).toBe(true);
+      // 以下のフレーズのいずれかが検出される
+      const textPatterns = [
+        "Transform Your Business",
+        "Unlock the power",
+        "cutting-edge",
+        "seamless",
+        "Get Started Today",
+        "Scale effortlessly",
+      ];
+      expect(result.cliches!.some((c) => textPatterns.some((p) => c.description.includes(p)))).toBe(
+        true
+      );
     });
 
-    it('クリシェが多いほどoriginalityスコアが低い', async () => {
+    it("ピル型ボタン（border-radius: 9999px）を検出する", async () => {
+      const result = await service.evaluate(AI_CLICHE_HTML);
+
+      expect(
+        result.cliches!.some((c) => c.type === "button" || c.description.includes("9999px"))
+      ).toBe(true);
+    });
+
+    it("クリシェが多いほどoriginalityスコアが低い", async () => {
       const cleanResult = await service.evaluate(BASIC_HTML);
       const clicheResult = await service.evaluate(AI_CLICHE_HTML);
 
       expect(clicheResult.axisScores.originality).toBeLessThan(cleanResult.axisScores.originality);
     });
 
-    it('クリシェがないHTMLではclicheCountが0', async () => {
+    it("クリシェがないHTMLではclicheCountが0", async () => {
       const result = await service.evaluate(SEMANTIC_HTML);
 
       expect(result.clicheCount).toBe(0);
@@ -439,35 +444,47 @@ describe('QualityEvaluatorService', () => {
   // Part 3: セマンティックHTML評価テスト
   // ===========================================================================
 
-  describe('セマンティックHTML評価', () => {
-    it('セマンティックなheader/main/footerを検出する', async () => {
+  describe("セマンティックHTML評価", () => {
+    it("セマンティックなheader/main/footerを検出する", async () => {
       const result = await service.evaluate(SEMANTIC_HTML);
 
       expect(result.success).toBe(true);
       expect(result.axisScores.craftsmanship).toBeGreaterThanOrEqual(70);
-      expect(result.axisDetails?.craftsmanship.some((d) => d.includes('header') || d.includes('セマンティック'))).toBe(true);
+      expect(
+        result.axisDetails?.craftsmanship.some(
+          (d) => d.includes("header") || d.includes("セマンティック")
+        )
+      ).toBe(true);
     });
 
-    it('nav, section, article, asideを検出する', async () => {
+    it("nav, section, article, asideを検出する", async () => {
       const result = await service.evaluate(SEMANTIC_HTML);
 
-      expect(result.axisDetails?.craftsmanship.some((d) =>
-        d.includes('nav') || d.includes('section') || d.includes('article') || d.includes('aside')
-      )).toBe(true);
+      expect(
+        result.axisDetails?.craftsmanship.some(
+          (d) =>
+            d.includes("nav") ||
+            d.includes("section") ||
+            d.includes("article") ||
+            d.includes("aside")
+        )
+      ).toBe(true);
     });
 
-    it('divの過剰使用を検出してペナルティを与える', async () => {
+    it("divの過剰使用を検出してペナルティを与える", async () => {
       const result = await service.evaluate(POOR_A11Y_HTML);
 
       expect(result.axisScores.craftsmanship).toBeLessThan(70);
       // divの過剰使用によるペナルティが適用される
       // "divの過剰使用" または "セマンティック要素が少ない" を検出
-      expect(result.axisDetails?.craftsmanship.some((d) =>
-        (d.includes('div') && (d.includes('過剰') || d.includes('セマンティック')))
-      )).toBe(true);
+      expect(
+        result.axisDetails?.craftsmanship.some(
+          (d) => d.includes("div") && (d.includes("過剰") || d.includes("セマンティック"))
+        )
+      ).toBe(true);
     });
 
-    it('セマンティックHTMLがないとcraftsmanshipスコアが低い', async () => {
+    it("セマンティックHTMLがないとcraftsmanshipスコアが低い", async () => {
       const poorResult = await service.evaluate(POOR_A11Y_HTML);
       const goodResult = await service.evaluate(SEMANTIC_HTML);
 
@@ -479,38 +496,58 @@ describe('QualityEvaluatorService', () => {
   // Part 4: ARIA属性検出テスト
   // ===========================================================================
 
-  describe('ARIA属性検出', () => {
-    it('aria-label属性を検出する', async () => {
+  describe("ARIA属性検出", () => {
+    it("aria-label属性を検出する", async () => {
       const result = await service.evaluate(SEMANTIC_HTML);
 
-      expect(result.axisDetails?.craftsmanship.some((d) => d.includes('ARIA') || d.includes('aria-label'))).toBe(true);
+      expect(
+        result.axisDetails?.craftsmanship.some(
+          (d) => d.includes("ARIA") || d.includes("aria-label")
+        )
+      ).toBe(true);
     });
 
-    it('aria-labelledby属性を検出する', async () => {
+    it("aria-labelledby属性を検出する", async () => {
       const result = await service.evaluate(SEMANTIC_HTML);
 
-      expect(result.axisDetails?.craftsmanship.some((d) => d.includes('labelledby') || d.includes('ARIA'))).toBe(true);
+      expect(
+        result.axisDetails?.craftsmanship.some(
+          (d) => d.includes("labelledby") || d.includes("ARIA")
+        )
+      ).toBe(true);
     });
 
-    it('aria-describedby属性を検出する', async () => {
+    it("aria-describedby属性を検出する", async () => {
       const result = await service.evaluate(SEMANTIC_HTML);
 
-      expect(result.axisDetails?.craftsmanship.some((d) => d.includes('describedby') || d.includes('ARIA'))).toBe(true);
+      expect(
+        result.axisDetails?.craftsmanship.some(
+          (d) => d.includes("describedby") || d.includes("ARIA")
+        )
+      ).toBe(true);
     });
 
-    it('role属性を検出する', async () => {
+    it("role属性を検出する", async () => {
       const result = await service.evaluate(SEMANTIC_HTML);
 
-      expect(result.axisDetails?.craftsmanship.some((d) =>
-        d.includes('role') || d.includes('banner') || d.includes('main') || d.includes('navigation')
-      )).toBe(true);
+      expect(
+        result.axisDetails?.craftsmanship.some(
+          (d) =>
+            d.includes("role") ||
+            d.includes("banner") ||
+            d.includes("main") ||
+            d.includes("navigation")
+        )
+      ).toBe(true);
     });
 
-    it('ARIA属性がないとアクセシビリティスコアが低い', async () => {
+    it("ARIA属性がないとアクセシビリティスコアが低い", async () => {
       const noAriaResult = await service.evaluate(POOR_A11Y_HTML);
       const withAriaResult = await service.evaluate(SEMANTIC_HTML);
 
-      expect(noAriaResult.axisScores.craftsmanship).toBeLessThan(withAriaResult.axisScores.craftsmanship);
+      expect(noAriaResult.axisScores.craftsmanship).toBeLessThan(
+        withAriaResult.axisScores.craftsmanship
+      );
     });
   });
 
@@ -518,57 +555,61 @@ describe('QualityEvaluatorService', () => {
   // Part 5: レスポンシブパターン検出テスト
   // ===========================================================================
 
-  describe('レスポンシブパターン検出', () => {
-    it('@media (max-width)を検出する', async () => {
+  describe("レスポンシブパターン検出", () => {
+    it("@media (max-width)を検出する", async () => {
       const result = await service.evaluate(SEMANTIC_HTML);
 
-      expect(result.axisDetails?.craftsmanship.some((d) =>
-        d.includes('レスポンシブ') || d.includes('media')
-      )).toBe(true);
+      expect(
+        result.axisDetails?.craftsmanship.some(
+          (d) => d.includes("レスポンシブ") || d.includes("media")
+        )
+      ).toBe(true);
     });
 
-    it('viewport metaタグを検出する', async () => {
+    it("viewport metaタグを検出する", async () => {
       const result = await service.evaluate(BASIC_HTML);
 
-      expect(result.axisDetails?.craftsmanship.some((d) =>
-        d.includes('viewport') || d.includes('meta')
-      )).toBe(true);
+      expect(
+        result.axisDetails?.craftsmanship.some((d) => d.includes("viewport") || d.includes("meta"))
+      ).toBe(true);
     });
 
-    it('prefers-reduced-motionを検出する', async () => {
+    it("prefers-reduced-motionを検出する", async () => {
       const result = await service.evaluate(SEMANTIC_HTML);
 
-      expect(result.axisDetails?.craftsmanship.some((d) =>
-        d.includes('モーション軽減') || d.includes('reduced-motion')
-      )).toBe(true);
+      expect(
+        result.axisDetails?.craftsmanship.some(
+          (d) => d.includes("モーション軽減") || d.includes("reduced-motion")
+        )
+      ).toBe(true);
     });
 
-    it('CSS GridとFlexboxを検出する', async () => {
+    it("CSS GridとFlexboxを検出する", async () => {
       const result = await service.evaluate(SEMANTIC_HTML);
 
-      expect(result.axisDetails?.craftsmanship.some((d) =>
-        d.includes('Grid') || d.includes('grid')
-      )).toBe(true);
-      expect(result.axisDetails?.craftsmanship.some((d) =>
-        d.includes('Flex') || d.includes('flex')
-      )).toBe(true);
+      expect(
+        result.axisDetails?.craftsmanship.some((d) => d.includes("Grid") || d.includes("grid"))
+      ).toBe(true);
+      expect(
+        result.axisDetails?.craftsmanship.some((d) => d.includes("Flex") || d.includes("flex"))
+      ).toBe(true);
     });
 
-    it('clamp関数を検出する', async () => {
+    it("clamp関数を検出する", async () => {
       const result = await service.evaluate(SEMANTIC_HTML);
 
-      expect(result.axisDetails?.craftsmanship.some((d) =>
-        d.includes('clamp')
-      )).toBe(true);
+      expect(result.axisDetails?.craftsmanship.some((d) => d.includes("clamp"))).toBe(true);
     });
 
-    it('CSS変数を検出する', async () => {
+    it("CSS変数を検出する", async () => {
       const result = await service.evaluate(SEMANTIC_HTML);
 
       // CSS変数はoriginality詳細に記録される
-      expect(result.axisDetails?.originality?.some((d) =>
-        d.includes('CSS変数') || d.includes('カスタム') || d.includes('var(')
-      )).toBe(true);
+      expect(
+        result.axisDetails?.originality?.some(
+          (d) => d.includes("CSS変数") || d.includes("カスタム") || d.includes("var(")
+        )
+      ).toBe(true);
     });
   });
 
@@ -576,68 +617,79 @@ describe('QualityEvaluatorService', () => {
   // Part 6: 業界別コンテキスト評価テスト
   // ===========================================================================
 
-  describe('業界別コンテキスト評価', () => {
-    it('ヘルスケア業界向けコンテンツを評価する', async () => {
+  describe("業界別コンテキスト評価", () => {
+    it("ヘルスケア業界向けコンテンツを評価する", async () => {
       const result = await service.evaluate(HEALTHCARE_HTML, {
-        targetIndustry: 'healthcare',
+        targetIndustry: "healthcare",
       });
 
       expect(result.success).toBe(true);
       expect(result.axisScores.contextuality).toBeGreaterThanOrEqual(70);
-      expect(result.axisDetails?.contextuality.some((d) =>
-        d.includes('ヘルスケア') || d.includes('healthcare') || d.includes('信頼性')
-      )).toBe(true);
+      expect(
+        result.axisDetails?.contextuality.some(
+          (d) => d.includes("ヘルスケア") || d.includes("healthcare") || d.includes("信頼性")
+        )
+      ).toBe(true);
     });
 
-    it('金融業界向けコンテンツを評価する', async () => {
+    it("金融業界向けコンテンツを評価する", async () => {
       const result = await service.evaluate(FINANCE_HTML, {
-        targetIndustry: 'finance',
+        targetIndustry: "finance",
       });
 
       expect(result.success).toBe(true);
       expect(result.axisScores.contextuality).toBeGreaterThanOrEqual(70);
-      expect(result.axisDetails?.contextuality.some((d) =>
-        d.includes('金融') || d.includes('finance') || d.includes('セキュリティ')
-      )).toBe(true);
+      expect(
+        result.axisDetails?.contextuality.some(
+          (d) => d.includes("金融") || d.includes("finance") || d.includes("セキュリティ")
+        )
+      ).toBe(true);
     });
 
-    it('テクノロジー業界向けコンテンツを評価する', async () => {
+    it("テクノロジー業界向けコンテンツを評価する", async () => {
       const result = await service.evaluate(TECH_HTML, {
-        targetIndustry: 'technology',
+        targetIndustry: "technology",
       });
 
       expect(result.success).toBe(true);
       expect(result.axisScores.contextuality).toBeGreaterThanOrEqual(70);
-      expect(result.axisDetails?.contextuality.some((d) =>
-        d.includes('テク') || d.includes('tech') || d.includes('技術')
-      )).toBe(true);
+      expect(
+        result.axisDetails?.contextuality.some(
+          (d) => d.includes("テク") || d.includes("tech") || d.includes("技術")
+        )
+      ).toBe(true);
     });
 
-    it('業界指定なしでも基本的なコンテキスト評価ができる', async () => {
+    it("業界指定なしでも基本的なコンテキスト評価ができる", async () => {
       const result = await service.evaluate(BASIC_HTML);
 
       expect(result.success).toBe(true);
       expect(result.axisScores.contextuality).toBeGreaterThanOrEqual(50);
     });
 
-    it('ターゲットオーディエンス（enterprise）を評価する', async () => {
+    it("ターゲットオーディエンス（enterprise）を評価する", async () => {
       const result = await service.evaluate(FINANCE_HTML, {
-        targetAudience: 'enterprise',
+        targetAudience: "enterprise",
       });
 
-      expect(result.axisDetails?.contextuality.some((d) =>
-        d.includes('エンタープライズ') || d.includes('enterprise') || d.includes('ビジネス')
-      )).toBe(true);
+      expect(
+        result.axisDetails?.contextuality.some(
+          (d) =>
+            d.includes("エンタープライズ") || d.includes("enterprise") || d.includes("ビジネス")
+        )
+      ).toBe(true);
     });
 
-    it('ターゲットオーディエンス（developers）を評価する', async () => {
+    it("ターゲットオーディエンス（developers）を評価する", async () => {
       const result = await service.evaluate(TECH_HTML, {
-        targetAudience: 'developers',
+        targetAudience: "developers",
       });
 
-      expect(result.axisDetails?.contextuality.some((d) =>
-        d.includes('開発者') || d.includes('developer') || d.includes('専門家')
-      )).toBe(true);
+      expect(
+        result.axisDetails?.contextuality.some(
+          (d) => d.includes("開発者") || d.includes("developer") || d.includes("専門家")
+        )
+      ).toBe(true);
     });
   });
 
@@ -645,21 +697,21 @@ describe('QualityEvaluatorService', () => {
   // Part 7: スコア計算テスト
   // ===========================================================================
 
-  describe('スコア計算', () => {
-    it('デフォルトの重み付け（0.35/0.4/0.25）で計算する', async () => {
+  describe("スコア計算", () => {
+    it("デフォルトの重み付け（0.35/0.4/0.25）で計算する", async () => {
       const result = await service.evaluate(BASIC_HTML);
 
       // デフォルト重み: originality=0.35, craftsmanship=0.4, contextuality=0.25
       const expectedScore = Math.round(
         result.axisScores.originality * 0.35 +
-        result.axisScores.craftsmanship * 0.4 +
-        result.axisScores.contextuality * 0.25
+          result.axisScores.craftsmanship * 0.4 +
+          result.axisScores.contextuality * 0.25
       );
 
       expect(Math.abs(result.overallScore - expectedScore)).toBeLessThanOrEqual(1);
     });
 
-    it('カスタム重み付けで計算する', async () => {
+    it("カスタム重み付けで計算する", async () => {
       const result = await service.evaluate(BASIC_HTML, {
         weights: {
           originality: 0.5,
@@ -670,14 +722,14 @@ describe('QualityEvaluatorService', () => {
 
       const expectedScore = Math.round(
         result.axisScores.originality * 0.5 +
-        result.axisScores.craftsmanship * 0.3 +
-        result.axisScores.contextuality * 0.2
+          result.axisScores.craftsmanship * 0.3 +
+          result.axisScores.contextuality * 0.2
       );
 
       expect(Math.abs(result.overallScore - expectedScore)).toBeLessThanOrEqual(1);
     });
 
-    it('スコアは0-100の範囲内', async () => {
+    it("スコアは0-100の範囲内", async () => {
       const result = await service.evaluate(AI_CLICHE_HTML, { strict: true });
 
       expect(result.overallScore).toBeGreaterThanOrEqual(0);
@@ -695,57 +747,58 @@ describe('QualityEvaluatorService', () => {
   // Part 8: グレード判定テスト
   // ===========================================================================
 
-  describe('グレード判定', () => {
-    it('A: 90点以上', async () => {
+  describe("グレード判定", () => {
+    it("A: 90点以上", async () => {
       // 高品質HTMLでAグレードを取得
       const result = await service.evaluate(SEMANTIC_HTML);
 
       if (result.overallScore >= 90) {
-        expect(result.grade).toBe('A');
+        expect(result.grade).toBe("A");
       }
     });
 
-    it('B: 80-89点', async () => {
+    it("B: 80-89点", async () => {
       const result = await service.evaluate(BASIC_HTML);
 
       if (result.overallScore >= 80 && result.overallScore < 90) {
-        expect(result.grade).toBe('B');
+        expect(result.grade).toBe("B");
       }
     });
 
-    it('C: 70-79点', async () => {
-      const html = '<html><body><header role="banner"><h1>Test</h1></header><main><p>Content</p></main></body></html>';
+    it("C: 70-79点", async () => {
+      const html =
+        '<html><body><header role="banner"><h1>Test</h1></header><main><p>Content</p></main></body></html>';
       const result = await service.evaluate(html);
 
       if (result.overallScore >= 70 && result.overallScore < 80) {
-        expect(result.grade).toBe('C');
+        expect(result.grade).toBe("C");
       }
     });
 
-    it('D: 60-69点', async () => {
-      const html = '<html><body><div><p>Content</p></div></body></html>';
+    it("D: 60-69点", async () => {
+      const html = "<html><body><div><p>Content</p></div></body></html>";
       const result = await service.evaluate(html);
 
       if (result.overallScore >= 60 && result.overallScore < 70) {
-        expect(result.grade).toBe('D');
+        expect(result.grade).toBe("D");
       }
     });
 
-    it('F: 60点未満', async () => {
+    it("F: 60点未満", async () => {
       const result = await service.evaluate(AI_CLICHE_HTML, { strict: true });
 
       if (result.overallScore < 60) {
-        expect(result.grade).toBe('F');
+        expect(result.grade).toBe("F");
       }
     });
 
-    it('各軸にもグレードが付与される', async () => {
+    it("各軸にもグレードが付与される", async () => {
       const result = await service.evaluate(BASIC_HTML);
 
       expect(result.axisGrades).toBeDefined();
-      expect(['A', 'B', 'C', 'D', 'F']).toContain(result.axisGrades!.originality);
-      expect(['A', 'B', 'C', 'D', 'F']).toContain(result.axisGrades!.craftsmanship);
-      expect(['A', 'B', 'C', 'D', 'F']).toContain(result.axisGrades!.contextuality);
+      expect(["A", "B", "C", "D", "F"]).toContain(result.axisGrades!.originality);
+      expect(["A", "B", "C", "D", "F"]).toContain(result.axisGrades!.craftsmanship);
+      expect(["A", "B", "C", "D", "F"]).toContain(result.axisGrades!.contextuality);
     });
   });
 
@@ -753,8 +806,8 @@ describe('QualityEvaluatorService', () => {
   // Part 9: 推奨事項生成テスト
   // ===========================================================================
 
-  describe('推奨事項生成', () => {
-    it('推奨事項を生成する', async () => {
+  describe("推奨事項生成", () => {
+    it("推奨事項を生成する", async () => {
       const result = await service.evaluate(POOR_A11Y_HTML, {
         includeRecommendations: true,
       });
@@ -763,22 +816,22 @@ describe('QualityEvaluatorService', () => {
       expect(result.recommendations!.length).toBeGreaterThan(0);
     });
 
-    it('推奨事項にはカテゴリ・優先度・タイトル・説明が含まれる', async () => {
+    it("推奨事項にはカテゴリ・優先度・タイトル・説明が含まれる", async () => {
       const result = await service.evaluate(POOR_A11Y_HTML, {
         includeRecommendations: true,
       });
 
       const rec = result.recommendations![0];
-      expect(rec).toHaveProperty('id');
-      expect(rec).toHaveProperty('category');
-      expect(['originality', 'craftsmanship', 'contextuality']).toContain(rec.category);
-      expect(rec).toHaveProperty('priority');
-      expect(['high', 'medium', 'low']).toContain(rec.priority);
-      expect(rec).toHaveProperty('title');
-      expect(rec).toHaveProperty('description');
+      expect(rec).toHaveProperty("id");
+      expect(rec).toHaveProperty("category");
+      expect(["originality", "craftsmanship", "contextuality"]).toContain(rec.category);
+      expect(rec).toHaveProperty("priority");
+      expect(["high", "medium", "low"]).toContain(rec.priority);
+      expect(rec).toHaveProperty("title");
+      expect(rec).toHaveProperty("description");
     });
 
-    it('includeRecommendations: falseで推奨事項を除外できる', async () => {
+    it("includeRecommendations: falseで推奨事項を除外できる", async () => {
       const result = await service.evaluate(POOR_A11Y_HTML, {
         includeRecommendations: false,
       });
@@ -786,23 +839,23 @@ describe('QualityEvaluatorService', () => {
       expect(result.recommendations).toBeUndefined();
     });
 
-    it('クリシェがある場合、originality改善の推奨事項を含む', async () => {
+    it("クリシェがある場合、originality改善の推奨事項を含む", async () => {
       const result = await service.evaluate(AI_CLICHE_HTML, {
         includeRecommendations: true,
       });
 
-      expect(result.recommendations!.some((r) => r.category === 'originality')).toBe(true);
+      expect(result.recommendations!.some((r) => r.category === "originality")).toBe(true);
     });
 
-    it('アクセシビリティ問題がある場合、craftsmanship改善の推奨事項を含む', async () => {
+    it("アクセシビリティ問題がある場合、craftsmanship改善の推奨事項を含む", async () => {
       const result = await service.evaluate(POOR_A11Y_HTML, {
         includeRecommendations: true,
       });
 
-      expect(result.recommendations!.some((r) => r.category === 'craftsmanship')).toBe(true);
+      expect(result.recommendations!.some((r) => r.category === "craftsmanship")).toBe(true);
     });
 
-    it('推奨事項は優先度順にソートされる', async () => {
+    it("推奨事項は優先度順にソートされる", async () => {
       const result = await service.evaluate(POOR_A11Y_HTML, {
         includeRecommendations: true,
       });
@@ -810,7 +863,9 @@ describe('QualityEvaluatorService', () => {
       const priorities = result.recommendations!.map((r) => r.priority);
       const priorityOrder = { high: 0, medium: 1, low: 2 };
       for (let i = 1; i < priorities.length; i++) {
-        expect(priorityOrder[priorities[i]!]).toBeGreaterThanOrEqual(priorityOrder[priorities[i - 1]!]);
+        expect(priorityOrder[priorities[i]!]).toBeGreaterThanOrEqual(
+          priorityOrder[priorities[i - 1]!]
+        );
       }
     });
   });
@@ -819,8 +874,8 @@ describe('QualityEvaluatorService', () => {
   // Part 10: strictモードテスト
   // ===========================================================================
 
-  describe('strictモード', () => {
-    it('strictモードではクリシェペナルティが増加する', async () => {
+  describe("strictモード", () => {
+    it("strictモードではクリシェペナルティが増加する", async () => {
       // 少数のクリシェを含むHTMLでテスト（両方0にならないように）
       const mildClicheHtml = `
         <!DOCTYPE html>
@@ -844,12 +899,14 @@ describe('QualityEvaluatorService', () => {
       const strictResult = await service.evaluate(mildClicheHtml, { strict: true });
 
       // strictモードではペナルティが増加するため、origialityスコアが低い
-      expect(strictResult.axisScores.originality).toBeLessThanOrEqual(normalResult.axisScores.originality);
+      expect(strictResult.axisScores.originality).toBeLessThanOrEqual(
+        normalResult.axisScores.originality
+      );
       // 両方とも0でないことを確認（ペナルティの差が見える）
       expect(normalResult.axisScores.originality).toBeGreaterThan(0);
     });
 
-    it('strictモードではlowレベルのクリシェも検出する', async () => {
+    it("strictモードではlowレベルのクリシェも検出する", async () => {
       const html = `
         <html><body>
           <p>Scale effortlessly with our platform.</p>
@@ -864,7 +921,7 @@ describe('QualityEvaluatorService', () => {
       expect(strictResult.clicheCount).toBeGreaterThanOrEqual(normalResult.clicheCount);
     });
 
-    it('strictモードでは全体スコアが低くなる', async () => {
+    it("strictモードでは全体スコアが低くなる", async () => {
       const normalResult = await service.evaluate(AI_CLICHE_HTML, { strict: false });
       const strictResult = await service.evaluate(AI_CLICHE_HTML, { strict: true });
 
@@ -876,8 +933,8 @@ describe('QualityEvaluatorService', () => {
   // Part 11: パフォーマンステスト
   // ===========================================================================
 
-  describe('パフォーマンス', () => {
-    it('100KB以上のHTMLでも500ms以内に処理完了', async () => {
+  describe("パフォーマンス", () => {
+    it("100KB以上のHTMLでも500ms以内に処理完了", async () => {
       const largeHtml = generateLargeHTML(100);
 
       expect(largeHtml.length).toBeGreaterThanOrEqual(100 * 1024);
@@ -891,7 +948,7 @@ describe('QualityEvaluatorService', () => {
       expect(result.processingTimeMs).toBeLessThan(500);
     }, 10000);
 
-    it('200KB以上のHTMLでも500ms以内に処理完了', async () => {
+    it("200KB以上のHTMLでも500ms以内に処理完了", async () => {
       const largeHtml = generateLargeHTML(200);
 
       expect(largeHtml.length).toBeGreaterThanOrEqual(200 * 1024);
@@ -904,7 +961,7 @@ describe('QualityEvaluatorService', () => {
       expect(elapsed).toBeLessThan(500);
     }, 10000);
 
-    it('連続10回の評価でも安定したパフォーマンス', async () => {
+    it("連続10回の評価でも安定したパフォーマンス", async () => {
       const times: number[] = [];
 
       for (let i = 0; i < 10; i++) {
@@ -922,15 +979,15 @@ describe('QualityEvaluatorService', () => {
   // Part 12: シングルトンインスタンステスト
   // ===========================================================================
 
-  describe('シングルトンインスタンス', () => {
-    it('getQualityEvaluatorServiceは同一インスタンスを返す', () => {
+  describe("シングルトンインスタンス", () => {
+    it("getQualityEvaluatorServiceは同一インスタンスを返す", () => {
       const service1 = getQualityEvaluatorService();
       const service2 = getQualityEvaluatorService();
 
       expect(service1).toBe(service2);
     });
 
-    it('resetQualityEvaluatorServiceでインスタンスがリセットされる', () => {
+    it("resetQualityEvaluatorServiceでインスタンスがリセットされる", () => {
       const service1 = getQualityEvaluatorService();
       resetQualityEvaluatorService();
       const service2 = getQualityEvaluatorService();
@@ -943,21 +1000,21 @@ describe('QualityEvaluatorService', () => {
   // Part 13: 画像alt属性テスト
   // ===========================================================================
 
-  describe('画像alt属性評価', () => {
-    it('全ての画像にalt属性がある場合はボーナス', async () => {
+  describe("画像alt属性評価", () => {
+    it("全ての画像にalt属性がある場合はボーナス", async () => {
       const result = await service.evaluate(BASIC_HTML);
 
-      expect(result.axisDetails?.craftsmanship.some((d) =>
-        d.includes('alt') && !d.includes('ない')
-      )).toBe(true);
+      expect(
+        result.axisDetails?.craftsmanship.some((d) => d.includes("alt") && !d.includes("ない"))
+      ).toBe(true);
     });
 
-    it('alt属性がない画像があればペナルティ', async () => {
+    it("alt属性がない画像があればペナルティ", async () => {
       const result = await service.evaluate(POOR_A11Y_HTML);
 
-      expect(result.axisDetails?.craftsmanship.some((d) =>
-        d.includes('alt') && d.includes('ない')
-      )).toBe(true);
+      expect(
+        result.axisDetails?.craftsmanship.some((d) => d.includes("alt") && d.includes("ない"))
+      ).toBe(true);
     });
   });
 
@@ -965,18 +1022,21 @@ describe('QualityEvaluatorService', () => {
   // Part 14: インラインイベントハンドラ検出テスト
   // ===========================================================================
 
-  describe('インラインイベントハンドラ検出', () => {
-    it('onclick属性を検出してペナルティを与える', async () => {
+  describe("インラインイベントハンドラ検出", () => {
+    it("onclick属性を検出してペナルティを与える", async () => {
       const result = await service.evaluate(POOR_A11Y_HTML);
 
-      expect(result.axisDetails?.craftsmanship.some((d) =>
-        d.includes('onclick') || d.includes('インライン')
-      )).toBe(true);
+      expect(
+        result.axisDetails?.craftsmanship.some(
+          (d) => d.includes("onclick") || d.includes("インライン")
+        )
+      ).toBe(true);
     });
 
-    it('onclick属性の数に応じてペナルティが増加', async () => {
+    it("onclick属性の数に応じてペナルティが増加", async () => {
       const oneOnclick = '<html><body><div onclick="foo()">Click</div></body></html>';
-      const threeOnclick = '<html><body><div onclick="a()">A</div><div onclick="b()">B</div><div onclick="c()">C</div></body></html>';
+      const threeOnclick =
+        '<html><body><div onclick="a()">A</div><div onclick="b()">B</div><div onclick="c()">C</div></body></html>';
 
       const oneResult = await service.evaluate(oneOnclick);
       const threeResult = await service.evaluate(threeOnclick);
@@ -989,17 +1049,20 @@ describe('QualityEvaluatorService', () => {
   // Part 15: CSS変数・カスタムアニメーション検出テスト
   // ===========================================================================
 
-  describe('カスタムスタイル検出', () => {
-    it('CSS変数の使用を検出してボーナス', async () => {
+  describe("カスタムスタイル検出", () => {
+    it("CSS変数の使用を検出してボーナス", async () => {
       const result = await service.evaluate(SEMANTIC_HTML);
 
       // CSS変数は「活用」「変数」「カスタム」などのキーワードで記録
-      expect(result.axisDetails?.originality?.some((d) =>
-        d.includes('変数') || d.includes('カスタム') || d.includes('var(') || d.includes('活用')
-      )).toBe(true);
+      expect(
+        result.axisDetails?.originality?.some(
+          (d) =>
+            d.includes("変数") || d.includes("カスタム") || d.includes("var(") || d.includes("活用")
+        )
+      ).toBe(true);
     });
 
-    it('カスタムアニメーションを検出してボーナス', async () => {
+    it("カスタムアニメーションを検出してボーナス", async () => {
       const html = `
         <html>
         <head>
@@ -1015,17 +1078,21 @@ describe('QualityEvaluatorService', () => {
       `;
       const result = await service.evaluate(html);
 
-      expect(result.axisDetails?.originality?.some((d) =>
-        d.includes('アニメーション') || d.includes('keyframes')
-      )).toBe(true);
+      expect(
+        result.axisDetails?.originality?.some(
+          (d) => d.includes("アニメーション") || d.includes("keyframes")
+        )
+      ).toBe(true);
     });
 
-    it('カスタムカラーパレットを検出してボーナス', async () => {
+    it("カスタムカラーパレットを検出してボーナス", async () => {
       const result = await service.evaluate(SEMANTIC_HTML);
 
-      expect(result.axisDetails?.originality?.some((d) =>
-        d.includes('カラーパレット') || d.includes('カラー') || d.includes('color')
-      )).toBe(true);
+      expect(
+        result.axisDetails?.originality?.some(
+          (d) => d.includes("カラーパレット") || d.includes("カラー") || d.includes("color")
+        )
+      ).toBe(true);
     });
   });
 
@@ -1033,8 +1100,8 @@ describe('QualityEvaluatorService', () => {
   // Part 16: Originality積極的評価テスト（v0.1.0新規）
   // ===========================================================================
 
-  describe('Originality積極的評価（v0.1.0）', () => {
-    it('AIクリシェなしで積極的指標もない場合は80点', async () => {
+  describe("Originality積極的評価（v0.1.0）", () => {
+    it("AIクリシェなしで積極的指標もない場合は80点", async () => {
       // 最小限のHTML（積極的指標なし、クリシェなし）
       const minimalHtml = `
         <!DOCTYPE html>
@@ -1054,7 +1121,7 @@ describe('QualityEvaluatorService', () => {
       expect(result.axisScores.originality).toBe(80);
     });
 
-    it('カスタムカラースキームを検出してボーナス（+5点）', async () => {
+    it("カスタムカラースキームを検出してボーナス（+5点）", async () => {
       const html = `
         <!DOCTYPE html>
         <html lang="en">
@@ -1077,12 +1144,14 @@ describe('QualityEvaluatorService', () => {
       `;
       const result = await service.evaluate(html);
 
-      expect(result.axisDetails?.originality?.some((d) =>
-        d.includes('カスタムカラースキーム') && d.includes('+5')
-      )).toBe(true);
+      expect(
+        result.axisDetails?.originality?.some(
+          (d) => d.includes("カスタムカラースキーム") && d.includes("+5")
+        )
+      ).toBe(true);
     });
 
-    it('カスタムフォント（Google Fonts）を検出してボーナス（+3点）', async () => {
+    it("カスタムフォント（Google Fonts）を検出してボーナス（+3点）", async () => {
       const html = `
         <!DOCTYPE html>
         <html lang="en">
@@ -1099,12 +1168,14 @@ describe('QualityEvaluatorService', () => {
       `;
       const result = await service.evaluate(html);
 
-      expect(result.axisDetails?.originality?.some((d) =>
-        d.includes('カスタムフォント') && d.includes('+3')
-      )).toBe(true);
+      expect(
+        result.axisDetails?.originality?.some(
+          (d) => d.includes("カスタムフォント") && d.includes("+3")
+        )
+      ).toBe(true);
     });
 
-    it('カスタムフォント（@font-face）を検出してボーナス（+3点）', async () => {
+    it("カスタムフォント（@font-face）を検出してボーナス（+3点）", async () => {
       const html = `
         <!DOCTYPE html>
         <html lang="en">
@@ -1126,12 +1197,14 @@ describe('QualityEvaluatorService', () => {
       `;
       const result = await service.evaluate(html);
 
-      expect(result.axisDetails?.originality?.some((d) =>
-        d.includes('カスタムフォント') && d.includes('+3')
-      )).toBe(true);
+      expect(
+        result.axisDetails?.originality?.some(
+          (d) => d.includes("カスタムフォント") && d.includes("+3")
+        )
+      ).toBe(true);
     });
 
-    it('ユニークなレイアウト（Container Queries）を検出してボーナス（+5点）', async () => {
+    it("ユニークなレイアウト（Container Queries）を検出してボーナス（+5点）", async () => {
       const html = `
         <!DOCTYPE html>
         <html lang="en">
@@ -1155,12 +1228,14 @@ describe('QualityEvaluatorService', () => {
       `;
       const result = await service.evaluate(html);
 
-      expect(result.axisDetails?.originality?.some((d) =>
-        d.includes('ユニークなレイアウト') && d.includes('+5')
-      )).toBe(true);
+      expect(
+        result.axisDetails?.originality?.some(
+          (d) => d.includes("ユニークなレイアウト") && d.includes("+5")
+        )
+      ).toBe(true);
     });
 
-    it('ユニークなレイアウト（Subgrid）を検出してボーナス（+5点）', async () => {
+    it("ユニークなレイアウト（Subgrid）を検出してボーナス（+5点）", async () => {
       const html = `
         <!DOCTYPE html>
         <html lang="en">
@@ -1186,12 +1261,14 @@ describe('QualityEvaluatorService', () => {
       `;
       const result = await service.evaluate(html);
 
-      expect(result.axisDetails?.originality?.some((d) =>
-        d.includes('ユニークなレイアウト') && d.includes('+5')
-      )).toBe(true);
+      expect(
+        result.axisDetails?.originality?.some(
+          (d) => d.includes("ユニークなレイアウト") && d.includes("+5")
+        )
+      ).toBe(true);
     });
 
-    it('カスタムアニメーション（cubic-bezier）を検出してボーナス（+4点）', async () => {
+    it("カスタムアニメーション（cubic-bezier）を検出してボーナス（+4点）", async () => {
       const html = `
         <!DOCTYPE html>
         <html lang="en">
@@ -1212,12 +1289,14 @@ describe('QualityEvaluatorService', () => {
       `;
       const result = await service.evaluate(html);
 
-      expect(result.axisDetails?.originality?.some((d) =>
-        d.includes('カスタムアニメーション') && d.includes('+4')
-      )).toBe(true);
+      expect(
+        result.axisDetails?.originality?.some(
+          (d) => d.includes("カスタムアニメーション") && d.includes("+4")
+        )
+      ).toBe(true);
     });
 
-    it('カスタムアニメーション（複数@keyframes）を検出してボーナス（+4点）', async () => {
+    it("カスタムアニメーション（複数@keyframes）を検出してボーナス（+4点）", async () => {
       const html = `
         <!DOCTYPE html>
         <html lang="en">
@@ -1243,12 +1322,14 @@ describe('QualityEvaluatorService', () => {
       `;
       const result = await service.evaluate(html);
 
-      expect(result.axisDetails?.originality?.some((d) =>
-        d.includes('カスタムアニメーション') && d.includes('+4')
-      )).toBe(true);
+      expect(
+        result.axisDetails?.originality?.some(
+          (d) => d.includes("カスタムアニメーション") && d.includes("+4")
+        )
+      ).toBe(true);
     });
 
-    it('オリジナルグラフィック（インラインSVG）を検出してボーナス（+3点）', async () => {
+    it("オリジナルグラフィック（インラインSVG）を検出してボーナス（+3点）", async () => {
       const html = `
         <!DOCTYPE html>
         <html lang="en">
@@ -1266,12 +1347,14 @@ describe('QualityEvaluatorService', () => {
       `;
       const result = await service.evaluate(html);
 
-      expect(result.axisDetails?.originality?.some((d) =>
-        d.includes('オリジナルグラフィック') && d.includes('+3')
-      )).toBe(true);
+      expect(
+        result.axisDetails?.originality?.some(
+          (d) => d.includes("オリジナルグラフィック") && d.includes("+3")
+        )
+      ).toBe(true);
     });
 
-    it('オリジナルグラフィック（Canvas）を検出してボーナス（+3点）', async () => {
+    it("オリジナルグラフィック（Canvas）を検出してボーナス（+3点）", async () => {
       const html = `
         <!DOCTYPE html>
         <html lang="en">
@@ -1287,12 +1370,14 @@ describe('QualityEvaluatorService', () => {
       `;
       const result = await service.evaluate(html);
 
-      expect(result.axisDetails?.originality?.some((d) =>
-        d.includes('オリジナルグラフィック') && d.includes('+3')
-      )).toBe(true);
+      expect(
+        result.axisDetails?.originality?.some(
+          (d) => d.includes("オリジナルグラフィック") && d.includes("+3")
+        )
+      ).toBe(true);
     });
 
-    it('全積極的指標ありで最大100点', async () => {
+    it("全積極的指標ありで最大100点", async () => {
       // 全ての積極的評価指標を含むHTML
       const fullFeaturedHtml = `
         <!DOCTYPE html>
@@ -1349,7 +1434,7 @@ describe('QualityEvaluatorService', () => {
       expect(result.axisScores.originality).toBe(100);
     });
 
-    it('AIクリシェありで積極的指標ありの場合、適切に減点+加点', async () => {
+    it("AIクリシェありで積極的指標ありの場合、適切に減点+加点", async () => {
       const html = `
         <!DOCTYPE html>
         <html lang="en">
@@ -1394,11 +1479,11 @@ describe('QualityEvaluatorService', () => {
       // しかし積極的評価があるため0ではない
       expect(result.axisScores.originality).toBeGreaterThan(50);
       // クリシェと積極的評価の両方がdetailsに記録される
-      expect(result.axisDetails?.originality?.some((d) => d.includes('クリシェ'))).toBe(true);
-      expect(result.axisDetails?.originality?.some((d) => d.includes('+'))).toBe(true);
+      expect(result.axisDetails?.originality?.some((d) => d.includes("クリシェ"))).toBe(true);
+      expect(result.axisDetails?.originality?.some((d) => d.includes("+"))).toBe(true);
     });
 
-    it('Bootstrap標準カラーのみではカスタムカラースキームボーナスなし', async () => {
+    it("Bootstrap標準カラーのみではカスタムカラースキームボーナスなし", async () => {
       const html = `
         <!DOCTYPE html>
         <html lang="en">
@@ -1420,9 +1505,9 @@ describe('QualityEvaluatorService', () => {
       const result = await service.evaluate(html);
 
       // Bootstrap標準カラーのみなのでカスタムカラースキームボーナスなし
-      expect(result.axisDetails?.originality?.some((d) =>
-        d.includes('カスタムカラースキーム')
-      )).toBe(false);
+      expect(
+        result.axisDetails?.originality?.some((d) => d.includes("カスタムカラースキーム"))
+      ).toBe(false);
     });
   });
 
@@ -1430,8 +1515,8 @@ describe('QualityEvaluatorService', () => {
   // Part 17: 推奨事項精緻化テスト（v0.1.0新規）
   // ===========================================================================
 
-  describe('推奨事項精緻化（v0.1.0）', () => {
-    it('最低3件の推奨事項を保証する', async () => {
+  describe("推奨事項精緻化（v0.1.0）", () => {
+    it("最低3件の推奨事項を保証する", async () => {
       // 高品質HTMLでも最低3件の推奨事項を返す
       const result = await service.evaluate(SEMANTIC_HTML, {
         includeRecommendations: true,
@@ -1441,7 +1526,7 @@ describe('QualityEvaluatorService', () => {
       expect(result.recommendations!.length).toBeGreaterThanOrEqual(3);
     });
 
-    it('推奨事項にexpectedImpactフィールドが含まれる', async () => {
+    it("推奨事項にexpectedImpactフィールドが含まれる", async () => {
       const result = await service.evaluate(BASIC_HTML, {
         includeRecommendations: true,
       });
@@ -1450,13 +1535,13 @@ describe('QualityEvaluatorService', () => {
       expect(result.recommendations!.length).toBeGreaterThan(0);
 
       const rec = result.recommendations![0];
-      expect(rec).toHaveProperty('expectedImpact');
-      expect(typeof rec.expectedImpact).toBe('string');
+      expect(rec).toHaveProperty("expectedImpact");
+      expect(typeof rec.expectedImpact).toBe("string");
       // expectedImpactは "+N points" の形式
       expect(rec.expectedImpact).toMatch(/^\+\d+\s+points?$/);
     });
 
-    it('3カテゴリ全てをカバーする推奨事項を生成', async () => {
+    it("3カテゴリ全てをカバーする推奨事項を生成", async () => {
       // 改善余地のある中程度のHTML
       const html = `
         <!DOCTYPE html>
@@ -1483,12 +1568,12 @@ describe('QualityEvaluatorService', () => {
 
       // 3カテゴリ全てがカバーされている
       const categories = result.recommendations!.map((r) => r.category);
-      expect(categories).toContain('originality');
-      expect(categories).toContain('craftsmanship');
-      expect(categories).toContain('contextuality');
+      expect(categories).toContain("originality");
+      expect(categories).toContain("craftsmanship");
+      expect(categories).toContain("contextuality");
     });
 
-    it('高品質HTMLでも改善提案がある（さらなる向上のため）', async () => {
+    it("高品質HTMLでも改善提案がある（さらなる向上のため）", async () => {
       const result = await service.evaluate(SEMANTIC_HTML, {
         includeRecommendations: true,
       });
@@ -1498,18 +1583,19 @@ describe('QualityEvaluatorService', () => {
 
       // 高品質でも最低3件の推奨事項があり、改善の余地を示す
       // 優先度が低いもの、または説明に特定のキーワードを含む
-      const hasEnhancementSuggestion = result.recommendations!.some((r) =>
-        r.priority === 'low' ||
-        r.priority === 'medium' ||
-        r.description.includes('検討') ||
-        r.description.includes('高め') ||
-        r.description.includes('向上') ||
-        r.description.includes('強化')
+      const hasEnhancementSuggestion = result.recommendations!.some(
+        (r) =>
+          r.priority === "low" ||
+          r.priority === "medium" ||
+          r.description.includes("検討") ||
+          r.description.includes("高め") ||
+          r.description.includes("向上") ||
+          r.description.includes("強化")
       );
       expect(hasEnhancementSuggestion).toBe(true);
     });
 
-    it('推奨事項の優先度とexpectedImpactが相関する', async () => {
+    it("推奨事項の優先度とexpectedImpactが相関する", async () => {
       const result = await service.evaluate(POOR_A11Y_HTML, {
         includeRecommendations: true,
       });
@@ -1518,25 +1604,27 @@ describe('QualityEvaluatorService', () => {
       expect(result.recommendations!.length).toBeGreaterThan(0);
 
       // 優先度がhighの推奨事項はimpactが高い
-      const highPriorityRecs = result.recommendations!.filter((r) => r.priority === 'high');
-      const lowPriorityRecs = result.recommendations!.filter((r) => r.priority === 'low');
+      const highPriorityRecs = result.recommendations!.filter((r) => r.priority === "high");
+      const lowPriorityRecs = result.recommendations!.filter((r) => r.priority === "low");
 
       if (highPriorityRecs.length > 0 && lowPriorityRecs.length > 0) {
-        const highImpactAvg = highPriorityRecs.reduce((sum, r) => {
-          const match = r.expectedImpact?.match(/\+(\d+)/);
-          return sum + (match ? parseInt(match[1]!) : 0);
-        }, 0) / highPriorityRecs.length;
+        const highImpactAvg =
+          highPriorityRecs.reduce((sum, r) => {
+            const match = r.expectedImpact?.match(/\+(\d+)/);
+            return sum + (match ? parseInt(match[1]!) : 0);
+          }, 0) / highPriorityRecs.length;
 
-        const lowImpactAvg = lowPriorityRecs.reduce((sum, r) => {
-          const match = r.expectedImpact?.match(/\+(\d+)/);
-          return sum + (match ? parseInt(match[1]!) : 0);
-        }, 0) / lowPriorityRecs.length;
+        const lowImpactAvg =
+          lowPriorityRecs.reduce((sum, r) => {
+            const match = r.expectedImpact?.match(/\+(\d+)/);
+            return sum + (match ? parseInt(match[1]!) : 0);
+          }, 0) / lowPriorityRecs.length;
 
         expect(highImpactAvg).toBeGreaterThanOrEqual(lowImpactAvg);
       }
     });
 
-    it('各推奨事項に具体的な改善アクションが含まれる', async () => {
+    it("各推奨事項に具体的な改善アクションが含まれる", async () => {
       const result = await service.evaluate(BASIC_HTML, {
         includeRecommendations: true,
       });
@@ -1553,14 +1641,14 @@ describe('QualityEvaluatorService', () => {
       }
     });
 
-    it('AIクリシェHTMLでは高優先度の推奨事項が多い', async () => {
+    it("AIクリシェHTMLでは高優先度の推奨事項が多い", async () => {
       const result = await service.evaluate(AI_CLICHE_HTML, {
         includeRecommendations: true,
       });
 
       expect(result.recommendations).toBeDefined();
 
-      const highPriorityCount = result.recommendations!.filter((r) => r.priority === 'high').length;
+      const highPriorityCount = result.recommendations!.filter((r) => r.priority === "high").length;
       // AIクリシェHTMLでは高優先度が少なくとも2件以上
       expect(highPriorityCount).toBeGreaterThanOrEqual(2);
     });
@@ -1570,13 +1658,13 @@ describe('QualityEvaluatorService', () => {
   // Part 18: Craftsmanshipポジティブ評価テスト（v0.1.0新規）
   // ===========================================================================
 
-  describe('Craftsmanshipポジティブ評価（v0.1.0）', () => {
+  describe("Craftsmanshipポジティブ評価（v0.1.0）", () => {
     // -------------------------------------------------------------------------
     // モダンCSS機能ボーナス
     // -------------------------------------------------------------------------
 
-    describe('モダンCSS機能ボーナス', () => {
-      it('Container Queriesを検出してボーナス（+4点）', async () => {
+    describe("モダンCSS機能ボーナス", () => {
+      it("Container Queriesを検出してボーナス（+4点）", async () => {
         const html = `
           <!DOCTYPE html>
           <html lang="en">
@@ -1601,12 +1689,14 @@ describe('QualityEvaluatorService', () => {
         `;
         const result = await service.evaluate(html);
 
-        expect(result.axisDetails?.craftsmanship.some((d) =>
-          d.includes('Container Queries') || d.includes('container-type')
-        )).toBe(true);
+        expect(
+          result.axisDetails?.craftsmanship.some(
+            (d) => d.includes("Container Queries") || d.includes("container-type")
+          )
+        ).toBe(true);
       });
 
-      it('gapプロパティを検出してボーナス（+2点）', async () => {
+      it("gapプロパティを検出してボーナス（+2点）", async () => {
         const html = `
           <!DOCTYPE html>
           <html lang="en">
@@ -1627,12 +1717,14 @@ describe('QualityEvaluatorService', () => {
         `;
         const result = await service.evaluate(html);
 
-        expect(result.axisDetails?.craftsmanship.some((d) =>
-          d.includes('gap') || d.includes('モダンスペーシング')
-        )).toBe(true);
+        expect(
+          result.axisDetails?.craftsmanship.some(
+            (d) => d.includes("gap") || d.includes("モダンスペーシング")
+          )
+        ).toBe(true);
       });
 
-      it('aspect-ratioを検出してボーナス（+3点）', async () => {
+      it("aspect-ratioを検出してボーナス（+3点）", async () => {
         const html = `
           <!DOCTYPE html>
           <html lang="en">
@@ -1653,12 +1745,12 @@ describe('QualityEvaluatorService', () => {
         `;
         const result = await service.evaluate(html);
 
-        expect(result.axisDetails?.craftsmanship.some((d) =>
-          d.includes('aspect-ratio')
-        )).toBe(true);
+        expect(result.axisDetails?.craftsmanship.some((d) => d.includes("aspect-ratio"))).toBe(
+          true
+        );
       });
 
-      it('scroll-snapを検出してボーナス（+3点）', async () => {
+      it("scroll-snapを検出してボーナス（+3点）", async () => {
         const html = `
           <!DOCTYPE html>
           <html lang="en">
@@ -1684,12 +1776,14 @@ describe('QualityEvaluatorService', () => {
         `;
         const result = await service.evaluate(html);
 
-        expect(result.axisDetails?.craftsmanship.some((d) =>
-          d.includes('scroll-snap') || d.includes('スクロールスナップ')
-        )).toBe(true);
+        expect(
+          result.axisDetails?.craftsmanship.some(
+            (d) => d.includes("scroll-snap") || d.includes("スクロールスナップ")
+          )
+        ).toBe(true);
       });
 
-      it('object-fitを検出してボーナス（+2点）', async () => {
+      it("object-fitを検出してボーナス（+2点）", async () => {
         const html = `
           <!DOCTYPE html>
           <html lang="en">
@@ -1712,12 +1806,10 @@ describe('QualityEvaluatorService', () => {
         `;
         const result = await service.evaluate(html);
 
-        expect(result.axisDetails?.craftsmanship.some((d) =>
-          d.includes('object-fit')
-        )).toBe(true);
+        expect(result.axisDetails?.craftsmanship.some((d) => d.includes("object-fit"))).toBe(true);
       });
 
-      it('scroll-behaviorを検出してボーナス（+2点）', async () => {
+      it("scroll-behaviorを検出してボーナス（+2点）", async () => {
         const html = `
           <!DOCTYPE html>
           <html lang="en">
@@ -1737,12 +1829,14 @@ describe('QualityEvaluatorService', () => {
         `;
         const result = await service.evaluate(html);
 
-        expect(result.axisDetails?.craftsmanship.some((d) =>
-          d.includes('scroll-behavior') || d.includes('スムーススクロール')
-        )).toBe(true);
+        expect(
+          result.axisDetails?.craftsmanship.some(
+            (d) => d.includes("scroll-behavior") || d.includes("スムーススクロール")
+          )
+        ).toBe(true);
       });
 
-      it('place-items/place-contentを検出してボーナス（+2点）', async () => {
+      it("place-items/place-contentを検出してボーナス（+2点）", async () => {
         const html = `
           <!DOCTYPE html>
           <html lang="en">
@@ -1763,9 +1857,14 @@ describe('QualityEvaluatorService', () => {
         `;
         const result = await service.evaluate(html);
 
-        expect(result.axisDetails?.craftsmanship.some((d) =>
-          d.includes('place-items') || d.includes('place-content') || d.includes('モダンセンタリング')
-        )).toBe(true);
+        expect(
+          result.axisDetails?.craftsmanship.some(
+            (d) =>
+              d.includes("place-items") ||
+              d.includes("place-content") ||
+              d.includes("モダンセンタリング")
+          )
+        ).toBe(true);
       });
     });
 
@@ -1773,8 +1872,8 @@ describe('QualityEvaluatorService', () => {
     // アクセシビリティ強化ボーナス
     // -------------------------------------------------------------------------
 
-    describe('アクセシビリティ強化ボーナス', () => {
-      it('tabindex属性を検出してボーナス（+2点）', async () => {
+    describe("アクセシビリティ強化ボーナス", () => {
+      it("tabindex属性を検出してボーナス（+2点）", async () => {
         const html = `
           <!DOCTYPE html>
           <html lang="en">
@@ -1794,12 +1893,14 @@ describe('QualityEvaluatorService', () => {
         `;
         const result = await service.evaluate(html);
 
-        expect(result.axisDetails?.craftsmanship.some((d) =>
-          d.includes('tabindex') || d.includes('キーボードナビゲーション')
-        )).toBe(true);
+        expect(
+          result.axisDetails?.craftsmanship.some(
+            (d) => d.includes("tabindex") || d.includes("キーボードナビゲーション")
+          )
+        ).toBe(true);
       });
 
-      it(':focus-visibleを検出してボーナス（+3点）', async () => {
+      it(":focus-visibleを検出してボーナス（+3点）", async () => {
         const html = `
           <!DOCTYPE html>
           <html lang="en">
@@ -1827,12 +1928,14 @@ describe('QualityEvaluatorService', () => {
         `;
         const result = await service.evaluate(html);
 
-        expect(result.axisDetails?.craftsmanship.some((d) =>
-          d.includes('focus-visible') || d.includes('フォーカス表示')
-        )).toBe(true);
+        expect(
+          result.axisDetails?.craftsmanship.some(
+            (d) => d.includes("focus-visible") || d.includes("フォーカス表示")
+          )
+        ).toBe(true);
       });
 
-      it('スキップリンクを検出してボーナス（+4点）', async () => {
+      it("スキップリンクを検出してボーナス（+4点）", async () => {
         const html = `
           <!DOCTYPE html>
           <html lang="en">
@@ -1861,12 +1964,14 @@ describe('QualityEvaluatorService', () => {
         `;
         const result = await service.evaluate(html);
 
-        expect(result.axisDetails?.craftsmanship.some((d) =>
-          d.includes('skip') || d.includes('スキップリンク')
-        )).toBe(true);
+        expect(
+          result.axisDetails?.craftsmanship.some(
+            (d) => d.includes("skip") || d.includes("スキップリンク")
+          )
+        ).toBe(true);
       });
 
-      it('prefers-color-schemeを検出してボーナス（+3点）', async () => {
+      it("prefers-color-schemeを検出してボーナス（+3点）", async () => {
         const html = `
           <!DOCTYPE html>
           <html lang="en">
@@ -1894,12 +1999,17 @@ describe('QualityEvaluatorService', () => {
         `;
         const result = await service.evaluate(html);
 
-        expect(result.axisDetails?.craftsmanship.some((d) =>
-          d.includes('prefers-color-scheme') || d.includes('ダークモード') || d.includes('カラースキーム')
-        )).toBe(true);
+        expect(
+          result.axisDetails?.craftsmanship.some(
+            (d) =>
+              d.includes("prefers-color-scheme") ||
+              d.includes("ダークモード") ||
+              d.includes("カラースキーム")
+          )
+        ).toBe(true);
       });
 
-      it('aria-live属性を検出してボーナス（+3点）', async () => {
+      it("aria-live属性を検出してボーナス（+3点）", async () => {
         const html = `
           <!DOCTYPE html>
           <html lang="en">
@@ -1919,9 +2029,11 @@ describe('QualityEvaluatorService', () => {
         `;
         const result = await service.evaluate(html);
 
-        expect(result.axisDetails?.craftsmanship.some((d) =>
-          d.includes('aria-live') || d.includes('ライブリージョン')
-        )).toBe(true);
+        expect(
+          result.axisDetails?.craftsmanship.some(
+            (d) => d.includes("aria-live") || d.includes("ライブリージョン")
+          )
+        ).toBe(true);
       });
     });
 
@@ -1929,7 +2041,7 @@ describe('QualityEvaluatorService', () => {
     // パフォーマンス最適化ボーナス
     // -------------------------------------------------------------------------
 
-    describe('パフォーマンス最適化ボーナス', () => {
+    describe("パフォーマンス最適化ボーナス", () => {
       it('loading="lazy"を検出してボーナス（+3点）', async () => {
         const html = `
           <!DOCTYPE html>
@@ -1951,12 +2063,17 @@ describe('QualityEvaluatorService', () => {
         `;
         const result = await service.evaluate(html);
 
-        expect(result.axisDetails?.craftsmanship.some((d) =>
-          d.includes('loading="lazy"') || d.includes('遅延読み込み') || d.includes('lazy loading')
-        )).toBe(true);
+        expect(
+          result.axisDetails?.craftsmanship.some(
+            (d) =>
+              d.includes('loading="lazy"') ||
+              d.includes("遅延読み込み") ||
+              d.includes("lazy loading")
+          )
+        ).toBe(true);
       });
 
-      it('fetchpriorityを検出してボーナス（+3点）', async () => {
+      it("fetchpriorityを検出してボーナス（+3点）", async () => {
         const html = `
           <!DOCTYPE html>
           <html lang="en">
@@ -1976,12 +2093,17 @@ describe('QualityEvaluatorService', () => {
         `;
         const result = await service.evaluate(html);
 
-        expect(result.axisDetails?.craftsmanship.some((d) =>
-          d.includes('fetchpriority') || d.includes('フェッチ優先度') || d.includes('リソース優先度')
-        )).toBe(true);
+        expect(
+          result.axisDetails?.craftsmanship.some(
+            (d) =>
+              d.includes("fetchpriority") ||
+              d.includes("フェッチ優先度") ||
+              d.includes("リソース優先度")
+          )
+        ).toBe(true);
       });
 
-      it('preload/prefetchを検出してボーナス（+3点）', async () => {
+      it("preload/prefetchを検出してボーナス（+3点）", async () => {
         const html = `
           <!DOCTYPE html>
           <html lang="en">
@@ -2002,12 +2124,14 @@ describe('QualityEvaluatorService', () => {
         `;
         const result = await service.evaluate(html);
 
-        expect(result.axisDetails?.craftsmanship.some((d) =>
-          d.includes('preload') || d.includes('prefetch') || d.includes('リソースヒント')
-        )).toBe(true);
+        expect(
+          result.axisDetails?.craftsmanship.some(
+            (d) => d.includes("preload") || d.includes("prefetch") || d.includes("リソースヒント")
+          )
+        ).toBe(true);
       });
 
-      it('async/deferスクリプトを検出してボーナス（+2点）', async () => {
+      it("async/deferスクリプトを検出してボーナス（+2点）", async () => {
         const html = `
           <!DOCTYPE html>
           <html lang="en">
@@ -2026,12 +2150,14 @@ describe('QualityEvaluatorService', () => {
         `;
         const result = await service.evaluate(html);
 
-        expect(result.axisDetails?.craftsmanship.some((d) =>
-          d.includes('async') || d.includes('defer') || d.includes('非同期スクリプト')
-        )).toBe(true);
+        expect(
+          result.axisDetails?.craftsmanship.some(
+            (d) => d.includes("async") || d.includes("defer") || d.includes("非同期スクリプト")
+          )
+        ).toBe(true);
       });
 
-      it('WebP/AVIFモダン画像フォーマットを検出してボーナス（+2点）', async () => {
+      it("WebP/AVIFモダン画像フォーマットを検出してボーナス（+2点）", async () => {
         const html = `
           <!DOCTYPE html>
           <html lang="en">
@@ -2054,9 +2180,15 @@ describe('QualityEvaluatorService', () => {
         `;
         const result = await service.evaluate(html);
 
-        expect(result.axisDetails?.craftsmanship.some((d) =>
-          d.includes('webp') || d.includes('avif') || d.includes('モダン画像フォーマット') || d.includes('picture')
-        )).toBe(true);
+        expect(
+          result.axisDetails?.craftsmanship.some(
+            (d) =>
+              d.includes("webp") ||
+              d.includes("avif") ||
+              d.includes("モダン画像フォーマット") ||
+              d.includes("picture")
+          )
+        ).toBe(true);
       });
     });
 
@@ -2064,8 +2196,8 @@ describe('QualityEvaluatorService', () => {
     // ベーススコア調整テスト
     // -------------------------------------------------------------------------
 
-    describe('ベーススコア調整', () => {
-      it('基本的なセマンティックHTMLのCraftsmanshipスコアが65点以上', async () => {
+    describe("ベーススコア調整", () => {
+      it("基本的なセマンティックHTMLのCraftsmanshipスコアが65点以上", async () => {
         // 最小限の良いHTML（クリシェなし、問題なし）
         const minimalGoodHtml = `
           <!DOCTYPE html>
@@ -2088,7 +2220,7 @@ describe('QualityEvaluatorService', () => {
         expect(result.axisScores.craftsmanship).toBeGreaterThanOrEqual(65);
       });
 
-      it('高品質HTMLはCraftsmanshipスコアが85点以上を達成可能', async () => {
+      it("高品質HTMLはCraftsmanshipスコアが85点以上を達成可能", async () => {
         // 全ポジティブ指標を含む高品質HTML
         const highQualityHtml = `
           <!DOCTYPE html>
@@ -2147,7 +2279,7 @@ describe('QualityEvaluatorService', () => {
         expect(result.axisScores.craftsmanship).toBeGreaterThanOrEqual(85);
       });
 
-      it('モダンCSS機能が多いほどCraftsmanshipスコアが高い', async () => {
+      it("モダンCSS機能が多いほどCraftsmanshipスコアが高い", async () => {
         const basicHtml = `
           <!DOCTYPE html>
           <html lang="en">
@@ -2188,10 +2320,12 @@ describe('QualityEvaluatorService', () => {
         const basicResult = await service.evaluate(basicHtml);
         const modernResult = await service.evaluate(modernCssHtml);
 
-        expect(modernResult.axisScores.craftsmanship).toBeGreaterThan(basicResult.axisScores.craftsmanship);
+        expect(modernResult.axisScores.craftsmanship).toBeGreaterThan(
+          basicResult.axisScores.craftsmanship
+        );
       });
 
-      it('アクセシビリティ対応が多いほどCraftsmanshipスコアが高い', async () => {
+      it("アクセシビリティ対応が多いほどCraftsmanshipスコアが高い", async () => {
         const basicHtml = `
           <!DOCTYPE html>
           <html lang="en">
@@ -2240,10 +2374,12 @@ describe('QualityEvaluatorService', () => {
         const basicResult = await service.evaluate(basicHtml);
         const accessibleResult = await service.evaluate(accessibleHtml);
 
-        expect(accessibleResult.axisScores.craftsmanship).toBeGreaterThan(basicResult.axisScores.craftsmanship);
+        expect(accessibleResult.axisScores.craftsmanship).toBeGreaterThan(
+          basicResult.axisScores.craftsmanship
+        );
       });
 
-      it('パフォーマンス最適化が多いほどCraftsmanshipスコアが高い', async () => {
+      it("パフォーマンス最適化が多いほどCraftsmanshipスコアが高い", async () => {
         const basicHtml = `
           <!DOCTYPE html>
           <html lang="en">
@@ -2288,7 +2424,9 @@ describe('QualityEvaluatorService', () => {
         const basicResult = await service.evaluate(basicHtml);
         const optimizedResult = await service.evaluate(optimizedHtml);
 
-        expect(optimizedResult.axisScores.craftsmanship).toBeGreaterThan(basicResult.axisScores.craftsmanship);
+        expect(optimizedResult.axisScores.craftsmanship).toBeGreaterThan(
+          basicResult.axisScores.craftsmanship
+        );
       });
     });
   });

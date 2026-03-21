@@ -17,8 +17,8 @@
  * @module tools/narrative/search.tool
  */
 
-import { ZodError } from 'zod';
-import { logger, isDevelopment } from '../../utils/logger';
+import { ZodError } from "zod";
+import { logger, isDevelopment } from "../../utils/logger";
 import {
   narrativeSearchInputSchema,
   NARRATIVE_MCP_ERROR_CODES,
@@ -27,14 +27,14 @@ import {
   type NarrativeSearchData,
   type NarrativeSearchResultItem,
   type NarrativeSearchInfo,
-} from './schemas';
+} from "./schemas";
 import type {
   INarrativeAnalysisService,
   NarrativeSearchOptions as ServiceSearchOptions,
   NarrativeSearchResult,
-} from '../../services/narrative/types/narrative.types';
-import { applyPreferenceReranking } from '../../services/preference-rerank.helper';
-import type { IPrismaClient } from '../../services/preference-profile.service';
+} from "../../services/narrative/types/narrative.types";
+import { applyPreferenceReranking } from "../../services/preference-rerank.helper";
+import type { IPrismaClient } from "../../services/preference-profile.service";
 
 // ============================================================================
 // Types
@@ -58,9 +58,7 @@ let narrativeSearchServiceFactory: INarrativeSearchServiceFactory | null = null;
  * サービスファクトリーを設定
  * @param factory - サービスファクトリー
  */
-export function setNarrativeSearchServiceFactory(
-  factory: INarrativeSearchServiceFactory
-): void {
+export function setNarrativeSearchServiceFactory(factory: INarrativeSearchServiceFactory): void {
   narrativeSearchServiceFactory = factory;
 }
 
@@ -83,8 +81,8 @@ async function getNarrativeAnalysisService(): Promise<INarrativeAnalysisService>
   // NOTE: NarrativeAnalysisServiceはTask #2で実装予定
   // 現在は未実装のため、サービスファクトリ経由でのみ使用可能
   throw new Error(
-    'NarrativeAnalysisService is not yet implemented. ' +
-      'Please use setNarrativeSearchServiceFactory() to provide a service instance.'
+    "NarrativeAnalysisService is not yet implemented. " +
+      "Please use setNarrativeSearchServiceFactory() to provide a service instance."
   );
 }
 
@@ -107,9 +105,7 @@ let embeddingServiceFactory: (() => IEmbeddingService) | null = null;
 /**
  * Embeddingサービスファクトリーを設定（テスト用）
  */
-export function setEmbeddingServiceFactory(
-  factory: () => IEmbeddingService
-): void {
+export function setEmbeddingServiceFactory(factory: () => IEmbeddingService): void {
   embeddingServiceFactory = factory;
 }
 
@@ -130,9 +126,7 @@ let prismaClientFactory: (() => IPrismaClient) | null = null;
  * PrismaClientファクトリーを設定（嗜好リランキング用）
  * Set PrismaClient factory (for preference reranking)
  */
-export function setNarrativeSearchPrismaClientFactory(
-  factory: () => IPrismaClient
-): void {
+export function setNarrativeSearchPrismaClientFactory(factory: () => IPrismaClient): void {
   prismaClientFactory = factory;
 }
 
@@ -158,8 +152,8 @@ export async function getEmbeddingService(): Promise<IEmbeddingService> {
   // NOTE: EmbeddingServiceは別タスクで実装予定
   // 現在は未実装のため、サービスファクトリ経由でのみ使用可能
   throw new Error(
-    'EmbeddingService is not yet implemented. ' +
-      'Please use setEmbeddingServiceFactory() to provide a service instance.'
+    "EmbeddingService is not yet implemented. " +
+      "Please use setEmbeddingServiceFactory() to provide a service instance."
   );
 }
 
@@ -173,23 +167,23 @@ export async function getEmbeddingService(): Promise<IEmbeddingService> {
 function convertSearchResultsToMcpResponse(
   results: NarrativeSearchResult[],
   query: string,
-  searchMode: 'vector' | 'hybrid',
+  searchMode: "vector" | "hybrid",
   searchTimeMs: number
 ): NarrativeSearchData {
   const resultItems: NarrativeSearchResultItem[] = results.map((r) => ({
     id: r.id,
     webPageId: r.webPageId,
-    sourceUrl: '', // TODO: WebPageテーブルから取得
+    sourceUrl: "", // TODO: WebPageテーブルから取得
     similarity: r.score,
 
     worldView: {
       moodCategory: r.moodCategory,
       moodDescription: r.moodDescription,
-      overallTone: '', // TODO: サービスから詳細取得
+      overallTone: "", // TODO: サービスから詳細取得
     },
 
     layoutStructure: {
-      gridType: 'mixed', // TODO: サービスから詳細取得
+      gridType: "mixed", // TODO: サービスから詳細取得
       columns: 12, // TODO: サービスから詳細取得
     },
 
@@ -236,13 +230,11 @@ function convertSearchResultsToMcpResponse(
  * });
  * ```
  */
-export async function narrativeSearchHandler(
-  input: unknown
-): Promise<NarrativeSearchOutput> {
+export async function narrativeSearchHandler(input: unknown): Promise<NarrativeSearchOutput> {
   const startTime = Date.now();
 
   if (isDevelopment()) {
-    logger.info('[narrative.search] Handler called', {
+    logger.info("[narrative.search] Handler called", {
       inputType: typeof input,
     });
   }
@@ -252,7 +244,7 @@ export async function narrativeSearchHandler(
     const validatedInput = narrativeSearchInputSchema.parse(input);
 
     if (isDevelopment()) {
-      logger.info('[narrative.search] Input validated', {
+      logger.info("[narrative.search] Input validated", {
         hasQuery: !!validatedInput.query,
         hasEmbedding: !!validatedInput.embedding,
         filters: validatedInput.filters,
@@ -272,12 +264,12 @@ export async function narrativeSearchHandler(
       // Embedding生成（サービス内で行う場合はスキップ）
       // NOTE: サービスのsearch()がクエリ文字列を受け取る想定
     } else if (validatedInput.embedding) {
-      queryText = '[embedding]';
+      queryText = "[embedding]";
       // NOTE: embedding直接検索はNarrativeAnalysisService.searchWithEmbeddingで実装予定
       // 現在はサービスがクエリ文字列からembeddingを生成する設計
     } else {
       // バリデーションでチェック済みなのでここには来ないはず
-      throw new Error('queryまたはembeddingが必要です');
+      throw new Error("queryまたはembeddingが必要です");
     }
 
     // 4. 検索オプションの準備
@@ -294,7 +286,7 @@ export async function narrativeSearchHandler(
       const moodCategory = validatedInput.filters.moodCategory;
       const minConfidence = validatedInput.filters.minConfidence;
 
-      const filtersObj: NonNullable<ServiceSearchOptions['filters']> = {};
+      const filtersObj: NonNullable<ServiceSearchOptions["filters"]> = {};
       if (moodCategory !== undefined) {
         filtersObj.moodCategory = [moodCategory];
       }
@@ -311,9 +303,9 @@ export async function narrativeSearchHandler(
     const searchOptions = baseSearchOptions;
 
     // 5. 検索実行（searchHybridが利用可能な場合はHybrid Search、なければvector-only）
-    const searchMode = validatedInput.options?.searchMode ?? 'hybrid';
+    const searchMode = validatedInput.options?.searchMode ?? "hybrid";
     let results: NarrativeSearchResult[];
-    if (searchMode === 'hybrid' && narrativeService.searchHybrid != null) {
+    if (searchMode === "hybrid" && narrativeService.searchHybrid != null) {
       results = await narrativeService.searchHybrid(searchOptions);
     } else {
       results = await narrativeService.search(searchOptions);
@@ -327,7 +319,15 @@ export async function narrativeSearchHandler(
     // narrative結果はscoreフィールドを使用するため、similarity にマッピングして戻す
     // Narrative results use 'score' field, so map to 'similarity' and back
     const narrativeItems = filteredResults.map((r) => ({ ...r, similarity: r.score }));
-    filteredResults = (await applyPreferenceReranking(narrativeItems, validatedInput.profile_id, prismaClientFactory, 'narrative', 'narrative.search')).map((r) => ({ ...r, score: r.similarity })) as NarrativeSearchResult[];
+    filteredResults = (
+      await applyPreferenceReranking(
+        narrativeItems,
+        validatedInput.profile_id,
+        prismaClientFactory,
+        "narrative",
+        "narrative.search"
+      )
+    ).map((r) => ({ ...r, score: r.similarity })) as NarrativeSearchResult[];
 
     const searchTimeMs = Date.now() - startTime;
 
@@ -340,7 +340,7 @@ export async function narrativeSearchHandler(
     );
 
     if (isDevelopment()) {
-      logger.info('[narrative.search] Search completed', {
+      logger.info("[narrative.search] Search completed", {
         query: queryText.substring(0, 50),
         totalResults: data.searchInfo.totalResults,
         searchTimeMs,
@@ -356,19 +356,19 @@ export async function narrativeSearchHandler(
     // エラーハンドリング
     if (error instanceof ZodError) {
       const details = error.errors.map((e) => ({
-        path: e.path.join('.'),
+        path: e.path.join("."),
         message: e.message,
       }));
 
       if (isDevelopment()) {
-        logger.warn('[narrative.search] Validation error', { details });
+        logger.warn("[narrative.search] Validation error", { details });
       }
 
       return {
         success: false,
         error: {
           code: NARRATIVE_MCP_ERROR_CODES.VALIDATION_ERROR,
-          message: 'バリデーションエラー',
+          message: "バリデーションエラー",
         },
       };
     }
@@ -378,7 +378,7 @@ export async function narrativeSearchHandler(
       const errorCode = mapErrorToCode(error);
 
       if (isDevelopment()) {
-        logger.error('[narrative.search] Error', {
+        logger.error("[narrative.search] Error", {
           code: errorCode,
           message: error.message,
           stack: error.stack,
@@ -395,13 +395,13 @@ export async function narrativeSearchHandler(
     }
 
     // 未知のエラー
-    logger.error('[narrative.search] Unknown error', { error });
+    logger.error("[narrative.search] Unknown error", { error });
 
     return {
       success: false,
       error: {
         code: NARRATIVE_MCP_ERROR_CODES.INTERNAL_ERROR,
-        message: '内部エラーが発生しました',
+        message: "内部エラーが発生しました",
       },
     };
   }
@@ -413,13 +413,13 @@ export async function narrativeSearchHandler(
 function mapErrorToCode(error: Error): string {
   const message = error.message.toLowerCase();
 
-  if (message.includes('embedding')) {
+  if (message.includes("embedding")) {
     return NARRATIVE_MCP_ERROR_CODES.EMBEDDING_FAILED;
   }
-  if (message.includes('not found')) {
+  if (message.includes("not found")) {
     return NARRATIVE_MCP_ERROR_CODES.NARRATIVE_NOT_FOUND;
   }
-  if (message.includes('db') || message.includes('database')) {
+  if (message.includes("db") || message.includes("database")) {
     return NARRATIVE_MCP_ERROR_CODES.SEARCH_FAILED;
   }
 
@@ -435,91 +435,101 @@ function mapErrorToCode(error: Error): string {
  * MCP Server初期化時に使用
  */
 export const narrativeSearchToolDefinition = {
-  name: 'narrative.search',
+  name: "narrative.search",
   description:
-    '世界観・レイアウト構成でセマンティック検索します。' +
+    "世界観・レイアウト構成でセマンティック検索します。" +
     '自然言語クエリ（例: "サイバーセキュリティ感のあるダークなデザイン"）または768次元Embeddingで検索可能。' +
-    'Hybrid Search（Vector + Full-text）でRRF統合。',
+    "Hybrid Search（Vector + Full-text）でRRF統合。",
   inputSchema: {
-    type: 'object',
+    type: "object",
     properties: {
       query: {
-        type: 'string',
-        description: '検索クエリ（queryまたはembeddingのいずれか必須）',
+        type: "string",
+        description: "検索クエリ（queryまたはembeddingのいずれか必須）",
         minLength: 1,
         maxLength: 500,
       },
       embedding: {
-        type: 'array',
-        items: { type: 'number' },
-        description: '直接Embedding指定（768次元、queryまたはembeddingのいずれか必須）',
+        type: "array",
+        items: { type: "number" },
+        description: "直接Embedding指定（768次元、queryまたはembeddingのいずれか必須）",
         minItems: 768,
         maxItems: 768,
       },
       filters: {
-        type: 'object',
+        type: "object",
         properties: {
           moodCategory: {
-            type: 'string',
+            type: "string",
             enum: [
-              'professional', 'playful', 'premium', 'tech',
-              'organic', 'minimal', 'bold', 'elegant',
-              'friendly', 'artistic', 'trustworthy', 'energetic',
+              "professional",
+              "playful",
+              "premium",
+              "tech",
+              "organic",
+              "minimal",
+              "bold",
+              "elegant",
+              "friendly",
+              "artistic",
+              "trustworthy",
+              "energetic",
             ],
-            description: 'ムードカテゴリでフィルター',
+            description: "ムードカテゴリでフィルター",
           },
           minConfidence: {
-            type: 'number',
+            type: "number",
             minimum: 0,
             maximum: 1,
-            description: '最小信頼度フィルター（0-1）',
+            description: "最小信頼度フィルター（0-1）",
           },
         },
       },
       options: {
-        type: 'object',
+        type: "object",
         properties: {
           limit: {
-            type: 'number',
+            type: "number",
             default: 10,
             minimum: 1,
             maximum: 50,
-            description: '結果数',
+            description: "結果数",
           },
           minSimilarity: {
-            type: 'number',
+            type: "number",
             default: 0.6,
             minimum: 0,
             maximum: 1,
-            description: '最小類似度',
+            description: "最小類似度",
           },
           searchMode: {
-            type: 'string',
-            enum: ['vector', 'hybrid'],
-            default: 'hybrid',
-            description: '検索モード',
+            type: "string",
+            enum: ["vector", "hybrid"],
+            default: "hybrid",
+            description: "検索モード",
           },
           vectorWeight: {
-            type: 'number',
+            type: "number",
             default: 0.6,
             minimum: 0,
             maximum: 1,
-            description: 'Vector検索の重み（hybridモード時）',
+            description: "Vector検索の重み（hybridモード時）",
           },
           fulltextWeight: {
-            type: 'number',
+            type: "number",
             default: 0.4,
             minimum: 0,
             maximum: 1,
-            description: 'Full-text検索の重み（hybridモード時）',
+            description: "Full-text検索の重み（hybridモード時）",
           },
         },
       },
       // Preference reranking
       profile_id: {
-        type: 'string',
-        format: 'uuid',
-        description: '嗜好プロファイルID（検索結果のリランキングに使用） / Preference profile ID (used for search result reranking)',
+        type: "string",
+        format: "uuid",
+        description:
+          "嗜好プロファイルID（検索結果のリランキングに使用） / Preference profile ID (used for search result reranking)",
       },
     },
   },

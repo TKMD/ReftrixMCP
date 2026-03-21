@@ -21,7 +21,7 @@ import {
   type LayoutInspectInput,
   type LayoutInspectOutput,
   type LayoutInspectData,
-} from './inspect.schemas';
+} from "./inspect.schemas";
 import {
   detectSections,
   extractColors,
@@ -36,31 +36,28 @@ import {
   SECTION_DEFAULT_HEIGHTS,
   DEFAULT_SECTION_HEIGHT,
   inferColorRole,
-} from './inspect.utils';
-import { createLogger, isDevelopment } from '../../../utils/logger';
-import { getToolErrorMessage } from '../../../utils/error-messages';
-import { sanitizeHtml } from '../../../utils/html-sanitizer';
+} from "./inspect.utils";
+import { createLogger, isDevelopment } from "../../../utils/logger";
+import { getToolErrorMessage } from "../../../utils/error-messages";
+import { sanitizeHtml } from "../../../utils/html-sanitizer";
 import type {
   VisionAnalysisResult,
   IVisionAnalyzer,
-} from '../../../services/vision-adapter/interface';
+} from "../../../services/vision-adapter/interface";
 import {
   getCSSAnalysisCacheService,
   type CSSAnalysisResult,
-} from '../../../services/css-analysis-cache.service';
+} from "../../../services/css-analysis-cache.service";
 // Vision CPU完走保証 Phase 3: HardwareDetector, TimeoutCalculator, ImageOptimizer 統合
-import {
-  HardwareDetector,
-  HardwareType,
-} from '../../../services/vision/hardware-detector';
-import { TimeoutCalculator } from '../../../services/vision/timeout-calculator';
-import { ImageOptimizer } from '../../../services/vision/image-optimizer';
+import { HardwareDetector, HardwareType } from "../../../services/vision/hardware-detector";
+import { TimeoutCalculator } from "../../../services/vision/timeout-calculator";
+import { ImageOptimizer } from "../../../services/vision/image-optimizer";
 
 // =====================================================
 // Logger
 // =====================================================
 
-const logger = createLogger('layout.inspect');
+const logger = createLogger("layout.inspect");
 
 // =====================================================
 // サービスインターフェース（DI用）
@@ -71,7 +68,7 @@ const logger = createLogger('layout.inspect');
  */
 export interface ScreenshotInput {
   base64: string;
-  mimeType: 'image/png' | 'image/jpeg' | 'image/webp';
+  mimeType: "image/png" | "image/jpeg" | "image/webp";
   width?: number;
   height?: number;
 }
@@ -102,9 +99,7 @@ let serviceFactory: (() => ILayoutInspectService) | null = null;
  *
  * @param factory - サービスインスタンスを生成するファクトリ関数
  */
-export function setLayoutInspectServiceFactory(
-  factory: () => ILayoutInspectService
-): void {
+export function setLayoutInspectServiceFactory(factory: () => ILayoutInspectService): void {
   serviceFactory = factory;
 }
 
@@ -132,11 +127,9 @@ export function resetLayoutInspectServiceFactory(): void {
  * @param input - ツール入力（id または html）
  * @returns 解析結果
  */
-export async function layoutInspectHandler(
-  input: unknown
-): Promise<LayoutInspectOutput> {
+export async function layoutInspectHandler(input: unknown): Promise<LayoutInspectOutput> {
   if (isDevelopment()) {
-    logger.info('layout.inspect called', {
+    logger.info("layout.inspect called", {
       hasInput: input !== null && input !== undefined,
     });
   }
@@ -147,13 +140,13 @@ export async function layoutInspectHandler(
     validated = layoutInspectInputSchema.parse(input);
   } catch (error) {
     if (isDevelopment()) {
-      logger.error('Validation error', { error });
+      logger.error("Validation error", { error });
     }
     return {
       success: false,
       error: {
-        code: 'VALIDATION_ERROR',
-        message: error instanceof Error ? error.message : 'Invalid input',
+        code: "VALIDATION_ERROR",
+        message: error instanceof Error ? error.message : "Invalid input",
       },
     };
   }
@@ -190,7 +183,7 @@ export async function layoutInspectHandler(
           return {
             success: false,
             error: {
-              code: 'NOT_FOUND',
+              code: "NOT_FOUND",
               message: `WebPage not found: ${validated.id}`,
             },
           };
@@ -200,30 +193,30 @@ export async function layoutInspectHandler(
       } else {
         // サービスが利用できない場合、改善されたエラーメッセージを返す
         const message =
-          getToolErrorMessage('layout.inspect', 'SERVICE_UNAVAILABLE') ??
+          getToolErrorMessage("layout.inspect", "SERVICE_UNAVAILABLE") ??
           'WebPage service is not available. Please use the "html" parameter to provide HTML content directly instead of using "id".';
         if (isDevelopment()) {
-          logger.warn('WebPage service not available, returning SERVICE_UNAVAILABLE', {
+          logger.warn("WebPage service not available, returning SERVICE_UNAVAILABLE", {
             id: validated.id,
           });
         }
         return {
           success: false,
           error: {
-            code: 'SERVICE_UNAVAILABLE',
+            code: "SERVICE_UNAVAILABLE",
             message,
           },
         };
       }
     } catch (error) {
       if (isDevelopment()) {
-        logger.error('DB error', { error });
+        logger.error("DB error", { error });
       }
       return {
         success: false,
         error: {
-          code: 'DB_ERROR',
-          message: error instanceof Error ? error.message : 'Database error',
+          code: "DB_ERROR",
+          message: error instanceof Error ? error.message : "Database error",
         },
       };
     }
@@ -235,7 +228,7 @@ export async function layoutInspectHandler(
   // =====================================================
   if (validated.screenshot) {
     if (isDevelopment()) {
-      logger.info('Screenshot mode: analyzing with Vision API', {
+      logger.info("Screenshot mode: analyzing with Vision API", {
         mimeType: validated.screenshot.mimeType,
         base64Length: validated.screenshot.base64.length,
         visionOptions,
@@ -246,12 +239,12 @@ export async function layoutInspectHandler(
       const service = serviceFactory?.();
       if (!service?.analyzeScreenshot) {
         const message =
-          getToolErrorMessage('layout.inspect', 'SERVICE_UNAVAILABLE') ??
-          'Vision API service is not available. Ollama with llama3.2-vision model is required for screenshot analysis.';
+          getToolErrorMessage("layout.inspect", "SERVICE_UNAVAILABLE") ??
+          "Vision API service is not available. Ollama with llama3.2-vision model is required for screenshot analysis.";
         return {
           success: false,
           error: {
-            code: 'SERVICE_UNAVAILABLE',
+            code: "SERVICE_UNAVAILABLE",
             message,
           },
         };
@@ -271,7 +264,7 @@ export async function layoutInspectHandler(
           const hardwareInfo = await hardwareDetector.detect();
           hardwareType = hardwareInfo.type;
           if (isDevelopment()) {
-            logger.debug('Hardware detected', {
+            logger.debug("Hardware detected", {
               type: hardwareType,
               isGpuAvailable: hardwareInfo.isGpuAvailable,
               vramBytes: hardwareInfo.vramBytes,
@@ -280,12 +273,12 @@ export async function layoutInspectHandler(
         } catch (hwError) {
           // ハードウェア検出失敗時はCPUフォールバック
           if (isDevelopment()) {
-            logger.warn('Hardware detection failed, falling back to CPU', { error: hwError });
+            logger.warn("Hardware detection failed, falling back to CPU", { error: hwError });
           }
         }
       } else {
         if (isDevelopment()) {
-          logger.info('visionForceCpu enabled, using CPU mode');
+          logger.info("visionForceCpu enabled, using CPU mode");
         }
       }
 
@@ -301,14 +294,14 @@ export async function layoutInspectHandler(
           // visionImageMaxSizeが指定されている場合、その値を使用
           const maxSize = visionOptions.visionImageMaxSize ?? 500_000;
           if (imageSizeBytes > maxSize) {
-            const imageBuffer = Buffer.from(base64Data, 'base64');
+            const imageBuffer = Buffer.from(base64Data, "base64");
             const optimizeResult = await imageOptimizer.optimizeForCPU(imageBuffer, {
               hardwareType,
             });
-            optimizedBase64 = optimizeResult.buffer.toString('base64');
+            optimizedBase64 = optimizeResult.buffer.toString("base64");
             optimizedSizeBytes = optimizeResult.optimizedSizeBytes;
             if (isDevelopment()) {
-              logger.debug('Image optimized for CPU inference', {
+              logger.debug("Image optimized for CPU inference", {
                 originalSize: imageSizeBytes,
                 optimizedSize: optimizedSizeBytes,
                 skipped: optimizeResult.skipped,
@@ -320,7 +313,7 @@ export async function layoutInspectHandler(
         } catch (optError) {
           // 画像最適化失敗時は元の画像を使用
           if (isDevelopment()) {
-            logger.warn('Image optimization failed, using original', { error: optError });
+            logger.warn("Image optimization failed, using original", { error: optError });
           }
         }
       }
@@ -329,7 +322,7 @@ export async function layoutInspectHandler(
       const calculatedTimeout = timeoutCalculator.calculate(hardwareType, optimizedSizeBytes);
       const effectiveTimeout = visionOptions.visionTimeoutMs ?? calculatedTimeout;
       if (isDevelopment()) {
-        logger.debug('Timeout calculated', {
+        logger.debug("Timeout calculated", {
           hardwareType,
           imageSizeBytes: optimizedSizeBytes,
           calculatedTimeout,
@@ -358,7 +351,12 @@ export async function layoutInspectHandler(
           service.analyzeScreenshot(screenshotInput),
           new Promise<VisionAnalysisResult>((_, reject) =>
             setTimeout(
-              () => reject(new Error(`Vision API timeout after ${timeoutCalculator.formatTimeout(effectiveTimeout)}`)),
+              () =>
+                reject(
+                  new Error(
+                    `Vision API timeout after ${timeoutCalculator.formatTimeout(effectiveTimeout)}`
+                  )
+                ),
               effectiveTimeout
             )
           ),
@@ -367,7 +365,7 @@ export async function layoutInspectHandler(
         // タイムアウト時のフォールバック処理
         if (visionOptions.visionFallbackToHtmlOnly !== false) {
           if (isDevelopment()) {
-            logger.warn('Vision API timeout, using fallback', {
+            logger.warn("Vision API timeout, using fallback", {
               timeout: effectiveTimeout,
               error: timeoutError instanceof Error ? timeoutError.message : String(timeoutError),
             });
@@ -376,9 +374,9 @@ export async function layoutInspectHandler(
           visionResult = {
             success: false,
             features: [],
-            error: timeoutError instanceof Error ? timeoutError.message : 'Vision API timeout',
+            error: timeoutError instanceof Error ? timeoutError.message : "Vision API timeout",
             processingTimeMs: effectiveTimeout,
-            modelName: 'timeout-fallback',
+            modelName: "timeout-fallback",
           };
         } else {
           // フォールバック無効の場合はエラーを返す
@@ -390,7 +388,7 @@ export async function layoutInspectHandler(
         // visionFallbackToHtmlOnlyが有効な場合はデフォルト結果を返す
         if (visionOptions.visionFallbackToHtmlOnly !== false) {
           if (isDevelopment()) {
-            logger.warn('Vision API failed, using fallback result', {
+            logger.warn("Vision API failed, using fallback result", {
               error: visionResult.error,
             });
           }
@@ -399,7 +397,7 @@ export async function layoutInspectHandler(
             colors: getDefaultColorPalette(),
             typography: getDefaultTypography(),
             grid: getDefaultGrid(),
-            textRepresentation: '',
+            textRepresentation: "",
             visionFeatures: visionResult,
           };
           return {
@@ -410,8 +408,8 @@ export async function layoutInspectHandler(
         return {
           success: false,
           error: {
-            code: 'VISION_API_ERROR',
-            message: visionResult.error ?? 'Vision API analysis failed',
+            code: "VISION_API_ERROR",
+            message: visionResult.error ?? "Vision API analysis failed",
           },
         };
       }
@@ -422,7 +420,7 @@ export async function layoutInspectHandler(
         colors: getDefaultColorPalette(),
         typography: getDefaultTypography(),
         grid: getDefaultGrid(),
-        textRepresentation: '',
+        textRepresentation: "",
         visionFeatures: visionResult,
       };
 
@@ -433,7 +431,7 @@ export async function layoutInspectHandler(
       }
 
       if (isDevelopment()) {
-        logger.info('Screenshot analysis completed', {
+        logger.info("Screenshot analysis completed", {
           featureCount: visionResult.features.length,
           processingTimeMs: visionResult.processingTimeMs,
           hardwareType,
@@ -447,13 +445,13 @@ export async function layoutInspectHandler(
       };
     } catch (error) {
       if (isDevelopment()) {
-        logger.error('Screenshot analysis error', { error });
+        logger.error("Screenshot analysis error", { error });
       }
       return {
         success: false,
         error: {
-          code: 'VISION_API_ERROR',
-          message: error instanceof Error ? error.message : 'Screenshot analysis failed',
+          code: "VISION_API_ERROR",
+          message: error instanceof Error ? error.message : "Screenshot analysis failed",
         },
       };
     }
@@ -468,8 +466,8 @@ export async function layoutInspectHandler(
     return {
       success: false,
       error: {
-        code: 'VALIDATION_ERROR',
-        message: 'No HTML content provided',
+        code: "VALIDATION_ERROR",
+        message: "No HTML content provided",
       },
     };
   }
@@ -478,7 +476,7 @@ export async function layoutInspectHandler(
   const originalLength = html.length;
   html = sanitizeHtml(html);
   if (isDevelopment()) {
-    logger.debug('HTML sanitized', {
+    logger.debug("HTML sanitized", {
       originalLength,
       sanitizedLength: html.length,
     });
@@ -507,7 +505,7 @@ export async function layoutInspectHandler(
       const cachedResult = await cacheService.getLayoutInspectResult(cacheKey);
       if (cachedResult) {
         if (isDevelopment()) {
-          logger.info('layout.inspect cache hit', { cacheKey });
+          logger.info("layout.inspect cache hit", { cacheKey });
         }
 
         // キャッシュから復元してLayoutInspectDataを構築
@@ -528,7 +526,7 @@ export async function layoutInspectHandler(
           currentY += sectionHeight;
           return {
             id: `section-${i}`,
-            type: s.type as LayoutInspectData['sections'][number]['type'],
+            type: s.type as LayoutInspectData["sections"][number]["type"],
             confidence: s.confidence,
             position,
             content: s.content
@@ -551,7 +549,7 @@ export async function layoutInspectHandler(
         // v0.1.0: キャッシュからrole情報を復元（color role detection fix）
         // キャッシュはhex文字列のみを保存するため、復元時にroleを再計算
         const sortedCachedColors = cachedResult.colors.palette.map((hex) => ({
-          hex: hex.startsWith('#') ? hex.toUpperCase() : `#${hex}`.toUpperCase(),
+          hex: hex.startsWith("#") ? hex.toUpperCase() : `#${hex}`.toUpperCase(),
           count: 1,
         }));
         const paletteWithRoles = sortedCachedColors.map((color, index) => ({
@@ -565,26 +563,28 @@ export async function layoutInspectHandler(
           sections: sectionsWithPosition,
           colors: {
             palette: paletteWithRoles,
-            dominant: cachedResult.colors.dominant ?? cachedResult.colors.palette[0] ?? '#000000',
-            background: cachedResult.colors.background ?? '#ffffff',
-            text: cachedResult.colors.text ?? '#000000',
+            dominant: cachedResult.colors.dominant ?? cachedResult.colors.palette[0] ?? "#000000",
+            background: cachedResult.colors.background ?? "#ffffff",
+            text: cachedResult.colors.text ?? "#000000",
           },
           typography: {
             fonts: cachedResult.typography.fonts.map((f) => ({ family: f, weights: [400] })),
             headingScale: cachedResult.typography.scale ?? [32, 24, 20, 18, 16, 14],
-            bodySize: parseInt(cachedResult.typography.baseSize ?? '16', 10) || 16,
+            bodySize: parseInt(cachedResult.typography.baseSize ?? "16", 10) || 16,
             lineHeight: 1.5,
           },
           grid: {
             // キャッシュでは 'none' として保存されている場合、'unknown' に戻す
-            type: (cachedResult.grid.type === 'none' ? 'unknown' : cachedResult.grid.type) as LayoutInspectData['grid']['type'],
+            type: (cachedResult.grid.type === "none"
+              ? "unknown"
+              : cachedResult.grid.type) as LayoutInspectData["grid"]["type"],
             columns: cachedResult.grid.columns,
             gutterWidth: cachedResult.grid.gap ? parseInt(cachedResult.grid.gap, 10) : undefined,
             maxWidth: cachedResult.grid.maxWidth,
           },
           mediaElements,
           visualDecorations,
-          textRepresentation: '',
+          textRepresentation: "",
         };
 
         if (webPageId) {
@@ -602,7 +602,7 @@ export async function layoutInspectHandler(
     } catch (cacheError) {
       // キャッシュエラーは無視して解析を続行
       if (isDevelopment()) {
-        logger.warn('layout.inspect cache error, proceeding with analysis', { error: cacheError });
+        logger.warn("layout.inspect cache error, proceeding with analysis", { error: cacheError });
       }
     }
   }
@@ -626,14 +626,14 @@ export async function layoutInspectHandler(
         }
       } catch (error) {
         if (isDevelopment()) {
-          logger.error('Vision API error', { error });
+          logger.error("Vision API error", { error });
         }
         visionFeatures = {
           success: false,
           features: [],
-          error: error instanceof Error ? error.message : 'Vision API error',
+          error: error instanceof Error ? error.message : "Vision API error",
           processingTimeMs: 0,
-          modelName: 'unknown',
+          modelName: "unknown",
         };
       }
     }
@@ -646,7 +646,7 @@ export async function layoutInspectHandler(
       grid,
       mediaElements,
       visualDecorations,
-      textRepresentation: '',
+      textRepresentation: "",
     };
 
     if (webPageId) {
@@ -677,7 +677,7 @@ export async function layoutInspectHandler(
             scale: typography.headingScale,
           },
           grid: {
-            type: grid.type === 'unknown' ? 'none' : grid.type,
+            type: grid.type === "unknown" ? "none" : grid.type,
             ...(grid.columns !== undefined && { columns: grid.columns }),
             ...(grid.gutterWidth !== undefined && { gap: `${grid.gutterWidth}px` }),
             ...(grid.maxWidth !== undefined && { maxWidth: grid.maxWidth }),
@@ -703,18 +703,18 @@ export async function layoutInspectHandler(
         };
         await cacheService.setLayoutInspectResult(cacheKey, cacheResult);
         if (isDevelopment()) {
-          logger.debug('layout.inspect result cached', { cacheKey });
+          logger.debug("layout.inspect result cached", { cacheKey });
         }
       } catch (cacheError) {
         // キャッシュ保存エラーは無視
         if (isDevelopment()) {
-          logger.warn('layout.inspect cache save error', { error: cacheError });
+          logger.warn("layout.inspect cache save error", { error: cacheError });
         }
       }
     }
 
     if (isDevelopment()) {
-      logger.info('layout.inspect completed', {
+      logger.info("layout.inspect completed", {
         sectionCount: sections.length,
         colorCount: colors.palette.length,
         fontCount: typography.fonts.length,
@@ -730,13 +730,13 @@ export async function layoutInspectHandler(
     };
   } catch (error) {
     if (isDevelopment()) {
-      logger.error('Analysis error', { error });
+      logger.error("Analysis error", { error });
     }
     return {
       success: false,
       error: {
-        code: 'INTERNAL_ERROR',
-        message: error instanceof Error ? error.message : 'Analysis failed',
+        code: "INTERNAL_ERROR",
+        message: error instanceof Error ? error.message : "Analysis failed",
       },
     };
   }
@@ -752,93 +752,88 @@ export async function layoutInspectHandler(
  * MCP (Model Context Protocol) 形式のツール定義オブジェクト
  */
 export const layoutInspectToolDefinition = {
-  name: 'layout.inspect',
-  description:
-    'Parse HTML and extract section structure, grid, typography info',
+  name: "layout.inspect",
+  description: "Parse HTML and extract section structure, grid, typography info",
   annotations: {
-    title: 'Layout Inspect',
+    title: "Layout Inspect",
     readOnlyHint: true,
     idempotentHint: true,
     openWorldHint: false,
   },
   inputSchema: {
-    type: 'object' as const,
+    type: "object" as const,
     properties: {
       id: {
-        type: 'string',
-        format: 'uuid',
-        description: 'WebPage ID (from DB)',
+        type: "string",
+        format: "uuid",
+        description: "WebPage ID (from DB)",
       },
       html: {
-        type: 'string',
+        type: "string",
         minLength: 1,
-        description: 'Direct HTML input',
+        description: "Direct HTML input",
       },
       options: {
-        type: 'object',
-        description: 'Parse options',
+        type: "object",
+        description: "Parse options",
         properties: {
           detectSections: {
-            type: 'boolean',
+            type: "boolean",
             default: true,
-            description: 'Detect sections (default: true)',
+            description: "Detect sections (default: true)",
           },
           extractColors: {
-            type: 'boolean',
+            type: "boolean",
             default: true,
-            description: 'Extract colors (default: true)',
+            description: "Extract colors (default: true)",
           },
           analyzeTypography: {
-            type: 'boolean',
+            type: "boolean",
             default: true,
-            description: 'Analyze typography (default: true)',
+            description: "Analyze typography (default: true)",
           },
           detectGrid: {
-            type: 'boolean',
+            type: "boolean",
             default: true,
-            description: 'Detect grid (default: true)',
+            description: "Detect grid (default: true)",
           },
           useVision: {
-            type: 'boolean',
+            type: "boolean",
             default: false,
-            description: 'Use Vision API (default: false)',
+            description: "Use Vision API (default: false)",
           },
           visionOptions: {
-            type: 'object',
-            description:
-              'Vision CPU completion guarantee options (effective when useVision=true)',
+            type: "object",
+            description: "Vision CPU completion guarantee options (effective when useVision=true)",
             properties: {
               visionTimeoutMs: {
-                type: 'number',
+                type: "number",
                 description:
-                  'Vision API timeout in milliseconds (1000-1200000, default: auto-calculated based on hardware)',
+                  "Vision API timeout in milliseconds (1000-1200000, default: auto-calculated based on hardware)",
                 minimum: 1000,
                 maximum: 1200000,
               },
               visionImageMaxSize: {
-                type: 'number',
+                type: "number",
                 description:
-                  'Maximum image size in bytes for optimization (1024-10000000, default: no limit)',
+                  "Maximum image size in bytes for optimization (1024-10000000, default: no limit)",
                 minimum: 1024,
                 maximum: 10000000,
               },
               visionForceCpu: {
-                type: 'boolean',
+                type: "boolean",
                 default: false,
-                description:
-                  'Force CPU mode (skip GPU detection, default: false)',
+                description: "Force CPU mode (skip GPU detection, default: false)",
               },
               visionEnableProgress: {
-                type: 'boolean',
+                type: "boolean",
                 default: false,
-                description:
-                  'Enable progress reporting for long operations (default: false)',
+                description: "Enable progress reporting for long operations (default: false)",
               },
               visionFallbackToHtmlOnly: {
-                type: 'boolean',
+                type: "boolean",
                 default: true,
-                description:
-                  'Fallback to HTML-only analysis on Vision failure (default: true)',
+                description: "Fallback to HTML-only analysis on Vision failure (default: true)",
               },
             },
           },

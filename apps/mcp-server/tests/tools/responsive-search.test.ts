@@ -16,7 +16,7 @@
  * @module tests/tools/responsive-search.test
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 import {
   responsiveSearchHandler,
@@ -29,17 +29,17 @@ import {
   type ResponsiveSearchOutput,
   type IResponsiveSearchService,
   type ResponsiveSearchResultItem,
-} from '../../src/tools/responsive/search.tool';
+} from "../../src/tools/responsive/search.tool";
 
 import {
   responsiveSearchInputSchema,
   RESPONSIVE_MCP_ERROR_CODES,
-} from '../../src/tools/responsive/schemas';
+} from "../../src/tools/responsive/schemas";
 
 // =====================================================
 // logger モック
 // =====================================================
-vi.mock('../../src/utils/logger', () => ({
+vi.mock("../../src/utils/logger", () => ({
   logger: {
     info: vi.fn(),
     warn: vi.fn(),
@@ -54,21 +54,17 @@ vi.mock('../../src/utils/logger', () => ({
 // =====================================================
 
 const VALID_DIFF_CATEGORIES = [
-  'layout',
-  'typography',
-  'spacing',
-  'visibility',
-  'navigation',
-  'image',
-  'interaction',
-  'animation',
+  "layout",
+  "typography",
+  "spacing",
+  "visibility",
+  "navigation",
+  "image",
+  "interaction",
+  "animation",
 ] as const;
 
-const VALID_VIEWPORT_PAIRS = [
-  'desktop-tablet',
-  'desktop-mobile',
-  'tablet-mobile',
-] as const;
+const VALID_VIEWPORT_PAIRS = ["desktop-tablet", "desktop-mobile", "tablet-mobile"] as const;
 
 function createMockSearchResult(
   id: string,
@@ -95,19 +91,17 @@ function createMockSearchResult(
     similarity,
     textRepresentation: `passage: Responsive analysis: https://example.com/page-${id}`,
     viewportsAnalyzed: [
-      { name: 'desktop', width: 1920, height: 1080 },
-      { name: 'mobile', width: 375, height: 667 },
+      { name: "desktop", width: 1920, height: 1080 },
+      { name: "mobile", width: 375, height: 667 },
     ],
     differences: [
-      { category: 'layout', selector: '.grid', description: 'Grid column change' },
-      { category: 'navigation', selector: 'nav', description: 'Hamburger menu' },
+      { category: "layout", selector: ".grid", description: "Grid column change" },
+      { category: "navigation", selector: "nav", description: "Hamburger menu" },
     ],
     breakpoints: [{ width: 768 }, { width: 479 }],
-    screenshotDiffs: [
-      { viewport1: 'desktop', viewport2: 'mobile', diffPercentage: 45.2 },
-    ],
+    screenshotDiffs: [{ viewport1: "desktop", viewport2: "mobile", diffPercentage: 45.2 }],
     analysisTimeMs: 3200,
-    createdAt: new Date('2026-03-01'),
+    createdAt: new Date("2026-03-01"),
   };
 }
 
@@ -115,14 +109,16 @@ function createMockSearchResult(
 // モックサービス
 // =====================================================
 
-function createMockService(overrides?: Partial<IResponsiveSearchService>): IResponsiveSearchService {
+function createMockService(
+  overrides?: Partial<IResponsiveSearchService>
+): IResponsiveSearchService {
   return {
     generateQueryEmbedding: vi.fn().mockResolvedValue(new Array(768).fill(0.1)),
     searchResponsiveAnalyses: vi.fn().mockResolvedValue({
       results: [
-        createMockSearchResult('001', 0.92),
-        createMockSearchResult('002', 0.87),
-        createMockSearchResult('003', 0.81),
+        createMockSearchResult("001", 0.92),
+        createMockSearchResult("002", 0.87),
+        createMockSearchResult("003", 0.81),
       ],
       total: 3,
     }),
@@ -134,7 +130,7 @@ function createMockService(overrides?: Partial<IResponsiveSearchService>): IResp
 // テスト
 // =====================================================
 
-describe('responsive.search MCPツール', () => {
+describe("responsive.search MCPツール", () => {
   beforeEach(() => {
     resetResponsiveSearchServiceFactory();
   });
@@ -147,26 +143,26 @@ describe('responsive.search MCPツール', () => {
   // ツール定義
   // ===================================================
 
-  describe('ツール定義', () => {
-    it('should have correct tool name', () => {
-      expect(responsiveSearchToolDefinition.name).toBe('responsive.search');
+  describe("ツール定義", () => {
+    it("should have correct tool name", () => {
+      expect(responsiveSearchToolDefinition.name).toBe("responsive.search");
     });
 
-    it('should have required query parameter', () => {
-      expect(responsiveSearchToolDefinition.inputSchema.required).toContain('query');
+    it("should have required query parameter", () => {
+      expect(responsiveSearchToolDefinition.inputSchema.required).toContain("query");
     });
 
-    it('should have read-only and idempotent annotations', () => {
+    it("should have read-only and idempotent annotations", () => {
       expect(responsiveSearchToolDefinition.annotations.readOnlyHint).toBe(true);
       expect(responsiveSearchToolDefinition.annotations.idempotentHint).toBe(true);
     });
 
-    it('should include filter properties in schema', () => {
+    it("should include filter properties in schema", () => {
       const properties = responsiveSearchToolDefinition.inputSchema.properties;
-      expect(properties).toHaveProperty('query');
-      expect(properties).toHaveProperty('limit');
-      expect(properties).toHaveProperty('offset');
-      expect(properties).toHaveProperty('filters');
+      expect(properties).toHaveProperty("query");
+      expect(properties).toHaveProperty("limit");
+      expect(properties).toHaveProperty("offset");
+      expect(properties).toHaveProperty("filters");
     });
   });
 
@@ -174,108 +170,108 @@ describe('responsive.search MCPツール', () => {
   // 入力バリデーション（Zod schema）
   // ===================================================
 
-  describe('入力バリデーション', () => {
-    it('should accept valid minimal input', () => {
-      const input = { query: 'hamburger menu' };
+  describe("入力バリデーション", () => {
+    it("should accept valid minimal input", () => {
+      const input = { query: "hamburger menu" };
       const result = responsiveSearchInputSchema.safeParse(input);
       expect(result.success).toBe(true);
     });
 
-    it('should reject empty query', () => {
-      const input = { query: '' };
+    it("should reject empty query", () => {
+      const input = { query: "" };
       const result = responsiveSearchInputSchema.safeParse(input);
       expect(result.success).toBe(false);
     });
 
-    it('should reject query exceeding 500 chars', () => {
-      const input = { query: 'a'.repeat(501) };
+    it("should reject query exceeding 500 chars", () => {
+      const input = { query: "a".repeat(501) };
       const result = responsiveSearchInputSchema.safeParse(input);
       expect(result.success).toBe(false);
     });
 
-    it('should apply default limit of 10', () => {
-      const input = { query: 'test' };
+    it("should apply default limit of 10", () => {
+      const input = { query: "test" };
       const result = responsiveSearchInputSchema.parse(input);
       expect(result.limit).toBe(10);
     });
 
-    it('should apply default offset of 0', () => {
-      const input = { query: 'test' };
+    it("should apply default offset of 0", () => {
+      const input = { query: "test" };
       const result = responsiveSearchInputSchema.parse(input);
       expect(result.offset).toBe(0);
     });
 
-    it('should reject limit > 50', () => {
-      const input = { query: 'test', limit: 51 };
+    it("should reject limit > 50", () => {
+      const input = { query: "test", limit: 51 };
       const result = responsiveSearchInputSchema.safeParse(input);
       expect(result.success).toBe(false);
     });
 
-    it('should reject limit < 1', () => {
-      const input = { query: 'test', limit: 0 };
+    it("should reject limit < 1", () => {
+      const input = { query: "test", limit: 0 };
       const result = responsiveSearchInputSchema.safeParse(input);
       expect(result.success).toBe(false);
     });
 
-    it('should reject negative offset', () => {
-      const input = { query: 'test', offset: -1 };
+    it("should reject negative offset", () => {
+      const input = { query: "test", offset: -1 };
       const result = responsiveSearchInputSchema.safeParse(input);
       expect(result.success).toBe(false);
     });
 
-    it.each(VALID_DIFF_CATEGORIES)('should accept diffCategory: %s', (category) => {
-      const input = { query: 'test', filters: { diffCategory: category } };
+    it.each(VALID_DIFF_CATEGORIES)("should accept diffCategory: %s", (category) => {
+      const input = { query: "test", filters: { diffCategory: category } };
       const result = responsiveSearchInputSchema.safeParse(input);
       expect(result.success).toBe(true);
     });
 
-    it('should reject invalid diffCategory', () => {
-      const input = { query: 'test', filters: { diffCategory: 'invalid' } };
+    it("should reject invalid diffCategory", () => {
+      const input = { query: "test", filters: { diffCategory: "invalid" } };
       const result = responsiveSearchInputSchema.safeParse(input);
       expect(result.success).toBe(false);
     });
 
-    it.each(VALID_VIEWPORT_PAIRS)('should accept viewportPair: %s', (pair) => {
-      const input = { query: 'test', filters: { viewportPair: pair } };
+    it.each(VALID_VIEWPORT_PAIRS)("should accept viewportPair: %s", (pair) => {
+      const input = { query: "test", filters: { viewportPair: pair } };
       const result = responsiveSearchInputSchema.safeParse(input);
       expect(result.success).toBe(true);
     });
 
-    it('should reject invalid viewportPair', () => {
-      const input = { query: 'test', filters: { viewportPair: 'invalid' } };
+    it("should reject invalid viewportPair", () => {
+      const input = { query: "test", filters: { viewportPair: "invalid" } };
       const result = responsiveSearchInputSchema.safeParse(input);
       expect(result.success).toBe(false);
     });
 
-    it('should accept valid breakpointRange', () => {
-      const input = { query: 'test', filters: { breakpointRange: { min: 320, max: 1024 } } };
+    it("should accept valid breakpointRange", () => {
+      const input = { query: "test", filters: { breakpointRange: { min: 320, max: 1024 } } };
       const result = responsiveSearchInputSchema.safeParse(input);
       expect(result.success).toBe(true);
     });
 
-    it('should accept minDiffPercentage within 0-100', () => {
-      const input = { query: 'test', filters: { minDiffPercentage: 30 } };
+    it("should accept minDiffPercentage within 0-100", () => {
+      const input = { query: "test", filters: { minDiffPercentage: 30 } };
       const result = responsiveSearchInputSchema.safeParse(input);
       expect(result.success).toBe(true);
     });
 
-    it('should reject minDiffPercentage > 100', () => {
-      const input = { query: 'test', filters: { minDiffPercentage: 101 } };
+    it("should reject minDiffPercentage > 100", () => {
+      const input = { query: "test", filters: { minDiffPercentage: 101 } };
       const result = responsiveSearchInputSchema.safeParse(input);
       expect(result.success).toBe(false);
     });
 
-    it('should accept valid webPageId (UUID)', () => {
+    it("should accept valid webPageId (UUID)", () => {
       const input = {
-        query: 'test',
-        filters: { webPageId: '11111111-1111-1111-1111-111111111111' },
+        query: "test",
+        filters: { webPageId: "11111111-1111-1111-1111-111111111111" },
       };
       const result = responsiveSearchInputSchema.safeParse(input);
       expect(result.success).toBe(true);
     });
 
-    it('should reject invalid webPageId', () => {
-      const input = { query: 'test', filters: { webPageId: 'not-a-uuid' } };
+    it("should reject invalid webPageId", () => {
+      const input = { query: "test", filters: { webPageId: "not-a-uuid" } };
       const result = responsiveSearchInputSchema.safeParse(input);
       expect(result.success).toBe(false);
     });
@@ -285,10 +281,10 @@ describe('responsive.search MCPツール', () => {
   // サービスファクトリー
   // ===================================================
 
-  describe('サービスファクトリー', () => {
-    it('should return SERVICE_UNAVAILABLE when factory not set', async () => {
+  describe("サービスファクトリー", () => {
+    it("should return SERVICE_UNAVAILABLE when factory not set", async () => {
       const result = (await responsiveSearchHandler({
-        query: 'test',
+        query: "test",
       })) as ResponsiveSearchOutput;
 
       expect(result.success).toBe(false);
@@ -297,24 +293,24 @@ describe('responsive.search MCPツール', () => {
       }
     });
 
-    it('should work after factory is set', async () => {
+    it("should work after factory is set", async () => {
       const mockService = createMockService();
       setResponsiveSearchServiceFactory(() => mockService);
 
       const result = (await responsiveSearchHandler({
-        query: 'hamburger menu',
+        query: "hamburger menu",
       })) as ResponsiveSearchOutput;
 
       expect(result.success).toBe(true);
     });
 
-    it('should return SERVICE_UNAVAILABLE after factory is reset', async () => {
+    it("should return SERVICE_UNAVAILABLE after factory is reset", async () => {
       const mockService = createMockService();
       setResponsiveSearchServiceFactory(() => mockService);
       resetResponsiveSearchServiceFactory();
 
       const result = (await responsiveSearchHandler({
-        query: 'test',
+        query: "test",
       })) as ResponsiveSearchOutput;
 
       expect(result.success).toBe(false);
@@ -328,7 +324,7 @@ describe('responsive.search MCPツール', () => {
   // 正常系検索
   // ===================================================
 
-  describe('正常系検索', () => {
+  describe("正常系検索", () => {
     let mockService: IResponsiveSearchService;
 
     beforeEach(() => {
@@ -336,52 +332,50 @@ describe('responsive.search MCPツール', () => {
       setResponsiveSearchServiceFactory(() => mockService);
     });
 
-    it('should execute search with query', async () => {
+    it("should execute search with query", async () => {
       const result = (await responsiveSearchHandler({
-        query: 'hamburger menu responsive',
+        query: "hamburger menu responsive",
       })) as ResponsiveSearchOutput;
 
       expect(result.success).toBe(true);
       if (result.success) {
         expect(result.data.results).toHaveLength(3);
         expect(result.data.total).toBe(3);
-        expect(result.data.query).toBe('hamburger menu responsive');
+        expect(result.data.query).toBe("hamburger menu responsive");
         expect(result.data.searchTimeMs).toBeGreaterThanOrEqual(0);
       }
     });
 
-    it('should prepend query: prefix for E5 model', async () => {
-      await responsiveSearchHandler({ query: 'test query' });
+    it("should prepend query: prefix for E5 model", async () => {
+      await responsiveSearchHandler({ query: "test query" });
 
-      expect(mockService.generateQueryEmbedding).toHaveBeenCalledWith(
-        'query: test query'
-      );
+      expect(mockService.generateQueryEmbedding).toHaveBeenCalledWith("query: test query");
     });
 
-    it('should map result fields correctly', async () => {
+    it("should map result fields correctly", async () => {
       const result = (await responsiveSearchHandler({
-        query: 'test',
+        query: "test",
       })) as ResponsiveSearchOutput;
 
       expect(result.success).toBe(true);
       if (result.success) {
         const firstResult = result.data.results[0]!;
-        expect(firstResult).toHaveProperty('id');
-        expect(firstResult).toHaveProperty('similarity');
-        expect(firstResult).toHaveProperty('url');
-        expect(firstResult).toHaveProperty('source');
-        expect(firstResult.source).toHaveProperty('webPageId');
-        expect(firstResult.source).toHaveProperty('responsiveAnalysisId');
-        expect(firstResult).toHaveProperty('differencesCount');
-        expect(firstResult).toHaveProperty('breakpointsCount');
-        expect(firstResult).toHaveProperty('screenshotDiffs');
-        expect(firstResult).toHaveProperty('textRepresentation');
+        expect(firstResult).toHaveProperty("id");
+        expect(firstResult).toHaveProperty("similarity");
+        expect(firstResult).toHaveProperty("url");
+        expect(firstResult).toHaveProperty("source");
+        expect(firstResult.source).toHaveProperty("webPageId");
+        expect(firstResult.source).toHaveProperty("responsiveAnalysisId");
+        expect(firstResult).toHaveProperty("differencesCount");
+        expect(firstResult).toHaveProperty("breakpointsCount");
+        expect(firstResult).toHaveProperty("screenshotDiffs");
+        expect(firstResult).toHaveProperty("textRepresentation");
       }
     });
 
-    it('should count differences and breakpoints from arrays', async () => {
+    it("should count differences and breakpoints from arrays", async () => {
       const result = (await responsiveSearchHandler({
-        query: 'test',
+        query: "test",
       })) as ResponsiveSearchOutput;
 
       expect(result.success).toBe(true);
@@ -392,15 +386,15 @@ describe('responsive.search MCPツール', () => {
       }
     });
 
-    it('should pass filters to service', async () => {
+    it("should pass filters to service", async () => {
       await responsiveSearchHandler({
-        query: 'test',
+        query: "test",
         filters: {
-          diffCategory: 'navigation',
-          viewportPair: 'desktop-mobile',
+          diffCategory: "navigation",
+          viewportPair: "desktop-mobile",
           breakpointRange: { min: 320, max: 1024 },
           minDiffPercentage: 25,
-          webPageId: '11111111-1111-1111-1111-111111111111',
+          webPageId: "11111111-1111-1111-1111-111111111111",
         },
       });
 
@@ -408,18 +402,18 @@ describe('responsive.search MCPツール', () => {
         expect.any(Array),
         expect.objectContaining({
           filters: expect.objectContaining({
-            diffCategory: 'navigation',
-            viewportPair: 'desktop-mobile',
+            diffCategory: "navigation",
+            viewportPair: "desktop-mobile",
             minDiffPercentage: 25,
-            webPageId: '11111111-1111-1111-1111-111111111111',
+            webPageId: "11111111-1111-1111-1111-111111111111",
           }),
         })
       );
     });
 
-    it('should pass limit and offset to service', async () => {
+    it("should pass limit and offset to service", async () => {
       await responsiveSearchHandler({
-        query: 'test',
+        query: "test",
         limit: 5,
         offset: 20,
       });
@@ -435,15 +429,15 @@ describe('responsive.search MCPツール', () => {
   // Embedding unavailable (graceful degradation)
   // ===================================================
 
-  describe('Embedding unavailable', () => {
-    it('should return empty results when embedding returns null', async () => {
+  describe("Embedding unavailable", () => {
+    it("should return empty results when embedding returns null", async () => {
       const mockService = createMockService({
         generateQueryEmbedding: vi.fn().mockResolvedValue(null),
       });
       setResponsiveSearchServiceFactory(() => mockService);
 
       const result = (await responsiveSearchHandler({
-        query: 'test',
+        query: "test",
       })) as ResponsiveSearchOutput;
 
       expect(result.success).toBe(true);
@@ -458,13 +452,13 @@ describe('responsive.search MCPツール', () => {
   // エラーハンドリング
   // ===================================================
 
-  describe('エラーハンドリング', () => {
-    it('should return VALIDATION_ERROR for invalid input', async () => {
+  describe("エラーハンドリング", () => {
+    it("should return VALIDATION_ERROR for invalid input", async () => {
       const mockService = createMockService();
       setResponsiveSearchServiceFactory(() => mockService);
 
       const result = (await responsiveSearchHandler({
-        query: '',
+        query: "",
       })) as ResponsiveSearchOutput;
 
       expect(result.success).toBe(false);
@@ -473,14 +467,14 @@ describe('responsive.search MCPツール', () => {
       }
     });
 
-    it('should return EMBEDDING_FAILED for embedding errors', async () => {
+    it("should return EMBEDDING_FAILED for embedding errors", async () => {
       const mockService = createMockService({
-        generateQueryEmbedding: vi.fn().mockRejectedValue(new Error('embedding model failed')),
+        generateQueryEmbedding: vi.fn().mockRejectedValue(new Error("embedding model failed")),
       });
       setResponsiveSearchServiceFactory(() => mockService);
 
       const result = (await responsiveSearchHandler({
-        query: 'test',
+        query: "test",
       })) as ResponsiveSearchOutput;
 
       expect(result.success).toBe(false);
@@ -489,14 +483,16 @@ describe('responsive.search MCPツール', () => {
       }
     });
 
-    it('should return SEARCH_FAILED for database errors', async () => {
+    it("should return SEARCH_FAILED for database errors", async () => {
       const mockService = createMockService({
-        searchResponsiveAnalyses: vi.fn().mockRejectedValue(new Error('database connection failed')),
+        searchResponsiveAnalyses: vi
+          .fn()
+          .mockRejectedValue(new Error("database connection failed")),
       });
       setResponsiveSearchServiceFactory(() => mockService);
 
       const result = (await responsiveSearchHandler({
-        query: 'test',
+        query: "test",
       })) as ResponsiveSearchOutput;
 
       expect(result.success).toBe(false);
@@ -505,14 +501,14 @@ describe('responsive.search MCPツール', () => {
       }
     });
 
-    it('should return SEARCH_FAILED for timeout errors', async () => {
+    it("should return SEARCH_FAILED for timeout errors", async () => {
       const mockService = createMockService({
-        searchResponsiveAnalyses: vi.fn().mockRejectedValue(new Error('query timeout exceeded')),
+        searchResponsiveAnalyses: vi.fn().mockRejectedValue(new Error("query timeout exceeded")),
       });
       setResponsiveSearchServiceFactory(() => mockService);
 
       const result = (await responsiveSearchHandler({
-        query: 'test',
+        query: "test",
       })) as ResponsiveSearchOutput;
 
       expect(result.success).toBe(false);
@@ -521,14 +517,14 @@ describe('responsive.search MCPツール', () => {
       }
     });
 
-    it('should return INTERNAL_ERROR for unknown errors', async () => {
+    it("should return INTERNAL_ERROR for unknown errors", async () => {
       const mockService = createMockService({
-        searchResponsiveAnalyses: vi.fn().mockRejectedValue(new Error('something unexpected')),
+        searchResponsiveAnalyses: vi.fn().mockRejectedValue(new Error("something unexpected")),
       });
       setResponsiveSearchServiceFactory(() => mockService);
 
       const result = (await responsiveSearchHandler({
-        query: 'test',
+        query: "test",
       })) as ResponsiveSearchOutput;
 
       expect(result.success).toBe(false);
@@ -542,8 +538,8 @@ describe('responsive.search MCPツール', () => {
   // 嗜好プロファイルリランキング
   // ===================================================
 
-  describe('嗜好プロファイルリランキング', () => {
-    const PROFILE_ID = '11111111-2222-3333-4444-555555555555';
+  describe("嗜好プロファイルリランキング", () => {
+    const PROFILE_ID = "11111111-2222-3333-4444-555555555555";
 
     /**
      * モックPrismaClientを作成
@@ -561,7 +557,7 @@ describe('responsive.search MCPツール', () => {
           embedding
             ? [
                 {
-                  preference_embedding: `[${embedding.join(',')}]`,
+                  preference_embedding: `[${embedding.join(",")}]`,
                   interaction_count: interactionCount,
                 },
               ]
@@ -580,12 +576,12 @@ describe('responsive.search MCPツール', () => {
       resetResponsiveSearchPrismaClientFactory();
     });
 
-    it('profile_idが指定されていない場合はリランキングされない', async () => {
+    it("profile_idが指定されていない場合はリランキングされない", async () => {
       const mockService = createMockService();
       setResponsiveSearchServiceFactory(() => mockService);
 
       const result = (await responsiveSearchHandler({
-        query: 'hamburger menu',
+        query: "hamburger menu",
       })) as ResponsiveSearchOutput;
 
       expect(result.success).toBe(true);
@@ -595,13 +591,13 @@ describe('responsive.search MCPツール', () => {
       }
     });
 
-    it('PrismaClientFactoryが未設定の場合はリランキングされない', async () => {
+    it("PrismaClientFactoryが未設定の場合はリランキングされない", async () => {
       const mockService = createMockService();
       setResponsiveSearchServiceFactory(() => mockService);
       // PrismaClientFactoryは設定しない
 
       const result = (await responsiveSearchHandler({
-        query: 'hamburger menu',
+        query: "hamburger menu",
         profile_id: PROFILE_ID,
       })) as ResponsiveSearchOutput;
 
@@ -612,14 +608,14 @@ describe('responsive.search MCPツール', () => {
       }
     });
 
-    it('profile_idとPrismaClientFactoryが設定されている場合にリランキングが試行される', async () => {
+    it("profile_idとPrismaClientFactoryが設定されている場合にリランキングが試行される", async () => {
       const mockService = createMockService();
       setResponsiveSearchServiceFactory(() => mockService);
       const mockPrisma = createMockPrisma();
       setResponsiveSearchPrismaClientFactory(() => mockPrisma as never);
 
       const result = (await responsiveSearchHandler({
-        query: 'hamburger menu',
+        query: "hamburger menu",
         profile_id: PROFILE_ID,
       })) as ResponsiveSearchOutput;
 
@@ -628,14 +624,14 @@ describe('responsive.search MCPツール', () => {
       expect(mockPrisma.$queryRawUnsafe).toHaveBeenCalled();
     });
 
-    it('インタラクション数不足時はリランキングされない（graceful degradation）', async () => {
+    it("インタラクション数不足時はリランキングされない（graceful degradation）", async () => {
       const mockService = createMockService();
       setResponsiveSearchServiceFactory(() => mockService);
       const mockPrisma = createMockPrisma({ interactionCount: 2 }); // 閾値5未満
       setResponsiveSearchPrismaClientFactory(() => mockPrisma as never);
 
       const result = (await responsiveSearchHandler({
-        query: 'hamburger menu',
+        query: "hamburger menu",
         profile_id: PROFILE_ID,
       })) as ResponsiveSearchOutput;
 
@@ -646,7 +642,7 @@ describe('responsive.search MCPツール', () => {
       }
     });
 
-    it('プロファイルが存在しない場合はリランキングされない（graceful degradation）', async () => {
+    it("プロファイルが存在しない場合はリランキングされない（graceful degradation）", async () => {
       const mockService = createMockService();
       setResponsiveSearchServiceFactory(() => mockService);
       const mockPrisma = createMockPrisma({ embedding: null });
@@ -654,7 +650,7 @@ describe('responsive.search MCPツール', () => {
       setResponsiveSearchPrismaClientFactory(() => mockPrisma as never);
 
       const result = (await responsiveSearchHandler({
-        query: 'hamburger menu',
+        query: "hamburger menu",
         profile_id: PROFILE_ID,
       })) as ResponsiveSearchOutput;
 
@@ -664,16 +660,16 @@ describe('responsive.search MCPツール', () => {
       }
     });
 
-    it('PrismaClient呼び出しでエラーが発生してもgraceful degradationで元の結果が返る', async () => {
+    it("PrismaClient呼び出しでエラーが発生してもgraceful degradationで元の結果が返る", async () => {
       const mockService = createMockService();
       setResponsiveSearchServiceFactory(() => mockService);
       const mockPrisma = {
-        $queryRawUnsafe: vi.fn().mockRejectedValue(new Error('DB connection failed')),
+        $queryRawUnsafe: vi.fn().mockRejectedValue(new Error("DB connection failed")),
       };
       setResponsiveSearchPrismaClientFactory(() => mockPrisma as never);
 
       const result = (await responsiveSearchHandler({
-        query: 'hamburger menu',
+        query: "hamburger menu",
         profile_id: PROFILE_ID,
       })) as ResponsiveSearchOutput;
 
@@ -684,7 +680,7 @@ describe('responsive.search MCPツール', () => {
       }
     });
 
-    it('検索結果が空の場合はリランキングをスキップする', async () => {
+    it("検索結果が空の場合はリランキングをスキップする", async () => {
       const mockService = createMockService({
         searchResponsiveAnalyses: vi.fn().mockResolvedValue({
           results: [],
@@ -696,7 +692,7 @@ describe('responsive.search MCPツール', () => {
       setResponsiveSearchPrismaClientFactory(() => mockPrisma as never);
 
       const result = (await responsiveSearchHandler({
-        query: 'nonexistent pattern',
+        query: "nonexistent pattern",
         profile_id: PROFILE_ID,
       })) as ResponsiveSearchOutput;
 
@@ -708,27 +704,27 @@ describe('responsive.search MCPツール', () => {
       expect(mockPrisma.$queryRawUnsafe).not.toHaveBeenCalled();
     });
 
-    it('profile_idスキーマバリデーション: 有効なUUIDを受け付ける', () => {
+    it("profile_idスキーマバリデーション: 有効なUUIDを受け付ける", () => {
       const input = {
-        query: 'hamburger menu',
-        profile_id: '11111111-2222-3333-4444-555555555555',
+        query: "hamburger menu",
+        profile_id: "11111111-2222-3333-4444-555555555555",
       };
       const result = responsiveSearchInputSchema.safeParse(input);
       expect(result.success).toBe(true);
     });
 
-    it('profile_idスキーマバリデーション: 無効なUUIDを拒否する', () => {
+    it("profile_idスキーマバリデーション: 無効なUUIDを拒否する", () => {
       const input = {
-        query: 'hamburger menu',
-        profile_id: 'not-a-uuid',
+        query: "hamburger menu",
+        profile_id: "not-a-uuid",
       };
       const result = responsiveSearchInputSchema.safeParse(input);
       expect(result.success).toBe(false);
     });
 
-    it('profile_idスキーマバリデーション: undefinedを許容する', () => {
+    it("profile_idスキーマバリデーション: undefinedを許容する", () => {
       const input = {
-        query: 'hamburger menu',
+        query: "hamburger menu",
       };
       const result = responsiveSearchInputSchema.safeParse(input);
       expect(result.success).toBe(true);
@@ -742,12 +738,15 @@ describe('responsive.search MCPツール', () => {
   // ツール定義 profile_id
   // ===================================================
 
-  describe('ツール定義 profile_id', () => {
-    it('inputSchemaにprofile_idプロパティが定義されている', () => {
-      const properties = responsiveSearchToolDefinition.inputSchema.properties as Record<string, unknown>;
+  describe("ツール定義 profile_id", () => {
+    it("inputSchemaにprofile_idプロパティが定義されている", () => {
+      const properties = responsiveSearchToolDefinition.inputSchema.properties as Record<
+        string,
+        unknown
+      >;
       expect(properties.profile_id).toBeDefined();
-      expect((properties.profile_id as Record<string, unknown>).type).toBe('string');
-      expect((properties.profile_id as Record<string, unknown>).format).toBe('uuid');
+      expect((properties.profile_id as Record<string, unknown>).type).toBe("string");
+      expect((properties.profile_id as Record<string, unknown>).format).toBe("uuid");
     });
   });
 });

@@ -15,32 +15,32 @@
  * @module tests/integration/motion-detect-js
  */
 
-import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
-import { chromium, type Browser, type Page, type BrowserContext } from 'playwright';
-import * as fs from 'fs';
-import * as path from 'path';
+import { describe, it, expect, beforeAll, afterAll, vi } from "vitest";
+import { chromium, type Browser, type Page, type BrowserContext } from "playwright";
+import * as fs from "fs";
+import * as path from "path";
 import {
   motionDetectHandler,
   setRuntimeAnimationDetectorFactory,
   resetRuntimeAnimationDetectorFactory,
-} from '../../src/tools/motion';
+} from "../../src/tools/motion";
 import {
   RuntimeAnimationDetectorService,
   type RuntimeAnimationResult,
-} from '../../src/services/page/runtime-animation-detector.service';
+} from "../../src/services/page/runtime-animation-detector.service";
 
 // =====================================================
 // テストフィクスチャのパス
 // =====================================================
 
-const FIXTURES_DIR = path.resolve(__dirname, '../fixtures/js-animations');
+const FIXTURES_DIR = path.resolve(__dirname, "../fixtures/js-animations");
 
 /**
  * フィクスチャHTMLを読み込む
  */
 function loadFixture(filename: string): string {
   const filePath = path.join(FIXTURES_DIR, filename);
-  return fs.readFileSync(filePath, 'utf-8');
+  return fs.readFileSync(filePath, "utf-8");
 }
 
 /**
@@ -55,7 +55,7 @@ function getFixtureFileUrl(filename: string): string {
 // テストスイート: RuntimeAnimationDetectorService統合
 // =====================================================
 
-describe('motion.detect JSアニメーション検出 - 統合テスト', () => {
+describe("motion.detect JSアニメーション検出 - 統合テスト", () => {
   let browser: Browser;
   let context: BrowserContext;
   let page: Page;
@@ -70,7 +70,7 @@ describe('motion.detect JSアニメーション検出 - 統合テスト', () => 
     await browser?.close().catch(() => {});
   });
 
-  describe('RuntimeAnimationDetectorService直接テスト', () => {
+  describe("RuntimeAnimationDetectorService直接テスト", () => {
     beforeAll(() => {
       // RuntimeAnimationDetectorService ファクトリを設定
       setRuntimeAnimationDetectorFactory(() => new RuntimeAnimationDetectorService());
@@ -80,9 +80,9 @@ describe('motion.detect JSアニメーション検出 - 統合テスト', () => 
       resetRuntimeAnimationDetectorFactory();
     });
 
-    it('Web Animations APIを使用したページでアニメーションを検出する', async () => {
+    it("Web Animations APIを使用したページでアニメーションを検出する", async () => {
       page = await context.newPage();
-      const html = loadFixture('web-animations-test.html');
+      const html = loadFixture("web-animations-test.html");
       await page.setContent(html);
       await page.waitForTimeout(200); // アニメーション開始を待つ
 
@@ -94,18 +94,16 @@ describe('motion.detect JSアニメーション検出 - 統合テスト', () => 
       expect(result.totalDetected).toBeGreaterThan(0);
 
       // Web Animations APIで作成されたアニメーションの検証
-      const wapiAnimation = result.animations.find(
-        (a) => a.type === 'web_animations_api'
-      );
+      const wapiAnimation = result.animations.find((a) => a.type === "web_animations_api");
       expect(wapiAnimation).toBeDefined();
-      expect(wapiAnimation?.playState).toBe('running');
+      expect(wapiAnimation?.playState).toBe("running");
 
       await page.close();
     });
 
-    it('CSSアニメーションとWeb Animations APIの両方を検出する', async () => {
+    it("CSSアニメーションとWeb Animations APIの両方を検出する", async () => {
       page = await context.newPage();
-      const html = loadFixture('mixed-animations-test.html');
+      const html = loadFixture("mixed-animations-test.html");
       await page.setContent(html);
       await page.waitForTimeout(200);
 
@@ -115,23 +113,19 @@ describe('motion.detect JSアニメーション検出 - 統合テスト', () => 
       expect(result.animations.length).toBeGreaterThan(0);
 
       // CSSアニメーションの検出
-      const cssAnimation = result.animations.find(
-        (a) => a.type === 'css_animation'
-      );
+      const cssAnimation = result.animations.find((a) => a.type === "css_animation");
       expect(cssAnimation).toBeDefined();
 
       // Web Animations APIの検出
-      const wapiAnimation = result.animations.find(
-        (a) => a.type === 'web_animations_api'
-      );
+      const wapiAnimation = result.animations.find((a) => a.type === "web_animations_api");
       expect(wapiAnimation).toBeDefined();
 
       await page.close();
     });
 
-    it('requestAnimationFrameの使用を検出する', async () => {
+    it("requestAnimationFrameの使用を検出する", async () => {
       page = await context.newPage();
-      const html = loadFixture('mixed-animations-test.html');
+      const html = loadFixture("mixed-animations-test.html");
       await page.setContent(html);
       await page.waitForTimeout(500); // RAFが複数回呼ばれるのを待つ
 
@@ -143,15 +137,15 @@ describe('motion.detect JSアニメーション検出 - 統合テスト', () => 
       expect(result.rafCallbacks.length).toBeGreaterThan(0);
 
       const rafInfo = result.rafCallbacks[0];
-      expect(rafInfo).toHaveProperty('callCount');
+      expect(rafInfo).toHaveProperty("callCount");
       expect(rafInfo.callCount).toBeGreaterThan(0);
-      expect(rafInfo).toHaveProperty('avgFrameTime');
-      expect(rafInfo).toHaveProperty('modifiedElements');
+      expect(rafInfo).toHaveProperty("avgFrameTime");
+      expect(rafInfo).toHaveProperty("modifiedElements");
 
       await page.close();
     });
 
-    it('スクロール位置ごとにアニメーションを検出する', async () => {
+    it("スクロール位置ごとにアニメーションを検出する", async () => {
       page = await context.newPage();
 
       // IntersectionObserverを使用するHTMLを設定
@@ -195,23 +189,23 @@ describe('motion.detect JSアニメーション検出 - 統合テスト', () => 
       });
 
       expect(result.scrollPositionResults).toBeDefined();
-      expect(result.scrollPositionResults).toHaveProperty('0');
-      expect(result.scrollPositionResults).toHaveProperty('50');
-      expect(result.scrollPositionResults).toHaveProperty('100');
+      expect(result.scrollPositionResults).toHaveProperty("0");
+      expect(result.scrollPositionResults).toHaveProperty("50");
+      expect(result.scrollPositionResults).toHaveProperty("100");
 
       await page.close();
     });
   });
 
-  describe('motion.detect ハンドラ runtime mode', () => {
+  describe("motion.detect ハンドラ runtime mode", () => {
     /**
      * Note: runtime modeはURLが必要
      * file:// URLはSSRF対策でブロックされる可能性があるため、
      * この統合テストではHTMLを直接設定してService層をテストする
      */
-    it('runtime modeでhtmlパラメータなしの場合はエラーを返す', async () => {
+    it("runtime modeでhtmlパラメータなしの場合はエラーを返す", async () => {
       const result = await motionDetectHandler({
-        detection_mode: 'runtime',
+        detection_mode: "runtime",
         // URLなし
       });
 
@@ -220,12 +214,12 @@ describe('motion.detect JSアニメーション検出 - 統合テスト', () => 
       expect(result.success).toBe(false);
     });
 
-    it('css modeでhtmlパラメータありの場合は正常に検出する', async () => {
-      const html = loadFixture('mixed-animations-test.html');
+    it("css modeでhtmlパラメータありの場合は正常に検出する", async () => {
+      const html = loadFixture("mixed-animations-test.html");
 
       const result = await motionDetectHandler({
         html,
-        detection_mode: 'css',
+        detection_mode: "css",
         includeInlineStyles: true,
         includeStyleSheets: true,
       });
@@ -236,16 +230,14 @@ describe('motion.detect JSアニメーション検出 - 統合テスト', () => 
 
         // CSSアニメーション（pulse）を検出
         // パターンのnameプロパティは直接アクセス可能
-        const pulseAnimation = result.data.patterns.find(
-          (p) => p.name === 'pulse'
-        );
+        const pulseAnimation = result.data.patterns.find((p) => p.name === "pulse");
         expect(pulseAnimation).toBeDefined();
       }
     });
   });
 
-  describe('アニメーション情報の詳細検証', () => {
-    it('アニメーションのタイミング情報を正確に取得する', async () => {
+  describe("アニメーション情報の詳細検証", () => {
+    it("アニメーションのタイミング情報を正確に取得する", async () => {
       page = await context.newPage();
 
       const htmlWithTiming = `
@@ -289,16 +281,16 @@ describe('motion.detect JSアニメーション検出 - 統合テスト', () => 
       const animation = result.animations[0];
       expect(animation.duration).toBe(2000);
       expect(animation.iterations).toBe(5);
-      expect(animation.easing).toBe('ease-in-out');
-      expect(animation.direction).toBe('alternate');
-      expect(animation.fillMode).toBe('forwards');
+      expect(animation.easing).toBe("ease-in-out");
+      expect(animation.direction).toBe("alternate");
+      expect(animation.fillMode).toBe("forwards");
       // delayは初期値のみ設定されることがある
       expect(animation.delay).toBeDefined();
 
       await page.close();
     });
 
-    it('無限反復アニメーションを検出する', async () => {
+    it("無限反復アニメーションを検出する", async () => {
       page = await context.newPage();
 
       const htmlWithInfinite = `
@@ -336,15 +328,13 @@ describe('motion.detect JSアニメーション検出 - 統合テスト', () => 
 
       expect(result.animations.length).toBeGreaterThan(0);
 
-      const infiniteAnimation = result.animations.find(
-        (a) => a.iterations === Infinity
-      );
+      const infiniteAnimation = result.animations.find((a) => a.iterations === Infinity);
       expect(infiniteAnimation).toBeDefined();
 
       await page.close();
     });
 
-    it('複数要素のアニメーションを個別に検出する', async () => {
+    it("複数要素のアニメーションを個別に検出する", async () => {
       page = await context.newPage();
 
       const htmlWithMultiple = `
@@ -397,10 +387,10 @@ describe('motion.detect JSアニメーション検出 - 統合テスト', () => 
     });
   });
 
-  describe('エラーハンドリング', () => {
-    it('閉じたページでエラーなく空の結果を返す', async () => {
+  describe("エラーハンドリング", () => {
+    it("閉じたページでエラーなく空の結果を返す", async () => {
       page = await context.newPage();
-      await page.setContent('<html><body>Test</body></html>');
+      await page.setContent("<html><body>Test</body></html>");
       await page.close();
 
       const service = new RuntimeAnimationDetectorService();
@@ -411,7 +401,7 @@ describe('motion.detect JSアニメーション検出 - 統合テスト', () => 
       expect(result.totalDetected).toBe(0);
     });
 
-    it('JavaScriptエラーがあるページでも検出を継続する', async () => {
+    it("JavaScriptエラーがあるページでも検出を継続する", async () => {
       page = await context.newPage();
 
       const htmlWithError = `
@@ -449,10 +439,10 @@ describe('motion.detect JSアニメーション検出 - 統合テスト', () => 
     });
   });
 
-  describe('パフォーマンス', () => {
-    it('検出処理は3秒以内に完了する', async () => {
+  describe("パフォーマンス", () => {
+    it("検出処理は3秒以内に完了する", async () => {
       page = await context.newPage();
-      const html = loadFixture('mixed-animations-test.html');
+      const html = loadFixture("mixed-animations-test.html");
       await page.setContent(html);
 
       const service = new RuntimeAnimationDetectorService();
@@ -478,7 +468,7 @@ describe('motion.detect JSアニメーション検出 - 統合テスト', () => 
 // テストスイート: CDP Animation イベント型検証
 // =====================================================
 
-describe('CDP Animation イベント型検証', () => {
+describe("CDP Animation イベント型検証", () => {
   /**
    * CDP Animation.animationCreated イベントの型
    */
@@ -498,7 +488,7 @@ describe('CDP Animation イベント型検証', () => {
       playbackRate: number;
       startTime: number;
       currentTime: number;
-      type: 'CSSAnimation' | 'CSSTransition' | 'WebAnimation';
+      type: "CSSAnimation" | "CSSTransition" | "WebAnimation";
       source: {
         delay: number;
         duration: number;
@@ -521,128 +511,128 @@ describe('CDP Animation イベント型検証', () => {
     };
   }
 
-  it('CDPAnimationCreatedEventは必須フィールドを持つ', () => {
+  it("CDPAnimationCreatedEventは必須フィールドを持つ", () => {
     const event: CDPAnimationCreatedEvent = {
-      id: 'animation-123',
+      id: "animation-123",
     };
 
     expect(event.id).toBeDefined();
-    expect(typeof event.id).toBe('string');
+    expect(typeof event.id).toBe("string");
   });
 
-  it('CDPAnimationStartedEventは詳細なアニメーション情報を持つ', () => {
+  it("CDPAnimationStartedEventは詳細なアニメーション情報を持つ", () => {
     const event: CDPAnimationStartedEvent = {
       animation: {
-        id: 'animation-456',
-        name: 'fadeIn',
+        id: "animation-456",
+        name: "fadeIn",
         pausedState: false,
-        playState: 'running',
+        playState: "running",
         playbackRate: 1,
         startTime: 1000,
         currentTime: 500,
-        type: 'CSSAnimation',
+        type: "CSSAnimation",
         source: {
           delay: 0,
           duration: 500,
           endDelay: 0,
           iterationStart: 0,
           iterations: 1,
-          easing: 'ease-out',
-          direction: 'normal',
-          fill: 'forwards',
+          easing: "ease-out",
+          direction: "normal",
+          fill: "forwards",
           keyframesRule: {
-            name: 'fadeIn',
+            name: "fadeIn",
             keyframes: [
-              { offset: '0', easing: 'ease', style: 'opacity: 0;' },
-              { offset: '1', easing: 'ease', style: 'opacity: 1;' },
+              { offset: "0", easing: "ease", style: "opacity: 0;" },
+              { offset: "1", easing: "ease", style: "opacity: 1;" },
             ],
           },
         },
       },
     };
 
-    expect(event.animation.id).toBe('animation-456');
-    expect(event.animation.type).toBe('CSSAnimation');
+    expect(event.animation.id).toBe("animation-456");
+    expect(event.animation.type).toBe("CSSAnimation");
     expect(event.animation.source.duration).toBe(500);
     expect(event.animation.source.keyframesRule?.keyframes).toHaveLength(2);
   });
 
-  it('WebAnimationタイプを正しく識別する', () => {
+  it("WebAnimationタイプを正しく識別する", () => {
     const cssAnimationEvent: CDPAnimationStartedEvent = {
       animation: {
-        id: '1',
-        name: 'bounce',
+        id: "1",
+        name: "bounce",
         pausedState: false,
-        playState: 'running',
+        playState: "running",
         playbackRate: 1,
         startTime: 0,
         currentTime: 0,
-        type: 'CSSAnimation',
+        type: "CSSAnimation",
         source: {
           delay: 0,
           duration: 1000,
           endDelay: 0,
           iterationStart: 0,
           iterations: 1,
-          easing: 'ease',
-          direction: 'normal',
-          fill: 'none',
+          easing: "ease",
+          direction: "normal",
+          fill: "none",
         },
       },
     };
 
     const cssTransitionEvent: CDPAnimationStartedEvent = {
       animation: {
-        id: '2',
-        name: 'opacity',
+        id: "2",
+        name: "opacity",
         pausedState: false,
-        playState: 'running',
+        playState: "running",
         playbackRate: 1,
         startTime: 0,
         currentTime: 0,
-        type: 'CSSTransition',
+        type: "CSSTransition",
         source: {
           delay: 0,
           duration: 300,
           endDelay: 0,
           iterationStart: 0,
           iterations: 1,
-          easing: 'ease-in-out',
-          direction: 'normal',
-          fill: 'backwards',
+          easing: "ease-in-out",
+          direction: "normal",
+          fill: "backwards",
         },
       },
     };
 
     const webAnimationEvent: CDPAnimationStartedEvent = {
       animation: {
-        id: '3',
-        name: '',
+        id: "3",
+        name: "",
         pausedState: false,
-        playState: 'running',
+        playState: "running",
         playbackRate: 1,
         startTime: 0,
         currentTime: 0,
-        type: 'WebAnimation',
+        type: "WebAnimation",
         source: {
           delay: 0,
           duration: 2000,
           endDelay: 0,
           iterationStart: 0,
           iterations: Infinity,
-          easing: 'linear',
-          direction: 'alternate',
-          fill: 'both',
+          easing: "linear",
+          direction: "alternate",
+          fill: "both",
         },
       },
     };
 
-    expect(cssAnimationEvent.animation.type).toBe('CSSAnimation');
-    expect(cssTransitionEvent.animation.type).toBe('CSSTransition');
-    expect(webAnimationEvent.animation.type).toBe('WebAnimation');
+    expect(cssAnimationEvent.animation.type).toBe("CSSAnimation");
+    expect(cssTransitionEvent.animation.type).toBe("CSSTransition");
+    expect(webAnimationEvent.animation.type).toBe("WebAnimation");
 
     // WebAnimationは空のname
-    expect(webAnimationEvent.animation.name).toBe('');
+    expect(webAnimationEvent.animation.name).toBe("");
     // 無限反復
     expect(webAnimationEvent.animation.source.iterations).toBe(Infinity);
   });
@@ -652,7 +642,7 @@ describe('CDP Animation イベント型検証', () => {
 // テストスイート: ライブラリ検出パターン
 // =====================================================
 
-describe('JSアニメーションライブラリ検出パターン', () => {
+describe("JSアニメーションライブラリ検出パターン", () => {
   /**
    * ブラウザコンテキストでのライブラリ検出をシミュレート
    */
@@ -676,22 +666,22 @@ describe('JSアニメーションライブラリ検出パターン', () => {
     MotionValue?: unknown;
   }
 
-  it('GSAPグローバルを検出する', () => {
+  it("GSAPグローバルを検出する", () => {
     const context: LibraryDetectionContext = {
       gsap: {
-        version: '3.12.2',
+        version: "3.12.2",
         core: {},
       },
     };
 
-    const hasGsap = context.gsap !== undefined && typeof context.gsap.version === 'string';
+    const hasGsap = context.gsap !== undefined && typeof context.gsap.version === "string";
     expect(hasGsap).toBe(true);
   });
 
-  it('anime.jsグローバルを検出する', () => {
+  it("anime.jsグローバルを検出する", () => {
     const context: LibraryDetectionContext = {
       anime: {
-        version: '3.2.1',
+        version: "3.2.1",
       },
     };
 
@@ -699,10 +689,10 @@ describe('JSアニメーションライブラリ検出パターン', () => {
     expect(hasAnime).toBe(true);
   });
 
-  it('Three.jsグローバルを検出する', () => {
+  it("Three.jsグローバルを検出する", () => {
     const context: LibraryDetectionContext = {
       THREE: {
-        REVISION: '150',
+        REVISION: "150",
       },
     };
 
@@ -710,46 +700,48 @@ describe('JSアニメーションライブラリ検出パターン', () => {
     expect(hasThree).toBe(true);
   });
 
-  it('Lottieグローバルを検出する', () => {
+  it("Lottieグローバルを検出する", () => {
     const context: LibraryDetectionContext = {
       lottie: {
         loadAnimation: () => {},
       },
     };
 
-    const hasLottie = context.lottie !== undefined && typeof context.lottie.loadAnimation === 'function';
+    const hasLottie =
+      context.lottie !== undefined && typeof context.lottie.loadAnimation === "function";
     expect(hasLottie).toBe(true);
   });
 
-  it('Framer Motionマーカーを検出する', () => {
+  it("Framer Motionマーカーを検出する", () => {
     const context: LibraryDetectionContext = {
       __FRAMER_MOTION__: {
-        version: '10.0.0',
+        version: "10.0.0",
       },
       MotionValue: class {},
     };
 
-    const hasFramerMotion = context.__FRAMER_MOTION__ !== undefined || context.MotionValue !== undefined;
+    const hasFramerMotion =
+      context.__FRAMER_MOTION__ !== undefined || context.MotionValue !== undefined;
     expect(hasFramerMotion).toBe(true);
   });
 
-  it('複数ライブラリの同時検出', () => {
+  it("複数ライブラリの同時検出", () => {
     const context: LibraryDetectionContext = {
-      gsap: { version: '3.12.2' },
-      THREE: { REVISION: '150' },
+      gsap: { version: "3.12.2" },
+      THREE: { REVISION: "150" },
     };
 
     const detectedLibraries: string[] = [];
 
-    if (context.gsap) detectedLibraries.push('gsap');
-    if (context.anime) detectedLibraries.push('anime');
-    if (context.THREE) detectedLibraries.push('three');
-    if (context.lottie) detectedLibraries.push('lottie');
-    if (context.__FRAMER_MOTION__ || context.MotionValue) detectedLibraries.push('framer_motion');
+    if (context.gsap) detectedLibraries.push("gsap");
+    if (context.anime) detectedLibraries.push("anime");
+    if (context.THREE) detectedLibraries.push("three");
+    if (context.lottie) detectedLibraries.push("lottie");
+    if (context.__FRAMER_MOTION__ || context.MotionValue) detectedLibraries.push("framer_motion");
 
-    expect(detectedLibraries).toContain('gsap');
-    expect(detectedLibraries).toContain('three');
-    expect(detectedLibraries).not.toContain('anime');
+    expect(detectedLibraries).toContain("gsap");
+    expect(detectedLibraries).toContain("three");
+    expect(detectedLibraries).not.toContain("anime");
     expect(detectedLibraries).toHaveLength(2);
   });
 });

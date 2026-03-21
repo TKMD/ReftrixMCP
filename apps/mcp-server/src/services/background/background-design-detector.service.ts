@@ -14,10 +14,10 @@
  * @module services/background/background-design-detector.service
  */
 
-import { CssVariableResolver } from '@reftrix/webdesign-core';
-import { createLogger } from '../../utils/logger';
+import { CssVariableResolver } from "@reftrix/webdesign-core";
+import { createLogger } from "../../utils/logger";
 
-const logger = createLogger('BackgroundDesignDetector');
+const logger = createLogger("BackgroundDesignDetector");
 
 // =============================================================================
 // Types
@@ -25,20 +25,20 @@ const logger = createLogger('BackgroundDesignDetector');
 
 /** Background design type categories */
 export type BackgroundDesignType =
-  | 'solid_color'
-  | 'linear_gradient'
-  | 'radial_gradient'
-  | 'conic_gradient'
-  | 'mesh_gradient'
-  | 'image_background'
-  | 'pattern_background'
-  | 'video_background'
-  | 'animated_gradient'
-  | 'glassmorphism'
-  | 'noise_texture'
-  | 'svg_background'
-  | 'multi_layer'
-  | 'unknown';
+  | "solid_color"
+  | "linear_gradient"
+  | "radial_gradient"
+  | "conic_gradient"
+  | "mesh_gradient"
+  | "image_background"
+  | "pattern_background"
+  | "video_background"
+  | "animated_gradient"
+  | "glassmorphism"
+  | "noise_texture"
+  | "svg_background"
+  | "multi_layer"
+  | "unknown";
 
 /** Gradient stop with color and position */
 export interface GradientStop {
@@ -57,13 +57,13 @@ export interface ColorInfo {
   /** Whether any color has alpha transparency */
   hasAlpha: boolean;
   /** Detected color space */
-  colorSpace: 'srgb' | 'oklch' | 'p3';
+  colorSpace: "srgb" | "oklch" | "p3";
 }
 
 /** Gradient-specific information */
 export interface GradientInfo {
   /** Gradient type */
-  type: 'linear' | 'radial' | 'conic';
+  type: "linear" | "radial" | "conic";
   /** Angle in degrees for linear gradients */
   angle?: number;
   /** Color stops with positions */
@@ -105,7 +105,7 @@ export interface PerformanceInfo {
   /** Whether changes trigger repaint */
   triggersPaint: boolean;
   /** Estimated rendering impact */
-  estimatedImpact: 'low' | 'medium' | 'high';
+  estimatedImpact: "low" | "medium" | "high";
 }
 
 /** Single detected background design */
@@ -176,35 +176,102 @@ const MAX_INPUT_SIZE_BYTES = 5 * 1024 * 1024;
 
 /** Named CSS colors (subset for detection) */
 const NAMED_COLORS: ReadonlySet<string> = new Set([
-  'transparent', 'currentcolor',
-  'black', 'white', 'red', 'green', 'blue', 'yellow', 'orange', 'purple',
-  'pink', 'cyan', 'magenta', 'lime', 'aqua', 'navy', 'teal', 'maroon',
-  'olive', 'silver', 'gray', 'grey', 'fuchsia', 'coral', 'salmon',
-  'crimson', 'darkcyan', 'darkblue', 'darkgreen', 'darkred', 'darkgray',
-  'lightgray', 'lightblue', 'lightgreen', 'lightyellow', 'beige', 'ivory',
-  'gold', 'indigo', 'violet', 'plum', 'khaki', 'lavender', 'linen',
-  'wheat', 'tomato', 'turquoise', 'peru', 'orchid', 'sienna', 'tan',
-  'thistle', 'snow', 'seashell', 'mintcream', 'aliceblue', 'ghostwhite',
-  'whitesmoke', 'honeydew', 'azure', 'floralwhite', 'oldlace', 'cornsilk',
-  'papayawhip', 'blanchedalmond', 'bisque', 'moccasin', 'navajowhite',
-  'peachpuff', 'mistyrose', 'antiquewhite', 'lemonchiffon',
+  "transparent",
+  "currentcolor",
+  "black",
+  "white",
+  "red",
+  "green",
+  "blue",
+  "yellow",
+  "orange",
+  "purple",
+  "pink",
+  "cyan",
+  "magenta",
+  "lime",
+  "aqua",
+  "navy",
+  "teal",
+  "maroon",
+  "olive",
+  "silver",
+  "gray",
+  "grey",
+  "fuchsia",
+  "coral",
+  "salmon",
+  "crimson",
+  "darkcyan",
+  "darkblue",
+  "darkgreen",
+  "darkred",
+  "darkgray",
+  "lightgray",
+  "lightblue",
+  "lightgreen",
+  "lightyellow",
+  "beige",
+  "ivory",
+  "gold",
+  "indigo",
+  "violet",
+  "plum",
+  "khaki",
+  "lavender",
+  "linen",
+  "wheat",
+  "tomato",
+  "turquoise",
+  "peru",
+  "orchid",
+  "sienna",
+  "tan",
+  "thistle",
+  "snow",
+  "seashell",
+  "mintcream",
+  "aliceblue",
+  "ghostwhite",
+  "whitesmoke",
+  "honeydew",
+  "azure",
+  "floralwhite",
+  "oldlace",
+  "cornsilk",
+  "papayawhip",
+  "blanchedalmond",
+  "bisque",
+  "moccasin",
+  "navajowhite",
+  "peachpuff",
+  "mistyrose",
+  "antiquewhite",
+  "lemonchiffon",
 ]);
 
 /** Image file extensions */
 const IMAGE_EXTENSIONS: ReadonlySet<string> = new Set([
-  '.jpg', '.jpeg', '.png', '.gif', '.webp', '.avif', '.bmp', '.tiff',
+  ".jpg",
+  ".jpeg",
+  ".png",
+  ".gif",
+  ".webp",
+  ".avif",
+  ".bmp",
+  ".tiff",
 ]);
 
 /** Direction keywords to angle mapping */
 const DIRECTION_ANGLE_MAP: Record<string, number> = {
-  'to top': 0,
-  'to top right': 45,
-  'to right': 90,
-  'to bottom right': 135,
-  'to bottom': 180,
-  'to bottom left': 225,
-  'to left': 270,
-  'to top left': 315,
+  "to top": 0,
+  "to top right": 45,
+  "to right": 90,
+  "to bottom right": 135,
+  "to bottom": 180,
+  "to bottom left": 225,
+  "to left": 270,
+  "to top left": 315,
 };
 
 // =============================================================================
@@ -219,7 +286,7 @@ interface ParsedRule {
 
 /** Parsed gradient match */
 interface GradientMatch {
-  type: 'linear' | 'radial' | 'conic';
+  type: "linear" | "radial" | "conic";
   fullMatch: string;
   args: string;
   isRepeating: boolean;
@@ -235,7 +302,7 @@ interface GradientMatch {
  * @returns CSS without comments
  */
 function removeComments(css: string): string {
-  return css.replace(/\/\*[\s\S]*?\*\//g, '');
+  return css.replace(/\/\*[\s\S]*?\*\//g, "");
 }
 
 /**
@@ -254,7 +321,7 @@ function extractCSSFromHTML(html: string): string {
     }
   }
 
-  return parts.join('\n');
+  return parts.join("\n");
 }
 
 /**
@@ -277,12 +344,16 @@ function extractInlineStylesFromHTML(html: string): string {
     if (!styleValue) continue;
 
     // Only include if it has background-related properties
-    if (!/background(?:-color|-image|-size|-position|-repeat|-attachment|-blend-mode)?|backdrop-filter/i.test(styleValue)) {
+    if (
+      !/background(?:-color|-image|-size|-position|-repeat|-attachment|-blend-mode)?|backdrop-filter/i.test(
+        styleValue
+      )
+    ) {
       continue;
     }
 
     // Deduplicate identical style values
-    const normalized = styleValue.replace(/\s+/g, ' ').toLowerCase();
+    const normalized = styleValue.replace(/\s+/g, " ").toLowerCase();
     if (seen.has(normalized)) continue;
     seen.add(normalized);
 
@@ -290,7 +361,7 @@ function extractInlineStylesFromHTML(html: string): string {
     index++;
   }
 
-  return parts.join('\n');
+  return parts.join("\n");
 }
 
 /**
@@ -311,11 +382,15 @@ function parseCSSRules(css: string): ParsedRule[] {
   let match: RegExpExecArray | null;
 
   while ((match = ruleRegex.exec(expanded)) !== null) {
-    const selector = match[1]?.trim() ?? '';
-    const block = match[2] ?? '';
+    const selector = match[1]?.trim() ?? "";
+    const block = match[2] ?? "";
 
     // Skip at-rules that aren't selectors (e.g. @keyframes name)
-    if (selector.startsWith('@') && !selector.startsWith('@media') && !selector.startsWith('@supports')) {
+    if (
+      selector.startsWith("@") &&
+      !selector.startsWith("@media") &&
+      !selector.startsWith("@supports")
+    ) {
       continue;
     }
 
@@ -350,7 +425,7 @@ function expandAtRules(css: string): string {
     replacements.push({
       start: match.index,
       end: match.index + match[0].length,
-      inner: match[1] ?? '',
+      inner: match[1] ?? "",
     });
   }
 
@@ -370,10 +445,10 @@ function expandAtRules(css: string): string {
  */
 function parseDeclarations(block: string): Map<string, string> {
   const props = new Map<string, string>();
-  const pairs = block.split(';');
+  const pairs = block.split(";");
 
   for (const pair of pairs) {
-    const colonIndex = pair.indexOf(':');
+    const colonIndex = pair.indexOf(":");
     if (colonIndex > 0) {
       const property = pair.substring(0, colonIndex).trim().toLowerCase();
       const value = pair.substring(colonIndex + 1).trim();
@@ -399,7 +474,7 @@ function extractGradientMatches(value: string): GradientMatch[] {
 
   while ((regexMatch = gradientRegex.exec(value)) !== null) {
     const isRepeating = !!regexMatch[1];
-    const type = regexMatch[2] as 'linear' | 'radial' | 'conic';
+    const type = regexMatch[2] as "linear" | "radial" | "conic";
     const startIndex = regexMatch.index;
     const openParenIndex = startIndex + regexMatch[0].length - 1;
 
@@ -407,8 +482,8 @@ function extractGradientMatches(value: string): GradientMatch[] {
     let depth = 1;
     let i = openParenIndex + 1;
     while (i < value.length && depth > 0) {
-      if (value[i] === '(') depth++;
-      if (value[i] === ')') depth--;
+      if (value[i] === "(") depth++;
+      if (value[i] === ")") depth--;
       i++;
     }
 
@@ -433,14 +508,14 @@ function extractGradientMatches(value: string): GradientMatch[] {
 function splitGradientArgs(args: string): string[] {
   const parts: string[] = [];
   let depth = 0;
-  let current = '';
+  let current = "";
 
   for (const char of args) {
-    if (char === '(') depth++;
-    if (char === ')') depth--;
-    if (char === ',' && depth === 0) {
+    if (char === "(") depth++;
+    if (char === ")") depth--;
+    if (char === "," && depth === 0) {
       parts.push(current.trim());
-      current = '';
+      current = "";
     } else {
       current += char;
     }
@@ -466,9 +541,15 @@ function parseLinearAngle(firstArg: string): number | undefined {
     let val = parseFloat(angleMatch[1]!);
     const unit = angleMatch[2];
     switch (unit) {
-      case 'grad': val = (val * 360) / 400; break;
-      case 'rad': val = (val * 180) / Math.PI; break;
-      case 'turn': val = val * 360; break;
+      case "grad":
+        val = (val * 360) / 400;
+        break;
+      case "rad":
+        val = (val * 180) / Math.PI;
+        break;
+      case "turn":
+        val = val * 360;
+        break;
     }
     return val;
   }
@@ -492,12 +573,12 @@ function isDirectionOrPosition(part: string): boolean {
   const lower = part.toLowerCase().trim();
   return (
     /^(-?\d+(?:\.\d+)?)(deg|grad|rad|turn)$/.test(lower) ||
-    lower.startsWith('to ') ||
-    lower.startsWith('from ') ||
-    lower === 'circle' ||
-    lower === 'ellipse' ||
+    lower.startsWith("to ") ||
+    lower.startsWith("from ") ||
+    lower === "circle" ||
+    lower === "ellipse" ||
     /^(circle|ellipse)\s/.test(lower) ||
-    lower.includes(' at ')
+    lower.includes(" at ")
   );
 }
 
@@ -534,7 +615,7 @@ function parseColorStops(args: string): GradientStop[] {
     }
 
     // Extract color part (remove position)
-    const colorPart = part.replace(/\s+\d+(?:\.\d+)?%\s*$/, '').trim();
+    const colorPart = part.replace(/\s+\d+(?:\.\d+)?%\s*$/, "").trim();
 
     if (colorPart) {
       stops.push({ color: colorPart, position });
@@ -556,9 +637,9 @@ function parseColorStops(args: string): GradientStop[] {
 function colorHasAlpha(value: string): boolean {
   const lower = value.toLowerCase();
   return (
-    lower.includes('rgba(') ||
-    lower.includes('hsla(') ||
-    lower.includes('oklch(') ||
+    lower.includes("rgba(") ||
+    lower.includes("hsla(") ||
+    lower.includes("oklch(") ||
     /transparent/i.test(lower) ||
     // Modern CSS color functions with alpha: rgb(r g b / a) or hsl(h s l / a)
     /(?:rgb|hsl)\([^)]*\/\s*[\d.]+/.test(lower)
@@ -570,11 +651,11 @@ function colorHasAlpha(value: string): boolean {
  * @param value - CSS color value
  * @returns Detected color space
  */
-function detectColorSpace(value: string): 'srgb' | 'oklch' | 'p3' {
+function detectColorSpace(value: string): "srgb" | "oklch" | "p3" {
   const lower = value.toLowerCase();
-  if (lower.includes('oklch(') || lower.includes('oklch ')) return 'oklch';
-  if (lower.includes('color(display-p3') || lower.includes('color(p3')) return 'p3';
-  return 'srgb';
+  if (lower.includes("oklch(") || lower.includes("oklch ")) return "oklch";
+  if (lower.includes("color(display-p3") || lower.includes("color(p3")) return "p3";
+  return "srgb";
 }
 
 /**
@@ -612,8 +693,8 @@ function extractColorsFromValue(value: string): string[] {
   // Named colors (only at word boundaries, not inside function names)
   const words = value.split(/[\s,()]+/);
   for (const word of words) {
-    const lw = word.toLowerCase().replace(/;$/, '');
-    if (NAMED_COLORS.has(lw) && lw !== 'transparent' && lw !== 'currentcolor') {
+    const lw = word.toLowerCase().replace(/;$/, "");
+    if (NAMED_COLORS.has(lw) && lw !== "transparent" && lw !== "currentcolor") {
       colors.push(lw);
     }
   }
@@ -645,20 +726,15 @@ function isVideoBackground(
 
   // Check if the selector targets a video-related element
   const selectorLower = selector.toLowerCase();
-  const hasVideoSelector = (
-    selectorLower.includes('video') ||
-    selectorLower.includes('bg-video') ||
-    selectorLower.includes('background-video')
-  );
+  const hasVideoSelector =
+    selectorLower.includes("video") ||
+    selectorLower.includes("bg-video") ||
+    selectorLower.includes("background-video");
 
   // Check for full-coverage positioning
-  const hasPositioning = (
-    props.get('position') === 'absolute' || props.get('position') === 'fixed'
-  );
-  const hasFullSize = (
-    props.get('width') === '100%' && props.get('height') === '100%'
-  );
-  const hasObjectFit = props.has('object-fit');
+  const hasPositioning = props.get("position") === "absolute" || props.get("position") === "fixed";
+  const hasFullSize = props.get("width") === "100%" && props.get("height") === "100%";
+  const hasObjectFit = props.has("object-fit");
 
   return hasVideoSelector && (hasPositioning || hasFullSize || hasObjectFit);
 }
@@ -671,9 +747,9 @@ function isVideoBackground(
 function isNoiseTexture(value: string): boolean {
   const lower = value.toLowerCase();
   return (
-    lower.includes('feturbulence') ||
-    lower.includes('fractalNoise'.toLowerCase()) ||
-    (lower.includes('url(') && lower.includes('noise'))
+    lower.includes("feturbulence") ||
+    lower.includes("fractalNoise".toLowerCase()) ||
+    (lower.includes("url(") && lower.includes("noise"))
   );
 }
 
@@ -685,8 +761,8 @@ function isNoiseTexture(value: string): boolean {
 function isSVGBackground(value: string): boolean {
   const lower = value.toLowerCase();
   return (
-    lower.includes('.svg') ||
-    lower.includes('data:image/svg+xml') ||
+    lower.includes(".svg") ||
+    lower.includes("data:image/svg+xml") ||
     lower.includes("data:image/svg+xml,")
   );
 }
@@ -698,7 +774,7 @@ function isSVGBackground(value: string): boolean {
  */
 function isImageBackground(value: string): boolean {
   const lower = value.toLowerCase();
-  if (!lower.includes('url(')) return false;
+  if (!lower.includes("url(")) return false;
 
   // Check for image file extensions
   for (const ext of IMAGE_EXTENSIONS) {
@@ -706,7 +782,7 @@ function isImageBackground(value: string): boolean {
   }
 
   // Check for data URI images (non-SVG)
-  if (lower.includes('data:image/') && !lower.includes('data:image/svg')) {
+  if (lower.includes("data:image/") && !lower.includes("data:image/svg")) {
     return true;
   }
 
@@ -720,14 +796,15 @@ function isImageBackground(value: string): boolean {
  * @returns True if pattern background detected
  */
 function isPatternBackground(value: string, props: Map<string, string>): boolean {
-  if (!value.toLowerCase().includes('url(')) return false;
+  if (!value.toLowerCase().includes("url(")) return false;
 
-  const repeat = props.get('background-repeat')?.toLowerCase() ?? '';
-  const size = props.get('background-size')?.toLowerCase() ?? '';
+  const repeat = props.get("background-repeat")?.toLowerCase() ?? "";
+  const size = props.get("background-size")?.toLowerCase() ?? "";
 
   // Check for explicit repeat + small size
-  const hasRepeat = repeat === 'repeat' || repeat === 'repeat-x' || repeat === 'repeat-y';
-  const hasSmallSize = /\d+px\s+\d+px/.test(size) && !size.includes('cover') && !size.includes('contain');
+  const hasRepeat = repeat === "repeat" || repeat === "repeat-x" || repeat === "repeat-y";
+  const hasSmallSize =
+    /\d+px\s+\d+px/.test(size) && !size.includes("cover") && !size.includes("contain");
 
   return hasRepeat && hasSmallSize;
 }
@@ -738,7 +815,7 @@ function isPatternBackground(value: string, props: Map<string, string>): boolean
  * @returns Blur radius if glassmorphism detected, 0 otherwise
  */
 function detectGlassmorphismBlur(props: Map<string, string>): number {
-  const backdrop = props.get('backdrop-filter') ?? props.get('-webkit-backdrop-filter') ?? '';
+  const backdrop = props.get("backdrop-filter") ?? props.get("-webkit-backdrop-filter") ?? "";
   const blurMatch = backdrop.match(/blur\((\d+(?:\.\d+)?)(px)?\)/);
 
   if (blurMatch) {
@@ -767,14 +844,14 @@ function countBackgroundLayers(value: string): number {
  */
 function isMeshGradient(value: string): boolean {
   const gradients = extractGradientMatches(value);
-  const radialGradients = gradients.filter((g) => g.type === 'radial');
+  const radialGradients = gradients.filter((g) => g.type === "radial");
 
   if (radialGradients.length < 3) return false;
 
   // Check if most radial gradients fade to transparent
   let transparentCount = 0;
   for (const g of radialGradients) {
-    if (g.args.toLowerCase().includes('transparent')) {
+    if (g.args.toLowerCase().includes("transparent")) {
       transparentCount++;
     }
   }
@@ -789,7 +866,7 @@ function isMeshGradient(value: string): boolean {
  */
 function detectAnimationInfo(props: Map<string, string>): AnimationInfo | undefined {
   // Check for animation shorthand
-  const animationShorthand = props.get('animation');
+  const animationShorthand = props.get("animation");
   if (animationShorthand) {
     const parts = animationShorthand.split(/\s+/);
     const info: AnimationInfo = { isAnimated: true };
@@ -799,9 +876,18 @@ function detectAnimationInfo(props: Map<string, string>): AnimationInfo | undefi
         if (!info.duration) {
           info.duration = part;
         }
-      } else if (/^(ease|linear|ease-in|ease-out|ease-in-out|cubic-bezier\([^)]+\)|steps\([^)]+\))$/.test(part)) {
+      } else if (
+        /^(ease|linear|ease-in|ease-out|ease-in-out|cubic-bezier\([^)]+\)|steps\([^)]+\))$/.test(
+          part
+        )
+      ) {
         info.easing = part;
-      } else if (!/^(infinite|\d+)$/.test(part) && !/^(normal|reverse|alternate|alternate-reverse)$/.test(part) && !/^(none|forwards|backwards|both)$/.test(part) && !/^\d+(\.\d+)?(s|ms)$/.test(part)) {
+      } else if (
+        !/^(infinite|\d+)$/.test(part) &&
+        !/^(normal|reverse|alternate|alternate-reverse)$/.test(part) &&
+        !/^(none|forwards|backwards|both)$/.test(part) &&
+        !/^\d+(\.\d+)?(s|ms)$/.test(part)
+      ) {
         if (!info.animationName) {
           info.animationName = part;
         }
@@ -812,32 +898,32 @@ function detectAnimationInfo(props: Map<string, string>): AnimationInfo | undefi
   }
 
   // Check for individual animation properties
-  const animName = props.get('animation-name');
-  if (animName && animName !== 'none') {
+  const animName = props.get("animation-name");
+  if (animName && animName !== "none") {
     const info: AnimationInfo = {
       isAnimated: true,
       animationName: animName,
     };
-    const dur = props.get('animation-duration');
+    const dur = props.get("animation-duration");
     if (dur) info.duration = dur;
-    const timing = props.get('animation-timing-function');
+    const timing = props.get("animation-timing-function");
     if (timing) info.easing = timing;
     return info;
   }
 
   // Check for transition on background
-  const transition = props.get('transition');
+  const transition = props.get("transition");
   if (transition) {
     const lower = transition.toLowerCase();
-    if (lower.includes('background') || lower.includes('all')) {
+    if (lower.includes("background") || lower.includes("all")) {
       return { isAnimated: true };
     }
   }
 
-  const transitionProp = props.get('transition-property');
+  const transitionProp = props.get("transition-property");
   if (transitionProp) {
     const lower = transitionProp.toLowerCase();
-    if (lower.includes('background') || lower.includes('all')) {
+    if (lower.includes("background") || lower.includes("all")) {
       return { isAnimated: true };
     }
   }
@@ -858,26 +944,26 @@ function assessPerformance(
   layerCount: number,
   props: Map<string, string>
 ): PerformanceInfo {
-  const hasWillChange = props.has('will-change');
-  const hasTransform = props.has('transform');
-  const hasContain = props.get('contain')?.includes('paint') ?? false;
+  const hasWillChange = props.has("will-change");
+  const hasTransform = props.has("transform");
+  const hasContain = props.get("contain")?.includes("paint") ?? false;
   const gpuAccelerated = hasWillChange || hasTransform || hasContain;
 
   // Most background changes trigger paint
-  const triggersPaint = designType !== 'solid_color';
+  const triggersPaint = designType !== "solid_color";
 
   // Estimate impact
-  let impact: 'low' | 'medium' | 'high' = 'low';
+  let impact: "low" | "medium" | "high" = "low";
 
   if (blurRadius > 0 || layerCount > 3 || gradientStopCount > 10) {
-    impact = 'high';
+    impact = "high";
   } else if (
-    designType === 'animated_gradient' ||
-    designType === 'video_background' ||
+    designType === "animated_gradient" ||
+    designType === "video_background" ||
     layerCount > 1 ||
     gradientStopCount > 5
   ) {
-    impact = 'medium';
+    impact = "medium";
   }
 
   return { gpuAccelerated, triggersPaint, estimatedImpact: impact };
@@ -898,36 +984,40 @@ function generateName(
   colorInfo: ColorInfo
 ): string {
   // Clean selector for name (take first class or element)
-  const selectorPart = selector.replace(/[.#[\]:>+~ ]/g, ' ').trim().split(/\s+/)[0] ?? 'element';
+  const selectorPart =
+    selector
+      .replace(/[.#[\]:>+~ ]/g, " ")
+      .trim()
+      .split(/\s+/)[0] ?? "element";
 
   switch (designType) {
-    case 'solid_color':
+    case "solid_color":
       return `${selectorPart} solid color background`;
-    case 'linear_gradient': {
-      const angle = gradientInfo?.angle !== undefined ? `, ${gradientInfo.angle}deg` : '';
+    case "linear_gradient": {
+      const angle = gradientInfo?.angle !== undefined ? `, ${gradientInfo.angle}deg` : "";
       return `${selectorPart} linear gradient${angle}`;
     }
-    case 'radial_gradient':
+    case "radial_gradient":
       return `${selectorPart} radial gradient`;
-    case 'conic_gradient':
+    case "conic_gradient":
       return `${selectorPart} conic gradient`;
-    case 'mesh_gradient':
+    case "mesh_gradient":
       return `${selectorPart} mesh gradient (${colorInfo.colorCount} colors)`;
-    case 'image_background':
+    case "image_background":
       return `${selectorPart} image background`;
-    case 'pattern_background':
+    case "pattern_background":
       return `${selectorPart} pattern background`;
-    case 'svg_background':
+    case "svg_background":
       return `${selectorPart} SVG background`;
-    case 'noise_texture':
+    case "noise_texture":
       return `${selectorPart} noise texture`;
-    case 'video_background':
+    case "video_background":
       return `${selectorPart} video background`;
-    case 'animated_gradient':
+    case "animated_gradient":
       return `${selectorPart} animated gradient`;
-    case 'glassmorphism':
+    case "glassmorphism":
       return `${selectorPart} glassmorphism`;
-    case 'multi_layer':
+    case "multi_layer":
       return `${selectorPart} multi-layer background`;
     default:
       return `${selectorPart} background`;
@@ -941,10 +1031,18 @@ function generateName(
  */
 function reconstructCSS(props: Map<string, string>): string {
   const bgProps = [
-    'background', 'background-color', 'background-image', 'background-size',
-    'background-repeat', 'background-position', 'background-blend-mode',
-    'backdrop-filter', '-webkit-backdrop-filter', 'opacity',
-    'mix-blend-mode', 'will-change',
+    "background",
+    "background-color",
+    "background-image",
+    "background-size",
+    "background-repeat",
+    "background-position",
+    "background-blend-mode",
+    "backdrop-filter",
+    "-webkit-backdrop-filter",
+    "opacity",
+    "mix-blend-mode",
+    "will-change",
   ];
 
   const lines: string[] = [];
@@ -955,7 +1053,7 @@ function reconstructCSS(props: Map<string, string>): string {
     }
   }
 
-  return lines.join('\n');
+  return lines.join("\n");
 }
 
 // =============================================================================
@@ -979,13 +1077,13 @@ function classifyRule(
   const props = rule.properties;
 
   // Get all background-related values
-  const bgValue = props.get('background') ?? '';
-  const bgColor = props.get('background-color') ?? '';
-  const bgImage = props.get('background-image') ?? '';
-  const combinedValue = [bgValue, bgColor, bgImage].filter(Boolean).join(' ');
+  const bgValue = props.get("background") ?? "";
+  const bgColor = props.get("background-color") ?? "";
+  const bgImage = props.get("background-image") ?? "";
+  const combinedValue = [bgValue, bgColor, bgImage].filter(Boolean).join(" ");
 
   // Check for video background first (doesn't need background CSS properties)
-  const hasBackdropFilter = props.has('backdrop-filter') || props.has('-webkit-backdrop-filter');
+  const hasBackdropFilter = props.has("backdrop-filter") || props.has("-webkit-backdrop-filter");
   const isVideo = isVideoBackground(htmlContent, rule.selector, props);
 
   if (!combinedValue && !hasBackdropFilter && !isVideo) {
@@ -994,9 +1092,9 @@ function classifyRule(
 
   // Extract visual properties
   const blurRadius = detectGlassmorphismBlur(props);
-  const opacityStr = props.get('opacity');
+  const opacityStr = props.get("opacity");
   const opacity = opacityStr ? parseFloat(opacityStr) : 1;
-  const blendMode = props.get('mix-blend-mode') ?? props.get('background-blend-mode') ?? 'normal';
+  const blendMode = props.get("mix-blend-mode") ?? props.get("background-blend-mode") ?? "normal";
   const primaryBgValue = bgValue || bgImage || bgColor;
   const layerCount = primaryBgValue ? countBackgroundLayers(primaryBgValue) : 1;
 
@@ -1022,43 +1120,43 @@ function classifyRule(
   }
 
   // Classify design type
-  let designType: BackgroundDesignType = 'unknown';
+  let designType: BackgroundDesignType = "unknown";
   let gradientInfo: GradientInfo | undefined;
   let hasOverlay = false;
   let confidence = 0.5;
 
   // Priority classification
   if (isVideo) {
-    designType = 'video_background';
+    designType = "video_background";
     confidence = 0.9;
   } else if (isNoiseTexture(combinedValue)) {
-    designType = 'noise_texture';
+    designType = "noise_texture";
     confidence = 0.85;
   } else if (blurRadius > 0 && hasAlpha) {
-    designType = 'glassmorphism';
+    designType = "glassmorphism";
     confidence = 0.9;
   } else if (isMeshGradient(primaryBgValue)) {
-    designType = 'mesh_gradient';
+    designType = "mesh_gradient";
     confidence = 0.85;
 
     // For mesh gradient, use the first radial gradient info
-    const firstRadial = gradientMatches.find((g) => g.type === 'radial');
+    const firstRadial = gradientMatches.find((g) => g.type === "radial");
     if (firstRadial) {
       gradientInfo = {
-        type: 'radial',
+        type: "radial",
         stops: parseColorStops(firstRadial.args),
         repeating: firstRadial.isRepeating,
       };
     }
   } else if (gradientMatches.length > 0 && layerCount >= 2 && !isMeshGradient(primaryBgValue)) {
     // Multi-layer: gradient + something else (or multiple backgrounds)
-    const hasUrl = combinedValue.toLowerCase().includes('url(');
+    const hasUrl = combinedValue.toLowerCase().includes("url(");
     if (hasUrl || (gradientMatches.length >= 1 && layerCount >= 2)) {
-      designType = 'multi_layer';
+      designType = "multi_layer";
       confidence = 0.85;
       hasOverlay = gradientMatches.some((g) => {
         const lower = g.args.toLowerCase();
-        return lower.includes('rgba(') || lower.includes('transparent');
+        return lower.includes("rgba(") || lower.includes("transparent");
       });
     }
   } else if (gradientMatches.length > 0) {
@@ -1067,18 +1165,18 @@ function classifyRule(
 
     // Check if animated
     if (hasBackgroundAnimation) {
-      designType = 'animated_gradient';
+      designType = "animated_gradient";
       confidence = 0.9;
     } else {
       switch (gm.type) {
-        case 'linear':
-          designType = 'linear_gradient';
+        case "linear":
+          designType = "linear_gradient";
           break;
-        case 'radial':
-          designType = 'radial_gradient';
+        case "radial":
+          designType = "radial_gradient";
           break;
-        case 'conic':
-          designType = 'conic_gradient';
+        case "conic":
+          designType = "conic_gradient";
           break;
       }
       confidence = 0.9;
@@ -1092,7 +1190,7 @@ function classifyRule(
       repeating: gm.isRepeating,
     };
 
-    if (gm.type === 'linear') {
+    if (gm.type === "linear") {
       const parts = splitGradientArgs(gm.args);
       if (parts.length > 0) {
         const angle = parseLinearAngle(parts[0]!);
@@ -1102,25 +1200,25 @@ function classifyRule(
       }
     }
   } else if (isPatternBackground(bgValue || bgImage, props)) {
-    designType = 'pattern_background';
+    designType = "pattern_background";
     confidence = 0.8;
   } else if (isSVGBackground(combinedValue)) {
-    designType = 'svg_background';
+    designType = "svg_background";
     confidence = 0.85;
   } else if (isImageBackground(combinedValue)) {
-    designType = 'image_background';
+    designType = "image_background";
     confidence = 0.85;
   } else if (bgColor || bgValue) {
     // Solid color: no gradients, no images
-    const hasUrl = combinedValue.toLowerCase().includes('url(');
+    const hasUrl = combinedValue.toLowerCase().includes("url(");
     const hasGradient = gradientMatches.length > 0;
     if (!hasUrl && !hasGradient) {
-      designType = 'solid_color';
+      designType = "solid_color";
       confidence = 0.95;
     }
   }
 
-  if (designType === 'unknown') {
+  if (designType === "unknown") {
     return null;
   }
 
@@ -1183,14 +1281,14 @@ function extractBackgroundKeyframes(css: string): Set<string> {
 
   while ((match = keyframeRegex.exec(cleaned)) !== null) {
     const name = match[1];
-    const body = match[2] ?? '';
+    const body = match[2] ?? "";
     // Check if the keyframe affects background properties
     if (
-      body.includes('background') ||
-      body.includes('gradient') ||
-      body.includes('background-position') ||
-      body.includes('background-color') ||
-      body.includes('background-size')
+      body.includes("background") ||
+      body.includes("gradient") ||
+      body.includes("background-position") ||
+      body.includes("background-color") ||
+      body.includes("background-size")
     ) {
       if (name) {
         names.add(name);
@@ -1219,12 +1317,15 @@ class BackgroundDesignDetectorServiceImpl implements BackgroundDesignDetectorSer
     const startTime = performance.now();
 
     // Validate input size (SEC H-1)
-    const totalSize = (input.cssContent?.length ?? 0)
-      + (input.htmlContent?.length ?? 0)
-      + (input.externalCssContent?.length ?? 0);
+    const totalSize =
+      (input.cssContent?.length ?? 0) +
+      (input.htmlContent?.length ?? 0) +
+      (input.externalCssContent?.length ?? 0);
 
     if (totalSize > MAX_INPUT_SIZE_BYTES) {
-      throw new Error(`Input size ${totalSize} bytes exceeds maximum of ${MAX_INPUT_SIZE_BYTES} bytes (5MB)`);
+      throw new Error(
+        `Input size ${totalSize} bytes exceeds maximum of ${MAX_INPUT_SIZE_BYTES} bytes (5MB)`
+      );
     }
 
     // Handle empty input
@@ -1234,20 +1335,20 @@ class BackgroundDesignDetectorServiceImpl implements BackgroundDesignDetectorSer
 
     try {
       // Combine all CSS sources
-      let combinedCSS = input.cssContent ?? '';
+      let combinedCSS = input.cssContent ?? "";
 
       // Extract CSS from HTML (<style> tags + inline style attributes)
       if (input.htmlContent) {
         const htmlCSS = extractCSSFromHTML(input.htmlContent);
-        combinedCSS += '\n' + htmlCSS;
+        combinedCSS += "\n" + htmlCSS;
 
         const inlineCSS = extractInlineStylesFromHTML(input.htmlContent);
-        combinedCSS += '\n' + inlineCSS;
+        combinedCSS += "\n" + inlineCSS;
       }
 
       // Append external CSS
       if (input.externalCssContent) {
-        combinedCSS += '\n' + input.externalCssContent;
+        combinedCSS += "\n" + input.externalCssContent;
       }
 
       // Resolve CSS variables (var(--name) → actual values)
@@ -1291,7 +1392,7 @@ class BackgroundDesignDetectorServiceImpl implements BackgroundDesignDetectorSer
       const seen = new Set<string>();
       const backgrounds: BackgroundDesignDetection[] = [];
       for (const bg of rawBackgrounds) {
-        const key = `${bg.designType}::${bg.cssValue.replace(/\s+/g, ' ').toLowerCase()}`;
+        const key = `${bg.designType}::${bg.cssValue.replace(/\s+/g, " ").toLowerCase()}`;
         if (!seen.has(key)) {
           seen.add(key);
           backgrounds.push(bg);
@@ -1300,7 +1401,7 @@ class BackgroundDesignDetectorServiceImpl implements BackgroundDesignDetectorSer
 
       const processingTimeMs = performance.now() - startTime;
 
-      logger.debug('Detection complete', {
+      logger.debug("Detection complete", {
         totalDetected: backgrounds.length,
         processingTimeMs: processingTimeMs.toFixed(1),
         types: backgrounds.map((b) => b.designType),
@@ -1313,11 +1414,11 @@ class BackgroundDesignDetectorServiceImpl implements BackgroundDesignDetectorSer
       };
     } catch (error) {
       // Re-throw size validation errors
-      if (error instanceof Error && error.message.includes('exceeds maximum')) {
+      if (error instanceof Error && error.message.includes("exceeds maximum")) {
         throw error;
       }
 
-      logger.error('Detection failed', error);
+      logger.error("Detection failed", error);
 
       return {
         backgrounds: [],

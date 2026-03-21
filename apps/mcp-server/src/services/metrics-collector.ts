@@ -8,9 +8,9 @@
  * Prometheus形式でエクスポートする機能を提供します。
  */
 
-import { Logger } from '../utils/logger';
+import { Logger } from "../utils/logger";
 
-const logger = new Logger('MetricsCollector');
+const logger = new Logger("MetricsCollector");
 
 /**
  * ヒストグラムデータ構造
@@ -197,7 +197,7 @@ export class MetricsCollectorService {
       this.setMapEntry(this.requestsByStatus, status, current + 1);
     }
 
-    logger.debug('Request counted', { endpoint, method, status });
+    logger.debug("Request counted", { endpoint, method, status });
   }
 
   /**
@@ -218,7 +218,7 @@ export class MetricsCollectorService {
       this.setMapEntry(this.errorsByType, errorType, current + 1);
     }
 
-    logger.debug('Error counted', { endpoint, errorType });
+    logger.debug("Error counted", { endpoint, errorType });
   }
 
   /**
@@ -237,7 +237,7 @@ export class MetricsCollectorService {
       }
     }
 
-    logger.debug('Response time recorded', { duration, endpoint });
+    logger.debug("Response time recorded", { duration, endpoint });
   }
 
   /**
@@ -246,7 +246,7 @@ export class MetricsCollectorService {
   incrementActiveConnections(): void {
     this.activeConnections.value++;
 
-    logger.debug('Active connections incremented', { value: this.activeConnections.value });
+    logger.debug("Active connections incremented", { value: this.activeConnections.value });
   }
 
   /**
@@ -255,7 +255,7 @@ export class MetricsCollectorService {
   decrementActiveConnections(): void {
     this.activeConnections.value = Math.max(0, this.activeConnections.value - 1);
 
-    logger.debug('Active connections decremented', { value: this.activeConnections.value });
+    logger.debug("Active connections decremented", { value: this.activeConnections.value });
   }
 
   /**
@@ -344,7 +344,7 @@ export class MetricsCollectorService {
    * Prometheus形式でメトリクスをエクスポート
    */
   exportPrometheus(): string {
-    let output = '';
+    let output = "";
 
     // リクエスト数
     output += `# HELP http_requests_total Total HTTP requests\n`;
@@ -412,7 +412,7 @@ export class MetricsCollectorService {
     // Map エビクションカウンターもリセット
     this.mapEvictions = 0;
 
-    logger.debug('Metrics reset');
+    logger.debug("Metrics reset");
   }
 
   /**

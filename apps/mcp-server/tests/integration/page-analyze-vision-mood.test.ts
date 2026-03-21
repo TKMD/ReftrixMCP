@@ -16,8 +16,8 @@
  * -  (page.analyze visualFeatures)
  * - apps/mcp-server/src/tools/page/analyze.ts
  */
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { z } from 'zod';
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { z } from "zod";
 
 // =============================================================================
 // インポート（動的インポートで TDD RED Phase を実現）
@@ -33,49 +33,53 @@ import { z } from 'zod';
  * 有効なMoodタイプ
  */
 const VALID_MOODS = [
-  'professional',
-  'playful',
-  'minimal',
-  'bold',
-  'elegant',
-  'modern',
-  'classic',
-  'energetic',
-  'calm',
-  'luxurious',
+  "professional",
+  "playful",
+  "minimal",
+  "bold",
+  "elegant",
+  "modern",
+  "classic",
+  "energetic",
+  "calm",
+  "luxurious",
 ] as const;
 
 /**
  * 有効なBrandToneタイプ
  */
 const VALID_BRAND_TONES = [
-  'corporate',
-  'friendly',
-  'luxury',
-  'tech-forward',
-  'creative',
-  'trustworthy',
-  'innovative',
-  'traditional',
+  "corporate",
+  "friendly",
+  "luxury",
+  "tech-forward",
+  "creative",
+  "trustworthy",
+  "innovative",
+  "traditional",
 ] as const;
 
 /**
  * visualFeatures.mood スキーマ
  */
-const MoodSchema = z.object({
-  primary: z.enum(VALID_MOODS),
-  secondary: z.enum(VALID_MOODS).optional(),
-  confidence: z.number().min(0.6).max(1),
-}).nullable();
+const MoodSchema = z
+  .object({
+    primary: z.enum(VALID_MOODS),
+    secondary: z.enum(VALID_MOODS).optional(),
+    confidence: z.number().min(0.6).max(1),
+  })
+  .nullable();
 
 /**
  * visualFeatures.brandTone スキーマ
  */
-const BrandToneSchema = z.object({
-  primary: z.enum(VALID_BRAND_TONES),
-  secondary: z.enum(VALID_BRAND_TONES).optional(),
-  confidence: z.number().min(0.6).max(1),
-}).nullable();
+const BrandToneSchema = z
+  .object({
+    primary: z.enum(VALID_BRAND_TONES),
+    secondary: z.enum(VALID_BRAND_TONES).optional(),
+    confidence: z.number().min(0.6).max(1),
+  })
+  .nullable();
 
 /**
  * visualFeatures スキーマ（mood/brandTone含む）
@@ -84,13 +88,17 @@ const VisualFeaturesSchema = z.object({
   colors: z.object({
     dominant: z.array(z.string()),
     accent: z.array(z.string()).optional(),
-    palette: z.array(z.object({
-      color: z.string(),
-      percentage: z.number(),
-    })).optional(),
+    palette: z
+      .array(
+        z.object({
+          color: z.string(),
+          percentage: z.number(),
+        })
+      )
+      .optional(),
   }),
   theme: z.object({
-    type: z.enum(['light', 'dark', 'mixed']),
+    type: z.enum(["light", "dark", "mixed"]),
     backgroundColor: z.string().optional(),
     textColor: z.string().optional(),
     contrastRatio: z.number().optional(),
@@ -102,12 +110,16 @@ const VisualFeaturesSchema = z.object({
   }),
   gradient: z.object({
     hasGradient: z.boolean(),
-    gradients: z.array(z.object({
-      type: z.enum(['linear', 'radial', 'conic']),
-      direction: z.string().optional(),
-      colorStops: z.array(z.string()).optional(),
-    })).optional(),
-    dominantGradientType: z.enum(['linear', 'radial', 'conic']).nullable().optional(),
+    gradients: z
+      .array(
+        z.object({
+          type: z.enum(["linear", "radial", "conic"]),
+          direction: z.string().optional(),
+          colorStops: z.array(z.string()).optional(),
+        })
+      )
+      .optional(),
+    dominantGradientType: z.enum(["linear", "radial", "conic"]).nullable().optional(),
   }),
   // Phase 5: Vision AI 分析結果
   mood: MoodSchema,
@@ -145,14 +157,14 @@ const mockFetch = vi.fn();
 global.fetch = mockFetch;
 
 // Playwrightモック
-vi.mock('playwright', () => ({
+vi.mock("playwright", () => ({
   chromium: {
     launch: vi.fn().mockResolvedValue({
       newContext: vi.fn().mockResolvedValue({
         newPage: vi.fn().mockResolvedValue({
           goto: vi.fn().mockResolvedValue(null),
-          screenshot: vi.fn().mockResolvedValue(Buffer.from('fake-screenshot')),
-          content: vi.fn().mockResolvedValue('<html><body>Test</body></html>'),
+          screenshot: vi.fn().mockResolvedValue(Buffer.from("fake-screenshot")),
+          content: vi.fn().mockResolvedValue("<html><body>Test</body></html>"),
           evaluate: vi.fn().mockResolvedValue({}),
           close: vi.fn().mockResolvedValue(null),
         }),
@@ -169,7 +181,7 @@ vi.mock('playwright', () => ({
 
 // NOTE: analyze.handlerがまだ実装されていないため、一時的にスキップ
 // layout-handler.ts統合フェーズで有効化する
-describe.skip('page.analyze Vision Mood/BrandTone Integration', () => {
+describe.skip("page.analyze Vision Mood/BrandTone Integration", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
@@ -182,12 +194,12 @@ describe.skip('page.analyze Vision Mood/BrandTone Integration', () => {
   // TDD RED Phase 確認テスト
   // ===========================================================================
 
-  describe('TDD RED Phase verification', () => {
-    it('should have handlePageAnalyze implementation - TDD RED Phase', async () => {
+  describe("TDD RED Phase verification", () => {
+    it("should have handlePageAnalyze implementation - TDD RED Phase", async () => {
       // TDD RED Phase: このテストは実装が存在しないことを確認
       // 実装後、このテストは削除または修正される
       await expect(async () => {
-        const module = await import('@/tools/page/handlers/analyze.handler');
+        const module = await import("@/tools/page/handlers/analyze.handler");
         return module.handlePageAnalyze;
       }).rejects.toThrow();
     });
@@ -197,28 +209,28 @@ describe.skip('page.analyze Vision Mood/BrandTone Integration', () => {
   // mood 統合テスト
   // ===========================================================================
 
-  describe('mood in page.analyze response', () => {
-    it('should include mood in page.analyze response', async () => {
+  describe("mood in page.analyze response", () => {
+    it("should include mood in page.analyze response", async () => {
       // Arrange: Ollamaのmood分析レスポンスをモック
       mockFetch.mockResolvedValue({
         ok: true,
         json: async () => ({
-          model: 'llama3.2-vision',
+          model: "llama3.2-vision",
           response: JSON.stringify({
-            primaryMood: 'professional',
-            secondaryMood: 'minimal',
+            primaryMood: "professional",
+            secondaryMood: "minimal",
             confidence: 0.85,
-            indicators: ['clean typography', 'neutral colors'],
+            indicators: ["clean typography", "neutral colors"],
             colorContextUsed: true,
           }),
           done: true,
         }),
       });
 
-      const { handlePageAnalyze } = await import('@/tools/page/handlers/analyze.handler');
+      const { handlePageAnalyze } = await import("@/tools/page/handlers/analyze.handler");
 
       const input: PageAnalyzeInput = {
-        url: 'https://example.com',
+        url: "https://example.com",
         layoutOptions: {
           useVision: true,
         },
@@ -237,27 +249,27 @@ describe.skip('page.analyze Vision Mood/BrandTone Integration', () => {
       }
     });
 
-    it('should validate mood conforms to MoodSchema', async () => {
+    it("should validate mood conforms to MoodSchema", async () => {
       // Arrange
       mockFetch.mockResolvedValue({
         ok: true,
         json: async () => ({
-          model: 'llama3.2-vision',
+          model: "llama3.2-vision",
           response: JSON.stringify({
-            primaryMood: 'elegant',
-            secondaryMood: 'luxurious',
+            primaryMood: "elegant",
+            secondaryMood: "luxurious",
             confidence: 0.92,
-            indicators: ['serif fonts', 'gold accents'],
+            indicators: ["serif fonts", "gold accents"],
             colorContextUsed: true,
           }),
           done: true,
         }),
       });
 
-      const { handlePageAnalyze } = await import('@/tools/page/handlers/analyze.handler');
+      const { handlePageAnalyze } = await import("@/tools/page/handlers/analyze.handler");
 
       const input: PageAnalyzeInput = {
-        url: 'https://luxury-brand.com',
+        url: "https://luxury-brand.com",
         layoutOptions: { useVision: true },
       };
 
@@ -269,14 +281,14 @@ describe.skip('page.analyze Vision Mood/BrandTone Integration', () => {
       expect(moodParseResult.success).toBe(true);
     });
 
-    it('should return null mood if Vision AI unavailable', async () => {
+    it("should return null mood if Vision AI unavailable", async () => {
       // Arrange: Ollama接続エラー
-      mockFetch.mockRejectedValue(new Error('Connection refused'));
+      mockFetch.mockRejectedValue(new Error("Connection refused"));
 
-      const { handlePageAnalyze } = await import('@/tools/page/handlers/analyze.handler');
+      const { handlePageAnalyze } = await import("@/tools/page/handlers/analyze.handler");
 
       const input: PageAnalyzeInput = {
-        url: 'https://example.com',
+        url: "https://example.com",
         layoutOptions: { useVision: true },
       };
 
@@ -288,14 +300,14 @@ describe.skip('page.analyze Vision Mood/BrandTone Integration', () => {
       expect(result.data.layout.visualFeatures.metadata.visionAiAvailable).toBe(false);
     });
 
-    it('should return null mood if confidence < 0.6', async () => {
+    it("should return null mood if confidence < 0.6", async () => {
       // Arrange: 低信頼度レスポンス
       mockFetch.mockResolvedValue({
         ok: true,
         json: async () => ({
-          model: 'llama3.2-vision',
+          model: "llama3.2-vision",
           response: JSON.stringify({
-            primaryMood: 'playful',
+            primaryMood: "playful",
             confidence: 0.45, // 閾値以下
             indicators: [],
             colorContextUsed: false,
@@ -304,10 +316,10 @@ describe.skip('page.analyze Vision Mood/BrandTone Integration', () => {
         }),
       });
 
-      const { handlePageAnalyze } = await import('@/tools/page/handlers/analyze.handler');
+      const { handlePageAnalyze } = await import("@/tools/page/handlers/analyze.handler");
 
       const input: PageAnalyzeInput = {
-        url: 'https://example.com',
+        url: "https://example.com",
         layoutOptions: { useVision: true },
       };
 
@@ -323,33 +335,33 @@ describe.skip('page.analyze Vision Mood/BrandTone Integration', () => {
   // brandTone 統合テスト
   // ===========================================================================
 
-  describe('brandTone in page.analyze response', () => {
-    it('should include brandTone in page.analyze response', async () => {
+  describe("brandTone in page.analyze response", () => {
+    it("should include brandTone in page.analyze response", async () => {
       // Arrange
       mockFetch.mockResolvedValue({
         ok: true,
         json: async () => ({
-          model: 'llama3.2-vision',
+          model: "llama3.2-vision",
           response: JSON.stringify({
-            primaryTone: 'corporate',
-            secondaryTone: 'trustworthy',
+            primaryTone: "corporate",
+            secondaryTone: "trustworthy",
             confidence: 0.88,
-            professionalism: 'bold',
-            warmth: 'neutral',
-            modernity: 'contemporary',
-            energy: 'balanced',
-            targetAudience: 'enterprise',
-            indicators: ['blue color scheme', 'formal layout'],
+            professionalism: "bold",
+            warmth: "neutral",
+            modernity: "contemporary",
+            energy: "balanced",
+            targetAudience: "enterprise",
+            indicators: ["blue color scheme", "formal layout"],
             colorContextUsed: true,
           }),
           done: true,
         }),
       });
 
-      const { handlePageAnalyze } = await import('@/tools/page/handlers/analyze.handler');
+      const { handlePageAnalyze } = await import("@/tools/page/handlers/analyze.handler");
 
       const input: PageAnalyzeInput = {
-        url: 'https://enterprise.com',
+        url: "https://enterprise.com",
         layoutOptions: { useVision: true },
       };
 
@@ -366,32 +378,32 @@ describe.skip('page.analyze Vision Mood/BrandTone Integration', () => {
       }
     });
 
-    it('should validate brandTone conforms to BrandToneSchema', async () => {
+    it("should validate brandTone conforms to BrandToneSchema", async () => {
       // Arrange
       mockFetch.mockResolvedValue({
         ok: true,
         json: async () => ({
-          model: 'llama3.2-vision',
+          model: "llama3.2-vision",
           response: JSON.stringify({
-            primaryTone: 'tech-forward',
-            secondaryTone: 'innovative',
-            confidence: 0.90,
-            professionalism: 'moderate',
-            warmth: 'neutral',
-            modernity: 'futuristic',
-            energy: 'dynamic',
-            targetAudience: 'startup',
-            indicators: ['gradient backgrounds', 'modern UI'],
+            primaryTone: "tech-forward",
+            secondaryTone: "innovative",
+            confidence: 0.9,
+            professionalism: "moderate",
+            warmth: "neutral",
+            modernity: "futuristic",
+            energy: "dynamic",
+            targetAudience: "startup",
+            indicators: ["gradient backgrounds", "modern UI"],
             colorContextUsed: true,
           }),
           done: true,
         }),
       });
 
-      const { handlePageAnalyze } = await import('@/tools/page/handlers/analyze.handler');
+      const { handlePageAnalyze } = await import("@/tools/page/handlers/analyze.handler");
 
       const input: PageAnalyzeInput = {
-        url: 'https://tech-startup.com',
+        url: "https://tech-startup.com",
         layoutOptions: { useVision: true },
       };
 
@@ -399,18 +411,20 @@ describe.skip('page.analyze Vision Mood/BrandTone Integration', () => {
       const result = await handlePageAnalyze(input);
 
       // Assert
-      const brandToneParseResult = BrandToneSchema.safeParse(result.data.layout.visualFeatures.brandTone);
+      const brandToneParseResult = BrandToneSchema.safeParse(
+        result.data.layout.visualFeatures.brandTone
+      );
       expect(brandToneParseResult.success).toBe(true);
     });
 
-    it('should return null brandTone if Vision AI unavailable', async () => {
+    it("should return null brandTone if Vision AI unavailable", async () => {
       // Arrange
-      mockFetch.mockRejectedValue(new Error('Connection refused'));
+      mockFetch.mockRejectedValue(new Error("Connection refused"));
 
-      const { handlePageAnalyze } = await import('@/tools/page/handlers/analyze.handler');
+      const { handlePageAnalyze } = await import("@/tools/page/handlers/analyze.handler");
 
       const input: PageAnalyzeInput = {
-        url: 'https://example.com',
+        url: "https://example.com",
         layoutOptions: { useVision: true },
       };
 
@@ -427,15 +441,15 @@ describe.skip('page.analyze Vision Mood/BrandTone Integration', () => {
   // Graceful Degradation テスト
   // ===========================================================================
 
-  describe('graceful degradation', () => {
-    it('should handle Ollama unavailable gracefully', async () => {
+  describe("graceful degradation", () => {
+    it("should handle Ollama unavailable gracefully", async () => {
       // Arrange: Ollamaがダウン
-      mockFetch.mockRejectedValue(new Error('ECONNREFUSED'));
+      mockFetch.mockRejectedValue(new Error("ECONNREFUSED"));
 
-      const { handlePageAnalyze } = await import('@/tools/page/handlers/analyze.handler');
+      const { handlePageAnalyze } = await import("@/tools/page/handlers/analyze.handler");
 
       const input: PageAnalyzeInput = {
-        url: 'https://example.com',
+        url: "https://example.com",
         layoutOptions: { useVision: true },
       };
 
@@ -461,29 +475,29 @@ describe.skip('page.analyze Vision Mood/BrandTone Integration', () => {
       expect(result.data.layout.visualFeatures.metadata.visionAiAvailable).toBe(false);
     });
 
-    it('should continue analysis if mood extraction fails', async () => {
+    it("should continue analysis if mood extraction fails", async () => {
       // Arrange: mood分析が失敗
       mockFetch
         .mockResolvedValueOnce({
           ok: true,
           json: async () => ({
-            model: 'llama3.2-vision',
-            response: 'invalid json response',
+            model: "llama3.2-vision",
+            response: "invalid json response",
             done: true,
           }),
         })
         .mockResolvedValueOnce({
           ok: true,
           json: async () => ({
-            model: 'llama3.2-vision',
+            model: "llama3.2-vision",
             response: JSON.stringify({
-              primaryTone: 'corporate',
+              primaryTone: "corporate",
               confidence: 0.85,
-              professionalism: 'bold',
-              warmth: 'neutral',
-              modernity: 'contemporary',
-              energy: 'balanced',
-              targetAudience: 'enterprise',
+              professionalism: "bold",
+              warmth: "neutral",
+              modernity: "contemporary",
+              energy: "balanced",
+              targetAudience: "enterprise",
               indicators: [],
               colorContextUsed: false,
             }),
@@ -491,10 +505,10 @@ describe.skip('page.analyze Vision Mood/BrandTone Integration', () => {
           }),
         });
 
-      const { handlePageAnalyze } = await import('@/tools/page/handlers/analyze.handler');
+      const { handlePageAnalyze } = await import("@/tools/page/handlers/analyze.handler");
 
       const input: PageAnalyzeInput = {
-        url: 'https://example.com',
+        url: "https://example.com",
         layoutOptions: { useVision: true },
       };
 
@@ -506,14 +520,14 @@ describe.skip('page.analyze Vision Mood/BrandTone Integration', () => {
       // brandToneは実装依存だが、エラーでもnullになる可能性
     });
 
-    it('should set visionAiAvailable flag correctly', async () => {
+    it("should set visionAiAvailable flag correctly", async () => {
       // Arrange: Ollama利用可能
       mockFetch.mockResolvedValue({
         ok: true,
         json: async () => ({
-          model: 'llama3.2-vision',
+          model: "llama3.2-vision",
           response: JSON.stringify({
-            primaryMood: 'professional',
+            primaryMood: "professional",
             confidence: 0.85,
             indicators: [],
             colorContextUsed: true,
@@ -522,10 +536,10 @@ describe.skip('page.analyze Vision Mood/BrandTone Integration', () => {
         }),
       });
 
-      const { handlePageAnalyze } = await import('@/tools/page/handlers/analyze.handler');
+      const { handlePageAnalyze } = await import("@/tools/page/handlers/analyze.handler");
 
       const input: PageAnalyzeInput = {
-        url: 'https://example.com',
+        url: "https://example.com",
         layoutOptions: { useVision: true },
       };
 
@@ -541,28 +555,28 @@ describe.skip('page.analyze Vision Mood/BrandTone Integration', () => {
   // visualFeatures 完全性テスト
   // ===========================================================================
 
-  describe('visualFeatures completeness', () => {
-    it('should include all required visualFeatures fields', async () => {
+  describe("visualFeatures completeness", () => {
+    it("should include all required visualFeatures fields", async () => {
       // Arrange
       mockFetch.mockResolvedValue({
         ok: true,
         json: async () => ({
-          model: 'llama3.2-vision',
+          model: "llama3.2-vision",
           response: JSON.stringify({
-            primaryMood: 'minimal',
-            secondaryMood: 'calm',
+            primaryMood: "minimal",
+            secondaryMood: "calm",
             confidence: 0.88,
-            indicators: ['whitespace', 'simple typography'],
+            indicators: ["whitespace", "simple typography"],
             colorContextUsed: true,
           }),
           done: true,
         }),
       });
 
-      const { handlePageAnalyze } = await import('@/tools/page/handlers/analyze.handler');
+      const { handlePageAnalyze } = await import("@/tools/page/handlers/analyze.handler");
 
       const input: PageAnalyzeInput = {
-        url: 'https://example.com',
+        url: "https://example.com",
         layoutOptions: { useVision: true },
       };
 
@@ -579,8 +593,8 @@ describe.skip('page.analyze Vision Mood/BrandTone Integration', () => {
       expect(visualFeatures.gradient).toBeDefined();
 
       // Phase 5: Vision AI features
-      expect('mood' in visualFeatures).toBe(true);
-      expect('brandTone' in visualFeatures).toBe(true);
+      expect("mood" in visualFeatures).toBe(true);
+      expect("brandTone" in visualFeatures).toBe(true);
 
       // Metadata
       expect(visualFeatures.metadata).toBeDefined();
@@ -590,27 +604,27 @@ describe.skip('page.analyze Vision Mood/BrandTone Integration', () => {
       expect(visualFeatures.metadata.overallConfidence).toBeDefined();
     });
 
-    it('should validate full visualFeatures against schema', async () => {
+    it("should validate full visualFeatures against schema", async () => {
       // Arrange
       mockFetch.mockResolvedValue({
         ok: true,
         json: async () => ({
-          model: 'llama3.2-vision',
+          model: "llama3.2-vision",
           response: JSON.stringify({
-            primaryMood: 'bold',
-            secondaryMood: 'energetic',
+            primaryMood: "bold",
+            secondaryMood: "energetic",
             confidence: 0.82,
-            indicators: ['vibrant colors', 'large typography'],
+            indicators: ["vibrant colors", "large typography"],
             colorContextUsed: true,
           }),
           done: true,
         }),
       });
 
-      const { handlePageAnalyze } = await import('@/tools/page/handlers/analyze.handler');
+      const { handlePageAnalyze } = await import("@/tools/page/handlers/analyze.handler");
 
       const input: PageAnalyzeInput = {
-        url: 'https://example.com',
+        url: "https://example.com",
         layoutOptions: { useVision: true },
       };
 
@@ -627,13 +641,13 @@ describe.skip('page.analyze Vision Mood/BrandTone Integration', () => {
   // useVision オプションテスト
   // ===========================================================================
 
-  describe('useVision option', () => {
-    it('should skip Vision AI when useVision is false', async () => {
+  describe("useVision option", () => {
+    it("should skip Vision AI when useVision is false", async () => {
       // Arrange
-      const { handlePageAnalyze } = await import('@/tools/page/handlers/analyze.handler');
+      const { handlePageAnalyze } = await import("@/tools/page/handlers/analyze.handler");
 
       const input: PageAnalyzeInput = {
-        url: 'https://example.com',
+        url: "https://example.com",
         layoutOptions: { useVision: false },
       };
 
@@ -649,14 +663,14 @@ describe.skip('page.analyze Vision Mood/BrandTone Integration', () => {
       expect(result.data.layout.visualFeatures.metadata.visionAiAvailable).toBe(false);
     });
 
-    it('should enable Vision AI by default (useVision: true)', async () => {
+    it("should enable Vision AI by default (useVision: true)", async () => {
       // Arrange
       mockFetch.mockResolvedValue({
         ok: true,
         json: async () => ({
-          model: 'llama3.2-vision',
+          model: "llama3.2-vision",
           response: JSON.stringify({
-            primaryMood: 'professional',
+            primaryMood: "professional",
             confidence: 0.8,
             indicators: [],
             colorContextUsed: false,
@@ -665,10 +679,10 @@ describe.skip('page.analyze Vision Mood/BrandTone Integration', () => {
         }),
       });
 
-      const { handlePageAnalyze } = await import('@/tools/page/handlers/analyze.handler');
+      const { handlePageAnalyze } = await import("@/tools/page/handlers/analyze.handler");
 
       const input: PageAnalyzeInput = {
-        url: 'https://example.com',
+        url: "https://example.com",
         // layoutOptions.useVision はデフォルトでtrue
       };
 
@@ -684,15 +698,15 @@ describe.skip('page.analyze Vision Mood/BrandTone Integration', () => {
   // パフォーマンステスト
   // ===========================================================================
 
-  describe('performance', () => {
-    it('should complete analysis within timeout', async () => {
+  describe("performance", () => {
+    it("should complete analysis within timeout", async () => {
       // Arrange
       mockFetch.mockResolvedValue({
         ok: true,
         json: async () => ({
-          model: 'llama3.2-vision',
+          model: "llama3.2-vision",
           response: JSON.stringify({
-            primaryMood: 'professional',
+            primaryMood: "professional",
             confidence: 0.85,
             indicators: [],
             colorContextUsed: false,
@@ -701,10 +715,10 @@ describe.skip('page.analyze Vision Mood/BrandTone Integration', () => {
         }),
       });
 
-      const { handlePageAnalyze } = await import('@/tools/page/handlers/analyze.handler');
+      const { handlePageAnalyze } = await import("@/tools/page/handlers/analyze.handler");
 
       const input: PageAnalyzeInput = {
-        url: 'https://example.com',
+        url: "https://example.com",
         timeout: 60000, // 60秒
         layoutOptions: { useVision: true },
       };
@@ -719,7 +733,7 @@ describe.skip('page.analyze Vision Mood/BrandTone Integration', () => {
       expect(duration).toBeLessThan(60000);
     });
 
-    it('should cache Vision AI results', async () => {
+    it("should cache Vision AI results", async () => {
       // Arrange
       let callCount = 0;
       mockFetch.mockImplementation(() => {
@@ -727,9 +741,9 @@ describe.skip('page.analyze Vision Mood/BrandTone Integration', () => {
         return Promise.resolve({
           ok: true,
           json: async () => ({
-            model: 'llama3.2-vision',
+            model: "llama3.2-vision",
             response: JSON.stringify({
-              primaryMood: 'minimal',
+              primaryMood: "minimal",
               confidence: 0.85,
               indicators: [],
               colorContextUsed: false,
@@ -739,10 +753,10 @@ describe.skip('page.analyze Vision Mood/BrandTone Integration', () => {
         });
       });
 
-      const { handlePageAnalyze } = await import('@/tools/page/handlers/analyze.handler');
+      const { handlePageAnalyze } = await import("@/tools/page/handlers/analyze.handler");
 
       const input: PageAnalyzeInput = {
-        url: 'https://example.com',
+        url: "https://example.com",
         layoutOptions: { useVision: true },
       };
 
@@ -763,32 +777,32 @@ describe.skip('page.analyze Vision Mood/BrandTone Integration', () => {
 
 // NOTE: analyze.handlerがまだ実装されていないため、一時的にスキップ
 // layout-handler.ts統合フェーズで有効化する
-describe.skip('page.analyze E2E Integration', () => {
+describe.skip("page.analyze E2E Integration", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  it('should complete full workflow with Vision AI', async () => {
+  it("should complete full workflow with Vision AI", async () => {
     // Arrange
     mockFetch.mockResolvedValue({
       ok: true,
       json: async () => ({
-        model: 'llama3.2-vision',
+        model: "llama3.2-vision",
         response: JSON.stringify({
-          primaryMood: 'professional',
-          secondaryMood: 'elegant',
+          primaryMood: "professional",
+          secondaryMood: "elegant",
           confidence: 0.88,
-          indicators: ['clean design', 'professional imagery'],
+          indicators: ["clean design", "professional imagery"],
           colorContextUsed: true,
         }),
         done: true,
       }),
     });
 
-    const { handlePageAnalyze } = await import('@/tools/page/handlers/analyze.handler');
+    const { handlePageAnalyze } = await import("@/tools/page/handlers/analyze.handler");
 
     const input: PageAnalyzeInput = {
-      url: 'https://example.com',
+      url: "https://example.com",
       layoutOptions: {
         useVision: true,
         saveToDb: false, // テスト用にDB保存をスキップ
@@ -813,8 +827,8 @@ describe.skip('page.analyze E2E Integration', () => {
     const mood = result.data.layout.visualFeatures.mood;
     expect(mood).not.toBeNull();
     if (mood) {
-      expect(mood.primary).toBe('professional');
-      expect(mood.secondary).toBe('elegant');
+      expect(mood.primary).toBe("professional");
+      expect(mood.secondary).toBe("elegant");
       expect(mood.confidence).toBe(0.88);
     }
 

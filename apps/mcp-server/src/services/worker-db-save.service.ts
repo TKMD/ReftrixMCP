@@ -20,9 +20,16 @@
  * @module services/worker-db-save.service
  */
 
-import { v7 as uuidv7 } from 'uuid';
-import { logger, isDevelopment } from '../utils/logger';
-import { type QualityServiceResult, type JSAnimationFullResult, type CDPAnimationData, type WebAnimationData, type LibraryDetectionData } from '../tools/page/handlers/types';
+import { v7 as uuidv7 } from "uuid";
+import { logger, isDevelopment } from "../utils/logger";
+import { sanitizeHtml } from "../utils/html-sanitizer";
+import {
+  type QualityServiceResult,
+  type JSAnimationFullResult,
+  type CDPAnimationData,
+  type WebAnimationData,
+  type LibraryDetectionData,
+} from "../tools/page/handlers/types";
 
 // =============================================================================
 // Constants
@@ -86,14 +93,18 @@ export interface MotionPatternInput {
   properties?: string[] | undefined;
   propertiesDetailed?: Array<{ property: string; from?: string; to?: string }> | undefined;
   rawCss?: string | undefined;
-  performance?: {
-    level?: string | undefined;
-    usesTransform?: boolean | undefined;
-    usesOpacity?: boolean | undefined;
-  } | undefined;
-  accessibility?: {
-    respectsReducedMotion?: boolean | undefined;
-  } | undefined;
+  performance?:
+    | {
+        level?: string | undefined;
+        usesTransform?: boolean | undefined;
+        usesOpacity?: boolean | undefined;
+      }
+    | undefined;
+  accessibility?:
+    | {
+        respectsReducedMotion?: boolean | undefined;
+      }
+    | undefined;
 }
 
 /**
@@ -117,7 +128,9 @@ export interface QualityEvaluationSaveOptions {
  */
 export interface QualityEvaluationPrismaClient {
   qualityEvaluation: {
-    deleteMany: (args: { where: { targetType: string; targetId: string } }) => Promise<{ count: number }>;
+    deleteMany: (args: {
+      where: { targetType: string; targetId: string };
+    }) => Promise<{ count: number }>;
     create: (args: { data: Record<string, unknown> }) => Promise<{ id: string }>;
   };
 }
@@ -195,10 +208,14 @@ export interface SectionPatternPrismaClient {
  */
 export interface MotionPatternPrismaClient {
   motionPattern: {
-    deleteMany: (args: { where: { webPageId: string; type?: { not: string } } }) => Promise<{ count: number }>;
+    deleteMany: (args: {
+      where: { webPageId: string; type?: { not: string } };
+    }) => Promise<{ count: number }>;
     createMany: (args: { data: unknown[] }) => Promise<{ count: number }>;
   };
-  $transaction: <T>(fn: (tx: Pick<MotionPatternPrismaClient, 'motionPattern'>) => Promise<T>) => Promise<T>;
+  $transaction: <T>(
+    fn: (tx: Pick<MotionPatternPrismaClient, "motionPattern">) => Promise<T>
+  ) => Promise<T>;
 }
 
 /**
@@ -209,7 +226,9 @@ export interface JsAnimationPatternPrismaClient {
     deleteMany: (args: { where: { webPageId: string } }) => Promise<{ count: number }>;
     createMany: (args: { data: unknown[] }) => Promise<{ count: number }>;
   };
-  $transaction: <T>(fn: (tx: Pick<JsAnimationPatternPrismaClient, 'jSAnimationPattern'>) => Promise<T>) => Promise<T>;
+  $transaction: <T>(
+    fn: (tx: Pick<JsAnimationPatternPrismaClient, "jSAnimationPattern">) => Promise<T>
+  ) => Promise<T>;
 }
 
 // =============================================================================
@@ -219,23 +238,25 @@ export interface JsAnimationPatternPrismaClient {
 /**
  * htmlSnippetからUIコンポーネントを簡易抽出
  */
-function extractComponentsFromSection(htmlSnippet?: string): Array<{ type: string; count: number }> {
+function extractComponentsFromSection(
+  htmlSnippet?: string
+): Array<{ type: string; count: number }> {
   if (!htmlSnippet) return [];
 
   const components: Array<{ type: string; count: number }> = [];
   const tagPatterns: Array<{ type: string; pattern: RegExp }> = [
-    { type: 'button', pattern: /<button[\s>]/gi },
-    { type: 'link', pattern: /<a[\s][^>]*href/gi },
-    { type: 'image', pattern: /<img[\s>]/gi },
-    { type: 'video', pattern: /<video[\s>]/gi },
-    { type: 'form', pattern: /<form[\s>]/gi },
-    { type: 'input', pattern: /<input[\s>]/gi },
-    { type: 'heading', pattern: /<h[1-6][\s>]/gi },
-    { type: 'list', pattern: /<[ou]l[\s>]/gi },
-    { type: 'table', pattern: /<table[\s>]/gi },
-    { type: 'svg', pattern: /<svg[\s>]/gi },
-    { type: 'canvas', pattern: /<canvas[\s>]/gi },
-    { type: 'iframe', pattern: /<iframe[\s>]/gi },
+    { type: "button", pattern: /<button[\s>]/gi },
+    { type: "link", pattern: /<a[\s][^>]*href/gi },
+    { type: "image", pattern: /<img[\s>]/gi },
+    { type: "video", pattern: /<video[\s>]/gi },
+    { type: "form", pattern: /<form[\s>]/gi },
+    { type: "input", pattern: /<input[\s>]/gi },
+    { type: "heading", pattern: /<h[1-6][\s>]/gi },
+    { type: "list", pattern: /<[ou]l[\s>]/gi },
+    { type: "table", pattern: /<table[\s>]/gi },
+    { type: "svg", pattern: /<svg[\s>]/gi },
+    { type: "canvas", pattern: /<canvas[\s>]/gi },
+    { type: "iframe", pattern: /<iframe[\s>]/gi },
   ];
 
   for (const { type, pattern } of tagPatterns) {
@@ -273,7 +294,7 @@ export async function saveSectionPatterns(
     });
 
     if (isDevelopment()) {
-      logger.debug('[WorkerDBSave] Existing section patterns deleted', { webPageId });
+      logger.debug("[WorkerDBSave] Existing section patterns deleted", { webPageId });
     }
 
     // 2. データ変換
@@ -305,7 +326,7 @@ export async function saveSectionPatterns(
         sectionType: section.type,
         sectionName: section.heading ?? null,
         positionIndex: section.positionIndex ?? index,
-        htmlSnippet: section.htmlSnippet ?? null,
+        htmlSnippet: section.htmlSnippet ? sanitizeHtml(section.htmlSnippet) : null,
         // CSS fields: ページレベルCSSを各セクションに配布済みの状態で受け取る
         // CSS fields: received with page-level CSS already distributed to each section
         cssSnippet: section.cssSnippet ?? null,
@@ -325,7 +346,7 @@ export async function saveSectionPatterns(
     const result = await prisma.sectionPattern.createMany({ data });
 
     if (isDevelopment()) {
-      logger.info('[WorkerDBSave] Saved section patterns', {
+      logger.info("[WorkerDBSave] Saved section patterns", {
         webPageId,
         count: result.count,
       });
@@ -338,11 +359,9 @@ export async function saveSectionPatterns(
       idMapping,
     };
   } catch (error) {
-    const errorMessage = error instanceof Error
-      ? error.message
-      : 'Failed to save section patterns';
+    const errorMessage = error instanceof Error ? error.message : "Failed to save section patterns";
 
-    logger.warn('[WorkerDBSave] Section pattern save failed', {
+    logger.warn("[WorkerDBSave] Section pattern save failed", {
       webPageId,
       error: errorMessage,
     });
@@ -395,23 +414,23 @@ export async function saveMotionPatterns(
       const animation: Record<string, unknown> = {
         duration: pattern.duration ?? 0,
         delay: 0,
-        easing: { type: pattern.easing ?? 'ease' },
+        easing: { type: pattern.easing ?? "ease" },
         iterations: 1,
-        direction: 'normal',
-        fill_mode: 'forwards',
+        direction: "normal",
+        fill_mode: "forwards",
       };
 
       // properties JSON: propertiesDetailed（from/to値付き）を優先、なければstring[]からフォールバック
       const properties = pattern.propertiesDetailed
         ? pattern.propertiesDetailed.map((p) => ({
             property: p.property,
-            from: p.from ?? '',
-            to: p.to ?? '',
+            from: p.from ?? "",
+            to: p.to ?? "",
           }))
         : (pattern.properties ?? []).map((prop) => ({
             property: prop,
-            from: '',
-            to: '',
+            from: "",
+            to: "",
           }));
 
       // implementation JSON（rawCssを含む）
@@ -427,7 +446,7 @@ export async function saveMotionPatterns(
 
       // performance JSON
       const performance: Record<string, unknown> = {
-        level: pattern.performance?.level ?? 'acceptable',
+        level: pattern.performance?.level ?? "acceptable",
         uses_transform: pattern.performance?.usesTransform ?? false,
         uses_opacity: pattern.performance?.usesOpacity ?? false,
       };
@@ -446,7 +465,7 @@ export async function saveMotionPatterns(
         accessibility,
         performance,
         sourceUrl,
-        usageScope: 'inspiration_only',
+        usageScope: "inspiration_only",
         tags: [],
         metadata: {},
       };
@@ -459,11 +478,11 @@ export async function saveMotionPatterns(
       // Delete existing records (clean slate)
       // vision_detected は scroll-vision-persistence.service が管理するため除外
       await tx.motionPattern.deleteMany({
-        where: { webPageId, type: { not: 'vision_detected' } },
+        where: { webPageId, type: { not: "vision_detected" } },
       });
 
       if (isDevelopment()) {
-        logger.debug('[WorkerDBSave] Existing motion patterns deleted', { webPageId });
+        logger.debug("[WorkerDBSave] Existing motion patterns deleted", { webPageId });
       }
 
       // Batched createMany to stay under PostgreSQL 65,535 bind parameter limit
@@ -477,7 +496,7 @@ export async function saveMotionPatterns(
     });
 
     if (isDevelopment()) {
-      logger.info('[WorkerDBSave] Saved motion patterns', {
+      logger.info("[WorkerDBSave] Saved motion patterns", {
         webPageId,
         count: totalCount,
       });
@@ -490,11 +509,9 @@ export async function saveMotionPatterns(
       idMapping,
     };
   } catch (error) {
-    const errorMessage = error instanceof Error
-      ? error.message
-      : 'Failed to save motion patterns';
+    const errorMessage = error instanceof Error ? error.message : "Failed to save motion patterns";
 
-    logger.warn('[WorkerDBSave] Motion pattern save failed', {
+    logger.warn("[WorkerDBSave] Motion pattern save failed", {
       webPageId,
       error: errorMessage,
     });
@@ -514,7 +531,7 @@ export async function saveMotionPatterns(
 // =============================================================================
 
 /** Current evaluator version identifier */
-const EVALUATOR_VERSION = 'quality-evaluator-v0.1.0';
+const EVALUATOR_VERSION = "quality-evaluator-v0.1.0";
 
 /**
  * QualityEvaluationをDBに保存
@@ -534,11 +551,11 @@ export async function saveQualityEvaluation(
   try {
     // 1. 既存レコードを削除（クリーンスレート）
     await prisma.qualityEvaluation.deleteMany({
-      where: { targetType: 'web_page', targetId: webPageId },
+      where: { targetType: "web_page", targetId: webPageId },
     });
 
     if (isDevelopment()) {
-      logger.debug('[WorkerDBSave] Existing quality evaluations deleted', { webPageId });
+      logger.debug("[WorkerDBSave] Existing quality evaluations deleted", { webPageId });
     }
 
     // 2. UUIDv7生成
@@ -582,7 +599,7 @@ export async function saveQualityEvaluation(
     await prisma.qualityEvaluation.create({
       data: {
         id,
-        targetType: 'web_page',
+        targetType: "web_page",
         targetId: webPageId,
         overallScore: qualityResult.overallScore,
         grade: qualityResult.grade,
@@ -590,15 +607,14 @@ export async function saveQualityEvaluation(
         designQuality,
         recommendations,
         evaluatorVersion: EVALUATOR_VERSION,
-        evaluationMode: options?.strict ? 'strict' : 'standard',
-        evaluationContext: Object.keys(evaluationContext).length > 0
-          ? evaluationContext
-          : undefined,
+        evaluationMode: options?.strict ? "strict" : "standard",
+        evaluationContext:
+          Object.keys(evaluationContext).length > 0 ? evaluationContext : undefined,
       },
     });
 
     if (isDevelopment()) {
-      logger.info('[WorkerDBSave] Saved quality evaluation', {
+      logger.info("[WorkerDBSave] Saved quality evaluation", {
         webPageId,
         overallScore: qualityResult.overallScore,
         grade: qualityResult.grade,
@@ -612,11 +628,10 @@ export async function saveQualityEvaluation(
       idMapping: new Map(), // QualityEvaluation は単一レコード保存のため常に空
     };
   } catch (error) {
-    const errorMessage = error instanceof Error
-      ? error.message
-      : 'Failed to save quality evaluation';
+    const errorMessage =
+      error instanceof Error ? error.message : "Failed to save quality evaluation";
 
-    logger.warn('[WorkerDBSave] Quality evaluation save failed', {
+    logger.warn("[WorkerDBSave] Quality evaluation save failed", {
       webPageId,
       error: errorMessage,
     });
@@ -680,7 +695,7 @@ export function buildQualityBenchmarkInputs(
   }
 
   const benchmark: QualityBenchmarkInput = {
-    sectionType: 'full_page',
+    sectionType: "full_page",
     overallScore: qualityResult.overallScore,
     grade: qualityResult.grade,
     axisScores: {
@@ -689,7 +704,7 @@ export function buildQualityBenchmarkInputs(
       contextuality: qualityResult.axisScores.contextuality,
     },
     sourceUrl,
-    sourceType: 'page_analyze',
+    sourceType: "page_analyze",
     characteristics,
     industry: options?.targetIndustry,
     audience: options?.targetAudience,
@@ -731,7 +746,7 @@ export async function saveQualityBenchmarks(
     });
 
     if (isDevelopment()) {
-      logger.debug('[WorkerDBSave] Existing quality benchmarks deleted', { webPageId });
+      logger.debug("[WorkerDBSave] Existing quality benchmarks deleted", { webPageId });
     }
 
     // 2. データ変換
@@ -768,7 +783,7 @@ export async function saveQualityBenchmarks(
     const result = await prisma.qualityBenchmark.createMany({ data });
 
     if (isDevelopment()) {
-      logger.info('[WorkerDBSave] Saved quality benchmarks', {
+      logger.info("[WorkerDBSave] Saved quality benchmarks", {
         webPageId,
         count: result.count,
       });
@@ -781,11 +796,10 @@ export async function saveQualityBenchmarks(
       idMapping: new Map(), // QualityBenchmark はoriginal IDマッピング不要
     };
   } catch (error) {
-    const errorMessage = error instanceof Error
-      ? error.message
-      : 'Failed to save quality benchmarks';
+    const errorMessage =
+      error instanceof Error ? error.message : "Failed to save quality benchmarks";
 
-    logger.warn('[WorkerDBSave] Quality benchmark save failed', {
+    logger.warn("[WorkerDBSave] Quality benchmark save failed", {
       webPageId,
       error: errorMessage,
     });
@@ -809,13 +823,13 @@ export async function saveQualityBenchmarks(
  */
 function mapCdpTypeToLibrary(cdpType: string): string {
   switch (cdpType) {
-    case 'CSSAnimation':
-    case 'CSSTransition':
-      return 'web_animations_api';
-    case 'WebAnimation':
-      return 'web_animations_api';
+    case "CSSAnimation":
+    case "CSSTransition":
+      return "web_animations_api";
+    case "WebAnimation":
+      return "web_animations_api";
     default:
-      return 'unknown';
+      return "unknown";
   }
 }
 
@@ -824,14 +838,14 @@ function mapCdpTypeToLibrary(cdpType: string): string {
  */
 function mapCdpTypeToAnimationType(cdpType: string): string {
   switch (cdpType) {
-    case 'CSSAnimation':
-      return 'keyframe';
-    case 'CSSTransition':
-      return 'tween';
-    case 'WebAnimation':
-      return 'keyframe';
+    case "CSSAnimation":
+      return "keyframe";
+    case "CSSTransition":
+      return "tween";
+    case "WebAnimation":
+      return "keyframe";
     default:
-      return 'tween';
+      return "tween";
   }
 }
 
@@ -839,12 +853,12 @@ function mapCdpTypeToAnimationType(cdpType: string): string {
  * ライブラリ検出結果からメイン使用ライブラリを判定
  */
 function detectMainLibrary(libraries: LibraryDetectionData): string {
-  if (libraries.gsap.detected) return 'gsap';
-  if (libraries.framerMotion.detected) return 'framer_motion';
-  if (libraries.anime.detected) return 'anime_js';
-  if (libraries.three.detected) return 'three_js';
-  if (libraries.lottie.detected) return 'lottie';
-  return 'unknown';
+  if (libraries.gsap.detected) return "gsap";
+  if (libraries.framerMotion.detected) return "framer_motion";
+  if (libraries.anime.detected) return "anime_js";
+  if (libraries.three.detected) return "three_js";
+  if (libraries.lottie.detected) return "lottie";
+  return "unknown";
 }
 
 /**
@@ -859,7 +873,7 @@ function cdpAnimationToRecord(
   const id = uuidv7();
 
   // libraryType: CDP検出タイプベースだが、ライブラリ検出結果で上書き可能
-  const libraryType = mainLibrary !== 'unknown' ? mainLibrary : mapCdpTypeToLibrary(anim.type);
+  const libraryType = mainLibrary !== "unknown" ? mainLibrary : mapCdpTypeToLibrary(anim.type);
 
   const record: Record<string, unknown> = {
     id,
@@ -880,7 +894,7 @@ function cdpAnimationToRecord(
     fillMode: null,
     keyframes: anim.source.keyframesRule?.keyframes ?? [],
     properties: [],
-    triggerType: 'load',
+    triggerType: "load",
     triggerConfig: {},
     cdpAnimationId: anim.id?.slice(0, 100) || null,
     cdpSourceType: anim.type?.slice(0, 50) || null,
@@ -892,7 +906,7 @@ function cdpAnimationToRecord(
     performance: {},
     accessibility: {},
     sourceUrl,
-    usageScope: 'inspiration_only',
+    usageScope: "inspiration_only",
     tags: [],
     metadata: {},
     confidence: null,
@@ -911,7 +925,7 @@ function webAnimationToRecord(
   sourceUrl: string
 ): { id: string; record: Record<string, unknown> } {
   const id = uuidv7();
-  const libraryType = mainLibrary !== 'unknown' ? mainLibrary : 'web_animations_api';
+  const libraryType = mainLibrary !== "unknown" ? mainLibrary : "web_animations_api";
 
   // キーフレームからプロパティ変化情報を抽出
   const properties: Array<{ property: string; from?: string; to?: string }> = [];
@@ -920,7 +934,7 @@ function webAnimationToRecord(
     const last = anim.keyframes[anim.keyframes.length - 1];
     if (first && last) {
       for (const key of Object.keys(first)) {
-        if (['offset', 'easing', 'composite'].includes(key)) continue;
+        if (["offset", "easing", "composite"].includes(key)) continue;
         const fromVal = first[key];
         const toVal = last[key];
         if (fromVal !== undefined && toVal !== undefined) {
@@ -940,7 +954,7 @@ function webAnimationToRecord(
     libraryType,
     libraryVersion: null,
     name: `WebAnimation on ${anim.target.slice(0, 100)}`,
-    animationType: 'keyframe',
+    animationType: "keyframe",
     description: null,
     targetSelector: anim.target.slice(0, 500),
     targetCount: 1,
@@ -953,7 +967,7 @@ function webAnimationToRecord(
     fillMode: anim.timing.fill?.slice(0, 20) || null,
     keyframes: anim.keyframes,
     properties,
-    triggerType: 'load',
+    triggerType: "load",
     triggerConfig: {},
     cdpAnimationId: null,
     cdpSourceType: null,
@@ -965,7 +979,7 @@ function webAnimationToRecord(
     performance: {},
     accessibility: {},
     sourceUrl,
-    usageScope: 'inspiration_only',
+    usageScope: "inspiration_only",
     tags: [],
     metadata: {},
     confidence: null,
@@ -1035,7 +1049,7 @@ export async function saveJsAnimationPatterns(
       });
 
       if (isDevelopment()) {
-        logger.debug('[WorkerDBSave] Existing JS animation patterns deleted', { webPageId });
+        logger.debug("[WorkerDBSave] Existing JS animation patterns deleted", { webPageId });
       }
 
       // Batched createMany to stay under PostgreSQL 65,535 bind parameter limit
@@ -1049,7 +1063,7 @@ export async function saveJsAnimationPatterns(
     });
 
     if (isDevelopment()) {
-      logger.info('[WorkerDBSave] Saved JS animation patterns', {
+      logger.info("[WorkerDBSave] Saved JS animation patterns", {
         webPageId,
         count: totalCount,
         cdpCount: jsAnimations.cdpAnimations.length,
@@ -1065,11 +1079,10 @@ export async function saveJsAnimationPatterns(
       idMapping,
     };
   } catch (error) {
-    const errorMessage = error instanceof Error
-      ? error.message
-      : 'Failed to save JS animation patterns';
+    const errorMessage =
+      error instanceof Error ? error.message : "Failed to save JS animation patterns";
 
-    logger.warn('[WorkerDBSave] JS animation pattern save failed', {
+    logger.warn("[WorkerDBSave] JS animation pattern save failed", {
       webPageId,
       error: errorMessage,
     });

@@ -14,9 +14,9 @@ Adds `narrativeOptions` to the existing `page.analyze` tool to integrate world-v
 interface PageAnalyzeInput {
   url: string;
   features?: {
-    layout?: boolean;   // レイアウト解析（デフォルトtrue） / Layout analysis (default true)
-    motion?: boolean;   // モーション検出（デフォルトtrue） / Motion detection (default true)
-    quality?: boolean;  // 品質評価（デフォルトtrue） / Quality evaluation (default true)
+    layout?: boolean; // レイアウト解析（デフォルトtrue） / Layout analysis (default true)
+    motion?: boolean; // モーション検出（デフォルトtrue） / Motion detection (default true)
+    quality?: boolean; // 品質評価（デフォルトtrue） / Quality evaluation (default true)
   };
   layoutOptions?: LayoutOptions;
   motionOptions?: MotionOptions;
@@ -35,16 +35,18 @@ interface PageAnalyzeInput {
  * narrative分析オプションスキーマ / Narrative analysis options schema
  * page.analyzeのnarrative統合用 / For page.analyze narrative integration
  */
-export const narrativeOptionsSchema = z.object({
-  /** narrative分析有効化（デフォルトtrue） / Enable narrative analysis (default true) */
-  enabled: z.boolean().optional().default(true),
+export const narrativeOptionsSchema = z
+  .object({
+    /** narrative分析有効化（デフォルトtrue） / Enable narrative analysis (default true) */
+    enabled: z.boolean().optional().default(true),
 
-  /** DB保存（デフォルトtrue） / Save to DB (default true) */
-  saveToDb: z.boolean().optional().default(true),
+    /** DB保存（デフォルトtrue） / Save to DB (default true) */
+    saveToDb: z.boolean().optional().default(true),
 
-  /** Vision LLM分析使用（デフォルトtrue） / Use Vision LLM analysis (default true) */
-  includeVision: z.boolean().optional().default(true),
-}).optional();
+    /** Vision LLM分析使用（デフォルトtrue） / Use Vision LLM analysis (default true) */
+    includeVision: z.boolean().optional().default(true),
+  })
+  .optional();
 export type NarrativeOptions = z.infer<typeof narrativeOptionsSchema>;
 ```
 
@@ -79,21 +81,23 @@ export const pageAnalyzeDataSchema = z.object({
   quality: qualityResultSchema.optional(),
 
   // 新規追加 / Newly added
-  narrative: z.object({
-    id: z.string().uuid().optional(),  // DB保存時のID / ID when saved to DB
-    worldView: z.object({
-      moodCategory: moodCategorySchema,
-      moodDescription: z.string(),
-      overallTone: z.string(),
-    }),
-    layoutStructure: z.object({
-      gridType: gridTypeSchema,
-      columns: z.union([z.number(), z.literal('fluid')]),
-    }),
-    confidence: z.number(),
-    analysisTimeMs: z.number().optional(),
-    visionUsed: z.boolean().optional(),
-  }).optional(),
+  narrative: z
+    .object({
+      id: z.string().uuid().optional(), // DB保存時のID / ID when saved to DB
+      worldView: z.object({
+        moodCategory: moodCategorySchema,
+        moodDescription: z.string(),
+        overallTone: z.string(),
+      }),
+      layoutStructure: z.object({
+        gridType: gridTypeSchema,
+        columns: z.union([z.number(), z.literal("fluid")]),
+      }),
+      confidence: z.number(),
+      analysisTimeMs: z.number().optional(),
+      visionUsed: z.boolean().optional(),
+    })
+    .optional(),
 
   // ... 既存フィールド / ... existing fields
 });
@@ -127,8 +131,8 @@ export const pageAnalyzeDataSchema = z.object({
  * page.analyzeからのnarrative分析ハンドラー / Narrative analysis handler for page.analyze
  */
 
-import type { NarrativeOptions } from '../schemas';
-import type { NarrativeAnalysisService } from '../../../services/narrative';
+import type { NarrativeOptions } from "../schemas";
+import type { NarrativeAnalysisService } from "../../../services/narrative";
 
 export interface NarrativeHandlerInput {
   html: string;
@@ -149,7 +153,7 @@ export interface NarrativeHandlerOutput {
   };
   layoutStructure: {
     gridType: string;
-    columns: number | 'fluid';
+    columns: number | "fluid";
   };
   confidence: number;
   analysisTimeMs?: number;
@@ -171,14 +175,14 @@ export async function handleNarrativeAnalysis(
 ```typescript
 // MCP Client からの呼び出し / Call from MCP Client
 await mcp__reftrix__page_analyze({
-  url: 'https://example.com',
+  url: "https://example.com",
   features: {
     layout: true,
     motion: true,
     quality: true,
   },
   narrativeOptions: {
-    enabled: true,      // デフォルトtrue（無効化する場合はfalseを指定） / Default true (specify false to disable)
+    enabled: true, // デフォルトtrue（無効化する場合はfalseを指定） / Default true (specify false to disable)
     saveToDb: true,
     includeVision: true,
   },

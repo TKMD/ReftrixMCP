@@ -25,17 +25,17 @@
  * @module services/part/section-screenshot-fallback.service
  */
 
-import type { Browser, BrowserContext, Page } from 'playwright';
-import { chromium } from 'playwright';
-import sharp from 'sharp';
-import { validateExternalUrl } from '../../utils/url-validator';
-import { logger, isDevelopment } from '../../utils/logger';
+import type { Browser, BrowserContext, Page } from "playwright";
+import { chromium } from "playwright";
+import sharp from "sharp";
+import { validateExternalUrl } from "../../utils/url-validator";
+import { logger, isDevelopment } from "../../utils/logger";
 
 // ============================================================================
 // Constants / 定数
 // ============================================================================
 
-const LOG_PREFIX = '[SectionScreenshotFallback]';
+const LOG_PREFIX = "[SectionScreenshotFallback]";
 
 /**
  * デフォルトビューポートサイズ（ingest viewport と統一: 1920x1080）
@@ -166,7 +166,9 @@ export interface SectionScreenshotOptions {
   /** 共有ブラウザインスタンス（省略時は独自起動） / Shared browser instance (launches own if omitted) */
   sharedBrowser?: Browser | undefined;
   /** メモリ圧力チェック関数（省略時はスキップ） / Memory pressure check function (skip if omitted) */
-  checkMemoryPressure?: (() => { shouldDegrade: boolean; shouldAbort: boolean; rssMb: number }) | undefined;
+  checkMemoryPressure?:
+    | (() => { shouldDegrade: boolean; shouldAbort: boolean; rssMb: number })
+    | undefined;
 }
 
 /**
@@ -202,7 +204,7 @@ export interface SectionScreenshotAggregateResult {
  * @returns 集約結果 / Aggregate result
  */
 export async function captureSectionScreenshots(
-  options: SectionScreenshotOptions,
+  options: SectionScreenshotOptions
 ): Promise<SectionScreenshotAggregateResult> {
   const {
     url,
@@ -248,9 +250,8 @@ export async function captureSectionScreenshots(
 
   // SEC-MULTI-04: timeoutMs の NaN/Infinity 防御
   // SEC-MULTI-04: Defend against NaN/Infinity in timeoutMs
-  const safeTimeoutMs = Number.isFinite(timeoutMs) && timeoutMs > 0
-    ? timeoutMs
-    : DEFAULT_CUMULATIVE_TIMEOUT_MS;
+  const safeTimeoutMs =
+    Number.isFinite(timeoutMs) && timeoutMs > 0 ? timeoutMs : DEFAULT_CUMULATIVE_TIMEOUT_MS;
 
   // 1. SSRF検証 / SSRF validation
   const urlValidation = validateExternalUrl(url);
@@ -284,10 +285,10 @@ export async function captureSectionScreenshots(
       browser = await chromium.launch({
         headless: true,
         args: [
-          '--no-sandbox',
-          '--disable-setuid-sandbox',
-          '--disable-dev-shm-usage',
-          '--disable-gpu',
+          "--no-sandbox",
+          "--disable-setuid-sandbox",
+          "--disable-dev-shm-usage",
+          "--disable-gpu",
         ],
       });
     }
@@ -297,7 +298,7 @@ export async function captureSectionScreenshots(
     context = await browser.newContext({
       viewport,
       userAgent:
-        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 Reftrix/0.1.0',
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 Reftrix/0.1.0",
       javaScriptEnabled: true,
       bypassCSP: false,
     });
@@ -306,7 +307,7 @@ export async function captureSectionScreenshots(
 
     // 4. ナビゲーション / Navigate
     const response = await page.goto(url, {
-      waitUntil: 'load',
+      waitUntil: "load",
       timeout: NAVIGATION_TIMEOUT_MS,
     });
 
@@ -341,7 +342,7 @@ export async function captureSectionScreenshots(
             width: 0,
             height: 0,
             skipped: true,
-            skipReason: 'cumulative_timeout',
+            skipReason: "cumulative_timeout",
           });
           skippedCount++;
         }
@@ -352,7 +353,9 @@ export async function captureSectionScreenshots(
       if (checkMemoryPressure) {
         const memCheck = checkMemoryPressure();
         if (memCheck.shouldAbort) {
-          logger.warn(`${LOG_PREFIX} Critical memory pressure, aborting`, { rssMb: memCheck.rssMb });
+          logger.warn(`${LOG_PREFIX} Critical memory pressure, aborting`, {
+            rssMb: memCheck.rssMb,
+          });
           const remaining = targetSections.slice(results.length);
           for (const s of remaining) {
             results.push({
@@ -361,7 +364,7 @@ export async function captureSectionScreenshots(
               width: 0,
               height: 0,
               skipped: true,
-              skipReason: 'memory_critical',
+              skipReason: "memory_critical",
             });
             skippedCount++;
           }
@@ -374,7 +377,7 @@ export async function captureSectionScreenshots(
             width: 0,
             height: 0,
             skipped: true,
-            skipReason: 'memory_pressure',
+            skipReason: "memory_pressure",
           });
           skippedCount++;
           continue;
@@ -389,7 +392,7 @@ export async function captureSectionScreenshots(
           width: 0,
           height: 0,
           skipped: true,
-          skipReason: 'invalid_coordinates',
+          skipReason: "invalid_coordinates",
         });
         skippedCount++;
         continue;
@@ -403,7 +406,7 @@ export async function captureSectionScreenshots(
           width: 0,
           height: 0,
           skipped: true,
-          skipReason: 'height_too_small',
+          skipReason: "height_too_small",
         });
         skippedCount++;
         continue;
@@ -429,12 +432,15 @@ export async function captureSectionScreenshots(
           if (needsMultiTile && tileIndex > 0 && checkMemoryPressure) {
             const tileMem = checkMemoryPressure();
             if (tileMem.shouldAbort || tileMem.shouldDegrade) {
-              logger.warn(`${LOG_PREFIX} Memory pressure during multi-tile capture, using partial result`, {
-                sectionId: section.id.slice(0, 8) + '...',
-                tileIndex,
-                tileCount,
-                rssMb: tileMem.rssMb,
-              });
+              logger.warn(
+                `${LOG_PREFIX} Memory pressure during multi-tile capture, using partial result`,
+                {
+                  sectionId: section.id.slice(0, 8) + "...",
+                  tileIndex,
+                  tileCount,
+                  rssMb: tileMem.rssMb,
+                }
+              );
               tileAborted = true;
               break;
             }
@@ -455,9 +461,12 @@ export async function captureSectionScreenshots(
           // Ensures layout commit and paint completion for Lazy Rendering
           try {
             await Promise.race([
-              page.evaluate(() => new Promise<void>(resolve => {
-                requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
-              })),
+              page.evaluate(
+                () =>
+                  new Promise<void>((resolve) => {
+                    requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+                  })
+              ),
               page.waitForTimeout(2000),
             ]);
           } catch {
@@ -467,7 +476,7 @@ export async function captureSectionScreenshots(
           // networkidle 追加待機（最大3秒、失敗しても続行）
           // Additional networkidle wait (max 3s, continue on failure)
           try {
-            await page.waitForLoadState('networkidle', { timeout: NETWORK_IDLE_WAIT_MS });
+            await page.waitForLoadState("networkidle", { timeout: NETWORK_IDLE_WAIT_MS });
           } catch {
             // networkidle タイムアウトは非致命的 / networkidle timeout is non-fatal
           }
@@ -477,19 +486,20 @@ export async function captureSectionScreenshots(
           // v0.1.10: actualScrollY が期待値から大きくズレた場合は旧方式（期待値ベース）にフォールバック
           // v0.1.10: Fall back to expected scrollY when actualScrollY deviates significantly
           const actualScrollY = await page.evaluate(() => window.scrollY);
-          const expectedClipY = Math.max(0, (section.startY + tileOffsetY) - scrollY);
-          const actualClipY = Math.max(0, (section.startY + tileOffsetY) - actualScrollY);
+          const expectedClipY = Math.max(0, section.startY + tileOffsetY - scrollY);
+          const actualClipY = Math.max(0, section.startY + tileOffsetY - actualScrollY);
           // 実測値が期待値から viewportHeight の半分以上ズレている場合は旧方式を使用
           // Use expected value when actual deviates by more than half the viewport height
-          const clipY = Math.abs(actualScrollY - scrollY) > safeViewportHeight / 2
-            ? expectedClipY
-            : actualClipY;
+          const clipY =
+            Math.abs(actualScrollY - scrollY) > safeViewportHeight / 2
+              ? expectedClipY
+              : actualClipY;
 
           // タイルの残り高さを計算 / Calculate remaining height for this tile
           const remainingSectionHeight = sectionHeight - tileOffsetY;
           const clipHeight = Math.min(
             Math.round(remainingSectionHeight),
-            safeViewportHeight - Math.round(clipY),
+            safeViewportHeight - Math.round(clipY)
           );
 
           if (clipHeight <= 0) {
@@ -498,7 +508,7 @@ export async function captureSectionScreenshots(
 
           const tileBuffer = await page.screenshot({
             fullPage: false,
-            type: 'png',
+            type: "png",
             clip: {
               x: 0,
               y: Math.round(clipY),
@@ -519,7 +529,7 @@ export async function captureSectionScreenshots(
             width: 0,
             height: 0,
             skipped: true,
-            skipReason: 'clip_height_zero',
+            skipReason: "clip_height_zero",
           });
           skippedCount++;
           continue;
@@ -531,13 +541,8 @@ export async function captureSectionScreenshots(
           finalBuffer = tileBuffers[0]!;
         } else {
           // マルチタイル: Sharp で垂直結合 / Multi-tile: stitch vertically with Sharp
-          const tileMetadata = await Promise.all(
-            tileBuffers.map(buf => sharp(buf).metadata()),
-          );
-          const stitchedHeight = tileMetadata.reduce(
-            (sum, meta) => sum + (meta.height ?? 0),
-            0,
-          );
+          const tileMetadata = await Promise.all(tileBuffers.map((buf) => sharp(buf).metadata()));
+          const stitchedHeight = tileMetadata.reduce((sum, meta) => sum + (meta.height ?? 0), 0);
           const compositeInputs = [];
           let yOffset = 0;
           for (let i = 0; i < tileBuffers.length; i++) {
@@ -566,7 +571,7 @@ export async function captureSectionScreenshots(
 
           if (isDevelopment()) {
             logger.info(`${LOG_PREFIX} Multi-tile stitch completed`, {
-              sectionId: section.id.slice(0, 8) + '...',
+              sectionId: section.id.slice(0, 8) + "...",
               tiles: compositeInputs.length,
               stitchedHeight,
               aborted: tileAborted,
@@ -585,7 +590,7 @@ export async function captureSectionScreenshots(
       } catch (sectionError) {
         // 個別セクション失敗: Graceful Degradation / Per-section failure: Graceful Degradation
         logger.warn(`${LOG_PREFIX} Failed to capture section screenshot (non-fatal)`, {
-          sectionId: section.id.slice(0, 8) + '...',
+          sectionId: section.id.slice(0, 8) + "...",
           error: sectionError instanceof Error ? sectionError.message : String(sectionError),
         });
         results.push({
@@ -594,7 +599,7 @@ export async function captureSectionScreenshots(
           width: 0,
           height: 0,
           skipped: true,
-          skipReason: 'capture_failed',
+          skipReason: "capture_failed",
         });
         skippedCount++;
       }
@@ -619,15 +624,21 @@ export async function captureSectionScreenshots(
   } finally {
     // リソースクリーンアップ / Resource cleanup
     if (page) {
-      await page.close().catch(() => { /* ignore */ });
+      await page.close().catch(() => {
+        /* ignore */
+      });
     }
     if (context) {
-      await context.close().catch(() => { /* ignore */ });
+      await context.close().catch(() => {
+        /* ignore */
+      });
     }
     // 共有ブラウザの場合はブラウザを閉じない（呼び出し元が管理）
     // Don't close shared browser (managed by caller)
     if (browser && !usingSharedBrowser) {
-      await browser.close().catch(() => { /* ignore */ });
+      await browser.close().catch(() => {
+        /* ignore */
+      });
     }
   }
 }

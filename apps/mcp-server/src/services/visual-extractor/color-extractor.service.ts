@@ -17,8 +17,8 @@
  * @module services/visual-extractor/color-extractor.service
  */
 
-import { logger } from '../../utils/logger';
-import sharp from 'sharp';
+import { logger } from "../../utils/logger";
+import sharp from "sharp";
 import {
   parseAndValidateImageInput,
   withTimeout,
@@ -29,7 +29,7 @@ import {
   calculateBrightness,
   wrapSharpError,
   type RGB,
-} from './image-utils';
+} from "./image-utils";
 
 /**
  * Represents a color in the extracted palette with its percentage coverage
@@ -199,7 +199,7 @@ function splitBucketAtMedian(bucket: ColorBucket): [ColorBucket, ColorBucket] {
 function colorsToCountedMap(colors: RGB[]): Array<{ color: RGB; count: number }> {
   const colorMap = new Map<string, { color: RGB; count: number }>();
   for (const color of colors) {
-    const key = color.join(',');
+    const key = color.join(",");
     const existing = colorMap.get(key);
     if (existing) {
       existing.count++;
@@ -265,7 +265,9 @@ function isAccentColor(color: RGB, dominantColors: RGB[]): boolean {
   // Check if it's distinct from dominant colors
   for (const dominant of dominantColors) {
     const distance = Math.sqrt(
-      Math.pow(color[0] - dominant[0], 2) + Math.pow(color[1] - dominant[1], 2) + Math.pow(color[2] - dominant[2], 2)
+      Math.pow(color[0] - dominant[0], 2) +
+        Math.pow(color[1] - dominant[1], 2) +
+        Math.pow(color[2] - dominant[2], 2)
     );
     // If too similar to a dominant color, it's not an accent
     if (distance < 50) return false;
@@ -291,7 +293,7 @@ class ColorExtractorServiceImpl implements ColorExtractorService {
     // Parse and validate input with size check (5MB max) - SEC H-1
     const imageBuffer = parseAndValidateImageInput(image);
 
-    logSecurityEvent('ColorExtractor', 'Processing image', {
+    logSecurityEvent("ColorExtractor", "Processing image", {
       size: imageBuffer.length,
       sizeKB: Math.round(imageBuffer.length / 1024),
     });
@@ -307,14 +309,14 @@ class ColorExtractorServiceImpl implements ColorExtractorService {
       const metadata = await processedImage.metadata();
 
       if (!metadata.width || !metadata.height) {
-        throw new Error('Invalid image: unable to read dimensions');
+        throw new Error("Invalid image: unable to read dimensions");
       }
 
       // Resize for performance while maintaining aspect ratio
       const resizeOptions: sharp.ResizeOptions = {
         width: Math.min(metadata.width, this.config.maxProcessingWidth),
         height: Math.min(metadata.height, this.config.maxProcessingHeight),
-        fit: 'inside',
+        fit: "inside",
         withoutEnlargement: true,
       };
 
@@ -337,14 +339,21 @@ class ColorExtractorServiceImpl implements ColorExtractorService {
       }
 
       // Quantize colors using median cut
-      const numBuckets = Math.max(this.config.maxDominantColors + this.config.maxAccentColors + 3, this.config.colorBuckets);
+      const numBuckets = Math.max(
+        this.config.maxDominantColors + this.config.maxAccentColors + 3,
+        this.config.colorBuckets
+      );
       const quantizedColors = medianCut(pixels, numBuckets);
 
       // Extract dominant colors (first N colors by count)
-      const dominantColors = quantizedColors.slice(0, this.config.maxDominantColors).map((c) => rgbToHex(c.color[0], c.color[1], c.color[2]));
+      const dominantColors = quantizedColors
+        .slice(0, this.config.maxDominantColors)
+        .map((c) => rgbToHex(c.color[0], c.color[1], c.color[2]));
 
       // Extract accent colors (colors with high saturation that are distinct from dominants)
-      const dominantRgb = quantizedColors.slice(0, this.config.maxDominantColors).map((c) => c.color);
+      const dominantRgb = quantizedColors
+        .slice(0, this.config.maxDominantColors)
+        .map((c) => c.color);
       const accentCandidates = quantizedColors.slice(this.config.maxDominantColors);
       const accentColors = accentCandidates
         .filter((c) => isAccentColor(c.color, dominantRgb))
@@ -358,7 +367,7 @@ class ColorExtractorServiceImpl implements ColorExtractorService {
         percentage: Math.round((c.count / totalPixels) * 100 * 10) / 10,
       }));
 
-      logger.debug('[ColorExtractor] Extracted colors:', {
+      logger.debug("[ColorExtractor] Extracted colors:", {
         dominantColors: dominantColors.length,
         accentColors: accentColors.length,
         paletteColors: colorPalette.length,
@@ -381,6 +390,8 @@ class ColorExtractorServiceImpl implements ColorExtractorService {
  * @param config - Optional configuration options
  * @returns ColorExtractorService instance
  */
-export function createColorExtractorService(config?: Partial<ColorExtractorConfig>): ColorExtractorService {
+export function createColorExtractorService(
+  config?: Partial<ColorExtractorConfig>
+): ColorExtractorService {
   return new ColorExtractorServiceImpl(config);
 }

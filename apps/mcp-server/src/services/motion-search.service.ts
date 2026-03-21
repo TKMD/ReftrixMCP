@@ -13,14 +13,19 @@
  * @module services/motion-search.service
  */
 
-import { isDevelopment, logger } from '../utils/logger';
-import { executeHybridSearch, buildFulltextConditions, buildFulltextRankExpression, toRankedItems } from '@reftrix/ml';
-import type { RankedItem } from '@reftrix/ml';
+import { isDevelopment, logger } from "../utils/logger";
+import {
+  executeHybridSearch,
+  buildFulltextConditions,
+  buildFulltextRankExpression,
+  toRankedItems,
+} from "@reftrix/ml";
+import type { RankedItem } from "@reftrix/ml";
 import type {
   IMotionSearchService,
   MotionSearchParams,
   MotionSearchResult,
-} from '../tools/motion/search.tool';
+} from "../tools/motion/search.tool";
 import type {
   MotionSearchResultItem,
   MotionSearchQueryInfo,
@@ -28,17 +33,14 @@ import type {
   MotionSearchFilters,
   SamplePattern,
   // JSAnimationFilters は将来のJS Animation検索統合で使用予定
-} from '../tools/motion/schemas';
-import { assertNonProductionFactory } from './production-guard';
-import {
-  validateEmbeddingVector,
-  EmbeddingValidationError,
-} from './embedding-validation.service';
+} from "../tools/motion/schemas";
+import { assertNonProductionFactory } from "./production-guard";
+import { validateEmbeddingVector, EmbeddingValidationError } from "./embedding-validation.service";
 import type {
   JSAnimationSearchService,
   JSAnimationSearchResultItem,
   JSAnimationSearchParams,
-} from './motion/js-animation-search.service';
+} from "./motion/js-animation-search.service";
 
 // =====================================================
 // 定数
@@ -58,7 +60,7 @@ import type {
  * EmbeddingServiceインターフェース
  */
 export interface IEmbeddingService {
-  generateEmbedding(text: string, type: 'query' | 'passage'): Promise<number[]>;
+  generateEmbedding(text: string, type: "query" | "passage"): Promise<number[]>;
 }
 
 /**
@@ -128,7 +130,7 @@ let jsAnimationSearchServiceFactory: (() => JSAnimationSearchService) | null = n
 export function setEmbeddingServiceFactory(factory: () => IEmbeddingService): void {
   // 本番環境で既に設定済みの場合のみ禁止（上書き防止）
   if (embeddingServiceFactory !== null) {
-    assertNonProductionFactory('motionSearchEmbeddingService');
+    assertNonProductionFactory("motionSearchEmbeddingService");
   }
   embeddingServiceFactory = factory;
 }
@@ -148,7 +150,7 @@ export function resetEmbeddingServiceFactory(): void {
 export function setPrismaClientFactory(factory: () => IPrismaClient): void {
   // 本番環境で既に設定済みの場合のみ禁止（上書き防止）
   if (prismaClientFactory !== null) {
-    assertNonProductionFactory('motionSearchPrismaClient');
+    assertNonProductionFactory("motionSearchPrismaClient");
   }
   prismaClientFactory = factory;
 }
@@ -168,7 +170,7 @@ export function resetPrismaClientFactory(): void {
 export function setJSAnimationSearchServiceFactory(factory: () => JSAnimationSearchService): void {
   // 本番環境で既に設定済みの場合のみ禁止（上書き防止）
   if (jsAnimationSearchServiceFactory !== null) {
-    assertNonProductionFactory('jsAnimationSearchService');
+    assertNonProductionFactory("jsAnimationSearchService");
   }
   jsAnimationSearchServiceFactory = factory;
 }
@@ -205,10 +207,10 @@ export function samplePatternToText(pattern: SamplePattern): string {
   }
 
   if (pattern.properties && pattern.properties.length > 0) {
-    parts.push(`properties: ${pattern.properties.join(', ')}`);
+    parts.push(`properties: ${pattern.properties.join(", ")}`);
   }
 
-  return parts.length > 0 ? parts.join(', ') : 'motion animation';
+  return parts.length > 0 ? parts.join(", ") : "motion animation";
 }
 
 /**
@@ -219,9 +221,9 @@ export function samplePatternToText(pattern: SamplePattern): string {
 export function generateSelectorFromName(name: string): string {
   // パターン名をkebab-caseに変換してクラス名として使用
   const kebabName = name
-    .replace(/([a-z])([A-Z])/g, '$1-$2')
-    .replace(/([A-Z])([A-Z][a-z])/g, '$1-$2')
-    .replace(/[_\s]+/g, '-')
+    .replace(/([a-z])([A-Z])/g, "$1-$2")
+    .replace(/([A-Z])([A-Z][a-z])/g, "$1-$2")
+    .replace(/[_\s]+/g, "-")
     .toLowerCase();
   return `.${kebabName}`;
 }
@@ -231,22 +233,23 @@ export function generateSelectorFromName(name: string): string {
  * @param record DBレコードまたはベクトル検索結果
  * @returns MotionPatternオブジェクト
  */
-export function recordToMotionPattern(record: MotionPatternRecord | VectorSearchResult): MotionPattern {
+export function recordToMotionPattern(
+  record: MotionPatternRecord | VectorSearchResult
+): MotionPattern {
   // VectorSearchResult用の型ガード
-  const isVectorResult = 'trigger_type' in record;
+  const isVectorResult = "trigger_type" in record;
   const triggerType = isVectorResult ? record.trigger_type : record.triggerType;
   // sourceUrlはWebページのURLであり、selectorではないため使用しない
   // const sourceUrl = isVectorResult ? record.source_url : record.sourceUrl;
   // webPageId は将来のソース情報拡張で使用予定
   // const webPageId = isVectorResult ? record.web_page_id : record.webPageId;
 
-  const animation = typeof record.animation === 'object' && record.animation !== null
-    ? record.animation as Record<string, unknown>
-    : {};
+  const animation =
+    typeof record.animation === "object" && record.animation !== null
+      ? (record.animation as Record<string, unknown>)
+      : {};
 
-  const properties = Array.isArray(record.properties)
-    ? record.properties
-    : [];
+  const properties = Array.isArray(record.properties) ? record.properties : [];
 
   // selectorを決定: 名前からセレクタを生成（フォールバック）
   // 例: "fadeIn" -> ".fade-in", "scrollAnimation" -> ".scroll-animation"
@@ -254,27 +257,32 @@ export function recordToMotionPattern(record: MotionPatternRecord | VectorSearch
 
   return {
     id: record.id,
-    type: 'css_animation', // デフォルト値
+    type: "css_animation", // デフォルト値
     category: mapCategory(record.category),
     name: record.name,
     trigger: mapTrigger(triggerType),
     animation: {
-      duration: typeof animation.duration === 'number' ? animation.duration : undefined,
-      delay: typeof animation.delay === 'number' ? animation.delay : undefined,
-      easing: animation.easing ? {
-        type: typeof animation.easing === 'string'
-          ? mapEasingType(animation.easing)
-          : 'ease',
-      } : undefined,
-      iterations: animation.iterations as number | 'infinite' | undefined,
-      direction: animation.direction as 'normal' | 'reverse' | 'alternate' | 'alternate-reverse' | undefined,
-      fillMode: animation.fill_mode as 'none' | 'forwards' | 'backwards' | 'both' | undefined,
+      duration: typeof animation.duration === "number" ? animation.duration : undefined,
+      delay: typeof animation.delay === "number" ? animation.delay : undefined,
+      easing: animation.easing
+        ? {
+            type: typeof animation.easing === "string" ? mapEasingType(animation.easing) : "ease",
+          }
+        : undefined,
+      iterations: animation.iterations as number | "infinite" | undefined,
+      direction: animation.direction as
+        | "normal"
+        | "reverse"
+        | "alternate"
+        | "alternate-reverse"
+        | undefined,
+      fillMode: animation.fill_mode as "none" | "forwards" | "backwards" | "both" | undefined,
     },
     properties: properties.map((p: unknown) => {
-      if (typeof p === 'object' && p !== null) {
+      if (typeof p === "object" && p !== null) {
         const prop = p as Record<string, unknown>;
         return {
-          property: typeof prop.property === 'string' ? prop.property : String(prop.property || ''),
+          property: typeof prop.property === "string" ? prop.property : String(prop.property || ""),
           from: prop.from as string | number | undefined,
           to: prop.to as string | number | undefined,
         };
@@ -290,19 +298,19 @@ export function recordToMotionPattern(record: MotionPatternRecord | VectorSearch
  * @param category DB上のカテゴリ文字列
  * @returns MotionPatternのカテゴリ
  */
-export function mapCategory(category: string): MotionPattern['category'] {
-  const mapping: Record<string, MotionPattern['category']> = {
-    scroll_trigger: 'scroll_trigger',
-    hover_effect: 'hover_effect',
-    page_transition: 'page_transition',
-    loading: 'loading_state',
-    loading_state: 'loading_state',
-    micro_interaction: 'micro_interaction',
-    attention_grabber: 'attention_grabber',
-    navigation: 'navigation',
-    feedback: 'feedback',
+export function mapCategory(category: string): MotionPattern["category"] {
+  const mapping: Record<string, MotionPattern["category"]> = {
+    scroll_trigger: "scroll_trigger",
+    hover_effect: "hover_effect",
+    page_transition: "page_transition",
+    loading: "loading_state",
+    loading_state: "loading_state",
+    micro_interaction: "micro_interaction",
+    attention_grabber: "attention_grabber",
+    navigation: "navigation",
+    feedback: "feedback",
   };
-  return mapping[category] || 'unknown';
+  return mapping[category] || "unknown";
 }
 
 /**
@@ -310,18 +318,18 @@ export function mapCategory(category: string): MotionPattern['category'] {
  * @param trigger DB上のトリガー文字列
  * @returns MotionPatternのトリガー
  */
-export function mapTrigger(trigger: string): MotionPattern['trigger'] {
-  const mapping: Record<string, MotionPattern['trigger']> = {
-    scroll: 'scroll',
-    hover: 'hover',
-    click: 'click',
-    focus: 'focus',
-    load: 'load',
-    intersection: 'intersection',
-    time: 'time',
-    state_change: 'state_change',
+export function mapTrigger(trigger: string): MotionPattern["trigger"] {
+  const mapping: Record<string, MotionPattern["trigger"]> = {
+    scroll: "scroll",
+    hover: "hover",
+    click: "click",
+    focus: "focus",
+    load: "load",
+    intersection: "intersection",
+    time: "time",
+    state_change: "state_change",
   };
-  return mapping[trigger] || 'unknown';
+  return mapping[trigger] || "unknown";
 }
 
 /**
@@ -329,17 +337,39 @@ export function mapTrigger(trigger: string): MotionPattern['trigger'] {
  * @param easing イージング文字列
  * @returns 正規化されたイージングタイプ
  */
-export function mapEasingType(easing: string): 'linear' | 'ease' | 'ease-in' | 'ease-out' | 'ease-in-out' | 'cubic-bezier' | 'spring' | 'steps' | 'unknown' {
-  const mapping: Record<string, 'linear' | 'ease' | 'ease-in' | 'ease-out' | 'ease-in-out' | 'cubic-bezier' | 'spring' | 'steps' | 'unknown'> = {
-    linear: 'linear',
-    ease: 'ease',
-    'ease-in': 'ease-in',
-    'ease-out': 'ease-out',
-    'ease-in-out': 'ease-in-out',
+export function mapEasingType(
+  easing: string
+):
+  | "linear"
+  | "ease"
+  | "ease-in"
+  | "ease-out"
+  | "ease-in-out"
+  | "cubic-bezier"
+  | "spring"
+  | "steps"
+  | "unknown" {
+  const mapping: Record<
+    string,
+    | "linear"
+    | "ease"
+    | "ease-in"
+    | "ease-out"
+    | "ease-in-out"
+    | "cubic-bezier"
+    | "spring"
+    | "steps"
+    | "unknown"
+  > = {
+    linear: "linear",
+    ease: "ease",
+    "ease-in": "ease-in",
+    "ease-out": "ease-out",
+    "ease-in-out": "ease-in-out",
   };
-  if (easing.startsWith('cubic-bezier')) return 'cubic-bezier';
-  if (easing.startsWith('steps')) return 'steps';
-  return mapping[easing] || 'unknown';
+  if (easing.startsWith("cubic-bezier")) return "cubic-bezier";
+  if (easing.startsWith("steps")) return "steps";
+  return mapping[easing] || "unknown";
 }
 
 /**
@@ -347,7 +377,10 @@ export function mapEasingType(easing: string): 'linear' | 'ease' | 'ease-in' | '
  * @param filters 検索フィルター
  * @returns WHERE句とパラメータ配列
  */
-export function buildWhereClause(filters?: MotionSearchFilters): { clause: string; params: unknown[] } {
+export function buildWhereClause(filters?: MotionSearchFilters): {
+  clause: string;
+  params: unknown[];
+} {
   const conditions: string[] = [];
   const params: unknown[] = [];
   let paramIndex = 1;
@@ -355,12 +388,12 @@ export function buildWhereClause(filters?: MotionSearchFilters): { clause: strin
   if (filters?.type) {
     // motion.searchのtypeをDBのcategoryにマッピング
     const categoryMapping: Record<string, string> = {
-      animation: 'css_animation',
-      transition: 'page_transition',
-      transform: 'micro_interaction',
-      scroll: 'scroll_trigger',
-      hover: 'hover_effect',
-      keyframe: 'css_animation',
+      animation: "css_animation",
+      transition: "page_transition",
+      transform: "micro_interaction",
+      scroll: "scroll_trigger",
+      hover: "hover_effect",
+      keyframe: "css_animation",
     };
     const category = categoryMapping[filters.type] || filters.type;
     conditions.push(`mp.category = $${paramIndex}`);
@@ -387,7 +420,7 @@ export function buildWhereClause(filters?: MotionSearchFilters): { clause: strin
   }
 
   return {
-    clause: conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '',
+    clause: conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "",
     params,
   };
 }
@@ -417,7 +450,7 @@ export class MotionSearchService implements IMotionSearchService {
       return this.embeddingService;
     }
 
-    throw new Error('EmbeddingService not initialized');
+    throw new Error("EmbeddingService not initialized");
   }
 
   /**
@@ -433,7 +466,7 @@ export class MotionSearchService implements IMotionSearchService {
       return this.prismaClient;
     }
 
-    throw new Error('PrismaClient not initialized');
+    throw new Error("PrismaClient not initialized");
   }
 
   /**
@@ -506,11 +539,9 @@ export class MotionSearchService implements IMotionSearchService {
     const ftParamIndex = whereParams.length + 1;
     const ftLimitParamIndex = whereParams.length + 2;
 
-    const ftConditions = buildFulltextConditions('me.search_vector', ftParamIndex);
-    const ftRank = buildFulltextRankExpression('me.search_vector', ftParamIndex);
-    const ftWhereBase = clause
-      ? `${clause} AND ${ftConditions}`
-      : `WHERE ${ftConditions}`;
+    const ftConditions = buildFulltextConditions("me.search_vector", ftParamIndex);
+    const ftRank = buildFulltextRankExpression("me.search_vector", ftParamIndex);
+    const ftWhereBase = clause ? `${clause} AND ${ftConditions}` : `WHERE ${ftConditions}`;
 
     const sql = `
       SELECT
@@ -540,7 +571,7 @@ export class MotionSearchService implements IMotionSearchService {
     const includeJsAnimations = params.include_js_animations !== false;
 
     if (isDevelopment()) {
-      logger.info('[MotionSearchService] Starting search', {
+      logger.info("[MotionSearchService] Starting search", {
         hasQuery: !!params.query,
         hasSamplePattern: !!params.samplePattern,
         hasFilters: !!params.filters,
@@ -561,25 +592,26 @@ export class MotionSearchService implements IMotionSearchService {
       } else if (params.samplePattern) {
         queryText = samplePatternToText(params.samplePattern);
       } else {
-        throw new Error('query or samplePattern is required');
+        throw new Error("query or samplePattern is required");
       }
 
       // Embedding生成を試みる
       let queryEmbedding: number[] | null = null;
       try {
         const embeddingService = this.getEmbeddingService();
-        queryEmbedding = await embeddingService.generateEmbedding(queryText, 'query');
+        queryEmbedding = await embeddingService.generateEmbedding(queryText, "query");
 
         // Embedding ベクトルの検証（Phase6-SEC-2対応）
         // 検索はEmbeddingなしでは不可能なため、検証失敗時はエラーをスロー
         const validationResult = validateEmbeddingVector(queryEmbedding);
         if (!validationResult.isValid) {
           const error = validationResult.error;
-          const errorMessage = error?.index !== undefined
-            ? `${error.message} at index ${error.index}`
-            : error?.message ?? 'Unknown validation error';
+          const errorMessage =
+            error?.index !== undefined
+              ? `${error.message} at index ${error.index}`
+              : (error?.message ?? "Unknown validation error");
           throw new EmbeddingValidationError(
-            error?.code ?? 'INVALID_VECTOR',
+            error?.code ?? "INVALID_VECTOR",
             errorMessage,
             error?.index
           );
@@ -590,9 +622,12 @@ export class MotionSearchService implements IMotionSearchService {
           throw embeddingError;
         }
         if (isDevelopment()) {
-          logger.warn('[MotionSearchService] Embedding generation failed, falling back to text search', {
-            error: embeddingError instanceof Error ? embeddingError.message : 'Unknown error',
-          });
+          logger.warn(
+            "[MotionSearchService] Embedding generation failed, falling back to text search",
+            {
+              error: embeddingError instanceof Error ? embeddingError.message : "Unknown error",
+            }
+          );
         }
         // Embedding生成に失敗した場合は空の結果を返す
         // （テキスト検索フォールバックは将来実装）
@@ -605,7 +640,7 @@ export class MotionSearchService implements IMotionSearchService {
       } catch {
         // PrismaClientが利用できない場合は空の結果を返す
         if (isDevelopment()) {
-          logger.warn('[MotionSearchService] PrismaClient not available, returning empty results');
+          logger.warn("[MotionSearchService] PrismaClient not available, returning empty results");
         }
         return {
           results: [],
@@ -621,9 +656,13 @@ export class MotionSearchService implements IMotionSearchService {
 
       if (queryEmbedding) {
         const { clause, params: whereParams } = buildWhereClause(params.filters);
-        const vectorString = `[${queryEmbedding.join(',')}]`;
+        const vectorString = `[${queryEmbedding.join(",")}]`;
         const { sql: query, params: queryParams } = this.buildCSSVectorSearchQuery(
-          clause, whereParams, vectorString, params.minSimilarity, params.limit
+          clause,
+          whereParams,
+          vectorString,
+          params.minSimilarity,
+          params.limit
         );
 
         try {
@@ -641,8 +680,8 @@ export class MotionSearchService implements IMotionSearchService {
           }));
         } catch (dbError) {
           if (isDevelopment()) {
-            logger.warn('[MotionSearchService] Vector search failed, returning empty results', {
-              error: dbError instanceof Error ? dbError.message : 'Unknown error',
+            logger.warn("[MotionSearchService] Vector search failed, returning empty results", {
+              error: dbError instanceof Error ? dbError.message : "Unknown error",
             });
           }
           // データベースエラー時は空の結果を返す
@@ -667,21 +706,26 @@ export class MotionSearchService implements IMotionSearchService {
             jsAnimationResults = jsSearchResult.results;
 
             if (isDevelopment()) {
-              logger.info('[MotionSearchService] JSAnimation search completed', {
+              logger.info("[MotionSearchService] JSAnimation search completed", {
                 resultsCount: jsSearchResult.results.length,
                 total: jsSearchResult.total,
               });
             }
           } catch (jsError) {
             if (isDevelopment()) {
-              logger.warn('[MotionSearchService] JSAnimation search failed, continuing without JS results', {
-                error: jsError instanceof Error ? jsError.message : 'Unknown error',
-              });
+              logger.warn(
+                "[MotionSearchService] JSAnimation search failed, continuing without JS results",
+                {
+                  error: jsError instanceof Error ? jsError.message : "Unknown error",
+                }
+              );
             }
             // JSAnimation検索失敗時は空の結果で継続（Graceful Degradation）
           }
         } else if (isDevelopment()) {
-          logger.debug('[MotionSearchService] JSAnimationSearchService not available, skipping JS search');
+          logger.debug(
+            "[MotionSearchService] JSAnimationSearchService not available, skipping JS search"
+          );
         }
       }
 
@@ -691,7 +735,7 @@ export class MotionSearchService implements IMotionSearchService {
       const processingTimeMs = Date.now() - startTime;
 
       if (isDevelopment()) {
-        logger.info('[MotionSearchService] Search completed', {
+        logger.info("[MotionSearchService] Search completed", {
           cssResultsCount: results.length,
           jsResultsCount: jsAnimationResults.length,
           mergedResultsCount: mergedResults.length,
@@ -710,8 +754,8 @@ export class MotionSearchService implements IMotionSearchService {
       };
     } catch (error) {
       if (isDevelopment()) {
-        logger.error('[MotionSearchService] Search error', {
-          error: error instanceof Error ? error.message : 'Unknown error',
+        logger.error("[MotionSearchService] Search error", {
+          error: error instanceof Error ? error.message : "Unknown error",
         });
       }
       throw error;
@@ -725,17 +769,18 @@ export class MotionSearchService implements IMotionSearchService {
     const embeddingService = this.getEmbeddingService();
     // NOTE: generateEmbedding() が内部で E5 prefix を自動付与するため、
     // プレフィックスなしのテキストを渡す。
-    const embedding = await embeddingService.generateEmbedding(text, 'query');
+    const embedding = await embeddingService.generateEmbedding(text, "query");
 
     // Embedding ベクトルの検証（Phase6-SEC-2対応）
     const validationResult = validateEmbeddingVector(embedding);
     if (!validationResult.isValid) {
       const error = validationResult.error;
-      const errorMessage = error?.index !== undefined
-        ? `${error.message} at index ${error.index}`
-        : error?.message ?? 'Unknown validation error';
+      const errorMessage =
+        error?.index !== undefined
+          ? `${error.message} at index ${error.index}`
+          : (error?.message ?? "Unknown validation error");
       throw new EmbeddingValidationError(
-        error?.code ?? 'INVALID_VECTOR',
+        error?.code ?? "INVALID_VECTOR",
         errorMessage,
         error?.index
       );
@@ -784,30 +829,30 @@ export class MotionSearchService implements IMotionSearchService {
    */
   private jsAnimationToMotionPattern(jsItem: JSAnimationSearchResultItem): MotionPattern {
     // JSアニメーションタイプをCSSタイプにマッピング
-    const typeMapping: Record<string, MotionPattern['type']> = {
-      tween: 'css_animation',
-      timeline: 'css_animation',
-      spring: 'css_transition',
-      physics: 'css_animation',
-      keyframe: 'keyframes',
-      morphing: 'css_animation',
-      path: 'css_animation',
-      scroll_driven: 'css_animation',
-      gesture: 'css_transition',
+    const typeMapping: Record<string, MotionPattern["type"]> = {
+      tween: "css_animation",
+      timeline: "css_animation",
+      spring: "css_transition",
+      physics: "css_animation",
+      keyframe: "keyframes",
+      morphing: "css_animation",
+      path: "css_animation",
+      scroll_driven: "css_animation",
+      gesture: "css_transition",
     };
 
     // ライブラリタイプをカテゴリにマッピング
-    const categoryMapping: Record<string, MotionPattern['category']> = {
-      gsap: 'micro_interaction',
-      framer_motion: 'page_transition',
-      anime_js: 'micro_interaction',
-      three_js: 'scroll_trigger',
-      lottie: 'loading_state',
-      web_animations_api: 'micro_interaction',
-      unknown: 'unknown',
+    const categoryMapping: Record<string, MotionPattern["category"]> = {
+      gsap: "micro_interaction",
+      framer_motion: "page_transition",
+      anime_js: "micro_interaction",
+      three_js: "scroll_trigger",
+      lottie: "loading_state",
+      web_animations_api: "micro_interaction",
+      unknown: "unknown",
     };
 
-    const animationType = jsItem.animationType ?? 'tween';
+    const animationType = jsItem.animationType ?? "tween";
     const durationMs = jsItem.durationMs ?? undefined;
     const easing = jsItem.easing ?? undefined;
 
@@ -825,13 +870,10 @@ export class MotionSearchService implements IMotionSearchService {
         const lastKf = keyframes[keyframes.length - 1];
 
         // 最初と最後のキーフレームからプロパティを抽出
-        const allKeys = new Set([
-          ...Object.keys(firstKf ?? {}),
-          ...Object.keys(lastKf ?? {}),
-        ]);
+        const allKeys = new Set([...Object.keys(firstKf ?? {}), ...Object.keys(lastKf ?? {})]);
 
         for (const key of allKeys) {
-          if (['offset', 'easing', 'composite', 'computedOffset'].includes(key)) {
+          if (["offset", "easing", "composite", "computedOffset"].includes(key)) {
             continue;
           }
           const fromValue = firstKf?.[key];
@@ -839,10 +881,10 @@ export class MotionSearchService implements IMotionSearchService {
           const propEntry: { property: string; from?: string | number; to?: string | number } = {
             property: key,
           };
-          if (typeof fromValue === 'string' || typeof fromValue === 'number') {
+          if (typeof fromValue === "string" || typeof fromValue === "number") {
             propEntry.from = fromValue;
           }
-          if (typeof toValue === 'string' || typeof toValue === 'number') {
+          if (typeof toValue === "string" || typeof toValue === "number") {
             propEntry.to = toValue;
           }
           properties.push(propEntry);
@@ -853,16 +895,16 @@ export class MotionSearchService implements IMotionSearchService {
     // propertiesフィールドからも抽出
     if (jsItem.properties && Array.isArray(jsItem.properties)) {
       for (const prop of jsItem.properties as Array<Record<string, unknown>>) {
-        if (typeof prop === 'object' && prop !== null && 'property' in prop) {
+        if (typeof prop === "object" && prop !== null && "property" in prop) {
           const propEntry: { property: string; from?: string | number; to?: string | number } = {
             property: String(prop.property),
           };
           const fromValue = prop.from;
           const toValue = prop.to;
-          if (typeof fromValue === 'string' || typeof fromValue === 'number') {
+          if (typeof fromValue === "string" || typeof fromValue === "number") {
             propEntry.from = fromValue;
           }
-          if (typeof toValue === 'string' || typeof toValue === 'number') {
+          if (typeof toValue === "string" || typeof toValue === "number") {
             propEntry.to = toValue;
           }
           properties.push(propEntry);
@@ -872,16 +914,15 @@ export class MotionSearchService implements IMotionSearchService {
 
     // selectorフィールドを設定（v0.1.0）
     // 優先順位: targetSelector > nameから生成
-    const selector =
-      jsItem.targetSelector || generateSelectorFromName(jsItem.name);
+    const selector = jsItem.targetSelector || generateSelectorFromName(jsItem.name);
 
     return {
       id: jsItem.id,
-      type: typeMapping[animationType] || 'css_animation',
-      category: categoryMapping[jsItem.libraryType] || 'unknown',
+      type: typeMapping[animationType] || "css_animation",
+      category: categoryMapping[jsItem.libraryType] || "unknown",
       name: jsItem.name,
       selector, // JSアニメーションのターゲットセレクタ
-      trigger: 'load', // JSアニメーションはデフォルトでload
+      trigger: "load", // JSアニメーションはデフォルトでload
       animation: {
         duration: durationMs,
         easing: easing ? { type: mapEasingType(easing) } : undefined,
@@ -902,7 +943,7 @@ export class MotionSearchService implements IMotionSearchService {
     const includeJsAnimations = params.include_js_animations !== false;
 
     if (isDevelopment()) {
-      logger.info('[MotionSearchService] Starting hybrid search', {
+      logger.info("[MotionSearchService] Starting hybrid search", {
         hasQuery: !!params.query,
         hasSamplePattern: !!params.samplePattern,
       });
@@ -918,23 +959,24 @@ export class MotionSearchService implements IMotionSearchService {
       } else if (params.samplePattern) {
         queryText = samplePatternToText(params.samplePattern);
       } else {
-        throw new Error('query or samplePattern is required');
+        throw new Error("query or samplePattern is required");
       }
 
       // Embedding 生成
       let queryEmbedding: number[] | null = null;
       try {
         const embeddingService = this.getEmbeddingService();
-        queryEmbedding = await embeddingService.generateEmbedding(queryText, 'query');
+        queryEmbedding = await embeddingService.generateEmbedding(queryText, "query");
 
         const validationResult = validateEmbeddingVector(queryEmbedding);
         if (!validationResult.isValid) {
           const error = validationResult.error;
-          const errorMessage = error?.index !== undefined
-            ? `${error.message} at index ${error.index}`
-            : error?.message ?? 'Unknown validation error';
+          const errorMessage =
+            error?.index !== undefined
+              ? `${error.message} at index ${error.index}`
+              : (error?.message ?? "Unknown validation error");
           throw new EmbeddingValidationError(
-            error?.code ?? 'INVALID_VECTOR',
+            error?.code ?? "INVALID_VECTOR",
             errorMessage,
             error?.index
           );
@@ -944,8 +986,8 @@ export class MotionSearchService implements IMotionSearchService {
           throw embeddingError;
         }
         if (isDevelopment()) {
-          logger.warn('[MotionSearchService] Embedding generation failed in hybrid search', {
-            error: embeddingError instanceof Error ? embeddingError.message : 'Unknown error',
+          logger.warn("[MotionSearchService] Embedding generation failed in hybrid search", {
+            error: embeddingError instanceof Error ? embeddingError.message : "Unknown error",
           });
         }
       }
@@ -955,7 +997,7 @@ export class MotionSearchService implements IMotionSearchService {
         prisma = this.getPrismaClient();
       } catch {
         if (isDevelopment()) {
-          logger.warn('[MotionSearchService] PrismaClient not available');
+          logger.warn("[MotionSearchService] PrismaClient not available");
         }
         return {
           results: [],
@@ -969,13 +1011,17 @@ export class MotionSearchService implements IMotionSearchService {
 
       if (queryEmbedding) {
         const { clause, params: whereParams } = buildWhereClause(params.filters);
-        const vectorString = `[${queryEmbedding.join(',')}]`;
+        const vectorString = `[${queryEmbedding.join(",")}]`;
         const fetchLimit = Math.min(params.limit * 3, 150);
 
         // ベクトル検索関数（共通メソッドで SQL 構築）
         const vectorSearchFn = async (): Promise<RankedItem[]> => {
           const { sql, params: queryParams } = this.buildCSSVectorSearchQuery(
-            clause, whereParams, vectorString, params.minSimilarity, fetchLimit
+            clause,
+            whereParams,
+            vectorString,
+            params.minSimilarity,
+            fetchLimit
           );
           const rows = await prisma.$queryRawUnsafe<VectorSearchResult[]>(sql, ...queryParams);
           return toRankedItems(rows);
@@ -985,14 +1031,17 @@ export class MotionSearchService implements IMotionSearchService {
         const fulltextSearchFn = async (): Promise<RankedItem[]> => {
           try {
             const { sql, params: queryParams } = this.buildCSSFulltextSearchQuery(
-              clause, whereParams, queryText, fetchLimit
+              clause,
+              whereParams,
+              queryText,
+              fetchLimit
             );
             const rows = await prisma.$queryRawUnsafe<VectorSearchResult[]>(sql, ...queryParams);
             return toRankedItems(rows);
           } catch (ftError) {
             if (isDevelopment()) {
-              logger.warn('[MotionSearchService] Full-text search failed, using vector only', {
-                error: ftError instanceof Error ? ftError.message : 'Unknown error',
+              logger.warn("[MotionSearchService] Full-text search failed, using vector only", {
+                error: ftError instanceof Error ? ftError.message : "Unknown error",
               });
             }
             return [];
@@ -1015,8 +1064,8 @@ export class MotionSearchService implements IMotionSearchService {
           });
         } catch (dbError) {
           if (isDevelopment()) {
-            logger.warn('[MotionSearchService] Hybrid search failed, returning empty results', {
-              error: dbError instanceof Error ? dbError.message : 'Unknown error',
+            logger.warn("[MotionSearchService] Hybrid search failed, returning empty results", {
+              error: dbError instanceof Error ? dbError.message : "Unknown error",
             });
           }
         }
@@ -1040,8 +1089,8 @@ export class MotionSearchService implements IMotionSearchService {
             jsAnimationResults = jsSearchResult.results;
           } catch (jsError) {
             if (isDevelopment()) {
-              logger.warn('[MotionSearchService] JSAnimation hybrid search failed', {
-                error: jsError instanceof Error ? jsError.message : 'Unknown error',
+              logger.warn("[MotionSearchService] JSAnimation hybrid search failed", {
+                error: jsError instanceof Error ? jsError.message : "Unknown error",
               });
             }
           }
@@ -1052,7 +1101,7 @@ export class MotionSearchService implements IMotionSearchService {
       const processingTimeMs = Date.now() - startTime;
 
       if (isDevelopment()) {
-        logger.info('[MotionSearchService] Hybrid search completed', {
+        logger.info("[MotionSearchService] Hybrid search completed", {
           cssResultsCount: results.length,
           jsResultsCount: jsAnimationResults.length,
           mergedResultsCount: mergedResults.length,
@@ -1067,8 +1116,8 @@ export class MotionSearchService implements IMotionSearchService {
       };
     } catch (error) {
       if (isDevelopment()) {
-        logger.error('[MotionSearchService] Hybrid search error, falling back to standard search', {
-          error: error instanceof Error ? error.message : 'Unknown error',
+        logger.error("[MotionSearchService] Hybrid search error, falling back to standard search", {
+          error: error instanceof Error ? error.message : "Unknown error",
         });
       }
       // フォールバック: 標準検索

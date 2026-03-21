@@ -26,20 +26,20 @@
  * @module tests/regression/ea-financial-theme-detection.test
  */
 
-import { describe, it, expect, beforeAll } from 'vitest';
-import sharp from 'sharp';
+import { describe, it, expect, beforeAll } from "vitest";
+import sharp from "sharp";
 
 // テスト対象のサービス
 import {
   createPixelThemeDetectorService,
   DARK_THRESHOLD,
   LIGHT_THRESHOLD,
-} from '../../src/services/visual-extractor/pixel-theme-detector.service';
+} from "../../src/services/visual-extractor/pixel-theme-detector.service";
 
-import { visualDecorationDetector } from '../../src/services/visual-extractor/visual-decoration-detector.service';
-import type { VisualDecorationDetectorService } from '../../src/services/visual-extractor/visual-decoration-detector.service';
+import { visualDecorationDetector } from "../../src/services/visual-extractor/visual-decoration-detector.service";
+import type { VisualDecorationDetectorService } from "../../src/services/visual-extractor/visual-decoration-detector.service";
 
-import { ThemeAnalyzer } from '../../src/services/vision/theme.analyzer';
+import { ThemeAnalyzer } from "../../src/services/vision/theme.analyzer";
 
 // =====================================================
 // 定数定義
@@ -49,9 +49,9 @@ import { ThemeAnalyzer } from '../../src/services/vision/theme.analyzer';
  * E&A Financial サイトの期待値
  */
 const _EA_FINANCIAL_EXPECTED = {
-  url: 'https://ea.madebybuzzworthy.com/',
-  backgroundColor: '#0A1628', // ダークネイビーブルー
-  theme: 'dark' as const,
+  url: "https://ea.madebybuzzworthy.com/",
+  backgroundColor: "#0A1628", // ダークネイビーブルー
+  theme: "dark" as const,
   maxLuminance: 0.3, // WCAG Dark threshold
 };
 
@@ -69,11 +69,11 @@ const EA_DARK_BLUE_RGB = {
  * 類似のダークカラー（許容範囲内）
  */
 const SIMILAR_DARK_COLORS = [
-  { hex: '#0A1628', r: 10, g: 22, b: 40, description: 'E&A original' },
-  { hex: '#0B1729', r: 11, g: 23, b: 41, description: 'Slightly lighter' },
-  { hex: '#091527', r: 9, g: 21, b: 39, description: 'Slightly darker' },
-  { hex: '#1A1A2E', r: 26, g: 26, b: 46, description: 'Similar dark purple' },
-  { hex: '#000000', r: 0, g: 0, b: 0, description: 'Pure black' },
+  { hex: "#0A1628", r: 10, g: 22, b: 40, description: "E&A original" },
+  { hex: "#0B1729", r: 11, g: 23, b: 41, description: "Slightly lighter" },
+  { hex: "#091527", r: 9, g: 21, b: 39, description: "Slightly darker" },
+  { hex: "#1A1A2E", r: 26, g: 26, b: 46, description: "Similar dark purple" },
+  { hex: "#000000", r: 0, g: 0, b: 0, description: "Pure black" },
 ];
 
 // =====================================================
@@ -189,7 +189,7 @@ function calculateRelativeLuminance(r: number, g: number, b: number): number {
 // テストスイート
 // =====================================================
 
-describe('E&A Financial Theme Detection Regression', () => {
+describe("E&A Financial Theme Detection Regression", () => {
   let pixelDetector: ReturnType<typeof createPixelThemeDetectorService>;
   let decorationDetector: VisualDecorationDetectorService;
   let themeAnalyzer: ThemeAnalyzer;
@@ -205,8 +205,8 @@ describe('E&A Financial Theme Detection Regression', () => {
   // 1. ピクセルベーステーマ検出のテスト
   // -------------------------------------------------
 
-  describe('1. PixelThemeDetectorService', () => {
-    describe('E&A Financial ダークブルー背景 (#0A1628)', () => {
+  describe("1. PixelThemeDetectorService", () => {
+    describe("E&A Financial ダークブルー背景 (#0A1628)", () => {
       it('should detect theme as "dark" for #0A1628 background', async () => {
         // #0A1628 の単色背景でスクリーンショットを生成
         const screenshot = await createDarkThemeScreenshot(400, 300, EA_DARK_BLUE_RGB);
@@ -214,7 +214,7 @@ describe('E&A Financial Theme Detection Regression', () => {
         const result = await pixelDetector.detectTheme(screenshot);
 
         // テーマは "dark" であること
-        expect(result.theme).toBe('dark');
+        expect(result.theme).toBe("dark");
 
         // 平均輝度は DARK_THRESHOLD (0.3) 未満であること
         expect(result.averageLuminance).toBeLessThan(DARK_THRESHOLD);
@@ -223,7 +223,7 @@ describe('E&A Financial Theme Detection Regression', () => {
         expect(result.confidence).toBeGreaterThan(0.5);
       });
 
-      it('should return averageLuminance < 0.3 for E&A Financial colors', async () => {
+      it("should return averageLuminance < 0.3 for E&A Financial colors", async () => {
         // E&A Financial の #0A1628 の輝度を検証
         const expectedLuminance = calculateRelativeLuminance(
           EA_DARK_BLUE_RGB.r,
@@ -242,7 +242,7 @@ describe('E&A Financial Theme Detection Regression', () => {
         expect(result.averageLuminance).toBeCloseTo(expectedLuminance, 2);
       });
 
-      it('should extract dominant color close to #0A1628', async () => {
+      it("should extract dominant color close to #0A1628", async () => {
         const screenshot = await createDarkThemeScreenshot(400, 300, EA_DARK_BLUE_RGB);
 
         const result = await pixelDetector.detectTheme(screenshot);
@@ -255,7 +255,7 @@ describe('E&A Financial Theme Detection Regression', () => {
         const dominantColor = result.dominantColors[0]!.toLowerCase();
 
         // 暗い色であることを確認 (R, G, B いずれも低い値)
-        const hex = dominantColor.replace('#', '');
+        const hex = dominantColor.replace("#", "");
         const r = parseInt(hex.substring(0, 2), 16);
         const g = parseInt(hex.substring(2, 4), 16);
         const b = parseInt(hex.substring(4, 6), 16);
@@ -266,7 +266,7 @@ describe('E&A Financial Theme Detection Regression', () => {
       });
     });
 
-    describe('リージョン分析 (top/middle/bottom)', () => {
+    describe("リージョン分析 (top/middle/bottom)", () => {
       it('should detect all regions as "dark" for realistic E&A Financial screenshot', async () => {
         // リアルなE&A Financial風スクリーンショット
         const screenshot = await createRealisticEAFinancialScreenshot(800, 600);
@@ -274,12 +274,12 @@ describe('E&A Financial Theme Detection Regression', () => {
         const result = await pixelDetector.detectTheme(screenshot);
 
         // すべてのリージョンが "dark" であること
-        expect(result.analysis.topRegionTheme).toBe('dark');
-        expect(result.analysis.middleRegionTheme).toBe('dark');
-        expect(result.analysis.bottomRegionTheme).toBe('dark');
+        expect(result.analysis.topRegionTheme).toBe("dark");
+        expect(result.analysis.middleRegionTheme).toBe("dark");
+        expect(result.analysis.bottomRegionTheme).toBe("dark");
       });
 
-      it('should have high confidence when all regions agree on dark theme', async () => {
+      it("should have high confidence when all regions agree on dark theme", async () => {
         const screenshot = await createDarkThemeScreenshot(400, 300, EA_DARK_BLUE_RGB);
 
         const result = await pixelDetector.detectTheme(screenshot);
@@ -289,7 +289,7 @@ describe('E&A Financial Theme Detection Regression', () => {
       });
     });
 
-    describe('類似のダークカラーでの検証', () => {
+    describe("類似のダークカラーでの検証", () => {
       it.each(SIMILAR_DARK_COLORS)(
         'should detect theme as "dark" for $description ($hex)',
         async ({ r, g, b, hex: _hex }) => {
@@ -297,19 +297,19 @@ describe('E&A Financial Theme Detection Regression', () => {
 
           const result = await pixelDetector.detectTheme(screenshot);
 
-          expect(result.theme).toBe('dark');
+          expect(result.theme).toBe("dark");
           expect(result.averageLuminance).toBeLessThan(DARK_THRESHOLD);
         }
       );
     });
 
-    describe('誤認識防止: Light/Mixed として検出されないこと', () => {
+    describe("誤認識防止: Light/Mixed として検出されないこと", () => {
       it('should NEVER detect #0A1628 as "light"', async () => {
         const screenshot = await createDarkThemeScreenshot(400, 300, EA_DARK_BLUE_RGB);
 
         const result = await pixelDetector.detectTheme(screenshot);
 
-        expect(result.theme).not.toBe('light');
+        expect(result.theme).not.toBe("light");
       });
 
       it('should NEVER detect #0A1628 as "mixed"', async () => {
@@ -317,7 +317,7 @@ describe('E&A Financial Theme Detection Regression', () => {
 
         const result = await pixelDetector.detectTheme(screenshot);
 
-        expect(result.theme).not.toBe('mixed');
+        expect(result.theme).not.toBe("mixed");
       });
     });
   });
@@ -326,8 +326,8 @@ describe('E&A Financial Theme Detection Regression', () => {
   // 2. WCAG 2.1 輝度計算のテスト
   // -------------------------------------------------
 
-  describe('2. WCAG 2.1 Luminance Calculation', () => {
-    it('should calculate luminance < 0.3 for #0A1628', () => {
+  describe("2. WCAG 2.1 Luminance Calculation", () => {
+    it("should calculate luminance < 0.3 for #0A1628", () => {
       const luminance = calculateRelativeLuminance(
         EA_DARK_BLUE_RGB.r,
         EA_DARK_BLUE_RGB.g,
@@ -339,14 +339,14 @@ describe('E&A Financial Theme Detection Regression', () => {
       expect(luminance).toBeLessThan(DARK_THRESHOLD);
     });
 
-    it('should calculate luminance < 0.3 for all E&A Financial-like colors', () => {
+    it("should calculate luminance < 0.3 for all E&A Financial-like colors", () => {
       SIMILAR_DARK_COLORS.forEach(({ r, g, b, hex: _hex }) => {
         const luminance = calculateRelativeLuminance(r, g, b);
         expect(luminance).toBeLessThan(DARK_THRESHOLD);
       });
     });
 
-    it('should correctly apply gamma correction (sRGB to linear)', () => {
+    it("should correctly apply gamma correction (sRGB to linear)", () => {
       // 線形化のテスト: 低い値と高い値で挙動が異なることを確認
       // sRGB 50 -> linear: 0.0319
       // sRGB 100 -> linear: 0.1274
@@ -362,36 +362,36 @@ describe('E&A Financial Theme Detection Regression', () => {
   // 3. 閾値の検証
   // -------------------------------------------------
 
-  describe('3. Theme Detection Thresholds', () => {
-    it('should use DARK_THRESHOLD = 0.3', () => {
+  describe("3. Theme Detection Thresholds", () => {
+    it("should use DARK_THRESHOLD = 0.3", () => {
       expect(DARK_THRESHOLD).toBe(0.3);
     });
 
-    it('should use LIGHT_THRESHOLD = 0.7', () => {
+    it("should use LIGHT_THRESHOLD = 0.7", () => {
       expect(LIGHT_THRESHOLD).toBe(0.7);
     });
 
-    it('should classify luminance < 0.3 as dark', async () => {
+    it("should classify luminance < 0.3 as dark", async () => {
       // 輝度 0.2 の色を生成 (約 R=128, G=128, B=128 の半分程度)
       // 実際には #0A1628 は 0.007 程度なのでより確実にテスト
       const screenshot = await createDarkThemeScreenshot(100, 100, { r: 30, g: 30, b: 30 });
 
       const result = await pixelDetector.detectTheme(screenshot);
 
-      expect(result.theme).toBe('dark');
+      expect(result.theme).toBe("dark");
     });
 
-    it('should classify luminance > 0.7 as light', async () => {
+    it("should classify luminance > 0.7 as light", async () => {
       // 明るいグレー (#CCCCCC = R=204, G=204, B=204) -> 輝度約 0.6
       // より明るい色 (#EEEEEE) -> 輝度約 0.85
       const screenshot = await createDarkThemeScreenshot(100, 100, { r: 238, g: 238, b: 238 });
 
       const result = await pixelDetector.detectTheme(screenshot);
 
-      expect(result.theme).toBe('light');
+      expect(result.theme).toBe("light");
     });
 
-    it('should classify 0.3 <= luminance <= 0.7 as mixed', async () => {
+    it("should classify 0.3 <= luminance <= 0.7 as mixed", async () => {
       // 中間グレー (#808080 = R=128, G=128, B=128) -> 輝度約 0.22
       // より明るい中間 (#999999 = R=153, G=153, B=153) -> 輝度約 0.33
       // #B0B0B0 -> 輝度約 0.45
@@ -399,7 +399,7 @@ describe('E&A Financial Theme Detection Regression', () => {
 
       const result = await pixelDetector.detectTheme(screenshot);
 
-      expect(result.theme).toBe('mixed');
+      expect(result.theme).toBe("mixed");
     });
   });
 
@@ -407,9 +407,9 @@ describe('E&A Financial Theme Detection Regression', () => {
   // 4. Visual Decoration Detection
   // -------------------------------------------------
 
-  describe('4. VisualDecorationDetectorService', () => {
-    describe('Glow Effect Detection', () => {
-      it('should detect glow effects from box-shadow CSS', async () => {
+  describe("4. VisualDecorationDetectorService", () => {
+    describe("Glow Effect Detection", () => {
+      it("should detect glow effects from box-shadow CSS", async () => {
         // E&A Financial 風の glow CSS
         const cssWithGlow = `
           .hero-card {
@@ -425,10 +425,10 @@ describe('E&A Financial Theme Detection Regression', () => {
         // summary.glowCount で glow の数を確認
         expect(result.summary.glowCount).toBeGreaterThan(0);
         // decorations 配列から glow タイプをフィルター
-        expect(result.decorations.filter((d) => d.type === 'glow').length).toBeGreaterThan(0);
+        expect(result.decorations.filter((d) => d.type === "glow").length).toBeGreaterThan(0);
       });
 
-      it('should detect glow with neon colors (common in dark themes)', async () => {
+      it("should detect glow with neon colors (common in dark themes)", async () => {
         // ネオンカラーの glow（ダークテーマでよく使われる）
         const cssWithNeonGlow = `
           .neon-text {
@@ -446,8 +446,8 @@ describe('E&A Financial Theme Detection Regression', () => {
       });
     });
 
-    describe('Gradient Detection', () => {
-      it('should detect linear gradients', async () => {
+    describe("Gradient Detection", () => {
+      it("should detect linear gradients", async () => {
         const cssWithGradient = `
           .hero-bg {
             background: linear-gradient(135deg, #0A1628 0%, #1A2638 50%, #0A1628 100%);
@@ -459,10 +459,10 @@ describe('E&A Financial Theme Detection Regression', () => {
         // summary.gradientCount で gradient の数を確認
         expect(result.summary.gradientCount).toBeGreaterThan(0);
         // decorations 配列から gradient タイプをフィルター
-        expect(result.decorations.filter((d) => d.type === 'gradient').length).toBeGreaterThan(0);
+        expect(result.decorations.filter((d) => d.type === "gradient").length).toBeGreaterThan(0);
       });
 
-      it('should detect radial gradients', async () => {
+      it("should detect radial gradients", async () => {
         const cssWithRadialGradient = `
           .spotlight {
             background: radial-gradient(circle at center, rgba(0, 100, 200, 0.3) 0%, transparent 70%);
@@ -476,8 +476,8 @@ describe('E&A Financial Theme Detection Regression', () => {
       });
     });
 
-    describe('Glass Morphism Detection', () => {
-      it('should detect glass morphism with backdrop-filter', async () => {
+    describe("Glass Morphism Detection", () => {
+      it("should detect glass morphism with backdrop-filter", async () => {
         // Glass morphism CSS (E&A Financial 風)
         const cssWithGlassMorphism = `
           .glass-card {
@@ -495,8 +495,8 @@ describe('E&A Financial Theme Detection Regression', () => {
       });
     });
 
-    describe('Animated Border Detection', () => {
-      it('should detect animated borders', async () => {
+    describe("Animated Border Detection", () => {
+      it("should detect animated borders", async () => {
         const cssWithAnimatedBorder = `
           @keyframes borderGlow {
             0% { border-color: #0066ff; }
@@ -521,11 +521,11 @@ describe('E&A Financial Theme Detection Regression', () => {
   // 5. ThemeAnalyzer (Vision AI + Pixel Fallback)
   // -------------------------------------------------
 
-  describe('5. ThemeAnalyzer Integration', () => {
-    describe('Pixel-based Fallback', () => {
-      it('should detect dark theme via analyzeWithFallback for #0A1628', async () => {
+  describe("5. ThemeAnalyzer Integration", () => {
+    describe("Pixel-based Fallback", () => {
+      it("should detect dark theme via analyzeWithFallback for #0A1628", async () => {
         const screenshot = await createDarkThemeScreenshot(400, 300, EA_DARK_BLUE_RGB);
-        const base64 = screenshot.toString('base64');
+        const base64 = screenshot.toString("base64");
 
         const result = await themeAnalyzer.analyzeWithFallback(base64);
 
@@ -533,40 +533,40 @@ describe('E&A Financial Theme Detection Regression', () => {
         expect(result).not.toBeNull();
 
         // テーマが "dark" であること
-        expect(result?.theme).toBe('dark');
+        expect(result?.theme).toBe("dark");
 
         // 輝度が低いことを確認
         expect(result?.confidence).toBeGreaterThan(0.5);
       });
 
-      it('should prefer pixel-based detection when Vision AI is unavailable', async () => {
+      it("should prefer pixel-based detection when Vision AI is unavailable", async () => {
         // Vision AI が利用不可の場合、ピクセルベースにフォールバック
         const screenshot = await createDarkThemeScreenshot(400, 300, EA_DARK_BLUE_RGB);
-        const base64 = screenshot.toString('base64');
+        const base64 = screenshot.toString("base64");
 
         const result = await themeAnalyzer.analyzeWithFallback(base64);
 
         expect(result).not.toBeNull();
-        expect(result?.theme).toBe('dark');
+        expect(result?.theme).toBe("dark");
       });
     });
 
-    describe('Color Context Integration', () => {
-      it('should accept color context for improved accuracy', async () => {
+    describe("Color Context Integration", () => {
+      it("should accept color context for improved accuracy", async () => {
         const screenshot = await createDarkThemeScreenshot(400, 300, EA_DARK_BLUE_RGB);
-        const base64 = screenshot.toString('base64');
+        const base64 = screenshot.toString("base64");
 
         // E&A Financial のカラーコンテキスト
         const colorContext = {
-          dominantColors: ['#0A1628', '#1A2638', '#0D1C32'],
-          theme: 'dark' as const,
+          dominantColors: ["#0A1628", "#1A2638", "#0D1C32"],
+          theme: "dark" as const,
           contentDensity: 0.4,
         };
 
         const result = await themeAnalyzer.analyzeWithFallback(base64, colorContext);
 
         expect(result).not.toBeNull();
-        expect(result?.theme).toBe('dark');
+        expect(result?.theme).toBe("dark");
       });
     });
   });
@@ -575,34 +575,34 @@ describe('E&A Financial Theme Detection Regression', () => {
   // 6. 回帰テスト: 誤認識シナリオの防止
   // -------------------------------------------------
 
-  describe('6. Regression: Prevent False Positive Detection', () => {
-    it('CRITICAL: #0A1628 should NEVER be detected as light', async () => {
+  describe("6. Regression: Prevent False Positive Detection", () => {
+    it("CRITICAL: #0A1628 should NEVER be detected as light", async () => {
       // この回帰テストは、修正前に失敗していたシナリオを検証
       const screenshot = await createDarkThemeScreenshot(1920, 1080, EA_DARK_BLUE_RGB);
 
       const result = await pixelDetector.detectTheme(screenshot);
 
       // 絶対に light と検出されてはいけない
-      expect(result.theme).not.toBe('light');
+      expect(result.theme).not.toBe("light");
 
       // 絶対に mixed と検出されてはいけない (E&A Financial の均一なダーク背景)
-      expect(result.theme).not.toBe('mixed');
+      expect(result.theme).not.toBe("mixed");
 
       // 必ず dark であること
-      expect(result.theme).toBe('dark');
+      expect(result.theme).toBe("dark");
     });
 
-    it('CRITICAL: Realistic E&A Financial layout should be detected as dark', async () => {
+    it("CRITICAL: Realistic E&A Financial layout should be detected as dark", async () => {
       // ヘッダー・コンテンツ・フッターを含むリアルなレイアウト
       const screenshot = await createRealisticEAFinancialScreenshot(1920, 1080);
 
       const result = await pixelDetector.detectTheme(screenshot);
 
-      expect(result.theme).toBe('dark');
+      expect(result.theme).toBe("dark");
       expect(result.averageLuminance).toBeLessThan(DARK_THRESHOLD);
     });
 
-    it('CRITICAL: Dark navy blue variations should all be detected as dark', async () => {
+    it("CRITICAL: Dark navy blue variations should all be detected as dark", async () => {
       // E&A Financial と類似のダークネイビーブルーのバリエーション
       const variations = [
         { r: 10, g: 22, b: 40 }, // #0A1628 - original
@@ -615,7 +615,7 @@ describe('E&A Financial Theme Detection Regression', () => {
         const screenshot = await createDarkThemeScreenshot(400, 300, color);
         const result = await pixelDetector.detectTheme(screenshot);
 
-        expect(result.theme).toBe('dark');
+        expect(result.theme).toBe("dark");
       }
     });
   });
@@ -624,8 +624,8 @@ describe('E&A Financial Theme Detection Regression', () => {
   // 7. パフォーマンステスト
   // -------------------------------------------------
 
-  describe('7. Performance', () => {
-    it('should detect theme within 500ms for 1920x1080 image', async () => {
+  describe("7. Performance", () => {
+    it("should detect theme within 500ms for 1920x1080 image", async () => {
       const screenshot = await createRealisticEAFinancialScreenshot(1920, 1080);
 
       const startTime = Date.now();
@@ -635,7 +635,7 @@ describe('E&A Financial Theme Detection Regression', () => {
       expect(elapsedMs).toBeLessThan(500);
     });
 
-    it('should detect theme within 200ms for 400x300 image', async () => {
+    it("should detect theme within 200ms for 400x300 image", async () => {
       const screenshot = await createDarkThemeScreenshot(400, 300, EA_DARK_BLUE_RGB);
 
       const startTime = Date.now();
@@ -652,27 +652,27 @@ describe('E&A Financial Theme Detection Regression', () => {
   // 8. Base64 入力のテスト
   // -------------------------------------------------
 
-  describe('8. Base64 Input Support', () => {
-    it('should accept Base64 encoded screenshot', async () => {
+  describe("8. Base64 Input Support", () => {
+    it("should accept Base64 encoded screenshot", async () => {
       const screenshot = await createDarkThemeScreenshot(400, 300, EA_DARK_BLUE_RGB);
-      const base64 = screenshot.toString('base64');
+      const base64 = screenshot.toString("base64");
 
       const result = await pixelDetector.detectTheme(base64);
 
-      expect(result.theme).toBe('dark');
+      expect(result.theme).toBe("dark");
     });
 
-    it('should handle Base64 with data URL prefix', async () => {
+    it("should handle Base64 with data URL prefix", async () => {
       const screenshot = await createDarkThemeScreenshot(400, 300, EA_DARK_BLUE_RGB);
-      const _base64WithPrefix = `data:image/png;base64,${screenshot.toString('base64')}`;
+      const _base64WithPrefix = `data:image/png;base64,${screenshot.toString("base64")}`;
 
       // data URL プレフィックスは内部で除去されるか、適切に処理される
       // 実装によっては直接 Base64 のみ受け付ける場合もある
       // ここでは Base64 のみをテスト
-      const base64 = screenshot.toString('base64');
+      const base64 = screenshot.toString("base64");
       const result = await pixelDetector.detectTheme(base64);
 
-      expect(result.theme).toBe('dark');
+      expect(result.theme).toBe("dark");
     });
   });
 });

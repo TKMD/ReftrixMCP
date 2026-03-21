@@ -25,16 +25,16 @@
  * @module tests/services/part/section-screenshot-fallback.service.test
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
-import type { Browser, BrowserContext, Page } from 'playwright';
+import type { Browser, BrowserContext, Page } from "playwright";
 
 // ============================================================================
 // Mocks / モック設定
 // ============================================================================
 
 // logger モック / Logger mock
-vi.mock('../../../src/utils/logger', () => ({
+vi.mock("../../../src/utils/logger", () => ({
   logger: {
     info: vi.fn(),
     warn: vi.fn(),
@@ -44,30 +44,30 @@ vi.mock('../../../src/utils/logger', () => ({
   isDevelopment: vi.fn().mockReturnValue(false),
 }));
 
-import { logger } from '../../../src/utils/logger';
+import { logger } from "../../../src/utils/logger";
 
 // url-validator モック / URL validator mock
-vi.mock('../../../src/utils/url-validator', () => ({
+vi.mock("../../../src/utils/url-validator", () => ({
   validateExternalUrl: vi.fn(),
 }));
 
-import { validateExternalUrl } from '../../../src/utils/url-validator';
+import { validateExternalUrl } from "../../../src/utils/url-validator";
 const mockValidateExternalUrl = vi.mocked(validateExternalUrl);
 
 // sharp モック / Sharp mock
 // vi.mock のファクトリは hoisted されるため、内部で完結する必要がある
 // vi.mock factory is hoisted so it must be self-contained
-vi.mock('sharp', () => {
+vi.mock("sharp", () => {
   const composite = vi.fn().mockReturnThis();
   const png = vi.fn().mockReturnThis();
-  const toBuffer = vi.fn().mockResolvedValue(Buffer.from('stitched-png', 'utf-8'));
+  const toBuffer = vi.fn().mockResolvedValue(Buffer.from("stitched-png", "utf-8"));
   const metadata = vi.fn().mockResolvedValue({ width: 1920, height: 500 });
   const instance = { composite, png, toBuffer, metadata };
   const sharpFn = vi.fn().mockReturnValue(instance);
   return { default: sharpFn };
 });
 
-import sharp from 'sharp';
+import sharp from "sharp";
 const mockSharp = vi.mocked(sharp);
 
 // テストから sharp mock の内部メソッドにアクセスするヘルパー
@@ -89,13 +89,13 @@ function getSharpMockInstance(): {
 }
 
 // playwright モック / Playwright mock
-vi.mock('playwright', () => ({
+vi.mock("playwright", () => ({
   chromium: {
     launch: vi.fn(),
   },
 }));
 
-import { chromium } from 'playwright';
+import { chromium } from "playwright";
 const mockChromiumLaunch = vi.mocked(chromium.launch);
 
 // ============================================================================
@@ -103,18 +103,16 @@ const mockChromiumLaunch = vi.mocked(chromium.launch);
 // テスト対象のインポート（モック設定後）
 // ============================================================================
 
-import {
-  captureSectionScreenshots,
-} from '../../../src/services/part/section-screenshot-fallback.service';
+import { captureSectionScreenshots } from "../../../src/services/part/section-screenshot-fallback.service";
 
 // ============================================================================
 // Test Data / テストデータ
 // ============================================================================
 
-const MOCK_URL = 'https://example.com/design';
-const MOCK_SECTION_ID_1 = 'aaaa1111-1111-7111-1111-111111111111';
-const MOCK_SECTION_ID_2 = 'bbbb2222-2222-7222-2222-222222222222';
-const MOCK_SECTION_ID_3 = 'cccc3333-3333-7333-3333-333333333333';
+const MOCK_URL = "https://example.com/design";
+const MOCK_SECTION_ID_1 = "aaaa1111-1111-7111-1111-111111111111";
+const MOCK_SECTION_ID_2 = "bbbb2222-2222-7222-2222-222222222222";
+const MOCK_SECTION_ID_3 = "cccc3333-3333-7333-3333-333333333333";
 
 // ============================================================================
 // Mock Factories / モックファクトリー
@@ -122,7 +120,7 @@ const MOCK_SECTION_ID_3 = 'cccc3333-3333-7333-3333-333333333333';
 
 /** テスト用のscreenshotバッファを生成 / Generate a test screenshot buffer */
 function createMockScreenshotBuffer(): Buffer {
-  return Buffer.from('mock-screenshot-png-data', 'utf-8');
+  return Buffer.from("mock-screenshot-png-data", "utf-8");
 }
 
 function createMockPage(overrides?: {
@@ -136,19 +134,19 @@ function createMockPage(overrides?: {
   // デフォルト evaluate: scrollTo(void)→undefined, scrollY→最後のscrollTo値 を返す
   // Default evaluate: returns undefined for scrollTo(void), last scrollTo value for scrollY
   let lastScrollY = 0;
-  const defaultEvaluate = vi.fn().mockImplementation(
-    (_fn: (...args: unknown[]) => unknown, ...args: unknown[]) => {
+  const defaultEvaluate = vi
+    .fn()
+    .mockImplementation((_fn: (...args: unknown[]) => unknown, ...args: unknown[]) => {
       // scrollTo は引数あり（第2引数=scrollY値）、window.scrollY は引数なし
       // scrollTo has args (2nd arg = scrollY value), window.scrollY has no args
       if (args.length > 0) {
         // scrollTo: 記録して void を返す / Record scroll position and return void
-        lastScrollY = typeof args[0] === 'number' ? args[0] : 0;
+        lastScrollY = typeof args[0] === "number" ? args[0] : 0;
         return Promise.resolve(undefined);
       }
       // window.scrollY: 最後の scrollTo 値を返す / Return last scrollTo value
       return Promise.resolve(lastScrollY);
-    },
-  );
+    });
   return {
     goto: overrides?.goto ?? vi.fn().mockResolvedValue({ status: () => 200 }),
     evaluate: overrides?.evaluate ?? defaultEvaluate,
@@ -159,19 +157,25 @@ function createMockPage(overrides?: {
   } as unknown as Page;
 }
 
-function createMockContext(page: Page, overrides?: {
-  close?: ReturnType<typeof vi.fn>;
-}): BrowserContext {
+function createMockContext(
+  page: Page,
+  overrides?: {
+    close?: ReturnType<typeof vi.fn>;
+  }
+): BrowserContext {
   return {
     newPage: vi.fn().mockResolvedValue(page),
     close: overrides?.close ?? vi.fn().mockResolvedValue(undefined),
   } as unknown as BrowserContext;
 }
 
-function createMockBrowser(context: BrowserContext, overrides?: {
-  close?: ReturnType<typeof vi.fn>;
-  isConnected?: ReturnType<typeof vi.fn>;
-}): Browser {
+function createMockBrowser(
+  context: BrowserContext,
+  overrides?: {
+    close?: ReturnType<typeof vi.fn>;
+    isConnected?: ReturnType<typeof vi.fn>;
+  }
+): Browser {
   return {
     newContext: vi.fn().mockResolvedValue(context),
     close: overrides?.close ?? vi.fn().mockResolvedValue(undefined),
@@ -183,7 +187,7 @@ function createMockBrowser(context: BrowserContext, overrides?: {
 // Tests
 // ============================================================================
 
-describe('SectionScreenshotFallbackService', () => {
+describe("SectionScreenshotFallbackService", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     // デフォルトでURL検証を通過 / Default: pass URL validation
@@ -197,8 +201,8 @@ describe('SectionScreenshotFallbackService', () => {
   // ==========================================================================
   // 1. sharedBrowser接続済み: コンテキスト作成->ナビゲーション->clip screenshot
   // ==========================================================================
-  describe('sharedBrowser接続済み / Connected shared browser', () => {
-    it('sharedBrowserが接続済みの場合、新しいブラウザを起動せずにスクリーンショットを取得する', async () => {
+  describe("sharedBrowser接続済み / Connected shared browser", () => {
+    it("sharedBrowserが接続済みの場合、新しいブラウザを起動せずにスクリーンショットを取得する", async () => {
       // Arrange
       const mockScreenshotBuf = createMockScreenshotBuffer();
       const mockPage = createMockPage({
@@ -209,9 +213,7 @@ describe('SectionScreenshotFallbackService', () => {
         isConnected: vi.fn().mockReturnValue(true),
       });
 
-      const sections = [
-        { id: MOCK_SECTION_ID_1, startY: 2000, height: 600 },
-      ];
+      const sections = [{ id: MOCK_SECTION_ID_1, startY: 2000, height: 600 }];
 
       // Act
       const result = await captureSectionScreenshots({
@@ -230,7 +232,7 @@ describe('SectionScreenshotFallbackService', () => {
       expect(mockChromiumLaunch).not.toHaveBeenCalled();
     });
 
-    it('sharedBrowser経由でpage.screenshotをclipオプション付きで呼び出す', async () => {
+    it("sharedBrowser経由でpage.screenshotをclipオプション付きで呼び出す", async () => {
       // Arrange
       const mockScreenshotFn = vi.fn().mockResolvedValue(createMockScreenshotBuffer());
       const mockPage = createMockPage({ screenshot: mockScreenshotFn });
@@ -239,9 +241,7 @@ describe('SectionScreenshotFallbackService', () => {
         isConnected: vi.fn().mockReturnValue(true),
       });
 
-      const sections = [
-        { id: MOCK_SECTION_ID_1, startY: 1500, height: 400 },
-      ];
+      const sections = [{ id: MOCK_SECTION_ID_1, startY: 1500, height: 400 }];
 
       // Act
       await captureSectionScreenshots({
@@ -251,27 +251,28 @@ describe('SectionScreenshotFallbackService', () => {
       });
 
       // Assert
-      expect(mockScreenshotFn).toHaveBeenCalledWith(expect.objectContaining({
-        fullPage: false,
-        type: 'png',
-        clip: expect.objectContaining({
-          x: 0,
-          width: 1920, // DEFAULT_VIEWPORT_WIDTH (unified with ingest)
-        }),
-      }));
+      expect(mockScreenshotFn).toHaveBeenCalledWith(
+        expect.objectContaining({
+          fullPage: false,
+          type: "png",
+          clip: expect.objectContaining({
+            x: 0,
+            width: 1920, // DEFAULT_VIEWPORT_WIDTH (unified with ingest)
+          }),
+        })
+      );
     });
   });
 
   // ==========================================================================
   // 2. sharedBrowser切断済み: 独自Chromium起動
   // ==========================================================================
-  describe('sharedBrowser切断済み / Disconnected shared browser', () => {
-    it('sharedBrowserが切断済みの場合、独自Chromiumを起動する', async () => {
+  describe("sharedBrowser切断済み / Disconnected shared browser", () => {
+    it("sharedBrowserが切断済みの場合、独自Chromiumを起動する", async () => {
       // Arrange
-      const disconnectedBrowser = createMockBrowser(
-        createMockContext(createMockPage()),
-        { isConnected: vi.fn().mockReturnValue(false) },
-      );
+      const disconnectedBrowser = createMockBrowser(createMockContext(createMockPage()), {
+        isConnected: vi.fn().mockReturnValue(false),
+      });
 
       const newPage = createMockPage({
         screenshot: vi.fn().mockResolvedValue(createMockScreenshotBuffer()),
@@ -281,9 +282,7 @@ describe('SectionScreenshotFallbackService', () => {
       const newBrowser = createMockBrowser(newContext, { close: browserClose });
       mockChromiumLaunch.mockResolvedValue(newBrowser);
 
-      const sections = [
-        { id: MOCK_SECTION_ID_1, startY: 3000, height: 500 },
-      ];
+      const sections = [{ id: MOCK_SECTION_ID_1, startY: 3000, height: 500 }];
 
       // Act
       const result = await captureSectionScreenshots({
@@ -298,7 +297,7 @@ describe('SectionScreenshotFallbackService', () => {
       expect(browserClose).toHaveBeenCalledTimes(1); // 独自起動ブラウザは閉じる
     });
 
-    it('sharedBrowserが未指定の場合も独自Chromiumを起動する', async () => {
+    it("sharedBrowserが未指定の場合も独自Chromiumを起動する", async () => {
       // Arrange
       const newPage = createMockPage({
         screenshot: vi.fn().mockResolvedValue(createMockScreenshotBuffer()),
@@ -307,9 +306,7 @@ describe('SectionScreenshotFallbackService', () => {
       const newBrowser = createMockBrowser(newContext);
       mockChromiumLaunch.mockResolvedValue(newBrowser);
 
-      const sections = [
-        { id: MOCK_SECTION_ID_1, startY: 2000, height: 600 },
-      ];
+      const sections = [{ id: MOCK_SECTION_ID_1, startY: 2000, height: 600 }];
 
       // Act
       const result = await captureSectionScreenshots({
@@ -327,21 +324,19 @@ describe('SectionScreenshotFallbackService', () => {
   // ==========================================================================
   // 3. SSRF拒否: プライベートIP URL
   // ==========================================================================
-  describe('SSRF拒否 / SSRF rejection', () => {
-    it('プライベートIP URLでemptyResult返却（全セクションなし）', async () => {
+  describe("SSRF拒否 / SSRF rejection", () => {
+    it("プライベートIP URLでemptyResult返却（全セクションなし）", async () => {
       // Arrange
       mockValidateExternalUrl.mockReturnValue({
         valid: false,
-        error: 'Private IP address blocked',
+        error: "Private IP address blocked",
       });
 
-      const sections = [
-        { id: MOCK_SECTION_ID_1, startY: 2000, height: 600 },
-      ];
+      const sections = [{ id: MOCK_SECTION_ID_1, startY: 2000, height: 600 }];
 
       // Act
       const result = await captureSectionScreenshots({
-        url: 'http://192.168.1.1/admin',
+        url: "http://192.168.1.1/admin",
         sections,
       });
 
@@ -351,25 +346,23 @@ describe('SectionScreenshotFallbackService', () => {
       expect(result.skippedCount).toBe(0);
       expect(mockChromiumLaunch).not.toHaveBeenCalled();
       expect(logger.warn).toHaveBeenCalledWith(
-        expect.stringContaining('SSRF'),
-        expect.objectContaining({ error: 'Private IP address blocked' }),
+        expect.stringContaining("SSRF"),
+        expect.objectContaining({ error: "Private IP address blocked" })
       );
     });
 
-    it('メタデータサービスURL (169.254.169.254) でemptyResult返却', async () => {
+    it("メタデータサービスURL (169.254.169.254) でemptyResult返却", async () => {
       // Arrange
       mockValidateExternalUrl.mockReturnValue({
         valid: false,
-        error: 'Metadata service blocked',
+        error: "Metadata service blocked",
       });
 
-      const sections = [
-        { id: MOCK_SECTION_ID_1, startY: 0, height: 800 },
-      ];
+      const sections = [{ id: MOCK_SECTION_ID_1, startY: 0, height: 800 }];
 
       // Act
       const result = await captureSectionScreenshots({
-        url: 'http://169.254.169.254/latest/meta-data/',
+        url: "http://169.254.169.254/latest/meta-data/",
         sections,
       });
 
@@ -383,8 +376,8 @@ describe('SectionScreenshotFallbackService', () => {
   // ==========================================================================
   // 4. メモリ圧迫時停止
   // ==========================================================================
-  describe('メモリ圧迫時停止 / Memory pressure abort', () => {
-    it('shouldDegrade=trueの場合、セクションをスキップする', async () => {
+  describe("メモリ圧迫時停止 / Memory pressure abort", () => {
+    it("shouldDegrade=trueの場合、セクションをスキップする", async () => {
       // Arrange
       const mockPage = createMockPage({
         screenshot: vi.fn().mockResolvedValue(createMockScreenshotBuffer()),
@@ -413,12 +406,12 @@ describe('SectionScreenshotFallbackService', () => {
 
       // Assert
       expect(result.results).toHaveLength(2);
-      expect(result.results.every(r => r.skipped)).toBe(true);
-      expect(result.results.every(r => r.screenshotBuffer === null)).toBe(true);
-      expect(result.results[0].skipReason).toContain('memory');
+      expect(result.results.every((r) => r.skipped)).toBe(true);
+      expect(result.results.every((r) => r.screenshotBuffer === null)).toBe(true);
+      expect(result.results[0].skipReason).toContain("memory");
     });
 
-    it('shouldAbort=trueの場合も全セクションをスキップする', async () => {
+    it("shouldAbort=trueの場合も全セクションをスキップする", async () => {
       // Arrange
       const mockPage = createMockPage({
         screenshot: vi.fn().mockResolvedValue(createMockScreenshotBuffer()),
@@ -433,9 +426,7 @@ describe('SectionScreenshotFallbackService', () => {
         rssMb: 6144,
       });
 
-      const sections = [
-        { id: MOCK_SECTION_ID_1, startY: 2000, height: 600 },
-      ];
+      const sections = [{ id: MOCK_SECTION_ID_1, startY: 2000, height: 600 }];
 
       // Act
       const result = await captureSectionScreenshots({
@@ -446,26 +437,24 @@ describe('SectionScreenshotFallbackService', () => {
 
       // Assert
       expect(result.results[0].skipped).toBe(true);
-      expect(result.results[0].skipReason).toContain('memory');
+      expect(result.results[0].skipReason).toContain("memory");
     });
   });
 
   // ==========================================================================
   // 5. ナビゲーションタイムアウト
   // ==========================================================================
-  describe('ナビゲーションタイムアウト / Navigation timeout', () => {
-    it('page.goto()がタイムアウトした場合、emptyResult返却 + Graceful Degradation', async () => {
+  describe("ナビゲーションタイムアウト / Navigation timeout", () => {
+    it("page.goto()がタイムアウトした場合、emptyResult返却 + Graceful Degradation", async () => {
       // Arrange
       const mockPage = createMockPage({
-        goto: vi.fn().mockRejectedValue(new Error('Navigation timeout exceeded 30000ms')),
+        goto: vi.fn().mockRejectedValue(new Error("Navigation timeout exceeded 30000ms")),
       });
       const mockContext = createMockContext(mockPage);
       const mockBrowser = createMockBrowser(mockContext);
       mockChromiumLaunch.mockResolvedValue(mockBrowser);
 
-      const sections = [
-        { id: MOCK_SECTION_ID_1, startY: 2000, height: 600 },
-      ];
+      const sections = [{ id: MOCK_SECTION_ID_1, startY: 2000, height: 600 }];
 
       // Act
       const result = await captureSectionScreenshots({
@@ -479,14 +468,14 @@ describe('SectionScreenshotFallbackService', () => {
       expect(result.skippedCount).toBe(0);
       // logger.warn がGraceful Degradationメッセージで呼ばれること
       expect(logger.warn).toHaveBeenCalledWith(
-        expect.stringContaining('failed (non-fatal)'),
+        expect.stringContaining("failed (non-fatal)"),
         expect.objectContaining({
-          error: expect.stringContaining('timeout'),
-        }),
+          error: expect.stringContaining("timeout"),
+        })
       );
     });
 
-    it('HTTP 4xx/5xxステータスの場合もemptyResult返却', async () => {
+    it("HTTP 4xx/5xxステータスの場合もemptyResult返却", async () => {
       // Arrange
       const mockPage = createMockPage({
         goto: vi.fn().mockResolvedValue({ status: () => 503 }),
@@ -495,9 +484,7 @@ describe('SectionScreenshotFallbackService', () => {
       const mockBrowser = createMockBrowser(mockContext);
       mockChromiumLaunch.mockResolvedValue(mockBrowser);
 
-      const sections = [
-        { id: MOCK_SECTION_ID_1, startY: 2000, height: 600 },
-      ];
+      const sections = [{ id: MOCK_SECTION_ID_1, startY: 2000, height: 600 }];
 
       // Act
       const result = await captureSectionScreenshots({
@@ -509,8 +496,8 @@ describe('SectionScreenshotFallbackService', () => {
       expect(result.results).toHaveLength(0);
       expect(result.capturedCount).toBe(0);
       expect(logger.warn).toHaveBeenCalledWith(
-        expect.stringContaining('HTTP error'),
-        expect.objectContaining({ status: 503 }),
+        expect.stringContaining("HTTP error"),
+        expect.objectContaining({ status: 503 })
       );
     });
   });
@@ -518,11 +505,11 @@ describe('SectionScreenshotFallbackService', () => {
   // ==========================================================================
   // 6. セクション上限超過: maxSections
   // ==========================================================================
-  describe('セクション上限超過 / Section limit exceeded', () => {
-    it('maxSectionsを超えるセクションはsliceで切り捨てられる', async () => {
+  describe("セクション上限超過 / Section limit exceeded", () => {
+    it("maxSectionsを超えるセクションはsliceで切り捨てられる", async () => {
       // Arrange
       const sections = Array.from({ length: 55 }, (_, i) => ({
-        id: `sect-${String(i).padStart(4, '0')}-0000-7000-0000-000000000000`,
+        id: `sect-${String(i).padStart(4, "0")}-0000-7000-0000-000000000000`,
         startY: i * 300,
         height: 200,
       }));
@@ -551,8 +538,8 @@ describe('SectionScreenshotFallbackService', () => {
   // ==========================================================================
   // 7. 累積タイムアウト: timeoutMs超で残セクションスキップ
   // ==========================================================================
-  describe('累積タイムアウト / Cumulative timeout', () => {
-    it('累積処理時間がtimeoutMsを超えると残りのセクションをスキップする', async () => {
+  describe("累積タイムアウト / Cumulative timeout", () => {
+    it("累積処理時間がtimeoutMsを超えると残りのセクションをスキップする", async () => {
       // Arrange
       const mockPage = createMockPage({
         screenshot: vi.fn().mockResolvedValue(createMockScreenshotBuffer()),
@@ -571,7 +558,7 @@ describe('SectionScreenshotFallbackService', () => {
       // Mock Date.now() to force cumulative timeout
       const originalDateNow = Date.now;
       let callCount = 0;
-      vi.spyOn(Date, 'now').mockImplementation(() => {
+      vi.spyOn(Date, "now").mockImplementation(() => {
         callCount++;
         // 最初の呼び出し(cumulativeStart)は0、以降は十分大きい値を返す
         // First call (cumulativeStart) returns 0, subsequent calls return large value
@@ -584,13 +571,13 @@ describe('SectionScreenshotFallbackService', () => {
         timeoutMs: 100,
       });
 
-      vi.spyOn(Date, 'now').mockRestore();
+      vi.spyOn(Date, "now").mockRestore();
 
       // Assert
       expect(result.results).toHaveLength(3);
       // タイムアウト後のセクションはスキップされる
       const skippedResults = result.results.filter(
-        r => r.skipped && r.skipReason?.includes('timeout'),
+        (r) => r.skipped && r.skipReason?.includes("timeout")
       );
       expect(skippedResults.length).toBeGreaterThan(0);
     });
@@ -599,8 +586,8 @@ describe('SectionScreenshotFallbackService', () => {
   // ==========================================================================
   // 8. 空セクション配列: 空結果を返却
   // ==========================================================================
-  describe('空セクション配列 / Empty sections array', () => {
-    it('空のセクション配列が渡された場合、空の結果を返却する', async () => {
+  describe("空セクション配列 / Empty sections array", () => {
+    it("空のセクション配列が渡された場合、空の結果を返却する", async () => {
       // Arrange
       const sections: Array<{ id: string; startY: number; height: number }> = [];
 
@@ -622,8 +609,8 @@ describe('SectionScreenshotFallbackService', () => {
   // ==========================================================================
   // 9. セクション高さ < MIN_SECTION_HEIGHT_PX (10px): スキップ
   // ==========================================================================
-  describe('セクション高さ < 10px / Section height below minimum', () => {
-    it('height=0のセクションはスキップされる', async () => {
+  describe("セクション高さ < 10px / Section height below minimum", () => {
+    it("height=0のセクションはスキップされる", async () => {
       // Arrange
       const mockPage = createMockPage({
         screenshot: vi.fn().mockResolvedValue(createMockScreenshotBuffer()),
@@ -632,9 +619,7 @@ describe('SectionScreenshotFallbackService', () => {
       const mockBrowser = createMockBrowser(mockContext);
       mockChromiumLaunch.mockResolvedValue(mockBrowser);
 
-      const sections = [
-        { id: MOCK_SECTION_ID_1, startY: 2000, height: 0 },
-      ];
+      const sections = [{ id: MOCK_SECTION_ID_1, startY: 2000, height: 0 }];
 
       // Act
       const result = await captureSectionScreenshots({
@@ -646,10 +631,10 @@ describe('SectionScreenshotFallbackService', () => {
       expect(result.results).toHaveLength(1);
       expect(result.results[0].screenshotBuffer).toBeNull();
       expect(result.results[0].skipped).toBe(true);
-      expect(result.results[0].skipReason).toContain('height');
+      expect(result.results[0].skipReason).toContain("height");
     });
 
-    it('heightが負数のセクションはスキップされる', async () => {
+    it("heightが負数のセクションはスキップされる", async () => {
       // Arrange
       const mockPage = createMockPage({
         screenshot: vi.fn().mockResolvedValue(createMockScreenshotBuffer()),
@@ -658,9 +643,7 @@ describe('SectionScreenshotFallbackService', () => {
       const mockBrowser = createMockBrowser(mockContext);
       mockChromiumLaunch.mockResolvedValue(mockBrowser);
 
-      const sections = [
-        { id: MOCK_SECTION_ID_1, startY: 2000, height: -100 },
-      ];
+      const sections = [{ id: MOCK_SECTION_ID_1, startY: 2000, height: -100 }];
 
       // Act
       const result = await captureSectionScreenshots({
@@ -670,10 +653,10 @@ describe('SectionScreenshotFallbackService', () => {
 
       // Assert
       expect(result.results[0].skipped).toBe(true);
-      expect(result.results[0].skipReason).toContain('height');
+      expect(result.results[0].skipReason).toContain("height");
     });
 
-    it('height=9px (MIN_SECTION_HEIGHT_PX未満) のセクションはスキップされる', async () => {
+    it("height=9px (MIN_SECTION_HEIGHT_PX未満) のセクションはスキップされる", async () => {
       // Arrange
       const mockPage = createMockPage({
         screenshot: vi.fn().mockResolvedValue(createMockScreenshotBuffer()),
@@ -682,9 +665,7 @@ describe('SectionScreenshotFallbackService', () => {
       const mockBrowser = createMockBrowser(mockContext);
       mockChromiumLaunch.mockResolvedValue(mockBrowser);
 
-      const sections = [
-        { id: MOCK_SECTION_ID_1, startY: 2000, height: 9 },
-      ];
+      const sections = [{ id: MOCK_SECTION_ID_1, startY: 2000, height: 9 }];
 
       // Act
       const result = await captureSectionScreenshots({
@@ -694,19 +675,19 @@ describe('SectionScreenshotFallbackService', () => {
 
       // Assert
       expect(result.results[0].skipped).toBe(true);
-      expect(result.results[0].skipReason).toContain('height');
+      expect(result.results[0].skipReason).toContain("height");
     });
   });
 
   // ==========================================================================
   // 10. 正常系（複数セクション）
   // ==========================================================================
-  describe('正常系: 複数セクション / Normal: multiple sections', () => {
-    it('複数セクションの個別キャプチャが正しく返却される', async () => {
+  describe("正常系: 複数セクション / Normal: multiple sections", () => {
+    it("複数セクションの個別キャプチャが正しく返却される", async () => {
       // Arrange
-      const screenshotBuf1 = Buffer.from('screenshot-section-1', 'utf-8');
-      const screenshotBuf2 = Buffer.from('screenshot-section-2', 'utf-8');
-      const screenshotBuf3 = Buffer.from('screenshot-section-3', 'utf-8');
+      const screenshotBuf1 = Buffer.from("screenshot-section-1", "utf-8");
+      const screenshotBuf2 = Buffer.from("screenshot-section-2", "utf-8");
+      const screenshotBuf3 = Buffer.from("screenshot-section-3", "utf-8");
 
       let callCount = 0;
       const mockScreenshot = vi.fn().mockImplementation(async () => {
@@ -754,7 +735,7 @@ describe('SectionScreenshotFallbackService', () => {
       expect(result.skippedCount).toBe(0);
     });
 
-    it('デフォルトのビューポートサイズ (1920x1080) が使用される', async () => {
+    it("デフォルトのビューポートサイズ (1920x1080) が使用される", async () => {
       // Arrange
       const mockPage = createMockPage({
         screenshot: vi.fn().mockResolvedValue(createMockScreenshotBuffer()),
@@ -763,9 +744,7 @@ describe('SectionScreenshotFallbackService', () => {
       const mockBrowser = createMockBrowser(mockContext);
       mockChromiumLaunch.mockResolvedValue(mockBrowser);
 
-      const sections = [
-        { id: MOCK_SECTION_ID_1, startY: 2000, height: 600 },
-      ];
+      const sections = [{ id: MOCK_SECTION_ID_1, startY: 2000, height: 600 }];
 
       // Act
       await captureSectionScreenshots({
@@ -778,11 +757,11 @@ describe('SectionScreenshotFallbackService', () => {
       expect(mockBrowser.newContext).toHaveBeenCalledWith(
         expect.objectContaining({
           viewport: { width: 1920, height: 1080 },
-        }),
+        })
       );
     });
 
-    it('カスタムビューポートサイズが設定される', async () => {
+    it("カスタムビューポートサイズが設定される", async () => {
       // Arrange
       const mockPage = createMockPage({
         screenshot: vi.fn().mockResolvedValue(createMockScreenshotBuffer()),
@@ -791,9 +770,7 @@ describe('SectionScreenshotFallbackService', () => {
       const mockBrowser = createMockBrowser(mockContext);
       mockChromiumLaunch.mockResolvedValue(mockBrowser);
 
-      const sections = [
-        { id: MOCK_SECTION_ID_1, startY: 2000, height: 600 },
-      ];
+      const sections = [{ id: MOCK_SECTION_ID_1, startY: 2000, height: 600 }];
 
       // Act
       await captureSectionScreenshots({
@@ -807,7 +784,7 @@ describe('SectionScreenshotFallbackService', () => {
       expect(mockBrowser.newContext).toHaveBeenCalledWith(
         expect.objectContaining({
           viewport: { width: 1920, height: 1080 },
-        }),
+        })
       );
     });
   });
@@ -815,8 +792,8 @@ describe('SectionScreenshotFallbackService', () => {
   // ==========================================================================
   // NaN/Infinity防御 / NaN/Infinity defense
   // ==========================================================================
-  describe('NaN/Infinity防御 / Invalid coordinates', () => {
-    it('NaN座標のセクションはinvalid_coordinatesでスキップされる', async () => {
+  describe("NaN/Infinity防御 / Invalid coordinates", () => {
+    it("NaN座標のセクションはinvalid_coordinatesでスキップされる", async () => {
       // Arrange
       const mockPage = createMockPage({
         screenshot: vi.fn().mockResolvedValue(createMockScreenshotBuffer()),
@@ -825,9 +802,7 @@ describe('SectionScreenshotFallbackService', () => {
       const mockBrowser = createMockBrowser(mockContext);
       mockChromiumLaunch.mockResolvedValue(mockBrowser);
 
-      const sections = [
-        { id: MOCK_SECTION_ID_1, startY: NaN, height: 600 },
-      ];
+      const sections = [{ id: MOCK_SECTION_ID_1, startY: NaN, height: 600 }];
 
       // Act
       const result = await captureSectionScreenshots({
@@ -838,10 +813,10 @@ describe('SectionScreenshotFallbackService', () => {
       // Assert
       expect(result.results).toHaveLength(1);
       expect(result.results[0].skipped).toBe(true);
-      expect(result.results[0].skipReason).toBe('invalid_coordinates');
+      expect(result.results[0].skipReason).toBe("invalid_coordinates");
     });
 
-    it('Infinity高さのセクションはinvalid_coordinatesでスキップされる', async () => {
+    it("Infinity高さのセクションはinvalid_coordinatesでスキップされる", async () => {
       // Arrange
       const mockPage = createMockPage({
         screenshot: vi.fn().mockResolvedValue(createMockScreenshotBuffer()),
@@ -850,9 +825,7 @@ describe('SectionScreenshotFallbackService', () => {
       const mockBrowser = createMockBrowser(mockContext);
       mockChromiumLaunch.mockResolvedValue(mockBrowser);
 
-      const sections = [
-        { id: MOCK_SECTION_ID_1, startY: 2000, height: Infinity },
-      ];
+      const sections = [{ id: MOCK_SECTION_ID_1, startY: 2000, height: Infinity }];
 
       // Act
       const result = await captureSectionScreenshots({
@@ -862,27 +835,27 @@ describe('SectionScreenshotFallbackService', () => {
 
       // Assert
       expect(result.results[0].skipped).toBe(true);
-      expect(result.results[0].skipReason).toBe('invalid_coordinates');
+      expect(result.results[0].skipReason).toBe("invalid_coordinates");
     });
   });
 
   // ==========================================================================
   // マルチタイルキャプチャ / Multi-tile capture
   // ==========================================================================
-  describe('マルチタイルキャプチャ / Multi-tile capture', () => {
-    it('height > viewportHeight の場合、複数タイルに分割してキャプチャする', async () => {
+  describe("マルチタイルキャプチャ / Multi-tile capture", () => {
+    it("height > viewportHeight の場合、複数タイルに分割してキャプチャする", async () => {
       // Arrange: section height = 2500px, viewport height = 1080px → 3 tiles
       const mockScreenshot = vi.fn().mockResolvedValue(createMockScreenshotBuffer());
       let multiLastScrollY = 0;
-      const mockEvaluate = vi.fn().mockImplementation(
-        (_fn: (...args: unknown[]) => unknown, ...args: unknown[]) => {
+      const mockEvaluate = vi
+        .fn()
+        .mockImplementation((_fn: (...args: unknown[]) => unknown, ...args: unknown[]) => {
           if (args.length > 0) {
-            multiLastScrollY = typeof args[0] === 'number' ? args[0] : 0;
+            multiLastScrollY = typeof args[0] === "number" ? args[0] : 0;
             return Promise.resolve(undefined);
           }
           return Promise.resolve(multiLastScrollY);
-        },
-      );
+        });
       const mockPage = createMockPage({
         screenshot: mockScreenshot,
         evaluate: mockEvaluate,
@@ -893,11 +866,11 @@ describe('SectionScreenshotFallbackService', () => {
 
       // Sharp mock: metadata returns per-tile dimensions, composite returns stitched buffer
       getSharpMockInstance().metadata.mockResolvedValue({ width: 1920, height: 500 });
-      getSharpMockInstance().toBuffer.mockResolvedValue(Buffer.from('stitched-multi-tile', 'utf-8'));
+      getSharpMockInstance().toBuffer.mockResolvedValue(
+        Buffer.from("stitched-multi-tile", "utf-8")
+      );
 
-      const sections = [
-        { id: MOCK_SECTION_ID_1, startY: 0, height: 2500 },
-      ];
+      const sections = [{ id: MOCK_SECTION_ID_1, startY: 0, height: 2500 }];
 
       // Act
       const result = await captureSectionScreenshots({
@@ -917,7 +890,7 @@ describe('SectionScreenshotFallbackService', () => {
       expect(mockScreenshot).toHaveBeenCalledTimes(3);
     });
 
-    it('height <= viewportHeight の場合、1タイルで既存動作を維持する', async () => {
+    it("height <= viewportHeight の場合、1タイルで既存動作を維持する", async () => {
       // Arrange: section height = 800px, viewport height = 1080px → 1 tile
       const mockScreenshot = vi.fn().mockResolvedValue(createMockScreenshotBuffer());
       const mockPage = createMockPage({ screenshot: mockScreenshot });
@@ -925,9 +898,7 @@ describe('SectionScreenshotFallbackService', () => {
       const mockBrowser = createMockBrowser(mockContext);
       mockChromiumLaunch.mockResolvedValue(mockBrowser);
 
-      const sections = [
-        { id: MOCK_SECTION_ID_1, startY: 0, height: 800 },
-      ];
+      const sections = [{ id: MOCK_SECTION_ID_1, startY: 0, height: 800 }];
 
       // Act
       const result = await captureSectionScreenshots({
@@ -947,31 +918,29 @@ describe('SectionScreenshotFallbackService', () => {
       expect(getSharpMockInstance().composite).not.toHaveBeenCalled();
     });
 
-    it('DEFAULT_MAX_TILES_PER_SECTION (20) を超えるセクションはタイル上限でキャップされる', async () => {
+    it("DEFAULT_MAX_TILES_PER_SECTION (20) を超えるセクションはタイル上限でキャップされる", async () => {
       // Arrange: section height = 30000px, viewport height = 1080px
       // ceil(30000 / 1080) = 28, but capped at DEFAULT_MAX_TILES_PER_SECTION = 20
       const mockScreenshot = vi.fn().mockResolvedValue(createMockScreenshotBuffer());
       let scrollY = 0;
-      const mockEvaluate = vi.fn().mockImplementation(
-        (_fn: (...args: unknown[]) => unknown, ...args: unknown[]) => {
+      const mockEvaluate = vi
+        .fn()
+        .mockImplementation((_fn: (...args: unknown[]) => unknown, ...args: unknown[]) => {
           if (args.length > 0) {
-            scrollY = typeof args[0] === 'number' ? args[0] : 0;
+            scrollY = typeof args[0] === "number" ? args[0] : 0;
             return Promise.resolve(undefined);
           }
           return Promise.resolve(scrollY);
-        },
-      );
+        });
       const mockPage = createMockPage({ screenshot: mockScreenshot, evaluate: mockEvaluate });
       const mockContext = createMockContext(mockPage);
       const mockBrowser = createMockBrowser(mockContext);
       mockChromiumLaunch.mockResolvedValue(mockBrowser);
 
       getSharpMockInstance().metadata.mockResolvedValue({ width: 1920, height: 1080 });
-      getSharpMockInstance().toBuffer.mockResolvedValue(Buffer.from('stitched-capped', 'utf-8'));
+      getSharpMockInstance().toBuffer.mockResolvedValue(Buffer.from("stitched-capped", "utf-8"));
 
-      const sections = [
-        { id: MOCK_SECTION_ID_1, startY: 0, height: 30000 },
-      ];
+      const sections = [{ id: MOCK_SECTION_ID_1, startY: 0, height: 30000 }];
 
       // Act
       const result = await captureSectionScreenshots({
@@ -987,33 +956,33 @@ describe('SectionScreenshotFallbackService', () => {
       expect(mockScreenshot).toHaveBeenCalledTimes(20);
     });
 
-    it('MAX_TILES_PER_SECTION 環境変数でタイル上限をオーバーライドできる', async () => {
+    it("MAX_TILES_PER_SECTION 環境変数でタイル上限をオーバーライドできる", async () => {
       // Arrange: section height = 10000px, env MAX_TILES_PER_SECTION = 5
       const originalEnv = process.env.MAX_TILES_PER_SECTION;
-      process.env.MAX_TILES_PER_SECTION = '5';
+      process.env.MAX_TILES_PER_SECTION = "5";
 
       const mockScreenshot = vi.fn().mockResolvedValue(createMockScreenshotBuffer());
       let scrollY = 0;
-      const mockEvaluate = vi.fn().mockImplementation(
-        (_fn: (...args: unknown[]) => unknown, ...args: unknown[]) => {
+      const mockEvaluate = vi
+        .fn()
+        .mockImplementation((_fn: (...args: unknown[]) => unknown, ...args: unknown[]) => {
           if (args.length > 0) {
-            scrollY = typeof args[0] === 'number' ? args[0] : 0;
+            scrollY = typeof args[0] === "number" ? args[0] : 0;
             return Promise.resolve(undefined);
           }
           return Promise.resolve(scrollY);
-        },
-      );
+        });
       const mockPage = createMockPage({ screenshot: mockScreenshot, evaluate: mockEvaluate });
       const mockContext = createMockContext(mockPage);
       const mockBrowser = createMockBrowser(mockContext);
       mockChromiumLaunch.mockResolvedValue(mockBrowser);
 
       getSharpMockInstance().metadata.mockResolvedValue({ width: 1920, height: 1080 });
-      getSharpMockInstance().toBuffer.mockResolvedValue(Buffer.from('stitched-env-override', 'utf-8'));
+      getSharpMockInstance().toBuffer.mockResolvedValue(
+        Buffer.from("stitched-env-override", "utf-8")
+      );
 
-      const sections = [
-        { id: MOCK_SECTION_ID_1, startY: 0, height: 10000 },
-      ];
+      const sections = [{ id: MOCK_SECTION_ID_1, startY: 0, height: 10000 }];
 
       // Act
       const result = await captureSectionScreenshots({
@@ -1036,33 +1005,33 @@ describe('SectionScreenshotFallbackService', () => {
       }
     });
 
-    it('不正な MAX_TILES_PER_SECTION 環境変数はデフォルト値にフォールバックする', async () => {
+    it("不正な MAX_TILES_PER_SECTION 環境変数はデフォルト値にフォールバックする", async () => {
       // Arrange: env MAX_TILES_PER_SECTION = "abc" (invalid)
       const originalEnv = process.env.MAX_TILES_PER_SECTION;
-      process.env.MAX_TILES_PER_SECTION = 'abc';
+      process.env.MAX_TILES_PER_SECTION = "abc";
 
       const mockScreenshot = vi.fn().mockResolvedValue(createMockScreenshotBuffer());
       let scrollY = 0;
-      const mockEvaluate = vi.fn().mockImplementation(
-        (_fn: (...args: unknown[]) => unknown, ...args: unknown[]) => {
+      const mockEvaluate = vi
+        .fn()
+        .mockImplementation((_fn: (...args: unknown[]) => unknown, ...args: unknown[]) => {
           if (args.length > 0) {
-            scrollY = typeof args[0] === 'number' ? args[0] : 0;
+            scrollY = typeof args[0] === "number" ? args[0] : 0;
             return Promise.resolve(undefined);
           }
           return Promise.resolve(scrollY);
-        },
-      );
+        });
       const mockPage = createMockPage({ screenshot: mockScreenshot, evaluate: mockEvaluate });
       const mockContext = createMockContext(mockPage);
       const mockBrowser = createMockBrowser(mockContext);
       mockChromiumLaunch.mockResolvedValue(mockBrowser);
 
       getSharpMockInstance().metadata.mockResolvedValue({ width: 1920, height: 1080 });
-      getSharpMockInstance().toBuffer.mockResolvedValue(Buffer.from('stitched-default-fallback', 'utf-8'));
+      getSharpMockInstance().toBuffer.mockResolvedValue(
+        Buffer.from("stitched-default-fallback", "utf-8")
+      );
 
-      const sections = [
-        { id: MOCK_SECTION_ID_1, startY: 0, height: 30000 },
-      ];
+      const sections = [{ id: MOCK_SECTION_ID_1, startY: 0, height: 30000 }];
 
       // Act
       const result = await captureSectionScreenshots({
@@ -1077,8 +1046,8 @@ describe('SectionScreenshotFallbackService', () => {
       expect(result.results[0].skipped).toBe(false);
       expect(mockScreenshot).toHaveBeenCalledTimes(20);
       expect(logger.warn).toHaveBeenCalledWith(
-        expect.stringContaining('Invalid MAX_TILES_PER_SECTION'),
-        expect.objectContaining({ envValue: 'abc' }),
+        expect.stringContaining("Invalid MAX_TILES_PER_SECTION"),
+        expect.objectContaining({ envValue: "abc" })
       );
 
       // Cleanup
@@ -1090,59 +1059,62 @@ describe('SectionScreenshotFallbackService', () => {
     });
 
     it.each([
-      { envValue: '-3', label: '負数 / negative' },
-      { envValue: '0', label: 'ゼロ / zero' },
-      { envValue: '', label: '空文字列 / empty string' },
-    ])('MAX_TILES_PER_SECTION=$envValue ($label) はデフォルト値にフォールバックする', async ({ envValue }) => {
-      // Arrange
-      const originalEnv = process.env.MAX_TILES_PER_SECTION;
-      process.env.MAX_TILES_PER_SECTION = envValue;
+      { envValue: "-3", label: "負数 / negative" },
+      { envValue: "0", label: "ゼロ / zero" },
+      { envValue: "", label: "空文字列 / empty string" },
+    ])(
+      "MAX_TILES_PER_SECTION=$envValue ($label) はデフォルト値にフォールバックする",
+      async ({ envValue }) => {
+        // Arrange
+        const originalEnv = process.env.MAX_TILES_PER_SECTION;
+        process.env.MAX_TILES_PER_SECTION = envValue;
 
-      const mockScreenshot = vi.fn().mockResolvedValue(createMockScreenshotBuffer());
-      let scrollY = 0;
-      const mockEvaluate = vi.fn().mockImplementation(
-        (_fn: (...args: unknown[]) => unknown, ...args: unknown[]) => {
-          if (args.length > 0) {
-            scrollY = typeof args[0] === 'number' ? args[0] : 0;
-            return Promise.resolve(undefined);
-          }
-          return Promise.resolve(scrollY);
-        },
-      );
-      const mockPage = createMockPage({ screenshot: mockScreenshot, evaluate: mockEvaluate });
-      const mockContext = createMockContext(mockPage);
-      const mockBrowser = createMockBrowser(mockContext);
-      mockChromiumLaunch.mockResolvedValue(mockBrowser);
+        const mockScreenshot = vi.fn().mockResolvedValue(createMockScreenshotBuffer());
+        let scrollY = 0;
+        const mockEvaluate = vi
+          .fn()
+          .mockImplementation((_fn: (...args: unknown[]) => unknown, ...args: unknown[]) => {
+            if (args.length > 0) {
+              scrollY = typeof args[0] === "number" ? args[0] : 0;
+              return Promise.resolve(undefined);
+            }
+            return Promise.resolve(scrollY);
+          });
+        const mockPage = createMockPage({ screenshot: mockScreenshot, evaluate: mockEvaluate });
+        const mockContext = createMockContext(mockPage);
+        const mockBrowser = createMockBrowser(mockContext);
+        mockChromiumLaunch.mockResolvedValue(mockBrowser);
 
-      getSharpMockInstance().metadata.mockResolvedValue({ width: 1920, height: 1080 });
-      getSharpMockInstance().toBuffer.mockResolvedValue(Buffer.from('stitched-fallback', 'utf-8'));
+        getSharpMockInstance().metadata.mockResolvedValue({ width: 1920, height: 1080 });
+        getSharpMockInstance().toBuffer.mockResolvedValue(
+          Buffer.from("stitched-fallback", "utf-8")
+        );
 
-      const sections = [
-        { id: MOCK_SECTION_ID_1, startY: 0, height: 30000 },
-      ];
+        const sections = [{ id: MOCK_SECTION_ID_1, startY: 0, height: 30000 }];
 
-      // Act
-      const result = await captureSectionScreenshots({
-        url: MOCK_URL,
-        sections,
-        viewportWidth: 1920,
-        viewportHeight: 1080,
-      });
+        // Act
+        const result = await captureSectionScreenshots({
+          url: MOCK_URL,
+          sections,
+          viewportWidth: 1920,
+          viewportHeight: 1080,
+        });
 
-      // Assert: falls back to DEFAULT_MAX_TILES_PER_SECTION = 20
-      expect(result.results).toHaveLength(1);
-      expect(result.results[0].skipped).toBe(false);
-      expect(mockScreenshot).toHaveBeenCalledTimes(20);
+        // Assert: falls back to DEFAULT_MAX_TILES_PER_SECTION = 20
+        expect(result.results).toHaveLength(1);
+        expect(result.results[0].skipped).toBe(false);
+        expect(mockScreenshot).toHaveBeenCalledTimes(20);
 
-      // Cleanup
-      if (originalEnv === undefined) {
-        delete process.env.MAX_TILES_PER_SECTION;
-      } else {
-        process.env.MAX_TILES_PER_SECTION = originalEnv;
+        // Cleanup
+        if (originalEnv === undefined) {
+          delete process.env.MAX_TILES_PER_SECTION;
+        } else {
+          process.env.MAX_TILES_PER_SECTION = originalEnv;
+        }
       }
-    });
+    );
 
-    it('マルチタイル中にメモリ圧力が発生すると部分結果を返す', async () => {
+    it("マルチタイル中にメモリ圧力が発生すると部分結果を返す", async () => {
       // Arrange: section height = 3000px → 3 tiles, but memory pressure after 1st tile
       let tileCallCount = 0;
       const mockScreenshot = vi.fn().mockResolvedValue(createMockScreenshotBuffer());
@@ -1161,11 +1133,9 @@ describe('SectionScreenshotFallbackService', () => {
       });
 
       getSharpMockInstance().metadata.mockResolvedValue({ width: 1920, height: 1080 });
-      getSharpMockInstance().toBuffer.mockResolvedValue(Buffer.from('stitched-partial', 'utf-8'));
+      getSharpMockInstance().toBuffer.mockResolvedValue(Buffer.from("stitched-partial", "utf-8"));
 
-      const sections = [
-        { id: MOCK_SECTION_ID_1, startY: 0, height: 3000 },
-      ];
+      const sections = [{ id: MOCK_SECTION_ID_1, startY: 0, height: 3000 }];
 
       // Act
       const result = await captureSectionScreenshots({
@@ -1184,15 +1154,15 @@ describe('SectionScreenshotFallbackService', () => {
       expect(mockScreenshot.mock.calls.length).toBeLessThan(3);
     });
 
-    it('scrollTo後のactual scrollYでclipYが補正される', async () => {
+    it("scrollTo後のactual scrollYでclipYが補正される", async () => {
       // Arrange: scrollTo(2000) but actual scroll settles at 1950 (sticky header)
       const mockScreenshot = vi.fn().mockResolvedValue(createMockScreenshotBuffer());
-      const mockEvaluate = vi.fn().mockImplementation(
-        (_fn: (...args: unknown[]) => unknown, ...args: unknown[]) => {
+      const mockEvaluate = vi
+        .fn()
+        .mockImplementation((_fn: (...args: unknown[]) => unknown, ...args: unknown[]) => {
           if (args.length > 0) return Promise.resolve(undefined); // scrollTo
           return Promise.resolve(1950); // window.scrollY: 50px short (sticky header)
-        },
-      );
+        });
       const mockPage = createMockPage({
         screenshot: mockScreenshot,
         evaluate: mockEvaluate,
@@ -1201,9 +1171,7 @@ describe('SectionScreenshotFallbackService', () => {
       const mockBrowser = createMockBrowser(mockContext);
       mockChromiumLaunch.mockResolvedValue(mockBrowser);
 
-      const sections = [
-        { id: MOCK_SECTION_ID_1, startY: 2000, height: 400 },
-      ];
+      const sections = [{ id: MOCK_SECTION_ID_1, startY: 2000, height: 400 }];
 
       // Act
       await captureSectionScreenshots({
@@ -1214,19 +1182,21 @@ describe('SectionScreenshotFallbackService', () => {
       });
 
       // Assert: clipY should be 2000 - 1950 = 50
-      expect(mockScreenshot).toHaveBeenCalledWith(expect.objectContaining({
-        clip: expect.objectContaining({
-          y: 50,
-        }),
-      }));
+      expect(mockScreenshot).toHaveBeenCalledWith(
+        expect.objectContaining({
+          clip: expect.objectContaining({
+            y: 50,
+          }),
+        })
+      );
     });
   });
 
   // ==========================================================================
   // リソースクリーンアップ / Resource cleanup
   // ==========================================================================
-  describe('リソースクリーンアップ / Resource cleanup', () => {
-    it('独自起動ブラウザは処理完了後にclose()が呼ばれる', async () => {
+  describe("リソースクリーンアップ / Resource cleanup", () => {
+    it("独自起動ブラウザは処理完了後にclose()が呼ばれる", async () => {
       // Arrange
       const browserClose = vi.fn().mockResolvedValue(undefined);
       const contextClose = vi.fn().mockResolvedValue(undefined);
@@ -1240,9 +1210,7 @@ describe('SectionScreenshotFallbackService', () => {
       const mockBrowser = createMockBrowser(mockContext, { close: browserClose });
       mockChromiumLaunch.mockResolvedValue(mockBrowser);
 
-      const sections = [
-        { id: MOCK_SECTION_ID_1, startY: 0, height: 600 },
-      ];
+      const sections = [{ id: MOCK_SECTION_ID_1, startY: 0, height: 600 }];
 
       // Act
       await captureSectionScreenshots({
@@ -1256,7 +1224,7 @@ describe('SectionScreenshotFallbackService', () => {
       expect(browserClose).toHaveBeenCalledTimes(1);
     });
 
-    it('sharedBrowser使用時はbrowser.close()を呼ばない', async () => {
+    it("sharedBrowser使用時はbrowser.close()を呼ばない", async () => {
       // Arrange
       const browserClose = vi.fn().mockResolvedValue(undefined);
       const contextClose = vi.fn().mockResolvedValue(undefined);
@@ -1272,9 +1240,7 @@ describe('SectionScreenshotFallbackService', () => {
         isConnected: vi.fn().mockReturnValue(true),
       });
 
-      const sections = [
-        { id: MOCK_SECTION_ID_1, startY: 0, height: 600 },
-      ];
+      const sections = [{ id: MOCK_SECTION_ID_1, startY: 0, height: 600 }];
 
       // Act
       await captureSectionScreenshots({
@@ -1291,23 +1257,21 @@ describe('SectionScreenshotFallbackService', () => {
       expect(contextClose).toHaveBeenCalledTimes(1);
     });
 
-    it('エラー発生時もリソースクリーンアップが実行される', async () => {
+    it("エラー発生時もリソースクリーンアップが実行される", async () => {
       // Arrange
       const browserClose = vi.fn().mockResolvedValue(undefined);
       const contextClose = vi.fn().mockResolvedValue(undefined);
       const pageClose = vi.fn().mockResolvedValue(undefined);
 
       const mockPage = createMockPage({
-        screenshot: vi.fn().mockRejectedValue(new Error('Screenshot failed')),
+        screenshot: vi.fn().mockRejectedValue(new Error("Screenshot failed")),
         close: pageClose,
       });
       const mockContext = createMockContext(mockPage, { close: contextClose });
       const mockBrowser = createMockBrowser(mockContext, { close: browserClose });
       mockChromiumLaunch.mockResolvedValue(mockBrowser);
 
-      const sections = [
-        { id: MOCK_SECTION_ID_1, startY: 0, height: 600 },
-      ];
+      const sections = [{ id: MOCK_SECTION_ID_1, startY: 0, height: 600 }];
 
       // Act
       const result = await captureSectionScreenshots({
@@ -1321,7 +1285,7 @@ describe('SectionScreenshotFallbackService', () => {
       expect(browserClose).toHaveBeenCalledTimes(1);
       // エラーはスローされず、skipped=trueで返る
       expect(result.results[0].skipped).toBe(true);
-      expect(result.results[0].skipReason).toBe('capture_failed');
+      expect(result.results[0].skipReason).toBe("capture_failed");
       expect(logger.warn).toHaveBeenCalled();
     });
   });

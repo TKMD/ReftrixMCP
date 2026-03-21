@@ -19,7 +19,7 @@
  * @module tests/security/rls-context.test
  */
 
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 
 // =====================================================
 // テスト用モック定義
@@ -72,7 +72,7 @@ interface MockPrismaClientWithRLS {
  */
 function createMockPrismaClientWithRLS(): MockPrismaClientWithRLS {
   const rlsContextCalls: string[] = [];
-  const tableOperations: MockPrismaClientWithRLS['tableOperations'] = [];
+  const tableOperations: MockPrismaClientWithRLS["tableOperations"] = [];
   let rlsContextSet = false;
   let currentProjectId: string | null = null;
 
@@ -80,7 +80,7 @@ function createMockPrismaClientWithRLS(): MockPrismaClientWithRLS {
     create: async (args: { data: unknown }): Promise<{ id: string }> => {
       tableOperations.push({
         table: tableName,
-        operation: 'create',
+        operation: "create",
         data: args.data,
         rlsContextWasSet: rlsContextSet,
       });
@@ -92,24 +92,24 @@ function createMockPrismaClientWithRLS(): MockPrismaClientWithRLS {
   const mockClient: MockPrismaClientWithRLS = {
     rlsContextCalls,
     tableOperations,
-    motionPattern: createTableMock('motionPattern'),
-    motionEmbedding: createTableMock('motionEmbedding'),
-    sectionPattern: createTableMock('sectionPattern'),
-    sectionEmbedding: createTableMock('sectionEmbedding'),
-    webPage: createTableMock('webPage'),
-    qualityEvaluation: createTableMock('qualityEvaluation'),
+    motionPattern: createTableMock("motionPattern"),
+    motionEmbedding: createTableMock("motionEmbedding"),
+    sectionPattern: createTableMock("sectionPattern"),
+    sectionEmbedding: createTableMock("sectionEmbedding"),
+    webPage: createTableMock("webPage"),
+    qualityEvaluation: createTableMock("qualityEvaluation"),
 
     $executeRawUnsafe: async (query: string, ..._values: unknown[]): Promise<number> => {
       // RLSコンテキスト設定を検出
       // 注: エスケープされたシングルクォート '' を含む値にも対応
       const rlsMatch = query.match(/SET LOCAL app\.current_project\s*=\s*'((?:[^']|'')+)'/i);
       if (rlsMatch) {
-        const projectId = rlsMatch[1] ?? 'unknown';
+        const projectId = rlsMatch[1] ?? "unknown";
         rlsContextCalls.push(projectId);
         rlsContextSet = true;
         currentProjectId = projectId;
 
-        if (process.env.NODE_ENV === 'development') {
+        if (process.env.NODE_ENV === "development") {
           console.log(`[RLS-Test] SET LOCAL app.current_project = '${projectId}'`);
         }
       }
@@ -154,15 +154,15 @@ function createMockPrismaClientWithRLS(): MockPrismaClientWithRLS {
 // テスト本体
 // =====================================================
 
-describe('RLS Context Tests (SEC Recommended)', () => {
+describe("RLS Context Tests (SEC Recommended)", () => {
   let mockPrisma: MockPrismaClientWithRLS;
 
   beforeEach(() => {
     mockPrisma = createMockPrismaClientWithRLS();
     vi.clearAllMocks();
 
-    if (process.env.NODE_ENV === 'development') {
-      console.log('[RLS-Test] Starting RLS context test');
+    if (process.env.NODE_ENV === "development") {
+      console.log("[RLS-Test] Starting RLS context test");
     }
   });
 
@@ -170,7 +170,7 @@ describe('RLS Context Tests (SEC Recommended)', () => {
     mockPrisma.reset();
   });
 
-  describe('RLS Context Setting Verification', () => {
+  describe("RLS Context Setting Verification", () => {
     /**
      * RLSコンテキストがトランザクション内で設定されることを確認
      *
@@ -178,8 +178,8 @@ describe('RLS Context Tests (SEC Recommended)', () => {
      * - SET LOCAL は必ずトランザクション内で実行
      * - SET LOCAL app.current_project = '{projectId}'
      */
-    it('should demonstrate RLS context setting pattern', async () => {
-      const projectId = '01234567-89ab-7def-8123-456789abcdef'; // UUIDv7形式
+    it("should demonstrate RLS context setting pattern", async () => {
+      const projectId = "01234567-89ab-7def-8123-456789abcdef"; // UUIDv7形式
 
       // 正しいRLS設定パターン
       await mockPrisma.$transaction(async (tx) => {
@@ -191,8 +191,8 @@ describe('RLS Context Tests (SEC Recommended)', () => {
         // データ操作
         await tx.motionPattern.create({
           data: {
-            name: 'test-pattern',
-            category: 'entrance',
+            name: "test-pattern",
+            category: "entrance",
           },
         });
 
@@ -203,8 +203,8 @@ describe('RLS Context Tests (SEC Recommended)', () => {
       expect(mockPrisma.rlsContextCalls).toContain(projectId);
       expect(mockPrisma.rlsContextCalls.length).toBeGreaterThan(0);
 
-      if (process.env.NODE_ENV === 'development') {
-        console.log('[RLS-Test] RLS context calls:', mockPrisma.rlsContextCalls);
+      if (process.env.NODE_ENV === "development") {
+        console.log("[RLS-Test] RLS context calls:", mockPrisma.rlsContextCalls);
       }
     });
 
@@ -214,19 +214,17 @@ describe('RLS Context Tests (SEC Recommended)', () => {
      * 現状の問題点:
      * - MCPツール経由のDB操作でRLSコンテキストが設定されていない
      */
-    it('should detect when RLS context is NOT set before DB operation', async () => {
+    it("should detect when RLS context is NOT set before DB operation", async () => {
       // RLSコンテキストなしでの操作（現状のMCPサーバーの動作）
       await mockPrisma.motionPattern.create({
         data: {
-          name: 'test-pattern-without-rls',
-          category: 'entrance',
+          name: "test-pattern-without-rls",
+          category: "entrance",
         },
       });
 
       // 検証: RLSコンテキストが設定されていないことを検出
-      const operation = mockPrisma.tableOperations.find(
-        (op) => op.table === 'motionPattern'
-      );
+      const operation = mockPrisma.tableOperations.find((op) => op.table === "motionPattern");
       expect(operation).toBeDefined();
       expect(operation?.rlsContextWasSet).toBe(false);
 
@@ -235,7 +233,7 @@ describe('RLS Context Tests (SEC Recommended)', () => {
     });
   });
 
-  describe('Cross-Project Data Access Prevention', () => {
+  describe("Cross-Project Data Access Prevention", () => {
     /**
      * 異なるプロジェクト間でデータが見えないことを確認
      *
@@ -243,17 +241,17 @@ describe('RLS Context Tests (SEC Recommended)', () => {
      * - プロジェクトAのコンテキストで作成したデータは、
      * - プロジェクトBのコンテキストからはアクセスできない
      */
-    it('should prevent cross-project data access when RLS is properly configured', async () => {
-      const projectA = '01234567-89ab-7def-8123-456789abcdef';
-      const projectB = 'fedcba98-7654-7321-8fed-cba987654321';
+    it("should prevent cross-project data access when RLS is properly configured", async () => {
+      const projectA = "01234567-89ab-7def-8123-456789abcdef";
+      const projectB = "fedcba98-7654-7321-8fed-cba987654321";
 
       // プロジェクトAのコンテキストでデータ作成
       await mockPrisma.$transaction(async (tx) => {
         await tx.$executeRawUnsafe(`SET LOCAL app.current_project = '${projectA}'`);
         await tx.motionPattern.create({
           data: {
-            name: 'project-a-pattern',
-            category: 'entrance',
+            name: "project-a-pattern",
+            category: "entrance",
           },
         });
         return true;
@@ -282,15 +280,13 @@ describe('RLS Context Tests (SEC Recommended)', () => {
      * SQLインジェクション対策:
      * - シングルクォートのエスケープ
      */
-    it('should escape project ID to prevent SQL injection', async () => {
+    it("should escape project ID to prevent SQL injection", async () => {
       const maliciousProjectId = "'; DROP TABLE motion_patterns; --";
 
       await mockPrisma.$transaction(async (tx) => {
         // エスケープ処理
         const escapedProjectId = maliciousProjectId.replace(/'/g, "''");
-        await tx.$executeRawUnsafe(
-          `SET LOCAL app.current_project = '${escapedProjectId}'`
-        );
+        await tx.$executeRawUnsafe(`SET LOCAL app.current_project = '${escapedProjectId}'`);
         return true;
       });
 
@@ -303,7 +299,7 @@ describe('RLS Context Tests (SEC Recommended)', () => {
     });
   });
 
-  describe('MCP Tool Integration Points', () => {
+  describe("MCP Tool Integration Points", () => {
     /**
      * motion.detect のDB保存時にRLSが適用されるべき箇所を特定
      *
@@ -311,7 +307,7 @@ describe('RLS Context Tests (SEC Recommended)', () => {
      * - /apps/mcp-server/src/services/motion-persistence.service.ts
      * - /apps/mcp-server/src/utils/prisma-wrapper-factory.ts
      */
-    it('should identify RLS application points for motion.detect', () => {
+    it("should identify RLS application points for motion.detect", () => {
       // motion.detect のDB保存フロー:
       // 1. MotionPatternPersistenceService.savePattern()
       // 2. prismaClient.motionPattern.create()
@@ -321,9 +317,9 @@ describe('RLS Context Tests (SEC Recommended)', () => {
       // 現状の問題: これらの操作でRLSコンテキストが設定されていない
       const rlsApplicationPoints = [
         {
-          service: 'MotionPatternPersistenceService',
-          method: 'savePattern',
-          tables: ['motionPattern', 'motionEmbedding'],
+          service: "MotionPatternPersistenceService",
+          method: "savePattern",
+          tables: ["motionPattern", "motionEmbedding"],
           rlsRequired: true,
           currentlyApplied: false, // TODO: 実装後にtrueに更新
         },
@@ -340,7 +336,7 @@ describe('RLS Context Tests (SEC Recommended)', () => {
      * - /apps/mcp-server/src/services/layout-embedding.service.ts
      * - /apps/mcp-server/src/tools/layout/ingest.ts
      */
-    it('should identify RLS application points for layout.ingest', () => {
+    it("should identify RLS application points for layout.ingest", () => {
       // layout.ingest のDB保存フロー:
       // 1. saveSectionWithEmbedding()
       // 2. prismaClient.sectionPattern.create()
@@ -349,9 +345,9 @@ describe('RLS Context Tests (SEC Recommended)', () => {
 
       const rlsApplicationPoints = [
         {
-          service: 'LayoutEmbeddingService',
-          method: 'saveSectionWithEmbedding',
-          tables: ['sectionPattern', 'sectionEmbedding'],
+          service: "LayoutEmbeddingService",
+          method: "saveSectionWithEmbedding",
+          tables: ["sectionPattern", "sectionEmbedding"],
           rlsRequired: true,
           currentlyApplied: false, // TODO: 実装後にtrueに更新
         },
@@ -368,7 +364,7 @@ describe('RLS Context Tests (SEC Recommended)', () => {
      * - /apps/mcp-server/src/tools/page/analyze.tool.ts
      * - /apps/mcp-server/src/utils/prisma-wrapper-factory.ts
      */
-    it('should identify RLS application points for page.analyze', () => {
+    it("should identify RLS application points for page.analyze", () => {
       // page.analyze のDB保存フロー:
       // 1. webPage 作成
       // 2. layout 解析結果の sectionPattern 保存
@@ -377,9 +373,9 @@ describe('RLS Context Tests (SEC Recommended)', () => {
 
       const rlsApplicationPoints = [
         {
-          service: 'PageAnalyzeTool',
-          method: 'handlePageAnalyze',
-          tables: ['webPage', 'sectionPattern', 'motionPattern', 'qualityEvaluation'],
+          service: "PageAnalyzeTool",
+          method: "handlePageAnalyze",
+          tables: ["webPage", "sectionPattern", "motionPattern", "qualityEvaluation"],
           rlsRequired: true,
           currentlyApplied: false, // TODO: 実装後にtrueに更新
         },
@@ -390,15 +386,15 @@ describe('RLS Context Tests (SEC Recommended)', () => {
     });
   });
 
-  describe('PrismaWrapper RLS Enhancement', () => {
+  describe("PrismaWrapper RLS Enhancement", () => {
     /**
      * createPrismaWrapper に RLS コンテキスト設定機能を追加する提案
      *
      * 現状の prisma-wrapper-factory.ts は RLS を考慮していない
      * 以下は改善案のテスト
      */
-    it('should demonstrate proposed RLS-aware PrismaWrapper pattern', async () => {
-      const projectId = '01234567-89ab-7def-8123-456789abcdef';
+    it("should demonstrate proposed RLS-aware PrismaWrapper pattern", async () => {
+      const projectId = "01234567-89ab-7def-8123-456789abcdef";
 
       // 提案パターン: RLS対応のPrismaWrapperを作成
       const createRLSAwarePrismaWrapper = (
@@ -425,8 +421,8 @@ describe('RLS Context Tests (SEC Recommended)', () => {
       await rlsWrapper.withRLS(async (tx) => {
         await tx.motionPattern.create({
           data: {
-            name: 'rls-protected-pattern',
-            category: 'entrance',
+            name: "rls-protected-pattern",
+            category: "entrance",
           },
         });
         return true;
@@ -434,21 +430,21 @@ describe('RLS Context Tests (SEC Recommended)', () => {
 
       // 検証: RLSコンテキストが設定された後にデータ操作が行われた
       expect(mockPrisma.rlsContextCalls).toContain(projectId);
-      expect(mockPrisma.wasRLSSetBeforeOperation('motionPattern')).toBe(true);
+      expect(mockPrisma.wasRLSSetBeforeOperation("motionPattern")).toBe(true);
     });
   });
 
-  describe('RLS Configuration Validation', () => {
+  describe("RLS Configuration Validation", () => {
     /**
      * UUIDv7形式のプロジェクトIDのバリデーション
      */
-    it('should validate UUIDv7 format for project ID', () => {
-      const validUUIDv7 = '01234567-89ab-7def-8123-456789abcdef';
+    it("should validate UUIDv7 format for project ID", () => {
+      const validUUIDv7 = "01234567-89ab-7def-8123-456789abcdef";
       const invalidUUIDs = [
-        'not-a-uuid',
-        '01234567-89ab-4def-8123-456789abcdef', // v4形式
-        '12345678-1234-1234-1234-123456789abc', // 古い形式
-        '', // 空文字
+        "not-a-uuid",
+        "01234567-89ab-4def-8123-456789abcdef", // v4形式
+        "12345678-1234-1234-1234-123456789abc", // 古い形式
+        "", // 空文字
       ];
 
       // UUIDv7バリデーション関数
@@ -474,28 +470,28 @@ describe('RLS Context Tests (SEC Recommended)', () => {
      * 注: 現状のWebDesignテーブルはプロジェクトごとのRLSではなく、
      * usage_scope/source_type による分離を想定
      */
-    it('should document RLS-enabled tables', () => {
+    it("should document RLS-enabled tables", () => {
       // RLS対象テーブル（decisions, checkpoints等のinternalテーブル）
       const rlsEnabledTables = [
-        { table: 'decisions', column: 'projectId', quoteRequired: true },
-        { table: 'checkpoints', column: 'projectId', quoteRequired: true },
-        { table: 'notes', column: 'projectId', quoteRequired: true },
-        { table: 'tasks', column: 'project_id', quoteRequired: false },
-        { table: 'snippets', column: 'project_id', quoteRequired: false },
-        { table: 'context_packs', column: 'projectId', quoteRequired: true },
-        { table: 'invariants', column: 'projectId', quoteRequired: true },
-        { table: 'tool_invocations', column: 'projectId', quoteRequired: true },
-        { table: 'configurations', column: 'project_id', quoteRequired: false },
-        { table: 'audit_logs', column: 'projectId', quoteRequired: true },
-        { table: 'debug_logs', column: 'project_id', quoteRequired: false },
+        { table: "decisions", column: "projectId", quoteRequired: true },
+        { table: "checkpoints", column: "projectId", quoteRequired: true },
+        { table: "notes", column: "projectId", quoteRequired: true },
+        { table: "tasks", column: "project_id", quoteRequired: false },
+        { table: "snippets", column: "project_id", quoteRequired: false },
+        { table: "context_packs", column: "projectId", quoteRequired: true },
+        { table: "invariants", column: "projectId", quoteRequired: true },
+        { table: "tool_invocations", column: "projectId", quoteRequired: true },
+        { table: "configurations", column: "project_id", quoteRequired: false },
+        { table: "audit_logs", column: "projectId", quoteRequired: true },
+        { table: "debug_logs", column: "project_id", quoteRequired: false },
       ];
 
       // WebDesignテーブル（現状RLS対象外だが、検討が必要）
       const webDesignTables = [
-        { table: 'web_pages', needsRLS: false, reason: 'source_type/usage_scope で分離' },
-        { table: 'section_patterns', needsRLS: false, reason: 'WebPage経由で間接的に分離' },
-        { table: 'motion_patterns', needsRLS: false, reason: 'WebPage経由で間接的に分離' },
-        { table: 'quality_evaluations', needsRLS: false, reason: 'WebPage経由で間接的に分離' },
+        { table: "web_pages", needsRLS: false, reason: "source_type/usage_scope で分離" },
+        { table: "section_patterns", needsRLS: false, reason: "WebPage経由で間接的に分離" },
+        { table: "motion_patterns", needsRLS: false, reason: "WebPage経由で間接的に分離" },
+        { table: "quality_evaluations", needsRLS: false, reason: "WebPage経由で間接的に分離" },
       ];
 
       expect(rlsEnabledTables.length).toBe(11);
@@ -508,46 +504,47 @@ describe('RLS Context Tests (SEC Recommended)', () => {
     });
   });
 
-  describe('Security Recommendations', () => {
+  describe("Security Recommendations", () => {
     /**
      * SECチームへの推奨事項を文書化
      */
-    it('should document security recommendations', () => {
+    it("should document security recommendations", () => {
       const recommendations = [
         {
-          id: 'SEC-RLS-01',
-          severity: 'Medium',
-          title: 'MCPツール経由のDB操作にRLSコンテキストを適用',
-          description: 'motion.detect, layout.ingest, page.analyze等でsave_to_db: true時にRLSを適用',
-          status: 'Open',
+          id: "SEC-RLS-01",
+          severity: "Medium",
+          title: "MCPツール経由のDB操作にRLSコンテキストを適用",
+          description:
+            "motion.detect, layout.ingest, page.analyze等でsave_to_db: true時にRLSを適用",
+          status: "Open",
           affectedFiles: [
-            'apps/mcp-server/src/services/motion-persistence.service.ts',
-            'apps/mcp-server/src/services/layout-embedding.service.ts',
-            'apps/mcp-server/src/utils/prisma-wrapper-factory.ts',
+            "apps/mcp-server/src/services/motion-persistence.service.ts",
+            "apps/mcp-server/src/services/layout-embedding.service.ts",
+            "apps/mcp-server/src/utils/prisma-wrapper-factory.ts",
           ],
         },
         {
-          id: 'SEC-RLS-02',
-          severity: 'Low',
-          title: 'WebDesignテーブルのプロジェクト分離戦略の明確化',
-          description: 'usage_scope/source_type による分離が十分かどうかの検討',
-          status: 'Open',
-          affectedFiles: ['packages/database/prisma/schema.prisma'],
+          id: "SEC-RLS-02",
+          severity: "Low",
+          title: "WebDesignテーブルのプロジェクト分離戦略の明確化",
+          description: "usage_scope/source_type による分離が十分かどうかの検討",
+          status: "Open",
+          affectedFiles: ["packages/database/prisma/schema.prisma"],
         },
         {
-          id: 'SEC-RLS-03',
-          severity: 'Low',
-          title: 'プロジェクトIDの取得元の明確化',
-          description: 'MCPツール呼び出し時にプロジェクトIDをどこから取得するかの設計',
-          status: 'Open',
-          affectedFiles: ['apps/mcp-server/src/middleware/auth.ts'],
+          id: "SEC-RLS-03",
+          severity: "Low",
+          title: "プロジェクトIDの取得元の明確化",
+          description: "MCPツール呼び出し時にプロジェクトIDをどこから取得するかの設計",
+          status: "Open",
+          affectedFiles: ["apps/mcp-server/src/middleware/auth.ts"],
         },
       ];
 
       expect(recommendations.length).toBe(3);
       recommendations.forEach((rec) => {
         expect(rec.severity).toBeDefined();
-        expect(rec.status).toBe('Open');
+        expect(rec.status).toBe("Open");
       });
     });
   });

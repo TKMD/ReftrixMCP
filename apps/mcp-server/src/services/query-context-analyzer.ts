@@ -14,7 +14,7 @@
  * @module services/query-context-analyzer
  */
 
-import { logger, isDevelopment } from '../utils/logger';
+import { logger, isDevelopment } from "../utils/logger";
 
 // =====================================================
 // 型定義
@@ -24,30 +24,30 @@ import { logger, isDevelopment } from '../utils/logger';
  * 推論された業界タイプ
  */
 export type InferredIndustry =
-  | 'technology'
-  | 'ecommerce'
-  | 'healthcare'
-  | 'finance'
-  | 'education'
-  | 'media'
-  | 'travel'
-  | 'food'
-  | 'real_estate'
-  | 'automotive'
+  | "technology"
+  | "ecommerce"
+  | "healthcare"
+  | "finance"
+  | "education"
+  | "media"
+  | "travel"
+  | "food"
+  | "real_estate"
+  | "automotive"
   | null;
 
 /**
  * 推論されたスタイルタイプ
  */
 export type InferredStyle =
-  | 'minimal'
-  | 'bold'
-  | 'corporate'
-  | 'playful'
-  | 'elegant'
-  | 'modern'
-  | 'vintage'
-  | 'tech'
+  | "minimal"
+  | "bold"
+  | "corporate"
+  | "playful"
+  | "elegant"
+  | "modern"
+  | "vintage"
+  | "tech"
   | null;
 
 /**
@@ -82,108 +82,318 @@ interface KeywordMapping {
 const INDUSTRY_KEYWORDS: Record<Exclude<InferredIndustry, null>, KeywordMapping> = {
   technology: {
     keywords: [
-      'saas', 'software', 'tech', 'startup', 'app', 'platform', 'api',
-      'cloud', 'ai', 'machine learning', 'devops', 'developer', 'coding',
-      'dashboard', 'analytics', 'b2b', 'enterprise', 'workflow', 'automation',
-      'integration', 'infrastructure', 'data', 'cybersecurity', 'blockchain',
+      "saas",
+      "software",
+      "tech",
+      "startup",
+      "app",
+      "platform",
+      "api",
+      "cloud",
+      "ai",
+      "machine learning",
+      "devops",
+      "developer",
+      "coding",
+      "dashboard",
+      "analytics",
+      "b2b",
+      "enterprise",
+      "workflow",
+      "automation",
+      "integration",
+      "infrastructure",
+      "data",
+      "cybersecurity",
+      "blockchain",
       // 日本語
-      'ソフトウェア', 'テック', 'スタートアップ', 'プラットフォーム',
-      'クラウド', 'ダッシュボード', '分析', 'エンタープライズ',
+      "ソフトウェア",
+      "テック",
+      "スタートアップ",
+      "プラットフォーム",
+      "クラウド",
+      "ダッシュボード",
+      "分析",
+      "エンタープライズ",
     ],
     weight: 1.0,
   },
   ecommerce: {
     keywords: [
-      'ecommerce', 'e-commerce', 'shop', 'store', 'product', 'cart', 'checkout',
-      'marketplace', 'retail', 'shopping', 'buy', 'sell', 'merchant', 'inventory',
-      'catalog', 'payment', 'order', 'customer', 'commerce', 'd2c', 'dtc',
+      "ecommerce",
+      "e-commerce",
+      "shop",
+      "store",
+      "product",
+      "cart",
+      "checkout",
+      "marketplace",
+      "retail",
+      "shopping",
+      "buy",
+      "sell",
+      "merchant",
+      "inventory",
+      "catalog",
+      "payment",
+      "order",
+      "customer",
+      "commerce",
+      "d2c",
+      "dtc",
       // 日本語
-      'ショップ', 'ストア', '商品', 'カート', 'マーケットプレイス',
-      '小売', 'ショッピング', '販売', '在庫', 'カタログ',
+      "ショップ",
+      "ストア",
+      "商品",
+      "カート",
+      "マーケットプレイス",
+      "小売",
+      "ショッピング",
+      "販売",
+      "在庫",
+      "カタログ",
     ],
     weight: 1.0,
   },
   healthcare: {
     keywords: [
-      'healthcare', 'health', 'medical', 'hospital', 'clinic', 'doctor',
-      'patient', 'medicine', 'pharmaceutical', 'wellness', 'fitness',
-      'telemedicine', 'diagnosis', 'treatment', 'therapy', 'nursing',
+      "healthcare",
+      "health",
+      "medical",
+      "hospital",
+      "clinic",
+      "doctor",
+      "patient",
+      "medicine",
+      "pharmaceutical",
+      "wellness",
+      "fitness",
+      "telemedicine",
+      "diagnosis",
+      "treatment",
+      "therapy",
+      "nursing",
       // 日本語
-      'ヘルスケア', '医療', '病院', 'クリニック', '医師',
-      '患者', '医薬品', 'ウェルネス', 'フィットネス', '診断',
+      "ヘルスケア",
+      "医療",
+      "病院",
+      "クリニック",
+      "医師",
+      "患者",
+      "医薬品",
+      "ウェルネス",
+      "フィットネス",
+      "診断",
     ],
     weight: 1.0,
   },
   finance: {
     keywords: [
-      'finance', 'fintech', 'bank', 'banking', 'investment', 'insurance',
-      'trading', 'crypto', 'cryptocurrency', 'wallet', 'payment', 'loan',
-      'mortgage', 'stock', 'fund', 'portfolio', 'wealth', 'credit',
+      "finance",
+      "fintech",
+      "bank",
+      "banking",
+      "investment",
+      "insurance",
+      "trading",
+      "crypto",
+      "cryptocurrency",
+      "wallet",
+      "payment",
+      "loan",
+      "mortgage",
+      "stock",
+      "fund",
+      "portfolio",
+      "wealth",
+      "credit",
       // 日本語
-      '金融', '銀行', '投資', '保険', '取引',
-      '暗号通貨', 'ウォレット', '決済', 'ローン', '株式',
+      "金融",
+      "銀行",
+      "投資",
+      "保険",
+      "取引",
+      "暗号通貨",
+      "ウォレット",
+      "決済",
+      "ローン",
+      "株式",
     ],
     weight: 1.0,
   },
   education: {
     keywords: [
-      'education', 'learning', 'course', 'school', 'university', 'student',
-      'teacher', 'training', 'tutorial', 'lesson', 'class', 'academy',
-      'e-learning', 'edtech', 'mooc', 'certification', 'skill',
+      "education",
+      "learning",
+      "course",
+      "school",
+      "university",
+      "student",
+      "teacher",
+      "training",
+      "tutorial",
+      "lesson",
+      "class",
+      "academy",
+      "e-learning",
+      "edtech",
+      "mooc",
+      "certification",
+      "skill",
       // 日本語
-      '教育', '学習', 'コース', '学校', '大学',
-      '学生', '先生', 'トレーニング', 'チュートリアル', 'レッスン',
+      "教育",
+      "学習",
+      "コース",
+      "学校",
+      "大学",
+      "学生",
+      "先生",
+      "トレーニング",
+      "チュートリアル",
+      "レッスン",
     ],
     weight: 1.0,
   },
   media: {
     keywords: [
-      'media', 'news', 'blog', 'magazine', 'podcast', 'video', 'streaming',
-      'content', 'entertainment', 'music', 'film', 'publishing', 'journalist',
-      'editor', 'broadcast', 'social media', 'influencer',
+      "media",
+      "news",
+      "blog",
+      "magazine",
+      "podcast",
+      "video",
+      "streaming",
+      "content",
+      "entertainment",
+      "music",
+      "film",
+      "publishing",
+      "journalist",
+      "editor",
+      "broadcast",
+      "social media",
+      "influencer",
       // 日本語
-      'メディア', 'ニュース', 'ブログ', '雑誌', 'ポッドキャスト',
-      '動画', 'ストリーミング', 'コンテンツ', 'エンタメ', '音楽',
+      "メディア",
+      "ニュース",
+      "ブログ",
+      "雑誌",
+      "ポッドキャスト",
+      "動画",
+      "ストリーミング",
+      "コンテンツ",
+      "エンタメ",
+      "音楽",
     ],
     weight: 0.9,
   },
   travel: {
     keywords: [
-      'travel', 'hotel', 'booking', 'flight', 'vacation', 'tourism',
-      'destination', 'resort', 'airline', 'cruise', 'adventure', 'trip',
+      "travel",
+      "hotel",
+      "booking",
+      "flight",
+      "vacation",
+      "tourism",
+      "destination",
+      "resort",
+      "airline",
+      "cruise",
+      "adventure",
+      "trip",
       // 日本語
-      '旅行', 'ホテル', '予約', 'フライト', 'バケーション',
-      '観光', 'リゾート', '航空', 'クルーズ', '冒険',
+      "旅行",
+      "ホテル",
+      "予約",
+      "フライト",
+      "バケーション",
+      "観光",
+      "リゾート",
+      "航空",
+      "クルーズ",
+      "冒険",
     ],
     weight: 0.9,
   },
   food: {
     keywords: [
-      'food', 'restaurant', 'recipe', 'cooking', 'delivery', 'menu',
-      'cafe', 'bar', 'catering', 'chef', 'cuisine', 'dining',
+      "food",
+      "restaurant",
+      "recipe",
+      "cooking",
+      "delivery",
+      "menu",
+      "cafe",
+      "bar",
+      "catering",
+      "chef",
+      "cuisine",
+      "dining",
       // 日本語
-      'フード', 'レストラン', 'レシピ', '料理', 'デリバリー',
-      'メニュー', 'カフェ', 'ケータリング', 'シェフ', 'ダイニング',
+      "フード",
+      "レストラン",
+      "レシピ",
+      "料理",
+      "デリバリー",
+      "メニュー",
+      "カフェ",
+      "ケータリング",
+      "シェフ",
+      "ダイニング",
     ],
     weight: 0.9,
   },
   real_estate: {
     keywords: [
-      'real estate', 'property', 'home', 'house', 'apartment', 'rent',
-      'mortgage', 'listing', 'agent', 'realtor', 'building', 'construction',
+      "real estate",
+      "property",
+      "home",
+      "house",
+      "apartment",
+      "rent",
+      "mortgage",
+      "listing",
+      "agent",
+      "realtor",
+      "building",
+      "construction",
       // 日本語
-      '不動産', '物件', '住宅', 'マンション', '賃貸',
-      'ローン', '物件情報', 'エージェント', '建設',
+      "不動産",
+      "物件",
+      "住宅",
+      "マンション",
+      "賃貸",
+      "ローン",
+      "物件情報",
+      "エージェント",
+      "建設",
     ],
     weight: 0.9,
   },
   automotive: {
     keywords: [
-      'automotive', 'car', 'vehicle', 'auto', 'motor', 'dealer', 'electric',
-      'ev', 'hybrid', 'truck', 'suv', 'motorcycle', 'driving',
+      "automotive",
+      "car",
+      "vehicle",
+      "auto",
+      "motor",
+      "dealer",
+      "electric",
+      "ev",
+      "hybrid",
+      "truck",
+      "suv",
+      "motorcycle",
+      "driving",
       // 日本語
-      '自動車', '車', '電気自動車', 'EV', 'ディーラー',
-      'トラック', 'バイク', 'ドライブ',
+      "自動車",
+      "車",
+      "電気自動車",
+      "EV",
+      "ディーラー",
+      "トラック",
+      "バイク",
+      "ドライブ",
     ],
     weight: 0.9,
   },
@@ -195,74 +405,177 @@ const INDUSTRY_KEYWORDS: Record<Exclude<InferredIndustry, null>, KeywordMapping>
 const STYLE_KEYWORDS: Record<Exclude<InferredStyle, null>, KeywordMapping> = {
   minimal: {
     keywords: [
-      'minimal', 'minimalist', 'clean', 'simple', 'whitespace', 'sparse',
-      'understated', 'subtle', 'refined', 'zen', 'calm', 'quiet',
+      "minimal",
+      "minimalist",
+      "clean",
+      "simple",
+      "whitespace",
+      "sparse",
+      "understated",
+      "subtle",
+      "refined",
+      "zen",
+      "calm",
+      "quiet",
       // 日本語
-      'ミニマル', 'シンプル', 'クリーン', 'ホワイトスペース', '落ち着いた',
+      "ミニマル",
+      "シンプル",
+      "クリーン",
+      "ホワイトスペース",
+      "落ち着いた",
     ],
     weight: 1.0,
   },
   bold: {
     keywords: [
-      'bold', 'dramatic', 'striking', 'intense', 'powerful',
-      'strong', 'impactful', 'contrast', 'gradient', 'vivid',
+      "bold",
+      "dramatic",
+      "striking",
+      "intense",
+      "powerful",
+      "strong",
+      "impactful",
+      "contrast",
+      "gradient",
+      "vivid",
       // 日本語
-      'ボールド', 'ドラマチック', 'ビビッド', 'インパクト',
+      "ボールド",
+      "ドラマチック",
+      "ビビッド",
+      "インパクト",
     ],
     weight: 1.0,
   },
   corporate: {
     keywords: [
-      'corporate', 'professional', 'business', 'enterprise', 'formal',
-      'trustworthy', 'reliable', 'established', 'traditional', 'conservative',
+      "corporate",
+      "professional",
+      "business",
+      "enterprise",
+      "formal",
+      "trustworthy",
+      "reliable",
+      "established",
+      "traditional",
+      "conservative",
       // 日本語
-      'コーポレート', 'プロフェッショナル', 'ビジネス', 'フォーマル', '信頼',
+      "コーポレート",
+      "プロフェッショナル",
+      "ビジネス",
+      "フォーマル",
+      "信頼",
     ],
     weight: 1.0,
   },
   playful: {
     keywords: [
-      'playful', 'fun', 'creative', 'whimsical', 'quirky', 'friendly',
-      'casual', 'youthful', 'energetic', 'lively', 'cheerful', 'animated',
-      'colorful', 'vibrant',
+      "playful",
+      "fun",
+      "creative",
+      "whimsical",
+      "quirky",
+      "friendly",
+      "casual",
+      "youthful",
+      "energetic",
+      "lively",
+      "cheerful",
+      "animated",
+      "colorful",
+      "vibrant",
       // 日本語
-      '遊び心', '楽しい', 'クリエイティブ', 'フレンドリー', 'カジュアル', 'カラフル',
+      "遊び心",
+      "楽しい",
+      "クリエイティブ",
+      "フレンドリー",
+      "カジュアル",
+      "カラフル",
     ],
     weight: 1.0,
   },
   elegant: {
     keywords: [
-      'elegant', 'luxury', 'premium', 'sophisticated', 'refined', 'classy',
-      'upscale', 'exclusive', 'high-end', 'chic', 'stylish', 'graceful',
+      "elegant",
+      "luxury",
+      "premium",
+      "sophisticated",
+      "refined",
+      "classy",
+      "upscale",
+      "exclusive",
+      "high-end",
+      "chic",
+      "stylish",
+      "graceful",
       // 日本語
-      'エレガント', 'ラグジュアリー', 'プレミアム', '洗練', '上品',
+      "エレガント",
+      "ラグジュアリー",
+      "プレミアム",
+      "洗練",
+      "上品",
     ],
     weight: 1.0,
   },
   modern: {
     keywords: [
-      'modern', 'contemporary', 'sleek', 'cutting-edge', 'innovative',
-      'trendy', 'fresh', 'current', 'up-to-date', 'progressive',
+      "modern",
+      "contemporary",
+      "sleek",
+      "cutting-edge",
+      "innovative",
+      "trendy",
+      "fresh",
+      "current",
+      "up-to-date",
+      "progressive",
       // 日本語
-      'モダン', 'コンテンポラリー', 'スリーク', '革新的', 'トレンド',
+      "モダン",
+      "コンテンポラリー",
+      "スリーク",
+      "革新的",
+      "トレンド",
     ],
     weight: 0.9,
   },
   vintage: {
     keywords: [
-      'vintage', 'retro', 'classic', 'nostalgic', 'old-school', 'antique',
-      'timeless', 'heritage', 'traditional', 'rustic',
+      "vintage",
+      "retro",
+      "classic",
+      "nostalgic",
+      "old-school",
+      "antique",
+      "timeless",
+      "heritage",
+      "traditional",
+      "rustic",
       // 日本語
-      'ビンテージ', 'レトロ', 'クラシック', 'ノスタルジック', '伝統的',
+      "ビンテージ",
+      "レトロ",
+      "クラシック",
+      "ノスタルジック",
+      "伝統的",
     ],
     weight: 0.9,
   },
   tech: {
     keywords: [
-      'tech', 'futuristic', 'digital', 'cyber', 'neon', 'sci-fi',
-      'dark mode', 'glassmorphism', 'neumorphism', 'gradient',
+      "tech",
+      "futuristic",
+      "digital",
+      "cyber",
+      "neon",
+      "sci-fi",
+      "dark mode",
+      "glassmorphism",
+      "neumorphism",
+      "gradient",
       // 日本語
-      'テック', '未来的', 'デジタル', 'サイバー', 'ネオン',
+      "テック",
+      "未来的",
+      "デジタル",
+      "サイバー",
+      "ネオン",
     ],
     weight: 0.9,
   },
@@ -296,7 +609,7 @@ export class QueryContextAnalyzer {
     const confidence = this.calculateConfidence(industryResult, styleResult);
 
     if (isDevelopment()) {
-      logger.debug('[QueryContextAnalyzer] inferContext', {
+      logger.debug("[QueryContextAnalyzer] inferContext", {
         query: normalizedQuery,
         industry: industryResult.industry,
         industryScore: industryResult.score,
@@ -321,8 +634,8 @@ export class QueryContextAnalyzer {
   private normalizeQuery(query: string): string {
     return query
       .toLowerCase()
-      .replace(/[^\w\s\u3040-\u309f\u30a0-\u30ff\u4e00-\u9faf]/g, ' ')
-      .replace(/\s+/g, ' ')
+      .replace(/[^\w\s\u3040-\u309f\u30a0-\u30ff\u4e00-\u9faf]/g, " ")
+      .replace(/\s+/g, " ")
       .trim();
   }
 
@@ -477,19 +790,17 @@ export function calculateContextBoost(input: ContextBoostInput): number {
 
   // 結果メタデータのテキストを結合
   const resultText = [
-    resultMetadata.heading || '',
-    resultMetadata.description || '',
-    resultMetadata.url || '',
+    resultMetadata.heading || "",
+    resultMetadata.description || "",
+    resultMetadata.url || "",
   ]
-    .join(' ')
+    .join(" ")
     .toLowerCase();
 
   // 業界マッチングによるブースト
   if (context.industry !== null) {
     const industryKeywords = INDUSTRY_KEYWORDS[context.industry].keywords;
-    const industryMatches = industryKeywords.filter((kw) =>
-      resultText.includes(kw.toLowerCase())
-    );
+    const industryMatches = industryKeywords.filter((kw) => resultText.includes(kw.toLowerCase()));
     if (industryMatches.length > 0) {
       boost += Math.min(0.1, industryMatches.length * 0.02);
     }
@@ -498,9 +809,7 @@ export function calculateContextBoost(input: ContextBoostInput): number {
   // スタイルマッチングによるブースト
   if (context.style !== null) {
     const styleKeywords = STYLE_KEYWORDS[context.style].keywords;
-    const styleMatches = styleKeywords.filter((kw) =>
-      resultText.includes(kw.toLowerCase())
-    );
+    const styleMatches = styleKeywords.filter((kw) => resultText.includes(kw.toLowerCase()));
     if (styleMatches.length > 0) {
       boost += Math.min(0.05, styleMatches.length * 0.01);
     }

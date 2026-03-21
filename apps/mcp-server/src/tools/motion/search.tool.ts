@@ -15,7 +15,7 @@
  * @module tools/motion/search.tool
  */
 
-import { logger, isDevelopment } from '../../utils/logger';
+import { logger, isDevelopment } from "../../utils/logger";
 
 import {
   motionSearchInputSchema,
@@ -40,14 +40,14 @@ import {
   type MotionImplementation,
   type MotionPattern,
   type MotionCategory,
-} from './schemas';
+} from "./schemas";
 
 import {
   ExistingAnimationDetectorService,
   type NewAnimationPattern,
-} from '../../services/motion/existing-animation-detector.service';
-import { applyPreferenceReranking } from '../../services/preference-rerank.helper';
-import type { IPrismaClient } from '../../services/preference-profile.service';
+} from "../../services/motion/existing-animation-detector.service";
+import { applyPreferenceReranking } from "../../services/preference-rerank.helper";
+import type { IPrismaClient } from "../../services/preference-profile.service";
 
 // =====================================================
 // 型定義
@@ -84,9 +84,9 @@ export interface MotionSearchParams {
  * JSアニメーション検索結果アイテム
  * MotionSearchResultItemにJSアニメーション情報を追加
  */
-export interface JSAnimationSearchResultItem extends Omit<MotionSearchResultItem, 'pattern'> {
+export interface JSAnimationSearchResultItem extends Omit<MotionSearchResultItem, "pattern"> {
   /** パターン情報 */
-  pattern: MotionSearchResultItem['pattern'];
+  pattern: MotionSearchResultItem["pattern"];
   /** JSアニメーション固有情報 */
   jsAnimationInfo?: JSAnimationInfo;
 }
@@ -96,9 +96,9 @@ export interface JSAnimationSearchResultItem extends Omit<MotionSearchResultItem
  * MotionSearchResultItemにWebGLアニメーション情報を追加
  * v0.1.0
  */
-export interface WebGLAnimationSearchResultItem extends Omit<MotionSearchResultItem, 'pattern'> {
+export interface WebGLAnimationSearchResultItem extends Omit<MotionSearchResultItem, "pattern"> {
   /** パターン情報 */
-  pattern: MotionSearchResultItem['pattern'];
+  pattern: MotionSearchResultItem["pattern"];
   /** WebGLアニメーション固有情報 */
   webglAnimationInfo?: WebGLAnimationInfo;
 }
@@ -168,9 +168,7 @@ let implementationServiceFactory: MotionImplementationServiceFactory | null = nu
 /**
  * サービスファクトリを設定
  */
-export function setMotionSearchServiceFactory(
-  factory: MotionSearchServiceFactory
-): void {
+export function setMotionSearchServiceFactory(factory: MotionSearchServiceFactory): void {
   serviceFactory = factory;
 }
 
@@ -207,9 +205,7 @@ let prismaClientFactory: (() => IPrismaClient) | null = null;
  * PrismaClientファクトリーを設定（嗜好リランキング用）
  * Set PrismaClient factory (for preference reranking)
  */
-export function setMotionSearchPrismaClientFactory(
-  factory: () => IPrismaClient
-): void {
+export function setMotionSearchPrismaClientFactory(factory: () => IPrismaClient): void {
   prismaClientFactory = factory;
 }
 
@@ -246,16 +242,14 @@ function offsetToPercent(offset: number): string {
  * 行数をカウント
  */
 function countLines(code: string): number {
-  return code.split('\n').length;
+  return code.split("\n").length;
 }
 
 /**
  * PascalCaseに変換
  */
 function toPascalCase(str: string): string {
-  return str
-    .replace(/[-_](\w)/g, (_, c) => c.toUpperCase())
-    .replace(/^\w/, (c) => c.toUpperCase());
+  return str.replace(/[-_](\w)/g, (_, c) => c.toUpperCase()).replace(/^\w/, (c) => c.toUpperCase());
 }
 
 /**
@@ -266,11 +260,11 @@ function generateCSS(
   options: ImplementationOptions
 ): GenerationResult {
   const lines: string[] = [];
-  const selector = options.selector || '.animated';
+  const selector = options.selector || ".animated";
   const hasKeyframes = pattern.properties.some((p) => p.keyframes && p.keyframes.length > 0);
 
   // @keyframes 生成
-  if (pattern.type !== 'transition') {
+  if (pattern.type !== "transition") {
     lines.push(`@keyframes ${pattern.name} {`);
 
     if (hasKeyframes) {
@@ -295,23 +289,23 @@ function generateCSS(
             lines.push(`    ${prop.name}: ${prop.to};`);
           }
         }
-        lines.push('  }');
+        lines.push("  }");
       }
     } else {
-      lines.push('  from {');
+      lines.push("  from {");
       for (const prop of pattern.properties) {
         lines.push(`    ${prop.name}: ${prop.from};`);
       }
-      lines.push('  }');
-      lines.push('  to {');
+      lines.push("  }");
+      lines.push("  to {");
       for (const prop of pattern.properties) {
         lines.push(`    ${prop.name}: ${prop.to};`);
       }
-      lines.push('  }');
+      lines.push("  }");
     }
 
-    lines.push('}');
-    lines.push('');
+    lines.push("}");
+    lines.push("");
 
     // ベンダープレフィックス
     if (options.includeVendorPrefixes) {
@@ -338,51 +332,49 @@ function generateCSS(
               lines.push(`    ${prop.name}: ${prop.to};`);
             }
           }
-          lines.push('  }');
+          lines.push("  }");
         }
       } else {
-        lines.push('  from {');
+        lines.push("  from {");
         for (const prop of pattern.properties) {
           lines.push(`    ${prop.name}: ${prop.from};`);
         }
-        lines.push('  }');
-        lines.push('  to {');
+        lines.push("  }");
+        lines.push("  to {");
         for (const prop of pattern.properties) {
           lines.push(`    ${prop.name}: ${prop.to};`);
         }
-        lines.push('  }');
+        lines.push("  }");
       }
-      lines.push('}');
-      lines.push('');
+      lines.push("}");
+      lines.push("");
     }
   }
 
   // セレクタルール
   lines.push(`${selector} {`);
 
-  if (pattern.type === 'transition') {
-    const props = pattern.properties.map((p) => p.name).join(', ');
-    lines.push(
-      `  transition: ${props} ${formatDuration(pattern.duration)} ${pattern.easing};`
-    );
+  if (pattern.type === "transition") {
+    const props = pattern.properties.map((p) => p.name).join(", ");
+    lines.push(`  transition: ${props} ${formatDuration(pattern.duration)} ${pattern.easing};`);
     if (options.includeVendorPrefixes) {
       lines.push(
         `  -webkit-transition: ${props} ${formatDuration(pattern.duration)} ${pattern.easing};`
       );
     }
   } else {
-    const iterations = pattern.iterations === 'infinite' ? 'infinite' : pattern.iterations;
+    const iterations = pattern.iterations === "infinite" ? "infinite" : pattern.iterations;
     const animationValue = [
       pattern.name,
       formatDuration(pattern.duration),
       pattern.easing,
       pattern.delay > 0 ? formatDuration(pattern.delay) : null,
       iterations !== 1 ? iterations : null,
-      pattern.direction !== 'normal' ? pattern.direction : null,
-      pattern.fillMode !== 'none' ? pattern.fillMode : null,
+      pattern.direction !== "normal" ? pattern.direction : null,
+      pattern.fillMode !== "none" ? pattern.fillMode : null,
     ]
       .filter(Boolean)
-      .join(' ');
+      .join(" ");
 
     lines.push(`  animation: ${animationValue};`);
     if (options.includeVendorPrefixes) {
@@ -390,39 +382,39 @@ function generateCSS(
     }
   }
 
-  lines.push('}');
+  lines.push("}");
 
   // hover/scroll タイプの追加ルール
-  if (pattern.type === 'hover') {
-    lines.push('');
+  if (pattern.type === "hover") {
+    lines.push("");
     lines.push(`${selector}:hover {`);
     for (const prop of pattern.properties) {
       lines.push(`  ${prop.name}: ${prop.to};`);
     }
-    lines.push('}');
+    lines.push("}");
   }
 
   // prefers-reduced-motion
   if (options.includeReducedMotion) {
-    lines.push('');
-    lines.push('@media (prefers-reduced-motion: reduce) {');
+    lines.push("");
+    lines.push("@media (prefers-reduced-motion: reduce) {");
     lines.push(`  ${selector} {`);
-    if (pattern.type === 'transition') {
-      lines.push('    transition: none;');
+    if (pattern.type === "transition") {
+      lines.push("    transition: none;");
     } else {
-      lines.push('    animation: none;');
+      lines.push("    animation: none;");
     }
-    lines.push('  }');
-    lines.push('}');
+    lines.push("  }");
+    lines.push("}");
   }
 
-  const code = lines.join('\n');
+  const code = lines.join("\n");
 
   return {
     code,
     metadata: {
       linesOfCode: countLines(code),
-      hasKeyframes: pattern.type !== 'transition',
+      hasKeyframes: pattern.type !== "transition",
       hasReducedMotion: options.includeReducedMotion ?? true,
       dependencies: [],
     },
@@ -459,20 +451,20 @@ function generateTailwind(
 ): GenerationResult {
   const lines: string[] = [];
 
-  lines.push('/* Add to tailwind.config.js */');
-  lines.push('module.exports = {');
-  lines.push('  theme: {');
-  lines.push('    extend: {');
+  lines.push("/* Add to tailwind.config.js */");
+  lines.push("module.exports = {");
+  lines.push("  theme: {");
+  lines.push("    extend: {");
 
-  lines.push('      animation: {');
-  const iterations = pattern.iterations === 'infinite' ? 'infinite' : '';
-  const direction = pattern.direction !== 'normal' ? pattern.direction : '';
+  lines.push("      animation: {");
+  const iterations = pattern.iterations === "infinite" ? "infinite" : "";
+  const direction = pattern.direction !== "normal" ? pattern.direction : "";
   lines.push(
     `        '${pattern.name}': '${pattern.name} ${formatDuration(pattern.duration)} ${pattern.easing} ${iterations} ${direction}'.trim(),`
   );
-  lines.push('      },');
+  lines.push("      },");
 
-  lines.push('      keyframes: {');
+  lines.push("      keyframes: {");
   lines.push(`        '${pattern.name}': {`);
 
   if (pattern.properties.some((p) => p.keyframes && p.keyframes.length > 0)) {
@@ -497,37 +489,37 @@ function generateTailwind(
           lines.push(`            ${prop.name}: '${prop.to}',`);
         }
       }
-      lines.push('          },');
+      lines.push("          },");
     }
   } else {
     lines.push("          '0%': {");
     for (const prop of pattern.properties) {
       lines.push(`            ${prop.name}: '${prop.from}',`);
     }
-    lines.push('          },');
+    lines.push("          },");
     lines.push("          '100%': {");
     for (const prop of pattern.properties) {
       lines.push(`            ${prop.name}: '${prop.to}',`);
     }
-    lines.push('          },');
+    lines.push("          },");
   }
 
-  lines.push('        },');
-  lines.push('      },');
-  lines.push('    },');
-  lines.push('  },');
-  lines.push('};');
-  lines.push('');
-  lines.push('/* Usage in JSX */');
+  lines.push("        },");
+  lines.push("      },");
+  lines.push("    },");
+  lines.push("  },");
+  lines.push("};");
+  lines.push("");
+  lines.push("/* Usage in JSX */");
   lines.push(`<div className="animate-${pattern.name}">Content</div>`);
 
   if (options.includeReducedMotion) {
-    lines.push('');
-    lines.push('/* For reduced motion support */');
+    lines.push("");
+    lines.push("/* For reduced motion support */");
     lines.push(`<div className="animate-${pattern.name} motion-reduce:animate-none">Content</div>`);
   }
 
-  const code = lines.join('\n');
+  const code = lines.join("\n");
 
   return {
     code,
@@ -535,7 +527,7 @@ function generateTailwind(
       linesOfCode: countLines(code),
       hasKeyframes: true,
       hasReducedMotion: options.includeReducedMotion ?? true,
-      dependencies: ['tailwindcss'],
+      dependencies: ["tailwindcss"],
     },
   };
 }
@@ -548,14 +540,14 @@ function generateStyledComponents(
   options: ImplementationOptions
 ): GenerationResult {
   const lines: string[] = [];
-  const componentName = options.componentName || toPascalCase(pattern.name) + 'Animation';
+  const componentName = options.componentName || toPascalCase(pattern.name) + "Animation";
   const ts = options.typescript ?? true;
 
   lines.push("import styled, { keyframes } from 'styled-components';");
   if (ts) {
     lines.push("import type { FC, ReactNode } from 'react';");
   }
-  lines.push('');
+  lines.push("");
 
   lines.push(`const ${pattern.name}Keyframes = keyframes\``);
 
@@ -581,57 +573,61 @@ function generateStyledComponents(
           lines.push(`    ${prop.name}: ${prop.to};`);
         }
       }
-      lines.push('  }');
+      lines.push("  }");
     }
   } else {
-    lines.push('  from {');
+    lines.push("  from {");
     for (const prop of pattern.properties) {
       lines.push(`    ${prop.name}: ${prop.from};`);
     }
-    lines.push('  }');
-    lines.push('  to {');
+    lines.push("  }");
+    lines.push("  to {");
     for (const prop of pattern.properties) {
       lines.push(`    ${prop.name}: ${prop.to};`);
     }
-    lines.push('  }');
+    lines.push("  }");
   }
 
-  lines.push('`;');
-  lines.push('');
+  lines.push("`;");
+  lines.push("");
 
-  const iterationsVal = pattern.iterations === 'infinite' ? 'infinite' : pattern.iterations;
-  const directionVal = pattern.direction !== 'normal' ? pattern.direction : '';
-  const fillModeVal = pattern.fillMode !== 'none' ? pattern.fillMode : '';
+  const iterationsVal = pattern.iterations === "infinite" ? "infinite" : pattern.iterations;
+  const directionVal = pattern.direction !== "normal" ? pattern.direction : "";
+  const fillModeVal = pattern.fillMode !== "none" ? pattern.fillMode : "";
 
   lines.push(`const ${componentName}Container = styled.div\``);
   lines.push(
-    `  animation: \${${pattern.name}Keyframes} ${formatDuration(pattern.duration)} ${pattern.easing}${pattern.delay > 0 ? ` ${formatDuration(pattern.delay)}` : ''}${iterationsVal !== 1 ? ` ${iterationsVal}` : ''}${directionVal ? ` ${directionVal}` : ''}${fillModeVal ? ` ${fillModeVal}` : ''};`
+    `  animation: \${${pattern.name}Keyframes} ${formatDuration(pattern.duration)} ${pattern.easing}${pattern.delay > 0 ? ` ${formatDuration(pattern.delay)}` : ""}${iterationsVal !== 1 ? ` ${iterationsVal}` : ""}${directionVal ? ` ${directionVal}` : ""}${fillModeVal ? ` ${fillModeVal}` : ""};`
   );
 
   if (options.includeReducedMotion) {
-    lines.push('');
-    lines.push('  @media (prefers-reduced-motion: reduce) {');
-    lines.push('    animation: none;');
-    lines.push('  }');
+    lines.push("");
+    lines.push("  @media (prefers-reduced-motion: reduce) {");
+    lines.push("    animation: none;");
+    lines.push("  }");
   }
 
-  lines.push('`;');
-  lines.push('');
+  lines.push("`;");
+  lines.push("");
 
   if (ts) {
     lines.push(`interface ${componentName}Props {`);
-    lines.push('  children: ReactNode;');
-    lines.push('  className?: string;');
-    lines.push('}');
-    lines.push('');
-    lines.push(`export const ${componentName}: FC<${componentName}Props> = ({ children, className }) => {`);
+    lines.push("  children: ReactNode;");
+    lines.push("  className?: string;");
+    lines.push("}");
+    lines.push("");
+    lines.push(
+      `export const ${componentName}: FC<${componentName}Props> = ({ children, className }) => {`
+    );
   } else {
     lines.push(`export const ${componentName} = ({ children, className }) => {`);
   }
-  lines.push(`  return <${componentName}Container className={className}>{children}</${componentName}Container>;`);
-  lines.push('};');
+  lines.push(
+    `  return <${componentName}Container className={className}>{children}</${componentName}Container>;`
+  );
+  lines.push("};");
 
-  const code = lines.join('\n');
+  const code = lines.join("\n");
 
   return {
     code,
@@ -639,7 +635,7 @@ function generateStyledComponents(
       linesOfCode: countLines(code),
       hasKeyframes: true,
       hasReducedMotion: options.includeReducedMotion ?? true,
-      dependencies: ['styled-components'],
+      dependencies: ["styled-components"],
     },
   };
 }
@@ -652,7 +648,7 @@ function generateEmotion(
   options: ImplementationOptions
 ): GenerationResult {
   const lines: string[] = [];
-  const componentName = options.componentName || toPascalCase(pattern.name) + 'Animation';
+  const componentName = options.componentName || toPascalCase(pattern.name) + "Animation";
   const ts = options.typescript ?? true;
 
   lines.push("/** @jsxImportSource @emotion/react */");
@@ -660,7 +656,7 @@ function generateEmotion(
   if (ts) {
     lines.push("import type { FC, ReactNode } from 'react';");
   }
-  lines.push('');
+  lines.push("");
 
   lines.push(`const ${pattern.name}Keyframes = keyframes\``);
 
@@ -686,57 +682,59 @@ function generateEmotion(
           lines.push(`    ${prop.name}: ${prop.to};`);
         }
       }
-      lines.push('  }');
+      lines.push("  }");
     }
   } else {
-    lines.push('  from {');
+    lines.push("  from {");
     for (const prop of pattern.properties) {
       lines.push(`    ${prop.name}: ${prop.from};`);
     }
-    lines.push('  }');
-    lines.push('  to {');
+    lines.push("  }");
+    lines.push("  to {");
     for (const prop of pattern.properties) {
       lines.push(`    ${prop.name}: ${prop.to};`);
     }
-    lines.push('  }');
+    lines.push("  }");
   }
 
-  lines.push('`;');
-  lines.push('');
+  lines.push("`;");
+  lines.push("");
 
-  const iterationsVal = pattern.iterations === 'infinite' ? 'infinite' : pattern.iterations;
-  const directionVal = pattern.direction !== 'normal' ? pattern.direction : '';
-  const fillModeVal = pattern.fillMode !== 'none' ? pattern.fillMode : '';
+  const iterationsVal = pattern.iterations === "infinite" ? "infinite" : pattern.iterations;
+  const directionVal = pattern.direction !== "normal" ? pattern.direction : "";
+  const fillModeVal = pattern.fillMode !== "none" ? pattern.fillMode : "";
 
   lines.push(`const ${pattern.name}Style = css\``);
   lines.push(
-    `  animation: \${${pattern.name}Keyframes} ${formatDuration(pattern.duration)} ${pattern.easing}${pattern.delay > 0 ? ` ${formatDuration(pattern.delay)}` : ''}${iterationsVal !== 1 ? ` ${iterationsVal}` : ''}${directionVal ? ` ${directionVal}` : ''}${fillModeVal ? ` ${fillModeVal}` : ''};`
+    `  animation: \${${pattern.name}Keyframes} ${formatDuration(pattern.duration)} ${pattern.easing}${pattern.delay > 0 ? ` ${formatDuration(pattern.delay)}` : ""}${iterationsVal !== 1 ? ` ${iterationsVal}` : ""}${directionVal ? ` ${directionVal}` : ""}${fillModeVal ? ` ${fillModeVal}` : ""};`
   );
 
   if (options.includeReducedMotion) {
-    lines.push('');
-    lines.push('  @media (prefers-reduced-motion: reduce) {');
-    lines.push('    animation: none;');
-    lines.push('  }');
+    lines.push("");
+    lines.push("  @media (prefers-reduced-motion: reduce) {");
+    lines.push("    animation: none;");
+    lines.push("  }");
   }
 
-  lines.push('`;');
-  lines.push('');
+  lines.push("`;");
+  lines.push("");
 
   if (ts) {
     lines.push(`interface ${componentName}Props {`);
-    lines.push('  children: ReactNode;');
-    lines.push('  className?: string;');
-    lines.push('}');
-    lines.push('');
-    lines.push(`export const ${componentName}: FC<${componentName}Props> = ({ children, className }) => {`);
+    lines.push("  children: ReactNode;");
+    lines.push("  className?: string;");
+    lines.push("}");
+    lines.push("");
+    lines.push(
+      `export const ${componentName}: FC<${componentName}Props> = ({ children, className }) => {`
+    );
   } else {
     lines.push(`export const ${componentName} = ({ children, className }) => {`);
   }
   lines.push(`  return <div css={${pattern.name}Style} className={className}>{children}</div>;`);
-  lines.push('};');
+  lines.push("};");
 
-  const code = lines.join('\n');
+  const code = lines.join("\n");
 
   return {
     code,
@@ -744,7 +742,7 @@ function generateEmotion(
       linesOfCode: countLines(code),
       hasKeyframes: true,
       hasReducedMotion: options.includeReducedMotion ?? true,
-      dependencies: ['@emotion/react'],
+      dependencies: ["@emotion/react"],
     },
   };
 }
@@ -757,31 +755,31 @@ function generateFramerMotion(
   options: ImplementationOptions
 ): GenerationResult {
   const lines: string[] = [];
-  const componentName = options.componentName || toPascalCase(pattern.name) + 'Motion';
+  const componentName = options.componentName || toPascalCase(pattern.name) + "Motion";
   const ts = options.typescript ?? true;
-  const isScroll = pattern.type === 'scroll';
+  const isScroll = pattern.type === "scroll";
 
   lines.push("import { motion } from 'framer-motion';");
   if (ts) {
     lines.push("import type { FC, ReactNode } from 'react';");
   }
-  lines.push('');
+  lines.push("");
 
   lines.push(`const ${pattern.name}Variants = {`);
-  lines.push('  initial: {');
+  lines.push("  initial: {");
   for (const prop of pattern.properties) {
     const cssName = prop.name.replace(/-([a-z])/g, (_, c) => c.toUpperCase());
     lines.push(`    ${cssName}: ${JSON.stringify(prop.from)},`);
   }
-  lines.push('  },');
-  lines.push('  animate: {');
+  lines.push("  },");
+  lines.push("  animate: {");
   for (const prop of pattern.properties) {
     const cssName = prop.name.replace(/-([a-z])/g, (_, c) => c.toUpperCase());
     lines.push(`    ${cssName}: ${JSON.stringify(prop.to)},`);
   }
-  lines.push('  },');
-  lines.push('};');
-  lines.push('');
+  lines.push("  },");
+  lines.push("};");
+  lines.push("");
 
   lines.push(`const ${pattern.name}Transition = {`);
   lines.push(`  duration: ${pattern.duration / 1000},`);
@@ -789,54 +787,58 @@ function generateFramerMotion(
   if (pattern.delay > 0) {
     lines.push(`  delay: ${pattern.delay / 1000},`);
   }
-  if (pattern.iterations === 'infinite') {
-    lines.push('  repeat: Infinity,');
+  if (pattern.iterations === "infinite") {
+    lines.push("  repeat: Infinity,");
   } else if (pattern.iterations > 1) {
     lines.push(`  repeat: ${pattern.iterations - 1},`);
   }
-  if (pattern.direction === 'alternate' || pattern.direction === 'alternate-reverse') {
+  if (pattern.direction === "alternate" || pattern.direction === "alternate-reverse") {
     lines.push("  repeatType: 'reverse',");
   }
-  lines.push('};');
-  lines.push('');
+  lines.push("};");
+  lines.push("");
 
   if (ts) {
     lines.push(`interface ${componentName}Props {`);
-    lines.push('  children: ReactNode;');
-    lines.push('  className?: string;');
-    lines.push('}');
-    lines.push('');
-    lines.push(`export const ${componentName}: FC<${componentName}Props> = ({ children, className }) => {`);
+    lines.push("  children: ReactNode;");
+    lines.push("  className?: string;");
+    lines.push("}");
+    lines.push("");
+    lines.push(
+      `export const ${componentName}: FC<${componentName}Props> = ({ children, className }) => {`
+    );
   } else {
     lines.push(`export const ${componentName} = ({ children, className }) => {`);
   }
-  lines.push('  return (');
-  lines.push('    <motion.div');
+  lines.push("  return (");
+  lines.push("    <motion.div");
   lines.push(`      variants={${pattern.name}Variants}`);
   lines.push('      initial="initial"');
 
   if (isScroll) {
     lines.push('      whileInView="animate"');
-    lines.push('      viewport={{ once: true }}');
+    lines.push("      viewport={{ once: true }}");
   } else {
     lines.push('      animate="animate"');
   }
 
   lines.push(`      transition={${pattern.name}Transition}`);
-  lines.push('      className={className}');
-  lines.push('    >');
-  lines.push('      {children}');
-  lines.push('    </motion.div>');
-  lines.push('  );');
-  lines.push('};');
+  lines.push("      className={className}");
+  lines.push("    >");
+  lines.push("      {children}");
+  lines.push("    </motion.div>");
+  lines.push("  );");
+  lines.push("};");
 
   if (options.includeReducedMotion) {
-    lines.push('');
-    lines.push('/* Note: Framer Motion automatically respects prefers-reduced-motion */');
-    lines.push('/* Set reducedMotion="user" in AnimatePresence or MotionConfig for custom handling */');
+    lines.push("");
+    lines.push("/* Note: Framer Motion automatically respects prefers-reduced-motion */");
+    lines.push(
+      '/* Set reducedMotion="user" in AnimatePresence or MotionConfig for custom handling */'
+    );
   }
 
-  const code = lines.join('\n');
+  const code = lines.join("\n");
 
   return {
     code,
@@ -844,7 +846,7 @@ function generateFramerMotion(
       linesOfCode: countLines(code),
       hasKeyframes: false,
       hasReducedMotion: options.includeReducedMotion ?? true,
-      dependencies: ['framer-motion'],
+      dependencies: ["framer-motion"],
     },
   };
 }
@@ -857,15 +859,15 @@ function generateGSAP(
   options: ImplementationOptions
 ): GenerationResult {
   const lines: string[] = [];
-  const componentName = options.componentName || toPascalCase(pattern.name) + 'GSAP';
+  const componentName = options.componentName || toPascalCase(pattern.name) + "GSAP";
   const ts = options.typescript ?? true;
-  const isScroll = pattern.type === 'scroll';
+  const isScroll = pattern.type === "scroll";
 
   lines.push("import { gsap } from 'gsap';");
   if (isScroll) {
     lines.push("import { ScrollTrigger } from 'gsap/ScrollTrigger';");
-    lines.push('');
-    lines.push('gsap.registerPlugin(ScrollTrigger);');
+    lines.push("");
+    lines.push("gsap.registerPlugin(ScrollTrigger);");
   }
   if (ts) {
     lines.push("import { useRef, useEffect } from 'react';");
@@ -873,12 +875,14 @@ function generateGSAP(
   } else {
     lines.push("import { useRef, useEffect } from 'react';");
   }
-  lines.push('');
+  lines.push("");
 
-  lines.push(`const use${toPascalCase(pattern.name)}Animation = (ref${ts ? ': React.RefObject<HTMLDivElement>' : ''}) => {`);
-  lines.push('  useEffect(() => {');
-  lines.push('    if (!ref.current) return;');
-  lines.push('');
+  lines.push(
+    `const use${toPascalCase(pattern.name)}Animation = (ref${ts ? ": React.RefObject<HTMLDivElement>" : ""}) => {`
+  );
+  lines.push("  useEffect(() => {");
+  lines.push("    if (!ref.current) return;");
+  lines.push("");
 
   const toProps: string[] = [];
   for (const prop of pattern.properties) {
@@ -892,75 +896,79 @@ function generateGSAP(
     fromProps.push(`      ${propName}: ${JSON.stringify(prop.from)}`);
   }
 
-  lines.push('    const animation = gsap.fromTo(');
-  lines.push('      ref.current,');
-  lines.push('      {');
-  lines.push(fromProps.join(',\n'));
-  lines.push('      },');
-  lines.push('      {');
-  lines.push(toProps.join(',\n') + ',');
+  lines.push("    const animation = gsap.fromTo(");
+  lines.push("      ref.current,");
+  lines.push("      {");
+  lines.push(fromProps.join(",\n"));
+  lines.push("      },");
+  lines.push("      {");
+  lines.push(toProps.join(",\n") + ",");
   lines.push(`        duration: ${pattern.duration / 1000},`);
   lines.push(`        ease: ${JSON.stringify(pattern.easing)},`);
   if (pattern.delay > 0) {
     lines.push(`        delay: ${pattern.delay / 1000},`);
   }
-  if (pattern.iterations === 'infinite') {
-    lines.push('        repeat: -1,');
+  if (pattern.iterations === "infinite") {
+    lines.push("        repeat: -1,");
   } else if (pattern.iterations > 1) {
     lines.push(`        repeat: ${pattern.iterations - 1},`);
   }
-  if (pattern.direction === 'alternate' || pattern.direction === 'alternate-reverse') {
-    lines.push('        yoyo: true,');
+  if (pattern.direction === "alternate" || pattern.direction === "alternate-reverse") {
+    lines.push("        yoyo: true,");
   }
 
   if (isScroll) {
-    lines.push('        scrollTrigger: {');
-    lines.push('          trigger: ref.current,');
+    lines.push("        scrollTrigger: {");
+    lines.push("          trigger: ref.current,");
     lines.push("          start: 'top 80%',");
     lines.push("          end: 'bottom 20%',");
     lines.push("          toggleActions: 'play none none reverse',");
-    lines.push('        },');
+    lines.push("        },");
   }
 
-  lines.push('      }');
-  lines.push('    );');
-  lines.push('');
-  lines.push('    return () => {');
-  lines.push('      animation.kill();');
-  lines.push('    };');
-  lines.push('  }, [ref]);');
-  lines.push('};');
-  lines.push('');
+  lines.push("      }");
+  lines.push("    );");
+  lines.push("");
+  lines.push("    return () => {");
+  lines.push("      animation.kill();");
+  lines.push("    };");
+  lines.push("  }, [ref]);");
+  lines.push("};");
+  lines.push("");
 
   if (ts) {
     lines.push(`interface ${componentName}Props {`);
-    lines.push('  children: ReactNode;');
-    lines.push('  className?: string;');
-    lines.push('}');
-    lines.push('');
-    lines.push(`export const ${componentName}: FC<${componentName}Props> = ({ children, className }) => {`);
+    lines.push("  children: ReactNode;");
+    lines.push("  className?: string;");
+    lines.push("}");
+    lines.push("");
+    lines.push(
+      `export const ${componentName}: FC<${componentName}Props> = ({ children, className }) => {`
+    );
   } else {
     lines.push(`export const ${componentName} = ({ children, className }) => {`);
   }
-  lines.push(`  const ref = useRef${ts ? '<HTMLDivElement>' : ''}(null);`);
+  lines.push(`  const ref = useRef${ts ? "<HTMLDivElement>" : ""}(null);`);
   lines.push(`  use${toPascalCase(pattern.name)}Animation(ref);`);
-  lines.push('');
-  lines.push('  return (');
-  lines.push('    <div ref={ref} className={className}>');
-  lines.push('      {children}');
-  lines.push('    </div>');
-  lines.push('  );');
-  lines.push('};');
+  lines.push("");
+  lines.push("  return (");
+  lines.push("    <div ref={ref} className={className}>");
+  lines.push("      {children}");
+  lines.push("    </div>");
+  lines.push("  );");
+  lines.push("};");
 
   if (options.includeReducedMotion) {
-    lines.push('');
-    lines.push('/* Add reduced motion check */');
-    lines.push('// const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;');
-    lines.push('// if (prefersReducedMotion) return;');
+    lines.push("");
+    lines.push("/* Add reduced motion check */");
+    lines.push(
+      '// const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;'
+    );
+    lines.push("// if (prefersReducedMotion) return;");
   }
 
-  const code = lines.join('\n');
-  const dependencies = isScroll ? ['gsap', 'gsap/ScrollTrigger'] : ['gsap'];
+  const code = lines.join("\n");
+  const dependencies = isScroll ? ["gsap", "gsap/ScrollTrigger"] : ["gsap"];
 
   return {
     code,
@@ -986,9 +994,9 @@ function generateThreeJS(
   options: ImplementationOptions
 ): GenerationResult {
   const lines: string[] = [];
-  const componentName = options.componentName || toPascalCase(pattern.name) + 'Scene';
+  const componentName = options.componentName || toPascalCase(pattern.name) + "Scene";
   const ts = options.typescript ?? true;
-  const isScroll = pattern.type === 'scroll';
+  const isScroll = pattern.type === "scroll";
 
   // Imports
   lines.push("import { useRef } from 'react';");
@@ -1000,188 +1008,201 @@ function generateThreeJS(
     lines.push("import type { FC } from 'react';");
     lines.push("import type { Mesh, Group } from 'three';");
   }
-  lines.push('');
+  lines.push("");
 
   // Extract animation properties and convert to Three.js-compatible values
   const positionProps = pattern.properties.filter((p) =>
-    ['translateX', 'translateY', 'translateZ', 'x', 'y', 'z'].includes(p.name)
+    ["translateX", "translateY", "translateZ", "x", "y", "z"].includes(p.name)
   );
   const rotationProps = pattern.properties.filter((p) =>
-    ['rotateX', 'rotateY', 'rotateZ', 'rotate'].includes(p.name)
+    ["rotateX", "rotateY", "rotateZ", "rotate"].includes(p.name)
   );
   const scaleProps = pattern.properties.filter((p) =>
-    ['scale', 'scaleX', 'scaleY', 'scaleZ'].includes(p.name)
+    ["scale", "scaleX", "scaleY", "scaleZ"].includes(p.name)
   );
-  const opacityProps = pattern.properties.filter((p) =>
-    ['opacity'].includes(p.name)
-  );
+  const opacityProps = pattern.properties.filter((p) => ["opacity"].includes(p.name));
 
   // Helper function name
-  const animatedObjectName = toPascalCase(pattern.name) + 'Object';
+  const animatedObjectName = toPascalCase(pattern.name) + "Object";
 
   // Animated Object Component
   if (ts) {
     lines.push(`interface ${animatedObjectName}Props {`);
-    lines.push('  children?: React.ReactNode;');
-    lines.push('}');
-    lines.push('');
+    lines.push("  children?: React.ReactNode;");
+    lines.push("}");
+    lines.push("");
   }
 
-  lines.push(`const ${animatedObjectName}${ts ? `: FC<${animatedObjectName}Props>` : ''} = ({ children }) => {`);
-  lines.push(`  const meshRef = useRef${ts ? '<Mesh>' : ''}(null);`);
+  lines.push(
+    `const ${animatedObjectName}${ts ? `: FC<${animatedObjectName}Props>` : ""} = ({ children }) => {`
+  );
+  lines.push(`  const meshRef = useRef${ts ? "<Mesh>" : ""}(null);`);
 
   if (isScroll) {
-    lines.push('  const scroll = useScroll();');
-    lines.push('');
-    lines.push('  useFrame(() => {');
-    lines.push('    if (!meshRef.current) return;');
-    lines.push('    const progress = scroll.offset;');
+    lines.push("  const scroll = useScroll();");
+    lines.push("");
+    lines.push("  useFrame(() => {");
+    lines.push("    if (!meshRef.current) return;");
+    lines.push("    const progress = scroll.offset;");
   } else {
     lines.push(`  const duration = ${pattern.duration / 1000}; // seconds`);
-    lines.push(`  const startTime = useRef${ts ? '<number>' : ''}(0);`);
-    lines.push('');
-    lines.push('  useFrame((state) => {');
-    lines.push('    if (!meshRef.current) return;');
-    lines.push('    if (startTime.current === 0) startTime.current = state.clock.elapsedTime;');
-    lines.push('');
-    lines.push('    const elapsed = state.clock.elapsedTime - startTime.current;');
-    if (pattern.iterations === 'infinite') {
-      lines.push('    const progress = (elapsed % duration) / duration;');
+    lines.push(`  const startTime = useRef${ts ? "<number>" : ""}(0);`);
+    lines.push("");
+    lines.push("  useFrame((state) => {");
+    lines.push("    if (!meshRef.current) return;");
+    lines.push("    if (startTime.current === 0) startTime.current = state.clock.elapsedTime;");
+    lines.push("");
+    lines.push("    const elapsed = state.clock.elapsedTime - startTime.current;");
+    if (pattern.iterations === "infinite") {
+      lines.push("    const progress = (elapsed % duration) / duration;");
     } else {
-      lines.push('    const progress = Math.min(elapsed / duration, 1);');
+      lines.push("    const progress = Math.min(elapsed / duration, 1);");
     }
   }
 
-  lines.push('');
+  lines.push("");
 
   // Apply easing
-  lines.push('    // Apply easing function');
-  lines.push(`    const eased = ease${toPascalCase(pattern.easing.replace(/[^a-zA-Z]/g, ''))}(progress);`);
-  lines.push('');
+  lines.push("    // Apply easing function");
+  lines.push(
+    `    const eased = ease${toPascalCase(pattern.easing.replace(/[^a-zA-Z]/g, ""))}(progress);`
+  );
+  lines.push("");
 
   // Position animations
   if (positionProps.length > 0) {
-    lines.push('    // Position animation');
+    lines.push("    // Position animation");
     for (const prop of positionProps) {
-      const axis = prop.name.replace(/translate|[XYZ]/gi, '').toLowerCase() ||
-                   prop.name.charAt(prop.name.length - 1).toLowerCase();
+      const axis =
+        prop.name.replace(/translate|[XYZ]/gi, "").toLowerCase() ||
+        prop.name.charAt(prop.name.length - 1).toLowerCase();
       const fromVal = parseFloat(prop.from) || 0;
       const toVal = parseFloat(prop.to) || 0;
-      lines.push(`    meshRef.current.position.${axis} = ${fromVal} + (${toVal} - ${fromVal}) * eased;`);
+      lines.push(
+        `    meshRef.current.position.${axis} = ${fromVal} + (${toVal} - ${fromVal}) * eased;`
+      );
     }
   }
 
   // Rotation animations
   if (rotationProps.length > 0) {
-    lines.push('    // Rotation animation');
+    lines.push("    // Rotation animation");
     for (const prop of rotationProps) {
-      const axis = prop.name.replace('rotate', '').toLowerCase() || 'y';
+      const axis = prop.name.replace("rotate", "").toLowerCase() || "y";
       const fromVal = parseFloat(prop.from) || 0;
       const toVal = parseFloat(prop.to) || Math.PI * 2;
-      lines.push(`    meshRef.current.rotation.${axis} = ${fromVal} + (${toVal} - ${fromVal}) * eased;`);
+      lines.push(
+        `    meshRef.current.rotation.${axis} = ${fromVal} + (${toVal} - ${fromVal}) * eased;`
+      );
     }
   }
 
   // Scale animations
   const scaleProp = scaleProps[0];
   if (scaleProp) {
-    lines.push('    // Scale animation');
+    lines.push("    // Scale animation");
     const fromVal = parseFloat(scaleProp.from) || 1;
     const toVal = parseFloat(scaleProp.to) || 1;
     lines.push(`    const scaleValue = ${fromVal} + (${toVal} - ${fromVal}) * eased;`);
-    lines.push('    meshRef.current.scale.setScalar(scaleValue);');
+    lines.push("    meshRef.current.scale.setScalar(scaleValue);");
   }
 
   // Opacity animations (material)
   const opacityProp = opacityProps[0];
   if (opacityProp) {
-    lines.push('    // Opacity animation');
+    lines.push("    // Opacity animation");
     const fromVal = parseFloat(opacityProp.from) || 1;
     const toVal = parseFloat(opacityProp.to) || 0;
     lines.push(`    if (meshRef.current.material && 'opacity' in meshRef.current.material) {`);
-    lines.push(`      (meshRef.current.material as any).opacity = ${fromVal} + (${toVal} - ${fromVal}) * eased;`);
-    lines.push('    }');
+    lines.push(
+      `      (meshRef.current.material as any).opacity = ${fromVal} + (${toVal} - ${fromVal}) * eased;`
+    );
+    lines.push("    }");
   }
 
-  lines.push('  });');
-  lines.push('');
-  lines.push('  return (');
-  lines.push('    <mesh ref={meshRef}>');
-  lines.push('      {children || (');
-  lines.push('        <>');
-  lines.push('          <boxGeometry args={[1, 1, 1]} />');
+  lines.push("  });");
+  lines.push("");
+  lines.push("  return (");
+  lines.push("    <mesh ref={meshRef}>");
+  lines.push("      {children || (");
+  lines.push("        <>");
+  lines.push("          <boxGeometry args={[1, 1, 1]} />");
   lines.push('          <meshStandardMaterial color="#4f46e5" transparent />');
-  lines.push('        </>');
-  lines.push('      )}');
-  lines.push('    </mesh>');
-  lines.push('  );');
-  lines.push('};');
-  lines.push('');
+  lines.push("        </>");
+  lines.push("      )}");
+  lines.push("    </mesh>");
+  lines.push("  );");
+  lines.push("};");
+  lines.push("");
 
   // Easing function
-  lines.push('// Easing function');
-  const easingName = `ease${toPascalCase(pattern.easing.replace(/[^a-zA-Z]/g, ''))}`;
-  lines.push(`function ${easingName}(t${ts ? ': number' : ''})${ts ? ': number' : ''} {`);
+  lines.push("// Easing function");
+  const easingName = `ease${toPascalCase(pattern.easing.replace(/[^a-zA-Z]/g, ""))}`;
+  lines.push(`function ${easingName}(t${ts ? ": number" : ""})${ts ? ": number" : ""} {`);
   switch (pattern.easing) {
-    case 'ease-in':
-      lines.push('  return t * t;');
+    case "ease-in":
+      lines.push("  return t * t;");
       break;
-    case 'ease-out':
-      lines.push('  return t * (2 - t);');
+    case "ease-out":
+      lines.push("  return t * (2 - t);");
       break;
-    case 'ease-in-out':
-      lines.push('  return t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t;');
+    case "ease-in-out":
+      lines.push("  return t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t;");
       break;
-    case 'linear':
-      lines.push('  return t;');
+    case "linear":
+      lines.push("  return t;");
       break;
     default:
       // Default to ease-out for unknown easing
-      lines.push('  return t * (2 - t);');
+      lines.push("  return t * (2 - t);");
   }
-  lines.push('}');
-  lines.push('');
+  lines.push("}");
+  lines.push("");
 
   // Main Scene Component
   if (ts) {
     lines.push(`interface ${componentName}Props {`);
-    lines.push('  className?: string;');
-    lines.push('}');
-    lines.push('');
+    lines.push("  className?: string;");
+    lines.push("}");
+    lines.push("");
   }
 
-  lines.push(`export const ${componentName}${ts ? `: FC<${componentName}Props>` : ''} = ({ className }) => {`);
+  lines.push(
+    `export const ${componentName}${ts ? `: FC<${componentName}Props>` : ""} = ({ className }) => {`
+  );
 
   if (options.includeReducedMotion) {
-    lines.push('  // Check for reduced motion preference');
+    lines.push("  // Check for reduced motion preference");
     lines.push('  const prefersReducedMotion = typeof window !== "undefined"');
     lines.push('    && window.matchMedia("(prefers-reduced-motion: reduce)").matches;');
-    lines.push('');
-    lines.push('  if (prefersReducedMotion) {');
-    lines.push('    return (');
-    lines.push('      <div className={className} style={{ width: "100%", height: "400px", background: "#1a1a2e" }}>');
-    lines.push('        {/* Static fallback for reduced motion */}');
-    lines.push('      </div>');
-    lines.push('    );');
-    lines.push('  }');
-    lines.push('');
+    lines.push("");
+    lines.push("  if (prefersReducedMotion) {");
+    lines.push("    return (");
+    lines.push(
+      '      <div className={className} style={{ width: "100%", height: "400px", background: "#1a1a2e" }}>'
+    );
+    lines.push("        {/* Static fallback for reduced motion */}");
+    lines.push("      </div>");
+    lines.push("    );");
+    lines.push("  }");
+    lines.push("");
   }
 
-  lines.push('  return (');
+  lines.push("  return (");
   lines.push('    <div className={className} style={{ width: "100%", height: "400px" }}>');
-  lines.push('      <Canvas camera={{ position: [0, 0, 5], fov: 50 }}>');
-  lines.push('        <ambientLight intensity={0.5} />');
-  lines.push('        <pointLight position={[10, 10, 10]} />');
+  lines.push("      <Canvas camera={{ position: [0, 0, 5], fov: 50 }}>");
+  lines.push("        <ambientLight intensity={0.5} />");
+  lines.push("        <pointLight position={[10, 10, 10]} />");
   lines.push(`        <${animatedObjectName} />`);
-  lines.push('      </Canvas>');
-  lines.push('    </div>');
-  lines.push('  );');
-  lines.push('};');
+  lines.push("      </Canvas>");
+  lines.push("    </div>");
+  lines.push("  );");
+  lines.push("};");
 
-  const code = lines.join('\n');
+  const code = lines.join("\n");
   const dependencies = isScroll
-    ? ['@react-three/fiber', '@react-three/drei', 'three']
-    : ['@react-three/fiber', 'three'];
+    ? ["@react-three/fiber", "@react-three/drei", "three"]
+    : ["@react-three/fiber", "three"];
 
   return {
     code,
@@ -1207,7 +1228,7 @@ function generateLottie(
   options: ImplementationOptions
 ): GenerationResult {
   const lines: string[] = [];
-  const componentName = options.componentName || toPascalCase(pattern.name) + 'Animation';
+  const componentName = options.componentName || toPascalCase(pattern.name) + "Animation";
   const ts = options.typescript ?? true;
 
   // Imports
@@ -1216,15 +1237,17 @@ function generateLottie(
     lines.push("import type { FC } from 'react';");
     lines.push("import type { LottieComponentProps } from 'lottie-react';");
   }
-  lines.push('');
+  lines.push("");
 
   // Convert CSS animation properties to Lottie keyframes format
   // Note: This generates a simplified Lottie JSON structure
-  lines.push('/**');
-  lines.push(' * Lottie Animation Data');
-  lines.push(' * Generated from CSS animation pattern.');
-  lines.push(' * For complex animations, replace with actual Lottie JSON export from After Effects/Figma.');
-  lines.push(' */');
+  lines.push("/**");
+  lines.push(" * Lottie Animation Data");
+  lines.push(" * Generated from CSS animation pattern.");
+  lines.push(
+    " * For complex animations, replace with actual Lottie JSON export from After Effects/Figma."
+  );
+  lines.push(" */");
 
   // Generate Lottie-like animation data structure
   const durationInFrames = Math.round((pattern.duration / 1000) * 60); // 60fps
@@ -1235,172 +1258,186 @@ function generateLottie(
   lines.push(`  fr: 60,`); // Frame rate
   lines.push(`  ip: ${startFrame},`); // In point
   lines.push(`  op: ${startFrame + durationInFrames},`); // Out point
-  lines.push('  w: 200,'); // Width
-  lines.push('  h: 200,'); // Height
+  lines.push("  w: 200,"); // Width
+  lines.push("  h: 200,"); // Height
   lines.push('  nm: "' + pattern.name + '",');
-  lines.push('  ddd: 0,');
-  lines.push('  assets: [],');
-  lines.push('  layers: [');
-  lines.push('    {');
-  lines.push('      ddd: 0,');
-  lines.push('      ind: 1,');
-  lines.push('      ty: 4,'); // Shape layer
+  lines.push("  ddd: 0,");
+  lines.push("  assets: [],");
+  lines.push("  layers: [");
+  lines.push("    {");
+  lines.push("      ddd: 0,");
+  lines.push("      ind: 1,");
+  lines.push("      ty: 4,"); // Shape layer
   lines.push(`      nm: "${pattern.name}",`);
   lines.push(`      sr: 1,`);
-  lines.push('      ks: {'); // Transform
+  lines.push("      ks: {"); // Transform
 
   // Opacity animation
-  const opacityProp = pattern.properties.find((p) => p.name === 'opacity');
+  const opacityProp = pattern.properties.find((p) => p.name === "opacity");
   if (opacityProp) {
     const fromOpacity = parseFloat(opacityProp.from) * 100 || 0;
     const toOpacity = parseFloat(opacityProp.to) * 100 || 100;
-    lines.push('        o: {'); // Opacity
-    lines.push('          a: 1,'); // Animated
-    lines.push('          k: [');
-    lines.push(`            { i: { x: [0.4], y: [1] }, o: { x: [0.6], y: [0] }, t: ${startFrame}, s: [${fromOpacity}] },`);
+    lines.push("        o: {"); // Opacity
+    lines.push("          a: 1,"); // Animated
+    lines.push("          k: [");
+    lines.push(
+      `            { i: { x: [0.4], y: [1] }, o: { x: [0.6], y: [0] }, t: ${startFrame}, s: [${fromOpacity}] },`
+    );
     lines.push(`            { t: ${startFrame + durationInFrames}, s: [${toOpacity}] }`);
-    lines.push('          ]');
-    lines.push('        },');
+    lines.push("          ]");
+    lines.push("        },");
   } else {
-    lines.push('        o: { a: 0, k: 100 },');
+    lines.push("        o: { a: 0, k: 100 },");
   }
 
   // Position animation (transform: translate)
-  const translateXProp = pattern.properties.find((p) => p.name === 'translateX');
-  const translateYProp = pattern.properties.find((p) => p.name === 'translateY');
+  const translateXProp = pattern.properties.find((p) => p.name === "translateX");
+  const translateYProp = pattern.properties.find((p) => p.name === "translateY");
   if (translateXProp || translateYProp) {
     const fromX = translateXProp ? parseFloat(translateXProp.from) || 0 : 0;
     const toX = translateXProp ? parseFloat(translateXProp.to) || 0 : 0;
     const fromY = translateYProp ? parseFloat(translateYProp.from) || 0 : 0;
     const toY = translateYProp ? parseFloat(translateYProp.to) || 0 : 0;
-    lines.push('        p: {'); // Position
-    lines.push('          a: 1,');
-    lines.push('          k: [');
-    lines.push(`            { i: { x: 0.4, y: 1 }, o: { x: 0.6, y: 0 }, t: ${startFrame}, s: [${100 + fromX}, ${100 + fromY}, 0] },`);
-    lines.push(`            { t: ${startFrame + durationInFrames}, s: [${100 + toX}, ${100 + toY}, 0] }`);
-    lines.push('          ]');
-    lines.push('        },');
+    lines.push("        p: {"); // Position
+    lines.push("          a: 1,");
+    lines.push("          k: [");
+    lines.push(
+      `            { i: { x: 0.4, y: 1 }, o: { x: 0.6, y: 0 }, t: ${startFrame}, s: [${100 + fromX}, ${100 + fromY}, 0] },`
+    );
+    lines.push(
+      `            { t: ${startFrame + durationInFrames}, s: [${100 + toX}, ${100 + toY}, 0] }`
+    );
+    lines.push("          ]");
+    lines.push("        },");
   } else {
-    lines.push('        p: { a: 0, k: [100, 100, 0] },');
+    lines.push("        p: { a: 0, k: [100, 100, 0] },");
   }
 
   // Scale animation
-  const scaleProp = pattern.properties.find((p) => p.name === 'scale');
+  const scaleProp = pattern.properties.find((p) => p.name === "scale");
   if (scaleProp) {
     const fromScale = parseFloat(scaleProp.from) * 100 || 100;
     const toScale = parseFloat(scaleProp.to) * 100 || 100;
-    lines.push('        s: {'); // Scale
-    lines.push('          a: 1,');
-    lines.push('          k: [');
-    lines.push(`            { i: { x: [0.4], y: [1] }, o: { x: [0.6], y: [0] }, t: ${startFrame}, s: [${fromScale}, ${fromScale}, 100] },`);
-    lines.push(`            { t: ${startFrame + durationInFrames}, s: [${toScale}, ${toScale}, 100] }`);
-    lines.push('          ]');
-    lines.push('        },');
+    lines.push("        s: {"); // Scale
+    lines.push("          a: 1,");
+    lines.push("          k: [");
+    lines.push(
+      `            { i: { x: [0.4], y: [1] }, o: { x: [0.6], y: [0] }, t: ${startFrame}, s: [${fromScale}, ${fromScale}, 100] },`
+    );
+    lines.push(
+      `            { t: ${startFrame + durationInFrames}, s: [${toScale}, ${toScale}, 100] }`
+    );
+    lines.push("          ]");
+    lines.push("        },");
   } else {
-    lines.push('        s: { a: 0, k: [100, 100, 100] },');
+    lines.push("        s: { a: 0, k: [100, 100, 100] },");
   }
 
   // Rotation animation
-  const rotateProp = pattern.properties.find((p) => p.name === 'rotate');
+  const rotateProp = pattern.properties.find((p) => p.name === "rotate");
   if (rotateProp) {
     const fromRotate = parseFloat(rotateProp.from) || 0;
     const toRotate = parseFloat(rotateProp.to) || 0;
-    lines.push('        r: {'); // Rotation
-    lines.push('          a: 1,');
-    lines.push('          k: [');
-    lines.push(`            { i: { x: [0.4], y: [1] }, o: { x: [0.6], y: [0] }, t: ${startFrame}, s: [${fromRotate}] },`);
+    lines.push("        r: {"); // Rotation
+    lines.push("          a: 1,");
+    lines.push("          k: [");
+    lines.push(
+      `            { i: { x: [0.4], y: [1] }, o: { x: [0.6], y: [0] }, t: ${startFrame}, s: [${fromRotate}] },`
+    );
     lines.push(`            { t: ${startFrame + durationInFrames}, s: [${toRotate}] }`);
-    lines.push('          ]');
-    lines.push('        },');
+    lines.push("          ]");
+    lines.push("        },");
   } else {
-    lines.push('        r: { a: 0, k: 0 },');
+    lines.push("        r: { a: 0, k: 0 },");
   }
 
-  lines.push('        a: { a: 0, k: [100, 100, 0] }'); // Anchor point
-  lines.push('      },');
+  lines.push("        a: { a: 0, k: [100, 100, 0] }"); // Anchor point
+  lines.push("      },");
 
   // Shape contents (simple rectangle)
-  lines.push('      shapes: [');
-  lines.push('        {');
+  lines.push("      shapes: [");
+  lines.push("        {");
   lines.push('          ty: "rc",'); // Rectangle
-  lines.push('          d: 1,');
-  lines.push('          s: { a: 0, k: [100, 100] },'); // Size
-  lines.push('          p: { a: 0, k: [0, 0] },'); // Position
-  lines.push('          r: { a: 0, k: 8 },'); // Corner radius
+  lines.push("          d: 1,");
+  lines.push("          s: { a: 0, k: [100, 100] },"); // Size
+  lines.push("          p: { a: 0, k: [0, 0] },"); // Position
+  lines.push("          r: { a: 0, k: 8 },"); // Corner radius
   lines.push('          nm: "Rectangle"');
-  lines.push('        },');
-  lines.push('        {');
+  lines.push("        },");
+  lines.push("        {");
   lines.push('          ty: "fl",'); // Fill
-  lines.push('          c: { a: 0, k: [0.31, 0.275, 0.898, 1] },'); // Color (#4f46e5)
-  lines.push('          o: { a: 0, k: 100 },');
+  lines.push("          c: { a: 0, k: [0.31, 0.275, 0.898, 1] },"); // Color (#4f46e5)
+  lines.push("          o: { a: 0, k: 100 },");
   lines.push('          nm: "Fill"');
-  lines.push('        }');
-  lines.push('      ],');
+  lines.push("        }");
+  lines.push("      ],");
   lines.push(`      ip: ${startFrame},`);
   lines.push(`      op: ${startFrame + durationInFrames},`);
-  lines.push('      st: 0');
-  lines.push('    }');
-  lines.push('  ]');
-  lines.push('};');
-  lines.push('');
+  lines.push("      st: 0");
+  lines.push("    }");
+  lines.push("  ]");
+  lines.push("};");
+  lines.push("");
 
   // React component
   if (ts) {
     lines.push(`interface ${componentName}Props {`);
-    lines.push('  className?: string;');
-    lines.push('  loop?: boolean;');
-    lines.push('  autoplay?: boolean;');
-    lines.push('}');
-    lines.push('');
+    lines.push("  className?: string;");
+    lines.push("  loop?: boolean;");
+    lines.push("  autoplay?: boolean;");
+    lines.push("}");
+    lines.push("");
   }
 
-  lines.push(`export const ${componentName}${ts ? `: FC<${componentName}Props>` : ''} = ({`);
-  lines.push('  className,');
-  lines.push(`  loop = ${pattern.iterations === 'infinite'},`);
-  lines.push('  autoplay = true,');
-  lines.push('}) => {');
+  lines.push(`export const ${componentName}${ts ? `: FC<${componentName}Props>` : ""} = ({`);
+  lines.push("  className,");
+  lines.push(`  loop = ${pattern.iterations === "infinite"},`);
+  lines.push("  autoplay = true,");
+  lines.push("}) => {");
 
   if (options.includeReducedMotion) {
-    lines.push('  // Check for reduced motion preference');
+    lines.push("  // Check for reduced motion preference");
     lines.push('  const prefersReducedMotion = typeof window !== "undefined"');
     lines.push('    && window.matchMedia("(prefers-reduced-motion: reduce)").matches;');
-    lines.push('');
-    lines.push('  if (prefersReducedMotion) {');
-    lines.push('    return (');
-    lines.push('      <div className={className} style={{ width: 200, height: 200 }}>');
-    lines.push('        {/* Static fallback for reduced motion */}');
-    lines.push('        <div style={{ width: 100, height: 100, background: "#4f46e5", borderRadius: 8, margin: "auto" }} />');
-    lines.push('      </div>');
-    lines.push('    );');
-    lines.push('  }');
-    lines.push('');
+    lines.push("");
+    lines.push("  if (prefersReducedMotion) {");
+    lines.push("    return (");
+    lines.push("      <div className={className} style={{ width: 200, height: 200 }}>");
+    lines.push("        {/* Static fallback for reduced motion */}");
+    lines.push(
+      '        <div style={{ width: 100, height: 100, background: "#4f46e5", borderRadius: 8, margin: "auto" }} />'
+    );
+    lines.push("      </div>");
+    lines.push("    );");
+    lines.push("  }");
+    lines.push("");
   }
 
-  lines.push('  return (');
-  lines.push('    <Lottie');
+  lines.push("  return (");
+  lines.push("    <Lottie");
   lines.push(`      animationData={${pattern.name}AnimationData}`);
-  lines.push('      loop={loop}');
-  lines.push('      autoplay={autoplay}');
-  lines.push('      className={className}');
-  lines.push('      style={{ width: 200, height: 200 }}');
-  lines.push('    />');
-  lines.push('  );');
-  lines.push('};');
-  lines.push('');
+  lines.push("      loop={loop}");
+  lines.push("      autoplay={autoplay}");
+  lines.push("      className={className}");
+  lines.push("      style={{ width: 200, height: 200 }}");
+  lines.push("    />");
+  lines.push("  );");
+  lines.push("};");
+  lines.push("");
 
   // Usage instructions
-  lines.push('/**');
-  lines.push(' * Usage:');
+  lines.push("/**");
+  lines.push(" * Usage:");
   lines.push(` * import { ${componentName} } from './path-to-component';`);
-  lines.push(' *');
+  lines.push(" *");
   lines.push(` * <${componentName} />`);
   lines.push(` * <${componentName} loop={false} autoplay={true} />`);
-  lines.push(' *');
-  lines.push(' * Note: For production use, export your animation from After Effects with');
-  lines.push(' * Bodymovin plugin or from Figma, and replace the animationData above.');
-  lines.push(' */');
+  lines.push(" *");
+  lines.push(" * Note: For production use, export your animation from After Effects with");
+  lines.push(" * Bodymovin plugin or from Figma, and replace the animationData above.");
+  lines.push(" */");
 
-  const code = lines.join('\n');
+  const code = lines.join("\n");
 
   return {
     code,
@@ -1408,7 +1445,7 @@ function generateLottie(
       linesOfCode: countLines(code),
       hasKeyframes: false,
       hasReducedMotion: options.includeReducedMotion ?? true,
-      dependencies: ['lottie-react'],
+      dependencies: ["lottie-react"],
     },
   };
 }
@@ -1422,23 +1459,23 @@ function generateImplementation(
   options: ImplementationOptions
 ): GenerationResult {
   switch (format) {
-    case 'css':
+    case "css":
       return generateCSS(pattern, options);
-    case 'css-module':
+    case "css-module":
       return generateCSSModule(pattern, options);
-    case 'tailwind':
+    case "tailwind":
       return generateTailwind(pattern, options);
-    case 'styled-components':
+    case "styled-components":
       return generateStyledComponents(pattern, options);
-    case 'emotion':
+    case "emotion":
       return generateEmotion(pattern, options);
-    case 'framer-motion':
+    case "framer-motion":
       return generateFramerMotion(pattern, options);
-    case 'gsap':
+    case "gsap":
       return generateGSAP(pattern, options);
-    case 'three-js':
+    case "three-js":
       return generateThreeJS(pattern, options);
-    case 'lottie':
+    case "lottie":
       return generateLottie(pattern, options);
     default:
       return generateCSS(pattern, options);
@@ -1454,20 +1491,18 @@ function generateImplementation(
  * @param type MotionType
  * @returns MotionPatternInputType
  */
-function mapMotionType(
-  type: MotionPattern['type']
-): MotionPatternInput['type'] {
+function mapMotionType(type: MotionPattern["type"]): MotionPatternInput["type"] {
   switch (type) {
-    case 'css_animation':
-    case 'library_animation':
-    case 'video_motion':
-      return 'animation';
-    case 'css_transition':
-      return 'transition';
-    case 'keyframes':
-      return 'keyframe';
+    case "css_animation":
+    case "library_animation":
+    case "video_motion":
+      return "animation";
+    case "css_transition":
+      return "transition";
+    case "keyframes":
+      return "keyframe";
     default:
-      return 'animation';
+      return "animation";
   }
 }
 
@@ -1481,22 +1516,22 @@ function patternToPatternInput(pattern: MotionPattern): MotionPatternInput {
   const duration = pattern.animation?.duration ?? 300;
   const easingConfig = pattern.animation?.easing;
   // easingConfigがオブジェクトの場合はtypeまたはcubicBezierを使用
-  let easing = 'ease';
+  let easing = "ease";
   if (easingConfig) {
     if (easingConfig.cubicBezier) {
-      easing = `cubic-bezier(${easingConfig.cubicBezier.join(', ')})`;
-    } else if (easingConfig.type && easingConfig.type !== 'cubic-bezier') {
+      easing = `cubic-bezier(${easingConfig.cubicBezier.join(", ")})`;
+    } else if (easingConfig.type && easingConfig.type !== "cubic-bezier") {
       easing = easingConfig.type;
     }
   }
   const delay = pattern.animation?.delay ?? 0;
   const iterations = pattern.animation?.iterations ?? 1;
-  const direction = pattern.animation?.direction ?? 'normal';
-  const fillMode = pattern.animation?.fillMode ?? 'none';
+  const direction = pattern.animation?.direction ?? "normal";
+  const fillMode = pattern.animation?.fillMode ?? "none";
 
   return {
     type: mapMotionType(pattern.type),
-    name: pattern.name ?? 'unnamed',
+    name: pattern.name ?? "unnamed",
     duration,
     delay,
     easing,
@@ -1505,10 +1540,10 @@ function patternToPatternInput(pattern: MotionPattern): MotionPatternInput {
     fillMode,
     // propertiesのpropertyをnameに変換
     properties: pattern.properties?.map((p) => ({
-      name: p.property ?? 'opacity',
-      from: String(p.from ?? '0'),
-      to: String(p.to ?? '1'),
-    })) ?? [{ name: 'opacity', from: '0', to: '1' }],
+      name: p.property ?? "opacity",
+      from: String(p.from ?? "0"),
+      to: String(p.to ?? "1"),
+    })) ?? [{ name: "opacity", from: "0", to: "1" }],
   };
 }
 
@@ -1517,15 +1552,13 @@ function patternToPatternInput(pattern: MotionPattern): MotionPatternInput {
  * @param pattern 検索結果のパターン
  * @returns 実装コード情報
  */
-function generateImplementationForPattern(
-  pattern: MotionPattern
-): MotionImplementation {
+function generateImplementationForPattern(pattern: MotionPattern): MotionImplementation {
   const patternInput = patternToPatternInput(pattern);
   const implementation: MotionImplementation = {};
 
   // transitionタイプの場合（css_transition）
-  if (pattern.type === 'css_transition') {
-    const props = patternInput.properties.map((p) => p.name).join(', ');
+  if (pattern.type === "css_transition") {
+    const props = patternInput.properties.map((p) => p.name).join(", ");
     implementation.transition = `transition: ${props} ${formatDuration(patternInput.duration)} ${patternInput.easing};`;
     return implementation;
   }
@@ -1534,18 +1567,18 @@ function generateImplementationForPattern(
   // @keyframes生成
   const keyframeLines: string[] = [];
   keyframeLines.push(`@keyframes ${pattern.name} {`);
-  keyframeLines.push('  from {');
+  keyframeLines.push("  from {");
   for (const prop of patternInput.properties) {
     keyframeLines.push(`    ${prop.name}: ${prop.from};`);
   }
-  keyframeLines.push('  }');
-  keyframeLines.push('  to {');
+  keyframeLines.push("  }");
+  keyframeLines.push("  to {");
   for (const prop of patternInput.properties) {
     keyframeLines.push(`    ${prop.name}: ${prop.to};`);
   }
-  keyframeLines.push('  }');
-  keyframeLines.push('}');
-  implementation.keyframes = keyframeLines.join('\n');
+  keyframeLines.push("  }");
+  keyframeLines.push("}");
+  implementation.keyframes = keyframeLines.join("\n");
 
   // animationプロパティ生成
   implementation.animation = `animation: ${pattern.name} ${formatDuration(patternInput.duration)} ${patternInput.easing};`;
@@ -1570,8 +1603,8 @@ function calculateNameSimilarity(a: string | undefined, b: string | undefined): 
   if (!a || !b) {
     return 0;
   }
-  const normalizedA = a.toLowerCase().replace(/[-_\s]/g, '');
-  const normalizedB = b.toLowerCase().replace(/[-_\s]/g, '');
+  const normalizedA = a.toLowerCase().replace(/[-_\s]/g, "");
+  const normalizedB = b.toLowerCase().replace(/[-_\s]/g, "");
 
   if (normalizedA === normalizedB) {
     return 1.0;
@@ -1608,10 +1641,7 @@ function calculateNameSimilarity(a: string | undefined, b: string | undefined): 
  * @param b 比較先パターン
  * @returns 類似度 (0.0-1.0)
  */
-function calculatePatternSimilarity(
-  a: MotionSearchResultItem,
-  b: MotionSearchResultItem
-): number {
+function calculatePatternSimilarity(a: MotionSearchResultItem, b: MotionSearchResultItem): number {
   let similarityScore = 0;
   let weightTotal = 0;
 
@@ -1656,8 +1686,8 @@ function calculatePatternSimilarity(
 
   // easing類似度 (重み: 0.075)
   const easingWeight = 0.075;
-  const easingA = a.pattern.animation?.easing?.type ?? 'unknown';
-  const easingB = b.pattern.animation?.easing?.type ?? 'unknown';
+  const easingA = a.pattern.animation?.easing?.type ?? "unknown";
+  const easingB = b.pattern.animation?.easing?.type ?? "unknown";
   if (easingA === easingB) {
     similarityScore += easingWeight;
   }
@@ -1714,7 +1744,7 @@ function applyDiversityFilter(
     for (const result of results) {
       if (selected.length >= limit) break;
 
-      const name = result.pattern.name?.toLowerCase() ?? '';
+      const name = result.pattern.name?.toLowerCase() ?? "";
       if (!usedNames.has(name)) {
         selected.push(result);
         if (name) usedNames.add(name);
@@ -1782,7 +1812,7 @@ function applyDiversityFilter(
   }
 
   if (isDevelopment()) {
-    logger.info('[MCP Tool] motion.search MMR diversity filter applied', {
+    logger.info("[MCP Tool] motion.search MMR diversity filter applied", {
       originalCount: results.length,
       filteredCount: selected.length,
       lambda,
@@ -1819,11 +1849,9 @@ function enrichResultsWithImplementation(
  * - action: 'search' (デフォルト) → 検索機能
  * - action: 'generate' → コード生成機能
  */
-export async function motionSearchHandler(
-  input: unknown
-): Promise<MotionSearchOutput> {
+export async function motionSearchHandler(input: unknown): Promise<MotionSearchOutput> {
   if (isDevelopment()) {
-    logger.info('[MCP Tool] motion.search called', {
+    logger.info("[MCP Tool] motion.search called", {
       hasInput: input !== null && input !== undefined,
     });
   }
@@ -1834,21 +1862,21 @@ export async function motionSearchHandler(
     validated = motionSearchInputSchema.parse(input);
   } catch (error) {
     if (isDevelopment()) {
-      logger.error('[MCP Tool] motion.search validation error', { error });
+      logger.error("[MCP Tool] motion.search validation error", { error });
     }
     return {
       success: false,
       error: {
         code: MOTION_SEARCH_ERROR_CODES.VALIDATION_ERROR,
-        message: error instanceof Error ? error.message : 'Invalid input',
+        message: error instanceof Error ? error.message : "Invalid input",
       },
     };
   }
 
   // Phase3-3: action分岐
-  const action = validated.action ?? 'search';
+  const action = validated.action ?? "search";
 
-  if (action === 'generate') {
+  if (action === "generate") {
     // コード生成処理
     return handleGenerateAction(validated);
   }
@@ -1860,19 +1888,17 @@ export async function motionSearchHandler(
 /**
  * action: 'search' の処理
  */
-async function handleSearchAction(
-  validated: MotionSearchInput
-): Promise<MotionSearchOutput> {
+async function handleSearchAction(validated: MotionSearchInput): Promise<MotionSearchOutput> {
   // サービスファクトリのチェック
   if (!serviceFactory) {
     if (isDevelopment()) {
-      logger.error('[MCP Tool] motion.search service factory not set');
+      logger.error("[MCP Tool] motion.search service factory not set");
     }
     return {
       success: false,
       error: {
         code: MOTION_SEARCH_ERROR_CODES.SERVICE_UNAVAILABLE,
-        message: 'Motion search service is not available',
+        message: "Motion search service is not available",
       },
     };
   }
@@ -1895,7 +1921,7 @@ async function handleSearchAction(
     };
 
     if (isDevelopment()) {
-      logger.info('[MCP Tool] motion.search executing search', {
+      logger.info("[MCP Tool] motion.search executing search", {
         hasQuery: !!searchParams.query,
         hasSamplePattern: !!searchParams.samplePattern,
         hasFilters: !!searchParams.filters,
@@ -1935,10 +1961,16 @@ async function handleSearchAction(
     // motion結果はpattern.idにIDがあるため、top-levelにidをマッピング
     // Motion results have ID in pattern.id, so map id to top-level
     const resultsWithId = results.map((r) => ({ ...r, id: r.pattern.id }));
-    results = await applyPreferenceReranking(resultsWithId, validated.profile_id, prismaClientFactory, 'motion', 'motion.search') as typeof results;
+    results = (await applyPreferenceReranking(
+      resultsWithId,
+      validated.profile_id,
+      prismaClientFactory,
+      "motion",
+      "motion.search"
+    )) as typeof results;
 
     if (isDevelopment()) {
-      logger.info('[MCP Tool] motion.search completed', {
+      logger.info("[MCP Tool] motion.search completed", {
         resultsCount: results.length,
         originalCount: searchResult.results.length,
         total: searchResult.total,
@@ -1958,12 +1990,12 @@ async function handleSearchAction(
     };
   } catch (error) {
     if (isDevelopment()) {
-      logger.error('[MCP Tool] motion.search error', { error });
+      logger.error("[MCP Tool] motion.search error", { error });
     }
 
     // エラータイプに基づいてエラーコードを決定
     const errorCode =
-      error instanceof Error && error.message.includes('Embedding')
+      error instanceof Error && error.message.includes("Embedding")
         ? MOTION_SEARCH_ERROR_CODES.EMBEDDING_ERROR
         : MOTION_SEARCH_ERROR_CODES.SEARCH_ERROR;
 
@@ -1971,7 +2003,7 @@ async function handleSearchAction(
       success: false,
       error: {
         code: errorCode,
-        message: error instanceof Error ? error.message : 'Search failed',
+        message: error instanceof Error ? error.message : "Search failed",
       },
     };
   }
@@ -1981,11 +2013,9 @@ async function handleSearchAction(
  * action: 'generate' の処理（Phase3-3統合）
  * v0.1.0: 重複検出機能追加
  */
-async function handleGenerateAction(
-  validated: MotionSearchInput
-): Promise<MotionSearchOutput> {
+async function handleGenerateAction(validated: MotionSearchInput): Promise<MotionSearchOutput> {
   if (isDevelopment()) {
-    logger.info('[MCP Tool] motion.search action: generate', {
+    logger.info("[MCP Tool] motion.search action: generate", {
       hasPattern: !!validated.pattern,
       format: validated.format,
       checkDuplicates: validated.generation_options?.check_duplicates,
@@ -1998,16 +2028,16 @@ async function handleGenerateAction(
       success: false,
       error: {
         code: MOTION_MCP_ERROR_CODES.VALIDATION_ERROR,
-        message: 'action: generate には pattern パラメータが必要です',
+        message: "action: generate には pattern パラメータが必要です",
       },
     };
   }
 
   try {
     const pattern = validated.pattern;
-    const format = validated.format ?? 'css';
+    const format = validated.format ?? "css";
     const options: ImplementationOptions = {
-      selector: validated.options?.selector ?? '.animated',
+      selector: validated.options?.selector ?? ".animated",
       includeVendorPrefixes: validated.options?.includeVendorPrefixes ?? false,
       includeReducedMotion: validated.options?.includeReducedMotion ?? true,
       typescript: validated.options?.typescript ?? true,
@@ -2023,15 +2053,15 @@ async function handleGenerateAction(
         duplicateCheckResult = await performDuplicateCheck(pattern, generationOptions);
 
         if (isDevelopment()) {
-          logger.info('[MCP Tool] motion.search duplicate check completed', {
+          logger.info("[MCP Tool] motion.search duplicate check completed", {
             hasDuplicates: duplicateCheckResult.has_duplicates,
             matchCount: duplicateCheckResult.existing_matches.length,
           });
         }
       } catch (error) {
         if (isDevelopment()) {
-          logger.warn('[MCP Tool] motion.search duplicate check failed, continuing generation', {
-            error: error instanceof Error ? error.message : 'Unknown error',
+          logger.warn("[MCP Tool] motion.search duplicate check failed, continuing generation", {
+            error: error instanceof Error ? error.message : "Unknown error",
           });
         }
         // 重複チェック失敗時は警告のみでコード生成は続行
@@ -2047,13 +2077,13 @@ async function handleGenerateAction(
         result = service.generate(pattern, format, options);
       } catch (error) {
         if (isDevelopment()) {
-          logger.error('[MCP Tool] motion.search generate service error', { error });
+          logger.error("[MCP Tool] motion.search generate service error", { error });
         }
         return {
           success: false,
           error: {
             code: MOTION_MCP_ERROR_CODES.INTERNAL_ERROR,
-            message: error instanceof Error ? error.message : 'Generation failed',
+            message: error instanceof Error ? error.message : "Generation failed",
           },
         };
       }
@@ -2067,13 +2097,13 @@ async function handleGenerateAction(
         success: false,
         error: {
           code: MOTION_MCP_ERROR_CODES.INTERNAL_ERROR,
-          message: 'Generation returned null',
+          message: "Generation returned null",
         },
       };
     }
 
     if (isDevelopment()) {
-      logger.info('[MCP Tool] motion.search generate completed', {
+      logger.info("[MCP Tool] motion.search generate completed", {
         format,
         linesOfCode: result.metadata.linesOfCode,
         hasDuplicateCheck: !!duplicateCheckResult,
@@ -2091,13 +2121,13 @@ async function handleGenerateAction(
     };
   } catch (error) {
     if (isDevelopment()) {
-      logger.error('[MCP Tool] motion.search generate error', { error });
+      logger.error("[MCP Tool] motion.search generate error", { error });
     }
     return {
       success: false,
       error: {
         code: MOTION_MCP_ERROR_CODES.INTERNAL_ERROR,
-        message: error instanceof Error ? error.message : 'Generation failed',
+        message: error instanceof Error ? error.message : "Generation failed",
       },
     };
   }
@@ -2120,7 +2150,7 @@ async function performDuplicateCheck(
     duration: pattern.duration,
     easing: pattern.easing,
     properties: pattern.properties.map((p) => {
-      const prop: NewAnimationPattern['properties'][number] = {
+      const prop: NewAnimationPattern["properties"][number] = {
         name: p.name,
         from: p.from,
         to: p.to,
@@ -2169,311 +2199,319 @@ async function performDuplicateCheck(
 // =====================================================
 
 export const motionSearchToolDefinition = {
-  name: 'motion.search',
+  name: "motion.search",
   description:
-    'モーションパターンを類似検索、または実装コードを生成します。action: search（デフォルト）で検索、action: generateでCSS/JS実装コードを生成します。',
+    "モーションパターンを類似検索、または実装コードを生成します。action: search（デフォルト）で検索、action: generateでCSS/JS実装コードを生成します。",
   annotations: {
-    title: 'Motion Search',
+    title: "Motion Search",
     readOnlyHint: true,
     idempotentHint: true,
     openWorldHint: false,
   },
   inputSchema: {
-    type: 'object' as const,
+    type: "object" as const,
     properties: {
       // Phase3-3: action parameter for consolidation
       action: {
-        type: 'string',
-        enum: ['search', 'generate'],
-        default: 'search',
-        description:
-          'アクション: search（デフォルト）= モーション検索、generate = 実装コード生成',
+        type: "string",
+        enum: ["search", "generate"],
+        default: "search",
+        description: "アクション: search（デフォルト）= モーション検索、generate = 実装コード生成",
       },
       // === Search parameters (action: search) ===
       query: {
-        type: 'string',
+        type: "string",
         minLength: 1,
         maxLength: 500,
-        description: '検索クエリ（自然言語、1-500文字）。action: searchで使用。',
+        description: "検索クエリ（自然言語、1-500文字）。action: searchで使用。",
       },
       samplePattern: {
-        type: 'object',
-        description: 'サンプルパターンで類似検索。action: searchで使用。',
+        type: "object",
+        description: "サンプルパターンで類似検索。action: searchで使用。",
         properties: {
           type: {
-            type: 'string',
-            enum: ['animation', 'transition', 'transform', 'scroll', 'hover', 'keyframe'],
-            description: 'モーションタイプ',
+            type: "string",
+            enum: ["animation", "transition", "transform", "scroll", "hover", "keyframe"],
+            description: "モーションタイプ",
           },
           duration: {
-            type: 'number',
+            type: "number",
             minimum: 0,
-            description: 'アニメーション時間（ms）',
+            description: "アニメーション時間（ms）",
           },
           easing: {
-            type: 'string',
-            description: 'イージング関数',
+            type: "string",
+            description: "イージング関数",
           },
           properties: {
-            type: 'array',
-            items: { type: 'string' },
-            description: 'アニメーション対象プロパティ',
+            type: "array",
+            items: { type: "string" },
+            description: "アニメーション対象プロパティ",
           },
         },
       },
       filters: {
-        type: 'object',
-        description: '検索フィルター。action: searchで使用。',
+        type: "object",
+        description: "検索フィルター。action: searchで使用。",
         properties: {
           type: {
-            type: 'string',
-            enum: ['animation', 'transition', 'transform', 'scroll', 'hover', 'keyframe'],
-            description: 'タイプでフィルタリング',
+            type: "string",
+            enum: ["animation", "transition", "transform", "scroll", "hover", "keyframe"],
+            description: "タイプでフィルタリング",
           },
           minDuration: {
-            type: 'number',
+            type: "number",
             minimum: 0,
-            description: '最小duration（ms）',
+            description: "最小duration（ms）",
           },
           maxDuration: {
-            type: 'number',
+            type: "number",
             minimum: 0,
-            description: '最大duration（ms）',
+            description: "最大duration（ms）",
           },
           trigger: {
-            type: 'string',
-            enum: ['load', 'hover', 'scroll', 'click', 'focus', 'custom'],
-            description: 'トリガーでフィルタリング',
+            type: "string",
+            enum: ["load", "hover", "scroll", "click", "focus", "custom"],
+            description: "トリガーでフィルタリング",
           },
         },
       },
       limit: {
-        type: 'number',
+        type: "number",
         minimum: 1,
         maximum: 50,
         default: 10,
-        description: '結果制限（1-50、デフォルト: 10）。action: searchで使用。',
+        description: "結果制限（1-50、デフォルト: 10）。action: searchで使用。",
       },
       minSimilarity: {
-        type: 'number',
+        type: "number",
         minimum: 0,
         maximum: 1,
         default: 0.5,
-        description: '最小類似度しきい値（0-1、デフォルト: 0.5）。action: searchで使用。',
+        description: "最小類似度しきい値（0-1、デフォルト: 0.5）。action: searchで使用。",
       },
       // === JSAnimation search parameters (v0.1.0) ===
       include_js_animations: {
-        type: 'boolean',
+        type: "boolean",
         default: true,
         description:
-          'JSアニメーションパターンを検索結果に含める（デフォルト: true）。action: searchで使用。',
+          "JSアニメーションパターンを検索結果に含める（デフォルト: true）。action: searchで使用。",
       },
       js_animation_filters: {
-        type: 'object',
-        description: 'JSアニメーション検索フィルター。action: searchで使用。',
+        type: "object",
+        description: "JSアニメーション検索フィルター。action: searchで使用。",
         properties: {
           libraryType: {
-            type: 'string',
+            type: "string",
             enum: [
-              'gsap',
-              'framer_motion',
-              'anime_js',
-              'three_js',
-              'lottie',
-              'web_animations_api',
-              'unknown',
+              "gsap",
+              "framer_motion",
+              "anime_js",
+              "three_js",
+              "lottie",
+              "web_animations_api",
+              "unknown",
             ],
             description:
-              'ライブラリタイプでフィルタリング（gsap, framer_motion, anime_js, three_js, lottie, web_animations_api, unknown）',
+              "ライブラリタイプでフィルタリング（gsap, framer_motion, anime_js, three_js, lottie, web_animations_api, unknown）",
           },
           animationType: {
-            type: 'string',
+            type: "string",
             enum: [
-              'tween',
-              'timeline',
-              'spring',
-              'physics',
-              'keyframe',
-              'morphing',
-              'path',
-              'scroll_driven',
-              'gesture',
+              "tween",
+              "timeline",
+              "spring",
+              "physics",
+              "keyframe",
+              "morphing",
+              "path",
+              "scroll_driven",
+              "gesture",
             ],
             description:
-              'アニメーションタイプでフィルタリング（tween, timeline, spring, physics, keyframe, morphing, path, scroll_driven, gesture）',
+              "アニメーションタイプでフィルタリング（tween, timeline, spring, physics, keyframe, morphing, path, scroll_driven, gesture）",
           },
         },
       },
       // === WebGLAnimation search parameters (v0.1.0) ===
       include_webgl_animations: {
-        type: 'boolean',
+        type: "boolean",
         default: true,
         description:
-          'WebGLアニメーションパターンを検索結果に含める（デフォルト: true）。action: searchで使用。',
+          "WebGLアニメーションパターンを検索結果に含める（デフォルト: true）。action: searchで使用。",
       },
       webgl_animation_filters: {
-        type: 'object',
-        description: 'WebGLアニメーション検索フィルター。action: searchで使用。',
+        type: "object",
+        description: "WebGLアニメーション検索フィルター。action: searchで使用。",
         properties: {
           category: {
-            type: 'string',
+            type: "string",
             enum: [
-              'fade',
-              'pulse',
-              'wave',
-              'particle',
-              'morph',
-              'rotation',
-              'parallax',
-              'noise',
-              'complex',
+              "fade",
+              "pulse",
+              "wave",
+              "particle",
+              "morph",
+              "rotation",
+              "parallax",
+              "noise",
+              "complex",
             ],
             description:
-              'カテゴリでフィルタリング（fade, pulse, wave, particle, morph, rotation, parallax, noise, complex）',
+              "カテゴリでフィルタリング（fade, pulse, wave, particle, morph, rotation, parallax, noise, complex）",
           },
           detectedLibrary: {
-            type: 'string',
-            description: '検出されたライブラリでフィルタリング（例: three.js, babylon.js）',
+            type: "string",
+            description: "検出されたライブラリでフィルタリング（例: three.js, babylon.js）",
           },
           minConfidence: {
-            type: 'number',
+            type: "number",
             minimum: 0,
             maximum: 1,
-            description: '最小信頼度しきい値（0-1）',
+            description: "最小信頼度しきい値（0-1）",
           },
         },
       },
       // === Implementation code parameter (v0.1.0) ===
       include_implementation: {
-        type: 'boolean',
+        type: "boolean",
         default: false,
         description:
-          '検索結果に実装コード（@keyframes, animation, tailwindクラス）を含める（デフォルト: false）。action: searchで使用。',
+          "検索結果に実装コード（@keyframes, animation, tailwindクラス）を含める（デフォルト: false）。action: searchで使用。",
       },
       // === Generate parameters (action: generate) ===
       pattern: {
-        type: 'object',
-        description: 'モーションパターン定義。action: generateで必須。',
+        type: "object",
+        description: "モーションパターン定義。action: generateで必須。",
         properties: {
           type: {
-            type: 'string',
-            enum: ['animation', 'transition', 'transform', 'scroll', 'hover', 'keyframe'],
-            description: 'パターンタイプ',
+            type: "string",
+            enum: ["animation", "transition", "transform", "scroll", "hover", "keyframe"],
+            description: "パターンタイプ",
           },
           name: {
-            type: 'string',
+            type: "string",
             minLength: 1,
             maxLength: 100,
-            description: 'アニメーション名（1-100文字）',
+            description: "アニメーション名（1-100文字）",
           },
           properties: {
-            type: 'array',
+            type: "array",
             minItems: 1,
-            description: 'アニメーション対象プロパティ',
+            description: "アニメーション対象プロパティ",
             items: {
-              type: 'object',
+              type: "object",
               properties: {
-                name: { type: 'string', description: 'CSSプロパティ名' },
-                from: { type: 'string', description: '開始値' },
-                to: { type: 'string', description: '終了値' },
+                name: { type: "string", description: "CSSプロパティ名" },
+                from: { type: "string", description: "開始値" },
+                to: { type: "string", description: "終了値" },
                 keyframes: {
-                  type: 'array',
-                  description: '中間キーフレーム（オプション）',
+                  type: "array",
+                  description: "中間キーフレーム（オプション）",
                   items: {
-                    type: 'object',
+                    type: "object",
                     properties: {
-                      offset: { type: 'number', minimum: 0, maximum: 1 },
-                      value: { type: 'string' },
+                      offset: { type: "number", minimum: 0, maximum: 1 },
+                      value: { type: "string" },
                     },
                   },
                 },
               },
-              required: ['name', 'from', 'to'],
+              required: ["name", "from", "to"],
             },
           },
           duration: {
-            type: 'number',
+            type: "number",
             minimum: 0,
             maximum: 60000,
             default: 300,
-            description: 'アニメーション時間（ms、デフォルト: 300）',
+            description: "アニメーション時間（ms、デフォルト: 300）",
           },
           delay: {
-            type: 'number',
+            type: "number",
             minimum: 0,
             maximum: 60000,
             default: 0,
-            description: '遅延時間（ms、デフォルト: 0）',
+            description: "遅延時間（ms、デフォルト: 0）",
           },
           easing: {
-            type: 'string',
-            default: 'ease',
-            description: 'イージング関数（デフォルト: ease）',
+            type: "string",
+            default: "ease",
+            description: "イージング関数（デフォルト: ease）",
           },
           iterations: {
             oneOf: [
-              { type: 'number', minimum: 1 },
-              { type: 'string', enum: ['infinite'] },
+              { type: "number", minimum: 1 },
+              { type: "string", enum: ["infinite"] },
             ],
             default: 1,
-            description: '繰り返し回数（デフォルト: 1、またはinfinite）',
+            description: "繰り返し回数（デフォルト: 1、またはinfinite）",
           },
           direction: {
-            type: 'string',
-            enum: ['normal', 'reverse', 'alternate', 'alternate-reverse'],
-            default: 'normal',
-            description: 'アニメーション方向（デフォルト: normal）',
+            type: "string",
+            enum: ["normal", "reverse", "alternate", "alternate-reverse"],
+            default: "normal",
+            description: "アニメーション方向（デフォルト: normal）",
           },
           fillMode: {
-            type: 'string',
-            enum: ['none', 'forwards', 'backwards', 'both'],
-            default: 'none',
-            description: 'フィルモード（デフォルト: none）',
+            type: "string",
+            enum: ["none", "forwards", "backwards", "both"],
+            default: "none",
+            description: "フィルモード（デフォルト: none）",
           },
         },
-        required: ['type', 'name', 'properties'],
+        required: ["type", "name", "properties"],
       },
       format: {
-        type: 'string',
-        enum: ['css', 'css-module', 'tailwind', 'styled-components', 'emotion', 'framer-motion', 'gsap'],
-        default: 'css',
-        description: '出力フォーマット（デフォルト: css）。action: generateで使用。',
+        type: "string",
+        enum: [
+          "css",
+          "css-module",
+          "tailwind",
+          "styled-components",
+          "emotion",
+          "framer-motion",
+          "gsap",
+        ],
+        default: "css",
+        description: "出力フォーマット（デフォルト: css）。action: generateで使用。",
       },
       options: {
-        type: 'object',
-        description: '生成オプション。action: generateで使用。',
+        type: "object",
+        description: "生成オプション。action: generateで使用。",
         properties: {
           selector: {
-            type: 'string',
-            default: '.animated',
-            description: 'CSSセレクタ（デフォルト: .animated）',
+            type: "string",
+            default: ".animated",
+            description: "CSSセレクタ（デフォルト: .animated）",
           },
           componentName: {
-            type: 'string',
-            description: 'コンポーネント名（JSライブラリ用、省略時は自動生成）',
+            type: "string",
+            description: "コンポーネント名（JSライブラリ用、省略時は自動生成）",
           },
           typescript: {
-            type: 'boolean',
+            type: "boolean",
             default: true,
-            description: 'TypeScriptコードを生成（デフォルト: true）',
+            description: "TypeScriptコードを生成（デフォルト: true）",
           },
           includeReducedMotion: {
-            type: 'boolean',
+            type: "boolean",
             default: true,
-            description: 'prefers-reduced-motion対応を含める（デフォルト: true）',
+            description: "prefers-reduced-motion対応を含める（デフォルト: true）",
           },
           includeVendorPrefixes: {
-            type: 'boolean',
+            type: "boolean",
             default: false,
-            description: 'ベンダープレフィックスを含める（デフォルト: false）',
+            description: "ベンダープレフィックスを含める（デフォルト: false）",
           },
         },
       },
       // Preference reranking
       profile_id: {
-        type: 'string',
-        format: 'uuid',
-        description: '嗜好プロファイルID（検索結果のリランキングに使用） / Preference profile ID (used for search result reranking)',
+        type: "string",
+        format: "uuid",
+        description:
+          "嗜好プロファイルID（検索結果のリランキングに使用） / Preference profile ID (used for search result reranking)",
       },
     },
   },

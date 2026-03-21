@@ -15,7 +15,7 @@
  * @module services/narrative/analyzers/worldview.analyzer
  */
 
-import { z } from 'zod';
+import { z } from "zod";
 import type {
   WorldViewResult,
   MoodCategory,
@@ -23,12 +23,12 @@ import type {
   TypographyPersonality,
   MotionEmotion,
   OverallTone,
-} from '../types/narrative.types';
-import type { CSSVariableExtractionResult } from '../../visual/css-variable-extractor.service';
-import type { TypographyExtractionResult } from '../../visual/typography-extractor.service';
-import type { MotionDetectionResult } from '../../page/motion-detector.service';
-import { LlamaVisionAdapter, type VisionAnalysisResult } from '../../vision/llama-vision-adapter';
-import { isDevelopment, logger } from '../../../utils/logger';
+} from "../types/narrative.types";
+import type { CSSVariableExtractionResult } from "../../visual/css-variable-extractor.service";
+import type { TypographyExtractionResult } from "../../visual/typography-extractor.service";
+import type { MotionDetectionResult } from "../../page/motion-detector.service";
+import { LlamaVisionAdapter, type VisionAnalysisResult } from "../../vision/llama-vision-adapter";
+import { isDevelopment, logger } from "../../../utils/logger";
 
 // =============================================================================
 // Constants
@@ -38,18 +38,18 @@ import { isDevelopment, logger } from '../../../utils/logger';
  * 有効なMoodCategory値
  */
 export const VALID_MOOD_CATEGORIES: readonly MoodCategory[] = [
-  'professional',
-  'playful',
-  'premium',
-  'tech',
-  'organic',
-  'minimal',
-  'bold',
-  'elegant',
-  'friendly',
-  'artistic',
-  'trustworthy',
-  'energetic',
+  "professional",
+  "playful",
+  "premium",
+  "tech",
+  "organic",
+  "minimal",
+  "bold",
+  "elegant",
+  "friendly",
+  "artistic",
+  "trustworthy",
+  "energetic",
 ] as const;
 
 /**
@@ -129,12 +129,19 @@ const VisionWorldViewSchema = z.object({
   colorImpression: z.object({
     overall: z.string().min(5).max(200),
     dominantEmotion: z.string().min(3).max(50),
-    harmony: z.enum(['complementary', 'analogous', 'monochromatic', 'triadic', 'split-complementary', 'mixed']),
+    harmony: z.enum([
+      "complementary",
+      "analogous",
+      "monochromatic",
+      "triadic",
+      "split-complementary",
+      "mixed",
+    ]),
   }),
   typographyPersonality: z.object({
     style: z.string().min(3).max(100),
-    readability: z.enum(['high', 'medium', 'low']),
-    hierarchy: z.enum(['clear', 'subtle', 'flat']),
+    readability: z.enum(["high", "medium", "low"]),
+    hierarchy: z.enum(["clear", "subtle", "flat"]),
   }),
   overallTone: z.object({
     primary: z.string().min(3).max(50),
@@ -154,7 +161,7 @@ type VisionWorldViewOutput = z.infer<typeof VisionWorldViewSchema>;
  * WorldView分析用のVisionプロンプト
  */
 function getWorldViewAnalysisPrompt(): string {
-  const validMoods = VALID_MOOD_CATEGORIES.join(', ');
+  const validMoods = VALID_MOOD_CATEGORIES.join(", ");
 
   return `Analyze this web page screenshot and extract the overall mood, atmosphere, and design tone.
 
@@ -202,14 +209,12 @@ function getWorldViewAnalysisPrompt(): string {
 /**
  * CSS変数から色彩印象を推定
  */
-function analyzeColorFromCSS(
-  cssVariables?: CSSVariableExtractionResult
-): ColorImpression {
+function analyzeColorFromCSS(cssVariables?: CSSVariableExtractionResult): ColorImpression {
   // デフォルト値
   const defaultImpression: ColorImpression = {
-    overall: 'neutral and balanced',
-    dominantEmotion: 'neutral',
-    harmony: 'mixed',
+    overall: "neutral and balanced",
+    dominantEmotion: "neutral",
+    harmony: "mixed",
   };
 
   if (!cssVariables?.variables || cssVariables.variables.length === 0) {
@@ -217,49 +222,47 @@ function analyzeColorFromCSS(
   }
 
   // 色変数を抽出
-  const colorVars = cssVariables.variables.filter(v => v.category === 'color');
+  const colorVars = cssVariables.variables.filter((v) => v.category === "color");
 
   if (colorVars.length === 0) {
     return defaultImpression;
   }
 
   // 色値を解析してヒューリスティクスを適用
-  const colorValues = colorVars.map(v => v.value.toLowerCase());
-  const hasBlue = colorValues.some(c =>
-    c.includes('blue') || c.includes('#0') || c.includes('rgb(0')
+  const colorValues = colorVars.map((v) => v.value.toLowerCase());
+  const hasBlue = colorValues.some(
+    (c) => c.includes("blue") || c.includes("#0") || c.includes("rgb(0")
   );
-  const hasWarm = colorValues.some(c =>
-    c.includes('orange') || c.includes('red') || c.includes('yellow')
+  const hasWarm = colorValues.some(
+    (c) => c.includes("orange") || c.includes("red") || c.includes("yellow")
   );
-  const hasDark = colorValues.some(c =>
-    c.includes('#1') || c.includes('#2') || c.includes('#0')
-  );
-  const hasNeutral = colorValues.some(c =>
-    c.includes('gray') || c.includes('grey') || c.includes('#f')
+  const hasDark = colorValues.some((c) => c.includes("#1") || c.includes("#2") || c.includes("#0"));
+  const hasNeutral = colorValues.some(
+    (c) => c.includes("gray") || c.includes("grey") || c.includes("#f")
   );
 
   // 印象を推定
-  let overall = 'balanced';
-  let dominantEmotion = 'neutral';
+  let overall = "balanced";
+  let dominantEmotion = "neutral";
 
   if (hasBlue && !hasWarm) {
-    overall = 'cool and professional';
-    dominantEmotion = 'trust';
+    overall = "cool and professional";
+    dominantEmotion = "trust";
   } else if (hasWarm && !hasBlue) {
-    overall = 'warm and inviting';
-    dominantEmotion = 'energy';
+    overall = "warm and inviting";
+    dominantEmotion = "energy";
   } else if (hasDark) {
-    overall = 'dark and sophisticated';
-    dominantEmotion = 'elegance';
+    overall = "dark and sophisticated";
+    dominantEmotion = "elegance";
   } else if (hasNeutral) {
-    overall = 'clean and neutral';
-    dominantEmotion = 'clarity';
+    overall = "clean and neutral";
+    dominantEmotion = "clarity";
   }
 
   return {
     overall,
     dominantEmotion,
-    harmony: 'mixed',
+    harmony: "mixed",
   };
 }
 
@@ -271,9 +274,9 @@ function analyzeTypographyPersonality(
 ): TypographyPersonality {
   // デフォルト値
   const defaultPersonality: TypographyPersonality = {
-    style: 'modern sans-serif',
-    readability: 'medium',
-    hierarchy: 'subtle',
+    style: "modern sans-serif",
+    readability: "medium",
+    hierarchy: "subtle",
   };
 
   if (!typography?.styles || typography.styles.length === 0) {
@@ -282,41 +285,37 @@ function analyzeTypographyPersonality(
 
   // フォントファミリーを解析
   const fontFamilies = typography.styles
-    .map(s => s.fontFamily?.toLowerCase() ?? '')
-    .filter(f => f.length > 0);
+    .map((s) => s.fontFamily?.toLowerCase() ?? "")
+    .filter((f) => f.length > 0);
 
-  const hasSerif = fontFamilies.some(f =>
-    f.includes('serif') && !f.includes('sans-serif')
+  const hasSerif = fontFamilies.some((f) => f.includes("serif") && !f.includes("sans-serif"));
+  const hasSansSerif = fontFamilies.some(
+    (f) => f.includes("sans-serif") || f.includes("helvetica") || f.includes("arial")
   );
-  const hasSansSerif = fontFamilies.some(f =>
-    f.includes('sans-serif') || f.includes('helvetica') || f.includes('arial')
-  );
-  const hasDisplay = fontFamilies.some(f =>
-    f.includes('display') || f.includes('playfair') || f.includes('oswald')
+  const hasDisplay = fontFamilies.some(
+    (f) => f.includes("display") || f.includes("playfair") || f.includes("oswald")
   );
 
   // スタイルを決定
-  let style = 'modern sans-serif';
+  let style = "modern sans-serif";
   if (hasSerif && !hasSansSerif) {
-    style = 'classic serif';
+    style = "classic serif";
   } else if (hasDisplay) {
-    style = 'display/decorative';
+    style = "display/decorative";
   }
 
   // フォントサイズの多様性から階層を推定
-  const uniqueSizes = new Set(
-    typography.styles.map(s => s.fontSize).filter(Boolean)
-  );
-  let hierarchy: 'clear' | 'subtle' | 'flat' = 'subtle';
+  const uniqueSizes = new Set(typography.styles.map((s) => s.fontSize).filter(Boolean));
+  let hierarchy: "clear" | "subtle" | "flat" = "subtle";
   if (uniqueSizes.size >= 5) {
-    hierarchy = 'clear';
+    hierarchy = "clear";
   } else if (uniqueSizes.size <= 2) {
-    hierarchy = 'flat';
+    hierarchy = "flat";
   }
 
   return {
     style,
-    readability: 'medium',
+    readability: "medium",
     hierarchy,
   };
 }
@@ -324,9 +323,7 @@ function analyzeTypographyPersonality(
 /**
  * モーションパターンから感情を推定
  */
-function analyzeMotionEmotion(
-  motionPatterns?: MotionDetectionResult
-): MotionEmotion | undefined {
+function analyzeMotionEmotion(motionPatterns?: MotionDetectionResult): MotionEmotion | undefined {
   if (!motionPatterns?.patterns || motionPatterns.patterns.length === 0) {
     return undefined;
   }
@@ -335,34 +332,31 @@ function analyzeMotionEmotion(
 
   // Durationの平均から速度を推定（MotionPatternはdurationがnumber型）
   const durations = patterns
-    .map(p => p.duration)
-    .filter((d): d is number => typeof d === 'number' && d > 0);
+    .map((p) => p.duration)
+    .filter((d): d is number => typeof d === "number" && d > 0);
 
-  const avgDuration = durations.length > 0
-    ? durations.reduce((a, b) => a + b, 0) / durations.length
-    : 300;
+  const avgDuration =
+    durations.length > 0 ? durations.reduce((a, b) => a + b, 0) / durations.length : 300;
 
-  let pace: 'slow' | 'moderate' | 'fast' = 'moderate';
+  let pace: "slow" | "moderate" | "fast" = "moderate";
   if (avgDuration > 500) {
-    pace = 'slow';
+    pace = "slow";
   } else if (avgDuration < 200) {
-    pace = 'fast';
+    pace = "fast";
   }
 
   // パターン数から強度を推定
   const intensity = Math.min(1, patterns.length / 20);
 
   // アクセシビリティ対応をチェック
-  const accessibility = patterns.every(
-    p => p.accessibility?.respectsReducedMotion !== false
-  );
+  const accessibility = patterns.every((p) => p.accessibility?.respectsReducedMotion !== false);
 
   // 全体的な印象を決定
-  let overall = 'smooth and subtle';
-  if (pace === 'fast' && intensity > 0.5) {
-    overall = 'dynamic and playful';
-  } else if (pace === 'slow' && intensity < 0.3) {
-    overall = 'elegant and refined';
+  let overall = "smooth and subtle";
+  if (pace === "fast" && intensity > 0.5) {
+    overall = "dynamic and playful";
+  } else if (pace === "slow" && intensity < 0.3) {
+    overall = "elegant and refined";
   }
 
   return {
@@ -386,23 +380,23 @@ function generateFallbackWorldView(
   const motionEmotion = analyzeMotionEmotion(motionPatterns);
 
   // MoodCategoryをヒューリスティックで決定
-  let moodCategory: MoodCategory = 'professional';
+  let moodCategory: MoodCategory = "professional";
 
-  if (colorImpression.dominantEmotion === 'trust') {
-    moodCategory = 'trustworthy';
-  } else if (colorImpression.dominantEmotion === 'energy') {
-    moodCategory = 'energetic';
-  } else if (colorImpression.dominantEmotion === 'elegance') {
-    moodCategory = 'elegant';
-  } else if (typographyPersonality.style.includes('display')) {
-    moodCategory = 'bold';
-  } else if (typographyPersonality.style.includes('serif')) {
-    moodCategory = 'elegant';
+  if (colorImpression.dominantEmotion === "trust") {
+    moodCategory = "trustworthy";
+  } else if (colorImpression.dominantEmotion === "energy") {
+    moodCategory = "energetic";
+  } else if (colorImpression.dominantEmotion === "elegance") {
+    moodCategory = "elegant";
+  } else if (typographyPersonality.style.includes("display")) {
+    moodCategory = "bold";
+  } else if (typographyPersonality.style.includes("serif")) {
+    moodCategory = "elegant";
   }
 
   // Overall Toneを決定
   let formality = 0.5;
-  if (moodCategory === 'professional' || moodCategory === 'trustworthy') {
+  if (moodCategory === "professional" || moodCategory === "trustworthy") {
     formality = 0.7;
   }
 
@@ -453,7 +447,7 @@ export class WorldViewAnalyzer {
     this.defaultTimeoutMs = options?.visionTimeoutMs ?? DEFAULT_VISION_TIMEOUT_MS;
 
     if (isDevelopment()) {
-      logger.info('[WorldViewAnalyzer] Initialized', {
+      logger.info("[WorldViewAnalyzer] Initialized", {
         defaultTimeoutMs: this.defaultTimeoutMs,
       });
     }
@@ -471,8 +465,8 @@ export class WorldViewAnalyzer {
     // Vision分析をスキップする場合、またはスクリーンショットがない場合
     if (input.options?.skipVision || !input.screenshot) {
       if (isDevelopment()) {
-        logger.info('[WorldViewAnalyzer] Skipping Vision analysis', {
-          reason: input.options?.skipVision ? 'skipVision option' : 'no screenshot',
+        logger.info("[WorldViewAnalyzer] Skipping Vision analysis", {
+          reason: input.options?.skipVision ? "skipVision option" : "no screenshot",
         });
       }
 
@@ -487,8 +481,8 @@ export class WorldViewAnalyzer {
         metadata: {
           visionUsed: false,
           fallbackReason: input.options?.skipVision
-            ? 'Vision analysis skipped by option'
-            : 'No screenshot provided',
+            ? "Vision analysis skipped by option"
+            : "No screenshot provided",
           processingTimeMs: Date.now() - startTime,
         },
       };
@@ -503,10 +497,7 @@ export class WorldViewAnalyzer {
 
       if (visionResult && visionResult.response.confidence >= MIN_CONFIDENCE_THRESHOLD) {
         // Vision分析成功
-        const result = this.mergeVisionWithCSS(
-          visionResult.response,
-          input.motionPatterns
-        );
+        const result = this.mergeVisionWithCSS(visionResult.response, input.motionPatterns);
 
         return {
           result,
@@ -520,7 +511,7 @@ export class WorldViewAnalyzer {
 
       // Vision分析の信頼度が低い場合はフォールバック
       if (isDevelopment()) {
-        logger.warn('[WorldViewAnalyzer] Vision confidence too low, using fallback', {
+        logger.warn("[WorldViewAnalyzer] Vision confidence too low, using fallback", {
           confidence: visionResult?.response.confidence,
           threshold: MIN_CONFIDENCE_THRESHOLD,
         });
@@ -543,7 +534,7 @@ export class WorldViewAnalyzer {
     } catch (error) {
       // Vision分析エラー時はフォールバック
       if (isDevelopment()) {
-        logger.warn('[WorldViewAnalyzer] Vision analysis failed, using fallback', {
+        logger.warn("[WorldViewAnalyzer] Vision analysis failed, using fallback", {
           error: error instanceof Error ? error.message : String(error),
         });
       }
@@ -585,7 +576,7 @@ export class WorldViewAnalyzer {
 
       if (!parsed.success) {
         if (isDevelopment()) {
-          logger.warn('[WorldViewAnalyzer] Vision response validation failed', {
+          logger.warn("[WorldViewAnalyzer] Vision response validation failed", {
             errors: parsed.error.errors,
           });
         }
@@ -598,7 +589,7 @@ export class WorldViewAnalyzer {
       };
     } catch (error) {
       if (isDevelopment()) {
-        logger.error('[WorldViewAnalyzer] Vision API error', {
+        logger.error("[WorldViewAnalyzer] Vision API error", {
           error: error instanceof Error ? error.message : String(error),
         });
       }
@@ -643,8 +634,6 @@ export class WorldViewAnalyzer {
 /**
  * デフォルトのWorldViewAnalyzerインスタンスを作成
  */
-export function createWorldViewAnalyzer(
-  options?: { visionTimeoutMs?: number }
-): WorldViewAnalyzer {
+export function createWorldViewAnalyzer(options?: { visionTimeoutMs?: number }): WorldViewAnalyzer {
   return new WorldViewAnalyzer(options);
 }

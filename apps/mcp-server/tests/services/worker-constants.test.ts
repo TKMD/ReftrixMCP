@@ -14,31 +14,28 @@
  * @module tests/services/worker-constants
  */
 
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect } from "vitest";
 
-import {
-  DB_SAVED_PROGRESS_THRESHOLD,
-  STALL_MARGIN_MS,
-} from '../../src/services/worker-constants';
+import { DB_SAVED_PROGRESS_THRESHOLD, STALL_MARGIN_MS } from "../../src/services/worker-constants";
 
-describe('WorkerConstants', () => {
-  describe('DB_SAVED_PROGRESS_THRESHOLD', () => {
-    it('DB保存済みとみなすprogressの閾値が90である', () => {
+describe("WorkerConstants", () => {
+  describe("DB_SAVED_PROGRESS_THRESHOLD", () => {
+    it("DB保存済みとみなすprogressの閾値が90である", () => {
       expect(DB_SAVED_PROGRESS_THRESHOLD).toBe(90);
     });
 
-    it('number型である', () => {
-      expect(typeof DB_SAVED_PROGRESS_THRESHOLD).toBe('number');
+    it("number型である", () => {
+      expect(typeof DB_SAVED_PROGRESS_THRESHOLD).toBe("number");
     });
   });
 
-  describe('STALL_MARGIN_MS', () => {
-    it('Stall判定の追加マージンが240,000ms（4分）である', () => {
+  describe("STALL_MARGIN_MS", () => {
+    it("Stall判定の追加マージンが240,000ms（4分）である", () => {
       expect(STALL_MARGIN_MS).toBe(240_000);
     });
 
-    it('number型である', () => {
-      expect(typeof STALL_MARGIN_MS).toBe('number');
+    it("number型である", () => {
+      expect(typeof STALL_MARGIN_MS).toBe("number");
     });
   });
 });

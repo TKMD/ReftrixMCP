@@ -15,8 +15,8 @@
  * @module services/worker-memory-monitor
  */
 
-import { logger } from '../utils/logger';
-import { resolveMemoryConfig } from './worker-memory-profile';
+import { logger } from "../utils/logger";
+import { resolveMemoryConfig } from "./worker-memory-profile";
 
 // ============================================================================
 // Constants
@@ -51,7 +51,7 @@ export interface MemoryCheckResult {
  * GCが利用可能であれば実行する（--expose-gc フラグ必要）
  */
 function tryGarbageCollect(): void {
-  if (typeof global.gc === 'function') {
+  if (typeof global.gc === "function") {
     global.gc();
   }
 }
@@ -92,14 +92,14 @@ export function shouldExitForMemory(): MemoryCheckResult {
 export function performMemoryCheckAndExit(): void {
   const result = shouldExitForMemory();
 
-  logger.info('[WorkerMemoryMonitor] Memory check', {
+  logger.info("[WorkerMemoryMonitor] Memory check", {
     rssMb: result.rssMb,
     thresholdMb: getThresholdMb(),
     shouldExit: result.shouldExit,
   });
 
   if (result.shouldExit) {
-    logger.warn('[WorkerMemoryMonitor] Memory threshold exceeded, graceful exit', {
+    logger.warn("[WorkerMemoryMonitor] Memory threshold exceeded, graceful exit", {
       rssMb: result.rssMb,
       thresholdMb: getThresholdMb(),
     });
@@ -116,7 +116,7 @@ export function performMemoryCheckAndExit(): void {
  */
 function getThresholdMb(): number {
   const envValue = process.env.WORKER_SELF_EXIT_THRESHOLD_MB;
-  if (envValue !== undefined && envValue !== '') {
+  if (envValue !== undefined && envValue !== "") {
     const parsed = parseInt(envValue, 10);
     if (!isNaN(parsed) && parsed > 0) {
       return parsed;

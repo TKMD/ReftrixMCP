@@ -9,12 +9,12 @@
  * @module tests/services/page/layout-analyzer.service
  */
 
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach } from "vitest";
 import {
   LayoutAnalyzerService,
   type LayoutAnalysisResult,
   type LayoutAnalysisOptions,
-} from '../../../src/services/page/layout-analyzer.service';
+} from "../../../src/services/page/layout-analyzer.service";
 
 // =====================================================
 // Test HTML Fixtures
@@ -197,7 +197,7 @@ const MALFORMED_HTML = `
 
 // Generate large HTML for performance testing
 function generateLargeHtml(sectionCount: number): string {
-  let sections = '';
+  let sections = "";
   for (let i = 0; i < sectionCount; i++) {
     sections += `
       <section class="section-${i}">
@@ -231,19 +231,19 @@ function generateLargeHtml(sectionCount: number): string {
 // Test Suites
 // =====================================================
 
-describe('LayoutAnalyzerService', () => {
+describe("LayoutAnalyzerService", () => {
   let service: LayoutAnalyzerService;
 
   beforeEach(() => {
     service = new LayoutAnalyzerService();
   });
 
-  describe('Basic Functionality', () => {
-    it('should create an instance', () => {
+  describe("Basic Functionality", () => {
+    it("should create an instance", () => {
       expect(service).toBeInstanceOf(LayoutAnalyzerService);
     });
 
-    it('should analyze minimal HTML without errors', async () => {
+    it("should analyze minimal HTML without errors", async () => {
       const result = await service.analyze(MINIMAL_HTML);
 
       expect(result).toBeDefined();
@@ -253,55 +253,55 @@ describe('LayoutAnalyzerService', () => {
       expect(result.processingTimeMs).toBeGreaterThanOrEqual(0);
     });
 
-    it('should return section count and section types', async () => {
+    it("should return section count and section types", async () => {
       const result = await service.analyze(SEMANTIC_HTML);
 
       expect(result.success).toBe(true);
       expect(result.sectionCount).toBeGreaterThan(0);
       expect(result.sectionTypes).toBeDefined();
-      expect(typeof result.sectionTypes).toBe('object');
+      expect(typeof result.sectionTypes).toBe("object");
     });
   });
 
-  describe('Section Detection - Semantic Elements', () => {
-    it('should detect header element', async () => {
+  describe("Section Detection - Semantic Elements", () => {
+    it("should detect header element", async () => {
       const result = await service.analyze(SEMANTIC_HTML);
 
       expect(result.success).toBe(true);
       const headerSection = result.sections.find(
-        (s) => s.type === 'navigation' || s.element?.tagName === 'header'
+        (s) => s.type === "navigation" || s.element?.tagName === "header"
       );
       expect(headerSection).toBeDefined();
     });
 
-    it('should detect nav element', async () => {
+    it("should detect nav element", async () => {
       const result = await service.analyze(SEMANTIC_HTML);
 
       const navSection = result.sections.find(
-        (s) => s.type === 'navigation' || s.element?.tagName === 'nav'
+        (s) => s.type === "navigation" || s.element?.tagName === "nav"
       );
       expect(navSection).toBeDefined();
     });
 
-    it('should detect main element', async () => {
+    it("should detect main element", async () => {
       const result = await service.analyze(SEMANTIC_HTML);
 
       const mainExists = result.sections.some(
-        (s) => s.element?.tagName === 'main' || s.element?.tagName === 'section'
+        (s) => s.element?.tagName === "main" || s.element?.tagName === "section"
       );
       expect(mainExists).toBe(true);
     });
 
-    it('should detect footer element', async () => {
+    it("should detect footer element", async () => {
       const result = await service.analyze(SEMANTIC_HTML);
 
       const footerSection = result.sections.find(
-        (s) => s.type === 'footer' || s.element?.tagName === 'footer'
+        (s) => s.type === "footer" || s.element?.tagName === "footer"
       );
       expect(footerSection).toBeDefined();
     });
 
-    it('should detect section elements', async () => {
+    it("should detect section elements", async () => {
       const result = await service.analyze(SEMANTIC_HTML);
 
       // Should have multiple sections detected
@@ -309,53 +309,53 @@ describe('LayoutAnalyzerService', () => {
     });
   });
 
-  describe('Section Detection - Class-based Heuristics', () => {
-    it('should detect hero section from class name', async () => {
+  describe("Section Detection - Class-based Heuristics", () => {
+    it("should detect hero section from class name", async () => {
       const result = await service.analyze(CLASS_BASED_HTML);
 
-      const heroSection = result.sections.find((s) => s.type === 'hero');
+      const heroSection = result.sections.find((s) => s.type === "hero");
       expect(heroSection).toBeDefined();
       expect(heroSection?.confidence).toBeGreaterThan(0.5);
     });
 
-    it('should detect testimonial section from class name', async () => {
+    it("should detect testimonial section from class name", async () => {
       const result = await service.analyze(CLASS_BASED_HTML);
 
-      const testimonialSection = result.sections.find((s) => s.type === 'testimonial');
+      const testimonialSection = result.sections.find((s) => s.type === "testimonial");
       expect(testimonialSection).toBeDefined();
     });
 
-    it('should detect pricing section from class name', async () => {
+    it("should detect pricing section from class name", async () => {
       const result = await service.analyze(CLASS_BASED_HTML);
 
-      const pricingSection = result.sections.find((s) => s.type === 'pricing');
+      const pricingSection = result.sections.find((s) => s.type === "pricing");
       expect(pricingSection).toBeDefined();
     });
 
-    it('should detect contact section from class name', async () => {
+    it("should detect contact section from class name", async () => {
       const result = await service.analyze(CLASS_BASED_HTML);
 
-      const contactSection = result.sections.find((s) => s.type === 'contact');
+      const contactSection = result.sections.find((s) => s.type === "contact");
       expect(contactSection).toBeDefined();
     });
 
-    it('should detect CTA section from class name', async () => {
+    it("should detect CTA section from class name", async () => {
       const result = await service.analyze(SEMANTIC_HTML);
 
-      const ctaSection = result.sections.find((s) => s.type === 'cta');
+      const ctaSection = result.sections.find((s) => s.type === "cta");
       expect(ctaSection).toBeDefined();
     });
 
-    it('should detect feature section from class name', async () => {
+    it("should detect feature section from class name", async () => {
       const result = await service.analyze(SEMANTIC_HTML);
 
-      const featureSection = result.sections.find((s) => s.type === 'feature');
+      const featureSection = result.sections.find((s) => s.type === "feature");
       expect(featureSection).toBeDefined();
     });
   });
 
-  describe('Section Position Information', () => {
-    it('should calculate bounding box for each section', async () => {
+  describe("Section Position Information", () => {
+    it("should calculate bounding box for each section", async () => {
       const result = await service.analyze(SEMANTIC_HTML);
 
       for (const section of result.sections) {
@@ -366,7 +366,7 @@ describe('LayoutAnalyzerService', () => {
       }
     });
 
-    it('should order sections by position', async () => {
+    it("should order sections by position", async () => {
       const result = await service.analyze(SEMANTIC_HTML);
 
       // Check that sections are roughly ordered by position
@@ -379,8 +379,8 @@ describe('LayoutAnalyzerService', () => {
     });
   });
 
-  describe('Grid Detection', () => {
-    it('should detect CSS Grid layout', async () => {
+  describe("Grid Detection", () => {
+    it("should detect CSS Grid layout", async () => {
       const result = await service.analyze(HTML_WITH_GRID_LAYOUT);
 
       expect(result.success).toBe(true);
@@ -391,7 +391,7 @@ describe('LayoutAnalyzerService', () => {
       }
     });
 
-    it('should detect Flexbox layout', async () => {
+    it("should detect Flexbox layout", async () => {
       const result = await service.analyze(HTML_WITH_GRID_LAYOUT);
 
       expect(result.success).toBe(true);
@@ -400,7 +400,7 @@ describe('LayoutAnalyzerService', () => {
       }
     });
 
-    it('should estimate column count when possible', async () => {
+    it("should estimate column count when possible", async () => {
       const result = await service.analyze(HTML_WITH_GRID_LAYOUT);
 
       // If grid is detected, column info should be available
@@ -410,8 +410,8 @@ describe('LayoutAnalyzerService', () => {
     });
   });
 
-  describe('Typography Analysis', () => {
-    it('should extract heading hierarchy', async () => {
+  describe("Typography Analysis", () => {
+    it("should extract heading hierarchy", async () => {
       const result = await service.analyze(HTML_WITH_TYPOGRAPHY);
 
       expect(result.success).toBe(true);
@@ -420,7 +420,7 @@ describe('LayoutAnalyzerService', () => {
       expect(Array.isArray(result.typography?.headings)).toBe(true);
     });
 
-    it('should identify font size distribution', async () => {
+    it("should identify font size distribution", async () => {
       const result = await service.analyze(HTML_WITH_TYPOGRAPHY);
 
       if (result.typography?.fontSizes) {
@@ -428,7 +428,7 @@ describe('LayoutAnalyzerService', () => {
       }
     });
 
-    it('should detect font families', async () => {
+    it("should detect font families", async () => {
       const result = await service.analyze(HTML_WITH_TYPOGRAPHY);
 
       if (result.typography?.fontFamilies) {
@@ -437,8 +437,8 @@ describe('LayoutAnalyzerService', () => {
     });
   });
 
-  describe('Color Extraction', () => {
-    it('should extract background colors', async () => {
+  describe("Color Extraction", () => {
+    it("should extract background colors", async () => {
       const result = await service.analyze(HTML_WITH_COLORS);
 
       expect(result.success).toBe(true);
@@ -449,7 +449,7 @@ describe('LayoutAnalyzerService', () => {
       }
     });
 
-    it('should extract text colors', async () => {
+    it("should extract text colors", async () => {
       const result = await service.analyze(HTML_WITH_COLORS);
 
       if (result.colors?.textColors) {
@@ -457,7 +457,7 @@ describe('LayoutAnalyzerService', () => {
       }
     });
 
-    it('should generate primary color palette', async () => {
+    it("should generate primary color palette", async () => {
       const result = await service.analyze(HTML_WITH_COLORS);
 
       if (result.colors?.palette) {
@@ -465,25 +465,25 @@ describe('LayoutAnalyzerService', () => {
       }
     });
 
-    it('should detect gradients', async () => {
+    it("should detect gradients", async () => {
       const result = await service.analyze(HTML_WITH_COLORS);
 
       if (result.colors?.hasGradients !== undefined) {
-        expect(typeof result.colors.hasGradients).toBe('boolean');
+        expect(typeof result.colors.hasGradients).toBe("boolean");
       }
     });
   });
 
-  describe('Error Handling', () => {
-    it('should handle empty HTML', async () => {
-      const result = await service.analyze('');
+  describe("Error Handling", () => {
+    it("should handle empty HTML", async () => {
+      const result = await service.analyze("");
 
       expect(result.success).toBe(true);
       expect(result.sections).toEqual([]);
       expect(result.sectionCount).toBe(0);
     });
 
-    it('should handle malformed HTML gracefully', async () => {
+    it("should handle malformed HTML gracefully", async () => {
       const result = await service.analyze(MALFORMED_HTML);
 
       // Should not throw, should handle gracefully
@@ -491,22 +491,22 @@ describe('LayoutAnalyzerService', () => {
       expect(result.sections).toBeDefined();
     });
 
-    it('should handle HTML with only whitespace', async () => {
-      const result = await service.analyze('   \n\t  \n  ');
+    it("should handle HTML with only whitespace", async () => {
+      const result = await service.analyze("   \n\t  \n  ");
 
       expect(result.success).toBe(true);
       expect(result.sections).toEqual([]);
     });
 
-    it('should handle HTML without body', async () => {
-      const result = await service.analyze('<html><head></head></html>');
+    it("should handle HTML without body", async () => {
+      const result = await service.analyze("<html><head></head></html>");
 
       expect(result.success).toBe(true);
     });
   });
 
-  describe('Performance', () => {
-    it('should analyze 100KB+ HTML within 1000ms', async () => {
+  describe("Performance", () => {
+    it("should analyze 100KB+ HTML within 1000ms", async () => {
       const largeHtml = generateLargeHtml(200); // ~100KB
       const startTime = Date.now();
 
@@ -520,7 +520,7 @@ describe('LayoutAnalyzerService', () => {
       expect(result.processingTimeMs).toBeLessThan(3000);
     });
 
-    it('should handle very large HTML (500+ sections) without memory issues', async () => {
+    it("should handle very large HTML (500+ sections) without memory issues", async () => {
       const veryLargeHtml = generateLargeHtml(500);
 
       const result = await service.analyze(veryLargeHtml);
@@ -530,8 +530,8 @@ describe('LayoutAnalyzerService', () => {
     });
   });
 
-  describe('Options', () => {
-    it('should respect options.includeContent', async () => {
+  describe("Options", () => {
+    it("should respect options.includeContent", async () => {
       const options: LayoutAnalysisOptions = {
         includeContent: true,
       };
@@ -544,7 +544,7 @@ describe('LayoutAnalyzerService', () => {
       expect(sectionsWithContent.length).toBeGreaterThan(0);
     });
 
-    it('should respect options.includeStyles', async () => {
+    it("should respect options.includeStyles", async () => {
       const options: LayoutAnalysisOptions = {
         includeStyles: true,
       };
@@ -558,7 +558,7 @@ describe('LayoutAnalyzerService', () => {
       expect(result.success).toBe(true);
     });
 
-    it('should respect options.maxSections', async () => {
+    it("should respect options.maxSections", async () => {
       const options: LayoutAnalysisOptions = {
         maxSections: 3,
       };
@@ -570,8 +570,8 @@ describe('LayoutAnalyzerService', () => {
     });
   });
 
-  describe('Section Confidence Scores', () => {
-    it('should provide confidence scores between 0 and 1', async () => {
+  describe("Section Confidence Scores", () => {
+    it("should provide confidence scores between 0 and 1", async () => {
       const result = await service.analyze(SEMANTIC_HTML);
 
       for (const section of result.sections) {
@@ -580,37 +580,37 @@ describe('LayoutAnalyzerService', () => {
       }
     });
 
-    it('should give high confidence to semantic elements', async () => {
+    it("should give high confidence to semantic elements", async () => {
       const result = await service.analyze(SEMANTIC_HTML);
 
-      const footerSection = result.sections.find((s) => s.type === 'footer');
+      const footerSection = result.sections.find((s) => s.type === "footer");
       if (footerSection) {
         expect(footerSection.confidence).toBeGreaterThan(0.7);
       }
 
-      const navSection = result.sections.find((s) => s.type === 'navigation');
+      const navSection = result.sections.find((s) => s.type === "navigation");
       if (navSection) {
         expect(navSection.confidence).toBeGreaterThan(0.7);
       }
     });
   });
 
-  describe('Section Types Summary', () => {
-    it('should return sectionTypes as Record<string, number>', async () => {
+  describe("Section Types Summary", () => {
+    it("should return sectionTypes as Record<string, number>", async () => {
       const result = await service.analyze(SEMANTIC_HTML);
 
       expect(result.sectionTypes).toBeDefined();
-      expect(typeof result.sectionTypes).toBe('object');
+      expect(typeof result.sectionTypes).toBe("object");
 
       // Each value should be a number
       for (const [key, value] of Object.entries(result.sectionTypes)) {
-        expect(typeof key).toBe('string');
-        expect(typeof value).toBe('number');
+        expect(typeof key).toBe("string");
+        expect(typeof value).toBe("number");
         expect(value).toBeGreaterThan(0);
       }
     });
 
-    it('should correctly count section types', async () => {
+    it("should correctly count section types", async () => {
       const result = await service.analyze(SEMANTIC_HTML);
 
       // Total should match sectionCount
@@ -1079,24 +1079,24 @@ const WIX_HTML = `
 </html>
 `;
 
-describe('CssFramework Detection', () => {
+describe("CssFramework Detection", () => {
   let service: LayoutAnalyzerService;
 
   beforeEach(() => {
     service = new LayoutAnalyzerService();
   });
 
-  describe('Tailwind CSS Detection', () => {
-    it('should detect Tailwind CSS from CDN script', async () => {
+  describe("Tailwind CSS Detection", () => {
+    it("should detect Tailwind CSS from CDN script", async () => {
       const result = await service.analyze(TAILWIND_HTML);
 
       expect(result.success).toBe(true);
       expect(result.cssFramework).toBeDefined();
-      expect(result.cssFramework?.framework).toBe('tailwind');
+      expect(result.cssFramework?.framework).toBe("tailwind");
       expect(result.cssFramework?.confidence).toBeGreaterThanOrEqual(0.8);
     });
 
-    it('should detect Tailwind CSS from utility classes', async () => {
+    it("should detect Tailwind CSS from utility classes", async () => {
       // HTML without CDN but with many Tailwind classes
       const tailwindClassOnlyHtml = `
         <html>
@@ -1115,34 +1115,34 @@ describe('CssFramework Detection', () => {
 
       expect(result.success).toBe(true);
       expect(result.cssFramework).toBeDefined();
-      expect(result.cssFramework?.framework).toBe('tailwind');
+      expect(result.cssFramework?.framework).toBe("tailwind");
       expect(result.cssFramework?.confidence).toBeGreaterThan(0.6);
     });
 
-    it('should include evidence of Tailwind detection', async () => {
+    it("should include evidence of Tailwind detection", async () => {
       const result = await service.analyze(TAILWIND_HTML);
 
       expect(result.cssFramework?.evidence).toBeDefined();
       expect(result.cssFramework?.evidence.length).toBeGreaterThan(0);
       // Should include CDN or class pattern evidence
       const hasRelevantEvidence = result.cssFramework?.evidence.some(
-        (e) => e.includes('cdn.tailwindcss.com') || e.includes('utility class')
+        (e) => e.includes("cdn.tailwindcss.com") || e.includes("utility class")
       );
       expect(hasRelevantEvidence).toBe(true);
     });
   });
 
-  describe('Bootstrap Detection', () => {
-    it('should detect Bootstrap from CDN link', async () => {
+  describe("Bootstrap Detection", () => {
+    it("should detect Bootstrap from CDN link", async () => {
       const result = await service.analyze(BOOTSTRAP_HTML);
 
       expect(result.success).toBe(true);
       expect(result.cssFramework).toBeDefined();
-      expect(result.cssFramework?.framework).toBe('bootstrap');
+      expect(result.cssFramework?.framework).toBe("bootstrap");
       expect(result.cssFramework?.confidence).toBeGreaterThanOrEqual(0.8);
     });
 
-    it('should detect Bootstrap from class patterns', async () => {
+    it("should detect Bootstrap from class patterns", async () => {
       const bootstrapClassOnlyHtml = `
         <html>
         <body>
@@ -1166,11 +1166,11 @@ describe('CssFramework Detection', () => {
       const result = await service.analyze(bootstrapClassOnlyHtml);
 
       expect(result.success).toBe(true);
-      expect(result.cssFramework?.framework).toBe('bootstrap');
+      expect(result.cssFramework?.framework).toBe("bootstrap");
       expect(result.cssFramework?.confidence).toBeGreaterThan(0.6);
     });
 
-    it('should include evidence of Bootstrap detection', async () => {
+    it("should include evidence of Bootstrap detection", async () => {
       const result = await service.analyze(BOOTSTRAP_HTML);
 
       expect(result.cssFramework?.evidence).toBeDefined();
@@ -1178,62 +1178,62 @@ describe('CssFramework Detection', () => {
     });
   });
 
-  describe('CSS Modules Detection', () => {
-    it('should detect CSS Modules from hash-suffixed class names', async () => {
+  describe("CSS Modules Detection", () => {
+    it("should detect CSS Modules from hash-suffixed class names", async () => {
       const result = await service.analyze(CSS_MODULES_HTML);
 
       expect(result.success).toBe(true);
       expect(result.cssFramework).toBeDefined();
-      expect(result.cssFramework?.framework).toBe('css_modules');
+      expect(result.cssFramework?.framework).toBe("css_modules");
       expect(result.cssFramework?.confidence).toBeGreaterThan(0.6);
     });
 
-    it('should include evidence with example class names', async () => {
+    it("should include evidence with example class names", async () => {
       const result = await service.analyze(CSS_MODULES_HTML);
 
       expect(result.cssFramework?.evidence).toBeDefined();
       // Should mention the pattern like "component_class__hash"
       const hasPatternEvidence = result.cssFramework?.evidence.some(
-        (e) => e.includes('__') || e.includes('CSS Modules pattern')
+        (e) => e.includes("__") || e.includes("CSS Modules pattern")
       );
       expect(hasPatternEvidence).toBe(true);
     });
   });
 
-  describe('styled-components Detection', () => {
-    it('should detect styled-components from sc- prefix classes', async () => {
+  describe("styled-components Detection", () => {
+    it("should detect styled-components from sc- prefix classes", async () => {
       const result = await service.analyze(STYLED_COMPONENTS_HTML);
 
       expect(result.success).toBe(true);
       expect(result.cssFramework).toBeDefined();
-      expect(result.cssFramework?.framework).toBe('styled_components');
+      expect(result.cssFramework?.framework).toBe("styled_components");
       expect(result.cssFramework?.confidence).toBeGreaterThan(0.6);
     });
 
-    it('should detect Emotion CSS from css- prefix classes', async () => {
+    it("should detect Emotion CSS from css- prefix classes", async () => {
       const result = await service.analyze(EMOTION_HTML);
 
       expect(result.success).toBe(true);
       expect(result.cssFramework).toBeDefined();
       // Emotion is also CSS-in-JS, should be detected as styled_components
-      expect(result.cssFramework?.framework).toBe('styled_components');
+      expect(result.cssFramework?.framework).toBe("styled_components");
     });
   });
 
-  describe('Vanilla CSS Detection', () => {
-    it('should detect vanilla CSS when no framework patterns match', async () => {
+  describe("Vanilla CSS Detection", () => {
+    it("should detect vanilla CSS when no framework patterns match", async () => {
       const result = await service.analyze(VANILLA_CSS_HTML);
 
       expect(result.success).toBe(true);
       expect(result.cssFramework).toBeDefined();
-      expect(result.cssFramework?.framework).toBe('vanilla');
+      expect(result.cssFramework?.framework).toBe("vanilla");
     });
 
-    it('should return vanilla for minimal HTML', async () => {
+    it("should return vanilla for minimal HTML", async () => {
       const result = await service.analyze(MINIMAL_HTML);
 
       expect(result.success).toBe(true);
-      expect(result.cssFramework?.framework).toBe('vanilla');
+      expect(result.cssFramework?.framework).toBe("vanilla");
       expect(result.cssFramework?.confidence).toBeLessThanOrEqual(0.5);
     });
   });
@@ -1243,17 +1243,17 @@ describe('CssFramework Detection', () => {
   // TDD Red Phase: These tests will fail until implementation
   // =====================================================
 
-  describe('Webflow Detection', () => {
-    it('should detect Webflow from w-* class patterns', async () => {
+  describe("Webflow Detection", () => {
+    it("should detect Webflow from w-* class patterns", async () => {
       const result = await service.analyze(WEBFLOW_HTML);
 
       expect(result.success).toBe(true);
       expect(result.cssFramework).toBeDefined();
-      expect(result.cssFramework?.framework).toBe('webflow');
+      expect(result.cssFramework?.framework).toBe("webflow");
       expect(result.cssFramework?.confidence).toBeGreaterThan(0.6);
     });
 
-    it('should detect Webflow from class patterns without CDN', async () => {
+    it("should detect Webflow from class patterns without CDN", async () => {
       const webflowClassOnlyHtml = `
         <html>
         <body>
@@ -1279,22 +1279,22 @@ describe('CssFramework Detection', () => {
       const result = await service.analyze(webflowClassOnlyHtml);
 
       expect(result.success).toBe(true);
-      expect(result.cssFramework?.framework).toBe('webflow');
+      expect(result.cssFramework?.framework).toBe("webflow");
     });
 
-    it('should include evidence of Webflow detection', async () => {
+    it("should include evidence of Webflow detection", async () => {
       const result = await service.analyze(WEBFLOW_HTML);
 
       expect(result.cssFramework?.evidence).toBeDefined();
       expect(result.cssFramework?.evidence.length).toBeGreaterThan(0);
       // Should mention Webflow patterns
       const hasWebflowEvidence = result.cssFramework?.evidence.some(
-        (e) => e.toLowerCase().includes('webflow') || e.includes('w-')
+        (e) => e.toLowerCase().includes("webflow") || e.includes("w-")
       );
       expect(hasWebflowEvidence).toBe(true);
     });
 
-    it('should detect Webflow from w-inline-block, w-button, w--current patterns', async () => {
+    it("should detect Webflow from w-inline-block, w-button, w--current patterns", async () => {
       // Test specific Webflow patterns: w-inline-block, w-button, w--current, w-mod-*
       const webflowSpecificHtml = `
         <html>
@@ -1316,12 +1316,12 @@ describe('CssFramework Detection', () => {
 
       expect(result.success).toBe(true);
       expect(result.cssFramework).toBeDefined();
-      expect(result.cssFramework?.framework).toBe('webflow');
+      expect(result.cssFramework?.framework).toBe("webflow");
       // Should have high confidence with many Webflow-specific patterns
       expect(result.cssFramework?.confidence).toBeGreaterThanOrEqual(0.7);
     });
 
-    it('should detect Webflow state classes (w--current, w--open)', async () => {
+    it("should detect Webflow state classes (w--current, w--open)", async () => {
       const webflowStateHtml = `
         <html>
         <body>
@@ -1337,10 +1337,10 @@ describe('CssFramework Detection', () => {
       const result = await service.analyze(webflowStateHtml);
 
       expect(result.success).toBe(true);
-      expect(result.cssFramework?.framework).toBe('webflow');
+      expect(result.cssFramework?.framework).toBe("webflow");
     });
 
-    it('should detect Webflow modifier classes (w-mod-*)', async () => {
+    it("should detect Webflow modifier classes (w-mod-*)", async () => {
       const webflowModifierHtml = `
         <html>
         <body class="w-mod-touch w-mod-js">
@@ -1353,29 +1353,29 @@ describe('CssFramework Detection', () => {
       const result = await service.analyze(webflowModifierHtml);
 
       expect(result.success).toBe(true);
-      expect(result.cssFramework?.framework).toBe('webflow');
+      expect(result.cssFramework?.framework).toBe("webflow");
     });
   });
 
-  describe('jQuery UI Detection', () => {
-    it('should detect jQuery UI from ui-* class patterns', async () => {
+  describe("jQuery UI Detection", () => {
+    it("should detect jQuery UI from ui-* class patterns", async () => {
       const result = await service.analyze(JQUERY_UI_HTML);
 
       expect(result.success).toBe(true);
       expect(result.cssFramework).toBeDefined();
-      expect(result.cssFramework?.framework).toBe('jquery_ui');
+      expect(result.cssFramework?.framework).toBe("jquery_ui");
       expect(result.cssFramework?.confidence).toBeGreaterThan(0.6);
     });
 
-    it('should detect jQuery UI from CDN link', async () => {
+    it("should detect jQuery UI from CDN link", async () => {
       const result = await service.analyze(JQUERY_UI_HTML);
 
       expect(result.success).toBe(true);
-      expect(result.cssFramework?.framework).toBe('jquery_ui');
+      expect(result.cssFramework?.framework).toBe("jquery_ui");
       expect(result.cssFramework?.confidence).toBeGreaterThanOrEqual(0.8);
     });
 
-    it('should detect jQuery UI from class patterns only', async () => {
+    it("should detect jQuery UI from class patterns only", async () => {
       const jqueryUiClassOnlyHtml = `
         <html>
         <body>
@@ -1397,52 +1397,52 @@ describe('CssFramework Detection', () => {
       const result = await service.analyze(jqueryUiClassOnlyHtml);
 
       expect(result.success).toBe(true);
-      expect(result.cssFramework?.framework).toBe('jquery_ui');
+      expect(result.cssFramework?.framework).toBe("jquery_ui");
     });
 
-    it('should include evidence of jQuery UI detection', async () => {
+    it("should include evidence of jQuery UI detection", async () => {
       const result = await service.analyze(JQUERY_UI_HTML);
 
       expect(result.cssFramework?.evidence).toBeDefined();
       const hasJqueryUiEvidence = result.cssFramework?.evidence.some(
-        (e) => e.toLowerCase().includes('jquery') || e.includes('ui-')
+        (e) => e.toLowerCase().includes("jquery") || e.includes("ui-")
       );
       expect(hasJqueryUiEvidence).toBe(true);
     });
   });
 
-  describe('Squarespace Detection', () => {
-    it('should detect Squarespace from sqs-* class patterns', async () => {
+  describe("Squarespace Detection", () => {
+    it("should detect Squarespace from sqs-* class patterns", async () => {
       const result = await service.analyze(SQUARESPACE_HTML);
 
       expect(result.success).toBe(true);
       expect(result.cssFramework).toBeDefined();
-      expect(result.cssFramework?.framework).toBe('squarespace');
+      expect(result.cssFramework?.framework).toBe("squarespace");
       expect(result.cssFramework?.confidence).toBeGreaterThan(0.6);
     });
 
-    it('should include evidence of Squarespace detection', async () => {
+    it("should include evidence of Squarespace detection", async () => {
       const result = await service.analyze(SQUARESPACE_HTML);
 
       expect(result.cssFramework?.evidence).toBeDefined();
       const hasSquarespaceEvidence = result.cssFramework?.evidence.some(
-        (e) => e.toLowerCase().includes('squarespace') || e.includes('sqs-')
+        (e) => e.toLowerCase().includes("squarespace") || e.includes("sqs-")
       );
       expect(hasSquarespaceEvidence).toBe(true);
     });
   });
 
-  describe('Framer Detection', () => {
-    it('should detect Framer from framer-* class patterns', async () => {
+  describe("Framer Detection", () => {
+    it("should detect Framer from framer-* class patterns", async () => {
       const result = await service.analyze(FRAMER_HTML);
 
       expect(result.success).toBe(true);
       expect(result.cssFramework).toBeDefined();
-      expect(result.cssFramework?.framework).toBe('framer');
+      expect(result.cssFramework?.framework).toBe("framer");
       expect(result.cssFramework?.confidence).toBeGreaterThan(0.6);
     });
 
-    it('should detect Framer from data-framer-* attributes', async () => {
+    it("should detect Framer from data-framer-* attributes", async () => {
       const framerAttributeHtml = `
         <html>
         <body>
@@ -1458,60 +1458,60 @@ describe('CssFramework Detection', () => {
       const result = await service.analyze(framerAttributeHtml);
 
       expect(result.success).toBe(true);
-      expect(result.cssFramework?.framework).toBe('framer');
+      expect(result.cssFramework?.framework).toBe("framer");
     });
 
-    it('should include evidence of Framer detection', async () => {
+    it("should include evidence of Framer detection", async () => {
       const result = await service.analyze(FRAMER_HTML);
 
       expect(result.cssFramework?.evidence).toBeDefined();
-      const hasFramerEvidence = result.cssFramework?.evidence.some(
-        (e) => e.toLowerCase().includes('framer')
+      const hasFramerEvidence = result.cssFramework?.evidence.some((e) =>
+        e.toLowerCase().includes("framer")
       );
       expect(hasFramerEvidence).toBe(true);
     });
   });
 
-  describe('Elementor Detection', () => {
-    it('should detect Elementor from elementor-* class patterns', async () => {
+  describe("Elementor Detection", () => {
+    it("should detect Elementor from elementor-* class patterns", async () => {
       const result = await service.analyze(ELEMENTOR_HTML);
 
       expect(result.success).toBe(true);
       expect(result.cssFramework).toBeDefined();
-      expect(result.cssFramework?.framework).toBe('elementor');
+      expect(result.cssFramework?.framework).toBe("elementor");
       expect(result.cssFramework?.confidence).toBeGreaterThan(0.6);
     });
 
-    it('should detect Elementor from CDN/plugin path', async () => {
+    it("should detect Elementor from CDN/plugin path", async () => {
       const result = await service.analyze(ELEMENTOR_HTML);
 
       expect(result.success).toBe(true);
-      expect(result.cssFramework?.framework).toBe('elementor');
+      expect(result.cssFramework?.framework).toBe("elementor");
       expect(result.cssFramework?.confidence).toBeGreaterThanOrEqual(0.8);
     });
 
-    it('should include evidence of Elementor detection', async () => {
+    it("should include evidence of Elementor detection", async () => {
       const result = await service.analyze(ELEMENTOR_HTML);
 
       expect(result.cssFramework?.evidence).toBeDefined();
-      const hasElementorEvidence = result.cssFramework?.evidence.some(
-        (e) => e.toLowerCase().includes('elementor')
+      const hasElementorEvidence = result.cssFramework?.evidence.some((e) =>
+        e.toLowerCase().includes("elementor")
       );
       expect(hasElementorEvidence).toBe(true);
     });
   });
 
-  describe('Wix Detection', () => {
-    it('should detect Wix from wixui-* class patterns', async () => {
+  describe("Wix Detection", () => {
+    it("should detect Wix from wixui-* class patterns", async () => {
       const result = await service.analyze(WIX_HTML);
 
       expect(result.success).toBe(true);
       expect(result.cssFramework).toBeDefined();
-      expect(result.cssFramework?.framework).toBe('wix');
+      expect(result.cssFramework?.framework).toBe("wix");
       expect(result.cssFramework?.confidence).toBeGreaterThan(0.6);
     });
 
-    it('should detect Wix from SITE_CONTAINER structure', async () => {
+    it("should detect Wix from SITE_CONTAINER structure", async () => {
       const wixStructureHtml = `
         <html>
         <body>
@@ -1529,31 +1529,31 @@ describe('CssFramework Detection', () => {
 
       expect(result.success).toBe(true);
       // Should detect Wix-like structure
-      expect(['wix', 'vanilla']).toContain(result.cssFramework?.framework);
+      expect(["wix", "vanilla"]).toContain(result.cssFramework?.framework);
     });
 
-    it('should include evidence of Wix detection', async () => {
+    it("should include evidence of Wix detection", async () => {
       const result = await service.analyze(WIX_HTML);
 
       expect(result.cssFramework?.evidence).toBeDefined();
       const hasWixEvidence = result.cssFramework?.evidence.some(
-        (e) => e.toLowerCase().includes('wix') || e.includes('wixui-')
+        (e) => e.toLowerCase().includes("wix") || e.includes("wixui-")
       );
       expect(hasWixEvidence).toBe(true);
     });
   });
 
-  describe('Mixed Frameworks', () => {
-    it('should detect dominant framework when multiple are present', async () => {
+  describe("Mixed Frameworks", () => {
+    it("should detect dominant framework when multiple are present", async () => {
       const result = await service.analyze(MIXED_TAILWIND_MODULES_HTML);
 
       expect(result.success).toBe(true);
       expect(result.cssFramework).toBeDefined();
       // Tailwind should be dominant due to more utility classes
-      expect(['tailwind', 'css_modules']).toContain(result.cssFramework?.framework);
+      expect(["tailwind", "css_modules"]).toContain(result.cssFramework?.framework);
     });
 
-    it('should detect composite frameworks (TailwindCSS + CSS Modules)', async () => {
+    it("should detect composite frameworks (TailwindCSS + CSS Modules)", async () => {
       const result = await service.analyze(MIXED_TAILWIND_MODULES_HTML);
 
       expect(result.success).toBe(true);
@@ -1561,7 +1561,7 @@ describe('CssFramework Detection', () => {
 
       // Should have primary framework
       expect(result.cssFramework?.composite?.primary).toBeDefined();
-      expect(['tailwind', 'css_modules']).toContain(result.cssFramework?.composite?.primary);
+      expect(["tailwind", "css_modules"]).toContain(result.cssFramework?.composite?.primary);
 
       // Should have secondary frameworks
       expect(result.cssFramework?.composite?.secondary).toBeDefined();
@@ -1572,15 +1572,15 @@ describe('CssFramework Detection', () => {
         result.cssFramework?.composite?.primary,
         ...(result.cssFramework?.composite?.secondary ?? []),
       ];
-      expect(allFrameworks).toContain('tailwind');
-      expect(allFrameworks).toContain('css_modules');
+      expect(allFrameworks).toContain("tailwind");
+      expect(allFrameworks).toContain("css_modules");
 
       // Should have confidence map
       expect(result.cssFramework?.composite?.confidenceMap).toBeDefined();
     });
   });
 
-  describe('CSS Variables Detection', () => {
+  describe("CSS Variables Detection", () => {
     const HTML_WITH_CSS_VARIABLES = `
       <!DOCTYPE html>
       <html>
@@ -1640,7 +1640,7 @@ describe('CssFramework Detection', () => {
       </html>
     `;
 
-    it('should detect CSS custom properties', async () => {
+    it("should detect CSS custom properties", async () => {
       const result = await service.analyze(HTML_WITH_CSS_VARIABLES);
 
       expect(result.success).toBe(true);
@@ -1648,7 +1648,7 @@ describe('CssFramework Detection', () => {
       expect(result.cssFramework?.composite?.cssVariablesConfidence).toBeGreaterThan(0.5);
     });
 
-    it('should include CSS variables confidence in composite result', async () => {
+    it("should include CSS variables confidence in composite result", async () => {
       const result = await service.analyze(HTML_WITH_CSS_VARIABLES);
 
       expect(result.success).toBe(true);
@@ -1659,7 +1659,7 @@ describe('CssFramework Detection', () => {
       }
     });
 
-    it('should detect ax1.vc-like pattern (CSS Modules + TailwindCSS + CSS Variables)', async () => {
+    it("should detect ax1.vc-like pattern (CSS Modules + TailwindCSS + CSS Variables)", async () => {
       const result = await service.analyze(AX1_LIKE_HTML);
 
       expect(result.success).toBe(true);
@@ -1669,10 +1669,10 @@ describe('CssFramework Detection', () => {
       expect(result.cssFramework?.composite).toBeDefined();
 
       // Primary should be css_modules (due to strong pattern matches)
-      expect(result.cssFramework?.composite?.primary).toBe('css_modules');
+      expect(result.cssFramework?.composite?.primary).toBe("css_modules");
 
       // Secondary should include tailwind
-      expect(result.cssFramework?.composite?.secondary).toContain('tailwind');
+      expect(result.cssFramework?.composite?.secondary).toContain("tailwind");
 
       // Should detect CSS variables
       expect(result.cssFramework?.composite?.hasCssVariables).toBe(true);
@@ -1683,18 +1683,18 @@ describe('CssFramework Detection', () => {
       expect(result.cssFramework?.composite?.confidenceMap?.tailwind).toBeGreaterThan(0.3);
     });
 
-    it('should include evidence for CSS variables detection', async () => {
+    it("should include evidence for CSS variables detection", async () => {
       const result = await service.analyze(HTML_WITH_CSS_VARIABLES);
 
       expect(result.success).toBe(true);
       // Evidence should mention CSS custom properties
       const hasCssVarEvidence = result.cssFramework?.evidence.some(
-        (e) => e.includes('CSS custom properties') || e.includes('var(--')
+        (e) => e.includes("CSS custom properties") || e.includes("var(--")
       );
       expect(hasCssVarEvidence).toBe(true);
     });
 
-    it('should return hasCssVariables: false when no CSS variables are present', async () => {
+    it("should return hasCssVariables: false when no CSS variables are present", async () => {
       const result = await service.analyze(VANILLA_CSS_HTML);
 
       expect(result.success).toBe(true);
@@ -1705,8 +1705,8 @@ describe('CssFramework Detection', () => {
     });
   });
 
-  describe('Composite Framework Confidence Map', () => {
-    it('should provide confidence values for all detected frameworks', async () => {
+  describe("Composite Framework Confidence Map", () => {
+    it("should provide confidence values for all detected frameworks", async () => {
       const result = await service.analyze(MIXED_TAILWIND_MODULES_HTML);
 
       expect(result.success).toBe(true);
@@ -1715,8 +1715,8 @@ describe('CssFramework Detection', () => {
       if (confidenceMap) {
         // All values should be between 0 and 1
         for (const [framework, confidence] of Object.entries(confidenceMap)) {
-          expect(typeof framework).toBe('string');
-          expect(typeof confidence).toBe('number');
+          expect(typeof framework).toBe("string");
+          expect(typeof confidence).toBe("number");
           expect(confidence).toBeGreaterThanOrEqual(0);
           expect(confidence).toBeLessThanOrEqual(1);
         }
@@ -1735,20 +1735,20 @@ describe('CssFramework Detection', () => {
       }
     });
 
-    it('should maintain backward compatibility with single framework detection', async () => {
+    it("should maintain backward compatibility with single framework detection", async () => {
       const result = await service.analyze(TAILWIND_HTML);
 
       expect(result.success).toBe(true);
       // Original fields should still work
-      expect(result.cssFramework?.framework).toBe('tailwind');
+      expect(result.cssFramework?.framework).toBe("tailwind");
       expect(result.cssFramework?.confidence).toBeGreaterThan(0);
       expect(result.cssFramework?.evidence).toBeDefined();
       expect(Array.isArray(result.cssFramework?.evidence)).toBe(true);
     });
   });
 
-  describe('Confidence Scoring', () => {
-    it('should return higher confidence for CDN-detected frameworks', async () => {
+  describe("Confidence Scoring", () => {
+    it("should return higher confidence for CDN-detected frameworks", async () => {
       const resultWithCdn = await service.analyze(TAILWIND_HTML);
       const resultWithClasses = await service.analyze(`
         <html>
@@ -1762,7 +1762,7 @@ describe('CssFramework Detection', () => {
       );
     });
 
-    it('should return confidence between 0 and 1', async () => {
+    it("should return confidence between 0 and 1", async () => {
       const result = await service.analyze(TAILWIND_HTML);
 
       expect(result.cssFramework?.confidence).toBeGreaterThanOrEqual(0);
@@ -1770,8 +1770,8 @@ describe('CssFramework Detection', () => {
     });
   });
 
-  describe('Evidence Collection', () => {
-    it('should collect evidence for framework detection', async () => {
+  describe("Evidence Collection", () => {
+    it("should collect evidence for framework detection", async () => {
       const result = await service.analyze(TAILWIND_HTML);
 
       expect(result.cssFramework?.evidence).toBeDefined();
@@ -1779,33 +1779,33 @@ describe('CssFramework Detection', () => {
       expect(result.cssFramework?.evidence.length).toBeGreaterThan(0);
     });
 
-    it('should provide meaningful evidence strings', async () => {
+    it("should provide meaningful evidence strings", async () => {
       const result = await service.analyze(BOOTSTRAP_HTML);
 
       expect(result.cssFramework?.evidence).toBeDefined();
       // Each evidence should be a non-empty string
       for (const evidence of result.cssFramework?.evidence ?? []) {
-        expect(typeof evidence).toBe('string');
+        expect(typeof evidence).toBe("string");
         expect(evidence.length).toBeGreaterThan(0);
       }
     });
   });
 });
 
-describe('LayoutAnalyzerService Integration', () => {
+describe("LayoutAnalyzerService Integration", () => {
   let service: LayoutAnalyzerService;
 
   beforeEach(() => {
     service = new LayoutAnalyzerService();
   });
 
-  it('should produce result compatible with LayoutServiceResult interface', async () => {
+  it("should produce result compatible with LayoutServiceResult interface", async () => {
     const result = await service.analyze(SEMANTIC_HTML);
 
     // Verify interface compatibility
     expect(result.success).toBe(true);
-    expect(typeof result.sectionCount).toBe('number');
-    expect(typeof result.processingTimeMs).toBe('number');
+    expect(typeof result.sectionCount).toBe("number");
+    expect(typeof result.processingTimeMs).toBe("number");
     expect(result.sectionTypes).toBeDefined();
     expect(Array.isArray(result.sections)).toBe(true);
 
@@ -1816,7 +1816,7 @@ describe('LayoutAnalyzerService Integration', () => {
     }
   });
 
-  it('should work with real-world-like HTML structure', async () => {
+  it("should work with real-world-like HTML structure", async () => {
     const realWorldHtml = `
       <!DOCTYPE html>
       <html lang="en">
@@ -1957,19 +1957,19 @@ describe('LayoutAnalyzerService Integration', () => {
     expect(types.length).toBeGreaterThanOrEqual(3);
 
     // Should detect hero
-    expect(result.sections.some((s) => s.type === 'hero')).toBe(true);
+    expect(result.sections.some((s) => s.type === "hero")).toBe(true);
 
     // Should detect features
-    expect(result.sections.some((s) => s.type === 'feature')).toBe(true);
+    expect(result.sections.some((s) => s.type === "feature")).toBe(true);
 
     // Should detect pricing
-    expect(result.sections.some((s) => s.type === 'pricing')).toBe(true);
+    expect(result.sections.some((s) => s.type === "pricing")).toBe(true);
 
     // Should detect footer
-    expect(result.sections.some((s) => s.type === 'footer')).toBe(true);
+    expect(result.sections.some((s) => s.type === "footer")).toBe(true);
   });
 
-  describe('CSS Extraction', () => {
+  describe("CSS Extraction", () => {
     const HTML_WITH_INLINE_STYLE = `
       <!DOCTYPE html>
       <html>
@@ -2027,16 +2027,16 @@ describe('LayoutAnalyzerService Integration', () => {
       </html>
     `;
 
-    it('should extract CSS from <style> tags', async () => {
+    it("should extract CSS from <style> tags", async () => {
       const result = await service.analyze(HTML_WITH_STYLE_TAG);
 
       expect(result.success).toBe(true);
       expect(result.cssSnippet).toBeDefined();
-      expect(result.cssSnippet).toContain('body { margin: 0; padding: 0; }');
-      expect(result.cssSnippet).toContain('.hero { background: #333; color: white; }');
+      expect(result.cssSnippet).toContain("body { margin: 0; padding: 0; }");
+      expect(result.cssSnippet).toContain(".hero { background: #333; color: white; }");
     });
 
-    it('should NOT extract inline styles (they remain in htmlSnippet as style attributes)', async () => {
+    it("should NOT extract inline styles (they remain in htmlSnippet as style attributes)", async () => {
       // インラインスタイルはセレクタなしのCSS宣言となり無効なため、
       // cssSnippetには含めない。スタイルはhtmlSnippet内のstyle属性として保持される
       const result = await service.analyze(HTML_WITH_INLINE_STYLE);
@@ -2044,11 +2044,11 @@ describe('LayoutAnalyzerService Integration', () => {
       expect(result.success).toBe(true);
       expect(result.cssSnippet).toBeDefined();
       // インラインスタイルはcssSnippetに含まれないことを確認
-      expect(result.cssSnippet).not.toContain('color: red; font-size: 16px;');
-      expect(result.cssSnippet).not.toContain('background: blue;');
+      expect(result.cssSnippet).not.toContain("color: red; font-size: 16px;");
+      expect(result.cssSnippet).not.toContain("background: blue;");
     });
 
-    it('should extract external CSS references', async () => {
+    it("should extract external CSS references", async () => {
       const result = await service.analyze(HTML_WITH_EXTERNAL_CSS);
 
       expect(result.success).toBe(true);
@@ -2057,27 +2057,27 @@ describe('LayoutAnalyzerService Integration', () => {
       expect(result.cssSnippet).toContain('@import url("https://cdn.example.com/bootstrap.css")');
     });
 
-    it('should extract combined CSS (style tags + external, NOT inline)', async () => {
+    it("should extract combined CSS (style tags + external, NOT inline)", async () => {
       const result = await service.analyze(HTML_WITH_COMBINED_CSS);
 
       expect(result.success).toBe(true);
       expect(result.cssSnippet).toBeDefined();
       // Should have style tags and external CSS, but NOT inline styles
       // インラインスタイルはセレクタなしのCSS宣言となり無効なため、cssSnippetには含めない
-      expect(result.cssSnippet).toContain('.container { max-width: 1200px; }'); // <style>
-      expect(result.cssSnippet).not.toContain('padding: 20px;'); // inline styles should NOT be in cssSnippet
+      expect(result.cssSnippet).toContain(".container { max-width: 1200px; }"); // <style>
+      expect(result.cssSnippet).not.toContain("padding: 20px;"); // inline styles should NOT be in cssSnippet
       expect(result.cssSnippet).toContain('@import url("/app.css")'); // external
     });
 
-    it('should return empty string for HTML without CSS', async () => {
+    it("should return empty string for HTML without CSS", async () => {
       const result = await service.analyze(MINIMAL_HTML);
 
       expect(result.success).toBe(true);
       expect(result.cssSnippet).toBeDefined();
-      expect(result.cssSnippet).toBe('');
+      expect(result.cssSnippet).toBe("");
     });
 
-    it('should handle HTML with existing style/grid/typography tests', async () => {
+    it("should handle HTML with existing style/grid/typography tests", async () => {
       const result = await service.analyze(HTML_WITH_COLORS);
 
       expect(result.success).toBe(true);

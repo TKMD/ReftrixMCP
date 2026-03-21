@@ -13,11 +13,8 @@
  * @module tools/page/handlers/video-handler
  */
 
-import { logger, isDevelopment } from '../../../utils/logger';
-import {
-  executeFrameCapture,
-  getFrameImageAnalysisService,
-} from '../../motion/detect.tool';
+import { logger, isDevelopment } from "../../../utils/logger";
+import { executeFrameCapture, getFrameImageAnalysisService } from "../../motion/detect.tool";
 import type {
   FrameCaptureOptions,
   FrameAnalysisOptions,
@@ -25,7 +22,7 @@ import type {
   FrameCaptureResult,
   FrameAnalysisResult,
   VideoModeResult,
-} from './types';
+} from "./types";
 
 // Re-export types for backward compatibility
 export type {
@@ -45,9 +42,9 @@ export type {
 const FRAME_CAPTURE_DEFAULTS = {
   SCROLL_PX_PER_FRAME: 15, // Reftrix standard
   FRAME_INTERVAL_MS: 33, // 30fps equivalent
-  OUTPUT_DIR: '/tmp/reftrix-frames/',
-  OUTPUT_FORMAT: 'png' as const,
-  FILENAME_PATTERN: 'frame-{0000}.png',
+  OUTPUT_DIR: "/tmp/reftrix-frames/",
+  OUTPUT_FORMAT: "png" as const,
+  FILENAME_PATTERN: "frame-{0000}.png",
 } as const;
 
 /** Frame Analysisデフォルト設定 */
@@ -84,13 +81,13 @@ export async function executeVideoMode(
 
   if (!enableFrameCapture) {
     if (isDevelopment()) {
-      logger.info('[video-handler] Frame capture disabled, skipping video mode');
+      logger.info("[video-handler] Frame capture disabled, skipping video mode");
     }
     return result;
   }
 
   if (isDevelopment()) {
-    logger.info('[video-handler] Starting frame capture (video mode)', {
+    logger.info("[video-handler] Starting frame capture (video mode)", {
       url,
       options: options?.frame_capture_options,
     });
@@ -98,11 +95,14 @@ export async function executeVideoMode(
 
   try {
     // Frame Capture実行
-    const captureResult = await executeFrameCaptureWithDefaults(url, options?.frame_capture_options);
+    const captureResult = await executeFrameCaptureWithDefaults(
+      url,
+      options?.frame_capture_options
+    );
     result.frame_capture = captureResult;
 
     if (isDevelopment()) {
-      logger.info('[video-handler] Frame capture completed', {
+      logger.info("[video-handler] Frame capture completed", {
         total_frames: captureResult.total_frames,
         duration_ms: captureResult.duration_ms,
         output_dir: captureResult.output_dir,
@@ -127,11 +127,11 @@ export async function executeVideoMode(
     }
   } catch (frameCaptureErr) {
     if (isDevelopment()) {
-      logger.error('[video-handler] Frame capture failed', { error: frameCaptureErr });
+      logger.error("[video-handler] Frame capture failed", { error: frameCaptureErr });
     }
     result.frame_capture_error = {
-      code: 'FRAME_CAPTURE_ERROR',
-      message: frameCaptureErr instanceof Error ? frameCaptureErr.message : 'Frame capture failed',
+      code: "FRAME_CAPTURE_ERROR",
+      message: frameCaptureErr instanceof Error ? frameCaptureErr.message : "Frame capture failed",
     };
   }
 
@@ -185,18 +185,21 @@ async function executeFrameAnalysis(
   frameDir: string,
   options?: FrameAnalysisOptions,
   capturedTotalFrames?: number // キャプチャされたフレーム数（古いフレームとの混在防止）
-): Promise<{ frame_analysis?: FrameAnalysisResult; frame_analysis_error?: { code: string; message: string } }> {
+): Promise<{
+  frame_analysis?: FrameAnalysisResult;
+  frame_analysis_error?: { code: string; message: string };
+}> {
   const frameAnalysisStartTime = Date.now();
   const frameAnalysisService = getFrameImageAnalysisService();
 
   if (!frameAnalysisService) {
     if (isDevelopment()) {
-      logger.warn('[video-handler] Frame image analysis service not configured');
+      logger.warn("[video-handler] Frame image analysis service not configured");
     }
     return {
       frame_analysis_error: {
-        code: 'FRAME_ANALYSIS_UNAVAILABLE',
-        message: 'Frame image analysis service factory not configured',
+        code: "FRAME_ANALYSIS_UNAVAILABLE",
+        message: "Frame image analysis service factory not configured",
       },
     };
   }
@@ -204,12 +207,12 @@ async function executeFrameAnalysis(
   try {
     if (!frameAnalysisService.isAvailable()) {
       if (isDevelopment()) {
-        logger.warn('[video-handler] Frame image analysis service not available');
+        logger.warn("[video-handler] Frame image analysis service not available");
       }
       return {
         frame_analysis_error: {
-          code: 'FRAME_ANALYSIS_UNAVAILABLE',
-          message: 'Frame image analysis service is not available',
+          code: "FRAME_ANALYSIS_UNAVAILABLE",
+          message: "Frame image analysis service is not available",
         },
       };
     }
@@ -228,7 +231,8 @@ async function executeFrameAnalysis(
     });
 
     // FrameImageAnalysisOutputをFrameAnalysisResult形式に変換
-    const avgDiffValue = parseFloat(analysisResult.statistics.averageDiffPercentage.replace('%', '')) / 100;
+    const avgDiffValue =
+      parseFloat(analysisResult.statistics.averageDiffPercentage.replace("%", "")) / 100;
     const totalLayoutShiftScore = analysisResult.layoutShifts.reduce((sum, ls) => {
       return sum + parseFloat(ls.impactFraction);
     }, 0);
@@ -243,8 +247,9 @@ async function executeFrameAnalysis(
             magnitude: parseFloat(mv.magnitude),
           }));
         return {
-          frame_index: parseInt(zone.frameStart.replace('frame-', '').replace('.png', ''), 10) || index,
-          diff_percentage: parseFloat(zone.avgDiff.replace('%', '')) / 100,
+          frame_index:
+            parseInt(zone.frameStart.replace("frame-", "").replace(".png", ""), 10) || index,
+          diff_percentage: parseFloat(zone.avgDiff.replace("%", "")) / 100,
           // motion_vectors は存在する場合のみ含める
           ...(motionVectors.length > 0 ? { motion_vectors: motionVectors } : {}),
         };
@@ -254,23 +259,23 @@ async function executeFrameAnalysis(
           parseFloat(
             analysisResult.animationZones
               .reduce((max, z) => {
-                const peakVal = parseFloat(z.peakDiff.replace('%', ''));
+                const peakVal = parseFloat(z.peakDiff.replace("%", ""));
                 return peakVal > parseFloat(max) ? z.peakDiff : max;
-              }, '0%')
-              .replace('%', '')
+              }, "0%")
+              .replace("%", "")
           ) / 100,
         avg_diff: avgDiffValue,
         total_layout_shifts: analysisResult.statistics.layoutShiftCount,
         cls_score: totalLayoutShiftScore,
         significant_change_frames: analysisResult.animationZones.map(
-          (z) => parseInt(z.frameStart.replace('frame-', '').replace('.png', ''), 10) || 0
+          (z) => parseInt(z.frameStart.replace("frame-", "").replace(".png", ""), 10) || 0
         ),
         processing_time_ms: Date.now() - frameAnalysisStartTime,
       },
     };
 
     if (isDevelopment()) {
-      logger.info('[video-handler] Frame image analysis completed', {
+      logger.info("[video-handler] Frame image analysis completed", {
         totalFrames: analysisResult.metadata.totalFrames,
         analyzedPairs: analysisResult.metadata.analyzedPairs,
         layoutShiftCount: analysisResult.statistics.layoutShiftCount,
@@ -281,12 +286,13 @@ async function executeFrameAnalysis(
     return { frame_analysis: frameAnalysis };
   } catch (frameAnalysisErr) {
     if (isDevelopment()) {
-      logger.error('[video-handler] Frame image analysis failed', { error: frameAnalysisErr });
+      logger.error("[video-handler] Frame image analysis failed", { error: frameAnalysisErr });
     }
     return {
       frame_analysis_error: {
-        code: 'FRAME_ANALYSIS_ERROR',
-        message: frameAnalysisErr instanceof Error ? frameAnalysisErr.message : 'Frame analysis failed',
+        code: "FRAME_ANALYSIS_ERROR",
+        message:
+          frameAnalysisErr instanceof Error ? frameAnalysisErr.message : "Frame analysis failed",
       },
     };
   }

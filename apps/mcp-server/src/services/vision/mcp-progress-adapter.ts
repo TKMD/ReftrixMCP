@@ -17,8 +17,8 @@
  * @see apps/mcp-server/src/services/vision/progress-reporter.ts
  */
 
-import type { ProgressEvent, ProgressCallback } from './progress-reporter.js';
-import { logger } from '../../utils/logger';
+import type { ProgressEvent, ProgressCallback } from "./progress-reporter.js";
+import { logger } from "../../utils/logger";
 
 // =============================================================================
 // 型定義
@@ -30,7 +30,7 @@ import { logger } from '../../utils/logger';
  * MCP SDK の ProgressNotificationSchema に準拠
  */
 export interface MCPProgressNotification {
-  method: 'notifications/progress';
+  method: "notifications/progress";
   params: {
     /** クライアントから提供された進捗トークン */
     progressToken: string | number;
@@ -96,10 +96,10 @@ export class MCPProgressAdapter {
    */
   constructor(options: MCPProgressOptions) {
     if (options.progressToken === undefined) {
-      throw new Error('progressToken is required');
+      throw new Error("progressToken is required");
     }
     if (options.sendNotification === undefined) {
-      throw new Error('sendNotification is required');
+      throw new Error("sendNotification is required");
     }
 
     this.progressToken = options.progressToken;
@@ -139,7 +139,7 @@ export class MCPProgressAdapter {
       const message = this.buildMessage(event);
 
       const notification: MCPProgressNotification = {
-        method: 'notifications/progress',
+        method: "notifications/progress",
         params: {
           progressToken: this.progressToken,
           progress: clampedProgress,
@@ -156,7 +156,7 @@ export class MCPProgressAdapter {
     } catch (error) {
       // Graceful Degradation: 進捗送信失敗はエラーとして扱わない
       if (this.enableLogging) {
-        console.warn('[MCPProgressAdapter] Failed to send progress notification:', error);
+        console.warn("[MCPProgressAdapter] Failed to send progress notification:", error);
       }
     }
   }
@@ -205,9 +205,7 @@ export class MCPProgressAdapter {
  * });
  * ```
  */
-export function createMCPProgressCallback(
-  options: MCPProgressOptions
-): ProgressCallback | null {
+export function createMCPProgressCallback(options: MCPProgressOptions): ProgressCallback | null {
   // progressToken または sendNotification が未定義の場合は null を返す
   if (options.progressToken === undefined || options.sendNotification === undefined) {
     return null;

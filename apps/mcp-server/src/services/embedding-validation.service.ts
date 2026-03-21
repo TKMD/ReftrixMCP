@@ -29,10 +29,10 @@ export const EXPECTED_DIMENSIONS = 768;
  * Embedding検証エラーコード
  */
 export type EmbeddingValidationErrorCode =
-  | 'INVALID_VECTOR'           // ベクトルがnull/undefinedまたは配列でない
-  | 'INVALID_DIMENSION'        // 次元数が不正
-  | 'INVALID_VECTOR_TYPE'      // 要素が数値型でない
-  | 'INVALID_VECTOR_ELEMENT';  // 要素がNaN/Infinity
+  | "INVALID_VECTOR" // ベクトルがnull/undefinedまたは配列でない
+  | "INVALID_DIMENSION" // 次元数が不正
+  | "INVALID_VECTOR_TYPE" // 要素が数値型でない
+  | "INVALID_VECTOR_ELEMENT"; // 要素がNaN/Infinity
 
 // =====================================================
 // 型定義
@@ -75,7 +75,7 @@ export class EmbeddingValidationError extends Error {
 
   constructor(code: EmbeddingValidationErrorCode, message: string, index?: number) {
     super(message);
-    this.name = 'EmbeddingValidationError';
+    this.name = "EmbeddingValidationError";
     this.code = code;
     this.index = index;
 
@@ -113,8 +113,8 @@ export function validateEmbeddingVector(
     return {
       isValid: false,
       error: {
-        code: 'INVALID_VECTOR',
-        message: 'Vector is null or undefined',
+        code: "INVALID_VECTOR",
+        message: "Vector is null or undefined",
       },
     };
   }
@@ -124,8 +124,8 @@ export function validateEmbeddingVector(
     return {
       isValid: false,
       error: {
-        code: 'INVALID_VECTOR',
-        message: 'Vector is not an array',
+        code: "INVALID_VECTOR",
+        message: "Vector is not an array",
       },
     };
   }
@@ -139,7 +139,7 @@ export function validateEmbeddingVector(
     return {
       isValid: false,
       error: {
-        code: 'INVALID_DIMENSION',
+        code: "INVALID_DIMENSION",
         message: `Expected ${EXPECTED_DIMENSIONS} dimensions, got 0 (empty vector)`,
       },
     };
@@ -149,7 +149,7 @@ export function validateEmbeddingVector(
     return {
       isValid: false,
       error: {
-        code: 'INVALID_DIMENSION',
+        code: "INVALID_DIMENSION",
         message: `Expected ${EXPECTED_DIMENSIONS} dimensions, got ${vectorLength}`,
       },
     };
@@ -160,11 +160,11 @@ export function validateEmbeddingVector(
     const element = vector[i];
 
     // 型チェック: number型でない場合
-    if (typeof element !== 'number') {
+    if (typeof element !== "number") {
       return {
         isValid: false,
         error: {
-          code: 'INVALID_VECTOR_TYPE',
+          code: "INVALID_VECTOR_TYPE",
           message: `Element at index ${i} is not a number (type: ${typeof element})`,
           index: i,
         },
@@ -174,14 +174,14 @@ export function validateEmbeddingVector(
     // NaN/Infinityチェック
     if (!Number.isFinite(element)) {
       const valueDescription = Number.isNaN(element)
-        ? 'NaN'
+        ? "NaN"
         : element > 0
-          ? 'Infinity'
-          : '-Infinity';
+          ? "Infinity"
+          : "-Infinity";
       return {
         isValid: false,
         error: {
-          code: 'INVALID_VECTOR_ELEMENT',
+          code: "INVALID_VECTOR_ELEMENT",
           message: `Vector contains ${valueDescription} at index ${i}`,
           index: i,
         },

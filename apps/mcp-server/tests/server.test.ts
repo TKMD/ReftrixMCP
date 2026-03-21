@@ -5,11 +5,11 @@
  * MCP Server 初期化テスト
  * TDD Red フェーズ: サーバー基盤の初期化とライフサイクル管理のテスト
  */
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { Server } from '@modelcontextprotocol/sdk/server/index.js';
-import type { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import { Server } from "@modelcontextprotocol/sdk/server/index.js";
+import type { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 
-describe('MCP Server', () => {
+describe("MCP Server", () => {
   let server: Server;
 
   beforeEach(() => {
@@ -20,13 +20,13 @@ describe('MCP Server', () => {
     vi.clearAllMocks();
   });
 
-  describe('サーバーインスタンス作成', () => {
-    it('サーバーインスタンスが正常に作成できること', () => {
+  describe("サーバーインスタンス作成", () => {
+    it("サーバーインスタンスが正常に作成できること", () => {
       // Arrange & Act
       const server = new Server(
         {
-          name: 'reftrix-mcp-server',
-          version: '0.1.0',
+          name: "reftrix-mcp-server",
+          version: "0.1.0",
         },
         {
           capabilities: {
@@ -40,12 +40,12 @@ describe('MCP Server', () => {
       // TDD Red: この時点では実装がないため失敗する
     });
 
-    it('サーバー名が正しく設定されること', () => {
+    it("サーバー名が正しく設定されること", () => {
       // Arrange & Act
       const server = new Server(
         {
-          name: 'reftrix-mcp-server',
-          version: '0.1.0',
+          name: "reftrix-mcp-server",
+          version: "0.1.0",
         },
         {
           capabilities: {
@@ -60,14 +60,14 @@ describe('MCP Server', () => {
       // TDD Red: 実装がないため失敗
     });
 
-    it('バージョン情報が正しく設定されること', () => {
+    it("バージョン情報が正しく設定されること", () => {
       // Arrange
-      const expectedVersion = '0.1.0';
+      const expectedVersion = "0.1.0";
 
       // Act
       const server = new Server(
         {
-          name: 'reftrix-mcp-server',
+          name: "reftrix-mcp-server",
           version: expectedVersion,
         },
         {
@@ -83,13 +83,13 @@ describe('MCP Server', () => {
     });
   });
 
-  describe('capabilities設定', () => {
-    it('tools capabilityが設定されていること', () => {
+  describe("capabilities設定", () => {
+    it("tools capabilityが設定されていること", () => {
       // Arrange & Act
       const server = new Server(
         {
-          name: 'reftrix-mcp-server',
-          version: '0.1.0',
+          name: "reftrix-mcp-server",
+          version: "0.1.0",
         },
         {
           capabilities: {
@@ -104,12 +104,12 @@ describe('MCP Server', () => {
       // TDD Red: 検証ロジックがないため失敗
     });
 
-    it('resources capabilityは設定されていないこと', () => {
+    it("resources capabilityは設定されていないこと", () => {
       // Arrange & Act
       const server = new Server(
         {
-          name: 'reftrix-mcp-server',
-          version: '0.1.0',
+          name: "reftrix-mcp-server",
+          version: "0.1.0",
         },
         {
           capabilities: {
@@ -124,12 +124,12 @@ describe('MCP Server', () => {
       // TDD Red: 実装がないため失敗
     });
 
-    it('prompts capabilityは設定されていないこと', () => {
+    it("prompts capabilityは設定されていないこと", () => {
       // Arrange & Act
       const server = new Server(
         {
-          name: 'reftrix-mcp-server',
-          version: '0.1.0',
+          name: "reftrix-mcp-server",
+          version: "0.1.0",
         },
         {
           capabilities: {
@@ -145,13 +145,13 @@ describe('MCP Server', () => {
     });
   });
 
-  describe('サーバーライフサイクル', () => {
-    it('サーバーが正常に起動できること', async () => {
+  describe("サーバーライフサイクル", () => {
+    it("サーバーが正常に起動できること", async () => {
       // Arrange
       const server = new Server(
         {
-          name: 'reftrix-mcp-server',
-          version: '0.1.0',
+          name: "reftrix-mcp-server",
+          version: "0.1.0",
         },
         {
           capabilities: {
@@ -168,12 +168,12 @@ describe('MCP Server', () => {
       // TDD Red: connect実装がないため失敗
     });
 
-    it('サーバーが正常に終了できること', async () => {
+    it("サーバーが正常に終了できること", async () => {
       // Arrange
       const server = new Server(
         {
-          name: 'reftrix-mcp-server',
-          version: '0.1.0',
+          name: "reftrix-mcp-server",
+          version: "0.1.0",
         },
         {
           capabilities: {
@@ -185,15 +185,15 @@ describe('MCP Server', () => {
       // Act & Assert
       // サーバーのcloseメソッドが存在し、呼び出し可能であることを確認
       expect(server.close).toBeDefined();
-      expect(typeof server.close).toBe('function');
+      expect(typeof server.close).toBe("function");
     });
 
-    it('起動失敗時にエラーがスローされること', async () => {
+    it("起動失敗時にエラーがスローされること", async () => {
       // Arrange
       const server = new Server(
         {
-          name: 'reftrix-mcp-server',
-          version: '0.1.0',
+          name: "reftrix-mcp-server",
+          version: "0.1.0",
         },
         {
           capabilities: {
@@ -210,19 +210,19 @@ describe('MCP Server', () => {
     });
   });
 
-  describe('開発環境ログ出力', () => {
-    it('起動時にコンソールログが出力されること', async () => {
+  describe("開発環境ログ出力", () => {
+    it("起動時にコンソールログが出力されること", async () => {
       // Arrange
       const originalEnv = process.env.NODE_ENV;
-      process.env.NODE_ENV = 'development';
-      const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+      process.env.NODE_ENV = "development";
+      const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 
       // Act - 開発環境ではサーバー作成時にログ出力
-      console.log('[MCP] Creating server: reftrix-mcp-server v0.1.0');
+      console.log("[MCP] Creating server: reftrix-mcp-server v0.1.0");
       const server = new Server(
         {
-          name: 'reftrix-mcp-server',
-          version: '0.1.0',
+          name: "reftrix-mcp-server",
+          version: "0.1.0",
         },
         {
           capabilities: {
@@ -239,17 +239,17 @@ describe('MCP Server', () => {
       process.env.NODE_ENV = originalEnv;
     });
 
-    it('本番環境ではコンソールログが抑制されること', async () => {
+    it("本番環境ではコンソールログが抑制されること", async () => {
       // Arrange
       const originalEnv = process.env.NODE_ENV;
-      process.env.NODE_ENV = 'production';
-      const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+      process.env.NODE_ENV = "production";
+      const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 
       // Act
       const server = new Server(
         {
-          name: 'reftrix-mcp-server',
-          version: '0.1.0',
+          name: "reftrix-mcp-server",
+          version: "0.1.0",
         },
         {
           capabilities: {

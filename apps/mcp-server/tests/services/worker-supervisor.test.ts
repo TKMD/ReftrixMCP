@@ -18,9 +18,9 @@
  * @module tests/services/worker-supervisor
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import type { ChildProcess } from 'node:child_process';
-import { EventEmitter } from 'node:events';
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import type { ChildProcess } from "node:child_process";
+import { EventEmitter } from "node:events";
 
 // ============================================================================
 // モック設定
@@ -28,7 +28,7 @@ import { EventEmitter } from 'node:events';
 
 // child_process.fork をモック
 const mockFork = vi.fn();
-vi.mock('node:child_process', () => ({
+vi.mock("node:child_process", () => ({
   fork: (...args: unknown[]) => mockFork(...args),
 }));
 
@@ -36,7 +36,7 @@ vi.mock('node:child_process', () => ({
 // モック不要: path.resolve は実際の動作を検証する
 
 // logger をモック
-vi.mock('../../src/utils/logger', () => ({
+vi.mock("../../src/utils/logger", () => ({
   logger: {
     info: vi.fn(),
     warn: vi.fn(),
@@ -68,8 +68,8 @@ function createMockChildProcess(pid: number = 12345): ChildProcess & EventEmitte
     exitCode: null as number | null,
     signalCode: null as NodeJS.Signals | null,
     spawnargs: [] as string[],
-    spawnfile: '',
-    stdio: [null, null, null, null, null] as ChildProcess['stdio'],
+    spawnfile: "",
+    stdio: [null, null, null, null, null] as ChildProcess["stdio"],
     stdin: null,
     stdout: null,
     stderr: null,
@@ -107,7 +107,7 @@ interface WorkerSupervisorOptions {
 /**
  * WorkerSupervisorの状態
  */
-type WorkerState = 'idle' | 'running' | 'restarting' | 'stopped' | 'crashed';
+type WorkerState = "idle" | "running" | "restarting" | "stopped" | "crashed";
 
 /**
  * WorkerSupervisorのインターフェース
@@ -133,7 +133,7 @@ interface WorkerSupervisor {
 // テストスイート
 // ============================================================================
 
-describe('WorkerSupervisor', () => {
+describe("WorkerSupervisor", () => {
   let mockChild: ChildProcess & EventEmitter;
 
   beforeEach(() => {
@@ -153,13 +153,13 @@ describe('WorkerSupervisor', () => {
   // ensureWorkerRunning
   // ==========================================================================
 
-  describe('ensureWorkerRunning', () => {
-    it('ワーカー未起動時に子プロセスをforkする', async () => {
+  describe("ensureWorkerRunning", () => {
+    it("ワーカー未起動時に子プロセスをforkする", async () => {
       // Arrange
-      const { WorkerSupervisor } = await import('../../src/services/worker-supervisor.service');
+      const { WorkerSupervisor } = await import("../../src/services/worker-supervisor.service");
 
       const supervisor = new WorkerSupervisor({
-        workerScript: './dist/scripts/start-workers.js',
+        workerScript: "./dist/scripts/start-workers.js",
         maxJobsBeforeRestart: 3,
         maxRestartAttempts: 5,
         shutdownTimeoutMs: 10000,
@@ -171,22 +171,22 @@ describe('WorkerSupervisor', () => {
       // Assert
       expect(mockFork).toHaveBeenCalledTimes(1);
       expect(mockFork).toHaveBeenCalledWith(
-        './dist/scripts/start-workers.js',
+        "./dist/scripts/start-workers.js",
         expect.any(Array),
         expect.objectContaining({
           stdio: expect.any(Array),
           cwd: expect.any(String),
         })
       );
-      expect(supervisor.getState()).toBe('running');
+      expect(supervisor.getState()).toBe("running");
     });
 
-    it('既に起動中なら何もしない', async () => {
+    it("既に起動中なら何もしない", async () => {
       // Arrange
-      const { WorkerSupervisor } = await import('../../src/services/worker-supervisor.service');
+      const { WorkerSupervisor } = await import("../../src/services/worker-supervisor.service");
 
       const supervisor = new WorkerSupervisor({
-        workerScript: './dist/scripts/start-workers.js',
+        workerScript: "./dist/scripts/start-workers.js",
         maxJobsBeforeRestart: 3,
         maxRestartAttempts: 5,
         shutdownTimeoutMs: 10000,
@@ -198,15 +198,15 @@ describe('WorkerSupervisor', () => {
 
       // Assert: forkは1回のみ
       expect(mockFork).toHaveBeenCalledTimes(1);
-      expect(supervisor.getState()).toBe('running');
+      expect(supervisor.getState()).toBe("running");
     });
 
-    it('ワーカーがクラッシュ済みの場合は再起動する', async () => {
+    it("ワーカーがクラッシュ済みの場合は再起動する", async () => {
       // Arrange
-      const { WorkerSupervisor } = await import('../../src/services/worker-supervisor.service');
+      const { WorkerSupervisor } = await import("../../src/services/worker-supervisor.service");
 
       const supervisor = new WorkerSupervisor({
-        workerScript: './dist/scripts/start-workers.js',
+        workerScript: "./dist/scripts/start-workers.js",
         maxJobsBeforeRestart: 3,
         maxRestartAttempts: 5,
         shutdownTimeoutMs: 10000,
@@ -221,7 +221,7 @@ describe('WorkerSupervisor', () => {
       mockFork.mockReturnValue(newMockChild);
 
       // ワーカーがクラッシュをシミュレート（exit code 134 = SIGABRT/OOM）
-      mockChild.emit('exit', 134, null);
+      mockChild.emit("exit", 134, null);
 
       // 再起動の遅延を消化
       await vi.advanceTimersByTimeAsync(1000);
@@ -234,14 +234,14 @@ describe('WorkerSupervisor', () => {
       expect(mockFork.mock.calls.length).toBeGreaterThanOrEqual(2);
     });
 
-    it('workerArgsとworkerEnvがforkに渡される', async () => {
+    it("workerArgsとworkerEnvがforkに渡される", async () => {
       // Arrange
-      const { WorkerSupervisor } = await import('../../src/services/worker-supervisor.service');
+      const { WorkerSupervisor } = await import("../../src/services/worker-supervisor.service");
 
       const supervisor = new WorkerSupervisor({
-        workerScript: './dist/scripts/start-workers.js',
-        workerArgs: ['--page'],
-        workerEnv: { NODE_ENV: 'production', WORKER_MEMORY_CRITICAL_MB: '14336' },
+        workerScript: "./dist/scripts/start-workers.js",
+        workerArgs: ["--page"],
+        workerEnv: { NODE_ENV: "production", WORKER_MEMORY_CRITICAL_MB: "14336" },
         maxJobsBeforeRestart: 3,
         maxRestartAttempts: 5,
         shutdownTimeoutMs: 10000,
@@ -252,12 +252,12 @@ describe('WorkerSupervisor', () => {
 
       // Assert
       expect(mockFork).toHaveBeenCalledWith(
-        './dist/scripts/start-workers.js',
-        ['--page'],
+        "./dist/scripts/start-workers.js",
+        ["--page"],
         expect.objectContaining({
           env: expect.objectContaining({
-            NODE_ENV: 'production',
-            WORKER_MEMORY_CRITICAL_MB: '14336',
+            NODE_ENV: "production",
+            WORKER_MEMORY_CRITICAL_MB: "14336",
           }),
         })
       );
@@ -268,13 +268,13 @@ describe('WorkerSupervisor', () => {
   // ジョブカウントベース再起動
   // ==========================================================================
 
-  describe('ジョブカウントベース再起動', () => {
-    it('N件完了後にワーカーをrestartする', async () => {
+  describe("ジョブカウントベース再起動", () => {
+    it("N件完了後にワーカーをrestartする", async () => {
       // Arrange
-      const { WorkerSupervisor } = await import('../../src/services/worker-supervisor.service');
+      const { WorkerSupervisor } = await import("../../src/services/worker-supervisor.service");
 
       const supervisor = new WorkerSupervisor({
-        workerScript: './dist/scripts/start-workers.js',
+        workerScript: "./dist/scripts/start-workers.js",
         maxJobsBeforeRestart: 3,
         maxRestartAttempts: 5,
         shutdownTimeoutMs: 10000,
@@ -294,14 +294,14 @@ describe('WorkerSupervisor', () => {
 
       // P1-E: initiateRestart now uses 3-Phase Shutdown Protocol
       // Phase 1: IPC 'shutdown' メッセージが送信される
-      expect(mockChild.send).toHaveBeenCalledWith({ type: 'shutdown' });
+      expect(mockChild.send).toHaveBeenCalledWith({ type: "shutdown" });
 
       // Phase 2: 2秒後にSIGTERMが送信される
       await vi.advanceTimersByTimeAsync(2000);
-      expect(mockChild.kill).toHaveBeenCalledWith('SIGTERM');
+      expect(mockChild.kill).toHaveBeenCalledWith("SIGTERM");
 
       // 子プロセスが正常終了をシミュレート
-      mockChild.emit('exit', 0, null);
+      mockChild.emit("exit", 0, null);
 
       // 再起動の遅延を消化
       await vi.advanceTimersByTimeAsync(1000);
@@ -310,12 +310,12 @@ describe('WorkerSupervisor', () => {
       expect(mockFork.mock.calls.length).toBeGreaterThanOrEqual(2);
     });
 
-    it('N件未満なら再起動しない', async () => {
+    it("N件未満なら再起動しない", async () => {
       // Arrange
-      const { WorkerSupervisor } = await import('../../src/services/worker-supervisor.service');
+      const { WorkerSupervisor } = await import("../../src/services/worker-supervisor.service");
 
       const supervisor = new WorkerSupervisor({
-        workerScript: './dist/scripts/start-workers.js',
+        workerScript: "./dist/scripts/start-workers.js",
         maxJobsBeforeRestart: 3,
         maxRestartAttempts: 5,
         shutdownTimeoutMs: 10000,
@@ -333,12 +333,12 @@ describe('WorkerSupervisor', () => {
       expect(supervisor.getCompletedJobCount()).toBe(2);
     });
 
-    it('restart後にジョブカウントがリセットされる', async () => {
+    it("restart後にジョブカウントがリセットされる", async () => {
       // Arrange
-      const { WorkerSupervisor } = await import('../../src/services/worker-supervisor.service');
+      const { WorkerSupervisor } = await import("../../src/services/worker-supervisor.service");
 
       const supervisor = new WorkerSupervisor({
-        workerScript: './dist/scripts/start-workers.js',
+        workerScript: "./dist/scripts/start-workers.js",
         maxJobsBeforeRestart: 2,
         maxRestartAttempts: 5,
         shutdownTimeoutMs: 10000,
@@ -357,7 +357,7 @@ describe('WorkerSupervisor', () => {
       await vi.advanceTimersByTimeAsync(2000);
 
       // 旧ワーカー終了
-      mockChild.emit('exit', 0, null);
+      mockChild.emit("exit", 0, null);
       await vi.advanceTimersByTimeAsync(1000);
 
       // Assert: ジョブカウントがリセットされている
@@ -369,13 +369,13 @@ describe('WorkerSupervisor', () => {
   // クラッシュ時の自動再起動
   // ==========================================================================
 
-  describe('クラッシュ時の自動再起動', () => {
-    it('exit code 134 (OOM/SIGABRT) で自動再起動する', async () => {
+  describe("クラッシュ時の自動再起動", () => {
+    it("exit code 134 (OOM/SIGABRT) で自動再起動する", async () => {
       // Arrange
-      const { WorkerSupervisor } = await import('../../src/services/worker-supervisor.service');
+      const { WorkerSupervisor } = await import("../../src/services/worker-supervisor.service");
 
       const supervisor = new WorkerSupervisor({
-        workerScript: './dist/scripts/start-workers.js',
+        workerScript: "./dist/scripts/start-workers.js",
         maxJobsBeforeRestart: 10,
         maxRestartAttempts: 5,
         shutdownTimeoutMs: 10000,
@@ -388,7 +388,7 @@ describe('WorkerSupervisor', () => {
       mockFork.mockReturnValue(newMockChild);
 
       // Act: OOMクラッシュをシミュレート
-      mockChild.emit('exit', 134, null);
+      mockChild.emit("exit", 134, null);
 
       // 再起動遅延を消化
       await vi.advanceTimersByTimeAsync(1000);
@@ -398,12 +398,12 @@ describe('WorkerSupervisor', () => {
       expect(supervisor.getRestartCount()).toBe(1);
     });
 
-    it('exit code 0 (graceful) でも再起動する', async () => {
+    it("exit code 0 (graceful) でも再起動する", async () => {
       // Arrange
-      const { WorkerSupervisor } = await import('../../src/services/worker-supervisor.service');
+      const { WorkerSupervisor } = await import("../../src/services/worker-supervisor.service");
 
       const supervisor = new WorkerSupervisor({
-        workerScript: './dist/scripts/start-workers.js',
+        workerScript: "./dist/scripts/start-workers.js",
         maxJobsBeforeRestart: 10,
         maxRestartAttempts: 5,
         shutdownTimeoutMs: 10000,
@@ -416,7 +416,7 @@ describe('WorkerSupervisor', () => {
       mockFork.mockReturnValue(newMockChild);
 
       // Act: graceful exitをシミュレート（ワーカーが自発的にメモリ閾値で終了）
-      mockChild.emit('exit', 0, null);
+      mockChild.emit("exit", 0, null);
 
       // 再起動遅延を消化
       await vi.advanceTimersByTimeAsync(1000);
@@ -425,12 +425,12 @@ describe('WorkerSupervisor', () => {
       expect(mockFork.mock.calls.length).toBeGreaterThanOrEqual(2);
     });
 
-    it('maxRestartAttempts超過で再起動を停止する', async () => {
+    it("maxRestartAttempts超過で再起動を停止する", async () => {
       // Arrange
-      const { WorkerSupervisor } = await import('../../src/services/worker-supervisor.service');
+      const { WorkerSupervisor } = await import("../../src/services/worker-supervisor.service");
 
       const supervisor = new WorkerSupervisor({
-        workerScript: './dist/scripts/start-workers.js',
+        workerScript: "./dist/scripts/start-workers.js",
         maxJobsBeforeRestart: 10,
         maxRestartAttempts: 2, // 最大2回まで再起動
         shutdownTimeoutMs: 10000,
@@ -441,32 +441,32 @@ describe('WorkerSupervisor', () => {
       // 1回目のクラッシュ → 再起動
       const child2 = createMockChildProcess(12346);
       mockFork.mockReturnValue(child2);
-      mockChild.emit('exit', 134, null);
+      mockChild.emit("exit", 134, null);
       await vi.advanceTimersByTimeAsync(1000);
       expect(supervisor.getRestartCount()).toBe(1);
 
       // 2回目のクラッシュ → 再起動
       const child3 = createMockChildProcess(12347);
       mockFork.mockReturnValue(child3);
-      child2.emit('exit', 134, null);
+      child2.emit("exit", 134, null);
       await vi.advanceTimersByTimeAsync(1000);
       expect(supervisor.getRestartCount()).toBe(2);
 
       // 3回目のクラッシュ → 再起動停止
-      child3.emit('exit', 134, null);
+      child3.emit("exit", 134, null);
       await vi.advanceTimersByTimeAsync(1000);
 
       // Assert: maxRestartAttempts(2)で停止、forkは3回まで（初回 + 2回再起動）
       expect(mockFork).toHaveBeenCalledTimes(3);
-      expect(supervisor.getState()).toBe('crashed');
+      expect(supervisor.getState()).toBe("crashed");
     });
 
-    it('crashed状態からensureWorkerRunningで自動リセットされる', async () => {
+    it("crashed状態からensureWorkerRunningで自動リセットされる", async () => {
       // Arrange
-      const { WorkerSupervisor } = await import('../../src/services/worker-supervisor.service');
+      const { WorkerSupervisor } = await import("../../src/services/worker-supervisor.service");
 
       const supervisor = new WorkerSupervisor({
-        workerScript: './dist/scripts/start-workers.js',
+        workerScript: "./dist/scripts/start-workers.js",
         maxJobsBeforeRestart: 10,
         maxRestartAttempts: 2, // 最大2回まで再起動
         shutdownTimeoutMs: 10000,
@@ -477,19 +477,19 @@ describe('WorkerSupervisor', () => {
       // 1回目のクラッシュ → 再起動
       const child2 = createMockChildProcess(12346);
       mockFork.mockReturnValue(child2);
-      mockChild.emit('exit', 134, null);
+      mockChild.emit("exit", 134, null);
       await vi.advanceTimersByTimeAsync(1000);
 
       // 2回目のクラッシュ → 再起動
       const child3 = createMockChildProcess(12347);
       mockFork.mockReturnValue(child3);
-      child2.emit('exit', 134, null);
+      child2.emit("exit", 134, null);
       await vi.advanceTimersByTimeAsync(1000);
 
       // 3回目のクラッシュ → crashed状態
-      child3.emit('exit', 134, null);
+      child3.emit("exit", 134, null);
       await vi.advanceTimersByTimeAsync(1000);
-      expect(supervisor.getState()).toBe('crashed');
+      expect(supervisor.getState()).toBe("crashed");
       expect(mockFork).toHaveBeenCalledTimes(3);
 
       // Act: crashed状態で新しいジョブ投入（ensureWorkerRunning呼び出し）
@@ -498,17 +498,17 @@ describe('WorkerSupervisor', () => {
       supervisor.ensureWorkerRunning();
 
       // Assert: crashed状態からリセットされ、新しいワーカーが起動
-      expect(supervisor.getState()).toBe('running');
+      expect(supervisor.getState()).toBe("running");
       expect(supervisor.getRestartCount()).toBe(0);
       expect(mockFork).toHaveBeenCalledTimes(4);
     });
 
-    it('crashed状態からのリセット後、再びmaxRestartAttemptsまで再起動できる', async () => {
+    it("crashed状態からのリセット後、再びmaxRestartAttemptsまで再起動できる", async () => {
       // Arrange
-      const { WorkerSupervisor } = await import('../../src/services/worker-supervisor.service');
+      const { WorkerSupervisor } = await import("../../src/services/worker-supervisor.service");
 
       const supervisor = new WorkerSupervisor({
-        workerScript: './dist/scripts/start-workers.js',
+        workerScript: "./dist/scripts/start-workers.js",
         maxJobsBeforeRestart: 10,
         maxRestartAttempts: 1, // 最大1回まで再起動
         shutdownTimeoutMs: 10000,
@@ -519,39 +519,39 @@ describe('WorkerSupervisor', () => {
       // 1回目のクラッシュ → 再起動
       const child2 = createMockChildProcess(12346);
       mockFork.mockReturnValue(child2);
-      mockChild.emit('exit', 134, null);
+      mockChild.emit("exit", 134, null);
       await vi.advanceTimersByTimeAsync(1000);
 
       // 2回目のクラッシュ → crashed状態
-      child2.emit('exit', 134, null);
+      child2.emit("exit", 134, null);
       await vi.advanceTimersByTimeAsync(1000);
-      expect(supervisor.getState()).toBe('crashed');
+      expect(supervisor.getState()).toBe("crashed");
 
       // Act: crashed状態からリセット
       const child3 = createMockChildProcess(12347);
       mockFork.mockReturnValue(child3);
       supervisor.ensureWorkerRunning();
-      expect(supervisor.getState()).toBe('running');
+      expect(supervisor.getState()).toBe("running");
       expect(supervisor.getRestartCount()).toBe(0);
 
       // リセット後、再び1回再起動できる
       const child4 = createMockChildProcess(12348);
       mockFork.mockReturnValue(child4);
-      child3.emit('exit', 134, null);
+      child3.emit("exit", 134, null);
       await vi.advanceTimersByTimeAsync(1000);
       expect(supervisor.getRestartCount()).toBe(1);
 
       // もう1回クラッシュ → 再びcrashed
-      child4.emit('exit', 134, null);
+      child4.emit("exit", 134, null);
       await vi.advanceTimersByTimeAsync(1000);
-      expect(supervisor.getState()).toBe('crashed');
+      expect(supervisor.getState()).toBe("crashed");
     });
 
-    it('計画的再起動では restartCount をリセットする', async () => {
-      const { WorkerSupervisor } = await import('../../src/services/worker-supervisor.service');
+    it("計画的再起動では restartCount をリセットする", async () => {
+      const { WorkerSupervisor } = await import("../../src/services/worker-supervisor.service");
 
       const supervisor = new WorkerSupervisor({
-        workerScript: './dist/scripts/start-workers.js',
+        workerScript: "./dist/scripts/start-workers.js",
         maxJobsBeforeRestart: 1,
         maxRestartAttempts: 5,
         shutdownTimeoutMs: 10000,
@@ -561,24 +561,24 @@ describe('WorkerSupervisor', () => {
 
       const child2 = createMockChildProcess(12346);
       mockFork.mockReturnValue(child2);
-      mockChild.emit('exit', 134, null);
+      mockChild.emit("exit", 134, null);
       await vi.advanceTimersByTimeAsync(1000);
       expect(supervisor.getRestartCount()).toBe(1);
 
       supervisor.notifyJobCompleted();
-      child2.emit('exit', 0, null);
+      child2.emit("exit", 0, null);
       await vi.advanceTimersByTimeAsync(1000);
 
       expect(supervisor.getRestartCount()).toBe(0);
-      expect(supervisor.getState()).toBe('running');
+      expect(supervisor.getState()).toBe("running");
     });
 
-    it('SIGNALによるクラッシュ(SIGKILL)でも自動再起動する', async () => {
+    it("SIGNALによるクラッシュ(SIGKILL)でも自動再起動する", async () => {
       // Arrange
-      const { WorkerSupervisor } = await import('../../src/services/worker-supervisor.service');
+      const { WorkerSupervisor } = await import("../../src/services/worker-supervisor.service");
 
       const supervisor = new WorkerSupervisor({
-        workerScript: './dist/scripts/start-workers.js',
+        workerScript: "./dist/scripts/start-workers.js",
         maxJobsBeforeRestart: 10,
         maxRestartAttempts: 5,
         shutdownTimeoutMs: 10000,
@@ -590,7 +590,7 @@ describe('WorkerSupervisor', () => {
       mockFork.mockReturnValue(newMockChild);
 
       // Act: SIGKILLでクラッシュ（OOMキラーなど）
-      mockChild.emit('exit', null, 'SIGKILL');
+      mockChild.emit("exit", null, "SIGKILL");
 
       await vi.advanceTimersByTimeAsync(1000);
 
@@ -603,13 +603,13 @@ describe('WorkerSupervisor', () => {
   // shutdown
   // ==========================================================================
 
-  describe('shutdown', () => {
-    it('graceful shutdownでSIGTERMを送信する', async () => {
+  describe("shutdown", () => {
+    it("graceful shutdownでSIGTERMを送信する", async () => {
       // Arrange
-      const { WorkerSupervisor } = await import('../../src/services/worker-supervisor.service');
+      const { WorkerSupervisor } = await import("../../src/services/worker-supervisor.service");
 
       const supervisor = new WorkerSupervisor({
-        workerScript: './dist/scripts/start-workers.js',
+        workerScript: "./dist/scripts/start-workers.js",
         maxJobsBeforeRestart: 10,
         maxRestartAttempts: 5,
         shutdownTimeoutMs: 5000,
@@ -620,8 +620,8 @@ describe('WorkerSupervisor', () => {
       // ワーカーがSIGTERM後に正常終了するようにシミュレート
       // Note: setTimeout(0) を使用（setImmediate は fake timer の advanceTimersByTimeAsync で発火しない）
       mockChild.kill = vi.fn().mockImplementation((signal?: string) => {
-        if (signal === 'SIGTERM') {
-          setTimeout(() => mockChild.emit('exit', 0, null), 0);
+        if (signal === "SIGTERM") {
+          setTimeout(() => mockChild.emit("exit", 0, null), 0);
         }
         return true;
       });
@@ -635,16 +635,16 @@ describe('WorkerSupervisor', () => {
       await shutdownPromise;
 
       // Assert
-      expect(mockChild.kill).toHaveBeenCalledWith('SIGTERM');
-      expect(supervisor.getState()).toBe('stopped');
+      expect(mockChild.kill).toHaveBeenCalledWith("SIGTERM");
+      expect(supervisor.getState()).toBe("stopped");
     });
 
-    it('タイムアウト後にSIGKILLを送信する', async () => {
+    it("タイムアウト後にSIGKILLを送信する", async () => {
       // Arrange
-      const { WorkerSupervisor } = await import('../../src/services/worker-supervisor.service');
+      const { WorkerSupervisor } = await import("../../src/services/worker-supervisor.service");
 
       const supervisor = new WorkerSupervisor({
-        workerScript: './dist/scripts/start-workers.js',
+        workerScript: "./dist/scripts/start-workers.js",
         maxJobsBeforeRestart: 10,
         maxRestartAttempts: 5,
         shutdownTimeoutMs: 3000, // 3秒タイムアウト
@@ -656,8 +656,8 @@ describe('WorkerSupervisor', () => {
       // SIGKILLで強制終了後にexitイベントが発火するようにモック
       // Note: setTimeout(0) を使用（setImmediate は fake timer の advanceTimersByTimeAsync で発火しない）
       mockChild.kill = vi.fn().mockImplementation((signal?: string) => {
-        if (signal === 'SIGKILL') {
-          setTimeout(() => mockChild.emit('exit', null, 'SIGKILL'), 0);
+        if (signal === "SIGKILL") {
+          setTimeout(() => mockChild.emit("exit", null, "SIGKILL"), 0);
         }
         return true;
       });
@@ -670,16 +670,16 @@ describe('WorkerSupervisor', () => {
       await shutdownPromise;
 
       // Assert: SIGTERMの後にSIGKILLが送信される
-      expect(mockChild.kill).toHaveBeenCalledWith('SIGTERM');
-      expect(mockChild.kill).toHaveBeenCalledWith('SIGKILL');
+      expect(mockChild.kill).toHaveBeenCalledWith("SIGTERM");
+      expect(mockChild.kill).toHaveBeenCalledWith("SIGKILL");
     });
 
-    it('ワーカー未起動時のshutdownはエラーなしで完了する', async () => {
+    it("ワーカー未起動時のshutdownはエラーなしで完了する", async () => {
       // Arrange
-      const { WorkerSupervisor } = await import('../../src/services/worker-supervisor.service');
+      const { WorkerSupervisor } = await import("../../src/services/worker-supervisor.service");
 
       const supervisor = new WorkerSupervisor({
-        workerScript: './dist/scripts/start-workers.js',
+        workerScript: "./dist/scripts/start-workers.js",
         maxJobsBeforeRestart: 10,
         maxRestartAttempts: 5,
         shutdownTimeoutMs: 5000,
@@ -687,15 +687,15 @@ describe('WorkerSupervisor', () => {
 
       // Act & Assert: エラーなしで完了
       await expect(supervisor.shutdown()).resolves.toBeUndefined();
-      expect(supervisor.getState()).toBe('stopped');
+      expect(supervisor.getState()).toBe("stopped");
     });
 
-    it('shutdown後はクラッシュによる自動再起動が抑制される', async () => {
+    it("shutdown後はクラッシュによる自動再起動が抑制される", async () => {
       // Arrange
-      const { WorkerSupervisor } = await import('../../src/services/worker-supervisor.service');
+      const { WorkerSupervisor } = await import("../../src/services/worker-supervisor.service");
 
       const supervisor = new WorkerSupervisor({
-        workerScript: './dist/scripts/start-workers.js',
+        workerScript: "./dist/scripts/start-workers.js",
         maxJobsBeforeRestart: 10,
         maxRestartAttempts: 5,
         shutdownTimeoutMs: 5000,
@@ -706,8 +706,8 @@ describe('WorkerSupervisor', () => {
       // SIGTERMでgraceful exit
       // Note: setTimeout(0) を使用（setImmediate は fake timer の advanceTimersByTimeAsync で発火しない）
       mockChild.kill = vi.fn().mockImplementation((signal?: string) => {
-        if (signal === 'SIGTERM') {
-          setTimeout(() => mockChild.emit('exit', 0, null), 0);
+        if (signal === "SIGTERM") {
+          setTimeout(() => mockChild.emit("exit", 0, null), 0);
         }
         return true;
       });
@@ -720,7 +720,7 @@ describe('WorkerSupervisor', () => {
 
       // Assert: shutdown後はexitイベントで再起動されない
       expect(mockFork).toHaveBeenCalledTimes(1); // 初回起動のみ
-      expect(supervisor.getState()).toBe('stopped');
+      expect(supervisor.getState()).toBe("stopped");
     });
   });
 
@@ -728,31 +728,31 @@ describe('WorkerSupervisor', () => {
   // 状態管理
   // ==========================================================================
 
-  describe('状態管理', () => {
-    it('初期状態はidleである', async () => {
+  describe("状態管理", () => {
+    it("初期状態はidleである", async () => {
       // Arrange
-      const { WorkerSupervisor } = await import('../../src/services/worker-supervisor.service');
+      const { WorkerSupervisor } = await import("../../src/services/worker-supervisor.service");
 
       const supervisor = new WorkerSupervisor({
-        workerScript: './dist/scripts/start-workers.js',
+        workerScript: "./dist/scripts/start-workers.js",
         maxJobsBeforeRestart: 3,
         maxRestartAttempts: 5,
         shutdownTimeoutMs: 10000,
       });
 
       // Assert
-      expect(supervisor.getState()).toBe('idle');
+      expect(supervisor.getState()).toBe("idle");
       expect(supervisor.getCompletedJobCount()).toBe(0);
       expect(supervisor.getRestartCount()).toBe(0);
       expect(supervisor.getWorkerProcess()).toBeNull();
     });
 
-    it('ensureWorkerRunning後はrunning状態になる', async () => {
+    it("ensureWorkerRunning後はrunning状態になる", async () => {
       // Arrange
-      const { WorkerSupervisor } = await import('../../src/services/worker-supervisor.service');
+      const { WorkerSupervisor } = await import("../../src/services/worker-supervisor.service");
 
       const supervisor = new WorkerSupervisor({
-        workerScript: './dist/scripts/start-workers.js',
+        workerScript: "./dist/scripts/start-workers.js",
         maxJobsBeforeRestart: 3,
         maxRestartAttempts: 5,
         shutdownTimeoutMs: 10000,
@@ -762,7 +762,7 @@ describe('WorkerSupervisor', () => {
       supervisor.ensureWorkerRunning();
 
       // Assert
-      expect(supervisor.getState()).toBe('running');
+      expect(supervisor.getState()).toBe("running");
       expect(supervisor.getWorkerProcess()).not.toBeNull();
     });
   });
@@ -771,10 +771,11 @@ describe('WorkerSupervisor', () => {
   // getWorkerSupervisor シングルトン
   // ==========================================================================
 
-  describe('getWorkerSupervisor', () => {
-    it('シングルトンインスタンスを返す', async () => {
+  describe("getWorkerSupervisor", () => {
+    it("シングルトンインスタンスを返す", async () => {
       // Arrange
-      const { getWorkerSupervisor, resetWorkerSupervisor } = await import('../../src/services/worker-supervisor.service');
+      const { getWorkerSupervisor, resetWorkerSupervisor } =
+        await import("../../src/services/worker-supervisor.service");
       resetWorkerSupervisor();
 
       // Act
@@ -788,9 +789,10 @@ describe('WorkerSupervisor', () => {
       resetWorkerSupervisor();
     });
 
-    it('デフォルトのワーカースクリプトパスがstart-workers.jsを指す', async () => {
+    it("デフォルトのワーカースクリプトパスがstart-workers.jsを指す", async () => {
       // Arrange
-      const { getWorkerSupervisor, resetWorkerSupervisor } = await import('../../src/services/worker-supervisor.service');
+      const { getWorkerSupervisor, resetWorkerSupervisor } =
+        await import("../../src/services/worker-supervisor.service");
       resetWorkerSupervisor();
 
       // WORKER_SCRIPT_PATHが未設定の状態でシングルトンを取得
@@ -804,12 +806,12 @@ describe('WorkerSupervisor', () => {
       // Assert: forkされたスクリプトパスが start-workers.js を含む
       expect(mockFork).toHaveBeenCalledTimes(1);
       const calledScript = mockFork.mock.calls[0][0] as string;
-      expect(calledScript).toContain('start-workers.js');
-      expect(calledScript).not.toContain('page-analyze-worker.js');
+      expect(calledScript).toContain("start-workers.js");
+      expect(calledScript).not.toContain("page-analyze-worker.js");
 
       // Assert: --page 引数が渡される
       const calledArgs = mockFork.mock.calls[0][1] as string[];
-      expect(calledArgs).toContain('--page');
+      expect(calledArgs).toContain("--page");
 
       // Cleanup
       if (originalWorkerScriptPath !== undefined) {
@@ -818,9 +820,10 @@ describe('WorkerSupervisor', () => {
       resetWorkerSupervisor();
     });
 
-    it('resetWorkerSupervisor後は新しいインスタンスが作成される', async () => {
+    it("resetWorkerSupervisor後は新しいインスタンスが作成される", async () => {
       // Arrange
-      const { getWorkerSupervisor, resetWorkerSupervisor } = await import('../../src/services/worker-supervisor.service');
+      const { getWorkerSupervisor, resetWorkerSupervisor } =
+        await import("../../src/services/worker-supervisor.service");
       resetWorkerSupervisor();
 
       // Act
@@ -840,13 +843,13 @@ describe('WorkerSupervisor', () => {
   // stopped状態からの再起動防止
   // ==========================================================================
 
-  describe('stopped状態', () => {
-    it('stopped状態ではensureWorkerRunningが何もしない', async () => {
+  describe("stopped状態", () => {
+    it("stopped状態ではensureWorkerRunningが何もしない", async () => {
       // Arrange
-      const { WorkerSupervisor } = await import('../../src/services/worker-supervisor.service');
+      const { WorkerSupervisor } = await import("../../src/services/worker-supervisor.service");
 
       const supervisor = new WorkerSupervisor({
-        workerScript: './dist/scripts/start-workers.js',
+        workerScript: "./dist/scripts/start-workers.js",
         maxJobsBeforeRestart: 3,
         maxRestartAttempts: 5,
         shutdownTimeoutMs: 10000,
@@ -854,14 +857,277 @@ describe('WorkerSupervisor', () => {
 
       // shutdown で stopped 状態にする
       await supervisor.shutdown();
-      expect(supervisor.getState()).toBe('stopped');
+      expect(supervisor.getState()).toBe("stopped");
 
       // Act: stopped 状態で ensureWorkerRunning を呼ぶ
       supervisor.ensureWorkerRunning();
 
       // Assert: fork は呼ばれない
       expect(mockFork).not.toHaveBeenCalled();
-      expect(supervisor.getState()).toBe('stopped');
+      expect(supervisor.getState()).toBe("stopped");
+    });
+  });
+
+  // ==========================================================================
+  // restarting状態の冪等性
+  // ==========================================================================
+
+  describe("restarting状態", () => {
+    it("restarting状態ではensureWorkerRunningが何もしない", async () => {
+      // Arrange
+      const { WorkerSupervisor } = await import("../../src/services/worker-supervisor.service");
+
+      const supervisor = new WorkerSupervisor({
+        workerScript: "./dist/scripts/start-workers.js",
+        maxJobsBeforeRestart: 1,
+        maxRestartAttempts: 5,
+        shutdownTimeoutMs: 10000,
+      });
+
+      supervisor.ensureWorkerRunning();
+      expect(mockFork).toHaveBeenCalledTimes(1);
+
+      // maxJobsBeforeRestart=1 なので1件完了でrestart
+      supervisor.notifyJobCompleted();
+      expect(supervisor.getState()).toBe("restarting");
+
+      // Act: restarting状態でensureWorkerRunningを呼ぶ
+      supervisor.ensureWorkerRunning();
+
+      // Assert: 追加のforkは呼ばれない（restartタイマーに任せる）
+      expect(mockFork).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  // ==========================================================================
+  // IPC message handler
+  // ==========================================================================
+
+  describe("IPC message handler", () => {
+    it("job-completedメッセージでnotifyJobCompletedが呼ばれる", async () => {
+      // Arrange
+      const { WorkerSupervisor } = await import("../../src/services/worker-supervisor.service");
+
+      const supervisor = new WorkerSupervisor({
+        workerScript: "./dist/scripts/start-workers.js",
+        maxJobsBeforeRestart: 5,
+        maxRestartAttempts: 5,
+        shutdownTimeoutMs: 10000,
+      });
+
+      supervisor.ensureWorkerRunning();
+      expect(supervisor.getCompletedJobCount()).toBe(0);
+
+      // Act: ワーカーからIPC 'job-completed' メッセージをシミュレート
+      mockChild.emit("message", { type: "job-completed", jobId: "test-job-1" });
+
+      // Assert: カウンタが増加
+      expect(supervisor.getCompletedJobCount()).toBe(1);
+    });
+
+    it("job-completed以外のメッセージは無視される", async () => {
+      const { WorkerSupervisor } = await import("../../src/services/worker-supervisor.service");
+
+      const supervisor = new WorkerSupervisor({
+        workerScript: "./dist/scripts/start-workers.js",
+        maxJobsBeforeRestart: 5,
+        maxRestartAttempts: 5,
+        shutdownTimeoutMs: 10000,
+      });
+
+      supervisor.ensureWorkerRunning();
+
+      // Act: 異なるtypeのメッセージを送信
+      mockChild.emit("message", { type: "unknown-type" });
+      mockChild.emit("message", { type: "shutdown" });
+      mockChild.emit("message", "not-an-object");
+      mockChild.emit("message", null);
+
+      // Assert: カウンタは増加しない
+      expect(supervisor.getCompletedJobCount()).toBe(0);
+    });
+
+    it("IPCメッセージでmaxJobsBeforeRestartに達するとrestartが発動する", async () => {
+      const { WorkerSupervisor } = await import("../../src/services/worker-supervisor.service");
+
+      const supervisor = new WorkerSupervisor({
+        workerScript: "./dist/scripts/start-workers.js",
+        maxJobsBeforeRestart: 2,
+        maxRestartAttempts: 5,
+        shutdownTimeoutMs: 10000,
+      });
+
+      supervisor.ensureWorkerRunning();
+
+      // Act: IPCメッセージで2件完了を通知
+      mockChild.emit("message", { type: "job-completed" });
+      mockChild.emit("message", { type: "job-completed" });
+
+      // Assert: restart発動（IPCシャットダウンメッセージが送信される）
+      expect(supervisor.getState()).toBe("restarting");
+      expect(mockChild.send).toHaveBeenCalledWith({ type: "shutdown" });
+    });
+  });
+
+  // ==========================================================================
+  // safeParseInt（supervisor内の内部関数）
+  // ==========================================================================
+
+  describe("safeParseInt (getWorkerSupervisorの環境変数パース)", () => {
+    it("環境変数でmaxJobsBeforeRestartを設定できる", async () => {
+      const { getWorkerSupervisor, resetWorkerSupervisor } =
+        await import("../../src/services/worker-supervisor.service");
+      resetWorkerSupervisor();
+
+      const originalValue = process.env.WORKER_MAX_JOBS_BEFORE_RESTART;
+      process.env.WORKER_MAX_JOBS_BEFORE_RESTART = "5";
+
+      const supervisor = getWorkerSupervisor();
+      supervisor.ensureWorkerRunning();
+
+      // 4件完了してもrestartしない（maxJobsBeforeRestart=5）
+      supervisor.notifyJobCompleted();
+      supervisor.notifyJobCompleted();
+      supervisor.notifyJobCompleted();
+      supervisor.notifyJobCompleted();
+      expect(supervisor.getState()).toBe("running");
+      expect(supervisor.getCompletedJobCount()).toBe(4);
+
+      // 5件目でrestart
+      supervisor.notifyJobCompleted();
+      expect(supervisor.getState()).toBe("restarting");
+
+      // Cleanup
+      if (originalValue !== undefined) {
+        process.env.WORKER_MAX_JOBS_BEFORE_RESTART = originalValue;
+      } else {
+        delete process.env.WORKER_MAX_JOBS_BEFORE_RESTART;
+      }
+      resetWorkerSupervisor();
+    });
+
+    it("環境変数が不正値の場合、デフォルト値が使用される", async () => {
+      const { getWorkerSupervisor, resetWorkerSupervisor } =
+        await import("../../src/services/worker-supervisor.service");
+      resetWorkerSupervisor();
+
+      const originalValue = process.env.WORKER_MAX_JOBS_BEFORE_RESTART;
+      process.env.WORKER_MAX_JOBS_BEFORE_RESTART = "invalid";
+
+      const supervisor = getWorkerSupervisor();
+      supervisor.ensureWorkerRunning();
+
+      // デフォルト値=1 → 1件完了でrestart
+      supervisor.notifyJobCompleted();
+      expect(supervisor.getState()).toBe("restarting");
+
+      // Cleanup
+      if (originalValue !== undefined) {
+        process.env.WORKER_MAX_JOBS_BEFORE_RESTART = originalValue;
+      } else {
+        delete process.env.WORKER_MAX_JOBS_BEFORE_RESTART;
+      }
+      resetWorkerSupervisor();
+    });
+
+    it("環境変数が0以下の場合、デフォルト値(1)が使用される", async () => {
+      const { getWorkerSupervisor, resetWorkerSupervisor } =
+        await import("../../src/services/worker-supervisor.service");
+      resetWorkerSupervisor();
+
+      const originalValue = process.env.WORKER_MAX_JOBS_BEFORE_RESTART;
+      process.env.WORKER_MAX_JOBS_BEFORE_RESTART = "0";
+
+      const supervisor = getWorkerSupervisor();
+      supervisor.ensureWorkerRunning();
+
+      // デフォルト値=1 → 1件完了でrestart
+      supervisor.notifyJobCompleted();
+      expect(supervisor.getState()).toBe("restarting");
+
+      // Cleanup
+      if (originalValue !== undefined) {
+        process.env.WORKER_MAX_JOBS_BEFORE_RESTART = originalValue;
+      } else {
+        delete process.env.WORKER_MAX_JOBS_BEFORE_RESTART;
+      }
+      resetWorkerSupervisor();
+    });
+  });
+
+  // ==========================================================================
+  // shutdown中のIPC 'shutdown' メッセージ送信
+  // ==========================================================================
+
+  describe("shutdown IPC protocol", () => {
+    it("shutdown時にIPC shutdownメッセージが先に送信される", async () => {
+      const { WorkerSupervisor } = await import("../../src/services/worker-supervisor.service");
+
+      const supervisor = new WorkerSupervisor({
+        workerScript: "./dist/scripts/start-workers.js",
+        maxJobsBeforeRestart: 10,
+        maxRestartAttempts: 5,
+        shutdownTimeoutMs: 5000,
+      });
+
+      supervisor.ensureWorkerRunning();
+
+      // SIGTERMで正常終了
+      mockChild.kill = vi.fn().mockImplementation((signal?: string) => {
+        if (signal === "SIGTERM") {
+          setTimeout(() => mockChild.emit("exit", 0, null), 0);
+        }
+        return true;
+      });
+
+      // Act
+      const shutdownPromise = supervisor.shutdown();
+
+      // Assert: IPC 'shutdown' メッセージが送信された
+      expect(mockChild.send).toHaveBeenCalledWith({ type: "shutdown" });
+
+      // SIGTERMはまだ送信されていない（2秒後）
+      expect(mockChild.kill).not.toHaveBeenCalled();
+
+      await vi.advanceTimersByTimeAsync(2500);
+      await shutdownPromise;
+
+      // Phase 2でSIGTERMが送信される
+      expect(mockChild.kill).toHaveBeenCalledWith("SIGTERM");
+    });
+
+    it("IPC送信失敗時もSIGTERMフォールバックが機能する", async () => {
+      const { WorkerSupervisor } = await import("../../src/services/worker-supervisor.service");
+
+      const supervisor = new WorkerSupervisor({
+        workerScript: "./dist/scripts/start-workers.js",
+        maxJobsBeforeRestart: 10,
+        maxRestartAttempts: 5,
+        shutdownTimeoutMs: 5000,
+      });
+
+      supervisor.ensureWorkerRunning();
+
+      // IPC送信を失敗させる
+      mockChild.send = vi.fn().mockImplementation(() => {
+        throw new Error("Channel closed");
+      });
+
+      mockChild.kill = vi.fn().mockImplementation((signal?: string) => {
+        if (signal === "SIGTERM") {
+          setTimeout(() => mockChild.emit("exit", 0, null), 0);
+        }
+        return true;
+      });
+
+      // Act: shutdown は IPC 失敗でもクラッシュしない
+      const shutdownPromise = supervisor.shutdown();
+      await vi.advanceTimersByTimeAsync(2500);
+      await shutdownPromise;
+
+      // Assert: SIGTERMが送信され正常終了
+      expect(mockChild.kill).toHaveBeenCalledWith("SIGTERM");
+      expect(supervisor.getState()).toBe("stopped");
     });
   });
 });

@@ -46,6 +46,7 @@ flowchart TD
 ### 2.1 MCPサーバーに接続できない / Cannot Connect to MCP Server
 
 **症状 / Symptoms:**
+
 ```
 Error: Connection refused
 または / or
@@ -54,13 +55,14 @@ Claude: 「layout.searchというツールが見つかりません」/ "Cannot f
 
 **原因と解決策 / Causes and Solutions:**
 
-| 原因 / Cause | 解決策 / Solution |
-|------|--------|
-| MCPサーバーがビルドされていない / MCP server not built | `pnpm build` を実行 / Run `pnpm build` |
-| Claude Desktopが再起動されていない / Claude Desktop not restarted | Claude Desktopを完全に再起動 / Fully restart Claude Desktop |
-| 設定ファイルのパスが誤っている / Config file path is wrong | claude_desktop_config.jsonのパスを確認 / Verify path in claude_desktop_config.json |
+| 原因 / Cause                                                      | 解決策 / Solution                                                                  |
+| ----------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
+| MCPサーバーがビルドされていない / MCP server not built            | `pnpm build` を実行 / Run `pnpm build`                                             |
+| Claude Desktopが再起動されていない / Claude Desktop not restarted | Claude Desktopを完全に再起動 / Fully restart Claude Desktop                        |
+| 設定ファイルのパスが誤っている / Config file path is wrong        | claude_desktop_config.jsonのパスを確認 / Verify path in claude_desktop_config.json |
 
 **確認コマンド / Verification Commands:**
+
 ```bash
 # MCPサーバーを直接実行してエラーを確認 / Run MCP server directly to check errors
 node /absolute/path/to/apps/mcp-server/dist/index.js
@@ -78,19 +80,21 @@ redis-cli -p 27379 ping
 ### 2.2 データベースに接続できない / Cannot Connect to Database
 
 **症状 / Symptoms:**
+
 ```
 Error: P1001: Can't reach database server at `localhost:26432`
 ```
 
 **原因と解決策 / Causes and Solutions:**
 
-| 原因 / Cause | 解決策 / Solution |
-|------|--------|
-| PostgreSQLが停止 / PostgreSQL is stopped | PostgreSQLを起動 / Start PostgreSQL |
-| ポートが異なる / Wrong port | DATABASE_URLのポートを確認（26432）/ Check port in DATABASE_URL (26432) |
-| 認証エラー / Authentication error | ユーザー名・パスワードを確認 / Verify username and password |
+| 原因 / Cause                             | 解決策 / Solution                                                       |
+| ---------------------------------------- | ----------------------------------------------------------------------- |
+| PostgreSQLが停止 / PostgreSQL is stopped | PostgreSQLを起動 / Start PostgreSQL                                     |
+| ポートが異なる / Wrong port              | DATABASE_URLのポートを確認（26432）/ Check port in DATABASE_URL (26432) |
+| 認証エラー / Authentication error        | ユーザー名・パスワードを確認 / Verify username and password             |
 
 **確認コマンド / Verification Commands:**
+
 ```bash
 # PostgreSQLの状態確認 / Check PostgreSQL status
 sudo systemctl status postgresql
@@ -110,6 +114,7 @@ echo $DATABASE_URL
 ### 2.3 データベースマイグレーションが失敗する / Database Migration Fails
 
 **症状 / Symptoms:**
+
 ```
 Error: Environment variable not found: DATABASE_URL
 または / or
@@ -118,10 +123,10 @@ Error: P1001: Can't reach database server at `localhost:26432`
 
 **原因と解決策 / Causes and Solutions:**
 
-| 原因 / Cause | 解決策 / Solution |
-|------|--------|
-| `packages/database/.env` が存在しない / `packages/database/.env` does not exist | `cp .env.local packages/database/.env` を実行 / Run `cp .env.local packages/database/.env` |
-| PostgreSQLがまだ起動完了していない / PostgreSQL not yet ready | `docker compose -f docker/docker-compose.yml exec postgres pg_isready -U reftrix -d reftrix` で確認 / Verify with this command |
+| 原因 / Cause                                                                                                                  | 解決策 / Solution                                                                                                                                       |
+| ----------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `packages/database/.env` が存在しない / `packages/database/.env` does not exist                                               | `cp .env.local packages/database/.env` を実行 / Run `cp .env.local packages/database/.env`                                                              |
+| PostgreSQLがまだ起動完了していない / PostgreSQL not yet ready                                                                 | `docker compose -f docker/docker-compose.yml exec postgres pg_isready -U reftrix -d reftrix` で確認 / Verify with this command                          |
 | `.env.local` のみ作成して `packages/database/.env` を作成していない / Only created `.env.local`, not `packages/database/.env` | Prisma CLIは `.env.local` を読めません。`packages/database/.env` が必須です / Prisma CLI cannot read `.env.local`. `packages/database/.env` is required |
 
 > **重要 / Important**: Prisma CLI（`pnpm db:migrate`、`pnpm db:seed`、`pnpm db:studio`）はワークスペースルートの `.env.local` を参照しません。`packages/database/.env` に `DATABASE_URL` が設定されている必要があります。
@@ -133,6 +138,7 @@ Error: P1001: Can't reach database server at `localhost:26432`
 ### 2.4 マイグレーション適用エラー（P3018） / Migration Apply Error (P3018)
 
 **症状 / Symptoms:**
+
 ```
 Error: P3018
 A migration failed to apply.
@@ -142,11 +148,12 @@ ERROR: column "search_vector" of relation "..." is a generated column
 
 **原因と解決策 / Causes and Solutions:**
 
-| 原因 / Cause | 解決策 / Solution |
-|------|--------|
+| 原因 / Cause                                                                                                                                   | 解決策 / Solution                                          |
+| ---------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------- |
 | 以前の `prisma migrate dev` 実行で壊れたマイグレーションが生成された / A broken migration was generated by a previous `prisma migrate dev` run | 壊れたマイグレーションを削除 / Delete the broken migration |
 
 **解決手順 / Resolution Steps:**
+
 ```bash
 # 1. 壊れたマイグレーションを特定・削除（タイムスタンプ名のディレクトリ）
 # Identify and delete the broken migration (directory with timestamp name)
@@ -172,22 +179,24 @@ pnpm db:seed
 ### 2.5 データベース認証エラー（P1000） / Database Authentication Error (P1000)
 
 **症状 / Symptoms:**
+
 ```
 Error: P1000: Authentication failed against database server
 ```
 
 **原因と解決策 / Causes and Solutions:**
 
-| 原因 / Cause | 解決策 / Solution |
-|------|--------|
-| Dockerボリュームが別パスワードで初期化済み / Docker volume initialized with a different password | Dockerボリュームを削除して再作成 / Delete and recreate Docker volume |
-| `.env.local` のパスワードと Docker の `POSTGRES_PASSWORD` が不一致 / Password mismatch between `.env.local` and Docker `POSTGRES_PASSWORD` | パスワードを統一 / Align passwords |
+| 原因 / Cause                                                                                                                               | 解決策 / Solution                                                    |
+| ------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------- |
+| Dockerボリュームが別パスワードで初期化済み / Docker volume initialized with a different password                                           | Dockerボリュームを削除して再作成 / Delete and recreate Docker volume |
+| `.env.local` のパスワードと Docker の `POSTGRES_PASSWORD` が不一致 / Password mismatch between `.env.local` and Docker `POSTGRES_PASSWORD` | パスワードを統一 / Align passwords                                   |
 
 > **重要 / Important**: `docker-compose.yml` の `POSTGRES_PASSWORD` は**初回のボリューム作成時のみ**有効です。既存のDockerボリューム（`reftrix_postgres_data`）がある場合、パスワードを変更しても反映されません。
 >
 > **Important**: `POSTGRES_PASSWORD` in `docker-compose.yml` is only applied during **initial volume creation**. If an existing Docker volume (`reftrix_postgres_data`) exists, password changes will NOT take effect.
 
 **解決手順 / Resolution Steps:**
+
 ```bash
 # 1. コンテナとボリュームを一括削除（-v でボリュームも削除）
 # Remove containers and volumes (-v removes volumes too)
@@ -208,11 +217,14 @@ pnpm db:migrate
 ### 2.6 バックアップ・リストアの認証失敗 / Backup/Restore Authentication Failure
 
 **症状 / Symptoms:**
+
 ```
 pg_dump: error: connection to server at "postgres" (172.x.x.x), port 5432 failed:
   FATAL: password authentication failed for user "reftrix"
 ```
+
 または / or
+
 ```
 エラー: PostgreSQL 認証に失敗しました (ホスト: postgres, ユーザー: reftrix)
 Error: PostgreSQL authentication failed (host: postgres, user: reftrix)
@@ -220,18 +232,19 @@ Error: PostgreSQL authentication failed (host: postgres, user: reftrix)
 
 **原因と解決策 / Causes and Solutions:**
 
-| 原因 / Cause | 解決策 / Solution |
-|------|--------|
-| `.env.local` の `POSTGRES_PASSWORD` が Docker Compose に読み込まれていない / `POSTGRES_PASSWORD` in `.env.local` not loaded by Docker Compose | `docker-compose.yml` が `env_file` 2段階読み込みを使用しているか確認 / Verify `docker-compose.yml` uses `env_file` two-stage loading |
+| 原因 / Cause                                                                                                                                                          | 解決策 / Solution                                                                                                                                                          |
+| --------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `.env.local` の `POSTGRES_PASSWORD` が Docker Compose に読み込まれていない / `POSTGRES_PASSWORD` in `.env.local` not loaded by Docker Compose                         | `docker-compose.yml` が `env_file` 2段階読み込みを使用しているか確認 / Verify `docker-compose.yml` uses `env_file` two-stage loading                                       |
 | `environment` ブロックで `POSTGRES_PASSWORD` を定義してしまい `env_file` の値を上書き / `POSTGRES_PASSWORD` defined in `environment` block overrides `env_file` value | `environment` ブロックから `POSTGRES_PASSWORD` を削除し、`env_file` からの読み込みに任せる / Remove `POSTGRES_PASSWORD` from `environment` block, let `env_file` handle it |
-| `.env.local` が存在しないため `.env.example` のデフォルト値が使われている / `.env.local` doesn't exist so `.env.example` default value is used | `.env.local` を作成して正しい `POSTGRES_PASSWORD` を設定 / Create `.env.local` and set the correct `POSTGRES_PASSWORD` |
-| Dockerボリュームが別のパスワードで初期化済み / Docker volume initialized with a different password | ボリュームを削除して再作成（セクション2.5参照）/ Delete and recreate volume (see section 2.5) |
+| `.env.local` が存在しないため `.env.example` のデフォルト値が使われている / `.env.local` doesn't exist so `.env.example` default value is used                        | `.env.local` を作成して正しい `POSTGRES_PASSWORD` を設定 / Create `.env.local` and set the correct `POSTGRES_PASSWORD`                                                     |
+| Dockerボリュームが別のパスワードで初期化済み / Docker volume initialized with a different password                                                                    | ボリュームを削除して再作成（セクション2.5参照）/ Delete and recreate volume (see section 2.5)                                                                              |
 
 > **仕組み / How it works**: Docker Composeは `.env` ファイルのみデフォルトで読み込み、`.env.local` は読みません。Reftrixでは `env_file` ディレクティブで `.env.example`（デフォルト値）→ `.env.local`（ユーザー設定）の2段階読み込みを実現しています。
 >
 > Docker Compose only reads `.env` by default and does NOT read `.env.local`. Reftrix uses the `env_file` directive to implement two-stage loading: `.env.example` (defaults) → `.env.local` (user overrides).
 
 **確認手順 / Verification Steps:**
+
 ```bash
 # 1. docker-compose.yml の env_file 設定を確認 / Check env_file config in docker-compose.yml
 grep -A 5 "env_file" docker/docker-compose.yml
@@ -257,14 +270,15 @@ PGPASSWORD=<your_password> psql -h localhost -p 26432 -U reftrix -d reftrix -c "
 ### 2.7 ネイティブビルドスクリプトのエラー / Native Build Script Errors
 
 **症状 / Symptoms:**
+
 ```
  WARN  The following packages have build scripts that are not authorized...
 ```
 
 **原因と解決策 / Causes and Solutions:**
 
-| 原因 / Cause | 解決策 / Solution |
-|------|--------|
+| 原因 / Cause                                                                                                                      | 解決策 / Solution                                                                                                       |
+| --------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
 | `.npmrc` が存在しない、または `onlyBuiltDependencies` が未設定 / `.npmrc` is missing or `onlyBuiltDependencies` is not configured | `.npmrc` に `onlyBuiltDependencies` が設定されていることを確認 / Verify `.npmrc` has `onlyBuiltDependencies` configured |
 
 > **説明 / Explanation**: ReftrixMCPでは `.npmrc` に `onlyBuiltDependencies` を設定しており、`@prisma/client`、`prisma`、`sharp`、`esbuild` のビルドスクリプトが自動的に許可されます。`pnpm approve-builds` は不要です。この設定が正しくない場合は、リポジトリの `.npmrc` ファイルを確認してください。
@@ -276,6 +290,7 @@ PGPASSWORD=<your_password> psql -h localhost -p 26432 -U reftrix -d reftrix -c "
 ### 2.8 タイムアウトエラー / Timeout Errors
 
 **症状 / Symptoms:**
+
 ```
 Error: Request timeout
 または / or
@@ -284,11 +299,11 @@ Error: ETIMEDOUT
 
 **原因と解決策 / Causes and Solutions:**
 
-| 原因 / Cause | 解決策 / Solution |
-|------|--------|
-| サーバー負荷が高い / Server load is high | しばらく待ってから再試行 / Wait and retry |
-| 大量データ処理中 / Processing large data | limitを減らして再試行 / Reduce limit and retry |
-| ネットワーク問題 / Network issues | ネットワーク接続を確認 / Check network connection |
+| 原因 / Cause                                                                                    | 解決策 / Solution                                                                                                                        |
+| ----------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| サーバー負荷が高い / Server load is high                                                        | しばらく待ってから再試行 / Wait and retry                                                                                                |
+| 大量データ処理中 / Processing large data                                                        | limitを減らして再試行 / Reduce limit and retry                                                                                           |
+| ネットワーク問題 / Network issues                                                               | ネットワーク接続を確認 / Check network connection                                                                                        |
 | CPU-only環境でスクロールVision分析がタイムアウト / Scroll Vision analysis times out on CPU-only | v0.1.2で修正済み。CPU環境では自動的にタイムアウトが延長されます / Fixed in v0.1.2. Timeout is automatically extended on CPU environments |
 
 ---
@@ -298,6 +313,7 @@ Error: ETIMEDOUT
 ### 3.1 Layout/Motion検索結果が表示されない / No Layout/Motion Search Results
 
 **症状 / Symptoms:**
+
 ```
 検索結果: 0件 / Search results: 0
 または / or
@@ -306,12 +322,12 @@ Error: NO_RESULTS
 
 **原因と解決策 / Causes and Solutions:**
 
-| 原因 / Cause | 解決策 / Solution |
-|------|--------|
-| データベースが空 / Database is empty | layout.ingestでWebページを収集 / Collect web pages with layout.ingest |
-| 検索クエリが具体的すぎる / Query too specific | より一般的なキーワードで検索 / Search with more general keywords |
-| フィルタが厳しい / Filters too strict | フィルタを解除して再検索 / Remove filters and retry |
-| スペルミス / Typo | キーワードを確認 / Check keywords |
+| 原因 / Cause                                  | 解決策 / Solution                                                     |
+| --------------------------------------------- | --------------------------------------------------------------------- |
+| データベースが空 / Database is empty          | layout.ingestでWebページを収集 / Collect web pages with layout.ingest |
+| 検索クエリが具体的すぎる / Query too specific | より一般的なキーワードで検索 / Search with more general keywords      |
+| フィルタが厳しい / Filters too strict         | フィルタを解除して再検索 / Remove filters and retry                   |
+| スペルミス / Typo                             | キーワードを確認 / Check keywords                                     |
 
 **トラブルシューティング手順 / Troubleshooting Steps:**
 
@@ -327,12 +343,13 @@ flowchart TD
 ```
 
 **確認コマンド（MCPツール） / Verification Commands (MCP Tools):**
+
 ```typescript
 // データベースにLayoutパターンがあるか確認 / Check if Layout patterns exist in DB
-await layout.search({ query: 'hero section', limit: 10 });
+await layout.search({ query: "hero section", limit: 10 });
 
 // Motionパターン検索 / Motion pattern search
-await motion.search({ query: 'scroll animation', limit: 10 });
+await motion.search({ query: "scroll animation", limit: 10 });
 ```
 
 ---
@@ -340,6 +357,7 @@ await motion.search({ query: 'scroll animation', limit: 10 });
 ### 3.2 関連性の低い結果が返る / Irrelevant Results Returned
 
 **症状 / Symptoms:**
+
 ```
 検索: 「hero section」 / Search: "hero section"
 結果: 関係ないセクションが多い / Results: many unrelated sections
@@ -347,13 +365,14 @@ await motion.search({ query: 'scroll animation', limit: 10 });
 
 **原因と解決策 / Causes and Solutions:**
 
-| 原因 / Cause | 解決策 / Solution |
-|------|--------|
+| 原因 / Cause                            | 解決策 / Solution                                         |
+| --------------------------------------- | --------------------------------------------------------- |
 | 類似概念が混在 / Similar concepts mixed | より具体的なキーワードを追加 / Add more specific keywords |
-| タグ付けが不適切 / Improper tagging | typeフィルタを使用 / Use type filter |
-| Embeddingの問題 / Embedding issues | 別の表現で検索 / Search with different phrasing |
+| タグ付けが不適切 / Improper tagging     | typeフィルタを使用 / Use type filter                      |
+| Embeddingの問題 / Embedding issues      | 別の表現で検索 / Search with different phrasing           |
 
 **改善例 / Improvement Example:**
+
 ```
 悪い例 / Bad: 「section」
 良い例 / Good: 「hero section with background video」
@@ -364,29 +383,31 @@ await motion.search({ query: 'scroll animation', limit: 10 });
 ### 3.3 検索が遅い / Slow Search
 
 **症状 / Symptoms:**
+
 ```
 検索に5秒以上かかる / Search takes more than 5 seconds
 ```
 
 **原因と解決策 / Causes and Solutions:**
 
-| 原因 / Cause | 解決策 / Solution |
-|------|--------|
-| 大量のデータ / Large data volume | limitを減らす / Reduce limit |
-| フィルタなし / No filters | typeフィルタを追加 / Add type filter |
-| サーバー負荷 / Server load | ピーク時間を避ける / Avoid peak hours |
+| 原因 / Cause                           | 解決策 / Solution                       |
+| -------------------------------------- | --------------------------------------- |
+| 大量のデータ / Large data volume       | limitを減らす / Reduce limit            |
+| フィルタなし / No filters              | typeフィルタを追加 / Add type filter    |
+| サーバー負荷 / Server load             | ピーク時間を避ける / Avoid peak hours   |
 | インデックス未作成 / Index not created | マイグレーションを実行 / Run migrations |
 
 **パフォーマンス改善 / Performance Improvement:**
+
 ```typescript
 // limitを減らす / Reduce limit
-await layout.search({ query: 'feature grid', limit: 10 });
+await layout.search({ query: "feature grid", limit: 10 });
 
 // フィルタを追加 / Add filters
 await layout.search({
-  query: 'feature section',
-  filters: { sectionType: 'feature' },
-  limit: 20
+  query: "feature section",
+  filters: { sectionType: "feature" },
+  limit: 20,
 });
 ```
 
@@ -395,35 +416,37 @@ await layout.search({
 ### 3.4 narrative.search で結果が0件 / No narrative.search Results
 
 **症状 / Symptoms:**
+
 ```
 検索結果: 0件 / Search results: 0
 ```
 
 **原因と解決策 / Causes and Solutions:**
 
-| 原因 / Cause | 解決策 / Solution |
-|------|--------|
-| `page.analyze` でNARRATIVEフェーズが実行されていない / NARRATIVE phase not executed in `page.analyze` | `page.analyze` でページを解析（NARRATIVEフェーズが自動実行）/ Analyze page with `page.analyze` (NARRATIVE phase runs automatically) |
-| Embedding（Phase 7）が未生成 / Embeddings not generated (Phase 7) | `page.analyze` が完了するまで待機 / Wait for `page.analyze` to complete |
-| `searchMode: 'vector'` で `minSimilarity` が高すぎる / `minSimilarity` too high with `searchMode: 'vector'` | `minSimilarity` を 0.5 以下に設定 / Set `minSimilarity` to 0.5 or lower |
-| `moodCategory` フィルターが該当データなし / `moodCategory` filter has no matching data | フィルターを外して検索 / Search without filters |
+| 原因 / Cause                                                                                                | 解決策 / Solution                                                                                                                   |
+| ----------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| `page.analyze` でNARRATIVEフェーズが実行されていない / NARRATIVE phase not executed in `page.analyze`       | `page.analyze` でページを解析（NARRATIVEフェーズが自動実行）/ Analyze page with `page.analyze` (NARRATIVE phase runs automatically) |
+| Embedding（Phase 7）が未生成 / Embeddings not generated (Phase 7)                                           | `page.analyze` が完了するまで待機 / Wait for `page.analyze` to complete                                                             |
+| `searchMode: 'vector'` で `minSimilarity` が高すぎる / `minSimilarity` too high with `searchMode: 'vector'` | `minSimilarity` を 0.5 以下に設定 / Set `minSimilarity` to 0.5 or lower                                                             |
+| `moodCategory` フィルターが該当データなし / `moodCategory` filter has no matching data                      | フィルターを外して検索 / Search without filters                                                                                     |
 
 **確認手順 / Verification Steps:**
+
 ```typescript
 // 1. フィルターなしで検索してデータ存在確認 / Search without filters to verify data exists
-await narrative.search({ query: 'design', options: { limit: 5, searchMode: 'vector' } });
+await narrative.search({ query: "design", options: { limit: 5, searchMode: "vector" } });
 
 // 2. MoodCategoryフィルターを変えて試す / Try different MoodCategory filter values
 await narrative.search({
-  query: 'modern design',
-  filters: { moodCategory: 'tech' },  // 単一enum値（12種類から選択）
-  options: { limit: 10 }
+  query: "modern design",
+  filters: { moodCategory: "tech" }, // 単一enum値（12種類から選択）
+  options: { limit: 10 },
 });
 
 // 3. ハイブリッド検索に切り替える / Switch to hybrid search
 await narrative.search({
-  query: 'dark theme design',
-  options: { searchMode: 'hybrid', minSimilarity: 0.4 }
+  query: "dark theme design",
+  options: { searchMode: "hybrid", minSimilarity: 0.4 },
 });
 ```
 
@@ -432,6 +455,7 @@ await narrative.search({
 ### 3.5 フレーム画像分析（CLS/色変化検出）の問題 / Frame Image Analysis (CLS/Color Change Detection) Issues
 
 **症状 / Symptoms:**
+
 ```
 frameAnalysis が空 / frameAnalysis is empty
 CLS score: 0（期待と異なる）/ CLS score: 0 (unexpected)
@@ -440,14 +464,15 @@ Worker Thread エラー / Worker Thread error
 
 **原因と解決策 / Causes and Solutions:**
 
-| 原因 / Cause | 解決策 / Solution |
-|------|--------|
+| 原因 / Cause                                                                                | 解決策 / Solution                                                                         |
+| ------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
 | `enable_frame_capture: false` が指定されている / `enable_frame_capture: false` is specified | `enable_frame_capture: true` を明示的に指定 / Explicitly set `enable_frame_capture: true` |
-| `analyze_frames: false` が指定されている / `analyze_frames: false` is specified | `analyze_frames: true` を指定 / Set `analyze_frames: true` |
-| ページにスクロール領域がない / Page has no scrollable area | フルページスクリーンショットで確認 / Verify with full-page screenshot |
-| Worker Threadがメモリ不足 / Worker Thread out of memory | `scroll_px_per_frame` を 30 以上に増加 / Increase `scroll_px_per_frame` to 30+ |
+| `analyze_frames: false` が指定されている / `analyze_frames: false` is specified             | `analyze_frames: true` を指定 / Set `analyze_frames: true`                                |
+| ページにスクロール領域がない / Page has no scrollable area                                  | フルページスクリーンショットで確認 / Verify with full-page screenshot                     |
+| Worker Threadがメモリ不足 / Worker Thread out of memory                                     | `scroll_px_per_frame` を 30 以上に増加 / Increase `scroll_px_per_frame` to 30+            |
 
 **CLS計算の確認 / CLS Calculation Verification:**
+
 ```typescript
 // CLS計算を有効にして検出
 const result = await motion.detect({
@@ -456,9 +481,9 @@ const result = await motion.detect({
   analyze_frames: true,
   frame_analysis_options: {
     diff_threshold: 0.1,
-    cls_threshold: 0.1,  // Core Web Vitals 'good' 閾値
-    parallel: true
-  }
+    cls_threshold: 0.1, // Core Web Vitals 'good' 閾値
+    parallel: true,
+  },
 });
 
 // CLS分類閾値（Core Web Vitals準拠）:
@@ -468,20 +493,21 @@ const result = await motion.detect({
 ```
 
 **メモリ不足の対処 / Handling Memory Issues:**
+
 ```typescript
 // フレーム数を削減 / Reduce frame count
 await motion.detect({
   html: myHtml,
   enable_frame_capture: true,
   frame_capture_options: {
-    scroll_px_per_frame: 50  // 15→50で約1/3のフレーム数
-  }
+    scroll_px_per_frame: 50, // 15→50で約1/3のフレーム数
+  },
 });
 
 // CI環境ではフレーム分析を無効化 / Disable frame analysis in CI
 await motion.detect({
   html: myHtml,
-  enable_frame_capture: false  // CI環境推奨
+  enable_frame_capture: false, // CI環境推奨
 });
 ```
 
@@ -492,28 +518,30 @@ await motion.detect({
 ### 4.1 layout.generate_code失敗 / layout.generate_code Failure
 
 **症状 / Symptoms:**
+
 ```
 Error: CODE_GENERATION_FAILED
 ```
 
 **原因と解決策 / Causes and Solutions:**
 
-| 原因 / Cause | 解決策 / Solution |
-|------|--------|
-| 無効なpatternId / Invalid patternId | layout.searchで正しいIDを確認 / Verify correct ID with layout.search |
-| サポートされないフレームワーク / Unsupported framework | react/vue/htmlのいずれかを指定 / Specify react, vue, or html |
-| HTMLが複雑すぎる / HTML too complex | より単純なセクションを選択 / Select a simpler section |
+| 原因 / Cause                                           | 解決策 / Solution                                                    |
+| ------------------------------------------------------ | -------------------------------------------------------------------- |
+| 無効なpatternId / Invalid patternId                    | layout.searchで正しいIDを確認 / Verify correct ID with layout.search |
+| サポートされないフレームワーク / Unsupported framework | react/vue/htmlのいずれかを指定 / Specify react, vue, or html         |
+| HTMLが複雑すぎる / HTML too complex                    | より単純なセクションを選択 / Select a simpler section                |
 
 **確認コマンド / Verification Commands:**
+
 ```typescript
 // パターンIDの確認 / Verify pattern ID
-const results = await layout.search({ query: 'hero section', limit: 10 });
-console.log(results.patterns.map(p => p.id));
+const results = await layout.search({ query: "hero section", limit: 10 });
+console.log(results.patterns.map((p) => p.id));
 
 // コード生成 / Code generation
 await layout.generate_code({
-  patternId: 'valid-pattern-id',
-  options: { framework: 'react', typescript: true, tailwind: true }
+  patternId: "valid-pattern-id",
+  options: { framework: "react", typescript: true, tailwind: true },
 });
 ```
 
@@ -522,6 +550,7 @@ await layout.generate_code({
 ### 4.2 生成されたコードが動作しない / Generated Code Doesn't Work
 
 **症状 / Symptoms:**
+
 ```
 TypeScriptエラー / TypeScript errors
 または / or
@@ -530,13 +559,14 @@ TypeScriptエラー / TypeScript errors
 
 **原因と解決策 / Causes and Solutions:**
 
-| 原因 / Cause | 解決策 / Solution |
-|------|--------|
-| 依存関係不足 / Missing dependencies | package.jsonに必要なパッケージを追加 / Add required packages to package.json |
-| TailwindCSS未設定 / TailwindCSS not configured | tailwind.config.jsを確認 / Check tailwind.config.js |
-| 型定義不足 / Missing type definitions | @types/を追加 / Add @types/ |
+| 原因 / Cause                                   | 解決策 / Solution                                                            |
+| ---------------------------------------------- | ---------------------------------------------------------------------------- |
+| 依存関係不足 / Missing dependencies            | package.jsonに必要なパッケージを追加 / Add required packages to package.json |
+| TailwindCSS未設定 / TailwindCSS not configured | tailwind.config.jsを確認 / Check tailwind.config.js                          |
+| 型定義不足 / Missing type definitions          | @types/を追加 / Add @types/                                                  |
 
 **解決手順 / Resolution Steps:**
+
 ```mermaid
 flowchart TD
     A[コードエラー / Code Error] --> B[1. 依存関係を確認 / Check dependencies]
@@ -554,21 +584,23 @@ flowchart TD
 ### 5.1 MCPツールが認識されない / MCP Tools Not Recognized
 
 **症状 / Symptoms:**
+
 ```
 Claude: 「layout.searchというツールが見つかりません」/ "Cannot find tool layout.search"
 ```
 
 **原因と解決策 / Causes and Solutions:**
 
-| 原因 / Cause | 解決策 / Solution |
-|------|--------|
-| 設定ファイルが間違っている / Config file is wrong | パスを確認 / Verify path |
-| MCPサーバーがビルドされていない / MCP server not built | `pnpm build` を実行 / Run `pnpm build` |
-| Claude Desktopが再起動されていない / Claude Desktop not restarted | 再起動 / Restart |
+| 原因 / Cause                                                      | 解決策 / Solution                      |
+| ----------------------------------------------------------------- | -------------------------------------- |
+| 設定ファイルが間違っている / Config file is wrong                 | パスを確認 / Verify path               |
+| MCPサーバーがビルドされていない / MCP server not built            | `pnpm build` を実行 / Run `pnpm build` |
+| Claude Desktopが再起動されていない / Claude Desktop not restarted | 再起動 / Restart                       |
 
 **確認手順 / Verification Steps:**
 
 1. **設定ファイルの確認 / Check Configuration File:**
+
 ```json
 // ~/Library/Application Support/Claude/claude_desktop_config.json
 {
@@ -588,6 +620,7 @@ Claude: 「layout.searchというツールが見つかりません」/ "Cannot f
 > **重要 / Important**: `NODE_ENV` は必須です。設定しないとサーバーが起動しません。/ `NODE_ENV` is required. The server will not start without it.
 
 2. **MCPサーバーのビルド / Build MCP Server:**
+
 ```bash
 cd apps/mcp-server
 pnpm build
@@ -601,6 +634,7 @@ ls dist/  # index.js が存在するか確認 / Verify index.js exists
 ### 5.2 MCPツール実行エラー / MCP Tool Execution Error
 
 **症状 / Symptoms:**
+
 ```
 Error: Tool execution failed
 または / or
@@ -609,13 +643,14 @@ Connection to MCP server lost
 
 **原因と解決策 / Causes and Solutions:**
 
-| 原因 / Cause | 解決策 / Solution |
-|------|--------|
-| データベース接続エラー / Database connection error | PostgreSQL起動確認（ポート26432）/ Verify PostgreSQL is running (port 26432) |
-| Redis接続エラー / Redis connection error | Redis起動確認（ポート27379）/ Verify Redis is running (port 27379) |
-| タイムアウト / Timeout | サーバー負荷を軽減、page.analyzeはtimeoutを延長 / Reduce server load; extend page.analyze timeout |
+| 原因 / Cause                                       | 解決策 / Solution                                                                                 |
+| -------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| データベース接続エラー / Database connection error | PostgreSQL起動確認（ポート26432）/ Verify PostgreSQL is running (port 26432)                      |
+| Redis接続エラー / Redis connection error           | Redis起動確認（ポート27379）/ Verify Redis is running (port 27379)                                |
+| タイムアウト / Timeout                             | サーバー負荷を軽減、page.analyzeはtimeoutを延長 / Reduce server load; extend page.analyze timeout |
 
 **デバッグ手順 / Debug Steps:**
+
 ```bash
 # MCPサーバーを直接実行してエラーを確認 / Run MCP server directly to check errors
 node /path/to/apps/mcp-server/dist/index.js
@@ -629,15 +664,16 @@ PGPASSWORD=<your_password> psql -h localhost -p 26432 -U reftrix -d reftrix
 ### 5.3 レート制限エラー / Rate Limit Error
 
 **症状 / Symptoms:**
+
 ```
 Error: RATE_LIMIT_EXCEEDED
 ```
 
 **原因と解決策 / Causes and Solutions:**
 
-| 原因 / Cause | 解決策 / Solution |
-|------|--------|
-| リクエストが多すぎる / Too many requests | 1分待つ / Wait 1 minute |
+| 原因 / Cause                                       | 解決策 / Solution            |
+| -------------------------------------------------- | ---------------------------- |
+| リクエストが多すぎる / Too many requests           | 1分待つ / Wait 1 minute      |
 | バルク処理の連続実行 / Consecutive bulk operations | 間隔を空ける / Add intervals |
 
 **レート制限について / About Rate Limits:**
@@ -651,6 +687,7 @@ Error: RATE_LIMIT_EXCEEDED
 ## 6. page.analyzeでDBにデータが保存されない / page.analyze Data Not Saved to Database
 
 **症状 / Symptoms:**
+
 ```
 page.analyze でジョブIDが返るが、データがDBに保存されない
 page.analyze returns a job ID, but data is not saved to the database
@@ -699,7 +736,7 @@ Use the `page.getJobStatus` tool in Claude to check the job status by job ID.
 
 ```typescript
 // ジョブステータス確認 / Check job status
-await page.getJobStatus({ jobId: 'your-job-id' });
+await page.getJobStatus({ jobId: "your-job-id" });
 
 // ステータスの意味 / Status meanings:
 // - waiting: ワーカー未起動またはキュー待ち / Worker not running or queued
@@ -711,6 +748,7 @@ await page.getJobStatus({ jobId: 'your-job-id' });
 ### 6.5 ナラティブ分析が失敗する / Narrative Analysis Fails
 
 **症状 / Symptoms:**
+
 ```
 page.analyze のナラティブフェーズでエラーが発生する
 Narrative phase fails during page.analyze
@@ -721,13 +759,14 @@ narrative.search returns 0 results (page.analyze completed)
 
 **原因と解決策 / Causes and Solutions:**
 
-| 原因 / Cause | 解決策 / Solution |
-|------|--------|
-| Ollamaが起動していない / Ollama is not running | `ollama serve` で起動 / Start with `ollama serve` |
-| Visionモデルが未ダウンロード / Vision model not downloaded | `ollama pull llama3.2-vision` を実行 / Run `ollama pull llama3.2-vision` |
+| 原因 / Cause                                                  | 解決策 / Solution                                                                                                              |
+| ------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| Ollamaが起動していない / Ollama is not running                | `ollama serve` で起動 / Start with `ollama serve`                                                                              |
+| Visionモデルが未ダウンロード / Vision model not downloaded    | `ollama pull llama3.2-vision` を実行 / Run `ollama pull llama3.2-vision`                                                       |
 | `OLLAMA_BASE_URL` が未設定 / `OLLAMA_BASE_URL` not configured | `.env.local` に `OLLAMA_BASE_URL=http://localhost:11434` を追加 / Add `OLLAMA_BASE_URL=http://localhost:11434` to `.env.local` |
 
 **確認手順 / Verification Steps:**
+
 ```bash
 # 1. Ollamaが起動しているか確認 / Check if Ollama is running
 curl http://localhost:11434/api/tags
@@ -751,6 +790,7 @@ grep OLLAMA_BASE_URL .env.local
 ### 6.6 Ollama Vision OOM対策 / Ollama Vision OOM Prevention
 
 **症状 / Symptoms:**
+
 ```
 Embedding生成やPhase後半でメモリ不足（OOM）が発生する
 OOM occurs during embedding generation or later phases
@@ -758,9 +798,9 @@ OOM occurs during embedding generation or later phases
 
 **原因と解決策 / Causes and Solutions:**
 
-| 原因 / Cause | 解決策 / Solution |
-|------|--------|
-| Visionモデルがメモリを占有し続ける / Vision model keeps occupying memory | v0.1.2で修正済み。Phase 1/2.5/4完了後にVisionモデルを自動アンロード / Fixed in v0.1.2. Vision model auto-unloads after Phase 1/2.5/4 |
+| 原因 / Cause                                                              | 解決策 / Solution                                                                                                                                                                              |
+| ------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Visionモデルがメモリを占有し続ける / Vision model keeps occupying memory  | v0.1.2で修正済み。Phase 1/2.5/4完了後にVisionモデルを自動アンロード / Fixed in v0.1.2. Vision model auto-unloads after Phase 1/2.5/4                                                           |
 | 16GB RAM環境でVisionが~10.6GBを占有 / Vision occupies ~10.6GB on 16GB RAM | v0.1.2で `keep_alive: "0"` により各Phase完了後に自動解放。冪等（Vision未ロード時はno-op）/ v0.1.2 auto-frees via `keep_alive: "0"` after each phase. Idempotent (no-op when Vision not loaded) |
 
 > **Note / 注意**: v0.1.2以降、Visionモデルは3箇所で自動アンロードされます: (1) Phase 1 (Layout Analysis) 完了後、(2) Phase 2.5 (Scroll Vision Analysis) 完了後、(3) Phase 4 (Narrative) 完了後。手動操作は不要です。
@@ -772,6 +812,7 @@ OOM occurs during embedding generation or later phases
 ### 6.7 Apple Siliconでnvidia-smiが見つからない / nvidia-smi Not Found on Apple Silicon
 
 **症状 / Symptoms:**
+
 ```
 nvidia-smi: command not found
 GPU検出ログに警告が表示される / Warning shown in GPU detection logs
@@ -779,8 +820,8 @@ GPU検出ログに警告が表示される / Warning shown in GPU detection logs
 
 **原因と解決策 / Causes and Solutions:**
 
-| 原因 / Cause | 解決策 / Solution |
-|------|--------|
+| 原因 / Cause                                                                               | 解決策 / Solution                                                                                                                                                                                         |
+| ------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Apple Siliconでは `nvidia-smi` が存在しない / `nvidia-smi` does not exist on Apple Silicon | 正常動作です。Apple SiliconではMetal GPUがメモリをネイティブ管理するため、`nvidia-smi` は不要です / This is normal. Apple Silicon uses Metal GPU for native memory management; `nvidia-smi` is not needed |
 
 > **Note / 注意**: ReftrixはApple Silicon (M1/M2/M3+) のMetal GPUを自動検出します。NVIDIA GPUツールがなくても正常に動作し、追加設定は不要です。
@@ -794,20 +835,22 @@ GPU検出ログに警告が表示される / Warning shown in GPU detection logs
 ### 7.1 layout.ingest失敗 / layout.ingest Failure
 
 **症状 / Symptoms:**
+
 ```
 Error: INGEST_FAILED
 ```
 
 **原因と解決策 / Causes and Solutions:**
 
-| 原因 / Cause | 解決策 / Solution |
-|------|--------|
-| 無効なURL / Invalid URL | URLフォーマットを確認 / Check URL format |
-| ネットワークエラー / Network error | 接続を確認 / Check connection |
-| タイムアウト / Timeout | より軽量なページを選択 / Select a lighter page |
-| SSRF対策 / SSRF protection | パブリックURLのみ使用 / Use public URLs only |
+| 原因 / Cause                       | 解決策 / Solution                              |
+| ---------------------------------- | ---------------------------------------------- |
+| 無効なURL / Invalid URL            | URLフォーマットを確認 / Check URL format       |
+| ネットワークエラー / Network error | 接続を確認 / Check connection                  |
+| タイムアウト / Timeout             | より軽量なページを選択 / Select a lighter page |
+| SSRF対策 / SSRF protection         | パブリックURLのみ使用 / Use public URLs only   |
 
 **使用可能なURL / Allowed URLs:**
+
 - ✅ https://example.com
 - ✅ https://awwwards.com/sites/...
 - ❌ http://localhost（プライベートIP禁止 / Private IP blocked）
@@ -818,6 +861,7 @@ Error: INGEST_FAILED
 ### 7.2 ブラウザの表示問題 / Browser Display Issues
 
 **症状 / Symptoms:**
+
 ```
 レイアウトが崩れる / Layout is broken
 コンポーネントが表示されない / Components don't display
@@ -825,12 +869,12 @@ Error: INGEST_FAILED
 
 **原因と解決策 / Causes and Solutions:**
 
-| 原因 / Cause | 解決策 / Solution |
-|------|--------|
-| 古いブラウザ / Old browser | ブラウザを更新 / Update browser |
-| キャッシュ / Cache | ハードリフレッシュ（Ctrl+Shift+R）/ Hard refresh (Ctrl+Shift+R) |
-| JavaScript無効 / JavaScript disabled | JavaScriptを有効化 / Enable JavaScript |
-| TailwindCSS未適用 / TailwindCSS not applied | globals.cssを確認 / Check globals.css |
+| 原因 / Cause                                | 解決策 / Solution                                               |
+| ------------------------------------------- | --------------------------------------------------------------- |
+| 古いブラウザ / Old browser                  | ブラウザを更新 / Update browser                                 |
+| キャッシュ / Cache                          | ハードリフレッシュ（Ctrl+Shift+R）/ Hard refresh (Ctrl+Shift+R) |
+| JavaScript無効 / JavaScript disabled        | JavaScriptを有効化 / Enable JavaScript                          |
+| TailwindCSS未適用 / TailwindCSS not applied | globals.cssを確認 / Check globals.css                           |
 
 ---
 
@@ -842,18 +886,21 @@ HTMLに以下のような危険な要素が含まれている場合、DOMPurify�
 
 When HTML contains dangerous elements, they are automatically removed by DOMPurify:
 
-| 危険な要素 / Dangerous Element | 対処法 / Handling |
-|-----------|--------|
-| `<script>` タグ / `<script>` tags | DOMPurifyで自動削除 / Auto-removed by DOMPurify |
-| `onclick` 等のイベント / `onclick` events | 自動削除 / Auto-removed |
+| 危険な要素 / Dangerous Element                  | 対処法 / Handling                                                      |
+| ----------------------------------------------- | ---------------------------------------------------------------------- |
+| `<script>` タグ / `<script>` tags               | DOMPurifyで自動削除 / Auto-removed by DOMPurify                        |
+| `onclick` 等のイベント / `onclick` events       | 自動削除 / Auto-removed                                                |
 | 外部リソース参照 / External resource references | 保持（イベントハンドラは除去済み）/ Preserved (event handlers removed) |
-| `javascript:` URL | 自動削除 / Auto-removed |
+| `javascript:` URL                               | 自動削除 / Auto-removed                                                |
 
 **安全なHTMLに自動変換 / Automatic conversion to safe HTML:**
+
 ```html
 <!-- 危険なHTML（自動削除）/ Dangerous HTML (auto-removed) -->
 <div>
-  <script>alert('XSS')</script>
+  <script>
+    alert("XSS");
+  </script>
   <button onclick="malicious()">Click</button>
   <img src="http://external.com/image.png" />
 </div>
@@ -871,48 +918,48 @@ When HTML contains dangerous elements, they are automatically removed by DOMPuri
 
 ### 8.1 検索関連 / Search-related
 
-| コード / Code | 説明 / Description | 対処法 / Solution |
-|--------|------|--------|
-| `INVALID_QUERY` | 空のクエリ / Empty query | キーワードを入力 / Enter keywords |
-| `NO_RESULTS` | 結果なし / No results | キーワードを変更 / Change keywords |
-| `PATTERN_NOT_FOUND` | パターンが存在しない / Pattern does not exist | IDを確認 / Check ID |
+| コード / Code       | 説明 / Description                            | 対処法 / Solution                  |
+| ------------------- | --------------------------------------------- | ---------------------------------- |
+| `INVALID_QUERY`     | 空のクエリ / Empty query                      | キーワードを入力 / Enter keywords  |
+| `NO_RESULTS`        | 結果なし / No results                         | キーワードを変更 / Change keywords |
+| `PATTERN_NOT_FOUND` | パターンが存在しない / Pattern does not exist | IDを確認 / Check ID                |
 
 ### 8.2 WebDesign関連 / WebDesign-related
 
-| コード / Code | 説明 / Description | 対処法 / Solution |
-|--------|------|--------|
-| `HTML_TOO_LARGE` | サイズ超過 / Size exceeded | より単純なページを選択 / Select a simpler page |
-| `INGEST_FAILED` | ページ収集失敗 / Page collection failed | URLとネットワークを確認 / Check URL and network |
+| コード / Code    | 説明 / Description                      | 対処法 / Solution                               |
+| ---------------- | --------------------------------------- | ----------------------------------------------- |
+| `HTML_TOO_LARGE` | サイズ超過 / Size exceeded              | より単純なページを選択 / Select a simpler page  |
+| `INGEST_FAILED`  | ページ収集失敗 / Page collection failed | URLとネットワークを確認 / Check URL and network |
 
 ### 8.3 Narrative検索関連 / Narrative Search-related
 
-| コード / Code | 説明 / Description | 対処法 / Solution |
-|--------|------|--------|
-| `NO_RESULTS` | ナラティブ検索結果なし / No narrative search results | フィルターを緩和、`minSimilarity` を下げる / Relax filters, lower `minSimilarity` |
-| `INVALID_EMBEDDING` | Embedding次元数不正 / Invalid embedding dimensions | 768次元のベクトルを指定 / Specify 768-dim vector |
-| `INVALID_MOOD_CATEGORY` | 無効なムードカテゴリ / Invalid mood category | サポートされるカテゴリを確認 / Check supported categories |
+| コード / Code           | 説明 / Description                                   | 対処法 / Solution                                                                 |
+| ----------------------- | ---------------------------------------------------- | --------------------------------------------------------------------------------- |
+| `NO_RESULTS`            | ナラティブ検索結果なし / No narrative search results | フィルターを緩和、`minSimilarity` を下げる / Relax filters, lower `minSimilarity` |
+| `INVALID_EMBEDDING`     | Embedding次元数不正 / Invalid embedding dimensions   | 768次元のベクトルを指定 / Specify 768-dim vector                                  |
+| `INVALID_MOOD_CATEGORY` | 無効なムードカテゴリ / Invalid mood category         | サポートされるカテゴリを確認 / Check supported categories                         |
 
 ### 8.4 フレーム画像分析関連 / Frame Image Analysis-related
 
-| コード / Code | 説明 / Description | 対処法 / Solution |
-|--------|------|--------|
-| `FRAME_CAPTURE_FAILED` | フレームキャプチャ失敗 / Frame capture failed | ブラウザの状態を確認、ページの読み込み完了を待つ / Check browser state, wait for page load |
-| `WORKER_TIMEOUT` | Worker Threadタイムアウト / Worker Thread timeout | フレーム数を削減（`scroll_px_per_frame` を増加）/ Reduce frames (increase `scroll_px_per_frame`) |
-| `OUT_OF_MEMORY` | メモリ不足 / Out of memory | フレーム数削減、または `analyze_frames: false` に設定 / Reduce frames or set `analyze_frames: false` |
+| コード / Code          | 説明 / Description                                | 対処法 / Solution                                                                                    |
+| ---------------------- | ------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| `FRAME_CAPTURE_FAILED` | フレームキャプチャ失敗 / Frame capture failed     | ブラウザの状態を確認、ページの読み込み完了を待つ / Check browser state, wait for page load           |
+| `WORKER_TIMEOUT`       | Worker Threadタイムアウト / Worker Thread timeout | フレーム数を削減（`scroll_px_per_frame` を増加）/ Reduce frames (increase `scroll_px_per_frame`)     |
+| `OUT_OF_MEMORY`        | メモリ不足 / Out of memory                        | フレーム数削減、または `analyze_frames: false` に設定 / Reduce frames or set `analyze_frames: false` |
 
 ### 8.5 コード生成関連 / Code Generation-related
 
-| コード / Code | 説明 / Description | 対処法 / Solution |
-|--------|------|--------|
+| コード / Code            | 説明 / Description                      | 対処法 / Solution                               |
+| ------------------------ | --------------------------------------- | ----------------------------------------------- |
 | `CODE_GENERATION_FAILED` | コード生成失敗 / Code generation failed | 単純なパターンを選択 / Select a simpler pattern |
 
 ### 8.6 システム関連 / System-related
 
-| コード / Code | 説明 / Description | 対処法 / Solution |
-|--------|------|--------|
-| `RATE_LIMIT_EXCEEDED` | レート制限 / Rate limit | 1分待つ / Wait 1 minute |
-| `INTERNAL_ERROR` | 内部エラー / Internal error | サポートに連絡 / Contact support |
-| `VALIDATION_ERROR` | バリデーションエラー / Validation error | 入力を確認 / Check input |
+| コード / Code         | 説明 / Description                      | 対処法 / Solution                |
+| --------------------- | --------------------------------------- | -------------------------------- |
+| `RATE_LIMIT_EXCEEDED` | レート制限 / Rate limit                 | 1分待つ / Wait 1 minute          |
+| `INTERNAL_ERROR`      | 内部エラー / Internal error             | サポートに連絡 / Contact support |
+| `VALIDATION_ERROR`    | バリデーションエラー / Validation error | 入力を確認 / Check input         |
 
 ---
 
@@ -996,6 +1043,7 @@ Verify the config file path is correct and the MCP server is built. Then fully r
 **A:** `pnpm db:backup` コマンドを使用してください。自動日次バックアップも Docker Compose で有効です（毎日 3:00 AM JST）。
 
 Use the `pnpm db:backup` command. Automatic daily backups are also enabled via Docker Compose (daily at 3:00 AM JST).
+
 ```bash
 pnpm db:backup                    # 手動バックアップ / Manual backup
 pnpm db:restore                   # 最新バックアップからリストア / Restore from latest

@@ -7,17 +7,11 @@
  * RRF utilities and types for WebDesign search services.
  */
 
-export { calculateRRF, mergeWithRRF, normalizeRRFScore, toRankedItems } from './rrf.js';
-export type {
-  RankedItem,
-  RRFScoredItem,
-} from './rrf.js';
-export { executeHybridSearch } from './hybrid.js';
-export { buildFulltextConditions, buildFulltextRankExpression } from './fulltext-helpers.js';
-export type {
-  HybridSearchConfig,
-  HybridSearchResult,
-} from './hybrid.js';
+export { calculateRRF, mergeWithRRF, normalizeRRFScore, toRankedItems } from "./rrf.js";
+export type { RankedItem, RRFScoredItem } from "./rrf.js";
+export { executeHybridSearch } from "./hybrid.js";
+export { buildFulltextConditions, buildFulltextRankExpression } from "./fulltext-helpers.js";
+export type { HybridSearchConfig, HybridSearchResult } from "./hybrid.js";
 export type {
   SearchFilters,
   SearchOptions,
@@ -28,4 +22,4 @@ export type {
   SummarySearchResultItem,
   VectorSearchRawResult,
   FullTextSearchRawResult,
-} from './types.js';
+} from "./types.js";

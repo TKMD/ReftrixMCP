@@ -16,13 +16,13 @@
  * @module services/external-css-fetcher
  */
 
-import { createLogger } from '../utils/logger';
+import { createLogger } from "../utils/logger";
 
 // =============================================
 // ロガー
 // =============================================
 
-const logger = createLogger('ExternalCssFetcher');
+const logger = createLogger("ExternalCssFetcher");
 
 // =============================================
 // 型定義
@@ -132,8 +132,7 @@ const DEFAULT_MAX_SIZE = 5 * 1024 * 1024;
 const DEFAULT_MAX_CONCURRENT = 5;
 
 /** デフォルトUser-Agent */
-const DEFAULT_USER_AGENT =
-  'Mozilla/5.0 (compatible; ReftrixCssFetcher/1.0; +https://reftrix.app)';
+const DEFAULT_USER_AGENT = "Mozilla/5.0 (compatible; ReftrixCssFetcher/1.0; +https://reftrix.app)";
 
 // =============================================
 // SSRF対策 - プライベートIPチェック
@@ -144,7 +143,7 @@ const DEFAULT_USER_AGENT =
  */
 function isPrivateIp(hostname: string): boolean {
   // localhost
-  if (hostname === 'localhost' || hostname === 'localhost.localdomain') {
+  if (hostname === "localhost" || hostname === "localhost.localdomain") {
     return true;
   }
 
@@ -187,7 +186,7 @@ function isPrivateIp(hostname: string): boolean {
   }
 
   // IPv6 loopback
-  if (hostname === '::1' || hostname === '[::1]') {
+  if (hostname === "::1" || hostname === "[::1]") {
     return true;
   }
 
@@ -202,15 +201,15 @@ function isDangerousHostname(hostname: string): boolean {
 
   // Cloud metadata service endpoints
   const dangerousHosts = [
-    'metadata.google.internal',
-    'metadata.google',
-    'metadata',
-    'instance-data',
-    'fd00:ec2::254',
+    "metadata.google.internal",
+    "metadata.google",
+    "metadata",
+    "instance-data",
+    "fd00:ec2::254",
   ];
 
   return dangerousHosts.some(
-    (dangerous) => lowerHostname === dangerous || lowerHostname.endsWith('.' + dangerous)
+    (dangerous) => lowerHostname === dangerous || lowerHostname.endsWith("." + dangerous)
   );
 }
 
@@ -225,9 +224,9 @@ export function isSafeUrl(url: string): boolean {
     const parsedUrl = new URL(url);
 
     // プロトコルチェック（http/httpsのみ許可）
-    if (parsedUrl.protocol !== 'http:' && parsedUrl.protocol !== 'https:') {
-      if (process.env.NODE_ENV === 'development') {
-        logger.debug('Unsafe protocol blocked', { url, protocol: parsedUrl.protocol });
+    if (parsedUrl.protocol !== "http:" && parsedUrl.protocol !== "https:") {
+      if (process.env.NODE_ENV === "development") {
+        logger.debug("Unsafe protocol blocked", { url, protocol: parsedUrl.protocol });
       }
       return false;
     }
@@ -236,16 +235,16 @@ export function isSafeUrl(url: string): boolean {
 
     // プライベートIPチェック
     if (isPrivateIp(hostname)) {
-      if (process.env.NODE_ENV === 'development') {
-        logger.debug('Private IP blocked', { url, hostname });
+      if (process.env.NODE_ENV === "development") {
+        logger.debug("Private IP blocked", { url, hostname });
       }
       return false;
     }
 
     // 危険なホスト名チェック
     if (isDangerousHostname(hostname)) {
-      if (process.env.NODE_ENV === 'development') {
-        logger.debug('Dangerous hostname blocked', { url, hostname });
+      if (process.env.NODE_ENV === "development") {
+        logger.debug("Dangerous hostname blocked", { url, hostname });
       }
       return false;
     }
@@ -253,8 +252,8 @@ export function isSafeUrl(url: string): boolean {
     return true;
   } catch {
     // 無効なURL
-    if (process.env.NODE_ENV === 'development') {
-      logger.debug('Invalid URL format', { url });
+    if (process.env.NODE_ENV === "development") {
+      logger.debug("Invalid URL format", { url });
     }
     return false;
   }
@@ -285,23 +284,23 @@ export function isSafeUrl(url: string): boolean {
  */
 export function resolveUrl(href: string, baseUrl: string): string {
   // 入力バリデーション
-  if (!href || typeof href !== 'string' || href.trim() === '') {
-    if (process.env.NODE_ENV === 'development') {
-      logger.warn('resolveUrl: empty or invalid href', { href, baseUrl });
+  if (!href || typeof href !== "string" || href.trim() === "") {
+    if (process.env.NODE_ENV === "development") {
+      logger.warn("resolveUrl: empty or invalid href", { href, baseUrl });
     }
-    return '';
+    return "";
   }
 
-  if (!baseUrl || typeof baseUrl !== 'string' || baseUrl.trim() === '') {
-    if (process.env.NODE_ENV === 'development') {
-      logger.warn('resolveUrl: empty or invalid baseUrl', { href, baseUrl });
+  if (!baseUrl || typeof baseUrl !== "string" || baseUrl.trim() === "") {
+    if (process.env.NODE_ENV === "development") {
+      logger.warn("resolveUrl: empty or invalid baseUrl", { href, baseUrl });
     }
     // baseUrlが無効な場合、hrefが絶対URLならそのまま返す
     try {
       new URL(href);
       return href; // 既に絶対URL
     } catch {
-      return ''; // 相対URLだが解決不可
+      return ""; // 相対URLだが解決不可
     }
   }
 
@@ -309,26 +308,26 @@ export function resolveUrl(href: string, baseUrl: string): string {
 
   // 特殊URLスキームの処理
   // data: URL - そのまま返す（base64エンコードされたCSSなど）
-  if (trimmedHref.startsWith('data:')) {
+  if (trimmedHref.startsWith("data:")) {
     return trimmedHref;
   }
 
   // blob: URL - そのまま返す（Blob URLとして有効）
-  if (trimmedHref.startsWith('blob:')) {
+  if (trimmedHref.startsWith("blob:")) {
     return trimmedHref;
   }
 
   // javascript: スキーム - セキュリティ上ブロック（空文字列を返す）
-  if (trimmedHref.toLowerCase().startsWith('javascript:')) {
-    if (process.env.NODE_ENV === 'development') {
-      logger.warn('resolveUrl: blocked javascript: scheme', { href });
+  if (trimmedHref.toLowerCase().startsWith("javascript:")) {
+    if (process.env.NODE_ENV === "development") {
+      logger.warn("resolveUrl: blocked javascript: scheme", { href });
     }
-    return '';
+    return "";
   }
 
   try {
     // プロトコル相対URL (//) の処理
-    if (trimmedHref.startsWith('//')) {
+    if (trimmedHref.startsWith("//")) {
       const base = new URL(baseUrl);
       return base.protocol + trimmedHref;
     }
@@ -338,14 +337,14 @@ export function resolveUrl(href: string, baseUrl: string): string {
     return resolved.href;
   } catch (error) {
     // 解決できない場合は空文字列を返す（無効なURLを返さない）
-    if (process.env.NODE_ENV === 'development') {
-      logger.warn('Failed to resolve URL', {
+    if (process.env.NODE_ENV === "development") {
+      logger.warn("Failed to resolve URL", {
         href,
         baseUrl,
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: error instanceof Error ? error.message : "Unknown error",
       });
     }
-    return '';
+    return "";
   }
 }
 
@@ -366,8 +365,7 @@ export function extractCssUrls(html: string, baseUrl: string): ExtractedCssUrl[]
 
   // <link rel="stylesheet" ...> を抽出（様々なバリエーションに対応）
   // rel="stylesheet" または rel='stylesheet' のパターン
-  const linkRegex =
-    /<link\s+[^>]*rel\s*=\s*["']stylesheet["'][^>]*>/gi;
+  const linkRegex = /<link\s+[^>]*rel\s*=\s*["']stylesheet["'][^>]*>/gi;
   const hrefRegex = /href\s*=\s*["']([^"']+)["']/i;
   const mediaRegex = /media\s*=\s*["']([^"']+)["']/i;
   const typeRegex = /type\s*=\s*["']([^"']+)["']/i;
@@ -423,8 +421,8 @@ export function extractCssUrls(html: string, baseUrl: string): ExtractedCssUrl[]
     }
   }
 
-  if (process.env.NODE_ENV === 'development') {
-    logger.debug('Extracted CSS URLs from HTML', { count: results.length, baseUrl });
+  if (process.env.NODE_ENV === "development") {
+    logger.debug("Extracted CSS URLs from HTML", { count: results.length, baseUrl });
   }
 
   return results;
@@ -482,8 +480,8 @@ export function extractImportUrls(css: string, baseUrl: string): ExtractedCssUrl
     }
   }
 
-  if (process.env.NODE_ENV === 'development') {
-    logger.debug('Extracted @import URLs from CSS', { count: results.length, baseUrl });
+  if (process.env.NODE_ENV === "development") {
+    logger.debug("Extracted @import URLs from CSS", { count: results.length, baseUrl });
   }
 
   return results;
@@ -500,10 +498,7 @@ export function extractImportUrls(css: string, baseUrl: string): ExtractedCssUrl
  * @param options - 取得オプション
  * @returns CSS取得結果（成功時はコンテンツ文字列、失敗時はnull）
  */
-export async function fetchCss(
-  url: string,
-  options: FetchCssOptions = {}
-): Promise<string | null> {
+export async function fetchCss(url: string, options: FetchCssOptions = {}): Promise<string | null> {
   const result = await fetchCssDetailed(url, options);
   return result.success ? (result.content ?? null) : null;
 }
@@ -527,7 +522,7 @@ async function fetchCssDetailed(
   if (!isSafeUrl(url)) {
     return {
       success: false,
-      error: 'SSRF protection: URL blocked',
+      error: "SSRF protection: URL blocked",
     };
   }
 
@@ -536,17 +531,17 @@ async function fetchCssDetailed(
   const timeoutId = setTimeout(() => controller.abort(), timeout);
 
   try {
-    if (process.env.NODE_ENV === 'development') {
-      logger.debug('Fetching CSS', { url, timeout, maxSize });
+    if (process.env.NODE_ENV === "development") {
+      logger.debug("Fetching CSS", { url, timeout, maxSize });
     }
 
     const response = await fetch(url, {
       signal: controller.signal,
       headers: {
-        'User-Agent': userAgent,
-        Accept: 'text/css, */*;q=0.1',
+        "User-Agent": userAgent,
+        Accept: "text/css, */*;q=0.1",
       },
-      redirect: 'follow',
+      redirect: "follow",
     });
 
     clearTimeout(timeoutId);
@@ -556,7 +551,7 @@ async function fetchCssDetailed(
     if (finalUrl !== url && !isSafeUrl(finalUrl)) {
       return {
         success: false,
-        error: 'SSRF protection: redirect to blocked URL',
+        error: "SSRF protection: redirect to blocked URL",
         statusCode: response.status,
         finalUrl,
       };
@@ -573,14 +568,14 @@ async function fetchCssDetailed(
     }
 
     // Content-Typeチェック（柔軟に）
-    const contentType = response.headers.get('content-type') ?? '';
+    const contentType = response.headers.get("content-type") ?? "";
     const isCssContentType =
-      contentType.includes('text/css') ||
-      contentType.includes('text/plain') ||
-      contentType.includes('application/octet-stream') ||
-      contentType === '';
+      contentType.includes("text/css") ||
+      contentType.includes("text/plain") ||
+      contentType.includes("application/octet-stream") ||
+      contentType === "";
 
-    if (!isCssContentType && contentType.includes('text/html')) {
+    if (!isCssContentType && contentType.includes("text/html")) {
       return {
         success: false,
         error: `Invalid Content-Type: expected text/css, got ${contentType}`,
@@ -590,7 +585,7 @@ async function fetchCssDetailed(
     }
 
     // Content-Lengthチェック（事前にサイズが分かる場合）
-    const contentLengthHeader = response.headers.get('content-length');
+    const contentLengthHeader = response.headers.get("content-length");
     if (contentLengthHeader) {
       const contentLength = parseInt(contentLengthHeader, 10);
       if (contentLength > maxSize) {
@@ -619,8 +614,8 @@ async function fetchCssDetailed(
       };
     }
 
-    if (process.env.NODE_ENV === 'development') {
-      logger.debug('CSS fetched successfully', { url, contentSize, finalUrl });
+    if (process.env.NODE_ENV === "development") {
+      logger.debug("CSS fetched successfully", { url, contentSize, finalUrl });
     }
 
     return {
@@ -634,7 +629,7 @@ async function fetchCssDetailed(
     clearTimeout(timeoutId);
 
     if (error instanceof Error) {
-      if (error.name === 'AbortError') {
+      if (error.name === "AbortError") {
         return {
           success: false,
           error: `Request timed out after ${timeout}ms`,
@@ -650,7 +645,7 @@ async function fetchCssDetailed(
 
     return {
       success: false,
-      error: 'Unknown error occurred',
+      error: "Unknown error occurred",
     };
   }
 }
@@ -695,7 +690,7 @@ async function fetchAllCssDetailed(
 
   if (urls.length === 0) {
     return {
-      combinedCss: '',
+      combinedCss: "",
       results: [],
       successCount: 0,
       failedCount: 0,
@@ -703,8 +698,8 @@ async function fetchAllCssDetailed(
     };
   }
 
-  if (process.env.NODE_ENV === 'development') {
-    logger.debug('Fetching multiple CSS files', {
+  if (process.env.NODE_ENV === "development") {
+    logger.debug("Fetching multiple CSS files", {
       count: urls.length,
       maxConcurrent,
       continueOnError,
@@ -779,10 +774,10 @@ async function fetchAllCssDetailed(
     }
   }
 
-  const combinedCss = cssContents.join('\n\n');
+  const combinedCss = cssContents.join("\n\n");
 
-  if (process.env.NODE_ENV === 'development') {
-    logger.debug('Multiple CSS fetch completed', {
+  if (process.env.NODE_ENV === "development") {
+    logger.debug("Multiple CSS fetch completed", {
       successCount,
       failedCount,
       totalSize,
@@ -839,10 +834,7 @@ export class ExternalCssFetcher {
   /**
    * 単一URLからCSSを取得
    */
-  async fetchCss(
-    url: string,
-    options?: FetchCssOptions
-  ): Promise<FetchCssDetailedResult> {
+  async fetchCss(url: string, options?: FetchCssOptions): Promise<FetchCssDetailedResult> {
     return fetchCssDetailed(url, { ...this.options, ...options });
   }
 
@@ -875,6 +867,6 @@ export class ExternalCssFetcher {
 // 開発環境ログ
 // =============================================
 
-if (process.env.NODE_ENV === 'development') {
-  logger.debug('ExternalCssFetcher module loaded');
+if (process.env.NODE_ENV === "development") {
+  logger.debug("ExternalCssFetcher module loaded");
 }

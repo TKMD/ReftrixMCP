@@ -18,20 +18,20 @@ import {
   type NarrativeResult,
   type AnalysisWarning,
   type CssFrameworkResult,
-} from '../schemas';
+} from "../schemas";
 
 import {
   type LayoutServiceResult,
   type MotionServiceResult,
   type QualityServiceResult,
   type NarrativeHandlerResult,
-} from './types';
+} from "./types";
 
 import {
   WarningFactory,
   legacyWarningToActionable,
   type ActionableWarning as ActionableWarningType,
-} from '../../../utils/actionable-warning';
+} from "../../../utils/actionable-warning";
 
 // =====================================================
 // エラーコード判定
@@ -41,13 +41,13 @@ import {
  * エラーメッセージから適切なエラーコードを判定
  */
 export function determineErrorCode(errorMessage: string): string {
-  if (errorMessage.includes('timeout') || errorMessage.includes('Timeout')) {
+  if (errorMessage.includes("timeout") || errorMessage.includes("Timeout")) {
     return PAGE_ANALYZE_ERROR_CODES.TIMEOUT_ERROR;
   }
-  if (errorMessage.includes('404') || errorMessage.includes('Not Found')) {
+  if (errorMessage.includes("404") || errorMessage.includes("Not Found")) {
     return PAGE_ANALYZE_ERROR_CODES.HTTP_ERROR;
   }
-  if (errorMessage.includes('browser') || errorMessage.includes('Browser')) {
+  if (errorMessage.includes("browser") || errorMessage.includes("Browser")) {
     return PAGE_ANALYZE_ERROR_CODES.BROWSER_ERROR;
   }
   return PAGE_ANALYZE_ERROR_CODES.NETWORK_ERROR;
@@ -63,7 +63,7 @@ export function determineErrorCode(errorMessage: string): string {
 export function buildLayoutResult(
   lr: LayoutServiceResult,
   isSummary: boolean,
-  layoutOptions?: PageAnalyzeInput['layoutOptions']
+  layoutOptions?: PageAnalyzeInput["layoutOptions"]
 ): LayoutResult {
   // 基本フィールドでLayoutResultSummaryを構築
   const base: LayoutResultSummary = {
@@ -94,7 +94,8 @@ export function buildLayoutResult(
     // Summary版: include_html/include_screenshotは独立して適用
     // MCP-RESP-03: snake_case (include_html) を優先し、camelCase (includeHtml) はフォールバック
     const shouldIncludeHtml = layoutOptions?.include_html ?? layoutOptions?.includeHtml;
-    const shouldIncludeScreenshot = layoutOptions?.include_screenshot ?? layoutOptions?.includeScreenshot;
+    const shouldIncludeScreenshot =
+      layoutOptions?.include_screenshot ?? layoutOptions?.includeScreenshot;
 
     if (shouldIncludeHtml && lr.html) {
       (base as LayoutServiceResult).html = lr.html;
@@ -151,10 +152,7 @@ export function buildLayoutResult(
 /**
  * モーション結果を構築
  */
-export function buildMotionResult(
-  mr: MotionServiceResult,
-  isSummary: boolean
-): MotionResult {
+export function buildMotionResult(mr: MotionServiceResult, isSummary: boolean): MotionResult {
   const base: MotionResult = {
     success: mr.success,
     patternCount: mr.patternCount,
@@ -226,7 +224,7 @@ export function buildMotionResult(
 export function buildQualityResult(
   qr: QualityServiceResult,
   isSummary: boolean,
-  qualityOptions?: PageAnalyzeInput['qualityOptions']
+  qualityOptions?: PageAnalyzeInput["qualityOptions"]
 ): QualityResult {
   const base: QualityResult = {
     success: qr.success,
@@ -286,7 +284,8 @@ export function buildNarrativeResult(
   // 基本フィールド（summary/full 共通）
   const base: NarrativeResult = {
     worldView: {
-      moodCategory: narrative.worldView.moodCategory as NarrativeResult['worldView']['moodCategory'],
+      moodCategory: narrative.worldView
+        .moodCategory as NarrativeResult["worldView"]["moodCategory"],
       moodDescription: narrative.worldView.moodDescription,
       colorImpression: narrative.worldView.colorImpression,
       typographyPersonality: narrative.worldView.typographyPersonality,
@@ -307,7 +306,8 @@ export function buildNarrativeResult(
     base.webPageId = narrative.webPageId;
   }
   if (narrative.worldView.secondaryMoodCategory !== undefined) {
-    base.worldView.secondaryMoodCategory = narrative.worldView.secondaryMoodCategory as NarrativeResult['worldView']['secondaryMoodCategory'];
+    base.worldView.secondaryMoodCategory = narrative.worldView
+      .secondaryMoodCategory as NarrativeResult["worldView"]["secondaryMoodCategory"];
   }
   if (narrative.worldView.motionEmotion !== undefined) {
     base.worldView.motionEmotion = narrative.worldView.motionEmotion;
@@ -388,7 +388,7 @@ export function buildBackgroundDesignsSummary(
  * 分析結果からwarningを抽出
  */
 export function extractWarning(
-  feature: 'layout' | 'motion' | 'quality',
+  feature: "layout" | "motion" | "quality",
   result: { success: boolean; error?: { code: string; message: string } }
 ): AnalysisWarning | null {
   if (!result.success && result.error) {
@@ -412,7 +412,7 @@ export function extractWarning(
  * 対応するFactoryメソッドがない場合は、legacyWarningToActionableでフォールバック変換。
  */
 export function extractActionableWarning(
-  feature: 'layout' | 'motion' | 'quality',
+  feature: "layout" | "motion" | "quality",
   result: { success: boolean; error?: { code: string; message: string } },
   context?: {
     url?: string;
@@ -424,77 +424,84 @@ export function extractActionableWarning(
     const { code, message } = result.error;
 
     // タイムアウトエラーの検出
-    if (code === PAGE_ANALYZE_ERROR_CODES.TIMEOUT_ERROR ||
-        message.toLowerCase().includes('timeout') ||
-        message.toLowerCase().includes('timed out')) {
-      return WarningFactory.pageTimeout(
-        context?.url || 'unknown',
-        context?.timeoutMs || 60000
-      );
+    if (
+      code === PAGE_ANALYZE_ERROR_CODES.TIMEOUT_ERROR ||
+      message.toLowerCase().includes("timeout") ||
+      message.toLowerCase().includes("timed out")
+    ) {
+      return WarningFactory.pageTimeout(context?.url || "unknown", context?.timeoutMs || 60000);
     }
 
     // ネットワークエラーの検出
-    if (code === PAGE_ANALYZE_ERROR_CODES.NETWORK_ERROR ||
-        message.toLowerCase().includes('network') ||
-        message.toLowerCase().includes('fetch') ||
-        message.toLowerCase().includes('econnrefused')) {
-      return WarningFactory.networkError(
-        context?.url || 'unknown',
-        message
-      );
+    if (
+      code === PAGE_ANALYZE_ERROR_CODES.NETWORK_ERROR ||
+      message.toLowerCase().includes("network") ||
+      message.toLowerCase().includes("fetch") ||
+      message.toLowerCase().includes("econnrefused")
+    ) {
+      return WarningFactory.networkError(context?.url || "unknown", message);
     }
 
     // HTTPエラーの検出（404など）
-    if (code === PAGE_ANALYZE_ERROR_CODES.HTTP_ERROR ||
-        message.includes('404') ||
-        message.includes('403') ||
-        message.includes('500')) {
+    if (
+      code === PAGE_ANALYZE_ERROR_CODES.HTTP_ERROR ||
+      message.includes("404") ||
+      message.includes("403") ||
+      message.includes("500")
+    ) {
       const statusMatch = message.match(/(\d{3})/);
       const statusCode = statusMatch?.[1] ? parseInt(statusMatch[1], 10) : 0;
-      return WarningFactory.httpError(
-        (context?.url as string) ?? 'unknown',
-        statusCode
-      );
+      return WarningFactory.httpError((context?.url as string) ?? "unknown", statusCode);
     }
 
     // ブラウザエラーの検出
-    if (code === PAGE_ANALYZE_ERROR_CODES.BROWSER_ERROR ||
-        message.toLowerCase().includes('browser') ||
-        message.toLowerCase().includes('playwright') ||
-        message.toLowerCase().includes('chromium')) {
+    if (
+      code === PAGE_ANALYZE_ERROR_CODES.BROWSER_ERROR ||
+      message.toLowerCase().includes("browser") ||
+      message.toLowerCase().includes("playwright") ||
+      message.toLowerCase().includes("chromium")
+    ) {
       return WarningFactory.browserError(message);
     }
 
     // Vision分析が利用不可の場合
-    if (message.toLowerCase().includes('vision') &&
-        (message.toLowerCase().includes('unavailable') ||
-         message.toLowerCase().includes('not available') ||
-         message.toLowerCase().includes('failed'))) {
+    if (
+      message.toLowerCase().includes("vision") &&
+      (message.toLowerCase().includes("unavailable") ||
+        message.toLowerCase().includes("not available") ||
+        message.toLowerCase().includes("failed"))
+    ) {
       return WarningFactory.visionUnavailableSimple();
     }
 
     // レイアウト固有のエラー
-    if (feature === 'layout') {
-      if (message.toLowerCase().includes('no sections') ||
-          message.toLowerCase().includes('セクションが見つかり')) {
-        return WarningFactory.noSectionsDetected(context?.url || 'unknown');
+    if (feature === "layout") {
+      if (
+        message.toLowerCase().includes("no sections") ||
+        message.toLowerCase().includes("セクションが見つかり")
+      ) {
+        return WarningFactory.noSectionsDetected(context?.url || "unknown");
       }
     }
 
     // モーション固有のエラー
-    if (feature === 'motion') {
-      if (message.toLowerCase().includes('no animation') ||
-          message.toLowerCase().includes('no motion') ||
-          message.toLowerCase().includes('アニメーションが見つかり')) {
-        return WarningFactory.noAnimationsDetected(context?.url || 'unknown');
+    if (feature === "motion") {
+      if (
+        message.toLowerCase().includes("no animation") ||
+        message.toLowerCase().includes("no motion") ||
+        message.toLowerCase().includes("アニメーションが見つかり")
+      ) {
+        return WarningFactory.noAnimationsDetected(context?.url || "unknown");
       }
     }
 
     // 品質評価固有のエラー
-    if (feature === 'quality') {
-      if (message.toLowerCase().includes('low score') ||
-          message.toLowerCase().includes('スコアが低')) {
-        return WarningFactory.lowQualityScore(50, 'overall');
+    if (feature === "quality") {
+      if (
+        message.toLowerCase().includes("low score") ||
+        message.toLowerCase().includes("スコアが低")
+      ) {
+        return WarningFactory.lowQualityScore(50, "overall");
       }
     }
 
@@ -526,17 +533,17 @@ export function extractAllActionableWarnings(
   const warnings: ActionableWarningType[] = [];
 
   if (results.layout) {
-    const warning = extractActionableWarning('layout', results.layout, context);
+    const warning = extractActionableWarning("layout", results.layout, context);
     if (warning) warnings.push(warning);
   }
 
   if (results.motion) {
-    const warning = extractActionableWarning('motion', results.motion, context);
+    const warning = extractActionableWarning("motion", results.motion, context);
     if (warning) warnings.push(warning);
   }
 
   if (results.quality) {
-    const warning = extractActionableWarning('quality', results.quality, context);
+    const warning = extractActionableWarning("quality", results.quality, context);
     if (warning) warnings.push(warning);
   }
 

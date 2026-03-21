@@ -36,6 +36,7 @@
 > "if you modify the Program, your modified version must prominently offer all users interacting with it remotely through a computer network [...] an opportunity to receive the Corresponding Source of your version"
 
 **重要な構成要件**:
+
 1. プログラムを**改変**（modify）していること
 2. ユーザーが**コンピューターネットワーク越しに遠隔で対話**していること
 3. 改変版の **Corresponding Source**（対応するソースコード）の提供義務
@@ -43,6 +44,7 @@
 未改変のReftrixをそのまま使用する場合、Section 13の義務は発動しません。ただし、Reftrixを配布する場合には、AGPL-3.0の通常の条件（Section 4-6）に基づきソースコードの提供義務があります。
 
 **参考**:
+
 - [AGPL-3.0 全文](https://www.gnu.org/licenses/agpl-3.0.html)
 - [FSF: AGPLv3の基本](https://www.fsf.org/bulletin/2021/fall/the-fundamentals-of-the-agplv3)
 - [GNU GPL FAQ](https://www.gnu.org/licenses/gpl-faq.html)
@@ -107,6 +109,7 @@ MCPプロトコルでは標準的なJSON形式のリクエスト/レスポンス
 **法的確定性**: この解釈はFSFの公式見解やGNU GPL FAQに基づく合理的な解釈ですが、MCPプロトコルとAGPLの関係について確定的な判例は存在しません。最終的な法的判断は、具体的な事実関係に基づいて行われます。不確実性を完全に排除したい場合は、[商用ライセンス](#q31-商用ライセンスはいつ必要ですか)の取得をご検討ください。
 
 **参考**:
+
 - [GNU GPL FAQ: Separate Programs](https://www.gnu.org/licenses/gpl-faq.html#MereAggregation)
 - [MCP Specification: Transports](https://modelcontextprotocol.io/legacy/concepts/transports)
 
@@ -118,13 +121,14 @@ MCPプロトコルでは標準的なJSON形式のリクエスト/レスポンス
 
 **コピーレフト境界の分析**:
 
-| 観点 | 評価 |
-|------|------|
-| **AGPL Section 13の適用** | **非適用の可能性が高い** -- StdIOはネットワーク通信ではなく、「コンピューターネットワーク越しの遠隔対話」に該当しない |
-| **「separate programs」の要件** | **充足** -- パイプを通じた通信はGNU GPL FAQで「通常、別々のプログラム」と明示されている |
-| **「aggregate」の該当性** | **該当する可能性が高い** -- 同一マシン上で独立して動作する別々のプログラム |
+| 観点                            | 評価                                                                                                                  |
+| ------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| **AGPL Section 13の適用**       | **非適用の可能性が高い** -- StdIOはネットワーク通信ではなく、「コンピューターネットワーク越しの遠隔対話」に該当しない |
+| **「separate programs」の要件** | **充足** -- パイプを通じた通信はGNU GPL FAQで「通常、別々のプログラム」と明示されている                               |
+| **「aggregate」の該当性**       | **該当する可能性が高い** -- 同一マシン上で独立して動作する別々のプログラム                                            |
 
 **結論**: StdIO transport利用時は:
+
 1. **AGPL Section 13（ネットワーク利用義務）は適用されない可能性が高い** -- ネットワーク通信が行われていないため
 2. **MCPクライアントへのコピーレフト伝播はない** -- パイプ通信による独立プログラム間の通信
 
@@ -138,23 +142,26 @@ MCPプロトコルでは標準的なJSON形式のリクエスト/レスポンス
 
 **AGPL Section 13の適用分析**:
 
-| 条件 | HTTP/SSE transportでの該当性 |
-|------|---------------------------|
-| (1) プログラムを改変している | ユーザーがReftrixを改変している場合に該当 |
+| 条件                           | HTTP/SSE transportでの該当性                     |
+| ------------------------------ | ------------------------------------------------ |
+| (1) プログラムを改変している   | ユーザーがReftrixを改変している場合に該当        |
 | (2) ネットワーク越しの遠隔対話 | **該当する** -- HTTP/SSEはネットワーク通信である |
-| (3) ソースコード提供義務 | (1)と(2)を共に満たす場合に発生 |
+| (3) ソースコード提供義務       | (1)と(2)を共に満たす場合に発生                   |
 
 **ケース別分析**:
 
 **(a) 未改変のReftrixをHTTP transportで運用する場合**:
+
 - Section 13は「**modify the Program**」を要件としているため、未改変であれば義務は発生しません
 - ただし、ReftrixをHTTPサーバーとして公開する際には、セキュリティ面から適切なアクセス制御を推奨します
 
 **(b) 改変したReftrixをHTTP transportで運用する場合**:
+
 - **Section 13の義務が発生します**: 改変版のCorresponding Source（対応するソースコード）を、ネットワーク越しで対話するユーザーが取得できるようにする必要があります
 - 具体的には、ソースコードへのダウンロードリンクの提示等が求められます
 
 **MCPクライアントへの影響（HTTP/SSE transportの場合）**:
+
 - HTTP/SSE transport経由であっても、MCPプロトコル（JSON-RPC 2.0）を介した通信は標準プロトコルによる独立プログラム間の通信であり、**MCPクライアント側のコードにAGPLの義務は及ばない**と解釈するのが合理的です
 - ただし、Section 13の義務は**Reftrixサーバー側の改変版ソースコード**に対して発生します
 
@@ -173,6 +180,7 @@ MCPプロトコルでは標準的なJSON形式のリクエスト/レスポンス
 3. **「aggregate」としての性質**: AGPL-3.0 Section 5末尾の定義による「aggregate」（「その性質上covered workの拡張ではなく、covered workと結合してより大きなプログラムを形成するものではない、独立した著作物の編集物」）に該当します
 
 **自作MCPクライアントの設計指針**:
+
 - MCPプロトコル仕様に準拠した標準的なJSON-RPCリクエスト/レスポンスのみを交換すること
 - Reftrixの内部データ構造やソースコードの一部をクライアント側にコピーしないこと
 - Reftrixのライブラリコードを直接import/linkしないこと（そうした場合は「combined work」と見なされるリスクがある）
@@ -195,14 +203,14 @@ Reftrixが生成する出力データ（レイアウト分析結果、モーシ�
 
 **具体例**:
 
-| 出力の種類 | AGPLの適用 | 理由 |
-|-----------|-----------|------|
-| レイアウト分析結果（JSON） | **非適用** | 分析データであり、Reftrixのソースコードではない |
-| モーション検出結果 | **非適用** | 同上 |
-| 品質評価スコア | **非適用** | 数値データであり、プログラムではない |
-| Embeddingベクトル | **非適用** | 数値配列であり、プログラムではない |
+| 出力の種類                                    | AGPLの適用 | 理由                                                      |
+| --------------------------------------------- | ---------- | --------------------------------------------------------- |
+| レイアウト分析結果（JSON）                    | **非適用** | 分析データであり、Reftrixのソースコードではない           |
+| モーション検出結果                            | **非適用** | 同上                                                      |
+| 品質評価スコア                                | **非適用** | 数値データであり、プログラムではない                      |
+| Embeddingベクトル                             | **非適用** | 数値配列であり、プログラムではない                        |
 | 生成されたReactコード（layout.generate_code） | **非適用** | テンプレートからの生成出力であり、Reftrixのコピーではない |
-| スクリーンショット画像 | **非適用** | 対象Webページの複製であり、Reftrixのソースコードではない |
+| スクリーンショット画像                        | **非適用** | 対象Webページの複製であり、Reftrixのソースコードではない  |
 
 したがって、Reftrixの分析結果を自由に利用でき、その利用にあたってAGPL義務は発生しません。
 
@@ -216,14 +224,14 @@ Reftrixが生成する出力データ（レイアウト分析結果、モーシ�
 
 **A**: 以下のいずれかに該当する場合、商用ライセンスの取得を推奨します:
 
-| ケース | 商用ライセンスの要否 | 理由 |
-|--------|--------------------|----|
-| Reftrixを改変せずにMCP経由で使用 | **不要** | AGPL義務が発生しない |
-| Reftrixを改変して社内利用（外部提供なし） | **不要**（注意点あり） | 配布・ネットワーク提供がなければAGPL義務は限定的 |
-| Reftrixを改変してSaaSとして外部提供 | **推奨** | Section 13により改変版のソースコード公開義務が発生 |
-| Reftrixの改変版を配布（ソース公開不可） | **必要** | AGPL-3.0では改変版の配布時にソース公開が必須 |
-| Reftrixのpackagesをライブラリとして自社プロダクトに組み込み | **推奨** | combined workとしてAGPLが自社コードに伝播する可能性 |
-| AGPL-3.0ライセンスが社内ポリシーで禁止されている | **必要** | 例: [Google AGPL Policy](https://opensource.google/documentation/reference/using/agpl-policy)のように、AGPLコードの利用自体を禁止している企業がある |
+| ケース                                                      | 商用ライセンスの要否   | 理由                                                                                                                                                |
+| ----------------------------------------------------------- | ---------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Reftrixを改変せずにMCP経由で使用                            | **不要**               | AGPL義務が発生しない                                                                                                                                |
+| Reftrixを改変して社内利用（外部提供なし）                   | **不要**（注意点あり） | 配布・ネットワーク提供がなければAGPL義務は限定的                                                                                                    |
+| Reftrixを改変してSaaSとして外部提供                         | **推奨**               | Section 13により改変版のソースコード公開義務が発生                                                                                                  |
+| Reftrixの改変版を配布（ソース公開不可）                     | **必要**               | AGPL-3.0では改変版の配布時にソース公開が必須                                                                                                        |
+| Reftrixのpackagesをライブラリとして自社プロダクトに組み込み | **推奨**               | combined workとしてAGPLが自社コードに伝播する可能性                                                                                                 |
+| AGPL-3.0ライセンスが社内ポリシーで禁止されている            | **必要**               | 例: [Google AGPL Policy](https://opensource.google/documentation/reference/using/agpl-policy)のように、AGPLコードの利用自体を禁止している企業がある |
 
 **一般的な指針**: AGPL-3.0の条件（特にソースコード公開義務）を遵守できる場合は、商用ライセンスは不要です。AGPL-3.0の条件がビジネスモデルと両立しない場合に、商用ライセンスが必要となります。
 
@@ -234,10 +242,12 @@ Reftrixが生成する出力データ（レイアウト分析結果、モーシ�
 **A**: 商用ライセンスについては、Reftrixプロジェクトの管理チームにお問い合わせください。
 
 **連絡方法**:
+
 - **メール**: [licence@reftrix.io](mailto:licence@reftrix.io)
 - GitHub Issues: [https://github.com/TKMD/ReftrixMCP/issues](https://github.com/TKMD/ReftrixMCP/issues) にて「commercial license」のラベルでIssueを作成
 
 商用ライセンスの主な内容:
+
 - AGPL-3.0のコピーレフト義務（ソースコード公開義務）の免除
 - Section 13（ネットワーク利用時のソースコード提供義務）の免除
 - プロプライエタリソフトウェアへの組み込み許可
@@ -254,6 +264,7 @@ Reftrixが生成する出力データ（レイアウト分析結果、モーシ�
 ただし、`example/`ディレクトリのコードは、Reftrixの主要機能（MCPサーバー、packages/）とは**独立したアプリケーション**です。
 
 **実用上の注意**:
+
 - `example/`のコードはReftrixのMCPツールの利用方法を示す参考実装であり、本番利用を意図したものではありません
 - `example/`のコードを参考にして独自のアプリケーションを一から作成する場合（コードをコピーせずにアイデアのみを参考にする場合）、AGPLの義務は発生しません。著作権法はアイデアではなく表現を保護します
 - `example/`のコードの一部をコピーして自作アプリケーションに組み込む場合は、AGPL-3.0の条件に従う必要があります
@@ -273,17 +284,18 @@ AGPL-3.0の義務は以下の2つの場面で発生します:
 
 **社内セルフホスティングの分析**:
 
-| 利用形態 | 配布に該当？ | Section 13に該当？ | ソース公開義務 |
-|---------|------------|-------------------|-------------|
-| 社内サーバーで社員のみが利用 | いいえ | 議論あり（注1） | **発生しない可能性が高い** |
-| 社内サーバーで顧客にも公開 | いいえ（ただし注2） | **はい**（改変時） | **発生する可能性あり** |
-| 社内でReftrixを改変し、改変版を社外に配布 | **はい** | N/A | **発生する** |
+| 利用形態                                  | 配布に該当？        | Section 13に該当？ | ソース公開義務             |
+| ----------------------------------------- | ------------------- | ------------------ | -------------------------- |
+| 社内サーバーで社員のみが利用              | いいえ              | 議論あり（注1）    | **発生しない可能性が高い** |
+| 社内サーバーで顧客にも公開                | いいえ（ただし注2） | **はい**（改変時） | **発生する可能性あり**     |
+| 社内でReftrixを改変し、改変版を社外に配布 | **はい**            | N/A                | **発生する**               |
 
 **注1**: 同一組織内での利用は「propagation」に含まれますが、FSFの見解では、組織内部での利用はSection 13の「users interacting with it remotely」に該当しないとする解釈が一般的です。社員はサービスの「ユーザー」ではなく、組織の一部として利用していると解されます。ただし、この点に関する確定的な判例は存在しません。
 
 **注2**: ソフトウェアのコピーを顧客に渡していない場合は「配布」には該当しませんが、ネットワーク越しに顧客がサービスを利用する場合はSection 13の対象になります。
 
 **推奨事項**: 社内利用に限定する場合でも、以下を推奨します:
+
 - 改変の有無を記録に残す
 - 将来的な利用範囲の拡大に備えて、AGPL-3.0への準拠体制を整備する
 - 不確実性を排除したい場合は商用ライセンスを検討する
@@ -301,6 +313,7 @@ Reftrixを改変し、SaaS（Software as a Service）として第三者に提供
 3. **対象範囲**: Reftrixの改変版全体のCorresponding Source（ビルドスクリプト、依存関係情報等を含む）
 
 **具体的な準拠方法の例**:
+
 - SaaSのUI上に「ソースコード」リンクを設置し、GitHubリポジトリ等へのリンクを提供
 - 改変版のソースコードをGitHubの公開リポジトリで公開
 - AGPL-3.0ライセンスの全文をソースコードに同梱
@@ -357,6 +370,7 @@ Specifically, AGPL-3.0 Section 13 states:
 > "if you modify the Program, your modified version must prominently offer all users interacting with it remotely through a computer network [...] an opportunity to receive the Corresponding Source of your version"
 
 **Key requirements**:
+
 1. You must have **modified** the program
 2. Users must be **interacting with it remotely through a computer network**
 3. You must provide the **Corresponding Source** of your modified version
@@ -364,6 +378,7 @@ Specifically, AGPL-3.0 Section 13 states:
 If you use an unmodified version of Reftrix, Section 13 obligations are not triggered. However, if you distribute Reftrix, the standard AGPL-3.0 conveying obligations (Sections 4-6) apply.
 
 **References**:
+
 - [AGPL-3.0 Full Text](https://www.gnu.org/licenses/agpl-3.0.html)
 - [FSF: The Fundamentals of the AGPLv3](https://www.fsf.org/bulletin/2021/fall/the-fundamentals-of-the-agplv3)
 - [GNU GPL FAQ](https://www.gnu.org/licenses/gpl-faq.html)
@@ -424,6 +439,7 @@ Since MCP protocol exchanges only standard JSON-formatted requests and responses
 **Legal certainty**: This interpretation is based on reasonable reading of the FSF's official positions and the GNU GPL FAQ. However, no definitive case law exists regarding the relationship between MCP protocol and AGPL. For complete certainty, consider obtaining a [commercial license](#q31-when-is-a-commercial-license-needed).
 
 **References**:
+
 - [GNU GPL FAQ: Mere Aggregation](https://www.gnu.org/licenses/gpl-faq.html#MereAggregation)
 - [MCP Specification: Transports](https://modelcontextprotocol.io/legacy/concepts/transports)
 
@@ -435,13 +451,14 @@ Since MCP protocol exchanges only standard JSON-formatted requests and responses
 
 **Copyleft boundary analysis**:
 
-| Aspect | Assessment |
-|--------|-----------|
-| **AGPL Section 13 applicability** | **Likely not applicable** -- StdIO is not network communication and does not constitute "interacting remotely through a computer network" |
-| **"Separate programs" requirement** | **Met** -- Pipe-based communication is explicitly identified as "normally between separate programs" in the GNU GPL FAQ |
-| **"Aggregate" qualification** | **Likely qualifies** -- Independent programs running on the same machine |
+| Aspect                              | Assessment                                                                                                                                |
+| ----------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| **AGPL Section 13 applicability**   | **Likely not applicable** -- StdIO is not network communication and does not constitute "interacting remotely through a computer network" |
+| **"Separate programs" requirement** | **Met** -- Pipe-based communication is explicitly identified as "normally between separate programs" in the GNU GPL FAQ                   |
+| **"Aggregate" qualification**       | **Likely qualifies** -- Independent programs running on the same machine                                                                  |
 
 **Conclusion**: When using StdIO transport:
+
 1. **AGPL Section 13 (network use obligation) is likely not applicable** -- no network communication occurs
 2. **No copyleft propagation to MCP clients** -- communication between independent programs via pipes
 
@@ -455,23 +472,26 @@ Note that if you **distribute** Reftrix (e.g., distribute it as a package to thi
 
 **AGPL Section 13 applicability analysis**:
 
-| Condition | Applicability with HTTP/SSE transport |
-|-----------|--------------------------------------|
-| (1) Program is modified | Applies if the user has modified Reftrix |
-| (2) Remote interaction via network | **Applies** -- HTTP/SSE is network communication |
-| (3) Source code provision obligation | Triggered when both (1) and (2) are met |
+| Condition                            | Applicability with HTTP/SSE transport            |
+| ------------------------------------ | ------------------------------------------------ |
+| (1) Program is modified              | Applies if the user has modified Reftrix         |
+| (2) Remote interaction via network   | **Applies** -- HTTP/SSE is network communication |
+| (3) Source code provision obligation | Triggered when both (1) and (2) are met          |
 
 **Case analysis**:
 
 **(a) Running unmodified Reftrix over HTTP transport**:
+
 - Section 13 requires "**modify** the Program" -- no obligation if unmodified
 - Security-appropriate access controls are still recommended
 
 **(b) Running modified Reftrix over HTTP transport**:
+
 - **Section 13 obligations are triggered**: You must make the Corresponding Source of your modified version available to users interacting via the network
 - This can be accomplished by providing a download link to the source code
 
 **Impact on MCP clients (HTTP/SSE transport)**:
+
 - Even over HTTP/SSE, communication via MCP protocol (JSON-RPC 2.0) remains a standard protocol interaction between independent programs -- **AGPL obligations do not extend to MCP client code**
 - However, Section 13 obligations do apply to the **modified Reftrix server source code itself**
 
@@ -488,6 +508,7 @@ Note that if you **distribute** Reftrix (e.g., distribute it as a package to thi
 3. **"Aggregate" nature**: Qualifies as an aggregate under AGPL-3.0 Section 5 ("separate and independent works, which are not by their nature extensions of the covered work")
 
 **Design guidelines for custom MCP clients**:
+
 - Exchange only standard JSON-RPC requests/responses conforming to the MCP protocol specification
 - Do not copy Reftrix internal data structures or source code into your client
 - Do not directly import/link Reftrix library code (doing so may constitute a "combined work")
@@ -508,14 +529,14 @@ Output data generated by Reftrix (layout analysis results, motion detection resu
 
 **Examples**:
 
-| Output Type | AGPL Applicability | Reason |
-|------------|-------------------|--------|
-| Layout analysis results (JSON) | **Not applicable** | Analysis data, not Reftrix source code |
-| Motion detection results | **Not applicable** | Same as above |
-| Quality evaluation scores | **Not applicable** | Numerical data, not a program |
-| Embedding vectors | **Not applicable** | Numerical arrays, not a program |
-| Generated React code (layout.generate_code) | **Not applicable** | Template-generated output, not a copy of Reftrix |
-| Screenshot images | **Not applicable** | Reproduction of target web pages, not Reftrix source code |
+| Output Type                                 | AGPL Applicability | Reason                                                    |
+| ------------------------------------------- | ------------------ | --------------------------------------------------------- |
+| Layout analysis results (JSON)              | **Not applicable** | Analysis data, not Reftrix source code                    |
+| Motion detection results                    | **Not applicable** | Same as above                                             |
+| Quality evaluation scores                   | **Not applicable** | Numerical data, not a program                             |
+| Embedding vectors                           | **Not applicable** | Numerical arrays, not a program                           |
+| Generated React code (layout.generate_code) | **Not applicable** | Template-generated output, not a copy of Reftrix          |
+| Screenshot images                           | **Not applicable** | Reproduction of target web pages, not Reftrix source code |
 
 You may freely use Reftrix's analysis output without AGPL obligations.
 
@@ -529,14 +550,14 @@ Note that screenshot images may be subject to the **target website's copyright**
 
 **A**: A commercial license is recommended in the following cases:
 
-| Case | Commercial License | Reason |
-|------|-------------------|--------|
-| Using unmodified Reftrix via MCP | **Not needed** | No AGPL obligation triggered |
-| Modifying for internal use (no external provision) | **Not needed** (with caveats) | Limited AGPL obligations without distribution or network provision |
-| Modifying and providing as SaaS externally | **Recommended** | Section 13 triggers source code disclosure |
-| Distributing modified version (without source disclosure) | **Needed** | AGPL-3.0 requires source disclosure upon distribution |
-| Embedding Reftrix packages as libraries in your product | **Recommended** | May constitute a combined work, extending AGPL to your code |
-| Internal policy prohibits AGPL-3.0 | **Needed** | e.g., [Google AGPL Policy](https://opensource.google/documentation/reference/using/agpl-policy) prohibits use of AGPL code |
+| Case                                                      | Commercial License            | Reason                                                                                                                     |
+| --------------------------------------------------------- | ----------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| Using unmodified Reftrix via MCP                          | **Not needed**                | No AGPL obligation triggered                                                                                               |
+| Modifying for internal use (no external provision)        | **Not needed** (with caveats) | Limited AGPL obligations without distribution or network provision                                                         |
+| Modifying and providing as SaaS externally                | **Recommended**               | Section 13 triggers source code disclosure                                                                                 |
+| Distributing modified version (without source disclosure) | **Needed**                    | AGPL-3.0 requires source disclosure upon distribution                                                                      |
+| Embedding Reftrix packages as libraries in your product   | **Recommended**               | May constitute a combined work, extending AGPL to your code                                                                |
+| Internal policy prohibits AGPL-3.0                        | **Needed**                    | e.g., [Google AGPL Policy](https://opensource.google/documentation/reference/using/agpl-policy) prohibits use of AGPL code |
 
 **General guideline**: A commercial license is not needed if you can comply with AGPL-3.0 conditions (especially source code disclosure). It is needed when AGPL-3.0 conditions are incompatible with your business model.
 
@@ -547,10 +568,12 @@ Note that screenshot images may be subject to the **target website's copyright**
 **A**: For commercial licensing inquiries, please contact the Reftrix project team.
 
 **Contact methods**:
+
 - **Email**: [licence@reftrix.io](mailto:licence@reftrix.io)
 - GitHub Issues: Create an issue with the "commercial license" label at [https://github.com/TKMD/ReftrixMCP/issues](https://github.com/TKMD/ReftrixMCP/issues)
 
 A commercial license typically covers:
+
 - Exemption from AGPL-3.0 copyleft obligations (source code disclosure)
 - Exemption from Section 13 (network use source code provision)
 - Permission to incorporate into proprietary software
@@ -567,6 +590,7 @@ A commercial license typically covers:
 However, the `example/` code consists of **independent applications** separate from Reftrix's core functionality (MCP server, packages/).
 
 **Practical notes**:
+
 - The `example/` code serves as reference implementations demonstrating how to use Reftrix's MCP tools, and is not intended for production use
 - If you create your own application inspired by `example/` code (using only ideas without copying code), AGPL obligations do not arise. Copyright protects expression, not ideas
 - If you copy portions of `example/` code into your own application, AGPL-3.0 conditions apply to the copied portions
@@ -586,17 +610,18 @@ AGPL-3.0 obligations are triggered in two scenarios:
 
 **Self-hosting analysis**:
 
-| Usage Pattern | Conveyance? | Section 13? | Source Disclosure |
-|--------------|------------|------------|------------------|
-| Internal server, employees only | No | Debatable (Note 1) | **Likely not required** |
-| Internal server, also accessible to customers | No (but Note 2) | **Yes** (if modified) | **May be required** |
-| Modifying and distributing externally | **Yes** | N/A | **Required** |
+| Usage Pattern                                 | Conveyance?     | Section 13?           | Source Disclosure       |
+| --------------------------------------------- | --------------- | --------------------- | ----------------------- |
+| Internal server, employees only               | No              | Debatable (Note 1)    | **Likely not required** |
+| Internal server, also accessible to customers | No (but Note 2) | **Yes** (if modified) | **May be required**     |
+| Modifying and distributing externally         | **Yes**         | N/A                   | **Required**            |
 
 **Note 1**: Internal use within an organization constitutes "propagation" but the FSF's general interpretation is that internal organizational use does not qualify as "users interacting with it remotely" under Section 13. Employees are part of the organization, not external users of the service. However, no definitive case law exists on this point.
 
 **Note 2**: If no copies are provided to customers, it is not "conveying," but if customers interact with the service over a network, Section 13 may apply.
 
 **Recommendations**: Even for internal-only use:
+
 - Document whether any modifications were made
 - Prepare an AGPL-3.0 compliance framework in case usage scope expands
 - Consider a commercial license if you want to eliminate uncertainty
@@ -614,6 +639,7 @@ If you modify Reftrix and provide it as SaaS (Software as a Service) to third pa
 3. **Scope**: The complete Corresponding Source of the modified version (including build scripts, dependency information, etc.)
 
 **Example compliance methods**:
+
 - Place a "Source Code" link in the SaaS UI linking to a GitHub repository
 - Publish the modified version's source code in a public GitHub repository
 - Include the full AGPL-3.0 license text with the source code
@@ -665,6 +691,6 @@ Legal Research Date: 2026-02-18
 
 ---
 
-*Reftrix License FAQ v0.1.0*
-*Prepared by: Legal Compliance Counsel (AI-assisted analysis)*
-*Legal Research Date: 2026-02-18*
+_Reftrix License FAQ v0.1.0_
+_Prepared by: Legal Compliance Counsel (AI-assisted analysis)_
+_Legal Research Date: 2026-02-18_

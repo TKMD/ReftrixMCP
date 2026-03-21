@@ -15,9 +15,9 @@
  * @module services/worker-memory-profile
  */
 
-import os from 'node:os';
-import { safeParseInt } from '../utils/safe-parse-int';
-import { logger, isDevelopment } from '../utils/logger';
+import os from "node:os";
+import { safeParseInt } from "../utils/safe-parse-int";
+import { logger, isDevelopment } from "../utils/logger";
 
 // =====================================================
 // Types
@@ -48,7 +48,7 @@ export interface MemoryProfile {
   /** Phase 1.1 スキップ用 RSS 上限（バイト） [C-1] */
   partExtractionRssLimit: number;
   /** マシン分類 */
-  tier: '8gb' | '16gb' | '32gb' | '64gb+';
+  tier: "8gb" | "16gb" | "32gb" | "64gb+";
 }
 
 // =====================================================
@@ -56,19 +56,19 @@ export interface MemoryProfile {
 // =====================================================
 
 /** 段階的劣化: 60% of total, cap 12288MB */
-const DEGRADATION_RATIO = 0.60;
+const DEGRADATION_RATIO = 0.6;
 const DEGRADATION_CAP_MB = 12288;
 
 /** 緊急停止: 70% of total, cap 14336MB */
-const CRITICAL_RATIO = 0.70;
+const CRITICAL_RATIO = 0.7;
 const CRITICAL_CAP_MB = 14336;
 
 /** ジョブ後自動終了: 70% of total, cap 12288MB */
-const SELF_EXIT_RATIO = 0.70;
+const SELF_EXIT_RATIO = 0.7;
 const SELF_EXIT_CAP_MB = 12288;
 
 /** V8ヒープ上限: 50% of total, cap 8192MB */
-const MAX_OLD_SPACE_RATIO = 0.50;
+const MAX_OLD_SPACE_RATIO = 0.5;
 const MAX_OLD_SPACE_CAP_MB = 8192;
 
 /** Embedding チャンク: 基準マシン 32768MB で 30 */
@@ -95,25 +95,25 @@ const JS_CHUNK_MAX = 50;
  * - 64GB+: DINOv2 チャンク 30、パーツ抽出デフォルト有効、RSS 上限 32GB
  */
 const PART_EXTRACTION_TIER_CONFIG: Record<
-  MemoryProfile['tier'],
+  MemoryProfile["tier"],
   { dinov2ChunkSize: number; partExtractionEnabled: boolean; partExtractionRssLimit: number }
 > = {
-  '8gb': {
+  "8gb": {
     dinov2ChunkSize: 0,
     partExtractionEnabled: false,
     partExtractionRssLimit: 6 * 1024 * 1024 * 1024, // 6GB
   },
-  '16gb': {
+  "16gb": {
     dinov2ChunkSize: 5,
     partExtractionEnabled: true,
     partExtractionRssLimit: 8 * 1024 * 1024 * 1024, // 8GB
   },
-  '32gb': {
+  "32gb": {
     dinov2ChunkSize: 15,
     partExtractionEnabled: true,
     partExtractionRssLimit: 16 * 1024 * 1024 * 1024, // 16GB
   },
-  '64gb+': {
+  "64gb+": {
     dinov2ChunkSize: 30,
     partExtractionEnabled: true,
     partExtractionRssLimit: 32 * 1024 * 1024 * 1024, // 32GB
@@ -125,21 +125,21 @@ const PART_EXTRACTION_TIER_CONFIG: Record<
 // =====================================================
 
 const TIER_THRESHOLDS = [
-  { maxMb: 12288, tier: '8gb' as const },
-  { maxMb: 24576, tier: '16gb' as const },
-  { maxMb: 49152, tier: '32gb' as const },
+  { maxMb: 12288, tier: "8gb" as const },
+  { maxMb: 24576, tier: "16gb" as const },
+  { maxMb: 49152, tier: "32gb" as const },
 ] as const;
 
 /**
  * システムメモリ容量からtierを分類する
  */
-function classifyTier(totalMb: number): MemoryProfile['tier'] {
+function classifyTier(totalMb: number): MemoryProfile["tier"] {
   for (const { maxMb, tier } of TIER_THRESHOLDS) {
     if (totalMb < maxMb) {
       return tier;
     }
   }
-  return '64gb+';
+  return "64gb+";
 }
 
 // =====================================================
@@ -174,34 +174,28 @@ export function computeMemoryProfile(totalMemoryBytes?: number): MemoryProfile {
 
   const degradationThresholdMb = Math.min(
     Math.floor(totalMb * DEGRADATION_RATIO),
-    DEGRADATION_CAP_MB,
+    DEGRADATION_CAP_MB
   );
 
-  const criticalThresholdMb = Math.min(
-    Math.floor(totalMb * CRITICAL_RATIO),
-    CRITICAL_CAP_MB,
-  );
+  const criticalThresholdMb = Math.min(Math.floor(totalMb * CRITICAL_RATIO), CRITICAL_CAP_MB);
 
-  const selfExitThresholdMb = Math.min(
-    Math.floor(totalMb * SELF_EXIT_RATIO),
-    SELF_EXIT_CAP_MB,
-  );
+  const selfExitThresholdMb = Math.min(Math.floor(totalMb * SELF_EXIT_RATIO), SELF_EXIT_CAP_MB);
 
   const maxOldSpaceSizeMb = Math.min(
     Math.floor(totalMb * MAX_OLD_SPACE_RATIO),
-    MAX_OLD_SPACE_CAP_MB,
+    MAX_OLD_SPACE_CAP_MB
   );
 
   const embeddingChunkSize = clamp(
     Math.round((totalMb / EMBED_CHUNK_BASE_MEMORY_MB) * EMBED_CHUNK_BASE_SIZE),
     EMBED_CHUNK_MIN,
-    EMBED_CHUNK_MAX,
+    EMBED_CHUNK_MAX
   );
 
   const jsAnimationEmbeddingChunkSize = clamp(
     Math.round((totalMb / EMBED_CHUNK_BASE_MEMORY_MB) * JS_CHUNK_BASE_SIZE),
     JS_CHUNK_MIN,
-    JS_CHUNK_MAX,
+    JS_CHUNK_MAX
   );
 
   const tier = classifyTier(totalMb);
@@ -247,49 +241,49 @@ export function resolveMemoryConfig(): MemoryProfile {
   const degradationThresholdMb = safeParseInt(
     process.env.WORKER_MEMORY_DEGRADATION_MB,
     baseline.degradationThresholdMb,
-    { min: 1 },
+    { min: 1 }
   );
 
   const criticalThresholdMb = safeParseInt(
     process.env.WORKER_MEMORY_CRITICAL_MB,
     baseline.criticalThresholdMb,
-    { min: 1 },
+    { min: 1 }
   );
 
   const selfExitThresholdMb = safeParseInt(
     process.env.WORKER_SELF_EXIT_THRESHOLD_MB,
     baseline.selfExitThresholdMb,
-    { min: 1 },
+    { min: 1 }
   );
 
   const maxOldSpaceSizeMb = safeParseInt(
     process.env.WORKER_MAX_OLD_SPACE_MB,
     baseline.maxOldSpaceSizeMb,
-    { min: 1 },
+    { min: 1 }
   );
 
   const embeddingChunkSize = safeParseInt(
     process.env.WORKER_EMBEDDING_CHUNK_SIZE,
     baseline.embeddingChunkSize,
-    { min: 1 },
+    { min: 1 }
   );
 
   const jsAnimationEmbeddingChunkSize = safeParseInt(
     process.env.WORKER_JS_ANIMATION_CHUNK_SIZE,
     baseline.jsAnimationEmbeddingChunkSize,
-    { min: 1 },
+    { min: 1 }
   );
 
   const dinov2ChunkSize = safeParseInt(
     process.env.WORKER_DINOV2_CHUNK_SIZE,
     baseline.dinov2ChunkSize,
-    { min: 0 },
+    { min: 0 }
   );
 
   const partExtractionRssLimit = safeParseInt(
     process.env.WORKER_PART_EXTRACTION_RSS_LIMIT,
     baseline.partExtractionRssLimit,
-    { min: 1 },
+    { min: 1 }
   );
 
   return {
@@ -323,7 +317,7 @@ export function logMemoryProfile(profile: MemoryProfile): void {
   logged = true;
 
   if (isDevelopment()) {
-    logger.info('[WorkerMemoryProfile] Resolved memory profile', {
+    logger.info("[WorkerMemoryProfile] Resolved memory profile", {
       tier: profile.tier,
       totalMemoryMb: profile.totalMemoryMb,
       degradationThresholdMb: profile.degradationThresholdMb,

@@ -21,8 +21,8 @@
  * @module services/quality/playwright-axe.service
  */
 
-import { logger, isDevelopment } from '../../utils/logger';
-import type { AxeResults } from 'axe-core';
+import { logger, isDevelopment } from "../../utils/logger";
+import type { AxeResults } from "axe-core";
 
 // 共通モジュールからインポート
 import {
@@ -35,14 +35,14 @@ import {
   determineWcagLevel,
   createEmptyResult,
   convertAxeViolation,
-} from './axe-core-shared';
+} from "./axe-core-shared";
 
 // Playwright types (for runtime dynamic import)
 // Note: playwright is dynamically imported at runtime, so we use import() type annotations
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
-type PlaywrightBrowser = import('playwright').Browser;
+type PlaywrightBrowser = import("playwright").Browser;
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
-type PlaywrightBrowserContext = import('playwright').BrowserContext;
+type PlaywrightBrowserContext = import("playwright").BrowserContext;
 
 // =====================================================
 // 型定義
@@ -74,12 +74,12 @@ export interface PlaywrightAxeOptions {
 export async function isPlaywrightAvailable(): Promise<boolean> {
   try {
     // 動的インポートでPlaywrightの存在を確認
-    await import('playwright');
-    await import('@axe-core/playwright');
+    await import("playwright");
+    await import("@axe-core/playwright");
     return true;
   } catch {
     if (isDevelopment()) {
-      logger.warn('[PlaywrightAxeService] Playwright or @axe-core/playwright not available');
+      logger.warn("[PlaywrightAxeService] Playwright or @axe-core/playwright not available");
     }
     return false;
   }
@@ -115,14 +115,14 @@ export class PlaywrightAxeService {
    */
   constructor(options: PlaywrightAxeOptions = {}) {
     this.options = {
-      wcagLevel: options.wcagLevel ?? 'AA',
+      wcagLevel: options.wcagLevel ?? "AA",
       timeout: options.timeout ?? 30000,
-      waitForSelector: options.waitForSelector ?? 'body',
+      waitForSelector: options.waitForSelector ?? "body",
       headless: options.headless ?? true,
     };
 
     if (isDevelopment()) {
-      logger.info('[PlaywrightAxeService] Initialized', {
+      logger.info("[PlaywrightAxeService] Initialized", {
         wcagLevel: this.options.wcagLevel,
         timeout: this.options.timeout,
         headless: this.options.headless,
@@ -138,14 +138,14 @@ export class PlaywrightAxeService {
       return;
     }
 
-    const playwright = await import('playwright');
+    const playwright = await import("playwright");
     this.browser = await playwright.chromium.launch({
       headless: this.options.headless,
     });
     this.browserContext = await this.browser.newContext();
 
     if (isDevelopment()) {
-      logger.info('[PlaywrightAxeService] Browser initialized');
+      logger.info("[PlaywrightAxeService] Browser initialized");
     }
   }
 
@@ -157,7 +157,7 @@ export class PlaywrightAxeService {
    */
   async analyzeHtml(html: string): Promise<AxeAccessibilityResult> {
     // 空またはホワイトスペースのみの場合
-    if (!html || html.trim() === '') {
+    if (!html || html.trim() === "") {
       return this.createEmptyResult();
     }
 
@@ -166,7 +166,7 @@ export class PlaywrightAxeService {
       await this.initBrowser();
 
       if (!this.browserContext) {
-        throw new Error('Browser context not initialized');
+        throw new Error("Browser context not initialized");
       }
 
       // 新しいページを作成
@@ -174,7 +174,7 @@ export class PlaywrightAxeService {
 
       try {
         if (isDevelopment()) {
-          logger.info('[PlaywrightAxeService] Loading HTML', {
+          logger.info("[PlaywrightAxeService] Loading HTML", {
             htmlLength: html.length,
           });
         }
@@ -183,7 +183,7 @@ export class PlaywrightAxeService {
         // ブラウザによる<html>要素の再構築で lang/title が失われる問題を回避）
         await page.setContent(html, {
           timeout: this.options.timeout,
-          waitUntil: 'domcontentloaded',
+          waitUntil: "domcontentloaded",
         });
 
         // 指定されたセレクタを待機
@@ -195,7 +195,7 @@ export class PlaywrightAxeService {
           } catch {
             // セレクタが見つからない場合は続行
             if (isDevelopment()) {
-              logger.warn('[PlaywrightAxeService] Selector not found, continuing', {
+              logger.warn("[PlaywrightAxeService] Selector not found, continuing", {
                 selector: this.options.waitForSelector,
               });
             }
@@ -203,7 +203,7 @@ export class PlaywrightAxeService {
         }
 
         // @axe-core/playwrightをインポートして実行
-        const { AxeBuilder } = await import('@axe-core/playwright');
+        const { AxeBuilder } = await import("@axe-core/playwright");
 
         // aXeビルダーを設定
         let axeBuilder = new AxeBuilder({ page });
@@ -218,7 +218,7 @@ export class PlaywrightAxeService {
         const axeResults = await axeBuilder.analyze();
 
         if (isDevelopment()) {
-          logger.info('[PlaywrightAxeService] aXe analysis completed', {
+          logger.info("[PlaywrightAxeService] aXe analysis completed", {
             violations: axeResults.violations.length,
             passes: axeResults.passes.length,
           });
@@ -232,8 +232,8 @@ export class PlaywrightAxeService {
       }
     } catch (error) {
       if (isDevelopment()) {
-        logger.error('[PlaywrightAxeService] Analysis error', {
-          error: error instanceof Error ? error.message : 'Unknown error',
+        logger.error("[PlaywrightAxeService] Analysis error", {
+          error: error instanceof Error ? error.message : "Unknown error",
         });
       }
 
@@ -268,12 +268,12 @@ export class PlaywrightAxeService {
       }
 
       if (isDevelopment()) {
-        logger.info('[PlaywrightAxeService] Browser resources cleaned up');
+        logger.info("[PlaywrightAxeService] Browser resources cleaned up");
       }
     } catch (error) {
       if (isDevelopment()) {
-        logger.error('[PlaywrightAxeService] Cleanup error', {
-          error: error instanceof Error ? error.message : 'Unknown error',
+        logger.error("[PlaywrightAxeService] Cleanup error", {
+          error: error instanceof Error ? error.message : "Unknown error",
         });
       }
     }
@@ -327,9 +327,7 @@ export class PlaywrightAxeService {
  * @param options - サービスオプション
  * @returns PlaywrightAxeServiceインスタンス
  */
-export function createPlaywrightAxeService(
-  options?: PlaywrightAxeOptions
-): PlaywrightAxeService {
+export function createPlaywrightAxeService(options?: PlaywrightAxeOptions): PlaywrightAxeService {
   return new PlaywrightAxeService(options);
 }
 
@@ -342,4 +340,4 @@ export type {
   AxeViolation,
   ViolationImpact,
   WcagLevel,
-} from './axe-core-shared';
+} from "./axe-core-shared";

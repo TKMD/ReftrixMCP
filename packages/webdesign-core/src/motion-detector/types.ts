@@ -37,13 +37,7 @@ export interface MotionPattern {
   /** 一意のID */
   id: string;
   /** モーションタイプ */
-  type:
-    | 'animation'
-    | 'transition'
-    | 'transform'
-    | 'scroll'
-    | 'hover'
-    | 'keyframe';
+  type: "animation" | "transition" | "transform" | "scroll" | "hover" | "keyframe";
   /** アニメーション/トランジション名 */
   name: string;
   /** CSSセレクタ */
@@ -57,15 +51,15 @@ export interface MotionPattern {
   /** イージング関数 */
   easing: string;
   /** 繰り返し回数 */
-  iterations: number | 'infinite';
+  iterations: number | "infinite";
   /** 再生方向 */
-  direction: 'normal' | 'reverse' | 'alternate' | 'alternate-reverse';
+  direction: "normal" | "reverse" | "alternate" | "alternate-reverse";
   /** フィルモード */
-  fillMode: 'none' | 'forwards' | 'backwards' | 'both';
+  fillMode: "none" | "forwards" | "backwards" | "both";
   /** 再生状態 */
-  playState: 'running' | 'paused';
+  playState: "running" | "paused";
   /** トリガー条件 */
-  trigger: 'load' | 'hover' | 'scroll' | 'click' | 'focus' | 'custom';
+  trigger: "load" | "hover" | "scroll" | "click" | "focus" | "custom";
   /** 検出信頼度 (0-1) */
   confidence: number;
 }
@@ -81,9 +75,9 @@ export interface MotionDetectionResult {
     /** パターン総数 */
     totalPatterns: number;
     /** タイプ別カウント */
-    byType: Record<MotionPattern['type'], number>;
+    byType: Record<MotionPattern["type"], number>;
     /** トリガー別カウント */
-    byTrigger: Record<MotionPattern['trigger'], number>;
+    byTrigger: Record<MotionPattern["trigger"], number>;
     /** 平均再生時間 */
     averageDuration: number;
     /** 無限アニメーションの有無 */
@@ -100,9 +94,9 @@ export interface MotionDetectionResult {
  */
 export interface MotionWarning {
   /** 警告タイプ */
-  type: 'performance' | 'accessibility' | 'compatibility';
+  type: "performance" | "accessibility" | "compatibility";
   /** 重要度 */
-  severity: 'low' | 'medium' | 'high';
+  severity: "low" | "medium" | "high";
   /** メッセージ */
   message: string;
   /** 関連するパターン名 */

@@ -11,7 +11,7 @@
  *
  * TDA監査 P2-5: Hybrid Search固有テスト欠如の解消
  */
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import {
   motionSearchHandler,
   setMotionSearchServiceFactory,
@@ -19,7 +19,7 @@ import {
   type IMotionSearchService,
   type MotionSearchParams,
   type MotionSearchResult,
-} from '../../../src/tools/motion/search.tool';
+} from "../../../src/tools/motion/search.tool";
 
 // =====================================================
 // モックデータファクトリ
@@ -31,43 +31,41 @@ function createMockMotionSearchResult(overrides?: Partial<MotionSearchResult>): 
     results: [
       {
         pattern: {
-          id: 'mp-001',
-          type: 'css_animation',
-          category: 'scroll_trigger',
-          name: 'fadeInUp',
-          trigger: 'scroll',
+          id: "mp-001",
+          type: "css_animation",
+          category: "scroll_trigger",
+          name: "fadeInUp",
+          trigger: "scroll",
           animation: {
             duration: 800,
-            easing: { type: 'ease-out' },
+            easing: { type: "ease-out" },
           },
           properties: [
-            { property: 'opacity', from: 0, to: 1 },
-            { property: 'transform', from: 'translateY(20px)', to: 'translateY(0)' },
+            { property: "opacity", from: 0, to: 1 },
+            { property: "transform", from: "translateY(20px)", to: "translateY(0)" },
           ],
         },
         similarity: 0.92,
-        source: { pageId: 'wp-001', url: 'https://example.com' },
+        source: { pageId: "wp-001", url: "https://example.com" },
       },
       {
         pattern: {
-          id: 'mp-002',
-          type: 'css_transition',
-          category: 'hover_effect',
-          name: 'scaleHover',
-          trigger: 'hover',
+          id: "mp-002",
+          type: "css_transition",
+          category: "hover_effect",
+          name: "scaleHover",
+          trigger: "hover",
           animation: {
             duration: 300,
-            easing: { type: 'ease' },
+            easing: { type: "ease" },
           },
-          properties: [
-            { property: 'transform', from: 'scale(1)', to: 'scale(1.05)' },
-          ],
+          properties: [{ property: "transform", from: "scale(1)", to: "scale(1.05)" }],
         },
         similarity: 0.85,
       },
     ],
     total: 2,
-    query: { text: 'scroll animation' },
+    query: { text: "scroll animation" },
     ...overrides,
   };
 }
@@ -84,9 +82,7 @@ function createMockServiceWithHybrid(
 }
 
 /** searchHybrid メソッドを持たないモックサービス */
-function createMockServiceWithoutHybrid(
-  searchResult?: MotionSearchResult
-): IMotionSearchService {
+function createMockServiceWithoutHybrid(searchResult?: MotionSearchResult): IMotionSearchService {
   return {
     search: vi.fn().mockResolvedValue(searchResult ?? createMockMotionSearchResult()),
     // searchHybrid は undefined
@@ -97,7 +93,7 @@ function createMockServiceWithoutHybrid(
 // テスト
 // =====================================================
 
-describe('motion.search ハイブリッド検索分岐', () => {
+describe("motion.search ハイブリッド検索分岐", () => {
   beforeEach(() => {
     resetMotionSearchServiceFactory();
   });
@@ -108,18 +104,18 @@ describe('motion.search ハイブリッド検索分岐', () => {
 
   // --- searchHybrid が利用可能な場合 ---
 
-  describe('searchHybrid が実装されている場合', () => {
-    it('ハイブリッド検索が優先的に呼び出されること', async () => {
+  describe("searchHybrid が実装されている場合", () => {
+    it("ハイブリッド検索が優先的に呼び出されること", async () => {
       // Arrange
       const hybridResult = createMockMotionSearchResult({
         results: [
           {
             pattern: {
-              id: 'hybrid-mp-001',
-              type: 'css_animation',
-              category: 'scroll_trigger',
-              name: 'hybridFadeIn',
-              trigger: 'scroll',
+              id: "hybrid-mp-001",
+              type: "css_animation",
+              category: "scroll_trigger",
+              name: "hybridFadeIn",
+              trigger: "scroll",
               animation: { duration: 600 },
               properties: [],
             },
@@ -134,7 +130,7 @@ describe('motion.search ハイブリッド検索分岐', () => {
 
       // Act
       const result = await motionSearchHandler({
-        query: 'scroll fade animation',
+        query: "scroll fade animation",
         limit: 10,
         minSimilarity: 0.5,
       });
@@ -151,33 +147,33 @@ describe('motion.search ハイブリッド検索分岐', () => {
       }
     });
 
-    it('searchHybrid に正しい MotionSearchParams が渡されること', async () => {
+    it("searchHybrid に正しい MotionSearchParams が渡されること", async () => {
       // Arrange
       const service = createMockServiceWithHybrid(createMockMotionSearchResult());
       setMotionSearchServiceFactory(() => service);
 
       // Act
       await motionSearchHandler({
-        query: 'hover scale effect',
+        query: "hover scale effect",
         limit: 5,
         minSimilarity: 0.7,
         filters: {
-          trigger: 'hover',
+          trigger: "hover",
         },
       });
 
       // Assert: searchHybrid の引数を検証
       expect(service.searchHybrid).toHaveBeenCalledWith(
         expect.objectContaining({
-          query: 'hover scale effect',
+          query: "hover scale effect",
           limit: 5,
           minSimilarity: 0.7,
-          filters: expect.objectContaining({ trigger: 'hover' }),
+          filters: expect.objectContaining({ trigger: "hover" }),
         })
       );
     });
 
-    it('searchHybrid が空結果を返した場合に空配列が返ること', async () => {
+    it("searchHybrid が空結果を返した場合に空配列が返ること", async () => {
       // Arrange
       const emptyResult = createMockMotionSearchResult({
         results: [],
@@ -189,7 +185,7 @@ describe('motion.search ハイブリッド検索分岐', () => {
 
       // Act
       const result = await motionSearchHandler({
-        query: 'nonexistent pattern',
+        query: "nonexistent pattern",
         limit: 10,
         minSimilarity: 0.9,
       });
@@ -205,18 +201,18 @@ describe('motion.search ハイブリッド検索分岐', () => {
 
   // --- searchHybrid が未実装の場合 ---
 
-  describe('searchHybrid が未実装の場合', () => {
-    it('通常の search メソッドにフォールバックすること', async () => {
+  describe("searchHybrid が未実装の場合", () => {
+    it("通常の search メソッドにフォールバックすること", async () => {
       // Arrange
       const searchResult = createMockMotionSearchResult({
         results: [
           {
             pattern: {
-              id: 'search-mp-001',
-              type: 'css_animation',
-              category: 'micro_interaction',
-              name: 'vectorOnlyResult',
-              trigger: 'click',
+              id: "search-mp-001",
+              type: "css_animation",
+              category: "micro_interaction",
+              name: "vectorOnlyResult",
+              trigger: "click",
               animation: { duration: 200 },
               properties: [],
             },
@@ -231,7 +227,7 @@ describe('motion.search ハイブリッド検索分岐', () => {
 
       // Act
       const result = await motionSearchHandler({
-        query: 'click interaction',
+        query: "click interaction",
         limit: 10,
         minSimilarity: 0.5,
       });
@@ -247,25 +243,25 @@ describe('motion.search ハイブリッド検索分岐', () => {
       }
     });
 
-    it('search に正しいパラメータが渡されること', async () => {
+    it("search に正しいパラメータが渡されること", async () => {
       // Arrange
       const service = createMockServiceWithoutHybrid();
       setMotionSearchServiceFactory(() => service);
 
       // Act
       await motionSearchHandler({
-        query: 'loading animation',
+        query: "loading animation",
         limit: 20,
         minSimilarity: 0.3,
         filters: {
-          type: 'animation',
+          type: "animation",
         },
       });
 
       // Assert
       expect(service.search).toHaveBeenCalledWith(
         expect.objectContaining({
-          query: 'loading animation',
+          query: "loading animation",
           limit: 20,
           minSimilarity: 0.3,
         })
@@ -275,8 +271,8 @@ describe('motion.search ハイブリッド検索分岐', () => {
 
   // --- samplePattern 検索のハイブリッド分岐 ---
 
-  describe('samplePattern を使用したハイブリッド検索', () => {
-    it('samplePattern指定時もsearchHybridが優先されること', async () => {
+  describe("samplePattern を使用したハイブリッド検索", () => {
+    it("samplePattern指定時もsearchHybridが優先されること", async () => {
       // Arrange
       const service = createMockServiceWithHybrid(createMockMotionSearchResult());
       setMotionSearchServiceFactory(() => service);
@@ -286,10 +282,10 @@ describe('motion.search ハイブリッド検索分岐', () => {
       // （'animation' | 'transition' | 'transform' | 'scroll' | 'hover' | 'keyframe'）
       const result = await motionSearchHandler({
         samplePattern: {
-          type: 'animation',
+          type: "animation",
           duration: 500,
-          easing: 'ease-out',
-          properties: ['opacity', 'transform'],
+          easing: "ease-out",
+          properties: ["opacity", "transform"],
         },
         limit: 10,
         minSimilarity: 0.5,
@@ -304,14 +300,14 @@ describe('motion.search ハイブリッド検索分岐', () => {
 
   // --- サービスファクトリー未設定 ---
 
-  describe('サービスファクトリーが未設定の場合', () => {
-    it('SERVICE_UNAVAILABLEエラーが返ること', async () => {
+  describe("サービスファクトリーが未設定の場合", () => {
+    it("SERVICE_UNAVAILABLEエラーが返ること", async () => {
       // Arrange: ファクトリーを設定しない
       resetMotionSearchServiceFactory();
 
       // Act
       const result = await motionSearchHandler({
-        query: 'test',
+        query: "test",
         limit: 10,
         minSimilarity: 0.5,
       });
@@ -319,7 +315,7 @@ describe('motion.search ハイブリッド検索分岐', () => {
       // Assert
       expect(result.success).toBe(false);
       if (!result.success) {
-        expect(result.error.code).toBe('SERVICE_UNAVAILABLE');
+        expect(result.error.code).toBe("SERVICE_UNAVAILABLE");
       }
     });
   });

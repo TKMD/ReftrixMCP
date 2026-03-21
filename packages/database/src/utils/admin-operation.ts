@@ -36,9 +36,7 @@ function getAdminClient(): PrismaClient | null {
   const adminUrl = process.env.ADMIN_DATABASE_URL;
 
   if (!adminUrl) {
-    console.warn(
-      "[ADMIN] ADMIN_DATABASE_URL not configured. Admin operations will fail."
-    );
+    console.warn("[ADMIN] ADMIN_DATABASE_URL not configured. Admin operations will fail.");
     return null;
   }
 
@@ -47,10 +45,7 @@ function getAdminClient(): PrismaClient | null {
       datasources: {
         db: { url: adminUrl },
       },
-      log:
-        process.env.NODE_ENV === "development"
-          ? ["query", "error", "warn"]
-          : ["error"],
+      log: process.env.NODE_ENV === "development" ? ["query", "error", "warn"] : ["error"],
     });
   }
 
@@ -74,10 +69,7 @@ interface AdminAuditEntry {
  *
  * In production, consider sending to external logging service
  */
-async function logAdminOperation(
-  prismaAdmin: PrismaClient,
-  entry: AdminAuditEntry
-): Promise<void> {
+async function logAdminOperation(prismaAdmin: PrismaClient, entry: AdminAuditEntry): Promise<void> {
   // Always log to console with warning level
   const logFn = entry.status === "error" ? console.error : console.warn;
   logFn("[ADMIN_BYPASS]", JSON.stringify(entry));
@@ -179,8 +171,7 @@ export async function withAdminBypass<T>(
     return result;
   } catch (error) {
     // Log failed operation
-    const errorMessage =
-      error instanceof Error ? error.message : "Unknown error";
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
 
     await logAdminOperation(prismaAdmin, {
       operation,

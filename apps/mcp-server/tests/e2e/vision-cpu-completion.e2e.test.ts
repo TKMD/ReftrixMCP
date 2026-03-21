@@ -17,19 +17,19 @@
  * @see apps/mcp-server/src/services/vision/progress-reporter.ts
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach, beforeAll } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach, beforeAll } from "vitest";
 import {
   VisionFallbackService,
   type VisionFallbackOptions,
   type FallbackResult,
-} from '../../src/services/vision/vision-fallback.service.js';
+} from "../../src/services/vision/vision-fallback.service.js";
 import {
   ProgressReporter,
   ProgressPhase,
   type ProgressEvent,
   type ProgressCallback,
-} from '../../src/services/vision/progress-reporter.js';
-import { SectionDetector, type DetectedSection } from '@reftrix/webdesign-core';
+} from "../../src/services/vision/progress-reporter.js";
+import { SectionDetector, type DetectedSection } from "@reftrix/webdesign-core";
 
 // =============================================================================
 // テスト定数
@@ -39,7 +39,7 @@ import { SectionDetector, type DetectedSection } from '@reftrix/webdesign-core';
  * テスト用のBase64エンコードされた画像（1x1 透明PNG）
  */
 const TEST_IMAGE_BASE64 =
-  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
+  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==";
 
 /**
  * テスト用HTMLコンテンツ（セクション検出可能な構造）
@@ -102,14 +102,14 @@ const TEST_HTML = `
  * ビジョン分析のモック結果
  */
 const MOCK_VISION_RESULT = {
-  result: 'Layout analysis complete. Detected hero section with heading and CTA button.',
+  result: "Layout analysis complete. Detected hero section with heading and CTA button.",
   metrics: {
     processingTimeMs: 500,
-    modelName: 'llama3.2-vision',
+    modelName: "llama3.2-vision",
     optimizationApplied: false,
     originalSizeBytes: 1000,
     optimizedSizeBytes: 1000,
-    hardwareType: 'cpu' as const,
+    hardwareType: "cpu" as const,
     estimatedTimeoutMs: 60000,
   },
 };
@@ -119,12 +119,12 @@ const MOCK_VISION_RESULT = {
  */
 const MOCK_DETECTED_SECTIONS: DetectedSection[] = [
   {
-    type: 'hero',
+    type: "hero",
     confidence: 0.95,
     element: {
-      tagName: 'section',
-      selector: 'section.hero',
-      classes: ['hero'],
+      tagName: "section",
+      selector: "section.hero",
+      classes: ["hero"],
     },
     position: {
       startY: 0,
@@ -133,21 +133,21 @@ const MOCK_DETECTED_SECTIONS: DetectedSection[] = [
       estimatedTop: 5,
     },
     content: {
-      headings: ['Welcome to Reftrix'],
-      paragraphs: ['WebデザインをデータとしてRAG可能な形で集約するプラットフォーム'],
-      buttons: [{ text: 'Get Started', type: 'primary' }],
+      headings: ["Welcome to Reftrix"],
+      paragraphs: ["WebデザインをデータとしてRAG可能な形で集約するプラットフォーム"],
+      buttons: [{ text: "Get Started", type: "primary" }],
       links: [],
       images: [],
     },
-    detectionMethod: 'class-name',
+    detectionMethod: "class-name",
   },
   {
-    type: 'feature',
+    type: "feature",
     confidence: 0.85,
     element: {
-      tagName: 'section',
-      selector: 'section.features',
-      classes: ['features'],
+      tagName: "section",
+      selector: "section.features",
+      classes: ["features"],
     },
     position: {
       startY: 400,
@@ -156,13 +156,13 @@ const MOCK_DETECTED_SECTIONS: DetectedSection[] = [
       estimatedTop: 40,
     },
     content: {
-      headings: ['Features', 'Layout Analysis', 'Motion Detection', 'Quality Evaluation'],
-      paragraphs: ['レイアウト構造を自動解析', 'CSSアニメーションを検出', 'デザイン品質を評価'],
+      headings: ["Features", "Layout Analysis", "Motion Detection", "Quality Evaluation"],
+      paragraphs: ["レイアウト構造を自動解析", "CSSアニメーションを検出", "デザイン品質を評価"],
       buttons: [],
       links: [],
       images: [],
     },
-    detectionMethod: 'class-name',
+    detectionMethod: "class-name",
   },
 ];
 
@@ -206,8 +206,8 @@ function createAvailableMockAdapter(): MockLlamaVisionAdapter {
  */
 function createUnavailableMockAdapter(): MockLlamaVisionAdapter {
   return {
-    analyze: vi.fn().mockRejectedValue(new Error('Ollama connection refused')),
-    analyzeJSON: vi.fn().mockRejectedValue(new Error('Ollama connection refused')),
+    analyze: vi.fn().mockRejectedValue(new Error("Ollama connection refused")),
+    analyzeJSON: vi.fn().mockRejectedValue(new Error("Ollama connection refused")),
     isAvailable: vi.fn().mockResolvedValue(false),
   };
 }
@@ -243,7 +243,7 @@ function createMockSectionDetector(): MockSectionDetector {
  */
 function createErrorSectionDetector(): MockSectionDetector {
   return {
-    detect: vi.fn().mockRejectedValue(new Error('Section detection failed')),
+    detect: vi.fn().mockRejectedValue(new Error("Section detection failed")),
   };
 }
 
@@ -251,14 +251,14 @@ function createErrorSectionDetector(): MockSectionDetector {
 // Vision CPU完走保証 E2Eテスト
 // =============================================================================
 
-describe('Vision CPU完走保証 E2E Tests', () => {
+describe("Vision CPU完走保証 E2E Tests", () => {
   // ===========================================================================
   // VisionFallbackService Graceful Degradationテスト
   // ===========================================================================
 
-  describe('VisionFallbackService - Graceful Degradation', () => {
-    describe('Strategy 1: Vision Timeout', () => {
-      it('Visionタイムアウト時にHTML分析にフォールバックする', async () => {
+  describe("VisionFallbackService - Graceful Degradation", () => {
+    describe("Strategy 1: Vision Timeout", () => {
+      it("Visionタイムアウト時にHTML分析にフォールバックする", async () => {
         // Arrange: タイムアウトするVisionアダプターを設定
         const timeoutMs = 100; // 短いタイムアウト
         const mockAdapter = createTimeoutMockAdapter(timeoutMs);
@@ -266,7 +266,7 @@ describe('Vision CPU完走保証 E2E Tests', () => {
 
         const service = new VisionFallbackService({
           visionAdapter: mockAdapter as unknown as Parameters<
-            typeof VisionFallbackService.prototype['analyzeWithFallback']
+            (typeof VisionFallbackService.prototype)["analyzeWithFallback"]
           >[2] extends VisionFallbackOptions
             ? never
             : any,
@@ -288,7 +288,7 @@ describe('Vision CPU完走保証 E2E Tests', () => {
         expect(result.htmlAnalysis.sections).toHaveLength(MOCK_DETECTED_SECTIONS.length);
       });
 
-      it('forceVision=true時はタイムアウトでエラーを返す', async () => {
+      it("forceVision=true時はタイムアウトでエラーを返す", async () => {
         // Arrange
         const timeoutMs = 100;
         const mockAdapter = createTimeoutMockAdapter(timeoutMs);
@@ -315,8 +315,8 @@ describe('Vision CPU完走保証 E2E Tests', () => {
       });
     });
 
-    describe('Strategy 2: Vision Failure (Ollama未起動)', () => {
-      it('Ollama未起動時にHTML分析にフォールバックする', async () => {
+    describe("Strategy 2: Vision Failure (Ollama未起動)", () => {
+      it("Ollama未起動時にHTML分析にフォールバックする", async () => {
         // Arrange: 利用不可能なVisionアダプターを設定
         const mockAdapter = createUnavailableMockAdapter();
         const mockDetector = createMockSectionDetector();
@@ -337,7 +337,7 @@ describe('Vision CPU完走保証 E2E Tests', () => {
         expect(result.htmlAnalysis.sections.length).toBeGreaterThan(0);
       });
 
-      it('forceVision=true時はOllama未起動でエラーを返す', async () => {
+      it("forceVision=true時はOllama未起動でエラーを返す", async () => {
         // Arrange
         const mockAdapter = createUnavailableMockAdapter();
         const mockDetector = createMockSectionDetector();
@@ -357,7 +357,7 @@ describe('Vision CPU完走保証 E2E Tests', () => {
         expect(result.fallbackReason).toMatch(/forceVision.*not available/i);
       });
 
-      it('VisionとHTML両方が失敗した場合は全体失敗を返す', async () => {
+      it("VisionとHTML両方が失敗した場合は全体失敗を返す", async () => {
         // Arrange: 両方が失敗するモックを設定
         const mockAdapter = createUnavailableMockAdapter();
         const mockDetector = createErrorSectionDetector();
@@ -377,8 +377,8 @@ describe('Vision CPU完走保証 E2E Tests', () => {
       });
     });
 
-    describe('Strategy 3: No Image', () => {
-      it('画像なしの場合はHTML分析のみを実行（警告なし）', async () => {
+    describe("Strategy 3: No Image", () => {
+      it("画像なしの場合はHTML分析のみを実行（警告なし）", async () => {
         // Arrange
         const mockAdapter = createAvailableMockAdapter();
         const mockDetector = createMockSectionDetector();
@@ -399,7 +399,7 @@ describe('Vision CPU完走保証 E2E Tests', () => {
         expect(result.htmlAnalysis.sections.length).toBeGreaterThan(0);
       });
 
-      it('空文字列の画像もHTML分析のみを実行', async () => {
+      it("空文字列の画像もHTML分析のみを実行", async () => {
         // Arrange
         const mockAdapter = createAvailableMockAdapter();
         const mockDetector = createMockSectionDetector();
@@ -410,7 +410,7 @@ describe('Vision CPU完走保証 E2E Tests', () => {
         });
 
         // Act: 空文字列で分析
-        const result = await service.analyzeWithFallback('', TEST_HTML, {});
+        const result = await service.analyzeWithFallback("", TEST_HTML, {});
 
         // Assert
         expect(result.success).toBe(true);
@@ -420,8 +420,8 @@ describe('Vision CPU完走保証 E2E Tests', () => {
       });
     });
 
-    describe('Success Case: Vision + HTML', () => {
-      it('Vision利用可能時は両方の分析結果を返す', async () => {
+    describe("Success Case: Vision + HTML", () => {
+      it("Vision利用可能時は両方の分析結果を返す", async () => {
         // Arrange: 利用可能なVisionアダプターを設定
         const mockAdapter = createAvailableMockAdapter();
         const mockDetector = createMockSectionDetector();
@@ -451,7 +451,7 @@ describe('Vision CPU完走保証 E2E Tests', () => {
   // ProgressReporter統合テスト
   // ===========================================================================
 
-  describe('ProgressReporter - 進捗コールバック', () => {
+  describe("ProgressReporter - 進捗コールバック", () => {
     let receivedEvents: ProgressEvent[];
     let progressCallback: ProgressCallback;
 
@@ -462,8 +462,8 @@ describe('Vision CPU完走保証 E2E Tests', () => {
       });
     });
 
-    describe('フェーズ遷移', () => {
-      it('preparing → optimizing → analyzing → completing の順でフェーズが進む', () => {
+    describe("フェーズ遷移", () => {
+      it("preparing → optimizing → analyzing → completing の順でフェーズが進む", () => {
         // Arrange
         const reporter = new ProgressReporter({
           onProgress: progressCallback,
@@ -472,16 +472,16 @@ describe('Vision CPU完走保証 E2E Tests', () => {
 
         // Act: 各フェーズを手動で更新
         reporter.start(180000); // CPU推定時間 3分
-        reporter.updatePhase('optimizing');
-        reporter.updatePhase('analyzing');
+        reporter.updatePhase("optimizing");
+        reporter.updatePhase("analyzing");
         reporter.complete();
 
         // Assert: フェーズ順序を検証
         const phases = receivedEvents.map((e) => e.phase);
-        expect(phases).toEqual(['preparing', 'optimizing', 'analyzing', 'completing']);
+        expect(phases).toEqual(["preparing", "optimizing", "analyzing", "completing"]);
       });
 
-      it('各フェーズで適切な進捗率範囲を報告する', () => {
+      it("各フェーズで適切な進捗率範囲を報告する", () => {
         // Arrange
         const reporter = new ProgressReporter({
           onProgress: progressCallback,
@@ -490,8 +490,8 @@ describe('Vision CPU完走保証 E2E Tests', () => {
 
         // Act
         reporter.start(180000);
-        reporter.updatePhase('optimizing');
-        reporter.updatePhase('analyzing');
+        reporter.updatePhase("optimizing");
+        reporter.updatePhase("analyzing");
         reporter.complete();
 
         // Assert: 各フェーズの進捗率範囲を検証
@@ -512,8 +512,8 @@ describe('Vision CPU完走保証 E2E Tests', () => {
       });
     });
 
-    describe('推定残り時間', () => {
-      it('開始時は推定合計時間に近い残り時間を報告する', () => {
+    describe("推定残り時間", () => {
+      it("開始時は推定合計時間に近い残り時間を報告する", () => {
         // Arrange
         const estimatedTotalMs = 180000; // 3分
         const reporter = new ProgressReporter({
@@ -529,7 +529,7 @@ describe('Vision CPU完走保証 E2E Tests', () => {
         expect(receivedEvents[0].estimatedRemainingMs).toBeGreaterThan(0);
       });
 
-      it('完了時は残り時間0を報告する', () => {
+      it("完了時は残り時間0を報告する", () => {
         // Arrange
         const reporter = new ProgressReporter({
           onProgress: progressCallback,
@@ -546,8 +546,8 @@ describe('Vision CPU完走保証 E2E Tests', () => {
       });
     });
 
-    describe('メッセージ', () => {
-      it('各フェーズで意味のあるメッセージを報告する', () => {
+    describe("メッセージ", () => {
+      it("各フェーズで意味のあるメッセージを報告する", () => {
         // Arrange
         const reporter = new ProgressReporter({
           onProgress: progressCallback,
@@ -556,8 +556,8 @@ describe('Vision CPU完走保証 E2E Tests', () => {
 
         // Act
         reporter.start(180000);
-        reporter.updatePhase('optimizing');
-        reporter.updatePhase('analyzing');
+        reporter.updatePhase("optimizing");
+        reporter.updatePhase("analyzing");
         reporter.complete();
 
         // Assert: 各フェーズのメッセージが非空であることを検証
@@ -572,11 +572,11 @@ describe('Vision CPU完走保証 E2E Tests', () => {
       });
     });
 
-    describe('コールバックエラーハンドリング', () => {
-      it('コールバックがエラーをスローしても処理を継続する', () => {
+    describe("コールバックエラーハンドリング", () => {
+      it("コールバックがエラーをスローしても処理を継続する", () => {
         // Arrange
         const errorCallback = vi.fn(() => {
-          throw new Error('Callback error');
+          throw new Error("Callback error");
         });
 
         const reporter = new ProgressReporter({
@@ -586,13 +586,13 @@ describe('Vision CPU完走保証 E2E Tests', () => {
 
         // Act & Assert: エラーをスローしない
         expect(() => reporter.start(180000)).not.toThrow();
-        expect(() => reporter.updatePhase('optimizing')).not.toThrow();
+        expect(() => reporter.updatePhase("optimizing")).not.toThrow();
         expect(() => reporter.complete()).not.toThrow();
       });
     });
 
-    describe('abort処理', () => {
-      it('abort後はコールバックが呼ばれない', () => {
+    describe("abort処理", () => {
+      it("abort後はコールバックが呼ばれない", () => {
         // Arrange
         vi.useFakeTimers();
         const reporter = new ProgressReporter({
@@ -624,8 +624,8 @@ describe('Vision CPU完走保証 E2E Tests', () => {
   // 実際のSectionDetector統合テスト
   // ===========================================================================
 
-  describe('SectionDetector統合 - 実HTML分析', () => {
-    it('実際のSectionDetectorでHTML分析が成功する', async () => {
+  describe("SectionDetector統合 - 実HTML分析", () => {
+    it("実際のSectionDetectorでHTML分析が成功する", async () => {
       // Arrange: 実際のSectionDetectorを使用
       const sectionDetector = new SectionDetector();
 
@@ -645,10 +645,10 @@ describe('Vision CPU完走保証 E2E Tests', () => {
 
       // 検出されたセクションの型を検証
       const sections = result.htmlAnalysis.sections;
-      expect(sections.some((s) => s.type === 'hero')).toBe(true);
+      expect(sections.some((s) => s.type === "hero")).toBe(true);
     });
 
-    it('複雑なHTMLでも適切にセクションを検出する', async () => {
+    it("複雑なHTMLでも適切にセクションを検出する", async () => {
       // Arrange
       const complexHtml = `
         <!DOCTYPE html>
@@ -694,7 +694,7 @@ describe('Vision CPU完走保証 E2E Tests', () => {
 
       // 各セクションタイプの検出を確認
       const types = result.htmlAnalysis.sections.map((s) => s.type);
-      expect(types).toContain('hero');
+      expect(types).toContain("hero");
     });
   });
 
@@ -702,8 +702,8 @@ describe('Vision CPU完走保証 E2E Tests', () => {
   // メトリクス検証テスト
   // ===========================================================================
 
-  describe('パフォーマンスメトリクス', () => {
-    it('処理時間が正しく計測される', async () => {
+  describe("パフォーマンスメトリクス", () => {
+    it("処理時間が正しく計測される", async () => {
       // Arrange
       const mockAdapter = createAvailableMockAdapter();
       const mockDetector = createMockSectionDetector();
@@ -727,7 +727,7 @@ describe('Vision CPU完走保証 E2E Tests', () => {
       }
     });
 
-    it('フォールバック時もメトリクスが正しく計測される', async () => {
+    it("フォールバック時もメトリクスが正しく計測される", async () => {
       // Arrange
       const mockAdapter = createUnavailableMockAdapter();
       const mockDetector = createMockSectionDetector();
@@ -750,8 +750,8 @@ describe('Vision CPU完走保証 E2E Tests', () => {
   // タイムアウト設定テスト
   // ===========================================================================
 
-  describe('タイムアウト設定', () => {
-    it('カスタムタイムアウト設定が適用される', async () => {
+  describe("タイムアウト設定", () => {
+    it("カスタムタイムアウト設定が適用される", async () => {
       // Arrange
       const customTimeoutMs = 50;
       const mockAdapter = createTimeoutMockAdapter(customTimeoutMs);
@@ -774,7 +774,7 @@ describe('Vision CPU完走保証 E2E Tests', () => {
       expect(result.metrics.visionTimedOut).toBe(true);
     });
 
-    it('デフォルトタイムアウトが使用される', async () => {
+    it("デフォルトタイムアウトが使用される", async () => {
       // Arrange
       const defaultTimeoutMs = 50;
       const mockAdapter = createTimeoutMockAdapter(defaultTimeoutMs);
@@ -800,8 +800,8 @@ describe('Vision CPU完走保証 E2E Tests', () => {
   // VisionアダプターなしのテストZZ
   // ===========================================================================
 
-  describe('Visionアダプター未設定', () => {
-    it('Visionアダプター未設定時はHTML分析のみ実行', async () => {
+  describe("Visionアダプター未設定", () => {
+    it("Visionアダプター未設定時はHTML分析のみ実行", async () => {
       // Arrange: Visionアダプターなしで作成
       const mockDetector = createMockSectionDetector();
 
@@ -820,7 +820,7 @@ describe('Vision CPU完走保証 E2E Tests', () => {
       expect(result.fallbackReason).toMatch(/not configured/i);
     });
 
-    it('forceVision=true + Visionアダプター未設定はエラー', async () => {
+    it("forceVision=true + Visionアダプター未設定はエラー", async () => {
       // Arrange
       const mockDetector = createMockSectionDetector();
 
@@ -843,8 +843,8 @@ describe('Vision CPU完走保証 E2E Tests', () => {
   // SectionDetector未設定のテスト
   // ===========================================================================
 
-  describe('SectionDetector未設定', () => {
-    it('SectionDetector未設定時はエラーを返す', async () => {
+  describe("SectionDetector未設定", () => {
+    it("SectionDetector未設定時はエラーを返す", async () => {
       // Arrange
       const mockAdapter = createUnavailableMockAdapter();
 
@@ -867,12 +867,12 @@ describe('Vision CPU完走保証 E2E Tests', () => {
 // ProgressPhase Enumテスト
 // =============================================================================
 
-describe('ProgressPhase Enum', () => {
-  it('すべてのフェーズ値が定義されている', () => {
-    expect(ProgressPhase.PREPARING).toBe('preparing');
-    expect(ProgressPhase.OPTIMIZING).toBe('optimizing');
-    expect(ProgressPhase.ANALYZING).toBe('analyzing');
-    expect(ProgressPhase.COMPLETING).toBe('completing');
+describe("ProgressPhase Enum", () => {
+  it("すべてのフェーズ値が定義されている", () => {
+    expect(ProgressPhase.PREPARING).toBe("preparing");
+    expect(ProgressPhase.OPTIMIZING).toBe("optimizing");
+    expect(ProgressPhase.ANALYZING).toBe("analyzing");
+    expect(ProgressPhase.COMPLETING).toBe("completing");
   });
 });
 
@@ -880,16 +880,14 @@ describe('ProgressPhase Enum', () => {
 // HardwareDetector + TimeoutCalculator 統合テスト
 // =============================================================================
 
-describe('HardwareDetector + TimeoutCalculator E2E統合', () => {
-  describe('GPU環境シナリオ', () => {
-    it('HardwareDetectorがGPUを検出した場合、60秒タイムアウトが設定される', async () => {
+describe("HardwareDetector + TimeoutCalculator E2E統合", () => {
+  describe("GPU環境シナリオ", () => {
+    it("HardwareDetectorがGPUを検出した場合、60秒タイムアウトが設定される", async () => {
       // Arrange: HardwareDetector と TimeoutCalculator をインポート
-      const { HardwareDetector, HardwareType } = await import(
-        '../../src/services/vision/hardware-detector.js'
-      );
-      const { TimeoutCalculator, VisionTimeouts } = await import(
-        '../../src/services/vision/timeout-calculator.js'
-      );
+      const { HardwareDetector, HardwareType } =
+        await import("../../src/services/vision/hardware-detector.js");
+      const { TimeoutCalculator, VisionTimeouts } =
+        await import("../../src/services/vision/timeout-calculator.js");
 
       // TimeoutCalculator は HardwareType.GPU に対して GPU タイムアウトを返す
       const calculator = new TimeoutCalculator();
@@ -900,11 +898,10 @@ describe('HardwareDetector + TimeoutCalculator E2E統合', () => {
       expect(timeout).toBe(60_000);
     });
 
-    it('GPU検出時は画像サイズに関係なく一定のタイムアウト', async () => {
-      const { HardwareType } = await import('../../src/services/vision/hardware-detector.js');
-      const { TimeoutCalculator, VisionTimeouts } = await import(
-        '../../src/services/vision/timeout-calculator.js'
-      );
+    it("GPU検出時は画像サイズに関係なく一定のタイムアウト", async () => {
+      const { HardwareType } = await import("../../src/services/vision/hardware-detector.js");
+      const { TimeoutCalculator, VisionTimeouts } =
+        await import("../../src/services/vision/timeout-calculator.js");
 
       const calculator = new TimeoutCalculator();
 
@@ -915,12 +912,11 @@ describe('HardwareDetector + TimeoutCalculator E2E統合', () => {
     });
   });
 
-  describe('CPU環境シナリオ - 画像サイズ別タイムアウト', () => {
-    it('SMALL (<100KB): 180秒タイムアウト', async () => {
-      const { HardwareType } = await import('../../src/services/vision/hardware-detector.js');
-      const { TimeoutCalculator, VisionTimeouts, ImageSize } = await import(
-        '../../src/services/vision/timeout-calculator.js'
-      );
+  describe("CPU環境シナリオ - 画像サイズ別タイムアウト", () => {
+    it("SMALL (<100KB): 180秒タイムアウト", async () => {
+      const { HardwareType } = await import("../../src/services/vision/hardware-detector.js");
+      const { TimeoutCalculator, VisionTimeouts, ImageSize } =
+        await import("../../src/services/vision/timeout-calculator.js");
 
       const calculator = new TimeoutCalculator();
 
@@ -937,11 +933,10 @@ describe('HardwareDetector + TimeoutCalculator E2E統合', () => {
       }
     });
 
-    it('MEDIUM (100KB-500KB): 600秒タイムアウト', async () => {
-      const { HardwareType } = await import('../../src/services/vision/hardware-detector.js');
-      const { TimeoutCalculator, VisionTimeouts, ImageSize } = await import(
-        '../../src/services/vision/timeout-calculator.js'
-      );
+    it("MEDIUM (100KB-500KB): 600秒タイムアウト", async () => {
+      const { HardwareType } = await import("../../src/services/vision/hardware-detector.js");
+      const { TimeoutCalculator, VisionTimeouts, ImageSize } =
+        await import("../../src/services/vision/timeout-calculator.js");
 
       const calculator = new TimeoutCalculator();
 
@@ -958,11 +953,10 @@ describe('HardwareDetector + TimeoutCalculator E2E統合', () => {
       }
     });
 
-    it('LARGE (>=500KB): 1200秒タイムアウト', async () => {
-      const { HardwareType } = await import('../../src/services/vision/hardware-detector.js');
-      const { TimeoutCalculator, VisionTimeouts, ImageSize } = await import(
-        '../../src/services/vision/timeout-calculator.js'
-      );
+    it("LARGE (>=500KB): 1200秒タイムアウト", async () => {
+      const { HardwareType } = await import("../../src/services/vision/hardware-detector.js");
+      const { TimeoutCalculator, VisionTimeouts, ImageSize } =
+        await import("../../src/services/vision/timeout-calculator.js");
 
       const calculator = new TimeoutCalculator();
 
@@ -979,11 +973,10 @@ describe('HardwareDetector + TimeoutCalculator E2E統合', () => {
       }
     });
 
-    it('画像サイズ未指定時はMEDIUMとして扱う', async () => {
-      const { HardwareType } = await import('../../src/services/vision/hardware-detector.js');
-      const { TimeoutCalculator, VisionTimeouts, ImageSize } = await import(
-        '../../src/services/vision/timeout-calculator.js'
-      );
+    it("画像サイズ未指定時はMEDIUMとして扱う", async () => {
+      const { HardwareType } = await import("../../src/services/vision/hardware-detector.js");
+      const { TimeoutCalculator, VisionTimeouts, ImageSize } =
+        await import("../../src/services/vision/timeout-calculator.js");
 
       const calculator = new TimeoutCalculator();
 
@@ -995,30 +988,28 @@ describe('HardwareDetector + TimeoutCalculator E2E統合', () => {
       expect(calculator.classifyImageSize(undefined)).toBe(ImageSize.MEDIUM);
     });
 
-    it('タイムアウトのフォーマット表示が正しい', async () => {
-      const { TimeoutCalculator, VisionTimeouts } = await import(
-        '../../src/services/vision/timeout-calculator.js'
-      );
+    it("タイムアウトのフォーマット表示が正しい", async () => {
+      const { TimeoutCalculator, VisionTimeouts } =
+        await import("../../src/services/vision/timeout-calculator.js");
 
       const calculator = new TimeoutCalculator();
 
       // 各タイムアウト値のフォーマット確認
-      expect(calculator.formatTimeout(VisionTimeouts.GPU)).toBe('1m 0s');
-      expect(calculator.formatTimeout(VisionTimeouts.CPU_SMALL)).toBe('3m 0s');
-      expect(calculator.formatTimeout(VisionTimeouts.CPU_MEDIUM)).toBe('10m 0s');
-      expect(calculator.formatTimeout(VisionTimeouts.CPU_LARGE)).toBe('20m 0s');
+      expect(calculator.formatTimeout(VisionTimeouts.GPU)).toBe("1m 0s");
+      expect(calculator.formatTimeout(VisionTimeouts.CPU_SMALL)).toBe("3m 0s");
+      expect(calculator.formatTimeout(VisionTimeouts.CPU_MEDIUM)).toBe("10m 0s");
+      expect(calculator.formatTimeout(VisionTimeouts.CPU_LARGE)).toBe("20m 0s");
     });
   });
 
-  describe('Graceful Degradation - Ollama接続失敗時のCPUフォールバック', () => {
-    it('Ollama未起動時はCPUフォールバックしエラーメッセージを含む', async () => {
-      const { HardwareDetector, HardwareType } = await import(
-        '../../src/services/vision/hardware-detector.js'
-      );
+  describe("Graceful Degradation - Ollama接続失敗時のCPUフォールバック", () => {
+    it("Ollama未起動時はCPUフォールバックしエラーメッセージを含む", async () => {
+      const { HardwareDetector, HardwareType } =
+        await import("../../src/services/vision/hardware-detector.js");
 
       // Ollama未起動をシミュレート（存在しないURLを指定）
       const detector = new HardwareDetector({
-        ollamaUrl: 'http://localhost:99999', // 存在しないポート
+        ollamaUrl: "http://localhost:99999", // 存在しないポート
       });
 
       const result = await detector.detect();
@@ -1031,17 +1022,15 @@ describe('HardwareDetector + TimeoutCalculator E2E統合', () => {
       expect(result.error).toMatch(/connection|failed|refused/i);
     });
 
-    it('Ollamaエラー時もCPUフォールバックで処理が継続する', async () => {
-      const { HardwareDetector, HardwareType } = await import(
-        '../../src/services/vision/hardware-detector.js'
-      );
-      const { TimeoutCalculator, VisionTimeouts } = await import(
-        '../../src/services/vision/timeout-calculator.js'
-      );
+    it("Ollamaエラー時もCPUフォールバックで処理が継続する", async () => {
+      const { HardwareDetector, HardwareType } =
+        await import("../../src/services/vision/hardware-detector.js");
+      const { TimeoutCalculator, VisionTimeouts } =
+        await import("../../src/services/vision/timeout-calculator.js");
 
       // Ollama未起動をシミュレート
       const detector = new HardwareDetector({
-        ollamaUrl: 'http://localhost:99999',
+        ollamaUrl: "http://localhost:99999",
       });
 
       const hardwareInfo = await detector.detect();
@@ -1061,20 +1050,22 @@ describe('HardwareDetector + TimeoutCalculator E2E統合', () => {
 // MCPProgressAdapter 統合テスト
 // =============================================================================
 
-describe('MCPProgressAdapter E2E統合', () => {
-  describe('MCP notifications/progress 送信', () => {
-    it('ProgressReporterとMCPProgressAdapterの連携が正しく動作する', async () => {
-      const { ProgressReporter } = await import(
-        '../../src/services/vision/progress-reporter.js'
-      );
-      const { createMCPProgressCallback } = await import(
-        '../../src/services/vision/mcp-progress-adapter.js'
-      );
+describe("MCPProgressAdapter E2E統合", () => {
+  describe("MCP notifications/progress 送信", () => {
+    it("ProgressReporterとMCPProgressAdapterの連携が正しく動作する", async () => {
+      const { ProgressReporter } = await import("../../src/services/vision/progress-reporter.js");
+      const { createMCPProgressCallback } =
+        await import("../../src/services/vision/mcp-progress-adapter.js");
 
       // MCP sendNotification のモック
       const sentNotifications: Array<{
         method: string;
-        params: { progressToken: string | number; progress: number; total?: number; message?: string };
+        params: {
+          progressToken: string | number;
+          progress: number;
+          total?: number;
+          message?: string;
+        };
       }> = [];
 
       const mockSendNotification = vi.fn(async (notification) => {
@@ -1083,7 +1074,7 @@ describe('MCPProgressAdapter E2E統合', () => {
 
       // MCPProgressCallback を作成
       const progressCallback = createMCPProgressCallback({
-        progressToken: 'test-token-123',
+        progressToken: "test-token-123",
         sendNotification: mockSendNotification,
       });
 
@@ -1097,8 +1088,8 @@ describe('MCPProgressAdapter E2E統合', () => {
 
       // 進捗報告を実行
       reporter.start(180000);
-      reporter.updatePhase('optimizing');
-      reporter.updatePhase('analyzing');
+      reporter.updatePhase("optimizing");
+      reporter.updatePhase("analyzing");
       reporter.complete();
 
       // 通知が送信されたことを確認
@@ -1107,8 +1098,8 @@ describe('MCPProgressAdapter E2E統合', () => {
 
       // 各通知の形式を検証
       for (const notification of sentNotifications) {
-        expect(notification.method).toBe('notifications/progress');
-        expect(notification.params.progressToken).toBe('test-token-123');
+        expect(notification.method).toBe("notifications/progress");
+        expect(notification.params.progressToken).toBe("test-token-123");
         expect(notification.params.progress).toBeGreaterThanOrEqual(0);
         expect(notification.params.progress).toBeLessThanOrEqual(100);
         expect(notification.params.total).toBe(100);
@@ -1120,10 +1111,9 @@ describe('MCPProgressAdapter E2E統合', () => {
       expect(lastNotification.params.progress).toBe(100);
     });
 
-    it('progressTokenが未定義の場合はnullを返す', async () => {
-      const { createMCPProgressCallback } = await import(
-        '../../src/services/vision/mcp-progress-adapter.js'
-      );
+    it("progressTokenが未定義の場合はnullを返す", async () => {
+      const { createMCPProgressCallback } =
+        await import("../../src/services/vision/mcp-progress-adapter.js");
 
       const callback = createMCPProgressCallback({
         progressToken: undefined,
@@ -1133,37 +1123,34 @@ describe('MCPProgressAdapter E2E統合', () => {
       expect(callback).toBeNull();
     });
 
-    it('sendNotificationが未定義の場合はnullを返す', async () => {
-      const { createMCPProgressCallback } = await import(
-        '../../src/services/vision/mcp-progress-adapter.js'
-      );
+    it("sendNotificationが未定義の場合はnullを返す", async () => {
+      const { createMCPProgressCallback } =
+        await import("../../src/services/vision/mcp-progress-adapter.js");
 
       const callback = createMCPProgressCallback({
-        progressToken: 'test-token',
+        progressToken: "test-token",
         sendNotification: undefined,
       });
 
       expect(callback).toBeNull();
     });
 
-    it('MCPProgressAdapterはprogressTokenを保持する', async () => {
-      const { MCPProgressAdapter } = await import(
-        '../../src/services/vision/mcp-progress-adapter.js'
-      );
+    it("MCPProgressAdapterはprogressTokenを保持する", async () => {
+      const { MCPProgressAdapter } =
+        await import("../../src/services/vision/mcp-progress-adapter.js");
 
       const adapter = new MCPProgressAdapter({
-        progressToken: 'my-progress-token',
+        progressToken: "my-progress-token",
         sendNotification: vi.fn(),
       });
 
-      expect(adapter.getProgressToken()).toBe('my-progress-token');
+      expect(adapter.getProgressToken()).toBe("my-progress-token");
       expect(adapter.isEnabled()).toBe(true);
     });
 
-    it('数値のprogressTokenもサポートする', async () => {
-      const { MCPProgressAdapter } = await import(
-        '../../src/services/vision/mcp-progress-adapter.js'
-      );
+    it("数値のprogressTokenもサポートする", async () => {
+      const { MCPProgressAdapter } =
+        await import("../../src/services/vision/mcp-progress-adapter.js");
 
       const sentNotifications: unknown[] = [];
       const mockSendNotification = vi.fn(async (notification) => {
@@ -1179,10 +1166,10 @@ describe('MCPProgressAdapter E2E統合', () => {
 
       // 進捗送信
       await adapter.sendProgress({
-        phase: 'analyzing',
+        phase: "analyzing",
         progress: 50,
         estimatedRemainingMs: 90000,
-        message: 'Analyzing...',
+        message: "Analyzing...",
       });
 
       // 通知を確認
@@ -1191,28 +1178,27 @@ describe('MCPProgressAdapter E2E統合', () => {
     });
   });
 
-  describe('Graceful Degradation - 進捗送信失敗時', () => {
-    it('sendNotificationがエラーをスローしても処理が継続する', async () => {
-      const { MCPProgressAdapter } = await import(
-        '../../src/services/vision/mcp-progress-adapter.js'
-      );
+  describe("Graceful Degradation - 進捗送信失敗時", () => {
+    it("sendNotificationがエラーをスローしても処理が継続する", async () => {
+      const { MCPProgressAdapter } =
+        await import("../../src/services/vision/mcp-progress-adapter.js");
 
       const errorSendNotification = vi.fn(async () => {
-        throw new Error('Network error');
+        throw new Error("Network error");
       });
 
       const adapter = new MCPProgressAdapter({
-        progressToken: 'test-token',
+        progressToken: "test-token",
         sendNotification: errorSendNotification,
       });
 
       // エラーをスローしないことを確認
       await expect(
         adapter.sendProgress({
-          phase: 'analyzing',
+          phase: "analyzing",
           progress: 50,
           estimatedRemainingMs: 90000,
-          message: 'Analyzing...',
+          message: "Analyzing...",
         })
       ).resolves.not.toThrow();
 
@@ -1220,37 +1206,35 @@ describe('MCPProgressAdapter E2E統合', () => {
       expect(errorSendNotification).toHaveBeenCalled();
     });
 
-    it('createMCPProgressCallbackのコールバックもエラーを伝播しない', async () => {
-      const { createMCPProgressCallback } = await import(
-        '../../src/services/vision/mcp-progress-adapter.js'
-      );
+    it("createMCPProgressCallbackのコールバックもエラーを伝播しない", async () => {
+      const { createMCPProgressCallback } =
+        await import("../../src/services/vision/mcp-progress-adapter.js");
 
       const errorSendNotification = vi.fn(async () => {
-        throw new Error('Callback error');
+        throw new Error("Callback error");
       });
 
       const callback = createMCPProgressCallback({
-        progressToken: 'test-token',
+        progressToken: "test-token",
         sendNotification: errorSendNotification,
       });
 
       // コールバックはfire-and-forgetなのでエラーは伝播しない
       expect(() => {
         callback!({
-          phase: 'analyzing',
+          phase: "analyzing",
           progress: 50,
           estimatedRemainingMs: 90000,
-          message: 'Test',
+          message: "Test",
         });
       }).not.toThrow();
     });
   });
 
-  describe('進捗メッセージのフォーマット', () => {
-    it('フェーズ情報を含むメッセージが正しくフォーマットされる', async () => {
-      const { MCPProgressAdapter } = await import(
-        '../../src/services/vision/mcp-progress-adapter.js'
-      );
+  describe("進捗メッセージのフォーマット", () => {
+    it("フェーズ情報を含むメッセージが正しくフォーマットされる", async () => {
+      const { MCPProgressAdapter } =
+        await import("../../src/services/vision/mcp-progress-adapter.js");
 
       const sentNotifications: unknown[] = [];
       const mockSendNotification = vi.fn(async (notification) => {
@@ -1258,16 +1242,16 @@ describe('MCPProgressAdapter E2E統合', () => {
       });
 
       const adapter = new MCPProgressAdapter({
-        progressToken: 'test-token',
+        progressToken: "test-token",
         sendNotification: mockSendNotification,
       });
 
       // フェーズ情報を含まないメッセージ
       await adapter.sendProgress({
-        phase: 'analyzing',
+        phase: "analyzing",
         progress: 50,
         estimatedRemainingMs: 90000,
-        message: '処理中です',
+        message: "処理中です",
       });
 
       // メッセージにフェーズが付加される
@@ -1275,10 +1259,9 @@ describe('MCPProgressAdapter E2E統合', () => {
       expect((sentNotifications[0] as any).params.message).toMatch(/\[analyzing\]/);
     });
 
-    it('既にフェーズ情報を含むメッセージはそのまま使用される', async () => {
-      const { MCPProgressAdapter } = await import(
-        '../../src/services/vision/mcp-progress-adapter.js'
-      );
+    it("既にフェーズ情報を含むメッセージはそのまま使用される", async () => {
+      const { MCPProgressAdapter } =
+        await import("../../src/services/vision/mcp-progress-adapter.js");
 
       const sentNotifications: unknown[] = [];
       const mockSendNotification = vi.fn(async (notification) => {
@@ -1286,21 +1269,21 @@ describe('MCPProgressAdapter E2E統合', () => {
       });
 
       const adapter = new MCPProgressAdapter({
-        progressToken: 'test-token',
+        progressToken: "test-token",
         sendNotification: mockSendNotification,
       });
 
       // 既にフェーズを含むメッセージ
       await adapter.sendProgress({
-        phase: 'analyzing',
+        phase: "analyzing",
         progress: 50,
         estimatedRemainingMs: 90000,
-        message: 'analyzing phase: 処理中',
+        message: "analyzing phase: 処理中",
       });
 
       // メッセージはそのまま
       expect(sentNotifications.length).toBe(1);
-      expect((sentNotifications[0] as any).params.message).toBe('analyzing phase: 処理中');
+      expect((sentNotifications[0] as any).params.message).toBe("analyzing phase: 処理中");
     });
   });
 });
@@ -1309,13 +1292,12 @@ describe('MCPProgressAdapter E2E統合', () => {
 // VisionFallbackService + HardwareDetector + TimeoutCalculator 完全統合テスト
 // =============================================================================
 
-describe('Vision CPU完走保証 完全統合E2Eテスト', () => {
-  describe('CPU環境での完走保証', () => {
-    it('Ollama未起動時でもHTML分析にフォールバックして成功を返す', async () => {
-      const { VisionFallbackService } = await import(
-        '../../src/services/vision/vision-fallback.service.js'
-      );
-      const { SectionDetector } = await import('@reftrix/webdesign-core');
+describe("Vision CPU完走保証 完全統合E2Eテスト", () => {
+  describe("CPU環境での完走保証", () => {
+    it("Ollama未起動時でもHTML分析にフォールバックして成功を返す", async () => {
+      const { VisionFallbackService } =
+        await import("../../src/services/vision/vision-fallback.service.js");
+      const { SectionDetector } = await import("@reftrix/webdesign-core");
 
       // 実際のSectionDetectorを使用（HTML分析のみ）
       const sectionDetector = new SectionDetector();
@@ -1335,11 +1317,10 @@ describe('Vision CPU完走保証 完全統合E2Eテスト', () => {
       expect(result.metrics.totalTimeMs).toBeGreaterThan(0);
     });
 
-    it('大画像でのCPU処理時にも適切なタイムアウトが設定される', async () => {
-      const { HardwareType } = await import('../../src/services/vision/hardware-detector.js');
-      const { TimeoutCalculator, VisionTimeouts } = await import(
-        '../../src/services/vision/timeout-calculator.js'
-      );
+    it("大画像でのCPU処理時にも適切なタイムアウトが設定される", async () => {
+      const { HardwareType } = await import("../../src/services/vision/hardware-detector.js");
+      const { TimeoutCalculator, VisionTimeouts } =
+        await import("../../src/services/vision/timeout-calculator.js");
 
       const calculator = new TimeoutCalculator();
 
@@ -1352,15 +1333,14 @@ describe('Vision CPU完走保証 完全統合E2Eテスト', () => {
       expect(timeout).toBe(1_200_000);
 
       // フォーマット確認
-      expect(calculator.formatTimeout(timeout)).toBe('20m 0s');
+      expect(calculator.formatTimeout(timeout)).toBe("20m 0s");
     });
   });
 
-  describe('進捗報告統合', () => {
-    it('長時間処理での進捗報告が正しく動作する', async () => {
-      const { ProgressReporter, ProgressPhase } = await import(
-        '../../src/services/vision/progress-reporter.js'
-      );
+  describe("進捗報告統合", () => {
+    it("長時間処理での進捗報告が正しく動作する", async () => {
+      const { ProgressReporter, ProgressPhase } =
+        await import("../../src/services/vision/progress-reporter.js");
 
       const events: Array<{ phase: string; progress: number; message: string }> = [];
       const reporter = new ProgressReporter({

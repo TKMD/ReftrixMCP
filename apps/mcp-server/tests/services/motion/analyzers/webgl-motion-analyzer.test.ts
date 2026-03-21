@@ -18,7 +18,7 @@
  * @module tests/services/motion/analyzers/webgl-motion-analyzer
  */
 
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach } from "vitest";
 
 import {
   WebGLMotionAnalyzer,
@@ -28,8 +28,8 @@ import {
   type PeriodicityAnalysis,
   type DirectionAnalysis,
   type ChangePatternCharacteristics,
-} from '../../../../src/services/motion/analyzers/webgl-motion-analyzer';
-import type { FrameDiffResult, BoundingBox } from '../../../../src/services/motion/types';
+} from "../../../../src/services/motion/analyzers/webgl-motion-analyzer";
+import type { FrameDiffResult, BoundingBox } from "../../../../src/services/motion/types";
 
 // =====================================================
 // テストユーティリティ
@@ -38,10 +38,7 @@ import type { FrameDiffResult, BoundingBox } from '../../../../src/services/moti
 /**
  * モックのFrameDiffResultを生成
  */
-function createMockFrameDiff(
-  changeRatio: number,
-  regions: BoundingBox[] = []
-): FrameDiffResult {
+function createMockFrameDiff(changeRatio: number, regions: BoundingBox[] = []): FrameDiffResult {
   return {
     changeRatio,
     diffPixelCount: Math.round(changeRatio * 10000),
@@ -95,7 +92,9 @@ function generateDirectionalFrameDiffs(
  * 一定のchangeRatioを持つFrameDiffResult配列を生成
  */
 function generateConstantFrameDiffs(length: number, changeRatio: number): FrameDiffResult[] {
-  return Array(length).fill(null).map(() => createMockFrameDiff(changeRatio));
+  return Array(length)
+    .fill(null)
+    .map(() => createMockFrameDiff(changeRatio));
 }
 
 /**
@@ -121,7 +120,7 @@ function generateSpikyFrameDiffs(
 // テストスイート
 // =====================================================
 
-describe('WebGLMotionAnalyzer', () => {
+describe("WebGLMotionAnalyzer", () => {
   let analyzer: WebGLMotionAnalyzer;
 
   beforeEach(() => {
@@ -132,13 +131,13 @@ describe('WebGLMotionAnalyzer', () => {
   // 基本的な動作テスト
   // -------------------------------------------------
 
-  describe('基本動作', () => {
-    it('createWebGLMotionAnalyzer でインスタンスを作成できる', () => {
+  describe("基本動作", () => {
+    it("createWebGLMotionAnalyzer でインスタンスを作成できる", () => {
       const instance = createWebGLMotionAnalyzer();
       expect(instance).toBeInstanceOf(WebGLMotionAnalyzer);
     });
 
-    it('カスタムオプションでインスタンスを作成できる', () => {
+    it("カスタムオプションでインスタンスを作成できる", () => {
       const options: WebGLMotionAnalysisOptions = {
         maxPeriodLag: 120,
         changeThreshold: 0.005,
@@ -149,18 +148,18 @@ describe('WebGLMotionAnalyzer', () => {
       expect(instance).toBeInstanceOf(WebGLMotionAnalyzer);
     });
 
-    it('analyze() がWebGLMotionAnalysisResultを返す', () => {
+    it("analyze() がWebGLMotionAnalysisResultを返す", () => {
       const diffs = generateConstantFrameDiffs(10, 0.1);
       const result = analyzer.analyze(diffs);
 
-      expect(result).toHaveProperty('success');
-      expect(result).toHaveProperty('statistics');
-      expect(result).toHaveProperty('periodicity');
-      expect(result).toHaveProperty('changePattern');
-      expect(result).toHaveProperty('processingTimeMs');
+      expect(result).toHaveProperty("success");
+      expect(result).toHaveProperty("statistics");
+      expect(result).toHaveProperty("periodicity");
+      expect(result).toHaveProperty("changePattern");
+      expect(result).toHaveProperty("processingTimeMs");
     });
 
-    it('analyzeFromRatios() がchangeRatio配列から分析結果を返す', () => {
+    it("analyzeFromRatios() がchangeRatio配列から分析結果を返す", () => {
       const ratios = [0.1, 0.2, 0.1, 0.2, 0.1];
       const result = analyzer.analyzeFromRatios(ratios);
 
@@ -173,8 +172,8 @@ describe('WebGLMotionAnalyzer', () => {
   // 統計計算テスト
   // -------------------------------------------------
 
-  describe('統計計算', () => {
-    it('平均変化率を正しく計算する', () => {
+  describe("統計計算", () => {
+    it("平均変化率を正しく計算する", () => {
       const diffs = [
         createMockFrameDiff(0.1),
         createMockFrameDiff(0.2),
@@ -187,7 +186,7 @@ describe('WebGLMotionAnalyzer', () => {
       expect(result.statistics.avgChangeRatio).toBeCloseTo(0.3, 5);
     });
 
-    it('最大・最小変化率を正しく計算する', () => {
+    it("最大・最小変化率を正しく計算する", () => {
       const diffs = [
         createMockFrameDiff(0.1),
         createMockFrameDiff(0.5),
@@ -201,7 +200,7 @@ describe('WebGLMotionAnalyzer', () => {
       expect(result.statistics.minChangeRatio).toBe(0.1);
     });
 
-    it('標準偏差を正しく計算する', () => {
+    it("標準偏差を正しく計算する", () => {
       // 全て同じ値なら標準偏差は0
       const diffs = generateConstantFrameDiffs(10, 0.5);
       const result = analyzer.analyze(diffs);
@@ -209,14 +208,14 @@ describe('WebGLMotionAnalyzer', () => {
       expect(result.statistics.stdDeviation).toBeCloseTo(0, 5);
     });
 
-    it('フレーム数を正しくカウントする', () => {
+    it("フレーム数を正しくカウントする", () => {
       const diffs = generateConstantFrameDiffs(15, 0.1);
       const result = analyzer.analyze(diffs);
 
       expect(result.statistics.frameCount).toBe(15);
     });
 
-    it('変化があったフレーム数をカウントする', () => {
+    it("変化があったフレーム数をカウントする", () => {
       // 閾値（デフォルト0.001）を超えるフレームをカウント
       const diffs = [
         createMockFrameDiff(0.0001), // 閾値以下
@@ -235,8 +234,8 @@ describe('WebGLMotionAnalyzer', () => {
   // 周期性分析テスト
   // -------------------------------------------------
 
-  describe('周期性分析', () => {
-    it('周期的なデータから周期を検出する', () => {
+  describe("周期性分析", () => {
+    it("周期的なデータから周期を検出する", () => {
       // 周期10のデータを生成
       const diffs = generatePeriodicFrameDiffs(60, 10, 0.1, 0.1);
       const result = analyzer.analyze(diffs);
@@ -249,7 +248,7 @@ describe('WebGLMotionAnalyzer', () => {
       }
     });
 
-    it('非周期的なデータでは周期スコアが低い', () => {
+    it("非周期的なデータでは周期スコアが低い", () => {
       const diffs = generateConstantFrameDiffs(30, 0.1);
       const result = analyzer.analyze(diffs);
 
@@ -257,7 +256,7 @@ describe('WebGLMotionAnalyzer', () => {
       expect(result.periodicity.score).toBeLessThanOrEqual(0.5);
     });
 
-    it('周期をミリ秒に変換する', () => {
+    it("周期をミリ秒に変換する", () => {
       const diffs = generatePeriodicFrameDiffs(60, 15, 0.1, 0.1);
       const result = analyzer.analyze(diffs, 30); // 30fps
 
@@ -268,7 +267,7 @@ describe('WebGLMotionAnalyzer', () => {
       }
     });
 
-    it('周期性の信頼度を計算する', () => {
+    it("周期性の信頼度を計算する", () => {
       const diffs = generatePeriodicFrameDiffs(60, 10, 0.15, 0.1);
       const result = analyzer.analyze(diffs);
 
@@ -276,7 +275,7 @@ describe('WebGLMotionAnalyzer', () => {
       expect(result.periodicity.confidence).toBeLessThanOrEqual(1);
     });
 
-    it('自己相関値の配列を返す', () => {
+    it("自己相関値の配列を返す", () => {
       const diffs = generatePeriodicFrameDiffs(40, 8, 0.1, 0.1);
       const result = analyzer.analyze(diffs);
 
@@ -289,15 +288,15 @@ describe('WebGLMotionAnalyzer', () => {
   // 方向分析テスト
   // -------------------------------------------------
 
-  describe('方向分析', () => {
-    it('方向分析を有効にすると結果に含まれる', () => {
+  describe("方向分析", () => {
+    it("方向分析を有効にすると結果に含まれる", () => {
       const diffs = generateDirectionalFrameDiffs(20, 10, 90);
       const result = analyzer.analyze(diffs);
 
       expect(result.direction).toBeDefined();
     });
 
-    it('方向分析を無効にすると結果に含まれない', () => {
+    it("方向分析を無効にすると結果に含まれない", () => {
       const analyzer = createWebGLMotionAnalyzer({ analyzeDirection: false });
       const diffs = generateDirectionalFrameDiffs(20, 10, 90);
       const result = analyzer.analyze(diffs);
@@ -305,7 +304,7 @@ describe('WebGLMotionAnalyzer', () => {
       expect(result.direction).toBeUndefined();
     });
 
-    it('右方向の動きを検出する', () => {
+    it("右方向の動きを検出する", () => {
       // より大きな移動距離を設定（5px以上の移動が必要）
       const diffs = generateDirectionalFrameDiffs(20, 10, 150);
       const result = analyzer.analyze(diffs);
@@ -317,7 +316,7 @@ describe('WebGLMotionAnalyzer', () => {
       }
     });
 
-    it('方向一貫性スコアを計算する', () => {
+    it("方向一貫性スコアを計算する", () => {
       const diffs = generateDirectionalFrameDiffs(20, 10, 90);
       const result = analyzer.analyze(diffs);
 
@@ -327,7 +326,7 @@ describe('WebGLMotionAnalyzer', () => {
       }
     });
 
-    it('領域がない場合は方向分析をスキップする', () => {
+    it("領域がない場合は方向分析をスキップする", () => {
       const diffs = generateConstantFrameDiffs(20, 0.1);
       const result = analyzer.analyze(diffs);
 
@@ -342,15 +341,15 @@ describe('WebGLMotionAnalyzer', () => {
   // 変化パターン分析テスト
   // -------------------------------------------------
 
-  describe('変化パターン分析', () => {
-    it('スパイク数をカウントする', () => {
+  describe("変化パターン分析", () => {
+    it("スパイク数をカウントする", () => {
       const diffs = generateSpikyFrameDiffs(30, 3, 0.3, 0.01);
       const result = analyzer.analyze(diffs);
 
       expect(result.changePattern.spikeCount).toBeGreaterThan(0);
     });
 
-    it('平均スパイク間隔を計算する', () => {
+    it("平均スパイク間隔を計算する", () => {
       const diffs = generateSpikyFrameDiffs(50, 4, 0.3, 0.01);
       const result = analyzer.analyze(diffs);
 
@@ -359,7 +358,7 @@ describe('WebGLMotionAnalyzer', () => {
       }
     });
 
-    it('静的フレームの割合を計算する', () => {
+    it("静的フレームの割合を計算する", () => {
       // 半分が閾値以下
       const diffs: FrameDiffResult[] = [];
       for (let i = 0; i < 20; i++) {
@@ -371,7 +370,7 @@ describe('WebGLMotionAnalyzer', () => {
       expect(result.changePattern.staticFrameRatio).toBeLessThan(1);
     });
 
-    it('動的フレームの割合を計算する', () => {
+    it("動的フレームの割合を計算する", () => {
       const diffs = generateConstantFrameDiffs(20, 0.1);
       const result = analyzer.analyze(diffs);
 
@@ -379,7 +378,7 @@ describe('WebGLMotionAnalyzer', () => {
       expect(result.changePattern.dynamicFrameRatio).toBeCloseTo(1, 1);
     });
 
-    it('静的と動的の割合の合計が1になる', () => {
+    it("静的と動的の割合の合計が1になる", () => {
       const diffs = generateSpikyFrameDiffs(30, 5, 0.2, 0.001);
       const result = analyzer.analyze(diffs);
 
@@ -387,7 +386,7 @@ describe('WebGLMotionAnalyzer', () => {
       expect(total).toBeCloseTo(1, 5);
     });
 
-    it('変化の平均持続時間を計算する', () => {
+    it("変化の平均持続時間を計算する", () => {
       // 連続した変化区間を持つデータ
       const diffs: FrameDiffResult[] = [];
       for (let i = 0; i < 30; i++) {
@@ -405,32 +404,32 @@ describe('WebGLMotionAnalyzer', () => {
   // エラーハンドリングテスト
   // -------------------------------------------------
 
-  describe('エラーハンドリング', () => {
-    it('データが不足している場合はエラーを返す', () => {
+  describe("エラーハンドリング", () => {
+    it("データが不足している場合はエラーを返す", () => {
       const diffs = [createMockFrameDiff(0.1)];
       const result = analyzer.analyze(diffs);
 
       expect(result.success).toBe(false);
       expect(result.error).toBeDefined();
-      expect(result.error?.code).toBe('INSUFFICIENT_DATA');
+      expect(result.error?.code).toBe("INSUFFICIENT_DATA");
     });
 
-    it('analyzeFromRatiosでもデータ不足エラーを返す', () => {
+    it("analyzeFromRatiosでもデータ不足エラーを返す", () => {
       const ratios = [0.1];
       const result = analyzer.analyzeFromRatios(ratios);
 
       expect(result.success).toBe(false);
-      expect(result.error?.code).toBe('INSUFFICIENT_DATA');
+      expect(result.error?.code).toBe("INSUFFICIENT_DATA");
     });
 
-    it('空の配列でエラーを返す', () => {
+    it("空の配列でエラーを返す", () => {
       const result = analyzer.analyze([]);
 
       expect(result.success).toBe(false);
       expect(result.error).toBeDefined();
     });
 
-    it('エラー時もデフォルト値を持つ結果を返す', () => {
+    it("エラー時もデフォルト値を持つ結果を返す", () => {
       const result = analyzer.analyze([]);
 
       expect(result.statistics).toBeDefined();
@@ -444,15 +443,15 @@ describe('WebGLMotionAnalyzer', () => {
   // 処理時間テスト
   // -------------------------------------------------
 
-  describe('処理時間', () => {
-    it('処理時間を記録する', () => {
+  describe("処理時間", () => {
+    it("処理時間を記録する", () => {
       const diffs = generateConstantFrameDiffs(20, 0.1);
       const result = analyzer.analyze(diffs);
 
       expect(result.processingTimeMs).toBeGreaterThanOrEqual(0);
     });
 
-    it('エラー時は処理時間が0', () => {
+    it("エラー時は処理時間が0", () => {
       const result = analyzer.analyze([]);
 
       expect(result.processingTimeMs).toBe(0);
@@ -463,8 +462,8 @@ describe('WebGLMotionAnalyzer', () => {
   // エッジケーステスト
   // -------------------------------------------------
 
-  describe('エッジケース', () => {
-    it('全て0のデータを処理できる', () => {
+  describe("エッジケース", () => {
+    it("全て0のデータを処理できる", () => {
       const diffs = generateConstantFrameDiffs(20, 0);
       const result = analyzer.analyze(diffs);
 
@@ -472,7 +471,7 @@ describe('WebGLMotionAnalyzer', () => {
       expect(result.statistics.avgChangeRatio).toBe(0);
     });
 
-    it('全て1のデータを処理できる', () => {
+    it("全て1のデータを処理できる", () => {
       const diffs = generateConstantFrameDiffs(20, 1);
       const result = analyzer.analyze(diffs);
 
@@ -480,14 +479,14 @@ describe('WebGLMotionAnalyzer', () => {
       expect(result.statistics.avgChangeRatio).toBe(1);
     });
 
-    it('極端に小さい値を処理できる', () => {
+    it("極端に小さい値を処理できる", () => {
       const diffs = generateConstantFrameDiffs(20, 0.000001);
       const result = analyzer.analyze(diffs);
 
       expect(result.success).toBe(true);
     });
 
-    it('2つのフレームのみでも処理できる', () => {
+    it("2つのフレームのみでも処理できる", () => {
       const diffs = [createMockFrameDiff(0.1), createMockFrameDiff(0.2)];
       const result = analyzer.analyze(diffs);
 
@@ -495,7 +494,7 @@ describe('WebGLMotionAnalyzer', () => {
       expect(result.statistics.frameCount).toBe(2);
     });
 
-    it('大量のデータ（1000フレーム）を処理できる', () => {
+    it("大量のデータ（1000フレーム）を処理できる", () => {
       const diffs = generatePeriodicFrameDiffs(1000, 50, 0.1, 0.1);
       const result = analyzer.analyze(diffs);
 
@@ -503,7 +502,7 @@ describe('WebGLMotionAnalyzer', () => {
       expect(result.statistics.frameCount).toBe(1000);
     });
 
-    it('異なるFPSで処理できる', () => {
+    it("異なるFPSで処理できる", () => {
       const diffs = generatePeriodicFrameDiffs(60, 10, 0.1, 0.1);
 
       const result30fps = analyzer.analyze(diffs, 30);
@@ -525,8 +524,8 @@ describe('WebGLMotionAnalyzer', () => {
   // パフォーマンステスト
   // -------------------------------------------------
 
-  describe('パフォーマンス', () => {
-    it('100フレームのデータを100ms以内に処理できる', () => {
+  describe("パフォーマンス", () => {
+    it("100フレームのデータを100ms以内に処理できる", () => {
       const diffs = generatePeriodicFrameDiffs(100, 20, 0.1, 0.1);
 
       const startTime = Date.now();
@@ -536,7 +535,7 @@ describe('WebGLMotionAnalyzer', () => {
       expect(elapsedMs).toBeLessThan(100);
     });
 
-    it('500フレームのデータを500ms以内に処理できる', () => {
+    it("500フレームのデータを500ms以内に処理できる", () => {
       const diffs = generatePeriodicFrameDiffs(500, 50, 0.1, 0.1);
 
       const startTime = Date.now();
@@ -551,41 +550,41 @@ describe('WebGLMotionAnalyzer', () => {
   // インターフェース検証テスト
   // -------------------------------------------------
 
-  describe('インターフェース検証', () => {
-    it('PeriodicityAnalysisが全フィールドを持つ', () => {
+  describe("インターフェース検証", () => {
+    it("PeriodicityAnalysisが全フィールドを持つ", () => {
       const diffs = generatePeriodicFrameDiffs(40, 10, 0.1, 0.1);
       const result = analyzer.analyze(diffs);
 
-      expect(result.periodicity).toHaveProperty('score');
-      expect(result.periodicity).toHaveProperty('estimatedPeriodFrames');
-      expect(result.periodicity).toHaveProperty('estimatedPeriodMs');
-      expect(result.periodicity).toHaveProperty('confidence');
-      expect(result.periodicity).toHaveProperty('autocorrelations');
+      expect(result.periodicity).toHaveProperty("score");
+      expect(result.periodicity).toHaveProperty("estimatedPeriodFrames");
+      expect(result.periodicity).toHaveProperty("estimatedPeriodMs");
+      expect(result.periodicity).toHaveProperty("confidence");
+      expect(result.periodicity).toHaveProperty("autocorrelations");
     });
 
-    it('DirectionAnalysisが全フィールドを持つ', () => {
+    it("DirectionAnalysisが全フィールドを持つ", () => {
       const diffs = generateDirectionalFrameDiffs(20, 10, 90);
       const result = analyzer.analyze(diffs);
 
       if (result.direction) {
-        expect(result.direction).toHaveProperty('dominantDirection');
-        expect(result.direction).toHaveProperty('directionConsistency');
-        expect(result.direction).toHaveProperty('upwardRatio');
-        expect(result.direction).toHaveProperty('downwardRatio');
-        expect(result.direction).toHaveProperty('leftwardRatio');
-        expect(result.direction).toHaveProperty('rightwardRatio');
+        expect(result.direction).toHaveProperty("dominantDirection");
+        expect(result.direction).toHaveProperty("directionConsistency");
+        expect(result.direction).toHaveProperty("upwardRatio");
+        expect(result.direction).toHaveProperty("downwardRatio");
+        expect(result.direction).toHaveProperty("leftwardRatio");
+        expect(result.direction).toHaveProperty("rightwardRatio");
       }
     });
 
-    it('ChangePatternCharacteristicsが全フィールドを持つ', () => {
+    it("ChangePatternCharacteristicsが全フィールドを持つ", () => {
       const diffs = generateSpikyFrameDiffs(30, 3, 0.3, 0.01);
       const result = analyzer.analyze(diffs);
 
-      expect(result.changePattern).toHaveProperty('spikeCount');
-      expect(result.changePattern).toHaveProperty('avgSpikePeriod');
-      expect(result.changePattern).toHaveProperty('avgChangeDuration');
-      expect(result.changePattern).toHaveProperty('staticFrameRatio');
-      expect(result.changePattern).toHaveProperty('dynamicFrameRatio');
+      expect(result.changePattern).toHaveProperty("spikeCount");
+      expect(result.changePattern).toHaveProperty("avgSpikePeriod");
+      expect(result.changePattern).toHaveProperty("avgChangeDuration");
+      expect(result.changePattern).toHaveProperty("staticFrameRatio");
+      expect(result.changePattern).toHaveProperty("dynamicFrameRatio");
     });
   });
 });

@@ -10,44 +10,36 @@
  * @module tools/motion/detection-modes
  */
 
-import type { Browser, Page } from 'playwright';
-import { logger, isDevelopment } from '../../utils/logger';
-import { validateExternalUrl } from '../../utils/url-validator';
-import type {
-  MotionPattern,
-  MotionWarning,
-  VideoInfo,
-  MotionDetectInput,
-} from './schemas';
-import { MOTION_WARNING_CODES } from './schemas';
+import type { Browser, Page } from "playwright";
+import { logger, isDevelopment } from "../../utils/logger";
+import { validateExternalUrl } from "../../utils/url-validator";
+import type { MotionPattern, MotionWarning, VideoInfo, MotionDetectInput } from "./schemas";
+import { MOTION_WARNING_CODES } from "./schemas";
 import type {
   FrameCaptureServiceOptions,
   FrameCaptureServiceResult,
-} from '../../services/motion/frame-capture.service';
-import type {
-  RecordOptions,
-  RecordResult,
-} from '../../services/page/video-recorder.service';
+} from "../../services/motion/frame-capture.service";
+import type { RecordOptions, RecordResult } from "../../services/page/video-recorder.service";
 import type {
   ExtractOptions,
   AnalyzeOptions,
   ExtractResult,
   AnalyzeResult,
-} from '../../services/page/frame-analyzer.service';
-import type { RuntimeAnimationOptions } from '../../services/page/runtime-animation-detector.service';
+} from "../../services/page/frame-analyzer.service";
+import type { RuntimeAnimationOptions } from "../../services/page/runtime-animation-detector.service";
 import {
   getVideoRecorderService,
   getFrameAnalyzerService,
   getRuntimeAnimationDetectorService,
   getFrameCaptureServiceInstance,
-} from './di-factories';
-import type { RuntimeInfo, DetectOptions } from './di-factories';
+} from "./di-factories";
+import type { RuntimeInfo, DetectOptions } from "./di-factories";
 import {
   convertMotionSegmentToPattern,
   convertRuntimeResultToDetectionResult,
   adaptServiceResult,
-} from './pattern-converter';
-import { getMotionDetectorService } from '../../services/page/motion-detector.service';
+} from "./pattern-converter";
+import { getMotionDetectorService } from "../../services/page/motion-detector.service";
 
 // =====================================================
 // エラークラス
@@ -59,7 +51,7 @@ import { getMotionDetectorService } from '../../services/page/motion-detector.se
 export class SSRFBlockedError extends Error {
   constructor(message: string) {
     super(message);
-    this.name = 'SSRFBlockedError';
+    this.name = "SSRFBlockedError";
   }
 }
 
@@ -69,7 +61,7 @@ export class SSRFBlockedError extends Error {
 export class VideoRecordError extends Error {
   constructor(message: string) {
     super(message);
-    this.name = 'VideoRecordError';
+    this.name = "VideoRecordError";
   }
 }
 
@@ -79,7 +71,7 @@ export class VideoRecordError extends Error {
 export class FrameAnalysisError extends Error {
   constructor(message: string) {
     super(message);
-    this.name = 'FrameAnalysisError';
+    this.name = "FrameAnalysisError";
   }
 }
 
@@ -92,7 +84,7 @@ export class FrameAnalysisError extends Error {
  */
 export async function executeVideoDetection(
   url: string,
-  videoOptions: MotionDetectInput['video_options']
+  videoOptions: MotionDetectInput["video_options"]
 ): Promise<{
   videoInfo: VideoInfo;
   patterns: MotionPattern[];
@@ -104,7 +96,7 @@ export async function executeVideoDetection(
   // SSRF検証
   const urlValidation = validateExternalUrl(url);
   if (!urlValidation.valid) {
-    throw new SSRFBlockedError(urlValidation.error ?? 'URL is blocked for security reasons');
+    throw new SSRFBlockedError(urlValidation.error ?? "URL is blocked for security reasons");
   }
 
   // サービスを取得
@@ -119,7 +111,7 @@ export async function executeVideoDetection(
     scrollPage: videoOptions?.scroll_page ?? true,
     moveMouseRandomly: videoOptions?.move_mouse ?? true,
     // WebGL/3Dサイト対応: domcontentloadedをデフォルトに（loadは3Dサイトで非常に時間がかかる）
-    waitUntil: videoOptions?.wait_until ?? 'domcontentloaded',
+    waitUntil: videoOptions?.wait_until ?? "domcontentloaded",
   };
 
   // 解析オプション
@@ -141,13 +133,13 @@ export async function executeVideoDetection(
   try {
     // 1. 動画を録画
     if (isDevelopment()) {
-      logger.info('[motion.detect] Starting video recording', { url, options: recordOptions });
+      logger.info("[motion.detect] Starting video recording", { url, options: recordOptions });
     }
 
     recordResult = await videoRecorder.record(url, recordOptions);
 
     if (isDevelopment()) {
-      logger.info('[motion.detect] Video recording completed', {
+      logger.info("[motion.detect] Video recording completed", {
         videoPath: recordResult.videoPath,
         sizeBytes: recordResult.sizeBytes,
         durationMs: recordResult.durationMs,
@@ -155,20 +147,20 @@ export async function executeVideoDetection(
     }
   } catch (error) {
     throw new VideoRecordError(
-      `Video recording failed: ${error instanceof Error ? error.message : 'Unknown error'}`
+      `Video recording failed: ${error instanceof Error ? error.message : "Unknown error"}`
     );
   }
 
   try {
     // 2. フレーム抽出
     if (isDevelopment()) {
-      logger.info('[motion.detect] Starting frame extraction', { options: extractOptions });
+      logger.info("[motion.detect] Starting frame extraction", { options: extractOptions });
     }
 
     extractResult = await frameAnalyzer.extractFrames(recordResult.videoPath, extractOptions);
 
     if (isDevelopment()) {
-      logger.info('[motion.detect] Frame extraction completed', {
+      logger.info("[motion.detect] Frame extraction completed", {
         totalFrames: extractResult.totalFrames,
         fps: extractResult.fps,
       });
@@ -176,13 +168,13 @@ export async function executeVideoDetection(
 
     // 3. モーション解析
     if (isDevelopment()) {
-      logger.info('[motion.detect] Starting motion analysis', { options: analyzeOptions });
+      logger.info("[motion.detect] Starting motion analysis", { options: analyzeOptions });
     }
 
     analyzeResult = await frameAnalyzer.analyzeMotion(extractResult, analyzeOptions);
 
     if (isDevelopment()) {
-      logger.info('[motion.detect] Motion analysis completed', {
+      logger.info("[motion.detect] Motion analysis completed", {
         totalFrames: analyzeResult.totalFrames,
         motionSegments: analyzeResult.motionSegments.length,
         motionCoverage: analyzeResult.motionCoverage,
@@ -195,7 +187,7 @@ export async function executeVideoDetection(
     // フレーム解析エラーでも録画ファイルをクリーンアップ
     await videoRecorder.cleanup(recordResult.videoPath).catch(() => {});
     throw new FrameAnalysisError(
-      `Frame analysis failed: ${error instanceof Error ? error.message : 'Unknown error'}`
+      `Frame analysis failed: ${error instanceof Error ? error.message : "Unknown error"}`
     );
   }
 
@@ -208,8 +200,9 @@ export async function executeVideoDetection(
   if (patterns.length === 0) {
     warnings.push({
       code: MOTION_WARNING_CODES.A11Y_INFINITE_ANIMATION,
-      severity: 'info',
-      message: 'No motion detected in the recorded video. The page may be static or use JavaScript-only animations.',
+      severity: "info",
+      message:
+        "No motion detected in the recorded video. The page may be static or use JavaScript-only animations.",
       context: { url, durationMs: recordResult.durationMs },
     });
   }
@@ -255,7 +248,7 @@ export async function executeFrameCapture(
     scroll_px_per_frame?: number;
     frame_interval_ms?: number;
     output_dir?: string;
-    output_format?: 'png' | 'jpeg';
+    output_format?: "png" | "jpeg";
     filename_pattern?: string;
     viewport?: { width: number; height: number };
     max_frames?: number;
@@ -266,10 +259,10 @@ export async function executeFrameCapture(
   // SSRF検証
   const urlValidation = validateExternalUrl(url);
   if (!urlValidation.valid) {
-    throw new SSRFBlockedError(urlValidation.error ?? 'URL is blocked for security reasons');
+    throw new SSRFBlockedError(urlValidation.error ?? "URL is blocked for security reasons");
   }
 
-  const { chromium } = await import('playwright');
+  const { chromium } = await import("playwright");
 
   let browser: Browser | null = null;
 
@@ -277,7 +270,7 @@ export async function executeFrameCapture(
     // ブラウザ起動（タイムアウト30秒）
     browser = await chromium.launch({
       headless: true,
-      args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'],
+      args: ["--no-sandbox", "--disable-setuid-sandbox", "--disable-dev-shm-usage"],
       timeout: 30000,
     });
 
@@ -285,7 +278,7 @@ export async function executeFrameCapture(
     const context = await browser.newContext({
       viewport,
       userAgent:
-        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 Reftrix/0.1.0',
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 Reftrix/0.1.0",
     });
 
     const page = await context.newPage();
@@ -294,37 +287,37 @@ export async function executeFrameCapture(
     // WebGL/3Dサイトではloadが非常に時間がかかるため、domcontentloadedをデフォルトに
     try {
       await page.goto(url, {
-        waitUntil: 'domcontentloaded',
+        waitUntil: "domcontentloaded",
         timeout: 30000,
       });
 
       // loadが成功したら、追加で短時間networkidleを待つ（失敗しても続行）
       try {
-        await page.waitForLoadState('networkidle', { timeout: 5000 });
+        await page.waitForLoadState("networkidle", { timeout: 5000 });
       } catch {
         // networkidleタイムアウトは無視（遅いサイトでは発生しやすい）
         if (isDevelopment()) {
-          logger.debug('[motion.detect] networkidle timeout, continuing with load state');
+          logger.debug("[motion.detect] networkidle timeout, continuing with load state");
         }
       }
     } catch (loadError) {
       // loadも失敗した場合は再試行
       if (isDevelopment()) {
-        logger.warn('[motion.detect] Initial page load failed, retrying with domcontentloaded', {
-          error: loadError instanceof Error ? loadError.message : 'Unknown',
+        logger.warn("[motion.detect] Initial page load failed, retrying with domcontentloaded", {
+          error: loadError instanceof Error ? loadError.message : "Unknown",
         });
       }
       await page.goto(url, {
-        waitUntil: 'domcontentloaded',
+        waitUntil: "domcontentloaded",
         timeout: 30000,
       });
     }
 
-    await page.waitForLoadState('domcontentloaded');
+    await page.waitForLoadState("domcontentloaded");
     await page.waitForTimeout(1000);
 
     if (isDevelopment()) {
-      logger.info('[motion.detect] Page loaded, starting frame capture');
+      logger.info("[motion.detect] Page loaded, starting frame capture");
     }
 
     const captureService = getFrameCaptureServiceInstance();
@@ -332,9 +325,9 @@ export async function executeFrameCapture(
     const captureOptions: FrameCaptureServiceOptions = {
       scroll_px_per_frame: options.scroll_px_per_frame ?? 15,
       frame_interval_ms: options.frame_interval_ms ?? 33,
-      output_dir: options.output_dir ?? '/tmp/reftrix-frames/',
-      output_format: options.output_format ?? 'png',
-      filename_pattern: options.filename_pattern ?? 'frame-{0000}.png',
+      output_dir: options.output_dir ?? "/tmp/reftrix-frames/",
+      output_format: options.output_format ?? "png",
+      filename_pattern: options.filename_pattern ?? "frame-{0000}.png",
       // v0.1.0: 制限オプションを追加
       max_frames: options.max_frames ?? 1000,
       max_page_height: options.max_page_height ?? 50000,
@@ -342,7 +335,7 @@ export async function executeFrameCapture(
     };
 
     if (isDevelopment()) {
-      logger.info('[motion.detect] Starting frame capture:', {
+      logger.info("[motion.detect] Starting frame capture:", {
         url,
         scroll_px_per_frame: captureOptions.scroll_px_per_frame,
         output_dir: captureOptions.output_dir,
@@ -355,7 +348,7 @@ export async function executeFrameCapture(
     const result = await captureService.capture(page, captureOptions);
 
     if (isDevelopment()) {
-      logger.info('[motion.detect] Frame capture complete:', {
+      logger.info("[motion.detect] Frame capture complete:", {
         total_frames: result.total_frames,
         duration_ms: result.duration_ms,
         truncated: result.truncated,
@@ -381,7 +374,7 @@ export async function executeFrameCapture(
  */
 export async function executeRuntimeDetection(
   url: string,
-  runtimeOptions: MotionDetectInput['runtime_options']
+  runtimeOptions: MotionDetectInput["runtime_options"]
 ): Promise<{
   patterns: MotionPattern[];
   warnings: MotionWarning[];
@@ -390,10 +383,10 @@ export async function executeRuntimeDetection(
   // SSRF検証
   const urlValidation = validateExternalUrl(url);
   if (!urlValidation.valid) {
-    throw new SSRFBlockedError(urlValidation.error ?? 'URL is blocked for security reasons');
+    throw new SSRFBlockedError(urlValidation.error ?? "URL is blocked for security reasons");
   }
 
-  const { chromium } = await import('playwright');
+  const { chromium } = await import("playwright");
 
   let browser = null;
   let page: Page | null = null;
@@ -401,20 +394,20 @@ export async function executeRuntimeDetection(
   try {
     browser = await chromium.launch({
       headless: true,
-      args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'],
+      args: ["--no-sandbox", "--disable-setuid-sandbox", "--disable-dev-shm-usage"],
     });
 
     const context = await browser.newContext({
       viewport: { width: 1280, height: 720 },
       userAgent:
-        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 Reftrix/0.1.0',
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 Reftrix/0.1.0",
     });
 
     page = await context.newPage();
 
     // WebGL/3Dサイト対応: domcontentloadedで待機（loadは3Dサイトで非常に時間がかかる）
     await page.goto(url, {
-      waitUntil: 'domcontentloaded',
+      waitUntil: "domcontentloaded",
       timeout: 30000,
     });
 
@@ -430,7 +423,7 @@ export async function executeRuntimeDetection(
     const converted = convertRuntimeResultToDetectionResult(runtimeResult);
 
     if (isDevelopment()) {
-      logger.info('[motion.detect] Runtime detection completed', {
+      logger.info("[motion.detect] Runtime detection completed", {
         animationsDetected: runtimeResult.animations.length,
         intersectionObservers: runtimeResult.intersectionObservers.length,
         rafCallbacks: runtimeResult.rafCallbacks.length,

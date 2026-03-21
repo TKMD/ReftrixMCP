@@ -8,13 +8,13 @@
  * @module services/responsive/difference-detector.service
  */
 
-import { logger, isDevelopment } from '../../utils/logger';
+import { logger, isDevelopment } from "../../utils/logger";
 import type {
   ViewportCaptureResult,
   ResponsiveDifference,
   DifferenceCategory,
   NavigationType,
-} from './types';
+} from "./types";
 
 /**
  * 差異検出結果
@@ -50,7 +50,7 @@ export class DifferenceDetectorService {
     const allBreakpoints = new Set<string>();
 
     if (isDevelopment()) {
-      logger.debug('[DifferenceDetector] Starting difference detection', {
+      logger.debug("[DifferenceDetector] Starting difference detection", {
         viewports: captureResults.map((r) => r.viewport.name),
       });
     }
@@ -61,9 +61,7 @@ export class DifferenceDetectorService {
     }
 
     // ビューポートをサイズでソート（大きい順: desktop -> tablet -> mobile）
-    const sortedResults = [...captureResults].sort(
-      (a, b) => b.viewport.width - a.viewport.width
-    );
+    const sortedResults = [...captureResults].sort((a, b) => b.viewport.width - a.viewport.width);
 
     // 隣接ビューポート間の差異を検出
     for (let i = 0; i < sortedResults.length - 1; i++) {
@@ -112,7 +110,7 @@ export class DifferenceDetectorService {
     const summary = this.createSummary(uniqueDifferences);
 
     if (isDevelopment()) {
-      logger.info('[DifferenceDetector] Difference detection completed', {
+      logger.info("[DifferenceDetector] Difference detection completed", {
         totalDifferences: uniqueDifferences.length,
         byCategory: summary.byCategory,
         navigationChange: summary.navigationChange,
@@ -122,8 +120,8 @@ export class DifferenceDetectorService {
     return {
       differences: uniqueDifferences,
       breakpoints: Array.from(allBreakpoints).sort((a, b) => {
-        const numA = parseInt(a.replace('px', ''), 10);
-        const numB = parseInt(b.replace('px', ''), 10);
+        const numA = parseInt(a.replace("px", ""), 10);
+        const numB = parseInt(b.replace("px", ""), 10);
         return numA - numB;
       }),
       summary,
@@ -144,20 +142,24 @@ export class DifferenceDetectorService {
     // ナビゲーションタイプの変化
     if (largerNav.type !== smallerNav.type) {
       differences.push({
-        element: smallerNav.selector ?? 'nav',
+        element: smallerNav.selector ?? "nav",
         description: this.getNavigationChangeDescription(largerNav.type, smallerNav.type),
-        category: 'navigation',
+        category: "navigation",
         [larger.viewport.name]: { type: largerNav.type },
         [smaller.viewport.name]: { type: smallerNav.type },
       });
     }
 
     // 水平メニュー → ハンバーガーメニュー変化
-    if (largerNav.hasHorizontalMenu && !smallerNav.hasHorizontalMenu && smallerNav.hasHamburgerMenu) {
+    if (
+      largerNav.hasHorizontalMenu &&
+      !smallerNav.hasHorizontalMenu &&
+      smallerNav.hasHamburgerMenu
+    ) {
       differences.push({
-        element: smallerNav.selector ?? 'nav',
+        element: smallerNav.selector ?? "nav",
         description: `${larger.viewport.name}では水平メニュー、${smaller.viewport.name}ではハンバーガーメニューに変化`,
-        category: 'navigation',
+        category: "navigation",
         [larger.viewport.name]: {
           hasHorizontalMenu: true,
           hasHamburgerMenu: false,
@@ -172,9 +174,9 @@ export class DifferenceDetectorService {
     // ボトムナビゲーションの出現
     if (!largerNav.hasBottomNav && smallerNav.hasBottomNav) {
       differences.push({
-        element: '.bottom-nav',
+        element: ".bottom-nav",
         description: `${smaller.viewport.name}でボトムナビゲーションが出現`,
-        category: 'navigation',
+        category: "navigation",
         [larger.viewport.name]: { hasBottomNav: false },
         [smaller.viewport.name]: { hasBottomNav: true },
       });
@@ -202,9 +204,7 @@ export class DifferenceDetectorService {
     let foundFlexDiff = false;
 
     if (largerElements.length > 0 && smallerElements.length > 0) {
-      const smallerBySelector = new Map(
-        smallerElements.map((e) => [e.selector, e])
-      );
+      const smallerBySelector = new Map(smallerElements.map((e) => [e.selector, e]));
 
       for (const largeEl of largerElements) {
         const smallEl = smallerBySelector.get(largeEl.selector);
@@ -219,7 +219,7 @@ export class DifferenceDetectorService {
           differences.push({
             element: largeEl.selector,
             description: `${largeEl.selector}のグリッドカラム数が${largeEl.gridColumns}列から${smallEl.gridColumns}列に変化`,
-            category: 'layout',
+            category: "layout",
             [larger.viewport.name]: { gridColumns: largeEl.gridColumns },
             [smaller.viewport.name]: { gridColumns: smallEl.gridColumns },
           });
@@ -235,7 +235,7 @@ export class DifferenceDetectorService {
           differences.push({
             element: largeEl.selector,
             description: `${largeEl.selector}のフレックス方向が${this.translateFlexDirection(largeEl.flexDirection)}から${this.translateFlexDirection(smallEl.flexDirection)}に変化`,
-            category: 'layout',
+            category: "layout",
             [larger.viewport.name]: { flexDirection: largeEl.flexDirection },
             [smaller.viewport.name]: { flexDirection: smallEl.flexDirection },
           });
@@ -252,9 +252,9 @@ export class DifferenceDetectorService {
       largerLayout.gridColumns !== smallerLayout.gridColumns
     ) {
       differences.push({
-        element: '.grid',
+        element: ".grid",
         description: `グリッドカラム数が${largerLayout.gridColumns}列から${smallerLayout.gridColumns}列に変化`,
-        category: 'layout',
+        category: "layout",
         [larger.viewport.name]: { gridColumns: largerLayout.gridColumns },
         [smaller.viewport.name]: { gridColumns: smallerLayout.gridColumns },
       });
@@ -267,9 +267,9 @@ export class DifferenceDetectorService {
       largerLayout.flexDirection !== smallerLayout.flexDirection
     ) {
       differences.push({
-        element: '.flex',
+        element: ".flex",
         description: `フレックス方向が${this.translateFlexDirection(largerLayout.flexDirection)}から${this.translateFlexDirection(smallerLayout.flexDirection)}に変化`,
-        category: 'layout',
+        category: "layout",
         [larger.viewport.name]: { flexDirection: largerLayout.flexDirection },
         [smaller.viewport.name]: { flexDirection: smallerLayout.flexDirection },
       });
@@ -279,9 +279,9 @@ export class DifferenceDetectorService {
     const scrollHeightRatio = smallerLayout.scrollHeight / largerLayout.scrollHeight;
     if (scrollHeightRatio > 1.5 || scrollHeightRatio < 0.67) {
       differences.push({
-        element: 'body',
+        element: "body",
         description: `ページ高さが${Math.round(scrollHeightRatio * 100)}%に変化（${larger.viewport.name}: ${largerLayout.scrollHeight}px → ${smaller.viewport.name}: ${smallerLayout.scrollHeight}px）`,
-        category: 'layout',
+        category: "layout",
         [larger.viewport.name]: { scrollHeight: largerLayout.scrollHeight },
         [smaller.viewport.name]: { scrollHeight: smallerLayout.scrollHeight },
       });
@@ -305,11 +305,11 @@ export class DifferenceDetectorService {
     if (largest.navigationInfo.hasHamburgerMenu !== smallest.navigationInfo.hasHamburgerMenu) {
       const desktopVisible = largest.navigationInfo.hasHamburgerMenu;
       differences.push({
-        element: '.hamburger-menu',
+        element: ".hamburger-menu",
         description: desktopVisible
-          ? 'ハンバーガーメニューが全ビューポートで表示'
+          ? "ハンバーガーメニューが全ビューポートで表示"
           : `ハンバーガーメニューが${smallest.viewport.name}でのみ表示`,
-        category: 'visibility',
+        category: "visibility",
         [largest.viewport.name]: { visible: desktopVisible },
         [smallest.viewport.name]: { visible: smallest.navigationInfo.hasHamburgerMenu },
       });
@@ -324,9 +324,7 @@ export class DifferenceDetectorService {
     }
 
     // セレクタベースでマッチング
-    const smallestBySelector = new Map(
-      smallestElements.map((e) => [e.selector, e])
-    );
+    const smallestBySelector = new Map(smallestElements.map((e) => [e.selector, e]));
 
     for (const largeEl of largestElements) {
       const smallEl = smallestBySelector.get(largeEl.selector);
@@ -342,7 +340,7 @@ export class DifferenceDetectorService {
         differences.push({
           element: largeEl.selector,
           description,
-          category: 'visibility',
+          category: "visibility",
           [largest.viewport.name]: {
             visible: largeVisible,
             display: largeEl.display,
@@ -366,7 +364,7 @@ export class DifferenceDetectorService {
    * セマンティック要素が可視かどうか判定
    */
   private isElementVisible(el: { display: string; visibility: string; opacity: number }): boolean {
-    return el.display !== 'none' && el.visibility !== 'hidden' && el.opacity > 0;
+    return el.display !== "none" && el.visibility !== "hidden" && el.opacity > 0;
   }
 
   /**
@@ -385,9 +383,7 @@ export class DifferenceDetectorService {
 
     if (largerExt && smallerExt) {
       // h1-h6フォントサイズ比較（15%以上の変化で報告）
-      const smallerHeadingMap = new Map(
-        smallerExt.headings.map((h) => [h.tag, h.fontSize])
-      );
+      const smallerHeadingMap = new Map(smallerExt.headings.map((h) => [h.tag, h.fontSize]));
 
       for (const largeH of largerExt.headings) {
         const smallFS = smallerHeadingMap.get(largeH.tag);
@@ -397,7 +393,7 @@ export class DifferenceDetectorService {
             differences.push({
               element: largeH.tag,
               description: `${largeH.tag}フォントサイズが${largeH.fontSize}pxから${smallFS}pxに変化（${Math.round(ratio * 100)}%）`,
-              category: 'typography',
+              category: "typography",
               [larger.viewport.name]: { fontSize: largeH.fontSize },
               [smaller.viewport.name]: { fontSize: smallFS },
             });
@@ -415,9 +411,9 @@ export class DifferenceDetectorService {
         const pRatio = smallerExt.pFirstOfType / largerExt.pFirstOfType;
         if (pRatio < 0.85 || pRatio > 1.15) {
           differences.push({
-            element: 'p:first-of-type',
+            element: "p:first-of-type",
             description: `本文（p:first-of-type）フォントサイズが${largerExt.pFirstOfType}pxから${smallerExt.pFirstOfType}pxに変化（${Math.round(pRatio * 100)}%）`,
-            category: 'typography',
+            category: "typography",
             [larger.viewport.name]: { fontSize: largerExt.pFirstOfType },
             [smaller.viewport.name]: { fontSize: smallerExt.pFirstOfType },
           });
@@ -431,15 +427,15 @@ export class DifferenceDetectorService {
 
     if (largerTypo && smallerTypo) {
       // 拡張タイポグラフィでh1を検出済みかチェック
-      const h1AlreadyDetected = differences.some((d) => d.element === 'h1');
+      const h1AlreadyDetected = differences.some((d) => d.element === "h1");
 
       if (!h1AlreadyDetected && largerTypo.h1FontSize > 0 && smallerTypo.h1FontSize > 0) {
         const h1Ratio = smallerTypo.h1FontSize / largerTypo.h1FontSize;
         if (h1Ratio < 0.85 || h1Ratio > 1.15) {
           differences.push({
-            element: 'h1',
+            element: "h1",
             description: `h1フォントサイズが${largerTypo.h1FontSize}pxから${smallerTypo.h1FontSize}pxに変化（${Math.round(h1Ratio * 100)}%）`,
-            category: 'typography',
+            category: "typography",
             [larger.viewport.name]: { h1FontSize: largerTypo.h1FontSize },
             [smaller.viewport.name]: { h1FontSize: smallerTypo.h1FontSize },
           });
@@ -448,13 +444,14 @@ export class DifferenceDetectorService {
 
       // bodyFontSize が変化した場合（モバイルで16px未満を警告）
       if (largerTypo.bodyFontSize !== smallerTypo.bodyFontSize) {
-        const warning = smallerTypo.bodyFontSize < 16
-          ? `（${smaller.viewport.name}で16px未満: 可読性に注意）`
-          : '';
+        const warning =
+          smallerTypo.bodyFontSize < 16
+            ? `（${smaller.viewport.name}で16px未満: 可読性に注意）`
+            : "";
         differences.push({
-          element: 'body',
+          element: "body",
           description: `本文フォントサイズが${largerTypo.bodyFontSize}pxから${smallerTypo.bodyFontSize}pxに変化${warning}`,
-          category: 'typography',
+          category: "typography",
           [larger.viewport.name]: { bodyFontSize: largerTypo.bodyFontSize },
           [smaller.viewport.name]: { bodyFontSize: smallerTypo.bodyFontSize },
         });
@@ -490,9 +487,9 @@ export class DifferenceDetectorService {
       lBody.left !== sBody.left
     ) {
       differences.push({
-        element: 'body',
+        element: "body",
         description: `body paddingが変化（${larger.viewport.name}: ${lBody.top}/${lBody.right}/${lBody.bottom}/${lBody.left}px → ${smaller.viewport.name}: ${sBody.top}/${sBody.right}/${sBody.bottom}/${sBody.left}px）`,
-        category: 'spacing',
+        category: "spacing",
         [larger.viewport.name]: { bodyPadding: lBody },
         [smaller.viewport.name]: { bodyPadding: sBody },
       });
@@ -509,9 +506,9 @@ export class DifferenceDetectorService {
         lContainer.left !== sContainer.left
       ) {
         differences.push({
-          element: 'main',
+          element: "main",
           description: `メインコンテナのpaddingが変化（${larger.viewport.name}: ${lContainer.top}/${lContainer.right}/${lContainer.bottom}/${lContainer.left}px → ${smaller.viewport.name}: ${sContainer.top}/${sContainer.right}/${sContainer.bottom}/${sContainer.left}px）`,
-          category: 'spacing',
+          category: "spacing",
           [larger.viewport.name]: { mainContainerPadding: lContainer },
           [smaller.viewport.name]: { mainContainerPadding: sContainer },
         });
@@ -523,9 +520,7 @@ export class DifferenceDetectorService {
     const smallerSectionSpacing = smaller.layoutInfo.sectionSpacing ?? [];
 
     if (largerSectionSpacing.length > 0 && smallerSectionSpacing.length > 0) {
-      const smallerBySelector = new Map(
-        smallerSectionSpacing.map((s) => [s.selector, s])
-      );
+      const smallerBySelector = new Map(smallerSectionSpacing.map((s) => [s.selector, s]));
 
       for (const largeSec of largerSectionSpacing) {
         const smallSec = smallerBySelector.get(largeSec.selector);
@@ -538,7 +533,7 @@ export class DifferenceDetectorService {
             differences.push({
               element: largeSec.selector,
               description: `${largeSec.selector}のmargin-topが${largeSec.marginTop}pxから${smallSec.marginTop}pxに変化（${Math.round(topRatio * 100)}%）`,
-              category: 'spacing',
+              category: "spacing",
               [larger.viewport.name]: { marginTop: largeSec.marginTop },
               [smaller.viewport.name]: { marginTop: smallSec.marginTop },
             });
@@ -552,7 +547,7 @@ export class DifferenceDetectorService {
             differences.push({
               element: largeSec.selector,
               description: `${largeSec.selector}のmargin-bottomが${largeSec.marginBottom}pxから${smallSec.marginBottom}pxに変化（${Math.round(bottomRatio * 100)}%）`,
-              category: 'spacing',
+              category: "spacing",
               [larger.viewport.name]: { marginBottom: largeSec.marginBottom },
               [smaller.viewport.name]: { marginBottom: smallSec.marginBottom },
             });
@@ -580,7 +575,7 @@ export class DifferenceDetectorService {
         // 既存の差異にビューポート情報をマージ
         const merged = { ...existing };
         for (const [key, value] of Object.entries(diff)) {
-          if (key !== 'element' && key !== 'description' && key !== 'category') {
+          if (key !== "element" && key !== "description" && key !== "category") {
             (merged as Record<string, unknown>)[key] = value;
           }
         }
@@ -622,13 +617,13 @@ export class DifferenceDetectorService {
    */
   private getNavigationChangeDescription(from: NavigationType, to: NavigationType): string {
     const typeNames: Record<NavigationType, string> = {
-      'horizontal-menu': '水平メニュー',
-      'hamburger-menu': 'ハンバーガーメニュー',
-      'drawer': 'ドロワーメニュー',
-      'bottom-nav': 'ボトムナビゲーション',
-      'tab-bar': 'タブバー',
-      'hidden': '非表示',
-      'other': 'その他',
+      "horizontal-menu": "水平メニュー",
+      "hamburger-menu": "ハンバーガーメニュー",
+      drawer: "ドロワーメニュー",
+      "bottom-nav": "ボトムナビゲーション",
+      "tab-bar": "タブバー",
+      hidden: "非表示",
+      other: "その他",
     };
 
     return `ナビゲーションが${typeNames[from]}から${typeNames[to]}に変化`;
@@ -639,10 +634,10 @@ export class DifferenceDetectorService {
    */
   private translateFlexDirection(direction: string): string {
     const translations: Record<string, string> = {
-      row: '横並び',
-      'row-reverse': '横並び（逆順）',
-      column: '縦並び',
-      'column-reverse': '縦並び（逆順）',
+      row: "横並び",
+      "row-reverse": "横並び（逆順）",
+      column: "縦並び",
+      "column-reverse": "縦並び（逆順）",
     };
     return translations[direction] ?? direction;
   }

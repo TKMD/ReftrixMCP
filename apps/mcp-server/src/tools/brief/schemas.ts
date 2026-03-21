@@ -10,7 +10,7 @@
  * Target tools:
  * - brief.validate: Validate design brief and return completeness score
  */
-import { z } from 'zod';
+import { z } from "zod";
 
 // ============================================================================
 // Enum Schemas
@@ -21,14 +21,14 @@ import { z } from 'zod';
  * Design tone/mood options for the project
  */
 export const toneSchema = z.enum([
-  'professional',
-  'playful',
-  'minimal',
-  'bold',
-  'elegant',
-  'friendly',
-  'corporate',
-  'creative',
+  "professional",
+  "playful",
+  "minimal",
+  "bold",
+  "elegant",
+  "friendly",
+  "corporate",
+  "creative",
 ]);
 export type Tone = z.infer<typeof toneSchema>;
 
@@ -36,7 +36,7 @@ export type Tone = z.infer<typeof toneSchema>;
  * Issue severity enum schema
  * Severity levels for validation issues
  */
-export const issueSeveritySchema = z.enum(['error', 'warning', 'suggestion']);
+export const issueSeveritySchema = z.enum(["error", "warning", "suggestion"]);
 export type IssueSeverity = z.infer<typeof issueSeveritySchema>;
 
 // ============================================================================
@@ -47,11 +47,9 @@ export type IssueSeverity = z.infer<typeof issueSeveritySchema>;
  * HEX color schema
  * Validates 6-digit HEX color format (#RRGGBB)
  */
-export const hexColorSchema = z
-  .string()
-  .regex(/^#[0-9A-Fa-f]{6}$/, {
-    message: 'Color must be in HEX format (#RRGGBB)',
-  });
+export const hexColorSchema = z.string().regex(/^#[0-9A-Fa-f]{6}$/, {
+  message: "Color must be in HEX format (#RRGGBB)",
+});
 export type HexColor = z.infer<typeof hexColorSchema>;
 
 /**
@@ -70,11 +68,8 @@ export type ColorPreferences = z.infer<typeof colorPreferencesSchema>;
  * URL reference with optional note
  */
 export const referenceSchema = z.object({
-  url: z.string().url({ message: 'Reference URL must be valid' }),
-  note: z
-    .string()
-    .max(200, { message: 'Note must be 200 characters or less' })
-    .optional(),
+  url: z.string().url({ message: "Reference URL must be valid" }),
+  note: z.string().max(200, { message: "Note must be 200 characters or less" }).optional(),
 });
 export type Reference = z.infer<typeof referenceSchema>;
 
@@ -108,25 +103,22 @@ export type Constraints = z.infer<typeof constraintsSchema>;
 export const briefSchema = z.object({
   projectName: z
     .string()
-    .min(1, { message: 'Project name is required' })
-    .max(200, { message: 'Project name must be 200 characters or less' }),
+    .min(1, { message: "Project name is required" })
+    .max(200, { message: "Project name must be 200 characters or less" }),
   description: z
     .string()
-    .max(2000, { message: 'Description must be 2000 characters or less' })
+    .max(2000, { message: "Description must be 2000 characters or less" })
     .optional(),
   targetAudience: z
     .string()
-    .max(500, { message: 'Target audience must be 500 characters or less' })
+    .max(500, { message: "Target audience must be 500 characters or less" })
     .optional(),
-  industry: z
-    .string()
-    .max(100, { message: 'Industry must be 100 characters or less' })
-    .optional(),
+  industry: z.string().max(100, { message: "Industry must be 100 characters or less" }).optional(),
   tone: z.array(toneSchema).optional(),
   colorPreferences: colorPreferencesSchema.optional(),
   references: z
     .array(referenceSchema)
-    .max(10, { message: 'Maximum 10 references allowed' })
+    .max(10, { message: "Maximum 10 references allowed" })
     .optional(),
   constraints: constraintsSchema.optional(),
 });
@@ -174,8 +166,8 @@ export const briefValidationResultSchema = z.object({
   isValid: z.boolean(),
   completenessScore: z
     .number()
-    .min(0, { message: 'Score must be at least 0' })
-    .max(100, { message: 'Score must be at most 100' }),
+    .min(0, { message: "Score must be at least 0" })
+    .max(100, { message: "Score must be at most 100" }),
   issues: z.array(briefIssueSchema),
   suggestions: z.array(z.string()),
   readyForDesign: z.boolean(),
@@ -212,7 +204,7 @@ export const briefValidateErrorOutputSchema = z.object({
  * brief.validate output schema (discriminated union)
  * Response Object pattern: { success, data } or { success, error }
  */
-export const briefValidateOutputSchema = z.discriminatedUnion('success', [
+export const briefValidateOutputSchema = z.discriminatedUnion("success", [
   briefValidateSuccessOutputSchema,
   briefValidateErrorOutputSchema,
 ]);
@@ -227,15 +219,14 @@ export type BriefValidateOutput = z.infer<typeof briefValidateOutputSchema>;
  */
 export const BRIEF_MCP_ERROR_CODES = {
   /** Validation error */
-  VALIDATION_ERROR: 'VALIDATION_ERROR',
+  VALIDATION_ERROR: "VALIDATION_ERROR",
   /** Invalid brief structure */
-  INVALID_BRIEF: 'INVALID_BRIEF',
+  INVALID_BRIEF: "INVALID_BRIEF",
   /** Internal error */
-  INTERNAL_ERROR: 'INTERNAL_ERROR',
+  INTERNAL_ERROR: "INTERNAL_ERROR",
 } as const;
 
-export type BriefMcpErrorCode =
-  (typeof BRIEF_MCP_ERROR_CODES)[keyof typeof BRIEF_MCP_ERROR_CODES];
+export type BriefMcpErrorCode = (typeof BRIEF_MCP_ERROR_CODES)[keyof typeof BRIEF_MCP_ERROR_CODES];
 
 // ============================================================================
 // MCP Tool Definitions
@@ -246,10 +237,9 @@ export type BriefMcpErrorCode =
  * MCP protocol compliant tool definitions
  */
 export const briefMcpTools = {
-  'brief.validate': {
-    name: 'brief.validate',
-    description:
-      'Validate design brief and return completeness score with improvement suggestions',
+  "brief.validate": {
+    name: "brief.validate",
+    description: "Validate design brief and return completeness score with improvement suggestions",
     inputSchema: briefValidateInputSchema,
   },
 } as const;

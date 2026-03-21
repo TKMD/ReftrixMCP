@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2026 TKMD and Reftrix Contributors
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import { z } from 'zod';
+import { z } from "zod";
 
 /**
  * TASK-04 (GREEN Phase): Zod Schema Implementation
@@ -25,14 +25,14 @@ import { z } from 'zod';
  * Used for layout pattern analysis with emotional/contextual semantics
  */
 export const MOOD_ENUM = z.enum([
-  'professional',
-  'playful',
-  'minimal',
-  'bold',
-  'elegant',
-  'friendly',
-  'corporate',
-  'creative'
+  "professional",
+  "playful",
+  "minimal",
+  "bold",
+  "elegant",
+  "friendly",
+  "corporate",
+  "creative",
 ]);
 
 export type Mood = z.infer<typeof MOOD_ENUM>;
@@ -42,14 +42,14 @@ export type Mood = z.infer<typeof MOOD_ENUM>;
  * Identical to Mood enum - represents brand positioning semantics
  */
 export const BRAND_TONE_ENUM = z.enum([
-  'professional',
-  'playful',
-  'minimal',
-  'bold',
-  'elegant',
-  'friendly',
-  'corporate',
-  'creative'
+  "professional",
+  "playful",
+  "minimal",
+  "bold",
+  "elegant",
+  "friendly",
+  "corporate",
+  "creative",
 ]);
 
 export type BrandTone = z.infer<typeof BRAND_TONE_ENUM>;
@@ -69,7 +69,7 @@ export const moodFilterSchema = z.object({
   primary: MOOD_ENUM,
   secondary: MOOD_ENUM.optional(),
   minSimilarity: z.number().min(0).max(1).default(0.5),
-  weight: z.number().min(0).max(1).default(0.2)
+  weight: z.number().min(0).max(1).default(0.2),
 });
 
 export type MoodFilter = z.infer<typeof moodFilterSchema>;
@@ -87,7 +87,7 @@ export const brandToneFilterSchema = z.object({
   primary: BRAND_TONE_ENUM,
   secondary: BRAND_TONE_ENUM.optional(),
   minSimilarity: z.number().min(0).max(1).default(0.5),
-  weight: z.number().min(0).max(1).default(0.3)
+  weight: z.number().min(0).max(1).default(0.3),
 });
 
 export type BrandToneFilter = z.infer<typeof brandToneFilterSchema>;
@@ -106,18 +106,20 @@ export type BrandToneFilter = z.infer<typeof brandToneFilterSchema>;
  *
  * RRF Formula: score = (mood_score * mood_weight) + (brandTone_score * brandTone_weight)
  */
-export const rrfWeightsSchema = z.object({
-  mood: z.number().min(0).max(1).default(0.6),
-  brandTone: z.number().min(0).max(1).default(0.4)
-}).refine(
-  data => {
-    const sum = data.mood + data.brandTone;
-    return sum <= 1.0 + 0.001; // Allow small floating point tolerance
-  },
-  {
-    message: 'RRF weights must sum to ≤ 1.0. Recommended: mood + brandTone = 1.0'
-  }
-);
+export const rrfWeightsSchema = z
+  .object({
+    mood: z.number().min(0).max(1).default(0.6),
+    brandTone: z.number().min(0).max(1).default(0.4),
+  })
+  .refine(
+    (data) => {
+      const sum = data.mood + data.brandTone;
+      return sum <= 1.0 + 0.001; // Allow small floating point tolerance
+    },
+    {
+      message: "RRF weights must sum to ≤ 1.0. Recommended: mood + brandTone = 1.0",
+    }
+  );
 
 export type RRFWeights = z.infer<typeof rrfWeightsSchema>;
 
@@ -132,26 +134,36 @@ export const extendedLayoutSearchFilterSchema = z.object({
   sectionType: z.string().optional(),
   sourceType: z.string().optional(),
   usageScope: z.string().optional(),
-  visualFeatures: z.object({
-    theme: z.object({
-      type: z.string().optional(),
-      minContrastRatio: z.number().optional()
-    }).optional(),
-    colors: z.object({
-      dominantColor: z.string().optional(),
-      colorTolerance: z.number().optional()
-    }).optional(),
-    density: z.object({
-      minContentDensity: z.number().optional(),
-      maxContentDensity: z.number().optional()
-    }).optional(),
-    gradient: z.object({
-      requireGradient: z.boolean().optional(),
-      gradientType: z.string().optional()
-    }).optional()
-  }).optional(),
+  visualFeatures: z
+    .object({
+      theme: z
+        .object({
+          type: z.string().optional(),
+          minContrastRatio: z.number().optional(),
+        })
+        .optional(),
+      colors: z
+        .object({
+          dominantColor: z.string().optional(),
+          colorTolerance: z.number().optional(),
+        })
+        .optional(),
+      density: z
+        .object({
+          minContentDensity: z.number().optional(),
+          maxContentDensity: z.number().optional(),
+        })
+        .optional(),
+      gradient: z
+        .object({
+          requireGradient: z.boolean().optional(),
+          gradientType: z.string().optional(),
+        })
+        .optional(),
+    })
+    .optional(),
   mood: moodFilterSchema.optional(),
-  brandTone: brandToneFilterSchema.optional()
+  brandTone: brandToneFilterSchema.optional(),
 });
 
 export type ExtendedLayoutSearchFilter = z.infer<typeof extendedLayoutSearchFilterSchema>;
@@ -166,7 +178,7 @@ export type ExtendedLayoutSearchFilter = z.infer<typeof extendedLayoutSearchFilt
 export const moodSearchRequestSchema = z.object({
   filter: moodFilterSchema,
   limit: z.number().min(1).max(100).default(10),
-  offset: z.number().min(0).default(0)
+  offset: z.number().min(0).default(0),
 });
 
 export type MoodSearchRequest = z.infer<typeof moodSearchRequestSchema>;
@@ -179,7 +191,7 @@ export type MoodSearchRequest = z.infer<typeof moodSearchRequestSchema>;
 export const brandToneSearchRequestSchema = z.object({
   filter: brandToneFilterSchema,
   limit: z.number().min(1).max(100).default(10),
-  offset: z.number().min(0).default(0)
+  offset: z.number().min(0).default(0),
 });
 
 export type BrandToneSearchRequest = z.infer<typeof brandToneSearchRequestSchema>;
@@ -189,18 +201,17 @@ export type BrandToneSearchRequest = z.infer<typeof brandToneSearchRequestSchema
  *
  * Used when both mood and brandTone filters are applied with RRF combination
  */
-export const combinedSearchRequestSchema = z.object({
-  moodFilter: moodFilterSchema.optional(),
-  brandToneFilter: brandToneFilterSchema.optional(),
-  rrfWeights: rrfWeightsSchema.optional(),
-  limit: z.number().min(1).max(100).default(10),
-  offset: z.number().min(0).default(0)
-}).refine(
-  data => data.moodFilter || data.brandToneFilter,
-  {
-    message: 'At least one of moodFilter or brandToneFilter must be provided'
-  }
-);
+export const combinedSearchRequestSchema = z
+  .object({
+    moodFilter: moodFilterSchema.optional(),
+    brandToneFilter: brandToneFilterSchema.optional(),
+    rrfWeights: rrfWeightsSchema.optional(),
+    limit: z.number().min(1).max(100).default(10),
+    offset: z.number().min(0).default(0),
+  })
+  .refine((data) => data.moodFilter || data.brandToneFilter, {
+    message: "At least one of moodFilter or brandToneFilter must be provided",
+  });
 
 export type CombinedSearchRequest = z.infer<typeof combinedSearchRequestSchema>;
 
@@ -214,14 +225,18 @@ export type CombinedSearchRequest = z.infer<typeof combinedSearchRequestSchema>;
 export const searchResultSchema = z.object({
   patternId: z.string().uuid(),
   similarity: z.number().min(0).max(1),
-  moodInfo: z.object({
-    primary: MOOD_ENUM,
-    secondary: MOOD_ENUM.optional()
-  }).optional(),
-  brandToneInfo: z.object({
-    primary: BRAND_TONE_ENUM,
-    secondary: BRAND_TONE_ENUM.optional()
-  }).optional()
+  moodInfo: z
+    .object({
+      primary: MOOD_ENUM,
+      secondary: MOOD_ENUM.optional(),
+    })
+    .optional(),
+  brandToneInfo: z
+    .object({
+      primary: BRAND_TONE_ENUM,
+      secondary: BRAND_TONE_ENUM.optional(),
+    })
+    .optional(),
 });
 
 export type SearchResult = z.infer<typeof searchResultSchema>;
@@ -238,8 +253,8 @@ export const combinedSearchResultSchema = z.object({
     moodCount: z.number().min(0),
     brandToneCount: z.number().min(0),
     totalCount: z.number().min(0),
-    rrfWeights: rrfWeightsSchema
-  })
+    rrfWeights: rrfWeightsSchema,
+  }),
 });
 
 export type CombinedSearchResult = z.infer<typeof combinedSearchResultSchema>;

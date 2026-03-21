@@ -10,7 +10,7 @@
  * @module tests/tools/layout/inspect/visual-extractors.test
  */
 
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import {
   extractVisualFeatures,
   extractCSSVariables,
@@ -19,9 +19,9 @@ import {
   resetVisualExtractorServices,
   type VisualExtractionResult,
   type VisualExtractionOptions,
-} from '../../../../src/tools/layout/inspect/visual-extractors.utils';
+} from "../../../../src/tools/layout/inspect/visual-extractors.utils";
 
-describe('Visual Extractors Integration', () => {
+describe("Visual Extractors Integration", () => {
   beforeEach(() => {
     // Reset services before each test for clean state
     resetVisualExtractorServices();
@@ -31,8 +31,8 @@ describe('Visual Extractors Integration', () => {
     resetVisualExtractorServices();
   });
 
-  describe('extractVisualFeatures', () => {
-    it('should extract all visual features from HTML', async () => {
+  describe("extractVisualFeatures", () => {
+    it("should extract all visual features from HTML", async () => {
       const html = `
         <html>
         <head>
@@ -69,7 +69,7 @@ describe('Visual Extractors Integration', () => {
       // CSS Variables
       expect(result.cssVariables).toBeDefined();
       expect(result.cssVariables?.variables.length).toBeGreaterThan(0);
-      expect(result.cssVariables?.variables.some(v => v.name === '--color-primary')).toBe(true);
+      expect(result.cssVariables?.variables.some((v) => v.name === "--color-primary")).toBe(true);
 
       // Typography
       expect(result.typography).toBeDefined();
@@ -81,7 +81,7 @@ describe('Visual Extractors Integration', () => {
       expect(result.gradients?.gradients.length).toBeGreaterThan(0);
     });
 
-    it('should respect extraction options', async () => {
+    it("should respect extraction options", async () => {
       const html = `
         <style>
           :root { --color: #000; }
@@ -102,8 +102,8 @@ describe('Visual Extractors Integration', () => {
       expect(result.gradients).toBeUndefined();
     });
 
-    it('should handle external CSS', async () => {
-      const html = '<div>Content</div>';
+    it("should handle external CSS", async () => {
+      const html = "<div>Content</div>";
       const externalCss = `
         :root {
           --spacing: 1rem;
@@ -117,11 +117,11 @@ describe('Visual Extractors Integration', () => {
 
       const result = await extractVisualFeatures(html, { externalCss });
 
-      expect(result.cssVariables?.variables.some(v => v.name === '--spacing')).toBe(true);
+      expect(result.cssVariables?.variables.some((v) => v.name === "--spacing")).toBe(true);
       expect(result.typography?.fontFamilies.length).toBeGreaterThan(0);
     });
 
-    it('should run extractions in parallel', async () => {
+    it("should run extractions in parallel", async () => {
       const html = `
         <style>
           :root { --color: blue; }
@@ -140,15 +140,15 @@ describe('Visual Extractors Integration', () => {
       expect(result.gradients).toBeDefined();
     });
 
-    it('should handle empty HTML gracefully', async () => {
-      const result = await extractVisualFeatures('');
+    it("should handle empty HTML gracefully", async () => {
+      const result = await extractVisualFeatures("");
 
       expect(result).toBeDefined();
       expect(result.totalProcessingTimeMs).toBeGreaterThanOrEqual(0);
     });
 
-    it('should handle HTML without any visual features', async () => {
-      const html = '<div>Plain text content</div>';
+    it("should handle HTML without any visual features", async () => {
+      const html = "<div>Plain text content</div>";
 
       const result = await extractVisualFeatures(html);
 
@@ -158,8 +158,8 @@ describe('Visual Extractors Integration', () => {
     });
   });
 
-  describe('extractCSSVariables', () => {
-    it('should extract CSS variables from HTML', () => {
+  describe("extractCSSVariables", () => {
+    it("should extract CSS variables from HTML", () => {
       const html = `
         <style>
           :root {
@@ -173,11 +173,11 @@ describe('Visual Extractors Integration', () => {
       const result = extractCSSVariables(html);
 
       expect(result.variables.length).toBe(3);
-      expect(result.variables.some(v => v.name === '--primary-color')).toBe(true);
+      expect(result.variables.some((v) => v.name === "--primary-color")).toBe(true);
       expect(result.processingTimeMs).toBeGreaterThanOrEqual(0);
     });
 
-    it('should extract clamp() values', () => {
+    it("should extract clamp() values", () => {
       const html = `
         <style>
           h1 {
@@ -189,11 +189,11 @@ describe('Visual Extractors Integration', () => {
       const result = extractCSSVariables(html);
 
       expect(result.clampValues.length).toBeGreaterThan(0);
-      expect(result.clampValues[0]?.min).toBe('1.5rem');
-      expect(result.clampValues[0]?.max).toBe('3rem');
+      expect(result.clampValues[0]?.min).toBe("1.5rem");
+      expect(result.clampValues[0]?.max).toBe("3rem");
     });
 
-    it('should detect design token systems', () => {
+    it("should detect design token systems", () => {
       const html = `
         <style>
           :root {
@@ -206,13 +206,13 @@ describe('Visual Extractors Integration', () => {
       const result = extractCSSVariables(html);
 
       // Design tokens detection uses 'framework' field, not 'system'
-      expect(result.designTokens?.framework).toBe('tailwind');
+      expect(result.designTokens?.framework).toBe("tailwind");
       expect(result.designTokens?.confidence).toBeGreaterThan(0);
     });
   });
 
-  describe('extractTypographyFeatures', () => {
-    it('should extract font families', () => {
+  describe("extractTypographyFeatures", () => {
+    it("should extract font families", () => {
       const html = `
         <style>
           body {
@@ -227,11 +227,11 @@ describe('Visual Extractors Integration', () => {
       const result = extractTypographyFeatures(html);
 
       expect(result.fontFamilies.length).toBe(2);
-      expect(result.fontFamilies.some(f => f.primary === 'Inter')).toBe(true);
-      expect(result.fontFamilies.some(f => f.primary === 'Playfair Display')).toBe(true);
+      expect(result.fontFamilies.some((f) => f.primary === "Inter")).toBe(true);
+      expect(result.fontFamilies.some((f) => f.primary === "Playfair Display")).toBe(true);
     });
 
-    it('should extract font size hierarchy', () => {
+    it("should extract font size hierarchy", () => {
       const html = `
         <style>
           h1 { font-size: 2.5rem; }
@@ -243,13 +243,13 @@ describe('Visual Extractors Integration', () => {
 
       const result = extractTypographyFeatures(html);
 
-      expect(result.fontSizeHierarchy.h1).toBe('2.5rem');
-      expect(result.fontSizeHierarchy.h2).toBe('2rem');
-      expect(result.fontSizeHierarchy.h3).toBe('1.75rem');
-      expect(result.fontSizeHierarchy.body).toBe('1rem');
+      expect(result.fontSizeHierarchy.h1).toBe("2.5rem");
+      expect(result.fontSizeHierarchy.h2).toBe("2rem");
+      expect(result.fontSizeHierarchy.h3).toBe("1.75rem");
+      expect(result.fontSizeHierarchy.body).toBe("1rem");
     });
 
-    it('should detect responsive typography', () => {
+    it("should detect responsive typography", () => {
       const html = `
         <style>
           h1 {
@@ -265,8 +265,8 @@ describe('Visual Extractors Integration', () => {
     });
   });
 
-  describe('detectGradients', () => {
-    it('should detect linear gradients', () => {
+  describe("detectGradients", () => {
+    it("should detect linear gradients", () => {
       const css = `
         .hero {
           background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -277,10 +277,10 @@ describe('Visual Extractors Integration', () => {
 
       expect(result.hasGradient).toBe(true);
       expect(result.gradients.length).toBeGreaterThan(0);
-      expect(result.gradients[0]?.type).toBe('linear');
+      expect(result.gradients[0]?.type).toBe("linear");
     });
 
-    it('should detect radial gradients', () => {
+    it("should detect radial gradients", () => {
       const css = `
         .circle {
           background: radial-gradient(circle at center, #fff 0%, #000 100%);
@@ -290,10 +290,10 @@ describe('Visual Extractors Integration', () => {
       const result = detectGradients(css);
 
       expect(result.hasGradient).toBe(true);
-      expect(result.gradients.some(g => g.type === 'radial')).toBe(true);
+      expect(result.gradients.some((g) => g.type === "radial")).toBe(true);
     });
 
-    it('should detect conic gradients', () => {
+    it("should detect conic gradients", () => {
       const css = `
         .pie {
           background: conic-gradient(red 0deg, yellow 90deg, green 180deg, blue 270deg, red 360deg);
@@ -303,10 +303,10 @@ describe('Visual Extractors Integration', () => {
       const result = detectGradients(css);
 
       expect(result.hasGradient).toBe(true);
-      expect(result.gradients.some(g => g.type === 'conic')).toBe(true);
+      expect(result.gradients.some((g) => g.type === "conic")).toBe(true);
     });
 
-    it('should detect gradient animations', () => {
+    it("should detect gradient animations", () => {
       const css = `
         .animated {
           background: linear-gradient(90deg, red, blue);
@@ -318,10 +318,10 @@ describe('Visual Extractors Integration', () => {
 
       expect(result.hasGradient).toBe(true);
       expect(result.gradients[0]?.animation).toBeDefined();
-      expect(result.gradients[0]?.animation?.name).toBe('gradient-shift');
+      expect(result.gradients[0]?.animation?.name).toBe("gradient-shift");
     });
 
-    it('should detect gradient transitions', () => {
+    it("should detect gradient transitions", () => {
       const css = `
         .hover-gradient {
           background: linear-gradient(to right, #ff6b6b, #4ecdc4);
@@ -333,10 +333,10 @@ describe('Visual Extractors Integration', () => {
 
       expect(result.hasGradient).toBe(true);
       expect(result.gradients[0]?.transition).toBeDefined();
-      expect(result.gradients[0]?.transition?.duration).toBe('0.3s');
+      expect(result.gradients[0]?.transition?.duration).toBe("0.3s");
     });
 
-    it('should return empty for CSS without gradients', () => {
+    it("should return empty for CSS without gradients", () => {
       const css = `
         .solid {
           background-color: #fff;
@@ -350,8 +350,8 @@ describe('Visual Extractors Integration', () => {
     });
   });
 
-  describe('Service Lifecycle', () => {
-    it('should reset services correctly', async () => {
+  describe("Service Lifecycle", () => {
+    it("should reset services correctly", async () => {
       const html = `<style>:root { --test: #000; }</style>`;
 
       // First extraction

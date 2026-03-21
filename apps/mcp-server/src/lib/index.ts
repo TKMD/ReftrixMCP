@@ -6,8 +6,4 @@
  * @module lib
  */
 
-export {
-  resolveProjectId,
-  isValidUUIDv7,
-  getDefaultProjectId,
-} from './project-context';
+export { resolveProjectId, isValidUUIDv7, getDefaultProjectId } from "./project-context";

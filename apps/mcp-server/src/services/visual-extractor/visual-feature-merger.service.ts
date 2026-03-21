@@ -19,16 +19,16 @@
  * @module services/visual-extractor/visual-feature-merger.service
  */
 
-import type { ColorExtractionResult } from './color-extractor.service';
-import type { ThemeDetectionResult } from './theme-detector.service';
-import type { DensityCalculationResult } from './density-calculator.service';
+import type { ColorExtractionResult } from "./color-extractor.service";
+import type { ThemeDetectionResult } from "./theme-detector.service";
+import type { DensityCalculationResult } from "./density-calculator.service";
 import type {
   MoodAnalysisResult,
   EnhancedBrandToneResult,
   MoodType,
   BrandToneType,
-} from '../vision-adapter/interface';
-import { logger, isDevelopment } from '../../utils/logger';
+} from "../vision-adapter/interface";
+import { logger, isDevelopment } from "../../utils/logger";
 
 // =============================================================================
 // Confidence Constants
@@ -62,12 +62,12 @@ const LOW_CONFIDENCE_THRESHOLD = 0.5;
 /**
  * Default fallback mood value
  */
-const FALLBACK_MOOD: MoodType = 'neutral';
+const FALLBACK_MOOD: MoodType = "neutral";
 
 /**
  * Default fallback brand tone value
  */
-const FALLBACK_BRAND_TONE: BrandToneType = 'neutral';
+const FALLBACK_BRAND_TONE: BrandToneType = "neutral";
 
 /**
  * Fallback confidence score (lower than normal Vision AI confidence)
@@ -82,11 +82,11 @@ const FALLBACK_CONFIDENCE = 0.3;
  * Warning codes for visionAnalysis
  */
 export type VisionAnalysisWarningCode =
-  | 'MOOD_FALLBACK_USED'
-  | 'BRAND_TONE_FALLBACK_USED'
-  | 'VISION_AI_UNAVAILABLE'
-  | 'LOW_CONFIDENCE'
-  | 'DETERMINISTIC_EXTRACTION_PARTIAL';
+  | "MOOD_FALLBACK_USED"
+  | "BRAND_TONE_FALLBACK_USED"
+  | "VISION_AI_UNAVAILABLE"
+  | "LOW_CONFIDENCE"
+  | "DETERMINISTIC_EXTRACTION_PARTIAL";
 
 /**
  * Warning structure for visionAnalysis
@@ -143,7 +143,7 @@ export interface MergedColorData {
   /** Color palette with percentages */
   palette: Array<{ color: string; percentage: number }>;
   /** Data source */
-  source: 'deterministic';
+  source: "deterministic";
   /** Confidence score (0.9-1.0) */
   confidence: number;
 }
@@ -153,7 +153,7 @@ export interface MergedColorData {
  */
 export interface MergedThemeData {
   /** Theme type: light, dark, or mixed */
-  type: 'light' | 'dark' | 'mixed';
+  type: "light" | "dark" | "mixed";
   /** Background color in HEX format */
   backgroundColor: string;
   /** Text color in HEX format */
@@ -161,7 +161,7 @@ export interface MergedThemeData {
   /** WCAG contrast ratio */
   contrastRatio: number;
   /** Data source */
-  source: 'deterministic';
+  source: "deterministic";
   /** Confidence score (0.9-1.0) */
   confidence: number;
 }
@@ -177,7 +177,7 @@ export interface MergedDensityData {
   /** Visual balance score (0-100) */
   visualBalance: number;
   /** Data source */
-  source: 'deterministic';
+  source: "deterministic";
   /** Confidence score (0.9-1.0) */
   confidence: number;
 }
@@ -191,7 +191,7 @@ export interface MergedMoodData {
   /** Secondary mood (optional) */
   secondary?: MoodType | undefined;
   /** Data source */
-  source: 'vision-ai' | 'fallback';
+  source: "vision-ai" | "fallback";
   /** Confidence score (0.6-0.8 for vision-ai, 0.3 for fallback) */
   confidence: number;
 }
@@ -205,7 +205,7 @@ export interface MergedBrandToneData {
   /** Secondary brand tone (optional) */
   secondary?: BrandToneType | undefined;
   /** Data source */
-  source: 'vision-ai' | 'fallback';
+  source: "vision-ai" | "fallback";
   /** Confidence score (0.6-0.8 for vision-ai, 0.3 for fallback) */
   confidence: number;
 }
@@ -311,26 +311,24 @@ class VisualFeatureMergerServiceImpl implements VisualFeatureMergerService {
 
     // Validate that at least one input is provided
     if (deterministicInput === null && visionAIInput === null) {
-      throw new Error('At least one input source must be provided');
+      throw new Error("At least one input source must be provided");
     }
 
     // Determine availability
     const deterministicAvailable = this.hasDeterministicData(deterministicInput);
-    const visionAiAvailable = forceVisionUnavailable
-      ? false
-      : this.hasVisionAIData(visionAIInput);
+    const visionAiAvailable = forceVisionUnavailable ? false : this.hasVisionAIData(visionAIInput);
 
     // Track partial deterministic extraction
     if (deterministicInput !== null) {
       const missingFields: string[] = [];
-      if (deterministicInput.colors === undefined) missingFields.push('colors');
-      if (deterministicInput.theme === undefined) missingFields.push('theme');
-      if (deterministicInput.density === undefined) missingFields.push('density');
+      if (deterministicInput.colors === undefined) missingFields.push("colors");
+      if (deterministicInput.theme === undefined) missingFields.push("theme");
+      if (deterministicInput.density === undefined) missingFields.push("density");
 
       const availableCount = 3 - missingFields.length;
       if (availableCount > 0 && availableCount < 3) {
         warnings.push({
-          code: 'DETERMINISTIC_EXTRACTION_PARTIAL',
+          code: "DETERMINISTIC_EXTRACTION_PARTIAL",
           message: `Only ${availableCount}/3 deterministic extraction fields available`,
           details: {
             hasColors: deterministicInput.colors !== undefined,
@@ -345,8 +343,9 @@ class VisualFeatureMergerServiceImpl implements VisualFeatureMergerService {
     // Add Vision AI unavailable warning if applicable
     if (!visionAiAvailable && !forceVisionUnavailable && visionAIInput === null) {
       warnings.push({
-        code: 'VISION_AI_UNAVAILABLE',
-        message: 'Vision AI analysis was not available. Mood and brandTone may use fallback values.',
+        code: "VISION_AI_UNAVAILABLE",
+        message:
+          "Vision AI analysis was not available. Mood and brandTone may use fallback values.",
       });
     }
 
@@ -356,11 +355,7 @@ class VisualFeatureMergerServiceImpl implements VisualFeatureMergerService {
     const density = this.mergeDensity(deterministicInput?.density);
 
     // Merge mood with fallback support
-    const moodResult = this.mergeMoodWithFallback(
-      visionAIInput?.mood,
-      applyFallbacks,
-      warnings
-    );
+    const moodResult = this.mergeMoodWithFallback(visionAIInput?.mood, applyFallbacks, warnings);
 
     // Merge brandTone with fallback support
     const brandToneResult = this.mergeBrandToneWithFallback(
@@ -393,7 +388,7 @@ class VisualFeatureMergerServiceImpl implements VisualFeatureMergerService {
     if (overallConfidence < LOW_CONFIDENCE_THRESHOLD) {
       const warningMsg = `Overall confidence is low (${overallConfidence.toFixed(2)})`;
       warnings.push({
-        code: 'LOW_CONFIDENCE',
+        code: "LOW_CONFIDENCE",
         message: warningMsg,
         details: {
           overallConfidence,
@@ -421,7 +416,7 @@ class VisualFeatureMergerServiceImpl implements VisualFeatureMergerService {
     };
 
     if (isDevelopment()) {
-      logger.info('[VisualFeatureMerger] Merge completed', {
+      logger.info("[VisualFeatureMerger] Merge completed", {
         deterministicAvailable,
         visionAiAvailable,
         overallConfidence: overallConfidence.toFixed(3),
@@ -452,11 +447,7 @@ class VisualFeatureMergerServiceImpl implements VisualFeatureMergerService {
    */
   private hasDeterministicData(input: DeterministicExtractionInput | null): boolean {
     if (input === null) return false;
-    return (
-      input.colors !== undefined ||
-      input.theme !== undefined ||
-      input.density !== undefined
-    );
+    return input.colors !== undefined || input.theme !== undefined || input.density !== undefined;
   }
 
   /**
@@ -470,9 +461,7 @@ class VisualFeatureMergerServiceImpl implements VisualFeatureMergerService {
   /**
    * Merge color extraction result
    */
-  private mergeColors(
-    colors: ColorExtractionResult | undefined
-  ): MergedColorData | null {
+  private mergeColors(colors: ColorExtractionResult | undefined): MergedColorData | null {
     if (colors === undefined) {
       return null;
     }
@@ -484,7 +473,7 @@ class VisualFeatureMergerServiceImpl implements VisualFeatureMergerService {
         color: p.color,
         percentage: p.percentage,
       })),
-      source: 'deterministic',
+      source: "deterministic",
       confidence: this.calculateDeterministicConfidence(),
     };
   }
@@ -492,9 +481,7 @@ class VisualFeatureMergerServiceImpl implements VisualFeatureMergerService {
   /**
    * Merge theme detection result
    */
-  private mergeTheme(
-    theme: ThemeDetectionResult | undefined
-  ): MergedThemeData | null {
+  private mergeTheme(theme: ThemeDetectionResult | undefined): MergedThemeData | null {
     if (theme === undefined) {
       return null;
     }
@@ -504,7 +491,7 @@ class VisualFeatureMergerServiceImpl implements VisualFeatureMergerService {
       backgroundColor: theme.backgroundColor,
       textColor: theme.textColor,
       contrastRatio: theme.contrastRatio,
-      source: 'deterministic',
+      source: "deterministic",
       confidence: this.calculateDeterministicConfidence(theme.confidence),
     };
   }
@@ -512,9 +499,7 @@ class VisualFeatureMergerServiceImpl implements VisualFeatureMergerService {
   /**
    * Merge density calculation result
    */
-  private mergeDensity(
-    density: DensityCalculationResult | undefined
-  ): MergedDensityData | null {
+  private mergeDensity(density: DensityCalculationResult | undefined): MergedDensityData | null {
     if (density === undefined) {
       return null;
     }
@@ -523,7 +508,7 @@ class VisualFeatureMergerServiceImpl implements VisualFeatureMergerService {
       contentDensity: density.contentDensity,
       whitespaceRatio: density.whitespaceRatio,
       visualBalance: density.visualBalance,
-      source: 'deterministic',
+      source: "deterministic",
       confidence: this.calculateDeterministicConfidence(),
     };
   }
@@ -547,9 +532,9 @@ class VisualFeatureMergerServiceImpl implements VisualFeatureMergerService {
       // Add warning for low confidence
       if (hasLowConfidence) {
         warnings.push({
-          code: 'LOW_CONFIDENCE',
+          code: "LOW_CONFIDENCE",
           message: `Mood analysis has low confidence (${mood!.confidence.toFixed(2)})`,
-          field: 'mood',
+          field: "mood",
           details: {
             confidence: mood!.confidence,
             threshold: LOW_CONFIDENCE_THRESHOLD,
@@ -567,7 +552,7 @@ class VisualFeatureMergerServiceImpl implements VisualFeatureMergerService {
       return {
         primary: mood!.primaryMood,
         secondary: mood!.secondaryMood,
-        source: 'vision-ai',
+        source: "vision-ai",
         confidence: this.calculateVisionAIConfidence(mood!.confidence),
       };
     }
@@ -575,9 +560,9 @@ class VisualFeatureMergerServiceImpl implements VisualFeatureMergerService {
     // Apply fallback if enabled (only when no valid mood)
     if (applyFallbacks) {
       warnings.push({
-        code: 'MOOD_FALLBACK_USED',
+        code: "MOOD_FALLBACK_USED",
         message: `Mood analysis empty. Using fallback value: ${FALLBACK_MOOD}`,
-        field: 'mood',
+        field: "mood",
         details: {
           originalConfidence: mood?.confidence,
           fallbackValue: FALLBACK_MOOD,
@@ -593,7 +578,7 @@ class VisualFeatureMergerServiceImpl implements VisualFeatureMergerService {
       return {
         primary: FALLBACK_MOOD,
         secondary: undefined,
-        source: 'fallback',
+        source: "fallback",
         confidence: FALLBACK_CONFIDENCE,
       };
     }
@@ -613,8 +598,7 @@ class VisualFeatureMergerServiceImpl implements VisualFeatureMergerService {
     warnings: VisionAnalysisWarning[]
   ): MergedBrandToneData | null {
     // Check if brandTone data is valid
-    const hasValidBrandTone =
-      brandTone !== undefined && brandTone.primaryTone !== undefined;
+    const hasValidBrandTone = brandTone !== undefined && brandTone.primaryTone !== undefined;
     const hasLowConfidence =
       brandTone !== undefined && brandTone.confidence < LOW_CONFIDENCE_THRESHOLD;
 
@@ -623,9 +607,9 @@ class VisualFeatureMergerServiceImpl implements VisualFeatureMergerService {
       // Add warning for low confidence
       if (hasLowConfidence) {
         warnings.push({
-          code: 'LOW_CONFIDENCE',
+          code: "LOW_CONFIDENCE",
           message: `Brand tone analysis has low confidence (${brandTone!.confidence.toFixed(2)})`,
-          field: 'brandTone',
+          field: "brandTone",
           details: {
             confidence: brandTone!.confidence,
             threshold: LOW_CONFIDENCE_THRESHOLD,
@@ -633,17 +617,20 @@ class VisualFeatureMergerServiceImpl implements VisualFeatureMergerService {
         });
 
         if (isDevelopment()) {
-          logger.warn(`[VisualFeatureMerger] Low confidence brandTone: ${brandTone!.confidence.toFixed(2)}`, {
-            primaryTone: brandTone!.primaryTone,
-            confidence: brandTone!.confidence,
-          });
+          logger.warn(
+            `[VisualFeatureMerger] Low confidence brandTone: ${brandTone!.confidence.toFixed(2)}`,
+            {
+              primaryTone: brandTone!.primaryTone,
+              confidence: brandTone!.confidence,
+            }
+          );
         }
       }
 
       return {
         primary: brandTone!.primaryTone,
         secondary: brandTone!.secondaryTone,
-        source: 'vision-ai',
+        source: "vision-ai",
         confidence: this.calculateVisionAIConfidence(brandTone!.confidence),
       };
     }
@@ -651,9 +638,9 @@ class VisualFeatureMergerServiceImpl implements VisualFeatureMergerService {
     // Apply fallback if enabled (only when no valid brandTone)
     if (applyFallbacks) {
       warnings.push({
-        code: 'BRAND_TONE_FALLBACK_USED',
+        code: "BRAND_TONE_FALLBACK_USED",
         message: `Brand tone analysis empty. Using fallback value: ${FALLBACK_BRAND_TONE}`,
-        field: 'brandTone',
+        field: "brandTone",
         details: {
           originalConfidence: brandTone?.confidence,
           fallbackValue: FALLBACK_BRAND_TONE,
@@ -669,7 +656,7 @@ class VisualFeatureMergerServiceImpl implements VisualFeatureMergerService {
       return {
         primary: FALLBACK_BRAND_TONE,
         secondary: undefined,
-        source: 'fallback',
+        source: "fallback",
         confidence: FALLBACK_CONFIDENCE,
       };
     }
@@ -705,10 +692,7 @@ class VisualFeatureMergerServiceImpl implements VisualFeatureMergerService {
     const mappedConfidence = VISION_AI_CONFIDENCE_MIN + sourceConfidence * range;
 
     // Clamp to the valid range
-    return Math.max(
-      VISION_AI_CONFIDENCE_MIN,
-      Math.min(VISION_AI_CONFIDENCE_MAX, mappedConfidence)
-    );
+    return Math.max(VISION_AI_CONFIDENCE_MIN, Math.min(VISION_AI_CONFIDENCE_MAX, mappedConfidence));
   }
 
   /**
@@ -743,12 +727,12 @@ class VisualFeatureMergerServiceImpl implements VisualFeatureMergerService {
     // Vision AI components have standard weight
     // Fallback sources get reduced weight
     if (mood !== null) {
-      const weight = mood.source === 'fallback' ? 0.5 : 1.0;
+      const weight = mood.source === "fallback" ? 0.5 : 1.0;
       confidences.push(mood.confidence);
       weights.push(weight);
     }
     if (brandTone !== null) {
-      const weight = brandTone.source === 'fallback' ? 0.5 : 1.0;
+      const weight = brandTone.source === "fallback" ? 0.5 : 1.0;
       confidences.push(brandTone.confidence);
       weights.push(weight);
     }
@@ -802,10 +786,10 @@ class VisualFeatureMergerServiceImpl implements VisualFeatureMergerService {
 
     // Vision AI fields (reduced score for fallback)
     if (mood !== null) {
-      score += mood.source === 'fallback' ? 0.5 : 1.0;
+      score += mood.source === "fallback" ? 0.5 : 1.0;
     }
     if (brandTone !== null) {
-      score += brandTone.source === 'fallback' ? 0.5 : 1.0;
+      score += brandTone.source === "fallback" ? 0.5 : 1.0;
     }
 
     return score / TOTAL_FIELDS;

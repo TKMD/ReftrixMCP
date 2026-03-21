@@ -16,7 +16,7 @@
  * @module tests/tools/narrative-search.test
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 import {
   narrativeSearchHandler,
@@ -25,20 +25,20 @@ import {
   resetNarrativeSearchServiceFactory,
   setEmbeddingServiceFactory,
   resetEmbeddingServiceFactory,
-} from '../../src/tools/narrative/search.tool';
+} from "../../src/tools/narrative/search.tool";
 
 import {
   narrativeSearchInputSchema,
   NARRATIVE_MCP_ERROR_CODES,
   type NarrativeSearchOutput,
-} from '../../src/tools/narrative/schemas';
+} from "../../src/tools/narrative/schemas";
 
 import type {
   INarrativeAnalysisService,
   NarrativeSearchResult,
   NarrativeSearchOptions as ServiceSearchOptions,
   MoodCategory,
-} from '../../src/services/narrative/types/narrative.types';
+} from "../../src/services/narrative/types/narrative.types";
 
 // =====================================================
 // テストデータ
@@ -50,7 +50,7 @@ import type {
  */
 function createMockSearchResult(
   id: string,
-  moodCategory: MoodCategory = 'tech',
+  moodCategory: MoodCategory = "tech",
   score: number = 0.85
 ): NarrativeSearchResult {
   return {
@@ -78,17 +78,19 @@ function createMockNarrativeService(
 ): INarrativeAnalysisService {
   return {
     // search メソッド（テスト対象）
-    search: vi.fn().mockResolvedValue([
-      createMockSearchResult('11111111-1111-1111-1111-111111111111', 'tech', 0.92),
-      createMockSearchResult('22222222-2222-2222-2222-222222222222', 'minimal', 0.85),
-      createMockSearchResult('33333333-3333-3333-3333-333333333333', 'professional', 0.78),
-    ]),
+    search: vi
+      .fn()
+      .mockResolvedValue([
+        createMockSearchResult("11111111-1111-1111-1111-111111111111", "tech", 0.92),
+        createMockSearchResult("22222222-2222-2222-2222-222222222222", "minimal", 0.85),
+        createMockSearchResult("33333333-3333-3333-3333-333333333333", "professional", 0.78),
+      ]),
     // analyze メソッド（narrative.searchでは使用しないがインターフェース必須）
-    analyze: vi.fn().mockRejectedValue(new Error('Not implemented in search test')),
+    analyze: vi.fn().mockRejectedValue(new Error("Not implemented in search test")),
     // save メソッド
-    save: vi.fn().mockRejectedValue(new Error('Not implemented in search test')),
+    save: vi.fn().mockRejectedValue(new Error("Not implemented in search test")),
     // analyzeAndSave メソッド
-    analyzeAndSave: vi.fn().mockRejectedValue(new Error('Not implemented in search test')),
+    analyzeAndSave: vi.fn().mockRejectedValue(new Error("Not implemented in search test")),
     ...overrides,
   };
 }
@@ -97,7 +99,7 @@ function createMockNarrativeService(
 // 入力バリデーションテスト
 // =====================================================
 
-describe('narrative.search MCPツール', () => {
+describe("narrative.search MCPツール", () => {
   // 各テストでファクトリーをリセット
   beforeEach(() => {
     resetNarrativeSearchServiceFactory();
@@ -113,14 +115,14 @@ describe('narrative.search MCPツール', () => {
   // 入力バリデーション
   // =================================================
 
-  describe('入力バリデーション', () => {
-    it('クエリが空の場合バリデーションエラー', async () => {
+  describe("入力バリデーション", () => {
+    it("クエリが空の場合バリデーションエラー", async () => {
       // Arrange: サービスファクトリー設定（バリデーション前にエラーになるはず）
       const mockService = createMockNarrativeService();
       setNarrativeSearchServiceFactory(() => mockService);
 
       // Act: 空文字クエリで実行
-      const result = await narrativeSearchHandler({ query: '' });
+      const result = await narrativeSearchHandler({ query: "" });
 
       // Assert: バリデーションエラーが返る
       expect(result.success).toBe(false);
@@ -129,11 +131,11 @@ describe('narrative.search MCPツール', () => {
       }
     });
 
-    it('クエリが500文字超の場合バリデーションエラー', async () => {
+    it("クエリが500文字超の場合バリデーションエラー", async () => {
       // Arrange
       const mockService = createMockNarrativeService();
       setNarrativeSearchServiceFactory(() => mockService);
-      const longQuery = 'a'.repeat(501);
+      const longQuery = "a".repeat(501);
 
       // Act
       const result = await narrativeSearchHandler({ query: longQuery });
@@ -145,14 +147,14 @@ describe('narrative.search MCPツール', () => {
       }
     });
 
-    it('limitが0以下の場合バリデーションエラー', async () => {
+    it("limitが0以下の場合バリデーションエラー", async () => {
       // Arrange
       const mockService = createMockNarrativeService();
       setNarrativeSearchServiceFactory(() => mockService);
 
       // Act: limit=0で実行
       const result = await narrativeSearchHandler({
-        query: 'ダークなデザイン',
+        query: "ダークなデザイン",
         options: { limit: 0 },
       });
 
@@ -163,14 +165,14 @@ describe('narrative.search MCPツール', () => {
       }
     });
 
-    it('limitが50超の場合バリデーションエラー', async () => {
+    it("limitが50超の場合バリデーションエラー", async () => {
       // Arrange
       const mockService = createMockNarrativeService();
       setNarrativeSearchServiceFactory(() => mockService);
 
       // Act: limit=51で実行
       const result = await narrativeSearchHandler({
-        query: 'モダンなヒーローセクション',
+        query: "モダンなヒーローセクション",
         options: { limit: 51 },
       });
 
@@ -181,15 +183,15 @@ describe('narrative.search MCPツール', () => {
       }
     });
 
-    it('不正なmoodCategoryフィルターの場合バリデーションエラー', async () => {
+    it("不正なmoodCategoryフィルターの場合バリデーションエラー", async () => {
       // Arrange
       const mockService = createMockNarrativeService();
       setNarrativeSearchServiceFactory(() => mockService);
 
       // Act: 存在しないmoodCategoryを指定
       const result = await narrativeSearchHandler({
-        query: 'ミニマルデザイン',
-        filters: { moodCategory: 'invalid_mood' },
+        query: "ミニマルデザイン",
+        filters: { moodCategory: "invalid_mood" },
       });
 
       // Assert
@@ -199,7 +201,7 @@ describe('narrative.search MCPツール', () => {
       }
     });
 
-    it('queryもembeddingも指定しない場合バリデーションエラー', async () => {
+    it("queryもembeddingも指定しない場合バリデーションエラー", async () => {
       // Arrange
       const mockService = createMockNarrativeService();
       setNarrativeSearchServiceFactory(() => mockService);
@@ -214,14 +216,14 @@ describe('narrative.search MCPツール', () => {
       }
     });
 
-    it('queryとembeddingを同時に指定した場合バリデーションエラー', async () => {
+    it("queryとembeddingを同時に指定した場合バリデーションエラー", async () => {
       // Arrange
       const mockService = createMockNarrativeService();
       setNarrativeSearchServiceFactory(() => mockService);
 
       // Act: 両方指定
       const result = await narrativeSearchHandler({
-        query: 'テスト',
+        query: "テスト",
         embedding: new Array(768).fill(0.1),
       });
 
@@ -232,7 +234,7 @@ describe('narrative.search MCPツール', () => {
       }
     });
 
-    it('embeddingが768次元でない場合バリデーションエラー', async () => {
+    it("embeddingが768次元でない場合バリデーションエラー", async () => {
       // Arrange
       const mockService = createMockNarrativeService();
       setNarrativeSearchServiceFactory(() => mockService);
@@ -254,10 +256,10 @@ describe('narrative.search MCPツール', () => {
   // スキーマレベルのバリデーション
   // =================================================
 
-  describe('スキーマバリデーション', () => {
-    it('有効なクエリ入力がパースされる', () => {
+  describe("スキーマバリデーション", () => {
+    it("有効なクエリ入力がパースされる", () => {
       // Arrange
-      const input = { query: 'サイバーセキュリティ感のあるデザイン' };
+      const input = { query: "サイバーセキュリティ感のあるデザイン" };
 
       // Act
       const result = narrativeSearchInputSchema.safeParse(input);
@@ -265,15 +267,15 @@ describe('narrative.search MCPツール', () => {
       // Assert
       expect(result.success).toBe(true);
       if (result.success) {
-        expect(result.data.query).toBe('サイバーセキュリティ感のあるデザイン');
+        expect(result.data.query).toBe("サイバーセキュリティ感のあるデザイン");
       }
     });
 
-    it('有効なmoodCategoryがパースされる', () => {
+    it("有効なmoodCategoryがパースされる", () => {
       // Arrange
       const input = {
-        query: 'テスト検索',
-        filters: { moodCategory: 'tech' },
+        query: "テスト検索",
+        filters: { moodCategory: "tech" },
       };
 
       // Act
@@ -282,13 +284,13 @@ describe('narrative.search MCPツール', () => {
       // Assert
       expect(result.success).toBe(true);
       if (result.success) {
-        expect(result.data.filters?.moodCategory).toBe('tech');
+        expect(result.data.filters?.moodCategory).toBe("tech");
       }
     });
 
-    it('オプションのデフォルト値が適用される', () => {
+    it("オプションのデフォルト値が適用される", () => {
       // Arrange
-      const input = { query: 'テスト検索', options: {} };
+      const input = { query: "テスト検索", options: {} };
 
       // Act
       const result = narrativeSearchInputSchema.safeParse(input);
@@ -297,17 +299,17 @@ describe('narrative.search MCPツール', () => {
       expect(result.success).toBe(true);
       if (result.success) {
         expect(result.data.options?.limit).toBe(10);
-        expect(result.data.options?.searchMode).toBe('hybrid');
+        expect(result.data.options?.searchMode).toBe("hybrid");
         expect(result.data.options?.minSimilarity).toBe(0.6);
         expect(result.data.options?.vectorWeight).toBe(0.6);
         expect(result.data.options?.fulltextWeight).toBe(0.4);
       }
     });
 
-    it('minConfidenceが0-1の範囲外の場合エラー', () => {
+    it("minConfidenceが0-1の範囲外の場合エラー", () => {
       // Arrange
       const input = {
-        query: 'テスト',
+        query: "テスト",
         filters: { minConfidence: 1.5 },
       };
 
@@ -323,14 +325,14 @@ describe('narrative.search MCPツール', () => {
   // サービスファクトリー
   // =================================================
 
-  describe('サービスファクトリー', () => {
-    it('ファクトリー未設定時はSERVICE関連エラー', async () => {
+  describe("サービスファクトリー", () => {
+    it("ファクトリー未設定時はSERVICE関連エラー", async () => {
       // Arrange: ファクトリー未設定（resetで明示的にnull）
       resetNarrativeSearchServiceFactory();
 
       // Act
       const result = await narrativeSearchHandler({
-        query: 'テスト検索クエリ',
+        query: "テスト検索クエリ",
       });
 
       // Assert: サービス未利用可能エラー
@@ -342,7 +344,7 @@ describe('narrative.search MCPツール', () => {
       }
     });
 
-    it('ファクトリー設定後にリセットできる', () => {
+    it("ファクトリー設定後にリセットできる", () => {
       // Arrange: ファクトリー設定
       const mockService = createMockNarrativeService();
       setNarrativeSearchServiceFactory(() => mockService);
@@ -355,14 +357,14 @@ describe('narrative.search MCPツール', () => {
       expect(true).toBe(true); // リセット自体がエラーなく完了
     });
 
-    it('ファクトリー設定後にサービスが使用される', async () => {
+    it("ファクトリー設定後にサービスが使用される", async () => {
       // Arrange
       const mockService = createMockNarrativeService();
       setNarrativeSearchServiceFactory(() => mockService);
 
       // Act
       const result = await narrativeSearchHandler({
-        query: 'ミニマルなデザイン',
+        query: "ミニマルなデザイン",
       });
 
       // Assert: サービスのsearchが呼ばれた
@@ -375,34 +377,34 @@ describe('narrative.search MCPツール', () => {
   // 正常系検索
   // =================================================
 
-  describe('正常系検索', () => {
-    it('クエリでベクトル検索が実行される', async () => {
+  describe("正常系検索", () => {
+    it("クエリでベクトル検索が実行される", async () => {
       // Arrange
       const mockService = createMockNarrativeService();
       setNarrativeSearchServiceFactory(() => mockService);
 
       // Act
       const result = await narrativeSearchHandler({
-        query: 'サイバーセキュリティ感のあるダークなデザイン',
+        query: "サイバーセキュリティ感のあるダークなデザイン",
       });
 
       // Assert
       expect(result.success).toBe(true);
       expect(mockService.search).toHaveBeenCalledWith(
         expect.objectContaining({
-          query: 'サイバーセキュリティ感のあるダークなデザイン',
+          query: "サイバーセキュリティ感のあるダークなデザイン",
         })
       );
     });
 
-    it('検索結果がマッピングされて返却される', async () => {
+    it("検索結果がマッピングされて返却される", async () => {
       // Arrange
       const mockService = createMockNarrativeService();
       setNarrativeSearchServiceFactory(() => mockService);
 
       // Act
       const result = await narrativeSearchHandler({
-        query: 'テクノロジー系デザイン',
+        query: "テクノロジー系デザイン",
       });
 
       // Assert: 結果が正しい形式で返される
@@ -417,15 +419,15 @@ describe('narrative.search MCPツール', () => {
       }
     });
 
-    it('moodCategoryフィルターが適用される', async () => {
+    it("moodCategoryフィルターが適用される", async () => {
       // Arrange
       const mockService = createMockNarrativeService();
       setNarrativeSearchServiceFactory(() => mockService);
 
       // Act
       const result = await narrativeSearchHandler({
-        query: 'デザイン検索',
-        filters: { moodCategory: 'minimal' },
+        query: "デザイン検索",
+        filters: { moodCategory: "minimal" },
       });
 
       // Assert: サービスにフィルターが渡される
@@ -433,20 +435,20 @@ describe('narrative.search MCPツール', () => {
       expect(mockService.search).toHaveBeenCalledWith(
         expect.objectContaining({
           filters: expect.objectContaining({
-            moodCategory: ['minimal'],
+            moodCategory: ["minimal"],
           }),
         })
       );
     });
 
-    it('minConfidenceフィルターが適用される', async () => {
+    it("minConfidenceフィルターが適用される", async () => {
       // Arrange
       const mockService = createMockNarrativeService();
       setNarrativeSearchServiceFactory(() => mockService);
 
       // Act
       const result = await narrativeSearchHandler({
-        query: 'プロフェッショナルなデザイン',
+        query: "プロフェッショナルなデザイン",
         filters: { minConfidence: 0.8 },
       });
 
@@ -461,14 +463,14 @@ describe('narrative.search MCPツール', () => {
       );
     });
 
-    it('limit/offsetオプションが適用される', async () => {
+    it("limit/offsetオプションが適用される", async () => {
       // Arrange
       const mockService = createMockNarrativeService();
       setNarrativeSearchServiceFactory(() => mockService);
 
       // Act
       const result = await narrativeSearchHandler({
-        query: 'テスト検索',
+        query: "テスト検索",
         options: { limit: 5 },
       });
 
@@ -481,14 +483,14 @@ describe('narrative.search MCPツール', () => {
       );
     });
 
-    it('similarityスコアが含まれる', async () => {
+    it("similarityスコアが含まれる", async () => {
       // Arrange
       const mockService = createMockNarrativeService();
       setNarrativeSearchServiceFactory(() => mockService);
 
       // Act
       const result = await narrativeSearchHandler({
-        query: 'テクノロジーデザイン',
+        query: "テクノロジーデザイン",
       });
 
       // Assert: 結果にsimilarityが含まれる
@@ -496,21 +498,21 @@ describe('narrative.search MCPツール', () => {
       if (result.success && result.data.results.length > 0) {
         for (const item of result.data.results) {
           expect(item.similarity).toBeDefined();
-          expect(typeof item.similarity).toBe('number');
+          expect(typeof item.similarity).toBe("number");
           expect(item.similarity).toBeGreaterThanOrEqual(0);
           expect(item.similarity).toBeLessThanOrEqual(1);
         }
       }
     });
 
-    it('moodDescription, confidenceが結果に含まれる', async () => {
+    it("moodDescription, confidenceが結果に含まれる", async () => {
       // Arrange
       const mockService = createMockNarrativeService();
       setNarrativeSearchServiceFactory(() => mockService);
 
       // Act
       const result = await narrativeSearchHandler({
-        query: 'エレガントなデザイン',
+        query: "エレガントなデザイン",
       });
 
       // Assert: worldView (moodCategory, moodDescription) と confidence
@@ -523,43 +525,43 @@ describe('narrative.search MCPツール', () => {
           expect(item.worldView.moodDescription).toBeDefined();
           // 信頼度
           expect(item.confidence).toBeDefined();
-          expect(typeof item.confidence).toBe('number');
+          expect(typeof item.confidence).toBe("number");
         }
       }
     });
 
-    it('searchInfoにsearchModeが含まれる', async () => {
+    it("searchInfoにsearchModeが含まれる", async () => {
       // Arrange
       const mockService = createMockNarrativeService();
       setNarrativeSearchServiceFactory(() => mockService);
 
       // Act
       const result = await narrativeSearchHandler({
-        query: 'テスト',
-        options: { searchMode: 'vector' },
+        query: "テスト",
+        options: { searchMode: "vector" },
       });
 
       // Assert
       expect(result.success).toBe(true);
       if (result.success) {
-        expect(result.data.searchInfo.searchMode).toBe('vector');
+        expect(result.data.searchInfo.searchMode).toBe("vector");
       }
     });
 
-    it('minSimilarityフィルターが結果に適用される', async () => {
+    it("minSimilarityフィルターが結果に適用される", async () => {
       // Arrange: 低スコア結果を含むモック
       const mockService = createMockNarrativeService({
         search: vi.fn().mockResolvedValue([
-          createMockSearchResult('aaa-1', 'tech', 0.95),
-          createMockSearchResult('aaa-2', 'minimal', 0.70),
-          createMockSearchResult('aaa-3', 'bold', 0.50),  // minSimilarityのデフォルト0.6未満
+          createMockSearchResult("aaa-1", "tech", 0.95),
+          createMockSearchResult("aaa-2", "minimal", 0.7),
+          createMockSearchResult("aaa-3", "bold", 0.5), // minSimilarityのデフォルト0.6未満
         ]),
       });
       setNarrativeSearchServiceFactory(() => mockService);
 
       // Act: デフォルトのminSimilarity=0.6
       const result = await narrativeSearchHandler({
-        query: 'テスト検索',
+        query: "テスト検索",
       });
 
       // Assert: 0.6未満の結果はフィルターされる
@@ -576,8 +578,8 @@ describe('narrative.search MCPツール', () => {
   // Embedding直接検索
   // =================================================
 
-  describe('Embedding', () => {
-    it('768次元Embedding直接検索が受け付けられる', async () => {
+  describe("Embedding", () => {
+    it("768次元Embedding直接検索が受け付けられる", async () => {
       // Arrange
       const mockService = createMockNarrativeService();
       setNarrativeSearchServiceFactory(() => mockService);
@@ -593,16 +595,16 @@ describe('narrative.search MCPツール', () => {
       expect(mockService.search).toHaveBeenCalled();
     });
 
-    it('Embedding生成失敗時はエラーを返す', async () => {
+    it("Embedding生成失敗時はエラーを返す", async () => {
       // Arrange: Embeddingサービスがエラーを投げる
       const mockService = createMockNarrativeService({
-        search: vi.fn().mockRejectedValue(new Error('Embedding generation failed')),
+        search: vi.fn().mockRejectedValue(new Error("Embedding generation failed")),
       });
       setNarrativeSearchServiceFactory(() => mockService);
 
       // Act
       const result = await narrativeSearchHandler({
-        query: 'テスト検索',
+        query: "テスト検索",
       });
 
       // Assert: エラーが返る（空結果ではなくエラー）
@@ -617,17 +619,17 @@ describe('narrative.search MCPツール', () => {
   // エラーハンドリング
   // =================================================
 
-  describe('エラーハンドリング', () => {
-    it('DB検索エラー時は適切なエラーコードを返す', async () => {
+  describe("エラーハンドリング", () => {
+    it("DB検索エラー時は適切なエラーコードを返す", async () => {
       // Arrange: DBエラーを投げるモック
       const mockService = createMockNarrativeService({
-        search: vi.fn().mockRejectedValue(new Error('Database connection failed')),
+        search: vi.fn().mockRejectedValue(new Error("Database connection failed")),
       });
       setNarrativeSearchServiceFactory(() => mockService);
 
       // Act
       const result = await narrativeSearchHandler({
-        query: 'テスト検索',
+        query: "テスト検索",
       });
 
       // Assert: SEARCH_FAILEDエラー
@@ -637,16 +639,16 @@ describe('narrative.search MCPツール', () => {
       }
     });
 
-    it('タイムアウトエラーを検出できる', async () => {
+    it("タイムアウトエラーを検出できる", async () => {
       // Arrange: タイムアウトエラーを投げるモック
       const mockService = createMockNarrativeService({
-        search: vi.fn().mockRejectedValue(new Error('Search timeout exceeded')),
+        search: vi.fn().mockRejectedValue(new Error("Search timeout exceeded")),
       });
       setNarrativeSearchServiceFactory(() => mockService);
 
       // Act
       const result = await narrativeSearchHandler({
-        query: 'タイムアウトテスト',
+        query: "タイムアウトテスト",
       });
 
       // Assert: エラーが返る
@@ -657,16 +659,16 @@ describe('narrative.search MCPツール', () => {
       }
     });
 
-    it('未知のエラー時はINTERNAL_ERRORを返す', async () => {
+    it("未知のエラー時はINTERNAL_ERRORを返す", async () => {
       // Arrange: 非Errorオブジェクトを投げるモック
       const mockService = createMockNarrativeService({
-        search: vi.fn().mockRejectedValue('unknown error string'),
+        search: vi.fn().mockRejectedValue("unknown error string"),
       });
       setNarrativeSearchServiceFactory(() => mockService);
 
       // Act
       const result = await narrativeSearchHandler({
-        query: 'エラーテスト',
+        query: "エラーテスト",
       });
 
       // Assert
@@ -681,52 +683,46 @@ describe('narrative.search MCPツール', () => {
   // ツール定義
   // =================================================
 
-  describe('ツール定義', () => {
-    it('ツール名がnarrative.searchである', () => {
-      expect(narrativeSearchToolDefinition.name).toBe('narrative.search');
+  describe("ツール定義", () => {
+    it("ツール名がnarrative.searchである", () => {
+      expect(narrativeSearchToolDefinition.name).toBe("narrative.search");
     });
 
-    it('inputSchemaにqueryプロパティが含まれる', () => {
+    it("inputSchemaにqueryプロパティが含まれる", () => {
       // ツール定義のinputSchemaにqueryが定義されていること
       const inputSchema = narrativeSearchToolDefinition.inputSchema;
       expect(inputSchema).toBeDefined();
 
       // propertiesにqueryが存在
-      if ('properties' in inputSchema) {
-        expect(
-          (inputSchema.properties as Record<string, unknown>).query
-        ).toBeDefined();
+      if ("properties" in inputSchema) {
+        expect((inputSchema.properties as Record<string, unknown>).query).toBeDefined();
       }
     });
 
-    it('inputSchemaにembeddingプロパティが含まれる', () => {
+    it("inputSchemaにembeddingプロパティが含まれる", () => {
       const inputSchema = narrativeSearchToolDefinition.inputSchema;
       expect(inputSchema).toBeDefined();
 
-      if ('properties' in inputSchema) {
-        expect(
-          (inputSchema.properties as Record<string, unknown>).embedding
-        ).toBeDefined();
+      if ("properties" in inputSchema) {
+        expect((inputSchema.properties as Record<string, unknown>).embedding).toBeDefined();
       }
     });
 
-    it('inputSchemaにfiltersプロパティが含まれる', () => {
+    it("inputSchemaにfiltersプロパティが含まれる", () => {
       const inputSchema = narrativeSearchToolDefinition.inputSchema;
       expect(inputSchema).toBeDefined();
 
-      if ('properties' in inputSchema) {
-        expect(
-          (inputSchema.properties as Record<string, unknown>).filters
-        ).toBeDefined();
+      if ("properties" in inputSchema) {
+        expect((inputSchema.properties as Record<string, unknown>).filters).toBeDefined();
       }
     });
 
-    it('queryまたはembeddingのいずれかが必須（oneOf）', () => {
+    it("queryまたはembeddingのいずれかが必須（oneOf）", () => {
       const inputSchema = narrativeSearchToolDefinition.inputSchema;
       expect(inputSchema).toBeDefined();
 
       // oneOfでqueryまたはembeddingが必須
-      if ('oneOf' in inputSchema) {
+      if ("oneOf" in inputSchema) {
         expect(inputSchema.oneOf).toBeDefined();
         expect(Array.isArray(inputSchema.oneOf)).toBe(true);
       }
@@ -737,50 +733,50 @@ describe('narrative.search MCPツール', () => {
   // 検索モード
   // =================================================
 
-  describe('検索モード', () => {
-    it('hybridモード（デフォルト）で検索が実行される', async () => {
+  describe("検索モード", () => {
+    it("hybridモード（デフォルト）で検索が実行される", async () => {
       // Arrange
       const mockService = createMockNarrativeService();
       setNarrativeSearchServiceFactory(() => mockService);
 
       // Act: searchModeを指定しない（デフォルトhybrid）
       const result = await narrativeSearchHandler({
-        query: 'テスト検索',
+        query: "テスト検索",
       });
 
       // Assert
       expect(result.success).toBe(true);
       if (result.success) {
-        expect(result.data.searchInfo.searchMode).toBe('hybrid');
+        expect(result.data.searchInfo.searchMode).toBe("hybrid");
       }
     });
 
-    it('vectorモードで検索が実行される', async () => {
+    it("vectorモードで検索が実行される", async () => {
       // Arrange
       const mockService = createMockNarrativeService();
       setNarrativeSearchServiceFactory(() => mockService);
 
       // Act
       const result = await narrativeSearchHandler({
-        query: 'テスト検索',
-        options: { searchMode: 'vector' },
+        query: "テスト検索",
+        options: { searchMode: "vector" },
       });
 
       // Assert
       expect(result.success).toBe(true);
       if (result.success) {
-        expect(result.data.searchInfo.searchMode).toBe('vector');
+        expect(result.data.searchInfo.searchMode).toBe("vector");
       }
     });
 
-    it('vectorWeight/fulltextWeightが検索オプションに渡される', async () => {
+    it("vectorWeight/fulltextWeightが検索オプションに渡される", async () => {
       // Arrange
       const mockService = createMockNarrativeService();
       setNarrativeSearchServiceFactory(() => mockService);
 
       // Act
       const result = await narrativeSearchHandler({
-        query: 'テスト',
+        query: "テスト",
         options: { vectorWeight: 0.8, fulltextWeight: 0.2 },
       });
 
@@ -799,15 +795,15 @@ describe('narrative.search MCPツール', () => {
   // Hybrid Search（searchHybrid メソッド）
   // =================================================
 
-  describe('Hybrid Search', () => {
-    it('searchHybridが利用可能な場合、hybridモードでsearchHybridが呼ばれる', async () => {
+  describe("Hybrid Search", () => {
+    it("searchHybridが利用可能な場合、hybridモードでsearchHybridが呼ばれる", async () => {
       // Arrange: searchHybrid メソッドを持つモックサービス
-      const searchHybridMock = vi.fn().mockResolvedValue([
-        createMockSearchResult('hybrid-1', 'tech', 0.95),
-      ]);
-      const searchMock = vi.fn().mockResolvedValue([
-        createMockSearchResult('vector-1', 'tech', 0.85),
-      ]);
+      const searchHybridMock = vi
+        .fn()
+        .mockResolvedValue([createMockSearchResult("hybrid-1", "tech", 0.95)]);
+      const searchMock = vi
+        .fn()
+        .mockResolvedValue([createMockSearchResult("vector-1", "tech", 0.85)]);
       const mockService = createMockNarrativeService({
         search: searchMock,
         searchHybrid: searchHybridMock,
@@ -816,7 +812,7 @@ describe('narrative.search MCPツール', () => {
 
       // Act: デフォルトモード（hybrid）
       const result = await narrativeSearchHandler({
-        query: 'テクノロジーデザイン',
+        query: "テクノロジーデザイン",
       });
 
       // Assert: searchHybridが呼ばれ、searchは呼ばれない
@@ -825,14 +821,14 @@ describe('narrative.search MCPツール', () => {
       expect(searchMock).not.toHaveBeenCalled();
     });
 
-    it('searchHybridが利用可能でもvectorモードではsearchが呼ばれる', async () => {
+    it("searchHybridが利用可能でもvectorモードではsearchが呼ばれる", async () => {
       // Arrange
-      const searchHybridMock = vi.fn().mockResolvedValue([
-        createMockSearchResult('hybrid-1', 'tech', 0.95),
-      ]);
-      const searchMock = vi.fn().mockResolvedValue([
-        createMockSearchResult('vector-1', 'tech', 0.85),
-      ]);
+      const searchHybridMock = vi
+        .fn()
+        .mockResolvedValue([createMockSearchResult("hybrid-1", "tech", 0.95)]);
+      const searchMock = vi
+        .fn()
+        .mockResolvedValue([createMockSearchResult("vector-1", "tech", 0.85)]);
       const mockService = createMockNarrativeService({
         search: searchMock,
         searchHybrid: searchHybridMock,
@@ -841,8 +837,8 @@ describe('narrative.search MCPツール', () => {
 
       // Act: vectorモード明示
       const result = await narrativeSearchHandler({
-        query: 'テクノロジーデザイン',
-        options: { searchMode: 'vector' },
+        query: "テクノロジーデザイン",
+        options: { searchMode: "vector" },
       });
 
       // Assert: searchが呼ばれ、searchHybridは呼ばれない
@@ -851,11 +847,11 @@ describe('narrative.search MCPツール', () => {
       expect(searchHybridMock).not.toHaveBeenCalled();
     });
 
-    it('searchHybridが未定義の場合、hybridモードでもsearchにフォールバック', async () => {
+    it("searchHybridが未定義の場合、hybridモードでもsearchにフォールバック", async () => {
       // Arrange: searchHybridメソッドなし
-      const searchMock = vi.fn().mockResolvedValue([
-        createMockSearchResult('vector-1', 'tech', 0.85),
-      ]);
+      const searchMock = vi
+        .fn()
+        .mockResolvedValue([createMockSearchResult("vector-1", "tech", 0.85)]);
       const mockService = createMockNarrativeService({
         search: searchMock,
       });
@@ -864,7 +860,7 @@ describe('narrative.search MCPツール', () => {
 
       // Act: hybridモード（デフォルト）
       const result = await narrativeSearchHandler({
-        query: 'テクノロジーデザイン',
+        query: "テクノロジーデザイン",
       });
 
       // Assert: searchHybridがないのでsearchが呼ばれる
@@ -872,12 +868,12 @@ describe('narrative.search MCPツール', () => {
       expect(searchMock).toHaveBeenCalled();
     });
 
-    it('searchHybridの結果にminSimilarityフィルターが適用される', async () => {
+    it("searchHybridの結果にminSimilarityフィルターが適用される", async () => {
       // Arrange: 低スコア結果を含むモック
       const searchHybridMock = vi.fn().mockResolvedValue([
-        createMockSearchResult('hybrid-1', 'tech', 0.95),
-        createMockSearchResult('hybrid-2', 'minimal', 0.70),
-        createMockSearchResult('hybrid-3', 'bold', 0.50),  // minSimilarity=0.6未満
+        createMockSearchResult("hybrid-1", "tech", 0.95),
+        createMockSearchResult("hybrid-2", "minimal", 0.7),
+        createMockSearchResult("hybrid-3", "bold", 0.5), // minSimilarity=0.6未満
       ]);
       const mockService = createMockNarrativeService({
         searchHybrid: searchHybridMock,
@@ -886,7 +882,7 @@ describe('narrative.search MCPツール', () => {
 
       // Act: デフォルトminSimilarity=0.6
       const result = await narrativeSearchHandler({
-        query: 'テスト検索',
+        query: "テスト検索",
       });
 
       // Assert: 0.6未満の結果がフィルターされる
@@ -899,11 +895,13 @@ describe('narrative.search MCPツール', () => {
       }
     });
 
-    it('searchHybridのレスポンスがMCPレスポンス形式に変換される', async () => {
+    it("searchHybridのレスポンスがMCPレスポンス形式に変換される", async () => {
       // Arrange
-      const searchHybridMock = vi.fn().mockResolvedValue([
-        createMockSearchResult('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb', 'premium', 0.88),
-      ]);
+      const searchHybridMock = vi
+        .fn()
+        .mockResolvedValue([
+          createMockSearchResult("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb", "premium", 0.88),
+        ]);
       const mockService = createMockNarrativeService({
         searchHybrid: searchHybridMock,
       });
@@ -911,7 +909,7 @@ describe('narrative.search MCPツール', () => {
 
       // Act
       const result = await narrativeSearchHandler({
-        query: 'プレミアムなデザイン',
+        query: "プレミアムなデザイン",
       });
 
       // Assert: MCP形式のレスポンス
@@ -919,10 +917,10 @@ describe('narrative.search MCPツール', () => {
       if (result.success) {
         expect(result.data.results.length).toBe(1);
         const item = result.data.results[0];
-        expect(item.id).toBe('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb');
-        expect(item.worldView.moodCategory).toBe('premium');
+        expect(item.id).toBe("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb");
+        expect(item.worldView.moodCategory).toBe("premium");
         expect(item.similarity).toBeGreaterThan(0);
-        expect(result.data.searchInfo.searchMode).toBe('hybrid');
+        expect(result.data.searchInfo.searchMode).toBe("hybrid");
       }
     });
   });
@@ -931,19 +929,21 @@ describe('narrative.search MCPツール', () => {
   // 結果マッピング
   // =================================================
 
-  describe('結果マッピング', () => {
-    it('NarrativeSearchResultがMCPレスポンス形式に変換される', async () => {
+  describe("結果マッピング", () => {
+    it("NarrativeSearchResultがMCPレスポンス形式に変換される", async () => {
       // Arrange
       const mockService = createMockNarrativeService({
-        search: vi.fn().mockResolvedValue([
-          createMockSearchResult('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 'elegant', 0.91),
-        ]),
+        search: vi
+          .fn()
+          .mockResolvedValue([
+            createMockSearchResult("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", "elegant", 0.91),
+          ]),
       });
       setNarrativeSearchServiceFactory(() => mockService);
 
       // Act
       const result = await narrativeSearchHandler({
-        query: 'エレガントなデザイン',
+        query: "エレガントなデザイン",
       });
 
       // Assert: MCP形式のレスポンス
@@ -953,16 +953,16 @@ describe('narrative.search MCPツール', () => {
         const item = result.data.results[0];
 
         // 各必須フィールドの存在確認
-        expect(item.id).toBe('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa');
+        expect(item.id).toBe("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
         expect(item.webPageId).toBeDefined();
         expect(item.similarity).toBeDefined();
         expect(item.worldView).toBeDefined();
-        expect(item.worldView.moodCategory).toBe('elegant');
+        expect(item.worldView.moodCategory).toBe("elegant");
         expect(item.confidence).toBeDefined();
       }
     });
 
-    it('空の検索結果が正しく処理される', async () => {
+    it("空の検索結果が正しく処理される", async () => {
       // Arrange: 空結果を返すモック
       const mockService = createMockNarrativeService({
         search: vi.fn().mockResolvedValue([]),
@@ -971,7 +971,7 @@ describe('narrative.search MCPツール', () => {
 
       // Act
       const result = await narrativeSearchHandler({
-        query: '存在しないデザインパターン',
+        query: "存在しないデザインパターン",
       });
 
       // Assert: 空の結果が正常に返される
@@ -987,11 +987,20 @@ describe('narrative.search MCPツール', () => {
   // MoodCategory一覧の検証
   // =================================================
 
-  describe('MoodCategory', () => {
+  describe("MoodCategory", () => {
     const validMoodCategories: MoodCategory[] = [
-      'professional', 'playful', 'premium', 'tech',
-      'organic', 'minimal', 'bold', 'elegant',
-      'friendly', 'artistic', 'trustworthy', 'energetic',
+      "professional",
+      "playful",
+      "premium",
+      "tech",
+      "organic",
+      "minimal",
+      "bold",
+      "elegant",
+      "friendly",
+      "artistic",
+      "trustworthy",
+      "energetic",
     ];
 
     it.each(validMoodCategories)(
@@ -1003,7 +1012,7 @@ describe('narrative.search MCPツール', () => {
 
         // Act
         const result = await narrativeSearchHandler({
-          query: 'デザイン検索',
+          query: "デザイン検索",
           filters: { moodCategory },
         });
 
@@ -1017,8 +1026,8 @@ describe('narrative.search MCPツール', () => {
   // テストカウント確認
   // =================================================
 
-  describe('テストカウント確認', () => {
-    it('このファイルには25以上のテストケースが存在する', () => {
+  describe("テストカウント確認", () => {
+    it("このファイルには25以上のテストケースが存在する", () => {
       // テスト数確認用プレースホルダー
       // 上記の describe ブロック内の it の数を数えると30以上
       expect(true).toBe(true);

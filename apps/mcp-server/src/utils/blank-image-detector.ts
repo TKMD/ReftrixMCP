@@ -24,7 +24,7 @@
  * @module utils/blank-image-detector
  */
 
-import sharp from 'sharp';
+import sharp from "sharp";
 
 /**
  * デフォルトの stddev 閾値 / Default stddev threshold
@@ -84,10 +84,11 @@ export async function isBlankImage(buffer: Buffer): Promise<boolean> {
   }
 
   // SEC-02: 環境変数の安全なパース / Safe environment variable parsing
-  const envValue = parseFloat(process.env['BLANK_IMAGE_STDDEV_THRESHOLD'] ?? '');
-  const stddevThreshold = Number.isFinite(envValue) && envValue >= 0 && envValue <= 255
-    ? envValue
-    : DEFAULT_STDDEV_THRESHOLD;
+  const envValue = parseFloat(process.env["BLANK_IMAGE_STDDEV_THRESHOLD"] ?? "");
+  const stddevThreshold =
+    Number.isFinite(envValue) && envValue >= 0 && envValue <= 255
+      ? envValue
+      : DEFAULT_STDDEV_THRESHOLD;
 
   try {
     // SEC: sharp() は読み取り専用操作。入力バッファを変更しない
@@ -101,26 +102,22 @@ export async function isBlankImage(buffer: Buffer): Promise<boolean> {
 
     // SEC-03: 各チャンネルの stddev を取得し NaN/Infinity 防御
     // SEC-03: Extract stddev from each channel with NaN/Infinity defense
-    const stddevValues = channels.map(c => c.stdev);
-    if (stddevValues.some(v => !Number.isFinite(v))) {
+    const stddevValues = channels.map((c) => c.stdev);
+    if (stddevValues.some((v) => !Number.isFinite(v))) {
       return false; // SEC-03: 不正な統計値は blank とみなさない / Invalid stats not considered blank
     }
 
     // SEC-04: 各チャンネルの mean を取得し NaN/Infinity 防御
     // SEC-04: Extract mean from each channel with NaN/Infinity defense
-    const meanValues = channels.map(c => c.mean);
-    if (meanValues.some(v => !Number.isFinite(v))) {
+    const meanValues = channels.map((c) => c.mean);
+    if (meanValues.some((v) => !Number.isFinite(v))) {
       return false; // SEC-04: 不正な統計値は blank とみなさない / Invalid stats not considered blank
     }
 
     // MEDIUM-3: Number.isFinite() + 範囲クランプ (0.0-255.0)
     // MEDIUM-3: Number.isFinite() + range clamp (0.0-255.0)
-    const clampedStddevValues = stddevValues.map(v =>
-      Math.max(0, Math.min(255, v)),
-    );
-    const clampedMeanValues = meanValues.map(v =>
-      Math.max(0, Math.min(255, v)),
-    );
+    const clampedStddevValues = stddevValues.map((v) => Math.max(0, Math.min(255, v)));
+    const clampedMeanValues = meanValues.map((v) => Math.max(0, Math.min(255, v)));
 
     const avgStddev = clampedStddevValues.reduce((a, b) => a + b, 0) / clampedStddevValues.length;
     const avgMean = clampedMeanValues.reduce((a, b) => a + b, 0) / clampedMeanValues.length;

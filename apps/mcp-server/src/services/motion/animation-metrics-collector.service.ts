@@ -16,7 +16,7 @@
  * 4. パフォーマンス改善提案生成
  */
 
-import type { MotionPattern, LighthouseMetrics } from '../../tools/motion/schemas';
+import type { MotionPattern, LighthouseMetrics } from "../../tools/motion/schemas";
 
 // ============================================================================
 // 型定義
@@ -35,24 +35,24 @@ export interface AnimationMetricsInput {
 /**
  * パフォーマンス影響レベル
  */
-export type ImpactLevel = 'high' | 'medium' | 'low';
+export type ImpactLevel = "high" | "medium" | "low";
 
 /**
  * 改善提案の優先度
  */
-export type RecommendationPriority = 'high' | 'medium' | 'low';
+export type RecommendationPriority = "high" | "medium" | "low";
 
 /**
  * 改善提案のカテゴリ
  */
 export type RecommendationCategory =
-  | 'use-transform'
-  | 'reduce-duration'
-  | 'avoid-layout'
-  | 'cls-risk'
-  | 'infinite-animation'
-  | 'reduce-paint'
-  | 'general';
+  | "use-transform"
+  | "reduce-duration"
+  | "avoid-layout"
+  | "cls-risk"
+  | "infinite-animation"
+  | "reduce-paint"
+  | "general";
 
 /**
  * 各パターンの影響度スコア
@@ -171,48 +171,48 @@ export const THRESHOLDS = {
  * レイアウトをトリガーするCSSプロパティ
  */
 const LAYOUT_TRIGGERING_PROPERTIES = new Set([
-  'width',
-  'height',
-  'top',
-  'left',
-  'right',
-  'bottom',
-  'margin',
-  'margin-top',
-  'margin-bottom',
-  'margin-left',
-  'margin-right',
-  'padding',
-  'padding-top',
-  'padding-bottom',
-  'padding-left',
-  'padding-right',
-  'font-size',
-  'line-height',
-  'border',
-  'border-width',
-  'display',
-  'position',
-  'float',
-  'clear',
-  'flex',
-  'grid',
+  "width",
+  "height",
+  "top",
+  "left",
+  "right",
+  "bottom",
+  "margin",
+  "margin-top",
+  "margin-bottom",
+  "margin-left",
+  "margin-right",
+  "padding",
+  "padding-top",
+  "padding-bottom",
+  "padding-left",
+  "padding-right",
+  "font-size",
+  "line-height",
+  "border",
+  "border-width",
+  "display",
+  "position",
+  "float",
+  "clear",
+  "flex",
+  "grid",
 ]);
 
 /**
  * ペイントをトリガーするCSSプロパティ
  */
 const PAINT_TRIGGERING_PROPERTIES = new Set([
-  'color',
-  'background',
-  'background-color',
-  'background-image',
-  'border-color',
-  'border-style',
-  'box-shadow',
-  'text-shadow',
-  'outline',
-  'visibility',
+  "color",
+  "background",
+  "background-color",
+  "background-image",
+  "border-color",
+  "border-style",
+  "box-shadow",
+  "text-shadow",
+  "outline",
+  "visibility",
 ]);
 
 // 将来の機能拡張で使用予定
@@ -253,7 +253,7 @@ type AnimatedPropertyInput =
  * @returns プロパティ名
  */
 export function extractPropertyName(prop: AnimatedPropertyInput): string {
-  return typeof prop === 'string' ? prop : prop.property;
+  return typeof prop === "string" ? prop : prop.property;
 }
 
 /**
@@ -328,7 +328,10 @@ export class AnimationMetricsCollector {
   /**
    * 単一パターンの影響度スコアを計算
    */
-  calculateImpactScore(pattern: MotionPattern, lighthouseMetrics: LighthouseMetrics | null): number {
+  calculateImpactScore(
+    pattern: MotionPattern,
+    lighthouseMetrics: LighthouseMetrics | null
+  ): number {
     return this.calculatePatternImpact(pattern, lighthouseMetrics).score;
   }
 
@@ -369,22 +372,22 @@ export class AnimationMetricsCollector {
     if (perf) {
       if (perf.triggersLayout) {
         score += SCORE_FACTORS.TRIGGERS_LAYOUT;
-        factors.push('triggers-layout');
+        factors.push("triggers-layout");
       }
       if (perf.triggersPaint) {
         score += SCORE_FACTORS.TRIGGERS_PAINT;
-        factors.push('triggers-paint');
+        factors.push("triggers-paint");
       }
       if (!perf.usesTransform && !perf.usesOpacity) {
         score += SCORE_FACTORS.NO_GPU_ACCELERATION;
-        factors.push('no-gpu-acceleration');
+        factors.push("no-gpu-acceleration");
       }
-      if (perf.level === 'poor') {
+      if (perf.level === "poor") {
         score += SCORE_FACTORS.POOR_PERFORMANCE_LEVEL;
-        factors.push('poor-performance-level');
-      } else if (perf.level === 'fair') {
+        factors.push("poor-performance-level");
+      } else if (perf.level === "fair") {
         score += SCORE_FACTORS.FAIR_PERFORMANCE_LEVEL;
-        factors.push('fair-performance-level');
+        factors.push("fair-performance-level");
       }
     }
 
@@ -395,19 +398,19 @@ export class AnimationMetricsCollector {
       const duration = animation.duration ?? 0;
       if (duration > THRESHOLDS.LONG_DURATION_MS) {
         score += SCORE_FACTORS.LONG_DURATION;
-        factors.push('long-duration');
+        factors.push("long-duration");
       }
 
       // 無限ループ
-      if (animation.iterations === Infinity || animation.iterations === 'infinite') {
+      if (animation.iterations === Infinity || animation.iterations === "infinite") {
         score += SCORE_FACTORS.INFINITE_ITERATIONS;
-        factors.push('infinite-iterations');
+        factors.push("infinite-iterations");
       }
 
       // 遅延のあるレイアウト変更はCLSリスク
       if (animation.delay && animation.delay > 0 && perf?.triggersLayout) {
         score += SCORE_FACTORS.DELAYED_LAYOUT_CHANGE;
-        factors.push('delayed-layout-change');
+        factors.push("delayed-layout-change");
       }
     }
 
@@ -418,8 +421,8 @@ export class AnimationMetricsCollector {
       const propertyName = extractPropertyName(prop);
       if (LAYOUT_TRIGGERING_PROPERTIES.has(propertyName)) {
         score += SCORE_FACTORS.LAYOUT_PROPERTY;
-        if (!factors.includes('layout-property')) {
-          factors.push('layout-property');
+        if (!factors.includes("layout-property")) {
+          factors.push("layout-property");
         }
       }
     }
@@ -429,14 +432,17 @@ export class AnimationMetricsCollector {
       // CLS悪化時にレイアウトトリガーパターンは影響大
       if (lighthouseMetrics.cls > CLS_THRESHOLDS.needsImprovement && perf?.triggersLayout) {
         score += SCORE_FACTORS.CLS_CORRELATION;
-        factors.push('cls-correlation');
+        factors.push("cls-correlation");
       }
 
       // TBT悪化時に長いアニメーションは影響大
       const animationDuration = animation?.duration ?? 0;
-      if (lighthouseMetrics.tbt > THRESHOLDS.HIGH_TBT_MS && animationDuration > THRESHOLDS.LONG_ANIMATION_MS) {
+      if (
+        lighthouseMetrics.tbt > THRESHOLDS.HIGH_TBT_MS &&
+        animationDuration > THRESHOLDS.LONG_ANIMATION_MS
+      ) {
         score += SCORE_FACTORS.TBT_CORRELATION;
-        factors.push('tbt-correlation');
+        factors.push("tbt-correlation");
       }
     }
 
@@ -446,16 +452,16 @@ export class AnimationMetricsCollector {
     // 影響レベルを決定
     let impactLevel: ImpactLevel;
     if (score >= 50) {
-      impactLevel = 'high';
+      impactLevel = "high";
     } else if (score >= 25) {
-      impactLevel = 'medium';
+      impactLevel = "medium";
     } else {
-      impactLevel = 'low';
+      impactLevel = "low";
     }
 
     return {
-      patternId: pattern.id || 'unknown',
-      patternName: pattern.name || 'unknown',
+      patternId: pattern.id || "unknown",
+      patternName: pattern.name || "unknown",
       score,
       impactLevel,
       factors,
@@ -487,18 +493,18 @@ export class AnimationMetricsCollector {
       const propertyNames = extractPropertyNames(properties);
 
       // レイアウトトリガーかつロード時トリガー
-      if (perf?.triggersLayout && pattern.trigger === 'load') {
+      if (perf?.triggersLayout && pattern.trigger === "load") {
         contribution += 0.3;
-        reasons.push('layout-on-load');
+        reasons.push("layout-on-load");
       }
 
       // サイズ変更プロパティ
       const sizeProperties = propertyNames.filter((p) =>
-        ['width', 'height', 'margin', 'padding'].includes(p)
+        ["width", "height", "margin", "padding"].includes(p)
       );
       if (sizeProperties.length > 0) {
         contribution += 0.2 * sizeProperties.length;
-        reasons.push(`size-change: ${sizeProperties.join(', ')}`);
+        reasons.push(`size-change: ${sizeProperties.join(", ")}`);
       }
 
       // 遅延のあるサイズ変更
@@ -510,10 +516,10 @@ export class AnimationMetricsCollector {
       // 貢献度がある場合のみ追加
       if (contribution > 0) {
         contributors.push({
-          patternId: pattern.id || 'unknown',
-          patternName: pattern.name || 'unknown',
+          patternId: pattern.id || "unknown",
+          patternName: pattern.name || "unknown",
           estimatedContribution: Math.min(1, contribution),
-          reason: reasons.join(', '),
+          reason: reasons.join(", "),
         });
       }
     }
@@ -550,7 +556,7 @@ export class AnimationMetricsCollector {
     _lighthouseMetrics: LighthouseMetrics | null
   ): PerformanceRecommendation[] {
     const recommendations: PerformanceRecommendation[] = [];
-    const patternId = pattern.id || 'unknown';
+    const patternId = pattern.id || "unknown";
     const perf = pattern.performance;
     const animation = pattern.animation;
     const properties = pattern.properties || [];
@@ -559,27 +565,27 @@ export class AnimationMetricsCollector {
 
     // レイアウトプロパティ使用時にtransformを提案
     const layoutProps = propertyNames.filter((p) => LAYOUT_TRIGGERING_PROPERTIES.has(p));
-    const positionProps = layoutProps.filter((p) => ['left', 'top', 'right', 'bottom'].includes(p));
+    const positionProps = layoutProps.filter((p) => ["left", "top", "right", "bottom"].includes(p));
 
     if (positionProps.length > 0) {
       recommendations.push({
-        priority: 'high',
-        category: 'use-transform',
-        description: `Use transform: translate() instead of ${positionProps.join(', ')} for better performance`,
+        priority: "high",
+        category: "use-transform",
+        description: `Use transform: translate() instead of ${positionProps.join(", ")} for better performance`,
         affectedPatternIds: [patternId],
-        estimatedImprovement: 'Reduces layout thrashing by 60-90%',
+        estimatedImprovement: "Reduces layout thrashing by 60-90%",
       });
     }
 
     // サイズプロパティのアニメーション
-    const sizeProps = layoutProps.filter((p) => ['width', 'height'].includes(p));
+    const sizeProps = layoutProps.filter((p) => ["width", "height"].includes(p));
     if (sizeProps.length > 0) {
       recommendations.push({
-        priority: 'high',
-        category: 'avoid-layout',
-        description: `Avoid animating ${sizeProps.join(', ')}. Use transform: scale() instead.`,
+        priority: "high",
+        category: "avoid-layout",
+        description: `Avoid animating ${sizeProps.join(", ")}. Use transform: scale() instead.`,
         affectedPatternIds: [patternId],
-        estimatedImprovement: 'Reduces layout recalculations',
+        estimatedImprovement: "Reduces layout recalculations",
       });
     }
 
@@ -588,27 +594,27 @@ export class AnimationMetricsCollector {
       animation?.delay &&
       animation.delay > 0 &&
       perf?.triggersLayout &&
-      pattern.trigger === 'load'
+      pattern.trigger === "load"
     ) {
       recommendations.push({
-        priority: 'high',
-        category: 'cls-risk',
+        priority: "high",
+        category: "cls-risk",
         description:
-          'Delayed layout-triggering animation on load causes CLS. Reserve space or use transform.',
+          "Delayed layout-triggering animation on load causes CLS. Reserve space or use transform.",
         affectedPatternIds: [patternId],
-        estimatedImprovement: 'Reduces CLS by avoiding late layout shifts',
+        estimatedImprovement: "Reduces CLS by avoiding late layout shifts",
       });
     }
 
     // 無限ループアニメーション
-    if (animation?.iterations === Infinity || animation?.iterations === 'infinite') {
+    if (animation?.iterations === Infinity || animation?.iterations === "infinite") {
       recommendations.push({
-        priority: 'medium',
-        category: 'infinite-animation',
+        priority: "medium",
+        category: "infinite-animation",
         description:
-          'Infinite animation can cause performance issues. Consider pausing when not visible.',
+          "Infinite animation can cause performance issues. Consider pausing when not visible.",
         affectedPatternIds: [patternId],
-        estimatedImprovement: 'Reduces CPU usage when element is not in viewport',
+        estimatedImprovement: "Reduces CPU usage when element is not in viewport",
       });
     }
 
@@ -616,9 +622,9 @@ export class AnimationMetricsCollector {
     const paintProps = propertyNames.filter((p) => PAINT_TRIGGERING_PROPERTIES.has(p));
     if (paintProps.length > 2 && !perf?.usesTransform) {
       recommendations.push({
-        priority: 'low',
-        category: 'reduce-paint',
-        description: `Multiple paint-triggering properties (${paintProps.join(', ')}). Consider using will-change or opacity/transform.`,
+        priority: "low",
+        category: "reduce-paint",
+        description: `Multiple paint-triggering properties (${paintProps.join(", ")}). Consider using will-change or opacity/transform.`,
         affectedPatternIds: [patternId],
       });
     }
@@ -663,11 +669,11 @@ export class AnimationMetricsCollector {
    */
   private priorityToNumber(priority: RecommendationPriority): number {
     switch (priority) {
-      case 'high':
+      case "high":
         return 3;
-      case 'medium':
+      case "medium":
         return 2;
-      case 'low':
+      case "low":
         return 1;
       default:
         return 0;

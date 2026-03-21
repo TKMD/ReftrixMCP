@@ -14,7 +14,7 @@
  * @module tests/services/motion-search.service.test
  */
 
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import {
   MotionSearchService,
   setEmbeddingServiceFactory,
@@ -36,9 +36,9 @@ import {
   type IPrismaClient,
   type MotionPatternRecord,
   type VectorSearchResult,
-} from '../../src/services/motion-search.service';
-import type { MotionSearchParams } from '../../src/tools/motion/search.tool';
-import type { SamplePattern, MotionSearchFilters } from '../../src/tools/motion/schemas';
+} from "../../src/services/motion-search.service";
+import type { MotionSearchParams } from "../../src/tools/motion/search.tool";
+import type { SamplePattern, MotionSearchFilters } from "../../src/tools/motion/schemas";
 
 // =============================================================================
 // 共通ファクトリー・ヘルパー（重複削減）
@@ -46,16 +46,14 @@ import type { SamplePattern, MotionSearchFilters } from '../../src/tools/motion/
 
 // 検索パラメータ生成ファクトリー
 const createSearchParams = (overrides: Partial<MotionSearchParams> = {}): MotionSearchParams => ({
-  query: 'test',
+  query: "test",
   limit: 10,
   minSimilarity: 0.5,
   ...overrides,
 });
 
 // EmbeddingService生成ファクトリー
-const createMockEmbeddingService = (
-  overrides?: Partial<IEmbeddingService>
-): IEmbeddingService => ({
+const createMockEmbeddingService = (overrides?: Partial<IEmbeddingService>): IEmbeddingService => ({
   generateEmbedding: vi.fn().mockResolvedValue(new Array(768).fill(0.1)),
   ...overrides,
 });
@@ -85,83 +83,92 @@ const setupServices = (
 // samplePatternToText ヘルパー関数テスト
 // =============================================================================
 
-describe('samplePatternToText', () => {
-  describe('単一プロパティのテスト', () => {
-    it('typeのみ指定した場合、typeとanimationを含む文字列を返すこと', () => {
-      const pattern: SamplePattern = { type: 'animation' };
+describe("samplePatternToText", () => {
+  describe("単一プロパティのテスト", () => {
+    it("typeのみ指定した場合、typeとanimationを含む文字列を返すこと", () => {
+      const pattern: SamplePattern = { type: "animation" };
       const result = samplePatternToText(pattern);
-      expect(result).toBe('animation animation');
+      expect(result).toBe("animation animation");
     });
 
-    it('durationのみ指定した場合、duration情報を含む文字列を返すこと', () => {
+    it("durationのみ指定した場合、duration情報を含む文字列を返すこと", () => {
       const pattern: SamplePattern = { duration: 500 };
       const result = samplePatternToText(pattern);
-      expect(result).toBe('duration 500ms');
+      expect(result).toBe("duration 500ms");
     });
 
-    it('easingのみ指定した場合、easing情報を含む文字列を返すこと', () => {
-      const pattern: SamplePattern = { easing: 'ease-in-out' };
+    it("easingのみ指定した場合、easing情報を含む文字列を返すこと", () => {
+      const pattern: SamplePattern = { easing: "ease-in-out" };
       const result = samplePatternToText(pattern);
-      expect(result).toBe('easing ease-in-out');
+      expect(result).toBe("easing ease-in-out");
     });
 
-    it('propertiesのみ指定した場合、プロパティ一覧を含む文字列を返すこと', () => {
-      const pattern: SamplePattern = { properties: ['opacity', 'transform'] };
+    it("propertiesのみ指定した場合、プロパティ一覧を含む文字列を返すこと", () => {
+      const pattern: SamplePattern = { properties: ["opacity", "transform"] };
       const result = samplePatternToText(pattern);
-      expect(result).toBe('properties: opacity, transform');
+      expect(result).toBe("properties: opacity, transform");
     });
   });
 
-  describe('複数プロパティの組み合わせテスト', () => {
-    it('全てのプロパティを指定した場合、全情報を含む文字列を返すこと', () => {
+  describe("複数プロパティの組み合わせテスト", () => {
+    it("全てのプロパティを指定した場合、全情報を含む文字列を返すこと", () => {
       const pattern: SamplePattern = {
-        type: 'transition',
+        type: "transition",
         duration: 300,
-        easing: 'ease-out',
-        properties: ['opacity'],
+        easing: "ease-out",
+        properties: ["opacity"],
       };
       const result = samplePatternToText(pattern);
-      expect(result).toBe('transition animation, duration 300ms, easing ease-out, properties: opacity');
+      expect(result).toBe(
+        "transition animation, duration 300ms, easing ease-out, properties: opacity"
+      );
     });
 
-    it('type + durationの場合、両方を含む文字列を返すこと', () => {
-      const pattern: SamplePattern = { type: 'hover', duration: 200 };
+    it("type + durationの場合、両方を含む文字列を返すこと", () => {
+      const pattern: SamplePattern = { type: "hover", duration: 200 };
       const result = samplePatternToText(pattern);
-      expect(result).toBe('hover animation, duration 200ms');
+      expect(result).toBe("hover animation, duration 200ms");
     });
 
-    it('type + easing + propertiesの場合、全て含む文字列を返すこと', () => {
+    it("type + easing + propertiesの場合、全て含む文字列を返すこと", () => {
       const pattern: SamplePattern = {
-        type: 'scroll',
-        easing: 'linear',
-        properties: ['transform', 'scale'],
+        type: "scroll",
+        easing: "linear",
+        properties: ["transform", "scale"],
       };
       const result = samplePatternToText(pattern);
-      expect(result).toBe('scroll animation, easing linear, properties: transform, scale');
+      expect(result).toBe("scroll animation, easing linear, properties: transform, scale");
     });
   });
 
-  describe('エッジケース', () => {
-    it('空のpatternの場合、デフォルト値を返すこと', () => {
+  describe("エッジケース", () => {
+    it("空のpatternの場合、デフォルト値を返すこと", () => {
       const pattern: SamplePattern = {};
       const result = samplePatternToText(pattern);
-      expect(result).toBe('motion animation');
+      expect(result).toBe("motion animation");
     });
 
-    it('空のproperties配列の場合、propertiesを含まないこと', () => {
-      const pattern: SamplePattern = { type: 'keyframe', properties: [] };
+    it("空のproperties配列の場合、propertiesを含まないこと", () => {
+      const pattern: SamplePattern = { type: "keyframe", properties: [] };
       const result = samplePatternToText(pattern);
-      expect(result).toBe('keyframe animation');
+      expect(result).toBe("keyframe animation");
     });
 
-    it('duration 0の場合、duration情報を含むこと', () => {
+    it("duration 0の場合、duration情報を含むこと", () => {
       const pattern: SamplePattern = { duration: 0 };
       const result = samplePatternToText(pattern);
-      expect(result).toBe('duration 0ms');
+      expect(result).toBe("duration 0ms");
     });
 
-    it('全タイプをカバーすること', () => {
-      const types = ['animation', 'transition', 'transform', 'scroll', 'hover', 'keyframe'] as const;
+    it("全タイプをカバーすること", () => {
+      const types = [
+        "animation",
+        "transition",
+        "transform",
+        "scroll",
+        "hover",
+        "keyframe",
+      ] as const;
       for (const type of types) {
         const pattern: SamplePattern = { type };
         const result = samplePatternToText(pattern);
@@ -175,32 +182,32 @@ describe('samplePatternToText', () => {
 // mapCategory ヘルパー関数テスト
 // =============================================================================
 
-describe('mapCategory', () => {
-  describe('有効なカテゴリマッピング', () => {
+describe("mapCategory", () => {
+  describe("有効なカテゴリマッピング", () => {
     it.each([
-      ['scroll_trigger', 'scroll_trigger'],
-      ['hover_effect', 'hover_effect'],
-      ['page_transition', 'page_transition'],
-      ['loading', 'loading_state'],
-      ['loading_state', 'loading_state'],
-      ['micro_interaction', 'micro_interaction'],
-      ['attention_grabber', 'attention_grabber'],
-      ['navigation', 'navigation'],
-      ['feedback', 'feedback'],
+      ["scroll_trigger", "scroll_trigger"],
+      ["hover_effect", "hover_effect"],
+      ["page_transition", "page_transition"],
+      ["loading", "loading_state"],
+      ["loading_state", "loading_state"],
+      ["micro_interaction", "micro_interaction"],
+      ["attention_grabber", "attention_grabber"],
+      ["navigation", "navigation"],
+      ["feedback", "feedback"],
     ])('"%s" を "%s" にマッピングすること', (input, expected) => {
       expect(mapCategory(input)).toBe(expected);
     });
   });
 
-  describe('unknownフォールバック', () => {
+  describe("unknownフォールバック", () => {
     it.each([
-      'invalid_category',
-      'unknown_type',
-      '',
-      'SCROLL_TRIGGER', // 大文字小文字の違い
-      'scroll-trigger', // ハイフン区切り
+      "invalid_category",
+      "unknown_type",
+      "",
+      "SCROLL_TRIGGER", // 大文字小文字の違い
+      "scroll-trigger", // ハイフン区切り
     ])('無効なカテゴリ "%s" の場合、"unknown" を返すこと', (invalidCategory) => {
-      expect(mapCategory(invalidCategory)).toBe('unknown');
+      expect(mapCategory(invalidCategory)).toBe("unknown");
     });
   });
 });
@@ -209,31 +216,31 @@ describe('mapCategory', () => {
 // mapTrigger ヘルパー関数テスト
 // =============================================================================
 
-describe('mapTrigger', () => {
-  describe('有効なトリガーマッピング', () => {
+describe("mapTrigger", () => {
+  describe("有効なトリガーマッピング", () => {
     it.each([
-      ['scroll', 'scroll'],
-      ['hover', 'hover'],
-      ['click', 'click'],
-      ['focus', 'focus'],
-      ['load', 'load'],
-      ['intersection', 'intersection'],
-      ['time', 'time'],
-      ['state_change', 'state_change'],
+      ["scroll", "scroll"],
+      ["hover", "hover"],
+      ["click", "click"],
+      ["focus", "focus"],
+      ["load", "load"],
+      ["intersection", "intersection"],
+      ["time", "time"],
+      ["state_change", "state_change"],
     ])('"%s" を "%s" にマッピングすること', (input, expected) => {
       expect(mapTrigger(input)).toBe(expected);
     });
   });
 
-  describe('unknownフォールバック', () => {
+  describe("unknownフォールバック", () => {
     it.each([
-      'invalid_trigger',
-      'custom',
-      '',
-      'SCROLL', // 大文字小文字の違い
-      'on_click', // 異なる形式
+      "invalid_trigger",
+      "custom",
+      "",
+      "SCROLL", // 大文字小文字の違い
+      "on_click", // 異なる形式
     ])('無効なトリガー "%s" の場合、"unknown" を返すこと', (invalidTrigger) => {
-      expect(mapTrigger(invalidTrigger)).toBe('unknown');
+      expect(mapTrigger(invalidTrigger)).toBe("unknown");
     });
   });
 });
@@ -242,49 +249,47 @@ describe('mapTrigger', () => {
 // mapEasingType ヘルパー関数テスト
 // =============================================================================
 
-describe('mapEasingType', () => {
-  describe('標準イージング関数マッピング', () => {
+describe("mapEasingType", () => {
+  describe("標準イージング関数マッピング", () => {
     it.each([
-      ['linear', 'linear'],
-      ['ease', 'ease'],
-      ['ease-in', 'ease-in'],
-      ['ease-out', 'ease-out'],
-      ['ease-in-out', 'ease-in-out'],
+      ["linear", "linear"],
+      ["ease", "ease"],
+      ["ease-in", "ease-in"],
+      ["ease-out", "ease-out"],
+      ["ease-in-out", "ease-in-out"],
     ])('"%s" を "%s" にマッピングすること', (input, expected) => {
       expect(mapEasingType(input)).toBe(expected);
     });
   });
 
-  describe('cubic-bezier検出', () => {
+  describe("cubic-bezier検出", () => {
     it.each([
-      'cubic-bezier(0.4, 0, 0.2, 1)',
-      'cubic-bezier(0, 0, 1, 1)',
-      'cubic-bezier(.4, 0, .2, 1)',
+      "cubic-bezier(0.4, 0, 0.2, 1)",
+      "cubic-bezier(0, 0, 1, 1)",
+      "cubic-bezier(.4, 0, .2, 1)",
     ])('cubic-bezier関数 "%s" を "cubic-bezier" にマッピングすること', (input) => {
-      expect(mapEasingType(input)).toBe('cubic-bezier');
+      expect(mapEasingType(input)).toBe("cubic-bezier");
     });
   });
 
-  describe('steps検出', () => {
-    it.each([
-      'steps(4)',
-      'steps(4, start)',
-      'steps(10, end)',
-      'steps(1, jump-both)',
-    ])('steps関数 "%s" を "steps" にマッピングすること', (input) => {
-      expect(mapEasingType(input)).toBe('steps');
-    });
+  describe("steps検出", () => {
+    it.each(["steps(4)", "steps(4, start)", "steps(10, end)", "steps(1, jump-both)"])(
+      'steps関数 "%s" を "steps" にマッピングすること',
+      (input) => {
+        expect(mapEasingType(input)).toBe("steps");
+      }
+    );
   });
 
-  describe('unknownフォールバック', () => {
+  describe("unknownフォールバック", () => {
     it.each([
-      'invalid-easing',
-      'spring',
-      'bounce',
-      '',
-      'LINEAR', // 大文字小文字の違い
+      "invalid-easing",
+      "spring",
+      "bounce",
+      "",
+      "LINEAR", // 大文字小文字の違い
     ])('未知のイージング "%s" の場合、"unknown" を返すこと', (invalidEasing) => {
-      expect(mapEasingType(invalidEasing)).toBe('unknown');
+      expect(mapEasingType(invalidEasing)).toBe("unknown");
     });
   });
 });
@@ -293,65 +298,71 @@ describe('mapEasingType', () => {
 // buildWhereClause ヘルパー関数テスト
 // =============================================================================
 
-describe('buildWhereClause', () => {
-  describe('空のフィルタ', () => {
-    it('フィルタが未定義の場合、空のWHERE句を返すこと', () => {
+describe("buildWhereClause", () => {
+  describe("空のフィルタ", () => {
+    it("フィルタが未定義の場合、空のWHERE句を返すこと", () => {
       const result = buildWhereClause(undefined);
-      expect(result.clause).toBe('');
+      expect(result.clause).toBe("");
       expect(result.params).toEqual([]);
     });
 
-    it('空のフィルタオブジェクトの場合、空のWHERE句を返すこと', () => {
+    it("空のフィルタオブジェクトの場合、空のWHERE句を返すこと", () => {
       const result = buildWhereClause({});
-      expect(result.clause).toBe('');
+      expect(result.clause).toBe("");
       expect(result.params).toEqual([]);
     });
   });
 
-  describe('単一フィルタ条件', () => {
-    describe('typeフィルタ', () => {
+  describe("単一フィルタ条件", () => {
+    describe("typeフィルタ", () => {
       it.each([
-        ['animation', 'css_animation'],
-        ['transition', 'page_transition'],
-        ['transform', 'micro_interaction'],
-        ['scroll', 'scroll_trigger'],
-        ['hover', 'hover_effect'],
-        ['keyframe', 'css_animation'],
-      ])('type "%s" を category "%s" にマッピングしてWHERE句を生成すること', (inputType, expectedCategory) => {
-        const filters: MotionSearchFilters = { type: inputType as MotionSearchFilters['type'] };
-        const result = buildWhereClause(filters);
-        expect(result.clause).toBe('WHERE mp.category = $1');
-        expect(result.params).toEqual([expectedCategory]);
-      });
+        ["animation", "css_animation"],
+        ["transition", "page_transition"],
+        ["transform", "micro_interaction"],
+        ["scroll", "scroll_trigger"],
+        ["hover", "hover_effect"],
+        ["keyframe", "css_animation"],
+      ])(
+        'type "%s" を category "%s" にマッピングしてWHERE句を生成すること',
+        (inputType, expectedCategory) => {
+          const filters: MotionSearchFilters = { type: inputType as MotionSearchFilters["type"] };
+          const result = buildWhereClause(filters);
+          expect(result.clause).toBe("WHERE mp.category = $1");
+          expect(result.params).toEqual([expectedCategory]);
+        }
+      );
     });
 
-    describe('triggerフィルタ', () => {
-      it.each([
-        'load', 'hover', 'scroll', 'click', 'focus', 'custom'
-      ])('trigger "%s" のWHERE句を生成すること', (trigger) => {
-        const filters: MotionSearchFilters = { trigger: trigger as MotionSearchFilters['trigger'] };
-        const result = buildWhereClause(filters);
-        expect(result.clause).toBe('WHERE mp.trigger_type = $1');
-        expect(result.params).toEqual([trigger]);
-      });
+    describe("triggerフィルタ", () => {
+      it.each(["load", "hover", "scroll", "click", "focus", "custom"])(
+        'trigger "%s" のWHERE句を生成すること',
+        (trigger) => {
+          const filters: MotionSearchFilters = {
+            trigger: trigger as MotionSearchFilters["trigger"],
+          };
+          const result = buildWhereClause(filters);
+          expect(result.clause).toBe("WHERE mp.trigger_type = $1");
+          expect(result.params).toEqual([trigger]);
+        }
+      );
     });
 
-    describe('durationフィルタ', () => {
-      it('minDurationのみ指定した場合、>=条件のWHERE句を生成すること', () => {
+    describe("durationフィルタ", () => {
+      it("minDurationのみ指定した場合、>=条件のWHERE句を生成すること", () => {
         const filters: MotionSearchFilters = { minDuration: 100 };
         const result = buildWhereClause(filters);
         expect(result.clause).toContain("(mp.animation->>'duration')::float >= $1");
         expect(result.params).toEqual([100]);
       });
 
-      it('maxDurationのみ指定した場合、<=条件のWHERE句を生成すること', () => {
+      it("maxDurationのみ指定した場合、<=条件のWHERE句を生成すること", () => {
         const filters: MotionSearchFilters = { maxDuration: 1000 };
         const result = buildWhereClause(filters);
         expect(result.clause).toContain("(mp.animation->>'duration')::float <= $1");
         expect(result.params).toEqual([1000]);
       });
 
-      it('minDuration=0の場合も条件を生成すること', () => {
+      it("minDuration=0の場合も条件を生成すること", () => {
         const filters: MotionSearchFilters = { minDuration: 0 };
         const result = buildWhereClause(filters);
         expect(result.clause).toContain("(mp.animation->>'duration')::float >= $1");
@@ -360,41 +371,41 @@ describe('buildWhereClause', () => {
     });
   });
 
-  describe('複合フィルタ条件', () => {
-    it('type + trigger の場合、両方の条件をANDで結合すること', () => {
-      const filters: MotionSearchFilters = { type: 'animation', trigger: 'hover' };
+  describe("複合フィルタ条件", () => {
+    it("type + trigger の場合、両方の条件をANDで結合すること", () => {
+      const filters: MotionSearchFilters = { type: "animation", trigger: "hover" };
       const result = buildWhereClause(filters);
-      expect(result.clause).toBe('WHERE mp.category = $1 AND mp.trigger_type = $2');
-      expect(result.params).toEqual(['css_animation', 'hover']);
+      expect(result.clause).toBe("WHERE mp.category = $1 AND mp.trigger_type = $2");
+      expect(result.params).toEqual(["css_animation", "hover"]);
     });
 
-    it('type + minDuration + maxDuration の場合、全条件をANDで結合すること', () => {
-      const filters: MotionSearchFilters = { type: 'scroll', minDuration: 100, maxDuration: 500 };
+    it("type + minDuration + maxDuration の場合、全条件をANDで結合すること", () => {
+      const filters: MotionSearchFilters = { type: "scroll", minDuration: 100, maxDuration: 500 };
       const result = buildWhereClause(filters);
-      expect(result.clause).toContain('mp.category = $1');
+      expect(result.clause).toContain("mp.category = $1");
       expect(result.clause).toContain("(mp.animation->>'duration')::float >= $2");
       expect(result.clause).toContain("(mp.animation->>'duration')::float <= $3");
-      expect(result.params).toEqual(['scroll_trigger', 100, 500]);
+      expect(result.params).toEqual(["scroll_trigger", 100, 500]);
     });
 
-    it('全フィルタ指定の場合、4つの条件をANDで結合すること', () => {
+    it("全フィルタ指定の場合、4つの条件をANDで結合すること", () => {
       const filters: MotionSearchFilters = {
-        type: 'hover',
-        trigger: 'hover',
+        type: "hover",
+        trigger: "hover",
         minDuration: 200,
         maxDuration: 800,
       };
       const result = buildWhereClause(filters);
       expect(result.clause.match(/AND/g)?.length).toBe(3);
-      expect(result.params).toEqual(['hover_effect', 'hover', 200, 800]);
+      expect(result.params).toEqual(["hover_effect", "hover", 200, 800]);
     });
   });
 
-  describe('パラメータインデックスの正確性', () => {
-    it('複数パラメータの場合、正しい順序でインデックスが付与されること', () => {
+  describe("パラメータインデックスの正確性", () => {
+    it("複数パラメータの場合、正しい順序でインデックスが付与されること", () => {
       const filters: MotionSearchFilters = {
-        type: 'animation',
-        trigger: 'load',
+        type: "animation",
+        trigger: "load",
         minDuration: 50,
         maxDuration: 2000,
       };
@@ -412,94 +423,94 @@ describe('buildWhereClause', () => {
 // recordToMotionPattern 変換テスト
 // =============================================================================
 
-describe('recordToMotionPattern', () => {
-  describe('MotionPatternRecord形式の入力', () => {
-    it('基本的なレコードを正しくMotionPatternに変換すること', () => {
+describe("recordToMotionPattern", () => {
+  describe("MotionPatternRecord形式の入力", () => {
+    it("基本的なレコードを正しくMotionPatternに変換すること", () => {
       const record: MotionPatternRecord = {
-        id: 'test-id-1',
-        name: 'Fade In Animation',
-        category: 'scroll_trigger',
-        triggerType: 'scroll',
-        animation: { duration: 300, easing: 'ease-out' },
-        properties: [{ property: 'opacity', from: 0, to: 1 }],
-        sourceUrl: 'https://example.com',
+        id: "test-id-1",
+        name: "Fade In Animation",
+        category: "scroll_trigger",
+        triggerType: "scroll",
+        animation: { duration: 300, easing: "ease-out" },
+        properties: [{ property: "opacity", from: 0, to: 1 }],
+        sourceUrl: "https://example.com",
         webPageId: null,
       };
 
       const result = recordToMotionPattern(record);
 
-      expect(result.id).toBe('test-id-1');
-      expect(result.name).toBe('Fade In Animation');
-      expect(result.category).toBe('scroll_trigger');
-      expect(result.trigger).toBe('scroll');
+      expect(result.id).toBe("test-id-1");
+      expect(result.name).toBe("Fade In Animation");
+      expect(result.category).toBe("scroll_trigger");
+      expect(result.trigger).toBe("scroll");
       expect(result.animation.duration).toBe(300);
-      expect(result.animation.easing?.type).toBe('ease-out');
+      expect(result.animation.easing?.type).toBe("ease-out");
       expect(result.properties).toHaveLength(1);
       // v0.1.0: selectorはnameから生成される（kebab-case）
-      expect(result.selector).toBe('.fade-in-animation');
+      expect(result.selector).toBe(".fade-in-animation");
     });
 
-    it('embeddingプロパティがあっても正しく変換すること', () => {
+    it("embeddingプロパティがあっても正しく変換すること", () => {
       const record: MotionPatternRecord = {
-        id: 'test-id-2',
-        name: 'Slide Up',
-        category: 'micro_interaction',
-        triggerType: 'click',
+        id: "test-id-2",
+        name: "Slide Up",
+        category: "micro_interaction",
+        triggerType: "click",
         animation: { duration: 200 },
         properties: [],
         sourceUrl: null,
-        webPageId: 'page-1',
+        webPageId: "page-1",
         embedding: {
           embedding: [0.1, 0.2, 0.3],
-          textRepresentation: 'slide up animation',
+          textRepresentation: "slide up animation",
         },
       };
 
       const result = recordToMotionPattern(record);
 
-      expect(result.id).toBe('test-id-2');
-      expect(result.category).toBe('micro_interaction');
-      expect(result.trigger).toBe('click');
+      expect(result.id).toBe("test-id-2");
+      expect(result.category).toBe("micro_interaction");
+      expect(result.trigger).toBe("click");
       // v0.1.0: sourceUrlがnullでもnameから生成される
-      expect(result.selector).toBe('.slide-up');
+      expect(result.selector).toBe(".slide-up");
     });
   });
 
-  describe('VectorSearchResult形式の入力', () => {
-    it('ベクトル検索結果を正しくMotionPatternに変換すること', () => {
+  describe("VectorSearchResult形式の入力", () => {
+    it("ベクトル検索結果を正しくMotionPatternに変換すること", () => {
       const record: VectorSearchResult = {
-        id: 'vector-id-1',
-        name: 'Hover Effect',
-        category: 'hover_effect',
-        trigger_type: 'hover',
-        animation: { duration: 150, delay: 50, easing: 'ease-in' },
-        properties: [{ property: 'transform' }],
-        source_url: 'https://test.com/page',
-        web_page_id: 'web-page-1',
+        id: "vector-id-1",
+        name: "Hover Effect",
+        category: "hover_effect",
+        trigger_type: "hover",
+        animation: { duration: 150, delay: 50, easing: "ease-in" },
+        properties: [{ property: "transform" }],
+        source_url: "https://test.com/page",
+        web_page_id: "web-page-1",
         similarity: 0.95,
       };
 
       const result = recordToMotionPattern(record);
 
-      expect(result.id).toBe('vector-id-1');
-      expect(result.name).toBe('Hover Effect');
-      expect(result.category).toBe('hover_effect');
-      expect(result.trigger).toBe('hover');
+      expect(result.id).toBe("vector-id-1");
+      expect(result.name).toBe("Hover Effect");
+      expect(result.category).toBe("hover_effect");
+      expect(result.trigger).toBe("hover");
       expect(result.animation.duration).toBe(150);
       expect(result.animation.delay).toBe(50);
-      expect(result.animation.easing?.type).toBe('ease-in');
+      expect(result.animation.easing?.type).toBe("ease-in");
       // v0.1.0: selectorはnameから生成される（kebab-case）
-      expect(result.selector).toBe('.hover-effect');
+      expect(result.selector).toBe(".hover-effect");
     });
   });
 
-  describe('animation/propertiesの型変換', () => {
-    it('animationがnullの場合、空オブジェクトとして扱うこと', () => {
+  describe("animation/propertiesの型変換", () => {
+    it("animationがnullの場合、空オブジェクトとして扱うこと", () => {
       const record: MotionPatternRecord = {
-        id: 'test-1',
-        name: 'Test',
-        category: 'unknown',
-        triggerType: 'unknown',
+        id: "test-1",
+        name: "Test",
+        category: "unknown",
+        triggerType: "unknown",
         animation: null as unknown,
         properties: [],
         sourceUrl: null,
@@ -512,14 +523,14 @@ describe('recordToMotionPattern', () => {
       expect(result.animation.delay).toBeUndefined();
     });
 
-    it('propertiesが配列でない場合、空配列として扱うこと', () => {
+    it("propertiesが配列でない場合、空配列として扱うこと", () => {
       const record: MotionPatternRecord = {
-        id: 'test-2',
-        name: 'Test',
-        category: 'unknown',
-        triggerType: 'unknown',
+        id: "test-2",
+        name: "Test",
+        category: "unknown",
+        triggerType: "unknown",
         animation: {},
-        properties: 'not-an-array' as unknown,
+        properties: "not-an-array" as unknown,
         sourceUrl: null,
         webPageId: null,
       };
@@ -529,14 +540,14 @@ describe('recordToMotionPattern', () => {
       expect(result.properties).toEqual([]);
     });
 
-    it('propertiesの要素がオブジェクトでない場合、文字列として処理すること', () => {
+    it("propertiesの要素がオブジェクトでない場合、文字列として処理すること", () => {
       const record: MotionPatternRecord = {
-        id: 'test-3',
-        name: 'Test',
-        category: 'unknown',
-        triggerType: 'unknown',
+        id: "test-3",
+        name: "Test",
+        category: "unknown",
+        triggerType: "unknown",
         animation: {},
-        properties: ['opacity', 'transform'],
+        properties: ["opacity", "transform"],
         sourceUrl: null,
         webPageId: null,
       };
@@ -544,17 +555,17 @@ describe('recordToMotionPattern', () => {
       const result = recordToMotionPattern(record);
 
       expect(result.properties).toHaveLength(2);
-      expect(result.properties[0]).toEqual({ property: 'opacity' });
-      expect(result.properties[1]).toEqual({ property: 'transform' });
+      expect(result.properties[0]).toEqual({ property: "opacity" });
+      expect(result.properties[1]).toEqual({ property: "transform" });
     });
 
-    it('animation.iterationsを正しく変換すること', () => {
+    it("animation.iterationsを正しく変換すること", () => {
       const record: MotionPatternRecord = {
-        id: 'test-4',
-        name: 'Test',
-        category: 'unknown',
-        triggerType: 'unknown',
-        animation: { iterations: 'infinite' },
+        id: "test-4",
+        name: "Test",
+        category: "unknown",
+        triggerType: "unknown",
+        animation: { iterations: "infinite" },
         properties: [],
         sourceUrl: null,
         webPageId: null,
@@ -562,16 +573,16 @@ describe('recordToMotionPattern', () => {
 
       const result = recordToMotionPattern(record);
 
-      expect(result.animation.iterations).toBe('infinite');
+      expect(result.animation.iterations).toBe("infinite");
     });
 
-    it('animation.directionを正しく変換すること', () => {
+    it("animation.directionを正しく変換すること", () => {
       const record: MotionPatternRecord = {
-        id: 'test-5',
-        name: 'Test',
-        category: 'unknown',
-        triggerType: 'unknown',
-        animation: { direction: 'alternate' },
+        id: "test-5",
+        name: "Test",
+        category: "unknown",
+        triggerType: "unknown",
+        animation: { direction: "alternate" },
         properties: [],
         sourceUrl: null,
         webPageId: null,
@@ -579,16 +590,16 @@ describe('recordToMotionPattern', () => {
 
       const result = recordToMotionPattern(record);
 
-      expect(result.animation.direction).toBe('alternate');
+      expect(result.animation.direction).toBe("alternate");
     });
 
-    it('animation.fill_modeをfillModeに変換すること', () => {
+    it("animation.fill_modeをfillModeに変換すること", () => {
       const record: MotionPatternRecord = {
-        id: 'test-6',
-        name: 'Test',
-        category: 'unknown',
-        triggerType: 'unknown',
-        animation: { fill_mode: 'forwards' },
+        id: "test-6",
+        name: "Test",
+        category: "unknown",
+        triggerType: "unknown",
+        animation: { fill_mode: "forwards" },
         properties: [],
         sourceUrl: null,
         webPageId: null,
@@ -596,17 +607,17 @@ describe('recordToMotionPattern', () => {
 
       const result = recordToMotionPattern(record);
 
-      expect(result.animation.fillMode).toBe('forwards');
+      expect(result.animation.fillMode).toBe("forwards");
     });
   });
 
-  describe('null/undefinedハンドリング', () => {
-    it('sourceUrlがnullの場合、selectorはundefinedになること', () => {
+  describe("null/undefinedハンドリング", () => {
+    it("sourceUrlがnullの場合、selectorはundefinedになること", () => {
       const record: MotionPatternRecord = {
-        id: 'test-null',
-        name: 'Test',
-        category: 'unknown',
-        triggerType: 'unknown',
+        id: "test-null",
+        name: "Test",
+        category: "unknown",
+        triggerType: "unknown",
         animation: {},
         properties: [],
         sourceUrl: null,
@@ -616,16 +627,16 @@ describe('recordToMotionPattern', () => {
       const result = recordToMotionPattern(record);
 
       // v0.1.0: sourceUrlがnullでもnameから生成される
-      expect(result.selector).toBe('.test');
+      expect(result.selector).toBe(".test");
     });
 
-    it('durationが数値でない場合、undefinedになること', () => {
+    it("durationが数値でない場合、undefinedになること", () => {
       const record: MotionPatternRecord = {
-        id: 'test-invalid-duration',
-        name: 'Test',
-        category: 'unknown',
-        triggerType: 'unknown',
-        animation: { duration: 'invalid' },
+        id: "test-invalid-duration",
+        name: "Test",
+        category: "unknown",
+        triggerType: "unknown",
+        animation: { duration: "invalid" },
         properties: [],
         sourceUrl: null,
         webPageId: null,
@@ -636,12 +647,12 @@ describe('recordToMotionPattern', () => {
       expect(result.animation.duration).toBeUndefined();
     });
 
-    it('easingがundefinedの場合、easing設定もundefinedになること', () => {
+    it("easingがundefinedの場合、easing設定もundefinedになること", () => {
       const record: MotionPatternRecord = {
-        id: 'test-no-easing',
-        name: 'Test',
-        category: 'unknown',
-        triggerType: 'unknown',
+        id: "test-no-easing",
+        name: "Test",
+        category: "unknown",
+        triggerType: "unknown",
         animation: { duration: 300 },
         properties: [],
         sourceUrl: null,
@@ -659,7 +670,7 @@ describe('recordToMotionPattern', () => {
 // MotionSearchService クラステスト
 // =============================================================================
 
-describe('MotionSearchService', () => {
+describe("MotionSearchService", () => {
   let mockEmbeddingService: IEmbeddingService;
   let mockPrismaClient: IPrismaClient;
 
@@ -678,23 +689,23 @@ describe('MotionSearchService', () => {
     vi.clearAllMocks();
   });
 
-  describe('createMotionSearchServiceFactory', () => {
-    it('ファクトリ関数がIMotionSearchServiceを返すこと', () => {
+  describe("createMotionSearchServiceFactory", () => {
+    it("ファクトリ関数がIMotionSearchServiceを返すこと", () => {
       const factory = createMotionSearchServiceFactory();
       const service = factory();
       expect(service).toBeDefined();
-      expect(typeof service.search).toBe('function');
+      expect(typeof service.search).toBe("function");
     });
   });
 
-  describe('getMotionSearchService', () => {
-    it('シングルトンインスタンスを返すこと', () => {
+  describe("getMotionSearchService", () => {
+    it("シングルトンインスタンスを返すこと", () => {
       const service1 = getMotionSearchService();
       const service2 = getMotionSearchService();
       expect(service1).toBe(service2);
     });
 
-    it('リセット後は新しいインスタンスを返すこと', () => {
+    it("リセット後は新しいインスタンスを返すこと", () => {
       const service1 = getMotionSearchService();
       resetMotionSearchService();
       const service2 = getMotionSearchService();
@@ -702,12 +713,24 @@ describe('MotionSearchService', () => {
     });
   });
 
-  describe('search', () => {
+  describe("search", () => {
     // パラメータ化テスト: サービス未設定ケース
     it.each([
-      { desc: '両方未設定', embedService: false, prisma: false, query: 'fade in animation', checkQuery: true },
-      { desc: 'EmbeddingServiceのみ', embedService: true, prisma: false, query: 'hover effect', checkQuery: false },
-    ])('$desc の場合、空の結果を返すこと', async ({ embedService, prisma, query, checkQuery }) => {
+      {
+        desc: "両方未設定",
+        embedService: false,
+        prisma: false,
+        query: "fade in animation",
+        checkQuery: true,
+      },
+      {
+        desc: "EmbeddingServiceのみ",
+        embedService: true,
+        prisma: false,
+        query: "hover effect",
+        checkQuery: false,
+      },
+    ])("$desc の場合、空の結果を返すこと", async ({ embedService, prisma, query, checkQuery }) => {
       const service = setupServices(
         embedService ? mockEmbeddingService : undefined,
         prisma ? mockPrismaClient : undefined
@@ -720,65 +743,91 @@ describe('MotionSearchService', () => {
       if (checkQuery) expect(result.query?.text).toBe(query);
     });
 
-    it('両方のサービスが設定されている場合、検索を実行すること', async () => {
-      const mockResults: VectorSearchResult[] = [{
-        id: 'test-id-1', name: 'Fade In', category: 'scroll_trigger', trigger_type: 'scroll',
-        animation: { duration: 300, easing: 'ease-out' }, properties: [{ property: 'opacity', from: 0, to: 1 }],
-        source_url: null, web_page_id: null, similarity: 0.85,
-      }];
+    it("両方のサービスが設定されている場合、検索を実行すること", async () => {
+      const mockResults: VectorSearchResult[] = [
+        {
+          id: "test-id-1",
+          name: "Fade In",
+          category: "scroll_trigger",
+          trigger_type: "scroll",
+          animation: { duration: 300, easing: "ease-out" },
+          properties: [{ property: "opacity", from: 0, to: 1 }],
+          source_url: null,
+          web_page_id: null,
+          similarity: 0.85,
+        },
+      ];
       (mockPrismaClient.$queryRawUnsafe as ReturnType<typeof vi.fn>).mockResolvedValue(mockResults);
 
       const service = setupServices(mockEmbeddingService, mockPrismaClient);
-      const result = await service.search(createSearchParams({ query: 'fade in' }));
+      const result = await service.search(createSearchParams({ query: "fade in" }));
 
       expect(result.results.length).toBe(1);
-      expect(result.results[0]?.pattern.name).toBe('Fade In');
+      expect(result.results[0]?.pattern.name).toBe("Fade In");
       expect(result.results[0]?.similarity).toBe(0.85);
-      expect(mockEmbeddingService.generateEmbedding).toHaveBeenCalledWith('fade in', 'query');
+      expect(mockEmbeddingService.generateEmbedding).toHaveBeenCalledWith("fade in", "query");
     });
 
-    it('samplePatternを使用した検索が動作すること', async () => {
+    it("samplePatternを使用した検索が動作すること", async () => {
       const service = setupServices(mockEmbeddingService, mockPrismaClient);
-      await service.search(createSearchParams({
-        query: undefined,
-        samplePattern: { type: 'animation', duration: 500, easing: 'ease-in-out', properties: ['opacity', 'transform'] },
-      }));
+      await service.search(
+        createSearchParams({
+          query: undefined,
+          samplePattern: {
+            type: "animation",
+            duration: 500,
+            easing: "ease-in-out",
+            properties: ["opacity", "transform"],
+          },
+        })
+      );
 
-      expect(mockEmbeddingService.generateEmbedding).toHaveBeenCalledWith(expect.stringContaining('animation'), 'query');
+      expect(mockEmbeddingService.generateEmbedding).toHaveBeenCalledWith(
+        expect.stringContaining("animation"),
+        "query"
+      );
     });
 
-    it('フィルターが適用されること', async () => {
+    it("フィルターが適用されること", async () => {
       const service = setupServices(mockEmbeddingService, mockPrismaClient);
-      await service.search(createSearchParams({
-        filters: { type: 'hover', minDuration: 100, maxDuration: 1000, trigger: 'hover' },
-      }));
+      await service.search(
+        createSearchParams({
+          filters: { type: "hover", minDuration: 100, maxDuration: 1000, trigger: "hover" },
+        })
+      );
 
       expect(mockPrismaClient.$queryRawUnsafe).toHaveBeenCalled();
-      const query = ((mockPrismaClient.$queryRawUnsafe as ReturnType<typeof vi.fn>).mock.calls[0]?.[0] as string) || '';
-      expect(query).toContain('category');
-      expect(query).toContain('trigger_type');
+      const query =
+        ((mockPrismaClient.$queryRawUnsafe as ReturnType<typeof vi.fn>).mock
+          .calls[0]?.[0] as string) || "";
+      expect(query).toContain("category");
+      expect(query).toContain("trigger_type");
     });
 
     // パラメータ化テスト: エラーケース
     it.each([
       {
-        desc: 'Embedding生成に失敗した場合',
-        embedFactory: () => createMockEmbeddingService({
-          generateEmbedding: vi.fn().mockRejectedValue(new Error('Embedding failed')),
-        }),
+        desc: "Embedding生成に失敗した場合",
+        embedFactory: () =>
+          createMockEmbeddingService({
+            generateEmbedding: vi.fn().mockRejectedValue(new Error("Embedding failed")),
+          }),
         prismaFactory: () => mockPrismaClient,
       },
       {
-        desc: 'データベースエラーの場合',
+        desc: "データベースエラーの場合",
         embedFactory: () => mockEmbeddingService,
-        prismaFactory: () => createMockPrismaClient() as IPrismaClient & {
-          $queryRawUnsafe: ReturnType<typeof vi.fn>;
-        },
+        prismaFactory: () =>
+          createMockPrismaClient() as IPrismaClient & {
+            $queryRawUnsafe: ReturnType<typeof vi.fn>;
+          },
         setupExtra: (prisma: IPrismaClient) => {
-          (prisma.$queryRawUnsafe as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('DB error'));
+          (prisma.$queryRawUnsafe as ReturnType<typeof vi.fn>).mockRejectedValue(
+            new Error("DB error")
+          );
         },
       },
-    ])('$desc 、空の結果を返すこと', async ({ embedFactory, prismaFactory, setupExtra }) => {
+    ])("$desc 、空の結果を返すこと", async ({ embedFactory, prismaFactory, setupExtra }) => {
       const embedService = embedFactory();
       const prisma = prismaFactory();
       setupExtra?.(prisma);
@@ -790,16 +839,16 @@ describe('MotionSearchService', () => {
       expect(result.total).toBe(0);
     });
 
-    describe('エッジケース', () => {
-      it('queryもsamplePatternも未指定の場合、エラーをスローすること', async () => {
+    describe("エッジケース", () => {
+      it("queryもsamplePatternも未指定の場合、エラーをスローすること", async () => {
         const service = setupServices(mockEmbeddingService, mockPrismaClient);
 
         await expect(
           service.search({ limit: 10, minSimilarity: 0.5 } as MotionSearchParams)
-        ).rejects.toThrow('query or samplePattern is required');
+        ).rejects.toThrow("query or samplePattern is required");
       });
 
-      it('極端なminSimilarity値 0 が正しく処理されること', async () => {
+      it("極端なminSimilarity値 0 が正しく処理されること", async () => {
         const service = setupServices(mockEmbeddingService, mockPrismaClient);
         const result = await service.search(createSearchParams({ minSimilarity: 0 }));
 
@@ -807,61 +856,69 @@ describe('MotionSearchService', () => {
         expect(mockPrismaClient.$queryRawUnsafe).toHaveBeenCalled();
       });
 
-      it('極端なminSimilarity値 1 が正しく処理されること', async () => {
+      it("極端なminSimilarity値 1 が正しく処理されること", async () => {
         const service = setupServices(mockEmbeddingService, mockPrismaClient);
         const result = await service.search(createSearchParams({ minSimilarity: 1 }));
 
         expect(result).toBeDefined();
       });
 
-      it('極端なlimit値 1 が正しく処理されること', async () => {
+      it("極端なlimit値 1 が正しく処理されること", async () => {
         const service = setupServices(mockEmbeddingService, mockPrismaClient);
         const result = await service.search(createSearchParams({ limit: 1 }));
 
         expect(result).toBeDefined();
       });
 
-      it('極端なlimit値 50 が正しく処理されること', async () => {
+      it("極端なlimit値 50 が正しく処理されること", async () => {
         const service = setupServices(mockEmbeddingService, mockPrismaClient);
         const result = await service.search(createSearchParams({ limit: 50 }));
 
         expect(result).toBeDefined();
       });
 
-      it('web_page_idがある場合、sourceにpageIdを含めること', async () => {
-        const mockResults: VectorSearchResult[] = [{
-          id: 'test-id',
-          name: 'Test Animation',
-          category: 'scroll_trigger',
-          trigger_type: 'scroll',
-          animation: { duration: 300 },
-          properties: [],
-          source_url: 'https://example.com/page',
-          web_page_id: 'page-uuid-123',
-          similarity: 0.9,
-        }];
-        (mockPrismaClient.$queryRawUnsafe as ReturnType<typeof vi.fn>).mockResolvedValue(mockResults);
+      it("web_page_idがある場合、sourceにpageIdを含めること", async () => {
+        const mockResults: VectorSearchResult[] = [
+          {
+            id: "test-id",
+            name: "Test Animation",
+            category: "scroll_trigger",
+            trigger_type: "scroll",
+            animation: { duration: 300 },
+            properties: [],
+            source_url: "https://example.com/page",
+            web_page_id: "page-uuid-123",
+            similarity: 0.9,
+          },
+        ];
+        (mockPrismaClient.$queryRawUnsafe as ReturnType<typeof vi.fn>).mockResolvedValue(
+          mockResults
+        );
 
         const service = setupServices(mockEmbeddingService, mockPrismaClient);
         const result = await service.search(createSearchParams());
 
-        expect(result.results[0]?.source?.pageId).toBe('page-uuid-123');
-        expect(result.results[0]?.source?.url).toBe('https://example.com/page');
+        expect(result.results[0]?.source?.pageId).toBe("page-uuid-123");
+        expect(result.results[0]?.source?.url).toBe("https://example.com/page");
       });
 
-      it('web_page_idがnullの場合、sourceはundefinedになること', async () => {
-        const mockResults: VectorSearchResult[] = [{
-          id: 'test-id',
-          name: 'Test Animation',
-          category: 'scroll_trigger',
-          trigger_type: 'scroll',
-          animation: { duration: 300 },
-          properties: [],
-          source_url: null,
-          web_page_id: null,
-          similarity: 0.9,
-        }];
-        (mockPrismaClient.$queryRawUnsafe as ReturnType<typeof vi.fn>).mockResolvedValue(mockResults);
+      it("web_page_idがnullの場合、sourceはundefinedになること", async () => {
+        const mockResults: VectorSearchResult[] = [
+          {
+            id: "test-id",
+            name: "Test Animation",
+            category: "scroll_trigger",
+            trigger_type: "scroll",
+            animation: { duration: 300 },
+            properties: [],
+            source_url: null,
+            web_page_id: null,
+            similarity: 0.9,
+          },
+        ];
+        (mockPrismaClient.$queryRawUnsafe as ReturnType<typeof vi.fn>).mockResolvedValue(
+          mockResults
+        );
 
         const service = setupServices(mockEmbeddingService, mockPrismaClient);
         const result = await service.search(createSearchParams());
@@ -871,85 +928,102 @@ describe('MotionSearchService', () => {
     });
   });
 
-  describe('フィルタ組み合わせテスト', () => {
-    describe('type単独フィルタ', () => {
-      it.each([
-        'animation', 'transition', 'transform', 'scroll', 'hover', 'keyframe'
-      ])('type=%s で検索が実行されること', async (type) => {
-        const service = setupServices(mockEmbeddingService, mockPrismaClient);
-        const result = await service.search(createSearchParams({
-          filters: { type: type as MotionSearchFilters['type'] },
-        }));
+  describe("フィルタ組み合わせテスト", () => {
+    describe("type単独フィルタ", () => {
+      it.each(["animation", "transition", "transform", "scroll", "hover", "keyframe"])(
+        "type=%s で検索が実行されること",
+        async (type) => {
+          const service = setupServices(mockEmbeddingService, mockPrismaClient);
+          const result = await service.search(
+            createSearchParams({
+              filters: { type: type as MotionSearchFilters["type"] },
+            })
+          );
 
-        expect(result).toBeDefined();
-        expect(mockPrismaClient.$queryRawUnsafe).toHaveBeenCalled();
-      });
+          expect(result).toBeDefined();
+          expect(mockPrismaClient.$queryRawUnsafe).toHaveBeenCalled();
+        }
+      );
     });
 
-    describe('trigger単独フィルタ', () => {
-      it.each([
-        'load', 'hover', 'scroll', 'click', 'focus', 'custom'
-      ])('trigger=%s で検索が実行されること', async (trigger) => {
-        const service = setupServices(mockEmbeddingService, mockPrismaClient);
-        const result = await service.search(createSearchParams({
-          filters: { trigger: trigger as MotionSearchFilters['trigger'] },
-        }));
+    describe("trigger単独フィルタ", () => {
+      it.each(["load", "hover", "scroll", "click", "focus", "custom"])(
+        "trigger=%s で検索が実行されること",
+        async (trigger) => {
+          const service = setupServices(mockEmbeddingService, mockPrismaClient);
+          const result = await service.search(
+            createSearchParams({
+              filters: { trigger: trigger as MotionSearchFilters["trigger"] },
+            })
+          );
 
-        expect(result).toBeDefined();
-        expect(mockPrismaClient.$queryRawUnsafe).toHaveBeenCalled();
-      });
+          expect(result).toBeDefined();
+          expect(mockPrismaClient.$queryRawUnsafe).toHaveBeenCalled();
+        }
+      );
     });
 
-    describe('duration境界値テスト', () => {
+    describe("duration境界値テスト", () => {
       it.each([
-        { minDuration: 0, maxDuration: 100, desc: '最小範囲' },
-        { minDuration: 1000, maxDuration: 60000, desc: '最大範囲' },
-        { minDuration: 500, maxDuration: 500, desc: '同一値' },
-      ])('$desc (minDuration=$minDuration, maxDuration=$maxDuration) で検索が実行されること', async ({ minDuration, maxDuration }) => {
-        const service = setupServices(mockEmbeddingService, mockPrismaClient);
-        const result = await service.search(createSearchParams({
-          filters: { minDuration, maxDuration },
-        }));
+        { minDuration: 0, maxDuration: 100, desc: "最小範囲" },
+        { minDuration: 1000, maxDuration: 60000, desc: "最大範囲" },
+        { minDuration: 500, maxDuration: 500, desc: "同一値" },
+      ])(
+        "$desc (minDuration=$minDuration, maxDuration=$maxDuration) で検索が実行されること",
+        async ({ minDuration, maxDuration }) => {
+          const service = setupServices(mockEmbeddingService, mockPrismaClient);
+          const result = await service.search(
+            createSearchParams({
+              filters: { minDuration, maxDuration },
+            })
+          );
 
-        expect(result).toBeDefined();
-        expect(mockPrismaClient.$queryRawUnsafe).toHaveBeenCalled();
-      });
+          expect(result).toBeDefined();
+          expect(mockPrismaClient.$queryRawUnsafe).toHaveBeenCalled();
+        }
+      );
     });
 
-    describe('複合フィルタ', () => {
-      it('type + trigger + duration範囲 で検索が実行されること', async () => {
+    describe("複合フィルタ", () => {
+      it("type + trigger + duration範囲 で検索が実行されること", async () => {
         const service = setupServices(mockEmbeddingService, mockPrismaClient);
-        const result = await service.search(createSearchParams({
-          filters: {
-            type: 'animation',
-            trigger: 'load',
-            minDuration: 200,
-            maxDuration: 800,
-          },
-        }));
+        const result = await service.search(
+          createSearchParams({
+            filters: {
+              type: "animation",
+              trigger: "load",
+              minDuration: 200,
+              maxDuration: 800,
+            },
+          })
+        );
 
         expect(result).toBeDefined();
-        const query = ((mockPrismaClient.$queryRawUnsafe as ReturnType<typeof vi.fn>).mock.calls[0]?.[0] as string) || '';
-        expect(query).toContain('category');
-        expect(query).toContain('trigger_type');
-        expect(query).toContain('duration');
+        const query =
+          ((mockPrismaClient.$queryRawUnsafe as ReturnType<typeof vi.fn>).mock
+            .calls[0]?.[0] as string) || "";
+        expect(query).toContain("category");
+        expect(query).toContain("trigger_type");
+        expect(query).toContain("duration");
       });
     });
   });
 
-  describe('getEmbedding', () => {
-    it('EmbeddingServiceが設定されている場合、Embeddingを返すこと', async () => {
+  describe("getEmbedding", () => {
+    it("EmbeddingServiceが設定されている場合、Embeddingを返すこと", async () => {
       const service = setupServices(mockEmbeddingService);
-      const embedding = await service.getEmbedding?.('test query');
+      const embedding = await service.getEmbedding?.("test query");
 
       expect(embedding).toBeDefined();
       expect(embedding?.length).toBe(768);
-      expect(mockEmbeddingService.generateEmbedding).toHaveBeenCalledWith('test query', 'query');
+      expect(mockEmbeddingService.generateEmbedding).toHaveBeenCalledWith("test query", "query");
     });
 
-    it('EmbeddingServiceが未設定の場合、エラーをスローすること', async () => {
+    it("EmbeddingServiceが未設定の場合、エラーをスローすること", async () => {
       const service = new MotionSearchService();
-      await expect(service.getEmbedding?.('test')).rejects.toThrow('EmbeddingService not initialized');
+      await expect(service.getEmbedding?.("test")).rejects.toThrow(
+        "EmbeddingService not initialized"
+      );
     });
   });
 });
@@ -958,36 +1032,36 @@ describe('MotionSearchService', () => {
 // DI ファクトリ関数テスト
 // =============================================================================
 
-describe('DI Factory Functions', () => {
+describe("DI Factory Functions", () => {
   afterEach(() => {
     resetEmbeddingServiceFactory();
     resetPrismaClientFactory();
     resetMotionSearchService();
   });
 
-  describe('setEmbeddingServiceFactory / resetEmbeddingServiceFactory', () => {
-    it('ファクトリを設定後、サービスで使用できること', async () => {
+  describe("setEmbeddingServiceFactory / resetEmbeddingServiceFactory", () => {
+    it("ファクトリを設定後、サービスで使用できること", async () => {
       const mockService = createMockEmbeddingService();
       setEmbeddingServiceFactory(() => mockService);
 
       const service = new MotionSearchService();
-      const embedding = await service.getEmbedding?.('test');
+      const embedding = await service.getEmbedding?.("test");
 
       expect(embedding).toBeDefined();
     });
 
-    it('リセット後は使用できないこと', async () => {
+    it("リセット後は使用できないこと", async () => {
       const mockService = createMockEmbeddingService();
       setEmbeddingServiceFactory(() => mockService);
       resetEmbeddingServiceFactory();
 
       const service = new MotionSearchService();
-      await expect(service.getEmbedding?.('test')).rejects.toThrow();
+      await expect(service.getEmbedding?.("test")).rejects.toThrow();
     });
   });
 
-  describe('setPrismaClientFactory / resetPrismaClientFactory', () => {
-    it('ファクトリを設定後、サービスで使用できること', async () => {
+  describe("setPrismaClientFactory / resetPrismaClientFactory", () => {
+    it("ファクトリを設定後、サービスで使用できること", async () => {
       const mockEmbedding = createMockEmbeddingService();
       const mockPrisma = createMockPrismaClient();
 
@@ -1000,7 +1074,7 @@ describe('DI Factory Functions', () => {
       expect(result).toBeDefined();
     });
 
-    it('リセット後は空の結果を返すこと', async () => {
+    it("リセット後は空の結果を返すこと", async () => {
       const mockEmbedding = createMockEmbeddingService();
       const mockPrisma = createMockPrismaClient();
 
@@ -1015,21 +1089,21 @@ describe('DI Factory Functions', () => {
     });
   });
 
-  describe('キャッシング動作', () => {
-    it('同一サービスインスタンスでは同じEmbeddingServiceを再利用すること', async () => {
+  describe("キャッシング動作", () => {
+    it("同一サービスインスタンスでは同じEmbeddingServiceを再利用すること", async () => {
       const mockService = createMockEmbeddingService();
       const factoryFn = vi.fn().mockReturnValue(mockService);
       setEmbeddingServiceFactory(factoryFn);
 
       const service = new MotionSearchService();
-      await service.getEmbedding?.('test1');
-      await service.getEmbedding?.('test2');
+      await service.getEmbedding?.("test1");
+      await service.getEmbedding?.("test2");
 
       // ファクトリは1回だけ呼ばれる（キャッシングが機能している）
       expect(factoryFn).toHaveBeenCalledTimes(1);
     });
 
-    it('同一サービスインスタンスでは同じPrismaClientを再利用すること', async () => {
+    it("同一サービスインスタンスでは同じPrismaClientを再利用すること", async () => {
       const mockEmbedding = createMockEmbeddingService();
       const mockPrisma = createMockPrismaClient();
       const prismaFactoryFn = vi.fn().mockReturnValue(mockPrisma);
@@ -1052,7 +1126,7 @@ describe('DI Factory Functions', () => {
 // セキュリティレビューで指摘された問題への対応テスト
 // =============================================================================
 
-describe('MotionSearchService - クエリEmbedding検証（セキュリティ対応）', () => {
+describe("MotionSearchService - クエリEmbedding検証（セキュリティ対応）", () => {
   beforeEach(() => {
     resetEmbeddingServiceFactory();
     resetPrismaClientFactory();
@@ -1069,8 +1143,8 @@ describe('MotionSearchService - クエリEmbedding検証（セキュリティ対
   // -----------------------------------------------------
   // NaN値の検出
   // -----------------------------------------------------
-  describe('NaN値の検出', () => {
-    it('クエリEmbeddingにNaN値が含まれる場合、エラーをスローすること', async () => {
+  describe("NaN値の検出", () => {
+    it("クエリEmbeddingにNaN値が含まれる場合、エラーをスローすること", async () => {
       // Arrange: NaNを含むEmbeddingを返すモックサービス
       const vectorWithNaN = new Array(768).fill(0.1);
       vectorWithNaN[0] = NaN;
@@ -1089,7 +1163,7 @@ describe('MotionSearchService - クエリEmbedding検証（セキュリティ対
       await expect(service.search(createSearchParams())).rejects.toThrow();
     });
 
-    it('クエリEmbeddingにNaN値がある場合、SQLクエリは実行されないこと', async () => {
+    it("クエリEmbeddingにNaN値がある場合、SQLクエリは実行されないこと", async () => {
       // Arrange: NaNを含むEmbeddingを返すモックサービス
       const vectorWithNaN = new Array(768).fill(0.1);
       vectorWithNaN[383] = NaN; // 中間位置
@@ -1115,7 +1189,7 @@ describe('MotionSearchService - クエリEmbedding検証（セキュリティ対
       expect(mockPrisma.$queryRawUnsafe).not.toHaveBeenCalled();
     });
 
-    it('末尾位置にNaNがある場合も検出すること', async () => {
+    it("末尾位置にNaNがある場合も検出すること", async () => {
       // Arrange: 末尾にNaNを含むEmbedding
       const vectorWithNaN = new Array(768).fill(0.1);
       vectorWithNaN[767] = NaN;
@@ -1138,8 +1212,8 @@ describe('MotionSearchService - クエリEmbedding検証（セキュリティ対
   // -----------------------------------------------------
   // Infinity値の検出
   // -----------------------------------------------------
-  describe('Infinity値の検出', () => {
-    it('クエリEmbeddingに正のInfinity値が含まれる場合、エラーをスローすること', async () => {
+  describe("Infinity値の検出", () => {
+    it("クエリEmbeddingに正のInfinity値が含まれる場合、エラーをスローすること", async () => {
       // Arrange: Infinityを含むEmbeddingを返すモックサービス
       const vectorWithInfinity = new Array(768).fill(0.1);
       vectorWithInfinity[0] = Infinity;
@@ -1158,7 +1232,7 @@ describe('MotionSearchService - クエリEmbedding検証（セキュリティ対
       await expect(service.search(createSearchParams())).rejects.toThrow();
     });
 
-    it('クエリEmbeddingに負のInfinity値が含まれる場合、エラーをスローすること', async () => {
+    it("クエリEmbeddingに負のInfinity値が含まれる場合、エラーをスローすること", async () => {
       // Arrange: -Infinityを含むEmbeddingを返すモックサービス
       const vectorWithNegativeInfinity = new Array(768).fill(0.1);
       vectorWithNegativeInfinity[100] = -Infinity;
@@ -1177,7 +1251,7 @@ describe('MotionSearchService - クエリEmbedding検証（セキュリティ対
       await expect(service.search(createSearchParams())).rejects.toThrow();
     });
 
-    it('Infinity値が検出された場合、SQLクエリは実行されないこと', async () => {
+    it("Infinity値が検出された場合、SQLクエリは実行されないこと", async () => {
       // Arrange: Infinityを含むEmbedding
       const vectorWithInfinity = new Array(768).fill(0.1);
       vectorWithInfinity[500] = Infinity;
@@ -1207,8 +1281,8 @@ describe('MotionSearchService - クエリEmbedding検証（セキュリティ対
   // -----------------------------------------------------
   // 次元数の検証
   // -----------------------------------------------------
-  describe('次元数の検証', () => {
-    it('768次元未満のEmbeddingを拒否すること', async () => {
+  describe("次元数の検証", () => {
+    it("768次元未満のEmbeddingを拒否すること", async () => {
       // Arrange: 767次元のベクトルを返すモックサービス
       const shortVector = new Array(767).fill(0.1);
 
@@ -1226,7 +1300,7 @@ describe('MotionSearchService - クエリEmbedding検証（セキュリティ対
       await expect(service.search(createSearchParams())).rejects.toThrow();
     });
 
-    it('768次元を超えるEmbeddingを拒否すること', async () => {
+    it("768次元を超えるEmbeddingを拒否すること", async () => {
       // Arrange: 769次元のベクトルを返すモックサービス
       const longVector = new Array(769).fill(0.1);
 
@@ -1248,11 +1322,11 @@ describe('MotionSearchService - クエリEmbedding検証（セキュリティ対
   // -----------------------------------------------------
   // 型の検証
   // -----------------------------------------------------
-  describe('型の検証', () => {
-    it('文字列要素を含むEmbeddingを拒否すること', async () => {
+  describe("型の検証", () => {
+    it("文字列要素を含むEmbeddingを拒否すること", async () => {
       // Arrange: 文字列を含むベクトルを返すモックサービス
       const vectorWithString = new Array(768).fill(0.1);
-      (vectorWithString as unknown[])[0] = '0.1';
+      (vectorWithString as unknown[])[0] = "0.1";
 
       const mockEmbeddingWithString = createMockEmbeddingService({
         generateEmbedding: vi.fn().mockResolvedValue(vectorWithString),
@@ -1268,7 +1342,7 @@ describe('MotionSearchService - クエリEmbedding検証（セキュリティ対
       await expect(service.search(createSearchParams())).rejects.toThrow();
     });
 
-    it('null要素を含むEmbeddingを拒否すること', async () => {
+    it("null要素を含むEmbeddingを拒否すること", async () => {
       // Arrange: nullを含むベクトルを返すモックサービス
       const vectorWithNull = new Array(768).fill(0.1);
       (vectorWithNull as unknown[])[50] = null;
@@ -1287,7 +1361,7 @@ describe('MotionSearchService - クエリEmbedding検証（セキュリティ対
       await expect(service.search(createSearchParams())).rejects.toThrow();
     });
 
-    it('undefined要素を含むEmbeddingを拒否すること', async () => {
+    it("undefined要素を含むEmbeddingを拒否すること", async () => {
       // Arrange: undefinedを含むベクトルを返すモックサービス
       const vectorWithUndefined = new Array(768).fill(0.1);
       (vectorWithUndefined as unknown[])[100] = undefined;
@@ -1310,8 +1384,8 @@ describe('MotionSearchService - クエリEmbedding検証（セキュリティ対
   // -----------------------------------------------------
   // getEmbedding メソッドの検証
   // -----------------------------------------------------
-  describe('getEmbedding メソッドの検証', () => {
-    it('getEmbeddingがNaN値を含むベクトルを返した場合、エラーをスローすること', async () => {
+  describe("getEmbedding メソッドの検証", () => {
+    it("getEmbeddingがNaN値を含むベクトルを返した場合、エラーをスローすること", async () => {
       // Arrange: NaNを含むEmbeddingを返すモックサービス
       const vectorWithNaN = new Array(768).fill(0.1);
       vectorWithNaN[0] = NaN;
@@ -1325,10 +1399,10 @@ describe('MotionSearchService - クエリEmbedding検証（セキュリティ対
       const service = new MotionSearchService();
 
       // Act & Assert: エラーがスローされること
-      await expect(service.getEmbedding?.('test query')).rejects.toThrow();
+      await expect(service.getEmbedding?.("test query")).rejects.toThrow();
     });
 
-    it('getEmbeddingがInfinity値を含むベクトルを返した場合、エラーをスローすること', async () => {
+    it("getEmbeddingがInfinity値を含むベクトルを返した場合、エラーをスローすること", async () => {
       // Arrange: Infinityを含むEmbeddingを返すモックサービス
       const vectorWithInfinity = new Array(768).fill(0.1);
       vectorWithInfinity[0] = Infinity;
@@ -1342,15 +1416,15 @@ describe('MotionSearchService - クエリEmbedding検証（セキュリティ対
       const service = new MotionSearchService();
 
       // Act & Assert: エラーがスローされること
-      await expect(service.getEmbedding?.('test query')).rejects.toThrow();
+      await expect(service.getEmbedding?.("test query")).rejects.toThrow();
     });
   });
 
   // -----------------------------------------------------
   // エラーメッセージの品質
   // -----------------------------------------------------
-  describe('エラーメッセージの品質', () => {
-    it('NaN検出時に位置情報を含むエラーメッセージを生成すること', async () => {
+  describe("エラーメッセージの品質", () => {
+    it("NaN検出時に位置情報を含むエラーメッセージを生成すること", async () => {
       // Arrange: インデックス42にNaNを含むベクトル
       const vectorWithNaN = new Array(768).fill(0.1);
       vectorWithNaN[42] = NaN;
@@ -1369,7 +1443,7 @@ describe('MotionSearchService - クエリEmbedding検証（セキュリティ対
       await expect(service.search(createSearchParams())).rejects.toThrow(/42|NaN/);
     });
 
-    it('Infinity検出時に位置情報を含むエラーメッセージを生成すること', async () => {
+    it("Infinity検出時に位置情報を含むエラーメッセージを生成すること", async () => {
       // Arrange: インデックス100にInfinityを含むベクトル
       const vectorWithInfinity = new Array(768).fill(0.1);
       vectorWithInfinity[100] = Infinity;
@@ -1388,7 +1462,7 @@ describe('MotionSearchService - クエリEmbedding検証（セキュリティ対
       await expect(service.search(createSearchParams())).rejects.toThrow(/100|Infinity/);
     });
 
-    it('次元数エラー時に期待される次元数を含むエラーメッセージを生成すること', async () => {
+    it("次元数エラー時に期待される次元数を含むエラーメッセージを生成すること", async () => {
       // Arrange: 384次元のベクトル（半分の次元数）
       const halfDimensionVector = new Array(384).fill(0.1);
 
@@ -1410,8 +1484,8 @@ describe('MotionSearchService - クエリEmbedding検証（セキュリティ対
   // -----------------------------------------------------
   // samplePattern を使用した検索の検証
   // -----------------------------------------------------
-  describe('samplePattern を使用した検索の検証', () => {
-    it('samplePatternによる検索でNaN値が検出された場合、エラーをスローすること', async () => {
+  describe("samplePattern を使用した検索の検証", () => {
+    it("samplePatternによる検索でNaN値が検出された場合、エラーをスローすること", async () => {
       // Arrange: NaNを含むEmbeddingを返すモックサービス
       const vectorWithNaN = new Array(768).fill(0.1);
       vectorWithNaN[0] = NaN;
@@ -1428,10 +1502,12 @@ describe('MotionSearchService - クエリEmbedding検証（セキュリティ対
 
       // Act & Assert: samplePatternを使用した検索でもエラーがスローされること
       await expect(
-        service.search(createSearchParams({
-          query: undefined,
-          samplePattern: { type: 'animation', duration: 500 },
-        }))
+        service.search(
+          createSearchParams({
+            query: undefined,
+            samplePattern: { type: "animation", duration: 500 },
+          })
+        )
       ).rejects.toThrow();
     });
   });

@@ -21,10 +21,10 @@
  * @module tests/unit/tools/page/handlers/vision-cpu-timeout-extension
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 // loggerとisDevelopmentをモック
-vi.mock('../../../../../src/utils/logger', () => ({
+vi.mock("../../../../../src/utils/logger", () => ({
   logger: {
     debug: vi.fn(),
     warn: vi.fn(),
@@ -37,16 +37,19 @@ vi.mock('../../../../../src/utils/logger', () => ({
 import {
   distributeTimeout,
   type DistributeTimeoutOptions,
-} from '../../../../../src/tools/page/handlers/timeout-utils';
-import { VisionTimeouts, HardwareType } from '../../../../../src/services/vision/timeout-calculator';
+} from "../../../../../src/tools/page/handlers/timeout-utils";
+import {
+  VisionTimeouts,
+  HardwareType,
+} from "../../../../../src/services/vision/timeout-calculator";
 
 // =============================================================================
 // distributeTimeout CPU拡張テスト
 // =============================================================================
 
-describe('Vision CPU完走保証 Phase 4: distributeTimeout CPU対応', () => {
-  describe('hardwareInfo パラメータ', () => {
-    it('should accept hardwareInfo parameter in distributeTimeout', () => {
+describe("Vision CPU完走保証 Phase 4: distributeTimeout CPU対応", () => {
+  describe("hardwareInfo パラメータ", () => {
+    it("should accept hardwareInfo parameter in distributeTimeout", () => {
       // distributeTimeoutがhardwareInfo引数を受け入れることを確認
       const result = distributeTimeout(60000, false, false, undefined, {
         type: HardwareType.GPU,
@@ -57,7 +60,7 @@ describe('Vision CPU完走保証 Phase 4: distributeTimeout CPU対応', () => {
       expect(result.layoutAnalysis).toBeGreaterThan(0);
     });
 
-    it('should not extend timeout for GPU environment', () => {
+    it("should not extend timeout for GPU environment", () => {
       const gpuResult = distributeTimeout(60000, false, false, undefined, {
         type: HardwareType.GPU,
         isVisionEnabled: true,
@@ -69,7 +72,7 @@ describe('Vision CPU完走保証 Phase 4: distributeTimeout CPU対応', () => {
       expect(gpuResult.layoutAnalysis).toBe(noHardwareResult.layoutAnalysis);
     });
 
-    it('should extend layoutAnalysis timeout for CPU environment with Vision enabled', () => {
+    it("should extend layoutAnalysis timeout for CPU environment with Vision enabled", () => {
       const cpuResult = distributeTimeout(60000, false, false, undefined, {
         type: HardwareType.CPU,
         isVisionEnabled: true,
@@ -80,7 +83,7 @@ describe('Vision CPU完走保証 Phase 4: distributeTimeout CPU対応', () => {
       expect(cpuResult.layoutAnalysis).toBeGreaterThanOrEqual(VisionTimeouts.CPU_SMALL);
     });
 
-    it('should not extend timeout for CPU environment when Vision is disabled', () => {
+    it("should not extend timeout for CPU environment when Vision is disabled", () => {
       const cpuNoVisionResult = distributeTimeout(60000, false, false, undefined, {
         type: HardwareType.CPU,
         isVisionEnabled: false,
@@ -93,8 +96,8 @@ describe('Vision CPU完走保証 Phase 4: distributeTimeout CPU対応', () => {
     });
   });
 
-  describe('CPU timeout tiers', () => {
-    it('should apply CPU_SMALL timeout (180s) for small images', () => {
+  describe("CPU timeout tiers", () => {
+    it("should apply CPU_SMALL timeout (180s) for small images", () => {
       const result = distributeTimeout(60000, false, false, undefined, {
         type: HardwareType.CPU,
         isVisionEnabled: true,
@@ -105,7 +108,7 @@ describe('Vision CPU完走保証 Phase 4: distributeTimeout CPU対応', () => {
       expect(result.layoutAnalysis).toBeGreaterThanOrEqual(VisionTimeouts.CPU_SMALL);
     });
 
-    it('should apply CPU_MEDIUM timeout (600s) for medium images', () => {
+    it("should apply CPU_MEDIUM timeout (600s) for medium images", () => {
       const result = distributeTimeout(60000, false, false, undefined, {
         type: HardwareType.CPU,
         isVisionEnabled: true,
@@ -116,7 +119,7 @@ describe('Vision CPU完走保証 Phase 4: distributeTimeout CPU対応', () => {
       expect(result.layoutAnalysis).toBeGreaterThanOrEqual(VisionTimeouts.CPU_MEDIUM);
     });
 
-    it('should apply CPU_LARGE timeout (1200s) for large images', () => {
+    it("should apply CPU_LARGE timeout (1200s) for large images", () => {
       const result = distributeTimeout(60000, false, false, undefined, {
         type: HardwareType.CPU,
         isVisionEnabled: true,
@@ -128,12 +131,18 @@ describe('Vision CPU完走保証 Phase 4: distributeTimeout CPU対応', () => {
     });
   });
 
-  describe('interaction with WebGL detection', () => {
-    it('should combine CPU extension with WebGL multiplier for motion', () => {
-      const result = distributeTimeout(60000, false, true, { detected: true, multiplier: 1.5 }, {
-        type: HardwareType.CPU,
-        isVisionEnabled: true,
-      });
+  describe("interaction with WebGL detection", () => {
+    it("should combine CPU extension with WebGL multiplier for motion", () => {
+      const result = distributeTimeout(
+        60000,
+        false,
+        true,
+        { detected: true, multiplier: 1.5 },
+        {
+          type: HardwareType.CPU,
+          isVisionEnabled: true,
+        }
+      );
 
       // CPU拡張とWebGL乗数が両方適用される
       expect(result.layoutAnalysis).toBeGreaterThanOrEqual(VisionTimeouts.CPU_SMALL);
@@ -142,8 +151,8 @@ describe('Vision CPU完走保証 Phase 4: distributeTimeout CPU対応', () => {
     });
   });
 
-  describe('backward compatibility', () => {
-    it('should work without hardwareInfo parameter (backward compatible)', () => {
+  describe("backward compatibility", () => {
+    it("should work without hardwareInfo parameter (backward compatible)", () => {
       // hardwareInfoなしでも従来通り動作する
       const result = distributeTimeout(120000, false, false);
 
@@ -152,7 +161,7 @@ describe('Vision CPU完走保証 Phase 4: distributeTimeout CPU対応', () => {
       expect(result.qualityEvaluation).toBeGreaterThan(0);
     });
 
-    it('should work with undefined hardwareInfo', () => {
+    it("should work with undefined hardwareInfo", () => {
       const result = distributeTimeout(120000, false, false, undefined, undefined);
 
       expect(result.layoutAnalysis).toBeGreaterThan(0);
@@ -164,15 +173,14 @@ describe('Vision CPU完走保証 Phase 4: distributeTimeout CPU対応', () => {
 // calculateEffectiveTimeout 関数テスト
 // =============================================================================
 
-describe('Vision CPU完走保証 Phase 4: calculateEffectiveTimeout', () => {
+describe("Vision CPU完走保証 Phase 4: calculateEffectiveTimeout", () => {
   // この関数はanalyze.tool.tsに追加予定
 
-  describe('GPU environment', () => {
-    it('should not extend timeout for GPU environment', async () => {
+  describe("GPU environment", () => {
+    it("should not extend timeout for GPU environment", async () => {
       // GPU環境では元のタイムアウトを維持
-      const { calculateEffectiveTimeout } = await import(
-        '../../../../../src/tools/page/handlers/timeout-utils'
-      );
+      const { calculateEffectiveTimeout } =
+        await import("../../../../../src/tools/page/handlers/timeout-utils");
 
       const result = calculateEffectiveTimeout({
         originalTimeout: 60000,
@@ -185,11 +193,10 @@ describe('Vision CPU完走保証 Phase 4: calculateEffectiveTimeout', () => {
     });
   });
 
-  describe('CPU environment with Vision', () => {
-    it('should extend timeout for CPU environment with Vision enabled', async () => {
-      const { calculateEffectiveTimeout } = await import(
-        '../../../../../src/tools/page/handlers/timeout-utils'
-      );
+  describe("CPU environment with Vision", () => {
+    it("should extend timeout for CPU environment with Vision enabled", async () => {
+      const { calculateEffectiveTimeout } =
+        await import("../../../../../src/tools/page/handlers/timeout-utils");
 
       const result = calculateEffectiveTimeout({
         originalTimeout: 60000,
@@ -200,13 +207,12 @@ describe('Vision CPU完走保証 Phase 4: calculateEffectiveTimeout', () => {
       // CPU環境ではタイムアウトが延長される
       expect(result.effectiveTimeout).toBeGreaterThan(60000);
       expect(result.extended).toBe(true);
-      expect(result.reason).toContain('CPU');
+      expect(result.reason).toContain("CPU");
     });
 
-    it('should calculate timeout based on image size for CPU', async () => {
-      const { calculateEffectiveTimeout } = await import(
-        '../../../../../src/tools/page/handlers/timeout-utils'
-      );
+    it("should calculate timeout based on image size for CPU", async () => {
+      const { calculateEffectiveTimeout } =
+        await import("../../../../../src/tools/page/handlers/timeout-utils");
 
       const smallResult = calculateEffectiveTimeout({
         originalTimeout: 60000,
@@ -226,10 +232,9 @@ describe('Vision CPU完走保証 Phase 4: calculateEffectiveTimeout', () => {
       expect(largeResult.effectiveTimeout).toBeGreaterThan(smallResult.effectiveTimeout);
     });
 
-    it('should not exceed maximum timeout', async () => {
-      const { calculateEffectiveTimeout, MAX_EXTENDED_TIMEOUT } = await import(
-        '../../../../../src/tools/page/handlers/timeout-utils'
-      );
+    it("should not exceed maximum timeout", async () => {
+      const { calculateEffectiveTimeout, MAX_EXTENDED_TIMEOUT } =
+        await import("../../../../../src/tools/page/handlers/timeout-utils");
 
       const result = calculateEffectiveTimeout({
         originalTimeout: 60000,
@@ -243,11 +248,10 @@ describe('Vision CPU完走保証 Phase 4: calculateEffectiveTimeout', () => {
     });
   });
 
-  describe('CPU environment without Vision', () => {
-    it('should not extend timeout when Vision is disabled', async () => {
-      const { calculateEffectiveTimeout } = await import(
-        '../../../../../src/tools/page/handlers/timeout-utils'
-      );
+  describe("CPU environment without Vision", () => {
+    it("should not extend timeout when Vision is disabled", async () => {
+      const { calculateEffectiveTimeout } =
+        await import("../../../../../src/tools/page/handlers/timeout-utils");
 
       const result = calculateEffectiveTimeout({
         originalTimeout: 60000,
@@ -260,11 +264,10 @@ describe('Vision CPU完走保証 Phase 4: calculateEffectiveTimeout', () => {
     });
   });
 
-  describe('user override', () => {
-    it('should respect user-specified timeout if larger than calculated', async () => {
-      const { calculateEffectiveTimeout } = await import(
-        '../../../../../src/tools/page/handlers/timeout-utils'
-      );
+  describe("user override", () => {
+    it("should respect user-specified timeout if larger than calculated", async () => {
+      const { calculateEffectiveTimeout } =
+        await import("../../../../../src/tools/page/handlers/timeout-utils");
 
       const result = calculateEffectiveTimeout({
         originalTimeout: 300000, // User specified 5 minutes
@@ -278,10 +281,9 @@ describe('Vision CPU完走保証 Phase 4: calculateEffectiveTimeout', () => {
       expect(result.extended).toBe(false); // ユーザー指定なので延長とは見なさない
     });
 
-    it('should extend if calculated timeout is larger than user timeout', async () => {
-      const { calculateEffectiveTimeout } = await import(
-        '../../../../../src/tools/page/handlers/timeout-utils'
-      );
+    it("should extend if calculated timeout is larger than user timeout", async () => {
+      const { calculateEffectiveTimeout } =
+        await import("../../../../../src/tools/page/handlers/timeout-utils");
 
       const result = calculateEffectiveTimeout({
         originalTimeout: 60000, // User specified 1 minute
@@ -301,16 +303,15 @@ describe('Vision CPU完走保証 Phase 4: calculateEffectiveTimeout', () => {
 // ExecutionStatus CPU extension tracking
 // =============================================================================
 
-describe('Vision CPU完走保証 Phase 4: ExecutionStatusTracker CPU拡張', () => {
-  it('should track CPU timeout extension in ExecutionStatus', async () => {
-    const { ExecutionStatusTracker } = await import(
-      '../../../../../src/tools/page/handlers/timeout-utils'
-    );
+describe("Vision CPU完走保証 Phase 4: ExecutionStatusTracker CPU拡張", () => {
+  it("should track CPU timeout extension in ExecutionStatus", async () => {
+    const { ExecutionStatusTracker } =
+      await import("../../../../../src/tools/page/handlers/timeout-utils");
 
     const tracker = new ExecutionStatusTracker({
       originalTimeoutMs: 60000,
       effectiveTimeoutMs: 180000, // Extended for CPU
-      strategy: 'progressive',
+      strategy: "progressive",
       partialResultsEnabled: true,
       timeoutExtended: true,
       cpuModeExtended: true, // 新しいフラグ
@@ -324,15 +325,14 @@ describe('Vision CPU完走保証 Phase 4: ExecutionStatusTracker CPU拡張', () 
     expect(status.cpu_mode_extended).toBe(true);
   });
 
-  it('should include hardware info in ExecutionStatus', async () => {
-    const { ExecutionStatusTracker } = await import(
-      '../../../../../src/tools/page/handlers/timeout-utils'
-    );
+  it("should include hardware info in ExecutionStatus", async () => {
+    const { ExecutionStatusTracker } =
+      await import("../../../../../src/tools/page/handlers/timeout-utils");
 
     const tracker = new ExecutionStatusTracker({
       originalTimeoutMs: 60000,
       effectiveTimeoutMs: 600000,
-      strategy: 'progressive',
+      strategy: "progressive",
       partialResultsEnabled: true,
       timeoutExtended: true,
       hardwareInfo: {
@@ -344,6 +344,6 @@ describe('Vision CPU完走保証 Phase 4: ExecutionStatusTracker CPU拡張', () 
 
     const status = tracker.toExecutionStatus();
 
-    expect(status.hardware_type).toBe('CPU');
+    expect(status.hardware_type).toBe("CPU");
   });
 });

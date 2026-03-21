@@ -13,24 +13,24 @@
  * - ツールレベルの可用性（REFTRIX-HEALTH-01）
  */
 
-import { logger, isDevelopment } from '../utils/logger';
-import { getToolMetricsStats } from '../router';
-import type { MetricsStats } from '../services/metrics-collector';
-import { getEmbeddingCacheStats } from '../services/layout-embedding.service';
-import { getCSSAnalysisCacheService } from '../services/css-analysis-cache.service';
-import { getLastInitializationResult } from '../services/service-initializer';
+import { logger, isDevelopment } from "../utils/logger";
+import { getToolMetricsStats } from "../router";
+import type { MetricsStats } from "../services/metrics-collector";
+import { getEmbeddingCacheStats } from "../services/layout-embedding.service";
+import { getCSSAnalysisCacheService } from "../services/css-analysis-cache.service";
+import { getLastInitializationResult } from "../services/service-initializer";
 import {
   getPatternMatcherServiceFactory,
   getBenchmarkServiceFactory,
-} from './quality/evaluate.tool';
-import { allToolDefinitions } from './index';
+} from "./quality/evaluate.tool";
+import { allToolDefinitions } from "./index";
 import {
   type McpResponse,
   generateRequestId,
   createSuccessResponseWithRequestId,
   createErrorResponseWithRequestId,
-} from '../utils/mcp-response';
-import { HardwareDetector, HardwareType } from '../services/vision/hardware-detector';
+} from "../utils/mcp-response";
+import { HardwareDetector, HardwareType } from "../services/vision/hardware-detector";
 
 /**
  * MCPツールメトリクス統計
@@ -103,11 +103,11 @@ export interface ServiceInitializationStatus {
  */
 export interface PatternServicesStatus {
   /** PatternMatcherService の健全性 */
-  patternMatcher: 'healthy' | 'unavailable';
+  patternMatcher: "healthy" | "unavailable";
   /** BenchmarkService の健全性 */
-  benchmarkService: 'healthy' | 'unavailable';
+  benchmarkService: "healthy" | "unavailable";
   /** パターン駆動評価が利用可能か */
-  patternDrivenEvaluation: 'available' | 'fallback_mode';
+  patternDrivenEvaluation: "available" | "fallback_mode";
 }
 
 /**
@@ -115,9 +115,9 @@ export interface PatternServicesStatus {
  */
 export interface ToolOperationalStatus {
   /** ツールの動作状態 */
-  status: 'operational' | 'unavailable';
+  status: "operational" | "unavailable";
   /** 動作モード: full=フル機能, fallback=縮退モード */
-  mode?: 'full' | 'fallback';
+  mode?: "full" | "fallback";
   /** 追加情報（エラー詳細など） */
   details?: string;
 }
@@ -166,7 +166,7 @@ export interface VisionHardwareStatus {
   /** 環境変数VISION_FORCE_CPU_MODEの値（診断用） */
   env_vision_force_cpu_mode: string | undefined;
   /** 検出されたハードウェアタイプ（GPU/CPU） */
-  detected_type: 'GPU' | 'CPU';
+  detected_type: "GPU" | "CPU";
   /** VRAM使用量（バイト）- GPU検出時のみ有効 */
   vram_bytes: number;
   /** GPUが利用可能か */
@@ -187,7 +187,7 @@ export interface VisionHardwareStatus {
  * ヘルスチェックレスポンス
  */
 export interface SystemHealthResponse {
-  status: 'healthy' | 'degraded' | 'unhealthy';
+  status: "healthy" | "degraded" | "unhealthy";
   timestamp: string;
   services: {
     /** サービス初期化状態（MCP-INIT-02） */
@@ -270,96 +270,98 @@ export type SystemHealthHandlerResponse = McpResponse<SystemHealthResponse>;
  * @param patternServices - パターンサービスの健全性ステータス
  * @returns ツール別の可用性ステータス
  */
-function getToolsOperationalStatus(
-  patternServices?: PatternServicesStatus
-): ToolsStatus {
+function getToolsOperationalStatus(patternServices?: PatternServicesStatus): ToolsStatus {
   const tools: ToolsStatus = {};
 
   // quality.evaluate - パターンサービスがなくても静的評価で動作可能
-  const isQualityFullMode = patternServices?.patternDrivenEvaluation === 'available';
-  tools['quality.evaluate'] = {
-    status: 'operational',
-    mode: isQualityFullMode ? 'full' : 'fallback',
-    ...(isQualityFullMode ? {} : { details: 'Pattern-driven evaluation unavailable, using static analysis only' }),
+  const isQualityFullMode = patternServices?.patternDrivenEvaluation === "available";
+  tools["quality.evaluate"] = {
+    status: "operational",
+    mode: isQualityFullMode ? "full" : "fallback",
+    ...(isQualityFullMode
+      ? {}
+      : { details: "Pattern-driven evaluation unavailable, using static analysis only" }),
   };
 
   // layout.search - 常に動作可能（DBベースの検索）
-  tools['layout.search'] = {
-    status: 'operational',
-    mode: 'full',
+  tools["layout.search"] = {
+    status: "operational",
+    mode: "full",
   };
 
   // layout.ingest - 常に動作可能（Webページ取得）
-  tools['layout.ingest'] = {
-    status: 'operational',
-    mode: 'full',
+  tools["layout.ingest"] = {
+    status: "operational",
+    mode: "full",
   };
 
   // layout.inspect - 常に動作可能（HTML解析）
-  tools['layout.inspect'] = {
-    status: 'operational',
-    mode: 'full',
+  tools["layout.inspect"] = {
+    status: "operational",
+    mode: "full",
   };
 
   // layout.generate_code - 常に動作可能（コード生成）
-  tools['layout.generate_code'] = {
-    status: 'operational',
-    mode: 'full',
+  tools["layout.generate_code"] = {
+    status: "operational",
+    mode: "full",
   };
 
   // motion.detect - 常に動作可能（CSS解析、オプションでフレームキャプチャ）
-  tools['motion.detect'] = {
-    status: 'operational',
-    mode: 'full',
+  tools["motion.detect"] = {
+    status: "operational",
+    mode: "full",
   };
 
   // motion.search - 常に動作可能（DBベースの検索）
-  tools['motion.search'] = {
-    status: 'operational',
-    mode: 'full',
+  tools["motion.search"] = {
+    status: "operational",
+    mode: "full",
   };
 
   // quality.batch_evaluate - quality.evaluateと同じ依存関係
-  tools['quality.batch_evaluate'] = {
-    status: 'operational',
-    mode: isQualityFullMode ? 'full' : 'fallback',
-    ...(isQualityFullMode ? {} : { details: 'Pattern-driven evaluation unavailable, using static analysis only' }),
+  tools["quality.batch_evaluate"] = {
+    status: "operational",
+    mode: isQualityFullMode ? "full" : "fallback",
+    ...(isQualityFullMode
+      ? {}
+      : { details: "Pattern-driven evaluation unavailable, using static analysis only" }),
   };
 
   // page.analyze - 統合分析（layout + motion + quality）
-  tools['page.analyze'] = {
-    status: 'operational',
-    mode: isQualityFullMode ? 'full' : 'fallback',
-    ...(isQualityFullMode ? {} : { details: 'Quality evaluation running in fallback mode' }),
+  tools["page.analyze"] = {
+    status: "operational",
+    mode: isQualityFullMode ? "full" : "fallback",
+    ...(isQualityFullMode ? {} : { details: "Quality evaluation running in fallback mode" }),
   };
 
   // style.get_palette - 常に動作可能
-  tools['style.get_palette'] = {
-    status: 'operational',
-    mode: 'full',
+  tools["style.get_palette"] = {
+    status: "operational",
+    mode: "full",
   };
 
   // brief.validate - 常に動作可能
-  tools['brief.validate'] = {
-    status: 'operational',
-    mode: 'full',
+  tools["brief.validate"] = {
+    status: "operational",
+    mode: "full",
   };
 
   // project.get / project.list - 常に動作可能
-  tools['project.get'] = {
-    status: 'operational',
-    mode: 'full',
+  tools["project.get"] = {
+    status: "operational",
+    mode: "full",
   };
 
-  tools['project.list'] = {
-    status: 'operational',
-    mode: 'full',
+  tools["project.list"] = {
+    status: "operational",
+    mode: "full",
   };
 
   // page.getJobStatus - 常に動作可能
-  tools['page.getJobStatus'] = {
-    status: 'operational',
-    mode: 'full',
+  tools["page.getJobStatus"] = {
+    status: "operational",
+    mode: "full",
   };
 
   return tools;
@@ -375,12 +377,10 @@ function getToolsOperationalStatus(
  * @param input - 入力パラメータ（オプション）
  * @returns McpResponse<SystemHealthResponse>
  */
-export async function systemHealthHandler(
-  input?: unknown
-): Promise<SystemHealthHandlerResponse> {
+export async function systemHealthHandler(input?: unknown): Promise<SystemHealthHandlerResponse> {
   // router.tsから注入された_request_idを使用、フォールバックとして自動生成
   const requestId =
-    (input as Record<string, unknown> | null)?._request_id as string | undefined ??
+    ((input as Record<string, unknown> | null)?._request_id as string | undefined) ??
     generateRequestId();
 
   const startTime = Date.now();
@@ -391,12 +391,16 @@ export async function systemHealthHandler(
     const includeInitializationStatus = options.include_initialization_status !== false; // デフォルトはtrue（MCP-INIT-02）
 
     if (isDevelopment()) {
-      logger.info('[MCP Tool] system.health called', { includeMetrics, includeInitializationStatus, requestId });
+      logger.info("[MCP Tool] system.health called", {
+        includeMetrics,
+        includeInitializationStatus,
+        requestId,
+      });
     }
 
     // 初期状態は healthy、後続のチェックで degraded に下げる可能性あり
     const healthData: SystemHealthResponse = {
-      status: 'healthy',
+      status: "healthy",
       timestamp: new Date().toISOString(),
       services: {},
     };
@@ -420,8 +424,8 @@ export async function systemHealthHandler(
         };
 
         // 初期化エラーがある場合、全体ステータスを degraded に下げる
-        if (initResult.errors.length > 0 && healthData.status === 'healthy') {
-          healthData.status = 'degraded';
+        if (initResult.errors.length > 0 && healthData.status === "healthy") {
+          healthData.status = "degraded";
         }
       }
     }
@@ -450,8 +454,8 @@ export async function systemHealthHandler(
         }
       } catch (cacheError) {
         if (isDevelopment()) {
-          logger.warn('[MCP Tool] Failed to get embedding cache stats', {
-            error: cacheError instanceof Error ? cacheError.message : 'Unknown error',
+          logger.warn("[MCP Tool] Failed to get embedding cache stats", {
+            error: cacheError instanceof Error ? cacheError.message : "Unknown error",
             requestId,
           });
         }
@@ -486,8 +490,11 @@ export async function systemHealthHandler(
         };
       } catch (cssAnalysisCacheError) {
         if (isDevelopment()) {
-          logger.warn('[MCP Tool] Failed to get CSS analysis cache stats', {
-            error: cssAnalysisCacheError instanceof Error ? cssAnalysisCacheError.message : 'Unknown error',
+          logger.warn("[MCP Tool] Failed to get CSS analysis cache stats", {
+            error:
+              cssAnalysisCacheError instanceof Error
+                ? cssAnalysisCacheError.message
+                : "Unknown error",
             requestId,
           });
         }
@@ -500,10 +507,14 @@ export async function systemHealthHandler(
       const patternMatcherFactory = getPatternMatcherServiceFactory();
       const benchmarkFactory = getBenchmarkServiceFactory();
 
-      const patternMatcherStatus: 'healthy' | 'unavailable' = patternMatcherFactory ? 'healthy' : 'unavailable';
-      const benchmarkServiceStatus: 'healthy' | 'unavailable' = benchmarkFactory ? 'healthy' : 'unavailable';
-      const patternDrivenEvaluation: 'available' | 'fallback_mode' =
-        patternMatcherFactory && benchmarkFactory ? 'available' : 'fallback_mode';
+      const patternMatcherStatus: "healthy" | "unavailable" = patternMatcherFactory
+        ? "healthy"
+        : "unavailable";
+      const benchmarkServiceStatus: "healthy" | "unavailable" = benchmarkFactory
+        ? "healthy"
+        : "unavailable";
+      const patternDrivenEvaluation: "available" | "fallback_mode" =
+        patternMatcherFactory && benchmarkFactory ? "available" : "fallback_mode";
 
       healthData.services.pattern_services = {
         patternMatcher: patternMatcherStatus,
@@ -512,12 +523,12 @@ export async function systemHealthHandler(
       };
 
       // パターンサービスが unavailable の場合、全体ステータスを degraded に下げる
-      if (patternDrivenEvaluation === 'fallback_mode' && healthData.status === 'healthy') {
-        healthData.status = 'degraded';
+      if (patternDrivenEvaluation === "fallback_mode" && healthData.status === "healthy") {
+        healthData.status = "degraded";
       }
 
       if (isDevelopment()) {
-        logger.info('[MCP Tool] Pattern services status', {
+        logger.info("[MCP Tool] Pattern services status", {
           patternMatcher: patternMatcherStatus,
           benchmarkService: benchmarkServiceStatus,
           patternDrivenEvaluation,
@@ -533,9 +544,9 @@ export async function systemHealthHandler(
       healthData.services.tools = toolsStatus;
 
       if (isDevelopment()) {
-        logger.info('[MCP Tool] Tools operational status', {
+        logger.info("[MCP Tool] Tools operational status", {
           tools: Object.keys(toolsStatus),
-          allOperational: Object.values(toolsStatus).every(t => t.status === 'operational'),
+          allOperational: Object.values(toolsStatus).every((t) => t.status === "operational"),
           requestId,
         });
       }
@@ -549,16 +560,16 @@ export async function systemHealthHandler(
         const hardwareInfo = await hardwareDetector.detect();
 
         // 環境変数の値を直接取得（診断用）
-        const envForceCpuMode = process.env['VISION_FORCE_CPU_MODE'];
+        const envForceCpuMode = process.env["VISION_FORCE_CPU_MODE"];
 
         healthData.vision_hardware = {
           force_cpu_mode: hardwareDetector.isForceCpuModeEnabled(),
           env_vision_force_cpu_mode: envForceCpuMode,
-          detected_type: hardwareInfo.type === HardwareType.GPU ? 'GPU' : 'CPU',
+          detected_type: hardwareInfo.type === HardwareType.GPU ? "GPU" : "CPU",
           vram_bytes: hardwareInfo.vramBytes,
           is_gpu_available: hardwareInfo.isGpuAvailable,
           ...(hardwareInfo.error !== undefined && { detection_error: hardwareInfo.error }),
-          ollama_url: 'http://localhost:11434', // デフォルトOllama URL
+          ollama_url: "http://localhost:11434", // デフォルトOllama URL
         };
 
         // Ollama GPU不整合検出（REFTRIX-GPU-MISMATCH-01）
@@ -568,11 +579,11 @@ export async function systemHealthHandler(
           healthData.vision_hardware!.nvidia_gpu_name = gpuMismatch.nvidia_gpu;
           healthData.vision_hardware!.gpu_mismatch_action = gpuMismatch.action;
 
-          if (healthData.status === 'healthy') {
-            healthData.status = 'degraded';
+          if (healthData.status === "healthy") {
+            healthData.status = "degraded";
           }
 
-          logger.warn('[MCP Tool] Ollama GPU mismatch detected', {
+          logger.warn("[MCP Tool] Ollama GPU mismatch detected", {
             nvidia_gpu: gpuMismatch.nvidia_gpu,
             ollama_vram_bytes: gpuMismatch.ollama_vram_bytes,
             action: gpuMismatch.action,
@@ -581,7 +592,7 @@ export async function systemHealthHandler(
         }
 
         if (isDevelopment()) {
-          logger.info('[MCP Tool] Vision hardware status', {
+          logger.info("[MCP Tool] Vision hardware status", {
             forceCpuMode: hardwareDetector.isForceCpuModeEnabled(),
             envForceCpuMode,
             detectedType: hardwareInfo.type,
@@ -594,20 +605,22 @@ export async function systemHealthHandler(
         }
       } catch (visionHardwareError) {
         if (isDevelopment()) {
-          logger.warn('[MCP Tool] Failed to get vision hardware status', {
-            error: visionHardwareError instanceof Error ? visionHardwareError.message : 'Unknown error',
+          logger.warn("[MCP Tool] Failed to get vision hardware status", {
+            error:
+              visionHardwareError instanceof Error ? visionHardwareError.message : "Unknown error",
             requestId,
           });
         }
         // エラー時は環境変数のみを報告
         healthData.vision_hardware = {
-          force_cpu_mode: process.env['VISION_FORCE_CPU_MODE']?.toLowerCase() === 'true',
-          env_vision_force_cpu_mode: process.env['VISION_FORCE_CPU_MODE'],
-          detected_type: 'CPU', // 安全側
+          force_cpu_mode: process.env["VISION_FORCE_CPU_MODE"]?.toLowerCase() === "true",
+          env_vision_force_cpu_mode: process.env["VISION_FORCE_CPU_MODE"],
+          detected_type: "CPU", // 安全側
           vram_bytes: 0,
           is_gpu_available: false,
-          detection_error: visionHardwareError instanceof Error ? visionHardwareError.message : 'Unknown error',
-          ollama_url: 'http://localhost:11434',
+          detection_error:
+            visionHardwareError instanceof Error ? visionHardwareError.message : "Unknown error",
+          ollama_url: "http://localhost:11434",
         };
       }
     }
@@ -615,7 +628,7 @@ export async function systemHealthHandler(
     const processingTime = Date.now() - startTime;
 
     if (isDevelopment()) {
-      logger.info('[MCP Tool] system.health completed', {
+      logger.info("[MCP Tool] system.health completed", {
         status: healthData.status,
         totalTime: processingTime,
         hasMetrics: includeMetrics,
@@ -636,16 +649,16 @@ export async function systemHealthHandler(
     const processingTime = Date.now() - startTime;
 
     if (isDevelopment()) {
-      logger.error('[MCP Tool] system.health error', {
-        error: error instanceof Error ? error.message : 'Unknown error',
+      logger.error("[MCP Tool] system.health error", {
+        error: error instanceof Error ? error.message : "Unknown error",
         stack: error instanceof Error ? error.stack : undefined,
         requestId,
       });
     }
 
     return createErrorResponseWithRequestId(
-      'HEALTH_CHECK_ERROR',
-      `ヘルスチェック中にエラーが発生しました: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      "HEALTH_CHECK_ERROR",
+      `ヘルスチェック中にエラーが発生しました: ${error instanceof Error ? error.message : "Unknown error"}`,
       requestId,
       error instanceof Error ? { stack: error.stack } : undefined,
       { processing_time_ms: processingTime }
@@ -658,59 +671,57 @@ export async function systemHealthHandler(
  * MCP Protocol用のツール定義オブジェクト
  */
 export const systemHealthToolDefinition = {
-  name: 'system.health',
+  name: "system.health",
   description:
-    'Run MCP server health check. Checks MCP tool metrics, embedding cache stats, service initialization status, pattern services health, and returns diagnostics.',
+    "Run MCP server health check. Checks MCP tool metrics, embedding cache stats, service initialization status, pattern services health, and returns diagnostics.",
   inputSchema: {
-    type: 'object' as const,
+    type: "object" as const,
     properties: {
       include_metrics: {
-        type: 'boolean' as const,
-        description:
-          'Include MCP tool metrics (requests, errors, response times). Default: true',
+        type: "boolean" as const,
+        description: "Include MCP tool metrics (requests, errors, response times). Default: true",
         default: true,
       },
       include_cache_stats: {
-        type: 'boolean' as const,
-        description:
-          'Include embedding cache statistics (hits, misses, hit rate). Default: true',
+        type: "boolean" as const,
+        description: "Include embedding cache statistics (hits, misses, hit rate). Default: true",
         default: true,
       },
       include_css_analysis_cache_stats: {
-        type: 'boolean' as const,
+        type: "boolean" as const,
         description:
-          'Include CSS analysis cache statistics (layout.inspect/motion.detect cache hits, misses, hit rate). Default: true (MCP-CACHE-02)',
+          "Include CSS analysis cache statistics (layout.inspect/motion.detect cache hits, misses, hit rate). Default: true (MCP-CACHE-02)",
         default: true,
       },
       include_initialization_status: {
-        type: 'boolean' as const,
+        type: "boolean" as const,
         description:
-          'Include service initialization status (initialized categories, skipped, errors). Default: true (MCP-INIT-02)',
+          "Include service initialization status (initialized categories, skipped, errors). Default: true (MCP-INIT-02)",
         default: true,
       },
       include_pattern_services: {
-        type: 'boolean' as const,
+        type: "boolean" as const,
         description:
-          'Include pattern services health (patternMatcher, benchmarkService, patternDrivenEvaluation). Default: true (REFTRIX-PATTERN-01)',
+          "Include pattern services health (patternMatcher, benchmarkService, patternDrivenEvaluation). Default: true (REFTRIX-PATTERN-01)",
         default: true,
       },
       include_tools_status: {
-        type: 'boolean' as const,
+        type: "boolean" as const,
         description:
-          'Include tool-level operational status (operational/unavailable, full/fallback mode). Default: true (REFTRIX-HEALTH-01)',
+          "Include tool-level operational status (operational/unavailable, full/fallback mode). Default: true (REFTRIX-HEALTH-01)",
         default: true,
       },
       include_vision_hardware: {
-        type: 'boolean' as const,
+        type: "boolean" as const,
         description:
-          'Include Vision hardware status (force CPU mode, detected hardware type). Default: true (Vision CPU completion guarantee diagnostics)',
+          "Include Vision hardware status (force CPU mode, detected hardware type). Default: true (Vision CPU completion guarantee diagnostics)",
         default: true,
       },
     },
     required: [],
   },
   annotations: {
-    title: 'System Health',
+    title: "System Health",
     readOnlyHint: true,
     idempotentHint: true,
     openWorldHint: false,

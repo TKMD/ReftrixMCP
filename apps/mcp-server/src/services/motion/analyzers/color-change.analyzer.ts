@@ -124,7 +124,7 @@ export interface ColorChangeEvent {
   /** 終了フレームインデックス */
   end_frame: number;
   /** 変化タイプ */
-  change_type: 'fade_in' | 'fade_out' | 'color_transition' | 'brightness_change';
+  change_type: "fade_in" | "fade_out" | "color_transition" | "brightness_change";
   /** 影響領域 */
   affected_region: BoundingBox;
   /** 変化前の主要色 (HEX) */
@@ -365,14 +365,14 @@ export function hslToRgb(h: number, s: number, l: number): RGB {
  */
 export function hexToRgb(hex: string): RGB {
   // #を除去
-  let cleanHex = hex.replace(/^#/, '');
+  let cleanHex = hex.replace(/^#/, "");
 
   // 3桁の場合は6桁に展開
   if (cleanHex.length === 3) {
     cleanHex = cleanHex
-      .split('')
+      .split("")
       .map((c) => c + c)
-      .join('');
+      .join("");
   }
 
   const r = parseInt(cleanHex.substring(0, 2), 16);
@@ -399,7 +399,7 @@ export function hexToRgb(hex: string): RGB {
  */
 export function rgbToHex(r: number, g: number, b: number, a?: number): string {
   const toHex = (value: number): string => {
-    const hex = Math.round(value).toString(16).padStart(2, '0');
+    const hex = Math.round(value).toString(16).padStart(2, "0");
     return hex;
   };
 
@@ -428,11 +428,11 @@ function kMeansPlusPlus(
   maxIterations: number = 20
 ): { centers: RGB[]; sizes: number[] } {
   if (pixels.length === 0) {
-    throw new Error('No pixels to cluster');
+    throw new Error("No pixels to cluster");
   }
 
   if (k <= 0) {
-    throw new Error('k must be positive');
+    throw new Error("k must be positive");
   }
 
   // サンプリング（大量ピクセルの場合）
@@ -456,7 +456,7 @@ function kMeansPlusPlus(
   const firstIndex = Math.floor(Math.random() * sampledPixels.length);
   const firstPixel = sampledPixels[firstIndex];
   if (!firstPixel) {
-    throw new Error('Failed to select first center');
+    throw new Error("Failed to select first center");
   }
   centers.push({ r: firstPixel.r, g: firstPixel.g, b: firstPixel.b });
 
@@ -601,10 +601,10 @@ export class ColorChangeAnalyzer {
 
     // バリデーション
     if (buffer.length === 0) {
-      throw new Error('Buffer is empty');
+      throw new Error("Buffer is empty");
     }
     if (width <= 0 || height <= 0) {
-      throw new Error('Invalid dimensions');
+      throw new Error("Invalid dimensions");
     }
 
     const expectedSize = width * height * 4;
@@ -621,13 +621,14 @@ export class ColorChangeAnalyzer {
       const b = buffer[offset + 2];
       const a = buffer[offset + 3];
       // 完全透明なピクセルはスキップ、またはデータが不正な場合はスキップ
-      if (a === 0 || a === undefined || r === undefined || g === undefined || b === undefined) continue;
+      if (a === 0 || a === undefined || r === undefined || g === undefined || b === undefined)
+        continue;
 
       pixels.push({ r, g, b });
     }
 
     if (pixels.length === 0) {
-      throw new Error('No non-transparent pixels found');
+      throw new Error("No non-transparent pixels found");
     }
 
     // K-means++でクラスタリング
@@ -649,9 +650,9 @@ export class ColorChangeAnalyzer {
       })
       .sort((a, b) => b.percentage - a.percentage);
 
-    if (process.env.NODE_ENV === 'development') {
+    if (process.env.NODE_ENV === "development") {
       // eslint-disable-next-line no-console -- Intentional debug log in development
-      console.log('[ColorChangeAnalyzer] Extracted dominant colors:', colors.length);
+      console.log("[ColorChangeAnalyzer] Extracted dominant colors:", colors.length);
     }
 
     return { colors };
@@ -740,7 +741,7 @@ export class ColorChangeAnalyzer {
     // シーケンス全体の変化を解析
     let startFrame = 0;
     let inTransition = false;
-    let transitionType: FadeEffect['change_type'] | null = null;
+    let transitionType: FadeEffect["change_type"] | null = null;
     let cumulativeHueChange = 0;
     let cumulativeLightnessChange = 0;
 
@@ -764,13 +765,13 @@ export class ColorChangeAnalyzer {
 
         // 変化タイプを判定
         if (analysis.lightnessChange >= FADE_IN_LIGHTNESS_THRESHOLD) {
-          transitionType = 'fade_in';
+          transitionType = "fade_in";
         } else if (analysis.lightnessChange <= FADE_OUT_LIGHTNESS_THRESHOLD) {
-          transitionType = 'fade_out';
+          transitionType = "fade_out";
         } else if (Math.abs(analysis.hueChange) >= COLOR_TRANSITION_HUE_THRESHOLD) {
-          transitionType = 'color_transition';
+          transitionType = "color_transition";
         } else if (Math.abs(analysis.lightnessChange) >= BRIGHTNESS_CHANGE_THRESHOLD) {
-          transitionType = 'brightness_change';
+          transitionType = "brightness_change";
         }
       } else if (hasChange && inTransition) {
         // トランジション継続
@@ -779,13 +780,13 @@ export class ColorChangeAnalyzer {
 
         // タイプの再判定（累積変化に基づく）
         if (cumulativeLightnessChange >= FADE_IN_LIGHTNESS_THRESHOLD) {
-          transitionType = 'fade_in';
+          transitionType = "fade_in";
         } else if (cumulativeLightnessChange <= FADE_OUT_LIGHTNESS_THRESHOLD) {
-          transitionType = 'fade_out';
+          transitionType = "fade_out";
         } else if (Math.abs(cumulativeHueChange) >= COLOR_TRANSITION_HUE_THRESHOLD) {
-          transitionType = 'color_transition';
+          transitionType = "color_transition";
         } else if (Math.abs(cumulativeLightnessChange) >= BRIGHTNESS_CHANGE_THRESHOLD) {
-          transitionType = 'brightness_change';
+          transitionType = "brightness_change";
         }
       } else if (!hasChange && inTransition) {
         // トランジション終了
@@ -800,10 +801,10 @@ export class ColorChangeAnalyzer {
         fadeEffects.push({
           start_frame: startFrame,
           end_frame: endFrameIndex,
-          change_type: transitionType || 'brightness_change',
+          change_type: transitionType || "brightness_change",
           affected_region: { x: 0, y: 0, width: 0, height: 0 }, // フル画像解析のためダミー
-          from_color: startColors[0]?.hex ?? '#000000',
-          to_color: endColors[0]?.hex ?? '#000000',
+          from_color: startColors[0]?.hex ?? "#000000",
+          to_color: endColors[0]?.hex ?? "#000000",
           estimated_duration_ms: Math.round(duration),
         });
 
@@ -827,17 +828,17 @@ export class ColorChangeAnalyzer {
       fadeEffects.push({
         start_frame: startFrame,
         end_frame: endFrameIndex,
-        change_type: transitionType || 'brightness_change',
+        change_type: transitionType || "brightness_change",
         affected_region: { x: 0, y: 0, width: 0, height: 0 },
-        from_color: startColors[0]?.hex ?? '#000000',
-        to_color: endColors[0]?.hex ?? '#000000',
+        from_color: startColors[0]?.hex ?? "#000000",
+        to_color: endColors[0]?.hex ?? "#000000",
         estimated_duration_ms: Math.round(duration),
       });
     }
 
-    if (process.env.NODE_ENV === 'development') {
+    if (process.env.NODE_ENV === "development") {
       // eslint-disable-next-line no-console -- Intentional debug log in development
-      console.log('[ColorChangeAnalyzer] Detected fade effects:', fadeEffects.length);
+      console.log("[ColorChangeAnalyzer] Detected fade effects:", fadeEffects.length);
     }
 
     return { fadeEffects };
@@ -855,7 +856,7 @@ export class ColorChangeAnalyzer {
     options: AnalyzeOptions = {}
   ): Promise<ColorChangeResult> {
     if (frameBuffers.length === 0) {
-      throw new Error('No frames to analyze');
+      throw new Error("No frames to analyze");
     }
 
     const k = options.k ?? DEFAULT_K;
@@ -868,7 +869,9 @@ export class ColorChangeAnalyzer {
     for (let i = 0; i < frameBuffers.length; i++) {
       const frame = frameBuffers[i];
       if (!frame) continue;
-      const result = await this.extractDominantColors(frame.buffer, frame.width, frame.height, { k });
+      const result = await this.extractDominantColors(frame.buffer, frame.width, frame.height, {
+        k,
+      });
       dominantColors.push({
         frameIndex: i,
         colors: result.colors,
@@ -904,13 +907,11 @@ export class ColorChangeAnalyzer {
 
     // 平均色変化量を計算
     const averageColorShift =
-      changes.length > 0
-        ? changes.reduce((sum, c) => sum + c.colorShift, 0) / changes.length
-        : 0;
+      changes.length > 0 ? changes.reduce((sum, c) => sum + c.colorShift, 0) / changes.length : 0;
 
-    if (process.env.NODE_ENV === 'development') {
+    if (process.env.NODE_ENV === "development") {
       // eslint-disable-next-line no-console -- Intentional debug log in development
-      console.log('[ColorChangeAnalyzer] Analysis complete:', {
+      console.log("[ColorChangeAnalyzer] Analysis complete:", {
         frames: frameBuffers.length,
         changes: changes.length,
         fadeEffects: fadeResult.fadeEffects.length,

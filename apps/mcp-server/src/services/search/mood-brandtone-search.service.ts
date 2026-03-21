@@ -16,7 +16,7 @@
  * @module services/search/mood-brandtone-search.service
  */
 
-import { isDevelopment, logger } from '../../utils/logger';
+import { isDevelopment, logger } from "../../utils/logger";
 import {
   parseMoodFilter,
   parseBrandToneFilter,
@@ -24,14 +24,14 @@ import {
   type RRFWeights,
   type SearchResult,
   type CombinedSearchResult,
-} from '../../schemas/mood-brandtone-filters';
+} from "../../schemas/mood-brandtone-filters";
 
 // =====================================================
 // 定数
 // =====================================================
 
 /** pgvector cosine distance operator */
-const PGVECTOR_COSINE_DISTANCE = '<=>';
+const PGVECTOR_COSINE_DISTANCE = "<=>";
 
 /** デフォルトのRRF重み */
 const DEFAULT_RRF_WEIGHTS: RRFWeights = {
@@ -47,7 +47,7 @@ const DEFAULT_RRF_WEIGHTS: RRFWeights = {
  * EmbeddingServiceインターフェース
  */
 export interface IEmbeddingService {
-  generateEmbedding(text: string, type: 'query' | 'passage'): Promise<number[]>;
+  generateEmbedding(text: string, type: "query" | "passage"): Promise<number[]>;
 }
 
 /**
@@ -116,7 +116,7 @@ export class MoodBrandToneSearchService {
       const validatedFilter = parseMoodFilter(filter);
 
       if (isDevelopment()) {
-        logger.debug('[MoodBrandToneSearchService] searchByMood', {
+        logger.debug("[MoodBrandToneSearchService] searchByMood", {
           primary: validatedFilter.primary,
           secondary: validatedFilter.secondary,
           minSimilarity: validatedFilter.minSimilarity,
@@ -128,10 +128,7 @@ export class MoodBrandToneSearchService {
       // NOTE: generateEmbedding() が内部で E5 prefix ("query: ") を自動付与するため、
       // プレフィックスなしのテキストを渡す。
       const queryText = `${validatedFilter.primary} mood`;
-      const queryEmbedding = await this.embeddingService.generateEmbedding(
-        queryText,
-        'query'
-      );
+      const queryEmbedding = await this.embeddingService.generateEmbedding(queryText, "query");
 
       // Step 3: Execute pgvector cosine distance search via raw SQL
       // pgvector cosine distance (<=>) returns distance [0, 2], where:
@@ -139,7 +136,7 @@ export class MoodBrandToneSearchService {
       // similarity = 1 - distance
       const maxDistance = 1 - validatedFilter.minSimilarity;
 
-      const results = await this.prisma.$queryRaw`
+      const results = (await this.prisma.$queryRaw`
         SELECT
           se.id as pattern_id,
           se.section_pattern_id,
@@ -150,10 +147,10 @@ export class MoodBrandToneSearchService {
           se."moodEmbedding" IS NOT NULL
           AND (se."moodEmbedding" ${PGVECTOR_COSINE_DISTANCE} ${queryEmbedding}::vector) <= ${maxDistance}
         ORDER BY similarity DESC
-      ` as DBSearchResult[];
+      `) as DBSearchResult[];
 
       if (isDevelopment()) {
-        logger.debug('[MoodBrandToneSearchService] searchByMood results', {
+        logger.debug("[MoodBrandToneSearchService] searchByMood results", {
           count: results.length,
           maxDistance,
         });
@@ -169,7 +166,7 @@ export class MoodBrandToneSearchService {
         },
       }));
     } catch (error) {
-      logger.error('[MoodBrandToneSearchService] searchByMood error', {
+      logger.error("[MoodBrandToneSearchService] searchByMood error", {
         error: error instanceof Error ? error.message : String(error),
       });
       throw error;
@@ -198,7 +195,7 @@ export class MoodBrandToneSearchService {
       const validatedFilter = parseBrandToneFilter(filter);
 
       if (isDevelopment()) {
-        logger.debug('[MoodBrandToneSearchService] searchByBrandTone', {
+        logger.debug("[MoodBrandToneSearchService] searchByBrandTone", {
           primary: validatedFilter.primary,
           secondary: validatedFilter.secondary,
           minSimilarity: validatedFilter.minSimilarity,
@@ -210,15 +207,12 @@ export class MoodBrandToneSearchService {
       // NOTE: generateEmbedding() が内部で E5 prefix ("query: ") を自動付与するため、
       // プレフィックスなしのテキストを渡す。
       const queryText = `${validatedFilter.primary} brand tone`;
-      const queryEmbedding = await this.embeddingService.generateEmbedding(
-        queryText,
-        'query'
-      );
+      const queryEmbedding = await this.embeddingService.generateEmbedding(queryText, "query");
 
       // Step 3: Execute pgvector cosine distance search
       const maxDistance = 1 - validatedFilter.minSimilarity;
 
-      const results = await this.prisma.$queryRaw`
+      const results = (await this.prisma.$queryRaw`
         SELECT
           se.id as pattern_id,
           se.section_pattern_id,
@@ -229,10 +223,10 @@ export class MoodBrandToneSearchService {
           se."brandToneEmbedding" IS NOT NULL
           AND (se."brandToneEmbedding" ${PGVECTOR_COSINE_DISTANCE} ${queryEmbedding}::vector) <= ${maxDistance}
         ORDER BY similarity DESC
-      ` as DBSearchResult[];
+      `) as DBSearchResult[];
 
       if (isDevelopment()) {
-        logger.debug('[MoodBrandToneSearchService] searchByBrandTone results', {
+        logger.debug("[MoodBrandToneSearchService] searchByBrandTone results", {
           count: results.length,
           maxDistance,
         });
@@ -248,7 +242,7 @@ export class MoodBrandToneSearchService {
         },
       }));
     } catch (error) {
-      logger.error('[MoodBrandToneSearchService] searchByBrandTone error', {
+      logger.error("[MoodBrandToneSearchService] searchByBrandTone error", {
         error: error instanceof Error ? error.message : String(error),
       });
       throw error;
@@ -291,7 +285,7 @@ export class MoodBrandToneSearchService {
         : DEFAULT_RRF_WEIGHTS;
 
       if (isDevelopment()) {
-        logger.debug('[MoodBrandToneSearchService] combineResultsWithRRF', {
+        logger.debug("[MoodBrandToneSearchService] combineResultsWithRRF", {
           moodCount: moodResults.length,
           brandToneCount: brandToneResults.length,
           weights: validatedWeights,
@@ -342,8 +336,7 @@ export class MoodBrandToneSearchService {
           const brandToneScore = result.brandToneSimilarity || 0;
 
           const rrfScore =
-            moodScore * validatedWeights.mood +
-            brandToneScore * validatedWeights.brandTone;
+            moodScore * validatedWeights.mood + brandToneScore * validatedWeights.brandTone;
 
           return {
             ...result,
@@ -355,8 +348,7 @@ export class MoodBrandToneSearchService {
       // Step 5: Calculate statistics
       const averageSimilarity =
         combinedResults.length > 0
-          ? combinedResults.reduce((sum, r) => sum + r.similarity, 0) /
-            combinedResults.length
+          ? combinedResults.reduce((sum, r) => sum + r.similarity, 0) / combinedResults.length
           : 0;
 
       // Step 6: Build metadata
@@ -368,7 +360,7 @@ export class MoodBrandToneSearchService {
       };
 
       if (isDevelopment()) {
-        logger.debug('[MoodBrandToneSearchService] combineResultsWithRRF output', {
+        logger.debug("[MoodBrandToneSearchService] combineResultsWithRRF output", {
           totalCount: combinedResults.length,
           averageSimilarity,
           metadata,
@@ -381,7 +373,7 @@ export class MoodBrandToneSearchService {
         metadata,
       };
     } catch (error) {
-      logger.error('[MoodBrandToneSearchService] combineResultsWithRRF error', {
+      logger.error("[MoodBrandToneSearchService] combineResultsWithRRF error", {
         error: error instanceof Error ? error.message : String(error),
       });
       throw error;

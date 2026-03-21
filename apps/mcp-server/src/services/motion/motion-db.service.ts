@@ -20,26 +20,23 @@
  * @module services/motion/motion-db.service
  */
 
-import { v7 as uuidv7 } from 'uuid';
-import { isDevelopment, logger } from '../../utils/logger';
+import { v7 as uuidv7 } from "uuid";
+import { isDevelopment, logger } from "../../utils/logger";
 import type {
   AnimationZone,
   LayoutShiftInfo,
   MotionVectorInfo,
   FrameImageAnalysisOutput,
-} from './frame-image-analyzer.adapter';
-import { assertNonProductionFactory } from '../production-guard';
-import {
-  validateEmbeddingVector,
-  EmbeddingValidationError,
-} from '../embedding-validation.service';
+} from "./frame-image-analyzer.adapter";
+import { assertNonProductionFactory } from "../production-guard";
+import { validateEmbeddingVector, EmbeddingValidationError } from "../embedding-validation.service";
 
 // =====================================================
 // 定数
 // =====================================================
 
 /** デフォルトのモデル名 */
-export const DEFAULT_MODEL_NAME = 'multilingual-e5-base';
+export const DEFAULT_MODEL_NAME = "multilingual-e5-base";
 
 /** デフォルトのEmbedding次元数 */
 export const DEFAULT_EMBEDDING_DIMENSIONS = 768;
@@ -49,9 +46,9 @@ export const DEFAULT_FPS = 30;
 
 /** 結果タイプ */
 export const RESULT_TYPES = {
-  ANIMATION_ZONE: 'animation_zone',
-  LAYOUT_SHIFT: 'layout_shift',
-  MOTION_VECTOR: 'motion_vector',
+  ANIMATION_ZONE: "animation_zone",
+  LAYOUT_SHIFT: "layout_shift",
+  MOTION_VECTOR: "motion_vector",
 } as const;
 
 export type ResultType = (typeof RESULT_TYPES)[keyof typeof RESULT_TYPES];
@@ -64,7 +61,7 @@ export type ResultType = (typeof RESULT_TYPES)[keyof typeof RESULT_TYPES];
  * EmbeddingServiceインターフェース
  */
 export interface IEmbeddingService {
-  generateEmbedding(text: string, type: 'query' | 'passage'): Promise<number[]>;
+  generateEmbedding(text: string, type: "query" | "passage"): Promise<number[]>;
 }
 
 /**
@@ -156,11 +153,13 @@ export interface BatchSaveResult {
   /** エラー理由（失敗時） */
   reason?: string | undefined;
   /** カテゴリ別保存数 */
-  byCategory?: {
-    animationZones: number;
-    layoutShifts: number;
-    motionVectors: number;
-  } | undefined;
+  byCategory?:
+    | {
+        animationZones: number;
+        layoutShifts: number;
+        motionVectors: number;
+      }
+    | undefined;
 }
 
 // =====================================================
@@ -175,11 +174,9 @@ let prismaClientFactory: (() => IPrismaClient) | null = null;
  *
  * @throws ProductionGuardError 本番環境で上書きを試みた場合
  */
-export function setMotionDbEmbeddingServiceFactory(
-  factory: () => IEmbeddingService
-): void {
+export function setMotionDbEmbeddingServiceFactory(factory: () => IEmbeddingService): void {
   if (embeddingServiceFactory !== null) {
-    assertNonProductionFactory('motionDbEmbeddingService');
+    assertNonProductionFactory("motionDbEmbeddingService");
   }
   embeddingServiceFactory = factory;
 }
@@ -196,11 +193,9 @@ export function resetMotionDbEmbeddingServiceFactory(): void {
  *
  * @throws ProductionGuardError 本番環境で上書きを試みた場合
  */
-export function setMotionDbPrismaClientFactory(
-  factory: () => IPrismaClient
-): void {
+export function setMotionDbPrismaClientFactory(factory: () => IPrismaClient): void {
   if (prismaClientFactory !== null) {
-    assertNonProductionFactory('motionDbPrismaClient');
+    assertNonProductionFactory("motionDbPrismaClient");
   }
   prismaClientFactory = factory;
 }
@@ -241,7 +236,7 @@ export function animationZoneToTextRepresentation(zone: AnimationZone): string {
   // フレーム範囲
   parts.push(`frames: ${zone.frameStart} to ${zone.frameEnd}`);
 
-  return parts.join('. ') + '.';
+  return parts.join(". ") + ".";
 }
 
 /**
@@ -249,13 +244,11 @@ export function animationZoneToTextRepresentation(zone: AnimationZone): string {
  *
  * @internal テスト用にエクスポート
  */
-export function layoutShiftToTextRepresentation(
-  layoutShift: LayoutShiftInfo
-): string {
+export function layoutShiftToTextRepresentation(layoutShift: LayoutShiftInfo): string {
   const parts: string[] = [];
 
   // タイプ
-  parts.push('layout shift detected (CLS issue)');
+  parts.push("layout shift detected (CLS issue)");
 
   // フレーム範囲
   parts.push(`frame range: ${layoutShift.frameRange}`);
@@ -268,11 +261,9 @@ export function layoutShiftToTextRepresentation(
 
   // 境界ボックス
   const bbox = layoutShift.boundingBox;
-  parts.push(
-    `bounding box: x=${bbox.x}, y=${bbox.y}, width=${bbox.width}, height=${bbox.height}`
-  );
+  parts.push(`bounding box: x=${bbox.x}, y=${bbox.y}, width=${bbox.width}, height=${bbox.height}`);
 
-  return parts.join('. ') + '.';
+  return parts.join(". ") + ".";
 }
 
 /**
@@ -280,13 +271,11 @@ export function layoutShiftToTextRepresentation(
  *
  * @internal テスト用にエクスポート
  */
-export function motionVectorToTextRepresentation(
-  vector: MotionVectorInfo
-): string {
+export function motionVectorToTextRepresentation(vector: MotionVectorInfo): string {
   const parts: string[] = [];
 
   // タイプ
-  parts.push('motion vector detected');
+  parts.push("motion vector detected");
 
   // 方向
   parts.push(`direction: ${vector.direction}`);
@@ -303,7 +292,7 @@ export function motionVectorToTextRepresentation(
   // 角度
   parts.push(`angle: ${vector.angle} degrees`);
 
-  return parts.join('. ') + '.';
+  return parts.join(". ") + ".";
 }
 
 /**
@@ -343,7 +332,7 @@ export class MotionDbService {
       return this.embeddingService;
     }
 
-    throw new Error('EmbeddingService not initialized');
+    throw new Error("EmbeddingService not initialized");
   }
 
   /**
@@ -359,7 +348,7 @@ export class MotionDbService {
       return this.prismaClient;
     }
 
-    throw new Error('PrismaClient not initialized');
+    throw new Error("PrismaClient not initialized");
   }
 
   // =====================================================
@@ -377,7 +366,7 @@ export class MotionDbService {
     const prisma = this.getPrismaClient();
 
     if (isDevelopment()) {
-      logger.info('[MotionDb] Saving animation zone', {
+      logger.info("[MotionDb] Saving animation zone", {
         animationType: zone.animationType,
         scrollRange: `${zone.scrollStart}-${zone.scrollEnd}`,
       });
@@ -429,9 +418,9 @@ export class MotionDbService {
       affectedRegions,
       metadata: {
         textRepresentation,
-        analysisSource: 'frame-image-analysis',
+        analysisSource: "frame-image-analysis",
       },
-      usageScope: 'inspiration_only',
+      usageScope: "inspiration_only",
     };
 
     if (webPageId !== undefined) {
@@ -452,7 +441,7 @@ export class MotionDbService {
     );
 
     if (isDevelopment()) {
-      logger.info('[MotionDb] Animation zone saved', {
+      logger.info("[MotionDb] Animation zone saved", {
         resultId,
         embeddingId: savedEmbeddingId,
       });
@@ -472,7 +461,7 @@ export class MotionDbService {
     const prisma = this.getPrismaClient();
 
     if (isDevelopment()) {
-      logger.info('[MotionDb] Saving layout shift', {
+      logger.info("[MotionDb] Saving layout shift", {
         frameRange: layoutShift.frameRange,
         impactFraction: layoutShift.impactFraction,
       });
@@ -495,7 +484,7 @@ export class MotionDbService {
       frameRange: layoutShift.frameRange,
       scrollRange: layoutShift.scrollRange,
       impactFraction: parseFloat(layoutShift.impactFraction),
-      estimatedCause: 'unknown', // フレーム分析では原因特定が難しい
+      estimatedCause: "unknown", // フレーム分析では原因特定が難しい
     };
 
     // affectedRegions
@@ -522,10 +511,10 @@ export class MotionDbService {
       affectedRegions,
       metadata: {
         textRepresentation,
-        analysisSource: 'frame-image-analysis',
-        clsWarning: 'potential-cls-issue',
+        analysisSource: "frame-image-analysis",
+        clsWarning: "potential-cls-issue",
       },
-      usageScope: 'inspiration_only',
+      usageScope: "inspiration_only",
     };
 
     if (webPageId !== undefined) {
@@ -546,7 +535,7 @@ export class MotionDbService {
     );
 
     if (isDevelopment()) {
-      logger.info('[MotionDb] Layout shift saved', {
+      logger.info("[MotionDb] Layout shift saved", {
         resultId,
         embeddingId: savedEmbeddingId,
       });
@@ -566,7 +555,7 @@ export class MotionDbService {
     const prisma = this.getPrismaClient();
 
     if (isDevelopment()) {
-      logger.info('[MotionDb] Saving motion vector', {
+      logger.info("[MotionDb] Saving motion vector", {
         direction: vector.direction,
         magnitude: vector.magnitude,
       });
@@ -619,10 +608,10 @@ export class MotionDbService {
       affectedRegions,
       metadata: {
         textRepresentation,
-        analysisSource: 'frame-image-analysis',
+        analysisSource: "frame-image-analysis",
         direction: vector.direction,
       },
-      usageScope: 'inspiration_only',
+      usageScope: "inspiration_only",
     };
 
     if (webPageId !== undefined) {
@@ -643,7 +632,7 @@ export class MotionDbService {
     );
 
     if (isDevelopment()) {
-      logger.info('[MotionDb] Motion vector saved', {
+      logger.info("[MotionDb] Motion vector saved", {
         resultId,
         embeddingId: savedEmbeddingId,
       });
@@ -677,7 +666,7 @@ export class MotionDbService {
     let motionVectorsSaved = 0;
 
     if (isDevelopment()) {
-      logger.info('[MotionDb] Starting frame analysis batch save', {
+      logger.info("[MotionDb] Starting frame analysis batch save", {
         animationZones: input.animationZones.length,
         layoutShifts: input.layoutShifts.length,
         motionVectors: input.motionVectors.length,
@@ -698,14 +687,14 @@ export class MotionDbService {
       } catch (error) {
         if (continueOnError) {
           errors.push({
-            type: 'animationZone',
+            type: "animationZone",
             index: i,
-            error: error instanceof Error ? error : new Error('Unknown error'),
+            error: error instanceof Error ? error : new Error("Unknown error"),
           });
           if (isDevelopment()) {
-            logger.warn('[MotionDb] Failed to save animation zone', {
+            logger.warn("[MotionDb] Failed to save animation zone", {
               index: i,
-              error: error instanceof Error ? error.message : 'Unknown error',
+              error: error instanceof Error ? error.message : "Unknown error",
             });
           }
         } else {
@@ -727,14 +716,14 @@ export class MotionDbService {
       } catch (error) {
         if (continueOnError) {
           errors.push({
-            type: 'layoutShift',
+            type: "layoutShift",
             index: i,
-            error: error instanceof Error ? error : new Error('Unknown error'),
+            error: error instanceof Error ? error : new Error("Unknown error"),
           });
           if (isDevelopment()) {
-            logger.warn('[MotionDb] Failed to save layout shift', {
+            logger.warn("[MotionDb] Failed to save layout shift", {
               index: i,
-              error: error instanceof Error ? error.message : 'Unknown error',
+              error: error instanceof Error ? error.message : "Unknown error",
             });
           }
         } else {
@@ -756,14 +745,14 @@ export class MotionDbService {
       } catch (error) {
         if (continueOnError) {
           errors.push({
-            type: 'motionVector',
+            type: "motionVector",
             index: i,
-            error: error instanceof Error ? error : new Error('Unknown error'),
+            error: error instanceof Error ? error : new Error("Unknown error"),
           });
           if (isDevelopment()) {
-            logger.warn('[MotionDb] Failed to save motion vector', {
+            logger.warn("[MotionDb] Failed to save motion vector", {
               index: i,
-              error: error instanceof Error ? error.message : 'Unknown error',
+              error: error instanceof Error ? error.message : "Unknown error",
             });
           }
         } else {
@@ -774,12 +763,10 @@ export class MotionDbService {
 
     const savedCount = resultIds.length;
     const totalItems =
-      input.animationZones.length +
-      input.layoutShifts.length +
-      input.motionVectors.length;
+      input.animationZones.length + input.layoutShifts.length + input.motionVectors.length;
 
     if (isDevelopment()) {
-      logger.info('[MotionDb] Frame analysis batch save completed', {
+      logger.info("[MotionDb] Frame analysis batch save completed", {
         savedCount,
         totalItems,
         errorCount: errors.length,
@@ -806,9 +793,9 @@ export class MotionDbService {
     // エラーがある場合は理由を設定
     if (!result.saved && errors.length > 0) {
       const firstError = errors[0];
-      result.reason = `Save failed: ${firstError?.error.message ?? 'Unknown error'} [total=${totalItems}, errors=${errors.length}]`;
+      result.reason = `Save failed: ${firstError?.error.message ?? "Unknown error"} [total=${totalItems}, errors=${errors.length}]`;
     } else if (!result.saved && totalItems === 0) {
-      result.reason = 'No items to save';
+      result.reason = "No items to save";
     }
 
     return result;
@@ -823,8 +810,8 @@ export class MotionDbService {
       return true;
     } catch (error) {
       if (isDevelopment()) {
-        logger.warn('[MotionDb] isAvailable check failed', {
-          error: error instanceof Error ? error.message : 'Unknown error',
+        logger.warn("[MotionDb] isAvailable check failed", {
+          error: error instanceof Error ? error.message : "Unknown error",
           hasPrismaClientFactory: prismaClientFactory !== null,
           hasEmbeddingServiceFactory: embeddingServiceFactory !== null,
         });
@@ -863,7 +850,7 @@ export class MotionDbService {
         const embeddingService = this.getEmbeddingService();
         embedding = await embeddingService.generateEmbedding(
           `passage: ${textRepresentation}`,
-          'passage'
+          "passage"
         );
 
         // Embeddingベクトルの検証
@@ -873,9 +860,9 @@ export class MotionDbService {
           const errorMessage =
             error?.index !== undefined
               ? `${error.message} at index ${error.index}`
-              : error?.message ?? 'Unknown validation error';
+              : (error?.message ?? "Unknown validation error");
           throw new EmbeddingValidationError(
-            error?.code ?? 'INVALID_VECTOR',
+            error?.code ?? "INVALID_VECTOR",
             errorMessage,
             error?.index
           );
@@ -886,8 +873,8 @@ export class MotionDbService {
           throw error;
         }
         if (isDevelopment()) {
-          logger.warn('[MotionDb] Embedding generation failed', {
-            error: error instanceof Error ? error.message : 'Unknown error',
+          logger.warn("[MotionDb] Embedding generation failed", {
+            error: error instanceof Error ? error.message : "Unknown error",
             resultId,
           });
         }
@@ -908,7 +895,7 @@ export class MotionDbService {
 
     // Embeddingベクトルを更新（pgvector形式）
     if (embedding.length > 0) {
-      const vectorString = `[${embedding.join(',')}]`;
+      const vectorString = `[${embedding.join(",")}]`;
       await prisma.$executeRawUnsafe(
         `UPDATE motion_analysis_embeddings SET embedding = $1::vector WHERE id = $2::uuid`,
         vectorString,
@@ -922,21 +909,19 @@ export class MotionDbService {
   /**
    * MotionDirectionをMotionTypeにマッピング
    */
-  private mapDirectionToMotionType(
-    direction: MotionVectorInfo['direction']
-  ): string {
+  private mapDirectionToMotionType(direction: MotionVectorInfo["direction"]): string {
     switch (direction) {
-      case 'up':
-        return 'slide_up';
-      case 'down':
-        return 'slide_down';
-      case 'left':
-        return 'slide_left';
-      case 'right':
-        return 'slide_right';
-      case 'stationary':
+      case "up":
+        return "slide_up";
+      case "down":
+        return "slide_down";
+      case "left":
+        return "slide_left";
+      case "right":
+        return "slide_right";
+      case "stationary":
       default:
-        return 'static';
+        return "static";
     }
   }
 }

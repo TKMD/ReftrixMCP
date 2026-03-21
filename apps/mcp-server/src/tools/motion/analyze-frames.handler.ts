@@ -15,10 +15,10 @@
  * @module tools/motion/analyze-frames.handler
  */
 
-import * as fs from 'node:fs/promises';
-import * as path from 'node:path';
-import { ZodError } from 'zod';
-import { logger, isDevelopment } from '../../utils/logger';
+import * as fs from "node:fs/promises";
+import * as path from "node:path";
+import { ZodError } from "zod";
+import { logger, isDevelopment } from "../../utils/logger";
 import {
   analyzeFramesInputSchema,
   analyzeFramesMcpTool,
@@ -30,7 +30,7 @@ import {
   type AnalysisType,
   ANALYZE_FRAMES_ERROR_CODES,
   MIN_ANALYSIS_FRAMES,
-} from './analyze-frames.schema';
+} from "./analyze-frames.schema";
 
 // ============================================================================
 // Service Interface
@@ -90,8 +90,8 @@ export interface IFrameAnalysisService {
     shift_start_ms: number;
     impact_score: number;
     affected_regions: Array<{ x: number; y: number; width: number; height: number }>;
-    estimated_cause: 'image_load' | 'font_swap' | 'dynamic_content' | 'unknown';
-    shift_direction: 'horizontal' | 'vertical' | 'both';
+    estimated_cause: "image_load" | "font_swap" | "dynamic_content" | "unknown";
+    shift_direction: "horizontal" | "vertical" | "both";
     shift_distance: number;
   }>;
   detectColorChange?(
@@ -101,7 +101,7 @@ export interface IFrameAnalysisService {
     events: Array<{
       start_frame: number;
       end_frame: number;
-      change_type: 'fade_in' | 'fade_out' | 'color_transition' | 'brightness_change';
+      change_type: "fade_in" | "fade_out" | "color_transition" | "brightness_change";
       affected_region: { x: number; y: number; width: number; height: number };
       from_color: string;
       to_color: string;
@@ -169,9 +169,9 @@ async function getFrameFiles(
   // パターンをGlob形式から正規表現に変換
   // 例: "frame-*.png" -> /^frame-.*\.png$/
   const regexPattern = pattern
-    .replace(/[.+^${}()|[\]\\]/g, '\\$&') // 特殊文字をエスケープ
-    .replace(/\*/g, '.*') // * を .* に変換
-    .replace(/\?/g, '.'); // ? を . に変換
+    .replace(/[.+^${}()|[\]\\]/g, "\\$&") // 特殊文字をエスケープ
+    .replace(/\*/g, ".*") // * を .* に変換
+    .replace(/\?/g, "."); // ? を . に変換
 
   const regex = new RegExp(`^${regexPattern}$`);
 
@@ -224,13 +224,11 @@ function createSuccessResponse(data: AnalyzeFramesData): AnalyzeFramesOutput {
  * @param input - 解析入力パラメータ
  * @returns 解析結果
  */
-export async function motionAnalyzeFramesHandler(
-  input: unknown
-): Promise<AnalyzeFramesOutput> {
+export async function motionAnalyzeFramesHandler(input: unknown): Promise<AnalyzeFramesOutput> {
   const startTime = performance.now();
 
   if (isDevelopment()) {
-    logger.debug('[motion.analyze_frames] Handler invoked', { input });
+    logger.debug("[motion.analyze_frames] Handler invoked", { input });
   }
 
   // ===================================
@@ -242,10 +240,10 @@ export async function motionAnalyzeFramesHandler(
   } catch (error) {
     if (error instanceof ZodError) {
       const errorMessage = error.issues
-        .map((issue) => `${issue.path.join('.')}: ${issue.message}`)
-        .join(', ');
+        .map((issue) => `${issue.path.join(".")}: ${issue.message}`)
+        .join(", ");
       if (isDevelopment()) {
-        logger.error('[motion.analyze_frames] Validation error', { error: errorMessage });
+        logger.error("[motion.analyze_frames] Validation error", { error: errorMessage });
       }
       return createErrorResponse(
         ANALYZE_FRAMES_ERROR_CODES.VALIDATION_ERROR,
@@ -256,12 +254,7 @@ export async function motionAnalyzeFramesHandler(
     throw error;
   }
 
-  const {
-    frame_dir,
-    frame_pattern,
-    analysis_types,
-    options,
-  } = parsedInput;
+  const { frame_dir, frame_pattern, analysis_types, options } = parsedInput;
 
   const effectiveOptions = {
     diff_threshold: options?.diff_threshold ?? 0.1,
@@ -283,7 +276,7 @@ export async function motionAnalyzeFramesHandler(
     }
   } catch (error) {
     const err = error as { code?: string };
-    if (err.code === 'ENOENT') {
+    if (err.code === "ENOENT") {
       return createErrorResponse(
         ANALYZE_FRAMES_ERROR_CODES.DIRECTORY_NOT_FOUND,
         `フレームディレクトリが見つかりません: ${frame_dir}`
@@ -297,11 +290,7 @@ export async function motionAnalyzeFramesHandler(
   // ===================================
   let framePaths: string[];
   try {
-    framePaths = await getFrameFiles(
-      frame_dir,
-      frame_pattern,
-      effectiveOptions.max_frames
-    );
+    framePaths = await getFrameFiles(frame_dir, frame_pattern, effectiveOptions.max_frames);
   } catch (error) {
     return createErrorResponse(
       ANALYZE_FRAMES_ERROR_CODES.INTERNAL_ERROR,
@@ -324,7 +313,7 @@ export async function motionAnalyzeFramesHandler(
   }
 
   if (isDevelopment()) {
-    logger.debug('[motion.analyze_frames] Found frames', {
+    logger.debug("[motion.analyze_frames] Found frames", {
       count: framePaths.length,
       pattern: frame_pattern,
     });
@@ -338,7 +327,7 @@ export async function motionAnalyzeFramesHandler(
     // サービスが未設定の場合はエラー
     return createErrorResponse(
       ANALYZE_FRAMES_ERROR_CODES.INTERNAL_ERROR,
-      'フレーム解析サービスが利用できません。サービスファクトリを設定してください。'
+      "フレーム解析サービスが利用できません。サービスファクトリを設定してください。"
     );
   }
 
@@ -354,7 +343,7 @@ export async function motionAnalyzeFramesHandler(
     const processingTime = performance.now() - startTime;
 
     if (isDevelopment()) {
-      logger.debug('[motion.analyze_frames] Analysis completed', {
+      logger.debug("[motion.analyze_frames] Analysis completed", {
         frame_count: result.frame_count,
         processing_time_ms: processingTime,
       });
@@ -368,7 +357,7 @@ export async function motionAnalyzeFramesHandler(
     });
   } catch (error) {
     if (isDevelopment()) {
-      logger.error('[motion.analyze_frames] Analysis error', { error });
+      logger.error("[motion.analyze_frames] Analysis error", { error });
     }
     return createErrorResponse(
       ANALYZE_FRAMES_ERROR_CODES.ANALYSIS_ERROR,

@@ -14,28 +14,28 @@
  * @module services/visual-extractor/theme-detector.service
  */
 
-import { logger } from '../../utils/logger';
-import type { ColorExtractionResult } from './color-extractor.service';
-import { createColorExtractorService } from './color-extractor.service';
+import { logger } from "../../utils/logger";
+import type { ColorExtractionResult } from "./color-extractor.service";
+import { createColorExtractorService } from "./color-extractor.service";
 import {
   parseAndValidateImageInput,
   withTimeout,
   DEFAULT_PROCESSING_TIMEOUT,
   logSecurityEvent,
   parseHexColor,
-} from './image-utils';
-import type { ComputedStyleInfo } from '../page-ingest-adapter';
+} from "./image-utils";
+import type { ComputedStyleInfo } from "../page-ingest-adapter";
 import {
   createPixelThemeDetectorService,
   type PixelThemeDetectionResult,
-} from './pixel-theme-detector.service';
+} from "./pixel-theme-detector.service";
 
 /**
  * Result of theme detection from an image or color palette
  */
 export interface ThemeDetectionResult {
   /** Detected theme: light, dark, or mixed */
-  theme: 'light' | 'dark' | 'mixed';
+  theme: "light" | "dark" | "mixed";
   /** Confidence score (0-1) */
   confidence: number;
   /** Estimated background color in HEX format */
@@ -187,9 +187,9 @@ function getIdealTextColor(backgroundLuminance: number): string {
   // Use white text on dark backgrounds, black text on light backgrounds
   // Threshold is around 0.179 for optimal readability
   if (backgroundLuminance > 0.179) {
-    return '#212121'; // Near black for light backgrounds
+    return "#212121"; // Near black for light backgrounds
   } else {
-    return '#FAFAFA'; // Near white for dark backgrounds
+    return "#FAFAFA"; // Near white for dark backgrounds
   }
 }
 
@@ -207,7 +207,7 @@ function determineTheme(
   backgroundLuminance: number,
   colorVariance: number,
   dominantPercentage: number
-): { theme: 'light' | 'dark' | 'mixed'; confidence: number } {
+): { theme: "light" | "dark" | "mixed"; confidence: number } {
   // Light theme threshold: luminance > 0.5
   // Dark theme threshold: luminance < 0.5
   const lightThreshold = 0.5;
@@ -225,25 +225,26 @@ function determineTheme(
   // Calculate distance from threshold for confidence
   const distanceFromThreshold = Math.abs(backgroundLuminance - lightThreshold);
 
-  let theme: 'light' | 'dark' | 'mixed';
+  let theme: "light" | "dark" | "mixed";
   let confidence: number;
 
   // Check for mixed theme - very restrictive conditions
-  const isInAmbiguousZone = backgroundLuminance > ambiguousZoneLow && backgroundLuminance < ambiguousZoneHigh;
+  const isInAmbiguousZone =
+    backgroundLuminance > ambiguousZoneLow && backgroundLuminance < ambiguousZoneHigh;
   const hasHighVariance = colorVariance > mixedVarianceThreshold;
   const hasLowDominance = dominantPercentage < dominantCoverageThreshold;
 
   if (hasHighVariance && isInAmbiguousZone && hasLowDominance) {
-    theme = 'mixed';
+    theme = "mixed";
     confidence = Math.min(0.8, colorVariance);
   } else if (backgroundLuminance > lightThreshold) {
-    theme = 'light';
+    theme = "light";
     // Confidence increases with distance from threshold
     // Also boost confidence when dominant color is clearly dominant
     const dominanceBoost = Math.min(0.2, dominantPercentage / 200);
     confidence = Math.min(1.0, 0.5 + distanceFromThreshold + dominanceBoost);
   } else {
-    theme = 'dark';
+    theme = "dark";
     const dominanceBoost = Math.min(0.2, dominantPercentage / 200);
     confidence = Math.min(1.0, 0.5 + distanceFromThreshold + dominanceBoost);
   }
@@ -254,7 +255,9 @@ function determineTheme(
 /**
  * Calculate luminance variance in a color palette
  */
-function calculateLuminanceVariance(colorPalette: Array<{ color: string; percentage: number }>): number {
+function calculateLuminanceVariance(
+  colorPalette: Array<{ color: string; percentage: number }>
+): number {
   if (colorPalette.length < 2) {
     return 0;
   }
@@ -334,7 +337,7 @@ function findBestBackgroundColor(
   colorPalette: Array<{ color: string; percentage: number }>,
   weightedLuminance: number
 ): string {
-  let bestMatch = { color: '#808080', score: -1 };
+  let bestMatch = { color: "#808080", score: -1 };
 
   for (const item of colorPalette) {
     const lum = calculateRelativeLuminance(item.color);
@@ -399,7 +402,7 @@ class ThemeDetectorServiceImpl implements ThemeDetectorService {
     // Parse and validate input with size check (5MB max) - SEC H-1
     const imageBuffer = parseAndValidateImageInput(image);
 
-    logSecurityEvent('ThemeDetector', 'Processing image', {
+    logSecurityEvent("ThemeDetector", "Processing image", {
       size: imageBuffer.length,
       sizeKB: Math.round(imageBuffer.length / 1024),
     });
@@ -432,7 +435,7 @@ class ThemeDetectorServiceImpl implements ThemeDetectorService {
     // Determine theme and confidence
     const { theme, confidence } = determineTheme(weightedLuminance, variance, backgroundPercentage);
 
-    logger.debug('[ThemeDetector] Theme detection result:', {
+    logger.debug("[ThemeDetector] Theme detection result:", {
       theme,
       confidence: confidence.toFixed(3),
       backgroundColor,
@@ -463,13 +466,15 @@ class ThemeDetectorServiceImpl implements ThemeDetectorService {
   /**
    * Detect background color from color extraction result
    */
-  private detectBackground(colors: ColorExtractionResult): BackgroundColorResult & { weightedLuminance: number } {
+  private detectBackground(
+    colors: ColorExtractionResult
+  ): BackgroundColorResult & { weightedLuminance: number } {
     if (colors.colorPalette.length > 0) {
       return detectBackgroundFromPalette(colors.colorPalette);
     }
 
     if (colors.dominantColors.length > 0) {
-      const backgroundColor = colors.dominantColors[0] ?? '#808080';
+      const backgroundColor = colors.dominantColors[0] ?? "#808080";
       return {
         backgroundColor,
         backgroundPercentage: 50,
@@ -478,7 +483,7 @@ class ThemeDetectorServiceImpl implements ThemeDetectorService {
     }
 
     return {
-      backgroundColor: '#808080',
+      backgroundColor: "#808080",
       backgroundPercentage: 50,
       weightedLuminance: 0.5,
     };
@@ -517,11 +522,11 @@ class ThemeDetectorServiceImpl implements ThemeDetectorService {
       const contrastRatio = this.calculateContrastRatio(backgroundColor, textColor);
 
       // Determine theme from background luminance
-      const theme = bgLuminance > 0.5 ? 'light' : 'dark';
+      const theme = bgLuminance > 0.5 ? "light" : "dark";
       // High confidence when using computed styles
       const confidence = 0.95;
 
-      logger.debug('[ThemeDetector] Using computed styles for theme detection:', {
+      logger.debug("[ThemeDetector] Using computed styles for theme detection:", {
         backgroundColor,
         textColor,
         bgLuminance: bgLuminance.toFixed(4),
@@ -551,10 +556,10 @@ class ThemeDetectorServiceImpl implements ThemeDetectorService {
     const fgLuminance = this.calculateLuminance(textColor);
 
     // Get background color from dominant colors if available
-    const backgroundColor = pixelResult.dominantColors[0] ?? '#808080';
+    const backgroundColor = pixelResult.dominantColors[0] ?? "#808080";
     const contrastRatio = this.calculateContrastRatio(backgroundColor, textColor);
 
-    logger.debug('[ThemeDetector] Using pixel-based detection (computed styles unavailable):', {
+    logger.debug("[ThemeDetector] Using pixel-based detection (computed styles unavailable):", {
       theme: pixelResult.theme,
       confidence: pixelResult.confidence.toFixed(3),
       averageLuminance: pixelResult.averageLuminance.toFixed(4),
@@ -580,10 +585,12 @@ class ThemeDetectorServiceImpl implements ThemeDetectorService {
    * Extract background color from computed styles
    * Returns valid=true if a non-transparent background color was found
    */
-  private extractBackgroundFromComputedStyles(
-    computedStyles?: ComputedStyleInfo[]
-  ): { valid: boolean; backgroundColor: string; textColor: string } {
-    const fallback = { valid: false, backgroundColor: '#808080', textColor: '#FFFFFF' };
+  private extractBackgroundFromComputedStyles(computedStyles?: ComputedStyleInfo[]): {
+    valid: boolean;
+    backgroundColor: string;
+    textColor: string;
+  } {
+    const fallback = { valid: false, backgroundColor: "#808080", textColor: "#FFFFFF" };
 
     if (!computedStyles || computedStyles.length === 0) {
       return fallback;
@@ -600,13 +607,13 @@ class ThemeDetectorServiceImpl implements ThemeDetectorService {
 
       // Parse the color to hex format
       const hexBg = this.parseColorToHex(bgColor);
-      const hexText = textColor ? this.parseColorToHex(textColor) : '#FFFFFF';
+      const hexText = textColor ? this.parseColorToHex(textColor) : "#FFFFFF";
 
       if (hexBg) {
         return {
           valid: true,
           backgroundColor: hexBg,
-          textColor: hexText || '#FFFFFF',
+          textColor: hexText || "#FFFFFF",
         };
       }
     }
@@ -623,7 +630,7 @@ class ThemeDetectorServiceImpl implements ThemeDetectorService {
     const normalized = color.toLowerCase().trim();
 
     // Check for 'transparent' keyword
-    if (normalized === 'transparent') return true;
+    if (normalized === "transparent") return true;
 
     // Check for rgba with 0 alpha
     const rgbaMatch = normalized.match(/rgba?\(\s*(\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?\s*\)/);
@@ -644,7 +651,7 @@ class ThemeDetectorServiceImpl implements ThemeDetectorService {
     const normalized = color.trim();
 
     // Already hex format
-    if (normalized.startsWith('#')) {
+    if (normalized.startsWith("#")) {
       // Validate hex format
       if (/^#[0-9A-Fa-f]{6}$/.test(normalized)) {
         return normalized.toUpperCase();
@@ -662,16 +669,16 @@ class ThemeDetectorServiceImpl implements ThemeDetectorService {
     // Parse rgb/rgba format
     const rgbMatch = normalized.match(/rgba?\(\s*(\d+),\s*(\d+),\s*(\d+)(?:,\s*[\d.]+)?\s*\)/);
     if (rgbMatch) {
-      const r = parseInt(rgbMatch[1] ?? '0', 10);
-      const g = parseInt(rgbMatch[2] ?? '0', 10);
-      const b = parseInt(rgbMatch[3] ?? '0', 10);
+      const r = parseInt(rgbMatch[1] ?? "0", 10);
+      const g = parseInt(rgbMatch[2] ?? "0", 10);
+      const b = parseInt(rgbMatch[3] ?? "0", 10);
 
       // Clamp values to 0-255
       const clampedR = Math.max(0, Math.min(255, r));
       const clampedG = Math.max(0, Math.min(255, g));
       const clampedB = Math.max(0, Math.min(255, b));
 
-      return `#${clampedR.toString(16).padStart(2, '0').toUpperCase()}${clampedG.toString(16).padStart(2, '0').toUpperCase()}${clampedB.toString(16).padStart(2, '0').toUpperCase()}`;
+      return `#${clampedR.toString(16).padStart(2, "0").toUpperCase()}${clampedG.toString(16).padStart(2, "0").toUpperCase()}${clampedB.toString(16).padStart(2, "0").toUpperCase()}`;
     }
 
     return null;

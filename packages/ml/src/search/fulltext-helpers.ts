@@ -22,15 +22,12 @@
  * @param paramIndex - The $N parameter index for the query text
  * @returns SQL condition string (without leading AND/WHERE)
  */
-export function buildFulltextConditions(
-  searchVectorColumn: string,
-  paramIndex: number
-): string {
+export function buildFulltextConditions(searchVectorColumn: string, paramIndex: number): string {
   return [
     `${searchVectorColumn} IS NOT NULL`,
     `plainto_tsquery('english', $${paramIndex}) <> ''::tsquery`,
     `${searchVectorColumn} @@ plainto_tsquery('english', $${paramIndex})`,
-  ].join(' AND ');
+  ].join(" AND ");
 }
 
 /**

@@ -15,7 +15,7 @@
  * - WorldView: 世界観・雰囲気（moodCategory, colorImpression, typographyPersonality等）
  * - LayoutStructure: レイアウト構成（gridSystem, visualHierarchy, spacingRhythm等）
  */
-import { z } from 'zod';
+import { z } from "zod";
 
 // ============================================================================
 // Enum Schemas
@@ -28,18 +28,18 @@ import { z } from 'zod';
  * @see services/narrative/types/narrative.types.ts
  */
 export const moodCategorySchema = z.enum([
-  'professional',    // ビジネス、企業
-  'playful',         // 遊び心、カジュアル
-  'premium',         // 高級、ラグジュアリー
-  'tech',            // テクノロジー、先進的
-  'organic',         // 自然、オーガニック
-  'minimal',         // ミニマル、シンプル
-  'bold',            // 大胆、インパクト
-  'elegant',         // 上品、洗練
-  'friendly',        // 親しみやすい
-  'artistic',        // アート、クリエイティブ
-  'trustworthy',     // 信頼、安心
-  'energetic',       // エネルギッシュ、活発
+  "professional", // ビジネス、企業
+  "playful", // 遊び心、カジュアル
+  "premium", // 高級、ラグジュアリー
+  "tech", // テクノロジー、先進的
+  "organic", // 自然、オーガニック
+  "minimal", // ミニマル、シンプル
+  "bold", // 大胆、インパクト
+  "elegant", // 上品、洗練
+  "friendly", // 親しみやすい
+  "artistic", // アート、クリエイティブ
+  "trustworthy", // 信頼、安心
+  "energetic", // エネルギッシュ、活発
 ]);
 export type MoodCategory = z.infer<typeof moodCategorySchema>;
 
@@ -47,12 +47,12 @@ export type MoodCategory = z.infer<typeof moodCategorySchema>;
  * 色彩調和タイプ
  */
 export const colorHarmonySchema = z.enum([
-  'complementary',      // 補色
-  'analogous',          // 類似色
-  'monochromatic',      // モノクロマティック
-  'triadic',            // トライアド
-  'split-complementary', // スプリットコンプリメンタリー
-  'mixed',              // 混合
+  "complementary", // 補色
+  "analogous", // 類似色
+  "monochromatic", // モノクロマティック
+  "triadic", // トライアド
+  "split-complementary", // スプリットコンプリメンタリー
+  "mixed", // 混合
 ]);
 export type ColorHarmony = z.infer<typeof colorHarmonySchema>;
 
@@ -60,11 +60,11 @@ export type ColorHarmony = z.infer<typeof colorHarmonySchema>;
  * グリッドタイプ
  */
 export const gridTypeSchema = z.enum([
-  'css-grid',   // CSS Grid
-  'flexbox',    // Flexbox
-  'float',      // Float
-  'mixed',      // 混合
-  'none',       // なし
+  "css-grid", // CSS Grid
+  "flexbox", // Flexbox
+  "float", // Float
+  "mixed", // 混合
+  "none", // なし
 ]);
 export type GridType = z.infer<typeof gridTypeSchema>;
 
@@ -72,9 +72,9 @@ export type GridType = z.infer<typeof gridTypeSchema>;
  * セクション配置パターン
  */
 export const sectionFlowSchema = z.enum([
-  'linear',     // 線形
-  'modular',    // モジュラー
-  'asymmetric', // 非対称
+  "linear", // 線形
+  "modular", // モジュラー
+  "asymmetric", // 非対称
 ]);
 export type SectionFlow = z.infer<typeof sectionFlowSchema>;
 
@@ -82,8 +82,8 @@ export type SectionFlow = z.infer<typeof sectionFlowSchema>;
  * 検索モード
  */
 export const narrativeSearchModeSchema = z.enum([
-  'vector',     // Vectorのみ
-  'hybrid',     // Vector + Full-text（RRF統合）
+  "vector", // Vectorのみ
+  "hybrid", // Vector + Full-text（RRF統合）
 ]);
 export type NarrativeSearchMode = z.infer<typeof narrativeSearchModeSchema>;
 
@@ -106,42 +106,44 @@ export const narrativeAnalyzeOptionsSchema = z.object({
     .boolean()
     .optional()
     .default(true)
-    .describe('分析結果をDBに保存するか（デフォルト: true）'),
+    .describe("分析結果をDBに保存するか（デフォルト: true）"),
 
   /** Vision LLM分析を使用（デフォルトtrue） */
   include_vision: z
     .boolean()
     .optional()
     .default(true)
-    .describe('Vision LLM分析を使用するか。falseの場合はCSS静的分析のみ（デフォルト: true）'),
+    .describe("Vision LLM分析を使用するか。falseの場合はCSS静的分析のみ（デフォルト: true）"),
 
   /** 既存CSS変数分析結果（オプション、page.analyzeから再利用） */
   css_variables: z
     .record(z.string(), z.string())
     .optional()
-    .describe('既存CSS変数分析結果（page.analyzeからの再利用）'),
+    .describe("既存CSS変数分析結果（page.analyzeからの再利用）"),
 
   /** 既存モーション分析結果（オプション、page.analyzeから再利用） */
   motion_patterns: z
-    .array(z.object({
-      type: z.string(),
-      category: z.string().optional(),
-      properties: z.array(z.string()).optional(),
-      duration: z.number().optional(),
-      easing: z.string().optional(),
-    }))
+    .array(
+      z.object({
+        type: z.string(),
+        category: z.string().optional(),
+        properties: z.array(z.string()).optional(),
+        duration: z.number().optional(),
+        easing: z.string().optional(),
+      })
+    )
     .optional()
-    .describe('既存モーション分析結果（page.analyzeからの再利用）'),
+    .describe("既存モーション分析結果（page.analyzeからの再利用）"),
 
   /** タイムアウト（ms） */
   timeout: z
     .number()
-    .int({ message: 'timeoutは整数である必要があります' })
-    .min(5000, { message: 'timeoutは5000以上120000以下である必要があります' })
-    .max(120000, { message: 'timeoutは5000以上120000以下である必要があります' })
+    .int({ message: "timeoutは整数である必要があります" })
+    .min(5000, { message: "timeoutは5000以上120000以下である必要があります" })
+    .max(120000, { message: "timeoutは5000以上120000以下である必要があります" })
     .optional()
     .default(60000)
-    .describe('分析タイムアウト（ms）（デフォルト: 60000）'),
+    .describe("分析タイムアウト（ms）（デフォルト: 60000）"),
 });
 export type NarrativeAnalyzeOptions = z.infer<typeof narrativeAnalyzeOptionsSchema>;
 
@@ -160,24 +162,24 @@ export const narrativeAnalyzeInputSchema = z
     /** 分析対象URL */
     url: z
       .string()
-      .url({ message: '有効なURL形式を指定してください' })
+      .url({ message: "有効なURL形式を指定してください" })
       .optional()
-      .describe('分析対象URL（urlまたはhtmlのいずれか必須）'),
+      .describe("分析対象URL（urlまたはhtmlのいずれか必須）"),
 
     /** HTMLコンテンツ（最大10MB） */
     html: z
       .string()
-      .min(1, { message: 'HTMLコンテンツは1文字以上必要です' })
-      .max(10_000_000, { message: 'HTMLコンテンツは10MB以下にしてください' })
+      .min(1, { message: "HTMLコンテンツは1文字以上必要です" })
+      .max(10_000_000, { message: "HTMLコンテンツは10MB以下にしてください" })
       .optional()
-      .describe('分析対象HTML（urlまたはhtmlのいずれか必須）'),
+      .describe("分析対象HTML（urlまたはhtmlのいずれか必須）"),
 
     /** スクリーンショット（Base64エンコード） */
     screenshot: z
       .string()
-      .min(1, { message: 'スクリーンショットは空文字列にできません' })
+      .min(1, { message: "スクリーンショットは空文字列にできません" })
       .optional()
-      .describe('Base64エンコードスクリーンショット（urlなし + include_vision時に必須）'),
+      .describe("Base64エンコードスクリーンショット（urlなし + include_vision時に必須）"),
 
     /** オプション */
     options: narrativeAnalyzeOptionsSchema.optional(),
@@ -190,7 +192,7 @@ export const narrativeAnalyzeInputSchema = z
       return hasUrl || hasHtml;
     },
     {
-      message: 'urlまたはhtmlのいずれかを指定してください',
+      message: "urlまたはhtmlのいずれかを指定してください",
     }
   )
   .refine(
@@ -201,7 +203,7 @@ export const narrativeAnalyzeInputSchema = z
       return !(hasUrl && hasHtml);
     },
     {
-      message: 'urlとhtmlを同時に指定することはできません',
+      message: "urlとhtmlを同時に指定することはできません",
     }
   )
   .refine(
@@ -217,8 +219,8 @@ export const narrativeAnalyzeInputSchema = z
       return true;
     },
     {
-      message: 'html指定時にVision分析を使用する場合はscreenshotが必須です',
-      path: ['screenshot'],
+      message: "html指定時にVision分析を使用する場合はscreenshotが必須です",
+      path: ["screenshot"],
     }
   );
 export type NarrativeAnalyzeInput = z.infer<typeof narrativeAnalyzeInputSchema>;
@@ -247,9 +249,9 @@ export const typographyPersonalitySchema = z.object({
   /** スタイル */
   style: z.string().describe('タイポグラフィスタイル（例: "modern", "classic"）'),
   /** 読みやすさ */
-  readability: z.enum(['high', 'medium', 'low']),
+  readability: z.enum(["high", "medium", "low"]),
   /** 階層の明確さ */
-  hierarchy: z.enum(['clear', 'subtle', 'flat']),
+  hierarchy: z.enum(["clear", "subtle", "flat"]),
 });
 export type TypographyPersonality = z.infer<typeof typographyPersonalitySchema>;
 
@@ -260,7 +262,7 @@ export const motionEmotionSchema = z.object({
   /** 全体的な印象 */
   overall: z.string().describe('モーションの全体印象（例: "smooth and elegant"）'),
   /** ペース */
-  pace: z.enum(['slow', 'moderate', 'fast']),
+  pace: z.enum(["slow", "moderate", "fast"]),
   /** 強度（0-1） */
   intensity: z.number().min(0).max(1),
   /** prefers-reduced-motion対応 */
@@ -290,7 +292,7 @@ export const worldViewSchema = z.object({
   /** セカンダリームードカテゴリ（オプション） */
   secondaryMoodCategory: moodCategorySchema.optional(),
   /** ムードの説明 */
-  moodDescription: z.string().describe('ムードの自然言語説明'),
+  moodDescription: z.string().describe("ムードの自然言語説明"),
   /** 色彩印象 */
   colorImpression: colorImpressionSchema,
   /** タイポグラフィの性格 */
@@ -320,7 +322,7 @@ export const gridSystemSchema = z.object({
   /** グリッドタイプ */
   type: gridTypeSchema,
   /** カラム数（'fluid'も許容） */
-  columns: z.union([z.number().int().positive(), z.literal('fluid')]),
+  columns: z.union([z.number().int().positive(), z.literal("fluid")]),
   /** ガター幅 */
   gutterWidth: z.string().optional(),
   /** コンテナ幅 */
@@ -376,7 +378,7 @@ export const spacingRhythmSchema = z.object({
   /** スケール倍率 */
   scale: z.array(z.number()),
   /** スケール名 */
-  scaleName: z.enum(['fibonacci', 'linear', 'geometric', 'custom']).optional(),
+  scaleName: z.enum(["fibonacci", "linear", "geometric", "custom"]).optional(),
   /** セクション間スペーシング */
   sectionGaps: sectionGapsSchema,
 });
@@ -391,7 +393,7 @@ export const sectionRelationshipSchema = z.object({
   /** ターゲットセクションID */
   targetId: z.string(),
   /** 関係タイプ */
-  relationshipType: z.enum(['follows', 'contains', 'parallels', 'contrasts']),
+  relationshipType: z.enum(["follows", "contains", "parallels", "contrasts"]),
   /** 関係の強さ（0-1） */
   strength: z.number().min(0).max(1),
 });
@@ -402,11 +404,11 @@ export type SectionRelationship = z.infer<typeof sectionRelationshipSchema>;
  */
 export const imageLayoutSchema = z.object({
   /** パターン */
-  pattern: z.enum(['full-bleed', 'contained', 'scattered', 'grid', 'none']),
+  pattern: z.enum(["full-bleed", "contained", "scattered", "grid", "none"]),
   /** アスペクト比 */
   aspectRatios: z.array(z.string()),
   /** 配置位置 */
-  positions: z.array(z.enum(['hero', 'inline', 'background', 'decorative'])),
+  positions: z.array(z.enum(["hero", "inline", "background", "decorative"])),
 });
 export type ImageLayout = z.infer<typeof imageLayoutSchema>;
 
@@ -426,9 +428,9 @@ export type Decorations = z.infer<typeof decorationsSchema>;
  */
 export const visualBalanceSchema = z.object({
   /** 対称性 */
-  symmetry: z.enum(['symmetric', 'asymmetric', 'dynamic']),
+  symmetry: z.enum(["symmetric", "asymmetric", "dynamic"]),
   /** 密度 */
-  density: z.enum(['sparse', 'balanced', 'dense']),
+  density: z.enum(["sparse", "balanced", "dense"]),
   /** ホワイトスペース比率（0-1） */
   whitespace: z.number().min(0).max(1),
 });
@@ -566,7 +568,7 @@ export const narrativeAnalyzeErrorOutputSchema = z.object({
 /**
  * narrative.analyze 出力スキーマ（統合）
  */
-export const narrativeAnalyzeOutputSchema = z.discriminatedUnion('success', [
+export const narrativeAnalyzeOutputSchema = z.discriminatedUnion("success", [
   narrativeAnalyzeSuccessOutputSchema,
   narrativeAnalyzeErrorOutputSchema,
 ]);
@@ -585,10 +587,10 @@ export const narrativeSearchFiltersSchema = z.object({
   /** 最小信頼度 */
   minConfidence: z
     .number()
-    .min(0, { message: 'minConfidenceは0以上1以下である必要があります' })
-    .max(1, { message: 'minConfidenceは0以上1以下である必要があります' })
+    .min(0, { message: "minConfidenceは0以上1以下である必要があります" })
+    .max(1, { message: "minConfidenceは0以上1以下である必要があります" })
     .optional()
-    .describe('最小信頼度フィルター（0-1）'),
+    .describe("最小信頼度フィルター（0-1）"),
 });
 export type NarrativeSearchFilters = z.infer<typeof narrativeSearchFiltersSchema>;
 
@@ -599,36 +601,36 @@ export const narrativeSearchOptionsSchema = z.object({
   /** 結果数（デフォルト10） */
   limit: z
     .number()
-    .int({ message: 'limitは整数である必要があります' })
-    .min(1, { message: 'limitは1以上50以下である必要があります' })
-    .max(50, { message: 'limitは1以上50以下である必要があります' })
+    .int({ message: "limitは整数である必要があります" })
+    .min(1, { message: "limitは1以上50以下である必要があります" })
+    .max(50, { message: "limitは1以上50以下である必要があります" })
     .optional()
     .default(10),
 
   /** 最小類似度（デフォルト0.6） */
   minSimilarity: z
     .number()
-    .min(0, { message: 'minSimilarityは0以上1以下である必要があります' })
-    .max(1, { message: 'minSimilarityは0以上1以下である必要があります' })
+    .min(0, { message: "minSimilarityは0以上1以下である必要があります" })
+    .max(1, { message: "minSimilarityは0以上1以下である必要があります" })
     .optional()
     .default(0.6),
 
   /** 検索モード（デフォルトhybrid） */
-  searchMode: narrativeSearchModeSchema.optional().default('hybrid'),
+  searchMode: narrativeSearchModeSchema.optional().default("hybrid"),
 
   /** Vector検索の重み（hybridモード時、デフォルト0.6） */
   vectorWeight: z
     .number()
-    .min(0, { message: 'vectorWeightは0以上1以下である必要があります' })
-    .max(1, { message: 'vectorWeightは0以上1以下である必要があります' })
+    .min(0, { message: "vectorWeightは0以上1以下である必要があります" })
+    .max(1, { message: "vectorWeightは0以上1以下である必要があります" })
     .optional()
     .default(0.6),
 
   /** Full-text検索の重み（hybridモード時、デフォルト0.4） */
   fulltextWeight: z
     .number()
-    .min(0, { message: 'fulltextWeightは0以上1以下である必要があります' })
-    .max(1, { message: 'fulltextWeightは0以上1以下である必要があります' })
+    .min(0, { message: "fulltextWeightは0以上1以下である必要があります" })
+    .max(1, { message: "fulltextWeightは0以上1以下である必要があります" })
     .optional()
     .default(0.4),
 });
@@ -644,17 +646,17 @@ export const narrativeSearchInputSchema = z
     /** 自然言語クエリ */
     query: z
       .string()
-      .min(1, { message: 'クエリは1文字以上必要です' })
-      .max(500, { message: 'クエリは500文字以下にしてください' })
+      .min(1, { message: "クエリは1文字以上必要です" })
+      .max(500, { message: "クエリは500文字以下にしてください" })
       .optional()
       .describe('検索クエリ（例: "サイバーセキュリティ感のあるダークなデザイン"）'),
 
     /** 直接Embedding指定（768次元） */
     embedding: z
       .array(z.number())
-      .length(768, { message: 'embeddingは768次元である必要があります' })
+      .length(768, { message: "embeddingは768次元である必要があります" })
       .optional()
-      .describe('直接Embedding指定（768次元）'),
+      .describe("直接Embedding指定（768次元）"),
 
     /** フィルター */
     filters: narrativeSearchFiltersSchema.optional(),
@@ -676,7 +678,7 @@ export const narrativeSearchInputSchema = z
       return hasQuery || hasEmbedding;
     },
     {
-      message: 'queryまたはembeddingのいずれかを指定してください',
+      message: "queryまたはembeddingのいずれかを指定してください",
     }
   )
   .refine(
@@ -687,7 +689,7 @@ export const narrativeSearchInputSchema = z
       return !(hasQuery && hasEmbedding);
     },
     {
-      message: 'queryとembeddingを同時に指定することはできません',
+      message: "queryとembeddingを同時に指定することはできません",
     }
   );
 export type NarrativeSearchInput = z.infer<typeof narrativeSearchInputSchema>;
@@ -711,7 +713,7 @@ export type WorldViewSummary = z.infer<typeof worldViewSummarySchema>;
  */
 export const layoutStructureSummarySchema = z.object({
   gridType: gridTypeSchema,
-  columns: z.union([z.number().int().positive(), z.literal('fluid')]),
+  columns: z.union([z.number().int().positive(), z.literal("fluid")]),
 });
 export type LayoutStructureSummary = z.infer<typeof layoutStructureSummarySchema>;
 
@@ -793,7 +795,7 @@ export const narrativeSearchErrorOutputSchema = z.object({
 /**
  * narrative.search 出力スキーマ（統合）
  */
-export const narrativeSearchOutputSchema = z.discriminatedUnion('success', [
+export const narrativeSearchOutputSchema = z.discriminatedUnion("success", [
   narrativeSearchSuccessOutputSchema,
   narrativeSearchErrorOutputSchema,
 ]);
@@ -808,29 +810,29 @@ export type NarrativeSearchOutput = z.infer<typeof narrativeSearchOutputSchema>;
  */
 export const NARRATIVE_MCP_ERROR_CODES = {
   /** バリデーションエラー */
-  VALIDATION_ERROR: 'VALIDATION_ERROR',
+  VALIDATION_ERROR: "VALIDATION_ERROR",
   /** 分析失敗 */
-  ANALYSIS_FAILED: 'ANALYSIS_FAILED',
+  ANALYSIS_FAILED: "ANALYSIS_FAILED",
   /** Vision分析失敗 */
-  VISION_ANALYSIS_FAILED: 'VISION_ANALYSIS_FAILED',
+  VISION_ANALYSIS_FAILED: "VISION_ANALYSIS_FAILED",
   /** タイムアウト */
-  TIMEOUT: 'TIMEOUT',
+  TIMEOUT: "TIMEOUT",
   /** ページが見つからない */
-  PAGE_NOT_FOUND: 'PAGE_NOT_FOUND',
+  PAGE_NOT_FOUND: "PAGE_NOT_FOUND",
   /** Narrativeが見つからない */
-  NARRATIVE_NOT_FOUND: 'NARRATIVE_NOT_FOUND',
+  NARRATIVE_NOT_FOUND: "NARRATIVE_NOT_FOUND",
   /** DB保存失敗 */
-  DB_SAVE_FAILED: 'DB_SAVE_FAILED',
+  DB_SAVE_FAILED: "DB_SAVE_FAILED",
   /** 検索失敗 */
-  SEARCH_FAILED: 'SEARCH_FAILED',
+  SEARCH_FAILED: "SEARCH_FAILED",
   /** Embedding生成失敗 */
-  EMBEDDING_FAILED: 'EMBEDDING_FAILED',
+  EMBEDDING_FAILED: "EMBEDDING_FAILED",
   /** SSRF対策によりブロック */
-  SSRF_BLOCKED: 'SSRF_BLOCKED',
+  SSRF_BLOCKED: "SSRF_BLOCKED",
   /** ネットワークエラー */
-  NETWORK_ERROR: 'NETWORK_ERROR',
+  NETWORK_ERROR: "NETWORK_ERROR",
   /** 内部エラー */
-  INTERNAL_ERROR: 'INTERNAL_ERROR',
+  INTERNAL_ERROR: "INTERNAL_ERROR",
 } as const;
 
 export type NarrativeMcpErrorCode =
@@ -845,19 +847,19 @@ export type NarrativeMcpErrorCode =
  * MCPプロトコル準拠のツール定義
  */
 export const narrativeMcpTools = {
-  'narrative.analyze': {
-    name: 'narrative.analyze',
+  "narrative.analyze": {
+    name: "narrative.analyze",
     description:
-      'URLまたはHTMLからWebデザインの世界観（WorldView）とレイアウト構成（LayoutStructure）を分析します。' +
-      'Vision LLMとCSS静的分析を組み合わせ、ムードカテゴリ・色彩印象・グリッドシステム・視覚的階層等を抽出します。',
+      "URLまたはHTMLからWebデザインの世界観（WorldView）とレイアウト構成（LayoutStructure）を分析します。" +
+      "Vision LLMとCSS静的分析を組み合わせ、ムードカテゴリ・色彩印象・グリッドシステム・視覚的階層等を抽出します。",
     inputSchema: narrativeAnalyzeInputSchema,
   },
-  'narrative.search': {
-    name: 'narrative.search',
+  "narrative.search": {
+    name: "narrative.search",
     description:
-      '世界観・レイアウト構成でセマンティック検索します。' +
+      "世界観・レイアウト構成でセマンティック検索します。" +
       '自然言語クエリ（例: "サイバーセキュリティ感のあるダークなデザイン"）または768次元Embeddingで検索可能。' +
-      'Hybrid Search（Vector + Full-text）でRRF統合。',
+      "Hybrid Search（Vector + Full-text）でRRF統合。",
     inputSchema: narrativeSearchInputSchema,
   },
 } as const;

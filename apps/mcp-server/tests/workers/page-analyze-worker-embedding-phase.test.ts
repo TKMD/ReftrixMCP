@@ -10,37 +10,41 @@
  * @module tests/workers/page-analyze-worker-embedding-phase
  */
 
-import { describe, it, expect, beforeAll } from 'vitest';
-import * as fs from 'node:fs';
-import * as path from 'node:path';
+import { describe, it, expect, beforeAll } from "vitest";
+import * as fs from "node:fs";
+import * as path from "node:path";
 
-describe('PageAnalyzeWorker - Embedding Phase Extraction', () => {
-  const workerSourcePath = path.resolve(
-    __dirname,
-    '../../src/workers/page-analyze-worker.ts'
-  );
+describe("PageAnalyzeWorker - Embedding Phase Extraction", () => {
+  const typesPath = path.resolve(__dirname, "../../src/workers/phases/types.ts");
+  const phase5Path = path.resolve(__dirname, "../../src/workers/phases/phase-5-embedding.ts");
+  const orchestratorPath = path.resolve(__dirname, "../../src/workers/page-analyze-worker.ts");
 
   let workerSource: string;
 
   beforeAll(() => {
-    workerSource = fs.readFileSync(workerSourcePath, 'utf8');
+    workerSource =
+      fs.readFileSync(typesPath, "utf8") +
+      "\n" +
+      fs.readFileSync(phase5Path, "utf8") +
+      "\n" +
+      fs.readFileSync(orchestratorPath, "utf8");
   });
 
   // ==========================================================================
   // processEmbeddingPhase 関数の存在確認
   // ==========================================================================
 
-  describe('processEmbeddingPhase function', () => {
-    it('should define processEmbeddingPhase as an exported async function', () => {
-      expect(workerSource).toContain('export async function processEmbeddingPhase');
+  describe("processEmbeddingPhase function", () => {
+    it("should define processEmbeddingPhase as an exported async function", () => {
+      expect(workerSource).toContain("export async function processEmbeddingPhase");
     });
 
-    it('should accept EmbeddingPhaseParams as parameter', () => {
-      expect(workerSource).toContain('EmbeddingPhaseParams');
+    it("should accept EmbeddingPhaseParams as parameter", () => {
+      expect(workerSource).toContain("EmbeddingPhaseParams");
     });
 
-    it('should return EmbeddingPhaseResult', () => {
-      expect(workerSource).toContain('EmbeddingPhaseResult');
+    it("should return EmbeddingPhaseResult", () => {
+      expect(workerSource).toContain("EmbeddingPhaseResult");
     });
   });
 
@@ -48,31 +52,31 @@ describe('PageAnalyzeWorker - Embedding Phase Extraction', () => {
   // EmbeddingPhaseParams / EmbeddingPhaseResult 型定義
   // ==========================================================================
 
-  describe('type definitions', () => {
-    it('should define EmbeddingPhaseParams interface', () => {
+  describe("type definitions", () => {
+    it("should define EmbeddingPhaseParams interface", () => {
       expect(workerSource).toMatch(/(?:interface|type)\s+EmbeddingPhaseParams/);
     });
 
-    it('should define EmbeddingPhaseResult interface', () => {
+    it("should define EmbeddingPhaseResult interface", () => {
       expect(workerSource).toMatch(/(?:interface|type)\s+EmbeddingPhaseResult/);
     });
 
-    it('EmbeddingPhaseParams should include webPageId', () => {
+    it("EmbeddingPhaseParams should include webPageId", () => {
       // webPageId は embedding phase に必須
       const paramsSection = workerSource.slice(
-        workerSource.indexOf('EmbeddingPhaseParams'),
-        workerSource.indexOf('EmbeddingPhaseParams') + 1500
+        workerSource.indexOf("EmbeddingPhaseParams"),
+        workerSource.indexOf("EmbeddingPhaseParams") + 1500
       );
-      expect(paramsSection).toContain('webPageId');
+      expect(paramsSection).toContain("webPageId");
     });
 
-    it('EmbeddingPhaseResult should include embedding counts', () => {
+    it("EmbeddingPhaseResult should include embedding counts", () => {
       const resultSection = workerSource.slice(
-        workerSource.indexOf('EmbeddingPhaseResult'),
-        workerSource.indexOf('EmbeddingPhaseResult') + 800
+        workerSource.indexOf("EmbeddingPhaseResult"),
+        workerSource.indexOf("EmbeddingPhaseResult") + 800
       );
-      expect(resultSection).toContain('sectionEmbeddingsGenerated');
-      expect(resultSection).toContain('motionEmbeddingsGenerated');
+      expect(resultSection).toContain("sectionEmbeddingsGenerated");
+      expect(resultSection).toContain("motionEmbeddingsGenerated");
     });
   });
 
@@ -80,12 +84,12 @@ describe('PageAnalyzeWorker - Embedding Phase Extraction', () => {
   // processPageAnalyzeJob からの呼び出し
   // ==========================================================================
 
-  describe('integration with processPageAnalyzeJob', () => {
-    it('processPageAnalyzeJob should call processEmbeddingPhase', () => {
-      const fnStart = workerSource.indexOf('function processPageAnalyzeJob');
+  describe("integration with processPageAnalyzeJob", () => {
+    it("processPageAnalyzeJob should call processEmbeddingPhase", () => {
+      const fnStart = workerSource.indexOf("function processPageAnalyzeJob");
       expect(fnStart).toBeGreaterThan(-1);
       const fnBody = workerSource.slice(fnStart);
-      expect(fnBody).toContain('processEmbeddingPhase');
+      expect(fnBody).toContain("processEmbeddingPhase");
     });
   });
 
@@ -93,16 +97,16 @@ describe('PageAnalyzeWorker - Embedding Phase Extraction', () => {
   // Lock extension within embedding phase
   // ==========================================================================
 
-  describe('lock extension in embedding phase', () => {
-    it('processEmbeddingPhase should call extendJobLock for sub-phases', () => {
-      const fnStart = workerSource.indexOf('async function processEmbeddingPhase');
+  describe("lock extension in embedding phase", () => {
+    it("processEmbeddingPhase should call extendJobLock for sub-phases", () => {
+      const fnStart = workerSource.indexOf("async function processEmbeddingPhase");
       expect(fnStart).toBeGreaterThan(-1);
       const fnBody = workerSource.slice(fnStart, fnStart + 25000);
       expect(fnBody).toContain("extendJobLock");
-      expect(fnBody).toContain("'embedding-sections'");
-      expect(fnBody).toContain("'embedding-motions'");
-      expect(fnBody).toContain("'embedding-backgrounds'");
-      expect(fnBody).toContain("'embedding-js-animations'");
+      expect(fnBody).toContain('"embedding-sections"');
+      expect(fnBody).toContain('"embedding-motions"');
+      expect(fnBody).toContain('"embedding-backgrounds"');
+      expect(fnBody).toContain('"embedding-js-animations"');
     });
   });
 });

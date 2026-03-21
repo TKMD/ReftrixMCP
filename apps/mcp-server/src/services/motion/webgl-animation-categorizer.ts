@@ -19,7 +19,7 @@
  * @module services/motion/webgl-animation-categorizer
  */
 
-import { createLogger, isDevelopment } from '../../utils/logger';
+import { createLogger, isDevelopment } from "../../utils/logger";
 
 // =====================================================
 // 型定義
@@ -29,14 +29,14 @@ import { createLogger, isDevelopment } from '../../utils/logger';
  * WebGLアニメーションカテゴリ
  */
 export type WebGLAnimationCategory =
-  | 'fade'
-  | 'pulse'
-  | 'wave'
-  | 'particle'
-  | 'rotation'
-  | 'parallax'
-  | 'noise'
-  | 'complex';
+  | "fade"
+  | "pulse"
+  | "wave"
+  | "particle"
+  | "rotation"
+  | "parallax"
+  | "noise"
+  | "complex";
 
 /**
  * カテゴリ分類のための特徴データ
@@ -90,7 +90,7 @@ export interface CategorizationOptions {
 // 定数
 // =====================================================
 
-const logger = createLogger('WebGLAnimationCategorizer');
+const logger = createLogger("WebGLAnimationCategorizer");
 
 /** デフォルトオプション */
 const DEFAULT_OPTIONS: Required<CategorizationOptions> = {
@@ -160,7 +160,7 @@ export class WebGLAnimationCategorizer {
     };
 
     if (isDevelopment()) {
-      logger.debug('[WebGLAnimationCategorizer] Initialized', {
+      logger.debug("[WebGLAnimationCategorizer] Initialized", {
         options: this.options,
       });
     }
@@ -176,7 +176,7 @@ export class WebGLAnimationCategorizer {
     const startTime = Date.now();
 
     if (changeRatios.length < 2) {
-      return this.createDefaultResult('complex', 0, ['Insufficient data for categorization']);
+      return this.createDefaultResult("complex", 0, ["Insufficient data for categorization"]);
     }
 
     // 特徴抽出
@@ -189,7 +189,7 @@ export class WebGLAnimationCategorizer {
     const result = this.selectCategory(scores, features);
 
     if (isDevelopment()) {
-      logger.debug('[WebGLAnimationCategorizer] Categorization complete', {
+      logger.debug("[WebGLAnimationCategorizer] Categorization complete", {
         category: result.category,
         confidence: result.confidence,
         processingTimeMs: Date.now() - startTime,
@@ -258,9 +258,10 @@ export class WebGLAnimationCategorizer {
   /**
    * 自己相関を使って周期性を検出
    */
-  private detectPeriodicity(
-    changeRatios: number[]
-  ): { periodicityScore: number; estimatedPeriod: number } {
+  private detectPeriodicity(changeRatios: number[]): {
+    periodicityScore: number;
+    estimatedPeriod: number;
+  } {
     const n = changeRatios.length;
     const maxLag = Math.min(this.options.maxPeriodFrames, Math.floor(n / 2));
 
@@ -640,7 +641,7 @@ export class WebGLAnimationCategorizer {
   ): CategorizationResult {
     const categories = Object.keys(scores) as WebGLAnimationCategory[];
     let maxScore = 0;
-    let selectedCategory: WebGLAnimationCategory = 'complex';
+    let selectedCategory: WebGLAnimationCategory = "complex";
 
     for (const category of categories) {
       const score = scores[category] ?? 0;
@@ -652,7 +653,7 @@ export class WebGLAnimationCategorizer {
 
     // 最低信頼度を下回る場合はcomplexに
     if (maxScore < this.options.minConfidence) {
-      selectedCategory = 'complex';
+      selectedCategory = "complex";
       maxScore = scores.complex ?? 0.1;
     }
 
@@ -674,45 +675,43 @@ export class WebGLAnimationCategorizer {
     const reasons: string[] = [];
 
     switch (category) {
-      case 'fade':
+      case "fade":
         reasons.push(`Low average change ratio (${(features.avgChangeRatio * 100).toFixed(2)}%)`);
         reasons.push(`Uniform change pattern (std: ${features.stdDeviation.toFixed(4)})`);
         break;
 
-      case 'pulse':
+      case "pulse":
         reasons.push(`High periodicity score (${features.periodicityScore.toFixed(2)})`);
         reasons.push(`Estimated period: ${features.estimatedPeriod} frames`);
         break;
 
-      case 'wave':
+      case "wave":
         reasons.push(`High directional score (${features.directionalScore.toFixed(2)})`);
-        reasons.push(
-          `Moderate change ratio (${(features.avgChangeRatio * 100).toFixed(2)}%)`
-        );
+        reasons.push(`Moderate change ratio (${(features.avgChangeRatio * 100).toFixed(2)}%)`);
         break;
 
-      case 'particle':
+      case "particle":
         reasons.push(`High sporadic score (${features.sporadicScore.toFixed(2)})`);
         reasons.push(`High change ratio (${(features.avgChangeRatio * 100).toFixed(2)}%)`);
         break;
 
-      case 'rotation':
+      case "rotation":
         reasons.push(`High periodicity (${features.periodicityScore.toFixed(2)})`);
         reasons.push(`Consistent cycle at ${features.estimatedPeriod} frames`);
         break;
 
-      case 'parallax':
+      case "parallax":
         reasons.push(`High directional consistency (${features.directionalScore.toFixed(2)})`);
         reasons.push(`Low change ratio (${(features.avgChangeRatio * 100).toFixed(2)}%)`);
         break;
 
-      case 'noise':
+      case "noise":
         reasons.push(`High randomness score (${features.randomnessScore.toFixed(2)})`);
         reasons.push(`Low periodicity (${features.periodicityScore.toFixed(2)})`);
         break;
 
-      case 'complex':
-        reasons.push('Does not match simple pattern categories');
+      case "complex":
+        reasons.push("Does not match simple pattern categories");
         reasons.push(`Change ratio: ${(features.avgChangeRatio * 100).toFixed(2)}%`);
         break;
     }

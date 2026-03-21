@@ -21,7 +21,7 @@
  * @module @reftrix/mcp-server/services/motion/visual-category-classifier
  */
 
-import { logger } from '../../utils/logger';
+import { logger } from "../../utils/logger";
 
 // =============================================================================
 // 型定義
@@ -31,31 +31,31 @@ import { logger } from '../../utils/logger';
  * 動きカテゴリ
  */
 export type VisualMotionCategory =
-  | 'fade'
-  | 'slide'
-  | 'scale'
-  | 'rotate'
-  | 'parallax'
-  | 'reveal'
-  | 'morph'
-  | 'complex'
-  | 'static'
-  | 'unknown';
+  | "fade"
+  | "slide"
+  | "scale"
+  | "rotate"
+  | "parallax"
+  | "reveal"
+  | "morph"
+  | "complex"
+  | "static"
+  | "unknown";
 
 /**
  * スライド方向
  */
-export type SlideDirection = 'horizontal' | 'vertical' | 'diagonal';
+export type SlideDirection = "horizontal" | "vertical" | "diagonal";
 
 /**
  * スケールタイプ
  */
-export type ScaleType = 'expand' | 'shrink';
+export type ScaleType = "expand" | "shrink";
 
 /**
  * フェードタイプ
  */
-export type FadeType = 'in' | 'out';
+export type FadeType = "in" | "out";
 
 /**
  * バウンディングボックス
@@ -230,7 +230,7 @@ function radToDeg(radians: number): number {
  * 数値がNaNやInfinityでないことを確認
  */
 function isValidNumber(value: number): boolean {
-  return typeof value === 'number' && !Number.isNaN(value) && Number.isFinite(value);
+  return typeof value === "number" && !Number.isNaN(value) && Number.isFinite(value);
 }
 
 /**
@@ -292,7 +292,7 @@ export class VisualCategoryClassifier {
       ...config,
     };
 
-    logger.debug('[VisualCategoryClassifier] Initialized with config:', this.config);
+    logger.debug("[VisualCategoryClassifier] Initialized with config:", this.config);
   }
 
   /**
@@ -323,7 +323,7 @@ export class VisualCategoryClassifier {
     // 最適なカテゴリを選択
     const result = this.selectBestCategory(scores, metrics, frames, startTime);
 
-    logger.debug('[VisualCategoryClassifier] Classification result:', {
+    logger.debug("[VisualCategoryClassifier] Classification result:", {
       category: result.primary_category,
       confidence: result.confidence,
       processing_time_ms: result.processing_time_ms,
@@ -379,7 +379,7 @@ export class VisualCategoryClassifier {
    */
   private createStaticResult(startTime: number): CategoryClassificationResult {
     return {
-      primary_category: 'static',
+      primary_category: "static",
       confidence: 0.95,
       metrics: {
         movement_intensity: 0,
@@ -553,27 +553,27 @@ export class VisualCategoryClassifier {
     const scores = new Map<VisualMotionCategory, number>();
 
     // static検出
-    scores.set('static', this.calculateStaticScore(frames));
+    scores.set("static", this.calculateStaticScore(frames));
 
     // fade検出
-    scores.set('fade', this.calculateFadeScore(frames, metrics));
+    scores.set("fade", this.calculateFadeScore(frames, metrics));
 
     // slide検出
-    scores.set('slide', this.calculateSlideScore(frames, metrics));
+    scores.set("slide", this.calculateSlideScore(frames, metrics));
 
     // scale検出
-    scores.set('scale', this.calculateScaleScore(frames));
+    scores.set("scale", this.calculateScaleScore(frames));
 
     // parallax検出
-    scores.set('parallax', this.calculateParallaxScore(frames));
+    scores.set("parallax", this.calculateParallaxScore(frames));
 
     // complex検出（後で調整）
-    scores.set('complex', 0);
+    scores.set("complex", 0);
 
     // rotate, reveal, morph は高度な検出が必要なため基本スコア0
-    scores.set('rotate', 0);
-    scores.set('reveal', 0);
-    scores.set('morph', 0);
+    scores.set("rotate", 0);
+    scores.set("reveal", 0);
+    scores.set("morph", 0);
 
     return scores;
   }
@@ -672,7 +672,7 @@ export class VisualCategoryClassifier {
       baseScore = 0.9;
     } else if (isMonotonic && thresholdRatio > 0.5) {
       // 単調変化だが閾値の50%以上：弱いフェード
-      baseScore = 0.6 + (thresholdRatio * 0.2);
+      baseScore = 0.6 + thresholdRatio * 0.2;
     } else if (thresholdRatio > 1.5) {
       // 閾値の1.5倍以上の変化率（単調でない場合）
       baseScore = 0.7;
@@ -746,10 +746,7 @@ export class VisualCategoryClassifier {
     }
 
     // 移動距離の合計を計算
-    const totalDistance = deltas.reduce(
-      (sum, d) => sum + Math.sqrt(d.dx * d.dx + d.dy * d.dy),
-      0
-    );
+    const totalDistance = deltas.reduce((sum, d) => sum + Math.sqrt(d.dx * d.dx + d.dy * d.dy), 0);
 
     // 移動がほとんどない場合はスライドではない
     if (totalDistance < 5) {
@@ -942,7 +939,8 @@ export class VisualCategoryClassifier {
 
             // 方向の一貫性をチェック
             const avgAngle = average(angles);
-            const angleDeviation = angles.map((a) => Math.abs(a - avgAngle)).reduce((a, b) => a + b, 0) / angles.length;
+            const angleDeviation =
+              angles.map((a) => Math.abs(a - avgAngle)).reduce((a, b) => a + b, 0) / angles.length;
             if (angleDeviation < 30) {
               sameDirectionCount++;
             }
@@ -1040,31 +1038,34 @@ export class VisualCategoryClassifier {
     // スコアをソート
     const sortedScores = Array.from(scores.entries()).sort((a, b) => b[1] - a[1]);
 
-    const first = sortedScores[0] ?? (['unknown', 0] as const);
+    const first = sortedScores[0] ?? (["unknown", 0] as const);
     const [bestCategory, bestScore] = first;
-    const second = sortedScores.length > 1 ? (sortedScores[1] ?? (['unknown', 0] as const)) : (['unknown', 0] as const);
+    const second =
+      sortedScores.length > 1
+        ? (sortedScores[1] ?? (["unknown", 0] as const))
+        : (["unknown", 0] as const);
     const [secondCategory, secondScore] = second;
 
     // 有効なカテゴリの数をカウント（static, unknown以外で閾値を超えているもの）
     const significantScores = sortedScores.filter(
       ([cat, score]) =>
-        score > this.config.complex_category_threshold && cat !== 'static' && cat !== 'unknown'
+        score > this.config.complex_category_threshold && cat !== "static" && cat !== "unknown"
     );
 
     // 複合カテゴリの判定
     // fade + slide の特別なケースをチェック
-    const fadeScore = scores.get('fade') ?? 0;
-    const slideScore = scores.get('slide') ?? 0;
+    const fadeScore = scores.get("fade") ?? 0;
+    const slideScore = scores.get("slide") ?? 0;
 
     // fade + slide の複合パターンの条件:
     // - fadeとslide両方が0.5以上
     // - diffPercentageが単調変化している（fade特性）
     // - モーションベクトルが一貫している（slide特性）
-    const diffs = frames.map(f => f.diffPercentage);
+    const diffs = frames.map((f) => f.diffPercentage);
     const isMonotonicDiff = this.isMonotonicSequence(diffs);
 
     // scaleスコアが非常に高い場合はfade+slideの複合とは判定しない
-    const scaleScore = scores.get('scale') ?? 0;
+    const scaleScore = scores.get("scale") ?? 0;
     const isFadeSlideComplex =
       fadeScore >= 0.5 &&
       slideScore >= 0.5 &&
@@ -1081,8 +1082,8 @@ export class VisualCategoryClassifier {
       secondScore >= 0.6 &&
       bestScore - secondScore < 0.15 &&
       bestScore < 0.9 &&
-      bestCategory !== 'static' &&
-      secondCategory !== 'static';
+      bestCategory !== "static" &&
+      secondCategory !== "static";
 
     const isComplex = isFadeSlideComplex || isGeneralComplex;
 
@@ -1097,7 +1098,7 @@ export class VisualCategoryClassifier {
     // 調整後の信頼度が閾値未満の場合は unknown
     if (adjustedConfidence < this.config.min_confidence_threshold) {
       return {
-        primary_category: 'unknown',
+        primary_category: "unknown",
         confidence: adjustedConfidence,
         metrics,
         processing_time_ms: performance.now() - startTime,
@@ -1141,9 +1142,7 @@ export class VisualCategoryClassifier {
     // 角度の循環分散を計算
     const sinSum = angles.reduce((sum, a) => sum + Math.sin(degToRad(a)), 0);
     const cosSum = angles.reduce((sum, a) => sum + Math.cos(degToRad(a)), 0);
-    const r = Math.sqrt(
-      Math.pow(sinSum / angles.length, 2) + Math.pow(cosSum / angles.length, 2)
-    );
+    const r = Math.sqrt(Math.pow(sinSum / angles.length, 2) + Math.pow(cosSum / angles.length, 2));
 
     // r=1 で完全に一貫、r=0 でランダム
     // 一貫性が低い（r < 0.5）場合にペナルティを適用
@@ -1168,7 +1167,8 @@ export class VisualCategoryClassifier {
     startTime: number
   ): CategoryClassificationResult {
     const significantCategories = sortedScores.filter(
-      ([cat, score]) => score > this.config.complex_category_threshold && cat !== 'static' && cat !== 'unknown'
+      ([cat, score]) =>
+        score > this.config.complex_category_threshold && cat !== "static" && cat !== "unknown"
     );
 
     // 重みを正規化
@@ -1182,7 +1182,7 @@ export class VisualCategoryClassifier {
     const avgConfidence = average(significantCategories.map(([, score]) => score));
 
     return {
-      primary_category: 'complex',
+      primary_category: "complex",
       confidence: clamp(avgConfidence, 0, 1),
       secondary_categories,
       metrics,
@@ -1199,13 +1199,13 @@ export class VisualCategoryClassifier {
     metrics: CategoryMetrics
   ): CategoryDetails | undefined {
     switch (category) {
-      case 'fade':
+      case "fade":
         return this.generateFadeDetails(frames);
-      case 'slide':
+      case "slide":
         return this.generateSlideDetails(frames, metrics);
-      case 'scale':
+      case "scale":
         return this.generateScaleDetails(frames);
-      case 'parallax':
+      case "parallax":
         return this.generateParallaxDetails(frames);
       default:
         return undefined;
@@ -1222,11 +1222,11 @@ export class VisualCategoryClassifier {
 
     // フェードイン: 変化が減少（最初が大きい）
     // フェードアウト: 変化が増加（最後が大きい）
-    const type: FadeType = firstDiff > lastDiff ? 'in' : 'out';
+    const type: FadeType = firstDiff > lastDiff ? "in" : "out";
 
     // opacity推定（diffPercentageから）
-    const start_opacity = type === 'in' ? 0 : 1;
-    const end_opacity = type === 'in' ? 1 : 0;
+    const start_opacity = type === "in" ? 0 : 1;
+    const end_opacity = type === "in" ? 1 : 0;
 
     return {
       fade: {
@@ -1256,18 +1256,18 @@ export class VisualCategoryClassifier {
       (normalizedAngle >= 337.5 && normalizedAngle < 360) ||
       (normalizedAngle >= 157.5 && normalizedAngle < 202.5)
     ) {
-      direction = 'horizontal';
+      direction = "horizontal";
       // 正確な角度を設定
       angle = normalizedAngle < 90 || normalizedAngle > 270 ? 0 : 180;
     } else if (
       (normalizedAngle >= 67.5 && normalizedAngle < 112.5) ||
       (normalizedAngle >= 247.5 && normalizedAngle < 292.5)
     ) {
-      direction = 'vertical';
+      direction = "vertical";
       // 正確な角度を設定
       angle = normalizedAngle < 180 ? 90 : 270;
     } else {
-      direction = 'diagonal';
+      direction = "diagonal";
     }
 
     // 移動距離を計算
@@ -1342,7 +1342,7 @@ export class VisualCategoryClassifier {
     if (sizes.length < 2) {
       return {
         scale: {
-          type: 'expand',
+          type: "expand",
           start_scale: 1,
           end_scale: 1,
           aspect_ratio_maintained: true,
@@ -1357,7 +1357,7 @@ export class VisualCategoryClassifier {
     if (firstSize === undefined || lastSize === undefined) {
       return {
         scale: {
-          type: 'expand' as const,
+          type: "expand" as const,
           start_scale: 1,
           end_scale: 1,
           aspect_ratio_maintained: true,
@@ -1368,7 +1368,7 @@ export class VisualCategoryClassifier {
     const firstArea = firstSize.width * firstSize.height;
     const lastArea = lastSize.width * lastSize.height;
 
-    const type: ScaleType = lastArea > firstArea ? 'expand' : 'shrink';
+    const type: ScaleType = lastArea > firstArea ? "expand" : "shrink";
 
     // 基準を100として、スケール比率を計算
     const startScale = 1;

@@ -17,21 +17,21 @@
  * @module services/vision/scroll-vision.analyzer
  */
 
-import { z } from 'zod';
-import { LlamaVisionAdapter } from './llama-vision-adapter.js';
-import type { ScrollCapture } from './scroll-vision-capture.service.js';
-import { createLogger } from '../../utils/logger.js';
+import { z } from "zod";
+import { LlamaVisionAdapter } from "./llama-vision-adapter.js";
+import type { ScrollCapture } from "./scroll-vision-capture.service.js";
+import { createLogger } from "../../utils/logger.js";
 
 // =============================================================================
 // 定数
 // =============================================================================
 
-const LOG_PREFIX = 'ScrollVisionAnalyzer';
+const LOG_PREFIX = "ScrollVisionAnalyzer";
 
 /**
  * デフォルトOllama URL
  */
-const DEFAULT_OLLAMA_URL = 'http://localhost:11434';
+const DEFAULT_OLLAMA_URL = "http://localhost:11434";
 
 /**
  * 最小信頼度閾値（これ未満の検出結果はフィルタリング）
@@ -45,7 +45,7 @@ const MIN_CONFIDENCE_THRESHOLD = 0.3;
 /**
  * スクロールトリガー変化タイプ
  */
-export type ScrollChangeType = 'appear' | 'animate' | 'transform' | 'lazy-load' | 'parallax';
+export type ScrollChangeType = "appear" | "animate" | "transform" | "lazy-load" | "parallax";
 
 /**
  * スクロールトリガー要素
@@ -131,13 +131,13 @@ export interface ScrollVisionAnalyzerConfig {
 
 const scrollTriggeredElementSchema = z.object({
   element: z.string(),
-  changeType: z.enum(['appear', 'animate', 'transform', 'lazy-load', 'parallax']),
+  changeType: z.enum(["appear", "animate", "transform", "lazy-load", "parallax"]),
   confidence: z.number().min(0).max(1),
 });
 
 const visionResponseSchema = z.object({
   scrollTriggeredElements: z.array(scrollTriggeredElementSchema).default([]),
-  visualImpression: z.string().default(''),
+  visualImpression: z.string().default(""),
   confidence: z.number().min(0).max(1).default(0.5),
 });
 
@@ -161,7 +161,7 @@ const logger = createLogger(LOG_PREFIX);
  * @returns プロンプト文字列
  */
 function buildAnalysisPrompt(scrollY: number, sectionType?: string): string {
-  const sectionInfo = sectionType ? ` (section: ${sectionType})` : '';
+  const sectionInfo = sectionType ? ` (section: ${sectionType})` : "";
 
   return `Analyze this web page viewport screenshot captured at scroll position ${scrollY}px${sectionInfo}.
 
@@ -191,8 +191,8 @@ Return ONLY valid JSON:
  */
 function sanitizeString(str: string): string {
   return str
-    .replace(/<[^>]*>/g, '')
-    .replace(/[<>"'&]/g, '')
+    .replace(/<[^>]*>/g, "")
+    .replace(/[<>"'&]/g, "")
     .trim()
     .slice(0, 500);
 }
@@ -201,13 +201,13 @@ function sanitizeString(str: string): string {
  * Vision結果をバリデーション・サニタイズ
  */
 function validateVisionResponse(raw: unknown): VisionResponse | null {
-  if (typeof raw !== 'object' || raw === null) {
+  if (typeof raw !== "object" || raw === null) {
     return null;
   }
 
   const parseResult = visionResponseSchema.safeParse(raw);
   if (!parseResult.success) {
-    logger.warn('Vision response validation failed', {
+    logger.warn("Vision response validation failed", {
       errors: parseResult.error.issues.map((i) => i.message),
     });
     return null;
@@ -219,9 +219,7 @@ function validateVisionResponse(raw: unknown): VisionResponse | null {
 /**
  * 分析結果からスクロールトリガーアニメーションを集約
  */
-function aggregateAnimations(
-  analyses: ScrollVisionAnalysis[]
-): AggregatedScrollAnimation[] {
+function aggregateAnimations(analyses: ScrollVisionAnalysis[]): AggregatedScrollAnimation[] {
   const animations: AggregatedScrollAnimation[] = [];
 
   for (const analysis of analyses) {
@@ -262,9 +260,9 @@ export async function analyzeScrollCaptures(
   config?: ScrollVisionAnalyzerConfig
 ): Promise<ScrollVisionResult> {
   const startTime = Date.now();
-  const model = config?.model ?? 'llama3.2-vision';
+  const model = config?.model ?? "llama3.2-vision";
 
-  logger.info('Starting scroll vision analysis', {
+  logger.info("Starting scroll vision analysis", {
     captureCount: captures.length,
     model,
   });
@@ -280,7 +278,7 @@ export async function analyzeScrollCaptures(
   // Ollama接続チェック
   const isAvailable = await adapter.isAvailable();
   if (!isAvailable) {
-    logger.warn('Ollama Vision is not available, returning empty result');
+    logger.warn("Ollama Vision is not available, returning empty result");
     return {
       analyses: [],
       scrollTriggeredAnimations: [],
@@ -305,7 +303,7 @@ export async function analyzeScrollCaptures(
       }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
-      logger.error('Failed to analyze capture', {
+      logger.error("Failed to analyze capture", {
         scrollY: capture.scrollY,
         sectionIndex: capture.sectionIndex,
         error: errorMessage,
@@ -315,7 +313,11 @@ export async function analyzeScrollCaptures(
     }
 
     // Granular progress: report after each capture (fire-and-forget)
-    try { config?.onProgress?.(i + 1, captures.length); } catch { /* fire-and-forget */ }
+    try {
+      config?.onProgress?.(i + 1, captures.length);
+    } catch {
+      /* fire-and-forget */
+    }
   }
 
   // スクロールトリガーアニメーションを集約
@@ -323,7 +325,7 @@ export async function analyzeScrollCaptures(
 
   const totalProcessingTimeMs = Date.now() - startTime;
 
-  logger.info('Scroll vision analysis completed', {
+  logger.info("Scroll vision analysis completed", {
     analyzedCount: analyses.length,
     captureCount: captures.length,
     animationCount: scrollTriggeredAnimations.length,
@@ -359,7 +361,7 @@ async function analyzeSingleCapture(
   // プロンプト生成
   const prompt = buildAnalysisPrompt(capture.scrollY);
 
-  logger.debug('Analyzing capture', {
+  logger.debug("Analyzing capture", {
     scrollY: capture.scrollY,
     sectionIndex: capture.sectionIndex,
     imageSize: capture.screenshot.length,
@@ -369,7 +371,7 @@ async function analyzeSingleCapture(
   const result = await adapter.analyzeJSON<unknown>(capture.screenshot, prompt);
   const rawResult = result.response;
 
-  logger.debug('Vision API response received', {
+  logger.debug("Vision API response received", {
     scrollY: capture.scrollY,
     hardwareType: result.metrics.hardwareType,
     optimizationApplied: result.metrics.optimizationApplied,
@@ -379,7 +381,7 @@ async function analyzeSingleCapture(
   // バリデーション
   const validated = validateVisionResponse(rawResult);
   if (validated === null) {
-    logger.warn('Vision response validation failed for capture', {
+    logger.warn("Vision response validation failed for capture", {
       scrollY: capture.scrollY,
     });
     return null;
@@ -396,7 +398,7 @@ async function analyzeSingleCapture(
       confidence: el.confidence,
     }));
 
-  logger.debug('Capture analysis completed', {
+  logger.debug("Capture analysis completed", {
     scrollY: capture.scrollY,
     elementCount: sanitizedElements.length,
     processingTimeMs,

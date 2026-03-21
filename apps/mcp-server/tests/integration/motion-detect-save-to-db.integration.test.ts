@@ -7,12 +7,12 @@
  * ファクトリ登録からハンドラ実行までのエンドツーエンドテスト
  */
 
-import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll, vi } from "vitest";
 import {
   setMotionPersistenceServiceFactory,
   resetMotionPersistenceServiceFactory,
   motionDetectHandler,
-} from '../../src/tools/motion';
+} from "../../src/tools/motion";
 import {
   MotionPatternPersistenceService,
   setMotionPersistenceEmbeddingServiceFactory,
@@ -22,7 +22,7 @@ import {
   resetMotionPersistenceService,
   type IEmbeddingService,
   type IPrismaClient,
-} from '../../src/services/motion-persistence.service';
+} from "../../src/services/motion-persistence.service";
 
 // モックファクトリ
 const createMockEmbeddingService = (): IEmbeddingService => ({
@@ -31,16 +31,16 @@ const createMockEmbeddingService = (): IEmbeddingService => ({
 
 const createMockPrismaClient = (): IPrismaClient => ({
   motionPattern: {
-    create: vi.fn().mockResolvedValue({ id: 'mock-pattern-id' }),
+    create: vi.fn().mockResolvedValue({ id: "mock-pattern-id" }),
   },
   motionEmbedding: {
-    create: vi.fn().mockResolvedValue({ id: 'mock-embedding-id' }),
+    create: vi.fn().mockResolvedValue({ id: "mock-embedding-id" }),
   },
   $executeRawUnsafe: vi.fn().mockResolvedValue(1),
   $transaction: vi.fn().mockImplementation((fn) => fn(createMockPrismaClient())),
 });
 
-describe('motion.detect save_to_db 統合テスト', () => {
+describe("motion.detect save_to_db 統合テスト", () => {
   beforeAll(() => {
     // ファクトリをリセット
     resetMotionPersistenceServiceFactory();
@@ -57,8 +57,8 @@ describe('motion.detect save_to_db 統合テスト', () => {
     resetMotionPersistenceService();
   });
 
-  describe('ファクトリ未登録時のハンドラ実行', () => {
-    it('save_to_db=true でもエラーにならず saved=false を返す', async () => {
+  describe("ファクトリ未登録時のハンドラ実行", () => {
+    it("save_to_db=true でもエラーにならず saved=false を返す", async () => {
       const result = await motionDetectHandler({
         html: `
           <style>
@@ -68,7 +68,7 @@ describe('motion.detect save_to_db 統合テスト', () => {
           <div class="test">Test</div>
         `,
         save_to_db: true,
-        detection_mode: 'css' as const,
+        detection_mode: "css" as const,
       });
 
       expect(result.success).toBe(true);
@@ -82,7 +82,7 @@ describe('motion.detect save_to_db 統合テスト', () => {
     });
   });
 
-  describe('ファクトリ登録後のハンドラ実行', () => {
+  describe("ファクトリ登録後のハンドラ実行", () => {
     beforeAll(() => {
       // index.ts と同じ順序でファクトリを登録
       const mockEmbedding = createMockEmbeddingService();
@@ -100,7 +100,7 @@ describe('motion.detect save_to_db 統合テスト', () => {
       resetMotionPersistenceService();
     });
 
-    it('save_to_db=true で正しく保存される', async () => {
+    it("save_to_db=true で正しく保存される", async () => {
       const result = await motionDetectHandler({
         html: `
           <style>
@@ -110,7 +110,7 @@ describe('motion.detect save_to_db 統合テスト', () => {
           <div class="test">Test</div>
         `,
         save_to_db: true,
-        detection_mode: 'css' as const,
+        detection_mode: "css" as const,
       });
 
       expect(result.success).toBe(true);
@@ -124,8 +124,8 @@ describe('motion.detect save_to_db 統合テスト', () => {
     });
   });
 
-  describe('MotionPatternPersistenceService インスタンス状態', () => {
-    it('ファクトリ登録後、新しいインスタンスで isAvailable() が true を返す', () => {
+  describe("MotionPatternPersistenceService インスタンス状態", () => {
+    it("ファクトリ登録後、新しいインスタンスで isAvailable() が true を返す", () => {
       // リセット
       resetMotionPersistenceEmbeddingServiceFactory();
       resetMotionPersistencePrismaClientFactory();

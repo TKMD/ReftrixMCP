@@ -27,19 +27,19 @@
  * @module services/part/part-bbox-playwright.service
  */
 
-import type { Browser, BrowserContext, Page } from 'playwright';
-import { chromium } from 'playwright';
-import type { PrismaClient, Prisma } from '@prisma/client';
-import { validateExternalUrl } from '../../utils/url-validator';
-import { logger, isDevelopment } from '../../utils/logger';
-import { truncateId } from './schemas';
-import { TAG_TO_PART_TYPE } from './types';
+import type { Browser, BrowserContext, Page } from "playwright";
+import { chromium } from "playwright";
+import type { PrismaClient, Prisma } from "@prisma/client";
+import { validateExternalUrl } from "../../utils/url-validator";
+import { logger, isDevelopment } from "../../utils/logger";
+import { truncateId } from "./schemas";
+import { TAG_TO_PART_TYPE } from "./types";
 
 // ============================================================================
 // Constants / 定数
 // ============================================================================
 
-const LOG_PREFIX = '[PartBboxPlaywright]';
+const LOG_PREFIX = "[PartBboxPlaywright]";
 
 /**
  * デフォルトビューポートサイズ / Default viewport size
@@ -164,15 +164,9 @@ function buildPartTypeToTagsMap(): ReadonlyMap<string, readonly string[]> {
  * @returns 更新結果 / Resolution result
  */
 export async function resolvePartBoundingBoxes(
-  params: ResolvePartBoundingBoxesParams,
+  params: ResolvePartBoundingBoxesParams
 ): Promise<ResolvePartBoundingBoxesResult> {
-  const {
-    webPageId,
-    url,
-    prisma,
-    viewportWidth,
-    viewportHeight,
-  } = params;
+  const { webPageId, url, prisma, viewportWidth, viewportHeight } = params;
 
   // 1. SSRF検証 / SSRF validation
   const urlValidation = validateExternalUrl(url);
@@ -188,7 +182,7 @@ export async function resolvePartBoundingBoxes(
   const allParts = await prisma.componentPart.findMany({
     where: {
       webPageId,
-      piiRiskLevel: { not: 'high' },
+      piiRiskLevel: { not: "high" },
     },
     select: {
       id: true,
@@ -260,10 +254,10 @@ export async function resolvePartBoundingBoxes(
       browser = await chromium.launch({
         headless: true,
         args: [
-          '--no-sandbox',
-          '--disable-setuid-sandbox',
-          '--disable-dev-shm-usage',
-          '--disable-gpu',
+          "--no-sandbox",
+          "--disable-setuid-sandbox",
+          "--disable-dev-shm-usage",
+          "--disable-gpu",
         ],
       });
     }
@@ -276,7 +270,7 @@ export async function resolvePartBoundingBoxes(
     context = await browser.newContext({
       viewport,
       userAgent:
-        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 Reftrix/0.1.0',
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 Reftrix/0.1.0",
       javaScriptEnabled: true,
       bypassCSP: false,
     });
@@ -285,7 +279,7 @@ export async function resolvePartBoundingBoxes(
 
     // ナビゲーション / Navigate
     const response = await page.goto(url, {
-      waitUntil: 'load',
+      waitUntil: "load",
       timeout: NAVIGATION_TIMEOUT_MS,
     });
 
@@ -368,11 +362,14 @@ export async function resolvePartBoundingBoxes(
 
         return results;
       },
-      selectorData,
+      selectorData
     );
 
     // 7. DB を一括更新 / Batch update DB
-    const updates: Array<{ id: string; bbox: { x: number; y: number; width: number; height: number } }> = [];
+    const updates: Array<{
+      id: string;
+      bbox: { x: number; y: number; width: number; height: number };
+    }> = [];
     let skippedCount = 0;
 
     for (const bbox of resolvedBboxes) {
@@ -392,8 +389,8 @@ export async function resolvePartBoundingBoxes(
           prisma.componentPart.update({
             where: { id: u.id },
             data: { boundingBox: u.bbox as unknown as Prisma.InputJsonValue },
-          }),
-        ),
+          })
+        )
       );
     }
 
@@ -418,15 +415,21 @@ export async function resolvePartBoundingBoxes(
   } finally {
     // リソースクリーンアップ / Resource cleanup
     if (page) {
-      await page.close().catch(() => { /* ignore */ });
+      await page.close().catch(() => {
+        /* ignore */
+      });
     }
     if (context) {
-      await context.close().catch(() => { /* ignore */ });
+      await context.close().catch(() => {
+        /* ignore */
+      });
     }
     // 共有ブラウザの場合はブラウザを閉じない（呼び出し元が管理）
     // Don't close shared browser (managed by caller)
     if (browser && !usingSharedBrowser) {
-      await browser.close().catch(() => { /* ignore */ });
+      await browser.close().catch(() => {
+        /* ignore */
+      });
     }
   }
 }
@@ -448,10 +451,7 @@ export async function resolvePartBoundingBoxes(
  * @param cssClasses - CSSクラスリスト / CSS class list
  * @returns CSSセレクタ候補配列（優先度順） / CSS selector candidates (priority order)
  */
-export function buildSelectorsForPart(
-  partType: string,
-  cssClasses: string[],
-): string[] {
+export function buildSelectorsForPart(partType: string, cssClasses: string[]): string[] {
   const tags = PART_TYPE_TO_TAGS.get(partType) ?? [];
   const selectors: string[] = [];
 
@@ -460,7 +460,7 @@ export function buildSelectorsForPart(
   const safeClasses = cssClasses
     .filter((c) => c.length > 0)
     .map((c) => `.${escapeCssIdentifier(c)}`);
-  const classSelector = safeClasses.join('');
+  const classSelector = safeClasses.join("");
 
   if (tags.length > 0) {
     // タグ + クラス（最も具体的） / Tag + classes (most specific)
@@ -498,5 +498,5 @@ export function buildSelectorsForPart(
 function escapeCssIdentifier(identifier: string): string {
   // CSS識別子として安全でない文字をバックスラッシュエスケープ
   // Backslash-escape characters unsafe for CSS identifiers
-  return identifier.replace(/([!"#$%&'()*+,./:;<=>?@[\\\]^`{|}~])/g, '\\$1');
+  return identifier.replace(/([!"#$%&'()*+,./:;<=>?@[\\\]^`{|}~])/g, "\\$1");
 }

@@ -10,10 +10,7 @@
  * @module @reftrix/webdesign-core/text-representation
  */
 
-import type {
-  DetectedSection,
-  SectionType,
-} from '../types/section.types';
+import type { DetectedSection, SectionType } from "../types/section.types";
 
 // =========================================
 // Types
@@ -44,7 +41,7 @@ export interface TypographyInfo {
  * グリッド情報（LayoutInspect結果から）
  */
 export interface GridInfo {
-  type: 'flex' | 'grid' | 'float' | 'unknown';
+  type: "flex" | "grid" | "float" | "unknown";
   columns?: number;
   gutterWidth?: number;
   maxWidth?: number;
@@ -73,9 +70,9 @@ export interface TextRepresentationOptions {
   /** グリッド情報を含める */
   includeGrid?: boolean;
   /** 出力言語 */
-  language?: 'en' | 'ja';
+  language?: "en" | "ja";
   /** フォーマット: 自然言語 or 構造化 */
-  format?: 'natural' | 'structured';
+  format?: "natural" | "structured";
 }
 
 /**
@@ -99,49 +96,49 @@ export interface TextRepresentationResult {
 // =========================================
 
 const SECTION_LABELS_EN: Record<SectionType, string> = {
-  hero: 'Hero section',
-  feature: 'Feature section',
-  cta: 'Call-to-action section',
-  testimonial: 'Testimonial section',
-  pricing: 'Pricing section',
-  footer: 'Footer',
-  navigation: 'Navigation',
-  about: 'About section',
-  contact: 'Contact section',
-  gallery: 'Gallery section',
-  unknown: 'Content section',
+  hero: "Hero section",
+  feature: "Feature section",
+  cta: "Call-to-action section",
+  testimonial: "Testimonial section",
+  pricing: "Pricing section",
+  footer: "Footer",
+  navigation: "Navigation",
+  about: "About section",
+  contact: "Contact section",
+  gallery: "Gallery section",
+  unknown: "Content section",
   // 拡張タイプ
-  partners: 'Partners section',
-  portfolio: 'Portfolio section',
-  team: 'Team section',
-  stories: 'Stories section',
-  research: 'Research section',
-  subscribe: 'Subscribe section',
-  stats: 'Stats section',
-  faq: 'FAQ section',
+  partners: "Partners section",
+  portfolio: "Portfolio section",
+  team: "Team section",
+  stories: "Stories section",
+  research: "Research section",
+  subscribe: "Subscribe section",
+  stats: "Stats section",
+  faq: "FAQ section",
 };
 
 const SECTION_LABELS_JA: Record<SectionType, string> = {
-  hero: 'ヒーローセクション',
-  feature: 'フィーチャーセクション',
-  cta: 'CTAセクション',
-  testimonial: 'お客様の声セクション',
-  pricing: '料金プランセクション',
-  footer: 'フッター',
-  navigation: 'ナビゲーション',
-  about: '会社概要セクション',
-  contact: 'お問い合わせセクション',
-  gallery: 'ギャラリーセクション',
-  unknown: 'コンテンツセクション',
+  hero: "ヒーローセクション",
+  feature: "フィーチャーセクション",
+  cta: "CTAセクション",
+  testimonial: "お客様の声セクション",
+  pricing: "料金プランセクション",
+  footer: "フッター",
+  navigation: "ナビゲーション",
+  about: "会社概要セクション",
+  contact: "お問い合わせセクション",
+  gallery: "ギャラリーセクション",
+  unknown: "コンテンツセクション",
   // 拡張タイプ
-  partners: 'パートナーセクション',
-  portfolio: 'ポートフォリオセクション',
-  team: 'チームセクション',
-  stories: 'ストーリーセクション',
-  research: 'リサーチセクション',
-  subscribe: '購読セクション',
-  stats: '統計セクション',
-  faq: 'よくある質問セクション',
+  partners: "パートナーセクション",
+  portfolio: "ポートフォリオセクション",
+  team: "チームセクション",
+  stories: "ストーリーセクション",
+  research: "リサーチセクション",
+  subscribe: "購読セクション",
+  stats: "統計セクション",
+  faq: "よくある質問セクション",
 };
 
 // =========================================
@@ -162,8 +159,8 @@ export class TextRepresentationGenerator {
       includeColors: options.includeColors ?? true,
       includeTypography: options.includeTypography ?? true,
       includeGrid: options.includeGrid ?? true,
-      language: options.language ?? 'en',
-      format: options.format ?? 'natural',
+      language: options.language ?? "en",
+      format: options.format ?? "natural",
     };
   }
 
@@ -176,7 +173,7 @@ export class TextRepresentationGenerator {
   ): TextRepresentationResult {
     if (sections.length === 0) {
       return {
-        text: '',
+        text: "",
         sections: [],
         metadata: {
           totalLength: 0,
@@ -196,7 +193,7 @@ export class TextRepresentationGenerator {
 
     // Build full text
     let fullText: string;
-    if (this.options.format === 'structured') {
+    if (this.options.format === "structured") {
       fullText = this.buildStructuredText(sections, sectionTexts, inspectResult);
     } else {
       fullText = this.buildNaturalText(sections, sectionTexts, inspectResult);
@@ -222,7 +219,7 @@ export class TextRepresentationGenerator {
    * 単一セクションのテキスト生成
    */
   generateForSection(section: DetectedSection): string {
-    if (this.options.format === 'structured') {
+    if (this.options.format === "structured") {
       return this.generateStructuredSection(section);
     }
     return this.generateNaturalSection(section);
@@ -232,46 +229,50 @@ export class TextRepresentationGenerator {
    * 色情報のテキスト生成
    */
   generateColorDescription(colors: ColorInfo): string {
-    if (this.options.format === 'structured') {
-      const parts = [`primary:${colors.dominant}`, `background:${colors.background}`, `text:${colors.text}`];
+    if (this.options.format === "structured") {
+      const parts = [
+        `primary:${colors.dominant}`,
+        `background:${colors.background}`,
+        `text:${colors.text}`,
+      ];
       if (colors.accent) {
         parts.push(`accent:${colors.accent}`);
       }
-      return `[COLORS] ${parts.join(' ')}`;
+      return `[COLORS] ${parts.join(" ")}`;
     }
 
     // Natural format
-    if (this.options.language === 'ja') {
+    if (this.options.language === "ja") {
       let desc = `カラーパレット: プライマリー ${colors.dominant}、背景 ${colors.background}、テキスト ${colors.text}`;
       if (colors.accent) {
         desc += `、アクセント ${colors.accent}`;
       }
-      return desc + '。';
+      return desc + "。";
     }
 
     let desc = `Color palette: Primary ${colors.dominant}, background ${colors.background}, text ${colors.text}`;
     if (colors.accent) {
       desc += `, accent ${colors.accent}`;
     }
-    return desc + '.';
+    return desc + ".";
   }
 
   /**
    * タイポグラフィ情報のテキスト生成
    */
   generateTypographyDescription(typography: TypographyInfo): string {
-    const fontFamilies = typography.fonts.map((f) => f.family).join(', ');
+    const fontFamilies = typography.fonts.map((f) => f.family).join(", ");
     const weights = typography.fonts.flatMap((f) => f.weights);
     const uniqueWeights = [...new Set(weights)].sort((a, b) => a - b);
-    const headingSizes = typography.headingScale.join(', ');
+    const headingSizes = typography.headingScale.join(", ");
 
-    if (this.options.format === 'structured') {
-      return `[TYPOGRAPHY] family:${fontFamilies} sizes:${headingSizes} weights:${uniqueWeights.join(',')} bodySize:${typography.bodySize}px lineHeight:${typography.lineHeight}`;
+    if (this.options.format === "structured") {
+      return `[TYPOGRAPHY] family:${fontFamilies} sizes:${headingSizes} weights:${uniqueWeights.join(",")} bodySize:${typography.bodySize}px lineHeight:${typography.lineHeight}`;
     }
 
     // Natural format
-    const weightsStr = uniqueWeights.length > 0 ? uniqueWeights.join(', ') : '400';
-    if (this.options.language === 'ja') {
+    const weightsStr = uniqueWeights.length > 0 ? uniqueWeights.join(", ") : "400";
+    if (this.options.language === "ja") {
       return `タイポグラフィ: ${fontFamilies}フォント、ウェイト ${weightsStr}、見出しサイズ ${headingSizes}px、本文 ${typography.bodySize}px、行間 ${typography.lineHeight}。`;
     }
 
@@ -282,28 +283,28 @@ export class TextRepresentationGenerator {
    * グリッド情報のテキスト生成
    */
   generateGridDescription(grid: GridInfo): string {
-    if (this.options.format === 'structured') {
+    if (this.options.format === "structured") {
       const parts = [`type:${grid.type}`];
       if (grid.columns) parts.push(`columns:${grid.columns}`);
       if (grid.gutterWidth) parts.push(`gutter:${grid.gutterWidth}px`);
       if (grid.maxWidth) parts.push(`maxWidth:${grid.maxWidth}px`);
-      return `[GRID] ${parts.join(' ')}`;
+      return `[GRID] ${parts.join(" ")}`;
     }
 
     // Natural format
-    if (this.options.language === 'ja') {
+    if (this.options.language === "ja") {
       let desc = `レイアウト: ${grid.type}`;
       if (grid.columns) desc += `、${grid.columns}カラム`;
       if (grid.gutterWidth) desc += `、ガター ${grid.gutterWidth}px`;
       if (grid.maxWidth) desc += `、最大幅 ${grid.maxWidth}px`;
-      return desc + '。';
+      return desc + "。";
     }
 
     let desc = `Layout: ${grid.type}`;
     if (grid.columns) desc += ` with ${grid.columns} columns`;
     if (grid.gutterWidth) desc += `, ${grid.gutterWidth}px gutters`;
     if (grid.maxWidth) desc += `, max-width ${grid.maxWidth}px`;
-    return desc + '.';
+    return desc + ".";
   }
 
   // =========================================
@@ -311,9 +312,10 @@ export class TextRepresentationGenerator {
   // =========================================
 
   private generateNaturalSection(section: DetectedSection): string {
-    const label = this.options.language === 'ja'
-      ? SECTION_LABELS_JA[section.type]
-      : SECTION_LABELS_EN[section.type];
+    const label =
+      this.options.language === "ja"
+        ? SECTION_LABELS_JA[section.type]
+        : SECTION_LABELS_EN[section.type];
 
     const parts: string[] = [];
     const { style, position } = section;
@@ -322,7 +324,7 @@ export class TextRepresentationGenerator {
     const positionDesc = this.getPositionDescription(position.startY);
 
     // Build section description
-    if (this.options.language === 'ja') {
+    if (this.options.language === "ja") {
       parts.push(this.buildJapaneseDescription(section, label, positionDesc));
     } else {
       parts.push(this.buildEnglishDescription(section, label, positionDesc));
@@ -331,13 +333,11 @@ export class TextRepresentationGenerator {
     // Style information
     if (style.hasGradient) {
       parts.push(
-        this.options.language === 'ja'
-          ? 'グラデーション背景。'
-          : 'Features a gradient background.'
+        this.options.language === "ja" ? "グラデーション背景。" : "Features a gradient background."
       );
     }
 
-    return parts.join(' ');
+    return parts.join(" ");
   }
 
   private buildEnglishDescription(
@@ -358,7 +358,7 @@ export class TextRepresentationGenerator {
 
     // Buttons
     if (content.buttons.length > 0) {
-      const buttonTexts = content.buttons.map((b) => `"${b.text}"`).join(' and ');
+      const buttonTexts = content.buttons.map((b) => `"${b.text}"`).join(" and ");
       if (content.buttons.length === 1) {
         parts.push(`and a CTA button ${buttonTexts}`);
       } else {
@@ -367,10 +367,10 @@ export class TextRepresentationGenerator {
     }
 
     // Images - enhanced for incomplete sections
-    if (content.images.length > 0 && type !== 'navigation') {
-      if (type === 'gallery') {
+    if (content.images.length > 0 && type !== "navigation") {
+      if (type === "gallery") {
         parts.push(`containing ${content.images.length} images`);
-      } else if (type === 'feature') {
+      } else if (type === "feature") {
         parts.push(`with icons`);
       } else {
         // Fallback: include image count for other section types
@@ -382,21 +382,21 @@ export class TextRepresentationGenerator {
         .map((img) => img.alt)
         .filter((alt) => alt && alt.trim().length > 0);
       if (altTexts.length > 0 && !mainHeading) {
-        const altDescription = altTexts.slice(0, 3).join(', ');
+        const altDescription = altTexts.slice(0, 3).join(", ");
         parts.push(`showing ${altDescription}`);
       }
     }
 
     // Links - enhanced for navigation and other sections
     if (content.links.length > 0) {
-      if (type === 'navigation') {
+      if (type === "navigation") {
         parts.push(`with ${content.links.length} navigation links`);
         // Include link texts for semantic meaning
         const linkTexts = content.links
           .map((link) => link.text)
           .filter((text) => text && text.trim().length > 0);
         if (linkTexts.length > 0 && !mainHeading) {
-          const linkDescription = linkTexts.slice(0, 4).join(', ');
+          const linkDescription = linkTexts.slice(0, 4).join(", ");
           parts.push(`including ${linkDescription}`);
         }
       } else if (!mainHeading) {
@@ -412,7 +412,7 @@ export class TextRepresentationGenerator {
     }
 
     // Feature items
-    if (type === 'feature' && content.headings.length > 1) {
+    if (type === "feature" && content.headings.length > 1) {
       const itemCount = content.headings.length - 1;
       parts.push(`showcasing ${itemCount} feature items`);
     }
@@ -425,7 +425,7 @@ export class TextRepresentationGenerator {
         parts.push(`with gradient background`);
       } else if (style.backgroundColor) {
         const isDark = this.isColorDark(style.backgroundColor);
-        parts.push(`with ${isDark ? 'dark' : 'light'} background`);
+        parts.push(`with ${isDark ? "dark" : "light"} background`);
       }
 
       // Add position/height fallback
@@ -435,7 +435,7 @@ export class TextRepresentationGenerator {
     }
 
     // Ensure minimum content for embedding quality
-    const result = parts.join(' ') + '.';
+    const result = parts.join(" ") + ".";
     if (result.length < 50 && !hasContent) {
       // Add section type description as fallback
       const typeDescription = this.getEnglishSectionTypeDescription(type);
@@ -447,33 +447,33 @@ export class TextRepresentationGenerator {
 
   private getEnglishSectionTypeDescription(type: SectionType): string {
     const descriptions: Record<SectionType, string> = {
-      hero: 'A prominent banner section typically at the top of the page showcasing the main message.',
-      feature: 'A section highlighting key features or capabilities of the product or service.',
-      cta: 'A call-to-action section designed to encourage user engagement.',
-      testimonial: 'A section displaying customer reviews and testimonials.',
-      pricing: 'A section presenting pricing plans and subscription options.',
-      footer: 'The bottom section containing site-wide links and information.',
-      navigation: 'A navigation bar providing links to main site sections.',
-      about: 'An about section describing the company or product.',
-      contact: 'A contact section with ways to reach out.',
-      gallery: 'A gallery section displaying visual content.',
-      unknown: 'A content section with general information.',
-      partners: 'A section showcasing partner logos and collaborations.',
-      portfolio: 'A portfolio section displaying work samples.',
-      team: 'A team section introducing team members.',
-      stories: 'A stories section featuring articles or case studies.',
-      research: 'A research section presenting studies and findings.',
-      subscribe: 'A subscription section for newsletter sign-ups.',
-      stats: 'A statistics section displaying key metrics.',
-      faq: 'A frequently asked questions section.',
+      hero: "A prominent banner section typically at the top of the page showcasing the main message.",
+      feature: "A section highlighting key features or capabilities of the product or service.",
+      cta: "A call-to-action section designed to encourage user engagement.",
+      testimonial: "A section displaying customer reviews and testimonials.",
+      pricing: "A section presenting pricing plans and subscription options.",
+      footer: "The bottom section containing site-wide links and information.",
+      navigation: "A navigation bar providing links to main site sections.",
+      about: "An about section describing the company or product.",
+      contact: "A contact section with ways to reach out.",
+      gallery: "A gallery section displaying visual content.",
+      unknown: "A content section with general information.",
+      partners: "A section showcasing partner logos and collaborations.",
+      portfolio: "A portfolio section displaying work samples.",
+      team: "A team section introducing team members.",
+      stories: "A stories section featuring articles or case studies.",
+      research: "A research section presenting studies and findings.",
+      subscribe: "A subscription section for newsletter sign-ups.",
+      stats: "A statistics section displaying key metrics.",
+      faq: "A frequently asked questions section.",
     };
     return descriptions[type] || descriptions.unknown;
   }
 
   private isColorDark(color: string): boolean {
     // Simple dark color detection based on hex value
-    if (!color || !color.startsWith('#')) return false;
-    const hex = color.replace('#', '');
+    if (!color || !color.startsWith("#")) return false;
+    const hex = color.replace("#", "");
     if (hex.length !== 6) return false;
     const r = parseInt(hex.substring(0, 2), 16);
     const g = parseInt(hex.substring(2, 4), 16);
@@ -501,15 +501,15 @@ export class TextRepresentationGenerator {
 
     // Buttons
     if (content.buttons.length > 0) {
-      const buttonTexts = content.buttons.map((b) => `「${b.text}」`).join('と');
+      const buttonTexts = content.buttons.map((b) => `「${b.text}」`).join("と");
       parts.push(`CTAボタン${buttonTexts}`);
     }
 
     // Images - enhanced for incomplete sections
-    if (content.images.length > 0 && type !== 'navigation') {
-      if (type === 'gallery') {
+    if (content.images.length > 0 && type !== "navigation") {
+      if (type === "gallery") {
         parts.push(`${content.images.length}枚の画像を含む`);
-      } else if (type === 'feature') {
+      } else if (type === "feature") {
         parts.push(`アイコン付き`);
       } else {
         // Fallback: include image count for other section types
@@ -521,21 +521,21 @@ export class TextRepresentationGenerator {
         .map((img) => img.alt)
         .filter((alt) => alt && alt.trim().length > 0);
       if (altTexts.length > 0 && !mainHeading) {
-        const altDescription = altTexts.slice(0, 3).join('、');
+        const altDescription = altTexts.slice(0, 3).join("、");
         parts.push(`内容: ${altDescription}`);
       }
     }
 
     // Links - enhanced for navigation and other sections
     if (content.links.length > 0) {
-      if (type === 'navigation') {
+      if (type === "navigation") {
         parts.push(`${content.links.length}個のナビゲーションリンク`);
         // Include link texts for semantic meaning
         const linkTexts = content.links
           .map((link) => link.text)
           .filter((text) => text && text.trim().length > 0);
         if (linkTexts.length > 0 && !mainHeading) {
-          const linkDescription = linkTexts.slice(0, 4).join('、');
+          const linkDescription = linkTexts.slice(0, 4).join("、");
           parts.push(`リンク先: ${linkDescription}`);
         }
       } else if (!mainHeading) {
@@ -558,7 +558,7 @@ export class TextRepresentationGenerator {
         parts.push(`グラデーション背景`);
       } else if (style.backgroundColor) {
         const isDark = this.isColorDark(style.backgroundColor);
-        parts.push(`${isDark ? 'ダーク' : 'ライト'}背景`);
+        parts.push(`${isDark ? "ダーク" : "ライト"}背景`);
       }
 
       // Add position/height fallback
@@ -568,7 +568,7 @@ export class TextRepresentationGenerator {
     }
 
     // Ensure minimum content for embedding quality
-    const result = parts.join('、') + '。';
+    const result = parts.join("、") + "。";
     if (result.length < 50 && !hasContent) {
       // Add section type description as fallback
       const typeDescription = this.getJapaneseSectionTypeDescription(type);
@@ -580,37 +580,37 @@ export class TextRepresentationGenerator {
 
   private getJapaneseSectionTypeDescription(type: SectionType): string {
     const descriptions: Record<SectionType, string> = {
-      hero: 'ページ上部に配置される主要なメッセージを表示するバナーセクション。',
-      feature: '製品やサービスの主要な機能を紹介するセクション。',
-      cta: 'ユーザーのアクションを促すコールトゥアクションセクション。',
-      testimonial: 'お客様のレビューや声を表示するセクション。',
-      pricing: '料金プランやサブスクリプションオプションを表示するセクション。',
-      footer: 'サイト全体のリンクや情報を含むページ下部のセクション。',
-      navigation: 'サイトの主要セクションへのリンクを提供するナビゲーションバー。',
-      about: '会社や製品について説明するセクション。',
-      contact: '連絡先情報を含むセクション。',
-      gallery: 'ビジュアルコンテンツを表示するギャラリーセクション。',
-      unknown: '一般的な情報を含むコンテンツセクション。',
-      partners: 'パートナーロゴやコラボレーションを紹介するセクション。',
-      portfolio: '作品サンプルを表示するポートフォリオセクション。',
-      team: 'チームメンバーを紹介するセクション。',
-      stories: '記事やケーススタディを紹介するセクション。',
-      research: '研究や調査結果を表示するセクション。',
-      subscribe: 'ニュースレター登録のための購読セクション。',
-      stats: '主要な指標を表示する統計セクション。',
-      faq: 'よくある質問と回答のセクション。',
+      hero: "ページ上部に配置される主要なメッセージを表示するバナーセクション。",
+      feature: "製品やサービスの主要な機能を紹介するセクション。",
+      cta: "ユーザーのアクションを促すコールトゥアクションセクション。",
+      testimonial: "お客様のレビューや声を表示するセクション。",
+      pricing: "料金プランやサブスクリプションオプションを表示するセクション。",
+      footer: "サイト全体のリンクや情報を含むページ下部のセクション。",
+      navigation: "サイトの主要セクションへのリンクを提供するナビゲーションバー。",
+      about: "会社や製品について説明するセクション。",
+      contact: "連絡先情報を含むセクション。",
+      gallery: "ビジュアルコンテンツを表示するギャラリーセクション。",
+      unknown: "一般的な情報を含むコンテンツセクション。",
+      partners: "パートナーロゴやコラボレーションを紹介するセクション。",
+      portfolio: "作品サンプルを表示するポートフォリオセクション。",
+      team: "チームメンバーを紹介するセクション。",
+      stories: "記事やケーススタディを紹介するセクション。",
+      research: "研究や調査結果を表示するセクション。",
+      subscribe: "ニュースレター登録のための購読セクション。",
+      stats: "主要な指標を表示する統計セクション。",
+      faq: "よくある質問と回答のセクション。",
     };
     return descriptions[type] || descriptions.unknown;
   }
 
   private getPositionDescription(startY: number): string {
     if (startY <= 100) {
-      return this.options.language === 'ja' ? 'ページ上部' : 'at the top';
+      return this.options.language === "ja" ? "ページ上部" : "at the top";
     }
     if (startY <= 600) {
-      return this.options.language === 'ja' ? 'ページ中央付近' : 'in the middle';
+      return this.options.language === "ja" ? "ページ中央付近" : "in the middle";
     }
-    return this.options.language === 'ja' ? 'ページ下部' : 'near the bottom';
+    return this.options.language === "ja" ? "ページ下部" : "near the bottom";
   }
 
   // =========================================
@@ -625,7 +625,7 @@ export class TextRepresentationGenerator {
     parts.push(`[SECTION:${type}]`);
 
     // Position
-    const posDesc = position.startY <= 100 ? 'top' : position.startY <= 600 ? 'middle' : 'bottom';
+    const posDesc = position.startY <= 100 ? "top" : position.startY <= 600 ? "middle" : "bottom";
     parts.push(`position:${posDesc}`);
 
     // Heading
@@ -637,7 +637,7 @@ export class TextRepresentationGenerator {
     // Buttons - enhanced with CTA text always shown
     if (content.buttons.length > 0) {
       parts.push(`buttons:${content.buttons.length}`);
-      const ctaButton = content.buttons.find((b) => b.type === 'primary') || content.buttons[0];
+      const ctaButton = content.buttons.find((b) => b.type === "primary") || content.buttons[0];
       if (ctaButton) {
         parts.push(`cta:"${ctaButton.text}"`);
       }
@@ -651,7 +651,7 @@ export class TextRepresentationGenerator {
         .map((img) => img.alt)
         .filter((alt) => alt && alt.trim().length > 0);
       if (altTexts.length > 0 && !mainHeading) {
-        parts.push(`alt:"${altTexts.slice(0, 2).join(', ')}"`);
+        parts.push(`alt:"${altTexts.slice(0, 2).join(", ")}"`);
       }
     }
 
@@ -663,18 +663,18 @@ export class TextRepresentationGenerator {
         .map((link) => link.text)
         .filter((text) => text && text.trim().length > 0);
       if (linkTexts.length > 0 && !mainHeading) {
-        parts.push(`navItems:"${linkTexts.slice(0, 3).join(', ')}"`);
+        parts.push(`navItems:"${linkTexts.slice(0, 3).join(", ")}"`);
       }
     }
 
     // Feature count (subheadings)
-    if (type === 'feature' && content.headings.length > 1) {
+    if (type === "feature" && content.headings.length > 1) {
       parts.push(`items:${content.headings.length - 1}`);
     }
 
     // Style - always include for incomplete sections
     if (style.hasGradient) {
-      parts.push('style:gradient');
+      parts.push("style:gradient");
     } else if (style.backgroundColor) {
       parts.push(`style:bg(${style.backgroundColor})`);
     }
@@ -686,7 +686,7 @@ export class TextRepresentationGenerator {
     }
 
     // Ensure minimum content - add type description as fallback
-    const result = parts.join(' ');
+    const result = parts.join(" ");
     if (result.length < 50 && !hasContent) {
       const typeDesc = this.getStructuredTypeDescription(type);
       return `${result} desc:"${typeDesc}"`;
@@ -697,25 +697,25 @@ export class TextRepresentationGenerator {
 
   private getStructuredTypeDescription(type: SectionType): string {
     const descriptions: Record<SectionType, string> = {
-      hero: 'Main banner with key message',
-      feature: 'Feature highlights section',
-      cta: 'Action-encouraging section',
-      testimonial: 'Customer reviews display',
-      pricing: 'Pricing plans section',
-      footer: 'Site-wide links section',
-      navigation: 'Navigation bar',
-      about: 'Company information',
-      contact: 'Contact information',
-      gallery: 'Visual content display',
-      unknown: 'Content section',
-      partners: 'Partner showcase',
-      portfolio: 'Work samples display',
-      team: 'Team introduction',
-      stories: 'Articles section',
-      research: 'Research findings',
-      subscribe: 'Newsletter signup',
-      stats: 'Key metrics display',
-      faq: 'FAQ section',
+      hero: "Main banner with key message",
+      feature: "Feature highlights section",
+      cta: "Action-encouraging section",
+      testimonial: "Customer reviews display",
+      pricing: "Pricing plans section",
+      footer: "Site-wide links section",
+      navigation: "Navigation bar",
+      about: "Company information",
+      contact: "Contact information",
+      gallery: "Visual content display",
+      unknown: "Content section",
+      partners: "Partner showcase",
+      portfolio: "Work samples display",
+      team: "Team introduction",
+      stories: "Articles section",
+      research: "Research findings",
+      subscribe: "Newsletter signup",
+      stats: "Key metrics display",
+      faq: "FAQ section",
     };
     return descriptions[type] || descriptions.unknown;
   }
@@ -747,7 +747,7 @@ export class TextRepresentationGenerator {
       }
     }
 
-    return parts.join(' ');
+    return parts.join(" ");
   }
 
   private buildStructuredText(
@@ -773,7 +773,7 @@ export class TextRepresentationGenerator {
       }
     }
 
-    return lines.join('\n');
+    return lines.join("\n");
   }
 
   private truncateText(text: string, maxLength: number): string {
@@ -783,8 +783,8 @@ export class TextRepresentationGenerator {
 
     // Try to truncate at a sentence boundary
     const truncated = text.slice(0, maxLength);
-    const lastPeriod = truncated.lastIndexOf('.');
-    const lastNewline = truncated.lastIndexOf('\n');
+    const lastPeriod = truncated.lastIndexOf(".");
+    const lastNewline = truncated.lastIndexOf("\n");
     const cutPoint = Math.max(lastPeriod, lastNewline);
 
     if (cutPoint > maxLength * 0.5) {
@@ -792,6 +792,6 @@ export class TextRepresentationGenerator {
     }
 
     // Otherwise just cut at maxLength
-    return truncated.slice(0, maxLength - 3) + '...';
+    return truncated.slice(0, maxLength - 3) + "...";
   }
 }

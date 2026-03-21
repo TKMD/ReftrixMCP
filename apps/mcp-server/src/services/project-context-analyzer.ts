@@ -23,15 +23,15 @@
  * @module services/project-context-analyzer
  */
 
-import * as fs from 'fs';
-import * as path from 'path';
-import { isDevelopment, logger } from '../utils/logger';
+import * as fs from "fs";
+import * as path from "path";
+import { isDevelopment, logger } from "../utils/logger";
 import {
   validateProjectPath,
   validateFilePath,
   matchesBlockedFilePattern,
   type PathValidationResult,
-} from '../utils/path-security';
+} from "../utils/path-security";
 
 // =====================================================
 // Types
@@ -42,7 +42,7 @@ import {
  */
 export interface StyleDefinition {
   name: string;
-  type: 'const' | 'export-const' | 'let' | 'var';
+  type: "const" | "export-const" | "let" | "var";
   colors: Record<string, string>;
   file: string;
 }
@@ -76,7 +76,7 @@ export interface ThemeVariable {
  */
 export interface AnimationDefinition {
   name: string;
-  type: 'keyframes' | 'animation' | 'transition';
+  type: "keyframes" | "animation" | "transition";
 }
 
 /**
@@ -122,10 +122,10 @@ export interface ProjectContextOptions {
 // =====================================================
 
 /** File extensions to scan */
-const SCANNABLE_EXTENSIONS = ['.ts', '.tsx', '.js', '.jsx', '.css'];
+const SCANNABLE_EXTENSIONS = [".ts", ".tsx", ".js", ".jsx", ".css"];
 
 /** Directories to skip */
-const SKIP_DIRECTORIES = ['node_modules', '.git', 'dist', 'build', '.next', 'coverage'];
+const SKIP_DIRECTORIES = ["node_modules", ".git", "dist", "build", ".next", "coverage"];
 
 /** Regex patterns */
 const PATTERNS = {
@@ -134,7 +134,8 @@ const PATTERNS = {
   // Match color values (hex, rgb, rgba, oklch, hsl)
   colorValue: /#[0-9a-fA-F]{3,8}|rgba?\([^)]+\)|oklch\([^)]+\)|hsla?\([^)]+\)/g,
   // Match color properties in object
-  colorProperty: /['"]?([\w.-]+)['"]?\s*:\s*['"]?(#[0-9a-fA-F]{3,8}|rgba?\([^)]+\)|oklch\([^)]+\)|hsla?\([^)]+\))['"]?/g,
+  colorProperty:
+    /['"]?([\w.-]+)['"]?\s*:\s*['"]?(#[0-9a-fA-F]{3,8}|rgba?\([^)]+\)|oklch\([^)]+\)|hsla?\([^)]+\))['"]?/g,
   // Match hook exports
   hookExport: /export\s+(?:function|const)\s+(use[A-Z]\w*)/g,
   // Match @theme CSS variables
@@ -185,7 +186,7 @@ export class ProjectContextAnalyzer {
     const patterns: ProjectPatterns = {
       designTokens: { styles: [] },
       hooks: [],
-      cssFramework: 'unknown',
+      cssFramework: "unknown",
       themeVariables: [],
       animations: [],
       utilityClasses: [],
@@ -195,7 +196,7 @@ export class ProjectContextAnalyzer {
     const validationResult: PathValidationResult = validateProjectPath(projectPath);
     if (!validationResult.isValid) {
       if (isDevelopment()) {
-        logger.warn('[ProjectContextAnalyzer] Path validation failed', {
+        logger.warn("[ProjectContextAnalyzer] Path validation failed", {
           projectPath,
           errorCode: validationResult.error?.code,
           errorMessage: validationResult.error?.message,
@@ -211,7 +212,9 @@ export class ProjectContextAnalyzer {
 
     if (!fs.existsSync(normalizedPath)) {
       if (isDevelopment()) {
-        logger.warn('[ProjectContextAnalyzer] Project path does not exist', { projectPath: normalizedPath });
+        logger.warn("[ProjectContextAnalyzer] Project path does not exist", {
+          projectPath: normalizedPath,
+        });
       }
       return patterns;
     }
@@ -224,7 +227,7 @@ export class ProjectContextAnalyzer {
       this.patternCache.set(projectPath, patterns);
 
       if (isDevelopment()) {
-        logger.info('[ProjectContextAnalyzer] Patterns detected', {
+        logger.info("[ProjectContextAnalyzer] Patterns detected", {
           styles: patterns.designTokens.styles.length,
           hooks: patterns.hooks.length,
           cssFramework: patterns.cssFramework,
@@ -235,7 +238,7 @@ export class ProjectContextAnalyzer {
       }
     } catch (error) {
       if (isDevelopment()) {
-        logger.error('[ProjectContextAnalyzer] Error detecting patterns', {
+        logger.error("[ProjectContextAnalyzer] Error detecting patterns", {
           error: error instanceof Error ? error.message : String(error),
         });
       }
@@ -273,10 +276,10 @@ export class ProjectContextAnalyzer {
       const entries = fs.readdirSync(dirPath, { withFileTypes: true });
 
       for (const entry of entries) {
-        const entryName: string = typeof entry === 'string' ? entry : entry.name ?? '';
+        const entryName: string = typeof entry === "string" ? entry : (entry.name ?? "");
 
         // Skip hidden and excluded directories
-        if (SKIP_DIRECTORIES.includes(entryName) || entryName.startsWith('.')) {
+        if (SKIP_DIRECTORIES.includes(entryName) || entryName.startsWith(".")) {
           continue;
         }
 
@@ -285,7 +288,7 @@ export class ProjectContextAnalyzer {
         // MCP-SEC-02: Validate file path is within workspace
         if (!validateFilePath(fullPath, validatedWorkspace)) {
           if (isDevelopment()) {
-            logger.warn('[ProjectContextAnalyzer] Skipping path outside workspace', {
+            logger.warn("[ProjectContextAnalyzer] Skipping path outside workspace", {
               path: fullPath,
               workspace: validatedWorkspace,
             });
@@ -296,7 +299,7 @@ export class ProjectContextAnalyzer {
         // MCP-SEC-02: Check for blocked file patterns
         if (matchesBlockedFilePattern(entryName)) {
           if (isDevelopment()) {
-            logger.debug('[ProjectContextAnalyzer] Skipping blocked file pattern', {
+            logger.debug("[ProjectContextAnalyzer] Skipping blocked file pattern", {
               filename: entryName,
             });
           }
@@ -329,10 +332,10 @@ export class ProjectContextAnalyzer {
    */
   private analyzeFile(filePath: string, fileName: string, patterns: ProjectPatterns): void {
     try {
-      const content = fs.readFileSync(filePath, 'utf-8');
+      const content = fs.readFileSync(filePath, "utf-8");
       const ext = path.extname(fileName);
 
-      if (ext === '.css') {
+      if (ext === ".css") {
         this.analyzeCssFile(content, patterns);
       } else {
         this.analyzeJsFile(content, fileName, patterns);
@@ -351,15 +354,15 @@ export class ProjectContextAnalyzer {
     PATTERNS.constStyles.lastIndex = 0;
 
     while ((match = PATTERNS.constStyles.exec(content)) !== null) {
-      const constantName = match[1] ?? '';
-      const isExport = match[0].startsWith('export');
+      const constantName = match[1] ?? "";
+      const isExport = match[0].startsWith("export");
 
       // Extract colors from the constant
       const colors = this.extractColors(content, match.index);
 
       patterns.designTokens.styles.push({
         name: constantName,
-        type: isExport ? 'export-const' : 'const',
+        type: isExport ? "export-const" : "const",
         colors,
         file: fileName,
       });
@@ -368,7 +371,7 @@ export class ProjectContextAnalyzer {
     // Detect hooks
     PATTERNS.hookExport.lastIndex = 0;
     while ((match = PATTERNS.hookExport.exec(content)) !== null) {
-      const hookName = match[1] ?? '';
+      const hookName = match[1] ?? "";
       if (!hookName) continue;
 
       // Check if this hook already exists
@@ -389,7 +392,7 @@ export class ProjectContextAnalyzer {
   private analyzeCssFile(content: string, patterns: ProjectPatterns): void {
     // Detect TailwindCSS v4
     if (PATTERNS.tailwindImport.test(content)) {
-      patterns.cssFramework = 'tailwindcss-v4';
+      patterns.cssFramework = "tailwindcss-v4";
     }
 
     // Extract @theme variables
@@ -400,9 +403,9 @@ export class ProjectContextAnalyzer {
       const varMatches = themeContent.match(/--[\w-]+:\s*[^;]+/g);
       if (varMatches) {
         for (const vm of varMatches) {
-          const parts = vm.split(':');
+          const parts = vm.split(":");
           const name = parts[0];
-          const value = parts.slice(1).join(':').trim();
+          const value = parts.slice(1).join(":").trim();
           if (name) {
             patterns.themeVariables.push({ name: name.trim(), value });
           }
@@ -418,7 +421,7 @@ export class ProjectContextAnalyzer {
       if (animName) {
         patterns.animations.push({
           name: animName,
-          type: 'keyframes',
+          type: "keyframes",
         });
       }
     }
@@ -429,7 +432,7 @@ export class ProjectContextAnalyzer {
     while ((classMatch = PATTERNS.cssClass.exec(content)) !== null) {
       const className = classMatch[1];
       // Only include meaningful utility classes
-      if (className && className.length > 2 && !className.startsWith('_')) {
+      if (className && className.length > 2 && !className.startsWith("_")) {
         patterns.utilityClasses.push(className);
       }
     }
@@ -447,10 +450,10 @@ export class ProjectContextAnalyzer {
     let objectEnd = -1;
 
     for (let i = startIndex; i < content.length; i++) {
-      if (content[i] === '{') {
+      if (content[i] === "{") {
         if (objectStart === -1) objectStart = i;
         braceCount++;
-      } else if (content[i] === '}') {
+      } else if (content[i] === "}") {
         braceCount--;
         if (braceCount === 0 && objectStart !== -1) {
           objectEnd = i;
@@ -588,7 +591,7 @@ export class ProjectContextAnalyzer {
 
     // From theme variables (extract color values)
     for (const variable of patterns.themeVariables) {
-      if (variable.name.includes('color')) {
+      if (variable.name.includes("color")) {
         const match = variable.value.match(PATTERNS.colorValue);
         if (match) {
           colors.push(match[0].toLowerCase());
@@ -610,11 +613,11 @@ export class ProjectContextAnalyzer {
     }
 
     // Convert to RGB for comparison if hex
-    if (normalized.startsWith('#')) {
+    if (normalized.startsWith("#")) {
       const rgb = this.hexToRgb(normalized);
       if (rgb) {
         for (const pc of projectColors) {
-          if (pc.startsWith('#')) {
+          if (pc.startsWith("#")) {
             const pcRgb = this.hexToRgb(pc);
             if (pcRgb && this.colorDistance(rgb, pcRgb) < 30) {
               return pc;
@@ -657,9 +660,7 @@ export class ProjectContextAnalyzer {
     c2: { r: number; g: number; b: number }
   ): number {
     return Math.sqrt(
-      Math.pow(c1.r - c2.r, 2) +
-        Math.pow(c1.g - c2.g, 2) +
-        Math.pow(c1.b - c2.b, 2)
+      Math.pow(c1.r - c2.r, 2) + Math.pow(c1.g - c2.g, 2) + Math.pow(c1.b - c2.b, 2)
     );
   }
 
@@ -671,11 +672,11 @@ export class ProjectContextAnalyzer {
     const hasComplexAnimation = PATTERNS.complexAnimation.test(html);
 
     // Check if project has corresponding hooks
-    const hasScrollHook = patterns.hooks.some((h) =>
-      h.name.toLowerCase().includes('scroll') || h.name.toLowerCase().includes('animation')
+    const hasScrollHook = patterns.hooks.some(
+      (h) => h.name.toLowerCase().includes("scroll") || h.name.toLowerCase().includes("animation")
     );
-    const hasGsapHook = patterns.hooks.some((h) =>
-      h.name.toLowerCase().includes('gsap') || h.name.toLowerCase().includes('timeline')
+    const hasGsapHook = patterns.hooks.some(
+      (h) => h.name.toLowerCase().includes("gsap") || h.name.toLowerCase().includes("timeline")
     );
 
     let score = 50; // Base score
@@ -692,9 +693,11 @@ export class ProjectContextAnalyzer {
    */
   private calculateFrameworkCompatibility(html: string, patterns: ProjectPatterns): number {
     // Check for TailwindCSS classes in HTML
-    const hasTailwindClasses = /class="[^"]*\b(flex|grid|p-|m-|w-|h-|text-|bg-|border-)/i.test(html);
+    const hasTailwindClasses = /class="[^"]*\b(flex|grid|p-|m-|w-|h-|text-|bg-|border-)/i.test(
+      html
+    );
 
-    if (patterns.cssFramework === 'tailwindcss-v4') {
+    if (patterns.cssFramework === "tailwindcss-v4") {
       return hasTailwindClasses ? 100 : 60;
     }
 
@@ -742,8 +745,8 @@ export class ProjectContextAnalyzer {
 
     // Suggest hooks based on HTML patterns
     if (PATTERNS.scrollAnimation.test(html)) {
-      const scrollHook = patterns.hooks.find((h) =>
-        h.name.toLowerCase().includes('scroll') || h.name === 'useScrollAnimation'
+      const scrollHook = patterns.hooks.find(
+        (h) => h.name.toLowerCase().includes("scroll") || h.name === "useScrollAnimation"
       );
       if (scrollHook) {
         hints.suggested_hooks.push(scrollHook.name);
@@ -751,8 +754,8 @@ export class ProjectContextAnalyzer {
     }
 
     if (PATTERNS.complexAnimation.test(html)) {
-      const gsapHook = patterns.hooks.find((h) =>
-        h.name.toLowerCase().includes('gsap') || h.name === 'useGsap'
+      const gsapHook = patterns.hooks.find(
+        (h) => h.name.toLowerCase().includes("gsap") || h.name === "useGsap"
       );
       if (gsapHook) {
         hints.suggested_hooks.push(gsapHook.name);
@@ -771,9 +774,10 @@ export class ProjectContextAnalyzer {
     // Find existing animations that could be reused
     const htmlAnimations = this.extractAnimationNames(html);
     for (const anim of htmlAnimations) {
-      const existing = patterns.animations.find((a) =>
-        a.name.toLowerCase().includes(anim.toLowerCase()) ||
-        anim.toLowerCase().includes(a.name.toLowerCase())
+      const existing = patterns.animations.find(
+        (a) =>
+          a.name.toLowerCase().includes(anim.toLowerCase()) ||
+          anim.toLowerCase().includes(a.name.toLowerCase())
       );
       if (existing) {
         hints.existing_animations.push(existing.name);
@@ -801,7 +805,7 @@ export class ProjectContextAnalyzer {
         }
 
         // Check similar colors
-        if (normalized.startsWith('#') && value.startsWith('#')) {
+        if (normalized.startsWith("#") && value.startsWith("#")) {
           const rgb1 = this.hexToRgb(normalized);
           const rgb2 = this.hexToRgb(value);
           if (rgb1 && rgb2 && this.colorDistance(rgb1, rgb2) < 20) {
@@ -824,7 +828,7 @@ export class ProjectContextAnalyzer {
     const animMatch = html.match(/animation:\s*([\w-]+)/gi);
     if (animMatch) {
       for (const m of animMatch) {
-        const name = m.replace(/animation:\s*/i, '').split(/\s/)[0];
+        const name = m.replace(/animation:\s*/i, "").split(/\s/)[0];
         if (name) names.push(name);
       }
     }
@@ -835,7 +839,7 @@ export class ProjectContextAnalyzer {
       for (const m of classMatch) {
         const classes = m.match(/animate[-\w]+/gi);
         if (classes) {
-          names.push(...classes.map((c) => c.replace(/^animate-?/i, '')));
+          names.push(...classes.map((c) => c.replace(/^animate-?/i, "")));
         }
       }
     }

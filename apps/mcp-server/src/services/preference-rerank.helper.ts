@@ -21,9 +21,9 @@
  * @module services/preference-rerank.helper
  */
 
-import { logger } from '../utils/logger';
-import { truncateId } from '../tools/preference/schemas';
-import type { IPrismaClient } from './preference-profile.service';
+import { logger } from "../utils/logger";
+import { truncateId } from "../tools/preference/schemas";
+import type { IPrismaClient } from "./preference-profile.service";
 
 // =====================================================
 // 定数 / Constants
@@ -49,7 +49,7 @@ export const MIN_INTERACTIONS_FOR_RERANK = 5;
  * リランキング対象のドメイン
  * Reranking target domain
  */
-export type EmbeddingDomain = 'layout' | 'motion' | 'background' | 'narrative' | 'responsive';
+export type EmbeddingDomain = "layout" | "motion" | "background" | "narrative" | "responsive";
 
 /**
  * ドメインごとのembeddingテーブル設定
@@ -66,33 +66,33 @@ const DOMAIN_EMBEDDING_CONFIG: Record<
   { table: string; fkColumn: string; embeddingExpr: string }
 > = {
   layout: {
-    table: 'section_embeddings',
-    fkColumn: 'section_pattern_id',
-    embeddingExpr: 'COALESCE(combined_embedding, text_embedding)',
+    table: "section_embeddings",
+    fkColumn: "section_pattern_id",
+    embeddingExpr: "COALESCE(combined_embedding, text_embedding)",
   },
   motion: {
-    table: 'motion_embeddings',
-    fkColumn: 'motion_pattern_id',
-    embeddingExpr: 'embedding',
+    table: "motion_embeddings",
+    fkColumn: "motion_pattern_id",
+    embeddingExpr: "embedding",
   },
   background: {
-    table: 'background_design_embeddings',
-    fkColumn: 'background_design_id',
-    embeddingExpr: 'embedding',
+    table: "background_design_embeddings",
+    fkColumn: "background_design_id",
+    embeddingExpr: "embedding",
   },
   narrative: {
-    table: 'design_narrative_embeddings',
-    fkColumn: 'design_narrative_id',
-    embeddingExpr: 'embedding',
+    table: "design_narrative_embeddings",
+    fkColumn: "design_narrative_id",
+    embeddingExpr: "embedding",
   },
   responsive: {
-    table: 'responsive_analysis_embeddings',
+    table: "responsive_analysis_embeddings",
     // responsive searchは rae.id（embedding行PK）をitem.idとして返すため、
     // FKではなくPKで検索する
     // responsive search returns rae.id (embedding row PK) as item.id,
     // so search by PK instead of FK
-    fkColumn: 'id',
-    embeddingExpr: 'embedding',
+    fkColumn: "id",
+    embeddingExpr: "embedding",
   },
 };
 
@@ -220,15 +220,18 @@ export function cosineSimilarity(a: number[], b: number[]): number {
 function parseVectorString(vectorStr: string): number[] {
   const values = vectorStr
     .slice(1, -1) // "[" と "]" を除去 / Remove "[" and "]"
-    .split(',')
+    .split(",")
     .map(Number);
 
   // NaN/Infinity防御 / NaN/Infinity defense
   for (const val of values) {
     if (!Number.isFinite(val)) {
-      logger.warn('[PreferenceRerank] Non-finite value detected in vector string, returning empty', {
-        vectorStrLength: vectorStr.length,
-      });
+      logger.warn(
+        "[PreferenceRerank] Non-finite value detected in vector string, returning empty",
+        {
+          vectorStrLength: vectorStr.length,
+        }
+      );
       return [];
     }
   }
@@ -283,9 +286,9 @@ export async function getPreferenceEmbedding(
   } catch (error) {
     // 全環境でログ出力（isDevelopmentガードなし）
     // Log in all environments (no isDevelopment guard)
-    logger.warn('[PreferenceRerank] Failed to get preference embedding', {
+    logger.warn("[PreferenceRerank] Failed to get preference embedding", {
       profileId: truncateId(profileId),
-      error: error instanceof Error ? error.message : 'Unknown error',
+      error: error instanceof Error ? error.message : "Unknown error",
     });
     return { embedding: null, interactionCount: 0 };
   }
@@ -328,10 +331,10 @@ async function fetchItemEmbeddings(
       }
     }
   } catch (error) {
-    logger.warn('[PreferenceRerank] Failed to fetch item embeddings', {
+    logger.warn("[PreferenceRerank] Failed to fetch item embeddings", {
       domain,
       itemCount: itemIds.length,
-      error: error instanceof Error ? error.message : 'Unknown error',
+      error: error instanceof Error ? error.message : "Unknown error",
     });
   }
 
@@ -377,13 +380,15 @@ export async function rerankWithPreference<T extends RerankableItem>(
   // 空の結果の場合は早期リターン
   // Early return for empty results
   if (results.length === 0) {
-    return { items: results, reranked: false, reason: '検索結果が空です / No search results' };
+    return { items: results, reranked: false, reason: "検索結果が空です / No search results" };
   }
 
   // 嗜好プロファイルのembeddingを取得
   // Get preference profile embedding
-  const { embedding: preferenceEmbedding, interactionCount } =
-    await getPreferenceEmbedding(profileId, prisma);
+  const { embedding: preferenceEmbedding, interactionCount } = await getPreferenceEmbedding(
+    profileId,
+    prisma
+  );
 
   // preference_embedding が NULL の場合
   // When preference_embedding is NULL
@@ -391,7 +396,8 @@ export async function rerankWithPreference<T extends RerankableItem>(
     return {
       items: results,
       reranked: false,
-      reason: '嗜好embeddingが未生成です（フィードバックが記録されていません） / Preference embedding not yet generated (no feedback recorded)',
+      reason:
+        "嗜好embeddingが未生成です（フィードバックが記録されていません） / Preference embedding not yet generated (no feedback recorded)",
     };
   }
 
@@ -423,14 +429,14 @@ export async function rerankWithPreference<T extends RerankableItem>(
       return {
         items: results,
         reranked: false,
-        reason: 'DB上にembeddingが見つかりません / No embeddings found in DB',
+        reason: "DB上にembeddingが見つかりません / No embeddings found in DB",
       };
     }
   } else if (itemsWithEmbedding.length === 0) {
     return {
       items: results,
       reranked: false,
-      reason: '検索結果にembeddingが含まれていません / Search results do not contain embeddings',
+      reason: "検索結果にembeddingが含まれていません / Search results do not contain embeddings",
     };
   }
 
@@ -442,7 +448,7 @@ export async function rerankWithPreference<T extends RerankableItem>(
     const itemEmbedding =
       item.embedding && Array.isArray(item.embedding) && item.embedding.length > 0
         ? item.embedding
-        : itemEmbeddingMap?.get(item.id) ?? null;
+        : (itemEmbeddingMap?.get(item.id) ?? null);
 
     if (!itemEmbedding) {
       // embedding がないアイテムは元のスコアを維持
@@ -469,14 +475,14 @@ export async function rerankWithPreference<T extends RerankableItem>(
 
   // 全環境でログ出力（isDevelopmentガードなし）
   // Log in all environments (no isDevelopment guard)
-  logger.info('[PreferenceRerank] Reranking applied', {
+  logger.info("[PreferenceRerank] Reranking applied", {
     profileId: truncateId(profileId),
     alpha,
     interactionCount,
     totalItems: results.length,
     itemsWithEmbedding: itemsWithEmbedding.length,
     itemsFromDb: itemEmbeddingMap?.size ?? 0,
-    domain: options?.domain ?? 'none',
+    domain: options?.domain ?? "none",
   });
 
   return {

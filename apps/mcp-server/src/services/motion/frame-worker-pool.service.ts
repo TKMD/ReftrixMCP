@@ -14,10 +14,10 @@
  * @module @reftrix/mcp-server/services/motion/frame-worker-pool
  */
 
-import * as os from 'node:os';
-import { Worker } from 'node:worker_threads';
+import * as os from "node:os";
+import { Worker } from "node:worker_threads";
 
-import type { BoundingBox, DiffOptions } from './types';
+import type { BoundingBox, DiffOptions } from "./types";
 
 // =============================================================================
 // 定数
@@ -118,7 +118,7 @@ export interface PoolStats {
  * 内部ワーカーメッセージ
  */
 interface WorkerMessage {
-  type: 'task' | 'result' | 'error';
+  type: "task" | "result" | "error";
   taskId: string;
   data?: WorkerTask | WorkerDiffResult;
   error?: string;
@@ -234,7 +234,10 @@ export class FrameWorkerPool {
   private workers: Worker[] = [];
   private availableWorkers: Worker[] = [];
   private taskQueue: { task: WorkerTask; resolve: (result: WorkerTaskResult) => void }[] = [];
-  private pendingTasks: Map<string, { resolve: (result: WorkerTaskResult) => void; startTime: number }> = new Map();
+  private pendingTasks: Map<
+    string,
+    { resolve: (result: WorkerTaskResult) => void; startTime: number }
+  > = new Map();
   private isInitialized = false;
   private isShuttingDown = false;
   private completedTasks = 0;
@@ -249,9 +252,9 @@ export class FrameWorkerPool {
       taskTimeoutMs: config.taskTimeoutMs ?? DEFAULTS.TASK_TIMEOUT_MS,
     };
 
-    if (process.env.NODE_ENV === 'development') {
+    if (process.env.NODE_ENV === "development") {
       // eslint-disable-next-line no-console -- Intentional debug log in development
-      console.log('[FrameWorkerPool] Created:', {
+      console.log("[FrameWorkerPool] Created:", {
         workerCount: this.config.workerCount,
         cpuCount,
       });
@@ -278,9 +281,9 @@ export class FrameWorkerPool {
 
     this.isInitialized = true;
 
-    if (process.env.NODE_ENV === 'development') {
+    if (process.env.NODE_ENV === "development") {
       // eslint-disable-next-line no-console -- Intentional debug log in development
-      console.log('[FrameWorkerPool] Initialized with', this.workers.length, 'workers');
+      console.log("[FrameWorkerPool] Initialized with", this.workers.length, "workers");
     }
   }
 
@@ -289,11 +292,11 @@ export class FrameWorkerPool {
    */
   async processTask(task: WorkerTask): Promise<WorkerTaskResult> {
     if (!this.isInitialized) {
-      throw new Error('Worker pool is not initialized');
+      throw new Error("Worker pool is not initialized");
     }
 
     if (this.isShuttingDown) {
-      throw new Error('Worker pool is shutting down');
+      throw new Error("Worker pool is shutting down");
     }
 
     return new Promise<WorkerTaskResult>((resolve) => {
@@ -341,9 +344,9 @@ export class FrameWorkerPool {
     // 待機中タスクをキャンセル
     for (const { resolve } of this.taskQueue) {
       resolve({
-        taskId: 'cancelled',
+        taskId: "cancelled",
         success: false,
-        error: 'Pool shutdown',
+        error: "Pool shutdown",
       });
     }
     this.taskQueue = [];
@@ -353,7 +356,7 @@ export class FrameWorkerPool {
       resolve({
         taskId,
         success: false,
-        error: 'Pool shutdown',
+        error: "Pool shutdown",
       });
     }
     this.pendingTasks.clear();
@@ -367,9 +370,9 @@ export class FrameWorkerPool {
     this.isInitialized = false;
     this.isShuttingDown = false;
 
-    if (process.env.NODE_ENV === 'development') {
+    if (process.env.NODE_ENV === "development") {
       // eslint-disable-next-line no-console -- Intentional debug log in development
-      console.log('[FrameWorkerPool] Shutdown complete');
+      console.log("[FrameWorkerPool] Shutdown complete");
     }
   }
 
@@ -386,20 +389,20 @@ export class FrameWorkerPool {
       eval: true,
     });
 
-    worker.on('message', (message: WorkerMessage & { processingTimeMs?: number }) => {
+    worker.on("message", (message: WorkerMessage & { processingTimeMs?: number }) => {
       this.handleWorkerMessage(worker, message);
     });
 
-    worker.on('error', (error) => {
-      if (process.env.NODE_ENV === 'development') {
-        console.error('[FrameWorkerPool] Worker error:', error);
+    worker.on("error", (error) => {
+      if (process.env.NODE_ENV === "development") {
+        console.error("[FrameWorkerPool] Worker error:", error);
       }
     });
 
-    worker.on('exit', (code) => {
+    worker.on("exit", (code) => {
       if (code !== 0 && !this.isShuttingDown) {
-        if (process.env.NODE_ENV === 'development') {
-          console.warn('[FrameWorkerPool] Worker exited with code:', code);
+        if (process.env.NODE_ENV === "development") {
+          console.warn("[FrameWorkerPool] Worker exited with code:", code);
         }
         // ワーカーを再作成
         const index = this.workers.indexOf(worker);
@@ -432,7 +435,7 @@ export class FrameWorkerPool {
     this.availableWorkers.push(worker);
 
     // 結果を返す
-    if (message.type === 'result') {
+    if (message.type === "result") {
       this.completedTasks++;
       const resultObj: WorkerTaskResult = {
         taskId: message.taskId,
@@ -488,7 +491,7 @@ export class FrameWorkerPool {
 
       // ワーカーにタスクを送信
       worker.postMessage({
-        type: 'task',
+        type: "task",
         taskId: task.taskId,
         data: {
           frame1: task.frame1,

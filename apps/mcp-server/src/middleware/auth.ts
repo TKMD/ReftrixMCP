@@ -14,8 +14,8 @@
  * @module middleware/auth
  */
 
-import { timingSafeEqual } from 'crypto';
-import { logger, isDevelopment } from '../utils/logger';
+import { timingSafeEqual } from "crypto";
+import { logger, isDevelopment } from "../utils/logger";
 
 // ============================================================================
 // 型定義
@@ -24,7 +24,7 @@ import { logger, isDevelopment } from '../utils/logger';
 /**
  * ユーザーロール
  */
-export type Role = 'VIEWER' | 'USER' | 'ADMIN';
+export type Role = "VIEWER" | "USER" | "ADMIN";
 
 /**
  * 認証コンテキスト
@@ -41,7 +41,7 @@ export interface AuthContext {
   permissions: string[];
 
   /** 認証方式 */
-  authMethod: 'api_key' | 'jwt' | 'none';
+  authMethod: "api_key" | "jwt" | "none";
 
   /** 認証日時 */
   authenticatedAt: Date;
@@ -61,11 +61,7 @@ export interface AuthMiddlewareOptions {
 /**
  * 認証エラーコード
  */
-export type AuthErrorCode =
-  | 'UNAUTHORIZED'
-  | 'FORBIDDEN'
-  | 'INVALID_API_KEY'
-  | 'EXPIRED_TOKEN';
+export type AuthErrorCode = "UNAUTHORIZED" | "FORBIDDEN" | "INVALID_API_KEY" | "EXPIRED_TOKEN";
 
 /**
  * 認証結果
@@ -89,10 +85,7 @@ export interface AuthResult {
  */
 export interface AuthMiddlewareInstance {
   /** 認証チェック関数 */
-  checkAuth: (
-    toolName: string,
-    apiKey: string | undefined
-  ) => Promise<AuthResult>;
+  checkAuth: (toolName: string, apiKey: string | undefined) => Promise<AuthResult>;
 
   /** オプション設定 */
   options: Required<AuthMiddlewareOptions>;
@@ -108,35 +101,35 @@ export interface AuthMiddlewareInstance {
  */
 export const PERMISSIONS = {
   // システム系
-  SYSTEM_READ: 'system:read',
-  SYSTEM_HEALTH: 'system:health',
-  SYSTEM_ADMIN: 'system:admin',
+  SYSTEM_READ: "system:read",
+  SYSTEM_HEALTH: "system:health",
+  SYSTEM_ADMIN: "system:admin",
   // レイアウト系
-  LAYOUT_READ: 'layout:read',
-  LAYOUT_WRITE: 'layout:write',
-  LAYOUT_TRANSFORM: 'layout:transform',
+  LAYOUT_READ: "layout:read",
+  LAYOUT_WRITE: "layout:write",
+  LAYOUT_TRANSFORM: "layout:transform",
   // モーション系
-  MOTION_READ: 'motion:read',
-  MOTION_TRANSFORM: 'motion:transform',
+  MOTION_READ: "motion:read",
+  MOTION_TRANSFORM: "motion:transform",
   // 品質系
-  QUALITY_READ: 'quality:read',
-  QUALITY_WRITE: 'quality:write',
+  QUALITY_READ: "quality:read",
+  QUALITY_WRITE: "quality:write",
   // プロジェクト系
-  PROJECT_READ: 'project:read',
+  PROJECT_READ: "project:read",
   // デザイン系
-  DESIGN_REVIEW: 'design:review',
-  DESIGN_WRITE: 'design:write',
+  DESIGN_REVIEW: "design:review",
+  DESIGN_WRITE: "design:write",
   // スタイル系
-  STYLE_READ: 'style:read',
+  STYLE_READ: "style:read",
   // ナラティブ系
-  NARRATIVE_READ: 'narrative:read',
+  NARRATIVE_READ: "narrative:read",
   // バックグラウンド系
-  BACKGROUND_READ: 'background:read',
+  BACKGROUND_READ: "background:read",
   // レスポンシブ系
-  RESPONSIVE_READ: 'responsive:read',
+  RESPONSIVE_READ: "responsive:read",
   // 嗜好プロファイリング系
-  PREFERENCE_READ: 'preference:read',
-  PREFERENCE_WRITE: 'preference:write',
+  PREFERENCE_READ: "preference:read",
+  PREFERENCE_WRITE: "preference:write",
 } as const;
 
 export type Permission = (typeof PERMISSIONS)[keyof typeof PERMISSIONS];
@@ -204,63 +197,63 @@ export const ROLES: Record<Role, string[]> = {
  */
 export const TOOL_PERMISSIONS: Record<string, string[]> = {
   // スタイル系
-  'style.get_palette': [PERMISSIONS.STYLE_READ],
+  "style.get_palette": [PERMISSIONS.STYLE_READ],
 
   // レイアウト系
-  'layout.inspect': [PERMISSIONS.LAYOUT_READ],
-  'layout.search': [PERMISSIONS.LAYOUT_READ],
-  'layout.ingest': [PERMISSIONS.LAYOUT_WRITE],
-  'layout.generate_code': [PERMISSIONS.LAYOUT_TRANSFORM],
-  'layout.batch_ingest': [PERMISSIONS.LAYOUT_WRITE],
+  "layout.inspect": [PERMISSIONS.LAYOUT_READ],
+  "layout.search": [PERMISSIONS.LAYOUT_READ],
+  "layout.ingest": [PERMISSIONS.LAYOUT_WRITE],
+  "layout.generate_code": [PERMISSIONS.LAYOUT_TRANSFORM],
+  "layout.batch_ingest": [PERMISSIONS.LAYOUT_WRITE],
 
   // 品質系
-  'quality.evaluate': [PERMISSIONS.QUALITY_READ],
-  'quality.batch_evaluate': [PERMISSIONS.QUALITY_READ],
-  'quality.getJobStatus': [PERMISSIONS.QUALITY_READ],
+  "quality.evaluate": [PERMISSIONS.QUALITY_READ],
+  "quality.batch_evaluate": [PERMISSIONS.QUALITY_READ],
+  "quality.getJobStatus": [PERMISSIONS.QUALITY_READ],
 
   // モーション系
-  'motion.detect': [PERMISSIONS.MOTION_READ],
-  'motion.search': [PERMISSIONS.MOTION_READ],
+  "motion.detect": [PERMISSIONS.MOTION_READ],
+  "motion.search": [PERMISSIONS.MOTION_READ],
 
   // ナラティブ系（セマンティック検索）
-  'narrative.search': [PERMISSIONS.NARRATIVE_READ],
+  "narrative.search": [PERMISSIONS.NARRATIVE_READ],
 
   // バックグラウンド系（セマンティック検索）
-  'background.search': [PERMISSIONS.BACKGROUND_READ],
+  "background.search": [PERMISSIONS.BACKGROUND_READ],
 
   // レスポンシブ系（セマンティック検索）
-  'responsive.search': [PERMISSIONS.RESPONSIVE_READ],
+  "responsive.search": [PERMISSIONS.RESPONSIVE_READ],
 
   // 嗜好プロファイリング系
-  'preference.hear': [PERMISSIONS.PREFERENCE_WRITE],
-  'preference.get': [PERMISSIONS.PREFERENCE_READ],
-  'preference.reset': [PERMISSIONS.PREFERENCE_WRITE],
+  "preference.hear": [PERMISSIONS.PREFERENCE_WRITE],
+  "preference.get": [PERMISSIONS.PREFERENCE_READ],
+  "preference.reset": [PERMISSIONS.PREFERENCE_WRITE],
 
   // ブリーフ系（デザインレビュー）
-  'brief.validate': [PERMISSIONS.DESIGN_REVIEW],
+  "brief.validate": [PERMISSIONS.DESIGN_REVIEW],
 
   // プロジェクト系
-  'project.get': [PERMISSIONS.PROJECT_READ],
-  'project.list': [PERMISSIONS.PROJECT_READ],
+  "project.get": [PERMISSIONS.PROJECT_READ],
+  "project.list": [PERMISSIONS.PROJECT_READ],
 
   // パーツ系（Part-Level Analysis）
-  'part.search': [PERMISSIONS.LAYOUT_READ],
-  'part.inspect': [PERMISSIONS.LAYOUT_READ],
-  'part.compare': [PERMISSIONS.LAYOUT_READ],
+  "part.search": [PERMISSIONS.LAYOUT_READ],
+  "part.inspect": [PERMISSIONS.LAYOUT_READ],
+  "part.compare": [PERMISSIONS.LAYOUT_READ],
 
   // ページ系（統合Web分析）
-  'page.analyze': [PERMISSIONS.LAYOUT_READ, PERMISSIONS.MOTION_READ, PERMISSIONS.QUALITY_READ],
-  'page.getJobStatus': [PERMISSIONS.LAYOUT_READ],
+  "page.analyze": [PERMISSIONS.LAYOUT_READ, PERMISSIONS.MOTION_READ, PERMISSIONS.QUALITY_READ],
+  "page.getJobStatus": [PERMISSIONS.LAYOUT_READ],
 
   // システム系（公開ツール）
-  'system.health': [PERMISSIONS.SYSTEM_HEALTH],
+  "system.health": [PERMISSIONS.SYSTEM_HEALTH],
 };
 
 /**
  * デフォルトの公開ツール（認証不要）
  * 注意: allToolDefinitions に登録されているツールのみを含めること
  */
-export const PUBLIC_TOOLS = ['system.health'];
+export const PUBLIC_TOOLS = ["system.health"];
 
 // ============================================================================
 // テスト用APIキー定義（開発環境のみ）
@@ -272,30 +265,28 @@ export const PUBLIC_TOOLS = ['system.health'];
  * セキュリティ: 本番環境（NODE_ENV=production）ではテスト用キーは無効化されます。
  * 本番環境では必ず MCP_API_KEYS 環境変数で認証情報を設定してください。
  */
-const TEST_API_KEY_MAPPINGS: Record<
-  string,
-  { role: Role; userId: string; expired?: boolean }
-> = isDevelopment()
-  ? {
-      reftrix_admin_test_key_12345678: {
-        role: 'ADMIN',
-        userId: 'admin-user-001',
-      },
-      reftrix_user_test_key_87654321: {
-        role: 'USER',
-        userId: 'standard-user-001',
-      },
-      reftrix_viewer_test_key_11111111: {
-        role: 'VIEWER',
-        userId: 'viewer-user-001',
-      },
-      reftrix_expired_test_key_99999999: {
-        role: 'USER',
-        userId: 'expired-user-001',
-        expired: true,
-      },
-    }
-  : {}; // 本番環境ではテスト用キーは空
+const TEST_API_KEY_MAPPINGS: Record<string, { role: Role; userId: string; expired?: boolean }> =
+  isDevelopment()
+    ? {
+        reftrix_admin_test_key_12345678: {
+          role: "ADMIN",
+          userId: "admin-user-001",
+        },
+        reftrix_user_test_key_87654321: {
+          role: "USER",
+          userId: "standard-user-001",
+        },
+        reftrix_viewer_test_key_11111111: {
+          role: "VIEWER",
+          userId: "viewer-user-001",
+        },
+        reftrix_expired_test_key_99999999: {
+          role: "USER",
+          userId: "expired-user-001",
+          expired: true,
+        },
+      }
+    : {}; // 本番環境ではテスト用キーは空
 
 // ============================================================================
 // 認証関数
@@ -329,29 +320,26 @@ function safeCompareApiKey(provided: string, stored: string): boolean {
  * @param apiKey - 検証するAPIキー
  * @returns 認証成功時はAuthContext、失敗時はnull
  */
-export async function validateApiKey(
-  apiKey: string | undefined
-): Promise<AuthContext | null> {
+export async function validateApiKey(apiKey: string | undefined): Promise<AuthContext | null> {
   // APIキーが提供されていない場合
   if (!apiKey) {
     if (isDevelopment()) {
-      logger.debug('[Auth] API key not provided');
+      logger.debug("[Auth] API key not provided");
     }
     return null;
   }
 
   // APIキー形式の検証（reftrix_ プレフィックスで始まること）
-  if (!apiKey.startsWith('reftrix_')) {
+  if (!apiKey.startsWith("reftrix_")) {
     if (isDevelopment()) {
-      logger.debug('[Auth] Invalid API key format');
+      logger.debug("[Auth] Invalid API key format");
     }
     return null;
   }
 
   // テスト用APIキーのチェック（定数時間比較）
   // 全てのテスト用キーと比較し、タイミング攻撃を防止
-  let matchedMapping: { role: Role; userId: string; expired?: boolean } | null =
-    null;
+  let matchedMapping: { role: Role; userId: string; expired?: boolean } | null = null;
   for (const [storedKey, mapping] of Object.entries(TEST_API_KEY_MAPPINGS)) {
     if (safeCompareApiKey(apiKey, storedKey)) {
       matchedMapping = mapping;
@@ -363,7 +351,7 @@ export async function validateApiKey(
     // 期限切れチェック
     if (matchedMapping.expired) {
       if (isDevelopment()) {
-        logger.debug('[Auth] API key expired');
+        logger.debug("[Auth] API key expired");
       }
       return null;
     }
@@ -372,7 +360,7 @@ export async function validateApiKey(
       userId: matchedMapping.userId,
       role: matchedMapping.role,
       permissions: ROLES[matchedMapping.role],
-      authMethod: 'api_key',
+      authMethod: "api_key",
       authenticatedAt: new Date(),
     };
   }
@@ -396,7 +384,7 @@ export async function validateApiKey(
           const expiresAt = new Date(keyConfig.expiresAt);
           if (expiresAt < new Date()) {
             if (isDevelopment()) {
-              logger.debug('[Auth] API key expired (from env)');
+              logger.debug("[Auth] API key expired (from env)");
             }
             return null;
           }
@@ -406,19 +394,19 @@ export async function validateApiKey(
           userId: keyConfig.userId,
           role: keyConfig.role,
           permissions: ROLES[keyConfig.role],
-          authMethod: 'api_key',
+          authMethod: "api_key",
           authenticatedAt: new Date(),
         };
       }
     } catch {
       logger.warn(
-        '[Auth] Failed to parse MCP_API_KEYS environment variable. ' +
+        "[Auth] Failed to parse MCP_API_KEYS environment variable. " +
           'Expected JSON array: [{"key":"reftrix_...","role":"ADMIN","userId":"..."}]'
       );
       if (isDevelopment()) {
         logger.error(
-          '[Auth] MCP_API_KEYS parse error. Current value: %s',
-          envApiKeys.slice(0, 50) + (envApiKeys.length > 50 ? '...' : '')
+          "[Auth] MCP_API_KEYS parse error. Current value: %s",
+          envApiKeys.slice(0, 50) + (envApiKeys.length > 50 ? "..." : "")
         );
       }
     }
@@ -426,7 +414,7 @@ export async function validateApiKey(
 
   // 有効なキーが見つからない場合
   if (isDevelopment()) {
-    logger.debug('[Auth] API key not found in valid keys');
+    logger.debug("[Auth] API key not found in valid keys");
   }
   return null;
 }
@@ -446,7 +434,7 @@ export function checkPermission(context: AuthContext, toolName: string): boolean
   // deny-by-default: TOOL_PERMISSIONS に未定義のツールは拒否
   if (!(toolName in TOOL_PERMISSIONS)) {
     if (isDevelopment()) {
-      logger.warn('[Auth] Unknown tool rejected (deny-by-default)', { toolName });
+      logger.warn("[Auth] Unknown tool rejected (deny-by-default)", { toolName });
     }
     return false;
   }
@@ -455,8 +443,8 @@ export function checkPermission(context: AuthContext, toolName: string): boolean
 
   // ツールが定義されていない場合はfalse（deny-by-default）
   if (!requiredPermissions) {
-    if (process.env.NODE_ENV === 'development') {
-      logger.warn('[Auth] Tool not found in TOOL_PERMISSIONS', { toolName });
+    if (process.env.NODE_ENV === "development") {
+      logger.warn("[Auth] Tool not found in TOOL_PERMISSIONS", { toolName });
     }
     return false;
   }
@@ -467,7 +455,7 @@ export function checkPermission(context: AuthContext, toolName: string): boolean
   }
 
   // ADMINは全権限を持つ
-  if (context.role === 'ADMIN') {
+  if (context.role === "ADMIN") {
     return true;
   }
 
@@ -485,9 +473,7 @@ export function checkPermission(context: AuthContext, toolName: string): boolean
  * @param options - オプション設定
  * @returns 認証ミドルウェアインスタンス
  */
-export function createAuthMiddleware(
-  options?: AuthMiddlewareOptions
-): AuthMiddlewareInstance {
+export function createAuthMiddleware(options?: AuthMiddlewareOptions): AuthMiddlewareInstance {
   const resolvedOptions: Required<AuthMiddlewareOptions> = {
     enabled: options?.enabled ?? false,
     publicTools: options?.publicTools ?? PUBLIC_TOOLS,
@@ -496,14 +482,11 @@ export function createAuthMiddleware(
   /**
    * 認証チェック関数
    */
-  const checkAuth = async (
-    toolName: string,
-    apiKey: string | undefined
-  ): Promise<AuthResult> => {
+  const checkAuth = async (toolName: string, apiKey: string | undefined): Promise<AuthResult> => {
     // 認証無効時はスキップ
     if (!resolvedOptions.enabled) {
       if (isDevelopment()) {
-        logger.debug('[Auth] Authentication disabled, skipping check');
+        logger.debug("[Auth] Authentication disabled, skipping check");
       }
       return { success: true };
     }
@@ -520,16 +503,16 @@ export function createAuthMiddleware(
     const context = await validateApiKey(apiKey);
     if (!context) {
       if (isDevelopment()) {
-        logger.warn('[Auth] Authentication failed', {
+        logger.warn("[Auth] Authentication failed", {
           tool: toolName,
-          reason: 'INVALID_OR_MISSING_KEY',
+          reason: "INVALID_OR_MISSING_KEY",
         });
       }
       return {
         success: false,
         error: {
-          code: 'UNAUTHORIZED',
-          message: 'Authentication required',
+          code: "UNAUTHORIZED",
+          message: "Authentication required",
         },
       };
     }
@@ -537,7 +520,7 @@ export function createAuthMiddleware(
     // 権限チェック
     if (!checkPermission(context, toolName)) {
       if (isDevelopment()) {
-        logger.warn('[Auth] Authorization denied', {
+        logger.warn("[Auth] Authorization denied", {
           tool: toolName,
           role: context.role,
           requiredPermissions: TOOL_PERMISSIONS[toolName],
@@ -547,15 +530,15 @@ export function createAuthMiddleware(
       return {
         success: false,
         error: {
-          code: 'FORBIDDEN',
-          message: 'Insufficient permissions',
+          code: "FORBIDDEN",
+          message: "Insufficient permissions",
         },
       };
     }
 
     // 認証成功
     if (isDevelopment()) {
-      logger.info('[Auth] Authentication successful', {
+      logger.info("[Auth] Authentication successful", {
         tool: toolName,
         userId: context.userId,
         role: context.role,

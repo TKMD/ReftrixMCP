@@ -18,19 +18,19 @@
  * @module services/vision/theme.analyzer
  */
 
-import { logger } from '../../utils/logger';
-import { OllamaVisionClient } from './ollama-vision-client.js';
+import { logger } from "../../utils/logger";
+import { OllamaVisionClient } from "./ollama-vision-client.js";
 import {
   createPixelThemeDetectorService,
   type PixelThemeDetectionResult,
-} from '../visual-extractor/pixel-theme-detector.service.js';
+} from "../visual-extractor/pixel-theme-detector.service.js";
 import {
   getThemeAnalysisPrompt,
   getThemeAnalysisWithContextPrompt,
   type ColorContextForPrompt,
   VALID_THEMES,
   type ThemeType,
-} from './vision.prompts.js';
+} from "./vision.prompts.js";
 
 // =============================================================================
 // Constants
@@ -39,7 +39,7 @@ import {
 /**
  * Default Ollama URL
  */
-const DEFAULT_OLLAMA_URL = 'http://localhost:11434';
+const DEFAULT_OLLAMA_URL = "http://localhost:11434";
 
 /**
  * Default timeout for Vision API calls (30 seconds)
@@ -204,8 +204,8 @@ export class ThemeAnalyzer {
 
       return result;
     } catch (error) {
-      if (process.env.NODE_ENV === 'development') {
-        console.error('[ThemeAnalyzer] Vision AI error:', error);
+      if (process.env.NODE_ENV === "development") {
+        console.error("[ThemeAnalyzer] Vision AI error:", error);
       }
       return null;
     }
@@ -265,12 +265,12 @@ export class ThemeAnalyzer {
       }
 
       // Conflict detected - prefer pixel-based (more reliable for luminance)
-      logger.debug('[ThemeAnalyzer] Theme conflict detected:', {
+      logger.debug("[ThemeAnalyzer] Theme conflict detected:", {
         visionTheme: visionResult.theme,
         visionConfidence: visionResult.confidence,
         pixelTheme: pixelResult.theme,
         pixelConfidence: pixelResult.confidence,
-        decision: 'Using pixel-based result',
+        decision: "Using pixel-based result",
       });
 
       // Use pixel-based result but mark that Vision AI was attempted
@@ -295,8 +295,8 @@ export class ThemeAnalyzer {
    * Validate input screenshot
    */
   private validateInput(screenshotBase64: string): void {
-    if (!screenshotBase64 || screenshotBase64.trim() === '') {
-      throw new Error('Screenshot is required');
+    if (!screenshotBase64 || screenshotBase64.trim() === "") {
+      throw new Error("Screenshot is required");
     }
 
     // Check size (Base64 is ~33% larger than binary)
@@ -308,23 +308,21 @@ export class ThemeAnalyzer {
     }
 
     // Basic Base64 validation
-    if (!/^[A-Za-z0-9+/=]+$/.test(screenshotBase64.replace(/\s/g, ''))) {
-      throw new Error('Invalid Base64 encoding');
+    if (!/^[A-Za-z0-9+/=]+$/.test(screenshotBase64.replace(/\s/g, ""))) {
+      throw new Error("Invalid Base64 encoding");
     }
   }
 
   /**
    * Parse and validate Vision AI response
    */
-  private parseVisionResponse(
-    response: VisionThemeResponse | null
-  ): ThemeAnalysisResult | null {
+  private parseVisionResponse(response: VisionThemeResponse | null): ThemeAnalysisResult | null {
     if (!response) {
       return null;
     }
 
     // Validate required fields
-    if (!response.theme || typeof response.themeConfidence !== 'number') {
+    if (!response.theme || typeof response.themeConfidence !== "number") {
       return null;
     }
 
@@ -342,7 +340,7 @@ export class ThemeAnalyzer {
     const result: ThemeAnalysisResult = {
       theme,
       confidence: response.themeConfidence,
-      primaryBackgroundColor: response.primaryBackgroundColor || '#000000',
+      primaryBackgroundColor: response.primaryBackgroundColor || "#000000",
       visionAiUsed: true,
     };
 
@@ -366,8 +364,8 @@ export class ThemeAnalyzer {
     try {
       return await this.pixelDetector.detectTheme(screenshotBase64);
     } catch (error) {
-      if (process.env.NODE_ENV === 'development') {
-        console.error('[ThemeAnalyzer] Pixel detection error:', error);
+      if (process.env.NODE_ENV === "development") {
+        console.error("[ThemeAnalyzer] Pixel detection error:", error);
       }
       return null;
     }
@@ -383,7 +381,7 @@ export class ThemeAnalyzer {
     return {
       theme: pixelResult.theme,
       confidence: pixelResult.confidence,
-      primaryBackgroundColor: pixelResult.dominantColors[0] || '#000000',
+      primaryBackgroundColor: pixelResult.dominantColors[0] || "#000000",
       visionAiUsed,
       reasoning: `Pixel-based detection: average luminance ${(pixelResult.averageLuminance * 100).toFixed(1)}%`,
     };

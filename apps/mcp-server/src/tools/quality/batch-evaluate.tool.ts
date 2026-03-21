@@ -15,20 +15,20 @@
  * @module tools/quality/batch-evaluate.tool
  */
 
-import { logger, isDevelopment } from '../../utils/logger';
-import { LRUCache } from '../../services/cache';
-import { isRedisAvailable } from '../../config/redis';
+import { logger, isDevelopment } from "../../utils/logger";
+import { LRUCache } from "../../services/cache";
+import { isRedisAvailable } from "../../config/redis";
 import {
   createBatchQualityQueue,
   addBatchQualityJob,
   closeBatchQualityQueue,
   type BatchQualityItem,
   type BatchQualityJobData,
-} from '../../queues/batch-quality-queue';
+} from "../../queues/batch-quality-queue";
 import {
   createLowUsageToolDeprecationWarning,
   logDeprecationWarning,
-} from '../../utils/deprecation-warning';
+} from "../../utils/deprecation-warning";
 
 import {
   batchQualityEvaluateInputSchema,
@@ -37,7 +37,7 @@ import {
   type BatchQualityEvaluateOutput,
   type BatchQualityJobStatus,
   type QualityEvaluateData,
-} from './schemas';
+} from "./schemas";
 
 // =====================================================
 // 型定義
@@ -127,7 +127,7 @@ async function processJobSync(
   items: BatchQualityItem[],
   options: {
     batchSize: number;
-    onError: 'skip' | 'abort';
+    onError: "skip" | "abort";
     weights?: unknown;
     strict: boolean;
   }
@@ -136,7 +136,7 @@ async function processJobSync(
 
   // ジョブを処理中に更新
   updateBatchJob(jobId, {
-    status: 'processing',
+    status: "processing",
   });
 
   let processedItems = 0;
@@ -161,7 +161,7 @@ async function processJobSync(
         }
 
         if (!service) {
-          throw new Error('Service factory not configured');
+          throw new Error("Service factory not configured");
         }
 
         const result = await service.evaluatePage(html);
@@ -172,12 +172,12 @@ async function processJobSync(
         errors.push({
           index: item.index,
           error: {
-            code: 'EVALUATION_ERROR',
-            message: error instanceof Error ? error.message : 'Unknown error',
+            code: "EVALUATION_ERROR",
+            message: error instanceof Error ? error.message : "Unknown error",
           },
         });
 
-        if (options.onError === 'abort') {
+        if (options.onError === "abort") {
           break;
         }
       }
@@ -195,7 +195,7 @@ async function processJobSync(
 
     // 完了更新
     updateBatchJob(jobId, {
-      status: 'completed',
+      status: "completed",
       completed_at: new Date().toISOString(),
       results,
       errors: errors.length > 0 ? errors : undefined,
@@ -203,14 +203,14 @@ async function processJobSync(
   } catch (error) {
     // ジョブ全体の失敗
     updateBatchJob(jobId, {
-      status: 'failed',
+      status: "failed",
       completed_at: new Date().toISOString(),
       errors: [
         {
           index: -1,
           error: {
-            code: 'BATCH_PROCESSING_ERROR',
-            message: error instanceof Error ? error.message : 'Unknown error',
+            code: "BATCH_PROCESSING_ERROR",
+            message: error instanceof Error ? error.message : "Unknown error",
           },
         },
       ],
@@ -229,11 +229,11 @@ export async function batchQualityEvaluateHandler(
   input: unknown
 ): Promise<BatchQualityEvaluateOutput> {
   // 非推奨警告を作成・ログ出力
-  const deprecationWarning = createLowUsageToolDeprecationWarning('quality.batch_evaluate');
+  const deprecationWarning = createLowUsageToolDeprecationWarning("quality.batch_evaluate");
   logDeprecationWarning(deprecationWarning);
 
   if (isDevelopment()) {
-    logger.info('[MCP Tool] quality.batch_evaluate called', {
+    logger.info("[MCP Tool] quality.batch_evaluate called", {
       hasInput: input !== null && input !== undefined,
     });
   }
@@ -244,13 +244,13 @@ export async function batchQualityEvaluateHandler(
     validated = batchQualityEvaluateInputSchema.parse(input);
   } catch (error) {
     if (isDevelopment()) {
-      logger.error('[MCP Tool] quality.batch_evaluate validation error', { error });
+      logger.error("[MCP Tool] quality.batch_evaluate validation error", { error });
     }
     return {
       success: false,
       error: {
         code: QUALITY_MCP_ERROR_CODES.VALIDATION_ERROR,
-        message: error instanceof Error ? error.message : 'Invalid input',
+        message: error instanceof Error ? error.message : "Invalid input",
       },
     };
   }
@@ -260,7 +260,9 @@ export async function batchQualityEvaluateHandler(
   const hasPageIdItems = validated.items.some((item) => item.pageId !== undefined);
   if (hasPageIdItems && !serviceFactory) {
     if (isDevelopment()) {
-      logger.warn('[MCP Tool] quality.batch_evaluate service factory not set, pageId items will be skipped');
+      logger.warn(
+        "[MCP Tool] quality.batch_evaluate service factory not set, pageId items will be skipped"
+      );
     }
   }
 
@@ -292,7 +294,7 @@ export async function batchQualityEvaluateHandler(
       const queue = createBatchQualityQueue();
       try {
         // exactOptionalPropertyTypes対応: undefinedを除外
-        const jobData: Omit<BatchQualityJobData, 'createdAt'> = {
+        const jobData: Omit<BatchQualityJobData, "createdAt"> = {
           jobId,
           items,
           batchSize: validated.batch_size,
@@ -306,7 +308,7 @@ export async function batchQualityEvaluateHandler(
         queueUsed = true;
 
         if (isDevelopment()) {
-          logger.info('[MCP Tool] quality.batch_evaluate job added to BullMQ queue', {
+          logger.info("[MCP Tool] quality.batch_evaluate job added to BullMQ queue", {
             jobId,
             totalItems: validated.items.length,
           });
@@ -319,7 +321,7 @@ export async function batchQualityEvaluateHandler(
     // ジョブステータスを初期化してLRUストアにも保存（フォールバック時やステータス確認用）
     const jobStatus: BatchQualityJobStatus = {
       job_id: jobId,
-      status: 'pending',
+      status: "pending",
       total_items: validated.items.length,
       processed_items: 0,
       success_items: 0,
@@ -333,10 +335,13 @@ export async function batchQualityEvaluateHandler(
     // Redis未接続時は同期処理を開始（バックグラウンドで実行）
     if (!queueUsed) {
       if (isDevelopment()) {
-        logger.info('[MCP Tool] quality.batch_evaluate falling back to LRU store (Redis unavailable)', {
-          jobId,
-          totalItems: validated.items.length,
-        });
+        logger.info(
+          "[MCP Tool] quality.batch_evaluate falling back to LRU store (Redis unavailable)",
+          {
+            jobId,
+            totalItems: validated.items.length,
+          }
+        );
       }
 
       // 非同期で処理を開始（awaitしない）
@@ -346,7 +351,7 @@ export async function batchQualityEvaluateHandler(
         weights: validated.weights,
         strict: validated.strict,
       }).catch((error) => {
-        logger.error('[MCP Tool] quality.batch_evaluate sync processing error', {
+        logger.error("[MCP Tool] quality.batch_evaluate sync processing error", {
           jobId,
           error: error instanceof Error ? error.message : String(error),
         });
@@ -354,7 +359,7 @@ export async function batchQualityEvaluateHandler(
     }
 
     if (isDevelopment()) {
-      logger.info('[MCP Tool] quality.batch_evaluate job created', {
+      logger.info("[MCP Tool] quality.batch_evaluate job created", {
         jobId,
         totalItems: validated.items.length,
         batchSize: validated.batch_size,
@@ -366,12 +371,12 @@ export async function batchQualityEvaluateHandler(
     // 非推奨警告をラップしてレスポンス
     const responseData = {
       job_id: jobId,
-      status: 'pending' as const,
+      status: "pending" as const,
       total_items: validated.items.length,
       batch_size: validated.batch_size,
       on_error: validated.on_error,
       created_at: createdAt,
-      message: `バッチ評価ジョブを開始しました。${validated.items.length}件のページを${validated.batch_size}件ずつ評価します。${queueUsed ? '(Redis/BullMQ)' : '(LRUストア)'}`,
+      message: `バッチ評価ジョブを開始しました。${validated.items.length}件のページを${validated.batch_size}件ずつ評価します。${queueUsed ? "(Redis/BullMQ)" : "(LRUストア)"}`,
     };
 
     return {
@@ -381,13 +386,13 @@ export async function batchQualityEvaluateHandler(
     };
   } catch (error) {
     if (isDevelopment()) {
-      logger.error('[MCP Tool] quality.batch_evaluate error', { error });
+      logger.error("[MCP Tool] quality.batch_evaluate error", { error });
     }
     return {
       success: false,
       error: {
         code: QUALITY_MCP_ERROR_CODES.INTERNAL_ERROR,
-        message: error instanceof Error ? error.message : 'Batch evaluation failed',
+        message: error instanceof Error ? error.message : "Batch evaluation failed",
       },
     };
   }
@@ -398,71 +403,71 @@ export async function batchQualityEvaluateHandler(
 // =====================================================
 
 export const batchQualityEvaluateToolDefinition = {
-  name: 'quality.batch_evaluate',
+  name: "quality.batch_evaluate",
   description:
-    '[DEPRECATED v0.1.0] 複数ページの品質を一括評価します。最大100件まで対応。' +
-    'バックグラウンドで処理され、ジョブIDで進捗確認できます。Use Loop with quality.evaluate instead.',
+    "[DEPRECATED v0.1.0] 複数ページの品質を一括評価します。最大100件まで対応。" +
+    "バックグラウンドで処理され、ジョブIDで進捗確認できます。Use Loop with quality.evaluate instead.",
   deprecated: true,
   annotations: {
-    title: 'Quality Batch Evaluate',
+    title: "Quality Batch Evaluate",
     readOnlyHint: false,
     idempotentHint: false,
     openWorldHint: true,
   },
   inputSchema: {
-    type: 'object' as const,
+    type: "object" as const,
     properties: {
       items: {
-        type: 'array',
-        description: '評価するアイテムの配列（1-100件）',
+        type: "array",
+        description: "評価するアイテムの配列（1-100件）",
         minItems: 1,
         maxItems: 100,
         items: {
-          type: 'object',
+          type: "object",
           properties: {
             pageId: {
-              type: 'string',
-              format: 'uuid',
-              description: 'ページID（UUID形式、htmlと排他）',
+              type: "string",
+              format: "uuid",
+              description: "ページID（UUID形式、htmlと排他）",
             },
             html: {
-              type: 'string',
+              type: "string",
               minLength: 1,
               maxLength: 10000000,
-              description: 'HTMLコンテンツ（直接指定、pageIdと排他）',
+              description: "HTMLコンテンツ（直接指定、pageIdと排他）",
             },
           },
         },
       },
       batch_size: {
-        type: 'integer',
-        description: 'バッチサイズ（1-50、デフォルト10）',
+        type: "integer",
+        description: "バッチサイズ（1-50、デフォルト10）",
         minimum: 1,
         maximum: 50,
         default: 10,
       },
       on_error: {
-        type: 'string',
-        enum: ['skip', 'abort'],
-        description: 'エラー時の動作（skip: スキップして続行、abort: 中止）',
-        default: 'skip',
+        type: "string",
+        enum: ["skip", "abort"],
+        description: "エラー時の動作（skip: スキップして続行、abort: 中止）",
+        default: "skip",
       },
       weights: {
-        type: 'object',
-        description: '評価軸の重み付け（合計1.0）',
+        type: "object",
+        description: "評価軸の重み付け（合計1.0）",
         properties: {
-          originality: { type: 'number', minimum: 0, maximum: 1 },
-          craftsmanship: { type: 'number', minimum: 0, maximum: 1 },
-          contextuality: { type: 'number', minimum: 0, maximum: 1 },
+          originality: { type: "number", minimum: 0, maximum: 1 },
+          craftsmanship: { type: "number", minimum: 0, maximum: 1 },
+          contextuality: { type: "number", minimum: 0, maximum: 1 },
         },
       },
       strict: {
-        type: 'boolean',
-        description: 'strictモード: AIクリシェに厳しい（デフォルトfalse）',
+        type: "boolean",
+        description: "strictモード: AIクリシェに厳しい（デフォルトfalse）",
         default: false,
       },
     },
-    required: ['items'],
+    required: ["items"],
   },
 };
 
@@ -471,5 +476,5 @@ export const batchQualityEvaluateToolDefinition = {
 // =====================================================
 
 if (isDevelopment()) {
-  logger.debug('[quality.batch_evaluate] Tool module loaded');
+  logger.debug("[quality.batch_evaluate] Tool module loaded");
 }

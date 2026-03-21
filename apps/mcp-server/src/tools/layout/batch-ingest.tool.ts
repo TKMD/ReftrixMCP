@@ -13,27 +13,27 @@
  * @see /docs/plans/webdesign/batch-ingest.md
  */
 
-import { ZodError } from 'zod';
-import { v7 as uuidv7 } from 'uuid';
-import { prisma } from '@reftrix/database';
-import { logger, isDevelopment } from '../../utils/logger';
-import { validateExternalUrl } from '../../utils/url-validator';
-import { normalizeUrlForStorage } from '../../utils/url-normalizer';
-import { sanitizeHtml } from '../../utils/html-sanitizer';
-import { pageIngestAdapter, type IngestResult } from '../../services/page-ingest-adapter';
+import { ZodError } from "zod";
+import { v7 as uuidv7 } from "uuid";
+import { prisma } from "@reftrix/database";
+import { logger, isDevelopment } from "../../utils/logger";
+import { validateExternalUrl } from "../../utils/url-validator";
+import { normalizeUrlForStorage } from "../../utils/url-normalizer";
+import { sanitizeHtml } from "../../utils/html-sanitizer";
+import { pageIngestAdapter, type IngestResult } from "../../services/page-ingest-adapter";
 import {
   formatZodError,
   createValidationErrorWithHints,
   formatMultipleDetailedErrors,
-} from '../../utils/error-messages';
+} from "../../utils/error-messages";
 import {
   layoutBatchIngestInputSchema,
   LAYOUT_MCP_ERROR_CODES,
   type LayoutBatchIngestInput,
   type LayoutBatchIngestOutput,
   type BatchIngestResultItem,
-} from './schemas';
-import { createHash } from 'crypto';
+} from "./schemas";
+import { createHash } from "crypto";
 
 // =============================================
 // 型定義
@@ -83,15 +83,15 @@ async function ingestSingleUrl(
   const urlValidation = validateExternalUrl(url);
   if (!urlValidation.valid) {
     if (isDevelopment()) {
-      logger.warn('[MCP Tool] layout.batch_ingest SSRF blocked', {
+      logger.warn("[MCP Tool] layout.batch_ingest SSRF blocked", {
         url,
         reason: urlValidation.error,
       });
     }
     return {
       url,
-      status: 'failed',
-      error: `SSRF blocked: ${urlValidation.error ?? 'URL is blocked for security reasons'}`,
+      status: "failed",
+      error: `SSRF blocked: ${urlValidation.error ?? "URL is blocked for security reasons"}`,
     };
   }
 
@@ -100,16 +100,16 @@ async function ingestSingleUrl(
     const ingestResult: IngestResult = await pageIngestAdapter.ingest({
       url,
       fullPage: true,
-      sourceType: 'user_provided',
-      usageScope: 'inspiration_only',
+      sourceType: "user_provided",
+      usageScope: "inspiration_only",
       adaptiveWebGLWait: true,
     });
 
     if (!ingestResult.success) {
       return {
         url,
-        status: 'failed',
-        error: ingestResult.error ?? 'Page ingest failed',
+        status: "failed",
+        error: ingestResult.error ?? "Page ingest failed",
       };
     }
 
@@ -122,7 +122,7 @@ async function ingestSingleUrl(
 
     if (saveToDb) {
       try {
-        const htmlHash = createHash('sha256').update(sanitizedHtml).digest('hex');
+        const htmlHash = createHash("sha256").update(sanitizedHtml).digest("hex");
         const normalizedUrl = normalizeUrlForStorage(urlValidation.normalizedUrl ?? url);
 
         const savedPage = await prisma.webPage.upsert({
@@ -140,7 +140,7 @@ async function ingestSingleUrl(
               ogImage: ingestResult.metadata.ogImage,
             },
             crawledAt: ingestResult.ingestedAt,
-            analysisStatus: autoAnalyze ? 'pending' : 'completed',
+            analysisStatus: autoAnalyze ? "pending" : "completed",
           },
           update: {
             title: ingestResult.metadata.title || null,
@@ -152,7 +152,7 @@ async function ingestSingleUrl(
               ogImage: ingestResult.metadata.ogImage,
             },
             crawledAt: ingestResult.ingestedAt,
-            analysisStatus: autoAnalyze ? 'pending' : 'completed',
+            analysisStatus: autoAnalyze ? "pending" : "completed",
           },
           select: { id: true },
         });
@@ -165,7 +165,7 @@ async function ingestSingleUrl(
         patternsExtracted = 0;
 
         if (isDevelopment()) {
-          logger.info('[MCP Tool] layout.batch_ingest saved to DB', {
+          logger.info("[MCP Tool] layout.batch_ingest saved to DB", {
             id: persistedId,
             url: normalizedUrl,
           });
@@ -173,14 +173,14 @@ async function ingestSingleUrl(
       } catch (dbError) {
         const errorMessage = dbError instanceof Error ? dbError.message : String(dbError);
         if (isDevelopment()) {
-          logger.error('[MCP Tool] layout.batch_ingest DB save failed', {
+          logger.error("[MCP Tool] layout.batch_ingest DB save failed", {
             url,
             error: errorMessage,
           });
         }
         return {
           url,
-          status: 'failed',
+          status: "failed",
           error: `Failed to save to database: ${errorMessage}`,
         };
       }
@@ -188,21 +188,21 @@ async function ingestSingleUrl(
 
     return {
       url,
-      status: 'success',
+      status: "success",
       page_id: persistedId,
       patterns_extracted: patternsExtracted,
     };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     if (isDevelopment()) {
-      logger.error('[MCP Tool] layout.batch_ingest error', {
+      logger.error("[MCP Tool] layout.batch_ingest error", {
         url,
         error: errorMessage,
       });
     }
     return {
       url,
-      status: 'failed',
+      status: "failed",
       error: errorMessage,
     };
   }
@@ -231,14 +231,12 @@ async function ingestSingleUrl(
  * });
  * ```
  */
-export async function layoutBatchIngestHandler(
-  input: unknown
-): Promise<LayoutBatchIngestOutput> {
+export async function layoutBatchIngestHandler(input: unknown): Promise<LayoutBatchIngestOutput> {
   const startTime = Date.now();
 
   // 開発環境でのログ出力
   if (isDevelopment()) {
-    logger.info('[MCP Tool] layout.batch_ingest called', {
+    logger.info("[MCP Tool] layout.batch_ingest called", {
       urlCount: Array.isArray((input as Record<string, unknown>)?.urls)
         ? ((input as Record<string, unknown>).urls as unknown[]).length
         : 0,
@@ -251,12 +249,12 @@ export async function layoutBatchIngestHandler(
     validated = layoutBatchIngestInputSchema.parse(input);
   } catch (error) {
     if (error instanceof ZodError) {
-      const errorWithHints = createValidationErrorWithHints(error, 'layout.batch_ingest');
+      const errorWithHints = createValidationErrorWithHints(error, "layout.batch_ingest");
       const detailedMessage = formatMultipleDetailedErrors(errorWithHints.errors);
       const formattedErrors = formatZodError(error);
 
       if (isDevelopment()) {
-        logger.error('[MCP Tool] layout.batch_ingest validation error', {
+        logger.error("[MCP Tool] layout.batch_ingest validation error", {
           errors: errorWithHints.errors,
         });
       }
@@ -278,7 +276,7 @@ export async function layoutBatchIngestHandler(
 
   // オプションの取得
   const concurrency = validated.options?.concurrency ?? 5;
-  const onError = validated.options?.on_error ?? 'skip';
+  const onError = validated.options?.on_error ?? "skip";
   const saveToDb = validated.options?.save_to_db ?? true;
   const autoAnalyze = validated.options?.auto_analyze ?? true;
 
@@ -289,7 +287,7 @@ export async function layoutBatchIngestHandler(
   let totalPatterns = 0;
 
   if (isDevelopment()) {
-    logger.info('[MCP Tool] layout.batch_ingest starting', {
+    logger.info("[MCP Tool] layout.batch_ingest starting", {
       jobId,
       urlCount: validated.urls.length,
       concurrency,
@@ -300,12 +298,12 @@ export async function layoutBatchIngestHandler(
   }
 
   // on_error: 'abort' モードの場合は順次処理
-  if (onError === 'abort') {
+  if (onError === "abort") {
     for (const url of validated.urls) {
       const result = await ingestSingleUrl(url, saveToDb, autoAnalyze);
       results.push(result);
 
-      if (result.status === 'success') {
+      if (result.status === "success") {
         completed++;
         totalPatterns += result.patterns_extracted ?? 0;
       } else {
@@ -314,7 +312,7 @@ export async function layoutBatchIngestHandler(
         const processingTimeMs = Date.now() - startTime;
 
         if (isDevelopment()) {
-          logger.warn('[MCP Tool] layout.batch_ingest aborted', {
+          logger.warn("[MCP Tool] layout.batch_ingest aborted", {
             jobId,
             failedUrl: url,
             error: result.error,
@@ -350,7 +348,7 @@ export async function layoutBatchIngestHandler(
 
     for (const result of batchResults) {
       results.push(result);
-      if (result.status === 'success') {
+      if (result.status === "success") {
         completed++;
         totalPatterns += result.patterns_extracted ?? 0;
       } else {
@@ -360,12 +358,11 @@ export async function layoutBatchIngestHandler(
   }
 
   const processingTimeMs = Date.now() - startTime;
-  const successRate = validated.urls.length > 0
-    ? Math.round((completed / validated.urls.length) * 10000) / 100
-    : 0;
+  const successRate =
+    validated.urls.length > 0 ? Math.round((completed / validated.urls.length) * 10000) / 100 : 0;
 
   if (isDevelopment()) {
-    logger.info('[MCP Tool] layout.batch_ingest completed', {
+    logger.info("[MCP Tool] layout.batch_ingest completed", {
       jobId,
       total: validated.urls.length,
       completed,
@@ -402,59 +399,61 @@ export async function layoutBatchIngestHandler(
  * MCP Protocol用のツール定義オブジェクト
  */
 export const layoutBatchIngestToolDefinition = {
-  name: 'layout.batch_ingest',
+  name: "layout.batch_ingest",
   description:
-    'Batch ingest multiple URLs for layout analysis. Processes URLs in parallel with configurable concurrency. Supports skip/abort modes for error handling.',
+    "Batch ingest multiple URLs for layout analysis. Processes URLs in parallel with configurable concurrency. Supports skip/abort modes for error handling.",
   annotations: {
-    title: 'Layout Batch Ingest',
+    title: "Layout Batch Ingest",
     readOnlyHint: false,
     idempotentHint: false,
     openWorldHint: true,
   },
   inputSchema: {
-    type: 'object' as const,
+    type: "object" as const,
     properties: {
       urls: {
-        type: 'array',
-        description: 'Array of URLs to ingest (1-100 items)',
+        type: "array",
+        description: "Array of URLs to ingest (1-100 items)",
         items: {
-          type: 'string',
-          format: 'uri',
+          type: "string",
+          format: "uri",
         },
         minItems: 1,
         maxItems: 100,
       },
       options: {
-        type: 'object',
-        description: 'Batch processing options',
+        type: "object",
+        description: "Batch processing options",
         properties: {
           concurrency: {
-            type: 'number',
-            description: 'Number of concurrent requests (1-10, default: 5)',
+            type: "number",
+            description: "Number of concurrent requests (1-10, default: 5)",
             minimum: 1,
             maximum: 10,
             default: 5,
           },
           on_error: {
-            type: 'string',
-            enum: ['skip', 'abort'],
-            description: 'Error handling mode: skip (continue on error) or abort (stop on first error). Default: skip',
-            default: 'skip',
+            type: "string",
+            enum: ["skip", "abort"],
+            description:
+              "Error handling mode: skip (continue on error) or abort (stop on first error). Default: skip",
+            default: "skip",
           },
           save_to_db: {
-            type: 'boolean',
-            description: 'Save to WebPage table (default: true)',
+            type: "boolean",
+            description: "Save to WebPage table (default: true)",
             default: true,
           },
           auto_analyze: {
-            type: 'boolean',
-            description: 'Auto-analyze HTML and save SectionPattern with embeddings (default: true)',
+            type: "boolean",
+            description:
+              "Auto-analyze HTML and save SectionPattern with embeddings (default: true)",
             default: true,
           },
         },
       },
     },
-    required: ['urls'],
+    required: ["urls"],
   },
 };
 
@@ -463,5 +462,5 @@ export const layoutBatchIngestToolDefinition = {
 // =============================================
 
 if (isDevelopment()) {
-  logger.debug('[layout.batch_ingest] Tool module loaded');
+  logger.debug("[layout.batch_ingest] Tool module loaded");
 }

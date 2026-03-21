@@ -108,9 +108,9 @@ export function mergeWithRRF(
   const merged = Array.from(scoreMap.values());
   merged.sort((a, b) => b.rrfScore - a.rrfScore);
 
-  if (process.env.NODE_ENV === 'development') {
+  if (process.env.NODE_ENV === "development") {
     // eslint-disable-next-line no-console
-    console.log('[Search] RRF merge completed:', {
+    console.log("[Search] RRF merge completed:", {
       vectorCount: vectorResults.length,
       fulltextCount: fulltextResults.length,
       mergedCount: merged.length,
@@ -145,10 +145,7 @@ export function toRankedItems<T extends { id: string }>(rows: T[]): RankedItem[]
  * @param maxPossibleScore - Maximum possible score (sum of max vector and fulltext scores)
  * @returns Normalized similarity score (0-1)
  */
-export function normalizeRRFScore(
-  rrfScore: number,
-  maxPossibleScore?: number
-): number {
+export function normalizeRRFScore(rrfScore: number, maxPossibleScore?: number): number {
   // Default max score: best possible rank (1) in both searches with default weights
   const defaultMax = calculateRRF(1, 60) * 0.6 + calculateRRF(1, 60) * 0.4;
   const maxScore = maxPossibleScore ?? defaultMax;

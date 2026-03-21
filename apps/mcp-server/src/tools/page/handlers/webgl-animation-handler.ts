@@ -8,24 +8,22 @@
  * @module tools/page/handlers/webgl-animation-handler
  */
 
-import { chromium, type Browser, type Page } from 'playwright';
-import { logger, isDevelopment } from '../../../utils/logger';
-import { WEBGL_BROWSER_ARGS } from '../../../utils/gpu-browser-args';
+import { chromium, type Browser, type Page } from "playwright";
+import { logger, isDevelopment } from "../../../utils/logger";
+import { WEBGL_BROWSER_ARGS } from "../../../utils/gpu-browser-args";
 import {
   WebGLAnimationDetectorService,
   type WebGLAnimationDetectionOptions,
   type WebGLAnimationDetectionResult,
-} from '../../../services/motion/webgl-animation-detector.service';
-import {
-  WebGLAnimationEmbeddingService,
-} from '../../../services/motion/webgl-animation-embedding.service';
+} from "../../../services/motion/webgl-animation-detector.service";
+import { WebGLAnimationEmbeddingService } from "../../../services/motion/webgl-animation-embedding.service";
 import type {
   WebGLAnimationSummaryResult,
   WebGLAnimationFullResult,
   WebGLAnimationPatternData,
   WebGLAnimationCategory,
   IPageAnalyzePrismaClient,
-} from './types';
+} from "./types";
 
 // =====================================================
 // 型定義
@@ -67,9 +65,7 @@ export interface WebGLAnimationModeResult {
 /**
  * WebGLAnimationDetectorServiceの結果をpage.analyze用の型に変換
  */
-function convertDetectionResult(
-  result: WebGLAnimationDetectionResult
-): WebGLAnimationFullResult {
+function convertDetectionResult(result: WebGLAnimationDetectionResult): WebGLAnimationFullResult {
   const patterns: WebGLAnimationPatternData[] = result.patterns.map((p, index) => ({
     id: `webgl-pattern-${index}`,
     name: p.name,
@@ -79,24 +75,28 @@ function convertDetectionResult(
     animationCharacteristics: {
       averageChangeRate: p.visualFeatures.avgChangeRatio,
       peakChangeRate: p.visualFeatures.maxChangeRatio,
-      changePattern: p.visualFeatures.periodicityScore > 0.7 ? 'pulsed' as const :
-        p.visualFeatures.stdDeviation < 0.1 ? 'continuous' as const : 'irregular' as const,
+      changePattern:
+        p.visualFeatures.periodicityScore > 0.7
+          ? ("pulsed" as const)
+          : p.visualFeatures.stdDeviation < 0.1
+            ? ("continuous" as const)
+            : ("irregular" as const),
       dominantColors: undefined, // 現在の実装では色情報は未取得
     },
-    duration: p.visualFeatures.estimatedPeriodMs > 0 ? p.visualFeatures.estimatedPeriodMs : undefined,
+    duration:
+      p.visualFeatures.estimatedPeriodMs > 0 ? p.visualFeatures.estimatedPeriodMs : undefined,
     confidence: p.confidence,
   }));
 
   // 全パターンから検出されたライブラリを集約
-  const detectedLibraries = [...new Set(
-    result.patterns.flatMap(p => p.detectedLibraries)
-  )];
+  const detectedLibraries = [...new Set(result.patterns.flatMap((p) => p.detectedLibraries))];
 
   return {
     patterns,
     summary: {
       totalCanvasElements: result.patterns.length,
-      animatedCanvasCount: result.patterns.filter(p => p.visualFeatures.avgChangeRatio > 0.001).length,
+      animatedCanvasCount: result.patterns.filter((p) => p.visualFeatures.avgChangeRatio > 0.001)
+        .length,
       detectedLibraries,
       totalPatterns: result.summary.totalPatterns,
     },
@@ -140,7 +140,7 @@ export async function executeWebGLAnimationDetection(
   // 無効化されている場合は空の結果を返す
   if (enabled === false) {
     if (isDevelopment()) {
-      logger.info('[webgl-animation-handler] WebGL animation detection disabled', { url });
+      logger.info("[webgl-animation-handler] WebGL animation detection disabled", { url });
     }
     return {};
   }
@@ -154,7 +154,7 @@ export async function executeWebGLAnimationDetection(
 
   try {
     if (isDevelopment()) {
-      logger.info('[webgl-animation-handler] Starting WebGL animation detection', {
+      logger.info("[webgl-animation-handler] Starting WebGL animation detection", {
         url,
         options,
         hasDbContext: !!context?.prisma,
@@ -172,7 +172,7 @@ export async function executeWebGLAnimationDetection(
     const browserContext = await browser.newContext({
       viewport: { width: 1440, height: 900 },
       // v0.1.0: 本番環境ではHTTPS証明書エラーを無視しない
-      ignoreHTTPSErrors: process.env.NODE_ENV === 'development',
+      ignoreHTTPSErrors: process.env.NODE_ENV === "development",
     });
 
     page = await browserContext.newPage();
@@ -181,7 +181,7 @@ export async function executeWebGLAnimationDetection(
     // v0.1.0: デフォルトタイムアウトを90秒に増加（重いWebGLサイト対応）
     const timeoutMs = options?.timeout_ms ?? 90000;
     await page.goto(url, {
-      waitUntil: 'networkidle',
+      waitUntil: "networkidle",
       timeout: timeoutMs,
     });
 
@@ -213,13 +213,17 @@ export async function executeWebGLAnimationDetection(
             category: pattern.category,
             libraries: pattern.detectedLibraries,
             description: pattern.description,
-            periodicity: pattern.visualFeatures.periodicityScore > 0.7 ? {
-              isPeriodic: true,
-              cycleSeconds: pattern.visualFeatures.estimatedPeriodMs > 0
-                ? pattern.visualFeatures.estimatedPeriodMs / 1000
+            periodicity:
+              pattern.visualFeatures.periodicityScore > 0.7
+                ? {
+                    isPeriodic: true,
+                    cycleSeconds:
+                      pattern.visualFeatures.estimatedPeriodMs > 0
+                        ? pattern.visualFeatures.estimatedPeriodMs / 1000
+                        : null,
+                    confidence: pattern.visualFeatures.periodicityScore,
+                  }
                 : null,
-              confidence: pattern.visualFeatures.periodicityScore,
-            } : null,
             avgChangeRatio: pattern.visualFeatures.avgChangeRatio,
             peakChangeRatio: pattern.visualFeatures.maxChangeRatio,
             visualFeatures: null,
@@ -239,15 +243,15 @@ export async function executeWebGLAnimationDetection(
         }
 
         if (isDevelopment()) {
-          logger.info('[webgl-animation-handler] WebGL animation embeddings saved', {
+          logger.info("[webgl-animation-handler] WebGL animation embeddings saved", {
             patternCount: fullResult.patterns.length,
           });
         }
       } catch (dbError) {
         // DB保存エラーは警告のみ、検出結果は返す
         if (isDevelopment()) {
-          logger.warn('[webgl-animation-handler] Failed to save WebGL animation embeddings', {
-            error: dbError instanceof Error ? dbError.message : 'Unknown error',
+          logger.warn("[webgl-animation-handler] Failed to save WebGL animation embeddings", {
+            error: dbError instanceof Error ? dbError.message : "Unknown error",
           });
         }
       }
@@ -256,7 +260,7 @@ export async function executeWebGLAnimationDetection(
     const processingTimeMs = Date.now() - startTime;
 
     if (isDevelopment()) {
-      logger.info('[webgl-animation-handler] WebGL animation detection completed', {
+      logger.info("[webgl-animation-handler] WebGL animation detection completed", {
         patternCount: fullResult.patterns.length,
         detectedLibraries: fullResult.summary.detectedLibraries,
         processingTimeMs,
@@ -271,8 +275,8 @@ export async function executeWebGLAnimationDetection(
     const processingTimeMs = Date.now() - startTime;
 
     if (isDevelopment()) {
-      logger.error('[webgl-animation-handler] WebGL animation detection failed', {
-        error: error instanceof Error ? error.message : 'Unknown error',
+      logger.error("[webgl-animation-handler] WebGL animation detection failed", {
+        error: error instanceof Error ? error.message : "Unknown error",
         url,
         processingTimeMs,
       });
@@ -280,8 +284,8 @@ export async function executeWebGLAnimationDetection(
 
     return {
       webgl_animation_error: {
-        code: 'WEBGL_DETECTION_FAILED',
-        message: error instanceof Error ? error.message : 'WebGL animation detection failed',
+        code: "WEBGL_DETECTION_FAILED",
+        message: error instanceof Error ? error.message : "WebGL animation detection failed",
       },
     };
   } finally {

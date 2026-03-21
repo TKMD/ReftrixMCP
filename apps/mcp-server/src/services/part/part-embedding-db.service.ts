@@ -25,9 +25,9 @@
  * @module services/part/part-embedding-db
  */
 
-import { logger } from '../../utils/logger';
-import { truncateId } from './schemas';
-import type { PartEmbeddingResult } from './part-embedding.service';
+import { logger } from "../../utils/logger";
+import { truncateId } from "./schemas";
+import type { PartEmbeddingResult } from "./part-embedding.service";
 
 // ============================================================================
 // Types / 型定義
@@ -71,10 +71,10 @@ export interface PartEmbeddingPrismaClient {
 // ============================================================================
 
 /** DINOv2モデルバージョン / DINOv2 model version */
-const VISUAL_MODEL_VERSION = 'dinov2-vit-b14';
+const VISUAL_MODEL_VERSION = "dinov2-vit-b14";
 
 /** e5-baseモデルバージョン / e5-base model version */
-const TEXT_MODEL_VERSION = 'multilingual-e5-base';
+const TEXT_MODEL_VERSION = "multilingual-e5-base";
 
 // ============================================================================
 // Public Functions / 公開関数
@@ -98,7 +98,7 @@ const TEXT_MODEL_VERSION = 'multilingual-e5-base';
  */
 export async function savePartEmbeddings(
   prisma: PartEmbeddingPrismaClient,
-  embeddings: PartEmbeddingResult[],
+  embeddings: PartEmbeddingResult[]
 ): Promise<PartEmbeddingSaveResult> {
   const result: PartEmbeddingSaveResult = {
     savedCount: 0,
@@ -109,7 +109,7 @@ export async function savePartEmbeddings(
     return result;
   }
 
-  logger.info('[part-embedding-db] Starting embedding save', {
+  logger.info("[part-embedding-db] Starting embedding save", {
     totalEmbeddings: embeddings.length,
   });
 
@@ -134,8 +134,8 @@ export async function savePartEmbeddings(
       // Step 2: raw SQL で vector カラムを更新
       // Step 2: Update vector columns via raw SQL
       if (embedding.visualEmbedding !== null) {
-        const visualVectorString = `[${embedding.visualEmbedding.join(',')}]`;
-        const textVectorString = `[${embedding.textEmbedding.join(',')}]`;
+        const visualVectorString = `[${embedding.visualEmbedding.join(",")}]`;
+        const textVectorString = `[${embedding.textEmbedding.join(",")}]`;
         await prisma.$executeRawUnsafe(
           `UPDATE component_part_embeddings
            SET visual_embedding = $1::vector(768),
@@ -143,29 +143,29 @@ export async function savePartEmbeddings(
            WHERE id = $3::uuid`,
           visualVectorString,
           textVectorString,
-          createdRecord.id,
+          createdRecord.id
         );
       } else {
         // ビジュアルEmbeddingがない場合はテキストEmbeddingのみ更新
         // Update text embedding only when visual embedding is absent
-        const textVectorString = `[${embedding.textEmbedding.join(',')}]`;
+        const textVectorString = `[${embedding.textEmbedding.join(",")}]`;
         await prisma.$executeRawUnsafe(
           `UPDATE component_part_embeddings
            SET text_embedding = $1::vector(768)
            WHERE id = $2::uuid`,
           textVectorString,
-          createdRecord.id,
+          createdRecord.id
         );
       }
 
       result.savedCount++;
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      const errorMessage = error instanceof Error ? error.message : "Unknown error";
       result.errors.push(
-        `Failed to save embedding for part ${truncateId(embedding.componentPartId)}: ${errorMessage}`,
+        `Failed to save embedding for part ${truncateId(embedding.componentPartId)}: ${errorMessage}`
       );
 
-      logger.warn('[part-embedding-db] Failed to save embedding', {
+      logger.warn("[part-embedding-db] Failed to save embedding", {
         componentPartId: truncateId(embedding.componentPartId),
         error: errorMessage,
       });
@@ -173,7 +173,7 @@ export async function savePartEmbeddings(
   }
 
   const durationMs = Date.now() - startTime;
-  logger.info('[part-embedding-db] Embedding save complete', {
+  logger.info("[part-embedding-db] Embedding save complete", {
     totalEmbeddings: embeddings.length,
     savedCount: result.savedCount,
     failedCount: result.errors.length,

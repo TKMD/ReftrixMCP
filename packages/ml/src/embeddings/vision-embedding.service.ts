@@ -14,8 +14,8 @@ import type {
   VisionFeatures,
   VisionEmbeddingServiceConfig,
   VisionCacheStats,
-} from './vision-embedding.types.js';
-import { EmbeddingService } from './service.js';
+} from "./vision-embedding.types.js";
+import { EmbeddingService } from "./service.js";
 
 /**
  * デフォルトのキャッシュサイズ
@@ -46,7 +46,7 @@ export function visionFeaturesToText(features: VisionFeatures): string {
     parts.push(`brandTone: ${features.brandTone}`);
   }
 
-  return parts.join(', ');
+  return parts.join(", ");
 }
 
 /**
@@ -81,9 +81,9 @@ export class VisionEmbeddingService {
     this.maxCacheSize = config.maxCacheSize ?? DEFAULT_MAX_CACHE_SIZE;
     this.embeddingService = new EmbeddingService();
 
-    if (process.env.NODE_ENV === 'development') {
+    if (process.env.NODE_ENV === "development") {
       // eslint-disable-next-line no-console
-      console.log('[VisionEmbedding] Service created with maxCacheSize:', this.maxCacheSize);
+      console.log("[VisionEmbedding] Service created with maxCacheSize:", this.maxCacheSize);
     }
   }
 
@@ -100,9 +100,9 @@ export class VisionEmbeddingService {
     const cached = this.getCacheEntry(cacheKey);
     if (cached) {
       this.cacheHits++;
-      if (process.env.NODE_ENV === 'development') {
+      if (process.env.NODE_ENV === "development") {
         // eslint-disable-next-line no-console
-        console.log('[VisionEmbedding] Cache hit');
+        console.log("[VisionEmbedding] Cache hit");
       }
       return cached;
     }
@@ -112,14 +112,14 @@ export class VisionEmbeddingService {
     // テキスト表現に変換
     const text = visionFeaturesToText(features);
 
-    if (process.env.NODE_ENV === 'development') {
+    if (process.env.NODE_ENV === "development") {
       // eslint-disable-next-line no-console
-      console.log('[VisionEmbedding] Generating embedding for:', text.substring(0, 80));
+      console.log("[VisionEmbedding] Generating embedding for:", text.substring(0, 80));
     }
 
     // EmbeddingServiceを使用して埋め込み生成
     // 'passage'プレフィックスを使用（ドキュメント埋め込み）
-    const embedding = await this.embeddingService.generateEmbedding(text, 'passage');
+    const embedding = await this.embeddingService.generateEmbedding(text, "passage");
 
     // キャッシュに保存（LRU eviction付き）
     this.setCacheEntry(cacheKey, embedding);
@@ -138,9 +138,9 @@ export class VisionEmbeddingService {
       return [];
     }
 
-    if (process.env.NODE_ENV === 'development') {
+    if (process.env.NODE_ENV === "development") {
       // eslint-disable-next-line no-console
-      console.log('[VisionEmbedding] Batch processing', featuresArray.length, 'items');
+      console.log("[VisionEmbedding] Batch processing", featuresArray.length, "items");
     }
 
     // キャッシュチェックと未キャッシュアイテムの特定
@@ -169,7 +169,7 @@ export class VisionEmbeddingService {
     if (uncachedTexts.length > 0) {
       const embeddings = await this.embeddingService.generateBatchEmbeddings(
         uncachedTexts,
-        'passage'
+        "passage"
       );
 
       for (let j = 0; j < uncachedIndices.length; j++) {
@@ -212,9 +212,9 @@ export class VisionEmbeddingService {
     this.cacheMisses = 0;
     this.cacheEvictions = 0;
 
-    if (process.env.NODE_ENV === 'development') {
+    if (process.env.NODE_ENV === "development") {
       // eslint-disable-next-line no-console
-      console.log('[VisionEmbedding] Cache cleared');
+      console.log("[VisionEmbedding] Cache cleared");
     }
   }
 
@@ -241,9 +241,9 @@ export class VisionEmbeddingService {
       if (oldestKey !== undefined) {
         this.cache.delete(oldestKey);
         this.cacheEvictions++;
-        if (process.env.NODE_ENV === 'development') {
+        if (process.env.NODE_ENV === "development") {
           // eslint-disable-next-line no-console
-          console.log('[VisionEmbedding] Cache evicted oldest entry');
+          console.log("[VisionEmbedding] Cache evicted oldest entry");
         }
       } else {
         break;

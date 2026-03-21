@@ -10,10 +10,10 @@
  * @module @reftrix/mcp-server/services/motion/frame-analysis-save.helper
  */
 
-import { logger, isDevelopment } from '../../utils/logger';
-import { getMotionDbService, type BatchSaveResult } from './motion-db.service';
-import type { FrameAnalysisResult, FrameCaptureResult } from '../../tools/page/handlers/types';
-import type { AnimationType, MotionDirection } from './frame-image-analyzer.adapter';
+import { logger, isDevelopment } from "../../utils/logger";
+import { getMotionDbService, type BatchSaveResult } from "./motion-db.service";
+import type { FrameAnalysisResult, FrameCaptureResult } from "../../tools/page/handlers/types";
+import type { AnimationType, MotionDirection } from "./frame-image-analyzer.adapter";
 
 // =====================================================
 // Types
@@ -71,28 +71,28 @@ const CONTINUOUS_ZONE_GAP = 5;
  * Classify animation type based on scroll duration (px)
  */
 function classifyAnimationType(duration: number): AnimationType {
-  if (duration < 500) return 'micro-interaction';
-  if (duration < 1500) return 'fade/slide transition';
-  if (duration < 3000) return 'scroll-linked animation';
-  return 'long-form reveal';
+  if (duration < 500) return "micro-interaction";
+  if (duration < 1500) return "fade/slide transition";
+  if (duration < 3000) return "scroll-linked animation";
+  return "long-form reveal";
 }
 
 /**
  * Determine motion direction from angle
  */
 function determineDirection(angle: number, magnitude: number): MotionDirection {
-  if (magnitude < MOTION_VECTOR_MIN_MAGNITUDE) return 'stationary';
-  if (angle >= -45 && angle < 45) return 'right';
-  if (angle >= 45 && angle < 135) return 'down';
-  if (angle >= -135 && angle < -45) return 'up';
-  return 'left';
+  if (magnitude < MOTION_VECTOR_MIN_MAGNITUDE) return "stationary";
+  if (angle >= -45 && angle < 45) return "right";
+  if (angle >= 45 && angle < 135) return "down";
+  if (angle >= -135 && angle < -45) return "up";
+  return "left";
 }
 
 /**
  * Format frame index as zero-padded filename
  */
 function frameFileName(index: number): string {
-  return `frame-${String(index).padStart(4, '0')}.png`;
+  return `frame-${String(index).padStart(4, "0")}.png`;
 }
 
 // =====================================================
@@ -129,9 +129,7 @@ interface MotionVectorData {
 /**
  * timeline の significant_change_frames から AnimationZones を構築
  */
-function buildAnimationZones(
-  frameAnalysis: FrameAnalysisResult
-): AnimationZoneData[] {
+function buildAnimationZones(frameAnalysis: FrameAnalysisResult): AnimationZoneData[] {
   const zones: AnimationZoneData[] = [];
   const significantFrames = frameAnalysis.summary?.significant_change_frames ?? [];
 
@@ -145,7 +143,7 @@ function buildAnimationZones(
     const currentFrame = significantFrames[i] ?? 0;
     const nextFrame = significantFrames[i + 1];
 
-    const timelineEntry = frameAnalysis.timeline.find(t => t.frame_index === currentFrame);
+    const timelineEntry = frameAnalysis.timeline.find((t) => t.frame_index === currentFrame);
     if (timelineEntry) {
       diffs.push(timelineEntry.diff_percentage * 100);
     }
@@ -184,9 +182,7 @@ function buildAnimationZones(
 /**
  * timeline から layoutShifts を構築（layout_shift_score > threshold）
  */
-function buildLayoutShifts(
-  frameAnalysis: FrameAnalysisResult
-): LayoutShiftData[] {
+function buildLayoutShifts(frameAnalysis: FrameAnalysisResult): LayoutShiftData[] {
   const shifts: LayoutShiftData[] = [];
 
   for (const entry of frameAnalysis.timeline) {
@@ -207,9 +203,7 @@ function buildLayoutShifts(
 /**
  * timeline の motion_vectors から MotionVectors を構築
  */
-function buildMotionVectors(
-  frameAnalysis: FrameAnalysisResult
-): MotionVectorData[] {
+function buildMotionVectors(frameAnalysis: FrameAnalysisResult): MotionVectorData[] {
   const vectors: MotionVectorData[] = [];
 
   for (const entry of frameAnalysis.timeline) {
@@ -254,7 +248,7 @@ export async function saveFrameAnalysisToDb(
   const { frameAnalysis, frameCapture, webPageId, sourceUrl } = input;
 
   if (isDevelopment()) {
-    logger.info('[FrameAnalysisSaveHelper] Starting frame analysis DB save', {
+    logger.info("[FrameAnalysisSaveHelper] Starting frame analysis DB save", {
       webPageId,
       timelineLength: frameAnalysis.timeline?.length ?? 0,
       totalLayoutShifts: frameAnalysis.summary?.total_layout_shifts ?? 0,
@@ -266,9 +260,11 @@ export async function saveFrameAnalysisToDb(
 
     if (!motionDbService.isAvailable()) {
       if (isDevelopment()) {
-        logger.warn('[FrameAnalysisSaveHelper] MotionDbService not available, skipping frame analysis DB save');
+        logger.warn(
+          "[FrameAnalysisSaveHelper] MotionDbService not available, skipping frame analysis DB save"
+        );
       }
-      return { saved: false, skipped: 'MotionDbService not available' };
+      return { saved: false, skipped: "MotionDbService not available" };
     }
 
     // Build sub-structures
@@ -280,7 +276,7 @@ export async function saveFrameAnalysisToDb(
     // Build FrameImageAnalysisOutput
     const frameAnalysisOutput = {
       metadata: {
-        framesDir: frameCapture?.output_dir ?? '/tmp/reftrix-frames/',
+        framesDir: frameCapture?.output_dir ?? "/tmp/reftrix-frames/",
         totalFrames: frameCapture?.total_frames ?? 0,
         analyzedPairs: frameAnalysis.timeline.length,
         sampleInterval: 1,
@@ -291,9 +287,10 @@ export async function saveFrameAnalysisToDb(
       statistics: {
         averageDiffPercentage: ((frameAnalysis.summary?.avg_diff ?? 0) * 100).toFixed(2),
         significantChangeCount: significantFrames.length,
-        significantChangePercentage: frameAnalysis.timeline.length > 0
-          ? ((significantFrames.length / frameAnalysis.timeline.length) * 100).toFixed(2)
-          : '0.00',
+        significantChangePercentage:
+          frameAnalysis.timeline.length > 0
+            ? ((significantFrames.length / frameAnalysis.timeline.length) * 100).toFixed(2)
+            : "0.00",
         layoutShiftCount: frameAnalysis.summary?.total_layout_shifts ?? 0,
         motionVectorCount: motionVectors.length,
       },
@@ -303,17 +300,14 @@ export async function saveFrameAnalysisToDb(
     };
 
     // Save via MotionDbService
-    const batchResult = await motionDbService.saveFrameAnalysis(
-      frameAnalysisOutput,
-      {
-        webPageId,
-        sourceUrl,
-        continueOnError: true,
-      }
-    );
+    const batchResult = await motionDbService.saveFrameAnalysis(frameAnalysisOutput, {
+      webPageId,
+      sourceUrl,
+      continueOnError: true,
+    });
 
     if (isDevelopment()) {
-      logger.info('[FrameAnalysisSaveHelper] Frame analysis DB save completed', {
+      logger.info("[FrameAnalysisSaveHelper] Frame analysis DB save completed", {
         saved: batchResult.saved,
         savedCount: batchResult.savedCount,
         byCategory: batchResult.byCategory,
@@ -323,12 +317,15 @@ export async function saveFrameAnalysisToDb(
 
     return { saved: batchResult.saved, batchResult };
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
 
     if (isDevelopment()) {
-      logger.warn('[FrameAnalysisSaveHelper] Frame analysis DB save failed (graceful degradation)', {
-        error: errorMessage,
-      });
+      logger.warn(
+        "[FrameAnalysisSaveHelper] Frame analysis DB save failed (graceful degradation)",
+        {
+          error: errorMessage,
+        }
+      );
     }
 
     return { saved: false, error: errorMessage };

@@ -17,7 +17,7 @@
  * - メトリクスのリセット機能
  */
 
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from "vitest";
 
 // モック: メトリクスデータ構造
 interface Histogram {
@@ -170,7 +170,7 @@ class MetricsCollectorService {
    * Prometheus形式でエクスポート
    */
   exportPrometheus(): string {
-    let output = '';
+    let output = "";
 
     // リクエスト数
     output += `# HELP http_requests_total Total HTTP requests\n`;
@@ -230,15 +230,15 @@ class MetricsCollectorService {
   }
 }
 
-describe('MetricsCollectorService', () => {
+describe("MetricsCollectorService", () => {
   let service: MetricsCollectorService;
 
   beforeEach(() => {
     service = new MetricsCollectorService();
   });
 
-  describe('リクエストカウント', () => {
-    it('リクエスト数を正しくカウントすること', () => {
+  describe("リクエストカウント", () => {
+    it("リクエスト数を正しくカウントすること", () => {
       // Arrange & Act
       service.incrementRequestCount();
       service.incrementRequestCount();
@@ -248,14 +248,14 @@ describe('MetricsCollectorService', () => {
       expect(service.getRequestCount()).toBe(3);
     });
 
-    it('初期状態ではリクエスト数が0であること', () => {
+    it("初期状態ではリクエスト数が0であること", () => {
       // Assert
       expect(service.getRequestCount()).toBe(0);
     });
   });
 
-  describe('エラーカウント', () => {
-    it('エラー数を正しくカウントすること', () => {
+  describe("エラーカウント", () => {
+    it("エラー数を正しくカウントすること", () => {
       // Arrange & Act
       service.incrementErrorCount();
       service.incrementErrorCount();
@@ -264,7 +264,7 @@ describe('MetricsCollectorService', () => {
       expect(service.getErrorCount()).toBe(2);
     });
 
-    it('エラー率を正しく計算すること', () => {
+    it("エラー率を正しく計算すること", () => {
       // Arrange & Act
       service.incrementRequestCount(); // 1
       service.incrementRequestCount(); // 2
@@ -276,14 +276,14 @@ describe('MetricsCollectorService', () => {
       expect(service.getErrorRate()).toBe(0.25); // 1/4 = 0.25
     });
 
-    it('リクエスト数が0の場合、エラー率は0であること', () => {
+    it("リクエスト数が0の場合、エラー率は0であること", () => {
       // Assert
       expect(service.getErrorRate()).toBe(0);
     });
   });
 
-  describe('レスポンス時間ヒストグラム', () => {
-    it('レスポンス時間を記録すること', () => {
+  describe("レスポンス時間ヒストグラム", () => {
+    it("レスポンス時間を記録すること", () => {
       // Arrange & Act
       service.recordResponseTime(50);
       service.recordResponseTime(150);
@@ -295,7 +295,7 @@ describe('MetricsCollectorService', () => {
       expect(histogram.sum).toBe(500);
     });
 
-    it('平均レスポンス時間を計算すること', () => {
+    it("平均レスポンス時間を計算すること", () => {
       // Arrange & Act
       service.recordResponseTime(100);
       service.recordResponseTime(200);
@@ -305,7 +305,7 @@ describe('MetricsCollectorService', () => {
       expect(service.getAverageResponseTime()).toBe(200);
     });
 
-    it('ヒストグラムバケットに正しく分類すること', () => {
+    it("ヒストグラムバケットに正しく分類すること", () => {
       // Arrange & Act
       service.recordResponseTime(5); // <= 10
       service.recordResponseTime(25); // <= 50
@@ -320,14 +320,14 @@ describe('MetricsCollectorService', () => {
       expect(histogram.buckets.get(500)).toBe(4); // すべて
     });
 
-    it('レスポンス時間が記録されていない場合、平均は0であること', () => {
+    it("レスポンス時間が記録されていない場合、平均は0であること", () => {
       // Assert
       expect(service.getAverageResponseTime()).toBe(0);
     });
   });
 
-  describe('アクティブ接続数', () => {
-    it('アクティブ接続数を増やすこと', () => {
+  describe("アクティブ接続数", () => {
+    it("アクティブ接続数を増やすこと", () => {
       // Arrange & Act
       service.incrementActiveConnections();
       service.incrementActiveConnections();
@@ -336,7 +336,7 @@ describe('MetricsCollectorService', () => {
       expect(service.getActiveConnections()).toBe(2);
     });
 
-    it('アクティブ接続数を減らすこと', () => {
+    it("アクティブ接続数を減らすこと", () => {
       // Arrange
       service.incrementActiveConnections();
       service.incrementActiveConnections();
@@ -349,7 +349,7 @@ describe('MetricsCollectorService', () => {
       expect(service.getActiveConnections()).toBe(2);
     });
 
-    it('アクティブ接続数が負の値にならないこと', () => {
+    it("アクティブ接続数が負の値にならないこと", () => {
       // Arrange & Act
       service.decrementActiveConnections();
       service.decrementActiveConnections();
@@ -359,8 +359,8 @@ describe('MetricsCollectorService', () => {
     });
   });
 
-  describe('メモリ使用量', () => {
-    it('メモリ使用量を取得すること', () => {
+  describe("メモリ使用量", () => {
+    it("メモリ使用量を取得すること", () => {
       // Arrange & Act
       const memory = service.getMemoryUsage();
 
@@ -371,7 +371,7 @@ describe('MetricsCollectorService', () => {
       expect(memory.external).toBeGreaterThanOrEqual(0);
     });
 
-    it('メモリ使用量がMB単位で返されること', () => {
+    it("メモリ使用量がMB単位で返されること", () => {
       // Arrange & Act
       const memory = service.getMemoryUsage();
 
@@ -383,8 +383,8 @@ describe('MetricsCollectorService', () => {
     });
   });
 
-  describe('CPU使用率', () => {
-    it('CPU使用率を取得すること', () => {
+  describe("CPU使用率", () => {
+    it("CPU使用率を取得すること", () => {
       // Arrange & Act
       const cpuUsage = service.getCpuUsage();
 
@@ -394,8 +394,8 @@ describe('MetricsCollectorService', () => {
     });
   });
 
-  describe('Prometheus形式エクスポート', () => {
-    it('Prometheus形式でメトリクスをエクスポートすること', () => {
+  describe("Prometheus形式エクスポート", () => {
+    it("Prometheus形式でメトリクスをエクスポートすること", () => {
       // Arrange
       service.incrementRequestCount();
       service.incrementRequestCount();
@@ -407,25 +407,25 @@ describe('MetricsCollectorService', () => {
       const output = service.exportPrometheus();
 
       // Assert
-      expect(output).toContain('http_requests_total 2');
-      expect(output).toContain('http_errors_total 1');
-      expect(output).toContain('http_error_rate 0.5000');
-      expect(output).toContain('http_response_time_milliseconds_sum 300');
-      expect(output).toContain('http_response_time_milliseconds_count 2');
+      expect(output).toContain("http_requests_total 2");
+      expect(output).toContain("http_errors_total 1");
+      expect(output).toContain("http_error_rate 0.5000");
+      expect(output).toContain("http_response_time_milliseconds_sum 300");
+      expect(output).toContain("http_response_time_milliseconds_count 2");
     });
 
-    it('HELPとTYPEメタデータを含むこと', () => {
+    it("HELPとTYPEメタデータを含むこと", () => {
       // Arrange & Act
       const output = service.exportPrometheus();
 
       // Assert
-      expect(output).toContain('# HELP http_requests_total');
-      expect(output).toContain('# TYPE http_requests_total counter');
-      expect(output).toContain('# HELP http_response_time_milliseconds');
-      expect(output).toContain('# TYPE http_response_time_milliseconds histogram');
+      expect(output).toContain("# HELP http_requests_total");
+      expect(output).toContain("# TYPE http_requests_total counter");
+      expect(output).toContain("# HELP http_response_time_milliseconds");
+      expect(output).toContain("# TYPE http_response_time_milliseconds histogram");
     });
 
-    it('ヒストグラムバケットを正しくエクスポートすること', () => {
+    it("ヒストグラムバケットを正しくエクスポートすること", () => {
       // Arrange
       service.recordResponseTime(30);
       service.recordResponseTime(80);
@@ -439,18 +439,18 @@ describe('MetricsCollectorService', () => {
       expect(output).toContain('http_response_time_milliseconds_bucket{le="+Inf"} 2');
     });
 
-    it('メモリメトリクスを含むこと', () => {
+    it("メモリメトリクスを含むこと", () => {
       // Arrange & Act
       const output = service.exportPrometheus();
 
       // Assert
-      expect(output).toContain('process_memory_rss_megabytes');
-      expect(output).toContain('process_memory_heap_used_megabytes');
+      expect(output).toContain("process_memory_rss_megabytes");
+      expect(output).toContain("process_memory_heap_used_megabytes");
     });
   });
 
-  describe('メトリクスリセット', () => {
-    it('全メトリクスをリセットすること', () => {
+  describe("メトリクスリセット", () => {
+    it("全メトリクスをリセットすること", () => {
       // Arrange
       service.incrementRequestCount();
       service.incrementErrorCount();
@@ -468,7 +468,7 @@ describe('MetricsCollectorService', () => {
       expect(service.getResponseTimeHistogram().count).toBe(0);
     });
 
-    it('ヒストグラムバケットもリセットされること', () => {
+    it("ヒストグラムバケットもリセットされること", () => {
       // Arrange
       service.recordResponseTime(50);
       service.recordResponseTime(150);
@@ -484,23 +484,23 @@ describe('MetricsCollectorService', () => {
     });
   });
 
-  describe('Map size limits (memory management)', () => {
-    it('should accept maxMapSize in configuration', async () => {
+  describe("Map size limits (memory management)", () => {
+    it("should accept maxMapSize in configuration", async () => {
       // Import actual implementation
-      const { MetricsCollectorService } = await import('../../src/services/metrics-collector');
+      const { MetricsCollectorService } = await import("../../src/services/metrics-collector");
       const service = new MetricsCollectorService({ maxMapSize: 100 });
 
       expect(service).toBeDefined();
     });
 
-    it('should evict oldest entries when requestsByEndpoint exceeds maxMapSize', async () => {
-      const { MetricsCollectorService } = await import('../../src/services/metrics-collector');
+    it("should evict oldest entries when requestsByEndpoint exceeds maxMapSize", async () => {
+      const { MetricsCollectorService } = await import("../../src/services/metrics-collector");
       const maxMapSize = 5;
       const service = new MetricsCollectorService({ maxMapSize });
 
       // Add more unique endpoints than maxMapSize
       for (let i = 0; i < 10; i++) {
-        service.incrementRequestCount(`/endpoint-${i}`, 'GET', 200);
+        service.incrementRequestCount(`/endpoint-${i}`, "GET", 200);
       }
 
       const stats = service.getStats();
@@ -509,8 +509,8 @@ describe('MetricsCollectorService', () => {
       expect(stats.requests.byEndpoint.size).toBeLessThanOrEqual(maxMapSize);
     });
 
-    it('should evict oldest entries when errorsByType exceeds maxMapSize', async () => {
-      const { MetricsCollectorService } = await import('../../src/services/metrics-collector');
+    it("should evict oldest entries when errorsByType exceeds maxMapSize", async () => {
+      const { MetricsCollectorService } = await import("../../src/services/metrics-collector");
       const maxMapSize = 3;
       const service = new MetricsCollectorService({ maxMapSize });
 
@@ -525,21 +525,22 @@ describe('MetricsCollectorService', () => {
       expect(stats.errors.byType.size).toBeLessThanOrEqual(maxMapSize);
     });
 
-    it('should use default maxMapSize of 500 when not specified', async () => {
-      const { MetricsCollectorService, DEFAULT_MAX_MAP_SIZE } = await import('../../src/services/metrics-collector');
+    it("should use default maxMapSize of 500 when not specified", async () => {
+      const { MetricsCollectorService, DEFAULT_MAX_MAP_SIZE } =
+        await import("../../src/services/metrics-collector");
 
       // DEFAULT_MAX_MAP_SIZE should be exported and equal to 500
       expect(DEFAULT_MAX_MAP_SIZE).toBe(500);
     });
 
-    it('should expose mapEvictions count in statistics', async () => {
-      const { MetricsCollectorService } = await import('../../src/services/metrics-collector');
+    it("should expose mapEvictions count in statistics", async () => {
+      const { MetricsCollectorService } = await import("../../src/services/metrics-collector");
       const maxMapSize = 2;
       const service = new MetricsCollectorService({ maxMapSize });
 
       // Add 5 unique endpoints, should trigger 3 evictions
       for (let i = 0; i < 5; i++) {
-        service.incrementRequestCount(`/endpoint-${i}`, 'GET', 200);
+        service.incrementRequestCount(`/endpoint-${i}`, "GET", 200);
       }
 
       const stats = service.getStats();
@@ -548,8 +549,8 @@ describe('MetricsCollectorService', () => {
     });
   });
 
-  describe('統合シナリオ', () => {
-    it('実際のリクエスト処理をシミュレートすること', () => {
+  describe("統合シナリオ", () => {
+    it("実際のリクエスト処理をシミュレートすること", () => {
       // Arrange & Act: 100リクエストをシミュレート
       for (let i = 0; i < 100; i++) {
         service.incrementActiveConnections();
@@ -575,7 +576,7 @@ describe('MetricsCollectorService', () => {
       expect(service.getActiveConnections()).toBe(0); // すべて処理完了
     });
 
-    it('Prometheusエクスポートが有効なデータを含むこと', () => {
+    it("Prometheusエクスポートが有効なデータを含むこと", () => {
       // Arrange
       service.incrementRequestCount();
       service.recordResponseTime(123);
@@ -585,9 +586,7 @@ describe('MetricsCollectorService', () => {
 
       // Assert
       // 有効なPrometheus形式であること
-      expect(output.split('\n').filter((line) => line.startsWith('#')).length).toBeGreaterThan(
-        0
-      );
+      expect(output.split("\n").filter((line) => line.startsWith("#")).length).toBeGreaterThan(0);
       expect(output).toMatch(/\w+ \d+/); // メトリクス名と値のパターン
     });
   });

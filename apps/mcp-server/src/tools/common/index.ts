@@ -22,4 +22,4 @@ export {
   isSuccess,
   isError,
   determineCommonErrorCode,
-} from './error-codes';
+} from "./error-codes";

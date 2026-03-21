@@ -17,7 +17,7 @@
  * @module tests/tools/motion/detect.tool.test
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 // =====================================================
 // インポート
@@ -29,7 +29,7 @@ import {
   setMotionDetectServiceFactory,
   resetMotionDetectServiceFactory,
   type IMotionDetectService,
-} from '../../../src/tools/motion/detect.tool';
+} from "../../../src/tools/motion/detect.tool";
 
 import {
   motionDetectInputSchema,
@@ -50,7 +50,7 @@ import {
   type PerformanceInfo,
   MOTION_MCP_ERROR_CODES,
   MOTION_WARNING_CODES,
-} from '../../../src/tools/motion/schemas';
+} from "../../../src/tools/motion/schemas";
 
 // =====================================================
 // テストデータ
@@ -274,17 +274,17 @@ const sampleCss = `
 }
 `;
 
-const validUUID = '123e4567-e89b-12d3-a456-426614174000';
-const invalidUUID = 'invalid-uuid';
+const validUUID = "123e4567-e89b-12d3-a456-426614174000";
+const invalidUUID = "invalid-uuid";
 
 // =====================================================
 // 入力バリデーションテスト（15 tests）
 // =====================================================
 
-describe('motionDetectInputSchema', () => {
-  describe('有効な入力', () => {
-    it('html のみの入力を受け付ける', () => {
-      const input = { html: sampleHtmlWithAnimations, detection_mode: 'css' };
+describe("motionDetectInputSchema", () => {
+  describe("有効な入力", () => {
+    it("html のみの入力を受け付ける", () => {
+      const input = { html: sampleHtmlWithAnimations, detection_mode: "css" };
       const result = motionDetectInputSchema.parse(input);
       expect(result.html).toBe(sampleHtmlWithAnimations);
       expect(result.includeInlineStyles).toBe(true);
@@ -293,62 +293,78 @@ describe('motionDetectInputSchema', () => {
       expect(result.maxPatterns).toBe(100);
     });
 
-    it('pageId のみの入力を受け付ける', () => {
-      const input = { pageId: validUUID, detection_mode: 'css' };
+    it("pageId のみの入力を受け付ける", () => {
+      const input = { pageId: validUUID, detection_mode: "css" };
       const result = motionDetectInputSchema.parse(input);
       expect(result.pageId).toBe(validUUID);
     });
 
-    it('html と css の組み合わせを受け付ける', () => {
-      const input = { html: sampleHtmlMinimal, css: sampleCss, detection_mode: 'css' };
+    it("html と css の組み合わせを受け付ける", () => {
+      const input = { html: sampleHtmlMinimal, css: sampleCss, detection_mode: "css" };
       const result = motionDetectInputSchema.parse(input);
       expect(result.html).toBe(sampleHtmlMinimal);
       expect(result.css).toBe(sampleCss);
     });
 
-    it('includeInlineStyles=false を受け付ける', () => {
-      const input = { html: sampleHtmlWithAnimations, includeInlineStyles: false, detection_mode: 'css' };
+    it("includeInlineStyles=false を受け付ける", () => {
+      const input = {
+        html: sampleHtmlWithAnimations,
+        includeInlineStyles: false,
+        detection_mode: "css",
+      };
       const result = motionDetectInputSchema.parse(input);
       expect(result.includeInlineStyles).toBe(false);
     });
 
-    it('includeStyleSheets=false を受け付ける', () => {
-      const input = { html: sampleHtmlWithAnimations, includeStyleSheets: false, detection_mode: 'css' };
+    it("includeStyleSheets=false を受け付ける", () => {
+      const input = {
+        html: sampleHtmlWithAnimations,
+        includeStyleSheets: false,
+        detection_mode: "css",
+      };
       const result = motionDetectInputSchema.parse(input);
       expect(result.includeStyleSheets).toBe(false);
     });
 
-    it('minDuration を指定できる', () => {
-      const input = { html: sampleHtmlWithAnimations, minDuration: 500, detection_mode: 'css' };
+    it("minDuration を指定できる", () => {
+      const input = { html: sampleHtmlWithAnimations, minDuration: 500, detection_mode: "css" };
       const result = motionDetectInputSchema.parse(input);
       expect(result.minDuration).toBe(500);
     });
 
-    it('maxPatterns を指定できる', () => {
-      const input = { html: sampleHtmlWithAnimations, maxPatterns: 50, detection_mode: 'css' };
+    it("maxPatterns を指定できる", () => {
+      const input = { html: sampleHtmlWithAnimations, maxPatterns: 50, detection_mode: "css" };
       const result = motionDetectInputSchema.parse(input);
       expect(result.maxPatterns).toBe(50);
     });
 
-    it('includeWarnings=false を受け付ける', () => {
-      const input = { html: sampleHtmlWithAnimations, includeWarnings: false, detection_mode: 'css' };
+    it("includeWarnings=false を受け付ける", () => {
+      const input = {
+        html: sampleHtmlWithAnimations,
+        includeWarnings: false,
+        detection_mode: "css",
+      };
       const result = motionDetectInputSchema.parse(input);
       expect(result.includeWarnings).toBe(false);
     });
 
-    it('includeSummary=false を受け付ける', () => {
-      const input = { html: sampleHtmlWithAnimations, includeSummary: false, detection_mode: 'css' };
+    it("includeSummary=false を受け付ける", () => {
+      const input = {
+        html: sampleHtmlWithAnimations,
+        includeSummary: false,
+        detection_mode: "css",
+      };
       const result = motionDetectInputSchema.parse(input);
       expect(result.includeSummary).toBe(false);
     });
 
-    it('verbose=true を受け付ける', () => {
-      const input = { html: sampleHtmlWithAnimations, verbose: true, detection_mode: 'css' };
+    it("verbose=true を受け付ける", () => {
+      const input = { html: sampleHtmlWithAnimations, verbose: true, detection_mode: "css" };
       const result = motionDetectInputSchema.parse(input);
       expect(result.verbose).toBe(true);
     });
 
-    it('全オプション指定の入力を受け付ける', () => {
+    it("全オプション指定の入力を受け付ける", () => {
       const input: MotionDetectInput = {
         html: sampleHtmlWithAnimations,
         css: sampleCss,
@@ -359,7 +375,7 @@ describe('motionDetectInputSchema', () => {
         includeWarnings: true,
         includeSummary: true,
         verbose: true,
-        detection_mode: 'css' as const,
+        detection_mode: "css" as const,
       };
       const result = motionDetectInputSchema.parse(input);
       expect(result.html).toBeDefined();
@@ -370,39 +386,39 @@ describe('motionDetectInputSchema', () => {
     });
   });
 
-  describe('無効な入力', () => {
-    it('pageId も html もない場合エラー', () => {
-      const input = { detection_mode: 'css' };
+  describe("無効な入力", () => {
+    it("pageId も html もない場合エラー", () => {
+      const input = { detection_mode: "css" };
       expect(() => motionDetectInputSchema.parse(input)).toThrow();
     });
 
-    it('pageId が無効なUUID形式の場合エラー', () => {
-      const input = { pageId: invalidUUID, detection_mode: 'css' };
+    it("pageId が無効なUUID形式の場合エラー", () => {
+      const input = { pageId: invalidUUID, detection_mode: "css" };
       expect(() => motionDetectInputSchema.parse(input)).toThrow();
     });
 
-    it('html が空文字の場合エラー', () => {
-      const input = { html: '', detection_mode: 'css' };
+    it("html が空文字の場合エラー", () => {
+      const input = { html: "", detection_mode: "css" };
       expect(() => motionDetectInputSchema.parse(input)).toThrow();
     });
 
-    it('minDuration が負の場合エラー', () => {
-      const input = { html: sampleHtmlMinimal, minDuration: -1, detection_mode: 'css' };
+    it("minDuration が負の場合エラー", () => {
+      const input = { html: sampleHtmlMinimal, minDuration: -1, detection_mode: "css" };
       expect(() => motionDetectInputSchema.parse(input)).toThrow();
     });
 
-    it('minDuration が60000を超える場合エラー', () => {
-      const input = { html: sampleHtmlMinimal, minDuration: 60001, detection_mode: 'css' };
+    it("minDuration が60000を超える場合エラー", () => {
+      const input = { html: sampleHtmlMinimal, minDuration: 60001, detection_mode: "css" };
       expect(() => motionDetectInputSchema.parse(input)).toThrow();
     });
 
-    it('maxPatterns が0の場合エラー', () => {
-      const input = { html: sampleHtmlMinimal, maxPatterns: 0, detection_mode: 'css' };
+    it("maxPatterns が0の場合エラー", () => {
+      const input = { html: sampleHtmlMinimal, maxPatterns: 0, detection_mode: "css" };
       expect(() => motionDetectInputSchema.parse(input)).toThrow();
     });
 
-    it('maxPatterns が4000を超える場合エラー', () => {
-      const input = { html: sampleHtmlMinimal, maxPatterns: 4001, detection_mode: 'css' };
+    it("maxPatterns が4000を超える場合エラー", () => {
+      const input = { html: sampleHtmlMinimal, maxPatterns: 4001, detection_mode: "css" };
       expect(() => motionDetectInputSchema.parse(input)).toThrow();
     });
   });
@@ -412,69 +428,69 @@ describe('motionDetectInputSchema', () => {
 // ユーティリティ関数テスト（10 tests）
 // =====================================================
 
-describe('ユーティリティ関数', () => {
-  describe('calculatePerformanceLevel', () => {
-    it('GPU加速のみ使用、レイアウト/ペイントなし = excellent', () => {
+describe("ユーティリティ関数", () => {
+  describe("calculatePerformanceLevel", () => {
+    it("GPU加速のみ使用、レイアウト/ペイントなし = excellent", () => {
       const info: PerformanceInfo = {
         usesTransform: true,
         usesOpacity: true,
         triggersLayout: false,
         triggersPaint: false,
       };
-      expect(calculatePerformanceLevel(info)).toBe('excellent');
+      expect(calculatePerformanceLevel(info)).toBe("excellent");
     });
 
-    it('レイアウトトリガーあり = poor', () => {
+    it("レイアウトトリガーあり = poor", () => {
       const info: PerformanceInfo = {
         usesTransform: true,
         usesOpacity: false,
         triggersLayout: true,
         triggersPaint: false,
       };
-      expect(calculatePerformanceLevel(info)).toBe('poor');
+      expect(calculatePerformanceLevel(info)).toBe("poor");
     });
 
-    it('ペイントトリガーあり = fair', () => {
+    it("ペイントトリガーあり = fair", () => {
       const info: PerformanceInfo = {
         usesTransform: false,
         usesOpacity: false,
         triggersLayout: false,
         triggersPaint: true,
       };
-      expect(calculatePerformanceLevel(info)).toBe('fair');
+      expect(calculatePerformanceLevel(info)).toBe("fair");
     });
 
-    it('それ以外 = good', () => {
+    it("それ以外 = good", () => {
       const info: PerformanceInfo = {
         usesTransform: false,
         usesOpacity: false,
         triggersLayout: false,
         triggersPaint: false,
       };
-      expect(calculatePerformanceLevel(info)).toBe('good');
+      expect(calculatePerformanceLevel(info)).toBe("good");
     });
   });
 
-  describe('calculateComplexityScore', () => {
-    it('空の配列は0を返す', () => {
+  describe("calculateComplexityScore", () => {
+    it("空の配列は0を返す", () => {
       expect(calculateComplexityScore([])).toBe(0);
     });
 
-    it('パターン数に応じてスコアが増加する', () => {
+    it("パターン数に応じてスコアが増加する", () => {
       const patterns: MotionPattern[] = [
         {
-          id: '1',
-          type: 'css_animation',
-          category: 'scroll_trigger',
-          trigger: 'load',
+          id: "1",
+          type: "css_animation",
+          category: "scroll_trigger",
+          trigger: "load",
           animation: {},
           properties: [],
         },
         {
-          id: '2',
-          type: 'css_transition',
-          category: 'hover_effect',
-          trigger: 'hover',
+          id: "2",
+          type: "css_transition",
+          category: "hover_effect",
+          trigger: "hover",
           animation: {},
           properties: [],
         },
@@ -483,23 +499,23 @@ describe('ユーティリティ関数', () => {
       expect(score).toBeGreaterThan(0);
     });
 
-    it('無限アニメーションがあるとスコアが増加する', () => {
+    it("無限アニメーションがあるとスコアが増加する", () => {
       const patternsWithInfinite: MotionPattern[] = [
         {
-          id: '1',
-          type: 'css_animation',
-          category: 'loading_state',
-          trigger: 'load',
-          animation: { iterations: 'infinite' },
+          id: "1",
+          type: "css_animation",
+          category: "loading_state",
+          trigger: "load",
+          animation: { iterations: "infinite" },
           properties: [],
         },
       ];
       const patternsWithoutInfinite: MotionPattern[] = [
         {
-          id: '1',
-          type: 'css_animation',
-          category: 'loading_state',
-          trigger: 'load',
+          id: "1",
+          type: "css_animation",
+          category: "loading_state",
+          trigger: "load",
           animation: { iterations: 1 },
           properties: [],
         },
@@ -509,40 +525,36 @@ describe('ユーティリティ関数', () => {
       );
     });
 
-    it('スコアは100を超えない', () => {
+    it("スコアは100を超えない", () => {
       const manyPatterns: MotionPattern[] = Array.from({ length: 50 }, (_, i) => ({
         id: String(i),
-        type: 'css_animation',
-        category: 'micro_interaction',
-        trigger: 'load',
-        animation: { iterations: 'infinite' },
-        properties: [
-          { property: 'transform' },
-          { property: 'opacity' },
-          { property: 'color' },
-        ],
+        type: "css_animation",
+        category: "micro_interaction",
+        trigger: "load",
+        animation: { iterations: "infinite" },
+        properties: [{ property: "transform" }, { property: "opacity" }, { property: "color" }],
         keyframes: [
-          { offset: 0, styles: { opacity: '0' } },
-          { offset: 50, styles: { opacity: '0.5' } },
-          { offset: 100, styles: { opacity: '1' } },
+          { offset: 0, styles: { opacity: "0" } },
+          { offset: 50, styles: { opacity: "0.5" } },
+          { offset: 100, styles: { opacity: "1" } },
         ],
       }));
       expect(calculateComplexityScore(manyPatterns)).toBeLessThanOrEqual(100);
     });
   });
 
-  describe('calculateAverageDuration', () => {
-    it('空の配列は0を返す', () => {
+  describe("calculateAverageDuration", () => {
+    it("空の配列は0を返す", () => {
       expect(calculateAverageDuration([])).toBe(0);
     });
 
-    it('durationがない場合は0を返す', () => {
+    it("durationがない場合は0を返す", () => {
       const patterns: MotionPattern[] = [
         {
-          id: '1',
-          type: 'css_animation',
-          category: 'unknown',
-          trigger: 'unknown',
+          id: "1",
+          type: "css_animation",
+          category: "unknown",
+          trigger: "unknown",
           animation: {},
           properties: [],
         },
@@ -550,21 +562,21 @@ describe('ユーティリティ関数', () => {
       expect(calculateAverageDuration(patterns)).toBe(0);
     });
 
-    it('平均durationを計算する', () => {
+    it("平均durationを計算する", () => {
       const patterns: MotionPattern[] = [
         {
-          id: '1',
-          type: 'css_animation',
-          category: 'unknown',
-          trigger: 'load',
+          id: "1",
+          type: "css_animation",
+          category: "unknown",
+          trigger: "load",
           animation: { duration: 300 },
           properties: [],
         },
         {
-          id: '2',
-          type: 'css_transition',
-          category: 'unknown',
-          trigger: 'hover',
+          id: "2",
+          type: "css_transition",
+          category: "unknown",
+          trigger: "hover",
           animation: { duration: 500 },
           properties: [],
         },
@@ -573,12 +585,33 @@ describe('ユーティリティ関数', () => {
     });
   });
 
-  describe('countByType', () => {
-    it('タイプ別にカウントする', () => {
+  describe("countByType", () => {
+    it("タイプ別にカウントする", () => {
       const patterns: MotionPattern[] = [
-        { id: '1', type: 'css_animation', category: 'unknown', trigger: 'load', animation: {}, properties: [] },
-        { id: '2', type: 'css_animation', category: 'unknown', trigger: 'load', animation: {}, properties: [] },
-        { id: '3', type: 'css_transition', category: 'unknown', trigger: 'hover', animation: {}, properties: [] },
+        {
+          id: "1",
+          type: "css_animation",
+          category: "unknown",
+          trigger: "load",
+          animation: {},
+          properties: [],
+        },
+        {
+          id: "2",
+          type: "css_animation",
+          category: "unknown",
+          trigger: "load",
+          animation: {},
+          properties: [],
+        },
+        {
+          id: "3",
+          type: "css_transition",
+          category: "unknown",
+          trigger: "hover",
+          animation: {},
+          properties: [],
+        },
       ];
       const counts = countByType(patterns);
       expect(counts.css_animation).toBe(2);
@@ -587,12 +620,33 @@ describe('ユーティリティ関数', () => {
     });
   });
 
-  describe('countByTrigger', () => {
-    it('トリガー別にカウントする', () => {
+  describe("countByTrigger", () => {
+    it("トリガー別にカウントする", () => {
       const patterns: MotionPattern[] = [
-        { id: '1', type: 'css_animation', category: 'unknown', trigger: 'hover', animation: {}, properties: [] },
-        { id: '2', type: 'css_animation', category: 'unknown', trigger: 'hover', animation: {}, properties: [] },
-        { id: '3', type: 'css_transition', category: 'unknown', trigger: 'load', animation: {}, properties: [] },
+        {
+          id: "1",
+          type: "css_animation",
+          category: "unknown",
+          trigger: "hover",
+          animation: {},
+          properties: [],
+        },
+        {
+          id: "2",
+          type: "css_animation",
+          category: "unknown",
+          trigger: "hover",
+          animation: {},
+          properties: [],
+        },
+        {
+          id: "3",
+          type: "css_transition",
+          category: "unknown",
+          trigger: "load",
+          animation: {},
+          properties: [],
+        },
       ];
       const counts = countByTrigger(patterns);
       expect(counts.hover).toBe(2);
@@ -600,12 +654,33 @@ describe('ユーティリティ関数', () => {
     });
   });
 
-  describe('countByCategory', () => {
-    it('カテゴリ別にカウントする', () => {
+  describe("countByCategory", () => {
+    it("カテゴリ別にカウントする", () => {
       const patterns: MotionPattern[] = [
-        { id: '1', type: 'css_animation', category: 'scroll_trigger', trigger: 'scroll', animation: {}, properties: [] },
-        { id: '2', type: 'css_animation', category: 'hover_effect', trigger: 'hover', animation: {}, properties: [] },
-        { id: '3', type: 'css_transition', category: 'hover_effect', trigger: 'hover', animation: {}, properties: [] },
+        {
+          id: "1",
+          type: "css_animation",
+          category: "scroll_trigger",
+          trigger: "scroll",
+          animation: {},
+          properties: [],
+        },
+        {
+          id: "2",
+          type: "css_animation",
+          category: "hover_effect",
+          trigger: "hover",
+          animation: {},
+          properties: [],
+        },
+        {
+          id: "3",
+          type: "css_transition",
+          category: "hover_effect",
+          trigger: "hover",
+          animation: {},
+          properties: [],
+        },
       ];
       const counts = countByCategory(patterns);
       expect(counts.scroll_trigger).toBe(1);
@@ -618,8 +693,8 @@ describe('ユーティリティ関数', () => {
 // 出力スキーマテスト（5 tests）
 // =====================================================
 
-describe('motionDetectOutputSchema', () => {
-  it('成功時の基本レスポンスをバリデート', () => {
+describe("motionDetectOutputSchema", () => {
+  it("成功時の基本レスポンスをバリデート", () => {
     const output: MotionDetectOutput = {
       success: true,
       data: {
@@ -633,34 +708,32 @@ describe('motionDetectOutputSchema', () => {
     expect(() => motionDetectOutputSchema.parse(output)).not.toThrow();
   });
 
-  it('エラー時のレスポンスをバリデート', () => {
+  it("エラー時のレスポンスをバリデート", () => {
     const output = {
       success: false,
       error: {
-        code: 'VALIDATION_ERROR',
-        message: 'Invalid input',
+        code: "VALIDATION_ERROR",
+        message: "Invalid input",
       },
     };
     expect(() => motionDetectOutputSchema.parse(output)).not.toThrow();
   });
 
-  it('パターンを含むレスポンスをバリデート', () => {
+  it("パターンを含むレスポンスをバリデート", () => {
     const output: MotionDetectOutput = {
       success: true,
       data: {
         patterns: [
           {
-            id: '1',
-            type: 'css_animation',
-            category: 'scroll_trigger',
-            trigger: 'load',
+            id: "1",
+            type: "css_animation",
+            category: "scroll_trigger",
+            trigger: "load",
             animation: {
               duration: 600,
-              easing: { type: 'ease-out' },
+              easing: { type: "ease-out" },
             },
-            properties: [
-              { property: 'opacity', from: 0, to: 1 },
-            ],
+            properties: [{ property: "opacity", from: 0, to: 1 }],
           },
         ],
         metadata: {
@@ -672,7 +745,7 @@ describe('motionDetectOutputSchema', () => {
     expect(() => motionDetectOutputSchema.parse(output)).not.toThrow();
   });
 
-  it('サマリーを含むレスポンスをバリデート', () => {
+  it("サマリーを含むレスポンスをバリデート", () => {
     const output: MotionDetectOutput = {
       success: true,
       data: {
@@ -710,17 +783,17 @@ describe('motionDetectOutputSchema', () => {
     expect(() => motionDetectOutputSchema.parse(output)).not.toThrow();
   });
 
-  it('警告を含むレスポンスをバリデート', () => {
+  it("警告を含むレスポンスをバリデート", () => {
     const output: MotionDetectOutput = {
       success: true,
       data: {
         patterns: [],
         warnings: [
           {
-            code: 'A11Y_NO_REDUCED_MOTION',
-            severity: 'warning',
-            message: 'prefers-reduced-motion が設定されていません',
-            suggestion: '@media (prefers-reduced-motion: reduce) を追加してください',
+            code: "A11Y_NO_REDUCED_MOTION",
+            severity: "warning",
+            message: "prefers-reduced-motion が設定されていません",
+            suggestion: "@media (prefers-reduced-motion: reduce) を追加してください",
           },
         ],
         metadata: {
@@ -737,36 +810,36 @@ describe('motionDetectOutputSchema', () => {
 // ツール定義テスト（5 tests）
 // =====================================================
 
-describe('motionDetectToolDefinition', () => {
-  it('正しいツール名を持つ', () => {
-    expect(motionDetectToolDefinition.name).toBe('motion.detect');
+describe("motionDetectToolDefinition", () => {
+  it("正しいツール名を持つ", () => {
+    expect(motionDetectToolDefinition.name).toBe("motion.detect");
   });
 
-  it('description が設定されている', () => {
+  it("description が設定されている", () => {
     expect(motionDetectToolDefinition.description).toBeDefined();
-    expect(typeof motionDetectToolDefinition.description).toBe('string');
+    expect(typeof motionDetectToolDefinition.description).toBe("string");
     expect(motionDetectToolDefinition.description.length).toBeGreaterThan(0);
   });
 
-  it('inputSchema が object 型', () => {
-    expect(motionDetectToolDefinition.inputSchema.type).toBe('object');
+  it("inputSchema が object 型", () => {
+    expect(motionDetectToolDefinition.inputSchema.type).toBe("object");
   });
 
-  it('properties に必要なフィールドを含む', () => {
+  it("properties に必要なフィールドを含む", () => {
     const { properties } = motionDetectToolDefinition.inputSchema;
-    expect(properties).toHaveProperty('pageId');
-    expect(properties).toHaveProperty('html');
-    expect(properties).toHaveProperty('css');
-    expect(properties).toHaveProperty('includeInlineStyles');
-    expect(properties).toHaveProperty('includeStyleSheets');
-    expect(properties).toHaveProperty('minDuration');
-    expect(properties).toHaveProperty('maxPatterns');
-    expect(properties).toHaveProperty('includeWarnings');
-    expect(properties).toHaveProperty('includeSummary');
-    expect(properties).toHaveProperty('verbose');
+    expect(properties).toHaveProperty("pageId");
+    expect(properties).toHaveProperty("html");
+    expect(properties).toHaveProperty("css");
+    expect(properties).toHaveProperty("includeInlineStyles");
+    expect(properties).toHaveProperty("includeStyleSheets");
+    expect(properties).toHaveProperty("minDuration");
+    expect(properties).toHaveProperty("maxPatterns");
+    expect(properties).toHaveProperty("includeWarnings");
+    expect(properties).toHaveProperty("includeSummary");
+    expect(properties).toHaveProperty("verbose");
   });
 
-  it('デフォルト値が正しく設定されている', () => {
+  it("デフォルト値が正しく設定されている", () => {
     const { properties } = motionDetectToolDefinition.inputSchema;
     expect(properties.includeInlineStyles?.default).toBe(true);
     expect(properties.includeStyleSheets?.default).toBe(true);
@@ -782,7 +855,7 @@ describe('motionDetectToolDefinition', () => {
 // アニメーション検出テスト（15 tests）
 // =====================================================
 
-describe('アニメーション検出', () => {
+describe("アニメーション検出", () => {
   beforeEach(() => {
     resetMotionDetectServiceFactory();
   });
@@ -791,11 +864,11 @@ describe('アニメーション検出', () => {
     vi.restoreAllMocks();
   });
 
-  describe('CSS Animation検出', () => {
-    it('@keyframes を検出する', async () => {
+  describe("CSS Animation検出", () => {
+    it("@keyframes を検出する", async () => {
       const input: MotionDetectInput = {
         html: sampleHtmlWithKeyframes,
-        detection_mode: 'css' as const,
+        detection_mode: "css" as const,
       };
       const result = await motionDetectHandler(input);
 
@@ -803,16 +876,16 @@ describe('アニメーション検出', () => {
       if (result.success) {
         expect(result.data.patterns.length).toBeGreaterThan(0);
         const keyframePatterns = result.data.patterns.filter(
-          (p) => p.type === 'css_animation' || p.type === 'keyframes'
+          (p) => p.type === "css_animation" || p.type === "keyframes"
         );
         expect(keyframePatterns.length).toBeGreaterThan(0);
       }
     });
 
-    it('animation プロパティを解析する', async () => {
+    it("animation プロパティを解析する", async () => {
       const input: MotionDetectInput = {
         html: sampleHtmlWithAnimations,
-        detection_mode: 'css' as const,
+        detection_mode: "css" as const,
       };
       const result = await motionDetectHandler(input);
 
@@ -825,26 +898,26 @@ describe('アニメーション検出', () => {
       }
     });
 
-    it('animation-iteration-count: infinite を検出する', async () => {
+    it("animation-iteration-count: infinite を検出する", async () => {
       const input: MotionDetectInput = {
         html: sampleHtmlWithAnimations,
-        detection_mode: 'css' as const,
+        detection_mode: "css" as const,
       };
       const result = await motionDetectHandler(input);
 
       expect(result.success).toBe(true);
       if (result.success) {
         const infinitePattern = result.data.patterns.find(
-          (p) => p.animation.iterations === 'infinite'
+          (p) => p.animation.iterations === "infinite"
         );
         expect(infinitePattern).toBeDefined();
       }
     });
 
-    it('複数の @keyframes を検出する', async () => {
+    it("複数の @keyframes を検出する", async () => {
       const input: MotionDetectInput = {
         html: sampleHtmlWithKeyframes,
-        detection_mode: 'css' as const,
+        detection_mode: "css" as const,
       };
       const result = await motionDetectHandler(input);
 
@@ -856,62 +929,58 @@ describe('アニメーション検出', () => {
     });
   });
 
-  describe('CSS Transition検出', () => {
-    it('transition プロパティを検出する', async () => {
+  describe("CSS Transition検出", () => {
+    it("transition プロパティを検出する", async () => {
       const input: MotionDetectInput = {
         html: sampleHtmlWithTransitions,
-        detection_mode: 'css' as const,
+        detection_mode: "css" as const,
       };
       const result = await motionDetectHandler(input);
 
       expect(result.success).toBe(true);
       if (result.success) {
-        const transitionPatterns = result.data.patterns.filter(
-          (p) => p.type === 'css_transition'
-        );
+        const transitionPatterns = result.data.patterns.filter((p) => p.type === "css_transition");
         expect(transitionPatterns.length).toBeGreaterThan(0);
       }
     });
 
-    it('複数プロパティのtransitionを検出する', async () => {
+    it("複数プロパティのtransitionを検出する", async () => {
       const input: MotionDetectInput = {
         html: sampleHtmlWithTransitions,
-        detection_mode: 'css' as const,
+        detection_mode: "css" as const,
       };
       const result = await motionDetectHandler(input);
 
       expect(result.success).toBe(true);
       if (result.success) {
         const multiPropTransition = result.data.patterns.find(
-          (p) => p.type === 'css_transition' && p.properties.length > 1
+          (p) => p.type === "css_transition" && p.properties.length > 1
         );
         expect(multiPropTransition).toBeDefined();
       }
     });
 
-    it('hover トリガーを検出する', async () => {
+    it("hover トリガーを検出する", async () => {
       const input: MotionDetectInput = {
         html: sampleHtmlWithTransitions,
-        detection_mode: 'css' as const,
+        detection_mode: "css" as const,
       };
       const result = await motionDetectHandler(input);
 
       expect(result.success).toBe(true);
       if (result.success) {
-        const hoverPattern = result.data.patterns.find(
-          (p) => p.trigger === 'hover'
-        );
+        const hoverPattern = result.data.patterns.find((p) => p.trigger === "hover");
         expect(hoverPattern).toBeDefined();
       }
     });
   });
 
-  describe('外部CSS解析', () => {
-    it('css パラメータのアニメーションを検出する', async () => {
+  describe("外部CSS解析", () => {
+    it("css パラメータのアニメーションを検出する", async () => {
       const input: MotionDetectInput = {
         html: sampleHtmlMinimal,
         css: sampleCss,
-        detection_mode: 'css' as const,
+        detection_mode: "css" as const,
       };
       const result = await motionDetectHandler(input);
 
@@ -921,11 +990,11 @@ describe('アニメーション検出', () => {
       }
     });
 
-    it('html と css の両方からパターンを検出する', async () => {
+    it("html と css の両方からパターンを検出する", async () => {
       const input: MotionDetectInput = {
         html: sampleHtmlWithTransitions,
         css: sampleCss,
-        detection_mode: 'css' as const,
+        detection_mode: "css" as const,
       };
       const result = await motionDetectHandler(input);
 
@@ -937,45 +1006,41 @@ describe('アニメーション検出', () => {
     });
   });
 
-  describe('パターン分類', () => {
-    it('hover_effect カテゴリを分類する', async () => {
+  describe("パターン分類", () => {
+    it("hover_effect カテゴリを分類する", async () => {
       const input: MotionDetectInput = {
         html: sampleHtmlWithTransitions,
-        detection_mode: 'css' as const,
+        detection_mode: "css" as const,
       };
       const result = await motionDetectHandler(input);
 
       expect(result.success).toBe(true);
       if (result.success) {
-        const hoverEffect = result.data.patterns.find(
-          (p) => p.category === 'hover_effect'
-        );
+        const hoverEffect = result.data.patterns.find((p) => p.category === "hover_effect");
         expect(hoverEffect).toBeDefined();
       }
     });
 
-    it('loading_state カテゴリを分類する', async () => {
+    it("loading_state カテゴリを分類する", async () => {
       const input: MotionDetectInput = {
         html: sampleHtmlWithKeyframes,
-        detection_mode: 'css' as const,
+        detection_mode: "css" as const,
       };
       const result = await motionDetectHandler(input);
 
       expect(result.success).toBe(true);
       if (result.success) {
         const loadingState = result.data.patterns.find(
-          (p) =>
-            p.category === 'loading_state' ||
-            p.animation.iterations === 'infinite'
+          (p) => p.category === "loading_state" || p.animation.iterations === "infinite"
         );
         expect(loadingState).toBeDefined();
       }
     });
 
-    it('scroll_trigger カテゴリを分類する', async () => {
+    it("scroll_trigger カテゴリを分類する", async () => {
       const input: MotionDetectInput = {
         html: sampleHtmlWithAnimations,
-        detection_mode: 'css' as const,
+        detection_mode: "css" as const,
       };
       const result = await motionDetectHandler(input);
 
@@ -984,43 +1049,43 @@ describe('アニメーション検出', () => {
         // fadeIn は scroll_trigger または scroll_triggerに類似
         const scrollTrigger = result.data.patterns.find(
           (p) =>
-            p.category === 'scroll_trigger' ||
-            (p.properties.some((prop) => prop.property === 'opacity') &&
-              p.properties.some((prop) => prop.property === 'transform'))
+            p.category === "scroll_trigger" ||
+            (p.properties.some((prop) => prop.property === "opacity") &&
+              p.properties.some((prop) => prop.property === "transform"))
         );
         expect(scrollTrigger).toBeDefined();
       }
     });
   });
 
-  describe('プロパティ抽出', () => {
-    it('transform プロパティを抽出する', async () => {
+  describe("プロパティ抽出", () => {
+    it("transform プロパティを抽出する", async () => {
       const input: MotionDetectInput = {
         html: sampleHtmlWithAnimations,
-        detection_mode: 'css' as const,
+        detection_mode: "css" as const,
       };
       const result = await motionDetectHandler(input);
 
       expect(result.success).toBe(true);
       if (result.success) {
         const transformPattern = result.data.patterns.find((p) =>
-          p.properties.some((prop) => prop.property === 'transform')
+          p.properties.some((prop) => prop.property === "transform")
         );
         expect(transformPattern).toBeDefined();
       }
     });
 
-    it('opacity プロパティを抽出する', async () => {
+    it("opacity プロパティを抽出する", async () => {
       const input: MotionDetectInput = {
         html: sampleHtmlWithAnimations,
-        detection_mode: 'css' as const,
+        detection_mode: "css" as const,
       };
       const result = await motionDetectHandler(input);
 
       expect(result.success).toBe(true);
       if (result.success) {
         const opacityPattern = result.data.patterns.find((p) =>
-          p.properties.some((prop) => prop.property === 'opacity')
+          p.properties.some((prop) => prop.property === "opacity")
         );
         expect(opacityPattern).toBeDefined();
       }
@@ -1032,7 +1097,7 @@ describe('アニメーション検出', () => {
 // サマリー・警告テスト（10 tests）
 // =====================================================
 
-describe('サマリー・警告', () => {
+describe("サマリー・警告", () => {
   beforeEach(() => {
     resetMotionDetectServiceFactory();
   });
@@ -1041,12 +1106,12 @@ describe('サマリー・警告', () => {
     vi.restoreAllMocks();
   });
 
-  describe('サマリー生成', () => {
-    it('includeSummary=true でサマリーを返す', async () => {
+  describe("サマリー生成", () => {
+    it("includeSummary=true でサマリーを返す", async () => {
       const input: MotionDetectInput = {
         html: sampleHtmlWithAnimations,
         includeSummary: true,
-        detection_mode: 'css' as const,
+        detection_mode: "css" as const,
       };
       const result = await motionDetectHandler(input);
 
@@ -1057,11 +1122,11 @@ describe('サマリー・警告', () => {
       }
     });
 
-    it('includeSummary=false でサマリーを返さない', async () => {
+    it("includeSummary=false でサマリーを返さない", async () => {
       const input: MotionDetectInput = {
         html: sampleHtmlWithAnimations,
         includeSummary: false,
-        detection_mode: 'css' as const,
+        detection_mode: "css" as const,
       };
       const result = await motionDetectHandler(input);
 
@@ -1071,57 +1136,57 @@ describe('サマリー・警告', () => {
       }
     });
 
-    it('byType にタイプ別カウントを含む', async () => {
+    it("byType にタイプ別カウントを含む", async () => {
       const input: MotionDetectInput = {
         html: sampleHtmlWithAnimations,
         includeSummary: true,
-        detection_mode: 'css' as const,
+        detection_mode: "css" as const,
       };
       const result = await motionDetectHandler(input);
 
       expect(result.success).toBe(true);
       if (result.success && result.data.summary) {
         expect(result.data.summary.byType).toBeDefined();
-        expect(typeof result.data.summary.byType.css_animation).toBe('number');
-        expect(typeof result.data.summary.byType.css_transition).toBe('number');
+        expect(typeof result.data.summary.byType.css_animation).toBe("number");
+        expect(typeof result.data.summary.byType.css_transition).toBe("number");
       }
     });
 
-    it('byTrigger にトリガー別カウントを含む', async () => {
+    it("byTrigger にトリガー別カウントを含む", async () => {
       const input: MotionDetectInput = {
         html: sampleHtmlWithAnimations,
         includeSummary: true,
-        detection_mode: 'css' as const,
+        detection_mode: "css" as const,
       };
       const result = await motionDetectHandler(input);
 
       expect(result.success).toBe(true);
       if (result.success && result.data.summary) {
         expect(result.data.summary.byTrigger).toBeDefined();
-        expect(typeof result.data.summary.byTrigger.hover).toBe('number');
-        expect(typeof result.data.summary.byTrigger.load).toBe('number');
+        expect(typeof result.data.summary.byTrigger.hover).toBe("number");
+        expect(typeof result.data.summary.byTrigger.load).toBe("number");
       }
     });
 
-    it('hasInfiniteAnimations を含む', async () => {
+    it("hasInfiniteAnimations を含む", async () => {
       const input: MotionDetectInput = {
         html: sampleHtmlWithAnimations,
         includeSummary: true,
-        detection_mode: 'css' as const,
+        detection_mode: "css" as const,
       };
       const result = await motionDetectHandler(input);
 
       expect(result.success).toBe(true);
       if (result.success && result.data.summary) {
-        expect(typeof result.data.summary.hasInfiniteAnimations).toBe('boolean');
+        expect(typeof result.data.summary.hasInfiniteAnimations).toBe("boolean");
       }
     });
 
-    it('complexityScore を含む', async () => {
+    it("complexityScore を含む", async () => {
       const input: MotionDetectInput = {
         html: sampleHtmlWithAnimations,
         includeSummary: true,
-        detection_mode: 'css' as const,
+        detection_mode: "css" as const,
       };
       const result = await motionDetectHandler(input);
 
@@ -1133,12 +1198,12 @@ describe('サマリー・警告', () => {
     });
   });
 
-  describe('警告生成', () => {
-    it('includeWarnings=true で警告を返す', async () => {
+  describe("警告生成", () => {
+    it("includeWarnings=true で警告を返す", async () => {
       const input: MotionDetectInput = {
         html: sampleHtmlNoReducedMotion,
         includeWarnings: true,
-        detection_mode: 'css' as const,
+        detection_mode: "css" as const,
       };
       const result = await motionDetectHandler(input);
 
@@ -1149,11 +1214,11 @@ describe('サマリー・警告', () => {
       }
     });
 
-    it('includeWarnings=false で警告を返さない', async () => {
+    it("includeWarnings=false で警告を返さない", async () => {
       const input: MotionDetectInput = {
         html: sampleHtmlNoReducedMotion,
         includeWarnings: false,
-        detection_mode: 'css' as const,
+        detection_mode: "css" as const,
       };
       const result = await motionDetectHandler(input);
 
@@ -1163,11 +1228,11 @@ describe('サマリー・警告', () => {
       }
     });
 
-    it('prefers-reduced-motion 未対応で警告を生成する', async () => {
+    it("prefers-reduced-motion 未対応で警告を生成する", async () => {
       const input: MotionDetectInput = {
         html: sampleHtmlNoReducedMotion,
         includeWarnings: true,
-        detection_mode: 'css' as const,
+        detection_mode: "css" as const,
       };
       const result = await motionDetectHandler(input);
 
@@ -1180,11 +1245,11 @@ describe('サマリー・警告', () => {
       }
     });
 
-    it('パフォーマンス問題で警告を生成する', async () => {
+    it("パフォーマンス問題で警告を生成する", async () => {
       const input: MotionDetectInput = {
         html: sampleHtmlWithPerformanceIssues,
         includeWarnings: true,
-        detection_mode: 'css' as const,
+        detection_mode: "css" as const,
       };
       const result = await motionDetectHandler(input);
 
@@ -1203,7 +1268,7 @@ describe('サマリー・警告', () => {
 // DIパターンテスト（10 tests）
 // =====================================================
 
-describe('DIパターン', () => {
+describe("DIパターン", () => {
   beforeEach(() => {
     resetMotionDetectServiceFactory();
   });
@@ -1212,16 +1277,16 @@ describe('DIパターン', () => {
     vi.restoreAllMocks();
   });
 
-  it('モックサービスを注入できる', async () => {
+  it("モックサービスを注入できる", async () => {
     const mockDetect = vi.fn().mockReturnValue({
       patterns: [
         {
-          id: 'mock-1',
-          type: 'css_animation',
-          category: 'scroll_trigger',
-          trigger: 'load',
+          id: "mock-1",
+          type: "css_animation",
+          category: "scroll_trigger",
+          trigger: "load",
           animation: { duration: 500 },
-          properties: [{ property: 'opacity' }],
+          properties: [{ property: "opacity" }],
         },
       ],
       warnings: [],
@@ -1231,18 +1296,18 @@ describe('DIパターン', () => {
       detect: mockDetect,
     }));
 
-    const input: MotionDetectInput = { html: sampleHtmlMinimal, detection_mode: 'css' as const };
+    const input: MotionDetectInput = { html: sampleHtmlMinimal, detection_mode: "css" as const };
     const result = await motionDetectHandler(input);
 
     expect(result.success).toBe(true);
     if (result.success) {
       expect(result.data.patterns).toHaveLength(1);
-      expect(result.data.patterns[0].id).toBe('mock-1');
+      expect(result.data.patterns[0].id).toBe("mock-1");
     }
     expect(mockDetect).toHaveBeenCalled();
   });
 
-  it('ファクトリリセットが動作する', async () => {
+  it("ファクトリリセットが動作する", async () => {
     const mockDetect = vi.fn().mockReturnValue({
       patterns: [],
       warnings: [],
@@ -1254,7 +1319,10 @@ describe('DIパターン', () => {
 
     resetMotionDetectServiceFactory();
 
-    const input: MotionDetectInput = { html: sampleHtmlWithAnimations, detection_mode: 'css' as const };
+    const input: MotionDetectInput = {
+      html: sampleHtmlWithAnimations,
+      detection_mode: "css" as const,
+    };
     const result = await motionDetectHandler(input);
 
     // リセット後はデフォルト実装が使われる
@@ -1262,18 +1330,18 @@ describe('DIパターン', () => {
     expect(mockDetect).not.toHaveBeenCalled();
   });
 
-  it('pageIdでページを取得する', async () => {
+  it("pageIdでページを取得する", async () => {
     const mockGetPage = vi.fn().mockResolvedValue({
       id: validUUID,
       htmlContent: sampleHtmlWithAnimations,
-      cssContent: '',
+      cssContent: "",
     });
 
     setMotionDetectServiceFactory(() => ({
       getPageById: mockGetPage,
     }));
 
-    const input: MotionDetectInput = { pageId: validUUID, detection_mode: 'css' as const };
+    const input: MotionDetectInput = { pageId: validUUID, detection_mode: "css" as const };
     const result = await motionDetectHandler(input);
 
     expect(result.success).toBe(true);
@@ -1283,14 +1351,14 @@ describe('DIパターン', () => {
     }
   });
 
-  it('存在しないpageIdでエラーを返す', async () => {
+  it("存在しないpageIdでエラーを返す", async () => {
     const mockGetPage = vi.fn().mockResolvedValue(null);
 
     setMotionDetectServiceFactory(() => ({
       getPageById: mockGetPage,
     }));
 
-    const input: MotionDetectInput = { pageId: validUUID, detection_mode: 'css' as const };
+    const input: MotionDetectInput = { pageId: validUUID, detection_mode: "css" as const };
     const result = await motionDetectHandler(input);
 
     expect(result.success).toBe(false);
@@ -1299,16 +1367,16 @@ describe('DIパターン', () => {
     }
   });
 
-  it('サービスエラーをハンドルする', async () => {
+  it("サービスエラーをハンドルする", async () => {
     const mockDetect = vi.fn().mockImplementation(() => {
-      throw new Error('Service error');
+      throw new Error("Service error");
     });
 
     setMotionDetectServiceFactory(() => ({
       detect: mockDetect,
     }));
 
-    const input: MotionDetectInput = { html: sampleHtmlMinimal, detection_mode: 'css' as const };
+    const input: MotionDetectInput = { html: sampleHtmlMinimal, detection_mode: "css" as const };
     const result = await motionDetectHandler(input);
 
     expect(result.success).toBe(false);
@@ -1317,14 +1385,14 @@ describe('DIパターン', () => {
     }
   });
 
-  it('DBエラーをハンドルする', async () => {
-    const mockGetPage = vi.fn().mockRejectedValue(new Error('DB connection failed'));
+  it("DBエラーをハンドルする", async () => {
+    const mockGetPage = vi.fn().mockRejectedValue(new Error("DB connection failed"));
 
     setMotionDetectServiceFactory(() => ({
       getPageById: mockGetPage,
     }));
 
-    const input: MotionDetectInput = { pageId: validUUID, detection_mode: 'css' as const };
+    const input: MotionDetectInput = { pageId: validUUID, detection_mode: "css" as const };
     const result = await motionDetectHandler(input);
 
     expect(result.success).toBe(false);
@@ -1333,10 +1401,10 @@ describe('DIパターン', () => {
     }
   });
 
-  it('サービス未設定時のpageId使用でエラー', async () => {
+  it("サービス未設定時のpageId使用でエラー", async () => {
     resetMotionDetectServiceFactory();
 
-    const input: MotionDetectInput = { pageId: validUUID, detection_mode: 'css' as const };
+    const input: MotionDetectInput = { pageId: validUUID, detection_mode: "css" as const };
     const result = await motionDetectHandler(input);
 
     expect(result.success).toBe(false);
@@ -1345,20 +1413,20 @@ describe('DIパターン', () => {
     }
   });
 
-  it('カスタム検出ロジックを注入できる', async () => {
+  it("カスタム検出ロジックを注入できる", async () => {
     const customPatterns: MotionPattern[] = [
       {
-        id: 'custom-1',
-        type: 'library_animation',
-        category: 'page_transition',
-        trigger: 'load',
+        id: "custom-1",
+        type: "library_animation",
+        category: "page_transition",
+        trigger: "load",
         animation: {
           duration: 300,
-          easing: { type: 'spring' },
+          easing: { type: "spring" },
         },
         properties: [
-          { property: 'opacity', from: 0, to: 1 },
-          { property: 'scale', from: 0.9, to: 1 },
+          { property: "opacity", from: 0, to: 1 },
+          { property: "scale", from: 0.9, to: 1 },
         ],
       },
     ];
@@ -1370,19 +1438,22 @@ describe('DIパターン', () => {
       }),
     }));
 
-    const input: MotionDetectInput = { html: sampleHtmlMinimal, detection_mode: 'css' as const };
+    const input: MotionDetectInput = { html: sampleHtmlMinimal, detection_mode: "css" as const };
     const result = await motionDetectHandler(input);
 
     expect(result.success).toBe(true);
     if (result.success) {
-      expect(result.data.patterns[0].type).toBe('library_animation');
-      expect(result.data.patterns[0].animation.easing?.type).toBe('spring');
+      expect(result.data.patterns[0].type).toBe("library_animation");
+      expect(result.data.patterns[0].animation.easing?.type).toBe("spring");
     }
   });
 
-  it('複数回の呼び出しで独立した結果を返す', async () => {
-    const input1: MotionDetectInput = { html: sampleHtmlWithAnimations, detection_mode: 'css' as const };
-    const input2: MotionDetectInput = { html: sampleHtmlMinimal, detection_mode: 'css' as const };
+  it("複数回の呼び出しで独立した結果を返す", async () => {
+    const input1: MotionDetectInput = {
+      html: sampleHtmlWithAnimations,
+      detection_mode: "css" as const,
+    };
+    const input2: MotionDetectInput = { html: sampleHtmlMinimal, detection_mode: "css" as const };
 
     const [result1, result2] = await Promise.all([
       motionDetectHandler(input1),
@@ -1397,12 +1468,12 @@ describe('DIパターン', () => {
     }
   });
 
-  it('カスタム警告を追加できる', async () => {
+  it("カスタム警告を追加できる", async () => {
     const customWarnings = [
       {
-        code: 'CUSTOM_WARNING',
-        severity: 'warning' as const,
-        message: 'Custom warning message',
+        code: "CUSTOM_WARNING",
+        severity: "warning" as const,
+        message: "Custom warning message",
       },
     ];
 
@@ -1413,12 +1484,16 @@ describe('DIパターン', () => {
       }),
     }));
 
-    const input: MotionDetectInput = { html: sampleHtmlMinimal, includeWarnings: true, detection_mode: 'css' as const };
+    const input: MotionDetectInput = {
+      html: sampleHtmlMinimal,
+      includeWarnings: true,
+      detection_mode: "css" as const,
+    };
     const result = await motionDetectHandler(input);
 
     expect(result.success).toBe(true);
     if (result.success && result.data.warnings) {
-      expect(result.data.warnings.some((w) => w.code === 'CUSTOM_WARNING')).toBe(true);
+      expect(result.data.warnings.some((w) => w.code === "CUSTOM_WARNING")).toBe(true);
     }
   });
 });
@@ -1427,7 +1502,7 @@ describe('DIパターン', () => {
 // エッジケーステスト（10 tests）
 // =====================================================
 
-describe('エッジケース', () => {
+describe("エッジケース", () => {
   beforeEach(() => {
     resetMotionDetectServiceFactory();
   });
@@ -1436,8 +1511,8 @@ describe('エッジケース', () => {
     vi.restoreAllMocks();
   });
 
-  it('アニメーションがないHTMLでも成功する', async () => {
-    const input: MotionDetectInput = { html: sampleHtmlMinimal, detection_mode: 'css' as const };
+  it("アニメーションがないHTMLでも成功する", async () => {
+    const input: MotionDetectInput = { html: sampleHtmlMinimal, detection_mode: "css" as const };
     const result = await motionDetectHandler(input);
 
     expect(result.success).toBe(true);
@@ -1446,14 +1521,18 @@ describe('エッジケース', () => {
     }
   });
 
-  it('空のCSSでも成功する', async () => {
-    const input: MotionDetectInput = { html: sampleHtmlMinimal, css: '', detection_mode: 'css' as const };
+  it("空のCSSでも成功する", async () => {
+    const input: MotionDetectInput = {
+      html: sampleHtmlMinimal,
+      css: "",
+      detection_mode: "css" as const,
+    };
     const result = await motionDetectHandler(input);
 
     expect(result.success).toBe(true);
   });
 
-  it('不正なCSSでも部分的に解析する', async () => {
+  it("不正なCSSでも部分的に解析する", async () => {
     const invalidCss = `
       @keyframes valid {
         from { opacity: 0; }
@@ -1462,7 +1541,11 @@ describe('エッジケース', () => {
       .invalid { animation: {{{invalid }}}
       .valid { animation: valid 1s; }
     `;
-    const input: MotionDetectInput = { html: sampleHtmlMinimal, css: invalidCss, detection_mode: 'css' as const };
+    const input: MotionDetectInput = {
+      html: sampleHtmlMinimal,
+      css: invalidCss,
+      detection_mode: "css" as const,
+    };
     const result = await motionDetectHandler(input);
 
     expect(result.success).toBe(true);
@@ -1472,11 +1555,11 @@ describe('エッジケース', () => {
     }
   });
 
-  it('maxPatterns で結果を制限する', async () => {
+  it("maxPatterns で結果を制限する", async () => {
     const input: MotionDetectInput = {
       html: sampleHtmlWithAnimations,
       maxPatterns: 2,
-      detection_mode: 'css' as const,
+      detection_mode: "css" as const,
     };
     const result = await motionDetectHandler(input);
 
@@ -1486,11 +1569,11 @@ describe('エッジケース', () => {
     }
   });
 
-  it('minDuration でフィルタリングする', async () => {
+  it("minDuration でフィルタリングする", async () => {
     const input: MotionDetectInput = {
       html: sampleHtmlWithAnimations,
       minDuration: 1000,
-      detection_mode: 'css' as const,
+      detection_mode: "css" as const,
     };
     const result = await motionDetectHandler(input);
 
@@ -1505,11 +1588,11 @@ describe('エッジケース', () => {
     }
   });
 
-  it('verbose=true で rawCss を含む', async () => {
+  it("verbose=true で rawCss を含む", async () => {
     const input: MotionDetectInput = {
       html: sampleHtmlWithAnimations,
       verbose: true,
-      detection_mode: 'css' as const,
+      detection_mode: "css" as const,
     };
     const result = await motionDetectHandler(input);
 
@@ -1520,11 +1603,11 @@ describe('エッジケース', () => {
     }
   });
 
-  it('verbose=false で rawCss を含まない', async () => {
+  it("verbose=false で rawCss を含まない", async () => {
     const input: MotionDetectInput = {
       html: sampleHtmlWithAnimations,
       verbose: false,
-      detection_mode: 'css' as const,
+      detection_mode: "css" as const,
     };
     const result = await motionDetectHandler(input);
 
@@ -1536,8 +1619,11 @@ describe('エッジケース', () => {
     }
   });
 
-  it('metadata に処理時間を含む', async () => {
-    const input: MotionDetectInput = { html: sampleHtmlWithAnimations, detection_mode: 'css' as const };
+  it("metadata に処理時間を含む", async () => {
+    const input: MotionDetectInput = {
+      html: sampleHtmlWithAnimations,
+      detection_mode: "css" as const,
+    };
     const result = await motionDetectHandler(input);
 
     expect(result.success).toBe(true);
@@ -1547,26 +1633,29 @@ describe('エッジケース', () => {
     }
   });
 
-  it('大きなHTMLでもタイムアウトしない', async () => {
+  it("大きなHTMLでもタイムアウトしない", async () => {
     const largeHtml = `<!DOCTYPE html>
 <html>
 <head>
 <style>
-${Array.from({ length: 100 }, (_, i) => `
+${Array.from(
+  { length: 100 },
+  (_, i) => `
 @keyframes anim${i} {
   from { opacity: 0; transform: translateY(${i}px); }
   to { opacity: 1; transform: translateY(0); }
 }
 .element${i} { animation: anim${i} 0.${i}s ease; }
-`).join('')}
+`
+).join("")}
 </style>
 </head>
 <body>
-${Array.from({ length: 100 }, (_, i) => `<div class="element${i}">Content ${i}</div>`).join('')}
+${Array.from({ length: 100 }, (_, i) => `<div class="element${i}">Content ${i}</div>`).join("")}
 </body>
 </html>`;
 
-    const input: MotionDetectInput = { html: largeHtml, detection_mode: 'css' as const };
+    const input: MotionDetectInput = { html: largeHtml, detection_mode: "css" as const };
     const startTime = Date.now();
     const result = await motionDetectHandler(input);
     const duration = Date.now() - startTime;
@@ -1575,7 +1664,7 @@ ${Array.from({ length: 100 }, (_, i) => `<div class="element${i}">Content ${i}</
     expect(duration).toBeLessThan(5000);
   });
 
-  it('エラーメッセージにコンテキストを含む', async () => {
+  it("エラーメッセージにコンテキストを含む", async () => {
     const result = await motionDetectHandler(null);
 
     expect(result.success).toBe(false);
@@ -1590,7 +1679,7 @@ ${Array.from({ length: 100 }, (_, i) => `<div class="element${i}">Content ${i}</
 // エラーハンドリングテスト（5 tests）
 // =====================================================
 
-describe('エラーハンドリング', () => {
+describe("エラーハンドリング", () => {
   beforeEach(() => {
     resetMotionDetectServiceFactory();
   });
@@ -1599,7 +1688,7 @@ describe('エラーハンドリング', () => {
     vi.restoreAllMocks();
   });
 
-  it('入力がnullの場合エラー', async () => {
+  it("入力がnullの場合エラー", async () => {
     const result = await motionDetectHandler(null);
     expect(result.success).toBe(false);
     if (!result.success) {
@@ -1607,7 +1696,7 @@ describe('エラーハンドリング', () => {
     }
   });
 
-  it('入力がundefinedの場合エラー', async () => {
+  it("入力がundefinedの場合エラー", async () => {
     const result = await motionDetectHandler(undefined);
     expect(result.success).toBe(false);
     if (!result.success) {
@@ -1615,7 +1704,7 @@ describe('エラーハンドリング', () => {
     }
   });
 
-  it('空オブジェクトの場合エラー', async () => {
+  it("空オブジェクトの場合エラー", async () => {
     const result = await motionDetectHandler({});
     expect(result.success).toBe(false);
     if (!result.success) {
@@ -1623,7 +1712,7 @@ describe('エラーハンドリング', () => {
     }
   });
 
-  it('エラーコードが定義通りに使われる', async () => {
+  it("エラーコードが定義通りに使われる", async () => {
     const result = await motionDetectHandler({});
     expect(result.success).toBe(false);
     if (!result.success) {
@@ -1631,14 +1720,14 @@ describe('エラーハンドリング', () => {
     }
   });
 
-  it('エラー時もメタデータなしで正常なレスポンス形式', async () => {
+  it("エラー時もメタデータなしで正常なレスポンス形式", async () => {
     const result = await motionDetectHandler({});
-    expect(result).toHaveProperty('success');
+    expect(result).toHaveProperty("success");
     expect(result.success).toBe(false);
     if (!result.success) {
-      expect(result).toHaveProperty('error');
-      expect(result.error).toHaveProperty('code');
-      expect(result.error).toHaveProperty('message');
+      expect(result).toHaveProperty("error");
+      expect(result.error).toHaveProperty("code");
+      expect(result.error).toHaveProperty("message");
     }
   });
 });
@@ -1647,7 +1736,7 @@ describe('エラーハンドリング', () => {
 // フェイルセーフ・グレースフルデグラデーションテスト（10 tests）
 // =====================================================
 
-describe('フェイルセーフ・グレースフルデグラデーション', () => {
+describe("フェイルセーフ・グレースフルデグラデーション", () => {
   beforeEach(() => {
     resetMotionDetectServiceFactory();
   });
@@ -1656,49 +1745,53 @@ describe('フェイルセーフ・グレースフルデグラデーション', (
     vi.restoreAllMocks();
   });
 
-  describe('DB接続エラー時の挙動', () => {
-    it('DB接続エラー時にDB_ERRORコードを返す', async () => {
-      const mockGetPage = vi.fn().mockRejectedValue(new Error('ECONNREFUSED: Connection refused to localhost:26432'));
+  describe("DB接続エラー時の挙動", () => {
+    it("DB接続エラー時にDB_ERRORコードを返す", async () => {
+      const mockGetPage = vi
+        .fn()
+        .mockRejectedValue(new Error("ECONNREFUSED: Connection refused to localhost:26432"));
 
       setMotionDetectServiceFactory(() => ({
         getPageById: mockGetPage,
       }));
 
-      const input: MotionDetectInput = { pageId: validUUID, detection_mode: 'css' as const };
+      const input: MotionDetectInput = { pageId: validUUID, detection_mode: "css" as const };
       const result = await motionDetectHandler(input);
 
       expect(result.success).toBe(false);
       if (!result.success) {
         expect(result.error.code).toBe(MOTION_MCP_ERROR_CODES.DB_ERROR);
-        expect(result.error.message).toContain('ECONNREFUSED');
+        expect(result.error.message).toContain("ECONNREFUSED");
       }
     });
 
-    it('DB接続タイムアウト時にDB_ERRORコードを返す', async () => {
-      const mockGetPage = vi.fn().mockRejectedValue(new Error('Query timed out after 30000ms'));
+    it("DB接続タイムアウト時にDB_ERRORコードを返す", async () => {
+      const mockGetPage = vi.fn().mockRejectedValue(new Error("Query timed out after 30000ms"));
 
       setMotionDetectServiceFactory(() => ({
         getPageById: mockGetPage,
       }));
 
-      const input: MotionDetectInput = { pageId: validUUID, detection_mode: 'css' as const };
+      const input: MotionDetectInput = { pageId: validUUID, detection_mode: "css" as const };
       const result = await motionDetectHandler(input);
 
       expect(result.success).toBe(false);
       if (!result.success) {
         expect(result.error.code).toBe(MOTION_MCP_ERROR_CODES.DB_ERROR);
-        expect(result.error.message).toContain('timed out');
+        expect(result.error.message).toContain("timed out");
       }
     });
 
-    it('Prisma接続エラー時にDB_ERRORコードを返す', async () => {
-      const mockGetPage = vi.fn().mockRejectedValue(new Error('Prisma Client is not connected to the database'));
+    it("Prisma接続エラー時にDB_ERRORコードを返す", async () => {
+      const mockGetPage = vi
+        .fn()
+        .mockRejectedValue(new Error("Prisma Client is not connected to the database"));
 
       setMotionDetectServiceFactory(() => ({
         getPageById: mockGetPage,
       }));
 
-      const input: MotionDetectInput = { pageId: validUUID, detection_mode: 'css' as const };
+      const input: MotionDetectInput = { pageId: validUUID, detection_mode: "css" as const };
       const result = await motionDetectHandler(input);
 
       expect(result.success).toBe(false);
@@ -1707,14 +1800,14 @@ describe('フェイルセーフ・グレースフルデグラデーション', (
       }
     });
 
-    it('DBエラー時にリカバリー提案を含むメッセージを返す', async () => {
-      const mockGetPage = vi.fn().mockRejectedValue(new Error('Connection refused'));
+    it("DBエラー時にリカバリー提案を含むメッセージを返す", async () => {
+      const mockGetPage = vi.fn().mockRejectedValue(new Error("Connection refused"));
 
       setMotionDetectServiceFactory(() => ({
         getPageById: mockGetPage,
       }));
 
-      const input: MotionDetectInput = { pageId: validUUID, detection_mode: 'css' as const };
+      const input: MotionDetectInput = { pageId: validUUID, detection_mode: "css" as const };
       const result = await motionDetectHandler(input);
 
       expect(result.success).toBe(false);
@@ -1727,11 +1820,11 @@ describe('フェイルセーフ・グレースフルデグラデーション', (
     });
   });
 
-  describe('サービスファクトリー未登録時の挙動', () => {
-    it('サービス未登録時にSERVICE_UNAVAILABLEコードを返す', async () => {
+  describe("サービスファクトリー未登録時の挙動", () => {
+    it("サービス未登録時にSERVICE_UNAVAILABLEコードを返す", async () => {
       resetMotionDetectServiceFactory();
 
-      const input: MotionDetectInput = { pageId: validUUID, detection_mode: 'css' as const };
+      const input: MotionDetectInput = { pageId: validUUID, detection_mode: "css" as const };
       const result = await motionDetectHandler(input);
 
       expect(result.success).toBe(false);
@@ -1740,26 +1833,26 @@ describe('フェイルセーフ・グレースフルデグラデーション', (
       }
     });
 
-    it('サービス未登録時にhtml直接入力の代替手段を提示', async () => {
+    it("サービス未登録時にhtml直接入力の代替手段を提示", async () => {
       resetMotionDetectServiceFactory();
 
-      const input: MotionDetectInput = { pageId: validUUID, detection_mode: 'css' as const };
+      const input: MotionDetectInput = { pageId: validUUID, detection_mode: "css" as const };
       const result = await motionDetectHandler(input);
 
       expect(result.success).toBe(false);
       if (!result.success) {
         expect(result.error.code).toBe(MOTION_MCP_ERROR_CODES.SERVICE_UNAVAILABLE);
-        expect(result.error.message).toContain('service');
+        expect(result.error.message).toContain("service");
       }
     });
 
-    it('getPageByIdメソッドがない場合にSERVICE_UNAVAILABLEを返す', async () => {
+    it("getPageByIdメソッドがない場合にSERVICE_UNAVAILABLEを返す", async () => {
       setMotionDetectServiceFactory(() => ({
         // getPageById を持たないサービス
         detect: vi.fn().mockReturnValue({ patterns: [], warnings: [] }),
       }));
 
-      const input: MotionDetectInput = { pageId: validUUID, detection_mode: 'css' as const };
+      const input: MotionDetectInput = { pageId: validUUID, detection_mode: "css" as const };
       const result = await motionDetectHandler(input);
 
       expect(result.success).toBe(false);
@@ -1769,15 +1862,15 @@ describe('フェイルセーフ・グレースフルデグラデーション', (
     });
   });
 
-  describe('ページ取得失敗時の挙動', () => {
-    it('ページが見つからない場合にPAGE_NOT_FOUNDを返す', async () => {
+  describe("ページ取得失敗時の挙動", () => {
+    it("ページが見つからない場合にPAGE_NOT_FOUNDを返す", async () => {
       const mockGetPage = vi.fn().mockResolvedValue(null);
 
       setMotionDetectServiceFactory(() => ({
         getPageById: mockGetPage,
       }));
 
-      const input: MotionDetectInput = { pageId: validUUID, detection_mode: 'css' as const };
+      const input: MotionDetectInput = { pageId: validUUID, detection_mode: "css" as const };
       const result = await motionDetectHandler(input);
 
       expect(result.success).toBe(false);
@@ -1787,10 +1880,10 @@ describe('フェイルセーフ・グレースフルデグラデーション', (
       }
     });
 
-    it('htmlContentが空の場合にPAGE_NOT_FOUNDを返す', async () => {
+    it("htmlContentが空の場合にPAGE_NOT_FOUNDを返す", async () => {
       const mockGetPage = vi.fn().mockResolvedValue({
         id: validUUID,
-        htmlContent: '',
+        htmlContent: "",
         cssContent: undefined,
       });
 
@@ -1798,7 +1891,7 @@ describe('フェイルセーフ・グレースフルデグラデーション', (
         getPageById: mockGetPage,
       }));
 
-      const input: MotionDetectInput = { pageId: validUUID, detection_mode: 'css' as const };
+      const input: MotionDetectInput = { pageId: validUUID, detection_mode: "css" as const };
       const result = await motionDetectHandler(input);
 
       // 空のhtmlContentは検出エラーになる
@@ -1813,8 +1906,8 @@ describe('フェイルセーフ・グレースフルデグラデーション', (
     });
   });
 
-  describe('html直接入力時のフォールバック', () => {
-    it('pageIdとhtmlの両方が指定された場合、htmlを優先する', async () => {
+  describe("html直接入力時のフォールバック", () => {
+    it("pageIdとhtmlの両方が指定された場合、htmlを優先する", async () => {
       const mockGetPage = vi.fn().mockResolvedValue({
         id: validUUID,
         htmlContent: sampleHtmlMinimal,
@@ -1828,7 +1921,7 @@ describe('フェイルセーフ・グレースフルデグラデーション', (
       const input: MotionDetectInput = {
         pageId: validUUID,
         html: sampleHtmlWithAnimations,
-        detection_mode: 'css' as const,
+        detection_mode: "css" as const,
       };
       const result = await motionDetectHandler(input);
 
@@ -1849,9 +1942,9 @@ describe('フェイルセーフ・グレースフルデグラデーション', (
 // ExternalCssFetcherサービスとの統合をテスト
 // =====================================================
 
-import * as externalCssFetcherModule from '../../../src/services/external-css-fetcher';
+import * as externalCssFetcherModule from "../../../src/services/external-css-fetcher";
 
-describe('motion.detect - External CSS Integration', () => {
+describe("motion.detect - External CSS Integration", () => {
   beforeEach(() => {
     resetMotionDetectServiceFactory();
     vi.restoreAllMocks();
@@ -1897,8 +1990,8 @@ describe('motion.detect - External CSS Integration', () => {
 }
 `;
 
-  describe('fetchExternalCss option', () => {
-    it('should fetch and parse external CSS when fetchExternalCss is true', async () => {
+  describe("fetchExternalCss option", () => {
+    it("should fetch and parse external CSS when fetchExternalCss is true", async () => {
       /**
        * 外部CSSファイル取得が有効化されている場合、
        * HTMLから<link rel="stylesheet">を抽出し、
@@ -1911,20 +2004,24 @@ describe('motion.detect - External CSS Integration', () => {
        * 4. metadataに外部CSS取得情報を含める
        */
       // ExternalCssFetcherのモック設定
-      vi.spyOn(externalCssFetcherModule, 'extractCssUrls').mockReturnValue([
-        { url: 'https://example.com/styles/main.css', originalHref: '/styles/main.css' },
-        { url: 'https://example.com/relative/path.css', originalHref: '/relative/path.css' },
+      vi.spyOn(externalCssFetcherModule, "extractCssUrls").mockReturnValue([
+        { url: "https://example.com/styles/main.css", originalHref: "/styles/main.css" },
+        { url: "https://example.com/relative/path.css", originalHref: "/relative/path.css" },
       ]);
-      vi.spyOn(externalCssFetcherModule, 'fetchAllCss').mockResolvedValue([
-        { url: 'https://example.com/styles/main.css', content: externalCssContent, error: undefined },
-        { url: 'https://example.com/relative/path.css', content: '', error: undefined },
+      vi.spyOn(externalCssFetcherModule, "fetchAllCss").mockResolvedValue([
+        {
+          url: "https://example.com/styles/main.css",
+          content: externalCssContent,
+          error: undefined,
+        },
+        { url: "https://example.com/relative/path.css", content: "", error: undefined },
       ]);
 
       const input = {
         html: htmlWithExternalCss,
         fetchExternalCss: true,
-        baseUrl: 'https://example.com/page/',
-        detection_mode: 'css' as const,
+        baseUrl: "https://example.com/page/",
+        detection_mode: "css" as const,
       };
 
       // このテストはfetchExternalCssオプションが実装されていないため失敗する
@@ -1939,7 +2036,7 @@ describe('motion.detect - External CSS Integration', () => {
       }
     });
 
-    it('should not fetch external CSS when fetchExternalCss is false (default)', async () => {
+    it("should not fetch external CSS when fetchExternalCss is false (default)", async () => {
       /**
        * デフォルト動作では外部CSSは取得されない
        * インラインスタイルと<style>タグのみ解析
@@ -1951,7 +2048,7 @@ describe('motion.detect - External CSS Integration', () => {
        */
       const input: MotionDetectInput = {
         html: htmlWithExternalCss,
-        detection_mode: 'css' as const,
+        detection_mode: "css" as const,
         // fetchExternalCss: false (default)
       };
 
@@ -1967,7 +2064,7 @@ describe('motion.detect - External CSS Integration', () => {
       }
     });
 
-    it('should succeed without baseUrl in css mode with html (external CSS skipped)', async () => {
+    it("should succeed without baseUrl in css mode with html (external CSS skipped)", async () => {
       /**
        * detection_mode='css' かつ html指定の場合、baseUrlなしでも成功する
        * ただし、外部CSSの取得はスキップされる
@@ -1981,7 +2078,7 @@ describe('motion.detect - External CSS Integration', () => {
       const input = {
         html: htmlWithExternalCss,
         fetchExternalCss: true,
-        detection_mode: 'css' as const,
+        detection_mode: "css" as const,
         // baseUrl is missing - but allowed in css mode with html
       };
 
@@ -1997,7 +2094,7 @@ describe('motion.detect - External CSS Integration', () => {
       }
     });
 
-    it('should detect animations from external CSS files', async () => {
+    it("should detect animations from external CSS files", async () => {
       /**
        * 外部CSSに定義されたアニメーションを検出する
        * モックを使用して外部CSS取得をシミュレート
@@ -2008,18 +2105,22 @@ describe('motion.detect - External CSS Integration', () => {
        * 3. .external-animation のアニメーションを検出
        * 4. .external-hover のトランジションを検出
        */
-      vi.spyOn(externalCssFetcherModule, 'extractCssUrls').mockReturnValue([
-        { url: 'https://example.com/styles/main.css', originalHref: '/styles/main.css' },
+      vi.spyOn(externalCssFetcherModule, "extractCssUrls").mockReturnValue([
+        { url: "https://example.com/styles/main.css", originalHref: "/styles/main.css" },
       ]);
-      vi.spyOn(externalCssFetcherModule, 'fetchAllCss').mockResolvedValue([
-        { url: 'https://example.com/styles/main.css', content: externalCssContent, error: undefined },
+      vi.spyOn(externalCssFetcherModule, "fetchAllCss").mockResolvedValue([
+        {
+          url: "https://example.com/styles/main.css",
+          content: externalCssContent,
+          error: undefined,
+        },
       ]);
 
       const input = {
         html: htmlWithExternalCss,
         fetchExternalCss: true,
-        baseUrl: 'https://example.com/',
-        detection_mode: 'css' as const,
+        baseUrl: "https://example.com/",
+        detection_mode: "css" as const,
       };
 
       const result = await motionDetectHandler(input);
@@ -2027,20 +2128,18 @@ describe('motion.detect - External CSS Integration', () => {
       expect(result.success).toBe(true);
       if (result.success) {
         // 外部CSSからのパターンが検出される
-        const externalPattern = result.data.patterns.find(
-          (p) => p.name === 'externalSlide'
-        );
+        const externalPattern = result.data.patterns.find((p) => p.name === "externalSlide");
         expect(externalPattern).toBeDefined();
 
         // トランジションも検出
         const transitionPattern = result.data.patterns.find(
-          (p) => p.type === 'css_transition' && p.selector?.includes('external-hover')
+          (p) => p.type === "css_transition" && p.selector?.includes("external-hover")
         );
         expect(transitionPattern).toBeDefined();
       }
     });
 
-    it('should combine inline and external CSS for detection', async () => {
+    it("should combine inline and external CSS for detection", async () => {
       /**
        * インラインCSS（<style>タグ）と外部CSSの両方からパターンを検出
        * 重複排除も考慮
@@ -2063,18 +2162,18 @@ describe('motion.detect - External CSS Integration', () => {
 <body></body>
 </html>`;
 
-      vi.spyOn(externalCssFetcherModule, 'extractCssUrls').mockReturnValue([
-        { url: 'https://example.com/external.css', originalHref: '/external.css' },
+      vi.spyOn(externalCssFetcherModule, "extractCssUrls").mockReturnValue([
+        { url: "https://example.com/external.css", originalHref: "/external.css" },
       ]);
-      vi.spyOn(externalCssFetcherModule, 'fetchAllCss').mockResolvedValue([
-        { url: 'https://example.com/external.css', content: externalCssContent, error: undefined },
+      vi.spyOn(externalCssFetcherModule, "fetchAllCss").mockResolvedValue([
+        { url: "https://example.com/external.css", content: externalCssContent, error: undefined },
       ]);
 
       const input = {
         html: htmlWithBoth,
         fetchExternalCss: true,
-        baseUrl: 'https://example.com/',
-        detection_mode: 'css' as const,
+        baseUrl: "https://example.com/",
+        detection_mode: "css" as const,
       };
 
       const result = await motionDetectHandler(input);
@@ -2082,15 +2181,11 @@ describe('motion.detect - External CSS Integration', () => {
       expect(result.success).toBe(true);
       if (result.success) {
         // インラインCSSからのパターン
-        const inlinePattern = result.data.patterns.find(
-          (p) => p.name === 'inlineFade'
-        );
+        const inlinePattern = result.data.patterns.find((p) => p.name === "inlineFade");
         expect(inlinePattern).toBeDefined();
 
         // 外部CSSからのパターン
-        const externalPattern = result.data.patterns.find(
-          (p) => p.name === 'externalSlide'
-        );
+        const externalPattern = result.data.patterns.find((p) => p.name === "externalSlide");
         expect(externalPattern).toBeDefined();
 
         // 両方のソースからパターンが検出される
@@ -2099,8 +2194,8 @@ describe('motion.detect - External CSS Integration', () => {
     });
   });
 
-  describe('external CSS error handling', () => {
-    it('should continue detection even if external CSS fetch fails', async () => {
+  describe("external CSS error handling", () => {
+    it("should continue detection even if external CSS fetch fails", async () => {
       /**
        * 外部CSS取得に失敗しても、インラインCSSの検出は継続する
        * 警告を出力し、エラーにはしない
@@ -2111,23 +2206,23 @@ describe('motion.detect - External CSS Integration', () => {
        * 3. インラインCSS解析は継続
        * 4. 成功レスポンスを返す
        */
-      vi.spyOn(externalCssFetcherModule, 'extractCssUrls').mockReturnValue([
-        { url: 'https://example.com/styles/main.css', originalHref: '/styles/main.css' },
+      vi.spyOn(externalCssFetcherModule, "extractCssUrls").mockReturnValue([
+        { url: "https://example.com/styles/main.css", originalHref: "/styles/main.css" },
       ]);
-      vi.spyOn(externalCssFetcherModule, 'fetchAllCss').mockResolvedValue([
+      vi.spyOn(externalCssFetcherModule, "fetchAllCss").mockResolvedValue([
         {
-          url: 'https://example.com/styles/main.css',
+          url: "https://example.com/styles/main.css",
           content: null,
-          error: 'Network error: ENOTFOUND',
+          error: "Network error: ENOTFOUND",
         },
       ]);
 
       const input = {
         html: htmlWithExternalCss,
         fetchExternalCss: true,
-        baseUrl: 'https://example.com/',
+        baseUrl: "https://example.com/",
         includeWarnings: true,
-        detection_mode: 'css' as const,
+        detection_mode: "css" as const,
       };
 
       const result = await motionDetectHandler(input);
@@ -2140,35 +2235,35 @@ describe('motion.detect - External CSS Integration', () => {
         // 外部CSS取得失敗の警告が含まれる
         expect(result.data.warnings).toBeDefined();
         const fetchWarning = result.data.warnings?.find(
-          (w) => w.code === 'EXTERNAL_CSS_FETCH_FAILED'
+          (w) => w.code === "EXTERNAL_CSS_FETCH_FAILED"
         );
         expect(fetchWarning).toBeDefined();
-        expect(fetchWarning?.message).toContain('Network error');
+        expect(fetchWarning?.message).toContain("Network error");
       }
     });
 
-    it('should log warning when external CSS fetch fails', async () => {
+    it("should log warning when external CSS fetch fails", async () => {
       /**
        * 外部CSS取得失敗時に警告ログを出力
        * 開発環境ではlogger.warnを使用
        */
-      vi.spyOn(externalCssFetcherModule, 'extractCssUrls').mockReturnValue([
-        { url: 'https://example.com/fail.css', originalHref: '/fail.css' },
+      vi.spyOn(externalCssFetcherModule, "extractCssUrls").mockReturnValue([
+        { url: "https://example.com/fail.css", originalHref: "/fail.css" },
       ]);
-      vi.spyOn(externalCssFetcherModule, 'fetchAllCss').mockResolvedValue([
+      vi.spyOn(externalCssFetcherModule, "fetchAllCss").mockResolvedValue([
         {
-          url: 'https://example.com/fail.css',
+          url: "https://example.com/fail.css",
           content: null,
-          error: 'HTTP 404: Not Found',
+          error: "HTTP 404: Not Found",
         },
       ]);
 
       const input = {
         html: htmlWithExternalCss,
         fetchExternalCss: true,
-        baseUrl: 'https://example.com/',
+        baseUrl: "https://example.com/",
         includeWarnings: true,
-        detection_mode: 'css' as const,
+        detection_mode: "css" as const,
       };
 
       const result = await motionDetectHandler(input);
@@ -2177,13 +2272,13 @@ describe('motion.detect - External CSS Integration', () => {
       if (result.success) {
         // 失敗したURLの情報がwarningsに含まれる
         const fetchWarning = result.data.warnings?.find(
-          (w) => w.code === 'EXTERNAL_CSS_FETCH_FAILED'
+          (w) => w.code === "EXTERNAL_CSS_FETCH_FAILED"
         );
         expect(fetchWarning).toBeDefined();
       }
     });
 
-    it('should respect timeout for external CSS fetch', async () => {
+    it("should respect timeout for external CSS fetch", async () => {
       /**
        * 外部CSS取得にタイムアウトを設定できる
        * タイムアウト時はエラーとして記録され、処理は継続
@@ -2193,26 +2288,26 @@ describe('motion.detect - External CSS Integration', () => {
        * 2. タイムアウト超過時はfetch失敗として処理
        * 3. 警告を出力して処理継続
        */
-      vi.spyOn(externalCssFetcherModule, 'extractCssUrls').mockReturnValue([
-        { url: 'https://slow.example.com/styles.css', originalHref: '/styles.css' },
+      vi.spyOn(externalCssFetcherModule, "extractCssUrls").mockReturnValue([
+        { url: "https://slow.example.com/styles.css", originalHref: "/styles.css" },
       ]);
-      vi.spyOn(externalCssFetcherModule, 'fetchAllCss').mockResolvedValue([
+      vi.spyOn(externalCssFetcherModule, "fetchAllCss").mockResolvedValue([
         {
-          url: 'https://slow.example.com/styles.css',
+          url: "https://slow.example.com/styles.css",
           content: null,
-          error: 'Request timed out after 1000ms',
+          error: "Request timed out after 1000ms",
         },
       ]);
 
       const input = {
         html: htmlWithExternalCss,
         fetchExternalCss: true,
-        baseUrl: 'https://example.com/',
+        baseUrl: "https://example.com/",
         externalCssOptions: {
           timeout: 1000, // 1秒
         },
         includeWarnings: true,
-        detection_mode: 'css' as const,
+        detection_mode: "css" as const,
       };
 
       const result = await motionDetectHandler(input);
@@ -2220,14 +2315,12 @@ describe('motion.detect - External CSS Integration', () => {
       expect(result.success).toBe(true);
       if (result.success) {
         // タイムアウトエラーの警告
-        const timeoutWarning = result.data.warnings?.find(
-          (w) => w.message?.includes('timed out')
-        );
+        const timeoutWarning = result.data.warnings?.find((w) => w.message?.includes("timed out"));
         expect(timeoutWarning).toBeDefined();
       }
     });
 
-    it('should block unsafe URLs (SSRF protection)', async () => {
+    it("should block unsafe URLs (SSRF protection)", async () => {
       /**
        * SSRF対策：プライベートIPやlocalhostへのリクエストをブロック
        * 危険なURLは取得せず、警告を出力
@@ -2249,26 +2342,39 @@ describe('motion.detect - External CSS Integration', () => {
 <body></body>
 </html>`;
 
-      vi.spyOn(externalCssFetcherModule, 'extractCssUrls').mockReturnValue([
-        { url: 'http://localhost:8080/malicious.css', originalHref: 'http://localhost:8080/malicious.css' },
-        { url: 'http://192.168.1.1/internal.css', originalHref: 'http://192.168.1.1/internal.css' },
-        { url: 'http://169.254.169.254/metadata.css', originalHref: 'http://169.254.169.254/metadata.css' },
-        { url: 'https://safe.example.com/styles.css', originalHref: 'https://safe.example.com/styles.css' },
+      vi.spyOn(externalCssFetcherModule, "extractCssUrls").mockReturnValue([
+        {
+          url: "http://localhost:8080/malicious.css",
+          originalHref: "http://localhost:8080/malicious.css",
+        },
+        { url: "http://192.168.1.1/internal.css", originalHref: "http://192.168.1.1/internal.css" },
+        {
+          url: "http://169.254.169.254/metadata.css",
+          originalHref: "http://169.254.169.254/metadata.css",
+        },
+        {
+          url: "https://safe.example.com/styles.css",
+          originalHref: "https://safe.example.com/styles.css",
+        },
       ]);
       // fetchAllCssはisSafeUrl()で事前フィルタされるため、安全なURLのみ渡される
-      vi.spyOn(externalCssFetcherModule, 'fetchAllCss').mockResolvedValue([
-        { url: 'https://safe.example.com/styles.css', content: externalCssContent, error: undefined },
+      vi.spyOn(externalCssFetcherModule, "fetchAllCss").mockResolvedValue([
+        {
+          url: "https://safe.example.com/styles.css",
+          content: externalCssContent,
+          error: undefined,
+        },
       ]);
-      vi.spyOn(externalCssFetcherModule, 'isSafeUrl').mockImplementation((url) => {
-        return url.startsWith('https://safe.example.com');
+      vi.spyOn(externalCssFetcherModule, "isSafeUrl").mockImplementation((url) => {
+        return url.startsWith("https://safe.example.com");
       });
 
       const input = {
         html: htmlWithUnsafeUrls,
         fetchExternalCss: true,
-        baseUrl: 'https://attacker.com/',
+        baseUrl: "https://attacker.com/",
         includeWarnings: true,
-        detection_mode: 'css' as const,
+        detection_mode: "css" as const,
       };
 
       const result = await motionDetectHandler(input);
@@ -2277,22 +2383,22 @@ describe('motion.detect - External CSS Integration', () => {
       if (result.success) {
         // 危険なURLはブロックされる
         const ssrfWarning = result.data.warnings?.find(
-          (w) => w.code === 'EXTERNAL_CSS_SSRF_BLOCKED'
+          (w) => w.code === "EXTERNAL_CSS_SSRF_BLOCKED"
         );
         expect(ssrfWarning).toBeDefined();
 
         // プライベートIPへのリクエストは行われない
         expect(result.data.metadata.blockedUrls).toBeDefined();
         expect(result.data.metadata.blockedUrls?.length).toBe(3);
-        expect(result.data.metadata.blockedUrls).toContain('http://localhost:8080/malicious.css');
-        expect(result.data.metadata.blockedUrls).toContain('http://192.168.1.1/internal.css');
-        expect(result.data.metadata.blockedUrls).toContain('http://169.254.169.254/metadata.css');
+        expect(result.data.metadata.blockedUrls).toContain("http://localhost:8080/malicious.css");
+        expect(result.data.metadata.blockedUrls).toContain("http://192.168.1.1/internal.css");
+        expect(result.data.metadata.blockedUrls).toContain("http://169.254.169.254/metadata.css");
       }
     });
   });
 
-  describe('baseUrl parameter', () => {
-    it('should resolve relative URLs using baseUrl', async () => {
+  describe("baseUrl parameter", () => {
+    it("should resolve relative URLs using baseUrl", async () => {
       /**
        * 相対URLをbaseUrlを使って絶対URLに解決
        *
@@ -2311,22 +2417,22 @@ describe('motion.detect - External CSS Integration', () => {
 <body></body>
 </html>`;
 
-      vi.spyOn(externalCssFetcherModule, 'extractCssUrls').mockReturnValue([
-        { url: 'https://example.com/css/main.css', originalHref: '/css/main.css' },
-        { url: 'https://example.com/shared/common.css', originalHref: '../shared/common.css' },
-        { url: 'https://example.com/pages/about/styles.css', originalHref: 'styles.css' },
+      vi.spyOn(externalCssFetcherModule, "extractCssUrls").mockReturnValue([
+        { url: "https://example.com/css/main.css", originalHref: "/css/main.css" },
+        { url: "https://example.com/shared/common.css", originalHref: "../shared/common.css" },
+        { url: "https://example.com/pages/about/styles.css", originalHref: "styles.css" },
       ]);
-      vi.spyOn(externalCssFetcherModule, 'fetchAllCss').mockResolvedValue([
-        { url: 'https://example.com/css/main.css', content: '', error: undefined },
-        { url: 'https://example.com/shared/common.css', content: '', error: undefined },
-        { url: 'https://example.com/pages/about/styles.css', content: '', error: undefined },
+      vi.spyOn(externalCssFetcherModule, "fetchAllCss").mockResolvedValue([
+        { url: "https://example.com/css/main.css", content: "", error: undefined },
+        { url: "https://example.com/shared/common.css", content: "", error: undefined },
+        { url: "https://example.com/pages/about/styles.css", content: "", error: undefined },
       ]);
 
       const input = {
         html: htmlWithRelativeUrls,
         fetchExternalCss: true,
-        baseUrl: 'https://example.com/pages/about/',
-        detection_mode: 'css' as const,
+        baseUrl: "https://example.com/pages/about/",
+        detection_mode: "css" as const,
       };
 
       const result = await motionDetectHandler(input);
@@ -2338,13 +2444,13 @@ describe('motion.detect - External CSS Integration', () => {
         expect(urls).toBeDefined();
 
         // 相対URLが正しく解決されている
-        expect(urls).toContain('https://example.com/css/main.css');
-        expect(urls).toContain('https://example.com/shared/common.css');
-        expect(urls).toContain('https://example.com/pages/about/styles.css');
+        expect(urls).toContain("https://example.com/css/main.css");
+        expect(urls).toContain("https://example.com/shared/common.css");
+        expect(urls).toContain("https://example.com/pages/about/styles.css");
       }
     });
 
-    it('should handle missing baseUrl gracefully', async () => {
+    it("should handle missing baseUrl gracefully", async () => {
       /**
        * baseUrlがない場合でも相対URLを持つ外部CSSをスキップして処理継続
        * 絶対URLのみ取得を試みる
@@ -2365,7 +2471,7 @@ describe('motion.detect - External CSS Integration', () => {
       const input = {
         html: htmlWithMixedUrls,
         fetchExternalCss: true,
-        detection_mode: 'css' as const,
+        detection_mode: "css" as const,
         // baseUrl is not provided - but allowed in css mode with html
       };
 
@@ -2380,24 +2486,24 @@ describe('motion.detect - External CSS Integration', () => {
     });
   });
 
-  describe('externalCssOptions parameter', () => {
-    it('should accept custom timeout option', async () => {
+  describe("externalCssOptions parameter", () => {
+    it("should accept custom timeout option", async () => {
       /**
        * カスタムタイムアウト設定を受け入れる
        * デフォルト: 5000ms
        * 範囲: 1000-30000ms
        */
-      vi.spyOn(externalCssFetcherModule, 'extractCssUrls').mockReturnValue([]);
-      vi.spyOn(externalCssFetcherModule, 'fetchAllCss').mockResolvedValue([]);
+      vi.spyOn(externalCssFetcherModule, "extractCssUrls").mockReturnValue([]);
+      vi.spyOn(externalCssFetcherModule, "fetchAllCss").mockResolvedValue([]);
 
       const input = {
         html: htmlWithExternalCss,
         fetchExternalCss: true,
-        baseUrl: 'https://example.com/',
+        baseUrl: "https://example.com/",
         externalCssOptions: {
           timeout: 10000, // 10秒
         },
-        detection_mode: 'css' as const,
+        detection_mode: "css" as const,
       };
 
       const result = await motionDetectHandler(input);
@@ -2405,23 +2511,23 @@ describe('motion.detect - External CSS Integration', () => {
       expect(result.success).toBe(true);
     });
 
-    it('should accept maxConcurrent option for parallel fetching', async () => {
+    it("should accept maxConcurrent option for parallel fetching", async () => {
       /**
        * 並列取得数の上限を設定できる
        * デフォルト: 5
        * 範囲: 1-10
        */
-      vi.spyOn(externalCssFetcherModule, 'extractCssUrls').mockReturnValue([]);
-      vi.spyOn(externalCssFetcherModule, 'fetchAllCss').mockResolvedValue([]);
+      vi.spyOn(externalCssFetcherModule, "extractCssUrls").mockReturnValue([]);
+      vi.spyOn(externalCssFetcherModule, "fetchAllCss").mockResolvedValue([]);
 
       const input = {
         html: htmlWithExternalCss,
         fetchExternalCss: true,
-        baseUrl: 'https://example.com/',
+        baseUrl: "https://example.com/",
         externalCssOptions: {
           maxConcurrent: 3,
         },
-        detection_mode: 'css' as const,
+        detection_mode: "css" as const,
       };
 
       const result = await motionDetectHandler(input);
@@ -2429,7 +2535,7 @@ describe('motion.detect - External CSS Integration', () => {
       expect(result.success).toBe(true);
     });
 
-    it('should validate externalCssOptions schema', async () => {
+    it("should validate externalCssOptions schema", async () => {
       /**
        * externalCssOptionsのバリデーション
        * timeout: 1000-30000ms
@@ -2438,12 +2544,12 @@ describe('motion.detect - External CSS Integration', () => {
       const input = {
         html: htmlWithExternalCss,
         fetchExternalCss: true,
-        baseUrl: 'https://example.com/',
+        baseUrl: "https://example.com/",
         externalCssOptions: {
           timeout: 100, // 1000未満は無効
           maxConcurrent: 20, // 10を超えるのは無効
         },
-        detection_mode: 'css' as const,
+        detection_mode: "css" as const,
       };
 
       const result = await motionDetectHandler(input);
@@ -2455,8 +2561,8 @@ describe('motion.detect - External CSS Integration', () => {
     });
   });
 
-  describe('metadata for external CSS', () => {
-    it('should include external CSS fetch statistics in metadata', async () => {
+  describe("metadata for external CSS", () => {
+    it("should include external CSS fetch statistics in metadata", async () => {
       /**
        * メタデータに外部CSS取得の統計情報を含める
        *
@@ -2472,20 +2578,24 @@ describe('motion.detect - External CSS Integration', () => {
        *   }
        * - blockedUrls?: string[]
        */
-      vi.spyOn(externalCssFetcherModule, 'extractCssUrls').mockReturnValue([
-        { url: 'https://example.com/styles/main.css', originalHref: '/styles/main.css' },
-        { url: 'https://example.com/styles/theme.css', originalHref: '/styles/theme.css' },
+      vi.spyOn(externalCssFetcherModule, "extractCssUrls").mockReturnValue([
+        { url: "https://example.com/styles/main.css", originalHref: "/styles/main.css" },
+        { url: "https://example.com/styles/theme.css", originalHref: "/styles/theme.css" },
       ]);
-      vi.spyOn(externalCssFetcherModule, 'fetchAllCss').mockResolvedValue([
-        { url: 'https://example.com/styles/main.css', content: externalCssContent, error: undefined },
-        { url: 'https://example.com/styles/theme.css', content: '', error: 'HTTP 404' },
+      vi.spyOn(externalCssFetcherModule, "fetchAllCss").mockResolvedValue([
+        {
+          url: "https://example.com/styles/main.css",
+          content: externalCssContent,
+          error: undefined,
+        },
+        { url: "https://example.com/styles/theme.css", content: "", error: "HTTP 404" },
       ]);
 
       const input = {
         html: htmlWithExternalCss,
         fetchExternalCss: true,
-        baseUrl: 'https://example.com/',
-        detection_mode: 'css' as const,
+        baseUrl: "https://example.com/",
+        detection_mode: "css" as const,
       };
 
       const result = await motionDetectHandler(input);
@@ -2501,22 +2611,22 @@ describe('motion.detect - External CSS Integration', () => {
       }
     });
 
-    it('should include CSS size in metadata when external CSS is fetched', async () => {
+    it("should include CSS size in metadata when external CSS is fetched", async () => {
       /**
        * 外部CSS取得時に合計CSSサイズをmetadataに含める
        */
-      vi.spyOn(externalCssFetcherModule, 'extractCssUrls').mockReturnValue([
-        { url: 'https://example.com/styles.css', originalHref: '/styles.css' },
+      vi.spyOn(externalCssFetcherModule, "extractCssUrls").mockReturnValue([
+        { url: "https://example.com/styles.css", originalHref: "/styles.css" },
       ]);
-      vi.spyOn(externalCssFetcherModule, 'fetchAllCss').mockResolvedValue([
-        { url: 'https://example.com/styles.css', content: externalCssContent, error: undefined },
+      vi.spyOn(externalCssFetcherModule, "fetchAllCss").mockResolvedValue([
+        { url: "https://example.com/styles.css", content: externalCssContent, error: undefined },
       ]);
 
       const input = {
         html: htmlWithExternalCss,
         fetchExternalCss: true,
-        baseUrl: 'https://example.com/',
-        detection_mode: 'css' as const,
+        baseUrl: "https://example.com/",
+        detection_mode: "css" as const,
       };
 
       const result = await motionDetectHandler(input);
@@ -2530,16 +2640,16 @@ describe('motion.detect - External CSS Integration', () => {
     });
   });
 
-  describe('input schema validation for new parameters', () => {
-    it('should validate fetchExternalCss as boolean', async () => {
+  describe("input schema validation for new parameters", () => {
+    it("should validate fetchExternalCss as boolean", async () => {
       /**
        * fetchExternalCssはboolean型のみ受け入れる
        */
       const input = {
         html: htmlWithExternalCss,
-        fetchExternalCss: 'true', // stringは無効
-        baseUrl: 'https://example.com/',
-        detection_mode: 'css' as const,
+        fetchExternalCss: "true", // stringは無効
+        baseUrl: "https://example.com/",
+        detection_mode: "css" as const,
       };
 
       const result = await motionDetectHandler(input);
@@ -2550,15 +2660,15 @@ describe('motion.detect - External CSS Integration', () => {
       }
     });
 
-    it('should validate baseUrl as valid URL format', async () => {
+    it("should validate baseUrl as valid URL format", async () => {
       /**
        * baseUrlは有効なURL形式である必要がある
        */
       const input = {
         html: htmlWithExternalCss,
         fetchExternalCss: true,
-        baseUrl: 'not-a-valid-url',
-        detection_mode: 'css' as const,
+        baseUrl: "not-a-valid-url",
+        detection_mode: "css" as const,
       };
 
       const result = await motionDetectHandler(input);
@@ -2566,22 +2676,22 @@ describe('motion.detect - External CSS Integration', () => {
       expect(result.success).toBe(false);
       if (!result.success) {
         expect(result.error.code).toBe(MOTION_MCP_ERROR_CODES.VALIDATION_ERROR);
-        expect(result.error.message).toContain('baseUrl');
+        expect(result.error.message).toContain("baseUrl");
       }
     });
 
-    it('should validate externalCssOptions.timeout range', async () => {
+    it("should validate externalCssOptions.timeout range", async () => {
       /**
        * timeout は 1000-30000ms の範囲
        */
       const input = {
         html: htmlWithExternalCss,
         fetchExternalCss: true,
-        baseUrl: 'https://example.com/',
+        baseUrl: "https://example.com/",
         externalCssOptions: {
           timeout: 50000, // 30000を超えるので無効
         },
-        detection_mode: 'css' as const,
+        detection_mode: "css" as const,
       };
 
       const result = await motionDetectHandler(input);
@@ -2592,18 +2702,18 @@ describe('motion.detect - External CSS Integration', () => {
       }
     });
 
-    it('should validate externalCssOptions.maxConcurrent range', async () => {
+    it("should validate externalCssOptions.maxConcurrent range", async () => {
       /**
        * maxConcurrent は 1-10 の範囲
        */
       const input = {
         html: htmlWithExternalCss,
         fetchExternalCss: true,
-        baseUrl: 'https://example.com/',
+        baseUrl: "https://example.com/",
         externalCssOptions: {
           maxConcurrent: 0, // 1未満は無効
         },
-        detection_mode: 'css' as const,
+        detection_mode: "css" as const,
       };
 
       const result = await motionDetectHandler(input);
@@ -2620,7 +2730,7 @@ describe('motion.detect - External CSS Integration', () => {
 // P2-UX-2: min_severity 警告フィルタリングテスト
 // =====================================================
 
-describe('min_severity 警告フィルタリング (P2-UX-2)', () => {
+describe("min_severity 警告フィルタリング (P2-UX-2)", () => {
   beforeEach(() => {
     resetMotionDetectServiceFactory();
   });
@@ -2659,16 +2769,16 @@ describe('min_severity 警告フィルタリング (P2-UX-2)', () => {
 </body>
 </html>`;
 
-  describe('スキーマバリデーション', () => {
-    it('min_severity パラメータを受け付ける', async () => {
+  describe("スキーマバリデーション", () => {
+    it("min_severity パラメータを受け付ける", async () => {
       /**
        * min_severity を指定してもバリデーションエラーにならない
        */
       const input = {
         html: htmlWithMixedSeverityWarnings,
         includeWarnings: true,
-        min_severity: 'warning',
-        detection_mode: 'css' as const,
+        min_severity: "warning",
+        detection_mode: "css" as const,
       };
 
       const result = await motionDetectHandler(input);
@@ -2676,12 +2786,12 @@ describe('min_severity 警告フィルタリング (P2-UX-2)', () => {
       expect(result.success).toBe(true);
     });
 
-    it('min_severity に info を指定できる', async () => {
+    it("min_severity に info を指定できる", async () => {
       const input = {
         html: htmlWithMixedSeverityWarnings,
         includeWarnings: true,
-        min_severity: 'info',
-        detection_mode: 'css' as const,
+        min_severity: "info",
+        detection_mode: "css" as const,
       };
 
       const result = await motionDetectHandler(input);
@@ -2689,12 +2799,12 @@ describe('min_severity 警告フィルタリング (P2-UX-2)', () => {
       expect(result.success).toBe(true);
     });
 
-    it('min_severity に warning を指定できる', async () => {
+    it("min_severity に warning を指定できる", async () => {
       const input = {
         html: htmlWithMixedSeverityWarnings,
         includeWarnings: true,
-        min_severity: 'warning',
-        detection_mode: 'css' as const,
+        min_severity: "warning",
+        detection_mode: "css" as const,
       };
 
       const result = await motionDetectHandler(input);
@@ -2702,12 +2812,12 @@ describe('min_severity 警告フィルタリング (P2-UX-2)', () => {
       expect(result.success).toBe(true);
     });
 
-    it('min_severity に error を指定できる', async () => {
+    it("min_severity に error を指定できる", async () => {
       const input = {
         html: htmlWithMixedSeverityWarnings,
         includeWarnings: true,
-        min_severity: 'error',
-        detection_mode: 'css' as const,
+        min_severity: "error",
+        detection_mode: "css" as const,
       };
 
       const result = await motionDetectHandler(input);
@@ -2715,12 +2825,12 @@ describe('min_severity 警告フィルタリング (P2-UX-2)', () => {
       expect(result.success).toBe(true);
     });
 
-    it('min_severity に無効な値を指定するとエラー', async () => {
+    it("min_severity に無効な値を指定するとエラー", async () => {
       const input = {
         html: htmlWithMixedSeverityWarnings,
         includeWarnings: true,
-        min_severity: 'invalid_severity',
-        detection_mode: 'css' as const,
+        min_severity: "invalid_severity",
+        detection_mode: "css" as const,
       };
 
       const result = await motionDetectHandler(input);
@@ -2732,16 +2842,16 @@ describe('min_severity 警告フィルタリング (P2-UX-2)', () => {
     });
   });
 
-  describe('警告フィルタリング動作', () => {
-    it('min_severity=info で全ての警告を返す', async () => {
+  describe("警告フィルタリング動作", () => {
+    it("min_severity=info で全ての警告を返す", async () => {
       /**
        * severity: info/warning/error 全てを含む
        */
       const input = {
         html: htmlWithMixedSeverityWarnings,
         includeWarnings: true,
-        min_severity: 'info',
-        detection_mode: 'css' as const,
+        min_severity: "info",
+        detection_mode: "css" as const,
       };
 
       const result = await motionDetectHandler(input);
@@ -2752,13 +2862,13 @@ describe('min_severity 警告フィルタリング (P2-UX-2)', () => {
         expect(result.data.warnings.length).toBeGreaterThan(0);
 
         // info レベルの警告も含まれる（無限アニメーション警告はinfoレベル）
-        const infoWarnings = result.data.warnings.filter(w => w.severity === 'info');
+        const infoWarnings = result.data.warnings.filter((w) => w.severity === "info");
         // infoレベルの警告が存在するはず（無限アニメーション）
         expect(infoWarnings.length).toBeGreaterThan(0);
       }
     });
 
-    it('min_severity=warning で info レベルをフィルタアウト', async () => {
+    it("min_severity=warning で info レベルをフィルタアウト", async () => {
       /**
        * severity: warning/error のみ含む
        * info は除外される
@@ -2766,8 +2876,8 @@ describe('min_severity 警告フィルタリング (P2-UX-2)', () => {
       const input = {
         html: htmlWithMixedSeverityWarnings,
         includeWarnings: true,
-        min_severity: 'warning',
-        detection_mode: 'css' as const,
+        min_severity: "warning",
+        detection_mode: "css" as const,
       };
 
       const result = await motionDetectHandler(input);
@@ -2775,17 +2885,17 @@ describe('min_severity 警告フィルタリング (P2-UX-2)', () => {
       expect(result.success).toBe(true);
       if (result.success && result.data.warnings) {
         // info レベルの警告は含まれない
-        const infoWarnings = result.data.warnings.filter(w => w.severity === 'info');
+        const infoWarnings = result.data.warnings.filter((w) => w.severity === "info");
         expect(infoWarnings.length).toBe(0);
 
         // warning または error のみ
-        result.data.warnings.forEach(warning => {
-          expect(['warning', 'error']).toContain(warning.severity);
+        result.data.warnings.forEach((warning) => {
+          expect(["warning", "error"]).toContain(warning.severity);
         });
       }
     });
 
-    it('min_severity=error で error のみ返す', async () => {
+    it("min_severity=error で error のみ返す", async () => {
       /**
        * severity: error のみ含む
        * info/warning は除外される
@@ -2793,8 +2903,8 @@ describe('min_severity 警告フィルタリング (P2-UX-2)', () => {
       const input = {
         html: htmlWithMixedSeverityWarnings,
         includeWarnings: true,
-        min_severity: 'error',
-        detection_mode: 'css' as const,
+        min_severity: "error",
+        detection_mode: "css" as const,
       };
 
       const result = await motionDetectHandler(input);
@@ -2802,20 +2912,20 @@ describe('min_severity 警告フィルタリング (P2-UX-2)', () => {
       expect(result.success).toBe(true);
       if (result.success && result.data.warnings) {
         // error レベル以外の警告は含まれない
-        result.data.warnings.forEach(warning => {
-          expect(warning.severity).toBe('error');
+        result.data.warnings.forEach((warning) => {
+          expect(warning.severity).toBe("error");
         });
       }
     });
 
-    it('min_severity 未指定時はデフォルトで全ての警告を返す (info と同じ)', async () => {
+    it("min_severity 未指定時はデフォルトで全ての警告を返す (info と同じ)", async () => {
       /**
        * min_severity を指定しない場合、従来どおり全ての警告を返す
        */
       const input = {
         html: htmlWithMixedSeverityWarnings,
         includeWarnings: true,
-        detection_mode: 'css' as const,
+        detection_mode: "css" as const,
       };
 
       const result = await motionDetectHandler(input);
@@ -2823,27 +2933,27 @@ describe('min_severity 警告フィルタリング (P2-UX-2)', () => {
       expect(result.success).toBe(true);
       if (result.success && result.data.warnings) {
         // infoレベルの警告も含まれる（後方互換性）
-        const infoWarnings = result.data.warnings.filter(w => w.severity === 'info');
+        const infoWarnings = result.data.warnings.filter((w) => w.severity === "info");
         expect(infoWarnings.length).toBeGreaterThan(0);
       }
     });
   });
 
-  describe('ツール定義の min_severity', () => {
-    it('ツール定義に min_severity が含まれる', () => {
-      expect(motionDetectToolDefinition.inputSchema.properties).toHaveProperty('min_severity');
+  describe("ツール定義の min_severity", () => {
+    it("ツール定義に min_severity が含まれる", () => {
+      expect(motionDetectToolDefinition.inputSchema.properties).toHaveProperty("min_severity");
     });
 
-    it('min_severity の type が string', () => {
+    it("min_severity の type が string", () => {
       const minSeverityProp = motionDetectToolDefinition.inputSchema.properties.min_severity;
       expect(minSeverityProp).toBeDefined();
-      expect(minSeverityProp.type).toBe('string');
+      expect(minSeverityProp.type).toBe("string");
     });
 
-    it('min_severity の enum に info/warning/error が含まれる', () => {
+    it("min_severity の enum に info/warning/error が含まれる", () => {
       const minSeverityProp = motionDetectToolDefinition.inputSchema.properties.min_severity;
       expect(minSeverityProp).toBeDefined();
-      expect(minSeverityProp.enum).toEqual(['info', 'warning', 'error']);
+      expect(minSeverityProp.enum).toEqual(["info", "warning", "error"]);
     });
   });
 });

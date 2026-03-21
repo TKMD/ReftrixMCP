@@ -16,17 +16,17 @@
  * @module queues/batch-quality-queue
  */
 
-import type { Job, ConnectionOptions } from 'bullmq';
-import { Queue, QueueEvents } from 'bullmq';
-import type Redis from 'ioredis';
-import type { RedisConfig } from '../config/redis';
-import { getRedisConfig, getRedisClient, isRedisAvailable } from '../config/redis';
-import type { Weights, QualityEvaluateData } from '../tools/quality/schemas';
+import type { Job, ConnectionOptions } from "bullmq";
+import { Queue, QueueEvents } from "bullmq";
+import type Redis from "ioredis";
+import type { RedisConfig } from "../config/redis";
+import { getRedisConfig, getRedisClient, isRedisAvailable } from "../config/redis";
+import type { Weights, QualityEvaluateData } from "../tools/quality/schemas";
 
 /**
  * Queue name constant
  */
-export const BATCH_QUALITY_QUEUE_NAME = 'batch-quality-evaluate';
+export const BATCH_QUALITY_QUEUE_NAME = "batch-quality-evaluate";
 
 /**
  * Job data for batch quality evaluation
@@ -39,7 +39,7 @@ export interface BatchQualityJobData {
   /** Batch size for processing */
   batchSize: number;
   /** Error handling mode */
-  onError: 'skip' | 'abort';
+  onError: "skip" | "abort";
   /** Evaluation weights */
   weights?: Weights;
   /** Strict mode for AI cliche detection */
@@ -112,7 +112,7 @@ export interface BatchQualityJobStatus {
   /** Job ID */
   jobId: string;
   /** Current state */
-  state: 'waiting' | 'active' | 'completed' | 'failed' | 'delayed' | 'unknown';
+  state: "waiting" | "active" | "completed" | "failed" | "delayed" | "unknown";
   /** Progress percentage (0-100) */
   progress: number;
   /** Total items */
@@ -175,7 +175,7 @@ export function createBatchQualityQueue(
       },
       // Backoff strategy
       backoff: {
-        type: 'exponential',
+        type: "exponential",
         delay: 5000,
       },
     },
@@ -188,9 +188,7 @@ export function createBatchQualityQueue(
  * @param configOverrides - Optional Redis configuration overrides
  * @returns BullMQ QueueEvents instance
  */
-export function createBatchQualityQueueEvents(
-  configOverrides?: Partial<RedisConfig>
-): QueueEvents {
+export function createBatchQualityQueueEvents(configOverrides?: Partial<RedisConfig>): QueueEvents {
   const config = getRedisConfig(configOverrides);
 
   return new QueueEvents(BATCH_QUALITY_QUEUE_NAME, {
@@ -208,7 +206,7 @@ export function createBatchQualityQueueEvents(
  */
 export async function addBatchQualityJob(
   queue: Queue<BatchQualityJobData, BatchQualityJobResult>,
-  data: Omit<BatchQualityJobData, 'createdAt'>,
+  data: Omit<BatchQualityJobData, "createdAt">,
   priority: number = 10
 ): Promise<Job<BatchQualityJobData, BatchQualityJobResult>> {
   const jobData: BatchQualityJobData = {
@@ -264,7 +262,7 @@ export async function getBatchQualityJobStatus(
     processedItems = 0;
     successItems = 0;
     failedItems = 0;
-    progress = typeof job.progress === 'number' ? job.progress : 0;
+    progress = typeof job.progress === "number" ? job.progress : 0;
   }
 
   // Build timestamps object, only including defined values
@@ -281,17 +279,17 @@ export async function getBatchQualityJobStatus(
   if (job.processedOn !== undefined) {
     timestamps.started = job.processedOn;
   }
-  if (state === 'completed' && job.finishedOn !== undefined) {
+  if (state === "completed" && job.finishedOn !== undefined) {
     timestamps.completed = job.finishedOn;
   }
-  if (state === 'failed' && job.finishedOn !== undefined) {
+  if (state === "failed" && job.finishedOn !== undefined) {
     timestamps.failed = job.finishedOn;
   }
 
   // Build result object
   const status: BatchQualityJobStatus = {
     jobId: job.id || jobId,
-    state: state as BatchQualityJobStatus['state'],
+    state: state as BatchQualityJobStatus["state"],
     progress,
     totalItems,
     processedItems,
@@ -301,12 +299,12 @@ export async function getBatchQualityJobStatus(
   };
 
   // Add result if completed
-  if (state === 'completed' && job.returnvalue) {
+  if (state === "completed" && job.returnvalue) {
     status.result = job.returnvalue;
   }
 
   // Add error if failed
-  if (state === 'failed' && job.failedReason) {
+  if (state === "failed" && job.failedReason) {
     status.error = job.failedReason;
   }
 
@@ -337,7 +335,9 @@ export async function updateBatchQualityJobProgress(
   await job.updateProgress(progressPercent);
 
   // Log progress for debugging
-  await job.log(`Progress: ${processedItems}/${totalItems} (${successItems} success, ${failedItems} failed)`);
+  await job.log(
+    `Progress: ${processedItems}/${totalItems} (${successItems} success, ${failedItems} failed)`
+  );
 
   // Store detailed progress in Redis and sync to LRU store
   await saveBatchQualityProgress(job.data.jobId, {
@@ -419,7 +419,7 @@ export async function checkBatchQualityQueueHealth(
 /**
  * Redis key prefix for batch quality progress data
  */
-const BATCH_QUALITY_PROGRESS_KEY_PREFIX = 'reftrix:batch-quality:progress:';
+const BATCH_QUALITY_PROGRESS_KEY_PREFIX = "reftrix:batch-quality:progress:";
 
 /**
  * Progress TTL: 24 hours (same as job retention)
@@ -475,15 +475,15 @@ export async function saveBatchQualityProgress(
     }
   } catch (error) {
     // Log error but don't throw - graceful degradation
-    if (process.env.NODE_ENV === 'development') {
-      console.warn('[BatchQualityQueue] Failed to save progress to Redis:', error);
+    if (process.env.NODE_ENV === "development") {
+      console.warn("[BatchQualityQueue] Failed to save progress to Redis:", error);
     }
   }
 
   // Always sync to LRU store for fallback
   try {
     // Dynamic import to avoid circular dependency
-    const { updateBatchJob, getBatchJob } = await import('../tools/quality/batch-evaluate.tool.js');
+    const { updateBatchJob, getBatchJob } = await import("../tools/quality/batch-evaluate.tool.js");
     const existingJob = getBatchJob(jobId);
 
     if (existingJob) {
@@ -491,15 +491,16 @@ export async function saveBatchQualityProgress(
         processed_items: progress.processedItems,
         success_items: progress.successItems,
         failed_items: progress.failedItems,
-        progress_percent: progress.totalItems > 0
-          ? Math.round((progress.processedItems / progress.totalItems) * 100)
-          : 0,
+        progress_percent:
+          progress.totalItems > 0
+            ? Math.round((progress.processedItems / progress.totalItems) * 100)
+            : 0,
       });
     }
   } catch (error) {
     // Log error but don't throw
-    if (process.env.NODE_ENV === 'development') {
-      console.warn('[BatchQualityQueue] Failed to sync progress to LRU store:', error);
+    if (process.env.NODE_ENV === "development") {
+      console.warn("[BatchQualityQueue] Failed to sync progress to LRU store:", error);
     }
   }
 }
@@ -528,14 +529,14 @@ export async function getBatchQualityProgress(
     }
   } catch (error) {
     // Log error but don't throw - fallback to LRU
-    if (process.env.NODE_ENV === 'development') {
-      console.warn('[BatchQualityQueue] Failed to get progress from Redis:', error);
+    if (process.env.NODE_ENV === "development") {
+      console.warn("[BatchQualityQueue] Failed to get progress from Redis:", error);
     }
   }
 
   // Fallback to LRU store
   try {
-    const { getBatchJob } = await import('../tools/quality/batch-evaluate.tool.js');
+    const { getBatchJob } = await import("../tools/quality/batch-evaluate.tool.js");
     const lruJob = getBatchJob(jobId);
 
     if (lruJob) {
@@ -547,8 +548,8 @@ export async function getBatchQualityProgress(
       };
     }
   } catch (error) {
-    if (process.env.NODE_ENV === 'development') {
-      console.warn('[BatchQualityQueue] Failed to get progress from LRU store:', error);
+    if (process.env.NODE_ENV === "development") {
+      console.warn("[BatchQualityQueue] Failed to get progress from LRU store:", error);
     }
   }
 
@@ -572,8 +573,8 @@ export async function deleteBatchQualityProgress(jobId: string): Promise<void> {
     }
   } catch (error) {
     // Log error but don't throw
-    if (process.env.NODE_ENV === 'development') {
-      console.warn('[BatchQualityQueue] Failed to delete progress from Redis:', error);
+    if (process.env.NODE_ENV === "development") {
+      console.warn("[BatchQualityQueue] Failed to delete progress from Redis:", error);
     }
   }
 }

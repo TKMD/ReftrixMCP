@@ -19,8 +19,8 @@
  * @module services/motion/three-js-scene-extractor
  */
 
-import type { Page } from 'playwright';
-import { logger, isDevelopment } from '../../utils/logger';
+import type { Page } from "playwright";
+import { logger, isDevelopment } from "../../utils/logger";
 
 // =====================================================
 // 型定義
@@ -224,29 +224,25 @@ export class ThreeJSSceneExtractor {
    * @param max - 最大値
    * @returns 検証結果
    */
-  static validateNumber(
-    val: unknown,
-    min: number,
-    max: number
-  ): NumberValidationResult {
+  static validateNumber(val: unknown, min: number, max: number): NumberValidationResult {
     // null/undefined チェック
     if (val === null || val === undefined) {
-      return { valid: false, reason: 'null or undefined' };
+      return { valid: false, reason: "null or undefined" };
     }
 
     // 型チェック
-    if (typeof val !== 'number') {
-      return { valid: false, reason: 'not a number' };
+    if (typeof val !== "number") {
+      return { valid: false, reason: "not a number" };
     }
 
     // NaN チェック
     if (Number.isNaN(val)) {
-      return { valid: false, reason: 'NaN' };
+      return { valid: false, reason: "NaN" };
     }
 
     // Infinity チェック
     if (!Number.isFinite(val)) {
-      return { valid: false, reason: 'Infinity' };
+      return { valid: false, reason: "Infinity" };
     }
 
     // 範囲チェック（クランプ）
@@ -264,14 +260,14 @@ export class ThreeJSSceneExtractor {
    * @returns 安全なベクトル配列またはundefined
    */
   static sanitizeVector3(vec: unknown): [number, number, number] | undefined {
-    if (!vec || typeof vec !== 'object') {
+    if (!vec || typeof vec !== "object") {
       return undefined;
     }
 
     const obj = vec as Record<string, unknown>;
 
     // x, y, z が存在するか確認
-    if (!('x' in obj) || !('y' in obj) || !('z' in obj)) {
+    if (!("x" in obj) || !("y" in obj) || !("z" in obj)) {
       return undefined;
     }
 
@@ -308,25 +304,25 @@ export class ThreeJSSceneExtractor {
     // 深度制限チェック
     if (currentDepth > options.maxDepth) {
       return {
-        node: { type: 'Group', truncated: true, depth: currentDepth },
+        node: { type: "Group", truncated: true, depth: currentDepth },
         objectCount: 0,
         truncated: true,
       };
     }
 
-    if (!obj || typeof obj !== 'object') {
+    if (!obj || typeof obj !== "object") {
       return { node: null, objectCount: 0, truncated: false };
     }
 
     const threeObj = obj as Record<string, unknown>;
 
     // UUIDベースの循環参照検出
-    const uuid = typeof threeObj.uuid === 'string' ? threeObj.uuid : undefined;
+    const uuid = typeof threeObj.uuid === "string" ? threeObj.uuid : undefined;
     if (uuid) {
       if (visitedSet.has(uuid)) {
         // 循環参照検出
         return {
-          node: { type: 'CircularReference', truncated: true },
+          node: { type: "CircularReference", truncated: true },
           objectCount: 0,
           truncated: true,
         };
@@ -335,7 +331,7 @@ export class ThreeJSSceneExtractor {
     }
 
     // オブジェクトタイプを取得
-    const type = typeof threeObj.type === 'string' ? threeObj.type : 'Object3D';
+    const type = typeof threeObj.type === "string" ? threeObj.type : "Object3D";
 
     // 基本ノード構築
     const node: SceneGraphNode = {
@@ -344,7 +340,7 @@ export class ThreeJSSceneExtractor {
     };
 
     // 名前
-    if (typeof threeObj.name === 'string' && threeObj.name !== '') {
+    if (typeof threeObj.name === "string" && threeObj.name !== "") {
       node.name = threeObj.name;
     }
 
@@ -372,9 +368,9 @@ export class ThreeJSSceneExtractor {
     }
 
     // ジオメトリ情報
-    if (threeObj.geometry && typeof threeObj.geometry === 'object') {
+    if (threeObj.geometry && typeof threeObj.geometry === "object") {
       const geo = threeObj.geometry as Record<string, unknown>;
-      node.geometry = typeof geo.type === 'string' ? geo.type : 'BufferGeometry';
+      node.geometry = typeof geo.type === "string" ? geo.type : "BufferGeometry";
     }
 
     // マテリアル情報
@@ -386,10 +382,10 @@ export class ThreeJSSceneExtractor {
     }
 
     // ライト固有情報
-    if (type.includes('Light')) {
-      if (threeObj.color && typeof threeObj.color === 'object') {
+    if (type.includes("Light")) {
+      if (threeObj.color && typeof threeObj.color === "object") {
         const color = threeObj.color as Record<string, unknown>;
-        if (typeof color.getHexString === 'function') {
+        if (typeof color.getHexString === "function") {
           try {
             node.color = `#${(color.getHexString as () => string)()}`;
           } catch {
@@ -398,31 +394,23 @@ export class ThreeJSSceneExtractor {
         }
       }
 
-      const intensityResult = ThreeJSSceneExtractor.validateNumber(
-        threeObj.intensity,
-        0,
-        1000
-      );
+      const intensityResult = ThreeJSSceneExtractor.validateNumber(threeObj.intensity, 0, 1000);
       if (intensityResult.valid && intensityResult.sanitizedValue !== undefined) {
         node.intensity = intensityResult.sanitizedValue;
       }
     }
 
     // InstancedMesh固有
-    if (type === 'InstancedMesh' || threeObj.isInstancedMesh === true) {
-      const countResult = ThreeJSSceneExtractor.validateNumber(
-        threeObj.count,
-        0,
-        1e6
-      );
+    if (type === "InstancedMesh" || threeObj.isInstancedMesh === true) {
+      const countResult = ThreeJSSceneExtractor.validateNumber(threeObj.count, 0, 1e6);
       if (countResult.valid && countResult.sanitizedValue !== undefined) {
         node.instanceCount = countResult.sanitizedValue;
       }
     }
 
     // SkinnedMesh固有
-    if (type === 'SkinnedMesh' || threeObj.isSkinnedMesh === true) {
-      if (threeObj.skeleton && typeof threeObj.skeleton === 'object') {
+    if (type === "SkinnedMesh" || threeObj.isSkinnedMesh === true) {
+      if (threeObj.skeleton && typeof threeObj.skeleton === "object") {
         const skeleton = threeObj.skeleton as Record<string, unknown>;
         if (Array.isArray(skeleton.bones)) {
           node.boneCount = skeleton.bones.length;
@@ -507,7 +495,7 @@ export class ThreeJSSceneExtractor {
 
     for (let i = 0; i < limitedScenes.length; i++) {
       const sceneObj = limitedScenes[i];
-      if (!sceneObj || typeof sceneObj !== 'object') {
+      if (!sceneObj || typeof sceneObj !== "object") {
         continue;
       }
 
@@ -515,20 +503,17 @@ export class ThreeJSSceneExtractor {
       const visitedSet = new Set<string>();
 
       // シーンID
-      const sceneId =
-        typeof threeScene.uuid === 'string' ? threeScene.uuid : `scene-${i}`;
+      const sceneId = typeof threeScene.uuid === "string" ? threeScene.uuid : `scene-${i}`;
 
       // シーン名
       const sceneName =
-        typeof threeScene.name === 'string' && threeScene.name !== ''
-          ? threeScene.name
-          : undefined;
+        typeof threeScene.name === "string" && threeScene.name !== "" ? threeScene.name : undefined;
 
       // 背景色
       let background: string | undefined;
-      if (threeScene.background && typeof threeScene.background === 'object') {
+      if (threeScene.background && typeof threeScene.background === "object") {
         const bg = threeScene.background as Record<string, unknown>;
-        if (bg.isColor && typeof bg.getHexString === 'function') {
+        if (bg.isColor && typeof bg.getHexString === "function") {
           try {
             background = `#${(bg.getHexString as () => string)()}`;
           } catch {
@@ -538,13 +523,13 @@ export class ThreeJSSceneExtractor {
       }
 
       // フォグ情報
-      let fog: ExtendedSceneInfo['fog'];
-      if (threeScene.fog && typeof threeScene.fog === 'object') {
+      let fog: ExtendedSceneInfo["fog"];
+      if (threeScene.fog && typeof threeScene.fog === "object") {
         const fogObj = threeScene.fog as Record<string, unknown>;
         const fogColor = fogObj.color as Record<string, unknown> | undefined;
 
-        let fogColorHex = '#000000';
-        if (fogColor && typeof fogColor.getHexString === 'function') {
+        let fogColorHex = "#000000";
+        if (fogColor && typeof fogColor.getHexString === "function") {
           try {
             fogColorHex = `#${(fogColor.getHexString as () => string)()}`;
           } catch {
@@ -553,20 +538,20 @@ export class ThreeJSSceneExtractor {
         }
 
         fog = {
-          type: fogObj.isFogExp2 === true ? 'FogExp2' : 'Fog',
+          type: fogObj.isFogExp2 === true ? "FogExp2" : "Fog",
           color: fogColorHex,
         };
 
         // FogExp2のdensity
-        if (typeof fogObj.density === 'number' && Number.isFinite(fogObj.density)) {
+        if (typeof fogObj.density === "number" && Number.isFinite(fogObj.density)) {
           fog.density = fogObj.density;
         }
 
         // Fogのnear/far
-        if (typeof fogObj.near === 'number' && Number.isFinite(fogObj.near)) {
+        if (typeof fogObj.near === "number" && Number.isFinite(fogObj.near)) {
           fog.near = fogObj.near;
         }
-        if (typeof fogObj.far === 'number' && Number.isFinite(fogObj.far)) {
+        if (typeof fogObj.far === "number" && Number.isFinite(fogObj.far)) {
           fog.far = fogObj.far;
         }
       }
@@ -584,12 +569,7 @@ export class ThreeJSSceneExtractor {
           limitsApplied.childrenLimit || threeScene.children.length > opts.maxChildrenPerScene;
 
         for (const child of children) {
-          const result = ThreeJSSceneExtractor.extractSceneGraphNode(
-            child,
-            opts,
-            1,
-            visitedSet
-          );
+          const result = ThreeJSSceneExtractor.extractSceneGraphNode(child, opts, 1, visitedSet);
 
           if (result.node) {
             sceneGraph.push(result.node);
@@ -666,7 +646,7 @@ export class ThreeJSSceneExtractor {
    * オブジェクト総数をカウント
    */
   private static countObjects(obj: unknown): number {
-    if (!obj || typeof obj !== 'object') {
+    if (!obj || typeof obj !== "object") {
       return 0;
     }
 
@@ -725,7 +705,7 @@ export class ThreeJSSceneExtractor {
     const textureUrls = new Set<string>();
 
     const extractFromObject = (obj: unknown): void => {
-      if (!obj || typeof obj !== 'object') {
+      if (!obj || typeof obj !== "object") {
         return;
       }
 
@@ -733,10 +713,7 @@ export class ThreeJSSceneExtractor {
 
       // マテリアルからテクスチャを抽出
       if (threeObj.material) {
-        ThreeJSSceneExtractor.extractTexturesFromMaterial(
-          threeObj.material,
-          textureUrls
-        );
+        ThreeJSSceneExtractor.extractTexturesFromMaterial(threeObj.material, textureUrls);
       }
 
       // 子オブジェクトを再帰的に処理
@@ -748,7 +725,7 @@ export class ThreeJSSceneExtractor {
     };
 
     for (const scene of scenes) {
-      if (scene && typeof scene === 'object') {
+      if (scene && typeof scene === "object") {
         const sceneObj = scene as Record<string, unknown>;
 
         // シーン直下のオブジェクト
@@ -762,7 +739,7 @@ export class ThreeJSSceneExtractor {
 
     // フィルタリング（data:, blob: を除外）
     const filteredUrls = Array.from(textureUrls)
-      .filter((url) => !url.startsWith('data:') && !url.startsWith('blob:'))
+      .filter((url) => !url.startsWith("data:") && !url.startsWith("blob:"))
       .slice(0, ThreeJSSceneExtractor.MAX_TEXTURES_DEFAULT);
 
     return filteredUrls;
@@ -771,44 +748,49 @@ export class ThreeJSSceneExtractor {
   /**
    * マテリアルからテクスチャURLを抽出
    */
-  private static extractTexturesFromMaterial(
-    material: unknown,
-    textureUrls: Set<string>
-  ): void {
-    if (!material || typeof material !== 'object') {
+  private static extractTexturesFromMaterial(material: unknown, textureUrls: Set<string>): void {
+    if (!material || typeof material !== "object") {
       return;
     }
 
     const mat = material as Record<string, unknown>;
-    const textureProps = ['map', 'normalMap', 'envMap', 'aoMap', 'emissiveMap', 'roughnessMap', 'metalnessMap'];
+    const textureProps = [
+      "map",
+      "normalMap",
+      "envMap",
+      "aoMap",
+      "emissiveMap",
+      "roughnessMap",
+      "metalnessMap",
+    ];
 
     for (const prop of textureProps) {
-      if (mat[prop] && typeof mat[prop] === 'object') {
+      if (mat[prop] && typeof mat[prop] === "object") {
         const texture = mat[prop] as Record<string, unknown>;
 
         // source.data.src からURL取得
-        if (texture.source && typeof texture.source === 'object') {
+        if (texture.source && typeof texture.source === "object") {
           const source = texture.source as Record<string, unknown>;
-          if (source.data && typeof source.data === 'object') {
+          if (source.data && typeof source.data === "object") {
             const data = source.data as Record<string, unknown>;
-            if (typeof data.src === 'string' && data.src.length > 0) {
+            if (typeof data.src === "string" && data.src.length > 0) {
               textureUrls.add(data.src);
             }
           }
         }
 
         // image.src からURL取得（代替パス）
-        if (texture.image && typeof texture.image === 'object') {
+        if (texture.image && typeof texture.image === "object") {
           const image = texture.image as Record<string, unknown>;
-          if (typeof image.src === 'string' && image.src.length > 0) {
+          if (typeof image.src === "string" && image.src.length > 0) {
             textureUrls.add(image.src);
           }
         }
 
         // name からURL取得（代替パス）
-        if (typeof texture.name === 'string' && texture.name.length > 0) {
+        if (typeof texture.name === "string" && texture.name.length > 0) {
           // ファイル名のような文字列の場合のみ
-          if (texture.name.includes('.')) {
+          if (texture.name.includes(".")) {
             textureUrls.add(texture.name);
           }
         }
@@ -834,25 +816,25 @@ export class ThreeJSSceneExtractor {
    * @returns マテリアル情報またはundefined
    */
   static extractMaterialInfo(material: unknown): MaterialInfo | undefined {
-    if (!material || typeof material !== 'object') {
+    if (!material || typeof material !== "object") {
       return undefined;
     }
 
     const mat = material as Record<string, unknown>;
-    const type = typeof mat.type === 'string' ? mat.type : 'Material';
+    const type = typeof mat.type === "string" ? mat.type : "Material";
 
     const info: MaterialInfo = { type };
 
     // シェーダーマテリアルの場合は簡略化
-    if (type === 'ShaderMaterial' || type === 'RawShaderMaterial') {
+    if (type === "ShaderMaterial" || type === "RawShaderMaterial") {
       info.hasCustomShaders = true;
       return info;
     }
 
     // 色
-    if (mat.color && typeof mat.color === 'object') {
+    if (mat.color && typeof mat.color === "object") {
       const color = mat.color as Record<string, unknown>;
-      if (typeof color.getHexString === 'function') {
+      if (typeof color.getHexString === "function") {
         try {
           info.color = `#${(color.getHexString as () => string)()}`;
         } catch {
@@ -862,9 +844,9 @@ export class ThreeJSSceneExtractor {
     }
 
     // 放射色
-    if (mat.emissive && typeof mat.emissive === 'object') {
+    if (mat.emissive && typeof mat.emissive === "object") {
       const emissive = mat.emissive as Record<string, unknown>;
-      if (typeof emissive.getHexString === 'function') {
+      if (typeof emissive.getHexString === "function") {
         try {
           info.emissive = `#${(emissive.getHexString as () => string)()}`;
         } catch {
@@ -892,25 +874,25 @@ export class ThreeJSSceneExtractor {
     }
 
     // 透明フラグ
-    if (typeof mat.transparent === 'boolean') {
+    if (typeof mat.transparent === "boolean") {
       info.transparent = mat.transparent;
     }
 
     // ワイヤーフレームフラグ
-    if (typeof mat.wireframe === 'boolean') {
+    if (typeof mat.wireframe === "boolean") {
       info.wireframe = mat.wireframe;
     }
 
     // テクスチャマップ参照
-    if (mat.map && typeof mat.map === 'object') {
+    if (mat.map && typeof mat.map === "object") {
       const map = mat.map as Record<string, unknown>;
-      if (typeof map.name === 'string') {
+      if (typeof map.name === "string") {
         info.map = map.name;
-      } else if (map.source && typeof map.source === 'object') {
+      } else if (map.source && typeof map.source === "object") {
         const source = map.source as Record<string, unknown>;
-        if (source.data && typeof source.data === 'object') {
+        if (source.data && typeof source.data === "object") {
           const data = source.data as Record<string, unknown>;
-          if (typeof data.src === 'string') {
+          if (typeof data.src === "string") {
             info.map = data.src;
           }
         }
@@ -918,9 +900,9 @@ export class ThreeJSSceneExtractor {
     }
 
     // ノーマルマップ参照
-    if (mat.normalMap && typeof mat.normalMap === 'object') {
+    if (mat.normalMap && typeof mat.normalMap === "object") {
       const normalMap = mat.normalMap as Record<string, unknown>;
-      if (typeof normalMap.name === 'string') {
+      if (typeof normalMap.name === "string") {
         info.normalMap = normalMap.name;
       }
     }
@@ -939,7 +921,6 @@ export class ThreeJSSceneExtractor {
    * @param options - 抽出オプション
    * @returns 抽出結果またはnull
    */
-  /* eslint-disable no-undef -- page.evaluate() runs in browser context */
   static async extractFromPage(
     page: Page,
     options?: SceneGraphExtractOptions
@@ -957,329 +938,323 @@ export class ThreeJSSceneExtractor {
     };
 
     try {
-      const rawData = await page.evaluate(
-        (evalOpts: Required<SceneGraphExtractOptions>) => {
-          // windowの型拡張
-          const win = window as unknown as {
-            THREE?: {
-              REVISION?: string;
-            };
-            __THREE_DEVTOOLS__?: {
-              scenes?: unknown[];
-              renderers?: unknown[];
-            };
+      const rawData = await page.evaluate((evalOpts: Required<SceneGraphExtractOptions>) => {
+        // windowの型拡張
+        const win = window as unknown as {
+          THREE?: {
+            REVISION?: string;
           };
+          __THREE_DEVTOOLS__?: {
+            scenes?: unknown[];
+            renderers?: unknown[];
+          };
+        };
 
-          // Three.jsが存在しない場合
-          if (typeof win.THREE === 'undefined') {
-            return null;
-          }
+        // Three.jsが存在しない場合
+        if (typeof win.THREE === "undefined") {
+          return null;
+        }
 
-          // バージョン取得
-          const revision = win.THREE.REVISION;
-          const version =
-            typeof revision === 'string'
-              ? revision.startsWith('r')
-                ? revision
-                : `r${revision}`
-              : undefined;
+        // バージョン取得
+        const revision = win.THREE.REVISION;
+        const version =
+          typeof revision === "string"
+            ? revision.startsWith("r")
+              ? revision
+              : `r${revision}`
+            : undefined;
 
-          // シーン情報収集
-          const scenesData: Array<{
-            uuid: string;
-            name?: string;
-            background?: { hex: string };
-            fog?: {
-              type: string;
-              color: string;
-              density?: number;
-              near?: number;
-              far?: number;
-            };
-            children: unknown[];
-            totalChildrenCount: number;
-          }> = [];
+        // シーン情報収集
+        const scenesData: Array<{
+          uuid: string;
+          name?: string;
+          background?: { hex: string };
+          fog?: {
+            type: string;
+            color: string;
+            density?: number;
+            near?: number;
+            far?: number;
+          };
+          children: unknown[];
+          totalChildrenCount: number;
+        }> = [];
 
-          let webglContextCount = 0;
+        let webglContextCount = 0;
 
-          // canvas要素からWebGLコンテキスト数をカウント
-          const canvases = document.querySelectorAll('canvas');
-          canvases.forEach((canvas) => {
-            try {
-              const gl = canvas.getContext('webgl') || canvas.getContext('webgl2');
-              if (gl) {
-                webglContextCount++;
-              }
-            } catch {
-              // コンテキスト取得失敗は無視
+        // canvas要素からWebGLコンテキスト数をカウント
+        const canvases = document.querySelectorAll("canvas");
+        canvases.forEach((canvas) => {
+          try {
+            const gl = canvas.getContext("webgl") || canvas.getContext("webgl2");
+            if (gl) {
+              webglContextCount++;
             }
-          });
+          } catch {
+            // コンテキスト取得失敗は無視
+          }
+        });
 
-          // __THREE_DEVTOOLS__から詳細情報を取得
-          if (win.__THREE_DEVTOOLS__?.scenes && Array.isArray(win.__THREE_DEVTOOLS__.scenes)) {
-            const devtoolScenes = win.__THREE_DEVTOOLS__.scenes.slice(0, evalOpts.maxScenes);
+        // __THREE_DEVTOOLS__から詳細情報を取得
+        if (win.__THREE_DEVTOOLS__?.scenes && Array.isArray(win.__THREE_DEVTOOLS__.scenes)) {
+          const devtoolScenes = win.__THREE_DEVTOOLS__.scenes.slice(0, evalOpts.maxScenes);
 
-            for (const scene of devtoolScenes) {
-              if (!scene || typeof scene !== 'object') {
-                continue;
+          for (const scene of devtoolScenes) {
+            if (!scene || typeof scene !== "object") {
+              continue;
+            }
+
+            const sceneObj = scene as Record<string, unknown>;
+            const uuid =
+              typeof sceneObj.uuid === "string" ? sceneObj.uuid : `auto-${scenesData.length}`;
+
+            const sceneData: {
+              uuid: string;
+              name?: string;
+              background?: { hex: string };
+              fog?: {
+                type: string;
+                color: string;
+                density?: number;
+                near?: number;
+                far?: number;
+              };
+              children: unknown[];
+              totalChildrenCount: number;
+            } = {
+              uuid,
+              children: [],
+              totalChildrenCount: 0,
+            };
+
+            // 名前
+            if (typeof sceneObj.name === "string" && sceneObj.name !== "") {
+              sceneData.name = sceneObj.name;
+            }
+
+            // 背景色
+            if (sceneObj.background && typeof sceneObj.background === "object") {
+              const bg = sceneObj.background as Record<string, unknown>;
+              if (bg.isColor && typeof bg.getHexString === "function") {
+                try {
+                  sceneData.background = { hex: (bg.getHexString as () => string)() };
+                } catch {
+                  // 取得失敗は無視
+                }
+              }
+            }
+
+            // フォグ
+            if (sceneObj.fog && typeof sceneObj.fog === "object") {
+              const fogObj = sceneObj.fog as Record<string, unknown>;
+              const fogColor = fogObj.color as Record<string, unknown> | undefined;
+
+              let colorHex = "000000";
+              if (fogColor && typeof fogColor.getHexString === "function") {
+                try {
+                  colorHex = (fogColor.getHexString as () => string)();
+                } catch {
+                  // 取得失敗は無視
+                }
               }
 
-              const sceneObj = scene as Record<string, unknown>;
-              const uuid =
-                typeof sceneObj.uuid === 'string' ? sceneObj.uuid : `auto-${scenesData.length}`;
-
-              const sceneData: {
-                uuid: string;
-                name?: string;
-                background?: { hex: string };
-                fog?: {
-                  type: string;
-                  color: string;
-                  density?: number;
-                  near?: number;
-                  far?: number;
-                };
-                children: unknown[];
-                totalChildrenCount: number;
-              } = {
-                uuid,
-                children: [],
-                totalChildrenCount: 0,
+              sceneData.fog = {
+                type: fogObj.isFogExp2 === true ? "FogExp2" : "Fog",
+                color: colorHex,
               };
 
-              // 名前
-              if (typeof sceneObj.name === 'string' && sceneObj.name !== '') {
-                sceneData.name = sceneObj.name;
+              if (typeof fogObj.density === "number" && Number.isFinite(fogObj.density)) {
+                sceneData.fog.density = fogObj.density;
+              }
+              if (typeof fogObj.near === "number" && Number.isFinite(fogObj.near)) {
+                sceneData.fog.near = fogObj.near;
+              }
+              if (typeof fogObj.far === "number" && Number.isFinite(fogObj.far)) {
+                sceneData.fog.far = fogObj.far;
+              }
+            }
+
+            // 子オブジェクト（シリアライズ可能な形式に変換）
+            const serializeObject = (obj: unknown, depth: number): unknown => {
+              if (depth > evalOpts.maxDepth || !obj || typeof obj !== "object") {
+                return depth > evalOpts.maxDepth ? { truncated: true } : null;
               }
 
-              // 背景色
-              if (sceneObj.background && typeof sceneObj.background === 'object') {
-                const bg = sceneObj.background as Record<string, unknown>;
-                if (bg.isColor && typeof bg.getHexString === 'function') {
-                  try {
-                    sceneData.background = { hex: (bg.getHexString as () => string)() };
-                  } catch {
-                    // 取得失敗は無視
-                  }
+              const threeObj = obj as Record<string, unknown>;
+              const result: Record<string, unknown> = {
+                type: typeof threeObj.type === "string" ? threeObj.type : "Object3D",
+              };
+
+              if (typeof threeObj.uuid === "string") {
+                result.uuid = threeObj.uuid;
+              }
+              if (typeof threeObj.name === "string" && threeObj.name !== "") {
+                result.name = threeObj.name;
+              }
+
+              // 位置
+              if (threeObj.position && typeof threeObj.position === "object") {
+                const pos = threeObj.position as Record<string, unknown>;
+                if (
+                  typeof pos.x === "number" &&
+                  typeof pos.y === "number" &&
+                  typeof pos.z === "number" &&
+                  Number.isFinite(pos.x) &&
+                  Number.isFinite(pos.y) &&
+                  Number.isFinite(pos.z)
+                ) {
+                  result.position = { x: pos.x, y: pos.y, z: pos.z };
                 }
               }
 
-              // フォグ
-              if (sceneObj.fog && typeof sceneObj.fog === 'object') {
-                const fogObj = sceneObj.fog as Record<string, unknown>;
-                const fogColor = fogObj.color as Record<string, unknown> | undefined;
-
-                let colorHex = '000000';
-                if (fogColor && typeof fogColor.getHexString === 'function') {
-                  try {
-                    colorHex = (fogColor.getHexString as () => string)();
-                  } catch {
-                    // 取得失敗は無視
-                  }
+              // 回転
+              if (threeObj.rotation && typeof threeObj.rotation === "object") {
+                const rot = threeObj.rotation as Record<string, unknown>;
+                if (
+                  typeof rot.x === "number" &&
+                  typeof rot.y === "number" &&
+                  typeof rot.z === "number" &&
+                  Number.isFinite(rot.x) &&
+                  Number.isFinite(rot.y) &&
+                  Number.isFinite(rot.z)
+                ) {
+                  result.rotation = { x: rot.x, y: rot.y, z: rot.z };
                 }
+              }
 
-                sceneData.fog = {
-                  type: fogObj.isFogExp2 === true ? 'FogExp2' : 'Fog',
-                  color: colorHex,
+              // スケール
+              if (threeObj.scale && typeof threeObj.scale === "object") {
+                const scl = threeObj.scale as Record<string, unknown>;
+                if (
+                  typeof scl.x === "number" &&
+                  typeof scl.y === "number" &&
+                  typeof scl.z === "number" &&
+                  Number.isFinite(scl.x) &&
+                  Number.isFinite(scl.y) &&
+                  Number.isFinite(scl.z)
+                ) {
+                  result.scale = { x: scl.x, y: scl.y, z: scl.z };
+                }
+              }
+
+              // ジオメトリ
+              if (threeObj.geometry && typeof threeObj.geometry === "object") {
+                const geo = threeObj.geometry as Record<string, unknown>;
+                result.geometry = {
+                  type: typeof geo.type === "string" ? geo.type : "BufferGeometry",
                 };
-
-                if (typeof fogObj.density === 'number' && Number.isFinite(fogObj.density)) {
-                  sceneData.fog.density = fogObj.density;
-                }
-                if (typeof fogObj.near === 'number' && Number.isFinite(fogObj.near)) {
-                  sceneData.fog.near = fogObj.near;
-                }
-                if (typeof fogObj.far === 'number' && Number.isFinite(fogObj.far)) {
-                  sceneData.fog.far = fogObj.far;
-                }
               }
 
-              // 子オブジェクト（シリアライズ可能な形式に変換）
-              const serializeObject = (
-                obj: unknown,
-                depth: number
-              ): unknown => {
-                if (depth > evalOpts.maxDepth || !obj || typeof obj !== 'object') {
-                  return depth > evalOpts.maxDepth ? { truncated: true } : null;
-                }
-
-                const threeObj = obj as Record<string, unknown>;
-                const result: Record<string, unknown> = {
-                  type: typeof threeObj.type === 'string' ? threeObj.type : 'Object3D',
-                };
-
-                if (typeof threeObj.uuid === 'string') {
-                  result.uuid = threeObj.uuid;
-                }
-                if (typeof threeObj.name === 'string' && threeObj.name !== '') {
-                  result.name = threeObj.name;
-                }
-
-                // 位置
-                if (threeObj.position && typeof threeObj.position === 'object') {
-                  const pos = threeObj.position as Record<string, unknown>;
-                  if (
-                    typeof pos.x === 'number' &&
-                    typeof pos.y === 'number' &&
-                    typeof pos.z === 'number' &&
-                    Number.isFinite(pos.x) &&
-                    Number.isFinite(pos.y) &&
-                    Number.isFinite(pos.z)
-                  ) {
-                    result.position = { x: pos.x, y: pos.y, z: pos.z };
-                  }
-                }
-
-                // 回転
-                if (threeObj.rotation && typeof threeObj.rotation === 'object') {
-                  const rot = threeObj.rotation as Record<string, unknown>;
-                  if (
-                    typeof rot.x === 'number' &&
-                    typeof rot.y === 'number' &&
-                    typeof rot.z === 'number' &&
-                    Number.isFinite(rot.x) &&
-                    Number.isFinite(rot.y) &&
-                    Number.isFinite(rot.z)
-                  ) {
-                    result.rotation = { x: rot.x, y: rot.y, z: rot.z };
-                  }
-                }
-
-                // スケール
-                if (threeObj.scale && typeof threeObj.scale === 'object') {
-                  const scl = threeObj.scale as Record<string, unknown>;
-                  if (
-                    typeof scl.x === 'number' &&
-                    typeof scl.y === 'number' &&
-                    typeof scl.z === 'number' &&
-                    Number.isFinite(scl.x) &&
-                    Number.isFinite(scl.y) &&
-                    Number.isFinite(scl.z)
-                  ) {
-                    result.scale = { x: scl.x, y: scl.y, z: scl.z };
-                  }
-                }
-
-                // ジオメトリ
-                if (threeObj.geometry && typeof threeObj.geometry === 'object') {
-                  const geo = threeObj.geometry as Record<string, unknown>;
-                  result.geometry = {
-                    type: typeof geo.type === 'string' ? geo.type : 'BufferGeometry',
+              // マテリアル
+              if (evalOpts.extractMaterialDetails && threeObj.material) {
+                if (typeof threeObj.material === "object") {
+                  const mat = threeObj.material as Record<string, unknown>;
+                  const matData: Record<string, unknown> = {
+                    type: typeof mat.type === "string" ? mat.type : "Material",
                   };
-                }
 
-                // マテリアル
-                if (evalOpts.extractMaterialDetails && threeObj.material) {
-                  if (typeof threeObj.material === 'object') {
-                    const mat = threeObj.material as Record<string, unknown>;
-                    const matData: Record<string, unknown> = {
-                      type: typeof mat.type === 'string' ? mat.type : 'Material',
-                    };
-
-                    // 色
-                    if (mat.color && typeof mat.color === 'object') {
-                      const color = mat.color as Record<string, unknown>;
-                      if (typeof color.getHexString === 'function') {
-                        try {
-                          matData.color = (color.getHexString as () => string)();
-                        } catch {
-                          // 無視
-                        }
-                      }
-                    }
-
-                    // PBRプロパティ
-                    if (typeof mat.metalness === 'number' && Number.isFinite(mat.metalness)) {
-                      matData.metalness = mat.metalness;
-                    }
-                    if (typeof mat.roughness === 'number' && Number.isFinite(mat.roughness)) {
-                      matData.roughness = mat.roughness;
-                    }
-                    if (typeof mat.opacity === 'number' && Number.isFinite(mat.opacity)) {
-                      matData.opacity = mat.opacity;
-                    }
-                    if (typeof mat.transparent === 'boolean') {
-                      matData.transparent = mat.transparent;
-                    }
-
-                    result.material = matData;
-                  }
-                }
-
-                // ライト固有
-                if (result.type && typeof result.type === 'string' && result.type.includes('Light')) {
-                  if (threeObj.color && typeof threeObj.color === 'object') {
-                    const color = threeObj.color as Record<string, unknown>;
-                    if (typeof color.getHexString === 'function') {
+                  // 色
+                  if (mat.color && typeof mat.color === "object") {
+                    const color = mat.color as Record<string, unknown>;
+                    if (typeof color.getHexString === "function") {
                       try {
-                        result.lightColor = (color.getHexString as () => string)();
+                        matData.color = (color.getHexString as () => string)();
                       } catch {
                         // 無視
                       }
                     }
                   }
-                  if (typeof threeObj.intensity === 'number' && Number.isFinite(threeObj.intensity)) {
-                    result.intensity = threeObj.intensity;
+
+                  // PBRプロパティ
+                  if (typeof mat.metalness === "number" && Number.isFinite(mat.metalness)) {
+                    matData.metalness = mat.metalness;
                   }
-                }
-
-                // InstancedMesh
-                if (result.type === 'InstancedMesh' || threeObj.isInstancedMesh === true) {
-                  if (typeof threeObj.count === 'number' && Number.isFinite(threeObj.count)) {
-                    result.instanceCount = threeObj.count;
+                  if (typeof mat.roughness === "number" && Number.isFinite(mat.roughness)) {
+                    matData.roughness = mat.roughness;
                   }
-                }
-
-                // 子オブジェクト
-                if (Array.isArray(threeObj.children) && threeObj.children.length > 0) {
-                  const children = threeObj.children.slice(0, evalOpts.maxChildrenPerScene);
-                  result.children = children.map((child) =>
-                    serializeObject(child, depth + 1)
-                  ).filter((c): c is Record<string, unknown> => c !== null);
-
-                  if (threeObj.children.length > evalOpts.maxChildrenPerScene) {
-                    result.childrenTruncated = true;
+                  if (typeof mat.opacity === "number" && Number.isFinite(mat.opacity)) {
+                    matData.opacity = mat.opacity;
                   }
+                  if (typeof mat.transparent === "boolean") {
+                    matData.transparent = mat.transparent;
+                  }
+
+                  result.material = matData;
                 }
-
-                return result;
-              };
-
-              if (Array.isArray(sceneObj.children)) {
-                sceneData.totalChildrenCount = sceneObj.children.length;
-                const limitedChildren = sceneObj.children.slice(0, evalOpts.maxChildrenPerScene);
-                sceneData.children = limitedChildren
-                  .map((child) => serializeObject(child, 1))
-                  .filter((c): c is Record<string, unknown> => c !== null);
               }
 
-              scenesData.push(sceneData);
-            }
-          }
+              // ライト固有
+              if (result.type && typeof result.type === "string" && result.type.includes("Light")) {
+                if (threeObj.color && typeof threeObj.color === "object") {
+                  const color = threeObj.color as Record<string, unknown>;
+                  if (typeof color.getHexString === "function") {
+                    try {
+                      result.lightColor = (color.getHexString as () => string)();
+                    } catch {
+                      // 無視
+                    }
+                  }
+                }
+                if (typeof threeObj.intensity === "number" && Number.isFinite(threeObj.intensity)) {
+                  result.intensity = threeObj.intensity;
+                }
+              }
 
-          // __THREE_DEVTOOLS__がない場合、WebGLコンテキスト数に基づいてダミーシーン生成
-          if (scenesData.length === 0 && webglContextCount > 0) {
-            for (let i = 0; i < Math.min(webglContextCount, evalOpts.maxScenes); i++) {
-              scenesData.push({
-                uuid: `scene-${i}`,
-                children: [],
-                totalChildrenCount: 0,
-              });
-            }
-          }
+              // InstancedMesh
+              if (result.type === "InstancedMesh" || threeObj.isInstancedMesh === true) {
+                if (typeof threeObj.count === "number" && Number.isFinite(threeObj.count)) {
+                  result.instanceCount = threeObj.count;
+                }
+              }
 
-          return {
-            version,
-            scenesData,
-            webglContextCount,
-          };
-        },
-        opts
-      );
+              // 子オブジェクト
+              if (Array.isArray(threeObj.children) && threeObj.children.length > 0) {
+                const children = threeObj.children.slice(0, evalOpts.maxChildrenPerScene);
+                result.children = children
+                  .map((child) => serializeObject(child, depth + 1))
+                  .filter((c): c is Record<string, unknown> => c !== null);
+
+                if (threeObj.children.length > evalOpts.maxChildrenPerScene) {
+                  result.childrenTruncated = true;
+                }
+              }
+
+              return result;
+            };
+
+            if (Array.isArray(sceneObj.children)) {
+              sceneData.totalChildrenCount = sceneObj.children.length;
+              const limitedChildren = sceneObj.children.slice(0, evalOpts.maxChildrenPerScene);
+              sceneData.children = limitedChildren
+                .map((child) => serializeObject(child, 1))
+                .filter((c): c is Record<string, unknown> => c !== null);
+            }
+
+            scenesData.push(sceneData);
+          }
+        }
+
+        // __THREE_DEVTOOLS__がない場合、WebGLコンテキスト数に基づいてダミーシーン生成
+        if (scenesData.length === 0 && webglContextCount > 0) {
+          for (let i = 0; i < Math.min(webglContextCount, evalOpts.maxScenes); i++) {
+            scenesData.push({
+              uuid: `scene-${i}`,
+              children: [],
+              totalChildrenCount: 0,
+            });
+          }
+        }
+
+        return {
+          version,
+          scenesData,
+          webglContextCount,
+        };
+      }, opts);
 
       if (!rawData) {
         if (isDevelopment()) {
-          logger.debug('[ThreeJSSceneExtractor] Three.js not detected on page');
+          logger.debug("[ThreeJSSceneExtractor] Three.js not detected on page");
         }
         return null;
       }
@@ -1310,7 +1285,7 @@ export class ThreeJSSceneExtractor {
           obj: unknown,
           depth: number
         ): { node: SceneGraphNode | null; count: number; truncated: boolean } => {
-          if (!obj || typeof obj !== 'object') {
+          if (!obj || typeof obj !== "object") {
             return { node: null, count: 0, truncated: false };
           }
 
@@ -1318,86 +1293,86 @@ export class ThreeJSSceneExtractor {
 
           if (data.truncated === true) {
             return {
-              node: { type: 'Group', truncated: true, depth },
+              node: { type: "Group", truncated: true, depth },
               count: 0,
               truncated: true,
             };
           }
 
           const node: SceneGraphNode = {
-            type: typeof data.type === 'string' ? data.type : 'Object3D',
+            type: typeof data.type === "string" ? data.type : "Object3D",
             depth,
           };
 
-          if (typeof data.uuid === 'string') {
+          if (typeof data.uuid === "string") {
             node.uuid = data.uuid;
           }
-          if (typeof data.name === 'string') {
+          if (typeof data.name === "string") {
             node.name = data.name;
           }
 
           // 位置
-          if (data.position && typeof data.position === 'object') {
+          if (data.position && typeof data.position === "object") {
             const pos = data.position as Record<string, unknown>;
             if (
-              typeof pos.x === 'number' &&
-              typeof pos.y === 'number' &&
-              typeof pos.z === 'number'
+              typeof pos.x === "number" &&
+              typeof pos.y === "number" &&
+              typeof pos.z === "number"
             ) {
               node.position = [pos.x, pos.y, pos.z];
             }
           }
 
           // 回転
-          if (data.rotation && typeof data.rotation === 'object') {
+          if (data.rotation && typeof data.rotation === "object") {
             const rot = data.rotation as Record<string, unknown>;
             if (
-              typeof rot.x === 'number' &&
-              typeof rot.y === 'number' &&
-              typeof rot.z === 'number'
+              typeof rot.x === "number" &&
+              typeof rot.y === "number" &&
+              typeof rot.z === "number"
             ) {
               node.rotation = [rot.x, rot.y, rot.z];
             }
           }
 
           // スケール
-          if (data.scale && typeof data.scale === 'object') {
+          if (data.scale && typeof data.scale === "object") {
             const scl = data.scale as Record<string, unknown>;
             if (
-              typeof scl.x === 'number' &&
-              typeof scl.y === 'number' &&
-              typeof scl.z === 'number'
+              typeof scl.x === "number" &&
+              typeof scl.y === "number" &&
+              typeof scl.z === "number"
             ) {
               node.scale = [scl.x, scl.y, scl.z];
             }
           }
 
           // ジオメトリ
-          if (data.geometry && typeof data.geometry === 'object') {
+          if (data.geometry && typeof data.geometry === "object") {
             const geo = data.geometry as Record<string, unknown>;
-            node.geometry = typeof geo.type === 'string' ? geo.type : 'BufferGeometry';
+            node.geometry = typeof geo.type === "string" ? geo.type : "BufferGeometry";
           }
 
           // マテリアル
-          if (data.material && typeof data.material === 'object') {
+          if (data.material && typeof data.material === "object") {
             const mat = data.material as Record<string, unknown>;
             const materialInfo: MaterialInfo = {
-              type: typeof mat.type === 'string' ? mat.type : 'Material',
+              type: typeof mat.type === "string" ? mat.type : "Material",
             };
 
-            if (typeof mat.color === 'string') {
+            if (typeof mat.color === "string") {
               materialInfo.color = `#${mat.color}`;
             }
-            if (typeof mat.metalness === 'number') {
+            if (typeof mat.metalness === "number") {
               materialInfo.metalness = mat.metalness;
             }
-            if (typeof mat.roughness === 'number') {
+            if (typeof mat.roughness === "number") {
               materialInfo.roughness = mat.roughness;
             }
-            if (typeof mat.opacity === 'number') {
+            if (typeof mat.opacity === "number") {
               materialInfo.opacity = mat.opacity;
             }
-            if (typeof mat.transparent === 'boolean') {
+            if (typeof mat.transparent === "boolean") {
               materialInfo.transparent = mat.transparent;
             }
 
@@ -1405,15 +1380,15 @@ export class ThreeJSSceneExtractor {
           }
 
           // ライト色
-          if (typeof data.lightColor === 'string') {
+          if (typeof data.lightColor === "string") {
             node.color = `#${data.lightColor}`;
           }
-          if (typeof data.intensity === 'number') {
+          if (typeof data.intensity === "number") {
             node.intensity = data.intensity;
           }
 
           // InstancedMesh
-          if (typeof data.instanceCount === 'number') {
+          if (typeof data.instanceCount === "number") {
             node.instanceCount = data.instanceCount;
           }
 
@@ -1451,8 +1426,7 @@ export class ThreeJSSceneExtractor {
         }
 
         limitsApplied.childrenLimit =
-          limitsApplied.childrenLimit ||
-          sceneData.totalChildrenCount > opts.maxChildrenPerScene;
+          limitsApplied.childrenLimit || sceneData.totalChildrenCount > opts.maxChildrenPerScene;
         limitsApplied.depthLimit = limitsApplied.depthLimit || sceneTruncated;
         totalExtractedObjects += sceneObjectCount;
 
@@ -1494,9 +1468,7 @@ export class ThreeJSSceneExtractor {
 
       if (jsonSizeBytes > opts.maxJsonSize) {
         limitsApplied.sizeLimit = true;
-        errors.push(
-          `JSON size (${jsonSizeBytes} bytes) exceeds limit (${opts.maxJsonSize} bytes)`
-        );
+        errors.push(`JSON size (${jsonSizeBytes} bytes) exceeds limit (${opts.maxJsonSize} bytes)`);
       }
 
       const processingTimeMs = Date.now() - startTime;
@@ -1530,7 +1502,7 @@ export class ThreeJSSceneExtractor {
       }
 
       if (isDevelopment()) {
-        logger.debug('[ThreeJSSceneExtractor] Extraction completed', {
+        logger.debug("[ThreeJSSceneExtractor] Extraction completed", {
           version: result.version,
           scenesCount: result.scenes.length,
           extractedObjects: totalExtractedObjects,
@@ -1542,7 +1514,7 @@ export class ThreeJSSceneExtractor {
       return result;
     } catch (error) {
       if (isDevelopment()) {
-        logger.error('[ThreeJSSceneExtractor] Extraction failed', { error });
+        logger.error("[ThreeJSSceneExtractor] Extraction failed", { error });
       }
 
       return {
@@ -1563,11 +1535,10 @@ export class ThreeJSSceneExtractor {
             sizeLimit: false,
           },
         },
-        errors: [error instanceof Error ? error.message : 'Unknown error'],
+        errors: [error instanceof Error ? error.message : "Unknown error"],
       };
     }
   }
-  /* eslint-enable no-undef */
 }
 
 // =====================================================

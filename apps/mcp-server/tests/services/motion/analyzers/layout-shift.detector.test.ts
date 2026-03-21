@@ -17,15 +17,15 @@
  * - poor: >= 0.25
  */
 
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach } from "vitest";
 import {
   LayoutShiftDetector,
   type LayoutShift,
   type DiffRegion,
   type Viewport,
-} from '../../../../src/services/motion/analyzers/layout-shift.detector';
+} from "../../../../src/services/motion/analyzers/layout-shift.detector";
 
-describe('LayoutShiftDetector', () => {
+describe("LayoutShiftDetector", () => {
   let detector: LayoutShiftDetector;
 
   beforeEach(() => {
@@ -35,8 +35,8 @@ describe('LayoutShiftDetector', () => {
   // ===========================================================================
   // detectShifts テスト
   // ===========================================================================
-  describe('detectShifts', () => {
-    it('空の差分領域配列の場合、空のシフト配列を返す', () => {
+  describe("detectShifts", () => {
+    it("空の差分領域配列の場合、空のシフト配列を返す", () => {
       const diffRegions: DiffRegion[] = [];
       const viewport: Viewport = { width: 1920, height: 1080 };
 
@@ -45,7 +45,7 @@ describe('LayoutShiftDetector', () => {
       expect(result).toEqual([]);
     });
 
-    it('単一の差分領域からシフトを検出する', () => {
+    it("単一の差分領域からシフトを検出する", () => {
       const diffRegions: DiffRegion[] = [
         {
           x: 100,
@@ -69,7 +69,7 @@ describe('LayoutShiftDetector', () => {
       });
     });
 
-    it('複数の差分領域から複数のシフトを検出する', () => {
+    it("複数の差分領域から複数のシフトを検出する", () => {
       const diffRegions: DiffRegion[] = [
         { x: 0, y: 0, width: 100, height: 100, changeIntensity: 0.5, pixelCount: 10000 },
         { x: 500, y: 500, width: 200, height: 200, changeIntensity: 0.7, pixelCount: 40000 },
@@ -81,7 +81,7 @@ describe('LayoutShiftDetector', () => {
       expect(shifts).toHaveLength(2);
     });
 
-    it('impactFractionは変化領域のビューポートに対する割合で計算される', () => {
+    it("impactFractionは変化領域のビューポートに対する割合で計算される", () => {
       // ビューポートの10%を占める領域
       const diffRegions: DiffRegion[] = [
         {
@@ -101,7 +101,7 @@ describe('LayoutShiftDetector', () => {
       expect(shifts[0].impactFraction).toBeCloseTo(0.1, 2);
     });
 
-    it('distanceFractionは移動距離のビューポート最大次元に対する割合で計算される', () => {
+    it("distanceFractionは移動距離のビューポート最大次元に対する割合で計算される", () => {
       // 中央から右に移動した領域（移動距離 = 192px）
       const diffRegions: DiffRegion[] = [
         {
@@ -123,7 +123,7 @@ describe('LayoutShiftDetector', () => {
       expect(shifts[0].distanceFraction).toBeCloseTo(0.1, 2);
     });
 
-    it('移動情報がない場合、distanceFractionはchangeIntensityに基づいて推定される', () => {
+    it("移動情報がない場合、distanceFractionはchangeIntensityに基づいて推定される", () => {
       const diffRegions: DiffRegion[] = [
         {
           x: 100,
@@ -147,8 +147,8 @@ describe('LayoutShiftDetector', () => {
   // ===========================================================================
   // calculateCLS テスト
   // ===========================================================================
-  describe('calculateCLS', () => {
-    it('空のシフト配列の場合、CLSは0を返す', () => {
+  describe("calculateCLS", () => {
+    it("空のシフト配列の場合、CLSは0を返す", () => {
       const shifts: LayoutShift[] = [];
 
       const cls = detector.calculateCLS(shifts);
@@ -156,7 +156,7 @@ describe('LayoutShiftDetector', () => {
       expect(cls).toBe(0);
     });
 
-    it('単一のシフトからCLSを計算する（impact * distance）', () => {
+    it("単一のシフトからCLSを計算する（impact * distance）", () => {
       const shifts: LayoutShift[] = [
         {
           region: { x: 0, y: 0, width: 100, height: 100 },
@@ -171,7 +171,7 @@ describe('LayoutShiftDetector', () => {
       expect(cls).toBeCloseTo(0.02, 4);
     });
 
-    it('複数のシフトからCLSを累積計算する', () => {
+    it("複数のシフトからCLSを累積計算する", () => {
       const shifts: LayoutShift[] = [
         {
           region: { x: 0, y: 0, width: 100, height: 100 },
@@ -193,7 +193,7 @@ describe('LayoutShiftDetector', () => {
       expect(cls).toBeCloseTo(0.05, 4);
     });
 
-    it('大きなシフトがある場合、高いCLSを返す', () => {
+    it("大きなシフトがある場合、高いCLSを返す", () => {
       const shifts: LayoutShift[] = [
         {
           region: { x: 0, y: 0, width: 500, height: 500 },
@@ -212,35 +212,35 @@ describe('LayoutShiftDetector', () => {
   // ===========================================================================
   // classifyShift テスト
   // ===========================================================================
-  describe('classifyShift', () => {
+  describe("classifyShift", () => {
     it('CLS < 0.1 の場合、"good" を返す', () => {
-      expect(detector.classifyShift(0)).toBe('good');
-      expect(detector.classifyShift(0.05)).toBe('good');
-      expect(detector.classifyShift(0.099)).toBe('good');
+      expect(detector.classifyShift(0)).toBe("good");
+      expect(detector.classifyShift(0.05)).toBe("good");
+      expect(detector.classifyShift(0.099)).toBe("good");
     });
 
     it('0.1 <= CLS < 0.25 の場合、"needs-improvement" を返す', () => {
-      expect(detector.classifyShift(0.1)).toBe('needs-improvement');
-      expect(detector.classifyShift(0.15)).toBe('needs-improvement');
-      expect(detector.classifyShift(0.249)).toBe('needs-improvement');
+      expect(detector.classifyShift(0.1)).toBe("needs-improvement");
+      expect(detector.classifyShift(0.15)).toBe("needs-improvement");
+      expect(detector.classifyShift(0.249)).toBe("needs-improvement");
     });
 
     it('CLS >= 0.25 の場合、"poor" を返す', () => {
-      expect(detector.classifyShift(0.25)).toBe('poor');
-      expect(detector.classifyShift(0.5)).toBe('poor');
-      expect(detector.classifyShift(1.0)).toBe('poor');
+      expect(detector.classifyShift(0.25)).toBe("poor");
+      expect(detector.classifyShift(0.5)).toBe("poor");
+      expect(detector.classifyShift(1.0)).toBe("poor");
     });
 
     it('負の値の場合、"good" を返す（エッジケース）', () => {
-      expect(detector.classifyShift(-0.1)).toBe('good');
+      expect(detector.classifyShift(-0.1)).toBe("good");
     });
   });
 
   // ===========================================================================
   // analyzeFramePair テスト（統合）
   // ===========================================================================
-  describe('analyzeFramePair', () => {
-    it('同一フレームの場合、CLSは0でgoodを返す', () => {
+  describe("analyzeFramePair", () => {
+    it("同一フレームの場合、CLSは0でgoodを返す", () => {
       // 同一フレームは差分なし
       const diffRegions: DiffRegion[] = [];
       const viewport: Viewport = { width: 1920, height: 1080 };
@@ -249,14 +249,14 @@ describe('LayoutShiftDetector', () => {
 
       expect(result).toMatchObject({
         cls: 0,
-        classification: 'good',
+        classification: "good",
         shifts: [],
         impactFraction: 0,
         distanceFraction: 0,
       });
     });
 
-    it('小さな変化の場合、goodを返す', () => {
+    it("小さな変化の場合、goodを返す", () => {
       // ビューポートの1%未満の変化
       const diffRegions: DiffRegion[] = [
         {
@@ -273,10 +273,10 @@ describe('LayoutShiftDetector', () => {
       const result = detector.analyzeFramePair(diffRegions, viewport);
 
       expect(result.cls).toBeLessThan(0.1);
-      expect(result.classification).toBe('good');
+      expect(result.classification).toBe("good");
     });
 
-    it('中程度の変化の場合、needs-improvementを返す', () => {
+    it("中程度の変化の場合、needs-improvementを返す", () => {
       // CLS >= 0.1 かつ < 0.25 になるようなパラメータを設定
       // 目標CLS: 0.15
       // impactFraction = 0.5 (ビューポートの50%)
@@ -302,10 +302,10 @@ describe('LayoutShiftDetector', () => {
       // CLS = 0.5 * 0.3 = 0.15 -> needs-improvement
       expect(result.cls).toBeGreaterThanOrEqual(0.1);
       expect(result.cls).toBeLessThan(0.25);
-      expect(result.classification).toBe('needs-improvement');
+      expect(result.classification).toBe("needs-improvement");
     });
 
-    it('大きな変化の場合、poorを返す', () => {
+    it("大きな変化の場合、poorを返す", () => {
       // CLS >= 0.25 になるようなパラメータを設定
       // 目標CLS: 0.3
       // impactFraction = 0.6 (ビューポートの60%)
@@ -330,10 +330,10 @@ describe('LayoutShiftDetector', () => {
       // distanceFraction = 960 / 1920 = 0.5
       // CLS = 0.6 * 0.5 = 0.3 -> poor
       expect(result.cls).toBeGreaterThanOrEqual(0.25);
-      expect(result.classification).toBe('poor');
+      expect(result.classification).toBe("poor");
     });
 
-    it('結果にすべての詳細情報が含まれる', () => {
+    it("結果にすべての詳細情報が含まれる", () => {
       const diffRegions: DiffRegion[] = [
         {
           x: 100,
@@ -357,7 +357,7 @@ describe('LayoutShiftDetector', () => {
       });
     });
 
-    it('impactFractionとdistanceFractionは0-1の範囲内', () => {
+    it("impactFractionとdistanceFractionは0-1の範囲内", () => {
       const diffRegions: DiffRegion[] = [
         {
           x: 0,
@@ -383,22 +383,22 @@ describe('LayoutShiftDetector', () => {
   // ===========================================================================
   // エッジケース
   // ===========================================================================
-  describe('エッジケース', () => {
-    it('ビューポートサイズが0の場合、例外をスローする', () => {
+  describe("エッジケース", () => {
+    it("ビューポートサイズが0の場合、例外をスローする", () => {
       const diffRegions: DiffRegion[] = [];
       const viewport: Viewport = { width: 0, height: 0 };
 
-      expect(() => detector.detectShifts(diffRegions, viewport)).toThrow('Invalid viewport');
+      expect(() => detector.detectShifts(diffRegions, viewport)).toThrow("Invalid viewport");
     });
 
-    it('負のビューポートサイズの場合、例外をスローする', () => {
+    it("負のビューポートサイズの場合、例外をスローする", () => {
       const diffRegions: DiffRegion[] = [];
       const viewport: Viewport = { width: -100, height: 1080 };
 
-      expect(() => detector.detectShifts(diffRegions, viewport)).toThrow('Invalid viewport');
+      expect(() => detector.detectShifts(diffRegions, viewport)).toThrow("Invalid viewport");
     });
 
-    it('差分領域がビューポート外の場合も処理できる', () => {
+    it("差分領域がビューポート外の場合も処理できる", () => {
       const diffRegions: DiffRegion[] = [
         {
           x: 2000, // ビューポート外
@@ -416,7 +416,7 @@ describe('LayoutShiftDetector', () => {
       expect(shifts[0].impactFraction).toBe(0);
     });
 
-    it('非常に小さな差分領域は無視される（閾値以下）', () => {
+    it("非常に小さな差分領域は無視される（閾値以下）", () => {
       const diffRegions: DiffRegion[] = [
         {
           x: 100,
@@ -439,8 +439,8 @@ describe('LayoutShiftDetector', () => {
   // ===========================================================================
   // パフォーマンス要件
   // ===========================================================================
-  describe('パフォーマンス', () => {
-    it('100個の差分領域を1秒以内に処理できる', () => {
+  describe("パフォーマンス", () => {
+    it("100個の差分領域を1秒以内に処理できる", () => {
       const diffRegions: DiffRegion[] = Array.from({ length: 100 }, (_, i) => ({
         x: i * 10,
         y: i * 10,

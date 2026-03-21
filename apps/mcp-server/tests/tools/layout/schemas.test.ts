@@ -12,8 +12,8 @@
  * - layout.generate_code: パターンからReact/Vue/HTMLコードを生成
  * - layout.batch_ingest: 複数URLを一括取得しレイアウト解析用データを準備
  */
-import { describe, it, expect, beforeAll } from 'vitest';
-import { z } from 'zod';
+import { describe, it, expect, beforeAll } from "vitest";
+import { z } from "zod";
 
 // ============================================================================
 // スキーマインポート（TDD Red: 実装前はエラーになる）
@@ -60,68 +60,68 @@ import {
   type LayoutSearchInput,
   type LayoutToCodeInput,
   type LayoutPatternsInput,
-} from '../../../src/tools/layout/schemas';
+} from "../../../src/tools/layout/schemas";
 
 // ============================================================================
 // Test Utilities
 // ============================================================================
 
-const validUuid = '01939abc-def0-7000-8000-000000000001';
-const validUrl = 'https://example.com/page';
+const validUuid = "01939abc-def0-7000-8000-000000000001";
+const validUrl = "https://example.com/page";
 const sampleHtml = '<html><body><section class="hero">Hello</section></body></html>';
 
 // ============================================================================
 // Enum Schema Tests
 // ============================================================================
 
-describe('Enum Schemas', () => {
-  describe('sourceTypeSchema', () => {
+describe("Enum Schemas", () => {
+  describe("sourceTypeSchema", () => {
     it('should accept "award_gallery"', () => {
-      const result = sourceTypeSchema.safeParse('award_gallery');
+      const result = sourceTypeSchema.safeParse("award_gallery");
       expect(result.success).toBe(true);
-      if (result.success) expect(result.data).toBe('award_gallery');
+      if (result.success) expect(result.data).toBe("award_gallery");
     });
 
     it('should accept "user_provided"', () => {
-      const result = sourceTypeSchema.safeParse('user_provided');
+      const result = sourceTypeSchema.safeParse("user_provided");
       expect(result.success).toBe(true);
     });
 
-    it('should reject invalid source type', () => {
-      const result = sourceTypeSchema.safeParse('invalid_type');
+    it("should reject invalid source type", () => {
+      const result = sourceTypeSchema.safeParse("invalid_type");
       expect(result.success).toBe(false);
     });
   });
 
-  describe('usageScopeSchema', () => {
+  describe("usageScopeSchema", () => {
     it('should accept "inspiration_only"', () => {
-      const result = usageScopeSchema.safeParse('inspiration_only');
+      const result = usageScopeSchema.safeParse("inspiration_only");
       expect(result.success).toBe(true);
     });
 
     it('should accept "owned_asset"', () => {
-      const result = usageScopeSchema.safeParse('owned_asset');
+      const result = usageScopeSchema.safeParse("owned_asset");
       expect(result.success).toBe(true);
     });
 
-    it('should reject invalid usage scope', () => {
-      const result = usageScopeSchema.safeParse('commercial');
+    it("should reject invalid usage scope", () => {
+      const result = usageScopeSchema.safeParse("commercial");
       expect(result.success).toBe(false);
     });
   });
 
-  describe('sectionTypeForSearchSchema', () => {
+  describe("sectionTypeForSearchSchema", () => {
     const validTypes = [
-      'hero',
-      'feature',
-      'cta',
-      'testimonial',
-      'pricing',
-      'footer',
-      'navigation',
-      'about',
-      'contact',
-      'gallery',
+      "hero",
+      "feature",
+      "cta",
+      "testimonial",
+      "pricing",
+      "footer",
+      "navigation",
+      "about",
+      "contact",
+      "gallery",
     ];
 
     it.each(validTypes)('should accept "%s" section type', (type) => {
@@ -130,73 +130,73 @@ describe('Enum Schemas', () => {
     });
 
     it('should reject "unknown" section type (not allowed in search)', () => {
-      const result = sectionTypeForSearchSchema.safeParse('unknown');
+      const result = sectionTypeForSearchSchema.safeParse("unknown");
       expect(result.success).toBe(false);
     });
 
-    it('should reject invalid section type', () => {
-      const result = sectionTypeForSearchSchema.safeParse('invalid_section');
+    it("should reject invalid section type", () => {
+      const result = sectionTypeForSearchSchema.safeParse("invalid_section");
       expect(result.success).toBe(false);
     });
   });
 
-  describe('frameworkSchema', () => {
+  describe("frameworkSchema", () => {
     it('should accept "react"', () => {
-      const result = frameworkSchema.safeParse('react');
+      const result = frameworkSchema.safeParse("react");
       expect(result.success).toBe(true);
     });
 
     it('should accept "vue"', () => {
-      const result = frameworkSchema.safeParse('vue');
+      const result = frameworkSchema.safeParse("vue");
       expect(result.success).toBe(true);
     });
 
     it('should accept "html"', () => {
-      const result = frameworkSchema.safeParse('html');
+      const result = frameworkSchema.safeParse("html");
       expect(result.success).toBe(true);
     });
 
-    it('should reject invalid framework', () => {
-      const result = frameworkSchema.safeParse('angular');
+    it("should reject invalid framework", () => {
+      const result = frameworkSchema.safeParse("angular");
       expect(result.success).toBe(false);
     });
   });
 
-  describe('sortBySchema', () => {
+  describe("sortBySchema", () => {
     it('should accept "createdAt"', () => {
-      const result = sortBySchema.safeParse('createdAt');
+      const result = sortBySchema.safeParse("createdAt");
       expect(result.success).toBe(true);
     });
 
     it('should accept "usageCount"', () => {
-      const result = sortBySchema.safeParse('usageCount');
+      const result = sortBySchema.safeParse("usageCount");
       expect(result.success).toBe(true);
     });
 
     it('should accept "quality"', () => {
-      const result = sortBySchema.safeParse('quality');
+      const result = sortBySchema.safeParse("quality");
       expect(result.success).toBe(true);
     });
 
-    it('should reject invalid sort field', () => {
-      const result = sortBySchema.safeParse('name');
+    it("should reject invalid sort field", () => {
+      const result = sortBySchema.safeParse("name");
       expect(result.success).toBe(false);
     });
   });
 
-  describe('sortOrderSchema', () => {
+  describe("sortOrderSchema", () => {
     it('should accept "asc"', () => {
-      const result = sortOrderSchema.safeParse('asc');
+      const result = sortOrderSchema.safeParse("asc");
       expect(result.success).toBe(true);
     });
 
     it('should accept "desc"', () => {
-      const result = sortOrderSchema.safeParse('desc');
+      const result = sortOrderSchema.safeParse("desc");
       expect(result.success).toBe(true);
     });
 
-    it('should reject invalid sort order', () => {
-      const result = sortOrderSchema.safeParse('ascending');
+    it("should reject invalid sort order", () => {
+      const result = sortOrderSchema.safeParse("ascending");
       expect(result.success).toBe(false);
     });
   });
@@ -206,56 +206,56 @@ describe('Enum Schemas', () => {
 // layout.ingest Schema Tests
 // ============================================================================
 
-describe('layout.ingest Schema', () => {
-  describe('viewportSchema', () => {
-    it('should accept valid viewport dimensions', () => {
+describe("layout.ingest Schema", () => {
+  describe("viewportSchema", () => {
+    it("should accept valid viewport dimensions", () => {
       const result = viewportSchema.safeParse({ width: 1920, height: 1080 });
       expect(result.success).toBe(true);
     });
 
-    it('should accept minimum viewport dimensions', () => {
+    it("should accept minimum viewport dimensions", () => {
       const result = viewportSchema.safeParse({ width: 320, height: 240 });
       expect(result.success).toBe(true);
     });
 
-    it('should accept maximum viewport dimensions', () => {
+    it("should accept maximum viewport dimensions", () => {
       const result = viewportSchema.safeParse({ width: 4096, height: 16384 });
       expect(result.success).toBe(true);
     });
 
-    it('should reject width below minimum (320)', () => {
+    it("should reject width below minimum (320)", () => {
       const result = viewportSchema.safeParse({ width: 319, height: 600 });
       expect(result.success).toBe(false);
     });
 
-    it('should reject width above maximum (4096)', () => {
+    it("should reject width above maximum (4096)", () => {
       const result = viewportSchema.safeParse({ width: 4097, height: 600 });
       expect(result.success).toBe(false);
     });
 
-    it('should reject height below minimum (240)', () => {
+    it("should reject height below minimum (240)", () => {
       const result = viewportSchema.safeParse({ width: 1920, height: 239 });
       expect(result.success).toBe(false);
     });
 
-    it('should reject height above maximum (16384)', () => {
+    it("should reject height above maximum (16384)", () => {
       const result = viewportSchema.safeParse({ width: 1920, height: 16385 });
       expect(result.success).toBe(false);
     });
 
-    it('should reject non-integer width', () => {
+    it("should reject non-integer width", () => {
       const result = viewportSchema.safeParse({ width: 1920.5, height: 1080 });
       expect(result.success).toBe(false);
     });
 
-    it('should reject non-integer height', () => {
+    it("should reject non-integer height", () => {
       const result = viewportSchema.safeParse({ width: 1920, height: 1080.5 });
       expect(result.success).toBe(false);
     });
   });
 
-  describe('layoutIngestOptionsSchema', () => {
-    it('should accept empty options (all defaults)', () => {
+  describe("layoutIngestOptionsSchema", () => {
+    it("should accept empty options (all defaults)", () => {
       const result = layoutIngestOptionsSchema.safeParse({});
       expect(result.success).toBe(true);
       if (result.success) {
@@ -265,7 +265,7 @@ describe('layout.ingest Schema', () => {
       }
     });
 
-    it('should accept valid options with viewport', () => {
+    it("should accept valid options with viewport", () => {
       const result = layoutIngestOptionsSchema.safeParse({
         full_page: false,
         viewport: { width: 1920, height: 1080 },
@@ -274,28 +274,28 @@ describe('layout.ingest Schema', () => {
       expect(result.success).toBe(true);
     });
 
-    it('should accept wait_for_selector option', () => {
+    it("should accept wait_for_selector option", () => {
       const result = layoutIngestOptionsSchema.safeParse({
-        wait_for_selector: '.main-content',
+        wait_for_selector: ".main-content",
       });
       expect(result.success).toBe(true);
     });
 
-    it('should reject timeout below minimum (1000ms)', () => {
+    it("should reject timeout below minimum (1000ms)", () => {
       const result = layoutIngestOptionsSchema.safeParse({
         timeout: 999,
       });
       expect(result.success).toBe(false);
     });
 
-    it('should reject timeout above maximum (120000ms)', () => {
+    it("should reject timeout above maximum (120000ms)", () => {
       const result = layoutIngestOptionsSchema.safeParse({
         timeout: 120001,
       });
       expect(result.success).toBe(false);
     });
 
-    it('should accept disable_javascript option', () => {
+    it("should accept disable_javascript option", () => {
       const result = layoutIngestOptionsSchema.safeParse({
         disable_javascript: true,
       });
@@ -303,24 +303,24 @@ describe('layout.ingest Schema', () => {
     });
   });
 
-  describe('layoutIngestInputSchema', () => {
-    it('should accept valid URL only (minimal input)', () => {
+  describe("layoutIngestInputSchema", () => {
+    it("should accept valid URL only (minimal input)", () => {
       const result = layoutIngestInputSchema.safeParse({
         url: validUrl,
       });
       expect(result.success).toBe(true);
       if (result.success) {
         // Check defaults
-        expect(result.data.source_type).toBe('user_provided');
-        expect(result.data.usage_scope).toBe('inspiration_only');
+        expect(result.data.source_type).toBe("user_provided");
+        expect(result.data.usage_scope).toBe("inspiration_only");
       }
     });
 
-    it('should accept full input with all options', () => {
+    it("should accept full input with all options", () => {
       const result = layoutIngestInputSchema.safeParse({
-        url: 'https://awwwards.com/sites/amazing-site',
-        source_type: 'award_gallery',
-        usage_scope: 'inspiration_only',
+        url: "https://awwwards.com/sites/amazing-site",
+        source_type: "award_gallery",
+        usage_scope: "inspiration_only",
         options: {
           full_page: true,
           viewport: { width: 1920, height: 1080 },
@@ -332,53 +332,53 @@ describe('layout.ingest Schema', () => {
       expect(result.success).toBe(true);
     });
 
-    it('should reject invalid URL format', () => {
+    it("should reject invalid URL format", () => {
       const result = layoutIngestInputSchema.safeParse({
-        url: 'not-a-valid-url',
+        url: "not-a-valid-url",
       });
       expect(result.success).toBe(false);
     });
 
-    it('should reject missing URL', () => {
+    it("should reject missing URL", () => {
       const result = layoutIngestInputSchema.safeParse({
-        source_type: 'user_provided',
+        source_type: "user_provided",
       });
       expect(result.success).toBe(false);
     });
 
-    it('should accept HTTPS URL', () => {
+    it("should accept HTTPS URL", () => {
       const result = layoutIngestInputSchema.safeParse({
-        url: 'https://secure-site.com/page',
+        url: "https://secure-site.com/page",
       });
       expect(result.success).toBe(true);
     });
 
-    it('should accept HTTP URL', () => {
+    it("should accept HTTP URL", () => {
       const result = layoutIngestInputSchema.safeParse({
-        url: 'http://insecure-site.com/page',
+        url: "http://insecure-site.com/page",
       });
       expect(result.success).toBe(true);
     });
 
-    it('should reject empty URL', () => {
+    it("should reject empty URL", () => {
       const result = layoutIngestInputSchema.safeParse({
-        url: '',
+        url: "",
       });
       expect(result.success).toBe(false);
     });
 
-    it('should reject invalid source_type', () => {
+    it("should reject invalid source_type", () => {
       const result = layoutIngestInputSchema.safeParse({
         url: validUrl,
-        source_type: 'invalid_source',
+        source_type: "invalid_source",
       });
       expect(result.success).toBe(false);
     });
 
-    it('should reject invalid usage_scope', () => {
+    it("should reject invalid usage_scope", () => {
       const result = layoutIngestInputSchema.safeParse({
         url: validUrl,
-        usage_scope: 'commercial_use',
+        usage_scope: "commercial_use",
       });
       expect(result.success).toBe(false);
     });
@@ -389,9 +389,9 @@ describe('layout.ingest Schema', () => {
 // layout.inspect Schema Tests
 // ============================================================================
 
-describe('layout.inspect Schema', () => {
-  describe('layoutInspectOptionsSchema', () => {
-    it('should accept empty options (all defaults)', () => {
+describe("layout.inspect Schema", () => {
+  describe("layoutInspectOptionsSchema", () => {
+    it("should accept empty options (all defaults)", () => {
       const result = layoutInspectOptionsSchema.safeParse({});
       expect(result.success).toBe(true);
       if (result.success) {
@@ -402,7 +402,7 @@ describe('layout.inspect Schema', () => {
       }
     });
 
-    it('should accept all options set to false', () => {
+    it("should accept all options set to false", () => {
       const result = layoutInspectOptionsSchema.safeParse({
         detectSections: false,
         extractColors: false,
@@ -412,7 +412,7 @@ describe('layout.inspect Schema', () => {
       expect(result.success).toBe(true);
     });
 
-    it('should accept partial options', () => {
+    it("should accept partial options", () => {
       const result = layoutInspectOptionsSchema.safeParse({
         detectSections: true,
         extractColors: false,
@@ -420,30 +420,30 @@ describe('layout.inspect Schema', () => {
       expect(result.success).toBe(true);
     });
 
-    it('should reject non-boolean detectSections', () => {
+    it("should reject non-boolean detectSections", () => {
       const result = layoutInspectOptionsSchema.safeParse({
-        detectSections: 'yes',
+        detectSections: "yes",
       });
       expect(result.success).toBe(false);
     });
   });
 
-  describe('layoutInspectInputSchema', () => {
-    it('should accept id only', () => {
+  describe("layoutInspectInputSchema", () => {
+    it("should accept id only", () => {
       const result = layoutInspectInputSchema.safeParse({
         id: validUuid,
       });
       expect(result.success).toBe(true);
     });
 
-    it('should accept html only', () => {
+    it("should accept html only", () => {
       const result = layoutInspectInputSchema.safeParse({
         html: sampleHtml,
       });
       expect(result.success).toBe(true);
     });
 
-    it('should accept id with options', () => {
+    it("should accept id with options", () => {
       const result = layoutInspectInputSchema.safeParse({
         id: validUuid,
         options: {
@@ -454,7 +454,7 @@ describe('layout.inspect Schema', () => {
       expect(result.success).toBe(true);
     });
 
-    it('should accept html with options', () => {
+    it("should accept html with options", () => {
       const result = layoutInspectInputSchema.safeParse({
         html: sampleHtml,
         options: {
@@ -464,7 +464,7 @@ describe('layout.inspect Schema', () => {
       expect(result.success).toBe(true);
     });
 
-    it('should reject both id and html provided', () => {
+    it("should reject both id and html provided", () => {
       const result = layoutInspectInputSchema.safeParse({
         id: validUuid,
         html: sampleHtml,
@@ -476,39 +476,39 @@ describe('layout.inspect Schema', () => {
       expect(result.success).toBe(false);
     });
 
-    it('should reject neither id nor html provided', () => {
+    it("should reject neither id nor html provided", () => {
       const result = layoutInspectInputSchema.safeParse({
         options: { detectSections: true },
       });
       expect(result.success).toBe(false);
     });
 
-    it('should reject invalid UUID format', () => {
+    it("should reject invalid UUID format", () => {
       const result = layoutInspectInputSchema.safeParse({
-        id: 'not-a-uuid',
+        id: "not-a-uuid",
       });
       expect(result.success).toBe(false);
     });
 
-    it('should reject empty html', () => {
+    it("should reject empty html", () => {
       const result = layoutInspectInputSchema.safeParse({
-        html: '',
+        html: "",
       });
       expect(result.success).toBe(false);
     });
 
-    it('should accept maximum html size (10MB)', () => {
+    it("should accept maximum html size (10MB)", () => {
       // Create 10MB HTML string
-      const largeHtml = 'x'.repeat(10_000_000);
+      const largeHtml = "x".repeat(10_000_000);
       const result = layoutInspectInputSchema.safeParse({
         html: largeHtml,
       });
       expect(result.success).toBe(true);
     });
 
-    it('should reject html exceeding 10MB', () => {
+    it("should reject html exceeding 10MB", () => {
       // Create 10MB + 1 byte HTML string
-      const tooLargeHtml = 'x'.repeat(10_000_001);
+      const tooLargeHtml = "x".repeat(10_000_001);
       const result = layoutInspectInputSchema.safeParse({
         html: tooLargeHtml,
       });
@@ -521,55 +521,55 @@ describe('layout.inspect Schema', () => {
 // layout.search Schema Tests
 // ============================================================================
 
-describe('layout.search Schema', () => {
-  describe('layoutSearchFiltersSchema', () => {
-    it('should accept empty filters', () => {
+describe("layout.search Schema", () => {
+  describe("layoutSearchFiltersSchema", () => {
+    it("should accept empty filters", () => {
       const result = layoutSearchFiltersSchema.safeParse({});
       expect(result.success).toBe(true);
     });
 
-    it('should accept sectionType filter', () => {
+    it("should accept sectionType filter", () => {
       const result = layoutSearchFiltersSchema.safeParse({
-        sectionType: 'hero',
+        sectionType: "hero",
       });
       expect(result.success).toBe(true);
     });
 
-    it('should accept sourceType filter', () => {
+    it("should accept sourceType filter", () => {
       const result = layoutSearchFiltersSchema.safeParse({
-        sourceType: 'award_gallery',
+        sourceType: "award_gallery",
       });
       expect(result.success).toBe(true);
     });
 
-    it('should accept usageScope filter', () => {
+    it("should accept usageScope filter", () => {
       const result = layoutSearchFiltersSchema.safeParse({
-        usageScope: 'owned_asset',
+        usageScope: "owned_asset",
       });
       expect(result.success).toBe(true);
     });
 
-    it('should accept all filters combined', () => {
+    it("should accept all filters combined", () => {
       const result = layoutSearchFiltersSchema.safeParse({
-        sectionType: 'cta',
-        sourceType: 'user_provided',
-        usageScope: 'inspiration_only',
+        sectionType: "cta",
+        sourceType: "user_provided",
+        usageScope: "inspiration_only",
       });
       expect(result.success).toBe(true);
     });
 
-    it('should reject invalid sectionType', () => {
+    it("should reject invalid sectionType", () => {
       const result = layoutSearchFiltersSchema.safeParse({
-        sectionType: 'invalid_section',
+        sectionType: "invalid_section",
       });
       expect(result.success).toBe(false);
     });
   });
 
-  describe('layoutSearchInputSchema', () => {
-    it('should accept minimal input (query only)', () => {
+  describe("layoutSearchInputSchema", () => {
+    it("should accept minimal input (query only)", () => {
       const result = layoutSearchInputSchema.safeParse({
-        query: 'hero section with gradient background',
+        query: "hero section with gradient background",
       });
       expect(result.success).toBe(true);
       if (result.success) {
@@ -581,12 +581,12 @@ describe('layout.search Schema', () => {
       }
     });
 
-    it('should accept full input with all options', () => {
+    it("should accept full input with all options", () => {
       const result = layoutSearchInputSchema.safeParse({
-        query: 'pricing table modern design',
+        query: "pricing table modern design",
         filters: {
-          sectionType: 'pricing',
-          sourceType: 'award_gallery',
+          sectionType: "pricing",
+          sourceType: "award_gallery",
         },
         limit: 25,
         offset: 50,
@@ -595,90 +595,90 @@ describe('layout.search Schema', () => {
       expect(result.success).toBe(true);
     });
 
-    it('should reject empty query', () => {
+    it("should reject empty query", () => {
       const result = layoutSearchInputSchema.safeParse({
-        query: '',
+        query: "",
       });
       expect(result.success).toBe(false);
     });
 
-    it('should reject query exceeding 500 characters', () => {
+    it("should reject query exceeding 500 characters", () => {
       const result = layoutSearchInputSchema.safeParse({
-        query: 'x'.repeat(501),
+        query: "x".repeat(501),
       });
       expect(result.success).toBe(false);
     });
 
-    it('should accept query at maximum length (500 characters)', () => {
+    it("should accept query at maximum length (500 characters)", () => {
       const result = layoutSearchInputSchema.safeParse({
-        query: 'x'.repeat(500),
+        query: "x".repeat(500),
       });
       expect(result.success).toBe(true);
     });
 
-    it('should reject limit below minimum (1)', () => {
+    it("should reject limit below minimum (1)", () => {
       const result = layoutSearchInputSchema.safeParse({
-        query: 'test query',
+        query: "test query",
         limit: 0,
       });
       expect(result.success).toBe(false);
     });
 
-    it('should reject limit above maximum (50)', () => {
+    it("should reject limit above maximum (50)", () => {
       const result = layoutSearchInputSchema.safeParse({
-        query: 'test query',
+        query: "test query",
         limit: 51,
       });
       expect(result.success).toBe(false);
     });
 
-    it('should accept limit at boundaries', () => {
+    it("should accept limit at boundaries", () => {
       const minResult = layoutSearchInputSchema.safeParse({
-        query: 'test',
+        query: "test",
         limit: 1,
       });
       expect(minResult.success).toBe(true);
 
       const maxResult = layoutSearchInputSchema.safeParse({
-        query: 'test',
+        query: "test",
         limit: 50,
       });
       expect(maxResult.success).toBe(true);
     });
 
-    it('should reject negative offset', () => {
+    it("should reject negative offset", () => {
       const result = layoutSearchInputSchema.safeParse({
-        query: 'test query',
+        query: "test query",
         offset: -1,
       });
       expect(result.success).toBe(false);
     });
 
-    it('should accept offset at minimum (0)', () => {
+    it("should accept offset at minimum (0)", () => {
       const result = layoutSearchInputSchema.safeParse({
-        query: 'test',
+        query: "test",
         offset: 0,
       });
       expect(result.success).toBe(true);
     });
 
-    it('should reject non-integer limit', () => {
+    it("should reject non-integer limit", () => {
       const result = layoutSearchInputSchema.safeParse({
-        query: 'test',
+        query: "test",
         limit: 10.5,
       });
       expect(result.success).toBe(false);
     });
 
-    it('should reject non-integer offset', () => {
+    it("should reject non-integer offset", () => {
       const result = layoutSearchInputSchema.safeParse({
-        query: 'test',
+        query: "test",
         offset: 5.5,
       });
       expect(result.success).toBe(false);
     });
 
-    it('should reject missing query', () => {
+    it("should reject missing query", () => {
       const result = layoutSearchInputSchema.safeParse({
         limit: 10,
         offset: 0,
@@ -692,144 +692,144 @@ describe('layout.search Schema', () => {
 // layout.generate_code Schema Tests
 // ============================================================================
 
-describe('layout.generate_code Schema', () => {
-  describe('layoutToCodeOptionsSchema', () => {
-    it('should accept empty options (all defaults)', () => {
+describe("layout.generate_code Schema", () => {
+  describe("layoutToCodeOptionsSchema", () => {
+    it("should accept empty options (all defaults)", () => {
       const result = layoutToCodeOptionsSchema.safeParse({});
       expect(result.success).toBe(true);
       if (result.success) {
-        expect(result.data.framework).toBe('react');
+        expect(result.data.framework).toBe("react");
         expect(result.data.typescript).toBe(true);
         expect(result.data.tailwind).toBe(true);
       }
     });
 
-    it('should accept framework option', () => {
+    it("should accept framework option", () => {
       const result = layoutToCodeOptionsSchema.safeParse({
-        framework: 'vue',
+        framework: "vue",
       });
       expect(result.success).toBe(true);
     });
 
-    it('should accept typescript option', () => {
+    it("should accept typescript option", () => {
       const result = layoutToCodeOptionsSchema.safeParse({
         typescript: false,
       });
       expect(result.success).toBe(true);
     });
 
-    it('should accept tailwind option', () => {
+    it("should accept tailwind option", () => {
       const result = layoutToCodeOptionsSchema.safeParse({
         tailwind: false,
       });
       expect(result.success).toBe(true);
     });
 
-    it('should accept paletteId option', () => {
+    it("should accept paletteId option", () => {
       const result = layoutToCodeOptionsSchema.safeParse({
         paletteId: validUuid,
       });
       expect(result.success).toBe(true);
     });
 
-    it('should reject invalid paletteId format', () => {
+    it("should reject invalid paletteId format", () => {
       const result = layoutToCodeOptionsSchema.safeParse({
-        paletteId: 'not-a-uuid',
+        paletteId: "not-a-uuid",
       });
       expect(result.success).toBe(false);
     });
 
-    it('should accept valid componentName (PascalCase)', () => {
+    it("should accept valid componentName (PascalCase)", () => {
       const result = layoutToCodeOptionsSchema.safeParse({
-        componentName: 'HeroSection',
+        componentName: "HeroSection",
       });
       expect(result.success).toBe(true);
     });
 
-    it('should reject invalid componentName (camelCase)', () => {
+    it("should reject invalid componentName (camelCase)", () => {
       const result = layoutToCodeOptionsSchema.safeParse({
-        componentName: 'heroSection',
+        componentName: "heroSection",
       });
       expect(result.success).toBe(false);
     });
 
-    it('should reject invalid componentName (snake_case)', () => {
+    it("should reject invalid componentName (snake_case)", () => {
       const result = layoutToCodeOptionsSchema.safeParse({
-        componentName: 'hero_section',
+        componentName: "hero_section",
       });
       expect(result.success).toBe(false);
     });
 
-    it('should reject invalid componentName (kebab-case)', () => {
+    it("should reject invalid componentName (kebab-case)", () => {
       const result = layoutToCodeOptionsSchema.safeParse({
-        componentName: 'hero-section',
+        componentName: "hero-section",
       });
       expect(result.success).toBe(false);
     });
 
-    it('should accept componentName with numbers', () => {
+    it("should accept componentName with numbers", () => {
       const result = layoutToCodeOptionsSchema.safeParse({
-        componentName: 'Hero2Section',
+        componentName: "Hero2Section",
       });
       expect(result.success).toBe(true);
     });
 
-    it('should reject componentName starting with number', () => {
+    it("should reject componentName starting with number", () => {
       const result = layoutToCodeOptionsSchema.safeParse({
-        componentName: '2HeroSection',
+        componentName: "2HeroSection",
       });
       expect(result.success).toBe(false);
     });
   });
 
-  describe('layoutToCodeInputSchema', () => {
-    it('should accept patternId only (minimal input)', () => {
+  describe("layoutToCodeInputSchema", () => {
+    it("should accept patternId only (minimal input)", () => {
       const result = layoutToCodeInputSchema.safeParse({
         patternId: validUuid,
       });
       expect(result.success).toBe(true);
     });
 
-    it('should accept full input with all options', () => {
+    it("should accept full input with all options", () => {
       const result = layoutToCodeInputSchema.safeParse({
         patternId: validUuid,
         options: {
-          framework: 'react',
+          framework: "react",
           typescript: true,
           tailwind: true,
           paletteId: validUuid,
-          componentName: 'PricingSection',
+          componentName: "PricingSection",
         },
       });
       expect(result.success).toBe(true);
     });
 
-    it('should reject invalid patternId format', () => {
+    it("should reject invalid patternId format", () => {
       const result = layoutToCodeInputSchema.safeParse({
-        patternId: 'not-a-uuid',
+        patternId: "not-a-uuid",
       });
       expect(result.success).toBe(false);
     });
 
-    it('should reject missing patternId', () => {
+    it("should reject missing patternId", () => {
       const result = layoutToCodeInputSchema.safeParse({
-        options: { framework: 'react' },
+        options: { framework: "react" },
       });
       expect(result.success).toBe(false);
     });
 
-    it('should accept vue framework option', () => {
+    it("should accept vue framework option", () => {
       const result = layoutToCodeInputSchema.safeParse({
         patternId: validUuid,
-        options: { framework: 'vue' },
+        options: { framework: "vue" },
       });
       expect(result.success).toBe(true);
     });
 
-    it('should accept html framework option', () => {
+    it("should accept html framework option", () => {
       const result = layoutToCodeInputSchema.safeParse({
         patternId: validUuid,
-        options: { framework: 'html' },
+        options: { framework: "html" },
       });
       expect(result.success).toBe(true);
     });
@@ -840,38 +840,38 @@ describe('layout.generate_code Schema', () => {
 // layout.patterns Schema Tests (pattern listing, not a registered MCP tool)
 // ============================================================================
 
-describe('layout.patterns Schema', () => {
-  describe('layoutPatternsInputSchema', () => {
-    it('should accept empty input (all defaults)', () => {
+describe("layout.patterns Schema", () => {
+  describe("layoutPatternsInputSchema", () => {
+    it("should accept empty input (all defaults)", () => {
       const result = layoutPatternsInputSchema.safeParse({});
       expect(result.success).toBe(true);
       if (result.success) {
         expect(result.data.limit).toBe(20);
         expect(result.data.offset).toBe(0);
-        expect(result.data.sortBy).toBe('createdAt');
-        expect(result.data.sortOrder).toBe('desc');
+        expect(result.data.sortBy).toBe("createdAt");
+        expect(result.data.sortOrder).toBe("desc");
       }
     });
 
-    it('should accept sectionType filter', () => {
+    it("should accept sectionType filter", () => {
       const result = layoutPatternsInputSchema.safeParse({
-        sectionType: 'hero',
+        sectionType: "hero",
       });
       expect(result.success).toBe(true);
     });
 
-    it('should accept all section types', () => {
+    it("should accept all section types", () => {
       const sectionTypes = [
-        'hero',
-        'feature',
-        'cta',
-        'testimonial',
-        'pricing',
-        'footer',
-        'navigation',
-        'about',
-        'contact',
-        'gallery',
+        "hero",
+        "feature",
+        "cta",
+        "testimonial",
+        "pricing",
+        "footer",
+        "navigation",
+        "about",
+        "contact",
+        "gallery",
       ];
 
       for (const type of sectionTypes) {
@@ -882,28 +882,28 @@ describe('layout.patterns Schema', () => {
       }
     });
 
-    it('should accept limit option', () => {
+    it("should accept limit option", () => {
       const result = layoutPatternsInputSchema.safeParse({
         limit: 50,
       });
       expect(result.success).toBe(true);
     });
 
-    it('should reject limit below minimum (1)', () => {
+    it("should reject limit below minimum (1)", () => {
       const result = layoutPatternsInputSchema.safeParse({
         limit: 0,
       });
       expect(result.success).toBe(false);
     });
 
-    it('should reject limit above maximum (100)', () => {
+    it("should reject limit above maximum (100)", () => {
       const result = layoutPatternsInputSchema.safeParse({
         limit: 101,
       });
       expect(result.success).toBe(false);
     });
 
-    it('should accept limit at boundaries', () => {
+    it("should accept limit at boundaries", () => {
       const minResult = layoutPatternsInputSchema.safeParse({ limit: 1 });
       expect(minResult.success).toBe(true);
 
@@ -911,29 +911,29 @@ describe('layout.patterns Schema', () => {
       expect(maxResult.success).toBe(true);
     });
 
-    it('should accept offset option', () => {
+    it("should accept offset option", () => {
       const result = layoutPatternsInputSchema.safeParse({
         offset: 100,
       });
       expect(result.success).toBe(true);
     });
 
-    it('should reject negative offset', () => {
+    it("should reject negative offset", () => {
       const result = layoutPatternsInputSchema.safeParse({
         offset: -1,
       });
       expect(result.success).toBe(false);
     });
 
-    it('should accept sortBy option', () => {
+    it("should accept sortBy option", () => {
       const result = layoutPatternsInputSchema.safeParse({
-        sortBy: 'usageCount',
+        sortBy: "usageCount",
       });
       expect(result.success).toBe(true);
     });
 
-    it('should accept all sortBy values', () => {
-      const sortByValues = ['createdAt', 'usageCount', 'quality'];
+    it("should accept all sortBy values", () => {
+      const sortByValues = ["createdAt", "usageCount", "quality"];
 
       for (const value of sortByValues) {
         const result = layoutPatternsInputSchema.safeParse({
@@ -943,32 +943,32 @@ describe('layout.patterns Schema', () => {
       }
     });
 
-    it('should accept sortOrder option', () => {
+    it("should accept sortOrder option", () => {
       const result = layoutPatternsInputSchema.safeParse({
-        sortOrder: 'asc',
+        sortOrder: "asc",
       });
       expect(result.success).toBe(true);
     });
 
-    it('should accept full input with all options', () => {
+    it("should accept full input with all options", () => {
       const result = layoutPatternsInputSchema.safeParse({
-        sectionType: 'pricing',
+        sectionType: "pricing",
         limit: 30,
         offset: 10,
-        sortBy: 'quality',
-        sortOrder: 'desc',
+        sortBy: "quality",
+        sortOrder: "desc",
       });
       expect(result.success).toBe(true);
     });
 
-    it('should reject non-integer limit', () => {
+    it("should reject non-integer limit", () => {
       const result = layoutPatternsInputSchema.safeParse({
         limit: 20.5,
       });
       expect(result.success).toBe(false);
     });
 
-    it('should reject non-integer offset', () => {
+    it("should reject non-integer offset", () => {
       const result = layoutPatternsInputSchema.safeParse({
         offset: 10.5,
       });
@@ -981,40 +981,40 @@ describe('layout.patterns Schema', () => {
 // Error Codes Tests
 // ============================================================================
 
-describe('Error Codes', () => {
-  it('should define LAYOUT_NOT_FOUND error code', () => {
+describe("Error Codes", () => {
+  it("should define LAYOUT_NOT_FOUND error code", () => {
     expect(LAYOUT_MCP_ERROR_CODES.LAYOUT_NOT_FOUND).toBeDefined();
   });
 
-  it('should define INGEST_FAILED error code', () => {
+  it("should define INGEST_FAILED error code", () => {
     expect(LAYOUT_MCP_ERROR_CODES.INGEST_FAILED).toBeDefined();
   });
 
-  it('should define INSPECT_FAILED error code', () => {
+  it("should define INSPECT_FAILED error code", () => {
     expect(LAYOUT_MCP_ERROR_CODES.INSPECT_FAILED).toBeDefined();
   });
 
-  it('should define SEARCH_FAILED error code', () => {
+  it("should define SEARCH_FAILED error code", () => {
     expect(LAYOUT_MCP_ERROR_CODES.SEARCH_FAILED).toBeDefined();
   });
 
-  it('should define CODE_GENERATION_FAILED error code', () => {
+  it("should define CODE_GENERATION_FAILED error code", () => {
     expect(LAYOUT_MCP_ERROR_CODES.CODE_GENERATION_FAILED).toBeDefined();
   });
 
-  it('should define VALIDATION_ERROR error code', () => {
+  it("should define VALIDATION_ERROR error code", () => {
     expect(LAYOUT_MCP_ERROR_CODES.VALIDATION_ERROR).toBeDefined();
   });
 
-  it('should define TIMEOUT error code', () => {
+  it("should define TIMEOUT error code", () => {
     expect(LAYOUT_MCP_ERROR_CODES.TIMEOUT).toBeDefined();
   });
 
-  it('should define HTML_TOO_LARGE error code', () => {
+  it("should define HTML_TOO_LARGE error code", () => {
     expect(LAYOUT_MCP_ERROR_CODES.HTML_TOO_LARGE).toBeDefined();
   });
 
-  it('should define PATTERN_NOT_FOUND error code', () => {
+  it("should define PATTERN_NOT_FOUND error code", () => {
     expect(LAYOUT_MCP_ERROR_CODES.PATTERN_NOT_FOUND).toBeDefined();
   });
 });
@@ -1023,41 +1023,41 @@ describe('Error Codes', () => {
 // Output Schema Tests
 // ============================================================================
 
-describe('Output Schemas', () => {
-  describe('layoutIngestOutputSchema', () => {
-    it('should validate correct success ingest output', () => {
+describe("Output Schemas", () => {
+  describe("layoutIngestOutputSchema", () => {
+    it("should validate correct success ingest output", () => {
       const result = layoutIngestOutputSchema.safeParse({
         success: true,
         data: {
           id: validUuid,
           url: validUrl,
           normalizedUrl: validUrl,
-          html: '<html></html>',
+          html: "<html></html>",
           metadata: {
-            title: 'Example Page',
+            title: "Example Page",
           },
           source: {
-            type: 'user_provided',
-            usageScope: 'inspiration_only',
+            type: "user_provided",
+            usageScope: "inspiration_only",
           },
-          crawledAt: '2024-01-15T10:30:00.000Z',
+          crawledAt: "2024-01-15T10:30:00.000Z",
         },
       });
       expect(result.success).toBe(true);
     });
 
-    it('should validate correct error ingest output', () => {
+    it("should validate correct error ingest output", () => {
       const result = layoutIngestOutputSchema.safeParse({
         success: false,
         error: {
-          code: 'INGEST_FAILED',
-          message: 'Failed to ingest page',
+          code: "INGEST_FAILED",
+          message: "Failed to ingest page",
         },
       });
       expect(result.success).toBe(true);
     });
 
-    it('should reject invalid discriminated union output', () => {
+    it("should reject invalid discriminated union output", () => {
       // Missing success field
       const result = layoutIngestOutputSchema.safeParse({
         id: validUuid,
@@ -1067,33 +1067,33 @@ describe('Output Schemas', () => {
     });
   });
 
-  describe('layoutInspectOutputSchema', () => {
-    it('should validate correct inspect output', () => {
+  describe("layoutInspectOutputSchema", () => {
+    it("should validate correct inspect output", () => {
       const result = layoutInspectOutputSchema.safeParse({
         webPageId: validUuid,
         sections: [
           {
-            type: 'hero',
+            type: "hero",
             index: 0,
             confidence: 0.95,
           },
         ],
-        colors: ['#FF0000', '#00FF00'],
+        colors: ["#FF0000", "#00FF00"],
         typography: {
-          fonts: ['Inter', 'Georgia'],
-          headingSizes: ['48px', '36px', '24px'],
+          fonts: ["Inter", "Georgia"],
+          headingSizes: ["48px", "36px", "24px"],
         },
         grid: {
           columns: 12,
-          gap: '24px',
+          gap: "24px",
         },
       });
       expect(result.success).toBe(true);
     });
   });
 
-  describe('layoutSearchOutputSchema', () => {
-    it('should validate correct search output (success)', () => {
+  describe("layoutSearchOutputSchema", () => {
+    it("should validate correct search output (success)", () => {
       const result = layoutSearchOutputSchema.safeParse({
         success: true,
         data: {
@@ -1101,21 +1101,21 @@ describe('Output Schemas', () => {
             {
               id: validUuid,
               webPageId: validUuid,
-              type: 'hero',
+              type: "hero",
               similarity: 0.92,
               preview: {
-                heading: 'Welcome',
-                description: 'Test description',
+                heading: "Welcome",
+                description: "Test description",
               },
               source: {
                 url: validUrl,
-                type: 'award_gallery',
-                usageScope: 'inspiration_only',
+                type: "award_gallery",
+                usageScope: "inspiration_only",
               },
             },
           ],
           total: 42,
-          query: 'hero section',
+          query: "hero section",
           filters: {},
           searchTimeMs: 125,
         },
@@ -1123,13 +1123,13 @@ describe('Output Schemas', () => {
       expect(result.success).toBe(true);
     });
 
-    it('should accept empty results', () => {
+    it("should accept empty results", () => {
       const result = layoutSearchOutputSchema.safeParse({
         success: true,
         data: {
           results: [],
           total: 0,
-          query: 'no results',
+          query: "no results",
           filters: {},
           searchTimeMs: 50,
         },
@@ -1137,59 +1137,59 @@ describe('Output Schemas', () => {
       expect(result.success).toBe(true);
     });
 
-    it('should validate error response', () => {
+    it("should validate error response", () => {
       const result = layoutSearchOutputSchema.safeParse({
         success: false,
         error: {
-          code: 'SEARCH_FAILED',
-          message: 'Database error',
+          code: "SEARCH_FAILED",
+          message: "Database error",
         },
       });
       expect(result.success).toBe(true);
     });
   });
 
-  describe('layoutToCodeOutputSchema', () => {
-    it('should validate correct to_code output', () => {
+  describe("layoutToCodeOutputSchema", () => {
+    it("should validate correct to_code output", () => {
       const result = layoutToCodeOutputSchema.safeParse({
         success: true,
         data: {
-          code: 'export const HeroSection = () => { return <div>Hero</div>; }',
-          framework: 'react',
-          componentName: 'HeroSection',
-          filename: 'HeroSection.tsx',
-          dependencies: ['react'],
+          code: "export const HeroSection = () => { return <div>Hero</div>; }",
+          framework: "react",
+          componentName: "HeroSection",
+          filename: "HeroSection.tsx",
+          dependencies: ["react"],
           inspirationUrls: [validUrl],
-          usageScope: 'inspiration_only',
+          usageScope: "inspiration_only",
         },
       });
       expect(result.success).toBe(true);
     });
 
-    it('should validate correct to_code error output', () => {
+    it("should validate correct to_code error output", () => {
       const result = layoutToCodeOutputSchema.safeParse({
         success: false,
         error: {
-          code: 'CODE_GENERATION_FAILED',
-          message: 'Failed to generate code',
+          code: "CODE_GENERATION_FAILED",
+          message: "Failed to generate code",
         },
       });
       expect(result.success).toBe(true);
     });
   });
 
-  describe('layoutPatternsOutputSchema', () => {
-    it('should validate correct patterns output', () => {
+  describe("layoutPatternsOutputSchema", () => {
+    it("should validate correct patterns output", () => {
       const result = layoutPatternsOutputSchema.safeParse({
         patterns: [
           {
             id: validUuid,
-            sectionType: 'hero',
-            name: 'Gradient Hero',
-            previewUrl: 'https://storage.example.com/previews/hero1.png',
+            sectionType: "hero",
+            name: "Gradient Hero",
+            previewUrl: "https://storage.example.com/previews/hero1.png",
             usageCount: 150,
             quality: 0.95,
-            createdAt: '2024-01-15T10:30:00.000Z',
+            createdAt: "2024-01-15T10:30:00.000Z",
           },
         ],
         total: 100,
@@ -1205,12 +1205,12 @@ describe('Output Schemas', () => {
 // Type Inference Tests
 // ============================================================================
 
-describe('Type Inference', () => {
-  it('should infer LayoutIngestInput type correctly', () => {
+describe("Type Inference", () => {
+  it("should infer LayoutIngestInput type correctly", () => {
     const input: LayoutIngestInput = {
       url: validUrl,
-      source_type: 'award_gallery',
-      usage_scope: 'inspiration_only',
+      source_type: "award_gallery",
+      usage_scope: "inspiration_only",
       options: {
         full_page: true,
         viewport: { width: 1920, height: 1080 },
@@ -1221,7 +1221,7 @@ describe('Type Inference', () => {
     expect(result.success).toBe(true);
   });
 
-  it('should infer LayoutInspectInput type correctly', () => {
+  it("should infer LayoutInspectInput type correctly", () => {
     const input: LayoutInspectInput = {
       id: validUuid,
       options: {
@@ -1233,11 +1233,11 @@ describe('Type Inference', () => {
     expect(result.success).toBe(true);
   });
 
-  it('should infer LayoutSearchInput type correctly', () => {
+  it("should infer LayoutSearchInput type correctly", () => {
     const input: LayoutSearchInput = {
-      query: 'modern hero section',
+      query: "modern hero section",
       filters: {
-        sectionType: 'hero',
+        sectionType: "hero",
       },
       limit: 20,
       offset: 0,
@@ -1247,11 +1247,11 @@ describe('Type Inference', () => {
     expect(result.success).toBe(true);
   });
 
-  it('should infer LayoutToCodeInput type correctly', () => {
+  it("should infer LayoutToCodeInput type correctly", () => {
     const input: LayoutToCodeInput = {
       patternId: validUuid,
       options: {
-        framework: 'react',
+        framework: "react",
         typescript: true,
         tailwind: true,
       },
@@ -1260,13 +1260,13 @@ describe('Type Inference', () => {
     expect(result.success).toBe(true);
   });
 
-  it('should infer LayoutPatternsInput type correctly', () => {
+  it("should infer LayoutPatternsInput type correctly", () => {
     const input: LayoutPatternsInput = {
-      sectionType: 'pricing',
+      sectionType: "pricing",
       limit: 50,
       offset: 0,
-      sortBy: 'quality',
-      sortOrder: 'desc',
+      sortBy: "quality",
+      sortOrder: "desc",
     };
     const result = layoutPatternsInputSchema.safeParse(input);
     expect(result.success).toBe(true);
@@ -1277,101 +1277,101 @@ describe('Type Inference', () => {
 // Edge Cases Tests
 // ============================================================================
 
-describe('Edge Cases', () => {
-  describe('URL validation edge cases', () => {
-    it('should accept URL with query parameters', () => {
+describe("Edge Cases", () => {
+  describe("URL validation edge cases", () => {
+    it("should accept URL with query parameters", () => {
       const result = layoutIngestInputSchema.safeParse({
-        url: 'https://example.com/page?id=123&sort=desc',
+        url: "https://example.com/page?id=123&sort=desc",
       });
       expect(result.success).toBe(true);
     });
 
-    it('should accept URL with fragment', () => {
+    it("should accept URL with fragment", () => {
       const result = layoutIngestInputSchema.safeParse({
-        url: 'https://example.com/page#section',
+        url: "https://example.com/page#section",
       });
       expect(result.success).toBe(true);
     });
 
-    it('should accept URL with port number', () => {
+    it("should accept URL with port number", () => {
       const result = layoutIngestInputSchema.safeParse({
-        url: 'https://example.com:8080/page',
+        url: "https://example.com:8080/page",
       });
       expect(result.success).toBe(true);
     });
 
-    it('should accept internationalized domain name', () => {
+    it("should accept internationalized domain name", () => {
       const result = layoutIngestInputSchema.safeParse({
-        url: 'https://example.xn--n3h.com/page',
+        url: "https://example.xn--n3h.com/page",
       });
       expect(result.success).toBe(true);
     });
   });
 
-  describe('HTML content edge cases', () => {
-    it('should accept HTML with special characters', () => {
+  describe("HTML content edge cases", () => {
+    it("should accept HTML with special characters", () => {
       const result = layoutInspectInputSchema.safeParse({
-        html: '<div>Hello &amp; World &lt;3</div>',
+        html: "<div>Hello &amp; World &lt;3</div>",
       });
       expect(result.success).toBe(true);
     });
 
-    it('should accept HTML with unicode characters', () => {
+    it("should accept HTML with unicode characters", () => {
       const result = layoutInspectInputSchema.safeParse({
-        html: '<div>Hello 世界 </div>',
+        html: "<div>Hello 世界 </div>",
       });
       expect(result.success).toBe(true);
     });
 
-    it('should accept minimal HTML', () => {
+    it("should accept minimal HTML", () => {
       const result = layoutInspectInputSchema.safeParse({
-        html: '<p>x</p>',
+        html: "<p>x</p>",
       });
       expect(result.success).toBe(true);
     });
   });
 
-  describe('Query edge cases', () => {
-    it('should accept query with special characters', () => {
+  describe("Query edge cases", () => {
+    it("should accept query with special characters", () => {
       const result = layoutSearchInputSchema.safeParse({
-        query: 'hero section & gradient',
+        query: "hero section & gradient",
       });
       expect(result.success).toBe(true);
     });
 
-    it('should accept query with unicode characters', () => {
+    it("should accept query with unicode characters", () => {
       const result = layoutSearchInputSchema.safeParse({
-        query: 'ヒーローセクション gradient',
+        query: "ヒーローセクション gradient",
       });
       expect(result.success).toBe(true);
     });
 
-    it('should accept single character query', () => {
+    it("should accept single character query", () => {
       const result = layoutSearchInputSchema.safeParse({
-        query: 'a',
+        query: "a",
       });
       expect(result.success).toBe(true);
     });
   });
 
-  describe('Component name edge cases', () => {
-    it('should accept single letter component name', () => {
+  describe("Component name edge cases", () => {
+    it("should accept single letter component name", () => {
       const result = layoutToCodeOptionsSchema.safeParse({
-        componentName: 'A',
+        componentName: "A",
       });
       expect(result.success).toBe(true);
     });
 
-    it('should accept long component name', () => {
+    it("should accept long component name", () => {
       const result = layoutToCodeOptionsSchema.safeParse({
-        componentName: 'VeryLongComponentNameThatIsStillValid123',
+        componentName: "VeryLongComponentNameThatIsStillValid123",
       });
       expect(result.success).toBe(true);
     });
 
-    it('should reject empty component name', () => {
+    it("should reject empty component name", () => {
       const result = layoutToCodeOptionsSchema.safeParse({
-        componentName: '',
+        componentName: "",
       });
       expect(result.success).toBe(false);
     });
@@ -1382,8 +1382,8 @@ describe('Edge Cases', () => {
 // Test Count Verification
 // ============================================================================
 
-describe('Test Coverage Summary', () => {
-  it('should have at least 50 test cases total', () => {
+describe("Test Coverage Summary", () => {
+  it("should have at least 50 test cases total", () => {
     // This is a meta-test to verify we meet the minimum test requirement
     // The actual count is verified by running the test suite
     expect(true).toBe(true);

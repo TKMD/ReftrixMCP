@@ -37,7 +37,7 @@ export interface FrameData {
 /**
  * 可視性イベントタイプ
  */
-export type VisibilityEventType = 'appear' | 'disappear';
+export type VisibilityEventType = "appear" | "disappear";
 
 /**
  * 要素可視性イベント
@@ -122,13 +122,7 @@ function getGrayscale(buffer: Buffer, x: number, y: number, width: number): numb
 /**
  * Sobel演算子によるエッジ強度計算
  */
-function applySobel(
-  buffer: Buffer,
-  x: number,
-  y: number,
-  width: number,
-  height: number
-): number {
+function applySobel(buffer: Buffer, x: number, y: number, width: number, height: number): number {
   let gx = 0;
   let gy = 0;
 
@@ -182,11 +176,7 @@ function pixelsDiffer(
 /**
  * 2フレーム間の差分マップを生成
  */
-function generateDiffMap(
-  frame1: FrameData,
-  frame2: FrameData,
-  threshold: number
-): Uint8Array {
+function generateDiffMap(frame1: FrameData, frame2: FrameData, threshold: number): Uint8Array {
   const { width, height } = frame1;
   const diffMap = new Uint8Array(width * height);
 
@@ -463,8 +453,14 @@ export function compareElements(
 
       if (boxesOverlap(prev, curr, 5)) {
         // 重複面積を計算
-        const overlapX = Math.max(0, Math.min(prev.x + prev.width, curr.x + curr.width) - Math.max(prev.x, curr.x));
-        const overlapY = Math.max(0, Math.min(prev.y + prev.height, curr.y + curr.height) - Math.max(prev.y, curr.y));
+        const overlapX = Math.max(
+          0,
+          Math.min(prev.x + prev.width, curr.x + curr.width) - Math.max(prev.x, curr.x)
+        );
+        const overlapY = Math.max(
+          0,
+          Math.min(prev.y + prev.height, curr.y + curr.height) - Math.max(prev.y, curr.y)
+        );
         const overlap = overlapX * overlapY;
 
         if (overlap > bestOverlap) {
@@ -489,7 +485,7 @@ export function compareElements(
       if (elementSize >= minElementSize) {
         events.push({
           frameIndex,
-          eventType: 'appear',
+          eventType: "appear",
           region: curr,
           elementSize,
         });
@@ -506,7 +502,7 @@ export function compareElements(
       if (elementSize >= minElementSize) {
         events.push({
           frameIndex,
-          eventType: 'disappear',
+          eventType: "disappear",
           region: prev,
           elementSize,
         });
@@ -533,19 +529,19 @@ export class ElementVisibilityDetector {
   constructor(options: ElementVisibilityDetectorOptions = {}) {
     // オプション検証
     if (options.minElementSize !== undefined && options.minElementSize <= 0) {
-      throw new Error('minElementSize must be positive');
+      throw new Error("minElementSize must be positive");
     }
     if (
       options.edgeDetectionThreshold !== undefined &&
       (options.edgeDetectionThreshold < 0 || options.edgeDetectionThreshold > 1)
     ) {
-      throw new Error('edgeDetectionThreshold must be between 0 and 1');
+      throw new Error("edgeDetectionThreshold must be between 0 and 1");
     }
     if (
       options.minContrastRatio !== undefined &&
       (options.minContrastRatio < 0 || options.minContrastRatio > 1)
     ) {
-      throw new Error('minContrastRatio must be between 0 and 1');
+      throw new Error("minContrastRatio must be between 0 and 1");
     }
 
     this.options = {
@@ -566,8 +562,8 @@ export class ElementVisibilityDetector {
         appearanceCount: 0,
         disappearanceCount: 0,
         error: {
-          code: 'ELEMENT_VISIBILITY_NO_FRAMES',
-          message: 'No frames provided',
+          code: "ELEMENT_VISIBILITY_NO_FRAMES",
+          message: "No frames provided",
         },
       };
     }
@@ -579,8 +575,8 @@ export class ElementVisibilityDetector {
         appearanceCount: 0,
         disappearanceCount: 0,
         error: {
-          code: 'ELEMENT_VISIBILITY_INSUFFICIENT_FRAMES',
-          message: 'At least 2 frames are required',
+          code: "ELEMENT_VISIBILITY_INSUFFICIENT_FRAMES",
+          message: "At least 2 frames are required",
         },
       };
     }
@@ -594,8 +590,8 @@ export class ElementVisibilityDetector {
         appearanceCount: 0,
         disappearanceCount: 0,
         error: {
-          code: 'ELEMENT_VISIBILITY_NO_FRAMES',
-          message: 'First frame is undefined',
+          code: "ELEMENT_VISIBILITY_NO_FRAMES",
+          message: "First frame is undefined",
         },
       };
     }
@@ -609,7 +605,7 @@ export class ElementVisibilityDetector {
           appearanceCount: 0,
           disappearanceCount: 0,
           error: {
-            code: 'ELEMENT_VISIBILITY_DIMENSION_MISMATCH',
+            code: "ELEMENT_VISIBILITY_DIMENSION_MISMATCH",
             message: `Frame ${i} has different dimensions`,
           },
         };
@@ -627,7 +623,7 @@ export class ElementVisibilityDetector {
           appearanceCount: 0,
           disappearanceCount: 0,
           error: {
-            code: 'ELEMENT_VISIBILITY_BUFFER_MISMATCH',
+            code: "ELEMENT_VISIBILITY_BUFFER_MISMATCH",
             message: `Frame ${i} has incorrect buffer size`,
           },
         };
@@ -682,7 +678,7 @@ export class ElementVisibilityDetector {
           // 出現: 白背景 → 非白（要素が出現した）
           events.push({
             frameIndex: currFrame.index,
-            eventType: 'appear',
+            eventType: "appear",
             region,
             elementSize,
           });
@@ -690,7 +686,7 @@ export class ElementVisibilityDetector {
           // 消失: 非白（要素）→ 白背景（要素が消失した）
           events.push({
             frameIndex: currFrame.index,
-            eventType: 'disappear',
+            eventType: "disappear",
             region,
             elementSize,
           });
@@ -698,8 +694,8 @@ export class ElementVisibilityDetector {
       }
     }
 
-    const appearanceCount = events.filter((e) => e.eventType === 'appear').length;
-    const disappearanceCount = events.filter((e) => e.eventType === 'disappear').length;
+    const appearanceCount = events.filter((e) => e.eventType === "appear").length;
+    const disappearanceCount = events.filter((e) => e.eventType === "disappear").length;
 
     return {
       success: true,

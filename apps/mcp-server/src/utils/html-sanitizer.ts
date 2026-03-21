@@ -16,9 +16,9 @@
  * @see SEC監査指摘対応
  */
 
-import { JSDOM } from 'jsdom';
-import createDOMPurify from 'dompurify';
-import { logger, isDevelopment } from './logger';
+import { JSDOM } from "jsdom";
+import createDOMPurify from "dompurify";
+import { logger, isDevelopment } from "./logger";
 
 // =============================================
 // 型定義
@@ -84,24 +84,24 @@ export interface SanitizeResult {
  * - layout.inspectでCTAボタン検出に必要なため、buttonのみ許可
  */
 const DANGEROUS_TAGS = [
-  'script',
-  'noscript',
-  'iframe',
-  'frame',
-  'frameset',
-  'object',
-  'embed',
-  'applet',
-  'form',
-  'input',
+  "script",
+  "noscript",
+  "iframe",
+  "frame",
+  "frameset",
+  "object",
+  "embed",
+  "applet",
+  "form",
+  "input",
   // 'button' - レイアウト解析でCTAボタン検出に必要なため許可
   //            イベントハンドラはDANGEROUS_ATTRIBUTESで禁止済み
-  'select',
-  'textarea',
-  'meta',
-  'link',
-  'base',
-  'title',
+  "select",
+  "textarea",
+  "meta",
+  "link",
+  "base",
+  "title",
 ] as const;
 
 /**
@@ -117,79 +117,74 @@ const DANGEROUS_TAGS = [
  * - script, iframe, form 等: XSS/フィッシング防止
  */
 const DANGEROUS_TAGS_WHOLE_DOCUMENT = [
-  'script',
-  'noscript',
-  'iframe',
-  'frame',
-  'frameset',
-  'object',
-  'embed',
-  'applet',
-  'form',
-  'input',
-  'select',
-  'textarea',
-  'link',
-  'base',
+  "script",
+  "noscript",
+  "iframe",
+  "frame",
+  "frameset",
+  "object",
+  "embed",
+  "applet",
+  "form",
+  "input",
+  "select",
+  "textarea",
+  "link",
+  "base",
 ] as const;
 
 /**
  * 危険な属性（常に除去）
  */
 const DANGEROUS_ATTRIBUTES = [
-  'onclick',
-  'ondblclick',
-  'onmousedown',
-  'onmouseup',
-  'onmouseover',
-  'onmousemove',
-  'onmouseout',
-  'onmouseenter',
-  'onmouseleave',
-  'onkeydown',
-  'onkeypress',
-  'onkeyup',
-  'onfocus',
-  'onblur',
-  'onchange',
-  'onsubmit',
-  'onreset',
-  'onload',
-  'onunload',
-  'onerror',
-  'onabort',
-  'onresize',
-  'onscroll',
-  'oncontextmenu',
-  'ondrag',
-  'ondragend',
-  'ondragenter',
-  'ondragleave',
-  'ondragover',
-  'ondragstart',
-  'ondrop',
-  'onwheel',
-  'oncopy',
-  'oncut',
-  'onpaste',
-  'onanimationstart',
-  'onanimationend',
-  'onanimationiteration',
-  'ontransitionend',
-  'formaction',
-  'xlink:href',
-  'xmlns:xlink',
+  "onclick",
+  "ondblclick",
+  "onmousedown",
+  "onmouseup",
+  "onmouseover",
+  "onmousemove",
+  "onmouseout",
+  "onmouseenter",
+  "onmouseleave",
+  "onkeydown",
+  "onkeypress",
+  "onkeyup",
+  "onfocus",
+  "onblur",
+  "onchange",
+  "onsubmit",
+  "onreset",
+  "onload",
+  "onunload",
+  "onerror",
+  "onabort",
+  "onresize",
+  "onscroll",
+  "oncontextmenu",
+  "ondrag",
+  "ondragend",
+  "ondragenter",
+  "ondragleave",
+  "ondragover",
+  "ondragstart",
+  "ondrop",
+  "onwheel",
+  "oncopy",
+  "oncut",
+  "onpaste",
+  "onanimationstart",
+  "onanimationend",
+  "onanimationiteration",
+  "ontransitionend",
+  "formaction",
+  "xlink:href",
+  "xmlns:xlink",
 ] as const;
 
 /**
  * 危険なURIプロトコル
  */
-const DANGEROUS_URI_PROTOCOLS = [
-  'javascript:',
-  'data:text/html',
-  'vbscript:',
-  'mhtml:',
-] as const;
+const DANGEROUS_URI_PROTOCOLS = ["javascript:", "data:text/html", "vbscript:", "mhtml:"] as const;
 
 // =============================================
 // パフォーマンス最適化: HTML事前削減
@@ -254,14 +249,11 @@ export function preStripDangerousTags(
 
   // Phase 1: コンテンツを持つ危険タグを除去（開始タグ〜終了タグ）
   // script, noscript, iframe, object, applet, textarea はコンテンツを含む
-  const contentTags = ['script', 'noscript', 'iframe', 'object', 'applet', 'textarea'];
+  const contentTags = ["script", "noscript", "iframe", "object", "applet", "textarea"];
   for (const tag of contentTags) {
     if (dangerousTags.includes(tag)) {
       // 非貪欲マッチでネストしない前提（HTML仕様上scriptはネスト不可）
-      result = result.replace(
-        new RegExp(`<${tag}\\b[^>]*>[\\s\\S]*?</${tag}>`, 'gi'),
-        ''
-      );
+      result = result.replace(new RegExp(`<${tag}\\b[^>]*>[\\s\\S]*?</${tag}>`, "gi"), "");
     }
   }
 
@@ -269,25 +261,19 @@ export function preStripDangerousTags(
   // input, embed, frame, frameset, base, link, meta 等
   for (const tag of dangerousTags) {
     // 開始タグ（自己閉じ含む）: <tag ...> or <tag ... />
-    result = result.replace(
-      new RegExp(`<${tag}\\b[^>]*/?>`, 'gi'),
-      ''
-    );
+    result = result.replace(new RegExp(`<${tag}\\b[^>]*/?>`, "gi"), "");
     // 終了タグ: </tag>
-    result = result.replace(
-      new RegExp(`</${tag}\\s*>`, 'gi'),
-      ''
-    );
+    result = result.replace(new RegExp(`</${tag}\\s*>`, "gi"), "");
   }
 
   // Phase 3: HTMLコメントを除去（条件付きコメント含む）
-  result = result.replace(/<!--[\s\S]*?-->/g, '');
+  result = result.replace(/<!--[\s\S]*?-->/g, "");
 
   const elapsed = Date.now() - startTime;
   const reduction = originalLength - result.length;
   const reductionPercent = ((reduction / originalLength) * 100).toFixed(1);
 
-  logger.info('[html-sanitizer] Pre-strip completed', {
+  logger.info("[html-sanitizer] Pre-strip completed", {
     originalBytes: originalLength,
     reducedBytes: result.length,
     reduction,
@@ -298,12 +284,44 @@ export function preStripDangerousTags(
   return result;
 }
 
+/**
+ * DOMPurifyバイパス時にイベントハンドラ属性とjavascript: URLを除去する。
+ *
+ * preStripDangerousTagsではタグ除去のみ行うため、
+ * 属性ベースのXSS（on*イベントハンドラ、javascript: URL）は残存する。
+ * DOMPurifyをスキップする場合、この関数で属性レベルの危険要素を除去する。
+ *
+ * セキュリティ注意:
+ * - DOMPurifyバイパス時の追加防御層であり、DOMPurifyの代替ではない
+ * - HTMLエンティティエンコードされたイベントハンドラは検出不可（DOMPurify必須）
+ *
+ * @param html - 入力HTML（preStripDangerousTags適用済み）
+ * @returns イベントハンドラ属性・危険URI除去後のHTML
+ */
+export function stripDangerousAttributes(html: string): string {
+  let result = html;
+
+  // Phase 1: on* イベントハンドラ属性を除去
+  // Double-quoted: onerror="alert(1)"
+  result = result.replace(/\son\w+\s*=\s*"[^"]*"/gi, "");
+  // Single-quoted: onerror='alert(1)'
+  result = result.replace(/\son\w+\s*=\s*'[^']*'/gi, "");
+  // Unquoted: onerror=alert(1) (stops at whitespace or >)
+  result = result.replace(/\son\w+\s*=\s*[^\s>"']+/gi, "");
+
+  // Phase 2: javascript: URL in href/src/action/formaction attributes
+  result = result.replace(/\s(href|src|action|formaction)\s*=\s*"javascript:[^"]*"/gi, "");
+  result = result.replace(/\s(href|src|action|formaction)\s*=\s*'javascript:[^']*'/gi, "");
+
+  return result;
+}
+
 // =============================================
 // JSDOMとDOMPurifyのセットアップ
 // =============================================
 
 // サーバーサイド用のwindowオブジェクトを作成
-const window = new JSDOM('').window;
+const window = new JSDOM("").window;
 const DOMPurify = createDOMPurify(window);
 
 // DOMPurifyの設定
@@ -355,12 +373,12 @@ const DEFAULT_DOMPURIFY_CONFIG = {
  * ```
  */
 export function sanitizeHtml(html: string, options?: SanitizeOptions): string {
-  if (!html || html.trim() === '') {
-    return '';
+  if (!html || html.trim() === "") {
+    return "";
   }
 
   if (isDevelopment()) {
-    logger.debug('[html-sanitizer] Sanitizing HTML', {
+    logger.debug("[html-sanitizer] Sanitizing HTML", {
       inputLength: html.length,
     });
   }
@@ -376,13 +394,14 @@ export function sanitizeHtml(html: string, options?: SanitizeOptions): string {
 
     // DOMPurifyバイパス: 事前削減後もHTMLが巨大な場合、DOMPurifyをスキップ
     // (JSDOM + DOMPurifyは1.5MB超で15分以上かかるため)
+    // SEC-HIGH-01: バイパス時もイベントハンドラ属性・javascript: URLを除去
     if (preprocessed.length >= DOMPURIFY_BYPASS_THRESHOLD_CHARS) {
-      logger.warn('[html-sanitizer] DOMPurify bypassed due to large HTML after pre-strip', {
+      logger.warn("[html-sanitizer] DOMPurify bypassed due to large HTML after pre-strip", {
         preprocessedLength: preprocessed.length,
         threshold: DOMPURIFY_BYPASS_THRESHOLD_CHARS,
         originalLength: html.length,
       });
-      return preprocessed;
+      return stripDangerousAttributes(preprocessed);
     }
 
     // DOMPurify設定をマージ
@@ -396,7 +415,7 @@ export function sanitizeHtml(html: string, options?: SanitizeOptions): string {
     }
 
     if (options?.allowStyles === false) {
-      config.FORBID_ATTR = [...config.FORBID_ATTR, 'style'] as typeof config.FORBID_ATTR;
+      config.FORBID_ATTR = [...config.FORBID_ATTR, "style"] as typeof config.FORBID_ATTR;
     }
 
     if (options?.allowDataAttributes === false) {
@@ -419,7 +438,7 @@ export function sanitizeHtml(html: string, options?: SanitizeOptions): string {
     const sanitized = DOMPurify.sanitize(preprocessed, config);
 
     if (isDevelopment()) {
-      logger.debug('[html-sanitizer] Sanitization complete', {
+      logger.debug("[html-sanitizer] Sanitization complete", {
         inputLength: html.length,
         preprocessedLength: preprocessed.length,
         outputLength: sanitized.length,
@@ -430,10 +449,10 @@ export function sanitizeHtml(html: string, options?: SanitizeOptions): string {
     return sanitized;
   } catch (error) {
     // エラー時は空文字列を返す（安全側に倒す）
-    logger.error('[html-sanitizer] Sanitization failed', {
+    logger.error("[html-sanitizer] Sanitization failed", {
       error: error instanceof Error ? error.message : String(error),
     });
-    return '';
+    return "";
   }
 }
 
@@ -449,13 +468,10 @@ export function sanitizeHtml(html: string, options?: SanitizeOptions): string {
  * @param options - サニタイズオプション
  * @returns サニタイズ結果（詳細情報付き）
  */
-export function sanitizeHtmlWithDetails(
-  html: string,
-  options?: SanitizeOptions
-): SanitizeResult {
-  if (!html || html.trim() === '') {
+export function sanitizeHtmlWithDetails(html: string, options?: SanitizeOptions): SanitizeResult {
+  if (!html || html.trim() === "") {
     return {
-      html: '',
+      html: "",
       removedCount: 0,
     };
   }
@@ -474,11 +490,12 @@ export function sanitizeHtmlWithDetails(
 
   // 除去された数 = 入力の危険要素数 - 出力の危険要素数
   const removedCount =
-    (inputDangerousTagCount - outputDangerousTagCount) +
+    inputDangerousTagCount -
+    outputDangerousTagCount +
     (inputDangerousAttrCount - outputDangerousAttrCount);
 
   if (isDevelopment()) {
-    logger.debug('[html-sanitizer] sanitizeHtmlWithDetails', {
+    logger.debug("[html-sanitizer] sanitizeHtmlWithDetails", {
       inputDangerousTagCount,
       inputDangerousAttrCount,
       outputDangerousTagCount,
@@ -506,7 +523,7 @@ function countDangerousTags(html: string): number {
 
   for (const tag of DANGEROUS_TAGS) {
     // 開始タグをカウント: <script, <script>, <script attr>
-    const openTagRegex = new RegExp(`<${tag}(?:\\s|>|/>)`, 'gi');
+    const openTagRegex = new RegExp(`<${tag}(?:\\s|>|/>)`, "gi");
     const matches = lowerHtml.match(openTagRegex);
     if (matches) {
       count += matches.length;
@@ -528,7 +545,7 @@ function countDangerousAttributes(html: string): number {
 
   for (const attr of DANGEROUS_ATTRIBUTES) {
     // 属性をカウント: onclick=, onclick=", onclick='
-    const attrRegex = new RegExp(`\\s${attr}\\s*=`, 'gi');
+    const attrRegex = new RegExp(`\\s${attr}\\s*=`, "gi");
     const matches = lowerHtml.match(attrRegex);
     if (matches) {
       count += matches.length;
@@ -549,7 +566,7 @@ function extractDangerousTags(html: string): string[] {
   const lowerHtml = html.toLowerCase();
 
   for (const tag of DANGEROUS_TAGS) {
-    const openTagRegex = new RegExp(`<${tag}(?:\\s|>|/>)`, 'gi');
+    const openTagRegex = new RegExp(`<${tag}(?:\\s|>|/>)`, "gi");
     if (openTagRegex.test(lowerHtml)) {
       tags.push(tag);
     }
@@ -569,7 +586,11 @@ export function isSafeAttributeValue(attrName: string, attrValue: string): boole
   const lowerValue = attrValue.toLowerCase().trim();
 
   // href, src, action などのURI属性
-  if (['href', 'src', 'action', 'formaction', 'data', 'cite', 'poster', 'background'].includes(attrName.toLowerCase())) {
+  if (
+    ["href", "src", "action", "formaction", "data", "cite", "poster", "background"].includes(
+      attrName.toLowerCase()
+    )
+  ) {
     // 危険なプロトコルをチェック
     for (const protocol of DANGEROUS_URI_PROTOCOLS) {
       if (lowerValue.startsWith(protocol)) {
@@ -579,12 +600,12 @@ export function isSafeAttributeValue(attrName: string, attrValue: string): boole
   }
 
   // style属性内のexpression(), url(javascript:) などをチェック
-  if (attrName.toLowerCase() === 'style') {
+  if (attrName.toLowerCase() === "style") {
     if (
-      lowerValue.includes('expression(') ||
-      lowerValue.includes('javascript:') ||
-      lowerValue.includes('behavior:') ||
-      lowerValue.includes('-moz-binding:')
+      lowerValue.includes("expression(") ||
+      lowerValue.includes("javascript:") ||
+      lowerValue.includes("behavior:") ||
+      lowerValue.includes("-moz-binding:")
     ) {
       return false;
     }
@@ -607,18 +628,18 @@ export function isSafeAttributeValue(attrName: string, attrValue: string): boole
  * - http-equiv="refresh" はオープンリダイレクト攻撃に使用される
  * - http-equiv="set-cookie" はCookieインジェクションに使用される
  */
-const wholeDocWindow = new JSDOM('').window;
+const wholeDocWindow = new JSDOM("").window;
 const WholeDocDOMPurify = createDOMPurify(wholeDocWindow);
 
 // フック: <meta http-equiv> を持つ要素を除去
 // 安全な meta タグ（name=, charset=）のみ許可
 // http-equiv="refresh" はオープンリダイレクト攻撃、
 // http-equiv="set-cookie" はCookieインジェクションに使用される
-WholeDocDOMPurify.addHook('uponSanitizeElement', (node, data) => {
-  if (data.tagName === 'meta') {
+WholeDocDOMPurify.addHook("uponSanitizeElement", (node, data) => {
+  if (data.tagName === "meta") {
     // DOMPurify内部ではノードはDOM Elementとして扱われる
     const el = node as Element;
-    if (typeof el.getAttribute === 'function' && el.getAttribute('http-equiv')) {
+    if (typeof el.getAttribute === "function" && el.getAttribute("http-equiv")) {
       // http-equiv属性を持つmetaタグはノードごと除去
       if (el.parentNode) {
         el.parentNode.removeChild(el);
@@ -655,12 +676,13 @@ function sanitizeHtmlWholeDocument(html: string, options?: SanitizeOptions): str
   const preprocessed = preStripDangerousTags(html, DANGEROUS_TAGS_WHOLE_DOCUMENT);
 
   // DOMPurifyバイパス: 事前削減後もHTMLが巨大な場合、DOMPurifyをスキップ
+  // SEC-HIGH-01: バイパス時もイベントハンドラ属性・javascript: URLを除去
   if (preprocessed.length >= DOMPURIFY_BYPASS_THRESHOLD_CHARS) {
-    logger.warn('[html-sanitizer] DOMPurify bypassed (WholeDocument) due to large HTML', {
+    logger.warn("[html-sanitizer] DOMPurify bypassed (WholeDocument) due to large HTML", {
       preprocessedLength: preprocessed.length,
       threshold: DOMPURIFY_BYPASS_THRESHOLD_CHARS,
     });
-    return preprocessed;
+    return stripDangerousAttributes(preprocessed);
   }
 
   const config = {
@@ -688,8 +710,8 @@ function sanitizeHtmlWholeDocument(html: string, options?: SanitizeOptions): str
     IN_PLACE: false,
     // ドキュメント構造のための追加タグ・属性
     // meta はDOMPurifyのデフォルト許可リストに含まれないため明示的に追加
-    ADD_TAGS: ['meta'],
-    ADD_ATTR: ['lang', 'charset', 'name', 'content'],
+    ADD_TAGS: ["meta"],
+    ADD_ATTR: ["lang", "charset", "name", "content"],
   };
 
   // オプションに応じて設定を調整
@@ -698,7 +720,7 @@ function sanitizeHtmlWholeDocument(html: string, options?: SanitizeOptions): str
   }
 
   if (options?.allowStyles === false) {
-    config.FORBID_ATTR = [...config.FORBID_ATTR, 'style'] as typeof config.FORBID_ATTR;
+    config.FORBID_ATTR = [...config.FORBID_ATTR, "style"] as typeof config.FORBID_ATTR;
   }
 
   if (options?.allowDataAttributes === false) {
@@ -708,7 +730,7 @@ function sanitizeHtmlWholeDocument(html: string, options?: SanitizeOptions): str
   const sanitized = WholeDocDOMPurify.sanitize(preprocessed, config);
 
   if (isDevelopment()) {
-    logger.debug('[html-sanitizer] WHOLE_DOCUMENT sanitization complete', {
+    logger.debug("[html-sanitizer] WHOLE_DOCUMENT sanitization complete", {
       inputLength: html.length,
       preprocessedLength: preprocessed.length,
       outputLength: sanitized.length,
@@ -724,7 +746,7 @@ function sanitizeHtmlWholeDocument(html: string, options?: SanitizeOptions): str
 // =============================================
 
 if (isDevelopment()) {
-  logger.debug('[html-sanitizer] Module loaded', {
+  logger.debug("[html-sanitizer] Module loaded", {
     dangerousTagsCount: DANGEROUS_TAGS.length,
     dangerousAttributesCount: DANGEROUS_ATTRIBUTES.length,
   });
