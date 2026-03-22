@@ -702,7 +702,7 @@ page.analyze returns a job ID, but data is not saved to the database
 `page.analyze` runs asynchronously. Without the worker running, jobs remain queued and are not saved to the database.
 
 ```bash
-pnpm --filter @reftrix/mcp-server worker:start:page
+pnpm --filter @reftrixmcp/mcp-server worker:start:page
 ```
 
 ### 6.2 `.env.local` が存在するか / Does `.env.local` exist?

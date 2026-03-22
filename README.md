@@ -74,7 +74,7 @@ pnpm docker:up                                   # PostgreSQL 18 + pgvector + Re
 pnpm db:migrate && pnpm db:seed
 pnpm build
 pnpm exec playwright install chromium            # browser for page crawling
-pnpm --filter @reftrix/ml download:dinov2        # DINOv2 visual embedding model (~800 MB)
+pnpm --filter @reftrixmcp/ml download:dinov2        # DINOv2 visual embedding model (~800 MB)
 curl -fsSL https://ollama.com/install.sh | sh    # install Ollama
 ollama pull llama3.2-vision                      # vision model (~2 GB)
 ollama serve                                     # keep running in a separate terminal

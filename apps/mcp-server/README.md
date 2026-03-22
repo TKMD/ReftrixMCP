@@ -779,7 +779,7 @@ import {
   executeLayoutGenerateCode,
   type LayoutToCodeInput,
   type LayoutToCodeOutput,
-} from "@reftrix/mcp-server";
+} from "@reftrixmcp/mcp-server";
 ```
 
 ### 使用例 / Usage Examples

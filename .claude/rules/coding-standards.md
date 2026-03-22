@@ -77,8 +77,8 @@ interface IUser {
 
 | 種別 / Type                           | 規則 / Rule          | ✅ 良い例 / Good    | ❌ 悪い例 / Bad                            |
 | ------------------------------------- | -------------------- | ------------------- | ------------------------------------------ |
-| ファイル名 / File name                | kebab-case           | `search-service.ts` | `SearchService.ts`, `search_service.ts`    |
-| クラス / Class                        | PascalCase           | `SearchService`     | `searchService`, `search_service`          |
+| ファイル名 / File name                | kebab-case           | `search-service.ts`   | `SearchService.ts`, `search_service.ts`        |
+| クラス / Class            | PascalCase           | `SearchService`        | `searchService`, `search_service`                |
 | 関数 / Function                       | camelCase            | `handleSearch`      | `HandleSearch`, `handle_search`            |
 | 定数 / Constant                       | SCREAMING_SNAKE_CASE | `MAX_RESULTS`       | `maxResults`, `max-results`                |
 | 型・インターフェース / Type/Interface | PascalCase           | `SearchResult`      | `searchResult`, `ISearchResult`            |

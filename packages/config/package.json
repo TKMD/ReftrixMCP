@@ -1,6 +1,7 @@
 {
   "name": "@reftrixmcp/config",
   "version": "0.1.7",
+  "private": true,
   "license": "AGPL-3.0-only",
   "type": "module",
   "description": "Shared configuration for Reftrix monorepo",

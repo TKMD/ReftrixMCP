@@ -185,7 +185,7 @@ MCPプロトコルでは標準的なJSON形式のリクエスト/レスポンス
 - Reftrixの内部データ構造やソースコードの一部をクライアント側にコピーしないこと
 - Reftrixのライブラリコードを直接import/linkしないこと（そうした場合は「combined work」と見なされるリスクがある）
 
-**注意**: Reftrixの`packages/`内のライブラリ（例: `@reftrix/core`）を自作アプリケーションに直接importして使用する場合は、AGPLのコピーレフトが及ぶ可能性があります。MCPプロトコル経由でのツール呼び出しと、ライブラリとしての直接利用は、法的に異なる取り扱いとなります。
+**注意**: Reftrixの`packages/`内のライブラリ（例: `@reftrixmcp/core`）を自作アプリケーションに直接importして使用する場合は、AGPLのコピーレフトが及ぶ可能性があります。MCPプロトコル経由でのツール呼び出しと、ライブラリとしての直接利用は、法的に異なる取り扱いとなります。
 
 ---
 
@@ -513,7 +513,7 @@ Note that if you **distribute** Reftrix (e.g., distribute it as a package to thi
 - Do not copy Reftrix internal data structures or source code into your client
 - Do not directly import/link Reftrix library code (doing so may constitute a "combined work")
 
-**Note**: If you directly import and use Reftrix `packages/` libraries (e.g., `@reftrix/core`) in your application, AGPL copyleft may extend to your code. MCP protocol tool invocations and direct library usage have different legal implications.
+**Note**: If you directly import and use Reftrix `packages/` libraries (e.g., `@reftrixmcp/core`) in your application, AGPL copyleft may extend to your code. MCP protocol tool invocations and direct library usage have different legal implications.
 
 ---
 

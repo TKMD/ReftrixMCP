@@ -416,10 +416,10 @@ page.analyzeはBullMQキューとワーカープロセスで非同期実行さ�
 
 ```bash
 # page.analyzeワーカー起動（WorkerSupervisor管理）
-pnpm --filter @reftrix/mcp-server worker:start:page
+pnpm --filter @reftrixmcp/mcp-server worker:start:page
 
 # quality評価ワーカー起動
-pnpm --filter @reftrix/mcp-server worker:start:quality
+pnpm --filter @reftrixmcp/mcp-server worker:start:quality
 ```
 
 **WorkerSupervisor** は OOM クラッシュ防止のため、N 件のジョブ完了後にワーカープロセスを自動再起動します。デフォルトは 1 件ごとに再起動（`WORKER_MAX_JOBS_BEFORE_RESTART` 環境変数でオーバーライド可能）。
@@ -428,10 +428,10 @@ pnpm --filter @reftrix/mcp-server worker:start:quality
 
 ```bash
 # Embeddingカバレッジ確認
-pnpm --filter @reftrix/mcp-server check:embeddings
+pnpm --filter @reftrixmcp/mcp-server check:embeddings
 
 # 欠損Embeddingのバックフィル実行
-pnpm --filter @reftrix/mcp-server backfill:embeddings
+pnpm --filter @reftrixmcp/mcp-server backfill:embeddings
 ```
 
 ---

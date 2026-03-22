@@ -146,15 +146,16 @@ ReftrixMCPはデュアルライセンスモデルであるAGPL-3.0-only + 商用
    pnpm dev
    ```
 
+
 ### ポート設定
 
 ReftrixMCPは他のプロジェクトとの干渉を避けるため、**21000オフセット**を使用しています:
 
-| サービス      | ポート |
-| ------------- | ------ |
-| PostgreSQL    | 26432  |
-| Prisma Studio | 26555  |
-| Redis         | 27379  |
+| サービス         | ポート |
+| ---------------- | ------ |
+| PostgreSQL       | 26432  |
+| Prisma Studio    | 26555  |
+| Redis            | 27379  |
 
 ---
 
@@ -264,10 +265,10 @@ pnpm test:integration
 pnpm test:smoke
 
 # E2Eテスト（Playwright、mcp-serverパッケージのみ）
-pnpm --filter @reftrix/mcp-server test:e2e:playwright
+pnpm --filter @reftrixmcp/mcp-server test:e2e:playwright
 ```
 
-> **Note**: `test:unit`, `test:integration`, `test:smoke` は現在 `@reftrix/mcp-server` パッケージのみが対応しています。他パッケージでは `pnpm test` を使用してください。
+> **Note**: `test:unit`, `test:integration`, `test:smoke` は現在 `@reftrixmcp/mcp-server` パッケージのみが対応しています。他パッケージでは `pnpm test` を使用してください。
 
 #### テストカバレッジ目標
 
@@ -750,15 +751,16 @@ Ensure you have the following tools installed:
    pnpm dev
    ```
 
+
 ### Port Configuration
 
 ReftrixMCP uses a **21000 offset** to avoid conflicts:
 
-| Service       | Port  |
-| ------------- | ----- |
-| PostgreSQL    | 26432 |
-| Prisma Studio | 26555 |
-| Redis         | 27379 |
+| Service          | Port  |
+| ---------------- | ----- |
+| PostgreSQL       | 26432 |
+| Prisma Studio    | 26555 |
+| Redis            | 27379 |
 
 ---
 
@@ -862,10 +864,10 @@ pnpm test:integration
 pnpm test:smoke
 
 # E2E tests (Playwright, mcp-server package only)
-pnpm --filter @reftrix/mcp-server test:e2e:playwright
+pnpm --filter @reftrixmcp/mcp-server test:e2e:playwright
 ```
 
-> **Note**: `test:unit`, `test:integration`, `test:smoke` are currently only supported by the `@reftrix/mcp-server` package. Use `pnpm test` for other packages.
+> **Note**: `test:unit`, `test:integration`, `test:smoke` are currently only supported by the `@reftrixmcp/mcp-server` package. Use `pnpm test` for other packages.
 
 #### Coverage Targets
 

@@ -289,7 +289,7 @@ Part-Level AnalysisのVisual Similarity Search（`part.search` の `searchMode: 
 Part-Level Analysis Visual Similarity Search (`part.search` with `searchMode: "visual"`) requires the DINOv2 ViT-B/14 ONNX model. Download it manually with the following command.
 
 ```bash
-pnpm --filter @reftrix/ml download:dinov2
+pnpm --filter @reftrixmcp/ml download:dinov2
 ```
 
 | 項目 / Item                        | 詳細 / Details                                                                                                               |
@@ -366,7 +366,7 @@ Since page.analyze runs asynchronously, a worker process must be started.
 ```bash
 # page.analyzeワーカー起動（WorkerSupervisor管理）
 # Start page.analyze worker (managed by WorkerSupervisor)
-pnpm --filter @reftrix/mcp-server worker:start:page
+pnpm --filter @reftrixmcp/mcp-server worker:start:page
 ```
 
 > **Warning / 警告**: ワーカー未起動の場合、`page.analyze` と `quality.batch_evaluate` の結果はDBに保存されません。ジョブはキューに滞留し、ワーカー起動後に処理されます。

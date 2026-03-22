@@ -320,7 +320,7 @@ DINOv2 ViT-B/14（Meta AI Research）は、ReftrixのPart-Level Analysis機能�
 - **用途**: Part-Level AnalysisのVisual Embedding生成（768次元、L2正規化）
 - **適用箇所**: page.analyze Worker Phase 5（Embedding）でのUIパーツ視覚特徴量生成
 - **実行環境**: ONNX Runtime経由でローカル実行（ONNXフォーマット、約800MB）
-- **ダウンロード**: `pnpm --filter @reftrix/ml download:dinov2`（手動ダウンロード、SHA-256検証付き）
+- **ダウンロード**: `pnpm --filter @reftrixmcp/ml download:dinov2`（手動ダウンロード、SHA-256検証付き）
 - **環境変数**: `DINOV2_MODEL_PATH` でカスタムモデルパス指定可能
 - **Reftrixはモデルをバンドルしていません**: ユーザーが上記コマンドで自身でモデルをダウンロードする必要があります
 - **Graceful Degradation**: モデル未ダウンロード時はVisual Embeddingをスキップし、text_embeddingのみ生成します。基本機能への影響はありません
@@ -333,7 +333,7 @@ DINOv2 ViT-B/14 (Meta AI Research) is used for visual embedding generation in Re
 - **Usage**: Visual embedding generation for Part-Level Analysis (768 dimensions, L2-normalized)
 - **Applied to**: UI part visual feature generation in page.analyze Worker Phase 5 (Embedding)
 - **Runtime**: Executed locally via ONNX Runtime (ONNX format, approximately 800MB)
-- **Download**: `pnpm --filter @reftrix/ml download:dinov2` (manual download with SHA-256 verification)
+- **Download**: `pnpm --filter @reftrixmcp/ml download:dinov2` (manual download with SHA-256 verification)
 - **Environment variable**: Custom model path configurable via `DINOV2_MODEL_PATH`
 - **Reftrix does NOT bundle the model**: Users must download the model themselves using the command above
 - **Graceful Degradation**: When the model is not downloaded, visual embedding is skipped and only text_embedding is generated. Core functionality is not affected

@@ -221,10 +221,10 @@ Push only after user approval.
 
 ### 2つのCHANGELOG / Two CHANGELOGs
 
-| ファイル / File          | 用途 / Purpose                                                                                                                                                                    | OSS同期 / OSS Sync      |
-| ------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------- |
-| `CHANGELOG.md`（ルート） | **OSS公開用** — OSSリポジトリに同期される変更のみ記載 / **OSS-facing** — only changes synced to OSS repo                                                                          | ✅ 同期対象             |
-| `                        | **内部完全版** — プロジェクト全変更を記載（エージェント・スキル・内部ドキュメント含む） / **Internal full version** — all project changes including agents, skills, internal docs | ❌ 除外（`.ossfilter`） |
+| ファイル / File              | 用途 / Purpose                                                                                                                                                                    | OSS同期 / OSS Sync      |
+| ---------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------- |
+| `CHANGELOG.md`（ルート）     | **OSS公開用** — OSSリポジトリに同期される変更のみ記載 / **OSS-facing** — only changes synced to OSS repo                                                                          | ✅ 同期対象             |
+| ` | **内部完全版** — プロジェクト全変更を記載（エージェント・スキル・内部ドキュメント含む） / **Internal full version** — all project changes including agents, skills, internal docs | ❌ 除外（`.ossfilter`） |
 
 ### ルート CHANGELOG.md に記載しない内容 / Do NOT include in root CHANGELOG.md
 

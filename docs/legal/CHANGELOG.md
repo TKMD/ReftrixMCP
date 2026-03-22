@@ -65,8 +65,8 @@
 
 #### THIRDPARTY_LICENSES.md
 
-- **確認結果**: NarrativeSearchService が `@reftrix/ml` の `EmbeddingService` クラスを直接使用する変更は、ライセンス互換性に影響なし
-- **理由**: `@reftrix/ml` はReftrixプロジェクトの内部パッケージであり、AGPL-3.0-only が適用される。`EmbeddingService` が内部的に使用する `onnxruntime-node` (MIT) および `multilingual-e5-base` モデル (MIT) は、既に THIRDPARTY_LICENSES.md に記載済み。Class版への移行は依存関係の変更を伴わないため、サードパーティライセンスへの影響はなし
+- **確認結果**: NarrativeSearchService が `@reftrixmcp/ml` の `EmbeddingService` クラスを直接使用する変更は、ライセンス互換性に影響なし
+- **理由**: `@reftrixmcp/ml` はReftrixプロジェクトの内部パッケージであり、AGPL-3.0-only が適用される。`EmbeddingService` が内部的に使用する `onnxruntime-node` (MIT) および `multilingual-e5-base` モデル (MIT) は、既に THIRDPARTY_LICENSES.md に記載済み。Class版への移行は依存関係の変更を伴わないため、サードパーティライセンスへの影響はなし
 - **総パッケージ数**: 804（変更なし）
 - **生成日**: 2026-02-18（再生成不要と判断）
 

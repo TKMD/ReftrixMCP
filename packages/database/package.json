@@ -1,6 +1,7 @@
 {
   "name": "@reftrixmcp/database",
   "version": "0.1.7",
+  "private": true,
   "license": "AGPL-3.0-only",
   "description": "Database schema and migrations for Reftrix",
   "files": [

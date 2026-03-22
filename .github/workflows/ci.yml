@@ -55,7 +55,7 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Generate Prisma Client
-        run: pnpm --filter @reftrix/database db:generate
+        run: pnpm --filter @reftrixmcp/database db:generate
 
       - name: Type check
         run: pnpm typecheck
@@ -91,13 +91,13 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Generate Prisma Client
-        run: pnpm --filter @reftrix/database db:generate
+        run: pnpm --filter @reftrixmcp/database db:generate
 
       - name: Build workspace packages
         run: pnpm build
 
       - name: Run smoke tests
-        run: pnpm --filter @reftrix/mcp-server test:smoke
+        run: pnpm --filter @reftrixmcp/mcp-server test:smoke
 
   # Unit Tests
   test-unit:
@@ -123,7 +123,7 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Generate Prisma Client
-        run: pnpm --filter @reftrix/database db:generate
+        run: pnpm --filter @reftrixmcp/database db:generate
 
       - name: Install Playwright browsers
         run: npx playwright install --with-deps chromium
@@ -193,7 +193,7 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Generate Prisma Client
-        run: pnpm --filter @reftrix/database db:generate
+        run: pnpm --filter @reftrixmcp/database db:generate
 
       - name: Install Playwright browsers
         run: npx playwright install --with-deps chromium
@@ -204,7 +204,7 @@ jobs:
           PGPASSWORD=test_password psql -h localhost -U reftrix -d reftrix_test -c "SELECT extname, extversion FROM pg_extension WHERE extname = 'vector';"
 
       - name: Run migrations (deploy mode for CI)
-        run: pnpm --filter @reftrix/database prisma migrate deploy
+        run: pnpm --filter @reftrixmcp/database prisma migrate deploy
 
       - name: Verify database schema
         run: |
@@ -254,7 +254,7 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Generate Prisma Client
-        run: pnpm --filter @reftrix/database db:generate
+        run: pnpm --filter @reftrixmcp/database db:generate
 
       - name: Build workspace packages
         run: pnpm build
@@ -351,7 +351,7 @@ jobs:
         run: npx playwright install --with-deps chromium
 
       - name: Generate Prisma Client
-        run: pnpm --filter @reftrix/database db:generate
+        run: pnpm --filter @reftrixmcp/database db:generate
 
       - name: Build workspace packages
         run: pnpm build
@@ -402,7 +402,7 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Generate Prisma Client
-        run: pnpm --filter @reftrix/database db:generate
+        run: pnpm --filter @reftrixmcp/database db:generate
 
       - name: Build
         run: pnpm build
@@ -441,7 +441,7 @@ jobs:
         # LGPL動的リンク例外により AGPL-3.0 と互換。詳細: THIRDPARTY_LICENSES.md
         run: >-
           npx license-checker --production
-          --excludePackages "reftrix@$(node -p "require('./package.json').version");sharp"
+          --excludePackages "reftrixmcp@$(node -p "require('./package.json').version");sharp"
           --onlyAllow "MIT;Apache-2.0;BSD-2-Clause;BSD-3-Clause;ISC;CC0-1.0;CC-BY-4.0;Unlicense;0BSD;AGPL-3.0-only;PostgreSQL;MPL-2.0;Python-2.0;BlueOak-1.0.0"
 
   # Slack Notification - CI結果をSlackに通知

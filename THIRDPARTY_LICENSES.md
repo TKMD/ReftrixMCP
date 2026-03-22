@@ -25,14 +25,14 @@ npx license-checker --production
 
 ## License Summary / ライセンスサマリー
 
-| License                     | Key Packages                    |
-| --------------------------- | ------------------------------- |
-| MIT                         | ~81% of dependencies            |
-| Apache-2.0                  | ~5% of dependencies             |
-| ISC                         | ~5% of dependencies             |
-| BSD-2-Clause / BSD-3-Clause | ~5% of dependencies             |
-| MPL-2.0                     | DOMPurify, axe-core             |
-| LGPL-3.0-or-later           | Sharp/libvips (dynamic linking) |
+| License | Key Packages |
+|---------|-------------|
+| MIT | ~81% of dependencies |
+| Apache-2.0 | ~5% of dependencies |
+| ISC | ~5% of dependencies |
+| BSD-2-Clause / BSD-3-Clause | ~5% of dependencies |
+| MPL-2.0 | DOMPurify, axe-core |
+| LGPL-3.0-or-later | Sharp/libvips (dynamic linking) |
 
 依存関係の約81%がMITライセンスで、残りはApache-2.0、ISC、BSDなどの寛容なライセンスです。
 MPL-2.0およびLGPL-3.0-or-laterの依存関係は、AGPL-3.0との互換性が確認済みです。
@@ -41,28 +41,28 @@ MPL-2.0およびLGPL-3.0-or-laterの依存関係は、AGPL-3.0との互換性が
 
 ## Principal Dependencies / 主要な依存関係
 
-| Package                   | Version | License                                                            | Repository                                             |
-| ------------------------- | ------- | ------------------------------------------------------------------ | ------------------------------------------------------ |
-| @modelcontextprotocol/sdk | 1.26.x  | MIT                                                                | https://github.com/modelcontextprotocol/typescript-sdk |
-| @prisma/client            | 6.x     | Apache-2.0                                                         | https://github.com/prisma/prisma                       |
-| @huggingface/transformers | 3.x     | Apache-2.0                                                         | https://github.com/huggingface/transformers.js         |
-| onnxruntime-node          | 1.21.x  | MIT                                                                | https://github.com/microsoft/onnxruntime               |
-| zod                       | 3.24.x  | MIT                                                                | https://github.com/colinhacks/zod                      |
-| bullmq                    | 5.x     | MIT                                                                | https://github.com/taskforcesh/bullmq                  |
-| ioredis                   | 5.x     | MIT                                                                | https://github.com/redis/ioredis                       |
-| jsdom                     | 27.x    | MIT                                                                | https://github.com/jsdom/jsdom                         |
-| ws                        | 8.x     | MIT                                                                | https://github.com/websockets/ws                       |
-| sharp                     | 0.34.x  | Apache-2.0 (npm pkg); libvips: LGPL-3.0-or-later (dynamic linking) | https://github.com/lovell/sharp                        |
-| pixelmatch                | 6.0.x   | MIT                                                                | https://github.com/mapbox/pixelmatch                   |
-| pngjs                     | 7.x     | MIT                                                                | https://github.com/lukeapage/pngjs                     |
-| dompurify                 | 3.3.x   | MPL-2.0 OR Apache-2.0                                              | https://github.com/cure53/DOMPurify                    |
-| axe-core                  | 4.x     | MPL-2.0                                                            | https://github.com/dequelabs/axe-core                  |
-| culori                    | 4.x     | MIT                                                                | https://github.com/Evercoder/culori                    |
-| cheerio                   | 1.x     | MIT                                                                | https://github.com/cheeriojs/cheerio                   |
-| css-tree                  | 3.x     | MIT                                                                | https://github.com/csstree/csstree                     |
-| postcss                   | 8.x     | MIT                                                                | https://github.com/postcss/postcss                     |
-| robots-parser             | 3.x     | MIT                                                                | https://github.com/nickmccurdy/robots-parser           |
-| playwright                | 1.57.x  | Apache-2.0                                                         | https://github.com/microsoft/playwright                |
+| Package | Version | License | Repository |
+|---------|---------|---------|------------|
+| @modelcontextprotocol/sdk | 1.26.x | MIT | https://github.com/modelcontextprotocol/typescript-sdk |
+| @prisma/client | 6.x | Apache-2.0 | https://github.com/prisma/prisma |
+| @huggingface/transformers | 3.x | Apache-2.0 | https://github.com/huggingface/transformers.js |
+| onnxruntime-node | 1.21.x | MIT | https://github.com/microsoft/onnxruntime |
+| zod | 3.24.x | MIT | https://github.com/colinhacks/zod |
+| bullmq | 5.x | MIT | https://github.com/taskforcesh/bullmq |
+| ioredis | 5.x | MIT | https://github.com/redis/ioredis |
+| jsdom | 27.x | MIT | https://github.com/jsdom/jsdom |
+| ws | 8.x | MIT | https://github.com/websockets/ws |
+| sharp | 0.34.x | Apache-2.0 (npm pkg); libvips: LGPL-3.0-or-later (dynamic linking) | https://github.com/lovell/sharp |
+| pixelmatch | 6.0.x | MIT | https://github.com/mapbox/pixelmatch |
+| pngjs | 7.x | MIT | https://github.com/lukeapage/pngjs |
+| dompurify | 3.3.x | MPL-2.0 OR Apache-2.0 | https://github.com/cure53/DOMPurify |
+| axe-core | 4.x | MPL-2.0 | https://github.com/dequelabs/axe-core |
+| culori | 4.x | MIT | https://github.com/Evercoder/culori |
+| cheerio | 1.x | MIT | https://github.com/cheeriojs/cheerio |
+| css-tree | 3.x | MIT | https://github.com/csstree/csstree |
+| postcss | 8.x | MIT | https://github.com/postcss/postcss |
+| robots-parser | 3.x | MIT | https://github.com/nickmccurdy/robots-parser |
+| playwright | 1.57.x | Apache-2.0 | https://github.com/microsoft/playwright |
 
 ---
 
@@ -74,9 +74,9 @@ distribution. They are downloaded automatically on first use.
 以下のMLモデルは実行時に使用されますが、本配布物には含まれて**いません**。
 初回使用時に自動的にダウンロードされます。
 
-| Model                         | License | URL                                                  |
-| ----------------------------- | ------- | ---------------------------------------------------- |
-| intfloat/multilingual-e5-base | MIT     | https://huggingface.co/intfloat/multilingual-e5-base |
+| Model | License | URL |
+|-------|---------|-----|
+| intfloat/multilingual-e5-base | MIT | https://huggingface.co/intfloat/multilingual-e5-base |
 
 ---
 
