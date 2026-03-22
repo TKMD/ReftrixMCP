@@ -18,6 +18,7 @@
  */
 
 import { ZodError } from "zod";
+import { createDIFactory } from "../../utils/di-factory";
 import { logger, isDevelopment } from "../../utils/logger";
 import {
   preferenceHearInputSchema,
@@ -229,23 +230,9 @@ export type PreferenceHearOutput =
 // サービスファクトリー（DI） / Service Factory (DI)
 // =====================================================
 
-let preferenceServiceFactory: (() => IPreferenceService) | null = null;
-
-/**
- * サービスファクトリーを設定
- * Set service factory
- */
-export function setPreferenceServiceFactory(factory: () => IPreferenceService): void {
-  preferenceServiceFactory = factory;
-}
-
-/**
- * サービスファクトリーをリセット
- * Reset service factory
- */
-export function resetPreferenceServiceFactory(): void {
-  preferenceServiceFactory = null;
-}
+const preferenceServiceDI = createDIFactory<IPreferenceService>("PreferenceService");
+export const setPreferenceServiceFactory = preferenceServiceDI.set;
+export const resetPreferenceServiceFactory = preferenceServiceDI.reset;
 
 // =====================================================
 // エラーコード判定 / Error Code Mapping
@@ -311,7 +298,7 @@ export async function preferenceHearHandler(input: unknown): Promise<PreferenceH
   }
 
   // サービスファクトリーチェック / Service factory check
-  if (!preferenceServiceFactory) {
+  if (!preferenceServiceDI.get()) {
     logger.warn("[MCP Tool] preference.hear service factory not set");
 
     return {
@@ -323,7 +310,7 @@ export async function preferenceHearHandler(input: unknown): Promise<PreferenceH
     };
   }
 
-  const service = preferenceServiceFactory();
+  const service = preferenceServiceDI.get()!();
 
   try {
     // モード判定: feedbackの有無で分岐

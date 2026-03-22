@@ -12,6 +12,7 @@
  */
 
 import { ZodError } from "zod";
+import { createDIFactory } from "../../utils/di-factory";
 import { logger, isDevelopment } from "../../utils/logger";
 import {
   preferenceGetInputSchema,
@@ -63,23 +64,9 @@ export type PreferenceGetOutput =
 // サービスファクトリー（DI） / Service Factory (DI)
 // =====================================================
 
-let preferenceServiceFactory: (() => IPreferenceService) | null = null;
-
-/**
- * サービスファクトリーを設定
- * Set service factory
- */
-export function setPreferenceServiceFactory(factory: () => IPreferenceService): void {
-  preferenceServiceFactory = factory;
-}
-
-/**
- * サービスファクトリーをリセット
- * Reset service factory
- */
-export function resetPreferenceServiceFactory(): void {
-  preferenceServiceFactory = null;
-}
+const preferenceServiceDI = createDIFactory<IPreferenceService>("PreferenceService");
+export const setPreferenceServiceFactory = preferenceServiceDI.set;
+export const resetPreferenceServiceFactory = preferenceServiceDI.reset;
 
 // =====================================================
 // メインハンドラー / Main Handler
@@ -123,7 +110,7 @@ export async function preferenceGetHandler(input: unknown): Promise<PreferenceGe
   }
 
   // サービスファクトリーチェック / Service factory check
-  if (!preferenceServiceFactory) {
+  if (!preferenceServiceDI.get()) {
     logger.warn("[MCP Tool] preference.get service factory not set");
 
     return {
@@ -135,7 +122,7 @@ export async function preferenceGetHandler(input: unknown): Promise<PreferenceGe
     };
   }
 
-  const service = preferenceServiceFactory();
+  const service = preferenceServiceDI.get()!();
 
   try {
     const profile = await service.getProfile(validated.profile_id);

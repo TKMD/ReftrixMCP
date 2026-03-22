@@ -16,6 +16,7 @@
  * @module tools/brief/validate.handler
  */
 
+import { createDIFactory } from "../../utils/di-factory";
 import { logger, isDevelopment } from "../../utils/logger";
 
 import {
@@ -44,30 +45,17 @@ export type IBriefValidateServiceFactory = () => IBriefValidateService;
 // サービスファクトリ（DI用）
 // =====================================================
 
-let serviceFactory: IBriefValidateServiceFactory | null = null;
-
-/**
- * カスタムサービスファクトリを設定
- * @param factory - サービスファクトリ関数
- */
-export function setBriefValidateServiceFactory(factory: IBriefValidateServiceFactory): void {
-  serviceFactory = factory;
-}
-
-/**
- * サービスファクトリをリセット（デフォルトに戻す）
- */
-export function resetBriefValidateServiceFactory(): void {
-  serviceFactory = null;
-}
+const serviceFactoryDI = createDIFactory<IBriefValidateService>("BriefValidateService");
+export const setBriefValidateServiceFactory = serviceFactoryDI.set;
+export const resetBriefValidateServiceFactory = serviceFactoryDI.reset;
 
 /**
  * サービスインスタンスを取得
  * @returns IBriefValidateService
  */
 function getService(): IBriefValidateService {
-  if (serviceFactory) {
-    return serviceFactory();
+  if (serviceFactoryDI.get()) {
+    return serviceFactoryDI.get()!();
   }
   return new BriefValidateService();
 }

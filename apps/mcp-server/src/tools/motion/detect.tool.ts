@@ -120,7 +120,7 @@ import {
   mapJSAnimationResultToPatterns,
   saveJSAnimationPatternsWithEmbeddings,
 } from "../page/handlers/js-animation-handler";
-import type { JSAnimationFullResult } from "../page/handlers/types";
+import type { JSAnimationFullResult, IPageAnalyzePrismaClient } from "../page/handlers/types";
 import { getJSAnimationPersistencePrismaClient } from "./di-factories";
 
 // =====================================================
@@ -1729,8 +1729,7 @@ async function saveJSAnimationsToDb(
 
     // page.analyze と同じ保存ロジックを使用（IPageAnalyzePrismaClient互換のキャスト）
     const saveResult = await saveJSAnimationPatternsWithEmbeddings(
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      prisma as any,
+      prisma as unknown as IPageAnalyzePrismaClient,
       patterns,
       webPageId,
       {

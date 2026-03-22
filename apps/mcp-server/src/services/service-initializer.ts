@@ -17,6 +17,8 @@
  * @module services/service-initializer
  */
 
+import type { PrismaClient } from "@prisma/client";
+
 import { logger } from "../utils/logger";
 
 // =====================================================
@@ -129,6 +131,7 @@ import { createBackgroundSearchService } from "./background-search.service";
 import {
   setBackgroundPrismaClientFactory,
   setBackgroundEmbeddingServiceFactory,
+  type IBackgroundPrismaClient,
 } from "./background/background-design-embedding.service";
 
 // Responsive関連インポート
@@ -270,21 +273,21 @@ export interface IServiceClient {}
  * MinimalPrismaClientとの互換性のため、createは関数型として定義
  */
 export interface IPrismaClientMinimal {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  motionPattern?: { create: (...args: any[]) => Promise<any> };
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  motionEmbedding?: { create: (...args: any[]) => Promise<any> };
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  sectionPattern?: { create: (...args: any[]) => Promise<any> };
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  sectionEmbedding?: { create: (...args: any[]) => Promise<any> };
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  qualityBenchmark?: { create: (...args: any[]) => Promise<any> };
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Prisma SelectSubset<T> generics require any for assignability from PrismaClient
+  motionPattern?: { create: (...args: any[]) => Promise<{ id: string }> };
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Prisma SelectSubset<T> generics require any for assignability from PrismaClient
+  motionEmbedding?: { create: (...args: any[]) => Promise<{ id: string }> };
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Prisma SelectSubset<T> generics require any for assignability from PrismaClient
+  sectionPattern?: { create: (...args: any[]) => Promise<{ id: string }> };
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Prisma SelectSubset<T> generics require any for assignability from PrismaClient
+  sectionEmbedding?: { create: (...args: any[]) => Promise<{ id: string }> };
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Prisma SelectSubset<T> generics require any for assignability from PrismaClient
+  qualityBenchmark?: { create: (...args: any[]) => Promise<{ id: string }> };
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Prisma $executeRawUnsafe accepts heterogeneous value types
   $executeRawUnsafe: (...args: any[]) => Promise<unknown>;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Prisma $queryRawUnsafe accepts heterogeneous value types
   $queryRawUnsafe: (...args: any[]) => Promise<unknown>;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Prisma transaction callback receives internal client variant
   $transaction?: <T>(fn: (tx: any) => Promise<T>) => Promise<T>;
 }
 
@@ -836,8 +839,9 @@ export function initializeQualityServices(
     // 1. BenchmarkService ファクトリ
     // PrismaClientをそのまま渡す（BenchmarkServiceは$queryRawUnsafeを使用）
     setBenchmarkServiceFactory(() => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      return new BenchmarkService(config.prisma as any);
+      // IPrismaClientMinimal は BenchmarkService が要求する PrismaClient のスーパーセット。
+      // 構造的互換性があるため unknown 経由でキャストする。
+      return new BenchmarkService(config.prisma as unknown as PrismaClient);
     });
     registeredFactories.push("benchmarkService");
     logger.info("[ServiceInitializer] benchmarkService factory registered");
@@ -1138,8 +1142,7 @@ export function initializeAllServices(config: ServiceInitializerConfig): Service
         createPrismaWrapper(config.prisma, {
           tables: ["backgroundDesignEmbedding"],
           supportsTransaction: false,
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        }) as any
+        }) as unknown as IBackgroundPrismaClient
     );
     allRegistered.push("backgroundPrismaClient");
 

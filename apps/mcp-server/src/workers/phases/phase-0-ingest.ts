@@ -46,7 +46,7 @@ export interface IngestPhaseDeps {
   };
   prisma: {
     webPage: {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Prisma upsert args use SelectSubset<T> generics incompatible with structural types
       upsert: (args: any) => Promise<{ id: string }>;
     };
   };

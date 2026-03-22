@@ -17,6 +17,7 @@
  */
 
 import { ZodError } from "zod";
+import { createDIFactory } from "../../utils/di-factory";
 import { logger, isDevelopment } from "../../utils/logger";
 import {
   layoutToCodeInputSchema,
@@ -155,21 +156,9 @@ export interface ILayoutToCodeService {
 // サービスファクトリー（DI）
 // =====================================================
 
-let serviceFactory: (() => ILayoutToCodeService) | null = null;
-
-/**
- * サービスファクトリーを設定
- */
-export function setLayoutToCodeServiceFactory(factory: () => ILayoutToCodeService): void {
-  serviceFactory = factory;
-}
-
-/**
- * サービスファクトリーをリセット
- */
-export function resetLayoutToCodeServiceFactory(): void {
-  serviceFactory = null;
-}
+const serviceFactoryDI = createDIFactory<ILayoutToCodeService>("LayoutToCodeService");
+export const setLayoutToCodeServiceFactory = serviceFactoryDI.set;
+export const resetLayoutToCodeServiceFactory = serviceFactoryDI.reset;
 
 // =====================================================
 // エラー生成ヘルパー
@@ -303,7 +292,7 @@ export async function layoutToCodeHandler(input: unknown): Promise<LayoutToCodeO
   }
 
   // サービスファクトリーチェック
-  if (!serviceFactory) {
+  if (!serviceFactoryDI.get()) {
     if (isDevelopment()) {
       logger.error("[MCP Tool] layout.to_code service factory not set");
     }
@@ -314,7 +303,7 @@ export async function layoutToCodeHandler(input: unknown): Promise<LayoutToCodeO
     ) as LayoutToCodeOutput;
   }
 
-  const service = serviceFactory();
+  const service = serviceFactoryDI.get()!();
 
   try {
     // セクションパターン取得

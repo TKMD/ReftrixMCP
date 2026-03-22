@@ -15,6 +15,7 @@
  * @module tools/page/handlers/embedding-handler
  */
 
+import { createDIFactory } from "../../../utils/di-factory";
 import { isDevelopment, logger } from "../../../utils/logger";
 import {
   LayoutEmbeddingService,
@@ -165,24 +166,20 @@ export interface ILayoutEmbeddingServiceForMotion {
   generateFromText(text: string): Promise<{ embedding: number[]; modelName: string }>;
 }
 
-let motionLayoutEmbeddingServiceFactory: (() => ILayoutEmbeddingServiceForMotion) | null = null;
+const motionLayoutEmbeddingServiceDI = createDIFactory<ILayoutEmbeddingServiceForMotion>(
+  "MotionLayoutEmbeddingService"
+);
 let motionLayoutEmbeddingServiceSingleton: ILayoutEmbeddingServiceForMotion | null = null;
 
-/**
- * MotionEmbedding用LayoutEmbeddingServiceファクトリを設定（テスト用）
- */
 export function setMotionLayoutEmbeddingServiceFactory(
   factory: () => ILayoutEmbeddingServiceForMotion
 ): void {
-  motionLayoutEmbeddingServiceFactory = factory;
+  motionLayoutEmbeddingServiceDI.set(factory);
   motionLayoutEmbeddingServiceSingleton = null;
 }
 
-/**
- * MotionEmbedding用LayoutEmbeddingServiceファクトリをリセット（テスト用）
- */
 export function resetMotionLayoutEmbeddingServiceFactory(): void {
-  motionLayoutEmbeddingServiceFactory = null;
+  motionLayoutEmbeddingServiceDI.reset();
   motionLayoutEmbeddingServiceSingleton = null;
 }
 
@@ -190,8 +187,8 @@ export function resetMotionLayoutEmbeddingServiceFactory(): void {
  * MotionEmbedding用LayoutEmbeddingServiceを取得（DI対応、singleton）
  */
 function getMotionLayoutEmbeddingService(): ILayoutEmbeddingServiceForMotion {
-  if (motionLayoutEmbeddingServiceFactory) {
-    return motionLayoutEmbeddingServiceFactory();
+  if (motionLayoutEmbeddingServiceDI.get()) {
+    return motionLayoutEmbeddingServiceDI.get()!();
   }
   // シングルトンで再利用（毎回new LayoutEmbeddingService()するとメモリリスク）
   if (!motionLayoutEmbeddingServiceSingleton) {

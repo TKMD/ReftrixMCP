@@ -12,6 +12,7 @@
  */
 
 import { ZodError } from "zod";
+import { createDIFactory } from "../../utils/di-factory";
 import { logger, isDevelopment } from "../../utils/logger";
 import {
   preferenceResetInputSchema,
@@ -52,23 +53,9 @@ export type PreferenceResetOutput =
 // サービスファクトリー（DI） / Service Factory (DI)
 // =====================================================
 
-let preferenceServiceFactory: (() => IPreferenceService) | null = null;
-
-/**
- * サービスファクトリーを設定
- * Set service factory
- */
-export function setPreferenceServiceFactory(factory: () => IPreferenceService): void {
-  preferenceServiceFactory = factory;
-}
-
-/**
- * サービスファクトリーをリセット
- * Reset service factory
- */
-export function resetPreferenceServiceFactory(): void {
-  preferenceServiceFactory = null;
-}
+const preferenceServiceDI = createDIFactory<IPreferenceService>("PreferenceService");
+export const setPreferenceServiceFactory = preferenceServiceDI.set;
+export const resetPreferenceServiceFactory = preferenceServiceDI.reset;
 
 // =====================================================
 // エラーコード判定 / Error Code Mapping
@@ -145,7 +132,7 @@ export async function preferenceResetHandler(input: unknown): Promise<Preference
   }
 
   // サービスファクトリーチェック / Service factory check
-  if (!preferenceServiceFactory) {
+  if (!preferenceServiceDI.get()) {
     logger.warn("[MCP Tool] preference.reset service factory not set");
 
     return {
@@ -157,7 +144,7 @@ export async function preferenceResetHandler(input: unknown): Promise<Preference
     };
   }
 
-  const service = preferenceServiceFactory();
+  const service = preferenceServiceDI.get()!();
 
   try {
     // hard_delete: true → プロファイル完全削除（GDPR忘れられる権利）

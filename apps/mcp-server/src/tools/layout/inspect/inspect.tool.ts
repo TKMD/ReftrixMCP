@@ -16,6 +16,7 @@
  * @module tools/layout/inspect/inspect.tool
  */
 
+import { createDIFactory } from "../../../utils/di-factory";
 import {
   layoutInspectInputSchema,
   type LayoutInspectInput,
@@ -91,24 +92,9 @@ export interface ILayoutInspectService {
   getVisionAnalyzer?: () => IVisionAnalyzer | null;
 }
 
-/** サービスファクトリ関数 */
-let serviceFactory: (() => ILayoutInspectService) | null = null;
-
-/**
- * サービスファクトリを設定
- *
- * @param factory - サービスインスタンスを生成するファクトリ関数
- */
-export function setLayoutInspectServiceFactory(factory: () => ILayoutInspectService): void {
-  serviceFactory = factory;
-}
-
-/**
- * サービスファクトリをリセット（テスト用）
- */
-export function resetLayoutInspectServiceFactory(): void {
-  serviceFactory = null;
-}
+const serviceFactoryDI = createDIFactory<ILayoutInspectService>("LayoutInspectService");
+export const setLayoutInspectServiceFactory = serviceFactoryDI.set;
+export const resetLayoutInspectServiceFactory = serviceFactoryDI.reset;
 
 // =====================================================
 // ハンドラー
@@ -176,7 +162,7 @@ export async function layoutInspectHandler(input: unknown): Promise<LayoutInspec
   // IDが指定されている場合はDBから取得
   if (validated.id && !html) {
     try {
-      const service = serviceFactory?.();
+      const service = serviceFactoryDI.get()?.();
       if (service?.getWebPageById) {
         const webPage = await service.getWebPageById(validated.id);
         if (!webPage) {
@@ -236,7 +222,7 @@ export async function layoutInspectHandler(input: unknown): Promise<LayoutInspec
     }
 
     try {
-      const service = serviceFactory?.();
+      const service = serviceFactoryDI.get()?.();
       if (!service?.analyzeScreenshot) {
         const message =
           getToolErrorMessage("layout.inspect", "SERVICE_UNAVAILABLE") ??
@@ -620,7 +606,7 @@ export async function layoutInspectHandler(input: unknown): Promise<LayoutInspec
     let visionFeatures: VisionAnalysisResult | undefined;
     if (options.useVision) {
       try {
-        const service = serviceFactory?.();
+        const service = serviceFactoryDI.get()?.();
         if (service?.analyzeWithVision) {
           visionFeatures = await service.analyzeWithVision(html);
         }

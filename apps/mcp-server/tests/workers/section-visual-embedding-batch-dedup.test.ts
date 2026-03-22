@@ -47,11 +47,14 @@ import { cosineSimilarity } from "@reftrixmcp/ml";
 // ソースコード構造テスト用の定数
 // ==========================================================================
 
-/** processEmbeddingPhase 全体のスライスサイズ（~54K文字） */
-const EMBEDDING_PHASE_SLICE = 60000;
+/** processEmbeddingPhase 全体のスライスサイズ（~73K文字、acquireSectionCropBuffer抽出+動的Fallback追加分を含む） */
+const EMBEDDING_PHASE_SLICE = 75000;
 
-/** Section Visual Embedding ブロックのスライスサイズ（acquireSectionCropBuffer抽出+動的Fallback追加分を含む） */
-const SECTION_VISUAL_SLICE = 20000;
+/** Section Visual Embedding ブロックのスライスサイズ（processEmbeddingPhase内のセクション+サブ関数collectAndCapture分） */
+const SECTION_VISUAL_SLICE = 35000;
+
+/** processSingleSectionVisualEmbedding サブ関数のスライスサイズ（巨大関数分解で移動したセクション単位処理ロジック） */
+const SINGLE_SECTION_SLICE = 10000;
 
 // ==========================================================================
 // SectionScreenshotFallbackService モックテスト用
@@ -255,9 +258,10 @@ describe("PageAnalyzeWorker - Batch Fallback + Duplicate Vector Detection", () =
 
     it("フォールバック対象0件でバッチ呼び出しスキップ", () => {
       // Arrange & Act: ソースコード構造解析
-      const fnStart = workerSource.indexOf("async function processEmbeddingPhase");
+      // After further refactoring, fallback collection moved to collectFallbackScreenshots
+      const fnStart = workerSource.indexOf("async function collectFallbackScreenshots");
       expect(fnStart).toBeGreaterThan(-1);
-      const fnBody = workerSource.slice(fnStart, fnStart + EMBEDDING_PHASE_SLICE);
+      const fnBody = workerSource.slice(fnStart, fnStart + 5000);
 
       // Assert: fallbackSections.length > 0 のガード条件が存在する
       expect(fnBody).toContain("fallbackSections.length > 0");
@@ -288,38 +292,41 @@ describe("PageAnalyzeWorker - Batch Fallback + Duplicate Vector Detection", () =
   describe("重複ベクトル検出: コサイン類似度ベース / Duplicate vector detection: cosine similarity", () => {
     it("コサイン類似度 > DUPLICATE_THRESHOLD でvision_embedding保存スキップ", () => {
       // Arrange & Act: ソースコード構造解析
-      const fnStart = workerSource.indexOf("Section Visual Embedding");
+      // After TDA-C1 refactoring, per-section duplicate detection moved to processSingleSectionVisualEmbedding
+      const fnStart = workerSource.indexOf("async function processSingleSectionVisualEmbedding");
       expect(fnStart).toBeGreaterThan(-1);
-      const sectionVisualBody = workerSource.slice(fnStart, fnStart + SECTION_VISUAL_SLICE);
+      const chunkBody = workerSource.slice(fnStart, fnStart + SINGLE_SECTION_SLICE);
 
       // Assert: 重複検出後のスキップパターン
-      expect(sectionVisualBody).toContain("isDuplicateVector");
-      expect(sectionVisualBody).toContain("Duplicate vision embedding detected");
-      expect(sectionVisualBody).toContain("DUPLICATE_THRESHOLD");
+      expect(chunkBody).toContain("isDuplicateVector");
+      expect(chunkBody).toContain("Duplicate vision embedding detected");
+      // DUPLICATE_THRESHOLD is passed as params.duplicateThreshold
+      expect(chunkBody).toContain("duplicateThreshold");
 
-      // isDuplicateVector が true の場合に continue でDB保存スキップ
-      const dupCheckPos = sectionVisualBody.indexOf("if (isDuplicateVector)");
+      // isDuplicateVector が true の場合に return でDB保存スキップ（サブ関数のため continue → return）
+      const dupCheckPos = chunkBody.indexOf("if (isDuplicateVector)");
       expect(dupCheckPos).toBeGreaterThan(-1);
-      const afterDupCheck = sectionVisualBody.slice(dupCheckPos, dupCheckPos + 1000);
-      expect(afterDupCheck).toContain("continue");
+      const afterDupCheck = chunkBody.slice(dupCheckPos, dupCheckPos + 1000);
+      expect(afterDupCheck).toContain("return");
     });
 
     it("コサイン類似度 < DUPLICATE_THRESHOLD で正常保存", () => {
       // Arrange & Act: ソースコード構造解析
-      const fnStart = workerSource.indexOf("Section Visual Embedding");
+      // After TDA-C1 refactoring, per-section logic moved to processSingleSectionVisualEmbedding
+      const fnStart = workerSource.indexOf("async function processSingleSectionVisualEmbedding");
       expect(fnStart).toBeGreaterThan(-1);
-      const sectionVisualBody = workerSource.slice(fnStart, fnStart + SECTION_VISUAL_SLICE);
+      const chunkBody = workerSource.slice(fnStart, fnStart + SINGLE_SECTION_SLICE);
 
       // Assert: 重複検出を通過後にDB保存が実行される
-      const dupCheckPos = sectionVisualBody.indexOf("isDuplicateVector");
-      const dbSavePos = sectionVisualBody.indexOf("UPDATE section_embeddings");
+      const dupCheckPos = chunkBody.indexOf("isDuplicateVector");
+      const dbSavePos = chunkBody.indexOf("UPDATE section_embeddings");
       expect(dupCheckPos).toBeGreaterThan(-1);
       expect(dbSavePos).toBeGreaterThan(-1);
       // 重複チェック → DB保存の順序
       expect(dupCheckPos).toBeLessThan(dbSavePos);
 
       // スライディングウィンドウへの追加
-      expect(sectionVisualBody).toContain("recentSectionVisualEmbeddings.push");
+      expect(chunkBody).toContain("recentSectionVisualEmbeddings.push");
     });
 
     it("DUPLICATE_VECTOR_THRESHOLD環境変数による閾値変更", () => {
@@ -489,9 +496,11 @@ describe("PageAnalyzeWorker - Batch Fallback + Duplicate Vector Detection", () =
       // DB格納前のベクトル文字列化でNaN/Infinityが混入しない設計
       // visualVectorString = `[${visualEmbedding.join(',')}]`
       // ← generateVisualEmbedding 内でNaN/Infinity検証済み
-      const fnStart = workerSource.indexOf("Section Visual Embedding");
-      const sectionVisualBody = workerSource.slice(fnStart, fnStart + SECTION_VISUAL_SLICE);
-      expect(sectionVisualBody).toContain("visualEmbedding.join");
+      // After TDA-C1 refactoring, per-section DB save moved to processSingleSectionVisualEmbedding
+      const fnStart = workerSource.indexOf("async function processSingleSectionVisualEmbedding");
+      expect(fnStart).toBeGreaterThan(-1);
+      const chunkBody = workerSource.slice(fnStart, fnStart + SINGLE_SECTION_SLICE);
+      expect(chunkBody).toContain("visualEmbedding.join");
     });
   });
 });

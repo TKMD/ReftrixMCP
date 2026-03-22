@@ -9,6 +9,7 @@
  */
 
 import { v7 as uuidv7 } from "uuid";
+import { createDIFactory } from "../../utils/di-factory";
 import { logger, isDevelopment } from "../../utils/logger";
 import { validateExternalUrl, normalizeUrlForValidation } from "../../utils/url-validator";
 import { isUrlAllowedByRobotsTxt } from "@reftrixmcp/core";
@@ -125,21 +126,15 @@ export type { IPageAnalyzeService, IPageAnalyzePrismaClient } from "./handlers/t
 // サービスファクトリ（DI用）
 // =====================================================
 
-let serviceFactory: (() => IPageAnalyzeService) | null = null;
-
-export function setPageAnalyzeServiceFactory(factory: () => IPageAnalyzeService): void {
-  serviceFactory = factory;
-}
-
-export function resetPageAnalyzeServiceFactory(): void {
-  serviceFactory = null;
-}
+const serviceFactoryDI = createDIFactory<IPageAnalyzeService>("PageAnalyzeService");
+export const setPageAnalyzeServiceFactory = serviceFactoryDI.set;
+export const resetPageAnalyzeServiceFactory = serviceFactoryDI.reset;
 
 // =====================================================
 // Prismaクライアントファクトリ（DI用）
 // =====================================================
 
-let prismaClientFactory: (() => IPageAnalyzePrismaClient) | null = null;
+const prismaClientDI = createDIFactory<IPageAnalyzePrismaClient>("PageAnalyzePrismaClient");
 
 /**
  * PrismaClientファクトリを設定
@@ -148,25 +143,21 @@ let prismaClientFactory: (() => IPageAnalyzePrismaClient) | null = null;
  */
 export function setPageAnalyzePrismaClientFactory(factory: () => IPageAnalyzePrismaClient): void {
   // 本番環境で既に設定済みの場合のみ禁止（上書き防止）
-  if (prismaClientFactory !== null) {
+  if (prismaClientDI.get() !== null) {
     assertNonProductionFactory("pageAnalyzePrismaClient");
   }
-  prismaClientFactory = factory;
+  prismaClientDI.set(factory);
 }
 
-/**
- * PrismaClientファクトリをリセット
- */
-export function resetPageAnalyzePrismaClientFactory(): void {
-  prismaClientFactory = null;
-}
+export const resetPageAnalyzePrismaClientFactory = prismaClientDI.reset;
 
 /**
  * PrismaClientを取得
  */
 function getPrismaClient(): IPageAnalyzePrismaClient | null {
-  if (prismaClientFactory) {
-    return prismaClientFactory();
+  const factory = prismaClientDI.get();
+  if (factory) {
+    return factory();
   }
   return null;
 }
@@ -489,7 +480,7 @@ export async function pageAnalyzeHandler(
       normalizedUrl,
       overallStartTime,
       {
-        getService: () => serviceFactory?.() ?? {},
+        getService: () => serviceFactoryDI.get()?.() ?? {},
         getPrismaClient,
       },
       progressContext

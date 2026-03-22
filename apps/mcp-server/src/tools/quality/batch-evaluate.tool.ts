@@ -15,6 +15,7 @@
  * @module tools/quality/batch-evaluate.tool
  */
 
+import { createDIFactory } from "../../utils/di-factory";
 import { logger, isDevelopment } from "../../utils/logger";
 import { LRUCache } from "../../services/cache";
 import { isRedisAvailable } from "../../config/redis";
@@ -54,17 +55,11 @@ export interface IBatchQualityEvaluateService {
   getPageById?: (pageId: string) => Promise<string | null>;
 }
 
-let serviceFactory: (() => IBatchQualityEvaluateService) | null = null;
-
-export function setBatchQualityEvaluateServiceFactory(
-  factory: () => IBatchQualityEvaluateService
-): void {
-  serviceFactory = factory;
-}
-
-export function resetBatchQualityEvaluateServiceFactory(): void {
-  serviceFactory = null;
-}
+const serviceFactoryDI = createDIFactory<IBatchQualityEvaluateService>(
+  "BatchQualityEvaluateService"
+);
+export const setBatchQualityEvaluateServiceFactory = serviceFactoryDI.set;
+export const resetBatchQualityEvaluateServiceFactory = serviceFactoryDI.reset;
 
 // =====================================================
 // LRUキャッシュジョブストア（フォールバック用）
@@ -132,7 +127,7 @@ async function processJobSync(
     strict: boolean;
   }
 ): Promise<void> {
-  const service = serviceFactory ? serviceFactory() : null;
+  const service = serviceFactoryDI.get() ? serviceFactoryDI.get()!() : null;
 
   // ジョブを処理中に更新
   updateBatchJob(jobId, {
@@ -258,7 +253,7 @@ export async function batchQualityEvaluateHandler(
   // サービスファクトリーチェック（オプション）
   // サービスが設定されていなくても、HTMLで直接指定されたアイテムは評価可能
   const hasPageIdItems = validated.items.some((item) => item.pageId !== undefined);
-  if (hasPageIdItems && !serviceFactory) {
+  if (hasPageIdItems && !serviceFactoryDI.get()) {
     if (isDevelopment()) {
       logger.warn(
         "[MCP Tool] quality.batch_evaluate service factory not set, pageId items will be skipped"

@@ -172,7 +172,7 @@ export function resetBackgroundEmbeddingServiceFactory(): void {
 /**
  * PrismaClient の最小インターフェース（背景デザイン Embedding 用）
  */
-interface IBackgroundPrismaClient {
+export interface IBackgroundPrismaClient {
   backgroundDesignEmbedding: {
     create: (args: {
       data: {

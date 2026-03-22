@@ -32,8 +32,10 @@ import * as path from "node:path";
 
 /** processEmbeddingPhase 全体のスライスサイズ（~73K文字、acquireSectionCropBuffer抽出+動的Fallback追加分を含む） */
 const EMBEDDING_PHASE_SLICE = 75000;
-/** Section Visual Embedding ブロックのスライスサイズ（~20K文字、acquireSectionCropBuffer抽出+動的Fallback追加分を含む） */
+/** Section Visual Embedding ブロックのスライスサイズ（processEmbeddingPhase内、PII+セクション取得まで） */
 const SECTION_VISUAL_SLICE = 20000;
+/** processSingleSectionVisualEmbedding サブ関数のスライスサイズ（巨大関数分解で移動したセクション単位処理ロジック） */
+const SINGLE_SECTION_SLICE = 10000;
 
 describe("PageAnalyzeWorker - Section Visual Embedding (DINOv2)", () => {
   // After TDA-C1 refactoring, processEmbeddingPhase and visual embedding logic
@@ -87,19 +89,24 @@ describe("PageAnalyzeWorker - Section Visual Embedding (DINOv2)", () => {
     });
 
     it("should increment sectionVisualEmbeddingsGenerated on success", () => {
-      const fnStart = workerSource.indexOf("Section Visual Embedding");
-      const sectionVisualBody = workerSource.slice(fnStart, fnStart + SECTION_VISUAL_SLICE);
-      expect(sectionVisualBody).toContain("result.sectionVisualEmbeddingsGenerated++");
+      // After TDA-C1 refactoring, per-section logic moved to processSingleSectionVisualEmbedding.
+      // generatedCount is accumulated per section and aggregated by processSectionVisualEmbeddingLoop.
+      const fnStart = workerSource.indexOf("async function processSingleSectionVisualEmbedding");
+      expect(fnStart).toBeGreaterThan(-1);
+      const singleBody = workerSource.slice(fnStart, fnStart + SINGLE_SECTION_SLICE);
+      expect(singleBody).toContain("result.generated++");
     });
 
     it("should update vision_embedding in DB via $executeRawUnsafe", () => {
       // UPDATE section_embeddings SET vision_embedding = ... を raw SQL で実行
-      const fnStart = workerSource.indexOf("Section Visual Embedding");
-      const sectionVisualBody = workerSource.slice(fnStart, fnStart + SECTION_VISUAL_SLICE);
-      expect(sectionVisualBody).toContain("$executeRawUnsafe");
-      expect(sectionVisualBody).toContain("UPDATE section_embeddings");
-      expect(sectionVisualBody).toContain("vision_embedding");
-      expect(sectionVisualBody).toContain("vector(768)");
+      // After TDA-C1 refactoring, DB update logic moved to processSingleSectionVisualEmbedding
+      const fnStart = workerSource.indexOf("async function processSingleSectionVisualEmbedding");
+      expect(fnStart).toBeGreaterThan(-1);
+      const singleBody = workerSource.slice(fnStart, fnStart + SINGLE_SECTION_SLICE);
+      expect(singleBody).toContain("$executeRawUnsafe");
+      expect(singleBody).toContain("UPDATE section_embeddings");
+      expect(singleBody).toContain("vision_embedding");
+      expect(singleBody).toContain("vector(768)");
     });
 
     it("should use layoutInfo.position (startY, height) for section crop coordinates", () => {
@@ -133,11 +140,13 @@ describe("PageAnalyzeWorker - Section Visual Embedding (DINOv2)", () => {
     it("should call generateVisualEmbedding with dinov2Service and rawCropBuffer", () => {
       // generateVisualEmbedding を使って DINOv2 で推論する
       // acquireSectionCropBuffer 抽出後は cropResult.rawCropBuffer を渡す
-      const fnStart = workerSource.indexOf("Section Visual Embedding");
-      const sectionVisualBody = workerSource.slice(fnStart, fnStart + SECTION_VISUAL_SLICE);
-      expect(sectionVisualBody).toContain("generateVisualEmbedding(");
-      expect(sectionVisualBody).toContain("dinov2Service,");
-      expect(sectionVisualBody).toContain("cropResult.rawCropBuffer");
+      // After TDA-C1 refactoring, per-section embedding call moved to processSingleSectionVisualEmbedding
+      const fnStart = workerSource.indexOf("async function processSingleSectionVisualEmbedding");
+      expect(fnStart).toBeGreaterThan(-1);
+      const singleBody = workerSource.slice(fnStart, fnStart + SINGLE_SECTION_SLICE);
+      expect(singleBody).toContain("generateVisualEmbedding(");
+      expect(singleBody).toContain("p.dinov2Service");
+      expect(singleBody).toContain("cropResult.rawCropBuffer");
     });
 
     it("should extend job lock for embedding-sections-visual sub-phase", () => {
@@ -179,24 +188,29 @@ describe("PageAnalyzeWorker - Section Visual Embedding (DINOv2)", () => {
   describe("スキップ: height < 10px のセクション", () => {
     it("should skip sections with height less than 10px", () => {
       // 10px 未満のセクションはスキップされる（意味のあるvisual featureを持たないため）
-      const fnStart = workerSource.indexOf("Section Visual Embedding");
-      const sectionVisualBody = workerSource.slice(fnStart, fnStart + SECTION_VISUAL_SLICE);
-      expect(sectionVisualBody).toContain("sectionPos.height < 10");
-      expect(sectionVisualBody).toContain("continue");
+      // After TDA-C1 refactoring, per-section skip logic moved to processSingleSectionVisualEmbedding
+      const fnStart = workerSource.indexOf("async function processSingleSectionVisualEmbedding");
+      expect(fnStart).toBeGreaterThan(-1);
+      const singleBody = workerSource.slice(fnStart, fnStart + SINGLE_SECTION_SLICE);
+      expect(singleBody).toContain("sectionPos.height < 10");
     });
 
     it("should skip sections with no position data", () => {
       // sectionPositionMap からポジションが取得できない場合もスキップ
-      const fnStart = workerSource.indexOf("Section Visual Embedding");
-      const sectionVisualBody = workerSource.slice(fnStart, fnStart + SECTION_VISUAL_SLICE);
-      expect(sectionVisualBody).toContain("!sectionPos");
+      // After TDA-C1 refactoring, per-section skip logic moved to processSingleSectionVisualEmbedding
+      const fnStart = workerSource.indexOf("async function processSingleSectionVisualEmbedding");
+      expect(fnStart).toBeGreaterThan(-1);
+      const singleBody = workerSource.slice(fnStart, fnStart + SINGLE_SECTION_SLICE);
+      expect(singleBody).toContain("!sectionPos");
     });
 
     it("should skip sections where crop region is invalid (out of bounds)", () => {
-      // sectionTop >= imgHeight の場合はスキップ
-      const fnStart = workerSource.indexOf("Section Visual Embedding");
-      const sectionVisualBody = workerSource.slice(fnStart, fnStart + SECTION_VISUAL_SLICE);
-      expect(sectionVisualBody).toContain("sectionTop >= imgHeight");
+      // sectionTop >= p.imgHeight の場合はフォールバックパスへ
+      // After TDA-C1 refactoring, per-section logic moved to processSingleSectionVisualEmbedding
+      const fnStart = workerSource.indexOf("async function processSingleSectionVisualEmbedding");
+      expect(fnStart).toBeGreaterThan(-1);
+      const singleBody = workerSource.slice(fnStart, fnStart + SINGLE_SECTION_SLICE);
+      expect(singleBody).toContain("sectionTop >= p.imgHeight");
     });
   });
 
@@ -243,28 +257,35 @@ describe("PageAnalyzeWorker - Section Visual Embedding (DINOv2)", () => {
   describe("Graceful Degradation: 個別 section の crop 失敗", () => {
     it("should have per-section try-catch for crop and embedding", () => {
       // 個別のセクションで crop/DINOv2 推論が失敗しても、他のセクションは処理される
-      const fnStart = workerSource.indexOf("Section Visual Embedding");
-      const sectionVisualBody = workerSource.slice(fnStart, fnStart + SECTION_VISUAL_SLICE);
-      expect(sectionVisualBody).toContain("DINOv2 visual embedding failed for section (non-fatal)");
+      // After TDA-C1 refactoring, per-section try-catch moved to processSingleSectionVisualEmbedding
+      const fnStart = workerSource.indexOf("async function processSingleSectionVisualEmbedding");
+      expect(fnStart).toBeGreaterThan(-1);
+      const singleBody = workerSource.slice(fnStart, fnStart + SINGLE_SECTION_SLICE);
+      expect(singleBody).toContain("DINOv2 visual embedding failed for section (non-fatal)");
     });
 
     it("should continue processing other sections after one section fails", () => {
       // per-section の catch 後も、ループ内の try-catch で吸収されて次のセクションに進む
+      // After TDA-C1 refactoring, the loop calls processSingleSectionVisualEmbedding per section
       const fnStart = workerSource.indexOf("for (const section of chunk)");
       expect(fnStart).toBeGreaterThan(-1);
-      const loopBody = workerSource.slice(fnStart, fnStart + 8000);
-      expect(loopBody).toContain("try");
-      expect(loopBody).toContain("catch (sectionVisualError)");
-      expect(loopBody).toContain("non-fatal");
+      // processSingleSectionVisualEmbedding has its own try-catch
+      const singleFnStart = workerSource.indexOf(
+        "async function processSingleSectionVisualEmbedding"
+      );
+      const singleBody = workerSource.slice(singleFnStart, singleFnStart + SINGLE_SECTION_SLICE);
+      expect(singleBody).toContain("try");
+      expect(singleBody).toContain("catch (sectionVisualError)");
+      expect(singleBody).toContain("non-fatal");
     });
 
     it("should log truncated sectionEmbeddingId for PII safety", () => {
       // PII対策: sectionEmbeddingId を truncate してログ出力（truncateId パターン）
-      const fnStart = workerSource.indexOf(
-        "DINOv2 visual embedding failed for section (non-fatal)"
-      );
-      const logBody = workerSource.slice(fnStart, fnStart + 300);
-      expect(logBody).toContain('section.id.slice(0, 8) + "..."');
+      // After TDA-C1 refactoring, per-section logging moved to processSingleSectionVisualEmbedding
+      const fnStart = workerSource.indexOf("async function processSingleSectionVisualEmbedding");
+      expect(fnStart).toBeGreaterThan(-1);
+      const singleBody = workerSource.slice(fnStart, fnStart + SINGLE_SECTION_SLICE);
+      expect(singleBody).toContain('section.id.slice(0, 8) + "..."');
     });
   });
 
@@ -308,13 +329,13 @@ describe("PageAnalyzeWorker - Section Visual Embedding (DINOv2)", () => {
     it("NaN/Infinity error in generateVisualEmbedding should be caught by per-section try-catch", () => {
       // NaN を含むベクトルが返された場合、generateVisualEmbedding が throw する
       // これは per-section の try-catch でキャッチされ、そのセクションだけスキップされる
-      // acquireSectionCropBuffer 抽出後は cropResult.rawCropBuffer を渡す
-      const fnStart = workerSource.indexOf("for (const section of chunk)");
+      // After TDA-C1 refactoring, per-section logic moved to processSingleSectionVisualEmbedding
+      const fnStart = workerSource.indexOf("async function processSingleSectionVisualEmbedding");
       expect(fnStart).toBeGreaterThan(-1);
-      const loopBody = workerSource.slice(fnStart, fnStart + 8000);
-      expect(loopBody).toContain("generateVisualEmbedding(");
-      expect(loopBody).toContain("cropResult.rawCropBuffer");
-      expect(loopBody).toContain("catch (sectionVisualError)");
+      const singleBody = workerSource.slice(fnStart, fnStart + SINGLE_SECTION_SLICE);
+      expect(singleBody).toContain("generateVisualEmbedding(");
+      expect(singleBody).toContain("cropResult.rawCropBuffer");
+      expect(singleBody).toContain("catch (sectionVisualError)");
     });
   });
 
@@ -406,15 +427,16 @@ describe("PageAnalyzeWorker - Section Visual Embedding (DINOv2)", () => {
   // ========================================================================
   describe("構造テスト: chunk 処理とメモリ管理", () => {
     it("should process sections in chunks with EMBEDDING_CHUNK_SIZE", () => {
-      // チャンク単位で処理する（メモリ管理のため）
-      const fnStart = workerSource.indexOf("Section Visual Embedding");
+      // チャンク単位で処理する（メモリ管理のため）— サブ関数 processSectionVisualEmbeddingLoop 内
+      const fnStart = workerSource.indexOf("async function processSectionVisualEmbeddingLoop");
+      expect(fnStart).toBeGreaterThan(-1);
       const sectionVisualBody = workerSource.slice(fnStart, fnStart + SECTION_VISUAL_SLICE);
       expect(sectionVisualBody).toContain("sectionVisualChunkSize");
     });
 
     it("should check memory pressure per chunk and reduce chunk size under pressure", () => {
-      // メモリ圧迫時にチャンクサイズを縮小する
-      const fnStart = workerSource.indexOf("Section Visual Embedding");
+      // メモリ圧迫時にチャンクサイズを縮小する — サブ関数 processSectionVisualEmbeddingLoop 内
+      const fnStart = workerSource.indexOf("async function processSectionVisualEmbeddingLoop");
       const sectionVisualBody = workerSource.slice(fnStart, fnStart + SECTION_VISUAL_SLICE);
       expect(sectionVisualBody).toContain("checkMemoryPressure");
       expect(sectionVisualBody).toContain("shouldDegrade");
@@ -422,8 +444,8 @@ describe("PageAnalyzeWorker - Section Visual Embedding (DINOv2)", () => {
     });
 
     it("should abort section visual embedding on critical memory pressure", () => {
-      // shouldAbort が true の場合、section visual embedding を中断する
-      const fnStart = workerSource.indexOf("Section Visual Embedding");
+      // shouldAbort が true の場合、section visual embedding を中断する — サブ関数内
+      const fnStart = workerSource.indexOf("async function processSectionVisualEmbeddingLoop");
       const sectionVisualBody = workerSource.slice(fnStart, fnStart + SECTION_VISUAL_SLICE);
       expect(sectionVisualBody).toContain("shouldAbort");
       expect(sectionVisualBody).toContain("Critical memory, stopping section visual embedding");
@@ -568,13 +590,15 @@ describe("PageAnalyzeWorker - Section Visual Embedding (DINOv2)", () => {
     });
 
     it("PII check should appear before the section visual embedding processing loop", () => {
-      const fnStart = workerSource.indexOf("Section Visual Embedding");
-      const sectionVisualBody = workerSource.slice(fnStart, fnStart + SECTION_VISUAL_SLICE);
-      const piiCheckPos = sectionVisualBody.indexOf("pii_risk_level = 'high'");
-      const loopPos = sectionVisualBody.indexOf("sectionsFiltered.slice(offset");
+      // PII check は processEmbeddingPhase 内、ループ呼び出し前に実行される
+      const fnStart = workerSource.indexOf("async function processEmbeddingPhase");
+      const embeddingBody = workerSource.slice(fnStart, fnStart + EMBEDDING_PHASE_SLICE);
+      const piiCheckPos = embeddingBody.indexOf("pii_risk_level = 'high'");
       expect(piiCheckPos).toBeGreaterThan(-1);
-      expect(loopPos).toBeGreaterThan(-1);
-      expect(piiCheckPos).toBeLessThan(loopPos);
+      // processSectionVisualEmbeddingLoop 呼び出しがPII check より後にある
+      const loopCallPos = embeddingBody.indexOf("processSectionVisualEmbeddingLoop");
+      expect(loopCallPos).toBeGreaterThan(-1);
+      expect(piiCheckPos).toBeLessThan(loopCallPos);
     });
 
     it("should log PII-skipped section count", () => {

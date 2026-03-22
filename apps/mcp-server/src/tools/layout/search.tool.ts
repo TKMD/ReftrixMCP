@@ -16,6 +16,7 @@
  */
 
 import { ZodError } from "zod";
+import { createDIFactory } from "../../utils/di-factory";
 import { logger, isDevelopment } from "../../utils/logger";
 import { sanitizeHtml } from "../../utils/html-sanitizer";
 import {
@@ -235,13 +236,8 @@ export interface IVisionSearchService {
 // サービスファクトリー（DI）
 // =====================================================
 
-let serviceFactory: (() => ILayoutSearchService) | null = null;
-
-/**
- * VisionSearchサービスファクトリー（DI）
- * Phase 4-2: visionEmbeddingベースの検索
- */
-let visionSearchServiceFactory: (() => IVisionSearchService) | null = null;
+const serviceFactoryDI = createDIFactory<ILayoutSearchService>("LayoutSearchService");
+const visionSearchServiceDI = createDIFactory<IVisionSearchService>("VisionSearchService");
 
 /**
  * ProjectContextAnalyzer シングルトンインスタンス
@@ -258,34 +254,10 @@ function getProjectContextAnalyzer(): ProjectContextAnalyzer {
   return projectContextAnalyzer;
 }
 
-/**
- * サービスファクトリーを設定
- */
-export function setLayoutSearchServiceFactory(factory: () => ILayoutSearchService): void {
-  serviceFactory = factory;
-}
-
-/**
- * サービスファクトリーをリセット
- */
-export function resetLayoutSearchServiceFactory(): void {
-  serviceFactory = null;
-}
-
-/**
- * VisionSearchサービスファクトリーを設定
- * Phase 4-2: visionEmbeddingベースの検索
- */
-export function setVisionSearchServiceFactory(factory: () => IVisionSearchService): void {
-  visionSearchServiceFactory = factory;
-}
-
-/**
- * VisionSearchサービスファクトリーをリセット
- */
-export function resetVisionSearchServiceFactory(): void {
-  visionSearchServiceFactory = null;
-}
+export const setLayoutSearchServiceFactory = serviceFactoryDI.set;
+export const resetLayoutSearchServiceFactory = serviceFactoryDI.reset;
+export const setVisionSearchServiceFactory = visionSearchServiceDI.set;
+export const resetVisionSearchServiceFactory = visionSearchServiceDI.reset;
 
 /**
  * ProjectContextAnalyzer をリセット（テスト用）
@@ -297,49 +269,15 @@ export function resetProjectContextAnalyzer(): void {
   projectContextAnalyzer = null;
 }
 
-/**
- * MoodBrandToneSearchサービスファクトリー（DI）
- * GREEN Phase: mood/brandTone semantic search
- */
-let moodBrandToneSearchServiceFactory: (() => MoodBrandToneSearchService) | null = null;
+const moodBrandToneSearchServiceDI = createDIFactory<MoodBrandToneSearchService>(
+  "MoodBrandToneSearchService"
+);
+export const setMoodBrandToneSearchServiceFactory = moodBrandToneSearchServiceDI.set;
+export const resetMoodBrandToneSearchServiceFactory = moodBrandToneSearchServiceDI.reset;
 
-/**
- * MoodBrandToneSearchサービスファクトリーを設定
- */
-export function setMoodBrandToneSearchServiceFactory(
-  factory: () => MoodBrandToneSearchService
-): void {
-  moodBrandToneSearchServiceFactory = factory;
-}
-
-/**
- * MoodBrandToneSearchサービスファクトリーをリセット
- */
-export function resetMoodBrandToneSearchServiceFactory(): void {
-  moodBrandToneSearchServiceFactory = null;
-}
-
-/**
- * PrismaClientファクトリー（嗜好リランキング用DI）
- * PrismaClient factory (DI for preference reranking)
- */
-let prismaClientFactory: (() => IPrismaClient) | null = null;
-
-/**
- * PrismaClientファクトリーを設定（嗜好リランキング用）
- * Set PrismaClient factory (for preference reranking)
- */
-export function setLayoutSearchPrismaClientFactory(factory: () => IPrismaClient): void {
-  prismaClientFactory = factory;
-}
-
-/**
- * PrismaClientファクトリーをリセット（テスト用）
- * Reset PrismaClient factory (for testing)
- */
-export function resetLayoutSearchPrismaClientFactory(): void {
-  prismaClientFactory = null;
-}
+const prismaClientDI = createDIFactory<IPrismaClient>("LayoutSearchPrismaClient");
+export const setLayoutSearchPrismaClientFactory = prismaClientDI.set;
+export const resetLayoutSearchPrismaClientFactory = prismaClientDI.reset;
 
 // =====================================================
 // クエリ前処理
@@ -687,7 +625,7 @@ async function executeVisionSearch(
   startTime: number
 ): Promise<LayoutSearchOutput> {
   // VisionSearchサービスチェック
-  if (!visionSearchServiceFactory) {
+  if (!visionSearchServiceDI.get()) {
     if (isDevelopment()) {
       logger.warn(
         "[MCP Tool] layout.search vision search service not available, falling back to text search"
@@ -705,7 +643,7 @@ async function executeVisionSearch(
     };
   }
 
-  const visionService = visionSearchServiceFactory();
+  const visionService = visionSearchServiceDI.get()!();
 
   // VisionSearchQueryの構築
   const visionQuery: VisionSearchQueryService = {
@@ -927,7 +865,7 @@ async function executeMultimodalSearch(
   const rrfK = multimodalOptions?.rrfK ?? 60;
 
   // VisionSearchServiceの可用性チェック
-  const hasVisionService = !!visionSearchServiceFactory;
+  const hasVisionService = !!visionSearchServiceDI.get();
 
   // 検索モードを決定（Graceful Degradation）
   const { actualMode, warnings } = determineSearchMode(searchMode, hasVisionService);
@@ -1022,7 +960,7 @@ async function executeMultimodalSearch(
   }
 
   // vision_only または combined モードではVisionSearchServiceを使用
-  if (!visionSearchServiceFactory) {
+  if (!visionSearchServiceDI.get()) {
     // これはdetermineSearchModeで処理されるはずだが、安全のため
     return {
       success: false,
@@ -1033,7 +971,7 @@ async function executeMultimodalSearch(
     };
   }
 
-  const visionService = visionSearchServiceFactory();
+  const visionService = visionSearchServiceDI.get()!();
 
   // vision_only モード
   if (actualMode === "vision_only") {
@@ -1438,7 +1376,7 @@ export async function layoutSearchHandler(input: unknown): Promise<LayoutSearchO
   }
 
   // サービスファクトリーチェック
-  if (!serviceFactory) {
+  if (!serviceFactoryDI.get()) {
     if (isDevelopment()) {
       logger.error("[MCP Tool] layout.search service factory not set");
     }
@@ -1452,7 +1390,7 @@ export async function layoutSearchHandler(input: unknown): Promise<LayoutSearchO
     };
   }
 
-  const service = serviceFactory();
+  const service = serviceFactoryDI.get()!();
 
   try {
     // search_mode ベースのルーティング（text_only以外の場合）
@@ -1541,8 +1479,8 @@ export async function layoutSearchHandler(input: unknown): Promise<LayoutSearchO
 
     // moodBrandToneSearchService インスタンスを取得
     let moodBrandToneService: MoodBrandToneSearchService | null = null;
-    if (moodBrandToneSearchServiceFactory) {
-      moodBrandToneService = moodBrandToneSearchServiceFactory();
+    if (moodBrandToneSearchServiceDI.get()) {
+      moodBrandToneService = moodBrandToneSearchServiceDI.get()!();
     }
 
     // mood フィルターが提供されている場合、セマンティック検索を実行
@@ -1785,7 +1723,7 @@ export async function layoutSearchHandler(input: unknown): Promise<LayoutSearchO
     mappedResults = await applyPreferenceReranking(
       mappedResults,
       validated.profile_id,
-      prismaClientFactory,
+      prismaClientDI.get(),
       "layout",
       "layout.search"
     );

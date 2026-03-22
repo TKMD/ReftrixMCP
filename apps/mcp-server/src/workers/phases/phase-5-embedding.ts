@@ -1084,464 +1084,28 @@ export async function processEmbeddingPhase(
                 }
 
                 // 5d. チャンク処理でcrop→DINOv2→DB保存
-                const SECTION_FALLBACK_TIMEOUT_MS = 300_000; // 300s cumulative timeout
-                let sectionFallbackCapturedCount = 0;
-
-                // 5d-diag. 診断カウンター
-                let diagInRangeCount = 0;
-                let diagFallbackCount = 0;
-                let diagDynamicCount = 0;
-                let diagDedupSkipCount = 0;
-                let diagSkippedCount = 0;
-
-                // 5d-pre. フォールバック対象セクションの事前バッチ収集
-                const fallbackEnabled =
-                  (process.env["ENABLE_SECTION_SCREENSHOT_FALLBACK"] ?? "true") === "true";
-                const fallbackSections: Array<{ id: string; startY: number; height: number }> = [];
-                for (const section of sectionsFiltered) {
-                  const sectionPos = sectionPositionMap.get(section.section_pattern_id);
-                  if (!sectionPos || sectionPos.height < 10) continue;
-                  const sectionTop = Math.max(0, Math.round(sectionPos.startY));
-                  if (sectionTop >= imgHeight) {
-                    fallbackSections.push({
-                      id: section.section_pattern_id,
-                      startY: sectionPos.startY,
-                      height: sectionPos.height,
-                    });
-                  }
-                }
-
-                // 5d-batch. フォールバック対象を1回のバッチ呼び出しで一括キャプチャ
-                const fallbackScreenshots = new Map<string, Buffer>();
-                if (fallbackSections.length > 0 && fallbackEnabled) {
-                  if (isDevelopment()) {
-                    logger.info(
-                      "[PageAnalyzeWorker] Batch capturing fallback section screenshots",
-                      {
-                        fallbackSectionCount: fallbackSections.length,
-                      }
-                    );
-                  }
-
-                  try {
-                    const fallbackResult = await captureSectionScreenshots({
-                      url,
-                      sections: fallbackSections,
-                      viewportWidth: job.data.options?.layoutOptions?.viewport?.width ?? 1920,
-                      viewportHeight: job.data.options?.layoutOptions?.viewport?.height ?? 1080,
-                      maxSections: 50,
-                      timeoutMs: SECTION_FALLBACK_TIMEOUT_MS,
-                      sharedBrowser: params.sharedBrowser,
-                      checkMemoryPressure,
-                    });
-
-                    for (const fbResult of fallbackResult.results) {
-                      if (fbResult.screenshotBuffer && !fbResult.skipped) {
-                        fallbackScreenshots.set(fbResult.sectionId, fbResult.screenshotBuffer);
-                      }
-                    }
-                    sectionFallbackCapturedCount = fallbackResult.capturedCount;
-                  } catch (batchFallbackError) {
-                    logger.warn(
-                      "[PageAnalyzeWorker] Batch section screenshot fallback failed (non-fatal)",
-                      {
-                        error:
-                          batchFallbackError instanceof Error
-                            ? batchFallbackError.message
-                            : String(batchFallbackError),
-                      }
-                    );
-                  }
-                }
-
-                // 5d-dedup. Type-aware 重複ベクトル検出用のスライディングウィンドウ
-                const parsedThreshold = parseFloat(
-                  process.env["DUPLICATE_VECTOR_THRESHOLD"] ?? "0.995"
-                );
-                const DUPLICATE_THRESHOLD = Number.isFinite(parsedThreshold)
-                  ? parsedThreshold
-                  : 0.995;
-                const MAX_RECENT_EMBEDDINGS = 10;
-                const recentSectionVisualEmbeddings: Array<{
-                  embedding: number[];
-                  sectionType: string;
-                }> = [];
-
-                // 5d-dynamic. 動的Fallbackキュー: 白画像検出セクションを蓄積
-                const MAX_DYNAMIC_FALLBACK_SECTIONS = 20;
-                const dynamicFallbackSections: Array<{
-                  sectionEmbeddingId: string;
-                  sectionPatternId: string;
-                  startY: number;
-                  height: number;
-                }> = [];
-
-                let sectionVisualChunkSize = EMBEDDING_CHUNK_SIZE;
-
-                for (
-                  let offset = 0;
-                  offset < sectionsFiltered.length;
-                  offset += sectionVisualChunkSize
-                ) {
-                  // Memory pressure check
-                  const memCheck = checkMemoryPressure();
-                  if (memCheck.shouldAbort) {
-                    logger.warn(
-                      "[PageAnalyzeWorker] Critical memory, stopping section visual embedding",
-                      { rssMb: memCheck.rssMb }
-                    );
-                    break;
-                  }
-                  if (memCheck.shouldDegrade) {
-                    sectionVisualChunkSize = Math.max(3, Math.floor(sectionVisualChunkSize / 2));
-                    logger.warn(
-                      "[PageAnalyzeWorker] Memory pressure, reducing section visual chunk size",
-                      {
-                        rssMb: memCheck.rssMb,
-                        newChunkSize: sectionVisualChunkSize,
-                      }
-                    );
-                  }
-
-                  const chunk = sectionsFiltered.slice(offset, offset + sectionVisualChunkSize);
-
-                  // Lock extension per chunk
-                  await extendJobLock(
-                    job,
-                    effectiveToken,
-                    effectiveLockDuration,
-                    "embedding-sections-visual"
-                  );
-
-                  for (const section of chunk) {
-                    try {
-                      const sectionPos = sectionPositionMap.get(section.section_pattern_id);
-                      if (!sectionPos || sectionPos.height < 10) {
-                        diagSkippedCount++;
-                        if (isDevelopment()) {
-                          logger.info("[PageAnalyzeWorker] Section visual path", {
-                            sectionId: section.section_pattern_id.slice(0, 8) + "...",
-                            path: "skipped",
-                            skipReason: !sectionPos ? "no_position" : "height_too_small",
-                          });
-                        }
-                        continue;
-                      }
-
-                      const sectionTop = Math.max(0, Math.round(sectionPos.startY));
-                      const isOutOfRange = sectionTop >= imgHeight;
-
-                      // TDA HIGH-1: acquireSectionCropBuffer でcropパスを一元管理
-                      const cropResult = await acquireSectionCropBuffer({
-                        sectionPatternId: section.section_pattern_id,
-                        sectionPos,
-                        screenshotBuffer: screenshotBuffer!,
-                        imgWidth,
-                        imgHeight,
-                        fallbackScreenshots,
-                        fallbackEnabled,
-                        dinov2InputSize: DINOV2_INPUT_SIZE,
-                      });
-
-                      if (cropResult.isBlank) {
-                        // 白画像検出: 動的Fallbackキューに蓄積
-                        if (dynamicFallbackSections.length < MAX_DYNAMIC_FALLBACK_SECTIONS) {
-                          dynamicFallbackSections.push({
-                            sectionEmbeddingId: section.id,
-                            sectionPatternId: section.section_pattern_id,
-                            startY: sectionPos.startY,
-                            height: sectionPos.height,
-                          });
-                        }
-                        if (isDevelopment()) {
-                          logger.info("[PageAnalyzeWorker] Section visual path", {
-                            sectionId: section.section_pattern_id.slice(0, 8) + "...",
-                            startY: sectionPos.startY,
-                            height: sectionPos.height,
-                            imgHeight,
-                            path: "dynamic",
-                          });
-                        }
-                        continue;
-                      }
-
-                      if (!cropResult.rawCropBuffer) {
-                        diagSkippedCount++;
-                        if (isDevelopment()) {
-                          logger.info("[PageAnalyzeWorker] Section visual path", {
-                            sectionId: section.section_pattern_id.slice(0, 8) + "...",
-                            startY: sectionPos.startY,
-                            height: sectionPos.height,
-                            imgHeight,
-                            path: "skipped",
-                            skipReason: "no_crop_buffer",
-                          });
-                        }
-                        continue;
-                      }
-
-                      // Generate visual embedding via DINOv2
-                      const visualEmbedding = await generateVisualEmbedding(
-                        dinov2Service,
-                        cropResult.rawCropBuffer
-                      );
-
-                      // Type-aware 重複ベクトル検出
-                      const currentSectionType = sectionPos.sectionType;
-                      const isDuplicateVector = isDuplicateVisionEmbedding({
-                        sectionType: currentSectionType,
-                        height: sectionPos.height,
-                        embedding: visualEmbedding,
-                        recentEmbeddings: recentSectionVisualEmbeddings,
-                        threshold: DUPLICATE_THRESHOLD,
-                      });
-
-                      if (isDuplicateVector) {
-                        diagDedupSkipCount++;
-                        logger.warn(
-                          "[PageAnalyzeWorker] Duplicate vision embedding detected, skipping DB save",
-                          {
-                            sectionId: section.section_pattern_id.slice(0, 8) + "...",
-                            sectionType: currentSectionType,
-                          }
-                        );
-                        if (isDevelopment()) {
-                          logger.info("[PageAnalyzeWorker] Section visual path", {
-                            sectionId: section.section_pattern_id.slice(0, 8) + "...",
-                            startY: sectionPos.startY,
-                            height: sectionPos.height,
-                            imgHeight,
-                            path: "dedup",
-                            sectionType: currentSectionType,
-                          });
-                        }
-                        continue;
-                      }
-
-                      // スライディングウィンドウに追加
-                      recentSectionVisualEmbeddings.push({
-                        embedding: visualEmbedding,
-                        sectionType: currentSectionType,
-                      });
-                      if (recentSectionVisualEmbeddings.length > MAX_RECENT_EMBEDDINGS) {
-                        recentSectionVisualEmbeddings.shift();
-                      }
-
-                      // Update vision_embedding in DB via raw SQL
-                      const visualVectorString = `[${visualEmbedding.join(",")}]`;
-                      await prisma.$executeRawUnsafe(
-                        `UPDATE section_embeddings
-                         SET vision_embedding = $1::vector(768)
-                         WHERE id = $2::uuid`,
-                        visualVectorString,
-                        section.id
-                      );
-
-                      if (isOutOfRange) {
-                        diagFallbackCount++;
-                      } else {
-                        diagInRangeCount++;
-                      }
-
-                      if (isDevelopment()) {
-                        logger.info("[PageAnalyzeWorker] Section visual path", {
-                          sectionId: section.section_pattern_id.slice(0, 8) + "...",
-                          startY: sectionPos.startY,
-                          height: sectionPos.height,
-                          imgHeight,
-                          path: isOutOfRange ? "fallback" : "in_range",
-                        });
-                      }
-
-                      result.sectionVisualEmbeddingsGenerated++;
-                    } catch (sectionVisualError) {
-                      diagSkippedCount++;
-                      logger.warn(
-                        "[PageAnalyzeWorker] DINOv2 visual embedding failed for section (non-fatal)",
-                        {
-                          sectionEmbeddingId: section.id.slice(0, 8) + "...",
-                          error:
-                            sectionVisualError instanceof Error
-                              ? sectionVisualError.message
-                              : String(sectionVisualError),
-                        }
-                      );
-                    }
-                  }
-
-                  if (isDevelopment()) {
-                    logger.info("[PageAnalyzeWorker] Section visual embedding chunk completed", {
-                      chunkOffset: offset,
-                      chunkSize: chunk.length,
-                      totalVisualSoFar: result.sectionVisualEmbeddingsGenerated,
-                    });
-                  }
-
-                  // Inter-chunk memory recovery (except last chunk)
-                  if (offset + sectionVisualChunkSize < sectionsNeedingVisual.length) {
-                    tryGarbageCollect();
-                    await new Promise<void>((resolve) => setImmediate(resolve));
-                  }
-                }
-
-                // 5d-dynamic-batch. 動的Fallback: 白画像検出セクションをバッチ再キャプチャ
-                if (dynamicFallbackSections.length > 0 && fallbackEnabled) {
-                  const remainingCapacity = Math.max(0, 50 - sectionFallbackCapturedCount);
-                  const dynamicBatch = dynamicFallbackSections.slice(0, remainingCapacity);
-
-                  if (dynamicBatch.length > 0) {
-                    // 動的FallbackではscreenshotBase64不要 → メモリ解放して圧力軽減
-                    screenshotBuffer = null;
-                    if (typeof global.gc === "function") {
-                      global.gc();
-                    }
-
-                    const memCheckDynamic = checkMemoryPressure();
-                    if (!memCheckDynamic.shouldAbort) {
-                      if (isDevelopment()) {
-                        logger.info(
-                          "[PageAnalyzeWorker] Starting dynamic fallback for blank-detected sections",
-                          {
-                            dynamicFallbackCount: dynamicBatch.length,
-                            remainingCapacity,
-                          }
-                        );
-                      }
-
-                      try {
-                        const dynamicFallbackResult = await captureSectionScreenshots({
-                          url,
-                          sections: dynamicBatch.map((s) => ({
-                            id: s.sectionPatternId,
-                            startY: s.startY,
-                            height: s.height,
-                          })),
-                          viewportWidth: job.data.options?.layoutOptions?.viewport?.width ?? 1920,
-                          viewportHeight: job.data.options?.layoutOptions?.viewport?.height ?? 1080,
-                          maxSections: remainingCapacity,
-                          timeoutMs: SECTION_FALLBACK_TIMEOUT_MS,
-                          sharedBrowser: params.sharedBrowser,
-                          checkMemoryPressure,
-                        });
-
-                        sectionFallbackCapturedCount += dynamicFallbackResult.capturedCount;
-
-                        for (const fbResult of dynamicFallbackResult.results) {
-                          if (fbResult.skipped || !fbResult.screenshotBuffer) continue;
-
-                          const matchingSection = dynamicBatch.find(
-                            (s) => s.sectionPatternId === fbResult.sectionId
-                          );
-                          if (!matchingSection) continue;
-
-                          try {
-                            const rawCropBuffer = await sharp(fbResult.screenshotBuffer)
-                              .resize(DINOV2_INPUT_SIZE, DINOV2_INPUT_SIZE, {
-                                fit: "cover",
-                                kernel: "cubic",
-                              })
-                              .removeAlpha()
-                              .toColorspace("srgb")
-                              .raw()
-                              .toBuffer();
-
-                            // LCC MUST-FIX-3: 動的Fallbackスクリーンショットバッファの参照解除
-                            fbResult.screenshotBuffer = null;
-
-                            const visualEmbedding = await generateVisualEmbedding(
-                              dinov2Service,
-                              rawCropBuffer
-                            );
-
-                            const dynamicSectionPos = sectionPositionMap.get(
-                              matchingSection.sectionPatternId
-                            );
-                            const dynamicSectionType = dynamicSectionPos?.sectionType ?? "unknown";
-                            const isDuplicateVector = isDuplicateVisionEmbedding({
-                              sectionType: dynamicSectionType,
-                              height: dynamicSectionPos?.height ?? 0,
-                              embedding: visualEmbedding,
-                              recentEmbeddings: recentSectionVisualEmbeddings,
-                              threshold: DUPLICATE_THRESHOLD,
-                            });
-
-                            if (isDuplicateVector) {
-                              logger.warn(
-                                "[PageAnalyzeWorker] Duplicate vision embedding (dynamic fallback), skipping",
-                                {
-                                  sectionId: fbResult.sectionId.slice(0, 8) + "...",
-                                  sectionType: dynamicSectionType,
-                                }
-                              );
-                              continue;
-                            }
-
-                            recentSectionVisualEmbeddings.push({
-                              embedding: visualEmbedding,
-                              sectionType: dynamicSectionType,
-                            });
-                            if (recentSectionVisualEmbeddings.length > MAX_RECENT_EMBEDDINGS) {
-                              recentSectionVisualEmbeddings.shift();
-                            }
-
-                            const visualVectorString = `[${visualEmbedding.join(",")}]`;
-                            await prisma.$executeRawUnsafe(
-                              `UPDATE section_embeddings
-                               SET vision_embedding = $1::vector(768)
-                               WHERE id = $2::uuid`,
-                              visualVectorString,
-                              matchingSection.sectionEmbeddingId
-                            );
-
-                            diagDynamicCount++;
-                            result.sectionVisualEmbeddingsGenerated++;
-                          } catch (dynamicEmbeddingError) {
-                            logger.warn(
-                              "[PageAnalyzeWorker] DINOv2 visual embedding failed for dynamic fallback section (non-fatal)",
-                              {
-                                sectionId: fbResult.sectionId.slice(0, 8) + "...",
-                                error:
-                                  dynamicEmbeddingError instanceof Error
-                                    ? dynamicEmbeddingError.message
-                                    : String(dynamicEmbeddingError),
-                              }
-                            );
-                          }
-                        }
-                      } catch (dynamicFallbackError) {
-                        logger.warn(
-                          "[PageAnalyzeWorker] Dynamic section screenshot fallback failed (non-fatal)",
-                          {
-                            error:
-                              dynamicFallbackError instanceof Error
-                                ? dynamicFallbackError.message
-                                : String(dynamicFallbackError),
-                          }
-                        );
-                      }
-                    } else {
-                      logger.warn(
-                        "[PageAnalyzeWorker] Skipping dynamic fallback due to memory pressure",
-                        {
-                          rssMb: memCheckDynamic.rssMb,
-                          dynamicFallbackCount: dynamicBatch.length,
-                        }
-                      );
-                    }
-                  }
-                }
-
-                // 5d-diag-summary. セクション visual embedding 処理パスサマリーログ
-                logger.info("[PageAnalyzeWorker] Section visual embedding path summary", {
-                  totalSections: sectionsNeedingVisual.length,
-                  inRangeCount: diagInRangeCount,
-                  fallbackCount: diagFallbackCount,
-                  dynamicCount: diagDynamicCount,
-                  dedupSkipCount: diagDedupSkipCount,
-                  skippedCount: diagSkippedCount,
-                  totalGenerated: result.sectionVisualEmbeddingsGenerated,
-                  fallbackCaptured: sectionFallbackCapturedCount,
+                const sectionVisualResult = await processSectionVisualEmbeddingLoop({
+                  sectionsFiltered,
+                  sectionsNeedingVisual,
+                  sectionPositionMap,
+                  screenshotBufferRef: { value: screenshotBuffer },
+                  imgWidth,
+                  imgHeight,
+                  fallbackEnabled:
+                    (process.env["ENABLE_SECTION_SCREENSHOT_FALLBACK"] ?? "true") === "true",
+                  url,
+                  job,
+                  params,
+                  effectiveToken,
+                  effectiveLockDuration,
+                  dinov2Service,
+                  prisma,
                 });
+
+                // screenshotBuffer may have been nulled by dynamic fallback
+                screenshotBuffer = sectionVisualResult.screenshotBuffer;
+                result.sectionVisualEmbeddingsGenerated +=
+                  sectionVisualResult.sectionVisualEmbeddingsGenerated;
               }
             } catch (sectionVisualError) {
               result.embeddingFailedChunks++;
@@ -1809,6 +1373,654 @@ export async function processEmbeddingPhase(
       responsiveEmbeddingsGenerated: result.responsiveEmbeddingsGenerated,
       partEmbeddingsGenerated: result.partEmbeddingsGenerated,
       partVisualEmbeddingsGenerated: result.partVisualEmbeddingsGenerated,
+    });
+  }
+
+  return result;
+}
+
+// ============================================================================
+// Section Visual Embedding Sub-functions
+// ============================================================================
+
+/**
+ * セクションビジュアルエンベディングループのパラメータ
+ */
+interface SectionVisualEmbeddingLoopParams {
+  sectionsFiltered: Array<{ id: string; section_pattern_id: string }>;
+  sectionsNeedingVisual: Array<{ id: string; section_pattern_id: string }>;
+  sectionPositionMap: Map<string, { startY: number; height: number; sectionType: string }>;
+  screenshotBufferRef: { value: Buffer | null };
+  imgWidth: number;
+  imgHeight: number;
+  fallbackEnabled: boolean;
+  url: string;
+  job: EmbeddingPhaseParams["job"];
+  params: EmbeddingPhaseParams;
+  effectiveToken: string;
+  effectiveLockDuration: number;
+  dinov2Service: InstanceType<typeof DINOv2Service>;
+  prisma: EmbeddingPhasePrismaClient;
+}
+
+/**
+ * セクションビジュアルエンベディングループの戻り値
+ */
+interface SectionVisualEmbeddingLoopResult {
+  sectionVisualEmbeddingsGenerated: number;
+  screenshotBuffer: Buffer | null;
+}
+
+/**
+ * フォールバック対象セクションの事前収集とバッチキャプチャ
+ *
+ * screenshotBase64の高さ範囲外セクションを収集し、Playwrightで一括キャプチャする。
+ * Collects sections outside screenshotBase64 height range and batch-captures via Playwright.
+ */
+async function collectFallbackScreenshots(
+  sectionsFiltered: Array<{ section_pattern_id: string }>,
+  sectionPositionMap: Map<string, { startY: number; height: number; sectionType: string }>,
+  imgHeight: number,
+  fallbackEnabled: boolean,
+  url: string,
+  job: EmbeddingPhaseParams["job"],
+  params: EmbeddingPhaseParams,
+  fallbackTimeoutMs: number
+): Promise<{ screenshots: Map<string, Buffer>; capturedCount: number }> {
+  const fallbackSections: Array<{ id: string; startY: number; height: number }> = [];
+  for (const section of sectionsFiltered) {
+    const sectionPos = sectionPositionMap.get(section.section_pattern_id);
+    if (!sectionPos || sectionPos.height < 10) continue;
+    const sectionTop = Math.max(0, Math.round(sectionPos.startY));
+    if (sectionTop >= imgHeight) {
+      fallbackSections.push({
+        id: section.section_pattern_id,
+        startY: sectionPos.startY,
+        height: sectionPos.height,
+      });
+    }
+  }
+
+  const screenshots = new Map<string, Buffer>();
+  let capturedCount = 0;
+
+  if (fallbackSections.length > 0 && fallbackEnabled) {
+    if (isDevelopment()) {
+      logger.info("[PageAnalyzeWorker] Batch capturing fallback section screenshots", {
+        fallbackSectionCount: fallbackSections.length,
+      });
+    }
+
+    try {
+      const fallbackResult = await captureSectionScreenshots({
+        url,
+        sections: fallbackSections,
+        viewportWidth: job.data.options?.layoutOptions?.viewport?.width ?? 1920,
+        viewportHeight: job.data.options?.layoutOptions?.viewport?.height ?? 1080,
+        maxSections: 50,
+        timeoutMs: fallbackTimeoutMs,
+        sharedBrowser: params.sharedBrowser,
+        checkMemoryPressure,
+      });
+
+      for (const fbResult of fallbackResult.results) {
+        if (fbResult.screenshotBuffer && !fbResult.skipped) {
+          screenshots.set(fbResult.sectionId, fbResult.screenshotBuffer);
+        }
+      }
+      capturedCount = fallbackResult.capturedCount;
+    } catch (batchFallbackError) {
+      logger.warn("[PageAnalyzeWorker] Batch section screenshot fallback failed (non-fatal)", {
+        error:
+          batchFallbackError instanceof Error
+            ? batchFallbackError.message
+            : String(batchFallbackError),
+      });
+    }
+  }
+
+  return { screenshots, capturedCount };
+}
+
+/**
+ * セクションビジュアルエンベディングのメインループ処理
+ *
+ * フォールバックバッチ収集、チャンクごとのcrop→DINOv2→DB保存、
+ * 動的Fallbackバッチ処理、診断サマリーログ出力を行う。
+ */
+async function processSectionVisualEmbeddingLoop(
+  loopParams: SectionVisualEmbeddingLoopParams
+): Promise<SectionVisualEmbeddingLoopResult> {
+  const {
+    sectionsFiltered,
+    sectionsNeedingVisual,
+    sectionPositionMap,
+    screenshotBufferRef,
+    imgWidth,
+    imgHeight,
+    fallbackEnabled,
+    url,
+    job,
+    params,
+    effectiveToken,
+    effectiveLockDuration,
+    dinov2Service,
+    prisma,
+  } = loopParams;
+
+  const SECTION_FALLBACK_TIMEOUT_MS = 300_000; // 300s cumulative timeout
+  let generatedCount = 0;
+
+  // 診断カウンター
+  let diagInRangeCount = 0;
+  let diagFallbackCount = 0;
+  let diagDynamicCount = 0;
+  let diagDedupSkipCount = 0;
+  let diagSkippedCount = 0;
+
+  // フォールバック対象セクションの事前バッチ収集とキャプチャ
+  const { screenshots: fallbackScreenshots, capturedCount: initialFallbackCaptured } =
+    await collectFallbackScreenshots(
+      sectionsFiltered,
+      sectionPositionMap,
+      imgHeight,
+      fallbackEnabled,
+      url,
+      job,
+      params,
+      SECTION_FALLBACK_TIMEOUT_MS
+    );
+  let sectionFallbackCapturedCount = initialFallbackCaptured;
+
+  // Type-aware 重複ベクトル検出用のスライディングウィンドウ
+  const parsedThreshold = parseFloat(process.env["DUPLICATE_VECTOR_THRESHOLD"] ?? "0.995");
+  const DUPLICATE_THRESHOLD = Number.isFinite(parsedThreshold) ? parsedThreshold : 0.995;
+  const MAX_RECENT_EMBEDDINGS = 10;
+  const recentSectionVisualEmbeddings: Array<{
+    embedding: number[];
+    sectionType: string;
+  }> = [];
+
+  // 動的Fallbackキュー: 白画像検出セクションを蓄積
+  const MAX_DYNAMIC_FALLBACK_SECTIONS = 20;
+  const dynamicFallbackSections: Array<{
+    sectionEmbeddingId: string;
+    sectionPatternId: string;
+    startY: number;
+    height: number;
+  }> = [];
+
+  let sectionVisualChunkSize = EMBEDDING_CHUNK_SIZE;
+
+  for (let offset = 0; offset < sectionsFiltered.length; offset += sectionVisualChunkSize) {
+    // Memory pressure check
+    const memCheck = checkMemoryPressure();
+    if (memCheck.shouldAbort) {
+      logger.warn("[PageAnalyzeWorker] Critical memory, stopping section visual embedding", {
+        rssMb: memCheck.rssMb,
+      });
+      break;
+    }
+    if (memCheck.shouldDegrade) {
+      sectionVisualChunkSize = Math.max(3, Math.floor(sectionVisualChunkSize / 2));
+      logger.warn("[PageAnalyzeWorker] Memory pressure, reducing section visual chunk size", {
+        rssMb: memCheck.rssMb,
+        newChunkSize: sectionVisualChunkSize,
+      });
+    }
+
+    const chunk = sectionsFiltered.slice(offset, offset + sectionVisualChunkSize);
+
+    // Lock extension per chunk
+    await extendJobLock(job, effectiveToken, effectiveLockDuration, "embedding-sections-visual");
+
+    for (const section of chunk) {
+      const singleResult = await processSingleSectionVisualEmbedding({
+        section,
+        sectionPositionMap,
+        screenshotBuffer: screenshotBufferRef.value!,
+        imgWidth,
+        imgHeight,
+        fallbackScreenshots,
+        fallbackEnabled,
+        dinov2Service,
+        prisma,
+        recentSectionVisualEmbeddings,
+        dynamicFallbackSections,
+        maxDynamicFallbackSections: MAX_DYNAMIC_FALLBACK_SECTIONS,
+        duplicateThreshold: DUPLICATE_THRESHOLD,
+        maxRecentEmbeddings: MAX_RECENT_EMBEDDINGS,
+      });
+
+      generatedCount += singleResult.generated;
+      diagInRangeCount += singleResult.diagInRange;
+      diagFallbackCount += singleResult.diagFallback;
+      diagDedupSkipCount += singleResult.diagDedupSkip;
+      diagSkippedCount += singleResult.diagSkipped;
+    }
+
+    if (isDevelopment()) {
+      logger.info("[PageAnalyzeWorker] Section visual embedding chunk completed", {
+        chunkOffset: offset,
+        chunkSize: chunk.length,
+        totalVisualSoFar: generatedCount,
+      });
+    }
+
+    // Inter-chunk memory recovery (except last chunk)
+    if (offset + sectionVisualChunkSize < sectionsNeedingVisual.length) {
+      tryGarbageCollect();
+      await new Promise<void>((resolve) => setImmediate(resolve));
+    }
+  }
+
+  // 動的Fallback: 白画像検出セクションをバッチ再キャプチャ
+  if (dynamicFallbackSections.length > 0 && fallbackEnabled) {
+    const dynamicResult = await processDynamicFallbackBatch({
+      dynamicFallbackSections,
+      sectionFallbackCapturedCount,
+      sectionPositionMap,
+      url,
+      job,
+      params,
+      dinov2Service,
+      prisma,
+      recentSectionVisualEmbeddings,
+      duplicateThreshold: DUPLICATE_THRESHOLD,
+      maxRecentEmbeddings: MAX_RECENT_EMBEDDINGS,
+      fallbackTimeoutMs: SECTION_FALLBACK_TIMEOUT_MS,
+    });
+
+    // screenshotBuffer解放は動的Fallback内で実施
+    screenshotBufferRef.value = null;
+    if (typeof global.gc === "function") {
+      global.gc();
+    }
+
+    sectionFallbackCapturedCount += dynamicResult.capturedCount;
+    diagDynamicCount += dynamicResult.dynamicCount;
+    generatedCount += dynamicResult.generated;
+  }
+
+  // 診断サマリーログ
+  logger.info("[PageAnalyzeWorker] Section visual embedding path summary", {
+    totalSections: sectionsNeedingVisual.length,
+    inRangeCount: diagInRangeCount,
+    fallbackCount: diagFallbackCount,
+    dynamicCount: diagDynamicCount,
+    dedupSkipCount: diagDedupSkipCount,
+    skippedCount: diagSkippedCount,
+    totalGenerated: generatedCount,
+    fallbackCaptured: sectionFallbackCapturedCount,
+  });
+
+  return {
+    sectionVisualEmbeddingsGenerated: generatedCount,
+    screenshotBuffer: screenshotBufferRef.value,
+  };
+}
+
+/**
+ * 単一セクションのビジュアルエンベディング処理パラメータ
+ */
+interface SingleSectionVisualParams {
+  section: { id: string; section_pattern_id: string };
+  sectionPositionMap: Map<string, { startY: number; height: number; sectionType: string }>;
+  screenshotBuffer: Buffer;
+  imgWidth: number;
+  imgHeight: number;
+  fallbackScreenshots: Map<string, Buffer>;
+  fallbackEnabled: boolean;
+  dinov2Service: InstanceType<typeof DINOv2Service>;
+  prisma: EmbeddingPhasePrismaClient;
+  recentSectionVisualEmbeddings: Array<{ embedding: number[]; sectionType: string }>;
+  dynamicFallbackSections: Array<{
+    sectionEmbeddingId: string;
+    sectionPatternId: string;
+    startY: number;
+    height: number;
+  }>;
+  maxDynamicFallbackSections: number;
+  duplicateThreshold: number;
+  maxRecentEmbeddings: number;
+}
+
+/**
+ * 単一セクションのビジュアルエンベディング処理結果
+ */
+interface SingleSectionVisualResult {
+  generated: number;
+  diagInRange: number;
+  diagFallback: number;
+  diagDedupSkip: number;
+  diagSkipped: number;
+}
+
+/**
+ * 単一セクションに対するcrop→DINOv2→dedup判定→DB保存処理
+ */
+async function processSingleSectionVisualEmbedding(
+  p: SingleSectionVisualParams
+): Promise<SingleSectionVisualResult> {
+  const result: SingleSectionVisualResult = {
+    generated: 0,
+    diagInRange: 0,
+    diagFallback: 0,
+    diagDedupSkip: 0,
+    diagSkipped: 0,
+  };
+
+  try {
+    const sectionPos = p.sectionPositionMap.get(p.section.section_pattern_id);
+    if (!sectionPos || sectionPos.height < 10) {
+      result.diagSkipped++;
+      if (isDevelopment()) {
+        logger.info("[PageAnalyzeWorker] Section visual path", {
+          sectionId: p.section.section_pattern_id.slice(0, 8) + "...",
+          path: "skipped",
+          skipReason: !sectionPos ? "no_position" : "height_too_small",
+        });
+      }
+      return result;
+    }
+
+    const sectionTop = Math.max(0, Math.round(sectionPos.startY));
+    const isOutOfRange = sectionTop >= p.imgHeight;
+
+    // TDA HIGH-1: acquireSectionCropBuffer でcropパスを一元管理
+    const cropResult = await acquireSectionCropBuffer({
+      sectionPatternId: p.section.section_pattern_id,
+      sectionPos,
+      screenshotBuffer: p.screenshotBuffer,
+      imgWidth: p.imgWidth,
+      imgHeight: p.imgHeight,
+      fallbackScreenshots: p.fallbackScreenshots,
+      fallbackEnabled: p.fallbackEnabled,
+      dinov2InputSize: DINOV2_INPUT_SIZE,
+    });
+
+    if (cropResult.isBlank) {
+      // 白画像検出: 動的Fallbackキューに蓄積
+      if (p.dynamicFallbackSections.length < p.maxDynamicFallbackSections) {
+        p.dynamicFallbackSections.push({
+          sectionEmbeddingId: p.section.id,
+          sectionPatternId: p.section.section_pattern_id,
+          startY: sectionPos.startY,
+          height: sectionPos.height,
+        });
+      }
+      if (isDevelopment()) {
+        logger.info("[PageAnalyzeWorker] Section visual path", {
+          sectionId: p.section.section_pattern_id.slice(0, 8) + "...",
+          startY: sectionPos.startY,
+          height: sectionPos.height,
+          imgHeight: p.imgHeight,
+          path: "dynamic",
+        });
+      }
+      return result;
+    }
+
+    if (!cropResult.rawCropBuffer) {
+      result.diagSkipped++;
+      if (isDevelopment()) {
+        logger.info("[PageAnalyzeWorker] Section visual path", {
+          sectionId: p.section.section_pattern_id.slice(0, 8) + "...",
+          startY: sectionPos.startY,
+          height: sectionPos.height,
+          imgHeight: p.imgHeight,
+          path: "skipped",
+          skipReason: "no_crop_buffer",
+        });
+      }
+      return result;
+    }
+
+    // Generate visual embedding via DINOv2
+    const visualEmbedding = await generateVisualEmbedding(
+      p.dinov2Service,
+      cropResult.rawCropBuffer
+    );
+
+    // Type-aware 重複ベクトル検出
+    const currentSectionType = sectionPos.sectionType;
+    const isDuplicateVector = isDuplicateVisionEmbedding({
+      sectionType: currentSectionType,
+      height: sectionPos.height,
+      embedding: visualEmbedding,
+      recentEmbeddings: p.recentSectionVisualEmbeddings,
+      threshold: p.duplicateThreshold,
+    });
+
+    if (isDuplicateVector) {
+      result.diagDedupSkip++;
+      logger.warn("[PageAnalyzeWorker] Duplicate vision embedding detected, skipping DB save", {
+        sectionId: p.section.section_pattern_id.slice(0, 8) + "...",
+        sectionType: currentSectionType,
+      });
+      if (isDevelopment()) {
+        logger.info("[PageAnalyzeWorker] Section visual path", {
+          sectionId: p.section.section_pattern_id.slice(0, 8) + "...",
+          startY: sectionPos.startY,
+          height: sectionPos.height,
+          imgHeight: p.imgHeight,
+          path: "dedup",
+          sectionType: currentSectionType,
+        });
+      }
+      return result;
+    }
+
+    // スライディングウィンドウに追加
+    p.recentSectionVisualEmbeddings.push({
+      embedding: visualEmbedding,
+      sectionType: currentSectionType,
+    });
+    if (p.recentSectionVisualEmbeddings.length > p.maxRecentEmbeddings) {
+      p.recentSectionVisualEmbeddings.shift();
+    }
+
+    // Update vision_embedding in DB via raw SQL
+    const visualVectorString = `[${visualEmbedding.join(",")}]`;
+    await p.prisma.$executeRawUnsafe(
+      `UPDATE section_embeddings
+       SET vision_embedding = $1::vector(768)
+       WHERE id = $2::uuid`,
+      visualVectorString,
+      p.section.id
+    );
+
+    if (isOutOfRange) {
+      result.diagFallback++;
+    } else {
+      result.diagInRange++;
+    }
+
+    if (isDevelopment()) {
+      logger.info("[PageAnalyzeWorker] Section visual path", {
+        sectionId: p.section.section_pattern_id.slice(0, 8) + "...",
+        startY: sectionPos.startY,
+        height: sectionPos.height,
+        imgHeight: p.imgHeight,
+        path: isOutOfRange ? "fallback" : "in_range",
+      });
+    }
+
+    result.generated++;
+  } catch (sectionVisualError) {
+    result.diagSkipped++;
+    logger.warn("[PageAnalyzeWorker] DINOv2 visual embedding failed for section (non-fatal)", {
+      sectionEmbeddingId: p.section.id.slice(0, 8) + "...",
+      error:
+        sectionVisualError instanceof Error
+          ? sectionVisualError.message
+          : String(sectionVisualError),
+    });
+  }
+
+  return result;
+}
+
+/**
+ * 動的Fallbackバッチ処理パラメータ
+ */
+interface DynamicFallbackBatchParams {
+  dynamicFallbackSections: Array<{
+    sectionEmbeddingId: string;
+    sectionPatternId: string;
+    startY: number;
+    height: number;
+  }>;
+  sectionFallbackCapturedCount: number;
+  sectionPositionMap: Map<string, { startY: number; height: number; sectionType: string }>;
+  url: string;
+  job: EmbeddingPhaseParams["job"];
+  params: EmbeddingPhaseParams;
+  dinov2Service: InstanceType<typeof DINOv2Service>;
+  prisma: EmbeddingPhasePrismaClient;
+  recentSectionVisualEmbeddings: Array<{ embedding: number[]; sectionType: string }>;
+  duplicateThreshold: number;
+  maxRecentEmbeddings: number;
+  fallbackTimeoutMs: number;
+}
+
+/**
+ * 動的Fallbackバッチ処理結果
+ */
+interface DynamicFallbackBatchResult {
+  generated: number;
+  dynamicCount: number;
+  capturedCount: number;
+}
+
+/**
+ * 白画像検出セクションのバッチ再キャプチャ→DINOv2→DB保存処理
+ */
+async function processDynamicFallbackBatch(
+  p: DynamicFallbackBatchParams
+): Promise<DynamicFallbackBatchResult> {
+  const result: DynamicFallbackBatchResult = { generated: 0, dynamicCount: 0, capturedCount: 0 };
+
+  const remainingCapacity = Math.max(0, 50 - p.sectionFallbackCapturedCount);
+  const dynamicBatch = p.dynamicFallbackSections.slice(0, remainingCapacity);
+
+  if (dynamicBatch.length === 0) return result;
+
+  const memCheckDynamic = checkMemoryPressure();
+  if (memCheckDynamic.shouldAbort) {
+    logger.warn("[PageAnalyzeWorker] Skipping dynamic fallback due to memory pressure", {
+      rssMb: memCheckDynamic.rssMb,
+      dynamicFallbackCount: dynamicBatch.length,
+    });
+    return result;
+  }
+
+  if (isDevelopment()) {
+    logger.info("[PageAnalyzeWorker] Starting dynamic fallback for blank-detected sections", {
+      dynamicFallbackCount: dynamicBatch.length,
+      remainingCapacity,
+    });
+  }
+
+  try {
+    const dynamicFallbackResult = await captureSectionScreenshots({
+      url: p.url,
+      sections: dynamicBatch.map((s) => ({
+        id: s.sectionPatternId,
+        startY: s.startY,
+        height: s.height,
+      })),
+      viewportWidth: p.job.data.options?.layoutOptions?.viewport?.width ?? 1920,
+      viewportHeight: p.job.data.options?.layoutOptions?.viewport?.height ?? 1080,
+      maxSections: remainingCapacity,
+      timeoutMs: p.fallbackTimeoutMs,
+      sharedBrowser: p.params.sharedBrowser,
+      checkMemoryPressure,
+    });
+
+    result.capturedCount = dynamicFallbackResult.capturedCount;
+
+    for (const fbResult of dynamicFallbackResult.results) {
+      if (fbResult.skipped || !fbResult.screenshotBuffer) continue;
+
+      const matchingSection = dynamicBatch.find((s) => s.sectionPatternId === fbResult.sectionId);
+      if (!matchingSection) continue;
+
+      try {
+        const rawCropBuffer = await sharp(fbResult.screenshotBuffer)
+          .resize(DINOV2_INPUT_SIZE, DINOV2_INPUT_SIZE, {
+            fit: "cover",
+            kernel: "cubic",
+          })
+          .removeAlpha()
+          .toColorspace("srgb")
+          .raw()
+          .toBuffer();
+
+        // LCC MUST-FIX-3: 動的Fallbackスクリーンショットバッファの参照解除
+        fbResult.screenshotBuffer = null;
+
+        const visualEmbedding = await generateVisualEmbedding(p.dinov2Service, rawCropBuffer);
+
+        const dynamicSectionPos = p.sectionPositionMap.get(matchingSection.sectionPatternId);
+        const dynamicSectionType = dynamicSectionPos?.sectionType ?? "unknown";
+        const isDuplicateVector = isDuplicateVisionEmbedding({
+          sectionType: dynamicSectionType,
+          height: dynamicSectionPos?.height ?? 0,
+          embedding: visualEmbedding,
+          recentEmbeddings: p.recentSectionVisualEmbeddings,
+          threshold: p.duplicateThreshold,
+        });
+
+        if (isDuplicateVector) {
+          logger.warn(
+            "[PageAnalyzeWorker] Duplicate vision embedding (dynamic fallback), skipping",
+            {
+              sectionId: fbResult.sectionId.slice(0, 8) + "...",
+              sectionType: dynamicSectionType,
+            }
+          );
+          continue;
+        }
+
+        p.recentSectionVisualEmbeddings.push({
+          embedding: visualEmbedding,
+          sectionType: dynamicSectionType,
+        });
+        if (p.recentSectionVisualEmbeddings.length > p.maxRecentEmbeddings) {
+          p.recentSectionVisualEmbeddings.shift();
+        }
+
+        const visualVectorString = `[${visualEmbedding.join(",")}]`;
+        await p.prisma.$executeRawUnsafe(
+          `UPDATE section_embeddings
+           SET vision_embedding = $1::vector(768)
+           WHERE id = $2::uuid`,
+          visualVectorString,
+          matchingSection.sectionEmbeddingId
+        );
+
+        result.dynamicCount++;
+        result.generated++;
+      } catch (dynamicEmbeddingError) {
+        logger.warn(
+          "[PageAnalyzeWorker] DINOv2 visual embedding failed for dynamic fallback section (non-fatal)",
+          {
+            sectionId: fbResult.sectionId.slice(0, 8) + "...",
+            error:
+              dynamicEmbeddingError instanceof Error
+                ? dynamicEmbeddingError.message
+                : String(dynamicEmbeddingError),
+          }
+        );
+      }
+    }
+  } catch (dynamicFallbackError) {
+    logger.warn("[PageAnalyzeWorker] Dynamic section screenshot fallback failed (non-fatal)", {
+      error:
+        dynamicFallbackError instanceof Error
+          ? dynamicFallbackError.message
+          : String(dynamicFallbackError),
     });
   }
 

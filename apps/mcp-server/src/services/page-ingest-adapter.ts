@@ -22,6 +22,26 @@ import { McpError, ErrorCode } from "../utils/errors";
 // =============================================
 
 /**
+ * Playwright Browser の内部API（process()）にアクセスするための型拡張。
+ * Playwright の公開型定義には含まれないが、実行時に存在する。
+ */
+interface BrowserWithProcess extends Browser {
+  process?: () => { pid: number } | null;
+}
+
+/**
+ * Playwright Browser から PID を安全に取得するヘルパー。
+ * 内部APIが利用できない場合は undefined を返す。
+ */
+function getBrowserPid(browser: Browser): number | undefined {
+  try {
+    return (browser as unknown as BrowserWithProcess).process?.()?.pid;
+  } catch {
+    return undefined;
+  }
+}
+
+/**
  * ビューポート設定
  */
 export interface IngestViewport {
@@ -509,8 +529,233 @@ async function withTimeout<T>(
  * });
  * ```
  */
+/**
+ * ページ待機シーケンスの結果
+ */
+interface PageWaitSequenceResult {
+  warnings: IngestWarning[];
+  webglDetection: WebGLDetectionResult | undefined;
+  webglWait: WebGLWaitResult | undefined;
+}
+
 class PageIngestAdapter {
   private browser: Browser | null = null;
+
+  /**
+   * ページ待機シーケンス（Step 0〜3）を実行する
+   *
+   * Step 0: ユーザーインタラクション模倣
+   * Step 0.5: waitForWebGLモードのCanvas待機
+   * Step 1: ローディング要素の非表示待機
+   * Step 1.5: コンテンツ要素の可視性待機
+   * Step 2: DOM安定化待機
+   * Step 2.5: WebGL/3Dサイト適応的待機
+   * Step 3: 追加の固定待機時間
+   *
+   * @param page - Playwrightページ
+   * @param ingestOptions - インジェストオプション
+   * @param timeout - タイムアウト（ms）
+   * @param useWebGLDisabledBrowser - WebGL無効ブラウザ使用フラグ
+   * @param withGlobalTimeout - グローバルタイムアウトレース関数
+   * @returns 待機結果（warnings, webglDetection, webglWait）
+   */
+  private async executePageWaitSequence(
+    page: Page,
+    ingestOptions: IngestAdapterOptions,
+    timeout: number,
+    useWebGLDisabledBrowser: boolean,
+    withGlobalTimeout: <T>(operation: Promise<T>, operationName: string) => Promise<T>
+  ): Promise<PageWaitSequenceResult> {
+    const warnings: IngestWarning[] = [];
+    let webglDetection: WebGLDetectionResult | undefined;
+    let webglWait: WebGLWaitResult | undefined;
+
+    // Step 0: ユーザーインタラクション模倣（ローディング解除トリガー）
+    if (ingestOptions.simulateUserInteraction !== false) {
+      if (isDevelopment()) {
+        logger.debug("[PageIngestAdapter] Step 0: Simulating user interaction");
+      }
+      try {
+        const vp = page.viewportSize() ?? { width: 1440, height: 900 };
+        await page.mouse.move(vp.width / 2, vp.height / 2);
+        await page.mouse.wheel(0, 100);
+        await page.waitForTimeout(500);
+        await page.mouse.wheel(0, -100);
+        if (isDevelopment()) {
+          logger.debug("[PageIngestAdapter] User interaction simulation completed");
+        }
+      } catch (e) {
+        if (isDevelopment()) {
+          logger.warn("[PageIngestAdapter] User interaction simulation failed", {
+            error: String(e),
+          });
+        }
+      }
+    }
+
+    // Step 0.5: waitForWebGLモードのCanvas待機（Phase1-2）
+    if (ingestOptions.waitForWebGL === true) {
+      if (isDevelopment()) {
+        logger.debug(
+          "[PageIngestAdapter] Step 0.5: waitForWebGL mode - waiting for canvas element"
+        );
+      }
+
+      try {
+        await page.waitForSelector("canvas", { timeout: WEBGL_CONSTANTS.CANVAS_WAIT_TIMEOUT_MS });
+
+        const hasWebGL = await page.evaluate(`
+          (function() {
+            var canvas = document.querySelector('canvas');
+            if (!canvas) return false;
+            var gl = canvas.getContext('webgl') || canvas.getContext('webgl2');
+            return !!gl;
+          })()
+        `);
+
+        if (hasWebGL) {
+          const webglWaitMs = ingestOptions.webglWaitMs ?? WEBGL_CONSTANTS.DEFAULT_WEBGL_WAIT_MS;
+          if (webglWaitMs > 0) {
+            if (isDevelopment()) {
+              logger.debug("[PageIngestAdapter] WebGL context found, waiting for initialization", {
+                webglWaitMs,
+              });
+            }
+            await page.waitForTimeout(webglWaitMs);
+          }
+        } else {
+          if (isDevelopment()) {
+            logger.debug("[PageIngestAdapter] Canvas found but no WebGL context, skipping wait");
+          }
+        }
+      } catch (e) {
+        if (isDevelopment()) {
+          logger.debug("[PageIngestAdapter] waitForWebGL canvas/context check failed, continuing", {
+            error: e instanceof Error ? e.message : String(e),
+          });
+        }
+      }
+    }
+
+    // Step 1: ローディング要素の完全非表示を待機
+    if (ingestOptions.waitForSelectorHidden) {
+      if (isDevelopment()) {
+        logger.debug(
+          "[PageIngestAdapter] Step 1: Waiting for loading element to become invisible",
+          { selector: ingestOptions.waitForSelectorHidden }
+        );
+      }
+      const loadingHiddenResult = await this.waitForLoadingElementHidden(
+        page,
+        ingestOptions.waitForSelectorHidden,
+        Math.min(timeout / 2, 30000)
+      );
+      if (isDevelopment()) {
+        logger.debug("[PageIngestAdapter] Loading element check completed", loadingHiddenResult);
+      }
+    }
+
+    // Step 1.5: コンテンツ要素の可視性待機
+    if (ingestOptions.waitForContentVisible) {
+      if (isDevelopment()) {
+        logger.debug("[PageIngestAdapter] Step 1.5: Waiting for content to become visible", {
+          selector: ingestOptions.waitForContentVisible,
+        });
+      }
+      try {
+        await page.waitForSelector(ingestOptions.waitForContentVisible, {
+          state: "visible",
+          timeout: Math.min(timeout / 2, 30000),
+        });
+        if (isDevelopment()) {
+          logger.debug("[PageIngestAdapter] Content element visible");
+        }
+      } catch {
+        if (isDevelopment()) {
+          logger.warn("[PageIngestAdapter] Content element not found or timeout", {
+            selector: ingestOptions.waitForContentVisible,
+          });
+        }
+      }
+    }
+
+    // Step 2: DOM安定化待機（React/Vue/Next.js hydration対応）
+    if (ingestOptions.waitForDomStable !== false) {
+      const domStableTimeout = ingestOptions.domStableTimeout ?? 500;
+      const maxWait = Math.min(timeout / 2, 10000);
+      if (isDevelopment()) {
+        logger.debug("[PageIngestAdapter] Step 2: Waiting for DOM stability", {
+          domStableTimeout,
+          maxWait,
+        });
+      }
+      const domResult = await withGlobalTimeout(
+        this.waitForDomStable(page, domStableTimeout, maxWait),
+        "waitForDomStable"
+      );
+      if (isDevelopment()) {
+        logger.debug("[PageIngestAdapter] DOM stability check completed", domResult);
+      }
+    }
+
+    // Step 2.5: WebGL/3Dサイト適応的待機
+    if (useWebGLDisabledBrowser) {
+      warnings.push({
+        code: "WEBGL_DISABLED",
+        message:
+          "WebGL has been disabled for this ingest. 3D/WebGL content will not render correctly.",
+      });
+      if (isDevelopment()) {
+        logger.info("[PageIngestAdapter] Skipping WebGL detection (disableWebGL=true)");
+      }
+    } else if (ingestOptions.adaptiveWebGLWait !== false) {
+      if (isDevelopment()) {
+        logger.debug("[PageIngestAdapter] Step 2.5: Adaptive WebGL wait (enabled by default)");
+      }
+      try {
+        const webglResult = await withGlobalTimeout(
+          this.waitForWebGLReady(page, ingestOptions, warnings),
+          "waitForWebGLReady"
+        );
+        webglDetection = webglResult.detection;
+        webglWait = webglResult.wait;
+
+        if (webglDetection.detected && isDevelopment()) {
+          logger.info("[PageIngestAdapter] WebGL site detected", {
+            canvasCount: webglDetection.canvasCount,
+            webgl1Count: webglDetection.webgl1Count,
+            webgl2Count: webglDetection.webgl2Count,
+            threeJsDetected: webglDetection.threeJsDetected,
+            frameRateStable: webglWait?.frameRateStable,
+            lastFrameRate: webglWait?.lastFrameRate,
+          });
+        }
+      } catch (e) {
+        const errorMessage = e instanceof Error ? e.message : String(e);
+        warnings.push({
+          code: "WEBGL_WAIT_ERROR",
+          message: `WebGL adaptive wait failed: ${errorMessage}`,
+        });
+        if (isDevelopment()) {
+          logger.warn("[PageIngestAdapter] WebGL adaptive wait failed, continuing", {
+            error: errorMessage,
+          });
+        }
+      }
+    }
+
+    // Step 3: 追加の固定待機時間（アニメーション完了用）
+    if (ingestOptions.waitForTimeout && ingestOptions.waitForTimeout > 0) {
+      if (isDevelopment()) {
+        logger.debug("[PageIngestAdapter] Step 3: Additional wait", {
+          waitForTimeout: ingestOptions.waitForTimeout,
+        });
+      }
+      await page.waitForTimeout(ingestOptions.waitForTimeout);
+    }
+
+    return { warnings, webglDetection, webglWait };
+  }
 
   /**
    * ローディング要素の完全非表示を待機（CSS opacity/visibility対応）
@@ -1462,8 +1707,7 @@ class PageIngestAdapter {
         dedicatedBrowser = await this.launchWebGLDisabledBrowser();
         browser = dedicatedBrowser;
         // browser.process() はPlaywrightの型定義に含まれていないが、実行時に存在
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        browserPid = (browser as any).process?.()?.pid as number | undefined;
+        browserPid = getBrowserPid(browser);
         if (isDevelopment()) {
           logger.debug("[PageIngestAdapter] Using dedicated WebGL-disabled browser", {
             pid: browserPid,
@@ -1473,8 +1717,7 @@ class PageIngestAdapter {
         // GPU有効化ブラウザ（専用インスタンス）
         dedicatedBrowser = await this.launchGPUEnabledBrowser();
         browser = dedicatedBrowser;
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        browserPid = (browser as any).process?.()?.pid as number | undefined;
+        browserPid = getBrowserPid(browser);
         if (isDevelopment()) {
           logger.debug("[PageIngestAdapter] Using dedicated GPU-enabled browser", {
             pid: browserPid,
@@ -1483,8 +1726,7 @@ class PageIngestAdapter {
       } else {
         browser = await this.getBrowser();
         // 共有ブラウザのPIDも取得（強制終了時に必要）
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        browserPid = (browser as any).process?.()?.pid as number | undefined;
+        browserPid = getBrowserPid(browser);
       }
 
       // BrowserProcessManagerを作成（専用ブラウザ使用時またはforceKillOnTimeout有効時）
@@ -1697,217 +1939,15 @@ class PageIngestAdapter {
         });
       }
 
-      // ステップ0: ユーザーインタラクション模倣（ローディング解除トリガー）
-      // マウス移動でローディングアニメーションを解除するサイト対応
-      if (ingestOptions.simulateUserInteraction !== false) {
-        if (isDevelopment()) {
-          logger.debug("[PageIngestAdapter] Step 0: Simulating user interaction");
-        }
-        try {
-          // ビューポート中央にマウスを移動
-          const vp = page.viewportSize() ?? { width: 1440, height: 900 };
-          await page.mouse.move(vp.width / 2, vp.height / 2);
-          // 少しスクロール
-          await page.mouse.wheel(0, 100);
-          await page.waitForTimeout(500);
-          // 元に戻す
-          await page.mouse.wheel(0, -100);
-          if (isDevelopment()) {
-            logger.debug("[PageIngestAdapter] User interaction simulation completed");
-          }
-        } catch (e) {
-          if (isDevelopment()) {
-            logger.warn("[PageIngestAdapter] User interaction simulation failed", {
-              error: String(e),
-            });
-          }
-        }
-      }
-
-      // ステップ0.5: waitForWebGLモードのCanvas待機（Phase1-2）
-      // networkidleが永遠に完了しないWebGLサイト向けの最適化
-      if (ingestOptions.waitForWebGL === true) {
-        if (isDevelopment()) {
-          logger.debug(
-            "[PageIngestAdapter] Step 0.5: waitForWebGL mode - waiting for canvas element"
-          );
-        }
-
-        try {
-          // Canvas要素の出現を待機（最大10秒）
-          await page.waitForSelector("canvas", { timeout: WEBGL_CONSTANTS.CANVAS_WAIT_TIMEOUT_MS });
-
-          // WebGLコンテキスト取得確認
-          const hasWebGL = await page.evaluate(`
-            (function() {
-              var canvas = document.querySelector('canvas');
-              if (!canvas) return false;
-              var gl = canvas.getContext('webgl') || canvas.getContext('webgl2');
-              return !!gl;
-            })()
-          `);
-
-          // WebGL初期化待機
-          if (hasWebGL) {
-            const webglWaitMs = ingestOptions.webglWaitMs ?? WEBGL_CONSTANTS.DEFAULT_WEBGL_WAIT_MS;
-            if (webglWaitMs > 0) {
-              if (isDevelopment()) {
-                logger.debug(
-                  "[PageIngestAdapter] WebGL context found, waiting for initialization",
-                  {
-                    webglWaitMs,
-                  }
-                );
-              }
-              await page.waitForTimeout(webglWaitMs);
-            }
-          } else {
-            if (isDevelopment()) {
-              logger.debug("[PageIngestAdapter] Canvas found but no WebGL context, skipping wait");
-            }
-          }
-        } catch (e) {
-          // Canvas未検出やエラー時もエラーにしない（Graceful Degradation）
-          if (isDevelopment()) {
-            logger.debug(
-              "[PageIngestAdapter] waitForWebGL canvas/context check failed, continuing",
-              {
-                error: e instanceof Error ? e.message : String(e),
-              }
-            );
-          }
-        }
-      }
-
-      // ステップ1: ローディング要素の完全非表示を待機（最優先）
-      // CSSアニメーション（opacity, transform）で隠れるローディング要素対応
-      if (ingestOptions.waitForSelectorHidden) {
-        if (isDevelopment()) {
-          logger.debug(
-            "[PageIngestAdapter] Step 1: Waiting for loading element to become invisible",
-            {
-              selector: ingestOptions.waitForSelectorHidden,
-            }
-          );
-        }
-        const loadingHiddenResult = await this.waitForLoadingElementHidden(
-          page,
-          ingestOptions.waitForSelectorHidden,
-          Math.min(timeout / 2, 30000)
-        );
-        if (isDevelopment()) {
-          logger.debug("[PageIngestAdapter] Loading element check completed", loadingHiddenResult);
-        }
-      }
-
-      // ステップ1.5: コンテンツ要素の可視性待機
-      // 実際のコンテンツが描画されるまで待機（sr-only以外の可視要素）
-      if (ingestOptions.waitForContentVisible) {
-        if (isDevelopment()) {
-          logger.debug("[PageIngestAdapter] Step 1.5: Waiting for content to become visible", {
-            selector: ingestOptions.waitForContentVisible,
-          });
-        }
-        try {
-          await page.waitForSelector(ingestOptions.waitForContentVisible, {
-            state: "visible",
-            timeout: Math.min(timeout / 2, 30000),
-          });
-          if (isDevelopment()) {
-            logger.debug("[PageIngestAdapter] Content element visible");
-          }
-        } catch {
-          if (isDevelopment()) {
-            logger.warn("[PageIngestAdapter] Content element not found or timeout", {
-              selector: ingestOptions.waitForContentVisible,
-            });
-          }
-        }
-      }
-
-      // ステップ2: DOM安定化待機（React/Vue/Next.js hydration対応）
-      // ローディング完了後のコンテンツ描画を待つ
-      if (ingestOptions.waitForDomStable !== false) {
-        const domStableTimeout = ingestOptions.domStableTimeout ?? 500;
-        const maxWait = Math.min(timeout / 2, 10000);
-        if (isDevelopment()) {
-          logger.debug("[PageIngestAdapter] Step 2: Waiting for DOM stability", {
-            domStableTimeout,
-            maxWait,
-          });
-        }
-        const result = await withGlobalTimeout(
-          this.waitForDomStable(page, domStableTimeout, maxWait),
-          "waitForDomStable"
-        );
-        if (isDevelopment()) {
-          logger.debug("[PageIngestAdapter] DOM stability check completed", result);
-        }
-      }
-
-      // ステップ2.5: WebGL/3Dサイト適応的待機（デフォルト有効）
-      // Canvas/WebGLを検出し、フレームレート安定化を待機
-      // disableWebGL=trueの場合はスキップ（WebGLが無効化されているため検出不要）
-      const warnings: IngestWarning[] = [];
-      let webglDetection: WebGLDetectionResult | undefined;
-      let webglWait: WebGLWaitResult | undefined;
-
-      // disableWebGL使用時は警告を追加
-      if (useWebGLDisabledBrowser) {
-        warnings.push({
-          code: "WEBGL_DISABLED",
-          message:
-            "WebGL has been disabled for this ingest. 3D/WebGL content will not render correctly.",
-        });
-        if (isDevelopment()) {
-          logger.info("[PageIngestAdapter] Skipping WebGL detection (disableWebGL=true)");
-        }
-      } else if (ingestOptions.adaptiveWebGLWait !== false) {
-        if (isDevelopment()) {
-          logger.debug("[PageIngestAdapter] Step 2.5: Adaptive WebGL wait (enabled by default)");
-        }
-        try {
-          const webglResult = await withGlobalTimeout(
-            this.waitForWebGLReady(page, ingestOptions, warnings),
-            "waitForWebGLReady"
-          );
-          webglDetection = webglResult.detection;
-          webglWait = webglResult.wait;
-
-          if (webglDetection.detected && isDevelopment()) {
-            logger.info("[PageIngestAdapter] WebGL site detected", {
-              canvasCount: webglDetection.canvasCount,
-              webgl1Count: webglDetection.webgl1Count,
-              webgl2Count: webglDetection.webgl2Count,
-              threeJsDetected: webglDetection.threeJsDetected,
-              frameRateStable: webglWait?.frameRateStable,
-              lastFrameRate: webglWait?.lastFrameRate,
-            });
-          }
-        } catch (e) {
-          // Graceful Degradation: WebGL待機失敗時も処理を継続
-          const errorMessage = e instanceof Error ? e.message : String(e);
-          warnings.push({
-            code: "WEBGL_WAIT_ERROR",
-            message: `WebGL adaptive wait failed: ${errorMessage}`,
-          });
-          if (isDevelopment()) {
-            logger.warn("[PageIngestAdapter] WebGL adaptive wait failed, continuing", {
-              error: errorMessage,
-            });
-          }
-        }
-      }
-
-      // ステップ3: 追加の固定待機時間（アニメーション完了用）
-      if (ingestOptions.waitForTimeout && ingestOptions.waitForTimeout > 0) {
-        if (isDevelopment()) {
-          logger.debug("[PageIngestAdapter] Step 3: Additional wait", {
-            waitForTimeout: ingestOptions.waitForTimeout,
-          });
-        }
-        await page.waitForTimeout(ingestOptions.waitForTimeout);
-      }
+      // ステップ0〜3: ページ待機シーケンス実行
+      const waitResult = await this.executePageWaitSequence(
+        page,
+        ingestOptions,
+        timeout,
+        useWebGLDisabledBrowser,
+        withGlobalTimeout
+      );
+      const { warnings, webglDetection, webglWait } = waitResult;
 
       // WebGLサイトかどうかでタイムアウトを調整
       const isWebGLSiteForTimeout = webglDetection?.detected ?? false;

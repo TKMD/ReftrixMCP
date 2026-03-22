@@ -36,8 +36,10 @@ import * as path from "node:path";
 
 /** processEmbeddingPhase 全体のスライスサイズ（~73K文字、acquireSectionCropBuffer抽出+動的Fallback追加分を含む） */
 const EMBEDDING_PHASE_SLICE = 75000;
-/** Section Visual Embedding ブロックのスライスサイズ（acquireSectionCropBuffer抽出+バッチ処理化+重複検出追加により拡張） */
-const SECTION_VISUAL_SLICE = 20000;
+/** Section Visual Embedding ブロックのスライスサイズ（processEmbeddingPhase内のセクション+サブ関数collectAndCapture分） */
+const SECTION_VISUAL_SLICE = 35000;
+/** processSingleSectionVisualEmbedding サブ関数のスライスサイズ（巨大関数分解で移動したセクション単位処理ロジック） */
+const SINGLE_SECTION_SLICE = 10000;
 
 describe("PageAnalyzeWorker - Section Visual Embedding Fallback Integration", () => {
   // After TDA-C1 refactoring, processEmbeddingPhase, fallback logic, and visual
@@ -77,9 +79,11 @@ describe("PageAnalyzeWorker - Section Visual Embedding Fallback Integration", ()
 
     it("should check sectionTop < imgHeight before using sharp crop", () => {
       // sectionTop < imgHeight の条件でSharp cropを使用
-      const fnStart = workerSource.indexOf("Section Visual Embedding");
-      const sectionVisualBody = workerSource.slice(fnStart, fnStart + SECTION_VISUAL_SLICE);
-      expect(sectionVisualBody).toContain("sectionTop >= imgHeight");
+      // After TDA-C1 refactoring, per-section logic moved to processSingleSectionVisualEmbedding
+      const fnStart = workerSource.indexOf("async function processSingleSectionVisualEmbedding");
+      expect(fnStart).toBeGreaterThan(-1);
+      const chunkBody = workerSource.slice(fnStart, fnStart + SINGLE_SECTION_SLICE);
+      expect(chunkBody).toContain("sectionTop >= p.imgHeight");
     });
 
     it("should crop with full page width (sectionLeft = 0)", () => {
@@ -146,12 +150,14 @@ describe("PageAnalyzeWorker - Section Visual Embedding Fallback Integration", ()
 
     it("should route sections based on imgHeight comparison", () => {
       // imgHeight を基準にセクションを振り分ける
-      const fnStart = workerSource.indexOf("Section Visual Embedding");
-      const sectionVisualBody = workerSource.slice(fnStart, fnStart + SECTION_VISUAL_SLICE);
+      // After TDA-C1 refactoring, per-section routing moved to processSingleSectionVisualEmbedding
+      const fnStart = workerSource.indexOf("async function processSingleSectionVisualEmbedding");
+      expect(fnStart).toBeGreaterThan(-1);
+      const chunkBody = workerSource.slice(fnStart, fnStart + SINGLE_SECTION_SLICE);
 
-      // sectionTop >= imgHeight チェックがルーティング条件
-      expect(sectionVisualBody).toContain("sectionTop >= imgHeight");
-      expect(sectionVisualBody).toContain("imgHeight");
+      // sectionTop >= p.imgHeight チェックがルーティング条件
+      expect(chunkBody).toContain("sectionTop >= p.imgHeight");
+      expect(chunkBody).toContain("imgHeight");
     });
 
     it("should process both in-range and fallback sections with same dinov2Service", () => {
@@ -179,17 +185,24 @@ describe("PageAnalyzeWorker - Section Visual Embedding Fallback Integration", ()
 
     it("should have per-section try-catch for individual failures", () => {
       // 個別セクションの crop/DINOv2 推論失敗をキャッチする per-section try-catch
-      const fnStart = workerSource.indexOf("Section Visual Embedding");
-      const sectionVisualBody = workerSource.slice(fnStart, fnStart + SECTION_VISUAL_SLICE);
-      expect(sectionVisualBody).toContain("DINOv2 visual embedding failed for section (non-fatal)");
+      // After TDA-C1 refactoring, per-section try-catch moved to processSingleSectionVisualEmbedding
+      const fnStart = workerSource.indexOf("async function processSingleSectionVisualEmbedding");
+      expect(fnStart).toBeGreaterThan(-1);
+      const chunkBody = workerSource.slice(fnStart, fnStart + SINGLE_SECTION_SLICE);
+      expect(chunkBody).toContain("DINOv2 visual embedding failed for section (non-fatal)");
     });
 
     it("should continue processing other sections after one section fails", () => {
       // 1つのセクションが失敗しても、他のセクションは処理される
+      // After TDA-C1 refactoring, the loop calls processSingleSectionVisualEmbedding per section
       const fnStart = workerSource.indexOf("for (const section of chunk)");
       expect(fnStart).toBeGreaterThan(-1);
-      const loopBody = workerSource.slice(fnStart, fnStart + 8000);
-      expect(loopBody).toContain("catch (sectionVisualError)");
+      // processSingleSectionVisualEmbedding has its own try-catch
+      const singleFnStart = workerSource.indexOf(
+        "async function processSingleSectionVisualEmbedding"
+      );
+      const singleBody = workerSource.slice(singleFnStart, singleFnStart + SINGLE_SECTION_SLICE);
+      expect(singleBody).toContain("catch (sectionVisualError)");
     });
 
     it("should not block job completion when fallback fails", () => {
@@ -310,10 +323,11 @@ describe("PageAnalyzeWorker - Section Visual Embedding Fallback Integration", ()
     });
 
     it("should include sectionVisualEmbeddingsGenerated in result for both paths", () => {
-      // Sharp crop とフォールバックの両方で result.sectionVisualEmbeddingsGenerated をインクリメント
-      const fnStart = workerSource.indexOf("Section Visual Embedding");
-      const sectionVisualBody = workerSource.slice(fnStart, fnStart + SECTION_VISUAL_SLICE);
-      expect(sectionVisualBody).toContain("result.sectionVisualEmbeddingsGenerated++");
+      // サブ関数が generated カウンタを返し、ループ関数が集計して返す
+      const fnStart = workerSource.indexOf("async function processSectionVisualEmbeddingLoop");
+      expect(fnStart).toBeGreaterThan(-1);
+      const fnBody = workerSource.slice(fnStart, fnStart + 8000);
+      expect(fnBody).toContain("sectionVisualEmbeddingsGenerated");
     });
   });
 
@@ -368,12 +382,12 @@ describe("PageAnalyzeWorker - Section Visual Embedding Fallback Integration", ()
     });
 
     it("sectionVisualEmbeddingsGenerated should include both in-range and fallback counts", () => {
-      // 範囲内と範囲外の両方のカウントが result に含まれる
-      const fnStart = workerSource.indexOf("Section Visual Embedding");
-      const sectionVisualBody = workerSource.slice(fnStart, fnStart + SECTION_VISUAL_SLICE);
-
-      // result.sectionVisualEmbeddingsGenerated++ が呼ばれるパスがある
-      expect(sectionVisualBody).toContain("result.sectionVisualEmbeddingsGenerated++");
+      // ループ関数が generatedCount を集計し、戻り値で sectionVisualEmbeddingsGenerated として返す
+      const fnStart = workerSource.indexOf("async function processSectionVisualEmbeddingLoop");
+      expect(fnStart).toBeGreaterThan(-1);
+      const fnBody = workerSource.slice(fnStart, fnStart + 8000);
+      expect(fnBody).toContain("generatedCount");
+      expect(fnBody).toContain("sectionVisualEmbeddingsGenerated: generatedCount");
     });
   });
 

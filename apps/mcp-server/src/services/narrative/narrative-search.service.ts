@@ -93,6 +93,9 @@ interface VectorSearchRow {
   similarity: number;
   wp_url: string;
   wp_title: string | null;
+  overall_tone: string | null;
+  grid_type: string | null;
+  grid_columns: number | null;
 }
 
 // =============================================================================
@@ -181,6 +184,10 @@ function mapRowToResult(row: VectorSearchRow): NarrativeSearchResult {
     moodCategory: row.mood_category as MoodCategory,
     moodDescription: row.mood_description ?? "",
     confidence: row.confidence ?? 0,
+    sourceUrl: row.wp_url ?? "",
+    overallTone: row.overall_tone ?? "",
+    gridType: row.grid_type ?? "mixed",
+    columns: row.grid_columns ?? 12,
   };
 }
 
@@ -299,6 +306,9 @@ export class NarrativeSearchService {
         SELECT
           dn.id, dn.web_page_id, dn.mood_category,
           dn.mood_description, dn.confidence,
+          dn.overall_tone,
+          dn.layout_structure->>'type' AS grid_type,
+          (dn.layout_structure->'columns')::int AS grid_columns,
           1 - (dne.embedding <=> $1::vector) AS similarity,
           wp.url AS wp_url, wp.title AS wp_title
         FROM design_narratives dn
@@ -393,6 +403,9 @@ export class NarrativeSearchService {
           SELECT
             dn.id, dn.web_page_id, dn.mood_category,
             dn.mood_description, dn.confidence,
+          dn.overall_tone,
+          dn.layout_structure->>'type' AS grid_type,
+          (dn.layout_structure->'columns')::int AS grid_columns,
             1 - (dne.embedding <=> $${vecParamIdx}::vector) AS similarity,
             wp.url AS wp_url, wp.title AS wp_title
           FROM design_narratives dn
@@ -421,6 +434,9 @@ export class NarrativeSearchService {
             similarity: r.similarity,
             wp_url: r.wp_url,
             wp_title: r.wp_title,
+            overall_tone: r.overall_tone,
+            grid_type: r.grid_type,
+            grid_columns: r.grid_columns,
           }))
         );
       };
@@ -442,6 +458,9 @@ export class NarrativeSearchService {
             SELECT
               dn.id, dn.web_page_id, dn.mood_category,
               dn.mood_description, dn.confidence,
+          dn.overall_tone,
+          dn.layout_structure->>'type' AS grid_type,
+          (dn.layout_structure->'columns')::int AS grid_columns,
               ${ftRank} AS similarity,
               wp.url AS wp_url, wp.title AS wp_title
             FROM design_narratives dn
@@ -470,6 +489,9 @@ export class NarrativeSearchService {
               similarity: r.similarity,
               wp_url: r.wp_url,
               wp_title: r.wp_title,
+              overall_tone: r.overall_tone,
+              grid_type: r.grid_type,
+              grid_columns: r.grid_columns,
             }))
           );
         } catch (ftError) {
@@ -498,6 +520,10 @@ export class NarrativeSearchService {
           moodCategory: String(data.mood_category ?? "") as MoodCategory,
           moodDescription: String(data.mood_description ?? ""),
           confidence: Number(data.confidence ?? 0),
+          sourceUrl: String(data.wp_url ?? ""),
+          overallTone: String(data.overall_tone ?? ""),
+          gridType: String(data.grid_type ?? "mixed"),
+          columns: Number(data.grid_columns ?? 12),
         };
       });
 
@@ -584,6 +610,9 @@ export class NarrativeSearchService {
         SELECT
           dn.id, dn.web_page_id, dn.mood_category,
           dn.mood_description, dn.confidence,
+          dn.overall_tone,
+          dn.layout_structure->>'type' AS grid_type,
+          (dn.layout_structure->'columns')::int AS grid_columns,
           1 - (dne.embedding <=> $1::vector) AS similarity,
           wp.url AS wp_url, wp.title AS wp_title
         FROM design_narratives dn
@@ -651,6 +680,9 @@ export class NarrativeSearchService {
         SELECT
           dn.id, dn.web_page_id, dn.mood_category,
           dn.mood_description, dn.confidence,
+          dn.overall_tone,
+          dn.layout_structure->>'type' AS grid_type,
+          (dn.layout_structure->'columns')::int AS grid_columns,
           dn.confidence AS similarity,
           wp.url AS wp_url, wp.title AS wp_title
         FROM design_narratives dn

@@ -10,6 +10,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 形式は [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) に基づき、
 [セマンティックバージョニング](https://semver.org/spec/v2.0.0.html) に準拠しています。
 
+## [0.1.8] - 2026-03-22
+
+### Added / 追加
+
+- **npm公開・MCP Registry登録対応**: package.jsonバージョン整合、OSS同期変換（名前空間・スコープ変換）、server.json生成、運用ルール追加 / **npm publish & MCP Registry support**: package.json version alignment, OSS sync transforms (namespace/scope conversion), server.json generation, operation rules
+
+### Fixed / 修正
+
+- **OSS同期パイプライン安定化**: prepare-oss.sh Phase 3末尾とsync-oss.sh rsync後にPrettier自動整形を追加。Step 3.5でPrettier実行前に`pnpm install`を追加しCI Format Check失敗を解消 / **OSS sync pipeline stabilization**: added Prettier auto-formatting after prepare-oss.sh Phase 3 and sync-oss.sh rsync. Added `pnpm install` before Prettier in Step 3.5 to fix CI format check failure
+
+### Tests / テスト
+
+- CIパフォーマンステスト閾値調整: frame-image-analysis、motion-vectorの閾値をCI環境に合わせて緩和 / CI performance test threshold adjustments: relaxed frame-image-analysis and motion-vector thresholds for CI runner
+- layout-searchテストでhtml-sanitizerをモック化しCIタイムアウトを解消 / Mocked html-sanitizer in layout-search test to fix CI timeout
+
+### CI/CD
+
+- GitHub Actions CI結果のSlack通知を追加 / Added Slack notification for CI results
+- Prettierフォーマット修正・OSS同期検証FAIL 2件解消 / Fixed Prettier format and resolved 2 OSS sync verification failures
+
 ## [0.1.7] - 2026-03-21
 
 ### Refactored / リファクタリング

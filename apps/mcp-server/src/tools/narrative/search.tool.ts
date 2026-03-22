@@ -18,6 +18,7 @@
  */
 
 import { ZodError } from "zod";
+import { createDIFactory } from "../../utils/di-factory";
 import { logger, isDevelopment } from "../../utils/logger";
 import {
   narrativeSearchInputSchema,
@@ -51,30 +52,17 @@ export type INarrativeSearchServiceFactory = () => INarrativeAnalysisService;
 // Service Factory (DI)
 // ============================================================================
 
-/** デフォルトのサービスファクトリー */
-let narrativeSearchServiceFactory: INarrativeSearchServiceFactory | null = null;
-
-/**
- * サービスファクトリーを設定
- * @param factory - サービスファクトリー
- */
-export function setNarrativeSearchServiceFactory(factory: INarrativeSearchServiceFactory): void {
-  narrativeSearchServiceFactory = factory;
-}
-
-/**
- * サービスファクトリーをリセット（テスト用）
- */
-export function resetNarrativeSearchServiceFactory(): void {
-  narrativeSearchServiceFactory = null;
-}
+const narrativeSearchServiceDI =
+  createDIFactory<INarrativeAnalysisService>("NarrativeSearchService");
+export const setNarrativeSearchServiceFactory = narrativeSearchServiceDI.set;
+export const resetNarrativeSearchServiceFactory = narrativeSearchServiceDI.reset;
 
 /**
  * NarrativeAnalysisServiceを取得
  */
 async function getNarrativeAnalysisService(): Promise<INarrativeAnalysisService> {
-  if (narrativeSearchServiceFactory !== null) {
-    return narrativeSearchServiceFactory();
+  if (narrativeSearchServiceDI.get() !== null) {
+    return narrativeSearchServiceDI.get()!();
   }
 
   // デフォルト: 実サービスをインポート
@@ -99,44 +87,13 @@ interface IEmbeddingService {
   generateEmbedding(text: string): Promise<number[]>;
 }
 
-/** デフォルトのEmbeddingサービスファクトリー */
-let embeddingServiceFactory: (() => IEmbeddingService) | null = null;
+const embeddingServiceDI = createDIFactory<IEmbeddingService>("EmbeddingService");
+export const setEmbeddingServiceFactory = embeddingServiceDI.set;
+export const resetEmbeddingServiceFactory = embeddingServiceDI.reset;
 
-/**
- * Embeddingサービスファクトリーを設定（テスト用）
- */
-export function setEmbeddingServiceFactory(factory: () => IEmbeddingService): void {
-  embeddingServiceFactory = factory;
-}
-
-/**
- * Embeddingサービスファクトリーをリセット（テスト用）
- */
-export function resetEmbeddingServiceFactory(): void {
-  embeddingServiceFactory = null;
-}
-
-/**
- * PrismaClientファクトリー（嗜好リランキング用DI）
- * PrismaClient factory (DI for preference reranking)
- */
-let prismaClientFactory: (() => IPrismaClient) | null = null;
-
-/**
- * PrismaClientファクトリーを設定（嗜好リランキング用）
- * Set PrismaClient factory (for preference reranking)
- */
-export function setNarrativeSearchPrismaClientFactory(factory: () => IPrismaClient): void {
-  prismaClientFactory = factory;
-}
-
-/**
- * PrismaClientファクトリーをリセット（テスト用）
- * Reset PrismaClient factory (for testing)
- */
-export function resetNarrativeSearchPrismaClientFactory(): void {
-  prismaClientFactory = null;
-}
+const prismaClientDI = createDIFactory<IPrismaClient>("NarrativeSearchPrismaClient");
+export const setNarrativeSearchPrismaClientFactory = prismaClientDI.set;
+export const resetNarrativeSearchPrismaClientFactory = prismaClientDI.reset;
 
 /**
  * Embeddingサービスを取得
@@ -144,8 +101,8 @@ export function resetNarrativeSearchPrismaClientFactory(): void {
  * @internal
  */
 export async function getEmbeddingService(): Promise<IEmbeddingService> {
-  if (embeddingServiceFactory !== null) {
-    return embeddingServiceFactory();
+  if (embeddingServiceDI.get() !== null) {
+    return embeddingServiceDI.get()!();
   }
 
   // デフォルト: 実サービスをインポート
@@ -173,18 +130,18 @@ function convertSearchResultsToMcpResponse(
   const resultItems: NarrativeSearchResultItem[] = results.map((r) => ({
     id: r.id,
     webPageId: r.webPageId,
-    sourceUrl: "", // TODO: WebPageテーブルから取得
+    sourceUrl: r.sourceUrl || "https://unknown",
     similarity: r.score,
 
     worldView: {
-      moodCategory: r.moodCategory,
+      moodCategory: r.moodCategory as NarrativeSearchResultItem["worldView"]["moodCategory"],
       moodDescription: r.moodDescription,
-      overallTone: "", // TODO: サービスから詳細取得
+      overallTone: r.overallTone,
     },
 
     layoutStructure: {
-      gridType: "mixed", // TODO: サービスから詳細取得
-      columns: 12, // TODO: サービスから詳細取得
+      gridType: r.gridType as NarrativeSearchResultItem["layoutStructure"]["gridType"],
+      columns: r.columns,
     },
 
     confidence: r.confidence,
@@ -323,7 +280,7 @@ export async function narrativeSearchHandler(input: unknown): Promise<NarrativeS
       await applyPreferenceReranking(
         narrativeItems,
         validatedInput.profile_id,
-        prismaClientFactory,
+        prismaClientDI.get(),
         "narrative",
         "narrative.search"
       )

@@ -15,6 +15,7 @@
  * @module tools/motion/search.tool
  */
 
+import { createDIFactory } from "../../utils/di-factory";
 import { logger, isDevelopment } from "../../utils/logger";
 
 import {
@@ -156,66 +157,19 @@ export interface IMotionImplementationService {
   ) => GenerationResult | null;
 }
 
-/**
- * サービスファクトリ型
- */
-type MotionSearchServiceFactory = () => IMotionSearchService;
-type MotionImplementationServiceFactory = () => IMotionImplementationService | null;
+const serviceFactoryDI = createDIFactory<IMotionSearchService>("MotionSearchService");
+export const setMotionSearchServiceFactory = serviceFactoryDI.set;
+export const resetMotionSearchServiceFactory = serviceFactoryDI.reset;
 
-let serviceFactory: MotionSearchServiceFactory | null = null;
-let implementationServiceFactory: MotionImplementationServiceFactory | null = null;
+const implementationServiceDI = createDIFactory<IMotionImplementationService | null>(
+  "MotionImplementationService"
+);
+export const setMotionImplementationServiceFactory = implementationServiceDI.set;
+export const resetMotionImplementationServiceFactory = implementationServiceDI.reset;
 
-/**
- * サービスファクトリを設定
- */
-export function setMotionSearchServiceFactory(factory: MotionSearchServiceFactory): void {
-  serviceFactory = factory;
-}
-
-/**
- * サービスファクトリをリセット
- */
-export function resetMotionSearchServiceFactory(): void {
-  serviceFactory = null;
-}
-
-/**
- * コード生成サービスファクトリを設定（Phase3-3統合用）
- */
-export function setMotionImplementationServiceFactory(
-  factory: MotionImplementationServiceFactory
-): void {
-  implementationServiceFactory = factory;
-}
-
-/**
- * コード生成サービスファクトリをリセット
- */
-export function resetMotionImplementationServiceFactory(): void {
-  implementationServiceFactory = null;
-}
-
-/**
- * PrismaClientファクトリー（嗜好リランキング用DI）
- * PrismaClient factory (DI for preference reranking)
- */
-let prismaClientFactory: (() => IPrismaClient) | null = null;
-
-/**
- * PrismaClientファクトリーを設定（嗜好リランキング用）
- * Set PrismaClient factory (for preference reranking)
- */
-export function setMotionSearchPrismaClientFactory(factory: () => IPrismaClient): void {
-  prismaClientFactory = factory;
-}
-
-/**
- * PrismaClientファクトリーをリセット（テスト用）
- * Reset PrismaClient factory (for testing)
- */
-export function resetMotionSearchPrismaClientFactory(): void {
-  prismaClientFactory = null;
-}
+const prismaClientDI = createDIFactory<IPrismaClient>("MotionSearchPrismaClient");
+export const setMotionSearchPrismaClientFactory = prismaClientDI.set;
+export const resetMotionSearchPrismaClientFactory = prismaClientDI.reset;
 
 // =====================================================
 // デフォルトコード生成実装（Phase3-3統合用）
@@ -1216,61 +1170,18 @@ function generateThreeJS(
 }
 
 /**
- * Lottie (lottie-react) 生成
+ * Lottie トランスフォームキーフレームを生成する
+ * CSSアニメーションプロパティをLottie JSON形式のトランスフォーム(ks)に変換する
  *
- * lottie-react を使用したアニメーションコンポーネントを生成
- * - アニメーションデータ構造生成（Lottie JSON形式）
- * - React コンポーネントラッパー
- * - TypeScript 型定義付き
+ * Generates Lottie transform keyframes from CSS animation properties.
+ * Converts opacity, translate, scale, and rotation to Lottie JSON transform (ks) format.
  */
-function generateLottie(
+function buildLottieTransformLines(
   pattern: MotionPatternInput,
-  options: ImplementationOptions
-): GenerationResult {
+  startFrame: number,
+  durationInFrames: number
+): string[] {
   const lines: string[] = [];
-  const componentName = options.componentName || toPascalCase(pattern.name) + "Animation";
-  const ts = options.typescript ?? true;
-
-  // Imports
-  lines.push("import Lottie from 'lottie-react';");
-  if (ts) {
-    lines.push("import type { FC } from 'react';");
-    lines.push("import type { LottieComponentProps } from 'lottie-react';");
-  }
-  lines.push("");
-
-  // Convert CSS animation properties to Lottie keyframes format
-  // Note: This generates a simplified Lottie JSON structure
-  lines.push("/**");
-  lines.push(" * Lottie Animation Data");
-  lines.push(" * Generated from CSS animation pattern.");
-  lines.push(
-    " * For complex animations, replace with actual Lottie JSON export from After Effects/Figma."
-  );
-  lines.push(" */");
-
-  // Generate Lottie-like animation data structure
-  const durationInFrames = Math.round((pattern.duration / 1000) * 60); // 60fps
-  const startFrame = Math.round((pattern.delay / 1000) * 60);
-
-  lines.push(`const ${pattern.name}AnimationData = {`);
-  lines.push('  v: "5.7.8",');
-  lines.push(`  fr: 60,`); // Frame rate
-  lines.push(`  ip: ${startFrame},`); // In point
-  lines.push(`  op: ${startFrame + durationInFrames},`); // Out point
-  lines.push("  w: 200,"); // Width
-  lines.push("  h: 200,"); // Height
-  lines.push('  nm: "' + pattern.name + '",');
-  lines.push("  ddd: 0,");
-  lines.push("  assets: [],");
-  lines.push("  layers: [");
-  lines.push("    {");
-  lines.push("      ddd: 0,");
-  lines.push("      ind: 1,");
-  lines.push("      ty: 4,"); // Shape layer
-  lines.push(`      nm: "${pattern.name}",`);
-  lines.push(`      sr: 1,`);
-  lines.push("      ks: {"); // Transform
 
   // Opacity animation
   const opacityProp = pattern.properties.find((p) => p.name === "opacity");
@@ -1352,6 +1263,53 @@ function generateLottie(
   }
 
   lines.push("        a: { a: 0, k: [100, 100, 0] }"); // Anchor point
+
+  return lines;
+}
+
+/**
+ * Lottie アニメーションデータオブジェクト(JSON)のコード行を生成する
+ * Lottie v5.7.8 形式のレイヤー・シェイプ構造を出力する
+ *
+ * Generates Lottie animation data object (JSON) code lines.
+ * Outputs layer and shape structure in Lottie v5.7.8 format.
+ */
+function buildLottieAnimationDataLines(
+  pattern: MotionPatternInput,
+  startFrame: number,
+  durationInFrames: number
+): string[] {
+  const lines: string[] = [];
+
+  lines.push("/**");
+  lines.push(" * Lottie Animation Data");
+  lines.push(" * Generated from CSS animation pattern.");
+  lines.push(
+    " * For complex animations, replace with actual Lottie JSON export from After Effects/Figma."
+  );
+  lines.push(" */");
+
+  lines.push(`const ${pattern.name}AnimationData = {`);
+  lines.push('  v: "5.7.8",');
+  lines.push(`  fr: 60,`); // Frame rate
+  lines.push(`  ip: ${startFrame},`); // In point
+  lines.push(`  op: ${startFrame + durationInFrames},`); // Out point
+  lines.push("  w: 200,"); // Width
+  lines.push("  h: 200,"); // Height
+  lines.push('  nm: "' + pattern.name + '",');
+  lines.push("  ddd: 0,");
+  lines.push("  assets: [],");
+  lines.push("  layers: [");
+  lines.push("    {");
+  lines.push("      ddd: 0,");
+  lines.push("      ind: 1,");
+  lines.push("      ty: 4,"); // Shape layer
+  lines.push(`      nm: "${pattern.name}",`);
+  lines.push(`      sr: 1,`);
+  lines.push("      ks: {"); // Transform
+
+  lines.push(...buildLottieTransformLines(pattern, startFrame, durationInFrames));
+
   lines.push("      },");
 
   // Shape contents (simple rectangle)
@@ -1377,7 +1335,24 @@ function generateLottie(
   lines.push("    }");
   lines.push("  ]");
   lines.push("};");
-  lines.push("");
+
+  return lines;
+}
+
+/**
+ * Lottie Reactコンポーネントのコード行を生成する
+ * TypeScript型定義、prefers-reduced-motion対応、使用例コメントを含む
+ *
+ * Generates Lottie React component code lines.
+ * Includes TypeScript type definitions, prefers-reduced-motion support, and usage comments.
+ */
+function buildLottieComponentLines(
+  pattern: MotionPatternInput,
+  options: ImplementationOptions,
+  componentName: string,
+  ts: boolean
+): string[] {
+  const lines: string[] = [];
 
   // React component
   if (ts) {
@@ -1436,6 +1411,42 @@ function generateLottie(
   lines.push(" * Note: For production use, export your animation from After Effects with");
   lines.push(" * Bodymovin plugin or from Figma, and replace the animationData above.");
   lines.push(" */");
+
+  return lines;
+}
+
+/**
+ * Lottie (lottie-react) 生成
+ *
+ * lottie-react を使用したアニメーションコンポーネントを生成
+ * - アニメーションデータ構造生成（Lottie JSON形式）
+ * - React コンポーネントラッパー
+ * - TypeScript 型定義付き
+ */
+function generateLottie(
+  pattern: MotionPatternInput,
+  options: ImplementationOptions
+): GenerationResult {
+  const lines: string[] = [];
+  const componentName = options.componentName || toPascalCase(pattern.name) + "Animation";
+  const ts = options.typescript ?? true;
+
+  // Imports
+  lines.push("import Lottie from 'lottie-react';");
+  if (ts) {
+    lines.push("import type { FC } from 'react';");
+    lines.push("import type { LottieComponentProps } from 'lottie-react';");
+  }
+  lines.push("");
+
+  // Generate Lottie-like animation data structure
+  const durationInFrames = Math.round((pattern.duration / 1000) * 60); // 60fps
+  const startFrame = Math.round((pattern.delay / 1000) * 60);
+
+  lines.push(...buildLottieAnimationDataLines(pattern, startFrame, durationInFrames));
+  lines.push("");
+
+  lines.push(...buildLottieComponentLines(pattern, options, componentName, ts));
 
   const code = lines.join("\n");
 
@@ -1890,7 +1901,7 @@ export async function motionSearchHandler(input: unknown): Promise<MotionSearchO
  */
 async function handleSearchAction(validated: MotionSearchInput): Promise<MotionSearchOutput> {
   // サービスファクトリのチェック
-  if (!serviceFactory) {
+  if (!serviceFactoryDI.get()) {
     if (isDevelopment()) {
       logger.error("[MCP Tool] motion.search service factory not set");
     }
@@ -1904,7 +1915,7 @@ async function handleSearchAction(validated: MotionSearchInput): Promise<MotionS
   }
 
   try {
-    const service = serviceFactory();
+    const service = serviceFactoryDI.get()!();
 
     // 検索パラメータを構築（v0.1.0: JSアニメーション検索パラメータ追加、v0.1.0: WebGLアニメーション検索パラメータ追加、v0.1.0: include_implementation追加）
     const searchParams: MotionSearchParams = {
@@ -1964,7 +1975,7 @@ async function handleSearchAction(validated: MotionSearchInput): Promise<MotionS
     results = (await applyPreferenceReranking(
       resultsWithId,
       validated.profile_id,
-      prismaClientFactory,
+      prismaClientDI.get(),
       "motion",
       "motion.search"
     )) as typeof results;
@@ -2070,7 +2081,7 @@ async function handleGenerateAction(validated: MotionSearchInput): Promise<Motio
 
     // サービス経由で生成（DIパターン）
     let result: GenerationResult | null = null;
-    const service = implementationServiceFactory?.();
+    const service = implementationServiceDI.get()?.();
 
     if (service?.generate) {
       try {

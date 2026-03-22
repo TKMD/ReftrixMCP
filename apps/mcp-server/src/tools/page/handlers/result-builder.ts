@@ -267,7 +267,7 @@ export function buildQualityResult(
  */
 export function buildNarrativeResult(
   nr: NarrativeHandlerResult,
-  _isSummary: boolean // TODO: summary/full mode実装時に使用
+  isSummary: boolean
 ): NarrativeResult | undefined {
   // スキップされた場合またはnarrativeが存在しない場合はundefined
   if (nr.skipped || !nr.narrative) {
@@ -326,23 +326,26 @@ export function buildNarrativeResult(
   if (narrative.layoutStructure.columnCount !== undefined) {
     base.layoutStructure.columnCount = narrative.layoutStructure.columnCount;
   }
-  if (narrative.layoutStructure.gutterWidth !== undefined) {
-    base.layoutStructure.gutterWidth = narrative.layoutStructure.gutterWidth;
-  }
-  if (narrative.layoutStructure.containerWidth !== undefined) {
-    base.layoutStructure.containerWidth = narrative.layoutStructure.containerWidth;
-  }
-  if (narrative.layoutStructure.visualHierarchy !== undefined) {
-    base.layoutStructure.visualHierarchy = narrative.layoutStructure.visualHierarchy;
-  }
-  if (narrative.layoutStructure.spacingRhythm !== undefined) {
-    base.layoutStructure.spacingRhythm = narrative.layoutStructure.spacingRhythm;
-  }
-  if (narrative.layoutStructure.whitespaceRatio !== undefined) {
-    base.layoutStructure.whitespaceRatio = narrative.layoutStructure.whitespaceRatio;
-  }
-  if (narrative.layoutStructure.visualDensity !== undefined) {
-    base.layoutStructure.visualDensity = narrative.layoutStructure.visualDensity;
+  // Full mode: 詳細フィールドを含める / Full mode: include detailed fields
+  if (!isSummary) {
+    if (narrative.layoutStructure.gutterWidth !== undefined) {
+      base.layoutStructure.gutterWidth = narrative.layoutStructure.gutterWidth;
+    }
+    if (narrative.layoutStructure.containerWidth !== undefined) {
+      base.layoutStructure.containerWidth = narrative.layoutStructure.containerWidth;
+    }
+    if (narrative.layoutStructure.visualHierarchy !== undefined) {
+      base.layoutStructure.visualHierarchy = narrative.layoutStructure.visualHierarchy;
+    }
+    if (narrative.layoutStructure.spacingRhythm !== undefined) {
+      base.layoutStructure.spacingRhythm = narrative.layoutStructure.spacingRhythm;
+    }
+    if (narrative.layoutStructure.whitespaceRatio !== undefined) {
+      base.layoutStructure.whitespaceRatio = narrative.layoutStructure.whitespaceRatio;
+    }
+    if (narrative.layoutStructure.visualDensity !== undefined) {
+      base.layoutStructure.visualDensity = narrative.layoutStructure.visualDensity;
+    }
   }
 
   return base;

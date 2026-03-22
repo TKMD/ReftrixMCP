@@ -16,6 +16,7 @@
  */
 
 import { ZodError } from "zod";
+import { createDIFactory } from "../utils/di-factory";
 import { styleGetPaletteInputSchema, type StyleGetPaletteInput } from "./schemas/style-schemas";
 import {
   PaletteService,
@@ -55,26 +56,15 @@ function createDefaultPaletteService(): IPaletteService {
   }
 }
 
-/**
- * PaletteServiceファクトリー
- * テスト時にモックを注入するために使用
- */
-let paletteServiceFactory: () => IPaletteService = createDefaultPaletteService;
+const paletteServiceDI = createDIFactory<IPaletteService>("PaletteService");
 
-/**
- * PaletteServiceファクトリーを設定（テスト用）
- * @internal
- */
-export function setPaletteServiceFactory(factory: () => IPaletteService): void {
-  paletteServiceFactory = factory;
+export const setPaletteServiceFactory = paletteServiceDI.set;
+export function resetPaletteServiceFactory(): void {
+  paletteServiceDI.reset();
 }
 
-/**
- * PaletteServiceファクトリーをリセット（テスト後のクリーンアップ用）
- * @internal
- */
-export function resetPaletteServiceFactory(): void {
-  paletteServiceFactory = createDefaultPaletteService;
+function getPaletteServiceFactory(): () => IPaletteService {
+  return paletteServiceDI.get() ?? createDefaultPaletteService;
 }
 
 // =============================================================================
@@ -191,7 +181,7 @@ export async function styleGetPaletteHandler(input: unknown): Promise<StyleGetPa
   try {
     // PaletteServiceを使用してパレットを取得
     // テスト時にファクトリーを通じてモックを注入可能
-    const service = paletteServiceFactory();
+    const service = getPaletteServiceFactory()();
     const result = await service.getPalette({
       id: validated.id,
       brand_name: validated.brand_name,

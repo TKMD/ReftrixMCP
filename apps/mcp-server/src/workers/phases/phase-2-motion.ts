@@ -52,9 +52,12 @@ import type {
 import type {
   MotionServiceResult,
   MotionDetectionContext,
+  MotionDetectionExtendedContext,
   IPageAnalyzePrismaClient,
   JSAnimationFullResult,
 } from "../../tools/page/handlers/types";
+import type { PageAnalyzeInput } from "../../tools/page/schemas";
+import type { MotionPatternInput } from "../../services/worker-db-save.service";
 
 // GPU Resource Manager type
 import type { GpuResourceManager } from "../../services/gpu-resource-manager";
@@ -99,11 +102,9 @@ export interface MotionPhaseDeps {
   defaultDetectMotion: (
     html: string,
     url: string,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    options?: any,
+    options?: PageAnalyzeInput["motionOptions"],
     dbContext?: MotionDetectionContext,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    extendedContext?: any,
+    extendedContext?: MotionDetectionExtendedContext,
     preExtractedCssUrls?: string[],
     sharedBrowser?: Browser
   ) => Promise<MotionServiceResult>;
@@ -118,8 +119,7 @@ export interface MotionPhaseDeps {
   saveMotionPatterns: (
     prisma: MotionPatternPrismaClient,
     webPageId: string,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    patterns: any[],
+    patterns: MotionPatternInput[],
     sourceUrl: string
   ) => Promise<SaveResult>;
 
@@ -148,12 +148,13 @@ export interface MotionPhaseDeps {
     close: () => Promise<void>;
   };
 
-  /** Prisma client for DB operations */
-  prisma: {
-    // Used as MotionPatternPrismaClient, JsAnimationPatternPrismaClient, ScrollVisionPrismaClient
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    [key: string]: any;
-  };
+  /**
+   * Prisma client for DB operations.
+   * 複数の Prisma サブタイプ（MotionPatternPrismaClient, JsAnimationPatternPrismaClient,
+   * ScrollVisionPrismaClient, IPageAnalyzePrismaClient）として使用されるため、
+   * 呼び出し側で `as unknown as SpecificType` でキャストする。
+   */
+  prisma: unknown;
 }
 
 // ============================================================================

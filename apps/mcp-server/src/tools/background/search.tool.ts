@@ -15,6 +15,7 @@
  */
 
 import { ZodError } from "zod";
+import { createDIFactory } from "../../utils/di-factory";
 import { logger, isDevelopment } from "../../utils/logger";
 import {
   backgroundSearchInputSchema,
@@ -139,43 +140,14 @@ export interface IBackgroundSearchService {
 // サービスファクトリー（DI）
 // =====================================================
 
-let backgroundSearchServiceFactory: (() => IBackgroundSearchService) | null = null;
+const backgroundSearchServiceDI =
+  createDIFactory<IBackgroundSearchService>("BackgroundSearchService");
+export const setBackgroundSearchServiceFactory = backgroundSearchServiceDI.set;
+export const resetBackgroundSearchServiceFactory = backgroundSearchServiceDI.reset;
 
-/**
- * サービスファクトリーを設定
- */
-export function setBackgroundSearchServiceFactory(factory: () => IBackgroundSearchService): void {
-  backgroundSearchServiceFactory = factory;
-}
-
-/**
- * サービスファクトリーをリセット
- */
-export function resetBackgroundSearchServiceFactory(): void {
-  backgroundSearchServiceFactory = null;
-}
-
-/**
- * PrismaClientファクトリー（嗜好リランキング用DI）
- * PrismaClient factory (DI for preference reranking)
- */
-let prismaClientFactory: (() => IPrismaClient) | null = null;
-
-/**
- * PrismaClientファクトリーを設定（嗜好リランキング用）
- * Set PrismaClient factory (for preference reranking)
- */
-export function setBackgroundSearchPrismaClientFactory(factory: () => IPrismaClient): void {
-  prismaClientFactory = factory;
-}
-
-/**
- * PrismaClientファクトリーをリセット（テスト用）
- * Reset PrismaClient factory (for testing)
- */
-export function resetBackgroundSearchPrismaClientFactory(): void {
-  prismaClientFactory = null;
-}
+const prismaClientDI = createDIFactory<IPrismaClient>("BackgroundSearchPrismaClient");
+export const setBackgroundSearchPrismaClientFactory = prismaClientDI.set;
+export const resetBackgroundSearchPrismaClientFactory = prismaClientDI.reset;
 
 // =====================================================
 // エラーコード判定
@@ -251,7 +223,7 @@ export async function backgroundSearchHandler(input: unknown): Promise<Backgroun
   }
 
   // サービスファクトリーチェック
-  if (!backgroundSearchServiceFactory) {
+  if (!backgroundSearchServiceDI.get()) {
     if (isDevelopment()) {
       logger.error("[MCP Tool] background.search service factory not set");
     }
@@ -265,7 +237,7 @@ export async function backgroundSearchHandler(input: unknown): Promise<Backgroun
     };
   }
 
-  const service = backgroundSearchServiceFactory();
+  const service = backgroundSearchServiceDI.get()!();
 
   try {
     // E5 モデル用 query: プレフィックスを付与
@@ -355,7 +327,7 @@ export async function backgroundSearchHandler(input: unknown): Promise<Backgroun
     mappedResults = await applyPreferenceReranking(
       mappedResults,
       validated.profile_id,
-      prismaClientFactory,
+      prismaClientDI.get(),
       "background",
       "background.search"
     );

@@ -399,18 +399,26 @@ export interface NarrativeSearchResult {
   id: string;
   /** WebPage ID */
   webPageId: string;
-  /** RRF結合スコア */
+  /** RRF結合スコア / RRF combined score */
   score: number;
-  /** Vector検索スコア */
+  /** Vector検索スコア / Vector search score */
   vectorScore: number;
-  /** Full-text検索スコア */
+  /** Full-text検索スコア / Full-text search score */
   fulltextScore: number;
-  /** ムードカテゴリ */
+  /** ムードカテゴリ / Mood category */
   moodCategory: MoodCategory;
-  /** ムードの説明 */
+  /** ムードの説明 / Mood description */
   moodDescription: string;
-  /** 信頼度 */
+  /** 信頼度 / Confidence */
   confidence: number;
+  /** ソースURL / Source URL */
+  sourceUrl: string;
+  /** 全体的なトーン / Overall tone */
+  overallTone: string;
+  /** グリッドタイプ / Grid type (e.g. "asymmetric", "mixed") */
+  gridType: string;
+  /** カラム数 / Column count */
+  columns: number;
 }
 
 // =============================================================================

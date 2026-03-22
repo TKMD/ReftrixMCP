@@ -10,6 +10,7 @@
  * @module tools/page/handlers/narrative-handler
  */
 
+import { createDIFactory } from "../../../utils/di-factory";
 import { logger, isDevelopment } from "../../../utils/logger";
 import {
   createNarrativeAnalysisService,
@@ -36,28 +37,16 @@ export const NARRATIVE_ERROR_CODES = {
 // Service Factory（DI用）
 // =====================================================
 
-let narrativeServiceFactory: (() => NarrativeAnalysisService) | null = null;
-
-/**
- * NarrativeAnalysisServiceファクトリを設定（テスト用）
- */
-export function setNarrativeServiceFactory(factory: () => NarrativeAnalysisService): void {
-  narrativeServiceFactory = factory;
-}
-
-/**
- * NarrativeAnalysisServiceファクトリをリセット（テスト用）
- */
-export function resetNarrativeServiceFactory(): void {
-  narrativeServiceFactory = null;
-}
+const narrativeServiceDI = createDIFactory<NarrativeAnalysisService>("NarrativeService");
+export const setNarrativeServiceFactory = narrativeServiceDI.set;
+export const resetNarrativeServiceFactory = narrativeServiceDI.reset;
 
 /**
  * NarrativeAnalysisServiceを取得
  */
 function getNarrativeService(): NarrativeAnalysisService {
-  if (narrativeServiceFactory) {
-    return narrativeServiceFactory();
+  if (narrativeServiceDI.get()) {
+    return narrativeServiceDI.get()!();
   }
   return createNarrativeAnalysisService();
 }

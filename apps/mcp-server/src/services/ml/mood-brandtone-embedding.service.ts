@@ -924,8 +924,7 @@ function buildUpsertData(
  * pgvector形式でEmbeddingを更新するヘルパー関数
  */
 async function updateVectorEmbeddings(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  tx: any,
+  tx: Pick<IPrismaClient, "$executeRawUnsafe">,
   sectionEmbeddingId: string,
   data: { mood?: MoodBrandToneEmbeddingResult; brandTone?: MoodBrandToneEmbeddingResult }
 ): Promise<void> {

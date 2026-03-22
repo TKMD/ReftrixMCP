@@ -18,6 +18,7 @@
  */
 
 import { ZodError } from "zod";
+import { createDIFactory } from "../../utils/di-factory";
 import { logger, isDevelopment } from "../../utils/logger";
 import {
   narrativeAnalyzeInputSchema,
@@ -48,30 +49,17 @@ export type INarrativeAnalyzeServiceFactory = () => INarrativeAnalysisService;
 // Service Factory (DI)
 // ============================================================================
 
-/** デフォルトのサービスファクトリー */
-let narrativeAnalyzeServiceFactory: INarrativeAnalyzeServiceFactory | null = null;
-
-/**
- * サービスファクトリーを設定
- * @param factory - サービスファクトリー
- */
-export function setNarrativeAnalyzeServiceFactory(factory: INarrativeAnalyzeServiceFactory): void {
-  narrativeAnalyzeServiceFactory = factory;
-}
-
-/**
- * サービスファクトリーをリセット（テスト用）
- */
-export function resetNarrativeAnalyzeServiceFactory(): void {
-  narrativeAnalyzeServiceFactory = null;
-}
+const narrativeAnalyzeServiceDI =
+  createDIFactory<INarrativeAnalysisService>("NarrativeAnalyzeService");
+export const setNarrativeAnalyzeServiceFactory = narrativeAnalyzeServiceDI.set;
+export const resetNarrativeAnalyzeServiceFactory = narrativeAnalyzeServiceDI.reset;
 
 /**
  * NarrativeAnalysisServiceを取得
  */
 async function getNarrativeAnalysisService(): Promise<INarrativeAnalysisService> {
-  if (narrativeAnalyzeServiceFactory !== null) {
-    return narrativeAnalyzeServiceFactory();
+  if (narrativeAnalyzeServiceDI.get() !== null) {
+    return narrativeAnalyzeServiceDI.get()!();
   }
 
   // デフォルト: 実サービスをインポート

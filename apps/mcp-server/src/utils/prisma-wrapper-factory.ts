@@ -65,22 +65,23 @@ export interface WrappedTable {
 
 /**
  * テーブルの最小インターフェース
- * 注: anyを使用しているのは、実際のPrismaClientのcreate引数が
- * 非常に複雑で、ジェネリクスやSelectSubset等の型を含むため
+ * Prisma Client の実引数は SelectSubset<T, Args> 等の複雑なジェネリクスを含み、
+ * unknown[] では PrismaClient からの代入互換性が壊れるため、引数に any[] を使用する。
+ * 戻り値は最低限の構造を保証する。
  */
 interface MinimalTable {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  create: (...args: any[]) => Promise<{ id: string } | any>;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  createMany?: (...args: any[]) => Promise<{ count: number } | any>;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  upsert?: (...args: any[]) => Promise<{ id: string } | any>;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  deleteMany?: (...args: any[]) => Promise<{ count: number } | any>;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  findUnique?: (...args: any[]) => Promise<any | null>;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  findMany?: (...args: any[]) => Promise<any[]>;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Prisma SelectSubset<T> generics require any for assignability from PrismaClient
+  create: (...args: any[]) => Promise<{ id: string }>;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Prisma SelectSubset<T> generics require any for assignability from PrismaClient
+  createMany?: (...args: any[]) => Promise<{ count: number }>;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Prisma SelectSubset<T> generics require any for assignability from PrismaClient
+  upsert?: (...args: any[]) => Promise<{ id: string }>;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Prisma SelectSubset<T> generics require any for assignability from PrismaClient
+  deleteMany?: (...args: any[]) => Promise<{ count: number }>;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Prisma SelectSubset<T> generics require any for assignability from PrismaClient
+  findUnique?: (...args: any[]) => Promise<unknown | null>;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Prisma SelectSubset<T> generics require any for assignability from PrismaClient
+  findMany?: (...args: any[]) => Promise<unknown[]>;
 }
 
 /**
@@ -111,11 +112,11 @@ interface MinimalPrismaClient {
   jSAnimationPattern?: MinimalTable;
   jSAnimationEmbedding?: MinimalTable;
   backgroundDesignEmbedding?: MinimalTable;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Prisma $executeRawUnsafe accepts heterogeneous value types
   $executeRawUnsafe: (...args: any[]) => Promise<unknown>;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Prisma $queryRawUnsafe accepts heterogeneous value types
   $queryRawUnsafe: (...args: any[]) => Promise<unknown>;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Prisma transaction callback receives internal client variant
   $transaction?: <T>(fn: (tx: any) => Promise<T>, options?: TransactionOptions) => Promise<T>;
 }
 

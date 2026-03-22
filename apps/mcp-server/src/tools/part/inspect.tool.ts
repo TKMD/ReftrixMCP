@@ -19,6 +19,7 @@
  */
 
 import { ZodError } from "zod";
+import { createDIFactory } from "../../utils/di-factory";
 import { logger, isDevelopment } from "../../utils/logger";
 import { sanitizeHtml } from "../../utils/html-sanitizer";
 import {
@@ -99,23 +100,9 @@ export const PART_INSPECT_ERROR_CODES = {
 // DI ファクトリー / DI Factory
 // =====================================================
 
-let prismaClientFactory: (() => PartInspectPrismaClient) | null = null;
-
-/**
- * PrismaClientファクトリーを設定
- * Set PrismaClient factory
- */
-export function setPartInspectPrismaClientFactory(factory: () => PartInspectPrismaClient): void {
-  prismaClientFactory = factory;
-}
-
-/**
- * PrismaClientファクトリーをリセット（テスト用）
- * Reset PrismaClient factory (for testing)
- */
-export function resetPartInspectPrismaClientFactory(): void {
-  prismaClientFactory = null;
-}
+const prismaClientDI = createDIFactory<PartInspectPrismaClient>("PartInspectPrismaClient");
+export const setPartInspectPrismaClientFactory = prismaClientDI.set;
+export const resetPartInspectPrismaClientFactory = prismaClientDI.reset;
 
 // =====================================================
 // エラーハンドリング / Error handling
@@ -218,7 +205,7 @@ export async function partInspectHandler(input: unknown): Promise<PartInspectOut
   }
 
   // PrismaClient取得 / Get PrismaClient
-  if (!prismaClientFactory) {
+  if (!prismaClientDI.get()) {
     return {
       success: false,
       error: {
@@ -228,7 +215,7 @@ export async function partInspectHandler(input: unknown): Promise<PartInspectOut
     };
   }
 
-  const prisma = prismaClientFactory();
+  const prisma = prismaClientDI.get()!();
 
   try {
     // パーツ詳細を取得 / Get part details

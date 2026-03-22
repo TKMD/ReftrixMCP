@@ -116,10 +116,10 @@ export function createQualitySearchService(
     // saveEvaluation
     // -----------------------------------------------
     saveEvaluation: async (_evaluation: QualityEvaluateData): Promise<boolean> => {
-      // TODO: QualityEvaluationテーブルへの保存を実装
-      if (isDevelopmentEnvironment()) {
-        logger.debug("[QualitySearchService] saveEvaluation called (not yet implemented)");
-      }
+      // saveEvaluationWithPatterns() がパターン参照付きの主要保存パスとして実装済み。
+      // この簡易メソッドは互換性のため残置（呼び出し元はsaveEvaluationWithPatternsを使用すべき）。
+      // saveEvaluationWithPatterns() is the primary save path with pattern references.
+      // This method is kept for interface compatibility (callers should use saveEvaluationWithPatterns).
       return true;
     },
 

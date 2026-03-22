@@ -91,17 +91,19 @@ export interface LayoutPhaseDeps {
 
   /** Save extracted parts to DB */
   saveExtractedParts: (
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- PrismaClient variant, cast at call site
-    prisma: any,
+    prisma: unknown,
     webPageId: string,
     sectionPatternId: string,
     parts: Array<{ [key: string]: unknown }>,
     sourceUrl: string | null
   ) => Promise<PartSaveResult>;
 
-  /** Prisma client instance (cast at call sites) */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- multiple Prisma client subtypes used
-  prisma: any;
+  /**
+   * Prisma client instance.
+   * 複数の Prisma サブタイプ（BackgroundDesignPrismaClient, SectionPatternPrismaClient,
+   * PrismaClient）として使用されるため、呼び出し側で `as unknown as SpecificType` でキャストする。
+   */
+  prisma: unknown;
 }
 
 // ============================================================================
@@ -317,8 +319,9 @@ export async function processLayoutPhase(
             state.layoutResultForNarrative &&
             postProcessedSections.length !== sectionsWithCss.length
           ) {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any -- LayoutSection.visionFeatures(unknown) vs SectionVisionFeatures型の互換性のためキャスト
-            state.layoutResultForNarrative.sections = postProcessedSections as any;
+            // LayoutSection.visionFeatures(unknown) vs SectionVisionFeatures型の互換性のためキャスト
+            state.layoutResultForNarrative.sections =
+              postProcessedSections as unknown as NonNullable<LayoutServiceResult["sections"]>;
             state.layoutResultForNarrative.sectionCount = postProcessedSections.length;
           }
 

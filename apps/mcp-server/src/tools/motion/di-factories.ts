@@ -11,6 +11,7 @@
  */
 
 import type { Page } from "playwright";
+import { createDIFactory } from "../../utils/di-factory";
 import { logger, isDevelopment } from "../../utils/logger";
 import type { MotionPattern, LighthouseMetrics } from "./schemas";
 import type { MotionPatternPersistenceService } from "../../services/motion-persistence.service";
@@ -343,34 +344,36 @@ export type { IWebPageService, FindOrCreateResult };
 // ファクトリ変数
 // =====================================================
 
-let serviceFactory: (() => IMotionDetectService) | null = null;
-let persistenceServiceFactory: (() => MotionPatternPersistenceService) | null = null;
-let videoRecorderServiceFactory: (() => IVideoRecorderService) | null = null;
-let frameAnalyzerServiceFactory: (() => IFrameAnalyzerService) | null = null;
-let runtimeAnimationDetectorFactory: (() => IRuntimeAnimationDetectorService) | null = null;
-let frameCaptureServiceFactory: (() => IFrameCaptureService) | null = null;
-let lighthouseDetectorServiceFactory: (() => ILighthouseDetectorService) | null = null;
-let animationMetricsCollectorFactory: (() => IAnimationMetricsCollector) | null = null;
-let frameImageAnalysisServiceFactory: (() => IFrameImageAnalysisService) | null = null;
-let frameEmbeddingServiceFactory: (() => IFrameEmbeddingService) | null = null;
-let jsAnimationDetectorFactory: (() => IJSAnimationDetectorService) | null = null;
-let webPageServiceFactory: (() => IWebPageService) | null = null;
+const serviceFactoryDI = createDIFactory<IMotionDetectService>("MotionDetectService");
+const persistenceServiceDI = createDIFactory<MotionPatternPersistenceService>(
+  "MotionPersistenceService"
+);
+const videoRecorderServiceDI = createDIFactory<IVideoRecorderService>("VideoRecorderService");
+const frameAnalyzerServiceDI = createDIFactory<IFrameAnalyzerService>("FrameAnalyzerService");
+const runtimeAnimationDetectorDI = createDIFactory<IRuntimeAnimationDetectorService>(
+  "RuntimeAnimationDetector"
+);
+const frameCaptureServiceDI = createDIFactory<IFrameCaptureService>("FrameCaptureService");
+const lighthouseDetectorServiceDI = createDIFactory<ILighthouseDetectorService>(
+  "LighthouseDetectorService"
+);
+const animationMetricsCollectorDI = createDIFactory<IAnimationMetricsCollector>(
+  "AnimationMetricsCollector"
+);
+const frameImageAnalysisServiceDI = createDIFactory<IFrameImageAnalysisService>(
+  "FrameImageAnalysisService"
+);
+const frameEmbeddingServiceDI = createDIFactory<IFrameEmbeddingService>("FrameEmbeddingService");
+const jsAnimationDetectorDI = createDIFactory<IJSAnimationDetectorService>("JSAnimationDetector");
+const webPageServiceDI = createDIFactory<IWebPageService>("WebPageService");
 
 // =====================================================
 // Motion Detect Service
 // =====================================================
 
-export function setMotionDetectServiceFactory(factory: () => IMotionDetectService): void {
-  serviceFactory = factory;
-}
-
-export function resetMotionDetectServiceFactory(): void {
-  serviceFactory = null;
-}
-
-export function getMotionDetectServiceFactory(): (() => IMotionDetectService) | null {
-  return serviceFactory;
-}
+export const setMotionDetectServiceFactory = serviceFactoryDI.set;
+export const resetMotionDetectServiceFactory = serviceFactoryDI.reset;
+export const getMotionDetectServiceFactory = serviceFactoryDI.get;
 
 // =====================================================
 // Persistence Service
@@ -379,7 +382,7 @@ export function getMotionDetectServiceFactory(): (() => IMotionDetectService) | 
 export function setMotionPersistenceServiceFactory(
   factory: () => MotionPatternPersistenceService
 ): void {
-  persistenceServiceFactory = factory;
+  persistenceServiceDI.set(factory);
   if (isDevelopment()) {
     logger.info("[DI] motion.detect persistence service factory SET", {
       factoryExists: factory !== null,
@@ -387,14 +390,12 @@ export function setMotionPersistenceServiceFactory(
   }
 }
 
-export function resetMotionPersistenceServiceFactory(): void {
-  persistenceServiceFactory = null;
-}
+export const resetMotionPersistenceServiceFactory = persistenceServiceDI.reset;
 
 export function getPersistenceService(): MotionPatternPersistenceService | null {
-  if (persistenceServiceFactory) {
+  if (persistenceServiceDI.get()) {
     try {
-      const service = persistenceServiceFactory();
+      const service = persistenceServiceDI.get()!();
       if (isDevelopment()) {
         logger.debug("[DI] motion.detect factory returned service", {
           isAvailable: service?.isAvailable?.() ?? false,
@@ -425,7 +426,7 @@ export function getPersistenceService(): MotionPatternPersistenceService | null 
 }
 
 export function getPersistenceServiceFactoryExists(): boolean {
-  return persistenceServiceFactory !== null;
+  return persistenceServiceDI.get() !== null;
 }
 
 // =====================================================
@@ -433,19 +434,17 @@ export function getPersistenceServiceFactoryExists(): boolean {
 // =====================================================
 
 export function setVideoRecorderServiceFactory(factory: () => IVideoRecorderService): void {
-  videoRecorderServiceFactory = factory;
+  videoRecorderServiceDI.set(factory);
   if (isDevelopment()) {
     logger.info("[DI] motion.detect video recorder factory SET");
   }
 }
 
-export function resetVideoRecorderServiceFactory(): void {
-  videoRecorderServiceFactory = null;
-}
+export const resetVideoRecorderServiceFactory = videoRecorderServiceDI.reset;
 
 export function getVideoRecorderService(): IVideoRecorderService {
-  if (videoRecorderServiceFactory) {
-    return videoRecorderServiceFactory();
+  if (videoRecorderServiceDI.get()) {
+    return videoRecorderServiceDI.get()!();
   }
   return new VideoRecorderService();
 }
@@ -455,19 +454,17 @@ export function getVideoRecorderService(): IVideoRecorderService {
 // =====================================================
 
 export function setFrameAnalyzerServiceFactory(factory: () => IFrameAnalyzerService): void {
-  frameAnalyzerServiceFactory = factory;
+  frameAnalyzerServiceDI.set(factory);
   if (isDevelopment()) {
     logger.info("[DI] motion.detect frame analyzer factory SET");
   }
 }
 
-export function resetFrameAnalyzerServiceFactory(): void {
-  frameAnalyzerServiceFactory = null;
-}
+export const resetFrameAnalyzerServiceFactory = frameAnalyzerServiceDI.reset;
 
 export function getFrameAnalyzerService(): IFrameAnalyzerService {
-  if (frameAnalyzerServiceFactory) {
-    return frameAnalyzerServiceFactory();
+  if (frameAnalyzerServiceDI.get()) {
+    return frameAnalyzerServiceDI.get()!();
   }
   return new FrameAnalyzerService();
 }
@@ -479,19 +476,17 @@ export function getFrameAnalyzerService(): IFrameAnalyzerService {
 export function setRuntimeAnimationDetectorFactory(
   factory: () => IRuntimeAnimationDetectorService
 ): void {
-  runtimeAnimationDetectorFactory = factory;
+  runtimeAnimationDetectorDI.set(factory);
   if (isDevelopment()) {
     logger.info("[DI] motion.detect runtime animation detector factory SET");
   }
 }
 
-export function resetRuntimeAnimationDetectorFactory(): void {
-  runtimeAnimationDetectorFactory = null;
-}
+export const resetRuntimeAnimationDetectorFactory = runtimeAnimationDetectorDI.reset;
 
 export function getRuntimeAnimationDetectorService(): IRuntimeAnimationDetectorService {
-  if (runtimeAnimationDetectorFactory) {
-    return runtimeAnimationDetectorFactory();
+  if (runtimeAnimationDetectorDI.get()) {
+    return runtimeAnimationDetectorDI.get()!();
   }
   return new RuntimeAnimationDetectorService();
 }
@@ -501,19 +496,17 @@ export function getRuntimeAnimationDetectorService(): IRuntimeAnimationDetectorS
 // =====================================================
 
 export function setFrameCaptureServiceFactory(factory: () => IFrameCaptureService): void {
-  frameCaptureServiceFactory = factory;
+  frameCaptureServiceDI.set(factory);
   if (isDevelopment()) {
     logger.info("[DI] motion.detect frame capture service factory SET");
   }
 }
 
-export function resetFrameCaptureServiceFactory(): void {
-  frameCaptureServiceFactory = null;
-}
+export const resetFrameCaptureServiceFactory = frameCaptureServiceDI.reset;
 
 export function getFrameCaptureServiceInstance(): IFrameCaptureService {
-  if (frameCaptureServiceFactory) {
-    return frameCaptureServiceFactory();
+  if (frameCaptureServiceDI.get()) {
+    return frameCaptureServiceDI.get()!();
   }
   return createFrameCaptureService();
 }
@@ -525,19 +518,17 @@ export function getFrameCaptureServiceInstance(): IFrameCaptureService {
 export function setLighthouseDetectorServiceFactory(
   factory: () => ILighthouseDetectorService
 ): void {
-  lighthouseDetectorServiceFactory = factory;
+  lighthouseDetectorServiceDI.set(factory);
   if (isDevelopment()) {
     logger.info("[DI] motion.detect lighthouse detector factory SET");
   }
 }
 
-export function resetLighthouseDetectorServiceFactory(): void {
-  lighthouseDetectorServiceFactory = null;
-}
+export const resetLighthouseDetectorServiceFactory = lighthouseDetectorServiceDI.reset;
 
 export function getLighthouseDetectorService(): ILighthouseDetectorService | null {
-  if (lighthouseDetectorServiceFactory) {
-    return lighthouseDetectorServiceFactory();
+  if (lighthouseDetectorServiceDI.get()) {
+    return lighthouseDetectorServiceDI.get()!();
   }
   return null;
 }
@@ -549,19 +540,17 @@ export function getLighthouseDetectorService(): ILighthouseDetectorService | nul
 export function setAnimationMetricsCollectorFactory(
   factory: () => IAnimationMetricsCollector
 ): void {
-  animationMetricsCollectorFactory = factory;
+  animationMetricsCollectorDI.set(factory);
   if (isDevelopment()) {
     logger.info("[DI] motion.detect animation metrics collector factory SET");
   }
 }
 
-export function resetAnimationMetricsCollectorFactory(): void {
-  animationMetricsCollectorFactory = null;
-}
+export const resetAnimationMetricsCollectorFactory = animationMetricsCollectorDI.reset;
 
 export function getAnimationMetricsCollector(): IAnimationMetricsCollector | null {
-  if (animationMetricsCollectorFactory) {
-    return animationMetricsCollectorFactory();
+  if (animationMetricsCollectorDI.get()) {
+    return animationMetricsCollectorDI.get()!();
   }
   return null;
 }
@@ -573,19 +562,17 @@ export function getAnimationMetricsCollector(): IAnimationMetricsCollector | nul
 export function setFrameImageAnalysisServiceFactory(
   factory: () => IFrameImageAnalysisService
 ): void {
-  frameImageAnalysisServiceFactory = factory;
+  frameImageAnalysisServiceDI.set(factory);
   if (isDevelopment()) {
     logger.info("[DI] motion.detect frame image analysis factory SET");
   }
 }
 
-export function resetFrameImageAnalysisServiceFactory(): void {
-  frameImageAnalysisServiceFactory = null;
-}
+export const resetFrameImageAnalysisServiceFactory = frameImageAnalysisServiceDI.reset;
 
 export function getFrameImageAnalysisService(): IFrameImageAnalysisService | null {
-  if (frameImageAnalysisServiceFactory) {
-    return frameImageAnalysisServiceFactory();
+  if (frameImageAnalysisServiceDI.get()) {
+    return frameImageAnalysisServiceDI.get()!();
   }
 
   // デフォルト実装: FrameImageAnalyzerAdapter を使用
@@ -642,19 +629,17 @@ export function getFrameImageAnalysisService(): IFrameImageAnalysisService | nul
 // =====================================================
 
 export function setFrameEmbeddingServiceFactory(factory: () => IFrameEmbeddingService): void {
-  frameEmbeddingServiceFactory = factory;
+  frameEmbeddingServiceDI.set(factory);
   if (isDevelopment()) {
     logger.info("[DI] motion.detect frame embedding service factory SET");
   }
 }
 
-export function resetFrameEmbeddingServiceFactory(): void {
-  frameEmbeddingServiceFactory = null;
-}
+export const resetFrameEmbeddingServiceFactory = frameEmbeddingServiceDI.reset;
 
 export function getFrameEmbeddingServiceInstance(): IFrameEmbeddingService | null {
-  if (frameEmbeddingServiceFactory) {
-    return frameEmbeddingServiceFactory();
+  if (frameEmbeddingServiceDI.get()) {
+    return frameEmbeddingServiceDI.get()!();
   }
 
   // デフォルト実装: FrameEmbeddingService を使用
@@ -676,19 +661,17 @@ export function getFrameEmbeddingServiceInstance(): IFrameEmbeddingService | nul
 // =====================================================
 
 export function setJSAnimationDetectorFactory(factory: () => IJSAnimationDetectorService): void {
-  jsAnimationDetectorFactory = factory;
+  jsAnimationDetectorDI.set(factory);
   if (isDevelopment()) {
     logger.info("[DI] motion.detect JS animation detector factory SET");
   }
 }
 
-export function resetJSAnimationDetectorFactory(): void {
-  jsAnimationDetectorFactory = null;
-}
+export const resetJSAnimationDetectorFactory = jsAnimationDetectorDI.reset;
 
 export function getJSAnimationDetectorService(): IJSAnimationDetectorService {
-  if (jsAnimationDetectorFactory) {
-    return jsAnimationDetectorFactory();
+  if (jsAnimationDetectorDI.get()) {
+    return jsAnimationDetectorDI.get()!();
   }
   // デフォルト実装: JSAnimationDetectorService を使用
   return createJSAnimationDetector();
@@ -700,19 +683,17 @@ export function getJSAnimationDetectorService(): IJSAnimationDetectorService {
 // =====================================================
 
 export function setWebPageServiceFactory(factory: () => IWebPageService): void {
-  webPageServiceFactory = factory;
+  webPageServiceDI.set(factory);
   if (isDevelopment()) {
     logger.info("[DI] motion.detect WebPage service factory SET");
   }
 }
 
-export function resetWebPageServiceFactory(): void {
-  webPageServiceFactory = null;
-}
+export const resetWebPageServiceFactory = webPageServiceDI.reset;
 
 export function getWebPageService(): IWebPageService {
-  if (webPageServiceFactory) {
-    return webPageServiceFactory();
+  if (webPageServiceDI.get()) {
+    return webPageServiceDI.get()!();
   }
   // デフォルト実装: WebPageService を使用
   return createWebPageService();
@@ -724,7 +705,9 @@ export function getWebPageService(): IWebPageService {
 // page.analyze と共有する IPageAnalyzePrismaClient を使用
 // =====================================================
 
-let jsAnimationPrismaClientFactory: (() => IJSAnimationPersistencePrismaClient) | null = null;
+const jsAnimationPrismaClientDI = createDIFactory<IJSAnimationPersistencePrismaClient>(
+  "JSAnimationPersistencePrismaClient"
+);
 
 /**
  * JSAnimation Persistence用PrismaClientインターフェース
@@ -749,19 +732,17 @@ export interface IJSAnimationPersistencePrismaClient {
 export function setJSAnimationPersistencePrismaClientFactory(
   factory: () => IJSAnimationPersistencePrismaClient
 ): void {
-  jsAnimationPrismaClientFactory = factory;
+  jsAnimationPrismaClientDI.set(factory);
   if (isDevelopment()) {
     logger.info("[DI] motion.detect JS animation persistence prisma factory SET");
   }
 }
 
-export function resetJSAnimationPersistencePrismaClientFactory(): void {
-  jsAnimationPrismaClientFactory = null;
-}
+export const resetJSAnimationPersistencePrismaClientFactory = jsAnimationPrismaClientDI.reset;
 
 export function getJSAnimationPersistencePrismaClient(): IJSAnimationPersistencePrismaClient | null {
-  if (jsAnimationPrismaClientFactory) {
-    return jsAnimationPrismaClientFactory();
+  if (jsAnimationPrismaClientDI.get()) {
+    return jsAnimationPrismaClientDI.get()!();
   }
   return null;
 }

@@ -1610,104 +1610,58 @@ function matchesPattern(className: string, pattern: string | RegExp): boolean {
 }
 
 /**
- * HTMLからCSSフレームワークを検出
+ * CDN/外部参照からフレームワークを検出する（高信頼度）
  *
- * 検出対象:
- * - Tailwind CSS（CDNスクリプト/リンク、ユーティリティクラス）
- * - Bootstrap（CDNリンク、コンポーネントクラス）
- * - CSS Modules（[component]_[class]__[hash] 形式）
- * - styled-components/Emotion（sc-*, css-* 形式）
- * - Webflow（.w-* クラスパターン）
- * - jQuery UI（.ui-* クラスパターン）
- * - Squarespace（.sqs-* クラスパターン）
- * - Framer（.framer-* クラス、data-framer-* 属性）
- * - Elementor（.elementor-* クラスパターン）
- * - Wix（.wixui-* クラス、SITE_* 構造）
- * - vanilla CSS（上記に該当しない場合）
- *
- * @param $ - CheerioAPI
- * @param html - 元のHTML文字列（CDN検出用）
- * @returns CSSフレームワーク検出結果
+ * @param html - HTML文字列
+ * @param getScore - フレームワークスコア取得関数
  */
-function detectCssFramework($: CheerioAPI, html: string): CssFrameworkDetection {
-  const scores: FrameworkScore[] = [
-    { framework: "tailwind", score: 0, evidence: [], cdnDetected: false },
-    { framework: "bootstrap", score: 0, evidence: [], cdnDetected: false },
-    { framework: "css_modules", score: 0, evidence: [], cdnDetected: false },
-    { framework: "styled_components", score: 0, evidence: [], cdnDetected: false },
-    { framework: "webflow", score: 0, evidence: [], cdnDetected: false },
-    { framework: "jquery_ui", score: 0, evidence: [], cdnDetected: false },
-    { framework: "squarespace", score: 0, evidence: [], cdnDetected: false },
-    { framework: "framer", score: 0, evidence: [], cdnDetected: false },
-    { framework: "elementor", score: 0, evidence: [], cdnDetected: false },
-    { framework: "wix", score: 0, evidence: [], cdnDetected: false },
+function detectCdnReferences(
+  html: string,
+  getScore: (framework: CssFramework) => FrameworkScore
+): void {
+  const cdnConfigs: Array<{
+    framework: CssFramework;
+    patterns: string[];
+    label: string;
+  }> = [
+    { framework: "tailwind", patterns: TAILWIND_CDN_PATTERNS, label: "CDN detected" },
+    { framework: "bootstrap", patterns: BOOTSTRAP_CDN_PATTERNS, label: "CDN detected" },
+    { framework: "webflow", patterns: WEBFLOW_CDN_PATTERNS, label: "Webflow CDN detected" },
+    { framework: "jquery_ui", patterns: JQUERY_UI_CDN_PATTERNS, label: "jQuery UI CDN detected" },
+    {
+      framework: "squarespace",
+      patterns: SQUARESPACE_CDN_PATTERNS,
+      label: "Squarespace CDN detected",
+    },
+    {
+      framework: "elementor",
+      patterns: ELEMENTOR_CDN_PATTERNS,
+      label: "Elementor plugin detected",
+    },
   ];
 
-  const getScore = (framework: CssFramework): FrameworkScore =>
-    scores.find((s) => s.framework === framework)!;
-
-  // =====================================================
-  // 1. CDN/外部参照検出（高信頼度）
-  // =====================================================
-
-  // Tailwind CDN検出
-  for (const pattern of TAILWIND_CDN_PATTERNS) {
-    if (html.includes(pattern)) {
-      getScore("tailwind").score += 50;
-      getScore("tailwind").evidence.push(`CDN detected: ${pattern}`);
-      getScore("tailwind").cdnDetected = true;
+  for (const config of cdnConfigs) {
+    for (const pattern of config.patterns) {
+      if (html.includes(pattern)) {
+        getScore(config.framework).score += 50;
+        getScore(config.framework).evidence.push(`${config.label}: ${pattern}`);
+        getScore(config.framework).cdnDetected = true;
+      }
     }
   }
+}
 
-  // Bootstrap CDN検出
-  for (const pattern of BOOTSTRAP_CDN_PATTERNS) {
-    if (html.includes(pattern)) {
-      getScore("bootstrap").score += 50;
-      getScore("bootstrap").evidence.push(`CDN detected: ${pattern}`);
-      getScore("bootstrap").cdnDetected = true;
-    }
-  }
-
-  // Webflow CDN検出
-  for (const pattern of WEBFLOW_CDN_PATTERNS) {
-    if (html.includes(pattern)) {
-      getScore("webflow").score += 50;
-      getScore("webflow").evidence.push(`Webflow CDN detected: ${pattern}`);
-      getScore("webflow").cdnDetected = true;
-    }
-  }
-
-  // jQuery UI CDN検出
-  for (const pattern of JQUERY_UI_CDN_PATTERNS) {
-    if (html.includes(pattern)) {
-      getScore("jquery_ui").score += 50;
-      getScore("jquery_ui").evidence.push(`jQuery UI CDN detected: ${pattern}`);
-      getScore("jquery_ui").cdnDetected = true;
-    }
-  }
-
-  // Squarespace CDN検出
-  for (const pattern of SQUARESPACE_CDN_PATTERNS) {
-    if (html.includes(pattern)) {
-      getScore("squarespace").score += 50;
-      getScore("squarespace").evidence.push(`Squarespace CDN detected: ${pattern}`);
-      getScore("squarespace").cdnDetected = true;
-    }
-  }
-
-  // Elementor CDN検出
-  for (const pattern of ELEMENTOR_CDN_PATTERNS) {
-    if (html.includes(pattern)) {
-      getScore("elementor").score += 50;
-      getScore("elementor").evidence.push(`Elementor plugin detected: ${pattern}`);
-      getScore("elementor").cdnDetected = true;
-    }
-  }
-
-  // =====================================================
-  // 2. data-* 属性検出（Framer専用）
-  // =====================================================
-
+/**
+ * DOM構造からフレームワークを検出する（data-*属性、構造ID）
+ *
+ * @param $ - CheerioAPI
+ * @param getScore - フレームワークスコア取得関数
+ */
+function detectDomStructurePatterns(
+  $: CheerioAPI,
+  getScore: (framework: CssFramework) => FrameworkScore
+): void {
+  // Framer data-* 属性検出
   let framerDataAttrCount = 0;
   for (const attr of FRAMER_DATA_ATTRIBUTES) {
     const elements = $(`[${attr}]`);
@@ -1721,10 +1675,7 @@ function detectCssFramework($: CheerioAPI, html: string): CssFrameworkDetection 
     getScore("framer").evidence.push(`Found ${framerDataAttrCount} Framer data-* attributes`);
   }
 
-  // =====================================================
-  // 3. Wix構造検出（ID ベース）
-  // =====================================================
-
+  // Wix構造検出（ID ベース）
   let wixStructureCount = 0;
   for (const id of WIX_STRUCTURE_IDS) {
     if ($(`#${id}`).length > 0) {
@@ -1736,11 +1687,18 @@ function detectCssFramework($: CheerioAPI, html: string): CssFrameworkDetection 
     getScore("wix").score += structureScore;
     getScore("wix").evidence.push(`Found ${wixStructureCount} Wix structure IDs (SITE_*)`);
   }
+}
 
-  // =====================================================
-  // 4. クラス名パターン検出
-  // =====================================================
-
+/**
+ * クラス名パターンからフレームワークを検出しスコアを加算する
+ *
+ * @param $ - CheerioAPI
+ * @param getScore - フレームワークスコア取得関数
+ */
+function detectClassNamePatterns(
+  $: CheerioAPI,
+  getScore: (framework: CssFramework) => FrameworkScore
+): void {
   // 全クラス名を収集
   const allClasses = new Set<string>();
   $("[class]").each((_, elem) => {
@@ -1755,26 +1713,27 @@ function detectCssFramework($: CheerioAPI, html: string): CssFrameworkDetection 
     }
   });
 
-  // クラス名カウンター
+  // フレームワークごとのクラス名カウンターとサンプル
   let tailwindClassCount = 0;
   let bootstrapClassCount = 0;
-  let cssModulesClassCount = 0;
-  let styledComponentsClassCount = 0;
-  let webflowClassCount = 0;
-  let jqueryUiClassCount = 0;
-  let squarespaceClassCount = 0;
-  let framerClassCount = 0;
-  let elementorClassCount = 0;
-  let wixClassCount = 0;
 
-  const cssModulesExamples: string[] = [];
-  const styledComponentsExamples: string[] = [];
-  const webflowExamples: string[] = [];
-  const jqueryUiExamples: string[] = [];
-  const squarespaceExamples: string[] = [];
-  const framerExamples: string[] = [];
-  const elementorExamples: string[] = [];
-  const wixExamples: string[] = [];
+  // RegExpパターン系（サンプル収集あり）
+  interface ClassCountWithExamples {
+    count: number;
+    examples: string[];
+  }
+  const regexCounts: Record<string, ClassCountWithExamples> = {
+    css_modules: { count: 0, examples: [] },
+    styled_components: { count: 0, examples: [] },
+  };
+  const stringPatternCounts: Record<string, ClassCountWithExamples> = {
+    webflow: { count: 0, examples: [] },
+    jquery_ui: { count: 0, examples: [] },
+    squarespace: { count: 0, examples: [] },
+    framer: { count: 0, examples: [] },
+    elementor: { count: 0, examples: [] },
+    wix: { count: 0, examples: [] },
+  };
 
   for (const className of allClasses) {
     // Tailwind検出
@@ -1796,9 +1755,9 @@ function detectCssFramework($: CheerioAPI, html: string): CssFrameworkDetection 
     // CSS Modules検出（複数パターンに対応）
     for (const cssModulesPattern of CSS_MODULES_PATTERNS) {
       if (cssModulesPattern.test(className)) {
-        cssModulesClassCount++;
-        if (cssModulesExamples.length < 3) {
-          cssModulesExamples.push(className);
+        regexCounts["css_modules"]!.count++;
+        if (regexCounts["css_modules"]!.examples.length < 3) {
+          regexCounts["css_modules"]!.examples.push(className);
         }
         break;
       }
@@ -1807,182 +1766,104 @@ function detectCssFramework($: CheerioAPI, html: string): CssFrameworkDetection 
     // styled-components / Emotion検出
     for (const pattern of STYLED_COMPONENTS_PATTERNS) {
       if (pattern.test(className)) {
-        styledComponentsClassCount++;
-        if (styledComponentsExamples.length < 3) {
-          styledComponentsExamples.push(className);
+        regexCounts["styled_components"]!.count++;
+        if (regexCounts["styled_components"]!.examples.length < 3) {
+          regexCounts["styled_components"]!.examples.push(className);
         }
         break;
       }
     }
 
-    // Webflow検出
-    for (const pattern of WEBFLOW_CLASS_PATTERNS) {
-      if (matchesPattern(className, pattern)) {
-        webflowClassCount++;
-        if (webflowExamples.length < 3) {
-          webflowExamples.push(className);
+    // string/RegExp混合パターン検出
+    const mixedPatternConfigs: Array<{
+      key: string;
+      patterns: (string | RegExp)[];
+    }> = [
+      { key: "webflow", patterns: WEBFLOW_CLASS_PATTERNS },
+      { key: "jquery_ui", patterns: JQUERY_UI_CLASS_PATTERNS },
+      { key: "squarespace", patterns: SQUARESPACE_CLASS_PATTERNS },
+      { key: "framer", patterns: FRAMER_CLASS_PATTERNS },
+      { key: "elementor", patterns: ELEMENTOR_CLASS_PATTERNS },
+      { key: "wix", patterns: WIX_CLASS_PATTERNS },
+    ];
+    for (const config of mixedPatternConfigs) {
+      for (const pattern of config.patterns) {
+        if (matchesPattern(className, pattern)) {
+          stringPatternCounts[config.key]!.count++;
+          if (stringPatternCounts[config.key]!.examples.length < 3) {
+            stringPatternCounts[config.key]!.examples.push(className);
+          }
+          break;
         }
-        break;
-      }
-    }
-
-    // jQuery UI検出
-    for (const pattern of JQUERY_UI_CLASS_PATTERNS) {
-      if (matchesPattern(className, pattern)) {
-        jqueryUiClassCount++;
-        if (jqueryUiExamples.length < 3) {
-          jqueryUiExamples.push(className);
-        }
-        break;
-      }
-    }
-
-    // Squarespace検出
-    for (const pattern of SQUARESPACE_CLASS_PATTERNS) {
-      if (matchesPattern(className, pattern)) {
-        squarespaceClassCount++;
-        if (squarespaceExamples.length < 3) {
-          squarespaceExamples.push(className);
-        }
-        break;
-      }
-    }
-
-    // Framer検出
-    for (const pattern of FRAMER_CLASS_PATTERNS) {
-      if (matchesPattern(className, pattern)) {
-        framerClassCount++;
-        if (framerExamples.length < 3) {
-          framerExamples.push(className);
-        }
-        break;
-      }
-    }
-
-    // Elementor検出
-    for (const pattern of ELEMENTOR_CLASS_PATTERNS) {
-      if (matchesPattern(className, pattern)) {
-        elementorClassCount++;
-        if (elementorExamples.length < 3) {
-          elementorExamples.push(className);
-        }
-        break;
-      }
-    }
-
-    // Wix検出
-    for (const pattern of WIX_CLASS_PATTERNS) {
-      if (matchesPattern(className, pattern)) {
-        wixClassCount++;
-        if (wixExamples.length < 3) {
-          wixExamples.push(className);
-        }
-        break;
       }
     }
   }
 
-  // =====================================================
-  // 5. スコア計算
-  // =====================================================
-
-  // Tailwind: ユーティリティクラス数に基づくスコア
+  // スコア加算: Tailwind
   if (tailwindClassCount > 0) {
-    // 10クラス以上で顕著、30クラス以上で確実
     const classScore = Math.min(tailwindClassCount * 2, 50);
     getScore("tailwind").score += classScore;
     getScore("tailwind").evidence.push(`Found ${tailwindClassCount} Tailwind utility classes`);
   }
 
-  // Bootstrap: コンポーネントクラス数に基づくスコア
+  // スコア加算: Bootstrap
   if (bootstrapClassCount > 0) {
     const classScore = Math.min(bootstrapClassCount * 3, 50);
     getScore("bootstrap").score += classScore;
     getScore("bootstrap").evidence.push(`Found ${bootstrapClassCount} Bootstrap component classes`);
   }
 
-  // CSS Modules: ハッシュ付きクラス数に基づくスコア
-  if (cssModulesClassCount > 0) {
-    const classScore = Math.min(cssModulesClassCount * 5, 70);
-    getScore("css_modules").score += classScore;
-    getScore("css_modules").evidence.push(
-      `Found ${cssModulesClassCount} CSS Modules pattern classes (e.g., ${cssModulesExamples.join(", ")})`
-    );
+  // スコア加算: RegExpパターン系
+  const regexFrameworkLabels: Record<string, { framework: CssFramework; label: string }> = {
+    css_modules: { framework: "css_modules", label: "CSS Modules pattern classes" },
+    styled_components: {
+      framework: "styled_components",
+      label: "styled-components/Emotion classes",
+    },
+  };
+  for (const [key, data] of Object.entries(regexCounts)) {
+    if (data.count > 0) {
+      const classScore = Math.min(data.count * 5, 70);
+      const meta = regexFrameworkLabels[key]!;
+      getScore(meta.framework).score += classScore;
+      getScore(meta.framework).evidence.push(
+        `Found ${data.count} ${meta.label} (e.g., ${data.examples.join(", ")})`
+      );
+    }
   }
 
-  // styled-components: パターンマッチ数に基づくスコア
-  if (styledComponentsClassCount > 0) {
-    const classScore = Math.min(styledComponentsClassCount * 5, 70);
-    getScore("styled_components").score += classScore;
-    getScore("styled_components").evidence.push(
-      `Found ${styledComponentsClassCount} styled-components/Emotion classes (e.g., ${styledComponentsExamples.join(", ")})`
-    );
+  // スコア加算: string/RegExp混合パターン系
+  const mixedFrameworkLabels: Record<string, { framework: CssFramework; label: string }> = {
+    webflow: { framework: "webflow", label: "Webflow classes" },
+    jquery_ui: { framework: "jquery_ui", label: "jQuery UI classes" },
+    squarespace: { framework: "squarespace", label: "Squarespace classes" },
+    framer: { framework: "framer", label: "Framer classes" },
+    elementor: { framework: "elementor", label: "Elementor classes" },
+    wix: { framework: "wix", label: "Wix classes" },
+  };
+  for (const [key, data] of Object.entries(stringPatternCounts)) {
+    if (data.count > 0) {
+      const classScore = Math.min(data.count * 5, 70);
+      const meta = mixedFrameworkLabels[key]!;
+      getScore(meta.framework).score += classScore;
+      getScore(meta.framework).evidence.push(
+        `Found ${data.count} ${meta.label} (e.g., ${data.examples.join(", ")})`
+      );
+    }
   }
+}
 
-  // Webflow: w-* クラス数に基づくスコア
-  if (webflowClassCount > 0) {
-    const classScore = Math.min(webflowClassCount * 5, 70);
-    getScore("webflow").score += classScore;
-    getScore("webflow").evidence.push(
-      `Found ${webflowClassCount} Webflow classes (e.g., ${webflowExamples.join(", ")})`
-    );
-  }
-
-  // jQuery UI: ui-* クラス数に基づくスコア
-  if (jqueryUiClassCount > 0) {
-    const classScore = Math.min(jqueryUiClassCount * 5, 70);
-    getScore("jquery_ui").score += classScore;
-    getScore("jquery_ui").evidence.push(
-      `Found ${jqueryUiClassCount} jQuery UI classes (e.g., ${jqueryUiExamples.join(", ")})`
-    );
-  }
-
-  // Squarespace: sqs-* クラス数に基づくスコア
-  if (squarespaceClassCount > 0) {
-    const classScore = Math.min(squarespaceClassCount * 5, 70);
-    getScore("squarespace").score += classScore;
-    getScore("squarespace").evidence.push(
-      `Found ${squarespaceClassCount} Squarespace classes (e.g., ${squarespaceExamples.join(", ")})`
-    );
-  }
-
-  // Framer: framer-* クラス数に基づくスコア
-  if (framerClassCount > 0) {
-    const classScore = Math.min(framerClassCount * 5, 70);
-    getScore("framer").score += classScore;
-    getScore("framer").evidence.push(
-      `Found ${framerClassCount} Framer classes (e.g., ${framerExamples.join(", ")})`
-    );
-  }
-
-  // Elementor: elementor-* クラス数に基づくスコア
-  if (elementorClassCount > 0) {
-    const classScore = Math.min(elementorClassCount * 5, 70);
-    getScore("elementor").score += classScore;
-    getScore("elementor").evidence.push(
-      `Found ${elementorClassCount} Elementor classes (e.g., ${elementorExamples.join(", ")})`
-    );
-  }
-
-  // Wix: comp-* / style-* クラス数に基づくスコア
-  if (wixClassCount > 0) {
-    const classScore = Math.min(wixClassCount * 5, 70);
-    getScore("wix").score += classScore;
-    getScore("wix").evidence.push(
-      `Found ${wixClassCount} Wix classes (e.g., ${wixExamples.join(", ")})`
-    );
-  }
-
-  // =====================================================
-  // 4. CSS変数検出
-  // =====================================================
-
-  const cssVariablesResult = detectCssVariables(html);
-
-  // =====================================================
-  // 5. 結果決定
-  // =====================================================
-
+/**
+ * スコアリング結果からCSSフレームワーク検出結果を構築する
+ *
+ * @param scores - フレームワークスコア配列
+ * @param cssVariablesResult - CSS変数検出結果
+ * @returns CSSフレームワーク検出結果
+ */
+function buildFrameworkDetectionResult(
+  scores: FrameworkScore[],
+  cssVariablesResult: CssVariablesDetection
+): CssFrameworkDetection {
   // 最高スコアのフレームワークを選択
   const sortedScores = [...scores].sort((a, b) => b.score - a.score);
   const topScore = sortedScores[0];
@@ -2022,10 +1903,7 @@ function detectCssFramework($: CheerioAPI, html: string): CssFrameworkDetection 
     confidence = Math.min(0.5 + topScore.score * 0.01, 0.89);
   }
 
-  // =====================================================
-  // 6. 複合検出結果の構築
-  // =====================================================
-
+  // 複合検出結果の構築
   const result: CssFrameworkDetection = {
     framework: topScore.framework,
     confidence: Math.round(confidence * 100) / 100,
@@ -2078,6 +1956,59 @@ function detectCssFramework($: CheerioAPI, html: string): CssFrameworkDetection 
   }
 
   return result;
+}
+
+/**
+ * HTMLからCSSフレームワークを検出
+ *
+ * 検出対象:
+ * - Tailwind CSS（CDNスクリプト/リンク、ユーティリティクラス）
+ * - Bootstrap（CDNリンク、コンポーネントクラス）
+ * - CSS Modules（[component]_[class]__[hash] 形式）
+ * - styled-components/Emotion（sc-*, css-* 形式）
+ * - Webflow（.w-* クラスパターン）
+ * - jQuery UI（.ui-* クラスパターン）
+ * - Squarespace（.sqs-* クラスパターン）
+ * - Framer（.framer-* クラス、data-framer-* 属性）
+ * - Elementor（.elementor-* クラスパターン）
+ * - Wix（.wixui-* クラス、SITE_* 構造）
+ * - vanilla CSS（上記に該当しない場合）
+ *
+ * @param $ - CheerioAPI
+ * @param html - 元のHTML文字列（CDN検出用）
+ * @returns CSSフレームワーク検出結果
+ */
+function detectCssFramework($: CheerioAPI, html: string): CssFrameworkDetection {
+  const scores: FrameworkScore[] = [
+    { framework: "tailwind", score: 0, evidence: [], cdnDetected: false },
+    { framework: "bootstrap", score: 0, evidence: [], cdnDetected: false },
+    { framework: "css_modules", score: 0, evidence: [], cdnDetected: false },
+    { framework: "styled_components", score: 0, evidence: [], cdnDetected: false },
+    { framework: "webflow", score: 0, evidence: [], cdnDetected: false },
+    { framework: "jquery_ui", score: 0, evidence: [], cdnDetected: false },
+    { framework: "squarespace", score: 0, evidence: [], cdnDetected: false },
+    { framework: "framer", score: 0, evidence: [], cdnDetected: false },
+    { framework: "elementor", score: 0, evidence: [], cdnDetected: false },
+    { framework: "wix", score: 0, evidence: [], cdnDetected: false },
+  ];
+
+  const getScore = (framework: CssFramework): FrameworkScore =>
+    scores.find((s) => s.framework === framework)!;
+
+  // 1. CDN/外部参照検出（高信頼度）
+  detectCdnReferences(html, getScore);
+
+  // 2. DOM構造パターン検出（data-*属性、構造ID）
+  detectDomStructurePatterns($, getScore);
+
+  // 3. クラス名パターン検出 + スコア加算
+  detectClassNamePatterns($, getScore);
+
+  // 4. CSS変数検出
+  const cssVariablesResult = detectCssVariables(html);
+
+  // 5. 結果決定・複合検出結果の構築
+  return buildFrameworkDetectionResult(scores, cssVariablesResult);
 }
 
 /**

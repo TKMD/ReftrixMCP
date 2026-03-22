@@ -18,6 +18,7 @@
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import { ZodError } from "zod";
+import { createDIFactory } from "../../utils/di-factory";
 import { logger, isDevelopment } from "../../utils/logger";
 import {
   analyzeFramesInputSchema,
@@ -115,38 +116,19 @@ export interface IFrameAnalysisService {
 // ============================================================================
 
 /**
- * サービスファクトリ型
- */
-type FrameAnalysisServiceFactory = () => IFrameAnalysisService;
-
-/**
  * デフォルトサービスファクトリ
  * 実際の画像処理を行うサービスを返す（将来実装）
  */
-let serviceFactory: FrameAnalysisServiceFactory | null = null;
-
-/**
- * サービスファクトリを設定
- * テスト時にモックサービスを注入するために使用
- */
-export function setFrameAnalysisServiceFactory(factory: FrameAnalysisServiceFactory): void {
-  serviceFactory = factory;
-}
-
-/**
- * サービスファクトリをリセット
- * テスト後にクリーンアップするために使用
- */
-export function resetFrameAnalysisServiceFactory(): void {
-  serviceFactory = null;
-}
+const serviceFactoryDI = createDIFactory<IFrameAnalysisService>("FrameAnalysisService");
+export const setFrameAnalysisServiceFactory = serviceFactoryDI.set;
+export const resetFrameAnalysisServiceFactory = serviceFactoryDI.reset;
 
 /**
  * サービスインスタンスを取得
  */
 function getFrameAnalysisService(): IFrameAnalysisService | null {
-  if (serviceFactory) {
-    return serviceFactory();
+  if (serviceFactoryDI.get()) {
+    return serviceFactoryDI.get()!();
   }
   // デフォルトサービスは未実装（将来的にPixelmatch+Sharpで実装）
   return null;

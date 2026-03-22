@@ -15,6 +15,7 @@
  */
 
 import { ZodError } from "zod";
+import { createDIFactory } from "../../utils/di-factory";
 import { logger, isDevelopment } from "../../utils/logger";
 import {
   responsiveSearchInputSchema,
@@ -73,39 +74,16 @@ export type ResponsiveSearchOutput =
 // サービスファクトリー（DI）
 // =====================================================
 
-let responsiveSearchServiceFactory: (() => IResponsiveSearchService) | null = null;
-
-export function setResponsiveSearchServiceFactory(factory: () => IResponsiveSearchService): void {
-  responsiveSearchServiceFactory = factory;
-}
-
-export function resetResponsiveSearchServiceFactory(): void {
-  responsiveSearchServiceFactory = null;
-}
+const responsiveSearchServiceDI =
+  createDIFactory<IResponsiveSearchService>("ResponsiveSearchService");
+export const setResponsiveSearchServiceFactory = responsiveSearchServiceDI.set;
+export const resetResponsiveSearchServiceFactory = responsiveSearchServiceDI.reset;
 
 export { IResponsiveSearchService };
 
-/**
- * PrismaClientファクトリー（嗜好リランキング用DI）
- * PrismaClient factory (DI for preference reranking)
- */
-let prismaClientFactory: (() => IPrismaClient) | null = null;
-
-/**
- * PrismaClientファクトリーを設定（嗜好リランキング用）
- * Set PrismaClient factory (for preference reranking)
- */
-export function setResponsiveSearchPrismaClientFactory(factory: () => IPrismaClient): void {
-  prismaClientFactory = factory;
-}
-
-/**
- * PrismaClientファクトリーをリセット（テスト用）
- * Reset PrismaClient factory (for testing)
- */
-export function resetResponsiveSearchPrismaClientFactory(): void {
-  prismaClientFactory = null;
-}
+const prismaClientDI = createDIFactory<IPrismaClient>("ResponsiveSearchPrismaClient");
+export const setResponsiveSearchPrismaClientFactory = prismaClientDI.set;
+export const resetResponsiveSearchPrismaClientFactory = prismaClientDI.reset;
 
 // =====================================================
 // エラーコード判定
@@ -172,7 +150,7 @@ export async function responsiveSearchHandler(input: unknown): Promise<Responsiv
   }
 
   // サービスファクトリーチェック
-  if (!responsiveSearchServiceFactory) {
+  if (!responsiveSearchServiceDI.get()) {
     if (isDevelopment()) {
       logger.error("[MCP Tool] responsive.search service factory not set");
     }
@@ -186,7 +164,7 @@ export async function responsiveSearchHandler(input: unknown): Promise<Responsiv
     };
   }
 
-  const service = responsiveSearchServiceFactory();
+  const service = responsiveSearchServiceDI.get()!();
 
   try {
     // E5 モデル用 query: プレフィックスを付与
@@ -285,7 +263,7 @@ export async function responsiveSearchHandler(input: unknown): Promise<Responsiv
     mappedResults = await applyPreferenceReranking(
       mappedResults,
       validated.profile_id,
-      prismaClientFactory,
+      prismaClientDI.get(),
       "responsive",
       "responsive.search"
     );

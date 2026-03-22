@@ -11,6 +11,7 @@
  */
 
 import { ZodError } from "zod";
+import { createDIFactory } from "../../utils/di-factory";
 import { logger, isDevelopment } from "../../utils/logger";
 import {
   formatZodError,
@@ -90,100 +91,28 @@ export type {
 // DI Factories
 // =====================================================
 
-let serviceFactory: (() => IQualityEvaluateService) | null = null;
-let benchmarkServiceFactory: (() => IBenchmarkService) | null = null;
-let patternMatcherServiceFactory: (() => IPatternMatcherService) | null = null;
+const serviceFactoryDI = createDIFactory<IQualityEvaluateService>("QualityEvaluateService");
+export const setQualityEvaluateServiceFactory = serviceFactoryDI.set;
+export const resetQualityEvaluateServiceFactory = serviceFactoryDI.reset;
 
-/**
- * IQualityEvaluateService ファクトリを設定
- *
- * @param factory - サービスファクトリ関数
- */
-export function setQualityEvaluateServiceFactory(factory: () => IQualityEvaluateService): void {
-  serviceFactory = factory;
-}
+const benchmarkServiceDI = createDIFactory<IBenchmarkService>("BenchmarkService");
+export const setBenchmarkServiceFactory = benchmarkServiceDI.set;
+export const resetBenchmarkServiceFactory = benchmarkServiceDI.reset;
+export const getBenchmarkServiceFactory = benchmarkServiceDI.get;
 
-/**
- * IQualityEvaluateService ファクトリをリセット（テスト用）
- */
-export function resetQualityEvaluateServiceFactory(): void {
-  serviceFactory = null;
-}
-
-/**
- * IBenchmarkService ファクトリを設定
- *
- * @param factory - ベンチマークサービスファクトリ関数
- */
-export function setBenchmarkServiceFactory(factory: () => IBenchmarkService): void {
-  benchmarkServiceFactory = factory;
-}
-
-/**
- * IBenchmarkService ファクトリをリセット（テスト用）
- */
-export function resetBenchmarkServiceFactory(): void {
-  benchmarkServiceFactory = null;
-}
-
-/**
- * 現在のBenchmarkServiceファクトリを取得（内部用）
- */
-export function getBenchmarkServiceFactory(): (() => IBenchmarkService) | null {
-  return benchmarkServiceFactory;
-}
-
-/**
- * IPatternMatcherService ファクトリを設定
- *
- * @param factory - パターンマッチャーサービスファクトリ関数
- */
-export function setPatternMatcherServiceFactory(factory: () => IPatternMatcherService): void {
-  patternMatcherServiceFactory = factory;
-}
-
-/**
- * IPatternMatcherService ファクトリをリセット（テスト用）
- */
-export function resetPatternMatcherServiceFactory(): void {
-  patternMatcherServiceFactory = null;
-}
-
-/**
- * 現在のPatternMatcherServiceファクトリを取得（内部用）
- */
-export function getPatternMatcherServiceFactory(): (() => IPatternMatcherService) | null {
-  return patternMatcherServiceFactory;
-}
+const patternMatcherServiceDI = createDIFactory<IPatternMatcherService>("PatternMatcherService");
+export const setPatternMatcherServiceFactory = patternMatcherServiceDI.set;
+export const resetPatternMatcherServiceFactory = patternMatcherServiceDI.reset;
+export const getPatternMatcherServiceFactory = patternMatcherServiceDI.get;
 
 // =====================================================
 // aXe Accessibility Service DI (JSDOM版)
 // =====================================================
 
-let axeServiceFactory: (() => AxeAccessibilityService) | null = null;
-
-/**
- * AxeAccessibilityService ファクトリを設定
- *
- * @param factory - サービスファクトリ関数
- */
-export function setAxeAccessibilityServiceFactory(factory: () => AxeAccessibilityService): void {
-  axeServiceFactory = factory;
-}
-
-/**
- * AxeAccessibilityService ファクトリをリセット（テスト用）
- */
-export function resetAxeAccessibilityServiceFactory(): void {
-  axeServiceFactory = null;
-}
-
-/**
- * 現在のAxeAccessibilityServiceファクトリを取得（内部用）
- */
-export function getAxeAccessibilityServiceFactory(): (() => AxeAccessibilityService) | null {
-  return axeServiceFactory;
-}
+const axeServiceDI = createDIFactory<AxeAccessibilityService>("AxeAccessibilityService");
+export const setAxeAccessibilityServiceFactory = axeServiceDI.set;
+export const resetAxeAccessibilityServiceFactory = axeServiceDI.reset;
+export const getAxeAccessibilityServiceFactory = axeServiceDI.get;
 
 // デフォルトaXeサービスインスタンス（ファクトリが未設定の場合）
 let defaultAxeService: AxeAccessibilityService | null = null;
@@ -192,8 +121,8 @@ let defaultAxeService: AxeAccessibilityService | null = null;
  * aXeサービスインスタンスを取得
  */
 function getAxeService(): AxeAccessibilityService {
-  if (axeServiceFactory) {
-    return axeServiceFactory();
+  if (axeServiceDI.get()) {
+    return axeServiceDI.get()!();
   }
   // デフォルトインスタンスを作成（シングルトン）
   if (!defaultAxeService) {
@@ -206,34 +135,17 @@ function getAxeService(): AxeAccessibilityService {
 // Playwright aXe Service DI (v0.1.0新規)
 // =====================================================
 
-let playwrightAxeServiceFactory: (() => PlaywrightAxeService) | null = null;
+const playwrightAxeServiceDI = createDIFactory<PlaywrightAxeService>("PlaywrightAxeService");
 let defaultPlaywrightAxeService: PlaywrightAxeService | null = null;
 let playwrightAvailabilityChecked = false;
 let playwrightIsAvailable = false;
 
-/**
- * PlaywrightAxeService ファクトリを設定
- *
- * @param factory - サービスファクトリ関数
- */
-export function setPlaywrightAxeServiceFactory(factory: () => PlaywrightAxeService): void {
-  playwrightAxeServiceFactory = factory;
-}
-
-/**
- * PlaywrightAxeService ファクトリをリセット（テスト用）
- */
+export const setPlaywrightAxeServiceFactory = playwrightAxeServiceDI.set;
 export function resetPlaywrightAxeServiceFactory(): void {
-  playwrightAxeServiceFactory = null;
+  playwrightAxeServiceDI.reset();
   defaultPlaywrightAxeService = null;
 }
-
-/**
- * 現在のPlaywrightAxeServiceファクトリを取得（内部用）
- */
-export function getPlaywrightAxeServiceFactory(): (() => PlaywrightAxeService) | null {
-  return playwrightAxeServiceFactory;
-}
+export const getPlaywrightAxeServiceFactory = playwrightAxeServiceDI.get;
 
 /**
  * Playwright aXeサービスインスタンスを取得
@@ -258,8 +170,8 @@ async function getPlaywrightAxeService(): Promise<PlaywrightAxeService | null> {
   }
 
   // ファクトリが設定されている場合はそれを使用
-  if (playwrightAxeServiceFactory) {
-    return playwrightAxeServiceFactory();
+  if (playwrightAxeServiceDI.get()) {
+    return playwrightAxeServiceDI.get()!();
   }
 
   // デフォルトインスタンスを作成（シングルトン）
@@ -334,7 +246,7 @@ export async function qualityEvaluateHandler(
   // pageIdが指定されている場合はDBから取得
   if (validated.pageId && !html) {
     try {
-      const service = serviceFactory?.();
+      const service = serviceFactoryDI.get()?.();
       if (!service?.getPageById) {
         return {
           success: false,
@@ -513,15 +425,19 @@ export async function qualityEvaluateHandler(
     };
 
     // パターン駆動評価が有効かつDIサービスが利用可能な場合
-    if (patternComparisonOptions.enabled && patternMatcherServiceFactory && serviceFactory) {
+    if (
+      patternComparisonOptions.enabled &&
+      patternMatcherServiceDI.get() &&
+      serviceFactoryDI.get()
+    ) {
       const patternResult = await executePatternDrivenEvaluation(
         html,
         baseScores,
         baseRecommendations,
         patternComparisonOptions,
         {
-          patternMatcher: patternMatcherServiceFactory(),
-          qualityService: serviceFactory(),
+          patternMatcher: patternMatcherServiceDI.get()!(),
+          qualityService: serviceFactoryDI.get()!(),
         }
       );
 
@@ -746,9 +662,9 @@ export async function qualityEvaluateHandler(
 
     // DB永続化処理（v0.1.0 MCP-QUALITY-02）
     // save_to_db: true かつ pageId が指定されている場合のみ保存
-    if (validated.save_to_db && validated.pageId && serviceFactory) {
+    if (validated.save_to_db && validated.pageId && serviceFactoryDI.get()) {
       try {
-        const service = serviceFactory();
+        const service = serviceFactoryDI.get()!();
         // PatternReferences を構築
         const patternRefs = {
           similarSections: patternAnalysis?.similarSections?.map((s) => s.id) ?? [],

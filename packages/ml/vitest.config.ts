@@ -14,7 +14,21 @@ export default defineConfig({
       provider: "v8",
       reporter: ["text", "json", "html", "lcov"],
       include: ["src/**/*.ts"],
-      exclude: ["src/**/*.d.ts", "src/**/index.ts", "src/**/*.test.ts", "node_modules/", "dist/"],
+      exclude: [
+        "src/**/*.d.ts",
+        "src/**/index.ts",
+        "src/**/*.test.ts",
+        "src/**/types.ts",
+        "src/**/*-types.ts",
+        "src/**/*.types.ts",
+        // Worker thread scripts are executed inside node:worker_threads
+        // and cannot be instrumented by v8 coverage in the test process.
+        // They are tested via mocked parentPort and integration tests
+        // through their respective service.ts files.
+        "src/**/worker-thread.ts",
+        "node_modules/",
+        "dist/",
+      ],
       thresholds: {
         statements: 80,
         branches: 70,

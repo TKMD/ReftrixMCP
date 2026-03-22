@@ -15,6 +15,7 @@
 import { ZodError } from "zod";
 import { v7 as uuidv7 } from "uuid";
 import { prisma } from "@reftrixmcp/database";
+import { createDIFactory } from "../../utils/di-factory";
 import { logger, isDevelopment } from "../../utils/logger";
 import { validateExternalUrl } from "../../utils/url-validator";
 import { normalizeUrlForStorage } from "../../utils/url-normalizer";
@@ -150,22 +151,9 @@ export interface ILayoutIngestService {
   generateEmbedding: (text: string) => Promise<number[]>;
 }
 
-/** サービスファクトリ関数 */
-let ingestServiceFactory: (() => ILayoutIngestService) | null = null;
-
-/**
- * サービスファクトリを設定（テスト用）
- */
-export function setLayoutIngestServiceFactory(factory: () => ILayoutIngestService): void {
-  ingestServiceFactory = factory;
-}
-
-/**
- * サービスファクトリをリセット（テスト用）
- */
-export function resetLayoutIngestServiceFactory(): void {
-  ingestServiceFactory = null;
-}
+const ingestServiceDI = createDIFactory<ILayoutIngestService>("LayoutIngestService");
+export const setLayoutIngestServiceFactory = ingestServiceDI.set;
+export const resetLayoutIngestServiceFactory = ingestServiceDI.reset;
 
 // =============================================
 // HTML最適化関数
@@ -940,7 +928,7 @@ export async function layoutIngestHandler(input: unknown): Promise<LayoutIngestO
     let externalCssFetchResult: ExternalCssFetchResult | undefined;
 
     if (autoAnalyze && saveToDb && persistedId && sanitizedHtml) {
-      const service = ingestServiceFactory?.();
+      const service = ingestServiceDI.get()?.();
       if (service) {
         try {
           if (isDevelopment()) {

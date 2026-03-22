@@ -38,6 +38,18 @@ import { type Browser } from "playwright";
 import { execSync } from "child_process";
 import { logger, isDevelopment } from "../utils/logger";
 
+/**
+ * Playwright Browser の内部API（_browserType._launchedProcess）にアクセスするための型拡張。
+ * 公開型定義には含まれないが、実行時に存在する。
+ */
+interface BrowserInternals {
+  _browserType?: {
+    _launchedProcess?: {
+      pid: number;
+    };
+  };
+}
+
 // =============================================
 // 型定義
 // =============================================
@@ -110,9 +122,8 @@ export class BrowserProcessManager {
   private getBrowserPid(): number | null {
     try {
       // Playwrightの内部APIを使用
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const browserAny = this.browser as any;
-      const launchedProcess = browserAny._browserType?._launchedProcess;
+      const browserInternals = this.browser as unknown as BrowserInternals;
+      const launchedProcess = browserInternals._browserType?._launchedProcess;
       return launchedProcess?.pid ?? null;
     } catch {
       return null;
