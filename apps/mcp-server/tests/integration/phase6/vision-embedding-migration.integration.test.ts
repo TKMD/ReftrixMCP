@@ -17,7 +17,7 @@
  * - Vector dimensions: 768 (multilingual-e5-base compatible)
  * - HNSW parameters: m=16, ef_construction=64, vector_cosine_ops
  *
- * @see 
+ * @see
  */
 
 import { describe, it, expect, beforeAll, afterAll } from "vitest";

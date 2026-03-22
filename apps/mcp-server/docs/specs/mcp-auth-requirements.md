@@ -269,4 +269,3 @@ MCP_PUBLIC_TOOLS=system.health
 - SECURITY.md - セキュリティ要件 / Security requirements
 
 ---
-

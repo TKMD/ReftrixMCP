@@ -82,4 +82,3 @@ pnpm lint && pnpm typecheck && pnpm test
 - [ ] TypeScriptエラー: 0件 / TypeScript errors: 0
 - [ ] テストカバレッジ: 80%以上 / Test coverage: 80% or higher
 - [ ] 差分が800行以下（または分割済み） / Diff under 800 lines (or already split)
-
