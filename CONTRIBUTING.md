@@ -146,15 +146,16 @@ ReftrixMCPはデュアルライセンスモデルであるAGPL-3.0-only + 商用
    pnpm dev
    ```
 
+
 ### ポート設定
 
 ReftrixMCPは他のプロジェクトとの干渉を避けるため、**21000オフセット**を使用しています:
 
-| サービス      | ポート |
-| ------------- | ------ |
-| PostgreSQL    | 26432  |
-| Prisma Studio | 26555  |
-| Redis         | 27379  |
+| サービス         | ポート |
+| ---------------- | ------ |
+| PostgreSQL       | 26432  |
+| Prisma Studio    | 26555  |
+| Redis            | 27379  |
 
 ---
 
@@ -750,15 +751,16 @@ Ensure you have the following tools installed:
    pnpm dev
    ```
 
+
 ### Port Configuration
 
 ReftrixMCP uses a **21000 offset** to avoid conflicts:
 
-| Service       | Port  |
-| ------------- | ----- |
-| PostgreSQL    | 26432 |
-| Prisma Studio | 26555 |
-| Redis         | 27379 |
+| Service          | Port  |
+| ---------------- | ----- |
+| PostgreSQL       | 26432 |
+| Prisma Studio    | 26555 |
+| Redis            | 27379 |
 
 ---
 

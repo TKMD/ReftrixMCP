@@ -122,10 +122,10 @@ export default defineConfig({
 3. ✅ HTMLサニタイゼーション・SSRF対策 / HTML sanitization and SSRF protection
 4. ✅ エラーハンドリング（無効入力、タイムアウト） / Error handling (invalid input, timeout)
 
-5. ✅ ページ表示・ナビゲーション / Page rendering and navigation
-6. ✅ アクセシビリティ検証（WCAG 2.1 AA） / Accessibility verification (WCAG 2.1 AA)
-7. ✅ レスポンシブデザイン確認 / Responsive design verification
-8. ✅ エラーページ表示 / Error page display
+1. ✅ ページ表示・ナビゲーション / Page rendering and navigation
+2. ✅ アクセシビリティ検証（WCAG 2.1 AA） / Accessibility verification (WCAG 2.1 AA)
+3. ✅ レスポンシブデザイン確認 / Responsive design verification
+4. ✅ エラーページ表示 / Error page display
 
 ### ❌ FAIL基準 / FAIL Criteria
 

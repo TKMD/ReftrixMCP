@@ -221,10 +221,10 @@ Push only after user approval.
 
 ### 2つのCHANGELOG / Two CHANGELOGs
 
-| ファイル / File          | 用途 / Purpose                                                                                                                                                                    | OSS同期 / OSS Sync      |
-| ------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------- |
-| `CHANGELOG.md`（ルート） | **OSS公開用** — OSSリポジトリに同期される変更のみ記載 / **OSS-facing** — only changes synced to OSS repo                                                                          | ✅ 同期対象             |
-| `                        | **内部完全版** — プロジェクト全変更を記載（エージェント・スキル・内部ドキュメント含む） / **Internal full version** — all project changes including agents, skills, internal docs | ❌ 除外（`.ossfilter`） |
+| ファイル / File              | 用途 / Purpose                                                                                                                                                                    | OSS同期 / OSS Sync      |
+| ---------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------- |
+| `CHANGELOG.md`（ルート）     | **OSS公開用** — OSSリポジトリに同期される変更のみ記載 / **OSS-facing** — only changes synced to OSS repo                                                                          | ✅ 同期対象             |
+| ` | **内部完全版** — プロジェクト全変更を記載（エージェント・スキル・内部ドキュメント含む） / **Internal full version** — all project changes including agents, skills, internal docs | ❌ 除外（`.ossfilter`） |
 
 ### ルート CHANGELOG.md に記載しない内容 / Do NOT include in root CHANGELOG.md
 
@@ -248,6 +248,48 @@ The following are excluded from OSS sync via `.ossfilter` and should NOT appear 
 - ✅ 依存関係更新 / Dependency updates
 - ✅ パフォーマンス改善 / Performance improvements
 - ✅ コードスタイル変更（Prettier等） / Code style changes
+
+---
+
+## OSSリポジトリ運用ルール（最重要） / OSS Repository Operation Rules (Critical)
+
+### 直接編集禁止 / Direct Edit Prohibited
+
+OSSリポジトリ（`TKMD/ReftrixMCP`）への直接コミットは**禁止**。すべての変更はプライベートリポ（`TKMD/Reftrix`）で行い、`sync-oss.sh` 経由で同期する。
+
+Direct commits to the OSS repository (`TKMD/ReftrixMCP`) are **prohibited**. All changes must be made in the private repository (`TKMD/Reftrix`) and synced via `sync-oss.sh`.
+
+| 操作 / Operation              | 許可 / Allowed       | 理由 / Reason                                                 |
+| ----------------------------- | -------------------- | ------------------------------------------------------------- |
+| プライベートリポで変更 → sync | ✅                   | 同期元が常に正 / Source of truth is always correct            |
+| OSSリポに直接コミット         | ❌ 禁止 / Prohibited | 次回sync時に上書きされる / Overwritten on next sync           |
+| `.oss-sync/ReftrixMCP` で編集 | ❌ 禁止 / Prohibited | ローカルクローンも同期で上書き / Local clone also overwritten |
+
+### OSS同期フロー / OSS Sync Flow
+
+```
+プライベートリポで修正 → pnpm lint/typecheck → コミット → sync-oss.sh
+                                                           ↓
+                                              prepare-oss.sh (Phase 0-3)
+                                                  ↓ sed変換・SPDX追加
+                                              Prettier format (Step 3.5)
+                                                  ↓
+                                              rsync → .oss-sync/ReftrixMCP
+                                                  ↓ Prettier再整形
+                                              Verification (Phase 4)
+                                                  ↓ 全チェックPASS
+                                              commit & push → TKMD/ReftrixMCP
+```
+
+### CI修正が必要な場合 / When CI Fix is Needed
+
+OSSリポのCIが失敗した場合も、**プライベートリポ側で修正** → `sync-oss.sh` で再同期する。
+
+When OSS repo CI fails, fix in the **private repo** → re-sync via `sync-oss.sh`.
+
+1. `gh run view <id> --repo TKMD/ReftrixMCP --log-failed` でエラー特定
+2. プライベートリポのソースまたは `prepare-oss.sh` を修正
+3. `bash scripts/sync-oss.sh` で再同期（Prettierフォーマット自動適用）
 
 ---
 

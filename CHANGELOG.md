@@ -215,8 +215,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Updated `docs/users-guide/02-mcp-tools-guide.md` with Preference tools section (Chapter 14) / `docs/users-guide/02-mcp-tools-guide.md`にPreferenceツールセクション（第14章）を追加
 - Updated `docs/legal/PRIVACY_POLICY.md` v0.1.0 → v0.1.1 (profiling contradiction fix, Art. 22 explanation) / `docs/legal/PRIVACY_POLICY.md` v0.1.0 → v0.1.1（プロファイリング矛盾修正、Art. 22説明追加）
 - Updated `docs/legal/TERMS_OF_SERVICE.md` with preference profiling in feature list / `docs/legal/TERMS_OF_SERVICE.md`の機能リストにpreference profilingを追加
-- Updated `(api-endpoints, database-schema, mcp-tools-reference) /` database-schema, mcp-tools-reference）
-- Updated `with truncateId and NaN/Infinity defense patterns /`
+- Updated ` (api-endpoints, database-schema, mcp-tools-reference) / ` database-schema, mcp-tools-reference）
+- Updated ` with truncateId and NaN/Infinity defense patterns / `
 
 ## [0.1.2] - 2026-03-05
 
@@ -263,7 +263,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Updated `current-architecture.md` Database Backup & Restore section (bilingual, env_file two-stage loading, auth pre-flight check) / `current-architecture.md`のDatabase Backup & Restoreセクション更新（日英バイリンガル、env_file 2段階読み込み、認証事前チェック）
 - Added troubleshooting section 2.6: Backup/Restore Authentication Failure / トラブルシューティングセクション2.6追加: バックアップ/リストア認証失敗
 - Updated FAQ Q8 to use `pnpm db:backup` / FAQ Q8を`pnpm db:backup`に更新
-- Updated `with Ollama Vision Unload + Apple Metal Support info /` Vision Unload＋Apple Metal Support情報を追加
+- Updated ` with Ollama Vision Unload + Apple Metal Support info / ` Vision Unload＋Apple Metal Support情報を追加
 
 ## [0.1.1] - 2026-03-03
 
