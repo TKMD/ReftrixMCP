@@ -286,10 +286,10 @@ Deletion follows the same CASCADE pattern as Part-Level Analysis — automatical
 
 ## 9. 関連ドキュメント / Related Documents
 
-| ドキュメント / Document                                   | 内容 / Description                                                                                                                                           |
-| --------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `DATA_RETENTION.md`（同ディレクトリ） / (same directory)  | データ保持ポリシー、削除方法の詳細、セキュリティ措置 / Data retention policy, deletion method details, security measures                                     |
-| ` | 嗜好プロファイリング監査是正ガイド（SEC/TDA/LCC 18項目のトリアージ結果） / Preference profiling audit remediation guide (SEC/TDA/LCC 18-item triage results) |
+| ドキュメント / Document                                  | 内容 / Description                                                                                                                                           |
+| -------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `DATA_RETENTION.md`（同ディレクトリ） / (same directory) | データ保持ポリシー、削除方法の詳細、セキュリティ措置 / Data retention policy, deletion method details, security measures                                     |
+| `                                                        | 嗜好プロファイリング監査是正ガイド（SEC/TDA/LCC 18項目のトリアージ結果） / Preference profiling audit remediation guide (SEC/TDA/LCC 18-item triage results) |
 
 ---
 

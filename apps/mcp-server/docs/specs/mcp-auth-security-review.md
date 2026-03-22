@@ -10,12 +10,12 @@
 
 ### 1.1 現状評価 / Current Assessment
 
-| 項目 / Item                    | 評価 / Rating                         | 説明 / Description                                                                                             |
-| ------------------------------ | ------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
-| **認証機構 / Authentication**  | 実装済み / Implemented | APIキー認証（`MCP_AUTH_ENABLED=true` で有効化） / API key authentication (enable with `MCP_AUTH_ENABLED=true`) |
-| **認可機構 / Authorization**   | 部分実装 / Partially Implemented      | RBAC 3ロール: VIEWER/USER/ADMIN / RBAC with 3 roles: VIEWER/USER/ADMIN                                         |
-| **監査ログ / Audit Logs**      | 部分的 / Partial                      | ツール呼び出しログのみ / Tool call logs only                                                                   |
-| **レート制限 / Rate Limiting** | 未実装 / Not implemented              | DoS攻撃に対する防御なし / No defense against DoS attacks                                                       |
+| 項目 / Item                    | 評価 / Rating                    | 説明 / Description                                                                                             |
+| ------------------------------ | -------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| **認証機構 / Authentication**  | 実装済み / Implemented           | APIキー認証（`MCP_AUTH_ENABLED=true` で有効化） / API key authentication (enable with `MCP_AUTH_ENABLED=true`) |
+| **認可機構 / Authorization**   | 部分実装 / Partially Implemented | RBAC 3ロール: VIEWER/USER/ADMIN / RBAC with 3 roles: VIEWER/USER/ADMIN                                         |
+| **監査ログ / Audit Logs**      | 部分的 / Partial                 | ツール呼び出しログのみ / Tool call logs only                                                                   |
+| **レート制限 / Rate Limiting** | 未実装 / Not implemented         | DoS攻撃に対する防御なし / No defense against DoS attacks                                                       |
 
 ### 1.2 リスクサマリー / Risk Summary
 
