@@ -1,6 +1,6 @@
 # はじめに - Reftrixセットアップガイド / Getting Started - Reftrix Setup Guide
 
-**Version**: 0.2.0
+**Version**: 0.2.1
 **Updated**: 2026-03-25
 
 ---

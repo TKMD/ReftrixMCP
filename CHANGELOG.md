@@ -12,6 +12,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-03-27
+
+### Fixed / 修正
+
+- **npm パッケージに `dist/` ビルド成果物を含める**: v0.2.0 は `src/` のみで `dist/index.js` が欠落していたため、Glama 等のランタイム実行環境で `MODULE_NOT_FOUND` エラーが発生していた / **Include `dist/` build artifacts in npm package**: v0.2.0 only contained `src/`, missing `dist/index.js`, causing `MODULE_NOT_FOUND` errors in runtime environments like Glama
+
 ## [0.2.0] - 2026-03-25
 
 ### Added / 追加

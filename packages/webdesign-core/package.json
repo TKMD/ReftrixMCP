@@ -1,6 +1,6 @@
 {
   "name": "@reftrixmcp/webdesign-core",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "private": true,
   "license": "AGPL-3.0-only",
   "description": "Web design analysis core library for Reftrix",

@@ -1,7 +1,7 @@
 # Reftrix MCPツール完全ガイド / Reftrix MCP Tools Complete Guide
 
 **Last Updated**: 2026-03-25
-**Version**: 0.2.0
+**Version**: 0.2.1
 **対象読者 / Target Audience**: Reftrixプラットフォームのエンドユーザー、デザイナー、開発者 / End users, designers, and developers of the Reftrix platform
 
 ---
@@ -2063,7 +2063,7 @@ This guide explained how to use Reftrix's 23 WebDesign MCP tools for web page an
 ---
 
 **Last Updated**: 2026-03-25
-**Version**: 0.2.0
+**Version**: 0.2.1
 
 ---
 
