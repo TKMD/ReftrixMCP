@@ -550,9 +550,7 @@ export class PatternMatcherService implements IPatternMatcherService {
     try {
       prisma = this.getPrismaClient();
     } catch {
-      if (isDevelopment()) {
-        logger.warn("[PatternMatcher] PrismaClient not available, returning empty results");
-      }
+      logger.warn("[PatternMatcher] PrismaClient not available, returning empty results");
       return [];
     }
 
@@ -658,11 +656,9 @@ export class PatternMatcherService implements IPatternMatcherService {
 
       return matches;
     } catch (error) {
-      if (isDevelopment()) {
-        logger.error("[PatternMatcher] Section pattern search failed", {
-          error: error instanceof Error ? error.message : "Unknown error",
-        });
-      }
+      logger.warn("[PatternMatcher] Section pattern search failed", {
+        error: error instanceof Error ? error.message : "Unknown error",
+      });
       throw error;
     }
   }
@@ -698,9 +694,7 @@ export class PatternMatcherService implements IPatternMatcherService {
     try {
       prisma = this.getPrismaClient();
     } catch {
-      if (isDevelopment()) {
-        logger.warn("[PatternMatcher] PrismaClient not available, returning empty results");
-      }
+      logger.warn("[PatternMatcher] PrismaClient not available, returning empty results");
       return [];
     }
 
@@ -797,11 +791,9 @@ export class PatternMatcherService implements IPatternMatcherService {
 
       return matches;
     } catch (error) {
-      if (isDevelopment()) {
-        logger.error("[PatternMatcher] Motion pattern search failed", {
-          error: error instanceof Error ? error.message : "Unknown error",
-        });
-      }
+      logger.warn("[PatternMatcher] Motion pattern search failed", {
+        error: error instanceof Error ? error.message : "Unknown error",
+      });
       throw error;
     }
   }
@@ -856,11 +848,9 @@ export class PatternMatcherService implements IPatternMatcherService {
       return uniquenessScore;
     } catch (error) {
       // If search fails, return moderate uniqueness
-      if (isDevelopment()) {
-        logger.warn("[PatternMatcher] Uniqueness calculation failed, returning default", {
-          error: error instanceof Error ? error.message : "Unknown error",
-        });
-      }
+      logger.warn("[PatternMatcher] Uniqueness calculation failed, returning default", {
+        error: error instanceof Error ? error.message : "Unknown error",
+      });
       return 0.5;
     }
   }

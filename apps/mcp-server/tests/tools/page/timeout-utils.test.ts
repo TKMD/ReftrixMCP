@@ -152,7 +152,7 @@ describe("withTimeoutGraceful", () => {
     expect(result).toBeNull();
     expect(warnings).toHaveLength(1);
     expect(warnings[0]?.code).toBe("QUALITY_EVALUATION_FAILED");
-    expect(warnings[0]?.message).toContain("DB connection failed");
+    expect(warnings[0]?.message).toContain("An internal error occurred");
     expect(warnings[0]?.message).toContain("graceful degradation");
   });
 

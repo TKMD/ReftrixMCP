@@ -14,6 +14,7 @@
  */
 
 import { logger, isDevelopment } from "../../utils/logger";
+import { sanitizeErrorMessage } from "../../utils/sanitize-error";
 import {
   getCSSAnalysisCacheService,
   type MotionAnalysisResult,
@@ -173,13 +174,13 @@ export async function fetchExternalCss(
       warnings,
     };
   } catch (error) {
-    if (isDevelopment()) {
-      logger.error("[motion.detect] External CSS processing error", { error });
-    }
+    logger.warn("[motion.detect] External CSS processing error", {
+      error: (error as Error).message,
+    });
     warnings.push({
       code: MOTION_WARNING_CODES.EXTERNAL_CSS_FETCH_FAILED,
       severity: "warning",
-      message: error instanceof Error ? error.message : "External CSS processing failed",
+      message: sanitizeErrorMessage(error),
     });
 
     return {
@@ -506,9 +507,7 @@ export async function savePatternsToDb(
       return { saveResult, debugInfo };
     } catch (saveError) {
       const errorMessage = saveError instanceof Error ? saveError.message : "Unknown error";
-      if (isDevelopment()) {
-        logger.error("[motion.detect] DB save error", { error: errorMessage });
-      }
+      logger.warn("[motion.detect] DB save error", { error: errorMessage });
       debugInfo.error = errorMessage;
 
       return {
@@ -653,11 +652,9 @@ export async function handleCssMode(
         }
       } catch (cacheError) {
         // キャッシュエラーは無視して検出を続行
-        if (isDevelopment()) {
-          logger.warn("[motion.detect] cache error, proceeding with detection", {
-            error: cacheError,
-          });
-        }
+        logger.warn("[motion.detect] cache error, proceeding with detection", {
+          error: (cacheError as Error).message,
+        });
       }
     }
 
@@ -708,14 +705,12 @@ export async function handleCssMode(
       try {
         result = await service.detect(html, combinedCss || undefined, options);
       } catch (error) {
-        if (isDevelopment()) {
-          logger.error("[motion.detect] service error", { error });
-        }
+        logger.warn("[motion.detect] service error", { error: (error as Error).message });
         return {
           success: false,
           error: {
             code: MOTION_MCP_ERROR_CODES.DETECTION_ERROR,
-            message: error instanceof Error ? error.message : "Detection failed",
+            message: sanitizeErrorMessage(error),
           },
         };
       }
@@ -887,9 +882,7 @@ export async function handleCssMode(
         }
       } catch (cacheError) {
         // キャッシュ保存エラーは無視
-        if (isDevelopment()) {
-          logger.warn("[motion.detect] cache save error", { error: cacheError });
-        }
+        logger.warn("[motion.detect] cache save error", { error: (cacheError as Error).message });
       }
     }
 
@@ -925,14 +918,12 @@ export async function handleCssMode(
       },
     };
   } catch (error) {
-    if (isDevelopment()) {
-      logger.error("[motion.detect] error", { error });
-    }
+    logger.warn("[motion.detect] error", { error: (error as Error).message });
     return {
       success: false,
       error: {
         code: MOTION_MCP_ERROR_CODES.INTERNAL_ERROR,
-        message: error instanceof Error ? error.message : "Detection failed",
+        message: sanitizeErrorMessage(error),
       },
     };
   }

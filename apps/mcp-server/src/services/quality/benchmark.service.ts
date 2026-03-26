@@ -255,11 +255,7 @@ export class BenchmarkService implements IBenchmarkService {
         error instanceof Error &&
         error.message.includes('relation "quality_benchmarks" does not exist')
       ) {
-        if (isDevelopment()) {
-          logger.warn(
-            "[BenchmarkService] quality_benchmarks table not found, returning empty array"
-          );
-        }
+        logger.warn("[BenchmarkService] quality_benchmarks table not found, returning empty array");
         return [];
       }
       throw error;
@@ -332,11 +328,7 @@ export class BenchmarkService implements IBenchmarkService {
         error instanceof Error &&
         error.message.includes('relation "quality_benchmarks" does not exist')
       ) {
-        if (isDevelopment()) {
-          logger.warn(
-            "[BenchmarkService] quality_benchmarks table not found, returning empty array"
-          );
-        }
+        logger.warn("[BenchmarkService] quality_benchmarks table not found, returning empty array");
         return [];
       }
       throw error;
@@ -410,9 +402,7 @@ export class BenchmarkService implements IBenchmarkService {
         error instanceof Error &&
         error.message.includes('relation "mv_industry_quality_averages" does not exist')
       ) {
-        if (isDevelopment()) {
-          logger.warn("[BenchmarkService] mv_industry_quality_averages view not found");
-        }
+        logger.warn("[BenchmarkService] mv_industry_quality_averages view not found");
         return null;
       }
       throw error;
@@ -464,9 +454,7 @@ export class BenchmarkService implements IBenchmarkService {
         error instanceof Error &&
         error.message.includes('relation "quality_evaluations" does not exist')
       ) {
-        if (isDevelopment()) {
-          logger.warn("[BenchmarkService] quality_evaluations table not found, returning 50");
-        }
+        logger.warn("[BenchmarkService] quality_evaluations table not found, returning 50");
         return 50;
       }
       throw error;

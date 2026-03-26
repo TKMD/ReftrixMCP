@@ -18,6 +18,7 @@
 
 import { createDIFactory } from "../../utils/di-factory";
 import { logger, isDevelopment } from "../../utils/logger";
+import { sanitizeErrorMessage } from "../../utils/sanitize-error";
 
 import {
   briefValidateInputSchema,
@@ -83,14 +84,12 @@ export async function briefValidateHandler(input: unknown): Promise<BriefValidat
   try {
     validated = briefValidateInputSchema.parse(input);
   } catch (error) {
-    if (isDevelopment()) {
-      logger.error("[MCP Tool] brief.validate validation error", { error });
-    }
+    logger.warn("[MCP Tool] brief.validate validation error", { error: (error as Error).message });
     return {
       success: false,
       error: {
         code: BRIEF_MCP_ERROR_CODES.VALIDATION_ERROR,
-        message: error instanceof Error ? error.message : "Invalid input",
+        message: sanitizeErrorMessage(error),
       },
     };
   }
@@ -117,14 +116,12 @@ export async function briefValidateHandler(input: unknown): Promise<BriefValidat
       data: result,
     };
   } catch (error) {
-    if (isDevelopment()) {
-      logger.error("[MCP Tool] brief.validate error", { error });
-    }
+    logger.warn("[MCP Tool] brief.validate error", { error: (error as Error).message });
     return {
       success: false,
       error: {
         code: BRIEF_MCP_ERROR_CODES.INTERNAL_ERROR,
-        message: error instanceof Error ? error.message : "Validation failed",
+        message: sanitizeErrorMessage(error),
       },
     };
   }

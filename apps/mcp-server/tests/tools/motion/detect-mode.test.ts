@@ -559,11 +559,8 @@ describe("detection_mode エラーハンドリング", () => {
     expect(result.success).toBe(false);
     if (!result.success) {
       expect(result.error.code).toBeDefined();
-      // エラーメッセージにexecutionまたはBrowserが含まれる
-      expect(
-        result.error.message.toLowerCase().includes("execution") ||
-          result.error.message.toLowerCase().includes("browser")
-      ).toBe(true);
+      // sanitizeErrorMessage により汎用メッセージに変換される
+      expect(result.error.message).toBe("An internal error occurred");
     }
   });
 

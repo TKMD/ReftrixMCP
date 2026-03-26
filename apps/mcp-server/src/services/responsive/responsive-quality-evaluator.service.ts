@@ -92,12 +92,10 @@ export class ResponsiveQualityEvaluatorService {
         viewportResults.push(result);
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error);
-        if (isDevelopment()) {
-          logger.error("[ResponsiveQualityEvaluator] Evaluation failed for viewport", {
-            viewport: viewport.name,
-            error: errorMessage,
-          });
-        }
+        logger.warn("[ResponsiveQualityEvaluator] Evaluation failed for viewport", {
+          viewport: viewport.name,
+          error: errorMessage,
+        });
         // エラー時はデフォルト値で埋める
         viewportResults.push(this.createDefaultResult(viewport));
       }

@@ -348,9 +348,7 @@ export class WorkerSupervisor {
         }
       } catch {
         // IPC送信失敗は致命的でない（SIGTERMにフォールバック）
-        if (isDevelopment()) {
-          logger.debug("[WorkerSupervisor] IPC shutdown message failed (non-fatal)");
-        }
+        logger.warn("[WorkerSupervisor] IPC shutdown message failed (non-fatal)");
       }
 
       // Phase 2: 2秒後にSIGTERMを送信（BullMQ close()に時間を与える）
@@ -578,9 +576,7 @@ export class WorkerSupervisor {
       }
     } catch {
       // IPC送信失敗は致命的でない（SIGTERMにフォールバック）
-      if (isDevelopment()) {
-        logger.debug("[WorkerSupervisor] IPC shutdown message failed during restart (non-fatal)");
-      }
+      logger.warn("[WorkerSupervisor] IPC shutdown message failed during restart (non-fatal)");
     }
 
     // Phase 2: 猶予後にSIGTERMを送信（BullMQ close()に時間を与える）

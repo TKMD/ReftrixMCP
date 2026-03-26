@@ -18,6 +18,7 @@ Reftrixプロジェクトのセキュリティを真剣に受け止めていま�
 
 | バージョン | サポート状況      |
 | ---------- | ----------------- |
+| 0.2.x      | ✅ サポート中     |
 | 0.1.x      | ✅ サポート中     |
 | < 0.1.0    | ❌ サポート対象外 |
 
@@ -121,7 +122,7 @@ Reftrixプロジェクトでは、以下のセキュリティ対策を実施し�
 - **HTMLサニタイズ**: DOMPurify v3.3によるXSS対策
 - **認証**: APIキー認証（実装済み、`MCP_AUTH_ENABLED=true` で有効化）
 - **CSP**: Content Security Policyの適用（将来的な実装目標、現在未実装）
-- **レート制限**: API Rate Limiting（将来的な実装目標、現在はエラーコード定義のみ）
+- **レート制限**: Token BucketアルゴリズムによるAPI Rate Limiting（v0.2.0実装済み。3ティア: analysis 10RPM / search 120RPM / default 60RPM。Redis Luaアトミック制御 + インメモリフォールバック。`RATE_LIMIT_ENABLED=false` で無効化可能）
 
 > **Warning**: ネットワーク経由でMCPサーバーを公開する場合は必ず `MCP_AUTH_ENABLED=true` と `MCP_API_KEYS` を設定してください。
 
@@ -242,7 +243,7 @@ Reftrixでは、Webページクロール時に取得したHTMLをDOMPurify v3.3.
 
 ---
 
-**最終更新日**: 2026-03-01
+**最終更新日**: 2026-03-25
 
 ---
 
@@ -260,6 +261,7 @@ The following versions are currently receiving security updates:
 
 | Version | Support Status   |
 | ------- | ---------------- |
+| 0.2.x   | ✅ Supported     |
 | 0.1.x   | ✅ Supported     |
 | < 0.1.0 | ❌ Not Supported |
 
@@ -364,7 +366,7 @@ ReftrixMCP implements the following security measures:
 - **HTML sanitization**: XSS protection with DOMPurify v3.3
 - **Authentication**: API key authentication (Implemented, enable with `MCP_AUTH_ENABLED=true`)
 - **CSP**: Content Security Policy (planned, not yet implemented)
-- **Rate limiting**: API rate limiting (planned, only error code defined currently)
+- **Rate limiting**: Token Bucket API rate limiting (implemented in v0.2.0. 3 tiers: analysis 10RPM / search 120RPM / default 60RPM. Atomic Redis Lua scripts + in-memory fallback. Disable with `RATE_LIMIT_ENABLED=false`)
 
 > **Warning**: When exposing the MCP server over a network, you MUST set `MCP_AUTH_ENABLED=true` and configure `MCP_API_KEYS`.
 
@@ -485,4 +487,4 @@ For security questions or concerns:
 
 ---
 
-**Last Updated**: 2026-03-01
+**Last Updated**: 2026-03-25

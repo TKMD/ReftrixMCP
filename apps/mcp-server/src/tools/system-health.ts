@@ -14,6 +14,7 @@
  */
 
 import { logger, isDevelopment } from "../utils/logger";
+import { sanitizeErrorMessage } from "../utils/sanitize-error";
 import { getToolMetricsStats } from "../router";
 import type { MetricsStats } from "../services/metrics-collector";
 import { getEmbeddingCacheStats } from "../services/layout-embedding.service";
@@ -453,12 +454,10 @@ export async function systemHealthHandler(input?: unknown): Promise<SystemHealth
           };
         }
       } catch (cacheError) {
-        if (isDevelopment()) {
-          logger.warn("[MCP Tool] Failed to get embedding cache stats", {
-            error: cacheError instanceof Error ? cacheError.message : "Unknown error",
-            requestId,
-          });
-        }
+        logger.warn("[MCP Tool] Failed to get embedding cache stats", {
+          error: cacheError instanceof Error ? cacheError.message : "Unknown error",
+          requestId,
+        });
       }
     }
 
@@ -489,15 +488,13 @@ export async function systemHealthHandler(input?: unknown): Promise<SystemHealth
           disk_usage_bytes: cssStats.diskUsageBytes,
         };
       } catch (cssAnalysisCacheError) {
-        if (isDevelopment()) {
-          logger.warn("[MCP Tool] Failed to get CSS analysis cache stats", {
-            error:
-              cssAnalysisCacheError instanceof Error
-                ? cssAnalysisCacheError.message
-                : "Unknown error",
-            requestId,
-          });
-        }
+        logger.warn("[MCP Tool] Failed to get CSS analysis cache stats", {
+          error:
+            cssAnalysisCacheError instanceof Error
+              ? cssAnalysisCacheError.message
+              : "Unknown error",
+          requestId,
+        });
       }
     }
 
@@ -604,13 +601,11 @@ export async function systemHealthHandler(input?: unknown): Promise<SystemHealth
           });
         }
       } catch (visionHardwareError) {
-        if (isDevelopment()) {
-          logger.warn("[MCP Tool] Failed to get vision hardware status", {
-            error:
-              visionHardwareError instanceof Error ? visionHardwareError.message : "Unknown error",
-            requestId,
-          });
-        }
+        logger.warn("[MCP Tool] Failed to get vision hardware status", {
+          error:
+            visionHardwareError instanceof Error ? visionHardwareError.message : "Unknown error",
+          requestId,
+        });
         // エラー時は環境変数のみを報告
         healthData.vision_hardware = {
           force_cpu_mode: process.env["VISION_FORCE_CPU_MODE"]?.toLowerCase() === "true",
@@ -618,8 +613,7 @@ export async function systemHealthHandler(input?: unknown): Promise<SystemHealth
           detected_type: "CPU", // 安全側
           vram_bytes: 0,
           is_gpu_available: false,
-          detection_error:
-            visionHardwareError instanceof Error ? visionHardwareError.message : "Unknown error",
+          detection_error: sanitizeErrorMessage(visionHardwareError),
           ollama_url: "http://localhost:11434",
         };
       }
@@ -648,19 +642,16 @@ export async function systemHealthHandler(input?: unknown): Promise<SystemHealth
   } catch (error) {
     const processingTime = Date.now() - startTime;
 
-    if (isDevelopment()) {
-      logger.error("[MCP Tool] system.health error", {
-        error: error instanceof Error ? error.message : "Unknown error",
-        stack: error instanceof Error ? error.stack : undefined,
-        requestId,
-      });
-    }
+    logger.error("[MCP Tool] system.health error", {
+      error: error instanceof Error ? error.message : "Unknown error",
+      requestId,
+    });
 
     return createErrorResponseWithRequestId(
       "HEALTH_CHECK_ERROR",
-      `ヘルスチェック中にエラーが発生しました: ${error instanceof Error ? error.message : "Unknown error"}`,
+      sanitizeErrorMessage(error),
       requestId,
-      error instanceof Error ? { stack: error.stack } : undefined,
+      undefined,
       { processing_time_ms: processingTime }
     );
   }

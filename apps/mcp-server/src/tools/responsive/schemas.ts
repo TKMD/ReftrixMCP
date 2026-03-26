@@ -9,6 +9,7 @@
  */
 
 import { z } from "zod";
+import { commonSearchFiltersSchema } from "../../schemas/common-search-filters";
 
 // ============================================================================
 // Enum Schemas
@@ -74,9 +75,8 @@ export const responsiveSearchFiltersSchema = z
       .optional(),
     /** 最小スクリーンショット差分パーセンテージ */
     minDiffPercentage: z.number().min(0).max(100).optional(),
-    /** WebページIDフィルタ */
-    webPageId: z.string().uuid().optional(),
   })
+  .merge(commonSearchFiltersSchema)
   .optional();
 
 export type ResponsiveSearchFilters = z.infer<typeof responsiveSearchFiltersSchema>;

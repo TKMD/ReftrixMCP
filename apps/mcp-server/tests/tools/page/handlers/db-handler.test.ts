@@ -455,8 +455,9 @@ describe("db-handler - saveToDatabase", () => {
       const result = await saveToDatabase(mockPrisma, options);
 
       // Assert: エラーでも結果が返ること（Graceful Degradation）
+      // sanitizeErrorMessage適用により内部エラーメッセージはサニタイズされる
       expect(result.success).toBe(false);
-      expect(result.error).toContain("DB connection failed");
+      expect(result.error).toBe("An internal error occurred");
     });
   });
 

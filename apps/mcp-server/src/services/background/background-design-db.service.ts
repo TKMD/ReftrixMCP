@@ -188,12 +188,10 @@ export async function saveBackgroundDesigns(
     const errorMessage =
       error instanceof Error ? error.message : "Failed to save background designs";
 
-    if (isDevelopment()) {
-      logger.error("[BackgroundDesignDB] Save failed", {
-        webPageId,
-        error: errorMessage,
-      });
-    }
+    logger.warn("[BackgroundDesignDB] Save failed", {
+      webPageId,
+      error: errorMessage,
+    });
 
     return {
       success: false,

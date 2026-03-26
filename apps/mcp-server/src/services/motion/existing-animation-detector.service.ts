@@ -160,12 +160,10 @@ export class ExistingAnimationDetectorService {
         });
       }
     } catch (error) {
-      if (isDevelopment()) {
-        logger.warn("[ExistingAnimationDetector] Failed to scan CSS file", {
-          filePath,
-          error: error instanceof Error ? error.message : "Unknown error",
-        });
-      }
+      logger.warn("[ExistingAnimationDetector] Failed to scan CSS file", {
+        filePath,
+        error: error instanceof Error ? error.message : "Unknown error",
+      });
       // ファイル読み取りエラーは空配列を返す
     }
 
@@ -214,11 +212,9 @@ export class ExistingAnimationDetectorService {
         });
       } catch {
         // パースエラーはスキップして続行
-        if (isDevelopment()) {
-          logger.debug("[ExistingAnimationDetector] Failed to parse keyframe", {
-            name: block.name,
-          });
-        }
+        logger.warn("[ExistingAnimationDetector] Failed to parse keyframe", {
+          name: block.name,
+        });
       }
     }
 
@@ -678,12 +674,10 @@ export class ExistingAnimationDetectorService {
         }
       }
     } catch (error) {
-      if (isDevelopment()) {
-        logger.warn("[ExistingAnimationDetector] Failed to scan directory", {
-          dirPath,
-          error: error instanceof Error ? error.message : "Unknown error",
-        });
-      }
+      logger.warn("[ExistingAnimationDetector] Failed to scan directory", {
+        dirPath,
+        error: error instanceof Error ? error.message : "Unknown error",
+      });
     }
 
     return animations;

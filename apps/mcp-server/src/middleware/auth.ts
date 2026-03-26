@@ -245,6 +245,12 @@ export const TOOL_PERMISSIONS: Record<string, string[]> = {
   "page.analyze": [PERMISSIONS.LAYOUT_READ, PERMISSIONS.MOTION_READ, PERMISSIONS.QUALITY_READ],
   "page.getJobStatus": [PERMISSIONS.LAYOUT_READ],
 
+  // 横断検索系（Unified Search）
+  "search.unified": [PERMISSIONS.LAYOUT_READ],
+
+  // デザイン検索系（Visual Search）
+  "design.search_by_image": [PERMISSIONS.LAYOUT_READ],
+
   // システム系（公開ツール）
   "system.health": [PERMISSIONS.SYSTEM_HEALTH],
 };

@@ -12,6 +12,7 @@
 
 import { createDIFactory } from "../../../utils/di-factory";
 import { logger, isDevelopment } from "../../../utils/logger";
+import { sanitizeErrorMessage } from "../../../utils/sanitize-error";
 import {
   createNarrativeAnalysisService,
   type NarrativeAnalysisService,
@@ -188,12 +189,10 @@ export async function handleNarrativeAnalysis(
     const processingTimeMs = Date.now() - startTime;
     const errorMessage = error instanceof Error ? error.message : String(error);
 
-    if (isDevelopment()) {
-      logger.error("[narrative-handler] Analysis failed", {
-        error: errorMessage,
-        processingTimeMs,
-      });
-    }
+    logger.warn("[narrative-handler] Analysis failed", {
+      error: errorMessage,
+      processingTimeMs,
+    });
 
     // エラーの種類を判定
     const errorCode =
@@ -206,7 +205,7 @@ export async function handleNarrativeAnalysis(
       processingTimeMs,
       error: {
         code: errorCode,
-        message: errorMessage,
+        message: sanitizeErrorMessage(error),
       },
     };
   }

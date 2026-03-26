@@ -419,6 +419,43 @@ export function buildWhereClause(filters?: MotionSearchFilters): {
     paramIndex++;
   }
 
+  // Common search filters (webPageId/webPageUrl/tags/industry/audience)
+  if (filters?.webPageId) {
+    conditions.push(`mp.web_page_id = $${paramIndex}`);
+    params.push(filters.webPageId);
+    paramIndex++;
+  }
+
+  if (filters?.webPageUrl) {
+    conditions.push(
+      `EXISTS (SELECT 1 FROM web_pages wp WHERE wp.id = mp.web_page_id AND wp.url = $${paramIndex})`
+    );
+    params.push(filters.webPageUrl);
+    paramIndex++;
+  }
+
+  if (filters?.tags && filters.tags.length > 0) {
+    conditions.push(`mp.tags @> $${paramIndex}::text[]`);
+    params.push(filters.tags);
+    paramIndex++;
+  }
+
+  if (filters?.industry) {
+    conditions.push(
+      `EXISTS (SELECT 1 FROM quality_benchmarks qb WHERE qb.web_page_id = mp.web_page_id AND qb.industry = $${paramIndex})`
+    );
+    params.push(filters.industry);
+    paramIndex++;
+  }
+
+  if (filters?.audience) {
+    conditions.push(
+      `EXISTS (SELECT 1 FROM quality_benchmarks qb WHERE qb.web_page_id = mp.web_page_id AND qb.audience = $${paramIndex})`
+    );
+    params.push(filters.audience);
+    paramIndex++;
+  }
+
   return {
     clause: conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "",
     params,
@@ -621,14 +658,12 @@ export class MotionSearchService implements IMotionSearchService {
         if (embeddingError instanceof EmbeddingValidationError) {
           throw embeddingError;
         }
-        if (isDevelopment()) {
-          logger.warn(
-            "[MotionSearchService] Embedding generation failed, falling back to text search",
-            {
-              error: embeddingError instanceof Error ? embeddingError.message : "Unknown error",
-            }
-          );
-        }
+        logger.warn(
+          "[MotionSearchService] Embedding generation failed, falling back to text search",
+          {
+            error: embeddingError instanceof Error ? embeddingError.message : "Unknown error",
+          }
+        );
         // Embedding生成に失敗した場合は空の結果を返す
         // （テキスト検索フォールバックは将来実装）
       }
@@ -639,9 +674,7 @@ export class MotionSearchService implements IMotionSearchService {
         prisma = this.getPrismaClient();
       } catch {
         // PrismaClientが利用できない場合は空の結果を返す
-        if (isDevelopment()) {
-          logger.warn("[MotionSearchService] PrismaClient not available, returning empty results");
-        }
+        logger.warn("[MotionSearchService] PrismaClient not available, returning empty results");
         return {
           results: [],
           total: 0,
@@ -679,11 +712,9 @@ export class MotionSearchService implements IMotionSearchService {
               : undefined,
           }));
         } catch (dbError) {
-          if (isDevelopment()) {
-            logger.warn("[MotionSearchService] Vector search failed, returning empty results", {
-              error: dbError instanceof Error ? dbError.message : "Unknown error",
-            });
-          }
+          logger.warn("[MotionSearchService] Vector search failed, returning empty results", {
+            error: dbError instanceof Error ? dbError.message : "Unknown error",
+          });
           // データベースエラー時は空の結果を返す
         }
       }
@@ -712,14 +743,12 @@ export class MotionSearchService implements IMotionSearchService {
               });
             }
           } catch (jsError) {
-            if (isDevelopment()) {
-              logger.warn(
-                "[MotionSearchService] JSAnimation search failed, continuing without JS results",
-                {
-                  error: jsError instanceof Error ? jsError.message : "Unknown error",
-                }
-              );
-            }
+            logger.warn(
+              "[MotionSearchService] JSAnimation search failed, continuing without JS results",
+              {
+                error: jsError instanceof Error ? jsError.message : "Unknown error",
+              }
+            );
             // JSAnimation検索失敗時は空の結果で継続（Graceful Degradation）
           }
         } else if (isDevelopment()) {
@@ -753,11 +782,9 @@ export class MotionSearchService implements IMotionSearchService {
         query: queryInfo,
       };
     } catch (error) {
-      if (isDevelopment()) {
-        logger.error("[MotionSearchService] Search error", {
-          error: error instanceof Error ? error.message : "Unknown error",
-        });
-      }
+      logger.warn("[MotionSearchService] Search error", {
+        error: error instanceof Error ? error.message : "Unknown error",
+      });
       throw error;
     }
   }
@@ -985,20 +1012,16 @@ export class MotionSearchService implements IMotionSearchService {
         if (embeddingError instanceof EmbeddingValidationError) {
           throw embeddingError;
         }
-        if (isDevelopment()) {
-          logger.warn("[MotionSearchService] Embedding generation failed in hybrid search", {
-            error: embeddingError instanceof Error ? embeddingError.message : "Unknown error",
-          });
-        }
+        logger.warn("[MotionSearchService] Embedding generation failed in hybrid search", {
+          error: embeddingError instanceof Error ? embeddingError.message : "Unknown error",
+        });
       }
 
       let prisma: IPrismaClient;
       try {
         prisma = this.getPrismaClient();
       } catch {
-        if (isDevelopment()) {
-          logger.warn("[MotionSearchService] PrismaClient not available");
-        }
+        logger.warn("[MotionSearchService] PrismaClient not available");
         return {
           results: [],
           total: 0,
@@ -1039,11 +1062,9 @@ export class MotionSearchService implements IMotionSearchService {
             const rows = await prisma.$queryRawUnsafe<VectorSearchResult[]>(sql, ...queryParams);
             return toRankedItems(rows);
           } catch (ftError) {
-            if (isDevelopment()) {
-              logger.warn("[MotionSearchService] Full-text search failed, using vector only", {
-                error: ftError instanceof Error ? ftError.message : "Unknown error",
-              });
-            }
+            logger.warn("[MotionSearchService] Full-text search failed, using vector only", {
+              error: ftError instanceof Error ? ftError.message : "Unknown error",
+            });
             return [];
           }
         };
@@ -1063,11 +1084,9 @@ export class MotionSearchService implements IMotionSearchService {
             };
           });
         } catch (dbError) {
-          if (isDevelopment()) {
-            logger.warn("[MotionSearchService] Hybrid search failed, returning empty results", {
-              error: dbError instanceof Error ? dbError.message : "Unknown error",
-            });
-          }
+          logger.warn("[MotionSearchService] Hybrid search failed, returning empty results", {
+            error: dbError instanceof Error ? dbError.message : "Unknown error",
+          });
         }
       }
 
@@ -1088,11 +1107,9 @@ export class MotionSearchService implements IMotionSearchService {
             const jsSearchResult = await jsSearchService.searchHybrid(jsSearchParams);
             jsAnimationResults = jsSearchResult.results;
           } catch (jsError) {
-            if (isDevelopment()) {
-              logger.warn("[MotionSearchService] JSAnimation hybrid search failed", {
-                error: jsError instanceof Error ? jsError.message : "Unknown error",
-              });
-            }
+            logger.warn("[MotionSearchService] JSAnimation hybrid search failed", {
+              error: jsError instanceof Error ? jsError.message : "Unknown error",
+            });
           }
         }
       }
@@ -1115,11 +1132,9 @@ export class MotionSearchService implements IMotionSearchService {
         query: { text: queryText },
       };
     } catch (error) {
-      if (isDevelopment()) {
-        logger.error("[MotionSearchService] Hybrid search error, falling back to standard search", {
-          error: error instanceof Error ? error.message : "Unknown error",
-        });
-      }
+      logger.warn("[MotionSearchService] Hybrid search error, falling back to standard search", {
+        error: error instanceof Error ? error.message : "Unknown error",
+      });
       // フォールバック: 標準検索
       return this.search(params);
     }

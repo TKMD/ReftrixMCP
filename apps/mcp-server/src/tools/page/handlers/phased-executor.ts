@@ -18,6 +18,7 @@
  */
 
 import { logger, isDevelopment } from "../../../utils/logger";
+import { sanitizeErrorMessage } from "../../../utils/sanitize-error";
 import { withTimeout, PhaseTimeoutError, type AnalysisPhase } from "./timeout-utils";
 import type { ExecutionStatusTracker } from "./timeout-utils";
 import type { LayoutServiceResult, MotionServiceResult, QualityServiceResult } from "./types";
@@ -265,24 +266,22 @@ export class PhasedExecutor {
     } catch (error) {
       const durationMs = Date.now() - startTime;
       const isTimeout = error instanceof PhaseTimeoutError;
-      const errorMessage = error instanceof Error ? error.message : String(error);
+      const sanitizedMessage = sanitizeErrorMessage(error);
 
       // Trackerに失敗を記録
       this.options.tracker.markFailed(phase as AnalysisPhase, isTimeout);
 
-      if (isDevelopment()) {
-        logger.warn(`[PhasedExecutor] ${phase} phase failed`, {
-          error: errorMessage,
-          isTimeout,
-          durationMs,
-          timeoutMs,
-        });
-      }
+      logger.warn(`[PhasedExecutor] ${phase} phase failed`, {
+        error: error instanceof Error ? error.message : String(error),
+        isTimeout,
+        durationMs,
+        timeoutMs,
+      });
 
       return {
         phase,
         success: false,
-        error: errorMessage,
+        error: sanitizedMessage,
         durationMs,
         timedOut: isTimeout,
       };
@@ -308,12 +307,10 @@ export class PhasedExecutor {
       }
     } catch (error) {
       // コールバックのエラーは無視して継続
-      if (isDevelopment()) {
-        logger.warn(`[PhasedExecutor] onPhaseComplete callback failed`, {
-          phase,
-          error: error instanceof Error ? error.message : String(error),
-        });
-      }
+      logger.warn(`[PhasedExecutor] onPhaseComplete callback failed`, {
+        phase,
+        error: error instanceof Error ? error.message : String(error),
+      });
     }
   }
 

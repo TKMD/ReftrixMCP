@@ -21,6 +21,7 @@
 import { ZodError } from "zod";
 import { createDIFactory } from "../../utils/di-factory";
 import { logger, isDevelopment } from "../../utils/logger";
+import { sanitizeErrorMessage } from "../../utils/sanitize-error";
 import { sanitizeHtml } from "../../utils/html-sanitizer";
 import {
   partInspectInputSchema,
@@ -108,26 +109,8 @@ export const resetPartInspectPrismaClientFactory = prismaClientDI.reset;
 // エラーハンドリング / Error handling
 // =====================================================
 
-/**
- * エラーメッセージをサニタイズ（内部構造の漏洩防止）
- * Sanitize error message (prevent internal structure leakage)
- */
-function sanitizePartInspectError(error: unknown): string {
-  if (error instanceof Error) {
-    const prismaError = error as { code?: string };
-    if (prismaError.code) {
-      switch (prismaError.code) {
-        case "P2002":
-          return "A record with this value already exists";
-        case "P2025":
-          return "Record not found";
-        default:
-          return "Database operation failed";
-      }
-    }
-  }
-  return "An internal error occurred";
-}
+// sanitizeErrorMessage は ../../utils/sanitize-error から統一インポート
+// Unified import from ../../utils/sanitize-error (CWE-209)
 
 // =====================================================
 // DB行の型定義 / DB row types
@@ -320,7 +303,7 @@ export async function partInspectHandler(input: unknown): Promise<PartInspectOut
     };
   } catch (error) {
     logger.warn("[MCP Tool] part.inspect error", {
-      error: sanitizePartInspectError(error),
+      error: sanitizeErrorMessage(error),
       partId: truncateId(validated.part_id),
     });
 
@@ -328,7 +311,7 @@ export async function partInspectHandler(input: unknown): Promise<PartInspectOut
       success: false,
       error: {
         code: PART_INSPECT_ERROR_CODES.INTERNAL_ERROR,
-        message: sanitizePartInspectError(error),
+        message: sanitizeErrorMessage(error),
       },
     };
   }

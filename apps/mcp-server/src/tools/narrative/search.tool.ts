@@ -12,7 +12,7 @@
  * 2. pgvector HNSW近傍探索（Vector検索）
  * 3. Full-text検索（hybridモード時）
  * 4. RRF（Reciprocal Rank Fusion）統合
- * 5. フィルター適用（moodCategory, minConfidence）
+ * 5. フィルター適用（moodCategory, minConfidence, industry, audience, tags, webPageId, webPageUrl）
  *
  * @module tools/narrative/search.tool
  */
@@ -20,6 +20,12 @@
 import { ZodError } from "zod";
 import { createDIFactory } from "../../utils/di-factory";
 import { logger, isDevelopment } from "../../utils/logger";
+import { sanitizeErrorMessage } from "../../utils/sanitize-error";
+import {
+  generateCacheKey,
+  getCachedResult,
+  setCachedResult,
+} from "../../services/search-cache.service";
 import {
   narrativeSearchInputSchema,
   NARRATIVE_MCP_ERROR_CODES,
@@ -200,6 +206,16 @@ export async function narrativeSearchHandler(input: unknown): Promise<NarrativeS
     // 1. 入力バリデーション
     const validatedInput = narrativeSearchInputSchema.parse(input);
 
+    // Search result cache check / 検索キャッシュチェック
+    const cacheKey = generateCacheKey(
+      "narrative.search",
+      validatedInput as unknown as Record<string, unknown>
+    );
+    const cached = getCachedResult<NarrativeSearchOutput>(cacheKey);
+    if (cached) {
+      return cached;
+    }
+
     if (isDevelopment()) {
       logger.info("[narrative.search] Input validated", {
         hasQuery: !!validatedInput.query,
@@ -249,6 +265,22 @@ export async function narrativeSearchHandler(input: unknown): Promise<NarrativeS
       }
       if (minConfidence !== undefined) {
         filtersObj.minConfidence = minConfidence;
+      }
+      // 共通フィルター転送 / Common filters passthrough
+      if (validatedInput.filters.webPageId) {
+        filtersObj.webPageId = validatedInput.filters.webPageId;
+      }
+      if (validatedInput.filters.webPageUrl) {
+        filtersObj.webPageUrl = validatedInput.filters.webPageUrl;
+      }
+      if (validatedInput.filters.tags && validatedInput.filters.tags.length > 0) {
+        filtersObj.tags = validatedInput.filters.tags;
+      }
+      if (validatedInput.filters.industry) {
+        filtersObj.industry = validatedInput.filters.industry;
+      }
+      if (validatedInput.filters.audience) {
+        filtersObj.audience = validatedInput.filters.audience;
       }
 
       // フィールドが存在する場合のみ設定
@@ -305,10 +337,13 @@ export async function narrativeSearchHandler(input: unknown): Promise<NarrativeS
       });
     }
 
-    return {
+    const result: NarrativeSearchOutput = {
       success: true,
       data,
     };
+    // Cache successful results / 成功結果をキャッシュ
+    setCachedResult(cacheKey, result);
+    return result;
   } catch (error) {
     // エラーハンドリング
     if (error instanceof ZodError) {
@@ -317,9 +352,7 @@ export async function narrativeSearchHandler(input: unknown): Promise<NarrativeS
         message: e.message,
       }));
 
-      if (isDevelopment()) {
-        logger.warn("[narrative.search] Validation error", { details });
-      }
+      logger.warn("[narrative.search] Validation error", { details });
 
       return {
         success: false,
@@ -334,19 +367,16 @@ export async function narrativeSearchHandler(input: unknown): Promise<NarrativeS
     if (error instanceof Error) {
       const errorCode = mapErrorToCode(error);
 
-      if (isDevelopment()) {
-        logger.error("[narrative.search] Error", {
-          code: errorCode,
-          message: error.message,
-          stack: error.stack,
-        });
-      }
+      logger.warn("[narrative.search] Error", {
+        code: errorCode,
+        message: sanitizeErrorMessage(error),
+      });
 
       return {
         success: false,
         error: {
           code: errorCode,
-          message: error.message,
+          message: sanitizeErrorMessage(error),
         },
       };
     }
@@ -439,6 +469,33 @@ export const narrativeSearchToolDefinition = {
             minimum: 0,
             maximum: 1,
             description: "最小信頼度フィルター（0-1）",
+          },
+          webPageId: {
+            type: "string",
+            format: "uuid",
+            description: "WebページIDでフィルター / Filter by web page ID",
+          },
+          webPageUrl: {
+            type: "string",
+            format: "uri",
+            description: "WebページURLでフィルター / Filter by web page URL",
+          },
+          industry: {
+            type: "string",
+            description: "業種フィルター（例: tech, finance, healthcare） / Industry filter",
+            maxLength: 100,
+          },
+          audience: {
+            type: "string",
+            description:
+              "ターゲットオーディエンス（例: b2b, b2c, enterprise） / Target audience filter",
+            maxLength: 100,
+          },
+          tags: {
+            type: "array",
+            items: { type: "string", maxLength: 50 },
+            maxItems: 10,
+            description: "タグフィルター / Tag filter",
           },
         },
       },

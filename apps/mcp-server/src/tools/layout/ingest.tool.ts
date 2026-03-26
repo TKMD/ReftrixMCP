@@ -17,6 +17,7 @@ import { v7 as uuidv7 } from "uuid";
 import { prisma } from "@reftrixmcp/database";
 import { createDIFactory } from "../../utils/di-factory";
 import { logger, isDevelopment } from "../../utils/logger";
+import { sanitizeErrorMessage } from "../../utils/sanitize-error";
 import { validateExternalUrl } from "../../utils/url-validator";
 import { normalizeUrlForStorage } from "../../utils/url-normalizer";
 import { sanitizeHtml } from "../../utils/html-sanitizer";
@@ -323,23 +324,8 @@ function determineErrorCode(error: Error | string): string {
   return LAYOUT_MCP_ERROR_CODES.INTERNAL_ERROR;
 }
 
-/**
- * エラーメッセージをユーザーフレンドリーに変換
- */
-function formatErrorMessage(code: string, originalMessage: string): string {
-  switch (code) {
-    case LAYOUT_MCP_ERROR_CODES.TIMEOUT_ERROR:
-      return `Page load timeout: ${originalMessage}`;
-    case LAYOUT_MCP_ERROR_CODES.NETWORK_ERROR:
-      return `Network error: Unable to reach the specified URL`;
-    case LAYOUT_MCP_ERROR_CODES.BROWSER_ERROR:
-      return `Browser error: ${originalMessage}`;
-    case LAYOUT_MCP_ERROR_CODES.HTTP_ERROR:
-      return `HTTP error: ${originalMessage}`;
-    default:
-      return `Internal error: ${originalMessage}`;
-  }
-}
+// formatErrorMessage は sanitizeErrorMessage に統一（CWE-209対策）
+// Replaced by sanitizeErrorMessage from utils/sanitize-error (CWE-209)
 
 // =============================================
 // メインハンドラー
@@ -396,11 +382,7 @@ export async function layoutIngestHandler(input: unknown): Promise<LayoutIngestO
         }
       } catch {
         // JSON解析に失敗した場合は元の入力をそのまま使用
-        if (isDevelopment()) {
-          logger.warn("[MCP Tool] layout.ingest options string parse failed", {
-            options: inputObj.options,
-          });
-        }
+        logger.warn("[MCP Tool] layout.ingest options string parse failed");
       }
     }
 
@@ -452,11 +434,7 @@ export async function layoutIngestHandler(input: unknown): Promise<LayoutIngestO
       // 後方互換性のため旧形式も保持
       const formattedErrors = formatZodError(error);
 
-      if (isDevelopment()) {
-        logger.error("[MCP Tool] layout.ingest validation error", {
-          errors: errorWithHints.errors,
-        });
-      }
+      logger.warn("[MCP Tool] layout.ingest validation error", { error: (error as Error).message });
 
       return {
         success: false,
@@ -790,19 +768,16 @@ export async function layoutIngestHandler(input: unknown): Promise<LayoutIngestO
         // DB保存失敗時はエラーを返す
         const errorMessage = dbError instanceof Error ? dbError.message : String(dbError);
 
-        if (isDevelopment()) {
-          logger.error("[MCP Tool] layout.ingest DB save failed", {
-            url: validated.url,
-            error: errorMessage,
-          });
-        }
+        logger.error("[MCP Tool] layout.ingest DB save failed", {
+          url: validated.url,
+          error: errorMessage,
+        });
 
         return {
           success: false,
           error: {
             code: LAYOUT_MCP_ERROR_CODES.DB_SAVE_FAILED,
-            message: `Failed to save to database: ${errorMessage}`,
-            details: isDevelopment() ? { originalError: errorMessage } : undefined,
+            message: `Failed to save to database: ${sanitizeErrorMessage(dbError)}`,
           },
         };
       }
@@ -880,13 +855,11 @@ export async function layoutIngestHandler(input: unknown): Promise<LayoutIngestO
       } catch (responsiveError) {
         // レスポンシブ解析の失敗はエラーとして返すのではなく、警告ログを出力して続行
         // インジェスト自体は成功しているため
-        if (isDevelopment()) {
-          logger.warn("[MCP Tool] layout.ingest responsive analysis failed", {
-            url: validated.url,
-            error:
-              responsiveError instanceof Error ? responsiveError.message : String(responsiveError),
-          });
-        }
+        logger.warn("[MCP Tool] layout.ingest responsive analysis failed", {
+          url: validated.url,
+          error:
+            responsiveError instanceof Error ? responsiveError.message : String(responsiveError),
+        });
       }
     }
 
@@ -913,12 +886,10 @@ export async function layoutIngestHandler(input: unknown): Promise<LayoutIngestO
         }
       } catch (dbError) {
         // DB保存失敗はエラーとして返さず、警告ログを出力して続行
-        if (isDevelopment()) {
-          logger.warn("[MCP Tool] layout.ingest responsive DB save failed", {
-            webPageId: persistedId,
-            error: dbError instanceof Error ? dbError.message : String(dbError),
-          });
-        }
+        logger.warn("[MCP Tool] layout.ingest responsive DB save failed", {
+          webPageId: persistedId,
+          error: dbError instanceof Error ? dbError.message : String(dbError),
+        });
       }
     }
 
@@ -1047,13 +1018,10 @@ export async function layoutIngestHandler(input: unknown): Promise<LayoutIngestO
               }
             } catch (sectionError) {
               // 個別セクションの保存失敗は警告ログのみで継続
-              if (isDevelopment()) {
-                logger.warn("[MCP Tool] layout.ingest section save failed", {
-                  sectionType: section.type,
-                  error:
-                    sectionError instanceof Error ? sectionError.message : String(sectionError),
-                });
-              }
+              logger.warn("[MCP Tool] layout.ingest section save failed", {
+                sectionType: section.type,
+                error: sectionError instanceof Error ? sectionError.message : String(sectionError),
+              });
             }
           }
 
@@ -1069,12 +1037,10 @@ export async function layoutIngestHandler(input: unknown): Promise<LayoutIngestO
           }
         } catch (analyzeError) {
           // 解析失敗は警告ログのみで、インジェスト自体は成功とする
-          if (isDevelopment()) {
-            logger.warn("[MCP Tool] layout.ingest auto_analyze failed", {
-              webPageId: persistedId,
-              error: analyzeError instanceof Error ? analyzeError.message : String(analyzeError),
-            });
-          }
+          logger.warn("[MCP Tool] layout.ingest auto_analyze failed", {
+            webPageId: persistedId,
+            error: analyzeError instanceof Error ? analyzeError.message : String(analyzeError),
+          });
         }
       } else {
         if (isDevelopment()) {
@@ -1226,22 +1192,18 @@ export async function layoutIngestHandler(input: unknown): Promise<LayoutIngestO
     // エラーハンドリング
     const errorMessage = error instanceof Error ? error.message : String(error);
     const errorCode = determineErrorCode(error instanceof Error ? error : errorMessage);
-    const formattedMessage = formatErrorMessage(errorCode, errorMessage);
 
-    if (isDevelopment()) {
-      logger.error("[MCP Tool] layout.ingest error", {
-        url: validated.url,
-        code: errorCode,
-        error: errorMessage,
-      });
-    }
+    logger.error("[MCP Tool] layout.ingest error", {
+      url: validated.url,
+      code: errorCode,
+      error: errorMessage,
+    });
 
     return {
       success: false,
       error: {
         code: errorCode,
-        message: formattedMessage,
-        details: isDevelopment() ? { originalError: errorMessage } : undefined,
+        message: sanitizeErrorMessage(error),
       },
     };
   }

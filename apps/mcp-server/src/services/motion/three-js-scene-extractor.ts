@@ -1513,9 +1513,7 @@ export class ThreeJSSceneExtractor {
 
       return result;
     } catch (error) {
-      if (isDevelopment()) {
-        logger.error("[ThreeJSSceneExtractor] Extraction failed", { error });
-      }
+      logger.warn("[ThreeJSSceneExtractor] Extraction failed", { error });
 
       return {
         scenes: [],

@@ -39,6 +39,8 @@ import {
   BACKGROUND_MCP_ERROR_CODES,
 } from "../../src/tools/background/schemas";
 
+import { invalidateCache } from "../../src/services/search-cache.service";
+
 // =====================================================
 // テストデータ
 // =====================================================
@@ -133,10 +135,12 @@ function createMockService(
 describe("background.search MCPツール", () => {
   beforeEach(() => {
     resetBackgroundSearchServiceFactory();
+    invalidateCache();
   });
 
   afterEach(() => {
     resetBackgroundSearchServiceFactory();
+    invalidateCache();
   });
 
   describe("入力バリデーション", () => {
@@ -536,7 +540,8 @@ describe("background.search MCPツール", () => {
       expect(result.success).toBe(false);
       if (!result.success) {
         expect(result.error.code).toBeDefined();
-        expect(result.error.message).toContain("Database");
+        // sanitizeErrorMessage: "Database connection failed" -> "An internal error occurred"
+        expect(result.error.message).toBe("An internal error occurred");
       }
     });
 
@@ -548,13 +553,14 @@ describe("background.search MCPツール", () => {
       setBackgroundSearchServiceFactory(() => mockService);
 
       const result = await backgroundSearchHandler({
-        query: "gradient background",
+        query: "gradient background timeout test",
       });
 
       expect(result.success).toBe(false);
       if (!result.success) {
         expect(result.error.code).toBeDefined();
-        expect(result.error.message).toContain("timeout");
+        // sanitizeErrorMessage: "Query timeout exceeded" -> "Operation timed out"
+        expect(result.error.message).toBe("Operation timed out");
       }
     });
 
@@ -801,11 +807,13 @@ describe("background.search 嗜好プロファイルリランキング", () => {
   beforeEach(() => {
     resetBackgroundSearchServiceFactory();
     resetBackgroundSearchPrismaClientFactory();
+    invalidateCache();
   });
 
   afterEach(() => {
     resetBackgroundSearchServiceFactory();
     resetBackgroundSearchPrismaClientFactory();
+    invalidateCache();
   });
 
   it("profile_idが指定されていない場合はリランキングされない", async () => {

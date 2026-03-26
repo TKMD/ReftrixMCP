@@ -333,11 +333,9 @@ export class JSAnimationSearchService {
         searchInfo,
       };
     } catch (error) {
-      if (isDevelopment()) {
-        logger.error("[JSAnimationSearch] Search failed", {
-          error: error instanceof Error ? error.message : String(error),
-        });
-      }
+      logger.warn("[JSAnimationSearch] Search failed", {
+        error: error instanceof Error ? error.message : String(error),
+      });
       throw error;
     }
   }
@@ -426,11 +424,9 @@ export class JSAnimationSearchService {
 
       return results;
     } catch (error) {
-      if (isDevelopment()) {
-        logger.error("[JSAnimationSearch] findSimilar failed", {
-          error: error instanceof Error ? error.message : String(error),
-        });
-      }
+      logger.warn("[JSAnimationSearch] findSimilar failed", {
+        error: error instanceof Error ? error.message : String(error),
+      });
       throw error;
     }
   }
@@ -620,11 +616,9 @@ export class JSAnimationSearchService {
             }))
           );
         } catch (ftError) {
-          if (isDevelopment()) {
-            logger.warn("[JSAnimationSearch] Full-text search failed, using vector only", {
-              error: ftError instanceof Error ? ftError.message : "Unknown error",
-            });
-          }
+          logger.warn("[JSAnimationSearch] Full-text search failed, using vector only", {
+            error: ftError instanceof Error ? ftError.message : "Unknown error",
+          });
           return [];
         }
       };
@@ -680,11 +674,9 @@ export class JSAnimationSearchService {
         searchInfo,
       };
     } catch (error) {
-      if (isDevelopment()) {
-        logger.error("[JSAnimationSearch] Hybrid search failed, falling back to vector search", {
-          error: error instanceof Error ? error.message : String(error),
-        });
-      }
+      logger.warn("[JSAnimationSearch] Hybrid search failed, falling back to vector search", {
+        error: error instanceof Error ? error.message : String(error),
+      });
       // フォールバック: ベクトル検索のみ
       return this.search(params);
     }

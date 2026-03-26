@@ -808,7 +808,7 @@ describe("motion.analyze_frames Handler", () => {
       expect(result.success).toBe(false);
       if (!result.success) {
         expect(result.error?.code).toBe(ANALYZE_FRAMES_ERROR_CODES.ANALYSIS_ERROR);
-        expect(result.error?.message).toContain("Analysis failed");
+        expect(result.error?.message).toContain("An internal error occurred");
       }
     });
 

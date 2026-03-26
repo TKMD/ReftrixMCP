@@ -5,7 +5,7 @@
  * MCP Tools Export
  * WebDesign専用ツールハンドラーとツール定義のエクスポート
  *
- * Total: 26 tools
+ * Total: 28 tools
  * - Style: style.get_palette
  * - System: system.health
  * - Layout: layout.inspect, layout.ingest, layout.search, layout.generate_code, layout.batch_ingest
@@ -19,6 +19,8 @@
  * - Responsive: responsive.search
  * - Preference: preference.hear, preference.get, preference.reset
  * - Part: part.search, part.inspect, part.compare
+ * - Search: search.unified
+ * - Design: design.search_by_image
  */
 
 // style系スキーマのエクスポート（style.get_palette用）
@@ -446,6 +448,33 @@ export {
   type PartCompareOutput,
 } from "./part/compare.tool";
 
+// search.unified ツール（コンポーネント横断検索）
+export {
+  searchUnifiedHandler,
+  searchUnifiedToolDefinition,
+  UNIFIED_SEARCH_ERROR_CODES,
+  type SearchUnifiedInput,
+  type SearchUnifiedOutput,
+  type UnifiedSearchResultItem,
+} from "./search-unified.tool";
+
+// design.search_by_image ツール（画像からの類似デザイン検索）
+export {
+  designSearchByImageHandler,
+  designSearchByImageToolDefinition,
+  designSearchByImageInputSchema,
+  setDesignSearchDINOv2ServiceFactory,
+  resetDesignSearchDINOv2ServiceFactory,
+  setDesignSearchEmbeddingServiceFactory,
+  resetDesignSearchEmbeddingServiceFactory,
+  setDesignSearchPrismaClientFactory,
+  resetDesignSearchPrismaClientFactory,
+  DESIGN_SEARCH_ERROR_CODES,
+  type DesignSearchByImageInput,
+  type DesignSearchByImageOutput,
+  type DesignSearchResultItem,
+} from "./design/search-by-image.tool";
+
 // project.* スキーマのエクスポート
 export {
   // project.get スキーマ
@@ -507,6 +536,8 @@ import {
 import { partSearchToolDefinition } from "./part/search.tool";
 import { partInspectToolDefinition } from "./part/inspect.tool";
 import { partCompareToolDefinition } from "./part/compare.tool";
+import { searchUnifiedToolDefinition } from "./search-unified.tool";
+import { designSearchByImageToolDefinition } from "./design/search-by-image.tool";
 
 export const allToolDefinitions = [
   // style.get_palette（ブランドパレット取得）
@@ -562,6 +593,10 @@ export const allToolDefinitions = [
   partInspectToolDefinition,
   // part.compare（パーツ並列比較）
   partCompareToolDefinition,
+  // search.unified（コンポーネント横断検索）
+  searchUnifiedToolDefinition,
+  // design.search_by_image（画像からの類似デザイン検索）
+  designSearchByImageToolDefinition,
 ];
 
 /**
@@ -590,6 +625,8 @@ import { preferenceHearHandler, preferenceGetHandler, preferenceResetHandler } f
 import { partSearchHandler } from "./part/search.tool";
 import { partInspectHandler } from "./part/inspect.tool";
 import { partCompareHandler } from "./part/compare.tool";
+import { searchUnifiedHandler } from "./search-unified.tool";
+import { designSearchByImageHandler } from "./design/search-by-image.tool";
 
 export const toolHandlers: Record<string, (input: unknown) => Promise<unknown>> = {
   // style.get_palette（ブランドパレット取得）
@@ -645,6 +682,10 @@ export const toolHandlers: Record<string, (input: unknown) => Promise<unknown>> 
   "part.inspect": partInspectHandler,
   // part.compare（パーツ並列比較）
   "part.compare": partCompareHandler,
+  // search.unified（コンポーネント横断検索）
+  "search.unified": searchUnifiedHandler,
+  // design.search_by_image（画像からの類似デザイン検索）
+  "design.search_by_image": designSearchByImageHandler,
 };
 
 /**

@@ -267,7 +267,8 @@ describe("Video Handler Unit Tests", () => {
       // Assert
       expect(result.frame_capture_error).toBeDefined();
       expect(result.frame_capture_error?.code).toBe("FRAME_CAPTURE_ERROR");
-      expect(result.frame_capture_error?.message).toBe("Playwright not available");
+      // sanitizeErrorMessage適用により内部エラーメッセージはサニタイズされる
+      expect(result.frame_capture_error?.message).toBe("An internal error occurred");
     });
 
     it("should handle non-Error thrown from frame capture", async () => {
@@ -282,7 +283,8 @@ describe("Video Handler Unit Tests", () => {
       // Assert
       expect(result.frame_capture_error).toBeDefined();
       expect(result.frame_capture_error?.code).toBe("FRAME_CAPTURE_ERROR");
-      expect(result.frame_capture_error?.message).toBe("Frame capture failed");
+      // sanitizeErrorMessage適用により内部エラーメッセージはサニタイズされる
+      expect(result.frame_capture_error?.message).toBe("An internal error occurred");
     });
   });
 
@@ -450,7 +452,8 @@ describe("Video Handler Unit Tests", () => {
       // Assert
       expect(result.frame_analysis_error).toBeDefined();
       expect(result.frame_analysis_error?.code).toBe("FRAME_ANALYSIS_ERROR");
-      expect(result.frame_analysis_error?.message).toBe("Analysis failed");
+      // sanitizeErrorMessage適用により内部エラーメッセージはサニタイズされる
+      expect(result.frame_analysis_error?.message).toBe("An internal error occurred");
     });
 
     it("should handle non-Error thrown from frame analysis", async () => {
@@ -469,7 +472,8 @@ describe("Video Handler Unit Tests", () => {
       // Assert
       expect(result.frame_analysis_error).toBeDefined();
       expect(result.frame_analysis_error?.code).toBe("FRAME_ANALYSIS_ERROR");
-      expect(result.frame_analysis_error?.message).toBe("Frame analysis failed");
+      // sanitizeErrorMessage適用により内部エラーメッセージはサニタイズされる
+      expect(result.frame_analysis_error?.message).toBe("An internal error occurred");
     });
   });
 
@@ -649,20 +653,19 @@ describe("Video Handler Unit Tests", () => {
       );
     });
 
-    it("should log frame capture error in development mode", async () => {
+    it("should log frame capture error in all environments", async () => {
       // Arrange
-      mockIsDevelopment.mockReturnValue(true);
       mockExecuteFrameCapture.mockRejectedValue(new Error("Capture failed"));
       const { logger } = await import("../../../../../src/utils/logger");
-      const mockLoggerError = vi.mocked(logger.error);
+      const mockLoggerWarn = vi.mocked(logger.warn);
 
       // Act
       await executeVideoMode(TEST_URL, {
         enable_frame_capture: true,
       });
 
-      // Assert
-      expect(mockLoggerError).toHaveBeenCalledWith(
+      // Assert: isDevelopmentガード除去後、全環境でlogger.warnを使用
+      expect(mockLoggerWarn).toHaveBeenCalledWith(
         "[video-handler] Frame capture failed",
         expect.any(Object)
       );

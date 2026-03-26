@@ -16,6 +16,7 @@ import {
   applyLightResponse,
   extractLightResponseOptions,
 } from "./middleware/light-response-controller";
+import { checkRateLimit } from "./middleware/rate-limiter";
 import { getMetricsCollector, type MetricsStats } from "./services/metrics-collector";
 import { generateRequestId } from "./utils/mcp-response";
 import type { ProgressNotification } from "@modelcontextprotocol/sdk/types.js";
@@ -42,7 +43,7 @@ export type ToolHandler = (
 
 /**
  * ツールハンドラーのマップ
- * 26のMCPツールを管理（allToolDefinitions SSoTから自動同期）
+ * 28のMCPツールを管理（allToolDefinitions SSoTから自動同期）
  */
 export const toolHandlers: Map<string, ToolHandler> = new Map();
 
@@ -181,6 +182,34 @@ export async function handleToolCall(
     });
   }
 
+  // レート制限チェック（CWE-770 DoS対策）
+  const rateLimitResult = await checkRateLimit(toolName);
+  if (!rateLimitResult.allowed) {
+    const error = new McpError(
+      ErrorCode.RATE_LIMIT_EXCEEDED,
+      `Rate limit exceeded for tool: ${toolName}. Retry after ${rateLimitResult.retryAfterMs}ms`,
+      {
+        tool: toolName,
+        requestId: reqId,
+        retryAfterMs: rateLimitResult.retryAfterMs,
+        limit: rateLimitResult.limit,
+      }
+    );
+
+    metrics.incrementErrorCount(toolName, ErrorCode.RATE_LIMIT_EXCEEDED);
+    metrics.decrementActiveConnections();
+
+    const duration = performance.now() - startTime;
+    metrics.recordResponseTime(duration, toolName);
+
+    logger.warn(`[Router] Rate limit exceeded for tool: ${toolName}`, {
+      requestId: reqId,
+      retryAfterMs: rateLimitResult.retryAfterMs,
+      durationMs: duration,
+    });
+    throw error;
+  }
+
   // ツールハンドラーの取得
   const handler = toolHandlers.get(toolName);
 
@@ -291,9 +320,9 @@ export function exportMetricsPrometheus(): string {
 }
 
 /**
- * MCPツール名の定数（WebDesign専用 - 26ツール）
+ * MCPツール名の定数（WebDesign専用 - 28ツール）
  *
- * 実装: apps/mcp-server/src/tools/index.ts (allToolDefinitions = 26ツール)
+ * 実装: apps/mcp-server/src/tools/index.ts (allToolDefinitions = 28ツール)
  */
 export const TOOL_NAMES = {
   // Style ツール (1)
@@ -335,6 +364,10 @@ export const TOOL_NAMES = {
   PART_SEARCH: "part.search",
   PART_INSPECT: "part.inspect",
   PART_COMPARE: "part.compare",
+  // Search ツール (1)
+  SEARCH_UNIFIED: "search.unified",
+  // Design ツール (1)
+  DESIGN_SEARCH_BY_IMAGE: "design.search_by_image",
 } as const;
 
 /**

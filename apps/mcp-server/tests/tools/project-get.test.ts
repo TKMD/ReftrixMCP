@@ -333,7 +333,8 @@ describe("projectGetHandler", () => {
       expect(result.metadata?.request_id).toBeDefined();
       if (!result.success) {
         expect(result.error.code).toBe("INTERNAL_ERROR");
-        expect(result.error.message).toMatch(/エラーが発生しました/);
+        // sanitizeErrorMessage: "Internal Server Error" -> "An internal error occurred"
+        expect(result.error.message).toBe("An internal error occurred");
       }
     });
 

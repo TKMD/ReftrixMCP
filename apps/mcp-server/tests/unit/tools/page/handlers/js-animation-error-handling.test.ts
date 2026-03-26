@@ -127,18 +127,19 @@ describe("js-animation-handler エラーハンドリング強化", () => {
 
       const result = await executeJSAnimationMode("https://example.com", true);
 
-      // エラーログが出力されることを検証
-      expect(mockLogger.error).toHaveBeenCalledWith(
+      // 全環境でwarnログが出力される（isDevelopmentガード除去後）
+      expect(mockLogger.warn).toHaveBeenCalledWith(
         expect.stringContaining("[js-animation-handler]"),
         expect.objectContaining({
-          error: expect.any(Error),
+          error: expect.any(String),
         })
       );
 
       // エラー結果が返される（Phase 3: BROWSER_ERRORコードが返される）
       expect(result.js_animation_error).toBeDefined();
       expect(result.js_animation_error?.code).toBe("JS_ANIMATION_BROWSER_ERROR");
-      expect(result.js_animation_error?.message).toContain(errorMessage);
+      // sanitizeErrorMessage適用後: "does not exist" → "Resource not found" + hint
+      expect(result.js_animation_error?.message).toContain("Resource not found");
       // WebGL/3Dサイト向けのヒントが含まれる
       expect(result.js_animation_error?.message).toContain("disableWebGL");
     });
@@ -153,8 +154,8 @@ describe("js-animation-handler エラーハンドリング強化", () => {
       // モジュール未インストールは汎用エラーコード
       expect(result.js_animation_error?.code).toBe("JS_ANIMATION_DETECTION_ERROR");
 
-      // エラーログにPlaywrightインストール情報が含まれることを検証
-      expect(mockLogger.error).toHaveBeenCalled();
+      // 全環境でwarnログが出力される（isDevelopmentガード除去後）
+      expect(mockLogger.warn).toHaveBeenCalled();
     });
 
     it("CDP接続失敗時に警告フラグを設定する", async () => {
@@ -166,12 +167,13 @@ describe("js-animation-handler エラーハンドリング強化", () => {
       expect(result.js_animation_error).toBeDefined();
       // Phase 3: CDPエラーは専用コードを持つ
       expect(result.js_animation_error?.code).toBe("JS_ANIMATION_CDP_ERROR");
-      expect(result.js_animation_error?.message).toContain("CDP session closed");
+      // sanitizeErrorMessage適用後: "An internal error occurred" + CDP hint
+      expect(result.js_animation_error?.message).toContain("An internal error occurred");
       // CDPエラー向けのヒントが含まれる
       expect(result.js_animation_error?.message).toContain("WebGL");
 
-      // エラーログが出力される
-      expect(mockLogger.error).toHaveBeenCalled();
+      // 全環境でwarnログが出力される（isDevelopmentガード除去後）
+      expect(mockLogger.warn).toHaveBeenCalled();
     });
   });
 
@@ -185,15 +187,16 @@ describe("js-animation-handler エラーハンドリング強化", () => {
       expect(result.js_animation_error).toBeDefined();
       // Phase 3: タイムアウトエラーは専用コードを持つ
       expect(result.js_animation_error?.code).toBe("JS_ANIMATION_TIMEOUT");
-      expect(result.js_animation_error?.message).toContain("timeout");
+      // sanitizeErrorMessage適用後: "Operation timed out" + hint
+      expect(result.js_animation_error?.message).toContain("timed out");
       // タイムアウト向けのヒントが含まれる
       expect(result.js_animation_error?.message).toContain("detect_js_animations: false");
 
-      // エラーログにURL情報が含まれる
-      expect(mockLogger.error).toHaveBeenCalledWith(
+      // 全環境でwarnログが出力される（isDevelopmentガード除去後）
+      expect(mockLogger.warn).toHaveBeenCalledWith(
         expect.stringContaining("[js-animation-handler]"),
         expect.objectContaining({
-          error: expect.any(Error),
+          error: expect.any(String),
         })
       );
     });
@@ -333,15 +336,16 @@ describe("js-animation-handler エラーハンドリング強化", () => {
       );
     });
 
-    it("エラー時にerrorログを出力する", async () => {
+    it("エラー時にwarnログを出力する", async () => {
       mockChromiumLaunch.mockRejectedValueOnce(new Error("Launch failed"));
 
       await executeJSAnimationMode("https://example.com", true);
 
-      expect(mockLogger.error).toHaveBeenCalledWith(
+      // isDevelopmentガード除去後、全環境でlogger.warnを使用
+      expect(mockLogger.warn).toHaveBeenCalledWith(
         expect.stringContaining("[js-animation-handler]"),
         expect.objectContaining({
-          error: expect.any(Error),
+          error: expect.any(String),
         })
       );
     });

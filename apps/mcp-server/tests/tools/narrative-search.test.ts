@@ -33,6 +33,8 @@ import {
   type NarrativeSearchOutput,
 } from "../../src/tools/narrative/schemas";
 
+import { invalidateCache } from "../../src/services/search-cache.service";
+
 import type {
   INarrativeAnalysisService,
   NarrativeSearchResult,
@@ -100,15 +102,17 @@ function createMockNarrativeService(
 // =====================================================
 
 describe("narrative.search MCPツール", () => {
-  // 各テストでファクトリーをリセット
+  // 各テストでファクトリーとキャッシュをリセット
   beforeEach(() => {
     resetNarrativeSearchServiceFactory();
     resetEmbeddingServiceFactory();
+    invalidateCache();
   });
 
   afterEach(() => {
     resetNarrativeSearchServiceFactory();
     resetEmbeddingServiceFactory();
+    invalidateCache();
   });
 
   // =================================================
@@ -1020,6 +1024,180 @@ describe("narrative.search MCPツール", () => {
         expect(result.success).toBe(true);
       }
     );
+  });
+
+  // =================================================
+  // 共通フィルター転送 / Common filter passthrough
+  // =================================================
+
+  describe("共通フィルター転送", () => {
+    it("webPageIdフィルターがサービスに転送される", async () => {
+      // Arrange
+      const mockService = createMockNarrativeService();
+      setNarrativeSearchServiceFactory(() => mockService);
+
+      // Act
+      const result = await narrativeSearchHandler({
+        query: "テスト検索",
+        filters: { webPageId: "11111111-1111-1111-1111-111111111111" },
+      });
+
+      // Assert
+      expect(result.success).toBe(true);
+      expect(mockService.search).toHaveBeenCalledWith(
+        expect.objectContaining({
+          filters: expect.objectContaining({
+            webPageId: "11111111-1111-1111-1111-111111111111",
+          }),
+        })
+      );
+    });
+
+    it("webPageUrlフィルターがサービスに転送される", async () => {
+      // Arrange
+      const mockService = createMockNarrativeService();
+      setNarrativeSearchServiceFactory(() => mockService);
+
+      // Act
+      const result = await narrativeSearchHandler({
+        query: "テスト検索",
+        filters: { webPageUrl: "https://example.com" },
+      });
+
+      // Assert
+      expect(result.success).toBe(true);
+      expect(mockService.search).toHaveBeenCalledWith(
+        expect.objectContaining({
+          filters: expect.objectContaining({
+            webPageUrl: "https://example.com",
+          }),
+        })
+      );
+    });
+
+    it("tagsフィルターがサービスに転送される", async () => {
+      // Arrange
+      const mockService = createMockNarrativeService();
+      setNarrativeSearchServiceFactory(() => mockService);
+
+      // Act
+      const result = await narrativeSearchHandler({
+        query: "テスト検索",
+        filters: { tags: ["modern", "dark"] },
+      });
+
+      // Assert
+      expect(result.success).toBe(true);
+      expect(mockService.search).toHaveBeenCalledWith(
+        expect.objectContaining({
+          filters: expect.objectContaining({
+            tags: ["modern", "dark"],
+          }),
+        })
+      );
+    });
+
+    it("空tagsフィルターはサービスに転送されない", async () => {
+      // Arrange
+      const mockService = createMockNarrativeService();
+      setNarrativeSearchServiceFactory(() => mockService);
+
+      // Act
+      const result = await narrativeSearchHandler({
+        query: "テスト検索",
+        filters: { tags: [] },
+      });
+
+      // Assert: 空tagsはfiltersオブジェクトに含まれない
+      expect(result.success).toBe(true);
+      const callArgs = (mockService.search as ReturnType<typeof vi.fn>).mock.calls[0]?.[0] as
+        | ServiceSearchOptions
+        | undefined;
+      // filters自体が undefined または tags を含まない
+      if (callArgs?.filters) {
+        expect(callArgs.filters.tags).toBeUndefined();
+      }
+    });
+
+    it("industryフィルターがサービスに転送される", async () => {
+      // Arrange
+      const mockService = createMockNarrativeService();
+      setNarrativeSearchServiceFactory(() => mockService);
+
+      // Act
+      const result = await narrativeSearchHandler({
+        query: "テスト検索",
+        filters: { industry: "tech" },
+      });
+
+      // Assert
+      expect(result.success).toBe(true);
+      expect(mockService.search).toHaveBeenCalledWith(
+        expect.objectContaining({
+          filters: expect.objectContaining({
+            industry: "tech",
+          }),
+        })
+      );
+    });
+
+    it("audienceフィルターがサービスに転送される", async () => {
+      // Arrange
+      const mockService = createMockNarrativeService();
+      setNarrativeSearchServiceFactory(() => mockService);
+
+      // Act
+      const result = await narrativeSearchHandler({
+        query: "テスト検索",
+        filters: { audience: "enterprise" },
+      });
+
+      // Assert
+      expect(result.success).toBe(true);
+      expect(mockService.search).toHaveBeenCalledWith(
+        expect.objectContaining({
+          filters: expect.objectContaining({
+            audience: "enterprise",
+          }),
+        })
+      );
+    });
+
+    it("全共通フィルターとnarrative固有フィルターが同時に転送される", async () => {
+      // Arrange
+      const mockService = createMockNarrativeService();
+      setNarrativeSearchServiceFactory(() => mockService);
+
+      // Act
+      const result = await narrativeSearchHandler({
+        query: "テスト検索",
+        filters: {
+          moodCategory: "tech",
+          minConfidence: 0.7,
+          webPageId: "22222222-2222-2222-2222-222222222222",
+          webPageUrl: "https://example.com",
+          tags: ["saas", "dashboard"],
+          industry: "fintech",
+          audience: "b2b",
+        },
+      });
+
+      // Assert: すべてのフィルターがサービスに渡される
+      expect(result.success).toBe(true);
+      expect(mockService.search).toHaveBeenCalledWith(
+        expect.objectContaining({
+          filters: expect.objectContaining({
+            moodCategory: ["tech"],
+            minConfidence: 0.7,
+            webPageId: "22222222-2222-2222-2222-222222222222",
+            webPageUrl: "https://example.com",
+            tags: ["saas", "dashboard"],
+            industry: "fintech",
+            audience: "b2b",
+          }),
+        })
+      );
+    });
   });
 
   // =================================================

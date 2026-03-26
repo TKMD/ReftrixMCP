@@ -147,13 +147,11 @@ export class BrowserProcessManager {
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
 
-      if (isDevelopment()) {
-        logger.warn("[BrowserProcessManager] browser.close() failed", {
-          error: errorMessage,
-          forceKillOnTimeout: this.forceKillOnTimeout,
-          pid: this.browserPid,
-        });
-      }
+      logger.warn("[BrowserProcessManager] browser.close() failed", {
+        error: errorMessage,
+        forceKillOnTimeout: this.forceKillOnTimeout,
+        pid: this.browserPid,
+      });
 
       if (this.forceKillOnTimeout && this.browserPid) {
         await this.forceKill();
@@ -266,14 +264,12 @@ export class BrowserProcessManager {
       // ESRCH: プロセスが存在しない（既に終了している）
       const errnoError = error as { code?: string };
       if (errnoError.code !== "ESRCH") {
-        if (isDevelopment()) {
-          logger.error("[BrowserProcessManager] forceKill error", {
-            error: error instanceof Error ? error.message : String(error),
-            pid: this.browserPid,
-          });
-        }
-      } else if (isDevelopment()) {
-        logger.debug(
+        logger.warn("[BrowserProcessManager] forceKill error", {
+          error: error instanceof Error ? error.message : String(error),
+          pid: this.browserPid,
+        });
+      } else {
+        logger.warn(
           `[BrowserProcessManager] Process ${this.browserPid} already terminated (ESRCH)`
         );
       }
@@ -334,12 +330,10 @@ export class BrowserProcessManager {
         }
       }
     } catch (error) {
-      if (isDevelopment()) {
-        logger.error("[BrowserProcessManager] killAllChildren error", {
-          error: error instanceof Error ? error.message : String(error),
-          pid: this.browserPid,
-        });
-      }
+      logger.warn("[BrowserProcessManager] killAllChildren error", {
+        error: error instanceof Error ? error.message : String(error),
+        pid: this.browserPid,
+      });
     }
   }
 }

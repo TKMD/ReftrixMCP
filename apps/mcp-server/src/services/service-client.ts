@@ -327,12 +327,10 @@ export class ServiceClient {
 
         lastError = error instanceof Error ? error : new Error(String(error));
 
-        if (isDevelopment()) {
-          logger.warn(`[ServiceClient] ${operationName} failed with error: ${lastError.message}`, {
-            attempt,
-            maxRetries: this.options.maxRetries,
-          });
-        }
+        logger.warn(`[ServiceClient] ${operationName} failed with error: ${lastError.message}`, {
+          attempt,
+          maxRetries: this.options.maxRetries,
+        });
 
         // リトライ対象でない場合は即座に失敗
         if (!isRetryableError(lastError, undefined)) {
@@ -407,12 +405,10 @@ export class ServiceClient {
 
     if (!response.ok) {
       const errorText = await response.text().catch(() => "Unknown error");
-      if (isDevelopment()) {
-        logger.error("[ServiceClient] Get Project API error", {
-          status: response.status,
-          error: errorText,
-        });
-      }
+      logger.warn("[ServiceClient] Get Project API error", {
+        status: response.status,
+        error: errorText,
+      });
       throw new ServiceClientError(
         ServiceClientErrorCode.CLIENT_ERROR,
         `Get Project API error: ${response.status} - ${errorText}`,
@@ -494,12 +490,10 @@ export class ServiceClient {
 
     if (!response.ok) {
       const errorText = await response.text().catch(() => "Unknown error");
-      if (isDevelopment()) {
-        logger.error("[ServiceClient] List Projects API error", {
-          status: response.status,
-          error: errorText,
-        });
-      }
+      logger.warn("[ServiceClient] List Projects API error", {
+        status: response.status,
+        error: errorText,
+      });
       throw new ServiceClientError(
         ServiceClientErrorCode.CLIENT_ERROR,
         `List Projects API error: ${response.status} - ${errorText}`,
@@ -586,12 +580,10 @@ export class ServiceClient {
 
     if (!response.ok) {
       const errorText = await response.text().catch(() => "Unknown error");
-      if (isDevelopment()) {
-        logger.error("[ServiceClient] Get Palette API error", {
-          status: response.status,
-          error: errorText,
-        });
-      }
+      logger.warn("[ServiceClient] Get Palette API error", {
+        status: response.status,
+        error: errorText,
+      });
       throw new ServiceClientError(
         ServiceClientErrorCode.CLIENT_ERROR,
         `Get Palette API error: ${response.status} - ${errorText}`,

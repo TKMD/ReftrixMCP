@@ -11,6 +11,7 @@
 import { v7 as uuidv7 } from "uuid";
 import { createDIFactory } from "../../utils/di-factory";
 import { logger, isDevelopment } from "../../utils/logger";
+import { sanitizeErrorMessage } from "../../utils/sanitize-error";
 import { validateExternalUrl, normalizeUrlForValidation } from "../../utils/url-validator";
 import { isUrlAllowedByRobotsTxt } from "@reftrixmcp/core";
 import { assertNonProductionFactory } from "../../services/production-guard";
@@ -201,14 +202,12 @@ export async function pageAnalyzeHandler(
 
     validated = pageAnalyzeInputSchema.parse(input);
   } catch (error) {
-    if (isDevelopment()) {
-      logger.error("[MCP Tool] page.analyze validation error", { error });
-    }
+    logger.warn("[MCP Tool] page.analyze validation error", { error: (error as Error).message });
     return {
       success: false,
       error: {
         code: PAGE_ANALYZE_ERROR_CODES.VALIDATION_ERROR,
-        message: error instanceof Error ? error.message : "Invalid input",
+        message: sanitizeErrorMessage(error),
       },
     };
   }
@@ -495,14 +494,12 @@ export async function pageAnalyzeHandler(
       const isTimeout = error instanceof PhaseTimeoutError;
       const elapsedMs = Date.now() - overallStartTime;
 
-      if (isDevelopment()) {
-        logger.error("[page.analyze] Overall hard timeout triggered", {
-          timeoutMs: OVERALL_HARD_TIMEOUT_MS,
-          elapsedMs,
-          isTimeout,
-          error: error instanceof Error ? error.message : String(error),
-        });
-      }
+      logger.error("[page.analyze] Overall hard timeout triggered", {
+        timeoutMs: OVERALL_HARD_TIMEOUT_MS,
+        elapsedMs,
+        isTimeout,
+        error: error instanceof Error ? error.message : String(error),
+      });
 
       return {
         success: false,

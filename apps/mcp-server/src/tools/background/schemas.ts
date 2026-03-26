@@ -9,6 +9,7 @@
  */
 
 import { z } from "zod";
+import { commonSearchFiltersSchema } from "../../schemas/common-search-filters";
 
 // ============================================================================
 // Enum Schemas
@@ -65,8 +66,8 @@ export type BackgroundMcpErrorCode =
 export const backgroundSearchFiltersSchema = z
   .object({
     designType: backgroundDesignTypeSchema.optional(),
-    webPageId: z.string().optional(),
   })
+  .merge(commonSearchFiltersSchema)
   .optional();
 
 export type BackgroundSearchFilters = z.infer<typeof backgroundSearchFiltersSchema>;

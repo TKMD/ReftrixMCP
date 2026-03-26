@@ -13,6 +13,7 @@
  */
 
 import { logger, isDevelopment } from "../../../utils/logger";
+import { sanitizeErrorMessage } from "../../../utils/sanitize-error";
 import {
   PAGE_ANALYZE_TIMEOUTS,
   PAGE_ANALYZE_ERROR_CODES,
@@ -120,12 +121,10 @@ export async function withTimeoutGraceful<T>(
     const durationMs = Date.now() - startTime;
 
     if (error instanceof PhaseTimeoutError) {
-      if (isDevelopment()) {
-        logger.warn(`[page.analyze] ${phaseName} timed out (graceful degradation)`, {
-          timeoutMs,
-          durationMs,
-        });
-      }
+      logger.warn(`[page.analyze] ${phaseName} timed out (graceful degradation)`, {
+        timeoutMs,
+        durationMs,
+      });
 
       warnings.push({
         feature,
@@ -140,12 +139,10 @@ export async function withTimeoutGraceful<T>(
     // 各フェーズの失敗は全体の処理を中断せず、warningsに記録して継続
     const errorMessage = error instanceof Error ? error.message : String(error);
 
-    if (isDevelopment()) {
-      logger.warn(`[page.analyze] ${phaseName} failed (graceful degradation)`, {
-        errorMessage,
-        durationMs,
-      });
-    }
+    logger.warn(`[page.analyze] ${phaseName} failed (graceful degradation)`, {
+      errorMessage,
+      durationMs,
+    });
 
     // feature に応じたエラーコードを選択
     const errorCode =
@@ -158,7 +155,7 @@ export async function withTimeoutGraceful<T>(
     warnings.push({
       feature,
       code: errorCode,
-      message: `${phaseName} failed: ${errorMessage} (graceful degradation)`,
+      message: `${phaseName} failed: ${sanitizeErrorMessage(error)} (graceful degradation)`,
     });
 
     return null;
@@ -767,14 +764,12 @@ export async function withTimeoutAndTracking<T>(
     tracker.markFailed(phase, isTimeout);
 
     if (isTimeout) {
-      if (isDevelopment()) {
-        logger.warn(`[page.analyze] ${phaseName} timed out`, {
-          timeoutMs,
-          durationMs,
-          phase,
-          strategy: tracker.getStrategy(),
-        });
-      }
+      logger.warn(`[page.analyze] ${phaseName} timed out`, {
+        timeoutMs,
+        durationMs,
+        phase,
+        strategy: tracker.getStrategy(),
+      });
 
       // Strict戦略の場合は例外を再スロー
       if (tracker.getStrategy() === "strict") {
@@ -798,14 +793,12 @@ export async function withTimeoutAndTracking<T>(
     // タイムアウト以外のエラー
     const errorMessage = error instanceof Error ? error.message : String(error);
 
-    if (isDevelopment()) {
-      logger.warn(`[page.analyze] ${phaseName} failed`, {
-        errorMessage,
-        durationMs,
-        phase,
-        strategy: tracker.getStrategy(),
-      });
-    }
+    logger.warn(`[page.analyze] ${phaseName} failed`, {
+      errorMessage,
+      durationMs,
+      phase,
+      strategy: tracker.getStrategy(),
+    });
 
     // Strict戦略の場合は例外を再スロー
     if (tracker.getStrategy() === "strict") {
@@ -827,7 +820,7 @@ export async function withTimeoutAndTracking<T>(
     warnings.push({
       feature,
       code: errorCode,
-      message: `${phaseName} failed: ${errorMessage} (graceful degradation)`,
+      message: `${phaseName} failed: ${sanitizeErrorMessage(error)} (graceful degradation)`,
     });
 
     return null;

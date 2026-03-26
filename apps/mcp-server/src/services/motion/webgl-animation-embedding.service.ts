@@ -497,11 +497,9 @@ export class WebGLAnimationEmbeddingService {
 
       return results;
     } catch (error) {
-      if (isDevelopment()) {
-        logger.warn("[WebGLAnimationEmbedding] findSimilar failed", {
-          error: error instanceof Error ? error.message : "Unknown error",
-        });
-      }
+      logger.warn("[WebGLAnimationEmbedding] findSimilar failed", {
+        error: error instanceof Error ? error.message : "Unknown error",
+      });
       // PrismaClientが初期化されていない場合は空配列を返す
       return [];
     }

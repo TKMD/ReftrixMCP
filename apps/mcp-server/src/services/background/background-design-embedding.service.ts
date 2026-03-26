@@ -469,13 +469,11 @@ export async function generateBackgroundDesignEmbeddings(
         error: errorMessage,
       });
 
-      if (isDevelopment()) {
-        logger.warn("[BackgroundDesignEmbedding] Embedding generation failed", {
-          name: bg.name,
-          backgroundDesignId,
-          error: errorMessage,
-        });
-      }
+      logger.warn("[BackgroundDesignEmbedding] Embedding generation failed", {
+        name: bg.name,
+        backgroundDesignId,
+        error: errorMessage,
+      });
     }
 
     // Granular progress: report after each background design (fire-and-forget)

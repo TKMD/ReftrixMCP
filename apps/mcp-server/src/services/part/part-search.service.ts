@@ -71,6 +71,14 @@ export interface PartSearchOptions {
   sectionType?: string;
   /** CSSフレームワークフィルタ（section_patterns.css_framework） / CSS framework filter */
   cssFramework?: string;
+  /** WebページIDフィルタ / Web page ID filter */
+  webPageId?: string;
+  /** タグフィルタ / Tag filter */
+  tags?: string[];
+  /** 業種フィルタ / Industry filter */
+  industry?: string;
+  /** ターゲットオーディエンス / Target audience filter */
+  audience?: string;
   /** 検索モード / Search mode (default 'hybrid') */
   searchMode: "visual" | "text" | "hybrid";
 }
@@ -201,7 +209,10 @@ interface BuildWhereResult {
  * Convert filter conditions to WHERE clause
  */
 export function buildPartSearchWhereClause(
-  options: Pick<PartSearchOptions, "partType" | "sectionType" | "cssFramework">,
+  options: Pick<
+    PartSearchOptions,
+    "partType" | "sectionType" | "cssFramework" | "webPageId" | "tags" | "industry" | "audience"
+  >,
   startIndex: number = 1
 ): BuildWhereResult {
   const conditions: string[] = [];
@@ -223,6 +234,35 @@ export function buildPartSearchWhereClause(
   if (options.cssFramework) {
     conditions.push(`sp.css_framework = $${paramIndex}`);
     params.push(options.cssFramework);
+    paramIndex++;
+  }
+
+  // Common search filters (webPageId/tags/industry/audience)
+  if (options.webPageId) {
+    conditions.push(`cp.web_page_id = $${paramIndex}`);
+    params.push(options.webPageId);
+    paramIndex++;
+  }
+
+  if (options.tags && options.tags.length > 0) {
+    conditions.push(`cp.tags @> $${paramIndex}::text[]`);
+    params.push(options.tags);
+    paramIndex++;
+  }
+
+  if (options.industry) {
+    conditions.push(
+      `EXISTS (SELECT 1 FROM quality_benchmarks qb WHERE qb.web_page_id = cp.web_page_id AND qb.industry = $${paramIndex})`
+    );
+    params.push(options.industry);
+    paramIndex++;
+  }
+
+  if (options.audience) {
+    conditions.push(
+      `EXISTS (SELECT 1 FROM quality_benchmarks qb WHERE qb.web_page_id = cp.web_page_id AND qb.audience = $${paramIndex})`
+    );
+    params.push(options.audience);
     paramIndex++;
   }
 
@@ -259,27 +299,8 @@ function mapRowToResultItem(row: PartVectorSearchRow): PartSearchResultItem {
   return item;
 }
 
-/**
- * エラーメッセージをサニタイズ（内部構造の漏洩防止）
- * Sanitize error message (prevent internal structure leakage)
- */
-function sanitizeErrorMessage(error: unknown): string {
-  if (error instanceof Error) {
-    // Prisma系エラーコードを検出
-    const prismaError = error as { code?: string };
-    if (prismaError.code) {
-      switch (prismaError.code) {
-        case "P2002":
-          return "A record with this value already exists";
-        case "P2025":
-          return "Record not found";
-        default:
-          return "Database operation failed";
-      }
-    }
-  }
-  return "An internal error occurred";
-}
+// sanitizeErrorMessage: unified utility from utils/sanitize-error.ts
+import { sanitizeErrorMessage } from "../../utils/sanitize-error";
 
 // =====================================================
 // PartSearchService

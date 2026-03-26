@@ -573,17 +573,15 @@ export async function processMotionPhase(
       const probeResult = await readinessProbe.check();
 
       if (!probeResult.ready) {
-        if (isDevelopment()) {
-          logger.warn(
-            "[PageAnalyzeWorker] Ollama readiness probe failed, skipping scroll vision analysis",
-            {
-              reason: probeResult.reason,
-              vram: probeResult.vram,
-              waitRetries: probeResult.waitRetries,
-              totalWaitMs: probeResult.totalWaitMs,
-            }
-          );
-        }
+        logger.warn(
+          "[PageAnalyzeWorker] Ollama readiness probe failed, skipping scroll vision analysis",
+          {
+            reason: probeResult.reason,
+            vram: probeResult.vram,
+            waitRetries: probeResult.waitRetries,
+            totalWaitMs: probeResult.totalWaitMs,
+          }
+        );
         // Graceful Degradation: VRAM不足時はVision分析をスキップ（ジョブは継続）
         state.scrollVisionCapturesForDeferred = null;
       }

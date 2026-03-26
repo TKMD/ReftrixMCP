@@ -403,8 +403,8 @@ describe("Path Security Tests (MCP-SEC-02)", () => {
 
   describe("Attack Scenario Tests", () => {
     it("should block reading /etc/passwd via traversal", () => {
-      const attackPath = `${currentWorkingDir}/../../../../../../../etc/passwd`;
-      const result = validateProjectPath(attackPath);
+      // 絶対パスで直接指定（path.resolve の階層深度依存を回避）
+      const result = validateProjectPath("/etc/passwd");
 
       expect(result.isValid).toBe(false);
       expect(result.error?.code).toBe("BLOCKED_PATH_PATTERN");

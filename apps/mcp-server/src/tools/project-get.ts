@@ -24,6 +24,7 @@ import {
 } from "./schemas/project-schemas";
 import { serviceClient } from "../services/service-client";
 import { logger, isDevelopment } from "../utils/logger";
+import { sanitizeErrorMessage } from "../utils/sanitize-error";
 import { ErrorCode } from "../utils/errors";
 import {
   type McpResponse,
@@ -60,18 +61,15 @@ export async function projectGetHandler(input: unknown): Promise<ProjectGetRespo
     if (error instanceof ZodError) {
       const errorMessage = error.errors.map((e) => `${e.path.join(".")}: ${e.message}`).join(", ");
 
-      if (isDevelopment()) {
-        logger.error("[MCP Tool] project.get validation error", {
-          errors: error.errors,
-          requestId,
-        });
-      }
+      logger.warn("[MCP Tool] project.get validation error", {
+        errors: error.errors,
+        requestId,
+      });
 
       return createErrorResponseWithRequestId(
         ErrorCode.VALIDATION_ERROR,
         `入力バリデーションエラー: ${errorMessage}`,
-        requestId,
-        error.errors // details（開発環境のみ含まれる）
+        requestId
       );
     }
     // 予期せぬエラー
@@ -144,9 +142,10 @@ export async function projectGetHandler(input: unknown): Promise<ProjectGetRespo
 
     return createSuccessResponseWithRequestId(fullData, requestId);
   } catch (error) {
-    if (isDevelopment()) {
-      logger.error("[MCP Tool] project.get API error", { error, requestId });
-    }
+    logger.error("[MCP Tool] project.get API error", {
+      error: error instanceof Error ? error.message : String(error),
+      requestId,
+    });
 
     // 認証エラーのチェック
     if (error instanceof Error && error.message.includes("UNAUTHORIZED")) {
@@ -155,9 +154,8 @@ export async function projectGetHandler(input: unknown): Promise<ProjectGetRespo
 
     return createErrorResponseWithRequestId(
       ErrorCode.INTERNAL_ERROR,
-      "プロジェクト取得中にエラーが発生しました",
-      requestId,
-      error instanceof Error ? error.message : undefined
+      sanitizeErrorMessage(error),
+      requestId
     );
   }
 }

@@ -274,9 +274,8 @@ describe("page.getJobStatus MCPツール", () => {
       expect(result.success).toBe(false);
       if (!result.success) {
         expect(result.error.code).toBe(GET_JOB_STATUS_ERROR_CODES.INTERNAL_ERROR);
-        // SEC監査指摘: 本番環境ではエラー詳細を隠蔽
-        // 開発環境でのみ詳細が表示されるが、テストではmockしているため一般的なメッセージ
-        expect(result.error.message).toContain("Failed to get job status");
+        // sanitizeErrorMessage適用: "Connection lost" → "An internal error occurred"
+        expect(result.error.message).toBe("An internal error occurred");
       }
       // エラー発生時もキューがクローズされることを確認
       expect(closeQueue).toHaveBeenCalledWith(mockQueue);

@@ -784,14 +784,9 @@ export class MoodBrandToneEmbeddingService {
       }
     } catch (batchError) {
       // バッチ処理が失敗した場合、個別に処理
-      if (isDevelopment()) {
-        logger.warn(
-          "[MoodBrandToneEmbedding] Batch processing failed, falling back to individual",
-          {
-            error: batchError instanceof Error ? batchError.message : "Unknown error",
-          }
-        );
-      }
+      logger.warn("[MoodBrandToneEmbedding] Batch processing failed, falling back to individual", {
+        error: batchError instanceof Error ? batchError.message : "Unknown error",
+      });
 
       await this.processBatchFallback(
         validItems,

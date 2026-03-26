@@ -729,9 +729,7 @@ export class FrameAnalyzerService {
         }
       }
     } catch (error) {
-      if (isDevelopment()) {
-        logger.error("[FrameAnalyzerService] cleanup error", { dir, error });
-      }
+      logger.warn("[FrameAnalyzerService] cleanup error", { dir, error });
     }
   }
 

@@ -11,7 +11,6 @@
  */
 
 import { logger } from "../utils/logger";
-import { isDevelopmentEnvironment } from "./production-guard";
 import {
   executeHybridSearch,
   buildFulltextConditions,
@@ -93,6 +92,10 @@ function mapRowToResult(row: BackgroundSearchRow): BackgroundDesignSearchResult 
 interface BackgroundSearchFilters {
   designType?: string;
   webPageId?: string;
+  webPageUrl?: string;
+  tags?: string[];
+  industry?: string;
+  audience?: string;
 }
 
 interface BuildWhereResult {
@@ -118,6 +121,37 @@ function buildWhereClause(
   if (filters?.webPageId) {
     conditions.push(`bd.web_page_id = $${paramIndex}`);
     params.push(filters.webPageId);
+    paramIndex++;
+  }
+
+  if (filters?.webPageUrl) {
+    conditions.push(
+      `EXISTS (SELECT 1 FROM web_pages wp WHERE wp.id = bd.web_page_id AND wp.url = $${paramIndex})`
+    );
+    params.push(filters.webPageUrl);
+    paramIndex++;
+  }
+
+  if (filters?.tags && filters.tags.length > 0) {
+    conditions.push(`bd.tags @> $${paramIndex}::text[]`);
+    params.push(filters.tags);
+    paramIndex++;
+  }
+
+  // industry/audience: filter via quality_benchmarks EXISTS subquery
+  if (filters?.industry) {
+    conditions.push(
+      `EXISTS (SELECT 1 FROM quality_benchmarks qb WHERE qb.web_page_id = bd.web_page_id AND qb.industry = $${paramIndex})`
+    );
+    params.push(filters.industry);
+    paramIndex++;
+  }
+
+  if (filters?.audience) {
+    conditions.push(
+      `EXISTS (SELECT 1 FROM quality_benchmarks qb WHERE qb.web_page_id = bd.web_page_id AND qb.audience = $${paramIndex})`
+    );
+    params.push(filters.audience);
     paramIndex++;
   }
 
@@ -158,11 +192,9 @@ export function createBackgroundSearchService(config: BackgroundSearchServiceCon
     try {
       return await embeddingService.generateEmbedding(query, "query");
     } catch (error) {
-      if (isDevelopmentEnvironment()) {
-        logger.warn("[BackgroundSearchService] Embedding generation failed", {
-          error: error instanceof Error ? error.message : "Unknown error",
-        });
-      }
+      logger.warn("[BackgroundSearchService] Embedding generation failed", {
+        error: error instanceof Error ? error.message : "Unknown error",
+      });
       return null;
     }
   }
@@ -307,11 +339,9 @@ export function createBackgroundSearchService(config: BackgroundSearchServiceCon
 
           return toRankedItems(rows);
         } catch (ftError) {
-          if (isDevelopmentEnvironment()) {
-            logger.warn("[BackgroundSearchService] Full-text search failed, using vector only", {
-              error: ftError instanceof Error ? ftError.message : "Unknown error",
-            });
-          }
+          logger.warn("[BackgroundSearchService] Full-text search failed, using vector only", {
+            error: ftError instanceof Error ? ftError.message : "Unknown error",
+          });
           return [];
         }
       };
@@ -338,11 +368,9 @@ export function createBackgroundSearchService(config: BackgroundSearchServiceCon
 
       return { results, total: hybridResults.length };
     } catch (error) {
-      if (isDevelopmentEnvironment()) {
-        logger.error("[BackgroundSearchService] Hybrid search error, falling back to vector", {
-          error: error instanceof Error ? error.message : "Unknown error",
-        });
-      }
+      logger.warn("[BackgroundSearchService] Hybrid search error, falling back to vector", {
+        error: error instanceof Error ? error.message : "Unknown error",
+      });
       // フォールバック: ベクトル検索のみ
       return searchBackgroundDesigns(embedding, options);
     }

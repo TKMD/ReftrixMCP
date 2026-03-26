@@ -60,6 +60,20 @@ describe("HTMLサニタイズ", () => {
 - layout.ingest/page.analyze のコードでDOMPurify使用を確認 / Verify DOMPurify usage in layout.ingest/page.analyze code
 - サニタイズ前のHTMLが外部に漏れていないことを確認 / Verify unsanitized HTML is not exposed externally
 
+## レート制限（CWE-770 DoS対策） / Rate Limiting (CWE-770 DoS Prevention)
+
+### ✅ PASS基準 / PASS Criteria
+
+- ✅ Token Bucket + Redis Luaスクリプトによるアトミック制御 / Atomic control via Token Bucket + Redis Lua script
+- ✅ 3ティア構成: analysis(10RPM), search(120RPM), default(60RPM) / 3-tier configuration
+- ✅ Graceful Degradation: Redis未接続時はインメモリフォールバック / In-memory fallback when Redis unavailable
+- ✅ 全28 MCPツールに自動適用 / Auto-applied to all 28 MCP tools
+
+### ❌ FAIL基準 / FAIL Criteria
+
+- ❌ レート制限なしでMCPツールが公開されている / MCP tools exposed without rate limiting
+- ❌ Redis障害時にサービス停止 / Service stops on Redis failure
+
 ## CSP/ヘッダー / CSP/Headers
 
 > **注 / Note**: helmet.jsは現在の依存関係に含まれていない（MCPサーバー専用構成のため）。
@@ -82,6 +96,12 @@ npx license-checker --production \
   --onlyAllow "MIT;Apache-2.0;BSD-2-Clause;BSD-3-Clause;ISC;CC0-1.0;CC-BY-4.0;Unlicense;0BSD;AGPL-3.0-only;PostgreSQL;MPL-2.0;Python-2.0;BlueOak-1.0.0"
 # Note: sharp is excluded because its native binding (libvips) is LGPL-3.0-or-later; reviewed individually
 ```
+
+### SBOM (Software Bill of Materials)
+
+- CycloneDX 1.6 JSON形式（`pnpm sbom` / CI自動生成） / CycloneDX 1.6 JSON format (`pnpm sbom` / auto-generated in CI)
+- EU CRA 2026/9/11脆弱性報告義務対応 / EU CRA vulnerability reporting compliance
+- CI: GitHub Artifacts 90日保持 / CI: GitHub Artifacts 90-day retention
 
 ## 品質ゲート（CI必須） / Quality Gate (CI Required)
 
@@ -139,6 +159,10 @@ LGPL-3.0-or-later dependencies must be excluded via `--excludePackages` and revi
 
 ### sanitizeErrorMessage パターン / sanitizeErrorMessage Pattern
 
+v0.2.0で `utils/sanitize-error.ts` に統一ユーティリティとして抽出。47ファイル・28ツールに適用（42ファイルでインポート）。
+
+Extracted as a unified utility in `utils/sanitize-error.ts` in v0.2.0. Applied to 47 files and 28 tools (42 files importing it).
+
 エラーコードから汎用メッセージへ変換するヘルパー関数を使用し、内部構造の漏洩を防止する。
 
 Use a helper function that maps error codes to generic messages, preventing internal structure leakage.
@@ -157,14 +181,17 @@ Use a helper function that maps error codes to generic messages, preventing inte
 ```typescript
 // ✅ 良い例 / Good example
 function sanitizeErrorMessage(error: unknown): string {
-  if (error instanceof Prisma.PrismaClientKnownRequestError) {
-    switch (error.code) {
-      case "P2002":
-        return "A record with this value already exists";
-      case "P2025":
-        return "Record not found";
-      default:
-        return "Database operation failed";
+  if (error instanceof Error) {
+    const code = (error as { code?: string }).code;
+    if (code) {
+      switch (code) {
+        case "P2002":
+          return "A record with this value already exists";
+        case "P2025":
+          return "Record not found";
+        default:
+          return "Database operation failed";
+      }
     }
   }
   return "An internal error occurred";
@@ -175,6 +202,9 @@ logger.error("Operation failed", { error: errorInstance.message });
 // クライアント / Client
 return { error: sanitizeErrorMessage(error) };
 ```
+
+※ 上記は簡略化した例です。詳細は `utils/sanitize-error.ts` を参照。
+Note: The above is a simplified example. See `utils/sanitize-error.ts` for full implementation.
 
 ## isDevelopment() ガード原則 / isDevelopment() Guard Principle
 
@@ -225,9 +255,9 @@ When logging personally identifiable information (PII), truncate to minimize lea
 
 ### truncateId() ユーティリティ / truncateId() Utility
 
-PII truncateを一箇所に集約するユーティリティ関数。Zodスキーマ定義ファイル（例: `schemas.ts`）から提供する。
+PII truncateユーティリティ関数。現在2箇所に定義: (1) `src/tools/preference/schemas.ts`（undefined対応版）、(2) `src/services/part/schemas.ts`（length引数版）。将来的に統一を検討。
 
-A utility function that centralizes PII truncation. Provided from Zod schema definition files (e.g., `schemas.ts`).
+A PII truncation utility function. Currently defined in 2 locations: (1) `src/tools/preference/schemas.ts` (handles undefined), (2) `src/services/part/schemas.ts` (with length parameter). Future unification planned.
 
 ```typescript
 // schemas.ts から提供 / Provided by schemas.ts

@@ -161,7 +161,7 @@ describe("layout.ingest DB保存機能", () => {
       expect(result.success).toBe(false);
       if (!result.success) {
         expect(result.error.code).toBe(LAYOUT_MCP_ERROR_CODES.DB_SAVE_FAILED);
-        expect(result.error.message).toContain("Database connection failed");
+        expect(result.error.message).toContain("An internal error occurred");
       }
     });
 

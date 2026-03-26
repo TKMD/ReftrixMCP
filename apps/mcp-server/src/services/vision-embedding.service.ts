@@ -408,12 +408,10 @@ export class VisionEmbeddingService {
           throw error;
         }
 
-        if (isDevelopment()) {
-          logger.warn("[VisionEmbedding] Batch item failed", {
-            sectionPatternId: item.sectionPatternId,
-            error: errorMessage,
-          });
-        }
+        logger.warn("[VisionEmbedding] Batch item failed", {
+          sectionPatternId: item.sectionPatternId,
+          error: errorMessage,
+        });
       }
 
       // 進捗コールバック
@@ -614,12 +612,10 @@ export async function generateAndSaveVisionEmbedding(
 
     return embeddingId;
   } catch (error) {
-    if (isDevelopment()) {
-      logger.warn("[VisionEmbedding] Failed to generate/save vision embedding", {
-        sectionPatternId,
-        error: error instanceof Error ? error.message : "Unknown error",
-      });
-    }
+    logger.warn("[VisionEmbedding] Failed to generate/save vision embedding", {
+      sectionPatternId,
+      error: error instanceof Error ? error.message : "Unknown error",
+    });
     return null;
   }
 }

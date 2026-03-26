@@ -286,23 +286,19 @@ export async function processNarrativePhase(
       // SSRF対策: URLを検証
       const urlValidation = deps.validateExternalUrl(url);
       if (!urlValidation.valid) {
-        if (isDevelopment()) {
-          logger.warn("[PageAnalyzeWorker] Responsive SSRF blocked", {
-            url,
-            error: urlValidation.error,
-          });
-        }
+        logger.warn("[PageAnalyzeWorker] Responsive SSRF blocked", {
+          url,
+          error: urlValidation.error,
+        });
         statusTracker.skipPhase("responsive", `SSRF blocked: ${urlValidation.error}`);
       } else {
         // robots.txt チェック（respect_robots_txt パラメータを伝搬）
         const robotsResult = await deps.isUrlAllowedByRobotsTxt(url, options.respectRobotsTxt);
         if (!robotsResult.allowed) {
-          if (isDevelopment()) {
-            logger.warn("[PageAnalyzeWorker] Responsive blocked by robots.txt", {
-              url,
-              reason: robotsResult.reason,
-            });
-          }
+          logger.warn("[PageAnalyzeWorker] Responsive blocked by robots.txt", {
+            url,
+            reason: robotsResult.reason,
+          });
           statusTracker.skipPhase(
             "responsive",
             `Robots.txt blocked: ${robotsResult.reason}. ` +

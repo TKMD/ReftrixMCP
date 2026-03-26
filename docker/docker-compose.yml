@@ -27,11 +27,17 @@ services:
       # environment ブロックに書くと env_file の値を上書きしてしまうため、ここには書かない
       # POSTGRES_PASSWORD is loaded from env_file (.env.local → .env.example).
       # Do NOT set it here — environment block overrides env_file values.
+    # pgvector GUC parameters (hnsw.iterative_scan) require vector in shared_preload_libraries
+    # pgvector GUCパラメータ（hnsw.iterative_scan等）を有効化するため vector を事前ロード
+    command: postgres -c shared_preload_libraries=vector
     ports:
       - "26432:5432"
     volumes:
       # PostgreSQL 18+ requires mounting at /var/lib/postgresql (not /data subdirectory)
       - reftrix_postgres_data:/var/lib/postgresql
+      # Init scripts (run once on first container creation)
+      # 初期化スクリプト（コンテナ初回作成時に1回実行）
+      - ./initdb:/docker-entrypoint-initdb.d:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U reftrix -d reftrix"]
       interval: 10s

@@ -492,9 +492,7 @@ export function validateExternalUrl(url: string): UrlValidationResult {
   try {
     urlObj = new URL(trimmedUrl);
   } catch {
-    if (isDevelopment()) {
-      logger.debug("[url-validator] Failed to parse URL", { url: trimmedUrl });
-    }
+    logger.warn("[url-validator] Failed to parse URL", { url: trimmedUrl });
     return {
       valid: false,
       error: "Invalid URL format: unable to parse URL",

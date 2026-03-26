@@ -190,11 +190,9 @@ export class ResponsiveAnalysisService {
               });
             }
           } catch (error) {
-            if (isDevelopment()) {
-              logger.warn("[ResponsiveAnalysis] Precise breakpoint detection failed", {
-                error: error instanceof Error ? error.message : String(error),
-              });
-            }
+            logger.warn("[ResponsiveAnalysis] Precise breakpoint detection failed", {
+              error: error instanceof Error ? error.message : String(error),
+            });
           }
         }
       }
@@ -285,12 +283,10 @@ export class ResponsiveAnalysisService {
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
 
-      if (isDevelopment()) {
-        logger.error("[ResponsiveAnalysis] Responsive analysis failed", {
-          url,
-          error: errorMessage,
-        });
-      }
+      logger.warn("[ResponsiveAnalysis] Responsive analysis failed", {
+        url,
+        error: errorMessage,
+      });
 
       throw new Error(`Responsive analysis failed: ${errorMessage}`);
     }

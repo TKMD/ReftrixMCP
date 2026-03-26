@@ -140,11 +140,9 @@ export class AxeAccessibilityService {
 
       return processedResult;
     } catch (error) {
-      if (isDevelopment()) {
-        logger.error("[AxeAccessibilityService] Analysis error", {
-          error: error instanceof Error ? error.message : "Unknown error",
-        });
-      }
+      logger.warn("[AxeAccessibilityService] Analysis error", {
+        error: error instanceof Error ? error.message : "Unknown error",
+      });
 
       // エラー時はデフォルト結果を返す
       return this.createEmptyResult();

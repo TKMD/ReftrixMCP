@@ -303,8 +303,8 @@ describe("system.health MCPツール", () => {
         ]);
         expect(result.data.services.initialization?.skippedCategories).toEqual([]);
         expect(result.data.services.initialization?.errors).toEqual([]);
-        // v0.1.5: 26 tools (WebDesign専用) - part.search/inspect/compare追加
-        expect(result.data.services.initialization?.registeredToolCount).toBe(26);
+        // v0.2.0: 28 tools (WebDesign専用) - search.unified, design.search_by_image追加
+        expect(result.data.services.initialization?.registeredToolCount).toBe(28);
       }
     });
 
@@ -743,7 +743,8 @@ describe("system.health MCPツール", () => {
       expect(result.success).toBe(false);
       if (!result.success) {
         expect(result.error.code).toBe("HEALTH_CHECK_ERROR");
-        expect(result.error.message).toContain("Unexpected initialization error");
+        // sanitizeErrorMessage: raw error message is sanitized to generic message
+        expect(result.error.message).toBe("An internal error occurred");
         expect(result.metadata?.request_id).toBeDefined();
         expect(result.metadata?.processing_time_ms).toBeGreaterThanOrEqual(0);
       }
@@ -883,7 +884,8 @@ describe("system.health MCPツール", () => {
       if (result.success) {
         // エラー時はフォールバック値が設定される
         expect(result.data.vision_hardware).toBeDefined();
-        expect(result.data.vision_hardware?.detection_error).toContain("HardwareDetector error");
+        // sanitizeErrorMessage: "HardwareDetector error" -> "An internal error occurred"
+        expect(result.data.vision_hardware?.detection_error).toBe("An internal error occurred");
         expect(result.data.vision_hardware?.detected_type).toBe("CPU"); // 安全側
       }
     });

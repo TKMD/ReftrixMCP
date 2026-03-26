@@ -1313,7 +1313,7 @@ describe("motion.detect runtime_options パラメータ", () => {
       // Assert
       expect(result.success).toBe(false);
       if (!result.success) {
-        expect(result.error.message).toContain("timeout");
+        expect(result.error.message).toBe("Operation timed out");
       }
     });
 

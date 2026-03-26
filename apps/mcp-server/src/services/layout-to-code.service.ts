@@ -678,9 +678,7 @@ function normalizeCssUrls(css: string, baseUrl?: string): string {
   try {
     parsedBaseUrl = new URL(baseUrl);
   } catch {
-    if (isDevelopment()) {
-      logger.warn("[normalizeCssUrls] Invalid base URL", { baseUrl });
-    }
+    logger.warn("[normalizeCssUrls] Invalid base URL", { baseUrl });
     return result;
   }
 
@@ -732,12 +730,10 @@ function normalizeCssUrls(css: string, baseUrl?: string): string {
         return `url("${absoluteUrl}")`;
       } catch {
         // URL解決に失敗した場合はそのまま
-        if (isDevelopment()) {
-          logger.warn("[normalizeCssUrls] Failed to resolve URL", {
-            url: trimmedUrl,
-            baseUrl,
-          });
-        }
+        logger.warn("[normalizeCssUrls] Failed to resolve URL", {
+          url: trimmedUrl,
+          baseUrl,
+        });
         return match;
       }
     }
@@ -1362,12 +1358,10 @@ export class LayoutToCodeService implements ILayoutToCodeService {
 
       return recordToSectionPattern(record);
     } catch (error) {
-      if (isDevelopment()) {
-        logger.warn("[LayoutToCodeService] Error getting section pattern, returning null", {
-          id,
-          error: error instanceof Error ? error.message : "Unknown error",
-        });
-      }
+      logger.warn("[LayoutToCodeService] Error getting section pattern, returning null", {
+        id,
+        error: error instanceof Error ? error.message : "Unknown error",
+      });
       // エラー時もnullを返す
       return null;
     }
@@ -1491,12 +1485,10 @@ export class LayoutToCodeService implements ILayoutToCodeService {
 
       return result;
     } catch (error) {
-      if (isDevelopment()) {
-        logger.error("[LayoutToCodeService] Code generation error", {
-          patternId: pattern.id,
-          error: error instanceof Error ? error.message : "Unknown error",
-        });
-      }
+      logger.warn("[LayoutToCodeService] Code generation error", {
+        patternId: pattern.id,
+        error: error instanceof Error ? error.message : "Unknown error",
+      });
       throw error;
     }
   }

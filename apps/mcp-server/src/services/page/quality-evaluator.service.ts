@@ -1425,9 +1425,7 @@ export class QualityEvaluatorService {
     } catch (error) {
       const processingTimeMs = Date.now() - startTime;
 
-      if (isDevelopment()) {
-        logger.error("[QualityEvaluatorService] evaluate error", { error });
-      }
+      logger.warn("[QualityEvaluatorService] evaluate error", { error });
 
       return {
         success: false,

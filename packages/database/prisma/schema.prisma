@@ -1295,6 +1295,9 @@ model DesignNarrative {
   // 分析信頼度（0-1）
   confidence Float? @default(0.0)
 
+  // メタデータ / Metadata
+  tags String[] @default([])
+
   // 分析日時
   analyzedAt DateTime @default(now()) @map("analyzed_at") @db.Timestamptz
 

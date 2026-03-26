@@ -241,9 +241,7 @@ export class RuntimeAnimationDetectorService {
     } catch (error) {
       const detectionTimeMs = Date.now() - startTime;
 
-      if (isDevelopment()) {
-        logger.error("[RuntimeAnimationDetectorService] detect error", { error });
-      }
+      logger.warn("[RuntimeAnimationDetectorService] detect error", { error });
 
       // ページナビゲーション中などはエラーではなく空の結果を返す
       if (
@@ -394,9 +392,7 @@ export class RuntimeAnimationDetectorService {
         iterations: anim.iterations === null ? Infinity : anim.iterations,
       }));
     } catch (error) {
-      if (isDevelopment()) {
-        logger.error("[RuntimeAnimationDetectorService] detectAnimations error", { error });
-      }
+      logger.warn("[RuntimeAnimationDetectorService] detectAnimations error", { error });
       return [];
     }
   }
@@ -443,11 +439,9 @@ export class RuntimeAnimationDetectorService {
 
       return observers;
     } catch (error) {
-      if (isDevelopment()) {
-        logger.error("[RuntimeAnimationDetectorService] detectIntersectionObservers error", {
-          error,
-        });
-      }
+      logger.warn("[RuntimeAnimationDetectorService] detectIntersectionObservers error", {
+        error,
+      });
       return [];
     }
   }
@@ -600,9 +594,7 @@ export class RuntimeAnimationDetectorService {
 
       return rafResults;
     } catch (error) {
-      if (isDevelopment()) {
-        logger.error("[RuntimeAnimationDetectorService] detectRAFCallbacks error", { error });
-      }
+      logger.warn("[RuntimeAnimationDetectorService] detectRAFCallbacks error", { error });
       return [];
     }
   }
@@ -734,9 +726,7 @@ export class RuntimeAnimationDetectorService {
 
       return results;
     } catch (error) {
-      if (isDevelopment()) {
-        logger.error("[RuntimeAnimationDetectorService] detectAtScrollPositions error", { error });
-      }
+      logger.warn("[RuntimeAnimationDetectorService] detectAtScrollPositions error", { error });
       return {};
     }
   }

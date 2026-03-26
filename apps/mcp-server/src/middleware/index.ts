@@ -54,3 +54,16 @@ export {
   clearCoercionMapCache,
   type CoercionMap,
 } from "./args-type-coercion";
+
+export {
+  RateLimiter,
+  getRateLimiter,
+  resetRateLimiter,
+  checkRateLimit,
+  isRateLimitEnabled,
+  DEFAULT_TIER_CONFIGS,
+  TOOL_TIER_MAP,
+  type RateLimitResult,
+  type RateLimitTier,
+  type RateLimitTierConfig,
+} from "./rate-limiter";

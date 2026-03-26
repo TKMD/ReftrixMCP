@@ -175,6 +175,9 @@ const DEPRECATED_CAMEL_CASE_PARAMS: Record<string, string[]> = {
 
   // Project ツール
   "project.list": ["sortBy", "sortOrder"],
+
+  // Search ツール
+  "search.unified": ["webPageId"],
 };
 
 /**
@@ -460,8 +463,8 @@ describe("MCP Parameter Naming Convention", () => {
   // preference.hear, preference.get, preference.reset ツール追加
   // =========================================================================
   describe("ツール数", () => {
-    it("allToolDefinitionsが26ツール（WebDesign専用）を含むこと", () => {
-      expect(allToolDefinitions).toHaveLength(26);
+    it("allToolDefinitionsが28ツール（WebDesign専用）を含むこと", () => {
+      expect(allToolDefinitions).toHaveLength(28);
     });
   });
 

@@ -46,6 +46,14 @@ export interface ResponsiveSearchOptions {
     breakpointRange?: { min?: number; max?: number };
     minDiffPercentage?: number;
     webPageId?: string;
+    /** WebページURLフィルター / Web page URL filter */
+    webPageUrl?: string;
+    /** 業種フィルター / Industry filter (via quality_benchmarks) */
+    industry?: string;
+    /** ターゲットオーディエンス / Target audience (via quality_benchmarks) */
+    audience?: string;
+    /** タグフィルター / Tag filter (ra.tags @> array) */
+    tags?: string[];
   };
 }
 
@@ -93,11 +101,9 @@ export function createResponsiveSearchService(
       try {
         return await embeddingService.generateEmbedding(query, "query");
       } catch (error) {
-        if (isDevelopment()) {
-          logger.warn("[ResponsiveSearch] Embedding generation failed", {
-            error: error instanceof Error ? error.message : String(error),
-          });
-        }
+        logger.warn("[ResponsiveSearch] Embedding generation failed", {
+          error: error instanceof Error ? error.message : String(error),
+        });
         return null;
       }
     },
@@ -159,6 +165,35 @@ export function createResponsiveSearchService(
         params.push(vp1);
         params.push(vp2);
         paramIndex += 2;
+      }
+
+      // Common search filters (industry/audience/tags)
+      if (filters?.webPageUrl) {
+        conditions.push(`wp.url = $${paramIndex}`);
+        params.push(filters.webPageUrl);
+        paramIndex++;
+      }
+
+      if (filters?.tags && filters.tags.length > 0) {
+        conditions.push(`ra.tags @> $${paramIndex}::text[]`);
+        params.push(filters.tags);
+        paramIndex++;
+      }
+
+      if (filters?.industry) {
+        conditions.push(
+          `EXISTS (SELECT 1 FROM quality_benchmarks qb WHERE qb.web_page_id = ra.web_page_id AND qb.industry = $${paramIndex})`
+        );
+        params.push(filters.industry);
+        paramIndex++;
+      }
+
+      if (filters?.audience) {
+        conditions.push(
+          `EXISTS (SELECT 1 FROM quality_benchmarks qb WHERE qb.web_page_id = ra.web_page_id AND qb.audience = $${paramIndex})`
+        );
+        params.push(filters.audience);
+        paramIndex++;
       }
 
       const whereClause = conditions.join(" AND ");

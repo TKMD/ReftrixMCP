@@ -298,11 +298,9 @@ export class WebGLDetectorService {
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
 
-      if (isDevelopment()) {
-        logger.warn("[WebGLDetector] Detection failed, using safe defaults", {
-          error: errorMessage,
-        });
-      }
+      logger.warn("[WebGLDetector] Detection failed, using safe defaults", {
+        error: errorMessage,
+      });
 
       // Return safe defaults on error
       return {

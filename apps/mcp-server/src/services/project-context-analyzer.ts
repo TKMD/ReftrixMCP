@@ -237,11 +237,9 @@ export class ProjectContextAnalyzer {
         });
       }
     } catch (error) {
-      if (isDevelopment()) {
-        logger.error("[ProjectContextAnalyzer] Error detecting patterns", {
-          error: error instanceof Error ? error.message : String(error),
-        });
-      }
+      logger.warn("[ProjectContextAnalyzer] Error detecting patterns", {
+        error: error instanceof Error ? error.message : String(error),
+      });
     }
 
     return patterns;

@@ -10,6 +10,46 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 形式は [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) に基づき、
 [セマンティックバージョニング](https://semver.org/spec/v2.0.0.html) に準拠しています。
 
+## [Unreleased]
+
+## [0.2.0] - 2026-03-25
+
+### Added / 追加
+
+- **検索結果キャッシュ（LRU）**: lru-cache v11によるインメモリキャッシュ。P95レイテンシ500ms→50ms目標 / **Search result cache (LRU)**: in-memory cache via lru-cache v11. P95 latency target 500ms → 50ms
+- **コンポーネント横断検索 `search.unified` ツール**: 5サービス並列検索+similarity統合 / **Cross-component search `search.unified` tool**: 5-service parallel search with similarity aggregation
+- **マルチモーダル検索 `design.search_by_image` ツール**: 画像→DINOv2→HNSW vision search、RRF 3-source (40/30/30) / **Multimodal search `design.search_by_image` tool**: image → DINOv2 → HNSW vision search, RRF 3-source (40/30/30)
+- **sanitizeErrorMessage グローバルユーティリティ**: CWE-209対策として47ファイルに適用 / **sanitizeErrorMessage global utility**: applied to 47 files for CWE-209 mitigation
+- **SBOM自動生成**: CycloneDX 1.6フォーマット、`pnpm sbom`コマンド、CI統合 / **Automated SBOM generation**: CycloneDX 1.6 format, `pnpm sbom` command, CI integration
+- **BullMQジョブ管理UI**: @bull-board/express、Basic Auth認証、ポート21080 / **BullMQ job management UI**: @bull-board/express, Basic Auth, port 21080
+- **マイグレーション自動化（db-migrate-safe.sh）**: 自動バックアップ + 自動ロールバック / **Migration automation (db-migrate-safe.sh)**: auto-backup + auto-rollback
+- **Phase 1/3並列化**: Promise.allによる約40%高速化 / **Phase 1/3 parallelization**: ~40% speedup via Promise.all
+- **スタンドアロンCLI `apps/cli/`**: `reftrix analyze <url>`コマンド、MCP非依存 / **Standalone CLI `apps/cli/`**: `reftrix analyze <url>` command, MCP-independent
+- **pgvector 0.8 iterative scan有効化**: ALTER ROLE SET + アプリ層SETで有効化 / **pgvector 0.8 iterative scan enabled**: via ALTER ROLE SET + application-layer SET
+- **レート制限ミドルウェア**: Token Bucket + Redis Lua、3ティア（analysis 10RPM / search 120RPM / default 60RPM） / **Rate limiting middleware**: Token Bucket + Redis Lua, 3 tiers (analysis 10RPM / search 120RPM / default 60RPM)
+- **フィルタリング統一**: industry/audience/tags共通スキーマ、6検索ツールに適用 / **Filtering unification**: industry/audience/tags common schema, applied to 6 search tools
+- **sync-oss.sh npm publish統合**: Step 6でnpm publish実行、`--skip-publish`オプション対応 / **sync-oss.sh npm publish integration**: npm publish in Step 6, `--skip-publish` option supported
+
+### Changed / 変更
+
+- **巨大ファイル4件を責務分割（motion/search.tool.ts, layout/search.tool.ts, sync-processing.ts, service-initializer.ts）** / **Split 4 large files by responsibility (motion/search.tool.ts, layout/search.tool.ts, sync-processing.ts, service-initializer.ts)**
+- **MCPツール数の表記統一**: 26→28に統一（37ファイル、約75箇所） / **MCP tool count unification**: unified from 26 to 28 across 37 files (~75 locations)
+- **`.gitignore` 更新**: `captured-frames/` と `*.tsbuildinfo` を追加、Git追跡中の生成物7ファイルを除去 / **`.gitignore` update**: added `captured-frames/` and `*.tsbuildinfo`, removed 7 tracked generated files
+- **QA一本化**: E2Eランナー統一、CI全ファイル実行、typecheck拡張 / **QA unification**: E2E runner alignment, CI full file coverage, typecheck expansion
+
+### Security / セキュリティ
+
+- **isDevelopment() ガード全是正**: 本番エラーサイレント吸収を防止 / **Remove all isDevelopment() guards in error paths**: prevent silent error absorption in production
+
+### Fixed / 修正
+
+- **narrative.search フィルタ転送修正**: フィルタパラメータが正しく転送されない問題を修正 / **narrative.search filter forwarding fix**: fixed filter parameters not being forwarded correctly
+- **.ossfilter に db-migrate-safe.sh を追加**: OSSテスト失敗を修正 / **Added db-migrate-safe.sh to .ossfilter**: fixed OSS test failure
+
+### Tests / テスト
+
+- **SEC/TDA/LCC監査テスト91件追加** / **Add 91 SEC/TDA/LCC audit tests**
+
 ## [0.1.8] - 2026-03-22
 
 ### Added / 追加
@@ -117,10 +157,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed / 変更
 
-- **エージェント設計をv3.0に刷新**: 職種ベース（Backend Developer, ML Engineer等）から問題領域ベース（page-analyze-pipeline-engineer, playwright-capture-engineer等）に移行。全15エージェントをv3.0フォーマットに統一 / Agent architecture redesigned to v3.0: migrated from role-based (Backend Developer, ML Engineer, etc.) to problem-domain-based (page-analyze-pipeline-engineer, playwright-capture-engineer, etc.). All 15 agents unified to v3.0 format
-  - 5ドメインエージェント新設: page-analyze-pipeline-engineer, playwright-capture-engineer, embedding-retrieval-engineer, search-relevance-engineer, worker-observability-engineer / 5 new domain agents
-  - 症状→エージェントルーティング表を導入 / Symptom → Agent routing table introduced
-  - Evidence-First原則と明示的ハンドオフパターンを全エージェントに適用 / Evidence-First principle and explicit handoff patterns applied to all agents
 - Fallback viewport: 1280x800 → 1920x1080（ingest viewportと統一） / Fallback viewport unified to 1920x1080
 
 ### Documentation / ドキュメント
@@ -130,7 +166,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - v0.1.9 Blank Image Detection + Dynamic Fallback / Section Split Rule 4のドキュメント追記 / v0.1.9 docs for Blank Image Detection, Dynamic Fallback, and Section Split Rule 4
 - v0.1.9 Lazy Loading Scroll + Worker postProcessSections統合 + Dynamic Fallbackバグ修正のドキュメント追記 / v0.1.9 docs for Lazy Loading Scroll, Worker postProcessSections integration, and Dynamic Fallback bug fixes
 - v0.1.10 Section Screenshot Fallback Multi-Tile + isBlankImage改善のドキュメント追記 / v0.1.10 docs for Multi-Tile Capture and isBlankImage improvement
-- sub-agents.md v3.0更新、TEAM_STRUCTURE.md更新 / sub-agents.md v3.0 update, TEAM_STRUCTURE.md update
 
 ## [0.1.5] - 2026-03-12
 
@@ -162,7 +197,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Documentation / ドキュメント
 
-- Part-Level Analysisのアーキテクチャ・ツール仕様ドキュメントを追加（` / Added Part-Level Analysis architecture and tool specification docs (` updated)
+- Part-Level Analysisのドキュメントを更新 / Updated Part-Level Analysis documentation
 
 ## [0.1.4] - 2026-03-11
 
@@ -235,8 +270,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Updated `docs/users-guide/02-mcp-tools-guide.md` with Preference tools section (Chapter 14) / `docs/users-guide/02-mcp-tools-guide.md`にPreferenceツールセクション（第14章）を追加
 - Updated `docs/legal/PRIVACY_POLICY.md` v0.1.0 → v0.1.1 (profiling contradiction fix, Art. 22 explanation) / `docs/legal/PRIVACY_POLICY.md` v0.1.0 → v0.1.1（プロファイリング矛盾修正、Art. 22説明追加）
 - Updated `docs/legal/TERMS_OF_SERVICE.md` with preference profiling in feature list / `docs/legal/TERMS_OF_SERVICE.md`の機能リストにpreference profilingを追加
-- Updated `(api-endpoints, database-schema, mcp-tools-reference) /` database-schema, mcp-tools-reference）
-- Updated `with truncateId and NaN/Infinity defense patterns /`
 
 ## [0.1.2] - 2026-03-05
 
@@ -283,7 +316,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Updated `current-architecture.md` Database Backup & Restore section (bilingual, env_file two-stage loading, auth pre-flight check) / `current-architecture.md`のDatabase Backup & Restoreセクション更新（日英バイリンガル、env_file 2段階読み込み、認証事前チェック）
 - Added troubleshooting section 2.6: Backup/Restore Authentication Failure / トラブルシューティングセクション2.6追加: バックアップ/リストア認証失敗
 - Updated FAQ Q8 to use `pnpm db:backup` / FAQ Q8を`pnpm db:backup`に更新
-- Updated `with Ollama Vision Unload + Apple Metal Support info /` Vision Unload＋Apple Metal Support情報を追加
+- Updated development rules with Ollama Vision Unload + Apple Metal Support info / 開発ルールにOllama Vision Unload＋Apple Metal Support情報を追加
 
 ## [0.1.1] - 2026-03-03
 

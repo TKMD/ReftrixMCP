@@ -20,6 +20,7 @@
 
 import { ZodError } from "zod";
 import { logger, isDevelopment } from "../../utils/logger";
+import { sanitizeErrorMessage } from "../../utils/sanitize-error";
 import {
   createValidationErrorWithHints,
   formatMultipleDetailedErrors,
@@ -330,11 +331,7 @@ export async function motionDetectHandler(input: unknown): Promise<MotionDetectO
       const detailedMessage = formatMultipleDetailedErrors(errorWithHints.errors);
       const formattedErrors = formatZodError(error);
 
-      if (isDevelopment()) {
-        logger.error("[MCP Tool] motion.detect validation error", {
-          errors: errorWithHints.errors,
-        });
-      }
+      logger.warn("[MCP Tool] motion.detect validation error", { error: (error as Error).message });
 
       return {
         success: false,
@@ -349,14 +346,14 @@ export async function motionDetectHandler(input: unknown): Promise<MotionDetectO
       };
     }
 
-    if (isDevelopment()) {
-      logger.error("[MCP Tool] motion.detect validation error", { error });
-    }
+    logger.warn("[MCP Tool] motion.detect validation error", {
+      error: error instanceof Error ? error.message : "Unknown error",
+    });
     return {
       success: false,
       error: {
         code: MOTION_MCP_ERROR_CODES.VALIDATION_ERROR,
-        message: error instanceof Error ? error.message : "Invalid input",
+        message: sanitizeErrorMessage(error),
       },
     };
   }
@@ -512,12 +509,9 @@ async function findOrCreateWebPageForUrl(
       created: result.created,
     };
   } catch (error) {
-    if (isDevelopment()) {
-      logger.warn("[MCP Tool] motion.detect WebPage findOrCreate failed", {
-        url,
-        error: error instanceof Error ? error.message : "Unknown error",
-      });
-    }
+    logger.warn("[MCP Tool] motion.detect WebPage findOrCreate failed", {
+      error: (error as Error).message,
+    });
     // エラー時はnullを返す（graceful degradation: 保存は source_url のみで続行）
     return null;
   }
@@ -593,7 +587,7 @@ async function handleVideoMode(
             errorObj.name === "SSRFBlockedError"
               ? "FRAME_CAPTURE_SSRF_BLOCKED"
               : "FRAME_CAPTURE_ERROR",
-          message: fcErr instanceof Error ? fcErr.message : "Frame capture failed",
+          message: sanitizeErrorMessage(fcErr),
         };
       }
     }
@@ -663,18 +657,16 @@ async function handleVideoMode(
           });
         }
       } catch (saveError) {
-        if (isDevelopment()) {
-          logger.warn("[MCP Tool] motion.detect frame analysis DB save failed", {
-            error: saveError instanceof Error ? saveError.message : "Unknown error",
-          });
-        }
+        logger.warn("[MCP Tool] motion.detect frame analysis DB save failed", {
+          error: (saveError as Error).message,
+        });
         // エラー時も結果を返す（saved: false）
         frameAnalysisSaveResult = {
           saved: false,
           savedCount: 0,
           patternIds: [],
           embeddingIds: [],
-          reason: saveError instanceof Error ? saveError.message : "DB save failed",
+          reason: sanitizeErrorMessage(saveError),
         };
       }
     }
@@ -789,9 +781,7 @@ async function handleVideoMode(
       },
     };
   } catch (error) {
-    if (isDevelopment()) {
-      logger.error("[MCP Tool] motion.detect video mode error", { error });
-    }
+    logger.warn("[MCP Tool] motion.detect video mode error", { error: (error as Error).message });
 
     let errorCode: MotionMcpErrorCode = MOTION_MCP_ERROR_CODES.VIDEO_RECORD_ERROR;
     if (error instanceof SSRFBlockedError) {
@@ -809,7 +799,7 @@ async function handleVideoMode(
       success: false,
       error: {
         code: errorCode,
-        message: error instanceof Error ? error.message : "Video detection failed",
+        message: sanitizeErrorMessage(error),
       },
     };
   }
@@ -932,9 +922,7 @@ async function handleRuntimeMode(
       },
     };
   } catch (error) {
-    if (isDevelopment()) {
-      logger.error("[MCP Tool] motion.detect runtime mode error", { error });
-    }
+    logger.warn("[MCP Tool] motion.detect runtime mode error", { error: (error as Error).message });
 
     return {
       success: false,
@@ -943,7 +931,7 @@ async function handleRuntimeMode(
           error instanceof SSRFBlockedError
             ? MOTION_MCP_ERROR_CODES.SSRF_BLOCKED
             : MOTION_MCP_ERROR_CODES.INTERNAL_ERROR,
-        message: error instanceof Error ? error.message : "Runtime detection failed",
+        message: sanitizeErrorMessage(error),
       },
     };
   }
@@ -983,10 +971,10 @@ async function handleHybridMode(
       // WebGL/3Dサイト対応: domcontentloadedで待機（loadは3Dサイトで非常に時間がかかる）
       await page.goto(validated.url!, { waitUntil: "domcontentloaded", timeout: 30000 });
       htmlContent = await page.content();
-    } catch {
-      if (isDevelopment()) {
-        logger.warn("[MCP Tool] motion.detect hybrid mode: failed to get HTML for CSS detection");
-      }
+    } catch (error) {
+      logger.warn("[MCP Tool] motion.detect hybrid mode: failed to get HTML for CSS detection", {
+        error: (error as Error).message,
+      });
     } finally {
       // ブラウザリソースを確実に解放
       if (browser) {
@@ -1118,9 +1106,7 @@ async function handleHybridMode(
       },
     };
   } catch (error) {
-    if (isDevelopment()) {
-      logger.error("[MCP Tool] motion.detect hybrid mode error", { error });
-    }
+    logger.warn("[MCP Tool] motion.detect hybrid mode error", { error: (error as Error).message });
 
     return {
       success: false,
@@ -1129,7 +1115,7 @@ async function handleHybridMode(
           error instanceof SSRFBlockedError
             ? MOTION_MCP_ERROR_CODES.SSRF_BLOCKED
             : MOTION_MCP_ERROR_CODES.INTERNAL_ERROR,
-        message: error instanceof Error ? error.message : "Hybrid detection failed",
+        message: sanitizeErrorMessage(error),
       },
     };
   }
@@ -1177,14 +1163,12 @@ async function handleDefaultMode(
       css = page.cssContent;
       pageId = page.id;
     } catch (error) {
-      if (isDevelopment()) {
-        logger.error("[MCP Tool] motion.detect DB error", { error });
-      }
+      logger.warn("[MCP Tool] motion.detect DB error", { error: (error as Error).message });
       return {
         success: false,
         error: {
           code: MOTION_MCP_ERROR_CODES.DB_ERROR,
-          message: error instanceof Error ? error.message : "Database error",
+          message: sanitizeErrorMessage(error),
         },
       };
     }
@@ -1282,7 +1266,7 @@ async function executeLighthouseIfEnabled(
       metrics: null,
       error: {
         code: isTimeout ? "LIGHTHOUSE_TIMEOUT" : "LIGHTHOUSE_ERROR",
-        message: err instanceof Error ? err.message : "Lighthouse analysis failed",
+        message: sanitizeErrorMessage(err),
       },
       warnings,
       processingTimeMs: Date.now() - startTime,
@@ -1391,7 +1375,7 @@ async function executeAnimationMetricsIfEnabled(
       metrics: null,
       error: {
         code: isTimeout ? "ANIMATION_METRICS_TIMEOUT" : "ANIMATION_METRICS_ERROR",
-        message: err instanceof Error ? err.message : "Animation metrics analysis failed",
+        message: sanitizeErrorMessage(err),
       },
       warnings,
       processingTimeMs: Date.now() - startTime,
@@ -1469,7 +1453,7 @@ async function executeFrameImageAnalysisIfEnabled(
       result: null,
       error: {
         code: isTimeout ? "FRAME_ANALYSIS_TIMEOUT" : "FRAME_ANALYSIS_ERROR",
-        message: err instanceof Error ? err.message : "Frame image analysis failed",
+        message: sanitizeErrorMessage(err),
       },
       warnings,
       processingTimeMs: Date.now() - startTime,
@@ -1639,18 +1623,16 @@ async function executeJSAnimationDetectionWithUrl(
     const isTimeout =
       errorObj.message?.toLowerCase().includes("timeout") || errorObj.code === "TIMEOUT";
 
-    if (isDevelopment()) {
-      logger.warn("[MCP Tool] motion.detect JS animation detection with URL failed", {
-        url,
-        error: err instanceof Error ? err.message : "Unknown error",
-      });
-    }
+    logger.warn("[MCP Tool] motion.detect JS animation detection with URL failed", {
+      url,
+      error: err instanceof Error ? err.message : "Unknown error",
+    });
 
     return {
       result: null,
       error: {
         code: isTimeout ? "JS_ANIMATION_TIMEOUT" : "JS_ANIMATION_ERROR",
-        message: err instanceof Error ? err.message : "JS animation detection failed",
+        message: sanitizeErrorMessage(err),
       },
       warnings,
       processingTimeMs: Date.now() - startTime,
@@ -1746,11 +1728,8 @@ async function saveJSAnimationsToDb(
 
     return saveResult;
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : "Unknown error";
-    if (isDevelopment()) {
-      logger.error("[motion.detect] JS animation DB save error", { error: errorMessage });
-    }
-    return { savedPatternCount: 0, embeddingCount: 0, error: errorMessage };
+    logger.warn("[motion.detect] JS animation DB save error", { error: (error as Error).message });
+    return { savedPatternCount: 0, embeddingCount: 0, error: sanitizeErrorMessage(error) };
   }
 }
 

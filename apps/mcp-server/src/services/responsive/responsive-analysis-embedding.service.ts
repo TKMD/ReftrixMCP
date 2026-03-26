@@ -310,11 +310,9 @@ export async function generateResponsiveAnalysisEmbeddings(
         screenshotDiffs: r.screenshot_diffs as ResponsiveAnalysisForText["screenshotDiffs"],
       }));
     } catch (fetchError) {
-      if (isDevelopment()) {
-        logger.warn("[ResponsiveAnalysisEmbedding] Failed to fetch analyses from DB", {
-          error: fetchError instanceof Error ? fetchError.message : String(fetchError),
-        });
-      }
+      logger.warn("[ResponsiveAnalysisEmbedding] Failed to fetch analyses from DB", {
+        error: fetchError instanceof Error ? fetchError.message : String(fetchError),
+      });
       return result;
     }
   } else {
@@ -386,12 +384,10 @@ export async function generateResponsiveAnalysisEmbeddings(
         error: errorMessage,
       });
 
-      if (isDevelopment()) {
-        logger.warn("[ResponsiveAnalysisEmbedding] Embedding generation failed", {
-          analysisId: analysis.id,
-          error: errorMessage,
-        });
-      }
+      logger.warn("[ResponsiveAnalysisEmbedding] Embedding generation failed", {
+        analysisId: analysis.id,
+        error: errorMessage,
+      });
     }
 
     try {

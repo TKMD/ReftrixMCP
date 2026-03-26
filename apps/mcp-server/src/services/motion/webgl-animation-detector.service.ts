@@ -247,12 +247,10 @@ export class WebGLAnimationDetectorService {
         } catch (error) {
           const message = error instanceof Error ? error.message : "Unknown error";
           warnings.push(`Failed to detect animation for canvas ${i}: ${message}`);
-          if (isDevelopment()) {
-            logger.warn("[WebGLAnimationDetector] Canvas detection failed", {
-              canvasIndex: i,
-              error: message,
-            });
-          }
+          logger.warn("[WebGLAnimationDetector] Canvas detection failed", {
+            canvasIndex: i,
+            error: message,
+          });
         }
       }
 
@@ -278,9 +276,7 @@ export class WebGLAnimationDetectorService {
       return result;
     } catch (error) {
       const message = error instanceof Error ? error.message : "Unknown error";
-      if (isDevelopment()) {
-        logger.error("[WebGLAnimationDetector] Detection failed", { error: message });
-      }
+      logger.warn("[WebGLAnimationDetector] Detection failed", { error: message });
       return this.createEmptyResult(startTime, [`Detection failed: ${message}`]);
     }
   }

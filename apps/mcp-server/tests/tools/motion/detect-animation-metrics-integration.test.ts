@@ -693,9 +693,8 @@ describe.skipIf(SKIP_SLOW_TESTS)("Phase4: motion.detect + AnimationMetricsCollec
         // animation_metrics_errorにエラー情報が含まれる
         expect(result.data.animation_metrics_error).toBeDefined();
         expect(result.data.animation_metrics_error?.code).toBe("ANIMATION_METRICS_ERROR");
-        expect(result.data.animation_metrics_error?.message).toContain(
-          "Animation metrics analysis failed"
-        );
+        // CWE-209: sanitizeErrorMessage() returns generic message to prevent internal structure leakage
+        expect(result.data.animation_metrics_error?.message).toBe("An internal error occurred");
       }
     });
 

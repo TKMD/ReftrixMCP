@@ -30,6 +30,7 @@ import {
   createLowUsageToolDeprecationWarning,
   logDeprecationWarning,
 } from "../../utils/deprecation-warning";
+import { sanitizeErrorMessage } from "../../utils/sanitize-error";
 
 import {
   batchQualityEvaluateInputSchema,
@@ -168,7 +169,7 @@ async function processJobSync(
           index: item.index,
           error: {
             code: "EVALUATION_ERROR",
-            message: error instanceof Error ? error.message : "Unknown error",
+            message: sanitizeErrorMessage(error),
           },
         });
 
@@ -205,7 +206,7 @@ async function processJobSync(
           index: -1,
           error: {
             code: "BATCH_PROCESSING_ERROR",
-            message: error instanceof Error ? error.message : "Unknown error",
+            message: sanitizeErrorMessage(error),
           },
         },
       ],
@@ -238,14 +239,14 @@ export async function batchQualityEvaluateHandler(
   try {
     validated = batchQualityEvaluateInputSchema.parse(input);
   } catch (error) {
-    if (isDevelopment()) {
-      logger.error("[MCP Tool] quality.batch_evaluate validation error", { error });
-    }
+    logger.warn("[MCP Tool] quality.batch_evaluate validation error", {
+      error: (error as Error).message,
+    });
     return {
       success: false,
       error: {
         code: QUALITY_MCP_ERROR_CODES.VALIDATION_ERROR,
-        message: error instanceof Error ? error.message : "Invalid input",
+        message: sanitizeErrorMessage(error),
       },
     };
   }
@@ -380,14 +381,12 @@ export async function batchQualityEvaluateHandler(
       deprecation_warning: deprecationWarning,
     };
   } catch (error) {
-    if (isDevelopment()) {
-      logger.error("[MCP Tool] quality.batch_evaluate error", { error });
-    }
+    logger.warn("[MCP Tool] quality.batch_evaluate error", { error: (error as Error).message });
     return {
       success: false,
       error: {
         code: QUALITY_MCP_ERROR_CODES.INTERNAL_ERROR,
-        message: error instanceof Error ? error.message : "Batch evaluation failed",
+        message: sanitizeErrorMessage(error),
       },
     };
   }

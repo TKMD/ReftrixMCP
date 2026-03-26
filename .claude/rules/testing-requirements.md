@@ -74,29 +74,45 @@ Max 3 workers to prevent memory exhaustion:
 pnpm test --maxWorkers=3
 ```
 
-### vitest.config.ts推奨設定 / Recommended vitest.config.ts
+### vitest.config.mts推奨設定 / Recommended vitest.config.mts
 
 ```typescript
 import { defineConfig } from "vitest/config";
+import path from "path";
 
 export default defineConfig({
   test: {
     globals: true,
     environment: "node",
     pool: "forks",
-    maxWorkers: 3, // 各ワーカー約3.5GB消費
+    maxWorkers: 3, // 各ワーカー約3.5GB消費 / ~3.5GB per worker
     include: ["tests/**/*.test.ts"],
+    exclude: ["node_modules", "dist"],
+    // テスト環境変数設定 / Test environment variables
+    env: {
+      NODE_ENV: "test",
+      MCP_SKIP_RATE_LIMIT: "true",
+    },
     coverage: {
       provider: "v8",
       reporter: ["text", "json", "html", "lcov"],
       include: ["src/**/*.ts"],
-      exclude: ["src/**/*.d.ts", "src/**/index.ts", "src/**/*.test.ts", "node_modules/", "dist/"],
+      exclude: ["node_modules/", "dist/", "tests/", "**/*.test.ts", "**/*.config.ts"],
       thresholds: {
         statements: 80,
         branches: 70,
         functions: 85,
         lines: 80,
       },
+    },
+    // タイムアウト設定 / Timeout configuration
+    // Video Mode / Lighthouse 統合テストは60秒必要 / Video Mode / Lighthouse integration tests need 60s
+    testTimeout: 60000,
+    hookTimeout: 60000,
+  },
+  resolve: {
+    alias: {
+      "@": path.resolve(__dirname, "./src"),
     },
   },
 });
@@ -173,7 +189,8 @@ test("test 1", async ({ page }) => {
 pnpm test                          # 全テスト（Vitest）
 pnpm test:watch                    # ウォッチモード
 pnpm test:coverage                 # カバレッジ
-pnpm --filter @reftrixmcp/mcp-server test:e2e:playwright  # E2Eテスト（Playwright）
+pnpm --filter @reftrixmcp/mcp-server test:e2e             # E2Eテスト（CI） / E2E tests (CI)
+pnpm --filter @reftrixmcp/mcp-server test:e2e:playwright  # E2Eテスト（ローカルPlaywright） / E2E tests (local Playwright)
 ```
 
 ## Preference Profiling テスト / Preference Profiling Tests
@@ -187,16 +204,38 @@ Test suites added during Phase 3 (security audit remediation):
 | `tests/services/preference-profile.service.test.ts` | 29               | サービス層ユニットテスト: getSamples, processFeedback, getProfile, resetProfile, deleteProfile, getSignals, confidence計算, DI/ファクトリー / Service layer unit tests: getSamples, processFeedback, getProfile, resetProfile, deleteProfile, getSignals, confidence calculation, DI/factory |
 | `tests/tools/preference/security.test.ts`           | 13               | セキュリティテスト: SQLインジェクション防御, 不正UUID, 超長文字列, エラーメッセージサニタイズ / Security tests: SQL injection defense, invalid UUID, oversized strings, error message sanitization                                                                                           |
 
+### v0.2.0 Tier 1 テストスイート / v0.2.0 Tier 1 Test Suites
+
+| テストファイル / Test File                    | テスト数 / Tests | 対象 / Coverage                                                                                       |
+| --------------------------------------------- | ---------------- | ----------------------------------------------------------------------------------------------------- |
+| `tests/middleware/rate-limiter.test.ts`       | 37               | Token Bucket, Redis/インメモリ, 3ティア, NaN防御 / Token Bucket, Redis/in-memory, 3-tier, NaN defense |
+| `tests/services/search-cache.service.test.ts` | ~24              | LRUキャッシュ, TTL, invalidation, 統計 / LRU cache, TTL, invalidation, stats                          |
+| `tests/admin/bull-board.test.ts`              | ~16              | BullMQ UI設定, Basic Auth, ポート / BullMQ UI config, Basic Auth, port                                |
+| `tests/tools/search-unified.tool.test.ts`     | ~67              | 横断検索, 5サービス統合, キャッシュ / Unified search, 5-service integration, cache                    |
+
+#### v0.2.0 追加テストスイート / v0.2.0 Additional Test Suites
+
+| テストファイル / Test File                           | テスト数 / Tests | 対象 / Coverage                                         |
+| ---------------------------------------------------- | ---------------- | ------------------------------------------------------- |
+| `tests/scripts/db-migrate-safe.test.ts`              | 16               | 安全マイグレーションスクリプト / Safe migration script  |
+| `tests/services/filter-unification.test.ts`          | 44               | フィルタ統一 / Filter unification                       |
+| `tests/services/hnsw-iterative-scan.test.ts`         | 7                | HNSW反復スキャン / HNSW iterative scan                  |
+| `tests/tools/design/search-by-image.tool.test.ts`    | 54               | 画像検索ツール / Image search tool                      |
+| `tests/utils/sanitize-error.test.ts`                 | 30               | エラーサニタイズユーティリティ / Error sanitize utility |
+| `tests/workers/phases/phase-parallelization.test.ts` | 16               | Phase 1/3並列化 / Phase 1/3 parallelization             |
+
 ## 品質ゲート（CI必須） / Quality Gates (CI Required)
 
 - テストカバレッジ 80%以上 / Test coverage above 80%
 - E2Eテスト 100%パス / E2E tests 100% pass
 - ESLintエラー 0件 / ESLint errors: 0
 - TypeScriptエラー 0件 / TypeScript errors: 0
+- フォーマット準拠 / Format compliance: `pnpm format:check`
+- ドキュメント整合性 0件 / Docs-impl sync errors: 0 (`pnpm docs:verify`)
 - セキュリティ脆弱性（High/Critical）0件 / Security vulnerabilities (High/Critical): 0
 
 ## lint/typecheckの実行 / Running lint/typecheck
 
-タスク完了時は必ず `pnpm lint` と `pnpm typecheck` を実行してコードの正確性を確認する。
+タスク完了時は必ず `pnpm lint`、`pnpm typecheck`、`pnpm format:check`、`pnpm docs:verify` を実行してコードの正確性を確認する。
 
-Always run `pnpm lint` and `pnpm typecheck` upon task completion to verify code correctness.
+Always run `pnpm lint`, `pnpm typecheck`, `pnpm format:check`, and `pnpm docs:verify` upon task completion to verify code correctness.

@@ -15,11 +15,30 @@
  */
 
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
+import { existsSync } from "fs";
+import { join } from "path";
 
 // Note: Import will be implemented in the Green phase
 // import { EmbeddingService, embeddingService } from '../src/embeddings/service';
 
-describe("EmbeddingService", () => {
+// ONNX model availability check — skip in CI/OSS where model is not downloaded
+const ONNX_MODEL_CACHE_DIR = join(
+  __dirname,
+  "..",
+  "node_modules",
+  ".pnpm",
+  "@huggingface+transformers@3.8.1",
+  "node_modules",
+  "@huggingface",
+  "transformers",
+  ".cache",
+  "Xenova",
+  "multilingual-e5-base",
+  "onnx"
+);
+const hasOnnxModel = existsSync(ONNX_MODEL_CACHE_DIR);
+
+describe.skipIf(!hasOnnxModel)("EmbeddingService", () => {
   describe("initialization", () => {
     it("should initialize the model lazily on first use", async () => {
       // The model should not be loaded until generateEmbedding is called

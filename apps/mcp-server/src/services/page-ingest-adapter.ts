@@ -585,11 +585,9 @@ class PageIngestAdapter {
           logger.debug("[PageIngestAdapter] User interaction simulation completed");
         }
       } catch (e) {
-        if (isDevelopment()) {
-          logger.warn("[PageIngestAdapter] User interaction simulation failed", {
-            error: String(e),
-          });
-        }
+        logger.warn("[PageIngestAdapter] User interaction simulation failed", {
+          error: String(e),
+        });
       }
     }
 
@@ -629,11 +627,9 @@ class PageIngestAdapter {
           }
         }
       } catch (e) {
-        if (isDevelopment()) {
-          logger.debug("[PageIngestAdapter] waitForWebGL canvas/context check failed, continuing", {
-            error: e instanceof Error ? e.message : String(e),
-          });
-        }
+        logger.warn("[PageIngestAdapter] waitForWebGL canvas/context check failed, continuing", {
+          error: e instanceof Error ? e.message : String(e),
+        });
       }
     }
 
@@ -671,11 +667,9 @@ class PageIngestAdapter {
           logger.debug("[PageIngestAdapter] Content element visible");
         }
       } catch {
-        if (isDevelopment()) {
-          logger.warn("[PageIngestAdapter] Content element not found or timeout", {
-            selector: ingestOptions.waitForContentVisible,
-          });
-        }
+        logger.warn("[PageIngestAdapter] Content element not found or timeout", {
+          selector: ingestOptions.waitForContentVisible,
+        });
       }
     }
 
@@ -736,11 +730,9 @@ class PageIngestAdapter {
           code: "WEBGL_WAIT_ERROR",
           message: `WebGL adaptive wait failed: ${errorMessage}`,
         });
-        if (isDevelopment()) {
-          logger.warn("[PageIngestAdapter] WebGL adaptive wait failed, continuing", {
-            error: errorMessage,
-          });
-        }
+        logger.warn("[PageIngestAdapter] WebGL adaptive wait failed, continuing", {
+          error: errorMessage,
+        });
       }
     }
 
@@ -1205,12 +1197,10 @@ class PageIngestAdapter {
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
 
-      if (isDevelopment()) {
-        logger.warn("[PageIngestAdapter] Frame rate check failed", {
-          error: errorMessage,
-          elapsed: Date.now() - startTime,
-        });
-      }
+      logger.warn("[PageIngestAdapter] Frame rate check failed", {
+        error: errorMessage,
+        elapsed: Date.now() - startTime,
+      });
 
       return {
         stable: false,
@@ -1788,9 +1778,7 @@ class PageIngestAdapter {
             ),
           ]);
         } catch {
-          if (isDevelopment()) {
-            logger.warn("[PageIngestAdapter] page.close() failed or timed out");
-          }
+          logger.warn("[PageIngestAdapter] page.close() failed or timed out");
         }
 
         // Phase 2: 専用ブラウザを使用している場合はブラウザをクローズ
@@ -1812,17 +1800,13 @@ class PageIngestAdapter {
                 ),
               ]);
             } catch {
-              if (isDevelopment()) {
-                logger.warn("[PageIngestAdapter] browser.close() failed or timed out");
-              }
+              logger.warn("[PageIngestAdapter] browser.close() failed or timed out");
               // forceKillOnTimeoutが有効な場合は手動でkill
               if (forceKillOnTimeout && browserPid) {
                 try {
-                  if (isDevelopment()) {
-                    logger.warn("[PageIngestAdapter] Force killing browser process", {
-                      pid: browserPid,
-                    });
-                  }
+                  logger.warn("[PageIngestAdapter] Force killing browser process", {
+                    pid: browserPid,
+                  });
                   process.kill(browserPid, "SIGKILL");
                 } catch {
                   // プロセスが既に終了している場合は無視
@@ -2107,13 +2091,11 @@ class PageIngestAdapter {
             message: `Screenshot capture failed: ${errorMessage}. Analysis will continue without screenshot.`,
           });
 
-          if (isDevelopment()) {
-            logger.warn("[PageIngestAdapter] Screenshot failed, continuing without screenshot", {
-              error: errorMessage,
-              isWebGLSite,
-              fullPage: ingestOptions.fullPage ?? true,
-            });
-          }
+          logger.warn("[PageIngestAdapter] Screenshot failed, continuing without screenshot", {
+            error: errorMessage,
+            isWebGLSite,
+            fullPage: ingestOptions.fullPage ?? true,
+          });
         }
       }
 
@@ -2189,12 +2171,10 @@ class PageIngestAdapter {
       // エラー処理
       const errorMessage = error instanceof Error ? error.message : String(error);
 
-      if (isDevelopment()) {
-        logger.error("[PageIngestAdapter] Ingest failed", {
-          url,
-          error: errorMessage,
-        });
-      }
+      logger.warn("[PageIngestAdapter] Ingest failed", {
+        url,
+        error: errorMessage,
+      });
 
       // エラー結果を返す
       return {
@@ -2229,13 +2209,11 @@ class PageIngestAdapter {
       // 専用ブラウザを使用した場合はブラウザも閉じる
       // BrowserProcessManagerを使用して安全にクローズ
       if (dedicatedBrowser) {
-        if (isDevelopment()) {
-          logger.debug("[PageIngestAdapter] Closing dedicated browser");
-        }
+        logger.warn("[PageIngestAdapter] Closing dedicated browser");
         if (processManager) {
           // BrowserProcessManagerを使用して安全にクローズ（タイムアウト10秒）
           const closed = await processManager.closeWithTimeout(10000);
-          if (!closed && isDevelopment()) {
+          if (!closed) {
             logger.warn("[PageIngestAdapter] Dedicated browser close timed out in finally block");
           }
         } else {

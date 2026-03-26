@@ -1,14 +1,14 @@
 # MCP Server Tests
 
-**最終更新 / Last Updated**: 2026-03-01
+**最終更新 / Last Updated**: 2026-03-25
 **フェーズ / Phase**: WebDesign専用MCPサーバー (v6.x) / WebDesign-dedicated MCP Server (v6.x)
 **ステータス / Status**: 安定稼働中 / Stable
 
 ## テスト概要 / Test Overview
 
-Reftrix MCPサーバーのテストスイート。WebDesign専用の26ツールをカバーしています。
+Reftrix MCPサーバーのテストスイート。WebDesign専用の28ツールをカバーしています。
 
-Test suite for the Reftrix MCP server. Covers all 26 WebDesign-dedicated tools.
+Test suite for the Reftrix MCP server. Covers all 28 WebDesign-dedicated tools.
 
 ### 現行テストファイル構成 / Current Test File Structure
 
@@ -19,12 +19,29 @@ Test suite for the Reftrix MCP server. Covers all 26 WebDesign-dedicated tools.
 | `tests/tools/`           | MCPツールハンドラーテスト / MCP tool handler tests                            | ~200                  |
 | `tests/services/`        | サービス層テスト / Service layer tests                                        | ~300                  |
 | `tests/e2e/`             | エンドツーエンドテスト / End-to-end tests                                     | ~20                   |
-| `tests/api/`             | APIヘルスチェック / API health checks                                         | ~10                   |
-| `tests/performance/`     | パフォーマンスベンチマーク / Performance benchmarks                           | ~5                    |
+| `tests/smoke/`           | スモークテスト / Smoke tests                                                  | ~10                   |
+| `tests/security/`        | セキュリティテスト / Security tests                                           | ~30                   |
+| `tests/admin/`           | 管理UIテスト / Admin UI tests                                                 | ~16                   |
+| `tests/middleware/`      | ミドルウェアテスト / Middleware tests                                         | ~70                   |
+| `tests/workers/`         | ワーカーテスト / Worker tests                                                 | ~20                   |
+| `tests/utils/`           | ユーティリティテスト / Utility tests                                          | ~14                   |
+| `tests/scripts/`         | スクリプトテスト / Script tests                                               | ~2                    |
+| `tests/queues/`          | キューテスト / Queue tests                                                    | ~2                    |
+| `tests/benchmark/`       | ベンチマークテスト / Benchmark tests                                          | ~1                    |
+| `tests/config/`          | 設定テスト / Config tests                                                     | ~1                    |
+| `tests/router/`          | ルーターテスト / Router tests                                                 | ~1                    |
+| `tests/regression/`      | リグレッションテスト / Regression tests                                       | ~1                    |
+| `tests/lib/`             | ライブラリテスト / Library tests                                              | ~1                    |
+| `tests/types/`           | 型テスト / Type tests                                                         | ~1                    |
+| `tests/docs/`            | ドキュメントテスト / Documentation tests                                      | ~1                    |
+| `tests/fixtures/`        | テストフィクスチャ（テストデータ） / Test fixtures (test data)                | -                     |
+| `tests/benchmarks/`      | ベンチマークヘルパー / Benchmark helpers                                      | -                     |
+| `tests/performance/`     | パフォーマンステストガイド / Performance test guide                           | -                     |
+| `tests/__mocks__/`       | テストモック定義 / Test mock definitions                                      | -                     |
 
-**合計 / Total**: 約11,500テスト / Approximately 11,500 tests
+**合計 / Total**: 約12,500テスト / Approximately 12,500 tests
 
-### 現行26ツール / Current 26 Tools
+### 現行28ツール / Current 28 Tools
 
 SVG機能は削除され、WebDesign専用ツールに移行しました。
 
@@ -49,15 +66,17 @@ SVG features have been removed; migrated to WebDesign-dedicated tools.
 | Project             | `project.list`           | `tools/project-list.test.ts`                |
 | Page                | `page.analyze`           | `tools/page/analyze.tool.test.ts`           |
 | Page                | `page.getJobStatus`      | `tools/page/get-job-status.tool.test.ts`    |
-| Narrative           | `narrative.search`       | `tools/narrative/search.tool.test.ts`       |
-| Background          | `background.search`      | `tools/background/search.tool.test.ts`      |
-| Responsive          | `responsive.search`      | `tools/responsive/search.tool.test.ts`      |
+| Narrative           | `narrative.search`       | `tools/narrative-search.test.ts`            |
+| Background          | `background.search`      | `tools/background-search.test.ts`           |
+| Responsive          | `responsive.search`      | `tools/responsive-search.test.ts`           |
 | Preference          | `preference.hear`        | `tools/preference/hear.tool.test.ts`        |
 | Preference          | `preference.get`         | `tools/preference/get.tool.test.ts`         |
 | Preference          | `preference.reset`       | `tools/preference/reset.tool.test.ts`       |
-| Part                | `part.search`            | `tools/part/search.tool.test.ts`            |
-| Part                | `part.inspect`           | `tools/part/inspect.tool.test.ts`           |
-| Part                | `part.compare`           | `tools/part/compare.tool.test.ts`           |
+| Part                | `part.search`            | `tools/part/part-search.test.ts`            |
+| Part                | `part.inspect`           | `tools/part/part-inspect.test.ts`           |
+| Part                | `part.compare`           | `tools/part/part-compare.test.ts`           |
+| Search              | `search.unified`         | `tools/search-unified.tool.test.ts`         |
+| Design              | `design.search_by_image` | `tools/design/search-by-image.tool.test.ts` |
 
 ## テスト実行方法 / Test Execution
 
@@ -96,12 +115,12 @@ pnpm test tests/smoke/
 
 ### 1. ツール登録テスト / Tool Registration Test (smoke/tool-registration.test.ts)
 
-**目的 / Purpose**: 全26ツールが正しく登録されていることを確認 / Verify all 26 tools are correctly registered
+**目的 / Purpose**: 全28ツールが正しく登録されていることを確認 / Verify all 28 tools are correctly registered
 
 ```typescript
 describe("MCP Tool Registration", () => {
-  it("toolHandlers に26ツールが登録されている");
-  it("allToolDefinitions に26ツール定義がある");
+  it("toolHandlers に28ツールが登録されている");
+  it("allToolDefinitions に28ツール定義がある");
   it("各ツールに対応するハンドラーが存在する");
 });
 ```
@@ -138,7 +157,7 @@ describe("MCP Tool Registration", () => {
 | テストカバレッジ / Test coverage            | > 80%           | ~85%                                           |
 | ツールテストカバレッジ / Tool test coverage | > 90%           | ~92%                                           |
 | テスト実行時間 / Test execution time        | < 5分 / < 5 min | ~4.5分 / ~4.5 min                              |
-| テストパス率 / Test pass rate               | 100%            | 100% (約11,500 passed / approx. 11,500 passed) |
+| テストパス率 / Test pass rate               | 100%            | 100% (約12,500 passed / approx. 12,500 passed) |
 
 ## スキップされたテスト / Skipped Tests
 

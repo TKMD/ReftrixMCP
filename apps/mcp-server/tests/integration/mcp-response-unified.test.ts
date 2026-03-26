@@ -4,10 +4,10 @@
 /**
  * MCP-RESP-08: McpResponse統一形式 統合テスト
  *
- * 目的: McpResponse統一後の全26ツールレスポンス形式検証
+ * 目的: McpResponse統一後の全28ツールレスポンス形式検証
  *
  * テスト対象:
- * 1. 全26ツールがMcpResponse形式で返却
+ * 1. 全28ツールがMcpResponse形式で返却
  * 2. metadata.request_idが含まれている
  * 3. success/error構造が正しい
  * 4. handleToolCall経由でのLightResponse適用
@@ -25,12 +25,13 @@ import {
 } from "../../src/router";
 import { isSuccessResponse, isErrorResponse } from "../../src/utils/mcp-response";
 import { toolHandlers, allToolDefinitions } from "../../src/tools/index";
+import { resetRateLimiter } from "../../src/middleware/rate-limiter";
 
 // =============================================================================
-// テスト用の26ツールリスト
+// テスト用の28ツールリスト
 // =============================================================================
 
-const ALL_26_TOOLS = [
+const ALL_28_TOOLS = [
   "style.get_palette",
   "system.health",
   "layout.inspect",
@@ -57,6 +58,8 @@ const ALL_26_TOOLS = [
   "part.search",
   "part.inspect",
   "part.compare",
+  "search.unified",
+  "design.search_by_image",
 ] as const;
 
 // =============================================================================
@@ -116,37 +119,39 @@ function hasRequestId(response: unknown): boolean {
 }
 
 // =============================================================================
-// 全26ツールのMcpResponse形式検証テスト
+// 全28ツールのMcpResponse形式検証テスト
 // =============================================================================
 
-describe("MCP-RESP-08: All 26 Tools McpResponse Format Verification", () => {
+describe("MCP-RESP-08: All 28 Tools McpResponse Format Verification", () => {
   beforeEach(() => {
     clearToolHandlers();
     resetToolMetrics();
+    resetRateLimiter();
   });
 
   afterEach(() => {
     clearToolHandlers();
     resetToolMetrics();
+    resetRateLimiter();
   });
 
-  describe("26 tools registered correctly", () => {
-    it("should have exactly 26 tools defined in allToolDefinitions", () => {
-      expect(allToolDefinitions.length).toBe(26);
+  describe("28 tools registered correctly", () => {
+    it("should have exactly 28 tools defined in allToolDefinitions", () => {
+      expect(allToolDefinitions.length).toBe(28);
     });
 
-    it("should have exactly 26 tools in toolHandlers", () => {
-      expect(Object.keys(toolHandlers).length).toBe(26);
+    it("should have exactly 28 tools in toolHandlers", () => {
+      expect(Object.keys(toolHandlers).length).toBe(28);
     });
 
-    it.each(ALL_26_TOOLS)("%s is registered in toolHandlers", (toolName) => {
+    it.each(ALL_28_TOOLS)("%s is registered in toolHandlers", (toolName) => {
       expect(toolHandlers[toolName]).toBeDefined();
       expect(typeof toolHandlers[toolName]).toBe("function");
     });
   });
 
   describe("McpResponse success structure for mock handlers", () => {
-    it.each(ALL_26_TOOLS)("%s returns valid McpResponse structure on success", async (toolName) => {
+    it.each(ALL_28_TOOLS)("%s returns valid McpResponse structure on success", async (toolName) => {
       // モックハンドラーを登録（成功レスポンス）
       registerTool(toolName, async () => ({
         success: true,
@@ -161,7 +166,7 @@ describe("MCP-RESP-08: All 26 Tools McpResponse Format Verification", () => {
       expect(isSuccessResponse(result as { success: true; data: unknown })).toBe(true);
     });
 
-    it.each(ALL_26_TOOLS)("%s returns valid McpResponse structure on error", async (toolName) => {
+    it.each(ALL_28_TOOLS)("%s returns valid McpResponse structure on error", async (toolName) => {
       // モックハンドラーを登録（エラーレスポンス）
       registerTool(toolName, async () => ({
         success: false,
@@ -461,11 +466,13 @@ describe("MCP-RESP-08: Category-based Tool Verification", () => {
   beforeEach(() => {
     clearToolHandlers();
     resetToolMetrics();
+    resetRateLimiter();
   });
 
   afterEach(() => {
     clearToolHandlers();
     resetToolMetrics();
+    resetRateLimiter();
   });
 
   describe("Style category (1 tool)", () => {
@@ -619,11 +626,13 @@ describe("MCP-RESP-08: Edge Cases", () => {
   beforeEach(() => {
     clearToolHandlers();
     resetToolMetrics();
+    resetRateLimiter();
   });
 
   afterEach(() => {
     clearToolHandlers();
     resetToolMetrics();
+    resetRateLimiter();
   });
 
   describe("Null and undefined handling", () => {
@@ -785,11 +794,13 @@ describe("MCP-RESP-08: Type Safety", () => {
   beforeEach(() => {
     clearToolHandlers();
     resetToolMetrics();
+    resetRateLimiter();
   });
 
   afterEach(() => {
     clearToolHandlers();
     resetToolMetrics();
+    resetRateLimiter();
   });
 
   describe("Type guards", () => {

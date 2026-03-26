@@ -14,6 +14,7 @@
 
 import { v7 as uuidv7 } from "uuid";
 import { logger, isDevelopment } from "../../../utils/logger";
+import { sanitizeErrorMessage } from "../../../utils/sanitize-error";
 import {
   getLayoutAnalyzerService,
   type LayoutAnalysisResult,
@@ -279,37 +280,29 @@ async function extractDeterministicVisualFeatures(
     // Note: Theme detection uses computed styles if available for more accurate results
     const [colorResult, themeResult, densityResult, gradientResult] = await Promise.all([
       colorExtractor.extractColors(imageBuffer).catch((error) => {
-        if (isDevelopment()) {
-          logger.warn("[layout-handler] ColorExtractor failed", {
-            error: error instanceof Error ? error.message : "Unknown error",
-          });
-        }
+        logger.warn("[layout-handler] ColorExtractor failed", {
+          error: error instanceof Error ? error.message : "Unknown error",
+        });
         return undefined;
       }),
       // Use detectThemeWithComputedStyles for more accurate theme detection
       // This prioritizes computed backgroundColor values from Playwright over screenshot analysis
       themeDetector.detectThemeWithComputedStyles(imageBuffer, computedStyles).catch((error) => {
-        if (isDevelopment()) {
-          logger.warn("[layout-handler] ThemeDetector failed", {
-            error: error instanceof Error ? error.message : "Unknown error",
-          });
-        }
+        logger.warn("[layout-handler] ThemeDetector failed", {
+          error: error instanceof Error ? error.message : "Unknown error",
+        });
         return undefined;
       }),
       densityCalculator.calculateDensity(imageBuffer).catch((error) => {
-        if (isDevelopment()) {
-          logger.warn("[layout-handler] DensityCalculator failed", {
-            error: error instanceof Error ? error.message : "Unknown error",
-          });
-        }
+        logger.warn("[layout-handler] DensityCalculator failed", {
+          error: error instanceof Error ? error.message : "Unknown error",
+        });
         return undefined;
       }),
       gradientDetector.detectGradient(imageBuffer).catch((error) => {
-        if (isDevelopment()) {
-          logger.warn("[layout-handler] GradientDetector failed", {
-            error: error instanceof Error ? error.message : "Unknown error",
-          });
-        }
+        logger.warn("[layout-handler] GradientDetector failed", {
+          error: error instanceof Error ? error.message : "Unknown error",
+        });
         return undefined;
       }),
     ]);
@@ -403,12 +396,9 @@ async function extractDeterministicVisualFeatures(
 
     return visualFeatures;
   } catch (error) {
-    if (isDevelopment()) {
-      logger.error("[layout-handler] extractDeterministicVisualFeatures failed", {
-        error: error instanceof Error ? error.message : "Unknown error",
-        processingTimeMs: Date.now() - startTime,
-      });
-    }
+    logger.warn("[layout-handler] extractDeterministicVisualFeatures failed", {
+      error: (error as Error).message,
+    });
     // Graceful degradation - return undefined, don't throw
     return undefined;
   }
@@ -505,11 +495,9 @@ async function executePageVisionAnalysis(
         }
       } catch (hwError) {
         // ハードウェア検出失敗時はCPUと仮定（安全側）
-        if (isDevelopment()) {
-          logger.warn("[layout-handler] Hardware detection failed, assuming CPU", {
-            error: hwError instanceof Error ? hwError.message : "Unknown error",
-          });
-        }
+        logger.warn("[layout-handler] Hardware detection failed, assuming CPU", {
+          error: hwError instanceof Error ? hwError.message : "Unknown error",
+        });
       }
 
       // Phase 4: 進捗報告 - ハードウェア検出完了 (5%)
@@ -570,11 +558,9 @@ async function executePageVisionAnalysis(
           }
         } catch (optError) {
           // 最適化失敗時は元の画像を使用
-          if (isDevelopment()) {
-            logger.warn("[layout-handler] Image optimization failed, using original", {
-              error: optError instanceof Error ? optError.message : "Unknown error",
-            });
-          }
+          logger.warn("[layout-handler] Image optimization failed, using original", {
+            error: optError instanceof Error ? optError.message : "Unknown error",
+          });
         }
       }
 
@@ -686,11 +672,9 @@ async function executePageVisionAnalysis(
             }
           }
         } catch (boundaryError) {
-          if (isDevelopment()) {
-            logger.warn("[layout-handler] Section boundary detection error (non-critical)", {
-              error: boundaryError instanceof Error ? boundaryError.message : "Unknown error",
-            });
-          }
+          logger.warn("[layout-handler] Section boundary detection error (non-critical)", {
+            error: (boundaryError as Error).message,
+          });
           // セクション境界検出エラーは非クリティカル - 続行
         }
 
@@ -710,13 +694,11 @@ async function executePageVisionAnalysis(
         // ================================================================
         const isTimeout = visionError instanceof Error && visionError.message.includes("timeout");
 
-        if (isDevelopment()) {
-          logger.warn("[layout-handler] Vision analysis failed", {
-            error: visionError instanceof Error ? visionError.message : "Unknown error",
-            isTimeout,
-            fallbackEnabled: visionFallbackToHtmlOnly,
-          });
-        }
+        logger.warn("[layout-handler] Vision analysis failed", {
+          error: visionError instanceof Error ? visionError.message : "Unknown error",
+          isTimeout,
+          fallbackEnabled: visionFallbackToHtmlOnly,
+        });
 
         if (visionFallbackToHtmlOnly) {
           // Graceful Degradation: HTML解析のみで続行
@@ -739,11 +721,7 @@ async function executePageVisionAnalysis(
             progressReporter.complete();
           }
 
-          if (isDevelopment()) {
-            logger.info(
-              "[layout-handler] Graceful Degradation: continuing with HTML analysis only"
-            );
-          }
+          logger.warn("[layout-handler] Graceful Degradation: continuing with HTML analysis only");
         } else {
           // フォールバック無効: エラーを再スロー
           throw visionError;
@@ -770,9 +748,9 @@ async function executePageVisionAnalysis(
       }
     }
   } catch (visionError) {
-    if (isDevelopment()) {
-      logger.error("[layout-handler] Vision analysis failed", { error: visionError });
-    }
+    logger.warn("[layout-handler] Vision analysis failed", {
+      error: (visionError as Error).message,
+    });
 
     result.visionFeatures = {
       success: false,
@@ -999,11 +977,9 @@ async function executePerSectionVisionAnalysis(
       });
     }
   } catch (perSectionError) {
-    if (isDevelopment()) {
-      logger.error("[layout-handler] Per-section Vision analysis failed", {
-        error: perSectionError instanceof Error ? perSectionError.message : "Unknown error",
-      });
-    }
+    logger.warn("[layout-handler] Per-section Vision analysis failed", {
+      error: (perSectionError as Error).message,
+    });
 
     for (const section of sections) {
       if (section.position && !section.visionFeatures) {
@@ -1167,9 +1143,9 @@ export async function defaultAnalyzeLayout(
           }
         }
       } catch (error) {
-        if (isDevelopment()) {
-          logger.warn("[layout-handler] CSS variable extraction failed", { error });
-        }
+        logger.warn("[layout-handler] CSS variable extraction failed", {
+          error: (error as Error).message,
+        });
         // エラー時はcssVariablesを省略（Graceful Degradation）
       }
     }
@@ -1227,11 +1203,9 @@ export async function defaultAnalyzeLayout(
         });
       }
     } catch (bgError) {
-      if (isDevelopment()) {
-        logger.warn("[layout-handler] Background design detection failed", {
-          error: bgError instanceof Error ? bgError.message : String(bgError),
-        });
-      }
+      logger.warn("[layout-handler] Background design detection failed", {
+        error: (bgError as Error).message,
+      });
       // Graceful Degradation: 背景デザイン検出失敗はpage.analyzeを中断しない
     }
 
@@ -1405,9 +1379,7 @@ export async function defaultAnalyzeLayout(
 
     return result;
   } catch (error) {
-    if (isDevelopment()) {
-      logger.error("[layout-handler] defaultAnalyzeLayout error", { error });
-    }
+    logger.warn("[layout-handler] defaultAnalyzeLayout error", { error: (error as Error).message });
 
     return {
       success: false,
@@ -1416,7 +1388,7 @@ export async function defaultAnalyzeLayout(
       processingTimeMs: Date.now() - startTime,
       error: {
         code: PAGE_ANALYZE_ERROR_CODES.LAYOUT_ANALYSIS_FAILED,
-        message: error instanceof Error ? error.message : "Layout analysis failed",
+        message: sanitizeErrorMessage(error),
       },
     };
   }

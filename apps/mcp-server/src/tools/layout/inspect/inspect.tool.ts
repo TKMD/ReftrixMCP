@@ -40,6 +40,7 @@ import {
 } from "./inspect.utils";
 import { createLogger, isDevelopment } from "../../../utils/logger";
 import { getToolErrorMessage } from "../../../utils/error-messages";
+import { sanitizeErrorMessage } from "../../../utils/sanitize-error";
 import { sanitizeHtml } from "../../../utils/html-sanitizer";
 import type {
   VisionAnalysisResult,
@@ -125,14 +126,12 @@ export async function layoutInspectHandler(input: unknown): Promise<LayoutInspec
   try {
     validated = layoutInspectInputSchema.parse(input);
   } catch (error) {
-    if (isDevelopment()) {
-      logger.error("Validation error", { error });
-    }
+    logger.warn("Validation error", { error: (error as Error).message });
     return {
       success: false,
       error: {
         code: "VALIDATION_ERROR",
-        message: error instanceof Error ? error.message : "Invalid input",
+        message: sanitizeErrorMessage(error),
       },
     };
   }
@@ -195,14 +194,12 @@ export async function layoutInspectHandler(input: unknown): Promise<LayoutInspec
         };
       }
     } catch (error) {
-      if (isDevelopment()) {
-        logger.error("DB error", { error });
-      }
+      logger.warn("DB error", { error: (error as Error).message });
       return {
         success: false,
         error: {
           code: "DB_ERROR",
-          message: error instanceof Error ? error.message : "Database error",
+          message: sanitizeErrorMessage(error),
         },
       };
     }
@@ -258,9 +255,9 @@ export async function layoutInspectHandler(input: unknown): Promise<LayoutInspec
           }
         } catch (hwError) {
           // ハードウェア検出失敗時はCPUフォールバック
-          if (isDevelopment()) {
-            logger.warn("Hardware detection failed, falling back to CPU", { error: hwError });
-          }
+          logger.warn("Hardware detection failed, falling back to CPU", {
+            error: (hwError as Error).message,
+          });
         }
       } else {
         if (isDevelopment()) {
@@ -298,9 +295,9 @@ export async function layoutInspectHandler(input: unknown): Promise<LayoutInspec
           }
         } catch (optError) {
           // 画像最適化失敗時は元の画像を使用
-          if (isDevelopment()) {
-            logger.warn("Image optimization failed, using original", { error: optError });
-          }
+          logger.warn("Image optimization failed, using original", {
+            error: (optError as Error).message,
+          });
         }
       }
 
@@ -350,12 +347,10 @@ export async function layoutInspectHandler(input: unknown): Promise<LayoutInspec
       } catch (timeoutError) {
         // タイムアウト時のフォールバック処理
         if (visionOptions.visionFallbackToHtmlOnly !== false) {
-          if (isDevelopment()) {
-            logger.warn("Vision API timeout, using fallback", {
-              timeout: effectiveTimeout,
-              error: timeoutError instanceof Error ? timeoutError.message : String(timeoutError),
-            });
-          }
+          logger.warn("Vision API timeout, using fallback", {
+            timeout: effectiveTimeout,
+            error: timeoutError instanceof Error ? timeoutError.message : String(timeoutError),
+          });
           // フォールバック: 空のVision結果を返す
           visionResult = {
             success: false,
@@ -430,14 +425,12 @@ export async function layoutInspectHandler(input: unknown): Promise<LayoutInspec
         data,
       };
     } catch (error) {
-      if (isDevelopment()) {
-        logger.error("Screenshot analysis error", { error });
-      }
+      logger.warn("Screenshot analysis error", { error: (error as Error).message });
       return {
         success: false,
         error: {
           code: "VISION_API_ERROR",
-          message: error instanceof Error ? error.message : "Screenshot analysis failed",
+          message: sanitizeErrorMessage(error),
         },
       };
     }
@@ -587,9 +580,9 @@ export async function layoutInspectHandler(input: unknown): Promise<LayoutInspec
       }
     } catch (cacheError) {
       // キャッシュエラーは無視して解析を続行
-      if (isDevelopment()) {
-        logger.warn("layout.inspect cache error, proceeding with analysis", { error: cacheError });
-      }
+      logger.warn("layout.inspect cache error, proceeding with analysis", {
+        error: (cacheError as Error).message,
+      });
     }
   }
 
@@ -611,13 +604,11 @@ export async function layoutInspectHandler(input: unknown): Promise<LayoutInspec
           visionFeatures = await service.analyzeWithVision(html);
         }
       } catch (error) {
-        if (isDevelopment()) {
-          logger.error("Vision API error", { error });
-        }
+        logger.warn("Vision API error", { error: (error as Error).message });
         visionFeatures = {
           success: false,
           features: [],
-          error: error instanceof Error ? error.message : "Vision API error",
+          error: sanitizeErrorMessage(error),
           processingTimeMs: 0,
           modelName: "unknown",
         };
@@ -693,9 +684,7 @@ export async function layoutInspectHandler(input: unknown): Promise<LayoutInspec
         }
       } catch (cacheError) {
         // キャッシュ保存エラーは無視
-        if (isDevelopment()) {
-          logger.warn("layout.inspect cache save error", { error: cacheError });
-        }
+        logger.warn("layout.inspect cache save error", { error: (cacheError as Error).message });
       }
     }
 
@@ -715,14 +704,12 @@ export async function layoutInspectHandler(input: unknown): Promise<LayoutInspec
       data,
     };
   } catch (error) {
-    if (isDevelopment()) {
-      logger.error("Analysis error", { error });
-    }
+    logger.warn("Analysis error", { error: (error as Error).message });
     return {
       success: false,
       error: {
         code: "INTERNAL_ERROR",
-        message: error instanceof Error ? error.message : "Analysis failed",
+        message: sanitizeErrorMessage(error),
       },
     };
   }

@@ -14,6 +14,7 @@
  */
 
 import { logger, isDevelopment } from "../../../utils/logger";
+import { sanitizeErrorMessage } from "../../../utils/sanitize-error";
 import { executeFrameCapture, getFrameImageAnalysisService } from "../../motion/detect.tool";
 import type {
   FrameCaptureOptions,
@@ -126,12 +127,12 @@ export async function executeVideoMode(
       }
     }
   } catch (frameCaptureErr) {
-    if (isDevelopment()) {
-      logger.error("[video-handler] Frame capture failed", { error: frameCaptureErr });
-    }
+    logger.warn("[video-handler] Frame capture failed", {
+      error: (frameCaptureErr as Error).message,
+    });
     result.frame_capture_error = {
       code: "FRAME_CAPTURE_ERROR",
-      message: frameCaptureErr instanceof Error ? frameCaptureErr.message : "Frame capture failed",
+      message: sanitizeErrorMessage(frameCaptureErr),
     };
   }
 
@@ -285,14 +286,13 @@ async function executeFrameAnalysis(
 
     return { frame_analysis: frameAnalysis };
   } catch (frameAnalysisErr) {
-    if (isDevelopment()) {
-      logger.error("[video-handler] Frame image analysis failed", { error: frameAnalysisErr });
-    }
+    logger.warn("[video-handler] Frame image analysis failed", {
+      error: (frameAnalysisErr as Error).message,
+    });
     return {
       frame_analysis_error: {
         code: "FRAME_ANALYSIS_ERROR",
-        message:
-          frameAnalysisErr instanceof Error ? frameAnalysisErr.message : "Frame analysis failed",
+        message: sanitizeErrorMessage(frameAnalysisErr),
       },
     };
   }

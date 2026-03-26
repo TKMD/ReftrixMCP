@@ -24,6 +24,7 @@ import type { Page, PageScreenshotOptions } from "playwright";
 import * as path from "path";
 import * as os from "os";
 import * as fs from "fs/promises";
+import { logger } from "../../utils/logger";
 
 // ============================================================================
 // 型定義
@@ -562,11 +563,10 @@ export class FrameCaptureService {
         );
       }
     } catch {
-      // ディレクトリ読み取りエラーは無視（空のディレクトリなど）
-      if (this.isDevelopment) {
-        // eslint-disable-next-line no-console -- Intentional debug log in development
-        console.log("[FrameCaptureService] Could not clear directory (may be empty):", dir);
-      }
+      // ディレクトリ読み取りエラーは軽微な問題のため警告レベルで記録
+      logger.warn("[FrameCaptureService] Could not clear directory (may be empty)", {
+        directory: dir,
+      });
     }
   }
 

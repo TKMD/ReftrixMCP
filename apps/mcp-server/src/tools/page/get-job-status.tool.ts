@@ -29,6 +29,7 @@ import {
   type PageGetJobStatusData,
 } from "./schemas";
 import { logger, isDevelopment } from "../../utils/logger";
+import { sanitizeErrorMessage } from "../../utils/sanitize-error";
 import {
   generateRequestId,
   createSuccessResponseWithRequestId,
@@ -118,12 +119,13 @@ export async function pageGetJobStatusHandler(input: unknown): Promise<PageGetJo
   try {
     validated = pageGetJobStatusInputSchema.parse(input);
   } catch (error) {
-    if (isDevelopment()) {
-      logger.error("[MCP Tool] page.getJobStatus validation error", { error, requestId });
-    }
+    logger.warn("[MCP Tool] page.getJobStatus validation error", {
+      error: error instanceof Error ? error.message : String(error),
+      requestId,
+    });
     return createErrorResponseWithRequestId(
       GET_JOB_STATUS_ERROR_CODES.VALIDATION_ERROR,
-      error instanceof Error ? error.message : "Invalid input",
+      "Invalid input parameters",
       requestId
     );
   }
@@ -194,20 +196,14 @@ export async function pageGetJobStatusHandler(input: unknown): Promise<PageGetJo
 
     return createSuccessResponseWithRequestId(data, requestId);
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
     logger.error("[MCP Tool] page.getJobStatus error", {
       jobId,
-      error: errorMessage,
+      error: error instanceof Error ? error.message : String(error),
       requestId,
     });
-    // SEC監査指摘: 本番環境では詳細エラーメッセージを隠蔽
-    // 開発環境のみ詳細を表示、本番では一般的なメッセージ
-    const userMessage = isDevelopment()
-      ? `Failed to get job status: ${errorMessage}`
-      : "Failed to get job status";
     return createErrorResponseWithRequestId(
       GET_JOB_STATUS_ERROR_CODES.INTERNAL_ERROR,
-      userMessage,
+      sanitizeErrorMessage(error),
       requestId
     );
   } finally {

@@ -15,6 +15,7 @@
 
 import type { Browser } from "playwright";
 import { logger, isDevelopment } from "../../../utils/logger";
+import { sanitizeErrorMessage } from "../../../utils/sanitize-error";
 import {
   getMotionDetectorService,
   type MotionDetectionResult,
@@ -240,14 +241,12 @@ export async function defaultDetectMotion(
         }
       } catch (fetchError) {
         // 外部CSS取得失敗（タイムアウト含む）は警告のみ、インラインCSSのみで分析を継続
-        if (isDevelopment()) {
-          logger.warn(
-            "[page.analyze] Failed to fetch external CSS (graceful degradation: using inline CSS only)",
-            {
-              error: fetchError instanceof Error ? fetchError.message : String(fetchError),
-            }
-          );
-        }
+        logger.warn(
+          "[page.analyze] Failed to fetch external CSS (graceful degradation: using inline CSS only)",
+          {
+            error: fetchError instanceof Error ? fetchError.message : String(fetchError),
+          }
+        );
       }
     }
 
@@ -638,11 +637,9 @@ export async function defaultDetectMotion(
         }
       } catch (visionError) {
         // Vision検出エラーは警告のみ、処理は継続
-        if (isDevelopment()) {
-          logger.warn("[page.analyze] Vision motion candidates detection error", {
-            error: visionError instanceof Error ? visionError.message : "Unknown error",
-          });
-        }
+        logger.warn("[page.analyze] Vision motion candidates detection error", {
+          error: visionError instanceof Error ? visionError.message : "Unknown error",
+        });
         warnings.push({
           code: "VISION_MOTION_DETECTION_ERROR",
           severity: "info",
@@ -677,9 +674,7 @@ export async function defaultDetectMotion(
 
     return result;
   } catch (error) {
-    if (isDevelopment()) {
-      logger.error("[page.analyze] Motion detection failed", { error });
-    }
+    logger.warn("[page.analyze] Motion detection failed", { error: (error as Error).message });
 
     return {
       success: false,
@@ -691,7 +686,7 @@ export async function defaultDetectMotion(
       processingTimeMs: Date.now() - startTime,
       error: {
         code: PAGE_ANALYZE_ERROR_CODES.MOTION_DETECTION_FAILED,
-        message: error instanceof Error ? error.message : "Motion detection failed",
+        message: sanitizeErrorMessage(error),
       },
     };
   }
@@ -811,9 +806,7 @@ async function executeVideoModeDetection(
 
     return result;
   } catch (error) {
-    if (isDevelopment()) {
-      logger.error("[page.analyze] Video Mode detection failed", { error, url });
-    }
+    logger.warn("[page.analyze] Video Mode detection failed", { error: (error as Error).message });
 
     return {
       success: false,
@@ -825,7 +818,7 @@ async function executeVideoModeDetection(
       processingTimeMs: Date.now() - startTime,
       error: {
         code: "MOTION_VIDEO_MODE_FAILED",
-        message: error instanceof Error ? error.message : "Video mode detection failed",
+        message: sanitizeErrorMessage(error),
       },
     };
   }
@@ -944,9 +937,9 @@ async function executeRuntimeModeDetection(
 
     return result;
   } catch (error) {
-    if (isDevelopment()) {
-      logger.error("[page.analyze] Runtime Mode detection failed", { error, url });
-    }
+    logger.warn("[page.analyze] Runtime Mode detection failed", {
+      error: (error as Error).message,
+    });
 
     return {
       success: false,
@@ -958,7 +951,7 @@ async function executeRuntimeModeDetection(
       processingTimeMs: Date.now() - startTime,
       error: {
         code: "MOTION_RUNTIME_MODE_FAILED",
-        message: error instanceof Error ? error.message : "Runtime mode detection failed",
+        message: sanitizeErrorMessage(error),
       },
     };
   }
@@ -1018,12 +1011,10 @@ async function executeHybridModeDetection(
       ),
       // ランタイム検出
       executeRuntimeDetection(url, options?.runtime_options).catch((err) => {
-        if (isDevelopment()) {
-          logger.warn(
-            "[page.analyze] Runtime detection failed in hybrid mode, using CSS results only",
-            { error: err }
-          );
-        }
+        logger.warn(
+          "[page.analyze] Runtime detection failed in hybrid mode, using CSS results only",
+          { error: err instanceof Error ? err.message : "Unknown error" }
+        );
         return null;
       }),
     ]);
@@ -1135,9 +1126,7 @@ async function executeHybridModeDetection(
 
     return result;
   } catch (error) {
-    if (isDevelopment()) {
-      logger.error("[page.analyze] Hybrid Mode detection failed", { error, url });
-    }
+    logger.warn("[page.analyze] Hybrid Mode detection failed", { error: (error as Error).message });
 
     return {
       success: false,
@@ -1149,7 +1138,7 @@ async function executeHybridModeDetection(
       processingTimeMs: Date.now() - startTime,
       error: {
         code: "MOTION_HYBRID_MODE_FAILED",
-        message: error instanceof Error ? error.message : "Hybrid mode detection failed",
+        message: sanitizeErrorMessage(error),
       },
     };
   }

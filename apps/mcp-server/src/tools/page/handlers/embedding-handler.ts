@@ -17,6 +17,7 @@
 
 import { createDIFactory } from "../../../utils/di-factory";
 import { isDevelopment, logger } from "../../../utils/logger";
+import { sanitizeErrorMessage } from "../../../utils/sanitize-error";
 import {
   LayoutEmbeddingService,
   saveSectionEmbedding,
@@ -294,15 +295,13 @@ export async function generateSectionEmbeddings(
     for (const section of sections) {
       const dbSectionId = sectionIdMapping.get(section.id);
       if (!dbSectionId) {
-        if (isDevelopment()) {
-          logger.warn("[EmbeddingHandler] Section ID mapping not found, skipping embedding", {
-            originalId: section.id,
-          });
-        }
+        logger.warn("[EmbeddingHandler] Section ID mapping not found, skipping embedding", {
+          originalId: section.id,
+        });
         result.failedCount++;
         result.errors.push({
           sectionId: section.id,
-          error: "Section ID mapping not found",
+          error: "Embedding generation failed",
         });
         try {
           options.onProgress?.(result.generatedCount + result.failedCount, sections.length);
@@ -349,11 +348,9 @@ export async function generateSectionEmbeddings(
         batchEmbeddings = await embeddingService.generateBatchFromTexts(allTexts);
       } catch (batchError) {
         // バッチ推論失敗時は個別フォールバック（後続ループで1件ずつ生成）
-        if (isDevelopment()) {
-          logger.warn("[EmbeddingHandler] Batch embedding failed, falling back to individual", {
-            error: batchError instanceof Error ? batchError.message : "Unknown error",
-          });
-        }
+        logger.warn("[EmbeddingHandler] Batch embedding failed, falling back to individual", {
+          error: batchError instanceof Error ? batchError.message : "Unknown error",
+        });
         batchEmbeddings = [];
       }
     }
@@ -449,42 +446,31 @@ export async function generateSectionEmbeddings(
               };
             }
             result.visionEmbedding.failedCount++;
-            const visionErrorMessage =
-              visionError instanceof Error ? visionError.message : "Unknown error";
             result.visionEmbedding.errors.push({
               sectionId: section.id,
-              error: visionErrorMessage,
+              error: sanitizeErrorMessage(visionError),
             });
 
-            if (isDevelopment()) {
-              logger.warn(
-                "[EmbeddingHandler] VisionEmbedding generation failed (partial success)",
-                {
-                  originalSectionId: section.id,
-                  dbSectionId: dbSectionId,
-                  error: visionErrorMessage,
-                }
-              );
-            }
+            logger.warn("[EmbeddingHandler] VisionEmbedding generation failed (partial success)", {
+              originalSectionId: section.id,
+              dbSectionId: dbSectionId,
+              error: visionError instanceof Error ? visionError.message : "Unknown error",
+            });
           }
         }
       } catch (embeddingError) {
         // Embedding生成失敗時もSectionPatternは保存済み（部分成功）
         result.failedCount++;
-        const errorMessage =
-          embeddingError instanceof Error ? embeddingError.message : "Unknown error";
         result.errors.push({
           sectionId: section.id,
-          error: errorMessage,
+          error: sanitizeErrorMessage(embeddingError),
         });
 
-        if (isDevelopment()) {
-          logger.warn("[EmbeddingHandler] SectionEmbedding generation failed (partial success)", {
-            originalSectionId: section.id,
-            dbSectionId: dbSectionId,
-            error: errorMessage,
-          });
-        }
+        logger.warn("[EmbeddingHandler] SectionEmbedding generation failed (partial success)", {
+          originalSectionId: section.id,
+          dbSectionId: dbSectionId,
+          error: embeddingError instanceof Error ? embeddingError.message : "Unknown error",
+        });
       }
 
       // Granular progress: report after each section (fire-and-forget)
@@ -497,13 +483,10 @@ export async function generateSectionEmbeddings(
   } catch (serviceError) {
     // EmbeddingService初期化失敗時
     result.success = false;
-    const errorMessage = serviceError instanceof Error ? serviceError.message : "Unknown error";
 
-    if (isDevelopment()) {
-      logger.warn("[EmbeddingHandler] EmbeddingService not available", {
-        error: errorMessage,
-      });
-    }
+    logger.warn("[EmbeddingHandler] EmbeddingService not available", {
+      error: serviceError instanceof Error ? serviceError.message : "Unknown error",
+    });
   }
 
   return result;
@@ -594,11 +577,9 @@ export async function generateMotionEmbeddings(
   // IDマッピングがない場合はEmbedding生成をスキップ
   // db-handler.tsでパターンが保存されていない可能性がある
   if (!motionPatternIdMapping || motionPatternIdMapping.size === 0) {
-    if (isDevelopment()) {
-      logger.warn(
-        "[EmbeddingHandler] No motionPatternIdMapping provided, skipping embedding generation"
-      );
-    }
+    logger.warn(
+      "[EmbeddingHandler] No motionPatternIdMapping provided, skipping embedding generation"
+    );
     return result;
   }
 
@@ -607,9 +588,7 @@ export async function generateMotionEmbeddings(
 
     if (!motionPersistenceService.isAvailable()) {
       result.success = false;
-      if (isDevelopment()) {
-        logger.warn("[EmbeddingHandler] MotionPersistenceService not available");
-      }
+      logger.warn("[EmbeddingHandler] MotionPersistenceService not available");
       return result;
     }
 
@@ -625,14 +604,12 @@ export async function generateMotionEmbeddings(
       // 保存済みのパターンIDを取得
       const dbPatternId = motionPatternIdMapping.get(pattern.id);
       if (!dbPatternId) {
-        if (isDevelopment()) {
-          logger.warn("[EmbeddingHandler] Pattern ID mapping not found, skipping embedding", {
-            originalId: pattern.id,
-          });
-        }
+        logger.warn("[EmbeddingHandler] Pattern ID mapping not found, skipping embedding", {
+          originalId: pattern.id,
+        });
         result.errors.push({
           patternId: pattern.id,
-          error: "Pattern ID mapping not found",
+          error: "Embedding generation failed",
         });
         continue;
       }
@@ -666,20 +643,16 @@ export async function generateMotionEmbeddings(
         }
       } catch (embeddingError) {
         // Embedding生成失敗時もパターンは保存済み（部分成功）
-        const errorMessage =
-          embeddingError instanceof Error ? embeddingError.message : "Unknown error";
         result.errors.push({
           patternId: pattern.id,
-          error: errorMessage,
+          error: sanitizeErrorMessage(embeddingError),
         });
 
-        if (isDevelopment()) {
-          logger.warn("[EmbeddingHandler] MotionEmbedding generation failed (partial success)", {
-            originalPatternId: pattern.id,
-            dbPatternId: dbPatternId,
-            error: errorMessage,
-          });
-        }
+        logger.warn("[EmbeddingHandler] MotionEmbedding generation failed (partial success)", {
+          originalPatternId: pattern.id,
+          dbPatternId: dbPatternId,
+          error: embeddingError instanceof Error ? embeddingError.message : "Unknown error",
+        });
       }
 
       // Granular progress: report after each motion pattern (fire-and-forget)
@@ -701,13 +674,10 @@ export async function generateMotionEmbeddings(
   } catch (serviceError) {
     // サービス初期化失敗時
     result.success = false;
-    const errorMessage = serviceError instanceof Error ? serviceError.message : "Unknown error";
 
-    if (isDevelopment()) {
-      logger.warn("[EmbeddingHandler] MotionEmbedding service error", {
-        error: errorMessage,
-      });
-    }
+    logger.warn("[EmbeddingHandler] MotionEmbedding service error", {
+      error: serviceError instanceof Error ? serviceError.message : "Unknown error",
+    });
   }
 
   return result;

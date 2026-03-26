@@ -16,6 +16,7 @@
  * - LayoutStructure: レイアウト構成（gridSystem, visualHierarchy, spacingRhythm等）
  */
 import { z } from "zod";
+import { commonSearchFiltersSchema } from "../../schemas/common-search-filters";
 
 // ============================================================================
 // Enum Schemas
@@ -581,17 +582,19 @@ export type NarrativeAnalyzeOutput = z.infer<typeof narrativeAnalyzeOutputSchema
 /**
  * narrative.search フィルタースキーマ
  */
-export const narrativeSearchFiltersSchema = z.object({
-  /** ムードカテゴリでフィルター */
-  moodCategory: moodCategorySchema.optional(),
-  /** 最小信頼度 */
-  minConfidence: z
-    .number()
-    .min(0, { message: "minConfidenceは0以上1以下である必要があります" })
-    .max(1, { message: "minConfidenceは0以上1以下である必要があります" })
-    .optional()
-    .describe("最小信頼度フィルター（0-1）"),
-});
+export const narrativeSearchFiltersSchema = z
+  .object({
+    /** ムードカテゴリでフィルター */
+    moodCategory: moodCategorySchema.optional(),
+    /** 最小信頼度 */
+    minConfidence: z
+      .number()
+      .min(0, { message: "minConfidenceは0以上1以下である必要があります" })
+      .max(1, { message: "minConfidenceは0以上1以下である必要があります" })
+      .optional()
+      .describe("最小信頼度フィルター（0-1）"),
+  })
+  .merge(commonSearchFiltersSchema);
 export type NarrativeSearchFilters = z.infer<typeof narrativeSearchFiltersSchema>;
 
 /**

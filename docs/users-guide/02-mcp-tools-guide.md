@@ -1,16 +1,16 @@
 # Reftrix MCPツール完全ガイド / Reftrix MCP Tools Complete Guide
 
-**Last Updated**: 2026-03-05
-**Version**: 0.1.5
+**Last Updated**: 2026-03-25
+**Version**: 0.2.0
 **対象読者 / Target Audience**: Reftrixプラットフォームのエンドユーザー、デザイナー、開発者 / End users, designers, and developers of the Reftrix platform
 
 ---
 
 ## はじめに / Introduction
 
-Reftrixは **WebDesign専用プラットフォーム** です。このガイドでは、**26のWebDesign専用MCPツール**を活用して、Webページの解析・品質評価・コード生成・嗜好プロファイリングを行う方法を解説します。
+Reftrixは **WebDesign専用プラットフォーム** です。このガイドでは、**28のWebDesign専用MCPツール**を活用して、Webページの解析・品質評価・コード生成・嗜好プロファイリング・横断検索・画像類似検索を行う方法を解説します。
 
-Reftrix is a **WebDesign-specialized platform**. This guide explains how to use **26 WebDesign-focused MCP tools** to analyze web pages, evaluate design quality, generate code, and personalize search results through preference profiling.
+Reftrix is a **WebDesign-specialized platform**. This guide explains how to use **28 WebDesign-focused MCP tools** to analyze web pages, evaluate design quality, generate code, personalize search results through preference profiling, perform unified cross-service search, and find visually similar designs.
 
 > **重要 / Important**: v0.1.0でSVG機能は削除されました。本ガイドはWebDesign専用ツールのみを扱います。
 > All SVG features were removed in v0.1.0. This guide covers WebDesign-only tools.
@@ -41,9 +41,12 @@ Reftrix is a **WebDesign-specialized platform**. This guide explains how to use 
 12. [Background（背景）ツール](#12-background背景ツール)
 13. [Responsive（レスポンシブ）ツール](#13-responsiveレスポンシブツール)
 14. [Preference（嗜好プロファイリング）ツール](#14-preference嗜好プロファイリングツール)
-15. [実践ワークフロー](#15-実践ワークフロー)
-16. [パフォーマンス最適化](#16-パフォーマンス最適化)
-17. [トラブルシューティング](#17-トラブルシューティング)
+15. [Part（パーツ）ツール](#15-partパーツツール)
+16. [Search（横断検索）ツール](#16-search横断検索ツール)
+17. [Design（デザイン画像検索）ツール](#17-designデザイン画像検索ツール)
+18. [実践ワークフロー](#18-実践ワークフロー)
+19. [パフォーマンス最適化](#19-パフォーマンス最適化)
+20. [トラブルシューティング](#20-トラブルシューティング)
 
 ---
 
@@ -98,7 +101,7 @@ const result = await page.analyze({
 
 ## 2. ツールカテゴリ概要 / Tool Category Overview
 
-### WebDesign MCPツール（26ツール） / WebDesign MCP Tools (26 Tools)
+### WebDesign MCPツール（28ツール） / WebDesign MCP Tools (28 Tools)
 
 | カテゴリ / Category | ツール数 / Count | 主な用途 / Primary Purpose                                                                                                                   |
 | ------------------- | ---------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -115,6 +118,8 @@ const result = await page.analyze({
 | **Responsive**      | 1                | レスポンシブ分析結果のセマンティック検索 / Responsive analysis semantic search                                                               |
 | **Preference**      | 3                | 嗜好プロファイリング・検索パーソナライズ / Preference profiling and search personalization                                                   |
 | **Part**            | 3                | UIパーツ検索・詳細取得・比較 / UI part search, inspection, and comparison                                                                    |
+| **Search**          | 1                | 横断検索（5サービス並列統合）/ Cross-service unified search (5 services in parallel)                                                         |
+| **Design**          | 1                | 画像類似検索（DINOv2 visual embedding）/ Image similarity search (DINOv2 visual embedding)                                                   |
 
 ### ツール選択のフローチャート / Tool Selection Flowchart
 
@@ -1669,15 +1674,15 @@ Semantic search for UI parts. Supports 3 search modes: visual, text, and hybrid.
 // テキスト検索 / Text search
 const results = await mcp__reftrix__part_search({
   query: "CTAボタン グラデーション背景",
-  searchMode: "text",
+  search_mode: "text",
   limit: 10,
 });
 
 // パーツタイプフィルター付き / With part type filter
 const buttons = await mcp__reftrix__part_search({
   query: "primary action button",
-  partType: "button",
-  searchMode: "hybrid",
+  part_type: "button",
+  search_mode: "hybrid",
   limit: 5,
 });
 ```
@@ -1690,9 +1695,9 @@ Retrieve detailed information for a part by ID, including computed styles, bound
 
 ```typescript
 const detail = await mcp__reftrix__part_inspect({
-  id: "part-uuid-here",
-  includeHtml: true,
-  includeEmbedding: false,
+  part_id: "part-uuid-here",
+  include_html: true,
+  include_embedding: false,
 });
 ```
 
@@ -1704,13 +1709,61 @@ Compare 2-5 parts side by side on styles, layout, interaction, and accessibility
 
 ```typescript
 const comparison = await mcp__reftrix__part_compare({
-  partIds: ["part-uuid-1", "part-uuid-2", "part-uuid-3"],
+  part_ids: ["part-uuid-1", "part-uuid-2", "part-uuid-3"],
 });
 ```
 
 ---
 
-## 16. 実践ワークフロー / Practical Workflows
+## 16. Search（横断検索）ツール / Search (Unified Search) Tools
+
+横断検索ツールは、layout/part/motion/background/narrativeの5つの検索サービスを並列で実行し、類似度マージで統合結果を返却します。
+
+The unified search tool executes 5 search services (layout, part, motion, background, narrative) in parallel and returns merged results by similarity.
+
+### 16.1 search.unified -- 横断検索 / Unified Search
+
+```typescript
+// 横断検索: 全サービスを一度に検索
+// Unified search: search all services at once
+const results = await mcp__reftrix__search_unified({
+  query: "modern hero section with parallax animation",
+  limit: 10,
+});
+
+// 結果には各サービスのマッチが類似度順で統合されます
+// Results include matches from each service merged by similarity
+```
+
+---
+
+## 17. Design（デザイン画像検索）ツール / Design (Image Search) Tools
+
+画像類似検索ツールは、Base64画像またはURLからDINOv2 visual embeddingを生成し、HNSW + RRF 3ソースで類似デザインを検索します。
+
+The image similarity search tool generates DINOv2 visual embeddings from Base64 images or URLs and searches for similar designs via HNSW + RRF 3-source fusion.
+
+### 17.1 design.search_by_image -- 画像類似検索 / Image Similarity Search
+
+```typescript
+// URL指定で類似デザイン検索
+// Search similar designs by URL
+const results = await mcp__reftrix__design_search_by_image({
+  image: "https://example.com/screenshot.png",
+  limit: 10,
+});
+
+// Base64画像で類似デザイン検索
+// Search similar designs by Base64 image
+const results = await mcp__reftrix__design_search_by_image({
+  image: "data:image/png;base64,...",
+  limit: 5,
+});
+```
+
+---
+
+## 18. 実践ワークフロー / Practical Workflows
 
 ### ワークフロー1: アワードサイトを参考にデザインを作成 / Workflow 1: Create Design Based on Award Sites
 
@@ -1810,7 +1863,7 @@ const code = await layout.generate_code({
 
 ---
 
-## 17. パフォーマンス最適化 / Performance Optimization
+## 19. パフォーマンス最適化 / Performance Optimization
 
 ### summary=true の活用 / Leveraging summary=true
 
@@ -1882,7 +1935,7 @@ await layout.search({
 
 ---
 
-## 18. トラブルシューティング / Troubleshooting
+## 20. トラブルシューティング / Troubleshooting
 
 ### よくある問題と解決策 / Common Issues and Solutions
 
@@ -2009,8 +2062,8 @@ This guide explained how to use Reftrix's 23 WebDesign MCP tools for web page an
 
 ---
 
-**Last Updated**: 2026-03-05
-**Version**: 0.1.5
+**Last Updated**: 2026-03-25
+**Version**: 0.2.0
 
 ---
 

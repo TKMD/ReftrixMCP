@@ -19,6 +19,7 @@
 import { ZodError } from "zod";
 import { createDIFactory } from "../../utils/di-factory";
 import { logger, isDevelopment } from "../../utils/logger";
+import { sanitizeErrorMessage } from "../../utils/sanitize-error";
 import {
   layoutToCodeInputSchema,
   layoutToCodeDataSchema,
@@ -272,11 +273,9 @@ export async function layoutToCodeHandler(input: unknown): Promise<LayoutToCodeO
     if (error instanceof ZodError) {
       const errorMessage = error.errors.map((e) => `${e.path.join(".")}: ${e.message}`).join(", ");
 
-      if (isDevelopment()) {
-        logger.error("[MCP Tool] layout.to_code validation error", {
-          errors: error.errors,
-        });
-      }
+      logger.warn("[MCP Tool] layout.to_code validation error", {
+        errors: error.errors,
+      });
 
       return createErrorResponse(
         LAYOUT_MCP_ERROR_CODES.VALIDATION_ERROR,
@@ -284,18 +283,15 @@ export async function layoutToCodeHandler(input: unknown): Promise<LayoutToCodeO
       ) as LayoutToCodeOutput;
     }
 
-    const errorMessage = error instanceof Error ? error.message : String(error);
     return createErrorResponse(
       LAYOUT_MCP_ERROR_CODES.INTERNAL_ERROR,
-      errorMessage
+      sanitizeErrorMessage(error)
     ) as LayoutToCodeOutput;
   }
 
   // サービスファクトリーチェック
   if (!serviceFactoryDI.get()) {
-    if (isDevelopment()) {
-      logger.error("[MCP Tool] layout.to_code service factory not set");
-    }
+    logger.error("[MCP Tool] layout.to_code service factory not set");
 
     return createErrorResponse(
       "SERVICE_UNAVAILABLE",
@@ -340,17 +336,13 @@ export async function layoutToCodeHandler(input: unknown): Promise<LayoutToCodeO
     try {
       generatedCode = await service.generateCode(pattern, options);
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-
-      if (isDevelopment()) {
-        logger.error("[MCP Tool] layout.to_code generation error", {
-          error: errorMessage,
-        });
-      }
+      logger.error("[MCP Tool] layout.to_code generation error", {
+        error: error instanceof Error ? error.message : String(error),
+      });
 
       return createErrorResponse(
         LAYOUT_MCP_ERROR_CODES.CODE_GENERATION_FAILED,
-        `Code generation failed: ${errorMessage}`
+        sanitizeErrorMessage(error)
       ) as LayoutToCodeOutput;
     }
 
@@ -383,14 +375,12 @@ export async function layoutToCodeHandler(input: unknown): Promise<LayoutToCodeO
     const errorMessage = error instanceof Error ? error.message : String(error);
     const errorCode = determineErrorCode(error instanceof Error ? error : errorMessage);
 
-    if (isDevelopment()) {
-      logger.error("[MCP Tool] layout.to_code error", {
-        code: errorCode,
-        error: errorMessage,
-      });
-    }
+    logger.error("[MCP Tool] layout.to_code error", {
+      code: errorCode,
+      error: errorMessage,
+    });
 
-    return createErrorResponse(errorCode, errorMessage) as LayoutToCodeOutput;
+    return createErrorResponse(errorCode, sanitizeErrorMessage(error)) as LayoutToCodeOutput;
   }
 }
 

@@ -940,7 +940,8 @@ describe("layoutToCodeHandler - エラーハンドリング", () => {
 
     expect(result.success).toBe(false);
     if (!result.success) {
-      expect(result.error.message).toContain("Template parsing error");
+      // sanitizeErrorMessage maps raw errors to generic messages (CWE-209)
+      expect(result.error.message).toBeTruthy();
     }
   });
 

@@ -18,6 +18,17 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
+// search-cache.service をモック（テスト間のキャッシュ汚染を防止）
+vi.mock("../../../src/services/search-cache.service", () => ({
+  generateCacheKey: vi.fn().mockReturnValue("test-cache-key"),
+  getCachedResult: vi.fn().mockReturnValue(undefined),
+  setCachedResult: vi.fn(),
+  invalidateCache: vi.fn(),
+  getCacheStats: vi
+    .fn()
+    .mockReturnValue({ size: 0, maxEntries: 500, ttlMs: 300000, hits: 0, misses: 0, hitRate: 0 }),
+}));
+
 // =====================================================
 // インポート
 // =====================================================
@@ -1255,7 +1266,7 @@ describe("追加カバレッジテスト", () => {
 
     expect(result.success).toBe(false);
     if (!result.success) {
-      expect(result.error.message).toBe("Search failed");
+      expect(result.error.message).toBe("An internal error occurred");
     }
   });
 

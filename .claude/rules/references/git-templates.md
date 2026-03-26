@@ -74,11 +74,12 @@ git commit -m "update auth"
 
 ```bash
 # 必須コマンド（すべてパスすること）
-pnpm lint && pnpm typecheck && pnpm test
+pnpm lint && pnpm typecheck && pnpm format:check && pnpm docs:verify && pnpm test
 ```
 
 - [ ] すべてのテストがパス / All tests pass
 - [ ] ESLintエラー: 0件 / ESLint errors: 0
 - [ ] TypeScriptエラー: 0件 / TypeScript errors: 0
+- [ ] ドキュメント整合性: 0件 / Docs-impl sync errors: 0
 - [ ] テストカバレッジ: 80%以上 / Test coverage: 80% or higher
 - [ ] 差分が800行以下（または分割済み） / Diff under 800 lines (or already split)

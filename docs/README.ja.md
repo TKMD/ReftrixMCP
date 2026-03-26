@@ -63,7 +63,7 @@ Webページを「単なるスクリーンショット」ではなく、ベク�
 ### 🤖 MCP統合
 
 - **Model Context Protocol**: Claude等のAIエージェントと直接統合
-- **26のMCPツール**: WebDesign専用の分析・検索・評価ツール
+- **28のMCPツール**: WebDesign専用の分析・検索・評価ツール
 - **プロジェクト統合**: project.get/project.listでプロジェクト情報取得
 
 ### 🔍 Vision統合
@@ -77,8 +77,9 @@ Webページを「単なるスクリーンショット」ではなく、ベク�
 
 - **HTMLサニタイズ**: Webページ取得時のHTMLサニタイズ処理（DOMPurify 3.3.x）
 - **SSRF対策**: プライベートIP・メタデータサービスへのアクセスブロック
-- **レート制限**: スライディングウィンドウによるAPI制限（将来実装予定、現在はエラーコード定義のみ）
+- **レート制限**: Token Bucket + Redis Luaスクリプトによるアトミック制御（CWE-770 DoS対策）。3ティア構成: analysis 10RPM / search 120RPM / default 60RPM。Graceful Degradation: Redis未接続時はインメモリフォールバック。全28 MCPツールに自動適用
 - **入力検証**: Zodスキーマによる厳格な検証
+- **SBOM**: CycloneDX 1.6 JSON形式の自動生成（EU CRA 2026/9/11脆弱性報告義務対応）
 
 ### ⚡ パフォーマンス
 
@@ -107,6 +108,7 @@ Webページを「単なるスクリーンショット」ではなく、ベク�
 
 - **Node.js**: v20.19.0以上
 - **pnpm**: v10.0.0以上
+- **Ollama**: llama3.2-vision モデル（Vision分析に必要、約7.9GB）
 - **Docker**: v24.0以上
 - **Git**: v2.40以上
 
@@ -121,10 +123,11 @@ cd ReftrixMCP
 pnpm install
 
 # 環境変数を設定
-cp .env.example .env
+cp .env.example .env.local
+cp .env.local packages/database/.env
 
 # データベースを起動
-docker compose up -d
+pnpm docker:up
 
 # データベースマイグレーション
 pnpm db:migrate
@@ -132,6 +135,12 @@ pnpm db:seed
 
 # ビルド（MCPサーバー + パッケージ）
 pnpm build
+
+# Playwright Chromiumインストール
+pnpm exec playwright install chromium
+
+# DINOv2 Visual Embeddingモデルダウンロード（約800MB）
+pnpm --filter @reftrixmcp/ml download:dinov2
 
 # テスト実行
 pnpm test
@@ -148,8 +157,12 @@ MCPサーバーは Claude Desktop から利用します。
       "command": "node",
       "args": ["/path/to/reftrix/apps/mcp-server/dist/index.js"],
       "env": {
+        "NODE_ENV": "development",
         "DATABASE_URL": "postgresql://reftrix:change_me@localhost:26432/reftrix?schema=public",
-        "REDIS_URL": "redis://localhost:27379"
+        "REDIS_URL": "redis://localhost:27379",
+        "OLLAMA_BASE_URL": "http://localhost:11434",
+        "OLLAMA_HOST": "http://localhost:11434",
+        "ENABLE_SECTION_SCREENSHOT_FALLBACK": "true"
       }
     }
   }
@@ -168,7 +181,10 @@ MCPサーバーは Claude Desktop から利用します。
       "args": ["/path/to/reftrix/apps/mcp-server/dist/index.js"],
       "env": {
         "DATABASE_URL": "postgresql://reftrix:change_me@localhost:26432/reftrix?schema=public",
-        "REDIS_URL": "redis://localhost:27379"
+        "REDIS_URL": "redis://localhost:27379",
+        "NODE_ENV": "development",
+        "OLLAMA_BASE_URL": "http://localhost:11434",
+        "OLLAMA_HOST": "http://localhost:11434"
       }
     }
   }
@@ -190,7 +206,7 @@ MCPサーバーは Claude Desktop から利用します。
 | **MCP SDK**    | 1.26.x     | Model Context Protocol統合         |
 | **TypeScript** | 5.9.x      | node20モジュール、deferred imports |
 
-### フロントエンド（example/reftrix4、example/reftrix5）
+### フロントエンド（example/reftrix4）
 
 | 技術            | バージョン | 選定理由                                        |
 | --------------- | ---------- | ----------------------------------------------- |
@@ -267,7 +283,7 @@ const analysis = await mcp__reftrix__page_analyze({
 
 ## MCP ツール一覧
 
-Reftrixは**26のMCPツール**を提供しています（WebDesign専用）。
+Reftrixは**28のMCPツール**を提供しています（WebDesign専用）。
 
 ### レイアウト解析（5ツール）
 
@@ -314,6 +330,14 @@ Reftrixは**26のMCPツール**を提供しています（WebDesign専用）。
 | ------------------- | ------------------------------------------------------------------------------------------------------ |
 | `responsive.search` | レスポンシブ分析結果のセマンティック検索（ビューポート差異・ブレークポイント・スクリーンショット差分） |
 
+### 嗜好プロファイリング（3ツール）
+
+| ツール名           | 説明                                                                              |
+| ------------------ | --------------------------------------------------------------------------------- |
+| `preference.hear`  | 嗜好ヒアリングセッション（サンプル提示・フィードバック収集・2ファクタconfidence） |
+| `preference.get`   | 嗜好プロファイル取得（GDPRシグナルエクスポート対応）                              |
+| `preference.reset` | プロファイルリセットまたは完全削除（GDPRデータ消去権対応）                        |
+
 ### パーツ解析（3ツール）
 
 | ツール名       | 説明                                                                     |
@@ -321,6 +345,18 @@ Reftrixは**26のMCPツール**を提供しています（WebDesign専用）。
 | `part.search`  | UIパーツのセマンティック検索（16パーツタイプ、visual/text/hybridモード） |
 | `part.inspect` | パーツ詳細取得（スタイル・バウンディングボックス・インタラクション情報） |
 | `part.compare` | 2-5パーツの並列比較（スタイル・レイアウト・アクセシビリティ）            |
+
+### 横断検索（1ツール）
+
+| ツール名         | 説明                                                                                                    |
+| ---------------- | ------------------------------------------------------------------------------------------------------- |
+| `search.unified` | 横断検索 — layout/part/motion/background/narrativeの5サービスを並列検索し、類似度マージで統合結果を返却 |
+
+### デザイン画像検索（1ツール）
+
+| ツール名                 | 説明                                                                                                 |
+| ------------------------ | ---------------------------------------------------------------------------------------------------- |
+| `design.search_by_image` | 画像類似検索 — Base64/URLからDINOv2 visual embeddingを生成し、HNSW + RRF 3ソースで類似デザインを検索 |
 
 ### 統合解析・プロジェクト管理（4ツール）
 
@@ -344,7 +380,8 @@ Reftrixは**26のMCPツール**を提供しています（WebDesign専用）。
 ```
 ReftrixMCP/
 ├── apps/
-│   └── mcp-server/                   # MCP Server（26ツール）
+│   ├── cli/                          # スタンドアロンCLI（MCP非依存）
+│   └── mcp-server/                   # MCP Server（28ツール）
 │       └── src/
 │           └── tools/                # MCPツール定義
 │
@@ -412,17 +449,19 @@ pnpm db:seed
 
 ### ワーカー管理
 
-page.analyzeはBullMQキューとワーカープロセスで非同期実行されます。
+page.analyzeはBullMQキューとワーカープロセスで非同期実行されます。**WorkerSupervisor** が管理しますが、`start-workers.ts` の明示的な起動が必要です（`autorun=false`）。
 
 ```bash
-# page.analyzeワーカー起動（WorkerSupervisor管理）
+# page.analyzeワーカー起動（WorkerSupervisor管理、start-workers.tsで明示的にrun()を呼び出し）
 pnpm --filter @reftrixmcp/mcp-server worker:start:page
 
 # quality評価ワーカー起動
 pnpm --filter @reftrixmcp/mcp-server worker:start:quality
 ```
 
-**WorkerSupervisor** は OOM クラッシュ防止のため、N 件のジョブ完了後にワーカープロセスを自動再起動します。デフォルトは 1 件ごとに再起動（`WORKER_MAX_JOBS_BEFORE_RESTART` 環境変数でオーバーライド可能）。
+**WorkerSupervisor** は OOM クラッシュ防止のため、N 件のジョブ完了後にワーカープロセスを自動再起動します。デフォルトは 1 件ごとに再起動（`WORKER_MAX_JOBS_BEFORE_RESTART` 環境変数でオーバーライド可能）。計画的再起動時の新規ジョブ取得防止には **Pre-Return Pause パターン** を使用しています。
+
+**BullMQ UI（Bull Board）**: ジョブの監視・管理用ダッシュボードがポート21080で利用可能です。
 
 ### Embeddingバックフィル
 
@@ -438,7 +477,7 @@ pnpm --filter @reftrixmcp/mcp-server backfill:embeddings
 
 ## 環境変数
 
-`.env.example` をコピーして `.env` を作成してください。主な環境変数は以下の通りです。
+`.env.example` をコピーして `.env.local` を作成してください。主な環境変数は以下の通りです。
 
 | 変数名                           | デフォルト | 説明                                                                                                                                                                |
 | -------------------------------- | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -458,9 +497,10 @@ pnpm --filter @reftrixmcp/mcp-server backfill:embeddings
 | サービス         | 標準ポート | Reftrixポート |
 | ---------------- | ---------- | ------------- |
 | PostgreSQL       | 5432       | **26432**     |
+| Redis            | 6379       | **27379**     |
 | Prisma Studio    | 5555       | **26555**     |
+| BullMQ UI        | -          | **21080**     |
 | example/reftrix4 | 3004       | **24004**     |
-| example/reftrix5 | 3000       | **3000**      |
 
 ---
 
@@ -535,7 +575,7 @@ AGPL-3.0の条件が適合しないユースケース（プロプライエタリ
 | ガイド                                                               | 内容                                 |
 | -------------------------------------------------------------------- | ------------------------------------ |
 | [Getting Started](./users-guide/01-getting-started.md)               | インストール、セットアップ、初回分析 |
-| [MCP Tools Guide](./users-guide/02-mcp-tools-guide.md)               | 全26ツールの使用例                   |
+| [MCP Tools Guide](./users-guide/02-mcp-tools-guide.md)               | 全28ツールの使用例                   |
 | [page.analyze Deep Dive](./users-guide/03-page-analyze-deep-dive.md) | 非同期分析フローとデータ構造         |
 | [Troubleshooting](./users-guide/04-troubleshooting.md)               | よくある問題と解決方法               |
 
@@ -579,13 +619,14 @@ AGPL-3.0の条件が適合しないユースケース（プロプライエタリ
 
 ---
 
-## 既知の制限事項（v0.1.0）
+## 既知の制限事項（v0.2.0）
 
 - CPUモードではEmbedding生成に約2-5秒/テキスト（バッチ処理にはGPU推奨）
-- 最低8GB RAM必要、並行分析には16GB推奨
+- 最低16GB RAM推奨、並行分析には32GB推奨
 - 初回Embedding操作時に約400MBのモデル（multilingual-e5-base）をダウンロード
-- `page.analyze` は別途ワーカープロセスの起動が必要
-- ナラティブ分析にはOllamaが必要（オプション）
+- `page.analyze` はWorkerSupervisorが管理する別プロセスで実行されます。`start-workers.ts` の起動が必要です（`pnpm --filter @reftrixmcp/mcp-server worker:start:page`）
+- Vision分析（レイアウト、モーション、ナラティブ）にはOllama + llama3.2-visionが必要（未起動時はGraceful Degradation）
+- DINOv2 visual embeddingモデルは約800MBのダウンロードが必要（ViT-B/14 ONNX）
 
 ### GPU・Vision関連（v0.1.2）
 

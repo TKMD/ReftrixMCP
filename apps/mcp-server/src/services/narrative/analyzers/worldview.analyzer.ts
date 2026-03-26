@@ -533,11 +533,9 @@ export class WorldViewAnalyzer {
       };
     } catch (error) {
       // Vision分析エラー時はフォールバック
-      if (isDevelopment()) {
-        logger.warn("[WorldViewAnalyzer] Vision analysis failed, using fallback", {
-          error: error instanceof Error ? error.message : String(error),
-        });
-      }
+      logger.warn("[WorldViewAnalyzer] Vision analysis failed, using fallback", {
+        error: error instanceof Error ? error.message : String(error),
+      });
 
       const result = generateFallbackWorldView(
         input.cssVariables,
@@ -588,11 +586,9 @@ export class WorldViewAnalyzer {
         metrics: result.metrics,
       };
     } catch (error) {
-      if (isDevelopment()) {
-        logger.error("[WorldViewAnalyzer] Vision API error", {
-          error: error instanceof Error ? error.message : String(error),
-        });
-      }
+      logger.warn("[WorldViewAnalyzer] Vision API error", {
+        error: error instanceof Error ? error.message : String(error),
+      });
       throw error;
     }
   }

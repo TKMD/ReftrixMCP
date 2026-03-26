@@ -830,11 +830,9 @@ export class LayoutEmbeddingService {
         }
       } catch (cacheError) {
         // キャッシュエラーは無視して続行
-        if (isDevelopment()) {
-          logger.warn("[LayoutEmbedding] Cache read error, proceeding without cache", {
-            error: cacheError instanceof Error ? cacheError.message : "Unknown error",
-          });
-        }
+        logger.warn("[LayoutEmbedding] Cache read error, proceeding without cache", {
+          error: cacheError instanceof Error ? cacheError.message : "Unknown error",
+        });
       }
     }
 
@@ -860,11 +858,9 @@ export class LayoutEmbeddingService {
       };
 
       embeddingCache.set(cacheKey, cacheEntry).catch((error) => {
-        if (isDevelopment()) {
-          logger.warn("[LayoutEmbedding] Cache write error", {
-            error: error instanceof Error ? error.message : "Unknown error",
-          });
-        }
+        logger.warn("[LayoutEmbedding] Cache write error", {
+          error: error instanceof Error ? error.message : "Unknown error",
+        });
       });
     }
 
@@ -988,14 +984,12 @@ export class LayoutEmbeddingService {
       }
     } catch (batchError) {
       // バッチ処理が失敗した場合、個別に処理
-      if (isDevelopment()) {
-        logger.warn(
-          "[LayoutEmbedding] Batch processing with Vision failed, falling back to individual",
-          {
-            error: batchError instanceof Error ? batchError.message : "Unknown error",
-          }
-        );
-      }
+      logger.warn(
+        "[LayoutEmbedding] Batch processing with Vision failed, falling back to individual",
+        {
+          error: batchError instanceof Error ? batchError.message : "Unknown error",
+        }
+      );
 
       for (let i = 0; i < sections.length; i++) {
         const section = sections[i];
@@ -1090,11 +1084,9 @@ export class LayoutEmbeddingService {
       }
     } catch (batchError) {
       // バッチ処理が失敗した場合、個別に処理
-      if (isDevelopment()) {
-        logger.warn("[LayoutEmbedding] Batch processing failed, falling back to individual", {
-          error: batchError instanceof Error ? batchError.message : "Unknown error",
-        });
-      }
+      logger.warn("[LayoutEmbedding] Batch processing failed, falling back to individual", {
+        error: batchError instanceof Error ? batchError.message : "Unknown error",
+      });
 
       for (let i = 0; i < sections.length; i++) {
         const section = sections[i];
@@ -1347,11 +1339,9 @@ export class LayoutEmbeddingService {
           logger.info("[LayoutEmbedding] ONNX pipeline disposed for memory recovery");
         }
       } catch (disposeError) {
-        if (isDevelopment()) {
-          logger.warn("[LayoutEmbedding] Pipeline dispose warning", {
-            error: disposeError instanceof Error ? disposeError.message : "Unknown error",
-          });
-        }
+        logger.warn("[LayoutEmbedding] Pipeline dispose warning", {
+          error: disposeError instanceof Error ? disposeError.message : "Unknown error",
+        });
       }
     }
   }

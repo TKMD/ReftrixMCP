@@ -119,12 +119,10 @@ export class MultiViewportCaptureService {
         results.push(result);
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error);
-        if (isDevelopment()) {
-          logger.error("[MultiViewportCapture] Capture failed for viewport", {
-            viewport: viewport.name,
-            error: errorMessage,
-          });
-        }
+        logger.warn("[MultiViewportCapture] Capture failed for viewport", {
+          viewport: viewport.name,
+          error: errorMessage,
+        });
         results.push({
           viewport,
           html: "",
@@ -785,11 +783,9 @@ export class MultiViewportCaptureService {
 
       return Array.from(breakpoints);
     } catch (error) {
-      if (isDevelopment()) {
-        logger.warn("[MultiViewportCapture] Failed to extract breakpoints from external CSS", {
-          error: error instanceof Error ? error.message : String(error),
-        });
-      }
+      logger.warn("[MultiViewportCapture] Failed to extract breakpoints from external CSS", {
+        error: error instanceof Error ? error.message : String(error),
+      });
       return [];
     }
   }
@@ -888,12 +884,10 @@ export class MultiViewportCaptureService {
 
         results.push({ value: hi, verified: true });
       } catch (error) {
-        if (isDevelopment()) {
-          logger.warn("[MultiViewportCapture] Precise breakpoint detection failed", {
-            candidate,
-            error: error instanceof Error ? error.message : String(error),
-          });
-        }
+        logger.warn("[MultiViewportCapture] Precise breakpoint detection failed", {
+          candidate,
+          error: error instanceof Error ? error.message : String(error),
+        });
         results.push({ value: candidate, verified: false });
       }
     }

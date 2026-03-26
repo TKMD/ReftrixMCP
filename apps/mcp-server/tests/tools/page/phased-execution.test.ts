@@ -132,7 +132,7 @@ describe("PhasedExecutor", () => {
       expect(result.overallSuccess).toBe(false);
       expect(result.partialSuccess).toBe(true);
       expect(result.layout.success).toBe(false);
-      expect(result.layout.error).toBe("Layout analysis failed");
+      expect(result.layout.error).toBe("An internal error occurred");
       expect(result.motion.success).toBe(true);
       expect(result.quality.success).toBe(true);
       expect(result.completedPhases).toEqual(["motion", "quality"]);
@@ -153,7 +153,7 @@ describe("PhasedExecutor", () => {
       expect(result.partialSuccess).toBe(true);
       expect(result.layout.success).toBe(true);
       expect(result.motion.success).toBe(false);
-      expect(result.motion.error).toBe("Motion detection failed");
+      expect(result.motion.error).toBe("An internal error occurred");
       expect(result.quality.success).toBe(true);
       expect(result.completedPhases).toEqual(["layout", "quality"]);
       expect(result.failedPhases).toEqual(["motion"]);
@@ -174,7 +174,7 @@ describe("PhasedExecutor", () => {
       expect(result.layout.success).toBe(true);
       expect(result.motion.success).toBe(true);
       expect(result.quality.success).toBe(false);
-      expect(result.quality.error).toBe("Quality evaluation failed");
+      expect(result.quality.error).toBe("An internal error occurred");
       expect(result.completedPhases).toEqual(["layout", "motion"]);
       expect(result.failedPhases).toEqual(["quality"]);
     });

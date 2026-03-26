@@ -238,7 +238,7 @@ describe("withTimeoutGraceful", () => {
     expect(result).toBeNull();
     expect(warnings).toHaveLength(1);
     expect(warnings[0].code).toBe(PAGE_ANALYZE_ERROR_CODES.LAYOUT_ANALYSIS_FAILED);
-    expect(warnings[0].message).toContain("Connection failed");
+    expect(warnings[0].message).toContain("An internal error occurred");
   });
 
   it("motion featureのエラーは正しいエラーコードを使用すること", async () => {
@@ -265,7 +265,7 @@ describe("withTimeoutGraceful", () => {
 
     await withTimeoutGraceful(promise, 1000, "layout analysis", "layout", warnings);
 
-    expect(warnings[0].message).toContain("string error");
+    expect(warnings[0].message).toContain("An internal error occurred");
   });
 });
 

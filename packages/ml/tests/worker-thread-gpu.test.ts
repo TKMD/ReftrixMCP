@@ -692,6 +692,10 @@ describe("P2-H: GPU推論サポート (CUDA/ROCm)", () => {
     });
 
     it(".env.example (mcp-server) にONNX_EXECUTION_PROVIDERが記載されていること", () => {
+      if (!fs.existsSync(MCP_ENV_EXAMPLE_PATH)) {
+        // OSS環境では.env.exampleが.ossfilterで除外されるためスキップ
+        return;
+      }
       const envExample = readSource(MCP_ENV_EXAMPLE_PATH);
       expect(envExample).toContain("ONNX_EXECUTION_PROVIDER");
     });

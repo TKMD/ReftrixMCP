@@ -198,12 +198,10 @@ export async function saveScrollVisionResults(
     const errorMessage =
       error instanceof Error ? error.message : "Failed to save scroll vision results";
 
-    if (isDevelopment()) {
-      logger.error("[ScrollVisionPersistence] Save failed", {
-        webPageId,
-        error: errorMessage,
-      });
-    }
+    logger.warn("[ScrollVisionPersistence] Save failed", {
+      webPageId,
+      error: errorMessage,
+    });
 
     return {
       success: false,

@@ -16,6 +16,7 @@
 
 import { v7 as uuidv7 } from "uuid";
 import { logger, isDevelopment } from "../../../utils/logger";
+import { sanitizeErrorMessage } from "../../../utils/sanitize-error";
 import { normalizeUrlForStorage } from "../../../utils/url-normalizer";
 import type { QualityServiceResult, IPageAnalyzePrismaClient, VisionFeatureBase } from "./types";
 import type { VisualFeatures } from "../schemas";
@@ -624,15 +625,11 @@ export async function saveToDatabase(
       }
     );
   } catch (error) {
-    if (isDevelopment()) {
-      logger.error("[page.analyze] DB save failed", {
-        error: error instanceof Error ? error.message : "Unknown error",
-      });
-    }
+    logger.warn("[page.analyze] DB save failed", { error: (error as Error).message });
 
     return {
       success: false,
-      error: error instanceof Error ? error.message : "DB save failed",
+      error: sanitizeErrorMessage(error),
     };
   }
 }

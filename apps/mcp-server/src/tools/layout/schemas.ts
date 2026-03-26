@@ -16,6 +16,7 @@
  */
 import { z } from "zod";
 import { moodFilterSchema, brandToneFilterSchema } from "../../schemas/mood-brandtone-filters";
+import { commonSearchFiltersSchema } from "../../schemas/common-search-filters";
 
 // ============================================================================
 // Enum Schemas
@@ -857,14 +858,16 @@ export type VisualFeaturesFilter = z.infer<typeof visualFeaturesFilterSchema>;
  * @property usageScope - 利用範囲フィルター（オプション）
  * @property visualFeatures - ビジュアル特徴フィルター（Phase 4-1、オプション）
  */
-export const layoutSearchFiltersSchema = z.object({
-  sectionType: sectionTypeForSearchSchema.optional(),
-  sourceType: sourceTypeSchema.optional(),
-  usageScope: usageScopeSchema.optional(),
-  visualFeatures: visualFeaturesFilterSchema.optional(),
-  mood: moodFilterSchema.optional(),
-  brandTone: brandToneFilterSchema.optional(),
-});
+export const layoutSearchFiltersSchema = z
+  .object({
+    sectionType: sectionTypeForSearchSchema.optional(),
+    sourceType: sourceTypeSchema.optional(),
+    usageScope: usageScopeSchema.optional(),
+    visualFeatures: visualFeaturesFilterSchema.optional(),
+    mood: moodFilterSchema.optional(),
+    brandTone: brandToneFilterSchema.optional(),
+  })
+  .merge(commonSearchFiltersSchema);
 export type LayoutSearchFilters = z.infer<typeof layoutSearchFiltersSchema>;
 
 /**

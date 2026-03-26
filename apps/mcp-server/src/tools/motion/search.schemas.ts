@@ -11,6 +11,7 @@ import { z } from "zod";
 
 import { motionPatternSchema } from "./shared.schemas";
 import { motionDetectErrorSchema, MOTION_MCP_ERROR_CODES } from "./detect.schemas";
+import { commonSearchFiltersSchema } from "../../schemas/common-search-filters";
 
 // ============================================================================
 // motion.search Input Schema
@@ -58,12 +59,14 @@ export type SamplePattern = z.infer<typeof samplePatternSchema>;
 /**
  * 検索フィルタースキーマ
  */
-export const motionSearchFiltersSchema = z.object({
-  type: motionSearchTypeSchema.optional(),
-  minDuration: z.number().min(0).optional(),
-  maxDuration: z.number().min(0).optional(),
-  trigger: motionSearchTriggerSchema.optional(),
-});
+export const motionSearchFiltersSchema = z
+  .object({
+    type: motionSearchTypeSchema.optional(),
+    minDuration: z.number().min(0).optional(),
+    maxDuration: z.number().min(0).optional(),
+    trigger: motionSearchTriggerSchema.optional(),
+  })
+  .merge(commonSearchFiltersSchema);
 export type MotionSearchFilters = z.infer<typeof motionSearchFiltersSchema>;
 
 /**

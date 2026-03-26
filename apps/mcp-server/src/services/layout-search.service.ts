@@ -180,6 +180,41 @@ function buildWhereClause(filters?: LayoutSearchFilters): { clause: string; para
     paramIndex++;
   }
 
+  if (filters?.webPageId) {
+    conditions.push(`wp.id = $${paramIndex}`);
+    params.push(filters.webPageId);
+    paramIndex++;
+  }
+
+  if (filters?.webPageUrl) {
+    conditions.push(`wp.url = $${paramIndex}`);
+    params.push(filters.webPageUrl);
+    paramIndex++;
+  }
+
+  // Common search filters (industry/audience/tags)
+  if (filters?.tags && filters.tags.length > 0) {
+    conditions.push(`sp.tags @> $${paramIndex}::text[]`);
+    params.push(filters.tags);
+    paramIndex++;
+  }
+
+  if (filters?.industry) {
+    conditions.push(
+      `EXISTS (SELECT 1 FROM quality_benchmarks qb WHERE qb.web_page_id = wp.id AND qb.industry = $${paramIndex})`
+    );
+    params.push(filters.industry);
+    paramIndex++;
+  }
+
+  if (filters?.audience) {
+    conditions.push(
+      `EXISTS (SELECT 1 FROM quality_benchmarks qb WHERE qb.web_page_id = wp.id AND qb.audience = $${paramIndex})`
+    );
+    params.push(filters.audience);
+    paramIndex++;
+  }
+
   return {
     clause: conditions.length > 0 ? conditions.join(" AND ") : "",
     params,
@@ -536,11 +571,9 @@ export class LayoutSearchService implements ILayoutSearchService {
       const embeddingService = this.getEmbeddingService();
       return await embeddingService.generateEmbedding(query, "query");
     } catch (error) {
-      if (isDevelopment()) {
-        logger.warn("[LayoutSearchService] Embedding generation failed, returning null", {
-          error: error instanceof Error ? error.message : "Unknown error",
-        });
-      }
+      logger.warn("[LayoutSearchService] Embedding generation failed, returning null", {
+        error: error instanceof Error ? error.message : "Unknown error",
+      });
       // エラー時もnullを返し、空の結果を返す
       return null;
     }
@@ -570,9 +603,7 @@ export class LayoutSearchService implements ILayoutSearchService {
       prisma = this.getPrismaClient();
     } catch {
       // PrismaClientが利用できない場合はnullを返す
-      if (isDevelopment()) {
-        logger.warn("[LayoutSearchService] PrismaClient not available, returning null");
-      }
+      logger.warn("[LayoutSearchService] PrismaClient not available, returning null");
       return null;
     }
 
@@ -649,11 +680,9 @@ export class LayoutSearchService implements ILayoutSearchService {
         );
         total = Number(countResult[0]?.total || 0);
       } catch (dbError) {
-        if (isDevelopment()) {
-          logger.warn("[LayoutSearchService] Vector search failed, returning empty results", {
-            error: dbError instanceof Error ? dbError.message : "Unknown error",
-          });
-        }
+        logger.warn("[LayoutSearchService] Vector search failed, returning empty results", {
+          error: dbError instanceof Error ? dbError.message : "Unknown error",
+        });
         // データベースエラー時は空の結果を返す
         return {
           results: [],
@@ -695,11 +724,9 @@ export class LayoutSearchService implements ILayoutSearchService {
         total,
       };
     } catch (error) {
-      if (isDevelopment()) {
-        logger.error("[LayoutSearchService] Search error", {
-          error: error instanceof Error ? error.message : "Unknown error",
-        });
-      }
+      logger.warn("[LayoutSearchService] Search error", {
+        error: error instanceof Error ? error.message : "Unknown error",
+      });
       throw error;
     }
   }
@@ -735,9 +762,7 @@ export class LayoutSearchService implements ILayoutSearchService {
     try {
       prisma = this.getPrismaClient();
     } catch {
-      if (isDevelopment()) {
-        logger.warn("[LayoutSearchService] PrismaClient not available, returning null");
-      }
+      logger.warn("[LayoutSearchService] PrismaClient not available, returning null");
       return null;
     }
 
@@ -839,11 +864,9 @@ export class LayoutSearchService implements ILayoutSearchService {
           return toRankedItems(results);
         } catch (ftError) {
           // 全文検索の失敗はハイブリッド検索全体をブロックしない
-          if (isDevelopment()) {
-            logger.warn("[LayoutSearchService] Full-text search failed, using vector only", {
-              error: ftError instanceof Error ? ftError.message : "Unknown error",
-            });
-          }
+          logger.warn("[LayoutSearchService] Full-text search failed, using vector only", {
+            error: ftError instanceof Error ? ftError.message : "Unknown error",
+          });
           return [];
         }
       };
@@ -889,11 +912,9 @@ export class LayoutSearchService implements ILayoutSearchService {
         total: hybridResults.length,
       };
     } catch (error) {
-      if (isDevelopment()) {
-        logger.error("[LayoutSearchService] Hybrid search error, falling back to vector only", {
-          error: error instanceof Error ? error.message : "Unknown error",
-        });
-      }
+      logger.warn("[LayoutSearchService] Hybrid search error, falling back to vector only", {
+        error: error instanceof Error ? error.message : "Unknown error",
+      });
       // フォールバック: ベクトル検索のみ
       return this.searchSectionPatterns(embedding, options);
     }

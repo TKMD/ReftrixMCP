@@ -888,7 +888,7 @@ describe("motion.analyze_frames E2E Tests", () => {
       expect(result.success).toBe(false);
       if (!result.success) {
         expect(result.error?.code).toBe(ANALYZE_FRAMES_ERROR_CODES.VALIDATION_ERROR);
-        expect(result.error?.message).toContain("パストラバーサル");
+        expect(result.error?.message).toContain("Invalid input parameters");
       }
     });
 

@@ -289,7 +289,7 @@ describe("Phase2-1: PhasedExecutor（段階的分析実行）", () => {
       // 各フェーズの結果検証
       expect(result.layout.success).toBe(true);
       expect(result.motion.success).toBe(false);
-      expect(result.motion.error).toBe("Motion detection failed");
+      expect(result.motion.error).toBe("An internal error occurred");
       expect(result.quality.success).toBe(true);
     });
 

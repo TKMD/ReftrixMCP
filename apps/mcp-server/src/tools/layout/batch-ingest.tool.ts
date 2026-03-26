@@ -17,6 +17,7 @@ import { ZodError } from "zod";
 import { v7 as uuidv7 } from "uuid";
 import { prisma } from "@reftrixmcp/database";
 import { logger, isDevelopment } from "../../utils/logger";
+import { sanitizeErrorMessage } from "../../utils/sanitize-error";
 import { validateExternalUrl } from "../../utils/url-validator";
 import { normalizeUrlForStorage } from "../../utils/url-normalizer";
 import { sanitizeHtml } from "../../utils/html-sanitizer";
@@ -171,17 +172,14 @@ async function ingestSingleUrl(
           });
         }
       } catch (dbError) {
-        const errorMessage = dbError instanceof Error ? dbError.message : String(dbError);
-        if (isDevelopment()) {
-          logger.error("[MCP Tool] layout.batch_ingest DB save failed", {
-            url,
-            error: errorMessage,
-          });
-        }
+        logger.error("[MCP Tool] layout.batch_ingest DB save failed", {
+          url,
+          error: dbError instanceof Error ? dbError.message : String(dbError),
+        });
         return {
           url,
           status: "failed",
-          error: `Failed to save to database: ${errorMessage}`,
+          error: sanitizeErrorMessage(dbError),
         };
       }
     }
@@ -193,17 +191,14 @@ async function ingestSingleUrl(
       patterns_extracted: patternsExtracted,
     };
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    if (isDevelopment()) {
-      logger.error("[MCP Tool] layout.batch_ingest error", {
-        url,
-        error: errorMessage,
-      });
-    }
+    logger.error("[MCP Tool] layout.batch_ingest error", {
+      url,
+      error: error instanceof Error ? error.message : String(error),
+    });
     return {
       url,
       status: "failed",
-      error: errorMessage,
+      error: sanitizeErrorMessage(error),
     };
   }
 }
@@ -253,11 +248,9 @@ export async function layoutBatchIngestHandler(input: unknown): Promise<LayoutBa
       const detailedMessage = formatMultipleDetailedErrors(errorWithHints.errors);
       const formattedErrors = formatZodError(error);
 
-      if (isDevelopment()) {
-        logger.error("[MCP Tool] layout.batch_ingest validation error", {
-          errors: errorWithHints.errors,
-        });
-      }
+      logger.warn("[MCP Tool] layout.batch_ingest validation error", {
+        error: (error as Error).message,
+      });
 
       return {
         success: false,

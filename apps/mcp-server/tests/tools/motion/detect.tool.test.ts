@@ -1761,7 +1761,7 @@ describe("フェイルセーフ・グレースフルデグラデーション", (
       expect(result.success).toBe(false);
       if (!result.success) {
         expect(result.error.code).toBe(MOTION_MCP_ERROR_CODES.DB_ERROR);
-        expect(result.error.message).toContain("ECONNREFUSED");
+        expect(result.error.message).toBe("Network request failed");
       }
     });
 

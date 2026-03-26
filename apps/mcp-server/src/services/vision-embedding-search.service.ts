@@ -121,6 +121,12 @@ export interface VisionSearchOptions {
   sectionType?: string;
   sourceType?: string;
   usageScope?: string;
+  /** 業種フィルター / Industry filter (via quality_benchmarks) */
+  industry?: string;
+  /** ターゲットオーディエンス / Target audience filter (via quality_benchmarks) */
+  audience?: string;
+  /** タグフィルター / Tag filter (sp.tags @> array) */
+  tags?: string[];
 }
 
 /**
@@ -362,6 +368,30 @@ function buildFilterClause(
     paramIndex++;
   }
 
+  // Common search filters (industry/audience/tags)
+  // industry/audience: filter via quality_benchmarks EXISTS subquery
+  if (options.industry) {
+    conditions.push(
+      `EXISTS (SELECT 1 FROM quality_benchmarks qb WHERE qb.web_page_id = wp.id AND qb.industry = $${paramIndex})`
+    );
+    params.push(options.industry);
+    paramIndex++;
+  }
+
+  if (options.audience) {
+    conditions.push(
+      `EXISTS (SELECT 1 FROM quality_benchmarks qb WHERE qb.web_page_id = wp.id AND qb.audience = $${paramIndex})`
+    );
+    params.push(options.audience);
+    paramIndex++;
+  }
+
+  if (options.tags && options.tags.length > 0) {
+    conditions.push(`sp.tags @> $${paramIndex}::text[]`);
+    params.push(options.tags);
+    paramIndex++;
+  }
+
   if (excludeId) {
     conditions.push(`sp.id != $${paramIndex}`);
     params.push(excludeId);
@@ -476,18 +506,14 @@ export class VisionEmbeddingSearchService implements IVisionEmbeddingSearchServi
       // ベクトル検索実行
       return await this.executeVisionSearch(prisma, embedding, options);
     } catch (error) {
-      if (isDevelopment()) {
-        logger.error("[VisionEmbeddingSearchService] searchByVisionEmbedding error", {
-          error: error instanceof Error ? error.message : "Unknown error",
-        });
-      }
+      logger.warn("[VisionEmbeddingSearchService] searchByVisionEmbedding error", {
+        error: error instanceof Error ? error.message : "Unknown error",
+      });
       return null;
     } finally {
-      if (isDevelopment()) {
-        logger.info("[VisionEmbeddingSearchService] searchByVisionEmbedding completed", {
-          processingTimeMs: Date.now() - startTime,
-        });
-      }
+      logger.info("[VisionEmbeddingSearchService] searchByVisionEmbedding completed", {
+        processingTimeMs: Date.now() - startTime,
+      });
     }
   }
 
@@ -535,18 +561,14 @@ export class VisionEmbeddingSearchService implements IVisionEmbeddingSearchServi
       // 自分自身を除外して検索
       return await this.executeVisionSearch(prisma, existingEmbedding, options, sectionPatternId);
     } catch (error) {
-      if (isDevelopment()) {
-        logger.error("[VisionEmbeddingSearchService] searchSimilarSections error", {
-          error: error instanceof Error ? error.message : "Unknown error",
-        });
-      }
+      logger.warn("[VisionEmbeddingSearchService] searchSimilarSections error", {
+        error: error instanceof Error ? error.message : "Unknown error",
+      });
       return null;
     } finally {
-      if (isDevelopment()) {
-        logger.info("[VisionEmbeddingSearchService] searchSimilarSections completed", {
-          processingTimeMs: Date.now() - startTime,
-        });
-      }
+      logger.info("[VisionEmbeddingSearchService] searchSimilarSections completed", {
+        processingTimeMs: Date.now() - startTime,
+      });
     }
   }
 
@@ -719,11 +741,9 @@ export class VisionEmbeddingSearchService implements IVisionEmbeddingSearchServi
         warnings,
       };
     } catch (error) {
-      if (isDevelopment()) {
-        logger.error("[VisionEmbeddingSearchService] hybridSearch error", {
-          error: error instanceof Error ? error.message : "Unknown error",
-        });
-      }
+      logger.warn("[VisionEmbeddingSearchService] hybridSearch error", {
+        error: error instanceof Error ? error.message : "Unknown error",
+      });
       // エラー時は空の結果を返す（Graceful Degradation）
       return {
         results: [],
@@ -739,11 +759,9 @@ export class VisionEmbeddingSearchService implements IVisionEmbeddingSearchServi
         },
       };
     } finally {
-      if (isDevelopment()) {
-        logger.info("[VisionEmbeddingSearchService] hybridSearch completed", {
-          processingTimeMs: Date.now() - startTime,
-        });
-      }
+      logger.info("[VisionEmbeddingSearchService] hybridSearch completed", {
+        processingTimeMs: Date.now() - startTime,
+      });
     }
   }
 
@@ -838,11 +856,9 @@ export class VisionEmbeddingSearchService implements IVisionEmbeddingSearchServi
         total: Number(countResult[0]?.total || 0),
       };
     } catch (error) {
-      if (isDevelopment()) {
-        logger.error("[VisionEmbeddingSearchService] executeVisionSearch error", {
-          error: error instanceof Error ? error.message : "Unknown error",
-        });
-      }
+      logger.warn("[VisionEmbeddingSearchService] executeVisionSearch error", {
+        error: error instanceof Error ? error.message : "Unknown error",
+      });
       return { results: [], total: 0 };
     }
   }
@@ -906,11 +922,9 @@ export class VisionEmbeddingSearchService implements IVisionEmbeddingSearchServi
         total: searchResults.length,
       };
     } catch (error) {
-      if (isDevelopment()) {
-        logger.error("[VisionEmbeddingSearchService] executeTextSearch error", {
-          error: error instanceof Error ? error.message : "Unknown error",
-        });
-      }
+      logger.warn("[VisionEmbeddingSearchService] executeTextSearch error", {
+        error: error instanceof Error ? error.message : "Unknown error",
+      });
       return { results: [], total: 0 };
     }
   }
@@ -948,11 +962,9 @@ export class VisionEmbeddingSearchService implements IVisionEmbeddingSearchServi
 
       return numbers;
     } catch (error) {
-      if (isDevelopment()) {
-        logger.error("[VisionEmbeddingSearchService] getExistingVisionEmbedding error", {
-          error: error instanceof Error ? error.message : "Unknown error",
-        });
-      }
+      logger.warn("[VisionEmbeddingSearchService] getExistingVisionEmbedding error", {
+        error: error instanceof Error ? error.message : "Unknown error",
+      });
       return null;
     }
   }

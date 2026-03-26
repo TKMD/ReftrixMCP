@@ -11,7 +11,6 @@
  */
 
 import { logger } from "../utils/logger";
-import { isDevelopmentEnvironment } from "./production-guard";
 import type { IQualityEvaluateService } from "./quality/quality-evaluate.service.interface";
 import type { QualityEvaluateData } from "../tools/quality/schemas";
 
@@ -199,9 +198,9 @@ export function createQualitySearchService(
           return section;
         });
       } catch (error) {
-        if (isDevelopmentEnvironment()) {
-          logger.error("[QualitySearchService] findSimilarSections error", { error });
-        }
+        logger.warn("[QualitySearchService] findSimilarSections error", {
+          error: error instanceof Error ? error.message : "Unknown error",
+        });
         return [];
       }
     },
@@ -274,9 +273,9 @@ export function createQualitySearchService(
           return motion;
         });
       } catch (error) {
-        if (isDevelopmentEnvironment()) {
-          logger.error("[QualitySearchService] findSimilarMotions error", { error });
-        }
+        logger.warn("[QualitySearchService] findSimilarMotions error", {
+          error: error instanceof Error ? error.message : "Unknown error",
+        });
         return [];
       }
     },
@@ -351,9 +350,9 @@ export function createQualitySearchService(
           return benchmark;
         });
       } catch (error) {
-        if (isDevelopmentEnvironment()) {
-          logger.error("[QualitySearchService] getHighQualityBenchmarks error", { error });
-        }
+        logger.warn("[QualitySearchService] getHighQualityBenchmarks error", {
+          error: error instanceof Error ? error.message : "Unknown error",
+        });
         return [];
       }
     },
@@ -394,9 +393,9 @@ export function createQualitySearchService(
 
         return results[0]?.id ?? "";
       } catch (error) {
-        if (isDevelopmentEnvironment()) {
-          logger.error("[QualitySearchService] saveEvaluationWithPatterns error", { error });
-        }
+        logger.warn("[QualitySearchService] saveEvaluationWithPatterns error", {
+          error: error instanceof Error ? error.message : "Unknown error",
+        });
         throw error;
       }
     },

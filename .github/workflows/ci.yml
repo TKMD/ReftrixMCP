@@ -66,6 +66,7 @@ jobs:
       - name: Format check
         run: pnpm format:check
 
+
   # Smoke Tests - 高速な起動確認テスト
   # MCPツールの登録確認、基本レスポンス確認、型整合性チェック
   test-smoke:
@@ -367,13 +368,7 @@ jobs:
           npx prisma migrate deploy
 
       - name: Run E2E tests
-        run: |
-          cd apps/mcp-server
-          pnpm vitest run --reporter=verbose \
-            tests/e2e/page-analyze.e2e.test.ts \
-            tests/e2e/js-animation-detection.test.ts \
-            tests/e2e/motion/analyze-frames.e2e.test.ts \
-            tests/e2e/vision-cpu-completion.e2e.test.ts
+        run: pnpm --filter @reftrixmcp/mcp-server test:e2e
         env:
           # Skip tests that require external network or Ollama
           SKIP_REAL_SITE_TESTS: "true"
@@ -443,6 +438,20 @@ jobs:
           npx license-checker --production
           --excludePackages "reftrixmcp@$(node -p "require('./package.json').version");sharp"
           --onlyAllow "MIT;Apache-2.0;BSD-2-Clause;BSD-3-Clause;ISC;CC0-1.0;CC-BY-4.0;Unlicense;0BSD;AGPL-3.0-only;PostgreSQL;MPL-2.0;Python-2.0;BlueOak-1.0.0"
+
+      - name: Generate SBOM (CycloneDX)
+        # EU CRA 2026/9/11 vulnerability reporting obligation compliance
+        # CycloneDX JSON format SBOM for supply chain transparency
+        # cdxgen supports pnpm workspaces natively (cyclonedx-npm is npm-only)
+        # spec-version 1.6: VEX/Attestation support for EU CRA full compliance (2027/12/11)
+        run: npx @cyclonedx/cdxgen --output sbom.cdx.json --spec-version 1.6
+
+      - name: Upload SBOM artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom-cyclonedx
+          path: sbom.cdx.json
+          retention-days: 90
 
   # Slack Notification - CI結果をSlackに通知
   # 全ジョブ完了後に成功/失敗を通知（buildジョブが最終ゲート）

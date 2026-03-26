@@ -28,6 +28,7 @@ import {
 import { serviceClient } from "../services/service-client";
 import { logger, isDevelopment } from "../utils/logger";
 import { ErrorCode } from "../utils/errors";
+import { sanitizeErrorMessage } from "../utils/sanitize-error";
 import {
   type McpResponse,
   generateRequestId,
@@ -66,12 +67,10 @@ export async function projectListHandler(input: unknown): Promise<ProjectListRes
     if (error instanceof ZodError) {
       const errorMessage = error.errors.map((e) => `${e.path.join(".")}: ${e.message}`).join(", ");
 
-      if (isDevelopment()) {
-        logger.error("[MCP Tool] project.list validation error", {
-          errors: error.errors,
-          requestId,
-        });
-      }
+      logger.warn("[MCP Tool] project.list validation error", {
+        error: (error as Error).message,
+        requestId,
+      });
 
       return createErrorResponseWithRequestId(
         ErrorCode.VALIDATION_ERROR,
@@ -152,21 +151,10 @@ export async function projectListHandler(input: unknown): Promise<ProjectListRes
 
     return createSuccessResponseWithRequestId(fullData, requestId);
   } catch (error) {
-    // SEC: 開発環境のみでエラー詳細をログ（スタックトレース含む）
-    // 本番環境ではメッセージとrequestIdのみ
-    if (isDevelopment()) {
-      logger.error("[MCP Tool] project.list API error", {
-        error,
-        message: error instanceof Error ? error.message : String(error),
-        stack: error instanceof Error ? error.stack : undefined,
-        requestId,
-      });
-    } else {
-      logger.error("[MCP Tool] project.list API error", {
-        message: error instanceof Error ? error.message : String(error),
-        requestId,
-      });
-    }
+    logger.warn("[MCP Tool] project.list API error", {
+      error: error instanceof Error ? error.message : String(error),
+      requestId,
+    });
 
     // 認証エラーのチェック
     if (error instanceof Error && error.message.includes("UNAUTHORIZED")) {
@@ -174,7 +162,7 @@ export async function projectListHandler(input: unknown): Promise<ProjectListRes
     }
 
     // 詳細なエラーメッセージを含めて返す（開発時のデバッグ用）
-    const errorMessage = error instanceof Error ? error.message : String(error);
+    const errorMessage = sanitizeErrorMessage(error);
     return createErrorResponseWithRequestId(
       ErrorCode.INTERNAL_ERROR,
       `プロジェクト一覧取得中にエラーが発生しました`,

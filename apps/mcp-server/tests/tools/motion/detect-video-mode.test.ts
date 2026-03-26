@@ -446,7 +446,7 @@ describe("detection_mode: video 機能テスト", () => {
       expect(result.success).toBe(false);
       if (!result.success) {
         expect(result.error.code).toBe("VIDEO_RECORD_ERROR");
-        expect(result.error.message).toContain("DNS");
+        expect(result.error.message).toBe("An internal error occurred");
       }
     });
 
@@ -465,7 +465,7 @@ describe("detection_mode: video 機能テスト", () => {
       expect(result.success).toBe(false);
       if (!result.success) {
         expect(result.error.code).toBe("VIDEO_TIMEOUT_ERROR");
-        expect(result.error.message).toContain("Timeout");
+        expect(result.error.message).toBe("Operation timed out");
       }
     });
 
@@ -480,7 +480,7 @@ describe("detection_mode: video 機能テスト", () => {
       expect(result.success).toBe(false);
       if (!result.success) {
         expect(result.error.code).toBe("SSRF_BLOCKED");
-        expect(result.error.message).toContain("blocked");
+        expect(result.error.message).toBe("An internal error occurred");
       }
     });
 
@@ -498,7 +498,7 @@ describe("detection_mode: video 機能テスト", () => {
       expect(result.success).toBe(false);
       if (!result.success) {
         expect(result.error.code).toBe("FRAME_ANALYSIS_ERROR");
-        expect(result.error.message).toContain("FFmpeg");
+        expect(result.error.message).toBe("Resource not found");
       }
     });
 

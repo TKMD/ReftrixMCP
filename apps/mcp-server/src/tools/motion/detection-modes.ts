@@ -296,17 +296,13 @@ export async function executeFrameCapture(
         await page.waitForLoadState("networkidle", { timeout: 5000 });
       } catch {
         // networkidleタイムアウトは無視（遅いサイトでは発生しやすい）
-        if (isDevelopment()) {
-          logger.debug("[motion.detect] networkidle timeout, continuing with load state");
-        }
+        logger.debug("[motion.detect] networkidle timeout, continuing with load state");
       }
     } catch (loadError) {
       // loadも失敗した場合は再試行
-      if (isDevelopment()) {
-        logger.warn("[motion.detect] Initial page load failed, retrying with domcontentloaded", {
-          error: loadError instanceof Error ? loadError.message : "Unknown",
-        });
-      }
+      logger.warn("[motion.detect] Initial page load failed, retrying with domcontentloaded", {
+        error: loadError instanceof Error ? loadError.message : "Unknown",
+      });
       await page.goto(url, {
         waitUntil: "domcontentloaded",
         timeout: 30000,

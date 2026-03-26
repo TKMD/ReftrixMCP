@@ -498,9 +498,7 @@ export class JSAnimationDetectorService {
 
       return client;
     } catch (error) {
-      if (isDevelopment()) {
-        logger.error("[JSAnimationDetector] CDP initialization failed", { error });
-      }
+      logger.warn("[JSAnimationDetector] CDP initialization failed", { error });
       throw new Error(
         `CDP initialization failed: ${error instanceof Error ? error.message : "Unknown error"}`
       );
@@ -649,9 +647,7 @@ export class JSAnimationDetectorService {
 
       return animations;
     } catch (error) {
-      if (isDevelopment()) {
-        logger.error("[JSAnimationDetector] CDP detection failed", { error });
-      }
+      logger.warn("[JSAnimationDetector] CDP detection failed", { error });
       return [];
     }
   }
@@ -779,9 +775,7 @@ export class JSAnimationDetectorService {
 
       return animationsWithConfidence;
     } catch (error) {
-      if (isDevelopment()) {
-        logger.error("[JSAnimationDetector] Web Animations detection failed", { error });
-      }
+      logger.warn("[JSAnimationDetector] Web Animations detection failed", { error });
       return [];
     }
   }
@@ -1200,9 +1194,7 @@ export class JSAnimationDetectorService {
 
       return result;
     } catch (error) {
-      if (isDevelopment()) {
-        logger.error("[JSAnimationDetector] Three.js details detection failed", { error });
-      }
+      logger.warn("[JSAnimationDetector] Three.js details detection failed", { error });
       return null;
     }
   }
@@ -1413,9 +1405,7 @@ export class JSAnimationDetectorService {
 
       return finalResult;
     } catch (error) {
-      if (isDevelopment()) {
-        logger.error("[JSAnimationDetector] Library detection failed", { error });
-      }
+      logger.warn("[JSAnimationDetector] Library detection failed", { error });
 
       return {
         gsap: { detected: false, version: undefined, tweens: undefined },

@@ -14,6 +14,7 @@
 
 import type { Browser } from "playwright";
 import { logger, isDevelopment } from "../../../utils/logger";
+import { sanitizeErrorMessage } from "../../../utils/sanitize-error";
 import { getJSAnimationDetectorService } from "../../motion/di-factories";
 import {
   createJSAnimationEmbeddingService,
@@ -589,9 +590,9 @@ export async function saveJSAnimationPatterns(
 
     return totalCount;
   } catch (error) {
-    if (isDevelopment()) {
-      logger.error("[js-animation-handler] Failed to save JS animation patterns", { error });
-    }
+    logger.warn("[js-animation-handler] Failed to save JS animation patterns", {
+      error: (error as Error).message,
+    });
     throw error;
   }
 }
@@ -690,12 +691,9 @@ export async function saveJSAnimationEmbeddings(
         );
         savedCount++;
       } catch (upsertError) {
-        if (isDevelopment()) {
-          logger.warn("[js-animation-handler] Failed to save embedding for pattern", {
-            patternId,
-            error: upsertError instanceof Error ? upsertError.message : "Unknown error",
-          });
-        }
+        logger.warn("[js-animation-handler] Failed to save embedding for pattern", {
+          error: (upsertError as Error).message,
+        });
         // 個別のエラーは無視して続行
       }
     }
@@ -710,9 +708,9 @@ export async function saveJSAnimationEmbeddings(
 
     return savedCount;
   } catch (error) {
-    if (isDevelopment()) {
-      logger.error("[js-animation-handler] Failed to generate/save embeddings", { error });
-    }
+    logger.warn("[js-animation-handler] Failed to generate/save embeddings", {
+      error: (error as Error).message,
+    });
     throw error;
   }
 }
@@ -797,11 +795,9 @@ export async function saveJSAnimationPatternsWithEmbeddings(
 
     return { savedPatternCount, embeddingCount };
   } catch (error) {
-    if (isDevelopment()) {
-      logger.error("[js-animation-handler] Embedding generation error", {
-        error: error instanceof Error ? error.message : "Unknown error",
-      });
-    }
+    logger.warn("[js-animation-handler] Embedding generation error", {
+      error: (error as Error).message,
+    });
     // パターン保存は成功しているのでエラーは投げない
     return { savedPatternCount, embeddingCount: 0 };
   }
@@ -841,12 +837,9 @@ export async function checkPlaywrightAvailability(): Promise<boolean> {
     playwrightAvailabilityCache = true;
     return true;
   } catch (error) {
-    if (isDevelopment()) {
-      logger.warn("[js-animation-handler] Playwright not available", {
-        error: error instanceof Error ? error.message : "Unknown error",
-        hint: 'Run "pnpm exec playwright install chromium" to install Playwright',
-      });
-    }
+    logger.warn("[js-animation-handler] Playwright not available", {
+      error: (error as Error).message,
+    });
     playwrightAvailabilityCache = false;
     return false;
   }
@@ -1129,11 +1122,9 @@ export async function executeJSAnimationMode(
         }
       } catch (dbError) {
         // DB保存エラーは検出結果には影響させない（警告のみ）
-        if (isDevelopment()) {
-          logger.warn("[js-animation-handler] Failed to save patterns to DB, continuing", {
-            error: dbError instanceof Error ? dbError.message : "Unknown error",
-          });
-        }
+        logger.warn("[js-animation-handler] Failed to save patterns to DB, continuing", {
+          error: dbError instanceof Error ? dbError.message : "Unknown error",
+        });
         result.embedding_error = {
           code: "DB_SAVE_ERROR",
           message: dbError instanceof Error ? dbError.message : "Failed to save to DB",
@@ -1189,35 +1180,20 @@ export async function executeJSAnimationMode(
         "For WebGL/3D sites, consider using layoutOptions.disableWebGL: true or motionOptions.detect_js_animations: false";
     }
 
-    // 開発環境では詳細なエラーログを出力
-    if (isDevelopment()) {
-      logger.error("[js-animation-handler] JS animation detection failed", {
-        error,
-        errorCode,
-        url,
-        processingTimeMs,
-        options: {
-          enableCDP: options?.enableCDP ?? JS_ANIMATION_DEFAULTS.ENABLE_CDP,
-          enableWebAnimations:
-            options?.enableWebAnimations ?? JS_ANIMATION_DEFAULTS.ENABLE_WEB_ANIMATIONS,
-          enableLibraryDetection:
-            options?.enableLibraryDetection ?? JS_ANIMATION_DEFAULTS.ENABLE_LIBRARY_DETECTION,
-          waitTime: options?.waitTime ?? JS_ANIMATION_DEFAULTS.WAIT_TIME,
-        },
-        hint,
-      });
-    }
+    // 全環境でエラーログを出力（isDevelopmentガードなし）
+    logger.warn("[js-animation-handler] JS animation detection failed", {
+      errorCode,
+      error: errorMessage,
+      url,
+      processingTimeMs,
+      hint,
+    });
 
-    // 本番環境でも重要なエラー情報を記録（console.errorを使用）
-    // これにより運用時のトラブルシューティングが容易になる
-    console.error(
-      `[js-animation-handler] ${errorCode}: ${errorMessage}${hint ? ` (Hint: ${hint})` : ""}`
-    );
-
+    const sanitized = sanitizeErrorMessage(error);
     return {
       js_animation_error: {
         code: errorCode,
-        message: hint ? `${errorMessage}. ${hint}` : errorMessage,
+        message: hint ? `${sanitized}. ${hint}` : sanitized,
       },
     };
   } finally {

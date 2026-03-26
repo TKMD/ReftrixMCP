@@ -21,9 +21,9 @@ ReftrixMCPは、Webデザインパターンをベクトル検索(pgvector HNSW)�
 RAGで検索可能なナレッジベースに集約し、MCPツール経由でClaude等の
 AIエージェントと統合するプラットフォームです。
 
-**主要機能**: レイアウト分析 / モーション検出 / 品質評価 / セマンティック検索 / レスポンシブ解析 / 嗜好プロファイリング / パーツ分析
+**主要機能**: レイアウト分析 / モーション検出 / 品質評価 / セマンティック検索 / 横断検索 / 画像類似検索 / レスポンシブ解析 / 嗜好プロファイリング / パーツ分析 / レート制限 / 検索キャッシュ / BullMQ UI / SBOM
 
-**26のMCPツール**を提供: Layout(5) / Motion(2) / Quality(3) / Page(2) / Narrative(1) / Background(1) / Responsive(1) / Preference(3) / Part(3) / Style(1) / Brief(1) / Project(2) / System(1)
+**28のMCPツール**を提供: Layout(5) / Motion(2) / Quality(3) / Page(2) / Narrative(1) / Background(1) / Responsive(1) / Preference(3) / Part(3) / Style(1) / Brief(1) / Project(2) / System(1) / Search(1) / Design(1)
 
 詳細な日本語ドキュメント: [docs/README.ja.md](docs/README.ja.md)
 
@@ -42,6 +42,12 @@ AIエージェントと統合するプラットフォームです。
 - **Multi-tile capture** -- split large sections (>viewport height) into tiles for complete DINOv2 visual coverage
 - **Blank image detection** -- detect lazy-loading unrendered sections and re-capture via Playwright for full coverage
 - **Code generation** -- convert analyzed sections to React, Vue, or plain HTML with matched motion patterns
+- **Unified search** -- cross-service search across layout, part, motion, background, and narrative patterns in a single query
+- **Image similarity search** -- find visually similar designs via DINOv2 embeddings from Base64/URL input (RRF 3-source)
+- **Rate limiting** -- Token Bucket + Redis Lua (CWE-770 DoS prevention), 3-tier (analysis 10 RPM / search 120 RPM / default 60 RPM)
+- **Search cache** -- LRU in-memory cache (lru-cache v11) with TTL-based natural expiry (5 min)
+- **BullMQ UI** -- Bull Board dashboard for monitoring async page.analyze jobs (port 21080)
+- **SBOM** -- CycloneDX 1.6 auto-generation for EU CRA vulnerability reporting compliance
 
 ## Why ReftrixMCP
 
@@ -53,7 +59,7 @@ AIエージェントと統合するプラットフォームです。
 | **Searchable**       | 768-dim multilingual embeddings (e5-base) with HNSW index and hybrid RRF ranking             |
 | **Preference-aware** | User preference profiling with feedback-driven reranking across all search tools             |
 | **Part-aware**       | 16 UI part types extracted with DINOv2 visual embeddings for cross-site component comparison |
-| **MCP-native**       | 26 tools purpose-built for Claude Desktop and MCP Client CLI                                 |
+| **MCP-native**       | 28 tools purpose-built for Claude Desktop and MCP Client CLI                                 |
 
 ## Quickstart
 
@@ -76,12 +82,12 @@ pnpm build
 pnpm exec playwright install chromium            # browser for page crawling
 pnpm --filter @reftrixmcp/ml download:dinov2        # DINOv2 visual embedding model (~800 MB)
 curl -fsSL https://ollama.com/install.sh | sh    # install Ollama
-ollama pull llama3.2-vision                      # vision model (~2 GB)
+ollama pull llama3.2-vision                      # vision model (~7.9 GB)
 ollama serve                                     # keep running in a separate terminal
 ```
 
 > **Note**: If you change `.env.local`, also update `packages/database/.env`.
-> `page.analyze` workers start automatically -- no manual worker launch needed.
+> `page.analyze` workers are managed by WorkerSupervisor. Run `pnpm --filter @reftrixmcp/mcp-server worker:start:page` to start the worker process.
 > See [Getting Started](docs/users-guide/01-getting-started.md) for GPU configuration and details.
 
 ### Connect to Claude
@@ -125,7 +131,7 @@ Add to your MCP config:
 
 ## Example tools
 
-ReftrixMCP provides **26 MCP tools**. Key examples:
+ReftrixMCP provides **28 MCP tools**. Key examples:
 
 - `layout.ingest` -- fetch a web page, take a screenshot, and extract section patterns
 - `layout.search` -- semantic search over layout sections by natural-language query
@@ -145,7 +151,7 @@ Full tool reference: [MCP Tools Guide](docs/users-guide/02-mcp-tools-guide.md)
 ## Architecture
 
 ```
-MCP Client (Claude Desktop / Code)  --stdio-->  MCP Server (26 tools, Zod)
+MCP Client (Claude Desktop / Code)  --stdio-->  MCP Server (28 tools, Zod)
   +-- Service Layer: Playwright, Sharp+Pixelmatch, DOMPurify
   +-- ML Layer: ONNX Runtime (multilingual-e5-base + DINOv2 ViT-B/14, 768-dim)
   +-- BullMQ Workers: page.analyze, quality.evaluate
@@ -157,16 +163,16 @@ MCP Client (Claude Desktop / Code)  --stdio-->  MCP Server (26 tools, Zod)
 | Guide                                                                   | Description                             |
 | ----------------------------------------------------------------------- | --------------------------------------- |
 | [Getting Started](docs/users-guide/01-getting-started.md)               | Installation, setup, and first analysis |
-| [MCP Tools Guide](docs/users-guide/02-mcp-tools-guide.md)               | All 26 tools with usage examples        |
+| [MCP Tools Guide](docs/users-guide/02-mcp-tools-guide.md)               | All 28 tools with usage examples        |
 | [page.analyze Deep Dive](docs/users-guide/03-page-analyze-deep-dive.md) | Async analysis flow and data structures |
 | [Troubleshooting](docs/users-guide/04-troubleshooting.md)               | Common issues and solutions             |
 
 ## Known limitations
 
 - CPU-mode embedding takes ~2-5 s per text; GPU recommended for batch workloads
-- Minimum 8 GB RAM; 16 GB recommended for concurrent analysis
+- Minimum 16 GB RAM; 32 GB recommended for concurrent analysis with Ollama Vision
 - First embedding call downloads ~400 MB model (multilingual-e5-base)
-- `page.analyze` workers auto-start via WorkerSupervisor; manual launch is not required
+- `page.analyze` workers are managed by WorkerSupervisor; run `pnpm --filter @reftrixmcp/mcp-server worker:start:page` to start
 - Vision analysis (layout, motion, narrative) requires Ollama + `llama3.2-vision` running locally
 - DINOv2 visual embedding model requires ~800 MB download (ViT-B/14 ONNX)
 

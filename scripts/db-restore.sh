@@ -1,4 +1,7 @@
 #!/usr/bin/env bash
+# SPDX-FileCopyrightText: 2026 TKMD and Reftrix Contributors
+# SPDX-License-Identifier: AGPL-3.0-only
+
 # Reftrix PostgreSQL リストアスクリプト
 # Reftrix PostgreSQL restore script
 # 引数でバックアップファイル指定、なければ最新を使用

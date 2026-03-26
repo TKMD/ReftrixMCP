@@ -388,6 +388,16 @@ export interface NarrativeSearchOptions {
     moodCategory?: MoodCategory[];
     /** 最小信頼度でフィルター */
     minConfidence?: number;
+    /** WebページIDでフィルター / Filter by web page ID */
+    webPageId?: string;
+    /** WebページURLでフィルター / Filter by web page URL */
+    webPageUrl?: string;
+    /** タグフィルター / Tag filter */
+    tags?: string[];
+    /** 業種フィルター / Industry filter */
+    industry?: string;
+    /** ターゲットオーディエンス / Target audience filter */
+    audience?: string;
   };
 }
 

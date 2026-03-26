@@ -261,7 +261,8 @@ describe("js-animation-handler", () => {
       expect(result.js_animation_error).toBeDefined();
       // Phase 3: Browserエラーは専用コードを持つ
       expect(result.js_animation_error?.code).toBe("JS_ANIMATION_BROWSER_ERROR");
-      expect(result.js_animation_error?.message).toContain("Browser launch failed");
+      // sanitizeErrorMessage適用後のメッセージ + hint
+      expect(result.js_animation_error?.message).toContain("An internal error occurred");
     });
 
     it("ページナビゲーションエラーを適切に処理する", async () => {

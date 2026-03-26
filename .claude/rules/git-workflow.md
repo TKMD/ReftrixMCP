@@ -102,10 +102,10 @@ Commits during branch work are flexible:
 1. **Pre-commit検証 / Pre-commit Verification**:
 
    ```bash
-   pnpm lint && pnpm typecheck
+   pnpm lint && pnpm typecheck && pnpm format:check && pnpm docs:verify
    ```
 
-   - ✅ lint/typecheckが成功（exit code 0） / lint/typecheck succeed (exit code 0)
+   - ✅ lint/typecheck/format:check/docs:verifyが成功（exit code 0） / lint/typecheck/format:check/docs:verify succeed (exit code 0)
    - ❌ いずれかが失敗した場合、ユーザーに報告してコミット中止 / If either fails, report to user and abort commit
    - **注**: テストは推奨だが必須ではない（CI環境で検証される前提） / Note: Tests recommended but not required (verified in CI)
 
@@ -152,12 +152,13 @@ PR title is used as the **final squash commit message subject**:
 
 ```bash
 # 必須コマンド（すべてパスすること）
-pnpm lint && pnpm typecheck && pnpm test
+pnpm lint && pnpm typecheck && pnpm format:check && pnpm docs:verify && pnpm test
 ```
 
 - [ ] すべてのテストがパス / All tests pass
 - [ ] ESLintエラー: 0件 / ESLint errors: 0
 - [ ] TypeScriptエラー: 0件 / TypeScript errors: 0
+- [ ] ドキュメント整合性: 0件 / Docs-impl sync errors: 0
 - [ ] テストカバレッジ: 80%以上 / Test coverage: above 80%
 - [ ] 差分が800行以下（または分割済み） / Diff 800 lines or less (or already split)
 
@@ -279,7 +280,15 @@ Direct commits to the OSS repository (`TKMD/ReftrixMCP`) are **prohibited**. All
                                               Verification (Phase 4)
                                                   ↓ 全チェックPASS
                                               commit & push → TKMD/ReftrixMCP
+                                                  ↓
+                                              Step 6: npm publish (optional)
+                                                  ↓ バージョン比較+確認プロンプト
+                                              npm publish --access public
 ```
+
+**`--skip-publish` オプション / `--skip-publish` option**: `sync-oss.sh --skip-publish` でnpm publish ステップをスキップ可能。
+
+Skip the npm publish step with `sync-oss.sh --skip-publish`.
 
 ### CI修正が必要な場合 / When CI Fix is Needed
 

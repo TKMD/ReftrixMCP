@@ -100,6 +100,9 @@ interface IUser {
 | Database            | PostgreSQL + pgvector | 18.x + 0.8.x                                                   |
 | Testing             | Vitest                | 4.x（mcp-server, ml, core, webdesign-core）/ 3.2.x（database） |
 | Testing             | Playwright            | 1.57.0                                                         |
+| Cache               | lru-cache             | 11.x                                                           |
+| Queue UI            | @bull-board/express   | 6.x                                                            |
+| SBOM                | @cyclonedx/cdxgen     | 12.x                                                           |
 
 ## コンソールログ / Console Logging
 

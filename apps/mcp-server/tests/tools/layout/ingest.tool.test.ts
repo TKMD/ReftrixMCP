@@ -744,7 +744,8 @@ describe("layout.ingest MCPツール", () => {
 
       expect(result.success).toBe(false);
       expect(result.error?.code).toBe("TIMEOUT_ERROR");
-      expect(result.error?.message).toContain("timeout");
+      // sanitizeErrorMessage: "Navigation timeout" -> "Operation timed out"
+      expect(result.error?.message).toBe("Operation timed out");
     });
 
     it("ネットワークエラーを処理する", async () => {
@@ -828,9 +829,8 @@ describe("layout.ingest MCPツール", () => {
       expect(result.error?.code).toBe("INTERNAL_ERROR");
     });
 
-    it("エラー詳細が返される（開発環境のみ）", async () => {
-      // NOTE: NODE_ENV=testではdetailsはundefinedになる
-      // 開発環境（NODE_ENV=development）の場合のみdetailsが含まれる
+    it("エラー詳細が返される（サニタイズ済み）", async () => {
+      // sanitizeErrorMessage適用後はraw error messageではなく汎用メッセージが返る
       (pageIngestAdapter.ingest as Mock).mockRejectedValue(new Error("Detailed error message"));
 
       const input: LayoutIngestInput = {
@@ -840,9 +840,8 @@ describe("layout.ingest MCPツール", () => {
       const result = await layoutIngestHandler(input);
 
       expect(result.success).toBe(false);
-      // テスト環境では本番モード扱いのためdetailsは含まれない
-      // 開発環境での挙動はインテグレーションテストで確認
-      expect(result.error?.message).toContain("Detailed error message");
+      // sanitizeErrorMessage: "Detailed error message" -> "An internal error occurred"
+      expect(result.error?.message).toBe("An internal error occurred");
     });
   });
 

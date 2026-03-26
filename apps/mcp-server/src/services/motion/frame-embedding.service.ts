@@ -631,11 +631,9 @@ export class FrameEmbeddingService {
       });
     } catch (error) {
       // バッチ処理が失敗した場合は個別に処理
-      if (isDevelopment()) {
-        logger.warn("[FrameEmbedding] Batch failed, falling back to individual", {
-          error: error instanceof Error ? error.message : "Unknown error",
-        });
-      }
+      logger.warn("[FrameEmbedding] Batch failed, falling back to individual", {
+        error: error instanceof Error ? error.message : "Unknown error",
+      });
 
       const results: EmbeddingResult[] = [];
       for (const zone of zones) {
@@ -681,11 +679,9 @@ export class FrameEmbeddingService {
       });
     } catch (error) {
       // バッチ処理が失敗した場合は個別に処理
-      if (isDevelopment()) {
-        logger.warn("[FrameEmbedding] Batch failed, falling back to individual", {
-          error: error instanceof Error ? error.message : "Unknown error",
-        });
-      }
+      logger.warn("[FrameEmbedding] Batch failed, falling back to individual", {
+        error: error instanceof Error ? error.message : "Unknown error",
+      });
 
       const results: EmbeddingResult[] = [];
       for (const vector of vectors) {
@@ -786,11 +782,9 @@ export class FrameEmbeddingService {
       }
     } catch (error) {
       // バッチ処理が失敗した場合は個別に処理
-      if (isDevelopment()) {
-        logger.warn("[FrameEmbedding] Batch failed, falling back to individual", {
-          error: error instanceof Error ? error.message : "Unknown error",
-        });
-      }
+      logger.warn("[FrameEmbedding] Batch failed, falling back to individual", {
+        error: error instanceof Error ? error.message : "Unknown error",
+      });
 
       for (let i = 0; i < zones.length; i++) {
         const zone = zones[i];
@@ -1113,12 +1107,10 @@ export class FrameEmbeddingService {
       if (error instanceof EmbeddingValidationError) {
         throw error;
       }
-      if (isDevelopment()) {
-        logger.warn("[FrameEmbedding] Embedding generation failed", {
-          error: error instanceof Error ? error.message : "Unknown error",
-          patternId,
-        });
-      }
+      logger.warn("[FrameEmbedding] Embedding generation failed", {
+        error: error instanceof Error ? error.message : "Unknown error",
+        patternId,
+      });
       // Embeddingなしで保存（後でリトライ可能）
       embedding = [];
     }
@@ -1201,12 +1193,10 @@ export class FrameEmbeddingService {
           index: i,
           error: error instanceof Error ? error : new Error("Unknown error"),
         });
-        if (isDevelopment()) {
-          logger.warn("[FrameEmbedding] Failed to save animation zone", {
-            index: i,
-            error: error instanceof Error ? error.message : "Unknown error",
-          });
-        }
+        logger.warn("[FrameEmbedding] Failed to save animation zone", {
+          index: i,
+          error: error instanceof Error ? error.message : "Unknown error",
+        });
       }
     }
 
@@ -1226,12 +1216,10 @@ export class FrameEmbeddingService {
           index: i,
           error: error instanceof Error ? error : new Error("Unknown error"),
         });
-        if (isDevelopment()) {
-          logger.warn("[FrameEmbedding] Failed to save layout shift", {
-            index: i,
-            error: error instanceof Error ? error.message : "Unknown error",
-          });
-        }
+        logger.warn("[FrameEmbedding] Failed to save layout shift", {
+          index: i,
+          error: error instanceof Error ? error.message : "Unknown error",
+        });
       }
     }
 
@@ -1251,12 +1239,10 @@ export class FrameEmbeddingService {
           index: i,
           error: error instanceof Error ? error : new Error("Unknown error"),
         });
-        if (isDevelopment()) {
-          logger.warn("[FrameEmbedding] Failed to save motion vector", {
-            index: i,
-            error: error instanceof Error ? error.message : "Unknown error",
-          });
-        }
+        logger.warn("[FrameEmbedding] Failed to save motion vector", {
+          index: i,
+          error: error instanceof Error ? error.message : "Unknown error",
+        });
       }
     }
 
@@ -1311,13 +1297,11 @@ export class FrameEmbeddingService {
       this.getPrismaClient();
       return true;
     } catch (error) {
-      if (isDevelopment()) {
-        logger.warn("[FrameEmbedding] isAvailable check failed", {
-          error: error instanceof Error ? error.message : "Unknown error",
-          hasPrismaClientFactory: prismaClientFactory !== null,
-          hasEmbeddingServiceFactory: embeddingServiceFactory !== null,
-        });
-      }
+      logger.warn("[FrameEmbedding] isAvailable check failed", {
+        error: error instanceof Error ? error.message : "Unknown error",
+        hasPrismaClientFactory: prismaClientFactory !== null,
+        hasEmbeddingServiceFactory: embeddingServiceFactory !== null,
+      });
       return false;
     }
   }

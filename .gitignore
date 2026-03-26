@@ -30,6 +30,10 @@ coverage
 .env.production.local
 *.env.local
 
+# SBOM (generated, not committed)
+sbom.cdx.json
+sbom.cdx.xml
+
 # Logs
 logs
 *.log
@@ -76,6 +80,9 @@ temp
 backup/
 backups/
 
+# Claude Code local settings (user-specific)
+.claude/settings.local.json
+
 # OSS generation output
 
 # Playwright
@@ -83,6 +90,12 @@ test-results/
 playwright-report/
 playwright/.cache/
 .auto-trigger-state.json
+
+# Frame capture output (motion analysis runtime output)
+captured-frames/
+
+# TypeScript incremental build cache
+*.tsbuildinfo
 
 # MCP Registry tokens
 .mcpregistry_*

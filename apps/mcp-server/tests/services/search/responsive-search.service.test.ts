@@ -336,4 +336,130 @@ describe("ResponsiveSearchService", () => {
       expect(params[params.length - 1]).toBe(20);
     });
   });
+
+  // =====================================================
+  // Common search filters (industry/audience/tags) テスト
+  // =====================================================
+
+  describe("common search filters (industry/audience/tags)", () => {
+    let prisma: MockPrisma;
+    let service: ReturnType<typeof createResponsiveSearchService>;
+
+    beforeEach(() => {
+      const ctx = createTestService();
+      prisma = ctx.prisma;
+      service = ctx.service;
+    });
+
+    it("should include industry filter as quality_benchmarks EXISTS subquery", async () => {
+      prisma.$queryRawUnsafe.mockResolvedValueOnce([]).mockResolvedValueOnce([{ total: 0 }]);
+
+      const embedding = createMockEmbedding();
+      await service.searchResponsiveAnalyses(embedding, {
+        limit: 10,
+        offset: 0,
+        filters: { industry: "tech" },
+      });
+
+      const sql = prisma.$queryRawUnsafe.mock.calls[0][0] as string;
+      expect(sql).toContain("quality_benchmarks");
+      expect(sql).toContain("industry");
+
+      const params = prisma.$queryRawUnsafe.mock.calls[0].slice(1) as unknown[];
+      expect(params).toContain("tech");
+    });
+
+    it("should include audience filter as quality_benchmarks EXISTS subquery", async () => {
+      prisma.$queryRawUnsafe.mockResolvedValueOnce([]).mockResolvedValueOnce([{ total: 0 }]);
+
+      const embedding = createMockEmbedding();
+      await service.searchResponsiveAnalyses(embedding, {
+        limit: 10,
+        offset: 0,
+        filters: { audience: "enterprise" },
+      });
+
+      const sql = prisma.$queryRawUnsafe.mock.calls[0][0] as string;
+      expect(sql).toContain("quality_benchmarks");
+      expect(sql).toContain("audience");
+
+      const params = prisma.$queryRawUnsafe.mock.calls[0].slice(1) as unknown[];
+      expect(params).toContain("enterprise");
+    });
+
+    it("should include tags filter as ra.tags @> array condition", async () => {
+      prisma.$queryRawUnsafe.mockResolvedValueOnce([]).mockResolvedValueOnce([{ total: 0 }]);
+
+      const embedding = createMockEmbedding();
+      await service.searchResponsiveAnalyses(embedding, {
+        limit: 10,
+        offset: 0,
+        filters: { tags: ["responsive", "mobile-first"] },
+      });
+
+      const sql = prisma.$queryRawUnsafe.mock.calls[0][0] as string;
+      expect(sql).toContain("ra.tags @>");
+      expect(sql).toContain("::text[]");
+
+      const params = prisma.$queryRawUnsafe.mock.calls[0].slice(1) as unknown[];
+      expect(params).toContainEqual(["responsive", "mobile-first"]);
+    });
+
+    it("should not include tags filter when tags array is empty", async () => {
+      prisma.$queryRawUnsafe.mockResolvedValueOnce([]).mockResolvedValueOnce([{ total: 0 }]);
+
+      const embedding = createMockEmbedding();
+      await service.searchResponsiveAnalyses(embedding, {
+        limit: 10,
+        offset: 0,
+        filters: { tags: [] },
+      });
+
+      const sql = prisma.$queryRawUnsafe.mock.calls[0][0] as string;
+      expect(sql).not.toContain("ra.tags");
+    });
+
+    it("should include webPageUrl filter as wp.url equality", async () => {
+      prisma.$queryRawUnsafe.mockResolvedValueOnce([]).mockResolvedValueOnce([{ total: 0 }]);
+
+      const embedding = createMockEmbedding();
+      await service.searchResponsiveAnalyses(embedding, {
+        limit: 10,
+        offset: 0,
+        filters: { webPageUrl: "https://example.com" },
+      });
+
+      const sql = prisma.$queryRawUnsafe.mock.calls[0][0] as string;
+      expect(sql).toContain("wp.url =");
+
+      const params = prisma.$queryRawUnsafe.mock.calls[0].slice(1) as unknown[];
+      expect(params).toContain("https://example.com");
+    });
+
+    it("should maintain correct parameter indices with combined filters", async () => {
+      prisma.$queryRawUnsafe.mockResolvedValueOnce([]).mockResolvedValueOnce([{ total: 0 }]);
+
+      const embedding = createMockEmbedding();
+      await service.searchResponsiveAnalyses(embedding, {
+        limit: 5,
+        offset: 10,
+        filters: {
+          webPageId: "00000000-0000-7000-8000-000000000001",
+          industry: "finance",
+          audience: "b2b",
+          tags: ["fintech"],
+        },
+      });
+
+      const params = prisma.$queryRawUnsafe.mock.calls[0].slice(1) as unknown[];
+      // vectorString, webPageId, industry, audience, tags, limit, offset
+      expect(params).toContain("00000000-0000-7000-8000-000000000001");
+      expect(params).toContain("finance");
+      expect(params).toContain("b2b");
+      expect(params).toContainEqual(["fintech"]);
+      // Last two are limit and offset
+      expect(params[params.length - 2]).toBe(5);
+      expect(params[params.length - 1]).toBe(10);
+    });
+  });
 });

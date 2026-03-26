@@ -1041,3 +1041,169 @@ describe("シングルトンとファクトリ", () => {
     expect(service1).not.toBe(service2);
   });
 });
+
+// =====================================================
+// Common Search Filters (industry/audience/tags) テスト
+// =====================================================
+
+describe("Common search filters (industry/audience/tags)", () => {
+  let service: VisionEmbeddingSearchService;
+  let mockPrisma: IVisionSearchPrismaClient;
+  let mockEmbeddingService: IVisionSearchEmbeddingService;
+
+  beforeEach(() => {
+    service = new VisionEmbeddingSearchService();
+    mockPrisma = {
+      $queryRawUnsafe: vi.fn().mockResolvedValue([]),
+    };
+    mockEmbeddingService = {
+      generateEmbedding: vi.fn().mockResolvedValue(createMockEmbedding()),
+    };
+    setVisionSearchPrismaClientFactory(() => mockPrisma);
+    setVisionSearchEmbeddingServiceFactory(() => mockEmbeddingService);
+  });
+
+  afterEach(() => {
+    resetVisionSearchPrismaClientFactory();
+    resetVisionSearchEmbeddingServiceFactory();
+    resetVisionEmbeddingSearchService();
+  });
+
+  it("industry フィルタが quality_benchmarks EXISTS サブクエリに展開される", async () => {
+    (mockPrisma.$queryRawUnsafe as ReturnType<typeof vi.fn>)
+      .mockResolvedValueOnce([]) // search
+      .mockResolvedValueOnce([{ total: 0 }]); // count
+
+    const options: VisionSearchOptions = {
+      limit: 10,
+      offset: 0,
+      industry: "tech",
+    };
+
+    await service.searchByVisionEmbedding({ textQuery: "hero section" }, options);
+
+    const searchQuery = (mockPrisma.$queryRawUnsafe as ReturnType<typeof vi.fn>).mock
+      .calls[0][0] as string;
+    expect(searchQuery).toContain("quality_benchmarks");
+    expect(searchQuery).toContain("industry");
+
+    // パラメータにindustry値が含まれる
+    const searchParams = (
+      mockPrisma.$queryRawUnsafe as ReturnType<typeof vi.fn>
+    ).mock.calls[0].slice(1);
+    expect(searchParams).toContain("tech");
+  });
+
+  it("audience フィルタが quality_benchmarks EXISTS サブクエリに展開される", async () => {
+    (mockPrisma.$queryRawUnsafe as ReturnType<typeof vi.fn>)
+      .mockResolvedValueOnce([]) // search
+      .mockResolvedValueOnce([{ total: 0 }]); // count
+
+    const options: VisionSearchOptions = {
+      limit: 10,
+      offset: 0,
+      audience: "b2b",
+    };
+
+    await service.searchByVisionEmbedding({ textQuery: "pricing section" }, options);
+
+    const searchQuery = (mockPrisma.$queryRawUnsafe as ReturnType<typeof vi.fn>).mock
+      .calls[0][0] as string;
+    expect(searchQuery).toContain("quality_benchmarks");
+    expect(searchQuery).toContain("audience");
+
+    const searchParams = (
+      mockPrisma.$queryRawUnsafe as ReturnType<typeof vi.fn>
+    ).mock.calls[0].slice(1);
+    expect(searchParams).toContain("b2b");
+  });
+
+  it("tags フィルタが sp.tags @> array 条件に展開される", async () => {
+    (mockPrisma.$queryRawUnsafe as ReturnType<typeof vi.fn>)
+      .mockResolvedValueOnce([]) // search
+      .mockResolvedValueOnce([{ total: 0 }]); // count
+
+    const options: VisionSearchOptions = {
+      limit: 10,
+      offset: 0,
+      tags: ["saas", "landing"],
+    };
+
+    await service.searchByVisionEmbedding({ textQuery: "hero" }, options);
+
+    const searchQuery = (mockPrisma.$queryRawUnsafe as ReturnType<typeof vi.fn>).mock
+      .calls[0][0] as string;
+    expect(searchQuery).toContain("sp.tags @>");
+    expect(searchQuery).toContain("::text[]");
+
+    const searchParams = (
+      mockPrisma.$queryRawUnsafe as ReturnType<typeof vi.fn>
+    ).mock.calls[0].slice(1);
+    expect(searchParams).toContainEqual(["saas", "landing"]);
+  });
+
+  it("空の tags 配列はフィルタ条件に含まれない", async () => {
+    (mockPrisma.$queryRawUnsafe as ReturnType<typeof vi.fn>)
+      .mockResolvedValueOnce([]) // search
+      .mockResolvedValueOnce([{ total: 0 }]); // count
+
+    const options: VisionSearchOptions = {
+      limit: 10,
+      offset: 0,
+      tags: [],
+    };
+
+    await service.searchByVisionEmbedding({ textQuery: "hero" }, options);
+
+    const searchQuery = (mockPrisma.$queryRawUnsafe as ReturnType<typeof vi.fn>).mock
+      .calls[0][0] as string;
+    expect(searchQuery).not.toContain("sp.tags");
+  });
+
+  it("industry + audience + tags の複合フィルタでパラメータインデックスが正しい", async () => {
+    (mockPrisma.$queryRawUnsafe as ReturnType<typeof vi.fn>)
+      .mockResolvedValueOnce([]) // search
+      .mockResolvedValueOnce([{ total: 0 }]); // count
+
+    const options: VisionSearchOptions = {
+      limit: 5,
+      offset: 0,
+      sectionType: "hero",
+      industry: "finance",
+      audience: "enterprise",
+      tags: ["fintech"],
+    };
+
+    await service.searchByVisionEmbedding({ textQuery: "hero" }, options);
+
+    const searchParams = (
+      mockPrisma.$queryRawUnsafe as ReturnType<typeof vi.fn>
+    ).mock.calls[0].slice(1);
+    // sectionType, industry, audience, tags, vectorString, limit, offset の順
+    expect(searchParams).toContain("hero"); // sectionType
+    expect(searchParams).toContain("finance"); // industry
+    expect(searchParams).toContain("enterprise"); // audience
+    expect(searchParams).toContainEqual(["fintech"]); // tags
+    expect(searchParams).toContain(5); // limit
+    expect(searchParams).toContain(0); // offset
+  });
+
+  it("hybridSearch でもフィルタが正しく透過される", async () => {
+    (mockPrisma.$queryRawUnsafe as ReturnType<typeof vi.fn>).mockResolvedValue([]);
+
+    const options: HybridSearchOptions = {
+      limit: 10,
+      offset: 0,
+      industry: "healthcare",
+    };
+
+    await service.hybridSearch({ textQuery: "dashboard" }, options);
+
+    // text検索とvision検索の両方のSQLにindustryが含まれる
+    const calls = (mockPrisma.$queryRawUnsafe as ReturnType<typeof vi.fn>).mock.calls;
+    const allQueries = calls.map((c: unknown[]) => c[0] as string);
+    const queriesWithIndustry = allQueries.filter((q: string) => q.includes("industry"));
+    // text検索 + vision検索 + count (少なくとも2つ)
+    expect(queriesWithIndustry.length).toBeGreaterThanOrEqual(2);
+  });
+});

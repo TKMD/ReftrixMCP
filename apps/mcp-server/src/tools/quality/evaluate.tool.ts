@@ -18,6 +18,7 @@ import {
   createValidationErrorWithHints,
   formatMultipleDetailedErrors,
 } from "../../utils/error-messages";
+import { sanitizeErrorMessage } from "../../utils/sanitize-error";
 
 import { generateImprovements, calculateSummary } from "./improvement-utils";
 
@@ -212,11 +213,9 @@ export async function qualityEvaluateHandler(
       const detailedMessage = formatMultipleDetailedErrors(errorWithHints.errors);
       const formattedErrors = formatZodError(error);
 
-      if (isDevelopment()) {
-        logger.error("[MCP Tool] quality.evaluate validation error", {
-          errors: errorWithHints.errors,
-        });
-      }
+      logger.warn("[MCP Tool] quality.evaluate validation error", {
+        error: (error as Error).message,
+      });
 
       return {
         success: false,
@@ -271,14 +270,12 @@ export async function qualityEvaluateHandler(
       html = page.htmlContent;
       pageId = page.id;
     } catch (error) {
-      if (isDevelopment()) {
-        logger.error("[MCP Tool] quality.evaluate DB error", { error });
-      }
+      logger.warn("[MCP Tool] quality.evaluate DB error", { error: (error as Error).message });
       return {
         success: false,
         error: {
           code: QUALITY_MCP_ERROR_CODES.DB_ERROR,
-          message: error instanceof Error ? error.message : "Database error",
+          message: sanitizeErrorMessage(error),
         },
       };
     }
@@ -692,14 +689,12 @@ export async function qualityEvaluateHandler(
       data,
     };
   } catch (error) {
-    if (isDevelopment()) {
-      logger.error("[MCP Tool] quality.evaluate error", { error });
-    }
+    logger.warn("[MCP Tool] quality.evaluate error", { error: (error as Error).message });
     return {
       success: false,
       error: {
         code: QUALITY_MCP_ERROR_CODES.INTERNAL_ERROR,
-        message: error instanceof Error ? error.message : "Evaluation failed",
+        message: sanitizeErrorMessage(error),
       },
     };
   }

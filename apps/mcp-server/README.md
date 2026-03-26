@@ -19,7 +19,11 @@ Reftrix MCP Server provides web design layout analysis, motion detection, and qu
 - **統合Web分析**: `page.analyze` による Layout + Motion + Quality 一括分析（非同期、BullMQ）
 - **ナラティブ検索**: 世界観・レイアウト構成セマンティック検索
 - **バックグラウンド検索**: BackgroundDesignセマンティック検索
-- **キャッシュ**: LRUキャッシュによる高速レスポンス
+- **横断検索**: `search.unified` による5サービス並列統合検索
+- **画像類似検索**: `design.search_by_image` によるDINOv2 visual embedding検索
+- **レート制限**: Token Bucket + Redis Lua、3ティア（analysis/search/default）
+- **検索キャッシュ**: LRUキャッシュ（lru-cache v11、500エントリ、5分TTL）
+- **SBOM**: CycloneDX 1.6自動生成
 
 ### 技術スタック / Tech Stack
 
@@ -76,7 +80,7 @@ pnpm start
 }
 ```
 
-## MCPツール一覧（26ツール） / MCP Tool List (26 Tools)
+## MCPツール一覧（28ツール） / MCP Tool List (28 Tools)
 
 ### Layoutツール（5ツール） / Layout Tools (5 Tools)
 
@@ -603,6 +607,20 @@ IDを指定してパーツの詳細情報（computedStyles、boundingBox、inter
 
 MCPサーバーとReftrix Web APIの接続状態を確認します。 / Checks the connection status of MCP server and Reftrix Web API.
 
+### Searchツール（1ツール） / Search Tools (1 Tool)
+
+#### `search.unified` - 横断検索 / Cross-Service Unified Search
+
+5検索サービス（Layout, Part, Motion, Background, Narrative）を統合したマルチモーダル横断検索。
+Cross-service unified search integrating 5 search services (Layout, Part, Motion, Background, Narrative).
+
+### Designツール（1ツール） / Design Tools (1 Tool)
+
+#### `design.search_by_image` - 画像類似検索 / Image Similarity Search
+
+DINOv2 visual embeddingによる画像ベースのデザイン類似検索。Base64画像またはURLから類似デザインを検索。
+Image-based design similarity search using DINOv2 visual embeddings. Search similar designs from Base64 images or URLs.
+
 ---
 
 ## Worker Architecture / ワーカーアーキテクチャ
@@ -717,9 +735,21 @@ pnpm backfill:embeddings
 
 ### レート制限 / Rate Limiting
 
-- 検索: 100 req/min
-- 変換: 50 req/min
-- インジェスト: 20 req/min
+Token Bucket + Redis Lua（CWE-770 DoS対策）。全28ツールに自動適用。
+Token Bucket + Redis Lua (CWE-770 DoS prevention). Auto-applied to all 28 tools.
+
+| ティア / Tier | RPM | 対象ツール / Target Tools                                                                                                                 |
+| ------------- | --- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| analysis      | 10  | page.analyze, layout.ingest, layout.batch_ingest, quality.batch_evaluate                                                                  |
+| search        | 120 | layout.search, motion.search, narrative.search, background.search, responsive.search, part.search, search.unified, design.search_by_image |
+| default       | 60  | その他すべて / All others                                                                                                                 |
+
+Graceful Degradation: Redis未接続時はインメモリフォールバック / Falls back to in-memory when Redis unavailable
+
+### エラーメッセージサニタイズ / Error Message Sanitization (CWE-209)
+
+`sanitizeErrorMessage()` ユーティリティ（`utils/sanitize-error.ts`）で内部構造の漏洩を防止。47ファイル・28ツールに適用（42ファイルでインポート）。
+`sanitizeErrorMessage()` utility (`utils/sanitize-error.ts`) prevents internal structure leakage. Applied to 47 files and 28 tools (42 import files).
 
 ---
 

@@ -351,12 +351,10 @@ export class MotionPatternPersistenceService {
       if (error instanceof EmbeddingValidationError) {
         throw error;
       }
-      if (isDevelopment()) {
-        logger.warn("[MotionPersistence] Embedding generation failed", {
-          error: error instanceof Error ? error.message : "Unknown error",
-          patternId: createdPattern.id,
-        });
-      }
+      logger.warn("[MotionPersistence] Embedding generation failed", {
+        error: error instanceof Error ? error.message : "Unknown error",
+        patternId: createdPattern.id,
+      });
       // Embeddingなしで保存（後でリトライ可能）
       embedding = [];
     }
@@ -448,12 +446,10 @@ export class MotionPatternPersistenceService {
             index: i,
             error: error instanceof Error ? error : new Error("Unknown error"),
           });
-          if (isDevelopment()) {
-            logger.warn("[MotionPersistence] Failed to save pattern", {
-              index: i,
-              error: error instanceof Error ? error.message : "Unknown error",
-            });
-          }
+          logger.warn("[MotionPersistence] Failed to save pattern", {
+            index: i,
+            error: error instanceof Error ? error.message : "Unknown error",
+          });
         } else {
           throw error;
         }
@@ -503,13 +499,11 @@ export class MotionPatternPersistenceService {
       this.getPrismaClient();
       return true;
     } catch (error) {
-      if (isDevelopment()) {
-        logger.warn("[MotionPersistence] isAvailable check failed", {
-          error: error instanceof Error ? error.message : "Unknown error",
-          hasPrismaClientFactory: prismaClientFactory !== null,
-          hasEmbeddingServiceFactory: embeddingServiceFactory !== null,
-        });
-      }
+      logger.warn("[MotionPersistence] isAvailable check failed", {
+        error: error instanceof Error ? error.message : "Unknown error",
+        hasPrismaClientFactory: prismaClientFactory !== null,
+        hasEmbeddingServiceFactory: embeddingServiceFactory !== null,
+      });
       return false;
     }
   }

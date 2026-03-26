@@ -443,7 +443,7 @@ describe("generateSectionEmbeddings", () => {
 
     expect(result.generatedCount).toBe(0);
     expect(result.failedCount).toBe(1);
-    expect(result.errors[0]?.error).toContain("mapping not found");
+    expect(result.errors[0]?.error).toContain("Embedding generation failed");
   });
 
   it("visionFeaturesがある場合はVision-enhanced表現を使用する", async () => {
@@ -907,7 +907,7 @@ describe("generateMotionEmbeddings", () => {
     // 1件成功、1件失敗
     expect(result.savedCount).toBe(1);
     expect(result.errors.length).toBe(1);
-    expect(result.errors[0]?.error).toContain("Embedding generation failed");
+    expect(result.errors[0]?.error).toContain("An internal error occurred");
   });
 });
 
@@ -971,7 +971,7 @@ describe("エラーハンドリング", () => {
     // 全体としてはsuccess=true（部分成功）だが、個別は失敗
     expect(result.generatedCount).toBe(0);
     expect(result.failedCount).toBe(1);
-    expect(result.errors[0]?.error).toContain("DB connection error");
+    expect(result.errors[0]?.error).toContain("An internal error occurred");
   });
 
   it("generateAndSaveVisionEmbeddingでnullのvisualFeaturesはnullを返す", async () => {

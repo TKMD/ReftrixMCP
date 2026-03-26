@@ -78,9 +78,7 @@ export async function isPlaywrightAvailable(): Promise<boolean> {
     await import("@axe-core/playwright");
     return true;
   } catch {
-    if (isDevelopment()) {
-      logger.warn("[PlaywrightAxeService] Playwright or @axe-core/playwright not available");
-    }
+    logger.warn("[PlaywrightAxeService] Playwright or @axe-core/playwright not available");
     return false;
   }
 }
@@ -194,11 +192,9 @@ export class PlaywrightAxeService {
             });
           } catch {
             // セレクタが見つからない場合は続行
-            if (isDevelopment()) {
-              logger.warn("[PlaywrightAxeService] Selector not found, continuing", {
-                selector: this.options.waitForSelector,
-              });
-            }
+            logger.warn("[PlaywrightAxeService] Selector not found, continuing", {
+              selector: this.options.waitForSelector,
+            });
           }
         }
 
@@ -231,11 +227,9 @@ export class PlaywrightAxeService {
         await page.close();
       }
     } catch (error) {
-      if (isDevelopment()) {
-        logger.error("[PlaywrightAxeService] Analysis error", {
-          error: error instanceof Error ? error.message : "Unknown error",
-        });
-      }
+      logger.warn("[PlaywrightAxeService] Analysis error", {
+        error: error instanceof Error ? error.message : "Unknown error",
+      });
 
       // エラー時はデフォルト結果を返す
       return this.createEmptyResult();
@@ -271,11 +265,9 @@ export class PlaywrightAxeService {
         logger.info("[PlaywrightAxeService] Browser resources cleaned up");
       }
     } catch (error) {
-      if (isDevelopment()) {
-        logger.error("[PlaywrightAxeService] Cleanup error", {
-          error: error instanceof Error ? error.message : "Unknown error",
-        });
-      }
+      logger.warn("[PlaywrightAxeService] Cleanup error", {
+        error: error instanceof Error ? error.message : "Unknown error",
+      });
     }
   }
 

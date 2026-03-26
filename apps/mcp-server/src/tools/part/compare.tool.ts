@@ -106,26 +106,8 @@ export const PART_COMPARE_ERROR_CODES = {
 // エラーハンドリング / Error Handling
 // =====================================================
 
-/**
- * エラーメッセージをサニタイズ（内部構造の漏洩防止）
- * Sanitize error message (prevent internal structure leakage)
- */
-function sanitizeErrorMessage(error: unknown): string {
-  if (error instanceof Error) {
-    const prismaError = error as { code?: string };
-    if (prismaError.code) {
-      switch (prismaError.code) {
-        case "P2002":
-          return "A record with this value already exists";
-        case "P2025":
-          return "Record not found";
-        default:
-          return "Database operation failed";
-      }
-    }
-  }
-  return "An internal error occurred";
-}
+// sanitizeErrorMessage: unified utility from utils/sanitize-error.ts
+import { sanitizeErrorMessage } from "../../utils/sanitize-error";
 
 // =====================================================
 // 比較ロジック / Comparison Logic

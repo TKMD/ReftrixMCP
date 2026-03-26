@@ -154,9 +154,7 @@ export async function extractVisualFeatures(
             });
           }
         } catch (error) {
-          if (isDevelopment()) {
-            logger.error("CSS Variable extraction failed", { error });
-          }
+          logger.warn("CSS Variable extraction failed", { error: (error as Error).message });
         }
       })()
     );
@@ -180,9 +178,7 @@ export async function extractVisualFeatures(
             });
           }
         } catch (error) {
-          if (isDevelopment()) {
-            logger.error("Typography extraction failed", { error });
-          }
+          logger.warn("Typography extraction failed", { error: (error as Error).message });
         }
       })()
     );
@@ -205,9 +201,7 @@ export async function extractVisualFeatures(
             });
           }
         } catch (error) {
-          if (isDevelopment()) {
-            logger.error("Gradient detection failed", { error });
-          }
+          logger.warn("Gradient detection failed", { error: (error as Error).message });
         }
       })()
     );

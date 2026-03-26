@@ -137,11 +137,9 @@ export class NarrativeAnalysisService implements INarrativeAnalysisService {
       try {
         embedding = await this.generateEmbedding(textRepresentation);
       } catch (error) {
-        if (isDevelopment()) {
-          logger.warn("[NarrativeAnalysisService] Embedding generation failed", {
-            error: error instanceof Error ? error.message : String(error),
-          });
-        }
+        logger.warn("[NarrativeAnalysisService] Embedding generation failed", {
+          error: error instanceof Error ? error.message : String(error),
+        });
         // Embedding生成失敗は全体の失敗としない（Graceful Degradation）
       }
     }
@@ -357,12 +355,10 @@ export class NarrativeAnalysisService implements INarrativeAnalysisService {
     } catch (error) {
       // Graceful Degradation: Embedding保存失敗はNarrative保存全体を失敗させない
       const errorMessage = error instanceof Error ? error.message : String(error);
-      if (isDevelopment()) {
-        logger.warn("[NarrativeAnalysisService] Failed to save narrative embedding (non-fatal)", {
-          designNarrativeId,
-          error: errorMessage,
-        });
-      }
+      logger.warn("[NarrativeAnalysisService] Failed to save narrative embedding (non-fatal)", {
+        designNarrativeId,
+        error: errorMessage,
+      });
       return false;
     }
   }
@@ -451,11 +447,9 @@ export class NarrativeAnalysisService implements INarrativeAnalysisService {
       }
       return await this.searchService.search(options);
     } catch (error) {
-      if (isDevelopment()) {
-        logger.warn("[NarrativeAnalysisService] Search delegation failed, returning empty", {
-          error: error instanceof Error ? error.message : "Unknown error",
-        });
-      }
+      logger.warn("[NarrativeAnalysisService] Search delegation failed, returning empty", {
+        error: error instanceof Error ? error.message : "Unknown error",
+      });
       // Graceful Degradation: DI未設定時は空配列を返す
       return [];
     }

@@ -233,9 +233,7 @@ export class WebGLMotionAnalyzer {
       return result;
     } catch (error) {
       const message = error instanceof Error ? error.message : "Unknown error";
-      if (isDevelopment()) {
-        logger.error("[WebGLMotionAnalyzer] Analysis failed", { error: message });
-      }
+      logger.warn("[WebGLMotionAnalyzer] Analysis failed", { error: message });
       return this.createErrorResult("ANALYSIS_FAILED", message);
     }
   }

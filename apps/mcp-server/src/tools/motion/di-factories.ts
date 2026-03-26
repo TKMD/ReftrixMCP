@@ -403,11 +403,7 @@ export function getPersistenceService(): MotionPatternPersistenceService | null 
       }
       return service;
     } catch (error) {
-      if (isDevelopment()) {
-        logger.error("[DI] motion.detect factory error", {
-          error: error instanceof Error ? error.message : "Unknown error",
-        });
-      }
+      logger.warn("[DI] motion.detect factory error", { error: (error as Error).message });
       return null;
     }
   }
@@ -417,10 +413,10 @@ export function getPersistenceService(): MotionPatternPersistenceService | null 
     if (service.isAvailable()) {
       return service;
     }
-  } catch {
-    if (isDevelopment()) {
-      logger.debug("[DI] motion.detect persistence service not available");
-    }
+  } catch (error) {
+    logger.warn("[DI] motion.detect persistence service not available", {
+      error: (error as Error).message,
+    });
   }
   return null;
 }
@@ -648,10 +644,10 @@ export function getFrameEmbeddingServiceInstance(): IFrameEmbeddingService | nul
     if (service.isAvailable()) {
       return service;
     }
-  } catch {
-    if (isDevelopment()) {
-      logger.debug("[DI] motion.detect frame embedding service not available");
-    }
+  } catch (error) {
+    logger.warn("[DI] motion.detect frame embedding service not available", {
+      error: (error as Error).message,
+    });
   }
   return null;
 }

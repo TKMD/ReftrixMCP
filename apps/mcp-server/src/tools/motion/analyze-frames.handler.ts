@@ -20,6 +20,7 @@ import * as path from "node:path";
 import { ZodError } from "zod";
 import { createDIFactory } from "../../utils/di-factory";
 import { logger, isDevelopment } from "../../utils/logger";
+import { sanitizeErrorMessage } from "../../utils/sanitize-error";
 import {
   analyzeFramesInputSchema,
   analyzeFramesMcpTool,
@@ -221,16 +222,12 @@ export async function motionAnalyzeFramesHandler(input: unknown): Promise<Analyz
     parsedInput = analyzeFramesInputSchema.parse(input);
   } catch (error) {
     if (error instanceof ZodError) {
-      const errorMessage = error.issues
-        .map((issue) => `${issue.path.join(".")}: ${issue.message}`)
-        .join(", ");
-      if (isDevelopment()) {
-        logger.error("[motion.analyze_frames] Validation error", { error: errorMessage });
-      }
+      logger.warn("[motion.analyze_frames] Validation error", {
+        error: error.issues.map((issue) => `${issue.path.join(".")}: ${issue.message}`).join(", "),
+      });
       return createErrorResponse(
         ANALYZE_FRAMES_ERROR_CODES.VALIDATION_ERROR,
-        `入力バリデーションエラー: ${errorMessage}`,
-        error.issues
+        "Invalid input parameters"
       );
     }
     throw error;
@@ -274,9 +271,12 @@ export async function motionAnalyzeFramesHandler(input: unknown): Promise<Analyz
   try {
     framePaths = await getFrameFiles(frame_dir, frame_pattern, effectiveOptions.max_frames);
   } catch (error) {
+    logger.warn("[motion.analyze_frames] Frame file retrieval failed", {
+      error: (error as Error).message,
+    });
     return createErrorResponse(
       ANALYZE_FRAMES_ERROR_CODES.INTERNAL_ERROR,
-      `フレームファイルの取得に失敗しました: ${(error as Error).message}`
+      sanitizeErrorMessage(error)
     );
   }
 
@@ -338,12 +338,12 @@ export async function motionAnalyzeFramesHandler(input: unknown): Promise<Analyz
       processing_time_ms: result.processing_time_ms,
     });
   } catch (error) {
-    if (isDevelopment()) {
-      logger.error("[motion.analyze_frames] Analysis error", { error });
-    }
+    logger.warn("[motion.analyze_frames] Analysis error", {
+      error: (error as Error).message,
+    });
     return createErrorResponse(
       ANALYZE_FRAMES_ERROR_CODES.ANALYSIS_ERROR,
-      `解析エラー: ${(error as Error).message}`
+      sanitizeErrorMessage(error)
     );
   }
 }

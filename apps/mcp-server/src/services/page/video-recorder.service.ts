@@ -344,9 +344,7 @@ export class VideoRecorderService {
         processingTimeMs,
       };
     } catch (error) {
-      if (isDevelopment()) {
-        logger.error("[VideoRecorderService] record error", { url, error });
-      }
+      logger.warn("[VideoRecorderService] record error", { url, error });
 
       // 既知のエラータイプは再スロー
       if (error instanceof RecordError) {
@@ -428,9 +426,7 @@ export class VideoRecorderService {
         }
       }
     } catch (error) {
-      if (isDevelopment()) {
-        logger.error("[VideoRecorderService] cleanup error", { videoPath, error });
-      }
+      logger.warn("[VideoRecorderService] cleanup error", { videoPath, error });
       // クリーンアップエラーは無視（ベストエフォート）
     }
   }

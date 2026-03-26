@@ -451,11 +451,9 @@ export class ExecutionStatusTrackerV2 {
       this.options.onStatusChange(this.getStatus());
     } catch (error) {
       // コールバックのエラーは無視して処理を継続
-      if (isDevelopment()) {
-        logger.warn("[ExecutionStatusTrackerV2] onStatusChange callback error", {
-          error: error instanceof Error ? error.message : String(error),
-        });
-      }
+      logger.warn("[ExecutionStatusTrackerV2] onStatusChange callback error", {
+        error: error instanceof Error ? error.message : String(error),
+      });
     }
   }
 }

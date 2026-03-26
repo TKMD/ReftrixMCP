@@ -39,6 +39,7 @@ export type { QualityGetJobStatusInput, QualityGetJobStatusOutput } from "./sche
 import { getBatchJob } from "./batch-evaluate.tool";
 import { logger, isDevelopment } from "../../utils/logger";
 import { generateRequestId, createErrorResponseWithRequestId } from "../../utils/mcp-response";
+import { sanitizeErrorMessage } from "../../utils/sanitize-error";
 
 // ============================================================================
 // Constants
@@ -168,7 +169,7 @@ export async function qualityGetJobStatusHandler(
     });
     return createErrorResponseWithRequestId(
       GET_QUALITY_JOB_STATUS_ERROR_CODES.VALIDATION_ERROR,
-      error instanceof Error ? error.message : "Invalid input",
+      sanitizeErrorMessage(error),
       requestId
     );
   }

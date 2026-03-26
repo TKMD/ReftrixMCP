@@ -268,8 +268,8 @@ describe("MCP Tool Annotations", () => {
   // preference.hear, preference.get, preference.reset ツール追加
   // =========================================================================
   describe("ツール数", () => {
-    it("allToolDefinitionsが26ツール（WebDesign専用）を含むこと", () => {
-      expect(allToolDefinitions).toHaveLength(26);
+    it("allToolDefinitionsが28ツール（WebDesign専用）を含むこと", () => {
+      expect(allToolDefinitions).toHaveLength(28);
     });
   });
 });

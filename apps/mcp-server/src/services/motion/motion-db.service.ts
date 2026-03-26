@@ -691,12 +691,10 @@ export class MotionDbService {
             index: i,
             error: error instanceof Error ? error : new Error("Unknown error"),
           });
-          if (isDevelopment()) {
-            logger.warn("[MotionDb] Failed to save animation zone", {
-              index: i,
-              error: error instanceof Error ? error.message : "Unknown error",
-            });
-          }
+          logger.warn("[MotionDb] Failed to save animation zone", {
+            index: i,
+            error: error instanceof Error ? error.message : "Unknown error",
+          });
         } else {
           throw error;
         }
@@ -720,12 +718,10 @@ export class MotionDbService {
             index: i,
             error: error instanceof Error ? error : new Error("Unknown error"),
           });
-          if (isDevelopment()) {
-            logger.warn("[MotionDb] Failed to save layout shift", {
-              index: i,
-              error: error instanceof Error ? error.message : "Unknown error",
-            });
-          }
+          logger.warn("[MotionDb] Failed to save layout shift", {
+            index: i,
+            error: error instanceof Error ? error.message : "Unknown error",
+          });
         } else {
           throw error;
         }
@@ -749,12 +745,10 @@ export class MotionDbService {
             index: i,
             error: error instanceof Error ? error : new Error("Unknown error"),
           });
-          if (isDevelopment()) {
-            logger.warn("[MotionDb] Failed to save motion vector", {
-              index: i,
-              error: error instanceof Error ? error.message : "Unknown error",
-            });
-          }
+          logger.warn("[MotionDb] Failed to save motion vector", {
+            index: i,
+            error: error instanceof Error ? error.message : "Unknown error",
+          });
         } else {
           throw error;
         }
@@ -809,13 +803,11 @@ export class MotionDbService {
       this.getPrismaClient();
       return true;
     } catch (error) {
-      if (isDevelopment()) {
-        logger.warn("[MotionDb] isAvailable check failed", {
-          error: error instanceof Error ? error.message : "Unknown error",
-          hasPrismaClientFactory: prismaClientFactory !== null,
-          hasEmbeddingServiceFactory: embeddingServiceFactory !== null,
-        });
-      }
+      logger.warn("[MotionDb] isAvailable check failed", {
+        error: error instanceof Error ? error.message : "Unknown error",
+        hasPrismaClientFactory: prismaClientFactory !== null,
+        hasEmbeddingServiceFactory: embeddingServiceFactory !== null,
+      });
       return false;
     }
   }
@@ -872,12 +864,10 @@ export class MotionDbService {
         if (error instanceof EmbeddingValidationError) {
           throw error;
         }
-        if (isDevelopment()) {
-          logger.warn("[MotionDb] Embedding generation failed", {
-            error: error instanceof Error ? error.message : "Unknown error",
-            resultId,
-          });
-        }
+        logger.warn("[MotionDb] Embedding generation failed", {
+          error: error instanceof Error ? error.message : "Unknown error",
+          resultId,
+        });
         // Embeddingなしで保存（後でリトライ可能）
         embedding = [];
       }

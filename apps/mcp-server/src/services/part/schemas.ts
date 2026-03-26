@@ -137,6 +137,12 @@ export const partSearchInputSchema = z
     search_mode: z.enum(["visual", "text", "hybrid"]).default("hybrid"),
     /** 最小類似度閾値 / Minimum similarity threshold */
     min_similarity: z.number().min(0).max(1).default(0.3),
+    /** 業種フィルター / Industry filter (e.g., "tech", "finance", "healthcare") */
+    industry: z.string().max(100).optional(),
+    /** ターゲットオーディエンス / Target audience (e.g., "b2b", "b2c", "enterprise") */
+    audience: z.string().max(100).optional(),
+    /** タグフィルター / Tag filter */
+    tags: z.array(z.string().max(50)).max(10).optional(),
   })
   .refine((data) => data.query !== undefined || data.image_url !== undefined, {
     message: "Either query or image_url must be provided",

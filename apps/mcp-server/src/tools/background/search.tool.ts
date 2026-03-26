@@ -17,6 +17,12 @@
 import { ZodError } from "zod";
 import { createDIFactory } from "../../utils/di-factory";
 import { logger, isDevelopment } from "../../utils/logger";
+import { sanitizeErrorMessage } from "../../utils/sanitize-error";
+import {
+  generateCacheKey,
+  getCachedResult,
+  setCachedResult,
+} from "../../services/search-cache.service";
 import {
   backgroundSearchInputSchema,
   BACKGROUND_MCP_ERROR_CODES,
@@ -108,6 +114,10 @@ export interface IBackgroundSearchService {
       filters?: {
         designType?: string;
         webPageId?: string;
+        webPageUrl?: string;
+        tags?: string[];
+        industry?: string;
+        audience?: string;
       };
     }
   ) => Promise<{
@@ -128,6 +138,10 @@ export interface IBackgroundSearchService {
       filters?: {
         designType?: string;
         webPageId?: string;
+        webPageUrl?: string;
+        tags?: string[];
+        industry?: string;
+        audience?: string;
       };
     }
   ) => Promise<{
@@ -205,11 +219,9 @@ export async function backgroundSearchHandler(input: unknown): Promise<Backgroun
     if (error instanceof ZodError) {
       const errorMessage = error.errors.map((e) => `${e.path.join(".")}: ${e.message}`).join(", ");
 
-      if (isDevelopment()) {
-        logger.error("[MCP Tool] background.search validation error", {
-          errors: error.errors,
-        });
-      }
+      logger.warn("[MCP Tool] background.search validation error", {
+        errors: error.errors,
+      });
 
       return {
         success: false,
@@ -238,6 +250,16 @@ export async function backgroundSearchHandler(input: unknown): Promise<Backgroun
   }
 
   const service = backgroundSearchServiceDI.get()!();
+
+  // Search result cache check / 検索キャッシュチェック
+  const cacheKey = generateCacheKey(
+    "background.search",
+    validated as unknown as Record<string, unknown>
+  );
+  const cached = getCachedResult<BackgroundSearchOutput>(cacheKey);
+  if (cached) {
+    return cached;
+  }
 
   try {
     // E5 モデル用 query: プレフィックスを付与
@@ -272,6 +294,10 @@ export async function backgroundSearchHandler(input: unknown): Promise<Backgroun
       filters?: {
         designType?: string;
         webPageId?: string;
+        webPageUrl?: string;
+        tags?: string[];
+        industry?: string;
+        audience?: string;
       };
     } = {
       limit: validated.limit,
@@ -280,12 +306,31 @@ export async function backgroundSearchHandler(input: unknown): Promise<Backgroun
 
     // フィルターが存在する場合のみ追加
     if (validated.filters) {
-      const filters: { designType?: string; webPageId?: string } = {};
+      const filters: {
+        designType?: string;
+        webPageId?: string;
+        webPageUrl?: string;
+        tags?: string[];
+        industry?: string;
+        audience?: string;
+      } = {};
       if (validated.filters.designType) {
         filters.designType = validated.filters.designType;
       }
       if (validated.filters.webPageId) {
         filters.webPageId = validated.filters.webPageId;
+      }
+      if (validated.filters.webPageUrl) {
+        filters.webPageUrl = validated.filters.webPageUrl;
+      }
+      if (validated.filters.tags && validated.filters.tags.length > 0) {
+        filters.tags = validated.filters.tags;
+      }
+      if (validated.filters.industry) {
+        filters.industry = validated.filters.industry;
+      }
+      if (validated.filters.audience) {
+        filters.audience = validated.filters.audience;
       }
       if (Object.keys(filters).length > 0) {
         searchOptions.filters = filters;
@@ -332,7 +377,7 @@ export async function backgroundSearchHandler(input: unknown): Promise<Backgroun
       "background.search"
     );
 
-    return {
+    const result: BackgroundSearchOutput = {
       success: true,
       data: {
         results: mappedResults,
@@ -341,22 +386,23 @@ export async function backgroundSearchHandler(input: unknown): Promise<Backgroun
         searchTimeMs,
       },
     };
+    // Cache successful results / 成功結果をキャッシュ
+    setCachedResult(cacheKey, result);
+    return result;
   } catch (error) {
     const errorInstance = error instanceof Error ? error : new Error(String(error));
     const errorCode = mapErrorToCode(errorInstance);
 
-    if (isDevelopment()) {
-      logger.error("[MCP Tool] background.search error", {
-        code: errorCode,
-        error: errorInstance.message,
-      });
-    }
+    logger.error("[MCP Tool] background.search error", {
+      code: errorCode,
+      error: errorInstance.message,
+    });
 
     return {
       success: false,
       error: {
         code: errorCode,
-        message: errorInstance.message,
+        message: sanitizeErrorMessage(error),
       },
     };
   }
@@ -432,6 +478,28 @@ export const backgroundSearchToolDefinition = {
             type: "string",
             format: "uuid",
             description: "WebページIDでフィルター",
+          },
+          webPageUrl: {
+            type: "string",
+            format: "uri",
+            description: "WebページURLでフィルター / Filter by web page URL",
+          },
+          industry: {
+            type: "string",
+            description: "業種フィルター（例: tech, finance, healthcare） / Industry filter",
+            maxLength: 100,
+          },
+          audience: {
+            type: "string",
+            description:
+              "ターゲットオーディエンス（例: b2b, b2c, enterprise） / Target audience filter",
+            maxLength: 100,
+          },
+          tags: {
+            type: "array",
+            items: { type: "string", maxLength: 50 },
+            maxItems: 10,
+            description: "タグフィルター / Tag filter",
           },
         },
       },

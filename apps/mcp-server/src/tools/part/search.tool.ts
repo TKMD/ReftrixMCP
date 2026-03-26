@@ -24,7 +24,13 @@
 
 import { ZodError } from "zod";
 import { logger, isDevelopment } from "../../utils/logger";
+import { sanitizeErrorMessage } from "../../utils/sanitize-error";
 import { sanitizeHtml } from "../../utils/html-sanitizer";
+import {
+  generateCacheKey,
+  getCachedResult,
+  setCachedResult,
+} from "../../services/search-cache.service";
 import { partSearchInputSchema, type PartSearchInput } from "../../services/part/schemas";
 import {
   getPartSearchService,
@@ -119,26 +125,8 @@ function mapErrorToCode(error: Error): string {
   return PART_SEARCH_ERROR_CODES.INTERNAL_ERROR;
 }
 
-/**
- * エラーメッセージをサニタイズ（内部構造の漏洩防止）
- * Sanitize error message (prevent internal structure leakage)
- */
-function sanitizePartSearchError(error: unknown): string {
-  if (error instanceof Error) {
-    const prismaError = error as { code?: string };
-    if (prismaError.code) {
-      switch (prismaError.code) {
-        case "P2002":
-          return "A record with this value already exists";
-        case "P2025":
-          return "Record not found";
-        default:
-          return "Database operation failed";
-      }
-    }
-  }
-  return "An internal error occurred";
-}
+// sanitizeErrorMessage は ../../utils/sanitize-error から統一インポート
+// Unified import from ../../utils/sanitize-error (CWE-209)
 
 // =====================================================
 // 結果フォーマット / Result formatting
@@ -225,6 +213,13 @@ export async function partSearchHandler(input: unknown): Promise<PartSearchOutpu
     throw error;
   }
 
+  // Search result cache check / 検索キャッシュチェック
+  const cacheKey = generateCacheKey("part.search", validated as unknown as Record<string, unknown>);
+  const cached = getCachedResult<PartSearchOutput>(cacheKey);
+  if (cached) {
+    return cached;
+  }
+
   // サービス取得 / Get service
   let searchService: ReturnType<typeof getPartSearchService>;
   try {
@@ -251,11 +246,18 @@ export async function partSearchHandler(input: unknown): Promise<PartSearchOutpu
     if (validated.part_type) {
       options.partType = validated.part_type;
     }
-
-    // WebページIDフィルタはPartSearchOptionsにないため、
-    // 将来的な拡張ポイントとして保持
-    // webPageId filter is not in PartSearchOptions yet,
-    // kept as future extension point
+    if (validated.web_page_id) {
+      options.webPageId = validated.web_page_id;
+    }
+    if (validated.tags && validated.tags.length > 0) {
+      options.tags = validated.tags;
+    }
+    if (validated.industry) {
+      options.industry = validated.industry;
+    }
+    if (validated.audience) {
+      options.audience = validated.audience;
+    }
 
     let result: PartSearchResult;
 
@@ -334,7 +336,7 @@ export async function partSearchHandler(input: unknown): Promise<PartSearchOutpu
       });
     }
 
-    return {
+    const searchOutput: PartSearchOutput = {
       success: true,
       data: {
         results: mappedResults,
@@ -346,20 +348,23 @@ export async function partSearchHandler(input: unknown): Promise<PartSearchOutpu
         searchTimeMs,
       },
     };
+    // Cache successful results / 成功結果をキャッシュ
+    setCachedResult(cacheKey, searchOutput);
+    return searchOutput;
   } catch (error) {
     const errorInstance = error instanceof Error ? error : new Error(String(error));
     const errorCode = mapErrorToCode(errorInstance);
 
     logger.warn("[MCP Tool] part.search error", {
       code: errorCode,
-      error: sanitizePartSearchError(error),
+      error: sanitizeErrorMessage(error),
     });
 
     return {
       success: false,
       error: {
         code: errorCode,
-        message: sanitizePartSearchError(error),
+        message: sanitizeErrorMessage(error),
       },
     };
   }
@@ -456,6 +461,23 @@ export const partSearchToolDefinition = {
         minimum: 0,
         maximum: 1,
         default: 0.3,
+      },
+      industry: {
+        type: "string",
+        description: "業種フィルター（例: tech, finance, healthcare） / Industry filter",
+        maxLength: 100,
+      },
+      audience: {
+        type: "string",
+        description:
+          "ターゲットオーディエンス（例: b2b, b2c, enterprise） / Target audience filter",
+        maxLength: 100,
+      },
+      tags: {
+        type: "array",
+        items: { type: "string", maxLength: 50 },
+        maxItems: 10,
+        description: "タグフィルター / Tag filter",
       },
     },
   },

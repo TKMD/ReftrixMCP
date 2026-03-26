@@ -164,6 +164,42 @@ function buildWhereClause(
     paramIndex++;
   }
 
+  // Common search filters (webPageId/webPageUrl/industry/audience)
+  if (filters?.webPageId) {
+    conditions.push(`dn.web_page_id = $${paramIndex}`);
+    params.push(filters.webPageId);
+    paramIndex++;
+  }
+
+  if (filters?.webPageUrl) {
+    conditions.push(`wp.url = $${paramIndex}`);
+    params.push(filters.webPageUrl);
+    paramIndex++;
+  }
+
+  if (filters?.tags && filters.tags.length > 0) {
+    conditions.push(`dn.tags @> $${paramIndex}::text[]`);
+    params.push(filters.tags);
+    paramIndex++;
+  }
+
+  // industry/audience: filter via quality_benchmarks EXISTS subquery
+  if (filters?.industry) {
+    conditions.push(
+      `EXISTS (SELECT 1 FROM quality_benchmarks qb WHERE qb.web_page_id = dn.web_page_id AND qb.industry = $${paramIndex})`
+    );
+    params.push(filters.industry);
+    paramIndex++;
+  }
+
+  if (filters?.audience) {
+    conditions.push(
+      `EXISTS (SELECT 1 FROM quality_benchmarks qb WHERE qb.web_page_id = dn.web_page_id AND qb.audience = $${paramIndex})`
+    );
+    params.push(filters.audience);
+    paramIndex++;
+  }
+
   return {
     conditions,
     params,
@@ -336,12 +372,10 @@ export class NarrativeSearchService {
 
       return results;
     } catch (error) {
-      if (isDevelopment()) {
-        logger.error("[NarrativeSearchService] Search error", {
-          error: error instanceof Error ? error.message : "Unknown error",
-          query: options.query,
-        });
-      }
+      logger.warn("[NarrativeSearchService] Search error", {
+        error: error instanceof Error ? error.message : "Unknown error",
+        query: options.query,
+      });
       throw error;
     }
   }
@@ -374,9 +408,7 @@ export class NarrativeSearchService {
     try {
       prisma = this.getPrismaClient();
     } catch {
-      if (isDevelopment()) {
-        logger.warn("[NarrativeSearchService] PrismaClient not available, returning empty");
-      }
+      logger.warn("[NarrativeSearchService] PrismaClient not available, returning empty");
       return [];
     }
 
@@ -496,11 +528,9 @@ export class NarrativeSearchService {
           );
         } catch (ftError) {
           // 全文検索の失敗はハイブリッド検索全体をブロックしない
-          if (isDevelopment()) {
-            logger.warn("[NarrativeSearchService] Full-text search failed, using vector only", {
-              error: ftError instanceof Error ? ftError.message : "Unknown error",
-            });
-          }
+          logger.warn("[NarrativeSearchService] Full-text search failed, using vector only", {
+            error: ftError instanceof Error ? ftError.message : "Unknown error",
+          });
           return [];
         }
       };
@@ -538,15 +568,10 @@ export class NarrativeSearchService {
 
       return results;
     } catch (error) {
-      if (isDevelopment()) {
-        logger.error(
-          "[NarrativeSearchService] Hybrid search error, falling back to vector search",
-          {
-            error: error instanceof Error ? error.message : "Unknown error",
-            query: queryText,
-          }
-        );
-      }
+      logger.warn("[NarrativeSearchService] Hybrid search error, falling back to vector search", {
+        error: error instanceof Error ? error.message : "Unknown error",
+        query: queryText,
+      });
       // フォールバック: ベクトル検索のみ
       return this.search(options);
     }
@@ -582,9 +607,7 @@ export class NarrativeSearchService {
     try {
       prisma = this.getPrismaClient();
     } catch {
-      if (isDevelopment()) {
-        logger.warn("[NarrativeSearchService] PrismaClient not available for vector search");
-      }
+      logger.warn("[NarrativeSearchService] PrismaClient not available for vector search");
       return [];
     }
 
@@ -629,11 +652,9 @@ export class NarrativeSearchService {
 
       return rows.map(mapRowToResult);
     } catch (error) {
-      if (isDevelopment()) {
-        logger.error("[NarrativeSearchService] Vector search error", {
-          error: error instanceof Error ? error.message : "Unknown error",
-        });
-      }
+      logger.warn("[NarrativeSearchService] Vector search error", {
+        error: error instanceof Error ? error.message : "Unknown error",
+      });
       throw error;
     }
   }
@@ -669,9 +690,7 @@ export class NarrativeSearchService {
     try {
       prisma = this.getPrismaClient();
     } catch {
-      if (isDevelopment()) {
-        logger.warn("[NarrativeSearchService] PrismaClient not available for mood search");
-      }
+      logger.warn("[NarrativeSearchService] PrismaClient not available for mood search");
       return [];
     }
 
@@ -700,12 +719,10 @@ export class NarrativeSearchService {
 
       return rows.map(mapRowToResult);
     } catch (error) {
-      if (isDevelopment()) {
-        logger.error("[NarrativeSearchService] MoodCategory search error", {
-          error: error instanceof Error ? error.message : "Unknown error",
-          moodCategories,
-        });
-      }
+      logger.warn("[NarrativeSearchService] MoodCategory search error", {
+        error: error instanceof Error ? error.message : "Unknown error",
+        moodCategories,
+      });
       throw error;
     }
   }

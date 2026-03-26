@@ -1,7 +1,7 @@
 # はじめに - Reftrixセットアップガイド / Getting Started - Reftrix Setup Guide
 
-**Version**: 0.1.0
-**Updated**: 2026-03-01
+**Version**: 0.2.0
+**Updated**: 2026-03-25
 
 ---
 
@@ -359,13 +359,13 @@ nano ~/.config/Claude/claude_desktop_config.json
 
 ## 5. ワーカーの起動 / Start Workers
 
-page.analyzeは非同期処理のため、ワーカープロセスの起動が必要です。
+page.analyzeは非同期処理のため、WorkerSupervisorが管理するワーカープロセスの起動が必要です。WorkerSupervisorは `autorun=false` で設定されており、`start-workers.ts` で明示的に `run()` を呼び出すことでワーカーが開始されます。
 
-Since page.analyze runs asynchronously, a worker process must be started.
+Since page.analyze runs asynchronously, a worker process managed by WorkerSupervisor must be started. WorkerSupervisor is configured with `autorun=false`, and workers are started by explicitly calling `run()` in `start-workers.ts`.
 
 ```bash
-# page.analyzeワーカー起動（WorkerSupervisor管理）
-# Start page.analyze worker (managed by WorkerSupervisor)
+# page.analyzeワーカー起動（WorkerSupervisor管理、start-workers.tsで明示的run()呼び出し）
+# Start page.analyze worker (managed by WorkerSupervisor, explicit run() via start-workers.ts)
 pnpm --filter @reftrixmcp/mcp-server worker:start:page
 ```
 
@@ -430,7 +430,7 @@ await mcp__reftrix__system_health({ detailed: true });
 
 Once setup is complete, refer to the following guides to utilize the features:
 
-- [MCPツール使用ガイド / MCP Tools Usage Guide](./02-mcp-tools-guide.md) - 26のMCPツールの使用方法 / How to use the 26 MCP tools
+- [MCPツール使用ガイド / MCP Tools Usage Guide](./02-mcp-tools-guide.md) - 28のMCPツールの使用方法 / How to use the 28 MCP tools
 - [page.analyze詳細ガイド / page.analyze Deep Dive](./03-page-analyze-deep-dive.md) - 統合分析の詳細 / Detailed unified analysis
 - [トラブルシューティングガイド / Troubleshooting Guide](./04-troubleshooting.md) - 問題解決 / Problem solving
 
@@ -475,11 +475,12 @@ pnpm build
 
 ### A. ポート一覧 / Port List
 
-| サービス / Service | ポート / Port | 説明 / Description                                        |
-| ------------------ | ------------- | --------------------------------------------------------- |
-| PostgreSQL         | 26432         | データベース（pgvector）/ Database (pgvector)             |
-| Redis              | 27379         | BullMQジョブキューバックエンド / BullMQ job queue backend |
-| Prisma Studio      | 26555         | データベース管理UI / Database management UI               |
+| サービス / Service | ポート / Port | 説明 / Description                                              |
+| ------------------ | ------------- | --------------------------------------------------------------- |
+| PostgreSQL         | 26432         | データベース（pgvector）/ Database (pgvector)                   |
+| Redis              | 27379         | BullMQジョブキューバックエンド / BullMQ job queue backend       |
+| Prisma Studio      | 26555         | データベース管理UI / Database management UI                     |
+| BullMQ UI          | 21080         | 非同期ジョブ監視ダッシュボード / Async job monitoring dashboard |
 
 ### B. 環境変数一覧 / Environment Variables
 
@@ -503,7 +504,8 @@ pnpm build
 ```
 reftrix/
 ├── apps/
-│   └── mcp-server/         # MCPサーバー（26ツール）/ MCP server (26 tools)
+│   ├── mcp-server/         # MCPサーバー（28ツール）/ MCP server (28 tools)
+│   └── cli/                # スタンドアロンCLI（MCP非依存）/ Standalone CLI (MCP-independent)
 ├── packages/
 │   ├── database/           # Prismaスキーマ・マイグレーション / Prisma schema & migrations
 │   ├── core/               # コアドメインロジック / Core domain logic

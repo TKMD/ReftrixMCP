@@ -26,6 +26,7 @@ import {
 } from "../services/style/palette-service";
 import { createLogger, isDevelopment } from "../utils/logger";
 import { McpError, ErrorCode } from "../utils/errors";
+import { sanitizeErrorMessage } from "../utils/sanitize-error";
 import { prisma } from "@reftrixmcp/database";
 
 // =============================================================================
@@ -47,11 +48,9 @@ function createDefaultPaletteService(): IPaletteService {
   try {
     return createPaletteServiceWithDb(prisma);
   } catch (error) {
-    if (isDevelopment()) {
-      logger.warn("Failed to create DB-backed PaletteService, falling back to in-memory", {
-        error,
-      });
-    }
+    logger.warn("Failed to create DB-backed PaletteService, falling back to in-memory", {
+      error: (error as Error).message,
+    });
     return new PaletteService();
   }
 }
@@ -156,9 +155,7 @@ export async function styleGetPaletteHandler(input: unknown): Promise<StyleGetPa
 
       // IDの形式エラー
       if (firstError?.path.includes("id")) {
-        if (isDevelopment()) {
-          logger.error("Invalid palette ID format", { errors: error.errors });
-        }
+        logger.warn("Invalid palette ID format", { errors: error.errors });
         return createErrorResponse(
           "CREATIVE_INVALID_PALETTE_ID",
           `無効なパレットID形式です: ${firstError.message}`,
@@ -169,9 +166,7 @@ export async function styleGetPaletteHandler(input: unknown): Promise<StyleGetPa
       // その他のバリデーションエラー
       const errorMessage = error.errors.map((e) => `${e.path.join(".")}: ${e.message}`).join(", ");
 
-      if (isDevelopment()) {
-        logger.error("Validation error", { errors: error.errors });
-      }
+      logger.warn("Validation error", { errors: error.errors });
 
       return createErrorResponse("VALIDATION_ERROR", `入力バリデーションエラー: ${errorMessage}`);
     }
@@ -200,9 +195,9 @@ export async function styleGetPaletteHandler(input: unknown): Promise<StyleGetPa
 
     return createSuccessResponse(result);
   } catch (error) {
-    if (isDevelopment()) {
-      logger.error("style.get_palette error", { error });
-    }
+    logger.error("style.get_palette error", {
+      error: error instanceof Error ? error.message : String(error),
+    });
 
     // エラーメッセージを取得
     const errorMessage = error instanceof Error ? error.message : String(error);
@@ -227,7 +222,7 @@ export async function styleGetPaletteHandler(input: unknown): Promise<StyleGetPa
 
     // McpErrorの場合
     if (error instanceof McpError) {
-      return createErrorResponse(error.code, error.message);
+      return createErrorResponse(error.code, sanitizeErrorMessage(error));
     }
 
     // 予期しないエラー

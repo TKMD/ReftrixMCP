@@ -1,6 +1,6 @@
 {
   "name": "reftrixmcp",
-  "version": "0.1.8",
+  "version": "0.2.0",
   "private": true,
   "type": "module",
   "description": "WebDesign Knowledge Base Platform - Layout Analysis, Motion Detection, and Quality Evaluation with AI",
@@ -48,7 +48,9 @@
       "@modelcontextprotocol/sdk>ajv": ">=8.18.0",
       "express-rate-limit": ">=8.2.2",
       "flatted": ">=3.4.2",
-      "effect": ">=3.20.0"
+      "effect": ">=3.20.0",
+      "picomatch": ">=4.0.4",
+      "yaml": ">=2.8.3"
     }
   },
   "engines": {
@@ -80,9 +82,12 @@
     "docker:logs": "docker compose -f docker/docker-compose.yml logs -f",
     "db:backup": "bash scripts/db-backup.sh",
     "db:restore": "bash scripts/db-restore.sh",
+    "db:migrate:safe": "bash scripts/db-migrate-safe.sh",
+    "sbom": "cdxgen --output sbom.cdx.json --spec-version 1.6",
     "prepare": "husky"
   },
   "devDependencies": {
+    "@cyclonedx/cdxgen": "^12.1.2",
     "husky": "^9.1.0",
     "playwright": "^1.57.0",
     "turbo": "^2.5.0"

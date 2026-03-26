@@ -319,14 +319,9 @@ export async function saveFrameAnalysisToDb(
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
 
-    if (isDevelopment()) {
-      logger.warn(
-        "[FrameAnalysisSaveHelper] Frame analysis DB save failed (graceful degradation)",
-        {
-          error: errorMessage,
-        }
-      );
-    }
+    logger.warn("[FrameAnalysisSaveHelper] Frame analysis DB save failed (graceful degradation)", {
+      error: errorMessage,
+    });
 
     return { saved: false, error: errorMessage };
   }

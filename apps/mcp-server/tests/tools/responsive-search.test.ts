@@ -30,6 +30,7 @@ import {
   type IResponsiveSearchService,
   type ResponsiveSearchResultItem,
 } from "../../src/tools/responsive/search.tool";
+import { invalidateCache } from "../../src/services/search-cache.service";
 
 import {
   responsiveSearchInputSchema,
@@ -133,6 +134,7 @@ function createMockService(
 describe("responsive.search MCPツール", () => {
   beforeEach(() => {
     resetResponsiveSearchServiceFactory();
+    invalidateCache();
   });
 
   afterEach(() => {

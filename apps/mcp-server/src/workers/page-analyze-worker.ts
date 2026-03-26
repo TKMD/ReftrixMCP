@@ -21,12 +21,12 @@
  * 2. extendJobLock: explicit lock extension at async phase boundaries
  * Together they provide dual-layer stall prevention for long-running jobs (30+ minutes).
  *
- * Architecture (v0.1.10+, TDA-C1 refactoring):
+ * Architecture (v0.2.0+, Phase 1/3 parallelization):
  * This file is a thin orchestrator. Phase logic lives in ./phases/:
  *   phase-0-ingest.ts  — HTML ingest + WebPage DB save
- *   phase-1-layout.ts  — Layout Analysis + Part Extraction
+ *   phase-1-layout.ts  — Layout Analysis + Part Extraction        ┐ Promise.all
+ *   phase-3-quality.ts — Quality Evaluation                       ┘ (parallel)
  *   phase-2-motion.ts  — Scroll Vision + Motion Detection + Scroll Vision Analysis
- *   phase-3-quality.ts — Quality Evaluation
  *   phase-4-narrative.ts — Narrative Analysis + Responsive Analysis
  *   phase-5-embedding.ts — Embedding Generation (text + visual)
  * Shared types/constants/helpers are in ./phases/types.ts.
@@ -346,17 +346,42 @@ async function processPageAnalyzeJob(
     });
 
     // =====================================================
-    // Phase 1: Layout Analysis + Phase 1.1: Part Extraction
+    // Phase 1 + Phase 3 並列実行 / Parallel Phase 1 + Phase 3
     // =====================================================
-    await processLayoutPhase(state, ctx, {
-      defaultAnalyzeLayout: defaultAnalyzeLayout as never,
-      saveBackgroundDesigns,
-      saveSectionPatterns,
-      postProcessSections,
-      extractPartsFromSection: extractPartsFromSection as never,
-      saveExtractedParts: saveExtractedParts as never,
-      prisma,
-    });
+    // Phase 3 (Quality) は state.html のみに依存し、Phase 1 (Layout) の
+    // 出力（layoutResultForNarrative, sectionSaveResult 等）を参照しない。
+    // 両フェーズは PipelineState 内の異なるフィールドに書き込むため、
+    // 同一オブジェクトへの同時書き込み競合は発生しない:
+    //   Phase 1: layoutResultForNarrative, sectionSaveResult, bgSaveResult, results.layout
+    //   Phase 3: memoryAborted, narrativePreDisabled, visionPreDisabled, results.quality
+    // completedPhases/failedPhases への Array.push() は Node.js
+    // シングルスレッドイベントループにおいて同期的に完了するため安全。
+    // statusTracker は phase ごとに独立スロットを使用するため並列呼び出し安全。
+    //
+    // Phase 3 (Quality) depends only on state.html (set by Phase 0).
+    // It does NOT read Phase 1 outputs (layoutResultForNarrative, sectionSaveResult, etc.).
+    // Both phases write to distinct PipelineState fields, preventing concurrent
+    // write conflicts. Array.push() on completedPhases/failedPhases is safe
+    // in Node.js single-threaded event loop (synchronous completion).
+    // statusTracker uses independent slots per phase, safe for parallel calls.
+    await Promise.all([
+      processLayoutPhase(state, ctx, {
+        defaultAnalyzeLayout: defaultAnalyzeLayout as never,
+        saveBackgroundDesigns,
+        saveSectionPatterns,
+        postProcessSections,
+        extractPartsFromSection: extractPartsFromSection as never,
+        saveExtractedParts: saveExtractedParts as never,
+        prisma,
+      }),
+      processQualityPhase(state, ctx, {
+        defaultEvaluateQuality: defaultEvaluateQuality as never,
+        saveQualityEvaluation,
+        saveQualityBenchmarks,
+        buildQualityBenchmarkInputs,
+        prisma,
+      }),
+    ]);
 
     // =====================================================
     // Ollama Vision Unload (1st point): After Phase 1 / before Phase 1.5
@@ -381,17 +406,6 @@ async function processPageAnalyzeJob(
       saveFrameAnalysisToDb,
       gpuResourceManager,
       pageIngestAdapter,
-      prisma,
-    });
-
-    // =====================================================
-    // Phase 3: Quality Evaluation
-    // =====================================================
-    await processQualityPhase(state, ctx, {
-      defaultEvaluateQuality: defaultEvaluateQuality as never,
-      saveQualityEvaluation,
-      saveQualityBenchmarks,
-      buildQualityBenchmarkInputs,
       prisma,
     });
 

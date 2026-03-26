@@ -197,13 +197,11 @@ async function processBatchQualityJob(
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error);
 
-        if (isDevelopment()) {
-          logger.warn("[BatchQualityWorker] Item evaluation failed", {
-            batchJobId: jobId,
-            itemIndex: item.index,
-            error: errorMessage,
-          });
-        }
+        logger.warn("[BatchQualityWorker] Item evaluation failed", {
+          batchJobId: jobId,
+          itemIndex: item.index,
+          error: errorMessage,
+        });
 
         return {
           index: item.index,

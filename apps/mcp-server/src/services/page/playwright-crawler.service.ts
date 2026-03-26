@@ -186,14 +186,12 @@ export class PlaywrightCrawlerService {
         await this.browser.contexts();
       } catch (error) {
         // ブラウザがクローズ済みの場合はリセット
-        if (isDevelopment()) {
-          logger.warn(
-            "[PlaywrightCrawlerService] Browser was closed unexpectedly, resetting instance",
-            {
-              error: error instanceof Error ? error.message : String(error),
-            }
-          );
-        }
+        logger.warn(
+          "[PlaywrightCrawlerService] Browser was closed unexpectedly, resetting instance",
+          {
+            error: error instanceof Error ? error.message : String(error),
+          }
+        );
         this.browser = null;
       }
     }
@@ -328,9 +326,7 @@ export class PlaywrightCrawlerService {
         screenshot,
       };
     } catch (error) {
-      if (isDevelopment()) {
-        logger.error("[PlaywrightCrawlerService] crawl error", { url, error });
-      }
+      logger.warn("[PlaywrightCrawlerService] crawl error", { url, error });
 
       // ブラウザがクローズされたエラーの場合はインスタンスをリセット
       // "Target page, context or browser has been closed" エラーに対応
@@ -342,15 +338,13 @@ export class PlaywrightCrawlerService {
           error.message.includes("context has been closed");
 
         if (isBrowserClosedError) {
-          if (isDevelopment()) {
-            logger.warn(
-              "[PlaywrightCrawlerService] Browser closed error detected, resetting instance",
-              {
-                url,
-                error: error.message,
-              }
-            );
-          }
+          logger.warn(
+            "[PlaywrightCrawlerService] Browser closed error detected, resetting instance",
+            {
+              url,
+              error: error.message,
+            }
+          );
           // ブラウザインスタンスをリセット（次回呼び出し時に再起動）
           this.browser = null;
           throw new CrawlError(`Browser was closed unexpectedly. Please retry: ${error.message}`);

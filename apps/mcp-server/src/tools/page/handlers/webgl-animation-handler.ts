@@ -10,6 +10,7 @@
 
 import { chromium, type Browser, type Page } from "playwright";
 import { logger, isDevelopment } from "../../../utils/logger";
+import { sanitizeErrorMessage } from "../../../utils/sanitize-error";
 import { WEBGL_BROWSER_ARGS } from "../../../utils/gpu-browser-args";
 import {
   WebGLAnimationDetectorService,
@@ -249,11 +250,9 @@ export async function executeWebGLAnimationDetection(
         }
       } catch (dbError) {
         // DB保存エラーは警告のみ、検出結果は返す
-        if (isDevelopment()) {
-          logger.warn("[webgl-animation-handler] Failed to save WebGL animation embeddings", {
-            error: dbError instanceof Error ? dbError.message : "Unknown error",
-          });
-        }
+        logger.warn("[webgl-animation-handler] Failed to save WebGL animation embeddings", {
+          error: dbError instanceof Error ? dbError.message : "Unknown error",
+        });
       }
     }
 
@@ -274,18 +273,16 @@ export async function executeWebGLAnimationDetection(
   } catch (error) {
     const processingTimeMs = Date.now() - startTime;
 
-    if (isDevelopment()) {
-      logger.error("[webgl-animation-handler] WebGL animation detection failed", {
-        error: error instanceof Error ? error.message : "Unknown error",
-        url,
-        processingTimeMs,
-      });
-    }
+    logger.warn("[webgl-animation-handler] WebGL animation detection failed", {
+      error: error instanceof Error ? error.message : "Unknown error",
+      url,
+      processingTimeMs,
+    });
 
     return {
       webgl_animation_error: {
         code: "WEBGL_DETECTION_FAILED",
-        message: error instanceof Error ? error.message : "WebGL animation detection failed",
+        message: sanitizeErrorMessage(error),
       },
     };
   } finally {

@@ -1,4 +1,7 @@
 #!/usr/bin/env bash
+# SPDX-FileCopyrightText: 2026 TKMD and Reftrix Contributors
+# SPDX-License-Identifier: AGPL-3.0-only
+
 # Reftrix PostgreSQL バックアップスクリプト
 # pg_dump (custom format, zstd圧縮) でバックアップ
 # 7世代ローテーション

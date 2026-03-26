@@ -28,13 +28,15 @@ import {
   isProductionEnvironment,
 } from "./services/production-guard";
 import { embeddingService } from "@reftrixmcp/ml";
-import { prisma } from "@reftrixmcp/database";
+import { prisma, enableHnswIterativeScan } from "@reftrixmcp/database";
 import { webPageService } from "./services/web-page.service";
 import {
   initializeAllServices,
   type ServiceInitializerConfig,
 } from "./services/service-initializer";
 import { getWorkerSupervisor } from "./services/worker-supervisor.service";
+import { getBullBoardConfig, startBullBoard } from "./admin/bull-board";
+import type { Server } from "http";
 
 /**
  * メイン関数
@@ -70,6 +72,11 @@ async function main(): Promise<void> {
     }
 
     logger.info("[Main] Service factories registered via initializeAllServices()");
+
+    // pgvector 0.8 HNSW iterative scan 有効化
+    // Reduces search latency P95 by ~50% with 95-99% result quality
+    await enableHnswIterativeScan(prisma);
+    logger.info("[Main] pgvector HNSW iterative scan enabled (relaxed_order)");
 
     // 本番環境では認証を強制（MCP-AUTH-01）
     // NODE_ENV=production かつ MCP_AUTH_ENABLED!==true の場合、起動を失敗させる
@@ -138,6 +145,22 @@ async function main(): Promise<void> {
     logger.info("StdIO transport is ready to accept connections");
     logger.info("MCP Server is ready (StdIO Mode)");
 
+    // =====================================================
+    // BullMQ Board UI（オプション）
+    // =====================================================
+    // BULLMQ_UI_ENABLED=true かつ認証情報設定時のみ起動
+    let bullBoardServer: Server | null = null;
+    if (process.env.BULLMQ_UI_ENABLED === "true") {
+      const bullBoardConfig = getBullBoardConfig();
+      if (bullBoardConfig) {
+        bullBoardServer = await startBullBoard(bullBoardConfig);
+      } else {
+        logger.warn(
+          "[Main] BullMQ UI enabled but BULLMQ_UI_USER/BULLMQ_UI_PASSWORD not set — UI disabled"
+        );
+      }
+    }
+
     // プロセス終了シグナルのハンドリング
     const handleShutdown = async (): Promise<void> => {
       logger.info("Shutting down server...");
@@ -155,6 +178,14 @@ async function main(): Promise<void> {
             error:
               supervisorError instanceof Error ? supervisorError.message : String(supervisorError),
           });
+        }
+
+        // Bull Board UI を停止
+        if (bullBoardServer) {
+          await new Promise<void>((resolve) => {
+            bullBoardServer!.close(() => resolve());
+          });
+          logger.info("BullBoard UI shutdown complete");
         }
 
         // StdIO Serverを停止

@@ -631,7 +631,8 @@ describe("motion.detect Frame Image Analysis (Phase5)", () => {
         // frame_analysis_errorが含まれていること
         expect(result.data.frame_analysis_error).toBeDefined();
         expect(result.data.frame_analysis_error?.code).toBe("FRAME_ANALYSIS_ERROR");
-        expect(result.data.frame_analysis_error?.message).toContain("Frame loading failed");
+        // CWE-209: sanitizeErrorMessage() returns generic message to prevent internal structure leakage
+        expect(result.data.frame_analysis_error?.message).toBe("An internal error occurred");
       }
     });
 

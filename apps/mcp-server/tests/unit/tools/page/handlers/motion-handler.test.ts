@@ -256,7 +256,7 @@ describe("Motion Handler Unit Tests", () => {
       expect(result.success).toBe(false);
       expect(result.error).toBeDefined();
       expect(result.error?.code).toBe("MOTION_DETECTION_FAILED");
-      expect(result.error?.message).toBe("Detection failed");
+      expect(result.error?.message).toBe("An internal error occurred");
     });
 
     it("should add CSS_NO_ANIMATIONS_DETECTED warning when no patterns found", async () => {

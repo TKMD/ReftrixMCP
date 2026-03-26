@@ -17,6 +17,7 @@
 import { ZodError } from "zod";
 import { createDIFactory } from "../../utils/di-factory";
 import { logger, isDevelopment } from "../../utils/logger";
+import { sanitizeErrorMessage } from "../../utils/sanitize-error";
 import {
   responsiveSearchInputSchema,
   RESPONSIVE_MCP_ERROR_CODES,
@@ -29,6 +30,11 @@ import type {
 } from "../../services/responsive-search.service";
 import { applyPreferenceReranking } from "../../services/preference-rerank.helper";
 import type { IPrismaClient } from "../../services/preference-profile.service";
+import {
+  generateCacheKey,
+  getCachedResult,
+  setCachedResult,
+} from "../../services/search-cache.service";
 
 // =====================================================
 // 型定義
@@ -132,11 +138,9 @@ export async function responsiveSearchHandler(input: unknown): Promise<Responsiv
     if (error instanceof ZodError) {
       const errorMessage = error.errors.map((e) => `${e.path.join(".")}: ${e.message}`).join(", ");
 
-      if (isDevelopment()) {
-        logger.error("[MCP Tool] responsive.search validation error", {
-          errors: error.errors,
-        });
-      }
+      logger.warn("[MCP Tool] responsive.search validation error", {
+        error: (error as Error).message,
+      });
 
       return {
         success: false,
@@ -165,6 +169,16 @@ export async function responsiveSearchHandler(input: unknown): Promise<Responsiv
   }
 
   const service = responsiveSearchServiceDI.get()!();
+
+  // キャッシュチェック / Cache check
+  const cacheKey = generateCacheKey(
+    "responsive.search",
+    validated as unknown as Record<string, unknown>
+  );
+  const cached = getCachedResult<ResponsiveSearchOutput>(cacheKey);
+  if (cached) {
+    return cached;
+  }
 
   try {
     // E5 モデル用 query: プレフィックスを付与
@@ -221,6 +235,18 @@ export async function responsiveSearchHandler(input: unknown): Promise<Responsiv
       if (validated.filters.webPageId) {
         filters.webPageId = validated.filters.webPageId;
       }
+      if (validated.filters.webPageUrl) {
+        filters.webPageUrl = validated.filters.webPageUrl;
+      }
+      if (validated.filters.industry) {
+        filters.industry = validated.filters.industry;
+      }
+      if (validated.filters.audience) {
+        filters.audience = validated.filters.audience;
+      }
+      if (validated.filters.tags && validated.filters.tags.length > 0) {
+        filters.tags = validated.filters.tags;
+      }
       if (Object.keys(filters).length > 0) {
         searchOptions.filters = filters;
       }
@@ -268,7 +294,7 @@ export async function responsiveSearchHandler(input: unknown): Promise<Responsiv
       "responsive.search"
     );
 
-    return {
+    const result: ResponsiveSearchOutput = {
       success: true,
       data: {
         results: mappedResults,
@@ -277,22 +303,23 @@ export async function responsiveSearchHandler(input: unknown): Promise<Responsiv
         searchTimeMs,
       },
     };
+
+    setCachedResult(cacheKey, result);
+    return result;
   } catch (error) {
     const errorInstance = error instanceof Error ? error : new Error(String(error));
     const errorCode = mapErrorToCode(errorInstance);
 
-    if (isDevelopment()) {
-      logger.error("[MCP Tool] responsive.search error", {
-        code: errorCode,
-        error: errorInstance.message,
-      });
-    }
+    logger.error("[MCP Tool] responsive.search error", {
+      code: errorCode,
+      error: errorInstance.message,
+    });
 
     return {
       success: false,
       error: {
         code: errorCode,
-        message: errorInstance.message,
+        message: sanitizeErrorMessage(error),
       },
     };
   }
@@ -379,6 +406,28 @@ export const responsiveSearchToolDefinition = {
             type: "string",
             format: "uuid",
             description: "WebページIDでフィルター",
+          },
+          webPageUrl: {
+            type: "string",
+            format: "uri",
+            description: "WebページURLでフィルター / Filter by web page URL",
+          },
+          industry: {
+            type: "string",
+            description: "業種フィルター（例: tech, finance, healthcare） / Industry filter",
+            maxLength: 100,
+          },
+          audience: {
+            type: "string",
+            description:
+              "ターゲットオーディエンス（例: b2b, b2c, enterprise） / Target audience filter",
+            maxLength: 100,
+          },
+          tags: {
+            type: "array",
+            items: { type: "string", maxLength: 50 },
+            maxItems: 10,
+            description: "タグフィルター / Tag filter",
           },
         },
       },

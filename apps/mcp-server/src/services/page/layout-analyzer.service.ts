@@ -441,11 +441,9 @@ export function applyComputedStylesToHtml(
     const result = $("body").html();
     return result || htmlSnippet;
   } catch (error) {
-    if (isDevelopment()) {
-      logger.warn("[LayoutAnalyzerService] Failed to apply computed styles to HTML", {
-        error: error instanceof Error ? error.message : "Unknown error",
-      });
-    }
+    logger.warn("[LayoutAnalyzerService] Failed to apply computed styles to HTML", {
+      error: error instanceof Error ? error.message : "Unknown error",
+    });
     // エラー時は元のHTMLをそのまま返す
     return htmlSnippet;
   }
@@ -822,9 +820,7 @@ function extractExternalCssUrls($: CheerioAPI, baseUrl: string): string[] {
         urls.push(absoluteUrl);
       } catch {
         // URLが無効な場合はスキップ
-        if (isDevelopment()) {
-          logger.warn("[LayoutAnalyzerService] Invalid CSS URL", { href: trimmedHref, baseUrl });
-        }
+        logger.warn("[LayoutAnalyzerService] Invalid CSS URL", { href: trimmedHref, baseUrl });
       }
     }
   });
@@ -984,19 +980,17 @@ async function extractCssWithExternalContent(
       }
     } catch (overallFetchError) {
       // 全体タイムアウト: Graceful Degradation（インラインCSSのみで分析を継続）
-      if (isDevelopment()) {
-        logger.warn(
-          "[LayoutAnalyzerService] External CSS fetch overall timeout (graceful degradation)",
-          {
-            error:
-              overallFetchError instanceof Error
-                ? overallFetchError.message
-                : String(overallFetchError),
-            urlCount: externalCssUrls.length,
-            timeoutMs: EXTERNAL_CSS_OVERALL_TIMEOUT_MS,
-          }
-        );
-      }
+      logger.warn(
+        "[LayoutAnalyzerService] External CSS fetch overall timeout (graceful degradation)",
+        {
+          error:
+            overallFetchError instanceof Error
+              ? overallFetchError.message
+              : String(overallFetchError),
+          urlCount: externalCssUrls.length,
+          timeoutMs: EXTERNAL_CSS_OVERALL_TIMEOUT_MS,
+        }
+      );
       // fetchResult はデフォルト値のまま（successCount: 0）
     }
   }
@@ -2264,11 +2258,9 @@ export class LayoutAnalyzerService {
         coreSections = await this.sectionDetector.detect(html);
       } catch (detectionError) {
         // 検出エラーでも続行（空の配列で続ける）
-        if (isDevelopment()) {
-          logger.warn("[LayoutAnalyzerService] Section detection error", {
-            error: detectionError,
-          });
-        }
+        logger.warn("[LayoutAnalyzerService] Section detection error", {
+          error: detectionError,
+        });
         coreSections = [];
       }
 
@@ -2419,9 +2411,7 @@ export class LayoutAnalyzerService {
     } catch (error) {
       const processingTimeMs = Date.now() - startTime;
 
-      if (isDevelopment()) {
-        logger.error("[LayoutAnalyzerService] analyze error", { error });
-      }
+      logger.warn("[LayoutAnalyzerService] analyze error", { error });
 
       return {
         success: true, // エラーでもグレースフルに成功として返す

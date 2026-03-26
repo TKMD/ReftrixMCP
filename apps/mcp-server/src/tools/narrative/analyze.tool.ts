@@ -20,6 +20,7 @@
 import { ZodError } from "zod";
 import { createDIFactory } from "../../utils/di-factory";
 import { logger, isDevelopment } from "../../utils/logger";
+import { sanitizeErrorMessage } from "../../utils/sanitize-error";
 import {
   narrativeAnalyzeInputSchema,
   NARRATIVE_MCP_ERROR_CODES,
@@ -306,9 +307,7 @@ export async function narrativeAnalyzeHandler(input: unknown): Promise<Narrative
         message: e.message,
       }));
 
-      if (isDevelopment()) {
-        logger.warn("[narrative.analyze] Validation error", { details });
-      }
+      logger.warn("[narrative.analyze] Validation error", { details });
 
       return {
         success: false,
@@ -324,19 +323,16 @@ export async function narrativeAnalyzeHandler(input: unknown): Promise<Narrative
     if (error instanceof Error) {
       const errorCode = mapErrorToCode(error);
 
-      if (isDevelopment()) {
-        logger.error("[narrative.analyze] Error", {
-          code: errorCode,
-          message: error.message,
-          stack: error.stack,
-        });
-      }
+      logger.warn("[narrative.analyze] Error", {
+        code: errorCode,
+        message: sanitizeErrorMessage(error),
+      });
 
       return {
         success: false,
         error: {
           code: errorCode,
-          message: error.message,
+          message: sanitizeErrorMessage(error),
         },
       };
     }
