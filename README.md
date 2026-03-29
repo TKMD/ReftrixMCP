@@ -192,3 +192,8 @@ See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 Report vulnerabilities per [SECURITY.md](SECURITY.md).
 Privacy: [docs/legal/PRIVACY_POLICY.md](docs/legal/PRIVACY_POLICY.md) | Profiling privacy: [apps/mcp-server/PRIVACY.md](apps/mcp-server/PRIVACY.md) | Data retention: [apps/mcp-server/DATA_RETENTION.md](apps/mcp-server/DATA_RETENTION.md) | Third-party licenses: [THIRDPARTY_LICENSES.md](THIRDPARTY_LICENSES.md)
+
+## Hosted deployment
+
+A hosted deployment is available on [Fronteir AI](https://fronteir.ai/mcp/tkmd-reftrixmcp).
+
