@@ -31,6 +31,9 @@ env:
   # onnxruntime-node postinstall attempts to download CUDA binaries which can fail with 503
   ONNXRUNTIME_NODE_INSTALL_CUDA: "skip"
 
+permissions:
+  contents: read
+
 jobs:
   # Lint and Type Check
   lint:

@@ -438,8 +438,8 @@ export class CssVariableResolver {
    */
   private wasFallbackUsed(original: string, _resolved: string): boolean {
     // フォールバック付きのvar()を検索
-    // ReDoS-safe: [^)]+\s*\) を [^)]+ に書き換え、trim()で末尾スペース処理
-    const fallbackPattern = /var\s*\(\s*(--[\w-]+)\s*,\s*([^)]+)\)/gi;
+    // ReDoS-safe: [^)]{1,1000} で長さ制限（CodeQL js/polynomial-redos 対策）
+    const fallbackPattern = /var\s*\(\s*(--[\w-]+)\s*,\s*([^)]{1,1000})\)/gi;
     let match: RegExpExecArray | null;
 
     while ((match = fallbackPattern.exec(original)) !== null) {

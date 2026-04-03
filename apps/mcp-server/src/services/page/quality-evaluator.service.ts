@@ -592,8 +592,8 @@ function evaluateOriginality(
   // ===================================
 
   // カスタムカラーパレット検出（CSS変数での色定義）
-  // ReDoS-safe: [a-z-]* の連続を \S+ に書き換え（CSS変数名はスペースを含まない）
-  const customColorVars = html.match(/--\S*color\S*:\s*#[0-9a-fA-F]{6}/gi);
+  // ReDoS-safe: [\w-]* で文字クラスを限定（CodeQL js/polynomial-redos 対策）
+  const customColorVars = html.match(/--[\w-]*color[\w-]*:\s*#[0-9a-fA-F]{6}/gi);
   if (customColorVars && customColorVars.length >= 3) {
     score += SCORE_ADJUSTMENTS.CUSTOM_COLOR_PALETTE_BONUS;
     details.push(`CSS変数でカラーパレット定義（+${SCORE_ADJUSTMENTS.CUSTOM_COLOR_PALETTE_BONUS}）`);
@@ -626,23 +626,23 @@ function evaluateCraftsmanship(html: string): { score: number; details: string[]
   const details: string[] = [];
 
   // === セマンティックHTML評価 ===
-  // ReDoS-safe: [^>]* を1つに統合（role属性はオプショナルでタグ存在検出が目的）
-  if (/<header[^>]*>/i.test(html)) {
+  // ReDoS-safe: [^>]{0,1000} で長さ制限（CodeQL js/polynomial-redos 対策）
+  if (/<header[^>]{0,1000}>/i.test(html)) {
     score += SCORE_ADJUSTMENTS.SEMANTIC_HEADER_BONUS;
     details.push("セマンティックなheader使用");
   }
 
-  if (/<main[^>]*>/i.test(html)) {
+  if (/<main[^>]{0,1000}>/i.test(html)) {
     score += SCORE_ADJUSTMENTS.SEMANTIC_MAIN_BONUS;
     details.push("セマンティックなmain使用");
   }
 
-  if (/<nav[^>]*>/i.test(html)) {
+  if (/<nav[^>]{0,1000}>/i.test(html)) {
     score += SCORE_ADJUSTMENTS.SEMANTIC_NAV_BONUS;
     details.push("セマンティックなnav使用");
   }
 
-  if (/<footer[^>]*>/i.test(html)) {
+  if (/<footer[^>]{0,1000}>/i.test(html)) {
     score += SCORE_ADJUSTMENTS.SEMANTIC_FOOTER_BONUS;
     details.push("セマンティックなfooter使用");
   }
