@@ -16,7 +16,7 @@ Reftrix MCP Server provides web design layout analysis, motion detection, and qu
 - **モーション検出**: CSSアニメーション/トランジション検出
 - **品質評価**: デザイン品質3軸評価（独自性・技巧・文脈適合性）
 - **コード生成**: セクションパターンからReact/Vue/HTML生成
-- **統合Web分析**: `page.analyze` による Layout + Motion + Quality 一括分析（非同期、BullMQ）
+- **統合Web分析**: `page.analyze` による Layout + Motion + Quality + Responsive 一括分析（非同期、BullMQ）+ opt-in Phase 7.5（`accessibilityOptions` / `performanceOptions` / `auto_snapshot`）
 - **ナラティブ検索**: 世界観・レイアウト構成セマンティック検索
 - **バックグラウンド検索**: BackgroundDesignセマンティック検索
 - **横断検索**: `search.unified` による5サービス並列統合検索
@@ -80,7 +80,7 @@ pnpm start
 }
 ```
 
-## MCPツール一覧（28ツール） / MCP Tool List (28 Tools)
+## MCPツール一覧（<!-- gen:tool-count -->35<!-- /gen:tool-count -->ツール） / MCP Tool List (<!-- gen:tool-count -->35<!-- /gen:tool-count --> Tools)
 
 ### Layoutツール（5ツール） / Layout Tools (5 Tools)
 
@@ -329,39 +329,7 @@ Webデザインの品質を3軸（独自性・技巧・文脈適合性）で評�
 
 > **Note**: Service層（`executeQualityEvaluate`）のレスポンスでは `overallScore`, `axisScores.originality.score` 等の形式で返却されます。MCPツールの生レスポンスは上記の `data.overall`, `data.originality.score` 形式です。
 
-#### `quality.batch_evaluate` - 一括品質評価 / Batch Quality Evaluation
-
-複数ページを一括で品質評価します（最大100件）。 / Batch-evaluates quality for multiple pages (up to 100).
-
-#### `quality.getJobStatus` - バッチ評価ジョブステータス確認 / Batch Evaluation Job Status
-
-`quality.batch_evaluate` で開始した非同期ジョブのステータスを確認します。 / Checks the status of async jobs started by `quality.batch_evaluate`.
-
-**入力スキーマ**:
-
-```typescript
-{
-  job_id: string; // ジョブID（UUID形式、必須）
-}
-```
-
-**レスポンス**:
-
-```typescript
-{
-  job_id: string;
-  state: 'waiting' | 'active' | 'completed' | 'failed';
-  progress: number;         // 進捗率（0-100）
-  items: {
-    total: number;
-    processed: number;
-    success: number;
-    failed: number;
-  };
-  results?: Array<object>;  // 完了時のみ
-  error?: object;           // 失敗時のみ
-}
-```
+> **[REMOVED v0.3.0]** `quality.batch_evaluate` and `quality.getJobStatus` have been removed. Use `quality.evaluate` in a loop instead.
 
 ---
 
@@ -389,18 +357,6 @@ Webデザインの品質を3軸（独自性・技巧・文脈適合性）で評�
 #### `brief.validate` - デザインブリーフ検証 / Design Brief Validation
 
 デザインブリーフを検証し、完成度スコアと改善提案を返します。 / Validates design briefs and returns completeness scores and improvement suggestions.
-
----
-
-### Projectツール（2ツール） / Project Tools (2 Tools)
-
-#### `project.get` - プロジェクト詳細取得 / Project Detail Retrieval
-
-ID指定でプロジェクトの詳細情報を取得します。 / Retrieves project details by ID.
-
-#### `project.list` - プロジェクト一覧取得 / Project List Retrieval
-
-ユーザーのプロジェクト一覧を取得します。 / Retrieves the list of user's projects.
 
 ---
 
@@ -678,6 +634,18 @@ Ollama Vision（SCROLL_VISION_ANALYSISフェーズ）とONNX Embedding（EMBEDDI
 - `acquireForEmbedding()`: Ollamaをアンロードして ONNX CUDA を有効化
 - GPU非搭載環境: graceful degradation（CPUモード）
 
+### Tool Name Constants (SSoT)
+
+`src/tools/tool-names.ts` — `allToolDefinitions` から `TOOL_NAMES` / `ALL_TOOL_NAMES` を自動導出。ツール追加/削除時の手動更新不要。`tools/index.ts` からの `_registerToolDefinitions()` による明示的登録 + CJS `require()` フォールバックの2段階初期化で、ESM（Vitest）/CJS（コンパイル済み）両環境に対応。
+
+`src/tools/tool-names.ts` — Auto-derives `TOOL_NAMES` / `ALL_TOOL_NAMES` from `allToolDefinitions`. No manual updates needed when adding/removing tools. Uses two-stage initialization: explicit registration via `_registerToolDefinitions()` from `tools/index.ts` + CJS `require()` fallback, supporting both ESM (Vitest) and CJS (compiled) environments.
+
+### User-Agent
+
+Playwright Browser Contextで使用するUser-Agent文字列は `Reftrix/X.Y.Z` サフィックスを含みます。バージョンはpackage.jsonと同期してください。
+
+The User-Agent string used in Playwright Browser Context includes a `Reftrix/X.Y.Z` suffix. Keep the version in sync with package.json.
+
 ### Embedding Backfill
 
 パイプライン完了後にDB駆動で欠損Embeddingを自動修復します。
@@ -735,21 +703,21 @@ pnpm backfill:embeddings
 
 ### レート制限 / Rate Limiting
 
-Token Bucket + Redis Lua（CWE-770 DoS対策）。全28ツールに自動適用。
-Token Bucket + Redis Lua (CWE-770 DoS prevention). Auto-applied to all 28 tools.
+Token Bucket + Redis Lua（CWE-770 DoS対策）。全<!-- gen:tool-count -->35<!-- /gen:tool-count -->ツールに自動適用。
+Token Bucket + Redis Lua (CWE-770 DoS prevention). Auto-applied to all <!-- gen:tool-count -->35<!-- /gen:tool-count --> tools.
 
-| ティア / Tier | RPM | 対象ツール / Target Tools                                                                                                                 |
-| ------------- | --- | ----------------------------------------------------------------------------------------------------------------------------------------- |
-| analysis      | 10  | page.analyze, layout.ingest, layout.batch_ingest, quality.batch_evaluate                                                                  |
-| search        | 120 | layout.search, motion.search, narrative.search, background.search, responsive.search, part.search, search.unified, design.search_by_image |
-| default       | 60  | その他すべて / All others                                                                                                                 |
+| ティア / Tier | RPM | 対象ツール / Target Tools                                                                                                                                                                     |
+| ------------- | --- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| analysis      | 10  | page.analyze, layout.ingest, layout.batch_ingest, accessibility.audit, performance.evaluate, design.track_changes                                                                             |
+| search        | 120 | layout.search, motion.search, narrative.search, background.search, responsive.search, part.search, search.unified, design.search_by_image, design.similar_site, design.compare, search.facets |
+| default       | 60  | その他すべて / All others                                                                                                                                                                     |
 
 Graceful Degradation: Redis未接続時はインメモリフォールバック / Falls back to in-memory when Redis unavailable
 
 ### エラーメッセージサニタイズ / Error Message Sanitization (CWE-209)
 
-`sanitizeErrorMessage()` ユーティリティ（`utils/sanitize-error.ts`）で内部構造の漏洩を防止。47ファイル・28ツールに適用（42ファイルでインポート）。
-`sanitizeErrorMessage()` utility (`utils/sanitize-error.ts`) prevents internal structure leakage. Applied to 47 files and 28 tools (42 import files).
+`sanitizeErrorMessage()` ユーティリティ（`utils/sanitize-error.ts`）で内部構造の漏洩を防止。<!-- gen:sanitize-usage-count -->63<!-- /gen:sanitize-usage-count -->ファイル・<!-- gen:tool-count -->35<!-- /gen:tool-count -->ツールに適用（<!-- gen:sanitize-import-count -->57<!-- /gen:sanitize-import-count -->ファイルでインポート）。
+`sanitizeErrorMessage()` utility (`utils/sanitize-error.ts`) prevents internal structure leakage. Applied to <!-- gen:sanitize-usage-count -->63<!-- /gen:sanitize-usage-count --> files and <!-- gen:tool-count -->35<!-- /gen:tool-count --> tools (<!-- gen:sanitize-import-count -->57<!-- /gen:sanitize-import-count --> import files).
 
 ---
 
@@ -995,8 +963,7 @@ apps/mcp-server/
 │   │   ├── page/             # page.analyze ツール
 │   │   └── schemas/          # 共有Zodスキーマ
 │   ├── workers/              # BullMQワーカー
-│   │   ├── page-analyze-worker.ts   # page.analyze 非同期ワーカー
-│   │   └── batch-quality-worker.ts  # quality.batch_evaluate ワーカー
+│   │   └── page-analyze-worker.ts   # page.analyze 非同期ワーカー
 │   ├── queues/               # BullMQキュー定義
 │   ├── scripts/              # スタンドアロン起動スクリプト
 │   │   ├── start-workers.ts          # ワーカー起動エントリポイント

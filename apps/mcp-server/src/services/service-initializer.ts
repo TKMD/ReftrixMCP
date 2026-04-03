@@ -95,13 +95,6 @@ export interface WebPageResult {
 }
 
 /**
- * Service Client インターフェース
- * 将来の拡張用に保持
- */
-// eslint-disable-next-line @typescript-eslint/no-empty-object-type
-export interface IServiceClient {}
-
-/**
  * Prisma Client インターフェース（最小限）
  * MinimalPrismaClientとの互換性のため、createは関数型として定義
  */
@@ -134,8 +127,6 @@ export interface ServiceInitializerConfig {
   prisma: IPrismaClientMinimal;
   /** WebPageサービス（オプション - motion.detect, layout.inspect用） */
   webPageService?: IWebPageService;
-  /** ServiceClient（オプション - 将来の拡張用） */
-  serviceClient?: IServiceClient;
 }
 
 /**

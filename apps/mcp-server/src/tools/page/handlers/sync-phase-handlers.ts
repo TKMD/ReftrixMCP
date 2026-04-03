@@ -973,6 +973,10 @@ export interface BuildResponseParams {
   savedBackgroundDesignCount: number;
   probeResult: ProbeResult | null;
   warnings: AnalysisWarning[];
+  // Phase 7.5 results (v0.3.0 Tier 2)
+  accessibilityResult?: PageAnalyzeData["accessibility"];
+  performanceResult?: PageAnalyzeData["performance"];
+  snapshotResult?: PageAnalyzeData["snapshot"];
 }
 
 /**
@@ -995,6 +999,9 @@ export function buildPageAnalyzeResponse(params: BuildResponseParams): PageAnaly
     savedBackgroundDesignCount,
     probeResult,
     warnings,
+    accessibilityResult,
+    performanceResult,
+    snapshotResult,
   } = params;
 
   const data: PageAnalyzeData = {
@@ -1075,6 +1082,17 @@ export function buildPageAnalyzeResponse(params: BuildResponseParams): PageAnaly
       externalResourceCount: probeResult.externalResourceCount,
       responseTimeMs: probeResult.responseTimeMs,
     };
+  }
+
+  // Phase 7.5 results (v0.3.0 Tier 2)
+  if (accessibilityResult) {
+    data.accessibility = accessibilityResult;
+  }
+  if (performanceResult) {
+    data.performance = performanceResult;
+  }
+  if (snapshotResult) {
+    data.snapshot = snapshotResult;
   }
 
   return data;

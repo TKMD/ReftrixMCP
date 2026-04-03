@@ -28,6 +28,7 @@ import {
   HTML_HUGE_THRESHOLD,
   tryGarbageCollect,
 } from "./types";
+import { createPhase5TempDir, saveScreenshotAsPng } from "./phase-5-raw-decode";
 
 // ============================================================================
 // Types
@@ -84,6 +85,7 @@ export async function processIngestPhase(
   // =====================================================
   statusTracker.startPhase("initializing");
   await job.updateProgress(PHASE_PROGRESS.INGEST_START);
+  await job.log(`[Phase 0] Ingest started: ${url}`);
 
   if (isDevelopment()) {
     logger.debug("[PageAnalyzeWorker] Starting HTML fetch", { url });
@@ -118,10 +120,41 @@ export async function processIngestPhase(
   statusTracker.completePhase("initializing");
   state.completedPhases.push("ingest");
   await job.updateProgress(PHASE_PROGRESS.INGEST_COMPLETE);
+  await job.log(
+    `[Phase 0] Ingest complete: HTML ${html ? `${Math.round(html.length / 1024)}KB` : "empty"}, screenshot ${screenshotBase64 ? "captured" : "none"}`
+  );
 
   // Store in pipeline state
   state.html = html;
   state.screenshotBase64 = screenshotBase64;
+
+  // =====================================================
+  // Phase 0 PNG ファイル保存: Phase 5 RAW デコード最適化用
+  // screenshotBase64 を PNG ファイルに保存し、Phase 5 で1回だけ RAW デコードする。
+  // screenshotBase64 はまだ Phase 2/2.5 で使用されるため、メモリから解放しない。
+  // =====================================================
+  if (screenshotBase64) {
+    try {
+      const phase5TmpDir = createPhase5TempDir();
+      const pngPath = saveScreenshotAsPng(phase5TmpDir, screenshotBase64);
+      state.screenshotPngPath = pngPath;
+
+      if (isDevelopment()) {
+        logger.debug("[PageAnalyzeWorker] Screenshot saved as PNG for Phase 5 RAW decode", {
+          pngPath,
+          tmpDir: phase5TmpDir,
+        });
+      }
+    } catch (pngSaveError) {
+      // Graceful Degradation: PNG保存失敗時はPhase 5で従来パスを使用
+      logger.warn(
+        "[PageAnalyzeWorker] Failed to save screenshot PNG (non-fatal, Phase 5 will use legacy path)",
+        {
+          error: pngSaveError instanceof Error ? pngSaveError.message : String(pngSaveError),
+        }
+      );
+    }
+  }
 
   // =====================================================
   // Browser sharing: PageIngestAdapterのブラウザを再利用（4→1プロセス削減）

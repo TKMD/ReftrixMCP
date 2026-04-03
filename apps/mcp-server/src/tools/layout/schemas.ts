@@ -92,7 +92,7 @@ export type SectionTypeForSearch = z.infer<typeof sectionTypeForSearchSchema>;
  * フレームワーク
  * コード生成時のターゲットフレームワーク
  */
-export const frameworkSchema = z.enum(["react", "vue", "html"]);
+export const frameworkSchema = z.enum(["react", "vue", "html", "svelte", "astro"]);
 export type Framework = z.infer<typeof frameworkSchema>;
 
 /**
@@ -1660,7 +1660,7 @@ export const layoutMcpTools = {
   },
   "layout.generate_code": {
     name: "layout.generate_code",
-    description: "パターンからReact/Vue/HTMLコードを生成します",
+    description: "パターンからReact/Vue/Svelte/Astro/HTMLコードを生成します",
     inputSchema: layoutToCodeInputSchema,
   },
   "layout.batch_ingest": {

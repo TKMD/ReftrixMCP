@@ -111,10 +111,7 @@ export function logDeprecationWarning(warning: DeprecationWarning): void {
  */
 const LOW_USAGE_TOOL_DEPRECATIONS: Record<string, { replacement: string; migrationPath: string }> =
   {
-    "quality.batch_evaluate": {
-      replacement: "Loop with quality.evaluate",
-      migrationPath: "quality-batch",
-    },
+    // [REMOVED v0.3.0] quality.batch_evaluate entry removed — tool deleted
   };
 
 /**

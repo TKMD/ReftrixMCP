@@ -1352,6 +1352,9 @@ describe("Phase4-1: ツールリネーム (layout.to_code → layout.generate_co
 
   describe("router.ts TOOL_NAMES定数", () => {
     it("LAYOUT_GENERATE_CODEが定義されている", async () => {
+      // tools/index.ts を先にロードして _registerToolDefinitions を発火させる
+      // （Vitest ESM環境では require("./index") が .ts を解決できないため）
+      await import("../../../src/tools/index");
       const { TOOL_NAMES } = await import("../../../src/router");
       expect(TOOL_NAMES.LAYOUT_GENERATE_CODE).toBe("layout.generate_code");
     });

@@ -122,7 +122,7 @@ describe("cosineSimilarity", () => {
     expect(result).toBeCloseTo(0.0, 5);
   });
 
-  it("should return approximately -1.0 for opposite vectors", () => {
+  it("should return 0 for opposite vectors (clamped to [0,1])", () => {
     // Arrange
     const vec = createTestVector(7);
     const opposite = vec.map((v) => -v);
@@ -130,8 +130,8 @@ describe("cosineSimilarity", () => {
     // Act
     const result = cosineSimilarity(vec, opposite);
 
-    // Assert
-    expect(result).toBeCloseTo(-1.0, 5);
+    // Assert — cosine similarity is clamped to [0,1] for use as a similarity score
+    expect(result).toBeCloseTo(0, 5);
   });
 
   it("should return 0 when vectors have different lengths", () => {

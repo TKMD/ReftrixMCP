@@ -1173,7 +1173,9 @@ export class MotionDetector {
    * 再生時間を解析（ミリ秒に変換）
    */
   private parseDuration(value: string): number {
-    const match = value.match(/^(\d+\.?\d*)(s|ms)$/);
+    // ReDoS-safe: \d+\.?\d* を \d+(?:\.\d+)? に書き換え
+    // \d+\d* は同じ文字クラスの重複だが、\d+(?:\.\d+)? は小数点で明確に区切られる
+    const match = value.match(/^(\d+(?:\.\d+)?)(s|ms)$/);
     if (!match?.[1] || !match[2]) return 0;
 
     const num = parseFloat(match[1]);

@@ -25,6 +25,15 @@
 - [ ] Integration / E2E
 - [ ] 手動確認 / Manual verification
 
+## ドキュメント影響 / Documentation Impact
+
+<!-- canonical docs を更新したか、影響なしを明記 / State whether canonical docs were updated or there was no docs impact -->
+
+- [ ] canonical docs を更新した / Updated canonical docs
+- [ ] ドキュメント影響なし / No documentation impact
+- `pnpm docs:impact`:
+- 更新した docs:
+
 ## 関連Issue / Related Issues
 
 <!-- 関連するIssue番号を記載 / List related issue numbers -->

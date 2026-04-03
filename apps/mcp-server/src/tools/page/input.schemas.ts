@@ -940,6 +940,66 @@ export const pageAnalyzeInputSchema = z.object({
     })
     .optional()
     .default({ enabled: true }),
+
+  /**
+   * page.analyze完了後にデザインスナップショットを自動生成するか (v0.3.0 T2-DCT)
+   *
+   * true: 分析完了後に design_snapshots テーブルにスナップショットを自動保存。
+   * デザイン変更の時系列追跡（design.track_changes ツール）に使用される。
+   *
+   * Auto-create design snapshot after page.analyze completion (v0.3.0 T2-DCT)
+   * true: auto-save snapshot to design_snapshots table after analysis.
+   * Used for temporal design change tracking (design.track_changes tool).
+   *
+   * @default false
+   */
+  auto_snapshot: z.boolean().optional().default(false),
+
+  /**
+   * アクセシビリティ監査オプション (v0.3.0 Phase 7.5a)
+   * enabled=trueで有効化（デフォルト無効）。WCAG 2.1 AA準拠監査を実行。
+   *
+   * Accessibility audit options (v0.3.0 Phase 7.5a)
+   * Set enabled=true to activate (disabled by default). Runs WCAG 2.1 AA compliance audit.
+   *
+   * @default { enabled: false }
+   */
+  accessibilityOptions: z
+    .object({
+      /** アクセシビリティ監査を有効化（デフォルト: false） / Enable accessibility audit (default: false) */
+      enabled: z.boolean().optional().default(false),
+      /** WCAG準拠レベル（デフォルト: AA） / WCAG conformance level (default: AA) */
+      level: z.enum(["A", "AA", "AAA"]).optional().default("AA"),
+      /** コントラストチェックを含めるか（デフォルト: true） / Include contrast check (default: true) */
+      include_contrast: z.boolean().optional().default(true),
+      /** DB保存するか（デフォルト: true） / Save to DB (default: true) */
+      save_to_db: z.boolean().optional().default(true),
+    })
+    .optional()
+    .default({ enabled: false }),
+
+  /**
+   * パフォーマンス評価オプション (v0.3.0 Phase 7.5b)
+   * enabled=trueで有効化（デフォルト無効）。Core Web Vitals (LCP/FID/CLS/INP/TTFB) を計測。
+   *
+   * Performance evaluation options (v0.3.0 Phase 7.5b)
+   * Set enabled=true to activate (disabled by default). Measures Core Web Vitals.
+   *
+   * @default { enabled: false }
+   */
+  performanceOptions: z
+    .object({
+      /** パフォーマンス評価を有効化（デフォルト: false） / Enable performance evaluation (default: false) */
+      enabled: z.boolean().optional().default(false),
+      /** スクリーンショットをレスポンスに含めるか（デフォルト: false） / Include screenshots in response (default: false) */
+      include_screenshots: z.boolean().optional().default(false),
+      /** カスタムパフォーマンスBudget / Custom performance budget */
+      budget: z.record(z.number()).optional(),
+      /** DB保存するか（デフォルト: true） / Save to DB (default: true) */
+      save_to_db: z.boolean().optional().default(true),
+    })
+    .optional()
+    .default({ enabled: false }),
 });
 
 export type PageAnalyzeInput = z.infer<typeof pageAnalyzeInputSchema>;

@@ -191,10 +191,19 @@ describe("PageAnalyzeWorker - Lock Extension", () => {
       const fnStart = workerSource.indexOf("function processPageAnalyzeJob");
       expect(fnStart).toBeGreaterThan(-1);
       const fnBody = workerSource.slice(fnStart);
-      // stop() should be in a finally block
-      const finallyIndex = fnBody.lastIndexOf("finally");
+      // stop() should be in the orchestrator's finally block
+      // Search in orchestrator source only (not concatenated phase sources)
+      const orchestratorSource = fs.readFileSync(
+        path.resolve(__dirname, "../../src/workers/page-analyze-worker.ts"),
+        "utf8"
+      );
+      const orchFnStart = orchestratorSource.indexOf("function processPageAnalyzeJob");
+      expect(orchFnStart).toBeGreaterThan(-1);
+      const orchFnBody = orchestratorSource.slice(orchFnStart);
+      // Use "} finally {" pattern to avoid matching "finally" in comments
+      const finallyIndex = orchFnBody.lastIndexOf("} finally {");
       expect(finallyIndex).toBeGreaterThan(-1);
-      const finallyBlock = fnBody.slice(finallyIndex, finallyIndex + 500);
+      const finallyBlock = orchFnBody.slice(finallyIndex, finallyIndex + 500);
       expect(finallyBlock).toContain("lockExtender.stop()");
     });
   });
@@ -233,39 +242,35 @@ describe("PageAnalyzeWorker - Lock Extension", () => {
     });
 
     it("should call extendJobLock before SectionEmbedding sub-phase", () => {
-      const sectionEmbStart = workerSource.indexOf("// 1. SectionEmbedding");
-      expect(sectionEmbStart).toBeGreaterThan(-1);
-      const surrounding = workerSource.slice(sectionEmbStart, sectionEmbStart + 300);
-      expect(surrounding).toContain(
-        'extendJobLock(job, effectiveToken, effectiveLockDuration, "embedding-sections")'
-      );
+      // Refactored: section embedding is in processSectionTextEmbeddingChunks
+      const fnStart = workerSource.indexOf("async function processSectionTextEmbeddingChunks");
+      expect(fnStart).toBeGreaterThan(-1);
+      const surrounding = workerSource.slice(fnStart, fnStart + 1000);
+      expect(surrounding).toContain('"embedding-sections"');
     });
 
     it("should call extendJobLock before MotionEmbedding sub-phase", () => {
-      const motionEmbStart = workerSource.indexOf("// 2. MotionEmbedding");
-      expect(motionEmbStart).toBeGreaterThan(-1);
-      const surrounding = workerSource.slice(motionEmbStart, motionEmbStart + 300);
-      expect(surrounding).toContain(
-        'extendJobLock(job, effectiveToken, effectiveLockDuration, "embedding-motions")'
-      );
+      // Refactored: motion embedding is in processMotionTextEmbeddingChunks
+      const fnStart = workerSource.indexOf("async function processMotionTextEmbeddingChunks");
+      expect(fnStart).toBeGreaterThan(-1);
+      const surrounding = workerSource.slice(fnStart, fnStart + 1000);
+      expect(surrounding).toContain('"embedding-motions"');
     });
 
     it("should call extendJobLock before BackgroundDesignEmbedding sub-phase", () => {
-      const bgEmbStart = workerSource.indexOf("// 3. BackgroundDesignEmbedding");
-      expect(bgEmbStart).toBeGreaterThan(-1);
-      const surrounding = workerSource.slice(bgEmbStart, bgEmbStart + 300);
-      expect(surrounding).toContain(
-        'extendJobLock(job, effectiveToken, effectiveLockDuration, "embedding-backgrounds")'
-      );
+      // Refactored: background embedding is in processBackgroundTextEmbeddingChunks
+      const fnStart = workerSource.indexOf("async function processBackgroundTextEmbeddingChunks");
+      expect(fnStart).toBeGreaterThan(-1);
+      const surrounding = workerSource.slice(fnStart, fnStart + 1000);
+      expect(surrounding).toContain('"embedding-backgrounds"');
     });
 
     it("should call extendJobLock before JSAnimationEmbedding sub-phase", () => {
-      const jsEmbStart = workerSource.indexOf("// 4. JSAnimationEmbedding");
-      expect(jsEmbStart).toBeGreaterThan(-1);
-      const surrounding = workerSource.slice(jsEmbStart, jsEmbStart + 300);
-      expect(surrounding).toContain(
-        'extendJobLock(job, effectiveToken, effectiveLockDuration, "embedding-js-animations")'
-      );
+      // Refactored: JS animation embedding is in processJsAnimationEmbeddingChunks
+      const fnStart = workerSource.indexOf("async function processJsAnimationEmbeddingChunks");
+      expect(fnStart).toBeGreaterThan(-1);
+      const surrounding = workerSource.slice(fnStart, fnStart + 1000);
+      expect(surrounding).toContain('"embedding-js-animations"');
     });
   });
 

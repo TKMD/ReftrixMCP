@@ -19,6 +19,11 @@ import {
 import { checkRateLimit } from "./middleware/rate-limiter";
 import { getMetricsCollector, type MetricsStats } from "./services/metrics-collector";
 import { generateRequestId } from "./utils/mcp-response";
+import {
+  buildTelemetryEntry,
+  isUsageTelemetryEnabled,
+  logToolUsage,
+} from "./utils/usage-telemetry";
 import type { ProgressNotification } from "@modelcontextprotocol/sdk/types.js";
 
 /**
@@ -43,7 +48,7 @@ export type ToolHandler = (
 
 /**
  * ツールハンドラーのマップ
- * 28のMCPツールを管理（allToolDefinitions SSoTから自動同期）
+ * 35のMCPツールを管理（allToolDefinitions SSoTから自動同期）
  */
 export const toolHandlers: Map<string, ToolHandler> = new Map();
 
@@ -257,6 +262,14 @@ export async function handleToolCall(
       lightResponseApplied: lightResponseOptions.summary !== false,
     });
 
+    // Usage Telemetry — fire-and-forget（成功パス）
+    // SEC-02: tool/at/durationMs/success の4フィールドのみ。args/requestId等は含めない
+    if (isUsageTelemetryEnabled()) {
+      logToolUsage(buildTelemetryEntry(toolName, duration, true)).catch(() => {
+        /* fire-and-forget: テレメトリ書き込み失敗は無視 */
+      });
+    }
+
     return lightResult;
   } catch (error) {
     const duration = performance.now() - startTime;
@@ -266,6 +279,14 @@ export async function handleToolCall(
     metrics.incrementErrorCount(toolName, errorType);
     metrics.recordResponseTime(duration, toolName);
     metrics.decrementActiveConnections();
+
+    // Usage Telemetry — fire-and-forget（失敗パス）
+    // SEC-02: tool/at/durationMs/success の4フィールドのみ。error.message等は含めない
+    if (isUsageTelemetryEnabled()) {
+      logToolUsage(buildTelemetryEntry(toolName, duration, false)).catch(() => {
+        /* fire-and-forget: テレメトリ書き込み失敗は無視 */
+      });
+    }
 
     logger.error(`[Router] Tool call error: ${toolName}`, {
       requestId: reqId,
@@ -320,57 +341,11 @@ export function exportMetricsPrometheus(): string {
 }
 
 /**
- * MCPツール名の定数（WebDesign専用 - 28ツール）
+ * MCPツール名の定数（WebDesign専用）
  *
- * 実装: apps/mcp-server/src/tools/index.ts (allToolDefinitions = 28ツール)
+ * SSoT: allToolDefinitions (tools/index.ts) から自動導出。
+ * tools/index.ts 側で TOOL_NAMES / ALL_TOOL_NAMES を生成し、
+ * router.ts は re-export する。
+ * 手動更新不要 — ツール追加/削除時は allToolDefinitions のみ変更すればOK。
  */
-export const TOOL_NAMES = {
-  // Style ツール (1)
-  STYLE_GET_PALETTE: "style.get_palette",
-  // System ツール (1)
-  SYSTEM_HEALTH: "system.health",
-  // Layout ツール (5)
-  LAYOUT_INSPECT: "layout.inspect",
-  LAYOUT_INGEST: "layout.ingest",
-  LAYOUT_SEARCH: "layout.search",
-  LAYOUT_GENERATE_CODE: "layout.generate_code",
-  LAYOUT_BATCH_INGEST: "layout.batch_ingest",
-  // Quality ツール (3)
-  QUALITY_EVALUATE: "quality.evaluate",
-  QUALITY_BATCH_EVALUATE: "quality.batch_evaluate",
-  QUALITY_GET_JOB_STATUS: "quality.getJobStatus",
-  // Motion ツール (2)
-  MOTION_DETECT: "motion.detect",
-  MOTION_SEARCH: "motion.search",
-  // Brief ツール (1)
-  BRIEF_VALIDATE: "brief.validate",
-  // Project ツール (2)
-  PROJECT_GET: "project.get",
-  PROJECT_LIST: "project.list",
-  // Page ツール (2)
-  PAGE_ANALYZE: "page.analyze",
-  PAGE_GET_JOB_STATUS: "page.getJobStatus",
-  // Narrative ツール (1)
-  NARRATIVE_SEARCH: "narrative.search",
-  // Background ツール (1)
-  BACKGROUND_SEARCH: "background.search",
-  // Responsive ツール (1)
-  RESPONSIVE_SEARCH: "responsive.search",
-  // Preference ツール (3)
-  PREFERENCE_HEAR: "preference.hear",
-  PREFERENCE_GET: "preference.get",
-  PREFERENCE_RESET: "preference.reset",
-  // Part ツール (3)
-  PART_SEARCH: "part.search",
-  PART_INSPECT: "part.inspect",
-  PART_COMPARE: "part.compare",
-  // Search ツール (1)
-  SEARCH_UNIFIED: "search.unified",
-  // Design ツール (1)
-  DESIGN_SEARCH_BY_IMAGE: "design.search_by_image",
-} as const;
-
-/**
- * 全MCPツール名の配列
- */
-export const ALL_TOOL_NAMES = Object.values(TOOL_NAMES);
+export { TOOL_NAMES, ALL_TOOL_NAMES } from "./tools/tool-names";

@@ -1,6 +1,6 @@
 # はじめに - Reftrixセットアップガイド / Getting Started - Reftrix Setup Guide
 
-**Version**: 0.2.1
+**Version**: 0.3.0
 **Updated**: 2026-03-25
 
 ---
@@ -369,9 +369,9 @@ Since page.analyze runs asynchronously, a worker process managed by WorkerSuperv
 pnpm --filter @reftrixmcp/mcp-server worker:start:page
 ```
 
-> **Warning / 警告**: ワーカー未起動の場合、`page.analyze` と `quality.batch_evaluate` の結果はDBに保存されません。ジョブはキューに滞留し、ワーカー起動後に処理されます。
+> **Warning / 警告**: ワーカー未起動の場合、`page.analyze` の結果はDBに保存されません。ジョブはキューに滞留し、ワーカー起動後に処理されます。
 >
-> **Warning**: Without the worker running, `page.analyze` and `quality.batch_evaluate` results will NOT be saved to the database. Jobs will remain queued until the worker is started.
+> **Warning**: Without the worker running, `page.analyze` results will NOT be saved to the database. Jobs will remain queued until the worker is started.
 
 > **重要 / Important**: ワーカープロセスは `.env.local` から `DATABASE_URL` を読み込みます（`loadEnvLocal()` 経由）。`.mcp.json` や `claude_desktop_config.json` の `env` 設定はMCPサーバープロセスにのみ適用され、ワーカープロセスには反映されません。ワーカーが正しくDBに接続するには、プロジェクトルートに `.env.local` が必要です。
 >
@@ -430,7 +430,7 @@ await mcp__reftrix__system_health({ detailed: true });
 
 Once setup is complete, refer to the following guides to utilize the features:
 
-- [MCPツール使用ガイド / MCP Tools Usage Guide](./02-mcp-tools-guide.md) - 28のMCPツールの使用方法 / How to use the 28 MCP tools
+- [MCPツール使用ガイド / MCP Tools Usage Guide](./02-mcp-tools-guide.md) - <!-- gen:tool-count -->35<!-- /gen:tool-count -->のMCPツールの使用方法 / How to use the <!-- gen:tool-count -->35<!-- /gen:tool-count --> MCP tools
 - [page.analyze詳細ガイド / page.analyze Deep Dive](./03-page-analyze-deep-dive.md) - 統合分析の詳細 / Detailed unified analysis
 - [トラブルシューティングガイド / Troubleshooting Guide](./04-troubleshooting.md) - 問題解決 / Problem solving
 
@@ -504,7 +504,7 @@ pnpm build
 ```
 reftrix/
 ├── apps/
-│   ├── mcp-server/         # MCPサーバー（28ツール）/ MCP server (28 tools)
+│   ├── mcp-server/         # MCPサーバー（35ツール）/ MCP server (35 tools)
 │   └── cli/                # スタンドアロンCLI（MCP非依存）/ Standalone CLI (MCP-independent)
 ├── packages/
 │   ├── database/           # Prismaスキーマ・マイグレーション / Prisma schema & migrations

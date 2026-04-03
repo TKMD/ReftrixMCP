@@ -56,6 +56,7 @@ prisma/migrations/*_migration_lock.toml
 # Generated files
 *.generated.ts
 *.generated.tsx
+**/src/generated/
 
 # ML Models (downloaded separately)
 models/

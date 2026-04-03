@@ -1,6 +1,6 @@
 {
   "name": "@reftrixmcp/mcp-server",
-  "version": "0.2.1",
+  "version": "0.3.0",
   "license": "AGPL-3.0-only",
   "description": "MCP Server for Reftrix - AI agent integration for web design analysis, layout extraction, motion detection, and quality evaluation",
   "files": [
@@ -59,10 +59,6 @@
     "test:e2e:playwright:headed": "playwright test --headed",
     "bench": "vitest bench --config vitest.benchmark.config.ts",
     "bench:json": "vitest bench --config vitest.benchmark.config.ts --reporter=json --outputFile=./benchmark-results/results.json",
-    "generate:tools": "tsx scripts/generate-tool-list.ts",
-    "validate:tools": "tsx scripts/validate-tool-list.ts --ci",
-    "validate:docs": "tsx scripts/validate-tool-list.ts --check-docs",
-    "validate:all": "tsx scripts/validate-tool-list.ts --ci --check-docs",
     "worker:start": "NODE_ENV=development NODE_OPTIONS='--max-old-space-size=4096' tsx src/scripts/start-workers.ts",
     "worker:start:page": "NODE_ENV=development NODE_OPTIONS='--max-old-space-size=4096' tsx src/scripts/start-workers.ts --page",
     "worker:start:quality": "NODE_ENV=development NODE_OPTIONS='--max-old-space-size=4096' tsx src/scripts/start-workers.ts --quality",
@@ -108,6 +104,9 @@
     "tsx": "^4.0.0",
     "typescript": "^5.9.0",
     "vitest": "^4.0.14"
+  },
+  "publishConfig": {
+    "access": "public"
   },
   "mcpName": "io.github.TKMD/reftrixmcp",
   "repository": {

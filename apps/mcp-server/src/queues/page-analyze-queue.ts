@@ -126,6 +126,22 @@ export interface PageAnalyzeJobOptions {
   };
   /** Whether to respect robots.txt (default: true) */
   respectRobotsTxt?: boolean;
+  /** Accessibility audit options (Phase 7.5a, opt-in, default: disabled) */
+  accessibilityOptions?: {
+    enabled?: boolean;
+    level?: "A" | "AA" | "AAA";
+    include_contrast?: boolean;
+    save_to_db?: boolean;
+  };
+  /** Performance evaluation options (Phase 7.5b, opt-in, default: disabled) */
+  performanceOptions?: {
+    enabled?: boolean;
+    include_screenshots?: boolean;
+    budget?: Record<string, number>;
+    save_to_db?: boolean;
+  };
+  /** Auto-create design snapshot after analysis completion (v0.3.0 T2-DCT, default: false) */
+  autoSnapshot?: boolean;
 }
 
 /**

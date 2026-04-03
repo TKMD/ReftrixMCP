@@ -236,7 +236,7 @@ export async function partInspectHandler(input: unknown): Promise<PartInspectOut
           ? "LEFT JOIN component_part_embeddings cpe ON cpe.component_part_id = cp.id"
           : ""
       }
-      WHERE cp.id = $1
+      WHERE cp.id = $1::uuid
       LIMIT 1`,
       validated.part_id
     );

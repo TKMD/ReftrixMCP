@@ -144,7 +144,7 @@ export interface WorkerDisposeResponse {
 }
 
 /**
- * Successful response from terminate (sent just before process.exit).
+ * Successful response from terminate (sent before parent calls worker.terminate()).
  */
 export interface WorkerTerminateResponse {
   type: "terminate";

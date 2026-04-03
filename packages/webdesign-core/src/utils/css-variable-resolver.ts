@@ -438,7 +438,8 @@ export class CssVariableResolver {
    */
   private wasFallbackUsed(original: string, _resolved: string): boolean {
     // フォールバック付きのvar()を検索
-    const fallbackPattern = /var\s*\(\s*(--[\w-]+)\s*,\s*([^)]+)\s*\)/gi;
+    // ReDoS-safe: [^)]+\s*\) を [^)]+ に書き換え、trim()で末尾スペース処理
+    const fallbackPattern = /var\s*\(\s*(--[\w-]+)\s*,\s*([^)]+)\)/gi;
     let match: RegExpExecArray | null;
 
     while ((match = fallbackPattern.exec(original)) !== null) {

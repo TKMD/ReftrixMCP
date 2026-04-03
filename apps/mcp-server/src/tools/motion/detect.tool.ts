@@ -1586,7 +1586,7 @@ async function executeJSAnimationDetectionWithUrl(
     const context = await browser.newContext({
       viewport: { width: 1280, height: 720 },
       userAgent:
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 Reftrix/0.1.0",
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 Reftrix/0.3.0",
     });
 
     const page = await context.newPage();
@@ -1876,7 +1876,7 @@ export const motionDetectToolDefinition = {
           "Overall timeout in milliseconds (30000-600000, default: 180000 = 3 minutes). On timeout, returns partial results with warnings (graceful degradation).",
       },
     },
-    required: ["html"],
+    required: [],
   },
 };
 

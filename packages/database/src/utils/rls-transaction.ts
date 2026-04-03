@@ -10,7 +10,7 @@
  * SEC-RLS-004: Fail-close behavior guaranteed
  */
 
-import type { PrismaClient, Prisma } from "@prisma/client";
+import type { PrismaClient, Prisma } from "../generated/prisma";
 
 /**
  * RLS-protected table models

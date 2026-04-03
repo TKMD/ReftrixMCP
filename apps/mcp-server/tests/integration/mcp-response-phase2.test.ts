@@ -21,10 +21,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { v7 as uuidv7 } from "uuid";
 
-// RESP-09: summary=true デフォルト検証用
-import { projectGetToolDefinition } from "../../src/tools/project-get";
-import { projectListToolDefinition } from "../../src/tools/project-list";
-
 // RESP-10 & RESP-11: レスポンス形式とrequest_id
 import {
   createSuccessResponse,
@@ -74,34 +70,6 @@ import {
 // =============================================================================
 
 describe("RESP-09: summary=true Default", () => {
-  describe("project.get", () => {
-    it("should have summary=true as default in inputSchema", () => {
-      // Arrange & Act
-      const schema = projectGetToolDefinition.inputSchema;
-      const summaryProp = schema.properties.summary;
-
-      // Assert
-      expect(summaryProp).toBeDefined();
-      expect(summaryProp.type).toBe("boolean");
-      expect(summaryProp.default).toBe(true);
-      expect(summaryProp.description).toContain("Lightweight mode");
-    });
-  });
-
-  describe("project.list", () => {
-    it("should have summary=true as default in inputSchema", () => {
-      // Arrange & Act
-      const schema = projectListToolDefinition.inputSchema;
-      const summaryProp = schema.properties.summary;
-
-      // Assert
-      expect(summaryProp).toBeDefined();
-      expect(summaryProp.type).toBe("boolean");
-      expect(summaryProp.default).toBe(true);
-      expect(summaryProp.description).toContain("Lightweight mode");
-    });
-  });
-
   describe("extractLightResponseOptions", () => {
     it("should extract summary=true when not specified (default behavior)", () => {
       // Arrange
@@ -957,26 +925,6 @@ describe("RESP-15: TDA Audit Compliance", () => {
         // TypeScriptはここでerrorにアクセスできることを知っている
         expect(errorResponse.error.code).toBe("ERR");
       }
-    });
-  });
-
-  describe("Documentation Compliance", () => {
-    it("should have descriptive tool definitions", () => {
-      // Assert - ツール定義にdescriptionが存在
-      expect(projectGetToolDefinition.description).toBeDefined();
-      expect(projectGetToolDefinition.description.length).toBeGreaterThan(10);
-
-      expect(projectListToolDefinition.description).toBeDefined();
-      expect(projectListToolDefinition.description.length).toBeGreaterThan(10);
-    });
-
-    it("should have annotations for MCP compliance", () => {
-      // Assert - MCP準拠のアノテーション
-      expect(projectGetToolDefinition.annotations).toBeDefined();
-      expect(projectGetToolDefinition.annotations?.readOnlyHint).toBe(true);
-
-      expect(projectListToolDefinition.annotations).toBeDefined();
-      expect(projectListToolDefinition.annotations?.readOnlyHint).toBe(true);
     });
   });
 });

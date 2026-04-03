@@ -313,6 +313,7 @@ export async function processMotionPhase(
   if (options.features?.motion !== false) {
     statusTracker.startPhase("motion");
     await job.updateProgress(PHASE_PROGRESS.MOTION_START);
+    await job.log("[Phase 2] Motion detection started");
 
     try {
       if (isDevelopment()) {
@@ -500,10 +501,16 @@ export async function processMotionPhase(
       failedPhases.push("motion");
 
       logger.warn("[PageAnalyzeWorker] Motion detection failed", { error: errorMessage });
+      await job.log(`[Phase 2] Motion FAILED: ${errorMessage}`);
     }
     await job.updateProgress(PHASE_PROGRESS.MOTION_COMPLETE);
+    if (!failedPhases.includes("motion")) {
+      const patternCount = state.motionResultForEmbedding?.patterns?.length ?? 0;
+      await job.log(`[Phase 2] Motion complete: ${patternCount} patterns detected`);
+    }
   } else {
     statusTracker.skipPhase("motion", "Disabled by options");
+    await job.log("[Phase 2] Motion skipped (disabled)");
   }
 
   // =====================================================

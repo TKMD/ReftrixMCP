@@ -11,7 +11,7 @@
  * SEC-RLS-001: Uses dedicated database role (reftrix_admin) instead of session variables
  */
 
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient } from "../generated/prisma";
 
 /**
  * Admin Prisma Client (RLS Bypass)
@@ -77,13 +77,14 @@ async function logAdminOperation(prismaAdmin: PrismaClient, entry: AdminAuditEnt
   // Attempt to log to database audit_logs table
   // This may fail if the table doesn't exist yet, so we catch errors
   try {
-    // Note: audit_logs table may use different column naming conventions
-    // Adjust the raw query based on actual schema
+    // Column names match audit_logs schema (migration 20260327000000):
+    // id, timestamp, action, actor, target_type, target_id, details, ip_address, result
     await prismaAdmin.$executeRaw`
-      INSERT INTO audit_logs (id, action, entity_type, metadata, created_at)
+      INSERT INTO audit_logs (id, action, actor, target_type, details, result, timestamp)
       VALUES (
         gen_random_uuid(),
         ${entry.status === "error" ? "ADMIN_BYPASS_FAILED" : "ADMIN_BYPASS"},
+        'system',
         'system',
         ${JSON.stringify({
           operation: entry.operation,
@@ -91,15 +92,14 @@ async function logAdminOperation(prismaAdmin: PrismaClient, entry: AdminAuditEnt
           durationMs: entry.durationMs,
           error: entry.error,
         })}::jsonb,
+        ${entry.status === "error" ? "failure" : "success"},
         NOW()
       )
     `;
   } catch (dbError) {
-    // Database logging failed, but console logging succeeded
-    // This is acceptable during development/migration
-    if (process.env.NODE_ENV === "development") {
-      console.warn("[ADMIN] Failed to write audit log to database:", dbError);
-    }
+    // DB audit log write failure must be visible in all environments
+    // DB監査ログ書き込み失敗は全環境で可視化する（isDevelopment()ガード禁止）
+    console.warn("[ADMIN] Failed to write audit log to database:", (dbError as Error).message);
   }
 }
 

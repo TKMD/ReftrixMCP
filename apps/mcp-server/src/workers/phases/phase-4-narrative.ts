@@ -109,6 +109,7 @@ export async function processNarrativePhase(
   if (narrativeEnabled) {
     statusTracker.startPhase("narrative");
     await job.updateProgress(PHASE_PROGRESS.NARRATIVE_START);
+    await job.log("[Phase 4] Narrative analysis started");
 
     try {
       if (isDevelopment()) {
@@ -189,15 +190,22 @@ export async function processNarrativePhase(
       failedPhases.push("narrative");
 
       logger.warn("[PageAnalyzeWorker] Narrative analysis failed", { error: errorMessage });
+      await job.log(`[Phase 4] Narrative FAILED: ${errorMessage}`);
     }
     await job.updateProgress(PHASE_PROGRESS.NARRATIVE_COMPLETE);
+    if (!failedPhases.includes("narrative")) {
+      await job.log("[Phase 4] Narrative complete");
+    }
   } else if (memoryAborted || narrativePreDisabled) {
+    const reason = memoryAborted ? "memory pressure" : "large HTML pre-degradation";
     statusTracker.skipPhase(
       "narrative",
       memoryAborted ? "Skipped due to memory pressure" : "Skipped due to large HTML pre-degradation"
     );
+    await job.log(`[Phase 4] Narrative skipped (${reason})`);
   } else {
     statusTracker.skipPhase("narrative", "Disabled by options");
+    await job.log("[Phase 4] Narrative skipped (disabled)");
   }
 
   // =====================================================
@@ -279,6 +287,7 @@ export async function processNarrativePhase(
   const responsiveEnabled = options.responsiveOptions?.enabled !== false;
   if (responsiveEnabled && actualWebPageId && !memoryAborted) {
     statusTracker.startPhase("responsive");
+    await job.log("[Phase 4.5] Responsive analysis started");
     await job.updateProgress(PHASE_PROGRESS.RESPONSIVE_START);
     await extendJobLock(job, effectiveToken, effectiveLockDuration, "responsive");
 
@@ -394,9 +403,13 @@ export async function processNarrativePhase(
       logger.warn("[PageAnalyzeWorker] Responsive analysis failed (graceful degradation)", {
         error: errorMessage,
       });
+      await job.log(`[Phase 4.5] Responsive FAILED: ${errorMessage}`);
       // Graceful degradation: メイン結果に影響しない
     }
     await job.updateProgress(PHASE_PROGRESS.RESPONSIVE_COMPLETE);
+    if (completedPhases.includes("responsive")) {
+      await job.log("[Phase 4.5] Responsive complete");
+    }
   } else if (!responsiveEnabled) {
     statusTracker.skipPhase("responsive", "Disabled by options");
   } else if (memoryAborted) {

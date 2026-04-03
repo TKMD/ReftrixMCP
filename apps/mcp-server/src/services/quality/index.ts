@@ -43,3 +43,24 @@ export {
   AxeAccessibilityService,
   createAxeAccessibilityService,
 } from "./axe-accessibility.service";
+
+// Accessibility Audit Service exports (v0.3.0 T2-WCAG)
+export type {
+  AccessibilityAuditOptions,
+  AuditRunOptions,
+  AuditViolation,
+  AuditPass,
+  AuditSummary,
+  SeverityCounts,
+  AccessibilityAuditResult,
+} from "./accessibility-audit.service";
+
+export {
+  AccessibilityAuditService,
+  createAccessibilityAuditService,
+} from "./accessibility-audit.service";
+
+// Contrast Check Service exports (v0.3.0 T2-WCAG)
+export type { RGB, ContrastIssue, ContrastCheckResult } from "./contrast-check.service";
+
+export { ContrastCheckService, createContrastCheckService } from "./contrast-check.service";

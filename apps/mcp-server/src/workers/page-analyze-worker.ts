@@ -21,15 +21,19 @@
  * 2. extendJobLock: explicit lock extension at async phase boundaries
  * Together they provide dual-layer stall prevention for long-running jobs (30+ minutes).
  *
- * Architecture (v0.2.0+, Phase 1/3 parallelization):
+ * Architecture (v0.3.0+, Phase 1/3 sequential):
  * This file is a thin orchestrator. Phase logic lives in ./phases/:
  *   phase-0-ingest.ts  — HTML ingest + WebPage DB save
- *   phase-1-layout.ts  — Layout Analysis + Part Extraction        ┐ Promise.all
- *   phase-3-quality.ts — Quality Evaluation                       ┘ (parallel)
+ *   phase-1-layout.ts  — Layout Analysis + Part Extraction        ┐ sequential
+ *   phase-3-quality.ts — Quality Evaluation                       ┘ (Layout → Quality)
  *   phase-2-motion.ts  — Scroll Vision + Motion Detection + Scroll Vision Analysis
  *   phase-4-narrative.ts — Narrative Analysis + Responsive Analysis
  *   phase-5-embedding.ts — Embedding Generation (text + visual)
  * Shared types/constants/helpers are in ./phases/types.ts.
+ *
+ * Note: Phase 1/3 were parallelized via Promise.all in v0.2.0, but changed to
+ * sequential execution in v0.3.0. Quality P50=0.02ms makes parallelism pointless,
+ * and sequential execution improves memory efficiency by avoiding dual allocation.
  *
  * Environment Variables:
  * - BULLMQ_LOCK_DURATION: Lock duration in ms (default: 2400000)
@@ -57,6 +61,12 @@ import { defaultEvaluateQuality } from "../tools/page/handlers/quality-handler";
 import { pageIngestAdapter } from "../services/page-ingest-adapter";
 import { saveBackgroundDesigns } from "../services/background/background-design-db.service";
 import { handleNarrativeAnalysis } from "../tools/page/handlers/narrative-handler";
+import { createSnapshot as createDesignSnapshot } from "../services/design-change-tracker.service";
+// Phase 7.5: Accessibility + Performance (v0.3.0)
+import {
+  handleAccessibilityPhase,
+  handlePerformancePhase,
+} from "../tools/page/handlers/sync-phase-handlers-tier2";
 // Scroll Vision Smart Capture
 import { captureScrollPositions } from "../services/vision/scroll-vision-capture.service";
 import { analyzeScrollCaptures } from "../services/vision/scroll-vision.analyzer";
@@ -149,7 +159,8 @@ import { processLayoutPhase } from "./phases/phase-1-layout";
 import { processMotionPhase } from "./phases/phase-2-motion";
 import { processQualityPhase } from "./phases/phase-3-quality";
 import { processNarrativePhase } from "./phases/phase-4-narrative";
-import { processEmbeddingPhase } from "./phases/phase-5-embedding";
+import { dispatchEmbeddingPhase } from "./phases/phase-5-embedding";
+import path from "node:path";
 
 // ============================================================================
 // Embedding DI factories initialization
@@ -279,24 +290,26 @@ async function processPageAnalyzeJob(
     webPageId,
     url,
     onStatusChange: (status): void => {
-      // Build detailed progress data for SSE consumers
-      const progressData = {
-        overallProgress: status.overallProgress,
-        currentPhase: status.currentPhase,
-        phases: status.phases,
-        webPageId: status.webPageId,
-        url: status.url,
-        startedAt: status.startedAt.toISOString(),
-        lastUpdatedAt: status.lastUpdatedAt.toISOString(),
-        estimatedCompletion: status.estimatedCompletion?.toISOString(),
-      };
+      // Bull Board requires numeric progress (0-100) for the progress bar.
+      // Send overallProgress as number, and log phase details via job.log().
+      const progress =
+        typeof status.overallProgress === "number" && Number.isFinite(status.overallProgress)
+          ? Math.round(status.overallProgress)
+          : 0;
 
-      job.updateProgress(progressData).catch((err) => {
+      job.updateProgress(progress).catch((err) => {
         logger.warn("[PageAnalyzeWorker] Failed to update job progress", {
           jobId: job.id,
           error: err instanceof Error ? err.message : String(err),
         });
       });
+
+      // Write phase transition to Bull Board Logs tab
+      job
+        .log(`[${new Date().toISOString()}] Phase: ${status.currentPhase} | Progress: ${progress}%`)
+        .catch(() => {
+          /* fire-and-forget */
+        });
     },
   });
 
@@ -346,42 +359,35 @@ async function processPageAnalyzeJob(
     });
 
     // =====================================================
-    // Phase 1 + Phase 3 並列実行 / Parallel Phase 1 + Phase 3
+    // Phase 1 → Phase 3 逐次実行 / Sequential Phase 1 → Phase 3
     // =====================================================
-    // Phase 3 (Quality) は state.html のみに依存し、Phase 1 (Layout) の
-    // 出力（layoutResultForNarrative, sectionSaveResult 等）を参照しない。
-    // 両フェーズは PipelineState 内の異なるフィールドに書き込むため、
-    // 同一オブジェクトへの同時書き込み競合は発生しない:
-    //   Phase 1: layoutResultForNarrative, sectionSaveResult, bgSaveResult, results.layout
-    //   Phase 3: memoryAborted, narrativePreDisabled, visionPreDisabled, results.quality
-    // completedPhases/failedPhases への Array.push() は Node.js
-    // シングルスレッドイベントループにおいて同期的に完了するため安全。
-    // statusTracker は phase ごとに独立スロットを使用するため並列呼び出し安全。
+    // v0.3.0: Promise.all 並列実行から逐次実行に変更。
+    // Quality P50=0.02ms で並列実行のメリットはほぼゼロ。
+    // 逐次実行によりメモリの二重保持を回避し、メモリ効率を改善。
+    // 両フェーズは内部で try-catch による Graceful Degradation を実装しており、
+    // Phase 1 が失敗しても Phase 3 は実行される。
     //
-    // Phase 3 (Quality) depends only on state.html (set by Phase 0).
-    // It does NOT read Phase 1 outputs (layoutResultForNarrative, sectionSaveResult, etc.).
-    // Both phases write to distinct PipelineState fields, preventing concurrent
-    // write conflicts. Array.push() on completedPhases/failedPhases is safe
-    // in Node.js single-threaded event loop (synchronous completion).
-    // statusTracker uses independent slots per phase, safe for parallel calls.
-    await Promise.all([
-      processLayoutPhase(state, ctx, {
-        defaultAnalyzeLayout: defaultAnalyzeLayout as never,
-        saveBackgroundDesigns,
-        saveSectionPatterns,
-        postProcessSections,
-        extractPartsFromSection: extractPartsFromSection as never,
-        saveExtractedParts: saveExtractedParts as never,
-        prisma,
-      }),
-      processQualityPhase(state, ctx, {
-        defaultEvaluateQuality: defaultEvaluateQuality as never,
-        saveQualityEvaluation,
-        saveQualityBenchmarks,
-        buildQualityBenchmarkInputs,
-        prisma,
-      }),
-    ]);
+    // v0.3.0: Changed from Promise.all parallel to sequential execution.
+    // Quality P50=0.02ms makes parallelism pointless.
+    // Sequential execution avoids dual memory allocation, improving efficiency.
+    // Both phases implement internal try-catch Graceful Degradation,
+    // so Phase 3 executes even if Phase 1 fails.
+    await processLayoutPhase(state, ctx, {
+      defaultAnalyzeLayout: defaultAnalyzeLayout as never,
+      saveBackgroundDesigns,
+      saveSectionPatterns,
+      postProcessSections,
+      extractPartsFromSection: extractPartsFromSection as never,
+      saveExtractedParts: saveExtractedParts as never,
+      prisma,
+    });
+    await processQualityPhase(state, ctx, {
+      defaultEvaluateQuality: defaultEvaluateQuality as never,
+      saveQualityEvaluation,
+      saveQualityBenchmarks,
+      buildQualityBenchmarkInputs,
+      prisma,
+    });
 
     // =====================================================
     // Ollama Vision Unload (1st point): After Phase 1 / before Phase 1.5
@@ -474,8 +480,9 @@ async function processPageAnalyzeJob(
       }
 
       await job.updateProgress(PHASE_PROGRESS.EMBEDDING_START);
+      await job.log("[Phase 5] Embedding generation started");
 
-      const embeddingPhaseResult = await processEmbeddingPhase(
+      const embeddingPhaseResult = await dispatchEmbeddingPhase(
         {
           webPageId: state.actualWebPageId,
           url,
@@ -494,6 +501,7 @@ async function processPageAnalyzeJob(
           responsiveAnalysisId: responsiveAnalysisIdForEmbedding,
           partsSavedCount: state.results?.partExtraction?.totalPartsSaved ?? 0,
           screenshotBase64: state.screenshotBase64,
+          screenshotPngPath: state.screenshotPngPath,
           sharedBrowser,
           onProgress: createPhaseProgressInterpolator(
             job,
@@ -511,6 +519,16 @@ async function processPageAnalyzeJob(
       // Release screenshotBase64 after Phase 5 (visual embedding) completes
       // screenshotBase64はPhase 5のDINOv2 visual embedding完了後に解放
       state.screenshotBase64 = undefined;
+
+      // TMP-2: Phase 5 一時ディレクトリ削除（RAW decode 最適化用）
+      // Phase 0 で作成した一時ディレクトリを確実に削除する
+      if (state.screenshotPngPath) {
+        const { cleanupPhase5TempDir } = await import("./phases/phase-5-raw-decode.js");
+        const phase5Dir = path.dirname(state.screenshotPngPath);
+        cleanupPhase5TempDir(phase5Dir);
+        delete state.screenshotPngPath;
+      }
+
       tryGarbageCollect();
 
       // Map embedding phase result back to job results
@@ -616,6 +634,7 @@ async function processPageAnalyzeJob(
             backgroundBackfilled: backfillResult.backgroundBackfilled,
             jsAnimationBackfilled: backfillResult.jsAnimationBackfilled,
             responsiveBackfilled: backfillResult.responsiveBackfilled,
+            partBackfilled: backfillResult.partBackfilled,
             errors: backfillResult.errors.length,
           });
 
@@ -628,6 +647,7 @@ async function processPageAnalyzeJob(
               backfillResult.jsAnimationBackfilled;
             embeddingPhaseResult.responsiveEmbeddingsGenerated +=
               backfillResult.responsiveBackfilled;
+            embeddingPhaseResult.partEmbeddingsGenerated += backfillResult.partBackfilled;
 
             // Update results object with new totals
             if (backfillResult.totalBackfilled > 0) {
@@ -653,6 +673,64 @@ async function processPageAnalyzeJob(
             url,
             webPageId: state.actualWebPageId,
           });
+        }
+
+        // =====================================================
+        // FIX(Bug-2): Post-Phase 5 Counter Reconciliation
+        // The fork child may generate embeddings (saved to DB) but the
+        // IPC-relayed counter can be 0 due to IPC race condition (exit event
+        // fires before message event). Reconcile ALL counters against the
+        // authoritative DB state.
+        // =====================================================
+        {
+          const [sectionEmbDbCount, partEmbDbCount, motionEmbDbCount, bgEmbDbCount] =
+            await Promise.all([
+              prisma.sectionEmbedding.count({
+                where: { sectionPattern: { webPageId: state.actualWebPageId } },
+              }),
+              prisma.componentPartEmbedding.count({
+                where: { componentPart: { webPageId: state.actualWebPageId } },
+              }),
+              prisma.motionEmbedding.count({
+                where: { motionPattern: { webPageId: state.actualWebPageId } },
+              }),
+              prisma.backgroundDesignEmbedding.count({
+                where: { backgroundDesign: { webPageId: state.actualWebPageId } },
+              }),
+            ]);
+
+          if (!results.embedding) {
+            results.embedding = {};
+          }
+
+          const reconcile = (
+            field: keyof NonNullable<typeof results.embedding>,
+            dbCount: number,
+            label: string
+          ): void => {
+            const reported = (results.embedding![field] as number | undefined) ?? 0;
+            if (dbCount > reported) {
+              (results.embedding as Record<string, number>)[field] = dbCount;
+              logger.warn(`[PageAnalyzeWorker] ${label} embedding counter reconciled from DB`, {
+                dbCount,
+                reportedCount: reported,
+                url,
+              });
+            }
+          };
+
+          reconcile("sectionEmbeddingsGenerated", sectionEmbDbCount, "Section");
+          reconcile("partEmbeddingsGenerated", partEmbDbCount, "Part");
+          reconcile("motionEmbeddingsGenerated", motionEmbDbCount, "Motion");
+          reconcile("backgroundDesignEmbeddingsGenerated", bgEmbDbCount, "Background");
+        }
+
+        // Log AFTER Counter Reconciliation so values reflect DB-authoritative counts
+        {
+          const emb = results.embedding;
+          await job.log(
+            `[Phase 5] Embedding complete: sections=${emb?.sectionEmbeddingsGenerated ?? 0}, parts=${emb?.partEmbeddingsGenerated ?? 0}, visual=${emb?.sectionVisualEmbeddingsGenerated ?? 0}, motion=${emb?.motionEmbeddingsGenerated ?? 0}, bg=${emb?.backgroundDesignEmbeddingsGenerated ?? 0}`
+          );
         }
       }
     }
@@ -717,6 +795,102 @@ async function processPageAnalyzeJob(
     // Add results only if there are any (avoid undefined assignment with exactOptionalPropertyTypes)
     if (state.results && Object.keys(state.results).length > 0) {
       result.results = state.results;
+    }
+
+    // =====================================================
+    // Phase 7.5: Post-Analysis Gate (v0.3.0 Tier 2)
+    // =====================================================
+    // Phase 7.5a: Accessibility Audit (opt-in)
+    // state.html is sanitized in Phase 0 (sanitizeHtml in phase-0-ingest.ts L176)
+    // but released after Phase 4. Fetch from DB if needed.
+    if (success && options?.accessibilityOptions?.enabled === true) {
+      let a11yHtml = state.html;
+      if (!a11yHtml && state.actualWebPageId) {
+        try {
+          const webPage = await prisma.webPage.findUnique({
+            where: { id: state.actualWebPageId },
+            select: { htmlContent: true },
+          });
+          a11yHtml = webPage?.htmlContent ?? null;
+        } catch {
+          // DB fetch failure is non-fatal
+        }
+      }
+      try {
+        const a11yOpts = {
+          enabled: true as const,
+          level: (options.accessibilityOptions?.level ?? "AA") as "A" | "AA" | "AAA",
+          include_contrast: options.accessibilityOptions?.include_contrast ?? true,
+          save_to_db: options.accessibilityOptions?.save_to_db ?? true,
+        };
+        const a11yResult = a11yHtml
+          ? await handleAccessibilityPhase({
+              accessibilityOptions: a11yOpts,
+              sanitizedHtml: a11yHtml,
+              warnings: [],
+            })
+          : undefined;
+        if (a11yResult && state.results) {
+          (state.results as Record<string, unknown>).accessibility = a11yResult;
+          state.completedPhases.push("accessibility" as AnalysisPhase);
+        }
+      } catch (a11yError) {
+        logger.warn("[PageAnalyzeWorker] Phase 7.5a accessibility failed (non-fatal)", {
+          error: a11yError instanceof Error ? a11yError.message : String(a11yError),
+        });
+      }
+    }
+
+    // Phase 7.5b: Performance Evaluation (opt-in)
+    if (success && options?.performanceOptions?.enabled === true) {
+      try {
+        const perfOpts = {
+          enabled: true as const,
+          include_screenshots: options.performanceOptions?.include_screenshots ?? false,
+          save_to_db: options.performanceOptions?.save_to_db ?? true,
+          ...(options.performanceOptions?.budget
+            ? { budget: options.performanceOptions.budget }
+            : {}),
+        };
+        const perfResult = await handlePerformancePhase({
+          performanceOptions: perfOpts,
+          url,
+          warnings: [],
+        });
+        if (perfResult && state.results) {
+          (state.results as Record<string, unknown>).performance = perfResult;
+          state.completedPhases.push("performance" as AnalysisPhase);
+        }
+      } catch (perfError) {
+        logger.warn("[PageAnalyzeWorker] Phase 7.5b performance failed (non-fatal)", {
+          error: perfError instanceof Error ? perfError.message : String(perfError),
+        });
+      }
+    }
+
+    // Phase 7.5c: Auto-Snapshot (opt-in)
+    // page.analyze 完了後にデザインスナップショットを自動生成
+    // Auto-create design snapshot after successful page.analyze
+    if (success && options?.autoSnapshot === true) {
+      try {
+        const snapshotResult = await createDesignSnapshot(state.actualWebPageId);
+        if (snapshotResult.success) {
+          logger.info("[PageAnalyzeWorker] Auto-snapshot created", {
+            snapshotId: snapshotResult.snapshot_id?.slice(0, 8) + "...",
+            webPageId: state.actualWebPageId.slice(0, 8) + "...",
+            sectionCount: snapshotResult.section_count,
+          });
+        } else {
+          logger.warn("[PageAnalyzeWorker] Auto-snapshot failed (non-fatal)", {
+            error: snapshotResult.error,
+          });
+        }
+      } catch (snapshotError) {
+        // Auto-snapshot failure is non-fatal — do not affect job result
+        logger.warn("[PageAnalyzeWorker] Auto-snapshot error (non-fatal)", {
+          error: snapshotError instanceof Error ? snapshotError.message : String(snapshotError),
+        });
+      }
     }
 
     if (isDevelopment()) {
@@ -788,6 +962,19 @@ async function processPageAnalyzeJob(
     lockExtender.stop();
     // SEC-L1: Defensive cleanup - release capture buffers on any exit path
     state.scrollVisionCapturesForDeferred = null;
+
+    // TMP-2: Phase 5 一時ディレクトリ削除（finally 保証）
+    // 正常パスでは Phase 5 後に削除済みだが、異常終了時のため再度確認
+    if (state.screenshotPngPath) {
+      try {
+        const { cleanupPhase5TempDir } = await import("./phases/phase-5-raw-decode.js");
+        const phase5Dir = path.dirname(state.screenshotPngPath);
+        cleanupPhase5TempDir(phase5Dir);
+      } catch {
+        // Cleanup failure in finally is non-fatal
+      }
+      delete state.screenshotPngPath;
+    }
   }
 }
 

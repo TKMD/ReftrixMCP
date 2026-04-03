@@ -32,9 +32,8 @@ const MODEL_URL = "https://huggingface.co/Xenova/dinov2-base/resolve/main/onnx/m
 
 /**
  * Expected SHA-256 hash of the model file.
- * Compute after first verified download:
- *   sha256sum packages/ml/models/dinov2-base/model.onnx
- * Then replace this placeholder.
+ * Verified from initial download of dinov2-base ONNX model.
+ * To re-verify: sha256sum packages/ml/models/dinov2-base/model.onnx
  */
 const EXPECTED_SHA256 = "de9c675d214f0171285f90f1d1d7716bce1c5e280e93826d071d57f7b9314d98";
 
@@ -179,7 +178,7 @@ async function downloadModel(outputPath: string): Promise<void> {
 
   const response = await fetch(url.href, {
     headers: {
-      "User-Agent": "Reftrix-ML/0.1.0 (model-download)",
+      "User-Agent": "Reftrix-ML/0.3.0 (model-download)",
     },
   });
 

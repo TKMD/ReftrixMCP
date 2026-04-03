@@ -13,7 +13,7 @@
  * README.mdが全ての要件を満たしているため、全テストがパスします。
  * 新しいツール追加時はこのテストも更新してください。
  *
- * v0.1.0: SVG機能削除に伴い、WebDesign専用（18ツール）に更新
+ * v0.1.0: SVG機能削除に伴い、WebDesign専用に更新。v0.3.0: project/quality.batch_evaluate/quality.getJobStatus削除で35ツール
  */
 
 import { describe, it, expect, beforeAll } from "vitest";
@@ -175,10 +175,6 @@ describe("MCP Documentation Completeness", () => {
       expect(readmeContent.toLowerCase()).toContain("quality.evaluate");
     });
 
-    it("quality.batch_evaluateの説明が含まれること", () => {
-      expect(readmeContent.toLowerCase()).toContain("quality.batch_evaluate");
-    });
-
     it("品質評価3軸の説明があること", () => {
       const hasQualityAxes =
         readmeContent.includes("originality") &&
@@ -251,8 +247,8 @@ describe("MCP Documentation Completeness", () => {
   });
 
   describe("APIリファレンス", () => {
-    it("全MCPツール（15ツール）のリストが含まれること", () => {
-      // WebDesign専用15ツール（v0.1.0でSVG/design削除後）
+    it("全MCPツール（35ツール）のリストが含まれること", () => {
+      // WebDesign専用35ツール（v0.3.0、project削除済み、quality.batch_evaluate/getJobStatus削除済み）
       const requiredTools = [
         // Layout (4)
         "layout.ingest",
@@ -262,16 +258,12 @@ describe("MCP Documentation Completeness", () => {
         // Motion (2)
         "motion.detect",
         "motion.search",
-        // Quality (2)
+        // Quality (1)
         "quality.evaluate",
-        "quality.batch_evaluate",
         // Style (1)
         "style.get_palette",
         // Brief (1)
         "brief.validate",
-        // Project (2)
-        "project.get",
-        "project.list",
         // Page (2)
         "page.analyze",
         "page.getJobStatus",

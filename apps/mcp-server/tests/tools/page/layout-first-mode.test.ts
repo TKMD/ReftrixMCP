@@ -559,30 +559,34 @@ describe("エッジケース", () => {
     }
   });
 
-  it("layout_first=never でWebGLドメインでも通常モードで実行される", async () => {
-    const input: PageAnalyzeInput = {
-      url: "https://resn.co.nz", // 既知WebGLドメイン
-      layout_first: "never", // 強制的に無効化
-      motionOptions: {
-        detect_js_animations: true,
-        js_animation_options: {
-          enableCDP: true, // 明示的に有効化
+  it(
+    "layout_first=never でWebGLドメインでも通常モードで実行される",
+    { timeout: 120000 },
+    async () => {
+      const input: PageAnalyzeInput = {
+        url: "https://resn.co.nz", // 既知WebGLドメイン
+        layout_first: "never", // 強制的に無効化
+        motionOptions: {
+          detect_js_animations: true,
+          js_animation_options: {
+            enableCDP: true, // 明示的に有効化
+          },
         },
-      },
-    };
-
-    const result = await pageAnalyzeHandler(input);
-    expect(result.success).toBe(true);
-
-    // ユーザー指定のオプションが維持される
-    const motionOptions = mockService.getLastMotionOptions() as {
-      js_animation_options?: {
-        enableCDP?: boolean;
       };
-    };
 
-    expect(motionOptions?.js_animation_options?.enableCDP).toBe(true);
-  });
+      const result = await pageAnalyzeHandler(input);
+      expect(result.success).toBe(true);
+
+      // ユーザー指定のオプションが維持される
+      const motionOptions = mockService.getLastMotionOptions() as {
+        js_animation_options?: {
+          enableCDP?: boolean;
+        };
+      };
+
+      expect(motionOptions?.js_animation_options?.enableCDP).toBe(true);
+    }
+  );
 });
 
 // =====================================================

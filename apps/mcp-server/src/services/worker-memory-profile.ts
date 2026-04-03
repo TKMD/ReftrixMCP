@@ -43,6 +43,8 @@ export interface MemoryProfile {
   jsAnimationEmbeddingChunkSize: number;
   /** DINOv2 推論バッチサイズ（0=無効, 5-30） */
   dinov2ChunkSize: number;
+  /** DINOv2 セッションリサイクル閾値（推論N件ごとにdispose→re-init） */
+  dinov2RecycleThreshold: number;
   /** パーツ抽出がデフォルトで有効か */
   partExtractionEnabled: boolean;
   /** Phase 1.1 スキップ用 RSS 上限（バイト） [C-1] */
@@ -96,25 +98,34 @@ const JS_CHUNK_MAX = 50;
  */
 const PART_EXTRACTION_TIER_CONFIG: Record<
   MemoryProfile["tier"],
-  { dinov2ChunkSize: number; partExtractionEnabled: boolean; partExtractionRssLimit: number }
+  {
+    dinov2ChunkSize: number;
+    dinov2RecycleThreshold: number;
+    partExtractionEnabled: boolean;
+    partExtractionRssLimit: number;
+  }
 > = {
   "8gb": {
     dinov2ChunkSize: 0,
+    dinov2RecycleThreshold: 5,
     partExtractionEnabled: false,
     partExtractionRssLimit: 6 * 1024 * 1024 * 1024, // 6GB
   },
   "16gb": {
     dinov2ChunkSize: 5,
+    dinov2RecycleThreshold: 5,
     partExtractionEnabled: true,
     partExtractionRssLimit: 8 * 1024 * 1024 * 1024, // 8GB
   },
   "32gb": {
     dinov2ChunkSize: 15,
+    dinov2RecycleThreshold: 15,
     partExtractionEnabled: true,
     partExtractionRssLimit: 16 * 1024 * 1024 * 1024, // 16GB
   },
   "64gb+": {
     dinov2ChunkSize: 30,
+    dinov2RecycleThreshold: 30,
     partExtractionEnabled: true,
     partExtractionRssLimit: 32 * 1024 * 1024 * 1024, // 32GB
   },
@@ -210,6 +221,7 @@ export function computeMemoryProfile(totalMemoryBytes?: number): MemoryProfile {
     embeddingChunkSize,
     jsAnimationEmbeddingChunkSize,
     dinov2ChunkSize: partConfig.dinov2ChunkSize,
+    dinov2RecycleThreshold: partConfig.dinov2RecycleThreshold,
     partExtractionEnabled: partConfig.partExtractionEnabled,
     partExtractionRssLimit: partConfig.partExtractionRssLimit,
     tier,
@@ -286,6 +298,12 @@ export function resolveMemoryConfig(): MemoryProfile {
     { min: 1 }
   );
 
+  const dinov2RecycleThreshold = safeParseInt(
+    process.env.WORKER_DINOV2_RECYCLE_THRESHOLD,
+    baseline.dinov2RecycleThreshold,
+    { min: 1 }
+  );
+
   return {
     totalMemoryMb: baseline.totalMemoryMb,
     degradationThresholdMb,
@@ -295,6 +313,7 @@ export function resolveMemoryConfig(): MemoryProfile {
     embeddingChunkSize,
     jsAnimationEmbeddingChunkSize,
     dinov2ChunkSize,
+    dinov2RecycleThreshold,
     partExtractionEnabled: baseline.partExtractionEnabled,
     partExtractionRssLimit,
     tier: baseline.tier,
@@ -327,6 +346,7 @@ export function logMemoryProfile(profile: MemoryProfile): void {
       embeddingChunkSize: profile.embeddingChunkSize,
       jsAnimationEmbeddingChunkSize: profile.jsAnimationEmbeddingChunkSize,
       dinov2ChunkSize: profile.dinov2ChunkSize,
+      dinov2RecycleThreshold: profile.dinov2RecycleThreshold,
       partExtractionEnabled: profile.partExtractionEnabled,
       partExtractionRssLimit: profile.partExtractionRssLimit,
     });

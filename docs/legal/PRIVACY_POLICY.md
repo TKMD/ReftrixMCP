@@ -71,7 +71,7 @@ Ollama（llama3.2-vision）を使用したスクリーンショットの視覚�
 
 - ユーザーアカウント情報（ログインID、パスワード等）
 - 利用者の個人情報（氏名、住所、電話番号等）
-- 利用状況のテレメトリ・使用統計
+- 利用状況のテレメトリ・使用統計（オプトインのローカルログ記録を除く。1.8項参照）
 - ブラウザフィンガープリント
 
 **IPアドレスについて**: Reftrixプロジェクトがユーザーのアクセス元IPアドレスを中央収集することはありません。ただし、運用者の環境（Webサーバー、リバースプロキシ、OS等）のアクセスログにIPアドレスが記録される場合があります。これは運用者のインフラ設定に依存するものであり、その管理は運用者の責任です。また、クローリング時には、運用者サーバーの送信元IPアドレスがクロール対象サイトに観測されます（第3条2項参照）。なお、GDPRにおいてIPアドレスは個人データに該当し得るため（前文30項）、EU/EEA域内で運用する場合は適切な取扱いが求められます。
@@ -90,6 +90,27 @@ Ollama（llama3.2-vision）を使用したスクリーンショットの視覚�
 | フィードバック回数 | 累積フィードバック回数                                    | 整数                    |
 
 詳細は [`apps/mcp-server/PRIVACY.md`](../../apps/mcp-server/PRIVACY.md)（プロファイリングプライバシーポリシー）および [`apps/mcp-server/DATA_RETENTION.md`](../../apps/mcp-server/DATA_RETENTION.md)（データ保持ポリシー）を参照してください。
+
+#### 1.8 利用計測データ（v0.3.0追加）
+
+本ソフトウェアには、MCPツールの利用状況を計測するオプトイン機能があります。この機能は環境変数 `TOOL_USAGE_LOG_ENABLED=true` を設定した場合にのみ有効化されます。デフォルトでは無効です。
+
+| データ種別     | 内容                                           | 保存形式 |
+| -------------- | ---------------------------------------------- | -------- |
+| ツール名       | 実行されたMCPツールの名前（例: layout.search） | テキスト |
+| タイムスタンプ | ツール実行時刻（ISO 8601形式）                 | テキスト |
+| 処理時間       | ツール実行の所要時間（ミリ秒）                 | 数値     |
+| 成否           | ツール実行の成功/失敗                          | 真偽値   |
+
+**記録しないデータ**: ツール引数（args）、リクエストID、APIキー、エラーメッセージ、クエリ文字列、プロファイルID、URL、その他の個人情報（PII）は一切記録しません。
+
+**保存場所**: ユーザーのローカル環境のファイルシステム上（デフォルト: `logs/tool-usage.jsonl`）にJSON lines形式で保存されます。
+
+**保持期間**: ログローテーションにより最大100MBまで保持。古いログは `.old` サフィックスで1世代保持されます。運用者は任意にファイルを削除できます。
+
+**外部送信**: 利用計測データは外部サーバーに送信されません。すべてのデータはローカル環境内に留まります。
+
+**無効化方法**: 環境変数 `TOOL_USAGE_LOG_ENABLED` を未設定、空文字、または `true` 以外の値に設定することで無効化できます。
 
 ---
 
@@ -516,7 +537,7 @@ The Reftrix project does not centrally collect the following information from th
 
 - User account information (login IDs, passwords, etc.)
 - Users' personal information (names, addresses, phone numbers, etc.)
-- Usage telemetry or usage statistics
+- Usage telemetry or usage statistics (except opt-in local logging; see Section 1.8)
 - Browser fingerprints
 
 **Regarding IP addresses**: The Reftrix project does not centrally collect users' source IP addresses. However, IP addresses may be recorded in the operator's environment (web server, reverse proxy, OS, etc.) access logs. This depends on the operator's infrastructure configuration and is the operator's responsibility to manage. Additionally, during crawling, the operator server's source IP address is observable by crawled target sites (see Section 3.2). Note that under the GDPR, IP addresses may constitute personal data (Recital 30), so appropriate handling is required when operating within the EU/EEA.
@@ -535,6 +556,27 @@ When the Software's Preference Profiling feature (`preference.hear` / `preferenc
 | Interaction count    | Cumulative feedback count                                       | Integer                |
 
 For details, see [`apps/mcp-server/PRIVACY.md`](../../apps/mcp-server/PRIVACY.md) (Profiling Privacy Policy) and [`apps/mcp-server/DATA_RETENTION.md`](../../apps/mcp-server/DATA_RETENTION.md) (Data Retention Policy).
+
+#### 1.8 Usage Telemetry Data (Added in v0.3.0)
+
+The Software includes an opt-in feature for measuring MCP tool usage. This feature is only enabled when the environment variable `TOOL_USAGE_LOG_ENABLED=true` is set. It is disabled by default.
+
+| Data Type | Description                                         | Storage Format |
+| --------- | --------------------------------------------------- | -------------- |
+| Tool name | Name of the executed MCP tool (e.g., layout.search) | Text           |
+| Timestamp | Time of tool execution (ISO 8601 format)            | Text           |
+| Duration  | Tool execution duration (milliseconds)              | Number         |
+| Success   | Whether the tool execution succeeded or failed      | Boolean        |
+
+**Data NOT recorded**: Tool arguments (args), request IDs, API keys, error messages, query strings, profile IDs, URLs, and any other personally identifiable information (PII) are never recorded.
+
+**Storage location**: Data is stored in JSON lines format on the user's local filesystem (default: `logs/tool-usage.jsonl`).
+
+**Retention period**: Log rotation limits files to a maximum of 100MB. Old logs are retained with a `.old` suffix for one generation. Operators may delete files at any time.
+
+**No external transmission**: Usage telemetry data is never sent to external servers. All data remains within the local environment.
+
+**How to disable**: Set the `TOOL_USAGE_LOG_ENABLED` environment variable to unset, empty, or any value other than `true`.
 
 ---
 

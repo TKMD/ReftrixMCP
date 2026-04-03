@@ -136,6 +136,8 @@ const DEPRECATED_CAMEL_CASE_PARAMS: Record<string, string[]> = {
     "motionOptions",
     "qualityOptions",
     "responsiveOptions",
+    "accessibilityOptions",
+    "performanceOptions",
     "waitUntil",
   ],
 
@@ -173,11 +175,9 @@ const DEPRECATED_CAMEL_CASE_PARAMS: Record<string, string[]> = {
   // Brief ツール
   "brief.validate": ["strictMode"],
 
-  // Project ツール
-  "project.list": ["sortBy", "sortOrder"],
-
   // Search ツール
   "search.unified": ["webPageId"],
+  "search.facets": ["webPageId"],
 };
 
 /**
@@ -335,7 +335,7 @@ describe("MCP Parameter Naming Convention", () => {
 
     it("summaryパラメータを持つべきツールが持っていること", () => {
       // 検索・取得系のツールはsummaryを持つべき (WebDesign専用)
-      const toolsShouldHaveSummary = ["project.get", "project.list", "page.analyze"];
+      const toolsShouldHaveSummary = ["page.analyze"];
 
       const toolsWithoutSummary: string[] = [];
 
@@ -463,8 +463,8 @@ describe("MCP Parameter Naming Convention", () => {
   // preference.hear, preference.get, preference.reset ツール追加
   // =========================================================================
   describe("ツール数", () => {
-    it("allToolDefinitionsが28ツール（WebDesign専用）を含むこと", () => {
-      expect(allToolDefinitions).toHaveLength(28);
+    it("allToolDefinitionsが35ツール（WebDesign専用 + v0.3.0 Tier 2全11ツール、project削除済み、quality.batch_evaluate/getJobStatus削除済み）を含むこと", () => {
+      expect(allToolDefinitions).toHaveLength(35);
     });
   });
 

@@ -208,8 +208,6 @@ export const TOOL_PERMISSIONS: Record<string, string[]> = {
 
   // 品質系
   "quality.evaluate": [PERMISSIONS.QUALITY_READ],
-  "quality.batch_evaluate": [PERMISSIONS.QUALITY_READ],
-  "quality.getJobStatus": [PERMISSIONS.QUALITY_READ],
 
   // モーション系
   "motion.detect": [PERMISSIONS.MOTION_READ],
@@ -232,9 +230,7 @@ export const TOOL_PERMISSIONS: Record<string, string[]> = {
   // ブリーフ系（デザインレビュー）
   "brief.validate": [PERMISSIONS.DESIGN_REVIEW],
 
-  // プロジェクト系
-  "project.get": [PERMISSIONS.PROJECT_READ],
-  "project.list": [PERMISSIONS.PROJECT_READ],
+  // [REMOVED v0.3.0] project.get / project.list — バックエンドAPI未実装のため登録解除
 
   // パーツ系（Part-Level Analysis）
   "part.search": [PERMISSIONS.LAYOUT_READ],
@@ -250,6 +246,37 @@ export const TOOL_PERMISSIONS: Record<string, string[]> = {
 
   // デザイン検索系（Visual Search）
   "design.search_by_image": [PERMISSIONS.LAYOUT_READ],
+
+  // デザイン類似検索系（v0.3.0 T2-2）
+  "design.similar_site": [PERMISSIONS.LAYOUT_READ],
+
+  // デザイン多次元比較（v0.3.0 T2-CMP）
+  "design.compare": [PERMISSIONS.LAYOUT_READ],
+
+  // 監査系（v0.3.0 GDPR Art.30）
+  "audit.query": [PERMISSIONS.SYSTEM_READ],
+
+  // データ管理系（v0.3.0 GDPR）
+  "data.delete": [PERMISSIONS.SYSTEM_ADMIN],
+  "data.export": [PERMISSIONS.SYSTEM_READ],
+
+  // Embedding品質監視系（v0.3.0 T2-EMB）
+  "embedding.quality": [PERMISSIONS.QUALITY_READ],
+
+  // アクセシビリティ監査系（v0.3.0 T2-WCAG）
+  "accessibility.audit": [PERMISSIONS.QUALITY_READ],
+
+  // パフォーマンス評価系（v0.3.0 T2-CWV）
+  "performance.evaluate": [PERMISSIONS.QUALITY_READ],
+
+  // ファセット検索系（v0.3.0 T2-FAC）
+  "search.facets": [PERMISSIONS.LAYOUT_READ],
+
+  // レスポンシブキャプチャ系（v0.3.0 T2-10）
+  "responsive.capture": [PERMISSIONS.RESPONSIVE_READ],
+
+  // デザイン変更追跡系（v0.3.0 T2-DCT）
+  "design.track_changes": [PERMISSIONS.DESIGN_WRITE],
 
   // システム系（公開ツール）
   "system.health": [PERMISSIONS.SYSTEM_HEALTH],

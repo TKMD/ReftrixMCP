@@ -55,6 +55,9 @@ import { PhaseTimeoutError } from "./handlers/timeout-utils";
 // Vision CPU完走保証 Phase 4: MCP進捗報告統合
 import type { ProgressContext } from "../../router";
 
+// v0.3.0: Streaming Progress Notifications (MCP progressToken統合)
+import { ProgressNotificationService } from "../../services/progress-notification.service";
+
 // 同期処理ロジック（handlers/sync-processing.tsに分離）
 import { executeSyncProcessing } from "./handlers/sync-processing";
 
@@ -248,6 +251,19 @@ export async function pageAnalyzeHandler(
   }
 
   // =====================================================
+  // v0.3.0: Streaming Progress Notification Service
+  // =====================================================
+  // progressToken が提供されている場合、MCP notifications/progress を送信
+  const progressService = new ProgressNotificationService({
+    progressToken: progressContext?.progressToken,
+    sendNotification: progressContext?.sendNotification
+      ? async (notification): Promise<void> => {
+          await progressContext.sendNotification(notification);
+        }
+      : undefined,
+  });
+
+  // =====================================================
   // Smart Defaults: Vision有効時の自動非同期モード（v0.1.0）
   // =====================================================
   // Vision LLM (llama3.2-vision) はCPUモードで2-5分以上かかるため、
@@ -425,6 +441,29 @@ export async function pageAnalyzeHandler(
         jobOptions.respectRobotsTxt = validated.respect_robots_txt;
       }
 
+      // Phase 7.5: Accessibility + Performance + Auto Snapshot (v0.3.0)
+      if (validated.accessibilityOptions?.enabled) {
+        jobOptions.accessibilityOptions = {
+          enabled: true,
+          level: validated.accessibilityOptions.level,
+          include_contrast: validated.accessibilityOptions.include_contrast,
+          save_to_db: validated.accessibilityOptions.save_to_db,
+        };
+      }
+      if (validated.performanceOptions?.enabled) {
+        jobOptions.performanceOptions = {
+          enabled: true,
+          include_screenshots: validated.performanceOptions.include_screenshots,
+          save_to_db: validated.performanceOptions.save_to_db,
+          ...(validated.performanceOptions.budget
+            ? { budget: validated.performanceOptions.budget }
+            : {}),
+        };
+      }
+      if (validated.auto_snapshot) {
+        jobOptions.autoSnapshot = true;
+      }
+
       const job = await addPageAnalyzeJob(queue, {
         webPageId,
         url: validated.url,
@@ -438,6 +477,10 @@ export async function pageAnalyzeHandler(
           url: validated.url,
         });
       }
+
+      // v0.3.0: ジョブキューイング完了を進捗通知
+      // Notify job queued via MCP progress (async mode — client may not keep connection)
+      void progressService.notifyPhaseStart("ingest");
 
       // 非同期レスポンスを返す
       const autoAsyncNote = autoAsyncEnabled
@@ -482,7 +525,8 @@ export async function pageAnalyzeHandler(
         getService: () => serviceFactoryDI.get()?.() ?? {},
         getPrismaClient,
       },
-      progressContext
+      progressContext,
+      progressService
     ),
     new Promise<PageAnalyzeOutput>((_, reject) => {
       hardTimeoutId = setTimeout(() => {
@@ -526,7 +570,7 @@ export async function pageAnalyzeHandler(
 export const pageAnalyzeToolDefinition = {
   name: "page.analyze",
   description:
-    "Analyze a web page URL with layout detection, motion pattern extraction, and quality evaluation. Executes layout.ingest, motion.detect, and quality.evaluate in parallel and returns unified results.",
+    "Analyze a web page URL with layout detection, motion pattern extraction, and quality evaluation. Executes layout.ingest, motion.detect, and quality.evaluate in parallel and returns unified results. Supports MCP streaming progress via _meta.progressToken for real-time phase notifications.",
   annotations: {
     title: "Page Analyze",
     readOnlyHint: true,
@@ -972,6 +1016,68 @@ export const pageAnalyzeToolDefinition = {
             default: true,
             description:
               "Detect layout structure changes (grid columns, flex direction, etc.) (default: true)",
+          },
+        },
+      },
+      // Phase 7.5: Post-Analysis Gate (v0.3.0, opt-in)
+      auto_snapshot: {
+        type: "boolean",
+        default: false,
+        description:
+          "Auto-save design snapshot after analysis (default: false). Creates a point-in-time record for design.track_changes comparison.",
+      },
+      accessibilityOptions: {
+        type: "object",
+        description:
+          "Accessibility audit options (v0.3.0 Phase 7.5a, opt-in). WCAG 2.1 AA compliance audit via axe-core. Timeout: 10s. Disabled by default.",
+        properties: {
+          enabled: {
+            type: "boolean",
+            default: false,
+            description: "Enable accessibility audit (default: false)",
+          },
+          level: {
+            type: "string",
+            enum: ["A", "AA", "AAA"],
+            default: "AA",
+            description: "WCAG conformance level (default: AA)",
+          },
+          include_contrast: {
+            type: "boolean",
+            default: true,
+            description: "Include OKLCH contrast ratio check (default: true)",
+          },
+          save_to_db: {
+            type: "boolean",
+            default: true,
+            description: "Save audit results to DB (default: true)",
+          },
+        },
+      },
+      performanceOptions: {
+        type: "object",
+        description:
+          "Performance evaluation options (v0.3.0 Phase 7.5b, opt-in). Core Web Vitals (LCP/FID/CLS/INP/TTFB) measurement. Timeout: 40s. Disabled by default.",
+        properties: {
+          enabled: {
+            type: "boolean",
+            default: false,
+            description: "Enable performance evaluation (default: false)",
+          },
+          include_screenshots: {
+            type: "boolean",
+            default: false,
+            description: "Include screenshots in response (default: false)",
+          },
+          budget: {
+            type: "object",
+            description:
+              "Custom performance budget (default: Google recommended LCP<2.5s, CLS<0.1, FID<100ms, TTFB<800ms, INP<200ms)",
+          },
+          save_to_db: {
+            type: "boolean",
+            default: true,
+            description: "Save evaluation results to DB (default: true)",
           },
         },
       },

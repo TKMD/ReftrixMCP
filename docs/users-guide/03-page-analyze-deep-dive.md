@@ -1,6 +1,6 @@
 # page.analyze 詳細ガイド / page.analyze Deep Dive - Web分析フローとデータ構造 / Web Analysis Flow and Data Structure
 
-**Version**: 0.2.1 | **Last Updated**: 2026-03-26
+**Version**: 0.3.0 | **Last Updated**: 2026-03-27
 
 このドキュメントでは、`page.analyze` MCPツールがWebページを分析する際の詳細なフロー、分析内容、およびデータベースに保存されるデータ構造を、実際の分析例（https://www.spaceandtime.io/）を用いて解説します。
 
@@ -19,9 +19,10 @@ This document explains the detailed flow, analysis content, and database data st
 7. [Phase 5: QUALITY — 品質評価](#7-phase-5-quality--品質評価)
 8. [Phase 6: NARRATIVE — ナラティブ分析](#8-phase-6-narrative--ナラティブ分析)
 9. [Phase 7: EMBEDDING — Embedding生成](#9-phase-7-embedding--embedding生成)
-10. [データベース保存構造](#10-データベース保存構造)
-11. [保存データの活用方法](#11-保存データの活用方法)
-12. [実例: spaceandtime.io の分析結果](#12-実例-spaceandtimeio-の分析結果)
+10. [Phase 7.5: POST_ANALYSIS — ポスト分析ゲート（v0.3.0）](#10-phase-75-post_analysis--ポスト分析ゲートv030)
+11. [データベース保存構造](#11-データベース保存構造)
+12. [保存データの活用方法](#12-保存データの活用方法)
+13. [実例: spaceandtime.io の分析結果](#13-実例-spaceandtimeio-の分析結果)
 
 ---
 
@@ -31,15 +32,16 @@ This document explains the detailed flow, analysis content, and database data st
 
 `page.analyze` is the unified web analysis tool provided by the Reftrix MCP server. From a single URL input, it **sequentially executes** 7 phases to comprehensively analyze web page structure, motion, and quality:
 
-| Phase | 名称 / Name       | 進捗 / Progress | 主な出力 / Main Output                            |
-| ----- | ----------------- | --------------- | ------------------------------------------------- |
-| 1     | **INGEST**        | 0-15%           | ページ取得・HTML取得（web_pages）                 |
-| 2     | **LAYOUT**        | 15-35%          | セクション構造解析（section_patterns）            |
-| 3     | **SCROLL_VISION** | 35-45%          | スクロールキャプチャ（Phase 1.5: キャプチャのみ） |
-| 4     | **MOTION**        | 45-65%          | CSS/JSアニメーション検出（motion_patterns）       |
-| 5     | **QUALITY**       | 65-80%          | デザイン品質スコアリング（quality_evaluations）   |
-| 6     | **NARRATIVE**     | 80-90%          | ナラティブ分析（Ollama Vision、Phase 2.5）        |
-| 7     | **EMBEDDING**     | 90-100%         | Embedding生成（multilingual-e5-base）             |
+| Phase | 名称 / Name       | 進捗 / Progress | 主な出力 / Main Output                                               |
+| ----- | ----------------- | --------------- | -------------------------------------------------------------------- |
+| 1     | **INGEST**        | 0-15%           | ページ取得・HTML取得（web_pages）                                    |
+| 2     | **LAYOUT**        | 15-35%          | セクション構造解析（section_patterns）                               |
+| 3     | **SCROLL_VISION** | 35-45%          | スクロールキャプチャ（Phase 1.5: キャプチャのみ）                    |
+| 4     | **MOTION**        | 45-65%          | CSS/JSアニメーション検出（motion_patterns）                          |
+| 5     | **QUALITY**       | 65-80%          | デザイン品質スコアリング（quality_evaluations）                      |
+| 6     | **NARRATIVE**     | 80-90%          | ナラティブ分析（Ollama Vision、Phase 2.5）                           |
+| 7     | **EMBEDDING**     | 90-100%         | Embedding生成（multilingual-e5-base）                                |
+| 7.5   | **POST_ANALYSIS** | (opt-in)        | アクセシビリティ・パフォーマンス・スナップショット（v0.3.0、opt-in） |
 
 > **Note**: ブラウザはMOTIONフェーズ完了後にクローズされます。SCROLL_VISION分析（Phase 2.5）はブラウザクローズ後にNARRATIVEフェーズ内で実行されます。
 
@@ -126,11 +128,27 @@ This document explains the detailed flow, analysis content, and database data st
                               │
                               ▼
 ┌─────────────────────────────────────────────────────────────────┐
+│  Phase 7.5: POST_ANALYSIS（opt-in、v0.3.0）                     │
+│  ─────────────────────────────────────────────────────────────  │
+│  ※ 全サブフェーズはデフォルト無効（opt-in）                      │
+│  ※ パイプライン残時間 < 55秒で全スキップ                         │
+│  ─────────────────────────────────────────────────────────────  │
+│  [A] Accessibility Audit（WCAG 2.1 AA、axe-core、10秒）        │
+│  [B] Performance Evaluation（Core Web Vitals、40秒）            │
+│  [C] Auto Snapshot（デザインスナップショット保存、5秒）          │
+│  → 各サブフェーズの失敗はwarningとして記録（メイン結果に影響なし）│
+└─────────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────────┐
 │                    統合レスポンス返却                            │
 │  - layout: セクション数、タイプ別内訳、CSS Framework            │
 │  - motion: パターン数、カテゴリ別内訳、JSライブラリ検出         │
 │  - quality: Overall Score、Grade、軸別スコア、推奨事項          │
 │  - visionUsed: boolean（Vision実際使用有無、v0.1.2+）          │
+│  - accessibility: score, level, violationCount（opt-in時のみ）  │
+│  - performance: score, grade, metrics（opt-in時のみ）           │
+│  - snapshot: snapshotId, createdAt（opt-in時のみ）              │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
@@ -665,9 +683,102 @@ const calculateScore = (staticScore, patternAnalysis) => {
 
 ---
 
-## 10. データベース保存構造 / Database Storage Structure
+## 10. Phase 7.5: POST_ANALYSIS -- ポスト分析ゲート（v0.3.0） / Post-Analysis Gate (v0.3.0)
 
-### 10.1 ER図
+### 10.1 概要 / Overview
+
+Phase 7.5はv0.3.0で追加されたオプショナルなポスト分析フェーズです。メインパイプライン（Phase 1-7）完了後に、アクセシビリティ監査・パフォーマンス評価・デザインスナップショットの3つのサブフェーズをopt-inで実行します。
+
+Phase 7.5 is an optional post-analysis phase added in v0.3.0. After the main pipeline (Phases 1-7) completes, it runs three opt-in sub-phases: accessibility audit, performance evaluation, and design snapshot.
+
+**重要な設計原則 / Key Design Principles**:
+
+- **全サブフェーズはデフォルト無効** — 各オプションを明示的に有効化した場合のみ実行 / All sub-phases disabled by default — only execute when explicitly enabled
+- **Graceful Degradation** — 各サブフェーズの失敗はwarningとして記録し、メイン結果に影響しない / Sub-phase failures are recorded as warnings without affecting main results
+- **パイプライン残時間ゲート** — 残時間55秒未満で全サブフェーズをスキップ / All sub-phases skipped when remaining pipeline time < 55 seconds
+
+### 10.2 サブフェーズ詳細 / Sub-Phase Details
+
+| サブフェーズ / Sub-Phase                  | 有効化オプション / Enable Option                   | タイムアウト / Timeout | 出力 / Output                                        |
+| ----------------------------------------- | -------------------------------------------------- | ---------------------- | ---------------------------------------------------- |
+| Accessibility Audit（WCAG 2.1 AA）        | `accessibilityOptions: { enabled: true }`          | 10秒 / 10s             | score (0-100), level (A/AA/AAA), violationCount      |
+| Performance Evaluation（Core Web Vitals） | `performanceOptions: { enabled: true }`            | 40秒 / 40s             | score (0-100), grade, metrics (LCP/FID/CLS/INP/TTFB) |
+| Auto Snapshot（デザインスナップショット） | `auto_snapshot: true`（既存パラメータ / existing） | 5秒 / 5s               | snapshotId, createdAt                                |
+
+### 10.3 使用例 / Usage Examples
+
+```typescript
+// Phase 7.5の全サブフェーズを有効化 / Enable all Phase 7.5 sub-phases
+await page.analyze({
+  url: "https://example.com",
+  accessibilityOptions: { enabled: true },
+  performanceOptions: { enabled: true },
+  auto_snapshot: true,
+});
+
+// アクセシビリティ監査のみ / Accessibility audit only
+await page.analyze({
+  url: "https://example.com",
+  accessibilityOptions: { enabled: true },
+});
+```
+
+### 10.4 レスポンス例 / Response Example
+
+Phase 7.5のサブフェーズが有効な場合、統合レスポンスに以下が追加されます:
+
+When Phase 7.5 sub-phases are enabled, the following is added to the unified response:
+
+```json
+{
+  "accessibility": {
+    "score": 85,
+    "level": "AA",
+    "violationCount": 3,
+    "violations": [
+      { "id": "color-contrast", "impact": "serious", "count": 2 },
+      { "id": "image-alt", "impact": "critical", "count": 1 }
+    ]
+  },
+  "performance": {
+    "score": 72,
+    "grade": "C",
+    "metrics": {
+      "lcp": { "value": 2.8, "unit": "s", "rating": "needs-improvement" },
+      "fid": { "value": 45, "unit": "ms", "rating": "good" },
+      "cls": { "value": 0.08, "unit": "", "rating": "good" },
+      "inp": { "value": 180, "unit": "ms", "rating": "good" },
+      "ttfb": { "value": 620, "unit": "ms", "rating": "needs-improvement" }
+    }
+  },
+  "snapshot": {
+    "snapshotId": "01961234-5678-7abc-def0-123456789abc",
+    "createdAt": "2026-04-02T12:00:00.000Z"
+  }
+}
+```
+
+### 10.5 独立ツールとの関係 / Relationship with Standalone Tools
+
+Phase 7.5の各サブフェーズは、対応する独立ツールのラッパーです。独立ツールは引き続き単独で利用可能です。
+
+Each Phase 7.5 sub-phase wraps a corresponding standalone tool. Standalone tools remain available independently.
+
+| Phase 7.5 サブフェーズ / Sub-Phase | 独立ツール / Standalone Tool | 違い / Difference                                                     |
+| ---------------------------------- | ---------------------------- | --------------------------------------------------------------------- |
+| Accessibility Audit                | `accessibility.audit`        | Phase 7.5はタイムアウト10秒、独立ツールは制限なし / 10s vs no timeout |
+| Performance Evaluation             | `performance.evaluate`       | Phase 7.5はタイムアウト40秒、独立ツールは制限なし / 40s vs no timeout |
+| Auto Snapshot                      | `design.track_changes`       | Phase 7.5は`snapshot`アクションのみ / snapshot action only            |
+
+> **Tip**: Phase 7.5は「ついでに」実行する軽量チェックです。詳細な分析が必要な場合は独立ツールを直接使用してください。
+>
+> Phase 7.5 is designed for lightweight checks "while we're at it." For detailed analysis, use the standalone tools directly.
+
+---
+
+## 11. データベース保存構造 / Database Storage Structure
+
+### 11.1 ER図
 
 ```
 ┌─────────────────┐
@@ -709,7 +820,7 @@ const calculateScore = (staticScore, patternAnalysis) => {
 └─────────────────┘      └─────────────────┘
 ```
 
-### 10.2 インデックス構成
+### 11.2 インデックス構成
 
 | テーブル           | インデックス       | タイプ | 用途                       |
 | ------------------ | ------------------ | ------ | -------------------------- |
@@ -726,9 +837,9 @@ const calculateScore = (staticScore, patternAnalysis) => {
 
 ---
 
-## 11. 保存データの活用方法 / How to Use Saved Data
+## 12. 保存データの活用方法 / How to Use Saved Data
 
-### 11.1 セマンティック検索（layout.search）
+### 12.1 セマンティック検索（layout.search）
 
 ```typescript
 // 日本語クエリで類似セクションを検索
@@ -751,7 +862,7 @@ const results = await mcp.layout.search({
 ];
 ```
 
-### 11.2 コード生成（layout.generate_code）
+### 12.2 コード生成（layout.generate_code）
 
 ```typescript
 // 検索結果のパターンからReactコンポーネントを生成
@@ -794,7 +905,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
 `;
 ```
 
-### 11.3 モーション検索（motion.search）
+### 12.3 モーション検索（motion.search）
 
 ```typescript
 // ホバーエフェクトを検索
@@ -809,9 +920,9 @@ const results = await mcp.motion.search({
 
 ---
 
-## 12. 実例: spaceandtime.io の分析結果 / Example: spaceandtime.io Analysis Results
+## 13. 実例: spaceandtime.io の分析結果 / Example: spaceandtime.io Analysis Results
 
-### 12.1 分析サマリー
+### 13.1 分析サマリー
 
 | 項目          | 値                                                             |
 | ------------- | -------------------------------------------------------------- |
@@ -821,7 +932,7 @@ const results = await mcp.motion.search({
 | CSS Framework | vanilla (confidence: 0.3)                                      |
 | Quality Score | 88/100 (Grade B)                                               |
 
-### 12.2 実際のページレイアウト（ASCII Art表現）
+### 13.2 実際のページレイアウト（ASCII Art表現）
 
 spaceandtime.ioの実際のページ構造を視覚化したものです。検出された388セクションのうち、主要な構造を表現しています。
 
@@ -941,7 +1052,7 @@ spaceandtime.ioの実際のページ構造を視覚化したものです。検�
 - cta: 1件（メインCTAセクション）
 - unknown: 1件（分類不能）
 
-### 12.3 セクション検出フローの視覚化
+### 13.3 セクション検出フローの視覚化
 
 以下は、SectionDetectorがHTMLをどのように解析し、セクションを分類してDBに保存するかを示したものです。
 
@@ -1063,7 +1174,7 @@ spaceandtime.ioの実際のページ構造を視覚化したものです。検�
 └──────────────────────────────────────────────────────────────────────┘
 ```
 
-### 12.4 HNSW Indexによるベクトル検索の仕組み
+### 13.4 HNSW Indexによるベクトル検索の仕組み
 
 保存されたEmbeddingは、pgvectorのHNSW（Hierarchical Navigable Small World）インデックスを用いて高速検索されます。
 
@@ -1135,7 +1246,7 @@ spaceandtime.ioの実際のページ構造を視覚化したものです。検�
 - **高精度**: ef_construction=64により、真の最近傍を高確率で発見
 - **スケーラビリティ**: 数百万ベクトルでも10ms以下でクエリ可能
 
-### 12.5 保存されたデータ
+### 13.5 保存されたデータ
 
 #### web_pages テーブル
 
@@ -1177,7 +1288,7 @@ spaceandtime.ioの実際のページ構造を視覚化したものです。検�
 
 - 各モーションパターンに対して768次元ベクトル埋め込み
 
-### 12.6 Vision分析結果
+### 13.6 Vision分析結果
 
 ```json
 {
@@ -1201,7 +1312,7 @@ spaceandtime.ioの実際のページ構造を視覚化したものです。検�
 }
 ```
 
-### 12.7 品質評価結果
+### 13.7 品質評価結果
 
 | 軸            | スコア               |
 | ------------- | -------------------- |

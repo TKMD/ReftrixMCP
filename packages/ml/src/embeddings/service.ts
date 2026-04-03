@@ -1276,6 +1276,92 @@ export class EmbeddingService {
   }
 
   /**
+   * Terminate the worker thread and prepare for re-spawn on next use.
+   *
+   * Unlike dispose() which only releases the ONNX pipeline within the
+   * existing worker thread, this method terminates the worker thread
+   * process entirely. This forces the OS to reclaim ALL memory held by
+   * the ONNX Runtime C++ arena allocator, which glibc malloc fragmentation
+   * prevents dispose() from returning.
+   *
+   * After termination, the next generateEmbedding() call will automatically
+   * re-spawn a new worker thread via ensureWorkerReady().
+   *
+   * Key behaviors:
+   * - lastCrashTime is reset to 0 (planned terminate, not a crash)
+   * - workerRestartCount is preserved (not incremented)
+   * - currentProvider is preserved for re-spawn
+   * - Mutual exclusion via workerInitPromise
+   */
+  async terminateAndRespawn(): Promise<void> {
+    // T-4: Set workerInitPromise to prevent concurrent spawns during terminate
+    const terminatePromise = (async (): Promise<void> => {
+      // T-3: Save workerRestartCount before terminate (crash handler increments it)
+      const savedRestartCount = this.workerRestartCount;
+
+      // Clear idle timer
+      if (this.idleTimer !== null) {
+        clearTimeout(this.idleTimer);
+        this.idleTimer = null;
+      }
+
+      if (this.worker) {
+        try {
+          // Send terminate message so worker can dispose pipeline
+          await this.sendWorkerMessage({
+            type: "terminate",
+            requestId: generateRequestId(),
+          });
+        } catch {
+          // May fail if worker already exited
+        }
+
+        // Force terminate the worker thread
+        try {
+          await this.worker.terminate();
+        } catch {
+          // Already terminated
+        }
+
+        this.worker = null;
+        this.workerReady = false;
+      }
+
+      // Also dispose in-process pipeline if present
+      await this.disposeInProcess();
+
+      // Reject any remaining pending requests
+      for (const [id, pending] of this.pendingRequests) {
+        clearTimeout(pending.timer);
+        pending.reject(new Error("Service terminated for respawn"));
+        this.pendingRequests.delete(id);
+      }
+
+      // T-3: Restore workerRestartCount (planned terminate, not a crash)
+      this.workerRestartCount = savedRestartCount;
+
+      // T-3: Reset lastCrashTime (planned terminate, no cooldown needed)
+      this.lastCrashTime = 0;
+
+      this.inferencesSinceRecycle = 0;
+
+      // T-5: currentProvider is NOT reset — re-spawn will use same provider
+
+      // eslint-disable-next-line no-console
+      console.log("[ML] Worker Thread terminated for respawn (planned)");
+    })();
+
+    // T-4: Hold workerInitPromise to block concurrent generateEmbedding() calls
+    this.workerInitPromise = terminatePromise.then(() => {
+      // Clear workerInitPromise after terminate completes so next
+      // ensureWorkerReady() can spawn a fresh worker
+      this.workerInitPromise = null;
+    });
+
+    await terminatePromise;
+  }
+
+  /**
    * Get the number of worker thread restarts that have occurred.
    */
   getWorkerRestartCount(): number {

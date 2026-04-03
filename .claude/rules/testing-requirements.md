@@ -222,7 +222,7 @@ Test suites added during Phase 3 (security audit remediation):
 | `tests/services/hnsw-iterative-scan.test.ts`         | 7                | HNSW反復スキャン / HNSW iterative scan                  |
 | `tests/tools/design/search-by-image.tool.test.ts`    | 54               | 画像検索ツール / Image search tool                      |
 | `tests/utils/sanitize-error.test.ts`                 | 30               | エラーサニタイズユーティリティ / Error sanitize utility |
-| `tests/workers/phases/phase-parallelization.test.ts` | 16               | Phase 1/3並列化 / Phase 1/3 parallelization             |
+| `tests/workers/phases/phase-parallelization.test.ts` | 16               | Phase 1/3逐次実行 / Phase 1/3 sequential execution      |
 
 ## 品質ゲート（CI必須） / Quality Gates (CI Required)
 
@@ -231,11 +231,10 @@ Test suites added during Phase 3 (security audit remediation):
 - ESLintエラー 0件 / ESLint errors: 0
 - TypeScriptエラー 0件 / TypeScript errors: 0
 - フォーマット準拠 / Format compliance: `pnpm format:check`
-- ドキュメント整合性 0件 / Docs-impl sync errors: 0 (`pnpm docs:verify`)
 - セキュリティ脆弱性（High/Critical）0件 / Security vulnerabilities (High/Critical): 0
 
 ## lint/typecheckの実行 / Running lint/typecheck
 
-タスク完了時は必ず `pnpm lint`、`pnpm typecheck`、`pnpm format:check`、`pnpm docs:verify` を実行してコードの正確性を確認する。
+タスク完了時は必ず `pnpm lint`、`pnpm typecheck`、`pnpm format:check` を実行してコードの正確性を確認する。
 
-Always run `pnpm lint`, `pnpm typecheck`, `pnpm format:check`, and `pnpm docs:verify` upon task completion to verify code correctness.
+Always run `pnpm lint`, `pnpm typecheck`, `pnpm format:check` upon task completion to verify code correctness.

@@ -241,7 +241,7 @@ describe("Admin Operation Utilities", () => {
       // DB書き込み失敗の警告ログを確認
       expect(warnSpy).toHaveBeenCalledWith(
         "[ADMIN] Failed to write audit log to database:",
-        expect.any(Error)
+        expect.any(String)
       );
 
       warnSpy.mockRestore();

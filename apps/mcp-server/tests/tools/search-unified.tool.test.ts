@@ -11,6 +11,7 @@ import {
   type SearchUnifiedOutput,
 } from "../../src/tools/search-unified.tool";
 import { invalidateCache } from "../../src/services/search-cache.service";
+import { computeFacetsFromResults } from "../../src/services/facet.service";
 
 // =====================================================
 // Mock individual search handlers
@@ -49,6 +50,31 @@ vi.mock("../../src/utils/logger", () => ({
 vi.mock("../../src/utils/sanitize-error", () => ({
   sanitizeErrorMessage: vi.fn((err: Error) => err.message),
 }));
+
+vi.mock("../../src/services/search/query-understanding.service", () => ({
+  understandQuery: vi.fn((query: string) => ({
+    originalQuery: query,
+    expandedQuery: query, // テストではクエリ拡張しない / No expansion in tests
+    queryType: "visual" as const,
+    extractedFilters: {},
+  })),
+}));
+
+vi.mock("../../src/services/search/cross-encoder-rerank.service", () => ({
+  applyCrossEncoderReranking: vi.fn((results: Array<{ id: string; similarity: number }>) =>
+    Promise.resolve({ items: results, reranked: false, method: "none" })
+  ),
+}));
+
+vi.mock("../../src/services/facet.service", async (importOriginal) => {
+  const actual = (await importOriginal()) as Record<string, unknown>;
+  return {
+    ...actual,
+    computeFacetsFromResults: vi.fn(
+      actual.computeFacetsFromResults as (...args: unknown[]) => unknown
+    ),
+  };
+});
 
 import { layoutSearchHandler } from "../../src/tools/layout/search.tool";
 import { partSearchHandler } from "../../src/tools/part/search.tool";
@@ -1319,6 +1345,172 @@ describe("search.unified", () => {
         background: 1,
         narrative: 1,
       });
+    });
+  });
+
+  // =================================================
+  // 10. facet_fields parameter support
+  // =================================================
+
+  describe("facet_fields parameter support", () => {
+    it("should return only specified facet fields when facet_fields is provided with include_facets: true", async () => {
+      mockLayoutSuccess([
+        { id: "l-1", similarity: 0.9, sectionType: "hero" },
+        { id: "l-2", similarity: 0.8, sectionType: "footer" },
+      ]);
+      mockPartSuccess([]);
+      mockMotionSuccess([]);
+      mockBackgroundSuccess([]);
+      mockNarrativeSuccess([]);
+
+      const result = (await searchUnifiedHandler({
+        query: "test",
+        include_facets: true,
+        facet_fields: ["sectionType"],
+      })) as SearchUnifiedOutput;
+
+      expect(result.success).toBe(true);
+      if (!result.success) return;
+
+      expect(result.data.facets).toBeDefined();
+      // computeFacetsFromResults should be called with only ["sectionType"]
+      expect(computeFacetsFromResults).toHaveBeenCalledWith(expect.any(Array), ["sectionType"]);
+    });
+
+    it("should return all 4 facet fields when include_facets: true and facet_fields is not specified", async () => {
+      mockLayoutSuccess([{ id: "l-1", similarity: 0.9, sectionType: "hero" }]);
+      mockPartSuccess([]);
+      mockMotionSuccess([]);
+      mockBackgroundSuccess([]);
+      mockNarrativeSuccess([]);
+
+      const result = (await searchUnifiedHandler({
+        query: "test",
+        include_facets: true,
+      })) as SearchUnifiedOutput;
+
+      expect(result.success).toBe(true);
+      if (!result.success) return;
+
+      expect(result.data.facets).toBeDefined();
+      // Should use all supported fields
+      expect(computeFacetsFromResults).toHaveBeenCalledWith(expect.any(Array), [
+        "sectionType",
+        "industry",
+        "audience",
+        "tags",
+      ]);
+    });
+
+    it("should implicitly enable include_facets when facet_fields is specified", async () => {
+      mockLayoutSuccess([{ id: "l-1", similarity: 0.9, sectionType: "hero" }]);
+      mockPartSuccess([]);
+      mockMotionSuccess([]);
+      mockBackgroundSuccess([]);
+      mockNarrativeSuccess([]);
+
+      // facet_fields specified but include_facets not explicitly set
+      const result = (await searchUnifiedHandler({
+        query: "test",
+        facet_fields: ["sectionType", "industry"],
+      })) as SearchUnifiedOutput;
+
+      expect(result.success).toBe(true);
+      if (!result.success) return;
+
+      // facets should be computed even though include_facets was not explicitly set to true
+      expect(result.data.facets).toBeDefined();
+      expect(computeFacetsFromResults).toHaveBeenCalledWith(expect.any(Array), [
+        "sectionType",
+        "industry",
+      ]);
+    });
+
+    it("should reject invalid facet_fields values via Zod", () => {
+      expect(() =>
+        searchUnifiedInputSchema.parse({
+          query: "test",
+          facet_fields: ["invalidField"],
+        })
+      ).toThrow();
+    });
+
+    it("should reject empty facet_fields array via Zod (min(1))", () => {
+      expect(() =>
+        searchUnifiedInputSchema.parse({
+          query: "test",
+          facet_fields: [],
+        })
+      ).toThrow();
+    });
+
+    it("should compute facets from all results before limit is applied", async () => {
+      // Setup: 5 results but limit=2
+      mockLayoutSuccess([
+        { id: "l-1", similarity: 0.95, sectionType: "hero" },
+        { id: "l-2", similarity: 0.9, sectionType: "footer" },
+        { id: "l-3", similarity: 0.85, sectionType: "pricing" },
+      ]);
+      mockPartSuccess([
+        { id: "p-1", similarity: 0.88, partType: "button" },
+        { id: "p-2", similarity: 0.7, partType: "navigation" },
+      ]);
+      mockMotionSuccess([]);
+      mockBackgroundSuccess([]);
+      mockNarrativeSuccess([]);
+
+      const result = (await searchUnifiedHandler({
+        query: "test",
+        limit: 2,
+        include_facets: true,
+        facet_fields: ["sectionType"],
+      })) as SearchUnifiedOutput;
+
+      expect(result.success).toBe(true);
+      if (!result.success) return;
+
+      // Only 2 results returned after limit
+      expect(result.data.results).toHaveLength(2);
+
+      // But facets should be computed from ALL 5 results (before limit)
+      // computeFacetsFromResults should be called with array of length 5
+      expect(computeFacetsFromResults).toHaveBeenCalledWith(
+        expect.arrayContaining([
+          expect.objectContaining({ id: "l-1" }),
+          expect.objectContaining({ id: "l-2" }),
+          expect.objectContaining({ id: "l-3" }),
+          expect.objectContaining({ id: "p-1" }),
+          expect.objectContaining({ id: "p-2" }),
+        ]),
+        ["sectionType"]
+      );
+    });
+
+    it("should accept valid facet_fields values via Zod", () => {
+      const result = searchUnifiedInputSchema.parse({
+        query: "test",
+        facet_fields: ["sectionType", "industry", "audience", "tags"],
+      });
+      expect(result.facet_fields).toEqual(["sectionType", "industry", "audience", "tags"]);
+    });
+
+    it("should not compute facets when include_facets is false and facet_fields is not provided", async () => {
+      mockLayoutSuccess([{ id: "l-1", similarity: 0.9 }]);
+      mockPartSuccess([]);
+      mockMotionSuccess([]);
+      mockBackgroundSuccess([]);
+      mockNarrativeSuccess([]);
+
+      const result = (await searchUnifiedHandler({
+        query: "test",
+        include_facets: false,
+      })) as SearchUnifiedOutput;
+
+      expect(result.success).toBe(true);
+      if (!result.success) return;
+
+      expect(result.data.facets).toBeUndefined();
+      expect(computeFacetsFromResults).not.toHaveBeenCalled();
     });
   });
 });

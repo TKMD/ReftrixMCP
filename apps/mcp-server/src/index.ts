@@ -251,15 +251,9 @@ export type {
   AuthMiddlewareInstance,
   Role,
 } from "./middleware/auth";
-export { ServiceClient, serviceClient, API_BASE_URL } from "./services/service-client";
-export type {
-  ProjectBrandSettingInfo,
-  ProjectResponse,
-  ProjectListParams,
-  ProjectListResponse,
-  ColorToken,
-  PaletteResponse,
-} from "./services/service-client";
+// service-client.ts exports removed: project.get/project.list tools unregistered (backend API未実装)
+// ServiceClient, serviceClient, API_BASE_URL, Project* types は現在未使用
+// Palette types (ColorToken, PaletteResponse) は style.get_palette が DB直接アクセスのため不要
 export { webPageService, createWebPageService } from "./services/web-page.service";
 export type { IWebPageService, WebPageResult } from "./services/web-page.service";
 export {

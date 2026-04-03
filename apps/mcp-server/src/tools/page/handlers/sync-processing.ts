@@ -60,6 +60,9 @@ import {
 // Vision CPU完走保証 Phase 4: MCP進捗報告統合
 import type { ProgressContext } from "../../../router";
 
+// v0.3.0: Streaming Progress Notifications
+import type { ProgressNotificationService } from "../../../services/progress-notification.service";
+
 // =====================================================
 // ヘルパー・フェーズハンドラーからインポート
 // =====================================================
@@ -85,6 +88,13 @@ import {
   integrateAnalysisResults,
 } from "./sync-phase-handlers";
 
+// sync-phase-handlers-tier2.ts (v0.3.0 Phase 7.5: Post-Analysis Gate)
+import {
+  handleAccessibilityPhase,
+  handlePerformancePhase,
+  handleSnapshotPhase,
+} from "./sync-phase-handlers-tier2";
+
 // Re-export SyncProcessingDeps for backward compatibility
 export type { SyncProcessingDeps } from "./sync-helpers";
 
@@ -103,13 +113,15 @@ export type { SyncProcessingDeps } from "./sync-helpers";
  * @param overallStartTime - 処理開始時刻（ms）
  * @param deps - DI依存（サービスファクトリ、Prismaクライアント）
  * @param progressContext - MCP進捗報告コンテキスト
+ * @param progressService - v0.3.0 Streaming Progress通知サービス（オプション）
  */
 export async function executeSyncProcessing(
   validated: PageAnalyzeInput,
   normalizedUrl: string,
   overallStartTime: number,
   deps: SyncProcessingDeps,
-  progressContext?: ProgressContext
+  progressContext?: ProgressContext,
+  progressService?: ProgressNotificationService
 ): Promise<PageAnalyzeOutput> {
   // サービス取得
   const service = deps.getService();
@@ -133,6 +145,10 @@ export async function executeSyncProcessing(
   // =====================================================
   // HTML取得（自動リトライ対応 — sync-helpers.ts）
   // =====================================================
+  // v0.3.0: Ingestフェーズ開始通知
+  if (progressService) {
+    void progressService.notifyPhaseStart("ingest");
+  }
   const fetchResult = await fetchHtmlWithRetries({
     url: validated.url,
     finalBaseTimeout,
@@ -154,6 +170,11 @@ export async function executeSyncProcessing(
 
   const { html, fetchedTitle, fetchedDescription, fetchedScreenshot, fetchedComputedStyles } =
     fetchResult.result;
+
+  // v0.3.0: Ingestフェーズ完了通知
+  if (progressService) {
+    void progressService.notifyPhaseComplete("ingest");
+  }
 
   // 外部CSS URLを抽出（サニタイズ前のHTMLから）
   const preExtractedCssUrls = extractCssUrls(html, normalizedUrl).map((u) => u.url);
@@ -448,6 +469,11 @@ export async function executeSyncProcessing(
     }
   }
 
+  // v0.3.0: Layout/Motion/Quality並列フェーズ開始通知
+  if (progressService) {
+    void progressService.notifyPhaseStart("layout");
+  }
+
   // 並列分析Promiseを構築
   const analysisPromises: Promise<void>[] = [];
 
@@ -580,6 +606,11 @@ export async function executeSyncProcessing(
     }
   }
 
+  // v0.3.0: Layout/Quality並列フェーズ完了通知
+  if (progressService) {
+    void progressService.notifyPhaseComplete("quality");
+  }
+
   // =====================================================
   // 結果統合（sync-phase-handlers.ts）
   // =====================================================
@@ -636,6 +667,10 @@ export async function executeSyncProcessing(
   // =====================================================
   // Embedding生成（sync-phase-handlers.ts）
   // =====================================================
+  // v0.3.0: Embeddingフェーズ開始通知
+  if (progressService) {
+    void progressService.notifyPhaseStart("embedding");
+  }
   const autoAnalyze = validated.layoutOptions?.autoAnalyze !== false;
 
   await handleEmbeddingGeneration({
@@ -667,6 +702,10 @@ export async function executeSyncProcessing(
   // =====================================================
   // Narrative分析（sync-phase-handlers.ts）
   // =====================================================
+  // v0.3.0: Narrativeフェーズ開始通知
+  if (progressService) {
+    void progressService.notifyPhaseStart("narrative");
+  }
   const isSummary = validated.summary ?? true;
   const { narrativeResult } = await handleNarrativePhase({
     validated,
@@ -683,12 +722,76 @@ export async function executeSyncProcessing(
   // =====================================================
   // Responsive分析（sync-phase-handlers.ts）
   // =====================================================
+  // v0.3.0: Responsiveフェーズ開始通知
+  if (progressService) {
+    void progressService.notifyPhaseComplete("narrative");
+    void progressService.notifyPhaseStart("responsive");
+  }
   const { responsiveAnalysisResult, responsiveAnalysisId } = await handleResponsivePhase({
     validated,
     savedWebPageId,
     overallStartTime,
     warnings,
   });
+
+  // v0.3.0: Responsive フェーズ完了通知
+  if (progressService) {
+    void progressService.notifyPhaseComplete("responsive");
+  }
+
+  // =====================================================
+  // Phase 7.5: Post-Analysis Gate (v0.3.0 Tier 2)
+  // =====================================================
+  // Playwright session from Phase 7 (Responsive) is complete.
+  // Phase 7.5b (Performance) launches its own Playwright instance independently.
+  const PHASE_75_MIN_REMAINING_MS = 55000;
+  const phase75RemainingMs = Math.max(0, MCP_HARD_LIMIT_MS - (Date.now() - overallStartTime));
+
+  let accessibilityResult: Awaited<ReturnType<typeof handleAccessibilityPhase>> | undefined;
+  let performanceResult: Awaited<ReturnType<typeof handlePerformancePhase>> | undefined;
+  let snapshotResult: Awaited<ReturnType<typeof handleSnapshotPhase>> | undefined;
+
+  if (phase75RemainingMs < PHASE_75_MIN_REMAINING_MS) {
+    // Not enough time for Phase 7.5 — skip all sub-phases
+    const skipMsg = `Phase 7.5 skipped: insufficient remaining time (${phase75RemainingMs}ms < ${PHASE_75_MIN_REMAINING_MS}ms)`;
+    warnings.push({
+      feature: "layout",
+      code: "PHASE_75_SKIPPED",
+      message: skipMsg,
+    });
+    if (isDevelopment()) {
+      logger.info("[page.analyze] Phase 7.5 skipped: insufficient remaining time", {
+        remainingMs: phase75RemainingMs,
+        threshold: PHASE_75_MIN_REMAINING_MS,
+      });
+    }
+  } else {
+    // 7.5a: Accessibility
+    accessibilityResult = await handleAccessibilityPhase({
+      accessibilityOptions: validated.accessibilityOptions,
+      sanitizedHtml,
+      warnings,
+    });
+
+    // 7.5b: Performance
+    performanceResult = await handlePerformancePhase({
+      performanceOptions: validated.performanceOptions,
+      url: validated.url,
+      warnings,
+    });
+
+    // 7.5c: Auto Snapshot
+    snapshotResult = await handleSnapshotPhase({
+      autoSnapshot: validated.auto_snapshot ?? false,
+      savedWebPageId,
+      warnings,
+    });
+  }
+
+  // v0.3.0: Embedding + Phase 7.5 完了通知
+  if (progressService) {
+    void progressService.notifyPhaseComplete("embedding");
+  }
 
   // =====================================================
   // レスポンス構築（sync-phase-handlers.ts）
@@ -709,6 +812,10 @@ export async function executeSyncProcessing(
     savedBackgroundDesignCount,
     probeResult,
     warnings,
+    // Phase 7.5 results
+    accessibilityResult,
+    performanceResult,
+    snapshotResult,
   });
 
   if (isDevelopment()) {

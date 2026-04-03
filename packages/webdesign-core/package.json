@@ -1,7 +1,6 @@
 {
   "name": "@reftrixmcp/webdesign-core",
-  "version": "0.2.1",
-  "private": true,
+  "version": "0.3.0",
   "license": "AGPL-3.0-only",
   "description": "Web design analysis core library for Reftrix",
   "files": [
@@ -43,6 +42,9 @@
     "@vitest/coverage-v8": "^4.0.14",
     "typescript": "^5.9.0",
     "vitest": "^4.0.14"
+  },
+  "publishConfig": {
+    "access": "public"
   },
   "repository": {
     "type": "git",

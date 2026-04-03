@@ -6,9 +6,9 @@
 
 ## テスト概要 / Test Overview
 
-Reftrix MCPサーバーのテストスイート。WebDesign専用の28ツールをカバーしています。
+Reftrix MCPサーバーのテストスイート。WebDesign専用の<!-- gen:tool-count -->35<!-- /gen:tool-count -->ツールをカバーしています。
 
-Test suite for the Reftrix MCP server. Covers all 28 WebDesign-dedicated tools.
+Test suite for the Reftrix MCP server. Covers all <!-- gen:tool-count -->35<!-- /gen:tool-count --> WebDesign-dedicated tools.
 
 ### 現行テストファイル構成 / Current Test File Structure
 
@@ -41,42 +41,40 @@ Test suite for the Reftrix MCP server. Covers all 28 WebDesign-dedicated tools.
 
 **合計 / Total**: 約12,500テスト / Approximately 12,500 tests
 
-### 現行28ツール / Current 28 Tools
+### 現行<!-- gen:tool-count -->35<!-- /gen:tool-count -->ツール / Current <!-- gen:tool-count -->35<!-- /gen:tool-count --> Tools
 
-SVG機能は削除され、WebDesign専用ツールに移行しました。
+SVG機能は削除され、WebDesign専用ツールに移行しました。project.get/project.listはバックエンドAPI非依存のため削除されました。
 
-SVG features have been removed; migrated to WebDesign-dedicated tools.
+SVG features have been removed; migrated to WebDesign-dedicated tools. project.get/project.list removed due to non-existent backend API dependency.
 
-| カテゴリ / Category | ツール名 / Tool Name     | テストファイル / Test File                  |
-| ------------------- | ------------------------ | ------------------------------------------- |
-| Style               | `style.get_palette`      | `tools/style-get-palette.test.ts`           |
-| System              | `system.health`          | `tools/system-health.test.ts`               |
-| Layout              | `layout.inspect`         | `tools/layout/inspect.tool.test.ts`         |
-| Layout              | `layout.ingest`          | `tools/layout/ingest.tool.test.ts`          |
-| Layout              | `layout.search`          | `tools/layout/search.tool.test.ts`          |
-| Layout              | `layout.generate_code`   | `tools/layout/to-code.tool.test.ts`         |
-| Layout              | `layout.batch_ingest`    | `tools/layout/batch-ingest.tool.test.ts`    |
-| Quality             | `quality.evaluate`       | `tools/quality/evaluate.tool.test.ts`       |
-| Quality             | `quality.batch_evaluate` | `tools/quality/batch-evaluate.tool.test.ts` |
-| Quality             | `quality.getJobStatus`   | `tools/quality/get-job-status.tool.test.ts` |
-| Motion              | `motion.detect`          | `tools/motion/detect.tool.test.ts`          |
-| Motion              | `motion.search`          | `tools/motion/search.tool.test.ts`          |
-| Brief               | `brief.validate`         | `tools/brief/validate.handler.test.ts`      |
-| Project             | `project.get`            | `tools/project-get.test.ts`                 |
-| Project             | `project.list`           | `tools/project-list.test.ts`                |
-| Page                | `page.analyze`           | `tools/page/analyze.tool.test.ts`           |
-| Page                | `page.getJobStatus`      | `tools/page/get-job-status.tool.test.ts`    |
-| Narrative           | `narrative.search`       | `tools/narrative-search.test.ts`            |
-| Background          | `background.search`      | `tools/background-search.test.ts`           |
-| Responsive          | `responsive.search`      | `tools/responsive-search.test.ts`           |
-| Preference          | `preference.hear`        | `tools/preference/hear.tool.test.ts`        |
-| Preference          | `preference.get`         | `tools/preference/get.tool.test.ts`         |
-| Preference          | `preference.reset`       | `tools/preference/reset.tool.test.ts`       |
-| Part                | `part.search`            | `tools/part/part-search.test.ts`            |
-| Part                | `part.inspect`           | `tools/part/part-inspect.test.ts`           |
-| Part                | `part.compare`           | `tools/part/part-compare.test.ts`           |
-| Search              | `search.unified`         | `tools/search-unified.tool.test.ts`         |
-| Design              | `design.search_by_image` | `tools/design/search-by-image.tool.test.ts` |
+| カテゴリ / Category | ツール名 / Tool Name       | テストファイル / Test File                  |
+| ------------------- | -------------------------- | ------------------------------------------- |
+| Style               | `style.get_palette`        | `tools/style-get-palette.test.ts`           |
+| System              | `system.health`            | `tools/system-health.test.ts`               |
+| Layout              | `layout.inspect`           | `tools/layout/inspect.tool.test.ts`         |
+| Layout              | `layout.ingest`            | `tools/layout/ingest.tool.test.ts`          |
+| Layout              | `layout.search`            | `tools/layout/search.tool.test.ts`          |
+| Layout              | `layout.generate_code`     | `tools/layout/to-code.tool.test.ts`         |
+| Layout              | `layout.batch_ingest`      | `tools/layout/batch-ingest.tool.test.ts`    |
+| Quality             | `quality.evaluate`         | `tools/quality/evaluate.tool.test.ts`       |
+| Quality             | ~~quality.batch_evaluate~~ | _(removed in v0.3.0)_                       |
+| Quality             | ~~quality.getJobStatus~~   | _(removed in v0.3.0)_                       |
+| Motion              | `motion.detect`            | `tools/motion/detect.tool.test.ts`          |
+| Motion              | `motion.search`            | `tools/motion/search.tool.test.ts`          |
+| Brief               | `brief.validate`           | `tools/brief/validate.handler.test.ts`      |
+| Page                | `page.analyze`             | `tools/page/analyze.tool.test.ts`           |
+| Page                | `page.getJobStatus`        | `tools/page/get-job-status.tool.test.ts`    |
+| Narrative           | `narrative.search`         | `tools/narrative-search.test.ts`            |
+| Background          | `background.search`        | `tools/background-search.test.ts`           |
+| Responsive          | `responsive.search`        | `tools/responsive-search.test.ts`           |
+| Preference          | `preference.hear`          | `tools/preference/hear.tool.test.ts`        |
+| Preference          | `preference.get`           | `tools/preference/get.tool.test.ts`         |
+| Preference          | `preference.reset`         | `tools/preference/reset.tool.test.ts`       |
+| Part                | `part.search`              | `tools/part/part-search.test.ts`            |
+| Part                | `part.inspect`             | `tools/part/part-inspect.test.ts`           |
+| Part                | `part.compare`             | `tools/part/part-compare.test.ts`           |
+| Search              | `search.unified`           | `tools/search-unified.tool.test.ts`         |
+| Design              | `design.search_by_image`   | `tools/design/search-by-image.tool.test.ts` |
 
 ## テスト実行方法 / Test Execution
 
@@ -115,12 +113,12 @@ pnpm test tests/smoke/
 
 ### 1. ツール登録テスト / Tool Registration Test (smoke/tool-registration.test.ts)
 
-**目的 / Purpose**: 全28ツールが正しく登録されていることを確認 / Verify all 28 tools are correctly registered
+**目的 / Purpose**: 全<!-- gen:tool-count -->35<!-- /gen:tool-count -->ツールが正しく登録されていることを確認 / Verify all <!-- gen:tool-count -->35<!-- /gen:tool-count --> tools are correctly registered
 
 ```typescript
 describe("MCP Tool Registration", () => {
-  it("toolHandlers に28ツールが登録されている");
-  it("allToolDefinitions に28ツール定義がある");
+  it("toolHandlers に35ツールが登録されている");
+  it("allToolDefinitions に35ツール定義がある");
   it("各ツールに対応するハンドラーが存在する");
 });
 ```

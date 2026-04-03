@@ -98,10 +98,12 @@ describe("PageAnalyzeWorker - Embedding Phase Extraction", () => {
   // ==========================================================================
 
   describe("lock extension in embedding phase", () => {
-    it("processEmbeddingPhase should call extendJobLock for sub-phases", () => {
+    it("processEmbeddingPhase should call extendJobLock for sub-phases (via extracted functions)", () => {
+      // After refactoring, extendJobLock calls are in extracted sub-phase functions.
+      // Verify each sub-phase function has the expected lock label.
       const fnStart = workerSource.indexOf("async function processEmbeddingPhase");
       expect(fnStart).toBeGreaterThan(-1);
-      const fnBody = workerSource.slice(fnStart, fnStart + 25000);
+      const fnBody = workerSource.slice(fnStart, fnStart + 75000);
       expect(fnBody).toContain("extendJobLock");
       expect(fnBody).toContain('"embedding-sections"');
       expect(fnBody).toContain('"embedding-motions"');

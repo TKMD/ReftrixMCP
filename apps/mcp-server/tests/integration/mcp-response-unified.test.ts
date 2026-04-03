@@ -4,10 +4,10 @@
 /**
  * MCP-RESP-08: McpResponse統一形式 統合テスト
  *
- * 目的: McpResponse統一後の全28ツールレスポンス形式検証
+ * 目的: McpResponse統一後の全35ツールレスポンス形式検証
  *
  * テスト対象:
- * 1. 全28ツールがMcpResponse形式で返却
+ * 1. 全35ツールがMcpResponse形式で返却
  * 2. metadata.request_idが含まれている
  * 3. success/error構造が正しい
  * 4. handleToolCall経由でのLightResponse適用
@@ -28,10 +28,10 @@ import { toolHandlers, allToolDefinitions } from "../../src/tools/index";
 import { resetRateLimiter } from "../../src/middleware/rate-limiter";
 
 // =============================================================================
-// テスト用の28ツールリスト
+// テスト用の35ツールリスト
 // =============================================================================
 
-const ALL_28_TOOLS = [
+const ALL_35_TOOLS = [
   "style.get_palette",
   "system.health",
   "layout.inspect",
@@ -40,13 +40,9 @@ const ALL_28_TOOLS = [
   "layout.generate_code",
   "layout.batch_ingest",
   "quality.evaluate",
-  "quality.batch_evaluate",
-  "quality.getJobStatus",
   "motion.detect",
   "motion.search",
   "brief.validate",
-  "project.get",
-  "project.list",
   "page.analyze",
   "page.getJobStatus",
   "narrative.search",
@@ -60,6 +56,17 @@ const ALL_28_TOOLS = [
   "part.compare",
   "search.unified",
   "design.search_by_image",
+  "design.similar_site",
+  "audit.query",
+  "data.delete",
+  "data.export",
+  "embedding.quality",
+  "accessibility.audit",
+  "search.facets",
+  "performance.evaluate",
+  "responsive.capture",
+  "design.compare",
+  "design.track_changes",
 ] as const;
 
 // =============================================================================
@@ -119,10 +126,10 @@ function hasRequestId(response: unknown): boolean {
 }
 
 // =============================================================================
-// 全28ツールのMcpResponse形式検証テスト
+// 全35ツールのMcpResponse形式検証テスト
 // =============================================================================
 
-describe("MCP-RESP-08: All 28 Tools McpResponse Format Verification", () => {
+describe("MCP-RESP-08: All 35 Tools McpResponse Format Verification", () => {
   beforeEach(() => {
     clearToolHandlers();
     resetToolMetrics();
@@ -135,23 +142,23 @@ describe("MCP-RESP-08: All 28 Tools McpResponse Format Verification", () => {
     resetRateLimiter();
   });
 
-  describe("28 tools registered correctly", () => {
-    it("should have exactly 28 tools defined in allToolDefinitions", () => {
-      expect(allToolDefinitions.length).toBe(28);
+  describe("35 tools registered correctly", () => {
+    it("should have exactly 35 tools defined in allToolDefinitions", () => {
+      expect(allToolDefinitions.length).toBe(35);
     });
 
-    it("should have exactly 28 tools in toolHandlers", () => {
-      expect(Object.keys(toolHandlers).length).toBe(28);
+    it("should have exactly 35 tools in toolHandlers", () => {
+      expect(Object.keys(toolHandlers).length).toBe(35);
     });
 
-    it.each(ALL_28_TOOLS)("%s is registered in toolHandlers", (toolName) => {
+    it.each(ALL_35_TOOLS)("%s is registered in toolHandlers", (toolName) => {
       expect(toolHandlers[toolName]).toBeDefined();
       expect(typeof toolHandlers[toolName]).toBe("function");
     });
   });
 
   describe("McpResponse success structure for mock handlers", () => {
-    it.each(ALL_28_TOOLS)("%s returns valid McpResponse structure on success", async (toolName) => {
+    it.each(ALL_35_TOOLS)("%s returns valid McpResponse structure on success", async (toolName) => {
       // モックハンドラーを登録（成功レスポンス）
       registerTool(toolName, async () => ({
         success: true,
@@ -166,7 +173,7 @@ describe("MCP-RESP-08: All 28 Tools McpResponse Format Verification", () => {
       expect(isSuccessResponse(result as { success: true; data: unknown })).toBe(true);
     });
 
-    it.each(ALL_28_TOOLS)("%s returns valid McpResponse structure on error", async (toolName) => {
+    it.each(ALL_35_TOOLS)("%s returns valid McpResponse structure on error", async (toolName) => {
       // モックハンドラーを登録（エラーレスポンス）
       registerTool(toolName, async () => ({
         success: false,
@@ -533,8 +540,8 @@ describe("MCP-RESP-08: Category-based Tool Verification", () => {
     });
   });
 
-  describe("Quality category (3 tools)", () => {
-    const qualityTools = ["quality.evaluate", "quality.batch_evaluate", "quality.getJobStatus"];
+  describe("Quality category (1 tool)", () => {
+    const qualityTools = ["quality.evaluate"];
 
     it.each(qualityTools)("%s returns valid McpResponse", async (toolName) => {
       registerTool(toolName, async () => ({
@@ -579,22 +586,6 @@ describe("MCP-RESP-08: Category-based Tool Verification", () => {
       const result = await handleToolCall("brief.validate", {
         brief: { projectName: "Test Project" },
       });
-      const validation = validateMcpResponseStructure(result);
-
-      expect(validation.valid).toBe(true);
-    });
-  });
-
-  describe("Project category (2 tools)", () => {
-    const projectTools = ["project.get", "project.list"];
-
-    it.each(projectTools)("%s returns valid McpResponse", async (toolName) => {
-      registerTool(toolName, async () => ({
-        success: true,
-        data: { id: "project-1", name: "Test Project" },
-      }));
-
-      const result = await handleToolCall(toolName, {});
       const validation = validateMcpResponseStructure(result);
 
       expect(validation.valid).toBe(true);

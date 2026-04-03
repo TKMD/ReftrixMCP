@@ -1125,9 +1125,20 @@ describe("CssFramework Detection", () => {
       expect(result.cssFramework?.evidence).toBeDefined();
       expect(result.cssFramework?.evidence.length).toBeGreaterThan(0);
       // Should include CDN or class pattern evidence
-      const hasRelevantEvidence = result.cssFramework?.evidence.some(
-        (e) => e.includes("cdn.tailwindcss.com") || e.includes("utility class")
-      );
+      // URL sanitization-safe: CDN URLをホスト名ベースで完全一致検証
+      const hasRelevantEvidence = result.cssFramework?.evidence.some((e) => {
+        try {
+          // evidence が URL を含む場合、ホスト名で検証
+          const urlMatch = e.match(/https?:\/\/[^\s"']+/);
+          if (urlMatch) {
+            const evidenceUrl = new URL(urlMatch[0]);
+            return evidenceUrl.hostname === "cdn.tailwindcss.com";
+          }
+        } catch {
+          // URL解析失敗時は文字列検証にフォールバック
+        }
+        return e.includes("utility class");
+      });
       expect(hasRelevantEvidence).toBe(true);
     });
   });

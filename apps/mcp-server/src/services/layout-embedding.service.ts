@@ -1347,6 +1347,46 @@ export class LayoutEmbeddingService {
   }
 
   /**
+   * Worker Threadをterminate→re-spawnしてOSメモリを完全回収
+   *
+   * dispose()はONNX Runtime C++アリーナ内のメモリを解放するが、glibc malloc
+   * 断片化によりOSにメモリが返却されない。terminateAndRespawnはWorker Thread
+   * プロセス自体を終了し、OSがメモリを全回収した後、次回のembedding生成時に
+   * 自動的に新しいWorker Threadを起動する。
+   *
+   * サブフェーズ末尾で呼び出し、チャンク間ではdisposeEmbeddingPipeline()を使用する。
+   *
+   * Terminates the Worker Thread and prepares for re-spawn on next use.
+   * Unlike disposeEmbeddingPipeline() which only releases ONNX pipeline
+   * within the existing worker, this terminates the entire worker process
+   * to force OS memory reclamation from glibc malloc fragmentation.
+   *
+   * Called at sub-phase endings; chunk boundaries still use disposeEmbeddingPipeline().
+   */
+  async terminateAndRespawnEmbeddingPipeline(): Promise<void> {
+    if (!this.embeddingService) {
+      return;
+    }
+
+    const service = this.embeddingService as { terminateAndRespawn?: () => Promise<void> };
+    if (typeof service.terminateAndRespawn === "function") {
+      try {
+        await service.terminateAndRespawn();
+        if (isDevelopment()) {
+          logger.info("[LayoutEmbedding] Worker Thread terminated and ready for respawn");
+        }
+      } catch (terminateError) {
+        logger.warn("[LayoutEmbedding] Worker Thread terminate-and-respawn warning", {
+          error: terminateError instanceof Error ? terminateError.message : "Unknown error",
+        });
+      }
+    } else {
+      // Fallback: if terminateAndRespawn is not available, use dispose
+      await this.disposeEmbeddingPipeline();
+    }
+  }
+
+  /**
    * ONNX実行プロバイダーを動的に切り替え
    *
    * GpuResourceManagerから呼び出され、Embedding生成時にCPU/CUDA間を切り替える。

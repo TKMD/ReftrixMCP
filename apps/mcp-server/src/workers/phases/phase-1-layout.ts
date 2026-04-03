@@ -141,6 +141,7 @@ export async function processLayoutPhase(
   if (options.features?.layout !== false) {
     statusTracker.startPhase("layout");
     await job.updateProgress(PHASE_PROGRESS.LAYOUT_START);
+    await job.log("[Phase 1] Layout analysis started");
 
     try {
       if (isDevelopment()) {
@@ -312,13 +313,11 @@ export async function processLayoutPhase(
             postProcessedSections
           );
 
-          // postProcessSectionsの結果をembedding生成用のlayoutResultに反映
-          // Update layoutResult sections with post-processed sections for embedding generation
+          // postProcessSectionsの結果をembedding生成用のlayoutResultに常に反映
+          // Always update layoutResult sections with post-processed sections for embedding generation
           // Phase 5のtext embedding生成がpostProcessed後のセクション（分割/マージ含む）を使用するため
-          if (
-            state.layoutResultForNarrative &&
-            postProcessedSections.length !== sectionsWithCss.length
-          ) {
+          // 注: セクション数が変わらなくてもIDが変わるケース（merge+split相殺等）があるため常に更新
+          if (state.layoutResultForNarrative) {
             // LayoutSection.visionFeatures(unknown) vs SectionVisionFeatures型の互換性のためキャスト
             state.layoutResultForNarrative.sections =
               postProcessedSections as unknown as NonNullable<LayoutServiceResult["sections"]>;
@@ -344,10 +343,16 @@ export async function processLayoutPhase(
       failedPhases.push("layout");
 
       logger.warn("[PageAnalyzeWorker] Layout analysis failed", { error: errorMessage });
+      await job.log(`[Phase 1] Layout FAILED: ${errorMessage}`);
     }
     await job.updateProgress(PHASE_PROGRESS.LAYOUT_COMPLETE);
+    if (!failedPhases.includes("layout")) {
+      const sectionCount = state.layoutResultForNarrative?.sections?.length ?? 0;
+      await job.log(`[Phase 1] Layout complete: ${sectionCount} sections detected`);
+    }
   } else {
     statusTracker.skipPhase("layout", "Disabled by options");
+    await job.log("[Phase 1] Layout skipped (disabled)");
   }
 
   // =====================================================
@@ -395,6 +400,14 @@ export async function processLayoutPhase(
         };
 
         const partTimeoutMs = partConfig.timeoutMs;
+
+        // Track accumulated counts OUTSIDE Promise.race scope so timeout catch
+        // can still propagate the partial count to Phase 5 embedding.
+        // Without this, timeout → results.partExtraction undefined → partsSavedCount=0
+        // → Phase 5 guard skips part embedding entirely despite parts being saved to DB.
+        let accumulatedPartsSaved = 0;
+        let accumulatedPartsExtracted = 0;
+        let accumulatedSectionsProcessed = 0;
 
         try {
           // Wrap in independent timeout (30s default)
@@ -460,10 +473,13 @@ export async function processLayoutPhase(
                       url
                     );
                     totalPartsSaved += saveResult.savedCount;
+                    accumulatedPartsSaved = totalPartsSaved;
                   }
 
                   totalPartsExtracted += extractionResult.parts.length;
+                  accumulatedPartsExtracted = totalPartsExtracted;
                   sectionsProcessed++;
+                  accumulatedSectionsProcessed = sectionsProcessed;
                 } catch (sectionError) {
                   // Per-section error: log and continue with other sections
                   logger.warn("[PageAnalyzeWorker] Part extraction failed for section", {
@@ -503,9 +519,55 @@ export async function processLayoutPhase(
           // Graceful Degradation: Phase 1.1 failure does NOT block subsequent phases
           const errorMessage = partError instanceof Error ? partError.message : String(partError);
 
+          const partDurationMs = Date.now() - partExtractionStartTime;
+
+          // Propagate partial count even on timeout: individual saveExtractedParts calls
+          // commit parts to DB before timeout fires. Without this assignment, Phase 5
+          // receives partsSavedCount=0 and skips part embedding generation entirely.
+          if (accumulatedPartsSaved > 0) {
+            results.partExtraction = {
+              sectionsProcessed: accumulatedSectionsProcessed,
+              totalPartsExtracted: accumulatedPartsExtracted,
+              totalPartsSaved: accumulatedPartsSaved,
+              durationMs: partDurationMs,
+            };
+          } else {
+            // FIX(Bug-1): accumulatedPartsSaved=0 but async IIFE may have saved parts
+            // after Promise.race timeout. The IIFE continues running in background and
+            // commits parts to DB. Query actual DB count as authoritative fallback.
+            // Without this, Phase 5 guard skips part embedding for ALL saved parts.
+            try {
+              const prismaClient = deps.prisma as {
+                componentPart: {
+                  count: (args: { where: { webPageId: string } }) => Promise<number>;
+                };
+              };
+              const dbPartCount = await prismaClient.componentPart.count({
+                where: { webPageId: actualWebPageId },
+              });
+              if (dbPartCount > 0) {
+                results.partExtraction = {
+                  sectionsProcessed: 0,
+                  totalPartsExtracted: dbPartCount,
+                  totalPartsSaved: dbPartCount,
+                  durationMs: partDurationMs,
+                };
+                logger.info("[PageAnalyzeWorker] Part count recovered from DB after timeout", {
+                  dbPartCount,
+                  accumulatedPartsSaved: 0,
+                });
+              }
+            } catch (countError) {
+              logger.warn("[PageAnalyzeWorker] Part count DB query failed (non-fatal)", {
+                error: (countError as Error).message,
+              });
+            }
+          }
+
           logger.warn("[PageAnalyzeWorker] Part extraction failed (Phase 1.1, non-fatal)", {
             error: errorMessage,
-            durationMs: Date.now() - partExtractionStartTime,
+            durationMs: partDurationMs,
+            partsSavedBeforeTimeout: accumulatedPartsSaved,
           });
         }
 

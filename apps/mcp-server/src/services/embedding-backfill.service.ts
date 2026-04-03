@@ -39,6 +39,14 @@ import {
   generateResponsiveAnalysisTextRepresentation,
   type ResponsiveAnalysisForText,
 } from "./responsive/responsive-analysis-embedding.service";
+import {
+  buildPartTextRepresentation,
+  type ComponentPartForEmbedding,
+} from "./part/part-embedding.service";
+import {
+  savePartEmbeddings,
+  type PartEmbeddingPrismaClient,
+} from "./part/part-embedding-db.service";
 
 // =====================================================
 // Constants
@@ -69,6 +77,7 @@ export interface BackfillResult {
   backgroundBackfilled: number;
   jsAnimationBackfilled: number;
   responsiveBackfilled: number;
+  partBackfilled: number;
   totalBackfilled: number;
   errors: string[];
   memorySkips: number;
@@ -162,6 +171,16 @@ interface MissingResponsiveRow {
   differences: unknown;
   breakpoints: unknown;
   screenshot_diffs: unknown;
+}
+
+interface MissingPartRow {
+  id: string;
+  part_type: string;
+  part_subtype: string | null;
+  computed_styles: unknown;
+  css_classes: string[];
+  attributes: unknown;
+  interaction_info: unknown;
 }
 
 interface MissingWebPageRow {
@@ -427,6 +446,18 @@ async function getMissingJsAnimationEmbeddings(
   );
 }
 
+async function getMissingPartEmbeddings(webPageId: string): Promise<MissingPartRow[]> {
+  return prisma.$queryRawUnsafe<MissingPartRow[]>(
+    `SELECT cp.id, cp.part_type, cp.part_subtype, cp.computed_styles,
+            cp.css_classes, cp.attributes, cp.interaction_info
+     FROM component_parts cp
+     LEFT JOIN component_part_embeddings cpe ON cp.id = cpe.component_part_id
+     WHERE cp.web_page_id = $1::uuid AND cpe.id IS NULL
+       AND cp.pii_risk_level != 'high'`,
+    webPageId
+  );
+}
+
 // =====================================================
 // Public API
 // =====================================================
@@ -494,6 +525,17 @@ export async function checkWebPageEmbeddingCoverage(
     missing: responsiveTotal - responsiveEmbedded,
   });
 
+  const partTotal = await prisma.componentPart.count({ where: { webPageId } });
+  const partEmbedded = await prisma.componentPartEmbedding.count({
+    where: { componentPart: { webPageId } },
+  });
+  results.push({
+    type: "part",
+    total: partTotal,
+    embedded: partEmbedded,
+    missing: partTotal - partEmbedded,
+  });
+
   return results;
 }
 
@@ -527,6 +569,11 @@ export async function findWebPagesWithMissingEmbeddings(): Promise<WebPageWithMi
       FROM responsive_analyses ra
       LEFT JOIN responsive_analysis_embeddings rae ON ra.id = rae.responsive_analysis_id
       WHERE rae.id IS NULL
+      UNION ALL
+      SELECT cp.web_page_id
+      FROM component_parts cp
+      LEFT JOIN component_part_embeddings cpe ON cp.id = cpe.component_part_id
+      WHERE cpe.id IS NULL AND cp.pii_risk_level != 'high'
     ) AS missing
     JOIN web_pages wp ON wp.id = missing.web_page_id
     GROUP BY wp.id, wp.url
@@ -563,6 +610,7 @@ export async function backfillWebPageEmbeddings(
     backgroundBackfilled: 0,
     jsAnimationBackfilled: 0,
     responsiveBackfilled: 0,
+    partBackfilled: 0,
     totalBackfilled: 0,
     errors: [],
     memorySkips: 0,
@@ -646,12 +694,28 @@ export async function backfillWebPageEmbeddings(
       result.memorySkips += r.memorySkips;
     }
 
+    const missingParts = await getMissingPartEmbeddings(webPageId);
+    if (missingParts.length > 0) {
+      const r = await backfillParts(
+        missingParts,
+        embeddingService,
+        chunkSize,
+        rssThreshold,
+        result.errors,
+        onProgress,
+        onMemoryPressure
+      );
+      result.partBackfilled = r.backfilled;
+      result.memorySkips += r.memorySkips;
+    }
+
     result.totalBackfilled =
       result.sectionBackfilled +
       result.motionBackfilled +
       result.backgroundBackfilled +
       result.jsAnimationBackfilled +
-      result.responsiveBackfilled;
+      result.responsiveBackfilled +
+      result.partBackfilled;
   } finally {
     await embeddingService.disposeEmbeddingPipeline();
     tryGarbageCollect();
@@ -1048,6 +1112,92 @@ async function backfillResponsive(
     }
 
     onProgress?.("responsive", Math.min(offset + chunkSize, rows.length), rows.length);
+    await new Promise<void>((resolve) => setImmediate(resolve));
+  }
+
+  return { backfilled, memorySkips };
+}
+
+// =====================================================
+// Part Backfill
+// =====================================================
+
+function dbPartToEmbeddingInput(row: MissingPartRow): ComponentPartForEmbedding {
+  return {
+    id: row.id,
+    partType: row.part_type,
+    partSubtype: row.part_subtype,
+    computedStyles: (row.computed_styles as Record<string, string>) ?? {},
+    cssClasses: Array.isArray(row.css_classes) ? row.css_classes : [],
+    attributes: (row.attributes as Record<string, string>) ?? {},
+    interactionInfo: (row.interaction_info as Record<string, boolean>) ?? {},
+  };
+}
+
+async function backfillParts(
+  rows: MissingPartRow[],
+  embeddingService: LayoutEmbeddingService,
+  chunkSize: number,
+  rssThreshold: number,
+  errors: string[],
+  onProgress?: BackfillOptions["onProgress"],
+  onMemoryPressure?: BackfillOptions["onMemoryPressure"]
+): Promise<ChunkResult> {
+  let backfilled = 0;
+  let memorySkips = 0;
+
+  for (let offset = 0; offset < rows.length; offset += chunkSize) {
+    const memStatus = await checkMemoryPressure(
+      rssThreshold,
+      embeddingService,
+      "part",
+      onMemoryPressure
+    );
+    if (memStatus === "exceeded") {
+      memorySkips++;
+      break;
+    }
+
+    const chunk = rows.slice(offset, offset + chunkSize);
+    const embeddingItems: Array<{
+      componentPartId: string;
+      textRepresentation: string;
+      textEmbedding: number[];
+      visualEmbedding: null;
+    }> = [];
+
+    for (const row of chunk) {
+      try {
+        const partInput = dbPartToEmbeddingInput(row);
+        const textRepresentation = buildPartTextRepresentation(partInput);
+        const { embedding } = await embeddingService.generateFromText(textRepresentation);
+        embeddingItems.push({
+          componentPartId: row.id,
+          textRepresentation,
+          textEmbedding: embedding,
+          visualEmbedding: null,
+        });
+      } catch (error) {
+        errors.push(`part[${row.id}]: ${error instanceof Error ? error.message : String(error)}`);
+      }
+    }
+
+    if (embeddingItems.length > 0) {
+      try {
+        const saveResult = await savePartEmbeddings(
+          prisma as unknown as PartEmbeddingPrismaClient,
+          embeddingItems
+        );
+        backfilled += saveResult.savedCount;
+        if (saveResult.errors.length > 0) {
+          errors.push(...saveResult.errors);
+        }
+      } catch (error) {
+        errors.push(`part-batch: ${error instanceof Error ? error.message : String(error)}`);
+      }
+    }
+
+    onProgress?.("part", Math.min(offset + chunkSize, rows.length), rows.length);
     await new Promise<void>((resolve) => setImmediate(resolve));
   }
 

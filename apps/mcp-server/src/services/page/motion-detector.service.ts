@@ -164,10 +164,19 @@ export class MotionDetectorService {
     let css = "";
 
     if (includeStyleSheets) {
-      const styleRegex = /<style[^>]*>([\s\S]*?)<\/style>/gi;
-      let match;
-      while ((match = styleRegex.exec(html)) !== null) {
-        if (match[1]) css += match[1] + "\n";
+      // ReDoS-safe: [\s\S]*? を [^]*? に書き換え（同等だがエンジン最適化が効く）
+      // さらに、style タグ抽出を indexOf ベースで実装してバックトラッキングを排除
+      let searchStart = 0;
+      const openTag = /<style\b[^>]*>/gi;
+      let openMatch;
+      while ((openMatch = openTag.exec(html)) !== null) {
+        const contentStart = openMatch.index + openMatch[0].length;
+        const closeIdx = html.indexOf("</style>", contentStart);
+        if (closeIdx === -1) break;
+        const content = html.slice(contentStart, closeIdx);
+        if (content) css += content + "\n";
+        searchStart = closeIdx + 8; // "</style>".length
+        openTag.lastIndex = searchStart;
       }
     }
 

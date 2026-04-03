@@ -398,8 +398,8 @@ export async function layoutToCodeHandler(input: unknown): Promise<LayoutToCodeO
 export const layoutGenerateCodeToolDefinition = {
   name: "layout.generate_code",
   description:
-    "セクションパターンからReact/Vue/HTMLコードを生成します。" +
-    "パターンIDを指定して、選択したフレームワーク（React, Vue, HTML）でコードを出力できます。" +
+    "セクションパターンからReact/Vue/Svelte/Astro/HTMLコードを生成します。" +
+    "パターンIDを指定して、選択したフレームワーク（React, Vue, Svelte, Astro, HTML）でコードを出力できます。" +
     "TypeScript/JavaScript、Tailwind CSS/Vanilla CSSの選択も可能です。",
   annotations: {
     title: "Layout Generate Code",
@@ -421,8 +421,10 @@ export const layoutGenerateCodeToolDefinition = {
         properties: {
           framework: {
             type: "string",
-            enum: ["react", "vue", "html"],
-            description: "出力フレームワーク（デフォルト: react）",
+            enum: ["react", "vue", "html", "svelte", "astro"],
+            description:
+              "出力フレームワーク（デフォルト: react）。" +
+              "Svelte: .svelteファイル、Astro: .astroファイルを生成します。",
             default: "react",
           },
           typescript: {

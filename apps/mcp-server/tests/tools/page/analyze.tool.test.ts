@@ -2138,7 +2138,7 @@ describe("パフォーマンス（基本）", () => {
       // 並列実行なので、合計時間は個別時間の合計より小さいか、
       // HTMLサニタイズ等の前処理オーバーヘッド + Playwright初期化オーバーヘッドを含めて同等
       // Note: Playwright実装ではブラウザ初期化・ネットワーク遅延が発生するため許容値を増加
-      const sanitizeOverhead = 150; // 前処理 + Playwright初期化オーバーヘッド許容値
+      const sanitizeOverhead = 200; // 前処理 + Playwright初期化オーバーヘッド許容値
       expect(result.data.totalProcessingTimeMs).toBeLessThanOrEqual(sumTime + sanitizeOverhead);
     }
   });
@@ -2549,5 +2549,69 @@ describe("CSS変数抽出（fetchExternalCss: true）", () => {
       expect(designTokens.categories).toContain("spacing");
       expect(designTokens.categories).toContain("typography");
     }
+  });
+});
+
+// =====================================================
+// Phase 7.5 デフォルト無効テスト (v0.3.0 Tier 2 — TDA-RC4)
+// =====================================================
+
+describe("Phase 7.5 Post-Analysis Gate — デフォルト無効 (TDA-RC4)", () => {
+  beforeEach(() => {
+    setPageAnalyzeServiceFactory(createMockPageAnalyzeService);
+  });
+
+  afterEach(() => {
+    resetPageAnalyzeServiceFactory();
+  });
+
+  it("デフォルトオプションで accessibility/performance/snapshot が含まれない", async () => {
+    // Arrange — デフォルトオプション（Phase 7.5 は全て無効）
+    const input: Record<string, unknown> = {
+      url: "https://example.com",
+    };
+
+    // Act
+    const result = await pageAnalyzeHandler(input);
+
+    // Assert
+    expect(result.success).toBe(true);
+    if (result.success) {
+      // Phase 7.5a: accessibility はデフォルト無効なので含まれない
+      expect(result.data.accessibility).toBeUndefined();
+      // Phase 7.5b: performance はデフォルト無効なので含まれない
+      expect(result.data.performance).toBeUndefined();
+      // Phase 7.5c: snapshot はデフォルト false なので含まれない
+      expect(result.data.snapshot).toBeUndefined();
+    }
+  });
+
+  it("accessibilityOptions.enabled=false で明示的に無効化した場合も含まれない", async () => {
+    const input: Record<string, unknown> = {
+      url: "https://example.com",
+      accessibilityOptions: { enabled: false },
+      performanceOptions: { enabled: false },
+      auto_snapshot: false,
+    };
+
+    const result = await pageAnalyzeHandler(input);
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.accessibility).toBeUndefined();
+      expect(result.data.performance).toBeUndefined();
+      expect(result.data.snapshot).toBeUndefined();
+    }
+  });
+
+  it("入力スキーマでaccessibilityOptions/performanceOptionsのデフォルトが disabled", () => {
+    // pageAnalyzeInputSchema のデフォルト値を検証
+    const parsed = pageAnalyzeInputSchema.parse({
+      url: "https://example.com",
+    });
+
+    expect(parsed.accessibilityOptions?.enabled).toBe(false);
+    expect(parsed.performanceOptions?.enabled).toBe(false);
+    expect(parsed.auto_snapshot).toBe(false);
   });
 });

@@ -1,6 +1,6 @@
 # トラブルシューティングガイド / Troubleshooting Guide
 
-**Version**: 0.2.1
+**Version**: 0.3.0
 **Last Updated**: 2026-03-25
 
 ---
@@ -680,11 +680,11 @@ Error: RATE_LIMIT_EXCEEDED
 
 > **レート制限仕様 / Rate Limit Specification**: Token Bucketアルゴリズムによるレート制限が実装されています（v0.2.0）。3ティアに分類されます:
 >
-> | ティア / Tier | RPM | 対象ツール / Tools                                                                                            |
-> | ------------- | --- | ------------------------------------------------------------------------------------------------------------- |
-> | `analysis`    | 10  | `page.analyze`, `layout.ingest`, `layout.batch_ingest`, `quality.batch_evaluate`                              |
-> | `search`      | 120 | `layout.search`, `motion.search`, `narrative.search`, `background.search`, `responsive.search`, `part.search` |
-> | `default`     | 60  | その他すべてのツール / All other tools                                                                        |
+> | ティア / Tier | RPM | 対象ツール / Tools                                                                                                            |
+> | ------------- | --- | ----------------------------------------------------------------------------------------------------------------------------- |
+> | `analysis`    | 10  | `page.analyze`, `layout.ingest`, `layout.batch_ingest`, `accessibility.audit`, `performance.evaluate`, `design.track_changes` |
+> | `search`      | 120 | `layout.search`, `motion.search`, `narrative.search`, `background.search`, `responsive.search`, `part.search`                 |
+> | `default`     | 60  | その他すべてのツール / All other tools                                                                                        |
 >
 > Redis利用時はLuaスクリプトによるアトミック制御、Redis非接続時はインメモリフォールバック。環境変数 `RATE_LIMIT_RPM` でデフォルトティアのRPMを変更可能。`RATE_LIMIT_ENABLED=false` で無効化可能。
 >

@@ -1378,6 +1378,76 @@ export const pageAnalyzeDataSchema = z.object({
       responsiveAnalysisId: z.string().uuid().optional(),
     })
     .optional(),
+
+  // =====================================================
+  // Phase 7.5: Post-Analysis Gate (v0.3.0 Tier 2)
+  // =====================================================
+
+  /**
+   * アクセシビリティ監査結果 (Phase 7.5a)
+   * accessibilityOptions.enabled=true時のみ含まれる。
+   *
+   * Accessibility audit result (Phase 7.5a)
+   * Only included when accessibilityOptions.enabled=true.
+   */
+  accessibility: z
+    .object({
+      score: z.number().min(0).max(100),
+      level: z.enum(["A", "AA", "AAA"]),
+      violationCount: z.number().nonnegative(),
+      analysisTimeMs: z.number().nonnegative(),
+      auditId: z.string().uuid().optional(),
+    })
+    .optional(),
+
+  /**
+   * パフォーマンス評価結果 (Phase 7.5b)
+   * performanceOptions.enabled=true時のみ含まれる。
+   *
+   * Performance evaluation result (Phase 7.5b)
+   * Only included when performanceOptions.enabled=true.
+   */
+  performance: z
+    .union([
+      z.object({
+        score: z.number().min(0).max(100),
+        grade: z.string(),
+        metrics: z.object({
+          lcp: z.number().optional(),
+          fid: z.number().optional(),
+          cls: z.number().optional(),
+          inp: z.number().optional(),
+          ttfb: z.number().optional(),
+        }),
+        analysisTimeMs: z.number().nonnegative(),
+        evaluationId: z.string().uuid().optional(),
+      }),
+      z.object({
+        skipped: z.literal(true),
+        reason: z.string(),
+      }),
+    ])
+    .optional(),
+
+  /**
+   * デザインスナップショット結果 (Phase 7.5c)
+   * auto_snapshot=true時のみ含まれる。
+   *
+   * Design snapshot result (Phase 7.5c)
+   * Only included when auto_snapshot=true.
+   */
+  snapshot: z
+    .union([
+      z.object({
+        snapshotId: z.string().uuid(),
+        createdAt: z.string(),
+      }),
+      z.object({
+        skipped: z.literal(true),
+        reason: z.string(),
+      }),
+    ])
+    .optional(),
 });
 export type PageAnalyzeData = z.infer<typeof pageAnalyzeDataSchema>;
 

@@ -62,13 +62,7 @@ vi.mock("../../src/services/web-page.service", () => ({
   },
 }));
 
-vi.mock("../../src/services/service-client", () => ({
-  serviceClient: {},
-}));
-
-vi.mock("../../src/services/repositories/service-client-svg-repository", () => ({
-  ServiceClientSvgRepository: vi.fn(),
-}));
+// [REMOVED v0.3.0] service-client / service-client-svg-repository mocks deleted (source files removed)
 
 vi.mock("../../src/services/motion-search.service", () => ({
   createMotionSearchServiceFactory: vi.fn(() => vi.fn()),

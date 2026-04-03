@@ -137,6 +137,7 @@ export async function processQualityPhase(
   if (!state.memoryAborted && options.features?.quality !== false) {
     statusTracker.startPhase("quality");
     await job.updateProgress(PHASE_PROGRESS.QUALITY_START);
+    await job.log("[Phase 3] Quality evaluation started");
 
     try {
       if (isDevelopment()) {
@@ -238,12 +239,19 @@ export async function processQualityPhase(
       failedPhases.push("quality");
 
       logger.warn("[PageAnalyzeWorker] Quality evaluation failed", { error: errorMessage });
+      await job.log(`[Phase 3] Quality FAILED: ${errorMessage}`);
     }
     await job.updateProgress(PHASE_PROGRESS.QUALITY_COMPLETE);
+    if (!failedPhases.includes("quality")) {
+      const score = state.results?.quality?.overallScore ?? "N/A";
+      await job.log(`[Phase 3] Quality complete: score ${score}`);
+    }
   } else if (state.memoryAborted) {
     statusTracker.skipPhase("quality", "Skipped due to memory pressure");
+    await job.log("[Phase 3] Quality skipped (memory pressure)");
   } else {
     statusTracker.skipPhase("quality", "Disabled by options");
+    await job.log("[Phase 3] Quality skipped (disabled)");
   }
 
   // =====================================================

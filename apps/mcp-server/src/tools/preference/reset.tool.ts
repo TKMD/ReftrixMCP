@@ -14,6 +14,7 @@
 import { ZodError } from "zod";
 import { createDIFactory } from "../../utils/di-factory";
 import { logger, isDevelopment } from "../../utils/logger";
+import { getAuditLogService } from "../../services/audit-log.service";
 import {
   preferenceResetInputSchema,
   PREFERENCE_MCP_ERROR_CODES,
@@ -159,6 +160,17 @@ export async function preferenceResetHandler(input: unknown): Promise<Preference
         });
       }
 
+      // 監査ログ記録（GDPR Art.30） / Audit log (GDPR Art.30)
+      const auditLogService = getAuditLogService();
+      await auditLogService.log({
+        action: "preference.reset",
+        actor: "mcp-client",
+        targetType: "preference_profile",
+        targetId: validated.profile_id,
+        result: "success",
+        details: { hard_delete: true },
+      });
+
       return {
         success: true,
         data: { reset: true, profile_id: result.profile_id },
@@ -174,6 +186,17 @@ export async function preferenceResetHandler(input: unknown): Promise<Preference
       });
     }
 
+    // 監査ログ記録 / Audit log
+    const auditLogService = getAuditLogService();
+    await auditLogService.log({
+      action: "preference.reset",
+      actor: "mcp-client",
+      targetType: "preference_profile",
+      targetId: validated.profile_id,
+      result: "success",
+      details: { hard_delete: false },
+    });
+
     return {
       success: true,
       data: result,
@@ -187,6 +210,16 @@ export async function preferenceResetHandler(input: unknown): Promise<Preference
     logger.warn("[MCP Tool] preference.reset error", {
       code: errorCode,
       error: errorInstance.message,
+    });
+
+    // 監査ログ記録（失敗） / Audit log (failure)
+    const auditLogService = getAuditLogService();
+    await auditLogService.log({
+      action: "preference.reset",
+      actor: "mcp-client",
+      targetType: "preference_profile",
+      targetId: validated.profile_id,
+      result: "failure",
     });
 
     return {

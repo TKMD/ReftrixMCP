@@ -11,6 +11,7 @@
  */
 
 import type { Worker, Job } from "bullmq";
+import * as v8Module from "node:v8";
 import type { RedisConfig } from "../../config/redis";
 import type {
   PageAnalyzeJobData,
@@ -80,6 +81,8 @@ export function initMemoryConstants(): void {
   const config = ensureMemoryConfig();
   JS_ANIMATION_EMBEDDING_CHUNK_SIZE = config.jsAnimationEmbeddingChunkSize;
   EMBEDDING_CHUNK_SIZE = config.embeddingChunkSize;
+  DINOV2_CHUNK_SIZE = config.dinov2ChunkSize;
+  DINOV2_RECYCLE_THRESHOLD = config.dinov2RecycleThreshold;
   MEMORY_DEGRADATION_THRESHOLD_MB = config.degradationThresholdMb;
   MEMORY_CRITICAL_THRESHOLD_MB = config.criticalThresholdMb;
 }
@@ -98,9 +101,50 @@ export let JS_ANIMATION_EMBEDDING_CHUNK_SIZE = 50;
  */
 export let EMBEDDING_CHUNK_SIZE = 30;
 
+/**
+ * DINOv2 visual embedding chunk size for sections and parts.
+ *
+ * Controls the number of items processed per chunk during DINOv2 visual
+ * embedding generation (section-level + part-level visual embeddings).
+ * Separate from EMBEDDING_CHUNK_SIZE because DINOv2 ONNX inference has
+ * different memory characteristics (~800MB model, larger per-item buffers).
+ *
+ * 0 = visual embedding disabled (8GB tier).
+ * Adaptive: reduced to half (min 3) under memory pressure.
+ * Value is dynamically computed based on system RAM tier by resolveMemoryConfig().
+ */
+export let DINOV2_CHUNK_SIZE = 15;
+
+/**
+ * DINOv2 session recycle threshold.
+ *
+ * After this many inferences, the DINOv2 ONNX session is disposed and
+ * re-initialized to free accumulated native memory (arena fragmentation).
+ *
+ * Tier-based defaults: 16GB=5, 32GB=15, 64GB+=30.
+ * Disabled when DINOV2_RECYCLE_ENABLED=false (HDD environments).
+ * Value is dynamically computed based on system RAM tier by resolveMemoryConfig().
+ */
+export let DINOV2_RECYCLE_THRESHOLD = 15;
+
 // ============================================================================
 // Constants
 // ============================================================================
+
+/**
+ * Feature flag: Phase 5 fork() mode.
+ *
+ * When enabled (default), Phase 5 embedding runs in child_process.fork() children
+ * instead of in-process. This allows OS-level memory reclamation after each child
+ * exits, preventing ONNX Runtime glibc malloc fragmentation from accumulating.
+ *
+ * Set PHASE5_FORK_ENABLED=false to fall back to legacy in-process mode.
+ *
+ * Retirement criteria: Remove this flag and the legacy in-process path
+ * (processEmbeddingPhase direct call) after 2 stable releases with
+ * PHASE5_FORK_ENABLED=true (default) and zero fork-related incidents.
+ */
+export const PHASE5_FORK_ENABLED = (process.env.PHASE5_FORK_ENABLED ?? "true") !== "false";
 
 /**
  * Default worker concurrency
@@ -253,6 +297,8 @@ export interface EmbeddingPhaseParams {
   partsSavedCount?: number | undefined;
   /** Base64エンコードされたフルページスクリーンショット（visual embedding用） */
   screenshotBase64?: string | undefined;
+  /** Screenshot PNG ファイルパス（Phase 0 で保存、Phase 5 RAW デコード最適化用、TMP-5: Optional） */
+  screenshotPngPath?: string | undefined;
   /** 共有ブラウザインスタンス（Phase 5 bbox解決用、切断済みなら独自起動にフォールバック） */
   sharedBrowser?: Browser | undefined;
   /** Granular progress callback for embedding sub-phases */
@@ -386,6 +432,8 @@ export interface PipelineState {
   html: string | null;
   /** Screenshot (base64) — undefined after Phase 5 release */
   screenshotBase64: string | undefined;
+  /** Screenshot PNG file path — Phase 0 saves to tmp, Phase 5 reads (TMP-5: Optional) */
+  screenshotPngPath?: string;
   /** Narrative/Vision pre-disable flags */
   narrativePreDisabled: boolean;
   visionPreDisabled: boolean;
@@ -498,21 +546,36 @@ export function tryGarbageCollect(): boolean {
  * Check current memory pressure.
  * Returns whether degradation or abort is recommended.
  * Lazily initializes memory constants if not yet resolved.
+ *
+ * P0-D: heapUsedMb チェック追加。heapUsed が maxOldSpaceSize の 80% を超えた場合も
+ * shouldAbort を true にする。maxOldSpaceSize は V8 の heap_size_limit から取得。
+ *
+ * P0-D: Added heapUsedMb check. shouldAbort is also true when heapUsed exceeds
+ * 80% of maxOldSpaceSize, obtained from V8 heap_size_limit.
  */
 export function checkMemoryPressure(): {
   shouldDegrade: boolean;
   shouldAbort: boolean;
   rssMb: number;
+  heapUsedMb: number;
 } {
   // Safety net: ensure memory constants are initialized before comparison
   initMemoryConstants();
   tryGarbageCollect();
   const mem = process.memoryUsage();
   const rssMb = Math.round(mem.rss / 1024 / 1024);
+  const heapUsedMb = Math.round(mem.heapUsed / 1024 / 1024);
+
+  // P0-D: V8 heap limit check (--max-old-space-size or default)
+  const v8HeapStats = v8Module.getHeapStatistics();
+  const maxOldSpaceMb = Math.round(v8HeapStats.heap_size_limit / 1024 / 1024);
+  const heapAbort = heapUsedMb >= Math.round(maxOldSpaceMb * 0.8);
+
   return {
     shouldDegrade: rssMb >= MEMORY_DEGRADATION_THRESHOLD_MB,
-    shouldAbort: rssMb >= MEMORY_CRITICAL_THRESHOLD_MB,
+    shouldAbort: rssMb >= MEMORY_CRITICAL_THRESHOLD_MB || heapAbort,
     rssMb,
+    heapUsedMb,
   };
 }
 

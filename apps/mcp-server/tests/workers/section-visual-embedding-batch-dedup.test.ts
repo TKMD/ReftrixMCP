@@ -258,7 +258,7 @@ describe("PageAnalyzeWorker - Batch Fallback + Duplicate Vector Detection", () =
 
     it("フォールバック対象0件でバッチ呼び出しスキップ", () => {
       // Arrange & Act: ソースコード構造解析
-      // After further refactoring, fallback collection moved to collectFallbackScreenshots
+      // After TDA-C1 refactoring, fallback collection moved to collectFallbackScreenshots
       const fnStart = workerSource.indexOf("async function collectFallbackScreenshots");
       expect(fnStart).toBeGreaterThan(-1);
       const fnBody = workerSource.slice(fnStart, fnStart + 5000);

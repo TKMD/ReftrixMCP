@@ -19,18 +19,11 @@ describe("PageAnalyzeWorker - Configuration", () => {
 
   const phase2Path = path.resolve(__dirname, "../../src/workers/phases/phase-2-motion.ts");
 
-  const batchWorkerSourcePath = path.resolve(
-    __dirname,
-    "../../src/workers/batch-quality-worker.ts"
-  );
-
   let workerSource: string;
-  let batchWorkerSource: string;
 
   beforeAll(() => {
     workerSource =
       fs.readFileSync(orchestratorPath, "utf8") + "\n" + fs.readFileSync(phase2Path, "utf8");
-    batchWorkerSource = fs.readFileSync(batchWorkerSourcePath, "utf8");
   });
 
   describe("page-analyze-worker stalledInterval", () => {
@@ -85,14 +78,5 @@ describe("PageAnalyzeWorker - Configuration", () => {
     });
   });
 
-  describe("batch-quality-worker stalledInterval", () => {
-    it("should use lockDuration/4 for stalledInterval instead of hardcoded 30000", () => {
-      expect(batchWorkerSource).not.toMatch(/stalledInterval:\s*30000/);
-      expect(batchWorkerSource).toContain("Math.max(60000, Math.floor(lockDuration / 4))");
-    });
-
-    it("should set maxStalledCount to 2", () => {
-      expect(batchWorkerSource).toMatch(/maxStalledCount:\s*2/);
-    });
-  });
+  // [REMOVED v0.3.0] batch-quality-worker tests removed with quality.batch_evaluate
 });

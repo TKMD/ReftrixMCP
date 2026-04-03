@@ -7,6 +7,15 @@ generator client {
   previewFeatures = ["postgresqlExtensions"]
 }
 
+// Publish-only generator: ships generated Prisma client in dist/generated/prisma/
+// npm publish 用: 生成済みクライアントを dist/ に同梱して配布
+generator publish {
+  provider        = "prisma-client-js"
+  output          = "../src/generated/prisma"
+  binaryTargets   = ["native", "debian-openssl-3.0.x", "linux-musl-openssl-3.0.x", "linux-arm64-openssl-3.0.x", "linux-musl-arm64-openssl-3.0.x", "darwin-arm64", "darwin"]
+  previewFeatures = ["postgresqlExtensions"]
+}
+
 datasource db {
   provider   = "postgresql"
   url        = env("DATABASE_URL")
@@ -201,6 +210,7 @@ model WebPage {
   backgroundDesigns      BackgroundDesign[]
   responsiveAnalyses     ResponsiveAnalysis[]
   componentParts         ComponentPart[]
+  designSnapshots        DesignSnapshot[]
 
   @@index([projectId])
   @@index([projectId, analysisStatus])
@@ -1710,4 +1720,104 @@ model ComponentPartEmbedding {
 
   @@index([componentPartId])
   @@map("component_part_embeddings")
+}
+
+// ============================================================================
+// Audit Log Model (v0.3.0)
+// GDPR Art.30 "Records of processing activities" + CWE-778 "Insufficient logging"
+// Append-only design: UPDATE/DELETE restricted (cleanup only exception)
+// ============================================================================
+
+/// AuditLog - 監査ログ（GDPR Art.30 処理活動記録）
+/// Append-only設計: 通常のUPDATE/DELETE不可（cleanupのみ例外）
+/// PII配慮: targetIdはtruncateId()で切り詰め保存
+model AuditLog {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  timestamp  DateTime @default(now()) @db.Timestamptz
+  action     String   @db.VarChar(100) // e.g., "data.delete", "page.analyze", "preference.reset"
+  actor      String   @db.VarChar(100) // e.g., "mcp-client", "system", "worker"
+  targetType String   @map("target_type") @db.VarChar(100) // e.g., "web_page", "preference_profile"
+  targetId   String?  @map("target_id") @db.VarChar(50) // Truncated UUID (PII consideration)
+  details    Json?    // Additional context (sanitized, no secrets)
+  ipAddress  String?  @map("ip_address") @db.VarChar(45) // IPv4/IPv6
+  result     String   @db.VarChar(20) // "success" | "failure" | "denied"
+
+  @@index([action])
+  @@index([timestamp])
+  @@index([targetType, targetId], map: "idx_audit_logs_target")
+  @@map("audit_logs")
+}
+
+// ============================================================================
+// Search Log Models (v0.3.0 T2-FAC)
+// 検索ログ記録・分析（ファセット検索 + MLフィードバックループ基盤）
+// Search log recording & analysis (facet search + ML feedback loop foundation)
+// ============================================================================
+
+/// SearchLog - 検索ログ（検索クエリ・パフォーマンス・結果の記録）
+/// Append-only設計: 通常のUPDATE/DELETE不可
+/// PII配慮: queryは200文字truncate、profileIdはtruncateId()
+model SearchLog {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  timestamp   DateTime @default(now()) @db.Timestamptz
+  query       String   @db.VarChar(200) // 検索クエリ（truncated to 200 chars）
+  queryType   String?  @map("query_type") @db.VarChar(50) // visual/structural/functional/stylistic
+  services    String[] // 使用された検索サービス / Search services used
+  resultCount Int      @default(0) @map("result_count")
+  topResultId String?  @map("top_result_id") @db.VarChar(50) // truncated UUID
+  filters     Json?    // 適用されたフィルタ / Applied filters (sanitized)
+  latencyMs   Int?     @map("latency_ms") // 検索レイテンシ（ms）
+  cacheHit    Boolean  @default(false) @map("cache_hit")
+  profileId   String?  @map("profile_id") @db.VarChar(50) // truncateId() applied (PII consideration)
+
+  @@index([timestamp])
+  @@index([queryType], map: "idx_search_logs_query_type")
+  @@index([cacheHit], map: "idx_search_logs_cache_hit")
+  @@map("search_logs")
+}
+
+// ============================================================================
+// Design Change Tracking Models (v0.3.0 T2-DCT)
+// デザイン変更時系列追跡（スナップショット + Embedding diff）
+// Design change temporal tracking (snapshot + embedding diff)
+// ============================================================================
+
+/// DesignSnapshot - 特定時点のWebページデザイン状態を記録するスナップショット
+/// Captures a point-in-time design state of a web page for temporal comparison
+model DesignSnapshot {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  webPageId    String   @map("web_page_id") @db.Uuid
+  snapshotAt   DateTime @default(now()) @map("snapshot_at") @db.Timestamptz
+  sectionCount Int      @map("section_count")
+  overallScore Float?   @map("overall_score") // quality score at snapshot time
+  metadata     Json?    // 追加メタデータ（analysisVersion, phaseStatus等）
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  // リレーション / Relations
+  webPage  WebPage                  @relation(fields: [webPageId], references: [id], onDelete: Cascade)
+  sections DesignSnapshotSection[]
+
+  @@index([webPageId, snapshotAt(sort: Desc)])
+  @@map("design_snapshots")
+}
+
+/// DesignSnapshotSection - スナップショット内の個別セクションデータ（Embedding含む）
+/// Individual section data within a snapshot (including embeddings)
+model DesignSnapshotSection {
+  id              String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  snapshotId      String @map("snapshot_id") @db.Uuid
+  sectionType     String @map("section_type")
+  sectionName     String? @map("section_name")
+  positionIndex   Int    @map("position_index")
+  textEmbedding   Unsupported("vector(768)")? @map("text_embedding")
+  visionEmbedding Unsupported("vector(768)")? @map("vision_embedding")
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  // リレーション / Relations
+  snapshot DesignSnapshot @relation(fields: [snapshotId], references: [id], onDelete: Cascade)
+
+  @@index([snapshotId])
+  @@map("design_snapshot_sections")
 }

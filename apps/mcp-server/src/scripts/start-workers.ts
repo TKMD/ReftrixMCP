@@ -7,12 +7,10 @@
  *
  * Starts BullMQ workers for async job processing:
  * - PageAnalyzeWorker: Handles page.analyze async jobs
- * - BatchQualityWorker: Handles quality.batch_evaluate jobs
  *
  * Usage:
  *   pnpm worker:start           # Start all workers
  *   pnpm worker:start:page      # Start only PageAnalyzeWorker
- *   pnpm worker:start:quality   # Start only BatchQualityWorker
  *
  * Or run directly:
  *   NODE_ENV=development npx tsx apps/mcp-server/src/scripts/start-workers.ts
@@ -21,7 +19,6 @@
  *   REDIS_HOST (default: localhost)
  *   REDIS_PORT (default: 27379)
  *   PAGE_WORKER_CONCURRENCY (default: 1 - singleton browser, avoid race condition)
- *   WORKER_CONCURRENCY (default: 3 for quality worker)
  *
  * @module scripts/start-workers
  */
@@ -35,11 +32,7 @@ import {
   createPageAnalyzeWorker,
   type PageAnalyzeWorkerInstance,
 } from "../workers/page-analyze-worker";
-import {
-  createBatchQualityWorker,
-  setQualityEvaluatorService,
-  type BatchQualityWorkerInstance,
-} from "../workers/batch-quality-worker";
+// [REMOVED v0.3.0] batch-quality-worker — quality.batch_evaluate removed
 import { checkRedisConnection, getRedisConfig } from "../config/redis";
 import { embeddingService } from "@reftrixmcp/ml";
 import { prisma } from "@reftrixmcp/database";
@@ -48,8 +41,6 @@ import {
   initializeAllServices,
   type ServiceInitializerConfig,
 } from "../services/service-initializer";
-import { executeQualityEvaluate } from "../services";
-import type { Grade } from "../tools/quality/schemas";
 import { createPageAnalyzeQueue } from "../queues/page-analyze-queue";
 import { categorizeByProgress } from "../services/orphaned-job-utils";
 // NOTE: Startup embedding backfill was removed (caused 33GB RSS bloat blocking Worker init).
@@ -63,7 +54,6 @@ import { categorizeByProgress } from "../services/orphaned-job-utils";
 
 const WORKER_TYPES = {
   PAGE_ANALYZE: "page-analyze",
-  BATCH_QUALITY: "batch-quality",
   ALL: "all",
 } as const;
 
@@ -74,7 +64,6 @@ type WorkerType = (typeof WORKER_TYPES)[keyof typeof WORKER_TYPES];
 // ============================================================================
 
 let pageAnalyzeWorker: PageAnalyzeWorkerInstance | null = null;
-let batchQualityWorker: BatchQualityWorkerInstance | null = null;
 
 // ============================================================================
 // Initialization
@@ -132,59 +121,6 @@ async function initializeServices(): Promise<void> {
     throw new Error(`Service initialization failed: ${initResult.error}`);
   }
 
-  // Setup quality evaluator service for BatchQualityWorker
-  setQualityEvaluatorService({
-    evaluatePage: async (html, options) => {
-      const result = await executeQualityEvaluate({
-        html,
-        options: {
-          strict: options?.strict,
-          weights: options?.weights,
-          includeRecommendations: false, // Reduce response size for batch
-        },
-      });
-
-      if (!result.success || !result.data) {
-        throw new Error(result.error?.message ?? "Quality evaluation failed");
-      }
-
-      // Transform service-export format to schemas.ts QualityEvaluateData format
-      const data = result.data;
-      return {
-        overall: data.overallScore,
-        grade: data.grade as Grade,
-        originality: {
-          score: data.axisScores.originality,
-          grade: (data.axisGrades?.originality ?? data.grade) as Grade,
-        },
-        craftsmanship: {
-          score: data.axisScores.craftsmanship,
-          grade: (data.axisGrades?.craftsmanship ?? data.grade) as Grade,
-        },
-        contextuality: {
-          score: data.axisScores.contextuality,
-          grade: (data.axisGrades?.contextuality ?? data.grade) as Grade,
-        },
-        evaluatedAt: new Date().toISOString(),
-        clicheDetection:
-          data.clicheCount !== undefined
-            ? {
-                count: data.clicheCount,
-                detected: data.clicheCount > 0,
-                patterns: [],
-              }
-            : undefined,
-      };
-    },
-    getPageById: async (pageId) => {
-      const page = await prisma.webPage.findUnique({
-        where: { id: pageId },
-        select: { htmlContent: true },
-      });
-      return page?.htmlContent ?? null;
-    },
-  });
-
   console.log("[WorkerStartup] Services initialized successfully");
 }
 
@@ -231,22 +167,7 @@ function startPageAnalyzeWorker(): PageAnalyzeWorkerInstance {
   return worker;
 }
 
-/**
- * Start BatchQualityWorker
- */
-function startBatchQualityWorker(): BatchQualityWorkerInstance {
-  const concurrency = parseInt(process.env.WORKER_CONCURRENCY ?? "3", 10);
-
-  console.log(`[WorkerStartup] Starting BatchQualityWorker (concurrency: ${concurrency})...`);
-
-  const worker = createBatchQualityWorker({
-    concurrency,
-    verbose: true,
-  });
-
-  console.log("[WorkerStartup] BatchQualityWorker started successfully");
-  return worker;
-}
+// [REMOVED v0.3.0] startBatchQualityWorker — quality.batch_evaluate removed
 
 /**
  * Recover orphaned active jobs from previous worker crash/restart
@@ -436,14 +357,9 @@ async function startWorkers(type: WorkerType): Promise<void> {
       pageAnalyzeWorker = startPageAnalyzeWorker();
       break;
 
-    case WORKER_TYPES.BATCH_QUALITY:
-      batchQualityWorker = startBatchQualityWorker();
-      break;
-
     case WORKER_TYPES.ALL:
     default:
       pageAnalyzeWorker = startPageAnalyzeWorker();
-      batchQualityWorker = startBatchQualityWorker();
       break;
   }
 
@@ -464,10 +380,6 @@ async function shutdownWorkers(): Promise<void> {
 
   if (pageAnalyzeWorker) {
     shutdownPromises.push(pageAnalyzeWorker.close());
-  }
-
-  if (batchQualityWorker) {
-    shutdownPromises.push(batchQualityWorker.close());
   }
 
   await Promise.all(shutdownPromises);
@@ -501,8 +413,6 @@ async function main(): Promise<void> {
 
   if (args.includes("--page") || args.includes("-p")) {
     workerType = WORKER_TYPES.PAGE_ANALYZE;
-  } else if (args.includes("--quality") || args.includes("-q")) {
-    workerType = WORKER_TYPES.BATCH_QUALITY;
   }
 
   // Setup signal handlers

@@ -480,10 +480,8 @@ export async function partCompareHandler(input: unknown): Promise<PartCompareOut
 export const partCompareToolDefinition = {
   name: "part.compare" as const,
   description:
-    "2-5個のUIコンポーネントパーツをスタイル・レイアウト・インタラクション・" +
-    "アクセシビリティの観点で並列比較します。" +
-    " / Compare 2-5 UI component parts side by side on styles, layout, " +
-    "interaction, and accessibility aspects.",
+    "2-5個のUIパーツをスタイル・レイアウト・インタラクション・アクセシビリティで並列比較。デフォルトはstyles+layout。各プロパティの同一性も判定。" +
+    " / Compare 2-5 UI parts on styles, layout, interaction, and accessibility. Default: styles + layout. Reports property-level identity.",
   annotations: {
     title: "Part Compare",
     readOnlyHint: true,

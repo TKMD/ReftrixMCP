@@ -623,61 +623,43 @@ describe("P1-F: setImmediate yield points", () => {
     });
 
     it("Section チャンク間に setImmediate yield point があること", () => {
-      const embeddingPhaseStart = workerSource.indexOf("async function processEmbeddingPhase");
-      const body = workerSource.slice(embeddingPhaseStart, embeddingPhaseStart + 10000);
-
-      const sectionChunkSection = body.slice(
-        body.indexOf("let sectionChunkSize"),
-        body.indexOf("// ONNX session dispose: Section embedding")
-      );
-      expect(sectionChunkSection).toContain("setImmediate(resolve)");
+      // Refactored: section logic is in processSectionTextEmbeddingChunks
+      const fnStart = workerSource.indexOf("async function processSectionTextEmbeddingChunks");
+      const body = workerSource.slice(fnStart, fnStart + 10000);
+      expect(body).toContain("setImmediate(resolve)");
     });
 
     it("Motion チャンク間に setImmediate yield point があること", () => {
-      const embeddingPhaseStart = workerSource.indexOf("async function processEmbeddingPhase");
-      const body = workerSource.slice(embeddingPhaseStart, embeddingPhaseStart + 20000);
-
-      const motionSection = body.slice(
-        body.indexOf("let motionChunkSize"),
-        body.indexOf("// 2.5. Vision-detected")
-      );
-      expect(motionSection).toContain("setImmediate(resolve)");
+      // Refactored: motion logic is in processMotionTextEmbeddingChunks
+      const fnStart = workerSource.indexOf("async function processMotionTextEmbeddingChunks");
+      const body = workerSource.slice(fnStart, fnStart + 10000);
+      expect(body).toContain("setImmediate(resolve)");
     });
 
     it("Vision-Motion チャンク間に setImmediate yield point があること", () => {
-      const embeddingPhaseStart = workerSource.indexOf("async function processEmbeddingPhase");
-      const body = workerSource.slice(embeddingPhaseStart, embeddingPhaseStart + 25000);
-
-      const visionSection = body.slice(body.indexOf("let visionChunkSize"));
-      expect(visionSection).toContain("setImmediate(resolve)");
+      // Refactored: vision-motion logic is in processVisionMotionEmbeddingChunks
+      const fnStart = workerSource.indexOf("async function processVisionMotionEmbeddingChunks");
+      const body = workerSource.slice(fnStart, fnStart + 10000);
+      expect(body).toContain("setImmediate(resolve)");
     });
 
     it("Background チャンク間に setImmediate yield point があること", () => {
-      const embeddingPhaseStart = workerSource.indexOf("async function processEmbeddingPhase");
-      const body = workerSource.slice(embeddingPhaseStart, embeddingPhaseStart + 30000);
-
-      const bgSection = body.slice(
-        body.indexOf("let bgChunkSize"),
-        body.indexOf("// ONNX session dispose: Background embedding")
-      );
-      expect(bgSection).toContain("setImmediate(resolve)");
+      // Refactored: background logic is in processBackgroundTextEmbeddingChunks
+      const fnStart = workerSource.indexOf("async function processBackgroundTextEmbeddingChunks");
+      const body = workerSource.slice(fnStart, fnStart + 10000);
+      expect(body).toContain("setImmediate(resolve)");
     });
 
     it("JSAnimation チャンク間に setImmediate yield point があること", () => {
-      const embeddingPhaseStart = workerSource.indexOf("async function processEmbeddingPhase");
-      const body = workerSource.slice(embeddingPhaseStart);
-
-      const jsSection = body.slice(body.indexOf("// 4. JSAnimationEmbedding"));
-      expect(jsSection).toContain("setImmediate(resolve)");
+      // Refactored: JS animation logic is in processJsAnimationEmbeddingChunks
+      const fnStart = workerSource.indexOf("async function processJsAnimationEmbeddingChunks");
+      const body = workerSource.slice(fnStart, fnStart + 10000);
+      expect(body).toContain("setImmediate(resolve)");
     });
 
     it("yield point にコメント説明があること", () => {
-      // 各yield pointに目的を説明するコメントが付いていること
-      const embeddingPhaseStart = workerSource.indexOf("async function processEmbeddingPhase");
-      const body = workerSource.slice(embeddingPhaseStart);
-
       // BullMQ heartbeats と IPC のためのyieldであることが記述されていること
-      expect(body).toContain("Yield to event loop");
+      expect(workerSource).toContain("Yield to event loop");
     });
   });
 

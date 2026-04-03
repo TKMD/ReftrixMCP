@@ -1,0 +1,3 @@
+# Generated Prisma client (publish generator output)
+# prisma generate で再生成されるため、コミット不要
+src/generated/

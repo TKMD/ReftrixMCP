@@ -167,3 +167,21 @@ export {
   type MotionAnalysisResult,
   type CSSAnalysisCacheStats,
 } from "./css-analysis-cache.service";
+
+// ====================================================
+// Audit Log Service (v0.3.0 — GDPR Art.30 / CWE-778)
+// ====================================================
+
+export {
+  AuditLogService,
+  getAuditLogService,
+  resetAuditLogService,
+  setAuditLogPrismaClientFactory,
+  resetAuditLogPrismaClientFactory,
+  AUDIT_LOG_CONSTANTS,
+  type AuditLogEntry,
+  type AuditLogFilters,
+  type AuditLogRecord,
+  type RetentionPolicy,
+  type AuditLogPrismaClient,
+} from "./audit-log.service";

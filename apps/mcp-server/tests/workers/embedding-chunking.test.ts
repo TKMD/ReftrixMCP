@@ -91,7 +91,8 @@ describe("Universal Embedding Chunking", () => {
     let embeddingPhaseBody: string;
 
     beforeAll(() => {
-      const fnStart = workerSource.indexOf("async function processEmbeddingPhase");
+      // Refactored: section embedding logic is now in processSectionTextEmbeddingChunks
+      const fnStart = workerSource.indexOf("async function processSectionTextEmbeddingChunks");
       expect(fnStart).toBeGreaterThan(-1);
       embeddingPhaseBody = workerSource.slice(fnStart, fnStart + 15000);
     });
@@ -109,7 +110,7 @@ describe("Universal Embedding Chunking", () => {
       // Section チャンクループ内で checkMemoryPressure が呼ばれること
       const sectionChunkSection = embeddingPhaseBody.slice(
         embeddingPhaseBody.indexOf("let sectionChunkSize"),
-        embeddingPhaseBody.indexOf("// ONNX session dispose: Section embedding")
+        embeddingPhaseBody.length
       );
       expect(sectionChunkSection).toContain("checkMemoryPressure()");
     });
@@ -117,7 +118,7 @@ describe("Universal Embedding Chunking", () => {
     it("should reduce chunk size under memory pressure (min 5)", () => {
       const sectionChunkSection = embeddingPhaseBody.slice(
         embeddingPhaseBody.indexOf("let sectionChunkSize"),
-        embeddingPhaseBody.indexOf("// ONNX session dispose: Section embedding")
+        embeddingPhaseBody.length
       );
       expect(sectionChunkSection).toContain("Math.max(5, Math.floor(sectionChunkSize / 2))");
     });
@@ -125,7 +126,7 @@ describe("Universal Embedding Chunking", () => {
     it("should break on shouldAbort", () => {
       const sectionChunkSection = embeddingPhaseBody.slice(
         embeddingPhaseBody.indexOf("let sectionChunkSize"),
-        embeddingPhaseBody.indexOf("// ONNX session dispose: Section embedding")
+        embeddingPhaseBody.length
       );
       expect(sectionChunkSection).toContain("memCheck.shouldAbort");
       expect(sectionChunkSection).toContain("break");
@@ -134,18 +135,17 @@ describe("Universal Embedding Chunking", () => {
     it("should call extendJobLock for each section chunk", () => {
       const sectionChunkSection = embeddingPhaseBody.slice(
         embeddingPhaseBody.indexOf("let sectionChunkSize"),
-        embeddingPhaseBody.indexOf("// ONNX session dispose: Section embedding")
+        embeddingPhaseBody.length
       );
-      // extendJobLock はチャンクごとに呼ばれる
-      expect(sectionChunkSection).toContain(
-        'extendJobLock(job, effectiveToken, effectiveLockDuration, "embedding-sections")'
-      );
+      // extendJobLock はチャンクごとに呼ばれる（Prettier multi-line format対応）
+      expect(sectionChunkSection).toContain("extendJobLock(");
+      expect(sectionChunkSection).toContain('"embedding-sections"');
     });
 
     it("should dispose pipeline and GC between section chunks", () => {
       const sectionChunkSection = embeddingPhaseBody.slice(
         embeddingPhaseBody.indexOf("let sectionChunkSize"),
-        embeddingPhaseBody.indexOf("// ONNX session dispose: Section embedding")
+        embeddingPhaseBody.length
       );
       expect(sectionChunkSection).toContain("disposeEmbeddingPipeline()");
       expect(sectionChunkSection).toContain("tryGarbageCollect()");
@@ -154,7 +154,7 @@ describe("Universal Embedding Chunking", () => {
     it("should create chunk idMapping subset for sections", () => {
       const sectionChunkSection = embeddingPhaseBody.slice(
         embeddingPhaseBody.indexOf("let sectionChunkSize"),
-        embeddingPhaseBody.indexOf("// ONNX session dispose: Section embedding")
+        embeddingPhaseBody.length
       );
       expect(sectionChunkSection).toContain("chunkIdMapping");
       expect(sectionChunkSection).toContain("sectionSaveResult.idMapping.get(section.id)");
@@ -163,9 +163,9 @@ describe("Universal Embedding Chunking", () => {
     it("should accumulate results with += for sectionEmbeddingsGenerated", () => {
       const sectionChunkSection = embeddingPhaseBody.slice(
         embeddingPhaseBody.indexOf("let sectionChunkSize"),
-        embeddingPhaseBody.indexOf("// ONNX session dispose: Section embedding")
+        embeddingPhaseBody.length
       );
-      expect(sectionChunkSection).toContain("result.sectionEmbeddingsGenerated +=");
+      expect(sectionChunkSection).toContain("ctx.result.sectionEmbeddingsGenerated +=");
     });
   });
 
@@ -177,9 +177,10 @@ describe("Universal Embedding Chunking", () => {
     let embeddingPhaseBody: string;
 
     beforeAll(() => {
-      const fnStart = workerSource.indexOf("async function processEmbeddingPhase");
+      // Refactored: motion embedding logic is now in processMotionTextEmbeddingChunks
+      const fnStart = workerSource.indexOf("async function processMotionTextEmbeddingChunks");
       expect(fnStart).toBeGreaterThan(-1);
-      embeddingPhaseBody = workerSource.slice(fnStart, fnStart + 25000);
+      embeddingPhaseBody = workerSource.slice(fnStart, fnStart + 15000);
     });
 
     it("should chunk motion patterns using EMBEDDING_CHUNK_SIZE", () => {
@@ -195,7 +196,7 @@ describe("Universal Embedding Chunking", () => {
     it("should call checkMemoryPressure before each motion chunk", () => {
       const motionSection = embeddingPhaseBody.slice(
         embeddingPhaseBody.indexOf("let motionChunkSize"),
-        embeddingPhaseBody.indexOf("// 2.5. Vision-detected")
+        embeddingPhaseBody.length
       );
       expect(motionSection).toContain("checkMemoryPressure()");
     });
@@ -203,7 +204,7 @@ describe("Universal Embedding Chunking", () => {
     it("should reduce motion chunk size under memory pressure", () => {
       const motionSection = embeddingPhaseBody.slice(
         embeddingPhaseBody.indexOf("let motionChunkSize"),
-        embeddingPhaseBody.indexOf("// 2.5. Vision-detected")
+        embeddingPhaseBody.length
       );
       expect(motionSection).toContain("Math.max(5, Math.floor(motionChunkSize / 2))");
     });
@@ -211,7 +212,7 @@ describe("Universal Embedding Chunking", () => {
     it("should dispose pipeline between motion chunks", () => {
       const motionSection = embeddingPhaseBody.slice(
         embeddingPhaseBody.indexOf("let motionChunkSize"),
-        embeddingPhaseBody.indexOf("// 2.5. Vision-detected")
+        embeddingPhaseBody.length
       );
       expect(motionSection).toContain("disposeEmbeddingPipeline()");
       expect(motionSection).toContain("tryGarbageCollect()");
@@ -220,9 +221,9 @@ describe("Universal Embedding Chunking", () => {
     it("should accumulate results with += for motionEmbeddingsGenerated", () => {
       const motionSection = embeddingPhaseBody.slice(
         embeddingPhaseBody.indexOf("let motionChunkSize"),
-        embeddingPhaseBody.indexOf("// 2.5. Vision-detected")
+        embeddingPhaseBody.length
       );
-      expect(motionSection).toContain("result.motionEmbeddingsGenerated +=");
+      expect(motionSection).toContain("ctx.result.motionEmbeddingsGenerated +=");
     });
   });
 
@@ -234,25 +235,22 @@ describe("Universal Embedding Chunking", () => {
     let embeddingPhaseBody: string;
 
     beforeAll(() => {
-      const fnStart = workerSource.indexOf("async function processEmbeddingPhase");
+      // Refactored: vision-motion logic is now in processVisionMotionEmbeddingChunks
+      const fnStart = workerSource.indexOf("async function processVisionMotionEmbeddingChunks");
       expect(fnStart).toBeGreaterThan(-1);
-      embeddingPhaseBody = workerSource.slice(fnStart, fnStart + 30000);
+      embeddingPhaseBody = workerSource.slice(fnStart, fnStart + 15000);
     });
 
     it("should chunk vision-detected patterns", () => {
-      const visionSection = embeddingPhaseBody.slice(
-        embeddingPhaseBody.indexOf("// 2.5. Vision-detected")
+      expect(embeddingPhaseBody).toContain("let visionChunkSize = EMBEDDING_CHUNK_SIZE");
+      expect(embeddingPhaseBody).toContain(
+        "visionPatterns.slice(offset, offset + visionChunkSize)"
       );
-      expect(visionSection).toContain("let visionChunkSize = EMBEDDING_CHUNK_SIZE");
-      expect(visionSection).toContain("visionPatterns.slice(offset, offset + visionChunkSize)");
     });
 
     it("should log warning on shouldDegrade for vision-motion chunk", () => {
-      const visionSection = embeddingPhaseBody.slice(
-        embeddingPhaseBody.indexOf("// 2.5. Vision-detected")
-      );
-      expect(visionSection).toContain("logger.warn");
-      expect(visionSection).toContain("reducing vision-motion chunk size");
+      expect(embeddingPhaseBody).toContain("logger.warn");
+      expect(embeddingPhaseBody).toContain("reducing vision-motion chunk size");
     });
   });
 
@@ -264,9 +262,10 @@ describe("Universal Embedding Chunking", () => {
     let embeddingPhaseBody: string;
 
     beforeAll(() => {
-      const fnStart = workerSource.indexOf("async function processEmbeddingPhase");
+      // Refactored: background logic is now in processBackgroundTextEmbeddingChunks
+      const fnStart = workerSource.indexOf("async function processBackgroundTextEmbeddingChunks");
       expect(fnStart).toBeGreaterThan(-1);
-      embeddingPhaseBody = workerSource.slice(fnStart, fnStart + 35000);
+      embeddingPhaseBody = workerSource.slice(fnStart, fnStart + 15000);
     });
 
     it("should chunk backgrounds using EMBEDDING_CHUNK_SIZE", () => {
@@ -286,7 +285,7 @@ describe("Universal Embedding Chunking", () => {
     it("should call checkMemoryPressure before each background chunk", () => {
       const bgSection = embeddingPhaseBody.slice(
         embeddingPhaseBody.indexOf("let bgChunkSize"),
-        embeddingPhaseBody.indexOf("// ONNX session dispose: Background embedding")
+        embeddingPhaseBody.length
       );
       expect(bgSection).toContain("checkMemoryPressure()");
     });
@@ -294,7 +293,7 @@ describe("Universal Embedding Chunking", () => {
     it("should reduce background chunk size under memory pressure", () => {
       const bgSection = embeddingPhaseBody.slice(
         embeddingPhaseBody.indexOf("let bgChunkSize"),
-        embeddingPhaseBody.indexOf("// ONNX session dispose: Background embedding")
+        embeddingPhaseBody.length
       );
       expect(bgSection).toContain("Math.max(5, Math.floor(bgChunkSize / 2))");
     });
@@ -302,7 +301,7 @@ describe("Universal Embedding Chunking", () => {
     it("should break on shouldAbort for backgrounds", () => {
       const bgSection = embeddingPhaseBody.slice(
         embeddingPhaseBody.indexOf("let bgChunkSize"),
-        embeddingPhaseBody.indexOf("// ONNX session dispose: Background embedding")
+        embeddingPhaseBody.length
       );
       expect(bgSection).toContain("memCheck.shouldAbort");
       expect(bgSection).toContain("stopping background embedding");
@@ -311,17 +310,15 @@ describe("Universal Embedding Chunking", () => {
     it("should call extendJobLock for each background chunk", () => {
       const bgSection = embeddingPhaseBody.slice(
         embeddingPhaseBody.indexOf("let bgChunkSize"),
-        embeddingPhaseBody.indexOf("// ONNX session dispose: Background embedding")
+        embeddingPhaseBody.length
       );
-      expect(bgSection).toContain(
-        'extendJobLock(job, effectiveToken, effectiveLockDuration, "embedding-backgrounds")'
-      );
+      expect(bgSection).toContain('"embedding-backgrounds"');
     });
 
     it("should dispose pipeline and GC between background chunks", () => {
       const bgSection = embeddingPhaseBody.slice(
         embeddingPhaseBody.indexOf("let bgChunkSize"),
-        embeddingPhaseBody.indexOf("// ONNX session dispose: Background embedding")
+        embeddingPhaseBody.length
       );
       expect(bgSection).toContain("disposeEmbeddingPipeline()");
       expect(bgSection).toContain("tryGarbageCollect()");
@@ -330,15 +327,15 @@ describe("Universal Embedding Chunking", () => {
     it("should accumulate results with += for bgEmbeddingsGenerated", () => {
       const bgSection = embeddingPhaseBody.slice(
         embeddingPhaseBody.indexOf("let bgChunkSize"),
-        embeddingPhaseBody.indexOf("// ONNX session dispose: Background embedding")
+        embeddingPhaseBody.length
       );
-      expect(bgSection).toContain("result.bgEmbeddingsGenerated +=");
+      expect(bgSection).toContain("ctx.result.bgEmbeddingsGenerated +=");
     });
 
     it("should create chunk idMapping for backgrounds using bg.name", () => {
       const bgSection = embeddingPhaseBody.slice(
         embeddingPhaseBody.indexOf("let bgChunkSize"),
-        embeddingPhaseBody.indexOf("// ONNX session dispose: Background embedding")
+        embeddingPhaseBody.length
       );
       expect(bgSection).toContain("bgSaveResult.idMapping.get(bg.name)");
     });
@@ -348,43 +345,45 @@ describe("Universal Embedding Chunking", () => {
   // サブフェーズ間の dispose+GC が維持されていること
   // ==========================================================================
 
-  describe("inter-subphase dispose+GC preservation", () => {
-    let embeddingPhaseBody: string;
+  describe("inter-subphase terminate-and-respawn + GC preservation", () => {
+    it("should terminateAndRespawn after each embedding sub-phase ending (in extracted functions)", () => {
+      // Each extracted sub-phase function calls terminateAndRespawnEmbeddingPipeline + tryGarbageCollect at the end
+      // Verify all extracted functions have terminate-and-respawn at the end
+      const subPhases = [
+        "processSectionTextEmbeddingChunks",
+        "processMotionTextEmbeddingChunks",
+        "processVisionMotionEmbeddingChunks",
+        "processBackgroundTextEmbeddingChunks",
+        "processJsAnimationEmbeddingChunks",
+        "processResponsiveEmbeddingChunks",
+        "processPartTextEmbeddingChunks",
+      ];
 
-    beforeAll(() => {
-      const fnStart = workerSource.indexOf("async function processEmbeddingPhase");
-      expect(fnStart).toBeGreaterThan(-1);
-      embeddingPhaseBody = workerSource.slice(fnStart, fnStart + 35000);
+      for (const fn of subPhases) {
+        const fnStart = workerSource.indexOf(`async function ${fn}`);
+        expect(fnStart).toBeGreaterThan(-1);
+        const fnBody = workerSource.slice(fnStart, fnStart + 15000);
+        expect(fnBody).toContain("terminateAndRespawnEmbeddingPipeline()");
+        expect(fnBody).toContain("tryGarbageCollect()");
+      }
     });
 
-    it("should dispose after section embedding phase", () => {
-      expect(embeddingPhaseBody).toContain(
-        "// ONNX session dispose: Section embedding後のメモリ回復"
-      );
-    });
+    it("should still use disposeEmbeddingPipeline between chunks (not at sub-phase end)", () => {
+      // Chunked sub-phases keep disposeEmbeddingPipeline between chunks
+      const chunkedSubPhases = [
+        "processSectionTextEmbeddingChunks",
+        "processMotionTextEmbeddingChunks",
+        "processVisionMotionEmbeddingChunks",
+        "processBackgroundTextEmbeddingChunks",
+        "processPartTextEmbeddingChunks",
+      ];
 
-    it("should dispose after motion embedding phase", () => {
-      expect(embeddingPhaseBody).toContain(
-        "// ONNX session dispose: Motion embedding後のメモリ回復"
-      );
-    });
-
-    it("should dispose after background embedding phase", () => {
-      expect(embeddingPhaseBody).toContain(
-        "// ONNX session dispose: Background embedding後のメモリ回復"
-      );
-    });
-
-    it("should dispose after JSAnimation embedding phase", () => {
-      expect(embeddingPhaseBody).toContain(
-        "// ONNX session dispose: JSAnimation embedding後のメモリ回復"
-      );
-    });
-
-    it("should dispose after Responsive embedding phase", () => {
-      expect(embeddingPhaseBody).toContain(
-        "// ONNX session dispose: Responsive embedding後の最終メモリ回復"
-      );
+      for (const fn of chunkedSubPhases) {
+        const fnStart = workerSource.indexOf(`async function ${fn}`);
+        expect(fnStart).toBeGreaterThan(-1);
+        const fnBody = workerSource.slice(fnStart, fnStart + 15000);
+        expect(fnBody).toContain("disposeEmbeddingPipeline()");
+      }
     });
   });
 
@@ -460,35 +459,24 @@ describe("Universal Embedding Chunking", () => {
     let embeddingPhaseBody: string;
 
     beforeAll(() => {
-      const fnStart = workerSource.indexOf("async function processEmbeddingPhase");
+      // Refactored: JS animation logic is now in processJsAnimationEmbeddingChunks
+      const fnStart = workerSource.indexOf("async function processJsAnimationEmbeddingChunks");
       expect(fnStart).toBeGreaterThan(-1);
-      embeddingPhaseBody = workerSource.slice(fnStart, fnStart + 40000);
+      embeddingPhaseBody = workerSource.slice(fnStart, fnStart + 15000);
     });
 
     it("should call checkMemoryPressure in JSAnimation loop", () => {
-      // JSAnimation セクション内で checkMemoryPressure が呼ばれていること
-      const jsSection = embeddingPhaseBody.slice(
-        embeddingPhaseBody.indexOf("// 4. JSAnimationEmbedding")
-      );
-      expect(jsSection).toContain("checkMemoryPressure()");
+      expect(embeddingPhaseBody).toContain("checkMemoryPressure()");
     });
 
     it("should break on shouldAbort in JSAnimation", () => {
-      // shouldAbort 時にループが break されること
-      const jsSection = embeddingPhaseBody.slice(
-        embeddingPhaseBody.indexOf("// 4. JSAnimationEmbedding")
-      );
-      expect(jsSection).toContain("shouldAbort");
-      expect(jsSection).toContain("stopping JS animation embedding");
+      expect(embeddingPhaseBody).toContain("shouldAbort");
+      expect(embeddingPhaseBody).toContain("stopping JS animation embedding");
     });
 
     it("should log warning on shouldDegrade in JSAnimation", () => {
-      // shouldDegrade 時に警告ログが出力されること
-      const jsSection = embeddingPhaseBody.slice(
-        embeddingPhaseBody.indexOf("// 4. JSAnimationEmbedding")
-      );
-      expect(jsSection).toContain("shouldDegrade");
-      expect(jsSection).toContain("Memory pressure detected in JS animation embedding");
+      expect(embeddingPhaseBody).toContain("shouldDegrade");
+      expect(embeddingPhaseBody).toContain("Memory pressure detected in JS animation embedding");
     });
   });
 

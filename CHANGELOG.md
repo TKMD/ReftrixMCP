@@ -12,6 +12,67 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added / 追加
+
+- **Phase 5 child_process.fork()プロセス分離**: ONNX Runtime（e5-base/DINOv2）のglibc malloc sbrk断片化によるRSS 36-58GB OOM Killを根本解決。embedding推論を2子プロセスに分離し、exit(0)でOS全メモリ回収。ピークRSS 82%+削減。IPC Zod双方向バリデーション、CWE-209対策、Path Traversal防御、3層タイムアウト保護 / **Phase 5 child_process.fork() process isolation**: fundamentally resolves RSS 36-58GB OOM Kill caused by ONNX Runtime (e5-base/DINOv2) glibc malloc sbrk fragmentation. Isolates embedding inference into 2 child processes with OS full memory reclamation on exit(0). Peak RSS reduced 82%+. IPC Zod bidirectional validation, CWE-209 mitigation, Path Traversal defense, 3-layer timeout protection
+- **Bull Boardジョブログ表示**: 全6フェーズに`job.log()`追加でBull Board UIのLogsタブにフェーズ進捗を表示 / **Bull Board job log display**: added `job.log()` to all 6 phases for Bull Board UI Logs tab
+
+### Fixed / 修正
+
+- **sync-oss.sh 初回フル公開ブロッカー修正**: Step 6.6の一括pre-publish validation（全パッケージを一斉検証→一斉publish）を、パッケージ単位の逐次フロー（validate→publish→registry反映待ち→次パッケージ）に変更。初回フル公開時に上位Tier（webdesign-core, mcp-server）が未公開の下位Tier依存（core@0.3.0等）を解決できない問題を解消。関数外`local`キーワードも修正 / **sync-oss.sh initial full publish blocker fix**: changed Step 6.6 bulk pre-publish validation (validate-all → publish-all) to per-package sequential flow (validate → publish → registry wait → next package). Resolves the issue where upper-tier packages (webdesign-core, mcp-server) fail to resolve unpublished lower-tier dependencies (core@0.3.0, etc.) during initial full publish. Also fixed `local` keyword outside function scope
+- **Phase 5 IPC競合修正 4層防御**: fork()子プロセスのIPC結果メッセージ消失を4層防御で修正（setImmediate、サイレントドロップ検出、ONNX dispose削除、Counter Reconciliation全タイプ拡張） / **Phase 5 IPC race fix — 4-layer defense**: fixes IPC result message loss via setImmediate, silent drop detection, ONNX dispose removal, Counter Reconciliation expansion
+- **IPC共有化**: text/visual子プロセス間の71行IPC重複コードを`phase-5-child-ipc.ts`に6関数として集約 / **IPC deduplication**: consolidated 71 lines of duplicated IPC code into 6 shared functions in `phase-5-child-ipc.ts`
+- **Bull Board進捗バー修正**: `updateProgress(オブジェクト)` → `updateProgress(数値)` で進捗バーが正しく表示されるよう修正 / **Bull Board progress bar fix**: `updateProgress(object)` → `updateProgress(number)` for correct progress bar display
+- **バージョン表記統一**: CLI VERSION（0.2.0→package.json SSoT）、User-Agent 8箇所（0.1.0→0.3.0）、SECURITY.md（0.3.x追加） / **Version string unification**: CLI VERSION (SSoT from package.json), User-Agent 8 files (0.1.0→0.3.0), SECURITY.md (add 0.3.x)
+
+### Documentation / ドキュメント
+
+- **MCPツールガイド全面修正**: `02-mcp-tools-guide.md`にv0.3.0新規11ツールの使用ガイドを追加。ツール数表記を`gen:tool-count`マーカーで統一し日英不整合（37/35混在）を解消。TOC再構成 / **MCP tools guide comprehensive revision**: added usage guides for 11 new v0.3.0 tools to `02-mcp-tools-guide.md`. Unified tool count notation with `gen:tool-count` markers, fixing JP/EN inconsistency (37/35 mismatch). Restructured TOC
+- **OSS READMEツールテーブル完全化**: `oss-readme.md`にv0.3.0新規11ツール（`responsive.capture`, `search.facets`, `design.similar_site`, `design.compare`, `design.track_changes`, `data.delete`, `data.export`, `audit.query`, `embedding.quality`, `accessibility.audit`, `performance.evaluate`）を追加 / **OSS README tool table completion**: added 11 v0.3.0 tools to `oss-readme.md`
+- **.env.example 環境変数追加**: Phase 5 fork()関連5件（`PHASE5_FORK_ENABLED`等）、DINOv2関連3件（`DINOV2_RECYCLE_ENABLED`等）、Worker関連1件（`WORKER_RESTART_DELAY_MS`）の計9環境変数を追加。`ONNX_EXECUTION_PROVIDER`の重複定義を「ML/Embedding」セクションに集約 / **.env.example environment variables**: added 9 env vars for Phase 5 fork() (5), DINOv2 (3), Worker (1). Consolidated duplicate `ONNX_EXECUTION_PROVIDER` into "ML/Embedding" section
+- **docs-verify.sh Section 14追加**: OSSツールテーブル網羅性の自動検証（`check_oss_tool_table()`）を追加。`docs-verify-extract.mjs`に`--tool-names`サブコマンド新設（ts-morph AST抽出） / **docs-verify.sh Section 14**: added OSS tool table completeness auto-verification (`check_oss_tool_table()`). New `--tool-names` subcommand in `docs-verify-extract.mjs` (ts-morph AST extraction)
+
+## [0.3.0] - 2026-03-27
+
+### Added / 追加
+
+- **GDPR/APPIデータ削除対応 `data.delete`, `data.export` ツール**: GDPR Art.17削除権 + APPI Art.33利用停止請求に準拠。カスケード削除対応 / **GDPR/APPI data deletion `data.delete`, `data.export` tools**: compliant with GDPR Art.17 right to erasure + APPI Art.33. Cascade deletion support
+- **監査ログサービス `audit.query` ツール**: CWE-778対策、GDPR Art.30処理活動記録、Append-only PostgreSQLテーブル / **Audit log service `audit.query` tool**: CWE-778 mitigation, GDPR Art.30 records of processing, append-only PostgreSQL table
+- **セマンティック検索高度化**: LLM Query Understanding + Cross-Encoder Reranking で検索精度 +30% 改善 / **Semantic search enhancement**: LLM Query Understanding + Cross-Encoder Reranking for +30% precision improvement
+- **Embedding品質モニタリング `embedding.quality` ツール**: Embedding分布統計 + 検索安定性モニタリング / **Embedding quality monitoring `embedding.quality` tool**: embedding distribution statistics + search stability monitoring
+- **WCAG監査+コントラストチェック `accessibility.audit` ツール**: axe-core統合、WCAG 2.1 AA準拠チェック / **WCAG audit + contrast check `accessibility.audit` tool**: axe-core integration, WCAG 2.1 AA compliance check
+- **類似サイト検索 `design.similar_site` ツール**: URL→mean pooling→類似デザインサイト検索 / **Similar site search `design.similar_site` tool**: URL → mean pooling → similar design site search
+- **Core Web Vitals `performance.evaluate` ツール**: CDP PerformanceObserver + Lighthouse統合 / **Core Web Vitals `performance.evaluate` tool**: CDP PerformanceObserver + Lighthouse integration
+- **ファセット検索+検索ログ `search.facets` ツール**: 動的ファセット生成、検索行動記録・分析 / **Facet search + search logs `search.facets` tool**: dynamic facet generation, search behavior recording and analysis
+- **マルチデバイスキャプチャ `responsive.capture` ツール**: 3 viewport同時キャプチャ（mobile/tablet/desktop） / **Multi-device capture `responsive.capture` tool**: 3 viewport simultaneous capture (mobile/tablet/desktop)
+- **ストリーミング進捗**: MCPプロトコル通知で長時間ジョブの進捗リアルタイム送信 / **Streaming progress**: real-time progress notifications for long-running jobs via MCP protocol notifications
+- **デザイン比較 `design.compare` ツール**: 多次元比較（レイアウト、カラー、タイポグラフィ、モーション） / **Design comparison `design.compare` tool**: multi-dimensional comparison (layout, color, typography, motion)
+- **マルチフレームワークコード生成拡張**: Svelte/Astro出力追加（既存React/Vue/HTMLに加えて） / **Multi-framework code generation extension**: added Svelte/Astro output (in addition to existing React/Vue/HTML)
+- **デザイン変更追跡 `design.track_changes` ツール**: 時系列デザイン変更の記録・差分分析 / **Design change tracker `design.track_changes` tool**: temporal design change recording and diff analysis
+
+### Performance / パフォーマンス
+
+- **Phase 5メモリ制御: 6ステップOOM防止**: Sharp RAWシングルデコード、DINOv2セッションリサイクル、動的Fallback時dispose/re-init、Phase 1/3逐次実行による全分析完走保証 / **Phase 5 memory control: 6-step OOM prevention**: Sharp RAW single-decode, DINOv2 session recycle, dynamic fallback dispose/re-init, Phase 1/3 sequential execution for guaranteed full analysis completion
+
+### Changed / 変更
+
+- **MCPツール数**: 28 → 35（新規11ツール追加、2ツール削除） / **MCP tool count**: 28 → 35 (11 new tools added, 2 tools removed)
+- **検索アーキテクチャ**: Cross-Encoder Reranking + Query Understanding 追加 / **Search architecture**: added Cross-Encoder Reranking + Query Understanding
+- **レート制限ティア拡張**: 新ツール11件を適切なティアに分類 / **Rate limiting tier expansion**: 11 new tools classified into appropriate tiers
+
+### Removed / 削除
+
+- **quality.batch_evaluate ツール削除**（v0.1.0で非推奨化済み、2マイナーバージョン経過）。代替: `quality.evaluate` を個別URLに対して繰り返し実行 / **Removed quality.batch_evaluate tool** (deprecated since v0.1.0, 2 minor versions elapsed). Migration: use `quality.evaluate` for individual URLs
+- **quality.getJobStatus ツール削除**（quality.batch_evaluate専用のため同時削除）/ **Removed quality.getJobStatus tool** (quality.batch_evaluate-exclusive, removed together)
+
+### Database / データベース
+
+- **3テーブル追加**: `audit_logs`, `search_logs`, `design_snapshots` + `design_snapshot_sections` / **3 tables added**: `audit_logs`, `search_logs`, `design_snapshots` + `design_snapshot_sections`
+
+### Tests / テスト
+
+- **Phase 5メモリ制御テスト57件追加**: Sharp RAWデコード、DINOv2セッションリサイクル、動的Fallback dispose/re-init、Phase 1/3逐次化の各ステップを網羅 / **57 Phase 5 memory control tests added**: covering Sharp RAW decode, DINOv2 session recycle, dynamic fallback dispose/re-init, Phase 1/3 sequential execution
+
 ## [0.2.1] - 2026-03-27
 
 ### Fixed / 修正

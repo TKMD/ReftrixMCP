@@ -2,9 +2,9 @@
 
 ## 概要 / Overview
 
-MCPツールハンドラーの包括的なテストスイート。現行28ツールのツールハンドラーテストを収録しています。
+MCPツールハンドラーの包括的なテストスイート。現行<!-- gen:tool-count -->35<!-- /gen:tool-count -->ツールのツールハンドラーテストを収録しています。
 
-Comprehensive test suite for MCP tool handlers. Contains handler tests for the current 28 tools.
+Comprehensive test suite for MCP tool handlers. Contains handler tests for the current <!-- gen:tool-count -->35<!-- /gen:tool-count --> tools.
 
 ## テストファイル構成 / Test File Structure
 
@@ -20,15 +20,11 @@ Comprehensive test suite for MCP tool handlers. Contains handler tests for the c
 | Motion              | `motion/detect.tool.test.ts`          | motion.detect ハンドラーテスト（CSS/JS/video mode） / motion.detect handler test (CSS/JS/video mode) |
 | Motion              | `motion/search.tool.test.ts`          | motion.search ハンドラーテスト / motion.search handler test                                          |
 | Quality             | `quality/evaluate.tool.test.ts`       | quality.evaluate ハンドラーテスト / quality.evaluate handler test                                    |
-| Quality             | `quality/batch-evaluate.tool.test.ts` | quality.batch_evaluate ハンドラーテスト / quality.batch_evaluate handler test                        |
-| Quality             | `quality/get-job-status.tool.test.ts` | quality.getJobStatus ハンドラーテスト / quality.getJobStatus handler test                            |
 | Page                | `page/analyze.tool.test.ts`           | page.analyze ハンドラーテスト / page.analyze handler test                                            |
 | Page                | `page/get-job-status.tool.test.ts`    | page.getJobStatus ハンドラーテスト / page.getJobStatus handler test                                  |
 | Brief               | `brief/validate.handler.test.ts`      | brief.validate ハンドラーテスト / brief.validate handler test                                        |
 | Style               | `style-get-palette.test.ts`           | style.get_palette ハンドラーテスト / style.get_palette handler test                                  |
 | System              | `system-health.test.ts`               | system.health ハンドラーテスト / system.health handler test                                          |
-| Project             | `project-get.test.ts`                 | project.get ハンドラーテスト / project.get handler test                                              |
-| Project             | `project-list.test.ts`                | project.list ハンドラーテスト / project.list handler test                                            |
 | Narrative           | `narrative-search.test.ts`            | narrative.search ハンドラーテスト / narrative.search handler test                                    |
 | Background          | `background-search.test.ts`           | background.search ハンドラーテスト / background.search handler test                                  |
 | Responsive          | `responsive-search.test.ts`           | responsive.search ハンドラーテスト / responsive.search handler test                                  |

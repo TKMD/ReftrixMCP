@@ -23,27 +23,4 @@ export {
 } from "./evaluate.tool";
 
 // [DELETED v0.1.0] quality.suggest_improvements は quality.evaluate に統合されました
-
-// quality.batch_evaluate ツールのエクスポート
-export {
-  batchQualityEvaluateHandler,
-  batchQualityEvaluateToolDefinition,
-  setBatchQualityEvaluateServiceFactory,
-  resetBatchQualityEvaluateServiceFactory,
-  clearBatchJobStore,
-  addBatchJob,
-  getBatchJob,
-  type BatchQualityEvaluateInput,
-  type BatchQualityEvaluateOutput,
-  type BatchQualityJobStatus,
-  type IBatchQualityEvaluateService,
-} from "./batch-evaluate.tool";
-
-// quality.getJobStatus ツールのエクスポート
-export {
-  qualityGetJobStatusHandler,
-  qualityGetJobStatusToolDefinition,
-  GET_QUALITY_JOB_STATUS_ERROR_CODES,
-  type QualityGetJobStatusInput,
-  type QualityGetJobStatusOutput,
-} from "./get-job-status.tool";
+// [REMOVED v0.3.0] quality.batch_evaluate / quality.getJobStatus — deprecated since v0.1.0, removed in v0.3.0

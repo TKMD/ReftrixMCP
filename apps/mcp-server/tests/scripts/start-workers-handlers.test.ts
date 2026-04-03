@@ -91,13 +91,7 @@ describe("start-workers.ts - Process Error Handlers", () => {
     });
   });
 
-  describe("Grade type import", () => {
-    it("should import Grade type from schemas instead of local declaration", () => {
-      expect(sourceCode).toContain('import type { Grade } from "../tools/quality/schemas"');
-      // Should NOT have local type declaration
-      expect(sourceCode).not.toContain('type Grade = "A" | "B" | "C" | "D" | "F"');
-    });
-  });
+  // [REMOVED v0.3.0] Grade type import test removed with quality.batch_evaluate deletion
 
   describe("Explicit Worker Start", () => {
     it("should explicitly start PageAnalyzeWorker main loop after createPageAnalyzeWorker", () => {

@@ -51,6 +51,26 @@ export {
   responsiveQualityEvaluatorService,
 } from "./responsive-quality-evaluator.service";
 
+// Multi-Device Capture (v0.3.0 T2-10)
+export {
+  MultiDeviceCaptureService,
+  DEVICE_VIEWPORTS,
+  type DeviceSectionInfo,
+  type DeviceCaptureItem,
+  type MultiDeviceCaptureResult,
+  type MultiDeviceCaptureOptions,
+} from "./multi-device-capture.service";
+
+// Responsive Diff (v0.3.0 T2-10)
+export {
+  ResponsiveDiffService,
+  type DeviceCaptureData,
+  type DeviceSectionData,
+  type DiffChange,
+  type DiffChangeType,
+  type ResponsiveDiffResult,
+} from "./responsive-diff.service";
+
 // Embedding
 export {
   generateResponsiveAnalysisTextRepresentation,

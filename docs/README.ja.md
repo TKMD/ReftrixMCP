@@ -55,7 +55,6 @@ Webページを「単なるスクリーンショット」ではなく、ベク�
 
 以下の機能はMCPツールで提供されています。
 
-- **プロジェクト管理**: project.get/project.listでプロジェクト情報取得
 - **ブランドパレット**: style.get_paletteでカラーパレット取得
 - **統合解析**: page.analyzeでLayout+Motion+Quality一括実行
 - **デザインブリーフ**: brief.validateで要件完全性チェック
@@ -63,8 +62,7 @@ Webページを「単なるスクリーンショット」ではなく、ベク�
 ### 🤖 MCP統合
 
 - **Model Context Protocol**: Claude等のAIエージェントと直接統合
-- **28のMCPツール**: WebDesign専用の分析・検索・評価ツール
-- **プロジェクト統合**: project.get/project.listでプロジェクト情報取得
+- **35のMCPツール**: WebDesign専用の分析・検索・評価ツール
 
 ### 🔍 Vision統合
 
@@ -77,7 +75,7 @@ Webページを「単なるスクリーンショット」ではなく、ベク�
 
 - **HTMLサニタイズ**: Webページ取得時のHTMLサニタイズ処理（DOMPurify 3.3.x）
 - **SSRF対策**: プライベートIP・メタデータサービスへのアクセスブロック
-- **レート制限**: Token Bucket + Redis Luaスクリプトによるアトミック制御（CWE-770 DoS対策）。3ティア構成: analysis 10RPM / search 120RPM / default 60RPM。Graceful Degradation: Redis未接続時はインメモリフォールバック。全28 MCPツールに自動適用
+- **レート制限**: Token Bucket + Redis Luaスクリプトによるアトミック制御（CWE-770 DoS対策）。3ティア構成: analysis 10RPM / search 120RPM / default 60RPM。Graceful Degradation: Redis未接続時はインメモリフォールバック。全35 MCPツールに自動適用
 - **入力検証**: Zodスキーマによる厳格な検証
 - **SBOM**: CycloneDX 1.6 JSON形式の自動生成（EU CRA 2026/9/11脆弱性報告義務対応）
 
@@ -263,12 +261,12 @@ MCPサーバーは Claude Desktop から利用します。
 ```typescript
 // Progressive Disclosure（3層構造）
 // Layer 1: Frontmatter（summary=true）
-const projects = await mcp__reftrix__project_list({ summary: true });
-// Response: { id, name, status } のみ（99.1%削減: 334KB → 2.9KB）
+const results = await mcp__reftrix__layout_search({ query: "hero section", limit: 10 });
+// Response: 最小限のセクション情報のみ（99%削減）
 
 // Layer 2: Interface（full details）
-const project = await mcp__reftrix__project_get({ id: "uuid" });
-// Response: 完全なプロジェクト情報
+const detail = await mcp__reftrix__layout_inspect({ id: "uuid" });
+// Response: 完全なレイアウト構造情報
 
 // Layer 3: Examples（Layout + Motion + Quality）
 const analysis = await mcp__reftrix__page_analyze({
@@ -283,7 +281,7 @@ const analysis = await mcp__reftrix__page_analyze({
 
 ## MCP ツール一覧
 
-Reftrixは**28のMCPツール**を提供しています（WebDesign専用）。
+Reftrixは**35のMCPツール**を提供しています（WebDesign専用）。
 
 ### レイアウト解析（5ツール）
 
@@ -302,13 +300,11 @@ Reftrixは**28のMCPツール**を提供しています（WebDesign専用）。
 | `motion.detect` | モーション検出（video mode デフォルト有効、15px/frame、Frame Image Analysis） |
 | `motion.search` | モーションパターン検索                                                        |
 
-### 品質評価（3ツール）
+### 品質評価（1ツール）
 
-| ツール名                 | 説明                                                  |
-| ------------------------ | ----------------------------------------------------- |
-| `quality.evaluate`       | デザイン品質評価（3軸評価、suggest_improvements統合） |
-| `quality.batch_evaluate` | バッチ品質評価                                        |
-| `quality.getJobStatus`   | バッチ評価ジョブステータス確認                        |
+| ツール名           | 説明                                                  |
+| ------------------ | ----------------------------------------------------- |
+| `quality.evaluate` | デザイン品質評価（3軸評価、suggest_improvements統合） |
 
 ### ブランド・スタイル（2ツール）
 
@@ -358,14 +354,12 @@ Reftrixは**28のMCPツール**を提供しています（WebDesign専用）。
 | ------------------------ | ---------------------------------------------------------------------------------------------------- |
 | `design.search_by_image` | 画像類似検索 — Base64/URLからDINOv2 visual embeddingを生成し、HNSW + RRF 3ソースで類似デザインを検索 |
 
-### 統合解析・プロジェクト管理（4ツール）
+### 統合解析（2ツール）
 
 | ツール名            | 説明                                                             |
 | ------------------- | ---------------------------------------------------------------- |
 | `page.analyze`      | 統合Web解析（layout+motion+quality、Vision統合、video mode対応） |
 | `page.getJobStatus` | 非同期ジョブステータス確認                                       |
-| `project.get`       | プロジェクト詳細取得（summaryモード対応）                        |
-| `project.list`      | プロジェクト一覧（フィルタ・ページネーション・ソート）           |
 
 ### システム（1ツール）
 
@@ -381,7 +375,7 @@ Reftrixは**28のMCPツール**を提供しています（WebDesign専用）。
 ReftrixMCP/
 ├── apps/
 │   ├── cli/                          # スタンドアロンCLI（MCP非依存）
-│   └── mcp-server/                   # MCP Server（28ツール）
+│   └── mcp-server/                   # MCP Server（35ツール）
 │       └── src/
 │           └── tools/                # MCPツール定義
 │
@@ -575,7 +569,7 @@ AGPL-3.0の条件が適合しないユースケース（プロプライエタリ
 | ガイド                                                               | 内容                                 |
 | -------------------------------------------------------------------- | ------------------------------------ |
 | [Getting Started](./users-guide/01-getting-started.md)               | インストール、セットアップ、初回分析 |
-| [MCP Tools Guide](./users-guide/02-mcp-tools-guide.md)               | 全28ツールの使用例                   |
+| [MCP Tools Guide](./users-guide/02-mcp-tools-guide.md)               | 全35ツールの使用例                   |
 | [page.analyze Deep Dive](./users-guide/03-page-analyze-deep-dive.md) | 非同期分析フローとデータ構造         |
 | [Troubleshooting](./users-guide/04-troubleshooting.md)               | よくある問題と解決方法               |
 
@@ -606,20 +600,27 @@ AGPL-3.0の条件が適合しないユースケース（プロプライエタリ
 
 - プロジェクト管理UI
 - ブランドパレット統合
-- project.get / project.list MCPツール
 - Webページ解析機能
 - 品質評価・モーション検出
 
-### Phase 5: Polish & Launch 🚧 In Progress
+### Phase 5: Polish & Launch ✅ Complete
 
 - 高度なUI機能
 - ドキュメントサイト
 - パフォーマンスチューニング
 - 本番デプロイ
 
+### Phase 6: v0.3.0 Tier 2 🚧 In Progress
+
+- アクセシビリティ監査（WCAG 2.1 AA）
+- Core Web Vitals評価
+- デザイン比較・変更追跡
+- GDPRコンプライアンス（削除権・データポータビリティ）
+- セマンティック検索高度化（Query Understanding + Reranking）
+
 ---
 
-## 既知の制限事項（v0.2.0）
+## 既知の制限事項（v0.3.0）
 
 - CPUモードではEmbedding生成に約2-5秒/テキスト（バッチ処理にはGPU推奨）
 - 最低16GB RAM推奨、並行分析には32GB推奨

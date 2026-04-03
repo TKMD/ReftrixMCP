@@ -143,6 +143,8 @@ async function initializeSession(modelPath: string): Promise<void> {
   const ortModule = await getOrt();
   session = (await ortModule.InferenceSession.create(modelPath, {
     executionProviders: ["cpu"],
+    enableCpuMemArena: false,
+    enableMemPattern: false,
   })) as unknown as OrtSession;
 
   // eslint-disable-next-line no-console

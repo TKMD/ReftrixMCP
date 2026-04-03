@@ -36,8 +36,8 @@ import * as path from "node:path";
 
 /** processEmbeddingPhase 全体のスライスサイズ（~73K文字、acquireSectionCropBuffer抽出+動的Fallback追加分を含む） */
 const EMBEDDING_PHASE_SLICE = 75000;
-/** Section Visual Embedding ブロックのスライスサイズ（processEmbeddingPhase内のセクション+サブ関数collectAndCapture分） */
-const SECTION_VISUAL_SLICE = 35000;
+/** Section Visual Embedding ブロックのスライスサイズ（抽出関数を含むフルスキャン用） */
+const SECTION_VISUAL_SLICE = 70000;
 /** processSingleSectionVisualEmbedding サブ関数のスライスサイズ（巨大関数分解で移動したセクション単位処理ロジック） */
 const SINGLE_SECTION_SLICE = 10000;
 
@@ -215,15 +215,16 @@ describe("PageAnalyzeWorker - Section Visual Embedding Fallback Integration", ()
 
     it("should preserve text_embedding even when visual embedding fails", () => {
       // visual embedding 失敗でも text_embedding は保持される（独立したステップ）
+      // Refactored: text embedding is in processSectionTextEmbeddingChunks, called before visual
       const fnStart = workerSource.indexOf("async function processEmbeddingPhase");
       const fnBody = workerSource.slice(fnStart, fnStart + EMBEDDING_PHASE_SLICE);
 
-      // Section text embedding は visual embedding の前に実行される
-      const textEmbPos = fnBody.indexOf('"embedding-sections"');
+      // Orchestrator calls processSectionTextEmbeddingChunks before visual embedding
+      const textCallPos = fnBody.indexOf("processSectionTextEmbeddingChunks");
       const visualEmbPos = fnBody.indexOf('"embedding-sections-visual"');
-      expect(textEmbPos).toBeGreaterThan(-1);
+      expect(textCallPos).toBeGreaterThan(-1);
       expect(visualEmbPos).toBeGreaterThan(-1);
-      expect(textEmbPos).toBeLessThan(visualEmbPos);
+      expect(textCallPos).toBeLessThan(visualEmbPos);
     });
   });
 
@@ -285,14 +286,14 @@ describe("PageAnalyzeWorker - Section Visual Embedding Fallback Integration", ()
       expect(sectionVisualBody).toContain("dinov2Service,");
     });
 
-    it("DINOv2Service should be disposed exactly once after both Section and Part embedding", () => {
-      // dispose() は processEmbeddingPhase 内で 1 回のみ
+    it("DINOv2Service should be disposed in orchestrator finally + pre-fallback dispose", () => {
+      // dispose() は (1) orchestrator finally block + (2) pre-fallback dispose in processSectionVisualEmbeddingLoop の 2 箇所
       const fnStart = workerSource.indexOf("async function processEmbeddingPhase");
       const fnBody = workerSource.slice(fnStart, fnStart + EMBEDDING_PHASE_SLICE);
 
       const disposeMatches = fnBody.match(/dinov2Service\.dispose\(\)/g);
       expect(disposeMatches).not.toBeNull();
-      expect(disposeMatches!.length).toBe(1);
+      expect(disposeMatches!.length).toBe(2);
     });
 
     it("should resize fallback buffer to DINOV2_INPUT_SIZE before embedding", () => {
@@ -326,7 +327,7 @@ describe("PageAnalyzeWorker - Section Visual Embedding Fallback Integration", ()
       // サブ関数が generated カウンタを返し、ループ関数が集計して返す
       const fnStart = workerSource.indexOf("async function processSectionVisualEmbeddingLoop");
       expect(fnStart).toBeGreaterThan(-1);
-      const fnBody = workerSource.slice(fnStart, fnStart + 8000);
+      const fnBody = workerSource.slice(fnStart, fnStart + 15000);
       expect(fnBody).toContain("sectionVisualEmbeddingsGenerated");
     });
   });
@@ -385,7 +386,7 @@ describe("PageAnalyzeWorker - Section Visual Embedding Fallback Integration", ()
       // ループ関数が generatedCount を集計し、戻り値で sectionVisualEmbeddingsGenerated として返す
       const fnStart = workerSource.indexOf("async function processSectionVisualEmbeddingLoop");
       expect(fnStart).toBeGreaterThan(-1);
-      const fnBody = workerSource.slice(fnStart, fnStart + 8000);
+      const fnBody = workerSource.slice(fnStart, fnStart + 15000);
       expect(fnBody).toContain("generatedCount");
       expect(fnBody).toContain("sectionVisualEmbeddingsGenerated: generatedCount");
     });

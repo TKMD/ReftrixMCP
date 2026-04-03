@@ -36,32 +36,5 @@ export {
   type StyleGetPaletteInput,
 } from "./style-schemas";
 
-// project系スキーマ（project.get, project.list用）
-export {
-  // project.get スキーマ
-  projectGetInputSchema,
-  projectGetOutputSchema,
-  projectGetSummaryOutputSchema,
-  brandSettingInfoSchema,
-  type ProjectGetInput,
-  type ProjectGetOutput,
-  type ProjectGetSummaryOutput,
-  type BrandSettingInfo,
-  // project.list スキーマ
-  projectListInputSchema,
-  projectListOutputSchema,
-  projectListSummaryOutputSchema,
-  projectListItemSchema,
-  projectListItemSummarySchema,
-  projectStatusSchema,
-  projectSortBySchema,
-  projectSortOrderSchema,
-  type ProjectListInput,
-  type ProjectListOutput,
-  type ProjectListSummaryOutput,
-  type ProjectListItem,
-  type ProjectListItemSummary,
-  type ProjectStatus,
-  type ProjectSortBy,
-  type ProjectSortOrder,
-} from "./project-schemas";
+// [REMOVED v0.3.0] project系スキーマ・ソースファイルは削除済み（バックエンドAPI未実装のため）
+// project schemas and source files deleted in v0.3.0 (backend API not implemented)

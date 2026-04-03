@@ -436,8 +436,8 @@ async function handleMessage(message: WorkerMessage): Promise<void> {
         requestId: message.requestId,
         success: true,
       });
-      // Allow the response to be flushed before exiting
-      setTimeout(() => process.exit(0), 50);
+      // Parent calls worker.terminate() to stop this thread.
+      // No process.exit() — let parent control the lifecycle.
       break;
     }
 

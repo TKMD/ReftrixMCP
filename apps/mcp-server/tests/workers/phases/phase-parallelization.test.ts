@@ -2,13 +2,16 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 /**
- * Phase 1/3 Parallelization Tests
+ * Phase 1/3 Sequential Execution Tests
  *
- * Phase 1 (Layout) と Phase 3 (Quality) が Promise.all で並列実行される
- * page-analyze-worker の並列化ロジックをユニットテストで検証する。
+ * Phase 1 (Layout) と Phase 3 (Quality) が逐次実行される
+ * page-analyze-worker の実行ロジックをユニットテストで検証する。
+ * v0.3.0 で並列実行から逐次実行に変更（Quality P50=0.02ms で並列の意味なし、メモリ効率化）。
  *
- * Tests the parallelization logic of page-analyze-worker where Phase 1 (Layout)
- * and Phase 3 (Quality) are executed concurrently via Promise.all.
+ * Tests the sequential execution logic of page-analyze-worker where Phase 1 (Layout)
+ * completes before Phase 3 (Quality) begins.
+ * Changed from parallel (Promise.all) to sequential in v0.3.0
+ * (Quality P50=0.02ms makes parallelism pointless; improves memory efficiency).
  *
  * @module tests/workers/phases/phase-parallelization
  */
@@ -64,6 +67,7 @@ function createMockContext(overrides?: Partial<PhaseContext>): PhaseContext {
       id: "test-job-id",
       updateProgress: vi.fn().mockResolvedValue(undefined),
       extendLock: vi.fn().mockResolvedValue(undefined),
+      log: vi.fn().mockResolvedValue(undefined),
     } as unknown as PhaseContext["job"],
     options: {
       features: { layout: true, quality: true },
@@ -99,6 +103,18 @@ function createMockLayoutDeps(overrides?: Partial<LayoutPhaseDeps>): LayoutPhase
           htmlSnippet: "<section>Hero</section>",
           position: { startY: 0, height: 600 },
         },
+        {
+          id: "section-2",
+          sectionType: "feature",
+          htmlSnippet: "<section>Feature</section>",
+          position: { startY: 600, height: 400 },
+        },
+        {
+          id: "section-3",
+          sectionType: "footer",
+          htmlSnippet: "<footer>Footer</footer>",
+          position: { startY: 1000, height: 200 },
+        },
       ],
       backgroundDesigns: [],
       cssSnippet: "",
@@ -111,9 +127,13 @@ function createMockLayoutDeps(overrides?: Partial<LayoutPhaseDeps>): LayoutPhase
     }),
     saveSectionPatterns: vi.fn().mockResolvedValue({
       success: true,
-      count: 1,
-      ids: ["section-db-1"],
-      idMapping: new Map([["section-1", "section-db-1"]]),
+      count: 3,
+      ids: ["section-db-1", "section-db-2", "section-db-3"],
+      idMapping: new Map([
+        ["section-1", "section-db-1"],
+        ["section-2", "section-db-2"],
+        ["section-3", "section-db-3"],
+      ]),
     }),
     postProcessSections: vi.fn().mockImplementation((sections) => ({
       sections,
@@ -162,7 +182,7 @@ function createMockQualityDeps(overrides?: Partial<QualityPhaseDeps>): QualityPh
 // Tests
 // ============================================================================
 
-describe("Phase 1/3 Parallelization", () => {
+describe("Phase 1/3 Sequential Execution", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
@@ -172,15 +192,15 @@ describe("Phase 1/3 Parallelization", () => {
   });
 
   // ------------------------------------------------------------------
-  // Promise.all 並列実行
+  // 逐次実行検証 / Sequential execution verification
   // ------------------------------------------------------------------
-  describe("Promise.all parallel execution", () => {
-    it("should execute Phase 1 and Phase 3 concurrently via Promise.all", async () => {
+  describe("sequential execution order", () => {
+    it("should execute Phase 1 before Phase 3 (Layout completes before Quality starts)", async () => {
       // Arrange
       const state = createInitialState();
       const ctx = createMockContext();
 
-      // Track execution order to verify concurrency
+      // Track execution order to verify sequentiality
       const executionLog: string[] = [];
 
       const layoutDeps = createMockLayoutDeps({
@@ -207,24 +227,27 @@ describe("Phase 1/3 Parallelization", () => {
         }),
       });
 
-      // Act
-      await Promise.all([
-        processLayoutPhase(state, ctx, layoutDeps),
-        processQualityPhase(state, ctx, qualityDeps),
-      ]);
+      // Act: sequential execution (Layout → Quality)
+      await processLayoutPhase(state, ctx, layoutDeps);
+      await processQualityPhase(state, ctx, qualityDeps);
 
-      // Assert: both phases started before either completed (concurrent execution)
+      // Assert: Phase 1 completes before Phase 3 starts (sequential order)
       const layoutStartIdx = executionLog.indexOf("layout:start");
-      const qualityStartIdx = executionLog.indexOf("quality:start");
       const layoutEndIdx = executionLog.indexOf("layout:end");
+      const qualityStartIdx = executionLog.indexOf("quality:start");
       const qualityEndIdx = executionLog.indexOf("quality:end");
 
-      // Both must have started
+      // All events must have occurred
       expect(layoutStartIdx).toBeGreaterThanOrEqual(0);
-      expect(qualityStartIdx).toBeGreaterThanOrEqual(0);
-      // Both must have ended
       expect(layoutEndIdx).toBeGreaterThanOrEqual(0);
+      expect(qualityStartIdx).toBeGreaterThanOrEqual(0);
       expect(qualityEndIdx).toBeGreaterThanOrEqual(0);
+
+      // Sequential order: layout:start → layout:end → quality:start → quality:end
+      expect(layoutStartIdx).toBeLessThan(layoutEndIdx);
+      expect(layoutEndIdx).toBeLessThan(qualityStartIdx);
+      expect(qualityStartIdx).toBeLessThan(qualityEndIdx);
+
       // Both should be called
       expect(layoutDeps.defaultAnalyzeLayout).toHaveBeenCalledOnce();
       expect(qualityDeps.defaultEvaluateQuality).toHaveBeenCalledOnce();
@@ -232,7 +255,7 @@ describe("Phase 1/3 Parallelization", () => {
   });
 
   // ------------------------------------------------------------------
-  // 両方成功時の結果マージ
+  // 両方成功時の結果マージ / Result merging on both success
   // ------------------------------------------------------------------
   describe("result merging on both success", () => {
     it("should merge results from both phases into PipelineState", async () => {
@@ -242,11 +265,9 @@ describe("Phase 1/3 Parallelization", () => {
       const layoutDeps = createMockLayoutDeps();
       const qualityDeps = createMockQualityDeps();
 
-      // Act
-      await Promise.all([
-        processLayoutPhase(state, ctx, layoutDeps),
-        processQualityPhase(state, ctx, qualityDeps),
-      ]);
+      // Act: sequential execution (Layout → Quality)
+      await processLayoutPhase(state, ctx, layoutDeps);
+      await processQualityPhase(state, ctx, qualityDeps);
 
       // Assert: results from both phases are present
       expect(state.results).toBeDefined();
@@ -264,11 +285,9 @@ describe("Phase 1/3 Parallelization", () => {
       const layoutDeps = createMockLayoutDeps();
       const qualityDeps = createMockQualityDeps();
 
-      // Act
-      await Promise.all([
-        processLayoutPhase(state, ctx, layoutDeps),
-        processQualityPhase(state, ctx, qualityDeps),
-      ]);
+      // Act: sequential execution (Layout → Quality)
+      await processLayoutPhase(state, ctx, layoutDeps);
+      await processQualityPhase(state, ctx, qualityDeps);
 
       // Assert
       expect(state.completedPhases).toContain("layout");
@@ -283,11 +302,9 @@ describe("Phase 1/3 Parallelization", () => {
       const layoutDeps = createMockLayoutDeps();
       const qualityDeps = createMockQualityDeps();
 
-      // Act
-      await Promise.all([
-        processLayoutPhase(state, ctx, layoutDeps),
-        processQualityPhase(state, ctx, qualityDeps),
-      ]);
+      // Act: sequential execution (Layout → Quality)
+      await processLayoutPhase(state, ctx, layoutDeps);
+      await processQualityPhase(state, ctx, qualityDeps);
 
       // Assert: Phase 1 should set layoutResultForNarrative
       expect(state.layoutResultForNarrative).not.toBeNull();
@@ -296,10 +313,10 @@ describe("Phase 1/3 Parallelization", () => {
   });
 
   // ------------------------------------------------------------------
-  // Graceful Degradation: 片方失敗時
+  // Graceful Degradation: 片方失敗時 / Partial failure
   // ------------------------------------------------------------------
   describe("graceful degradation on partial failure", () => {
-    it("should continue Phase 3 when Phase 1 fails", async () => {
+    it("should execute Phase 3 after Phase 1 fails (Graceful Degradation)", async () => {
       // Arrange
       const state = createInitialState();
       const ctx = createMockContext();
@@ -309,11 +326,9 @@ describe("Phase 1/3 Parallelization", () => {
       });
       const qualityDeps = createMockQualityDeps();
 
-      // Act
-      await Promise.all([
-        processLayoutPhase(state, ctx, layoutDeps),
-        processQualityPhase(state, ctx, qualityDeps),
-      ]);
+      // Act: sequential execution — Phase 1 fails, but Phase 3 still runs
+      await processLayoutPhase(state, ctx, layoutDeps);
+      await processQualityPhase(state, ctx, qualityDeps);
 
       // Assert: Phase 1 failed, Phase 3 succeeded
       expect(state.failedPhases).toContain("layout");
@@ -322,7 +337,7 @@ describe("Phase 1/3 Parallelization", () => {
       expect(state.results!.quality!.overallScore).toBe(85);
     });
 
-    it("should continue Phase 1 when Phase 3 fails", async () => {
+    it("should preserve Phase 1 results when Phase 3 fails", async () => {
       // Arrange
       const state = createInitialState();
       const ctx = createMockContext();
@@ -332,11 +347,9 @@ describe("Phase 1/3 Parallelization", () => {
         defaultEvaluateQuality: vi.fn().mockRejectedValue(new Error("Quality evaluation failed")),
       });
 
-      // Act
-      await Promise.all([
-        processLayoutPhase(state, ctx, layoutDeps),
-        processQualityPhase(state, ctx, qualityDeps),
-      ]);
+      // Act: sequential execution — Phase 1 succeeds, Phase 3 fails
+      await processLayoutPhase(state, ctx, layoutDeps);
+      await processQualityPhase(state, ctx, qualityDeps);
 
       // Assert: Phase 3 failed, Phase 1 succeeded
       expect(state.completedPhases).toContain("layout");
@@ -358,13 +371,12 @@ describe("Phase 1/3 Parallelization", () => {
         defaultEvaluateQuality: vi.fn().mockRejectedValue(new Error("Quality failed")),
       });
 
-      // Act: should NOT throw
-      await expect(
-        Promise.all([
-          processLayoutPhase(state, ctx, layoutDeps),
-          processQualityPhase(state, ctx, qualityDeps),
-        ])
-      ).resolves.not.toThrow();
+      // Act: sequential execution — both fail, should NOT throw
+      const run = async (): Promise<void> => {
+        await processLayoutPhase(state, ctx, layoutDeps);
+        await processQualityPhase(state, ctx, qualityDeps);
+      };
+      await expect(run()).resolves.not.toThrow();
 
       // Assert: both phases recorded as failed
       expect(state.failedPhases).toContain("layout");
@@ -374,7 +386,7 @@ describe("Phase 1/3 Parallelization", () => {
   });
 
   // ------------------------------------------------------------------
-  // PipelineState フィールド分離の安全性
+  // PipelineState フィールド分離の安全性 / Field isolation safety
   // ------------------------------------------------------------------
   describe("PipelineState field isolation safety", () => {
     it("should write to distinct fields without conflicts", async () => {
@@ -384,16 +396,14 @@ describe("Phase 1/3 Parallelization", () => {
       const layoutDeps = createMockLayoutDeps();
       const qualityDeps = createMockQualityDeps();
 
-      // Act
-      await Promise.all([
-        processLayoutPhase(state, ctx, layoutDeps),
-        processQualityPhase(state, ctx, qualityDeps),
-      ]);
+      // Act: sequential execution (Layout → Quality)
+      await processLayoutPhase(state, ctx, layoutDeps);
+      await processQualityPhase(state, ctx, qualityDeps);
 
       // Assert Phase 1 fields
       expect(state.layoutResultForNarrative).not.toBeNull();
       expect(state.sectionSaveResult).not.toBeNull();
-      expect(state.sectionSaveResult!.count).toBe(1);
+      expect(state.sectionSaveResult!.count).toBe(3);
       expect(state.results!.layout).toBeDefined();
 
       // Assert Phase 3 fields
@@ -405,22 +415,23 @@ describe("Phase 1/3 Parallelization", () => {
       expect(state.memoryAborted).toBe(false);
     });
 
-    it("should not corrupt completedPhases array with concurrent pushes", async () => {
+    it("should correctly populate completedPhases array with sequential pushes", async () => {
       // Arrange
       const state = createInitialState();
       const ctx = createMockContext();
       const layoutDeps = createMockLayoutDeps();
       const qualityDeps = createMockQualityDeps();
 
-      // Act
-      await Promise.all([
-        processLayoutPhase(state, ctx, layoutDeps),
-        processQualityPhase(state, ctx, qualityDeps),
-      ]);
+      // Act: sequential execution (Layout → Quality)
+      await processLayoutPhase(state, ctx, layoutDeps);
+      await processQualityPhase(state, ctx, qualityDeps);
 
-      // Assert: Array.push in Node.js single-threaded event loop is safe
+      // Assert: Both phases recorded in completedPhases
       expect(state.completedPhases).toHaveLength(2);
       expect(new Set(state.completedPhases).size).toBe(2);
+      // Sequential order: layout pushed first, quality second
+      expect(state.completedPhases[0]).toBe("layout");
+      expect(state.completedPhases[1]).toBe("quality");
     });
 
     it("should allow Phase 3 to set memoryAborted independently of Phase 1", async () => {
@@ -432,7 +443,6 @@ describe("Phase 1/3 Parallelization", () => {
 
       // Mock checkMemoryPressure to return shouldAbort
       // Phase 3 calls checkMemoryPressure internally
-      const originalMemUsage = process.memoryUsage;
       // Simulate extremely high RSS to trigger memory abort
       vi.spyOn(process, "memoryUsage").mockReturnValue({
         rss: 20 * 1024 * 1024 * 1024, // 20GB - above MEMORY_CRITICAL_THRESHOLD_MB
@@ -442,11 +452,9 @@ describe("Phase 1/3 Parallelization", () => {
         arrayBuffers: 0,
       });
 
-      // Act
-      await Promise.all([
-        processLayoutPhase(state, ctx, layoutDeps),
-        processQualityPhase(state, ctx, qualityDeps),
-      ]);
+      // Act: sequential execution (Layout → Quality)
+      await processLayoutPhase(state, ctx, layoutDeps);
+      await processQualityPhase(state, ctx, qualityDeps);
 
       // Restore
       vi.mocked(process.memoryUsage).mockRestore();
@@ -474,11 +482,9 @@ describe("Phase 1/3 Parallelization", () => {
       const layoutDeps = createMockLayoutDeps();
       const qualityDeps = createMockQualityDeps();
 
-      // Act
-      await Promise.all([
-        processLayoutPhase(state, ctx, layoutDeps),
-        processQualityPhase(state, ctx, qualityDeps),
-      ]);
+      // Act: sequential execution (Layout skipped → Quality)
+      await processLayoutPhase(state, ctx, layoutDeps);
+      await processQualityPhase(state, ctx, qualityDeps);
 
       // Assert
       expect(layoutDeps.defaultAnalyzeLayout).not.toHaveBeenCalled();
@@ -500,11 +506,9 @@ describe("Phase 1/3 Parallelization", () => {
       const layoutDeps = createMockLayoutDeps();
       const qualityDeps = createMockQualityDeps();
 
-      // Act
-      await Promise.all([
-        processLayoutPhase(state, ctx, layoutDeps),
-        processQualityPhase(state, ctx, qualityDeps),
-      ]);
+      // Act: sequential execution (Layout → Quality skipped)
+      await processLayoutPhase(state, ctx, layoutDeps);
+      await processQualityPhase(state, ctx, qualityDeps);
 
       // Assert
       expect(qualityDeps.defaultEvaluateQuality).not.toHaveBeenCalled();
@@ -579,9 +583,9 @@ describe("Phase 1/3 Parallelization", () => {
   });
 
   // ------------------------------------------------------------------
-  // StatusTracker parallel safety
+  // StatusTracker safety
   // ------------------------------------------------------------------
-  describe("statusTracker parallel safety", () => {
+  describe("statusTracker safety", () => {
     it("should call startPhase and completePhase for both phases", async () => {
       // Arrange
       const state = createInitialState();
@@ -589,11 +593,9 @@ describe("Phase 1/3 Parallelization", () => {
       const layoutDeps = createMockLayoutDeps();
       const qualityDeps = createMockQualityDeps();
 
-      // Act
-      await Promise.all([
-        processLayoutPhase(state, ctx, layoutDeps),
-        processQualityPhase(state, ctx, qualityDeps),
-      ]);
+      // Act: sequential execution (Layout → Quality)
+      await processLayoutPhase(state, ctx, layoutDeps);
+      await processQualityPhase(state, ctx, qualityDeps);
 
       // Assert: statusTracker uses independent slots per phase
       expect(ctx.statusTracker.startPhase).toHaveBeenCalledWith("layout");
@@ -612,11 +614,9 @@ describe("Phase 1/3 Parallelization", () => {
       });
       const qualityDeps = createMockQualityDeps();
 
-      // Act
-      await Promise.all([
-        processLayoutPhase(state, ctx, layoutDeps),
-        processQualityPhase(state, ctx, qualityDeps),
-      ]);
+      // Act: sequential execution (Layout fails → Quality succeeds)
+      await processLayoutPhase(state, ctx, layoutDeps);
+      await processQualityPhase(state, ctx, qualityDeps);
 
       // Assert
       expect(ctx.statusTracker.failPhase).toHaveBeenCalledWith("layout", "Layout error");

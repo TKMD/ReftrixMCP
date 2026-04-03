@@ -14,7 +14,7 @@
 
 ### ✅ PASS基準 / PASS Criteria
 
-- ✅ DOMPurify 3.3.x でHTMLをサニタイズ / Sanitize HTML with DOMPurify 3.3.x
+- ✅ DOMPurify <!-- gen:ver-dompurify -->3.3<!-- /gen:ver-dompurify -->.x でHTMLをサニタイズ / Sanitize HTML with DOMPurify <!-- gen:ver-dompurify -->3.3<!-- /gen:ver-dompurify -->.x
 - ✅ 危険なスクリプト参照（`<script>`タグ、`javascript:` URL、イベントハンドラ）が除去されている / Dangerous script references (`<script>` tags, `javascript:` URLs, event handlers) are removed
 - ✅ XSS攻撃テストケースが通過（`<script>alert('xss')</script>` 等が無害化） / XSS attack test cases pass (e.g., `<script>alert('xss')</script>` is neutralized)
 - ✅ layout.ingest/page.analyzeで取得したHTMLがサニタイズ済み / HTML from layout.ingest/page.analyze is sanitized
@@ -67,7 +67,7 @@ describe("HTMLサニタイズ", () => {
 - ✅ Token Bucket + Redis Luaスクリプトによるアトミック制御 / Atomic control via Token Bucket + Redis Lua script
 - ✅ 3ティア構成: analysis(10RPM), search(120RPM), default(60RPM) / 3-tier configuration
 - ✅ Graceful Degradation: Redis未接続時はインメモリフォールバック / In-memory fallback when Redis unavailable
-- ✅ 全28 MCPツールに自動適用 / Auto-applied to all 28 MCP tools
+- ✅ 全<!-- gen:tool-count -->35<!-- /gen:tool-count --> MCPツールに自動適用 / Auto-applied to all <!-- gen:tool-count -->35<!-- /gen:tool-count --> MCP tools
 
 ### ❌ FAIL基準 / FAIL Criteria
 
@@ -159,9 +159,9 @@ LGPL-3.0-or-later dependencies must be excluded via `--excludePackages` and revi
 
 ### sanitizeErrorMessage パターン / sanitizeErrorMessage Pattern
 
-v0.2.0で `utils/sanitize-error.ts` に統一ユーティリティとして抽出。47ファイル・28ツールに適用（42ファイルでインポート）。
+v0.2.0で `utils/sanitize-error.ts` に統一ユーティリティとして抽出。<!-- gen:sanitize-usage-count -->63<!-- /gen:sanitize-usage-count -->ファイル・<!-- gen:tool-count -->35<!-- /gen:tool-count -->ツールに適用（<!-- gen:sanitize-import-count -->57<!-- /gen:sanitize-import-count -->ファイルでインポート）。
 
-Extracted as a unified utility in `utils/sanitize-error.ts` in v0.2.0. Applied to 47 files and 28 tools (42 files importing it).
+Extracted as a unified utility in `utils/sanitize-error.ts` in v0.2.0. Applied to <!-- gen:sanitize-usage-count -->63<!-- /gen:sanitize-usage-count --> files and <!-- gen:tool-count -->35<!-- /gen:tool-count --> tools (<!-- gen:sanitize-import-count -->57<!-- /gen:sanitize-import-count --> files importing it).
 
 エラーコードから汎用メッセージへ変換するヘルパー関数を使用し、内部構造の漏洩を防止する。
 

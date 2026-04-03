@@ -88,8 +88,74 @@ import {
   type IDesignSearchPrismaClient,
 } from "../tools/design/search-by-image.tool";
 
+// Similar Site関連インポート（design.similar_site用）
+import {
+  setSimilarSitePrismaClientFactory,
+  setSimilarSiteEmbeddingServiceFactory,
+  type SimilarSitePrismaClient,
+} from "./similar-site.service";
+
+// Part Search関連インポート（part.search用）
+import {
+  setPartSearchPrismaClientFactory,
+  setPartSearchEmbeddingServiceFactory,
+  type PartSearchPrismaClient,
+} from "./part/part-search.service";
+
+// Part Inspect関連インポート（part.inspect用）
+import { setPartInspectPrismaClientFactory } from "../tools/part/inspect.tool";
+import type { PartInspectPrismaClient } from "../tools/part/inspect.tool";
+
+// Design Compare関連インポート（design.compare用）
+import {
+  setDesignComparePrismaClientFactory,
+  type DesignComparePrismaClient,
+} from "./design-compare.service";
+
 // Embedding Handler関連インポート（backfill DI用）
 import { setMotionLayoutEmbeddingServiceFactory } from "../tools/page/handlers/embedding-handler";
+
+// Design Change Tracker関連インポート（design.track_changes用）
+import {
+  setDesignChangeTrackerPrismaClientFactory,
+  type DesignChangeTrackerPrismaClient,
+} from "./design-change-tracker.service";
+
+// Audit Log関連インポート（audit.query用、v0.3.0 T2-AUD）
+import {
+  setAuditLogPrismaClientFactory,
+  type AuditLogPrismaClient,
+  getAuditLogService,
+} from "./audit-log.service";
+import { setAuditQueryServiceFactory } from "../tools/audit/query.tool";
+
+// GDPR Deletion関連インポート（data.delete / data.export用、v0.3.0 T2-GDPR）
+import {
+  setGdprPrismaClientFactory,
+  getGdprDeletionService,
+  type GdprPrismaClient,
+} from "./gdpr-deletion.service";
+import { setDataDeleteServiceFactory, setDataExportServiceFactory } from "../tools/data/data.tool";
+
+// Embedding Quality関連インポート（embedding.quality用、v0.3.0 T2-EMB）
+import {
+  EmbeddingQualityMonitorService,
+  type EmbeddingQualityPrismaClient,
+} from "./embedding-quality-monitor.service";
+import { setEmbeddingQualityServiceFactory } from "../tools/embedding/quality.tool";
+
+// Accessibility Audit関連インポート（accessibility.audit用、v0.3.0 T2-WCAG）
+import { createAccessibilityAuditService } from "./quality/accessibility-audit.service";
+import { createContrastCheckService } from "./quality/contrast-check.service";
+import {
+  setAccessibilityAuditServiceFactory,
+  setContrastCheckServiceFactory,
+} from "../tools/accessibility/audit.tool";
+
+// Responsive Capture関連インポート（responsive.capture用、v0.3.0 T2-10）
+import { MultiDeviceCaptureService } from "./responsive/multi-device-capture.service";
+import { ResponsiveDiffService } from "./responsive/responsive-diff.service";
+import { setResponsiveCaptureServiceFactory } from "../tools/responsive/capture.tool";
 
 // =====================================================
 // 検索・補助サービス初期化結果
@@ -106,6 +172,35 @@ export interface SearchRegistrarResult {
   errors: string[];
   skippedCategoriesInfo: SkippedCategoryInfo[];
   errorsInfo: InitializationErrorInfo[];
+}
+
+// =====================================================
+// 初期化エラー記録ヘルパー / Initialization error recording helper
+// =====================================================
+
+/**
+ * DI登録失敗時のエラー情報を result に記録するヘルパー
+ * Records DI registration failure info into result
+ *
+ * @param result - 初期化結果オブジェクト / Initialization result object
+ * @param category - サービスカテゴリ名 / Service category name
+ * @param skippedFactories - スキップされたファクトリ名 / Skipped factory names
+ * @param error - 発生したエラー / Error that occurred
+ */
+function recordInitError(
+  result: SearchRegistrarResult,
+  category: string,
+  skippedFactories: string[],
+  error: unknown
+): void {
+  const errorMessage = error instanceof Error ? error.message : "Unknown error";
+  result.errors.push(`${category}: ${errorMessage}`);
+  result.errorsInfo.push({ category, error: errorMessage });
+  result.skipped.push(...skippedFactories);
+  result.skippedCategoriesInfo.push({
+    category: `${category}.${category.charAt(0).toLowerCase() + category.slice(1)}`,
+    reason: errorMessage,
+  });
 }
 
 // =====================================================
@@ -151,8 +246,38 @@ export function initializeSearchAndAuxiliaryServices(
   // Design Search サービス初期化
   initializeDesignSearchService(config, result);
 
+  // Similar Site サービス初期化
+  initializeSimilarSiteService(config, result);
+
+  // Design Compare サービス初期化
+  initializeDesignCompareService(config, result);
+
+  // Part Search サービス初期化
+  initializePartSearchService(config, result);
+
+  // Part Inspect サービス初期化
+  initializePartInspectService(config, result);
+
   // Embedding Backfill DI ファクトリ初期化
   initializeEmbeddingBackfillFactories(config, result);
+
+  // Design Change Tracker サービス初期化
+  initializeDesignChangeTrackerService(config, result);
+
+  // Audit Log サービス初期化（v0.3.0 T2-AUD）
+  initializeAuditLogService(config, result);
+
+  // GDPR Deletion サービス初期化（v0.3.0 T2-GDPR）
+  initializeGdprDeletionService(config, result);
+
+  // Embedding Quality Monitor サービス初期化（v0.3.0 T2-EMB）
+  initializeEmbeddingQualityService(config, result);
+
+  // Accessibility Audit サービス初期化（v0.3.0 T2-WCAG）
+  initializeAccessibilityAuditService(result);
+
+  // Responsive Capture サービス初期化（v0.3.0 T2-10）
+  initializeResponsiveCaptureService(result);
 
   return result;
 }
@@ -185,14 +310,7 @@ function initializePageService(
     result.categories.push("page");
     logger.debug("[ServiceInitializer] page.analyze PrismaClient factory registered");
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : "Unknown error";
-    result.errors.push(`Page: ${errorMessage}`);
-    result.errorsInfo.push({ category: "Page", error: errorMessage });
-    result.skipped.push("pageAnalyzePrismaClient");
-    result.skippedCategoriesInfo.push({
-      category: "Page.pageAnalyzePrismaClient",
-      reason: errorMessage,
-    });
+    recordInitError(result, "Page", ["pageAnalyzePrismaClient"], error);
   }
 }
 
@@ -238,14 +356,7 @@ function initializeNarrativeService(
     result.categories.push("narrative");
     logger.info("[ServiceInitializer] narrativeSearch factory registered");
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : "Unknown error";
-    result.errors.push(`Narrative: ${errorMessage}`);
-    result.errorsInfo.push({ category: "Narrative", error: errorMessage });
-    result.skipped.push("narrativeSearch");
-    result.skippedCategoriesInfo.push({
-      category: "Narrative.narrativeSearch",
-      reason: errorMessage,
-    });
+    recordInitError(result, "Narrative", ["narrativeSearch"], error);
   }
 }
 
@@ -269,14 +380,7 @@ function initializeBackgroundService(
     result.categories.push("background");
     logger.info("[ServiceInitializer] backgroundSearch factory registered");
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : "Unknown error";
-    result.errors.push(`Background: ${errorMessage}`);
-    result.errorsInfo.push({ category: "Background", error: errorMessage });
-    result.skipped.push("backgroundSearch");
-    result.skippedCategoriesInfo.push({
-      category: "Background.backgroundSearch",
-      reason: errorMessage,
-    });
+    recordInitError(result, "Background", ["backgroundSearch"], error);
   }
 }
 
@@ -300,14 +404,7 @@ function initializeResponsiveService(
     result.categories.push("responsive");
     logger.info("[ServiceInitializer] responsiveSearch factory registered");
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : "Unknown error";
-    result.errors.push(`Responsive: ${errorMessage}`);
-    result.errorsInfo.push({ category: "Responsive", error: errorMessage });
-    result.skipped.push("responsiveSearch");
-    result.skippedCategoriesInfo.push({
-      category: "Responsive.responsiveSearch",
-      reason: errorMessage,
-    });
+    recordInitError(result, "Responsive", ["responsiveSearch"], error);
   }
 }
 
@@ -328,14 +425,12 @@ function initializePreferenceService(
     result.categories.push("preference");
     logger.info("[ServiceInitializer] preference factories registered (hear, get, reset)");
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : "Unknown error";
-    result.errors.push(`Preference: ${errorMessage}`);
-    result.errorsInfo.push({ category: "Preference", error: errorMessage });
-    result.skipped.push("preferenceHear", "preferenceGet", "preferenceReset");
-    result.skippedCategoriesInfo.push({
-      category: "Preference.preference",
-      reason: errorMessage,
-    });
+    recordInitError(
+      result,
+      "Preference",
+      ["preferenceHear", "preferenceGet", "preferenceReset"],
+      error
+    );
   }
 }
 
@@ -380,14 +475,100 @@ function initializeDesignSearchService(
       "[ServiceInitializer] designSearch factories registered (DINOv2, embedding, prisma)"
     );
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : "Unknown error";
-    result.errors.push(`DesignSearch: ${errorMessage}`);
-    result.errorsInfo.push({ category: "DesignSearch", error: errorMessage });
-    result.skipped.push("designSearchDINOv2", "designSearchEmbedding", "designSearchPrisma");
-    result.skippedCategoriesInfo.push({
-      category: "DesignSearch.designSearch",
-      reason: errorMessage,
-    });
+    recordInitError(
+      result,
+      "DesignSearch",
+      ["designSearchDINOv2", "designSearchEmbedding", "designSearchPrisma"],
+      error
+    );
+  }
+}
+
+function initializeSimilarSiteService(
+  config: ServiceInitializerConfig,
+  result: SearchRegistrarResult
+): void {
+  try {
+    // PrismaClient ファクトリ（$queryRawUnsafe のみ使用）
+    setSimilarSitePrismaClientFactory(
+      () =>
+        ({
+          $queryRawUnsafe: config.prisma.$queryRawUnsafe.bind(config.prisma),
+        }) as SimilarSitePrismaClient
+    );
+    // EmbeddingService ファクトリ（テキストembedding生成用）
+    setSimilarSiteEmbeddingServiceFactory(() => config.embeddingService);
+
+    result.registeredFactories.push("similarSitePrisma", "similarSiteEmbedding");
+    result.categories.push("similarSite");
+    logger.info("[ServiceInitializer] similarSite factories registered (prisma, embedding)");
+  } catch (error) {
+    recordInitError(result, "SimilarSite", ["similarSitePrisma", "similarSiteEmbedding"], error);
+  }
+}
+
+function initializeDesignCompareService(
+  config: ServiceInitializerConfig,
+  result: SearchRegistrarResult
+): void {
+  try {
+    // PrismaClient ファクトリ（$queryRawUnsafe のみ使用）
+    setDesignComparePrismaClientFactory(
+      () =>
+        ({
+          $queryRawUnsafe: config.prisma.$queryRawUnsafe.bind(config.prisma),
+        }) as DesignComparePrismaClient
+    );
+
+    result.registeredFactories.push("designComparePrisma");
+    result.categories.push("designCompare");
+    logger.info("[ServiceInitializer] designCompare factory registered (prisma)");
+  } catch (error) {
+    recordInitError(result, "DesignCompare", ["designComparePrisma"], error);
+  }
+}
+
+function initializePartSearchService(
+  config: ServiceInitializerConfig,
+  result: SearchRegistrarResult
+): void {
+  try {
+    // PrismaClient ファクトリ（$queryRawUnsafe のみ使用）
+    setPartSearchPrismaClientFactory(
+      () =>
+        ({
+          $queryRawUnsafe: config.prisma.$queryRawUnsafe.bind(config.prisma),
+        }) as PartSearchPrismaClient
+    );
+    // EmbeddingService ファクトリ（テキストembedding生成用）
+    setPartSearchEmbeddingServiceFactory(() => config.embeddingService);
+
+    result.registeredFactories.push("partSearchPrisma", "partSearchEmbedding");
+    result.categories.push("partSearch");
+    logger.info("[ServiceInitializer] partSearch factories registered (prisma, embedding)");
+  } catch (error) {
+    recordInitError(result, "PartSearch", ["partSearchPrisma", "partSearchEmbedding"], error);
+  }
+}
+
+function initializePartInspectService(
+  config: ServiceInitializerConfig,
+  result: SearchRegistrarResult
+): void {
+  try {
+    // PrismaClient ファクトリ（$queryRawUnsafe のみ使用）
+    setPartInspectPrismaClientFactory(
+      () =>
+        ({
+          $queryRawUnsafe: config.prisma.$queryRawUnsafe.bind(config.prisma),
+        }) as PartInspectPrismaClient
+    );
+
+    result.registeredFactories.push("partInspectPrisma");
+    result.categories.push("partInspect");
+    logger.info("[ServiceInitializer] partInspect factory registered (prisma)");
+  } catch (error) {
+    recordInitError(result, "PartInspect", ["partInspectPrisma"], error);
   }
 }
 
@@ -455,10 +636,163 @@ function initializeEmbeddingBackfillFactories(
     );
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
-    result.errors.push(`EmbeddingBackfill: ${errorMessage}`);
-    result.errorsInfo.push({ category: "EmbeddingBackfill", error: errorMessage });
     logger.warn(
       `[ServiceInitializer] Failed to register embedding backfill DI factories: ${errorMessage}`
+    );
+    recordInitError(result, "EmbeddingBackfill", [], error);
+  }
+}
+
+function initializeDesignChangeTrackerService(
+  config: ServiceInitializerConfig,
+  result: SearchRegistrarResult
+): void {
+  try {
+    setDesignChangeTrackerPrismaClientFactory(
+      () =>
+        ({
+          $queryRawUnsafe: config.prisma.$queryRawUnsafe.bind(config.prisma),
+          $executeRawUnsafe: config.prisma.$executeRawUnsafe.bind(config.prisma),
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any -- IPrismaClientMinimal.$transaction is optional but DesignChangeTracker requires it
+          $transaction: config.prisma.$transaction!.bind(config.prisma) as any,
+        }) as unknown as DesignChangeTrackerPrismaClient
+    );
+
+    result.registeredFactories.push("designChangeTrackerPrisma");
+    result.categories.push("designChangeTracker");
+    logger.info("[ServiceInitializer] designChangeTracker factory registered (prisma)");
+  } catch (error) {
+    recordInitError(result, "DesignChangeTracker", ["designChangeTrackerPrisma"], error);
+  }
+}
+
+// =====================================================
+// v0.3.0 Tier 2 新サービス初期化
+// v0.3.0 Tier 2 new service initialization
+// =====================================================
+
+function initializeAuditLogService(
+  config: ServiceInitializerConfig,
+  result: SearchRegistrarResult
+): void {
+  try {
+    // AuditLogServiceの内部PrismaClient DI登録
+    // AuditLogPrismaClient は Prisma model (auditLog) を要求
+    // IPrismaClientMinimal に auditLog がないため直接キャスト
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Prisma model access requires any cast from IPrismaClientMinimal
+    const prismaWithAuditLog = config.prisma as any;
+    setAuditLogPrismaClientFactory(
+      () =>
+        ({
+          auditLog: prismaWithAuditLog.auditLog,
+        }) as AuditLogPrismaClient
+    );
+
+    // audit.query ツールの DI ファクトリ登録
+    setAuditQueryServiceFactory(() => getAuditLogService());
+
+    result.registeredFactories.push("auditLogPrisma", "auditQueryService");
+    result.categories.push("auditLog");
+    logger.info("[ServiceInitializer] auditLog factories registered (prisma, queryService)");
+  } catch (error) {
+    recordInitError(result, "AuditLog", ["auditLogPrisma", "auditQueryService"], error);
+  }
+}
+
+function initializeGdprDeletionService(
+  config: ServiceInitializerConfig,
+  result: SearchRegistrarResult
+): void {
+  try {
+    // GdprDeletionServiceの内部PrismaClient DI登録
+    // GdprPrismaClient は $queryRawUnsafe + $executeRawUnsafe + $transaction を要求
+    setGdprPrismaClientFactory(
+      () =>
+        ({
+          $queryRawUnsafe: config.prisma.$queryRawUnsafe.bind(config.prisma),
+          $executeRawUnsafe: config.prisma.$executeRawUnsafe.bind(config.prisma),
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any -- IPrismaClientMinimal.$transaction is optional but GDPR deletion requires it
+          $transaction: config.prisma.$transaction!.bind(config.prisma) as any,
+        }) as unknown as GdprPrismaClient
+    );
+
+    // data.delete / data.export ツールの DI ファクトリ登録
+    // GdprDeletionService は delete + export の両方を提供する
+    setDataDeleteServiceFactory(() => getGdprDeletionService());
+    setDataExportServiceFactory(() => getGdprDeletionService());
+
+    result.registeredFactories.push("gdprPrisma", "dataDeleteService", "dataExportService");
+    result.categories.push("gdprDeletion");
+    logger.info("[ServiceInitializer] gdprDeletion factories registered (prisma, delete, export)");
+  } catch (error) {
+    recordInitError(
+      result,
+      "GdprDeletion",
+      ["gdprPrisma", "dataDeleteService", "dataExportService"],
+      error
+    );
+  }
+}
+
+function initializeEmbeddingQualityService(
+  config: ServiceInitializerConfig,
+  result: SearchRegistrarResult
+): void {
+  try {
+    // EmbeddingQualityMonitorService は PrismaClient ($queryRawUnsafe) を要求
+    const embeddingQualityPrisma = {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- IPrismaClientMinimal.$queryRawUnsafe returns Promise<unknown>, cast to generic version
+      $queryRawUnsafe: config.prisma.$queryRawUnsafe.bind(config.prisma) as any,
+    } as EmbeddingQualityPrismaClient;
+
+    setEmbeddingQualityServiceFactory(
+      () => new EmbeddingQualityMonitorService(embeddingQualityPrisma)
+    );
+
+    result.registeredFactories.push("embeddingQualityService");
+    result.categories.push("embeddingQuality");
+    logger.info("[ServiceInitializer] embeddingQuality factory registered");
+  } catch (error) {
+    recordInitError(result, "EmbeddingQuality", ["embeddingQualityService"], error);
+  }
+}
+
+function initializeAccessibilityAuditService(result: SearchRegistrarResult): void {
+  try {
+    // AccessibilityAuditService + ContrastCheckService（DI依存なし、自己完結）
+    setAccessibilityAuditServiceFactory(() => createAccessibilityAuditService());
+    setContrastCheckServiceFactory(() => createContrastCheckService());
+
+    result.registeredFactories.push("accessibilityAuditService", "contrastCheckService");
+    result.categories.push("accessibilityAudit");
+    logger.info("[ServiceInitializer] accessibilityAudit factories registered (audit, contrast)");
+  } catch (error) {
+    recordInitError(
+      result,
+      "AccessibilityAudit",
+      ["accessibilityAuditService", "contrastCheckService"],
+      error
+    );
+  }
+}
+
+function initializeResponsiveCaptureService(result: SearchRegistrarResult): void {
+  try {
+    // MultiDeviceCaptureService + ResponsiveDiffService（DI依存なし、自己完結）
+    setResponsiveCaptureServiceFactory(
+      () => new MultiDeviceCaptureService(),
+      () => new ResponsiveDiffService()
+    );
+
+    result.registeredFactories.push("responsiveCaptureService", "responsiveDiffService");
+    result.categories.push("responsiveCapture");
+    logger.info("[ServiceInitializer] responsiveCapture factories registered (capture, diff)");
+  } catch (error) {
+    recordInitError(
+      result,
+      "ResponsiveCapture",
+      ["responsiveCaptureService", "responsiveDiffService"],
+      error
     );
   }
 }

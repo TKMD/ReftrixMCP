@@ -283,6 +283,8 @@ export class DINOv2Service {
     const ortModule = await import("onnxruntime-node");
     this.inProcessSession = await ortModule.InferenceSession.create(this.modelPath, {
       executionProviders: ["cpu"],
+      enableCpuMemArena: false,
+      enableMemPattern: false,
     });
     // eslint-disable-next-line no-console
     console.log("[DINOv2] Session initialized in-process:", this.modelPath);
@@ -467,6 +469,23 @@ export class DINOv2Service {
     }
 
     this._isInitialized = false;
+  }
+
+  /**
+   * Recycle the ONNX session to free accumulated native memory.
+   *
+   * Performs dispose() followed by initialize() to reset the ONNX Runtime
+   * internal memory allocations. The modelPath is reused from the original
+   * configuration (DINO-3: no re-read of process.env["DINOV2_MODEL_PATH"]).
+   *
+   * If re-initialization fails, the service is left in a disposed state.
+   * Callers should handle this gracefully (Graceful Degradation).
+   *
+   * @throws {Error} If re-initialization fails after disposal
+   */
+  async recycle(): Promise<void> {
+    await this.dispose();
+    await this.initialize();
   }
 
   /**

@@ -99,7 +99,7 @@ interface IUser {
 | Backend             | Node.js               | 20.x LTS (>=20.19.0)                                           |
 | Database            | PostgreSQL + pgvector | 18.x + 0.8.x                                                   |
 | Testing             | Vitest                | 4.x（mcp-server, ml, core, webdesign-core）/ 3.2.x（database） |
-| Testing             | Playwright            | 1.57.0                                                         |
+| Testing             | Playwright            | <!-- gen:ver-playwright -->1.57.0<!-- /gen:ver-playwright -->  |
 | Cache               | lru-cache             | 11.x                                                           |
 | Queue UI            | @bull-board/express   | 6.x                                                            |
 | SBOM                | @cyclonedx/cdxgen     | 12.x                                                           |

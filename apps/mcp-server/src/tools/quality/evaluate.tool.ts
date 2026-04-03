@@ -13,6 +13,7 @@
 import { ZodError } from "zod";
 import { createDIFactory } from "../../utils/di-factory";
 import { logger, isDevelopment } from "../../utils/logger";
+import type { ProgressContext } from "../../router";
 import {
   formatZodError,
   createValidationErrorWithHints,
@@ -195,7 +196,8 @@ async function getPlaywrightAxeService(): Promise<PlaywrightAxeService | null> {
  * - "suggest_improvements": 改善提案を生成
  */
 export async function qualityEvaluateHandler(
-  input: unknown
+  input: unknown,
+  _progressContext?: ProgressContext
 ): Promise<QualityEvaluateUnifiedOutput> {
   if (isDevelopment()) {
     logger.info("[MCP Tool] quality.evaluate called", {

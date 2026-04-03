@@ -320,14 +320,7 @@ function getToolsOperationalStatus(patternServices?: PatternServicesStatus): Too
     mode: "full",
   };
 
-  // quality.batch_evaluate - quality.evaluateと同じ依存関係
-  tools["quality.batch_evaluate"] = {
-    status: "operational",
-    mode: isQualityFullMode ? "full" : "fallback",
-    ...(isQualityFullMode
-      ? {}
-      : { details: "Pattern-driven evaluation unavailable, using static analysis only" }),
-  };
+  // [REMOVED v0.3.0] quality.batch_evaluate — deprecated since v0.1.0, removed
 
   // page.analyze - 統合分析（layout + motion + quality）
   tools["page.analyze"] = {
@@ -348,16 +341,7 @@ function getToolsOperationalStatus(patternServices?: PatternServicesStatus): Too
     mode: "full",
   };
 
-  // project.get / project.list - 常に動作可能
-  tools["project.get"] = {
-    status: "operational",
-    mode: "full",
-  };
-
-  tools["project.list"] = {
-    status: "operational",
-    mode: "full",
-  };
+  // [REMOVED v0.3.0] project.get / project.list — バックエンドAPI未実装のため登録解除
 
   // page.getJobStatus - 常に動作可能
   tools["page.getJobStatus"] = {
@@ -420,7 +404,7 @@ export async function systemHealthHandler(input?: unknown): Promise<SystemHealth
             category: e.category,
             error: e.error,
           })),
-          // allToolDefinitionsから実際のMCPツール数を取得（17ツール）
+          // allToolDefinitionsから実際のMCPツール数を取得（37ツール）
           registeredToolCount: allToolDefinitions.length,
         };
 

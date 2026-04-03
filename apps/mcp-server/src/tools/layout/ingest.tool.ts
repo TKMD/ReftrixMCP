@@ -17,6 +17,7 @@ import { v7 as uuidv7 } from "uuid";
 import { prisma } from "@reftrixmcp/database";
 import { createDIFactory } from "../../utils/di-factory";
 import { logger, isDevelopment } from "../../utils/logger";
+import type { ProgressContext } from "../../router";
 import { sanitizeErrorMessage } from "../../utils/sanitize-error";
 import { validateExternalUrl } from "../../utils/url-validator";
 import { normalizeUrlForStorage } from "../../utils/url-normalizer";
@@ -350,7 +351,10 @@ function determineErrorCode(error: Error | string): string {
  * });
  * ```
  */
-export async function layoutIngestHandler(input: unknown): Promise<LayoutIngestOutput> {
+export async function layoutIngestHandler(
+  input: unknown,
+  _progressContext?: ProgressContext
+): Promise<LayoutIngestOutput> {
   // 開発環境でのログ出力 - デバッグ用に詳細な入力情報を出力
   if (isDevelopment()) {
     logger.info("[MCP Tool] layout.ingest called", {

@@ -298,14 +298,22 @@ function generateFilename(
   framework: Framework,
   typescript: boolean
 ): string {
-  const extension = framework === "html" ? "html" : typescript ? "tsx" : "jsx";
-
-  // Vue の場合は .vue 拡張子
-  if (framework === "vue") {
-    return `${componentName}.vue`;
+  // フレームワーク固有の拡張子
+  switch (framework) {
+    case "vue":
+      return `${componentName}.vue`;
+    case "svelte":
+      return `${componentName}.svelte`;
+    case "astro":
+      return `${componentName}.astro`;
+    case "html":
+      return `${componentName}.html`;
+    case "react":
+    default: {
+      const extension = typescript ? "tsx" : "jsx";
+      return `${componentName}.${extension}`;
+    }
   }
-
-  return `${componentName}.${extension}`;
 }
 
 /**
@@ -314,10 +322,20 @@ function generateFilename(
 function getDependencies(framework: Framework, tailwind: boolean): string[] {
   const deps: string[] = [];
 
-  if (framework === "react") {
-    deps.push("react");
-  } else if (framework === "vue") {
-    deps.push("vue");
+  switch (framework) {
+    case "react":
+      deps.push("react");
+      break;
+    case "vue":
+      deps.push("vue");
+      break;
+    case "svelte":
+      deps.push("svelte");
+      break;
+    case "astro":
+      deps.push("astro");
+      break;
+    // html has no framework dependency
   }
 
   if (tailwind) {
@@ -492,6 +510,223 @@ defineProps({
 <style scoped>
 /* ${componentName} styles */
 </style>
+`.trim();
+}
+
+/**
+ * テンプレートテキストをHTMLエスケープする（コードインジェクション防止）
+ *
+ * ユーザー入力（heading, description等）に含まれる可能性がある
+ * HTMLタグやイベントハンドラを無害化します。
+ *
+ * @param text - エスケープ対象のテキスト
+ * @returns HTMLエスケープされたテキスト
+ */
+function escapeTemplateText(text: string): string {
+  return text
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+/**
+ * Svelteコンポーネントを生成
+ *
+ * HTML→テンプレート変換を使用してセキュアなコンポーネントを生成します。
+ * {@html ...}は使用しません。
+ */
+function generateSvelteCode(pattern: SectionPattern, options: CodeGeneratorOptions): string {
+  const componentName = generateComponentName(pattern.sectionType, options.componentName);
+  const { typescript, tailwind } = options;
+
+  // スタイルクラス
+  const containerClass = tailwind ? "w-full max-w-7xl mx-auto px-4 py-8" : "";
+
+  // 見出しテキスト（エスケープ）
+  const heading = escapeTemplateText(
+    pattern.layoutInfo?.heading || `${pattern.sectionType} Section`
+  );
+  const description = escapeTemplateText(
+    pattern.layoutInfo?.description || "Section content goes here."
+  );
+
+  // スクリプトセクション
+  const scriptTag = typescript ? '<script lang="ts">' : "<script>";
+  const propsDecl = typescript
+    ? `  /** コンポーネントのクラス名 */
+  export let className: string = "";`
+    : `  /** @type {string} */
+  export let className = "";`;
+
+  // コンテンツの生成
+  let content: string;
+  if (pattern.htmlSnippet) {
+    // REFTRIX-CODEGEN-02: セマンティックHTML変換
+    const svelteSectionName = pattern.sectionName || pattern.layoutInfo?.heading;
+    const semanticHtml = convertToSemanticHtml(pattern.htmlSnippet, {
+      sectionType: pattern.sectionType,
+      ...(svelteSectionName ? { sectionName: svelteSectionName } : {}),
+      addAriaLabel: true,
+    });
+
+    // HTML→JSX変換を使用（SvelteテンプレートはHTML互換なのでJSX変換結果を活用）
+    // REFTRIX-CODEGEN-01: Tailwind変換オプション付き
+    // REFTRIX-CODEGEN-03: 独自クラス名の除去
+    // Svelteでは className→class に戻す
+    const jsxContent = convertHtmlToJsx(semanticHtml, {
+      removeEmptyAttributes: true,
+      useTailwind: tailwind,
+      removeProprietaryClasses: true,
+    });
+
+    // JSXからSvelteテンプレートへの変換（className→class）
+    const svelteContent = jsxContent.replace(/className=/g, "class=").replace(/htmlFor=/g, "for=");
+
+    if (isDevelopment()) {
+      logger.debug("[generateSvelteCode] HTML to Svelte template conversion completed", {
+        originalLength: pattern.htmlSnippet.length,
+        semanticLength: semanticHtml.length,
+        svelteLength: svelteContent.length,
+        useTailwind: tailwind,
+      });
+    }
+
+    content = `<!-- Converted from original HTML structure -->
+    ${svelteContent}`;
+  } else {
+    content = `<h2 ${tailwind ? 'class="text-3xl font-bold mb-4"' : ""}>${heading}</h2>
+    <p ${tailwind ? 'class="text-gray-600"' : ""}>${description}</p>`;
+  }
+
+  // Svelteコンポーネントのスタイルセクション
+  const styleSection = tailwind
+    ? ""
+    : `
+<style>
+  /* ${componentName} styles */
+  section {
+    width: 100%;
+    max-width: 80rem;
+    margin: 0 auto;
+    padding: 2rem 1rem;
+  }
+</style>`;
+
+  return `${scriptTag}
+${propsDecl}
+</script>
+
+<section class="${containerClass} {className}">
+  ${content}
+</section>${styleSection}
+`.trim();
+}
+
+/**
+ * Astroコンポーネントを生成
+ *
+ * フロントマター（---）内にTypeScript/JavaScriptロジックを配置し、
+ * テンプレート部分にHTMLを配置するAstroコンポーネントを生成します。
+ */
+function generateAstroCode(pattern: SectionPattern, options: CodeGeneratorOptions): string {
+  const componentName = generateComponentName(pattern.sectionType, options.componentName);
+  const { typescript, tailwind } = options;
+
+  // スタイルクラス
+  const containerClass = tailwind ? "w-full max-w-7xl mx-auto px-4 py-8" : "";
+
+  // 見出しテキスト（エスケープ）
+  const heading = escapeTemplateText(
+    pattern.layoutInfo?.heading || `${pattern.sectionType} Section`
+  );
+  const description = escapeTemplateText(
+    pattern.layoutInfo?.description || "Section content goes here."
+  );
+
+  // フロントマター（Props定義）
+  const frontmatter = typescript
+    ? `---
+/**
+ * ${componentName} Props
+ */
+interface Props {
+  className?: string;
+}
+
+const { className = "" } = Astro.props;
+---`
+    : `---
+/**
+ * @typedef {{ className?: string }} Props
+ */
+
+/** @type {Props} */
+const { className = "" } = Astro.props;
+---`;
+
+  // コンテンツの生成
+  let content: string;
+  if (pattern.htmlSnippet) {
+    // REFTRIX-CODEGEN-02: セマンティックHTML変換
+    const astroSectionName = pattern.sectionName || pattern.layoutInfo?.heading;
+    const semanticHtml = convertToSemanticHtml(pattern.htmlSnippet, {
+      sectionType: pattern.sectionType,
+      ...(astroSectionName ? { sectionName: astroSectionName } : {}),
+      addAriaLabel: true,
+    });
+
+    // HTML→JSX変換を使用（AstroテンプレートはJSXライクなのでそのまま活用）
+    // REFTRIX-CODEGEN-01: Tailwind変換オプション付き
+    // REFTRIX-CODEGEN-03: 独自クラス名の除去
+    // Astroでは class→class:list や class={} を使用可能だが、
+    // シンプルなHTML属性として class= を使用する
+    const jsxContent = convertHtmlToJsx(semanticHtml, {
+      removeEmptyAttributes: true,
+      useTailwind: tailwind,
+      removeProprietaryClasses: true,
+    });
+
+    // JSXからAstroテンプレートへの変換（className→class）
+    const astroContent = jsxContent.replace(/className=/g, "class=").replace(/htmlFor=/g, "for=");
+
+    if (isDevelopment()) {
+      logger.debug("[generateAstroCode] HTML to Astro template conversion completed", {
+        originalLength: pattern.htmlSnippet.length,
+        semanticLength: semanticHtml.length,
+        astroLength: astroContent.length,
+        useTailwind: tailwind,
+      });
+    }
+
+    content = `<!-- Converted from original HTML structure -->
+  ${astroContent}`;
+  } else {
+    content = `<h2 ${tailwind ? 'class="text-3xl font-bold mb-4"' : ""}>${heading}</h2>
+  <p ${tailwind ? 'class="text-gray-600"' : ""}>${description}</p>`;
+  }
+
+  // Astroコンポーネントのスタイルセクション
+  const styleSection = tailwind
+    ? ""
+    : `
+
+<style>
+  /* ${componentName} styles */
+  section {
+    width: 100%;
+    max-width: 80rem;
+    margin: 0 auto;
+    padding: 2rem 1rem;
+  }
+</style>`;
+
+  return `${frontmatter}
+
+<section class={\`${containerClass} \${className}\`}>
+  ${content}
+</section>${styleSection}
 `.trim();
 }
 
@@ -1450,6 +1685,12 @@ export class LayoutToCodeService implements ILayoutToCodeService {
             break;
           case "vue":
             code = generateVueCode(pattern, options);
+            break;
+          case "svelte":
+            code = generateSvelteCode(pattern, options);
+            break;
+          case "astro":
+            code = generateAstroCode(pattern, options);
             break;
           case "html":
             code = generateHtmlCode(pattern, options);

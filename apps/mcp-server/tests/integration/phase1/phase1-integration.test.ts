@@ -102,7 +102,14 @@ describe("Phase1-1: GPU有効化設定", () => {
     it("通常サイトは非WebGLとして検出", () => {
       for (const url of SAMPLE_URLS.normal) {
         // stripe.comはKNOWN_WEBGL_DOMAINSに含まれるためスキップ
-        if (url.includes("stripe.com")) continue;
+        // URL substring sanitization: ホスト名を正しく検証
+        try {
+          const parsedUrl = new URL(url);
+          if (parsedUrl.hostname === "stripe.com" || parsedUrl.hostname.endsWith(".stripe.com"))
+            continue;
+        } catch {
+          // URL解析失敗時はスキップしない
+        }
 
         const result = preDetectWebGL(url);
 

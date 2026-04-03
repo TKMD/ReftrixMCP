@@ -366,11 +366,11 @@ describe("processEmbeddingPhase compound progress", () => {
   });
 
   it("should pass onProgress to section embedding generation", () => {
-    expect(workerSource).toContain("onProgress: reportEmbeddingSubProgress,");
+    expect(workerSource).toContain("onProgress: ctx.reportEmbeddingSubProgress,");
   });
 
   it("should pass onProgress to motion embedding generation", () => {
-    expect(workerSource).toContain("onProgress: reportEmbeddingSubProgress,");
+    expect(workerSource).toContain("onProgress: ctx.reportEmbeddingSubProgress,");
   });
 
   it("should pass createPhaseProgressInterpolator to processEmbeddingPhase call", () => {

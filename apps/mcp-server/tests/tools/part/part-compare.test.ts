@@ -136,6 +136,21 @@ describe("part.compare MCPツール", () => {
       expect(partCompareToolDefinition.description.length).toBeGreaterThan(10);
     });
 
+    it("descriptionにデフォルト値（styles+layout）が明記されていること", () => {
+      const desc = partCompareToolDefinition.description;
+      // デフォルトの比較観点がdescriptionに含まれること
+      expect(desc).toMatch(/styles/i);
+      expect(desc).toMatch(/layout/i);
+      // 日英バイリンガル
+      expect(desc).toContain("/");
+    });
+
+    it("descriptionにプロパティレベル同一性判定が記載されていること", () => {
+      const desc = partCompareToolDefinition.description;
+      // プロパティレベルの同一性判定に関する記載
+      expect(desc).toMatch(/同一性|identity/i);
+    });
+
     it("MCP annotationsが存在すること", () => {
       expect(partCompareToolDefinition.annotations).toBeDefined();
       expect(partCompareToolDefinition.annotations.readOnlyHint).toBe(true);

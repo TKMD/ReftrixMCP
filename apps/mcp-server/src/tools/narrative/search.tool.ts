@@ -427,6 +427,12 @@ export const narrativeSearchToolDefinition = {
     "世界観・レイアウト構成でセマンティック検索します。" +
     '自然言語クエリ（例: "サイバーセキュリティ感のあるダークなデザイン"）または768次元Embeddingで検索可能。' +
     "Hybrid Search（Vector + Full-text）でRRF統合。",
+  annotations: {
+    title: "Narrative Search",
+    readOnlyHint: true,
+    idempotentHint: true,
+    openWorldHint: false,
+  },
   inputSchema: {
     type: "object",
     properties: {

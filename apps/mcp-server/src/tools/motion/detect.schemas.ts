@@ -1081,6 +1081,14 @@ export const motionDetectInputSchema = z
         "Overall timeout in milliseconds (30000-600000, default: 180000 = 3 minutes). On timeout, returns partial results with warnings (graceful degradation)."
       ),
   })
+  .transform((data) => {
+    // detection_mode 自動推論: html/pageId が提供され url が未提供の場合、"css" に自動切替
+    // Auto-infer detection_mode: switch to "css" when html/pageId provided without url
+    if (data.detection_mode === "video" && !data.url && (data.html || data.pageId)) {
+      return { ...data, detection_mode: "css" as const };
+    }
+    return data;
+  })
   .refine(
     (data) => {
       // video/runtime/hybrid モードの場合は url が必須

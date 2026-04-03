@@ -2366,7 +2366,15 @@ describe("motion.detect - External CSS Integration", () => {
         },
       ]);
       vi.spyOn(externalCssFetcherModule, "isSafeUrl").mockImplementation((url) => {
-        return url.startsWith("https://safe.example.com");
+        // URL sanitization-safe: ホスト名ベースで完全一致検証（部分文字列マッチを排除）
+        try {
+          const parsed = new URL(url);
+          return (
+            parsed.hostname === "safe.example.com" || parsed.hostname.endsWith(".safe.example.com")
+          );
+        } catch {
+          return false;
+        }
       });
 
       const input = {

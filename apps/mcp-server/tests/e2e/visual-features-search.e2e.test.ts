@@ -307,11 +307,11 @@ describe("Visual Features Search E2Eテスト", () => {
   });
 
   async function setupTestData(): Promise<void> {
-    // WebPages を作成
+    // WebPages を作成（既存URL時はIDを同期して FK 整合性を保証）
     for (const page of Object.values(testWebPages)) {
-      await prisma.webPage.upsert({
-        where: { id: page.id },
-        update: {},
+      const upserted = await prisma.webPage.upsert({
+        where: { url: page.url },
+        update: { title: page.title },
         create: {
           id: page.id,
           url: page.url,
@@ -320,8 +320,16 @@ describe("Visual Features Search E2Eテスト", () => {
           sourceType: page.sourceType,
           usageScope: page.usageScope,
         },
+        select: { id: true },
       });
+      // 既存レコードのIDで上書き（FK整合性のため）
+      page.id = upserted.id;
     }
+
+    // SectionPatterns の webPageId を同期（upsert で ID が変わった場合に対応）
+    testSectionPatterns.lightHero.webPageId = testWebPages.lightTheme.id;
+    testSectionPatterns.darkHero.webPageId = testWebPages.darkTheme.id;
+    testSectionPatterns.mixedFeature.webPageId = testWebPages.mixedTheme.id;
 
     // SectionPatterns を作成（visualFeatures 付き）
     let positionIndex = 0;
@@ -330,10 +338,13 @@ describe("Visual Features Search E2Eテスト", () => {
       const visionEmbedding = generateMockEmbedding(section.id.charCodeAt(1) + 100);
       const embeddingId = uuidv7();
 
-      await prisma.sectionPattern.upsert({
-        where: { id: section.id },
-        update: {},
-        create: {
+      // テスト用IDは毎回新規生成のため、deleteMany + create で確実にクリーンアップ
+      await prisma.sectionEmbedding
+        .deleteMany({ where: { sectionPatternId: section.id } })
+        .catch(() => {});
+      await prisma.sectionPattern.deleteMany({ where: { id: section.id } }).catch(() => {});
+      await prisma.sectionPattern.create({
+        data: {
           id: section.id,
           webPageId: section.webPageId,
           sectionType: section.sectionType,

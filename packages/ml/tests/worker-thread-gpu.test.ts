@@ -419,13 +419,20 @@ describe("P2-G: ONNX Worker Thread化", () => {
       expect(workerSource).toContain('case "terminate":');
     });
 
-    it("terminateハンドラがprocess.exit(0)で終了すること", () => {
-      expect(workerSource).toContain("process.exit(0)");
+    it("terminateハンドラが親側のworker.terminate()にライフサイクルを委ねること", () => {
+      // T-6: process.exit(0) は削除済み — 親側の worker.terminate() に統一
+      // コメント内の言及は許容し、実コードとしてprocess.exit()が呼ばれないことを確認
+      const terminateCase = workerSource.match(/case "terminate":\s*\{([\s\S]*?)\n\s*break;/);
+      expect(terminateCase).not.toBeNull();
+      const codeOnly = terminateCase![1].replace(/\/\/.*$/gm, "").replace(/\/\*[\s\S]*?\*\//g, "");
+      expect(codeOnly).not.toContain("process.exit");
     });
 
-    it("terminateハンドラがレスポンス送信後にsetTimeoutで終了すること", () => {
-      // レスポンスフラッシュのためのsetTimeout
-      expect(workerSource).toContain("setTimeout(() => process.exit(0)");
+    it("terminateハンドラがdisposePipelineとsendResponseを実行すること", () => {
+      const terminateCase = workerSource.match(/case "terminate":\s*\{([\s\S]*?)\n\s*break;/);
+      expect(terminateCase).not.toBeNull();
+      expect(terminateCase![1]).toContain("disposePipeline");
+      expect(terminateCase![1]).toContain("sendResponse");
     });
 
     it("parentPortがない場合にエラーをスローすること", () => {

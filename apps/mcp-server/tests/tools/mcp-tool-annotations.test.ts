@@ -62,10 +62,9 @@ const READ_ONLY_TOOLS = [
   "motion.detect",
   "motion.search",
   "brief.validate",
-  "project.get",
-  "project.list",
   "page.analyze",
   "background.search",
+  "narrative.search",
 ];
 
 /**
@@ -77,19 +76,20 @@ const IDEMPOTENT_TOOLS = [
   ...READ_ONLY_TOOLS,
   // 変換系（同じ入力→同じ出力）
   "layout.generate_code",
-  // narrative.search はアノテーション未設定のため別途対応
+  // narrative.search（v0.3.0でアノテーション追加）
+  "narrative.search",
 ];
 
 /**
  * openWorldHint: true のツール（外部エンティティと相互作用）
  */
-const OPEN_WORLD_TOOLS = ["layout.ingest", "quality.batch_evaluate", "page.analyze"];
+const OPEN_WORLD_TOOLS = ["layout.ingest", "page.analyze"];
 
 /**
  * アノテーション未設定のツール（今後追加予定）
- * narrative.search はアノテーション未設定のため、全ツール検証から除外
+ * v0.3.0: narrative.search にアノテーション追加済み — 除外リスト空
  */
-const TOOLS_WITHOUT_ANNOTATIONS = ["narrative.search"];
+const TOOLS_WITHOUT_ANNOTATIONS: string[] = [];
 
 // =============================================================================
 // テスト
@@ -268,8 +268,8 @@ describe("MCP Tool Annotations", () => {
   // preference.hear, preference.get, preference.reset ツール追加
   // =========================================================================
   describe("ツール数", () => {
-    it("allToolDefinitionsが28ツール（WebDesign専用）を含むこと", () => {
-      expect(allToolDefinitions).toHaveLength(28);
+    it("allToolDefinitionsが35ツール（WebDesign専用 + v0.3.0 Tier 2全11ツール、project削除済み、quality.batch_evaluate/getJobStatus削除済み）を含むこと", () => {
+      expect(allToolDefinitions).toHaveLength(35);
     });
   });
 });

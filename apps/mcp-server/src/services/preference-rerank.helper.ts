@@ -22,6 +22,7 @@
  */
 
 import { logger } from "../utils/logger";
+import { cosineSimilarity, parseVectorString as parseVectorStringUtil } from "../utils/vector-math";
 import { truncateId } from "../tools/preference/schemas";
 import type { IPrismaClient } from "./preference-profile.service";
 
@@ -167,76 +168,31 @@ interface ItemEmbeddingRow {
 // 純粋関数 / Pure Functions
 // =====================================================
 
-/**
- * コサイン類似度を計算
- * Calculate cosine similarity
- *
- * 2つのベクトル間のコサイン類似度を計算する純粋関数。
- * ベクトルの長さが異なる場合やゼロベクトルの場合は0を返す。
- *
- * A pure function that calculates cosine similarity between two vectors.
- * Returns 0 if vectors have different lengths or are zero vectors.
- *
- * @param a - ベクトルA / Vector A
- * @param b - ベクトルB / Vector B
- * @returns コサイン類似度（-1 ~ 1） / Cosine similarity (-1 to 1)
- */
-export function cosineSimilarity(a: number[], b: number[]): number {
-  if (a.length !== b.length || a.length === 0) {
-    return 0;
-  }
-
-  let dotProduct = 0;
-  let normA = 0;
-  let normB = 0;
-
-  for (let i = 0; i < a.length; i++) {
-    const aVal = a[i] as number;
-    const bVal = b[i] as number;
-    dotProduct += aVal * bVal;
-    normA += aVal * aVal;
-    normB += bVal * bVal;
-  }
-
-  const denominator = Math.sqrt(normA) * Math.sqrt(normB);
-
-  if (denominator === 0) {
-    return 0;
-  }
-
-  return dotProduct / denominator;
-}
+// cosineSimilarity は ../utils/vector-math から re-export
+// cosineSimilarity is re-exported from ../utils/vector-math
+export { cosineSimilarity };
 
 /**
- * pgvector文字列をnumber[]にパース
- * Parse pgvector string to number[]
- *
- * PostgreSQLのvector型を `::text` で取得した場合の文字列形式 "[0.1,0.2,...]" をパースする。
- * Parses the string format "[0.1,0.2,...]" returned when fetching PostgreSQL vector type via `::text`.
+ * pgvector文字列をnumber[]にパース（NaN含有時は空配列）
+ * Parse pgvector string to number[] (returns empty array on NaN)
  *
  * @param vectorStr - pgvector文字列 / pgvector string
  * @returns パースされたnumber配列 / Parsed number array
  */
 function parseVectorString(vectorStr: string): number[] {
-  const values = vectorStr
-    .slice(1, -1) // "[" と "]" を除去 / Remove "[" and "]"
-    .split(",")
-    .map(Number);
-
-  // NaN/Infinity防御 / NaN/Infinity defense
-  for (const val of values) {
-    if (!Number.isFinite(val)) {
+  const result = parseVectorStringUtil(vectorStr, { nanStrategy: "passthrough" });
+  if (!result || result.length === 0) {
+    if (result !== null || vectorStr.length > 2) {
       logger.warn(
         "[PreferenceRerank] Non-finite value detected in vector string, returning empty",
         {
           vectorStrLength: vectorStr.length,
         }
       );
-      return [];
     }
+    return [];
   }
-
-  return values;
+  return result;
 }
 
 // =====================================================
