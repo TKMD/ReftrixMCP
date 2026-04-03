@@ -308,6 +308,25 @@ function extractOverallQualityScore(qualityScore: unknown): number | undefined {
  * @param html - Input HTML string
  * @returns Cleaned text representation
  */
+/**
+ * HTMLタグを完全除去する（ネスト対策付き）
+ * SEC: whileループでネストされた悪意ある文字列を完全除去（CodeQL js/incomplete-multi-character-sanitization 対策）
+ *
+ * Strips all HTML tags completely (with nested tag protection).
+ * SEC: While loop ensures nested malicious strings are fully removed (CodeQL js/incomplete-multi-character-sanitization fix).
+ */
+function stripHtmlTags(input: string): string {
+  const pattern = /<[^>]*>/g;
+  let result = input;
+  let prev = result;
+  result = result.replace(pattern, "");
+  while (prev !== result) {
+    prev = result;
+    result = result.replace(pattern, "");
+  }
+  return result;
+}
+
 function parseHtmlToText(html: string): string {
   const parts: string[] = [];
 
@@ -364,7 +383,7 @@ function parseHtmlToText(html: string): string {
     const headings: string[] = [];
     for (const match of headingMatches) {
       // Remove tags and trim
-      const text = match.replace(/<[^>]*>/g, "").trim();
+      const text = stripHtmlTags(match).trim();
       if (text.length > 0 && text.length < 200) {
         headings.push(text);
       }
@@ -379,7 +398,7 @@ function parseHtmlToText(html: string): string {
   if (buttonMatches) {
     const buttons: string[] = [];
     for (const match of buttonMatches) {
-      const text = match.replace(/<[^>]*>/g, "").trim();
+      const text = stripHtmlTags(match).trim();
       if (text.length > 0 && text.length < 100) {
         buttons.push(text);
       }
@@ -394,7 +413,7 @@ function parseHtmlToText(html: string): string {
   if (anchorMatches) {
     const links: string[] = [];
     for (const match of anchorMatches) {
-      const text = match.replace(/<[^>]*>/g, "").trim();
+      const text = stripHtmlTags(match).trim();
       if (text.length > 0 && text.length < 100) {
         links.push(text);
       }
@@ -409,7 +428,7 @@ function parseHtmlToText(html: string): string {
   if (paragraphMatches) {
     const paragraphs: string[] = [];
     for (const match of paragraphMatches) {
-      const text = match.replace(/<[^>]*>/g, "").trim();
+      const text = stripHtmlTags(match).trim();
       if (text.length > 10 && text.length < 500) {
         paragraphs.push(text);
       }

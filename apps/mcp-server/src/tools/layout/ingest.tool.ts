@@ -168,17 +168,50 @@ export const resetLayoutIngestServiceFactory = ingestServiceDI.reset;
 function optimizeHtml(html: string): string {
   let optimized = html;
 
+  // SEC: whileループでネストされた悪意ある文字列を完全除去（CodeQL js/incomplete-multi-character-sanitization 対策）
   // scriptタグを除去（インライン含む）
-  optimized = optimized.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, "");
+  {
+    const scriptPattern = /<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi;
+    let prev = optimized;
+    optimized = optimized.replace(scriptPattern, "");
+    while (prev !== optimized) {
+      prev = optimized;
+      optimized = optimized.replace(scriptPattern, "");
+    }
+  }
 
   // styleタグを除去
-  optimized = optimized.replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, "");
+  {
+    const stylePattern = /<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi;
+    let prev = optimized;
+    optimized = optimized.replace(stylePattern, "");
+    while (prev !== optimized) {
+      prev = optimized;
+      optimized = optimized.replace(stylePattern, "");
+    }
+  }
 
   // noscriptタグを除去
-  optimized = optimized.replace(/<noscript\b[^<]*(?:(?!<\/noscript>)<[^<]*)*<\/noscript>/gi, "");
+  {
+    const noscriptPattern = /<noscript\b[^<]*(?:(?!<\/noscript>)<[^<]*)*<\/noscript>/gi;
+    let prev = optimized;
+    optimized = optimized.replace(noscriptPattern, "");
+    while (prev !== optimized) {
+      prev = optimized;
+      optimized = optimized.replace(noscriptPattern, "");
+    }
+  }
 
   // HTMLコメントを除去
-  optimized = optimized.replace(/<!--[\s\S]*?-->/g, "");
+  {
+    const commentPattern = /<!--[\s\S]*?-->/g;
+    let prev = optimized;
+    optimized = optimized.replace(commentPattern, "");
+    while (prev !== optimized) {
+      prev = optimized;
+      optimized = optimized.replace(commentPattern, "");
+    }
+  }
 
   // 連続する空白を1つに圧縮
   optimized = optimized.replace(/[ \t]+/g, " ");

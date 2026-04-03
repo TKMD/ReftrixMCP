@@ -317,12 +317,17 @@ export function resolveUrl(href: string, baseUrl: string): string {
     return trimmedHref;
   }
 
-  // javascript: スキーム - セキュリティ上ブロック（空文字列を返す）
-  if (trimmedHref.toLowerCase().startsWith("javascript:")) {
-    if (process.env.NODE_ENV === "development") {
-      logger.warn("resolveUrl: blocked javascript: scheme", { href });
+  // 危険なURLスキームをブロック（CodeQL js/incomplete-url-scheme-check 対策）
+  // SEC: javascript:, vbscript:, data: (CSS用途以外は上記で処理済み) をブロック
+  const dangerousSchemes = ["javascript:", "vbscript:"];
+  const lowerHref = trimmedHref.toLowerCase();
+  for (const scheme of dangerousSchemes) {
+    if (lowerHref.startsWith(scheme)) {
+      if (process.env.NODE_ENV === "development") {
+        logger.warn(`resolveUrl: blocked ${scheme} scheme`, { href });
+      }
+      return "";
     }
-    return "";
   }
 
   try {

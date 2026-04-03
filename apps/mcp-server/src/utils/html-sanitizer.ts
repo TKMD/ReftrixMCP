@@ -259,15 +259,36 @@ export function preStripDangerousTags(
 
   // Phase 2: 自己閉じ・空の危険タグを除去
   // input, embed, frame, frameset, base, link, meta 等
+  // SEC: whileループでネストされた悪意ある文字列を完全除去（CodeQL js/incomplete-multi-character-sanitization 対策）
   for (const tag of dangerousTags) {
     // 開始タグ（自己閉じ含む）: <tag ...> or <tag ... />
-    result = result.replace(new RegExp(`<${tag}\\b[^>]*/?>`, "gi"), "");
+    const openPattern = new RegExp(`<${tag}\\b[^>]*/?>`, "gi");
+    let prev = result;
+    result = result.replace(openPattern, "");
+    while (prev !== result) {
+      prev = result;
+      result = result.replace(openPattern, "");
+    }
     // 終了タグ: </tag>
-    result = result.replace(new RegExp(`</${tag}\\s*>`, "gi"), "");
+    const closePattern = new RegExp(`</${tag}\\s*>`, "gi");
+    prev = result;
+    result = result.replace(closePattern, "");
+    while (prev !== result) {
+      prev = result;
+      result = result.replace(closePattern, "");
+    }
   }
 
   // Phase 3: HTMLコメントを除去（条件付きコメント含む）
-  result = result.replace(/<!--[\s\S]*?-->/g, "");
+  // SEC: whileループでネストされた悪意ある文字列を完全除去（CodeQL js/incomplete-multi-character-sanitization 対策）
+  {
+    let prev = result;
+    result = result.replace(/<!--[\s\S]*?-->/g, "");
+    while (prev !== result) {
+      prev = result;
+      result = result.replace(/<!--[\s\S]*?-->/g, "");
+    }
+  }
 
   const elapsed = Date.now() - startTime;
   const reduction = originalLength - result.length;
@@ -302,16 +323,40 @@ export function stripDangerousAttributes(html: string): string {
   let result = html;
 
   // Phase 1: on* イベントハンドラ属性を除去
+  // SEC: whileループでネストされた悪意ある文字列を完全除去（CodeQL js/incomplete-multi-character-sanitization 対策）
   // Double-quoted: onerror="alert(1)"
-  result = result.replace(/\son\w+\s*=\s*"[^"]*"/gi, "");
-  // Single-quoted: onerror='alert(1)'
-  result = result.replace(/\son\w+\s*=\s*'[^']*'/gi, "");
-  // Unquoted: onerror=alert(1) (stops at whitespace or >)
-  result = result.replace(/\son\w+\s*=\s*[^\s>"']+/gi, "");
+  {
+    const patterns = [
+      /\son\w+\s*=\s*"[^"]*"/gi,
+      /\son\w+\s*=\s*'[^']*'/gi,
+      /\son\w+\s*=\s*[^\s>"']+/gi,
+    ];
+    for (const pattern of patterns) {
+      let prev = result;
+      result = result.replace(pattern, "");
+      while (prev !== result) {
+        prev = result;
+        result = result.replace(pattern, "");
+      }
+    }
+  }
 
   // Phase 2: javascript: URL in href/src/action/formaction attributes
-  result = result.replace(/\s(href|src|action|formaction)\s*=\s*"javascript:[^"]*"/gi, "");
-  result = result.replace(/\s(href|src|action|formaction)\s*=\s*'javascript:[^']*'/gi, "");
+  // SEC: whileループでネストされた悪意ある文字列を完全除去（CodeQL js/incomplete-multi-character-sanitization 対策）
+  {
+    const patterns = [
+      /\s(href|src|action|formaction)\s*=\s*"javascript:[^"]*"/gi,
+      /\s(href|src|action|formaction)\s*=\s*'javascript:[^']*'/gi,
+    ];
+    for (const pattern of patterns) {
+      let prev = result;
+      result = result.replace(pattern, "");
+      while (prev !== result) {
+        prev = result;
+        result = result.replace(pattern, "");
+      }
+    }
+  }
 
   return result;
 }

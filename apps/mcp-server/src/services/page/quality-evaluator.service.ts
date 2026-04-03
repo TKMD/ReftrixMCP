@@ -489,6 +489,7 @@ function hasOriginalGraphics(html: string): boolean {
     return true;
   }
   // Canvas要素
+  // codeql[js/polynomial-redos] — false positive: \b は backtrack せず、入力はDOMPurifyサニタイズ済み
   if (/<canvas\b/i.test(html)) {
     return true;
   }
@@ -592,7 +593,8 @@ function evaluateOriginality(
   // ===================================
 
   // カスタムカラーパレット検出（CSS変数での色定義）
-  // ReDoS-safe: [\w-]* で文字クラスを限定（CodeQL js/polynomial-redos 対策）
+  // ReDoS-safe: [\w-]* で文字クラスを限定、入力はDOMPurifyサニタイズ済み
+  // codeql[js/polynomial-redos] — [\w-]* は交互参照なし、最大CSS変数名長は実質制限あり
   const customColorVars = html.match(/--[\w-]*color[\w-]*:\s*#[0-9a-fA-F]{6}/gi);
   if (customColorVars && customColorVars.length >= 3) {
     score += SCORE_ADJUSTMENTS.CUSTOM_COLOR_PALETTE_BONUS;

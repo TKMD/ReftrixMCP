@@ -55,7 +55,13 @@ async function startTestServer(): Promise<number> {
     testServer = http.createServer((req, res) => {
       const url = req.url || "/";
       const filename = url === "/" ? "mixed-animations-test.html" : url.slice(1);
-      const filePath = path.join(FIXTURES_DIR, filename);
+      // SEC: path traversal防止 — resolvedパスがFIXTURES_DIR内であることを検証
+      const filePath = path.resolve(FIXTURES_DIR, filename);
+      if (!filePath.startsWith(FIXTURES_DIR)) {
+        res.writeHead(403);
+        res.end("Forbidden");
+        return;
+      }
 
       try {
         const content = fs.readFileSync(filePath, "utf-8");

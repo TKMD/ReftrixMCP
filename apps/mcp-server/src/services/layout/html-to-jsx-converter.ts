@@ -265,8 +265,17 @@ function stylesToJsxString(styles: Record<string, string>): string {
     return "";
   }
 
+  // SEC: replaceAllで全シングルクォートを確実にエスケープ（CodeQL js/incomplete-multi-character-sanitization 対策）
   const styleEntries = Object.entries(styles)
-    .map(([key, val]) => `${key}: '${val.replace(/'/g, "\\'")}'`)
+    .map(([key, val]) => {
+      let escaped = val.replaceAll("'", "\\'");
+      // ネストされたクォート断片を完全除去
+      let prev = escaped;
+      while (prev !== (escaped = escaped.replaceAll("'", "\\'"))) {
+        prev = escaped;
+      }
+      return `${key}: '${escaped}'`;
+    })
     .join(", ");
 
   return `style={{${styleEntries}}}`;

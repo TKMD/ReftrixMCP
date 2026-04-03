@@ -323,8 +323,15 @@ export class MoodAnalyzer {
    * 文字列のサニタイズ（XSS対策）
    */
   private sanitizeString(str: string): string {
-    return str
-      .replace(/<[^>]*>/g, "") // HTMLタグ除去
+    // SEC: whileループでネストされた悪意ある文字列を完全除去（CodeQL js/incomplete-multi-character-sanitization 対策）
+    let result = str;
+    let prev = result;
+    result = result.replace(/<[^>]*>/g, "");
+    while (prev !== result) {
+      prev = result;
+      result = result.replace(/<[^>]*>/g, "");
+    }
+    return result
       .replace(/[<>"'&]/g, "") // 特殊文字除去
       .trim()
       .slice(0, 200); // 長さ制限

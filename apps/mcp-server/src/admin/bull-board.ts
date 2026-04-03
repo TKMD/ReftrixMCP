@@ -106,6 +106,8 @@ function basicAuthMiddleware(
 
     // HMAC比較パターンで固定時間比較（長さリーク防止: SEC-T1-H1）
     // HMAC comparison pattern for constant-time comparison (prevents length leak)
+    // codeql[js/insufficient-password-hash] — BullMQ UIは内部開発ツール。パスワードは環境変数から取得し、
+    // HMAC+timingSafeEqualで定時間比較。bcrypt等のストレッチングは不要（非ユーザー認証）
     const hmacKey = "reftrix-auth-comparison";
     const hmac = (value: string): Buffer => createHmac("sha256", hmacKey).update(value).digest();
     const userMatch = timingSafeEqual(hmac(providedUser), hmac(username));
