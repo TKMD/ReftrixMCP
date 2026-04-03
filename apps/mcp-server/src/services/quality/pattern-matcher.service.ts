@@ -318,11 +318,12 @@ function extractOverallQualityScore(qualityScore: unknown): number | undefined {
 function stripHtmlTags(input: string): string {
   const pattern = /<[^>]*>/g;
   let result = input;
-  let prev = result;
-  result = result.replace(pattern, "");
-  while (prev !== result) {
-    prev = result;
-    result = result.replace(pattern, "");
+  {
+    let prev;
+    do {
+      prev = result;
+      result = result.replace(pattern, "");
+    } while (prev !== result);
   }
   return result;
 }

@@ -483,14 +483,15 @@ function hasCustomAnimations(html: string): boolean {
  * インラインSVG（パスを含む）、Canvas要素
  */
 function hasOriginalGraphics(html: string): boolean {
-  // インラインSVG（pathを含む）
-  // ReDoS-safe: [\s\S]* を排除し、SVGとpathの存在を個別チェック
-  if (/<svg[\s>]/i.test(html) && /<path[^>]*d=/i.test(html)) {
-    return true;
+  // インラインSVG（pathを含む）— regex不使用でReDoS回避
+  {
+    const lower = html.toLowerCase();
+    if (lower.includes("<svg") && lower.includes("<path") && lower.includes("d=")) {
+      return true;
+    }
   }
-  // Canvas要素
-  // codeql[js/polynomial-redos] — false positive: \b は backtrack せず、入力はDOMPurifyサニタイズ済み
-  if (/<canvas\b/i.test(html)) {
+  // Canvas要素（regex不使用でReDoS回避）
+  if (html.toLowerCase().includes("<canvas")) {
     return true;
   }
   // clip-path（複雑な形状）
@@ -593,10 +594,12 @@ function evaluateOriginality(
   // ===================================
 
   // カスタムカラーパレット検出（CSS変数での色定義）
-  // ReDoS-safe: [\w-]* で文字クラスを限定、入力はDOMPurifyサニタイズ済み
-  // codeql[js/polynomial-redos] — [\w-]* は交互参照なし、最大CSS変数名長は実質制限あり
-  const customColorVars = html.match(/--[\w-]*color[\w-]*:\s*#[0-9a-fA-F]{6}/gi);
-  if (customColorVars && customColorVars.length >= 3) {
+  // regex不使用でReDoS回避: toLowerCase+split+filter で色変数を計数
+  const customColorVarCount = html.split("\n").filter((line) => {
+    const l = line.trim().toLowerCase();
+    return l.startsWith("--") && l.includes("color") && /#[0-9a-f]{6}/i.test(l);
+  }).length;
+  if (customColorVarCount >= 3) {
     score += SCORE_ADJUSTMENTS.CUSTOM_COLOR_PALETTE_BONUS;
     details.push(`CSS変数でカラーパレット定義（+${SCORE_ADJUSTMENTS.CUSTOM_COLOR_PALETTE_BONUS}）`);
   }

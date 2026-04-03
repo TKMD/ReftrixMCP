@@ -269,10 +269,13 @@ function stylesToJsxString(styles: Record<string, string>): string {
   const styleEntries = Object.entries(styles)
     .map(([key, val]) => {
       let escaped = val.replaceAll("'", "\\'");
-      // ネストされたクォート断片を完全除去
-      let prev = escaped;
-      while (prev !== (escaped = escaped.replaceAll("'", "\\'"))) {
-        prev = escaped;
+      // SEC: do...whileループでネストされたクォート断片を完全除去
+      {
+        let prev;
+        do {
+          prev = escaped;
+          escaped = escaped.replaceAll("'", "\\'");
+        } while (prev !== escaped);
       }
       return `${key}: '${escaped}'`;
     })

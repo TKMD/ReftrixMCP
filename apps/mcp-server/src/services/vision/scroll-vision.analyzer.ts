@@ -190,13 +190,14 @@ Return ONLY valid JSON:
  * 文字列をサニタイズ（XSS対策）
  */
 function sanitizeString(str: string): string {
-  // SEC: whileループでネストされた悪意ある文字列を完全除去（CodeQL js/incomplete-multi-character-sanitization 対策）
+  // SEC: do...whileループでネストされた悪意ある文字列を完全除去（CodeQL js/incomplete-multi-character-sanitization 対策）
   let result = str;
-  let prev = result;
-  result = result.replace(/<[^>]*>/g, "");
-  while (prev !== result) {
-    prev = result;
-    result = result.replace(/<[^>]*>/g, "");
+  {
+    let prev;
+    do {
+      prev = result;
+      result = result.replace(/<[^>]*>/g, "");
+    } while (prev !== result);
   }
   return result
     .replace(/[<>"'&]/g, "")

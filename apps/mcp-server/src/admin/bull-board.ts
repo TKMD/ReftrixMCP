@@ -15,7 +15,7 @@
  * @module admin/bull-board
  */
 
-import { timingSafeEqual, createHmac } from "crypto";
+import { timingSafeEqual, scryptSync } from "crypto";
 import express, { type Request, type Response, type NextFunction } from "express";
 import { createBullBoard } from "@bull-board/api";
 import { BullMQAdapter } from "@bull-board/api/bullMQAdapter";
@@ -104,14 +104,12 @@ function basicAuthMiddleware(
     const providedUser = decoded.slice(0, separatorIndex);
     const providedPass = decoded.slice(separatorIndex + 1);
 
-    // HMAC比較パターンで固定時間比較（長さリーク防止: SEC-T1-H1）
-    // HMAC comparison pattern for constant-time comparison (prevents length leak)
-    // codeql[js/insufficient-password-hash] — BullMQ UIは内部開発ツール。パスワードは環境変数から取得し、
-    // HMAC+timingSafeEqualで定時間比較。bcrypt等のストレッチングは不要（非ユーザー認証）
-    const hmacKey = "reftrix-auth-comparison";
-    const hmac = (value: string): Buffer => createHmac("sha256", hmacKey).update(value).digest();
-    const userMatch = timingSafeEqual(hmac(providedUser), hmac(username));
-    const passMatch = timingSafeEqual(hmac(providedPass), hmac(password));
+    // scryptSync + timingSafeEqual で定時間比較（CodeQL js/insufficient-password-hash 対策）
+    // BullMQ UIは内部開発ツール。パスワードは環境変数から取得。
+    const salt = "reftrix-bullmq-auth";
+    const hash = (value: string): Buffer => scryptSync(value, salt, 32);
+    const userMatch = timingSafeEqual(hash(providedUser), hash(username));
+    const passMatch = timingSafeEqual(hash(providedPass), hash(password));
 
     if (userMatch && passMatch) {
       next();

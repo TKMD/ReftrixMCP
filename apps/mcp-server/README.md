@@ -692,7 +692,7 @@ pnpm backfill:embeddings
 ### HTMLサニタイズ / HTML Sanitization
 
 - DOMPurify 3.3.xによるXSS対策
-- スクリプト要素の除去（whileループによるネスト完全除去）
+- スクリプト要素の除去（indexOf-based tag stripping + do...whileネスト完全除去）
 - 外部リソース参照の制限
 
 ### SSRF対策 / SSRF Protection

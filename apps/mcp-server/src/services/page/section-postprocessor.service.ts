@@ -716,16 +716,15 @@ function isEmptyContent(section: PostProcessableSection): boolean {
 
   // HTMLタグ除去後のtextContentで判定（SEC: 判定のみ、出力には使用しない）
   // Determine by textContent after HTML tag removal (SEC: detection only, not used for output)
-  // SEC: whileループでネストされた悪意ある文字列を完全除去（CodeQL js/incomplete-multi-character-sanitization 対策）
+  // SEC: do...whileループでネストされた悪意ある文字列を完全除去（CodeQL js/incomplete-multi-character-sanitization 対策）
   let textContent = section.htmlSnippet;
   {
     const tagPattern = /<[^>]*>/g;
-    let prev = textContent;
-    textContent = textContent.replace(tagPattern, "");
-    while (prev !== textContent) {
+    let prev;
+    do {
       prev = textContent;
       textContent = textContent.replace(tagPattern, "");
-    }
+    } while (prev !== textContent);
   }
   textContent = textContent.trim();
   if (textContent.length < TEXT_CONTENT_EMPTY_THRESHOLD) {

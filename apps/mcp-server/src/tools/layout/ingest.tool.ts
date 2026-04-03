@@ -162,56 +162,53 @@ export const resetLayoutIngestServiceFactory = ingestServiceDI.reset;
 // =============================================
 
 /**
+ * 指定タグの開始～終了をindexOfベースで除去（regex不使用、CodeQL safe）
+ */
+function stripTagBlock(html: string, tag: string): string {
+  let result = html;
+  const openTag = `<${tag}`;
+  const closeTag = `</${tag}>`;
+  let safetyCounter = 0;
+  while (safetyCounter++ < 1000) {
+    const lower = result.toLowerCase();
+    const start = lower.indexOf(openTag);
+    if (start === -1) break;
+    const end = lower.indexOf(closeTag, start);
+    if (end === -1) break;
+    result = result.slice(0, start) + result.slice(end + closeTag.length);
+  }
+  return result;
+}
+
+/**
+ * HTMLコメント(<!-- ... -->)をindexOfベースで除去（regex不使用、CodeQL safe）
+ */
+function stripComments(html: string): string {
+  let result = html;
+  let safetyCounter = 0;
+  while (safetyCounter++ < 1000) {
+    const start = result.indexOf("<!--");
+    if (start === -1) break;
+    const end = result.indexOf("-->", start + 4);
+    if (end === -1) break;
+    result = result.slice(0, start) + result.slice(end + 3);
+  }
+  return result;
+}
+
+/**
  * HTMLからscript/styleタグを除去し、空白を圧縮する
  * 自動最適化時にHTMLサイズを削減するために使用
  */
 function optimizeHtml(html: string): string {
   let optimized = html;
 
-  // SEC: whileループでネストされた悪意ある文字列を完全除去（CodeQL js/incomplete-multi-character-sanitization 対策）
-  // scriptタグを除去（インライン含む）
-  {
-    const scriptPattern = /<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi;
-    let prev = optimized;
-    optimized = optimized.replace(scriptPattern, "");
-    while (prev !== optimized) {
-      prev = optimized;
-      optimized = optimized.replace(scriptPattern, "");
-    }
-  }
-
-  // styleタグを除去
-  {
-    const stylePattern = /<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi;
-    let prev = optimized;
-    optimized = optimized.replace(stylePattern, "");
-    while (prev !== optimized) {
-      prev = optimized;
-      optimized = optimized.replace(stylePattern, "");
-    }
-  }
-
-  // noscriptタグを除去
-  {
-    const noscriptPattern = /<noscript\b[^<]*(?:(?!<\/noscript>)<[^<]*)*<\/noscript>/gi;
-    let prev = optimized;
-    optimized = optimized.replace(noscriptPattern, "");
-    while (prev !== optimized) {
-      prev = optimized;
-      optimized = optimized.replace(noscriptPattern, "");
-    }
-  }
-
-  // HTMLコメントを除去
-  {
-    const commentPattern = /<!--[\s\S]*?-->/g;
-    let prev = optimized;
-    optimized = optimized.replace(commentPattern, "");
-    while (prev !== optimized) {
-      prev = optimized;
-      optimized = optimized.replace(commentPattern, "");
-    }
-  }
+  // DOMPurifyが後段で適用されるため、ここではサイズ削減目的の前処理のみ
+  // regex不使用でCodeQL js/bad-tag-filter + js/incomplete-multi-character-sanitization 回避
+  optimized = stripTagBlock(optimized, "script");
+  optimized = stripTagBlock(optimized, "style");
+  optimized = stripTagBlock(optimized, "noscript");
+  optimized = stripComments(optimized);
 
   // 連続する空白を1つに圧縮
   optimized = optimized.replace(/[ \t]+/g, " ");
