@@ -49,6 +49,13 @@ export { DINOv2Service, DINOV2_EMBEDDING_DIMENSION, DINOV2_INPUT_SIZE } from "./
 export type { DINOv2ServiceConfig } from "./dinov2/index.js";
 export type { DINOv2WorkerMessage, DINOv2WorkerResponse } from "./dinov2/index.js";
 
+// ONNX Runtime availability checker
+export {
+  isOnnxRuntimeAvailable,
+  OnnxRuntimeUnavailableError,
+  safeImportOnnx,
+} from "./onnx-availability.js";
+
 // Search utilities exports (SearchService removed in v0.1.0)
 export { calculateRRF, mergeWithRRF, normalizeRRFScore, toRankedItems } from "./search/index.js";
 export { executeHybridSearch } from "./search/index.js";

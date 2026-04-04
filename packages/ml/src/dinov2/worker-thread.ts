@@ -28,8 +28,10 @@ import type {
 } from "./worker-thread-types.js";
 
 // =====================================================
-// Dynamic import of onnxruntime-node
+// Dynamic import of onnxruntime-node (optional dependency)
 // =====================================================
+
+import { safeImportOnnx } from "../onnx-availability.js";
 
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 type OrtModule = typeof import("onnxruntime-node");
@@ -37,7 +39,7 @@ let ort: OrtModule | null = null;
 
 async function getOrt(): Promise<OrtModule> {
   if (!ort) {
-    ort = await import("onnxruntime-node");
+    ort = await safeImportOnnx();
   }
   return ort;
 }

@@ -73,7 +73,7 @@ Node.js 20+, pnpm 10+, Docker & Docker Compose, [Ollama](https://ollama.com/)
 
 ```bash
 git clone https://github.com/TKMD/ReftrixMCP.git && cd ReftrixMCP
-pnpm install
+pnpm install                                     # CUDA skip is default; see GPU note below
 cp .env.example .env.local                       # edit DATABASE_URL / REDIS_URL as needed
 cp .env.local packages/database/.env             # Prisma CLI requires this copy
 pnpm docker:up                                   # PostgreSQL 18 + pgvector + Redis
@@ -89,6 +89,8 @@ ollama serve                                     # keep running in a separate te
 > **Note**: If you change `.env.local`, also update `packages/database/.env`.
 > `page.analyze` workers are managed by WorkerSupervisor. Run `pnpm --filter @reftrixmcp/mcp-server worker:start:page` to start the worker process.
 > See [Getting Started](docs/users-guide/01-getting-started.md) for GPU configuration and details.
+>
+> **GPU / CUDA**: CUDA binary download is skipped by default (CPU fallback). For GPU acceleration setup, see [Troubleshooting: CUDA Detection](docs/users-guide/04-troubleshooting.md#onnxruntime-cuda-detection).
 
 ### Connect to Claude
 
@@ -169,6 +171,7 @@ MCP Client (Claude Desktop / Code)  --stdio-->  MCP Server (<!-- gen:tool-count 
 
 ## Known limitations
 
+- `onnxruntime-node` is an optional dependency; ML features (embedding, visual search) require explicit install: `pnpm add onnxruntime-node`. Non-ML tools (layout analysis, quality evaluation, code generation) work without it
 - CPU-mode embedding takes ~2-5 s per text; GPU recommended for batch workloads
 - Minimum 16 GB RAM; 32 GB recommended for concurrent analysis with Ollama Vision
 - First embedding call downloads ~400 MB model (multilingual-e5-base)

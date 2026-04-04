@@ -24,6 +24,7 @@ import { createRequire } from "node:module";
 import fs from "node:fs";
 import nodePath from "node:path";
 import type { WorkerMessage, WorkerResponse, WorkerErrorResponse } from "./worker-thread-types.js";
+import { OnnxRuntimeUnavailableError } from "../onnx-availability.js";
 
 // =====================================================
 // Pipeline types (mirrors service.ts DisposablePipeline)
@@ -236,6 +237,10 @@ async function initializePipeline(): Promise<void> {
       console.log("[EmbeddingWorker] ONNX pipeline ready (provider: %s)", resolvedProvider);
     } catch (error) {
       initPromise = null;
+      const code = (error as { code?: string }).code;
+      if (code === "MODULE_NOT_FOUND" || code === "ERR_MODULE_NOT_FOUND") {
+        throw new OnnxRuntimeUnavailableError("text embedding");
+      }
       const message = error instanceof Error ? error.message : "Unknown error";
       throw new Error(`Failed to load embedding model in worker thread: ${message}`);
     }

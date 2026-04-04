@@ -21,6 +21,7 @@ import { fileURLToPath } from "node:url";
 import path from "node:path";
 import type { EmbeddingTextType, EmbeddingServiceConfig, CacheStats } from "./types.js";
 import type { WorkerMessage, WorkerResponse } from "./worker-thread-types.js";
+import { OnnxRuntimeUnavailableError } from "../onnx-availability.js";
 
 /**
  * Disposable pipeline interface (used only in in-process fallback mode).
@@ -502,6 +503,10 @@ export class EmbeddingService {
         }
       } catch (error) {
         this.initPromise = null;
+        const code = (error as { code?: string }).code;
+        if (code === "MODULE_NOT_FOUND" || code === "ERR_MODULE_NOT_FOUND") {
+          throw new OnnxRuntimeUnavailableError("text embedding");
+        }
         const message = error instanceof Error ? error.message : "Unknown error";
         throw new Error(`Failed to load embedding model: ${message}`);
       }

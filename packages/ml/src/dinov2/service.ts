@@ -23,6 +23,7 @@ import { Worker } from "node:worker_threads";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 import type { DINOv2WorkerMessage, DINOv2WorkerResponse } from "./worker-thread-types.js";
+import { safeImportOnnx } from "../onnx-availability.js";
 
 // =====================================================
 // Constants
@@ -280,7 +281,7 @@ export class DINOv2Service {
   // =====================================================
 
   private async initializeInProcess(): Promise<void> {
-    const ortModule = await import("onnxruntime-node");
+    const ortModule = await safeImportOnnx();
     this.inProcessSession = await ortModule.InferenceSession.create(this.modelPath, {
       executionProviders: ["cpu"],
       enableCpuMemArena: false,
@@ -291,7 +292,7 @@ export class DINOv2Service {
   }
 
   private async generateInProcess(imageBuffer: Buffer): Promise<number[]> {
-    const ortModule = await import("onnxruntime-node");
+    const ortModule = await safeImportOnnx();
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const sess = this.inProcessSession as any;

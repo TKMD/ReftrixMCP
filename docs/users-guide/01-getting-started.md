@@ -493,11 +493,20 @@ pnpm build
 | `NODE_ENV`                       | 環境（development/production）/ Environment (development/production)                          | development              |
 | `OLLAMA_BASE_URL`                | Ollama接続URL / Ollama connection URL                                                         | `http://localhost:11434` |
 | `ONNX_EXECUTION_PROVIDER`        | ONNX実行プロバイダ（cuda/rocm/未設定でCPU）/ ONNX execution provider (cuda/rocm/CPU if unset) | -                        |
+| `ONNXRUNTIME_NODE_INSTALL_CUDA`  | CUDAバイナリDL制御（skip/v12）/ CUDA binary download control (skip/v12)                       | `skip`                   |
 | `WORKER_MAX_JOBS_BEFORE_RESTART` | N件完了後にワーカーを再起動 / Restart worker after N jobs                                     | `1`                      |
 
 > **注記 / Note**: 上記は主要な環境変数のみです。完全な環境変数リストは `.env.example` を参照してください。
 >
 > The above lists only the key environment variables. See `.env.example` for the complete list.
+>
+> **onnxruntime-node（optional dependency）**: `onnxruntime-node` は optional dependency のため、インストールに失敗しても `pnpm install` / `npm install` は成功します。ML機能（Embedding生成、DINOv2 visual similarity search）を使用するには `pnpm add onnxruntime-node` で明示的にインストールしてください。非ML機能（`layout.ingest` HTML解析、`quality.evaluate`、`layout.inspect` 等）は onnxruntime-node なしで動作します。
+>
+> **onnxruntime-node (optional dependency)**: `onnxruntime-node` is an optional dependency, so `pnpm install` / `npm install` will succeed even if its installation fails. To use ML features (embedding generation, DINOv2 visual similarity search), explicitly install it with `pnpm add onnxruntime-node`. Non-ML features (`layout.ingest` HTML parsing, `quality.evaluate`, `layout.inspect`, etc.) work without onnxruntime-node.
+>
+> **CUDA GPU アクセラレーション / CUDA GPU Acceleration**: デフォルトではCUDAバイナリのダウンロードはスキップされます（onnxruntime-nodeがCUDA 12をCUDA 11と誤検出するため）。Embeddingは初期状態でCPUで実行されます。CUDA GPUアクセラレーションの有効化手順は [トラブルシューティング: onnxruntime CUDA検出エラー](04-troubleshooting.md#onnxruntime-cuda-detection) を参照してください。
+>
+> By default, CUDA binary download is skipped (onnxruntime-node misdetects CUDA 12 as CUDA 11). Embeddings run on CPU out of the box. For CUDA GPU acceleration setup, see [Troubleshooting: onnxruntime CUDA Detection Error](04-troubleshooting.md#onnxruntime-cuda-detection).
 
 ### C. ディレクトリ構造 / Directory Structure
 

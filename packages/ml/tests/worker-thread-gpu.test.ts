@@ -664,9 +664,10 @@ describe("P2-H: GPU推論サポート (CUDA/ROCm)", () => {
       }
     });
 
-    it("onnxruntime-nodeがdependenciesに含まれること（CPU必須）", () => {
-      const deps = packageJson.dependencies as Record<string, string>;
-      expect(deps["onnxruntime-node"]).toBeDefined();
+    it("onnxruntime-nodeがoptionalDependenciesに含まれること（graceful degradation対応）", () => {
+      const optDeps = packageJson.optionalDependencies as Record<string, string> | undefined;
+      expect(optDeps).toBeDefined();
+      expect(optDeps!["onnxruntime-node"]).toBeDefined();
     });
 
     it("verifyCudaAvailability()がlibonnxruntime_providers_cuda.soを検出すること", () => {

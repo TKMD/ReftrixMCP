@@ -836,6 +836,74 @@ GPU検出ログに警告が表示される / Warning shown in GPU detection logs
 >
 > Reftrix auto-detects Apple Silicon (M1/M2/M3+) Metal GPU. It works normally without NVIDIA GPU tools, and no additional configuration is needed.
 
+### 6.8 onnxruntime CUDA検出エラー / onnxruntime CUDA Detection Error {#onnxruntime-cuda-detection}
+
+> **重要な変更 / Important Change**: `onnxruntime-node` は `optionalDependencies` に移動しました。`npm install` / `pnpm install` は onnxruntime-node のインストールに失敗してもエラーにはなりません。ML機能（Embedding生成、DINOv2 visual similarity）は onnxruntime-node がインストールされていない場合、「onnxruntime-node is not available」メッセージとともにgraceful degradeします。非ML機能（`layout.ingest` HTML解析、`quality.evaluate`、`layout.inspect`、`layout.generate_code` 等）は onnxruntime-node なしで動作します。
+>
+> **Important Change**: `onnxruntime-node` has been moved to `optionalDependencies`. `npm install` / `pnpm install` will succeed even if onnxruntime-node installation fails. ML features (embedding generation, DINOv2 visual similarity) gracefully degrade with an "onnxruntime-node is not available" message when it is not installed. Non-ML features (`layout.ingest` HTML parsing, `quality.evaluate`, `layout.inspect`, `layout.generate_code`, etc.) work without onnxruntime-node.
+
+**症状 / Symptoms:**
+
+```
+# ケース1: ML機能使用時にonnxruntime-nodeが未インストール / Case 1: onnxruntime-node not installed when using ML features
+OnnxRuntimeUnavailableError: onnxruntime-node is not available. Install it with: pnpm add onnxruntime-node
+
+# ケース2: CUDA検出エラー（GPU利用時）/ Case 2: CUDA detection error (when using GPU)
+Error during onnxruntime-node postinstall: CUDA version mismatch (detects CUDA 11, actual CUDA 12)
+```
+
+**原因 / Cause:**
+
+- **ケース1 / Case 1**: `onnxruntime-node` は optional dependency のため、プラットフォームやビルド環境によってはインストールされないことがあります。ML機能を使用するには明示的にインストールが必要です。
+- **ケース2 / Case 2**: onnxruntime-node の postinstall スクリプトがシステムの CUDA 12 を CUDA 11 と誤検出し、互換性のないバイナリをダウンロードしようとしてエラーになります。
+
+- **Case 1**: `onnxruntime-node` is an optional dependency, so it may not be installed depending on the platform or build environment. Explicit installation is required to use ML features.
+- **Case 2**: The onnxruntime-node postinstall script misdetects the system's CUDA 12 as CUDA 11 and attempts to download incompatible binaries.
+
+**ML機能を有効化する場合 / To enable ML features:**
+
+```bash
+# onnxruntime-node を明示的にインストール / Explicitly install onnxruntime-node
+pnpm add onnxruntime-node
+# または / or
+npm install onnxruntime-node
+```
+
+**CUDA検出エラーの解決策 / CUDA Detection Error Solutions:**
+
+| 方法 / Method                            | コマンド / Command                                                                       | 説明 / Description                                                       |
+| ---------------------------------------- | ---------------------------------------------------------------------------------------- | ------------------------------------------------------------------------ |
+| **.npmrc（推奨）/ .npmrc (recommended)** | `.npmrc` に `onnxruntime-node-install-cuda=skip` を追加 / Add to `.npmrc`                | プロジェクト単位で恒久的にスキップ / Permanently skip per project        |
+| **環境変数 / Environment variable**      | `ONNXRUNTIME_NODE_INSTALL_CUDA=skip pnpm install`                                        | 一時的にスキップ / Temporarily skip                                      |
+| **npmフラグ / npm flag**                 | `npm install --onnxruntime-node-install-cuda=skip`                                       | npmユーザー向け / For npm users                                          |
+| **手動CUDA設定 / Manual CUDA setup**     | `ONNXRUNTIME_NODE_INSTALL_CUDA=v12 node node_modules/onnxruntime-node/script/install.js` | CUDA 12プロバイダを正しくインストール / Install correct CUDA 12 provider |
+
+> **Note / 注意**: ReftrixMCPのリポジトリには `.npmrc` に `onnxruntime-node-install-cuda=skip` が設定済みです。`git clone` 後の `pnpm install` ではこの問題は発生しません。npm パッケージ（`@reftrixmcp/mcp-server`）をインストールする場合に環境変数またはフラグが必要です。
+>
+> The ReftrixMCP repository already has `onnxruntime-node-install-cuda=skip` in `.npmrc`. This issue does not occur after `git clone` + `pnpm install`. The environment variable or flag is needed when installing the npm package (`@reftrixmcp/mcp-server`).
+
+**CUDA GPUを有効化する場合 / To enable CUDA GPU:**
+
+```bash
+# 1. onnxruntime-nodeをインストール（未インストールの場合）/ Install onnxruntime-node (if not installed)
+pnpm add onnxruntime-node
+
+# 2. CUDAプロバイダをダウンロード / Download CUDA provider
+ONNXRUNTIME_NODE_INSTALL_CUDA=v12 node node_modules/onnxruntime-node/script/install.js
+
+# 3. LD_LIBRARY_PATHにCUDA 12ランタイムを追加 / Add CUDA 12 runtime to LD_LIBRARY_PATH
+pip install nvidia-cudnn-cu12 nvidia-cublas-cu12 nvidia-cuda-runtime-cu12 \
+  nvidia-cufft-cu12 nvidia-curand-cu12 nvidia-cuda-nvrtc-cu12
+export LD_LIBRARY_PATH="$(python3 -c 'import nvidia.cudnn; print(nvidia.cudnn.__path__[0])')/lib:$LD_LIBRARY_PATH"
+
+# 4. 環境変数を設定 / Set environment variable
+export ONNX_EXECUTION_PROVIDER=cuda
+```
+
+> **Note / 注意**: 上記の `nvidia-*` パッケージはNVIDIA独自のEULAに従います。詳細は各パッケージのライセンスを確認してください。
+>
+> The `nvidia-*` packages above are subject to NVIDIA's own EULA. Please review each package's license for details.
+
 ---
 
 ## 7. その他の問題 / Other Issues
